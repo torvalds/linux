@@ -696,15 +696,7 @@ error:
 	/* any errors get returned through the urb completion */
 	spin_lock_irq(&hcd_root_hub_lock);
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
-
-	/* This peculiar use of spinlocks echoes what real HC drivers do.
-	 * Avoiding calls to local_irq_disable/enable makes the code
-	 * RT-friendly.
-	 */
-	spin_unlock(&hcd_root_hub_lock);
 	usb_hcd_giveback_urb(hcd, urb, status);
-	spin_lock(&hcd_root_hub_lock);
-
 	spin_unlock_irq(&hcd_root_hub_lock);
 	return 0;
 }
@@ -744,9 +736,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 			memcpy(urb->transfer_buffer, buffer, length);
 
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
-			spin_unlock(&hcd_root_hub_lock);
 			usb_hcd_giveback_urb(hcd, urb, 0);
-			spin_lock(&hcd_root_hub_lock);
 		} else {
 			length = 0;
 			set_bit(HCD_FLAG_POLL_PENDING, &hcd->flags);
@@ -836,10 +826,7 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		if (urb == hcd->status_urb) {
 			hcd->status_urb = NULL;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
-
-			spin_unlock(&hcd_root_hub_lock);
 			usb_hcd_giveback_urb(hcd, urb, status);
-			spin_lock(&hcd_root_hub_lock);
 		}
 	}
  done:
@@ -1656,6 +1643,72 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
 
 /*-------------------------------------------------------------------------*/
 
+static void __usb_hcd_giveback_urb(struct urb *urb)
+{
+	struct usb_hcd *hcd = bus_to_hcd(urb->dev->bus);
+	int status = urb->unlinked;
+	unsigned long flags;
+
+	urb->hcpriv = NULL;
+	if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
+	    urb->actual_length < urb->transfer_buffer_length &&
+	    !status))
+		status = -EREMOTEIO;
+
+	unmap_urb_for_dma(hcd, urb);
+	usbmon_urb_complete(&hcd->self, urb, status);
+	usb_unanchor_urb(urb);
+
+	/* pass ownership to the completion handler */
+	urb->status = status;
+
+	/*
+	 * We disable local IRQs here avoid possible deadlock because
+	 * drivers may call spin_lock() to hold lock which might be
+	 * acquired in one hard interrupt handler.
+	 *
+	 * The local_irq_save()/local_irq_restore() around complete()
+	 * will be removed if current USB drivers have been cleaned up
+	 * and no one may trigger the above deadlock situation when
+	 * running complete() in tasklet.
+	 */
+	local_irq_save(flags);
+	urb->complete(urb);
+	local_irq_restore(flags);
+
+	atomic_dec(&urb->use_count);
+	if (unlikely(atomic_read(&urb->reject)))
+		wake_up(&usb_kill_urb_queue);
+	usb_put_urb(urb);
+}
+
+static void usb_giveback_urb_bh(unsigned long param)
+{
+	struct giveback_urb_bh *bh = (struct giveback_urb_bh *)param;
+	struct list_head local_list;
+
+	spin_lock_irq(&bh->lock);
+	bh->running = true;
+ restart:
+	list_replace_init(&bh->head, &local_list);
+	spin_unlock_irq(&bh->lock);
+
+	while (!list_empty(&local_list)) {
+		struct urb *urb;
+
+		urb = list_entry(local_list.next, struct urb, urb_list);
+		list_del_init(&urb->urb_list);
+		__usb_hcd_giveback_urb(urb);
+	}
+
+	/* check if there are new URBs to giveback */
+	spin_lock_irq(&bh->lock);
+	if (!list_empty(&bh->head))
+		goto restart;
+	bh->running = false;
+	spin_unlock_irq(&bh->lock);
+}
+
 /**
  * usb_hcd_giveback_urb - return URB from HCD to device driver
  * @hcd: host controller returning the URB
@@ -1675,25 +1728,37 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
  */
 void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 {
-	urb->hcpriv = NULL;
-	if (unlikely(urb->unlinked))
-		status = urb->unlinked;
-	else if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-			urb->actual_length < urb->transfer_buffer_length &&
-			!status))
-		status = -EREMOTEIO;
+	struct giveback_urb_bh *bh;
+	bool running, high_prio_bh;
 
-	unmap_urb_for_dma(hcd, urb);
-	usbmon_urb_complete(&hcd->self, urb, status);
-	usb_unanchor_urb(urb);
+	/* pass status to tasklet via unlinked */
+	if (likely(!urb->unlinked))
+		urb->unlinked = status;
 
-	/* pass ownership to the completion handler */
-	urb->status = status;
-	urb->complete (urb);
-	atomic_dec (&urb->use_count);
-	if (unlikely(atomic_read(&urb->reject)))
-		wake_up (&usb_kill_urb_queue);
-	usb_put_urb (urb);
+	if (!hcd_giveback_urb_in_bh(hcd) && !is_root_hub(urb->dev)) {
+		__usb_hcd_giveback_urb(urb);
+		return;
+	}
+
+	if (usb_pipeisoc(urb->pipe) || usb_pipeint(urb->pipe)) {
+		bh = &hcd->high_prio_bh;
+		high_prio_bh = true;
+	} else {
+		bh = &hcd->low_prio_bh;
+		high_prio_bh = false;
+	}
+
+	spin_lock(&bh->lock);
+	list_add_tail(&urb->urb_list, &bh->head);
+	running = bh->running;
+	spin_unlock(&bh->lock);
+
+	if (running)
+		;
+	else if (high_prio_bh)
+		tasklet_hi_schedule(&bh->bh);
+	else
+		tasklet_schedule(&bh->bh);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_giveback_urb);
 
@@ -2322,6 +2387,14 @@ EXPORT_SYMBOL_GPL (usb_hc_died);
 
 /*-------------------------------------------------------------------------*/
 
+static void init_giveback_urb_bh(struct giveback_urb_bh *bh)
+{
+
+	spin_lock_init(&bh->lock);
+	INIT_LIST_HEAD(&bh->head);
+	tasklet_init(&bh->bh, usb_giveback_urb_bh, (unsigned long)bh);
+}
+
 /**
  * usb_create_shared_hcd - create and initialize an HCD structure
  * @driver: HC driver that will use this hcd
@@ -2590,6 +2663,10 @@ int usb_add_hcd(struct usb_hcd *hcd,
 			&& device_can_wakeup(&hcd->self.root_hub->dev))
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
 
+	/* initialize tasklets */
+	init_giveback_urb_bh(&hcd->high_prio_bh);
+	init_giveback_urb_bh(&hcd->low_prio_bh);
+
 	/* enable irqs just before we start the controller,
 	 * if the BIOS provides legacy PCI irqs.
 	 */
@@ -2697,6 +2774,16 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	mutex_lock(&usb_bus_list_lock);
 	usb_disconnect(&rhdev);		/* Sets rhdev to NULL */
 	mutex_unlock(&usb_bus_list_lock);
+
+	/*
+	 * tasklet_kill() isn't needed here because:
+	 * - driver's disconnect() called from usb_disconnect() should
+	 *   make sure its URBs are completed during the disconnect()
+	 *   callback
+	 *
+	 * - it is too late to run complete() here since driver may have
+	 *   been removed already now
+	 */
 
 	/* Prevent any more root-hub status calls from the timer.
 	 * The HCD might still restart the timer (if a port status change
