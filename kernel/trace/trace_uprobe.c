@@ -682,59 +682,6 @@ static int uprobe_event_define_fields(struct ftrace_event_call *event_call)
 	return 0;
 }
 
-#define LEN_OR_ZERO		(len ? len - pos : 0)
-static int __set_print_fmt(struct trace_uprobe *tu, char *buf, int len)
-{
-	const char *fmt, *arg;
-	int i;
-	int pos = 0;
-
-	if (is_ret_probe(tu)) {
-		fmt = "(%lx <- %lx)";
-		arg = "REC->" FIELD_STRING_FUNC ", REC->" FIELD_STRING_RETIP;
-	} else {
-		fmt = "(%lx)";
-		arg = "REC->" FIELD_STRING_IP;
-	}
-
-	/* When len=0, we just calculate the needed length */
-
-	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"%s", fmt);
-
-	for (i = 0; i < tu->tp.nr_args; i++) {
-		pos += snprintf(buf + pos, LEN_OR_ZERO, " %s=%s",
-				tu->tp.args[i].name, tu->tp.args[i].type->fmt);
-	}
-
-	pos += snprintf(buf + pos, LEN_OR_ZERO, "\", %s", arg);
-
-	for (i = 0; i < tu->tp.nr_args; i++) {
-		pos += snprintf(buf + pos, LEN_OR_ZERO, ", REC->%s",
-				tu->tp.args[i].name);
-	}
-
-	return pos;	/* return the length of print_fmt */
-}
-#undef LEN_OR_ZERO
-
-static int set_print_fmt(struct trace_uprobe *tu)
-{
-	char *print_fmt;
-	int len;
-
-	/* First: called with 0 length to calculate the needed length */
-	len = __set_print_fmt(tu, NULL, 0);
-	print_fmt = kmalloc(len + 1, GFP_KERNEL);
-	if (!print_fmt)
-		return -ENOMEM;
-
-	/* Second: actually write the @print_fmt */
-	__set_print_fmt(tu, print_fmt, len + 1);
-	tu->tp.call.print_fmt = print_fmt;
-
-	return 0;
-}
-
 #ifdef CONFIG_PERF_EVENTS
 static bool
 __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
@@ -966,7 +913,7 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 	call->event.funcs = &uprobe_funcs;
 	call->class->define_fields = uprobe_event_define_fields;
 
-	if (set_print_fmt(tu) < 0)
+	if (set_print_fmt(&tu->tp, is_ret_probe(tu)) < 0)
 		return -ENOMEM;
 
 	ret = register_ftrace_event(&call->event);

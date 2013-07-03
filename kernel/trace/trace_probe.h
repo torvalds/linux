@@ -226,3 +226,5 @@ store_trace_args(int ent_size, struct trace_probe *tp, struct pt_regs *regs,
 				   data + tp->args[i].offset);
 	}
 }
+
+extern int set_print_fmt(struct trace_probe *tp, bool is_return);
