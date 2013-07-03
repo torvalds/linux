@@ -240,17 +240,11 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit ab3100_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver ab3100_rtc_driver = {
 	.driver = {
 		.name = "ab3100-rtc",
 		.owner = THIS_MODULE,
 	},
-	.remove	 = __exit_p(ab3100_rtc_remove),
 };
 
 module_platform_driver_probe(ab3100_rtc_driver, ab3100_rtc_probe);
