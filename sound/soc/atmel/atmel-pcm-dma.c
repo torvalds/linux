@@ -175,19 +175,6 @@ err:
 	return ret;
 }
 
-static int atmel_pcm_dma_prepare(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct atmel_pcm_dma_params *prtd;
-
-	prtd = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-
-	ssc_writex(prtd->ssc->regs, SSC_IER, prtd->mask->ssc_error);
-	ssc_writex(prtd->ssc->regs, SSC_CR, prtd->mask->ssc_enable);
-
-	return 0;
-}
-
 static int atmel_pcm_open(struct snd_pcm_substream *substream)
 {
 	snd_soc_set_runtime_hwparams(substream, &atmel_pcm_dma_hardware);
@@ -200,7 +187,6 @@ static struct snd_pcm_ops atmel_pcm_ops = {
 	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= atmel_pcm_hw_params,
-	.prepare	= atmel_pcm_dma_prepare,
 	.trigger	= snd_dmaengine_pcm_trigger,
 	.pointer	= snd_dmaengine_pcm_pointer_no_residue,
 	.mmap		= atmel_pcm_mmap,
