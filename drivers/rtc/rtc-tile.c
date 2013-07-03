@@ -91,21 +91,12 @@ static int tile_rtc_probe(struct platform_device *dev)
 	return 0;
 }
 
-/*
- * Device cleanup routine.
- */
-static int tile_rtc_remove(struct platform_device *dev)
-{
-	return 0;
-}
-
 static struct platform_driver tile_rtc_platform_driver = {
 	.driver		= {
 		.name	= "rtc-tile",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tile_rtc_probe,
-	.remove		= tile_rtc_remove,
 };
 
 /*
