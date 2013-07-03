@@ -399,7 +399,23 @@ sub seed_camelcase_includes {
 	return if ($camelcase_seeded);
 
 	my $files;
+	my $camelcase_git_file = "";
+
 	if (-d ".git") {
+		my $git_last_include_commit = `git log --no-merges --pretty=format:"%h%n" -1 -- include`;
+		chomp $git_last_include_commit;
+		$camelcase_git_file = ".checkpatch-camelcase.$git_last_include_commit";
+		if (-f $camelcase_git_file) {
+			open(my $camelcase_file, '<', "$camelcase_git_file")
+			    or warn "$P: Can't read '$camelcase_git_file' $!\n";
+			while (<$camelcase_file>) {
+				chomp;
+				$camelcase{$_} = 1;
+			}
+			close($camelcase_file);
+
+			return;
+		}
 		$files = `git ls-files include`;
 	} else {
 		$files = `find $root/include -name "*.h"`;
@@ -409,6 +425,16 @@ sub seed_camelcase_includes {
 		seed_camelcase_file($file);
 	}
 	$camelcase_seeded = 1;
+
+	if ($camelcase_git_file ne "") {
+		unlink glob ".checkpatch-camelcase.*";
+		open(my $camelcase_file, '>', "$camelcase_git_file")
+		    or warn "$P: Can't write '$camelcase_git_file' $!\n";
+		foreach (sort { lc($a) cmp lc($b) } keys(%camelcase)) {
+			print $camelcase_file ("$_\n");
+		}
+		close($camelcase_file);
+	}
 }
 
 $chk_signoff = 0 if ($file);
