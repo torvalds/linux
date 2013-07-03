@@ -505,7 +505,7 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
 
 	page_cache_get(page);
 	if (!pagevec_space(pvec))
-		__pagevec_lru_add(pvec, lru);
+		__pagevec_lru_add(pvec);
 	pagevec_add(pvec, page);
 	put_cpu_var(lru_add_pvec);
 }
@@ -628,7 +628,7 @@ void lru_add_drain_cpu(int cpu)
 	struct pagevec *pvec = &per_cpu(lru_add_pvec, cpu);
 
 	if (pagevec_count(pvec))
-		__pagevec_lru_add(pvec, NR_LRU_LISTS);
+		__pagevec_lru_add(pvec);
 
 	pvec = &per_cpu(lru_rotate_pvecs, cpu);
 	if (pagevec_count(pvec)) {
@@ -832,12 +832,10 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
 static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 				 void *arg)
 {
-	enum lru_list requested_lru = (enum lru_list)arg;
 	int file = page_is_file_cache(page);
 	int active = PageActive(page);
 	enum lru_list lru = page_lru(page);
 
-	WARN_ON_ONCE(requested_lru < NR_LRU_LISTS && requested_lru != lru);
 	VM_BUG_ON(PageUnevictable(page));
 	VM_BUG_ON(PageLRU(page));
 
@@ -851,11 +849,9 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
  * Add the passed pages to the LRU, then drop the caller's refcount
  * on them.  Reinitialises the caller's pagevec.
  */
-void __pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
+void __pagevec_lru_add(struct pagevec *pvec)
 {
-	VM_BUG_ON(is_unevictable_lru(lru));
-
-	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, (void *)lru);
+	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, NULL);
 }
 EXPORT_SYMBOL(__pagevec_lru_add);
 
