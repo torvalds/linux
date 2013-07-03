@@ -2931,7 +2931,7 @@ static int sd_probe(struct device *dev)
 	device_initialize(&sdkp->dev);
 	sdkp->dev.parent = dev;
 	sdkp->dev.class = &sd_disk_class;
-	dev_set_name(&sdkp->dev, dev_name(dev));
+	dev_set_name(&sdkp->dev, "%s", dev_name(dev));
 
 	if (device_add(&sdkp->dev))
 		goto out_free_index;
