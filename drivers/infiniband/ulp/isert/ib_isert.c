@@ -388,6 +388,7 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	init_waitqueue_head(&isert_conn->conn_wait_comp_err);
 	kref_init(&isert_conn->conn_kref);
 	kref_get(&isert_conn->conn_kref);
+	mutex_init(&isert_conn->conn_mutex);
 
 	cma_id->context = isert_conn;
 	isert_conn->conn_cm_id = cma_id;
@@ -540,15 +541,32 @@ isert_disconnect_work(struct work_struct *work)
 				struct isert_conn, conn_logout_work);
 
 	pr_debug("isert_disconnect_work(): >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
-
+	mutex_lock(&isert_conn->conn_mutex);
 	isert_conn->state = ISER_CONN_DOWN;
 
 	if (isert_conn->post_recv_buf_count == 0 &&
 	    atomic_read(&isert_conn->post_send_buf_count) == 0) {
 		pr_debug("Calling wake_up(&isert_conn->conn_wait);\n");
-		wake_up(&isert_conn->conn_wait);
+		mutex_unlock(&isert_conn->conn_mutex);
+		goto wake_up;
 	}
+	if (!isert_conn->conn_cm_id) {
+		mutex_unlock(&isert_conn->conn_mutex);
+		isert_put_conn(isert_conn);
+		return;
+	}
+	if (!isert_conn->logout_posted) {
+		pr_debug("Calling rdma_disconnect for !logout_posted from"
+			 " isert_disconnect_work\n");
+		rdma_disconnect(isert_conn->conn_cm_id);
+		mutex_unlock(&isert_conn->conn_mutex);
+		iscsit_cause_connection_reinstatement(isert_conn->conn, 0);
+		goto wake_up;
+	}
+	mutex_unlock(&isert_conn->conn_mutex);
 
+wake_up:
+	wake_up(&isert_conn->conn_wait);
 	isert_put_conn(isert_conn);
 }
 
@@ -1439,7 +1457,11 @@ isert_cq_comp_err(struct iser_tx_desc *tx_desc, struct isert_conn *isert_conn)
 		pr_debug("isert_cq_comp_err >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 		pr_debug("Calling wake_up from isert_cq_comp_err\n");
 
-		isert_conn->state = ISER_CONN_TERMINATING;
+		mutex_lock(&isert_conn->conn_mutex);
+		if (isert_conn->state != ISER_CONN_DOWN)
+			isert_conn->state = ISER_CONN_TERMINATING;
+		mutex_unlock(&isert_conn->conn_mutex);
+
 		wake_up(&isert_conn->conn_wait_comp_err);
 	}
 }
@@ -2209,6 +2231,17 @@ isert_free_np(struct iscsi_np *np)
 	kfree(isert_np);
 }
 
+static int isert_check_state(struct isert_conn *isert_conn, int state)
+{
+	int ret;
+
+	mutex_lock(&isert_conn->conn_mutex);
+	ret = (isert_conn->state == state);
+	mutex_unlock(&isert_conn->conn_mutex);
+
+	return ret;
+}
+
 static void isert_free_conn(struct iscsi_conn *conn)
 {
 	struct isert_conn *isert_conn = conn->context;
@@ -2218,26 +2251,43 @@ static void isert_free_conn(struct iscsi_conn *conn)
 	 * Decrement post_send_buf_count for special case when called
 	 * from isert_do_control_comp() -> iscsit_logout_post_handler()
 	 */
+	mutex_lock(&isert_conn->conn_mutex);
 	if (isert_conn->logout_posted)
 		atomic_dec(&isert_conn->post_send_buf_count);
 
-	if (isert_conn->conn_cm_id)
+	if (isert_conn->conn_cm_id && isert_conn->state != ISER_CONN_DOWN) {
+		pr_debug("Calling rdma_disconnect from isert_free_conn\n");
 		rdma_disconnect(isert_conn->conn_cm_id);
+	}
 	/*
 	 * Only wait for conn_wait_comp_err if the isert_conn made it
 	 * into full feature phase..
 	 */
-	if (isert_conn->state > ISER_CONN_INIT) {
+	if (isert_conn->state == ISER_CONN_UP) {
 		pr_debug("isert_free_conn: Before wait_event comp_err %d\n",
 			 isert_conn->state);
-		wait_event(isert_conn->conn_wait_comp_err,
-			   isert_conn->state == ISER_CONN_TERMINATING);
-		pr_debug("isert_free_conn: After wait_event #1 >>>>>>>>>>>>\n");
-	}
+		mutex_unlock(&isert_conn->conn_mutex);
 
-	pr_debug("isert_free_conn: wait_event conn_wait %d\n", isert_conn->state);
-	wait_event(isert_conn->conn_wait, isert_conn->state == ISER_CONN_DOWN);
-	pr_debug("isert_free_conn: After wait_event #2 >>>>>>>>>>>>>>>>>>>>\n");
+		wait_event(isert_conn->conn_wait_comp_err,
+			  (isert_check_state(isert_conn, ISER_CONN_TERMINATING)));
+
+		wait_event(isert_conn->conn_wait,
+			  (isert_check_state(isert_conn, ISER_CONN_DOWN)));
+
+		isert_put_conn(isert_conn);
+		return;
+	}
+	if (isert_conn->state == ISER_CONN_INIT) {
+		mutex_unlock(&isert_conn->conn_mutex);
+		isert_put_conn(isert_conn);
+		return;
+	}
+	pr_debug("isert_free_conn: wait_event conn_wait %d\n",
+		 isert_conn->state);
+	mutex_unlock(&isert_conn->conn_mutex);
+
+	wait_event(isert_conn->conn_wait,
+		  (isert_check_state(isert_conn, ISER_CONN_DOWN)));
 
 	isert_put_conn(isert_conn);
 }

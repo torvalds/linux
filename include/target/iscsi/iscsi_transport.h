@@ -73,6 +73,10 @@ extern int iscsit_logout_post_handler(struct iscsi_cmd *, struct iscsi_conn *);
  */
 extern void iscsit_increment_maxcmdsn(struct iscsi_cmd *, struct iscsi_session *);
 /*
+ * From iscsi_target_erl0.c
+ */
+extern void iscsit_cause_connection_reinstatement(struct iscsi_conn *, int);
+/*
  * From iscsi_target_erl1.c
  */
 extern void iscsit_stop_dataout_timer(struct iscsi_cmd *);
