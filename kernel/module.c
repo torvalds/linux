@@ -482,23 +482,28 @@ static inline void __percpu *mod_percpu(struct module *mod)
 	return mod->percpu;
 }
 
-static int percpu_modalloc(struct module *mod,
-			   unsigned long size, unsigned long align)
+static int percpu_modalloc(struct module *mod, struct load_info *info)
 {
+	Elf_Shdr *pcpusec = &info->sechdrs[info->index.pcpu];
+	unsigned long align = pcpusec->sh_addralign;
+
+	if (!pcpusec->sh_size)
+		return 0;
+
 	if (align > PAGE_SIZE) {
 		printk(KERN_WARNING "%s: per-cpu alignment %li > %li\n",
 		       mod->name, align, PAGE_SIZE);
 		align = PAGE_SIZE;
 	}
 
-	mod->percpu = __alloc_reserved_percpu(size, align);
+	mod->percpu = __alloc_reserved_percpu(pcpusec->sh_size, align);
 	if (!mod->percpu) {
 		printk(KERN_WARNING
 		       "%s: Could not allocate %lu bytes percpu data\n",
-		       mod->name, size);
+		       mod->name, (unsigned long)pcpusec->sh_size);
 		return -ENOMEM;
 	}
-	mod->percpu_size = size;
+	mod->percpu_size = pcpusec->sh_size;
 	return 0;
 }
 
@@ -563,10 +568,12 @@ static inline void __percpu *mod_percpu(struct module *mod)
 {
 	return NULL;
 }
-static inline int percpu_modalloc(struct module *mod,
-				  unsigned long size, unsigned long align)
+static int percpu_modalloc(struct module *mod, struct load_info *info)
 {
-	return -ENOMEM;
+	/* UP modules shouldn't have this section: ENOMEM isn't quite right */
+	if (info->sechdrs[info->index.pcpu].sh_size != 0)
+		return -ENOMEM;
+	return 0;
 }
 static inline void percpu_modfree(struct module *mod)
 {
@@ -2976,16 +2983,6 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 	return mod;
 }
 
-static int alloc_module_percpu(struct module *mod, struct load_info *info)
-{
-	Elf_Shdr *pcpusec = &info->sechdrs[info->index.pcpu];
-	if (!pcpusec->sh_size)
-		return 0;
-
-	/* We have a special allocation for this section. */
-	return percpu_modalloc(mod, pcpusec->sh_size, pcpusec->sh_addralign);
-}
-
 /* mod is no longer valid after this! */
 static void module_deallocate(struct module *mod, struct load_info *info)
 {
@@ -3260,7 +3257,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 #endif
 
 	/* To avoid stressing percpu allocator, do this once we're unique. */
-	err = alloc_module_percpu(mod, info);
+	err = percpu_modalloc(mod, info);
 	if (err)
 		goto unlink_mod;
 
