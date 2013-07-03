@@ -45,6 +45,7 @@
 ENTRY(tegra_resume)
 	check_cpu_part_num 0xc09, r8, r9
 	bleq	v7_invalidate_l1
+	blne	tegra_init_l2_for_a15
 
 	cpu_id	r0
 	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6

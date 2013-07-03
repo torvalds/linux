@@ -69,6 +69,28 @@ ENDPROC(tegra_disable_clean_inv_dcache)
 
 #ifdef CONFIG_PM_SLEEP
 /*
+ * tegra_init_l2_for_a15
+ *
+ * set up the correct L2 cache data RAM latency
+ */
+ENTRY(tegra_init_l2_for_a15)
+	mrc	p15, 0, r0, c0, c0, 5
+	ubfx	r0, r0, #8, #4
+	tst	r0, #1				@ only need for cluster 0
+	bne	_exit_init_l2_a15
+
+	mrc	p15, 0x1, r0, c9, c0, 2
+	and	r0, r0, #7
+	cmp	r0, #2
+	bicne	r0, r0, #7
+	orrne	r0, r0, #2
+	mcrne	p15, 0x1, r0, c9, c0, 2
+_exit_init_l2_a15:
+
+	mov	pc, lr
+ENDPROC(tegra_init_l2_for_a15)
+
+/*
  * tegra_sleep_cpu_finish(unsigned long v2p)
  *
  * enters suspend in LP2 by turning off the mmu and jumping to
