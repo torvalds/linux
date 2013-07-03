@@ -199,7 +199,6 @@ static int __init msm6242_rtc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct msm6242_priv *priv;
 	struct rtc_device *rtc;
-	int error;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -216,17 +215,11 @@ static int __init msm6242_rtc_probe(struct platform_device *pdev)
 
 	rtc = devm_rtc_device_register(&pdev->dev, "rtc-msm6242",
 				&msm6242_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		error = PTR_ERR(rtc);
-		goto out_unmap;
-	}
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 
 	priv->rtc = rtc;
 	return 0;
-
-out_unmap:
-	platform_set_drvdata(pdev, NULL);
-	return error;
 }
 
 static int __exit msm6242_rtc_remove(struct platform_device *pdev)
