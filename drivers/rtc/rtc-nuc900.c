@@ -260,13 +260,7 @@ static int __init nuc900_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit nuc900_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver nuc900_rtc_driver = {
-	.remove		= __exit_p(nuc900_rtc_remove),
 	.driver		= {
 		.name	= "nuc900-rtc",
 		.owner	= THIS_MODULE,
