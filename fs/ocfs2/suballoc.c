@@ -1422,7 +1422,7 @@ static int ocfs2_relink_block_group(handle_t *handle,
 	int status;
 	/* there is a really tiny chance the journal calls could fail,
 	 * but we wouldn't want inconsistent blocks in *any* case. */
-	u64 fe_ptr, bg_ptr, prev_bg_ptr;
+	u64 bg_ptr, prev_bg_ptr;
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) fe_bh->b_data;
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) bg_bh->b_data;
 	struct ocfs2_group_desc *prev_bg = (struct ocfs2_group_desc *) prev_bg_bh->b_data;
@@ -1437,7 +1437,6 @@ static int ocfs2_relink_block_group(handle_t *handle,
 		(unsigned long long)le64_to_cpu(bg->bg_blkno),
 		(unsigned long long)le64_to_cpu(prev_bg->bg_blkno));
 
-	fe_ptr = le64_to_cpu(fe->id2.i_chain.cl_recs[chain].c_blkno);
 	bg_ptr = le64_to_cpu(bg->bg_next_group);
 	prev_bg_ptr = le64_to_cpu(prev_bg->bg_next_group);
 
@@ -1446,7 +1445,7 @@ static int ocfs2_relink_block_group(handle_t *handle,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
-		goto out_rollback;
+		goto out;
 	}
 
 	prev_bg->bg_next_group = bg->bg_next_group;
@@ -1456,7 +1455,7 @@ static int ocfs2_relink_block_group(handle_t *handle,
 					 bg_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
-		goto out_rollback;
+		goto out_rollback_prev_bg;
 	}
 
 	bg->bg_next_group = fe->id2.i_chain.cl_recs[chain].c_blkno;
@@ -1466,21 +1465,21 @@ static int ocfs2_relink_block_group(handle_t *handle,
 					 fe_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
-		goto out_rollback;
+		goto out_rollback_bg;
 	}
 
 	fe->id2.i_chain.cl_recs[chain].c_blkno = bg->bg_blkno;
 	ocfs2_journal_dirty(handle, fe_bh);
 
-out_rollback:
-	if (status < 0) {
-		fe->id2.i_chain.cl_recs[chain].c_blkno = cpu_to_le64(fe_ptr);
-		bg->bg_next_group = cpu_to_le64(bg_ptr);
-		prev_bg->bg_next_group = cpu_to_le64(prev_bg_ptr);
-	}
+out:
+	return status;
 
-	if (status)
-		mlog_errno(status);
+out_rollback_bg:
+	bg->bg_next_group = cpu_to_le64(bg_ptr);
+out_rollback_prev_bg:
+	prev_bg->bg_next_group = cpu_to_le64(prev_bg_ptr);
+
+	mlog_errno(status);
 	return status;
 }
 
