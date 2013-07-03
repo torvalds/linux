@@ -45,7 +45,7 @@
 #include <mach/cru.h>
 #include <mach/pmu.h>
 #endif
-
+#include <plat/efuse.h>
 #if defined(CONFIG_ARCH_RK2928)
 #include <mach/rk2928_camera.h>
 #include <mach/cru.h>
@@ -298,10 +298,13 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *         1. compatible with generic_sensor;
 *
 *v0.3.3 / v0.3.5:
-*         1. fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt;        
+*         1. fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt; 
+*
+*v0.3.7:
+*         1. support rk3028 , read 3028 chip id by efuse for check cif controller is normal or not; 
 */
 
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x05)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x07)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -463,6 +466,8 @@ struct rk_camera_dev
     struct videobuf_queue *video_vq;
     bool stop_cif;
     struct timeval first_tv;
+
+	int chip_id;
 };
 
 static const struct v4l2_queryctrl rk_camera_controls[] =
@@ -1095,7 +1100,7 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
     long yCoeff00,yCoeff01,xCoeff00,xCoeff01;
     long sX,sY;
     long r0,r1,a,b,c,d;
-    int ret = 0;
+    int ret = 0, shift_bits = 0;
 
     src_phy = pcdev->vipmem_phybase + vb->i*pcdev->vipmem_bsize;    
     src = psY = (unsigned char*)(pcdev->vipmem_virbase + vb->i*pcdev->vipmem_bsize);
@@ -1118,6 +1123,9 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
 
     zoomindstxIntInv = ((unsigned long)(cropW)<<16)/dstW + 1;
     zoomindstyIntInv = ((unsigned long)(cropH)<<16)/dstH + 1;
+#ifdef CONFIG_SOC_RK3028
+	shift_bits = (pcdev->chip_id == 0x42)?0:2;
+#endif
     //y
     //for(y = 0; y<dstH - 1 ; y++ ) {   
     for(y = 0; y<dstH; y++ ) {   
@@ -1130,10 +1138,10 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
             xCoeff01 = 0xffff - xCoeff00; 	
             sX = (x*zoomindstxIntInv >> 16);
             sX = (sX >= srcW -1)?(srcW- 2) : sX;
-            a = psY[sY*srcW + sX];
-            b = psY[sY*srcW + sX + 1];
-            c = psY[(sY+1)*srcW + sX];
-            d = psY[(sY+1)*srcW + sX + 1];
+            a = (psY[sY*srcW + sX]<<shift_bits);
+            b = (psY[sY*srcW + sX + 1]<<shift_bits);
+            c = (psY[(sY+1)*srcW + sX]<<shift_bits);
+            d = (psY[(sY+1)*srcW + sX + 1]<<shift_bits);
 
             r0 = (a * xCoeff01 + b * xCoeff00)>>16 ;
             r1 = (c * xCoeff01 + d * xCoeff00)>>16 ;
@@ -1162,10 +1170,11 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
             sX = (x*zoomindstxIntInv >> 16);
             sX = (sX >= srcW -1)?(srcW- 2) : sX;
             //U
-            a = psUV[(sY*srcW + sX)*2];
-            b = psUV[(sY*srcW + sX + 1)*2];
-            c = psUV[((sY+1)*srcW + sX)*2];
-            d = psUV[((sY+1)*srcW + sX + 1)*2];
+            a = (psUV[(sY*srcW + sX)*2]<<shift_bits);
+            b = (psUV[(sY*srcW + sX + 1)*2]<<shift_bits);
+            c = (psUV[((sY+1)*srcW + sX)*2]<<shift_bits);
+            d = (psUV[((sY+1)*srcW + sX + 1)*2]<<shift_bits);
+			
 
             r0 = (a * xCoeff01 + b * xCoeff00)>>16 ;
             r1 = (c * xCoeff01 + d * xCoeff00)>>16 ;
@@ -1174,11 +1183,11 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
             pdUV[x*2] = r0;
 
             //V
-            a = psUV[(sY*srcW + sX)*2 + 1];
-            b = psUV[(sY*srcW + sX + 1)*2 + 1];
-            c = psUV[((sY+1)*srcW + sX)*2 + 1];
-            d = psUV[((sY+1)*srcW + sX + 1)*2 + 1];
-
+            a = (psUV[(sY*srcW + sX)*2 + 1]<<shift_bits);
+            b = (psUV[(sY*srcW + sX + 1)*2 + 1]<<shift_bits);
+            c = (psUV[((sY+1)*srcW + sX)*2 + 1]<<shift_bits);
+            d = (psUV[((sY+1)*srcW + sX + 1)*2 + 1]<<shift_bits);
+			
             r0 = (a * xCoeff01 + b * xCoeff00)>>16 ;
             r1 = (c * xCoeff01 + d * xCoeff00)>>16 ;
             r0 = (r0 * yCoeff01 + r1 * yCoeff00)>>16;
@@ -3079,7 +3088,11 @@ static int rk_camera_probe(struct platform_device *pdev)
 
 	pcdev->zoominfo.zoom_rate = 100;
 	pcdev->hostid = pdev->id;
-    
+	#ifdef CONFIG_SOC_RK3028
+	pcdev->chip_id = rk3028_version_val();
+	#else
+	pcdev->chip_id = -1;
+	#endif
     if (IS_CIF0()) {
         clk = &cif_clk[0];
         cif_clk[0].pd_cif = clk_get(NULL, "pd_cif0");
