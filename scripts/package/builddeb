@@ -89,6 +89,20 @@ if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux-$version
 fi
 
+# Not all arches have the same installed path in debian
+# XXX: have each arch Makefile export a variable of the canonical image install
+# path instead
+case $ARCH in
+um)
+	installed_image_path="usr/bin/linux-$version"
+	;;
+parisc|mips|powerpc)
+	installed_image_path="boot/vmlinux-$version"
+	;;
+*)
+	installed_image_path="boot/vmlinuz-$version"
+esac
+
 BUILD_DEBUG="$(grep -s '^CONFIG_DEBUG_INFO=y' $KCONFIG_CONFIG || true)"
 
 # Setup the directory structure
@@ -116,16 +130,15 @@ if [ "$ARCH" = "um" ] ; then
 	cp System.map "$tmpdir/usr/lib/uml/modules/$version/System.map"
 	cp $KCONFIG_CONFIG "$tmpdir/usr/share/doc/$packagename/config"
 	gzip "$tmpdir/usr/share/doc/$packagename/config"
-	cp $KBUILD_IMAGE "$tmpdir/usr/bin/linux-$version"
 else 
 	cp System.map "$tmpdir/boot/System.map-$version"
 	cp $KCONFIG_CONFIG "$tmpdir/boot/config-$version"
-	# Not all arches include the boot path in KBUILD_IMAGE
-	if [ -e $KBUILD_IMAGE ]; then
-		cp $KBUILD_IMAGE "$tmpdir/boot/vmlinuz-$version"
-	else
-		cp arch/$ARCH/boot/$KBUILD_IMAGE "$tmpdir/boot/vmlinuz-$version"
-	fi
+fi
+# Not all arches include the boot path in KBUILD_IMAGE
+if [ -e $KBUILD_IMAGE ]; then
+	cp $KBUILD_IMAGE "$tmpdir/$installed_image_path"
+else
+	cp arch/$ARCH/boot/$KBUILD_IMAGE "$tmpdir/$installed_image_path"
 fi
 
 if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
