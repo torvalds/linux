@@ -324,7 +324,7 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 
 	device_init_wakeup(&op->dev, 1);
 
-	dev_set_drvdata(&op->dev, rtc);
+	platform_set_drvdata(op, rtc);
 
 	rtc->irq = irq_of_parse_and_map(op->dev.of_node, 1);
 	err = request_irq(rtc->irq, mpc5121_rtc_handler, 0,
@@ -382,7 +382,7 @@ out_dispose:
 
 static int mpc5121_rtc_remove(struct platform_device *op)
 {
-	struct mpc5121_rtc_data *rtc = dev_get_drvdata(&op->dev);
+	struct mpc5121_rtc_data *rtc = platform_get_drvdata(op);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
 	/* disable interrupt, so there are no nasty surprises */
