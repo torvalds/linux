@@ -2750,6 +2750,14 @@ sub process {
 			      "space required before the open brace '{'\n" . $herecurr);
 		}
 
+## # check for blank lines before declarations
+##		if ($line =~ /^.\t+$Type\s+$Ident(?:\s*=.*)?;/ &&
+##		    $prevrawline =~ /^.\s*$/) {
+##			WARN("SPACING",
+##			     "No blank lines before declarations\n" . $hereprev);
+##		}
+##
+
 # closing brace should have a space following it when it has anything
 # on the line
 		if ($line =~ /}(?!(?:,|;|\)))\S/) {
