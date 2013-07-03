@@ -939,11 +939,6 @@ sequence_cmd:
 	if (!rc && dump_payload == false && unsol_data)
 		iscsit_set_unsoliticed_dataout(cmd);
 
-	if (rc == CMDSN_ERROR_CANNOT_RECOVER)
-		return iscsit_add_reject_from_cmd(
-			   ISCSI_REASON_PROTOCOL_ERROR,
-			   1, 0, (unsigned char *)hdr, cmd);
-
 	return 0;
 }
 

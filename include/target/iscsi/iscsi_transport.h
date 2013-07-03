@@ -34,8 +34,6 @@ extern void iscsit_put_transport(struct iscsit_transport *);
 /*
  * From iscsi_target.c
  */
-extern int iscsit_add_reject_from_cmd(u8, int, int, unsigned char *,
-				struct iscsi_cmd *);
 extern int iscsit_setup_scsi_cmd(struct iscsi_conn *, struct iscsi_cmd *,
 				unsigned char *);
 extern void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *);
