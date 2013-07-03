@@ -1443,44 +1443,38 @@ static int ocfs2_relink_block_group(handle_t *handle,
 	status = ocfs2_journal_access_gd(handle, INODE_CACHE(alloc_inode),
 					 prev_bg_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
-	if (status < 0) {
-		mlog_errno(status);
+	if (status < 0)
 		goto out;
-	}
 
 	prev_bg->bg_next_group = bg->bg_next_group;
 	ocfs2_journal_dirty(handle, prev_bg_bh);
 
 	status = ocfs2_journal_access_gd(handle, INODE_CACHE(alloc_inode),
 					 bg_bh, OCFS2_JOURNAL_ACCESS_WRITE);
-	if (status < 0) {
-		mlog_errno(status);
+	if (status < 0)
 		goto out_rollback_prev_bg;
-	}
 
 	bg->bg_next_group = fe->id2.i_chain.cl_recs[chain].c_blkno;
 	ocfs2_journal_dirty(handle, bg_bh);
 
 	status = ocfs2_journal_access_di(handle, INODE_CACHE(alloc_inode),
 					 fe_bh, OCFS2_JOURNAL_ACCESS_WRITE);
-	if (status < 0) {
-		mlog_errno(status);
+	if (status < 0)
 		goto out_rollback_bg;
-	}
 
 	fe->id2.i_chain.cl_recs[chain].c_blkno = bg->bg_blkno;
 	ocfs2_journal_dirty(handle, fe_bh);
 
 out:
+	if (status < 0)
+		mlog_errno(status);
 	return status;
 
 out_rollback_bg:
 	bg->bg_next_group = cpu_to_le64(bg_ptr);
 out_rollback_prev_bg:
 	prev_bg->bg_next_group = cpu_to_le64(prev_bg_ptr);
-
-	mlog_errno(status);
-	return status;
+	goto out;
 }
 
 static inline int ocfs2_block_group_reasonably_empty(struct ocfs2_group_desc *bg,
