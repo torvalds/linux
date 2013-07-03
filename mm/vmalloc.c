@@ -1367,16 +1367,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 		return NULL;
 	}
 
-	/*
-	 * When this function is called from __vmalloc_node_range,
-	 * we add VM_UNLIST flag to avoid accessing uninitialized
-	 * members of vm_struct such as pages and nr_pages fields.
-	 * They will be set later.
-	 */
-	if (flags & VM_UNLIST)
-		setup_vmalloc_vm(area, va, flags, caller);
-	else
-		insert_vmalloc_vm(area, va, flags, caller);
+	setup_vmalloc_vm(area, va, flags, caller);
 
 	return area;
 }
