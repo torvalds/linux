@@ -2052,7 +2052,7 @@ static inline void sk_wake_async(struct sock *sk, int how, int band)
  * Note: for send buffers, TCP works better if we can build two skbs at
  * minimum.
  */
-#define TCP_SKB_MIN_TRUESIZE	(2048 + sizeof(struct sk_buff))
+#define TCP_SKB_MIN_TRUESIZE	(2048 + SKB_DATA_ALIGN(sizeof(struct sk_buff)))
 
 #define SOCK_MIN_SNDBUF		(TCP_SKB_MIN_TRUESIZE * 2)
 #define SOCK_MIN_RCVBUF		 TCP_SKB_MIN_TRUESIZE
