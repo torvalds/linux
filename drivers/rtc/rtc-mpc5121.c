@@ -68,7 +68,7 @@ struct mpc5121_rtc_regs {
 	u32 target_time;	/* RTC + 0x20 */
 	/*
 	 * actual_time:
-	 * 	readonly time since VBAT_RTC was last connected
+	 *	readonly time since VBAT_RTC was last connected
 	 */
 	u32 actual_time;	/* RTC + 0x24 */
 	u32 keep_alive;		/* RTC + 0x28 */
