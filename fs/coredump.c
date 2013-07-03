@@ -71,26 +71,20 @@ static int expand_corename(struct core_name *cn)
 
 static int cn_vprintf(struct core_name *cn, const char *fmt, va_list arg)
 {
-	char *cur;
-	int need;
-	int ret;
+	int free, need;
 
-	need = vsnprintf(NULL, 0, fmt, arg);
-	if (likely(need < cn->size - cn->used - 1))
-		goto out_printf;
+again:
+	free = cn->size - cn->used;
+	need = vsnprintf(cn->corename + cn->used, free, fmt, arg);
+	if (need < free) {
+		cn->used += need;
+		return 0;
+	}
 
-	ret = expand_corename(cn);
-	if (ret)
-		goto expand_fail;
+	if (!expand_corename(cn))
+		goto again;
 
-out_printf:
-	cur = cn->corename + cn->used;
-	vsnprintf(cur, need + 1, fmt, arg);
-	cn->used += need;
-	return 0;
-
-expand_fail:
-	return ret;
+	return -ENOMEM;
 }
 
 static int cn_printf(struct core_name *cn, const char *fmt, ...)
