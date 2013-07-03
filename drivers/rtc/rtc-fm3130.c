@@ -47,7 +47,7 @@
 
 struct fm3130 {
 	u8			reg_addr_time;
-	u8 			reg_addr_alarm;
+	u8			reg_addr_alarm;
 	u8			regs[15];
 	struct i2c_msg		msg[4];
 	struct i2c_client	*client;
