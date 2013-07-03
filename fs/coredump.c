@@ -58,16 +58,14 @@ static atomic_t call_count = ATOMIC_INIT(1);
 
 static int expand_corename(struct core_name *cn)
 {
-	char *old_corename = cn->corename;
+	int size = CORENAME_MAX_SIZE * atomic_inc_return(&call_count);
+	char *corename = krealloc(cn->corename, size, GFP_KERNEL);
 
-	cn->size = CORENAME_MAX_SIZE * atomic_inc_return(&call_count);
-	cn->corename = krealloc(old_corename, cn->size, GFP_KERNEL);
-
-	if (!cn->corename) {
-		kfree(old_corename);
+	if (!corename)
 		return -ENOMEM;
-	}
 
+	cn->size = size;
+	cn->corename = corename;
 	return 0;
 }
 
@@ -157,10 +155,9 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 	int pid_in_pattern = 0;
 	int err = 0;
 
+	cn->used = 0;
 	cn->size = CORENAME_MAX_SIZE * atomic_read(&call_count);
 	cn->corename = kmalloc(cn->size, GFP_KERNEL);
-	cn->used = 0;
-
 	if (!cn->corename)
 		return -ENOMEM;
 
@@ -549,7 +546,7 @@ void do_coredump(siginfo_t *siginfo)
 		if (ispipe < 0) {
 			printk(KERN_WARNING "format_corename failed\n");
 			printk(KERN_WARNING "Aborting core\n");
-			goto fail_corename;
+			goto fail_unlock;
 		}
 
 		if (cprm.limit == 1) {
@@ -669,7 +666,6 @@ fail_dropcount:
 		atomic_dec(&core_dump_count);
 fail_unlock:
 	kfree(cn.corename);
-fail_corename:
 	coredump_finish(mm, core_dumped);
 	revert_creds(old_cred);
 fail_creds:
