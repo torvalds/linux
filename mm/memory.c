@@ -2904,7 +2904,7 @@ static inline void unmap_mapping_range_tree(struct rb_root *root,
 			details->first_index, details->last_index) {
 
 		vba = vma->vm_pgoff;
-		vea = vba + ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) - 1;
+		vea = vba + vma_pages(vma) - 1;
 		/* Assume for now that PAGE_CACHE_SHIFT == PAGE_SHIFT */
 		zba = details->first_index;
 		if (zba < vba)
