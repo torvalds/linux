@@ -41,6 +41,10 @@
 #define CPU_NOT_RESETTABLE	0
 #endif
 
+/* flag of tegra_disable_clean_inv_dcache to do LoUIS or all */
+#define TEGRA_FLUSH_CACHE_LOUIS	0
+#define TEGRA_FLUSH_CACHE_ALL	1
+
 #ifdef __ASSEMBLY__
 /* returns the offset of the flow controller halt register for a cpu */
 .macro cpu_to_halt_reg rd, rcpu
@@ -144,7 +148,7 @@ void tegra_pen_lock(void);
 void tegra_pen_unlock(void);
 void tegra_resume(void);
 int tegra_sleep_cpu_finish(unsigned long);
-void tegra_disable_clean_inv_dcache(void);
+void tegra_disable_clean_inv_dcache(u32 flag);
 
 #ifdef CONFIG_HOTPLUG_CPU
 void tegra20_hotplug_shutdown(void);

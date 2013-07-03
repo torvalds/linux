@@ -56,7 +56,9 @@ ENTRY(tegra_disable_clean_inv_dcache)
 	isb
 
 	/* Flush the D-cache */
-	bl	v7_flush_dcache_louis
+	cmp	r0, #TEGRA_FLUSH_CACHE_ALL
+	blne	v7_flush_dcache_louis
+	bleq	v7_flush_dcache_all
 
 	/* Trun off coherency */
 	exit_smp r4, r5
@@ -73,9 +75,12 @@ ENDPROC(tegra_disable_clean_inv_dcache)
  * tegra?_tear_down_cpu
  */
 ENTRY(tegra_sleep_cpu_finish)
+	mov	r4, r0
 	/* Flush and disable the L1 data cache */
+	mov	r0, #TEGRA_FLUSH_CACHE_ALL
 	bl	tegra_disable_clean_inv_dcache
 
+	mov	r0, r4
 	mov32	r6, tegra_tear_down_cpu
 	ldr	r1, [r6]
 	add	r1, r1, r0

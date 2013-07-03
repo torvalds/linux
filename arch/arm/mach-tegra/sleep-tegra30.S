@@ -137,6 +137,7 @@ ENTRY(tegra30_sleep_cpu_secondary_finish)
 	mov	r7, lr
 
 	/* Flush and disable the L1 data cache */
+	mov 	r0, #TEGRA_FLUSH_CACHE_LOUIS
 	bl	tegra_disable_clean_inv_dcache
 
 	/* Powergate this CPU. */

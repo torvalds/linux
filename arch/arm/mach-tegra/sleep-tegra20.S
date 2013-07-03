@@ -191,6 +191,7 @@ ENTRY(tegra20_sleep_cpu_secondary_finish)
 	mrc	p15, 0, r11, c1, c0, 1  @ save actlr before exiting coherency
 
 	/* Flush and disable the L1 data cache */
+	mov	r0, #TEGRA_FLUSH_CACHE_LOUIS
 	bl	tegra_disable_clean_inv_dcache
 
 	mov32	r0, TEGRA_PMC_VIRT + PMC_SCRATCH41
