@@ -168,8 +168,6 @@ static int m48t86_rtc_probe(struct platform_device *dev)
 
 static int m48t86_rtc_remove(struct platform_device *dev)
 {
-	platform_set_drvdata(dev, NULL);
-
 	return 0;
 }
 
