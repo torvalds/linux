@@ -154,10 +154,8 @@ static int __exit coh901331_remove(struct platform_device *pdev)
 {
 	struct coh901331_port *rtap = dev_get_drvdata(&pdev->dev);
 
-	if (rtap) {
+	if (rtap)
 		clk_unprepare(rtap->clk);
-		platform_set_drvdata(pdev, NULL);
-	}
 
 	return 0;
 }
@@ -220,7 +218,6 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	return 0;
 
  out_no_rtc:
-	platform_set_drvdata(pdev, NULL);
 	clk_unprepare(rtap->clk);
 	return ret;
 }
