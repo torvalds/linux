@@ -2355,8 +2355,7 @@ static int do_sysinfo(struct sysinfo *info)
 
 	memset(info, 0, sizeof(struct sysinfo));
 
-	ktime_get_ts(&tp);
-	monotonic_to_bootbased(&tp);
+	get_monotonic_boottime(&tp);
 	info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
 
 	get_avenrun(info->loads, 0, SI_LOAD_SHIFT - FSHIFT);
