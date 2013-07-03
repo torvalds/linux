@@ -68,8 +68,8 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 					&buf->dma_attrs);
 		if (!buf->kvaddr) {
 			DRM_ERROR("failed to allocate buffer.\n");
-			drm_free_large(buf->pages);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_free;
 		}
 
 		start_addr = buf->dma_addr;
@@ -106,7 +106,7 @@ err_free_attrs:
 	dma_free_attrs(dev->dev, buf->size, buf->pages,
 			(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
 	buf->dma_addr = (dma_addr_t)NULL;
-
+err_free:
 	if (!is_drm_iommu_supported(dev))
 		drm_free_large(buf->pages);
 
