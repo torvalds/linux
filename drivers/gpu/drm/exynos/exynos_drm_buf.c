@@ -57,8 +57,7 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 		dma_addr_t start_addr;
 		unsigned int i = 0;
 
-		buf->pages = kzalloc(sizeof(struct page) * nr_pages,
-					GFP_KERNEL);
+		buf->pages = drm_calloc_large(nr_pages, sizeof(struct page));
 		if (!buf->pages) {
 			DRM_ERROR("failed to allocate pages.\n");
 			return -ENOMEM;
@@ -69,7 +68,7 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 					&buf->dma_attrs);
 		if (!buf->kvaddr) {
 			DRM_ERROR("failed to allocate buffer.\n");
-			kfree(buf->pages);
+			drm_free_large(buf->pages);
 			return -ENOMEM;
 		}
 
@@ -109,7 +108,7 @@ err_free_attrs:
 	buf->dma_addr = (dma_addr_t)NULL;
 
 	if (!is_drm_iommu_supported(dev))
-		kfree(buf->pages);
+		drm_free_large(buf->pages);
 
 	return ret;
 }
@@ -134,7 +133,7 @@ static void lowlevel_buffer_deallocate(struct drm_device *dev,
 	if (!is_drm_iommu_supported(dev)) {
 		dma_free_attrs(dev->dev, buf->size, buf->kvaddr,
 				(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
-		kfree(buf->pages);
+		drm_free_large(buf->pages);
 	} else
 		dma_free_attrs(dev->dev, buf->size, buf->pages,
 				(dma_addr_t)buf->dma_addr, &buf->dma_attrs);
