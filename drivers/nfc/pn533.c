@@ -83,6 +83,8 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 
 /* How much time we spend listening for initiators */
 #define PN533_LISTEN_TIME 2
+/* Delay between each poll frame (ms) */
+#define PN533_POLL_INTERVAL 10
 
 /* Standard pn533 frame definitions (standard and extended)*/
 #define PN533_STD_FRAME_HEADER_LEN (sizeof(struct pn533_std_frame) \
@@ -368,7 +370,7 @@ struct pn533 {
 	struct workqueue_struct	*wq;
 	struct work_struct cmd_work;
 	struct work_struct cmd_complete_work;
-	struct work_struct poll_work;
+	struct delayed_work poll_work;
 	struct work_struct mi_rx_work;
 	struct work_struct mi_tx_work;
 	struct work_struct tg_work;
@@ -1719,7 +1721,8 @@ static void pn533_listen_mode_timer(unsigned long data)
 
 	pn533_poll_next_mod(dev);
 
-	queue_work(dev->wq, &dev->poll_work);
+	queue_delayed_work(dev->wq, &dev->poll_work,
+			   msecs_to_jiffies(PN533_POLL_INTERVAL));
 }
 
 static int pn533_rf_complete(struct pn533 *dev, void *arg,
@@ -1738,7 +1741,8 @@ static int pn533_rf_complete(struct pn533 *dev, void *arg,
 		return rc;
 	}
 
-	queue_work(dev->wq, &dev->poll_work);
+	queue_delayed_work(dev->wq, &dev->poll_work,
+			   msecs_to_jiffies(PN533_POLL_INTERVAL));
 
 	dev_kfree_skb(resp);
 	return rc;
@@ -1880,7 +1884,7 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 
 static void pn533_wq_poll(struct work_struct *work)
 {
-	struct pn533 *dev = container_of(work, struct pn533, poll_work);
+	struct pn533 *dev = container_of(work, struct pn533, poll_work.work);
 	struct pn533_poll_modulations *cur_mod;
 	int rc;
 
@@ -1955,6 +1959,7 @@ static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 	}
 
 	pn533_abort_cmd(dev, GFP_KERNEL);
+	flush_delayed_work(&dev->poll_work);
 	pn533_poll_reset_mod_list(dev);
 }
 
@@ -2931,7 +2936,7 @@ static int pn533_probe(struct usb_interface *interface,
 	INIT_WORK(&dev->mi_rx_work, pn533_wq_mi_recv);
 	INIT_WORK(&dev->mi_tx_work, pn533_wq_mi_send);
 	INIT_WORK(&dev->tg_work, pn533_wq_tg_get_data);
-	INIT_WORK(&dev->poll_work, pn533_wq_poll);
+	INIT_DELAYED_WORK(&dev->poll_work, pn533_wq_poll);
 	INIT_WORK(&dev->rf_work, pn533_wq_rf);
 	dev->wq = alloc_ordered_workqueue("pn533", 0);
 	if (dev->wq == NULL)
@@ -3044,6 +3049,7 @@ static void pn533_disconnect(struct usb_interface *interface)
 	usb_kill_urb(dev->in_urb);
 	usb_kill_urb(dev->out_urb);
 
+	flush_delayed_work(&dev->poll_work);
 	destroy_workqueue(dev->wq);
 
 	skb_queue_purge(&dev->resp_q);
