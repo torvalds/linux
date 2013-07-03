@@ -3041,19 +3041,9 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 	}
 
-	/*
-	 * Check whether current status meets the requirement of
-	 * usb port power off mechanism
-	 */
 	if (status == 0 && !udev->do_remote_wakeup && udev->persist_enabled) {
-		enum pm_qos_flags_status pm_qos_stat;
-
-		pm_qos_stat = dev_pm_qos_flags(&port_dev->dev,
-				PM_QOS_FLAG_NO_POWER_OFF);
-		if (pm_qos_stat != PM_QOS_FLAGS_ALL) {
-			pm_runtime_put_sync(&port_dev->dev);
-			port_dev->did_runtime_put = true;
-		}
+		pm_runtime_put_sync(&port_dev->dev);
+		port_dev->did_runtime_put = true;
 	}
 
 	usb_mark_last_busy(hub->hdev);
