@@ -188,7 +188,8 @@ static int pcf8583_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		dev_warn(dev, "resetting control %02x -> %02x\n",
 			ctrl, new_ctrl);
 
-		if ((err = pcf8583_set_ctrl(client, &new_ctrl)) < 0)
+		err = pcf8583_set_ctrl(client, &new_ctrl);
+		if (err < 0)
 			return err;
 	}
 
