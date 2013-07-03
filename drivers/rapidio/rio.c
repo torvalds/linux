@@ -34,6 +34,7 @@ static LIST_HEAD(rio_devices);
 static DEFINE_SPINLOCK(rio_global_list_lock);
 
 static LIST_HEAD(rio_mports);
+static LIST_HEAD(rio_scans);
 static DEFINE_MUTEX(rio_mport_list_lock);
 static unsigned char next_portid;
 static DEFINE_SPINLOCK(rio_mmap_lock);
@@ -1602,34 +1603,73 @@ found:
  * rio_register_scan - enumeration/discovery method registration interface
  * @mport_id: mport device ID for which fabric scan routine has to be set
  *            (RIO_MPORT_ANY = set for all available mports)
- * @scan_ops: enumeration/discovery control structure
+ * @scan_ops: enumeration/discovery operations structure
  *
- * Assigns enumeration or discovery method to the specified mport device (or all
- * available mports if RIO_MPORT_ANY is specified).
+ * Registers enumeration/discovery operations with RapidIO subsystem and
+ * attaches it to the specified mport device (or all available mports
+ * if RIO_MPORT_ANY is specified).
+ *
  * Returns error if the mport already has an enumerator attached to it.
- * In case of RIO_MPORT_ANY ignores ports with valid scan routines and returns
- * an error if was unable to find at least one available mport.
+ * In case of RIO_MPORT_ANY skips mports with valid scan routines (no error).
  */
 int rio_register_scan(int mport_id, struct rio_scan *scan_ops)
 {
 	struct rio_mport *port;
-	int rc = -EBUSY;
+	struct rio_scan_node *scan;
+	int rc = 0;
+
+	pr_debug("RIO: %s for mport_id=%d\n", __func__, mport_id);
+
+	if ((mport_id != RIO_MPORT_ANY && mport_id >= RIO_MAX_MPORTS) ||
+	    !scan_ops)
+		return -EINVAL;
 
 	mutex_lock(&rio_mport_list_lock);
-	list_for_each_entry(port, &rio_mports, node) {
-		if (port->id == mport_id || mport_id == RIO_MPORT_ANY) {
-			if (port->nscan && mport_id == RIO_MPORT_ANY)
-				continue;
-			else if (port->nscan)
-				break;
 
-			port->nscan = scan_ops;
-			rc = 0;
-
-			if (mport_id != RIO_MPORT_ANY)
-				break;
+	/*
+	 * Check if there is another enumerator already registered for
+	 * the same mport ID (including RIO_MPORT_ANY). Multiple enumerators
+	 * for the same mport ID are not supported.
+	 */
+	list_for_each_entry(scan, &rio_scans, node) {
+		if (scan->mport_id == mport_id) {
+			rc = -EBUSY;
+			goto err_out;
 		}
 	}
+
+	/*
+	 * Allocate and initialize new scan registration node.
+	 */
+	scan = kzalloc(sizeof(*scan), GFP_KERNEL);
+	if (!scan) {
+		rc = -ENOMEM;
+		goto err_out;
+	}
+
+	scan->mport_id = mport_id;
+	scan->ops = scan_ops;
+
+	/*
+	 * Traverse the list of registered mports to attach this new scan.
+	 *
+	 * The new scan with matching mport ID overrides any previously attached
+	 * scan assuming that old scan (if any) is the default one (based on the
+	 * enumerator registration check above).
+	 * If the new scan is the global one, it will be attached only to mports
+	 * that do not have their own individual operations already attached.
+	 */
+	list_for_each_entry(port, &rio_mports, node) {
+		if (port->id == mport_id) {
+			port->nscan = scan_ops;
+			break;
+		} else if (mport_id == RIO_MPORT_ANY && !port->nscan)
+			port->nscan = scan_ops;
+	}
+
+	list_add_tail(&scan->node, &rio_scans);
+
+err_out:
 	mutex_unlock(&rio_mport_list_lock);
 
 	return rc;
@@ -1639,29 +1679,80 @@ EXPORT_SYMBOL_GPL(rio_register_scan);
 /**
  * rio_unregister_scan - removes enumeration/discovery method from mport
  * @mport_id: mport device ID for which fabric scan routine has to be
- *            unregistered (RIO_MPORT_ANY = set for all available mports)
+ *            unregistered (RIO_MPORT_ANY = apply to all mports that use
+ *            the specified scan_ops)
+ * @scan_ops: enumeration/discovery operations structure
  *
  * Removes enumeration or discovery method assigned to the specified mport
- * device (or all available mports if RIO_MPORT_ANY is specified).
+ * device. If RIO_MPORT_ANY is specified, removes the specified operations from
+ * all mports that have them attached.
  */
-int rio_unregister_scan(int mport_id)
+int rio_unregister_scan(int mport_id, struct rio_scan *scan_ops)
 {
 	struct rio_mport *port;
+	struct rio_scan_node *scan;
+
+	pr_debug("RIO: %s for mport_id=%d\n", __func__, mport_id);
+
+	if (mport_id != RIO_MPORT_ANY && mport_id >= RIO_MAX_MPORTS)
+		return -EINVAL;
 
 	mutex_lock(&rio_mport_list_lock);
-	list_for_each_entry(port, &rio_mports, node) {
-		if (port->id == mport_id || mport_id == RIO_MPORT_ANY) {
-			if (port->nscan)
-				port->nscan = NULL;
-			if (mport_id != RIO_MPORT_ANY)
-				break;
+
+	list_for_each_entry(port, &rio_mports, node)
+		if (port->id == mport_id ||
+		    (mport_id == RIO_MPORT_ANY && port->nscan == scan_ops))
+			port->nscan = NULL;
+
+	list_for_each_entry(scan, &rio_scans, node)
+		if (scan->mport_id == mport_id) {
+			list_del(&scan->node);
+			kfree(scan);
 		}
-	}
+
 	mutex_unlock(&rio_mport_list_lock);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rio_unregister_scan);
+
+/**
+ * rio_mport_scan - execute enumeration/discovery on the specified mport
+ * @mport_id: number (ID) of mport device
+ */
+int rio_mport_scan(int mport_id)
+{
+	struct rio_mport *port = NULL;
+	int rc;
+
+	mutex_lock(&rio_mport_list_lock);
+	list_for_each_entry(port, &rio_mports, node) {
+		if (port->id == mport_id)
+			goto found;
+	}
+	mutex_unlock(&rio_mport_list_lock);
+	return -ENODEV;
+found:
+	if (!port->nscan) {
+		mutex_unlock(&rio_mport_list_lock);
+		return -EINVAL;
+	}
+
+	if (!try_module_get(port->nscan->owner)) {
+		mutex_unlock(&rio_mport_list_lock);
+		return -ENODEV;
+	}
+
+	mutex_unlock(&rio_mport_list_lock);
+
+	if (port->host_deviceid >= 0)
+		rc = port->nscan->enumerate(port, 0);
+	else
+		rc = port->nscan->discover(port, RIO_SCAN_ENUM_NO_WAIT);
+
+	module_put(port->nscan->owner);
+	return rc;
+}
 
 static void rio_fixup_device(struct rio_dev *dev)
 {
@@ -1691,7 +1782,10 @@ static void disc_work_handler(struct work_struct *_work)
 	work = container_of(_work, struct rio_disc_work, work);
 	pr_debug("RIO: discovery work for mport %d %s\n",
 		 work->mport->id, work->mport->name);
-	work->mport->nscan->discover(work->mport, 0);
+	if (try_module_get(work->mport->nscan->owner)) {
+		work->mport->nscan->discover(work->mport, 0);
+		module_put(work->mport->nscan->owner);
+	}
 }
 
 int rio_init_mports(void)
@@ -1710,8 +1804,10 @@ int rio_init_mports(void)
 	mutex_lock(&rio_mport_list_lock);
 	list_for_each_entry(port, &rio_mports, node) {
 		if (port->host_deviceid >= 0) {
-			if (port->nscan)
+			if (port->nscan && try_module_get(port->nscan->owner)) {
 				port->nscan->enumerate(port, 0);
+				module_put(port->nscan->owner);
+			}
 		} else
 			n++;
 	}
@@ -1725,7 +1821,7 @@ int rio_init_mports(void)
 	 * for each of them. If the code below fails to allocate needed
 	 * resources, exit without error to keep results of enumeration
 	 * process (if any).
-	 * TODO: Implement restart of dicovery process for all or
+	 * TODO: Implement restart of discovery process for all or
 	 * individual discovering mports.
 	 */
 	rio_wq = alloc_workqueue("riodisc", 0, 0);
@@ -1751,9 +1847,9 @@ int rio_init_mports(void)
 			n++;
 		}
 	}
-	mutex_unlock(&rio_mport_list_lock);
 
 	flush_workqueue(rio_wq);
+	mutex_unlock(&rio_mport_list_lock);
 	pr_debug("RIO: destroy discovery workqueue\n");
 	destroy_workqueue(rio_wq);
 	kfree(work);
@@ -1784,6 +1880,8 @@ __setup("riohdid=", rio_hdid_setup);
 
 int rio_register_mport(struct rio_mport *port)
 {
+	struct rio_scan_node *scan = NULL;
+
 	if (next_portid >= RIO_MAX_MPORTS) {
 		pr_err("RIO: reached specified max number of mports\n");
 		return 1;
@@ -1792,9 +1890,25 @@ int rio_register_mport(struct rio_mport *port)
 	port->id = next_portid++;
 	port->host_deviceid = rio_get_hdid(port->id);
 	port->nscan = NULL;
+
 	mutex_lock(&rio_mport_list_lock);
 	list_add_tail(&port->node, &rio_mports);
+
+	/*
+	 * Check if there are any registered enumeration/discovery operations
+	 * that have to be attached to the added mport.
+	 */
+	list_for_each_entry(scan, &rio_scans, node) {
+		if (port->id == scan->mport_id ||
+		    scan->mport_id == RIO_MPORT_ANY) {
+			port->nscan = scan->ops;
+			if (port->id == scan->mport_id)
+				break;
+		}
+	}
 	mutex_unlock(&rio_mport_list_lock);
+
+	pr_debug("RIO: %s %s id=%d\n", __func__, port->name, port->id);
 	return 0;
 }
 

@@ -286,7 +286,6 @@ static ssize_t bus_scan_store(struct bus_type *bus, const char *buf,
 				size_t count)
 {
 	long val;
-	struct rio_mport *port = NULL;
 	int rc;
 
 	if (kstrtol(buf, 0, &val) < 0)
@@ -300,21 +299,7 @@ static ssize_t bus_scan_store(struct bus_type *bus, const char *buf,
 	if (val < 0 || val >= RIO_MAX_MPORTS)
 		return -EINVAL;
 
-	port = rio_find_mport((int)val);
-
-	if (!port) {
-		pr_debug("RIO: %s: mport_%d not available\n",
-			 __func__, (int)val);
-		return -EINVAL;
-	}
-
-	if (!port->nscan)
-		return -EINVAL;
-
-	if (port->host_deviceid >= 0)
-		rc = port->nscan->enumerate(port, 0);
-	else
-		rc = port->nscan->discover(port, RIO_SCAN_ENUM_NO_WAIT);
+	rc = rio_mport_scan((int)val);
 exit:
 	if (!rc)
 		rc = count;
