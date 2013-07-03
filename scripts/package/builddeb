@@ -78,17 +78,21 @@ tmpdir="$objtree/debian/tmp"
 fwdir="$objtree/debian/fwtmp"
 kernel_headers_dir="$objtree/debian/hdrtmp"
 libc_headers_dir="$objtree/debian/headertmp"
+dbg_dir="$objtree/debian/dbgtmp"
 packagename=linux-image-$version
 fwpackagename=linux-firmware-image
 kernel_headers_packagename=linux-headers-$version
 libc_headers_packagename=linux-libc-dev
+dbg_packagename=$packagename-dbg
 
 if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux-$version
 fi
 
+BUILD_DEBUG="$(grep -s '^CONFIG_DEBUG_INFO=y' $KCONFIG_CONFIG || true)"
+
 # Setup the directory structure
-rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir"
+rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir"
 mkdir -m 755 -p "$tmpdir/DEBIAN"
 mkdir -p  "$tmpdir/lib" "$tmpdir/boot" "$tmpdir/usr/share/doc/$packagename"
 mkdir -m 755 -p "$fwdir/DEBIAN"
@@ -100,6 +104,10 @@ mkdir -p "$kernel_headers_dir/usr/share/doc/$kernel_headers_packagename"
 mkdir -p "$kernel_headers_dir/lib/modules/$version/"
 if [ "$ARCH" = "um" ] ; then
 	mkdir -p "$tmpdir/usr/lib/uml/modules/$version" "$tmpdir/usr/bin"
+fi
+if [ -n "$BUILD_DEBUG" ] ; then
+	mkdir -p "$dbg_dir/usr/share/doc/$dbg_packagename"
+	mkdir -m 755 -p "$dbg_dir/DEBIAN"
 fi
 
 # Build and install the kernel
@@ -127,6 +135,20 @@ if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
 	if [ "$ARCH" = "um" ] ; then
 		mv "$tmpdir/lib/modules/$version"/* "$tmpdir/usr/lib/uml/modules/$version/"
 		rmdir "$tmpdir/lib/modules/$version"
+	fi
+	if [ -n "$BUILD_DEBUG" ] ; then
+		(
+			cd $tmpdir
+			for module in $(find lib/modules/ -name *.ko); do
+				mkdir -p $(dirname $dbg_dir/usr/lib/debug/$module)
+				# only keep debug symbols in the debug file
+				objcopy --only-keep-debug $module $dbg_dir/usr/lib/debug/$module
+				# strip original module from debug symbols
+				objcopy --strip-debug $module
+				# then add a link to those
+				objcopy --add-gnu-debuglink=$dbg_dir/usr/lib/debug/$module $module
+			done
+		)
 	fi
 fi
 
@@ -299,5 +321,31 @@ if [ "$ARCH" != "um" ]; then
 fi
 
 create_package "$packagename" "$tmpdir"
+
+if [ -n "$BUILD_DEBUG" ] ; then
+	# Build debug package
+	# Different tools want the image in different locations
+	# perf
+	mkdir -p $dbg_dir/usr/lib/debug/lib/modules/$version/
+	cp vmlinux $dbg_dir/usr/lib/debug/lib/modules/$version/
+	# systemtap
+	mkdir -p $dbg_dir/usr/lib/debug/boot/
+	ln -s ../lib/modules/$version/vmlinux $dbg_dir/usr/lib/debug/boot/vmlinux-$version
+	# kdump-tools
+	ln -s lib/modules/$version/vmlinux $dbg_dir/usr/lib/debug/vmlinux-$version
+
+	cat <<EOF >> debian/control
+
+Package: $dbg_packagename
+Section: debug
+Provides: linux-debug, linux-debug-$version
+Architecture: any
+Description: Linux kernel debugging symbols for $version
+ This package will come in handy if you need to debug the kernel. It provides
+ all the necessary debug symbols for the kernel and its modules.
+EOF
+
+	create_package "$dbg_packagename" "$dbg_dir"
+fi
 
 exit 0
