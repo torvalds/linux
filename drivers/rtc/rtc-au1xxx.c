@@ -118,8 +118,6 @@ out_err:
 
 static int au1xtoy_rtc_remove(struct platform_device *pdev)
 {
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
