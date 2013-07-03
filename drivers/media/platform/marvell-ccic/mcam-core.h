@@ -88,6 +88,8 @@ struct mcam_frame_state {
 	unsigned int delivered;
 };
 
+#define NR_MCAM_CLK 3
+
 /*
  * A description of one of our devices.
  * Locking: controlled by s_mutex.  Certain fields, however, require
@@ -123,6 +125,9 @@ struct mcam_camera {
 	int *dphy;
 	bool mipi_enabled;	/* flag whether mipi is enabled already */
 	int lane;			/* lane number */
+
+	/* clock tree support */
+	struct clk *clk[NR_MCAM_CLK];
 
 	/*
 	 * Callbacks from the core to the platform code.

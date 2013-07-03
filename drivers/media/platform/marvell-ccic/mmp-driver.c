@@ -34,6 +34,8 @@ MODULE_ALIAS("platform:mmp-camera");
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_LICENSE("GPL");
 
+static char *mcam_clks[] = {"CCICAXICLK", "CCICFUNCLK", "CCICPHYCLK"};
+
 struct mmp_camera {
 	void *power_regs;
 	struct platform_device *pdev;
@@ -104,6 +106,26 @@ static struct mmp_camera *mmpcam_find_device(struct platform_device *pdev)
 #define REG_CCIC_DCGCR		0x28	/* CCIC dyn clock gate ctrl reg */
 #define REG_CCIC_CRCR		0x50	/* CCIC clk reset ctrl reg	*/
 
+static void mcam_clk_enable(struct mcam_camera *mcam)
+{
+	unsigned int i;
+
+	for (i = 0; i < NR_MCAM_CLK; i++) {
+		if (!IS_ERR(mcam->clk[i]))
+			clk_prepare_enable(mcam->clk[i]);
+	}
+}
+
+static void mcam_clk_disable(struct mcam_camera *mcam)
+{
+	int i;
+
+	for (i = NR_MCAM_CLK - 1; i >= 0; i--) {
+		if (!IS_ERR(mcam->clk[i]))
+			clk_disable_unprepare(mcam->clk[i]);
+	}
+}
+
 /*
  * Power control.
  */
@@ -141,6 +163,9 @@ static int mmpcam_power_up(struct mcam_camera *mcam)
 	mdelay(5);
 	gpio_set_value(pdata->sensor_reset_gpio, 1); /* reset is active low */
 	mdelay(5);
+
+	mcam_clk_enable(mcam);
+
 	return 0;
 }
 
@@ -165,6 +190,8 @@ static void mmpcam_power_down(struct mcam_camera *mcam)
 			devm_clk_put(mcam->dev, cam->mipi_clk);
 		cam->mipi_clk = NULL;
 	}
+
+	mcam_clk_disable(mcam);
 }
 
 /*
@@ -275,6 +302,35 @@ static irqreturn_t mmpcam_irq(int irq, void *data)
 	return IRQ_RETVAL(handled);
 }
 
+static void mcam_deinit_clk(struct mcam_camera *mcam)
+{
+	unsigned int i;
+
+	for (i = 0; i < NR_MCAM_CLK; i++) {
+		if (!IS_ERR(mcam->clk[i])) {
+			if (mcam->clk[i])
+				devm_clk_put(mcam->dev, mcam->clk[i]);
+		}
+		mcam->clk[i] = NULL;
+	}
+}
+
+static void mcam_init_clk(struct mcam_camera *mcam)
+{
+	unsigned int i;
+
+	for (i = 0; i < NR_MCAM_CLK; i++) {
+		if (mcam_clks[i] != NULL) {
+			/* Some clks are not necessary on some boards
+			 * We still try to run even it fails getting clk
+			 */
+			mcam->clk[i] = devm_clk_get(mcam->dev, mcam_clks[i]);
+			if (IS_ERR(mcam->clk[i]))
+				dev_warn(mcam->dev, "Could not get clk: %s\n",
+						mcam_clks[i]);
+		}
+	}
+}
 
 static int mmpcam_probe(struct platform_device *pdev)
 {
@@ -370,6 +426,9 @@ static int mmpcam_probe(struct platform_device *pdev)
 		goto out_gpio;
 	}
 	gpio_direction_output(pdata->sensor_reset_gpio, 0);
+
+	mcam_init_clk(mcam);
+
 	/*
 	 * Power the device up and hand it off to the core.
 	 */
@@ -401,6 +460,7 @@ out_unregister:
 out_pwdn:
 	mmpcam_power_down(mcam);
 out_gpio2:
+	mcam_deinit_clk(mcam);
 	gpio_free(pdata->sensor_reset_gpio);
 out_gpio:
 	gpio_free(pdata->sensor_power_gpio);
@@ -426,6 +486,7 @@ static int mmpcam_remove(struct mmp_camera *cam)
 	pdata = cam->pdev->dev.platform_data;
 	gpio_free(pdata->sensor_reset_gpio);
 	gpio_free(pdata->sensor_power_gpio);
+	mcam_deinit_clk(mcam);
 	iounmap(cam->power_regs);
 	iounmap(mcam->regs);
 	kfree(cam);
