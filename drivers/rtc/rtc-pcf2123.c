@@ -18,11 +18,11 @@
  * should look something like:
  *
  * static struct spi_board_info ek_spi_devices[] = {
- * 	...
- * 	{
- * 		.modalias		= "rtc-pcf2123",
- * 		.chip_select		= 1,
- * 		.controller_data	= (void *)AT91_PIN_PA10,
+ *	...
+ *	{
+ *		.modalias		= "rtc-pcf2123",
+ *		.chip_select		= 1,
+ *		.controller_data	= (void *)AT91_PIN_PA10,
  *		.max_speed_hz		= 1000 * 1000,
  *		.mode			= SPI_CS_HIGH,
  *		.bus_num		= 0,
