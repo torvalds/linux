@@ -1121,6 +1121,12 @@ static void posix_cpu_timers_init(struct task_struct *tsk)
 	INIT_LIST_HEAD(&tsk->cpu_timers[2]);
 }
 
+static inline void
+init_task_pid(struct task_struct *task, enum pid_type type, struct pid *pid)
+{
+	 task->pids[type].pid = pid;
+}
+
 /*
  * This creates a new process as a copy of the old one,
  * but does not actually start it yet.
@@ -1449,7 +1455,11 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (likely(p->pid)) {
 		ptrace_init_task(p, (clone_flags & CLONE_PTRACE) || trace);
 
+		init_task_pid(p, PIDTYPE_PID, pid);
 		if (thread_group_leader(p)) {
+			init_task_pid(p, PIDTYPE_PGID, task_pgrp(current));
+			init_task_pid(p, PIDTYPE_SID, task_session(current));
+
 			if (is_child_reaper(pid)) {
 				ns_of_pid(pid)->child_reaper = p;
 				p->signal->flags |= SIGNAL_UNKILLABLE;
@@ -1457,10 +1467,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 			p->signal->leader_pid = pid;
 			p->signal->tty = tty_kref_get(current->signal->tty);
-			attach_pid(p, PIDTYPE_PGID, task_pgrp(current));
-			attach_pid(p, PIDTYPE_SID, task_session(current));
 			list_add_tail(&p->sibling, &p->real_parent->children);
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
+			attach_pid(p, PIDTYPE_PGID);
+			attach_pid(p, PIDTYPE_SID);
 			__this_cpu_inc(process_counts);
 		} else {
 			current->signal->nr_threads++;
@@ -1470,7 +1480,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			list_add_tail_rcu(&p->thread_group,
 					  &p->group_leader->thread_group);
 		}
-		attach_pid(p, PIDTYPE_PID, pid);
+		attach_pid(p, PIDTYPE_PID);
 		nr_threads++;
 	}
 
