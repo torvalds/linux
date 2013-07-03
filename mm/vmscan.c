@@ -1445,8 +1445,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	 */
 	if (nr_writeback && nr_writeback >=
 			(nr_taken >> (DEF_PRIORITY - sc->priority))) {
-		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
 		zone_set_flag(zone, ZONE_WRITEBACK);
+		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
 	}
 
 	/*
