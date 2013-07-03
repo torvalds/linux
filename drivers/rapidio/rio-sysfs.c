@@ -257,8 +257,6 @@ int rio_create_sysfs_dev_files(struct rio_dev *rdev)
 		err |= device_create_file(&rdev->dev, &dev_attr_routes);
 		err |= device_create_file(&rdev->dev, &dev_attr_lnext);
 		err |= device_create_file(&rdev->dev, &dev_attr_hopcount);
-		if (!err && rdev->rswitch->sw_sysfs)
-			err = rdev->rswitch->sw_sysfs(rdev, RIO_SW_SYSFS_CREATE);
 	}
 
 	if (err)
@@ -281,8 +279,6 @@ void rio_remove_sysfs_dev_files(struct rio_dev *rdev)
 		device_remove_file(&rdev->dev, &dev_attr_routes);
 		device_remove_file(&rdev->dev, &dev_attr_lnext);
 		device_remove_file(&rdev->dev, &dev_attr_hopcount);
-		if (rdev->rswitch->sw_sysfs)
-			rdev->rswitch->sw_sysfs(rdev, RIO_SW_SYSFS_REMOVE);
 	}
 }
 

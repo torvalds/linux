@@ -406,6 +406,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 		rio_mport_write_config_32(port, destid, hopcount,
 					  RIO_COMPONENT_TAG_CSR, next_comptag);
 		rdev->comp_tag = next_comptag++;
+		rdev->do_enum = true;
 	}  else {
 		rio_mport_read_config_32(port, destid, hopcount,
 					 RIO_COMPONENT_TAG_CSR,
@@ -434,6 +435,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 		rswitch = rdev->rswitch;
 		rswitch->switchid = rdev->comp_tag & RIO_CTAG_UDEVID;
 		rswitch->port_ok = 0;
+		spin_lock_init(&rswitch->lock);
 		rswitch->route_table = kzalloc(sizeof(u8)*
 					RIO_MAX_ROUTE_ENTRIES(port->sys_size),
 					GFP_KERNEL);
@@ -445,11 +447,9 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 			rswitch->route_table[rdid] = RIO_INVALID_ROUTE;
 		dev_set_name(&rdev->dev, "%02x:s:%04x", rdev->net->id,
 			     rswitch->switchid);
-		rio_switch_init(rdev, do_enum);
 
-		if (do_enum && rswitch->clr_table)
-			rswitch->clr_table(port, destid, hopcount,
-					   RIO_GLOBAL_TABLE);
+		if (do_enum)
+			rio_route_clr_table(rdev, RIO_GLOBAL_TABLE, 0);
 
 		list_add_tail(&rswitch->node, &net->switches);
 
@@ -530,156 +530,6 @@ rio_sport_is_active(struct rio_mport *port, u16 destid, u8 hopcount, int sport)
 					 &result);
 
 	return result & RIO_PORT_N_ERR_STS_PORT_OK;
-}
-
-/**
- * rio_lock_device - Acquires host device lock for specified device
- * @port: Master port to send transaction
- * @destid: Destination ID for device/switch
- * @hopcount: Hopcount to reach switch
- * @wait_ms: Max wait time in msec (0 = no timeout)
- *
- * Attepts to acquire host device lock for specified device
- * Returns 0 if device lock acquired or EINVAL if timeout expires.
- */
-static int
-rio_lock_device(struct rio_mport *port, u16 destid, u8 hopcount, int wait_ms)
-{
-	u32 result;
-	int tcnt = 0;
-
-	/* Attempt to acquire device lock */
-	rio_mport_write_config_32(port, destid, hopcount,
-				  RIO_HOST_DID_LOCK_CSR, port->host_deviceid);
-	rio_mport_read_config_32(port, destid, hopcount,
-				 RIO_HOST_DID_LOCK_CSR, &result);
-
-	while (result != port->host_deviceid) {
-		if (wait_ms != 0 && tcnt == wait_ms) {
-			pr_debug("RIO: timeout when locking device %x:%x\n",
-				destid, hopcount);
-			return -EINVAL;
-		}
-
-		/* Delay a bit */
-		mdelay(1);
-		tcnt++;
-		/* Try to acquire device lock again */
-		rio_mport_write_config_32(port, destid,
-			hopcount,
-			RIO_HOST_DID_LOCK_CSR,
-			port->host_deviceid);
-		rio_mport_read_config_32(port, destid,
-			hopcount,
-			RIO_HOST_DID_LOCK_CSR, &result);
-	}
-
-	return 0;
-}
-
-/**
- * rio_unlock_device - Releases host device lock for specified device
- * @port: Master port to send transaction
- * @destid: Destination ID for device/switch
- * @hopcount: Hopcount to reach switch
- *
- * Returns 0 if device lock released or EINVAL if fails.
- */
-static int
-rio_unlock_device(struct rio_mport *port, u16 destid, u8 hopcount)
-{
-	u32 result;
-
-	/* Release device lock */
-	rio_mport_write_config_32(port, destid,
-				  hopcount,
-				  RIO_HOST_DID_LOCK_CSR,
-				  port->host_deviceid);
-	rio_mport_read_config_32(port, destid, hopcount,
-		RIO_HOST_DID_LOCK_CSR, &result);
-	if ((result & 0xffff) != 0xffff) {
-		pr_debug("RIO: badness when releasing device lock %x:%x\n",
-			 destid, hopcount);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/**
- * rio_route_add_entry- Add a route entry to a switch routing table
- * @rdev: RIO device
- * @table: Routing table ID
- * @route_destid: Destination ID to be routed
- * @route_port: Port number to be routed
- * @lock: lock switch device flag
- *
- * Calls the switch specific add_entry() method to add a route entry
- * on a switch. The route table can be specified using the @table
- * argument if a switch has per port routing tables or the normal
- * use is to specific all tables (or the global table) by passing
- * %RIO_GLOBAL_TABLE in @table. Returns %0 on success or %-EINVAL
- * on failure.
- */
-static int
-rio_route_add_entry(struct rio_dev *rdev,
-		    u16 table, u16 route_destid, u8 route_port, int lock)
-{
-	int rc;
-
-	if (lock) {
-		rc = rio_lock_device(rdev->net->hport, rdev->destid,
-				     rdev->hopcount, 1000);
-		if (rc)
-			return rc;
-	}
-
-	rc = rdev->rswitch->add_entry(rdev->net->hport, rdev->destid,
-				      rdev->hopcount, table,
-				      route_destid, route_port);
-	if (lock)
-		rio_unlock_device(rdev->net->hport, rdev->destid,
-				  rdev->hopcount);
-
-	return rc;
-}
-
-/**
- * rio_route_get_entry- Read a route entry in a switch routing table
- * @rdev: RIO device
- * @table: Routing table ID
- * @route_destid: Destination ID to be routed
- * @route_port: Pointer to read port number into
- * @lock: lock switch device flag
- *
- * Calls the switch specific get_entry() method to read a route entry
- * in a switch. The route table can be specified using the @table
- * argument if a switch has per port routing tables or the normal
- * use is to specific all tables (or the global table) by passing
- * %RIO_GLOBAL_TABLE in @table. Returns %0 on success or %-EINVAL
- * on failure.
- */
-static int
-rio_route_get_entry(struct rio_dev *rdev, u16 table,
-		    u16 route_destid, u8 *route_port, int lock)
-{
-	int rc;
-
-	if (lock) {
-		rc = rio_lock_device(rdev->net->hport, rdev->destid,
-				     rdev->hopcount, 1000);
-		if (rc)
-			return rc;
-	}
-
-	rc = rdev->rswitch->get_entry(rdev->net->hport, rdev->destid,
-				      rdev->hopcount, table,
-				      route_destid, route_port);
-	if (lock)
-		rio_unlock_device(rdev->net->hport, rdev->destid,
-				  rdev->hopcount);
-
-	return rc;
 }
 
 /**
@@ -1094,12 +944,9 @@ static void rio_update_route_tables(struct rio_net *net)
 
 				sport = RIO_GET_PORT_NUM(swrdev->swpinfo);
 
-				if (rswitch->add_entry)	{
-					rio_route_add_entry(swrdev,
-						RIO_GLOBAL_TABLE, destid,
-						sport, 0);
-					rswitch->route_table[destid] = sport;
-				}
+				rio_route_add_entry(swrdev, RIO_GLOBAL_TABLE,
+						    destid, sport, 0);
+				rswitch->route_table[destid] = sport;
 			}
 		}
 	}
@@ -1115,8 +962,8 @@ static void rio_update_route_tables(struct rio_net *net)
 static void rio_init_em(struct rio_dev *rdev)
 {
 	if (rio_is_switch(rdev) && (rdev->em_efptr) &&
-	    (rdev->rswitch->em_init)) {
-		rdev->rswitch->em_init(rdev);
+	    rdev->rswitch->ops && rdev->rswitch->ops->em_init) {
+		rdev->rswitch->ops->em_init(rdev);
 	}
 }
 
