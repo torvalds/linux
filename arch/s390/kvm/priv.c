@@ -294,10 +294,13 @@ reinject_interrupt:
 
 static int handle_tsch(struct kvm_vcpu *vcpu)
 {
-	struct kvm_s390_interrupt_info *inti;
+	struct kvm_s390_interrupt_info *inti = NULL;
+	const u64 isc_mask = 0xffUL << 24; /* all iscs set */
 
-	inti = kvm_s390_get_io_int(vcpu->kvm, 0,
-				   vcpu->run->s.regs.gprs[1]);
+	/* a valid schid has at least one bit set */
+	if (vcpu->run->s.regs.gprs[1])
+		inti = kvm_s390_get_io_int(vcpu->kvm, isc_mask,
+					   vcpu->run->s.regs.gprs[1]);
 
 	/*
 	 * Prepare exit to userspace.

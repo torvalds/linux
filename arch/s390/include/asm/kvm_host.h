@@ -344,6 +344,11 @@ enum irq_types {
 	IRQ_PEND_COUNT
 };
 
+/* We have 2M for virtio device descriptor pages. Smallest amount of
+ * memory per page is 24 bytes (1 queue), so (2048*1024) / 24 = 87381
+ */
+#define KVM_S390_MAX_VIRTIO_IRQS 87381
+
 /*
  * Repressible (non-floating) machine check interrupts
  * subclass bits in MCIC
@@ -421,13 +426,32 @@ struct kvm_s390_local_interrupt {
 	unsigned long pending_irqs;
 };
 
+#define FIRQ_LIST_IO_ISC_0 0
+#define FIRQ_LIST_IO_ISC_1 1
+#define FIRQ_LIST_IO_ISC_2 2
+#define FIRQ_LIST_IO_ISC_3 3
+#define FIRQ_LIST_IO_ISC_4 4
+#define FIRQ_LIST_IO_ISC_5 5
+#define FIRQ_LIST_IO_ISC_6 6
+#define FIRQ_LIST_IO_ISC_7 7
+#define FIRQ_LIST_PFAULT   8
+#define FIRQ_LIST_VIRTIO   9
+#define FIRQ_LIST_COUNT   10
+#define FIRQ_CNTR_IO       0
+#define FIRQ_CNTR_SERVICE  1
+#define FIRQ_CNTR_VIRTIO   2
+#define FIRQ_CNTR_PFAULT   3
+#define FIRQ_MAX_COUNT     4
+
 struct kvm_s390_float_interrupt {
+	unsigned long pending_irqs;
 	spinlock_t lock;
-	struct list_head list;
-	atomic_t active;
+	struct list_head lists[FIRQ_LIST_COUNT];
+	int counters[FIRQ_MAX_COUNT];
+	struct kvm_s390_mchk_info mchk;
+	struct kvm_s390_ext_info srv_signal;
 	int next_rr_cpu;
 	unsigned long idle_mask[BITS_TO_LONGS(KVM_MAX_VCPUS)];
-	unsigned int irq_count;
 };
 
 struct kvm_hw_wp_info_arch {

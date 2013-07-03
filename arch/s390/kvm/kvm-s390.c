@@ -31,6 +31,7 @@
 #include <asm/pgtable.h>
 #include <asm/nmi.h>
 #include <asm/switch_to.h>
+#include <asm/isc.h>
 #include <asm/sclp.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
@@ -1069,7 +1070,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		goto out_err;
 
 	spin_lock_init(&kvm->arch.float_int.lock);
-	INIT_LIST_HEAD(&kvm->arch.float_int.list);
+	for (i = 0; i < FIRQ_LIST_COUNT; i++)
+		INIT_LIST_HEAD(&kvm->arch.float_int.lists[i]);
 	init_waitqueue_head(&kvm->arch.ipte_wq);
 	mutex_init(&kvm->arch.ipte_mutex);
 
