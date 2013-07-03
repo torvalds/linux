@@ -214,11 +214,11 @@ extern int initrd_is_mapped;
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
 	if (initrd_is_mapped)
-		free_reserved_area((void *)start, (void *)end, 0, "initrd");
+		free_reserved_area((void *)start, (void *)end, -1, "initrd");
 }
 #endif
 
 void free_initmem(void)
 {
-	free_initmem_default(0);
+	free_initmem_default(-1);
 }

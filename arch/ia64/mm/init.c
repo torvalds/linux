@@ -155,7 +155,7 @@ void
 free_initmem (void)
 {
 	free_reserved_area(ia64_imva(__init_begin), ia64_imva(__init_end),
-			   0, "unused kernel");
+			   -1, "unused kernel");
 }
 
 void __init

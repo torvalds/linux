@@ -5214,7 +5214,7 @@ unsigned long free_reserved_area(void *start, void *end, int poison, char *s)
 	start = (void *)PAGE_ALIGN((unsigned long)start);
 	end = (void *)((unsigned long)end & PAGE_MASK);
 	for (pos = start; pos < end; pos += PAGE_SIZE, pages++) {
-		if (poison)
+		if ((unsigned int)poison <= 0xFF)
 			memset(pos, poison, PAGE_SIZE);
 		free_reserved_page(virt_to_page(pos));
 	}

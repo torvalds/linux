@@ -65,5 +65,5 @@ mem_init(void)
 void 
 free_initmem(void)
 {
-	free_initmem_default(0);
+	free_initmem_default(-1);
 }
