@@ -117,7 +117,7 @@
 static DEFINE_SPINLOCK(davinci_rtc_lock);
 
 struct davinci_rtc {
-	struct rtc_device 		*rtc;
+	struct rtc_device		*rtc;
 	void __iomem			*base;
 	resource_size_t			pbase;
 	size_t				base_size;
