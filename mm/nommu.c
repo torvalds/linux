@@ -282,6 +282,10 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
 
 long vread(char *buf, char *addr, unsigned long count)
 {
+	/* Don't allow overflow */
+	if ((unsigned long) buf + count < count)
+		count = -(unsigned long) buf;
+
 	memcpy(buf, addr, count);
 	return count;
 }
