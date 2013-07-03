@@ -520,18 +520,12 @@ exit_free:
 	return err;
 }
 
-static int fm3130_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static struct i2c_driver fm3130_driver = {
 	.driver = {
 		.name	= "rtc-fm3130",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= fm3130_probe,
-	.remove		= fm3130_remove,
 	.id_table	= fm3130_id,
 };
 
