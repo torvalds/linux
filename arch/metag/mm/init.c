@@ -380,6 +380,12 @@ void __init mem_init(void)
 
 #ifdef CONFIG_HIGHMEM
 	unsigned long tmp;
+
+	/*
+	 * Explicitly reset zone->managed_pages because highmem pages are
+	 * freed before calling free_all_bootmem_node();
+	 */
+	reset_all_zones_managed_pages();
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++)
 		free_highmem_page(pfn_to_page(tmp));
 	num_physpages += totalhigh_pages;
