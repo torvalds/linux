@@ -188,8 +188,6 @@ out:
 
 static int bq4802_remove(struct platform_device *pdev)
 {
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
