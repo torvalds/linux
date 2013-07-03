@@ -1200,14 +1200,12 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 {
 	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
 	struct isert_conn *isert_conn = isert_cmd->conn;
-	struct iscsi_conn *conn;
+	struct iscsi_conn *conn = isert_conn->conn;
 
 	pr_debug("Entering isert_put_cmd: %p\n", isert_cmd);
 
 	switch (cmd->iscsi_opcode) {
 	case ISCSI_OP_SCSI_CMD:
-		conn = isert_conn->conn;
-
 		spin_lock_bh(&conn->cmd_lock);
 		if (!list_empty(&cmd->i_conn_node))
 			list_del(&cmd->i_conn_node);
@@ -1217,16 +1215,18 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 			iscsit_stop_dataout_timer(cmd);
 
 		isert_unmap_cmd(isert_cmd, isert_conn);
-		/*
-		 * Fall-through
-		 */
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
+		break;
 	case ISCSI_OP_SCSI_TMFUNC:
+		spin_lock_bh(&conn->cmd_lock);
+		if (!list_empty(&cmd->i_conn_node))
+			list_del(&cmd->i_conn_node);
+		spin_unlock_bh(&conn->cmd_lock);
+
 		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		break;
 	case ISCSI_OP_REJECT:
 	case ISCSI_OP_NOOP_OUT:
-		conn = isert_conn->conn;
-
 		spin_lock_bh(&conn->cmd_lock);
 		if (!list_empty(&cmd->i_conn_node))
 			list_del(&cmd->i_conn_node);

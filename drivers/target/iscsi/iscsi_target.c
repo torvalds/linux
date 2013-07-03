@@ -1737,8 +1737,8 @@ iscsit_handle_task_mgt_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	struct se_tmr_req *se_tmr;
 	struct iscsi_tmr_req *tmr_req;
 	struct iscsi_tm *hdr;
-	int out_of_order_cmdsn = 0;
-	int ret;
+	int out_of_order_cmdsn = 0, ret;
+	bool sess_ref = false;
 	u8 function;
 
 	hdr			= (struct iscsi_tm *) buf;
@@ -1793,6 +1793,9 @@ iscsit_handle_task_mgt_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 				      &lio_target_fabric_configfs->tf_ops,
 				      conn->sess->se_sess, 0, DMA_NONE,
 				      MSG_SIMPLE_TAG, cmd->sense_buffer + 2);
+
+		target_get_sess_cmd(conn->sess->se_sess, &cmd->se_cmd, true);
+		sess_ref = true;
 
 		switch (function) {
 		case ISCSI_TM_FUNC_ABORT_TASK:
@@ -1931,6 +1934,11 @@ attach:
 	 * For connection recovery, this is also the default action for
 	 * TMR TASK_REASSIGN.
 	 */
+	if (sess_ref) {
+		pr_debug("Handle TMR, using sess_ref=true check\n");
+		target_put_sess_cmd(conn->sess->se_sess, &cmd->se_cmd);
+	}
+
 	iscsit_add_cmd_to_response_queue(cmd, conn, cmd->i_state);
 	return 0;
 }
