@@ -57,7 +57,7 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 		dma_addr_t start_addr;
 		unsigned int i = 0;
 
-		buf->pages = drm_calloc_large(nr_pages, sizeof(struct page));
+		buf->pages = drm_calloc_large(nr_pages, sizeof(struct page *));
 		if (!buf->pages) {
 			DRM_ERROR("failed to allocate pages.\n");
 			return -ENOMEM;
