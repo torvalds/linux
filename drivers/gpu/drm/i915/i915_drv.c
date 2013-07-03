@@ -123,10 +123,10 @@ module_param_named(preliminary_hw_support, i915_preliminary_hw_support, int, 060
 MODULE_PARM_DESC(preliminary_hw_support,
 		"Enable preliminary hardware support. (default: false)");
 
-int i915_disable_power_well __read_mostly = 0;
+int i915_disable_power_well __read_mostly = 1;
 module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
 MODULE_PARM_DESC(disable_power_well,
-		 "Disable the power well when possible (default: false)");
+		 "Disable the power well when possible (default: true)");
 
 int i915_enable_ips __read_mostly = 1;
 module_param_named(enable_ips, i915_enable_ips, int, 0600);
