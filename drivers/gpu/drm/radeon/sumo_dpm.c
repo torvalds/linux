@@ -811,6 +811,23 @@ static void sumo_program_bootup_state(struct radeon_device *rdev)
 		sumo_power_level_enable(rdev, i, false);
 }
 
+static void sumo_setup_uvd_clocks(struct radeon_device *rdev,
+				  struct radeon_ps *new_rps,
+				  struct radeon_ps *old_rps)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+
+	if (pi->enable_gfx_power_gating) {
+		sumo_gfx_powergating_enable(rdev, false);
+	}
+
+	radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+
+	if (pi->enable_gfx_power_gating) {
+		sumo_gfx_powergating_enable(rdev, true);
+	}
+}
+
 static void sumo_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
 						    struct radeon_ps *new_rps,
 						    struct radeon_ps *old_rps)
@@ -826,7 +843,7 @@ static void sumo_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
 	    current_ps->levels[current_ps->num_levels - 1].sclk)
 		return;
 
-	radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+	sumo_setup_uvd_clocks(rdev, new_rps, old_rps);
 }
 
 static void sumo_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
@@ -844,7 +861,7 @@ static void sumo_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
 	    current_ps->levels[current_ps->num_levels - 1].sclk)
 		return;
 
-	radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+	sumo_setup_uvd_clocks(rdev, new_rps, old_rps);
 }
 
 void sumo_take_smu_control(struct radeon_device *rdev, bool enable)
