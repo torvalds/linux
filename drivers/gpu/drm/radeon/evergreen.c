@@ -4043,8 +4043,6 @@ static void evergreen_rlc_start(struct radeon_device *rdev)
 
 	if (rdev->flags & RADEON_IS_IGP) {
 		mask |= GFX_POWER_GATING_ENABLE | GFX_POWER_GATING_SRC;
-		if (rdev->family == CHIP_ARUBA)
-			mask |= DYN_PER_SIMD_PG_ENABLE | LB_CNT_SPIM_ACTIVE | LOAD_BALANCE_ENABLE;
 	}
 
 	WREG32(RLC_CNTL, mask);
