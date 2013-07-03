@@ -186,6 +186,7 @@ struct device_node *v4l2_of_get_next_endpoint(const struct device_node *parent,
 		if (!endpoint)
 			pr_err("%s(): no endpoint nodes specified for %s\n",
 			       __func__, parent->full_name);
+		of_node_put(node);
 	} else {
 		port = of_get_parent(prev);
 		if (!port)
