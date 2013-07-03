@@ -786,7 +786,7 @@ static int dlm_request_all_locks(struct dlm_ctxt *dlm, u8 request_from,
 				 u8 dead_node)
 {
 	struct dlm_lock_request lr;
-	enum dlm_status ret;
+	int ret;
 
 	mlog(0, "\n");
 
@@ -799,7 +799,6 @@ static int dlm_request_all_locks(struct dlm_ctxt *dlm, u8 request_from,
 	lr.dead_node = dead_node;
 
 	// send message
-	ret = DLM_NOLOCKMGR;
 	ret = o2net_send_message(DLM_LOCK_REQUEST_MSG, dlm->key,
 				 &lr, sizeof(lr), request_from, NULL);
 
