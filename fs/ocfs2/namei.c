@@ -2012,23 +2012,6 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 		goto leave;
 	}
 
-	/* we're a cluster, and nlink can change on disk from
-	 * underneath us... */
-	orphan_fe = (struct ocfs2_dinode *) orphan_dir_bh->b_data;
-	if (S_ISDIR(inode->i_mode))
-		ocfs2_add_links_count(orphan_fe, 1);
-	set_nlink(orphan_dir_inode, ocfs2_read_links_count(orphan_fe));
-	ocfs2_journal_dirty(handle, orphan_dir_bh);
-
-	status = __ocfs2_add_entry(handle, orphan_dir_inode, name,
-				   OCFS2_ORPHAN_NAMELEN, inode,
-				   OCFS2_I(inode)->ip_blkno,
-				   orphan_dir_bh, lookup);
-	if (status < 0) {
-		mlog_errno(status);
-		goto leave;
-	}
-
 	/*
 	 * We're going to journal the change of i_flags and i_orphaned_slot.
 	 * It's safe anyway, though some callers may duplicate the journaling.
@@ -2044,6 +2027,23 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 		goto leave;
 	}
 
+	/* we're a cluster, and nlink can change on disk from
+	 * underneath us... */
+	orphan_fe = (struct ocfs2_dinode *) orphan_dir_bh->b_data;
+	if (S_ISDIR(inode->i_mode))
+		ocfs2_add_links_count(orphan_fe, 1);
+	set_nlink(orphan_dir_inode, ocfs2_read_links_count(orphan_fe));
+	ocfs2_journal_dirty(handle, orphan_dir_bh);
+
+	status = __ocfs2_add_entry(handle, orphan_dir_inode, name,
+				   OCFS2_ORPHAN_NAMELEN, inode,
+				   OCFS2_I(inode)->ip_blkno,
+				   orphan_dir_bh, lookup);
+	if (status < 0) {
+		mlog_errno(status);
+		goto rollback;
+	}
+
 	fe->i_flags |= cpu_to_le32(OCFS2_ORPHANED_FL);
 	OCFS2_I(inode)->ip_flags &= ~OCFS2_INODE_SKIP_ORPHAN_DIR;
 
@@ -2057,11 +2057,16 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	trace_ocfs2_orphan_add_end((unsigned long long)OCFS2_I(inode)->ip_blkno,
 				   osb->slot_num);
 
+rollback:
+	if (status < 0) {
+		if (S_ISDIR(inode->i_mode))
+			ocfs2_add_links_count(orphan_fe, -1);
+		set_nlink(orphan_dir_inode, ocfs2_read_links_count(orphan_fe));
+	}
+
 leave:
 	brelse(orphan_dir_bh);
 
-	if (status)
-		mlog_errno(status);
 	return status;
 }
 
