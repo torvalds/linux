@@ -45,45 +45,27 @@
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct pci_dev *pdev = dev_priv->bridge_dev;
 	struct resource *r;
 	u32 base;
 
-	/* On the machines I have tested the Graphics Base of Stolen Memory
-	 * is unreliable, so on those compute the base by subtracting the
-	 * stolen memory from the Top of Low Usable DRAM which is where the
-	 * BIOS places the graphics stolen memory.
+	/* Almost universally we can find the Graphics Base of Stolen Memory
+	 * at offset 0x5c in the igfx configuration space. On a few (desktop)
+	 * machines this is also mirrored in the bridge device at different
+	 * locations, or in the MCHBAR. On gen2, the layout is again slightly
+	 * different with the Graphics Segment immediately following Top of
+	 * Memory (or Top of Usable DRAM). Note it appears that TOUD is only
+	 * reported by 865g, so we just use the top of memory as determined
+	 * by the e820 probe.
 	 *
-	 * On gen2, the layout is slightly different with the Graphics Segment
-	 * immediately following Top of Memory (or Top of Usable DRAM). Note
-	 * it appears that TOUD is only reported by 865g, so we just use the
-	 * top of memory as determined by the e820 probe.
-	 *
-	 * XXX gen2 requires an unavailable symbol and 945gm fails with
-	 * its value of TOLUD.
+	 * XXX However gen2 requires an unavailable symbol.
 	 */
 	base = 0;
-	if (IS_VALLEYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 3) {
+		/* Read Graphics Base of Stolen Memory directly */
 		pci_read_config_dword(dev->pdev, 0x5c, &base);
 		base &= ~((1<<20) - 1);
-	} else if (INTEL_INFO(dev)->gen >= 6) {
-		/* Read Base Data of Stolen Memory Register (BDSM) directly.
-		 * Note that there is also a MCHBAR miror at 0x1080c0 or
-		 * we could use device 2:0x5c instead.
-		*/
-		pci_read_config_dword(pdev, 0xB0, &base);
-		base &= ~4095; /* lower bits used for locking register */
-	} else if (INTEL_INFO(dev)->gen > 3 || IS_G33(dev)) {
-		/* Read Graphics Base of Stolen Memory directly */
-		pci_read_config_dword(pdev, 0xA4, &base);
+	} else { /* GEN2 */
 #if 0
-	} else if (IS_GEN3(dev)) {
-		u8 val;
-		/* Stolen is immediately below Top of Low Usable DRAM */
-		pci_read_config_byte(pdev, 0x9c, &val);
-		base = val >> 3 << 27;
-		base -= dev_priv->mm.gtt->stolen_size;
-	} else {
 		/* Stolen is immediately above Top of Memory */
 		base = max_low_pfn_mapped << PAGE_SHIFT;
 #endif
