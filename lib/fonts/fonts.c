@@ -1,5 +1,5 @@
 /*
- * linux/drivers/video/fonts.c -- `Soft' font definitions
+ * `Soft' font definitions
  *
  *    Created 1995 by Geert Uytterhoeven
  *    Rewritten 1998 by Martin Mares <mj@ucw.cz>

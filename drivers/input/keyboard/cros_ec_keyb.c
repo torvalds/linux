@@ -206,33 +206,6 @@ static int cros_ec_keyb_work(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-/* Clear any keys in the buffer */
-static void cros_ec_keyb_clear_keyboard(struct cros_ec_keyb *ckdev)
-{
-	uint8_t old_state[ckdev->cols];
-	uint8_t new_state[ckdev->cols];
-	unsigned long duration;
-	int i, ret;
-
-	/*
-	 * Keep reading until we see that the scan state does not change.
-	 * That indicates that we are done.
-	 *
-	 * Assume that the EC keyscan buffer is at most 32 deep.
-	 */
-	duration = jiffies;
-	ret = cros_ec_keyb_get_state(ckdev, new_state);
-	for (i = 1; !ret && i < 32; i++) {
-		memcpy(old_state, new_state, sizeof(old_state));
-		ret = cros_ec_keyb_get_state(ckdev, new_state);
-		if (0 == memcmp(old_state, new_state, sizeof(old_state)))
-			break;
-	}
-	duration = jiffies - duration;
-	dev_info(ckdev->dev, "Discarded %d keyscan(s) in %dus\n", i,
-		jiffies_to_usecs(duration));
-}
-
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
@@ -299,6 +272,33 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+/* Clear any keys in the buffer */
+static void cros_ec_keyb_clear_keyboard(struct cros_ec_keyb *ckdev)
+{
+	uint8_t old_state[ckdev->cols];
+	uint8_t new_state[ckdev->cols];
+	unsigned long duration;
+	int i, ret;
+
+	/*
+	 * Keep reading until we see that the scan state does not change.
+	 * That indicates that we are done.
+	 *
+	 * Assume that the EC keyscan buffer is at most 32 deep.
+	 */
+	duration = jiffies;
+	ret = cros_ec_keyb_get_state(ckdev, new_state);
+	for (i = 1; !ret && i < 32; i++) {
+		memcpy(old_state, new_state, sizeof(old_state));
+		ret = cros_ec_keyb_get_state(ckdev, new_state);
+		if (0 == memcmp(old_state, new_state, sizeof(old_state)))
+			break;
+	}
+	duration = jiffies - duration;
+	dev_info(ckdev->dev, "Discarded %d keyscan(s) in %dus\n", i,
+		jiffies_to_usecs(duration));
+}
+
 static int cros_ec_keyb_resume(struct device *dev)
 {
 	struct cros_ec_keyb *ckdev = dev_get_drvdata(dev);
