@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
 #include <linux/io.h>
+#include <linux/err.h>
 
 #define DRV_VERSION		"1.0"
 
@@ -174,10 +175,7 @@ static int m48t35_probe(struct platform_device *pdev)
 
 	priv->rtc = devm_rtc_device_register(&pdev->dev, "m48t35",
 				  &m48t35_ops, THIS_MODULE);
-	if (IS_ERR(priv->rtc))
-		return PTR_ERR(priv->rtc);
-
-	return 0;
+	return PTR_RET(priv->rtc);
 }
 
 static struct platform_driver m48t35_platform_driver = {
