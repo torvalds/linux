@@ -348,7 +348,7 @@ static int master_put(struct snd_kcontrol *kcontrol,
 	err = sync_slaves(master, old_val, new_val);
 	if (err < 0)
 		return err;
-	if (master->hook && first_init)
+	if (master->hook && !first_init)
 		master->hook(master->hook_private_data, master->val);
 	return 1;
 }
