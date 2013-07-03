@@ -959,11 +959,11 @@ static int pmecc_choose_ecc(struct atmel_nand_host *host,
 			host->pmecc_corr_cap = 2;
 		else if (*cap <= 4)
 			host->pmecc_corr_cap = 4;
-		else if (*cap < 8)
+		else if (*cap <= 8)
 			host->pmecc_corr_cap = 8;
-		else if (*cap < 12)
+		else if (*cap <= 12)
 			host->pmecc_corr_cap = 12;
-		else if (*cap < 24)
+		else if (*cap <= 24)
 			host->pmecc_corr_cap = 24;
 		else
 			return -EINVAL;
