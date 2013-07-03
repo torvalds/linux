@@ -3286,8 +3286,6 @@ static u8 iscsit_convert_tcm_tmr_rsp(struct se_tmr_req *se_tmr)
 		return ISCSI_TMF_RSP_NO_LUN;
 	case TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED:
 		return ISCSI_TMF_RSP_NOT_SUPPORTED;
-	case TMR_FUNCTION_AUTHORIZATION_FAILED:
-		return ISCSI_TMF_RSP_AUTH_FAILED;
 	case TMR_FUNCTION_REJECTED:
 	default:
 		return ISCSI_TMF_RSP_REJECTED;

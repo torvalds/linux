@@ -413,10 +413,7 @@ int ft_queue_tm_resp(struct se_cmd *se_cmd)
 		code = FCP_TMF_REJECTED;
 		break;
 	case TMR_TASK_DOES_NOT_EXIST:
-	case TMR_TASK_STILL_ALLEGIANT:
-	case TMR_TASK_FAILOVER_NOT_SUPPORTED:
 	case TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED:
-	case TMR_FUNCTION_AUTHORIZATION_FAILED:
 	default:
 		code = FCP_TMF_FAILED;
 		break;
