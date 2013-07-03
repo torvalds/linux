@@ -554,8 +554,10 @@ int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 	if (err)
 		goto failed_bh;
 
-	atomic_set(&root->inodes_count, le64_to_cpu(raw_cp->cp_inodes_count));
-	atomic_set(&root->blocks_count, le64_to_cpu(raw_cp->cp_blocks_count));
+	atomic64_set(&root->inodes_count,
+			le64_to_cpu(raw_cp->cp_inodes_count));
+	atomic64_set(&root->blocks_count,
+			le64_to_cpu(raw_cp->cp_blocks_count));
 
 	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
 
@@ -647,7 +649,7 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 			 * curent inodes count as maximum possible and
 			 * zero as free inodes value.
 			 */
-			nmaxinodes = atomic_read(&root->inodes_count);
+			nmaxinodes = atomic64_read(&root->inodes_count);
 			nfreeinodes = 0;
 			err = 0;
 		} else

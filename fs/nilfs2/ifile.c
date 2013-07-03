@@ -174,7 +174,7 @@ int nilfs_ifile_count_free_inodes(struct inode *ifile,
 	*nmaxinodes = 0;
 	*nfreeinodes = 0;
 
-	nused = atomic_read(&NILFS_I(ifile)->i_root->inodes_count);
+	nused = atomic64_read(&NILFS_I(ifile)->i_root->inodes_count);
 	err = nilfs_palloc_count_max_entries(ifile, nused, nmaxinodes);
 	if (likely(!err))
 		*nfreeinodes = *nmaxinodes - nused;
