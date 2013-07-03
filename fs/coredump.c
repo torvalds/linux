@@ -99,11 +99,21 @@ static int cn_printf(struct core_name *cn, const char *fmt, ...)
 	return ret;
 }
 
-static void cn_escape(char *str)
+static int cn_esc_printf(struct core_name *cn, const char *fmt, ...)
 {
-	for (; *str; str++)
-		if (*str == '/')
-			*str = '!';
+	int cur = cn->used;
+	va_list arg;
+	int ret;
+
+	va_start(arg, fmt);
+	ret = cn_vprintf(cn, fmt, arg);
+	va_end(arg);
+
+	for (; cur < cn->used; ++cur) {
+		if (cn->corename[cur] == '/')
+			cn->corename[cur] = '!';
+	}
+	return ret;
 }
 
 static int cn_print_exe_file(struct core_name *cn)
@@ -113,12 +123,8 @@ static int cn_print_exe_file(struct core_name *cn)
 	int ret;
 
 	exe_file = get_mm_exe_file(current->mm);
-	if (!exe_file) {
-		char *commstart = cn->corename + cn->used;
-		ret = cn_printf(cn, "%s (path unknown)", current->comm);
-		cn_escape(commstart);
-		return ret;
-	}
+	if (!exe_file)
+		return cn_esc_printf(cn, "%s (path unknown)", current->comm);
 
 	pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY);
 	if (!pathbuf) {
@@ -132,9 +138,7 @@ static int cn_print_exe_file(struct core_name *cn)
 		goto free_buf;
 	}
 
-	cn_escape(path);
-
-	ret = cn_printf(cn, "%s", path);
+	ret = cn_esc_printf(cn, "%s", path);
 
 free_buf:
 	kfree(pathbuf);
@@ -207,22 +211,16 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				break;
 			}
 			/* hostname */
-			case 'h': {
-				char *namestart = cn->corename + cn->used;
+			case 'h':
 				down_read(&uts_sem);
-				err = cn_printf(cn, "%s",
+				err = cn_esc_printf(cn, "%s",
 					      utsname()->nodename);
 				up_read(&uts_sem);
-				cn_escape(namestart);
 				break;
-			}
 			/* executable */
-			case 'e': {
-				char *commstart = cn->corename + cn->used;
-				err = cn_printf(cn, "%s", current->comm);
-				cn_escape(commstart);
+			case 'e':
+				err = cn_esc_printf(cn, "%s", current->comm);
 				break;
-			}
 			case 'E':
 				err = cn_print_exe_file(cn);
 				break;
