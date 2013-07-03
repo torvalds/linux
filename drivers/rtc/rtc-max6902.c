@@ -143,18 +143,12 @@ static int max6902_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int max6902_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
 static struct spi_driver max6902_driver = {
 	.driver = {
 		.name	= "rtc-max6902",
 		.owner	= THIS_MODULE,
 	},
 	.probe	= max6902_probe,
-	.remove = max6902_remove,
 };
 
 module_spi_driver(max6902_driver);
