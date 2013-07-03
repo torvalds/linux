@@ -339,8 +339,10 @@ static int rtc_probe(struct platform_device *pdev)
 		goto err_device_unregister;
 
 	pie_irq = platform_get_irq(pdev, 1);
-	if (pie_irq <= 0)
+	if (pie_irq <= 0) {
+		retval = -EBUSY;
 		goto err_free_irq;
+	}
 
 	retval = request_irq(pie_irq, rtclong1_interrupt, 0,
 			     "rtclong1", pdev);
