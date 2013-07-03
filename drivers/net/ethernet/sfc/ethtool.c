@@ -1035,8 +1035,8 @@ static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
 	return 0;
 }
 
-int efx_ethtool_get_ts_info(struct net_device *net_dev,
-			    struct ethtool_ts_info *ts_info)
+static int efx_ethtool_get_ts_info(struct net_device *net_dev,
+				   struct ethtool_ts_info *ts_info)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
