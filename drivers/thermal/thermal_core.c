@@ -1373,7 +1373,7 @@ static void remove_trip_attrs(struct thermal_zone_device *tz)
  */
 struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	int trips, int mask, void *devdata,
-	const struct thermal_zone_device_ops *ops,
+	struct thermal_zone_device_ops *ops,
 	const struct thermal_zone_params *tzp,
 	int passive_delay, int polling_delay)
 {
@@ -1746,8 +1746,14 @@ static int __init thermal_init(void)
 	if (result)
 		goto unregister_class;
 
+	result = of_parse_thermal_zones();
+	if (result)
+		goto exit_netlink;
+
 	return 0;
 
+exit_netlink:
+	genetlink_exit();
 unregister_governors:
 	thermal_unregister_governors();
 unregister_class:
@@ -1763,6 +1769,7 @@ error:
 
 static void __exit thermal_exit(void)
 {
+	of_thermal_destroy_zones();
 	genetlink_exit();
 	class_unregister(&thermal_class);
 	thermal_unregister_governors();

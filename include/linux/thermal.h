@@ -143,6 +143,7 @@ struct thermal_cooling_device {
 	int id;
 	char type[THERMAL_NAME_LENGTH];
 	struct device device;
+	struct device_node *np;
 	void *devdata;
 	const struct thermal_cooling_device_ops *ops;
 	bool updated; /* true if the cooling device does not need update */
@@ -172,7 +173,7 @@ struct thermal_zone_device {
 	int emul_temperature;
 	int passive;
 	unsigned int forced_passive;
-	const struct thermal_zone_device_ops *ops;
+	struct thermal_zone_device_ops *ops;
 	const struct thermal_zone_params *tzp;
 	struct thermal_governor *governor;
 	struct list_head thermal_instances;
@@ -242,8 +243,31 @@ struct thermal_genl_event {
 };
 
 /* Function declarations */
+#ifdef CONFIG_THERMAL_OF
+struct thermal_zone_device *
+thermal_zone_of_sensor_register(struct device *dev, int id,
+				void *data, int (*get_temp)(void *, long *),
+				int (*get_trend)(void *, long *));
+void thermal_zone_of_sensor_unregister(struct device *dev,
+				       struct thermal_zone_device *tz);
+#else
+static inline struct thermal_zone_device *
+thermal_zone_of_sensor_register(struct device *dev, int id,
+				void *data, int (*get_temp)(void *, long *),
+				int (*get_trend)(void *, long *))
+{
+	return NULL;
+}
+
+static inline
+void thermal_zone_of_sensor_unregister(struct device *dev,
+				       struct thermal_zone_device *tz)
+{
+}
+
+#endif
 struct thermal_zone_device *thermal_zone_device_register(const char *, int, int,
-		void *, const struct thermal_zone_device_ops *,
+		void *, struct thermal_zone_device_ops *,
 		const struct thermal_zone_params *, int, int);
 void thermal_zone_device_unregister(struct thermal_zone_device *);
 
