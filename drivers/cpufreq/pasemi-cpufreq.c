@@ -204,7 +204,8 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	/* initialize frequency table */
 	for (i=0; pas_freqs[i].frequency!=CPUFREQ_TABLE_END; i++) {
-		pas_freqs[i].frequency = get_astate_freq(pas_freqs[i].index) * 100000;
+		pas_freqs[i].frequency =
+			get_astate_freq(pas_freqs[i].driver_data) * 100000;
 		pr_debug("%d: %d\n", i, pas_freqs[i].frequency);
 	}
 
@@ -280,7 +281,7 @@ static int pas_cpufreq_target(struct cpufreq_policy *policy,
 	pr_debug("setting frequency for cpu %d to %d kHz, 1/%d of max frequency\n",
 		 policy->cpu,
 		 pas_freqs[pas_astate_new].frequency,
-		 pas_freqs[pas_astate_new].index);
+		 pas_freqs[pas_astate_new].driver_data);
 
 	current_astate = pas_astate_new;
 

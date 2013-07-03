@@ -187,8 +187,6 @@ acpi_evaluate_object(acpi_handle handle,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	info->pathname = pathname;
-
 	/* Convert and validate the device handle */
 
 	info->prefix_node = acpi_ns_validate_handle(handle);
@@ -198,55 +196,23 @@ acpi_evaluate_object(acpi_handle handle,
 	}
 
 	/*
-	 * If there are parameters to be passed to a control method, the external
-	 * objects must all be converted to internal objects
-	 */
-	if (external_params && external_params->count) {
-		/*
-		 * Allocate a new parameter block for the internal objects
-		 * Add 1 to count to allow for null terminated internal list
-		 */
-		info->parameters = ACPI_ALLOCATE_ZEROED(((acpi_size)
-							 external_params->
-							 count +
-							 1) * sizeof(void *));
-		if (!info->parameters) {
-			status = AE_NO_MEMORY;
-			goto cleanup;
-		}
-
-		/* Convert each external object in the list to an internal object */
-
-		for (i = 0; i < external_params->count; i++) {
-			status =
-			    acpi_ut_copy_eobject_to_iobject(&external_params->
-							    pointer[i],
-							    &info->
-							    parameters[i]);
-			if (ACPI_FAILURE(status)) {
-				goto cleanup;
-			}
-		}
-		info->parameters[external_params->count] = NULL;
-	}
-
-	/*
-	 * Three major cases:
-	 * 1) Fully qualified pathname
-	 * 2) No handle, not fully qualified pathname (error)
-	 * 3) Valid handle
+	 * Get the actual namespace node for the target object.
+	 * Handles these cases:
+	 *
+	 * 1) Null node, valid pathname from root (absolute path)
+	 * 2) Node and valid pathname (path relative to Node)
+	 * 3) Node, Null pathname
 	 */
 	if ((pathname) && (ACPI_IS_ROOT_PREFIX(pathname[0]))) {
 
 		/* The path is fully qualified, just evaluate by name */
 
 		info->prefix_node = NULL;
-		status = acpi_ns_evaluate(info);
 	} else if (!handle) {
 		/*
 		 * A handle is optional iff a fully qualified pathname is specified.
 		 * Since we've already handled fully qualified names above, this is
-		 * an error
+		 * an error.
 		 */
 		if (!pathname) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -258,11 +224,143 @@ acpi_evaluate_object(acpi_handle handle,
 		}
 
 		status = AE_BAD_PARAMETER;
-	} else {
-		/* We have a namespace a node and a possible relative path */
-
-		status = acpi_ns_evaluate(info);
+		goto cleanup;
 	}
+
+	info->relative_pathname = pathname;
+
+	/*
+	 * Convert all external objects passed as arguments to the
+	 * internal version(s).
+	 */
+	if (external_params && external_params->count) {
+		info->param_count = (u16)external_params->count;
+
+		/* Warn on impossible argument count */
+
+		if (info->param_count > ACPI_METHOD_NUM_ARGS) {
+			ACPI_WARN_PREDEFINED((AE_INFO, pathname,
+					      ACPI_WARN_ALWAYS,
+					      "Excess arguments (%u) - using only %u",
+					      info->param_count,
+					      ACPI_METHOD_NUM_ARGS));
+
+			info->param_count = ACPI_METHOD_NUM_ARGS;
+		}
+
+		/*
+		 * Allocate a new parameter block for the internal objects
+		 * Add 1 to count to allow for null terminated internal list
+		 */
+		info->parameters = ACPI_ALLOCATE_ZEROED(((acpi_size) info->
+							 param_count +
+							 1) * sizeof(void *));
+		if (!info->parameters) {
+			status = AE_NO_MEMORY;
+			goto cleanup;
+		}
+
+		/* Convert each external object in the list to an internal object */
+
+		for (i = 0; i < info->param_count; i++) {
+			status =
+			    acpi_ut_copy_eobject_to_iobject(&external_params->
+							    pointer[i],
+							    &info->
+							    parameters[i]);
+			if (ACPI_FAILURE(status)) {
+				goto cleanup;
+			}
+		}
+
+		info->parameters[info->param_count] = NULL;
+	}
+
+#if 0
+
+	/*
+	 * Begin incoming argument count analysis. Check for too few args
+	 * and too many args.
+	 */
+
+	switch (acpi_ns_get_type(info->node)) {
+	case ACPI_TYPE_METHOD:
+
+		/* Check incoming argument count against the method definition */
+
+		if (info->obj_desc->method.param_count > info->param_count) {
+			ACPI_ERROR((AE_INFO,
+				    "Insufficient arguments (%u) - %u are required",
+				    info->param_count,
+				    info->obj_desc->method.param_count));
+
+			status = AE_MISSING_ARGUMENTS;
+			goto cleanup;
+		}
+
+		else if (info->obj_desc->method.param_count < info->param_count) {
+			ACPI_WARNING((AE_INFO,
+				      "Excess arguments (%u) - only %u are required",
+				      info->param_count,
+				      info->obj_desc->method.param_count));
+
+			/* Just pass the required number of arguments */
+
+			info->param_count = info->obj_desc->method.param_count;
+		}
+
+		/*
+		 * Any incoming external objects to be passed as arguments to the
+		 * method must be converted to internal objects
+		 */
+		if (info->param_count) {
+			/*
+			 * Allocate a new parameter block for the internal objects
+			 * Add 1 to count to allow for null terminated internal list
+			 */
+			info->parameters = ACPI_ALLOCATE_ZEROED(((acpi_size)
+								 info->
+								 param_count +
+								 1) *
+								sizeof(void *));
+			if (!info->parameters) {
+				status = AE_NO_MEMORY;
+				goto cleanup;
+			}
+
+			/* Convert each external object in the list to an internal object */
+
+			for (i = 0; i < info->param_count; i++) {
+				status =
+				    acpi_ut_copy_eobject_to_iobject
+				    (&external_params->pointer[i],
+				     &info->parameters[i]);
+				if (ACPI_FAILURE(status)) {
+					goto cleanup;
+				}
+			}
+
+			info->parameters[info->param_count] = NULL;
+		}
+		break;
+
+	default:
+
+		/* Warn if arguments passed to an object that is not a method */
+
+		if (info->param_count) {
+			ACPI_WARNING((AE_INFO,
+				      "%u arguments were passed to a non-method ACPI object",
+				      info->param_count));
+		}
+		break;
+	}
+
+#endif
+
+	/* Now we can evaluate the object */
+
+	status = acpi_ns_evaluate(info);
 
 	/*
 	 * If we are expecting a return value, and all went well above,
@@ -413,6 +511,7 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 		break;
 
 	default:
+
 		return;
 	}
 

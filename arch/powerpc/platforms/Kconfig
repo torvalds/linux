@@ -193,37 +193,6 @@ config PPC_IO_WORKAROUNDS
 
 source "drivers/cpufreq/Kconfig"
 
-menu "CPU Frequency drivers"
-	depends on CPU_FREQ
-
-config CPU_FREQ_PMAC
-	bool "Support for Apple PowerBooks"
-	depends on ADB_PMU && PPC32
-	select CPU_FREQ_TABLE
-	help
-	  This adds support for frequency switching on Apple PowerBooks,
-	  this currently includes some models of iBook & Titanium
-	  PowerBook.
-
-config CPU_FREQ_PMAC64
-	bool "Support for some Apple G5s"
-	depends on PPC_PMAC && PPC64
-	select CPU_FREQ_TABLE
-	help
-	  This adds support for frequency switching on Apple iMac G5,
-	  and some of the more recent desktop G5 machines as well.
-
-config PPC_PASEMI_CPUFREQ
-	bool "Support for PA Semi PWRficient"
-	depends on PPC_PASEMI
-	default y
-	select CPU_FREQ_TABLE
-	help
-	  This adds the support for frequency switching on PA Semi
-	  PWRficient processors.
-
-endmenu
-
 menu "CPUIdle driver"
 
 source "drivers/cpuidle/Kconfig"
