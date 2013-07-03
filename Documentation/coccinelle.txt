@@ -6,15 +6,17 @@ Copyright 2010 Gilles Muller <Gilles.Muller@lip6.fr>
  Getting Coccinelle
 ~~~~~~~~~~~~~~~~~~~~
 
-The semantic patches included in the kernel use the 'virtual rule'
-feature which was introduced in Coccinelle version 0.1.11.
+The semantic patches included in the kernel use features and options
+which are provided by Coccinelle version 1.0.0-rc11 and above.
+Using earlier versions will fail as the option names used by
+the Coccinelle files and coccicheck have been updated.
 
-Coccinelle (>=0.2.0) is available through the package manager
+Coccinelle is available through the package manager
 of many distributions, e.g. :
 
- - Debian (>=squeeze)
- - Fedora (>=13)
- - Ubuntu (>=10.04 Lucid Lynx)
+ - Debian
+ - Fedora
+ - Ubuntu
  - OpenSUSE
  - Arch Linux
  - NetBSD
@@ -35,11 +37,6 @@ Once you have it, run the following command:
 as a regular user, and install it with
 
         sudo make install
-
-The semantic patches in the kernel will work best with Coccinelle version
-0.2.4 or later.  Using earlier versions may incur some parse errors in the
-semantic patch code, but any results that are obtained should still be
-correct.
 
  Using Coccinelle on the Linux kernel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

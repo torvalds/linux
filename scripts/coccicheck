@@ -1,5 +1,10 @@
 #!/bin/bash
 
+#
+# This script requires at least spatch
+# version 1.0.0-rc11.
+#
+
 SPATCH="`which ${SPATCH:=spatch}`"
 
 trap kill_running SIGTERM SIGINT
