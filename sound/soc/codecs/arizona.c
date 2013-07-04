@@ -233,6 +233,9 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 	switch (arizona->type) {
 	case WM5110:
 		snd_soc_dapm_disable_pin(&codec->dapm, "DRC2 Signal Activity");
+		break;
+	default:
+		break;
 	}
 
 	snd_soc_dapm_disable_pin(&codec->dapm, "DRC1 Signal Activity");
