@@ -19,7 +19,7 @@ __ltrim_colon_completions()
 	fi
 }
 
-have perf &&
+type perf &>/dev/null &&
 _perf()
 {
 	local cur prev cmd
