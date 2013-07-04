@@ -333,6 +333,7 @@ void qxl_bo_fini(struct qxl_device *qdev);
 
 void qxl_reinit_memslots(struct qxl_device *qdev);
 int qxl_surf_evict(struct qxl_device *qdev);
+int qxl_vram_evict(struct qxl_device *qdev);
 
 struct qxl_ring *qxl_ring_create(struct qxl_ring_header *header,
 				 int element_size,
