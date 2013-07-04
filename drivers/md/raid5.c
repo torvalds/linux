@@ -5914,7 +5914,7 @@ static int check_reshape(struct mddev *mddev)
 		return 0; /* nothing to do */
 	if (has_failed(conf))
 		return -EINVAL;
-	if (mddev->delta_disks < 0) {
+	if (mddev->delta_disks < 0 && mddev->reshape_position == MaxSector) {
 		/* We might be able to shrink, but the devices must
 		 * be made bigger first.
 		 * For raid6, 4 is the minimum size.
