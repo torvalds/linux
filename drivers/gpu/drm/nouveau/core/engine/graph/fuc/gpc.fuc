@@ -42,8 +42,8 @@ tpc_count:		.b32 0
 tpc_mask:		.b32 0
 
 #if NV_PGRAPH_GPCX_UNK__SIZE > 0
-unk_count:		.b32 1
-unk_mask:		.b32 1
+unk_count:		.b32 0
+unk_mask:		.b32 0
 #endif
 
 cmd_queue:		queue_init
@@ -114,6 +114,31 @@ init:
 	add b32 $r1 0x400
 	iord $r2 I[$r1 + 0x000]		// MYINDEX
 	st b32 D[$r0 + #gpc_id] $r2
+
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+	// figure out which, and how many, UNKs are actually present
+	mov $r14 0x0c30
+	sethi $r14 0x500000
+	clear b32 $r2
+	clear b32 $r3
+	clear b32 $r4
+	init_unk_loop:
+		call #nv_rd32
+		cmp b32 $r15 0
+		bra z #init_unk_next
+			mov $r15 1
+			shl b32 $r15 $r2
+			or $r4 $r15
+			add b32 $r3 1
+		init_unk_next:
+		add b32 $r2 1
+		add b32 $r14 4
+		cmp b32 $r2 NV_PGRAPH_GPCX_UNK__SIZE
+		bra ne #init_unk_loop
+	init_unk_done:
+	st b32 D[$r0 + #unk_count] $r3
+	st b32 D[$r0 + #unk_mask] $r4
+#endif
 
 	// initialise context base, and size tracking
 	mov $r2 0x800
