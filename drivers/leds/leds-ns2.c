@@ -374,8 +374,6 @@ static int ns2_led_remove(struct platform_device *pdev)
 	for (i = 0; i < priv->num_leds; i++)
 		delete_ns2_led(&priv->leds_data[i]);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
