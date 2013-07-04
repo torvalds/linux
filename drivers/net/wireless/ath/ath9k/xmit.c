@@ -999,7 +999,7 @@ void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop)
 }
 
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
-			     struct ath_tx_info *info, int len)
+			     struct ath_tx_info *info, int len, bool rts)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct sk_buff *skb;
@@ -1008,6 +1008,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 	const struct ieee80211_rate *rate;
 	struct ieee80211_hdr *hdr;
 	struct ath_frame_info *fi = get_frame_info(bf->bf_mpdu);
+	u32 rts_thresh = sc->hw->wiphy->rts_threshold;
 	int i;
 	u8 rix = 0;
 
@@ -1030,7 +1031,17 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 		rix = rates[i].idx;
 		info->rates[i].Tries = rates[i].count;
 
-		    if (rates[i].flags & IEEE80211_TX_RC_USE_RTS_CTS) {
+		/*
+		 * Handle RTS threshold for unaggregated HT frames.
+		 */
+		if (bf_isampdu(bf) && !bf_isaggr(bf) &&
+		    (rates[i].flags & IEEE80211_TX_RC_MCS) &&
+		    unlikely(rts_thresh != (u32) -1)) {
+			if (!rts_thresh || (len > rts_thresh))
+				rts = true;
+		}
+
+		if (rts || rates[i].flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 			info->rates[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;
 			info->flags |= ATH9K_TXDESC_RTSENA;
 		} else if (rates[i].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
@@ -1123,6 +1134,8 @@ static void ath_tx_fill_desc(struct ath_softc *sc, struct ath_buf *bf,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf_first = NULL;
 	struct ath_tx_info info;
+	u32 rts_thresh = sc->hw->wiphy->rts_threshold;
+	bool rts = false;
 
 	memset(&info, 0, sizeof(info));
 	info.is_first = true;
@@ -1159,7 +1172,22 @@ static void ath_tx_fill_desc(struct ath_softc *sc, struct ath_buf *bf,
 				info.flags |= (u32) bf->bf_state.bfs_paprd <<
 					      ATH9K_TXDESC_PAPRD_S;
 
-			ath_buf_set_rate(sc, bf, &info, len);
+			/*
+			 * mac80211 doesn't handle RTS threshold for HT because
+			 * the decision has to be taken based on AMPDU length
+			 * and aggregation is done entirely inside ath9k.
+			 * Set the RTS/CTS flag for the first subframe based
+			 * on the threshold.
+			 */
+			if (aggr && (bf == bf_first) &&
+			    unlikely(rts_thresh != (u32) -1)) {
+				/*
+				 * "len" is the size of the entire AMPDU.
+				 */
+				if (!rts_thresh || (len > rts_thresh))
+					rts = true;
+			}
+			ath_buf_set_rate(sc, bf, &info, len, rts);
 		}
 
 		info.buf_addr[0] = bf->bf_buf_addr;
@@ -2142,7 +2170,7 @@ void ath_tx_cabq(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 		bf->bf_lastbf = bf;
 		ath_set_rates(vif, NULL, bf);
-		ath_buf_set_rate(sc, bf, &info, fi->framelen);
+		ath_buf_set_rate(sc, bf, &info, fi->framelen, false);
 		duration += info.rates[0].PktDuration;
 		if (bf_tail)
 			bf_tail->bf_next = bf;
