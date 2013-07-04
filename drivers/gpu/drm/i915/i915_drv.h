@@ -1152,6 +1152,9 @@ typedef struct drm_i915_private {
 
 	struct intel_l3_parity l3_parity;
 
+	/* Cannot be determined by PCIID. You must always read a register. */
+	size_t ellc_size;
+
 	/* gen6+ rps state */
 	struct intel_gen6_power_mgmt rps;
 
