@@ -485,6 +485,12 @@ struct create_lease {
 	struct lease_context lcontext;
 } __packed;
 
+struct create_durable {
+	struct create_context ccontext;
+	__u8   Name[8];
+	__u8   Reserved[16];
+} __packed;
+
 /* this goes in the ioctl buffer when doing a copychunk request */
 struct copychunk_ioctl {
 	char SourceKey[24];

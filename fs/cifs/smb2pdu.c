@@ -847,6 +847,28 @@ create_lease_buf(u8 *lease_key, u8 oplock)
 	return buf;
 }
 
+static struct create_durable *
+create_durable_buf(void)
+{
+	struct create_durable *buf;
+
+	buf = kzalloc(sizeof(struct create_durable), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct create_durable, Reserved));
+	buf->ccontext.DataLength = cpu_to_le32(16);
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct create_durable, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	buf->Name[0] = 'D';
+	buf->Name[1] = 'H';
+	buf->Name[2] = 'n';
+	buf->Name[3] = 'Q';
+	return buf;
+}
+
 static __u8
 parse_lease_state(struct smb2_create_rsp *rsp)
 {
@@ -901,6 +923,28 @@ add_lease_context(struct kvec *iov, unsigned int *num_iovec, __u8 *oplock)
 	return 0;
 }
 
+static int
+add_durable_context(struct kvec *iov, unsigned int *num_iovec)
+{
+	struct smb2_create_req *req = iov[0].iov_base;
+	unsigned int num = *num_iovec;
+
+	iov[num].iov_base = create_durable_buf();
+	if (iov[num].iov_base == NULL)
+		return -ENOMEM;
+	iov[num].iov_len = sizeof(struct create_durable);
+	if (!req->CreateContextsOffset)
+		req->CreateContextsOffset =
+			cpu_to_le32(sizeof(struct smb2_create_req) - 4 +
+								iov[1].iov_len);
+	req->CreateContextsLength =
+			cpu_to_le32(le32_to_cpu(req->CreateContextsLength) +
+						sizeof(struct create_durable));
+	inc_rfc1001_len(&req->hdr, sizeof(struct create_durable));
+	*num_iovec = num + 1;
+	return 0;
+}
+
 int
 SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	  u64 *persistent_fid, u64 *volatile_fid, __u32 desired_access,
@@ -911,7 +955,7 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	struct smb2_create_rsp *rsp;
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
-	struct kvec iov[3];
+	struct kvec iov[4];
 	int resp_buftype;
 	int uni_path_len;
 	__le16 *copy_path = NULL;
@@ -983,6 +1027,22 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 		if (rc) {
 			cifs_small_buf_release(req);
 			kfree(copy_path);
+			return rc;
+		}
+	}
+
+	if (*oplock == SMB2_OPLOCK_LEVEL_BATCH) {
+		/* need to set Next field of lease context if we request it */
+		if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING) {
+			struct create_context *ccontext =
+			    (struct create_context *)iov[num_iovecs-1].iov_base;
+			ccontext->Next = sizeof(struct create_lease);
+		}
+		rc = add_durable_context(iov, &num_iovecs);
+		if (rc) {
+			cifs_small_buf_release(req);
+			kfree(copy_path);
+			kfree(iov[num_iovecs-1].iov_base);
 			return rc;
 		}
 	}
