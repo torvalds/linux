@@ -42,14 +42,6 @@
 #include <pwd.h>
 #include <grp.h>
 
-#include <linux/virtio_config.h>
-#include <linux/virtio_net.h>
-#include <linux/virtio_blk.h>
-#include <linux/virtio_console.h>
-#include <linux/virtio_rng.h>
-#include <linux/virtio_ring.h>
-#include <asm/bootparam.h>
-#include "../../include/linux/lguest_launcher.h"
 /*L:110
  * We can ignore the 43 include files we need for this program, but I do want
  * to draw attention to the use of kernel-style types.
@@ -64,6 +56,15 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
 /*:*/
+
+#include <linux/virtio_config.h>
+#include <linux/virtio_net.h>
+#include <linux/virtio_blk.h>
+#include <linux/virtio_console.h>
+#include <linux/virtio_rng.h>
+#include <linux/virtio_ring.h>
+#include <asm/bootparam.h>
+#include "../../include/linux/lguest_launcher.h"
 
 #define BRIDGE_PFX "bridge:"
 #ifndef SIOCBRADDIF
