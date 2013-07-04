@@ -80,7 +80,7 @@ nvc0_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 struct nouveau_oclass
 nvc0_devinit_oclass = {
-	.handle = NV_SUBDEV(DEVINIT, 0xa3),
+	.handle = NV_SUBDEV(DEVINIT, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nvc0_devinit_ctor,
 		.dtor = _nouveau_devinit_dtor,
