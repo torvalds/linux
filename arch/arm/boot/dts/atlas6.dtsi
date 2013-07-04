@@ -485,6 +485,12 @@
                                                 sirf,function = "usp0";
                                         };
                                 };
+				usp0_uart_nostreamctrl_pins_a: usp0@1 {
+                                        usp0 {
+                                                sirf,pins = "usp0_uart_nostreamctrl_grp";
+                                                sirf,function = "usp0_uart_nostreamctrl";
+                                        };
+                                };
                                 usp1_pins_a: usp1@0 {
                                         usp1 {
                                                 sirf,pins = "usp1grp";
