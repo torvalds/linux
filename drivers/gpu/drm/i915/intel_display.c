@@ -3097,7 +3097,7 @@ static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
-		i = crtc->pipe;
+		i = (enum intel_dpll_id) crtc->pipe;
 		pll = &dev_priv->shared_dplls[i];
 
 		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
@@ -5853,7 +5853,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 		ironlake_get_fdi_m_n_config(crtc, pipe_config);
 
 		if (HAS_PCH_IBX(dev_priv->dev)) {
-			pipe_config->shared_dpll = crtc->pipe;
+			pipe_config->shared_dpll =
+				(enum intel_dpll_id) crtc->pipe;
 		} else {
 			tmp = I915_READ(PCH_DPLL_SEL);
 			if (tmp & TRANS_DPLLB_SEL(crtc->pipe))
