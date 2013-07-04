@@ -1014,13 +1014,14 @@ nvc0_grctx_generate_r418bb8(struct nvc0_graph_priv *priv)
 void
 nvc0_grctx_generate_r406800(struct nvc0_graph_priv *priv)
 {
-	u32 tpc_mask = 0, tpc_set = 0;
-	u8  tpcnr[GPC_MAX], a, b;
-	int gpc, tpc, i;
+	u64 tpc_mask = 0, tpc_set = 0;
+	u8  tpcnr[GPC_MAX];
+	int gpc, tpc;
+	int i, a, b;
 
 	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
 	for (gpc = 0; gpc < priv->gpc_nr; gpc++)
-		tpc_mask |= ((1 << priv->tpc_nr[gpc]) - 1) << (gpc * 8);
+		tpc_mask |= ((1ULL << priv->tpc_nr[gpc]) - 1) << (gpc * 8);
 
 	for (i = 0, gpc = -1, b = -1; i < 32; i++) {
 		a = (i * (priv->tpc_total - 1)) / 32;
@@ -1034,8 +1035,12 @@ nvc0_grctx_generate_r406800(struct nvc0_graph_priv *priv)
 			tpc_set |= 1 << ((gpc * 8) + tpc);
 		}
 
-		nv_wr32(priv, 0x406800 + (i * 0x20), tpc_set);
-		nv_wr32(priv, 0x406c00 + (i * 0x20), tpc_set ^ tpc_mask);
+		nv_wr32(priv, 0x406800 + (i * 0x20), lower_32_bits(tpc_set));
+		nv_wr32(priv, 0x406c00 + (i * 0x20), lower_32_bits(tpc_set ^ tpc_mask));
+		if (priv->gpc_nr > 4) {
+			nv_wr32(priv, 0x406804 + (i * 0x20), upper_32_bits(tpc_set));
+			nv_wr32(priv, 0x406c04 + (i * 0x20), upper_32_bits(tpc_set ^ tpc_mask));
+		}
 	}
 }
 
