@@ -19,6 +19,7 @@
 #include <sound/tlv.h>
 
 #include <linux/mfd/arizona/core.h>
+#include <linux/mfd/arizona/gpio.h>
 #include <linux/mfd/arizona/registers.h>
 
 #include "arizona.h"
@@ -222,6 +223,38 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_init_spk);
+
+int arizona_init_gpio(struct snd_soc_codec *codec)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+	int i;
+
+	switch (arizona->type) {
+	case WM5110:
+		snd_soc_dapm_disable_pin(&codec->dapm, "DRC2 Signal Activity");
+	}
+
+	snd_soc_dapm_disable_pin(&codec->dapm, "DRC1 Signal Activity");
+
+	for (i = 0; i < ARRAY_SIZE(arizona->pdata.gpio_defaults); i++) {
+		switch (arizona->pdata.gpio_defaults[i] & ARIZONA_GPN_FN_MASK) {
+		case ARIZONA_GP_FN_DRC1_SIGNAL_DETECT:
+			snd_soc_dapm_enable_pin(&codec->dapm,
+						"DRC1 Signal Activity");
+			break;
+		case ARIZONA_GP_FN_DRC2_SIGNAL_DETECT:
+			snd_soc_dapm_enable_pin(&codec->dapm,
+						"DRC2 Signal Activity");
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_init_gpio);
 
 const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",
