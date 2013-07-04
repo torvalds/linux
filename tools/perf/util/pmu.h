@@ -21,7 +21,7 @@ struct perf_pmu {
 	struct list_head list;
 };
 
-struct perf_pmu *perf_pmu__find(char *name);
+struct perf_pmu *perf_pmu__find(const char *name);
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
 		     struct list_head *head_terms);
 int perf_pmu__config_terms(struct list_head *formats,

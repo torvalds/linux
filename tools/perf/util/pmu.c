@@ -73,7 +73,7 @@ int perf_pmu__format_parse(char *dir, struct list_head *head)
  * located at:
  * /sys/bus/event_source/devices/<dev>/format as sysfs group attributes.
  */
-static int pmu_format(char *name, struct list_head *format)
+static int pmu_format(const char *name, struct list_head *format)
 {
 	struct stat st;
 	char path[PATH_MAX];
@@ -162,7 +162,7 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
  * Reading the pmu event aliases definition, which should be located at:
  * /sys/bus/event_source/devices/<dev>/events as sysfs group attributes.
  */
-static int pmu_aliases(char *name, struct list_head *head)
+static int pmu_aliases(const char *name, struct list_head *head)
 {
 	struct stat st;
 	char path[PATH_MAX];
@@ -208,7 +208,7 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
  * located at:
  * /sys/bus/event_source/devices/<dev>/type as sysfs attribute.
  */
-static int pmu_type(char *name, __u32 *type)
+static int pmu_type(const char *name, __u32 *type)
 {
 	struct stat st;
 	char path[PATH_MAX];
@@ -266,7 +266,7 @@ static void pmu_read_sysfs(void)
 	closedir(dir);
 }
 
-static struct cpu_map *pmu_cpumask(char *name)
+static struct cpu_map *pmu_cpumask(const char *name)
 {
 	struct stat st;
 	char path[PATH_MAX];
@@ -293,7 +293,7 @@ static struct cpu_map *pmu_cpumask(char *name)
 	return cpus;
 }
 
-static struct perf_pmu *pmu_lookup(char *name)
+static struct perf_pmu *pmu_lookup(const char *name)
 {
 	struct perf_pmu *pmu;
 	LIST_HEAD(format);
@@ -330,7 +330,7 @@ static struct perf_pmu *pmu_lookup(char *name)
 	return pmu;
 }
 
-static struct perf_pmu *pmu_find(char *name)
+static struct perf_pmu *pmu_find(const char *name)
 {
 	struct perf_pmu *pmu;
 
@@ -356,7 +356,7 @@ struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu)
 	return NULL;
 }
 
-struct perf_pmu *perf_pmu__find(char *name)
+struct perf_pmu *perf_pmu__find(const char *name)
 {
 	struct perf_pmu *pmu;
 
