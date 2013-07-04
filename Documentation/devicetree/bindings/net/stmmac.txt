@@ -12,6 +12,10 @@ Required properties:
   property
 - phy-mode: String, operation mode of the PHY interface.
   Supported values are: "mii", "rmii", "gmii", "rgmii".
+- snps,phy-addr		phy address to connect to.
+- snps,pbl		Programmable Burst Length
+- snps,fixed-burst	Program the DMA to use the fixed burst mode
+- snps,mixed-burst	Program the DMA to use the mixed burst mode
 
 Optional properties:
 - mac-address: 6 bytes, mac address
