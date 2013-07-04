@@ -644,6 +644,22 @@ static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 	ieee80211_free_txskb(mvm->hw, skb);
 }
 
+struct iwl_mvm_reprobe {
+	struct device *dev;
+	struct work_struct work;
+};
+
+static void iwl_mvm_reprobe_wk(struct work_struct *wk)
+{
+	struct iwl_mvm_reprobe *reprobe;
+
+	reprobe = container_of(wk, struct iwl_mvm_reprobe, work);
+	if (device_reprobe(reprobe->dev))
+		dev_err(reprobe->dev, "reprobe failed!\n");
+	kfree(reprobe);
+	module_put(THIS_MODULE);
+}
+
 static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 {
 	iwl_abort_notification_waits(&mvm->notif_wait);
@@ -655,7 +671,29 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 	 * can't recover this since we're already half suspended.
 	 */
 	if (test_and_set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-		IWL_ERR(mvm, "Firmware error during reconfiguration! Abort.\n");
+		struct iwl_mvm_reprobe *reprobe;
+
+		IWL_ERR(mvm,
+			"Firmware error during reconfiguration - reprobe!\n");
+
+		/*
+		 * get a module reference to avoid doing this while unloading
+		 * anyway and to avoid scheduling a work with code that's
+		 * being removed.
+		 */
+		if (!try_module_get(THIS_MODULE)) {
+			IWL_ERR(mvm, "Module is being unloaded - abort\n");
+			return;
+		}
+
+		reprobe = kzalloc(sizeof(*reprobe), GFP_ATOMIC);
+		if (!reprobe) {
+			module_put(THIS_MODULE);
+			return;
+		}
+		reprobe->dev = mvm->trans->dev;
+		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
+		schedule_work(&reprobe->work);
 	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR &&
 		   iwlwifi_mod_params.restart_fw) {
 		/*
