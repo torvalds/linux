@@ -29,6 +29,7 @@
 #include "rv770_dpm.h"
 #include "cypress_dpm.h"
 #include "atom.h"
+#include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b

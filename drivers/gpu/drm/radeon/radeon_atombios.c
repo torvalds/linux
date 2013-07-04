@@ -3639,7 +3639,7 @@ int radeon_atom_get_mclk_range_table(struct radeon_device *rdev,
 					p = (u8 *)vram_module->asMemTiming;
 					for (i = 0; i < mclk_range_table->num_entries; i++) {
 						format = (ATOM_MEMORY_TIMING_FORMAT *)p;
-						mclk_range_table->mclk[i] = format->ulClkRange;
+						mclk_range_table->mclk[i] = le32_to_cpu(format->ulClkRange);
 						p += mem_timing_size;
 					}
 				} else

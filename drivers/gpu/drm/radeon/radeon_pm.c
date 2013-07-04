@@ -1399,7 +1399,7 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 		if (rdev->asic->dpm.debugfs_print_current_performance_level)
 			radeon_dpm_debugfs_print_current_performance_level(rdev, m);
 		else
-			seq_printf(m, "Unsupported\n");
+			seq_printf(m, "Debugfs support not implemented for this asic\n");
 		mutex_unlock(&rdev->pm.mutex);
 	} else {
 		seq_printf(m, "default engine clock: %u0 kHz\n", rdev->pm.default_sclk);
