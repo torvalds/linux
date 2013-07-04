@@ -130,6 +130,7 @@ static inline const u32* decomp_soc_detect(void __iomem *dbgu_base)
 	case ARCH_ID_AT91SAM9RL64:
 		return uarts_sam9rl;
 
+	case ARCH_ID_AT91SAM9N12:
 	case ARCH_ID_AT91SAM9X5:
 		return uarts_sam9x5;
 
