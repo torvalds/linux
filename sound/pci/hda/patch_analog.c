@@ -3637,9 +3637,17 @@ static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
 	}
 }
 
+/* set magic COEFs for dmic */
+static const struct hda_verb ad1884_dmic_init_verbs[] = {
+	{0x01, AC_VERB_SET_COEF_INDEX, 0x13f7},
+	{0x01, AC_VERB_SET_PROC_COEF, 0x08},
+	{}
+};
+
 enum {
 	AD1884_FIXUP_AMP_OVERRIDE,
 	AD1884_FIXUP_HP_EAPD,
+	AD1884_FIXUP_DMIC_COEF,
 };
 
 static const struct hda_fixup ad1884_fixups[] = {
@@ -3653,10 +3661,15 @@ static const struct hda_fixup ad1884_fixups[] = {
 		.chained = true,
 		.chain_id = AD1884_FIXUP_AMP_OVERRIDE,
 	},
+	[AD1884_FIXUP_DMIC_COEF] = {
+		.type = HDA_FIXUP_VERBS,
+		.v.verbs = ad1884_dmic_init_verbs,
+	},
 };
 
 static const struct snd_pci_quirk ad1884_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1884_FIXUP_HP_EAPD),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo Thinkpad", AD1884_FIXUP_DMIC_COEF),
 	{}
 };
 
