@@ -428,7 +428,7 @@ struct smb2_create_req {
 	__le16 NameLength;
 	__le32 CreateContextsOffset;
 	__le32 CreateContextsLength;
-	__u8   Buffer[8];
+	__u8   Buffer[0];
 } __packed;
 
 struct smb2_create_rsp {
