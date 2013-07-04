@@ -963,25 +963,23 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 pm_iir)
 {
-	spin_lock(&dev_priv->rps.lock);
-	dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
-	if (dev_priv->rps.pm_iir) {
+	if (pm_iir & GEN6_PM_RPS_EVENTS) {
+		spin_lock(&dev_priv->rps.lock);
+		dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
 		I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 		/* never want to mask useful interrupts. (also posting read) */
 		WARN_ON(I915_READ_NOTRACE(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
 		/* TODO: if queue_work is slow, move it out of the spinlock */
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
+		spin_unlock(&dev_priv->rps.lock);
 	}
-	spin_unlock(&dev_priv->rps.lock);
 
-	if (pm_iir & ~GEN6_PM_RPS_EVENTS) {
-		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-			notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
+	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
+		notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
 
-		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
-			DRM_ERROR("VEBOX CS error interrupt 0x%08x\n", pm_iir);
-			i915_handle_error(dev_priv->dev, false);
-		}
+	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
+		DRM_ERROR("VEBOX CS error interrupt 0x%08x\n", pm_iir);
+		i915_handle_error(dev_priv->dev, false);
 	}
 }
 
