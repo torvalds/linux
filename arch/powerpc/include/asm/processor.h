@@ -167,21 +167,7 @@ struct thread_vr_state {
 	vector128	vscr __attribute__((aligned(16)));
 };
 
-struct thread_struct {
-	unsigned long	ksp;		/* Kernel stack pointer */
-#ifdef CONFIG_PPC64
-	unsigned long	ksp_vsid;
-#endif
-	struct pt_regs	*regs;		/* Pointer to saved register state */
-	mm_segment_t	fs;		/* for get_fs() validation */
-#ifdef CONFIG_BOOKE
-	/* BookE base exception scratch space; align on cacheline */
-	unsigned long	normsave[8] ____cacheline_aligned;
-#endif
-#ifdef CONFIG_PPC32
-	void		*pgdir;		/* root of page-table tree */
-	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
-#endif
+struct debug_reg {
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	/*
 	 * The following help to manage the use of Debug Control Registers
@@ -218,6 +204,24 @@ struct thread_struct {
 	unsigned long	dvc2;
 #endif
 #endif
+};
+
+struct thread_struct {
+	unsigned long	ksp;		/* Kernel stack pointer */
+#ifdef CONFIG_PPC64
+	unsigned long	ksp_vsid;
+#endif
+	struct pt_regs	*regs;		/* Pointer to saved register state */
+	mm_segment_t	fs;		/* for get_fs() validation */
+#ifdef CONFIG_BOOKE
+	/* BookE base exception scratch space; align on cacheline */
+	unsigned long	normsave[8] ____cacheline_aligned;
+#endif
+#ifdef CONFIG_PPC32
+	void		*pgdir;		/* root of page-table tree */
+	unsigned long	ksp_limit;	/* if ksp <= ksp_limit stack overflow */
+#endif
+	struct debug_reg debug;
 	struct thread_fp_state	fp_state;
 	struct thread_fp_state	*fp_save_area;
 	int		fpexc_mode;	/* floating-point exception mode */
