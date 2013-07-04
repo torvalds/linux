@@ -2860,8 +2860,7 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
 	if (HAS_VEBOX(dev))
-		pm_irqs |= PM_VEBOX_USER_INTERRUPT |
-			PM_VEBOX_CS_ERROR_INTERRUPT;
+		pm_irqs |= PM_VEBOX_USER_INTERRUPT;
 
 	/* Our enable/disable rps functions may touch these registers so
 	 * make sure to set a known state for only the non-RPS bits.
