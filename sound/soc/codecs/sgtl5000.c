@@ -1470,6 +1470,7 @@ static struct snd_soc_codec_driver sgtl5000_driver = {
 static const struct regmap_config sgtl5000_regmap = {
 	.reg_bits = 16,
 	.val_bits = 16,
+	.reg_stride = 2,
 
 	.max_register = SGTL5000_MAX_REG_OFFSET,
 	.volatile_reg = sgtl5000_volatile,
