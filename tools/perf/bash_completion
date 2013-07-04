@@ -1,12 +1,6 @@
 # perf completion
 
-function_exists()
-{
-	declare -F $1 > /dev/null
-	return $?
-}
-
-function_exists __ltrim_colon_completions ||
+type __ltrim_colon_completions &>/dev/null ||
 __ltrim_colon_completions()
 {
 	if [[ "$1" == *:* && "$COMP_WORDBREAKS" == *:* ]]; then
