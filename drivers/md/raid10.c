@@ -2931,14 +2931,13 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 	 */
 	if (mddev->bitmap == NULL &&
 	    mddev->recovery_cp == MaxSector &&
+	    mddev->reshape_position == MaxSector &&
+	    !test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
 	    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery) &&
+	    !test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
 	    conf->fullsync == 0) {
 		*skipped = 1;
-		max_sector = mddev->dev_sectors;
-		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ||
-		    test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
-			max_sector = mddev->resync_max_sectors;
-		return max_sector - sector_nr;
+		return mddev->dev_sectors - sector_nr;
 	}
 
  skipped:
