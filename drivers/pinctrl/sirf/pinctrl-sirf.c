@@ -306,13 +306,13 @@ static int sirfsoc_gpio_of_xlate(struct gpio_chip *gc,
        u32 *flags)
 {
        if (gpiospec->args[0] > SIRFSOC_GPIO_NO_OF_BANKS * SIRFSOC_GPIO_BANK_SIZE)
-               return -EINVAL;
+		return -EINVAL;
 
        if (gc != &sgpio_bank[gpiospec->args[0] / SIRFSOC_GPIO_BANK_SIZE].chip.gc)
-               return -EINVAL;
+		return -EINVAL;
 
        if (flags)
-               *flags = gpiospec->args[1];
+		*flags = gpiospec->args[1];
 
        return gpiospec->args[0] % SIRFSOC_GPIO_BANK_SIZE;
 }
