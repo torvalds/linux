@@ -440,6 +440,8 @@ static int sirfsoc_pinmux_resume_noirq(struct device *dev)
 static const struct dev_pm_ops sirfsoc_pinmux_pm_ops = {
 	.suspend_noirq = sirfsoc_pinmux_suspend_noirq,
 	.resume_noirq = sirfsoc_pinmux_resume_noirq,
+	.freeze_noirq = sirfsoc_pinmux_suspend_noirq,
+	.restore_noirq = sirfsoc_pinmux_resume_noirq,
 };
 #endif
 
