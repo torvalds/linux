@@ -191,8 +191,11 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(rcdu->crtcs); ++i)
-		rcar_du_crtc_create(rcdu, i);
+	for (i = 0; i < ARRAY_SIZE(rcdu->crtcs); ++i) {
+		ret = rcar_du_crtc_create(rcdu, i);
+		if (ret < 0)
+			return ret;
+	}
 
 	rcdu->used_crtcs = 0;
 	rcdu->num_crtcs = i;
