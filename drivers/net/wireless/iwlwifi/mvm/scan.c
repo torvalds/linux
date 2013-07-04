@@ -137,8 +137,8 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_scan_cmd *cmd,
 {
 	int fw_idx, req_idx;
 
-	fw_idx = 0;
-	for (req_idx = req->n_ssids - 1; req_idx > 0; req_idx--) {
+	for (req_idx = req->n_ssids - 1, fw_idx = 0; req_idx > 0;
+	     req_idx--, fw_idx++) {
 		cmd->direct_scan[fw_idx].id = WLAN_EID_SSID;
 		cmd->direct_scan[fw_idx].len = req->ssids[req_idx].ssid_len;
 		memcpy(cmd->direct_scan[fw_idx].ssid,
