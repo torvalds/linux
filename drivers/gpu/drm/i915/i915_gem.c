@@ -4131,8 +4131,8 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
 
-	if (IS_HASWELL(dev) && (I915_READ(0x120010) == 1))
-		I915_WRITE(0x9008, I915_READ(0x9008) | 0xf0000);
+	if (IS_HASWELL(dev) && (I915_READ(HSW_EDRAM_PRESENT) == 1))
+		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
 
 	if (HAS_PCH_NOP(dev)) {
 		u32 temp = I915_READ(GEN7_MSG_CTL);
