@@ -496,7 +496,7 @@ static const unsigned sdmmc5_pins[] = { 24, 25, 26 };
 static const struct sirfsoc_muxmask usp0_muxmask[] = {
 	{
 		.group = 1,
-		.mask = BIT(19) | BIT(20) | BIT(21) | BIT(22),
+		.mask = BIT(19) | BIT(20) | BIT(21) | BIT(22) | BIT(23),
 	},
 };
 
@@ -507,7 +507,7 @@ static const struct sirfsoc_padmux usp0_padmux = {
 	.funcval = 0,
 };
 
-static const unsigned usp0_pins[] = { 51, 52, 53, 54 };
+static const unsigned usp0_pins[] = { 51, 52, 53, 54, 55 };
 
 static const struct sirfsoc_muxmask usp1_muxmask[] = {
 	{
