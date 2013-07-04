@@ -12,7 +12,7 @@
 
 / {
 	cpus {
-		cpu@0 {
+		cpu0: cpu@0 {
 			/* OMAP443x variants OPP50-OPPNT */
 			operating-points = <
 				/* kHz    uV */
@@ -25,9 +25,15 @@
 		};
 	};
 
-	bandgap {
+	thermal-zones {
+		#include "omap4-cpu-thermal.dtsi"
+	};
+
+	bandgap: bandgap {
 		reg = <0x4a002260 0x4
 		       0x4a00232C 0x4>;
 		compatible = "ti,omap4430-bandgap";
+
+		#thermal-sensor-cells = <0>;
 	};
 };
