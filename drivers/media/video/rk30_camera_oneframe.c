@@ -302,9 +302,12 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *
 *v0.3.7:
 *         1. support rk3028 , read 3028 chip id by efuse for check cif controller is normal or not; 
+*v0.3.9:
+*         1. return real sensor output size in rk_camera_enum_frameintervals;
+*         2. wake up vb after add camera work to list in rk_camera_capture_process;
 */
 
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x07)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x09)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -1234,11 +1237,11 @@ rk_camera_capture_process_end:
 	        vb->state = VIDEOBUF_DONE;
 	        vb->field_count++;
 		}
-    }    
-    wake_up(&(camera_work->vb->done));     
+    }       
     spin_lock_irqsave(&pcdev->camera_work_lock, flags);    
     list_add_tail(&camera_work->queue, &pcdev->camera_work_queue);    
-    spin_unlock_irqrestore(&pcdev->camera_work_lock, flags);    
+    spin_unlock_irqrestore(&pcdev->camera_work_lock, flags); 
+    wake_up(&(camera_work->vb->done));     /* ddl@rock-chips.com : v0.3.9 */ 
     return;
 }
 static irqreturn_t rk_camera_irq(int irq, void *data)
@@ -2733,10 +2736,14 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
 {
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk_camera_dev *pcdev = ici->priv;
+    struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
     struct rk_camera_frmivalenum *fival_list = NULL;
     struct v4l2_frmivalenum *fival_head = NULL;
     struct rkcamera_platform_data *new_camera;
     int i,ret = 0,index;
+    const struct soc_camera_format_xlate *xlate;
+    struct v4l2_mbus_framefmt mf;
+    __u32 pixfmt;
     
     index = fival->index & 0x00ffffff;
     if ((fival->index & 0xff000000) == 0xff000000) {   /* ddl@rock-chips.com: detect framerate */ 
@@ -2792,7 +2799,18 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
 
             if ((i == index) && (fival->height == fival_head->height) && (fival->width == fival_head->width)) {
                 memcpy(fival, fival_head, sizeof(struct v4l2_frmivalenum));
-                fival->reserved[1] = (pcdev->icd_width<<16)|(pcdev->icd_height);
+
+                pixfmt = fival->pixel_format;     /* ddl@rock-chips.com: v0.3.9 */
+                xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
+                memset(&mf,0x00,sizeof(struct v4l2_mbus_framefmt));
+            	mf.width	= fival->width;
+            	mf.height	= fival->height;            	
+            	mf.code		= xlate->code;                
+
+            	v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
+                
+                fival->reserved[1] = (mf.width<<16)|(mf.height);
+                
                 RKCAMERA_DG("%s %dx%d@%c%c%c%c framerate : %d/%d\n", dev_name(pcdev->icd->pdev),
                     fival->width, fival->height,
                     fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
@@ -2829,9 +2847,20 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
                 printk(KERN_ERR "%s(%d): %s have not found in new_camera[] and rk_camera_platform_data!",
                     __FUNCTION__,__LINE__,dev_name(pcdev->icd->pdev));
             } else {
+
+                pixfmt = fival->pixel_format;     /* ddl@rock-chips.com: v0.3.9 */
+                xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
+                memset(&mf,0x00,sizeof(struct v4l2_mbus_framefmt));
+            	mf.width	= fival->width;
+            	mf.height	= fival->height;            	
+            	mf.code		= xlate->code;                
+
+            	v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
+                
                 fival->discrete.numerator= 1000;
                 fival->discrete.denominator = 15000;
                 fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+                fival->reserved[1] = (mf.width<<16)|(mf.height);                
             }
         }
     }
