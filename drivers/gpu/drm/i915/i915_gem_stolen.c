@@ -46,6 +46,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pdev = dev_priv->bridge_dev;
+	struct resource *r;
 	u32 base;
 
 	/* On the machines I have tested the Graphics Base of Stolen Memory
@@ -86,6 +87,22 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		/* Stolen is immediately above Top of Memory */
 		base = max_low_pfn_mapped << PAGE_SHIFT;
 #endif
+	}
+
+	if (base == 0)
+		return 0;
+
+	/* Verify that nothing else uses this physical address. Stolen
+	 * memory should be reserved by the BIOS and hidden from the
+	 * kernel. So if the region is already marked as busy, something
+	 * is seriously wrong.
+	 */
+	r = devm_request_mem_region(dev->dev, base, dev_priv->gtt.stolen_size,
+				    "Graphics Stolen Memory");
+	if (r == NULL) {
+		DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
+			  base, base + (uint32_t)dev_priv->gtt.stolen_size);
+		base = 0;
 	}
 
 	return base;
