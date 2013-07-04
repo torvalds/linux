@@ -128,6 +128,8 @@ static bool cpt_can_enable_serr_int(struct drm_device *dev)
 	enum pipe pipe;
 	struct intel_crtc *crtc;
 
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	for_each_pipe(pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
@@ -170,6 +172,30 @@ static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
 	}
 }
 
+/**
+ * ibx_display_interrupt_update - update SDEIMR
+ * @dev_priv: driver private
+ * @interrupt_mask: mask of interrupt bits to update
+ * @enabled_irq_mask: mask of interrupt bits to enable
+ */
+static void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
+					 uint32_t interrupt_mask,
+					 uint32_t enabled_irq_mask)
+{
+	uint32_t sdeimr = I915_READ(SDEIMR);
+	sdeimr &= ~interrupt_mask;
+	sdeimr |= (~enabled_irq_mask & interrupt_mask);
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	I915_WRITE(SDEIMR, sdeimr);
+	POSTING_READ(SDEIMR);
+}
+#define ibx_enable_display_interrupt(dev_priv, bits) \
+	ibx_display_interrupt_update((dev_priv), (bits), (bits))
+#define ibx_disable_display_interrupt(dev_priv, bits) \
+	ibx_display_interrupt_update((dev_priv), (bits), 0)
+
 static void ibx_set_fifo_underrun_reporting(struct intel_crtc *crtc,
 					    bool enable)
 {
@@ -179,11 +205,9 @@ static void ibx_set_fifo_underrun_reporting(struct intel_crtc *crtc,
 						SDE_TRANSB_FIFO_UNDER;
 
 	if (enable)
-		I915_WRITE(SDEIMR, I915_READ(SDEIMR) & ~bit);
+		ibx_enable_display_interrupt(dev_priv, bit);
 	else
-		I915_WRITE(SDEIMR, I915_READ(SDEIMR) | bit);
-
-	POSTING_READ(SDEIMR);
+		ibx_disable_display_interrupt(dev_priv, bit);
 }
 
 static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
@@ -200,12 +224,10 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
 				     SERR_INT_TRANS_B_FIFO_UNDERRUN |
 				     SERR_INT_TRANS_C_FIFO_UNDERRUN);
 
-		I915_WRITE(SDEIMR, I915_READ(SDEIMR) & ~SDE_ERROR_CPT);
+		ibx_enable_display_interrupt(dev_priv, SDE_ERROR_CPT);
 	} else {
-		I915_WRITE(SDEIMR, I915_READ(SDEIMR) | SDE_ERROR_CPT);
+		ibx_disable_display_interrupt(dev_priv, SDE_ERROR_CPT);
 	}
-
-	POSTING_READ(SDEIMR);
 }
 
 /**
@@ -2698,22 +2720,21 @@ static void ibx_hpd_irq_setup(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *intel_encoder;
-	u32 mask = ~I915_READ(SDEIMR);
-	u32 hotplug;
+	u32 hotplug_irqs, hotplug, enabled_irqs = 0;
 
 	if (HAS_PCH_IBX(dev)) {
-		mask &= ~SDE_HOTPLUG_MASK;
+		hotplug_irqs = SDE_HOTPLUG_MASK;
 		list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
 			if (dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark == HPD_ENABLED)
-				mask |= hpd_ibx[intel_encoder->hpd_pin];
+				enabled_irqs |= hpd_ibx[intel_encoder->hpd_pin];
 	} else {
-		mask &= ~SDE_HOTPLUG_MASK_CPT;
+		hotplug_irqs = SDE_HOTPLUG_MASK_CPT;
 		list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
 			if (dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark == HPD_ENABLED)
-				mask |= hpd_cpt[intel_encoder->hpd_pin];
+				enabled_irqs |= hpd_cpt[intel_encoder->hpd_pin];
 	}
 
-	I915_WRITE(SDEIMR, ~mask);
+	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
 	/*
 	 * Enable digital hotplug on the PCH, and configure the DP short pulse
