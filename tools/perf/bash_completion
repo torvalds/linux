@@ -92,15 +92,15 @@ __ltrim_colon_completions()
 type perf &>/dev/null &&
 _perf()
 {
-	local cur prev cmd
+	local cur words cword prev cmd
 
 	COMPREPLY=()
-	_get_comp_words_by_ref -n : cur prev
+	_get_comp_words_by_ref -n =: cur words cword prev
 
-	cmd=${COMP_WORDS[0]}
+	cmd=${words[0]}
 
 	# List perf subcommands or long options
-	if [ $COMP_CWORD -eq 1 ]; then
+	if [ $cword -eq 1 ]; then
 		if [[ $cur == --* ]]; then
 			COMPREPLY=( $( compgen -W '--help --version \
 			--exec-path --html-path --paginate --no-pager \
@@ -110,13 +110,13 @@ _perf()
 			COMPREPLY=( $( compgen -W '$cmds' -- "$cur" ) )
 		fi
 	# List possible events for -e option
-	elif [[ $prev == "-e" && "${COMP_WORDS[1]}" == @(record|stat|top) ]]; then
+	elif [[ $prev == "-e" && "${words[1]}" == @(record|stat|top) ]]; then
 		evts=$($cmd list --raw-dump)
 		COMPREPLY=( $( compgen -W '$evts' -- "$cur" ) )
 		__ltrim_colon_completions $cur
 	# List long option names
 	elif [[ $cur == --* ]];  then
-		subcmd=${COMP_WORDS[1]}
+		subcmd=${words[1]}
 		opts=$($cmd $subcmd --list-opts)
 		COMPREPLY=( $( compgen -W '$opts' -- "$cur" ) )
 	fi
