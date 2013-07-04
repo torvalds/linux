@@ -89,6 +89,7 @@ nvc3_graph_init_mmio[] = {
 	nvc0_graph_init_gpc,
 	nvc3_graph_init_tpc,
 	nvc0_graph_init_unk88xx,
+	nvc0_graph_tpc_0,
 	NULL
 };
 

@@ -24,6 +24,10 @@
 
 #include "os.h"
 
+#define GF100 0xc0
+#define GF117 0xd7
+#define GK100 0xe0
+
 #define mmctx_data(r,c) .b32 (((c - 1) << 26) | r)
 #define queue_init      .skip 72 // (2 * 4) + ((8 * 4) * 2)
 

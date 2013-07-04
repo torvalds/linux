@@ -22,16 +22,16 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#define CHIPSET GF100
+#define CHIPSET GF117
 #include "macros.fuc"
 
-.section #nvc0_grhub_data
+.section #nvd7_grhub_data
 #define INCLUDE_DATA
 #include "com.fuc"
 #include "hub.fuc"
 #undef INCLUDE_DATA
 
-.section #nvc0_grhub_code
+.section #nvd7_grhub_code
 #define INCLUDE_CODE
 bra #init
 #include "com.fuc"

@@ -22,7 +22,9 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#define NVGF
+#define NV_PGRAPH_GPCX_UNK__SIZE                                     0x00000000
+
+#define CHIPSET GF100
 #include "macros.fuc"
 
 .section #nvc0_grgpc_data

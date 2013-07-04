@@ -377,7 +377,7 @@ ih:
 	bclr $flags $p0
 	iret
 
-#ifdef NVGF
+#if CHIPSET < GK100
 // Not real sure, but, MEM_CMD 7 will hang forever if this isn't done
 ctx_4160s:
 	mov $r14 0x4160
@@ -541,7 +541,7 @@ ctx_load:
 // In: $r2 channel address
 //
 ctx_chan:
-#ifdef NVGF
+#if CHIPSET < GK100
 	call #ctx_4160s
 #endif
 	call #ctx_load
@@ -555,7 +555,7 @@ ctx_chan:
 		iord $r2 I[$r1 + 0x000]
 		or $r2 $r2
 		bra ne #ctx_chan_wait
-#ifdef NVGF
+#if CHIPSET < GK100
 	call #ctx_4160c
 #endif
 	ret
@@ -634,7 +634,7 @@ ctx_xfer:
 	ctx_xfer_pre:
 		mov $r15 0x10
 		call #ctx_86c
-#ifdef NVGF
+#if CHIPSET < GK100
 		call #ctx_4160s
 #endif
 		bra not $p1 #ctx_xfer_exec
@@ -725,7 +725,7 @@ ctx_xfer:
 			call #ctx_mmio_exec
 
 		ctx_xfer_no_post_mmio:
-#ifdef NVGF
+#if CHIPSET < GK100
 		call #ctx_4160c
 #endif
 

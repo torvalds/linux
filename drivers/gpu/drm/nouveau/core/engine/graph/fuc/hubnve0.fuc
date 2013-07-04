@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#define NVGK
+#define CHIPSET GK100
 #include "macros.fuc"
 
 .section #nve0_grhub_data

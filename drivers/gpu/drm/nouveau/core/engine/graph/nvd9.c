@@ -34,7 +34,7 @@ nvd9_graph_init_unk64xx[] = {
 	{}
 };
 
-static struct nvc0_graph_init
+struct nvc0_graph_init
 nvd9_graph_init_unk58xx[] = {
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x405850,   1, 0x04, 0x00000000 },
@@ -144,6 +144,7 @@ nvd9_graph_init_mmio[] = {
 	nvd9_graph_init_gpc,
 	nvd9_graph_init_tpc,
 	nvc0_graph_init_unk88xx,
+	nvc0_graph_tpc_0,
 	NULL
 };
 

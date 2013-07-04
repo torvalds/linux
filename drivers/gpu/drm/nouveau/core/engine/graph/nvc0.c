@@ -282,6 +282,12 @@ nvc0_graph_init_unk88xx[] = {
 	{}
 };
 
+struct nvc0_graph_init
+nvc0_graph_tpc_0[] = {
+	{ 0x50405c,   1, 0x04, 0x00000001 },
+	{}
+};
+
 void
 nvc0_graph_mmio(struct nvc0_graph_priv *priv, struct nvc0_graph_init *init)
 {
@@ -982,9 +988,6 @@ nvc0_graph_init(struct nouveau_object *object)
 	for (i = 0; oclass->mmio[i]; i++)
 		nvc0_graph_mmio(priv, oclass->mmio[i]);
 
-	/* affects TFB offset queries */
-	nv_wr32(priv, TPC_UNIT(0, 0, 0x5c), 1);
-
 	memcpy(tpcnr, priv->tpc_nr, sizeof(priv->tpc_nr));
 	for (i = 0, gpc = -1; i < priv->tpc_total; i++) {
 		do {
@@ -1008,7 +1011,11 @@ nvc0_graph_init(struct nouveau_object *object)
 		nv_wr32(priv, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
-	nv_wr32(priv, GPC_BCAST(0x1bd4), magicgpc918);
+	if (nv_device(priv)->chipset != 0xd7)
+		nv_wr32(priv, GPC_BCAST(0x1bd4), magicgpc918);
+	else
+		nv_wr32(priv, GPC_BCAST(0x3fd4), magicgpc918);
+
 	nv_wr32(priv, GPC_BCAST(0x08ac), nv_rd32(priv, 0x100800));
 
 	nv_wr32(priv, 0x400500, 0x00010001);
@@ -1123,10 +1130,9 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_graph_oclass *oclass = (void *)bclass;
 	struct nouveau_device *device = nv_device(parent);
 	struct nvc0_graph_priv *priv;
-	bool enable = device->chipset != 0xd7;
 	int ret, i;
 
-	ret = nouveau_graph_create(parent, engine, bclass, enable, &priv);
+	ret = nouveau_graph_create(parent, engine, bclass, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -1199,6 +1205,7 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	case 0xcf: /* 4/0/0/0, 3 */
 		priv->magic_not_rop_nr = 0x03;
 		break;
+	case 0xd7:
 	case 0xd9: /* 1/0/0/0, 1 */
 		priv->magic_not_rop_nr = 0x01;
 		break;
@@ -1221,6 +1228,7 @@ nvc0_graph_init_mmio[] = {
 	nvc0_graph_init_gpc,
 	nvc0_graph_init_tpc,
 	nvc0_graph_init_unk88xx,
+	nvc0_graph_tpc_0,
 	NULL
 };
 

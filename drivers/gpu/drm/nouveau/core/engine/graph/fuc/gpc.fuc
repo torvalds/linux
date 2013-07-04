@@ -41,7 +41,7 @@ gpc_id:			.b32 0
 tpc_count:		.b32 0
 tpc_mask:		.b32 0
 
-#ifdef NVGK
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
 unk_count:		.b32 1
 unk_mask:		.b32 1
 #endif
@@ -145,7 +145,7 @@ init:
 	add b32 $r2 $r14
 	add b32 $r3 $r14
 
-#ifdef NVGK
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
 	// calculate per-UNK mmio context size
 	ld b32 $r14 D[$r0 + #unk_mmio_list_head]
 	ld b32 $r15 D[$r0 + #unk_mmio_list_tail]
@@ -342,7 +342,7 @@ ctx_xfer:
 	mov $r14 0x800		// stride = 0x800
 	call #mmctx_xfer
 
-#ifdef NVGK
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
 	// per-UNK mmio context
 	xbit $r10 $flags $p1	// direction
 	or $r10 4		// last
