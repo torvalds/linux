@@ -43,6 +43,7 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 {
 	unsigned long va;
 	unsigned int penc;
+	unsigned long sllp;
 
 	/*
 	 * We need 14 to 65 bits of va for a tlibe of 4K page
@@ -64,7 +65,9 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 		/* clear out bits after (52) [0....52.....63] */
 		va &= ~((1ul << (64 - 52)) - 1);
 		va |= ssize << 8;
-		va |= mmu_psize_defs[apsize].sllp << 6;
+		sllp = ((mmu_psize_defs[apsize].sllp & SLB_VSID_L) >> 6) |
+			((mmu_psize_defs[apsize].sllp & SLB_VSID_LP) >> 4);
+		va |= sllp << 5;
 		asm volatile(ASM_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0), %2)
 			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
 			     : "memory");
@@ -98,6 +101,7 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 {
 	unsigned long va;
 	unsigned int penc;
+	unsigned long sllp;
 
 	/* VPN_SHIFT can be atmost 12 */
 	va = vpn << VPN_SHIFT;
@@ -113,7 +117,9 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		/* clear out bits after(52) [0....52.....63] */
 		va &= ~((1ul << (64 - 52)) - 1);
 		va |= ssize << 8;
-		va |= mmu_psize_defs[apsize].sllp << 6;
+		sllp = ((mmu_psize_defs[apsize].sllp & SLB_VSID_L) >> 6) |
+			((mmu_psize_defs[apsize].sllp & SLB_VSID_LP) >> 4);
+		va |= sllp << 5;
 		asm volatile(".long 0x7c000224 | (%0 << 11) | (0 << 21)"
 			     : : "r"(va) : "memory");
 		break;
