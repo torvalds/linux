@@ -6,6 +6,8 @@
 
 extern spinlock_t imx_ccm_lock;
 
+extern void imx_cscmr1_fixup(u32 *val);
+
 struct clk *imx_clk_pllv1(const char *name, const char *parent,
 		void __iomem *base);
 
