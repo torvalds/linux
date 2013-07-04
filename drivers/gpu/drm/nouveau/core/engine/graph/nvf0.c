@@ -211,6 +211,26 @@ nvf0_graph_init_mmio[] = {
 	NULL
 };
 
+#include "fuc/hubnvf0.fuc.h"
+
+static struct nvc0_graph_ucode
+nvf0_graph_fecs_ucode = {
+	.code.data = nvf0_grhub_code,
+	.code.size = sizeof(nvf0_grhub_code),
+	.data.data = nvf0_grhub_data,
+	.data.size = sizeof(nvf0_grhub_data),
+};
+
+#include "fuc/gpcnvf0.fuc.h"
+
+static struct nvc0_graph_ucode
+nvf0_graph_gpccs_ucode = {
+	.code.data = nvf0_grgpc_code,
+	.code.size = sizeof(nvf0_grgpc_code),
+	.data.data = nvf0_grgpc_data,
+	.data.size = sizeof(nvf0_grgpc_data),
+};
+
 struct nouveau_oclass *
 nvf0_graph_oclass = &(struct nvc0_graph_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xf0),
@@ -223,4 +243,6 @@ nvf0_graph_oclass = &(struct nvc0_graph_oclass) {
 	.cclass = &nvf0_grctx_oclass,
 	.sclass =  nvf0_graph_sclass,
 	.mmio = nvf0_graph_init_mmio,
+	.fecs.ucode = 0 ? &nvf0_graph_fecs_ucode : NULL,
+	.gpccs.ucode = &nvf0_graph_gpccs_ucode,
 }.base;
