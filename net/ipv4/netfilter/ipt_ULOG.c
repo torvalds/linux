@@ -162,7 +162,8 @@ static struct sk_buff *ulog_alloc_skb(unsigned int size)
 	return skb;
 }
 
-static void ipt_ulog_packet(unsigned int hooknum,
+static void ipt_ulog_packet(struct net *net,
+			    unsigned int hooknum,
 			    const struct sk_buff *skb,
 			    const struct net_device *in,
 			    const struct net_device *out,
@@ -174,7 +175,6 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	size_t size, copy_len;
 	struct nlmsghdr *nlh;
 	struct timeval tv;
-	struct net *net = dev_net(in ? in : out);
 	struct ulog_net *ulog = ulog_pernet(net);
 
 	/* ffs == find first bit set, necessary because userspace
@@ -231,8 +231,10 @@ static void ipt_ulog_packet(unsigned int hooknum,
 	put_unaligned(tv.tv_usec, &pm->timestamp_usec);
 	put_unaligned(skb->mark, &pm->mark);
 	pm->hook = hooknum;
-	if (prefix != NULL)
-		strncpy(pm->prefix, prefix, sizeof(pm->prefix));
+	if (prefix != NULL) {
+		strncpy(pm->prefix, prefix, sizeof(pm->prefix) - 1);
+		pm->prefix[sizeof(pm->prefix) - 1] = '\0';
+	}
 	else if (loginfo->prefix[0] != '\0')
 		strncpy(pm->prefix, loginfo->prefix, sizeof(pm->prefix));
 	else
@@ -291,12 +293,15 @@ alloc_failure:
 static unsigned int
 ulog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	ipt_ulog_packet(par->hooknum, skb, par->in, par->out,
+	struct net *net = dev_net(par->in ? par->in : par->out);
+
+	ipt_ulog_packet(net, par->hooknum, skb, par->in, par->out,
 	                par->targinfo, NULL);
 	return XT_CONTINUE;
 }
 
-static void ipt_logfn(u_int8_t pf,
+static void ipt_logfn(struct net *net,
+		      u_int8_t pf,
 		      unsigned int hooknum,
 		      const struct sk_buff *skb,
 		      const struct net_device *in,
@@ -318,7 +323,7 @@ static void ipt_logfn(u_int8_t pf,
 		strlcpy(loginfo.prefix, prefix, sizeof(loginfo.prefix));
 	}
 
-	ipt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
+	ipt_ulog_packet(net, hooknum, skb, in, out, &loginfo, prefix);
 }
 
 static int ulog_tg_check(const struct xt_tgchk_param *par)

@@ -54,16 +54,12 @@ int drm_i2c_encoder_init(struct drm_device *dev,
 			 struct i2c_adapter *adap,
 			 const struct i2c_board_info *info)
 {
-	char modalias[sizeof(I2C_MODULE_PREFIX)
-		      + I2C_NAME_SIZE];
 	struct module *module = NULL;
 	struct i2c_client *client;
 	struct drm_i2c_encoder_driver *encoder_drv;
 	int err = 0;
 
-	snprintf(modalias, sizeof(modalias),
-		 "%s%s", I2C_MODULE_PREFIX, info->type);
-	request_module(modalias);
+	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
 
 	client = i2c_new_device(adap, info);
 	if (!client) {

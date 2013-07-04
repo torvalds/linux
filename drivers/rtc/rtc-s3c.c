@@ -477,11 +477,6 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	/* get the memory region */
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to get memory region resource\n");
-		return -ENOENT;
-	}
-
 	s3c_rtc_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(s3c_rtc_base))
 		return PTR_ERR(s3c_rtc_base);

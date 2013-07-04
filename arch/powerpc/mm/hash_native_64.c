@@ -336,11 +336,18 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 
 	hpte_v = hptep->v;
 	actual_psize = hpte_actual_psize(hptep, psize);
+	/*
+	 * We need to invalidate the TLB always because hpte_remove doesn't do
+	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
+	 * random entry from it. When we do that we don't invalidate the TLB
+	 * (hpte_remove) because we assume the old translation is still
+	 * technically "valid".
+	 */
 	if (actual_psize < 0) {
-		native_unlock_hpte(hptep);
-		return -1;
+		actual_psize = psize;
+		ret = -1;
+		goto err_out;
 	}
-	/* Even if we miss, we need to invalidate the TLB */
 	if (!HPTE_V_COMPARE(hpte_v, want_v)) {
 		DBG_LOW(" -> miss\n");
 		ret = -1;
@@ -350,6 +357,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 		hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
 			(newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_C));
 	}
+err_out:
 	native_unlock_hpte(hptep);
 
 	/* Ensure it is out of the tlb too. */
@@ -409,7 +417,7 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 	hptep = htab_address + slot;
 	actual_psize = hpte_actual_psize(hptep, psize);
 	if (actual_psize < 0)
-		return;
+		actual_psize = psize;
 
 	/* Update the HPTE */
 	hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
@@ -437,21 +445,27 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	hpte_v = hptep->v;
 
 	actual_psize = hpte_actual_psize(hptep, psize);
+	/*
+	 * We need to invalidate the TLB always because hpte_remove doesn't do
+	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
+	 * random entry from it. When we do that we don't invalidate the TLB
+	 * (hpte_remove) because we assume the old translation is still
+	 * technically "valid".
+	 */
 	if (actual_psize < 0) {
+		actual_psize = psize;
 		native_unlock_hpte(hptep);
-		local_irq_restore(flags);
-		return;
+		goto err_out;
 	}
-	/* Even if we miss, we need to invalidate the TLB */
 	if (!HPTE_V_COMPARE(hpte_v, want_v))
 		native_unlock_hpte(hptep);
 	else
 		/* Invalidate the hpte. NOTE: this also unlocks it */
 		hptep->v = 0;
 
+err_out:
 	/* Invalidate the TLB */
 	tlbie(vpn, psize, actual_psize, ssize, local);
-
 	local_irq_restore(flags);
 }
 

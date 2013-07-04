@@ -56,8 +56,6 @@
 static void dwc2_track_missed_sofs(struct dwc2_hsotg *hsotg)
 {
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
-#warning Compiling code to track missed SOFs
-
 	u16 curr_frame_number = hsotg->frame_number;
 
 	if (hsotg->frame_num_idx < FRAME_NUM_ARRAY_SIZE) {

@@ -407,7 +407,8 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 		nr_pages = ARRAY_SIZE(frame_list);
 
 	for (i = 0; i < nr_pages; i++) {
-		if ((page = alloc_page(gfp)) == NULL) {
+		page = alloc_page(gfp);
+		if (page == NULL) {
 			nr_pages = i;
 			state = BP_EAGAIN;
 			break;

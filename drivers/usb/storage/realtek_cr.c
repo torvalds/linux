@@ -105,8 +105,9 @@ struct rts51x_chip {
 	int status_len;
 
 	u32 flag;
-#ifdef CONFIG_REALTEK_AUTOPM
 	struct us_data *us;
+
+#ifdef CONFIG_REALTEK_AUTOPM
 	struct timer_list rts51x_suspend_timer;
 	unsigned long timer_expires;
 	int pwr_state;
@@ -988,6 +989,7 @@ static int init_realtek_cr(struct us_data *us)
 	us->extra = chip;
 	us->extra_destructor = realtek_cr_destructor;
 	us->max_lun = chip->max_lun = rts51x_get_max_lun(us);
+	chip->us = us;
 
 	usb_stor_dbg(us, "chip->max_lun = %d\n", chip->max_lun);
 
@@ -1010,10 +1012,8 @@ static int init_realtek_cr(struct us_data *us)
 			SET_AUTO_DELINK(chip);
 	}
 #ifdef CONFIG_REALTEK_AUTOPM
-	if (ss_en) {
-		chip->us = us;
+	if (ss_en)
 		realtek_cr_autosuspend_setup(us);
-	}
 #endif
 
 	usb_stor_dbg(us, "chip->flag = 0x%x\n", chip->flag);

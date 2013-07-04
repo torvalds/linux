@@ -67,7 +67,7 @@ extern const struct mvs_dispatch mvs_94xx_dispatch;
 extern struct kmem_cache *mvs_task_list_cache;
 
 #define DEV_IS_EXPANDER(type)	\
-	((type == EDGE_DEV) || (type == FANOUT_DEV))
+	((type == SAS_EDGE_EXPANDER_DEVICE) || (type == SAS_FANOUT_EXPANDER_DEVICE))
 
 #define bit(n) ((u64)1 << n)
 
@@ -241,7 +241,7 @@ struct mvs_phy {
 
 struct mvs_device {
 	struct list_head		dev_entry;
-	enum sas_dev_type dev_type;
+	enum sas_device_type dev_type;
 	struct mvs_info *mvi_info;
 	struct domain_device *sas_device;
 	struct timer_list timer;

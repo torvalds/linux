@@ -715,6 +715,7 @@ struct xfs_dir3_free_hdr {
 	__be32			firstdb;	/* db of first entry */
 	__be32			nvalid;		/* count of valid entries */
 	__be32			nused;		/* count of used entries */
+	__be32			pad;		/* 64 bit alignment. */
 };
 
 struct xfs_dir3_free {

@@ -39,17 +39,14 @@ extern unsigned char pfnnid_map[PFNNID_MAP_MAX];
 static inline int pfn_to_nid(unsigned long pfn)
 {
 	unsigned int i;
-	unsigned char r;
 
 	if (unlikely(pfn_is_io(pfn)))
 		return 0;
 
 	i = pfn >> PFNNID_SHIFT;
 	BUG_ON(i >= ARRAY_SIZE(pfnnid_map));
-	r = pfnnid_map[i];
-	BUG_ON(r == 0xff);
 
-	return (int)r;
+	return (int)pfnnid_map[i];
 }
 
 static inline int pfn_valid(int pfn)

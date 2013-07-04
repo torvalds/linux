@@ -644,7 +644,7 @@ qla2x00_sp_free_dma(void *vha, void *ptr)
 	qla2x00_rel_sp(sp->fcport->vha, sp);
 }
 
-void
+static void
 qla2x00_sp_compl(void *data, void *ptr, int res)
 {
 	struct qla_hw_data *ha = (struct qla_hw_data *)data;

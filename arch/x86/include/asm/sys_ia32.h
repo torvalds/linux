@@ -50,9 +50,6 @@ asmlinkage long sys32_fallocate(int, int, unsigned,
 asmlinkage long sys32_sigreturn(void);
 asmlinkage long sys32_rt_sigreturn(void);
 
-asmlinkage long sys32_fanotify_mark(int, unsigned int, u32, u32, int,
-				    const char __user *);
-
 #endif /* CONFIG_COMPAT */
 
 #endif /* _ASM_X86_SYS_IA32_H */

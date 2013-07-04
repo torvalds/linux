@@ -2,7 +2,7 @@
  * This file contains the code that low level functions that interact
  * with 57712 FCoE firmware.
  *
- * Copyright (c) 2008 - 2011 Broadcom Corporation
+ * Copyright (c) 2008 - 2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -126,7 +126,11 @@ int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba)
 	fcoe_init3.error_bit_map_lo = 0xffffffff;
 	fcoe_init3.error_bit_map_hi = 0xffffffff;
 
-	fcoe_init3.perf_config = 1;
+	/*
+	 * enable both cached connection and cached tasks
+	 * 0 = none, 1 = cached connection, 2 = cached tasks, 3 = both
+	 */
+	fcoe_init3.perf_config = 3;
 
 	kwqe_arr[0] = (struct kwqe *) &fcoe_init1;
 	kwqe_arr[1] = (struct kwqe *) &fcoe_init2;

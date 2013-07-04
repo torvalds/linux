@@ -90,6 +90,8 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  *            not set this, then the ftrace infrastructure will add recursion
  *            protection for the caller.
  * STUB   - The ftrace_ops is just a place holder.
+ * INITIALIZED - The ftrace_ops has already been initialized (first use time
+ *            register_ftrace_function() is called, it will initialized the ops)
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -100,6 +102,7 @@ enum {
 	FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED	= 1 << 5,
 	FTRACE_OPS_FL_RECURSION_SAFE		= 1 << 6,
 	FTRACE_OPS_FL_STUB			= 1 << 7,
+	FTRACE_OPS_FL_INITIALIZED		= 1 << 8,
 };
 
 struct ftrace_ops {
@@ -110,6 +113,7 @@ struct ftrace_ops {
 #ifdef CONFIG_DYNAMIC_FTRACE
 	struct ftrace_hash		*notrace_hash;
 	struct ftrace_hash		*filter_hash;
+	struct mutex			regex_lock;
 #endif
 };
 

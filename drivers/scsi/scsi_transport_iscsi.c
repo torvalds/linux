@@ -1019,8 +1019,7 @@ exit_match_index:
 /**
  * iscsi_get_flashnode_by_index -finds flashnode session entry by index
  * @shost: pointer to host data
- * @data: pointer to data containing value to use for comparison
- * @fn: function pointer that does actual comparison
+ * @idx: index to match
  *
  * Finds the flashnode session object for the passed index
  *
@@ -1029,13 +1028,13 @@ exit_match_index:
  *  %NULL on failure
  */
 static struct iscsi_bus_flash_session *
-iscsi_get_flashnode_by_index(struct Scsi_Host *shost, void *data,
-			     int (*fn)(struct device *dev, void *data))
+iscsi_get_flashnode_by_index(struct Scsi_Host *shost, uint32_t idx)
 {
 	struct iscsi_bus_flash_session *fnode_sess = NULL;
 	struct device *dev;
 
-	dev = device_find_child(&shost->shost_gendev, data, fn);
+	dev = device_find_child(&shost->shost_gendev, &idx,
+				flashnode_match_index);
 	if (dev)
 		fnode_sess = iscsi_dev_to_flash_session(dev);
 
@@ -1059,18 +1058,13 @@ struct device *
 iscsi_find_flashnode_sess(struct Scsi_Host *shost, void *data,
 			  int (*fn)(struct device *dev, void *data))
 {
-	struct device *dev;
-
-	dev = device_find_child(&shost->shost_gendev, data, fn);
-	return dev;
+	return device_find_child(&shost->shost_gendev, data, fn);
 }
 EXPORT_SYMBOL_GPL(iscsi_find_flashnode_sess);
 
 /**
  * iscsi_find_flashnode_conn - finds flashnode connection entry
  * @fnode_sess: pointer to parent flashnode session entry
- * @data: pointer to data containing value to use for comparison
- * @fn: function pointer that does actual comparison
  *
  * Finds the flashnode connection object comparing the data passed using logic
  * defined in passed function pointer
@@ -1080,14 +1074,10 @@ EXPORT_SYMBOL_GPL(iscsi_find_flashnode_sess);
  *  %NULL on failure
  */
 struct device *
-iscsi_find_flashnode_conn(struct iscsi_bus_flash_session *fnode_sess,
-			  void *data,
-			  int (*fn)(struct device *dev, void *data))
+iscsi_find_flashnode_conn(struct iscsi_bus_flash_session *fnode_sess)
 {
-	struct device *dev;
-
-	dev = device_find_child(&fnode_sess->dev, data, fn);
-	return dev;
+	return device_find_child(&fnode_sess->dev, NULL,
+				 iscsi_is_flashnode_conn_dev);
 }
 EXPORT_SYMBOL_GPL(iscsi_find_flashnode_conn);
 
@@ -2808,7 +2798,7 @@ static int iscsi_set_flashnode_param(struct iscsi_transport *transport,
 	struct iscsi_bus_flash_session *fnode_sess;
 	struct iscsi_bus_flash_conn *fnode_conn;
 	struct device *dev;
-	uint32_t *idx;
+	uint32_t idx;
 	int err = 0;
 
 	if (!transport->set_flashnode_param) {
@@ -2824,25 +2814,27 @@ static int iscsi_set_flashnode_param(struct iscsi_transport *transport,
 		goto put_host;
 	}
 
-	idx = &ev->u.set_flashnode.flashnode_idx;
-	fnode_sess = iscsi_get_flashnode_by_index(shost, idx,
-						  flashnode_match_index);
+	idx = ev->u.set_flashnode.flashnode_idx;
+	fnode_sess = iscsi_get_flashnode_by_index(shost, idx);
 	if (!fnode_sess) {
 		pr_err("%s could not find flashnode %u for host no %u\n",
-		       __func__, *idx, ev->u.set_flashnode.host_no);
+		       __func__, idx, ev->u.set_flashnode.host_no);
 		err = -ENODEV;
 		goto put_host;
 	}
 
-	dev = iscsi_find_flashnode_conn(fnode_sess, NULL,
-					iscsi_is_flashnode_conn_dev);
+	dev = iscsi_find_flashnode_conn(fnode_sess);
 	if (!dev) {
 		err = -ENODEV;
-		goto put_host;
+		goto put_sess;
 	}
 
 	fnode_conn = iscsi_dev_to_flash_conn(dev);
 	err = transport->set_flashnode_param(fnode_sess, fnode_conn, data, len);
+	put_device(dev);
+
+put_sess:
+	put_device(&fnode_sess->dev);
 
 put_host:
 	scsi_host_put(shost);
@@ -2891,7 +2883,7 @@ static int iscsi_del_flashnode(struct iscsi_transport *transport,
 {
 	struct Scsi_Host *shost;
 	struct iscsi_bus_flash_session *fnode_sess;
-	uint32_t *idx;
+	uint32_t idx;
 	int err = 0;
 
 	if (!transport->del_flashnode) {
@@ -2907,17 +2899,17 @@ static int iscsi_del_flashnode(struct iscsi_transport *transport,
 		goto put_host;
 	}
 
-	idx = &ev->u.del_flashnode.flashnode_idx;
-	fnode_sess = iscsi_get_flashnode_by_index(shost, idx,
-						  flashnode_match_index);
+	idx = ev->u.del_flashnode.flashnode_idx;
+	fnode_sess = iscsi_get_flashnode_by_index(shost, idx);
 	if (!fnode_sess) {
 		pr_err("%s could not find flashnode %u for host no %u\n",
-		       __func__, *idx, ev->u.del_flashnode.host_no);
+		       __func__, idx, ev->u.del_flashnode.host_no);
 		err = -ENODEV;
 		goto put_host;
 	}
 
 	err = transport->del_flashnode(fnode_sess);
+	put_device(&fnode_sess->dev);
 
 put_host:
 	scsi_host_put(shost);
@@ -2933,7 +2925,7 @@ static int iscsi_login_flashnode(struct iscsi_transport *transport,
 	struct iscsi_bus_flash_session *fnode_sess;
 	struct iscsi_bus_flash_conn *fnode_conn;
 	struct device *dev;
-	uint32_t *idx;
+	uint32_t idx;
 	int err = 0;
 
 	if (!transport->login_flashnode) {
@@ -2949,25 +2941,27 @@ static int iscsi_login_flashnode(struct iscsi_transport *transport,
 		goto put_host;
 	}
 
-	idx = &ev->u.login_flashnode.flashnode_idx;
-	fnode_sess = iscsi_get_flashnode_by_index(shost, idx,
-						  flashnode_match_index);
+	idx = ev->u.login_flashnode.flashnode_idx;
+	fnode_sess = iscsi_get_flashnode_by_index(shost, idx);
 	if (!fnode_sess) {
 		pr_err("%s could not find flashnode %u for host no %u\n",
-		       __func__, *idx, ev->u.login_flashnode.host_no);
+		       __func__, idx, ev->u.login_flashnode.host_no);
 		err = -ENODEV;
 		goto put_host;
 	}
 
-	dev = iscsi_find_flashnode_conn(fnode_sess, NULL,
-					iscsi_is_flashnode_conn_dev);
+	dev = iscsi_find_flashnode_conn(fnode_sess);
 	if (!dev) {
 		err = -ENODEV;
-		goto put_host;
+		goto put_sess;
 	}
 
 	fnode_conn = iscsi_dev_to_flash_conn(dev);
 	err = transport->login_flashnode(fnode_sess, fnode_conn);
+	put_device(dev);
+
+put_sess:
+	put_device(&fnode_sess->dev);
 
 put_host:
 	scsi_host_put(shost);
@@ -2983,7 +2977,7 @@ static int iscsi_logout_flashnode(struct iscsi_transport *transport,
 	struct iscsi_bus_flash_session *fnode_sess;
 	struct iscsi_bus_flash_conn *fnode_conn;
 	struct device *dev;
-	uint32_t *idx;
+	uint32_t idx;
 	int err = 0;
 
 	if (!transport->logout_flashnode) {
@@ -2999,26 +2993,28 @@ static int iscsi_logout_flashnode(struct iscsi_transport *transport,
 		goto put_host;
 	}
 
-	idx = &ev->u.logout_flashnode.flashnode_idx;
-	fnode_sess = iscsi_get_flashnode_by_index(shost, idx,
-						  flashnode_match_index);
+	idx = ev->u.logout_flashnode.flashnode_idx;
+	fnode_sess = iscsi_get_flashnode_by_index(shost, idx);
 	if (!fnode_sess) {
 		pr_err("%s could not find flashnode %u for host no %u\n",
-		       __func__, *idx, ev->u.logout_flashnode.host_no);
+		       __func__, idx, ev->u.logout_flashnode.host_no);
 		err = -ENODEV;
 		goto put_host;
 	}
 
-	dev = iscsi_find_flashnode_conn(fnode_sess, NULL,
-					iscsi_is_flashnode_conn_dev);
+	dev = iscsi_find_flashnode_conn(fnode_sess);
 	if (!dev) {
 		err = -ENODEV;
-		goto put_host;
+		goto put_sess;
 	}
 
 	fnode_conn = iscsi_dev_to_flash_conn(dev);
 
 	err = transport->logout_flashnode(fnode_sess, fnode_conn);
+	put_device(dev);
+
+put_sess:
+	put_device(&fnode_sess->dev);
 
 put_host:
 	scsi_host_put(shost);
@@ -3985,8 +3981,10 @@ static __init int iscsi_transport_init(void)
 	}
 
 	iscsi_eh_timer_workq = create_singlethread_workqueue("iscsi_eh");
-	if (!iscsi_eh_timer_workq)
+	if (!iscsi_eh_timer_workq) {
+		err = -ENOMEM;
 		goto release_nls;
+	}
 
 	return 0;
 

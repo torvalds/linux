@@ -71,6 +71,7 @@ config TRACE_CLOCK
 config RING_BUFFER
 	bool
 	select TRACE_CLOCK
+	select IRQ_WORK
 
 config FTRACE_NMI_ENTER
        bool
@@ -107,7 +108,6 @@ config TRACING
 	select BINARY_PRINTF
 	select EVENT_TRACING
 	select TRACE_CLOCK
-	select IRQ_WORK
 
 config GENERIC_TRACER
 	bool

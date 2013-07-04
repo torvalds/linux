@@ -195,7 +195,7 @@ struct sk_buff *__alloc_skb_head(gfp_t gfp_mask, int node)
 	 * the tail pointer in struct sk_buff!
 	 */
 	memset(skb, 0, offsetof(struct sk_buff, tail));
-	skb->data = NULL;
+	skb->head = NULL;
 	skb->truesize = sizeof(struct sk_buff);
 	atomic_set(&skb->users, 1);
 
@@ -611,7 +611,7 @@ static void skb_release_head_state(struct sk_buff *skb)
 static void skb_release_all(struct sk_buff *skb)
 {
 	skb_release_head_state(skb);
-	if (likely(skb->data))
+	if (likely(skb->head))
 		skb_release_data(skb);
 }
 

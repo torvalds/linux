@@ -32,6 +32,10 @@
 
 	ahb {
 		apb {
+			spi0: spi@f0004000 {
+				cs-gpios = <&pioD 13 0>, <0>, <0>, <0>;
+			};
+
 			macb0: ethernet@f0028000 {
 				phy-mode = "rgmii";
 			};

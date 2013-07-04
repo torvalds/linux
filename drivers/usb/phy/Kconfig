@@ -25,7 +25,7 @@ config AB8500_USB
 
 config FSL_USB2_OTG
 	bool "Freescale USB OTG Transceiver Driver"
-	depends on USB_EHCI_FSL && USB_FSL_USB2 && USB_SUSPEND
+	depends on USB_EHCI_FSL && USB_FSL_USB2 && PM_RUNTIME
 	select USB_OTG
 	help
 	  Enable this to support Freescale USB OTG transceiver.
@@ -139,7 +139,6 @@ config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
 	depends on USB || USB_GADGET
 	depends on I2C
-	select USB_OTG_UTILS
 	help
 	  Say Y here to add support for the NXP ISP1301 USB transceiver driver.
 	  This chip is typically used as USB transceiver for USB host, gadget
@@ -162,7 +161,7 @@ config USB_MSM_OTG
 
 config USB_MV_OTG
 	tristate "Marvell USB OTG support"
-	depends on USB_EHCI_MV && USB_MV_UDC && USB_SUSPEND
+	depends on USB_EHCI_MV && USB_MV_UDC && PM_RUNTIME
 	select USB_OTG
 	help
 	  Say Y here if you want to build Marvell USB OTG transciever

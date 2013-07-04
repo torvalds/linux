@@ -126,11 +126,3 @@ asmlinkage long compat_sys_sync_file_range2(int fd, unsigned int flags,
 
 	return sys_sync_file_range(fd, offset, nbytes, flags);
 }
-
-asmlinkage long compat_sys_fanotify_mark(int fanotify_fd, unsigned int flags,
-					 unsigned mask_hi, unsigned mask_lo,
-					 int dfd, const char __user *pathname)
-{
-	u64 mask = ((u64)mask_hi << 32) | mask_lo;
-	return sys_fanotify_mark(fanotify_fd, flags, mask, dfd, pathname);
-}

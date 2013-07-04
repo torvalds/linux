@@ -701,6 +701,20 @@ static void iwl_mvm_configure_filter(struct ieee80211_hw *hw,
 	*total_flags = 0;
 }
 
+static int iwl_mvm_configure_mcast_filter(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif)
+{
+	struct iwl_mcast_filter_cmd mcast_filter_cmd = {
+		.pass_all = 1,
+	};
+
+	memcpy(mcast_filter_cmd.bssid, vif->bss_conf.bssid, ETH_ALEN);
+
+	return iwl_mvm_send_cmd_pdu(mvm, MCAST_FILTER_CMD, CMD_SYNC,
+				    sizeof(mcast_filter_cmd),
+				    &mcast_filter_cmd);
+}
+
 static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 					     struct ieee80211_vif *vif,
 					     struct ieee80211_bss_conf *bss_conf,
@@ -722,6 +736,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				return;
 			}
 			iwl_mvm_bt_coex_vif_assoc(mvm, vif);
+			iwl_mvm_configure_mcast_filter(mvm, vif);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/* remove AP station now that the MAC is unassoc */
 			ret = iwl_mvm_rm_sta_id(mvm, vif, mvmvif->ap_sta_id);
@@ -931,7 +946,7 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
-		if (atomic_read(&mvmsta->pending_frames) > 0)
+		if (atomic_read(&mvm->pending_frames[mvmsta->sta_id]) > 0)
 			ieee80211_sta_block_awake(hw, sta, true);
 		/*
 		 * The fw updates the STA to be asleep. Tx packets on the Tx

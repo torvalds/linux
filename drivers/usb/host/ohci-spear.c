@@ -91,8 +91,6 @@ static const struct hc_driver ohci_spear_hc_driver = {
 	.start_port_reset	= ohci_start_port_reset,
 };
 
-static u64 spear_ohci_dma_mask = DMA_BIT_MASK(32);
-
 static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 {
 	const struct hc_driver *driver = &ohci_spear_hc_driver;
@@ -114,7 +112,9 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	 * Once we have dma capability bindings this can go away.
 	 */
 	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &spear_ohci_dma_mask;
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	usbh_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbh_clk)) {

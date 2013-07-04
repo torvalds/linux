@@ -72,8 +72,20 @@
 /* Maximum possible MTU the driver supports */
 #define EFX_MAX_MTU (9 * 1024)
 
-/* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page. */
-#define EFX_RX_USR_BUF_SIZE 1824
+/* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page,
+ * and should be a multiple of the cache line size.
+ */
+#define EFX_RX_USR_BUF_SIZE	(2048 - 256)
+
+/* If possible, we should ensure cache line alignment at start and end
+ * of every buffer.  Otherwise, we just need to ensure 4-byte
+ * alignment of the network header.
+ */
+#if NET_IP_ALIGN == 0
+#define EFX_RX_BUF_ALIGNMENT	L1_CACHE_BYTES
+#else
+#define EFX_RX_BUF_ALIGNMENT	4
+#endif
 
 /* Forward declare Precision Time Protocol (PTP) support structure. */
 struct efx_ptp_data;
@@ -468,24 +480,11 @@ enum nic_state {
 };
 
 /*
- * Alignment of page-allocated RX buffers
- *
- * Controls the number of bytes inserted at the start of an RX buffer.
- * This is the equivalent of NET_IP_ALIGN [which controls the alignment
- * of the skb->head for hardware DMA].
- */
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-#define EFX_PAGE_IP_ALIGN 0
-#else
-#define EFX_PAGE_IP_ALIGN NET_IP_ALIGN
-#endif
-
-/*
  * Alignment of the skb->head which wraps a page-allocated RX buffer
  *
  * The skb allocated to wrap an rx_buffer can have this alignment. Since
  * the data is memcpy'd from the rx_buf, it does not need to be equal to
- * EFX_PAGE_IP_ALIGN.
+ * NET_IP_ALIGN.
  */
 #define EFX_PAGE_SKB_ALIGN 2
 

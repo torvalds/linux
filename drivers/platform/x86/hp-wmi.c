@@ -71,6 +71,14 @@ enum hp_wmi_event_ids {
 	HPWMI_WIRELESS = 5,
 	HPWMI_CPU_BATTERY_THROTTLE = 6,
 	HPWMI_LOCK_SWITCH = 7,
+	HPWMI_LID_SWITCH = 8,
+	HPWMI_SCREEN_ROTATION = 9,
+	HPWMI_COOLSENSE_SYSTEM_MOBILE = 0x0A,
+	HPWMI_COOLSENSE_SYSTEM_HOT = 0x0B,
+	HPWMI_PROXIMITY_SENSOR = 0x0C,
+	HPWMI_BACKLIT_KB_BRIGHTNESS = 0x0D,
+	HPWMI_PEAKSHIFT_PERIOD = 0x0F,
+	HPWMI_BATTERY_CHARGE_PERIOD = 0x10,
 };
 
 struct bios_args {
@@ -536,6 +544,22 @@ static void hp_wmi_notify(u32 value, void *context)
 		break;
 	case HPWMI_LOCK_SWITCH:
 		break;
+	case HPWMI_LID_SWITCH:
+		break;
+	case HPWMI_SCREEN_ROTATION:
+		break;
+	case HPWMI_COOLSENSE_SYSTEM_MOBILE:
+		break;
+	case HPWMI_COOLSENSE_SYSTEM_HOT:
+		break;
+	case HPWMI_PROXIMITY_SENSOR:
+		break;
+	case HPWMI_BACKLIT_KB_BRIGHTNESS:
+		break;
+	case HPWMI_PEAKSHIFT_PERIOD:
+		break;
+	case HPWMI_BATTERY_CHARGE_PERIOD:
+		break;
 	default:
 		pr_info("Unknown event_id - %d - 0x%x\n", event_id, event_data);
 		break;
@@ -679,7 +703,7 @@ static int hp_wmi_rfkill_setup(struct platform_device *device)
 		}
 		rfkill_init_sw_state(gps_rfkill,
 				     hp_wmi_get_sw_state(HPWMI_GPS));
-		rfkill_set_hw_state(bluetooth_rfkill,
+		rfkill_set_hw_state(gps_rfkill,
 				    hp_wmi_get_hw_state(HPWMI_GPS));
 		err = rfkill_register(gps_rfkill);
 		if (err)

@@ -666,8 +666,8 @@ static int rotator_probe(struct platform_device *pdev)
 		return rot->irq;
 	}
 
-	ret = request_threaded_irq(rot->irq, NULL, rotator_irq_handler,
-			IRQF_ONESHOT, "drm_rotator", rot);
+	ret = devm_request_threaded_irq(dev, rot->irq, NULL,
+			rotator_irq_handler, IRQF_ONESHOT, "drm_rotator", rot);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq\n");
 		return ret;
@@ -676,8 +676,7 @@ static int rotator_probe(struct platform_device *pdev)
 	rot->clock = devm_clk_get(dev, "rotator");
 	if (IS_ERR(rot->clock)) {
 		dev_err(dev, "failed to get clock\n");
-		ret = PTR_ERR(rot->clock);
-		goto err_clk_get;
+		return PTR_ERR(rot->clock);
 	}
 
 	pm_runtime_enable(dev);
@@ -709,10 +708,7 @@ static int rotator_probe(struct platform_device *pdev)
 	return 0;
 
 err_ippdrv_register:
-	devm_kfree(dev, ippdrv->prop_list);
 	pm_runtime_disable(dev);
-err_clk_get:
-	free_irq(rot->irq, rot);
 	return ret;
 }
 
@@ -722,12 +718,9 @@ static int rotator_remove(struct platform_device *pdev)
 	struct rot_context *rot = dev_get_drvdata(dev);
 	struct exynos_drm_ippdrv *ippdrv = &rot->ippdrv;
 
-	devm_kfree(dev, ippdrv->prop_list);
 	exynos_drm_ippdrv_unregister(ippdrv);
 
 	pm_runtime_disable(dev);
-
-	free_irq(rot->irq, rot);
 
 	return 0;
 }

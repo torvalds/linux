@@ -41,6 +41,7 @@
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
+#include <asm/idle.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
@@ -57,7 +58,6 @@
 #include <asm/uasm.h>
 
 extern void check_wait(void);
-extern asmlinkage void r4k_wait(void);
 extern asmlinkage void rollback_handle_int(void);
 extern asmlinkage void handle_int(void);
 extern u32 handle_tlbl[];
@@ -897,22 +897,24 @@ out_sigsegv:
 
 asmlinkage void do_tr(struct pt_regs *regs)
 {
-	unsigned int opcode, tcode = 0;
+	u32 opcode, tcode = 0;
 	u16 instr[2];
-	unsigned long epc = exception_epc(regs);
+	unsigned long epc = msk_isa16_mode(exception_epc(regs));
 
-	if ((__get_user(instr[0], (u16 __user *)msk_isa16_mode(epc))) ||
-		(__get_user(instr[1], (u16 __user *)msk_isa16_mode(epc + 2))))
+	if (get_isa16_mode(regs->cp0_epc)) {
+		if (__get_user(instr[0], (u16 __user *)(epc + 0)) ||
+		    __get_user(instr[1], (u16 __user *)(epc + 2)))
 			goto out_sigsegv;
-	opcode = (instr[0] << 16) | instr[1];
-
-	/* Immediate versions don't provide a code.  */
-	if (!(opcode & OPCODE)) {
-		if (get_isa16_mode(regs->cp0_epc))
-			/* microMIPS */
-			tcode = (opcode >> 12) & 0x1f;
-		else
-			tcode = ((opcode >> 6) & ((1 << 10) - 1));
+		opcode = (instr[0] << 16) | instr[1];
+		/* Immediate versions don't provide a code.  */
+		if (!(opcode & OPCODE))
+			tcode = (opcode >> 12) & ((1 << 4) - 1);
+	} else {
+		if (__get_user(opcode, (u32 __user *)epc))
+			goto out_sigsegv;
+		/* Immediate versions don't provide a code.  */
+		if (!(opcode & OPCODE))
+			tcode = (opcode >> 6) & ((1 << 10) - 1);
 	}
 
 	do_trap_or_bp(regs, tcode, "Trap");
@@ -1542,7 +1544,7 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		extern char except_vec_vi, except_vec_vi_lui;
 		extern char except_vec_vi_ori, except_vec_vi_end;
 		extern char rollback_except_vec_vi;
-		char *vec_start = (cpu_wait == r4k_wait) ?
+		char *vec_start = using_rollback_handler() ?
 			&rollback_except_vec_vi : &except_vec_vi;
 #ifdef CONFIG_MIPS_MT_SMTC
 		/*
@@ -1656,7 +1658,6 @@ void __cpuinit per_cpu_trap_init(bool is_boot_cpu)
 	unsigned int cpu = smp_processor_id();
 	unsigned int status_set = ST0_CU0;
 	unsigned int hwrena = cpu_hwrena_impl_bits;
-	unsigned long asid = 0;
 #ifdef CONFIG_MIPS_MT_SMTC
 	int secondaryTC = 0;
 	int bootTC = (cpu == 0);
@@ -1740,9 +1741,8 @@ void __cpuinit per_cpu_trap_init(bool is_boot_cpu)
 	}
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-	asid = ASID_FIRST_VERSION;
-	cpu_data[cpu].asid_cache = asid;
-	TLBMISS_HANDLER_SETUP();
+	if (!cpu_data[cpu].asid_cache)
+		cpu_data[cpu].asid_cache = ASID_FIRST_VERSION;
 
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
@@ -1814,10 +1814,8 @@ void __init trap_init(void)
 	extern char except_vec4;
 	extern char except_vec3_r4000;
 	unsigned long i;
-	int rollback;
 
 	check_wait();
-	rollback = (cpu_wait == r4k_wait);
 
 #if defined(CONFIG_KGDB)
 	if (kgdb_early_setup)
@@ -1894,7 +1892,8 @@ void __init trap_init(void)
 	if (board_be_init)
 		board_be_init();
 
-	set_except_vector(0, rollback ? rollback_handle_int : handle_int);
+	set_except_vector(0, using_rollback_handler() ? rollback_handle_int
+						      : handle_int);
 	set_except_vector(1, handle_tlbm);
 	set_except_vector(2, handle_tlbl);
 	set_except_vector(3, handle_tlbs);
