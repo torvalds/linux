@@ -656,14 +656,13 @@ static void i915_hotplug_work_func(struct work_struct *work)
 		drm_kms_helper_hotplug_event(dev);
 }
 
-static void ironlake_handle_rps_change(struct drm_device *dev)
+static void ironlake_rps_change_irq_handler(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 busy_up, busy_down, max_avg, min_avg;
 	u8 new_delay;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mchdev_lock, flags);
+	spin_lock(&mchdev_lock);
 
 	I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
 
@@ -691,7 +690,7 @@ static void ironlake_handle_rps_change(struct drm_device *dev)
 	if (ironlake_set_drps(dev, new_delay))
 		dev_priv->ips.cur_delay = new_delay;
 
-	spin_unlock_irqrestore(&mchdev_lock, flags);
+	spin_unlock(&mchdev_lock);
 
 	return;
 }
@@ -835,18 +834,17 @@ static void ivybridge_parity_work(struct work_struct *work)
 	kfree(parity_event[1]);
 }
 
-static void ivybridge_handle_parity_error(struct drm_device *dev)
+static void ivybridge_parity_error_irq_handler(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned long flags;
 
 	if (!HAS_L3_GPU_CACHE(dev))
 		return;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+	spin_lock(&dev_priv->irq_lock);
 	dev_priv->gt_irq_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	spin_unlock(&dev_priv->irq_lock);
 
 	queue_work(dev_priv->wq, &dev_priv->l3_parity.error_work);
 }
@@ -872,15 +870,13 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 	}
 
 	if (gt_iir & GT_RENDER_L3_PARITY_ERROR_INTERRUPT)
-		ivybridge_handle_parity_error(dev);
+		ivybridge_parity_error_irq_handler(dev);
 }
 
 /* Legacy way of handling PM interrupts */
-static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
-				u32 pm_iir)
+static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv,
+				 u32 pm_iir)
 {
-	unsigned long flags;
-
 	/*
 	 * IIR bits should never already be set because IMR should
 	 * prevent an interrupt from being shown in IIR. The warning
@@ -891,11 +887,11 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	 * The mask bit in IMR is cleared by dev_priv->rps.work.
 	 */
 
-	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	spin_lock(&dev_priv->rps.lock);
 	dev_priv->rps.pm_iir |= pm_iir;
 	I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 	POSTING_READ(GEN6_PMIMR);
-	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
+	spin_unlock(&dev_priv->rps.lock);
 
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
@@ -959,7 +955,7 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
-/* Unlike gen6_queue_rps_work() from which this function is originally derived,
+/* Unlike gen6_rps_irq_handler() from which this function is originally derived,
  * we must be able to deal with other PM interrupts. This is complicated because
  * of the way in which we use the masks to defer the RPS work (which for
  * posterity is necessary because of forcewake).
@@ -967,9 +963,7 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 pm_iir)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	spin_lock(&dev_priv->rps.lock);
 	dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
 	if (dev_priv->rps.pm_iir) {
 		I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
@@ -978,7 +972,7 @@ static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
 		/* TODO: if queue_work is slow, move it out of the spinlock */
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}
-	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
+	spin_unlock(&dev_priv->rps.lock);
 
 	if (pm_iir & ~GEN6_PM_RPS_EVENTS) {
 		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
@@ -1060,7 +1054,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			gmbus_irq_handler(dev);
 
 		if (pm_iir & GEN6_PM_RPS_EVENTS)
-			gen6_queue_rps_work(dev_priv, pm_iir);
+			gen6_rps_irq_handler(dev_priv, pm_iir);
 
 		I915_WRITE(GTIIR, gt_iir);
 		I915_WRITE(GEN6_PMIIR, pm_iir);
@@ -1298,7 +1292,7 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 		if (IS_HASWELL(dev))
 			hsw_pm_irq_handler(dev_priv, pm_iir);
 		else if (pm_iir & GEN6_PM_RPS_EVENTS)
-			gen6_queue_rps_work(dev_priv, pm_iir);
+			gen6_rps_irq_handler(dev_priv, pm_iir);
 		I915_WRITE(GEN6_PMIIR, pm_iir);
 		ret = IRQ_HANDLED;
 	}
@@ -1415,10 +1409,10 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	}
 
 	if (IS_GEN5(dev) &&  de_iir & DE_PCU_EVENT)
-		ironlake_handle_rps_change(dev);
+		ironlake_rps_change_irq_handler(dev);
 
 	if (IS_GEN6(dev) && pm_iir & GEN6_PM_RPS_EVENTS)
-		gen6_queue_rps_work(dev_priv, pm_iir);
+		gen6_rps_irq_handler(dev_priv, pm_iir);
 
 	I915_WRITE(GTIIR, gt_iir);
 	I915_WRITE(DEIIR, de_iir);
