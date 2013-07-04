@@ -5667,6 +5667,7 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	vmx->nested.vmxon = true;
 
 	skip_emulated_instruction(vcpu);
+	nested_vmx_succeed(vcpu);
 	return 1;
 }
 
@@ -5751,6 +5752,7 @@ static int handle_vmoff(struct kvm_vcpu *vcpu)
 		return 1;
 	free_nested(to_vmx(vcpu));
 	skip_emulated_instruction(vcpu);
+	nested_vmx_succeed(vcpu);
 	return 1;
 }
 
