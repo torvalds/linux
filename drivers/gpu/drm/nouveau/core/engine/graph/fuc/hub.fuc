@@ -52,15 +52,9 @@ hub_mmio_list_next:
 // In: $r15 error code (see nvc0.fuc)
 //
 error:
-	push $r14
-	mov $r14 0x814
-	shl b32 $r14 6
-	iowr I[$r14 + 0x000] $r15	// CC_SCRATCH[5] = error code
-	mov $r14 0xc1c
-	shl b32 $r14 6
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(5), 0, $r15)
 	mov $r15 1
-	iowr I[$r14 + 0x000] $r15	// INTR_UP_SET
-	pop $r14
+	nv_iowr(NV_PGRAPH_FECS_INTR_UP_SET, 0, $r15)
 	ret
 
 // HUB fuc initialisation, executed by triggering ucode start, will
@@ -211,13 +205,10 @@ init:
 		bra ne #init_gpc
 
 	// save context size, and tell host we're ready
-	mov $r2 0x800
-	shl b32 $r2 6
-	iowr I[$r2 + 0x100] $r1		// CC_SCRATCH[1]  = context size
-	add b32 $r2 0x800
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(1), 0, $r1)
 	clear b32 $r1
 	bset $r1 31
-	iowr I[$r2 + 0x000] $r1		// CC_SCRATCH[0] |= 0x80000000
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_SET(0), 0, $r1)
 
 // Main program loop, very simple, sleeps until woken up by the interrupt
 // handler, pulls a command from the queue and executes its handler
@@ -309,11 +300,9 @@ main:
 		bra #main
 
 	main_done:
-	mov $r1 0x820
-	shl b32 $r1 6
 	clear b32 $r2
 	bset $r2 31
-	iowr I[$r1 + 0x000] $r2		// CC_SCRATCH[0] |= 0x80000000
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_SET(0), 0, $r2)
 	bra #main
 
 // interrupt handler
@@ -327,6 +316,7 @@ ih:
 	push $r13
 	push $r14
 	push $r15
+	clear b32 $r0
 
 	// incoming fifo command?
 	iord $r10 I[$r0 + 0x200]	// INTR

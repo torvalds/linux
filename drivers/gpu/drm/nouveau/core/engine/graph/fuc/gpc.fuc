@@ -141,9 +141,7 @@ init:
 #endif
 
 	// initialise context base, and size tracking
-	mov $r2 0x800
-	shl b32 $r2 6
-	iord $r2 I[$r2 + 0x100]	// CC_SCRATCH[1], initial base
+	nv_iord($r2, NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(1), 0)
 	clear b32 $r3		// track GPC context size here
 
 	// set mmctx base addresses now so we don't have to do it later,
@@ -198,13 +196,10 @@ init:
 	add b32 $r3 $r15
 
 	// save context size, and tell HUB we're done
-	mov $r1 0x800
-	shl b32 $r1 6
-	iowr I[$r1 + 0x100] $r3		// CC_SCRATCH[1]  = context size
-	add b32 $r1 0x800
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(1), 0, $r3)
 	clear b32 $r2
 	bset $r2 31
-	iowr I[$r1 + 0x000] $r2		// CC_SCRATCH[0] |= 0x80000000
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(0), 0, $r2)
 
 // Main program loop, very simple, sleeps until woken up by the interrupt
 // handler, pulls a command from the queue and executes its handler
@@ -249,6 +244,7 @@ ih:
 	push $r13
 	push $r14
 	push $r15
+	clear b32 $r0
 
 	// incoming fifo command?
 	iord $r10 I[$r0 + 0x200]	// INTR
