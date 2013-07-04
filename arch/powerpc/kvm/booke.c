@@ -1441,7 +1441,6 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 	int r = 0;
 	union kvmppc_one_reg val;
 	int size;
-	long int i;
 
 	size = one_reg_size(reg->id);
 	if (size > sizeof(val))
@@ -1449,16 +1448,24 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 
 	switch (reg->id) {
 	case KVM_REG_PPC_IAC1:
-	case KVM_REG_PPC_IAC2:
-	case KVM_REG_PPC_IAC3:
-	case KVM_REG_PPC_IAC4:
-		i = reg->id - KVM_REG_PPC_IAC1;
-		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac[i]);
+		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac1);
 		break;
+	case KVM_REG_PPC_IAC2:
+		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac2);
+		break;
+#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+	case KVM_REG_PPC_IAC3:
+		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac3);
+		break;
+	case KVM_REG_PPC_IAC4:
+		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.iac4);
+		break;
+#endif
 	case KVM_REG_PPC_DAC1:
+		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.dac1);
+		break;
 	case KVM_REG_PPC_DAC2:
-		i = reg->id - KVM_REG_PPC_DAC1;
-		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.dac[i]);
+		val = get_reg_val(reg->id, vcpu->arch.dbg_reg.dac2);
 		break;
 	case KVM_REG_PPC_EPR: {
 		u32 epr = get_guest_epr(vcpu);
@@ -1501,7 +1508,6 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 	int r = 0;
 	union kvmppc_one_reg val;
 	int size;
-	long int i;
 
 	size = one_reg_size(reg->id);
 	if (size > sizeof(val))
@@ -1512,16 +1518,24 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 
 	switch (reg->id) {
 	case KVM_REG_PPC_IAC1:
-	case KVM_REG_PPC_IAC2:
-	case KVM_REG_PPC_IAC3:
-	case KVM_REG_PPC_IAC4:
-		i = reg->id - KVM_REG_PPC_IAC1;
-		vcpu->arch.dbg_reg.iac[i] = set_reg_val(reg->id, val);
+		vcpu->arch.dbg_reg.iac1 = set_reg_val(reg->id, val);
 		break;
+	case KVM_REG_PPC_IAC2:
+		vcpu->arch.dbg_reg.iac2 = set_reg_val(reg->id, val);
+		break;
+#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+	case KVM_REG_PPC_IAC3:
+		vcpu->arch.dbg_reg.iac3 = set_reg_val(reg->id, val);
+		break;
+	case KVM_REG_PPC_IAC4:
+		vcpu->arch.dbg_reg.iac4 = set_reg_val(reg->id, val);
+		break;
+#endif
 	case KVM_REG_PPC_DAC1:
+		vcpu->arch.dbg_reg.dac1 = set_reg_val(reg->id, val);
+		break;
 	case KVM_REG_PPC_DAC2:
-		i = reg->id - KVM_REG_PPC_DAC1;
-		vcpu->arch.dbg_reg.dac[i] = set_reg_val(reg->id, val);
+		vcpu->arch.dbg_reg.dac2 = set_reg_val(reg->id, val);
 		break;
 	case KVM_REG_PPC_EPR: {
 		u32 new_epr = set_reg_val(reg->id, val);
