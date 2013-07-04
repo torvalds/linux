@@ -44,7 +44,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <scsi/sg.h>
 #include <scsi/scsi.h>
 
@@ -1654,7 +1653,7 @@ static void nvme_trans_modesel_save_bd(struct nvme_ns *ns, u8 *parm_list,
 	}
 }
 
-static u16 nvme_trans_modesel_get_mp(struct nvme_ns *ns, struct sg_io_hdr *hdr,
+static int nvme_trans_modesel_get_mp(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 					u8 *mode_page, u8 page_code)
 {
 	int res = SNTI_TRANSLATION_SUCCESS;

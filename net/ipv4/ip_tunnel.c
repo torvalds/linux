@@ -503,6 +503,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
 
+	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 	dst = tnl_params->daddr;
 	if (dst == 0) {
 		/* NBMA tunnel */
@@ -658,7 +659,6 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, &rt->dst);
-	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
 	/* Push down and install the IP header. */
 	skb_push(skb, sizeof(struct iphdr));
@@ -853,7 +853,7 @@ void ip_tunnel_dellink(struct net_device *dev, struct list_head *head)
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_dellink);
 
-int __net_init ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
+int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 				  struct rtnl_link_ops *ops, char *devname)
 {
 	struct ip_tunnel_net *itn = net_generic(net, ip_tnl_net_id);
@@ -899,7 +899,7 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head)
 		unregister_netdevice_queue(itn->fb_tunnel_dev, head);
 }
 
-void __net_exit ip_tunnel_delete_net(struct ip_tunnel_net *itn)
+void ip_tunnel_delete_net(struct ip_tunnel_net *itn)
 {
 	LIST_HEAD(list);
 

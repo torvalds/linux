@@ -640,6 +640,15 @@ static inline void rcu_preempt_sleep_check(void)
 
 #define rcu_dereference_raw(p) rcu_dereference_check(p, 1) /*@@@ needed? @@@*/
 
+/*
+ * The tracing infrastructure traces RCU (we want that), but unfortunately
+ * some of the RCU checks causes tracing to lock up the system.
+ *
+ * The tracing version of rcu_dereference_raw() must not call
+ * rcu_read_lock_held().
+ */
+#define rcu_dereference_raw_notrace(p) __rcu_dereference_check((p), 1, __rcu)
+
 /**
  * rcu_access_index() - fetch RCU index with no dereferencing
  * @p: The index to read

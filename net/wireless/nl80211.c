@@ -1564,12 +1564,17 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 	struct cfg80211_registered_device *dev;
 	s64 filter_wiphy = -1;
 	bool split = false;
-	struct nlattr **tb = nl80211_fam.attrbuf;
+	struct nlattr **tb;
 	int res;
+
+	/* will be zeroed in nlmsg_parse() */
+	tb = kmalloc(sizeof(*tb) * (NL80211_ATTR_MAX + 1), GFP_KERNEL);
+	if (!tb)
+		return -ENOMEM;
 
 	mutex_lock(&cfg80211_mutex);
 	res = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
-			  tb, nl80211_fam.maxattr, nl80211_policy);
+			  tb, NL80211_ATTR_MAX, nl80211_policy);
 	if (res == 0) {
 		split = tb[NL80211_ATTR_SPLIT_WIPHY_DUMP];
 		if (tb[NL80211_ATTR_WIPHY])
@@ -1583,6 +1588,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			netdev = dev_get_by_index(sock_net(skb->sk), ifidx);
 			if (!netdev) {
 				mutex_unlock(&cfg80211_mutex);
+				kfree(tb);
 				return -ENODEV;
 			}
 			if (netdev->ieee80211_ptr) {
@@ -1593,6 +1599,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			dev_put(netdev);
 		}
 	}
+	kfree(tb);
 
 	list_for_each_entry(dev, &cfg80211_rdev_list, list) {
 		if (!net_eq(wiphy_net(&dev->wiphy), sock_net(skb->sk)))
@@ -3411,7 +3418,7 @@ static int nl80211_send_station(struct sk_buff *msg, u32 portid, u32 seq,
 			(u32)sinfo->rx_bytes))
 		goto nla_put_failure;
 	if ((sinfo->filled & (STATION_INFO_TX_BYTES |
-			      NL80211_STA_INFO_TX_BYTES64)) &&
+			      STATION_INFO_TX_BYTES64)) &&
 	    nla_put_u32(msg, NL80211_STA_INFO_TX_BYTES,
 			(u32)sinfo->tx_bytes))
 		goto nla_put_failure;
@@ -7577,6 +7584,8 @@ static int nl80211_send_wowlan_tcp(struct sk_buff *msg,
 		    &tcp->payload_tok))
 		return -ENOBUFS;
 
+	nla_nest_end(msg, nl_tcp);
+
 	return 0;
 }
 
@@ -9970,6 +9979,7 @@ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    (netdev && nla_put_u32(msg, NL80211_ATTR_IFINDEX,
 					netdev->ifindex)) ||
+	    nla_put_u64(msg, NL80211_ATTR_WDEV, wdev_id(wdev)) ||
 	    nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ, freq) ||
 	    (sig_dbm &&
 	     nla_put_u32(msg, NL80211_ATTR_RX_SIGNAL_DBM, sig_dbm)) ||
@@ -10010,6 +10020,7 @@ void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    (netdev && nla_put_u32(msg, NL80211_ATTR_IFINDEX,
 				   netdev->ifindex)) ||
+	    nla_put_u64(msg, NL80211_ATTR_WDEV, wdev_id(wdev)) ||
 	    nla_put(msg, NL80211_ATTR_FRAME, len, buf) ||
 	    nla_put_u64(msg, NL80211_ATTR_COOKIE, cookie) ||
 	    (ack && nla_put_flag(msg, NL80211_ATTR_ACK)))

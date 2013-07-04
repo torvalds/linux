@@ -33,6 +33,9 @@
  */
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO0	0x8809
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO1	0x880a
+#define PCI_DEVICE_ID_INTEL_BYT_EMMC	0x0f14
+#define PCI_DEVICE_ID_INTEL_BYT_SDIO	0x0f15
+#define PCI_DEVICE_ID_INTEL_BYT_SD	0x0f16
 
 /*
  * PCI registers
@@ -302,6 +305,33 @@ static const struct sdhci_pci_fixes sdhci_intel_mfd_emmc = {
 static const struct sdhci_pci_fixes sdhci_intel_pch_sdio = {
 	.quirks		= SDHCI_QUIRK_BROKEN_ADMA,
 	.probe_slot	= pch_hc_probe_slot,
+};
+
+static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
+{
+	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE;
+	slot->host->mmc->caps2 |= MMC_CAP2_HC_ERASE_SZ;
+	return 0;
+}
+
+static int byt_sdio_probe_slot(struct sdhci_pci_slot *slot)
+{
+	slot->host->mmc->caps |= MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE;
+	return 0;
+}
+
+static const struct sdhci_pci_fixes sdhci_intel_byt_emmc = {
+	.allow_runtime_pm = true,
+	.probe_slot	= byt_emmc_probe_slot,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_byt_sdio = {
+	.quirks2	= SDHCI_QUIRK2_HOST_OFF_CARD_ON,
+	.allow_runtime_pm = true,
+	.probe_slot	= byt_sdio_probe_slot,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 };
 
 /* O2Micro extra registers */
@@ -853,6 +883,30 @@ static const struct pci_device_id pci_ids[] = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_intel_pch_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BYT_EMMC,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BYT_SDIO,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BYT_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
 	},
 
 	{

@@ -192,7 +192,7 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
 	/* struct user */
 	DUMP_WRITE(&dump, sizeof(dump));
 	/* Now dump all of the user data.  Include malloced stuff as well */
-	DUMP_SEEK(PAGE_SIZE);
+	DUMP_SEEK(PAGE_SIZE - sizeof(dump));
 	/* now we start writing out the user space info */
 	set_fs(USER_DS);
 	/* Dump the data area */

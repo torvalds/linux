@@ -127,6 +127,7 @@ struct samsung_pin_bank_type {
  * @gpio_chip: GPIO chip of the bank.
  * @grange: linux gpio pin range supported by this bank.
  * @slock: spinlock protecting bank registers
+ * @pm_save: saved register values during suspend
  */
 struct samsung_pin_bank {
 	struct samsung_pin_bank_type *type;
@@ -138,12 +139,15 @@ struct samsung_pin_bank {
 	u32		eint_mask;
 	u32		eint_offset;
 	char		*name;
+	void		*soc_priv;
 	struct device_node *of_node;
 	struct samsung_pinctrl_drv_data *drvdata;
 	struct irq_domain *irq_domain;
 	struct gpio_chip gpio_chip;
 	struct pinctrl_gpio_range grange;
 	spinlock_t slock;
+
+	u32 pm_save[PINCFG_TYPE_NUM + 1]; /* +1 to handle double CON registers*/
 };
 
 /**
@@ -184,11 +188,15 @@ struct samsung_pin_ctrl {
 
 	int		(*eint_gpio_init)(struct samsung_pinctrl_drv_data *);
 	int		(*eint_wkup_init)(struct samsung_pinctrl_drv_data *);
+	void		(*suspend)(struct samsung_pinctrl_drv_data *);
+	void		(*resume)(struct samsung_pinctrl_drv_data *);
+
 	char		*label;
 };
 
 /**
  * struct samsung_pinctrl_drv_data: wrapper for holding driver data together.
+ * @node: global list node
  * @virt_base: register base address of the controller.
  * @dev: device instance representing the controller.
  * @irq: interrpt number used by the controller to notify gpio interrupts.
@@ -201,6 +209,7 @@ struct samsung_pin_ctrl {
  * @nr_function: number of such pin functions.
  */
 struct samsung_pinctrl_drv_data {
+	struct list_head		node;
 	void __iomem			*virt_base;
 	struct device			*dev;
 	int				irq;

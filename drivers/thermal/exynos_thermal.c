@@ -925,11 +925,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	INIT_WORK(&data->irq_work, exynos_tmu_work);
 
 	data->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!data->mem) {
-		dev_err(&pdev->dev, "Failed to get platform resource\n");
-		return -ENOENT;
-	}
-
 	data->base = devm_ioremap_resource(&pdev->dev, data->mem);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);

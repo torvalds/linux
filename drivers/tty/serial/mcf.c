@@ -707,8 +707,10 @@ static int __init mcf_init(void)
 	if (rc)
 		return rc;
 	rc = platform_driver_register(&mcf_platform_driver);
-	if (rc)
+	if (rc) {
+		uart_unregister_driver(&mcf_driver);
 		return rc;
+	}
 	return 0;
 }
 

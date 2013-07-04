@@ -17,17 +17,14 @@
 
 typedef struct {
 	unsigned int __softirq_pending;
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
 	unsigned int kernel_stack_usage;
-#ifdef CONFIG_IRQSTACKS
 	unsigned int irq_stack_usage;
-	unsigned int irq_stack_counter;
-#endif
-#endif
 #ifdef CONFIG_SMP
 	unsigned int irq_resched_count;
 	unsigned int irq_call_count;
 #endif
+	unsigned int irq_unaligned_count;
+	unsigned int irq_fpassist_count;
 	unsigned int irq_tlb_count;
 } ____cacheline_aligned irq_cpustat_t;
 

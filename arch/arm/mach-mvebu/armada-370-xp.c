@@ -54,13 +54,6 @@ void __init armada_370_xp_init_early(void)
 	char *mbus_soc_name;
 
 	/*
-	 * Some Armada 370/XP devices allocate their coherent buffers
-	 * from atomic context. Increase size of atomic coherent pool
-	 * to make sure such the allocations won't fail.
-	 */
-	init_dma_coherent_pool_size(SZ_1M);
-
-	/*
 	 * This initialization will be replaced by a DT-based
 	 * initialization once the mvebu-mbus driver gains DT support.
 	 */

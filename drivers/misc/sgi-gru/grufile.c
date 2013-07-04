@@ -172,6 +172,7 @@ static long gru_get_config_info(unsigned long arg)
 		nodesperblade = 2;
 	else
 		nodesperblade = 1;
+	memset(&info, 0, sizeof(info));
 	info.cpus = num_online_cpus();
 	info.nodes = num_online_nodes();
 	info.blades = info.nodes / nodesperblade;

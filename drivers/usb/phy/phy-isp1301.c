@@ -102,6 +102,7 @@ static int isp1301_probe(struct i2c_client *client,
 	mutex_init(&isp->mutex);
 
 	phy = &isp->phy;
+	phy->dev = &client->dev;
 	phy->label = DRV_NAME;
 	phy->init = isp1301_phy_init;
 	phy->set_vbus = isp1301_phy_set_vbus;

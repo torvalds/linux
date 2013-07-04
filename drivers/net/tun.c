@@ -352,7 +352,7 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb)
 	u32 numqueues = 0;
 
 	rcu_read_lock();
-	numqueues = tun->numqueues;
+	numqueues = ACCESS_ONCE(tun->numqueues);
 
 	txq = skb_get_rxhash(skb);
 	if (txq) {
@@ -1010,8 +1010,10 @@ static int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 			return -EMSGSIZE;
 		num_pages = get_user_pages_fast(base, size, 0, &page[i]);
 		if (num_pages != size) {
-			for (i = 0; i < num_pages; i++)
-				put_page(page[i]);
+			int j;
+
+			for (j = 0; j < num_pages; j++)
+				put_page(page[i + j]);
 			return -EFAULT;
 		}
 		truesize = size * PAGE_SIZE;
@@ -1585,6 +1587,10 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		else
 			return -EINVAL;
 
+		if (!!(ifr->ifr_flags & IFF_MULTI_QUEUE) !=
+		    !!(tun->flags & TUN_TAP_MQ))
+			return -EINVAL;
+
 		if (tun_not_capable(tun))
 			return -EPERM;
 		err = security_tun_dev_open(tun->security);
@@ -2154,6 +2160,8 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	file->private_data = tfile;
 	set_bit(SOCK_EXTERNALLY_ALLOCATED, &tfile->socket.flags);
 	INIT_LIST_HEAD(&tfile->next);
+
+	sock_set_flag(&tfile->sk, SOCK_ZEROCOPY);
 
 	return 0;
 }

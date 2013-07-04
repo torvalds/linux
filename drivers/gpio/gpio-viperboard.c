@@ -446,7 +446,8 @@ static int vprbrd_gpio_probe(struct platform_device *pdev)
 	return ret;
 
 err_gpiob:
-	ret = gpiochip_remove(&vb_gpio->gpioa);
+	if (gpiochip_remove(&vb_gpio->gpioa))
+		dev_err(&pdev->dev, "%s gpiochip_remove failed\n", __func__);
 
 err_gpioa:
 	return ret;

@@ -504,7 +504,7 @@ static void privcmd_close(struct vm_area_struct *vma)
 	struct page **pages = vma->vm_private_data;
 	int numpgs = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 
-	if (!xen_feature(XENFEAT_auto_translated_physmap || !numpgs || !pages))
+	if (!xen_feature(XENFEAT_auto_translated_physmap) || !numpgs || !pages)
 		return;
 
 	xen_unmap_domain_mfn_range(vma, numpgs, pages);

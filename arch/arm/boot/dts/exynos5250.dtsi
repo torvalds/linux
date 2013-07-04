@@ -161,9 +161,9 @@
 		interrupts = <0 50 0>;
 	};
 
-	pinctrl_3: pinctrl@03680000 {
+	pinctrl_3: pinctrl@03860000 {
 		compatible = "samsung,exynos5250-pinctrl";
-		reg = <0x0368000 0x1000>;
+		reg = <0x03860000 0x1000>;
 		interrupts = <0 47 0>;
 	};
 
@@ -495,6 +495,21 @@
 
 		clocks = <&clock 285>;
 		clock-names = "usbhost";
+	};
+
+	usbphy@12130000 {
+		compatible = "samsung,exynos5250-usb2phy";
+		reg = <0x12130000 0x100>;
+		clocks = <&clock 1>, <&clock 285>;
+		clock-names = "ext_xtal", "usbhost";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		usbphy-sys {
+			reg = <0x10040704 0x8>,
+			      <0x10050230 0x4>;
+		};
 	};
 
 	amba {

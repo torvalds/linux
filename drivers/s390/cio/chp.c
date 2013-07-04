@@ -352,12 +352,48 @@ static ssize_t chp_shared_show(struct device *dev,
 
 static DEVICE_ATTR(shared, 0444, chp_shared_show, NULL);
 
+static ssize_t chp_chid_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+	ssize_t rc;
+
+	mutex_lock(&chp->lock);
+	if (chp->desc_fmt1.flags & 0x10)
+		rc = sprintf(buf, "%04x\n", chp->desc_fmt1.chid);
+	else
+		rc = 0;
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+static DEVICE_ATTR(chid, 0444, chp_chid_show, NULL);
+
+static ssize_t chp_chid_external_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+	ssize_t rc;
+
+	mutex_lock(&chp->lock);
+	if (chp->desc_fmt1.flags & 0x10)
+		rc = sprintf(buf, "%x\n", chp->desc_fmt1.flags & 0x8 ? 1 : 0);
+	else
+		rc = 0;
+	mutex_unlock(&chp->lock);
+
+	return rc;
+}
+static DEVICE_ATTR(chid_external, 0444, chp_chid_external_show, NULL);
+
 static struct attribute *chp_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_configure.attr,
 	&dev_attr_type.attr,
 	&dev_attr_cmg.attr,
 	&dev_attr_shared.attr,
+	&dev_attr_chid.attr,
+	&dev_attr_chid_external.attr,
 	NULL,
 };
 static struct attribute_group chp_attr_group = {

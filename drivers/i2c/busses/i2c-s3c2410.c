@@ -1082,11 +1082,6 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	/* map the registers */
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "cannot find IO resource\n");
-		return -ENOENT;
-	}
-
 	i2c->regs = devm_ioremap_resource(&pdev->dev, res);
 
 	if (IS_ERR(i2c->regs))

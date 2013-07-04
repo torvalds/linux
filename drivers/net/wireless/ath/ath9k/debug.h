@@ -304,6 +304,7 @@ struct ath9k_debug {
 };
 
 int ath9k_init_debug(struct ath_hw *ah);
+void ath9k_deinit_debug(struct ath_softc *sc);
 
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
@@ -337,6 +338,10 @@ void ath_debug_send_fft_sample(struct ath_softc *sc,
 static inline int ath9k_init_debug(struct ath_hw *ah)
 {
 	return 0;
+}
+
+static inline void ath9k_deinit_debug(struct ath_softc *sc)
+{
 }
 
 static inline void ath_debug_stat_interrupt(struct ath_softc *sc,

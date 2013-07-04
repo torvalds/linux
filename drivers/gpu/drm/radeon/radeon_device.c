@@ -94,6 +94,7 @@ static const char radeon_family_name[][16] = {
 	"PITCAIRN",
 	"VERDE",
 	"OLAND",
+	"HAINAN",
 	"LAST",
 };
 
@@ -243,16 +244,6 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
  */
 void radeon_wb_disable(struct radeon_device *rdev)
 {
-	int r;
-
-	if (rdev->wb.wb_obj) {
-		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
-		if (unlikely(r != 0))
-			return;
-		radeon_bo_kunmap(rdev->wb.wb_obj);
-		radeon_bo_unpin(rdev->wb.wb_obj);
-		radeon_bo_unreserve(rdev->wb.wb_obj);
-	}
 	rdev->wb.enabled = false;
 }
 
@@ -268,6 +259,11 @@ void radeon_wb_fini(struct radeon_device *rdev)
 {
 	radeon_wb_disable(rdev);
 	if (rdev->wb.wb_obj) {
+		if (!radeon_bo_reserve(rdev->wb.wb_obj, false)) {
+			radeon_bo_kunmap(rdev->wb.wb_obj);
+			radeon_bo_unpin(rdev->wb.wb_obj);
+			radeon_bo_unreserve(rdev->wb.wb_obj);
+		}
 		radeon_bo_unref(&rdev->wb.wb_obj);
 		rdev->wb.wb = NULL;
 		rdev->wb.wb_obj = NULL;
@@ -294,26 +290,26 @@ int radeon_wb_init(struct radeon_device *rdev)
 			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
 			return r;
 		}
-	}
-	r = radeon_bo_reserve(rdev->wb.wb_obj, false);
-	if (unlikely(r != 0)) {
-		radeon_wb_fini(rdev);
-		return r;
-	}
-	r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
-			  &rdev->wb.gpu_addr);
-	if (r) {
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0)) {
+			radeon_wb_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
+				&rdev->wb.gpu_addr);
+		if (r) {
+			radeon_bo_unreserve(rdev->wb.wb_obj);
+			dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
+			radeon_wb_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
 		radeon_bo_unreserve(rdev->wb.wb_obj);
-		dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
-		radeon_wb_fini(rdev);
-		return r;
-	}
-	r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
-	radeon_bo_unreserve(rdev->wb.wb_obj);
-	if (r) {
-		dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
-		radeon_wb_fini(rdev);
-		return r;
+		if (r) {
+			dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
+			radeon_wb_fini(rdev);
+			return r;
+		}
 	}
 
 	/* clear wb memory */
@@ -466,23 +462,27 @@ bool radeon_card_posted(struct radeon_device *rdev)
 {
 	uint32_t reg;
 
+	/* required for EFI mode on macbook2,1 which uses an r5xx asic */
 	if (efi_enabled(EFI_BOOT) &&
-	    rdev->pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE)
+	    (rdev->pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE) &&
+	    (rdev->family < CHIP_R600))
 		return false;
 
+	if (ASIC_IS_NODCE(rdev))
+		goto check_memsize;
+
 	/* first check CRTCs */
-	if (ASIC_IS_DCE41(rdev)) {
+	if (ASIC_IS_DCE4(rdev)) {
 		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
 			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET);
-		if (reg & EVERGREEN_CRTC_MASTER_EN)
-			return true;
-	} else if (ASIC_IS_DCE4(rdev)) {
-		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET) |
-			RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET);
+			if (rdev->num_crtc >= 4) {
+				reg |= RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET) |
+					RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET);
+			}
+			if (rdev->num_crtc >= 6) {
+				reg |= RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET) |
+					RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET);
+			}
 		if (reg & EVERGREEN_CRTC_MASTER_EN)
 			return true;
 	} else if (ASIC_IS_AVIVO(rdev)) {
@@ -499,6 +499,7 @@ bool radeon_card_posted(struct radeon_device *rdev)
 		}
 	}
 
+check_memsize:
 	/* then check MEM_SIZE, in case the crtcs are off */
 	if (rdev->family >= CHIP_R600)
 		reg = RREG32(R600_CONFIG_MEMSIZE);

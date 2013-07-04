@@ -562,7 +562,7 @@ int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
 
 	resource_error = lancer_provisioning_error(adapter);
 	if (resource_error)
-		return -1;
+		return -EAGAIN;
 
 	status = lancer_wait_ready(adapter);
 	if (!status) {
@@ -590,8 +590,8 @@ int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
 	 * when PF provisions resources.
 	 */
 	resource_error = lancer_provisioning_error(adapter);
-	if (status == -1 && !resource_error)
-		adapter->eeh_error = true;
+	if (resource_error)
+		status = -EAGAIN;
 
 	return status;
 }
@@ -2976,22 +2976,17 @@ static struct be_nic_resource_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
 	for (i = 0; i < desc_count; i++) {
 		desc->desc_len = desc->desc_len ? : RESOURCE_DESC_SIZE;
 		if (((void *)desc + desc->desc_len) >
-		    (void *)(buf + max_buf_size)) {
-			desc = NULL;
-			break;
-		}
+		    (void *)(buf + max_buf_size))
+			return NULL;
 
 		if (desc->desc_type == NIC_RESOURCE_DESC_TYPE_V0 ||
 		    desc->desc_type == NIC_RESOURCE_DESC_TYPE_V1)
-			break;
+			return desc;
 
 		desc = (void *)desc + desc->desc_len;
 	}
 
-	if (!desc || i == MAX_RESOURCE_DESC)
-		return NULL;
-
-	return desc;
+	return NULL;
 }
 
 /* Uses Mbox */

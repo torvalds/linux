@@ -670,7 +670,9 @@ static int imx_tve_probe(struct platform_device *pdev)
 	tve->dac_reg = devm_regulator_get(&pdev->dev, "dac");
 	if (!IS_ERR(tve->dac_reg)) {
 		regulator_set_voltage(tve->dac_reg, 2750000, 2750000);
-		regulator_enable(tve->dac_reg);
+		ret = regulator_enable(tve->dac_reg);
+		if (ret)
+			return ret;
 	}
 
 	tve->clk = devm_clk_get(&pdev->dev, "tve");

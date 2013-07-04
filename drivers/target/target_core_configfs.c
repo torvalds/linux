@@ -1584,6 +1584,13 @@ static struct target_core_configfs_attribute target_core_attr_dev_udev_path = {
 	.store	= target_core_store_dev_udev_path,
 };
 
+static ssize_t target_core_show_dev_enable(void *p, char *page)
+{
+	struct se_device *dev = p;
+
+	return snprintf(page, PAGE_SIZE, "%d\n", !!(dev->dev_flags & DF_CONFIGURED));
+}
+
 static ssize_t target_core_store_dev_enable(
 	void *p,
 	const char *page,
@@ -1609,8 +1616,8 @@ static ssize_t target_core_store_dev_enable(
 static struct target_core_configfs_attribute target_core_attr_dev_enable = {
 	.attr	= { .ca_owner = THIS_MODULE,
 		    .ca_name = "enable",
-		    .ca_mode = S_IWUSR },
-	.show	= NULL,
+		    .ca_mode =  S_IRUGO | S_IWUSR },
+	.show	= target_core_show_dev_enable,
 	.store	= target_core_store_dev_enable,
 };
 

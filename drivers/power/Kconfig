@@ -152,6 +152,7 @@ config BATTERY_SBS
 
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
+	depends on I2C || I2C=n
 	help
 	  Say Y here to enable support for batteries with BQ27x00 (I2C/HDQ) chips.
 
@@ -284,6 +285,7 @@ config CHARGER_LP8788
 	tristate "TI LP8788 charger driver"
 	depends on MFD_LP8788
 	depends on LP8788_ADC
+	depends on IIO
 	help
 	  Say Y to enable support for the LP8788 linear charger.
 

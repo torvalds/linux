@@ -44,6 +44,7 @@
 			reg = <0x7e201000 0x1000>;
 			interrupts = <2 25>;
 			clock-frequency = <3000000>;
+			arm,primecell-periphid = <0x00241011>;
 		};
 
 		gpio: gpio {

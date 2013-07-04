@@ -338,7 +338,8 @@ static int dw8250_runtime_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(data->clk);
+	if (!IS_ERR(data->clk))
+		clk_disable_unprepare(data->clk);
 
 	return 0;
 }
@@ -347,7 +348,8 @@ static int dw8250_runtime_resume(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
 
-	clk_prepare_enable(data->clk);
+	if (!IS_ERR(data->clk))
+		clk_prepare_enable(data->clk);
 
 	return 0;
 }
@@ -367,6 +369,7 @@ MODULE_DEVICE_TABLE(of, dw8250_of_match);
 static const struct acpi_device_id dw8250_acpi_match[] = {
 	{ "INT33C4", 0 },
 	{ "INT33C5", 0 },
+	{ "80860F0A", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);

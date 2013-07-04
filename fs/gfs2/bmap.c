@@ -1286,17 +1286,26 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 	if (ret)
 		return ret;
 
+	ret = get_write_access(inode);
+	if (ret)
+		return ret;
+
 	inode_dio_wait(inode);
 
 	ret = gfs2_rs_alloc(GFS2_I(inode));
 	if (ret)
-		return ret;
+		goto out;
 
 	oldsize = inode->i_size;
-	if (newsize >= oldsize)
-		return do_grow(inode, newsize);
+	if (newsize >= oldsize) {
+		ret = do_grow(inode, newsize);
+		goto out;
+	}
 
-	return do_shrink(inode, oldsize, newsize);
+	ret = do_shrink(inode, oldsize, newsize);
+out:
+	put_write_access(inode);
+	return ret;
 }
 
 int gfs2_truncatei_resume(struct gfs2_inode *ip)

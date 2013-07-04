@@ -1287,9 +1287,13 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			goto error;
 		}
 		for (totlen = u = 0; u < uurb->number_of_packets; u++) {
-			/* arbitrary limit,
-			 * sufficient for USB 2.0 high-bandwidth iso */
-			if (isopkt[u].length > 8192) {
+			/*
+			 * arbitrary limit need for USB 3.0
+			 * bMaxBurst (0~15 allowed, 1~16 packets)
+			 * bmAttributes (bit 1:0, mult 0~2, 1~3 packets)
+			 * sizemax: 1024 * 16 * 3 = 49152
+			 */
+			if (isopkt[u].length > 49152) {
 				ret = -EINVAL;
 				goto error;
 			}

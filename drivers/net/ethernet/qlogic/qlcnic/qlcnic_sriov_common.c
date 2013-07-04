@@ -1734,7 +1734,6 @@ static int qlcnic_sriov_vf_handle_context_reset(struct qlcnic_adapter *adapter)
 
 	if (!qlcnic_sriov_vf_reinit_driver(adapter)) {
 		qlcnic_sriov_vf_attach(adapter);
-		adapter->netdev->trans_start = jiffies;
 		adapter->tx_timeo_cnt = 0;
 		adapter->reset_ctx_cnt = 0;
 		adapter->fw_fail_cnt = 0;

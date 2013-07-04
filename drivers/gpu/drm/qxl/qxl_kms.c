@@ -128,12 +128,13 @@ int qxl_device_init(struct qxl_device *qdev,
 
 	qdev->vram_mapping = io_mapping_create_wc(qdev->vram_base, pci_resource_len(pdev, 0));
 	qdev->surface_mapping = io_mapping_create_wc(qdev->surfaceram_base, qdev->surfaceram_size);
-	DRM_DEBUG_KMS("qxl: vram %p-%p(%dM %dk), surface %p-%p(%dM %dk)\n",
-		 (void *)qdev->vram_base, (void *)pci_resource_end(pdev, 0),
+	DRM_DEBUG_KMS("qxl: vram %llx-%llx(%dM %dk), surface %llx-%llx(%dM %dk)\n",
+		 (unsigned long long)qdev->vram_base,
+		 (unsigned long long)pci_resource_end(pdev, 0),
 		 (int)pci_resource_len(pdev, 0) / 1024 / 1024,
 		 (int)pci_resource_len(pdev, 0) / 1024,
-		 (void *)qdev->surfaceram_base,
-		 (void *)pci_resource_end(pdev, 1),
+		 (unsigned long long)qdev->surfaceram_base,
+		 (unsigned long long)pci_resource_end(pdev, 1),
 		 (int)qdev->surfaceram_size / 1024 / 1024,
 		 (int)qdev->surfaceram_size / 1024);
 

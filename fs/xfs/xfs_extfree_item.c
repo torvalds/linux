@@ -305,11 +305,12 @@ xfs_efi_release(xfs_efi_log_item_t	*efip,
 {
 	ASSERT(atomic_read(&efip->efi_next_extent) >= nextents);
 	if (atomic_sub_and_test(nextents, &efip->efi_next_extent)) {
-		__xfs_efi_release(efip);
-
 		/* recovery needs us to drop the EFI reference, too */
 		if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags))
 			__xfs_efi_release(efip);
+
+		__xfs_efi_release(efip);
+		/* efip may now have been freed, do not reference it again. */
 	}
 }
 

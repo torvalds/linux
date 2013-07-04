@@ -162,4 +162,15 @@ MODULE_AUTHOR("Ralf Baechle (ralf@linux-mips.org)");
 #undef TASK_SIZE
 #define TASK_SIZE TASK_SIZE32
 
+#undef cputime_to_timeval
+#define cputime_to_timeval cputime_to_compat_timeval
+static __inline__ void
+cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
+{
+	unsigned long jiffies = cputime_to_jiffies(cputime);
+
+	value->tv_usec = (jiffies % HZ) * (1000000L / HZ);
+	value->tv_sec = jiffies / HZ;
+}
+
 #include "../../../fs/binfmt_elf.c"

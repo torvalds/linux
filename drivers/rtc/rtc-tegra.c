@@ -322,12 +322,6 @@ static int __init tegra_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev,
-			"Unable to allocate resources for device.\n");
-		return -EBUSY;
-	}
-
 	info->rtc_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->rtc_base))
 		return PTR_ERR(info->rtc_base);

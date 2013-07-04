@@ -312,6 +312,8 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 			goto read_error;
 
 		*val = *val >> ch->scan_type.shift;
+
+		err = st_sensors_set_enable(indio_dev, false);
 	}
 	mutex_unlock(&indio_dev->mlock);
 

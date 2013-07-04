@@ -449,10 +449,9 @@ static int davinci_mdio_suspend(struct device *dev)
 	__raw_writel(ctrl, &data->regs->control);
 	wait_for_idle(data);
 
-	pm_runtime_put_sync(data->dev);
-
 	data->suspended = true;
 	spin_unlock(&data->lock);
+	pm_runtime_put_sync(data->dev);
 
 	return 0;
 }
@@ -460,15 +459,12 @@ static int davinci_mdio_suspend(struct device *dev)
 static int davinci_mdio_resume(struct device *dev)
 {
 	struct davinci_mdio_data *data = dev_get_drvdata(dev);
-	u32 ctrl;
 
-	spin_lock(&data->lock);
 	pm_runtime_get_sync(data->dev);
 
+	spin_lock(&data->lock);
 	/* restart the scan state machine */
-	ctrl = __raw_readl(&data->regs->control);
-	ctrl |= CONTROL_ENABLE;
-	__raw_writel(ctrl, &data->regs->control);
+	__davinci_mdio_reset(data);
 
 	data->suspended = false;
 	spin_unlock(&data->lock);
@@ -477,8 +473,8 @@ static int davinci_mdio_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops davinci_mdio_pm_ops = {
-	.suspend	= davinci_mdio_suspend,
-	.resume		= davinci_mdio_resume,
+	.suspend_late	= davinci_mdio_suspend,
+	.resume_early	= davinci_mdio_resume,
 };
 
 static const struct of_device_id davinci_mdio_of_mtable[] = {

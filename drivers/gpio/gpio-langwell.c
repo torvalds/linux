@@ -324,6 +324,7 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 	resource_size_t start, len;
 	struct lnw_gpio *lnw;
 	u32 gpio_base;
+	u32 irq_base;
 	int retval;
 	int ngpio = id->driver_data;
 
@@ -345,6 +346,7 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 		retval = -EFAULT;
 		goto err_ioremap;
 	}
+	irq_base = *(u32 *)base;
 	gpio_base = *((u32 *)base + 1);
 	/* release the IO mapping, since we already get the info from bar1 */
 	iounmap(base);
@@ -365,13 +367,6 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 		goto err_ioremap;
 	}
 
-	lnw->domain = irq_domain_add_linear(pdev->dev.of_node, ngpio,
-					    &lnw_gpio_irq_ops, lnw);
-	if (!lnw->domain) {
-		retval = -ENOMEM;
-		goto err_ioremap;
-	}
-
 	lnw->reg_base = base;
 	lnw->chip.label = dev_name(&pdev->dev);
 	lnw->chip.request = lnw_gpio_request;
@@ -384,6 +379,14 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 	lnw->chip.ngpio = ngpio;
 	lnw->chip.can_sleep = 0;
 	lnw->pdev = pdev;
+
+	lnw->domain = irq_domain_add_simple(pdev->dev.of_node, ngpio, irq_base,
+					    &lnw_gpio_irq_ops, lnw);
+	if (!lnw->domain) {
+		retval = -ENOMEM;
+		goto err_ioremap;
+	}
+
 	pci_set_drvdata(pdev, lnw);
 	retval = gpiochip_add(&lnw->chip);
 	if (retval) {
