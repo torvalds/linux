@@ -1256,7 +1256,7 @@ static int hists__browser_title(struct hists *hists, char *bf, size_t size,
 		printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",
 				    (thread->comm_set ? thread->comm : ""),
-				    thread->pid);
+				    thread->tid);
 	if (dso)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", DSO: %s", dso->short_name);
@@ -1579,7 +1579,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
 			     (browser->hists->thread_filter ? "out of" : "into"),
 			     (thread->comm_set ? thread->comm : ""),
-			     thread->pid) > 0)
+			     thread->tid) > 0)
 			zoom_thread = nr_options++;
 
 		if (dso != NULL &&
@@ -1702,7 +1702,7 @@ zoom_out_thread:
 			} else {
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
 						   thread->comm_set ? thread->comm : "",
-						   thread->pid);
+						   thread->tid);
 				browser->hists->thread_filter = thread;
 				sort_thread.elide = true;
 				pstack__push(fstack, &browser->hists->thread_filter);

@@ -55,14 +55,14 @@ static int64_t cmp_null(void *l, void *r)
 static int64_t
 sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return right->thread->pid - left->thread->pid;
+	return right->thread->tid - left->thread->tid;
 }
 
 static int hist_entry__thread_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width)
 {
 	return repsep_snprintf(bf, size, "%*s:%5d", width - 6,
-			      self->thread->comm ?: "", self->thread->pid);
+			      self->thread->comm ?: "", self->thread->tid);
 }
 
 struct sort_entry sort_thread = {
@@ -77,7 +77,7 @@ struct sort_entry sort_thread = {
 static int64_t
 sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return right->thread->pid - left->thread->pid;
+	return right->thread->tid - left->thread->tid;
 }
 
 static int64_t

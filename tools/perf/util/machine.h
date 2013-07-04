@@ -36,7 +36,7 @@ struct map *machine__kernel_map(struct machine *machine, enum map_type type)
 	return machine->vmlinux_maps[type];
 }
 
-struct thread *machine__find_thread(struct machine *machine, pid_t pid);
+struct thread *machine__find_thread(struct machine *machine, pid_t tid);
 
 int machine__process_comm_event(struct machine *machine, union perf_event *event);
 int machine__process_exit_event(struct machine *machine, union perf_event *event);
@@ -99,7 +99,7 @@ static inline bool machine__is_host(struct machine *machine)
 	return machine ? machine->pid == HOST_KERNEL_ID : false;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t pid);
+struct thread *machine__findnew_thread(struct machine *machine, pid_t tid);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 
