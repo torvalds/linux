@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/kvm_host.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/cputable.h>
