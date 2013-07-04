@@ -332,6 +332,7 @@ int qxl_bo_init(struct qxl_device *qdev);
 void qxl_bo_fini(struct qxl_device *qdev);
 
 void qxl_reinit_memslots(struct qxl_device *qdev);
+int qxl_surf_evict(struct qxl_device *qdev);
 
 struct qxl_ring *qxl_ring_create(struct qxl_ring_header *header,
 				 int element_size,
@@ -369,6 +370,7 @@ void qxl_fbdev_fini(struct qxl_device *qdev);
 int qxl_get_handle_for_primary_fb(struct qxl_device *qdev,
 				  struct drm_file *file_priv,
 				  uint32_t *handle);
+void qxl_fbdev_set_suspend(struct qxl_device *qdev, int state);
 
 /* qxl_display.c */
 int
@@ -534,6 +536,7 @@ irqreturn_t qxl_irq_handler(DRM_IRQ_ARGS);
 
 /* qxl_fb.c */
 int qxl_fb_init(struct qxl_device *qdev);
+bool qxl_fbdev_qobj_is_fb(struct qxl_device *qdev, struct qxl_bo *qobj);
 
 int qxl_debugfs_add_files(struct qxl_device *qdev,
 			  struct drm_info_list *files,

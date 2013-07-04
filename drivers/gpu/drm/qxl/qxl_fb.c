@@ -560,4 +560,14 @@ void qxl_fbdev_fini(struct qxl_device *qdev)
 	qdev->mode_info.qfbdev = NULL;
 }
 
+void qxl_fbdev_set_suspend(struct qxl_device *qdev, int state)
+{
+	fb_set_suspend(qdev->mode_info.qfbdev->helper.fbdev, state);
+}
 
+bool qxl_fbdev_qobj_is_fb(struct qxl_device *qdev, struct qxl_bo *qobj)
+{
+	if (qobj == gem_to_qxl_bo(qdev->mode_info.qfbdev->qfb.obj))
+		return true;
+	return false;
+}
