@@ -1607,7 +1607,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
-	spin_lock_init(&dev_priv->rps.lock);
 	spin_lock_init(&dev_priv->backlight.lock);
 	mutex_init(&dev_priv->dpio_lock);
 
