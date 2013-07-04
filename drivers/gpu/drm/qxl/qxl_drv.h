@@ -374,6 +374,8 @@ qxl_framebuffer_init(struct drm_device *dev,
 		     struct drm_gem_object *obj);
 void qxl_display_read_client_monitors_config(struct qxl_device *qdev);
 void qxl_send_monitors_config(struct qxl_device *qdev);
+int qxl_create_monitors_object(struct qxl_device *qdev);
+int qxl_destroy_monitors_object(struct qxl_device *qdev);
 
 /* used by qxl_debugfs only */
 void qxl_crtc_set_from_monitors_config(struct qxl_device *qdev);
