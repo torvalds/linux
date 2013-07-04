@@ -4963,7 +4963,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
-	pipe_config->cpu_transcoder = crtc->pipe;
+	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
 	tmp = I915_READ(PIPECONF(crtc->pipe));
@@ -5834,7 +5834,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
-	pipe_config->cpu_transcoder = crtc->pipe;
+	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
 	tmp = I915_READ(PIPECONF(crtc->pipe));
@@ -5950,7 +5950,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	enum intel_display_power_domain pfit_domain;
 	uint32_t tmp;
 
-	pipe_config->cpu_transcoder = crtc->pipe;
+	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
@@ -7052,7 +7052,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	 * Note, if LVDS ever uses a non-1 pixel multiplier, we'll need
 	 * to use a real value here instead.
 	 */
-	pipe_config.cpu_transcoder = intel_crtc->pipe;
+	pipe_config.cpu_transcoder = (enum transcoder) intel_crtc->pipe;
 	pipe_config.pixel_multiplier = 1;
 	i9xx_crtc_clock_get(intel_crtc, &pipe_config);
 
@@ -7882,7 +7882,8 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 	drm_mode_copy(&pipe_config->adjusted_mode, mode);
 	drm_mode_copy(&pipe_config->requested_mode, mode);
-	pipe_config->cpu_transcoder = to_intel_crtc(crtc)->pipe;
+	pipe_config->cpu_transcoder =
+		(enum transcoder) to_intel_crtc(crtc)->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
 	/* Compute a starting value for pipe_config->pipe_bpp taking the source
