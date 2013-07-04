@@ -86,6 +86,27 @@ config MPIC
 	bool
 	default n
 
+config MPIC_TIMER
+	bool "MPIC Global Timer"
+	depends on MPIC && FSL_SOC
+	default n
+	help
+	  The MPIC global timer is a hardware timer inside the
+	  Freescale PIC complying with OpenPIC standard. When the
+	  specified interval times out, the hardware timer generates
+	  an interrupt. The driver currently is only tested on fsl
+	  chip, but it can potentially support other global timers
+	  complying with the OpenPIC standard.
+
+config FSL_MPIC_TIMER_WAKEUP
+	tristate "Freescale MPIC global timer wakeup driver"
+	depends on FSL_SOC &&  MPIC_TIMER && PM
+	default n
+	help
+	  The driver provides a way to wake up the system by MPIC
+	  timer.
+	  e.g. "echo 5 > /sys/devices/system/mpic/timer_wakeup"
+
 config PPC_EPAPR_HV_PIC
 	bool
 	default n
@@ -163,6 +184,11 @@ config IBMEBUS
 	bool "Support for GX bus based adapters"
 	help
 	  Bus device driver for GX bus based adapters.
+
+config EEH
+	bool
+	depends on (PPC_POWERNV || PPC_PSERIES) && PCI
+	default y
 
 config PPC_MPC106
 	bool

@@ -885,7 +885,7 @@ static int smp_core99_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata smp_core99_cpu_nb = {
+static struct notifier_block smp_core99_cpu_nb = {
 	.notifier_call	= smp_core99_cpu_notify,
 };
 #endif /* CONFIG_HOTPLUG_CPU */

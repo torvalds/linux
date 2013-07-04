@@ -358,12 +358,12 @@ label##_relon_pSeries:					\
 	/* No guest interrupts come through here */	\
 	SET_SCRATCH0(r13);		/* save r13 */	\
 	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label##_common, \
-				       EXC_STD, KVMTEST_PR, vec)
+				       EXC_STD, NOTEST, vec)
 
 #define STD_RELON_EXCEPTION_PSERIES_OOL(vec, label)		\
 	.globl label##_relon_pSeries;				\
 label##_relon_pSeries:						\
-	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, vec);	\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, vec);		\
 	EXCEPTION_RELON_PROLOG_PSERIES_1(label##_common, EXC_STD)
 
 #define STD_RELON_EXCEPTION_HV(loc, vec, label)		\
@@ -374,12 +374,12 @@ label##_relon_hv:					\
 	/* No guest interrupts come through here */	\
 	SET_SCRATCH0(r13);	/* save r13 */		\
 	EXCEPTION_RELON_PROLOG_PSERIES(PACA_EXGEN, label##_common, \
-				       EXC_HV, KVMTEST, vec)
+				       EXC_HV, NOTEST, vec)
 
 #define STD_RELON_EXCEPTION_HV_OOL(vec, label)			\
 	.globl label##_relon_hv;				\
 label##_relon_hv:						\
-	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST, vec);		\
+	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, vec);		\
 	EXCEPTION_RELON_PROLOG_PSERIES_1(label##_common, EXC_HV)
 
 /* This associate vector numbers with bits in paca->irq_happened */

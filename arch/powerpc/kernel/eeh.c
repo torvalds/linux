@@ -103,11 +103,8 @@ EXPORT_SYMBOL(eeh_subsystem_enabled);
  */
 int eeh_probe_mode;
 
-/* Global EEH mutex */
-DEFINE_MUTEX(eeh_mutex);
-
 /* Lock to avoid races due to multiple reports of an error */
-static DEFINE_RAW_SPINLOCK(confirm_error_lock);
+DEFINE_RAW_SPINLOCK(confirm_error_lock);
 
 /* Buffer for reporting pci register dumps. Its here in BSS, and
  * not dynamically alloced, so that it ends up in RMO where RTAS
@@ -235,16 +232,30 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 {
 	size_t loglen = 0;
 	struct eeh_dev *edev;
+	bool valid_cfg_log = true;
 
-	eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
-	eeh_ops->configure_bridge(pe);
-	eeh_pe_restore_bars(pe);
+	/*
+	 * When the PHB is fenced or dead, it's pointless to collect
+	 * the data from PCI config space because it should return
+	 * 0xFF's. For ER, we still retrieve the data from the PCI
+	 * config space.
+	 */
+	if (eeh_probe_mode_dev() &&
+	    (pe->type & EEH_PE_PHB) &&
+	    (pe->state & (EEH_PE_ISOLATED | EEH_PE_PHB_DEAD)))
+		valid_cfg_log = false;
 
-	pci_regs_buf[0] = 0;
-	eeh_pe_for_each_dev(pe, edev) {
-		loglen += eeh_gather_pci_data(edev, pci_regs_buf,
-				EEH_PCI_REGS_LOG_LEN);
-        }
+	if (valid_cfg_log) {
+		eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+		eeh_ops->configure_bridge(pe);
+		eeh_pe_restore_bars(pe);
+
+		pci_regs_buf[0] = 0;
+		eeh_pe_for_each_dev(pe, edev) {
+			loglen += eeh_gather_pci_data(edev, pci_regs_buf + loglen,
+						      EEH_PCI_REGS_LOG_LEN - loglen);
+		}
+	}
 
 	eeh_ops->get_log(pe, severity, pci_regs_buf, loglen);
 }
@@ -260,13 +271,72 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 {
 	pte_t *ptep;
 	unsigned long pa;
+	int hugepage_shift;
 
-	ptep = find_linux_pte(init_mm.pgd, token);
+	/*
+	 * We won't find hugepages here, iomem
+	 */
+	ptep = find_linux_pte_or_hugepte(init_mm.pgd, token, &hugepage_shift);
 	if (!ptep)
 		return token;
+	WARN_ON(hugepage_shift);
 	pa = pte_pfn(*ptep) << PAGE_SHIFT;
 
 	return pa | (token & (PAGE_SIZE-1));
+}
+
+/*
+ * On PowerNV platform, we might already have fenced PHB there.
+ * For that case, it's meaningless to recover frozen PE. Intead,
+ * We have to handle fenced PHB firstly.
+ */
+static int eeh_phb_check_failure(struct eeh_pe *pe)
+{
+	struct eeh_pe *phb_pe;
+	unsigned long flags;
+	int ret;
+
+	if (!eeh_probe_mode_dev())
+		return -EPERM;
+
+	/* Find the PHB PE */
+	phb_pe = eeh_phb_pe_get(pe->phb);
+	if (!phb_pe) {
+		pr_warning("%s Can't find PE for PHB#%d\n",
+			   __func__, pe->phb->global_number);
+		return -EEXIST;
+	}
+
+	/* If the PHB has been in problematic state */
+	eeh_serialize_lock(&flags);
+	if (phb_pe->state & (EEH_PE_ISOLATED | EEH_PE_PHB_DEAD)) {
+		ret = 0;
+		goto out;
+	}
+
+	/* Check PHB state */
+	ret = eeh_ops->get_state(phb_pe, NULL);
+	if ((ret < 0) ||
+	    (ret == EEH_STATE_NOT_SUPPORT) ||
+	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
+	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
+		ret = 0;
+		goto out;
+	}
+
+	/* Isolate the PHB and send event */
+	eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
+	eeh_serialize_unlock(flags);
+	eeh_send_failure_event(phb_pe);
+
+	pr_err("EEH: PHB#%x failure detected\n",
+		phb_pe->phb->global_number);
+	dump_stack();
+
+	return 1;
+out:
+	eeh_serialize_unlock(flags);
+	return ret;
 }
 
 /**
@@ -319,13 +389,21 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		return 0;
 	}
 
+	/*
+	 * On PowerNV platform, we might already have fenced PHB
+	 * there and we need take care of that firstly.
+	 */
+	ret = eeh_phb_check_failure(pe);
+	if (ret > 0)
+		return ret;
+
 	/* If we already have a pending isolation event for this
 	 * slot, we know it's bad already, we don't need to check.
 	 * Do this checking under a lock; as multiple PCI devices
 	 * in one slot might report errors simultaneously, and we
 	 * only want one error recovery routine running.
 	 */
-	raw_spin_lock_irqsave(&confirm_error_lock, flags);
+	eeh_serialize_lock(&flags);
 	rc = 1;
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
@@ -368,13 +446,13 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	}
 
 	eeh_stats.slot_resets++;
- 
+
 	/* Avoid repeated reports of this failure, including problems
 	 * with other functions on this device, and functions under
 	 * bridges.
 	 */
 	eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
-	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
+	eeh_serialize_unlock(flags);
 
 	eeh_send_failure_event(pe);
 
@@ -382,11 +460,14 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
 	 */
-	WARN(1, "EEH: failure detected\n");
+	pr_err("EEH: Frozen PE#%x detected on PHB#%x\n",
+		pe->addr, pe->phb->global_number);
+	dump_stack();
+
 	return 1;
 
 dn_unlock:
-	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
+	eeh_serialize_unlock(flags);
 	return rc;
 }
 
@@ -525,7 +606,7 @@ static void eeh_reset_pe_once(struct eeh_pe *pe)
 	 * or a fundamental reset (3).
 	 * A fundamental reset required by any device under
 	 * Partitionable Endpoint trumps hot-reset.
-  	 */
+	 */
 	eeh_pe_dev_traverse(pe, eeh_set_dev_freset, &freset);
 
 	if (freset)
@@ -538,8 +619,8 @@ static void eeh_reset_pe_once(struct eeh_pe *pe)
 	 */
 #define PCI_BUS_RST_HOLD_TIME_MSEC 250
 	msleep(PCI_BUS_RST_HOLD_TIME_MSEC);
-	
-	/* We might get hit with another EEH freeze as soon as the 
+
+	/* We might get hit with another EEH freeze as soon as the
 	 * pci slot reset line is dropped. Make sure we don't miss
 	 * these, and clear the flag now.
 	 */
@@ -565,6 +646,7 @@ static void eeh_reset_pe_once(struct eeh_pe *pe)
  */
 int eeh_reset_pe(struct eeh_pe *pe)
 {
+	int flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	int i, rc;
 
 	/* Take three shots at resetting the bus */
@@ -572,7 +654,7 @@ int eeh_reset_pe(struct eeh_pe *pe)
 		eeh_reset_pe_once(pe);
 
 		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-		if (rc == (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE))
+		if ((rc & flags) == flags)
 			return 0;
 
 		if (rc < 0) {
@@ -604,7 +686,7 @@ void eeh_save_bars(struct eeh_dev *edev)
 	if (!edev)
 		return;
 	dn = eeh_dev_to_of_node(edev);
-	
+
 	for (i = 0; i < 16; i++)
 		eeh_ops->read_config(dn, i * 4, 4, &edev->config_space[i]);
 }
@@ -674,11 +756,21 @@ int __exit eeh_ops_unregister(const char *name)
  * Even if force-off is set, the EEH hardware is still enabled, so that
  * newer systems can boot.
  */
-static int __init eeh_init(void)
+int eeh_init(void)
 {
 	struct pci_controller *hose, *tmp;
 	struct device_node *phb;
-	int ret;
+	static int cnt = 0;
+	int ret = 0;
+
+	/*
+	 * We have to delay the initialization on PowerNV after
+	 * the PCI hierarchy tree has been built because the PEs
+	 * are figured out based on PCI devices instead of device
+	 * tree nodes
+	 */
+	if (machine_is(powernv) && cnt++ <= 0)
+		return ret;
 
 	/* call platform initialization function */
 	if (!eeh_ops) {
@@ -691,7 +783,10 @@ static int __init eeh_init(void)
 		return ret;
 	}
 
-	raw_spin_lock_init(&confirm_error_lock);
+	/* Initialize EEH event */
+	ret = eeh_event_init();
+	if (ret)
+		return ret;
 
 	/* Enable EEH for all adapters */
 	if (eeh_probe_mode_devtree()) {
@@ -700,6 +795,25 @@ static int __init eeh_init(void)
 			phb = hose->dn;
 			traverse_pci_devices(phb, eeh_ops->of_probe, NULL);
 		}
+	} else if (eeh_probe_mode_dev()) {
+		list_for_each_entry_safe(hose, tmp,
+			&hose_list, list_node)
+			pci_walk_bus(hose->bus, eeh_ops->dev_probe, NULL);
+	} else {
+		pr_warning("%s: Invalid probe mode %d\n",
+			   __func__, eeh_probe_mode);
+		return -EINVAL;
+	}
+
+	/*
+	 * Call platform post-initialization. Actually, It's good chance
+	 * to inform platform that EEH is ready to supply service if the
+	 * I/O cache stuff has been built up.
+	 */
+	if (eeh_ops->post_init) {
+		ret = eeh_ops->post_init();
+		if (ret)
+			return ret;
 	}
 
 	if (eeh_subsystem_enabled)
@@ -728,6 +842,14 @@ static void eeh_add_device_early(struct device_node *dn)
 {
 	struct pci_controller *phb;
 
+	/*
+	 * If we're doing EEH probe based on PCI device, we
+	 * would delay the probe until late stage because
+	 * the PCI device isn't available this moment.
+	 */
+	if (!eeh_probe_mode_devtree())
+		return;
+
 	if (!of_node_to_eeh_dev(dn))
 		return;
 	phb = of_node_to_eeh_dev(dn)->phb;
@@ -736,7 +858,6 @@ static void eeh_add_device_early(struct device_node *dn)
 	if (NULL == phb || 0 == phb->buid)
 		return;
 
-	/* FIXME: hotplug support on POWERNV */
 	eeh_ops->of_probe(dn, NULL);
 }
 
@@ -787,6 +908,13 @@ static void eeh_add_device_late(struct pci_dev *dev)
 	edev->pdev = dev;
 	dev->dev.archdata.edev = edev;
 
+	/*
+	 * We have to do the EEH probe here because the PCI device
+	 * hasn't been created yet in the early stage.
+	 */
+	if (eeh_probe_mode_dev())
+		eeh_ops->dev_probe(dev, NULL);
+
 	eeh_addr_cache_insert_dev(dev);
 }
 
@@ -803,12 +931,12 @@ void eeh_add_device_tree_late(struct pci_bus *bus)
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
- 		eeh_add_device_late(dev);
- 		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
- 			struct pci_bus *subbus = dev->subordinate;
- 			if (subbus)
- 				eeh_add_device_tree_late(subbus);
- 		}
+		eeh_add_device_late(dev);
+		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
+			struct pci_bus *subbus = dev->subordinate;
+			if (subbus)
+				eeh_add_device_tree_late(subbus);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(eeh_add_device_tree_late);

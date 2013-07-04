@@ -194,7 +194,7 @@ static void __eeh_addr_cache_insert_dev(struct pci_dev *dev)
 	}
 
 	/* Skip any devices for which EEH is not enabled. */
-	if (!edev->pe) {
+	if (!eeh_probe_mode_dev() && !edev->pe) {
 #ifdef DEBUG
 		pr_info("PCI: skip building address cache for=%s - %s\n",
 			pci_name(dev), dn->full_name);
@@ -285,7 +285,7 @@ void eeh_addr_cache_rmv_dev(struct pci_dev *dev)
  * Must be run late in boot process, after the pci controllers
  * have been scanned for devices (after all device resources are known).
  */
-void __init eeh_addr_cache_build(void)
+void eeh_addr_cache_build(void)
 {
 	struct device_node *dn;
 	struct eeh_dev *edev;
@@ -316,4 +316,3 @@ void __init eeh_addr_cache_build(void)
 	eeh_addr_cache_print(&pci_io_addr_cache_root);
 #endif
 }
-

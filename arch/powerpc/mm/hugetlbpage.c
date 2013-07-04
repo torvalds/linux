@@ -21,6 +21,9 @@
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/setup.h>
+#include <asm/hugetlb.h>
+
+#ifdef CONFIG_HUGETLB_PAGE
 
 #define PAGE_SHIFT_64K	16
 #define PAGE_SHIFT_16M	24
@@ -100,68 +103,9 @@ int pgd_huge(pgd_t pgd)
 }
 #endif
 
-/*
- * We have 4 cases for pgds and pmds:
- * (1) invalid (all zeroes)
- * (2) pointer to next table, as normal; bottom 6 bits == 0
- * (3) leaf pte for huge page, bottom two bits != 00
- * (4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size of table
- */
-pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift)
-{
-	pgd_t *pg;
-	pud_t *pu;
-	pmd_t *pm;
-	pte_t *ret_pte;
-	hugepd_t *hpdp = NULL;
-	unsigned pdshift = PGDIR_SHIFT;
-
-	if (shift)
-		*shift = 0;
-
-	pg = pgdir + pgd_index(ea);
-
-	if (pgd_huge(*pg)) {
-		ret_pte = (pte_t *) pg;
-		goto out;
-	} else if (is_hugepd(pg))
-		hpdp = (hugepd_t *)pg;
-	else if (!pgd_none(*pg)) {
-		pdshift = PUD_SHIFT;
-		pu = pud_offset(pg, ea);
-
-		if (pud_huge(*pu)) {
-			ret_pte = (pte_t *) pu;
-			goto out;
-		} else if (is_hugepd(pu))
-			hpdp = (hugepd_t *)pu;
-		else if (!pud_none(*pu)) {
-			pdshift = PMD_SHIFT;
-			pm = pmd_offset(pu, ea);
-
-			if (pmd_huge(*pm)) {
-				ret_pte = (pte_t *) pm;
-				goto out;
-			} else if (is_hugepd(pm))
-				hpdp = (hugepd_t *)pm;
-			else if (!pmd_none(*pm))
-				return pte_offset_kernel(pm, ea);
-		}
-	}
-	if (!hpdp)
-		return NULL;
-
-	ret_pte = hugepte_offset(hpdp, ea, pdshift);
-	pdshift = hugepd_shift(*hpdp);
-out:
-	if (shift)
-		*shift = pdshift;
-	return ret_pte;
-}
-EXPORT_SYMBOL_GPL(find_linux_pte_or_hugepte);
-
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
+	/* Only called for hugetlbfs pages, hence can ignore THP */
 	return find_linux_pte_or_hugepte(mm->pgd, addr, NULL);
 }
 
@@ -736,11 +680,14 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 	struct page *page;
 	unsigned shift;
 	unsigned long mask;
-
+	/*
+	 * Transparent hugepages are handled by generic code. We can skip them
+	 * here.
+	 */
 	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &shift);
 
 	/* Verify it is a huge page else bail. */
-	if (!ptep || !shift)
+	if (!ptep || !shift || pmd_trans_huge(*(pmd_t *)ptep))
 		return ERR_PTR(-EINVAL);
 
 	mask = (1UL << shift) - 1;
@@ -757,69 +704,6 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 {
 	BUG();
 	return NULL;
-}
-
-int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
-		unsigned long end, int write, struct page **pages, int *nr)
-{
-	unsigned long mask;
-	unsigned long pte_end;
-	struct page *head, *page, *tail;
-	pte_t pte;
-	int refs;
-
-	pte_end = (addr + sz) & ~(sz-1);
-	if (pte_end < end)
-		end = pte_end;
-
-	pte = *ptep;
-	mask = _PAGE_PRESENT | _PAGE_USER;
-	if (write)
-		mask |= _PAGE_RW;
-
-	if ((pte_val(pte) & mask) != mask)
-		return 0;
-
-	/* hugepages are never "special" */
-	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
-
-	refs = 0;
-	head = pte_page(pte);
-
-	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
-	tail = page;
-	do {
-		VM_BUG_ON(compound_head(page) != head);
-		pages[*nr] = page;
-		(*nr)++;
-		page++;
-		refs++;
-	} while (addr += PAGE_SIZE, addr != end);
-
-	if (!page_cache_add_speculative(head, refs)) {
-		*nr -= refs;
-		return 0;
-	}
-
-	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
-		/* Could be optimized better */
-		*nr -= refs;
-		while (refs--)
-			put_page(head);
-		return 0;
-	}
-
-	/*
-	 * Any tail page need their mapcount reference taken before we
-	 * return.
-	 */
-	while (refs--) {
-		if (PageTail(tail))
-			get_huge_page_tail(tail);
-		tail++;
-	}
-
-	return 1;
 }
 
 static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
@@ -1037,4 +921,169 @@ void flush_dcache_icache_hugepage(struct page *page)
 			kunmap_atomic(start);
 		}
 	}
+}
+
+#endif /* CONFIG_HUGETLB_PAGE */
+
+/*
+ * We have 4 cases for pgds and pmds:
+ * (1) invalid (all zeroes)
+ * (2) pointer to next table, as normal; bottom 6 bits == 0
+ * (3) leaf pte for huge page, bottom two bits != 00
+ * (4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size of table
+ *
+ * So long as we atomically load page table pointers we are safe against teardown,
+ * we can follow the address down to the the page and take a ref on it.
+ */
+
+pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift)
+{
+	pgd_t pgd, *pgdp;
+	pud_t pud, *pudp;
+	pmd_t pmd, *pmdp;
+	pte_t *ret_pte;
+	hugepd_t *hpdp = NULL;
+	unsigned pdshift = PGDIR_SHIFT;
+
+	if (shift)
+		*shift = 0;
+
+	pgdp = pgdir + pgd_index(ea);
+	pgd  = ACCESS_ONCE(*pgdp);
+	/*
+	 * Always operate on the local stack value. This make sure the
+	 * value don't get updated by a parallel THP split/collapse,
+	 * page fault or a page unmap. The return pte_t * is still not
+	 * stable. So should be checked there for above conditions.
+	 */
+	if (pgd_none(pgd))
+		return NULL;
+	else if (pgd_huge(pgd)) {
+		ret_pte = (pte_t *) pgdp;
+		goto out;
+	} else if (is_hugepd(&pgd))
+		hpdp = (hugepd_t *)&pgd;
+	else {
+		/*
+		 * Even if we end up with an unmap, the pgtable will not
+		 * be freed, because we do an rcu free and here we are
+		 * irq disabled
+		 */
+		pdshift = PUD_SHIFT;
+		pudp = pud_offset(&pgd, ea);
+		pud  = ACCESS_ONCE(*pudp);
+
+		if (pud_none(pud))
+			return NULL;
+		else if (pud_huge(pud)) {
+			ret_pte = (pte_t *) pudp;
+			goto out;
+		} else if (is_hugepd(&pud))
+			hpdp = (hugepd_t *)&pud;
+		else {
+			pdshift = PMD_SHIFT;
+			pmdp = pmd_offset(&pud, ea);
+			pmd  = ACCESS_ONCE(*pmdp);
+			/*
+			 * A hugepage collapse is captured by pmd_none, because
+			 * it mark the pmd none and do a hpte invalidate.
+			 *
+			 * A hugepage split is captured by pmd_trans_splitting
+			 * because we mark the pmd trans splitting and do a
+			 * hpte invalidate
+			 *
+			 */
+			if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+				return NULL;
+
+			if (pmd_huge(pmd) || pmd_large(pmd)) {
+				ret_pte = (pte_t *) pmdp;
+				goto out;
+			} else if (is_hugepd(&pmd))
+				hpdp = (hugepd_t *)&pmd;
+			else
+				return pte_offset_kernel(&pmd, ea);
+		}
+	}
+	if (!hpdp)
+		return NULL;
+
+	ret_pte = hugepte_offset(hpdp, ea, pdshift);
+	pdshift = hugepd_shift(*hpdp);
+out:
+	if (shift)
+		*shift = pdshift;
+	return ret_pte;
+}
+EXPORT_SYMBOL_GPL(find_linux_pte_or_hugepte);
+
+int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+		unsigned long end, int write, struct page **pages, int *nr)
+{
+	unsigned long mask;
+	unsigned long pte_end;
+	struct page *head, *page, *tail;
+	pte_t pte;
+	int refs;
+
+	pte_end = (addr + sz) & ~(sz-1);
+	if (pte_end < end)
+		end = pte_end;
+
+	pte = ACCESS_ONCE(*ptep);
+	mask = _PAGE_PRESENT | _PAGE_USER;
+	if (write)
+		mask |= _PAGE_RW;
+
+	if ((pte_val(pte) & mask) != mask)
+		return 0;
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	/*
+	 * check for splitting here
+	 */
+	if (pmd_trans_splitting(pte_pmd(pte)))
+		return 0;
+#endif
+
+	/* hugepages are never "special" */
+	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+
+	refs = 0;
+	head = pte_page(pte);
+
+	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
+	tail = page;
+	do {
+		VM_BUG_ON(compound_head(page) != head);
+		pages[*nr] = page;
+		(*nr)++;
+		page++;
+		refs++;
+	} while (addr += PAGE_SIZE, addr != end);
+
+	if (!page_cache_add_speculative(head, refs)) {
+		*nr -= refs;
+		return 0;
+	}
+
+	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
+		/* Could be optimized better */
+		*nr -= refs;
+		while (refs--)
+			put_page(head);
+		return 0;
+	}
+
+	/*
+	 * Any tail page need their mapcount reference taken before we
+	 * return.
+	 */
+	while (refs--) {
+		if (PageTail(tail))
+			get_huge_page_tail(tail);
+		tail++;
+	}
+
+	return 1;
 }
