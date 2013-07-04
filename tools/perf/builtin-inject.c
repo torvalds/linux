@@ -73,22 +73,17 @@ static int perf_event__repipe_event_type_synth(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__repipe_tracing_data_synth(union perf_event *event,
-						 struct perf_session *session
-						 __maybe_unused)
-{
-	return perf_event__repipe_synth(NULL, event);
-}
-
-static int perf_event__repipe_attr(union perf_event *event,
-				   struct perf_evlist **pevlist __maybe_unused)
+static int perf_event__repipe_attr(struct perf_tool *tool,
+				   union perf_event *event,
+				   struct perf_evlist **pevlist)
 {
 	int ret;
-	ret = perf_event__process_attr(event, pevlist);
+
+	ret = perf_event__process_attr(tool, event, pevlist);
 	if (ret)
 		return ret;
 
-	return perf_event__repipe_synth(NULL, event);
+	return perf_event__repipe_synth(tool, event);
 }
 
 static int perf_event__repipe(struct perf_tool *tool,
@@ -147,13 +142,14 @@ static int perf_event__repipe_fork(struct perf_tool *tool,
 	return err;
 }
 
-static int perf_event__repipe_tracing_data(union perf_event *event,
+static int perf_event__repipe_tracing_data(struct perf_tool *tool,
+					   union perf_event *event,
 					   struct perf_session *session)
 {
 	int err;
 
-	perf_event__repipe_synth(NULL, event);
-	err = perf_event__process_tracing_data(event, session);
+	perf_event__repipe_synth(tool, event);
+	err = perf_event__process_tracing_data(tool, event, session);
 
 	return err;
 }
@@ -407,7 +403,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.unthrottle	= perf_event__repipe,
 			.attr		= perf_event__repipe_attr,
 			.event_type	= perf_event__repipe_event_type_synth,
-			.tracing_data	= perf_event__repipe_tracing_data_synth,
+			.tracing_data	= perf_event__repipe_op2_synth,
 			.build_id	= perf_event__repipe_op2_synth,
 		},
 		.input_name  = "-",

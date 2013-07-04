@@ -130,7 +130,8 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 int perf_event__synthesize_attrs(struct perf_tool *tool,
 				 struct perf_session *session,
 				 perf_event__handler_t process);
-int perf_event__process_attr(union perf_event *event, struct perf_evlist **pevlist);
+int perf_event__process_attr(struct perf_tool *tool, union perf_event *event,
+			     struct perf_evlist **pevlist);
 
 int perf_event__synthesize_event_type(struct perf_tool *tool,
 				      u64 event_id, char *name,
@@ -145,7 +146,8 @@ int perf_event__process_event_type(struct perf_tool *tool,
 int perf_event__synthesize_tracing_data(struct perf_tool *tool,
 					int fd, struct perf_evlist *evlist,
 					perf_event__handler_t process);
-int perf_event__process_tracing_data(union perf_event *event,
+int perf_event__process_tracing_data(struct perf_tool *tool,
+				     union perf_event *event,
 				     struct perf_session *session);
 
 int perf_event__synthesize_build_id(struct perf_tool *tool,

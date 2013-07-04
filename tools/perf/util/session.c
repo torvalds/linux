@@ -193,7 +193,9 @@ void perf_session__delete(struct perf_session *self)
 	vdso__exit();
 }
 
-static int process_event_synth_tracing_data_stub(union perf_event *event
+static int process_event_synth_tracing_data_stub(struct perf_tool *tool
+						 __maybe_unused,
+						 union perf_event *event
 						 __maybe_unused,
 						 struct perf_session *session
 						__maybe_unused)
@@ -202,7 +204,8 @@ static int process_event_synth_tracing_data_stub(union perf_event *event
 	return 0;
 }
 
-static int process_event_synth_attr_stub(union perf_event *event __maybe_unused,
+static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
+					 union perf_event *event __maybe_unused,
 					 struct perf_evlist **pevlist
 					 __maybe_unused)
 {
@@ -921,7 +924,7 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 	/* These events are processed right away */
 	switch (event->header.type) {
 	case PERF_RECORD_HEADER_ATTR:
-		err = tool->attr(event, &session->evlist);
+		err = tool->attr(tool, event, &session->evlist);
 		if (err == 0)
 			perf_session__set_id_hdr_size(session);
 		return err;
@@ -930,7 +933,7 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
 		lseek(session->fd, file_offset, SEEK_SET);
-		return tool->tracing_data(event, session);
+		return tool->tracing_data(tool, event, session);
 	case PERF_RECORD_HEADER_BUILD_ID:
 		return tool->build_id(tool, event, session);
 	case PERF_RECORD_FINISHED_ROUND:

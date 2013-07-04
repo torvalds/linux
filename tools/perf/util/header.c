@@ -2922,7 +2922,8 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 	return err;
 }
 
-int perf_event__process_attr(union perf_event *event,
+int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
+			     union perf_event *event,
 			     struct perf_evlist **pevlist)
 {
 	u32 i, ids, n_ids;
@@ -3065,7 +3066,8 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 	return aligned_size;
 }
 
-int perf_event__process_tracing_data(union perf_event *event,
+int perf_event__process_tracing_data(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
 				     struct perf_session *session)
 {
 	ssize_t size_read, padding, size = event->tracing_data.size;
