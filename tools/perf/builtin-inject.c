@@ -38,8 +38,7 @@ struct event_entry {
 };
 
 static int perf_event__repipe_synth(struct perf_tool *tool,
-				    union perf_event *event,
-				    struct machine *machine __maybe_unused)
+				    union perf_event *event)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	uint32_t size;
@@ -65,20 +64,20 @@ static int perf_event__repipe_op2_synth(struct perf_tool *tool,
 					struct perf_session *session
 					__maybe_unused)
 {
-	return perf_event__repipe_synth(tool, event, NULL);
+	return perf_event__repipe_synth(tool, event);
 }
 
 static int perf_event__repipe_event_type_synth(struct perf_tool *tool,
 					       union perf_event *event)
 {
-	return perf_event__repipe_synth(tool, event, NULL);
+	return perf_event__repipe_synth(tool, event);
 }
 
 static int perf_event__repipe_tracing_data_synth(union perf_event *event,
 						 struct perf_session *session
 						 __maybe_unused)
 {
-	return perf_event__repipe_synth(NULL, event, NULL);
+	return perf_event__repipe_synth(NULL, event);
 }
 
 static int perf_event__repipe_attr(union perf_event *event,
@@ -89,15 +88,15 @@ static int perf_event__repipe_attr(union perf_event *event,
 	if (ret)
 		return ret;
 
-	return perf_event__repipe_synth(NULL, event, NULL);
+	return perf_event__repipe_synth(NULL, event);
 }
 
 static int perf_event__repipe(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
-			      struct machine *machine)
+			      struct machine *machine __maybe_unused)
 {
-	return perf_event__repipe_synth(tool, event, machine);
+	return perf_event__repipe_synth(tool, event);
 }
 
 typedef int (*inject_handler)(struct perf_tool *tool,
@@ -119,7 +118,7 @@ static int perf_event__repipe_sample(struct perf_tool *tool,
 
 	build_id__mark_dso_hit(tool, event, sample, evsel, machine);
 
-	return perf_event__repipe_synth(tool, event, machine);
+	return perf_event__repipe_synth(tool, event);
 }
 
 static int perf_event__repipe_mmap(struct perf_tool *tool,
@@ -153,7 +152,7 @@ static int perf_event__repipe_tracing_data(union perf_event *event,
 {
 	int err;
 
-	perf_event__repipe_synth(NULL, event, NULL);
+	perf_event__repipe_synth(NULL, event);
 	err = perf_event__process_tracing_data(event, session);
 
 	return err;
