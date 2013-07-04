@@ -141,7 +141,8 @@ struct intel_encoder {
 	bool (*get_hw_state)(struct intel_encoder *, enum pipe *pipe);
 	/* Reconstructs the equivalent mode flags for the current hardware
 	 * state. This must be called _after_ display->get_pipe_config has
-	 * pre-filled the pipe config. */
+	 * pre-filled the pipe config. Note that intel_encoder->base.crtc must
+	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
 			   struct intel_crtc_config *pipe_config);
 	int crtc_mask;
@@ -586,7 +587,7 @@ extern void intel_lvds_init(struct drm_device *dev);
 extern bool intel_is_dual_link_lvds(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int output_reg,
 			  enum port port);
-extern void intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
+extern bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 				    struct intel_connector *intel_connector);
 extern void intel_dp_init_link_config(struct intel_dp *intel_dp);
 extern void intel_dp_start_link_train(struct intel_dp *intel_dp);

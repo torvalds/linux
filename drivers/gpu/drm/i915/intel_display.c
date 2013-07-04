@@ -3250,7 +3250,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 /* IPS only exists on ULT machines and is tied to pipe A. */
 static bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 {
-	return IS_ULT(crtc->base.dev) && crtc->pipe == PIPE_A;
+	return HAS_IPS(crtc->base.dev) && crtc->pipe == PIPE_A;
 }
 
 static void hsw_enable_ips(struct intel_crtc *crtc)
@@ -4069,7 +4069,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		pipe_config->pipe_bpp = 8*3;
 	}
 
-	if (IS_HASWELL(dev))
+	if (HAS_IPS(dev))
 		hsw_compute_ips_config(crtc, pipe_config);
 
 	/* XXX: PCH clock sharing is done in ->mode_set, so make sure the old
@@ -4404,11 +4404,12 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 
 	/* Set HBR and RBR LPF coefficients */
 	if (crtc->config.port_clock == 162000 ||
+	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_ANALOG) ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI))
-		vlv_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
+		vlv_dpio_write(dev_priv, DPIO_LPF_COEFF(pipe),
 				 0x005f0021);
 	else
-		vlv_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
+		vlv_dpio_write(dev_priv, DPIO_LPF_COEFF(pipe),
 				 0x00d0000f);
 
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP) ||
@@ -8753,8 +8754,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	}
 
 	if (ret) {
-		DRM_ERROR("failed to set mode on [CRTC:%d], err = %d\n",
-			  set->crtc->base.id, ret);
+		DRM_DEBUG_KMS("failed to set mode on [CRTC:%d], err = %d\n",
+			      set->crtc->base.id, ret);
 fail:
 		intel_set_config_restore_state(dev, config);
 
@@ -9121,6 +9122,7 @@ int intel_framebuffer_init(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
 			   struct drm_i915_gem_object *obj)
 {
+	int pitch_limit;
 	int ret;
 
 	if (obj->tiling_mode == I915_TILING_Y) {
@@ -9134,10 +9136,26 @@ int intel_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	/* FIXME <= Gen4 stride limits are bit unclear */
-	if (mode_cmd->pitches[0] > 32768) {
-		DRM_DEBUG("pitch (%d) must be at less than 32768\n",
-			  mode_cmd->pitches[0]);
+	if (INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev)) {
+		pitch_limit = 32*1024;
+	} else if (INTEL_INFO(dev)->gen >= 4) {
+		if (obj->tiling_mode)
+			pitch_limit = 16*1024;
+		else
+			pitch_limit = 32*1024;
+	} else if (INTEL_INFO(dev)->gen >= 3) {
+		if (obj->tiling_mode)
+			pitch_limit = 8*1024;
+		else
+			pitch_limit = 16*1024;
+	} else
+		/* XXX DSPC is limited to 4k tiled */
+		pitch_limit = 8*1024;
+
+	if (mode_cmd->pitches[0] > pitch_limit) {
+		DRM_DEBUG("%s pitch (%d) must be at less than %d\n",
+			  obj->tiling_mode ? "tiled" : "linear",
+			  mode_cmd->pitches[0], pitch_limit);
 		return -EINVAL;
 	}
 

@@ -70,15 +70,6 @@ static const u32 hpd_status_gen4[] = {
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
 };
 
-static const u32 hpd_status_i965[] = {
-	 [HPD_CRT] = CRT_HOTPLUG_INT_STATUS,
-	 [HPD_SDVO_B] = SDVOB_HOTPLUG_INT_STATUS_I965,
-	 [HPD_SDVO_C] = SDVOC_HOTPLUG_INT_STATUS_I965,
-	 [HPD_PORT_B] = PORTB_HOTPLUG_INT_STATUS,
-	 [HPD_PORT_C] = PORTC_HOTPLUG_INT_STATUS,
-	 [HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
-};
-
 static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	[HPD_CRT] = CRT_HOTPLUG_INT_STATUS,
 	[HPD_SDVO_B] = SDVOB_HOTPLUG_INT_STATUS_I915,
@@ -88,13 +79,12 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
 };
 
-static void ibx_hpd_irq_setup(struct drm_device *dev);
-static void i915_hpd_irq_setup(struct drm_device *dev);
-
 /* For display hotplug interrupt */
 static void
 ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	if ((dev_priv->irq_mask & mask) != 0) {
 		dev_priv->irq_mask &= ~mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
@@ -105,6 +95,8 @@ ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 static void
 ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	if ((dev_priv->irq_mask & mask) != mask) {
 		dev_priv->irq_mask |= mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
@@ -117,6 +109,8 @@ static bool ivb_can_enable_err_int(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	enum pipe pipe;
+
+	assert_spin_locked(&dev_priv->irq_lock);
 
 	for_each_pipe(pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
@@ -708,16 +702,24 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD)
+	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
 		new_delay = dev_priv->rps.cur_delay + 1;
-	else
+
+		/*
+		 * For better performance, jump directly
+		 * to RPe if we're below it.
+		 */
+		if (IS_VALLEYVIEW(dev_priv->dev) &&
+		    dev_priv->rps.cur_delay < dev_priv->rps.rpe_delay)
+			new_delay = dev_priv->rps.rpe_delay;
+	} else
 		new_delay = dev_priv->rps.cur_delay - 1;
 
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
-	if (!(new_delay > dev_priv->rps.max_delay ||
-	      new_delay < dev_priv->rps.min_delay)) {
+	if (new_delay >= dev_priv->rps.min_delay &&
+	    new_delay <= dev_priv->rps.max_delay) {
 		if (IS_VALLEYVIEW(dev_priv->dev))
 			valleyview_set_rps(dev_priv->dev, new_delay);
 		else
@@ -870,17 +872,18 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
-static inline bool hotplug_irq_storm_detect(struct drm_device *dev,
-					    u32 hotplug_trigger,
-					    const u32 *hpd)
+static inline void intel_hpd_irq_handler(struct drm_device *dev,
+					 u32 hotplug_trigger,
+					 const u32 *hpd)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	unsigned long irqflags;
 	int i;
-	bool ret = false;
+	bool storm_detected = false;
 
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	if (!hotplug_trigger)
+		return;
 
+	spin_lock(&dev_priv->irq_lock);
 	for (i = 1; i < HPD_NUM_PINS; i++) {
 
 		if (!(hpd[i] & hotplug_trigger) ||
@@ -897,15 +900,18 @@ static inline bool hotplug_irq_storm_detect(struct drm_device *dev,
 			dev_priv->hpd_stats[i].hpd_mark = HPD_MARK_DISABLED;
 			dev_priv->hpd_event_bits &= ~(1 << i);
 			DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", i);
-			ret = true;
+			storm_detected = true;
 		} else {
 			dev_priv->hpd_stats[i].hpd_cnt++;
 		}
 	}
 
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	if (storm_detected)
+		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock(&dev_priv->irq_lock);
 
-	return ret;
+	queue_work(dev_priv->wq,
+		   &dev_priv->hotplug_work);
 }
 
 static void gmbus_irq_handler(struct drm_device *dev)
@@ -1012,12 +1018,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 					 hotplug_status);
-			if (hotplug_trigger) {
-				if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915))
-					i915_hpd_irq_setup(dev);
-				queue_work(dev_priv->wq,
-					   &dev_priv->hotplug_work);
-			}
+
+			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
 		}
@@ -1043,11 +1046,8 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
-	if (hotplug_trigger) {
-		if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_ibx))
-			ibx_hpd_irq_setup(dev);
-		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-	}
+	intel_hpd_irq_handler(dev, hotplug_trigger, hpd_ibx);
+
 	if (pch_iir & SDE_AUDIO_POWER_MASK) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK) >>
 			       SDE_AUDIO_POWER_SHIFT);
@@ -1148,11 +1148,8 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 	int pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
-	if (hotplug_trigger) {
-		if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_cpt))
-			ibx_hpd_irq_setup(dev);
-		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-	}
+	intel_hpd_irq_handler(dev, hotplug_trigger, hpd_cpt);
+
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
 			       SDE_AUDIO_POWER_SHIFT_CPT);
@@ -1218,8 +1215,11 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 	/* On Haswell, also mask ERR_INT because we don't want to risk
 	 * generating "unclaimed register" interrupts from inside the interrupt
 	 * handler. */
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev)) {
+		spin_lock(&dev_priv->irq_lock);
 		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		spin_unlock(&dev_priv->irq_lock);
+	}
 
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
@@ -1272,8 +1272,12 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 		ret = IRQ_HANDLED;
 	}
 
-	if (IS_HASWELL(dev) && ivb_can_enable_err_int(dev))
-		ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
+	if (IS_HASWELL(dev)) {
+		spin_lock(&dev_priv->irq_lock);
+		if (ivb_can_enable_err_int(dev))
+			ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		spin_unlock(&dev_priv->irq_lock);
+	}
 
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
@@ -2698,6 +2702,8 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 
 static int ironlake_irq_postinstall(struct drm_device *dev)
 {
+	unsigned long irqflags;
+
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
@@ -2711,7 +2717,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	/* should always can generate irq */
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
 	I915_WRITE(DEIMR, dev_priv->irq_mask);
-	I915_WRITE(DEIER, display_mask | DE_PIPEA_VBLANK | DE_PIPEB_VBLANK);
+	I915_WRITE(DEIER, display_mask |
+			  DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT);
 	POSTING_READ(DEIER);
 
 	dev_priv->gt_irq_mask = ~0;
@@ -2733,10 +2740,14 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	ibx_irq_postinstall(dev);
 
 	if (IS_IRONLAKE_M(dev)) {
-		/* Clear & enable PCU event interrupts */
-		I915_WRITE(DEIIR, DE_PCU_EVENT);
-		I915_WRITE(DEIER, I915_READ(DEIER) | DE_PCU_EVENT);
+		/* Enable PCU event interrupts
+		 *
+		 * spinlocking not required here for correctness since interrupt
+		 * setup is guaranteed to run in single-threaded context. But we
+		 * need it to make the assert_spin_locked happy. */
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		ironlake_enable_display_irq(dev_priv, DE_PCU_EVENT);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
 
 	return 0;
@@ -3212,12 +3223,9 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
-			if (hotplug_trigger) {
-				if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915))
-					i915_hpd_irq_setup(dev);
-				queue_work(dev_priv->wq,
-					   &dev_priv->hotplug_work);
-			}
+
+			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			POSTING_READ(PORT_HOTPLUG_STAT);
 		}
@@ -3369,6 +3377,8 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	u32 hotplug_en;
 
+	assert_spin_locked(&dev_priv->irq_lock);
+
 	if (I915_HAS_HOTPLUG(dev)) {
 		hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 		hotplug_en &= ~HOTPLUG_INT_EN_MASK;
@@ -3449,17 +3459,14 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
 			u32 hotplug_trigger = hotplug_status & (IS_G4X(dev) ?
 								  HOTPLUG_INT_STATUS_G4X :
-								  HOTPLUG_INT_STATUS_I965);
+								  HOTPLUG_INT_STATUS_I915);
 
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
-			if (hotplug_trigger) {
-				if (hotplug_irq_storm_detect(dev, hotplug_trigger,
-							    IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i965))
-					i915_hpd_irq_setup(dev);
-				queue_work(dev_priv->wq,
-					   &dev_priv->hotplug_work);
-			}
+
+			intel_hpd_irq_handler(dev, hotplug_trigger,
+					      IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i915);
+
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
 		}
@@ -3655,6 +3662,7 @@ void intel_hpd_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
+	unsigned long irqflags;
 	int i;
 
 	for (i = 1; i < HPD_NUM_PINS; i++) {
@@ -3667,6 +3675,11 @@ void intel_hpd_init(struct drm_device *dev)
 		if (!connector->polled && I915_HAS_HOTPLUG(dev) && intel_connector->encoder->hpd_pin > HPD_NONE)
 			connector->polled = DRM_CONNECTOR_POLL_HPD;
 	}
+
+	/* Interrupt setup is already guaranteed to be single-threaded, this is
+	 * just to make the assert_spin_locked checks happy. */
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }

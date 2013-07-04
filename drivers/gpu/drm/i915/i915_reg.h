@@ -448,9 +448,9 @@
 #define _DPIO_PLL_CML_B			0x806c
 #define DPIO_PLL_CML(pipe) _PIPE(pipe, _DPIO_PLL_CML_A, _DPIO_PLL_CML_B)
 
-#define _DPIO_LFP_COEFF_A		0x8048
-#define _DPIO_LFP_COEFF_B		0x8068
-#define DPIO_LFP_COEFF(pipe) _PIPE(pipe, _DPIO_LFP_COEFF_A, _DPIO_LFP_COEFF_B)
+#define _DPIO_LPF_COEFF_A		0x8048
+#define _DPIO_LPF_COEFF_B		0x8068
+#define DPIO_LPF_COEFF(pipe) _PIPE(pipe, _DPIO_LPF_COEFF_A, _DPIO_LPF_COEFF_B)
 
 #define DPIO_CALIBRATION		0x80ac
 
@@ -1718,14 +1718,13 @@
 					 GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
 					 GEN7_CXT_GT1_SIZE(ctx_reg) + \
 					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
-#define HSW_CXT_POWER_SIZE(ctx_reg)	((ctx_reg >> 26) & 0x3f)
-#define HSW_CXT_RING_SIZE(ctx_reg)	((ctx_reg >> 23) & 0x7)
-#define HSW_CXT_RENDER_SIZE(ctx_reg)	((ctx_reg >> 15) & 0xff)
-#define HSW_CXT_TOTAL_SIZE(ctx_reg)	(HSW_CXT_POWER_SIZE(ctx_reg) + \
-					 HSW_CXT_RING_SIZE(ctx_reg) + \
-					 HSW_CXT_RENDER_SIZE(ctx_reg) + \
-					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
-
+/* Haswell does have the CXT_SIZE register however it does not appear to be
+ * valid. Now, docs explain in dwords what is in the context object. The full
+ * size is 70720 bytes, however, the power context and execlist context will
+ * never be saved (power context is stored elsewhere, and execlists don't work
+ * on HSW) - so the final size is 66944 bytes, which rounds to 17 pages.
+ */
+#define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
 
 /*
  * Overlay regs
@@ -1874,6 +1873,12 @@
 /* SDVO is different across gen3/4 */
 #define   SDVOC_HOTPLUG_INT_STATUS_G4X		(1 << 3)
 #define   SDVOB_HOTPLUG_INT_STATUS_G4X		(1 << 2)
+/*
+ * Bspec seems to be seriously misleaded about the SDVO hpd bits on i965g/gm,
+ * since reality corrobates that they're the same as on gen3. But keep these
+ * bits here (and the comment!) to help any other lost wanderers back onto the
+ * right tracks.
+ */
 #define   SDVOC_HOTPLUG_INT_STATUS_I965		(3 << 4)
 #define   SDVOB_HOTPLUG_INT_STATUS_I965		(3 << 2)
 #define   SDVOC_HOTPLUG_INT_STATUS_I915		(1 << 7)
@@ -1881,13 +1886,6 @@
 #define   HOTPLUG_INT_STATUS_G4X		(CRT_HOTPLUG_INT_STATUS | \
 						 SDVOB_HOTPLUG_INT_STATUS_G4X | \
 						 SDVOC_HOTPLUG_INT_STATUS_G4X | \
-						 PORTB_HOTPLUG_INT_STATUS | \
-						 PORTC_HOTPLUG_INT_STATUS | \
-						 PORTD_HOTPLUG_INT_STATUS)
-
-#define HOTPLUG_INT_STATUS_I965			(CRT_HOTPLUG_INT_STATUS | \
-						 SDVOB_HOTPLUG_INT_STATUS_I965 | \
-						 SDVOC_HOTPLUG_INT_STATUS_I965 | \
 						 PORTB_HOTPLUG_INT_STATUS | \
 						 PORTC_HOTPLUG_INT_STATUS | \
 						 PORTD_HOTPLUG_INT_STATUS)
@@ -3488,7 +3486,7 @@
 #define SPRGAMC(pipe) _PIPE(pipe, _SPRA_GAMC, _SPRB_GAMC)
 #define SPRSURFLIVE(pipe) _PIPE(pipe, _SPRA_SURFLIVE, _SPRB_SURFLIVE)
 
-#define _SPACNTR		0x72180
+#define _SPACNTR		(VLV_DISPLAY_BASE + 0x72180)
 #define   SP_ENABLE			(1<<31)
 #define   SP_GEAMMA_ENABLE		(1<<30)
 #define   SP_PIXFORMAT_MASK		(0xf<<26)
@@ -3507,30 +3505,30 @@
 #define   SP_YUV_ORDER_YVYU		(2<<16)
 #define   SP_YUV_ORDER_VYUY		(3<<16)
 #define   SP_TILED			(1<<10)
-#define _SPALINOFF		0x72184
-#define _SPASTRIDE		0x72188
-#define _SPAPOS			0x7218c
-#define _SPASIZE		0x72190
-#define _SPAKEYMINVAL		0x72194
-#define _SPAKEYMSK		0x72198
-#define _SPASURF		0x7219c
-#define _SPAKEYMAXVAL		0x721a0
-#define _SPATILEOFF		0x721a4
-#define _SPACONSTALPHA		0x721a8
-#define _SPAGAMC		0x721f4
+#define _SPALINOFF		(VLV_DISPLAY_BASE + 0x72184)
+#define _SPASTRIDE		(VLV_DISPLAY_BASE + 0x72188)
+#define _SPAPOS			(VLV_DISPLAY_BASE + 0x7218c)
+#define _SPASIZE		(VLV_DISPLAY_BASE + 0x72190)
+#define _SPAKEYMINVAL		(VLV_DISPLAY_BASE + 0x72194)
+#define _SPAKEYMSK		(VLV_DISPLAY_BASE + 0x72198)
+#define _SPASURF		(VLV_DISPLAY_BASE + 0x7219c)
+#define _SPAKEYMAXVAL		(VLV_DISPLAY_BASE + 0x721a0)
+#define _SPATILEOFF		(VLV_DISPLAY_BASE + 0x721a4)
+#define _SPACONSTALPHA		(VLV_DISPLAY_BASE + 0x721a8)
+#define _SPAGAMC		(VLV_DISPLAY_BASE + 0x721f4)
 
-#define _SPBCNTR		0x72280
-#define _SPBLINOFF		0x72284
-#define _SPBSTRIDE		0x72288
-#define _SPBPOS			0x7228c
-#define _SPBSIZE		0x72290
-#define _SPBKEYMINVAL		0x72294
-#define _SPBKEYMSK		0x72298
-#define _SPBSURF		0x7229c
-#define _SPBKEYMAXVAL		0x722a0
-#define _SPBTILEOFF		0x722a4
-#define _SPBCONSTALPHA		0x722a8
-#define _SPBGAMC		0x722f4
+#define _SPBCNTR		(VLV_DISPLAY_BASE + 0x72280)
+#define _SPBLINOFF		(VLV_DISPLAY_BASE + 0x72284)
+#define _SPBSTRIDE		(VLV_DISPLAY_BASE + 0x72288)
+#define _SPBPOS			(VLV_DISPLAY_BASE + 0x7228c)
+#define _SPBSIZE		(VLV_DISPLAY_BASE + 0x72290)
+#define _SPBKEYMINVAL		(VLV_DISPLAY_BASE + 0x72294)
+#define _SPBKEYMSK		(VLV_DISPLAY_BASE + 0x72298)
+#define _SPBSURF		(VLV_DISPLAY_BASE + 0x7229c)
+#define _SPBKEYMAXVAL		(VLV_DISPLAY_BASE + 0x722a0)
+#define _SPBTILEOFF		(VLV_DISPLAY_BASE + 0x722a4)
+#define _SPBCONSTALPHA		(VLV_DISPLAY_BASE + 0x722a8)
+#define _SPBGAMC		(VLV_DISPLAY_BASE + 0x722f4)
 
 #define SPCNTR(pipe, plane) _PIPE(pipe * 2 + plane, _SPACNTR, _SPBCNTR)
 #define SPLINOFF(pipe, plane) _PIPE(pipe * 2 + plane, _SPALINOFF, _SPBLINOFF)
