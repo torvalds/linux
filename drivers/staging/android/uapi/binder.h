@@ -67,11 +67,11 @@ struct flat_binder_object {
  */
 
 struct binder_write_read {
-	signed long	write_size;	/* bytes to write */
-	signed long	write_consumed;	/* bytes consumed by driver */
+	size_t	write_size;	/* bytes to write */
+	size_t	write_consumed;	/* bytes consumed by driver */
 	unsigned long	write_buffer;
-	signed long	read_size;	/* bytes to read */
-	signed long	read_consumed;	/* bytes consumed by driver */
+	size_t	read_size;	/* bytes to read */
+	size_t	read_consumed;	/* bytes consumed by driver */
 	unsigned long	read_buffer;
 };
 
