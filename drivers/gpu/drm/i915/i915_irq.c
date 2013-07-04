@@ -969,9 +969,9 @@ static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
 		I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 		/* never want to mask useful interrupts. (also posting read) */
 		WARN_ON(I915_READ_NOTRACE(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
-		/* TODO: if queue_work is slow, move it out of the spinlock */
-		queue_work(dev_priv->wq, &dev_priv->rps.work);
 		spin_unlock(&dev_priv->rps.lock);
+
+		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}
 
 	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
