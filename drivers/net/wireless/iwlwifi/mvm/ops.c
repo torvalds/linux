@@ -678,6 +678,8 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	iwl_mvm_dump_nic_error_log(mvm);
+	if (!iwlwifi_mod_params.restart_fw)
+		iwl_mvm_dump_sram(mvm);
 
 	iwl_mvm_nic_restart(mvm);
 }
