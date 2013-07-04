@@ -54,6 +54,7 @@ obj-$(CONFIG_HID_GYRATION)	+= hid-gyration.o
 obj-$(CONFIG_HID_HOLTEK)	+= hid-holtek-kbd.o
 obj-$(CONFIG_HID_HOLTEK)	+= hid-holtek-mouse.o
 obj-$(CONFIG_HID_HOLTEK)	+= hid-holtekff.o
+obj-$(CONFIG_HID_HUION)		+= hid-huion.o
 obj-$(CONFIG_HID_HYPERV_MOUSE)	+= hid-hyperv.o
 obj-$(CONFIG_HID_ICADE)		+= hid-icade.o
 obj-$(CONFIG_HID_KENSINGTON)	+= hid-kensington.o
@@ -94,7 +95,6 @@ hid-picolcd-y			+= hid-picolcd_debugfs.o
 endif
 
 obj-$(CONFIG_HID_PRIMAX)	+= hid-primax.o
-obj-$(CONFIG_HID_PS3REMOTE)	+= hid-ps3remote.o
 obj-$(CONFIG_HID_ROCCAT)	+= hid-roccat.o hid-roccat-common.o \
 	hid-roccat-arvo.o hid-roccat-isku.o hid-roccat-kone.o \
 	hid-roccat-koneplus.o hid-roccat-konepure.o hid-roccat-kovaplus.o \

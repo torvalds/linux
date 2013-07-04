@@ -250,6 +250,12 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_HUION
+	tristate "Huion tablets"
+	depends on USB_HID
+	---help---
+	Support for Huion 580 tablet.
+
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
 	depends on HID
@@ -571,15 +577,6 @@ config HID_PRIMAX
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
 
-config HID_PS3REMOTE
-	tristate "Sony PS3 BD Remote Control"
-	depends on HID
-	---help---
-	Support for the Sony PS3 Blue-ray Disk Remote Control and Logitech
-	Harmony Adapter for PS3, which connect over Bluetooth.
-
-	Support for the 6-axis controllers is provided by HID_SONY.
-
 config HID_ROCCAT
 	tristate "Roccat device support"
 	depends on USB_HID
@@ -604,12 +601,17 @@ config HID_SAMSUNG
 	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
-	tristate "Sony PS3 controller"
+	tristate "Sony PS2/3 accessories"
 	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
 	---help---
-	Support for Sony PS3 6-axis controllers.
+	Support for
 
-	Support for the Sony PS3 BD Remote is provided by HID_PS3REMOTE.
+	  * Sony PS3 6-axis controllers
+	  * Buzz controllers
+	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
+	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
