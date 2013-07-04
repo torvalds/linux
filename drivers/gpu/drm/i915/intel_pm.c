@@ -3193,9 +3193,7 @@ static void gen6_enable_rps_interrupts(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	/* FIXME: Our interrupt enabling sequence is bonghits.
-	 * dev_priv->rps.pm_iir really should be 0 here. */
-	dev_priv->rps.pm_iir = 0;
+	WARN_ON(dev_priv->rps.pm_iir);
 	I915_WRITE(GEN6_PMIMR, I915_READ(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
 	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->irq_lock);
