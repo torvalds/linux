@@ -493,10 +493,10 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		altsd = get_iface_desc(alts);
 		protocol = altsd->bInterfaceProtocol;
 		/* skip invalid one */
-		if ((altsd->bInterfaceClass != USB_CLASS_AUDIO &&
+		if (((altsd->bInterfaceClass != USB_CLASS_AUDIO ||
+		      (altsd->bInterfaceSubClass != USB_SUBCLASS_AUDIOSTREAMING &&
+		       altsd->bInterfaceSubClass != USB_SUBCLASS_VENDOR_SPEC)) &&
 		     altsd->bInterfaceClass != USB_CLASS_VENDOR_SPEC) ||
-		    (altsd->bInterfaceSubClass != USB_SUBCLASS_AUDIOSTREAMING &&
-		     altsd->bInterfaceSubClass != USB_SUBCLASS_VENDOR_SPEC) ||
 		    altsd->bNumEndpoints < 1 ||
 		    le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize) == 0)
 			continue;
@@ -511,6 +511,15 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 
 		if (snd_usb_apply_interface_quirk(chip, iface_no, altno))
 			continue;
+
+		/*
+		 * Roland audio streaming interfaces are marked with protocols
+		 * 0/1/2, but are UAC 1 compatible.
+		 */
+		if (USB_ID_VENDOR(chip->usb_id) == 0x0582 &&
+		    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
+		    protocol <= 2)
+			protocol = UAC_VERSION_1;
 
 		chconfig = 0;
 		/* get audio formats */
@@ -635,6 +644,7 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
 		fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
 		fp->datainterval = snd_usb_parse_datainterval(chip, alts);
+		fp->protocol = protocol;
 		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 		fp->channels = num_channels;
 		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
@@ -676,7 +686,7 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		}
 
 		/* ok, let's parse further... */
-		if (snd_usb_parse_audio_format(chip, fp, format, fmt, stream, alts) < 0) {
+		if (snd_usb_parse_audio_format(chip, fp, format, fmt, stream) < 0) {
 			kfree(fp->rate_table);
 			kfree(fp->chmap);
 			kfree(fp);
