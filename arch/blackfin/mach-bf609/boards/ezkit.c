@@ -108,7 +108,6 @@ static struct platform_device bfin_rotary_device = {
 static unsigned short pins[] = P_RMII0;
 
 static struct stmmac_mdio_bus_data phy_private_data = {
-	.bus_id = 0,
 	.phy_mask = 1,
 };
 
