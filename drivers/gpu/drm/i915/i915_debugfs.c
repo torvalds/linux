@@ -2375,61 +2375,35 @@ static struct drm_info_list i915_debugfs_list[] = {
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
+struct i915_debugfs_files {
+	const char *name;
+	const struct file_operations *fops;
+} i915_debugfs_files[] = {
+	{"i915_wedged", &i915_wedged_fops},
+	{"i915_max_freq", &i915_max_freq_fops},
+	{"i915_min_freq", &i915_min_freq_fops},
+	{"i915_cache_sharing", &i915_cache_sharing_fops},
+	{"i915_ring_stop", &i915_ring_stop_fops},
+	{"i915_gem_drop_caches", &i915_drop_caches_fops},
+	{"i915_error_state", &i915_error_state_fops},
+	{"i915_next_seqno", &i915_next_seqno_fops},
+};
+
 int i915_debugfs_init(struct drm_minor *minor)
 {
-	int ret;
-
-	ret = i915_debugfs_create(minor->debugfs_root, minor,
-				  "i915_wedged",
-				  &i915_wedged_fops);
-	if (ret)
-		return ret;
+	int ret, i;
 
 	ret = i915_forcewake_create(minor->debugfs_root, minor);
 	if (ret)
 		return ret;
 
-	ret = i915_debugfs_create(minor->debugfs_root, minor,
-				  "i915_max_freq",
-				  &i915_max_freq_fops);
-	if (ret)
-		return ret;
-
-	ret = i915_debugfs_create(minor->debugfs_root, minor,
-				  "i915_min_freq",
-				  &i915_min_freq_fops);
-	if (ret)
-		return ret;
-
-	ret = i915_debugfs_create(minor->debugfs_root, minor,
-				  "i915_cache_sharing",
-				  &i915_cache_sharing_fops);
-	if (ret)
-		return ret;
-
-	ret = i915_debugfs_create(minor->debugfs_root, minor,
-				  "i915_ring_stop",
-				  &i915_ring_stop_fops);
-	if (ret)
-		return ret;
-
-	ret = i915_debugfs_create(minor->debugfs_root, minor,
-				  "i915_gem_drop_caches",
-				  &i915_drop_caches_fops);
-	if (ret)
-		return ret;
-
-	ret = i915_debugfs_create(minor->debugfs_root, minor,
-				  "i915_error_state",
-				  &i915_error_state_fops);
-	if (ret)
-		return ret;
-
-	ret = i915_debugfs_create(minor->debugfs_root, minor,
-				 "i915_next_seqno",
-				 &i915_next_seqno_fops);
-	if (ret)
-		return ret;
+	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
+		ret = i915_debugfs_create(minor->debugfs_root, minor,
+					  i915_debugfs_files[i].name,
+					  i915_debugfs_files[i].fops);
+		if (ret)
+			return ret;
+	}
 
 	return drm_debugfs_create_files(i915_debugfs_list,
 					I915_DEBUGFS_ENTRIES,
@@ -2438,26 +2412,18 @@ int i915_debugfs_init(struct drm_minor *minor)
 
 void i915_debugfs_cleanup(struct drm_minor *minor)
 {
+	int i;
+
 	drm_debugfs_remove_files(i915_debugfs_list,
 				 I915_DEBUGFS_ENTRIES, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_forcewake_fops,
 				 1, minor);
-	drm_debugfs_remove_files((struct drm_info_list *) &i915_wedged_fops,
-				 1, minor);
-	drm_debugfs_remove_files((struct drm_info_list *) &i915_max_freq_fops,
-				 1, minor);
-	drm_debugfs_remove_files((struct drm_info_list *) &i915_min_freq_fops,
-				 1, minor);
-	drm_debugfs_remove_files((struct drm_info_list *) &i915_cache_sharing_fops,
-				 1, minor);
-	drm_debugfs_remove_files((struct drm_info_list *) &i915_drop_caches_fops,
-				 1, minor);
-	drm_debugfs_remove_files((struct drm_info_list *) &i915_ring_stop_fops,
-				 1, minor);
-	drm_debugfs_remove_files((struct drm_info_list *) &i915_error_state_fops,
-				 1, minor);
-	drm_debugfs_remove_files((struct drm_info_list *) &i915_next_seqno_fops,
-				 1, minor);
+	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
+		struct drm_info_list *info_list =
+			(struct drm_info_list *) i915_debugfs_files[i].fops;
+
+		drm_debugfs_remove_files(info_list, 1, minor);
+	}
 }
 
 #endif /* CONFIG_DEBUG_FS */
