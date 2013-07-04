@@ -119,12 +119,13 @@ static void drm_gem_map_detach(struct dma_buf *dma_buf,
 		return;
 
 	sgt = prime_attach->sgt;
+	if (sgt) {
+		if (prime_attach->dir != DMA_NONE)
+			dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
+					prime_attach->dir);
+		sg_free_table(sgt);
+	}
 
-	if (prime_attach->dir != DMA_NONE)
-		dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
-				prime_attach->dir);
-
-	sg_free_table(sgt);
 	kfree(sgt);
 	kfree(prime_attach);
 	attach->priv = NULL;
