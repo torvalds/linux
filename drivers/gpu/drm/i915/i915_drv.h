@@ -1202,6 +1202,7 @@ enum hdmi_force_audio {
 };
 
 #define I915_GTT_RESERVED ((struct drm_mm_node *)0x1)
+#define I915_GTT_OFFSET_NONE ((u32)-1)
 
 struct drm_i915_gem_object_ops {
 	/* Interface between the GEM object and its backing storage.
