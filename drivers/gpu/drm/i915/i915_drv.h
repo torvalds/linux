@@ -744,12 +744,12 @@ struct i915_suspend_saved_registers {
 };
 
 struct intel_gen6_power_mgmt {
+	/* work and pm_iir are protected by dev_priv->irq_lock */
 	struct work_struct work;
-	struct delayed_work vlv_work;
 	u32 pm_iir;
-	/* lock - irqsave spinlock that protectects the work_struct and
-	 * pm_iir. */
-	spinlock_t lock;
+
+	/* On vlv we need to manually drop to Vmin with a delayed work. */
+	struct delayed_work vlv_work;
 
 	/* The below variables an all the rps hw state are protected by
 	 * dev->struct mutext. */

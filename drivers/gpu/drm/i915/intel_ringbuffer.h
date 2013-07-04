@@ -80,7 +80,7 @@ struct  intel_ring_buffer {
 
 	struct {
 		u32	gt; /*  protected by dev_priv->irq_lock */
-		u32	pm; /*  protected by dev_priv->rps.lock (sucks) */
+		u32	pm; /*  protected by dev_priv->irq_lock */
 	} irq_refcount;
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		trace_irq_seqno;

@@ -1082,14 +1082,14 @@ hsw_vebox_get_irq(struct intel_ring_buffer *ring)
 	if (!dev->irq_enabled)
 		return false;
 
-	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount.pm++ == 0) {
 		u32 pm_imr = I915_READ(GEN6_PMIMR);
 		I915_WRITE_IMR(ring, ~ring->irq_enable_mask);
 		I915_WRITE(GEN6_PMIMR, pm_imr & ~ring->irq_enable_mask);
 		POSTING_READ(GEN6_PMIMR);
 	}
-	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	return true;
 }
@@ -1104,14 +1104,14 @@ hsw_vebox_put_irq(struct intel_ring_buffer *ring)
 	if (!dev->irq_enabled)
 		return;
 
-	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount.pm == 0) {
 		u32 pm_imr = I915_READ(GEN6_PMIMR);
 		I915_WRITE_IMR(ring, ~0);
 		I915_WRITE(GEN6_PMIMR, pm_imr | ring->irq_enable_mask);
 		POSTING_READ(GEN6_PMIMR);
 	}
-	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
 
 static int

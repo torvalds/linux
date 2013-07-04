@@ -719,13 +719,13 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	u32 pm_iir, pm_imr;
 	u8 new_delay;
 
-	spin_lock_irq(&dev_priv->rps.lock);
+	spin_lock_irq(&dev_priv->irq_lock);
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
 	/* Make sure not to corrupt PMIMR state used by ringbuffer code */
 	I915_WRITE(GEN6_PMIMR, pm_imr & ~GEN6_PM_RPS_EVENTS);
-	spin_unlock_irq(&dev_priv->rps.lock);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	if ((pm_iir & GEN6_PM_RPS_EVENTS) == 0)
 		return;
@@ -887,11 +887,11 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv,
 	 * The mask bit in IMR is cleared by dev_priv->rps.work.
 	 */
 
-	spin_lock(&dev_priv->rps.lock);
+	spin_lock(&dev_priv->irq_lock);
 	dev_priv->rps.pm_iir |= pm_iir;
 	I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 	POSTING_READ(GEN6_PMIMR);
-	spin_unlock(&dev_priv->rps.lock);
+	spin_unlock(&dev_priv->irq_lock);
 
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
@@ -964,12 +964,12 @@ static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 pm_iir)
 {
 	if (pm_iir & GEN6_PM_RPS_EVENTS) {
-		spin_lock(&dev_priv->rps.lock);
+		spin_lock(&dev_priv->irq_lock);
 		dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
 		I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 		/* never want to mask useful interrupts. (also posting read) */
 		WARN_ON(I915_READ_NOTRACE(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
-		spin_unlock(&dev_priv->rps.lock);
+		spin_unlock(&dev_priv->irq_lock);
 
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}

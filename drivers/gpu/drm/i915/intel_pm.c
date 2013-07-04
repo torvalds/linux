@@ -3135,9 +3135,9 @@ static void gen6_disable_rps(struct drm_device *dev)
 	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
 	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
 
-	spin_lock_irq(&dev_priv->rps.lock);
+	spin_lock_irq(&dev_priv->irq_lock);
 	dev_priv->rps.pm_iir = 0;
-	spin_unlock_irq(&dev_priv->rps.lock);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 }
@@ -3154,9 +3154,9 @@ static void valleyview_disable_rps(struct drm_device *dev)
 	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
 	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
 
-	spin_lock_irq(&dev_priv->rps.lock);
+	spin_lock_irq(&dev_priv->irq_lock);
 	dev_priv->rps.pm_iir = 0;
-	spin_unlock_irq(&dev_priv->rps.lock);
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
 
@@ -3321,13 +3321,13 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	/* requires MSI enabled */
 	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) | GEN6_PM_RPS_EVENTS);
-	spin_lock_irq(&dev_priv->rps.lock);
+	spin_lock_irq(&dev_priv->irq_lock);
 	/* FIXME: Our interrupt enabling sequence is bonghits.
 	 * dev_priv->rps.pm_iir really should be 0 here. */
 	dev_priv->rps.pm_iir = 0;
 	I915_WRITE(GEN6_PMIMR, I915_READ(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
 	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
-	spin_unlock_irq(&dev_priv->rps.lock);
+	spin_unlock_irq(&dev_priv->irq_lock);
 	/* unmask all PM interrupts */
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 
@@ -3601,10 +3601,10 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	/* requires MSI enabled */
 	I915_WRITE(GEN6_PMIER, GEN6_PM_RPS_EVENTS);
-	spin_lock_irq(&dev_priv->rps.lock);
+	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir != 0);
 	I915_WRITE(GEN6_PMIMR, 0);
-	spin_unlock_irq(&dev_priv->rps.lock);
+	spin_unlock_irq(&dev_priv->irq_lock);
 	/* enable all PM interrupts */
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 
