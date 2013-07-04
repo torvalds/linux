@@ -363,7 +363,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	}
 
 	/* Some objects just need physical mem from stolen space */
-	if (gtt_offset == -1)
+	if (gtt_offset == I915_GTT_OFFSET_NONE)
 		return obj;
 
 	/* To simplify the initialisation sequence between KMS and GTT,
