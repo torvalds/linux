@@ -202,13 +202,13 @@ static void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 #define ibx_disable_display_interrupt(dev_priv, bits) \
 	ibx_display_interrupt_update((dev_priv), (bits), 0)
 
-static void ibx_set_fifo_underrun_reporting(struct intel_crtc *crtc,
+static void ibx_set_fifo_underrun_reporting(struct drm_device *dev,
+					    enum transcoder pch_transcoder,
 					    bool enable)
 {
-	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t bit = (crtc->pipe == PIPE_A) ? SDE_TRANSA_FIFO_UNDER :
-						SDE_TRANSB_FIFO_UNDER;
+	uint32_t bit = (pch_transcoder == TRANSCODER_A) ?
+		       SDE_TRANSA_FIFO_UNDER : SDE_TRANSB_FIFO_UNDER;
 
 	if (enable)
 		ibx_enable_display_interrupt(dev_priv, bit);
@@ -306,29 +306,19 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 					   bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe p;
-	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pch_transcoder];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	unsigned long flags;
 	bool ret;
 
-	if (HAS_PCH_LPT(dev)) {
-		crtc = NULL;
-		for_each_pipe(p) {
-			struct drm_crtc *c = dev_priv->pipe_to_crtc_mapping[p];
-			if (intel_pipe_has_type(c, INTEL_OUTPUT_ANALOG)) {
-				crtc = c;
-				break;
-			}
-		}
-		if (!crtc) {
-			DRM_ERROR("PCH FIFO underrun, but no CRTC using the PCH found\n");
-			return false;
-		}
-	} else {
-		crtc = dev_priv->pipe_to_crtc_mapping[pch_transcoder];
-	}
-	intel_crtc = to_intel_crtc(crtc);
+	/*
+	 * NOTE: Pre-LPT has a fixed cpu pipe -> pch transcoder mapping, but LPT
+	 * has only one pch transcoder A that all pipes can use. To avoid racy
+	 * pch transcoder -> pipe lookups from interrupt code simply store the
+	 * underrun statistics in crtc A. Since we never expose this anywhere
+	 * nor use it outside of the fifo underrun code here using the "wrong"
+	 * crtc on LPT won't cause issues.
+	 */
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 
@@ -340,7 +330,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 	intel_crtc->pch_fifo_underrun_disabled = !enable;
 
 	if (HAS_PCH_IBX(dev))
-		ibx_set_fifo_underrun_reporting(intel_crtc, enable);
+		ibx_set_fifo_underrun_reporting(dev, pch_transcoder, enable);
 	else
 		cpt_set_fifo_underrun_reporting(dev, pch_transcoder, enable);
 
