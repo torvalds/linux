@@ -222,3 +222,5 @@ Version History
 1.4.2   Add RAID10 "far" and "offset" algorithm support.
 1.5.0   Add message interface to allow manipulation of the sync_action.
 	New status (STATUSTYPE_INFO) fields: sync_action and mismatch_cnt.
+1.5.1   Add ability to restore transiently failed devices on resume.
+1.5.2   'mismatch_cnt' is zero unless [last_]sync_action is "check".
