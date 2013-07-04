@@ -1477,7 +1477,7 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		val = get_reg_val(reg->id, vcpu->arch.tsr);
 		break;
 	case KVM_REG_PPC_DEBUG_INST:
-		val = get_reg_val(reg->id, KVMPPC_INST_EHPRIV);
+		val = get_reg_val(reg->id, KVMPPC_INST_EHPRIV_DEBUG);
 		break;
 	case KVM_REG_PPC_VRSAVE:
 		val = get_reg_val(reg->id, vcpu->arch.vrsave);
