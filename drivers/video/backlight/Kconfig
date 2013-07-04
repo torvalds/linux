@@ -425,6 +425,13 @@ config BACKLIGHT_AS3711
 	  If you have an Austrian Microsystems AS3711 say Y to enable the
 	  backlight driver.
 
+config BACKLIGHT_GPIO
+	tristate "Generic GPIO based Backlight Driver"
+	depends on GPIOLIB
+	help
+	  If you have a LCD backlight adjustable by GPIO, say Y to enable
+	  this driver.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT
