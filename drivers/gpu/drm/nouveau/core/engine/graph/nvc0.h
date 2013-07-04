@@ -254,7 +254,6 @@ extern struct nvc0_graph_init nvd9_grctx_init_rop[];
 extern struct nvc0_graph_mthd nvd9_grctx_init_mthd[];
 
 void nve4_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
-void nve4_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
 extern struct nouveau_oclass *nve4_grctx_oclass;
 extern struct nvc0_graph_init nve4_grctx_init_unk46xx[];
 extern struct nvc0_graph_init nve4_grctx_init_unk47xx[];

@@ -804,7 +804,7 @@ nve4_grctx_init_unk[] = {
 	{}
 };
 
-void
+static void
 nve4_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {
 	u32 magic[GPC_MAX][2];
