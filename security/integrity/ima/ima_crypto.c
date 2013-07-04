@@ -39,6 +39,28 @@ int ima_init_crypto(void)
 	return 0;
 }
 
+static struct crypto_shash *ima_alloc_tfm(enum hash_algo algo)
+{
+	struct crypto_shash *tfm = ima_shash_tfm;
+	int rc;
+
+	if (algo != ima_hash_algo && algo < HASH_ALGO__LAST) {
+		tfm = crypto_alloc_shash(hash_algo_name[algo], 0, 0);
+		if (IS_ERR(tfm)) {
+			rc = PTR_ERR(tfm);
+			pr_err("Can not allocate %s (reason: %d)\n",
+			       hash_algo_name[algo], rc);
+		}
+	}
+	return tfm;
+}
+
+static void ima_free_tfm(struct crypto_shash *tfm)
+{
+	if (tfm != ima_shash_tfm)
+		crypto_free_shash(tfm);
+}
+
 /*
  * Calculate the MD5/SHA1 file digest
  */
@@ -56,6 +78,8 @@ static int ima_calc_file_hash_tfm(struct file *file,
 
 	desc.shash.tfm = tfm;
 	desc.shash.flags = 0;
+
+	hash->length = crypto_shash_digestsize(tfm);
 
 	rc = crypto_shash_init(&desc.shash);
 	if (rc != 0)
@@ -98,25 +122,16 @@ out:
 
 int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 {
-	struct crypto_shash *tfm = ima_shash_tfm;
+	struct crypto_shash *tfm;
 	int rc;
 
-	if (hash->algo != ima_hash_algo && hash->algo < HASH_ALGO__LAST) {
-		tfm = crypto_alloc_shash(hash_algo_name[hash->algo], 0, 0);
-		if (IS_ERR(tfm)) {
-			rc = PTR_ERR(tfm);
-			pr_err("Can not allocate %s (reason: %d)\n",
-			       hash_algo_name[hash->algo], rc);
-			return rc;
-		}
-	}
-
-	hash->length = crypto_shash_digestsize(tfm);
+	tfm = ima_alloc_tfm(hash->algo);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
 
 	rc = ima_calc_file_hash_tfm(file, hash, tfm);
 
-	if (tfm != ima_shash_tfm)
-		crypto_free_shash(tfm);
+	ima_free_tfm(tfm);
 
 	return rc;
 }
