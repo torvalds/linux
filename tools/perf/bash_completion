@@ -54,9 +54,8 @@ _perf()
 		subcmd=${COMP_WORDS[1]}
 		opts=$($cmd $subcmd --list-opts)
 		COMPREPLY=( $( compgen -W '$opts' -- "$cur" ) )
-	# Fall down to list regular files
-	else
-		_filedir
 	fi
 } &&
-complete -F _perf perf
+
+complete -o bashdefault -o default -o nospace -F _perf perf 2>/dev/null \
+	|| complete -o default -o nospace -F _perf perf
