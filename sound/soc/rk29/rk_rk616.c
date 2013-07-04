@@ -88,6 +88,14 @@ static int rk616_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+void rk_hifi_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+
+	snd_soc_dai_set_sysclk(cpu_dai, 0, 12000000, 0);
+}
+
 static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
@@ -228,6 +236,7 @@ static int rk_voice_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops rk616_hifi_ops = {
+	.shutdown = rk_hifi_shutdown,
 	.hw_params = rk_hifi_hw_params,
 };
 
