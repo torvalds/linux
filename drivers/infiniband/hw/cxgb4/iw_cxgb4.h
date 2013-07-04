@@ -752,8 +752,8 @@ struct c4iw_ep_common {
 	enum c4iw_ep_state state;
 	struct kref kref;
 	struct mutex mutex;
-	struct sockaddr_in local_addr;
-	struct sockaddr_in remote_addr;
+	struct sockaddr_storage local_addr;
+	struct sockaddr_storage remote_addr;
 	struct c4iw_wr_wait wr_wait;
 	unsigned long flags;
 	unsigned long history;
