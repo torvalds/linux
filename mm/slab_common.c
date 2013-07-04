@@ -495,6 +495,13 @@ void __init create_kmalloc_caches(unsigned long flags)
 
 
 #ifdef CONFIG_SLABINFO
+
+#ifdef CONFIG_SLAB
+#define SLABINFO_RIGHTS (S_IWUSR | S_IRUSR)
+#else
+#define SLABINFO_RIGHTS S_IRUSR
+#endif
+
 void print_slabinfo_header(struct seq_file *m)
 {
 	/*
@@ -631,7 +638,8 @@ static const struct file_operations proc_slabinfo_operations = {
 
 static int __init slab_proc_init(void)
 {
-	proc_create("slabinfo", S_IRUSR, NULL, &proc_slabinfo_operations);
+	proc_create("slabinfo", SLABINFO_RIGHTS, NULL,
+						&proc_slabinfo_operations);
 	return 0;
 }
 module_init(slab_proc_init);
