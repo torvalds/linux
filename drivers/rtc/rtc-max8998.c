@@ -274,7 +274,7 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->rtc_dev)) {
 		ret = PTR_ERR(info->rtc_dev);
 		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
-		goto out_rtc;
+		return ret;
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
@@ -292,15 +292,6 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-
-out_rtc:
-	platform_set_drvdata(pdev, NULL);
-	return ret;
-}
-
-static int max8998_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
 }
 
 static const struct platform_device_id max8998_rtc_id[] = {
@@ -315,7 +306,6 @@ static struct platform_driver max8998_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8998_rtc_probe,
-	.remove		= max8998_rtc_remove,
 	.id_table	= max8998_rtc_id,
 };
 

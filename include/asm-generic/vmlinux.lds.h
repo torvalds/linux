@@ -275,13 +275,6 @@
 		VMLINUX_SYMBOL(__end_builtin_fw) = .;			\
 	}								\
 									\
-	/* RapidIO route ops */						\
-	.rio_ops        : AT(ADDR(.rio_ops) - LOAD_OFFSET) {		\
-		VMLINUX_SYMBOL(__start_rio_switch_ops) = .;		\
-		*(.rio_switch_ops)					\
-		VMLINUX_SYMBOL(__end_rio_switch_ops) = .;		\
-	}								\
-									\
 	TRACEDATA							\
 									\
 	/* Kernel symbol table: Normal symbols */			\
