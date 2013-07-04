@@ -49,6 +49,11 @@ void qxl_ring_free(struct qxl_ring *ring)
 	kfree(ring);
 }
 
+void qxl_ring_init_hdr(struct qxl_ring *ring)
+{
+	ring->ring->header.notify_on_prod = ring->n_elements;
+}
+
 struct qxl_ring *
 qxl_ring_create(struct qxl_ring_header *header,
 		int element_size,
@@ -69,7 +74,7 @@ qxl_ring_create(struct qxl_ring_header *header,
 	ring->prod_notify = prod_notify;
 	ring->push_event = push_event;
 	if (set_prod_notify)
-		header->notify_on_prod = ring->n_elements;
+		qxl_ring_init_hdr(ring);
 	spin_lock_init(&ring->lock);
 	return ring;
 }
@@ -87,7 +92,7 @@ static int qxl_check_header(struct qxl_ring *ring)
 	return ret;
 }
 
-static int qxl_check_idle(struct qxl_ring *ring)
+int qxl_check_idle(struct qxl_ring *ring)
 {
 	int ret;
 	struct qxl_ring_header *header = &(ring->ring->header);

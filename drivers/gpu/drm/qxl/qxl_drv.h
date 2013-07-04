@@ -340,6 +340,8 @@ struct qxl_ring *qxl_ring_create(struct qxl_ring_header *header,
 				 bool set_prod_notify,
 				 wait_queue_head_t *push_event);
 void qxl_ring_free(struct qxl_ring *ring);
+void qxl_ring_init_hdr(struct qxl_ring *ring);
+int qxl_check_idle(struct qxl_ring *ring);
 
 static inline void *
 qxl_fb_virtual_address(struct qxl_device *qdev, unsigned long physical)
