@@ -65,6 +65,7 @@ config NOP_USB_XCEIV
 
 config OMAP_CONTROL_USB
 	tristate "OMAP CONTROL USB Driver"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  Enable this to add support for the USB part present in the control
 	  module. This driver has API to power on the USB2 PHY and to write to
@@ -84,6 +85,7 @@ config OMAP_USB2
 
 config OMAP_USB3
 	tristate "OMAP USB3 PHY Driver"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select OMAP_CONTROL_USB
 	help
 	  Enable this to support the USB3 PHY that is part of SOC. This
