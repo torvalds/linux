@@ -654,7 +654,7 @@ static int cpm_i2c_probe(struct platform_device *ofdev)
 
 	cpm->ofdev = ofdev;
 
-	dev_set_drvdata(&ofdev->dev, cpm);
+	platform_set_drvdata(ofdev, cpm);
 
 	cpm->adap = cpm_ops;
 	i2c_set_adapdata(&cpm->adap, cpm);
@@ -697,7 +697,7 @@ out_free:
 
 static int cpm_i2c_remove(struct platform_device *ofdev)
 {
-	struct cpm_i2c *cpm = dev_get_drvdata(&ofdev->dev);
+	struct cpm_i2c *cpm = platform_get_drvdata(ofdev);
 
 	i2c_del_adapter(&cpm->adap);
 
