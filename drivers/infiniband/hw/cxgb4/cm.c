@@ -952,8 +952,10 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status)
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CONNECT_REPLY;
 	event.status = status;
-	event.local_addr = ep->com.local_addr;
-	event.remote_addr = ep->com.remote_addr;
+	memcpy(&event.local_addr, &ep->com.local_addr,
+	       sizeof(ep->com.local_addr));
+	memcpy(&event.remote_addr, &ep->com.remote_addr,
+	       sizeof(ep->com.remote_addr));
 
 	if ((status == 0) || (status == -ECONNREFUSED)) {
 		if (!ep->tried_with_mpa_v1) {
@@ -989,8 +991,10 @@ static void connect_request_upcall(struct c4iw_ep *ep)
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_CONNECT_REQUEST;
-	event.local_addr = ep->com.local_addr;
-	event.remote_addr = ep->com.remote_addr;
+	memcpy(&event.local_addr, &ep->com.local_addr,
+	       sizeof(ep->com.local_addr));
+	memcpy(&event.remote_addr, &ep->com.remote_addr,
+	       sizeof(ep->com.remote_addr));
 	event.provider_data = ep;
 	if (!ep->tried_with_mpa_v1) {
 		/* this means MPA_v2 is used */
@@ -1568,6 +1572,10 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 	struct net_device *pdev;
 	int step;
 	struct neighbour *neigh;
+	struct sockaddr_in *laddr = (struct sockaddr_in *)
+				    &ep->com.cm_id->local_addr;
+	struct sockaddr_in *raddr = (struct sockaddr_in *)
+				    &ep->com.cm_id->remote_addr;
 
 	PDBG("%s qp %p cm_id %p\n", __func__, ep->com.qp, ep->com.cm_id);
 	init_timer(&ep->timer);
@@ -1585,10 +1593,8 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 
 	/* find a route */
 	rt = find_route(ep->com.dev,
-			ep->com.cm_id->local_addr.sin_addr.s_addr,
-			ep->com.cm_id->remote_addr.sin_addr.s_addr,
-			ep->com.cm_id->local_addr.sin_port,
-			ep->com.cm_id->remote_addr.sin_port, 0);
+			laddr->sin_addr.s_addr, raddr->sin_addr.s_addr,
+			laddr->sin_port, raddr->sin_port, 0);
 	if (!rt) {
 		pr_err("%s - cannot find route.\n", __func__);
 		err = -EHOSTUNREACH;
@@ -1596,8 +1602,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 	}
 	ep->dst = &rt->dst;
 
-	neigh = dst_neigh_lookup(ep->dst,
-			&ep->com.cm_id->remote_addr.sin_addr.s_addr);
+	neigh = dst_neigh_lookup(ep->dst, &raddr->sin_addr.s_addr);
 	if (!neigh) {
 		pr_err("%s - cannot alloc neigh.\n", __func__);
 		err = -ENOMEM;
@@ -1607,8 +1612,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 	/* get a l2t entry */
 	if (neigh->dev->flags & IFF_LOOPBACK) {
 		PDBG("%s LOOPBACK\n", __func__);
-		pdev = ip_dev_find(&init_net,
-				ep->com.cm_id->remote_addr.sin_addr.s_addr);
+		pdev = ip_dev_find(&init_net, raddr->sin_addr.s_addr);
 		ep->l2t = cxgb4_l2t_get(ep->com.dev->rdev.lldi.l2t,
 				neigh, pdev, 0);
 		pi = (struct port_info *)netdev_priv(pdev);
@@ -2518,6 +2522,8 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_ep *ep;
 	struct rtable *rt;
 	int err = 0;
+	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_id->local_addr;
+	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->remote_addr;
 
 	if ((conn_param->ord > c4iw_max_read_depth) ||
 	    (conn_param->ird > c4iw_max_read_depth)) {
@@ -2562,17 +2568,12 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	insert_handle(dev, &dev->atid_idr, ep, ep->atid);
 
 	PDBG("%s saddr 0x%x sport 0x%x raddr 0x%x rport 0x%x\n", __func__,
-	     ntohl(cm_id->local_addr.sin_addr.s_addr),
-	     ntohs(cm_id->local_addr.sin_port),
-	     ntohl(cm_id->remote_addr.sin_addr.s_addr),
-	     ntohs(cm_id->remote_addr.sin_port));
+	     ntohl(laddr->sin_addr.s_addr), ntohs(laddr->sin_port),
+	     ntohl(raddr->sin_addr.s_addr), ntohs(raddr->sin_port));
 
 	/* find a route */
-	rt = find_route(dev,
-			cm_id->local_addr.sin_addr.s_addr,
-			cm_id->remote_addr.sin_addr.s_addr,
-			cm_id->local_addr.sin_port,
-			cm_id->remote_addr.sin_port, 0);
+	rt = find_route(dev, laddr->sin_addr.s_addr, raddr->sin_addr.s_addr,
+			laddr->sin_port, raddr->sin_port, 0);
 	if (!rt) {
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
 		err = -EHOSTUNREACH;
@@ -2580,8 +2581,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 	ep->dst = &rt->dst;
 
-	err = import_ep(ep, cm_id->remote_addr.sin_addr.s_addr,
-			ep->dst, ep->com.dev, true);
+	err = import_ep(ep, raddr->sin_addr.s_addr, ep->dst, ep->com.dev, true);
 	if (err) {
 		printk(KERN_ERR MOD "%s - cannot alloc l2e.\n", __func__);
 		goto fail4;
@@ -2593,8 +2593,10 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	state_set(&ep->com, CONNECTING);
 	ep->tos = 0;
-	ep->com.local_addr = cm_id->local_addr;
-	ep->com.remote_addr = cm_id->remote_addr;
+	memcpy(&ep->com.local_addr, &cm_id->local_addr,
+	       sizeof(ep->com.local_addr));
+	memcpy(&ep->com.remote_addr, &cm_id->remote_addr,
+	       sizeof(ep->com.remote_addr));
 
 	/* send connect request to rnic */
 	err = send_connect(ep);
@@ -2633,7 +2635,8 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	ep->com.cm_id = cm_id;
 	ep->com.dev = dev;
 	ep->backlog = backlog;
-	ep->com.local_addr = cm_id->local_addr;
+	memcpy(&ep->com.local_addr, &cm_id->local_addr,
+	       sizeof(ep->com.local_addr));
 
 	/*
 	 * Allocate a server TID.

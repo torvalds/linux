@@ -1385,8 +1385,9 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 {
 	struct rdma_id_private *id_priv = iw_id->context;
 	struct rdma_cm_event event;
-	struct sockaddr_in *sin;
 	int ret = 0;
+	struct sockaddr *laddr = (struct sockaddr *)&iw_event->local_addr;
+	struct sockaddr *raddr = (struct sockaddr *)&iw_event->remote_addr;
 
 	if (cma_disable_callback(id_priv, RDMA_CM_CONNECT))
 		return 0;
@@ -1397,10 +1398,10 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		event.event = RDMA_CM_EVENT_DISCONNECTED;
 		break;
 	case IW_CM_EVENT_CONNECT_REPLY:
-		sin = (struct sockaddr_in *) cma_src_addr(id_priv);
-		*sin = iw_event->local_addr;
-		sin = (struct sockaddr_in *) cma_dst_addr(id_priv);
-		*sin = iw_event->remote_addr;
+		memcpy(cma_src_addr(id_priv), laddr,
+		       rdma_addr_size(laddr));
+		memcpy(cma_dst_addr(id_priv), raddr,
+		       rdma_addr_size(raddr));
 		switch (iw_event->status) {
 		case 0:
 			event.event = RDMA_CM_EVENT_ESTABLISHED;
@@ -1450,11 +1451,12 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 {
 	struct rdma_cm_id *new_cm_id;
 	struct rdma_id_private *listen_id, *conn_id;
-	struct sockaddr_in *sin;
 	struct net_device *dev = NULL;
 	struct rdma_cm_event event;
 	int ret;
 	struct ib_device_attr attr;
+	struct sockaddr *laddr = (struct sockaddr *)&iw_event->local_addr;
+	struct sockaddr *raddr = (struct sockaddr *)&iw_event->remote_addr;
 
 	listen_id = cm_id->context;
 	if (cma_disable_callback(listen_id, RDMA_CM_LISTEN))
@@ -1472,14 +1474,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
 	conn_id->state = RDMA_CM_CONNECT;
 
-	dev = ip_dev_find(&init_net, iw_event->local_addr.sin_addr.s_addr);
-	if (!dev) {
-		ret = -EADDRNOTAVAIL;
-		mutex_unlock(&conn_id->handler_mutex);
-		rdma_destroy_id(new_cm_id);
-		goto out;
-	}
-	ret = rdma_copy_addr(&conn_id->id.route.addr.dev_addr, dev, NULL);
+	ret = rdma_translate_ip(laddr, &conn_id->id.route.addr.dev_addr);
 	if (ret) {
 		mutex_unlock(&conn_id->handler_mutex);
 		rdma_destroy_id(new_cm_id);
@@ -1497,10 +1492,8 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	cm_id->context = conn_id;
 	cm_id->cm_handler = cma_iw_handler;
 
-	sin = (struct sockaddr_in *) cma_src_addr(conn_id);
-	*sin = iw_event->local_addr;
-	sin = (struct sockaddr_in *) cma_dst_addr(conn_id);
-	*sin = iw_event->remote_addr;
+	memcpy(cma_src_addr(conn_id), laddr, rdma_addr_size(laddr));
+	memcpy(cma_dst_addr(conn_id), raddr, rdma_addr_size(raddr));
 
 	ret = ib_query_device(conn_id->id.device, &attr);
 	if (ret) {
@@ -1576,7 +1569,6 @@ static int cma_ib_listen(struct rdma_id_private *id_priv)
 static int cma_iw_listen(struct rdma_id_private *id_priv, int backlog)
 {
 	int ret;
-	struct sockaddr_in *sin;
 	struct iw_cm_id	*id;
 
 	id = iw_create_cm_id(id_priv->id.device,
@@ -1587,8 +1579,8 @@ static int cma_iw_listen(struct rdma_id_private *id_priv, int backlog)
 
 	id_priv->cm_id.iw = id;
 
-	sin = (struct sockaddr_in *) cma_src_addr(id_priv);
-	id_priv->cm_id.iw->local_addr = *sin;
+	memcpy(&id_priv->cm_id.iw->local_addr, cma_src_addr(id_priv),
+	       rdma_addr_size(cma_src_addr(id_priv)));
 
 	ret = iw_cm_listen(id_priv->cm_id.iw, backlog);
 
@@ -2803,7 +2795,6 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 			  struct rdma_conn_param *conn_param)
 {
 	struct iw_cm_id *cm_id;
-	struct sockaddr_in* sin;
 	int ret;
 	struct iw_cm_conn_param iw_param;
 
@@ -2813,11 +2804,10 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 
 	id_priv->cm_id.iw = cm_id;
 
-	sin = (struct sockaddr_in *) cma_src_addr(id_priv);
-	cm_id->local_addr = *sin;
-
-	sin = (struct sockaddr_in *) cma_dst_addr(id_priv);
-	cm_id->remote_addr = *sin;
+	memcpy(&cm_id->local_addr, cma_src_addr(id_priv),
+	       rdma_addr_size(cma_src_addr(id_priv)));
+	memcpy(&cm_id->remote_addr, cma_dst_addr(id_priv),
+	       rdma_addr_size(cma_dst_addr(id_priv)));
 
 	ret = cma_modify_qp_rtr(id_priv, conn_param);
 	if (ret)
