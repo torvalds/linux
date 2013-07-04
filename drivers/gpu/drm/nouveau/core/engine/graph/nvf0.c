@@ -30,6 +30,10 @@
 
 static struct nouveau_oclass
 nvf0_graph_sclass[] = {
+	{ 0x902d, &nouveau_object_ofuncs },
+	{ 0xa140, &nouveau_object_ofuncs },
+	{ 0xa197, &nouveau_object_ofuncs },
+	{ 0xa1c0, &nouveau_object_ofuncs },
 	{}
 };
 
