@@ -129,4 +129,9 @@ static inline void kvmppc_save_guest_fp(struct kvm_vcpu *vcpu)
 		giveup_fpu(current);
 #endif
 }
+
+static inline void kvmppc_clear_dbsr(void)
+{
+	mtspr(SPRN_DBSR, mfspr(SPRN_DBSR));
+}
 #endif /* __KVM_BOOKE_H__ */

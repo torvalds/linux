@@ -538,7 +538,10 @@ struct kvm_vcpu_arch {
 	u32 eptcfg;
 	u32 epr;
 	u32 crit_save;
+	/* guest debug registers*/
 	struct debug_reg dbg_reg;
+	/* hardware visible debug registers when in guest state */
+	struct debug_reg shadow_dbg_reg;
 #endif
 	gpa_t paddr_accessed;
 	gva_t vaddr_accessed;
