@@ -731,7 +731,10 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 	update_memslots(slots, new, kvm->memslots->generation);
 	rcu_assign_pointer(kvm->memslots, slots);
 	synchronize_srcu_expedited(&kvm->srcu);
-	return old_memslots; 
+
+	kvm_arch_memslots_updated(kvm);
+
+	return old_memslots;
 }
 
 /*
