@@ -4472,6 +4472,10 @@
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
 
+#define  HSW_IDICR				0x9008
+#define    IDIHASHMSK(x)			(((x) & 0x3f) << 16)
+#define  HSW_EDRAM_PRESENT			0x120010
+
 #define GEN6_UCGCTL1				0x9400
 # define GEN6_BLBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
 # define GEN6_CSUNIT_CLOCK_GATE_DISABLE			(1 << 7)
