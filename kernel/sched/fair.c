@@ -3175,7 +3175,7 @@ static inline unsigned long effective_load(struct task_group *tg, int cpu,
 
 static int wake_wide(struct task_struct *p)
 {
-	int factor = nr_cpus_node(cpu_to_node(smp_processor_id()));
+	int factor = this_cpu_read(sd_llc_size);
 
 	/*
 	 * Yeah, it's the switching-frequency, could means many wakee or
