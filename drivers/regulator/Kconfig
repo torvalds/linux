@@ -363,5 +363,10 @@ config REGULATOR_TPS6524X
 
 
 
+config REGULATOR_RT5025
+	bool "Richtek RT5025 PMIC Voltage regulstors"
+	depends on MFD_RT5025
+	help
+	  This driver supports voltage regulator in RT5025 PMIC chips.
 endif
 

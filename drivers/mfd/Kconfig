@@ -835,6 +835,36 @@ config MFD_TPS65090
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
+	  
+config MFD_RT5025
+	bool "RT5025 PMIC Chip Core driver"
+	depends on I2C
+	select MFD_CORE
+	default n
+	help
+	  Enable RT5025 core driver.
+
+config MFD_RT5025_MISC
+	bool "RT5025 PMIC chip misc configuration"
+	depends on MFD_RT5025
+	default n
+	help
+	  Enable RT5025 Misc configuration.
+
+config MFD_RT5025_IRQ
+	bool "RT5025_PMIC chip irq driver"
+	depends on MFD_RT5025
+	default n
+	help
+	  Enable RT5025 IRQ configuration and interrupt.
+
+config MFD_RT5025_DEBUG
+	bool "RT5025 PMIC Chip Core Debug"
+	depends on MFD_RT5025 && DEBUG_FS
+	default n
+	help
+	  Enable RT5025 core debug driver.
+
 
 config MFD_RK610
 	bool "RK610(Jetta) Multimedia support"

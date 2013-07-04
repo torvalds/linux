@@ -49,6 +49,9 @@
 #include <linux/mfd/rk808.h>
 #include <linux/mfd/ricoh619.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
+#ifdef CONFIG_MFD_RT5025
+#include <linux/mfd/rt5025.h>
+#endif
 
 #ifdef CONFIG_CW2015_BATTERY
 #include <linux/power/cw2015_battery.h>
@@ -2079,6 +2082,65 @@ static  struct pmu_info  ricoh619_ldo_info[] = {
 #include "board-pmu-ricoh619.c"
 #endif
 
+#ifdef CONFIG_MFD_RT5025
+#define RT5025_HOST_IRQ        RK30_PIN0_PB3
+
+static struct pmu_info  rt5025_dcdc_info[] = {
+	{
+		.name          = "rt5025-dcdc1",   //arm
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+	},
+	{
+		.name          = "rt5025-dcdc2",    //logic
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+	},
+	
+	{
+		.name          = "rt5025-dcdc3",   //vccio
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	
+};
+static  struct pmu_info  rt5025_ldo_info[] = {
+	{
+		.name          = "rt5025-ldo1",   //vdd10
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+	},
+	{
+		.name          = "rt5025-ldo2",    //vddjetta
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "rt5025-ldo3",   //vcc18
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "rt5025-ldo4",   //vccjetta
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "rt5025-ldo5",   //vcctp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "rt5025-ldo6",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},	
+	
+ };
+
+#include "board-pmu-rt5025.c"
+#endif
+
 
 
 static struct i2c_board_info __initdata i2c1_info[] = {
@@ -2127,6 +2189,16 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		.flags                  = 0,
 	       .irq            = RICOH619_HOST_IRQ,
 	       .platform_data=&ricoh619_data,
+	},
+#endif
+
+#if defined (CONFIG_MFD_RT5025)
+	{
+		.type                   = "RT5025",
+		.addr           = 0x35,
+		.flags                  = 0,
+	       .irq            = RT5025_HOST_IRQ,
+	       .platform_data=&rt5025_data,
 	},
 #endif
 
@@ -2435,6 +2507,12 @@ static void rk30_pm_power_off(void)
 	 #if defined(CONFIG_MFD_RICOH619) 
 	 if(pmic_is_ricoh619()){
 	ricoh619_power_off();    //ricoh619 shutdown
+	}
+	#endif
+
+	#if defined(CONFIG_MFD_RT5025) 
+	if(pmic_is_rt5025()){
+	rt5025_power_off();    //rt5025 shutdown
 	}
 	#endif
 

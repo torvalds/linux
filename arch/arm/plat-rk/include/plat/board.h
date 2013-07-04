@@ -91,6 +91,7 @@ enum {
 	PMIC_TYPE_ACT8846 =3,
 	PMIC_TYPE_RK808 =4,
 	PMIC_TYPE_RICOH619 =5,
+	PMIC_TYPE_RT5025 =6,
 	PMIC_TYPE_MAX,
 };
 extern __sramdata  int g_pmic_type;
@@ -100,6 +101,7 @@ extern __sramdata  int g_pmic_type;
 #define pmic_is_act8846()  (g_pmic_type == PMIC_TYPE_ACT8846)
 #define pmic_is_rk808()  (g_pmic_type == PMIC_TYPE_RK808)
 #define pmic_is_ricoh619()  (g_pmic_type == PMIC_TYPE_RICOH619)
+#define pmic_is_rt5025()  (g_pmic_type == PMIC_TYPE_RT5025)
 
 struct  pmu_info {
 	char		*name;

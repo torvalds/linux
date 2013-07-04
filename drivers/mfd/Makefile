@@ -111,3 +111,7 @@ obj-$(CONFIG_MFD_RK610)	+= rk610-core.o
 obj-$(CONFIG_MFD_RK808)	+= rk808.o rk808-irq.o
 obj-$(CONFIG_MFD_RK616) += rk616-core.o rk616-vif.o
 obj-$(CONFIG_MFD_RICOH619)	+= ricoh619.o ricoh619-irq.o
+obj-$(CONFIG_MFD_RT5025)	+= rt5025-i2c.o rt5025-core.o
+obj-$(CONFIG_MFD_RT5025_MISC)	+= rt5025-misc.o
+obj-$(CONFIG_MFD_RT5025_IRQ)	+= rt5025-irq.o
+obj-$(CONFIG_MFD_RT5025_DEBUG)	+= rt5025-debug.o

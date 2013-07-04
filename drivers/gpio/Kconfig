@@ -499,4 +499,10 @@ config GPIO_TPS65910
 	help
 	  Select this option to enable GPIO driver for the TPS65910
 	  chip family.
+config GPIO_RT5025
+	bool "Richtek RT5025 GPIO support"
+	depends on MFD_RT5025
+	default n
+	help
+	  This is the gpio driver for RT5025 PMIC.
 endif
