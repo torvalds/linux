@@ -33,6 +33,7 @@
 
 /* PPGTT stuff */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
+#define HSW_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0x7f0))
 
 #define GEN6_PDE_VALID			(1 << 0)
 /* gen6+ has bit 11-4 for physical addr bit 39-32 */
@@ -44,6 +45,14 @@
 #define GEN6_PTE_CACHE_LLC		(2 << 1)
 #define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
+#define HSW_PTE_ADDR_ENCODE(addr)	HSW_GTT_ADDR_ENCODE(addr)
+
+/* Cacheability Control is a 4-bit value. The low three bits are stored in *
+ * bits 3:1 of the PTE, while the fourth bit is stored in bit 11 of the PTE.
+ */
+#define HSW_CACHEABILITY_CONTROL(bits)	((((bits) & 0x7) << 1) | \
+					 (((bits) & 0x8) << (11 - 3)))
+#define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
 
 static gen6_gtt_pte_t gen6_pte_encode(dma_addr_t addr,
 				      enum i915_cache_level level)
@@ -92,10 +101,10 @@ static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level)
 {
 	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
-	pte |= GEN6_PTE_ADDR_ENCODE(addr);
+	pte |= HSW_PTE_ADDR_ENCODE(addr);
 
 	if (level != I915_CACHE_NONE)
-		pte |= GEN6_PTE_CACHE_LLC;
+		pte |= HSW_WB_LLC_AGE0;
 
 	return pte;
 }
