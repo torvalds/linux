@@ -53,6 +53,7 @@
 #define HSW_CACHEABILITY_CONTROL(bits)	((((bits) & 0x7) << 1) | \
 					 (((bits) & 0x8) << (11 - 3)))
 #define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
+#define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
 
 static gen6_gtt_pte_t gen6_pte_encode(dma_addr_t addr,
 				      enum i915_cache_level level)
@@ -105,6 +106,18 @@ static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
 
 	if (level != I915_CACHE_NONE)
 		pte |= HSW_WB_LLC_AGE0;
+
+	return pte;
+}
+
+static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
+				      enum i915_cache_level level)
+{
+	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	pte |= HSW_PTE_ADDR_ENCODE(addr);
+
+	if (level != I915_CACHE_NONE)
+		pte |= HSW_WB_ELLC_LLC_AGE0;
 
 	return pte;
 }
@@ -861,7 +874,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	} else {
 		gtt->gtt_probe = gen6_gmch_probe;
 		gtt->gtt_remove = gen6_gmch_remove;
-		if (IS_HASWELL(dev))
+		if (IS_HASWELL(dev) && dev_priv->ellc_size)
+			gtt->pte_encode = iris_pte_encode;
+		else if (IS_HASWELL(dev))
 			gtt->pte_encode = hsw_pte_encode;
 		else if (IS_VALLEYVIEW(dev))
 			gtt->pte_encode = byt_pte_encode;
