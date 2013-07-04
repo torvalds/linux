@@ -135,7 +135,7 @@ void irq_gc_ack_clr_bit(struct irq_data *d)
 }
 
 /**
- * irq_gc_mask_disable_reg_and_ack- Mask and ack pending interrupt
+ * irq_gc_mask_disable_reg_and_ack - Mask and ack pending interrupt
  * @d: irq_data
  */
 void irq_gc_mask_disable_reg_and_ack(struct irq_data *d)

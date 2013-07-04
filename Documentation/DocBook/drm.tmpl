@@ -434,7 +434,7 @@ char *date;</synopsis>
       The DRM core includes two memory managers, namely Translation Table Maps
       (TTM) and Graphics Execution Manager (GEM). TTM was the first DRM memory
       manager to be developed and tried to be a one-size-fits-them all
-      solution. It provides a single userspace API to accomodate the need of
+      solution. It provides a single userspace API to accommodate the need of
       all hardware, supporting both Unified Memory Architecture (UMA) devices
       and devices with dedicated video RAM (i.e. most discrete video cards).
       This resulted in a large, complex piece of code that turned out to be
@@ -701,7 +701,7 @@ char *date;</synopsis>
         <para>
           Similar to global names, GEM file descriptors are also used to share GEM
           objects across processes. They offer additional security: as file
-          descriptors must be explictly sent over UNIX domain sockets to be shared
+          descriptors must be explicitly sent over UNIX domain sockets to be shared
           between applications, they can't be guessed like the globally unique GEM
           names.
         </para>
@@ -1154,7 +1154,7 @@ int max_width, max_height;</synopsis>
           </para>
           <para>
             The <methodname>page_flip</methodname> operation schedules a page flip.
-            Once any pending rendering targetting the new frame buffer has
+            Once any pending rendering targeting the new frame buffer has
             completed, the CRTC will be reprogrammed to display that frame buffer
             after the next vertical refresh. The operation must return immediately
             without waiting for rendering or page flip to complete and must block

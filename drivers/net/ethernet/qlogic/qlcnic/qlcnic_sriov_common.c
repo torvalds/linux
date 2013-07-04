@@ -1675,7 +1675,7 @@ static int qlcnic_sriov_vf_handle_dev_ready(struct qlcnic_adapter *adapter)
 			qlcnic_sriov_vf_attach(adapter);
 			adapter->fw_fail_cnt = 0;
 			dev_info(dev,
-				 "%s: Reinitalization of VF 0x%x done after FW reset\n",
+				 "%s: Reinitialization of VF 0x%x done after FW reset\n",
 				 __func__, func);
 		} else {
 			dev_err(dev,
