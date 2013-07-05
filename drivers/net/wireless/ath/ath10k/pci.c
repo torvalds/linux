@@ -1263,7 +1263,6 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	ath10k_pci_process_ce(ar);
 	ath10k_pci_cleanup_ce(ar);
 	ath10k_pci_buffer_cleanup(ar);
-	ath10k_pci_ce_deinit(ar);
 }
 
 static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
@@ -2333,6 +2332,7 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	tasklet_kill(&ar_pci->msi_fw_err);
 
 	ath10k_core_unregister(ar);
+	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_stop_intr(ar);
 
 	pci_set_drvdata(pdev, NULL);
