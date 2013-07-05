@@ -2600,7 +2600,7 @@ static int ath10k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 	mutex_lock(&ar->conf_mutex);
 	ieee80211_iterate_active_interfaces_atomic(
-		hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		hw, IEEE80211_IFACE_ITER_NORMAL,
 		ath10k_set_rts_iter, &ar_iter);
 	mutex_unlock(&ar->conf_mutex);
 
@@ -2642,7 +2642,7 @@ static int ath10k_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 
 	mutex_lock(&ar->conf_mutex);
 	ieee80211_iterate_active_interfaces_atomic(
-		hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		hw, IEEE80211_IFACE_ITER_NORMAL,
 		ath10k_set_frag_iter, &ar_iter);
 	mutex_unlock(&ar->conf_mutex);
 
