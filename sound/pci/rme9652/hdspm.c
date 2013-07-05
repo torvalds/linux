@@ -6811,6 +6811,7 @@ static int snd_hdspm_create(struct snd_card *card,
 		break;
 
 	case MADI:
+	case AES32:
 		if (hdspm_read(hdspm, HDSPM_statusRegister) & HDSPM_tco_detect) {
 			hdspm->midiPorts++;
 			hdspm->tco = kzalloc(sizeof(struct hdspm_tco),
