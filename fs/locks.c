@@ -1454,7 +1454,7 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
 		goto out;
 	if ((arg == F_WRLCK)
-	    && ((dentry->d_count > 1)
+	    && ((d_count(dentry) > 1)
 		|| (atomic_read(&inode->i_count) > 1)))
 		goto out;
 
