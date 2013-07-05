@@ -2204,6 +2204,9 @@ static int hdspm_get_tco_sample_rate(struct hdspm *hdspm)
 			status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
 			return (status >> 20) & 0xF;
 			break;
+		case AES32:
+			status = hdspm_read(hdspm, HDSPM_statusRegister);
+			return (status >> 1) & 0xF;
 		default:
 			break;
 		}
