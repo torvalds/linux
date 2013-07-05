@@ -2312,7 +2312,7 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 		default:
 			ucontrol->value.enumerated.item[0] =
 				hdspm_get_s1_sample_rate(hdspm,
-						ucontrol->id.index-1);
+						kcontrol->private_value-1);
 		}
 		break;
 
@@ -3930,7 +3930,8 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 		case 5: /* SYNC IN */
 			val = hdspm_sync_in_sync_check(hdspm); break;
 		default:
-			val = hdspm_s1_sync_check(hdspm, ucontrol->id.index-1);
+			val = hdspm_s1_sync_check(hdspm,
+					kcontrol->private_value-1);
 		}
 		break;
 
