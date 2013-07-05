@@ -341,7 +341,7 @@ config SPI_PXA2XX_PCI
 
 config SPI_RSPI
 	tristate "Renesas RSPI controller"
-	depends on SUPERH
+	depends on SUPERH && SH_DMAE_BASE
 	help
 	  SPI driver for Renesas RSPI blocks.
 
