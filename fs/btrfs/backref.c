@@ -36,16 +36,23 @@ static int check_extent_in_eb(struct btrfs_key *key, struct extent_buffer *eb,
 				u64 extent_item_pos,
 				struct extent_inode_elem **eie)
 {
-	u64 data_offset;
-	u64 data_len;
+	u64 offset = 0;
 	struct extent_inode_elem *e;
 
-	data_offset = btrfs_file_extent_offset(eb, fi);
-	data_len = btrfs_file_extent_num_bytes(eb, fi);
+	if (!btrfs_file_extent_compression(eb, fi) &&
+	    !btrfs_file_extent_encryption(eb, fi) &&
+	    !btrfs_file_extent_other_encoding(eb, fi)) {
+		u64 data_offset;
+		u64 data_len;
 
-	if (extent_item_pos < data_offset ||
-	    extent_item_pos >= data_offset + data_len)
-		return 1;
+		data_offset = btrfs_file_extent_offset(eb, fi);
+		data_len = btrfs_file_extent_num_bytes(eb, fi);
+
+		if (extent_item_pos < data_offset ||
+		    extent_item_pos >= data_offset + data_len)
+			return 1;
+		offset = extent_item_pos - data_offset;
+	}
 
 	e = kmalloc(sizeof(*e), GFP_NOFS);
 	if (!e)
@@ -53,7 +60,7 @@ static int check_extent_in_eb(struct btrfs_key *key, struct extent_buffer *eb,
 
 	e->next = *eie;
 	e->inum = key->objectid;
-	e->offset = key->offset + (extent_item_pos - data_offset);
+	e->offset = key->offset + offset;
 	*eie = e;
 
 	return 0;
