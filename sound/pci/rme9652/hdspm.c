@@ -5125,10 +5125,17 @@ snd_hdspm_proc_read_aes32(struct snd_info_entry * entry,
 		autosync_ref = "AES7"; break;
 	case HDSPM_AES32_AUTOSYNC_FROM_AES8:
 		autosync_ref = "AES8"; break;
+	case HDSPM_AES32_AUTOSYNC_FROM_TCO:
+		autosync_ref = "TCO"; break;
+	case HDSPM_AES32_AUTOSYNC_FROM_SYNC_IN:
+		autosync_ref = "Sync In"; break;
 	default:
 		autosync_ref = "---"; break;
 	}
 	snd_iprintf(buffer, "AutoSync ref = %s\n", autosync_ref);
+
+	/* call readout function for TCO specific status */
+	snd_hdspm_proc_read_tco(entry, buffer);
 
 	snd_iprintf(buffer, "\n");
 }
