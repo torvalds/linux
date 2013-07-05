@@ -3092,16 +3092,35 @@ static int snd_hdspm_get_tco_ltc_frames(struct snd_kcontrol *kcontrol,
 
 static int hdspm_toggle_setting(struct hdspm *hdspm, u32 regmask)
 {
-	return (hdspm->control_register & regmask) ? 1 : 0;
+	u32 reg;
+
+	if (hdspm_is_raydat_or_aio(hdspm))
+		reg = hdspm->settings_register;
+	else
+		reg = hdspm->control_register;
+
+	return (reg & regmask) ? 1 : 0;
 }
 
 static int hdspm_set_toggle_setting(struct hdspm *hdspm, u32 regmask, int out)
 {
+	u32 *reg;
+	u32 target_reg;
+
+	if (hdspm_is_raydat_or_aio(hdspm)) {
+		reg = &(hdspm->settings_register);
+		target_reg = HDSPM_WR_SETTINGS;
+	} else {
+		reg = &(hdspm->control_register);
+		target_reg = HDSPM_controlRegister;
+	}
+
 	if (out)
-		hdspm->control_register |= regmask;
+		*reg |= regmask;
 	else
-		hdspm->control_register &= ~regmask;
-	hdspm_write(hdspm, HDSPM_controlRegister, hdspm->control_register);
+		*reg &= ~regmask;
+
+	hdspm_write(hdspm, target_reg, *reg);
 
 	return 0;
 }
