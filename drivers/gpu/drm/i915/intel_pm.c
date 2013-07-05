@@ -2403,7 +2403,7 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		pipe = intel_plane->pipe;
 		p = &params[pipe];
 
-		p->sprite_enabled = intel_plane->wm.enable;
+		p->sprite_enabled = intel_plane->wm.enabled;
 		p->spr_bytes_per_pixel = intel_plane->wm.bytes_per_pixel;
 		p->spr_horiz_pixels = intel_plane->wm.horiz_pixels;
 
@@ -2631,7 +2631,7 @@ static void haswell_update_wm(struct drm_device *dev)
 
 static void haswell_update_sprite_wm(struct drm_device *dev, int pipe,
 				     uint32_t sprite_width, int pixel_size,
-				     bool enable)
+				     bool enabled, bool scaled)
 {
 	struct drm_plane *plane;
 
@@ -2639,7 +2639,8 @@ static void haswell_update_sprite_wm(struct drm_device *dev, int pipe,
 		struct intel_plane *intel_plane = to_intel_plane(plane);
 
 		if (intel_plane->pipe == pipe) {
-			intel_plane->wm.enable = enable;
+			intel_plane->wm.enabled = enabled;
+			intel_plane->wm.scaled = scaled;
 			intel_plane->wm.horiz_pixels = sprite_width + 1;
 			intel_plane->wm.bytes_per_pixel = pixel_size;
 			break;
@@ -2727,7 +2728,7 @@ sandybridge_compute_sprite_srwm(struct drm_device *dev, int plane,
 
 static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 					 uint32_t sprite_width, int pixel_size,
-					 bool enable)
+					 bool enable, bool scaled)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
@@ -2850,13 +2851,13 @@ void intel_update_watermarks(struct drm_device *dev)
 
 void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 				    uint32_t sprite_width, int pixel_size,
-				    bool enable)
+				    bool enable, bool scaled)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->display.update_sprite_wm)
 		dev_priv->display.update_sprite_wm(dev, pipe, sprite_width,
-						   pixel_size, enable);
+						   pixel_size, enable, scaled);
 }
 
 static struct drm_i915_gem_object *
