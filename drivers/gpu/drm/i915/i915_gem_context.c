@@ -375,7 +375,7 @@ mi_set_context(struct intel_ring_buffer *ring,
 
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
-	intel_ring_emit(ring, new_context->obj->gtt_offset |
+	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(new_context->obj) |
 			MI_MM_SPACE_GTT |
 			MI_SAVE_EXT_STATE_EN |
 			MI_RESTORE_EXT_STATE_EN |

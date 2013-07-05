@@ -46,8 +46,8 @@ TRACE_EVENT(i915_gem_object_bind,
 
 	    TP_fast_assign(
 			   __entry->obj = obj;
-			   __entry->offset = obj->gtt_space->start;
-			   __entry->size = obj->gtt_space->size;
+			   __entry->offset = i915_gem_obj_ggtt_offset(obj);
+			   __entry->size = i915_gem_obj_ggtt_size(obj);
 			   __entry->mappable = mappable;
 			   ),
 
@@ -68,8 +68,8 @@ TRACE_EVENT(i915_gem_object_unbind,
 
 	    TP_fast_assign(
 			   __entry->obj = obj;
-			   __entry->offset = obj->gtt_space->start;
-			   __entry->size = obj->gtt_space->size;
+			   __entry->offset = i915_gem_obj_ggtt_offset(obj);
+			   __entry->size = i915_gem_obj_ggtt_size(obj);
 			   ),
 
 	    TP_printk("obj=%p, offset=%08x size=%x",

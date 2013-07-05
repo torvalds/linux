@@ -1980,16 +1980,17 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		intel_crtc->dspaddr_offset = linear_offset;
 	}
 
-	DRM_DEBUG_KMS("Writing base %08X %08lX %d %d %d\n",
-		      obj->gtt_offset, linear_offset, x, y, fb->pitches[0]);
+	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
+		      i915_gem_obj_ggtt_offset(obj), linear_offset, x, y,
+		      fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
 		I915_MODIFY_DISPBASE(DSPSURF(plane),
-				     obj->gtt_offset + intel_crtc->dspaddr_offset);
+				     i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE(DSPLINOFF(plane), linear_offset);
 	} else
-		I915_WRITE(DSPADDR(plane), obj->gtt_offset + linear_offset);
+		I915_WRITE(DSPADDR(plane), i915_gem_obj_ggtt_offset(obj) + linear_offset);
 	POSTING_READ(reg);
 
 	return 0;
@@ -2069,11 +2070,12 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 					       fb->pitches[0]);
 	linear_offset -= intel_crtc->dspaddr_offset;
 
-	DRM_DEBUG_KMS("Writing base %08X %08lX %d %d %d\n",
-		      obj->gtt_offset, linear_offset, x, y, fb->pitches[0]);
+	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
+		      i915_gem_obj_ggtt_offset(obj), linear_offset, x, y,
+		      fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_MODIFY_DISPBASE(DSPSURF(plane),
-			     obj->gtt_offset + intel_crtc->dspaddr_offset);
+			     i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
 	if (IS_HASWELL(dev)) {
 		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
 	} else {
@@ -6568,7 +6570,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			goto fail_unpin;
 		}
 
-		addr = obj->gtt_offset;
+		addr = i915_gem_obj_ggtt_offset(obj);
 	} else {
 		int align = IS_I830(dev) ? 16 * 1024 : 256;
 		ret = i915_gem_attach_phys_object(dev, obj,
@@ -7340,7 +7342,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_DISPLAY_FLIP |
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0]);
-	intel_ring_emit(ring, obj->gtt_offset + intel_crtc->dspaddr_offset);
+	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
 	intel_ring_emit(ring, 0); /* aux display base address, unused */
 
 	intel_mark_page_flip_active(intel_crtc);
@@ -7381,7 +7383,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 |
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0]);
-	intel_ring_emit(ring, obj->gtt_offset + intel_crtc->dspaddr_offset);
+	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
 	intel_ring_emit(ring, MI_NOOP);
 
 	intel_mark_page_flip_active(intel_crtc);
@@ -7421,7 +7423,7 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0]);
 	intel_ring_emit(ring,
-			(obj->gtt_offset + intel_crtc->dspaddr_offset) |
+			(i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset) |
 			obj->tiling_mode);
 
 	/* XXX Enabling the panel-fitter across page-flip is so far
@@ -7464,7 +7466,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_DISPLAY_FLIP |
 			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	intel_ring_emit(ring, fb->pitches[0] | obj->tiling_mode);
-	intel_ring_emit(ring, obj->gtt_offset + intel_crtc->dspaddr_offset);
+	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
 
 	/* Contrary to the suggestions in the documentation,
 	 * "Enable Panel Fitter" does not seem to be required when page
@@ -7529,7 +7531,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane_bit);
 	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));
-	intel_ring_emit(ring, obj->gtt_offset + intel_crtc->dspaddr_offset);
+	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
 	intel_ring_emit(ring, (MI_NOOP));
 
 	intel_mark_page_flip_active(intel_crtc);

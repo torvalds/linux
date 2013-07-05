@@ -135,7 +135,7 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 static inline bool
 i915_gem_object_is_inactive(struct drm_i915_gem_object *obj)
 {
-	return obj->gtt_space && !obj->active;
+	return i915_gem_obj_ggtt_bound(obj) && !obj->active;
 }
 
 int
@@ -178,7 +178,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
 		if (obj->pin_count)
-			pinned += obj->gtt_space->size;
+			pinned += i915_gem_obj_ggtt_size(obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	args->aper_size = dev_priv->gtt.total;
@@ -422,7 +422,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		 * anyway again before the next pread happens. */
 		if (obj->cache_level == I915_CACHE_NONE)
 			needs_clflush = 1;
-		if (obj->gtt_space) {
+		if (i915_gem_obj_ggtt_bound(obj)) {
 			ret = i915_gem_object_set_to_gtt_domain(obj, false);
 			if (ret)
 				return ret;
@@ -609,7 +609,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 	user_data = to_user_ptr(args->data_ptr);
 	remain = args->size;
 
-	offset = obj->gtt_offset + args->offset;
+	offset = i915_gem_obj_ggtt_offset(obj) + args->offset;
 
 	while (remain > 0) {
 		/* Operation in this page
@@ -739,7 +739,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		 * right away and we therefore have to clflush anyway. */
 		if (obj->cache_level == I915_CACHE_NONE)
 			needs_clflush_after = 1;
-		if (obj->gtt_space) {
+		if (i915_gem_obj_ggtt_bound(obj)) {
 			ret = i915_gem_object_set_to_gtt_domain(obj, true);
 			if (ret)
 				return ret;
@@ -1360,8 +1360,9 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	obj->fault_mappable = true;
 
-	pfn = ((dev_priv->gtt.mappable_base + obj->gtt_offset) >> PAGE_SHIFT) +
-		page_offset;
+	pfn = dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj);
+	pfn >>= PAGE_SHIFT;
+	pfn += page_offset;
 
 	/* Finally, remap it using the new GTT offset */
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
@@ -1667,7 +1668,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	if (obj->pages == NULL)
 		return 0;
 
-	BUG_ON(obj->gtt_space);
+	BUG_ON(i915_gem_obj_ggtt_bound(obj));
 
 	if (obj->pages_pin_count)
 		return -EBUSY;
@@ -2121,8 +2122,8 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 
 static bool i915_head_inside_object(u32 acthd, struct drm_i915_gem_object *obj)
 {
-	if (acthd >= obj->gtt_offset &&
-	    acthd < obj->gtt_offset + obj->base.size)
+	if (acthd >= i915_gem_obj_ggtt_offset(obj) &&
+	    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
 		return true;
 
 	return false;
@@ -2180,11 +2181,11 @@ static void i915_set_reset_status(struct intel_ring_buffer *ring,
 
 	if (ring->hangcheck.action != wait &&
 	    i915_request_guilty(request, acthd, &inside)) {
-		DRM_ERROR("%s hung %s bo (0x%x ctx %d) at 0x%x\n",
+		DRM_ERROR("%s hung %s bo (0x%lx ctx %d) at 0x%x\n",
 			  ring->name,
 			  inside ? "inside" : "flushing",
 			  request->batch_obj ?
-			  request->batch_obj->gtt_offset : 0,
+			  i915_gem_obj_ggtt_offset(request->batch_obj) : 0,
 			  request->ctx ? request->ctx->id : 0,
 			  acthd);
 
@@ -2595,7 +2596,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
 	int ret;
 
-	if (obj->gtt_space == NULL)
+	if (!i915_gem_obj_ggtt_bound(obj))
 		return 0;
 
 	if (obj->pin_count)
@@ -2691,12 +2692,12 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 	POSTING_READ(fence_reg);
 
 	if (obj) {
-		u32 size = obj->gtt_space->size;
+		u32 size = i915_gem_obj_ggtt_size(obj);
 		uint64_t val;
 
-		val = (uint64_t)((obj->gtt_offset + size - 4096) &
+		val = (uint64_t)((i915_gem_obj_ggtt_offset(obj) + size - 4096) &
 				 0xfffff000) << 32;
-		val |= obj->gtt_offset & 0xfffff000;
+		val |= i915_gem_obj_ggtt_offset(obj) & 0xfffff000;
 		val |= (uint64_t)((obj->stride / 128) - 1) << fence_pitch_shift;
 		if (obj->tiling_mode == I915_TILING_Y)
 			val |= 1 << I965_FENCE_TILING_Y_SHIFT;
@@ -2720,15 +2721,15 @@ static void i915_write_fence_reg(struct drm_device *dev, int reg,
 	u32 val;
 
 	if (obj) {
-		u32 size = obj->gtt_space->size;
+		u32 size = i915_gem_obj_ggtt_size(obj);
 		int pitch_val;
 		int tile_width;
 
-		WARN((obj->gtt_offset & ~I915_FENCE_START_MASK) ||
+		WARN((i915_gem_obj_ggtt_offset(obj) & ~I915_FENCE_START_MASK) ||
 		     (size & -size) != size ||
-		     (obj->gtt_offset & (size - 1)),
-		     "object 0x%08x [fenceable? %d] not 1M or pot-size (0x%08x) aligned\n",
-		     obj->gtt_offset, obj->map_and_fenceable, size);
+		     (i915_gem_obj_ggtt_offset(obj) & (size - 1)),
+		     "object 0x%08lx [fenceable? %d] not 1M or pot-size (0x%08x) aligned\n",
+		     i915_gem_obj_ggtt_offset(obj), obj->map_and_fenceable, size);
 
 		if (obj->tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
 			tile_width = 128;
@@ -2739,7 +2740,7 @@ static void i915_write_fence_reg(struct drm_device *dev, int reg,
 		pitch_val = obj->stride / tile_width;
 		pitch_val = ffs(pitch_val) - 1;
 
-		val = obj->gtt_offset;
+		val = i915_gem_obj_ggtt_offset(obj);
 		if (obj->tiling_mode == I915_TILING_Y)
 			val |= 1 << I830_FENCE_TILING_Y_SHIFT;
 		val |= I915_FENCE_SIZE_BITS(size);
@@ -2764,19 +2765,19 @@ static void i830_write_fence_reg(struct drm_device *dev, int reg,
 	uint32_t val;
 
 	if (obj) {
-		u32 size = obj->gtt_space->size;
+		u32 size = i915_gem_obj_ggtt_size(obj);
 		uint32_t pitch_val;
 
-		WARN((obj->gtt_offset & ~I830_FENCE_START_MASK) ||
+		WARN((i915_gem_obj_ggtt_offset(obj) & ~I830_FENCE_START_MASK) ||
 		     (size & -size) != size ||
-		     (obj->gtt_offset & (size - 1)),
-		     "object 0x%08x not 512K or pot-size 0x%08x aligned\n",
-		     obj->gtt_offset, size);
+		     (i915_gem_obj_ggtt_offset(obj) & (size - 1)),
+		     "object 0x%08lx not 512K or pot-size 0x%08x aligned\n",
+		     i915_gem_obj_ggtt_offset(obj), size);
 
 		pitch_val = obj->stride / 128;
 		pitch_val = ffs(pitch_val) - 1;
 
-		val = obj->gtt_offset;
+		val = i915_gem_obj_ggtt_offset(obj);
 		if (obj->tiling_mode == I915_TILING_Y)
 			val |= 1 << I830_FENCE_TILING_Y_SHIFT;
 		val |= I830_FENCE_SIZE_BITS(size);
@@ -3030,8 +3031,8 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 
 		if (obj->cache_level != obj->gtt_space->color) {
 			printk(KERN_ERR "object reserved space [%08lx, %08lx] with wrong color, cache_level=%x, color=%lx\n",
-			       obj->gtt_space->start,
-			       obj->gtt_space->start + obj->gtt_space->size,
+			       i915_gem_obj_ggtt_offset(obj),
+			       i915_gem_obj_ggtt_offset(obj) + i915_gem_obj_ggtt_size(obj),
 			       obj->cache_level,
 			       obj->gtt_space->color);
 			err++;
@@ -3042,8 +3043,8 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 					      obj->gtt_space,
 					      obj->cache_level)) {
 			printk(KERN_ERR "invalid GTT space found at [%08lx, %08lx] - color=%x\n",
-			       obj->gtt_space->start,
-			       obj->gtt_space->start + obj->gtt_space->size,
+			       i915_gem_obj_ggtt_offset(obj),
+			       i915_gem_obj_ggtt_offset(obj) + i915_gem_obj_ggtt_size(obj),
 			       obj->cache_level);
 			err++;
 			continue;
@@ -3155,8 +3156,8 @@ search_free:
 		node->size == fence_size &&
 		(node->start & (fence_alignment - 1)) == 0;
 
-	mappable =
-		obj->gtt_offset + obj->base.size <= dev_priv->gtt.mappable_end;
+	mappable = i915_gem_obj_ggtt_offset(obj) + obj->base.size <=
+		dev_priv->gtt.mappable_end;
 
 	obj->map_and_fenceable = mappable && fenceable;
 
@@ -3258,7 +3259,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	int ret;
 
 	/* Not valid to be called on unbound objects. */
-	if (obj->gtt_space == NULL)
+	if (!i915_gem_obj_ggtt_bound(obj))
 		return -EINVAL;
 
 	if (obj->base.write_domain == I915_GEM_DOMAIN_GTT)
@@ -3323,7 +3324,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 			return ret;
 	}
 
-	if (obj->gtt_space) {
+	if (i915_gem_obj_ggtt_bound(obj)) {
 		ret = i915_gem_object_finish_gpu(obj);
 		if (ret)
 			return ret;
@@ -3346,7 +3347,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 			i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
 					       obj, cache_level);
 
-		obj->gtt_space->color = cache_level;
+		i915_gem_obj_ggtt_set_color(obj, cache_level);
 	}
 
 	if (cache_level == I915_CACHE_NONE) {
@@ -3627,14 +3628,14 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 	if (WARN_ON(obj->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
 		return -EBUSY;
 
-	if (obj->gtt_space != NULL) {
-		if ((alignment && obj->gtt_offset & (alignment - 1)) ||
+	if (i915_gem_obj_ggtt_bound(obj)) {
+		if ((alignment && i915_gem_obj_ggtt_offset(obj) & (alignment - 1)) ||
 		    (map_and_fenceable && !obj->map_and_fenceable)) {
 			WARN(obj->pin_count,
 			     "bo is already pinned with incorrect alignment:"
-			     " offset=%x, req.alignment=%x, req.map_and_fenceable=%d,"
+			     " offset=%lx, req.alignment=%x, req.map_and_fenceable=%d,"
 			     " obj->map_and_fenceable=%d\n",
-			     obj->gtt_offset, alignment,
+			     i915_gem_obj_ggtt_offset(obj), alignment,
 			     map_and_fenceable,
 			     obj->map_and_fenceable);
 			ret = i915_gem_object_unbind(obj);
@@ -3643,7 +3644,7 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		}
 	}
 
-	if (obj->gtt_space == NULL) {
+	if (!i915_gem_obj_ggtt_bound(obj)) {
 		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 
 		ret = i915_gem_object_bind_to_gtt(obj, alignment,
@@ -3669,7 +3670,7 @@ void
 i915_gem_object_unpin(struct drm_i915_gem_object *obj)
 {
 	BUG_ON(obj->pin_count == 0);
-	BUG_ON(obj->gtt_space == NULL);
+	BUG_ON(!i915_gem_obj_ggtt_bound(obj));
 
 	if (--obj->pin_count == 0)
 		obj->pin_mappable = false;
@@ -3719,7 +3720,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	 * as the X server doesn't manage domains yet
 	 */
 	i915_gem_object_flush_cpu_write_domain(obj);
-	args->offset = obj->gtt_offset;
+	args->offset = i915_gem_obj_ggtt_offset(obj);
 out:
 	drm_gem_object_unreference(&obj->base);
 unlock:

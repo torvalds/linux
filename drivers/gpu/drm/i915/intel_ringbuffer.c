@@ -440,14 +440,14 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	 * registers with the above sequence (the readback of the HEAD registers
 	 * also enforces ordering), otherwise the hw might lose the new ring
 	 * register values. */
-	I915_WRITE_START(ring, obj->gtt_offset);
+	I915_WRITE_START(ring, i915_gem_obj_ggtt_offset(obj));
 	I915_WRITE_CTL(ring,
 			((ring->size - PAGE_SIZE) & RING_NR_PAGES)
 			| RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
 	if (wait_for((I915_READ_CTL(ring) & RING_VALID) != 0 &&
-		     I915_READ_START(ring) == obj->gtt_offset &&
+		     I915_READ_START(ring) == i915_gem_obj_ggtt_offset(obj) &&
 		     (I915_READ_HEAD(ring) & HEAD_ADDR) == 0, 50)) {
 		DRM_ERROR("%s initialization failed "
 				"ctl %08x head %08x tail %08x start %08x\n",
@@ -505,7 +505,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 	if (ret)
 		goto err_unref;
 
-	pc->gtt_offset = obj->gtt_offset;
+	pc->gtt_offset = i915_gem_obj_ggtt_offset(obj);
 	pc->cpu_page = kmap(sg_page(obj->pages->sgl));
 	if (pc->cpu_page == NULL) {
 		ret = -ENOMEM;
@@ -1156,7 +1156,7 @@ i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
 		intel_ring_advance(ring);
 	} else {
 		struct drm_i915_gem_object *obj = ring->private;
-		u32 cs_offset = obj->gtt_offset;
+		u32 cs_offset = i915_gem_obj_ggtt_offset(obj);
 
 		if (len > I830_BATCH_LIMIT)
 			return -ENOSPC;
@@ -1241,7 +1241,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 		goto err_unref;
 	}
 
-	ring->status_page.gfx_addr = obj->gtt_offset;
+	ring->status_page.gfx_addr = i915_gem_obj_ggtt_offset(obj);
 	ring->status_page.page_addr = kmap(sg_page(obj->pages->sgl));
 	if (ring->status_page.page_addr == NULL) {
 		ret = -ENOMEM;
@@ -1328,7 +1328,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 		goto err_unpin;
 
 	ring->virtual_start =
-		ioremap_wc(dev_priv->gtt.mappable_base + obj->gtt_offset,
+		ioremap_wc(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
 			   ring->size);
 	if (ring->virtual_start == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");

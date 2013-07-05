@@ -1554,7 +1554,7 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 	if (dst == NULL)
 		return NULL;
 
-	reloc_offset = src->gtt_offset;
+	reloc_offset = dst->gtt_offset = i915_gem_obj_ggtt_offset(src);
 	for (i = 0; i < num_pages; i++) {
 		unsigned long flags;
 		void *d;
@@ -1606,7 +1606,6 @@ i915_error_object_create_sized(struct drm_i915_private *dev_priv,
 		reloc_offset += PAGE_SIZE;
 	}
 	dst->page_count = num_pages;
-	dst->gtt_offset = src->gtt_offset;
 
 	return dst;
 
@@ -1660,7 +1659,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->name = obj->base.name;
 	err->rseqno = obj->last_read_seqno;
 	err->wseqno = obj->last_write_seqno;
-	err->gtt_offset = obj->gtt_offset;
+	err->gtt_offset = i915_gem_obj_ggtt_offset(obj);
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = obj->fence_reg;
@@ -1758,8 +1757,8 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			return NULL;
 
 		obj = ring->private;
-		if (acthd >= obj->gtt_offset &&
-		    acthd < obj->gtt_offset + obj->base.size)
+		if (acthd >= i915_gem_obj_ggtt_offset(obj) &&
+		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
 			return i915_error_object_create(dev_priv, obj);
 	}
 
@@ -1840,7 +1839,7 @@ static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
 		return;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if ((error->ccid & PAGE_MASK) == obj->gtt_offset) {
+		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
 			ering->ctx = i915_error_object_create_sized(dev_priv,
 								    obj, 1);
 			break;
@@ -2206,10 +2205,10 @@ static void __always_unused i915_pageflip_stall_check(struct drm_device *dev, in
 	if (INTEL_INFO(dev)->gen >= 4) {
 		int dspsurf = DSPSURF(intel_crtc->plane);
 		stall_detected = I915_HI_DISPBASE(I915_READ(dspsurf)) ==
-					obj->gtt_offset;
+					i915_gem_obj_ggtt_offset(obj);
 	} else {
 		int dspaddr = DSPADDR(intel_crtc->plane);
-		stall_detected = I915_READ(dspaddr) == (obj->gtt_offset +
+		stall_detected = I915_READ(dspaddr) == (i915_gem_obj_ggtt_offset(obj) +
 							crtc->y * crtc->fb->pitches[0] +
 							crtc->x * crtc->fb->bits_per_pixel/8);
 	}

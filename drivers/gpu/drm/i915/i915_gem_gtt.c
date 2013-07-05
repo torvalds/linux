@@ -378,7 +378,7 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 			    enum i915_cache_level cache_level)
 {
 	ppgtt->insert_entries(ppgtt, obj->pages,
-			      obj->gtt_space->start >> PAGE_SHIFT,
+			      i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT,
 			      cache_level);
 }
 
@@ -386,7 +386,7 @@ void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 			      struct drm_i915_gem_object *obj)
 {
 	ppgtt->clear_range(ppgtt,
-			   obj->gtt_space->start >> PAGE_SHIFT,
+			   i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT,
 			   obj->base.size >> PAGE_SHIFT);
 }
 
@@ -551,7 +551,7 @@ void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev_priv->gtt.gtt_insert_entries(dev, obj->pages,
-					 obj->gtt_space->start >> PAGE_SHIFT,
+					 i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT,
 					 cache_level);
 
 	obj->has_global_gtt_mapping = 1;
@@ -563,7 +563,7 @@ void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev_priv->gtt.gtt_clear_range(obj->base.dev,
-				      obj->gtt_space->start >> PAGE_SHIFT,
+				      i915_gem_obj_ggtt_offset(obj) >> PAGE_SHIFT,
 				      obj->base.size >> PAGE_SHIFT);
 
 	obj->has_global_gtt_mapping = 0;

@@ -139,11 +139,11 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
 	info->apertures->ranges[0].size = dev_priv->gtt.mappable_end;
 
-	info->fix.smem_start = dev->mode_config.fb_base + obj->gtt_offset;
+	info->fix.smem_start = dev->mode_config.fb_base + i915_gem_obj_ggtt_offset(obj);
 	info->fix.smem_len = size;
 
 	info->screen_base =
-		ioremap_wc(dev_priv->gtt.mappable_base + obj->gtt_offset,
+		ioremap_wc(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
 			   size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
@@ -166,9 +166,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
+	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08lx, bo %p\n",
 		      fb->width, fb->height,
-		      obj->gtt_offset, obj);
+		      i915_gem_obj_ggtt_offset(obj), obj);
 
 
 	mutex_unlock(&dev->struct_mutex);

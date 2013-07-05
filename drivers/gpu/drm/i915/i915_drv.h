@@ -1362,6 +1362,37 @@ struct drm_i915_gem_object {
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
+/* Offset of the first PTE pointing to this object */
+static inline unsigned long
+i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
+{
+	return o->gtt_space->start;
+}
+
+/* Whether or not this object is currently mapped by the translation tables */
+static inline bool
+i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *o)
+{
+	return o->gtt_space != NULL;
+}
+
+/* The size used in the translation tables may be larger than the actual size of
+ * the object on GEN2/GEN3 because of the way tiling is handled. See
+ * i915_gem_get_gtt_size() for more details.
+ */
+static inline unsigned long
+i915_gem_obj_ggtt_size(struct drm_i915_gem_object *o)
+{
+	return o->gtt_space->size;
+}
+
+static inline void
+i915_gem_obj_ggtt_set_color(struct drm_i915_gem_object *o,
+			    enum i915_cache_level color)
+{
+	o->gtt_space->color = color;
+}
+
 /**
  * Request queue structure.
  *

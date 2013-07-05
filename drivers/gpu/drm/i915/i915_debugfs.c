@@ -122,9 +122,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (pinned x %d)", obj->pin_count);
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
-	if (obj->gtt_space != NULL)
-		seq_printf(m, " (gtt offset: %08x, size: %08x)",
-			   obj->gtt_offset, (unsigned int)obj->gtt_space->size);
+	if (i915_gem_obj_ggtt_bound(obj))
+		seq_printf(m, " (gtt offset: %08lx, size: %08x)",
+			   i915_gem_obj_ggtt_offset(obj), (unsigned int)i915_gem_obj_ggtt_size(obj));
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08lx)", obj->stolen->start);
 	if (obj->pin_mappable || obj->fault_mappable) {
@@ -175,7 +175,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		describe_obj(m, obj);
 		seq_putc(m, '\n');
 		total_obj_size += obj->base.size;
-		total_gtt_size += obj->gtt_space->size;
+		total_gtt_size += i915_gem_obj_ggtt_size(obj);
 		count++;
 	}
 	mutex_unlock(&dev->struct_mutex);
@@ -187,10 +187,10 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 
 #define count_objects(list, member) do { \
 	list_for_each_entry(obj, list, member) { \
-		size += obj->gtt_space->size; \
+		size += i915_gem_obj_ggtt_size(obj); \
 		++count; \
 		if (obj->map_and_fenceable) { \
-			mappable_size += obj->gtt_space->size; \
+			mappable_size += i915_gem_obj_ggtt_size(obj); \
 			++mappable_count; \
 		} \
 	} \
@@ -209,7 +209,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 	stats->count++;
 	stats->total += obj->base.size;
 
-	if (obj->gtt_space) {
+	if (i915_gem_obj_ggtt_bound(obj)) {
 		if (!list_empty(&obj->ring_list))
 			stats->active += obj->base.size;
 		else
@@ -267,11 +267,11 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	size = count = mappable_size = mappable_count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if (obj->fault_mappable) {
-			size += obj->gtt_space->size;
+			size += i915_gem_obj_ggtt_size(obj);
 			++count;
 		}
 		if (obj->pin_mappable) {
-			mappable_size += obj->gtt_space->size;
+			mappable_size += i915_gem_obj_ggtt_size(obj);
 			++mappable_count;
 		}
 		if (obj->madv == I915_MADV_DONTNEED) {
@@ -333,7 +333,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 		describe_obj(m, obj);
 		seq_putc(m, '\n');
 		total_obj_size += obj->base.size;
-		total_gtt_size += obj->gtt_space->size;
+		total_gtt_size += i915_gem_obj_ggtt_size(obj);
 		count++;
 	}
 
@@ -379,12 +379,14 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 			if (work->old_fb_obj) {
 				struct drm_i915_gem_object *obj = work->old_fb_obj;
 				if (obj)
-					seq_printf(m, "Old framebuffer gtt_offset 0x%08x\n", obj->gtt_offset);
+					seq_printf(m, "Old framebuffer gtt_offset 0x%08lx\n",
+						   i915_gem_obj_ggtt_offset(obj));
 			}
 			if (work->pending_flip_obj) {
 				struct drm_i915_gem_object *obj = work->pending_flip_obj;
 				if (obj)
-					seq_printf(m, "New framebuffer gtt_offset 0x%08x\n", obj->gtt_offset);
+					seq_printf(m, "New framebuffer gtt_offset 0x%08lx\n",
+						   i915_gem_obj_ggtt_offset(obj));
 			}
 		}
 		spin_unlock_irqrestore(&dev->event_lock, flags);

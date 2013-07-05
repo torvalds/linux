@@ -133,7 +133,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_framebuffer *fb,
 
 	I915_WRITE(SPSIZE(pipe, plane), (crtc_h << 16) | crtc_w);
 	I915_WRITE(SPCNTR(pipe, plane), sprctl);
-	I915_MODIFY_DISPBASE(SPSURF(pipe, plane), obj->gtt_offset +
+	I915_MODIFY_DISPBASE(SPSURF(pipe, plane), i915_gem_obj_ggtt_offset(obj) +
 			     sprsurf_offset);
 	POSTING_READ(SPSURF(pipe, plane));
 }
@@ -308,7 +308,8 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	if (intel_plane->can_scale)
 		I915_WRITE(SPRSCALE(pipe), sprscale);
 	I915_WRITE(SPRCTL(pipe), sprctl);
-	I915_MODIFY_DISPBASE(SPRSURF(pipe), obj->gtt_offset + sprsurf_offset);
+	I915_MODIFY_DISPBASE(SPRSURF(pipe),
+			     i915_gem_obj_ggtt_offset(obj) + sprsurf_offset);
 	POSTING_READ(SPRSURF(pipe));
 
 	/* potentially re-enable LP watermarks */
@@ -478,7 +479,8 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	I915_WRITE(DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
 	I915_WRITE(DVSSCALE(pipe), dvsscale);
 	I915_WRITE(DVSCNTR(pipe), dvscntr);
-	I915_MODIFY_DISPBASE(DVSSURF(pipe), obj->gtt_offset + dvssurf_offset);
+	I915_MODIFY_DISPBASE(DVSSURF(pipe),
+			     i915_gem_obj_ggtt_offset(obj) + dvssurf_offset);
 	POSTING_READ(DVSSURF(pipe));
 }
 
