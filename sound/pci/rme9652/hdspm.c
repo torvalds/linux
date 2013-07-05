@@ -1011,6 +1011,12 @@ static inline int HDSPM_bit2freq(int n)
 	return bit2freq_tab[n];
 }
 
+static bool hdspm_is_raydat_or_aio(struct hdspm *hdspm)
+{
+	return ((AIO == hdspm->io_type) || (RayDAT == hdspm->io_type));
+}
+
+
 /* Write/read to/from HDSPM with Adresses in Bytes
    not words but only 32Bit writes are allowed */
 
@@ -5142,9 +5148,8 @@ static int snd_hdspm_set_defaults(struct hdspm * hdspm)
 
 	all_in_all_mixer(hdspm, 0 * UNITY_GAIN);
 
-	if (hdspm->io_type == AIO || hdspm->io_type == RayDAT) {
+	if (hdspm_is_raydat_or_aio(hdspm))
 		hdspm_write(hdspm, HDSPM_WR_SETTINGS, hdspm->settings_register);
-	}
 
 	/* set a default rate so that the channel map is set up. */
 	hdspm_set_rate(hdspm, 48000, 1);
