@@ -937,14 +937,6 @@ nve4_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 
 	nvc0_grctx_generate_tpcid(priv);
 	nvc0_grctx_generate_r406028(priv);
-
-	nv_wr32(priv, 0x40602c, 0x00000000);
-	nv_wr32(priv, 0x405874, 0x00000000);
-	nv_wr32(priv, 0x406030, 0x00000000);
-	nv_wr32(priv, 0x405878, 0x00000000);
-	nv_wr32(priv, 0x406034, 0x00000000);
-	nv_wr32(priv, 0x40587c, 0x00000000);
-
 	nve4_grctx_generate_r418bb8(priv);
 	nvc0_grctx_generate_r406800(priv);
 
