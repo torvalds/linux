@@ -2401,10 +2401,15 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 			ucontrol->value.enumerated.item[0] =
 				hdspm_get_sync_in_sample_rate(hdspm);
 			break;
+		case 11: /* External Rate */
+			ucontrol->value.enumerated.item[0] =
+				hdspm_external_rate_to_enum(hdspm);
+			break;
 		default: /* AES1 to AES8 */
 			ucontrol->value.enumerated.item[0] =
-				hdspm_get_s1_sample_rate(hdspm,
-						kcontrol->private_value-1);
+				hdspm_get_aes_sample_rate(hdspm,
+						kcontrol->private_value -
+						HDSPM_AES32_AUTOSYNC_FROM_AES1);
 			break;
 		}
 		break;
@@ -4550,7 +4555,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_aes32[] = {
 	HDSPM_PREF_SYNC_REF("Preferred Sync Reference", 0),
 	HDSPM_AUTOSYNC_REF("AutoSync Reference", 0),
 	HDSPM_SYSTEM_SAMPLE_RATE("System Sample Rate", 0),
-	HDSPM_AUTOSYNC_SAMPLE_RATE("External Rate", 0),
+	HDSPM_AUTOSYNC_SAMPLE_RATE("External Rate", 11),
 	HDSPM_SYNC_CHECK("WC Sync Check", 0),
 	HDSPM_SYNC_CHECK("AES1 Sync Check", 1),
 	HDSPM_SYNC_CHECK("AES2 Sync Check", 2),
