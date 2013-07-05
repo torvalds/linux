@@ -836,14 +836,13 @@ static struct attribute_group dock_attribute_group = {
  */
 static int __init dock_add(acpi_handle handle)
 {
-	int ret, id;
-	struct dock_station ds, *dock_station;
+	struct dock_station *dock_station, ds = { NULL, };
 	struct platform_device *dd;
 	acpi_status status;
+	int ret;
 
-	id = dock_station_count;
-	memset(&ds, 0, sizeof(ds));
-	dd = platform_device_register_data(NULL, "dock", id, &ds, sizeof(ds));
+	dd = platform_device_register_data(NULL, "dock", dock_station_count,
+					   &ds, sizeof(ds));
 	if (IS_ERR(dd))
 		return PTR_ERR(dd);
 
