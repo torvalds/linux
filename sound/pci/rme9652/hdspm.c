@@ -1017,6 +1017,17 @@ static void hdspm_set_sgbuf(struct hdspm *hdspm,
 			    struct snd_pcm_substream *substream,
 			     unsigned int reg, int channels);
 
+static int hdspm_aes_sync_check(struct hdspm *hdspm, int idx);
+static int hdspm_wc_sync_check(struct hdspm *hdspm);
+static int hdspm_tco_sync_check(struct hdspm *hdspm);
+static int hdspm_sync_in_sync_check(struct hdspm *hdspm);
+
+static int hdspm_get_aes_sample_rate(struct hdspm *hdspm, int index);
+static int hdspm_get_tco_sample_rate(struct hdspm *hdspm);
+static int hdspm_get_wc_sample_rate(struct hdspm *hdspm);
+
+
+
 static inline int HDSPM_bit2freq(int n)
 {
 	static const int bit2freq_tab[] = {
@@ -1152,10 +1163,7 @@ static int hdspm_rate_multiplier(struct hdspm *hdspm, int rate)
 	return rate;
 }
 
-static int hdspm_tco_sync_check(struct hdspm *hdspm);
-static int hdspm_sync_in_sync_check(struct hdspm *hdspm);
-
-/* check for external sample rate */
+/* check for external sample rate, returns the sample rate in Hz*/
 static int hdspm_external_sample_rate(struct hdspm *hdspm)
 {
 	unsigned int status, status2, timecode;
