@@ -648,7 +648,8 @@ static char *texts_ports_aio_in_ss[] = {
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
 	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4", "ADAT.5", "ADAT.6",
-	"ADAT.7", "ADAT.8"
+	"ADAT.7", "ADAT.8",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_out_ss[] = {
@@ -657,14 +658,16 @@ static char *texts_ports_aio_out_ss[] = {
 	"SPDIF.L", "SPDIF.R",
 	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4", "ADAT.5", "ADAT.6",
 	"ADAT.7", "ADAT.8",
-	"Phone.L", "Phone.R"
+	"Phone.L", "Phone.R",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_in_ds[] = {
 	"Analogue.L", "Analogue.R",
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
-	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4"
+	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_out_ds[] = {
@@ -672,14 +675,16 @@ static char *texts_ports_aio_out_ds[] = {
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
 	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
-	"Phone.L", "Phone.R"
+	"Phone.L", "Phone.R",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_in_qs[] = {
 	"Analogue.L", "Analogue.R",
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
-	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4"
+	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aio_out_qs[] = {
@@ -687,7 +692,8 @@ static char *texts_ports_aio_out_qs[] = {
 	"AES.L", "AES.R",
 	"SPDIF.L", "SPDIF.R",
 	"ADAT.1", "ADAT.2", "ADAT.3", "ADAT.4",
-	"Phone.L", "Phone.R"
+	"Phone.L", "Phone.R",
+	"AEB.1", "AEB.2", "AEB.3", "AEB.4"
 };
 
 static char *texts_ports_aes32[] = {
@@ -764,8 +770,8 @@ static char channel_map_aio_in_ss[HDSPM_MAX_CHANNELS] = {
 	8, 9,			/* aes in, */
 	10, 11,			/* spdif in */
 	12, 13, 14, 15, 16, 17, 18, 19,	/* ADAT in */
-	-1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -779,7 +785,8 @@ static char channel_map_aio_out_ss[HDSPM_MAX_CHANNELS] = {
 	10, 11,			/* spdif out */
 	12, 13, 14, 15, 16, 17, 18, 19,	/* ADAT out */
 	6, 7,			/* phone out */
-	-1, -1, -1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -792,7 +799,8 @@ static char channel_map_aio_in_ds[HDSPM_MAX_CHANNELS] = {
 	8, 9,			/* aes in */
 	10, 11,			/* spdif in */
 	12, 14, 16, 18,		/* adat in */
-	-1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -807,7 +815,7 @@ static char channel_map_aio_out_ds[HDSPM_MAX_CHANNELS] = {
 	10, 11,			/* spdif out */
 	12, 14, 16, 18,		/* adat out */
 	6, 7,			/* phone out */
-	-1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -821,7 +829,8 @@ static char channel_map_aio_in_qs[HDSPM_MAX_CHANNELS] = {
 	8, 9,			/* aes in */
 	10, 11,			/* spdif in */
 	12, 16,			/* adat in */
-	-1, -1, -1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -836,7 +845,8 @@ static char channel_map_aio_out_qs[HDSPM_MAX_CHANNELS] = {
 	10, 11,			/* spdif out */
 	12, 16,			/* adat out */
 	6, 7,			/* phone out */
-	-1, -1, -1, -1, -1, -1,
+	2, 3, 4, 5,		/* AEB */
+	-1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -6602,16 +6612,26 @@ static int snd_hdspm_create(struct snd_card *card,
 		break;
 
 	case AIO:
-		if (0 == (hdspm_read(hdspm, HDSPM_statusRegister2) & HDSPM_s2_AEBI_D)) {
-			snd_printk(KERN_INFO "HDSPM: AEB input board found, but not supported\n");
-		}
-
 		hdspm->ss_in_channels = AIO_IN_SS_CHANNELS;
 		hdspm->ds_in_channels = AIO_IN_DS_CHANNELS;
 		hdspm->qs_in_channels = AIO_IN_QS_CHANNELS;
 		hdspm->ss_out_channels = AIO_OUT_SS_CHANNELS;
 		hdspm->ds_out_channels = AIO_OUT_DS_CHANNELS;
 		hdspm->qs_out_channels = AIO_OUT_QS_CHANNELS;
+
+		if (0 == (hdspm_read(hdspm, HDSPM_statusRegister2) & HDSPM_s2_AEBI_D)) {
+			snd_printk(KERN_INFO "HDSPM: AEB input board found\n");
+			hdspm->ss_in_channels += 4;
+			hdspm->ds_in_channels += 4;
+			hdspm->qs_in_channels += 4;
+		}
+
+		if (0 == (hdspm_read(hdspm, HDSPM_statusRegister2) & HDSPM_s2_AEBO_D)) {
+			snd_printk(KERN_INFO "HDSPM: AEB output board found\n");
+			hdspm->ss_out_channels += 4;
+			hdspm->ds_out_channels += 4;
+			hdspm->qs_out_channels += 4;
+		}
 
 		hdspm->channel_map_out_ss = channel_map_aio_out_ss;
 		hdspm->channel_map_out_ds = channel_map_aio_out_ds;
