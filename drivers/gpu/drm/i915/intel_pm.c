@@ -2126,7 +2126,7 @@ static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
 	return pixel_rate;
 }
 
-static uint32_t hsw_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
+static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 			       uint32_t latency)
 {
 	uint64_t ret;
@@ -2137,7 +2137,7 @@ static uint32_t hsw_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 	return ret;
 }
 
-static uint32_t hsw_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
+static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
 			       uint32_t latency)
 {
@@ -2149,7 +2149,7 @@ static uint32_t hsw_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 	return ret;
 }
 
-static uint32_t hsw_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
+static uint32_t ilk_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
 			   uint8_t bytes_per_pixel)
 {
 	return DIV_ROUND_UP(pri_val * 64, horiz_pixels * bytes_per_pixel) + 2;
@@ -2198,7 +2198,7 @@ enum hsw_data_buf_partitioning {
 };
 
 /* For both WM_PIPE and WM_LP. */
-static uint32_t hsw_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value,
 				   bool is_lp)
 {
@@ -2208,14 +2208,14 @@ static uint32_t hsw_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
 	if (!params->active)
 		return 0;
 
-	method1 = hsw_wm_method1(params->pixel_rate,
+	method1 = ilk_wm_method1(params->pixel_rate,
 				 params->pri_bytes_per_pixel,
 				 mem_value);
 
 	if (!is_lp)
 		return method1;
 
-	method2 = hsw_wm_method2(params->pixel_rate,
+	method2 = ilk_wm_method2(params->pixel_rate,
 				 params->pipe_htotal,
 				 params->pri_horiz_pixels,
 				 params->pri_bytes_per_pixel,
@@ -2225,7 +2225,7 @@ static uint32_t hsw_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
 }
 
 /* For both WM_PIPE and WM_LP. */
-static uint32_t hsw_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
 	uint32_t method1, method2;
@@ -2233,10 +2233,10 @@ static uint32_t hsw_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
 	if (!params->active || !params->sprite_enabled)
 		return 0;
 
-	method1 = hsw_wm_method1(params->pixel_rate,
+	method1 = ilk_wm_method1(params->pixel_rate,
 				 params->spr_bytes_per_pixel,
 				 mem_value);
-	method2 = hsw_wm_method2(params->pixel_rate,
+	method2 = ilk_wm_method2(params->pixel_rate,
 				 params->pipe_htotal,
 				 params->spr_horiz_pixels,
 				 params->spr_bytes_per_pixel,
@@ -2245,13 +2245,13 @@ static uint32_t hsw_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
 }
 
 /* For both WM_PIPE and WM_LP. */
-static uint32_t hsw_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
 	if (!params->active)
 		return 0;
 
-	return hsw_wm_method2(params->pixel_rate,
+	return ilk_wm_method2(params->pixel_rate,
 			      params->pipe_htotal,
 			      params->cur_horiz_pixels,
 			      params->cur_bytes_per_pixel,
@@ -2259,14 +2259,14 @@ static uint32_t hsw_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
 }
 
 /* Only for WM_LP. */
-static uint32_t hsw_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t pri_val,
 				   uint32_t mem_value)
 {
 	if (!params->active)
 		return 0;
 
-	return hsw_wm_fbc(pri_val,
+	return ilk_wm_fbc(pri_val,
 			  params->pri_horiz_pixels,
 			  params->pri_bytes_per_pixel);
 }
@@ -2281,10 +2281,10 @@ static bool hsw_compute_lp_wm(uint32_t mem_value, struct hsw_wm_maximums *max,
 	for (pipe = PIPE_A; pipe <= PIPE_C; pipe++) {
 		struct hsw_pipe_wm_parameters *p = &params[pipe];
 
-		pri_val[pipe] = hsw_compute_pri_wm(p, mem_value, true);
-		spr_val[pipe] = hsw_compute_spr_wm(p, mem_value);
-		cur_val[pipe] = hsw_compute_cur_wm(p, mem_value);
-		fbc_val[pipe] = hsw_compute_fbc_wm(p, pri_val[pipe], mem_value);
+		pri_val[pipe] = ilk_compute_pri_wm(p, mem_value, true);
+		spr_val[pipe] = ilk_compute_spr_wm(p, mem_value);
+		cur_val[pipe] = ilk_compute_cur_wm(p, mem_value);
+		fbc_val[pipe] = ilk_compute_fbc_wm(p, pri_val[pipe], mem_value);
 	}
 
 	result->pri_val = max3(pri_val[0], pri_val[1], pri_val[2]);
@@ -2311,9 +2311,9 @@ static uint32_t hsw_compute_wm_pipe(struct drm_i915_private *dev_priv,
 {
 	uint32_t pri_val, cur_val, spr_val;
 
-	pri_val = hsw_compute_pri_wm(params, mem_value, false);
-	spr_val = hsw_compute_spr_wm(params, mem_value);
-	cur_val = hsw_compute_cur_wm(params, mem_value);
+	pri_val = ilk_compute_pri_wm(params, mem_value, false);
+	spr_val = ilk_compute_spr_wm(params, mem_value);
+	cur_val = ilk_compute_cur_wm(params, mem_value);
 
 	WARN(pri_val > 127,
 	     "Primary WM error, mode not supported for pipe %c\n",
