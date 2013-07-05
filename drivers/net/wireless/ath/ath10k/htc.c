@@ -751,8 +751,9 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 	tx_alloc = ath10k_htc_get_credit_allocation(htc,
 						    conn_req->service_id);
 	if (!tx_alloc)
-		ath10k_warn("HTC Service %s does not allocate target credits\n",
-			    htc_service_name(conn_req->service_id));
+		ath10k_dbg(ATH10K_DBG_HTC,
+			   "HTC Service %s does not allocate target credits\n",
+			   htc_service_name(conn_req->service_id));
 
 	skb = ath10k_htc_build_tx_ctrl_skb(htc->ar);
 	if (!skb) {
