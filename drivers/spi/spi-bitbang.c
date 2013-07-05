@@ -376,7 +376,7 @@ static void bitbang_work(struct work_struct *work)
 /**
  * spi_bitbang_transfer - default submit to transfer queue
  */
-int spi_bitbang_transfer(struct spi_device *spi, struct spi_message *m)
+static int spi_bitbang_transfer(struct spi_device *spi, struct spi_message *m)
 {
 	struct spi_bitbang	*bitbang;
 	unsigned long		flags;
@@ -398,7 +398,6 @@ int spi_bitbang_transfer(struct spi_device *spi, struct spi_message *m)
 
 	return status;
 }
-EXPORT_SYMBOL_GPL(spi_bitbang_transfer);
 
 /*----------------------------------------------------------------------*/
 
