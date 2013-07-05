@@ -265,7 +265,7 @@ static int ath10k_htc_tx_completion_handler(struct ath10k *ar,
 					    struct sk_buff *skb,
 					    unsigned int eid)
 {
-	struct ath10k_htc *htc = ar->htc;
+	struct ath10k_htc *htc = &ar->htc;
 	struct ath10k_htc_ep *ep = &htc->endpoint[eid];
 	bool stopping;
 
@@ -414,7 +414,7 @@ static int ath10k_htc_rx_completion_handler(struct ath10k *ar,
 					    u8 pipe_id)
 {
 	int status = 0;
-	struct ath10k_htc *htc = ar->htc;
+	struct ath10k_htc *htc = &ar->htc;
 	struct ath10k_htc_hdr *hdr;
 	struct ath10k_htc_ep *ep;
 	u16 payload_len;
@@ -961,21 +961,13 @@ void ath10k_htc_stop(struct ath10k_htc *htc)
 }
 
 /* registered target arrival callback from the HIF layer */
-struct ath10k_htc *ath10k_htc_create(struct ath10k *ar,
-				     struct ath10k_htc_ops *htc_ops)
+int ath10k_htc_init(struct ath10k *ar)
 {
 	struct ath10k_hif_cb htc_callbacks;
 	struct ath10k_htc_ep *ep = NULL;
-	struct ath10k_htc *htc = NULL;
-
-	/* FIXME: use struct ath10k instead */
-	htc = kzalloc(sizeof(struct ath10k_htc), GFP_KERNEL);
-	if (!htc)
-		return ERR_PTR(-ENOMEM);
+	struct ath10k_htc *htc = &ar->htc;
 
 	spin_lock_init(&htc->tx_lock);
-
-	memcpy(&htc->htc_ops, htc_ops, sizeof(struct ath10k_htc_ops));
 
 	ath10k_htc_reset_endpoint_states(htc);
 
@@ -992,10 +984,5 @@ struct ath10k_htc *ath10k_htc_create(struct ath10k *ar,
 
 	init_completion(&htc->ctl_resp);
 
-	return htc;
-}
-
-void ath10k_htc_destroy(struct ath10k_htc *htc)
-{
-	kfree(htc);
+	return 0;
 }

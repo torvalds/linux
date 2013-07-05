@@ -279,8 +279,8 @@ struct ath10k {
 	bool is_target_paused;
 
 	struct ath10k_bmi bmi;
+	struct ath10k_htc htc;
 
-	struct ath10k_htc *htc;
 	struct ath10k_htt *htt;
 
 	struct ath10k_hw_params {

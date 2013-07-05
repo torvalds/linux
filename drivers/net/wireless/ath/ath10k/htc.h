@@ -352,8 +352,7 @@ struct ath10k_htc {
 	bool stopping;
 };
 
-struct ath10k_htc *ath10k_htc_create(struct ath10k *ar,
-				     struct ath10k_htc_ops *htc_ops);
+int ath10k_htc_init(struct ath10k *ar);
 int ath10k_htc_wait_target(struct ath10k_htc *htc);
 int ath10k_htc_start(struct ath10k_htc *htc);
 int ath10k_htc_connect_service(struct ath10k_htc *htc,
@@ -362,7 +361,6 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 int ath10k_htc_send(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
 		    struct sk_buff *packet);
 void ath10k_htc_stop(struct ath10k_htc *htc);
-void ath10k_htc_destroy(struct ath10k_htc *htc);
 struct sk_buff *ath10k_htc_alloc_skb(int size);
 
 #endif
