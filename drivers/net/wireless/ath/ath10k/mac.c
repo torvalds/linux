@@ -1397,15 +1397,15 @@ static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 	int ret;
 
 	if (ieee80211_is_mgmt(hdr->frame_control))
-		ret = ath10k_htt_mgmt_tx(ar->htt, skb);
+		ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
 	else if (ieee80211_is_nullfunc(hdr->frame_control))
 		/* FW does not report tx status properly for NullFunc frames
 		 * unless they are sent through mgmt tx path. mac80211 sends
 		 * those frames when it detects link/beacon loss and depends on
 		 * the tx status to be correct. */
-		ret = ath10k_htt_mgmt_tx(ar->htt, skb);
+		ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
 	else
-		ret = ath10k_htt_tx(ar->htt, skb);
+		ret = ath10k_htt_tx(&ar->htt, skb);
 
 	if (ret) {
 		ath10k_warn("tx failed (%d). dropping packet.\n", ret);
@@ -2659,12 +2659,12 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	if (drop)
 		return;
 
-	ret = wait_event_timeout(ar->htt->empty_tx_wq, ({
+	ret = wait_event_timeout(ar->htt.empty_tx_wq, ({
 			bool empty;
-			spin_lock_bh(&ar->htt->tx_lock);
-			empty = bitmap_empty(ar->htt->used_msdu_ids,
-					     ar->htt->max_num_pending_tx);
-			spin_unlock_bh(&ar->htt->tx_lock);
+			spin_lock_bh(&ar->htt.tx_lock);
+			empty = bitmap_empty(ar->htt.used_msdu_ids,
+					     ar->htt.max_num_pending_tx);
+			spin_unlock_bh(&ar->htt.tx_lock);
 			(empty);
 		}), ATH10K_FLUSH_TIMEOUT_HZ);
 	if (ret <= 0)

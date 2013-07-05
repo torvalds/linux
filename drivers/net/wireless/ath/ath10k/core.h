@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 
+#include "htt.h"
 #include "htc.h"
 #include "hw.h"
 #include "targaddrs.h"
@@ -273,15 +274,13 @@ struct ath10k {
 		const struct ath10k_hif_ops *ops;
 	} hif;
 
-	struct ath10k_wmi wmi;
-
 	wait_queue_head_t event_queue;
 	bool is_target_paused;
 
 	struct ath10k_bmi bmi;
+	struct ath10k_wmi wmi;
 	struct ath10k_htc htc;
-
-	struct ath10k_htt *htt;
+	struct ath10k_htt htt;
 
 	struct ath10k_hw_params {
 		u32 id;

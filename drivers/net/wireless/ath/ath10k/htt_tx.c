@@ -153,7 +153,7 @@ void ath10k_htt_tx_detach(struct ath10k_htt *htt)
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(skb);
-	struct ath10k_htt *htt = ar->htt;
+	struct ath10k_htt *htt = &ar->htt;
 
 	if (skb_cb->htt.is_conf) {
 		dev_kfree_skb_any(skb);

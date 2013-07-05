@@ -556,9 +556,9 @@ int ath10k_core_register(struct ath10k *ar)
 	if (status)
 		goto err_wmi_detach;
 
-	ar->htt = ath10k_htt_attach(ar);
-	if (!ar->htt) {
-		status = -ENOMEM;
+	status = ath10k_htt_attach(ar);
+	if (status) {
+		ath10k_err("could not attach htt (%d)\n", status);
 		goto err_wmi_detach;
 	}
 
@@ -585,7 +585,7 @@ int ath10k_core_register(struct ath10k *ar)
 		goto err_disconnect_htc;
 	}
 
-	status = ath10k_htt_attach_target(ar->htt);
+	status = ath10k_htt_attach_target(&ar->htt);
 	if (status)
 		goto err_disconnect_htc;
 
@@ -606,7 +606,7 @@ err_unregister_mac:
 err_disconnect_htc:
 	ath10k_htc_stop(&ar->htc);
 err_htt_detach:
-	ath10k_htt_detach(ar->htt);
+	ath10k_htt_detach(&ar->htt);
 err_wmi_detach:
 	ath10k_wmi_detach(ar);
 err:
@@ -621,7 +621,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 	 * unhappy about callback failures. */
 	ath10k_mac_unregister(ar);
 	ath10k_htc_stop(&ar->htc);
-	ath10k_htt_detach(ar->htt);
+	ath10k_htt_detach(&ar->htt);
 	ath10k_wmi_detach(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
