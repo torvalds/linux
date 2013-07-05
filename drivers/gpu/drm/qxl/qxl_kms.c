@@ -26,6 +26,7 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
+#include <drm/drm_crtc_helper.h>
 #include <linux/io-mapping.h>
 
 int qxl_log_level;
@@ -306,6 +307,8 @@ int qxl_driver_load(struct drm_device *dev, unsigned long flags)
 		qxl_driver_unload(dev);
 		goto out;
 	}
+
+	drm_kms_helper_poll_init(qdev->ddev);
 
 	return 0;
 out:

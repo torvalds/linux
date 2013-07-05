@@ -107,7 +107,7 @@ void qxl_display_read_client_monitors_config(struct qxl_device *qdev)
 		qxl_io_log(qdev, "failed crc check for client_monitors_config,"
 				 " retrying\n");
 	}
-	drm_sysfs_hotplug_event(qdev->ddev);
+	drm_helper_hpd_irq_event(qdev->ddev);
 }
 
 static int qxl_add_monitors_config_modes(struct drm_connector *connector)
@@ -833,6 +833,8 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 	drm_encoder_init(dev, &qxl_output->enc, &qxl_enc_funcs,
 			 DRM_MODE_ENCODER_VIRTUAL);
 
+	/* we get HPD via client monitors config */
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	encoder->possible_crtcs = 1 << num_output;
 	drm_mode_connector_attach_encoder(&qxl_output->base,
 					  &qxl_output->enc);
