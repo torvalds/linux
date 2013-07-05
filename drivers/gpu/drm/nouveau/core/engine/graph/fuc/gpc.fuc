@@ -29,16 +29,26 @@
  */
 
 #ifdef INCLUDE_DATA
+gpc_mmio_list_head:	.b32 #mmio_list_base
+gpc_mmio_list_tail:
+tpc_mmio_list_head:	.b32 #mmio_list_base
+tpc_mmio_list_tail:
+unk_mmio_list_head:	.b32 #mmio_list_base
+unk_mmio_list_tail:	.b32 #mmio_list_base
+
 gpc_id:			.b32 0
-gpc_mmio_list_head:	.b32 0
-gpc_mmio_list_tail:	.b32 0
 
 tpc_count:		.b32 0
 tpc_mask:		.b32 0
-tpc_mmio_list_head:	.b32 0
-tpc_mmio_list_tail:	.b32 0
+
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+unk_count:		.b32 0
+unk_mask:		.b32 0
+#endif
 
 cmd_queue:		queue_init
+
+mmio_list_base:
 #endif
 
 #ifdef INCLUDE_CODE
@@ -61,7 +71,6 @@ error:
 // fall through to main loop after completion.
 //
 // Input:
-//   CC_SCRATCH[0]: chipset (PMC_BOOT_0 read returns 0x0bad0bad... sigh)
 //   CC_SCRATCH[1]: context base
 //
 // Output:
@@ -106,26 +115,33 @@ init:
 	iord $r2 I[$r1 + 0x000]		// MYINDEX
 	st b32 D[$r0 + #gpc_id] $r2
 
-	// find context data for this chipset
-	mov $r2 0x800
-	shl b32 $r2 6
-	iord $r2 I[$r2 + 0x000]		// CC_SCRATCH[0]
-	mov $r1 #chipsets - 12
-	init_find_chipset:
-		add b32 $r1 12
-		ld b32 $r3 D[$r1 + 0x00]
-		cmpu b32 $r3 $r2
-		bra e #init_context
-		cmpu b32 $r3 0
-		bra ne #init_find_chipset
-		// unknown chipset
-		ret
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+	// figure out which, and how many, UNKs are actually present
+	mov $r14 0x0c30
+	sethi $r14 0x500000
+	clear b32 $r2
+	clear b32 $r3
+	clear b32 $r4
+	init_unk_loop:
+		call #nv_rd32
+		cmp b32 $r15 0
+		bra z #init_unk_next
+			mov $r15 1
+			shl b32 $r15 $r2
+			or $r4 $r15
+			add b32 $r3 1
+		init_unk_next:
+		add b32 $r2 1
+		add b32 $r14 4
+		cmp b32 $r2 NV_PGRAPH_GPCX_UNK__SIZE
+		bra ne #init_unk_loop
+	init_unk_done:
+	st b32 D[$r0 + #unk_count] $r3
+	st b32 D[$r0 + #unk_mask] $r4
+#endif
 
 	// initialise context base, and size tracking
-	init_context:
-	mov $r2 0x800
-	shl b32 $r2 6
-	iord $r2 I[$r2 + 0x100]	// CC_SCRATCH[1], initial base
+	nv_iord($r2, NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(1), 0)
 	clear b32 $r3		// track GPC context size here
 
 	// set mmctx base addresses now so we don't have to do it later,
@@ -136,29 +152,32 @@ init:
 	iowr I[$r4 + 0x000] $r5		// MMCTX_SAVE_SWBASE
 	iowr I[$r4 + 0x100] $r5		// MMCTX_LOAD_SWBASE
 
-	// calculate GPC mmio context size, store the chipset-specific
-	// mmio list pointers somewhere we can get at them later without
-	// re-parsing the chipset list
-	clear b32 $r14
-	clear b32 $r15
-	ld b16 $r14 D[$r1 + 4]
-	ld b16 $r15 D[$r1 + 6]
-	st b16 D[$r0 + #gpc_mmio_list_head] $r14
-	st b16 D[$r0 + #gpc_mmio_list_tail] $r15
+	// calculate GPC mmio context size
+	ld b32 $r14 D[$r0 + #gpc_mmio_list_head]
+	ld b32 $r15 D[$r0 + #gpc_mmio_list_tail]
 	call #mmctx_size
 	add b32 $r2 $r15
 	add b32 $r3 $r15
 
-	// calculate per-TPC mmio context size, store the list pointers
-	ld b16 $r14 D[$r1 + 8]
-	ld b16 $r15 D[$r1 + 10]
-	st b16 D[$r0 + #tpc_mmio_list_head] $r14
-	st b16 D[$r0 + #tpc_mmio_list_tail] $r15
+	// calculate per-TPC mmio context size
+	ld b32 $r14 D[$r0 + #tpc_mmio_list_head]
+	ld b32 $r15 D[$r0 + #tpc_mmio_list_tail]
 	call #mmctx_size
 	ld b32 $r14 D[$r0 + #tpc_count]
 	mulu $r14 $r15
 	add b32 $r2 $r14
 	add b32 $r3 $r14
+
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+	// calculate per-UNK mmio context size
+	ld b32 $r14 D[$r0 + #unk_mmio_list_head]
+	ld b32 $r15 D[$r0 + #unk_mmio_list_tail]
+	call #mmctx_size
+	ld b32 $r14 D[$r0 + #unk_count]
+	mulu $r14 $r15
+	add b32 $r2 $r14
+	add b32 $r3 $r14
+#endif
 
 	// round up base/size to 256 byte boundary (for strand SWBASE)
 	add b32 $r4 0x1300
@@ -177,13 +196,10 @@ init:
 	add b32 $r3 $r15
 
 	// save context size, and tell HUB we're done
-	mov $r1 0x800
-	shl b32 $r1 6
-	iowr I[$r1 + 0x100] $r3		// CC_SCRATCH[1]  = context size
-	add b32 $r1 0x800
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_VAL(1), 0, $r3)
 	clear b32 $r2
 	bset $r2 31
-	iowr I[$r1 + 0x000] $r2		// CC_SCRATCH[0] |= 0x80000000
+	nv_iowr(NV_PGRAPH_GPCX_GPCCS_CC_SCRATCH_SET(0), 0, $r2)
 
 // Main program loop, very simple, sleeps until woken up by the interrupt
 // handler, pulls a command from the queue and executes its handler
@@ -228,6 +244,7 @@ ih:
 	push $r13
 	push $r14
 	push $r15
+	clear b32 $r0
 
 	// incoming fifo command?
 	iord $r10 I[$r0 + 0x200]	// INTR
@@ -335,7 +352,6 @@ ctx_xfer:
 
 	// per-TPC mmio context
 	xbit $r10 $flags $p1	// direction
-	or $r10 4		// last
 	mov $r11 0x4000
 	sethi $r11 0x500000	// base = NV_PGRAPH_GPC0_TPC0
 	ld b32 $r12 D[$r0 + #gpc_id]
@@ -346,6 +362,22 @@ ctx_xfer:
 	ld b32 $r15 D[$r0 + #tpc_mask]
 	mov $r14 0x800		// stride = 0x800
 	call #mmctx_xfer
+
+#if NV_PGRAPH_GPCX_UNK__SIZE > 0
+	// per-UNK mmio context
+	xbit $r10 $flags $p1	// direction
+	or $r10 4		// last
+	mov $r11 0x3000
+	sethi $r11 0x500000	// base = NV_PGRAPH_GPC0_UNK0
+	ld b32 $r12 D[$r0 + #gpc_id]
+	shl b32 $r12 15
+	add b32 $r11 $r12	// base = NV_PGRAPH_GPCn_UNK0
+	ld b32 $r12 D[$r0 + #unk_mmio_list_head]
+	ld b32 $r13 D[$r0 + #unk_mmio_list_tail]
+	ld b32 $r15 D[$r0 + #unk_mask]
+	mov $r14 0x200		// stride = 0x200
+	call #mmctx_xfer
+#endif
 
 	// wait for strands to finish
 	call #strand_wait

@@ -149,13 +149,9 @@ watchdog_clear:
 //
 wait_donez:
 	trace_set(T_WAIT);
-	mov $r8 0x818
-	shl b32 $r8 6
-	iowr I[$r8 + 0x000] $r10
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(6), 0, $r10)
 	wait_donez_ne:
-		mov $r8 0x400
-		shl b32 $r8 6
-		iord $r8 I[$r8 + 0x000]
+		nv_iord($r8, NV_PGRAPH_FECS_SIGNAL, 0)
 		xbit $r8 $r8 $r10
 		bra ne #wait_donez_ne
 	trace_clr(T_WAIT)

@@ -1,4 +1,4 @@
-uint32_t nvc0_grhub_data[] = {
+uint32_t nvd7_grhub_data[] = {
 /* 0x0000: hub_mmio_list_head */
 	0x00000300,
 /* 0x0004: hub_mmio_list_tail */
@@ -205,7 +205,7 @@ uint32_t nvc0_grhub_data[] = {
 	0x0417e91c,
 };
 
-uint32_t nvc0_grhub_code[] = {
+uint32_t nvd7_grhub_code[] = {
 	0x031b0ef5,
 /* 0x0004: queue_put */
 	0x9800d898,

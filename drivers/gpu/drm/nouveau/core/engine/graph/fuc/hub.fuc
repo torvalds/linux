@@ -24,11 +24,12 @@
  */
 
 #ifdef INCLUDE_DATA
+hub_mmio_list_head:	.b32 #hub_mmio_list_base
+hub_mmio_list_tail:	.b32 #hub_mmio_list_next
+
 gpc_count:		.b32 0
 rop_count:		.b32 0
 cmd_queue:		queue_init
-hub_mmio_list_head:	.b32 0
-hub_mmio_list_tail:	.b32 0
 
 ctx_current:		.b32 0
 
@@ -40,6 +41,9 @@ chan_mmio_address:	.b32 0
 .align 256
 xfer_data: 		.skip 256
 
+hub_mmio_list_base:
+.b32 0x0417e91c // 0x17e91c, 2
+hub_mmio_list_next:
 #endif
 
 #ifdef INCLUDE_CODE
@@ -48,22 +52,13 @@ xfer_data: 		.skip 256
 // In: $r15 error code (see nvc0.fuc)
 //
 error:
-	push $r14
-	mov $r14 0x814
-	shl b32 $r14 6
-	iowr I[$r14 + 0x000] $r15	// CC_SCRATCH[5] = error code
-	mov $r14 0xc1c
-	shl b32 $r14 6
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(5), 0, $r15)
 	mov $r15 1
-	iowr I[$r14 + 0x000] $r15	// INTR_UP_SET
-	pop $r14
+	nv_iowr(NV_PGRAPH_FECS_INTR_UP_SET, 0, $r15)
 	ret
 
 // HUB fuc initialisation, executed by triggering ucode start, will
 // fall through to main loop after completion.
-//
-// Input:
-//   CC_SCRATCH[0]: chipset (PMC_BOOT_0 read returns 0x0bad0bad... sigh)
 //
 // Output:
 //   CC_SCRATCH[0]:
@@ -141,31 +136,12 @@ init:
 	iowr I[$r2 + 0x000] $r1
 	iowr I[$r2 + 0x100] $r1
 
-	// find context data for this chipset
-	mov $r2 0x800
-	shl b32 $r2 6
-	iord $r2 I[$r2 + 0x000]		// CC_SCRATCH[0]
-	mov $r15 #chipsets - 8
-	init_find_chipset:
-		add b32 $r15 8
-		ld b32 $r3 D[$r15 + 0x00]
-		cmpu b32 $r3 $r2
-		bra e #init_context
-		cmpu b32 $r3 0
-		bra ne #init_find_chipset
-		// unknown chipset
-		ret
-
 	// context size calculation, reserve first 256 bytes for use by fuc
-	init_context:
 	mov $r1 256
 
 	// calculate size of mmio context data
-	ld b16 $r14 D[$r15 + 4]
-	ld b16 $r15 D[$r15 + 6]
-	sethi $r14 0
-	st b32 D[$r0 + #hub_mmio_list_head] $r14
-	st b32 D[$r0 + #hub_mmio_list_tail] $r15
+	ld b32 $r14 D[$r0 + #hub_mmio_list_head]
+	ld b32 $r15 D[$r0 + #hub_mmio_list_tail]
 	call #mmctx_size
 
 	// set mmctx base addresses now so we don't have to do it later,
@@ -204,9 +180,6 @@ init:
 		add b32 $r14 $r4 0x804
 		mov b32 $r15 $r1
 		call #nv_wr32			// CC_SCRATCH[1] = ctx offset
-		add b32 $r14 $r4 0x800
-		mov b32 $r15 $r2
-		call #nv_wr32			// CC_SCRATCH[0] = chipset
 		add b32 $r14 $r4 0x10c
 		clear b32 $r15
 		call #nv_wr32
@@ -232,13 +205,10 @@ init:
 		bra ne #init_gpc
 
 	// save context size, and tell host we're ready
-	mov $r2 0x800
-	shl b32 $r2 6
-	iowr I[$r2 + 0x100] $r1		// CC_SCRATCH[1]  = context size
-	add b32 $r2 0x800
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_VAL(1), 0, $r1)
 	clear b32 $r1
 	bset $r1 31
-	iowr I[$r2 + 0x000] $r1		// CC_SCRATCH[0] |= 0x80000000
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_SET(0), 0, $r1)
 
 // Main program loop, very simple, sleeps until woken up by the interrupt
 // handler, pulls a command from the queue and executes its handler
@@ -330,11 +300,9 @@ main:
 		bra #main
 
 	main_done:
-	mov $r1 0x820
-	shl b32 $r1 6
 	clear b32 $r2
 	bset $r2 31
-	iowr I[$r1 + 0x000] $r2		// CC_SCRATCH[0] |= 0x80000000
+	nv_iowr(NV_PGRAPH_FECS_CC_SCRATCH_SET(0), 0, $r2)
 	bra #main
 
 // interrupt handler
@@ -348,6 +316,7 @@ ih:
 	push $r13
 	push $r14
 	push $r15
+	clear b32 $r0
 
 	// incoming fifo command?
 	iord $r10 I[$r0 + 0x200]	// INTR
@@ -398,7 +367,7 @@ ih:
 	bclr $flags $p0
 	iret
 
-#ifdef NVGF
+#if CHIPSET < GK100
 // Not real sure, but, MEM_CMD 7 will hang forever if this isn't done
 ctx_4160s:
 	mov $r14 0x4160
@@ -562,7 +531,7 @@ ctx_load:
 // In: $r2 channel address
 //
 ctx_chan:
-#ifdef NVGF
+#if CHIPSET < GK100
 	call #ctx_4160s
 #endif
 	call #ctx_load
@@ -576,7 +545,7 @@ ctx_chan:
 		iord $r2 I[$r1 + 0x000]
 		or $r2 $r2
 		bra ne #ctx_chan_wait
-#ifdef NVGF
+#if CHIPSET < GK100
 	call #ctx_4160c
 #endif
 	ret
@@ -655,7 +624,7 @@ ctx_xfer:
 	ctx_xfer_pre:
 		mov $r15 0x10
 		call #ctx_86c
-#ifdef NVGF
+#if CHIPSET < GK100
 		call #ctx_4160s
 #endif
 		bra not $p1 #ctx_xfer_exec
@@ -746,7 +715,7 @@ ctx_xfer:
 			call #ctx_mmio_exec
 
 		ctx_xfer_no_post_mmio:
-#ifdef NVGF
+#if CHIPSET < GK100
 		call #ctx_4160c
 #endif
 
