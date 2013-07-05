@@ -360,11 +360,11 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_madiLock           (1<<3)	/* MADI Locked =1, no=0 */
 #define HDSPM_madiSync          (1<<18) /* MADI is in sync */
 
-#define HDSPM_tcoLock    0x00000020 /* Optional TCO locked status FOR HDSPe MADI! */
-#define HDSPM_tcoSync    0x10000000 /* Optional TCO sync status */
+#define HDSPM_tcoLockMadi    0x00000020 /* Optional TCO locked status for HDSPe MADI*/
+#define HDSPM_tcoSync    0x10000000 /* Optional TCO sync status for HDSPe MADI and AES32!*/
 
-#define HDSPM_syncInLock 0x00010000 /* Sync In lock status FOR HDSPe MADI! */
-#define HDSPM_syncInSync 0x00020000 /* Sync In sync status FOR HDSPe MADI! */
+#define HDSPM_syncInLock 0x00010000 /* Sync In lock status for HDSPe MADI! */
+#define HDSPM_syncInSync 0x00020000 /* Sync In sync status for HDSPe MADI! */
 
 #define HDSPM_BufferPositionMask 0x000FFC0 /* Bit 6..15 : h/w buffer pointer */
 			/* since 64byte accurate, last 6 bits are not used */
@@ -382,7 +382,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 					 * Interrupt
 					 */
 #define HDSPM_tco_detect         0x08000000
-#define HDSPM_tco_lock	         0x20000000
+#define HDSPM_tcoLockAes         0x20000000 /* Optional TCO locked status for HDSPe AES */
 
 #define HDSPM_s2_tco_detect      0x00000040
 #define HDSPM_s2_AEBO_D          0x00000080
@@ -480,7 +480,9 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_AES32_AUTOSYNC_FROM_AES6 6
 #define HDSPM_AES32_AUTOSYNC_FROM_AES7 7
 #define HDSPM_AES32_AUTOSYNC_FROM_AES8 8
-#define HDSPM_AES32_AUTOSYNC_FROM_NONE 9
+#define HDSPM_AES32_AUTOSYNC_FROM_TCO 9
+#define HDSPM_AES32_AUTOSYNC_FROM_SYNC_IN 10
+#define HDSPM_AES32_AUTOSYNC_FROM_NONE 11
 
 /*  status2 */
 /* HDSPM_LockAES_bit is given by HDSPM_LockAES >> (AES# - 1) */
@@ -3868,9 +3870,18 @@ static int hdspm_tco_sync_check(struct hdspm *hdspm)
 	if (hdspm->tco) {
 		switch (hdspm->io_type) {
 		case MADI:
+			status = hdspm_read(hdspm, HDSPM_statusRegister);
+			if (status & HDSPM_tcoLockMadi) {
+				if (status & HDSPM_tcoSync)
+					return 2;
+				else
+					return 1;
+			}
+			return 0;
+			break;
 		case AES32:
 			status = hdspm_read(hdspm, HDSPM_statusRegister);
-			if (status & HDSPM_tcoLock) {
+			if (status & HDSPM_tcoLockAes) {
 				if (status & HDSPM_tcoSync)
 					return 2;
 				else
