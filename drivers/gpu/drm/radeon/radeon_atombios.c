@@ -2441,6 +2441,10 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 	case ATOM_VIRTUAL_VOLTAGE_ID1:
 	case ATOM_VIRTUAL_VOLTAGE_ID2:
 	case ATOM_VIRTUAL_VOLTAGE_ID3:
+	case ATOM_VIRTUAL_VOLTAGE_ID4:
+	case ATOM_VIRTUAL_VOLTAGE_ID5:
+	case ATOM_VIRTUAL_VOLTAGE_ID6:
+	case ATOM_VIRTUAL_VOLTAGE_ID7:
 		if (radeon_atom_get_max_vddc(rdev, VOLTAGE_TYPE_VDDC,
 					     rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage,
 					     &vddc) == 0)

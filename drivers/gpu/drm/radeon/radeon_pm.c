@@ -852,7 +852,7 @@ static void radeon_pm_resume_old(struct radeon_device *rdev)
 {
 	/* set up the default clocks if the MC ucode is loaded */
 	if ((rdev->family >= CHIP_BARTS) &&
-	    (rdev->family <= CHIP_CAYMAN) &&
+	    (rdev->family <= CHIP_HAINAN) &&
 	    rdev->mc_fw) {
 		if (rdev->pm.default_vddc)
 			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
@@ -896,7 +896,7 @@ static void radeon_pm_resume_dpm(struct radeon_device *rdev)
 	if (ret) {
 		DRM_ERROR("radeon: dpm resume failed\n");
 		if ((rdev->family >= CHIP_BARTS) &&
-		    (rdev->family <= CHIP_CAYMAN) &&
+		    (rdev->family <= CHIP_HAINAN) &&
 		    rdev->mc_fw) {
 			if (rdev->pm.default_vddc)
 				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
@@ -947,7 +947,7 @@ static int radeon_pm_init_old(struct radeon_device *rdev)
 		radeon_pm_init_profile(rdev);
 		/* set up the default clocks if the MC ucode is loaded */
 		if ((rdev->family >= CHIP_BARTS) &&
-		    (rdev->family <= CHIP_CAYMAN) &&
+		    (rdev->family <= CHIP_HAINAN) &&
 		    rdev->mc_fw) {
 			if (rdev->pm.default_vddc)
 				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
@@ -1032,7 +1032,7 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	if (ret) {
 		rdev->pm.dpm_enabled = false;
 		if ((rdev->family >= CHIP_BARTS) &&
-		    (rdev->family <= CHIP_CAYMAN) &&
+		    (rdev->family <= CHIP_HAINAN) &&
 		    rdev->mc_fw) {
 			if (rdev->pm.default_vddc)
 				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
