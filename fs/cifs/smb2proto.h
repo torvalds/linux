@@ -84,11 +84,9 @@ extern int smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 				const char *from_name, const char *to_name,
 				struct cifs_sb_info *cifs_sb);
 
-extern int smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon,
-			  const char *full_path, int disposition,
-			  int desired_access, int create_options,
-			  struct cifs_fid *fid, __u32 *oplock,
-			  FILE_ALL_INFO *buf, struct cifs_sb_info *cifs_sb);
+extern int smb2_open_file(const unsigned int xid,
+			  struct cifs_open_parms *oparms,
+			  __u32 *oplock, FILE_ALL_INFO *buf);
 extern void smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 extern int smb2_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
