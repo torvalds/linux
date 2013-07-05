@@ -756,6 +756,17 @@ nvc1_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	}
 }
 
+void
+nvc1_grctx_generate_unkn(struct nvc0_graph_priv *priv)
+{
+	nv_mask(priv, 0x418c6c, 0x00000001, 0x00000001);
+	nv_mask(priv, 0x41980c, 0x00000010, 0x00000010);
+	nv_mask(priv, 0x419814, 0x00000004, 0x00000004);
+	nv_mask(priv, 0x4064c0, 0x80000000, 0x80000000);
+	nv_mask(priv, 0x405800, 0x08000000, 0x08000000);
+	nv_mask(priv, 0x419c00, 0x00000008, 0x00000008);
+}
+
 static struct nvc0_graph_init *
 nvc1_grctx_init_hub[] = {
 	nvc0_grctx_init_base,
@@ -804,6 +815,7 @@ nvc1_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc1_grctx_generate_mods,
+	.unkn = nvc1_grctx_generate_unkn,
 	.hub  = nvc1_grctx_init_hub,
 	.gpc  = nvc1_grctx_init_gpc,
 	.icmd = nvc1_grctx_init_icmd,

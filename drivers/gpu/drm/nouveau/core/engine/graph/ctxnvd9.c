@@ -507,6 +507,7 @@ nvd9_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc1_grctx_generate_mods,
+	.unkn = nvc1_grctx_generate_unkn,
 	.hub  = nvd9_grctx_init_hub,
 	.gpc  = nvd9_grctx_init_gpc,
 	.icmd = nvd9_grctx_init_icmd,

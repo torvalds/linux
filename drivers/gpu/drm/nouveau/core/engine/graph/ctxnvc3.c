@@ -91,6 +91,7 @@ nvc3_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc0_grctx_generate_mods,
+	.unkn = nvc0_grctx_generate_unkn,
 	.hub  = nvc0_grctx_init_hub,
 	.gpc  = nvc3_grctx_init_gpc,
 	.icmd = nvc0_grctx_init_icmd,

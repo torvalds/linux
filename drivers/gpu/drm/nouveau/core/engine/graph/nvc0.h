@@ -150,6 +150,7 @@ struct nvc0_grctx_oclass {
 	void  (*main)(struct nvc0_graph_priv *, struct nvc0_grctx *);
 	/* context-specific modify-on-first-load list generation function */
 	void  (*mods)(struct nvc0_graph_priv *, struct nvc0_grctx *);
+	void  (*unkn)(struct nvc0_graph_priv *);
 	/* mmio context data */
 	struct nvc0_graph_init **hub;
 	struct nvc0_graph_init **gpc;
@@ -207,6 +208,7 @@ extern struct nvc0_graph_init nve4_graph_init_unk88xx[];
 int  nvc0_grctx_generate(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
 void nvc0_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
+void nvc0_grctx_generate_unkn(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_tpcid(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_r406028(struct nvc0_graph_priv *);
 void nvc0_grctx_generate_r4060a8(struct nvc0_graph_priv *);
@@ -238,6 +240,7 @@ extern struct nvc0_graph_init nvc0_grctx_init_90c0[];
 extern struct nvc0_graph_init nvc0_grctx_init_mthd_magic[];
 
 void nvc1_grctx_generate_mods(struct nvc0_graph_priv *, struct nvc0_grctx *);
+void nvc1_grctx_generate_unkn(struct nvc0_graph_priv *);
 extern struct nouveau_oclass *nvc1_grctx_oclass;
 extern struct nvc0_graph_init nvc1_grctx_init_9097[];
 
@@ -254,6 +257,7 @@ extern struct nvc0_graph_init nvd9_grctx_init_rop[];
 extern struct nvc0_graph_mthd nvd9_grctx_init_mthd[];
 
 void nve4_grctx_generate_main(struct nvc0_graph_priv *, struct nvc0_grctx *);
+void nve4_grctx_generate_unkn(struct nvc0_graph_priv *);
 extern struct nouveau_oclass *nve4_grctx_oclass;
 extern struct nvc0_graph_init nve4_grctx_init_unk46xx[];
 extern struct nvc0_graph_init nve4_grctx_init_unk47xx[];

@@ -320,6 +320,7 @@ nvf0_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nve4_grctx_generate_main,
 	.mods = nvf0_grctx_generate_mods,
+	.unkn = nve4_grctx_generate_unkn,
 	.hub  = nvf0_grctx_init_hub,
 	.gpc  = nvf0_grctx_init_gpc,
 	.icmd = nvc0_grctx_init_icmd,

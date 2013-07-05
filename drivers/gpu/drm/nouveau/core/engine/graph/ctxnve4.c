@@ -849,6 +849,17 @@ nve4_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 }
 
 void
+nve4_grctx_generate_unkn(struct nvc0_graph_priv *priv)
+{
+	nv_mask(priv, 0x418c6c, 0x00000001, 0x00000001);
+	nv_mask(priv, 0x41980c, 0x00000010, 0x00000010);
+	nv_mask(priv, 0x41be08, 0x00000004, 0x00000004);
+	nv_mask(priv, 0x4064c0, 0x80000000, 0x80000000);
+	nv_mask(priv, 0x405800, 0x08000000, 0x08000000);
+	nv_mask(priv, 0x419c00, 0x00000008, 0x00000008);
+}
+
+void
 nve4_grctx_generate_r418bb8(struct nvc0_graph_priv *priv)
 {
 	u32 data[6] = {}, data2[2] = {};
@@ -922,13 +933,7 @@ nve4_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	nv_wr32(priv, 0x404154, 0x00000000);
 
 	oclass->mods(priv, info);
-
-	nv_wr32(priv, 0x418c6c, 0x1);
-	nv_wr32(priv, 0x41980c, 0x10);
-	nv_wr32(priv, 0x41be08, 0x4);
-	nv_wr32(priv, 0x4064c0, 0x801a00f0);
-	nv_wr32(priv, 0x405800, 0xf8000bf);
-	nv_wr32(priv, 0x419c00, 0xa);
+	oclass->unkn(priv);
 
 	nvc0_grctx_generate_tpcid(priv);
 	nvc0_grctx_generate_r406028(priv);
@@ -1013,6 +1018,7 @@ nve4_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nve4_grctx_generate_main,
 	.mods = nve4_grctx_generate_mods,
+	.unkn = nve4_grctx_generate_unkn,
 	.hub  = nve4_grctx_init_hub,
 	.gpc  = nve4_grctx_init_gpc,
 	.icmd = nve4_grctx_init_icmd,

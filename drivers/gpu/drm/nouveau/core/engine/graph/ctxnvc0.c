@@ -901,6 +901,11 @@ nvc0_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 }
 
 void
+nvc0_grctx_generate_unkn(struct nvc0_graph_priv *priv)
+{
+}
+
+void
 nvc0_grctx_generate_tpcid(struct nvc0_graph_priv *priv)
 {
 	int gpc, tpc, id;
@@ -1060,6 +1065,7 @@ nvc0_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	nv_wr32(priv, 0x404154, 0x00000000);
 
 	oclass->mods(priv, info);
+	oclass->unkn(priv);
 
 	nvc0_grctx_generate_tpcid(priv);
 	nvc0_grctx_generate_r406028(priv);
@@ -1235,6 +1241,7 @@ nvc0_grctx_oclass = &(struct nvc0_grctx_oclass) {
 	},
 	.main = nvc0_grctx_generate_main,
 	.mods = nvc0_grctx_generate_mods,
+	.unkn = nvc0_grctx_generate_unkn,
 	.hub  = nvc0_grctx_init_hub,
 	.gpc  = nvc0_grctx_init_gpc,
 	.icmd = nvc0_grctx_init_icmd,
