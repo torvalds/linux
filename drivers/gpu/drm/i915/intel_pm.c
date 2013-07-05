@@ -2361,10 +2361,10 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[5])
 		wm[0] = (sskpd >> 56) & 0xFF;
 		if (wm[0] == 0)
 			wm[0] = sskpd & 0xF;
-		wm[1] = ((sskpd >> 4) & 0xFF) * 5;
-		wm[2] = ((sskpd >> 12) & 0xFF) * 5;
-		wm[3] = ((sskpd >> 20) & 0x1FF) * 5;
-		wm[4] = ((sskpd >> 32) & 0x1FF) * 5;
+		wm[1] = (sskpd >> 4) & 0xFF;
+		wm[2] = (sskpd >> 12) & 0xFF;
+		wm[3] = (sskpd >> 20) & 0x1FF;
+		wm[4] = (sskpd >> 32) & 0x1FF;
 	}
 }
 
@@ -2442,7 +2442,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	int level, max_level, wm_lp;
 
 	for (level = 1; level <= 4; level++)
-		if (!hsw_compute_lp_wm(wm[level], lp_maximums, params,
+		if (!hsw_compute_lp_wm(wm[level] * 5, lp_maximums, params,
 				       &lp_results[level - 1]))
 			break;
 	max_level = level - 1;
