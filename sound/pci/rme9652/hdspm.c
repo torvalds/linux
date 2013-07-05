@@ -258,6 +258,25 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 #define HDSPM_wclk_sel (1<<30)
 
+/* additional control register bits for AIO*/
+#define HDSPM_c0_Wck48				0x20 /* also RayDAT */
+#define HDSPM_c0_Input0				0x1000
+#define HDSPM_c0_Input1				0x2000
+#define HDSPM_c0_Spdif_Opt			0x4000
+#define HDSPM_c0_Pro				0x8000
+#define HDSPM_c0_clr_tms			0x10000
+#define HDSPM_c0_AEB1				0x20000
+#define HDSPM_c0_AEB2				0x40000
+#define HDSPM_c0_LineOut			0x80000
+#define HDSPM_c0_AD_GAIN0			0x100000
+#define HDSPM_c0_AD_GAIN1			0x200000
+#define HDSPM_c0_DA_GAIN0			0x400000
+#define HDSPM_c0_DA_GAIN1			0x800000
+#define HDSPM_c0_PH_GAIN0			0x1000000
+#define HDSPM_c0_PH_GAIN1			0x2000000
+#define HDSPM_c0_Sym6db				0x4000000
+
+
 /* --- bit helper defines */
 #define HDSPM_LatencyMask    (HDSPM_Latency0|HDSPM_Latency1|HDSPM_Latency2)
 #define HDSPM_FrequencyMask  (HDSPM_Frequency0|HDSPM_Frequency1|\
