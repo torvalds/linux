@@ -105,7 +105,8 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 		ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen,
 						  &resp, &rxlen);
 		if (ret) {
-			ath10k_warn("unable to read from the device\n");
+			ath10k_warn("unable to read from the device (%d)\n",
+				    ret);
 			return ret;
 		}
 
@@ -149,7 +150,8 @@ int ath10k_bmi_write_memory(struct ath10k *ar,
 		ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, hdrlen + txlen,
 						  NULL, NULL);
 		if (ret) {
-			ath10k_warn("unable to write to the device\n");
+			ath10k_warn("unable to write to the device (%d)\n",
+				    ret);
 			return ret;
 		}
 
