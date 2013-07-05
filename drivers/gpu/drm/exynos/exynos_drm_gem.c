@@ -246,13 +246,14 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 	exynos_gem_obj->flags = flags;
 
 	ret = exynos_drm_alloc_buf(dev, buf, flags);
-	if (ret < 0) {
-		drm_gem_object_release(&exynos_gem_obj->base);
-		goto err_fini_buf;
-	}
+	if (ret < 0)
+		goto err_gem_fini;
 
 	return exynos_gem_obj;
 
+err_gem_fini:
+	drm_gem_object_release(&exynos_gem_obj->base);
+	kfree(exynos_gem_obj);
 err_fini_buf:
 	exynos_drm_fini_buf(dev, buf);
 	return ERR_PTR(ret);

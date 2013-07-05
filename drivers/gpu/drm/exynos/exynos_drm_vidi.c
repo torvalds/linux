@@ -413,9 +413,6 @@ static int vidi_power_on(struct vidi_context *ctx, bool enable)
 	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
 	struct device *dev = subdrv->dev;
 
-	if (enable != false && enable != true)
-		return -EINVAL;
-
 	if (enable) {
 		ctx->suspended = false;
 

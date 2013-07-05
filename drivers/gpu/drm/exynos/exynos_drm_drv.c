@@ -155,6 +155,7 @@ static int exynos_drm_unload(struct drm_device *dev)
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;
+	int ret;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
@@ -162,7 +163,13 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 
 	file->driver_priv = file_priv;
 
-	return exynos_drm_subdrv_open(dev, file);
+	ret = exynos_drm_subdrv_open(dev, file);
+	if (ret) {
+		kfree(file_priv);
+		file->driver_priv = NULL;
+	}
+
+	return ret;
 }
 
 static void exynos_drm_preclose(struct drm_device *dev,
