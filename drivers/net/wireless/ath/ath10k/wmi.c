@@ -1748,6 +1748,9 @@ int ath10k_wmi_vdev_install_key(struct ath10k *ar,
 	if (arg->key_data)
 		memcpy(cmd->key_data, arg->key_data, arg->key_len);
 
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi vdev install key idx %d cipher %d len %d\n",
+		   arg->key_idx, arg->key_cipher, arg->key_len);
 	return ath10k_wmi_cmd_send(ar, skb, WMI_VDEV_INSTALL_KEY_CMDID);
 }
 
@@ -2011,6 +2014,9 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 	cmd->peer_vht_rates.tx_mcs_set =
 		__cpu_to_le32(arg->peer_vht_rates.tx_mcs_set);
 
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi peer assoc vdev %d addr %pM\n",
+		   arg->vdev_id, arg->addr);
 	return ath10k_wmi_cmd_send(ar, skb, WMI_PEER_ASSOC_CMDID);
 }
 
