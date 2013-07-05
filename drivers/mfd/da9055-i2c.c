@@ -54,7 +54,7 @@ static int da9055_i2c_remove(struct i2c_client *i2c)
 }
 
 static struct i2c_device_id da9055_i2c_id[] = {
-	{"da9055-pmic", 0},
+	{"da9055", 0},
 	{ }
 };
 
