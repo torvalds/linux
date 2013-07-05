@@ -2221,15 +2221,21 @@ static int hdspm_get_s1_sample_rate(struct hdspm *hdspm, unsigned int idx)
 	return (status >> (idx*4)) & 0xF;
 }
 
-#define ENUMERATED_CTL_INFO(info, texts) \
-{ \
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED; \
-	uinfo->count = 1; \
-	uinfo->value.enumerated.items = ARRAY_SIZE(texts); \
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items) \
-		uinfo->value.enumerated.item =	uinfo->value.enumerated.items - 1; \
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]); \
+static void snd_hdspm_set_infotext(struct snd_ctl_elem_info *uinfo,
+		char **texts, const int count)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = count;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item =
+			uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name,
+			texts[uinfo->value.enumerated.item]);
 }
+
+#define ENUMERATED_CTL_INFO(info, texts) \
+	snd_hdspm_set_infotext(info, texts, ARRAY_SIZE(texts))
 
 
 
