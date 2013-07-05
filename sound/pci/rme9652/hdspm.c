@@ -5566,6 +5566,16 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 	   */
 
 
+	/*  For AES cards, the float format bit is the same as the
+	 *  preferred sync reference. Since we don't want to break
+	 *  sync settings, we have to skip the remaining part of this
+	 *  function.
+	 */
+	if (hdspm->io_type == AES32) {
+		return 0;
+	}
+
+
 	/* Switch to native float format if requested */
 	if (SNDRV_PCM_FORMAT_FLOAT_LE == params_format(params)) {
 		if (!(hdspm->control_register & HDSPe_FLOAT_FORMAT))
