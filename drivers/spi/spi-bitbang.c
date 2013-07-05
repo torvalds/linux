@@ -255,6 +255,21 @@ static int spi_bitbang_bufs(struct spi_device *spi, struct spi_transfer *t)
  * Drivers can provide word-at-a-time i/o primitives, or provide
  * transfer-at-a-time ones to leverage dma or fifo hardware.
  */
+
+static int spi_bitbang_prepare_hardware(struct spi_master *spi)
+{
+	struct spi_bitbang 	*bitbang;
+	unsigned long		flags;
+
+	bitbang = spi_master_get_devdata(spi);
+
+	spin_lock_irqsave(&bitbang->lock, flags);
+	bitbang->busy = 1;
+	spin_unlock_irqrestore(&bitbang->lock, flags);
+
+	return 0;
+}
+
 static int spi_bitbang_transfer_one(struct spi_device *spi,
 				    struct spi_message *m)
 {
@@ -346,7 +361,6 @@ static int spi_bitbang_transfer_one(struct spi_device *spi,
 	}
 
 	m->status = status;
-	m->complete(m->context);
 
 	/* normally deactivate chipselect ... unless no error and
 	 * cs_change has hinted that the next message will probably
@@ -358,54 +372,23 @@ static int spi_bitbang_transfer_one(struct spi_device *spi,
 		ndelay(nsecs);
 	}
 
+	spi_finalize_current_message(spi->master);
+
 	return status;
 }
 
-static void bitbang_work(struct work_struct *work)
+static int spi_bitbang_unprepare_hardware(struct spi_master *spi)
 {
-	struct spi_bitbang	*bitbang =
-		container_of(work, struct spi_bitbang, work);
+	struct spi_bitbang 	*bitbang;
 	unsigned long		flags;
-	struct spi_message	*m, *_m;
+
+	bitbang = spi_master_get_devdata(spi);
 
 	spin_lock_irqsave(&bitbang->lock, flags);
-	bitbang->busy = 1;
-	list_for_each_entry_safe(m, _m, &bitbang->queue, queue) {
-		list_del(&m->queue);
-		spin_unlock_irqrestore(&bitbang->lock, flags);
-
-		spi_bitbang_transfer_one(m->spi, m);
-
-		spin_lock_irqsave(&bitbang->lock, flags);
-	}
 	bitbang->busy = 0;
 	spin_unlock_irqrestore(&bitbang->lock, flags);
-}
 
-/**
- * spi_bitbang_transfer - default submit to transfer queue
- */
-static int spi_bitbang_transfer(struct spi_device *spi, struct spi_message *m)
-{
-	struct spi_bitbang	*bitbang;
-	unsigned long		flags;
-	int			status = 0;
-
-	m->actual_length = 0;
-	m->status = -EINPROGRESS;
-
-	bitbang = spi_master_get_devdata(spi->master);
-
-	spin_lock_irqsave(&bitbang->lock, flags);
-	if (!spi->max_speed_hz)
-		status = -ENETDOWN;
-	else {
-		list_add_tail(&m->queue, &bitbang->queue);
-		queue_work(bitbang->workqueue, &bitbang->work);
-	}
-	spin_unlock_irqrestore(&bitbang->lock, flags);
-
-	return status;
+	return 0;
 }
 
 /*----------------------------------------------------------------------*/
@@ -436,20 +419,22 @@ static int spi_bitbang_transfer(struct spi_device *spi, struct spi_message *m)
 int spi_bitbang_start(struct spi_bitbang *bitbang)
 {
 	struct spi_master *master = bitbang->master;
-	int status;
 
 	if (!master || !bitbang->chipselect)
 		return -EINVAL;
 
-	INIT_WORK(&bitbang->work, bitbang_work);
 	spin_lock_init(&bitbang->lock);
-	INIT_LIST_HEAD(&bitbang->queue);
 
 	if (!master->mode_bits)
 		master->mode_bits = SPI_CPOL | SPI_CPHA | bitbang->flags;
 
-	if (!master->transfer)
-		master->transfer = spi_bitbang_transfer;
+	if (master->transfer || master->transfer_one_message)
+		return -EINVAL;
+
+	master->prepare_transfer_hardware = spi_bitbang_prepare_hardware;
+	master->unprepare_transfer_hardware = spi_bitbang_unprepare_hardware;
+	master->transfer_one_message = spi_bitbang_transfer_one;
+
 	if (!bitbang->txrx_bufs) {
 		bitbang->use_dma = 0;
 		bitbang->txrx_bufs = spi_bitbang_bufs;
@@ -462,32 +447,11 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 		}
 	} else if (!master->setup)
 		return -EINVAL;
-	if (master->transfer == spi_bitbang_transfer &&
-			!bitbang->setup_transfer)
-		return -EINVAL;
-
-	/* this task is the only thing to touch the SPI bits */
-	bitbang->busy = 0;
-	bitbang->workqueue = create_singlethread_workqueue(
-			dev_name(master->dev.parent));
-	if (bitbang->workqueue == NULL) {
-		status = -EBUSY;
-		goto err1;
-	}
 
 	/* driver may get busy before register() returns, especially
 	 * if someone registered boardinfo for devices
 	 */
-	status = spi_register_master(master);
-	if (status < 0)
-		goto err2;
-
-	return status;
-
-err2:
-	destroy_workqueue(bitbang->workqueue);
-err1:
-	return status;
+	return spi_register_master(master);
 }
 EXPORT_SYMBOL_GPL(spi_bitbang_start);
 
@@ -497,10 +461,6 @@ EXPORT_SYMBOL_GPL(spi_bitbang_start);
 int spi_bitbang_stop(struct spi_bitbang *bitbang)
 {
 	spi_unregister_master(bitbang->master);
-
-	WARN_ON(!list_empty(&bitbang->queue));
-
-	destroy_workqueue(bitbang->workqueue);
 
 	return 0;
 }
