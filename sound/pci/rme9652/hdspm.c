@@ -2983,31 +2983,15 @@ static int snd_hdspm_info_autosync_ref(struct snd_kcontrol *kcontrol,
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
 	if (AES32 == hdspm->io_type) {
-		static char *texts[] = { "WordClock", "AES1", "AES2", "AES3",
+		static const char *const texts[] = { "WordClock", "AES1", "AES2", "AES3",
 			"AES4",	"AES5", "AES6", "AES7", "AES8", "TCO", "Sync In", "None"};
 
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-		uinfo->count = 1;
-		uinfo->value.enumerated.items = ARRAY_SIZE(texts);
-		if (uinfo->value.enumerated.item >=
-		    uinfo->value.enumerated.items)
-			uinfo->value.enumerated.item =
-				uinfo->value.enumerated.items - 1;
-		strcpy(uinfo->value.enumerated.name,
-				texts[uinfo->value.enumerated.item]);
+		ENUMERATED_CTL_INFO(uinfo, texts);
 	} else if (MADI == hdspm->io_type) {
-		static char *texts[] = {"Word Clock", "MADI", "TCO",
+		static const char *const texts[] = {"Word Clock", "MADI", "TCO",
 			"Sync In", "None" };
 
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-		uinfo->count = 1;
-		uinfo->value.enumerated.items = 5;
-		if (uinfo->value.enumerated.item >=
-				uinfo->value.enumerated.items)
-			uinfo->value.enumerated.item =
-				uinfo->value.enumerated.items - 1;
-		strcpy(uinfo->value.enumerated.name,
-				texts[uinfo->value.enumerated.item]);
+		ENUMERATED_CTL_INFO(uinfo, texts);
 	}
 	return 0;
 }
