@@ -895,7 +895,7 @@ void user_disable_single_step(struct task_struct *task)
 		 * And, after doing so, if all debug flags are off, turn
 		 * off DBCR0(IDM) and MSR(DE) .... Torez
 		 */
-		task->thread.debug.dbcr0 &= ~DBCR0_IC;
+		task->thread.debug.dbcr0 &= ~(DBCR0_IC|DBCR0_BT);
 		/*
 		 * Test to see if any of the DBCR_ACTIVE_EVENTS bits are set.
 		 */
