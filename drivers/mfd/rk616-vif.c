@@ -445,7 +445,13 @@ static int rk616_dual_input_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
 	route->vif0_en     = 0;
  	route->vif0_clk_sel = VIF0_CLKIN_SEL(VIF_CLKIN_SEL_PLL0);
 	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
+
+#if defined(CONFIG_RK616_USE_MCLK_12M)
+	route->pll1_clk_sel = PLL1_CLK_SEL(MCLK_12M);
+#else
 	route->pll1_clk_sel = PLL1_CLK_SEL(LCD1_DCLK);
+#endif
+
 	route->vif1_clk_sel = VIF1_CLKIN_SEL(VIF_CLKIN_SEL_PLL1);
 	route->hdmi_sel     = HDMI_IN_SEL(HDMI_IN_SEL_VIF1);
 	route->hdmi_clk_sel = HDMI_CLK_SEL(HDMI_CLK_SEL_VIF1);
@@ -516,7 +522,13 @@ static int rk616_lcd0_input_lcd1_unused_cfg(struct mfd_rk616 *rk616,rk_screen *s
 		route->hdmi_sel    = HDMI_IN_SEL(HDMI_IN_SEL_VIF0);//from vif0
 	}
 	route->pll1_clk_sel = PLL1_CLK_SEL(LCD0_DCLK);
+	//route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
+
+#if defined(CONFIG_RK616_USE_MCLK_12M)
+	route->pll0_clk_sel = PLL0_CLK_SEL(MCLK_12M);
+#else
 	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
+#endif
 	route->vif1_bypass = VIF1_CLK_BYPASS;
 	route->vif1_en     = 0;
 	route->lcd1_input  = 0;  
@@ -569,8 +581,14 @@ static int rk616_lcd0_input_lcd1_output_cfg(struct mfd_rk616 *rk616,rk_screen *s
 		route->hdmi_sel    = HDMI_IN_SEL(HDMI_IN_SEL_VIF0);//from vif0
 		route->hdmi_clk_sel = HDMI_CLK_SEL(HDMI_CLK_SEL_VIF1);
 	}
-	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
+	//route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
 	route->pll1_clk_sel = PLL1_CLK_SEL(LCD0_DCLK);
+
+#if defined(CONFIG_RK616_USE_MCLK_12M)
+	route->pll0_clk_sel = PLL0_CLK_SEL(MCLK_12M);
+#else
+	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
+#endif
 	route->vif1_bypass = VIF1_CLK_BYPASS;
 	route->vif1_en = 0;
 	route->lcd1_input = 0; //lcd1 as out put
@@ -591,7 +609,12 @@ static int rk616_lcd0_unused_lcd1_input_cfg(struct mfd_rk616 *rk616,rk_screen *s
 	struct rk616_route *route = &rk616->route;
 
 	route->pll0_clk_sel = PLL0_CLK_SEL(LCD1_DCLK);
+//	route->pll1_clk_sel = PLL1_CLK_SEL(LCD1_DCLK);
+#if defined(CONFIG_RK616_USE_MCLK_12M)
+	route->pll1_clk_sel = PLL1_CLK_SEL(MCLK_12M);
+#else
 	route->pll1_clk_sel = PLL1_CLK_SEL(LCD1_DCLK);
+#endif
 	route->vif0_bypass = VIF0_CLK_BYPASS;
 	route->vif0_en     = 0;
 	if(enable)
