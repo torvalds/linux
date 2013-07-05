@@ -333,3 +333,8 @@ ENTRY(\name\()_tlb_fns)
 	.endif
 	.size	\name\()_tlb_fns, . - \name\()_tlb_fns
 .endm
+
+.macro globl_equ x, y
+	.globl	\x
+	.equ	\x, \y
+.endm

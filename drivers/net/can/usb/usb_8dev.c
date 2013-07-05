@@ -977,7 +977,7 @@ static int usb_8dev_probe(struct usb_interface *intf,
 	err = usb_8dev_cmd_version(priv, &version);
 	if (err) {
 		netdev_err(netdev, "can't get firmware version\n");
-		goto cleanup_cmd_msg_buffer;
+		goto cleanup_unregister_candev;
 	} else {
 		netdev_info(netdev,
 			 "firmware: %d.%d, hardware: %d.%d\n",
@@ -988,6 +988,9 @@ static int usb_8dev_probe(struct usb_interface *intf,
 	devm_can_led_init(netdev);
 
 	return 0;
+
+cleanup_unregister_candev:
+	unregister_netdev(priv->netdev);
 
 cleanup_cmd_msg_buffer:
 	kfree(priv->cmd_msg_buffer);

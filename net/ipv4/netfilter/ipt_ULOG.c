@@ -125,15 +125,16 @@ static void ulog_send(struct ulog_net *ulog, unsigned int nlgroupnum)
 /* timer function to flush queue in flushtimeout time */
 static void ulog_timer(unsigned long data)
 {
+	unsigned int groupnum = *((unsigned int *)data);
 	struct ulog_net *ulog = container_of((void *)data,
 					     struct ulog_net,
-					     nlgroup[*(unsigned int *)data]);
+					     nlgroup[groupnum]);
 	pr_debug("timer function called, calling ulog_send\n");
 
 	/* lock to protect against somebody modifying our structure
 	 * from ipt_ulog_target at the same time */
 	spin_lock_bh(&ulog->lock);
-	ulog_send(ulog, data);
+	ulog_send(ulog, groupnum);
 	spin_unlock_bh(&ulog->lock);
 }
 
@@ -407,8 +408,11 @@ static int __net_init ulog_tg_net_init(struct net *net)
 
 	spin_lock_init(&ulog->lock);
 	/* initialize ulog_buffers */
-	for (i = 0; i < ULOG_MAXNLGROUPS; i++)
-		setup_timer(&ulog->ulog_buffers[i].timer, ulog_timer, i);
+	for (i = 0; i < ULOG_MAXNLGROUPS; i++) {
+		ulog->nlgroup[i] = i;
+		setup_timer(&ulog->ulog_buffers[i].timer, ulog_timer,
+			    (unsigned long)&ulog->nlgroup[i]);
+	}
 
 	ulog->nflognl = netlink_kernel_create(net, NETLINK_NFLOG, &cfg);
 	if (!ulog->nflognl)
