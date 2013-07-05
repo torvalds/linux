@@ -2641,7 +2641,7 @@ static void haswell_update_sprite_wm(struct drm_device *dev, int pipe,
 		if (intel_plane->pipe == pipe) {
 			intel_plane->wm.enabled = enabled;
 			intel_plane->wm.scaled = scaled;
-			intel_plane->wm.horiz_pixels = sprite_width + 1;
+			intel_plane->wm.horiz_pixels = sprite_width;
 			intel_plane->wm.bytes_per_pixel = pixel_size;
 			break;
 		}
