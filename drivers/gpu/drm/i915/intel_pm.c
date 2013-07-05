@@ -2095,8 +2095,8 @@ static void ivybridge_update_wm(struct drm_device *dev)
 		   cursor_wm);
 }
 
-static uint32_t hsw_wm_get_pixel_rate(struct drm_device *dev,
-				      struct drm_crtc *crtc)
+static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
+				    struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pixel_rate, pfit_size;
@@ -2388,7 +2388,7 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		pipes_active++;
 
 		p->pipe_htotal = intel_crtc->config.adjusted_mode.htotal;
-		p->pixel_rate = hsw_wm_get_pixel_rate(dev, crtc);
+		p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
 		p->pri_bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
 		p->cur_bytes_per_pixel = 4;
 		p->pri_horiz_pixels =
