@@ -7173,6 +7173,8 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 		next = btrfs_find_create_tree_block(root, bytenr, blocksize);
 		if (!next)
 			return -ENOMEM;
+		btrfs_set_buffer_lockdep_class(root->root_key.objectid, next,
+					       level - 1);
 		reada = 1;
 	}
 	btrfs_tree_lock(next);
