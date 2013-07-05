@@ -2178,6 +2178,9 @@ static int hdspm_get_wc_sample_rate(struct hdspm *hdspm)
 		status = hdspm_read(hdspm, HDSPM_RD_STATUS_1);
 		return (status >> 16) & 0xF;
 		break;
+	case AES32:
+		status = hdspm_read(hdspm, HDSPM_statusRegister);
+		return (status >> HDSPM_AES32_wcFreq_bit) & 0xF;
 	default:
 		break;
 	}
