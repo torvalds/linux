@@ -243,7 +243,6 @@ struct sdma_engine;
  * @event_id1		for channels that use 2 events
  * @word_size		peripheral access size
  * @buf_tail		ID of the buffer that was processed
- * @done		channel completion
  * @num_bd		max NUM_BD. number of descriptors currently handling
  */
 struct sdma_channel {
@@ -255,7 +254,6 @@ struct sdma_channel {
 	unsigned int			event_id1;
 	enum dma_slave_buswidth		word_size;
 	unsigned int			buf_tail;
-	struct completion		done;
 	unsigned int			num_bd;
 	struct sdma_buffer_descriptor	*bd;
 	dma_addr_t			bd_phys;
@@ -547,8 +545,6 @@ static void sdma_tasklet(unsigned long data)
 {
 	struct sdma_channel *sdmac = (struct sdma_channel *) data;
 
-	complete(&sdmac->done);
-
 	if (sdmac->flags & IMX_DMA_SG_LOOP)
 		sdma_handle_channel_loop(sdmac);
 	else
@@ -812,9 +808,6 @@ static int sdma_request_channel(struct sdma_channel *sdmac)
 	sdma->channel_control[channel].current_bd_ptr = sdmac->bd_phys;
 
 	sdma_set_channel_priority(sdmac, MXC_SDMA_DEFAULT_PRIORITY);
-
-	init_completion(&sdmac->done);
-
 	return 0;
 out:
 
