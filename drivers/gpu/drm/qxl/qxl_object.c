@@ -363,3 +363,13 @@ int qxl_bo_list_add(struct qxl_reloc_list *reloc_list, struct qxl_bo *bo)
 		return ret;
 	return 0;
 }
+
+int qxl_surf_evict(struct qxl_device *qdev)
+{
+	return ttm_bo_evict_mm(&qdev->mman.bdev, TTM_PL_PRIV0);
+}
+
+int qxl_vram_evict(struct qxl_device *qdev)
+{
+	return ttm_bo_evict_mm(&qdev->mman.bdev, TTM_PL_VRAM);
+}
