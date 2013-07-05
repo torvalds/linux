@@ -55,11 +55,6 @@
 		reg = <0x4a>;
 	};
 
-	rtc@51 {
-		compatible = "nxp,pcf8563";
-		reg = <0x51>;
-	};
-
 	at24@52 {
 		compatible = "at,24c32";
 		pagesize = <32>;
