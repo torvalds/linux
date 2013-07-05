@@ -558,36 +558,36 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 /* names for speed modes */
 static char *hdspm_speed_names[] = { "single", "double", "quad" };
 
-static char *texts_autosync_aes_tco[] = { "Word Clock",
+static const char *const texts_autosync_aes_tco[] = { "Word Clock",
 					  "AES1", "AES2", "AES3", "AES4",
 					  "AES5", "AES6", "AES7", "AES8",
 					  "TCO", "Sync In"
 };
-static char *texts_autosync_aes[] = { "Word Clock",
+static const char *const texts_autosync_aes[] = { "Word Clock",
 				      "AES1", "AES2", "AES3", "AES4",
 				      "AES5", "AES6", "AES7", "AES8",
 				      "Sync In"
 };
-static char *texts_autosync_madi_tco[] = { "Word Clock",
+static const char *const texts_autosync_madi_tco[] = { "Word Clock",
 					   "MADI", "TCO", "Sync In" };
-static char *texts_autosync_madi[] = { "Word Clock",
+static const char *const texts_autosync_madi[] = { "Word Clock",
 				       "MADI", "Sync In" };
 
-static char *texts_autosync_raydat_tco[] = {
+static const char *const texts_autosync_raydat_tco[] = {
 	"Word Clock",
 	"ADAT 1", "ADAT 2", "ADAT 3", "ADAT 4",
 	"AES", "SPDIF", "TCO", "Sync In"
 };
-static char *texts_autosync_raydat[] = {
+static const char *const texts_autosync_raydat[] = {
 	"Word Clock",
 	"ADAT 1", "ADAT 2", "ADAT 3", "ADAT 4",
 	"AES", "SPDIF", "Sync In"
 };
-static char *texts_autosync_aio_tco[] = {
+static const char *const texts_autosync_aio_tco[] = {
 	"Word Clock",
 	"ADAT", "AES", "SPDIF", "TCO", "Sync In"
 };
-static char *texts_autosync_aio[] = { "Word Clock",
+static const char *const texts_autosync_aio[] = { "Word Clock",
 				      "ADAT", "AES", "SPDIF", "Sync In" };
 
 static const char *const texts_freq[] = {
@@ -975,7 +975,7 @@ struct hdspm {
 
 	struct hdspm_tco *tco;  /* NULL if no TCO detected */
 
-	char **texts_autosync;
+	const char *const *texts_autosync;
 	int texts_autosync_items;
 
 	cycles_t last_interrupt;
@@ -2888,16 +2888,7 @@ static int snd_hdspm_info_pref_sync_ref(struct snd_kcontrol *kcontrol,
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = hdspm->texts_autosync_items;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-			hdspm->texts_autosync[uinfo->value.enumerated.item]);
+	snd_ctl_enum_info(uinfo, 1, hdspm->texts_autosync_items, hdspm->texts_autosync);
 
 	return 0;
 }
