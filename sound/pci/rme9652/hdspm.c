@@ -4412,11 +4412,15 @@ static struct snd_kcontrol_new snd_hdspm_controls_aio[] = {
 	HDSPM_AUTOSYNC_SAMPLE_RATE("ADAT Frequency", 3),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("TCO Frequency", 4),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("SYNC IN Frequency", 5),
+	HDSPM_CONTROL_TRISTATE("S/PDIF Input", HDSPM_c0_Input0),
 	HDSPM_TOGGLE_SETTING("S/PDIF Out Optical", HDSPM_c0_Spdif_Opt),
 	HDSPM_TOGGLE_SETTING("S/PDIF Out Professional", HDSPM_c0_Pro),
 	HDSPM_TOGGLE_SETTING("ADAT internal (AEB/TEB)", HDSPM_c0_AEB1),
 	HDSPM_TOGGLE_SETTING("XLR Breakout Cable", HDSPM_c0_Sym6db),
-	HDSPM_TOGGLE_SETTING("Single Speed WordClock Out", HDSPM_c0_Wck48)
+	HDSPM_TOGGLE_SETTING("Single Speed WordClock Out", HDSPM_c0_Wck48),
+	HDSPM_CONTROL_TRISTATE("Input Level", HDSPM_c0_AD_GAIN0),
+	HDSPM_CONTROL_TRISTATE("Output Level", HDSPM_c0_DA_GAIN0),
+	HDSPM_CONTROL_TRISTATE("Phones Level", HDSPM_c0_PH_GAIN0)
 
 		/*
 		   HDSPM_INPUT_SELECT("Input Select", 0),
