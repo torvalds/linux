@@ -4364,7 +4364,9 @@ static struct snd_kcontrol_new snd_hdspm_controls_raydat[] = {
 	HDSPM_AUTOSYNC_SAMPLE_RATE("ADAT3 Frequency", 5),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("ADAT4 Frequency", 6),
 	HDSPM_AUTOSYNC_SAMPLE_RATE("TCO Frequency", 7),
-	HDSPM_AUTOSYNC_SAMPLE_RATE("SYNC IN Frequency", 8)
+	HDSPM_AUTOSYNC_SAMPLE_RATE("SYNC IN Frequency", 8),
+	HDSPM_TOGGLE_SETTING("S/PDIF Out Professional", HDSPM_c0_Pro),
+	HDSPM_TOGGLE_SETTING("Single Speed WordClock Out", HDSPM_c0_Wck48)
 };
 
 static struct snd_kcontrol_new snd_hdspm_controls_aes32[] = {
