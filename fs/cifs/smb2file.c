@@ -88,7 +88,7 @@ smb2_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
 
 	rc = SMB2_open(xid, tcon, smb2_path, &fid->persistent_fid,
 		       &fid->volatile_fid, desired_access, disposition,
-		       0, 0, smb2_oplock, smb2_data);
+		       create_options, smb2_oplock, smb2_data);
 	if (rc)
 		goto out;
 

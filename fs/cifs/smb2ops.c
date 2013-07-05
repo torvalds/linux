@@ -222,7 +222,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 
 	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
-		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0, &oplock, NULL);
+		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, &oplock, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;
@@ -450,7 +450,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 
 	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
-		       FILE_READ_ATTRIBUTES | FILE_READ_DATA, FILE_OPEN, 0, 0,
+		       FILE_READ_ATTRIBUTES | FILE_READ_DATA, FILE_OPEN, 0,
 		       &oplock, NULL);
 	kfree(utf16_path);
 	if (rc) {
@@ -533,7 +533,7 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 
 	rc = SMB2_open(xid, tcon, &srch_path, &persistent_fid, &volatile_fid,
-		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0, &oplock, NULL);
+		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, &oplock, NULL);
 	if (rc)
 		return rc;
 	buf->f_type = SMB2_MAGIC_NUMBER;

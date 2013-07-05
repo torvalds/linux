@@ -109,8 +109,8 @@ extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 extern int SMB2_open(const unsigned int xid, struct cifs_tcon *tcon,
 		     __le16 *path, u64 *persistent_fid, u64 *volatile_fid,
 		     __u32 desired_access, __u32 create_disposition,
-		     __u32 file_attributes, __u32 create_options,
-		     __u8 *oplock, struct smb2_file_all_info *buf);
+		     __u32 create_options, __u8 *oplock,
+		     struct smb2_file_all_info *buf);
 extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
 		     bool is_fsctl, char *in_data, u32 indatalen,

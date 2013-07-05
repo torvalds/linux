@@ -881,8 +881,8 @@ parse_lease_state(struct smb2_create_rsp *rsp)
 int
 SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	  u64 *persistent_fid, u64 *volatile_fid, __u32 desired_access,
-	  __u32 create_disposition, __u32 file_attributes, __u32 create_options,
-	  __u8 *oplock, struct smb2_file_all_info *buf)
+	  __u32 create_disposition, __u32 create_options, __u8 *oplock,
+	  struct smb2_file_all_info *buf)
 {
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
@@ -895,6 +895,7 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	int copy_size;
 	int rc = 0;
 	int num_iovecs = 2;
+	__u32 file_attributes = 0;
 
 	cifs_dbg(FYI, "create/open\n");
 
@@ -907,13 +908,16 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	if (rc)
 		return rc;
 
+	if (create_options & CREATE_OPTION_READONLY)
+		file_attributes |= ATTR_READONLY;
+
 	req->ImpersonationLevel = IL_IMPERSONATION;
 	req->DesiredAccess = cpu_to_le32(desired_access);
 	/* File attributes ignored on open (used in create though) */
 	req->FileAttributes = cpu_to_le32(file_attributes);
 	req->ShareAccess = FILE_SHARE_ALL_LE;
 	req->CreateDisposition = cpu_to_le32(create_disposition);
-	req->CreateOptions = cpu_to_le32(create_options);
+	req->CreateOptions = cpu_to_le32(create_options & CREATE_OPTIONS_MASK);
 	uni_path_len = (2 * UniStrnlen((wchar_t *)path, PATH_MAX)) + 2;
 	req->NameOffset = cpu_to_le16(sizeof(struct smb2_create_req)
 			- 8 /* pad */ - 4 /* do not count rfc1001 len field */);
