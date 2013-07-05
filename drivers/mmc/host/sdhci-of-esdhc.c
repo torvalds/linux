@@ -121,6 +121,13 @@ static void esdhc_writeb(struct sdhci_host *host, u8 val, int reg)
 	if (reg == SDHCI_HOST_CONTROL) {
 		u32 dma_bits;
 
+		/*
+		 * If host control register is not standard, exit
+		 * this function
+		 */
+		if (host->quirks2 & SDHCI_QUIRK2_BROKEN_HOST_CONTROL)
+			return;
+
 		/* DMA select is 22,23 bits in Protocol Control Register */
 		dma_bits = (val & SDHCI_CTRL_DMA_MASK) << 5;
 		clrsetbits_be32(host->ioaddr + reg , SDHCI_CTRL_DMA_MASK << 5,
@@ -289,6 +296,7 @@ static const struct sdhci_pltfm_data sdhci_esdhc_pdata = {
 static int sdhci_esdhc_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
+	struct device_node *np;
 	int ret;
 
 	host = sdhci_pltfm_init(pdev, &sdhci_esdhc_pdata, 0);
@@ -296,6 +304,15 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 		return PTR_ERR(host);
 
 	sdhci_get_of_property(pdev);
+
+	np = pdev->dev.of_node;
+	if (of_device_is_compatible(np, "fsl,p2020-esdhc")) {
+		/*
+		 * Freescale messed up with P2020 as it has a non-standard
+		 * host control register
+		 */
+		host->quirks2 |= SDHCI_QUIRK2_BROKEN_HOST_CONTROL;
+	}
 
 	/* call to generic mmc_of_parse to support additional capabilities */
 	mmc_of_parse(host->mmc);
