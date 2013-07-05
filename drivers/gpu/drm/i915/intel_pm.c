@@ -2260,8 +2260,7 @@ static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
 
 /* Only for WM_LP. */
 static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
-				   uint32_t pri_val,
-				   uint32_t mem_value)
+				   uint32_t pri_val)
 {
 	if (!params->active)
 		return 0;
@@ -2284,7 +2283,7 @@ static bool hsw_compute_lp_wm(uint32_t mem_value, struct hsw_wm_maximums *max,
 		pri_val[pipe] = ilk_compute_pri_wm(p, mem_value, true);
 		spr_val[pipe] = ilk_compute_spr_wm(p, mem_value);
 		cur_val[pipe] = ilk_compute_cur_wm(p, mem_value);
-		fbc_val[pipe] = ilk_compute_fbc_wm(p, pri_val[pipe], mem_value);
+		fbc_val[pipe] = ilk_compute_fbc_wm(p, pri_val[pipe]);
 	}
 
 	result->pri_val = max3(pri_val[0], pri_val[1], pri_val[2]);
