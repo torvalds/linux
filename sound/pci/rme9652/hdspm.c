@@ -3348,6 +3348,84 @@ static int snd_hdspm_put_qs_wire(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+#define HDSPM_CONTROL_TRISTATE(xname, xindex) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.private_value = xindex, \
+	.info = snd_hdspm_info_tristate, \
+	.get = snd_hdspm_get_tristate, \
+	.put = snd_hdspm_put_tristate \
+}
+
+static int hdspm_tristate(struct hdspm *hdspm, u32 regmask)
+{
+	u32 reg = hdspm->settings_register & (regmask * 3);
+	return reg / regmask;
+}
+
+static int hdspm_set_tristate(struct hdspm *hdspm, int mode, u32 regmask)
+{
+	hdspm->settings_register &= ~(regmask * 3);
+	hdspm->settings_register |= (regmask * mode);
+	hdspm_write(hdspm, HDSPM_WR_SETTINGS, hdspm->settings_register);
+
+	return 0;
+}
+
+static int snd_hdspm_info_tristate(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	u32 regmask = kcontrol->private_value;
+
+	static char *texts_spdif[] = { "Optical", "Coaxial", "Internal" };
+	static char *texts_levels[] = { "Hi Gain", "+4 dBu", "-10 dBV" };
+
+	switch (regmask) {
+	case HDSPM_c0_Input0:
+		ENUMERATED_CTL_INFO(uinfo, texts_spdif);
+		break;
+	default:
+		ENUMERATED_CTL_INFO(uinfo, texts_levels);
+		break;
+	}
+	return 0;
+}
+
+static int snd_hdspm_get_tristate(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	u32 regmask = kcontrol->private_value;
+
+	spin_lock_irq(&hdspm->lock);
+	ucontrol->value.enumerated.item[0] = hdspm_tristate(hdspm, regmask);
+	spin_unlock_irq(&hdspm->lock);
+	return 0;
+}
+
+static int snd_hdspm_put_tristate(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	u32 regmask = kcontrol->private_value;
+	int change;
+	int val;
+
+	if (!snd_hdspm_use_is_exclusive(hdspm))
+		return -EBUSY;
+	val = ucontrol->value.integer.value[0];
+	if (val < 0)
+		val = 0;
+	if (val > 2)
+		val = 2;
+
+	spin_lock_irq(&hdspm->lock);
+	change = val != hdspm_tristate(hdspm, regmask);
+	hdspm_set_tristate(hdspm, val, regmask);
+	spin_unlock_irq(&hdspm->lock);
+	return change;
+}
+
 #define HDSPM_MADI_SPEEDMODE(xname, xindex) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = xname, \
