@@ -1176,17 +1176,36 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 		timecode = hdspm_read(hdspm, HDSPM_timecodeRegister);
 
 		syncref = hdspm_autosync_ref(hdspm);
+		switch (syncref) {
+		case HDSPM_AES32_AUTOSYNC_FROM_WORD:
+		/* Check WC sync and get sample rate */
+			if (hdspm_wc_sync_check(hdspm))
+				return HDSPM_bit2freq(hdspm_get_wc_sample_rate(hdspm));
+			break;
 
-		if (syncref == HDSPM_AES32_AUTOSYNC_FROM_WORD &&
-				status & HDSPM_AES32_wcLock)
-			return HDSPM_bit2freq((status >> HDSPM_AES32_wcFreq_bit) & 0xF);
+		case HDSPM_AES32_AUTOSYNC_FROM_AES1:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES2:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES3:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES4:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES5:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES6:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES7:
+		case HDSPM_AES32_AUTOSYNC_FROM_AES8:
+		/* Check AES sync and get sample rate */
+			if (hdspm_aes_sync_check(hdspm, syncref - HDSPM_AES32_AUTOSYNC_FROM_AES1))
+				return HDSPM_bit2freq(hdspm_get_aes_sample_rate(hdspm,
+							syncref - HDSPM_AES32_AUTOSYNC_FROM_AES1));
+			break;
 
-		if (syncref >= HDSPM_AES32_AUTOSYNC_FROM_AES1 &&
-				syncref <= HDSPM_AES32_AUTOSYNC_FROM_AES8 &&
-				status2 & (HDSPM_LockAES >>
-				(syncref - HDSPM_AES32_AUTOSYNC_FROM_AES1)))
-			return HDSPM_bit2freq((timecode >> (4*(syncref-HDSPM_AES32_AUTOSYNC_FROM_AES1))) & 0xF);
-		return 0;
+
+		case HDSPM_AES32_AUTOSYNC_FROM_TCO:
+		/* Check TCO sync and get sample rate */
+			if (hdspm_tco_sync_check(hdspm))
+				return HDSPM_bit2freq(hdspm_get_tco_sample_rate(hdspm));
+			break;
+		default:
+			return 0;
+		} /* end switch(syncref) */
 		break;
 
 	case MADIface:
