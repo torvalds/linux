@@ -51,8 +51,6 @@ MODULE_PARM_DESC(immediate_undock, "1 (default) will cause the driver to "
 	" the driver to wait for userspace to write the undock sysfs file "
 	" before undocking");
 
-static struct atomic_notifier_head dock_notifier_list;
-
 static const struct acpi_device_id dock_device_ids[] = {
 	{"LNXDOCK", 0},
 	{"", 0},
@@ -88,6 +86,12 @@ struct dock_dependent_device {
 #define DOCK_IS_BAT	0x00000040
 #define DOCK_EVENT	3
 #define UNDOCK_EVENT	2
+
+enum dock_callback_type {
+	DOCK_CALL_HANDLER,
+	DOCK_CALL_FIXUP,
+	DOCK_CALL_UEVENT,
+};
 
 /*****************************************************************************
  *                         Dock Dependent device functions                   *
@@ -179,7 +183,7 @@ static void dock_release_hotplug(struct dock_dependent_device *dd)
 }
 
 static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
-			       bool uevent)
+			       enum dock_callback_type cb_type)
 {
 	acpi_notify_handler cb = NULL;
 	bool run = false;
@@ -189,8 +193,18 @@ static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
 	if (dd->hp_context) {
 		run = true;
 		dd->hp_refcount++;
-		if (dd->hp_ops)
-			cb = uevent ? dd->hp_ops->uevent : dd->hp_ops->handler;
+		if (dd->hp_ops) {
+			switch (cb_type) {
+			case DOCK_CALL_FIXUP:
+				cb = dd->hp_ops->fixup;
+				break;
+			case DOCK_CALL_UEVENT:
+				cb = dd->hp_ops->uevent;
+				break;
+			default:
+				cb = dd->hp_ops->handler;
+			}
+		}
 	}
 
 	mutex_unlock(&hotplug_lock);
@@ -372,9 +386,13 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 {
 	struct dock_dependent_device *dd;
 
+	/* Call driver specific post-dock fixups. */
+	list_for_each_entry(dd, &ds->dependent_devices, list)
+		dock_hotplug_event(dd, event, DOCK_CALL_FIXUP);
+
 	/* Call driver specific hotplug functions. */
 	list_for_each_entry(dd, &ds->dependent_devices, list)
-		dock_hotplug_event(dd, event, false);
+		dock_hotplug_event(dd, event, DOCK_CALL_HANDLER);
 
 	/*
 	 * Now make sure that an acpi_device is created for each dependent
@@ -405,7 +423,7 @@ static void dock_event(struct dock_station *ds, u32 event, int num)
 		kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 
 	list_for_each_entry(dd, &ds->dependent_devices, list)
-		dock_hotplug_event(dd, event, true);
+		dock_hotplug_event(dd, event, DOCK_CALL_UEVENT);
 
 	if (num != DOCK_EVENT)
 		kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
@@ -486,37 +504,6 @@ static int dock_in_progress(struct dock_station *ds)
 		return 1;
 	return 0;
 }
-
-/**
- * register_dock_notifier - add yourself to the dock notifier list
- * @nb: the callers notifier block
- *
- * If a driver wishes to be notified about dock events, they can
- * use this function to put a notifier block on the dock notifier list.
- * this notifier call chain will be called after a dock event, but
- * before hotplugging any new devices.
- */
-int register_dock_notifier(struct notifier_block *nb)
-{
-	if (!dock_station_count)
-		return -ENODEV;
-
-	return atomic_notifier_chain_register(&dock_notifier_list, nb);
-}
-EXPORT_SYMBOL_GPL(register_dock_notifier);
-
-/**
- * unregister_dock_notifier - remove yourself from the dock notifier list
- * @nb: the callers notifier block
- */
-void unregister_dock_notifier(struct notifier_block *nb)
-{
-	if (!dock_station_count)
-		return;
-
-	atomic_notifier_chain_unregister(&dock_notifier_list, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_dock_notifier);
 
 /**
  * register_hotplug_dock_device - register a hotplug function
@@ -658,8 +645,6 @@ static void dock_notify(struct dock_station *ds, u32 event)
 				complete_dock(ds);
 				break;
 			}
-			atomic_notifier_call_chain(&dock_notifier_list,
-						   event, NULL);
 			hotplug_dock_devices(ds, event);
 			complete_dock(ds);
 			dock_event(ds, event, DOCK_EVENT);
@@ -945,7 +930,6 @@ void __init acpi_dock_init(void)
 		return;
 	}
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&dock_notifier_list);
 	pr_info(PREFIX "%s: %d docks/bays found\n",
 		ACPI_DOCK_DRIVER_DESCRIPTION, dock_station_count);
 }

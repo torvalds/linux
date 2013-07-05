@@ -119,15 +119,14 @@ static void free_bridge(struct kref *kref)
  * TBD - figure out a way to only call fixups for
  * systems that require them.
  */
-static int post_dock_fixups(struct notifier_block *nb, unsigned long val,
-	void *v)
+static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
 {
-	struct acpiphp_func *func = container_of(nb, struct acpiphp_func, nb);
+	struct acpiphp_func *func = data;
 	struct pci_bus *bus = func->slot->bridge->pci_bus;
 	u32 buses;
 
 	if (!bus->self)
-		return  NOTIFY_OK;
+		return;
 
 	/* fixup bad _DCK function that rewrites
 	 * secondary bridge on slot
@@ -143,11 +142,11 @@ static int post_dock_fixups(struct notifier_block *nb, unsigned long val,
 			| ((unsigned int)(bus->busn_res.end) << 16);
 		pci_write_config_dword(bus->self, PCI_PRIMARY_BUS, buses);
 	}
-	return NOTIFY_OK;
 }
 
 
 static const struct acpi_dock_ops acpiphp_dock_ops = {
+	.fixup = post_dock_fixups,
 	.handler = hotplug_event_func,
 };
 
@@ -315,14 +314,6 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 			&acpiphp_dock_ops, newfunc,
 			acpiphp_dock_init, acpiphp_dock_release))
 			dbg("failed to register dock device\n");
-
-		/* we need to be notified when dock events happen
-		 * outside of the hotplug operation, since we may
-		 * need to do fixups before we can hotplug.
-		 */
-		newfunc->nb.notifier_call = post_dock_fixups;
-		if (register_dock_notifier(&newfunc->nb))
-			dbg("failed to register a dock notifier");
 	}
 
 	/* install notify handler */
@@ -472,7 +463,6 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 		list_for_each_entry(func, &slot->funcs, sibling) {
 			if (is_dock_device(func->handle)) {
 				unregister_hotplug_dock_device(func->handle);
-				unregister_dock_notifier(&func->nb);
 			}
 			if (!(func->flags & FUNC_HAS_DCK)) {
 				status = acpi_remove_notify_handler(func->handle,
