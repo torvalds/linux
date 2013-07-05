@@ -995,6 +995,7 @@ static inline void snd_hdspm_initialize_midi_flush(struct hdspm *hdspm);
 static inline int hdspm_get_pll_freq(struct hdspm *hdspm);
 static int hdspm_update_simple_mixer_controls(struct hdspm *hdspm);
 static int hdspm_autosync_ref(struct hdspm *hdspm);
+static int hdspm_set_toggle_setting(struct hdspm *hdspm, u32 regmask, int out);
 static int snd_hdspm_set_defaults(struct hdspm *hdspm);
 static int hdspm_system_clock_mode(struct hdspm *hdspm);
 static void hdspm_set_sgbuf(struct hdspm *hdspm,
@@ -2384,26 +2385,10 @@ static int hdspm_system_clock_mode(struct hdspm *hdspm)
  **/
 static void hdspm_set_system_clock_mode(struct hdspm *hdspm, int mode)
 {
-	switch (hdspm->io_type) {
-	case AIO:
-	case RayDAT:
-		if (0 == mode)
-			hdspm->settings_register |= HDSPM_c0Master;
-		else
-			hdspm->settings_register &= ~HDSPM_c0Master;
-
-		hdspm_write(hdspm, HDSPM_WR_SETTINGS, hdspm->settings_register);
-		break;
-
-	default:
-		if (0 == mode)
-			hdspm->control_register |= HDSPM_ClockModeMaster;
-		else
-			hdspm->control_register &= ~HDSPM_ClockModeMaster;
-
-		hdspm_write(hdspm, HDSPM_controlRegister,
-				hdspm->control_register);
-	}
+	hdspm_set_toggle_setting(hdspm,
+			(hdspm_is_raydat_or_aio(hdspm)) ?
+			HDSPM_c0Master : HDSPM_ClockModeMaster,
+			(0 == mode));
 }
 
 
