@@ -2365,6 +2365,13 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[5])
 		wm[2] = (sskpd >> 12) & 0xFF;
 		wm[3] = (sskpd >> 20) & 0x1FF;
 		wm[4] = (sskpd >> 32) & 0x1FF;
+	} else if (INTEL_INFO(dev)->gen >= 6) {
+		uint32_t sskpd = I915_READ(MCH_SSKPD);
+
+		wm[0] = (sskpd >> SSKPD_WM0_SHIFT) & SSKPD_WM_MASK;
+		wm[1] = (sskpd >> SSKPD_WM1_SHIFT) & SSKPD_WM_MASK;
+		wm[2] = (sskpd >> SSKPD_WM2_SHIFT) & SSKPD_WM_MASK;
+		wm[3] = (sskpd >> SSKPD_WM3_SHIFT) & SSKPD_WM_MASK;
 	}
 }
 
