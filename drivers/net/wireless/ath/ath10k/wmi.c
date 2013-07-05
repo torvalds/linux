@@ -501,8 +501,8 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	ie = (u8 *)cfg80211_find_ie(WLAN_EID_TIM, ies,
 				    (u8 *)skb_tail_pointer(bcn) - ies);
 	if (!ie) {
-		/* highly unlikely for mac80211 */
-		ath10k_warn("no tim ie found;\n");
+		if (arvif->vdev_type != WMI_VDEV_TYPE_IBSS)
+			ath10k_warn("no tim ie found;\n");
 		return;
 	}
 
