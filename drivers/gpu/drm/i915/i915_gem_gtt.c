@@ -629,14 +629,26 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		int ret;
 		DRM_DEBUG_KMS("reserving preallocated space: %x + %zx\n",
 			      obj->gtt_offset, obj->base.size);
 
 		BUG_ON(obj->gtt_space != I915_GTT_RESERVED);
-		obj->gtt_space = drm_mm_create_block(&dev_priv->mm.gtt_space,
-						     obj->gtt_offset,
-						     obj->base.size,
-						     false);
+		obj->gtt_space = kzalloc(sizeof(*obj->gtt_space), GFP_KERNEL);
+		if (!obj->gtt_space) {
+			DRM_ERROR("Failed to preserve object at offset %x\n",
+				  obj->gtt_offset);
+			continue;
+		}
+		ret = drm_mm_create_block(&dev_priv->mm.gtt_space,
+					  obj->gtt_space,
+					  obj->gtt_offset,
+					  obj->base.size);
+		if (ret) {
+			DRM_DEBUG_KMS("Reservation failed\n");
+			kfree(obj->gtt_space);
+			obj->gtt_space = NULL;
+		}
 		obj->has_global_gtt_mapping = 1;
 	}
 

@@ -147,12 +147,10 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	}
 }
 
-struct drm_mm_node *drm_mm_create_block(struct drm_mm *mm,
-					unsigned long start,
-					unsigned long size,
-					bool atomic)
+int drm_mm_create_block(struct drm_mm *mm, struct drm_mm_node *node,
+			unsigned long start, unsigned long size)
 {
-	struct drm_mm_node *hole, *node;
+	struct drm_mm_node *hole;
 	unsigned long end = start + size;
 	unsigned long hole_start;
 	unsigned long hole_end;
@@ -160,10 +158,6 @@ struct drm_mm_node *drm_mm_create_block(struct drm_mm *mm,
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
 		if (hole_start > start || hole_end < end)
 			continue;
-
-		node = drm_mm_kmalloc(mm, atomic);
-		if (unlikely(node == NULL))
-			return NULL;
 
 		node->start = start;
 		node->size = size;
@@ -184,11 +178,11 @@ struct drm_mm_node *drm_mm_create_block(struct drm_mm *mm,
 			node->hole_follows = 1;
 		}
 
-		return node;
+		return 0;
 	}
 
 	WARN(1, "no hole found for block 0x%lx + 0x%lx\n", start, size);
-	return NULL;
+	return -ENOSPC;
 }
 EXPORT_SYMBOL(drm_mm_create_block);
 

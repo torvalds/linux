@@ -333,6 +333,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
+	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return NULL;
@@ -347,11 +348,15 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (WARN_ON(size == 0))
 		return NULL;
 
-	stolen = drm_mm_create_block(&dev_priv->mm.stolen,
-				     stolen_offset, size,
-				     false);
-	if (stolen == NULL) {
+	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
+	if (!stolen)
+		return NULL;
+
+	ret = drm_mm_create_block(&dev_priv->mm.stolen, stolen, stolen_offset,
+				  size);
+	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen space\n");
+		kfree(stolen);
 		return NULL;
 	}
 
@@ -372,13 +377,18 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	 * later.
 	 */
 	if (drm_mm_initialized(&dev_priv->mm.gtt_space)) {
-		obj->gtt_space = drm_mm_create_block(&dev_priv->mm.gtt_space,
-						     gtt_offset, size,
-						     false);
-		if (obj->gtt_space == NULL) {
+		obj->gtt_space = kzalloc(sizeof(*obj->gtt_space), GFP_KERNEL);
+		if (!obj->gtt_space) {
+			DRM_DEBUG_KMS("-ENOMEM stolen GTT space\n");
+			goto unref_out;
+		}
+
+		ret = drm_mm_create_block(&dev_priv->mm.gtt_space,
+					  obj->gtt_space,
+					  gtt_offset, size);
+		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			drm_gem_object_unreference(&obj->base);
-			return NULL;
+			goto free_out;
 		}
 	} else
 		obj->gtt_space = I915_GTT_RESERVED;
@@ -390,6 +400,13 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	return obj;
+
+free_out:
+	kfree(obj->gtt_space);
+	obj->gtt_space = NULL;
+unref_out:
+	drm_gem_object_unreference(&obj->base);
+	return NULL;
 }
 
 void

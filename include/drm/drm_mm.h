@@ -138,10 +138,10 @@ static inline unsigned long drm_mm_hole_node_end(struct drm_mm_node *hole_node)
 /*
  * Basic range manager support (drm_mm.c)
  */
-extern struct drm_mm_node *drm_mm_create_block(struct drm_mm *mm,
-					       unsigned long start,
-					       unsigned long size,
-					       bool atomic);
+extern int drm_mm_create_block(struct drm_mm *mm,
+			       struct drm_mm_node *node,
+			       unsigned long start,
+			       unsigned long size);
 extern struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *node,
 						    unsigned long size,
 						    unsigned alignment,
@@ -155,6 +155,7 @@ extern struct drm_mm_node *drm_mm_get_block_range_generic(
 						unsigned long start,
 						unsigned long end,
 						int atomic);
+
 static inline struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *parent,
 						   unsigned long size,
 						   unsigned alignment)
