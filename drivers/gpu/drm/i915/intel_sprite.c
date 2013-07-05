@@ -108,7 +108,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_framebuffer *fb,
 
 	sprctl |= SP_ENABLE;
 
-	intel_update_sprite_watermarks(dev, pipe, crtc_w, pixel_size, true,
+	intel_update_sprite_watermarks(dev, pipe, src_w, pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
 
 	/* Sizes are 0 based */
@@ -263,7 +263,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	if (IS_HASWELL(dev))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
-	intel_update_sprite_watermarks(dev, pipe, crtc_w, pixel_size, true,
+	intel_update_sprite_watermarks(dev, pipe, src_w, pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
 
 	/* Sizes are 0 based */
@@ -452,7 +452,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
 	dvscntr |= DVS_ENABLE;
 
-	intel_update_sprite_watermarks(dev, pipe, crtc_w, pixel_size, true,
+	intel_update_sprite_watermarks(dev, pipe, src_w, pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
 
 	/* Sizes are 0 based */
