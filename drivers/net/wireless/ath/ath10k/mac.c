@@ -1590,6 +1590,10 @@ static int ath10k_abort_scan(struct ath10k *ar)
 	ret = ath10k_wmi_stop_scan(ar, &arg);
 	if (ret) {
 		ath10k_warn("could not submit wmi stop scan (%d)\n", ret);
+		spin_lock_bh(&ar->data_lock);
+		ar->scan.in_progress = false;
+		ath10k_offchan_tx_purge(ar);
+		spin_unlock_bh(&ar->data_lock);
 		return -EIO;
 	}
 
