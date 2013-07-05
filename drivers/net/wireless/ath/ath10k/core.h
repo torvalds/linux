@@ -43,10 +43,6 @@
 
 struct ath10k;
 
-enum ath10k_bus {
-	ATH10K_BUS_PCI,
-};
-
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	bool is_mapped;
@@ -274,7 +270,6 @@ struct ath10k {
 
 	struct {
 		void *priv;
-		enum ath10k_bus bus;
 		const struct ath10k_hif_ops *ops;
 	} hif;
 
@@ -356,7 +351,6 @@ struct ath10k {
 };
 
 struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
-				  enum ath10k_bus bus,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
 

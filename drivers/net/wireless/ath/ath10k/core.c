@@ -441,7 +441,6 @@ static int ath10k_init_hw_params(struct ath10k *ar)
 }
 
 struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
-				  enum ath10k_bus bus,
 				  const struct ath10k_hif_ops *hif_ops)
 {
 	struct ath10k *ar;
@@ -458,7 +457,6 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 
 	ar->hif.priv = hif_priv;
 	ar->hif.ops = hif_ops;
-	ar->hif.bus = bus;
 
 	ar->free_vdev_map = 0xFF; /* 8 vdevs */
 

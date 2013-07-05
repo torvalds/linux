@@ -2157,8 +2157,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	ath10k_pci_dump_features(ar_pci);
 
-	ar = ath10k_core_create(ar_pci, ar_pci->dev, ATH10K_BUS_PCI,
-				&ath10k_pci_hif_ops);
+	ar = ath10k_core_create(ar_pci, ar_pci->dev, &ath10k_pci_hif_ops);
 	if (!ar) {
 		ath10k_err("ath10k_core_create failed!\n");
 		ret = -EINVAL;
