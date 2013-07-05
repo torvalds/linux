@@ -640,10 +640,10 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 				  obj->gtt_offset);
 			continue;
 		}
-		ret = drm_mm_create_block(&dev_priv->mm.gtt_space,
-					  obj->gtt_space,
-					  obj->gtt_offset,
-					  obj->base.size);
+		obj->gtt_space->start = obj->gtt_offset;
+		obj->gtt_space->size = obj->base.size;
+		ret = drm_mm_reserve_node(&dev_priv->mm.gtt_space,
+					  obj->gtt_space);
 		if (ret) {
 			DRM_DEBUG_KMS("Reservation failed\n");
 			kfree(obj->gtt_space);

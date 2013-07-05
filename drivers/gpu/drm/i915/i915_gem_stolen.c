@@ -352,8 +352,9 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (!stolen)
 		return NULL;
 
-	ret = drm_mm_create_block(&dev_priv->mm.stolen, stolen, stolen_offset,
-				  size);
+	stolen->start = stolen_offset;
+	stolen->size = size;
+	ret = drm_mm_reserve_node(&dev_priv->mm.stolen, stolen);
 	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen space\n");
 		kfree(stolen);
@@ -383,9 +384,10 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 			goto unref_out;
 		}
 
-		ret = drm_mm_create_block(&dev_priv->mm.gtt_space,
-					  obj->gtt_space,
-					  gtt_offset, size);
+		obj->gtt_space->start = gtt_offset;
+		obj->gtt_space->size = size;
+		ret = drm_mm_reserve_node(&dev_priv->mm.gtt_space,
+					  obj->gtt_space);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
 			goto free_out;

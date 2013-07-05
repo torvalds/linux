@@ -147,27 +147,27 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	}
 }
 
-int drm_mm_create_block(struct drm_mm *mm, struct drm_mm_node *node,
-			unsigned long start, unsigned long size)
+int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 {
 	struct drm_mm_node *hole;
-	unsigned long end = start + size;
+	unsigned long end = node->start + node->size;
 	unsigned long hole_start;
 	unsigned long hole_end;
 
+	BUG_ON(node == NULL);
+
+	/* Find the relevant hole to add our node to */
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
-		if (hole_start > start || hole_end < end)
+		if (hole_start > node->start || hole_end < end)
 			continue;
 
-		node->start = start;
-		node->size = size;
 		node->mm = mm;
 		node->allocated = 1;
 
 		INIT_LIST_HEAD(&node->hole_stack);
 		list_add(&node->node_list, &hole->node_list);
 
-		if (start == hole_start) {
+		if (node->start == hole_start) {
 			hole->hole_follows = 0;
 			list_del_init(&hole->hole_stack);
 		}
@@ -181,10 +181,11 @@ int drm_mm_create_block(struct drm_mm *mm, struct drm_mm_node *node,
 		return 0;
 	}
 
-	WARN(1, "no hole found for block 0x%lx + 0x%lx\n", start, size);
+	WARN(1, "no hole found for node 0x%lx + 0x%lx\n",
+	     node->start, node->size);
 	return -ENOSPC;
 }
-EXPORT_SYMBOL(drm_mm_create_block);
+EXPORT_SYMBOL(drm_mm_reserve_node);
 
 struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *hole_node,
 					     unsigned long size,
