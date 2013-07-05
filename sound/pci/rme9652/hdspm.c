@@ -2954,19 +2954,20 @@ static int snd_hdspm_put_pref_sync_ref(struct snd_kcontrol *kcontrol,
 
 static int hdspm_autosync_ref(struct hdspm *hdspm)
 {
+	/* This looks at the autosync selected sync reference */
 	if (AES32 == hdspm->io_type) {
-		unsigned int status = hdspm_read(hdspm, HDSPM_statusRegister);
-		unsigned int syncref =
-			(status >> HDSPM_AES32_syncref_bit) & 0xF;
-		if (syncref == 0)
-			return HDSPM_AES32_AUTOSYNC_FROM_WORD;
-		if (syncref <= 8)
-			return syncref;
-		return HDSPM_AES32_AUTOSYNC_FROM_NONE;
-	} else if (MADI == hdspm->io_type) {
-		/* This looks at the autosync selected sync reference */
-		unsigned int status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 
+		unsigned int status = hdspm_read(hdspm, HDSPM_statusRegister);
+		unsigned int syncref = (status >> HDSPM_AES32_syncref_bit) & 0xF;
+		if ((syncref >= HDSPM_AES32_AUTOSYNC_FROM_WORD) &&
+				(syncref <= HDSPM_AES32_AUTOSYNC_FROM_SYNC_IN)) {
+			return syncref;
+		}
+		return HDSPM_AES32_AUTOSYNC_FROM_NONE;
+
+	} else if (MADI == hdspm->io_type) {
+
+		unsigned int status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 		switch (status2 & HDSPM_SelSyncRefMask) {
 		case HDSPM_SelSyncRef_WORD:
 			return HDSPM_AUTOSYNC_FROM_WORD;
