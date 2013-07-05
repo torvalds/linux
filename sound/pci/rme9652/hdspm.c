@@ -2926,7 +2926,7 @@ static int hdspm_autosync_ref(struct hdspm *hdspm)
 		case HDSPM_SelSyncRef_NVALID:
 			return HDSPM_AUTOSYNC_FROM_NONE;
 		default:
-			return 0;
+			return HDSPM_AUTOSYNC_FROM_NONE;
 		}
 
 	}
@@ -5260,7 +5260,7 @@ static int snd_hdspm_set_defaults(struct hdspm * hdspm)
 
 	case AES32:
 		hdspm->control_register =
-			HDSPM_ClockModeMaster |	/* Master Cloack Mode on */
+			HDSPM_ClockModeMaster |	/* Master Clock Mode on */
 			hdspm_encode_latency(7) | /* latency max=8192samples */
 			HDSPM_SyncRef0 |	/* AES1 is syncclock */
 			HDSPM_LineOut |	/* Analog output in */
@@ -6737,7 +6737,7 @@ static int snd_hdspm_create(struct snd_card *card,
 			if (NULL != hdspm->tco) {
 				hdspm_tco_write(hdspm);
 			}
-			snd_printk(KERN_INFO "HDSPM: MADI TCO module found\n");
+			snd_printk(KERN_INFO "HDSPM: MADI/AES TCO module found\n");
 		} else {
 			hdspm->tco = NULL;
 		}
@@ -6752,10 +6752,12 @@ static int snd_hdspm_create(struct snd_card *card,
 	case AES32:
 		if (hdspm->tco) {
 			hdspm->texts_autosync = texts_autosync_aes_tco;
-			hdspm->texts_autosync_items = 10;
+			hdspm->texts_autosync_items =
+				ARRAY_SIZE(texts_autosync_aes_tco);
 		} else {
 			hdspm->texts_autosync = texts_autosync_aes;
-			hdspm->texts_autosync_items = 9;
+			hdspm->texts_autosync_items =
+				ARRAY_SIZE(texts_autosync_aes);
 		}
 		break;
 
