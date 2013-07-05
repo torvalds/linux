@@ -818,7 +818,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	nfs_readdir_descriptor_t my_desc,
 			*desc = &my_desc;
 	struct nfs_open_dir_context *dir_ctx = file->private_data;
-	int res;
+	int res = 0;
 
 	dfprintk(FILE, "NFS: readdir(%s/%s) starting at cookie %llu\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
@@ -840,7 +840,8 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	desc->plus = nfs_use_readdirplus(inode, ctx) ? 1 : 0;
 
 	nfs_block_sillyrename(dentry);
-	res = nfs_revalidate_mapping(inode, file->f_mapping);
+	if (ctx->pos == 0 || nfs_attribute_cache_expired(inode))
+		res = nfs_revalidate_mapping(inode, file->f_mapping);
 	if (res < 0)
 		goto out;
 
