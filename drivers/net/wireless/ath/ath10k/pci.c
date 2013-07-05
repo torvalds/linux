@@ -2058,9 +2058,9 @@ static int ath10k_pci_reset_target(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_pci_device_reset(struct ath10k_pci *ar_pci)
+static void ath10k_pci_device_reset(struct ath10k *ar)
 {
-	struct ath10k *ar = ar_pci->ar;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	void __iomem *mem = ar_pci->mem;
 	int i;
 	u32 val;
@@ -2255,7 +2255,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	 * is in an unexpected state. We try to catch that here in order to
 	 * reset the Target and retry the probe.
 	 */
-	ath10k_pci_device_reset(ar_pci);
+	ath10k_pci_device_reset(ar);
 
 	ret = ath10k_pci_reset_target(ar);
 	if (ret)
