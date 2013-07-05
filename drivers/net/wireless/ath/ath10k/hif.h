@@ -66,8 +66,8 @@ struct ath10k_hif_ops {
 	 */
 	void (*send_complete_check)(struct ath10k *ar, u8 pipe_id, int force);
 
-	void (*init)(struct ath10k *ar,
-		     struct ath10k_hif_cb *callbacks);
+	void (*set_callbacks)(struct ath10k *ar,
+			      struct ath10k_hif_cb *callbacks);
 
 	u16 (*get_free_queue_number)(struct ath10k *ar, u8 pipe_id);
 };
@@ -122,10 +122,10 @@ static inline void ath10k_hif_send_complete_check(struct ath10k *ar,
 	ar->hif.ops->send_complete_check(ar, pipe_id, force);
 }
 
-static inline void ath10k_hif_init(struct ath10k *ar,
-				   struct ath10k_hif_cb *callbacks)
+static inline void ath10k_hif_set_callbacks(struct ath10k *ar,
+					    struct ath10k_hif_cb *callbacks)
 {
-	ar->hif.ops->init(ar, callbacks);
+	ar->hif.ops->set_callbacks(ar, callbacks);
 }
 
 static inline u16 ath10k_hif_get_free_queue_number(struct ath10k *ar,
