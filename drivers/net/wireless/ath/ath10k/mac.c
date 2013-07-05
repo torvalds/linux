@@ -1756,7 +1756,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	enum wmi_sta_powersave_param param;
 	int ret = 0;
-	u32 value;
+	u32 value, rts, frag;
 	int bit;
 
 	mutex_lock(&ar->conf_mutex);
@@ -1858,6 +1858,24 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		if (ret)
 			ath10k_warn("Failed to set PSPOLL count: %d\n", ret);
 	}
+
+	rts = min_t(u32, ar->hw->wiphy->rts_threshold, ATH10K_RTS_MAX);
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
+					 WMI_VDEV_PARAM_RTS_THRESHOLD,
+					 rts);
+	if (ret)
+		ath10k_warn("failed to set rts threshold for vdev %d (%d)\n",
+			    arvif->vdev_id, ret);
+
+	frag = clamp_t(u32, ar->hw->wiphy->frag_threshold,
+		       ATH10K_FRAGMT_THRESHOLD_MIN,
+		       ATH10K_FRAGMT_THRESHOLD_MAX);
+	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id,
+					WMI_VDEV_PARAM_FRAGMENTATION_THRESHOLD,
+					frag);
+	if (ret)
+		ath10k_warn("failed to set frag threshold for vdev %d (%d)\n",
+			    arvif->vdev_id, ret);
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR)
 		ar->monitor_present = true;
