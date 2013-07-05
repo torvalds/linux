@@ -377,26 +377,15 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
+	obj->gtt_space.start = gtt_offset;
+	obj->gtt_space.size = size;
 	if (drm_mm_initialized(&dev_priv->mm.gtt_space)) {
-		obj->gtt_space = kzalloc(sizeof(*obj->gtt_space), GFP_KERNEL);
-		if (!obj->gtt_space) {
-			DRM_DEBUG_KMS("-ENOMEM stolen GTT space\n");
-			goto unref_out;
-		}
-
-		obj->gtt_space->start = gtt_offset;
-		obj->gtt_space->size = size;
 		ret = drm_mm_reserve_node(&dev_priv->mm.gtt_space,
-					  obj->gtt_space);
+					  &obj->gtt_space);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			goto free_out;
+			goto unref_out;
 		}
-	} else {
-		if (WARN_ON(gtt_offset & ~PAGE_MASK))
-			DRM_DEBUG_KMS("Cannot preserve non page aligned offset\n");
-		obj->gtt_space =
-			(struct drm_mm_node *)((uintptr_t)(I915_GTT_RESERVED | gtt_offset));
 	}
 
 	obj->has_global_gtt_mapping = 1;
@@ -406,9 +395,6 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	return obj;
 
-free_out:
-	kfree(obj->gtt_space);
-	obj->gtt_space = NULL;
 unref_out:
 	drm_gem_object_unreference(&obj->base);
 	return NULL;

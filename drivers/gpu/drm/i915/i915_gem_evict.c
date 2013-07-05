@@ -38,7 +38,7 @@ mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 		return false;
 
 	list_add(&obj->exec_list, unwind);
-	return drm_mm_scan_add_block(obj->gtt_space);
+	return drm_mm_scan_add_block(&obj->gtt_space);
 }
 
 int
@@ -107,7 +107,7 @@ none:
 				       struct drm_i915_gem_object,
 				       exec_list);
 
-		ret = drm_mm_scan_remove_block(obj->gtt_space);
+		ret = drm_mm_scan_remove_block(&obj->gtt_space);
 		BUG_ON(ret);
 
 		list_del_init(&obj->exec_list);
@@ -127,7 +127,7 @@ found:
 		obj = list_first_entry(&unwind_list,
 				       struct drm_i915_gem_object,
 				       exec_list);
-		if (drm_mm_scan_remove_block(obj->gtt_space)) {
+		if (drm_mm_scan_remove_block(&obj->gtt_space)) {
 			list_move(&obj->exec_list, &eviction_list);
 			drm_gem_object_reference(&obj->base);
 			continue;

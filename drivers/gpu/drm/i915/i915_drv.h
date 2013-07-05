@@ -1202,7 +1202,6 @@ enum hdmi_force_audio {
 	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
 };
 
-#define I915_GTT_RESERVED (1<<0)
 #define I915_GTT_OFFSET_NONE ((u32)-1)
 
 struct drm_i915_gem_object_ops {
@@ -1229,7 +1228,7 @@ struct drm_i915_gem_object {
 	const struct drm_i915_gem_object_ops *ops;
 
 	/** Current space allocated to this object in the GTT, if any. */
-	struct drm_mm_node *gtt_space;
+	struct drm_mm_node gtt_space;
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
@@ -1359,14 +1358,14 @@ struct drm_i915_gem_object {
 static inline unsigned long
 i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
 {
-	return o->gtt_space->start;
+	return o->gtt_space.start;
 }
 
 /* Whether or not this object is currently mapped by the translation tables */
 static inline bool
 i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *o)
 {
-	return o->gtt_space != NULL;
+	return drm_mm_node_allocated(&o->gtt_space);
 }
 
 /* The size used in the translation tables may be larger than the actual size of
@@ -1376,14 +1375,14 @@ i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *o)
 static inline unsigned long
 i915_gem_obj_ggtt_size(struct drm_i915_gem_object *o)
 {
-	return o->gtt_space->size;
+	return o->gtt_space.size;
 }
 
 static inline void
 i915_gem_obj_ggtt_set_color(struct drm_i915_gem_object *o,
 			    enum i915_cache_level color)
 {
-	o->gtt_space->color = color;
+	o->gtt_space.color = color;
 }
 
 /**

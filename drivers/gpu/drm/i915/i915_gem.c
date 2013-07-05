@@ -2635,8 +2635,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	/* Avoid an unnecessary call to unbind on rebind. */
 	obj->map_and_fenceable = true;
 
-	drm_mm_put_block(obj->gtt_space);
-	obj->gtt_space = NULL;
+	drm_mm_remove_node(&obj->gtt_space);
 
 	return 0;
 }
@@ -2997,7 +2996,7 @@ static bool i915_gem_valid_gtt_space(struct drm_device *dev,
 	if (HAS_LLC(dev))
 		return true;
 
-	if (gtt_space == NULL)
+	if (!drm_mm_node_allocated(gtt_space))
 		return true;
 
 	if (list_empty(&gtt_space->node_list))
@@ -3065,7 +3064,6 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_mm_node *node;
 	u32 size, fence_size, fence_alignment, unfenced_alignment;
 	bool mappable, fenceable;
 	size_t gtt_max = map_and_fenceable ?
@@ -3110,14 +3108,9 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (node == NULL) {
-		i915_gem_object_unpin_pages(obj);
-		return -ENOMEM;
-	}
-
 search_free:
-	ret = drm_mm_insert_node_in_range_generic(&dev_priv->mm.gtt_space, node,
+	ret = drm_mm_insert_node_in_range_generic(&dev_priv->mm.gtt_space,
+						  &obj->gtt_space,
 						  size, alignment,
 						  obj->cache_level, 0, gtt_max);
 	if (ret) {
@@ -3129,30 +3122,28 @@ search_free:
 			goto search_free;
 
 		i915_gem_object_unpin_pages(obj);
-		kfree(node);
 		return ret;
 	}
-	if (WARN_ON(!i915_gem_valid_gtt_space(dev, node, obj->cache_level))) {
+	if (WARN_ON(!i915_gem_valid_gtt_space(dev, &obj->gtt_space,
+					      obj->cache_level))) {
 		i915_gem_object_unpin_pages(obj);
-		drm_mm_put_block(node);
+		drm_mm_remove_node(&obj->gtt_space);
 		return -EINVAL;
 	}
 
 	ret = i915_gem_gtt_prepare_object(obj);
 	if (ret) {
 		i915_gem_object_unpin_pages(obj);
-		drm_mm_put_block(node);
+		drm_mm_remove_node(&obj->gtt_space);
 		return ret;
 	}
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
-	obj->gtt_space = node;
-
 	fenceable =
-		node->size == fence_size &&
-		(node->start & (fence_alignment - 1)) == 0;
+		i915_gem_obj_ggtt_size(obj) == fence_size &&
+		(i915_gem_obj_ggtt_offset(obj) & (fence_alignment - 1)) == 0;
 
 	mappable = i915_gem_obj_ggtt_offset(obj) + obj->base.size <=
 		dev_priv->gtt.mappable_end;
@@ -3316,7 +3307,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		return -EBUSY;
 	}
 
-	if (!i915_gem_valid_gtt_space(dev, obj->gtt_space, cache_level)) {
+	if (!i915_gem_valid_gtt_space(dev, &obj->gtt_space, cache_level)) {
 		ret = i915_gem_object_unbind(obj);
 		if (ret)
 			return ret;
