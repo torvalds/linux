@@ -385,7 +385,7 @@ config SPI_SH_MSIOF
 
 config SPI_SH
 	tristate "SuperH SPI controller"
-	depends on SUPERH
+	depends on SUPERH || COMPILE_TEST
 	help
 	  SPI driver for SuperH SPI blocks.
 
