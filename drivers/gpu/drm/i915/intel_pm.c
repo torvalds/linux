@@ -2351,27 +2351,32 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	       PIPE_WM_LINETIME_TIME(linetime);
 }
 
+static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[5])
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_HASWELL(dev)) {
+		uint64_t sskpd = I915_READ64(MCH_SSKPD);
+
+		wm[0] = (sskpd >> 56) & 0xFF;
+		if (wm[0] == 0)
+			wm[0] = sskpd & 0xF;
+		wm[1] = ((sskpd >> 4) & 0xFF) * 5;
+		wm[2] = ((sskpd >> 12) & 0xFF) * 5;
+		wm[3] = ((sskpd >> 20) & 0x1FF) * 5;
+		wm[4] = ((sskpd >> 32) & 0x1FF) * 5;
+	}
+}
+
 static void hsw_compute_wm_parameters(struct drm_device *dev,
 				      struct hsw_pipe_wm_parameters *params,
-				      uint16_t *wm,
 				      struct hsw_wm_maximums *lp_max_1_2,
 				      struct hsw_wm_maximums *lp_max_5_6)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	uint64_t sskpd = I915_READ64(MCH_SSKPD);
 	enum pipe pipe;
 	int pipes_active = 0, sprites_enabled = 0;
-
-	if ((sskpd >> 56) & 0xFF)
-		wm[0] = (sskpd >> 56) & 0xFF;
-	else
-		wm[0] = sskpd & 0xF;
-	wm[1] = ((sskpd >> 4) & 0xFF) * 5;
-	wm[2] = ((sskpd >> 12) & 0xFF) * 5;
-	wm[3] = ((sskpd >> 20) & 0x1FF) * 5;
-	wm[4] = ((sskpd >> 32) & 0x1FF) * 5;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2608,10 +2613,11 @@ static void haswell_update_wm(struct drm_device *dev)
 	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
 	struct hsw_pipe_wm_parameters params[3];
 	struct hsw_wm_values results_1_2, results_5_6, *best_results;
-	uint16_t wm[5];
+	uint16_t wm[5] = {};
 	enum hsw_data_buf_partitioning partitioning;
 
-	hsw_compute_wm_parameters(dev, params, wm, &lp_max_1_2, &lp_max_5_6);
+	intel_read_wm_latency(dev, wm);
+	hsw_compute_wm_parameters(dev, params, &lp_max_1_2, &lp_max_5_6);
 
 	hsw_compute_wm_results(dev, params, wm, &lp_max_1_2, &results_1_2);
 	if (lp_max_1_2.pri != lp_max_5_6.pri) {
