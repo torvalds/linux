@@ -349,7 +349,8 @@ struct intel_plane {
 	 * for the watermark calculations. Currently only Haswell uses this.
 	 */
 	struct {
-		bool enable;
+		bool enabled;
+		bool scaled;
 		uint8_t bytes_per_pixel;
 		uint32_t horiz_pixels;
 	} wm;
@@ -770,8 +771,8 @@ extern void intel_ddi_init(struct drm_device *dev, enum port port);
 /* For use by IVB LP watermark workaround in intel_sprite.c */
 extern void intel_update_watermarks(struct drm_device *dev);
 extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
-					   uint32_t sprite_width,
-					   int pixel_size, bool enable);
+					   uint32_t sprite_width, int pixel_size,
+					   bool enabled, bool scaled);
 
 extern unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 						    unsigned int tiling_mode,
