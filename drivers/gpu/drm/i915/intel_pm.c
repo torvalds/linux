@@ -2353,7 +2353,7 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 
 static void hsw_compute_wm_parameters(struct drm_device *dev,
 				      struct hsw_pipe_wm_parameters *params,
-				      uint32_t *wm,
+				      uint16_t *wm,
 				      struct hsw_wm_maximums *lp_max_1_2,
 				      struct hsw_wm_maximums *lp_max_5_6)
 {
@@ -2426,7 +2426,7 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 
 static void hsw_compute_wm_results(struct drm_device *dev,
 				   struct hsw_pipe_wm_parameters *params,
-				   uint32_t *wm,
+				   uint16_t *wm,
 				   struct hsw_wm_maximums *lp_maximums,
 				   struct hsw_wm_values *results)
 {
@@ -2608,7 +2608,7 @@ static void haswell_update_wm(struct drm_device *dev)
 	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
 	struct hsw_pipe_wm_parameters params[3];
 	struct hsw_wm_values results_1_2, results_5_6, *best_results;
-	uint32_t wm[5];
+	uint16_t wm[5];
 	enum hsw_data_buf_partitioning partitioning;
 
 	hsw_compute_wm_parameters(dev, params, wm, &lp_max_1_2, &lp_max_5_6);
