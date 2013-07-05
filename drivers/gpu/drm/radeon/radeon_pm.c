@@ -586,11 +586,16 @@ static struct radeon_ps *radeon_dpm_pick_power_state(struct radeon_device *rdev,
 	struct radeon_ps *ps;
 	u32 ui_class;
 
-restart_search:
+	/* certain older asics have a separare 3D performance state,
+	 * so try that first if the user selected performance
+	 */
+	if (dpm_state == POWER_STATE_TYPE_PERFORMANCE)
+		dpm_state = POWER_STATE_TYPE_INTERNAL_3DPERF;
 	/* balanced states don't exist at the moment */
 	if (dpm_state == POWER_STATE_TYPE_BALANCED)
 		dpm_state = POWER_STATE_TYPE_PERFORMANCE;
 
+restart_search:
 	/* Pick the best power state based on current conditions */
 	for (i = 0; i < rdev->pm.dpm.num_ps; i++) {
 		ps = &rdev->pm.dpm.ps[i];
@@ -657,6 +662,10 @@ restart_search:
 			if (ps->class2 & ATOM_PPLIB_CLASSIFICATION2_ULV)
 				return ps;
 			break;
+		case POWER_STATE_TYPE_INTERNAL_3DPERF:
+			if (ps->class & ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE)
+				return ps;
+			break;
 		default:
 			break;
 		}
@@ -675,6 +684,8 @@ restart_search:
 		dpm_state = POWER_STATE_TYPE_BATTERY;
 		goto restart_search;
 	case POWER_STATE_TYPE_BATTERY:
+	case POWER_STATE_TYPE_BALANCED:
+	case POWER_STATE_TYPE_INTERNAL_3DPERF:
 		dpm_state = POWER_STATE_TYPE_PERFORMANCE;
 		goto restart_search;
 	default:
@@ -1003,8 +1014,8 @@ static int radeon_pm_init_dpm(struct radeon_device *rdev)
 	int ret;
 
 	/* default to performance state */
-	rdev->pm.dpm.state = POWER_STATE_TYPE_PERFORMANCE;
-	rdev->pm.dpm.user_state = POWER_STATE_TYPE_PERFORMANCE;
+	rdev->pm.dpm.state = POWER_STATE_TYPE_BALANCED;
+	rdev->pm.dpm.user_state = POWER_STATE_TYPE_BALANCED;
 	rdev->pm.default_sclk = rdev->clock.default_sclk;
 	rdev->pm.default_mclk = rdev->clock.default_mclk;
 	rdev->pm.current_sclk = rdev->clock.default_sclk;
