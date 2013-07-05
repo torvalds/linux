@@ -561,10 +561,13 @@ static char *hdspm_speed_names[] = { "single", "double", "quad" };
 static char *texts_autosync_aes_tco[] = { "Word Clock",
 					  "AES1", "AES2", "AES3", "AES4",
 					  "AES5", "AES6", "AES7", "AES8",
-					  "TCO" };
+					  "TCO", "Sync In"
+};
 static char *texts_autosync_aes[] = { "Word Clock",
 				      "AES1", "AES2", "AES3", "AES4",
-				      "AES5", "AES6", "AES7", "AES8" };
+				      "AES5", "AES6", "AES7", "AES8",
+				      "Sync In"
+};
 static char *texts_autosync_madi_tco[] = { "Word Clock",
 					   "MADI", "TCO", "Sync In" };
 static char *texts_autosync_madi[] = { "Word Clock",
@@ -2941,11 +2944,11 @@ static int snd_hdspm_info_autosync_ref(struct snd_kcontrol *kcontrol,
 
 	if (AES32 == hdspm->io_type) {
 		static char *texts[] = { "WordClock", "AES1", "AES2", "AES3",
-			"AES4",	"AES5", "AES6", "AES7", "AES8", "None"};
+			"AES4",	"AES5", "AES6", "AES7", "AES8", "TCO", "Sync In", "None"};
 
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 		uinfo->count = 1;
-		uinfo->value.enumerated.items = 10;
+		uinfo->value.enumerated.items = ARRAY_SIZE(texts);
 		if (uinfo->value.enumerated.item >=
 		    uinfo->value.enumerated.items)
 			uinfo->value.enumerated.item =
