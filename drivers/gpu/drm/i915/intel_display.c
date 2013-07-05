@@ -4461,7 +4461,7 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_ANALOG) ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI))
 		vlv_dpio_write(dev_priv, DPIO_LPF_COEFF(pipe),
-				 0x005f0021);
+				 0x009f0003);
 	else
 		vlv_dpio_write(dev_priv, DPIO_LPF_COEFF(pipe),
 				 0x00d0000f);
