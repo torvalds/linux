@@ -155,6 +155,7 @@ clock which they consume.
   dp			342
   mixer			343
   hdmi			344
+  g2d			345
 
 Example 1: An example of a clock controller node is listed below.
 
