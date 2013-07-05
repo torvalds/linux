@@ -147,7 +147,7 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 
 	inode = search_inode_for_lustre(sb, fid);
 	if (IS_ERR(inode))
-		RETURN(ERR_PTR(PTR_ERR(inode)));
+		RETURN(ERR_CAST(inode));
 
 	if (is_bad_inode(inode)) {
 		/* we didn't find the right inode.. */

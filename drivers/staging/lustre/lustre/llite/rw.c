@@ -110,7 +110,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
-		return ERR_PTR(PTR_ERR(env));
+		return ERR_CAST(env);
 
 	lcc = &vvp_env_info(env)->vti_io_ctx;
 	memset(lcc, 0, sizeof(*lcc));
