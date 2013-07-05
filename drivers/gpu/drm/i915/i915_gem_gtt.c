@@ -629,18 +629,20 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		uintptr_t offset = (uintptr_t) obj->gtt_space;
 		int ret;
-		DRM_DEBUG_KMS("reserving preallocated space: %x + %zx\n",
-			      obj->gtt_offset, obj->base.size);
+		DRM_DEBUG_KMS("reserving preallocated space: %lx + %zx\n",
+			      offset, obj->base.size);
 
-		BUG_ON(obj->gtt_space != I915_GTT_RESERVED);
+		BUG_ON((offset & I915_GTT_RESERVED) != 0);
+		offset &= ~I915_GTT_RESERVED;
 		obj->gtt_space = kzalloc(sizeof(*obj->gtt_space), GFP_KERNEL);
 		if (!obj->gtt_space) {
-			DRM_ERROR("Failed to preserve object at offset %x\n",
-				  obj->gtt_offset);
+			DRM_ERROR("Failed to preserve object at offset %lx\n",
+				  offset);
 			continue;
 		}
-		obj->gtt_space->start = obj->gtt_offset;
+		obj->gtt_space->start = (unsigned long)offset;
 		obj->gtt_space->size = obj->base.size;
 		ret = drm_mm_reserve_node(&dev_priv->mm.gtt_space,
 					  obj->gtt_space);

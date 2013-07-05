@@ -1202,7 +1202,7 @@ enum hdmi_force_audio {
 	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
 };
 
-#define I915_GTT_RESERVED ((struct drm_mm_node *)0x1)
+#define I915_GTT_RESERVED (1<<0)
 #define I915_GTT_OFFSET_NONE ((u32)-1)
 
 struct drm_i915_gem_object_ops {
@@ -1329,13 +1329,6 @@ struct drm_i915_gem_object {
 	struct hlist_node exec_node;
 	unsigned long exec_handle;
 	struct drm_i915_gem_exec_object2 *exec_entry;
-
-	/**
-	 * Current offset of the object in GTT space.
-	 *
-	 * This is the same as gtt_space->start
-	 */
-	uint32_t gtt_offset;
 
 	struct intel_ring_buffer *ring;
 

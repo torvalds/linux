@@ -2637,7 +2637,6 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 
 	drm_mm_put_block(obj->gtt_space);
 	obj->gtt_space = NULL;
-	obj->gtt_offset = 0;
 
 	return 0;
 }
@@ -3150,7 +3149,6 @@ search_free:
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	obj->gtt_space = node;
-	obj->gtt_offset = node->start;
 
 	fenceable =
 		node->size == fence_size &&

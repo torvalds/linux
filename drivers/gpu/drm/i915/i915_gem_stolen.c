@@ -392,10 +392,13 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
 			goto free_out;
 		}
-	} else
-		obj->gtt_space = I915_GTT_RESERVED;
+	} else {
+		if (WARN_ON(gtt_offset & ~PAGE_MASK))
+			DRM_DEBUG_KMS("Cannot preserve non page aligned offset\n");
+		obj->gtt_space =
+			(struct drm_mm_node *)((uintptr_t)(I915_GTT_RESERVED | gtt_offset));
+	}
 
-	obj->gtt_offset = gtt_offset;
 	obj->has_global_gtt_mapping = 1;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
