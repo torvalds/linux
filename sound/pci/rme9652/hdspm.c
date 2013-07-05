@@ -2224,6 +2224,23 @@ static int hdspm_get_sync_in_sample_rate(struct hdspm *hdspm)
 	return 0;
 }
 
+/**
+ * Returns the AES sample rate class for the given card.
+ **/
+static int hdspm_get_aes_sample_rate(struct hdspm *hdspm, int index)
+{
+	int timecode;
+
+	switch (hdspm->io_type) {
+	case AES32:
+		timecode = hdspm_read(hdspm, HDSPM_timecodeRegister);
+		return (timecode >> (4*index)) & 0xF;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
 
 /**
  * Returns the sample rate class for input source <idx> for
