@@ -1004,11 +1004,11 @@ enum ieee80211_smps_mode {
  * @radar_enabled: whether radar detection is enabled
  *
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
- *    (a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
- *    but actually means the number of transmissions not the number of retries
+ *	(a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
+ *	but actually means the number of transmissions not the number of retries
  * @short_frame_max_tx_count: Maximum number of transmissions for a "short"
- *    frame, called "dot11ShortRetryLimit" in 802.11, but actually means the
- *    number of transmissions not the number of retries
+ *	frame, called "dot11ShortRetryLimit" in 802.11, but actually means the
+ *	number of transmissions not the number of retries
  *
  * @smps_mode: spatial multiplexing powersave mode; note that
  *	%IEEE80211_SMPS_STATIC is used when the device is not
@@ -1092,7 +1092,7 @@ enum ieee80211_vif_flags {
  *	be off when it is %NULL there can still be races and packets could be
  *	processed after it switches back to %NULL.
  * @debugfs_dir: debugfs dentry, can be used by drivers to create own per
- *      interface debug files. Note that it will be NULL for the virtual
+ *	interface debug files. Note that it will be NULL for the virtual
  *	monitor interface (if that is requested.)
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
@@ -1425,10 +1425,10 @@ struct ieee80211_tx_control {
  *	the stack.
  *
  * @IEEE80211_HW_CONNECTION_MONITOR:
- *      The hardware performs its own connection monitoring, including
- *      periodic keep-alives to the AP and probing the AP on beacon loss.
- *      When this flag is set, signaling beacon-loss will cause an immediate
- *      change to disassociated state.
+ *	The hardware performs its own connection monitoring, including
+ *	periodic keep-alives to the AP and probing the AP on beacon loss.
+ *	When this flag is set, signaling beacon-loss will cause an immediate
+ *	change to disassociated state.
  *
  * @IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC:
  *	This device needs to get data from beacon before association (i.e.
@@ -1526,10 +1526,10 @@ enum ieee80211_hw_flags {
  * @channel_change_time: time (in microseconds) it takes to change channels.
  *
  * @max_signal: Maximum value for signal (rssi) in RX information, used
- *     only when @IEEE80211_HW_SIGNAL_UNSPEC or @IEEE80211_HW_SIGNAL_DB
+ *	only when @IEEE80211_HW_SIGNAL_UNSPEC or @IEEE80211_HW_SIGNAL_DB
  *
  * @max_listen_interval: max listen interval in units of beacon interval
- *     that HW supports
+ *	that HW supports
  *
  * @queues: number of available hardware transmit queues for
  *	data packets. WMM/QoS requires at least four, these
@@ -2443,7 +2443,7 @@ enum ieee80211_roc_type {
  *	The callback can sleep.
  *
  * @set_tsf: Set the TSF timer to the specified value in the firmware/hardware.
- *      Currently, this is only used for IBSS mode debugging. Is not a
+ *	Currently, this is only used for IBSS mode debugging. Is not a
  *	required function.
  *	The callback can sleep.
  *

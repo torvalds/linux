@@ -490,7 +490,7 @@ enum survey_info_flags {
  * @channel: the channel this survey record reports, mandatory
  * @filled: bitflag of flags from &enum survey_info_flags
  * @noise: channel noise in dBm. This and all following fields are
- *     optional
+ *	optional
  * @channel_time: amount of time in ms the radio spent on the channel
  * @channel_time_busy: amount of time the primary channel was sensed busy
  * @channel_time_ext_busy: amount of time the extension channel was sensed busy
@@ -546,9 +546,9 @@ struct cfg80211_crypto_settings {
 /**
  * struct cfg80211_beacon_data - beacon data
  * @head: head portion of beacon (before TIM IE)
- *     or %NULL if not changed
+ *	or %NULL if not changed
  * @tail: tail portion of beacon (after TIM IE)
- *     or %NULL if not changed
+ *	or %NULL if not changed
  * @head_len: length of @head
  * @tail_len: length of @tail
  * @beacon_ies: extra information element(s) to add into Beacon frames or %NULL
@@ -764,7 +764,7 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
  * @STATION_INFO_PLINK_STATE: @plink_state filled
  * @STATION_INFO_SIGNAL: @signal filled
  * @STATION_INFO_TX_BITRATE: @txrate fields are filled
- *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
+ *	(tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
  * @STATION_INFO_RX_PACKETS: @rx_packets filled with 32-bit value
  * @STATION_INFO_TX_PACKETS: @tx_packets filled with 32-bit value
  * @STATION_INFO_TX_RETRIES: @tx_retries filled
@@ -1509,7 +1509,7 @@ enum cfg80211_assoc_req_flags {
  * @prev_bssid: previous BSSID, if not %NULL use reassociate frame
  * @flags:  See &enum cfg80211_assoc_req_flags
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
- *   will be used in ht_capa.  Un-supported values will be ignored.
+ *	will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
  * @vht_capa: VHT capability override
  * @vht_capa_mask: VHT capability mask indicating which fields to use
@@ -1593,7 +1593,7 @@ struct cfg80211_disassoc_request {
  * @basic_rates: bitmap of basic rates to use when creating the IBSS
  * @mcast_rate: per-band multicast rate index + 1 (0: disabled)
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
- *   will be used in ht_capa.  Un-supported values will be ignored.
+ *	will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
  */
 struct cfg80211_ibss_params {
@@ -1635,9 +1635,9 @@ struct cfg80211_ibss_params {
  * @key: WEP key for shared key authentication
  * @flags:  See &enum cfg80211_assoc_req_flags
  * @bg_scan_period:  Background scan period in seconds
- *   or -1 to indicate that default value is to be used.
+ *	or -1 to indicate that default value is to be used.
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
- *   will be used in ht_capa.  Un-supported values will be ignored.
+ *	will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
  * @vht_capa:  VHT Capability overrides
  * @vht_capa_mask: The bits of vht_capa which are to be used.
