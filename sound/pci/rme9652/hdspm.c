@@ -2303,6 +2303,21 @@ static void snd_hdspm_set_infotext(struct snd_ctl_elem_info *uinfo,
 	snd_hdspm_set_infotext(info, texts, ARRAY_SIZE(texts))
 
 
+/* Helper function to query the external sample rate and return the
+ * corresponding enum to be returned to userspace.
+ */
+static int hdspm_external_rate_to_enum(struct hdspm *hdspm)
+{
+	int rate = hdspm_external_sample_rate(hdspm);
+	int i, selected_rate = 0;
+	for (i = 1; i < 10; i++)
+		if (HDSPM_bit2freq(i) == rate) {
+			selected_rate = i;
+			break;
+		}
+	return selected_rate;
+}
+
 
 #define HDSPM_AUTOSYNC_SAMPLE_RATE(xname, xindex) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
@@ -2396,18 +2411,9 @@ static int snd_hdspm_get_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 
 	case MADI:
 	case MADIface:
-		{
-			int rate = hdspm_external_sample_rate(hdspm);
-			int i, selected_rate = 0;
-			for (i = 1; i < 10; i++)
-				if (HDSPM_bit2freq(i) == rate) {
-					selected_rate = i;
-					break;
-				}
-			ucontrol->value.enumerated.item[0] = selected_rate;
-		}
+		ucontrol->value.enumerated.item[0] =
+			hdspm_external_rate_to_enum(hdspm);
 		break;
-
 	default:
 		break;
 	}
