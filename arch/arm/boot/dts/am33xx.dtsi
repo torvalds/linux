@@ -26,6 +26,10 @@
 		serial5 = &uart5;
 		d_can0 = &dcan0;
 		d_can1 = &dcan1;
+		usb0 = &usb0;
+		usb1 = &usb1;
+		phy0 = &usb0_phy;
+		phy1 = &usb1_phy;
 	};
 
 	cpus {
@@ -333,21 +337,86 @@
 			status = "disabled";
 		};
 
-		usb@47400000 {
-			compatible = "ti,musb-am33xx";
-			reg = <0x47400000 0x1000	/* usbss */
-			       0x47401000 0x800		/* musb instance 0 */
-			       0x47401800 0x800>;	/* musb instance 1 */
-			interrupts = <17		/* usbss */
-				      18		/* musb instance 0 */
-				      19>;		/* musb instance 1 */
-			multipoint = <1>;
-			num-eps = <16>;
-			ram-bits = <12>;
-			port0-mode = <3>;
-			port1-mode = <3>;
-			power = <250>;
+		usb: usb@47400000 {
+			compatible = "ti,am33xx-usb";
+			reg = <0x47400000 0x1000>;
+			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			ti,hwmods = "usb_otg_hs";
+			status = "disabled";
+
+			ctrl_mod: control@44e10000 {
+				compatible = "ti,am335x-usb-ctrl-module";
+				reg = <0x44e10620 0x10
+					0x44e10648 0x4>;
+				reg-names = "phy_ctrl", "wakeup";
+				status = "disabled";
+			};
+
+			usb0_phy: phy@47401300 {
+				compatible = "ti,am335x-usb-phy";
+				reg = <0x47401300 0x100>;
+				reg-names = "phy";
+				status = "disabled";
+				ti,ctrl_mod = <&ctrl_mod>;
+			};
+
+			usb0: usb@47401000 {
+				compatible = "ti,musb-am33xx";
+				ranges;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x47401000 0x200>;
+				reg-names = "control";
+				status = "disabled";
+
+				musb0: usb@47401400 {
+					compatible = "mg,musbmhdrc";
+					reg = <0x47401400 0x400>;
+					reg-names = "mc";
+					interrupts = <18>;
+					interrupt-names = "mc";
+					multipoint = <1>;
+					num-eps = <16>;
+					ram-bits = <12>;
+					port-mode = <3>;
+					power = <250>;
+					phys = <&usb0_phy>;
+				};
+			};
+
+			usb1_phy: phy@47401b00 {
+				compatible = "ti,am335x-usb-phy";
+				reg = <0x47401b00 0x100>;
+				reg-names = "phy";
+				status = "disabled";
+				ti,ctrl_mod = <&ctrl_mod>;
+			};
+
+			usb1: usb@47401800 {
+				compatible = "ti,musb-am33xx";
+				ranges;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x47401800 0x200>;
+				reg-names = "control";
+				status = "disabled";
+
+				musb1: usb@47401c00 {
+					compatible = "mg,musbmhdrc";
+					reg = <0x47401c00 0x400>;
+					reg-names = "mc";
+					interrupts = <19>;
+					interrupt-names = "mc";
+					multipoint = <1>;
+					num-eps = <16>;
+					ram-bits = <12>;
+					port-mode = <3>;
+					power = <250>;
+					phys = <&usb1_phy>;
+				};
+			};
 		};
 
 		epwmss0: epwmss@48300000 {
