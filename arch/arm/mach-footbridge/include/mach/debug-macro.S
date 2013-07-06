@@ -23,7 +23,6 @@
 		.endm
 
 #define UART_SHIFT	0
-#define FLOW_CONTROL
 #include <asm/hardware/debug-8250.S>
 
 #else

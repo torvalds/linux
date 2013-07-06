@@ -21,7 +21,7 @@
 		.endm
 
 		.macro	waituart,rd,rx
-#ifdef FLOW_CONTROL
+#ifdef CONFIG_DEBUG_UART_8250_FLOW_CONTROL
 1001:		ldrb	\rd, [\rx, #UART_MSR << UART_SHIFT]
 		tst	\rd, #UART_MSR_CTS
 		beq	1001b

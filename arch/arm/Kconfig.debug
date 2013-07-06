@@ -856,6 +856,15 @@ config DEBUG_LL_INCLUDE
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"
 
+config DEBUG_UART_8250
+	def_bool ARCH_EBSA110 || (FOOTBRIDGE && !DEBUG_DC21285_PORT) || \
+		ARCH_GEMINI || ARCH_RPC
+
+config DEBUG_UART_8250_FLOW_CONTROL
+	bool "Enable flow control for 8250 UART"
+	depends on DEBUG_UART_8250
+	default y if ARCH_EBSA110 || FOOTBRIDGE || ARCH_GEMINI || ARCH_RPC
+
 config DEBUG_UNCOMPRESS
 	bool
 	depends on ARCH_MULTIPLATFORM
