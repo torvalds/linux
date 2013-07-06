@@ -1,13 +1,20 @@
 /*
  * arch/arm/include/asm/hardware/debug-8250.S
  *
- *  Copyright (C) 1994-1999 Russell King
+ *  Copyright (C) 1994-2013 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 #include <linux/serial_reg.h>
+
+#ifdef CONFIG_DEBUG_UART_PHYS
+		.macro	addruart, rp, rv, tmp
+		ldr	\rp, =CONFIG_DEBUG_UART_PHYS
+		ldr	\rv, =CONFIG_DEBUG_UART_VIRT
+		.endm
+#endif
 
 #ifndef UART_SHIFT
 #define UART_SHIFT CONFIG_DEBUG_UART_8250_SHIFT

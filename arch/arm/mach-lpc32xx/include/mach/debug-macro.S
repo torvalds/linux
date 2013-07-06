@@ -15,14 +15,4 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
-/*
- * Debug output is hardcoded to standard UART 5
-*/
-
-	.macro	addruart, rp, rv, tmp
-	ldreq	\rp, =0x40090000
-	ldrne	\rv, =0xF4090000
-	.endm
-
 #include <asm/hardware/debug-8250.S>

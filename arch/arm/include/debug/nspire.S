@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  *
  */
-
+#ifdef CONFIG_DEBUG_NSPIRE_CX_UART
 #define NSPIRE_EARLY_UART_PHYS_BASE	   0x90020000
 #define NSPIRE_EARLY_UART_VIRT_BASE	   0xfee20000
 
@@ -17,8 +17,6 @@
 	ldr \rv, =(NSPIRE_EARLY_UART_VIRT_BASE)		@ virtual base address
 .endm
 
-
-#ifdef CONFIG_DEBUG_NSPIRE_CX_UART
 #include <asm/hardware/debug-pl01x.S>
 #endif
 

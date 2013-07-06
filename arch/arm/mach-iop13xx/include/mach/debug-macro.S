@@ -10,14 +10,4 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
-	.macro	addruart, rp, rv, tmp
-	mov	\rp, #0x00002300
-	orr	\rp, \rp, #0x00000040
-	orr	\rv, \rp, #0xfe000000	@ virtual
-	orr	\rv, \rv, #0x00e80000
-	orr	\rp, \rp, #0xff000000	@ physical
-	orr	\rp, \rp, #0x00d80000
-	.endm
-
 #include <asm/hardware/debug-8250.S>

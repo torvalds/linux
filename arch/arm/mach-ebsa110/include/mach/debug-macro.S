@@ -10,11 +10,4 @@
  * published by the Free Software Foundation.
  *
 **/
-
-		.macro	addruart, rp, rv, tmp
-		mov	\rp, #0xf0000000
-		orr	\rp, \rp, #0x00000be0
-		mov	\rp, \rv
-		.endm
-
 #include <asm/hardware/debug-8250.S>

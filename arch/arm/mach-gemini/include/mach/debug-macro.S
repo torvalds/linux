@@ -9,11 +9,4 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <mach/hardware.h>
-
-	.macro	addruart, rp, rv, tmp
-	ldr	\rp, =GEMINI_UART_BASE			@ physical
-	ldr	\rv, =IO_ADDRESS(GEMINI_UART_BASE)	@ virtual
-	.endm
-
 #include <asm/hardware/debug-8250.S>

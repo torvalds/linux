@@ -7,14 +7,4 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
-
-#include <mach/orion5x.h>
-
-	.macro  addruart, rp, rv, tmp
-	ldr	\rp, =ORION5X_REGS_PHYS_BASE
-	ldr	\rv, =ORION5X_REGS_VIRT_BASE
-	orr	\rp, \rp, #0x00012000
-	orr	\rv, \rv, #0x00012000
-	.endm
-
 #include <asm/hardware/debug-8250.S>
