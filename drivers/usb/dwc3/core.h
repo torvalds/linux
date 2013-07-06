@@ -29,6 +29,7 @@
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/otg.h>
 
 /* Global constants */
 #define DWC3_EP0_BOUNCE_SIZE	512
@@ -545,11 +546,6 @@ struct dwc3_hwparams {
 /* HWPARAMS0 */
 #define DWC3_MODE(n)		((n) & 0x7)
 
-#define DWC3_MODE_DEVICE	0
-#define DWC3_MODE_HOST		1
-#define DWC3_MODE_DRD		2
-#define DWC3_MODE_HUB		3
-
 #define DWC3_MDWIDTH(n)		(((n) & 0xff00) >> 8)
 
 /* HWPARAMS1 */
@@ -611,7 +607,7 @@ struct dwc3_scratchpad_array {
  * @u1u2: only used on revisions <1.83a for workaround
  * @maximum_speed: maximum speed requested (mainly for testing purposes)
  * @revision: revision register contents
- * @mode: mode of operation
+ * @dr_mode: requested mode of operation
  * @usb2_phy: pointer to USB2 PHY
  * @usb3_phy: pointer to USB3 PHY
  * @dcfg: saved contents of DCFG register
@@ -669,6 +665,8 @@ struct dwc3 {
 	void __iomem		*regs;
 	size_t			regs_size;
 
+	enum usb_dr_mode	dr_mode;
+
 	/* used for suspend/resume */
 	u32			dcfg;
 	u32			gctl;
@@ -677,7 +675,6 @@ struct dwc3 {
 	u32			u1u2;
 	u32			maximum_speed;
 	u32			revision;
-	u32			mode;
 
 #define DWC3_REVISION_173A	0x5533173a
 #define DWC3_REVISION_175A	0x5533175a
