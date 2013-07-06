@@ -4540,10 +4540,10 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	}
 
 	if (is_sdvo)
-		dpll |= DPLL_DVO_HIGH_SPEED;
+		dpll |= DPLL_SDVO_HIGH_SPEED;
 
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DISPLAYPORT))
-		dpll |= DPLL_DVO_HIGH_SPEED;
+		dpll |= DPLL_SDVO_HIGH_SPEED;
 
 	/* compute bitmask from p1 value */
 	if (IS_PINEVIEW(dev))
@@ -4614,6 +4614,9 @@ static void i8xx_update_pll(struct intel_crtc *crtc,
 		if (clock->p2 == 4)
 			dpll |= PLL_P2_DIVIDE_BY_4;
 	}
+
+	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DVO))
+		dpll |= DPLL_DVO_2X_MODE;
 
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_LVDS) &&
 		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
@@ -5647,9 +5650,9 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		<< PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 
 	if (is_sdvo)
-		dpll |= DPLL_DVO_HIGH_SPEED;
+		dpll |= DPLL_SDVO_HIGH_SPEED;
 	if (intel_crtc->config.has_dp_encoder)
-		dpll |= DPLL_DVO_HIGH_SPEED;
+		dpll |= DPLL_SDVO_HIGH_SPEED;
 
 	/* compute bitmask from p1 value */
 	dpll |= (1 << (intel_crtc->config.dpll.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
