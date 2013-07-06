@@ -16,5 +16,4 @@
 	ldr	\rv, =IO_ADDRESS(GEMINI_UART_BASE)	@ virtual
 	.endm
 
-#define UART_SHIFT	2
 #include <asm/hardware/debug-8250.S>

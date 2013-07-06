@@ -20,5 +20,4 @@
 	orr	\rp, \rp, #0x00d80000
 	.endm
 
-#define UART_SHIFT	2
 #include <asm/hardware/debug-8250.S>

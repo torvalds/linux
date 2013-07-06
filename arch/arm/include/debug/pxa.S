@@ -29,5 +29,4 @@
 	ldr	\rv, =PXA_UART_REG_VIRT_BASE
 	.endm
 
-#define UART_SHIFT	2
 #include <asm/hardware/debug-8250.S>

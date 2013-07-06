@@ -22,7 +22,6 @@
 		orr	\rp, \rp, #0x7c000000	@ physical
 		.endm
 
-#define UART_SHIFT	0
 #include <asm/hardware/debug-8250.S>
 
 #else

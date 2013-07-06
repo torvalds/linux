@@ -23,6 +23,5 @@
 #endif
 
 #ifdef CONFIG_DEBUG_NSPIRE_CLASSIC_UART
-#define UART_SHIFT 2
 #include <asm/hardware/debug-8250.S>
 #endif

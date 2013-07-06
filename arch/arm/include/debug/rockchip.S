@@ -38,5 +38,4 @@
 	ldr	\rv, =ROCKCHIP_UART_DEBUG_VIRT_BASE
 	.endm
 
-#define UART_SHIFT	2
 #include <asm/hardware/debug-8250.S>

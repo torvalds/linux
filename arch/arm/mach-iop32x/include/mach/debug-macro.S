@@ -17,5 +17,4 @@
 		mov	\rv, \rp
 		.endm
 
-#define UART_SHIFT	0
 #include <asm/hardware/debug-8250.S>
