@@ -89,7 +89,7 @@ intel_fdi_link_freq(struct drm_device *dev)
 		return 27;
 }
 
-static const intel_limit_t intel_limits_i8xx_dvo = {
+static const intel_limit_t intel_limits_i8xx_dac = {
 	.dot = { .min = 25000, .max = 350000 },
 	.vco = { .min = 930000, .max = 1400000 },
 	.n = { .min = 3, .max = 16 },
@@ -100,6 +100,19 @@ static const intel_limit_t intel_limits_i8xx_dvo = {
 	.p1 = { .min = 2, .max = 33 },
 	.p2 = { .dot_limit = 165000,
 		.p2_slow = 4, .p2_fast = 2 },
+};
+
+static const intel_limit_t intel_limits_i8xx_dvo = {
+	.dot = { .min = 25000, .max = 350000 },
+	.vco = { .min = 930000, .max = 1400000 },
+	.n = { .min = 3, .max = 16 },
+	.m = { .min = 96, .max = 140 },
+	.m1 = { .min = 18, .max = 26 },
+	.m2 = { .min = 6, .max = 16 },
+	.p = { .min = 4, .max = 128 },
+	.p1 = { .min = 2, .max = 33 },
+	.p2 = { .dot_limit = 165000,
+		.p2_slow = 4, .p2_fast = 4 },
 };
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
@@ -410,8 +423,10 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc, int refclk)
 	} else {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i8xx_lvds;
-		else
+		else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DVO))
 			limit = &intel_limits_i8xx_dvo;
+		else
+			limit = &intel_limits_i8xx_dac;
 	}
 	return limit;
 }
