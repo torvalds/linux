@@ -16,6 +16,10 @@
 #include "sdxc.h"
 #include "smc_syscall.h"
 
+#if defined CONFIG_MMC_SUNXI_NEW || defined CONFIG_MMC_SUNXI_NEW_MODULE
+#error Only one of the old and new SUNXI MMC drivers may be selected
+#endif
+
 extern unsigned int smc_debug;
 
 /******************************************************************************************************

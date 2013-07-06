@@ -5,7 +5,7 @@
 comment "SUNXI MMC/SD/SDIO Host Controller Drivers"
 
 config MMC_SUNXI
-	tristate "SUNXI MMC Card Interface support"
+	tristate "SUNXI MMC Card Interface support (old driver)"
 	depends on MMC
 	help
 	  This selects Allwinner SUNXI card support.  If you have an SUNXI

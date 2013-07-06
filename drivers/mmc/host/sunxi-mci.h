@@ -15,6 +15,8 @@
 #ifndef _SW_HOST_OP_H_
 #define _SW_HOST_OP_H_ "host_op.h"
 
+#include <plat/sys_config.h>
+
 #define DRIVER_NAME "sunxi-mmc"
 #define DRIVER_RIVISION "Rev3.1"
 #define DRIVER_VERSION " SD/MMC/SDIO Host Controller Driver(" DRIVER_RIVISION ")\n" \
@@ -25,7 +27,7 @@
 /*---------- for sun6i ----------*/
 #ifdef CONFIG_ARCH_SUN6I
 #define REG_FIFO_OS	            (0x200)
-#define SMC_IRQNO(x)	        (AW_IRQ_MMC0 + (x))
+#define SMC_IRQNO(x)	        (SW_INT_IRQNO_SDMC0 + (x))
 
 #define MMC_SRCCLK_HOSC         CLK_SYS_HOSC
 #define MMC_SRCCLK_PLL6         CLK_SYS_PLL6
@@ -43,7 +45,7 @@
 /*---------- for sun7i ----------*/
 #ifdef CONFIG_ARCH_SUN7I
 #define REG_FIFO_OS	            (0x100)
-#define SMC_IRQNO(x)	        (AW_IRQ_MMC0 + (x))
+#define SMC_IRQNO(x)	        (SW_INT_IRQNO_SDMC0 + (x))
 
 #define MMC_SRCCLK_HOSC         "hosc"
 #define MMC_SRCCLK_PLL5         "sdram_pll_p"
@@ -255,7 +257,7 @@ struct sunxi_mmc_platform_data {
 	u32 f_max;
 	u32 f_ddr_max;
 	u32 dma_tl;
-	char* regulator;
+	char regulator[32];
 
 	/* sys config information */
 	u32 used:8,
@@ -264,10 +266,11 @@ struct sunxi_mmc_platform_data {
 	    wpmode:4,
 	    has_hwrst:4,
 	    isiodev:4;
-	struct gpio_config mmcio[10];
-	struct gpio_config hwrst;
-	struct gpio_config cd;
-	struct gpio_config wp;
+	u32 mmcio[10];
+	user_gpio_set_t mmcio_settings[10];
+	u32 hwrst;
+	u32 cd;
+	u32 wp;
 };
 
 struct sunxi_mmc_host {
@@ -352,7 +355,6 @@ struct sunxi_mmc_host {
 	struct proc_dir_entry *proc_regs;
 	struct proc_dir_entry *proc_insert;
 	struct proc_dir_entry *proc_cdmode;
-	struct proc_dir_entry *proc_iodrive;
 #endif
 
 	/* backup register structrue */
@@ -361,11 +363,11 @@ struct sunxi_mmc_host {
 
 #define SMC_MSG(d, ...) \
     do { \
-        printk("[mmc-msg] "__VA_ARGS__); \
+        pr_info("[mmc-msg] "__VA_ARGS__); \
     } while(0)
 #define SMC_ERR(d, ...) \
     do { \
-		printk("[mmc-err] "__VA_ARGS__); \
+		pr_err("[mmc-err] "__VA_ARGS__); \
     } while(0)
 
 #define SMC_DEBUG_INFO	BIT(0)
@@ -375,7 +377,7 @@ struct sunxi_mmc_host {
 #define SMC_INF(d, ...) \
     do { \
         if ((d)->debuglevel & SMC_DEBUG_INFO) \
-			printk("[mmc-inf] "__VA_ARGS__); \
+			pr_info("[mmc-inf] "__VA_ARGS__); \
     } while(0)
 #define SMC_DBG(d, ...) \
     do { \

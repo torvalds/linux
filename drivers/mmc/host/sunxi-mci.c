@@ -40,15 +40,27 @@
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 
+#include <plat/system.h>
+#include <plat/sys_config.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <mach/sys_config.h>
 #include <mach/gpio.h>
 #include <mach/clock.h>
 
 #include "sunxi-mci.h"
 
+#if defined CONFIG_MMC_SUNXI || defined CONFIG_MMC_SUNXI_MODULE
+#error Only one of the old and new SUNXI MMC drivers may be selected
+#endif
+
+#define sw_host_num (sunxi_is_sun5i() ? 3 : 4)
+
+static DEFINE_MUTEX(sw_host_rescan_mutex);
+static int sw_host_rescan_pending[4] = { 0, };
 static struct sunxi_mmc_host* sw_host[4] = {NULL, NULL, NULL, NULL};
+
+static const char * const mmc_para_io[10] = { "sdc_clk", "sdc_cmd", "sdc_d0",
+	"sdc_d1", "sdc_d2", "sdc_d3", "sdc_d4", "sdc_d5", "sdc_d6", "sdc_d7" };
 
 #if 0
 static void dumphex32(char* name, char* base, int len)
@@ -551,7 +563,7 @@ out:
 		temp |= SDXC_FIFOReset;
 		mci_writel(smc_host, REG_GCTRL, temp);
 		dma_unmap_sg(mmc_dev(smc_host->mmc), data->sg, data->sg_len,
-                                data->flags & MMC_DATA_WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+				data->flags & MMC_DATA_WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	}
 
 	mci_writew(smc_host, REG_IMASK, 0);
@@ -594,11 +606,7 @@ static int sw_mci_set_clk(struct sunxi_mmc_host* smc_host, u32 clk)
 		sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_HOSC);
 	} else {
 		mod_clk = smc_host->mod_clk;
-#ifdef CONFIG_AW_FPGA_PLATFORM
-        sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_HOSC);
-#else
 		sclk = clk_get(&smc_host->pdev->dev, MMC_SRCCLK_PLL6);
-#endif
 	}
 	if (IS_ERR(sclk)) {
 		SMC_ERR(smc_host, "Error to get source clock for clk %dHz\n", clk);
@@ -617,18 +625,18 @@ static int sw_mci_set_clk(struct sunxi_mmc_host* smc_host, u32 clk)
 		clk_put(sclk);
 		return -1;
 	}
-    rate = clk_get_rate(smc_host->mclk);
-    if (0 == rate) {
-        SMC_ERR(smc_host, "sdc%d get mclk rate error\n",
-                        smc_host->pdev->id);
-        clk_put(sclk);
-        return -1;
-    }
+	rate = clk_get_rate(smc_host->mclk);
+	if (0 == rate) {
+		SMC_ERR(smc_host, "sdc%d get mclk rate error\n",
+			smc_host->pdev->id);
+		clk_put(sclk);
+		return -1;
+	}
 	src_clk = clk_get_rate(sclk);
 	clk_put(sclk);
 	smc_host->mod_clk = smc_host->card_clk = rate;
 
-	SMC_DBG(smc_host, "sdc%d set round clock %d\n", smc_host->pdev->id, rate);
+	SMC_MSG(smc_host, "sdc%d set round clock %d, src %d\n", smc_host->pdev->id, rate, src_clk);
 	sw_mci_oclk_onoff(smc_host, 0, 0);
 	/* clear internal divider */
 	temp = mci_readl(smc_host, REG_CLKCR);
@@ -668,217 +676,21 @@ static int sw_mci_set_clk(struct sunxi_mmc_host* smc_host, u32 clk)
 	return 0;
 }
 
-static int sw_mci_request_mmcio(struct sunxi_mmc_host *smc_host)
-{
-	s32 ret;
-	struct sunxi_mmc_platform_data *pdata = smc_host->pdata;
-	u32 smc_no = smc_host->pdev->id;
-	struct gpio_config *gpio;
-	u32 i;
-
-	/* signal io */
-	for (i=0; i<pdata->width+2; i++) {
-		gpio = &pdata->mmcio[i];
-		ret = gpio_request(gpio->gpio, "mmcio");
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d request mmcio%d failed\n", smc_no, i);
-			return -1;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, gpio->pull);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set mmcio%d pull failed\n", smc_no, i);
-			return -1;
-		}
-		ret = sw_gpio_setdrvlevel(gpio->gpio, gpio->drv_level);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set mmcio%d drvlel failed\n", smc_no, i);
-			return -1;
-		}
-		ret = sw_gpio_setcfg(gpio->gpio, gpio->mul_sel);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set mmcio%d mulsel failed\n", smc_no, i);
-			return -1;
-		}
-	}
-
-	/* emmc hwrst */
-	if (pdata->has_hwrst) {
-		gpio = &pdata->hwrst;
-		ret = gpio_request(gpio->gpio, "emmc-rst");
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d request io(emmc-rst) failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, gpio->pull);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set io(emmc-rst) pull failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setdrvlevel(gpio->gpio, gpio->drv_level);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set io(emmc-rst) drvlel failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setcfg(gpio->gpio, gpio->mul_sel);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set io(emmc-rst) mulsel failed\n", smc_no);
-			return -1;
-		}
-	}
-
-	/* write protect */
-	if (pdata->wpmode) {
-		gpio = &pdata->wp;
-		ret = gpio_request(gpio->gpio, "wp");
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d request io(wp) failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, gpio->pull);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set wp pull failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setdrvlevel(gpio->gpio, gpio->drv_level);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set wp drvlel failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setcfg(gpio->gpio, gpio->mul_sel);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set wp mulsel failed\n", smc_no);
-			return -1;
-		}
-	}
-
-	/* cd mode == gpio polling */
-	if (pdata->cdmode == CARD_DETECT_BY_GPIO_POLL) {
-		gpio = &pdata->cd;
-		ret = gpio_request(gpio->gpio, "cd");
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d request io(cd) failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, gpio->pull);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set cd pull failed\n", smc_no);
-			return -1;
-		}
-		ret = gpio_direction_input(gpio->gpio);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set cd to input failed\n", smc_no);
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
-static int sw_mci_free_mmcio(struct sunxi_mmc_host *smc_host)
+static void sw_mci_update_io_driving(struct sunxi_mmc_host *smc_host, u32 drv)
 {
 	u32 smc_no = smc_host->pdev->id;
 	struct sunxi_mmc_platform_data *pdata = smc_host->pdata;
-	struct gpio_config *gpio;
-	u32 i;
-	s32 ret;
+	int i, r;
 
-	for (i=0; i<pdata->width+2; i++) {
-		gpio = &pdata->mmcio[i];
-		ret = sw_gpio_setcfg(gpio->gpio, 7);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set mmcio%d mulsel failed\n", smc_no, i);
-			return -1;
-		}
-		ret = sw_gpio_setdrvlevel(gpio->gpio, 1);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set mmcio%d drvlel failed\n", smc_no, i);
-			return -1;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, 0);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set mmcio%d pull failed\n", smc_no, i);
-			return -1;
-		}
-		gpio_free(gpio->gpio);
-	}
-	/* emmc hwrst */
-	if (pdata->has_hwrst) {
-		gpio = &pdata->hwrst;
-		ret = sw_gpio_setcfg(gpio->gpio, 7);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set io(emmc-rst) mulsel failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setdrvlevel(gpio->gpio, 1);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set io(emmc-rst) drvlel failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, 0);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set io(emmc-rst) pull failed\n", smc_no);
-			return -1;
-		}
-		gpio_free(gpio->gpio);
-	}
-	/* write protect */
-	if (pdata->wpmode) {
-		gpio = &pdata->wp;
-		ret = sw_gpio_setcfg(gpio->gpio, 7);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set wp mulsel failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setdrvlevel(gpio->gpio, 1);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set wp drvlel failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, 0);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set wp pull failed\n", smc_no);
-			return -1;
-		}
-		gpio_free(gpio->gpio);
-	}
-	/* cd mode == gpio polling */
-	if (pdata->cdmode == CARD_DETECT_BY_GPIO_POLL) {
-		gpio = &pdata->cd;
-		ret = sw_gpio_setcfg(gpio->gpio, 7);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set wp mulsel failed\n", smc_no);
-			return -1;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, gpio->pull);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set cd pull failed\n", smc_no);
-			return -1;
-		}
-		gpio_free(gpio->gpio);
-	}
-	return 0;
-}
-
-static void sw_mci_update_io_driving(struct sunxi_mmc_host *smc_host, s32 driving)
-{
-	u32 smc_no = smc_host->pdev->id;
-	struct sunxi_mmc_platform_data *pdata = smc_host->pdata;
-	struct gpio_config *gpio = NULL;
-	u32 set_driving;
-	u32 i;
-	s32 ret;
-
-	for (i=0; i<pdata->width+2; i++) {
-		gpio = &pdata->mmcio[i];
-		set_driving = driving == -1 ? gpio->drv_level : driving;
-		ret = sw_gpio_setdrvlevel(gpio->gpio, set_driving);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d set mmcio%d drvlel failed\n", smc_no, i);
-			return;
+	for (i = 0; i < pdata->width + 2; i++) {
+		r = gpio_set_one_pin_driver_level(pdata->mmcio[i], drv,
+						  mmc_para_io[i]);
+		if (r != 0) {
+			SMC_ERR(smc_host, "sdc%u set %s drvlvl failed\n",
+				smc_no, mmc_para_io[i]);
 		}
 	}
-
-	SMC_DBG(smc_host, "sdc%d set mmcio driving to %d\n", smc_no, driving);
+	SMC_DBG(smc_host, "sdc%u set mmcio driving to %d\n", smc_no, drv);
 }
 
 static int sw_mci_resource_request(struct sunxi_mmc_host *smc_host)
@@ -890,18 +702,11 @@ static int sw_mci_resource_request(struct sunxi_mmc_host *smc_host)
 	struct resource* res = NULL;
 	s32 ret;
 
-	/* request IO */
-	ret = sw_mci_request_mmcio(smc_host);
-	if (ret) {
-		SMC_ERR(smc_host, "sdc%d request mmcio failed\n", pdev->id);
-		goto release_pin;
-	}
 	/* io mapping */
 	res = request_mem_region(SMC_BASE(smc_no), SMC_BASE_OS, pdev->name);
 	if (!res) {
 		SMC_ERR(smc_host, "Failed to request io memory region.\n");
-		ret = -ENOENT;
-		goto release_pin;
+		return -ENOENT;
 	}
 	smc_host->reg_base = ioremap(res->start, SMC_BASE_OS);
 	if (!smc_host->reg_base) {
@@ -935,7 +740,7 @@ static int sw_mci_resource_request(struct sunxi_mmc_host *smc_host)
 	}
 
 	/* get power regulator */
-	if (smc_host->pdata->regulator != NULL) {
+	if (smc_host->pdata->regulator[0]) {
 		smc_host->regulator = regulator_get(NULL, smc_host->pdata->regulator);
 		if (!smc_host->regulator) {
 			SMC_ERR(smc_host, "Get regulator %s failed\n", smc_host->pdata->regulator);
@@ -958,8 +763,6 @@ iounmap:
 	iounmap(smc_host->reg_base);
 free_mem_region:
 	release_mem_region(SMC_BASE(smc_no), SMC_BASE_OS);
-release_pin:
-	sw_mci_free_mmcio(smc_host);
 
 	return -1;
 }
@@ -988,8 +791,6 @@ static int sw_mci_resource_release(struct sunxi_mmc_host *smc_host)
 	iounmap(smc_host->reg_base);
 	release_mem_region(SMC_BASE(smc_host->pdev->id), SMC_BASE_OS);
 
-	sw_mci_free_mmcio(smc_host);
-
 	return 0;
 }
 
@@ -998,18 +799,14 @@ static void sw_mci_hold_io(struct sunxi_mmc_host* smc_host)
 	int ret;
 	u32 i;
 	struct sunxi_mmc_platform_data *pdata = smc_host->pdata;
-	struct gpio_config *gpio;
 
-	for (i=0; i<pdata->width+2; i++) {
-		gpio = &pdata->mmcio[i];
-		ret = sw_gpio_setcfg(gpio->gpio, 7);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d hold mmcio%d failed\n",
-						smc_host->pdev->id, i);
-			return;
-		}
-		ret = sw_gpio_setpull(gpio->gpio, 0);
-		if (ret) {
+	for (i = 0; i < pdata->width + 2; i++) {
+		user_gpio_set_t settings = pdata->mmcio_settings[i];
+		settings.mul_sel = 0;
+		settings.pull = 0;
+		ret = gpio_set_one_pin_status(pdata->mmcio[i], &settings,
+					      mmc_para_io[i], 1);
+		if (ret != 0) {
 			SMC_ERR(smc_host, "sdc%d hold mmcio%d failed\n",
 						smc_host->pdev->id, i);
 			return;
@@ -1025,19 +822,12 @@ static void sw_mci_restore_io(struct sunxi_mmc_host* smc_host)
 	int ret;
 	u32 i;
 	struct sunxi_mmc_platform_data *pdata = smc_host->pdata;
-	struct gpio_config *gpio;
 
-	for (i=0; i<pdata->width+2; i++) {
-		gpio = &pdata->mmcio[i];
-		ret = sw_gpio_setpull(gpio->gpio, gpio->pull);
+	for (i = 0; i < pdata->width + 2; i++) {
+		ret = gpio_set_one_pin_status(pdata->mmcio[i], NULL,
+					      mmc_para_io[i], 0);
 		if (ret) {
 			SMC_ERR(smc_host, "sdc%d restore mmcio%d failed\n",
-						smc_host->pdev->id, i);
-			return;
-		}
-		ret = sw_gpio_setcfg(gpio->gpio, gpio->mul_sel);
-		if (ret) {
-			SMC_ERR(smc_host, "sdc%d restore mmcio%d mulsel failed\n",
 						smc_host->pdev->id, i);
 			return;
 		}
@@ -1091,8 +881,7 @@ static s32 sw_mci_get_ro(struct mmc_host *mmc)
 	u32 wp_val;
 
 	if (pdata->wpmode) {
-		struct gpio_config *wp = &pdata->wp;
-		wp_val = __gpio_get_value(wp->gpio);
+		wp_val = gpio_read_one_pin_value(pdata->wp, "sdc_wp");
 		SMC_DBG(smc_host, "sdc fetch card wp pin status: %d \n", wp_val);
 		if (!wp_val) {
 			smc_host->read_only = 0;
@@ -1113,13 +902,12 @@ static void sw_mci_cd_cb(unsigned long data)
 {
 	struct sunxi_mmc_host *smc_host = (struct sunxi_mmc_host *)data;
 	struct sunxi_mmc_platform_data *pdata = smc_host->pdata;
-	struct gpio_config *cd = &pdata->cd;
 	u32 gpio_val = 0;
 	u32 present;
 	u32 i = 0;
 
 	for (i=0; i<5; i++) {
-		gpio_val += __gpio_get_value(cd->gpio);
+		gpio_val += gpio_read_one_pin_value(pdata->cd, "sdc_det");
 		mdelay(1);
 	}
 	if (gpio_val==5) {
@@ -1149,11 +937,13 @@ modtimer:
 	return;
 }
 
+#if 0
 static u32 sw_mci_cd_irq(void *data)
 {
 	sw_mci_cd_cb((unsigned long)data);
 	return 0;
 }
+#endif
 
 static int sw_mci_card_present(struct mmc_host *mmc)
 {
@@ -1342,7 +1132,6 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	} else {
 		temp &= ~SDXC_DDR_MODE;
 		smc_host->ddr = 0;
-		sw_mci_update_io_driving(smc_host, -1);
 	}
 	mci_writel(smc_host, REG_GCTRL, temp);
 
@@ -1356,15 +1145,8 @@ static void sw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		else
 			smc_host->mod_clk = ios->clock;
 		smc_host->card_clk = ios->clock;
-#ifdef CONFIG_AW_FPGA_PLATFORM
-        if (smc_host->mod_clk > 24000000)
-		    smc_host->mod_clk = 24000000;
-		if (smc_host->card_clk > smc_host->mod_clk)
-			smc_host->card_clk = smc_host->mod_clk;
-#elif defined CONFIG_AW_ASIC_PLATFORM
-        if (smc_host->mod_clk > 45000000)
-            smc_host->mod_clk = 45000000;
-#endif
+		if (smc_host->mod_clk > 45000000)
+			smc_host->mod_clk = 45000000;
 		sw_mci_set_clk(smc_host, smc_host->card_clk);
 		last_clock[id] = ios->clock;
 		usleep_range(50000, 55000);
@@ -1412,7 +1194,7 @@ static void sw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	int ret;
 
 	if (sw_mci_card_present(mmc) == 0 || smc_host->ferror || 
-        smc_host->suspend || !smc_host->power_on) {
+			smc_host->suspend || !smc_host->power_on) {
 		SMC_DBG(smc_host, "no medium present, ferr %d, suspend %d pwd %d\n",
 			    smc_host->ferror, smc_host->suspend, smc_host->power_on);
 		mrq->cmd->error = -ENOMEDIUM;
@@ -1662,20 +1444,27 @@ static int sw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
  * not wait for ready itself. So the driver of this kind of cards
  * should call this function to check the real status of the card.
  */
-void sw_mci_rescan_card(unsigned id, unsigned insert)
+void sunximmc_rescan_card(unsigned id, unsigned insert)
 {
 	struct sunxi_mmc_host *smc_host = NULL;
+	if (id > 3) {
+		pr_err("%s: card id more than 3.\n", __func__);
+		return;
+	}
 
-	BUG_ON(id > 3);
-	BUG_ON(sw_host[id] == NULL);
+	mutex_lock(&sw_host_rescan_mutex);
 	smc_host = sw_host[id];
+	if (!smc_host)
+		sw_host_rescan_pending[id] = insert;
+	mutex_unlock(&sw_host_rescan_mutex);
+	if (!smc_host)
+		return;
 
 	smc_host->present = insert ? 1 : 0;
-	printk("sw_mci_rescan_card\n");
 	mmc_detect_change(smc_host->mmc, 0);
 	return;
 }
-EXPORT_SYMBOL_GPL(sw_mci_rescan_card);
+EXPORT_SYMBOL_GPL(sunximmc_rescan_card);
 
 int sw_mci_check_r1_ready(struct mmc_host* mmc, unsigned ms)
 {
@@ -1868,78 +1657,6 @@ static int sw_mci_proc_card_insert_ctrl(struct file *file, const char __user *bu
 	return sizeof(insert);
 }
 
-static int sw_mci_proc_get_iodriving(char *page, char **start, off_t off,
-						int coutn, int *eof, void *data)
-{
-	char *p = page;
-	struct sunxi_mmc_host *smc_host = (struct sunxi_mmc_host *)data;
-	struct sunxi_mmc_platform_data *pdata = smc_host->pdata;
-	char* mmc_para_io[10] = {"sdc_clk", "sdc_cmd", "sdc_d0", "sdc_d1", "sdc_d2",
-				"sdc_d3", "sdc_d4", "sdc_d5", "sdc_d6", "sdc_d7"};
-	struct gpio_config *gpio;
-	u32 i;
-	u32 level;
-
-	p += sprintf(p, "current io driving:\n");
-	for (i=0; i<pdata->width; i++) {
-		gpio = &pdata->mmcio[i];
-		level = sw_gpio_getdrvlevel(gpio->gpio);
-		p += sprintf(p, "%s : %d\n", mmc_para_io[i], level);
-	}
-
-	return p - page;
-}
-
-static int sw_mci_proc_set_iodriving(struct file *file, const char __user *buffer,
-					unsigned long count, void *data)
-{
-	unsigned long driving = simple_strtoul(buffer, NULL, 16);
-	struct sunxi_mmc_host *smc_host = (struct sunxi_mmc_host *)data;
-	struct sunxi_mmc_platform_data *pdata = smc_host->pdata;
-	u32 clk_drv, cmd_drv, d0_drv, d1_drv, d2_drv, d3_drv, d4_drv, d5_drv, d6_drv, d7_drv;
-
-	clk_drv = 0xf & (driving >> 0);
-	cmd_drv = 0xf & (driving >> 4);
-	d0_drv = 0xf & (driving >> 8);
-	d1_drv = 0xf & (driving >> 12);
-	d2_drv = 0xf & (driving >> 16);
-	d3_drv = 0xf & (driving >> 20);
-	d4_drv = 0xf & (driving >> 8);
-	d5_drv = 0xf & (driving >> 12);
-	d6_drv = 0xf & (driving >> 16);
-	d7_drv = 0xf & (driving >> 20);
-
-	printk("set io driving, clk %x, cmd %x, d0 %x, d1 %x, d2, %x, d3 %x\n",
-		clk_drv, cmd_drv, d0_drv, d1_drv, d2_drv, d3_drv);
-	if (clk_drv > 0 && clk_drv < 4)
-		sw_gpio_setdrvlevel(pdata->mmcio[0].gpio, clk_drv);
-	if (cmd_drv > 0 && cmd_drv < 4)
-		sw_gpio_setdrvlevel(pdata->mmcio[1].gpio, clk_drv);
-	if (d0_drv > 0 && d0_drv < 4)
-		sw_gpio_setdrvlevel(pdata->mmcio[2].gpio, clk_drv);
-	if (pdata->width == 4 || pdata->width == 8) {
-		if (d1_drv > 0 && d1_drv < 4)
-			sw_gpio_setdrvlevel(pdata->mmcio[3].gpio, clk_drv);
-		if (d2_drv > 0 && d2_drv < 4)
-			sw_gpio_setdrvlevel(pdata->mmcio[4].gpio, clk_drv);
-		if (d3_drv > 0 && d3_drv < 4)
-			sw_gpio_setdrvlevel(pdata->mmcio[5].gpio, clk_drv);
-		if (pdata->width == 8) {
-			if (d4_drv > 0 && d4_drv < 4)
-				sw_gpio_setdrvlevel(pdata->mmcio[6].gpio, clk_drv);
-			if (d5_drv > 0 && d5_drv < 4)
-				sw_gpio_setdrvlevel(pdata->mmcio[7].gpio, clk_drv);
-			if (d6_drv > 0 && d6_drv < 4)
-				sw_gpio_setdrvlevel(pdata->mmcio[8].gpio, clk_drv);
-			if (d7_drv > 0 && d7_drv < 4)
-				sw_gpio_setdrvlevel(pdata->mmcio[9].gpio, clk_drv);
-		}
-	}
-
-	return count;
-}
-
-
 void sw_mci_procfs_attach(struct sunxi_mmc_host *smc_host)
 {
 	struct device *dev = &smc_host->pdev->dev;
@@ -1990,16 +1707,6 @@ void sw_mci_procfs_attach(struct sunxi_mmc_host *smc_host)
 	smc_host->proc_insert->data = smc_host;
 	smc_host->proc_insert->read_proc = sw_mci_proc_read_insert_status;
 	smc_host->proc_insert->write_proc = sw_mci_proc_card_insert_ctrl;
-
-	smc_host->proc_iodrive = create_proc_entry("io-drive", 0644, smc_host->proc_root);
-	if (IS_ERR(smc_host->proc_iodrive))
-	{
-		SMC_MSG(smc_host, "%s: failed to create procfs \"io-drive\".\n", dev_name(dev));
-	}
-	smc_host->proc_iodrive->data = smc_host;
-	smc_host->proc_iodrive->read_proc = sw_mci_proc_get_iodriving;
-	smc_host->proc_iodrive->write_proc = sw_mci_proc_set_iodriving;
-
 }
 
 void sw_mci_procfs_remove(struct sunxi_mmc_host *smc_host)
@@ -2056,15 +1763,15 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 		goto probe_free_host;
 	}
 
-    smc_host->mod_clk = 400000;
-    if (sw_mci_set_clk(smc_host, 400000)) {
-        SMC_ERR(smc_host, "Failed to set clock to 400KHz\n");
-        ret = -ENOENT;
-        goto probe_free_resource;
-    }
-    clk_enable(smc_host->mclk);
-    clk_enable(smc_host->hclk);
-    sw_mci_init_host(smc_host);
+	smc_host->mod_clk = 400000;
+	if (sw_mci_set_clk(smc_host, 400000)) {
+		SMC_ERR(smc_host, "Failed to set clock to 400KHz\n");
+		ret = -ENOENT;
+		goto probe_free_resource;
+	}
+	clk_enable(smc_host->mclk);
+	clk_enable(smc_host->hclk);
+	sw_mci_init_host(smc_host);
 
 	sw_mci_procfs_attach(smc_host);
 
@@ -2079,6 +1786,7 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 	if (smc_host->cd_mode == CARD_ALWAYS_PRESENT) {
 		smc_host->present = 1;
 	} else if (smc_host->cd_mode == CARD_DETECT_BY_GPIO_IRQ) {
+#if 0 // FIXME
 		u32 cd_hdle;
 		cd_hdle = sw_gpio_irq_request(smc_host->pdata->cd.gpio, TRIG_EDGE_DOUBLE,
 					&sw_mci_cd_irq, smc_host);
@@ -2087,6 +1795,11 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 		}
 		smc_host->cd_hdle = cd_hdle;
 		smc_host->present = !__gpio_get_value(smc_host->pdata->cd.gpio);
+#else
+		SMC_ERR(smc_host, "irq based card detect not supported\n");
+		ret = -ENOENT;
+		goto probe_free_resource;
+#endif
 	} else if (smc_host->cd_mode == CARD_DETECT_BY_GPIO_POLL) {
 		init_timer(&smc_host->cd_timer);
 		smc_host->cd_timer.expires = jiffies + 1*HZ;
@@ -2117,7 +1830,14 @@ static int __devinit sw_mci_probe(struct platform_device *pdev)
 		goto probe_free_irq;
 	}
 	platform_set_drvdata(pdev, mmc);
+
+	mutex_lock(&sw_host_rescan_mutex);
+	if (sw_host_rescan_pending[pdev->id]) {
+		smc_host->present = 1;
+		mmc_detect_change(smc_host->mmc, msecs_to_jiffies(300));
+	}
 	sw_host[pdev->id] = smc_host;
+	mutex_unlock(&sw_host_rescan_mutex);
 
 	SMC_MSG(smc_host, "sdc%d Probe: base:0x%p irq:%u sg_cpu:%p(%x) ret %d.\n",
 		pdev->id, smc_host->reg_base, smc_host->irq,
@@ -2152,8 +1872,10 @@ static int __devexit sw_mci_remove(struct platform_device *pdev)
 	free_irq(smc_host->irq, smc_host);
 	if (smc_host->cd_mode == CARD_DETECT_BY_GPIO_POLL)
 		del_timer(&smc_host->cd_timer);
+#if 0
 	else if (smc_host->cd_mode == CARD_DETECT_BY_GPIO_IRQ)
 		sw_gpio_irq_free(smc_host->cd_hdle);
+#endif
 
 	sw_mci_resource_release(smc_host);
 
@@ -2266,7 +1988,6 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.f_max = 50000000,
 		.f_ddr_max = 47000000,
 		.dma_tl= 0x20070008,
-		.regulator=NULL,
 	},
 	[1] = {
 		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32
@@ -2276,7 +1997,6 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.f_min = 400000,
 		.f_max = 50000000,
 		.dma_tl= 0x20070008,
-		.regulator=NULL,
 	},
 	[2] = {
 		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32
@@ -2296,7 +2016,6 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.f_max = 120000000,
 		.f_ddr_max = 50000000,
 		.dma_tl= 0x20070008,
-		.regulator=NULL,
 	},
 	[3] = {
 		.ocr_avail = MMC_VDD_28_29 | MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32
@@ -2314,7 +2033,6 @@ static struct sunxi_mmc_platform_data sw_mci_pdata[4] = {
 		.f_max = 120000000,
 		.f_ddr_max = 50000000,
 		.dma_tl= MMC3_DMA_TL,
-		.regulator=NULL,
 	},
 };
 static struct platform_device sw_mci_device[4] = {
@@ -2332,113 +2050,116 @@ static struct platform_driver sw_mci_driver = {
 	.remove         = __devexit_p(sw_mci_remove),
 };
 
-static int sw_mci_get_devinfo(void)
+static int __init sw_mci_get_mmcinfo(int i)
 {
-	u32 i, j;
-	char mmc_para[16] = {0};
+	int j, r, val;
+	char p[16];
 	struct sunxi_mmc_platform_data* mmcinfo;
-	char* mmc_para_io[10] = {"sdc_clk", "sdc_cmd", "sdc_d0", "sdc_d1", "sdc_d2",
-				"sdc_d3", "sdc_d4", "sdc_d5", "sdc_d6", "sdc_d7"};
-	script_item_u val;
-	script_item_value_type_e type;
+	script_parser_value_type_t type;
 
-	for (i=0; i<4; i++) {
-		mmcinfo = &sw_mci_pdata[i];
-		sprintf(mmc_para, "mmc%d_para", i);
-		/* get used information */
-		type = script_get_item(mmc_para, "sdc_used", &val);
-		if (type != SCIRPT_ITEM_VALUE_TYPE_INT) {
-			SMC_MSG(NULL, "get mmc%d's usedcfg failed\n", i);
-			goto fail;
-		}
-		mmcinfo->used = val.val;
-		if (!mmcinfo->used)
-			continue;
-		/* get cdmode information */
-		type = script_get_item(mmc_para, "sdc_detmode", &val);
-		if (type != SCIRPT_ITEM_VALUE_TYPE_INT) {
-			SMC_MSG(NULL, "get mmc%d's detmode failed\n", i);
-			goto fail;
-		}
-		mmcinfo->cdmode = val.val;
-		if (mmcinfo->cdmode == CARD_DETECT_BY_GPIO_POLL ||
-			mmcinfo->cdmode == CARD_DETECT_BY_GPIO_IRQ) {
-			type = script_get_item(mmc_para, "sdc_det", &val);
-			if (type != SCIRPT_ITEM_VALUE_TYPE_PIO) {
-				SMC_MSG(NULL, "get mmc%d's IO(sdc_cd) failed\n", i);
-			} else {
-				mmcinfo->cd = val.gpio;
-			}
-		}
-		/* get buswidth information */
-		type = script_get_item(mmc_para, "sdc_buswidth", &val);
-		if (type != SCIRPT_ITEM_VALUE_TYPE_INT) {
-			SMC_MSG(NULL, "get mmc%d's buswidth failed\n", i);
-			goto fail;
-		}
-		mmcinfo->width = val.val;
-		/* get mmc IOs information */
-		for (j=0; j<mmcinfo->width+2; j++) {
-			type = script_get_item(mmc_para, mmc_para_io[j], &val);
-			if (type != SCIRPT_ITEM_VALUE_TYPE_PIO) {
-				SMC_MSG(NULL, "get mmc%d's IO(%s) failed\n", j, mmc_para_io[j]);
-				goto fail;
-			}
-			mmcinfo->mmcio[j] = val.gpio;
-		}
-		/* get wpmode information */
-		type = script_get_item(mmc_para, "sdc_use_wp", &val);
-		if (type != SCIRPT_ITEM_VALUE_TYPE_INT) {
-			SMC_MSG(NULL, "get mmc%d's wpmode failed\n", i);
-			goto fail;
-		}
-		mmcinfo->wpmode = val.val;
-		if (mmcinfo->wpmode) {
-			/* if wpmode==1 but cann't get the wp IO, we assume there is no
-			   write protect detection */
-			type = script_get_item(mmc_para, "sdc_wp", &val);
-			if (type != SCIRPT_ITEM_VALUE_TYPE_PIO) {
-				SMC_MSG(NULL, "get mmc%d's IO(sdc_wp) failed\n", i);
-				mmcinfo->wpmode = 0;
-			} else {
-				mmcinfo->wp = val.gpio;
-			}
-		}
-		/* get emmc-rst information */
-		type = script_get_item(mmc_para, "emmc_rst", &val);
-		if (type != SCIRPT_ITEM_VALUE_TYPE_PIO) {
-			mmcinfo->has_hwrst = 0;
-		} else {
-			mmcinfo->has_hwrst = 1;
-			mmcinfo->hwrst = val.gpio;
-		}
-		/* get sdio information */
-		type = script_get_item(mmc_para, "sdc_isio", &val);
-		if (type != SCIRPT_ITEM_VALUE_TYPE_INT) {
-			SMC_MSG(NULL, "get mmc%d's isio? failed\n", i);
-			goto fail;
-		}
-		mmcinfo->isiodev = val.val;
+	mmcinfo = &sw_mci_pdata[i];
+	sprintf(p, "mmc%d_para", i);
 
-		/* get regulator information */
-		type = script_get_item(mmc_para, "sdc_regulator", &val);
-		if (type != SCIRPT_ITEM_VALUE_TYPE_STR) {
-			SMC_MSG(NULL, "get mmc%d's sdc_regulator failed\n", i);
-			mmcinfo->regulator = NULL;
-		} else {
-			if (!strcmp(val.str, "none")) {
-				mmcinfo->regulator = NULL;
-				/* If here found that no regulator can be used for this card,
-				   we clear all of the UHS features support */
-				mmcinfo->caps &= ~(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25
-						| MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_DDR50);
-			} else
-				mmcinfo->regulator = val.str;
+	/* get used information */
+	r = script_parser_fetch(p, "sdc_used", &val, 1);
+	if (r != 0) {
+		SMC_MSG(NULL, "get mmc%d's used failed\n", i);
+		goto fail;
+	}
+	mmcinfo->used = val;
+	if (!mmcinfo->used)
+		return 0;
+
+	/* get cdmode information */
+	r = script_parser_fetch(p, "sdc_detmode", &val, 1);
+	if (r != 0) {
+		SMC_MSG(NULL, "get mmc%d's detmode failed\n", i);
+		goto fail;
+	}
+	mmcinfo->cdmode = val;
+	if (mmcinfo->cdmode == CARD_DETECT_BY_GPIO_POLL ||
+		mmcinfo->cdmode == CARD_DETECT_BY_GPIO_IRQ) {
+		mmcinfo->cd = gpio_request_ex(p, "sdc_det");
+		if (!mmcinfo->cd) {
+			SMC_MSG(NULL, "get mmc%d's IO(det) failed\n", i);
+			goto fail;
+		}
+	}
+	/* get buswidth information */
+	r = script_parser_fetch(p, "sdc_buswidth", &val, 1);
+	if (r != 0) {
+		SMC_MSG(NULL, "get mmc%d's buswidth failed\n", i);
+		goto fail;
+	}
+	mmcinfo->width = val;
+
+	/* get mmc IOs information */
+	for (j = 0; j < mmcinfo->width + 2; j++) {
+		mmcinfo->mmcio[j] = gpio_request_ex(p, mmc_para_io[j]);
+		if (!mmcinfo->mmcio[j]) {
+			SMC_MSG(NULL, "get mmc%d's IO(%s) failed\n", i,
+				mmc_para_io[j]);
+			goto fail;
+		}
+		r = gpio_get_one_pin_status(mmcinfo->mmcio[j],
+			&mmcinfo->mmcio_settings[j], mmc_para_io[j], 0);
+		if (r != 0) {
+			SMC_MSG(NULL, "get mmc%d's IO(%s) settings failed\n",
+				i, mmc_para_io[j]);
+			goto fail;
 		}
 	}
 
+	/* get wpmode information */
+	r = script_parser_fetch(p, "sdc_use_wp", &val, 1);
+	if (r == 0) {
+		mmcinfo->wpmode = val;
+	} else {
+		SMC_MSG(NULL, "get mmc%d's use_wp failed\n", i);
+		mmcinfo->wpmode = 0;
+	}
+	if (mmcinfo->wpmode) {
+		/* if wpmode==1 but cann't get the wp IO, we assume there is no
+		   write protect detection */
+		mmcinfo->wp = gpio_request_ex(p, "sdc_wp");
+		if (!mmcinfo->wp) {
+			SMC_MSG(NULL, "get mmc%d's IO(sdc_wp) failed\n", i);
+			mmcinfo->wpmode = 0;
+		}
+	}
+
+	/* get emmc-rst information */
+	mmcinfo->hwrst = gpio_request_ex(p, "emmc_rst");
+	mmcinfo->has_hwrst = mmcinfo->hwrst != 0;
+
+	/* get sdio information */
+	r = script_parser_fetch(p, "sdc_isio", &val, 1);
+	if (r == 0) {
+		mmcinfo->isiodev = val;
+	} else {
+		/* No sdio info, use old driver hardcoded defaults */
+		int default_iodev = sunxi_is_sun5i() ? 1 : 3;
+		mmcinfo->isiodev = i == default_iodev;
+	}
+
+	/* get regulator information */
+	type = SCRIPT_PARSER_VALUE_TYPE_STRING;
+	r = script_parser_fetch_ex(p, "sdc_regulator",
+		(int *)&mmcinfo->regulator, &type,
+		sizeof(mmcinfo->regulator)/sizeof(int));
+	if (r |= 0 || type != SCRIPT_PARSER_VALUE_TYPE_STRING ||
+		      strcmp(mmcinfo->regulator, "none") == 0) {
+		/* No regulator, clear all of the UHS features support */
+		mmcinfo->caps &= ~(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+				   MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_DDR50);
+		mmcinfo->regulator[0] = 0;
+	} else
+		mmcinfo->regulator[sizeof(mmcinfo->regulator) - 1] = 0;
+
 	return 0;
 fail:
+	SMC_MSG(NULL, "Not using mmc%d due to script.bin parse failure\n", i);
+	mmcinfo->used = 0;
 	return -1;
 }
 
@@ -2452,10 +2173,8 @@ static int __init sw_mci_init(void)
 
 	SMC_MSG(NULL, "sw_mci_init\n");
 	/* get devices information from sys_config.fex */
-	if (sw_mci_get_devinfo()) {
-		SMC_MSG(NULL, "parse sys_cofnig.fex info failed\n");
-		return 0;
-	}
+	for (i = 0; i < sw_host_num; i++)
+		sw_mci_get_mmcinfo(i);
 
 	/*
 	 * Here we check whether there is a boot card. If the boot card exists,
@@ -2463,7 +2182,7 @@ static int __init sw_mci_init(void)
 	 * node 'mmcblk0'. Then the applicantions of Android can fix the boot,
 	 * system, data patitions on mmcblk0p1, mmcblk0p2... etc.
 	 */
-	for (i=0; i<4; i++) {
+	for (i = 0; i < sw_host_num; i++) {
 		mmcinfo = &sw_mci_pdata[i];
 		if (mmcinfo->used) {
 			sdc_used |= 1 << i;
@@ -2477,12 +2196,12 @@ static int __init sw_mci_init(void)
 	SMC_MSG(NULL, "MMC host used card: 0x%x, boot card: 0x%x, io_card %d\n",
 					sdc_used, boot_card, io_used);
 	/* register boot card firstly */
-	for (i=0; i<4; i++) {
+	for (i = 0; i < sw_host_num; i++) {
 		if (boot_card & (1 << i))
 			platform_device_register(&sw_mci_device[i]);
 	}
 	/* register other cards */
-	for (i=0; i<4; i++) {
+	for (i = 0; i < sw_host_num; i++) {
 		if (boot_card & (1 << i))
 			continue;
 		if (sdc_used & (1 << i))
