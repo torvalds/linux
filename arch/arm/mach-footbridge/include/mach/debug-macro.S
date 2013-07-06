@@ -13,9 +13,6 @@
 
 #include <asm/hardware/dec21285.h>
 
-#ifndef CONFIG_DEBUG_DC21285_PORT
-#include <asm/hardware/debug-8250.S>
-#else
 #include <mach/hardware.h>
 	/* For EBSA285 debugging */
 		.equ	dc21285_high, ARMCSR_BASE & 0xff000000
@@ -43,4 +40,3 @@
 
 		.macro	waituart,rd,rx
 		.endm
-#endif

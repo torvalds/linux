@@ -19,7 +19,3 @@
 
 #include <asm/hardware/debug-pl01x.S>
 #endif
-
-#ifdef CONFIG_DEBUG_NSPIRE_CLASSIC_UART
-#include <asm/hardware/debug-8250.S>
-#endif
