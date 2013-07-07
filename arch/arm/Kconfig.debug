@@ -451,6 +451,7 @@ choice
 	config DEBUG_PICOXCELL_UART
 		depends on ARCH_PICOXCELL
 		bool "Use PicoXcell UART for low-level debug"
+		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on PicoXcell based platforms.
@@ -593,6 +594,7 @@ choice
 	config DEBUG_SOCFPGA_UART
 		depends on ARCH_SOCFPGA
 		bool "Use SOCFPGA UART for low-level debug"
+		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on SOCFPGA based platforms.
@@ -851,9 +853,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/nomadik.S" if DEBUG_NOMADIK_UART
 	default "debug/nspire.S" if DEBUG_NSPIRE_CX_UART
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
-	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
-	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
 	default "debug/sti.S" if DEBUG_STI_UART
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/u300.S" if DEBUG_U300_UART
@@ -886,6 +886,7 @@ config DEBUG_UART_PHYS
 	default 0x40100000 if DEBUG_PXA_UART1
 	default 0x42000000 if ARCH_GEMINI
 	default 0x7c0003f8 if FOOTBRIDGE
+	default 0x80230000 if DEBUG_PICOXCELL_UART
 	default 0x90020000 if DEBUG_NSPIRE_CLASSIC_UART
 	default 0xc8000000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
 	default 0xc8000003 if ARCH_IXP4XX && CPU_BIG_ENDIAN
@@ -897,6 +898,7 @@ config DEBUG_UART_PHYS
 	default 0xf1012000 if ARCH_DOVE || ARCH_KIRKWOOD || ARCH_MV78XX0 || \
 				ARCH_ORION5X
 	default 0xfe800000 if ARCH_IOP32X
+	default 0xffc02000 if DEBUG_SOCFPGA_UART
 	default 0xffd82340 if ARCH_IOP13XX
 	default 0xfffff700 if ARCH_IOP33X
 	depends on DEBUG_UART_8250
@@ -915,6 +917,7 @@ config DEBUG_UART_VIRT
 	default 0xfe012000 if ARCH_ORION5X
 	default 0xfe017000 if DEBUG_MMP_UART2
 	default 0xfe018000 if DEBUG_MMP_UART3
+	default 0xfe230000 if DEBUG_PICOXCELL_UART
 	default 0xfe800000 if ARCH_IOP32X
 	default 0xfeb24000 if DEBUG_RK3X_UART0
 	default 0xfeb26000 if DEBUG_RK3X_UART1
@@ -922,6 +925,7 @@ config DEBUG_UART_VIRT
 	default 0xfed60000 if DEBUG_RK29_UART0
 	default 0xfed64000 if DEBUG_RK29_UART1 || DEBUG_RK3X_UART2
 	default 0xfed68000 if DEBUG_RK29_UART2 || DEBUG_RK3X_UART3
+	default 0xfec02000 if DEBUG_SOCFPGA_UART
 	default 0xfed12000 if ARCH_KIRKWOOD
 	default 0xfee003f8 if FOOTBRIDGE
 	default 0xfee20000 if DEBUG_NSPIRE_CLASSIC_UART
@@ -936,6 +940,12 @@ config DEBUG_UART_8250_SHIFT
 	depends on DEBUG_UART_8250
 	default 0 if FOOTBRIDGE || ARCH_IOP32X
 	default 2
+
+config DEBUG_UART_8250_WORD
+	bool "Use 32-bit accesses for 8250 UART"
+	depends on DEBUG_UART_8250
+	depends on DEBUG_UART_8250_SHIFT >= 2
+	default y if DEBUG_PICOXCELL_UART || DEBUG_SOCFPGA_UART
 
 config DEBUG_UART_8250_FLOW_CONTROL
 	bool "Enable flow control for 8250 UART"
