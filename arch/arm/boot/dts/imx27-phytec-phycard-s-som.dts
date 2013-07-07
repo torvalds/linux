@@ -33,20 +33,6 @@
 	status = "okay";
 };
 
-&i2c1 {
-	status = "okay";
-
-	ioexpander@41 {
-		compatible = "nxp,pca9536";
-		reg = <0x41>;
-	};
-
-	rtc@51 {
-		compatible = "nxp,pcf8563";
-		reg = <0x51>;
-	};
-};
-
 &i2c2 {
 	status = "okay";
 
@@ -55,8 +41,4 @@
 		pagesize = <32>;
 		reg = <0x52>;
 	};
-};
-
-&owire {
-	status = "okay";
 };

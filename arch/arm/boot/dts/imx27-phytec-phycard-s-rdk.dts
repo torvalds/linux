@@ -41,6 +41,19 @@
 	status = "okay";
 };
 
+&i2c1 {
+	status = "okay";
+
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+};
+
+&owire {
+	status = "okay";
+};
+
 &sdhci2 {
 	cd-gpios = <&gpio3 29 0>;
 	status = "okay";
