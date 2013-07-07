@@ -85,13 +85,8 @@ static struct i2c_board_info tsl2563_als_device = {
 };
 
 static struct mxt_platform_data atmel_224s_tp_platform_data = {
-	.x_line			= 18,
-	.y_line			= 12,
 	.x_size			= 102*20,
 	.y_size			= 68*20,
-	.blen			= 0x80,	/* Gain setting is in upper 4 bits */
-	.threshold		= 0x32,
-	.voltage		= 0,	/* 3.3V */
 	.orient			= MXT_VERTICAL_FLIP,
 	.irqflags		= IRQF_TRIGGER_FALLING,
 	.is_tp			= true,
@@ -110,13 +105,8 @@ static struct i2c_board_info atmel_224s_tp_device = {
 };
 
 static struct mxt_platform_data atmel_1664s_platform_data = {
-	.x_line			= 32,
-	.y_line			= 50,
 	.x_size			= 1700,
 	.y_size			= 2560,
-	.blen			= 0x89,	/* Gain setting is in upper 4 bits */
-	.threshold		= 0x28,
-	.voltage		= 0,	/* 3.3V */
 	.orient			= MXT_ROTATED_90_COUNTER,
 	.irqflags		= IRQF_TRIGGER_FALLING,
 	.is_tp			= false,

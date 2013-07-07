@@ -685,54 +685,6 @@ static int mxt_make_highchg(struct mxt_data *data)
 	return 0;
 }
 
-static void mxt_handle_pdata(struct mxt_data *data)
-{
-	const struct mxt_platform_data *pdata = data->pdata;
-	u8 voltage;
-
-	/* Set touchscreen lines */
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9, MXT_TOUCH_XSIZE,
-			pdata->x_line);
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9, MXT_TOUCH_YSIZE,
-			pdata->y_line);
-
-	/* Set touchscreen orient */
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9, MXT_TOUCH_ORIENT,
-			pdata->orient);
-
-	/* Set touchscreen burst length */
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9,
-			MXT_TOUCH_BLEN, pdata->blen);
-
-	/* Set touchscreen threshold */
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9,
-			MXT_TOUCH_TCHTHR, pdata->threshold);
-
-	/* Set touchscreen resolution */
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9,
-			MXT_TOUCH_XRANGE_LSB, (pdata->x_size - 1) & 0xff);
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9,
-			MXT_TOUCH_XRANGE_MSB, (pdata->x_size - 1) >> 8);
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9,
-			MXT_TOUCH_YRANGE_LSB, (pdata->y_size - 1) & 0xff);
-	mxt_write_object(data, MXT_TOUCH_MULTI_T9,
-			MXT_TOUCH_YRANGE_MSB, (pdata->y_size - 1) >> 8);
-
-	/* Set touchscreen voltage */
-	if (pdata->voltage) {
-		if (pdata->voltage < MXT_VOLTAGE_DEFAULT) {
-			voltage = (MXT_VOLTAGE_DEFAULT - pdata->voltage) /
-				MXT_VOLTAGE_STEP;
-			voltage = 0xff - voltage + 1;
-		} else
-			voltage = (pdata->voltage - MXT_VOLTAGE_DEFAULT) /
-				MXT_VOLTAGE_STEP;
-
-		mxt_write_object(data, MXT_SPT_CTECONFIG_T28,
-				MXT_CTE_VOLTAGE, voltage);
-	}
-}
-
 static int mxt_get_info(struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
@@ -839,8 +791,6 @@ static int mxt_initialize(struct mxt_data *data)
 	error = mxt_check_reg_init(data);
 	if (error)
 		goto err_free_object_table;
-
-	mxt_handle_pdata(data);
 
 	/* Backup to memory */
 	mxt_write_object(data, MXT_GEN_COMMAND_T6,
