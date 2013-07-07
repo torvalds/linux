@@ -71,6 +71,13 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c1_pins_a>;
 			status = "okay";
+
+			at24@50 {
+				compatible = "at,24c16";
+				pagesize = <16>;
+				reg = <0x50>;
+				read-only;
+			};
 		};
 
 		i2c2: i2c@01c2b400 {
