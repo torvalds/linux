@@ -266,6 +266,7 @@ choice
 	config DEBUG_KEYSTONE_UART0
 		bool "Kernel low-level debugging on KEYSTONE2 using UART0"
 		depends on ARCH_KEYSTONE
+		select DEBUG_UART_8250
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART0 serial port on KEYSTONE2 devices.
@@ -273,6 +274,7 @@ choice
 	config DEBUG_KEYSTONE_UART1
 		bool "Kernel low-level debugging on KEYSTONE2 using UART1"
 		depends on ARCH_KEYSTONE
+		select DEBUG_UART_8250
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART1 serial port on KEYSTONE2 devices.
@@ -873,8 +875,6 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART || \
 				 DEBUG_IMX6SL_UART
-	default "debug/keystone.S" if DEBUG_KEYSTONE_UART0 || \
-				      DEBUG_KEYSTONE_UART1
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
 	default "debug/sti.S" if DEBUG_STI_UART
@@ -903,6 +903,8 @@ config DEBUG_UART_PHYS
 	hex "Physical base address of debug UART"
 	default 0x01c28000 if DEBUG_SUNXI_UART0
 	default 0x01c28400 if DEBUG_SUNXI_UART1
+	default 0x02530c00 if DEBUG_KEYSTONE_UART0
+	default 0x02531000 if DEBUG_KEYSTONE_UART1
 	default 0x03010fe0 if ARCH_RPC
 	default 0x10009000 if DEBUG_REALVIEW_STD_PORT || DEBUG_CNS3XXX || \
 				DEBUG_VEXPRESS_UART0_CA9
@@ -973,6 +975,8 @@ config DEBUG_UART_VIRT
 	default 0xfe800000 if ARCH_IOP32X
 	default 0xfeb24000 if DEBUG_RK3X_UART0
 	default 0xfeb26000 if DEBUG_RK3X_UART1
+	default 0xfeb30c00 if DEBUG_KEYSTONE_UART0
+	default 0xfeb31000 if DEBUG_KEYSTONE_UART1
 	default 0xfec12000 if DEBUG_MVEBU_UART || DEBUG_MVEBU_UART_ALTERNATE
 	default 0xfed60000 if DEBUG_RK29_UART0
 	default 0xfed64000 if DEBUG_RK29_UART1 || DEBUG_RK3X_UART2
@@ -1002,7 +1006,8 @@ config DEBUG_UART_8250_WORD
 	bool "Use 32-bit accesses for 8250 UART"
 	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	depends on DEBUG_UART_8250_SHIFT >= 2
-	default y if DEBUG_PICOXCELL_UART || DEBUG_SOCFPGA_UART
+	default y if DEBUG_PICOXCELL_UART || DEBUG_SOCFPGA_UART || \
+		ARCH_KEYSTONE
 
 config DEBUG_UART_8250_FLOW_CONTROL
 	bool "Enable flow control for 8250 UART"
