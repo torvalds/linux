@@ -27,10 +27,6 @@
 
 /* The platform data for the Atmel maXTouch touchscreen driver */
 struct mxt_platform_data {
-	const u8 *config;
-	size_t config_length;
-	u32 config_crc;
-
 	unsigned int x_size;
 	unsigned int y_size;
 	unsigned char orient;
