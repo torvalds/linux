@@ -148,6 +148,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 
 	if (unlikely(nvbo->gem))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
+	WARN_ON(nvbo->pin_refcnt > 0);
 	nv10_bo_put_tile_region(dev, nvbo->tile, NULL);
 	kfree(nvbo);
 }
@@ -340,13 +341,15 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	int ret;
+	int ret, ref;
 
 	ret = ttm_bo_reserve(bo, false, false, false, 0);
 	if (ret)
 		return ret;
 
-	if (--nvbo->pin_refcnt)
+	ref = --nvbo->pin_refcnt;
+	WARN_ON_ONCE(ref < 0);
+	if (ref)
 		goto out;
 
 	nouveau_bo_placement_set(nvbo, bo->mem.placement, 0);
