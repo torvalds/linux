@@ -579,7 +579,7 @@ choice
 		depends on !ARCH_MULTIPLATFORM
 		help
 		  Say Y here if your platform doesn't provide a UART option
-		  below. This relies on your platform choosing the right UART
+		  above. This relies on your platform choosing the right UART
 		  definition internally in order for low-level debugging to
 		  work.
 
