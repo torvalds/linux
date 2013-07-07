@@ -192,5 +192,57 @@
 			clocks = <&gate_clk 17>;
 			status = "okay";
 		};
+
+		mdio: mdio-bus@72004 {
+			compatible = "marvell,orion-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x72004 0x84>;
+			interrupts = <46>;
+			clocks = <&gate_clk 0>;
+			status = "disabled";
+
+			/* add phy nodes in board file */
+		};
+
+		eth0: ethernet-controller@72000 {
+			compatible = "marvell,kirkwood-eth";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x72000 0x4000>;
+			clocks = <&gate_clk 0>;
+			marvell,tx-checksum-limit = <1600>;
+			status = "disabled";
+
+			ethernet0-port@0 {
+				device_type = "network";
+				compatible = "marvell,kirkwood-eth-port";
+				reg = <0>;
+				interrupts = <11>;
+				/* overwrite MAC address in bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+				/* set phy-handle property in board file */
+			};
+		};
+
+		eth1: ethernet-controller@76000 {
+			compatible = "marvell,kirkwood-eth";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x76000 0x4000>;
+			clocks = <&gate_clk 19>;
+			marvell,tx-checksum-limit = <1600>;
+			status = "disabled";
+
+			ethernet1-port@0 {
+				device_type = "network";
+				compatible = "marvell,kirkwood-eth-port";
+				reg = <0>;
+				interrupts = <15>;
+				/* overwrite MAC address in bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+				/* set phy-handle property in board file */
+			};
+		};
 	};
 };
