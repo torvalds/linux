@@ -8,10 +8,4 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
-		.macro	addruart,rp,rv,tmp
-		ldr	\rv, =0xfee36000
-		ldr	\rp, =0xfff36000
-		.endm
-
 #include <asm/hardware/debug-pl01x.S>

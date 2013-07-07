@@ -10,12 +10,4 @@
  * published by the Free Software Foundation.
  *
 */
-
-		.macro	addruart, rp, rv, tmp
-		mov	\rp,      #0x001F0000
-		orr	\rp, \rp, #0x00001000
-		orr	\rv, \rp, #0xf1000000	@ virtual base
-		orr	\rp, \rp,  #0x10000000	@ physical base
-		.endm
-
 #include <asm/hardware/debug-pl01x.S>

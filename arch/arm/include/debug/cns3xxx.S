@@ -9,11 +9,4 @@
  * it under the terms of the GNU General Public License, Version 2, as
  * published by the Free Software Foundation.
  */
-
-		.macro	addruart,rp,rv,tmp
-		mov	\rp, #0x00009000
-		orr	\rv, \rp, #0xf0000000	@ virtual base
-		orr	\rp, \rp, #0x10000000
-		.endm
-
 #include <asm/hardware/debug-pl01x.S>
