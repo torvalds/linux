@@ -32,6 +32,16 @@
 		usb1 = &usbhost1;
 	};
 
+	cpus {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
+		};
+	};
+
 	asic: asic-interrupt-controller@68000000 {
 		compatible = "fsl,imx25-asic", "fsl,avic";
 		interrupt-controller;

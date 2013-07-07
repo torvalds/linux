@@ -20,6 +20,16 @@
 		serial4 = &uart5;
 	};
 
+	cpus {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm1136";
+			device_type = "cpu";
+		};
+	};
+
 	avic: avic-interrupt-controller@60000000 {
 		compatible = "fsl,imx31-avic", "fsl,avic";
 		interrupt-controller;
