@@ -486,8 +486,12 @@ recheck:
 		val &= ~MXT_BOOT_STATUS_MASK;
 		break;
 	case MXT_FRAME_CRC_PASS:
-		if (val == MXT_FRAME_CRC_CHECK)
+		if (val == MXT_FRAME_CRC_CHECK) {
 			goto recheck;
+		} else if (val == MXT_FRAME_CRC_FAIL) {
+			dev_err(dev, "Bootloader CRC fail\n");
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -1427,6 +1431,7 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 	const struct firmware *fw = NULL;
 	unsigned int frame_size;
 	unsigned int pos = 0;
+	unsigned int retry = 0;
 	int ret;
 
 	ret = request_firmware(&fw, fn, dev);
@@ -1464,9 +1469,7 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 
 		frame_size = ((*(fw->data + pos) << 8) | *(fw->data + pos + 1));
 
-		/* We should add 2 at frame size as the the firmware data is not
-		 * included the CRC bytes.
-		 */
+		/* Take account of CRC bytes */
 		frame_size += 2;
 
 		/* Write one frame to device */
@@ -1475,10 +1478,20 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 			goto disable_irq;
 
 		ret = mxt_check_bootloader(data, MXT_FRAME_CRC_PASS);
-		if (ret)
-			goto disable_irq;
+		if (ret) {
+			retry++;
 
-		pos += frame_size;
+			/* Back off by 20ms per retry */
+			msleep(retry * 20);
+
+			if (retry > 20) {
+				dev_err(dev, "Retry count exceeded\n");
+				goto disable_irq;
+			}
+		} else {
+			retry = 0;
+			pos += frame_size;
+		}
 
 		dev_dbg(dev, "Updated %d bytes / %zd bytes\n", pos, fw->size);
 	}
