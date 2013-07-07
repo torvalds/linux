@@ -119,6 +119,7 @@ choice
 	config DEBUG_DAVINCI_DA8XX_UART1
 		bool "Kernel low-level debugging on DaVinci DA8XX using UART1"
 		depends on ARCH_DAVINCI_DA8XX
+		select DEBUG_UART_8250
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART1 serial port on DaVinci DA8XX devices.
@@ -126,6 +127,7 @@ choice
 	config DEBUG_DAVINCI_DA8XX_UART2
 		bool "Kernel low-level debugging on DaVinci DA8XX using UART2"
 		depends on ARCH_DAVINCI_DA8XX
+		select DEBUG_UART_8250
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART2 serial port on DaVinci DA8XX devices.
@@ -133,6 +135,7 @@ choice
 	config DEBUG_DAVINCI_DMx_UART0
 		bool "Kernel low-level debugging on DaVinci DMx using UART0"
 		depends on ARCH_DAVINCI_DMx
+		select DEBUG_UART_8250
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART0 serial port on DaVinci DMx devices.
@@ -140,6 +143,7 @@ choice
 	config DEBUG_DAVINCI_TNETV107X_UART1
 		bool "Kernel low-level debugging on DaVinci TNETV107x using UART1"
 		depends on ARCH_DAVINCI_TNETV107X
+		select DEBUG_UART_8250
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART1 serial port on DaVinci TNETV107X
@@ -901,11 +905,15 @@ config DEBUG_UART_8250
 
 config DEBUG_UART_PHYS
 	hex "Physical base address of debug UART"
+	default 0x01c20000 if DEBUG_DAVINCI_DMx_UART0
 	default 0x01c28000 if DEBUG_SUNXI_UART0
 	default 0x01c28400 if DEBUG_SUNXI_UART1
+	default 0x01d0c000 if DEBUG_DAVINCI_DA8XX_UART1
+	default 0x01d0d000 if DEBUG_DAVINCI_DA8XX_UART2
 	default 0x02530c00 if DEBUG_KEYSTONE_UART0
 	default 0x02531000 if DEBUG_KEYSTONE_UART1
 	default 0x03010fe0 if ARCH_RPC
+	default 0x08108300 if DEBUG_DAVINCI_TNETV107X_UART1
 	default 0x10009000 if DEBUG_REALVIEW_STD_PORT || DEBUG_CNS3XXX || \
 				DEBUG_VEXPRESS_UART0_CA9
 	default 0x1010c000 if DEBUG_REALVIEW_PB1176_PORT
@@ -982,9 +990,13 @@ config DEBUG_UART_VIRT
 	default 0xfed64000 if DEBUG_RK29_UART1 || DEBUG_RK3X_UART2
 	default 0xfed68000 if DEBUG_RK29_UART2 || DEBUG_RK3X_UART3
 	default 0xfec02000 if DEBUG_SOCFPGA_UART
+	default 0xfec20000 if DEBUG_DAVINCI_DMx_UART0
+	default 0xfed0c000 if DEBUG_DAVINCI_DA8XX_UART1
+	default 0xfed0d000 if DEBUG_DAVINCI_DA8XX_UART2
 	default 0xfed12000 if ARCH_KIRKWOOD
 	default 0xfedc0000 if ARCH_EP93XX
 	default 0xfee003f8 if FOOTBRIDGE
+	default 0xfee08300 if DEBUG_DAVINCI_TNETV107X_UART1
 	default 0xfee20000 if DEBUG_NSPIRE_CLASSIC_UART || DEBUG_NSPIRE_CX_UART
 	default 0xfee36000 if DEBUG_HIGHBANK_UART
 	default 0xfee82340 if ARCH_IOP13XX
@@ -1007,7 +1019,9 @@ config DEBUG_UART_8250_WORD
 	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	depends on DEBUG_UART_8250_SHIFT >= 2
 	default y if DEBUG_PICOXCELL_UART || DEBUG_SOCFPGA_UART || \
-		ARCH_KEYSTONE
+		ARCH_KEYSTONE || \
+		DEBUG_DAVINCI_DMx_UART0 || DEBUG_DAVINCI_DA8XX_UART1 || \
+		DEBUG_DAVINCI_DA8XX_UART2 || DEBUG_DAVINCI_TNETV107X_UART1
 
 config DEBUG_UART_8250_FLOW_CONTROL
 	bool "Enable flow control for 8250 UART"
