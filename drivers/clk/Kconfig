@@ -64,6 +64,12 @@ config COMMON_CLK_SI5351
 	  This driver supports Silicon Labs 5351A/B/C programmable clock
 	  generators.
 
+config COMMON_CLK_S2MPS11
+	tristate "Clock driver for S2MPS11 MFD"
+	depends on MFD_SEC_CORE
+	---help---
+	  This driver supports S2MPS11 crystal oscillator clock.
+
 config CLK_TWL6040
 	tristate "External McPDM functional clock from twl6040"
 	depends on TWL6040_CORE
