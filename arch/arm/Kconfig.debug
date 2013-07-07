@@ -806,6 +806,32 @@ choice
 		  For more details about semihosting, please see
 		  chapter 8 of DUI0203I_rvct_developer_guide.pdf from ARM Ltd.
 
+	config DEBUG_LL_UART_8250
+		bool "Kernel low-level debugging via 8250 UART"
+		help
+		  Say Y here if you wish the debug print routes to direct
+		  their output to an 8250 UART.  You can use this option
+		  to provide the parameters for the 8250 UART rather than
+		  selecting one of the platform specific options above if
+		  you know the parameters for the port.
+
+		  This option is preferred over the platform specific
+		  options; the platform specific options are deprecated
+		  and will be soon removed.
+
+	config DEBUG_LL_UART_PL01X
+		bool "Kernel low-level debugging via ARM Ltd PL01x Primecell UART"
+		help
+		  Say Y here if you wish the debug print routes to direct
+		  their output to a PL01x Primecell UART.  You can use
+		  this option to provide the parameters for the UART
+		  rather than selecting one of the platform specific
+		  options above if you know the parameters for the port.
+
+		  This option is preferred over the platform specific
+		  options; the platform specific options are deprecated
+		  and will be soon removed.
+
 endchoice
 
 config DEBUG_EXYNOS_UART
@@ -845,8 +871,8 @@ config DEBUG_STI_UART
 
 config DEBUG_LL_INCLUDE
 	string
-	default "debug/8250.S" if DEBUG_UART_8250
-	default "debug/pl01x.S" if DEBUG_UART_PL01X
+	default "debug/8250.S" if DEBUG_LL_UART_8250 || DEBUG_UART_8250
+	default "debug/pl01x.S" if DEBUG_LL_UART_PL01X || DEBUG_UART_PL01X
 	default "debug/exynos.S" if DEBUG_EXYNOS_UART
 	default "debug/icedcc.S" if DEBUG_ICEDCC
 	default "debug/imx.S" if DEBUG_IMX1_UART || \
@@ -870,11 +896,13 @@ config DEBUG_LL_INCLUDE
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"
 
+# Compatibility options for PL01x
 config DEBUG_UART_PL01X
 	def_bool ARCH_EP93XX || \
 		ARCH_INTEGRATOR || \
 		ARCH_VERSATILE
 
+# Compatibility options for 8250
 config DEBUG_UART_8250
 	def_bool ARCH_DOVE || ARCH_EBSA110 || \
 		(FOOTBRIDGE && !DEBUG_DC21285_PORT) || \
@@ -925,7 +953,8 @@ config DEBUG_UART_PHYS
 	default 0xffd82340 if ARCH_IOP13XX
 	default 0xfff36000 if DEBUG_HIGHBANK_UART
 	default 0xfffff700 if ARCH_IOP33X
-	depends on DEBUG_UART_8250 || DEBUG_UART_PL01X
+	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
+		DEBUG_UART_8250 || DEBUG_UART_PL01X
 
 config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
@@ -971,23 +1000,24 @@ config DEBUG_UART_VIRT
 	default 0xfefff700 if ARCH_IOP33X
 	default 0xff003000 if DEBUG_U300_UART
 	default DEBUG_UART_PHYS if !MMU
-	depends on DEBUG_UART_8250 || DEBUG_UART_PL01X
+	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
+		DEBUG_UART_8250 || DEBUG_UART_PL01X
 
 config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"
-	depends on DEBUG_UART_8250
+	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	default 0 if FOOTBRIDGE || ARCH_IOP32X
 	default 2
 
 config DEBUG_UART_8250_WORD
 	bool "Use 32-bit accesses for 8250 UART"
-	depends on DEBUG_UART_8250
+	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	depends on DEBUG_UART_8250_SHIFT >= 2
 	default y if DEBUG_PICOXCELL_UART || DEBUG_SOCFPGA_UART
 
 config DEBUG_UART_8250_FLOW_CONTROL
 	bool "Enable flow control for 8250 UART"
-	depends on DEBUG_UART_8250
+	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
 	default y if ARCH_EBSA110 || FOOTBRIDGE || ARCH_GEMINI || ARCH_RPC
 
 config DEBUG_UNCOMPRESS
