@@ -104,33 +104,16 @@
 
 /* MXT_TOUCH_MULTI_T9 field */
 #define MXT_TOUCH_CTRL		0
-#define MXT_TOUCH_XORIGIN	1
-#define MXT_TOUCH_YORIGIN	2
-#define MXT_TOUCH_XSIZE		3
-#define MXT_TOUCH_YSIZE		4
-#define MXT_TOUCH_BLEN		6
-#define MXT_TOUCH_TCHTHR	7
-#define MXT_TOUCH_TCHDI		8
-#define MXT_TOUCH_ORIENT	9
-#define MXT_TOUCH_MOVHYSTI	11
-#define MXT_TOUCH_MOVHYSTN	12
-#define MXT_TOUCH_NUMTOUCH	14
-#define MXT_TOUCH_MRGHYST	15
-#define MXT_TOUCH_MRGTHR	16
-#define MXT_TOUCH_AMPHYST	17
-#define MXT_TOUCH_XRANGE_LSB	18
-#define MXT_TOUCH_XRANGE_MSB	19
-#define MXT_TOUCH_YRANGE_LSB	20
-#define MXT_TOUCH_YRANGE_MSB	21
-#define MXT_TOUCH_XLOCLIP	22
-#define MXT_TOUCH_XHICLIP	23
-#define MXT_TOUCH_YLOCLIP	24
-#define MXT_TOUCH_YHICLIP	25
-#define MXT_TOUCH_XEDGECTRL	26
-#define MXT_TOUCH_XEDGEDIST	27
-#define MXT_TOUCH_YEDGECTRL	28
-#define MXT_TOUCH_YEDGEDIST	29
-#define MXT_TOUCH_JUMPLIMIT	30
+#define MXT_T9_ORIENT		9
+#define MXT_T9_RANGE		18
+
+struct t9_range {
+	u16 x;
+	u16 y;
+} __packed;
+
+/* Touch orient bits */
+#define MXT_XY_SWITCH		(1 << 0)
 
 /* MXT_PROCI_GRIPFACE_T20 field */
 #define MXT_GRIPFACE_CTRL	0
@@ -214,11 +197,6 @@
 #define MXT_RELEASE		(1 << 5)
 #define MXT_PRESS		(1 << 6)
 #define MXT_DETECT		(1 << 7)
-
-/* Touch orient bits */
-#define MXT_XY_SWITCH		(1 << 0)
-#define MXT_X_INVERT		(1 << 1)
-#define MXT_Y_INVERT		(1 << 2)
 
 /* Touchscreen absolute values */
 #define MXT_MAX_AREA		0xff
@@ -554,11 +532,6 @@ static int __mxt_read_reg(struct i2c_client *client,
 	}
 
 	return ret;
-}
-
-static int mxt_read_reg(struct i2c_client *client, u16 reg, u8 *val)
-{
-	return __mxt_read_reg(client, reg, 1, val);
 }
 
 static int __mxt_write_reg(struct i2c_client *client, u16 reg, u16 len,
@@ -1269,12 +1242,59 @@ static void mxt_free_object_table(struct mxt_data *data)
 	data->T19_reportid = 0;
 }
 
+static int mxt_read_t9_resolution(struct mxt_data *data)
+{
+	struct i2c_client *client = data->client;
+	int error;
+	struct t9_range range;
+	unsigned char orient;
+	struct mxt_object *object;
+
+	object = mxt_get_object(data, MXT_TOUCH_MULTI_T9);
+	if (!object)
+		return -EINVAL;
+
+	error = __mxt_read_reg(client,
+			       object->start_address + MXT_T9_RANGE,
+			       sizeof(range), &range);
+	if (error)
+		return error;
+
+	le16_to_cpus(range.x);
+	le16_to_cpus(range.y);
+
+	error =  __mxt_read_reg(client,
+				object->start_address + MXT_T9_ORIENT,
+				1, &orient);
+	if (error)
+		return error;
+
+	/* Handle default values */
+	if (range.x == 0)
+		range.x = 1023;
+
+	if (range.y == 0)
+		range.y = 1023;
+
+	if (orient & MXT_XY_SWITCH) {
+		data->max_x = range.y;
+		data->max_y = range.x;
+	} else {
+		data->max_x = range.x;
+		data->max_y = range.y;
+	}
+
+	dev_dbg(&client->dev,
+		"Touchscreen size X%uY%u\n", data->max_x, data->max_y);
+
+	return 0;
+}
+
 static int mxt_initialize(struct mxt_data *data)
 {
 	struct i2c_client *client = data->client;
 	struct mxt_info *info = &data->info;
 	int error;
-	u8 val;
 
 	error = mxt_get_info(data);
 	if (error)
@@ -1303,46 +1323,22 @@ static int mxt_initialize(struct mxt_data *data)
 		goto err_free_object_table;
 	}
 
-	/* Update matrix size at info struct */
-	error = mxt_read_reg(client, MXT_MATRIX_X_SIZE, &val);
-	if (error)
+	error = mxt_read_t9_resolution(data);
+	if (error) {
+		dev_err(&client->dev, "Failed to initialize T9 resolution\n");
 		goto err_free_object_table;
-	info->matrix_xsize = val;
-
-	error = mxt_read_reg(client, MXT_MATRIX_Y_SIZE, &val);
-	if (error)
-		goto err_free_object_table;
-	info->matrix_ysize = val;
+	}
 
 	dev_info(&client->dev,
-			"Family: %u Variant: %u Firmware V%u.%u.%02X\n",
-			info->family_id, info->variant_id, info->version >> 4,
-			info->version & 0xf, info->build);
-
-	dev_info(&client->dev,
-			"Matrix X Size: %u Matrix Y Size: %u Objects: %u\n",
-			info->matrix_xsize, info->matrix_ysize,
-			info->object_num);
+		 "Family: %u Variant: %u Firmware V%u.%u.%02X Objects: %u\n",
+		 info->family_id, info->variant_id, info->version >> 4,
+		 info->version & 0xf, info->build, info->object_num);
 
 	return 0;
 
 err_free_object_table:
 	mxt_free_object_table(data);
 	return error;
-}
-
-static void mxt_calc_resolution(struct mxt_data *data)
-{
-	unsigned int max_x = data->pdata->x_size - 1;
-	unsigned int max_y = data->pdata->y_size - 1;
-
-	if (data->pdata->orient & MXT_XY_SWITCH) {
-		data->max_x = max_y;
-		data->max_y = max_x;
-	} else {
-		data->max_x = max_x;
-		data->max_y = max_y;
-	}
 }
 
 /* Firmware Version is returned as Major.Minor.Build */
@@ -1669,8 +1665,6 @@ static int mxt_probe(struct i2c_client *client,
 	init_completion(&data->bl_completion);
 	init_completion(&data->reset_completion);
 	init_completion(&data->crc_completion);
-
-	mxt_calc_resolution(data);
 
 	error = mxt_initialize(data);
 	if (error)
