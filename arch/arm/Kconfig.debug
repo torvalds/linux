@@ -492,7 +492,6 @@ choice
 	config DEBUG_RK29_UART0
 		bool "Kernel low-level debugging messages via Rockchip RK29 UART0"
 		depends on ARCH_ROCKCHIP
-		select DEBUG_ROCKCHIP_UART
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
@@ -501,7 +500,6 @@ choice
 	config DEBUG_RK29_UART1
 		bool "Kernel low-level debugging messages via Rockchip RK29 UART1"
 		depends on ARCH_ROCKCHIP
-		select DEBUG_ROCKCHIP_UART
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
@@ -510,7 +508,6 @@ choice
 	config DEBUG_RK29_UART2
 		bool "Kernel low-level debugging messages via Rockchip RK29 UART2"
 		depends on ARCH_ROCKCHIP
-		select DEBUG_ROCKCHIP_UART
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
@@ -519,7 +516,6 @@ choice
 	config DEBUG_RK3X_UART0
 		bool "Kernel low-level debugging messages via Rockchip RK3X UART0"
 		depends on ARCH_ROCKCHIP
-		select DEBUG_ROCKCHIP_UART
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
@@ -528,7 +524,6 @@ choice
 	config DEBUG_RK3X_UART1
 		bool "Kernel low-level debugging messages via Rockchip RK3X UART1"
 		depends on ARCH_ROCKCHIP
-		select DEBUG_ROCKCHIP_UART
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
@@ -537,7 +532,6 @@ choice
 	config DEBUG_RK3X_UART2
 		bool "Kernel low-level debugging messages via Rockchip RK3X UART2"
 		depends on ARCH_ROCKCHIP
-		select DEBUG_ROCKCHIP_UART
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
@@ -546,7 +540,6 @@ choice
 	config DEBUG_RK3X_UART3
 		bool "Kernel low-level debugging messages via Rockchip RK3X UART3"
 		depends on ARCH_ROCKCHIP
-		select DEBUG_ROCKCHIP_UART
 		select DEBUG_UART_8250
 		help
 		  Say Y here if you want kernel low-level debugging support
@@ -856,10 +849,6 @@ config DEBUG_IMX_UART_PORT
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
-
-config DEBUG_ROCKCHIP_UART
-	bool
-	depends on ARCH_ROCKCHIP
 
 config DEBUG_TEGRA_UART
 	bool
