@@ -84,16 +84,22 @@ static struct i2c_board_info tsl2563_als_device = {
 	I2C_BOARD_INFO("tsl2563", TAOS_ALS_I2C_ADDR),
 };
 
+static int mxt_t19_keys[] = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	BTN_LEFT
+};
+
 static struct mxt_platform_data atmel_224s_tp_platform_data = {
 	.x_size			= 102*20,
 	.y_size			= 68*20,
 	.orient			= MXT_VERTICAL_FLIP,
 	.irqflags		= IRQF_TRIGGER_FALLING,
-	.is_tp			= true,
-	.key_map		= { KEY_RESERVED,
-				    KEY_RESERVED,
-				    KEY_RESERVED,
-				    BTN_LEFT },
+	.t19_num_keys		= ARRAY_SIZE(mxt_t19_keys),
+	.t19_keymap		= mxt_t19_keys,
 	.config			= NULL,
 	.config_length		= 0,
 };
@@ -109,7 +115,6 @@ static struct mxt_platform_data atmel_1664s_platform_data = {
 	.y_size			= 2560,
 	.orient			= MXT_ROTATED_90_COUNTER,
 	.irqflags		= IRQF_TRIGGER_FALLING,
-	.is_tp			= false,
 	.config			= NULL,
 	.config_length		= 0,
 };
