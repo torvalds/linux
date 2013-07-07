@@ -34,6 +34,18 @@
 			};
 		};
 	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_3v3: 3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+	};
 };
 
 &fb {
@@ -47,6 +59,12 @@
 	rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
+	};
+
+	adc@64 {
+		compatible = "maxim,max1037";
+		vcc-supply = <&reg_3v3>;
+		reg = <0x64>;
 	};
 };
 
