@@ -50,11 +50,6 @@
 &i2c2 {
 	status = "okay";
 
-	lm75@4a {
-		compatible = "national,lm75";
-		reg = <0x4a>;
-	};
-
 	at24@52 {
 		compatible = "at,24c32";
 		pagesize = <32>;
