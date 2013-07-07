@@ -47,5 +47,5 @@
 
 		.endm
 
-#include <asm/hardware/debug-pl01x.S>
+#include <debug/pl01x.S>
 #endif

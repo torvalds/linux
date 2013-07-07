@@ -1,4 +1,4 @@
-/* arch/arm/include/asm/hardware/debug-pl01x.S
+/* arch/arm/include/debug/pl01x.S
  *
  * Debugging macro include header
  *
