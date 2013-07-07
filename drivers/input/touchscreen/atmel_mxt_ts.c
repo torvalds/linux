@@ -181,8 +181,8 @@
 #define MXT_BACKUP_VALUE	0x55
 #define MXT_BACKUP_TIME		50	/* msec */
 #define MXT_RESET_TIME		200	/* msec */
-
-#define MXT_FWRESET_TIME	175	/* msec */
+#define MXT_FW_RESET_TIME	3000	/* msec */
+#define MXT_FW_CHG_TIMEOUT	300	/* msec */
 
 /* Command to unlock bootloader */
 #define MXT_UNLOCK_CMD_MSB	0xaa
@@ -375,7 +375,7 @@ recheck:
 		 * CHG assertion before reading the status byte.
 		 * Once the status byte has been read, the line is deasserted.
 		 */
-		ret = mxt_wait_for_chg(data, 300);
+		ret = mxt_wait_for_chg(data, MXT_FW_CHG_TIMEOUT);
 		if (ret) {
 			/*
 			 * TODO: handle -ERESTARTSYS better by terminating
@@ -1047,6 +1047,18 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 		dev_dbg(dev, "Updated %d bytes / %zd bytes\n", pos, fw->size);
 	}
 
+	/* Wait for flash. */
+	ret = mxt_wait_for_chg(data, MXT_FW_RESET_TIME);
+	if (ret)
+		goto disable_irq;
+
+	/*
+	 * Wait for device to reset. Some bootloader versions do not assert
+	 * the CHG line after bootloading has finished, so ignore potential
+	 * errors.
+	 */
+	mxt_wait_for_chg(data, MXT_FW_RESET_TIME);
+
 	data->in_bootloader = false;
 
 disable_irq:
@@ -1075,10 +1087,6 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 		count = error;
 	} else {
 		dev_dbg(dev, "The firmware update succeeded\n");
-
-		/* Wait for reset */
-		msleep(MXT_FWRESET_TIME);
-
 		mxt_free_object_table(data);
 
 		mxt_initialize(data);
