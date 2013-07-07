@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 #include <linux/dw_dmac.h>
 
@@ -99,6 +100,12 @@ struct dw_dma_regs {
 	/* top-level parameters */
 	u32	DW_PARAMS;
 };
+
+/*
+ * Big endian I/O access when reading and writing to the DMA controller
+ * registers.  This is needed on some platforms, like the Atmel AVR32
+ * architecture.
+ */
 
 #ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
 #define dma_readl_native ioread32be
