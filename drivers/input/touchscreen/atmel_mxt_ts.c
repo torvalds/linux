@@ -1425,6 +1425,30 @@ done:
 	return error ?: count;
 }
 
+static int mxt_check_firmware_format(struct device *dev,
+				     const struct firmware *fw)
+{
+	unsigned int pos = 0;
+	char c;
+
+	while (pos < fw->size) {
+		c = *(fw->data + pos);
+
+		if (c < '0' || (c > '9' && c < 'A') || c > 'F')
+			return 0;
+
+		pos++;
+	}
+
+	/*
+	 * To convert file try:
+	 * xxd -r -p mXTXXX__APP_VX-X-XX.enc > maxtouch.fw
+	 */
+	dev_err(dev, "Aborting: firmware file must be in binary format\n");
+
+	return -EINVAL;
+}
+
 static int mxt_load_fw(struct device *dev, const char *fn)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
@@ -1440,6 +1464,11 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 		dev_err(dev, "Unable to open firmware %s\n", fn);
 		return ret;
 	}
+
+	/* Check for incorrect enc file */
+	ret = mxt_check_firmware_format(dev, fw);
+	if (ret)
+		goto release_firmware;
 
 	ret = mxt_lookup_bootloader_address(data);
 	if (ret)
