@@ -36,6 +36,7 @@
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/poison.h>
+#include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -1486,6 +1487,7 @@ static int nvme_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 
 	switch (cmd) {
 	case NVME_IOCTL_ID:
+		force_successful_syscall_return();
 		return ns->ns_id;
 	case NVME_IOCTL_ADMIN_CMD:
 		return nvme_user_admin_cmd(ns->dev, (void __user *)arg);
@@ -1588,7 +1590,7 @@ static void nvme_config_discard(struct nvme_ns *ns)
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
 }
 
-static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int nsid,
+static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid,
 			struct nvme_id_ns *id, struct nvme_lba_range_type *rt)
 {
 	struct nvme_ns *ns;
@@ -1768,7 +1770,8 @@ static void nvme_free_queues(struct nvme_dev *dev)
  */
 static int nvme_dev_add(struct nvme_dev *dev)
 {
-	int res, nn, i;
+	int res;
+	unsigned nn, i;
 	struct nvme_ns *ns;
 	struct nvme_id_ctrl *ctrl;
 	struct nvme_id_ns *id_ns;

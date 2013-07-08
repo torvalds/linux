@@ -104,7 +104,7 @@ struct nvme_ns {
 	struct request_queue *queue;
 	struct gendisk *disk;
 
-	int ns_id;
+	unsigned ns_id;
 	int lba_shift;
 	int ms;
 	u64 mode_select_num_blocks;
