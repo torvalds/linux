@@ -2092,6 +2092,10 @@ struct mac_iveiv_entry {
 #define BBP109_TX0_POWER		FIELD8(0x0f)
 #define BBP109_TX1_POWER		FIELD8(0xf0)
 
+/* BBP 110 */
+#define BBP110_TX2_POWER		FIELD8(0x0f)
+
+
 /*
  * BBP 138: Unknown
  */
@@ -2141,6 +2145,12 @@ struct mac_iveiv_entry {
 #define RFCSR3_PA2_CASCODE_BIAS_CCKK	FIELD8(0x80)
 /* Bits for RF3290/RF5360/RF5370/RF5372/RF5390/RF5392 */
 #define RFCSR3_VCOCAL_EN		FIELD8(0x80)
+/* Bits for RF3050 */
+#define RFCSR3_BIT1			FIELD8(0x02)
+#define RFCSR3_BIT2			FIELD8(0x04)
+#define RFCSR3_BIT3			FIELD8(0x08)
+#define RFCSR3_BIT4			FIELD8(0x10)
+#define RFCSR3_BIT5			FIELD8(0x20)
 
 /*
  * FRCSR 5:
@@ -2153,6 +2163,8 @@ struct mac_iveiv_entry {
 #define RFCSR6_R1			FIELD8(0x03)
 #define RFCSR6_R2			FIELD8(0x40)
 #define RFCSR6_TXDIV		FIELD8(0x0c)
+/* bits for RF3053 */
+#define RFCSR6_VCO_IC			FIELD8(0xc0)
 
 /*
  * RFCSR 7:
@@ -2177,7 +2189,12 @@ struct mac_iveiv_entry {
  * RFCSR 11:
  */
 #define RFCSR11_R			FIELD8(0x03)
+#define RFCSR11_PLL_MOD			FIELD8(0x0c)
 #define RFCSR11_MOD			FIELD8(0xc0)
+/* bits for RF3053 */
+/* TODO: verify RFCSR11_MOD usage on other chips */
+#define RFCSR11_PLL_IDOH		FIELD8(0x40)
+
 
 /*
  * RFCSR 12:
@@ -2273,6 +2290,12 @@ struct mac_iveiv_entry {
 #define RFCSR31_RX_H20M			FIELD8(0x20)
 #define RFCSR31_RX_CALIB		FIELD8(0x7f)
 
+/* RFCSR 32 bits for RF3053 */
+#define RFCSR32_TX_AGC_FC		FIELD8(0xf8)
+
+/* RFCSR 36 bits for RF3053 */
+#define RFCSR36_RF_BS			FIELD8(0x80)
+
 /*
  * RFCSR 38:
  */
@@ -2281,6 +2304,7 @@ struct mac_iveiv_entry {
 /*
  * RFCSR 39:
  */
+#define RFCSR39_RX_DIV			FIELD8(0x40)
 #define RFCSR39_RX_LO2_EN		FIELD8(0x80)
 
 /*
@@ -2288,18 +2312,36 @@ struct mac_iveiv_entry {
  */
 #define RFCSR49_TX			FIELD8(0x3f)
 #define RFCSR49_EP			FIELD8(0xc0)
+/* bits for RT3593 */
+#define RFCSR49_TX_LO1_IC		FIELD8(0x1c)
+#define RFCSR49_TX_DIV			FIELD8(0x20)
 
 /*
  * RFCSR 50:
  */
 #define RFCSR50_TX			FIELD8(0x3f)
 #define RFCSR50_EP			FIELD8(0xc0)
-/* bits for RT3593*/
+/* bits for RT3593 */
+#define RFCSR50_TX_LO1_EN		FIELD8(0x20)
 #define RFCSR50_TX_LO2_EN		FIELD8(0x10)
 
 /* RFCSR 51 */
-/* bits for RT3593*/
+/* bits for RT3593 */
+#define RFCSR51_BITS01			FIELD8(0x03)
 #define RFCSR51_BITS24			FIELD8(0x1c)
+#define RFCSR51_BITS57			FIELD8(0xe0)
+
+#define RFCSR53_TX_POWER		FIELD8(0x3f)
+#define RFCSR53_UNKNOWN			FIELD8(0xc0)
+
+#define RFCSR54_TX_POWER		FIELD8(0x3f)
+#define RFCSR54_UNKNOWN			FIELD8(0xc0)
+
+#define RFCSR55_TX_POWER		FIELD8(0x3f)
+#define RFCSR55_UNKNOWN			FIELD8(0xc0)
+
+#define RFCSR57_DRV_CC			FIELD8(0xfc)
+
 
 /*
  * RF registers
