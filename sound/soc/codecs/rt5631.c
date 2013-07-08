@@ -26,7 +26,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
-
+#include <sound/tlv.h>
 #include "rt5631.h"
 #include <linux/timer.h>
 
@@ -66,7 +66,7 @@ bool isPlaybackon = false, isCaptureon = false;
 module_param(timesofbclk, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(timeofbclk, "relationship between bclk and fs");
 
-
+static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -9435, 37, 0);
 static inline int rt5631_write(struct snd_soc_codec *codec,
 			unsigned int reg, unsigned int val)
 {
@@ -475,7 +475,7 @@ SOC_ENUM("MIC1 Boost", rt5631_enum[6]),
 SOC_ENUM("MIC2 Mode Control", rt5631_enum[4]),
 SOC_ENUM("MIC2 Boost", rt5631_enum[7]),
 SOC_ENUM("MONOIN Mode Control", rt5631_enum[5]),
-SOC_DOUBLE("PCM Playback Volume", RT5631_STEREO_DAC_VOL_2, 8, 0, 255, 1),
+SOC_DOUBLE_TLV("PCM Playback Volume", RT5631_STEREO_DAC_VOL_2, 8, 0, 255, 1, dac_vol_tlv),
 SOC_DOUBLE("PCM Playback Switch", RT5631_STEREO_DAC_VOL_1, 15, 7, 1, 1),
 SOC_DOUBLE("MONOIN_RX Capture Volume", RT5631_MONO_INPUT_VOL, 8, 0, 31, 1),
 SOC_DOUBLE("AXI Capture Volume", RT5631_AUX_IN_VOL, 8, 0, 31, 1),
