@@ -1763,7 +1763,7 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 			rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 2);
 		break;
 	case 3:
-		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 0);
+		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 2);
 		break;
 	}
 
