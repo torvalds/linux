@@ -765,6 +765,19 @@ static void ni_calculate_leakage_for_v_and_t(struct radeon_device *rdev,
 	ni_calculate_leakage_for_v_and_t_formula(coeff, v, t, i_leakage, leakage);
 }
 
+bool ni_dpm_vblank_too_short(struct radeon_device *rdev)
+{
+	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+	u32 switch_limit = pi->mem_gddr5 ? 450 : 300;
+
+	if (vblank_time < switch_limit)
+		return true;
+	else
+		return false;
+
+}
+
 static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 					struct radeon_ps *rps)
 {
@@ -775,7 +788,8 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 	u16 vddc, vddci;
 	int i;
 
-	if (rdev->pm.dpm.new_active_crtc_count > 1)
+	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
+	    ni_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
 	else
 		disable_mclk_switching = false;

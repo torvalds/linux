@@ -624,6 +624,7 @@ void ni_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m);
 int ni_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
+bool ni_dpm_vblank_too_short(struct radeon_device *rdev);
 int trinity_dpm_init(struct radeon_device *rdev);
 int trinity_dpm_enable(struct radeon_device *rdev);
 void trinity_dpm_disable(struct radeon_device *rdev);
