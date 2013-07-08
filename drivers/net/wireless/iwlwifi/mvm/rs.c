@@ -3159,8 +3159,9 @@ static void rs_remove_debugfs(void *mvm, void *mvm_sta)
  * station is added we ignore it.
  */
 static void rs_rate_init_stub(void *mvm_r,
-				 struct ieee80211_supported_band *sband,
-				 struct ieee80211_sta *sta, void *mvm_sta)
+			      struct ieee80211_supported_band *sband,
+			      struct cfg80211_chan_def *chandef,
+			      struct ieee80211_sta *sta, void *mvm_sta)
 {
 }
 static struct rate_control_ops rs_mvm_ops = {

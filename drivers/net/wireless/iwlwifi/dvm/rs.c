@@ -3319,7 +3319,8 @@ static void rs_remove_debugfs(void *priv, void *priv_sta)
  * station is added we ignore it.
  */
 static void rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sband,
-			 struct ieee80211_sta *sta, void *priv_sta)
+			      struct cfg80211_chan_def *chandef,
+			      struct ieee80211_sta *sta, void *priv_sta)
 {
 }
 static struct rate_control_ops rs_ops = {

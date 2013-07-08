@@ -417,7 +417,8 @@ init_sample_table(struct minstrel_sta_info *mi)
 
 static void
 minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
-               struct ieee80211_sta *sta, void *priv_sta)
+		   struct cfg80211_chan_def *chandef,
+		   struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct minstrel_sta_info *mi = priv_sta;
 	struct minstrel_priv *mp = priv;

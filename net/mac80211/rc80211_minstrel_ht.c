@@ -836,6 +836,7 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 static void
 minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
+			struct cfg80211_chan_def *chandef,
                         struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct minstrel_priv *mp = priv;
@@ -931,22 +932,25 @@ use_legacy:
 	memset(&msp->legacy, 0, sizeof(msp->legacy));
 	msp->legacy.r = msp->ratelist;
 	msp->legacy.sample_table = msp->sample_table;
-	return mac80211_minstrel.rate_init(priv, sband, sta, &msp->legacy);
+	return mac80211_minstrel.rate_init(priv, sband, chandef, sta,
+					   &msp->legacy);
 }
 
 static void
 minstrel_ht_rate_init(void *priv, struct ieee80211_supported_band *sband,
+		      struct cfg80211_chan_def *chandef,
                       struct ieee80211_sta *sta, void *priv_sta)
 {
-	minstrel_ht_update_caps(priv, sband, sta, priv_sta);
+	minstrel_ht_update_caps(priv, sband, chandef, sta, priv_sta);
 }
 
 static void
 minstrel_ht_rate_update(void *priv, struct ieee80211_supported_band *sband,
+			struct cfg80211_chan_def *chandef,
                         struct ieee80211_sta *sta, void *priv_sta,
                         u32 changed)
 {
-	minstrel_ht_update_caps(priv, sband, sta, priv_sta);
+	minstrel_ht_update_caps(priv, sband, chandef, sta, priv_sta);
 }
 
 static void *

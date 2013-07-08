@@ -4204,8 +4204,10 @@ struct rate_control_ops {
 
 	void *(*alloc_sta)(void *priv, struct ieee80211_sta *sta, gfp_t gfp);
 	void (*rate_init)(void *priv, struct ieee80211_supported_band *sband,
+			  struct cfg80211_chan_def *chandef,
 			  struct ieee80211_sta *sta, void *priv_sta);
 	void (*rate_update)(void *priv, struct ieee80211_supported_band *sband,
+			    struct cfg80211_chan_def *chandef,
 			    struct ieee80211_sta *sta, void *priv_sta,
 			    u32 changed);
 	void (*free_sta)(void *priv, struct ieee80211_sta *sta,
