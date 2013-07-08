@@ -2256,7 +2256,6 @@ static int qla4xxx_copy_to_fwddb_param(struct iscsi_bus_flash_session *sess,
 	fw_ddb_entry->mss = cpu_to_le16(conn->max_segment_size);
 	fw_ddb_entry->tcp_xmt_wsf = (uint8_t) cpu_to_le32(conn->tcp_xmit_wsf);
 	fw_ddb_entry->tcp_rcv_wsf = (uint8_t) cpu_to_le32(conn->tcp_recv_wsf);
-	fw_ddb_entry->ipv4_tos = conn->ipv4_tos;
 	fw_ddb_entry->ipv6_flow_lbl = cpu_to_le16(conn->ipv6_flow_label);
 	fw_ddb_entry->ka_timeout = cpu_to_le16(conn->keepalive_timeout);
 	fw_ddb_entry->lcl_port = cpu_to_le16(conn->local_port);
@@ -2268,6 +2267,11 @@ static int qla4xxx_copy_to_fwddb_param(struct iscsi_bus_flash_session *sess,
 	fw_ddb_entry->port = cpu_to_le16(conn->port);
 	fw_ddb_entry->def_timeout =
 				cpu_to_le16(sess->default_taskmgmt_timeout);
+
+	if (!strncmp(sess->portal_type, PORTAL_TYPE_IPV6, 4))
+		fw_ddb_entry->ipv4_tos = conn->ipv6_traffic_class;
+	else
+		fw_ddb_entry->ipv4_tos = conn->ipv4_tos;
 
 	if (conn->ipaddress)
 		memcpy(fw_ddb_entry->ip_addr, conn->ipaddress,
