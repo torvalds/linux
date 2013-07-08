@@ -6235,7 +6235,7 @@ qla4xxx_sysfs_ddb_get_param(struct iscsi_bus_flash_session *fnode_sess,
 	struct iscsi_bus_flash_conn *fnode_conn;
 	struct ql4_chap_table chap_tbl;
 	struct device *dev;
-	int parent_type, parent_index = 0xffff;
+	int parent_type;
 	int rc = 0;
 
 	dev = iscsi_find_flashnode_conn(fnode_sess);
@@ -6401,10 +6401,7 @@ qla4xxx_sysfs_ddb_get_param(struct iscsi_bus_flash_session *fnode_sess,
 			rc = sprintf(buf, "\n");
 		break;
 	case ISCSI_FLASHNODE_DISCOVERY_PARENT_IDX:
-		if (fnode_sess->discovery_parent_idx < MAX_DDB_ENTRIES)
-			parent_index = fnode_sess->discovery_parent_idx;
-
-		rc = sprintf(buf, "%u\n", parent_index);
+		rc = sprintf(buf, "%u\n", fnode_sess->discovery_parent_idx);
 		break;
 	case ISCSI_FLASHNODE_DISCOVERY_PARENT_TYPE:
 		if (fnode_sess->discovery_parent_type == DDB_ISNS)
