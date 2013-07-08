@@ -41,8 +41,45 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 
 	return BLKPREP_OK;
 }
+static int sdmmc_queue_thread(void *d)
+{
+	struct mmc_queue *mq = d;
+	struct request_queue *q = mq->queue;
 
-static int mmc_queue_thread(void *d)
+	current->flags |= PF_MEMALLOC;
+
+	down(&mq->thread_sem);
+	do {
+		struct request *req = NULL;
+
+		spin_lock_irq(q->queue_lock);
+		set_current_state(TASK_INTERRUPTIBLE);
+		req = blk_fetch_request(q);
+		mq->mqrq_cur->req = req;
+		mq->mqrq_prev->req = NULL;
+		spin_unlock_irq(q->queue_lock);
+
+		if (!req) {
+			if (kthread_should_stop()) {
+				set_current_state(TASK_RUNNING);
+				break;
+			}
+			up(&mq->thread_sem);
+			schedule();
+			down(&mq->thread_sem);
+			continue;
+		}
+		set_current_state(TASK_RUNNING);
+
+		mq->issue_fn(mq, req);
+	} while (1);
+	up(&mq->thread_sem);
+
+	return 0;
+}
+
+
+static int emmc_queue_thread(void *d)
 {
 	struct mmc_queue *mq = d;
 	struct request_queue *q = mq->queue;
@@ -257,8 +294,11 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 
 	sema_init(&mq->thread_sem, 1);
 
-	mq->thread = kthread_run(mmc_queue_thread, mq, "mmcqd/%d%s",
-		host->index, subname ? subname : "");
+	if(HOST_IS_EMMC(card->host))
+		mq->thread = kthread_run(emmc_queue_thread, mq, "emmcqd");
+	else
+		mq->thread = kthread_run(sdmmc_queue_thread, mq, "mmcqd/%d%s",
+			host->index, subname ? subname : "");
 
 	if (IS_ERR(mq->thread)) {
 		ret = PTR_ERR(mq->thread);

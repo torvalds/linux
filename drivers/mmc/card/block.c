@@ -1477,7 +1477,44 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 static int
 mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card);
 
-static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
+static int sdmmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
+{
+	int ret;
+	struct mmc_blk_data *md = mq->data;
+	struct mmc_card *card = md->queue.card;
+
+#ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+       if (mmc_bus_needs_resume(card->host)) {
+               mmc_resume_bus(card->host);
+               mmc_blk_set_blksize(md, card);
+       }
+#endif
+	mmc_claim_host(card->host);
+
+	ret = mmc_blk_part_switch(card, md);
+	if (ret) {
+		ret = 0;
+		goto out;
+	}
+
+	if (req && req->cmd_flags & REQ_DISCARD) {
+		if (req->cmd_flags & REQ_SECURE)
+			ret = mmc_blk_issue_secdiscard_rq(mq, req);
+		else
+			ret = mmc_blk_issue_discard_rq(mq, req);
+	} else if (req && req->cmd_flags & REQ_FLUSH) {
+		ret = mmc_blk_issue_flush(mq, req);
+	} else {
+		ret = mmc_blk_issue_rw_rq(mq, req);
+	}
+
+out:
+	mmc_release_host(card->host);
+	return ret;
+
+}
+
+static int emmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 {
 	int ret;
 	struct mmc_blk_data *md = mq->data;
@@ -1515,6 +1552,17 @@ out:
 		/* release host only when there are no more requests */
 		mmc_release_host(card->host);
 	return ret;
+}
+
+static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
+{
+	struct mmc_blk_data *md = mq->data;
+	struct mmc_card *card = md->queue.card;
+
+	if(HOST_IS_EMMC(card->host))
+		return emmc_blk_issue_rq(mq, req);
+	else
+		return sdmmc_blk_issue_rq(mq, req);
 }
 
 static inline int mmc_blk_readonly(struct mmc_card *card)
