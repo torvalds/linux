@@ -373,6 +373,7 @@ struct nested_vmx {
 	 * we must keep them pinned while L2 runs.
 	 */
 	struct page *apic_access_page;
+	u64 msr_ia32_feature_control;
 };
 
 #define POSTED_INTR_ON  0
@@ -2282,8 +2283,11 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 
 	switch (msr_index) {
 	case MSR_IA32_FEATURE_CONTROL:
-		*pdata = 0;
-		break;
+		if (nested_vmx_allowed(vcpu)) {
+			*pdata = to_vmx(vcpu)->nested.msr_ia32_feature_control;
+			break;
+		}
+		return 0;
 	case MSR_IA32_VMX_BASIC:
 		/*
 		 * This MSR reports some information about VMX support. We
@@ -2356,14 +2360,24 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 	return 1;
 }
 
-static int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
+static int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
+	u32 msr_index = msr_info->index;
+	u64 data = msr_info->data;
+	bool host_initialized = msr_info->host_initiated;
+
 	if (!nested_vmx_allowed(vcpu))
 		return 0;
 
-	if (msr_index == MSR_IA32_FEATURE_CONTROL)
-		/* TODO: the right thing. */
+	if (msr_index == MSR_IA32_FEATURE_CONTROL) {
+		if (!host_initialized &&
+				to_vmx(vcpu)->nested.msr_ia32_feature_control
+				& FEATURE_CONTROL_LOCKED)
+			return 0;
+		to_vmx(vcpu)->nested.msr_ia32_feature_control = data;
 		return 1;
+	}
+
 	/*
 	 * No need to treat VMX capability MSRs specially: If we don't handle
 	 * them, handle_wrmsr will #GP(0), which is correct (they are readonly)
@@ -2494,7 +2508,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		/* Otherwise falls through */
 	default:
-		if (vmx_set_vmx_msr(vcpu, msr_index, data))
+		if (vmx_set_vmx_msr(vcpu, msr_info))
 			break;
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {
@@ -5622,6 +5636,8 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	struct kvm_segment cs;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs *shadow_vmcs;
+	const u64 VMXON_NEEDED_FEATURES = FEATURE_CONTROL_LOCKED
+		| FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX;
 
 	/* The Intel VMX Instruction Reference lists a bunch of bits that
 	 * are prerequisite to running VMXON, most notably cr4.VMXE must be
@@ -5650,6 +5666,13 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		skip_emulated_instruction(vcpu);
 		return 1;
 	}
+
+	if ((vmx->nested.msr_ia32_feature_control & VMXON_NEEDED_FEATURES)
+			!= VMXON_NEEDED_FEATURES) {
+		kvm_inject_gp(vcpu, 0);
+		return 1;
+	}
+
 	if (enable_shadow_vmcs) {
 		shadow_vmcs = alloc_vmcs();
 		if (!shadow_vmcs)
