@@ -5707,7 +5707,8 @@ static int qla4xxx_sysfs_ddb_add(struct Scsi_Host *shost, const char *buf,
 		goto exit_ddb_add;
 	}
 
-	for (idx = 0; idx < max_ddbs; idx++) {
+	/* Index 0 and 1 are reserved for boot target entries */
+	for (idx = 2; idx < max_ddbs; idx++) {
 		if (qla4xxx_flashdb_by_index(ha, fw_ddb_entry,
 					     fw_ddb_entry_dma, idx))
 			break;
