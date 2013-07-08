@@ -295,7 +295,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	sema_init(&mq->thread_sem, 1);
 
 	if(HOST_IS_EMMC(card->host))
-		mq->thread = kthread_run(emmc_queue_thread, mq, "emmcqd");
+		mq->thread = kthread_run(emmc_queue_thread, mq, "mmcqd/%d%s",
+			host->index, subname ? subname : "");
 	else
 		mq->thread = kthread_run(sdmmc_queue_thread, mq, "mmcqd/%d%s",
 			host->index, subname ? subname : "");
