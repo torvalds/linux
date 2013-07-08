@@ -670,13 +670,16 @@ restore:
 		if (!bp) {
 			if (disabled)
 				continue;
-			/*
-			 * We should have at least an inactive breakpoint at
-			 * this slot. It means the user is writing dr7 without
-			 * having written the address register first.
-			 */
-			rc = -EINVAL;
-			break;
+
+			bp = ptrace_register_breakpoint(tsk,
+					len, type, 0, disabled);
+			if (IS_ERR(bp)) {
+				rc = PTR_ERR(bp);
+				break;
+			}
+
+			thread->ptrace_bps[i] = bp;
+			continue;
 		}
 
 		rc = ptrace_modify_breakpoint(bp, len, type, disabled);
