@@ -323,11 +323,11 @@ static u64 qp_read_field(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 			param = 0;
 		break;
 	case QP_LOG_PG_SZ:
-		param = ((cpu_to_be32(ctx->log_pg_sz_remote_qpn) >> 24) & 0x1f);
+		param = (be32_to_cpu(ctx->log_pg_sz_remote_qpn) >> 24) & 0x1f;
 		param += 12;
 		break;
 	case QP_RQPN:
-		param = cpu_to_be32(ctx->log_pg_sz_remote_qpn) & 0xffffff;
+		param = be32_to_cpu(ctx->log_pg_sz_remote_qpn) & 0xffffff;
 		break;
 	}
 

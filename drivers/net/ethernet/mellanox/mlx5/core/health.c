@@ -132,6 +132,16 @@ static const char *hsynd_str(u8 synd)
 	}
 }
 
+static u16 read_be16(__be16 __iomem *p)
+{
+	return swab16(readl((__force u16 __iomem *) p));
+}
+
+static u32 read_be32(__be32 __iomem *p)
+{
+	return swab32(readl((__force u32 __iomem *) p));
+}
+
 static void print_health_info(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
@@ -139,15 +149,15 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++)
-		pr_info("assert_var[%d] 0x%08x\n", i, be32_to_cpu(h->assert_var[i]));
+		pr_info("assert_var[%d] 0x%08x\n", i, read_be32(h->assert_var + i));
 
-	pr_info("assert_exit_ptr 0x%08x\n", be32_to_cpu(h->assert_exit_ptr));
-	pr_info("assert_callra 0x%08x\n", be32_to_cpu(h->assert_callra));
-	pr_info("fw_ver 0x%08x\n", be32_to_cpu(h->fw_ver));
-	pr_info("hw_id 0x%08x\n", be32_to_cpu(h->hw_id));
-	pr_info("irisc_index %d\n", h->irisc_index);
-	pr_info("synd 0x%x: %s\n", h->synd, hsynd_str(h->synd));
-	pr_info("ext_sync 0x%04x\n", be16_to_cpu(h->ext_sync));
+	pr_info("assert_exit_ptr 0x%08x\n", read_be32(&h->assert_exit_ptr));
+	pr_info("assert_callra 0x%08x\n", read_be32(&h->assert_callra));
+	pr_info("fw_ver 0x%08x\n", read_be32(&h->fw_ver));
+	pr_info("hw_id 0x%08x\n", read_be32(&h->hw_id));
+	pr_info("irisc_index %d\n", readb(&h->irisc_index));
+	pr_info("synd 0x%x: %s\n", readb(&h->synd), hsynd_str(readb(&h->synd)));
+	pr_info("ext_sync 0x%04x\n", read_be16(&h->ext_sync));
 }
 
 static void poll_health(unsigned long data)
