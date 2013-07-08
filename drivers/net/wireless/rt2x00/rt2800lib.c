@@ -6948,6 +6948,7 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RF3021:
 	case RF3022:
 	case RF3052:
+	case RF3053:
 	case RF3290:
 	case RF3320:
 	case RF3322:
