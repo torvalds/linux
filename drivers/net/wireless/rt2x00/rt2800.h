@@ -2603,6 +2603,10 @@ enum rt2800_eeprom_word {
 #define EEPROM_TXPOWER_A_1		FIELD16(0x00ff)
 #define EEPROM_TXPOWER_A_2		FIELD16(0xff00)
 
+/* EEPROM_TXPOWER_{A,G} fields for RT3593 */
+#define EEPROM_TXPOWER_ALC		FIELD8(0x1f)
+#define EEPROM_TXPOWER_FINE_CTRL	FIELD8(0xe0)
+
 /*
  * EEPROM temperature compensation boundaries 802.11A
  * MINUS4: If the actual TSSI is below this boundary, tx power needs to be
@@ -2883,6 +2887,9 @@ enum rt2800_eeprom_word {
 #define MAX_G_TXPOWER	31
 #define MAX_A_TXPOWER	15
 #define DEFAULT_TXPOWER	5
+
+#define MIN_A_TXPOWER_3593	0
+#define MAX_A_TXPOWER_3593	31
 
 #define TXPOWER_G_FROM_DEV(__txpower) \
 	((__txpower) > MAX_G_TXPOWER) ? DEFAULT_TXPOWER : (__txpower)
