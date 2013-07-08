@@ -37,9 +37,9 @@ extern unsigned int sysctl_net_ll_poll __read_mostly;
 #define LL_FLUSH_FAILED		-1
 #define LL_FLUSH_BUSY		-2
 
-static inline unsigned int ll_get_flag(void)
+static inline bool net_busy_loop_on(void)
 {
-	return sysctl_net_ll_poll ? POLL_LL : 0;
+	return sysctl_net_ll_poll;
 }
 
 /* a wrapper to make debug_smp_processor_id() happy
@@ -47,7 +47,7 @@ static inline unsigned int ll_get_flag(void)
  * we only care that the average is bounded
  */
 #ifdef CONFIG_DEBUG_PREEMPT
-static inline u64 ll_sched_clock(void)
+static inline u64 busy_loop_sched_clock(void)
 {
 	u64 rc;
 
@@ -58,7 +58,7 @@ static inline u64 ll_sched_clock(void)
 	return rc;
 }
 #else /* CONFIG_DEBUG_PREEMPT */
-static inline u64 ll_sched_clock(void)
+static inline u64 busy_loop_sched_clock(void)
 {
 	return sched_clock();
 }
@@ -67,7 +67,7 @@ static inline u64 ll_sched_clock(void)
 /* we don't mind a ~2.5% imprecision so <<10 instead of *1000
  * sk->sk_ll_usec is a u_int so this can't overflow
  */
-static inline u64 ll_sk_run_time(struct sock *sk)
+static inline u64 sk_busy_loop_end_time(struct sock *sk)
 {
 	return (u64)ACCESS_ONCE(sk->sk_ll_usec) << 10;
 }
@@ -75,27 +75,29 @@ static inline u64 ll_sk_run_time(struct sock *sk)
 /* in poll/select we use the global sysctl_net_ll_poll value
  * only call sched_clock() if enabled
  */
-static inline u64 ll_run_time(void)
+static inline u64 busy_loop_end_time(void)
 {
 	return (u64)ACCESS_ONCE(sysctl_net_ll_poll) << 10;
 }
 
-/* if flag is not set we don't need to know the time */
-static inline u64 ll_start_time(unsigned int flag)
+/* if flag is not set we don't need to know the time
+ * so we want to avoid a potentially expensive sched_clock()
+ */
+static inline u64 busy_loop_start_time(unsigned int flag)
 {
-	return flag ? ll_sched_clock() : 0;
+	return flag ? busy_loop_sched_clock() : 0;
 }
 
-static inline bool sk_valid_ll(struct sock *sk)
+static inline bool sk_can_busy_loop(struct sock *sk)
 {
 	return sk->sk_ll_usec && sk->sk_napi_id &&
 	       !need_resched() && !signal_pending(current);
 }
 
 /* careful! time_in_range64 will evaluate now twice */
-static inline bool can_poll_ll(u64 start_time, u64 run_time)
+static inline bool busy_loop_range(u64 start_time, u64 run_time)
 {
-	u64 now = ll_sched_clock();
+	u64 now = busy_loop_sched_clock();
 
 	return time_in_range64(now, start_time, start_time + run_time);
 }
@@ -103,10 +105,10 @@ static inline bool can_poll_ll(u64 start_time, u64 run_time)
 /* when used in sock_poll() nonblock is known at compile time to be true
  * so the loop and end_time will be optimized out
  */
-static inline bool sk_poll_ll(struct sock *sk, int nonblock)
+static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 {
-	u64 start_time = ll_start_time(!nonblock);
-	u64 run_time = ll_sk_run_time(sk);
+	u64 start_time = busy_loop_start_time(!nonblock);
+	u64 end_time = sk_busy_loop_end_time(sk);
 	const struct net_device_ops *ops;
 	struct napi_struct *napi;
 	int rc = false;
@@ -137,7 +139,7 @@ static inline bool sk_poll_ll(struct sock *sk, int nonblock)
 					 LINUX_MIB_LOWLATENCYRXPACKETS, rc);
 
 	} while (!nonblock && skb_queue_empty(&sk->sk_receive_queue) &&
-		 can_poll_ll(start_time, run_time));
+		 busy_loop_range(start_time, end_time));
 
 	rc = !skb_queue_empty(&sk->sk_receive_queue);
 out:
@@ -158,27 +160,27 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 }
 
 #else /* CONFIG_NET_LL_RX_POLL */
-static inline unsigned long ll_get_flag(void)
+static inline unsigned long net_busy_loop_on(void)
 {
 	return 0;
 }
 
-static inline u64 ll_start_time(unsigned int flag)
+static inline u64 busy_loop_start_time(unsigned int flag)
 {
 	return 0;
 }
 
-static inline u64 ll_run_time(void)
+static inline u64 busy_loop_end_time(void)
 {
 	return 0;
 }
 
-static inline bool sk_valid_ll(struct sock *sk)
+static inline bool sk_can_busy_loop(struct sock *sk)
 {
 	return false;
 }
 
-static inline bool sk_poll_ll(struct sock *sk, int nonblock)
+static inline bool sk_busy_poll(struct sock *sk, int nonblock)
 {
 	return false;
 }
@@ -191,7 +193,7 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 {
 }
 
-static inline bool can_poll_ll(u64 start_time, u64 run_time)
+static inline bool busy_loop_range(u64 start_time, u64 run_time)
 {
 	return false;
 }

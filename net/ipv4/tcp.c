@@ -1554,9 +1554,9 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct sk_buff *skb;
 	u32 urg_hole = 0;
 
-	if (sk_valid_ll(sk) && skb_queue_empty(&sk->sk_receive_queue)
-	    && (sk->sk_state == TCP_ESTABLISHED))
-		sk_poll_ll(sk, nonblock);
+	if (sk_can_busy_loop(sk) && skb_queue_empty(&sk->sk_receive_queue) &&
+	    (sk->sk_state == TCP_ESTABLISHED))
+		sk_busy_loop(sk, nonblock);
 
 	lock_sock(sk);
 

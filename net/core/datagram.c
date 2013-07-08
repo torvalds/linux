@@ -208,7 +208,8 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 		}
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
 
-		if (sk_valid_ll(sk) && sk_poll_ll(sk, flags & MSG_DONTWAIT))
+		if (sk_can_busy_loop(sk) &&
+		    sk_busy_loop(sk, flags & MSG_DONTWAIT))
 			continue;
 
 		/* User doesn't want to wait */

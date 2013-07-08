@@ -1148,7 +1148,7 @@ EXPORT_SYMBOL(sock_create_lite);
 /* No kernel lock held - perfect */
 static unsigned int sock_poll(struct file *file, poll_table *wait)
 {
-	unsigned int ll_flag = 0;
+	unsigned int busy_flag = 0;
 	struct socket *sock;
 
 	/*
@@ -1156,16 +1156,16 @@ static unsigned int sock_poll(struct file *file, poll_table *wait)
 	 */
 	sock = file->private_data;
 
-	if (sk_valid_ll(sock->sk)) {
+	if (sk_can_busy_loop(sock->sk)) {
 		/* this socket can poll_ll so tell the system call */
-		ll_flag = POLL_LL;
+		busy_flag = POLL_BUSY_LOOP;
 
 		/* once, only if requested by syscall */
-		if (wait && (wait->_key & POLL_LL))
-			sk_poll_ll(sock->sk, 1);
+		if (wait && (wait->_key & POLL_BUSY_LOOP))
+			sk_busy_loop(sock->sk, 1);
 	}
 
-	return ll_flag | sock->ops->poll(file, sock, wait);
+	return busy_flag | sock->ops->poll(file, sock, wait);
 }
 
 static int sock_mmap(struct file *file, struct vm_area_struct *vma)
