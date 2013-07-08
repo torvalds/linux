@@ -545,17 +545,25 @@ static int msgctl_nolock(struct ipc_namespace *ns, int msqid,
 		if (!buf)
 			return -EFAULT;
 
+		memset(&tbuf, 0, sizeof(tbuf));
+
+		rcu_read_lock();
 		if (cmd == MSG_STAT) {
-			msq = msg_lock(ns, msqid);
-			if (IS_ERR(msq))
-				return PTR_ERR(msq);
+			msq = msq_obtain_object(ns, msqid);
+			if (IS_ERR(msq)) {
+				err = PTR_ERR(msq);
+				goto out_unlock;
+			}
 			success_return = msq->q_perm.id;
 		} else {
-			msq = msg_lock_check(ns, msqid);
-			if (IS_ERR(msq))
-				return PTR_ERR(msq);
+			msq = msq_obtain_object_check(ns, msqid);
+			if (IS_ERR(msq)) {
+				err = PTR_ERR(msq);
+				goto out_unlock;
+			}
 			success_return = 0;
 		}
+
 		err = -EACCES;
 		if (ipcperms(ns, &msq->q_perm, S_IRUGO))
 			goto out_unlock;
@@ -563,8 +571,6 @@ static int msgctl_nolock(struct ipc_namespace *ns, int msqid,
 		err = security_msg_queue_msgctl(msq, cmd);
 		if (err)
 			goto out_unlock;
-
-		memset(&tbuf, 0, sizeof(tbuf));
 
 		kernel_to_ipc64_perm(&msq->q_perm, &tbuf.msg_perm);
 		tbuf.msg_stime  = msq->q_stime;
@@ -575,7 +581,8 @@ static int msgctl_nolock(struct ipc_namespace *ns, int msqid,
 		tbuf.msg_qbytes = msq->q_qbytes;
 		tbuf.msg_lspid  = msq->q_lspid;
 		tbuf.msg_lrpid  = msq->q_lrpid;
-		msg_unlock(msq);
+		rcu_read_unlock();
+
 		if (copy_msqid_to_user(buf, &tbuf, version))
 			return -EFAULT;
 		return success_return;
@@ -587,7 +594,7 @@ static int msgctl_nolock(struct ipc_namespace *ns, int msqid,
 
 	return err;
 out_unlock:
-	msg_unlock(msq);
+	rcu_read_unlock();
 	return err;
 }
 
