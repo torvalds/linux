@@ -3714,6 +3714,23 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	} else if (rt2x00_rt(rt2x00dev, RT3572)) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000400);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00080606);
+	} else if (rt2x00_rt(rt2x00dev, RT3593)) {
+		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000402);
+		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00000000);
+		if (rt2x00_rt_rev_lt(rt2x00dev, RT3593, REV_RT3593E)) {
+			rt2800_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1,
+					   &eeprom);
+			if (rt2x00_get_field16(eeprom,
+					       EEPROM_NIC_CONF1_DAC_TEST))
+				rt2800_register_write(rt2x00dev, TX_SW_CFG2,
+						      0x0000001f);
+			else
+				rt2800_register_write(rt2x00dev, TX_SW_CFG2,
+						      0x0000000f);
+		} else {
+			rt2800_register_write(rt2x00dev, TX_SW_CFG2,
+					      0x00000000);
+		}
 	} else if (rt2x00_rt(rt2x00dev, RT5390) ||
 		   rt2x00_rt(rt2x00dev, RT5392) ||
 		   rt2x00_rt(rt2x00dev, RT5592)) {

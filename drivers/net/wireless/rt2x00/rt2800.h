@@ -88,6 +88,7 @@
 #define REV_RT3071E			0x0211
 #define REV_RT3090E			0x0211
 #define REV_RT3390E			0x0211
+#define REV_RT3593E			0x0211
 #define REV_RT5390F			0x0502
 #define REV_RT5390R			0x1502
 #define REV_RT5592C			0x0221
