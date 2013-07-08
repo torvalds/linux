@@ -641,9 +641,6 @@ static int ptrace_write_dr7(struct task_struct *tsk, unsigned long data)
 	unsigned len, type;
 	struct perf_event *bp;
 
-	if (ptrace_get_breakpoints(tsk) < 0)
-		return -ESRCH;
-
 	data &= ~DR_CONTROL_RESERVED;
 	old_dr7 = ptrace_get_dr7(thread->ptrace_bps);
 restore:
@@ -692,9 +689,7 @@ restore:
 		goto restore;
 	}
 
-	ptrace_put_breakpoints(tsk);
-
-	return ((orig_ret < 0) ? orig_ret : rc);
+	return orig_ret < 0 ? orig_ret : rc;
 }
 
 /*
@@ -706,18 +701,10 @@ static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 	unsigned long val = 0;
 
 	if (n < HBP_NUM) {
-		struct perf_event *bp;
+		struct perf_event *bp = thread->ptrace_bps[n];
 
-		if (ptrace_get_breakpoints(tsk) < 0)
-			return -ESRCH;
-
-		bp = thread->ptrace_bps[n];
-		if (!bp)
-			val = 0;
-		else
+		if (bp)
 			val = bp->hw.info.address;
-
-		ptrace_put_breakpoints(tsk);
 	} else if (n == 6) {
 		val = thread->debugreg6;
 	 } else if (n == 7) {
@@ -733,9 +720,6 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 	struct thread_struct *t = &tsk->thread;
 	struct perf_event_attr attr;
 	int err = 0;
-
-	if (ptrace_get_breakpoints(tsk) < 0)
-		return -ESRCH;
 
 	if (!t->ptrace_bps[nr]) {
 		ptrace_breakpoint_init(&attr);
@@ -762,7 +746,7 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 		 */
 		if (IS_ERR(bp)) {
 			err = PTR_ERR(bp);
-			goto put;
+			goto out;
 		}
 
 		t->ptrace_bps[nr] = bp;
@@ -773,9 +757,7 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 		attr.bp_addr = addr;
 		err = modify_user_hw_breakpoint(bp, &attr);
 	}
-
-put:
-	ptrace_put_breakpoints(tsk);
+out:
 	return err;
 }
 
