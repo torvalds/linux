@@ -1716,9 +1716,10 @@ config X86_NEED_RELOCS
 	depends on X86_32 && RELOCATABLE
 
 config PHYSICAL_ALIGN
-	hex "Alignment value to which kernel should be aligned" if X86_32
+	hex "Alignment value to which kernel should be aligned"
 	default "0x1000000"
-	range 0x2000 0x1000000
+	range 0x2000 0x1000000 if X86_32
+	range 0x200000 0x1000000 if X86_64
 	---help---
 	  This value puts the alignment restrictions on physical address
 	  where kernel is loaded and run from. Kernel is compiled for an
@@ -1735,6 +1736,9 @@ config PHYSICAL_ALIGN
 	  compiled already meets above alignment restrictions. Hence the
 	  end result is that kernel runs from a physical address meeting
 	  above alignment restrictions.
+
+	  On 32-bit this value must be a multiple of 0x2000. On 64-bit
+	  this value must be a multiple of 0x200000.
 
 	  Don't change this unless you know what you are doing.
 

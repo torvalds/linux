@@ -338,6 +338,7 @@ relocated:
 	leaq	input_data(%rip), %rdx  /* input_data */
 	movl	$z_input_len, %ecx	/* input_len */
 	movq	%rbp, %r8		/* output target address */
+	movq	$z_output_len, %r9	/* decompressed length */
 	call	decompress_kernel
 	popq	%rsi
 
