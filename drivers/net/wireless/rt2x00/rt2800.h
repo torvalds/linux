@@ -2814,6 +2814,7 @@ enum rt2800_eeprom_word {
 #define TXWI_DESC_SIZE_5WORDS		(5 * sizeof(__le32))
 
 #define RXWI_DESC_SIZE_4WORDS		(4 * sizeof(__le32))
+#define RXWI_DESC_SIZE_5WORDS		(5 * sizeof(__le32))
 #define RXWI_DESC_SIZE_6WORDS		(6 * sizeof(__le32))
 
 /*
