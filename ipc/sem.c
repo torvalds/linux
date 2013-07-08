@@ -1289,39 +1289,44 @@ static int semctl_down(struct ipc_namespace *ns, int semid,
 			return -EFAULT;
 	}
 
+	down_write(&sem_ids(ns).rw_mutex);
+	rcu_read_lock();
+
 	ipcp = ipcctl_pre_down_nolock(ns, &sem_ids(ns), semid, cmd,
 				      &semid64.sem_perm, 0);
-	if (IS_ERR(ipcp))
-		return PTR_ERR(ipcp);
+	if (IS_ERR(ipcp)) {
+		err = PTR_ERR(ipcp);
+		/* the ipc lock is not held upon failure */
+		goto out_unlock1;
+	}
 
 	sma = container_of(ipcp, struct sem_array, sem_perm);
 
 	err = security_sem_semctl(sma, cmd);
-	if (err) {
-		rcu_read_unlock();
-		goto out_up;
-	}
+	if (err)
+		goto out_unlock1;
 
-	switch(cmd){
+	switch (cmd) {
 	case IPC_RMID:
 		sem_lock(sma, NULL, -1);
+		/* freeary unlocks the ipc object and rcu */
 		freeary(ns, ipcp);
 		goto out_up;
 	case IPC_SET:
 		sem_lock(sma, NULL, -1);
 		err = ipc_update_perm(&semid64.sem_perm, ipcp);
 		if (err)
-			goto out_unlock;
+			goto out_unlock0;
 		sma->sem_ctime = get_seconds();
 		break;
 	default:
-		rcu_read_unlock();
 		err = -EINVAL;
-		goto out_up;
+		goto out_unlock1;
 	}
 
-out_unlock:
+out_unlock0:
 	sem_unlock(sma, -1);
+out_unlock1:
 	rcu_read_unlock();
 out_up:
 	up_write(&sem_ids(ns).rw_mutex);
