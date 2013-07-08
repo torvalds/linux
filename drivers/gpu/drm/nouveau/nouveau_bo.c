@@ -973,7 +973,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 
-	mutex_lock(&chan->cli->mutex);
+	mutex_lock_nested(&chan->cli->mutex, SINGLE_DEPTH_NESTING);
 
 	/* create temporary vmas for the transfer and attach them to the
 	 * old nouveau_mem node, these will get cleaned up after ttm has
