@@ -4,6 +4,9 @@
 struct drm_gem_cma_object {
 	struct drm_gem_object base;
 	dma_addr_t paddr;
+	struct sg_table *sgt;
+
+	/* For objects with DMA memory allocated by GEM CMA */
 	void *vaddr;
 };
 
@@ -44,5 +47,11 @@ extern const struct vm_operations_struct drm_gem_cma_vm_ops;
 #ifdef CONFIG_DEBUG_FS
 void drm_gem_cma_describe(struct drm_gem_cma_object *obj, struct seq_file *m);
 #endif
+
+struct dma_buf *drm_gem_cma_dmabuf_export(struct drm_device *drm_dev,
+					  struct drm_gem_object *obj,
+					  int flags);
+struct drm_gem_object *drm_gem_cma_dmabuf_import(struct drm_device *drm_dev,
+						 struct dma_buf *dma_buf);
 
 #endif /* __DRM_GEM_CMA_HELPER_H__ */

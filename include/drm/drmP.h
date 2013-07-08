@@ -55,16 +55,13 @@
 #include <linux/mm.h>
 #include <linux/cdev.h>
 #include <linux/mutex.h>
+#include <linux/io.h>
 #include <linux/slab.h>
 #if defined(__alpha__) || defined(__powerpc__)
 #include <asm/pgtable.h>	/* For pte_wrprotect */
 #endif
-#include <asm/io.h>
 #include <asm/mman.h>
 #include <asm/uaccess.h>
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
 #if defined(CONFIG_AGP) || defined(CONFIG_AGP_MODULE)
 #include <linux/types.h>
 #include <linux/agp_backend.h>
@@ -933,6 +930,7 @@ struct drm_driver {
 				struct dma_buf *dma_buf);
 	/* low-level interface used by drm_gem_prime_{import,export} */
 	int (*gem_prime_pin)(struct drm_gem_object *obj);
+	void (*gem_prime_unpin)(struct drm_gem_object *obj);
 	struct sg_table *(*gem_prime_get_sg_table)(struct drm_gem_object *obj);
 	struct drm_gem_object *(*gem_prime_import_sg_table)(
 				struct drm_device *dev, size_t size,
@@ -1250,37 +1248,8 @@ static inline int drm_core_has_MTRR(struct drm_device *dev)
 {
 	return drm_core_check_feature(dev, DRIVER_USE_MTRR);
 }
-
-#define DRM_MTRR_WC		MTRR_TYPE_WRCOMB
-
-static inline int drm_mtrr_add(unsigned long offset, unsigned long size,
-			       unsigned int flags)
-{
-	return mtrr_add(offset, size, flags, 1);
-}
-
-static inline int drm_mtrr_del(int handle, unsigned long offset,
-			       unsigned long size, unsigned int flags)
-{
-	return mtrr_del(handle, offset, size);
-}
-
 #else
 #define drm_core_has_MTRR(dev) (0)
-
-#define DRM_MTRR_WC		0
-
-static inline int drm_mtrr_add(unsigned long offset, unsigned long size,
-			       unsigned int flags)
-{
-	return 0;
-}
-
-static inline int drm_mtrr_del(int handle, unsigned long offset,
-			       unsigned long size, unsigned int flags)
-{
-	return 0;
-}
 #endif
 
 static inline void drm_device_set_unplugged(struct drm_device *dev)
@@ -1630,7 +1599,6 @@ extern void drm_sysfs_destroy(void);
 extern int drm_sysfs_device_add(struct drm_minor *minor);
 extern void drm_sysfs_hotplug_event(struct drm_device *dev);
 extern void drm_sysfs_device_remove(struct drm_minor *minor);
-extern char *drm_get_connector_status_name(enum drm_connector_status status);
 extern int drm_sysfs_connector_add(struct drm_connector *connector);
 extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 
@@ -1648,6 +1616,8 @@ int drm_gem_private_object_init(struct drm_device *dev,
 void drm_gem_object_handle_free(struct drm_gem_object *obj);
 void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);
+int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
+		     struct vm_area_struct *vma);
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
 #include <drm/drm_global.h>

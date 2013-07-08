@@ -364,17 +364,12 @@ static void ipu_crtc_commit(struct drm_crtc *crtc)
 	ipu_fb_enable(ipu_crtc);
 }
 
-static void ipu_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.dpms = ipu_crtc_dpms,
 	.mode_fixup = ipu_crtc_mode_fixup,
 	.mode_set = ipu_crtc_mode_set,
 	.prepare = ipu_crtc_prepare,
 	.commit = ipu_crtc_commit,
-	.load_lut = ipu_crtc_load_lut,
 };
 
 static int ipu_enable_vblank(struct drm_crtc *crtc)
