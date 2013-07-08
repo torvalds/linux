@@ -62,7 +62,7 @@ static char mlx5_version[] =
 	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver v"
 	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
 
-struct mlx5_profile profile[] = {
+static struct mlx5_profile profile[] = {
 	[0] = {
 		.mask		= 0,
 	},
