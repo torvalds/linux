@@ -637,9 +637,7 @@ static int ptrace_write_dr7(struct task_struct *tsk, unsigned long data)
 	struct thread_struct *thread = &(tsk->thread);
 	unsigned long old_dr7;
 	int i, orig_ret = 0, rc = 0;
-	int enabled, second_pass = 0;
-	unsigned len, type;
-	struct perf_event *bp;
+	int second_pass = 0;
 
 	data &= ~DR_CONTROL_RESERVED;
 	old_dr7 = ptrace_get_dr7(thread->ptrace_bps);
@@ -649,30 +647,22 @@ restore:
 	 * appropriate changes to each.
 	 */
 	for (i = 0; i < HBP_NUM; i++) {
-		enabled = decode_dr7(data, i, &len, &type);
-		bp = thread->ptrace_bps[i];
+		unsigned len, type;
+		bool disabled = !decode_dr7(data, i, &len, &type);
+		struct perf_event *bp = thread->ptrace_bps[i];
 
-		if (!enabled) {
-			if (bp) {
-				/*
-				 * Don't unregister the breakpoints right-away,
-				 * unless all register_user_hw_breakpoint()
-				 * requests have succeeded. This prevents
-				 * any window of opportunity for debug
-				 * register grabbing by other users.
-				 */
-				if (!second_pass)
-					continue;
-
-				rc = ptrace_modify_breakpoint(bp, len, type,
-							      tsk, 1);
-				if (rc)
-					break;
-			}
-			continue;
+		if (disabled) {
+			/*
+			 * Don't unregister the breakpoints right-away, unless
+			 * all register_user_hw_breakpoint() requests have
+			 * succeeded. This prevents any window of opportunity
+			 * for debug register grabbing by other users.
+			 */
+			if (!bp || !second_pass)
+				continue;
 		}
 
-		rc = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
+		rc = ptrace_modify_breakpoint(bp, len, type, tsk, disabled);
 		if (rc)
 			break;
 	}
