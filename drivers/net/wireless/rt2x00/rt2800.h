@@ -2244,6 +2244,12 @@ enum rt2800_eeprom_word {
 	EEPROM_TSSI_BOUND_A5,
 	EEPROM_TXPOWER_BYRATE,
 	EEPROM_BBP_START,
+
+	/* IDs for extended EEPROM format used by three-chain devices */
+	EEPROM_EXT_LNA2,
+	EEPROM_EXT_TXPOWER_BG3,
+	EEPROM_EXT_TXPOWER_A3,
+
 	/* New values must be added before this */
 	EEPROM_WORD_COUNT
 };
