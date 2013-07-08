@@ -328,52 +328,68 @@ int process_request(int listenfd)
 	return 0;
 }
 
-static void log_addrinfo(struct addrinfo *ai)
+static void addrinfo_to_text(struct addrinfo *ai, char buf[],
+			     const size_t buf_size)
 {
 	char hbuf[NI_MAXHOST];
 	char sbuf[NI_MAXSERV];
 	int rc;
+
+	buf[0] = '\0';
 
 	rc = getnameinfo(ai->ai_addr, ai->ai_addrlen, hbuf, sizeof(hbuf),
 			 sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV);
 	if (rc)
 		err("getnameinfo: %s", gai_strerror(rc));
 
-	info("listening on %s:%s", hbuf, sbuf);
+	snprintf(buf, buf_size, "%s:%s", hbuf, sbuf);
 }
 
 static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[])
 {
 	struct addrinfo *ai;
 	int ret, nsockfd = 0;
+	const size_t ai_buf_size = NI_MAXHOST + NI_MAXSERV + 2;
+	char ai_buf[ai_buf_size];
 
 	for (ai = ai_head; ai && nsockfd < MAXSOCKFD; ai = ai->ai_next) {
-		int sock = socket(ai->ai_family, ai->ai_socktype,
-				  ai->ai_protocol);
-		if (sock < 0)
+		int sock;
+		addrinfo_to_text(ai, ai_buf, ai_buf_size);
+		dbg("opening %s", ai_buf);
+		sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+		if (sock < 0) {
+			err("socket: %s: %d (%s)",
+			    ai_buf, errno, strerror(errno));
 			continue;
+		}
 
 		usbip_net_set_reuseaddr(sock);
 		usbip_net_set_nodelay(sock);
 
 		if (sock >= FD_SETSIZE) {
+			err("FD_SETSIZE: %s: sock=%d, max=%d",
+			    ai_buf, sock, FD_SETSIZE);
 			close(sock);
 			continue;
 		}
 
 		ret = bind(sock, ai->ai_addr, ai->ai_addrlen);
 		if (ret < 0) {
+			err("bind: %s: %d (%s)",
+			    ai_buf, errno, strerror(errno));
 			close(sock);
 			continue;
 		}
 
 		ret = listen(sock, SOMAXCONN);
 		if (ret < 0) {
+			err("listen: %s: %d (%s)",
+			    ai_buf, errno, strerror(errno));
 			close(sock);
 			continue;
 		}
 
-		log_addrinfo(ai);
+		info("listening on %s", ai_buf);
 		sockfdlist[nsockfd++] = sock;
 	}
 
