@@ -407,31 +407,38 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 			return -EFAULT;
 	}
 
+	down_write(&msg_ids(ns).rw_mutex);
+	rcu_read_lock();
+
 	ipcp = ipcctl_pre_down(ns, &msg_ids(ns), msqid, cmd,
 			       &msqid64.msg_perm, msqid64.msg_qbytes);
-	if (IS_ERR(ipcp))
-		return PTR_ERR(ipcp);
+	if (IS_ERR(ipcp)) {
+		err = PTR_ERR(ipcp);
+		/* the ipc lock is not held upon failure */
+		goto out_unlock1;
+	}
 
 	msq = container_of(ipcp, struct msg_queue, q_perm);
 
 	err = security_msg_queue_msgctl(msq, cmd);
 	if (err)
-		goto out_unlock;
+		goto out_unlock0;
 
 	switch (cmd) {
 	case IPC_RMID:
+		/* freeque unlocks the ipc object and rcu */
 		freeque(ns, ipcp);
 		goto out_up;
 	case IPC_SET:
 		if (msqid64.msg_qbytes > ns->msg_ctlmnb &&
 		    !capable(CAP_SYS_RESOURCE)) {
 			err = -EPERM;
-			goto out_unlock;
+			goto out_unlock0;
 		}
 
 		err = ipc_update_perm(&msqid64.msg_perm, ipcp);
 		if (err)
-			goto out_unlock;
+			goto out_unlock0;
 
 		msq->q_qbytes = msqid64.msg_qbytes;
 
@@ -448,8 +455,11 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 	default:
 		err = -EINVAL;
 	}
-out_unlock:
-	msg_unlock(msq);
+
+out_unlock0:
+	ipc_unlock_object(&msq->q_perm);
+out_unlock1:
+	rcu_read_unlock();
 out_up:
 	up_write(&msg_ids(ns).rw_mutex);
 	return err;
