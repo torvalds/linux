@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/clk.h>
@@ -198,9 +199,9 @@ struct syscore_ops s3c244x_pm_syscore_ops = {
 	.resume		= s3c244x_resume,
 };
 
-void s3c244x_restart(char mode, const char *cmd)
+void s3c244x_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's')
+	if (mode == REBOOT_SOFT)
 		soft_restart(0);
 
 	samsung_wdt_reset();

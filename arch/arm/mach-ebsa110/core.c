@@ -311,7 +311,7 @@ static int __init ebsa110_init(void)
 
 arch_initcall(ebsa110_init);
 
-static void ebsa110_restart(char mode, const char *cmd)
+static void ebsa110_restart(enum reboot_mode mode, const char *cmd)
 {
 	soft_restart(0x80000000);
 }

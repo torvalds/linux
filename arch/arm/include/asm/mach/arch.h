@@ -59,7 +59,7 @@ struct machine_desc {
 #ifdef CONFIG_MULTI_IRQ_HANDLER
 	void			(*handle_irq)(struct pt_regs *);
 #endif
-	void			(*restart)(char, const char *);
+	void			(*restart)(enum reboot_mode, const char *);
 };
 
 /*
