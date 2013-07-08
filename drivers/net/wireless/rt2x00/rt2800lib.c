@@ -2768,6 +2768,10 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 						     info->default_power1);
 	info->default_power2 = rt2800_txpower_to_dev(rt2x00dev, rf->channel,
 						     info->default_power2);
+	if (rt2x00dev->default_ant.tx_chain_num > 2)
+		info->default_power3 =
+			rt2800_txpower_to_dev(rt2x00dev, rf->channel,
+					      info->default_power3);
 
 	switch (rt2x00dev->chip.rf) {
 	case RF2020:
@@ -6963,6 +6967,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	struct channel_info *info;
 	char *default_power1;
 	char *default_power2;
+	char *default_power3;
 	unsigned int i;
 	u16 eeprom;
 	u32 reg;
@@ -7115,9 +7120,17 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	default_power1 = rt2800_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG1);
 	default_power2 = rt2800_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_BG2);
 
+	if (rt2x00dev->default_ant.tx_chain_num > 2)
+		default_power3 = rt2800_eeprom_addr(rt2x00dev,
+						    EEPROM_EXT_TXPOWER_BG3);
+	else
+		default_power3 = NULL;
+
 	for (i = 0; i < 14; i++) {
 		info[i].default_power1 = default_power1[i];
 		info[i].default_power2 = default_power2[i];
+		if (default_power3)
+			info[i].default_power3 = default_power3[i];
 	}
 
 	if (spec->num_channels > 14) {
@@ -7126,9 +7139,18 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		default_power2 = rt2800_eeprom_addr(rt2x00dev,
 						    EEPROM_TXPOWER_A2);
 
+		if (rt2x00dev->default_ant.tx_chain_num > 2)
+			default_power3 =
+				rt2800_eeprom_addr(rt2x00dev,
+						   EEPROM_EXT_TXPOWER_A3);
+		else
+			default_power3 = NULL;
+
 		for (i = 14; i < spec->num_channels; i++) {
 			info[i].default_power1 = default_power1[i - 14];
 			info[i].default_power2 = default_power2[i - 14];
+			if (default_power3)
+				info[i].default_power3 = default_power3[i - 14];
 		}
 	}
 
