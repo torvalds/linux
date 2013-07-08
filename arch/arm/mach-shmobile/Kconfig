@@ -83,6 +83,17 @@ config MACH_APE6EVM
 	depends on ARCH_R8A73A4
 	select USE_OF
 
+config MACH_APE6EVM_REFERENCE
+	bool "APE6EVM board - Reference Device Tree Implementation"
+	depends on ARCH_R8A73A4
+	select USE_OF
+	---help---
+	   Use reference implementation of APE6EVM board support
+	   which makes a greater use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
+
 config MACH_MACKEREL
 	bool "mackerel board"
 	depends on ARCH_SH7372
