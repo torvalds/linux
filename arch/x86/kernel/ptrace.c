@@ -703,7 +703,7 @@ restore:
  */
 static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 {
-	struct thread_struct *thread = &(tsk->thread);
+	struct thread_struct *thread = &tsk->thread;
 	unsigned long val = 0;
 
 	if (n < HBP_NUM) {
@@ -713,7 +713,7 @@ static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 			val = bp->hw.info.address;
 	} else if (n == 6) {
 		val = thread->debugreg6;
-	 } else if (n == 7) {
+	} else if (n == 7) {
 		val = thread->ptrace_dr7;
 	}
 	return val;
@@ -761,30 +761,20 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 static int ptrace_set_debugreg(struct task_struct *tsk, int n,
 			       unsigned long val)
 {
-	struct thread_struct *thread = &(tsk->thread);
-	int rc = 0;
-
+	struct thread_struct *thread = &tsk->thread;
 	/* There are no DR4 or DR5 registers */
-	if (n == 4 || n == 5)
-		return -EIO;
+	int rc = -EIO;
 
-	if (n == 6) {
-		thread->debugreg6 = val;
-		goto ret_path;
-	}
 	if (n < HBP_NUM) {
 		rc = ptrace_set_breakpoint_addr(tsk, n, val);
-		if (rc)
-			return rc;
-	}
-	/* All that's left is DR7 */
-	if (n == 7) {
+	} else if (n == 6) {
+		thread->debugreg6 = val;
+		rc = 0;
+	} else if (n == 7) {
 		rc = ptrace_write_dr7(tsk, val);
 		if (!rc)
 			thread->ptrace_dr7 = val;
 	}
-
-ret_path:
 	return rc;
 }
 
