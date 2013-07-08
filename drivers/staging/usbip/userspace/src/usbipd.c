@@ -348,36 +348,33 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[])
 	int ret, nsockfd = 0;
 
 	for (ai = ai_head; ai && nsockfd < MAXSOCKFD; ai = ai->ai_next) {
-		sockfdlist[nsockfd] = socket(ai->ai_family, ai->ai_socktype,
-					     ai->ai_protocol);
-		if (sockfdlist[nsockfd] < 0)
+		int sock = socket(ai->ai_family, ai->ai_socktype,
+				  ai->ai_protocol);
+		if (sock < 0)
 			continue;
 
-		usbip_net_set_reuseaddr(sockfdlist[nsockfd]);
-		usbip_net_set_nodelay(sockfdlist[nsockfd]);
+		usbip_net_set_reuseaddr(sock);
+		usbip_net_set_nodelay(sock);
 
-		if (sockfdlist[nsockfd] >= FD_SETSIZE) {
-			close(sockfdlist[nsockfd]);
-			sockfdlist[nsockfd] = -1;
-			continue;
-		}
-
-		ret = bind(sockfdlist[nsockfd], ai->ai_addr, ai->ai_addrlen);
-		if (ret < 0) {
-			close(sockfdlist[nsockfd]);
-			sockfdlist[nsockfd] = -1;
+		if (sock >= FD_SETSIZE) {
+			close(sock);
 			continue;
 		}
 
-		ret = listen(sockfdlist[nsockfd], SOMAXCONN);
+		ret = bind(sock, ai->ai_addr, ai->ai_addrlen);
 		if (ret < 0) {
-			close(sockfdlist[nsockfd]);
-			sockfdlist[nsockfd] = -1;
+			close(sock);
+			continue;
+		}
+
+		ret = listen(sock, SOMAXCONN);
+		if (ret < 0) {
+			close(sock);
 			continue;
 		}
 
 		log_addrinfo(ai);
-		nsockfd++;
+		sockfdlist[nsockfd++] = sock;
 	}
 
 	if (nsockfd == 0)
