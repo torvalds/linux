@@ -1453,7 +1453,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
 		return;
 
 	if (WARN(!PAGE_ALIGNED(addr), "Trying to vfree() bad address (%p)\n",
-			addr));
+			addr))
 		return;
 
 	area = remove_vm_area(addr);
