@@ -100,7 +100,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 			/* (masks depend on page size) */
 			rb |= 0x1000;		/* page encoding in LP field */
 			rb |= (va_low & 0x7f) << 16; /* 7b of VA in AVA/LP field */
-			rb |= (va_low & 0xfe);	/* AVAL field (P7 doesn't seem to care) */
+			rb |= ((va_low << 4) & 0xf0);	/* AVAL field (P7 doesn't seem to care) */
 		}
 	} else {
 		/* 4kB page */
