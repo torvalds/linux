@@ -9,7 +9,6 @@
  * the Free Software Foundation.
  */
 
-#include "pm_types.h" 
 #include "pm_config.h"
 #include "pm_errcode.h"
 #include "mach/platform.h"
