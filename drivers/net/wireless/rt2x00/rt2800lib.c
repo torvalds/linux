@@ -1826,11 +1826,25 @@ static void rt2800_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 		rt2800_eeprom_read(rt2x00dev, EEPROM_LNA, &eeprom);
 		lna_gain = rt2x00_get_field16(eeprom, EEPROM_LNA_A0);
 	} else if (libconf->rf.channel <= 128) {
-		rt2800_eeprom_read(rt2x00dev, EEPROM_RSSI_BG2, &eeprom);
-		lna_gain = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG2_LNA_A1);
+		if (rt2x00_rt(rt2x00dev, RT3593)) {
+			rt2800_eeprom_read(rt2x00dev, EEPROM_EXT_LNA2, &eeprom);
+			lna_gain = rt2x00_get_field16(eeprom,
+						      EEPROM_EXT_LNA2_A1);
+		} else {
+			rt2800_eeprom_read(rt2x00dev, EEPROM_RSSI_BG2, &eeprom);
+			lna_gain = rt2x00_get_field16(eeprom,
+						      EEPROM_RSSI_BG2_LNA_A1);
+		}
 	} else {
-		rt2800_eeprom_read(rt2x00dev, EEPROM_RSSI_A2, &eeprom);
-		lna_gain = rt2x00_get_field16(eeprom, EEPROM_RSSI_A2_LNA_A2);
+		if (rt2x00_rt(rt2x00dev, RT3593)) {
+			rt2800_eeprom_read(rt2x00dev, EEPROM_EXT_LNA2, &eeprom);
+			lna_gain = rt2x00_get_field16(eeprom,
+						      EEPROM_EXT_LNA2_A2);
+		} else {
+			rt2800_eeprom_read(rt2x00dev, EEPROM_RSSI_A2, &eeprom);
+			lna_gain = rt2x00_get_field16(eeprom,
+						      EEPROM_RSSI_A2_LNA_A2);
+		}
 	}
 
 	rt2x00dev->lna_gain = lna_gain;
@@ -6488,10 +6502,12 @@ static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2800_eeprom_read(rt2x00dev, EEPROM_RSSI_BG2, &word);
 	if (abs(rt2x00_get_field16(word, EEPROM_RSSI_BG2_OFFSET2)) > 10)
 		rt2x00_set_field16(&word, EEPROM_RSSI_BG2_OFFSET2, 0);
-	if (rt2x00_get_field16(word, EEPROM_RSSI_BG2_LNA_A1) == 0x00 ||
-	    rt2x00_get_field16(word, EEPROM_RSSI_BG2_LNA_A1) == 0xff)
-		rt2x00_set_field16(&word, EEPROM_RSSI_BG2_LNA_A1,
-				   default_lna_gain);
+	if (!rt2x00_rt(rt2x00dev, RT3593)) {
+		if (rt2x00_get_field16(word, EEPROM_RSSI_BG2_LNA_A1) == 0x00 ||
+		    rt2x00_get_field16(word, EEPROM_RSSI_BG2_LNA_A1) == 0xff)
+			rt2x00_set_field16(&word, EEPROM_RSSI_BG2_LNA_A1,
+					   default_lna_gain);
+	}
 	rt2800_eeprom_write(rt2x00dev, EEPROM_RSSI_BG2, word);
 
 	drv_data->txmixer_gain_5g = rt2800_get_txmixer_gain_5g(rt2x00dev);
@@ -6506,11 +6522,26 @@ static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2800_eeprom_read(rt2x00dev, EEPROM_RSSI_A2, &word);
 	if (abs(rt2x00_get_field16(word, EEPROM_RSSI_A2_OFFSET2)) > 10)
 		rt2x00_set_field16(&word, EEPROM_RSSI_A2_OFFSET2, 0);
-	if (rt2x00_get_field16(word, EEPROM_RSSI_A2_LNA_A2) == 0x00 ||
-	    rt2x00_get_field16(word, EEPROM_RSSI_A2_LNA_A2) == 0xff)
-		rt2x00_set_field16(&word, EEPROM_RSSI_A2_LNA_A2,
-				   default_lna_gain);
+	if (!rt2x00_rt(rt2x00dev, RT3593)) {
+		if (rt2x00_get_field16(word, EEPROM_RSSI_A2_LNA_A2) == 0x00 ||
+		    rt2x00_get_field16(word, EEPROM_RSSI_A2_LNA_A2) == 0xff)
+			rt2x00_set_field16(&word, EEPROM_RSSI_A2_LNA_A2,
+					   default_lna_gain);
+	}
 	rt2800_eeprom_write(rt2x00dev, EEPROM_RSSI_A2, word);
+
+	if (rt2x00_rt(rt2x00dev, RT3593)) {
+		rt2800_eeprom_read(rt2x00dev, EEPROM_EXT_LNA2, &word);
+		if (rt2x00_get_field16(word, EEPROM_EXT_LNA2_A1) == 0x00 ||
+		    rt2x00_get_field16(word, EEPROM_EXT_LNA2_A1) == 0xff)
+			rt2x00_set_field16(&word, EEPROM_EXT_LNA2_A1,
+					   default_lna_gain);
+		if (rt2x00_get_field16(word, EEPROM_EXT_LNA2_A2) == 0x00 ||
+		    rt2x00_get_field16(word, EEPROM_EXT_LNA2_A2) == 0xff)
+			rt2x00_set_field16(&word, EEPROM_EXT_LNA2_A1,
+					   default_lna_gain);
+		rt2800_eeprom_write(rt2x00dev, EEPROM_EXT_LNA2, word);
+	}
 
 	return 0;
 }

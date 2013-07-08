@@ -2672,6 +2672,10 @@ enum rt2800_eeprom_word {
 #define EEPROM_BBP_VALUE		FIELD16(0x00ff)
 #define EEPROM_BBP_REG_ID		FIELD16(0xff00)
 
+/* EEPROM_EXT_LNA2 */
+#define EEPROM_EXT_LNA2_A1		FIELD16(0x00ff)
+#define EEPROM_EXT_LNA2_A2		FIELD16(0xff00)
+
 /*
  * EEPROM IQ Calibration, unlike other entries those are byte addresses.
  */
