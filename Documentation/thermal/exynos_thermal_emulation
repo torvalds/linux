@@ -20,7 +20,7 @@ When it's enabled, sysfs node will be created as
 The sysfs node, 'emul_node', will contain value 0 for the initial state. When you input any
 temperature you want to update to sysfs node, it automatically enable emulation mode and
 current temperature will be changed into it.
-(Exynos also supports user changable delay time which would be used to delay of
+(Exynos also supports user changeable delay time which would be used to delay of
  changing temperature. However, this node only uses same delay of real sensing time, 938us.)
 
 Exynos emulation mode requires synchronous of value changing and enabling. It means when you

@@ -1159,13 +1159,13 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
             break;
 #ifdef CSR_SUPPORT_SME
           case UNIFI_CFG_CORE_DUMP:
-            CsrWifiRouterCtrlWifiOffIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,CSR_WIFI_SME_CONTROL_INDICATION_ERROR);
+            CsrWifiRouterCtrlWifiOffIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, CSR_WIFI_SME_CONTROL_INDICATION_ERROR);
             unifi_trace(priv, UDBG2, "UNIFI_CFG_CORE_DUMP: sent wifi off indication\n");
             break;
 #endif
 #ifdef CSR_SUPPORT_WEXT_AP
           case UNIFI_CFG_SET_AP_CONFIG:
-            r= unifi_cfg_set_ap_config(priv,(unsigned char*)arg);
+            r= unifi_cfg_set_ap_config(priv, (unsigned char*)arg);
             break;
 #endif
           default:
@@ -1275,7 +1275,7 @@ unifi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
             /* Attach the network device to the stack */
             if (!interfacePriv->netdev_registered)
             {
-                r = uf_register_netdev(priv,interfaceTag);
+                r = uf_register_netdev(priv, interfaceTag);
                 if (r) {
                     unifi_error(priv, "Failed to register the network device.\n");
                     goto out;

@@ -130,7 +130,10 @@ extern void __iomem *at91_pmc_base;
 #define		AT91_PMC_USBS		(0x1 <<  0)		/* USB OHCI Input clock selection */
 #define			AT91_PMC_USBS_PLLA		(0 << 0)
 #define			AT91_PMC_USBS_UPLL		(1 << 0)
+#define			AT91_PMC_USBS_PLLB		(1 << 0)	/* [AT91SAMN12 only] */
 #define		AT91_PMC_OHCIUSBDIV	(0xF <<  8)		/* Divider for USB OHCI Clock */
+#define			AT91_PMC_OHCIUSBDIV_1	(0x0 <<  8)
+#define			AT91_PMC_OHCIUSBDIV_2	(0x1 <<  8)
 
 #define	AT91_PMC_SMD		0x3c			/* Soft Modem Clock Register [some SAM9 only] */
 #define		AT91_PMC_SMDS		(0x1  <<  0)		/* SMD input clock selection */

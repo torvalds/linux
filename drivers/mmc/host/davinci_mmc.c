@@ -37,6 +37,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
+#include <linux/platform_data/edma.h>
 #include <linux/platform_data/mmc-davinci.h>
 
 /*

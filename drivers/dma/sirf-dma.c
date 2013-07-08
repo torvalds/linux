@@ -466,12 +466,29 @@ static enum dma_status
 sirfsoc_dma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	struct dma_tx_state *txstate)
 {
+	struct sirfsoc_dma *sdma = dma_chan_to_sirfsoc_dma(chan);
 	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	unsigned long flags;
 	enum dma_status ret;
+	struct sirfsoc_dma_desc *sdesc;
+	int cid = schan->chan.chan_id;
+	unsigned long dma_pos;
+	unsigned long dma_request_bytes;
+	unsigned long residue;
 
 	spin_lock_irqsave(&schan->lock, flags);
+
+	sdesc = list_first_entry(&schan->active, struct sirfsoc_dma_desc,
+			node);
+	dma_request_bytes = (sdesc->xlen + 1) * (sdesc->ylen + 1) *
+		(sdesc->width * SIRFSOC_DMA_WORD_LEN);
+
 	ret = dma_cookie_status(chan, cookie, txstate);
+	dma_pos = readl_relaxed(sdma->base + cid * 0x10 + SIRFSOC_DMA_CH_ADDR)
+		<< 2;
+	residue = dma_request_bytes - (dma_pos - sdesc->addr);
+	dma_set_residue(txstate, residue);
+
 	spin_unlock_irqrestore(&schan->lock, flags);
 
 	return ret;

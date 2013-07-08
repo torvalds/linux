@@ -303,13 +303,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 #include <asm-generic/pgtable.h>
 
-/*
- * remap a physical page `pfn' of size `size' with page protection `prot'
- * into virtual address `from'
- */
-#define io_remap_pfn_range(vma, from, pfn, size, prot)	\
-		remap_pfn_range(vma, from, pfn, size, prot)
-
 #define pgtable_cache_init() do { } while (0)
 
 #endif /* !__ASSEMBLY__ */

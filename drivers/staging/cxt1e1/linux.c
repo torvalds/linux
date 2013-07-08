@@ -144,7 +144,7 @@ getuserbychan (int channum)
 
 
 char       *
-get_hdlc_name (hdlc_device * hdlc)
+get_hdlc_name (hdlc_device *hdlc)
 {
     struct c4_priv *priv = hdlc->priv;
     struct net_device *dev = getuserbychan (priv->channum);
@@ -185,7 +185,7 @@ mkret (int bsd)
  * within a port's group.
  */
 void
-c4_wk_chan_restart (mch_t * ch)
+c4_wk_chan_restart (mch_t *ch)
 {
     mpi_t      *pi = ch->up;
 
@@ -203,7 +203,7 @@ c4_wk_chan_restart (mch_t * ch)
 }
 
 status_t
-c4_wk_chan_init (mpi_t * pi, mch_t * ch)
+c4_wk_chan_init (mpi_t *pi, mch_t *ch)
 {
     /*
      * this will be used to restart a stopped channel
@@ -218,7 +218,7 @@ c4_wk_chan_init (mpi_t * pi, mch_t * ch)
 }
 
 status_t
-c4_wq_port_init (mpi_t * pi)
+c4_wq_port_init (mpi_t *pi)
 {
 
     char        name[16], *np;  /* NOTE: name of the queue limited by system
@@ -241,7 +241,7 @@ c4_wq_port_init (mpi_t * pi)
 }
 
 void
-c4_wq_port_cleanup (mpi_t * pi)
+c4_wq_port_cleanup (mpi_t *pi)
 {
     /*
      * PORT POINT: cannot call this if WQ is statically allocated w/in
@@ -278,7 +278,7 @@ c4_ebus_interrupt (int irq, void *dev_instance)
 
 
 static int
-void_open (struct net_device * ndev)
+void_open (struct net_device *ndev)
 {
     pr_info("%s: trying to open master device !\n", ndev->name);
     return -1;
@@ -286,7 +286,7 @@ void_open (struct net_device * ndev)
 
 
 STATIC int
-chan_open (struct net_device * ndev)
+chan_open (struct net_device *ndev)
 {
     hdlc_device *hdlc = dev_to_hdlc (ndev);
     const struct c4_priv *priv = hdlc->priv;
@@ -306,7 +306,7 @@ chan_open (struct net_device * ndev)
 
 
 STATIC int
-chan_close (struct net_device * ndev)
+chan_close (struct net_device *ndev)
 {
     hdlc_device *hdlc = dev_to_hdlc (ndev);
     const struct c4_priv *priv = hdlc->priv;
@@ -320,14 +320,14 @@ chan_close (struct net_device * ndev)
 
 
 STATIC int
-chan_dev_ioctl (struct net_device * dev, struct ifreq * ifr, int cmd)
+chan_dev_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 {
     return hdlc_ioctl (dev, ifr, cmd);
 }
 
 
 STATIC int
-chan_attach_noop (struct net_device * ndev, unsigned short foo_1, unsigned short foo_2)
+chan_attach_noop (struct net_device *ndev, unsigned short foo_1, unsigned short foo_2)
 {
     return 0;                   /* our driver has nothing to do here, show's
                                  * over, go home */
@@ -335,7 +335,7 @@ chan_attach_noop (struct net_device * ndev, unsigned short foo_1, unsigned short
 
 
 STATIC struct net_device_stats *
-chan_get_stats (struct net_device * ndev)
+chan_get_stats (struct net_device *ndev)
 {
     mch_t      *ch;
     struct net_device_stats *nstats;
@@ -388,14 +388,14 @@ chan_get_stats (struct net_device * ndev)
 
 
 static ci_t *
-get_ci_by_dev (struct net_device * ndev)
+get_ci_by_dev (struct net_device *ndev)
 {
     return (ci_t *)(netdev_priv(ndev));
 }
 
 
 STATIC int
-c4_linux_xmit (struct sk_buff * skb, struct net_device * ndev)
+c4_linux_xmit (struct sk_buff *skb, struct net_device *ndev)
 {
     const struct c4_priv *priv;
     int         rval;
@@ -417,8 +417,8 @@ static const struct net_device_ops chan_ops = {
 };
 
 STATIC struct net_device *
-create_chan (struct net_device * ndev, ci_t * ci,
-             struct sbecom_chan_param * cp)
+create_chan (struct net_device *ndev, ci_t *ci,
+             struct sbecom_chan_param *cp)
 {
     hdlc_device *hdlc;
     struct net_device *dev;
@@ -510,7 +510,7 @@ create_chan (struct net_device * ndev, ci_t * ci,
 
 /* the idea here is to get port information and pass it back (using pointer) */
 STATIC      status_t
-do_get_port (struct net_device * ndev, void *data)
+do_get_port (struct net_device *ndev, void *data)
 {
     int         ret;
     ci_t       *ci;             /* ci stands for card information */
@@ -535,7 +535,7 @@ do_get_port (struct net_device * ndev, void *data)
 
 /* this function copys the user data and then calls the real action function */
 STATIC      status_t
-do_set_port (struct net_device * ndev, void *data)
+do_set_port (struct net_device *ndev, void *data)
 {
     ci_t       *ci;             /* ci stands for card information */
     struct sbecom_port_param pp;/* copy data to kernel land */
@@ -557,7 +557,7 @@ do_set_port (struct net_device * ndev, void *data)
 
 /* work the port loopback mode as per directed */
 STATIC      status_t
-do_port_loop (struct net_device * ndev, void *data)
+do_port_loop (struct net_device *ndev, void *data)
 {
     struct sbecom_port_param pp;
     ci_t       *ci;
@@ -572,7 +572,7 @@ do_port_loop (struct net_device * ndev, void *data)
 
 /* set the specified register with the given value / or just read it */
 STATIC      status_t
-do_framer_rw (struct net_device * ndev, void *data)
+do_framer_rw (struct net_device *ndev, void *data)
 {
     struct sbecom_port_param pp;
     ci_t       *ci;
@@ -593,7 +593,7 @@ do_framer_rw (struct net_device * ndev, void *data)
 
 /* set the specified register with the given value / or just read it */
 STATIC      status_t
-do_pld_rw (struct net_device * ndev, void *data)
+do_pld_rw (struct net_device *ndev, void *data)
 {
     struct sbecom_port_param pp;
     ci_t       *ci;
@@ -614,7 +614,7 @@ do_pld_rw (struct net_device * ndev, void *data)
 
 /* set the specified register with the given value / or just read it */
 STATIC      status_t
-do_musycc_rw (struct net_device * ndev, void *data)
+do_musycc_rw (struct net_device *ndev, void *data)
 {
     struct c4_musycc_param mp;
     ci_t       *ci;
@@ -634,7 +634,7 @@ do_musycc_rw (struct net_device * ndev, void *data)
 }
 
 STATIC      status_t
-do_get_chan (struct net_device * ndev, void *data)
+do_get_chan (struct net_device *ndev, void *data)
 {
     struct sbecom_chan_param cp;
     int         ret;
@@ -652,7 +652,7 @@ do_get_chan (struct net_device * ndev, void *data)
 }
 
 STATIC      status_t
-do_set_chan (struct net_device * ndev, void *data)
+do_set_chan (struct net_device *ndev, void *data)
 {
     struct sbecom_chan_param cp;
     int         ret;
@@ -673,7 +673,7 @@ do_set_chan (struct net_device * ndev, void *data)
 }
 
 STATIC      status_t
-do_create_chan (struct net_device * ndev, void *data)
+do_create_chan (struct net_device *ndev, void *data)
 {
     ci_t       *ci;
     struct net_device *dev;
@@ -700,7 +700,7 @@ do_create_chan (struct net_device * ndev, void *data)
 }
 
 STATIC      status_t
-do_get_chan_stats (struct net_device * ndev, void *data)
+do_get_chan_stats (struct net_device *ndev, void *data)
 {
     struct c4_chan_stats_wrap ccs;
     int         ret;
@@ -721,7 +721,7 @@ do_get_chan_stats (struct net_device * ndev, void *data)
     return 0;
 }
 STATIC      status_t
-do_set_loglevel (struct net_device * ndev, void *data)
+do_set_loglevel (struct net_device *ndev, void *data)
 {
     unsigned int cxt1e1_log_level;
 
@@ -732,7 +732,7 @@ do_set_loglevel (struct net_device * ndev, void *data)
 }
 
 STATIC      status_t
-do_deluser (struct net_device * ndev, int lockit)
+do_deluser (struct net_device *ndev, int lockit)
 {
     if (ndev->flags & IFF_UP)
         return -EBUSY;
@@ -763,7 +763,7 @@ do_deluser (struct net_device * ndev, int lockit)
 }
 
 int
-do_del_chan (struct net_device * musycc_dev, void *data)
+do_del_chan (struct net_device *musycc_dev, void *data)
 {
     struct sbecom_chan_param cp;
     char        buf[sizeof (CHANNAME) + 3];
@@ -787,7 +787,7 @@ do_del_chan (struct net_device * musycc_dev, void *data)
 int         c4_reset_board (void *);
 
 int
-do_reset (struct net_device * musycc_dev, void *data)
+do_reset (struct net_device *musycc_dev, void *data)
 {
     const struct c4_priv *priv;
     int         i;
@@ -816,7 +816,7 @@ do_reset (struct net_device * musycc_dev, void *data)
 }
 
 int
-do_reset_chan_stats (struct net_device * musycc_dev, void *data)
+do_reset_chan_stats (struct net_device *musycc_dev, void *data)
 {
     struct sbecom_chan_param cp;
 
@@ -827,7 +827,7 @@ do_reset_chan_stats (struct net_device * musycc_dev, void *data)
 }
 
 STATIC      status_t
-c4_ioctl (struct net_device * ndev, struct ifreq * ifr, int cmd)
+c4_ioctl (struct net_device *ndev, struct ifreq *ifr, int cmd)
 {
     ci_t       *ci;
     void       *data;
@@ -954,7 +954,7 @@ static void c4_setup(struct net_device *dev)
 }
 
 struct net_device *__init
-c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
+c4_add_dev (hdw_info_t *hi, int brdno, unsigned long f0, unsigned long f1,
             int irq0, int irq1)
 {
     struct net_device *ndev;

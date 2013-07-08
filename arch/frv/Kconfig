@@ -14,6 +14,7 @@ config FRV
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config ZONE_DMA
 	bool

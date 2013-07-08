@@ -21,6 +21,8 @@ config DW_APB_TIMER
 
 config DW_APB_TIMER_OF
 	bool
+	select DW_APB_TIMER
+	select CLKSRC_OF
 
 config ARMADA_370_XP_TIMER
 	bool
@@ -85,3 +87,8 @@ config CLKSRC_SAMSUNG_PWM
 	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
 	  for all devicetree enabled platforms. This driver will be
 	  needed only on systems that do not have the Exynos MCT available.
+
+config VF_PIT_TIMER
+	bool
+	help
+	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.

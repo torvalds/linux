@@ -710,6 +710,16 @@ config USB_SERIAL_QT2
 	  To compile this driver as a module, choose M here: the
 	  module will be called quatech-serial.
 
+config USB_SERIAL_FLASHLOADER
+	tristate "Infineon Modem Flashloader USB interface driver"
+	help
+	  Say Y here if you want to download Infineon Modem
+	  via USB Flashloader serial driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called flashloader.
+
+
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
 	help

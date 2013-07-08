@@ -151,6 +151,7 @@ acpi_status acpi_ns_root_initialize(void)
 			 */
 			switch (init_val->type) {
 			case ACPI_TYPE_METHOD:
+
 				obj_desc->method.param_count =
 				    (u8) ACPI_TO_INTEGER(val);
 				obj_desc->common.flags |= AOPOBJ_DATA_VALID;

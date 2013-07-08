@@ -1,16 +1,14 @@
 /dts-v1/;
 
-/include/ "kirkwood-ts219.dtsi"
+/include/ "kirkwood.dtsi"
 /include/ "kirkwood-6282.dtsi"
+/include/ "kirkwood-ts219.dtsi"
 
 / {
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
 
-			pinctrl-0 = < &pmx_uart0 &pmx_uart1 &pmx_spi
-				      &pmx_twsi0 &pmx_sata0 &pmx_sata1
-				      &pmx_ram_size &pmx_reset_button
-				      &pmx_USB_copy_button &pmx_board_id>;
+			pinctrl-0 = <&pmx_ram_size &pmx_board_id>;
 			pinctrl-names = "default";
 
 			pmx_ram_size: pmx-ram-size {
@@ -32,12 +30,23 @@
 				marvell,function = "gpio";
 			};
 		};
+		pcie-controller {
+			status = "okay";
+
+			pcie@2,0 {
+				status = "okay";
+			};
+		};
+
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_reset_button &pmx_USB_copy_button>;
+		pinctrl-names = "default";
+
 		button@1 {
 			label = "USB Copy";
 			linux,code = <133>;

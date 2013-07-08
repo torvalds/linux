@@ -21,7 +21,6 @@
 #include <linux/ptrace.h>
 #include <linux/device.h>
 #include <linux/highmem.h>
-#include <linux/crash_dump.h>
 #include <linux/backing-dev.h>
 #include <linux/bootmem.h>
 #include <linux/splice.h>
@@ -354,40 +353,6 @@ static int mmap_kmem(struct file *file, struct vm_area_struct *vma)
 
 	vma->vm_pgoff = pfn;
 	return mmap_mem(file, vma);
-}
-#endif
-
-#ifdef CONFIG_CRASH_DUMP
-/*
- * Read memory corresponding to the old kernel.
- */
-static ssize_t read_oldmem(struct file *file, char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	unsigned long pfn, offset;
-	size_t read = 0, csize;
-	int rc = 0;
-
-	while (count) {
-		pfn = *ppos / PAGE_SIZE;
-		if (pfn > saved_max_pfn)
-			return read;
-
-		offset = (unsigned long)(*ppos % PAGE_SIZE);
-		if (count > PAGE_SIZE - offset)
-			csize = PAGE_SIZE - offset;
-		else
-			csize = count;
-
-		rc = copy_oldmem_page(pfn, buf, csize, offset, 1);
-		if (rc < 0)
-			return rc;
-		buf += csize;
-		*ppos += csize;
-		read += csize;
-		count -= csize;
-	}
-	return read;
 }
 #endif
 
@@ -745,7 +710,7 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 		offset += file->f_pos;
 	case SEEK_SET:
 		/* to avoid userland mistaking f_pos=-9 as -EBADF=-9 */
-		if ((unsigned long long)offset >= ~0xFFFULL) {
+		if (IS_ERR_VALUE((unsigned long long)offset)) {
 			ret = -EOVERFLOW;
 			break;
 		}
@@ -772,7 +737,6 @@ static int open_port(struct inode *inode, struct file *filp)
 #define aio_write_zero	aio_write_null
 #define open_mem	open_port
 #define open_kmem	open_mem
-#define open_oldmem	open_mem
 
 static const struct file_operations mem_fops = {
 	.llseek		= memory_lseek,
@@ -837,14 +801,6 @@ static const struct file_operations full_fops = {
 	.write		= write_full,
 };
 
-#ifdef CONFIG_CRASH_DUMP
-static const struct file_operations oldmem_fops = {
-	.read	= read_oldmem,
-	.open	= open_oldmem,
-	.llseek = default_llseek,
-};
-#endif
-
 static const struct memdev {
 	const char *name;
 	umode_t mode;
@@ -865,9 +821,6 @@ static const struct memdev {
 	 [9] = { "urandom", 0666, &urandom_fops, NULL },
 #ifdef CONFIG_PRINTK
 	[11] = { "kmsg", 0644, &kmsg_fops, NULL },
-#endif
-#ifdef CONFIG_CRASH_DUMP
-	[12] = { "oldmem", 0, &oldmem_fops, NULL },
 #endif
 };
 

@@ -186,3 +186,4 @@ module_exit(w1_ds2781_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Renata Sayakhova <renata@oktetlabs.ru>");
 MODULE_DESCRIPTION("1-wire Driver for Maxim/Dallas DS2781 Stand-Alone Fuel Gauge IC");
+MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2781));

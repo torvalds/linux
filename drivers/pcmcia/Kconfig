@@ -4,7 +4,6 @@
 
 menuconfig PCCARD
 	tristate "PCCard (PCMCIA/CardBus) support"
-	depends on HOTPLUG
 	---help---
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
@@ -243,7 +242,7 @@ config PCMCIA_DEBUG
 
 config PCMCIA_PROBE
 	bool
-	default y if ISA && !ARCH_SA1100 && !ARCH_CLPS711X && !PARISC
+	default y if ISA && !ARCH_SA1100 && !PARISC
 
 config M32R_PCC
 	bool "M32R PCMCIA I/F"
@@ -288,7 +287,7 @@ config BFIN_CFPCMCIA
 
 config AT91_CF
 	tristate "AT91 CompactFlash Controller"
-	depends on PCMCIA && ARCH_AT91RM9200
+	depends on PCMCIA && ARCH_AT91
 	help
 	  Say Y here to support the CompactFlash controller on AT91 chips.
 	  Or choose M to compile the driver as a module named "at91_cf".

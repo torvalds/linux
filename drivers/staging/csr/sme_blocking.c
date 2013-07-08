@@ -1280,7 +1280,7 @@ int sme_sys_suspend(unifi_priv_t *priv)
         return -EIO;
 
     /* Suspend the SME, which MAY cause it to power down UniFi */
-    CsrWifiRouterCtrlSuspendIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, 0, priv->wol_suspend);
+    CsrWifiRouterCtrlSuspendIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, 0, priv->wol_suspend);
     r = sme_wait_for_reply(priv, UNIFI_SME_SYS_LONG_TIMEOUT);
     if (r) {
         /* No reply - forcibly power down in case the request wasn't processed */
@@ -1366,7 +1366,7 @@ int sme_sys_resume(unifi_priv_t *priv)
     if (r)
         return -EIO;
 
-    CsrWifiRouterCtrlResumeIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0, priv->wol_suspend);
+    CsrWifiRouterCtrlResumeIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, priv->wol_suspend);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_SYS_LONG_TIMEOUT);
     if (r)
@@ -1377,7 +1377,7 @@ int sme_sys_resume(unifi_priv_t *priv)
 }
 
 #ifdef CSR_SUPPORT_WEXT_AP
-int sme_ap_stop(unifi_priv_t *priv,u16 interface_tag)
+int sme_ap_stop(unifi_priv_t *priv, u16 interface_tag)
 {
     int r;
 
@@ -1390,7 +1390,7 @@ int sme_ap_stop(unifi_priv_t *priv,u16 interface_tag)
     if (r)
         return -EIO;
 
-    CsrWifiNmeApStopReqSend(0,interface_tag);
+    CsrWifiNmeApStopReqSend(0, interface_tag);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
     if (r)
@@ -1403,12 +1403,12 @@ int sme_ap_stop(unifi_priv_t *priv,u16 interface_tag)
 
 }
 
-int sme_ap_start(unifi_priv_t *priv,u16 interface_tag,
+int sme_ap_start(unifi_priv_t *priv, u16 interface_tag,
                  CsrWifiSmeApConfig_t * ap_config)
 {
     int r;
     CsrWifiSmeApP2pGoConfig p2p_go_param;
-    memset(&p2p_go_param,0,sizeof(CsrWifiSmeApP2pGoConfig));
+    memset(&p2p_go_param, 0, sizeof(CsrWifiSmeApP2pGoConfig));
 
     if (priv->smepriv == NULL) {
         unifi_error(priv, "sme_ap_start: invalid smepriv\n");
@@ -1419,10 +1419,10 @@ int sme_ap_start(unifi_priv_t *priv,u16 interface_tag,
     if (r)
         return -EIO;
 
-    CsrWifiNmeApStartReqSend(0,interface_tag,CSR_WIFI_AP_TYPE_LEGACY,FALSE,
-                             ap_config->ssid,1,ap_config->channel,
-                             ap_config->credentials,ap_config->max_connections,
-                             p2p_go_param,FALSE);
+    CsrWifiNmeApStartReqSend(0, interface_tag, CSR_WIFI_AP_TYPE_LEGACY, FALSE,
+                             ap_config->ssid, 1, ap_config->channel,
+                             ap_config->credentials, ap_config->max_connections,
+                             p2p_go_param, FALSE);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
     if (r)
@@ -1440,7 +1440,7 @@ int sme_ap_config(unifi_priv_t *priv,
 {
     int r;
     CsrWifiSmeApP2pGoConfig p2p_go_param;
-    memset(&p2p_go_param,0,sizeof(CsrWifiSmeApP2pGoConfig));
+    memset(&p2p_go_param, 0, sizeof(CsrWifiSmeApP2pGoConfig));
 
     if (priv->smepriv == NULL) {
         unifi_error(priv, "sme_ap_config: invalid smepriv\n");
@@ -1451,7 +1451,7 @@ int sme_ap_config(unifi_priv_t *priv,
     if (r)
         return -EIO;
 
-    CsrWifiNmeApConfigSetReqSend(0,*group_security_config,
+    CsrWifiNmeApConfigSetReqSend(0, *group_security_config,
                                  *ap_mac_config);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);

@@ -51,6 +51,8 @@ void kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts,
 			    int (*dev_ready)(struct mtd_info *));
 void kirkwood_audio_init(void);
 void kirkwood_cpuidle_init(void);
+void kirkwood_cpufreq_init(void);
+
 void kirkwood_restart(char, const char *);
 void kirkwood_clk_init(void);
 
@@ -64,6 +66,11 @@ static inline void dreamplug_init(void) {};
 void guruplug_dt_init(void);
 #else
 static inline void guruplug_dt_init(void) {};
+#endif
+#ifdef CONFIG_MACH_SHEEVAPLUG_DT
+void sheevaplug_dt_init(void);
+#else
+static inline void sheevaplug_dt_init(void) {};
 #endif
 #ifdef CONFIG_MACH_TS219_DT
 void qnap_dt_ts219_init(void);
@@ -117,6 +124,12 @@ static inline void iomega_ix2_200_init(void) {};
 void km_kirkwood_init(void);
 #else
 static inline void km_kirkwood_init(void) {};
+#endif
+
+#ifdef CONFIG_MACH_DB88F628X_BP_DT
+void db88f628x_init(void);
+#else
+static inline void db88f628x_init(void) {};
 #endif
 
 #ifdef CONFIG_MACH_MPLCEC4_DT

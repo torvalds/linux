@@ -24,7 +24,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/sched.h>
 #include <linux/input/samsung-keypad.h>
 
@@ -79,10 +78,6 @@ struct samsung_keypad {
 	unsigned int rows;
 	unsigned int cols;
 	unsigned int row_state[SAMSUNG_MAX_COLS];
-#ifdef CONFIG_OF
-	int row_gpios[SAMSUNG_MAX_ROWS];
-	int col_gpios[SAMSUNG_MAX_COLS];
-#endif
 	unsigned short keycodes[];
 };
 
@@ -304,45 +299,6 @@ static struct samsung_keypad_platdata *samsung_keypad_parse_dt(
 
 	return pdata;
 }
-
-static void samsung_keypad_parse_dt_gpio(struct device *dev,
-				struct samsung_keypad *keypad)
-{
-	struct device_node *np = dev->of_node;
-	int gpio, error, row, col;
-
-	for (row = 0; row < keypad->rows; row++) {
-		gpio = of_get_named_gpio(np, "row-gpios", row);
-		keypad->row_gpios[row] = gpio;
-		if (!gpio_is_valid(gpio)) {
-			dev_err(dev, "keypad row[%d]: invalid gpio %d\n",
-					row, gpio);
-			continue;
-		}
-
-		error = devm_gpio_request(dev, gpio, "keypad-row");
-		if (error)
-			dev_err(dev,
-				"keypad row[%d] gpio request failed: %d\n",
-				row, error);
-	}
-
-	for (col = 0; col < keypad->cols; col++) {
-		gpio = of_get_named_gpio(np, "col-gpios", col);
-		keypad->col_gpios[col] = gpio;
-		if (!gpio_is_valid(gpio)) {
-			dev_err(dev, "keypad column[%d]: invalid gpio %d\n",
-					col, gpio);
-			continue;
-		}
-
-		error = devm_gpio_request(dev, gpio, "keypad-col");
-		if (error)
-			dev_err(dev,
-				"keypad column[%d] gpio request failed: %d\n",
-				col, error);
-	}
-}
 #else
 static
 struct samsung_keypad_platdata *samsung_keypad_parse_dt(struct device *dev)
@@ -424,15 +380,11 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	keypad->stopped = true;
 	init_waitqueue_head(&keypad->wait);
 
-	if (pdev->dev.of_node) {
-#ifdef CONFIG_OF
-		samsung_keypad_parse_dt_gpio(&pdev->dev, keypad);
+	if (pdev->dev.of_node)
 		keypad->type = of_device_is_compatible(pdev->dev.of_node,
 					"samsung,s5pv210-keypad");
-#endif
-	} else {
+	else
 		keypad->type = platform_get_device_id(pdev)->driver_data;
-	}
 
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
@@ -487,7 +439,6 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 err_disable_runtime_pm:
 	pm_runtime_disable(&pdev->dev);
 	device_init_wakeup(&pdev->dev, 0);
-	platform_set_drvdata(pdev, NULL);
 err_unprepare_clk:
 	clk_unprepare(keypad->clk);
 	return error;
@@ -499,7 +450,6 @@ static int samsung_keypad_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	device_init_wakeup(&pdev->dev, 0);
-	platform_set_drvdata(pdev, NULL);
 
 	input_unregister_device(keypad->input_dev);
 

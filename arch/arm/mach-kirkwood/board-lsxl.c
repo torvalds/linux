@@ -25,19 +25,6 @@ static struct mv643xx_eth_platform_data lsxl_ge01_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
-/*
- * On the LS-XHL/LS-CHLv2, the shutdown process is following:
- * - Userland monitors key events until the power switch goes to off position
- * - The board reboots
- * - U-boot starts and goes into an idle mode waiting for the user
- *   to move the switch to ON position
- *
- */
-static void lsxl_power_off(void)
-{
-	kirkwood_restart('h', NULL);
-}
-
 void __init lsxl_init(void)
 {
 	/*
@@ -46,7 +33,4 @@ void __init lsxl_init(void)
 
 	kirkwood_ge00_init(&lsxl_ge00_data);
 	kirkwood_ge01_init(&lsxl_ge01_data);
-
-	/* register power-off method */
-	pm_power_off = lsxl_power_off;
 }

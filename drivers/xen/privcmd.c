@@ -6,6 +6,8 @@
  * Copyright (c) 2002-2004, K A Fraser, B Dragovic
  */
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -565,7 +567,7 @@ static int __init privcmd_init(void)
 
 	err = misc_register(&privcmd_dev);
 	if (err != 0) {
-		printk(KERN_ERR "Could not register Xen privcmd device\n");
+		pr_err("Could not register Xen privcmd device\n");
 		return err;
 	}
 	return 0;

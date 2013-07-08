@@ -106,7 +106,7 @@ static struct platform_device smc91x_device = {
 };
 
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
-static unsigned int tavorevb_matrix_key_map[] = {
+static const unsigned int tavorevb_matrix_key_map[] = {
 	/* KEY(row, col, key_code) */
 	KEY(0, 4, KEY_A), KEY(0, 5, KEY_B), KEY(0, 6, KEY_C),
 	KEY(1, 4, KEY_E), KEY(1, 5, KEY_F), KEY(1, 6, KEY_G),
@@ -147,11 +147,15 @@ static unsigned int tavorevb_matrix_key_map[] = {
 	KEY(3, 3, KEY_F23),	/* soft2 */
 };
 
+static struct matrix_keymap_data tavorevb_matrix_keymap_data = {
+	.keymap		= tavorevb_matrix_key_map,
+	.keymap_size	= ARRAY_SIZE(tavorevb_matrix_key_map),
+};
+
 static struct pxa27x_keypad_platform_data tavorevb_keypad_info = {
 	.matrix_key_rows	= 7,
 	.matrix_key_cols	= 7,
-	.matrix_key_map		= tavorevb_matrix_key_map,
-	.matrix_key_map_size	= ARRAY_SIZE(tavorevb_matrix_key_map),
+	.matrix_keymap_data	= &tavorevb_matrix_keymap_data,
 	.debounce_interval	= 30,
 };
 

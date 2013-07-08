@@ -44,6 +44,7 @@
 #include <linux/uaccess.h>
 #include <linux/moduleparam.h>
 #include <linux/jiffies.h>
+#include <linux/syscalls.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
@@ -586,6 +587,7 @@ struct sysrq_state {
 
 	/* reset sequence handling */
 	bool reset_canceled;
+	bool reset_requested;
 	unsigned long reset_keybit[BITS_TO_LONGS(KEY_CNT)];
 	int reset_seq_len;
 	int reset_seq_cnt;
@@ -624,18 +626,26 @@ static void sysrq_parse_reset_sequence(struct sysrq_state *state)
 	state->reset_seq_version = sysrq_reset_seq_version;
 }
 
-static void sysrq_do_reset(unsigned long dummy)
+static void sysrq_do_reset(unsigned long _state)
 {
-	__handle_sysrq(sysrq_xlate[KEY_B], false);
+	struct sysrq_state *state = (struct sysrq_state *) _state;
+
+	state->reset_requested = true;
+
+	sys_sync();
+	kernel_restart(NULL);
 }
 
 static void sysrq_handle_reset_request(struct sysrq_state *state)
 {
+	if (state->reset_requested)
+		__handle_sysrq(sysrq_xlate[KEY_B], false);
+
 	if (sysrq_reset_downtime_ms)
 		mod_timer(&state->keyreset_timer,
 			jiffies + msecs_to_jiffies(sysrq_reset_downtime_ms));
 	else
-		sysrq_do_reset(0);
+		sysrq_do_reset((unsigned long)state);
 }
 
 static void sysrq_detect_reset_sequence(struct sysrq_state *state,
@@ -837,7 +847,8 @@ static int sysrq_connect(struct input_handler *handler,
 	sysrq->handle.handler = handler;
 	sysrq->handle.name = "sysrq";
 	sysrq->handle.private = sysrq;
-	setup_timer(&sysrq->keyreset_timer, sysrq_do_reset, 0);
+	setup_timer(&sysrq->keyreset_timer,
+		    sysrq_do_reset, (unsigned long)sysrq);
 
 	error = input_register_handle(&sysrq->handle);
 	if (error) {
@@ -932,7 +943,7 @@ static int sysrq_reset_seq_param_set(const char *buffer,
 	unsigned long val;
 	int error;
 
-	error = strict_strtoul(buffer, 0, &val);
+	error = kstrtoul(buffer, 0, &val);
 	if (error < 0)
 		return error;
 

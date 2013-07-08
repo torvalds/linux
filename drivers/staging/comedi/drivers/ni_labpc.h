@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #ifndef _NI_LABPC_H
@@ -27,27 +22,17 @@
 #define EEPROM_SIZE	256	/*  256 byte eeprom */
 #define NUM_AO_CHAN	2	/*  boards have two analog output channels */
 
-enum labpc_register_layout { labpc_plus_layout, labpc_1200_layout };
 enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
 	isa_dma_transfer
 };
 
 struct labpc_boardinfo {
 	const char *name;
-	int device_id;		/*  device id for pci and pcmcia boards */
-	int ai_speed;		/*  maximum input speed in nanoseconds */
-
-	/*  1200 has extra registers compared to pc+ */
-	enum labpc_register_layout register_layout;
-	int has_ao;		/*  has analog output true/false */
-	const struct comedi_lrange *ai_range_table;
-	const int *ai_range_code;
-
-	/*  board can auto scan up in ai channels, not just down */
-	unsigned ai_scan_up:1;
-
-	/* uses memory mapped io instead of ioports */
-	unsigned has_mmio:1;
+	int ai_speed;			/* maximum input speed in ns */
+	unsigned ai_scan_up:1;		/* can auto scan up in ai channels */
+	unsigned has_ao:1;		/* has analog outputs */
+	unsigned is_labpc1200:1;	/* has extra regs compared to pc+ */
+	unsigned has_mmio:1;		/* uses memory mapped io */
 };
 
 struct labpc_private {
@@ -101,9 +86,5 @@ struct labpc_private {
 
 int labpc_common_attach(struct comedi_device *dev,
 			unsigned int irq, unsigned long isr_flags);
-void labpc_common_detach(struct comedi_device *dev);
-
-extern const int labpc_1200_ai_gain_bits[];
-extern const struct comedi_lrange range_labpc_1200_ai;
 
 #endif /* _NI_LABPC_H */

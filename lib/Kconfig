@@ -22,6 +22,9 @@ config GENERIC_STRNCPY_FROM_USER
 config GENERIC_STRNLEN_USER
 	bool
 
+config GENERIC_NET_UTILS
+	bool
+
 config GENERIC_FIND_FIRST_BIT
 	bool
 
@@ -63,6 +66,8 @@ config CRC16
 
 config CRC_T10DIF
 	tristate "CRC calculation for the T10 Data Integrity Field"
+	select CRYPTO
+	select CRYPTO_CRCT10DIF
 	help
 	  This option is only needed if a module that's not in the
 	  kernel tree needs to calculate CRC checks for use with the
@@ -406,5 +411,7 @@ config OID_REGISTRY
 
 config UCS2_STRING
         tristate
+
+source "lib/fonts/Kconfig"
 
 endmenu

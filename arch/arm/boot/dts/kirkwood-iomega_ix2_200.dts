@@ -18,12 +18,7 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_button_reset &pmx_button_power
-				      &pmx_led_backup &pmx_led_power
-				      &pmx_button_otb &pmx_led_rebuild
-				      &pmx_led_health
-				      &pmx_led_sata_brt_ctrl_1
+			pinctrl-0 = < &pmx_led_sata_brt_ctrl_1
 				      &pmx_led_sata_brt_ctrl_2
 				      &pmx_led_backup_brt_ctrl_1
 				      &pmx_led_backup_brt_ctrl_2
@@ -151,6 +146,9 @@
 	};
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_backup &pmx_led_power
+			      &pmx_led_rebuild &pmx_led_health >;
+		pinctrl-names = "default";
 
 		power_led {
 			label = "status:white:power_led";
@@ -174,6 +172,11 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_button_reset &pmx_button_power
+			     &pmx_button_otb>;
+		pinctrl-names = "default";
+
+
 		Power {
 			label = "Power Button";
 			linux,code = <116>;

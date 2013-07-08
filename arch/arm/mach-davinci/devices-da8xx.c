@@ -105,27 +105,27 @@ struct platform_device da8xx_serial_device = {
 	},
 };
 
-static const s8 da8xx_queue_tc_mapping[][2] = {
+static s8 da8xx_queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
 	{0, 0},
 	{1, 1},
 	{-1, -1}
 };
 
-static const s8 da8xx_queue_priority_mapping[][2] = {
+static s8 da8xx_queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 3},
 	{1, 7},
 	{-1, -1}
 };
 
-static const s8 da850_queue_tc_mapping[][2] = {
+static s8 da850_queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
 	{0, 0},
 	{-1, -1}
 };
 
-static const s8 da850_queue_priority_mapping[][2] = {
+static s8 da850_queue_priority_mapping[][2] = {
 	/* {event queue no, Priority} */
 	{0, 3},
 	{-1, -1}

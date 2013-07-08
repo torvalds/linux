@@ -218,7 +218,7 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 	 * this is not mandatory.... but seems that the probe
 	 * response parser uses it
 	 */
-	struct ieee80211_hdr_3addr * hdr = (struct ieee80211_hdr_3addr *)skb->data;
+	struct ieee80211_hdr_3addr *hdr = (struct ieee80211_hdr_3addr *)skb->data;
 
 	rx_stats->len = skb->len;
 	ieee80211_rx_mgt(ieee,(struct ieee80211_hdr_4addr *)skb->data,rx_stats);
@@ -336,7 +336,7 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
 static inline int
-ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
+ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			   struct ieee80211_crypt_data *crypt)
 {
 	struct ieee80211_hdr_4addr *hdr;
@@ -385,7 +385,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
 static inline int
-ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device* ieee, struct sk_buff *skb,
+ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *skb,
 			     int keyidx, struct ieee80211_crypt_data *crypt)
 {
 	struct ieee80211_hdr_4addr *hdr;
@@ -439,7 +439,7 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 	  tid = UP2AC(tid);
 	  tid ++;
 	} else if(IEEE80211_QOS_HAS_SEQ(fc)) { //QoS
-	  hdr_3addrqos = (struct ieee80211_hdr_3addrqos*)header;
+	  hdr_3addrqos = (struct ieee80211_hdr_3addrqos *)header;
 	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
 	  tid = UP2AC(tid);
 	  tid ++;
@@ -454,8 +454,7 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 		struct ieee_ibss_seq *entry = NULL;
 		u8 *mac = header->addr2;
 		int index = mac[5] % IEEE_IBSS_MAC_HASH_SIZE;
-		//for (pos = (head)->next; pos != (head); pos = pos->next)
-		//__list_for_each(p, &ieee->ibss_mac_hash[index]) {
+
 		list_for_each(p, &ieee->ibss_mac_hash[index]) {
 			entry = list_entry(p, struct ieee_ibss_seq, list);
 			if (!memcmp(entry->mac, mac, ETH_ALEN))
@@ -548,7 +547,7 @@ AddReorderEntry(
 	return true;
 }
 
-void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_rxb** prxbIndicateArray,u8  index)
+void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_rxb **prxbIndicateArray,u8  index)
 {
 	u8 i = 0 , j=0;
 	u16 ethertype;
@@ -557,7 +556,7 @@ void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_
 	for(j = 0; j<index; j++)
 	{
 //added by amy for reorder
-		struct ieee80211_rxb* prxb = prxbIndicateArray[j];
+		struct ieee80211_rxb *prxb = prxbIndicateArray[j];
 		for(i = 0; i<prxb->nr_subframes; i++) {
 			struct sk_buff *sub_skb = prxb->subframes[i];
 
@@ -603,13 +602,13 @@ void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_
 
 
 void RxReorderIndicatePacket( struct ieee80211_device *ieee,
-		struct ieee80211_rxb* prxb,
+		struct ieee80211_rxb *prxb,
 		PRX_TS_RECORD		pTS,
 		u16			SeqNum)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
-	struct ieee80211_rxb* prxbIndicateArray[REORDER_WIN_SIZE];
+	struct ieee80211_rxb *prxbIndicateArray[REORDER_WIN_SIZE];
 	u8			WinSize = pHTInfo->RxReorderWinSize;
 	u16			WinEnd = (pTS->RxIndicateSeq + WinSize -1)%4096;
 	u8			index = 0;
@@ -774,9 +773,9 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 
 u8 parse_subframe(struct sk_buff *skb,
 		  struct ieee80211_rx_stats *rx_stats,
-		  struct ieee80211_rxb *rxb,u8* src,u8* dst)
+		  struct ieee80211_rxb *rxb,u8 *src,u8 *dst)
 {
-	struct ieee80211_hdr_3addr  *hdr = (struct ieee80211_hdr_3addr* )skb->data;
+	struct ieee80211_hdr_3addr  *hdr = (struct ieee80211_hdr_3addr *)skb->data;
 	u16		fc = le16_to_cpu(hdr->frame_ctl);
 
 	u16		LLCOffset= sizeof(struct ieee80211_hdr_3addr);
@@ -831,7 +830,7 @@ u8 parse_subframe(struct sk_buff *skb,
 		memcpy(rxb->dst,dst,ETH_ALEN);
 		while(skb->len > ETHERNET_HEADER_SIZE) {
 			/* Offset 12 denote 2 mac address */
-			nSubframe_Length = *((u16*)(skb->data + 12));
+			nSubframe_Length = *((u16 *)(skb->data + 12));
 			//==m==>change the length order
 			nSubframe_Length = (nSubframe_Length>>8) + (nSubframe_Length<<8);
 
@@ -926,7 +925,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	int keyidx = 0;
 
 	int i;
-	struct ieee80211_rxb* rxb = NULL;
+	struct ieee80211_rxb *rxb = NULL;
 	// cheat the the hdr type
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	stats = &ieee->stats;
@@ -1035,9 +1034,9 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			//IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): QOS ENABLE AND RECEIVE QOS DATA , we will get Ts, tid:%d\n",__FUNCTION__, tid);
 		if(GetTs(
 				ieee,
-				(PTS_COMMON_INFO*) &pRxTS,
+				(PTS_COMMON_INFO *) &pRxTS,
 				hdr->addr2,
-				(u8)Frame_QoSTID((u8*)(skb->data)),
+				(u8)Frame_QoSTID((u8 *)(skb->data)),
 				RX_DIR,
 				true))
 		{
@@ -1289,7 +1288,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	{
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
-		GetTs(ieee,(PTS_COMMON_INFO*) &pTS,hdr->addr2,TID,RX_DIR,true);
+		GetTs(ieee,(PTS_COMMON_INFO *) &pTS,hdr->addr2,TID,RX_DIR,true);
 		if(TID !=0 && TID !=3)
 		{
 			ieee->bis_any_nonbepkts = true;
@@ -1597,7 +1596,7 @@ static inline void ieee80211_extract_country_ie(
 	struct ieee80211_device *ieee,
 	struct ieee80211_info_element *info_element,
 	struct ieee80211_network *network,
-	u8 * addr2
+	u8 *addr2
 )
 {
 	if(IS_DOT11D_ENABLE(ieee))
@@ -2275,7 +2274,7 @@ static inline int ieee80211_network_init(
 }
 
 static inline int is_same_network(struct ieee80211_network *src,
-				  struct ieee80211_network *dst, struct ieee80211_device* ieee)
+				  struct ieee80211_network *dst, struct ieee80211_device *ieee)
 {
 	/* A network is only a duplicate if the channel, BSSID, ESSID
 	 * and the capability field (in particular IBSS and BSS) all match.

@@ -598,6 +598,29 @@ void __init kirkwood_audio_init(void)
 }
 
 /*****************************************************************************
+ * CPU Frequency
+ ****************************************************************************/
+static struct resource kirkwood_cpufreq_resources[] = {
+	[0] = {
+		.start  = CPU_CONTROL_PHYS,
+		.end    = CPU_CONTROL_PHYS + 3,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device kirkwood_cpufreq_device = {
+	.name		= "kirkwood-cpufreq",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(kirkwood_cpufreq_resources),
+	.resource	= kirkwood_cpufreq_resources,
+};
+
+void __init kirkwood_cpufreq_init(void)
+{
+	platform_device_register(&kirkwood_cpufreq_device);
+}
+
+/*****************************************************************************
  * General
  ****************************************************************************/
 /*
@@ -648,30 +671,6 @@ char * __init kirkwood_id(void)
 
 void __init kirkwood_setup_wins(void)
 {
-	/*
-	 * The PCIe windows will no longer be statically allocated
-	 * here once Kirkwood is migrated to the pci-mvebu driver.
-	 */
-	mvebu_mbus_add_window_remap_flags("pcie0.0",
-					  KIRKWOOD_PCIE_IO_PHYS_BASE,
-					  KIRKWOOD_PCIE_IO_SIZE,
-					  KIRKWOOD_PCIE_IO_BUS_BASE,
-					  MVEBU_MBUS_PCI_IO);
-	mvebu_mbus_add_window_remap_flags("pcie0.0",
-					  KIRKWOOD_PCIE_MEM_PHYS_BASE,
-					  KIRKWOOD_PCIE_MEM_SIZE,
-					  MVEBU_MBUS_NO_REMAP,
-					  MVEBU_MBUS_PCI_MEM);
-	mvebu_mbus_add_window_remap_flags("pcie1.0",
-					  KIRKWOOD_PCIE1_IO_PHYS_BASE,
-					  KIRKWOOD_PCIE1_IO_SIZE,
-					  KIRKWOOD_PCIE1_IO_BUS_BASE,
-					  MVEBU_MBUS_PCI_IO);
-	mvebu_mbus_add_window_remap_flags("pcie1.0",
-					  KIRKWOOD_PCIE1_MEM_PHYS_BASE,
-					  KIRKWOOD_PCIE1_MEM_SIZE,
-					  MVEBU_MBUS_NO_REMAP,
-					  MVEBU_MBUS_PCI_MEM);
 	mvebu_mbus_add_window("nand", KIRKWOOD_NAND_MEM_PHYS_BASE,
 			      KIRKWOOD_NAND_MEM_SIZE);
 	mvebu_mbus_add_window("sram", KIRKWOOD_SRAM_PHYS_BASE,
