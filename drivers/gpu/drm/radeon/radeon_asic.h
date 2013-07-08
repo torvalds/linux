@@ -545,6 +545,7 @@ void cypress_dpm_disable(struct radeon_device *rdev);
 int cypress_dpm_set_power_state(struct radeon_device *rdev);
 void cypress_dpm_display_configuration_changed(struct radeon_device *rdev);
 void cypress_dpm_fini(struct radeon_device *rdev);
+bool cypress_dpm_vblank_too_short(struct radeon_device *rdev);
 int btc_dpm_init(struct radeon_device *rdev);
 void btc_dpm_setup_asic(struct radeon_device *rdev);
 int btc_dpm_enable(struct radeon_device *rdev);

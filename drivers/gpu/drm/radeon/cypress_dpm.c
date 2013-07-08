@@ -2174,3 +2174,16 @@ void cypress_dpm_fini(struct radeon_device *rdev)
 	kfree(rdev->pm.dpm.ps);
 	kfree(rdev->pm.dpm.priv);
 }
+
+bool cypress_dpm_vblank_too_short(struct radeon_device *rdev)
+{
+	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+	u32 switch_limit = pi->mem_gddr5 ? 450 : 300;
+
+	if (vblank_time < switch_limit)
+		return true;
+	else
+		return false;
+
+}
