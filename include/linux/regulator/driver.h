@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
+#include <linux/regulator/proxy-consumer.h>
 
 struct gpio_desc;
 struct regmap;
@@ -475,6 +476,7 @@ struct regulator_dev {
 
 	/* time when this regulator was disabled last time */
 	unsigned long last_off_jiffy;
+	struct proxy_consumer *proxy_consumer;
 };
 
 struct regulator_dev *
