@@ -342,8 +342,10 @@ static void lpuart_break_ctl(struct uart_port *port, int break_state)
 static void lpuart_setup_watermark(struct lpuart_port *sport)
 {
 	unsigned char val, cr2;
+	unsigned char cr2_saved;
 
 	cr2 = readb(sport->port.membase + UARTCR2);
+	cr2_saved = cr2;
 	cr2 &= ~(UARTCR2_TIE | UARTCR2_TCIE | UARTCR2_TE |
 			UARTCR2_RIE | UARTCR2_RE);
 	writeb(cr2, sport->port.membase + UARTCR2);
@@ -366,6 +368,9 @@ static void lpuart_setup_watermark(struct lpuart_port *sport)
 
 	writeb(2, sport->port.membase + UARTTWFIFO);
 	writeb(1, sport->port.membase + UARTRWFIFO);
+
+	/* Restore cr2 */
+	writeb(cr2_saved, sport->port.membase + UARTCR2);
 }
 
 static int lpuart_startup(struct uart_port *port)
