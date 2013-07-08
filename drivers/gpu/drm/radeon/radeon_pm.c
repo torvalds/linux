@@ -633,6 +633,14 @@ static struct radeon_ps *radeon_dpm_pick_power_state(struct radeon_device *rdev,
 	int i;
 	struct radeon_ps *ps;
 	u32 ui_class;
+	bool single_display = (rdev->pm.dpm.new_active_crtc_count < 2) ?
+		true : false;
+
+	/* check if the vblank period is too short to adjust the mclk */
+	if (single_display && rdev->asic->dpm.vblank_too_short) {
+		if (radeon_dpm_vblank_too_short(rdev))
+			single_display = false;
+	}
 
 	/* certain older asics have a separare 3D performance state,
 	 * so try that first if the user selected performance
@@ -653,7 +661,7 @@ restart_search:
 		case POWER_STATE_TYPE_BATTERY:
 			if (ui_class == ATOM_PPLIB_CLASSIFICATION_UI_BATTERY) {
 				if (ps->caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) {
-					if (rdev->pm.dpm.new_active_crtc_count < 2)
+					if (single_display)
 						return ps;
 				} else
 					return ps;
@@ -662,7 +670,7 @@ restart_search:
 		case POWER_STATE_TYPE_BALANCED:
 			if (ui_class == ATOM_PPLIB_CLASSIFICATION_UI_BALANCED) {
 				if (ps->caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) {
-					if (rdev->pm.dpm.new_active_crtc_count < 2)
+					if (single_display)
 						return ps;
 				} else
 					return ps;
@@ -671,7 +679,7 @@ restart_search:
 		case POWER_STATE_TYPE_PERFORMANCE:
 			if (ui_class == ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE) {
 				if (ps->caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) {
-					if (rdev->pm.dpm.new_active_crtc_count < 2)
+					if (single_display)
 						return ps;
 				} else
 					return ps;
