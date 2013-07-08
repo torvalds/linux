@@ -124,10 +124,6 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	ieee80211_rx_ni(mvm->hw, skb);
 }
 
-/*
- * iwl_mvm_calc_rssi - calculate the rssi in dBm
- * @phy_info: the phy information for the coming packet
- */
 static int iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
 			     struct iwl_rx_phy_info *phy_info)
 {
@@ -136,12 +132,6 @@ static int iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
 	u32 agc_a, agc_b, max_agc;
 	u32 val;
 
-	/* Find max rssi among 2 possible receivers.
-	 * These values are measured by the Digital Signal Processor (DSP).
-	 * They should stay fairly constant even as the signal strength varies,
-	 * if the radio's Automatic Gain Control (AGC) is working right.
-	 * AGC value (see below) will provide the "interesting" info.
-	 */
 	val = le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_AGC_IDX]);
 	agc_a = (val & IWL_OFDM_AGC_A_MSK) >> IWL_OFDM_AGC_A_POS;
 	agc_b = (val & IWL_OFDM_AGC_B_MSK) >> IWL_OFDM_AGC_B_POS;
@@ -167,6 +157,32 @@ static int iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
 			rssi_a_dbm, rssi_b_dbm, max_rssi_dbm, agc_a, agc_b);
 
 	return max_rssi_dbm;
+}
+
+/*
+ * iwl_mvm_get_signal_strength - use new rx PHY INFO API
+ */
+static int iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
+				       struct iwl_rx_phy_info *phy_info)
+{
+	int energy_a, energy_b, energy_c, max_energy;
+	u32 val;
+
+	val =
+	    le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_ENERGY_ANT_ABC_IDX]);
+	energy_a = -((val & IWL_RX_INFO_ENERGY_ANT_A_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_A_POS);
+	energy_b = -((val & IWL_RX_INFO_ENERGY_ANT_B_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_B_POS);
+	energy_c = -((val & IWL_RX_INFO_ENERGY_ANT_C_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_C_POS);
+	max_energy = max(energy_a, energy_b);
+	max_energy = max(max_energy, energy_c);
+
+	IWL_DEBUG_STATS(mvm, "energy In A %d B %d C %d , and max %d\n",
+			energy_a, energy_b, energy_c, max_energy);
+
+	return max_energy;
 }
 
 /*
@@ -290,7 +306,10 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	/*rx_status.flag |= RX_FLAG_MACTIME_MPDU;*/
 
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
-	rx_status.signal = iwl_mvm_calc_rssi(mvm, phy_info);
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_RX_ENERGY_API)
+		rx_status.signal = iwl_mvm_get_signal_strength(mvm, phy_info);
+	else
+		rx_status.signal = iwl_mvm_calc_rssi(mvm, phy_info);
 
 	IWL_DEBUG_STATS_LIMIT(mvm, "Rssi %d, TSF %llu\n", rx_status.signal,
 			      (unsigned long long)rx_status.mactime);
