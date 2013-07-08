@@ -272,5 +272,5 @@ struct kmem_cache_node {
 
 };
 
-void *s_next(struct seq_file *m, void *p, loff_t *pos);
-void s_stop(struct seq_file *m, void *p);
+void *slab_next(struct seq_file *m, void *p, loff_t *pos);
+void slab_stop(struct seq_file *m, void *p);

@@ -4440,8 +4440,8 @@ static int leaks_show(struct seq_file *m, void *p)
 
 static const struct seq_operations slabstats_op = {
 	.start = leaks_start,
-	.next = s_next,
-	.stop = s_stop,
+	.next = slab_next,
+	.stop = slab_stop,
 	.show = leaks_show,
 };
 
