@@ -270,7 +270,7 @@ static struct platform_driver nop_usb_xceiv_driver = {
 	.driver		= {
 		.name	= "nop_usb_xceiv",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(nop_xceiv_dt_ids),
+		.of_match_table = nop_xceiv_dt_ids,
 	},
 };
 

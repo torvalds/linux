@@ -1,0 +1,15 @@
+EXTCON FOR TWL CHIPS
+
+PALMAS USB COMPARATOR
+Required Properties:
+ - compatible : Should be "ti,palmas-usb" or "ti,twl6035-usb"
+ - vbus-supply : phandle to the regulator device tree node.
+
+Optional Properties:
+ - ti,wakeup : To enable the wakeup comparator in probe
+
+palmas-usb {
+       compatible = "ti,twl6035-usb", "ti,palmas-usb";
+       vbus-supply = <&smps10_reg>;
+       ti,wakeup;
+};

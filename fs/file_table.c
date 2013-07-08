@@ -227,7 +227,7 @@ static void __fput(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct vfsmount *mnt = file->f_path.mnt;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_inode;
 
 	might_sleep();
 

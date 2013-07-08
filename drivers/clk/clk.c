@@ -107,7 +107,7 @@ static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
 	seq_printf(s, "%*s%-*s %-11d %-12d %-10lu",
 		   level * 3 + 1, "",
 		   30 - level * 3, c->name,
-		   c->enable_count, c->prepare_count, c->rate);
+		   c->enable_count, c->prepare_count, clk_get_rate(c));
 	seq_printf(s, "\n");
 }
 
@@ -166,7 +166,7 @@ static void clk_dump_one(struct seq_file *s, struct clk *c, int level)
 	seq_printf(s, "\"%s\": { ", c->name);
 	seq_printf(s, "\"enable_count\": %d,", c->enable_count);
 	seq_printf(s, "\"prepare_count\": %d,", c->prepare_count);
-	seq_printf(s, "\"rate\": %lu", c->rate);
+	seq_printf(s, "\"rate\": %lu", clk_get_rate(c));
 }
 
 static void clk_dump_subtree(struct seq_file *s, struct clk *c, int level)
@@ -534,7 +534,7 @@ static int clk_disable_unused(void)
 
 	return 0;
 }
-late_initcall(clk_disable_unused);
+late_initcall_sync(clk_disable_unused);
 
 /***    helper functions   ***/
 
@@ -1216,7 +1216,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	clk_prepare_lock();
 
 	/* bail early if nothing to do */
-	if (rate == clk->rate)
+	if (rate == clk_get_rate(clk))
 		goto out;
 
 	if ((clk->flags & CLK_SET_RATE_GATE) && clk->prepare_count) {
@@ -1377,23 +1377,33 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
 	unsigned long flags;
 	int ret = 0;
 	struct clk *old_parent = clk->parent;
-	bool migrated_enable = false;
 
-	/* migrate prepare */
-	if (clk->prepare_count)
+	/*
+	 * Migrate prepare state between parents and prevent race with
+	 * clk_enable().
+	 *
+	 * If the clock is not prepared, then a race with
+	 * clk_enable/disable() is impossible since we already have the
+	 * prepare lock (future calls to clk_enable() need to be preceded by
+	 * a clk_prepare()).
+	 *
+	 * If the clock is prepared, migrate the prepared state to the new
+	 * parent and also protect against a race with clk_enable() by
+	 * forcing the clock and the new parent on.  This ensures that all
+	 * future calls to clk_enable() are practically NOPs with respect to
+	 * hardware and software states.
+	 *
+	 * See also: Comment for clk_set_parent() below.
+	 */
+	if (clk->prepare_count) {
 		__clk_prepare(parent);
-
-	flags = clk_enable_lock();
-
-	/* migrate enable */
-	if (clk->enable_count) {
-		__clk_enable(parent);
-		migrated_enable = true;
+		clk_enable(parent);
+		clk_enable(clk);
 	}
 
 	/* update the clk tree topology */
+	flags = clk_enable_lock();
 	clk_reparent(clk, parent);
-
 	clk_enable_unlock(flags);
 
 	/* change clock input source */
@@ -1401,43 +1411,27 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
 		ret = clk->ops->set_parent(clk->hw, p_index);
 
 	if (ret) {
-		/*
-		 * The error handling is tricky due to that we need to release
-		 * the spinlock while issuing the .set_parent callback. This
-		 * means the new parent might have been enabled/disabled in
-		 * between, which must be considered when doing rollback.
-		 */
 		flags = clk_enable_lock();
-
 		clk_reparent(clk, old_parent);
-
-		if (migrated_enable && clk->enable_count) {
-			__clk_disable(parent);
-		} else if (migrated_enable && (clk->enable_count == 0)) {
-			__clk_disable(old_parent);
-		} else if (!migrated_enable && clk->enable_count) {
-			__clk_disable(parent);
-			__clk_enable(old_parent);
-		}
-
 		clk_enable_unlock(flags);
 
-		if (clk->prepare_count)
+		if (clk->prepare_count) {
+			clk_disable(clk);
+			clk_disable(parent);
 			__clk_unprepare(parent);
-
+		}
 		return ret;
 	}
 
-	/* clean up enable for old parent if migration was done */
-	if (migrated_enable) {
-		flags = clk_enable_lock();
-		__clk_disable(old_parent);
-		clk_enable_unlock(flags);
-	}
-
-	/* clean up prepare for old parent if migration was done */
-	if (clk->prepare_count)
+	/*
+	 * Finish the migration of prepare state and undo the changes done
+	 * for preventing a race with clk_enable().
+	 */
+	if (clk->prepare_count) {
+		clk_disable(clk);
+		clk_disable(old_parent);
 		__clk_unprepare(old_parent);
+	}
 
 	/* update debugfs with new clk tree topology */
 	clk_debug_reparent(clk, parent);
@@ -1449,12 +1443,17 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
  * @clk: the mux clk whose input we are switching
  * @parent: the new input to clk
  *
- * Re-parent clk to use parent as it's new input source.  If clk has the
- * CLK_SET_PARENT_GATE flag set then clk must be gated for this
- * operation to succeed.  After successfully changing clk's parent
- * clk_set_parent will update the clk topology, sysfs topology and
- * propagate rate recalculation via __clk_recalc_rates.  Returns 0 on
- * success, -EERROR otherwise.
+ * Re-parent clk to use parent as its new input source.  If clk is in
+ * prepared state, the clk will get enabled for the duration of this call. If
+ * that's not acceptable for a specific clk (Eg: the consumer can't handle
+ * that, the reparenting is glitchy in hardware, etc), use the
+ * CLK_SET_PARENT_GATE flag to allow reparenting only when clk is unprepared.
+ *
+ * After successfully changing clk's parent clk_set_parent will update the
+ * clk topology, sysfs topology and propagate rate recalculation via
+ * __clk_recalc_rates.
+ *
+ * Returns 0 on success, -EERROR otherwise.
  */
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
@@ -1494,8 +1493,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	}
 
 	/* propagate PRE_RATE_CHANGE notifications */
-	if (clk->notifier_count)
-		ret = __clk_speculate_rates(clk, p_rate);
+	ret = __clk_speculate_rates(clk, p_rate);
 
 	/* abort if a driver objects */
 	if (ret & NOTIFY_STOP_MASK)

@@ -20,8 +20,8 @@
 #define F2FS_BLKSIZE			4096	/* support only 4KB block */
 #define F2FS_MAX_EXTENSION		64	/* # of extension entries */
 
-#define NULL_ADDR		0x0U
-#define NEW_ADDR		-1U
+#define NULL_ADDR		((block_t)0)	/* used as block_t addresses */
+#define NEW_ADDR		((block_t)-1)	/* used as block_t addresses */
 
 #define F2FS_ROOT_INO(sbi)	(sbi->root_ino_num)
 #define F2FS_NODE_INO(sbi)	(sbi->node_ino_num)

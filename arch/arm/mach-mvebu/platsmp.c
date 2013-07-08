@@ -88,8 +88,16 @@ static int __cpuinit armada_xp_boot_secondary(unsigned int cpu,
 
 static void __init armada_xp_smp_init_cpus(void)
 {
+	struct device_node *np;
 	unsigned int i, ncores;
-	ncores = coherency_get_cpu_count();
+
+	np = of_find_node_by_name(NULL, "cpus");
+	if (!np)
+		panic("No 'cpus' node found\n");
+
+	ncores = of_get_child_count(np);
+	if (ncores == 0 || ncores > ARMADA_XP_MAX_CPUS)
+		panic("Invalid number of CPUs in DT\n");
 
 	/* Limit possible CPUs to defconfig */
 	if (ncores > nr_cpu_ids) {

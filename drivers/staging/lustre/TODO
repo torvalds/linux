@@ -1,0 +1,13 @@
+* Possible remaining coding style fix.
+* Remove deadcode.
+* Seperate client/server functionality. Functions only used by server can be
+  removed from client.
+* Clean up libcfs layer. Ideally we can remove include/linux/libcfs entirely.
+* Clean up CLIO layer. Lustre client readahead/writeback control needs to better
+  suit kernel providings.
+* Add documents in Documentation.
+* Other minor misc cleanups...
+
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com>, Andreas Dilger
+<andreas.dilger@intel.com> and Peng Tao <tao.peng@emc.com>. CCing
+hpdd-discuss <hpdd-discuss@lists.01.org> would be great too.

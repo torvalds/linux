@@ -1312,7 +1312,7 @@ static int snd_cs4281_free(struct cs4281 *chip)
 	/* Sound System Power Management - Turn Everything OFF */
 	snd_cs4281_pokeBA0(chip, BA0_SSPM, 0);
 	/* PCI interface - D3 state */
-	pci_set_power_state(chip->pci, 3);
+	pci_set_power_state(chip->pci, PCI_D3hot);
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
@@ -1971,7 +1971,6 @@ static int snd_cs4281_probe(struct pci_dev *pci,
 static void snd_cs4281_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 /*

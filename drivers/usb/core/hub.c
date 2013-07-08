@@ -718,18 +718,18 @@ static void hub_tt_work(struct work_struct *work)
 
 /**
  * usb_hub_set_port_power - control hub port's power state
- * @hdev: target hub
+ * @hdev: USB device belonging to the usb hub
+ * @hub: target hub
  * @port1: port index
  * @set: expected status
  *
  * call this function to control port's power via setting or
  * clearing the port's PORT_POWER feature.
  */
-int usb_hub_set_port_power(struct usb_device *hdev, int port1,
-		bool set)
+int usb_hub_set_port_power(struct usb_device *hdev, struct usb_hub *hub,
+			   int port1, bool set)
 {
 	int ret;
-	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
 	struct usb_port *port_dev = hub->ports[port1 - 1];
 
 	if (set)
@@ -1769,15 +1769,17 @@ hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 static int find_port_owner(struct usb_device *hdev, unsigned port1,
 		struct dev_state ***ppowner)
 {
+	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+
 	if (hdev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
 	if (port1 == 0 || port1 > hdev->maxchild)
 		return -EINVAL;
 
-	/* This assumes that devices not managed by the hub driver
+	/* Devices not managed by the hub driver
 	 * will always have maxchild equal to 0.
 	 */
-	*ppowner = &(usb_hub_to_struct_hub(hdev)->ports[port1 - 1]->port_owner);
+	*ppowner = &(hub->ports[port1 - 1]->port_owner);
 	return 0;
 }
 
@@ -5323,7 +5325,8 @@ void usb_set_hub_port_connect_type(struct usb_device *hdev, int port1,
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
 
-	hub->ports[port1 - 1]->connect_type = type;
+	if (hub)
+		hub->ports[port1 - 1]->connect_type = type;
 }
 
 /**
@@ -5338,6 +5341,9 @@ enum usb_port_connect_type
 usb_get_hub_port_connect_type(struct usb_device *hdev, int port1)
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+
+	if (!hub)
+		return USB_PORT_CONNECT_TYPE_UNKNOWN;
 
 	return hub->ports[port1 - 1]->connect_type;
 }
@@ -5396,6 +5402,9 @@ acpi_handle usb_get_hub_port_acpi_handle(struct usb_device *hdev,
 	int port1)
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+
+	if (!hub)
+		return NULL;
 
 	return DEVICE_ACPI_HANDLE(&hub->ports[port1 - 1]->dev);
 }

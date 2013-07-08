@@ -89,9 +89,9 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 #define pci_legacy_read platform_pci_legacy_read
 #define pci_legacy_write platform_pci_legacy_write
 
-struct pci_window {
-	struct resource resource;
-	u64 offset;
+struct iospace_resource {
+	struct list_head list;
+	struct resource res;
 };
 
 struct pci_controller {
@@ -100,11 +100,9 @@ struct pci_controller {
 	int segment;
 	int node;		/* nearest node with memory or -1 for global allocation */
 
-	unsigned int windows;
-	struct pci_window *window;
-
 	void *platform_data;
 };
+
 
 #define PCI_CONTROLLER(busdev) ((struct pci_controller *) busdev->sysdata)
 #define pci_domain_nr(busdev)    (PCI_CONTROLLER(busdev)->segment)

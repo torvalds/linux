@@ -59,16 +59,6 @@ config EARLY_PRINTK_DBGP
 	  with klogd/syslogd or the X server. You should normally N here,
 	  unless you want to debug such a crash. You need usb debug device.
 
-config DEBUG_STACKOVERFLOW
-	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
-	---help---
-	  Say Y here if you want to check the overflows of kernel, IRQ
-	  and exception stacks. This option will cause messages of the
-	  stacks in detail when free stack space drops below a certain
-	  limit.
-	  If in doubt, say "N".
-
 config X86_PTDUMP
 	bool "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
@@ -122,7 +112,6 @@ config DEBUG_NX_TEST
 config DOUBLEFAULT
 	default y
 	bool "Enable doublefault exception handler" if EXPERT
-	depends on X86_32
 	---help---
 	  This option allows trapping of rare doublefault exceptions that
 	  would otherwise cause a system to silently reboot. Disabling this
@@ -301,6 +290,16 @@ config DEBUG_NMI_SELFTEST
 
 	  This might help diagnose strange hangs that rely on NMI to
 	  function properly.
+
+	  If unsure, say N.
+
+config X86_DEBUG_STATIC_CPU_HAS
+	bool "Debug alternatives"
+	depends on DEBUG_KERNEL
+	---help---
+	  This option causes additional code to be generated which
+	  fails if static_cpu_has() is used before alternatives have
+	  run.
 
 	  If unsure, say N.
 

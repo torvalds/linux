@@ -10,13 +10,13 @@
 #endif
 	.text
 
-.global	SYMBOL_NAME(memset)
+.global	_memset
 
 ;;void *memset(*ptr, int c, size_t count)
 ;; ptr = er0
 ;; c   = er1(r1l)
 ;; count = er2
-SYMBOL_NAME_LABEL(memset)
+_memset:
 	btst	#0,r0l
 	beq	2f
 

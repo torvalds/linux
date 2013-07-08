@@ -3200,7 +3200,7 @@ static int test_extents(struct btrfs_block_group_cache *cache)
 
 	ret = btrfs_remove_free_space(cache, 2 * 1024 * 1024, 4096);
 	if (ret) {
-		printk(KERN_ERR "Error removing middle peice %d\n", ret);
+		printk(KERN_ERR "Error removing middle piece %d\n", ret);
 		return ret;
 	}
 

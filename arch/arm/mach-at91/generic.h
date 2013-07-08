@@ -85,4 +85,4 @@ extern void __init at91_gpio_irq_setup(void);
 extern int  __init at91_gpio_of_irq_setup(struct device_node *node,
 					  struct device_node *parent);
 
-extern int at91_extern_irq;
+extern u32 at91_get_extern_irq(void);

@@ -43,15 +43,14 @@ static int coda_rename(struct inode *old_inode, struct dentry *old_dentry,
                        struct inode *new_inode, struct dentry *new_dentry);
 
 /* dir file-ops */
-static int coda_readdir(struct file *file, void *buf, filldir_t filldir);
+static int coda_readdir(struct file *file, struct dir_context *ctx);
 
 /* dentry ops */
 static int coda_dentry_revalidate(struct dentry *de, unsigned int flags);
 static int coda_dentry_delete(const struct dentry *);
 
 /* support routines */
-static int coda_venus_readdir(struct file *coda_file, void *buf,
-			      filldir_t filldir);
+static int coda_venus_readdir(struct file *, struct dir_context *);
 
 /* same as fs/bad_inode.c */
 static int coda_return_EIO(void)
@@ -85,7 +84,7 @@ const struct inode_operations coda_dir_inode_operations =
 const struct file_operations coda_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= coda_readdir,
+	.iterate	= coda_readdir,
 	.open		= coda_open,
 	.release	= coda_release,
 	.fsync		= coda_fsync,
@@ -378,7 +377,7 @@ static int coda_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 
 /* file operations for directories */
-static int coda_readdir(struct file *coda_file, void *buf, filldir_t filldir)
+static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 {
 	struct coda_file_info *cfi;
 	struct file *host_file;
@@ -391,30 +390,19 @@ static int coda_readdir(struct file *coda_file, void *buf, filldir_t filldir)
 	if (!host_file->f_op)
 		return -ENOTDIR;
 
-	if (host_file->f_op->readdir)
-	{
-		/* potemkin case: we were handed a directory inode.
-		 * We can't use vfs_readdir because we have to keep the file
-		 * position in sync between the coda_file and the host_file.
-		 * and as such we need grab the inode mutex. */
+	if (host_file->f_op->iterate) {
 		struct inode *host_inode = file_inode(host_file);
-
 		mutex_lock(&host_inode->i_mutex);
-		host_file->f_pos = coda_file->f_pos;
-
 		ret = -ENOENT;
 		if (!IS_DEADDIR(host_inode)) {
-			ret = host_file->f_op->readdir(host_file, buf, filldir);
+			ret = host_file->f_op->iterate(host_file, ctx);
 			file_accessed(host_file);
 		}
-
-		coda_file->f_pos = host_file->f_pos;
 		mutex_unlock(&host_inode->i_mutex);
+		return ret;
 	}
-	else /* Venus: we must read Venus dirents from a file */
-		ret = coda_venus_readdir(coda_file, buf, filldir);
-
-	return ret;
+	/* Venus: we must read Venus dirents from a file */
+	return coda_venus_readdir(coda_file, ctx);
 }
 
 static inline unsigned int CDT2DT(unsigned char cdt)
@@ -437,10 +425,8 @@ static inline unsigned int CDT2DT(unsigned char cdt)
 }
 
 /* support routines */
-static int coda_venus_readdir(struct file *coda_file, void *buf,
-			      filldir_t filldir)
+static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 {
-	int result = 0; /* # of entries returned */
 	struct coda_file_info *cfi;
 	struct coda_inode_info *cii;
 	struct file *host_file;
@@ -462,23 +448,12 @@ static int coda_venus_readdir(struct file *coda_file, void *buf,
 	vdir = kmalloc(sizeof(*vdir), GFP_KERNEL);
 	if (!vdir) return -ENOMEM;
 
-	if (coda_file->f_pos == 0) {
-		ret = filldir(buf, ".", 1, 0, de->d_inode->i_ino, DT_DIR);
-		if (ret < 0)
-			goto out;
-		result++;
-		coda_file->f_pos++;
-	}
-	if (coda_file->f_pos == 1) {
-		ret = filldir(buf, "..", 2, 1, parent_ino(de), DT_DIR);
-		if (ret < 0)
-			goto out;
-		result++;
-		coda_file->f_pos++;
-	}
+	if (!dir_emit_dots(coda_file, ctx))
+		goto out;
+
 	while (1) {
 		/* read entries from the directory file */
-		ret = kernel_read(host_file, coda_file->f_pos - 2, (char *)vdir,
+		ret = kernel_read(host_file, ctx->pos - 2, (char *)vdir,
 				  sizeof(*vdir));
 		if (ret < 0) {
 			printk(KERN_ERR "coda readdir: read dir %s failed %d\n",
@@ -507,32 +482,23 @@ static int coda_venus_readdir(struct file *coda_file, void *buf,
 
 		/* Make sure we skip '.' and '..', we already got those */
 		if (name.name[0] == '.' && (name.len == 1 ||
-		    (vdir->d_name[1] == '.' && name.len == 2)))
+		    (name.name[1] == '.' && name.len == 2)))
 			vdir->d_fileno = name.len = 0;
 
 		/* skip null entries */
 		if (vdir->d_fileno && name.len) {
-			/* try to look up this entry in the dcache, that way
-			 * userspace doesn't have to worry about breaking
-			 * getcwd by having mismatched inode numbers for
-			 * internal volume mountpoints. */
-			ino = find_inode_number(de, &name);
-			if (!ino) ino = vdir->d_fileno;
-
+			ino = vdir->d_fileno;
 			type = CDT2DT(vdir->d_type);
-			ret = filldir(buf, name.name, name.len,
-				      coda_file->f_pos, ino, type);
-			/* failure means no space for filling in this round */
-			if (ret < 0) break;
-			result++;
+			if (!dir_emit(ctx, name.name, name.len, ino, type))
+				break;
 		}
 		/* we'll always have progress because d_reclen is unsigned and
 		 * we've already established it is non-zero. */
-		coda_file->f_pos += vdir->d_reclen;
+		ctx->pos += vdir->d_reclen;
 	}
 out:
 	kfree(vdir);
-	return result ? result : ret;
+	return 0;
 }
 
 /* called when a cache lookup succeeds */

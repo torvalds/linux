@@ -1330,7 +1330,7 @@ static int wait_for_gss_proxy(struct net *net, struct file *file)
 static ssize_t write_gssp(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = PDE_DATA(file->f_path.dentry->d_inode);
+	struct net *net = PDE_DATA(file_inode(file));
 	char tbuf[20];
 	unsigned long i;
 	int res;
@@ -1358,7 +1358,7 @@ static ssize_t write_gssp(struct file *file, const char __user *buf,
 static ssize_t read_gssp(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = PDE_DATA(file->f_path.dentry->d_inode);
+	struct net *net = PDE_DATA(file_inode(file));
 	unsigned long p = *ppos;
 	char tbuf[10];
 	size_t len;

@@ -376,6 +376,25 @@ config CRYPTO_CRC32_PCLMUL
 	  which will enable any routine to use the CRC-32-IEEE 802.3 checksum
 	  and gain better performance as compared with the table implementation.
 
+config CRYPTO_CRCT10DIF
+	tristate "CRCT10DIF algorithm"
+	select CRYPTO_HASH
+	help
+	  CRC T10 Data Integrity Field computation is being cast as
+	  a crypto transform.  This allows for faster crc t10 diff
+	  transforms to be used if they are available.
+
+config CRYPTO_CRCT10DIF_PCLMUL
+	tristate "CRCT10DIF PCLMULQDQ hardware acceleration"
+	depends on X86 && 64BIT && CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  For x86_64 processors with SSE4.2 and PCLMULQDQ supported,
+	  CRC T10 DIF PCLMULQDQ computation can be hardware
+	  accelerated PCLMULQDQ instruction. This option will create
+	  'crct10dif-plcmul' module, which is faster when computing the
+	  crct10dif checksum as compared with the generic table implementation.
+
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
 	select CRYPTO_GF128MUL
@@ -812,25 +831,6 @@ config CRYPTO_BLOWFISH_X86_64
 	select CRYPTO_BLOWFISH_COMMON
 	help
 	  Blowfish cipher algorithm (x86_64), by Bruce Schneier.
-
-	  This is a variable key length cipher which can use keys from 32
-	  bits to 448 bits in length.  It's fast, simple and specifically
-	  designed for use on "large microprocessors".
-
-	  See also:
-	  <http://www.schneier.com/blowfish.html>
-
-config CRYPTO_BLOWFISH_AVX2_X86_64
-	tristate "Blowfish cipher algorithm (x86_64/AVX2)"
-	depends on X86 && 64BIT
-	depends on BROKEN
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
-	select CRYPTO_BLOWFISH_COMMON
-	select CRYPTO_BLOWFISH_X86_64
-	help
-	  Blowfish cipher algorithm (x86_64/AVX2), by Bruce Schneier.
 
 	  This is a variable key length cipher which can use keys from 32
 	  bits to 448 bits in length.  It's fast, simple and specifically
@@ -1293,31 +1293,6 @@ config CRYPTO_TWOFISH_AVX_X86_64
 
 	  This module provides the Twofish cipher algorithm that processes
 	  eight blocks parallel using the AVX Instruction Set.
-
-	  See also:
-	  <http://www.schneier.com/twofish.html>
-
-config CRYPTO_TWOFISH_AVX2_X86_64
-	tristate "Twofish cipher algorithm (x86_64/AVX2)"
-	depends on X86 && 64BIT
-	depends on BROKEN
-	select CRYPTO_ALGAPI
-	select CRYPTO_CRYPTD
-	select CRYPTO_ABLK_HELPER_X86
-	select CRYPTO_GLUE_HELPER_X86
-	select CRYPTO_TWOFISH_COMMON
-	select CRYPTO_TWOFISH_X86_64
-	select CRYPTO_TWOFISH_X86_64_3WAY
-	select CRYPTO_TWOFISH_AVX_X86_64
-	select CRYPTO_LRW
-	select CRYPTO_XTS
-	help
-	  Twofish cipher algorithm (x86_64/AVX2).
-
-	  Twofish was submitted as an AES (Advanced Encryption Standard)
-	  candidate cipher by researchers at CounterPane Systems.  It is a
-	  16 round block cipher supporting key sizes of 128, 192, and 256
-	  bits.
 
 	  See also:
 	  <http://www.schneier.com/twofish.html>

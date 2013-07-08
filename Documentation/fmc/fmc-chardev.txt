@@ -1,0 +1,64 @@
+fmc-chardev
+===========
+
+This is a simple generic driver, that allows user access by means of a
+character device (actually, one for each mezzanine it takes hold of).
+
+The char device is created as a misc device. Its name in /dev (as
+created by udev) is the same name as the underlying FMC device. Thus,
+the name can be a silly fmc-0000 look-alike if the device has no
+identifiers nor bus_id, a more specific fmc-0400 if the device has a
+bus-specific address but no associated name, or something like
+fdelay-0400 if the FMC core can rely on both a mezzanine name and a bus
+address.
+
+Currently the driver only supports read and write: you can lseek to the
+desired address and read or write a register.
+
+The driver assumes all registers are 32-bit in size, and only accepts a
+single read or write per system call. However, as a result of Unix read
+and write semantics, users can simply fread or fwrite bigger areas in
+order to dump or store bigger memory areas.
+
+There is currently no support for mmap, user-space interrupt management
+and DMA buffers. They may be added in later versions, if the need
+arises.
+
+The example below shows raw access to a SPEC card programmed with its
+golden FPGA file, that features an SDB structure at offset 256 - i.e.
+64 words.  The mezzanine's EEPROM in this case is not programmed, so the
+default name is fmc-<bus><devfn>, and there are two cards in the system:
+
+  spusa.root# insmod fmc-chardev.ko
+  [ 1073.339332] spec 0000:02:00.0: Driver has no ID: matches all
+  [ 1073.345051] spec 0000:02:00.0: Created misc device "fmc-0200"
+  [ 1073.350821] spec 0000:04:00.0: Driver has no ID: matches all
+  [ 1073.356525] spec 0000:04:00.0: Created misc device "fmc-0400"
+  spusa.root# ls -l /dev/fmc*
+  crw------- 1 root root 10, 58 Nov 20 19:23 /dev/fmc-0200
+  crw------- 1 root root 10, 57 Nov 20 19:23 /dev/fmc-0400
+  spusa.root# dd bs=4 skip=64 count=1 if=/dev/fmc-0200 2> /dev/null | od -t x1z
+  0000000 2d 42 44 53                                      >-BDS<
+  0000004
+
+The simple program tools/fmc-mem in this package can access an FMC char
+device and read or write a word or a whole area.  Actually, the program
+is not specific to FMC at all, it just uses lseek, read and write.
+
+Its first argument is the device name, the second the offset, the third
+(if any) the value to write and the optional last argument that must
+begin with "+" is the number of bytes to read or write.  In case of
+repeated reading data is written to stdout; repeated writes read from
+stdin and the value argument is ignored.
+
+The following examples show reading the SDB magic number and the first
+SDB record from a SPEC device programmed with its golden image:
+
+     spusa.root# ./fmc-mem /dev/fmc-0200 100
+     5344422d
+     spusa.root# ./fmc-mem /dev/fmc-0200 100 +40 | od -Ax -t x1z
+     000000 2d 42 44 53 00 01 02 00 00 00 00 00 00 00 00 00  >-BDS............<
+     000010 00 00 00 00 ff 01 00 00 00 00 00 00 51 06 00 00  >............Q...<
+     000020 c9 42 a5 e6 02 00 00 00 11 05 12 20 2d 34 42 57  >.B......... -4BW<
+     000030 73 6f 72 43 72 61 62 73 49 53 47 2d 00 20 20 20  >sorCrabsISG-.   <
+     000040

@@ -18,13 +18,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_nand
-				      &pmx_led_os_red &pmx_power_off
-				      &pmx_led_os_green &pmx_led_usb_transfer
-				      &pmx_button_reset &pmx_button_usb_copy >;
-			pinctrl-names = "default";
-
 			pmx_led_os_red: pmx-led-os-red {
 				marvell,pins = "mpp22";
 				marvell,function = "gpio";
@@ -61,6 +54,8 @@
 
 		nand@3000000 {
 			status = "okay";
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 
 			partition@0 {
 				label = "u-boot";
@@ -84,6 +79,9 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_button_reset &pmx_button_usb_copy>;
+		pinctrl-names = "default";
+
 		button@1 {
 			label = "USB Copy";
 			linux,code = <133>;
@@ -97,6 +95,9 @@
 	};
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_os_red &pmx_led_os_green
+			     &pmx_led_usb_transfer>;
+		pinctrl-names = "default";
 
 		green-os {
 			label = "ib62x0:green:os";
@@ -114,6 +115,8 @@
 	};
 	gpio_poweroff {
 		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_power_off>;
+		pinctrl-names = "default";
 		gpios = <&gpio0 24 0>;
 	};
 

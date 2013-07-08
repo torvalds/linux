@@ -336,7 +336,6 @@ static int titsc_remove(struct platform_device *pdev)
 
 	input_unregister_device(ts_dev->input);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(ts_dev);
 	return 0;
 }

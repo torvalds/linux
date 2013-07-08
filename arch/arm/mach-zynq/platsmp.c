@@ -53,34 +53,34 @@ int __cpuinit zynq_cpun_start(u32 address, int cpu)
 						&zynq_secondary_trampoline;
 
 		zynq_slcr_cpu_stop(cpu);
-
-		if (__pa(PAGE_OFFSET)) {
-			zero = ioremap(0, trampoline_code_size);
-			if (!zero) {
-				pr_warn("BOOTUP jump vectors not accessible\n");
-				return -1;
+		if (address) {
+			if (__pa(PAGE_OFFSET)) {
+				zero = ioremap(0, trampoline_code_size);
+				if (!zero) {
+					pr_warn("BOOTUP jump vectors not accessible\n");
+					return -1;
+				}
+			} else {
+				zero = (__force u8 __iomem *)PAGE_OFFSET;
 			}
-		} else {
-			zero = (__force u8 __iomem *)PAGE_OFFSET;
+
+			/*
+			* This is elegant way how to jump to any address
+			* 0x0: Load address at 0x8 to r0
+			* 0x4: Jump by mov instruction
+			* 0x8: Jumping address
+			*/
+			memcpy((__force void *)zero, &zynq_secondary_trampoline,
+							trampoline_size);
+			writel(address, zero + trampoline_size);
+
+			flush_cache_all();
+			outer_flush_range(0, trampoline_code_size);
+			smp_wmb();
+
+			if (__pa(PAGE_OFFSET))
+				iounmap(zero);
 		}
-
-		/*
-		 * This is elegant way how to jump to any address
-		 * 0x0: Load address at 0x8 to r0
-		 * 0x4: Jump by mov instruction
-		 * 0x8: Jumping address
-		 */
-		memcpy((__force void *)zero, &zynq_secondary_trampoline,
-						trampoline_size);
-		writel(address, zero + trampoline_size);
-
-		flush_cache_all();
-		outer_flush_range(0, trampoline_code_size);
-		smp_wmb();
-
-		if (__pa(PAGE_OFFSET))
-			iounmap(zero);
-
 		zynq_slcr_cpu_start(cpu);
 
 		return 0;

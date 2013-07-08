@@ -35,7 +35,9 @@
 
 &esdhc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_esdhc2_1>;
+	pinctrl-0 = <&pinctrl_esdhc2_1>,
+		    <&pinctrl_tqma53_esdhc2_2>;
+	vmmc-supply = <&reg_3p3v>;
 	wp-gpios = <&gpio1 2 0>;
 	cd-gpios = <&gpio1 4 0>;
 	status = "disabled";
@@ -69,14 +71,22 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
 
+	esdhc2_2 {
+		pinctrl_tqma53_esdhc2_2: esdhc2-tqma53-grp2 {
+			fsl,pins = <
+				MX53_PAD_GPIO_4__GPIO1_4	0x80000000 /* SD2_CD */
+				MX53_PAD_GPIO_2__GPIO1_2	0x80000000 /* SD2_WP */
+			>;
+		};
+	};
+
 	i2s {
 		pinctrl_i2s_1: i2s-grp1 {
 			fsl,pins = <
-				 MX53_PAD_GPIO_19__GPIO4_5           0x10000 /* I2S_MCLK */
-				 MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC  0x10000 /* I2S_SCLK */
-				 MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD  0x10000 /* I2S_DOUT */
-				 MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS 0x10000 /* I2S_LRCLK */
-				 MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD  0x10000 /* I2S_DIN */
+				 MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC  0x80000000 /* I2S_SCLK */
+				 MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD  0x80000000 /* I2S_DOUT */
+				 MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS 0x80000000 /* I2S_LRCLK */
+				 MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD  0x80000000 /* I2S_DIN */
 			>;
 		};
 	};
@@ -84,16 +94,17 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				 MX53_PAD_EIM_CS1__IPU_DI1_PIN6  0x10000 /* VSYNC */
-				 MX53_PAD_EIM_DA15__IPU_DI1_PIN4 0x10000 /* HSYNC */
-				 MX53_PAD_PATA_DA_1__GPIO7_7     0x10000 /* LCD_BLT_EN */
-				 MX53_PAD_PATA_DA_2__GPIO7_8     0x10000 /* LCD_RESET */
-				 MX53_PAD_PATA_DATA5__GPIO2_5    0x10000 /* LCD_POWER */
-				 MX53_PAD_PATA_DATA6__GPIO2_6    0x10000 /* PMIC_INT */
-				 MX53_PAD_PATA_DATA14__GPIO2_14  0x10000 /* CSI_RST */
-				 MX53_PAD_PATA_DATA15__GPIO2_15  0x10000 /* CSI_PWDN */
-				 MX53_PAD_GPIO_0__GPIO1_0        0x10000 /* SYSTEM_DOWN */
-				 MX53_PAD_GPIO_3__GPIO1_3        0x10000
+				 MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK 0x80000000 /* SSI_MCLK */
+				 MX53_PAD_PATA_DA_1__GPIO7_7     0x80000000 /* LCD_BLT_EN */
+				 MX53_PAD_PATA_DA_2__GPIO7_8     0x80000000 /* LCD_RESET */
+				 MX53_PAD_PATA_DATA5__GPIO2_5    0x80000000 /* LCD_POWER */
+				 MX53_PAD_PATA_DATA6__GPIO2_6    0x80000000 /* PMIC_INT */
+				 MX53_PAD_PATA_DATA14__GPIO2_14  0x80000000 /* CSI_RST */
+				 MX53_PAD_PATA_DATA15__GPIO2_15  0x80000000 /* CSI_PWDN */
+				 MX53_PAD_GPIO_19__GPIO4_5 	 0x80000000 /* #SYSTEM_DOWN */
+				 MX53_PAD_GPIO_3__GPIO1_3        0x80000000
+				 MX53_PAD_PATA_DA_0__GPIO7_6	 0x80000000 /* #PHY_RESET */
+				 MX53_PAD_GPIO_1__PWM2_PWMO	 0x80000000 /* LCD_CONTRAST */
 			>;
 		};
 	};
@@ -149,7 +160,7 @@
 		reg = <0x8>;
 		fsl,mc13xxx-uses-rtc;
 		interrupt-parent = <&gpio2>;
-		interrupts = <6 8>; /* PDATA_DATA6, low active */
+		interrupts = <6 4>; /* PATA_DATA6, active high */
 	};
 
 	sensor1: lm75@48 {

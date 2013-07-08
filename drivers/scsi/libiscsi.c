@@ -2808,6 +2808,9 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	kfree(session->targetname);
 	kfree(session->targetalias);
 	kfree(session->initiatorname);
+	kfree(session->boot_root);
+	kfree(session->boot_nic);
+	kfree(session->boot_target);
 	kfree(session->ifacename);
 
 	iscsi_destroy_session(cls_session);
@@ -3248,6 +3251,12 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 		return iscsi_switch_str_param(&session->ifacename, buf);
 	case ISCSI_PARAM_INITIATOR_NAME:
 		return iscsi_switch_str_param(&session->initiatorname, buf);
+	case ISCSI_PARAM_BOOT_ROOT:
+		return iscsi_switch_str_param(&session->boot_root, buf);
+	case ISCSI_PARAM_BOOT_NIC:
+		return iscsi_switch_str_param(&session->boot_nic, buf);
+	case ISCSI_PARAM_BOOT_TARGET:
+		return iscsi_switch_str_param(&session->boot_target, buf);
 	default:
 		return -ENOSYS;
 	}
@@ -3325,6 +3334,15 @@ int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 		break;
 	case ISCSI_PARAM_INITIATOR_NAME:
 		len = sprintf(buf, "%s\n", session->initiatorname);
+		break;
+	case ISCSI_PARAM_BOOT_ROOT:
+		len = sprintf(buf, "%s\n", session->boot_root);
+		break;
+	case ISCSI_PARAM_BOOT_NIC:
+		len = sprintf(buf, "%s\n", session->boot_nic);
+		break;
+	case ISCSI_PARAM_BOOT_TARGET:
+		len = sprintf(buf, "%s\n", session->boot_target);
 		break;
 	default:
 		return -ENOSYS;

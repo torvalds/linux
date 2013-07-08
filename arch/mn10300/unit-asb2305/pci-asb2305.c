@@ -221,7 +221,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	/* Leave vm_pgoff as-is, the PCI space address is the physical
 	 * address on this platform.
 	 */
-	vma->vm_flags |= VM_LOCKED | VM_IO;
+	vma->vm_flags |= VM_LOCKED;
 
 	prot = pgprot_val(vma->vm_page_prot);
 	prot &= ~_PAGE_CACHE;

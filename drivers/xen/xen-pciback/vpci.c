@@ -5,6 +5,8 @@
  *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -102,8 +104,7 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 				       struct pci_dev_entry, list);
 
 			if (match_slot(dev, t->dev)) {
-				pr_info(DRV_NAME ": vpci: %s: "
-					"assign to virtual slot %d func %d\n",
+				pr_info("vpci: %s: assign to virtual slot %d func %d\n",
 					pci_name(dev), slot,
 					PCI_FUNC(dev->devfn));
 				list_add_tail(&dev_entry->list,
@@ -117,9 +118,8 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 	/* Assign to a new slot on the virtual PCI bus */
 	for (slot = 0; slot < PCI_SLOT_MAX; slot++) {
 		if (list_empty(&vpci_dev->dev_list[slot])) {
-			printk(KERN_INFO DRV_NAME
-			       ": vpci: %s: assign to virtual slot %d\n",
-			       pci_name(dev), slot);
+			pr_info("vpci: %s: assign to virtual slot %d\n",
+				pci_name(dev), slot);
 			list_add_tail(&dev_entry->list,
 				      &vpci_dev->dev_list[slot]);
 			func = dev->is_virtfn ? 0 : PCI_FUNC(dev->devfn);

@@ -202,21 +202,14 @@ static struct dentry *proc_root_lookup(struct inode * dir, struct dentry * dentr
 	return proc_pid_lookup(dir, dentry, flags);
 }
 
-static int proc_root_readdir(struct file * filp,
-	void * dirent, filldir_t filldir)
+static int proc_root_readdir(struct file *file, struct dir_context *ctx)
 {
-	unsigned int nr = filp->f_pos;
-	int ret;
-
-	if (nr < FIRST_PROCESS_ENTRY) {
-		int error = proc_readdir(filp, dirent, filldir);
-		if (error <= 0)
-			return error;
-		filp->f_pos = FIRST_PROCESS_ENTRY;
+	if (ctx->pos < FIRST_PROCESS_ENTRY) {
+		proc_readdir(file, ctx);
+		ctx->pos = FIRST_PROCESS_ENTRY;
 	}
 
-	ret = proc_pid_readdir(filp, dirent, filldir);
-	return ret;
+	return proc_pid_readdir(file, ctx);
 }
 
 /*
@@ -226,7 +219,7 @@ static int proc_root_readdir(struct file * filp,
  */
 static const struct file_operations proc_root_operations = {
 	.read		 = generic_read_dir,
-	.readdir	 = proc_root_readdir,
+	.iterate	 = proc_root_readdir,
 	.llseek		= default_llseek,
 };
 

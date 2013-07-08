@@ -1469,10 +1469,10 @@ static irqreturn_t r8a66597_irq(int irq, void *_r8a66597)
 	u16 savepipe;
 	u16 mask0;
 
+	spin_lock(&r8a66597->lock);
+
 	if (r8a66597_is_sudmac(r8a66597))
 		r8a66597_sudmac_irq(r8a66597);
-
-	spin_lock(&r8a66597->lock);
 
 	intsts0 = r8a66597_read(r8a66597, INTSTS0);
 	intenb0 = r8a66597_read(r8a66597, INTENB0);
@@ -1822,7 +1822,7 @@ static const struct usb_gadget_ops r8a66597_gadget_ops = {
 
 static int __exit r8a66597_remove(struct platform_device *pdev)
 {
-	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
+	struct r8a66597		*r8a66597 = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&r8a66597->gadget);
 	del_timer_sync(&r8a66597->timer);
@@ -1909,7 +1909,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&r8a66597->lock);
-	dev_set_drvdata(&pdev->dev, r8a66597);
+	platform_set_drvdata(pdev, r8a66597);
 	r8a66597->pdata = pdev->dev.platform_data;
 	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 

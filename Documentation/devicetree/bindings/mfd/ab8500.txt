@@ -120,7 +120,7 @@ ab8500 {
                                   "USB_LINK_STATUS",
                                   "USB_ADP_PROBE_PLUG",
                                   "USB_ADP_PROBE_UNPLUG";
-                vddulpivio18-supply = <&ab8500_ldo_initcore_reg>;
+                vddulpivio18-supply = <&ab8500_ldo_intcore_reg>;
                 v-ape-supply = <&db8500_vape_reg>;
                 musb_1v8-supply = <&db8500_vsmps2_reg>;
         };
