@@ -246,7 +246,7 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 		 * their critical section while the array lock is held.
 		 */
  lock_array:
-		spin_lock(&sma->sem_perm.lock);
+		ipc_lock_object(&sma->sem_perm);
 		for (i = 0; i < sma->sem_nsems; i++) {
 			struct sem *sem = sma->sem_base + i;
 			spin_unlock_wait(&sem->lock);
@@ -259,7 +259,7 @@ static inline int sem_lock(struct sem_array *sma, struct sembuf *sops,
 static inline void sem_unlock(struct sem_array *sma, int locknum)
 {
 	if (locknum == -1) {
-		spin_unlock(&sma->sem_perm.lock);
+		ipc_unlock_object(&sma->sem_perm);
 	} else {
 		struct sem *sem = sma->sem_base + locknum;
 		spin_unlock(&sem->lock);
@@ -872,7 +872,7 @@ static void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 	int i;
 
 	/* Free the existing undo structures for this semaphore set.  */
-	assert_spin_locked(&sma->sem_perm.lock);
+	ipc_assert_locked_object(&sma->sem_perm);
 	list_for_each_entry_safe(un, tu, &sma->list_id, list_id) {
 		list_del(&un->list_id);
 		spin_lock(&un->ulp->lock);
@@ -1070,7 +1070,7 @@ static int semctl_setval(struct ipc_namespace *ns, int semid, int semnum,
 
 	curr = &sma->sem_base[semnum];
 
-	assert_spin_locked(&sma->sem_perm.lock);
+	ipc_assert_locked_object(&sma->sem_perm);
 	list_for_each_entry(un, &sma->list_id, list_id)
 		un->semadj[semnum] = 0;
 
@@ -1199,7 +1199,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		for (i = 0; i < nsems; i++)
 			sma->sem_base[i].semval = sem_io[i];
 
-		assert_spin_locked(&sma->sem_perm.lock);
+		ipc_assert_locked_object(&sma->sem_perm);
 		list_for_each_entry(un, &sma->list_id, list_id) {
 			for (i = 0; i < nsems; i++)
 				un->semadj[i] = 0;
@@ -1496,7 +1496,7 @@ static struct sem_undo *find_alloc_undo(struct ipc_namespace *ns, int semid)
 	new->semid = semid;
 	assert_spin_locked(&ulp->lock);
 	list_add_rcu(&new->list_proc, &ulp->list_proc);
-	assert_spin_locked(&sma->sem_perm.lock);
+	ipc_assert_locked_object(&sma->sem_perm);
 	list_add(&new->list_id, &sma->list_id);
 	un = new;
 
@@ -1833,7 +1833,7 @@ void exit_sem(struct task_struct *tsk)
 		}
 
 		/* remove un from the linked lists */
-		assert_spin_locked(&sma->sem_perm.lock);
+		ipc_assert_locked_object(&sma->sem_perm);
 		list_del(&un->list_id);
 
 		spin_lock(&ulp->lock);
