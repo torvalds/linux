@@ -786,7 +786,7 @@ int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs)
 EXPORT_SYMBOL_GPL(pci_sriov_set_totalvfs);
 
 /**
- * pci_sriov_get_totalvfs -- get total VFs supported on this devic3
+ * pci_sriov_get_totalvfs -- get total VFs supported on this device
  * @dev: the PCI PF device
  *
  * For a PCIe device with SRIOV support, return the PCIe
