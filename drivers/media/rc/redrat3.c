@@ -762,7 +762,8 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 		return -EAGAIN;
 	}
 
-	count = min_t(unsigned, count, RR3_MAX_SIG_SIZE - RR3_TX_TRAILER_LEN);
+	if (count > RR3_MAX_SIG_SIZE - RR3_TX_TRAILER_LEN)
+		return -EINVAL;
 
 	/* rr3 will disable rc detector on transmit */
 	rr3->transmitting = true;
@@ -801,8 +802,8 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 						&irdata->lens[curlencheck]);
 				curlencheck++;
 			} else {
-				count = i - 1;
-				break;
+				ret = -EINVAL;
+				goto out;
 			}
 		}
 		irdata->sigdata[i] = lencheck;
