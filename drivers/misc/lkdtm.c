@@ -78,6 +78,7 @@ enum ctype {
 	CT_WRITE_AFTER_FREE,
 	CT_SOFTLOCKUP,
 	CT_HARDLOCKUP,
+	CT_SPINLOCKUP,
 	CT_HUNG_TASK,
 };
 
@@ -106,6 +107,7 @@ static char* cp_type[] = {
 	"WRITE_AFTER_FREE",
 	"SOFTLOCKUP",
 	"HARDLOCKUP",
+	"SPINLOCKUP",
 	"HUNG_TASK",
 };
 
@@ -123,6 +125,7 @@ static enum cname cpoint = CN_INVALID;
 static enum ctype cptype = CT_NONE;
 static int count = DEFAULT_COUNT;
 static DEFINE_SPINLOCK(count_lock);
+static DEFINE_SPINLOCK(lock_me_up);
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
@@ -344,6 +347,10 @@ static void lkdtm_do_action(enum ctype which)
 		local_irq_disable();
 		for (;;)
 			cpu_relax();
+		break;
+	case CT_SPINLOCKUP:
+		/* Must be called twice to trigger. */
+		spin_lock(&lock_me_up);
 		break;
 	case CT_HUNG_TASK:
 		set_current_state(TASK_UNINTERRUPTIBLE);
