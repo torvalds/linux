@@ -167,9 +167,12 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	 * basic rates
 	 */
 	if (!setup->basic_rates) {
+		enum nl80211_bss_scan_width scan_width;
 		struct ieee80211_supported_band *sband =
 				rdev->wiphy.bands[setup->chandef.chan->band];
-		setup->basic_rates = ieee80211_mandatory_rates(sband);
+		scan_width = cfg80211_chandef_to_scan_width(&setup->chandef);
+		setup->basic_rates = ieee80211_mandatory_rates(sband,
+							       scan_width);
 	}
 
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef))
