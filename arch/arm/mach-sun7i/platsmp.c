@@ -30,20 +30,6 @@ extern void sun7i_secondary_startup(void);
 
 static DEFINE_SPINLOCK(boot_lock);
 
-#ifdef UNUSED
-/*
- * Initialise the CPU possible map early - this describes the CPUs
- * which may be present or become present in the system.
- *
- * Note: for arch/arm/kernel/setup.csetup_arch(..)
- */
-static void __iomem *scu_base_addr(void)
-{
-    pr_debug("[%s] enter\n", __FUNCTION__);
-    return __io_address(SW_PA_SCU_IO_BASE);
-}
-#endif
-
 void __cpuinit enable_aw_cpu(int cpu)
 {
     long paddr;
@@ -98,6 +84,10 @@ void __init smp_init_cpus(void)
 {
     unsigned int i, ncores;
 
+
+	/* HDG: we do not use scu_get_core_count() here as that does not
+	   work on the A20 ? */
+
 	/* Read current CP15 Cache Size ID Register */
 	asm volatile ("mrc p15, 1, %0, c9, c0, 2" : "=r" (ncores));
 	ncores = ((ncores >> 24) & 0x3) + 1;
@@ -116,13 +106,10 @@ void __init smp_init_cpus(void)
  */
 void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
-#if 0
-    void __iomem *scu_base;
-
-    pr_debug("[%s] enter\n", __FUNCTION__);
-    scu_base = scu_base_addr();
-    scu_enable(scu_base);
-#endif
+	/*
+	 * HDG: we do not call scu_enable() here as the sun6i source dump has
+	 * a modified arch/arm/kernel/smp_scu.c, where scu_enable() is a nop.
+	 */
 }
 
 /*
