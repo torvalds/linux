@@ -477,6 +477,9 @@ typedef volatile struct tagLCDC_REG
     unsigned int MCU_BYPASS_RPORT;         //0x200 MCU BYPASS MODE, DATA Read Only Port
 } LCDC_REG, *pLCDC_REG;
 
+#define Win2_LUT_ADDR 0x400
+#define DSP_LUT_ADDR  0x800
+
 //roate
 #define 	ROTATE_0		0
 #define 	ROTATE_90		90
@@ -501,6 +504,7 @@ struct rk3066b_lcdc_device{
 	u32 reg_phy_base;       	// physical basic address of lcdc register
 	u32 len;               		// physical map length of lcdc register
 	spinlock_t  reg_lock;		//one time only one process allowed to config the register
+	int __iomem *dsp_lut_addr_base;
 	bool clk_on;			//if aclk or hclk is closed ,acess to register is not allowed
 	u8 atv_layer_cnt;		//active layer counter,when  atv_layer_cnt = 0,disable lcdc
 

@@ -83,8 +83,11 @@ static int rk3066b_lcdc_reg_resume(struct rk3066b_lcdc_device *lcdc_dev)
 
 static int init_rk3066b_lcdc(struct rk_lcdc_device_driver *dev_drv)
 {
-	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
+	int i=0;
+	int __iomem *c;
 	int v;
+
+	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	
 	if(lcdc_dev->id == 0) //lcdc0
 	{
@@ -174,6 +177,20 @@ static int init_rk3066b_lcdc(struct rk_lcdc_device_driver *dev_drv)
     	      v_SCANNING_MASK(1));  //mask all interrupt in init
 	LcdMskReg(lcdc_dev,FIFO_WATER_MARK,m_WIN1_FIFO_FULL_LEVEL,v_WIN1_FIFO_FULL_LEVEL(0x1e0));
 	//LCDC_REG_CFG_DONE();  // write any value to  REG_CFG_DONE let config become effective
+	if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
+	{
+		LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(0));
+		LCDC_REG_CFG_DONE();
+
+		mdelay(25); //wait for dsp lut disabled
+		for(i=0;i<256;i++)
+		{
+			v = dev_drv->cur_screen->dsp_lut[i];
+			c = lcdc_dev->dsp_lut_addr_base+i;
+			writel_relaxed(v,c);
+		}
+		LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(1));//enable dsp lut
+	}
 
 	rk3066b_lcdc_clk_disable(lcdc_dev);
 	return 0;
@@ -593,6 +610,9 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 
 static int rk3066b_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open)
 {
+	int i=0;
+	int __iomem *c;
+	int v;
 	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 
 	if((open) && (!lcdc_dev->atv_layer_cnt)) //enable clk,when first layer open
@@ -601,6 +621,22 @@ static int rk3066b_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,
 		rk3066b_lcdc_reg_resume(lcdc_dev); //resume reg
 		LcdMskReg(lcdc_dev, SYS_CFG,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
 		rk3066b_load_screen(dev_drv,1);
+		spin_lock(&lcdc_dev->reg_lock);
+		if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
+		{
+			LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(0));
+			LCDC_REG_CFG_DONE();
+
+			mdelay(25); //wait for dsp lut disabled
+			for(i=0;i<256;i++)
+			{
+				v = dev_drv->cur_screen->dsp_lut[i];
+				c = lcdc_dev->dsp_lut_addr_base+i;
+				writel_relaxed(v,c);
+			}
+			LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(1));//enable dsp lut
+		}
+		spin_unlock(&lcdc_dev->reg_lock);
 	}
 	if(layer_id == 0)
 	{
@@ -1044,6 +1080,9 @@ int rk3066b_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 {  
 	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
+	int i=0;
+	int __iomem *c;
+	int v;
 
 	if(dev_drv->screen_ctr_info->io_enable) 		//power on
 		dev_drv->screen_ctr_info->io_enable();
@@ -1060,6 +1099,21 @@ int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	memcpy(((u8*)lcdc_dev->preg) + 0x28,((u8*)&lcdc_dev->regbak) + 0x28, 0x74);
 
 	spin_lock(&lcdc_dev->reg_lock);
+
+	if(dev_drv->cur_screen->dsp_lut)			//resume dsp lut
+	{
+		LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(0));
+		LCDC_REG_CFG_DONE();
+
+		mdelay(25); //wait for dsp lut disabled
+		for(i=0;i<256;i++)
+		{
+			v = dev_drv->cur_screen->dsp_lut[i];
+			c = lcdc_dev->dsp_lut_addr_base+i;
+			writel_relaxed(v,c);
+		}
+		LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(1));//enable dsp lut
+	}
 	if(lcdc_dev->atv_layer_cnt)
 	{
 		LcdMskReg(lcdc_dev, SYS_CFG,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
@@ -1104,6 +1158,40 @@ static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+
+static int rk3066b_set_dsp_lut(struct rk_lcdc_device_driver *dev_drv,int *lut)
+{
+	int i=0;
+	int __iomem *c;
+	int v;
+	int ret = 0;
+
+	struct rk3066b_lcdc_device *lcdc_dev =
+				container_of(dev_drv,struct rk3066b_lcdc_device,driver);
+	LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(0));
+	LCDC_REG_CFG_DONE();
+	msleep(25);
+	if(dev_drv->cur_screen->dsp_lut)
+	{
+		for(i=0;i<256;i++)
+		{
+			v = dev_drv->cur_screen->dsp_lut[i] = lut[i];
+			c = lcdc_dev->dsp_lut_addr_base+i;
+			writel_relaxed(v,c);
+		}
+	}
+	else
+	{
+		dev_err(dev_drv->dev,"no buffer to backup lut data!\n");
+		ret =  -1;
+	}
+	LcdMskReg(lcdc_dev,SYS_CFG,m_DSIP_LUT_CTL,v_DSIP_LUT_CTL(1));
+	LCDC_REG_CFG_DONE();
+
+	return ret;
+}
+
+
 static struct layer_par lcdc_layer[] = {
 	[0] = {
 		.name  		= "win0",
@@ -1136,6 +1224,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.fps_mgr		= rk3066b_lcdc_fps_mgr,
 	.fb_get_layer           = rk3066b_fb_get_layer,
 	.fb_layer_remap         = rk3066b_fb_layer_remap,
+	.set_dsp_lut            = rk3066b_set_dsp_lut,
 };
 #ifdef CONFIG_PM
 static int rk3066b_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
@@ -1227,6 +1316,8 @@ static int __devinit rk3066b_lcdc_probe (struct platform_device *pdev)
 	
     	lcdc_dev->preg = (LCDC_REG*)lcdc_dev->reg_vir_base;
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->preg);
+	lcdc_dev->dsp_lut_addr_base = (lcdc_dev->reg_vir_base+DSP_LUT_ADDR);
+
 	lcdc_dev->driver.dev=&pdev->dev;
 	lcdc_dev->driver.screen0 = screen;
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& (defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS))
