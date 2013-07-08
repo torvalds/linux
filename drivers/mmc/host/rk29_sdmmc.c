@@ -4166,7 +4166,8 @@ static void __exit rk29_sdmmc_exit(void)
 	platform_driver_unregister(&rk29_sdmmc_driver);
 }
 
-module_init(rk29_sdmmc_init);
+//module_init(rk29_sdmmc_init);
+fs_initcall(rk29_sdmmc_init);
 module_exit(rk29_sdmmc_exit);
 
 MODULE_DESCRIPTION("Rk29 Multimedia Card Interface driver");

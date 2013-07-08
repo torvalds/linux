@@ -1490,5 +1490,5 @@ static void __exit rk_mmc_exit(void)
 	platform_driver_unregister(&rk_mmc_driver);
 }
 
-fs_initcall(rk_mmc_init);
+fs_initcall_sync(rk_mmc_init);
 module_exit(rk_mmc_exit);
