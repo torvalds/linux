@@ -177,12 +177,12 @@ static inline void ipc_assert_locked_object(struct kern_ipc_perm *perm)
 static inline void ipc_lock_by_ptr(struct kern_ipc_perm *perm)
 {
 	rcu_read_lock();
-	spin_lock(&perm->lock);
+	ipc_lock_object(perm);
 }
 
 static inline void ipc_unlock(struct kern_ipc_perm *perm)
 {
-	spin_unlock(&perm->lock);
+	ipc_unlock_object(perm);
 	rcu_read_unlock();
 }
 

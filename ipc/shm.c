@@ -141,7 +141,7 @@ static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
 static inline void shm_lock_by_ptr(struct shmid_kernel *ipcp)
 {
 	rcu_read_lock();
-	spin_lock(&ipcp->shm_perm.lock);
+	ipc_lock_object(&ipcp->shm_perm);
 }
 
 static inline struct shmid_kernel *shm_lock_check(struct ipc_namespace *ns,
@@ -545,7 +545,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	ns->shm_tot += numpages;
 	error = shp->shm_perm.id;
 
-	spin_unlock(&shp->shm_perm.lock);
+	ipc_unlock_object(&shp->shm_perm);
 	rcu_read_unlock();
 	return error;
 

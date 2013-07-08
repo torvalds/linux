@@ -216,7 +216,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	INIT_LIST_HEAD(&msq->q_receivers);
 	INIT_LIST_HEAD(&msq->q_senders);
 
-	spin_unlock(&msq->q_perm.lock);
+	ipc_unlock_object(&msq->q_perm);
 	rcu_read_unlock();
 
 	return msq->q_perm.id;
