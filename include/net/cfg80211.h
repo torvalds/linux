@@ -461,6 +461,33 @@ ieee80211_chandef_rate_flags(struct cfg80211_chan_def *chandef)
 }
 
 /**
+ * ieee80211_chandef_max_power - maximum transmission power for the chandef
+ *
+ * In some regulations, the transmit power may depend on the configured channel
+ * bandwidth which may be defined as dBm/MHz. This function returns the actual
+ * max_power for non-standard (20 MHz) channels.
+ *
+ * @chandef: channel definition for the channel
+ *
+ * Returns: maximum allowed transmission power in dBm for the chandef
+ */
+static inline int
+ieee80211_chandef_max_power(struct cfg80211_chan_def *chandef)
+{
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_5:
+		return min(chandef->chan->max_reg_power - 6,
+			   chandef->chan->max_power);
+	case NL80211_CHAN_WIDTH_10:
+		return min(chandef->chan->max_reg_power - 3,
+			   chandef->chan->max_power);
+	default:
+		break;
+	}
+	return chandef->chan->max_power;
+}
+
+/**
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
