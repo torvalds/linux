@@ -230,6 +230,15 @@
 							MX6DL_PAD_EIM_D27__UART2_RX_DATA 0x1b0b1
 						>;
 					};
+
+					pinctrl_uart2_2: uart2grp-2 { /* DTE mode */
+						fsl,pins = <
+							MX6DL_PAD_EIM_D26__UART2_RX_DATA   0x1b0b1
+							MX6DL_PAD_EIM_D27__UART2_TX_DATA   0x1b0b1
+							MX6DL_PAD_EIM_D28__UART2_DTE_CTS_B 0x1b0b1
+							MX6DL_PAD_EIM_D29__UART2_DTE_RTS_B 0x1b0b1
+						>;
+					};
 				};
 
 				uart4 {
