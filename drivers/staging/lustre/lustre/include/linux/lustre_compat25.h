@@ -266,9 +266,6 @@ static inline int ll_quota_off(struct super_block *sb, int off, int remount)
 #define queue_max_phys_segments(rq)       queue_max_segments(rq)
 #define queue_max_hw_segments(rq)	 queue_max_segments(rq)
 
-#define ll_kmap_atomic(a, b)	kmap_atomic(a)
-#define ll_kunmap_atomic(a, b)	kunmap_atomic(a)
-
 
 #define ll_d_hlist_node hlist_node
 #define ll_d_hlist_empty(list) hlist_empty(list)

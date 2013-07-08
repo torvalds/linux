@@ -887,10 +887,10 @@ static int vvp_io_prepare_partial(const struct lu_env *env, struct cl_io *io,
 		 * purposes here we can treat it like i_size.
 		 */
 		if (attr->cat_kms <= offset) {
-			char *kaddr = ll_kmap_atomic(cp->cpg_page, KM_USER0);
+			char *kaddr = kmap_atomic(cp->cpg_page);
 
 			memset(kaddr, 0, cl_page_size(obj));
-			ll_kunmap_atomic(kaddr, KM_USER0);
+			kunmap_atomic(kaddr);
 		} else if (cp->cpg_defer_uptodate)
 			cp->cpg_ra_used = 1;
 		else

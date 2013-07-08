@@ -287,11 +287,11 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 			src_page = (rw == WRITE) ? pages[i] : vmpage;
 			dst_page = (rw == WRITE) ? vmpage : pages[i];
 
-			src = ll_kmap_atomic(src_page, KM_USER0);
-			dst = ll_kmap_atomic(dst_page, KM_USER1);
+			src = kmap_atomic(src_page);
+			dst = kmap_atomic(dst_page);
 			memcpy(dst, src, min(page_size, size));
-			ll_kunmap_atomic(dst, KM_USER1);
-			ll_kunmap_atomic(src, KM_USER0);
+			kunmap_atomic(dst);
+			kunmap_atomic(src);
 
 			/* make sure page will be added to the transfer by
 			 * cl_io_submit()->...->vvp_page_prep_write(). */
