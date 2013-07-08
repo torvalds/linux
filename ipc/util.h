@@ -159,6 +159,21 @@ static inline int ipc_checkid(struct kern_ipc_perm *ipcp, int uid)
 	return uid / SEQ_MULTIPLIER != ipcp->seq;
 }
 
+static inline void ipc_lock_object(struct kern_ipc_perm *perm)
+{
+	spin_lock(&perm->lock);
+}
+
+static inline void ipc_unlock_object(struct kern_ipc_perm *perm)
+{
+	spin_unlock(&perm->lock);
+}
+
+static inline void ipc_assert_locked_object(struct kern_ipc_perm *perm)
+{
+	assert_spin_locked(&perm->lock);
+}
+
 static inline void ipc_lock_by_ptr(struct kern_ipc_perm *perm)
 {
 	rcu_read_lock();
@@ -169,11 +184,6 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
 {
 	spin_unlock(&perm->lock);
 	rcu_read_unlock();
-}
-
-static inline void ipc_lock_object(struct kern_ipc_perm *perm)
-{
-	spin_lock(&perm->lock);
 }
 
 struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id);
