@@ -252,9 +252,10 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info)
 	return len;
 }
 
-static void ieee80211_add_tx_radiotap_header(struct ieee80211_supported_band
-					     *sband, struct sk_buff *skb,
-					     int retry_count, int rtap_len)
+static void
+ieee80211_add_tx_radiotap_header(struct ieee80211_supported_band *sband,
+				 struct sk_buff *skb, int retry_count,
+				 int rtap_len, int shift)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -280,8 +281,11 @@ static void ieee80211_add_tx_radiotap_header(struct ieee80211_supported_band
 	/* IEEE80211_RADIOTAP_RATE */
 	if (info->status.rates[0].idx >= 0 &&
 	    !(info->status.rates[0].flags & IEEE80211_TX_RC_MCS)) {
+		u16 rate;
+
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
-		*pos = sband->bitrates[info->status.rates[0].idx].bitrate / 5;
+		rate = sband->bitrates[info->status.rates[0].idx].bitrate;
+		*pos = DIV_ROUND_UP(rate, 5 * (1 << shift));
 		/* padding for tx flags */
 		pos += 2;
 	}
@@ -424,6 +428,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	bool acked;
 	struct ieee80211_bar *bar;
 	int rtap_len;
+	int shift = 0;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		if ((info->flags & IEEE80211_TX_CTL_AMPDU) &&
@@ -457,6 +462,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		/* skip wrong virtual interface */
 		if (!ether_addr_equal(hdr->addr2, sta->sdata->vif.addr))
 			continue;
+
+		shift = ieee80211_vif_get_shift(&sta->sdata->vif);
 
 		if (info->flags & IEEE80211_TX_STATUS_EOSP)
 			clear_sta_flag(sta, WLAN_STA_SP);
@@ -624,7 +631,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		dev_kfree_skb(skb);
 		return;
 	}
-	ieee80211_add_tx_radiotap_header(sband, skb, retry_count, rtap_len);
+	ieee80211_add_tx_radiotap_header(sband, skb, retry_count, rtap_len,
+					 shift);
 
 	/* XXX: is this sufficient for BPF? */
 	skb_set_mac_header(skb, 0);

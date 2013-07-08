@@ -62,7 +62,6 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct ieee80211_local *local = sdata->local;
 	u32 basic_rates = 0;
 	struct cfg80211_chan_def sta_chan_def;
 
@@ -85,7 +84,7 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
 		return false;
 
-	ieee80211_sta_get_rates(local, ie, ieee80211_get_sdata_band(sdata),
+	ieee80211_sta_get_rates(sdata, ie, ieee80211_get_sdata_band(sdata),
 				&basic_rates);
 
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)

@@ -43,16 +43,17 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
-	int rates, i;
+	int rates_n = 0, i, ri;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos;
 	struct ieee80211_supported_band *sband;
 	struct cfg80211_bss *bss;
-	u32 bss_change;
+	u32 bss_change, rate_flags, rates = 0, rates_added = 0;
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	struct cfg80211_chan_def chandef;
 	struct beacon_data *presp;
 	int frame_len;
+	int shift;
 
 	sdata_assert_lock(sdata);
 
@@ -99,6 +100,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
 
 	sband = local->hw.wiphy->bands[chan->band];
+	shift = ieee80211_vif_get_shift(&sdata->vif);
 
 	/* Build IBSS probe response */
 	frame_len = sizeof(struct ieee80211_hdr_3addr) +
@@ -134,15 +136,29 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	memcpy(pos, ifibss->ssid, ifibss->ssid_len);
 	pos += ifibss->ssid_len;
 
-	rates = min_t(int, 8, sband->n_bitrates);
+	rate_flags = ieee80211_chandef_rate_flags(&chandef);
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+
+		rates |= BIT(i);
+		rates_n++;
+	}
+
 	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos++ = rates;
-	for (i = 0; i < rates; i++) {
-		int rate = sband->bitrates[i].bitrate;
+	*pos++ = min_t(int, 8, rates_n);
+	for (ri = 0; ri < sband->n_bitrates; ri++) {
+		int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate,
+					5 * (1 << shift));
 		u8 basic = 0;
-		if (basic_rates & BIT(i))
+		if (!(rates & BIT(ri)))
+			continue;
+
+		if (basic_rates & BIT(ri))
 			basic = 0x80;
-		*pos++ = basic | (u8) (rate / 5);
+		*pos++ = basic | (u8) rate;
+		if (++rates_added == 8)
+			break;
 	}
 
 	if (sband->band == IEEE80211_BAND_2GHZ) {
@@ -157,15 +173,20 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	*pos++ = 0;
 	*pos++ = 0;
 
-	if (sband->n_bitrates > 8) {
+	/* put the remaining rates in WLAN_EID_EXT_SUPP_RATES */
+	if (rates_n > 8) {
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
-		*pos++ = sband->n_bitrates - 8;
-		for (i = 8; i < sband->n_bitrates; i++) {
-			int rate = sband->bitrates[i].bitrate;
+		*pos++ = rates_n - 8;
+		for (; ri < sband->n_bitrates; ri++) {
+			int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate,
+						5 * (1 << shift));
 			u8 basic = 0;
-			if (basic_rates & BIT(i))
+			if (!(rates & BIT(ri)))
+				continue;
+
+			if (basic_rates & BIT(ri))
 				basic = 0x80;
-			*pos++ = basic | (u8) (rate / 5);
+			*pos++ = basic | (u8) rate;
 		}
 	}
 
@@ -244,7 +265,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.ibss_creator = creator;
 	ieee80211_bss_info_change_notify(sdata, bss_change);
 
-	ieee80211_sta_def_wmm_params(sdata, sband->n_bitrates, supp_rates);
+	ieee80211_sta_def_wmm_params(sdata, rates, supp_rates);
 
 	ifibss->state = IEEE80211_IBSS_MLME_JOINED;
 	mod_timer(&ifibss->timer,
@@ -268,6 +289,8 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	u16 beacon_int = cbss->beacon_interval;
 	const struct cfg80211_bss_ies *ies;
 	u64 tsf;
+	u32 rate_flags;
+	int shift;
 
 	sdata_assert_lock(sdata);
 
@@ -275,15 +298,24 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		beacon_int = 10;
 
 	sband = sdata->local->hw.wiphy->bands[cbss->channel->band];
+	rate_flags = ieee80211_chandef_rate_flags(&sdata->u.ibss.chandef);
+	shift = ieee80211_vif_get_shift(&sdata->vif);
 
 	basic_rates = 0;
 
 	for (i = 0; i < bss->supp_rates_len; i++) {
-		int rate = (bss->supp_rates[i] & 0x7f) * 5;
+		int rate = bss->supp_rates[i] & 0x7f;
 		bool is_basic = !!(bss->supp_rates[i] & 0x80);
 
 		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].bitrate == rate) {
+			int brate;
+			if ((rate_flags & sband->bitrates[j].flags)
+			    != rate_flags)
+				continue;
+
+			brate = DIV_ROUND_UP(sband->bitrates[j].bitrate,
+					     5 * (1 << shift));
+			if (brate == rate) {
 				if (is_basic)
 					basic_rates |= BIT(j);
 				break;
@@ -465,7 +497,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		sta = sta_info_get(sdata, mgmt->sa);
 
 		if (elems->supp_rates) {
-			supp_rates = ieee80211_sta_get_rates(local, elems,
+			supp_rates = ieee80211_sta_get_rates(sdata, elems,
 							     band, NULL);
 			if (sta) {
 				u32 prev_rates;
@@ -589,7 +621,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			 "beacon TSF higher than local TSF - IBSS merge with BSSID %pM\n",
 			 mgmt->bssid);
 		ieee80211_sta_join_ibss(sdata, bss);
-		supp_rates = ieee80211_sta_get_rates(local, elems, band, NULL);
+		supp_rates = ieee80211_sta_get_rates(sdata, elems, band, NULL);
 		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
 				       supp_rates);
 		rcu_read_unlock();
@@ -1024,6 +1056,9 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_ibss_params *params)
 {
 	u32 changed = 0;
+	u32 rate_flags;
+	struct ieee80211_supported_band *sband;
+	int i;
 
 	if (params->bssid) {
 		memcpy(sdata->u.ibss.bssid, params->bssid, ETH_ALEN);
@@ -1034,6 +1069,14 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	sdata->u.ibss.privacy = params->privacy;
 	sdata->u.ibss.control_port = params->control_port;
 	sdata->u.ibss.basic_rates = params->basic_rates;
+
+	/* fix basic_rates if channel does not support these rates */
+	rate_flags = ieee80211_chandef_rate_flags(&params->chandef);
+	sband = sdata->local->hw.wiphy->bands[params->chandef.chan->band];
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			sdata->u.ibss.basic_rates &= ~BIT(i);
+	}
 	memcpy(sdata->vif.bss_conf.mcast_rate, params->mcast_rate,
 	       sizeof(params->mcast_rate));
 

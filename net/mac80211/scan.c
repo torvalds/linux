@@ -204,10 +204,29 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		ieee80211_rx_bss_put(local, bss);
 }
 
+static void
+ieee80211_prepare_scan_chandef(struct cfg80211_chan_def *chandef,
+			       enum nl80211_bss_scan_width scan_width)
+{
+	memset(chandef, 0, sizeof(*chandef));
+	switch (scan_width) {
+	case NL80211_BSS_CHAN_WIDTH_5:
+		chandef->width = NL80211_CHAN_WIDTH_5;
+		break;
+	case NL80211_BSS_CHAN_WIDTH_10:
+		chandef->width = NL80211_CHAN_WIDTH_10;
+		break;
+	default:
+		chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
+		break;
+	}
+}
+
 /* return false if no more work */
 static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 {
 	struct cfg80211_scan_request *req = local->scan_req;
+	struct cfg80211_chan_def chandef;
 	enum ieee80211_band band;
 	int i, ielen, n_chans;
 
@@ -229,11 +248,12 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 	} while (!n_chans);
 
 	local->hw_scan_req->n_channels = n_chans;
+	ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
 
 	ielen = ieee80211_build_preq_ies(local, (u8 *)local->hw_scan_req->ie,
 					 local->hw_scan_ies_bufsize,
 					 req->ie, req->ie_len, band,
-					 req->rates[band], 0);
+					 req->rates[band], &chandef);
 	local->hw_scan_req->ie_len = ielen;
 	local->hw_scan_req->no_cck = req->no_cck;
 
@@ -912,6 +932,7 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sched_scan_ies sched_scan_ies = {};
+	struct cfg80211_chan_def chandef;
 	int ret, i, iebufsz;
 
 	iebufsz = 2 + IEEE80211_MAX_SSID_LEN +
@@ -939,10 +960,12 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 			goto out_free;
 		}
 
+		ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
+
 		sched_scan_ies.len[i] =
 			ieee80211_build_preq_ies(local, sched_scan_ies.ie[i],
 						 iebufsz, req->ie, req->ie_len,
-						 i, (u32) -1, 0);
+						 i, (u32) -1, &chandef);
 	}
 
 	ret = drv_sched_scan_start(local, sdata, req, &sched_scan_ies);

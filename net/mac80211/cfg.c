@@ -395,9 +395,13 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 		rinfo->nss = ieee80211_rate_get_vht_nss(rate);
 	} else {
 		struct ieee80211_supported_band *sband;
+		int shift = ieee80211_vif_get_shift(&sta->sdata->vif);
+		u16 brate;
+
 		sband = sta->local->hw.wiphy->bands[
 				ieee80211_get_sdata_band(sta->sdata)];
-		rinfo->legacy = sband->bitrates[rate->idx].bitrate;
+		brate = sband->bitrates[rate->idx].bitrate;
+		rinfo->legacy = DIV_ROUND_UP(brate, 1 << shift);
 	}
 	if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		rinfo->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
@@ -422,11 +426,13 @@ void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
 		rinfo->mcs = sta->last_rx_rate_idx;
 	} else {
 		struct ieee80211_supported_band *sband;
+		int shift = ieee80211_vif_get_shift(&sta->sdata->vif);
+		u16 brate;
 
 		sband = sta->local->hw.wiphy->bands[
 				ieee80211_get_sdata_band(sta->sdata)];
-		rinfo->legacy =
-			sband->bitrates[sta->last_rx_rate_idx].bitrate;
+		brate = sband->bitrates[sta->last_rx_rate_idx].bitrate;
+		rinfo->legacy = DIV_ROUND_UP(brate, 1 << shift);
 	}
 
 	if (sta->last_rx_rate_flag & RX_FLAG_40MHZ)
@@ -1190,8 +1196,6 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 				struct station_parameters *params)
 {
 	int ret = 0;
-	u32 rates;
-	int i, j;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
@@ -1284,16 +1288,10 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta->listen_interval = params->listen_interval;
 
 	if (params->supported_rates) {
-		rates = 0;
-
-		for (i = 0; i < params->supported_rates_len; i++) {
-			int rate = (params->supported_rates[i] & 0x7f) * 5;
-			for (j = 0; j < sband->n_bitrates; j++) {
-				if (sband->bitrates[j].bitrate == rate)
-					rates |= BIT(j);
-			}
-		}
-		sta->sta.supp_rates[band] = rates;
+		ieee80211_parse_bitrates(&sdata->vif.bss_conf.chandef,
+					 sband, params->supported_rates,
+					 params->supported_rates_len,
+					 &sta->sta.supp_rates[band]);
 	}
 
 	if (params->ht_capa)
@@ -1956,18 +1954,11 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (params->basic_rates) {
-		int i, j;
-		u32 rates = 0;
-		struct ieee80211_supported_band *sband = wiphy->bands[band];
-
-		for (i = 0; i < params->basic_rates_len; i++) {
-			int rate = (params->basic_rates[i] & 0x7f) * 5;
-			for (j = 0; j < sband->n_bitrates; j++) {
-				if (sband->bitrates[j].bitrate == rate)
-					rates |= BIT(j);
-			}
-		}
-		sdata->vif.bss_conf.basic_rates = rates;
+		ieee80211_parse_bitrates(&sdata->vif.bss_conf.chandef,
+					 wiphy->bands[band],
+					 params->basic_rates,
+					 params->basic_rates_len,
+					 &sdata->vif.bss_conf.basic_rates);
 		changed |= BSS_CHANGED_BASIC_RATES;
 	}
 

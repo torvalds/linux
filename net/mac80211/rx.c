@@ -236,8 +236,13 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		 */
 		*pos = 0;
 	} else {
+		int shift = 0;
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
-		*pos = rate->bitrate / 5;
+		if (status->flag & RX_FLAG_10MHZ)
+			shift = 1;
+		else if (status->flag & RX_FLAG_5MHZ)
+			shift = 2;
+		*pos = DIV_ROUND_UP(rate->bitrate, 5 * (1 << shift));
 	}
 	pos++;
 
