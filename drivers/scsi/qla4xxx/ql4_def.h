@@ -335,6 +335,7 @@ struct ql4_tuple_ddb {
 #define DF_BOOT_TGT		1	/* Boot target entry */
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
+#define DF_DISABLE_RELOGIN		4	/* Disable relogin to device */
 
 enum qla4_work_type {
 	QLA4_EVENT_AEN,

@@ -3583,7 +3583,9 @@ static void qla4xxx_relogin_devices(struct iscsi_cls_session *cls_session)
 		} else {
 			/* Trigger relogin */
 			if (ddb_entry->ddb_type == FLASH_DDB) {
-				if (!test_bit(DF_RELOGIN, &ddb_entry->flags))
+				if (!(test_bit(DF_RELOGIN, &ddb_entry->flags) ||
+				      test_bit(DF_DISABLE_RELOGIN,
+					       &ddb_entry->flags)))
 					qla4xxx_arm_relogin_timer(ddb_entry);
 			} else
 				iscsi_session_failure(cls_session->dd_data,
@@ -3684,6 +3686,9 @@ static void qla4xxx_dpc_relogin(struct iscsi_cls_session *cls_sess)
 	ha = ddb_entry->ha;
 
 	if (!(ddb_entry->ddb_type == FLASH_DDB))
+		return;
+
+	if (test_bit(DF_DISABLE_RELOGIN, &ddb_entry->flags))
 		return;
 
 	if (test_and_clear_bit(DF_RELOGIN, &ddb_entry->flags) &&
@@ -6014,13 +6019,6 @@ static int qla4xxx_sysfs_ddb_logout_sid(struct iscsi_cls_session *cls_sess)
 		goto exit_ddb_logout;
 	}
 
-	options = LOGOUT_OPTION_CLOSE_SESSION;
-	if (qla4xxx_session_logout_ddb(ha, ddb_entry, options) == QLA_ERROR) {
-		ql4_printk(KERN_ERR, ha, "%s: Logout failed\n", __func__);
-		ret = -EIO;
-		goto exit_ddb_logout;
-	}
-
 	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 					  &fw_ddb_entry_dma, GFP_KERNEL);
 	if (!fw_ddb_entry) {
@@ -6030,6 +6028,38 @@ static int qla4xxx_sysfs_ddb_logout_sid(struct iscsi_cls_session *cls_sess)
 		goto exit_ddb_logout;
 	}
 
+	if (test_and_set_bit(DF_DISABLE_RELOGIN, &ddb_entry->flags))
+		goto ddb_logout_init;
+
+	ret = qla4xxx_get_fwddb_entry(ha, ddb_entry->fw_ddb_index,
+				      fw_ddb_entry, fw_ddb_entry_dma,
+				      NULL, NULL, &ddb_state, NULL,
+				      NULL, NULL);
+	if (ret == QLA_ERROR)
+		goto ddb_logout_init;
+
+	if (ddb_state == DDB_DS_SESSION_ACTIVE)
+		goto ddb_logout_init;
+
+	/* wait until next relogin is triggered using DF_RELOGIN and
+	 * clear DF_RELOGIN to avoid invocation of further relogin
+	 */
+	wtime = jiffies + (HZ * RELOGIN_TOV);
+	do {
+		if (test_and_clear_bit(DF_RELOGIN, &ddb_entry->flags))
+			goto ddb_logout_init;
+
+		schedule_timeout_uninterruptible(HZ);
+	} while ((time_after(wtime, jiffies)));
+
+ddb_logout_init:
+	atomic_set(&ddb_entry->retry_relogin_timer, INVALID_ENTRY);
+	atomic_set(&ddb_entry->relogin_timer, 0);
+
+	options = LOGOUT_OPTION_CLOSE_SESSION;
+	qla4xxx_session_logout_ddb(ha, ddb_entry, options);
+
+	memset(fw_ddb_entry, 0, sizeof(*fw_ddb_entry));
 	wtime = jiffies + (HZ * LOGOUT_TOV);
 	do {
 		ret = qla4xxx_get_fwddb_entry(ha, ddb_entry->fw_ddb_index,
@@ -6059,10 +6089,12 @@ ddb_logout_clr_sess:
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qla4xxx_free_ddb(ha, ddb_entry);
+	clear_bit(ddb_entry->fw_ddb_index, ha->ddb_idx_map);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	iscsi_session_teardown(ddb_entry->sess);
 
+	clear_bit(DF_DISABLE_RELOGIN, &ddb_entry->flags);
 	ret = QLA_SUCCESS;
 
 exit_ddb_logout:
