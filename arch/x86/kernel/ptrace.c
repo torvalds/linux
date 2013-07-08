@@ -609,14 +609,6 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	int gen_len, gen_type;
 	struct perf_event_attr attr;
 
-	/*
-	 * We should have at least an inactive breakpoint at this
-	 * slot. It means the user is writing dr7 without having
-	 * written the address register first
-	 */
-	if (!bp)
-		return -EINVAL;
-
 	err = arch_bp_generic_fields(len, type, &gen_len, &gen_type);
 	if (err)
 		return err;
@@ -634,52 +626,47 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
  */
 static int ptrace_write_dr7(struct task_struct *tsk, unsigned long data)
 {
-	struct thread_struct *thread = &(tsk->thread);
+	struct thread_struct *thread = &tsk->thread;
 	unsigned long old_dr7;
-	int i, orig_ret = 0, rc = 0;
-	int second_pass = 0;
+	bool second_pass = false;
+	int i, rc, ret = 0;
 
 	data &= ~DR_CONTROL_RESERVED;
 	old_dr7 = ptrace_get_dr7(thread->ptrace_bps);
+
 restore:
-	/*
-	 * Loop through all the hardware breakpoints, making the
-	 * appropriate changes to each.
-	 */
+	rc = 0;
 	for (i = 0; i < HBP_NUM; i++) {
 		unsigned len, type;
 		bool disabled = !decode_dr7(data, i, &len, &type);
 		struct perf_event *bp = thread->ptrace_bps[i];
 
-		if (disabled) {
-			/*
-			 * Don't unregister the breakpoints right-away, unless
-			 * all register_user_hw_breakpoint() requests have
-			 * succeeded. This prevents any window of opportunity
-			 * for debug register grabbing by other users.
-			 */
-			if (!bp || !second_pass)
+		if (!bp) {
+			if (disabled)
 				continue;
+			/*
+			 * We should have at least an inactive breakpoint at
+			 * this slot. It means the user is writing dr7 without
+			 * having written the address register first.
+			 */
+			rc = -EINVAL;
+			break;
 		}
 
 		rc = ptrace_modify_breakpoint(bp, len, type, tsk, disabled);
 		if (rc)
 			break;
 	}
-	/*
-	 * Make a second pass to free the remaining unused breakpoints
-	 * or to restore the original breakpoints if an error occurred.
-	 */
-	if (!second_pass) {
-		second_pass = 1;
-		if (rc < 0) {
-			orig_ret = rc;
-			data = old_dr7;
-		}
+
+	/* Restore if the first pass failed, second_pass shouldn't fail. */
+	if (rc && !WARN_ON(second_pass)) {
+		ret = rc;
+		data = old_dr7;
+		second_pass = true;
 		goto restore;
 	}
 
-	return orig_ret < 0 ? orig_ret : rc;
+	return ret;
 }
 
 /*
