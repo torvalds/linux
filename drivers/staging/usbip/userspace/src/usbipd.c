@@ -53,18 +53,18 @@
 static const char usbip_version_string[] = PACKAGE_STRING;
 
 static const char usbipd_help_string[] =
-	"usage: usbipd [options]			\n"
-	"	-D, --daemon				\n"
-	"		Run as a daemon process.	\n"
-	"						\n"
-	"	-d, --debug				\n"
-	"		Print debugging information.	\n"
-	"						\n"
-	"	-h, --help				\n"
-	"		Print this help.		\n"
-	"						\n"
-	"	-v, --version				\n"
-	"		Show version.			\n";
+	"usage: usbipd [options]\n"
+	"	-D, --daemon\n"
+	"		Run as a daemon process.\n"
+	"\n"
+	"	-d, --debug\n"
+	"		Print debugging information.\n"
+	"\n"
+	"	-h, --help\n"
+	"		Print this help.\n"
+	"\n"
+	"	-v, --version\n"
+	"		Show version.\n";
 
 static void usbipd_help(void)
 {
@@ -286,13 +286,13 @@ static int do_accept(int listenfd)
 
 	memset(&ss, 0, sizeof(ss));
 
-	connfd = accept(listenfd, (struct sockaddr *) &ss, &len);
+	connfd = accept(listenfd, (struct sockaddr *)&ss, &len);
 	if (connfd < 0) {
 		err("failed to accept connection");
 		return -1;
 	}
 
-	rc = getnameinfo((struct sockaddr *) &ss, len, host, sizeof(host),
+	rc = getnameinfo((struct sockaddr *)&ss, len, host, sizeof(host),
 			 port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV);
 	if (rc)
 		err("getnameinfo: %s", gai_strerror(rc));
@@ -496,8 +496,9 @@ static int do_standalone_mode(int daemonize)
 					process_request(sockfdlist[i]);
 				}
 			}
-		} else
+		} else {
 			dbg("heartbeat timeout on ppoll()");
+		}
 	}
 
 	info("shutting down " PROGNAME);
