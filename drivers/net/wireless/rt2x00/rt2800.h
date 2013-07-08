@@ -2887,14 +2887,8 @@ enum rt2800_eeprom_word {
 #define TXPOWER_G_FROM_DEV(__txpower) \
 	((__txpower) > MAX_G_TXPOWER) ? DEFAULT_TXPOWER : (__txpower)
 
-#define TXPOWER_G_TO_DEV(__txpower) \
-	clamp_t(char, __txpower, MIN_G_TXPOWER, MAX_G_TXPOWER)
-
 #define TXPOWER_A_FROM_DEV(__txpower) \
 	((__txpower) > MAX_A_TXPOWER) ? DEFAULT_TXPOWER : (__txpower)
-
-#define TXPOWER_A_TO_DEV(__txpower) \
-	clamp_t(char, __txpower, MIN_A_TXPOWER, MAX_A_TXPOWER)
 
 /*
  *  Board's maximun TX power limitation
