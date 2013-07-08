@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
+#include <linux/vmalloc.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
@@ -50,6 +51,7 @@
 
 #define DEFAULT_COUNT 10
 #define REC_NUM_DEFAULT 10
+#define EXEC_SIZE 64
 
 enum cname {
 	CN_INVALID,
@@ -80,6 +82,10 @@ enum ctype {
 	CT_HARDLOCKUP,
 	CT_SPINLOCKUP,
 	CT_HUNG_TASK,
+	CT_EXEC_DATA,
+	CT_EXEC_STACK,
+	CT_EXEC_KMALLOC,
+	CT_EXEC_VMALLOC,
 };
 
 static char* cp_name[] = {
@@ -109,6 +115,10 @@ static char* cp_type[] = {
 	"HARDLOCKUP",
 	"SPINLOCKUP",
 	"HUNG_TASK",
+	"EXEC_DATA",
+	"EXEC_STACK",
+	"EXEC_KMALLOC",
+	"EXEC_VMALLOC",
 };
 
 static struct jprobe lkdtm;
@@ -126,6 +136,8 @@ static enum ctype cptype = CT_NONE;
 static int count = DEFAULT_COUNT;
 static DEFINE_SPINLOCK(count_lock);
 static DEFINE_SPINLOCK(lock_me_up);
+
+static u8 data_area[EXEC_SIZE];
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
@@ -280,6 +292,19 @@ static int recursive_loop(int a)
         	return recursive_loop(a);
 }
 
+static void do_nothing(void)
+{
+	return;
+}
+
+static void execute_location(void *dst)
+{
+	void (*func)(void) = dst;
+
+	memcpy(dst, do_nothing, EXEC_SIZE);
+	func();
+}
+
 static void lkdtm_do_action(enum ctype which)
 {
 	switch (which) {
@@ -356,6 +381,26 @@ static void lkdtm_do_action(enum ctype which)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule();
 		break;
+	case CT_EXEC_DATA:
+		execute_location(data_area);
+		break;
+	case CT_EXEC_STACK: {
+		u8 stack_area[EXEC_SIZE];
+		execute_location(stack_area);
+		break;
+	}
+	case CT_EXEC_KMALLOC: {
+		u32 *kmalloc_area = kmalloc(EXEC_SIZE, GFP_KERNEL);
+		execute_location(kmalloc_area);
+		kfree(kmalloc_area);
+		break;
+	}
+	case CT_EXEC_VMALLOC: {
+		u32 *vmalloc_area = vmalloc(EXEC_SIZE);
+		execute_location(vmalloc_area);
+		vfree(vmalloc_area);
+		break;
+	}
 	case CT_NONE:
 	default:
 		break;
