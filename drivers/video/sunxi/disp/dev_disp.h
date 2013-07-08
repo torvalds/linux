@@ -37,6 +37,7 @@ __s32 DRV_DISP_Exit(void);
 int disp_suspend(int clk, int status);
 int disp_resume(int clk, int status);
 
+int disp_check_fbmem(int sel, int width, int height);
 void hdmi_edid_received(unsigned char *edid, int block);
 __s32 Fb_Init(__u32 from);
 __s32 DRV_lcd_open(__u32 sel);
