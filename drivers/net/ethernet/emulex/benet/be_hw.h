@@ -356,7 +356,7 @@ struct amap_eth_rx_compl_v0 {
 	u8 ip_version;		/* dword 1 */
 	u8 macdst[6];		/* dword 1 */
 	u8 vtp;			/* dword 1 */
-	u8 rsvd0;		/* dword 1 */
+	u8 ip_frag;		/* dword 1 */
 	u8 fragndx[10];		/* dword 1 */
 	u8 ct[2];		/* dword 1 */
 	u8 sw;			/* dword 1 */

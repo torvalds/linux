@@ -1695,6 +1695,7 @@ extern int		init_dummy_netdev(struct net_device *dev);
 extern struct net_device	*dev_get_by_index(struct net *net, int ifindex);
 extern struct net_device	*__dev_get_by_index(struct net *net, int ifindex);
 extern struct net_device	*dev_get_by_index_rcu(struct net *net, int ifindex);
+extern int		netdev_get_name(struct net *net, char *name, int ifindex);
 extern int		dev_restart(struct net_device *dev);
 #ifdef CONFIG_NETPOLL_TRAP
 extern int		netpoll_trap(void);
@@ -2733,6 +2734,17 @@ static inline netdev_features_t netdev_get_wanted_features(
 }
 netdev_features_t netdev_increment_features(netdev_features_t all,
 	netdev_features_t one, netdev_features_t mask);
+
+/* Allow TSO being used on stacked device :
+ * Performing the GSO segmentation before last device
+ * is a performance improvement.
+ */
+static inline netdev_features_t netdev_add_tso_features(netdev_features_t features,
+							netdev_features_t mask)
+{
+	return netdev_increment_features(features, NETIF_F_ALL_TSO, mask);
+}
+
 int __netdev_update_features(struct net_device *dev);
 void netdev_update_features(struct net_device *dev);
 void netdev_change_features(struct net_device *dev);

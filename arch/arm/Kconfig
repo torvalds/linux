@@ -14,6 +14,7 @@ config ARM
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
+	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_STRNCPY_FROM_USER
@@ -38,6 +39,7 @@ config ARM
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7))
 	select HAVE_IDE if PCI || ISA || PCMCIA
+	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
@@ -488,7 +490,7 @@ config ARCH_IXP4XX
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select ARCH_REQUIRE_GPIOLIB
-	select CPU_V7
+	select CPU_PJ4
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
 	select PINCTRL
@@ -1086,6 +1088,20 @@ if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
 
+config PJ4B_ERRATA_4742
+	bool "PJ4B Errata 4742: IDLE Wake Up Commands can Cause the CPU Core to Cease Operation"
+	depends on CPU_PJ4B && MACH_ARMADA_370
+	default y
+	help
+	  When coming out of either a Wait for Interrupt (WFI) or a Wait for
+	  Event (WFE) IDLE states, a specific timing sensitivity exists between
+	  the retiring WFI/WFE instructions and the newly issued subsequent
+	  instructions.  This sensitivity can result in a CPU hang scenario.
+	  Workaround:
+	  The software must insert either a Data Synchronization Barrier (DSB)
+	  or Data Memory Barrier (DMB) command immediately after the WFI/WFE
+	  instruction
+
 config ARM_ERRATA_326103
 	bool "ARM errata: FSR write bit incorrect on a SWP to read-only memory"
 	depends on CPU_V6
@@ -1187,6 +1203,16 @@ config PL310_ERRATA_588369
 	   both performing to the same memory location. This functionality
 	   is not correctly implemented in PL310 as clean lines are not
 	   invalidated as a result of these operations.
+
+config ARM_ERRATA_643719
+	bool "ARM errata: LoUIS bit field in CLIDR register is incorrect"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 643719 Cortex-A9 (prior to
+	  r1p0) erratum. On affected cores the LoUIS bit field of the CLIDR
+	  register returns zero when it should return one. The workaround
+	  corrects this value, ensuring cache maintenance operations which use
+	  it behave as intended and avoiding data corruption.
 
 config ARM_ERRATA_720789
 	bool "ARM errata: TLBIASIDIS and TLBIMVAIS operations can broadcast a faulty ASID"
@@ -2005,7 +2031,7 @@ config XIP_PHYS_ADDR
 
 config KEXEC
 	bool "Kexec system call (EXPERIMENTAL)"
-	depends on (!SMP || HOTPLUG_CPU)
+	depends on (!SMP || PM_SLEEP_SMP)
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot

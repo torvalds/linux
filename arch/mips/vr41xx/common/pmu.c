@@ -27,6 +27,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
+#include <asm/idle.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/reboot.h>

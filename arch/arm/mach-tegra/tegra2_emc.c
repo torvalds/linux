@@ -307,11 +307,6 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "missing register base\n");
-		return -ENOMEM;
-	}
-
 	emc_regbase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(emc_regbase))
 		return PTR_ERR(emc_regbase);

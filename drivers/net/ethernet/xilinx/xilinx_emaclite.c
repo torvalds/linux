@@ -946,7 +946,8 @@ static int xemaclite_open(struct net_device *dev)
 		phy_write(lp->phy_dev, MII_CTRL1000, 0);
 
 		/* Advertise only 10 and 100mbps full/half duplex speeds */
-		phy_write(lp->phy_dev, MII_ADVERTISE, ADVERTISE_ALL);
+		phy_write(lp->phy_dev, MII_ADVERTISE, ADVERTISE_ALL |
+			  ADVERTISE_CSMA);
 
 		/* Restart auto negotiation */
 		bmcr = phy_read(lp->phy_dev, MII_BMCR);

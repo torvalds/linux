@@ -867,7 +867,7 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 	struct netdev_queue *nq = netdev_get_tx_queue(mp->dev, txq->index);
 	int reclaimed;
 
-	__netif_tx_lock(nq, smp_processor_id());
+	__netif_tx_lock_bh(nq);
 
 	reclaimed = 0;
 	while (reclaimed < budget && txq->tx_desc_count > 0) {
@@ -913,7 +913,7 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		dev_kfree_skb(skb);
 	}
 
-	__netif_tx_unlock(nq);
+	__netif_tx_unlock_bh(nq);
 
 	if (reclaimed < budget)
 		mp->work_tx &= ~(1 << txq->index);
@@ -1757,7 +1757,7 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 	memset(rxq->rx_desc_area, 0, size);
 
 	rxq->rx_desc_area_size = size;
-	rxq->rx_skb = kmalloc_array(rxq->rx_ring_size, sizeof(*rxq->rx_skb),
+	rxq->rx_skb = kcalloc(rxq->rx_ring_size, sizeof(*rxq->rx_skb),
 				    GFP_KERNEL);
 	if (rxq->rx_skb == NULL)
 		goto out_free;
@@ -2745,7 +2745,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	INIT_WORK(&mp->tx_timeout_task, tx_timeout_task);
 
-	netif_napi_add(dev, &mp->napi, mv643xx_eth_poll, 128);
+	netif_napi_add(dev, &mp->napi, mv643xx_eth_poll, NAPI_POLL_WEIGHT);
 
 	init_timer(&mp->rx_oom);
 	mp->rx_oom.data = (unsigned long)mp;

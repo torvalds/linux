@@ -976,8 +976,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* clear flip-flop to make sure 2-byte registers for
 		 * count and address get set correctly */
 		clear_dma_ff(devpriv->dma_chan);
-		set_dma_addr(devpriv->dma_chan,
-			     virt_to_bus(devpriv->dma_buffer));
+		set_dma_addr(devpriv->dma_chan, devpriv->dma_addr);
 		/*  set appropriate size of transfer */
 		devpriv->dma_transfer_size = labpc_suggest_transfer_size(cmd);
 		if (cmd->stop_src == TRIG_COUNT &&
@@ -1089,7 +1088,7 @@ static void labpc_drain_dma(struct comedi_device *dev)
 		devpriv->count -= num_points;
 
 	/*  set address and count for next transfer */
-	set_dma_addr(devpriv->dma_chan, virt_to_bus(devpriv->dma_buffer));
+	set_dma_addr(devpriv->dma_chan, devpriv->dma_addr);
 	set_dma_count(devpriv->dma_chan, leftover * sample_size);
 	release_dma_lock(flags);
 
@@ -1741,6 +1740,9 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				unsigned long dma_flags;
 
 				devpriv->dma_chan = dma_chan;
+				devpriv->dma_addr =
+					virt_to_bus(devpriv->dma_buffer);
+
 				dma_flags = claim_dma_lock();
 				disable_dma(devpriv->dma_chan);
 				set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);

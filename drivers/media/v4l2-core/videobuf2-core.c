@@ -2014,7 +2014,8 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 	if (list_empty(&q->queued_list))
 		return res | POLLERR;
 
-	poll_wait(file, &q->done_wq, wait);
+	if (list_empty(&q->done_list))
+		poll_wait(file, &q->done_wq, wait);
 
 	/*
 	 * Take first buffer available for dequeuing.

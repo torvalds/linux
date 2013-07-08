@@ -222,7 +222,7 @@ static struct exynos_drm_ippdrv *ipp_find_driver(struct ipp_context *ctx,
 		/* find ipp driver using idr */
 		ippdrv = ipp_find_obj(&ctx->ipp_idr, &ctx->ipp_lock,
 			ipp_id);
-		if (IS_ERR_OR_NULL(ippdrv)) {
+		if (IS_ERR(ippdrv)) {
 			DRM_ERROR("not found ipp%d driver.\n", ipp_id);
 			return ippdrv;
 		}
@@ -388,7 +388,7 @@ static int ipp_find_and_set_property(struct drm_exynos_ipp_property *property)
 	DRM_DEBUG_KMS("%s:prop_id[%d]\n", __func__, prop_id);
 
 	ippdrv = ipp_find_drv_by_handle(prop_id);
-	if (IS_ERR_OR_NULL(ippdrv)) {
+	if (IS_ERR(ippdrv)) {
 		DRM_ERROR("failed to get ipp driver.\n");
 		return -EINVAL;
 	}
@@ -492,7 +492,7 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 
 	/* find ipp driver using ipp id */
 	ippdrv = ipp_find_driver(ctx, property);
-	if (IS_ERR_OR_NULL(ippdrv)) {
+	if (IS_ERR(ippdrv)) {
 		DRM_ERROR("failed to get ipp driver.\n");
 		return -EINVAL;
 	}
@@ -521,19 +521,19 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 	c_node->state = IPP_STATE_IDLE;
 
 	c_node->start_work = ipp_create_cmd_work();
-	if (IS_ERR_OR_NULL(c_node->start_work)) {
+	if (IS_ERR(c_node->start_work)) {
 		DRM_ERROR("failed to create start work.\n");
 		goto err_clear;
 	}
 
 	c_node->stop_work = ipp_create_cmd_work();
-	if (IS_ERR_OR_NULL(c_node->stop_work)) {
+	if (IS_ERR(c_node->stop_work)) {
 		DRM_ERROR("failed to create stop work.\n");
 		goto err_free_start;
 	}
 
 	c_node->event_work = ipp_create_event_work();
-	if (IS_ERR_OR_NULL(c_node->event_work)) {
+	if (IS_ERR(c_node->event_work)) {
 		DRM_ERROR("failed to create event work.\n");
 		goto err_free_stop;
 	}
@@ -915,7 +915,7 @@ static int ipp_queue_buf_with_run(struct device *dev,
 	DRM_DEBUG_KMS("%s\n", __func__);
 
 	ippdrv = ipp_find_drv_by_handle(qbuf->prop_id);
-	if (IS_ERR_OR_NULL(ippdrv)) {
+	if (IS_ERR(ippdrv)) {
 		DRM_ERROR("failed to get ipp driver.\n");
 		return -EFAULT;
 	}
@@ -1909,7 +1909,7 @@ static int ipp_probe(struct platform_device *pdev)
 	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1963,7 +1963,7 @@ static int ipp_probe(struct platform_device *pdev)
 		goto err_cmd_workq;
 	}
 
-	dev_info(&pdev->dev, "drm ipp registered successfully.\n");
+	dev_info(dev, "drm ipp registered successfully.\n");
 
 	return 0;
 

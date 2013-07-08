@@ -1075,7 +1075,7 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	    acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev))
 		return NULL;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*ssp), GFP_KERNEL);
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		dev_err(&pdev->dev,
 			"failed to allocate memory for platform data\n");

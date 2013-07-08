@@ -146,7 +146,6 @@ config USB_LPC32XX
 	depends on ARCH_LPC32XX
 	depends on USB_PHY
 	select USB_ISP1301
-	select USB_OTG_UTILS
 	help
 	   This option selects the USB device controller in the LPC32xx SoC.
 

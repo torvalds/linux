@@ -131,7 +131,9 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[2] = "RSS XOR Hash Function support",
 		[3] = "Device manage flow steering support",
 		[4] = "Automatic MAC reassignment support",
-		[5] = "Time stamping support"
+		[5] = "Time stamping support",
+		[6] = "VST (control vlan insertion/stripping) support",
+		[7] = "FSM (MAC anti-spoofing) support"
 	};
 	int i;
 
@@ -838,12 +840,16 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			   MLX4_CMD_NATIVE);
 
 	if (!err && dev->caps.function != slave) {
-		/* set slave default_mac address */
-		MLX4_GET(def_mac, outbox->buf, QUERY_PORT_MAC_OFFSET);
-		def_mac += slave << 8;
 		/* if config MAC in DB use it */
 		if (priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac)
 			def_mac = priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac;
+		else {
+			/* set slave default_mac address */
+			MLX4_GET(def_mac, outbox->buf, QUERY_PORT_MAC_OFFSET);
+			def_mac += slave << 8;
+			priv->mfunc.master.vf_admin[slave].vport[vhcr->in_modifier].mac = def_mac;
+		}
+
 		MLX4_PUT(outbox->buf, def_mac, QUERY_PORT_MAC_OFFSET);
 
 		/* get port type - currently only eth is enabled */

@@ -763,7 +763,7 @@
 		};
 	};
 
-	pinctrl@03680000 {
+	pinctrl@03860000 {
 		gpz: gpz {
 			gpio-controller;
 			#gpio-cells = <2>;

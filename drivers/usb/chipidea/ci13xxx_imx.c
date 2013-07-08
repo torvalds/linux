@@ -173,17 +173,10 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 
 	ci13xxx_imx_platdata.phy = data->phy;
 
-	if (!pdev->dev.dma_mask) {
-		pdev->dev.dma_mask = devm_kzalloc(&pdev->dev,
-				      sizeof(*pdev->dev.dma_mask), GFP_KERNEL);
-		if (!pdev->dev.dma_mask) {
-			ret = -ENOMEM;
-			dev_err(&pdev->dev, "Failed to alloc dma_mask!\n");
-			goto err;
-		}
-		*pdev->dev.dma_mask = DMA_BIT_MASK(32);
-		dma_set_coherent_mask(&pdev->dev, *pdev->dev.dma_mask);
-	}
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	if (usbmisc_ops && usbmisc_ops->init) {
 		ret = usbmisc_ops->init(&pdev->dev);

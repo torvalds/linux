@@ -1962,7 +1962,7 @@ static int fc_rport_fcp_prli(struct fc_rport_priv *rdata, u32 spp_len,
 		rdata->flags |= FC_RP_FLAGS_RETRY;
 	rdata->supported_classes = FC_COS_CLASS3;
 
-	if (!(lport->service_params & FC_RPORT_ROLE_FCP_INITIATOR))
+	if (!(lport->service_params & FCP_SPPF_INIT_FCN))
 		return 0;
 
 	spp->spp_flags |= rspp->spp_flags & FC_SPP_EST_IMG_PAIR;

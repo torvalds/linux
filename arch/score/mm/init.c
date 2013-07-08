@@ -41,8 +41,6 @@
 unsigned long empty_zero_page;
 EXPORT_SYMBOL_GPL(empty_zero_page);
 
-static struct kcore_list kcore_mem, kcore_vmalloc;
-
 static void setup_zero_page(void)
 {
 	struct page *page;

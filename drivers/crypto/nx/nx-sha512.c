@@ -69,7 +69,7 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 	 *  1: <= SHA512_BLOCK_SIZE: copy into state, return 0
 	 *  2: > SHA512_BLOCK_SIZE: process X blocks, copy in leftover
 	 */
-	if ((u64)len + sctx->count[0] <= SHA512_BLOCK_SIZE) {
+	if ((u64)len + sctx->count[0] < SHA512_BLOCK_SIZE) {
 		memcpy(sctx->buf + sctx->count[0], data, len);
 		sctx->count[0] += len;
 		goto out;
@@ -110,7 +110,8 @@ static int nx_sha512_update(struct shash_desc *desc, const u8 *data,
 	atomic_inc(&(nx_ctx->stats->sha512_ops));
 
 	/* copy the leftover back into the state struct */
-	memcpy(sctx->buf, data + len - leftover, leftover);
+	if (leftover)
+		memcpy(sctx->buf, data + len - leftover, leftover);
 	sctx->count[0] = leftover;
 
 	spbc_bits = csbcpb->cpb.sha512.spbc * 8;
@@ -168,7 +169,7 @@ static int nx_sha512_final(struct shash_desc *desc, u8 *out)
 		goto out;
 
 	atomic_inc(&(nx_ctx->stats->sha512_ops));
-	atomic64_add(csbcpb->cpb.sha512.message_bit_length_lo,
+	atomic64_add(csbcpb->cpb.sha512.message_bit_length_lo / 8,
 		     &(nx_ctx->stats->sha512_bytes));
 
 	memcpy(out, csbcpb->cpb.sha512.message_digest, SHA512_DIGEST_SIZE);

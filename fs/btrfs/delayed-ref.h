@@ -60,6 +60,7 @@ struct btrfs_delayed_ref_node {
 struct btrfs_delayed_extent_op {
 	struct btrfs_disk_key key;
 	u64 flags_to_set;
+	int level;
 	unsigned int update_key:1;
 	unsigned int update_flags:1;
 	unsigned int is_data:1;

@@ -152,7 +152,7 @@ static struct btrfs_lockdep_keyset {
 	{ .id = BTRFS_DEV_TREE_OBJECTID,	.name_stem = "dev"	},
 	{ .id = BTRFS_FS_TREE_OBJECTID,		.name_stem = "fs"	},
 	{ .id = BTRFS_CSUM_TREE_OBJECTID,	.name_stem = "csum"	},
-	{ .id = BTRFS_ORPHAN_OBJECTID,		.name_stem = "orphan"	},
+	{ .id = BTRFS_QUOTA_TREE_OBJECTID,	.name_stem = "quota"	},
 	{ .id = BTRFS_TREE_LOG_OBJECTID,	.name_stem = "log"	},
 	{ .id = BTRFS_TREE_RELOC_OBJECTID,	.name_stem = "treloc"	},
 	{ .id = BTRFS_DATA_RELOC_TREE_OBJECTID,	.name_stem = "dreloc"	},
@@ -1513,7 +1513,6 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	}
 
 	root->commit_root = btrfs_root_node(root);
-	BUG_ON(!root->node); /* -ENOMEM */
 out:
 	if (location->objectid != BTRFS_TREE_LOG_OBJECTID) {
 		root->ref_cows = 1;
@@ -1988,30 +1987,33 @@ static void free_root_pointers(struct btrfs_fs_info *info, int chunk_root)
 {
 	free_extent_buffer(info->tree_root->node);
 	free_extent_buffer(info->tree_root->commit_root);
-	free_extent_buffer(info->dev_root->node);
-	free_extent_buffer(info->dev_root->commit_root);
-	free_extent_buffer(info->extent_root->node);
-	free_extent_buffer(info->extent_root->commit_root);
-	free_extent_buffer(info->csum_root->node);
-	free_extent_buffer(info->csum_root->commit_root);
+	info->tree_root->node = NULL;
+	info->tree_root->commit_root = NULL;
+
+	if (info->dev_root) {
+		free_extent_buffer(info->dev_root->node);
+		free_extent_buffer(info->dev_root->commit_root);
+		info->dev_root->node = NULL;
+		info->dev_root->commit_root = NULL;
+	}
+	if (info->extent_root) {
+		free_extent_buffer(info->extent_root->node);
+		free_extent_buffer(info->extent_root->commit_root);
+		info->extent_root->node = NULL;
+		info->extent_root->commit_root = NULL;
+	}
+	if (info->csum_root) {
+		free_extent_buffer(info->csum_root->node);
+		free_extent_buffer(info->csum_root->commit_root);
+		info->csum_root->node = NULL;
+		info->csum_root->commit_root = NULL;
+	}
 	if (info->quota_root) {
 		free_extent_buffer(info->quota_root->node);
 		free_extent_buffer(info->quota_root->commit_root);
-	}
-
-	info->tree_root->node = NULL;
-	info->tree_root->commit_root = NULL;
-	info->dev_root->node = NULL;
-	info->dev_root->commit_root = NULL;
-	info->extent_root->node = NULL;
-	info->extent_root->commit_root = NULL;
-	info->csum_root->node = NULL;
-	info->csum_root->commit_root = NULL;
-	if (info->quota_root) {
 		info->quota_root->node = NULL;
 		info->quota_root->commit_root = NULL;
 	}
-
 	if (chunk_root) {
 		free_extent_buffer(info->chunk_root->node);
 		free_extent_buffer(info->chunk_root->commit_root);
@@ -2857,8 +2859,8 @@ fail_qgroup:
 	btrfs_free_qgroup_config(fs_info);
 fail_trans_kthread:
 	kthread_stop(fs_info->transaction_kthread);
-	del_fs_roots(fs_info);
 	btrfs_cleanup_transaction(fs_info->tree_root);
+	del_fs_roots(fs_info);
 fail_cleaner:
 	kthread_stop(fs_info->cleaner_kthread);
 
@@ -3128,7 +3130,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 	 * caller
 	 */
 	device->flush_bio = NULL;
-	bio = bio_alloc(GFP_NOFS, 0);
+	bio = btrfs_io_bio_alloc(GFP_NOFS, 0);
 	if (!bio)
 		return -ENOMEM;
 
@@ -3510,15 +3512,15 @@ int close_ctree(struct btrfs_root *root)
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
-	free_root_pointers(fs_info, 1);
-
 	btrfs_free_block_groups(fs_info);
+
+	btrfs_stop_all_workers(fs_info);
 
 	del_fs_roots(fs_info);
 
-	iput(fs_info->btree_inode);
+	free_root_pointers(fs_info, 1);
 
-	btrfs_stop_all_workers(fs_info);
+	iput(fs_info->btree_inode);
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	if (btrfs_test_opt(root, CHECK_INTEGRITY))
@@ -3659,8 +3661,11 @@ static void btrfs_destroy_ordered_operations(struct btrfs_transaction *t,
 					 ordered_operations);
 
 		list_del_init(&btrfs_inode->ordered_operations);
+		spin_unlock(&root->fs_info->ordered_extent_lock);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
+
+		spin_lock(&root->fs_info->ordered_extent_lock);
 	}
 
 	spin_unlock(&root->fs_info->ordered_extent_lock);
@@ -3782,8 +3787,11 @@ static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 		list_del_init(&btrfs_inode->delalloc_inodes);
 		clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
 			  &btrfs_inode->runtime_flags);
+		spin_unlock(&root->fs_info->delalloc_lock);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
+
+		spin_lock(&root->fs_info->delalloc_lock);
 	}
 
 	spin_unlock(&root->fs_info->delalloc_lock);
@@ -3808,7 +3816,7 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 		while (start <= end) {
 			eb = btrfs_find_tree_block(root, start,
 						   root->leafsize);
-			start += eb->len;
+			start += root->leafsize;
 			if (!eb)
 				continue;
 			wait_on_extent_buffer_writeback(eb);

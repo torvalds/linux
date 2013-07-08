@@ -50,11 +50,16 @@ nv50_dac_sense(struct nv50_disp_priv *priv, int or, u32 loadval)
 {
 	const u32 doff = (or * 0x800);
 	int load = -EINVAL;
+	nv_mask(priv, 0x61a004 + doff, 0x807f0000, 0x80150000);
+	nv_wait(priv, 0x61a004 + doff, 0x80000000, 0x00000000);
 	nv_wr32(priv, 0x61a00c + doff, 0x00100000 | loadval);
-	udelay(9500);
+	mdelay(9);
+	udelay(500);
 	nv_wr32(priv, 0x61a00c + doff, 0x80000000);
 	load = (nv_rd32(priv, 0x61a00c + doff) & 0x38000000) >> 27;
 	nv_wr32(priv, 0x61a00c + doff, 0x00000000);
+	nv_mask(priv, 0x61a004 + doff, 0x807f0000, 0x80550000);
+	nv_wait(priv, 0x61a004 + doff, 0x80000000, 0x00000000);
 	return load;
 }
 

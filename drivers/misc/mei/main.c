@@ -489,10 +489,15 @@ static int mei_ioctl_connect_client(struct file *file,
 
 	/* find ME client we're trying to connect to */
 	i = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
-	if (i >= 0 && !dev->me_clients[i].props.fixed_address) {
-		cl->me_client_id = dev->me_clients[i].client_id;
-		cl->state = MEI_FILE_CONNECTING;
+	if (i < 0 || dev->me_clients[i].props.fixed_address) {
+		dev_dbg(&dev->pdev->dev, "Cannot connect to FW Client UUID = %pUl\n",
+				&data->in_client_uuid);
+		rets = -ENODEV;
+		goto end;
 	}
+
+	cl->me_client_id = dev->me_clients[i].client_id;
+	cl->state = MEI_FILE_CONNECTING;
 
 	dev_dbg(&dev->pdev->dev, "Connect to FW Client ID = %d\n",
 			cl->me_client_id);
@@ -527,11 +532,6 @@ static int mei_ioctl_connect_client(struct file *file,
 		goto end;
 	}
 
-	if (cl->state != MEI_FILE_CONNECTING) {
-		rets = -ENODEV;
-		goto end;
-	}
-
 
 	/* prepare the output buffer */
 	client = &data->out_client_properties;
@@ -543,7 +543,6 @@ static int mei_ioctl_connect_client(struct file *file,
 	rets = mei_cl_connect(cl, file);
 
 end:
-	dev_dbg(&dev->pdev->dev, "free connect cb memory.");
 	return rets;
 }
 

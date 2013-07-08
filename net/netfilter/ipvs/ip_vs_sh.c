@@ -67,8 +67,8 @@ struct ip_vs_sh_bucket {
 #define IP_VS_SH_TAB_MASK               (IP_VS_SH_TAB_SIZE - 1)
 
 struct ip_vs_sh_state {
-	struct ip_vs_sh_bucket		buckets[IP_VS_SH_TAB_SIZE];
 	struct rcu_head			rcu_head;
+	struct ip_vs_sh_bucket		buckets[IP_VS_SH_TAB_SIZE];
 };
 
 /*

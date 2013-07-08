@@ -2008,6 +2008,14 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	WARN_ON(i != ATH9K_SSTATS_LEN);
 }
 
+void ath9k_deinit_debug(struct ath_softc *sc)
+{
+	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && sc->rfs_chan_spec_scan) {
+		relay_close(sc->rfs_chan_spec_scan);
+		sc->rfs_chan_spec_scan = NULL;
+	}
+}
+
 int ath9k_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);

@@ -1660,8 +1660,10 @@ static int __init m66592_probe(struct platform_device *pdev)
 	m66592->epaddr2ep[0] = &m66592->ep[0];
 
 	m66592->ep0_req = m66592_alloc_request(&m66592->ep[0].ep, GFP_KERNEL);
-	if (m66592->ep0_req == NULL)
+	if (m66592->ep0_req == NULL) {
+		ret = -ENOMEM;
 		goto clean_up3;
+	}
 	m66592->ep0_req->complete = nop_completion;
 
 	init_controller(m66592);

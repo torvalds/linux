@@ -3027,19 +3027,26 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	 * TODO: we do not use +6 dBm option to do not increase power beyond
 	 * regulatory limit, however this could be utilized for devices with
 	 * CAPABILITY_POWER_LIMIT.
+	 *
+	 * TODO: add different temperature compensation code for RT3290 & RT5390
+	 * to allow to use BBP_R1 for those chips.
 	 */
-	rt2800_bbp_read(rt2x00dev, 1, &r1);
-	if (delta <= -12) {
-		power_ctrl = 2;
-		delta += 12;
-	} else if (delta <= -6) {
-		power_ctrl = 1;
-		delta += 6;
-	} else {
-		power_ctrl = 0;
+	if (!rt2x00_rt(rt2x00dev, RT3290) &&
+	    !rt2x00_rt(rt2x00dev, RT5390)) {
+		rt2800_bbp_read(rt2x00dev, 1, &r1);
+		if (delta <= -12) {
+			power_ctrl = 2;
+			delta += 12;
+		} else if (delta <= -6) {
+			power_ctrl = 1;
+			delta += 6;
+		} else {
+			power_ctrl = 0;
+		}
+		rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, power_ctrl);
+		rt2800_bbp_write(rt2x00dev, 1, r1);
 	}
-	rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, power_ctrl);
-	rt2800_bbp_write(rt2x00dev, 1, r1);
+
 	offset = TX_PWR_CFG_0;
 
 	for (i = 0; i < EEPROM_TXPOWER_BYRATE_SIZE; i += 2) {

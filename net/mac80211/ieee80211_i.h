@@ -1267,6 +1267,7 @@ void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mgd_conn_tx_status(struct ieee80211_sub_if_data *sdata,
 				  __le16 fc, bool acked);
+void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
 
 /* IBSS code */
 void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local);
@@ -1496,10 +1497,11 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb_tid(sdata, skb, 7);
 }
 
-u32 ieee802_11_parse_elems_crc(u8 *start, size_t len, bool action,
+u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			       struct ieee802_11_elems *elems,
 			       u64 filter, u32 crc);
-static inline void ieee802_11_parse_elems(u8 *start, size_t len, bool action,
+static inline void ieee802_11_parse_elems(const u8 *start, size_t len,
+					  bool action,
 					  struct ieee802_11_elems *elems)
 {
 	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0);

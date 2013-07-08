@@ -131,12 +131,13 @@ static const char qlcnic_83xx_rx_stats_strings[][ETH_GSTRING_LEN] = {
 	"ctx_lro_pkt_cnt",
 	"ctx_ip_csum_error",
 	"ctx_rx_pkts_wo_ctx",
-	"ctx_rx_pkts_dropped_wo_sts",
+	"ctx_rx_pkts_drop_wo_sds_on_card",
+	"ctx_rx_pkts_drop_wo_sds_on_host",
 	"ctx_rx_osized_pkts",
 	"ctx_rx_pkts_dropped_wo_rds",
 	"ctx_rx_unexpected_mcast_pkts",
 	"ctx_invalid_mac_address",
-	"ctx_rx_rds_ring_prim_attemoted",
+	"ctx_rx_rds_ring_prim_attempted",
 	"ctx_rx_rds_ring_prim_success",
 	"ctx_num_lro_flows_added",
 	"ctx_num_lro_flows_removed",
@@ -251,6 +252,18 @@ static int
 qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
+
+	if (qlcnic_82xx_check(adapter))
+		return qlcnic_82xx_get_settings(adapter, ecmd);
+	else if (qlcnic_83xx_check(adapter))
+		return qlcnic_83xx_get_settings(adapter, ecmd);
+
+	return -EIO;
+}
+
+int qlcnic_82xx_get_settings(struct qlcnic_adapter *adapter,
+			     struct ethtool_cmd *ecmd)
+{
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 speed, reg;
 	int check_sfp_module = 0;
@@ -276,10 +289,7 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 	} else if (adapter->ahw->port_type == QLCNIC_XGBE) {
 		u32 val = 0;
-		if (qlcnic_83xx_check(adapter))
-			qlcnic_83xx_get_settings(adapter);
-		else
-			val = QLCRD32(adapter, QLCNIC_PORT_MODE_ADDR);
+		val = QLCRD32(adapter, QLCNIC_PORT_MODE_ADDR);
 
 		if (val == QLCNIC_PORT_MODE_802_3_AP) {
 			ecmd->supported = SUPPORTED_1000baseT_Full;
@@ -289,16 +299,13 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			ecmd->advertising = ADVERTISED_10000baseT_Full;
 		}
 
-		if (netif_running(dev) && adapter->ahw->has_link_events) {
-			if (qlcnic_82xx_check(adapter)) {
-				reg = QLCRD32(adapter,
-					      P3P_LINK_SPEED_REG(pcifn));
-				speed = P3P_LINK_SPEED_VAL(pcifn, reg);
-				ahw->link_speed = speed * P3P_LINK_SPEED_MHZ;
-			}
-			ethtool_cmd_speed_set(ecmd, adapter->ahw->link_speed);
-			ecmd->autoneg = adapter->ahw->link_autoneg;
-			ecmd->duplex = adapter->ahw->link_duplex;
+		if (netif_running(adapter->netdev) && ahw->has_link_events) {
+			reg = QLCRD32(adapter, P3P_LINK_SPEED_REG(pcifn));
+			speed = P3P_LINK_SPEED_VAL(pcifn, reg);
+			ahw->link_speed = speed * P3P_LINK_SPEED_MHZ;
+			ethtool_cmd_speed_set(ecmd, ahw->link_speed);
+			ecmd->autoneg = ahw->link_autoneg;
+			ecmd->duplex = ahw->link_duplex;
 			goto skip;
 		}
 
@@ -340,8 +347,8 @@ skip:
 	case QLCNIC_BRDTYPE_P3P_10G_SFP_QT:
 		ecmd->advertising |= ADVERTISED_TP;
 		ecmd->supported |= SUPPORTED_TP;
-		check_sfp_module = netif_running(dev) &&
-				   adapter->ahw->has_link_events;
+		check_sfp_module = netif_running(adapter->netdev) &&
+				   ahw->has_link_events;
 	case QLCNIC_BRDTYPE_P3P_10G_XFP:
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising |= ADVERTISED_FIBRE;
@@ -355,8 +362,8 @@ skip:
 			ecmd->advertising |=
 				(ADVERTISED_FIBRE | ADVERTISED_TP);
 			ecmd->port = PORT_FIBRE;
-			check_sfp_module = netif_running(dev) &&
-					   adapter->ahw->has_link_events;
+			check_sfp_module = netif_running(adapter->netdev) &&
+					   ahw->has_link_events;
 		} else {
 			ecmd->autoneg = AUTONEG_ENABLE;
 			ecmd->supported |= (SUPPORTED_TP | SUPPORTED_Autoneg);
@@ -364,13 +371,6 @@ skip:
 				(ADVERTISED_TP | ADVERTISED_Autoneg);
 			ecmd->port = PORT_TP;
 		}
-		break;
-	case QLCNIC_BRDTYPE_83XX_10G:
-		ecmd->autoneg = AUTONEG_DISABLE;
-		ecmd->supported |= (SUPPORTED_FIBRE | SUPPORTED_TP);
-		ecmd->advertising |= (ADVERTISED_FIBRE | ADVERTISED_TP);
-		ecmd->port = PORT_FIBRE;
-		check_sfp_module = netif_running(dev) && ahw->has_link_events;
 		break;
 	default:
 		dev_err(&adapter->pdev->dev, "Unsupported board model %d\n",
