@@ -121,8 +121,6 @@ static int sram_restore_start = 0;
 static int late_resume_end = 0;
 #endif
 
-standby_level_e standby_level = STANDBY_INITIAL;
-EXPORT_SYMBOL(standby_level);
 EXPORT_SYMBOL(pm_disable_watchdog);
 EXPORT_SYMBOL(pm_enable_watchdog);
 
@@ -463,6 +461,103 @@ static struct platform_suspend_ops aw_pm_ops = {
     .recover = aw_pm_recover,
 };
 
+static int dram_para_script_fetch(char *sub, u32 *val)
+{
+	if (script_parser_fetch("dram_para", sub, val, sizeof(int))) {
+		pr_err("dram para %s fetch err\n", sub);
+		return -1;
+	}
+	pr_debug("dram config [dram_para] [%s] : %d\n", sub, *val);
+	return 0;
+}
+
+static int fetch_and_save_dram_para(standy_dram_para_t *pstandby_dram_para)
+{
+	int ret;
+
+	ret = dram_para_script_fetch( "dram_baseaddr", &pstandby_dram_para->dram_baseaddr);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_clk", &pstandby_dram_para->dram_clk);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_type", &pstandby_dram_para->dram_type);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_rank_num", &pstandby_dram_para->dram_rank_num);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_chip_density", &pstandby_dram_para->dram_chip_density);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_io_width", &pstandby_dram_para->dram_io_width);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_bus_width", &pstandby_dram_para->dram_bus_width);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_cas", &pstandby_dram_para->dram_cas);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_zq", &pstandby_dram_para->dram_zq);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_odt_en", &pstandby_dram_para->dram_odt_en);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_size", &pstandby_dram_para->dram_size);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_tpr0", &pstandby_dram_para->dram_tpr0);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_tpr1", &pstandby_dram_para->dram_tpr1);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_tpr2", &pstandby_dram_para->dram_tpr2);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_tpr3", &pstandby_dram_para->dram_tpr3);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_tpr4", &pstandby_dram_para->dram_tpr4);
+	if (ret)
+		return -1;
+    
+	ret = dram_para_script_fetch( "dram_tpr5", &pstandby_dram_para->dram_tpr5);
+	if (ret)
+		return -1;
+    
+	ret = dram_para_script_fetch( "dram_emr1", &pstandby_dram_para->dram_emr1);
+	if (ret)
+		return -1;
+    
+	ret = dram_para_script_fetch( "dram_emr2", &pstandby_dram_para->dram_emr2);
+	if (ret)
+		return -1;
+
+	ret = dram_para_script_fetch( "dram_emr3", &pstandby_dram_para->dram_emr3);
+	if (ret)
+		return -1;
+
+	return 0;
+}
+
 /*
 *********************************************************************************************************
 *                           aw_pm_init
@@ -479,6 +574,12 @@ static struct platform_suspend_ops aw_pm_ops = {
 */
 static int __init aw_pm_init(void)
 {
+	if (fetch_and_save_dram_para(&standby_info.dram_para) != 0) {
+		memset(&standby_info.dram_para, 0,
+		       sizeof(standby_info.dram_para));
+		pr_err("%s: fetch_and_save_dram_para err.\n", __func__);
+	}
+
     suspend_set_ops(&aw_pm_ops);
 
     return 0;

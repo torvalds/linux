@@ -78,13 +78,6 @@ struct aw_pmu_arg{
 };
 
 #ifdef CONFIG_ARCH_SUN7I
-typedef enum {
-	STANDBY_INITIAL = 0,
-	STANDBY_WITH_POWER = 1,
-	STANDBY_WITH_POWER_OFF = 2
-} standby_level_e;
-extern standby_level_e standby_level;
-
 typedef struct _boot_dram_para_t
 {
 	unsigned int	dram_baseaddr;
