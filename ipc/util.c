@@ -468,9 +468,7 @@ void ipc_free(void* ptr, int size)
 struct ipc_rcu {
 	struct rcu_head rcu;
 	atomic_t refcount;
-	/* "void *" makes sure alignment of following data is sane. */
-	void *data[0];
-};
+} ____cacheline_aligned_in_smp;
 
 /**
  *	ipc_rcu_alloc	-	allocate ipc and rcu space 
@@ -488,12 +486,14 @@ void *ipc_rcu_alloc(int size)
 	if (unlikely(!out))
 		return NULL;
 	atomic_set(&out->refcount, 1);
-	return out->data;
+	return out + 1;
 }
 
 int ipc_rcu_getref(void *ptr)
 {
-	return atomic_inc_not_zero(&container_of(ptr, struct ipc_rcu, data)->refcount);
+	struct ipc_rcu *p = ((struct ipc_rcu *)ptr) - 1;
+
+	return atomic_inc_not_zero(&p->refcount);
 }
 
 /**
@@ -507,7 +507,7 @@ static void ipc_schedule_free(struct rcu_head *head)
 
 void ipc_rcu_putref(void *ptr)
 {
-	struct ipc_rcu *p = container_of(ptr, struct ipc_rcu, data);
+	struct ipc_rcu *p = ((struct ipc_rcu *)ptr) - 1;
 
 	if (!atomic_dec_and_test(&p->refcount))
 		return;
