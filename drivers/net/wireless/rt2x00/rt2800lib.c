@@ -7636,6 +7636,7 @@ static int rt2800_probe_rt(struct rt2x00_dev *rt2x00dev)
 	case RT3352:
 	case RT3390:
 	case RT3572:
+	case RT3593:
 	case RT5390:
 	case RT5392:
 	case RT5592:
