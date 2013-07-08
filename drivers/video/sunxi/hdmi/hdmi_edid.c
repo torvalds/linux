@@ -198,6 +198,9 @@ Parse_DTD_Block(__u8 *pbuf)
 			      &dummy, &dummy) != 0)
 		return 0;
 
+	if (disp_check_fbmem(-1, sizex, sizey) != 0)
+		return 0;
+
 	pr_info("Using above mode as preferred EDID mode\n");
 
 	if (video_timing[video_timing_edid].I) {

@@ -1658,6 +1658,46 @@ __s32 Display_set_fb_timing(__u32 sel)
 	return 0;
 }
 
+int disp_check_fbmem(int sel, int width, int height)
+{
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	int i, bytes_per_pixel, needed;
+
+	/* If necessary determine sel */
+	if (sel == -1) {
+		for (i = 0; i < 2; i++) {
+			if (g_fbi.disp_init.output_type[i] ==
+       						DISP_OUTPUT_TYPE_HDMI) {
+				sel = i;
+				break;
+			}
+		}
+		if (sel == -1)
+			return -1;
+	}
+
+	/* Get bytes_per_pixel */
+	if (g_fbi.disp_init.format[sel] == DISP_FORMAT_ARGB8888)
+		bytes_per_pixel = 4;
+	else if (g_fbi.disp_init.format[sel] == DISP_FORMAT_RGB888)
+		bytes_per_pixel = 3;
+	else
+		bytes_per_pixel = 2;
+
+	/* And finally check we've enough mem */
+	needed = width * height * bytes_per_pixel *
+	         g_fbi.disp_init.buffer_num[sel];
+        if (needed > fb_size) {
+		pr_warn("fbdev: %dx%d needs %d bytes, but only %ld avail.\n",
+		        width, height, needed, fb_size);
+		return -1;
+	}
+#endif
+
+	return 0;
+}
+EXPORT_SYMBOL(disp_check_fbmem);
+
 void hdmi_edid_received(unsigned char *edid, int block_count)
 {
 	struct fb_event event;
@@ -1719,7 +1759,9 @@ void hdmi_edid_received(unsigned char *edid, int block_count)
 		list_for_each_entry_safe(m, n, &fbi->modelist, list) {
 			if (disp_get_pll_freq(
 				fb_videomode_pixclock_to_hdmi_pclk(
-					m->mode.pixclock), &dummy, &dummy)) {
+				    m->mode.pixclock), &dummy, &dummy) != 0 ||
+			    disp_check_fbmem(sel,
+					   m->mode.xres, m->mode.yres) != 0) {
 				list_del(&m->list);
 				kfree(m);
 			}
