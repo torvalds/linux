@@ -6,6 +6,7 @@
 
 #define pr_fmt(fmt)	"reboot: " fmt
 
+#include <linux/ctype.h>
 #include <linux/export.h>
 #include <linux/kexec.h>
 #include <linux/kmod.h>
@@ -23,6 +24,18 @@
 int C_A_D = 1;
 struct pid *cad_pid;
 EXPORT_SYMBOL(cad_pid);
+
+#if defined(CONFIG_ARM) || defined(CONFIG_UNICORE32)
+#define DEFAULT_REBOOT_MODE		= REBOOT_HARD
+#else
+#define DEFAULT_REBOOT_MODE
+#endif
+enum reboot_mode reboot_mode DEFAULT_REBOOT_MODE;
+
+int reboot_default;
+int reboot_cpu;
+enum reboot_type reboot_type = BOOT_ACPI;
+int reboot_force;
 
 /*
  * If set, this is used for preparing the system to power off.
@@ -87,7 +100,7 @@ EXPORT_SYMBOL(unregister_reboot_notifier);
 static void migrate_to_reboot_cpu(void)
 {
 	/* The boot cpu is always logical cpu 0 */
-	int cpu = 0;
+	int cpu = reboot_cpu;
 
 	cpu_hotplug_disable();
 
@@ -343,3 +356,64 @@ int orderly_poweroff(bool force)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(orderly_poweroff);
+
+static int __init reboot_setup(char *str)
+{
+	for (;;) {
+		/*
+		 * Having anything passed on the command line via
+		 * reboot= will cause us to disable DMI checking
+		 * below.
+		 */
+		reboot_default = 0;
+
+		switch (*str) {
+		case 'w':
+			reboot_mode = REBOOT_WARM;
+			break;
+
+		case 'c':
+			reboot_mode = REBOOT_COLD;
+			break;
+
+		case 'h':
+			reboot_mode = REBOOT_HARD;
+			break;
+
+		case 's':
+			if (isdigit(*(str+1)))
+				reboot_cpu = simple_strtoul(str+1, NULL, 0);
+			else if (str[1] == 'm' && str[2] == 'p' &&
+							isdigit(*(str+3)))
+				reboot_cpu = simple_strtoul(str+3, NULL, 0);
+			else
+				reboot_mode = REBOOT_SOFT;
+			break;
+
+		case 'g':
+			reboot_mode = REBOOT_GPIO;
+			break;
+
+		case 'b':
+		case 'a':
+		case 'k':
+		case 't':
+		case 'e':
+		case 'p':
+			reboot_type = *str;
+			break;
+
+		case 'f':
+			reboot_force = 1;
+			break;
+		}
+
+		str = strchr(str, ',');
+		if (str)
+			str++;
+		else
+			break;
+	}
+	return 1;
+}
+__setup("reboot=", reboot_setup);

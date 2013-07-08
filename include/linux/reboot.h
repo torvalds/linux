@@ -17,6 +17,23 @@ enum reboot_mode {
 	REBOOT_SOFT,
 	REBOOT_GPIO,
 };
+extern enum reboot_mode reboot_mode;
+
+enum reboot_type {
+	BOOT_TRIPLE = 't',
+	BOOT_KBD = 'k',
+	BOOT_BIOS = 'b',
+	BOOT_ACPI = 'a',
+	BOOT_EFI = 'e',
+	BOOT_CF9 = 'p',
+	BOOT_CF9_COND = 'q',
+};
+extern enum reboot_type reboot_type;
+
+extern int reboot_default;
+extern int reboot_cpu;
+extern int reboot_force;
+
 
 extern int register_reboot_notifier(struct notifier_block *);
 extern int unregister_reboot_notifier(struct notifier_block *);

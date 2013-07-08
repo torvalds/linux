@@ -2681,9 +2681,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Run specified binary instead of /init from the ramdisk,
 			used for early userspace startup. See initrd.
 
-	reboot=		[BUGS=X86-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
-			Format: <reboot_mode>[,<reboot_mode2>[,...]]
-			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
+	reboot=		[KNL]
+			Format (x86 or x86_64):
+				[w[arm] | c[old] | h[ard] | s[oft] | g[pio]] \
+				[[,]s[mp]#### \
+				[[,]b[ios] | a[cpi] | k[bd] | t[riple] | e[fi] | p[ci]] \
+				[[,]f[orce]
+			Where reboot_mode is one of warm (soft) or cold (hard) or gpio,
+			      reboot_type is one of bios, acpi, kbd, triple, efi, or pci,
+			      reboot_force is either force or not specified,
+			      reboot_cpu is s[mp]#### with #### being the processor
+					to be used for rebooting.
 
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
