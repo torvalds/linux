@@ -498,7 +498,6 @@ u32 gpio_request_ex(char *main_name, const char *sub_name)	/* 设备申请GPIO�
 		}
 	} else {
 		if (script_parser_fetch((char *)main_name, (char *)sub_name, (int *)&one_gpio, (sizeof(user_gpio_set_t) >> 2)) < 0) {
-			printk(KERN_ERR "script parser fetch err.\n");
 			return 0;
 		}
 
