@@ -1296,7 +1296,6 @@ static int semctl_down(struct ipc_namespace *ns, int semid,
 				      &semid64.sem_perm, 0);
 	if (IS_ERR(ipcp)) {
 		err = PTR_ERR(ipcp);
-		/* the ipc lock is not held upon failure */
 		goto out_unlock1;
 	}
 
