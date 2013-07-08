@@ -1803,6 +1803,13 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 
 	rt2800_bbp_write(rt2x00dev, 3, r3);
 	rt2800_bbp_write(rt2x00dev, 1, r1);
+
+	if (rt2x00_rt(rt2x00dev, RT3593)) {
+		if (ant->rx_chain_num == 1)
+			rt2800_bbp_write(rt2x00dev, 86, 0x00);
+		else
+			rt2800_bbp_write(rt2x00dev, 86, 0x46);
+	}
 }
 EXPORT_SYMBOL_GPL(rt2800_config_ant);
 
