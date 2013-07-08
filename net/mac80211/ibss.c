@@ -85,6 +85,14 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	chandef = ifibss->chandef;
 	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef)) {
+		if (chandef.width == NL80211_CHAN_WIDTH_5 ||
+		    chandef.width == NL80211_CHAN_WIDTH_10 ||
+		    chandef.width == NL80211_CHAN_WIDTH_20_NOHT ||
+		    chandef.width == NL80211_CHAN_WIDTH_20) {
+			sdata_info(sdata,
+				   "Failed to join IBSS, beacons forbidden\n");
+			return;
+		}
 		chandef.width = NL80211_CHAN_WIDTH_20;
 		chandef.center_freq1 = chan->center_freq;
 	}
