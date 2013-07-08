@@ -1,7 +1,7 @@
 /*
  * LZ4 Decompressor for Linux kernel
  *
- * Copyright (C) 2013 LG Electronics Co., Ltd. (http://www.lge.com/)
+ * Copyright (C) 2013, LG Electronics, Kyungsik Lee <kyungsik.lee@lge.com>
  *
  * Based on LZ4 implementation by Yann Collet.
  *
