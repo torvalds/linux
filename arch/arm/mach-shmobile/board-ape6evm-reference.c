@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_device.h>
 #include <linux/sh_clk.h>
 #include <mach/common.h>
 #include <mach/r8a73a4.h>
@@ -56,6 +57,7 @@ static void __init ape6evm_add_standard_devices(void)
 	r8a73a4_pinmux_init();
 	r8a73a4_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	platform_device_register_simple("cpufreq-cpu0", -1, NULL, 0);
 }
 
 static const char *ape6evm_boards_compat_dt[] __initdata = {
