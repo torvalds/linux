@@ -811,6 +811,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
  *	is stored in the @ampdu_delimiter_crc field)
  * @RX_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
+ * @RX_FLAG_10MHZ: 10 MHz (half channel) was used
+ * @RX_FLAG_5MHZ: 5 MHz (quarter channel) was used
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
@@ -839,6 +841,8 @@ enum mac80211_rx_flags {
 	RX_FLAG_80P80MHZ		= BIT(24),
 	RX_FLAG_160MHZ			= BIT(25),
 	RX_FLAG_STBC_MASK		= BIT(26) | BIT(27),
+	RX_FLAG_10MHZ			= BIT(28),
+	RX_FLAG_5MHZ			= BIT(29),
 };
 
 #define RX_FLAG_STBC_SHIFT		26

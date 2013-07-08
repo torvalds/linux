@@ -159,6 +159,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	__le32 *it_present;
 	u32 it_present_val;
 	u16 rx_flags = 0;
+	u16 channel_flags = 0;
 	int mpdulen, chain;
 	unsigned long chains = status->chains;
 
@@ -243,20 +244,22 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_CHANNEL */
 	put_unaligned_le16(status->freq, pos);
 	pos += 2;
+	if (status->flag & RX_FLAG_10MHZ)
+		channel_flags |= IEEE80211_CHAN_HALF;
+	else if (status->flag & RX_FLAG_5MHZ)
+		channel_flags |= IEEE80211_CHAN_QUARTER;
+
 	if (status->band == IEEE80211_BAND_5GHZ)
-		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ,
-				   pos);
+		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ;
 	else if (status->flag & (RX_FLAG_HT | RX_FLAG_VHT))
-		put_unaligned_le16(IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ,
-				   pos);
+		channel_flags |= IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
 	else if (rate && rate->flags & IEEE80211_RATE_ERP_G)
-		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ,
-				   pos);
+		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ;
 	else if (rate)
-		put_unaligned_le16(IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ,
-				   pos);
+		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ;
 	else
-		put_unaligned_le16(IEEE80211_CHAN_2GHZ, pos);
+		channel_flags |= IEEE80211_CHAN_2GHZ;
+	put_unaligned_le16(channel_flags, pos);
 	pos += 2;
 
 	/* IEEE80211_RADIOTAP_DBM_ANTSIGNAL */
