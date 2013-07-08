@@ -323,9 +323,8 @@ void mmc_remove_card(struct mmc_card *card)
 #endif
 
 	if (mmc_card_present(card)) {
-#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)
-		mmc_card_clr_present(card);
-#endif		
+		if(!HOST_IS_EMMC(card->host))
+			mmc_card_clr_present(card);
 		if (mmc_host_is_spi(card->host)) {
 			printk(KERN_INFO "%s: SPI card removed\n",
 				mmc_hostname(card->host));

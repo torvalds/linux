@@ -1205,11 +1205,10 @@ static void mmc_power_up(struct mmc_host *host)
 	 */
 	mmc_delay(10);
 	
-#if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17
-    host->ios.clock = host->f_min;
-#else
-	host->ios.clock = host->f_init;
-#endif
+	if(!HOST_IS_EMMC(host))
+    		host->ios.clock = host->f_min;
+	else
+		host->ios.clock = host->f_init;
 
 	host->ios.power_mode = MMC_POWER_ON;
 	mmc_set_ios(host);
@@ -1751,13 +1750,12 @@ int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 }
 EXPORT_SYMBOL(mmc_set_blocklen);
 
-static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
+static int sdmmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
-	host->f_init = freq;
-
 #if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17		
 	int init_ret=0;
 #endif
+	host->f_init = freq;
 
 #ifdef CONFIG_MMC_DEBUG
 	pr_info("%s: %s: trying to init card at %u Hz\n",
@@ -1890,12 +1888,12 @@ freq_out:
 
 }
 
-void mmc_rescan(struct work_struct *work)
+static void sdmmc_rescan(struct work_struct *work)
 {
-	static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
+	//static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
-	int i;
+	//int i;
 	bool extend_wakelock = false;
 
 	if (host->rescan_disable)
@@ -1953,12 +1951,12 @@ void mmc_rescan(struct work_struct *work)
 	mmc_claim_host(host);
 
 #if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17
-    if (!mmc_rescan_try_freq(host, host->f_min)) 
+    if (!sdmmc_rescan_try_freq(host, host->f_min)) 
         extend_wakelock = true;
 
 #else	
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
-		if (!mmc_rescan_try_freq(host, max(freqs[i], host->f_min))) {
+		if (!sdmmc_rescan_try_freq(host, max(freqs[i], host->f_min))) {
 			extend_wakelock = true;
 			break;
 		}
@@ -1979,7 +1977,119 @@ void mmc_rescan(struct work_struct *work)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 	}
 }
+static int emmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
+{
+	host->f_init = freq;
 
+#ifdef CONFIG_MMC_DEBUG
+	pr_info("%s: %s: trying to init card at %u Hz\n",
+		mmc_hostname(host), __func__, host->f_init);
+#endif
+	mmc_power_up(host);
+
+	/*
+	 * sdio_reset sends CMD52 to reset card.  Since we do not know
+	 * if the card is being re-initialized, just send it.  CMD52
+	 * should be ignored by SD/eMMC cards.
+	 */
+	sdio_reset(host);
+	mmc_go_idle(host);
+
+	mmc_send_if_cond(host, host->ocr_avail);
+
+	/* Order's important: probe SDIO, then SD, then MMC */
+	if (!mmc_attach_sdio(host))
+		return 0;
+	if (!mmc_attach_sd(host))
+		return 0;
+	if (!mmc_attach_mmc(host))
+		return 0;
+
+	mmc_power_off(host);
+	return -EIO;
+}
+
+static void emmc_rescan(struct work_struct *work)
+{
+	static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
+	struct mmc_host *host =
+		container_of(work, struct mmc_host, detect.work);
+	int i;
+	bool extend_wakelock = false;
+
+	if (host->rescan_disable)
+		return;
+
+	mmc_bus_get(host);
+
+	/*
+	 * if there is a _removable_ card registered, check whether it is
+	 * still present
+	 */
+	if (host->bus_ops && host->bus_ops->detect && !host->bus_dead
+	    && !(host->caps & MMC_CAP_NONREMOVABLE))
+		host->bus_ops->detect(host);
+
+	/* If the card was removed the bus will be marked
+	 * as dead - extend the wakelock so userspace
+	 * can respond */
+	if (host->bus_dead)
+		extend_wakelock = 1;
+
+	/*
+	 * Let mmc_bus_put() free the bus/bus_ops if we've found that
+	 * the card is no longer present.
+	 */
+	mmc_bus_put(host);
+	mmc_bus_get(host);
+
+	/* if there still is a card present, stop here */
+	if (host->bus_ops != NULL) {
+		mmc_bus_put(host);
+		goto out;
+	}
+
+	/*
+	 * Only we can add a new handler, so it's safe to
+	 * release the lock here.
+	 */
+	mmc_bus_put(host);
+
+	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
+		goto out;
+
+	mmc_claim_host(host);
+	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
+		if (!emmc_rescan_try_freq(host, max(freqs[i], host->f_min))) {
+			extend_wakelock = true;
+			break;
+		}
+		if (freqs[i] <= host->f_min)
+			break;
+	}
+	mmc_release_host(host);
+
+ out:
+	if (extend_wakelock)
+		wake_lock_timeout(&host->detect_wake_lock, HZ / 2);
+	else
+		wake_unlock(&host->detect_wake_lock);
+	if (host->caps & MMC_CAP_NEEDS_POLL) {
+		wake_lock(&host->detect_wake_lock);
+		mmc_schedule_delayed_work(&host->detect, HZ);
+	}
+}
+
+void mmc_rescan(struct work_struct *work)
+{
+	struct mmc_host *host =
+		container_of(work, struct mmc_host, detect.work);
+
+	if(HOST_IS_EMMC(host))
+		emmc_rescan(work);
+	else
+		sdmmc_rescan(work);
+}
 void mmc_start_host(struct mmc_host *host)
 {
 	mmc_power_off(host);
@@ -2129,24 +2239,24 @@ int mmc_suspend_host(struct mmc_host *host)
 		if (host->bus_ops->suspend)
 			err = host->bus_ops->suspend(host);
 
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-               //deleted all detail code. //fix the crash bug when error occur during suspend. Modiefyed by xbw at 2012-08-09
-#else
-		if (err == -ENOSYS || !host->bus_ops->resume) {
-			/*
-			 * We simply "remove" the card in this case.
-			 * It will be redetected on resume.
-			 */
-			if (host->bus_ops->remove)
-				host->bus_ops->remove(host);
-			mmc_claim_host(host);
-			mmc_detach_bus(host);
-			mmc_power_off(host);
-			mmc_release_host(host);
-			host->pm_flags = 0;
-			err = 0;
+               //deleted all detail code, if host is sdmmc. 
+	       //fix the crash bug when error occur during suspend. Modiefyed by xbw at 2012-08-09
+		if(HOST_IS_EMMC(host)){
+			if (err == -ENOSYS || !host->bus_ops->resume) {
+				/*
+				 * We simply "remove" the card in this case.
+				 * It will be redetected on resume.
+				 */
+				if (host->bus_ops->remove)
+					host->bus_ops->remove(host);
+				mmc_claim_host(host);
+				mmc_detach_bus(host);
+				mmc_power_off(host);
+				mmc_release_host(host);
+				host->pm_flags = 0;
+				err = 0;
+			}
 		}
-#endif
 		flush_delayed_work(&host->disable);
 	}
 	mmc_bus_put(host);
@@ -2192,19 +2302,18 @@ int mmc_resume_host(struct mmc_host *host)
 			}
 		}
 		BUG_ON(!host->bus_ops->resume);
-#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-        //panic if the card is being removed during the resume, deleted by xbw at 2011-06-20
-		host->bus_ops->resume(host);
-
-#else
-		err = host->bus_ops->resume(host);
-		if (err) {
-			printk(KERN_WARNING "%s: error %d during resume "
+		if(!HOST_IS_EMMC(host)){
+        		//panic if the card is being removed during the resume, deleted by xbw at 2011-06-20
+			host->bus_ops->resume(host);
+		}else{
+			err = host->bus_ops->resume(host);
+			if (err) {
+				printk(KERN_WARNING "%s: error %d during resume "
 					    "(card was removed?)\n",
 					    mmc_hostname(host), err);
-			err = 0;
+				err = 0;
+			}
 		}
-#endif
 	}
 	host->pm_flags &= ~MMC_PM_KEEP_POWER;
 	mmc_bus_put(host);

@@ -1052,6 +1052,31 @@ static struct platform_device device_keys = {
 };
 #endif
 
+#ifdef CONFIG_EMMC_RK
+static struct resource resources_emmc[] = {
+	{
+		.start 	= IRQ_EMMC,
+		.end 	= IRQ_EMMC,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK30_EMMC_PHYS,
+		.end 	= RK30_EMMC_PHYS + RK30_EMMC_SIZE - 1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device device_emmc = {
+	.name		= "emmc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_emmc),
+	.resource	= resources_emmc,
+	.dev 		= {
+		.platform_data = NULL,
+	},
+};
+#endif
+
 #ifdef CONFIG_SDMMC0_RK29
 static struct resource resources_sdmmc0[] = {
 	{
@@ -1104,6 +1129,9 @@ static struct platform_device device_sdmmc1 = {
 
 static void __init rk30_init_sdmmc(void)
 {
+#ifdef CONFIG_EMMC_RK
+	platform_device_register(&device_emmc);
+#endif
 #ifdef CONFIG_SDMMC0_RK29
 	platform_device_register(&device_sdmmc0);
 #endif
