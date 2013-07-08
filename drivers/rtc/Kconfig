@@ -962,10 +962,10 @@ config RTC_DRV_TX4939
 	  Toshiba TX4939 SoC.
 
 config RTC_DRV_SUN4I
-	tristate "sun4i rtc driver"
-	depends on ARCH_SUN4I
+	tristate "sun4i/sun7i rtc driver"
+	depends on ARCH_SUN4I || ARCH_SUN7I
 	help
-	  sun4i rtc driver
+	  sun4i/sun7i rtc driver
 
 config RTC_DRV_MV
 	tristate "Marvell SoC RTC"

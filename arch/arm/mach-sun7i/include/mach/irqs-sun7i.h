@@ -86,6 +86,7 @@
 #define AW_IRQ_KEYPAD     	(AW_IRQ_GIC_START + 21)    /* KEYPAD */
 #define AW_IRQ_TIMER0    	(AW_IRQ_GIC_START + 22)    /* Timer0 */
 #define AW_IRQ_TIMER1    	(AW_IRQ_GIC_START + 23)    /* Timer1 */
+#define SW_INT_IRQNO_ALARM	(AW_IRQ_GIC_START + 24)    /* Timer2 / alarm / watchdog  */
 #define AW_IRQ_TIMER2    	(AW_IRQ_GIC_START + 24)    /* Timer2 / alarm / watchdog  */
 #define AW_IRQ_TIMER3    	(AW_IRQ_GIC_START + 25)    /* Timer3 */
 #define AW_IRQ_CAN       	(AW_IRQ_GIC_START + 26)    /* CAN    */
