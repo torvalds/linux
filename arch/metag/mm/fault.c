@@ -224,8 +224,10 @@ do_sigbus:
 	 */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (user_mode(regs))
-		do_group_exit(SIGKILL);
+	if (user_mode(regs)) {
+		pagefault_out_of_memory();
+		return 1;
+	}
 
 no_context:
 	/* Are we prepared to handle this kernel fault?  */
