@@ -245,4 +245,6 @@ void ni_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
 					  struct radeon_ps *new_ps,
 					  struct radeon_ps *old_ps);
 
+bool ni_dpm_vblank_too_short(struct radeon_device *rdev);
+
 #endif

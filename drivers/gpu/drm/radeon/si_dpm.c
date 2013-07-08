@@ -2906,7 +2906,8 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	u16 vddc, vddci;
 	int i;
 
-	if (rdev->pm.dpm.new_active_crtc_count > 1)
+	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
+	    ni_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
 	else
 		disable_mclk_switching = false;
