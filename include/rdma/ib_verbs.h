@@ -610,7 +610,21 @@ enum ib_qp_type {
 	IB_QPT_RAW_PACKET = 8,
 	IB_QPT_XRC_INI = 9,
 	IB_QPT_XRC_TGT,
-	IB_QPT_MAX
+	IB_QPT_MAX,
+	/* Reserve a range for qp types internal to the low level driver.
+	 * These qp types will not be visible at the IB core layer, so the
+	 * IB_QPT_MAX usages should not be affected in the core layer
+	 */
+	IB_QPT_RESERVED1 = 0x1000,
+	IB_QPT_RESERVED2,
+	IB_QPT_RESERVED3,
+	IB_QPT_RESERVED4,
+	IB_QPT_RESERVED5,
+	IB_QPT_RESERVED6,
+	IB_QPT_RESERVED7,
+	IB_QPT_RESERVED8,
+	IB_QPT_RESERVED9,
+	IB_QPT_RESERVED10,
 };
 
 enum ib_qp_create_flags {
@@ -766,6 +780,19 @@ enum ib_wr_opcode {
 	IB_WR_MASKED_ATOMIC_CMP_AND_SWP,
 	IB_WR_MASKED_ATOMIC_FETCH_AND_ADD,
 	IB_WR_BIND_MW,
+	/* reserve values for low level drivers' internal use.
+	 * These values will not be used at all in the ib core layer.
+	 */
+	IB_WR_RESERVED1 = 0xf0,
+	IB_WR_RESERVED2,
+	IB_WR_RESERVED3,
+	IB_WR_RESERVED4,
+	IB_WR_RESERVED5,
+	IB_WR_RESERVED6,
+	IB_WR_RESERVED7,
+	IB_WR_RESERVED8,
+	IB_WR_RESERVED9,
+	IB_WR_RESERVED10,
 };
 
 enum ib_send_flags {
@@ -773,7 +800,11 @@ enum ib_send_flags {
 	IB_SEND_SIGNALED	= (1<<1),
 	IB_SEND_SOLICITED	= (1<<2),
 	IB_SEND_INLINE		= (1<<3),
-	IB_SEND_IP_CSUM		= (1<<4)
+	IB_SEND_IP_CSUM		= (1<<4),
+
+	/* reserve bits 26-31 for low level drivers' internal use */
+	IB_SEND_RESERVED_START	= (1 << 26),
+	IB_SEND_RESERVED_END	= (1 << 31),
 };
 
 struct ib_sge {

@@ -608,16 +608,8 @@ enum {
 	OCRDMA_CREATE_MQ_ASYNC_CQ_VALID		= Bit(0)
 };
 
-struct ocrdma_create_mq_v0 {
-	u32 pages;
-	u32 cqid_ringsize;
-	u32 valid;
-	u32 async_cqid_valid;
-	u32 rsvd;
-	struct ocrdma_pa pa[8];
-} __packed;
-
-struct ocrdma_create_mq_v1 {
+struct ocrdma_create_mq_req {
+	struct ocrdma_mbx_hdr req;
 	u32 cqid_pages;
 	u32 async_event_bitmap;
 	u32 async_cqid_ringsize;
@@ -625,14 +617,6 @@ struct ocrdma_create_mq_v1 {
 	u32 async_cqid_valid;
 	u32 rsvd;
 	struct ocrdma_pa pa[8];
-} __packed;
-
-struct ocrdma_create_mq_req {
-	struct ocrdma_mbx_hdr req;
-	union {
-		struct ocrdma_create_mq_v0 v0;
-		struct ocrdma_create_mq_v1 v1;
-	};
 } __packed;
 
 struct ocrdma_create_mq_rsp {
@@ -1549,21 +1533,6 @@ struct ocrdma_cqe {
 	};
 	u32 flags_status_srcqpn;	/* w3 */
 } __packed;
-
-#define is_cqe_valid(cq, cqe) \
-	(((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_VALID)\
-	== cq->phase) ? 1 : 0)
-#define is_cqe_for_sq(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_QTYPE) ? 0 : 1)
-#define is_cqe_for_rq(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_QTYPE) ? 1 : 0)
-#define is_cqe_invalidated(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_INVALIDATE) ? \
-	1 : 0)
-#define is_cqe_imm(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_IMM) ? 1 : 0)
-#define is_cqe_wr_imm(cqe) \
-	((le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_WRITE_IMM) ? 1 : 0)
 
 struct ocrdma_sge {
 	u32 addr_hi;
