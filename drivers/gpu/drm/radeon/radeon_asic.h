@@ -480,6 +480,7 @@ void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 						       struct seq_file *m);
 int rv770_dpm_force_performance_level(struct radeon_device *rdev,
 				      enum radeon_dpm_forced_level level);
+bool rv770_dpm_vblank_too_short(struct radeon_device *rdev);
 
 /*
  * evergreen

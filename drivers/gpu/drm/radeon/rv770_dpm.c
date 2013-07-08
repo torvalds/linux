@@ -2508,3 +2508,14 @@ u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low)
 	else
 		return requested_state->high.mclk;
 }
+
+bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
+{
+	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+
+	if (vblank_time < 300)
+		return true;
+	else
+		return false;
+
+}
