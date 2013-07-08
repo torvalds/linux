@@ -2,3 +2,8 @@ menuconfig ADF
 	depends on SYNC
 	depends on DMA_SHARED_BUFFER
 	tristate "Atomic Display Framework"
+
+menuconfig ADF_MEMBLOCK
+	depends on ADF
+	depends on HAVE_MEMBLOCK
+	tristate "Helper for using memblocks as buffers in ADF drivers"
