@@ -151,18 +151,13 @@ static inline struct llist_node *llist_next(struct llist_node *node)
  */
 static inline bool llist_add(struct llist_node *new, struct llist_head *head)
 {
-	struct llist_node *entry, *old_entry;
+	struct llist_node *first;
 
-	entry = head->first;
-	for (;;) {
-		old_entry = entry;
-		new->next = entry;
-		entry = cmpxchg(&head->first, old_entry, new);
-		if (entry == old_entry)
-			break;
-	}
+	do {
+		new->next = first = ACCESS_ONCE(head->first);
+	} while (cmpxchg(&head->first, first, new) != first);
 
-	return old_entry == NULL;
+	return !first;
 }
 
 /**
