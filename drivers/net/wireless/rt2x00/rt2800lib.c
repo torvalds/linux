@@ -239,6 +239,14 @@ static void rt2800_eeprom_write(struct rt2x00_dev *rt2x00dev,
 	rt2x00_eeprom_write(rt2x00dev, word, data);
 }
 
+static void rt2800_eeprom_read_from_array(struct rt2x00_dev *rt2x00dev,
+					  const enum rt2800_eeprom_word array,
+					  unsigned int offset,
+					  u16 *data)
+{
+	rt2x00_eeprom_read(rt2x00dev, array + offset, data);
+}
+
 static int rt2800_enable_wlan_rt3290(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -2995,8 +3003,8 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 		 * .11b data rate need add additional 4dbm
 		 * when calculating eirp txpower.
 		 */
-		rt2800_eeprom_read(rt2x00dev, EEPROM_TXPOWER_BYRATE + 1,
-				   &eeprom);
+		rt2800_eeprom_read_from_array(rt2x00dev, EEPROM_TXPOWER_BYRATE,
+					      1, &eeprom);
 		criterion = rt2x00_get_field16(eeprom,
 					       EEPROM_TXPOWER_BYRATE_RATE0);
 
@@ -3101,8 +3109,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		rt2800_register_read(rt2x00dev, offset, &reg);
 
 		/* read the next four txpower values */
-		rt2800_eeprom_read(rt2x00dev, EEPROM_TXPOWER_BYRATE + i,
-				   &eeprom);
+		rt2800_eeprom_read_from_array(rt2x00dev, EEPROM_TXPOWER_BYRATE,
+					      i, &eeprom);
 
 		is_rate_b = i ? 0 : 1;
 		/*
@@ -3150,8 +3158,8 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE3, txpower);
 
 		/* read the next four txpower values */
-		rt2800_eeprom_read(rt2x00dev, EEPROM_TXPOWER_BYRATE + i + 1,
-				   &eeprom);
+		rt2800_eeprom_read_from_array(rt2x00dev, EEPROM_TXPOWER_BYRATE,
+					      i + 1, &eeprom);
 
 		is_rate_b = 0;
 		/*
@@ -4579,7 +4587,8 @@ static void rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	}
 
 	for (i = 0; i < EEPROM_BBP_SIZE; i++) {
-		rt2800_eeprom_read(rt2x00dev, EEPROM_BBP_START + i, &eeprom);
+		rt2800_eeprom_read_from_array(rt2x00dev, EEPROM_BBP_START, i,
+					      &eeprom);
 
 		if (eeprom != 0xffff && eeprom != 0x0000) {
 			reg_id = rt2x00_get_field16(eeprom, EEPROM_BBP_REG_ID);
