@@ -221,7 +221,7 @@ void __init emev2_clock_init(void)
 	smu_base = ioremap(EMEV2_SMU_BASE, PAGE_SIZE);
 	BUG_ON(!smu_base);
 
-	/* setup STI timer to run on 37.768 kHz and deassert reset */
+	/* setup STI timer to run on 32.768 kHz and deassert reset */
 	emev2_smu_write(0, STI_CLKSEL);
 	emev2_smu_write(1, STI_RSTCTRL);
 
