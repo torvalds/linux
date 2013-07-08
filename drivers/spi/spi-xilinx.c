@@ -368,17 +368,9 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	if (pdata) {
 		num_cs = pdata->num_chipselect;
 		bits_per_word = pdata->bits_per_word;
-	}
-
-	if (pdev->dev.of_node) {
-		const __be32 *prop;
-		int len;
-
-		/* number of slave select bits is required */
-		prop = of_get_property(pdev->dev.of_node, "xlnx,num-ss-bits",
-				       &len);
-		if (prop && len >= sizeof(*prop))
-			num_cs = __be32_to_cpup(prop);
+	} else {
+		of_property_read_u32(pdev->dev.of_node, "xlnx,num-ss-bits",
+					  &num_cs);
 	}
 
 	if (!num_cs) {
