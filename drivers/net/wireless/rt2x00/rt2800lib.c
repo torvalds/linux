@@ -4194,6 +4194,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field8(&rfcsr, RFCSR7_RF_TUNING, 1);
 		rt2800_rfcsr_write(rt2x00dev, 7, rfcsr);
 		break;
+	case RF3053:
 	case RF3290:
 	case RF5360:
 	case RF5370:
@@ -7595,6 +7596,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	case RF3022:
 	case RF3320:
 	case RF3052:
+	case RF3053:
 	case RF3290:
 	case RF5360:
 	case RF5370:
