@@ -735,12 +735,9 @@ struct scsi_qla_host {
 	struct iscsi_iface *iface_ipv6_1;
 
 	/* --- From About Firmware --- */
-	uint16_t iscsi_major;
-	uint16_t iscsi_minor;
-	uint16_t bootload_major;
-	uint16_t bootload_minor;
-	uint16_t bootload_patch;
-	uint16_t bootload_build;
+	struct about_fw_info fw_info;
+	uint32_t fw_uptime_secs;  /* seconds elapsed since fw bootup */
+	uint32_t fw_uptime_msecs; /* milliseconds beyond elapsed seconds */
 	uint16_t def_timeout; /* Default login timeout */
 
 	uint32_t flash_state;

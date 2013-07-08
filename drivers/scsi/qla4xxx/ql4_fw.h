@@ -955,7 +955,7 @@ struct about_fw_info {
 	uint16_t bootload_minor;	/* 46 - 47 */
 	uint16_t bootload_patch;	/* 48 - 49 */
 	uint16_t bootload_build;	/* 4A - 4B */
-	uint8_t reserved2[180];		/* 4C - FF */
+	uint8_t extended_timestamp[180];/* 4C - FF */
 };
 
 struct crash_record {

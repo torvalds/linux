@@ -5,6 +5,7 @@
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
 
+#include <linux/ctype.h>
 #include "ql4_def.h"
 #include "ql4_glbl.h"
 #include "ql4_dbg.h"
@@ -1270,16 +1271,28 @@ int qla4xxx_about_firmware(struct scsi_qla_host *ha)
 	}
 
 	/* Save version information. */
-	ha->firmware_version[0] = le16_to_cpu(about_fw->fw_major);
-	ha->firmware_version[1] = le16_to_cpu(about_fw->fw_minor);
-	ha->patch_number = le16_to_cpu(about_fw->fw_patch);
-	ha->build_number = le16_to_cpu(about_fw->fw_build);
-	ha->iscsi_major = le16_to_cpu(about_fw->iscsi_major);
-	ha->iscsi_minor = le16_to_cpu(about_fw->iscsi_minor);
-	ha->bootload_major = le16_to_cpu(about_fw->bootload_major);
-	ha->bootload_minor = le16_to_cpu(about_fw->bootload_minor);
-	ha->bootload_patch = le16_to_cpu(about_fw->bootload_patch);
-	ha->bootload_build = le16_to_cpu(about_fw->bootload_build);
+	ha->fw_info.fw_major = le16_to_cpu(about_fw->fw_major);
+	ha->fw_info.fw_minor = le16_to_cpu(about_fw->fw_minor);
+	ha->fw_info.fw_patch = le16_to_cpu(about_fw->fw_patch);
+	ha->fw_info.fw_build = le16_to_cpu(about_fw->fw_build);
+	memcpy(ha->fw_info.fw_build_date, about_fw->fw_build_date,
+	       sizeof(about_fw->fw_build_date));
+	memcpy(ha->fw_info.fw_build_time, about_fw->fw_build_time,
+	       sizeof(about_fw->fw_build_time));
+	strcpy((char *)ha->fw_info.fw_build_user,
+	       skip_spaces((char *)about_fw->fw_build_user));
+	ha->fw_info.fw_load_source = le16_to_cpu(about_fw->fw_load_source);
+	ha->fw_info.iscsi_major = le16_to_cpu(about_fw->iscsi_major);
+	ha->fw_info.iscsi_minor = le16_to_cpu(about_fw->iscsi_minor);
+	ha->fw_info.bootload_major = le16_to_cpu(about_fw->bootload_major);
+	ha->fw_info.bootload_minor = le16_to_cpu(about_fw->bootload_minor);
+	ha->fw_info.bootload_patch = le16_to_cpu(about_fw->bootload_patch);
+	ha->fw_info.bootload_build = le16_to_cpu(about_fw->bootload_build);
+	strcpy((char *)ha->fw_info.extended_timestamp,
+	       skip_spaces((char *)about_fw->extended_timestamp));
+
+	ha->fw_uptime_secs = le32_to_cpu(mbox_sts[5]);
+	ha->fw_uptime_msecs = le32_to_cpu(mbox_sts[6]);
 	status = QLA_SUCCESS;
 
 exit_about_fw:

@@ -7220,8 +7220,8 @@ skip_retry_init:
 	       " QLogic iSCSI HBA Driver version: %s\n"
 	       "  QLogic ISP%04x @ %s, host#=%ld, fw=%02d.%02d.%02d.%02d\n",
 	       qla4xxx_version_str, ha->pdev->device, pci_name(ha->pdev),
-	       ha->host_no, ha->firmware_version[0], ha->firmware_version[1],
-	       ha->patch_number, ha->build_number);
+	       ha->host_no, ha->fw_info.fw_major, ha->fw_info.fw_minor,
+	       ha->fw_info.fw_patch, ha->fw_info.fw_build);
 
 	/* Set the driver version */
 	if (is_qla80XX(ha))
