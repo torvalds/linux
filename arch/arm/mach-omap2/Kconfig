@@ -4,6 +4,7 @@ config ARCH_OMAP
 config ARCH_OMAP2PLUS
 	bool "TI OMAP2/3/4/5 SoCs with device tree support" if (ARCH_MULTI_V6 || ARCH_MULTI_V7)
 	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_BANDGAP
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_OMAP
 	select ARCH_REQUIRE_GPIOLIB
@@ -17,6 +18,7 @@ config ARCH_OMAP2PLUS
 	select PROC_DEVICETREE if PROC_FS
 	select SOC_BUS
 	select SPARSE_IRQ
+	select TI_PRIV_EDMA
 	select USE_OF
 	help
 	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
@@ -149,6 +151,14 @@ config SOC_AM33XX
 	select MULTI_IRQ_HANDLER
 	select COMMON_CLK
 
+config SOC_AM43XX
+	bool "TI AM43x"
+	select CPU_V7
+	select MULTI_IRQ_HANDLER
+	select ARM_GIC
+	select COMMON_CLK
+	select MACH_OMAP_GENERIC
+
 config OMAP_PACKAGE_ZAF
        bool
 
@@ -165,12 +175,6 @@ config OMAP_PACKAGE_CUS
        bool
 
 config OMAP_PACKAGE_CBP
-       bool
-
-config OMAP_PACKAGE_CBL
-       bool
-
-config OMAP_PACKAGE_CBS
        bool
 
 comment "OMAP Board Type"
@@ -377,22 +381,6 @@ config MACH_TI8148EVM
 	bool "TI8148 Evaluation Module"
 	depends on SOC_TI81XX
 	default y
-
-config MACH_OMAP_4430SDP
-	bool "OMAP 4430 SDP board"
-	default y
-	depends on ARCH_OMAP4
-	select OMAP_PACKAGE_CBL
-	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
-config MACH_OMAP4_PANDA
-	bool "OMAP4 Panda Board"
-	default y
-	depends on ARCH_OMAP4
-	select OMAP_PACKAGE_CBL
-	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"

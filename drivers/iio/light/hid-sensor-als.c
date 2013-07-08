@@ -31,7 +31,7 @@
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
 /*Format: HID-SENSOR-usage_id_in_hex*/
-/*Usage ID from spec for Accelerometer-3D: 0x200041*/
+/*Usage ID from spec for Ambiant-Light: 0x200041*/
 #define DRIVER_NAME "HID-SENSOR-200041"
 
 #define CHANNEL_SCAN_INDEX_ILLUM 0

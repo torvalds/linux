@@ -4,7 +4,7 @@
 
 menuconfig HOTPLUG_PCI
 	tristate "Support for PCI Hotplug"
-	depends on PCI && HOTPLUG && SYSFS
+	depends on PCI && SYSFS
 	---help---
 	  Say Y here if you have a motherboard with a PCI Hotplug controller.
 	  This allows you to add and remove PCI cards while the machine is

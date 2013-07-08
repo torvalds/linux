@@ -648,7 +648,7 @@ void __init early_init_mmu(void)
 	__early_init_mmu(1);
 }
 
-void __cpuinit early_init_mmu_secondary(void)
+void early_init_mmu_secondary(void)
 {
 	__early_init_mmu(0);
 }

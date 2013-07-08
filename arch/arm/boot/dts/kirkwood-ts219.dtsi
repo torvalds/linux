@@ -1,5 +1,3 @@
-/include/ "kirkwood.dtsi"
-
 / {
 	model = "QNAP TS219 family";
 	compatible = "qnap,ts219", "marvell,kirkwood";
@@ -17,6 +15,8 @@
 		i2c@11000 {
 			status = "okay";
 			clock-frequency = <400000>;
+			pinctrl-0 = <&pmx_twsi0>;
+			pinctrl-names = "default";
 
 			s35390a: s35390a@30 {
 				compatible = "s35390a";
@@ -26,13 +26,24 @@
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "okay";
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 		};
 		serial@12100 {
 			clock-frequency = <200000000>;
 			status = "okay";
+			pinctrl-0 = <&pmx_uart1>;
+			pinctrl-names = "default";
+		};
+		poweroff@12100 {
+			compatible = "qnap,power-off";
+			reg = <0x12000 0x100>;
+			clocks = <&gate_clk 7>;
 		};
 		spi@10600 {
 			status = "okay";
+			pinctrl-0 = <&pmx_spi>;
+			pinctrl-names = "default";
 
 			m25p128@0 {
 				#address-cells = <1>;
@@ -71,8 +82,17 @@
 			};
 		};
 		sata@80000 {
+			pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+			pinctrl-names = "default";
 			status = "okay";
 			nr-ports = <2>;
+		};
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
 		};
 	};
 };

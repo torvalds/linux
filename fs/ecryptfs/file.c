@@ -68,9 +68,9 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 }
 
 struct ecryptfs_getdents_callback {
-	void *dirent;
-	struct dentry *dentry;
-	filldir_t filldir;
+	struct dir_context ctx;
+	struct dir_context *caller;
+	struct super_block *sb;
 	int filldir_called;
 	int entries_written;
 };
@@ -88,7 +88,7 @@ ecryptfs_filldir(void *dirent, const char *lower_name, int lower_namelen,
 
 	buf->filldir_called++;
 	rc = ecryptfs_decode_and_decrypt_filename(&name, &name_size,
-						  buf->dentry, lower_name,
+						  buf->sb, lower_name,
 						  lower_namelen);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to decode and decrypt "
@@ -96,9 +96,10 @@ ecryptfs_filldir(void *dirent, const char *lower_name, int lower_namelen,
 		       rc);
 		goto out;
 	}
-	rc = buf->filldir(buf->dirent, name, name_size, offset, ino, d_type);
+	buf->caller->pos = buf->ctx.pos;
+	rc = !dir_emit(buf->caller, name, name_size, ino, d_type);
 	kfree(name);
-	if (rc >= 0)
+	if (!rc)
 		buf->entries_written++;
 out:
 	return rc;
@@ -107,27 +108,22 @@ out:
 /**
  * ecryptfs_readdir
  * @file: The eCryptfs directory file
- * @dirent: Directory entry handle
- * @filldir: The filldir callback function
+ * @ctx: The actor to feed the entries to
  */
-static int ecryptfs_readdir(struct file *file, void *dirent, filldir_t filldir)
+static int ecryptfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	int rc;
 	struct file *lower_file;
-	struct inode *inode;
-	struct ecryptfs_getdents_callback buf;
-
+	struct inode *inode = file_inode(file);
+	struct ecryptfs_getdents_callback buf = {
+		.ctx.actor = ecryptfs_filldir,
+		.caller = ctx,
+		.sb = inode->i_sb,
+	};
 	lower_file = ecryptfs_file_to_lower(file);
-	lower_file->f_pos = file->f_pos;
-	inode = file_inode(file);
-	memset(&buf, 0, sizeof(buf));
-	buf.dirent = dirent;
-	buf.dentry = file->f_path.dentry;
-	buf.filldir = filldir;
-	buf.filldir_called = 0;
-	buf.entries_written = 0;
-	rc = vfs_readdir(lower_file, ecryptfs_filldir, (void *)&buf);
-	file->f_pos = lower_file->f_pos;
+	lower_file->f_pos = ctx->pos;
+	rc = iterate_dir(lower_file, &buf.ctx);
+	ctx->pos = buf.ctx.pos;
 	if (rc < 0)
 		goto out;
 	if (buf.filldir_called && !buf.entries_written)
@@ -344,7 +340,7 @@ ecryptfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #endif
 
 const struct file_operations ecryptfs_dir_fops = {
-	.readdir = ecryptfs_readdir,
+	.iterate = ecryptfs_readdir,
 	.read = generic_read_dir,
 	.unlocked_ioctl = ecryptfs_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
@@ -365,7 +361,7 @@ const struct file_operations ecryptfs_main_fops = {
 	.aio_read = ecryptfs_read_update_atime,
 	.write = do_sync_write,
 	.aio_write = generic_file_aio_write,
-	.readdir = ecryptfs_readdir,
+	.iterate = ecryptfs_readdir,
 	.unlocked_ioctl = ecryptfs_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = ecryptfs_compat_ioctl,

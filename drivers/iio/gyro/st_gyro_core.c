@@ -27,6 +27,8 @@
 #include <linux/iio/common/st_sensors.h>
 #include "st_gyro.h"
 
+#define ST_GYRO_NUMBER_DATA_CHANNELS		3
+
 /* DEFAULT VALUE FOR SENSORS */
 #define ST_GYRO_DEFAULT_OUT_X_L_ADDR		0x28
 #define ST_GYRO_DEFAULT_OUT_Y_L_ADDR		0x2a
@@ -86,15 +88,18 @@
 #define ST_GYRO_2_MULTIREAD_BIT			true
 
 static const struct iio_chan_spec st_gyro_16bit_channels[] = {
-	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL, ST_SENSORS_SCAN_X,
-		IIO_MOD_X, IIO_LE, ST_SENSORS_DEFAULT_16_REALBITS,
-						ST_GYRO_DEFAULT_OUT_X_L_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL, ST_SENSORS_SCAN_Y,
-		IIO_MOD_Y, IIO_LE, ST_SENSORS_DEFAULT_16_REALBITS,
-						ST_GYRO_DEFAULT_OUT_Y_L_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL, ST_SENSORS_SCAN_Z,
-		IIO_MOD_Z, IIO_LE, ST_SENSORS_DEFAULT_16_REALBITS,
-						ST_GYRO_DEFAULT_OUT_Z_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_X, 1, IIO_MOD_X, 's', IIO_LE, 16, 16,
+			ST_GYRO_DEFAULT_OUT_X_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Y, 1, IIO_MOD_Y, 's', IIO_LE, 16, 16,
+			ST_GYRO_DEFAULT_OUT_Y_L_ADDR),
+	ST_SENSORS_LSM_CHANNELS(IIO_ANGL_VEL,
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+			ST_SENSORS_SCAN_Z, 1, IIO_MOD_Z, 's', IIO_LE, 16, 16,
+			ST_GYRO_DEFAULT_OUT_Z_L_ADDR),
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
@@ -310,6 +315,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_gyro_common_probe_error;
 
+	gdata->num_data_channels = ST_GYRO_NUMBER_DATA_CHANNELS;
 	gdata->multiread_bit = gdata->sensor->multi_read_bit;
 	indio_dev->channels = gdata->sensor->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;

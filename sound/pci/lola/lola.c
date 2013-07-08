@@ -759,7 +759,6 @@ out_free:
 static void lola_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 /* PCI IDs */

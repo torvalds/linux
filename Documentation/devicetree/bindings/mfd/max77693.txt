@@ -1,0 +1,55 @@
+Maxim MAX77693 multi-function device
+
+MAX77693 is a Multifunction device with the following submodules:
+- PMIC,
+- CHARGER,
+- LED,
+- MUIC,
+- HAPTIC
+
+It is interfaced to host controller using i2c.
+This document describes the bindings for the mfd device.
+
+Required properties:
+- compatible : Must be "maxim,max77693".
+- reg : Specifies the i2c slave address of PMIC block.
+- interrupts : This i2c device has an IRQ line connected to the main SoC.
+- interrupt-parent :  The parent interrupt controller.
+
+Optional properties:
+- regulators : The regulators of max77693 have to be instantiated under subnod
+  named "regulators" using the following format.
+
+	regulators {
+		regualtor-compatible = ESAFEOUT1/ESAFEOUT2/CHARGER
+		standard regulator constratints[*].
+	};
+
+	[*] refer Documentation/devicetree/bindings/regulator/regulator.txt
+
+Example:
+	max77693@66 {
+		compatible = "maxim,max77693";
+		reg = <0x66>;
+		interrupt-parent = <&gpx1>;
+		interrupts = <5 2>;
+
+		regulators {
+			esafeout@1 {
+				regulator-compatible = "ESAFEOUT1";
+				regulator-name = "ESAFEOUT1";
+				regulator-boot-on;
+			};
+			esafeout@2 {
+				regulator-compatible = "ESAFEOUT2";
+				regulator-name = "ESAFEOUT2";
+				};
+			charger@0 {
+				regulator-compatible = "CHARGER";
+				regulator-name = "CHARGER";
+				regulator-min-microamp = <60000>;
+				regulator-max-microamp = <2580000>;
+					regulator-boot-on;
+			};
+		};
+	};

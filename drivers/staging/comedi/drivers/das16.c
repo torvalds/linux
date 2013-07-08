@@ -16,12 +16,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-************************************************************************
 */
 /*
 Driver: das16
@@ -1339,7 +1333,6 @@ static void das16_detach(struct comedi_device *dev)
 	struct das16_private_struct *devpriv = dev->private;
 
 	das16_reset(dev);
-	comedi_spriv_free(dev, 4);
 	if (devpriv) {
 		int i;
 		for (i = 0; i < 2; i++) {

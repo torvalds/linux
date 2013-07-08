@@ -29,9 +29,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/stmp_device.h>
+#include <linux/sched_clock.h>
 
 #include <asm/mach/time.h>
-#include <asm/sched_clock.h>
 
 /*
  * There are 2 versions of the timrot on Freescale MXS-based SoCs.

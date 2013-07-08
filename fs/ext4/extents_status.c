@@ -10,6 +10,7 @@
  * Ext4 extents status tree core functions.
  */
 #include <linux/rbtree.h>
+#include <linux/list_sort.h>
 #include "ext4.h"
 #include "extents_status.h"
 #include "ext4_extents.h"
@@ -291,7 +292,6 @@ out:
 
 	read_unlock(&EXT4_I(inode)->i_es_lock);
 
-	ext4_es_lru_add(inode);
 	trace_ext4_es_find_delayed_extent_range_exit(inode, es);
 }
 
@@ -672,7 +672,6 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 error:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
 
-	ext4_es_lru_add(inode);
 	ext4_es_print_tree(inode);
 
 	return err;
@@ -734,7 +733,6 @@ out:
 
 	read_unlock(&EXT4_I(inode)->i_es_lock);
 
-	ext4_es_lru_add(inode);
 	trace_ext4_es_lookup_extent_exit(inode, es, found);
 	return found;
 }
@@ -878,12 +876,28 @@ int ext4_es_zeroout(struct inode *inode, struct ext4_extent *ex)
 				     EXTENT_STATUS_WRITTEN);
 }
 
+static int ext4_inode_touch_time_cmp(void *priv, struct list_head *a,
+				     struct list_head *b)
+{
+	struct ext4_inode_info *eia, *eib;
+	eia = list_entry(a, struct ext4_inode_info, i_es_lru);
+	eib = list_entry(b, struct ext4_inode_info, i_es_lru);
+
+	if (eia->i_touch_when == eib->i_touch_when)
+		return 0;
+	if (time_after(eia->i_touch_when, eib->i_touch_when))
+		return 1;
+	else
+		return -1;
+}
+
 static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct ext4_sb_info *sbi = container_of(shrink,
 					struct ext4_sb_info, s_es_shrinker);
 	struct ext4_inode_info *ei;
-	struct list_head *cur, *tmp, scanned;
+	struct list_head *cur, *tmp;
+	LIST_HEAD(skiped);
 	int nr_to_scan = sc->nr_to_scan;
 	int ret, nr_shrunk = 0;
 
@@ -893,23 +907,41 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	if (!nr_to_scan)
 		return ret;
 
-	INIT_LIST_HEAD(&scanned);
-
 	spin_lock(&sbi->s_es_lru_lock);
+
+	/*
+	 * If the inode that is at the head of LRU list is newer than
+	 * last_sorted time, that means that we need to sort this list.
+	 */
+	ei = list_first_entry(&sbi->s_es_lru, struct ext4_inode_info, i_es_lru);
+	if (sbi->s_es_last_sorted < ei->i_touch_when) {
+		list_sort(NULL, &sbi->s_es_lru, ext4_inode_touch_time_cmp);
+		sbi->s_es_last_sorted = jiffies;
+	}
+
 	list_for_each_safe(cur, tmp, &sbi->s_es_lru) {
-		list_move_tail(cur, &scanned);
+		/*
+		 * If we have already reclaimed all extents from extent
+		 * status tree, just stop the loop immediately.
+		 */
+		if (percpu_counter_read_positive(&sbi->s_extent_cache_cnt) == 0)
+			break;
 
 		ei = list_entry(cur, struct ext4_inode_info, i_es_lru);
 
-		read_lock(&ei->i_es_lock);
-		if (ei->i_es_lru_nr == 0) {
-			read_unlock(&ei->i_es_lock);
+		/* Skip the inode that is newer than the last_sorted time */
+		if (sbi->s_es_last_sorted < ei->i_touch_when) {
+			list_move_tail(cur, &skiped);
 			continue;
 		}
-		read_unlock(&ei->i_es_lock);
+
+		if (ei->i_es_lru_nr == 0)
+			continue;
 
 		write_lock(&ei->i_es_lock);
 		ret = __es_try_to_reclaim_extents(ei, nr_to_scan);
+		if (ei->i_es_lru_nr == 0)
+			list_del_init(&ei->i_es_lru);
 		write_unlock(&ei->i_es_lock);
 
 		nr_shrunk += ret;
@@ -917,7 +949,9 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 		if (nr_to_scan == 0)
 			break;
 	}
-	list_splice_tail(&scanned, &sbi->s_es_lru);
+
+	/* Move the newer inodes into the tail of the LRU list. */
+	list_splice_tail(&skiped, &sbi->s_es_lru);
 	spin_unlock(&sbi->s_es_lru_lock);
 
 	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
@@ -925,21 +959,19 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	return ret;
 }
 
-void ext4_es_register_shrinker(struct super_block *sb)
+void ext4_es_register_shrinker(struct ext4_sb_info *sbi)
 {
-	struct ext4_sb_info *sbi;
-
-	sbi = EXT4_SB(sb);
 	INIT_LIST_HEAD(&sbi->s_es_lru);
 	spin_lock_init(&sbi->s_es_lru_lock);
+	sbi->s_es_last_sorted = 0;
 	sbi->s_es_shrinker.shrink = ext4_es_shrink;
 	sbi->s_es_shrinker.seeks = DEFAULT_SEEKS;
 	register_shrinker(&sbi->s_es_shrinker);
 }
 
-void ext4_es_unregister_shrinker(struct super_block *sb)
+void ext4_es_unregister_shrinker(struct ext4_sb_info *sbi)
 {
-	unregister_shrinker(&EXT4_SB(sb)->s_es_shrinker);
+	unregister_shrinker(&sbi->s_es_shrinker);
 }
 
 void ext4_es_lru_add(struct inode *inode)
@@ -947,11 +979,14 @@ void ext4_es_lru_add(struct inode *inode)
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
+	ei->i_touch_when = jiffies;
+
+	if (!list_empty(&ei->i_es_lru))
+		return;
+
 	spin_lock(&sbi->s_es_lru_lock);
 	if (list_empty(&ei->i_es_lru))
 		list_add_tail(&ei->i_es_lru, &sbi->s_es_lru);
-	else
-		list_move_tail(&ei->i_es_lru, &sbi->s_es_lru);
 	spin_unlock(&sbi->s_es_lru_lock);
 }
 

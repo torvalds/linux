@@ -99,7 +99,7 @@ static void mpc85xx_take_timebase(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __cpuinit smp_85xx_mach_cpu_die(void)
+static void smp_85xx_mach_cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
 	u32 tmp;
@@ -141,7 +141,7 @@ static inline u32 read_spin_table_addr_l(void *spin_table)
 	return in_be32(&((struct epapr_spin_table *)spin_table)->addr_l);
 }
 
-static int __cpuinit smp_85xx_kick_cpu(int nr)
+static int smp_85xx_kick_cpu(int nr)
 {
 	unsigned long flags;
 	const u64 *cpu_rel_addr;
@@ -362,7 +362,7 @@ static void mpc85xx_smp_machine_kexec(struct kimage *image)
 }
 #endif /* CONFIG_KEXEC */
 
-static void __cpuinit smp_85xx_setup_cpu(int cpu_nr)
+static void smp_85xx_setup_cpu(int cpu_nr)
 {
 	if (smp_85xx_ops.probe == smp_mpic_probe)
 		mpic_setup_this_cpu();

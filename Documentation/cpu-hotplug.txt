@@ -128,7 +128,7 @@ A: When doing make defconfig, Enable CPU hotplug support
 
    "Processor type and Features" -> Support for Hotpluggable CPUs
 
-Make sure that you have CONFIG_HOTPLUG, and CONFIG_SMP turned on as well.
+Make sure that you have CONFIG_SMP turned on as well.
 
 You would need to enable CONFIG_HOTPLUG_CPU for SMP suspend/resume support
 as well.
@@ -370,8 +370,10 @@ A: There is no clear spec defined way from ACPI that can give us that
    CPUs in MADT as hotpluggable CPUS.  In the case there are no disabled CPUS
    we assume 1/2 the number of CPUs currently present can be hotplugged.
 
-   Caveat: Today's ACPI MADT can only provide 256 entries since the apicid field
-   in MADT is only 8 bits.
+   Caveat: ACPI MADT can only provide 256 entries in systems with only ACPI 2.0c
+   or earlier ACPI version supported, because the apicid field in MADT is only
+   8 bits. From ACPI 3.0, this limitation was removed since the apicid field
+   was extended to 32 bits with x2APIC introduced.
 
 User Space Notification
 

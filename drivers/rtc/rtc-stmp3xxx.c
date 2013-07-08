@@ -225,7 +225,6 @@ static int stmp3xxx_rtc_remove(struct platform_device *pdev)
 
 	writel(STMP3XXX_RTC_CTRL_ALARM_IRQ_EN,
 			rtc_data->io + STMP3XXX_RTC_CTRL_CLR);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -274,25 +273,19 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 
 	rtc_data->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				&stmp3xxx_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc_data->rtc)) {
-		err = PTR_ERR(rtc_data->rtc);
-		goto out;
-	}
+	if (IS_ERR(rtc_data->rtc))
+		return PTR_ERR(rtc_data->rtc);
 
 	err = devm_request_irq(&pdev->dev, rtc_data->irq_alarm,
 			stmp3xxx_rtc_interrupt, 0, "RTC alarm", &pdev->dev);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot claim IRQ%d\n",
 			rtc_data->irq_alarm);
-		goto out;
+		return err;
 	}
 
 	stmp3xxx_wdt_register(pdev);
 	return 0;
-
-out:
-	platform_set_drvdata(pdev, NULL);
-	return err;
 }
 
 #ifdef CONFIG_PM_SLEEP

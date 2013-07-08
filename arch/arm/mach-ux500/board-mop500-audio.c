@@ -21,28 +21,14 @@
 
 static struct stedma40_chan_cfg msp0_dma_rx = {
 	.high_priority = true,
-	.dir = STEDMA40_PERIPH_TO_MEM,
-
-	.src_dev_type = DB8500_DMA_DEV31_MSP0_RX_SLIM0_CH0_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
-	/* data_width is set during configuration */
+	.dir = DMA_DEV_TO_MEM,
+	.dev_type = DB8500_DMA_DEV31_MSP0_SLIM0_CH0,
 };
 
 static struct stedma40_chan_cfg msp0_dma_tx = {
 	.high_priority = true,
-	.dir = STEDMA40_MEM_TO_PERIPH,
-
-	.src_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV31_MSP0_TX_SLIM0_CH0_TX,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
-	/* data_width is set during configuration */
+	.dir = DMA_MEM_TO_DEV,
+	.dev_type = DB8500_DMA_DEV31_MSP0_SLIM0_CH0,
 };
 
 struct msp_i2s_platform_data msp0_platform_data = {
@@ -53,28 +39,14 @@ struct msp_i2s_platform_data msp0_platform_data = {
 
 static struct stedma40_chan_cfg msp1_dma_rx = {
 	.high_priority = true,
-	.dir = STEDMA40_PERIPH_TO_MEM,
-
-	.src_dev_type = DB8500_DMA_DEV30_MSP3_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
-	/* data_width is set during configuration */
+	.dir = DMA_DEV_TO_MEM,
+	.dev_type = DB8500_DMA_DEV30_MSP3,
 };
 
 static struct stedma40_chan_cfg msp1_dma_tx = {
 	.high_priority = true,
-	.dir = STEDMA40_MEM_TO_PERIPH,
-
-	.src_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV30_MSP1_TX,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
-	/* data_width is set during configuration */
+	.dir = DMA_MEM_TO_DEV,
+	.dev_type = DB8500_DMA_DEV30_MSP1,
 };
 
 struct msp_i2s_platform_data msp1_platform_data = {
@@ -85,32 +57,16 @@ struct msp_i2s_platform_data msp1_platform_data = {
 
 static struct stedma40_chan_cfg msp2_dma_rx = {
 	.high_priority = true,
-	.dir = STEDMA40_PERIPH_TO_MEM,
-
-	.src_dev_type = DB8500_DMA_DEV14_MSP2_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-
-	/* MSP2 DMA doesn't work with PSIZE == 4 on DB8500v2 */
-	.src_info.psize = STEDMA40_PSIZE_LOG_1,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_1,
-
-	/* data_width is set during configuration */
+	.dir = DMA_DEV_TO_MEM,
+	.dev_type = DB8500_DMA_DEV14_MSP2,
 };
 
 static struct stedma40_chan_cfg msp2_dma_tx = {
 	.high_priority = true,
-	.dir = STEDMA40_MEM_TO_PERIPH,
-
-	.src_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV14_MSP2_TX,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
+	.dir = DMA_MEM_TO_DEV,
+	.dev_type = DB8500_DMA_DEV14_MSP2,
 	.use_fixed_channel = true,
 	.phy_channel = 1,
-
-	/* data_width is set during configuration */
 };
 
 static struct platform_device *db8500_add_msp_i2s(struct device *parent,

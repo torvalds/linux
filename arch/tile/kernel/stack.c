@@ -442,7 +442,7 @@ void _KBacktraceIterator_init_current(struct KBacktraceIterator *kbt, ulong pc,
 				regs_to_pt_regs(&regs, pc, lr, sp, r52));
 }
 
-/* This is called only from kernel/sched.c, with esp == NULL */
+/* This is called only from kernel/sched/core.c, with esp == NULL */
 void show_stack(struct task_struct *task, unsigned long *esp)
 {
 	struct KBacktraceIterator kbt;

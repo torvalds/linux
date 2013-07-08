@@ -149,6 +149,27 @@ static const u8 usb3_rh_dev_descriptor[18] = {
 	0x01        /*  __u8  bNumConfigurations; */
 };
 
+/* usb 2.5 (wireless USB 1.0) root hub device descriptor */
+static const u8 usb25_rh_dev_descriptor[18] = {
+	0x12,       /*  __u8  bLength; */
+	0x01,       /*  __u8  bDescriptorType; Device */
+	0x50, 0x02, /*  __le16 bcdUSB; v2.5 */
+
+	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
+	0x00,	    /*  __u8  bDeviceSubClass; */
+	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 no TT ] */
+	0xFF,       /*  __u8  bMaxPacketSize0; always 0xFF (WUSB Spec 7.4.1). */
+
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
+	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
+	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
+
+	0x03,       /*  __u8  iManufacturer; */
+	0x02,       /*  __u8  iProduct; */
+	0x01,       /*  __u8  iSerialNumber; */
+	0x01        /*  __u8  bNumConfigurations; */
+};
+
 /* usb 2.0 root hub device descriptor */
 static const u8 usb2_rh_dev_descriptor [18] = {
 	0x12,       /*  __u8  bLength; */
@@ -527,6 +548,9 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			case HCD_USB3:
 				bufp = usb3_rh_dev_descriptor;
 				break;
+			case HCD_USB25:
+				bufp = usb25_rh_dev_descriptor;
+				break;
 			case HCD_USB2:
 				bufp = usb2_rh_dev_descriptor;
 				break;
@@ -546,6 +570,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 				bufp = ss_rh_config_descriptor;
 				len = sizeof ss_rh_config_descriptor;
 				break;
+			case HCD_USB25:
 			case HCD_USB2:
 				bufp = hs_rh_config_descriptor;
 				len = sizeof hs_rh_config_descriptor;
@@ -2510,6 +2535,9 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		break;
 	case HCD_USB2:
 		rhdev->speed = USB_SPEED_HIGH;
+		break;
+	case HCD_USB25:
+		rhdev->speed = USB_SPEED_WIRELESS;
 		break;
 	case HCD_USB3:
 		rhdev->speed = USB_SPEED_SUPER;

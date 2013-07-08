@@ -24,20 +24,9 @@
 #include <linux/usb/composite.h>
 
 #include "u_ether.h"
+#include "u_ncm.h"
 
 #define DRIVER_DESC		"NCM Gadget"
-
-/*-------------------------------------------------------------------------*/
-
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#include "f_ncm.c"
-#include "u_ether.c"
 
 /*-------------------------------------------------------------------------*/
 
@@ -53,6 +42,8 @@
 
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();
+
+USB_ETHERNET_MODULE_PARAMETERS();
 
 static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
@@ -111,13 +102,15 @@ static struct usb_gadget_strings *dev_strings[] = {
 	NULL,
 };
 
-struct eth_dev *the_dev;
-static u8 hostaddr[ETH_ALEN];
+static struct usb_function_instance *f_ncm_inst;
+static struct usb_function *f_ncm;
 
 /*-------------------------------------------------------------------------*/
 
 static int __init ncm_do_config(struct usb_configuration *c)
 {
+	int status;
+
 	/* FIXME alloc iConfiguration string, set it in c->strings */
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -125,7 +118,19 @@ static int __init ncm_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return ncm_bind_config(c, hostaddr, the_dev);
+	f_ncm = usb_get_function(f_ncm_inst);
+	if (IS_ERR(f_ncm)) {
+		status = PTR_ERR(f_ncm);
+		return status;
+	}
+
+	status = usb_add_function(c, f_ncm);
+	if (status < 0) {
+		usb_put_function(f_ncm);
+		return status;
+	}
+
+	return 0;
 }
 
 static struct usb_configuration ncm_config_driver = {
@@ -141,12 +146,20 @@ static struct usb_configuration ncm_config_driver = {
 static int __init gncm_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
+	struct f_ncm_opts	*ncm_opts;
 	int			status;
 
-	/* set up network link layer */
-	the_dev = gether_setup(cdev->gadget, hostaddr);
-	if (IS_ERR(the_dev))
-		return PTR_ERR(the_dev);
+	f_ncm_inst = usb_get_function_instance("ncm");
+	if (IS_ERR(f_ncm_inst))
+		return PTR_ERR(f_ncm_inst);
+
+	ncm_opts = container_of(f_ncm_inst, struct f_ncm_opts, func_inst);
+
+	gether_set_qmult(ncm_opts->net, qmult);
+	if (!gether_set_host_addr(ncm_opts->net, host_addr))
+		pr_info("using host ethernet address: %s", host_addr);
+	if (!gether_set_dev_addr(ncm_opts->net, dev_addr))
+		pr_info("using self ethernet address: %s", dev_addr);
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
@@ -169,13 +182,16 @@ static int __init gncm_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail:
-	gether_cleanup(the_dev);
+	usb_put_function_instance(f_ncm_inst);
 	return status;
 }
 
 static int __exit gncm_unbind(struct usb_composite_dev *cdev)
 {
-	gether_cleanup(the_dev);
+	if (!IS_ERR_OR_NULL(f_ncm))
+		usb_put_function(f_ncm);
+	if (!IS_ERR_OR_NULL(f_ncm_inst))
+		usb_put_function_instance(f_ncm_inst);
 	return 0;
 }
 

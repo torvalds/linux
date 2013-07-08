@@ -393,14 +393,6 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 extern  void update_mmu_cache(struct vm_area_struct * vma,
 			      unsigned long address, pte_t *ptep);
 
-/*
- * remap a physical page `pfn' of size `size' with page protection `prot'
- * into virtual address `from'
- */
-
-#define io_remap_pfn_range(vma,from,pfn,size,prot) \
-	remap_pfn_range(vma, from, pfn, size, prot)
-
 typedef pte_t *pte_addr_t;
 
 #endif /* !defined (__ASSEMBLY__) */

@@ -2208,7 +2208,7 @@ int qib_cdev_init(int minor, const char *name,
 		goto err_cdev;
 	}
 
-	device = device_create(qib_class, NULL, dev, NULL, name);
+	device = device_create(qib_class, NULL, dev, NULL, "%s", name);
 	if (!IS_ERR(device))
 		goto done;
 	ret = PTR_ERR(device);

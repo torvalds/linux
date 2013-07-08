@@ -167,6 +167,36 @@ config TOUCHSCREEN_CYTTSP_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyttsp_spi.
 
+config TOUCHSCREEN_CYTTSP4_CORE
+	tristate "Cypress TrueTouch Gen4 Touchscreen Driver"
+	help
+	  Core driver for Cypress TrueTouch(tm) Standard Product
+	  Generation4 touchscreen controllers.
+
+	  Say Y here if you have a Cypress Gen4 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here.
+
+config TOUCHSCREEN_CYTTSP4_I2C
+	tristate "support I2C bus connection"
+	depends on TOUCHSCREEN_CYTTSP4_CORE && I2C
+	help
+	  Say Y here if the touchscreen is connected via I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp4_i2c.
+
+config TOUCHSCREEN_CYTTSP4_SPI
+	tristate "support SPI bus connection"
+	depends on TOUCHSCREEN_CYTTSP4_CORE && SPI_MASTER
+	help
+	  Say Y here if the touchscreen is connected via SPI bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp4_spi.
+
 config TOUCHSCREEN_DA9034
 	tristate "Touchscreen support for Dialog Semiconductor DA9034"
 	depends on PMIC_DA903X
@@ -879,6 +909,7 @@ config TOUCHSCREEN_STMPE
 config TOUCHSCREEN_TPS6507X
 	tristate "TPS6507x based touchscreens"
 	depends on I2C
+	select INPUT_POLLDEV
 	help
 	  Say Y here if you have a TPS6507x based touchscreen
 	  controller.

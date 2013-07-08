@@ -15,10 +15,6 @@ This program is free software; you can redistribute it and/or modify it under th
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You should also find the complete GPL in the COPYING file accompanying this source code.
-
 @endverbatim
 */
 /*
@@ -724,9 +720,7 @@ static int i_APCI3120_StopCyclicAcquisition(struct comedi_device *dev,
 	inb(dev->iobase + APCI3120_RESET_FIFO);
 	inw(dev->iobase + APCI3120_RD_STATUS);
 	devpriv->ui_AiActualScan = 0;
-	devpriv->ui_AiActualScanPosition = 0;
 	s->async->cur_chan = 0;
-	devpriv->ui_AiBufferPtr = 0;
 	devpriv->b_AiContinuous = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
@@ -895,9 +889,7 @@ static int i_APCI3120_CyclicAnalogInput(int mode,
 	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 	devpriv->ui_AiActualScan = 0;
-	devpriv->ui_AiActualScanPosition = 0;
 	s->async->cur_chan = 0;
-	devpriv->ui_AiBufferPtr = 0;
 	devpriv->ui_DmaActualBuffer = 0;
 
 	/*  value for timer2  minus -2 has to be done .....dunno y?? */
@@ -1351,8 +1343,6 @@ static int i_APCI3120_CommandAnalogInput(struct comedi_device *dev,
 	devpriv->ui_AiScanLength = cmd->scan_end_arg;
 	devpriv->pui_AiChannelList = cmd->chanlist;
 
-	/* UPDATE-0.7.57->0.7.68devpriv->AiData=s->async->data; */
-	devpriv->AiData = s->async->prealloc_buf;
 	/* UPDATE-0.7.57->0.7.68devpriv->ui_AiDataLength=s->async->data_len; */
 	devpriv->ui_AiDataLength = s->async->prealloc_bufsz;
 

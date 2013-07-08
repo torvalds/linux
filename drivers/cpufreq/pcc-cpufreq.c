@@ -243,6 +243,8 @@ static int pcc_cpufreq_target(struct cpufreq_policy *policy,
 	return 0;
 
 cmd_incomplete:
+	freqs.new = freqs.old;
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	iowrite16(0, &pcch_hdr->status);
 	spin_unlock(&pcc_lock);
 	return -EINVAL;

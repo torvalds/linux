@@ -165,10 +165,28 @@ int sysctl_perf_event_mlock __read_mostly = 512 + (PAGE_SIZE / 1024); /* 'free' 
 /*
  * max perf event sample rate
  */
-#define DEFAULT_MAX_SAMPLE_RATE 100000
-int sysctl_perf_event_sample_rate __read_mostly = DEFAULT_MAX_SAMPLE_RATE;
-static int max_samples_per_tick __read_mostly =
-	DIV_ROUND_UP(DEFAULT_MAX_SAMPLE_RATE, HZ);
+#define DEFAULT_MAX_SAMPLE_RATE		100000
+#define DEFAULT_SAMPLE_PERIOD_NS	(NSEC_PER_SEC / DEFAULT_MAX_SAMPLE_RATE)
+#define DEFAULT_CPU_TIME_MAX_PERCENT	25
+
+int sysctl_perf_event_sample_rate __read_mostly	= DEFAULT_MAX_SAMPLE_RATE;
+
+static int max_samples_per_tick __read_mostly	= DIV_ROUND_UP(DEFAULT_MAX_SAMPLE_RATE, HZ);
+static int perf_sample_period_ns __read_mostly	= DEFAULT_SAMPLE_PERIOD_NS;
+
+static atomic_t perf_sample_allowed_ns __read_mostly =
+	ATOMIC_INIT( DEFAULT_SAMPLE_PERIOD_NS * DEFAULT_CPU_TIME_MAX_PERCENT / 100);
+
+void update_perf_cpu_limits(void)
+{
+	u64 tmp = perf_sample_period_ns;
+
+	tmp *= sysctl_perf_cpu_time_max_percent;
+	tmp = do_div(tmp, 100);
+	atomic_set(&perf_sample_allowed_ns, tmp);
+}
+
+static int perf_rotate_context(struct perf_cpu_context *cpuctx);
 
 int perf_proc_update_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
@@ -180,8 +198,76 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 		return ret;
 
 	max_samples_per_tick = DIV_ROUND_UP(sysctl_perf_event_sample_rate, HZ);
+	perf_sample_period_ns = NSEC_PER_SEC / sysctl_perf_event_sample_rate;
+	update_perf_cpu_limits();
 
 	return 0;
+}
+
+int sysctl_perf_cpu_time_max_percent __read_mostly = DEFAULT_CPU_TIME_MAX_PERCENT;
+
+int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp,
+				loff_t *ppos)
+{
+	int ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (ret || !write)
+		return ret;
+
+	update_perf_cpu_limits();
+
+	return 0;
+}
+
+/*
+ * perf samples are done in some very critical code paths (NMIs).
+ * If they take too much CPU time, the system can lock up and not
+ * get any real work done.  This will drop the sample rate when
+ * we detect that events are taking too long.
+ */
+#define NR_ACCUMULATED_SAMPLES 128
+DEFINE_PER_CPU(u64, running_sample_length);
+
+void perf_sample_event_took(u64 sample_len_ns)
+{
+	u64 avg_local_sample_len;
+	u64 local_samples_len = __get_cpu_var(running_sample_length);
+
+	if (atomic_read(&perf_sample_allowed_ns) == 0)
+		return;
+
+	/* decay the counter by 1 average sample */
+	local_samples_len = __get_cpu_var(running_sample_length);
+	local_samples_len -= local_samples_len/NR_ACCUMULATED_SAMPLES;
+	local_samples_len += sample_len_ns;
+	__get_cpu_var(running_sample_length) = local_samples_len;
+
+	/*
+	 * note: this will be biased artifically low until we have
+	 * seen NR_ACCUMULATED_SAMPLES.  Doing it this way keeps us
+	 * from having to maintain a count.
+	 */
+	avg_local_sample_len = local_samples_len/NR_ACCUMULATED_SAMPLES;
+
+	if (avg_local_sample_len <= atomic_read(&perf_sample_allowed_ns))
+		return;
+
+	if (max_samples_per_tick <= 1)
+		return;
+
+	max_samples_per_tick = DIV_ROUND_UP(max_samples_per_tick, 2);
+	sysctl_perf_event_sample_rate = max_samples_per_tick * HZ;
+	perf_sample_period_ns = NSEC_PER_SEC / sysctl_perf_event_sample_rate;
+
+	printk_ratelimited(KERN_WARNING
+			"perf samples too long (%lld > %d), lowering "
+			"kernel.perf_event_max_sample_rate to %d\n",
+			avg_local_sample_len,
+			atomic_read(&perf_sample_allowed_ns),
+			sysctl_perf_event_sample_rate);
+
+	update_perf_cpu_limits();
 }
 
 static atomic64_t perf_event_id;
@@ -654,6 +740,106 @@ perf_cgroup_mark_enabled(struct perf_event *event,
 {
 }
 #endif
+
+/*
+ * set default to be dependent on timer tick just
+ * like original code
+ */
+#define PERF_CPU_HRTIMER (1000 / HZ)
+/*
+ * function must be called with interrupts disbled
+ */
+static enum hrtimer_restart perf_cpu_hrtimer_handler(struct hrtimer *hr)
+{
+	struct perf_cpu_context *cpuctx;
+	enum hrtimer_restart ret = HRTIMER_NORESTART;
+	int rotations = 0;
+
+	WARN_ON(!irqs_disabled());
+
+	cpuctx = container_of(hr, struct perf_cpu_context, hrtimer);
+
+	rotations = perf_rotate_context(cpuctx);
+
+	/*
+	 * arm timer if needed
+	 */
+	if (rotations) {
+		hrtimer_forward_now(hr, cpuctx->hrtimer_interval);
+		ret = HRTIMER_RESTART;
+	}
+
+	return ret;
+}
+
+/* CPU is going down */
+void perf_cpu_hrtimer_cancel(int cpu)
+{
+	struct perf_cpu_context *cpuctx;
+	struct pmu *pmu;
+	unsigned long flags;
+
+	if (WARN_ON(cpu != smp_processor_id()))
+		return;
+
+	local_irq_save(flags);
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(pmu, &pmus, entry) {
+		cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+
+		if (pmu->task_ctx_nr == perf_sw_context)
+			continue;
+
+		hrtimer_cancel(&cpuctx->hrtimer);
+	}
+
+	rcu_read_unlock();
+
+	local_irq_restore(flags);
+}
+
+static void __perf_cpu_hrtimer_init(struct perf_cpu_context *cpuctx, int cpu)
+{
+	struct hrtimer *hr = &cpuctx->hrtimer;
+	struct pmu *pmu = cpuctx->ctx.pmu;
+	int timer;
+
+	/* no multiplexing needed for SW PMU */
+	if (pmu->task_ctx_nr == perf_sw_context)
+		return;
+
+	/*
+	 * check default is sane, if not set then force to
+	 * default interval (1/tick)
+	 */
+	timer = pmu->hrtimer_interval_ms;
+	if (timer < 1)
+		timer = pmu->hrtimer_interval_ms = PERF_CPU_HRTIMER;
+
+	cpuctx->hrtimer_interval = ns_to_ktime(NSEC_PER_MSEC * timer);
+
+	hrtimer_init(hr, CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
+	hr->function = perf_cpu_hrtimer_handler;
+}
+
+static void perf_cpu_hrtimer_restart(struct perf_cpu_context *cpuctx)
+{
+	struct hrtimer *hr = &cpuctx->hrtimer;
+	struct pmu *pmu = cpuctx->ctx.pmu;
+
+	/* not for SW PMU */
+	if (pmu->task_ctx_nr == perf_sw_context)
+		return;
+
+	if (hrtimer_active(hr))
+		return;
+
+	if (!hrtimer_callback_running(hr))
+		__hrtimer_start_range_ns(hr, cpuctx->hrtimer_interval,
+					 0, HRTIMER_MODE_REL_PINNED, 0);
+}
 
 void perf_pmu_disable(struct pmu *pmu)
 {
@@ -1503,6 +1689,7 @@ group_sched_in(struct perf_event *group_event,
 
 	if (event_sched_in(group_event, cpuctx, ctx)) {
 		pmu->cancel_txn(pmu);
+		perf_cpu_hrtimer_restart(cpuctx);
 		return -EAGAIN;
 	}
 
@@ -1548,6 +1735,8 @@ group_error:
 	event_sched_out(group_event, cpuctx, ctx);
 
 	pmu->cancel_txn(pmu);
+
+	perf_cpu_hrtimer_restart(cpuctx);
 
 	return -EAGAIN;
 }
@@ -1804,8 +1993,10 @@ static int __perf_event_enable(void *info)
 		 * If this event can't go on and it's part of a
 		 * group, then the whole group has to come off.
 		 */
-		if (leader != event)
+		if (leader != event) {
 			group_sched_out(leader, cpuctx, ctx);
+			perf_cpu_hrtimer_restart(cpuctx);
+		}
 		if (leader->attr.pinned) {
 			update_group_times(leader);
 			leader->state = PERF_EVENT_STATE_ERROR;
@@ -2552,7 +2743,7 @@ static void rotate_ctx(struct perf_event_context *ctx)
  * because they're strictly cpu affine and rotate_start is called with IRQs
  * disabled, while rotate_context is called from IRQ context.
  */
-static void perf_rotate_context(struct perf_cpu_context *cpuctx)
+static int perf_rotate_context(struct perf_cpu_context *cpuctx)
 {
 	struct perf_event_context *ctx = NULL;
 	int rotate = 0, remove = 1;
@@ -2591,6 +2782,8 @@ static void perf_rotate_context(struct perf_cpu_context *cpuctx)
 done:
 	if (remove)
 		list_del_init(&cpuctx->rotation_list);
+
+	return rotate;
 }
 
 #ifdef CONFIG_NO_HZ_FULL
@@ -2622,10 +2815,6 @@ void perf_event_task_tick(void)
 		ctx = cpuctx->task_ctx;
 		if (ctx)
 			perf_adjust_freq_unthr_context(ctx, throttled);
-
-		if (cpuctx->jiffies_interval == 1 ||
-				!(jiffies % cpuctx->jiffies_interval))
-			perf_rotate_context(cpuctx);
 	}
 }
 
@@ -5036,7 +5225,7 @@ static DEFINE_PER_CPU(struct swevent_htable, swevent_htable);
  * sign as trigger.
  */
 
-static u64 perf_swevent_set_period(struct perf_event *event)
+u64 perf_swevent_set_period(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	u64 period = hwc->last_period;
@@ -5979,9 +6168,56 @@ type_show(struct device *dev, struct device_attribute *attr, char *page)
 	return snprintf(page, PAGE_SIZE-1, "%d\n", pmu->type);
 }
 
+static ssize_t
+perf_event_mux_interval_ms_show(struct device *dev,
+				struct device_attribute *attr,
+				char *page)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+
+	return snprintf(page, PAGE_SIZE-1, "%d\n", pmu->hrtimer_interval_ms);
+}
+
+static ssize_t
+perf_event_mux_interval_ms_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+	int timer, cpu, ret;
+
+	ret = kstrtoint(buf, 0, &timer);
+	if (ret)
+		return ret;
+
+	if (timer < 1)
+		return -EINVAL;
+
+	/* same value, noting to do */
+	if (timer == pmu->hrtimer_interval_ms)
+		return count;
+
+	pmu->hrtimer_interval_ms = timer;
+
+	/* update all cpuctx for this PMU */
+	for_each_possible_cpu(cpu) {
+		struct perf_cpu_context *cpuctx;
+		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
+		cpuctx->hrtimer_interval = ns_to_ktime(NSEC_PER_MSEC * timer);
+
+		if (hrtimer_active(&cpuctx->hrtimer))
+			hrtimer_forward_now(&cpuctx->hrtimer, cpuctx->hrtimer_interval);
+	}
+
+	return count;
+}
+
+#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
+
 static struct device_attribute pmu_dev_attrs[] = {
-       __ATTR_RO(type),
-       __ATTR_NULL,
+	__ATTR_RO(type),
+	__ATTR_RW(perf_event_mux_interval_ms),
+	__ATTR_NULL,
 };
 
 static int pmu_bus_running;
@@ -6027,7 +6263,7 @@ free_dev:
 static struct lock_class_key cpuctx_mutex;
 static struct lock_class_key cpuctx_lock;
 
-int perf_pmu_register(struct pmu *pmu, char *name, int type)
+int perf_pmu_register(struct pmu *pmu, const char *name, int type)
 {
 	int cpu, ret;
 
@@ -6076,7 +6312,9 @@ skip_type:
 		lockdep_set_class(&cpuctx->ctx.lock, &cpuctx_lock);
 		cpuctx->ctx.type = cpu_context;
 		cpuctx->ctx.pmu = pmu;
-		cpuctx->jiffies_interval = 1;
+
+		__perf_cpu_hrtimer_init(cpuctx, cpu);
+
 		INIT_LIST_HEAD(&cpuctx->rotation_list);
 		cpuctx->unique_pmu = pmu;
 	}
@@ -6402,11 +6640,6 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 		if (!(mask & ~PERF_SAMPLE_BRANCH_PLM_ALL))
 			return -EINVAL;
 
-		/* kernel level capture: check permissions */
-		if ((mask & PERF_SAMPLE_BRANCH_PERM_PLM)
-		    && perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN))
-			return -EACCES;
-
 		/* propagate priv level, when not set for branch */
 		if (!(mask & PERF_SAMPLE_BRANCH_PLM_ALL)) {
 
@@ -6424,6 +6657,10 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 			 */
 			attr->branch_sample_type = mask;
 		}
+		/* privileged levels capture (kernel, hv): check permissions */
+		if ((mask & PERF_SAMPLE_BRANCH_PERM_PLM)
+		    && perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN))
+			return -EACCES;
 	}
 
 	if (attr->sample_type & PERF_SAMPLE_REGS_USER) {
@@ -7476,7 +7713,6 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 	case CPU_DOWN_PREPARE:
 		perf_event_exit_cpu(cpu);
 		break;
-
 	default:
 		break;
 	}

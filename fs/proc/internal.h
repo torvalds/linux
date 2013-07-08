@@ -165,14 +165,14 @@ extern int proc_setattr(struct dentry *, struct iattr *);
 extern struct inode *proc_pid_make_inode(struct super_block *, struct task_struct *);
 extern int pid_revalidate(struct dentry *, unsigned int);
 extern int pid_delete_dentry(const struct dentry *);
-extern int proc_pid_readdir(struct file *, void *, filldir_t);
+extern int proc_pid_readdir(struct file *, struct dir_context *);
 extern struct dentry *proc_pid_lookup(struct inode *, struct dentry *, unsigned int);
 extern loff_t mem_lseek(struct file *, loff_t, int);
 
 /* Lookups */
-typedef struct dentry *instantiate_t(struct inode *, struct dentry *,
+typedef int instantiate_t(struct inode *, struct dentry *,
 				     struct task_struct *, const void *);
-extern int proc_fill_cache(struct file *, void *, filldir_t, const char *, int,
+extern bool proc_fill_cache(struct file *, struct dir_context *, const char *, int,
 			   instantiate_t, struct task_struct *, const void *);
 
 /*
@@ -183,8 +183,8 @@ extern spinlock_t proc_subdir_lock;
 extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
 extern struct dentry *proc_lookup_de(struct proc_dir_entry *, struct inode *,
 				     struct dentry *);
-extern int proc_readdir(struct file *, void *, filldir_t);
-extern int proc_readdir_de(struct proc_dir_entry *, struct file *, void *, filldir_t);
+extern int proc_readdir(struct file *, struct dir_context *);
+extern int proc_readdir_de(struct proc_dir_entry *, struct file *, struct dir_context *);
 
 static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
 {

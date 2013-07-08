@@ -180,6 +180,7 @@ static struct of_device_id iio_hwmon_of_match[] = {
 	{ .compatible = "iio-hwmon", },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, iio_hwmon_of_match);
 
 static struct platform_driver __refdata iio_hwmon_driver = {
 	.driver = {

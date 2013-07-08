@@ -186,7 +186,7 @@ identity_mapped:
 	movl	CP_PA_PGD(%ebx), %eax
 	movl	%eax, %cr3
 	movl	%cr0, %eax
-	orl	$(1<<31), %eax
+	orl	$X86_CR0_PG, %eax
 	movl	%eax, %cr0
 	lea	PAGE_SIZE(%edi), %esp
 	movl	%edi, %eax

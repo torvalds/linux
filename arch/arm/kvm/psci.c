@@ -75,7 +75,7 @@ static unsigned long kvm_psci_vcpu_on(struct kvm_vcpu *source_vcpu)
  * kvm_psci_call - handle PSCI call if r0 value is in range
  * @vcpu: Pointer to the VCPU struct
  *
- * Handle PSCI calls from guests through traps from HVC or SMC instructions.
+ * Handle PSCI calls from guests through traps from HVC instructions.
  * The calling convention is similar to SMC calls to the secure world where
  * the function number is placed in r0 and this function returns true if the
  * function number specified in r0 is withing the PSCI range, and false

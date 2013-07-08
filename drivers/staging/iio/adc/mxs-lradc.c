@@ -620,7 +620,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 		((LRADC_DELAY_TIMER_LOOP - 1) << LRADC_CH_NUM_SAMPLES_OFFSET);
 	unsigned int i, j = 0;
 
-	for_each_set_bit(i, iio->active_scan_mask, iio->masklength) {
+	for_each_set_bit(i, iio->active_scan_mask, LRADC_MAX_TOTAL_CHANS) {
 		lradc->buffer[j] = readl(lradc->base + LRADC_CH(j));
 		writel(chan_value, lradc->base + LRADC_CH(j));
 		lradc->buffer[j] &= LRADC_CH_VALUE_MASK;
@@ -774,8 +774,7 @@ static bool mxs_lradc_validate_scan_mask(struct iio_dev *iio,
 					const unsigned long *mask)
 {
 	struct mxs_lradc *lradc = iio_priv(iio);
-	const int len = iio->masklength;
-	const int map_chans = bitmap_weight(mask, len);
+	const int map_chans = bitmap_weight(mask, LRADC_MAX_TOTAL_CHANS);
 	int rsvd_chans = 0;
 	unsigned long rsvd_mask = 0;
 
@@ -792,7 +791,7 @@ static bool mxs_lradc_validate_scan_mask(struct iio_dev *iio,
 		rsvd_chans++;
 
 	/* Test for attempts to map channels with special mode of operation. */
-	if (bitmap_intersects(mask, &rsvd_mask, len))
+	if (bitmap_intersects(mask, &rsvd_mask, LRADC_MAX_TOTAL_CHANS))
 		return false;
 
 	/* Test for attempts to map more channels then available slots. */
@@ -968,6 +967,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	iio->modes = INDIO_DIRECT_MODE;
 	iio->channels = mxs_lradc_chan_spec;
 	iio->num_channels = ARRAY_SIZE(mxs_lradc_chan_spec);
+	iio->masklength = LRADC_MAX_TOTAL_CHANS;
 
 	ret = iio_triggered_buffer_setup(iio, &iio_pollfunc_store_time,
 				&mxs_lradc_trigger_handler,

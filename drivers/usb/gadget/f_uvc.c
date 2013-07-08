@@ -156,8 +156,6 @@ static struct usb_endpoint_descriptor uvc_fs_streaming_ep __initdata = {
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
-	.wMaxPacketSize		= 0,
-	.bInterval		= 0,
 };
 
 static struct usb_endpoint_descriptor uvc_hs_streaming_ep __initdata = {
@@ -169,8 +167,6 @@ static struct usb_endpoint_descriptor uvc_hs_streaming_ep __initdata = {
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
-	.wMaxPacketSize		= 0,
-	.bInterval		= 0,
 };
 
 static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
@@ -183,17 +179,14 @@ static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
-	.wMaxPacketSize		= 0,
-	.bInterval		= 0,
 };
 
 static struct usb_ss_ep_comp_descriptor uvc_ss_streaming_comp __initdata = {
 	.bLength		= sizeof(uvc_ss_streaming_comp),
 	.bDescriptorType	= USB_DT_SS_ENDPOINT_COMP,
-	/* The following 3 values can be tweaked if necessary. */
-	.bMaxBurst		= 0,
-	.bmAttributes		= 0,
-	.wBytesPerInterval	= cpu_to_le16(1024),
+	/* The bMaxBurst, bmAttributes and wBytesPerInterval values will be
+	 * initialized from module parameters.
+	 */
 };
 
 static const struct usb_descriptor_header * const uvc_fs_streaming[] = {

@@ -304,7 +304,6 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		break;
 
 	case AML_TO_STRING_OP:	/* to_string (Buffer, Length, Result) (ACPI 2.0) */
-
 		/*
 		 * Input object is guaranteed to be a buffer at this point (it may have
 		 * been converted.)  Copy the raw buffer data to a new object of

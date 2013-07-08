@@ -63,7 +63,6 @@ struct omap_uart_state {
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 static u8 console_uart_id = -1;
-static u8 no_console_suspend;
 static u8 uart_debug;
 
 #define DEFAULT_RXDMA_POLLRATE		1	/* RX DMA polling rate (us) */
@@ -176,6 +175,9 @@ static char *cmdline_find_option(char *str)
 
 static int __init omap_serial_early_init(void)
 {
+	if (of_have_populated_dt())
+		return -ENODEV;
+
 	do {
 		char oh_name[MAX_UART_HWMOD_NAME_LEN];
 		struct omap_hwmod *oh;
@@ -206,9 +208,6 @@ static int __init omap_serial_early_init(void)
 				pr_info("%s used as console in debug mode: uart%d clocks will not be gated",
 					uart_name, uart->num);
 			}
-
-			if (cmdline_find_option("no_console_suspend"))
-				no_console_suspend = true;
 
 			/*
 			 * omap-uart can be used for earlyprintk logs
@@ -291,9 +290,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 		     oh->name);
 		return;
 	}
-
-	if ((console_uart_id == bdata->id) && no_console_suspend)
-		omap_device_disable_idle_on_suspend(pdev);
 
 	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
 

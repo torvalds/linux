@@ -443,11 +443,11 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
  *
  * returns 0, OK; otherwise, error.
  */
-int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
-			struct mei_cl_cb *cb, struct mei_cl_cb *cmpl_list)
+int mei_amthif_irq_write_complete(struct mei_cl *cl, struct mei_cl_cb *cb,
+				  s32 *slots, struct mei_cl_cb *cmpl_list)
 {
+	struct mei_device *dev = cl->dev;
 	struct mei_msg_hdr mei_hdr;
-	struct mei_cl *cl = cb->cl;
 	size_t len = dev->iamthif_msg_buf_size - dev->iamthif_msg_buf_index;
 	u32 msg_slots = mei_data2slots(len);
 

@@ -96,6 +96,7 @@ void am33xx_init_early(void);
 void am35xx_init_early(void);
 void ti81xx_init_early(void);
 void am33xx_init_early(void);
+void am43xx_init_early(void);
 void omap4430_init_early(void);
 void omap5_init_early(void);
 void omap3_init_late(void);	/* Do not use this one */
@@ -237,8 +238,8 @@ extern void omap_do_wfi(void);
 
 #ifdef CONFIG_SMP
 /* Needed for secondary core boot */
-extern void omap_secondary_startup(void);
-extern void omap_secondary_startup_4460(void);
+extern void omap4_secondary_startup(void);
+extern void omap4460_secondary_startup(void);
 extern u32 omap_modify_auxcoreboot0(u32 set_mask, u32 clear_mask);
 extern void omap_auxcoreboot_addr(u32 cpu_addr);
 extern u32 omap_read_auxcoreboot0(void);

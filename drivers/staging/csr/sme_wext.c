@@ -120,7 +120,7 @@ channel_to_mhz(int ch, int dot11a)
 #ifdef CSR_SUPPORT_WEXT_AP
 void uf_sme_wext_ap_set_defaults(unifi_priv_t *priv)
 {
-    memcpy(priv->ap_config.ssid.ssid,"defaultssid",sizeof("defaultssid"));
+    memcpy(priv->ap_config.ssid.ssid, "defaultssid", sizeof("defaultssid"));
 
     priv->ap_config.ssid.length = 8;
     priv->ap_config.channel = 6;
@@ -202,7 +202,7 @@ void uf_sme_wext_ap_set_defaults(unifi_priv_t *priv)
                                                     to enable different types of
                                                     devices to join us */
     priv->ap_mac_config.supportedRatesCount =
-           uf_configure_supported_rates(priv->ap_mac_config.supportedRates,priv->ap_mac_config.phySupportedBitmap);
+           uf_configure_supported_rates(priv->ap_mac_config.supportedRates, priv->ap_mac_config.phySupportedBitmap);
 }
 #endif
 /*
@@ -459,7 +459,7 @@ static int decode_parameter_from_string(unifi_priv_t* priv, char **str_ptr,
 {
     u8 int_str[7] = "0";
     u32 param_str_len;
-    u8  *param_str_begin,*param_str_end;
+    u8  *param_str_begin, *param_str_end;
     u8  *orig_str = *str_ptr;
 
     if (!strncmp(*str_ptr, token, strlen(token))) {
@@ -472,41 +472,41 @@ static int decode_parameter_from_string(unifi_priv_t* priv, char **str_ptr,
             param_str_end = *str_ptr-1;
             param_str_len = param_str_end - param_str_begin;
         }
-        unifi_trace(priv,UDBG2,"'token:%s', len:%d, ", token, param_str_len);
+        unifi_trace(priv, UDBG2, "'token:%s', len:%d, ", token, param_str_len);
         if (param_str_len > param_max_len) {
-            unifi_notice(priv,"extracted param len:%d is > MAX:%d\n",param_str_len, param_max_len);
+            unifi_notice(priv, "extracted param len:%d is > MAX:%d\n", param_str_len, param_max_len);
             param_str_len = param_max_len;
         }
         switch (param_type) {
             case PARAM_TYPE_INT:
             {
-                u32 *pdst_int = dst,num =0;
-                int i,j=0;
+                u32 *pdst_int = dst, num =0;
+                int i, j=0;
                 if (param_str_len > sizeof(int_str)) {
                     param_str_len = sizeof(int_str);
                 }
                 memcpy(int_str, param_str_begin, param_str_len);
                 for(i = param_str_len; i>0;i--) {
                     if(int_str[i-1] >= '0' && int_str[i-1] <='9') {
-                        num += ((int_str[i-1]-'0')*power(10,j));
+                        num += ((int_str[i-1]-'0')*power(10, j));
                         j++;
                     } else {
-                        unifi_error(priv,"decode_parameter_from_string:not a number %c\n",(int_str[i-1]));
+                        unifi_error(priv, "decode_parameter_from_string:not a number %c\n", (int_str[i-1]));
                         return -1;
                     }
                 }
                 *pdst_int = num;
-                unifi_trace(priv,UDBG2,"decode_parameter_from_string:decoded int = %d\n",*pdst_int);
+                unifi_trace(priv, UDBG2, "decode_parameter_from_string:decoded int = %d\n", *pdst_int);
             }
             break;
             default:
                 memcpy(dst, param_str_begin, param_str_len);
                 *((char *)dst + param_str_len) = 0;
-                unifi_trace(priv,UDBG2,"decode_parameter_from_string:decoded string = %s\n",(char *)dst);
+                unifi_trace(priv, UDBG2, "decode_parameter_from_string:decoded string = %s\n", (char *)dst);
             break;
         }
     } else {
-        unifi_error(priv,"decode_parameter_from_string: Token:%s not found in %s \n",token,orig_str);
+        unifi_error(priv, "decode_parameter_from_string: Token:%s not found in %s \n", token, orig_str);
         return -1;
     }
     return 0;
@@ -514,7 +514,7 @@ static int decode_parameter_from_string(unifi_priv_t* priv, char **str_ptr,
 static int store_ap_advanced_config_from_string(unifi_priv_t *priv, char *param_str)
 {
     char * str_ptr=param_str;
-    int ret = 0,tmp_var;
+    int ret = 0, tmp_var;
     char phy_mode[6];
     CsrWifiSmeApMacConfig * ap_mac_config = &priv->ap_mac_config;
 
@@ -522,36 +522,36 @@ static int store_ap_advanced_config_from_string(unifi_priv_t *priv, char *param_
     ret = decode_parameter_from_string(priv, &str_ptr, "BI=",
                                        PARAM_TYPE_INT, &tmp_var, 5);
     if(ret) {
-        unifi_error(priv,"store_ap_advanced_config_from_string: BI not found\n");
+        unifi_error(priv, "store_ap_advanced_config_from_string: BI not found\n");
         return -1;
     }
     ap_mac_config->beaconInterval = tmp_var;
     ret = decode_parameter_from_string(priv, &str_ptr, "DTIM_PER=",
                                         PARAM_TYPE_INT, &tmp_var, 5);
     if(ret) {
-        unifi_error(priv,"store_ap_advanced_config_from_string: DTIM_PER not found\n");
+        unifi_error(priv, "store_ap_advanced_config_from_string: DTIM_PER not found\n");
         return -1;
     }
     ap_mac_config->dtimPeriod = tmp_var;
     ret = decode_parameter_from_string(priv, &str_ptr, "WMM=",
                                         PARAM_TYPE_INT, &tmp_var, 5);
     if(ret) {
-        unifi_error(priv,"store_ap_advanced_config_from_string: WMM not found\n");
+        unifi_error(priv, "store_ap_advanced_config_from_string: WMM not found\n");
         return -1;
     }
     ap_mac_config->wmmEnabled = tmp_var;
     ret = decode_parameter_from_string(priv, &str_ptr, "PHY=",
                                         PARAM_TYPE_STRING, phy_mode, 5);
     if(ret) {
-        unifi_error(priv,"store_ap_advanced_config_from_string: PHY not found\n");
+        unifi_error(priv, "store_ap_advanced_config_from_string: PHY not found\n");
     } else {
-       if(strstr(phy_mode,"b")){
+       if(strstr(phy_mode, "b")){
            ap_mac_config->phySupportedBitmap = CSR_WIFI_SME_AP_PHY_SUPPORT_B;
        }
-       if(strstr(phy_mode,"g")) {
+       if(strstr(phy_mode, "g")) {
            ap_mac_config->phySupportedBitmap |= CSR_WIFI_SME_AP_PHY_SUPPORT_G;
        }
-       if(strstr(phy_mode,"n")) {
+       if(strstr(phy_mode, "n")) {
            ap_mac_config->phySupportedBitmap |= CSR_WIFI_SME_AP_PHY_SUPPORT_N;
        }
        ap_mac_config->supportedRatesCount =
@@ -560,39 +560,39 @@ static int store_ap_advanced_config_from_string(unifi_priv_t *priv, char *param_
     return ret;
 }
 
-static int store_ap_config_from_string( unifi_priv_t * priv,char *param_str)
+static int store_ap_config_from_string( unifi_priv_t * priv, char *param_str)
 
 {
     char *str_ptr = param_str;
     char sub_cmd[16];
     char sec[CSR_WIFI_MAX_SEC_LEN];
     char key[CSR_WIFI_MAX_KEY_LEN];
-    int ret = 0,tmp_var;
+    int ret = 0, tmp_var;
     CsrWifiSmeApConfig_t *ap_config = &priv->ap_config;
     CsrWifiSmeApMacConfig * ap_mac_config = &priv->ap_mac_config;
     memset(sub_cmd, 0, sizeof(sub_cmd));
-    if(!strstr(param_str,"END")) {
-        unifi_error(priv,"store_ap_config_from_string:Invalid config string:%s\n",param_str);
+    if(!strstr(param_str, "END")) {
+        unifi_error(priv, "store_ap_config_from_string:Invalid config string:%s\n", param_str);
         return -1;
     }
-    if (decode_parameter_from_string(priv,&str_ptr, "ASCII_CMD=",
+    if (decode_parameter_from_string(priv, &str_ptr, "ASCII_CMD=",
         PARAM_TYPE_STRING, sub_cmd, 6) != 0) {
          return -1;
     }
     if (strncmp(sub_cmd, "AP_CFG", 6)) {
 
-        if(!strncmp(sub_cmd ,"ADVCFG", 6)) {
+        if(!strncmp(sub_cmd , "ADVCFG", 6)) {
            return store_ap_advanced_config_from_string(priv, str_ptr);
         }
-        unifi_error(priv,"store_ap_config_from_string: sub_cmd:%s != 'AP_CFG or ADVCFG'!\n", sub_cmd);
+        unifi_error(priv, "store_ap_config_from_string: sub_cmd:%s != 'AP_CFG or ADVCFG'!\n", sub_cmd);
         return -1;
     }
     memset(ap_config, 0, sizeof(CsrWifiSmeApConfig_t));
-    ret = decode_parameter_from_string(priv,&str_ptr, "SSID=",
+    ret = decode_parameter_from_string(priv, &str_ptr, "SSID=",
                                        PARAM_TYPE_STRING, ap_config->ssid.ssid,
                                        CSR_WIFI_MAX_SSID_LEN);
     if(ret) {
-        unifi_error(priv,"store_ap_config_from_string: SSID not found\n");
+        unifi_error(priv, "store_ap_config_from_string: SSID not found\n");
         return -1;
     }
     ap_config->ssid.length = strlen(ap_config->ssid.ssid);
@@ -600,27 +600,27 @@ static int store_ap_config_from_string( unifi_priv_t * priv,char *param_str)
     ret = decode_parameter_from_string(priv, &str_ptr, "SEC=",
                                        PARAM_TYPE_STRING, sec, CSR_WIFI_MAX_SEC_LEN);
     if(ret) {
-        unifi_error(priv,"store_ap_config_from_string: SEC not found\n");
+        unifi_error(priv, "store_ap_config_from_string: SEC not found\n");
         return -1;
     }
-    ret = decode_parameter_from_string(priv,&str_ptr, "KEY=",
-                         PARAM_TYPE_STRING,  key, CSR_WIFI_MAX_KEY_LEN);
-    if(!strcasecmp(sec,"open")) {
-        unifi_trace(priv,UDBG2,"store_ap_config_from_string: security open");
+    ret = decode_parameter_from_string(priv, &str_ptr, "KEY=",
+                         PARAM_TYPE_STRING, key, CSR_WIFI_MAX_KEY_LEN);
+    if(!strcasecmp(sec, "open")) {
+        unifi_trace(priv, UDBG2, "store_ap_config_from_string: security open");
         ap_config->credentials.authType = CSR_WIFI_SME_AP_AUTH_TYPE_OPEN_SYSTEM;
         if(ret) {
-            unifi_notice(priv,"store_ap_config_from_string: KEY not found:fine with Open\n");
+            unifi_notice(priv, "store_ap_config_from_string: KEY not found:fine with Open\n");
         }
     }
-    else if(!strcasecmp(sec,"wpa2-psk")) {
-        int i,j=0;
+    else if(!strcasecmp(sec, "wpa2-psk")) {
+        int i, j=0;
         CsrWifiNmeApAuthPers *pers =
                             ((CsrWifiNmeApAuthPers *)&(ap_config->credentials.nmeAuthType.authTypePersonal));
         u8 *psk = pers->authPers_credentials.psk.psk;
 
-        unifi_trace(priv,UDBG2,"store_ap_config_from_string: security WPA2");
+        unifi_trace(priv, UDBG2, "store_ap_config_from_string: security WPA2");
         if(ret) {
-            unifi_error(priv,"store_ap_config_from_string: KEY not found for WPA2\n");
+            unifi_error(priv, "store_ap_config_from_string: KEY not found for WPA2\n");
             return -1;
         }
         ap_config->credentials.authType = CSR_WIFI_SME_AP_AUTH_TYPE_PERSONAL;
@@ -636,21 +636,21 @@ static int store_ap_config_from_string( unifi_priv_t * priv,char *param_str)
         }
 
     } else {
-       unifi_notice(priv,"store_ap_config_from_string: Unknown security: Assuming Open");
+       unifi_notice(priv, "store_ap_config_from_string: Unknown security: Assuming Open");
        ap_config->credentials.authType = CSR_WIFI_SME_AP_AUTH_TYPE_OPEN_SYSTEM;
        return -1;
     }
    /* Get the decoded value in a temp int variable to ensure that other fields within the struct
       which are of type other than int are not over written */
-    ret = decode_parameter_from_string(priv,&str_ptr, "CHANNEL=", PARAM_TYPE_INT, &tmp_var, 5);
+    ret = decode_parameter_from_string(priv, &str_ptr, "CHANNEL=", PARAM_TYPE_INT, &tmp_var, 5);
     if(ret)
         return -1;
     ap_config->channel = tmp_var;
-    ret = decode_parameter_from_string(priv,&str_ptr, "PREAMBLE=", PARAM_TYPE_INT, &tmp_var, 5);
+    ret = decode_parameter_from_string(priv, &str_ptr, "PREAMBLE=", PARAM_TYPE_INT, &tmp_var, 5);
     if(ret)
         return -1;
     ap_mac_config->preamble = tmp_var;
-    ret = decode_parameter_from_string(priv,&str_ptr, "MAX_SCB=", PARAM_TYPE_INT,  &tmp_var, 5);
+    ret = decode_parameter_from_string(priv, &str_ptr, "MAX_SCB=", PARAM_TYPE_INT, &tmp_var, 5);
     ap_config->max_connections = tmp_var;
     return ret;
 }
@@ -664,9 +664,9 @@ iwprivsapstart(struct net_device *dev, struct iw_request_info *info,
     int r;
 
     unifi_trace(priv, UDBG1, "iwprivsapstart\n" );
-    r = sme_ap_start(priv,interfacePriv->InterfaceTag,&priv->ap_config);
+    r = sme_ap_start(priv, interfacePriv->InterfaceTag, &priv->ap_config);
     if(r) {
-        unifi_error(priv,"iwprivsapstart AP START failed : %d\n",-r);
+        unifi_error(priv, "iwprivsapstart AP START failed : %d\n", -r);
     }
     return r;
 }
@@ -692,28 +692,28 @@ iwprivsapconfig(struct net_device *dev, struct iw_request_info *info,
             return -EFAULT;
         }
         cfg_str[wrqu->data.length] = 0;
-        unifi_trace(priv,UDBG2,"length:%d\n",wrqu->data.length);
-        unifi_trace(priv,UDBG2,"AP configuration string:%s\n",cfg_str);
+        unifi_trace(priv, UDBG2, "length:%d\n", wrqu->data.length);
+        unifi_trace(priv, UDBG2, "AP configuration string:%s\n", cfg_str);
         str = cfg_str;
-       if ((r = store_ap_config_from_string(priv,str))) {
-           unifi_error(priv, "iwprivsapconfig:Failed  to decode the string %d\n",r);
+       if ((r = store_ap_config_from_string(priv, str))) {
+           unifi_error(priv, "iwprivsapconfig:Failed  to decode the string %d\n", r);
            kfree(cfg_str);
            return -EIO;
 
        }
     } else {
-        unifi_error(priv,"iwprivsapconfig argument length = 0 \n");
+        unifi_error(priv, "iwprivsapconfig argument length = 0 \n");
         return -EIO;
     }
     r = sme_ap_config(priv, &priv->ap_mac_config, &priv->group_sec_config);
     if(r) {
-        unifi_error(priv,"iwprivsapstop AP Config failed : %d\n",-r);
+        unifi_error(priv, "iwprivsapstop AP Config failed : %d\n", -r);
     } else if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
         interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO) {
         unifi_trace(priv, UDBG1, "iwprivsapconfig: Starting the AP");
-        r = sme_ap_start(priv,interfacePriv->InterfaceTag,&priv->ap_config);
+        r = sme_ap_start(priv, interfacePriv->InterfaceTag, &priv->ap_config);
         if(r) {
-            unifi_error(priv,"iwprivsapstart AP START failed : %d\n",-r);
+            unifi_error(priv, "iwprivsapstart AP START failed : %d\n", -r);
         }
     }
     kfree(cfg_str);
@@ -730,9 +730,9 @@ iwprivsapstop(struct net_device *dev, struct iw_request_info *info,
     u16 interface_tag = interfacePriv->InterfaceTag;
 
     unifi_trace(priv, UDBG1, "iwprivsapstop\n" );
-    r = sme_ap_stop(priv,interface_tag);
+    r = sme_ap_stop(priv, interface_tag);
     if(r) {
-        unifi_error(priv,"iwprivsapstop AP STOP failed : %d\n",-r);
+        unifi_error(priv, "iwprivsapstop AP STOP failed : %d\n", -r);
     }
     return r;
 }
@@ -778,14 +778,14 @@ iwprivsstackstop(struct net_device *dev, struct iw_request_info *info,
             break;
         case CSR_WIFI_ROUTER_CTRL_MODE_AP:
         case CSR_WIFI_ROUTER_CTRL_MODE_P2PGO:
-            r = sme_ap_stop(priv,interface_tag);
+            r = sme_ap_stop(priv, interface_tag);
             break;
         default :
             break;
     }
 
     if(r) {
-        unifi_error(priv,"iwprivsstackstop Stack stop failed : %d\n",-r);
+        unifi_error(priv, "iwprivsstackstop Stack stop failed : %d\n", -r);
     }
     return 0;
 }
@@ -3167,7 +3167,7 @@ static const struct iw_priv_args unifi_private_args[] = {
 #endif
 #ifdef CSR_SUPPORT_WEXT_AP
     { SIOCIWSAPCFGPRIV, IW_PRIV_TYPE_CHAR | 256, IW_PRIV_TYPE_NONE, "AP_SET_CFG" },
-    { SIOCIWSAPSTARTPRIV, 0,IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED|IWPRIV_SME_MAX_STRING,"AP_BSS_START" },
+    { SIOCIWSAPSTARTPRIV, 0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED|IWPRIV_SME_MAX_STRING, "AP_BSS_START" },
     { SIOCIWSAPSTOPPRIV, IW_PRIV_TYPE_CHAR |IW_PRIV_SIZE_FIXED|0,
       IW_PRIV_TYPE_CHAR |IW_PRIV_SIZE_FIXED|0, "AP_BSS_STOP" },
 #ifdef ANDROID_BUILD

@@ -42,6 +42,7 @@ config MIPS
 	select MODULES_USE_ELF_REL if MODULES
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select CLONE_BACKWARDS
+	select HAVE_DEBUG_STACKOVERFLOW
 
 menu "Machine selection"
 
@@ -962,7 +963,7 @@ config SYS_HAS_EARLY_PRINTK
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP && HOTPLUG && SYS_SUPPORTS_HOTPLUG_CPU
+	depends on SMP && SYS_SUPPORTS_HOTPLUG_CPU
 	help
 	  Say Y here to allow turning CPUs off and on. CPUs can be
 	  controlled through /sys/devices/system/cpu.

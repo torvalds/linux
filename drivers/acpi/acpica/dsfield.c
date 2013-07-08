@@ -563,21 +563,25 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 	 */
 	switch (walk_state->opcode) {
 	case AML_FIELD_OP:
+
 		arg = acpi_ps_get_arg(op, 2);
 		type = ACPI_TYPE_LOCAL_REGION_FIELD;
 		break;
 
 	case AML_BANK_FIELD_OP:
+
 		arg = acpi_ps_get_arg(op, 4);
 		type = ACPI_TYPE_LOCAL_BANK_FIELD;
 		break;
 
 	case AML_INDEX_FIELD_OP:
+
 		arg = acpi_ps_get_arg(op, 3);
 		type = ACPI_TYPE_LOCAL_INDEX_FIELD;
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 

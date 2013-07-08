@@ -28,7 +28,7 @@ config FLASH_SIZE
 config PROCESSOR_ID
 	hex 'Hard wire the processor ID'
 	default 0x00007700
-	depends on !CPU_CP15
+	depends on !(CPU_CP15 || CPU_V7M)
 	help
 	  If processor has no CP15 register, this processor ID is
 	  used instead of the auto-probing which utilizes the register.
@@ -50,3 +50,15 @@ config REMAP_VECTORS_TO_RAM
 	  Otherwise, say 'y' here.  In this case, the kernel will require
 	  external support to redirect the hardware exception vectors to
 	  the writable versions located at DRAM_BASE.
+
+config ARM_MPU
+       bool 'Use the ARM v7 PMSA Compliant MPU'
+       depends on CPU_V7
+       default y
+       help
+         Some ARM systems without an MMU have instead a Memory Protection
+         Unit (MPU) that defines the type and permissions for regions of
+         memory.
+
+         If your CPU has an MPU then you should choose 'y' here unless you
+         know that you do not want to use the MPU.

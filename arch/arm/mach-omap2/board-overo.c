@@ -68,6 +68,7 @@
 
 #define OVERO_SMSC911X_CS      5
 #define OVERO_SMSC911X_GPIO    176
+#define OVERO_SMSC911X_NRESET  64
 #define OVERO_SMSC911X2_CS     4
 #define OVERO_SMSC911X2_GPIO   65
 
@@ -122,7 +123,7 @@ static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.id		= 0,
 	.cs             = OVERO_SMSC911X_CS,
 	.gpio_irq       = OVERO_SMSC911X_GPIO,
-	.gpio_reset     = -EINVAL,
+	.gpio_reset     = OVERO_SMSC911X_NRESET,
 	.flags		= SMSC911X_USE_32BIT,
 };
 

@@ -882,9 +882,9 @@ int lguest_setup_irq(unsigned int irq)
  * It would be far better for everyone if the Guest had its own clock, but
  * until then the Host gives us the time on every interrupt.
  */
-static unsigned long lguest_get_wallclock(void)
+static void lguest_get_wallclock(struct timespec *now)
 {
-	return lguest_data.time.tv_sec;
+	*now = lguest_data.time;
 }
 
 /*
@@ -1410,7 +1410,7 @@ __init void lguest_init(void)
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
 
 	/* Math is always hard! */
-	new_cpu_data.hard_math = 1;
+	set_cpu_cap(&new_cpu_data, X86_FEATURE_FPU);
 
 	/* We don't have features.  We have puppies!  Puppies! */
 #ifdef CONFIG_X86_MCE

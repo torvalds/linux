@@ -20,6 +20,7 @@
 #include <asm/chpid.h>
 #include <asm/chsc.h>
 #include <asm/crw.h>
+#include <asm/isc.h>
 
 #include "css.h"
 #include "cio.h"
@@ -143,6 +144,65 @@ out:
 	spin_unlock_irq(&chsc_page_lock);
 	return ret;
 }
+
+/**
+ * chsc_ssqd() - store subchannel QDIO data (SSQD)
+ * @schid: id of the subchannel on which SSQD is performed
+ * @ssqd: request and response block for SSQD
+ *
+ * Returns 0 on success.
+ */
+int chsc_ssqd(struct subchannel_id schid, struct chsc_ssqd_area *ssqd)
+{
+	memset(ssqd, 0, sizeof(*ssqd));
+	ssqd->request.length = 0x0010;
+	ssqd->request.code = 0x0024;
+	ssqd->first_sch = schid.sch_no;
+	ssqd->last_sch = schid.sch_no;
+	ssqd->ssid = schid.ssid;
+
+	if (chsc(ssqd))
+		return -EIO;
+
+	return chsc_error_from_response(ssqd->response.code);
+}
+EXPORT_SYMBOL_GPL(chsc_ssqd);
+
+/**
+ * chsc_sadc() - set adapter device controls (SADC)
+ * @schid: id of the subchannel on which SADC is performed
+ * @scssc: request and response block for SADC
+ * @summary_indicator_addr: summary indicator address
+ * @subchannel_indicator_addr: subchannel indicator address
+ *
+ * Returns 0 on success.
+ */
+int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
+	      u64 summary_indicator_addr, u64 subchannel_indicator_addr)
+{
+	memset(scssc, 0, sizeof(*scssc));
+	scssc->request.length = 0x0fe0;
+	scssc->request.code = 0x0021;
+	scssc->operation_code = 0;
+
+	scssc->summary_indicator_addr = summary_indicator_addr;
+	scssc->subchannel_indicator_addr = subchannel_indicator_addr;
+
+	scssc->ks = PAGE_DEFAULT_KEY >> 4;
+	scssc->kc = PAGE_DEFAULT_KEY >> 4;
+	scssc->isc = QDIO_AIRQ_ISC;
+	scssc->schid = schid;
+
+	/* enable the time delay disablement facility */
+	if (css_general_characteristics.aif_tdd)
+		scssc->word_with_d_bit = 0x10000000;
+
+	if (chsc(scssc))
+		return -EIO;
+
+	return chsc_error_from_response(scssc->response.code);
+}
+EXPORT_SYMBOL_GPL(chsc_sadc);
 
 static int s390_subchannel_remove_chpid(struct subchannel *sch, void *data)
 {

@@ -341,7 +341,7 @@ unsigned long get_wchan(struct task_struct *p)
 		 * is actually quite ugly. It might be possible to
 		 * determine the frame size automatically at build
 		 * time by doing this:
-		 *   - compile sched.c
+		 *   - compile sched/core.c
 		 *   - disassemble the resulting sched.o
 		 *   - look for 'sub sp,??' shortly after '<schedule>:'
 		 */

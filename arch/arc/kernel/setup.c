@@ -31,14 +31,14 @@
 int running_on_hw = 1;	/* vs. on ISS */
 
 char __initdata command_line[COMMAND_LINE_SIZE];
-struct machine_desc *machine_desc __cpuinitdata;
+struct machine_desc *machine_desc;
 
 struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
 struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
 
-void __cpuinit read_arc_build_cfg_regs(void)
+void read_arc_build_cfg_regs(void)
 {
 	struct bcr_perip uncached_space;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
@@ -182,7 +182,7 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	FIX_PTR(cpu);
 #define IS_AVAIL1(var, str)	((var) ? str : "")
 #define IS_AVAIL2(var, str)	((var == 0x2) ? str : "")
-#define IS_USED(var)		((var) ? "(in-use)" : "(not used)")
+#define IS_USED(cfg)		(IS_ENABLED(cfg) ? "(in-use)" : "(not used)")
 
 	n += scnprintf(buf + n, len - n,
 		       "Extn [700-Base]\t: %s %s %s %s %s %s\n",
@@ -202,9 +202,9 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	if (cpu->core.family == 0x34) {
 		n += scnprintf(buf + n, len - n,
 		"Extn [700-4.10]\t: LLOCK/SCOND %s, SWAPE %s, RTSC %s\n",
-			       IS_USED(__CONFIG_ARC_HAS_LLSC_VAL),
-			       IS_USED(__CONFIG_ARC_HAS_SWAPE_VAL),
-			       IS_USED(__CONFIG_ARC_HAS_RTSC_VAL));
+			       IS_USED(CONFIG_ARC_HAS_LLSC),
+			       IS_USED(CONFIG_ARC_HAS_SWAPE),
+			       IS_USED(CONFIG_ARC_HAS_RTSC));
 	}
 
 	n += scnprintf(buf + n, len - n, "Extn [CCM]\t: %s",
@@ -237,7 +237,7 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
-void __cpuinit arc_chk_ccms(void)
+void arc_chk_ccms(void)
 {
 #if defined(CONFIG_ARC_HAS_DCCM) || defined(CONFIG_ARC_HAS_ICCM)
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
@@ -272,7 +272,7 @@ void __cpuinit arc_chk_ccms(void)
  * hardware has dedicated regs which need to be saved/restored on ctx-sw
  * (Single Precision uses core regs), thus kernel is kind of oblivious to it
  */
-void __cpuinit arc_chk_fpu(void)
+void arc_chk_fpu(void)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 
@@ -293,7 +293,7 @@ void __cpuinit arc_chk_fpu(void)
  *    such as only for boot CPU etc
  */
 
-void __cpuinit setup_processor(void)
+void setup_processor(void)
 {
 	char str[512];
 	int cpu_id = smp_processor_id();

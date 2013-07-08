@@ -292,7 +292,7 @@ static struct vmap_area *__find_vmap_area(unsigned long addr)
 		va = rb_entry(n, struct vmap_area, rb_node);
 		if (addr < va->va_start)
 			n = n->rb_left;
-		else if (addr > va->va_start)
+		else if (addr >= va->va_end)
 			n = n->rb_right;
 		else
 			return va;
@@ -1322,13 +1322,6 @@ static void clear_vm_unlist(struct vm_struct *vm)
 	vm->flags &= ~VM_UNLIST;
 }
 
-static void insert_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
-			      unsigned long flags, const void *caller)
-{
-	setup_vmalloc_vm(vm, va, flags, caller);
-	clear_vm_unlist(vm);
-}
-
 static struct vm_struct *__get_vm_area_node(unsigned long size,
 		unsigned long align, unsigned long flags, unsigned long start,
 		unsigned long end, int node, gfp_t gfp_mask, const void *caller)
@@ -1337,16 +1330,8 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 	struct vm_struct *area;
 
 	BUG_ON(in_interrupt());
-	if (flags & VM_IOREMAP) {
-		int bit = fls(size);
-
-		if (bit > IOREMAP_MAX_ORDER)
-			bit = IOREMAP_MAX_ORDER;
-		else if (bit < PAGE_SHIFT)
-			bit = PAGE_SHIFT;
-
-		align = 1ul << bit;
-	}
+	if (flags & VM_IOREMAP)
+		align = 1ul << clamp(fls(size), PAGE_SHIFT, IOREMAP_MAX_ORDER);
 
 	size = PAGE_ALIGN(size);
 	if (unlikely(!size))
@@ -1367,16 +1352,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 		return NULL;
 	}
 
-	/*
-	 * When this function is called from __vmalloc_node_range,
-	 * we add VM_UNLIST flag to avoid accessing uninitialized
-	 * members of vm_struct such as pages and nr_pages fields.
-	 * They will be set later.
-	 */
-	if (flags & VM_UNLIST)
-		setup_vmalloc_vm(area, va, flags, caller);
-	else
-		insert_vmalloc_vm(area, va, flags, caller);
+	setup_vmalloc_vm(area, va, flags, caller);
 
 	return area;
 }
@@ -1476,10 +1452,9 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	if (!addr)
 		return;
 
-	if ((PAGE_SIZE-1) & (unsigned long)addr) {
-		WARN(1, KERN_ERR "Trying to vfree() bad address (%p)\n", addr);
+	if (WARN(!PAGE_ALIGNED(addr), "Trying to vfree() bad address (%p)\n",
+			addr));
 		return;
-	}
 
 	area = remove_vm_area(addr);
 	if (unlikely(!area)) {
@@ -2148,6 +2123,61 @@ finished:
 }
 
 /**
+ *	remap_vmalloc_range_partial  -  map vmalloc pages to userspace
+ *	@vma:		vma to cover
+ *	@uaddr:		target user address to start at
+ *	@kaddr:		virtual address of vmalloc kernel memory
+ *	@size:		size of map area
+ *
+ *	Returns:	0 for success, -Exxx on failure
+ *
+ *	This function checks that @kaddr is a valid vmalloc'ed area,
+ *	and that it is big enough to cover the range starting at
+ *	@uaddr in @vma. Will return failure if that criteria isn't
+ *	met.
+ *
+ *	Similar to remap_pfn_range() (see mm/memory.c)
+ */
+int remap_vmalloc_range_partial(struct vm_area_struct *vma, unsigned long uaddr,
+				void *kaddr, unsigned long size)
+{
+	struct vm_struct *area;
+
+	size = PAGE_ALIGN(size);
+
+	if (!PAGE_ALIGNED(uaddr) || !PAGE_ALIGNED(kaddr))
+		return -EINVAL;
+
+	area = find_vm_area(kaddr);
+	if (!area)
+		return -EINVAL;
+
+	if (!(area->flags & VM_USERMAP))
+		return -EINVAL;
+
+	if (kaddr + size > area->addr + area->size)
+		return -EINVAL;
+
+	do {
+		struct page *page = vmalloc_to_page(kaddr);
+		int ret;
+
+		ret = vm_insert_page(vma, uaddr, page);
+		if (ret)
+			return ret;
+
+		uaddr += PAGE_SIZE;
+		kaddr += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	} while (size > 0);
+
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+
+	return 0;
+}
+EXPORT_SYMBOL(remap_vmalloc_range_partial);
+
+/**
  *	remap_vmalloc_range  -  map vmalloc pages to userspace
  *	@vma:		vma to cover (map full range of vma)
  *	@addr:		vmalloc memory
@@ -2164,40 +2194,9 @@ finished:
 int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 						unsigned long pgoff)
 {
-	struct vm_struct *area;
-	unsigned long uaddr = vma->vm_start;
-	unsigned long usize = vma->vm_end - vma->vm_start;
-
-	if ((PAGE_SIZE-1) & (unsigned long)addr)
-		return -EINVAL;
-
-	area = find_vm_area(addr);
-	if (!area)
-		return -EINVAL;
-
-	if (!(area->flags & VM_USERMAP))
-		return -EINVAL;
-
-	if (usize + (pgoff << PAGE_SHIFT) > area->size - PAGE_SIZE)
-		return -EINVAL;
-
-	addr += pgoff << PAGE_SHIFT;
-	do {
-		struct page *page = vmalloc_to_page(addr);
-		int ret;
-
-		ret = vm_insert_page(vma, uaddr, page);
-		if (ret)
-			return ret;
-
-		uaddr += PAGE_SIZE;
-		addr += PAGE_SIZE;
-		usize -= PAGE_SIZE;
-	} while (usize > 0);
-
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
-
-	return 0;
+	return remap_vmalloc_range_partial(vma, vma->vm_start,
+					   addr + (pgoff << PAGE_SHIFT),
+					   vma->vm_end - vma->vm_start);
 }
 EXPORT_SYMBOL(remap_vmalloc_range);
 
@@ -2512,8 +2511,8 @@ found:
 
 	/* insert all vm's */
 	for (area = 0; area < nr_vms; area++)
-		insert_vmalloc_vm(vms[area], vas[area], VM_ALLOC,
-				  pcpu_get_vm_areas);
+		setup_vmalloc_vm(vms[area], vas[area], VM_ALLOC,
+				 pcpu_get_vm_areas);
 
 	kfree(vas);
 	return vms;
