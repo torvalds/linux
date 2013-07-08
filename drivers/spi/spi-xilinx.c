@@ -371,7 +371,6 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 		bits_per_word = pdata->bits_per_word;
 	}
 
-#ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		const __be32 *prop;
 		int len;
@@ -382,7 +381,6 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 		if (prop && len >= sizeof(*prop))
 			num_cs = __be32_to_cpup(prop);
 	}
-#endif
 
 	if (!num_cs) {
 		dev_err(&pdev->dev,
