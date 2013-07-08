@@ -2262,7 +2262,7 @@ static int qla4xxx_copy_to_fwddb_param(struct iscsi_bus_flash_session *sess,
 	fw_ddb_entry->lcl_port = cpu_to_le16(conn->local_port);
 	fw_ddb_entry->stat_sn = cpu_to_le32(conn->statsn);
 	fw_ddb_entry->exp_stat_sn = cpu_to_le32(conn->exp_statsn);
-	fw_ddb_entry->ddb_link = cpu_to_le16(sess->discovery_parent_type);
+	fw_ddb_entry->ddb_link = cpu_to_le16(sess->discovery_parent_idx);
 	fw_ddb_entry->chap_tbl_idx = cpu_to_le16(sess->chap_out_idx);
 	fw_ddb_entry->tsid = cpu_to_le16(sess->tsid);
 	fw_ddb_entry->port = cpu_to_le16(conn->port);
@@ -6654,8 +6654,8 @@ qla4xxx_sysfs_ddb_set_param(struct iscsi_bus_flash_session *fnode_sess,
 			memcpy(fnode_conn->link_local_ipv6_addr,
 			       fnode_param->value, IPv6_ADDR_LEN);
 			break;
-		case ISCSI_FLASHNODE_DISCOVERY_PARENT_TYPE:
-			fnode_sess->discovery_parent_type =
+		case ISCSI_FLASHNODE_DISCOVERY_PARENT_IDX:
+			fnode_sess->discovery_parent_idx =
 						*(uint16_t *)fnode_param->value;
 			break;
 		case ISCSI_FLASHNODE_TCP_XMIT_WSF:
