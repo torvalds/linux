@@ -80,7 +80,6 @@ struct xilinx_spi {
 	/* bitbang has to be first */
 	struct spi_bitbang bitbang;
 	struct completion done;
-	struct resource mem; /* phys mem */
 	void __iomem	*regs;	/* virt. address of the control registers */
 
 	u32		irq;
@@ -359,7 +358,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 {
 	struct xilinx_spi *xspi;
 	struct xspi_platform_data *pdata;
-	struct resource *r;
+	struct resource *res;
 	int ret, irq, num_cs = 0, bits_per_word = 8;
 	struct spi_master *master;
 	u32 tmp;
@@ -388,10 +387,6 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
-		return -ENODEV;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return -ENXIO;
@@ -411,7 +406,8 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	xspi->bitbang.master->setup = xilinx_spi_setup;
 	init_completion(&xspi->done);
 
-	xspi->regs = devm_ioremap_resource(&pdev->dev, r);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	xspi->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(xspi->regs)) {
 		ret = PTR_ERR(xspi->regs);
 		goto put_master;
@@ -421,7 +417,6 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = num_cs;
 	master->dev.of_node = pdev->dev.of_node;
 
-	xspi->mem = *r;
 	xspi->irq = irq;
 
 	/*
@@ -473,7 +468,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "at 0x%08llX mapped to 0x%p, irq=%d\n",
-		(unsigned long long)r->start, xspi->regs, xspi->irq);
+		(unsigned long long)res->start, xspi->regs, xspi->irq);
 
 	if (pdata) {
 		for (i = 0; i < pdata->num_devices; i++)
