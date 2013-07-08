@@ -795,9 +795,13 @@ static void tmio_mmc_power_on(struct tmio_mmc_host *host, unsigned short vdd)
 	 * omap_hsmmc.c driver does.
 	 */
 	if (!IS_ERR(mmc->supply.vqmmc) && !ret) {
-		regulator_enable(mmc->supply.vqmmc);
+		ret = regulator_enable(mmc->supply.vqmmc);
 		udelay(200);
 	}
+
+	if (ret < 0)
+		dev_dbg(&host->pdev->dev, "Regulators failed to power up: %d\n",
+			ret);
 }
 
 static void tmio_mmc_power_off(struct tmio_mmc_host *host)
