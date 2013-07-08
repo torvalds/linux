@@ -26,7 +26,7 @@ extern void machine_shutdown(void);
 struct pt_regs;
 extern void machine_crash_shutdown(struct pt_regs *);
 
-/* 
+/*
  * Architecture independent implemenations of sys_reboot commands.
  */
 
