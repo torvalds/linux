@@ -267,12 +267,7 @@ ARC_EXIT handle_interrupt_level1
 
 ARC_ENTRY instr_service
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
@@ -289,15 +284,13 @@ ARC_EXIT instr_service
 
 ARC_ENTRY mem_service
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN r9
+
 	bl  do_memory_error
 	b   ret_from_exception
 ARC_EXIT mem_service
@@ -308,11 +301,7 @@ ARC_EXIT mem_service
 
 ARC_ENTRY EV_MachineCheck
 
-	EXCPN_PROLOG_FREEUP_REG r9
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r2, [ecr]
 	lr  r0, [efa]
@@ -342,13 +331,7 @@ ARC_EXIT EV_MachineCheck
 
 ARC_ENTRY EV_TLBProtV
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	;Which mode (user/kernel) was the system in when Exception occured
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	;---------(3) Save some more regs-----------------
 	;  vineetg: Mar 6th: Random Seg Fault issue #1
@@ -406,12 +389,7 @@ ARC_EXIT EV_TLBProtV
 ; ---------------------------------------------
 ARC_ENTRY EV_PrivilegeV
 
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
@@ -427,14 +405,13 @@ ARC_EXIT EV_PrivilegeV
 ; ---------------------------------------------
 ARC_ENTRY EV_Extension
 
-	EXCPN_PROLOG_FREEUP_REG r9
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	lr  r0, [efa]
 	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN r9
+
 	bl  do_extension_fault
 	b   ret_from_exception
 ARC_EXIT EV_Extension
@@ -526,14 +503,7 @@ trap_with_param:
 
 ARC_ENTRY EV_Trap
 
-	; Need at least 1 reg to code the early exception prolog
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	;Which mode (user/kernel) was the system in when intr occured
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	;------- (4) What caused the Trap --------------
 	lr     r12, [ecr]

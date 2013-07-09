@@ -371,13 +371,7 @@ do_slow_path_pf:
 
 	; Slow path TLB Miss handled as a regular ARC Exception
 	; (stack switching / save the complete reg-file).
-	; That requires freeing up r9
-	EXCPN_PROLOG_FREEUP_REG r9
-
-	lr  r9, [erstatus]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_SYS
+	EXCEPTION_PROLOGUE
 
 	; ------- setup args for Linux Page fault Hanlder ---------
 	mov_s r0, sp
