@@ -188,6 +188,19 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 			ctx->chroma_dpb_size + ctx->me_buffer_size));
 		ctx->bank2.size = 0;
 		break;
+	case S5P_MFC_CODEC_VP8_ENC:
+		ctx->scratch_buf_size =
+			S5P_FIMV_SCRATCH_BUF_SIZE_VP8_ENC_V7(
+					mb_width,
+					mb_height);
+		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size,
+				S5P_FIMV_SCRATCH_BUFFER_ALIGN_V6);
+		ctx->bank1.size =
+			ctx->scratch_buf_size + ctx->tmv_buffer_size +
+			(ctx->pb_count * (ctx->luma_dpb_size +
+			ctx->chroma_dpb_size + ctx->me_buffer_size));
+		ctx->bank2.size = 0;
+		break;
 	default:
 		break;
 	}
@@ -237,6 +250,7 @@ static int s5p_mfc_alloc_instance_buffer_v6(struct s5p_mfc_ctx *ctx)
 		break;
 	case S5P_MFC_CODEC_MPEG4_ENC:
 	case S5P_MFC_CODEC_H263_ENC:
+	case S5P_MFC_CODEC_VP8_ENC:
 		ctx->ctx.size = buf_size->other_enc_ctx;
 		break;
 	default:
@@ -1165,6 +1179,80 @@ static int s5p_mfc_set_enc_params_h263(struct s5p_mfc_ctx *ctx)
 	return 0;
 }
 
+static int s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
+{
+	struct s5p_mfc_dev *dev = ctx->dev;
+	struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	struct s5p_mfc_vp8_enc_params *p_vp8 = &p->codec.vp8;
+	unsigned int reg = 0;
+	unsigned int val = 0;
+
+	mfc_debug_enter();
+
+	s5p_mfc_set_enc_params(ctx);
+
+	/* pictype : number of B */
+	reg = READL(S5P_FIMV_E_GOP_CONFIG_V6);
+	reg &= ~(0x3 << 16);
+	reg |= ((p->num_b_frame & 0x3) << 16);
+	WRITEL(reg, S5P_FIMV_E_GOP_CONFIG_V6);
+
+	/* profile & level */
+	reg = 0;
+	/** profile */
+	reg |= (0x1 << 4);
+	WRITEL(reg, S5P_FIMV_E_PICTURE_PROFILE_V6);
+
+	/* rate control config. */
+	reg = READL(S5P_FIMV_E_RC_CONFIG_V6);
+	/** macroblock level rate control */
+	reg &= ~(0x1 << 8);
+	reg |= ((p->rc_mb & 0x1) << 8);
+	WRITEL(reg, S5P_FIMV_E_RC_CONFIG_V6);
+
+	/* frame rate */
+	if (p->rc_frame && p->rc_framerate_num && p->rc_framerate_denom) {
+		reg = 0;
+		reg |= ((p->rc_framerate_num & 0xFFFF) << 16);
+		reg |= p->rc_framerate_denom & 0xFFFF;
+		WRITEL(reg, S5P_FIMV_E_RC_FRAME_RATE_V6);
+	}
+
+	/* vbv buffer size */
+	if (p->frame_skip_mode ==
+			V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT) {
+		WRITEL(p->vbv_size & 0xFFFF, S5P_FIMV_E_VBV_BUFFER_SIZE_V6);
+
+		if (p->rc_frame)
+			WRITEL(p->vbv_delay, S5P_FIMV_E_VBV_INIT_DELAY_V6);
+	}
+
+	/* VP8 specific params */
+	reg = 0;
+	reg |= (p_vp8->imd_4x4 & 0x1) << 10;
+	switch (p_vp8->num_partitions) {
+	case V4L2_CID_MPEG_VIDEO_VPX_1_PARTITION:
+		val = 0;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_2_PARTITIONS:
+		val = 2;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_4_PARTITIONS:
+		val = 4;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_8_PARTITIONS:
+		val = 8;
+		break;
+	}
+	reg |= (val & 0xF) << 3;
+	reg |= (p_vp8->num_ref & 0x2);
+	WRITEL(reg, S5P_FIMV_E_VP8_OPTIONS_V7);
+
+	mfc_debug_leave();
+
+	return 0;
+}
+
 /* Initialize decoding */
 static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 {
@@ -1283,6 +1371,8 @@ static int s5p_mfc_init_encode_v6(struct s5p_mfc_ctx *ctx)
 		s5p_mfc_set_enc_params_mpeg4(ctx);
 	else if (ctx->codec_mode == S5P_MFC_CODEC_H263_ENC)
 		s5p_mfc_set_enc_params_h263(ctx);
+	else if (ctx->codec_mode == S5P_MFC_CODEC_VP8_ENC)
+		s5p_mfc_set_enc_params_vp8(ctx);
 	else {
 		mfc_err("Unknown codec for encoding (%x).\n",
 			ctx->codec_mode);

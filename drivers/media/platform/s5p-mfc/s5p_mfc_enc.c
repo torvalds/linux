@@ -84,6 +84,13 @@ static struct s5p_mfc_fmt formats[] = {
 		.type		= MFC_FMT_ENC,
 		.num_planes	= 1,
 	},
+	{
+		.name		= "VP8 Encoded Stream",
+		.fourcc		= V4L2_PIX_FMT_VP8,
+		.codec_mode	= S5P_MFC_CODEC_VP8_ENC,
+		.type		= MFC_FMT_ENC,
+		.num_planes	= 1,
+	},
 };
 
 #define NUM_FORMATS ARRAY_SIZE(formats)
@@ -557,6 +564,60 @@ static struct mfc_control controls[] = {
 		.step = 1,
 		.default_value = 0,
 	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_VPX_NUM_PARTITIONS,
+		.type = V4L2_CTRL_TYPE_INTEGER_MENU,
+		.maximum = V4L2_CID_MPEG_VIDEO_VPX_8_PARTITIONS,
+		.default_value = V4L2_CID_MPEG_VIDEO_VPX_1_PARTITION,
+		.menu_skip_mask = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_VPX_IMD_DISABLE_4X4,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.minimum = 0,
+		.maximum = 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_VPX_NUM_REF_FRAMES,
+		.type = V4L2_CTRL_TYPE_INTEGER_MENU,
+		.maximum = V4L2_CID_MPEG_VIDEO_VPX_2_REF_FRAME,
+		.default_value = V4L2_CID_MPEG_VIDEO_VPX_1_REF_FRAME,
+		.menu_skip_mask = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_VPX_FILTER_LEVEL,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 63,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_VPX_FILTER_SHARPNESS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 7,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = (1 << 16) - 1,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL,
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV,
+		.maximum = V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_REF_PERIOD,
+		.default_value = V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV,
+		.menu_skip_mask = 0,
+	},
 };
 
 #define NUM_CTRLS ARRAY_SIZE(controls)
@@ -963,6 +1024,10 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		fmt = find_format(f, MFC_FMT_ENC);
 		if (!fmt) {
 			mfc_err("failed to set capture format\n");
+			return -EINVAL;
+		}
+		if (!IS_MFCV7(dev) && (fmt->fourcc == V4L2_PIX_FMT_VP8)) {
+			mfc_err("VP8 is supported only in MFC v7\n");
 			return -EINVAL;
 		}
 		ctx->state = MFCINST_INIT;
@@ -1482,6 +1547,27 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_MPEG4_QPEL:
 		p->codec.mpeg4.quarter_pixel = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_NUM_PARTITIONS:
+		p->codec.vp8.num_partitions = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_IMD_DISABLE_4X4:
+		p->codec.vp8.imd_4x4 = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_NUM_REF_FRAMES:
+		p->codec.vp8.num_ref = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_FILTER_LEVEL:
+		p->codec.vp8.filter_level = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_FILTER_SHARPNESS:
+		p->codec.vp8.filter_sharpness = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD:
+		p->codec.vp8.golden_frame_ref_period = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL:
+		p->codec.vp8.golden_frame_sel = ctrl->val;
+		break;
 	default:
 		v4l2_err(&dev->v4l2_dev, "Invalid control, id=%d, val=%d\n",
 							ctrl->id, ctrl->val);
@@ -1930,7 +2016,9 @@ int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)
 			ctx->ctrls[i] = v4l2_ctrl_new_custom(&ctx->ctrl_handler,
 					&cfg, NULL);
 		} else {
-			if (controls[i].type == V4L2_CTRL_TYPE_MENU) {
+			if ((controls[i].type == V4L2_CTRL_TYPE_MENU) ||
+				(controls[i].type ==
+					V4L2_CTRL_TYPE_INTEGER_MENU)) {
 				ctx->ctrls[i] = v4l2_ctrl_new_std_menu(
 					&ctx->ctrl_handler,
 					&s5p_mfc_enc_ctrl_ops, controls[i].id,
