@@ -552,6 +552,20 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 }
 EXPORT_SYMBOL(v4l2_ctrl_get_menu);
 
+/*
+ * Returns NULL or an s64 type array containing the menu for given
+ * control ID. The total number of the menu items is returned in @len.
+ */
+const s64 const *v4l2_ctrl_get_int_menu(u32 id, u32 *len)
+{
+	switch (id) {
+	default:
+		*len = 0;
+		return NULL;
+	};
+}
+EXPORT_SYMBOL(v4l2_ctrl_get_int_menu);
+
 /* Return the control name. */
 const char *v4l2_ctrl_get_name(u32 id)
 {
@@ -1712,20 +1726,28 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 mask, s32 def)
 {
-	const char * const *qmenu = v4l2_ctrl_get_menu(id);
+	const char * const *qmenu = NULL;
+	const s64 *qmenu_int = NULL;
 	const char *name;
 	enum v4l2_ctrl_type type;
+	unsigned int qmenu_int_len;
 	s32 min;
 	s32 step;
 	u32 flags;
 
 	v4l2_ctrl_fill(id, &name, &type, &min, &max, &step, &def, &flags);
-	if (type != V4L2_CTRL_TYPE_MENU) {
+
+	if (type == V4L2_CTRL_TYPE_MENU)
+		qmenu = v4l2_ctrl_get_menu(id);
+	else if (type == V4L2_CTRL_TYPE_INTEGER_MENU)
+		qmenu_int = v4l2_ctrl_get_int_menu(id, &qmenu_int_len);
+
+	if ((!qmenu && !qmenu_int) || (qmenu_int && max > qmenu_int_len)) {
 		handler_set_err(hdl, -EINVAL);
 		return NULL;
 	}
 	return v4l2_ctrl_new(hdl, ops, id, name, type,
-			     0, max, mask, def, flags, qmenu, NULL, NULL);
+			     0, max, mask, def, flags, qmenu, qmenu_int, NULL);
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_std_menu);
 
