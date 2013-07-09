@@ -291,11 +291,10 @@ xfs_trans_mod_dquot(
 
 
 /*
- * Given an array of dqtrx structures, lock all the dquots associated
- * and join them to the transaction, provided they have been modified.
- * We know that the highest number of dquots (of one type - usr OR grp),
- * involved in a transaction is 2 and that both usr and grp combined - 3.
- * So, we don't attempt to make this very generic.
+ * Given an array of dqtrx structures, lock all the dquots associated and join
+ * them to the transaction, provided they have been modified.  We know that the
+ * highest number of dquots of one type - usr, grp OR prj - involved in a
+ * transaction is 2 so we don't need to make this very generic.
  */
 STATIC void
 xfs_trans_dqlockedjoin(

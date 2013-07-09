@@ -108,11 +108,28 @@ typedef struct xfs_dqblk {
 	{ XFS_DQ_FREEING,	"FREEING" }
 
 /*
- * In the worst case, when both user and group quotas are on,
- * we can have a max of three dquots changing in a single transaction.
+ * We have the possibility of all three quota types being active at once, and
+ * hence free space modification requires modification of all three current
+ * dquots in a single transaction. For this case we need to have a reservation
+ * of at least 3 dquots.
+ *
+ * However, a chmod operation can change both UID and GID in a single
+ * transaction, resulting in requiring {old, new} x {uid, gid} dquots to be
+ * modified. Hence for this case we need to reserve space for at least 4 dquots.
+ *
+ * And in the worst case, there's a rename operation that can be modifying up to
+ * 4 inodes with dquots attached to them. In reality, the only inodes that can
+ * have their dquots modified are the source and destination directory inodes
+ * due to directory name creation and removal. That can require space allocation
+ * and/or freeing on both directory inodes, and hence all three dquots on each
+ * inode can be modified. And if the directories are world writeable, all the
+ * dquots can be unique and so 6 dquots can be modified....
+ *
+ * And, of course, we also need to take into account the dquot log format item
+ * used to describe each dquot.
  */
-#define XFS_DQUOT_LOGRES(mp)	(sizeof(xfs_disk_dquot_t) * 3)
-
+#define XFS_DQUOT_LOGRES(mp)	\
+	((sizeof(struct xfs_dq_logformat) + sizeof(struct xfs_disk_dquot)) * 6)
 
 /*
  * These are the structures used to lay out dquots and quotaoff
