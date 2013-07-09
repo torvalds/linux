@@ -4742,10 +4742,12 @@ void btrfs_orphan_release_metadata(struct inode *inode)
 int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				     struct btrfs_block_rsv *rsv,
 				     int items,
-				     u64 *qgroup_reserved)
+				     u64 *qgroup_reserved,
+				     bool use_global_rsv)
 {
 	u64 num_bytes;
 	int ret;
+	struct btrfs_block_rsv *global_rsv = &root->fs_info->global_block_rsv;
 
 	if (root->fs_info->quota_enabled) {
 		/* One for parent inode, two for dir entries */
@@ -4764,6 +4766,10 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 					    BTRFS_BLOCK_GROUP_METADATA);
 	ret = btrfs_block_rsv_add(root, rsv, num_bytes,
 				  BTRFS_RESERVE_FLUSH_ALL);
+
+	if (ret == -ENOSPC && use_global_rsv)
+		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes);
+
 	if (ret) {
 		if (*qgroup_reserved)
 			btrfs_qgroup_free(root, *qgroup_reserved);

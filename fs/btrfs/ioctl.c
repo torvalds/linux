@@ -396,7 +396,7 @@ static noinline int create_subvol(struct inode *dir,
 	 * of create_snapshot().
 	 */
 	ret = btrfs_subvolume_reserve_metadata(root, &block_rsv,
-					       7, &qgroup_reserved);
+					       7, &qgroup_reserved, false);
 	if (ret)
 		return ret;
 
@@ -576,7 +576,8 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	 */
 	ret = btrfs_subvolume_reserve_metadata(BTRFS_I(dir)->root,
 					&pending_snapshot->block_rsv, 7,
-					&pending_snapshot->qgroup_reserved);
+					&pending_snapshot->qgroup_reserved,
+					false);
 	if (ret)
 		goto out;
 
@@ -2174,7 +2175,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	 * ref/backref.
 	 */
 	err = btrfs_subvolume_reserve_metadata(root, &block_rsv,
-					       5, &qgroup_reserved);
+					       5, &qgroup_reserved, true);
 	if (err)
 		goto out_up_write;
 
