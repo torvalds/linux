@@ -2065,7 +2065,8 @@ static void bcache_exit(void)
 		kobject_put(bcache_kobj);
 	if (bcache_wq)
 		destroy_workqueue(bcache_wq);
-	unregister_blkdev(bcache_major, "bcache");
+	if (bcache_major)
+		unregister_blkdev(bcache_major, "bcache");
 	unregister_reboot_notifier(&reboot);
 }
 
