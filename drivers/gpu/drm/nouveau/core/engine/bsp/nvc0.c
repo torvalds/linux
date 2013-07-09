@@ -22,8 +22,7 @@
  * Authors: Maarten Lankhorst
  */
 
-#include <core/falcon.h>
-
+#include <engine/falcon.h>
 #include <engine/bsp.h>
 
 struct nvc0_bsp_priv {

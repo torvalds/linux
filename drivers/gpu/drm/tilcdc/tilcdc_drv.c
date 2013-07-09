@@ -26,6 +26,7 @@
 #include "drm_fb_helper.h"
 
 static LIST_HEAD(module_list);
+static bool slave_probing;
 
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs)
@@ -39,6 +40,11 @@ void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 void tilcdc_module_cleanup(struct tilcdc_module *mod)
 {
 	list_del(&mod->list);
+}
+
+void tilcdc_slave_probedefer(bool defered)
+{
+	slave_probing = defered;
 }
 
 static struct of_device_id tilcdc_of_match[];
@@ -157,7 +163,9 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	struct platform_device *pdev = dev->platformdev;
 	struct device_node *node = pdev->dev.of_node;
 	struct tilcdc_drm_private *priv;
+	struct tilcdc_module *mod;
 	struct resource *res;
+	u32 bpp = 0;
 	int ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -210,7 +218,20 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 #endif
 
 	if (of_property_read_u32(node, "max-bandwidth", &priv->max_bandwidth))
-		priv->max_bandwidth = 1280 * 1024 * 60;
+		priv->max_bandwidth = TILCDC_DEFAULT_MAX_BANDWIDTH;
+
+	DBG("Maximum Bandwidth Value %d", priv->max_bandwidth);
+
+	if (of_property_read_u32(node, "ti,max-width", &priv->max_width))
+		priv->max_width = TILCDC_DEFAULT_MAX_WIDTH;
+
+	DBG("Maximum Horizontal Pixel Width Value %dpixels", priv->max_width);
+
+	if (of_property_read_u32(node, "ti,max-pixelclock",
+					&priv->max_pixelclock))
+		priv->max_pixelclock = TILCDC_DEFAULT_MAX_PIXELCLOCK;
+
+	DBG("Maximum Pixel Clock Value %dKHz", priv->max_pixelclock);
 
 	pm_runtime_enable(dev->dev);
 
@@ -256,7 +277,15 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 
 	platform_set_drvdata(pdev, dev);
 
-	priv->fbdev = drm_fbdev_cma_init(dev, 16,
+
+	list_for_each_entry(mod, &module_list, list) {
+		DBG("%s: preferred_bpp: %d", mod->name, mod->preferred_bpp);
+		bpp = mod->preferred_bpp;
+		if (bpp > 0)
+			break;
+	}
+
+	priv->fbdev = drm_fbdev_cma_init(dev, bpp,
 			dev->mode_config.num_crtc,
 			dev->mode_config.num_connector);
 
@@ -556,6 +585,10 @@ static int tilcdc_pdev_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}
+
+	/* defer probing if slave is in deferred probing */
+	if (slave_probing == true)
+		return -EPROBE_DEFER;
 
 	return drm_platform_init(&tilcdc_driver, pdev);
 }

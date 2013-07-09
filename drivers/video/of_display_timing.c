@@ -23,7 +23,7 @@
  * Every display_timing can be specified with either just the typical value or
  * a range consisting of min/typ/max. This function helps handling this
  **/
-static int parse_timing_property(struct device_node *np, const char *name,
+static int parse_timing_property(const struct device_node *np, const char *name,
 			  struct timing_entry *result)
 {
 	struct property *prop;
@@ -56,7 +56,7 @@ static int parse_timing_property(struct device_node *np, const char *name,
  * of_parse_display_timing - parse display_timing entry from device_node
  * @np: device_node with the properties
  **/
-static int of_parse_display_timing(struct device_node *np,
+static int of_parse_display_timing(const struct device_node *np,
 		struct display_timing *dt)
 {
 	u32 val = 0;
@@ -92,6 +92,8 @@ static int of_parse_display_timing(struct device_node *np,
 		dt->flags |= DISPLAY_FLAGS_INTERLACED;
 	if (of_property_read_bool(np, "doublescan"))
 		dt->flags |= DISPLAY_FLAGS_DOUBLESCAN;
+	if (of_property_read_bool(np, "doubleclk"))
+		dt->flags |= DISPLAY_FLAGS_DOUBLECLK;
 
 	if (ret) {
 		pr_err("%s: error reading timing properties\n",

@@ -255,7 +255,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
-	u32 vram_pages = pfb->ram.size >> PAGE_SHIFT;
+	u32 vram_pages = pfb->ram->size >> PAGE_SHIFT;
 
 	if (nv_device(drm->device)->card_type == NV_10 &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
@@ -968,7 +968,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 		     bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_channel *chan = chan = drm->channel;
+	struct nouveau_channel *chan = chan = drm->ttm.chan;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
@@ -1052,6 +1052,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			}
 
 			drm->ttm.move = mthd->exec;
+			drm->ttm.chan = chan;
 			name = mthd->name;
 			break;
 		}
@@ -1550,13 +1551,8 @@ void
 nouveau_bo_vma_del(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
 	if (vma->node) {
-		if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM) {
-			spin_lock(&nvbo->bo.bdev->fence_lock);
-			ttm_bo_wait(&nvbo->bo, false, false, false);
-			spin_unlock(&nvbo->bo.bdev->fence_lock);
+		if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM)
 			nouveau_vm_unmap(vma);
-		}
-
 		nouveau_vm_put(vma);
 		list_del(&vma->head);
 	}

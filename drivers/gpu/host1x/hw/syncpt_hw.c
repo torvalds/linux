@@ -77,21 +77,19 @@ static u32 syncpt_load(struct host1x_syncpt *sp)
  * Write a cpu syncpoint increment to the hardware, without touching
  * the cache.
  */
-static void syncpt_cpu_incr(struct host1x_syncpt *sp)
+static int syncpt_cpu_incr(struct host1x_syncpt *sp)
 {
 	struct host1x *host = sp->host;
 	u32 reg_offset = sp->id / 32;
 
 	if (!host1x_syncpt_client_managed(sp) &&
-	    host1x_syncpt_idle(sp)) {
-		dev_err(host->dev, "Trying to increment syncpoint id %d beyond max\n",
-			sp->id);
-		host1x_debug_dump(sp->host);
-		return;
-	}
+	    host1x_syncpt_idle(sp))
+		return -EINVAL;
 	host1x_sync_writel(host, BIT_MASK(sp->id),
 			   HOST1X_SYNC_SYNCPT_CPU_INCR(reg_offset));
 	wmb();
+
+	return 0;
 }
 
 /* remove a wait pointed to by patch_addr */
