@@ -581,7 +581,7 @@ nve0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 	int ret = RING_SPACE(chan, 2);
 	if (ret == 0) {
 		BEGIN_NVC0(chan, NvSubCopy, 0x0000, 1);
-		OUT_RING  (chan, handle);
+		OUT_RING  (chan, handle & 0x0000ffff);
 		FIRE_RING (chan);
 	}
 	return ret;
@@ -1017,7 +1017,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
-		{  "COPY", 0, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "COPY", 4, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xa0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{ "COPY1", 5, 0x90b8, nvc0_bo_move_copy, nvc0_bo_move_init },
 		{ "COPY0", 4, 0x90b5, nvc0_bo_move_copy, nvc0_bo_move_init },
@@ -1037,7 +1037,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		struct nouveau_channel *chan;
 		u32 handle = (mthd->engine << 16) | mthd->oclass;
 
-		if (mthd->init == nve0_bo_move_init)
+		if (mthd->engine)
 			chan = drm->cechan;
 		else
 			chan = drm->channel;

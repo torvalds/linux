@@ -192,6 +192,18 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 		arg0 = NVE0_CHANNEL_IND_ENGINE_GR;
 		arg1 = 1;
+	} else
+	if (device->chipset >= 0xa3 &&
+	    device->chipset != 0xaa &&
+	    device->chipset != 0xac) {
+		ret = nouveau_channel_new(drm, &drm->client, NVDRM_DEVICE,
+					  NVDRM_CHAN + 1, NvDmaFB, NvDmaTT,
+					  &drm->cechan);
+		if (ret)
+			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
+
+		arg0 = NvDmaFB;
+		arg1 = NvDmaTT;
 	} else {
 		arg0 = NvDmaFB;
 		arg1 = NvDmaTT;
