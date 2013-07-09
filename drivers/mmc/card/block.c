@@ -980,7 +980,7 @@ static int sdmmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		 * stop.error indicates a problem with the stop command.  Data
 		 * may have been transferred, or may still be transferring.
 		 */
-		if (brq->sbc.error || brq->cmd.error || brq.stop.error) {
+		if (brq->sbc.error || brq->cmd.error || brq->stop.error) {
 			switch (mmc_blk_cmd_recovery(card, req, brq)) {
 			case ERR_RETRY:
 				if (retry++ < 5)
