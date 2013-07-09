@@ -154,21 +154,27 @@ static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
 }
 
 static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
-						  bool enable)
+						  enum pipe pipe, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (enable) {
+		I915_WRITE(GEN7_ERR_INT, ERR_INT_FIFO_UNDERRUN(pipe));
+
 		if (!ivb_can_enable_err_int(dev))
 			return;
 
-		I915_WRITE(GEN7_ERR_INT, ERR_INT_FIFO_UNDERRUN_A |
-					 ERR_INT_FIFO_UNDERRUN_B |
-					 ERR_INT_FIFO_UNDERRUN_C);
-
 		ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
 	} else {
+		bool was_enabled = !(I915_READ(DEIMR) & DE_ERR_INT_IVB);
+
+		/* Change the state _after_ we've read out the current one. */
 		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+
+		if (!was_enabled &&
+		    (I915_READ(GEN7_ERR_INT) & ERR_INT_FIFO_UNDERRUN(pipe))) {
+			DRM_DEBUG_KMS("uncleared fifo underrun on pipe %c\n",
+				      pipe_name(pipe));
+		}
 	}
 }
 
@@ -274,7 +280,7 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 	if (IS_GEN5(dev) || IS_GEN6(dev))
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN7(dev))
-		ivybridge_set_fifo_underrun_reporting(dev, enable);
+		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable);
 
 done:
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
