@@ -127,7 +127,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	char *s;
 	int ret = 0;
 
-	clnt->proto_version = p9_proto_2000u;
+	clnt->proto_version = p9_proto_2000L;
 	clnt->msize = 8192;
 
 	if (!opts)
@@ -994,6 +994,9 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	err = parse_opts(options, clnt);
 	if (err < 0)
 		goto destroy_tagpool;
+
+	if (!clnt->trans_mod)
+		clnt->trans_mod = v9fs_get_trans_by_name("virtio");
 
 	if (!clnt->trans_mod)
 		clnt->trans_mod = v9fs_get_default_trans();
