@@ -681,6 +681,7 @@
 #define   ERR_INT_FIFO_UNDERRUN_C	(1<<6)
 #define   ERR_INT_FIFO_UNDERRUN_B	(1<<3)
 #define   ERR_INT_FIFO_UNDERRUN_A	(1<<0)
+#define   ERR_INT_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
 #define FPGA_DBG		0x42300
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
