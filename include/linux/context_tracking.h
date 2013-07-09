@@ -34,6 +34,8 @@ static inline bool context_tracking_active(void)
 	return __this_cpu_read(context_tracking.active);
 }
 
+extern void context_tracking_cpu_set(int cpu);
+
 extern void user_enter(void);
 extern void user_exit(void);
 
