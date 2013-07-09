@@ -42,14 +42,14 @@ static void gic_raise_softirq_non_secure(const struct cpumask *mask, unsigned in
 	dsb();
 
 	/* this always happens on GIC0 */
-	writel_relaxed(map << 16 | irq | 0x8000, RK30_GICD_BASE + GIC_DIST_SOFTINT);
+	writel_relaxed(map << 16 | irq | 0x8000, GIC_DIST_BASE + GIC_DIST_SOFTINT);
 }
 
 static void gic_secondary_init_non_secure(void)
 {
 #define GIC_DIST_SECURITY	0x080
-	writel_relaxed(0xffffffff, RK30_GICD_BASE + GIC_DIST_SECURITY);
-	writel_relaxed(0xf, RK30_GICC_BASE + GIC_CPU_CTRL);
+	writel_relaxed(0xffffffff, GIC_DIST_BASE + GIC_DIST_SECURITY);
+	writel_relaxed(0xf, GIC_CPU_BASE + GIC_CPU_CTRL);
 	dsb();
 }
 #endif

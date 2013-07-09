@@ -18,7 +18,7 @@
 
 static bool rk30_gic_interrupt_pending(void)
 {
-	return (readl_relaxed(RK30_GICC_BASE + GIC_CPU_HIGHPRI) != 0x3FF);
+	return (readl_relaxed(GIC_CPU_BASE + GIC_CPU_HIGHPRI) != 0x3FF);
 }
 
 static void rk30_wfi_until_interrupt(void)
