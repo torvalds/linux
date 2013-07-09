@@ -624,13 +624,16 @@ static int rk_mipi_dsi_init(void *array, u32 n) {
 	
 	if(!screen->init) { 
 		rk_mipi_dsi_enable_hs_clk(1);
-		rk_mipi_dsi_enable_video_mode(1);
+		rk_mipi_dsi_enable_video_mode(0);
+		rk_mipi_dsi_enable_command_mode(1);
 		dcs[0] = dcs_exit_sleep_mode; 
 		rk_mipi_dsi_send_dcs_packet(dcs, 1);
 		msleep(1);
 		dcs[0] = dcs_set_display_on;
 		rk_mipi_dsi_send_dcs_packet(dcs, 1);
 		msleep(10);
+		rk_mipi_dsi_enable_command_mode(0);
+		rk_mipi_dsi_enable_video_mode(1);
 	} else {
 		screen->init();
 	}
@@ -998,17 +1001,16 @@ static void rk616_mipi_dsi_late_resume(struct early_suspend *h)
 	rk_mipi_dsi_phy_init(g_screen, 0);
 	rk_mipi_dsi_host_init(g_screen, 0);
 
-	
 	if(!g_screen->standby) {
 		rk_mipi_dsi_enable_hs_clk(1);
-		rk_mipi_dsi_enable_video_mode(1);
+		rk_mipi_dsi_enable_video_mode(0);
+		rk_mipi_dsi_enable_command_mode(1);
 		dcs[0] = dcs_exit_sleep_mode; 
 		rk_mipi_dsi_send_dcs_packet(dcs, 1);
 		msleep(1);
 		dcs[0] = dcs_set_display_on;
 		rk_mipi_dsi_send_dcs_packet(dcs, 1);
 		msleep(10);
-		
 	} else {
 		g_screen->standby(0);
 	}
