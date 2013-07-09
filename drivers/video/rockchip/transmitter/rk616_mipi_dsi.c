@@ -243,7 +243,7 @@ static int rk_mipi_dsi_phy_set_gotp(u32 offset, int n) {
 	else if(ddr_clk < 800 * MHz)
 		val = 0x29;		
 	else if(ddr_clk <= 1000 * MHz)
-		val = 0x27;		
+		val = 0x21;
 	dsi_write_reg(reg_hs_ths_trail + offset, &val);
 	
 	val = 120000 / Ttxbyte_clk + 1;
@@ -292,12 +292,7 @@ static int rk_mipi_dsi_phy_set_gotp(u32 offset, int n) {
 	val = 5 * Tlpx / Ttxclkesc;
 	MIPI_DBG("reg_hs_tta_wait: %d, %d\n", val, val*Ttxclkesc);
 	dsi_write_reg(reg_hs_tta_wait + offset, &val);	
-#if 1
-	val = 0x5b;
-	dsi_write_reg(offset + 0x18, &val);
-	val = 0x38;
-	dsi_write_reg(offset + 0x20, &val);	
-#endif
+
 	return 0;
 }
 
@@ -352,26 +347,13 @@ static int rk_mipi_dsi_phy_init(void *array, int n) {
 	dsi_set_bits(gDsi.phy.prediv, reg_prediv);
 	dsi_set_bits(gDsi.phy.fbdiv & 0xff, reg_fbdiv);
 	
-#if 0	
-	//new temp
-	val = 0xff;
-	dsi_write_reg(0x0c24, &val);
-	
-	val = 0x77;
-	dsi_write_reg(0x0c18, &val);
-	val = 0x77;
-	dsi_write_reg(0x0c1c, &val);
-	
-	val = 0x4f;
-	dsi_write_reg(0x0c20, &val);
-	
-	val = 0xc0;
-	dsi_write_reg(0x0c28, &val);
-#endif	
-
+	val = 0x11;
+	dsi_write_reg(RK_ADDR(0x06), &val);
+	val = 0x11;
+	dsi_write_reg(RK_ADDR(0x07), &val);
+	val = 0xcc;
+	dsi_write_reg(RK_ADDR(0x09), &val);	
 #if 0
-	val = 0xff;
-	dsi_write_reg(RK_ADDR(0x09), &val);
 	val = 0x4e;
 	dsi_write_reg(RK_ADDR(0x08), &val);
 	val = 0x84;
@@ -634,10 +616,11 @@ static int rk_mipi_dsi_init(void *array, u32 n) {
 	dsi_set_bits(0, en_video_mode);
 	dsi_set_bits(0, shutdownz);
 	
-	rk_mipi_dsi_phy_init(screen, n);
-	rk_mipi_dsi_host_init(screen, n);
 	rk_mipi_dsi_phy_power_up();
 	rk_mipi_dsi_host_power_up();
+	rk_mipi_dsi_phy_init(screen, n);
+	rk_mipi_dsi_host_init(screen, n);
+
 	
 	if(!screen->init) { 
 		rk_mipi_dsi_enable_hs_clk(1);
@@ -1010,10 +993,11 @@ static void rk616_mipi_dsi_early_suspend(struct early_suspend *h)
 static void rk616_mipi_dsi_late_resume(struct early_suspend *h)
 {
 	u8 dcs[1] = {0};
-	rk_mipi_dsi_phy_init(g_screen, 0);
-	rk_mipi_dsi_host_init(g_screen, 0);
 	rk_mipi_dsi_phy_power_up();
 	rk_mipi_dsi_host_power_up();
+	rk_mipi_dsi_phy_init(g_screen, 0);
+	rk_mipi_dsi_host_init(g_screen, 0);
+
 	
 	if(!g_screen->standby) {
 		rk_mipi_dsi_enable_hs_clk(1);
