@@ -408,16 +408,24 @@ void __init r8a7778_init_irq_extpin(int irlm)
 			&irqpin_platform_data, sizeof(irqpin_platform_data));
 }
 
+void __init r8a7778_init_delay(void)
+{
+	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
+}
+
+#ifdef CONFIG_USE_OF
 #define INT2SMSKCR0	0x82288 /* 0xfe782288 */
 #define INT2SMSKCR1	0x8228c /* 0xfe78228c */
 
 #define INT2NTSR0	0x00018 /* 0xfe700018 */
 #define INT2NTSR1	0x0002c /* 0xfe70002c */
-static void __init r8a7778_init_irq_common(void)
+void __init r8a7778_init_irq_dt(void)
 {
 	void __iomem *base = ioremap_nocache(0xfe700000, 0x00100000);
 
 	BUG_ON(!base);
+
+	irqchip_init();
 
 	/* route all interrupts to ARM */
 	__raw_writel(0x73ffffff, base + INT2NTSR0);
@@ -428,33 +436,6 @@ static void __init r8a7778_init_irq_common(void)
 	__raw_writel(0x00311110, base + INT2SMSKCR1);
 
 	iounmap(base);
-}
-
-void __init r8a7778_init_irq(void)
-{
-	void __iomem *gic_dist_base;
-	void __iomem *gic_cpu_base;
-
-	gic_dist_base = ioremap_nocache(0xfe438000, PAGE_SIZE);
-	gic_cpu_base  = ioremap_nocache(0xfe430000, PAGE_SIZE);
-	BUG_ON(!gic_dist_base || !gic_cpu_base);
-
-	/* use GIC to handle interrupts */
-	gic_init(0, 29, gic_dist_base, gic_cpu_base);
-
-	r8a7778_init_irq_common();
-}
-
-void __init r8a7778_init_delay(void)
-{
-	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
-}
-
-#ifdef CONFIG_USE_OF
-void __init r8a7778_init_irq_dt(void)
-{
-	irqchip_init();
-	r8a7778_init_irq_common();
 }
 
 static const char *r8a7778_compat_dt[] __initdata = {
