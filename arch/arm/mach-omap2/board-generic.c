@@ -238,5 +238,6 @@ DT_MACHINE_START(DRA7XX_DT, "Generic DRA7XX (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.init_time	= omap5_realtime_timer_init,
 	.dt_compat	= dra7xx_boards_compat,
+	.restart	= omap44xx_restart,
 MACHINE_END
 #endif
