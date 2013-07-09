@@ -946,14 +946,13 @@ add_durable_context(struct kvec *iov, unsigned int *num_iovec)
 }
 
 int
-SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
-	  u64 *persistent_fid, u64 *volatile_fid, __u32 desired_access,
-	  __u32 create_disposition, __u32 create_options, __u8 *oplock,
-	  struct smb2_file_all_info *buf)
+SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
+	  __u8 *oplock, struct smb2_file_all_info *buf)
 {
 	struct smb2_create_req *req;
 	struct smb2_create_rsp *rsp;
 	struct TCP_Server_Info *server;
+	struct cifs_tcon *tcon = oparms->tcon;
 	struct cifs_ses *ses = tcon->ses;
 	struct kvec iov[4];
 	int resp_buftype;
@@ -975,16 +974,16 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 	if (rc)
 		return rc;
 
-	if (create_options & CREATE_OPTION_READONLY)
+	if (oparms->create_options & CREATE_OPTION_READONLY)
 		file_attributes |= ATTR_READONLY;
 
 	req->ImpersonationLevel = IL_IMPERSONATION;
-	req->DesiredAccess = cpu_to_le32(desired_access);
+	req->DesiredAccess = cpu_to_le32(oparms->desired_access);
 	/* File attributes ignored on open (used in create though) */
 	req->FileAttributes = cpu_to_le32(file_attributes);
 	req->ShareAccess = FILE_SHARE_ALL_LE;
-	req->CreateDisposition = cpu_to_le32(create_disposition);
-	req->CreateOptions = cpu_to_le32(create_options & CREATE_OPTIONS_MASK);
+	req->CreateDisposition = cpu_to_le32(oparms->disposition);
+	req->CreateOptions = cpu_to_le32(oparms->create_options & CREATE_OPTIONS_MASK);
 	uni_path_len = (2 * UniStrnlen((wchar_t *)path, PATH_MAX)) + 2;
 	/* do not count rfc1001 len field */
 	req->NameOffset = cpu_to_le16(sizeof(struct smb2_create_req) - 4);
@@ -1055,8 +1054,8 @@ SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
 		goto creat_exit;
 	}
 
-	*persistent_fid = rsp->PersistentFileId;
-	*volatile_fid = rsp->VolatileFileId;
+	oparms->fid->persistent_fid = rsp->PersistentFileId;
+	oparms->fid->volatile_fid = rsp->VolatileFileId;
 
 	if (buf) {
 		memcpy(buf, &rsp->CreationTime, 32);
