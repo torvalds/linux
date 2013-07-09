@@ -37,6 +37,7 @@ static struct rk29fb_screen *g_screen = NULL;
 
 static int rk_mipi_dsi_enable_hs_clk(u32 enable);
 static int rk_mipi_dsi_enable_video_mode(u32 enable);
+static int rk_mipi_dsi_enable_command_mode(u32 enable);
 static int rk_mipi_dsi_send_dcs_packet(unsigned char regs[], u32 n);
 
 static int dsi_read_reg(u16 reg, u32 *pval)
