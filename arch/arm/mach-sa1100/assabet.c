@@ -286,12 +286,9 @@ static int assabet_irda_set_power(struct device *dev, unsigned int state)
 		0
 	};
 
-	if (state < 4) {
-		state = bcr_state[state];
-		ASSABET_BCR_clear(state ^ (ASSABET_BCR_IRDA_MD1|
-					   ASSABET_BCR_IRDA_MD0));
-		ASSABET_BCR_set(state);
-	}
+	if (state < 4)
+		ASSABET_BCR_frob(ASSABET_BCR_IRDA_MD1 | ASSABET_BCR_IRDA_MD0,
+				 bcr_state[state]);
 	return 0;
 }
 
