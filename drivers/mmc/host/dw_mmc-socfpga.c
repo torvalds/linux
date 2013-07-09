@@ -94,7 +94,7 @@ static int dw_mci_socfpga_parse_dt(struct dw_mci *host)
 	u32 div = 0;
 	int ret;
 
-	of_property_read_u32(np, "altr,dw-mshc-ciu-div", &div);
+	ret = of_property_read_u32(np, "altr,dw-mshc-ciu-div", &div);
 	if (ret)
 		dev_info(host->dev, "No dw-mshc-ciu-div specified, assuming 1");
 	priv->ciu_div = div;
