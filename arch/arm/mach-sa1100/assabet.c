@@ -311,6 +311,7 @@ static struct irda_platform_data assabet_irda_data = {
 static struct ucb1x00_plat_data assabet_ucb1x00_data = {
 	.reset		= assabet_ucb1x00_reset,
 	.gpio_base	= -1,
+	.can_wakeup	= 1,
 };
 
 static struct mcp_plat_data assabet_mcp_data = {
