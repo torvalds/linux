@@ -1391,6 +1391,32 @@ static struct s5p_mfc_variant mfc_drvdata_v6 = {
 	.fw_name        = "s5p-mfc-v6.fw",
 };
 
+struct s5p_mfc_buf_size_v6 mfc_buf_size_v7 = {
+	.dev_ctx	= MFC_CTX_BUF_SIZE_V7,
+	.h264_dec_ctx	= MFC_H264_DEC_CTX_BUF_SIZE_V7,
+	.other_dec_ctx	= MFC_OTHER_DEC_CTX_BUF_SIZE_V7,
+	.h264_enc_ctx	= MFC_H264_ENC_CTX_BUF_SIZE_V7,
+	.other_enc_ctx	= MFC_OTHER_ENC_CTX_BUF_SIZE_V7,
+};
+
+struct s5p_mfc_buf_size buf_size_v7 = {
+	.fw	= MAX_FW_SIZE_V7,
+	.cpb	= MAX_CPB_SIZE_V7,
+	.priv	= &mfc_buf_size_v7,
+};
+
+struct s5p_mfc_buf_align mfc_buf_align_v7 = {
+	.base = 0,
+};
+
+static struct s5p_mfc_variant mfc_drvdata_v7 = {
+	.version	= MFC_VERSION_V7,
+	.port_num	= MFC_NUM_PORTS_V7,
+	.buf_size	= &buf_size_v7,
+	.buf_align	= &mfc_buf_align_v7,
+	.fw_name        = "s5p-mfc-v7.fw",
+};
+
 static struct platform_device_id mfc_driver_ids[] = {
 	{
 		.name = "s5p-mfc",
@@ -1401,6 +1427,9 @@ static struct platform_device_id mfc_driver_ids[] = {
 	}, {
 		.name = "s5p-mfc-v6",
 		.driver_data = (unsigned long)&mfc_drvdata_v6,
+	}, {
+		.name = "s5p-mfc-v7",
+		.driver_data = (unsigned long)&mfc_drvdata_v7,
 	},
 	{},
 };
@@ -1413,6 +1442,9 @@ static const struct of_device_id exynos_mfc_match[] = {
 	}, {
 		.compatible = "samsung,mfc-v6",
 		.data = &mfc_drvdata_v6,
+	}, {
+		.compatible = "samsung,mfc-v7",
+		.data = &mfc_drvdata_v7,
 	},
 	{},
 };
