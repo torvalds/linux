@@ -425,7 +425,7 @@ static int rk3188_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 		return PTR_ERR(cpu_clk);
 
 #if defined(CONFIG_ARCH_RK3188)
-	if (soc_is_rk3188()) {
+	if (soc_is_rk3188() || soc_is_rk3188plus()) {
 		struct cpufreq_frequency_table *table_adjust;
 		/* Adjust dvfs table avoid overheat */
 		table_adjust = dvfs_get_freq_volt_table(cpu_clk);
