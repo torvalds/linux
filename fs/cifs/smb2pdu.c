@@ -853,23 +853,24 @@ parse_lease_state(struct smb2_create_rsp *rsp)
 	char *data_offset;
 	struct create_lease *lc;
 	bool found = false;
+	unsigned int next = 0;
+	char *name;
 
-	data_offset = (char *)rsp;
-	data_offset += 4 + le32_to_cpu(rsp->CreateContextsOffset);
+	data_offset = (char *)rsp + 4 + le32_to_cpu(rsp->CreateContextsOffset);
 	lc = (struct create_lease *)data_offset;
 	do {
-		char *name = le16_to_cpu(lc->ccontext.NameOffset) + (char *)lc;
+		lc = (struct create_lease *)((char *)lc + next);
+		name = le16_to_cpu(lc->ccontext.NameOffset) + (char *)lc;
 		if (le16_to_cpu(lc->ccontext.NameLength) != 4 ||
 		    strncmp(name, "RqLs", 4)) {
-			lc = (struct create_lease *)((char *)lc
-					+ le32_to_cpu(lc->ccontext.Next));
+			next = le32_to_cpu(lc->ccontext.Next);
 			continue;
 		}
 		if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
 			return SMB2_OPLOCK_LEVEL_NOCHANGE;
 		found = true;
 		break;
-	} while (le32_to_cpu(lc->ccontext.Next) != 0);
+	} while (next != 0);
 
 	if (!found)
 		return 0;
