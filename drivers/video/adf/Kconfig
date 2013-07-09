@@ -3,6 +3,11 @@ menuconfig ADF
 	depends on DMA_SHARED_BUFFER
 	tristate "Atomic Display Framework"
 
+menuconfig ADF_FBDEV
+	depends on ADF
+	depends on FB
+	tristate "Helper for implementing the fbdev API in ADF drivers"
+
 menuconfig ADF_MEMBLOCK
 	depends on ADF
 	depends on HAVE_MEMBLOCK
