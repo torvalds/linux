@@ -194,11 +194,11 @@ config LEDS_LP3944
 	  module will be called leds-lp3944.
 
 config LEDS_LP55XX_COMMON
-	tristate "Common Driver for TI/National LP5521, LP5523/55231 and LP5562"
-	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562
+	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
+	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
 	select FW_LOADER
 	help
-	  This option supports common operations for LP5521 and LP5523/55231
+	  This option supports common operations for LP5521/5523/55231/5562/8501
 	  devices.
 
 config LEDS_LP5521
@@ -231,6 +231,18 @@ config LEDS_LP5562
 	  It is 4 channels chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
+
+config LEDS_LP8501
+	tristate "LED Support for TI LP8501 LED driver chip"
+	depends on LEDS_CLASS && I2C
+	select LEDS_LP55XX_COMMON
+	help
+	  If you say yes here you get support for TI LP8501 LED driver.
+	  It is 9 channel chip with programmable engines.
+	  Driver provides direct control via LED class and interface for
+	  programming the engines.
+	  It is similar as LP5523, but output power selection is available.
+	  And register layout and engine program schemes are different.
 
 config LEDS_LP8788
 	tristate "LED support for the TI LP8788 PMIC"
