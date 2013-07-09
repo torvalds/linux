@@ -556,7 +556,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	/* If KMS is active, we do the leavevt stuff here */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		int error = i915_gem_idle(dev);
+		int error;
+
+		mutex_lock(&dev->struct_mutex);
+		error = i915_gem_idle(dev);
+		mutex_unlock(&dev->struct_mutex);
 		if (error) {
 			dev_err(&dev->pdev->dev,
 				"GEM idle failed, resume might fail\n");
@@ -661,7 +665,6 @@ static int __i915_drm_thaw(struct drm_device *dev)
 		intel_init_pch_refclk(dev);
 
 		mutex_lock(&dev->struct_mutex);
-		dev_priv->mm.suspended = 0;
 
 		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
@@ -961,11 +964,11 @@ int i915_reset(struct drm_device *dev)
 	 * switched away).
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
-			!dev_priv->mm.suspended) {
+			!dev_priv->ums.mm_suspended) {
 		struct intel_ring_buffer *ring;
 		int i;
 
-		dev_priv->mm.suspended = 0;
+		dev_priv->ums.mm_suspended = 0;
 
 		i915_gem_init_swizzling(dev);
 
