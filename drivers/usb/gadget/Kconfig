@@ -639,6 +639,7 @@ config USB_CONFIGFS_RNDIS
 	depends on USB_CONFIGFS
 	depends on NET
 	select USB_U_ETHER
+	select USB_U_RNDIS
 	select USB_F_RNDIS
 	help
 	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
