@@ -47,7 +47,7 @@ static inline bool net_busy_loop_on(void)
  * we only care that the average is bounded
  */
 #ifdef CONFIG_DEBUG_PREEMPT
-static inline u64 busy_loop_sched_clock(void)
+static inline u64 busy_loop_us_clock(void)
 {
 	u64 rc;
 
@@ -55,37 +55,24 @@ static inline u64 busy_loop_sched_clock(void)
 	rc = sched_clock();
 	preempt_enable_no_resched_notrace();
 
-	return rc;
+	return rc >> 10;
 }
 #else /* CONFIG_DEBUG_PREEMPT */
-static inline u64 busy_loop_sched_clock(void)
+static inline u64 busy_loop_us_clock(void)
 {
-	return sched_clock();
+	return sched_clock() >> 10;
 }
 #endif /* CONFIG_DEBUG_PREEMPT */
 
-/* we don't mind a ~2.5% imprecision so <<10 instead of *1000
- * sk->sk_ll_usec is a u_int so this can't overflow
- */
-static inline u64 sk_busy_loop_end_time(struct sock *sk)
+static inline unsigned long sk_busy_loop_end_time(struct sock *sk)
 {
-	return (u64)ACCESS_ONCE(sk->sk_ll_usec) << 10;
+	return busy_loop_us_clock() + ACCESS_ONCE(sk->sk_ll_usec);
 }
 
-/* in poll/select we use the global sysctl_net_ll_poll value
- * only call sched_clock() if enabled
- */
-static inline u64 busy_loop_end_time(void)
+/* in poll/select we use the global sysctl_net_ll_poll value */
+static inline unsigned long busy_loop_end_time(void)
 {
-	return (u64)ACCESS_ONCE(sysctl_net_ll_poll) << 10;
-}
-
-/* if flag is not set we don't need to know the time
- * so we want to avoid a potentially expensive sched_clock()
- */
-static inline u64 busy_loop_start_time(unsigned int flag)
-{
-	return flag ? busy_loop_sched_clock() : 0;
+	return busy_loop_us_clock() + ACCESS_ONCE(sysctl_net_ll_poll);
 }
 
 static inline bool sk_can_busy_loop(struct sock *sk)
@@ -94,12 +81,12 @@ static inline bool sk_can_busy_loop(struct sock *sk)
 	       !need_resched() && !signal_pending(current);
 }
 
-/* careful! time_in_range64 will evaluate now twice */
-static inline bool busy_loop_range(u64 start_time, u64 run_time)
-{
-	u64 now = busy_loop_sched_clock();
 
-	return time_in_range64(now, start_time, start_time + run_time);
+static inline bool busy_loop_timeout(unsigned long end_time)
+{
+	unsigned long now = busy_loop_us_clock();
+
+	return time_after(now, end_time);
 }
 
 /* when used in sock_poll() nonblock is known at compile time to be true
@@ -107,8 +94,7 @@ static inline bool busy_loop_range(u64 start_time, u64 run_time)
  */
 static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 {
-	u64 start_time = busy_loop_start_time(!nonblock);
-	u64 end_time = sk_busy_loop_end_time(sk);
+	unsigned long end_time = !nonblock ? sk_busy_loop_end_time(sk) : 0;
 	const struct net_device_ops *ops;
 	struct napi_struct *napi;
 	int rc = false;
@@ -139,7 +125,7 @@ static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 					 LINUX_MIB_LOWLATENCYRXPACKETS, rc);
 
 	} while (!nonblock && skb_queue_empty(&sk->sk_receive_queue) &&
-		 busy_loop_range(start_time, end_time));
+		 !need_resched() && !busy_loop_timeout(end_time));
 
 	rc = !skb_queue_empty(&sk->sk_receive_queue);
 out:
@@ -165,12 +151,7 @@ static inline unsigned long net_busy_loop_on(void)
 	return 0;
 }
 
-static inline u64 busy_loop_start_time(unsigned int flag)
-{
-	return 0;
-}
-
-static inline u64 busy_loop_end_time(void)
+static inline unsigned long busy_loop_end_time(void)
 {
 	return 0;
 }
@@ -193,9 +174,9 @@ static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
 {
 }
 
-static inline bool busy_loop_range(u64 start_time, u64 run_time)
+static inline bool busy_loop_timeout(unsigned long end_time)
 {
-	return false;
+	return true;
 }
 
 #endif /* CONFIG_NET_LL_RX_POLL */

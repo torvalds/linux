@@ -403,8 +403,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 	int retval, i, timed_out = 0;
 	unsigned long slack = 0;
 	unsigned int busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
-	u64 busy_start = busy_loop_start_time(busy_flag);
-	u64 busy_end = busy_loop_end_time();
+	unsigned long busy_end = 0;
 
 	rcu_read_lock();
 	retval = max_select_fd(n, fds);
@@ -506,9 +505,15 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 		}
 
 		/* only if found POLL_BUSY_LOOP sockets && not out of time */
-		if (!need_resched() && can_busy_loop &&
-		    busy_loop_range(busy_start, busy_end))
-			continue;
+		if (can_busy_loop && !need_resched()) {
+			if (!busy_end) {
+				busy_end = busy_loop_end_time();
+				continue;
+			}
+			if (!busy_loop_timeout(busy_end))
+				continue;
+		}
+		busy_flag = 0;
 
 		/*
 		 * If this is the first loop and we have a timeout
@@ -780,9 +785,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	int timed_out = 0, count = 0;
 	unsigned long slack = 0;
 	unsigned int busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
-	u64 busy_start = busy_loop_start_time(busy_flag);
-	u64 busy_end = busy_loop_end_time();
-
+	unsigned long busy_end = 0;
 
 	/* Optimise the no-wait case */
 	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
@@ -834,9 +837,15 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 			break;
 
 		/* only if found POLL_BUSY_LOOP sockets && not out of time */
-		if (!need_resched() && can_busy_loop &&
-		    busy_loop_range(busy_start, busy_end))
-			continue;
+		if (can_busy_loop && !need_resched()) {
+			if (!busy_end) {
+				busy_end = busy_loop_end_time();
+				continue;
+			}
+			if (!busy_loop_timeout(busy_end))
+				continue;
+		}
+		busy_flag = 0;
 
 		/*
 		 * If this is the first loop and we have a timeout
