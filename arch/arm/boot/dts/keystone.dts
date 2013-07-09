@@ -100,6 +100,8 @@
 			reg = <0x023100e8 4>;	/* pll reset control reg */
 		};
 
+		/include/ "keystone-clocks.dtsi"
+
 		uart0: serial@02530c00 {
 			compatible = "ns16550a";
 			current-speed = <115200>;
