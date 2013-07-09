@@ -361,8 +361,9 @@ static const struct msi3101_gain msi3101_gain_lut_1000[] = {
 
 #define MAX_ISOC_ERRORS         20
 
-#define MSI3101_CID_SAMPLING_RATE         ((V4L2_CID_USER_BASE | 0xf000) + 0)
-#define MSI3101_CID_SAMPLING_RESOLUTION   ((V4L2_CID_USER_BASE | 0xf000) + 1)
+#define MSI3101_CID_SAMPLING_MODE         ((V4L2_CID_USER_BASE | 0xf000) + 0)
+#define MSI3101_CID_SAMPLING_RATE         ((V4L2_CID_USER_BASE | 0xf000) + 1)
+#define MSI3101_CID_SAMPLING_RESOLUTION   ((V4L2_CID_USER_BASE | 0xf000) + 2)
 #define MSI3101_CID_TUNER_RF              ((V4L2_CID_USER_BASE | 0xf000) + 10)
 #define MSI3101_CID_TUNER_BW              ((V4L2_CID_USER_BASE | 0xf000) + 11)
 #define MSI3101_CID_TUNER_IF              ((V4L2_CID_USER_BASE | 0xf000) + 12)
@@ -1418,6 +1419,7 @@ static int msi3101_s_ctrl(struct v4l2_ctrl *ctrl)
 			ctrl->minimum, ctrl->maximum, ctrl->step);
 
 	switch (ctrl->id) {
+	case MSI3101_CID_SAMPLING_MODE:
 	case MSI3101_CID_SAMPLING_RATE:
 	case MSI3101_CID_SAMPLING_RESOLUTION:
 		ret = 0;
@@ -1455,6 +1457,18 @@ static int msi3101_probe(struct usb_interface *intf,
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct msi3101_state *s = NULL;
 	int ret;
+	static const char * const ctrl_sampling_mode_qmenu_strings[] = {
+		"Quadrature Sampling",
+		NULL,
+	};
+	static const struct v4l2_ctrl_config ctrl_sampling_mode = {
+		.ops	= &msi3101_ctrl_ops,
+		.id	= MSI3101_CID_SAMPLING_MODE,
+		.type   = V4L2_CTRL_TYPE_MENU,
+		.flags  = V4L2_CTRL_FLAG_INACTIVE,
+		.name	= "Sampling Mode",
+		.qmenu  = ctrl_sampling_mode_qmenu_strings,
+	};
 	static const struct v4l2_ctrl_config ctrl_sampling_rate = {
 		.ops	= &msi3101_ctrl_ops,
 		.id	= MSI3101_CID_SAMPLING_RATE,
@@ -1553,7 +1567,8 @@ static int msi3101_probe(struct usb_interface *intf,
 	video_set_drvdata(&s->vdev, s);
 
 	/* Register controls */
-	v4l2_ctrl_handler_init(&s->ctrl_handler, 6);
+	v4l2_ctrl_handler_init(&s->ctrl_handler, 7);
+	v4l2_ctrl_new_custom(&s->ctrl_handler, &ctrl_sampling_mode, NULL);
 	s->ctrl_sampling_rate = v4l2_ctrl_new_custom(&s->ctrl_handler, &ctrl_sampling_rate, NULL);
 	v4l2_ctrl_new_custom(&s->ctrl_handler, &ctrl_sampling_resolution, NULL);
 	s->ctrl_tuner_rf = v4l2_ctrl_new_custom(&s->ctrl_handler, &ctrl_tuner_rf, NULL);
