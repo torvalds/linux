@@ -281,6 +281,8 @@ trace_probe_file_index(struct trace_probe *tp, struct ftrace_event_file *file)
 static int
 disable_trace_probe(struct trace_probe *tp, struct ftrace_event_file *file)
 {
+	struct ftrace_event_file **old = NULL;
+	int wait = 0;
 	int ret = 0;
 
 	mutex_lock(&probe_enable_lock);
@@ -314,10 +316,7 @@ disable_trace_probe(struct trace_probe *tp, struct ftrace_event_file *file)
 		}
 
 		rcu_assign_pointer(tp->files, new);
-
-		/* Make sure the probe is done with old files */
-		synchronize_sched();
-		kfree(old);
+		wait = 1;
 	} else
 		tp->flags &= ~TP_FLAG_PROFILE;
 
@@ -326,10 +325,24 @@ disable_trace_probe(struct trace_probe *tp, struct ftrace_event_file *file)
 			disable_kretprobe(&tp->rp);
 		else
 			disable_kprobe(&tp->rp.kp);
+		wait = 1;
 	}
 
  out_unlock:
 	mutex_unlock(&probe_enable_lock);
+
+	if (wait) {
+		/*
+		 * Synchronize with kprobe_trace_func/kretprobe_trace_func
+		 * to ensure disabled (all running handlers are finished).
+		 * This is not only for kfree(), but also the caller,
+		 * trace_remove_event_call() supposes it for releasing
+		 * event_call related objects, which will be accessed in
+		 * the kprobe_trace_func/kretprobe_trace_func.
+		 */
+		synchronize_sched();
+		kfree(old);	/* Ignored if link == NULL */
+	}
 
 	return ret;
 }
