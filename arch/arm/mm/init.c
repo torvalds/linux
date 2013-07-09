@@ -216,6 +216,7 @@ EXPORT_SYMBOL(arm_dma_zone_size);
  * so a successful GFP_DMA allocation will always satisfy this.
  */
 phys_addr_t arm_dma_limit;
+unsigned long arm_dma_pfn_limit;
 
 static void __init arm_adjust_dma_zone(unsigned long *size, unsigned long *hole,
 	unsigned long dma_size)
@@ -238,6 +239,7 @@ void __init setup_dma_zone(struct machine_desc *mdesc)
 		arm_dma_limit = PHYS_OFFSET + arm_dma_zone_size - 1;
 	} else
 		arm_dma_limit = 0xffffffff;
+	arm_dma_pfn_limit = arm_dma_limit >> PAGE_SHIFT;
 #endif
 }
 
