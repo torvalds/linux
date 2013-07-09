@@ -38,7 +38,6 @@ smp-$(CONFIG_ARCH_EMEV2)	+= smp-emev2.o headsmp-scu.o
 
 # IRQ objects
 obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
-obj-$(CONFIG_ARCH_R8A7740)	+= entry-intc.o
 
 # PM objects
 obj-$(CONFIG_SUSPEND)		+= suspend.o
