@@ -121,8 +121,8 @@ void push_ctxt(struct lvfs_run_ctxt *save, struct lvfs_run_ctxt *new_ctx,
 	OBD_SET_CTXT_MAGIC(save);
 
 	save->fs = get_fs();
-	LASSERT(d_refcount(cfs_fs_pwd(current->fs)));
-	LASSERT(d_refcount(new_ctx->pwd));
+	LASSERT(d_count(cfs_fs_pwd(current->fs)));
+	LASSERT(d_count(new_ctx->pwd));
 	save->pwd = dget(cfs_fs_pwd(current->fs));
 	save->pwdmnt = mntget(cfs_fs_mnt(current->fs));
 	save->luc.luc_umask = current_umask();

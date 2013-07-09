@@ -127,6 +127,8 @@
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
 #include <linux/hashtable.h>
+#include <linux/percpu.h>
+#include <linux/lglock.h>
 
 #include <asm/uaccess.h>
 
@@ -155,11 +157,13 @@ int lease_break_time = 45;
 	for (lockp = &inode->i_flock; *lockp != NULL; lockp = &(*lockp)->fl_next)
 
 /*
- * The global file_lock_list is only used for displaying /proc/locks. Protected
- * by the file_lock_lock.
+ * The global file_lock_list is only used for displaying /proc/locks, so we
+ * keep a list on each CPU, with each list protected by its own spinlock via
+ * the file_lock_lglock. Note that alterations to the list also require that
+ * the relevant i_lock is held.
  */
-static HLIST_HEAD(file_lock_list);
-static DEFINE_SPINLOCK(file_lock_lock);
+DEFINE_STATIC_LGLOCK(file_lock_lglock);
+static DEFINE_PER_CPU(struct hlist_head, file_lock_list);
 
 /*
  * The blocked_hash is used to find POSIX lock loops for deadlock detection.
@@ -506,20 +510,30 @@ static int posix_same_owner(struct file_lock *fl1, struct file_lock *fl2)
 	return fl1->fl_owner == fl2->fl_owner;
 }
 
+/* Must be called with the i_lock held! */
 static inline void
 locks_insert_global_locks(struct file_lock *fl)
 {
-	spin_lock(&file_lock_lock);
-	hlist_add_head(&fl->fl_link, &file_lock_list);
-	spin_unlock(&file_lock_lock);
+	lg_local_lock(&file_lock_lglock);
+	fl->fl_link_cpu = smp_processor_id();
+	hlist_add_head(&fl->fl_link, this_cpu_ptr(&file_lock_list));
+	lg_local_unlock(&file_lock_lglock);
 }
 
+/* Must be called with the i_lock held! */
 static inline void
 locks_delete_global_locks(struct file_lock *fl)
 {
-	spin_lock(&file_lock_lock);
+	/*
+	 * Avoid taking lock if already unhashed. This is safe since this check
+	 * is done while holding the i_lock, and new insertions into the list
+	 * also require that it be held.
+	 */
+	if (hlist_unhashed(&fl->fl_link))
+		return;
+	lg_local_lock_cpu(&file_lock_lglock, fl->fl_link_cpu);
 	hlist_del_init(&fl->fl_link);
-	spin_unlock(&file_lock_lock);
+	lg_local_unlock_cpu(&file_lock_lglock, fl->fl_link_cpu);
 }
 
 static unsigned long
@@ -1454,7 +1468,7 @@ static int generic_add_lease(struct file *filp, long arg, struct file_lock **flp
 	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
 		goto out;
 	if ((arg == F_WRLCK)
-	    && ((dentry->d_count > 1)
+	    && ((d_count(dentry) > 1)
 		|| (atomic_read(&inode->i_count) > 1)))
 		goto out;
 
@@ -2243,6 +2257,11 @@ EXPORT_SYMBOL_GPL(vfs_cancel_lock);
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+struct locks_iterator {
+	int	li_cpu;
+	loff_t	li_pos;
+};
+
 static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			    loff_t id, char *pfx)
 {
@@ -2316,39 +2335,41 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 
 static int locks_show(struct seq_file *f, void *v)
 {
+	struct locks_iterator *iter = f->private;
 	struct file_lock *fl, *bfl;
 
 	fl = hlist_entry(v, struct file_lock, fl_link);
 
-	lock_get_status(f, fl, *((loff_t *)f->private), "");
+	lock_get_status(f, fl, iter->li_pos, "");
 
 	list_for_each_entry(bfl, &fl->fl_block, fl_block)
-		lock_get_status(f, bfl, *((loff_t *)f->private), " ->");
+		lock_get_status(f, bfl, iter->li_pos, " ->");
 
 	return 0;
 }
 
 static void *locks_start(struct seq_file *f, loff_t *pos)
 {
-	loff_t *p = f->private;
+	struct locks_iterator *iter = f->private;
 
-	spin_lock(&file_lock_lock);
+	iter->li_pos = *pos + 1;
+	lg_global_lock(&file_lock_lglock);
 	spin_lock(&blocked_lock_lock);
-	*p = (*pos + 1);
-	return seq_hlist_start(&file_lock_list, *pos);
+	return seq_hlist_start_percpu(&file_lock_list, &iter->li_cpu, *pos);
 }
 
 static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
 {
-	loff_t *p = f->private;
-	++*p;
-	return seq_hlist_next(v, &file_lock_list, pos);
+	struct locks_iterator *iter = f->private;
+
+	++iter->li_pos;
+	return seq_hlist_next_percpu(v, &file_lock_list, &iter->li_cpu, pos);
 }
 
 static void locks_stop(struct seq_file *f, void *v)
 {
 	spin_unlock(&blocked_lock_lock);
-	spin_unlock(&file_lock_lock);
+	lg_global_unlock(&file_lock_lglock);
 }
 
 static const struct seq_operations locks_seq_operations = {
@@ -2360,7 +2381,8 @@ static const struct seq_operations locks_seq_operations = {
 
 static int locks_open(struct inode *inode, struct file *filp)
 {
-	return seq_open_private(filp, &locks_seq_operations, sizeof(loff_t));
+	return seq_open_private(filp, &locks_seq_operations,
+					sizeof(struct locks_iterator));
 }
 
 static const struct file_operations proc_locks_operations = {
@@ -2460,8 +2482,15 @@ EXPORT_SYMBOL(lock_may_write);
 
 static int __init filelock_init(void)
 {
+	int i;
+
 	filelock_cache = kmem_cache_create("file_lock_cache",
 			sizeof(struct file_lock), 0, SLAB_PANIC, NULL);
+
+	lg_lock_init(&file_lock_lglock, "file_lock_lglock");
+
+	for_each_possible_cpu(i)
+		INIT_HLIST_HEAD(per_cpu_ptr(&file_lock_list, i));
 
 	return 0;
 }
