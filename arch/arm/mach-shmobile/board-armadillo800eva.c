@@ -42,6 +42,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/i2c-gpio.h>
+#include <linux/reboot.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7740.h>
@@ -1259,7 +1260,7 @@ static void __init eva_add_early_devices(void)
 }
 
 #define RESCNT2 IOMEM(0xe6188020)
-static void eva_restart(char mode, const char *cmd)
+static void eva_restart(enum reboot_mode mode, const char *cmd)
 {
 	/* Do soft power on reset */
 	writel((1 << 31), RESCNT2);
