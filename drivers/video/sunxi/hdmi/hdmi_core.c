@@ -494,9 +494,19 @@ __s32 video_config(__s32 vic)
 	 * bit 0:     Setting this bit turns the entire fbcon background blue
 	 * bit 1:     Setting this bit turns the entire fbcon background green
 	 * bit 2:     Setting this bit turns the entire fbcon background red
-	 * bit 3-5:   Do not seem to do anything
-	 * bit 6:     Selects a pre-scaler for the clock which divides by 2
-	 * bit 7-13:  Do not seem to do anything
+	 * bit 3:     Unknown, best left 0
+	 * bit 4-5:   These need to be a specific value otherwise the colors
+	 *            will be wrong and some lines will be noise / distortion.
+	 *            The sunxi source dumps use 10 (2) for sun4i and 01 (1)
+	 *            for sun5i and sun7i. Experimentation has found 11 (3) to
+	 *            be a better value for sun5i and sun7i.
+	 * bit 6:     Selects a pre-scaler for the clock which divides by 2 ?
+	 * bit 7:     Setting this bit causes severe line noise in some cases
+	 * bit 8-11:  These seem to set some fifo prefetch balance, default val
+	 *            1000 (8), in cases where there seem to be fifo underruns
+	 *            (some pixels are yellow / flicker) changing this value
+	 *            helps, ie we use 7 on non sun4i for single pll modes.
+	 * bit 12-13: Setting these causes bad / no video in some cases leave 0
 	 * bit 14-15: Clearing one of these bits causes loss of sync
 	 * bit 16-22: Do not seem to do anything
 	 * bit 23:    Clearing this bit causes inverse video
@@ -524,10 +534,21 @@ __s32 video_config(__s32 vic)
 	 * since it lives in another register.
 	 */
 
-	if (hdmi_pll == AW_SYS_CLK_PLL3 || hdmi_pll == AW_SYS_CLK_PLL7)
-		writel(0x00D8C860, HDMI_TX_DRIVER + 4);
-	else
-		writel(0x00D8C820, HDMI_TX_DRIVER + 4);
+	if (hdmi_pll == AW_SYS_CLK_PLL3 || hdmi_pll == AW_SYS_CLK_PLL7) {
+		/* non doubled pll */
+		if (sunxi_is_sun4i())
+			writel(0x00D8C860, HDMI_TX_DRIVER + 4);
+		else
+			writel(0x00D8C770, HDMI_TX_DRIVER + 4);
+	} else {
+		/* x2 pll */
+		if (sunxi_is_sun4i()) {
+			writel(0x00D8C820, HDMI_TX_DRIVER + 4);
+		} else {
+			/* HDG: Note 0x00D8C438 also works */ 
+			writel(0x00D8C830, HDMI_TX_DRIVER + 4);
+                }
+	}
 
 	if (hdmi_pll == AW_SYS_CLK_PLL7 || hdmi_pll == AW_SYS_CLK_PLL7X2)
 		writel(1 << 21, HDMI_TX_DRIVER + 12);
