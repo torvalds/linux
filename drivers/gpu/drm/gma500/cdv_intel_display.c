@@ -595,7 +595,7 @@ static void cdv_intel_disable_self_refresh (struct drm_device *dev)
 		REG_WRITE(FW_BLC_SELF, (REG_READ(FW_BLC_SELF) & ~FW_BLC_SELF_EN));
 		REG_READ(FW_BLC_SELF);
 
-		cdv_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		/* Cedarview workaround to write ovelay plane, which force to leave
 		 * MAX_FIFO state.
@@ -603,7 +603,7 @@ static void cdv_intel_disable_self_refresh (struct drm_device *dev)
 		REG_WRITE(OV_OVADD, 0/*dev_priv->ovl_offset*/);
 		REG_READ(OV_OVADD);
 
-		cdv_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 	}
 
 }
@@ -644,12 +644,12 @@ static void cdv_intel_update_watermark (struct drm_device *dev, struct drm_crtc 
 
 		REG_WRITE(DSPFW6, 0x10);
 
-		cdv_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		/* enable self-refresh for single pipe active */
 		REG_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
 		REG_READ(FW_BLC_SELF);
-		cdv_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 	} else {
 
@@ -661,7 +661,7 @@ static void cdv_intel_update_watermark (struct drm_device *dev, struct drm_crtc 
 		REG_WRITE(DSPFW5, 0x01010101);
 		REG_WRITE(DSPFW6, 0x1d0);
 
-		cdv_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		cdv_intel_disable_self_refresh(dev);
 	
@@ -812,7 +812,7 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		drm_vblank_off(dev, pipe);
 		/* Wait for vblank for the disable to take effect */
-		cdv_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		/* Next, disable display pipes */
 		temp = REG_READ(map->conf);
@@ -822,7 +822,7 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		/* Wait for vblank for the disable to take effect. */
-		cdv_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		udelay(150);
 
@@ -850,26 +850,6 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	/*Set FIFO Watermarks*/
 	REG_WRITE(DSPARB, 0x3F3E);
 }
-
-static void cdv_intel_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
-static void cdv_intel_crtc_commit(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
-static bool cdv_intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 
 /**
  * Return the pipe currently connected to the panel fitter,
@@ -1129,7 +1109,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	REG_WRITE(map->conf, pipeconf);
 	REG_READ(map->conf);
 
-	cdv_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	REG_WRITE(map->cntr, dspcntr);
 
@@ -1140,7 +1120,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		crtc_funcs->mode_set_base(crtc, x, y, old_fb);
 	}
 
-	cdv_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	return 0;
 }
@@ -1301,12 +1281,12 @@ static void cdv_intel_crtc_restore(struct drm_crtc *crtc)
 	REG_WRITE(map->base, crtc_state->saveDSPBASE);
 	REG_WRITE(map->conf, crtc_state->savePIPECONF);
 
-	cdv_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	REG_WRITE(map->cntr, crtc_state->saveDSPCNTR);
 	REG_WRITE(map->base, crtc_state->saveDSPBASE);
 
-	cdv_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	paletteReg = map->palette;
 	for (i = 0; i < 256; ++i)
@@ -1612,36 +1592,14 @@ struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-static void cdv_intel_crtc_destroy(struct drm_crtc *crtc)
-{
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-
-	kfree(psb_intel_crtc->crtc_state);
-	drm_crtc_cleanup(crtc);
-	kfree(psb_intel_crtc);
-}
-
-static void cdv_intel_crtc_disable(struct drm_crtc *crtc)
-{
-	struct gtt_range *gt;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-
-	if (crtc->fb) {
-		gt = to_psb_fb(crtc->fb)->gtt;
-		psb_gtt_unpin(gt);
-	}
-}
-
 const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 	.dpms = cdv_intel_crtc_dpms,
-	.mode_fixup = cdv_intel_crtc_mode_fixup,
+	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = cdv_intel_crtc_mode_set,
 	.mode_set_base = cdv_intel_pipe_set_base,
-	.prepare = cdv_intel_crtc_prepare,
-	.commit = cdv_intel_crtc_commit,
-	.disable = cdv_intel_crtc_disable,
+	.prepare = gma_crtc_prepare,
+	.commit = gma_crtc_commit,
+	.disable = gma_crtc_disable,
 };
 
 const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
@@ -1651,7 +1609,7 @@ const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
 	.cursor_move = cdv_intel_crtc_cursor_move,
 	.gamma_set = cdv_intel_crtc_gamma_set,
 	.set_config = cdv_crtc_set_config,
-	.destroy = cdv_intel_crtc_destroy,
+	.destroy = gma_crtc_destroy,
 };
 
 const struct gma_clock_funcs cdv_clock_funcs = {
