@@ -327,6 +327,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	oparms.disposition = disposition;
 	oparms.path = full_path;
 	oparms.fid = fid;
+	oparms.reconnect = false;
 
 	rc = server->ops->open(xid, &oparms, oplock, buf);
 	if (rc) {

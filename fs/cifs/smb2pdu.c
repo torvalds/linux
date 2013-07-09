@@ -857,7 +857,7 @@ create_durable_buf(void)
 		return NULL;
 
 	buf->ccontext.DataOffset = cpu_to_le16(offsetof
-					(struct create_durable, Reserved));
+					(struct create_durable, Data));
 	buf->ccontext.DataLength = cpu_to_le32(16);
 	buf->ccontext.NameOffset = cpu_to_le16(offsetof
 				(struct create_durable, Name));
@@ -866,6 +866,30 @@ create_durable_buf(void)
 	buf->Name[1] = 'H';
 	buf->Name[2] = 'n';
 	buf->Name[3] = 'Q';
+	return buf;
+}
+
+static struct create_durable *
+create_reconnect_durable_buf(struct cifs_fid *fid)
+{
+	struct create_durable *buf;
+
+	buf = kzalloc(sizeof(struct create_durable), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct create_durable, Data));
+	buf->ccontext.DataLength = cpu_to_le32(16);
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct create_durable, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	buf->Data.Fid.PersistentFileId = fid->persistent_fid;
+	buf->Data.Fid.VolatileFileId = fid->volatile_fid;
+	buf->Name[0] = 'D';
+	buf->Name[1] = 'H';
+	buf->Name[2] = 'n';
+	buf->Name[3] = 'C';
 	return buf;
 }
 
@@ -924,12 +948,18 @@ add_lease_context(struct kvec *iov, unsigned int *num_iovec, __u8 *oplock)
 }
 
 static int
-add_durable_context(struct kvec *iov, unsigned int *num_iovec)
+add_durable_context(struct kvec *iov, unsigned int *num_iovec,
+		    struct cifs_open_parms *oparms)
 {
 	struct smb2_create_req *req = iov[0].iov_base;
 	unsigned int num = *num_iovec;
 
-	iov[num].iov_base = create_durable_buf();
+	if (oparms->reconnect) {
+		iov[num].iov_base = create_reconnect_durable_buf(oparms->fid);
+		/* indicate that we don't need to relock the file */
+		oparms->reconnect = false;
+	} else
+		iov[num].iov_base = create_durable_buf();
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_durable);
@@ -1037,7 +1067,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 			    (struct create_context *)iov[num_iovecs-1].iov_base;
 			ccontext->Next = sizeof(struct create_lease);
 		}
-		rc = add_durable_context(iov, &num_iovecs);
+		rc = add_durable_context(iov, &num_iovecs, oparms);
 		if (rc) {
 			cifs_small_buf_release(req);
 			kfree(copy_path);

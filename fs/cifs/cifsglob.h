@@ -920,6 +920,7 @@ struct cifs_open_parms {
 	int create_options;
 	const char *path;
 	struct cifs_fid *fid;
+	bool reconnect:1;
 };
 
 struct cifs_fid {

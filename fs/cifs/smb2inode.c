@@ -58,6 +58,7 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.disposition = create_disposition;
 	oparms.create_options = create_options;
 	oparms.fid = &fid;
+	oparms.reconnect = false;
 
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL);
 	if (rc) {

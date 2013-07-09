@@ -227,6 +227,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.disposition = FILE_OPEN;
 	oparms.create_options = 0;
 	oparms.fid = &fid;
+	oparms.reconnect = false;
 
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL);
 	if (rc) {
@@ -460,6 +461,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.disposition = FILE_OPEN;
 	oparms.create_options = 0;
 	oparms.fid = fid;
+	oparms.reconnect = false;
 
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL);
 	kfree(utf16_path);
@@ -546,6 +548,7 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.disposition = FILE_OPEN;
 	oparms.create_options = 0;
 	oparms.fid = &fid;
+	oparms.reconnect = false;
 
 	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL);
 	if (rc)

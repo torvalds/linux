@@ -232,6 +232,7 @@ cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
 	oparms.disposition = disposition;
 	oparms.path = full_path;
 	oparms.fid = fid;
+	oparms.reconnect = false;
 
 	rc = server->ops->open(xid, &oparms, oplock, buf);
 
@@ -594,7 +595,6 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 	int desired_access;
 	int disposition = FILE_OPEN;
 	int create_options = CREATE_NOT_DIR;
-	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
 
 	xid = get_xid();
@@ -645,7 +645,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 
 		rc = cifs_posix_open(full_path, NULL, inode->i_sb,
 				     cifs_sb->mnt_file_mode /* ignored */,
-				     oflags, &oplock, &fid.netfid, xid);
+				     oflags, &oplock, &cfile->fid.netfid, xid);
 		if (rc == 0) {
 			cifs_dbg(FYI, "posix reopen succeeded\n");
 			goto reopen_success;
@@ -662,7 +662,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
 	if (server->ops->get_lease_key)
-		server->ops->get_lease_key(inode, &fid);
+		server->ops->get_lease_key(inode, &cfile->fid);
 
 	oparms.tcon = tcon;
 	oparms.cifs_sb = cifs_sb;
@@ -670,7 +670,8 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 	oparms.create_options = create_options;
 	oparms.disposition = disposition;
 	oparms.path = full_path;
-	oparms.fid = &fid;
+	oparms.fid = &cfile->fid;
+	oparms.reconnect = true;
 
 	/*
 	 * Can not refresh inode by passing in file_info buf to be returned by
@@ -710,8 +711,9 @@ reopen_success:
 	 * to the server to get the new inode info.
 	 */
 
-	server->ops->set_fid(cfile, &fid, oplock);
-	cifs_relock_file(cfile);
+	server->ops->set_fid(cfile, &cfile->fid, oplock);
+	if (oparms.reconnect)
+		cifs_relock_file(cfile);
 
 reopen_error_exit:
 	kfree(full_path);
@@ -1507,6 +1509,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		}
 		if (!rc)
 			goto out;
+
 
 		/*
 		 * Windows 7 server can delay breaking lease from read to None
