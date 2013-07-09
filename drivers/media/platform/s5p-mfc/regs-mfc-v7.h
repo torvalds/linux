@@ -41,6 +41,9 @@
 #define MFC_VERSION_V7			0x72
 #define MFC_NUM_PORTS_V7		1
 
+#define MFC_LUMA_PAD_BYTES_V7		256
+#define MFC_CHROMA_PAD_BYTES_V7		128
+
 /* MFCv7 Context buffer sizes */
 #define MFC_CTX_BUF_SIZE_V7		(30 * SZ_1K)	/*  30KB */
 #define MFC_H264_DEC_CTX_BUF_SIZE_V7	(2 * SZ_1M)	/*  2MB */

@@ -80,6 +80,7 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 		ctx->tmv_buffer_size = S5P_FIMV_NUM_TMV_BUFFERS_V6 *
 			ALIGN(S5P_FIMV_TMV_BUFFER_SIZE_V6(mb_width, mb_height),
 			S5P_FIMV_TMV_BUFFER_ALIGN_V6);
+
 		ctx->luma_dpb_size = ALIGN((mb_width * mb_height) *
 				S5P_FIMV_LUMA_MB_TO_PIXEL_V6,
 				S5P_FIMV_LUMA_DPB_BUFFER_ALIGN_V6);
@@ -112,10 +113,18 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 			(ctx->mv_count * ctx->mv_size);
 		break;
 	case S5P_MFC_CODEC_MPEG4_DEC:
-		ctx->scratch_buf_size =
-			S5P_FIMV_SCRATCH_BUF_SIZE_MPEG4_DEC_V6(
-					mb_width,
-					mb_height);
+		if (IS_MFCV7(dev)) {
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_MPEG4_DEC_V7(
+						mb_width,
+						mb_height);
+		} else {
+			ctx->scratch_buf_size =
+				S5P_FIMV_SCRATCH_BUF_SIZE_MPEG4_DEC_V6(
+						mb_width,
+						mb_height);
+		}
+
 		ctx->scratch_buf_size = ALIGN(ctx->scratch_buf_size,
 				S5P_FIMV_SCRATCH_BUFFER_ALIGN_V6);
 		ctx->bank1.size = ctx->scratch_buf_size;
@@ -329,6 +338,12 @@ static void s5p_mfc_enc_calc_src_size_v6(struct s5p_mfc_ctx *ctx)
 	ctx->buf_width = ALIGN(ctx->img_width, S5P_FIMV_NV12M_HALIGN_V6);
 	ctx->luma_size = ALIGN((mb_width * mb_height) * 256, 256);
 	ctx->chroma_size = ALIGN((mb_width * mb_height) * 128, 256);
+
+	/* MFCv7 needs pad bytes for Luma and Chroma */
+	if (IS_MFCV7(ctx->dev)) {
+		ctx->luma_size += MFC_LUMA_PAD_BYTES_V7;
+		ctx->chroma_size += MFC_CHROMA_PAD_BYTES_V7;
+	}
 }
 
 /* Set registers for decoding stream buffer */
@@ -453,8 +468,13 @@ static void s5p_mfc_set_enc_frame_buffer_v6(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 
-	WRITEL(y_addr, S5P_FIMV_E_SOURCE_LUMA_ADDR_V6); /* 256B align */
-	WRITEL(c_addr, S5P_FIMV_E_SOURCE_CHROMA_ADDR_V6);
+	if (IS_MFCV7(dev)) {
+		WRITEL(y_addr, S5P_FIMV_E_SOURCE_FIRST_ADDR_V7);
+		WRITEL(c_addr, S5P_FIMV_E_SOURCE_SECOND_ADDR_V7);
+	} else {
+		WRITEL(y_addr, S5P_FIMV_E_SOURCE_LUMA_ADDR_V6);
+		WRITEL(c_addr, S5P_FIMV_E_SOURCE_CHROMA_ADDR_V6);
+	}
 
 	mfc_debug(2, "enc src y buf addr: 0x%08lx\n", y_addr);
 	mfc_debug(2, "enc src c buf addr: 0x%08lx\n", c_addr);
@@ -466,8 +486,13 @@ static void s5p_mfc_get_enc_frame_buffer_v6(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_dev *dev = ctx->dev;
 	unsigned long enc_recon_y_addr, enc_recon_c_addr;
 
-	*y_addr = READL(S5P_FIMV_E_ENCODED_SOURCE_LUMA_ADDR_V6);
-	*c_addr = READL(S5P_FIMV_E_ENCODED_SOURCE_CHROMA_ADDR_V6);
+	if (IS_MFCV7(dev)) {
+		*y_addr = READL(S5P_FIMV_E_ENCODED_SOURCE_FIRST_ADDR_V7);
+		*c_addr = READL(S5P_FIMV_E_ENCODED_SOURCE_SECOND_ADDR_V7);
+	} else {
+		*y_addr = READL(S5P_FIMV_E_ENCODED_SOURCE_LUMA_ADDR_V6);
+		*c_addr = READL(S5P_FIMV_E_ENCODED_SOURCE_CHROMA_ADDR_V6);
+	}
 
 	enc_recon_y_addr = READL(S5P_FIMV_E_RECON_LUMA_DPB_ADDR_V6);
 	enc_recon_c_addr = READL(S5P_FIMV_E_RECON_CHROMA_DPB_ADDR_V6);
@@ -1166,6 +1191,12 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 		reg |= (0x1 << S5P_FIMV_D_OPT_DDELAY_EN_SHIFT_V6);
 		WRITEL(ctx->display_delay, S5P_FIMV_D_DISPLAY_DELAY_V6);
 	}
+
+	if (IS_MFCV7(dev)) {
+		WRITEL(reg, S5P_FIMV_D_DEC_OPTIONS_V6);
+		reg = 0;
+	}
+
 	/* Setup loop filter, for decoding this is only valid for MPEG4 */
 	if (ctx->codec_mode == S5P_MFC_CODEC_MPEG4_DEC) {
 		mfc_debug(2, "Set loop filter to: %d\n",
@@ -1176,13 +1207,17 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 	if (ctx->dst_fmt->fourcc == V4L2_PIX_FMT_NV12MT_16X16)
 		reg |= (0x1 << S5P_FIMV_D_OPT_TILE_MODE_SHIFT_V6);
 
-	WRITEL(reg, S5P_FIMV_D_DEC_OPTIONS_V6);
+	if (IS_MFCV7(dev))
+		WRITEL(reg, S5P_FIMV_D_INIT_BUFFER_OPTIONS_V7);
+	else
+		WRITEL(reg, S5P_FIMV_D_DEC_OPTIONS_V6);
 
 	/* 0: NV12(CbCr), 1: NV21(CrCb) */
 	if (ctx->dst_fmt->fourcc == V4L2_PIX_FMT_NV21M)
 		WRITEL(0x1, S5P_FIMV_PIXEL_FORMAT_V6);
 	else
 		WRITEL(0x0, S5P_FIMV_PIXEL_FORMAT_V6);
+
 
 	/* sei parse */
 	WRITEL(ctx->sei_fp_parse & 0x1, S5P_FIMV_D_SEI_ENABLE_V6);
@@ -1252,6 +1287,12 @@ static int s5p_mfc_init_encode_v6(struct s5p_mfc_ctx *ctx)
 		mfc_err("Unknown codec for encoding (%x).\n",
 			ctx->codec_mode);
 		return -EINVAL;
+	}
+
+	/* Set stride lengths */
+	if (IS_MFCV7(dev)) {
+		WRITEL(ctx->img_width, S5P_FIMV_E_SOURCE_FIRST_STRIDE_V7);
+		WRITEL(ctx->img_width, S5P_FIMV_E_SOURCE_SECOND_STRIDE_V7);
 	}
 
 	WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID_V6);
