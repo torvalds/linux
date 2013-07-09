@@ -73,6 +73,13 @@ int trinity_dpm_force_state(struct radeon_device *rdev, u32 n)
 	return trinity_notify_message_to_smu(rdev, PPSMC_MSG_DPM_ForceState);
 }
 
+int trinity_dpm_n_levels_disabled(struct radeon_device *rdev, u32 n)
+{
+	WREG32_SMC(SMU_SCRATCH0, n);
+
+	return trinity_notify_message_to_smu(rdev, PPSMC_MSG_DPM_N_LevelsDisabled);
+}
+
 int trinity_uvd_dpm_config(struct radeon_device *rdev)
 {
 	return trinity_notify_message_to_smu(rdev, PPSMC_MSG_UVD_DPM_Config);

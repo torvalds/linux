@@ -2906,7 +2906,8 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	u16 vddc, vddci;
 	int i;
 
-	if (rdev->pm.dpm.new_active_crtc_count > 1)
+	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
+	    ni_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
 	else
 		disable_mclk_switching = false;
@@ -3231,16 +3232,38 @@ static int si_restrict_performance_levels_before_switch(struct radeon_device *rd
 		0 : -EINVAL;
 }
 
-#if 0
-static int si_unrestrict_performance_levels_after_switch(struct radeon_device *rdev)
+int si_dpm_force_performance_level(struct radeon_device *rdev,
+				   enum radeon_dpm_forced_level level)
 {
-	if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
-		return -EINVAL;
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	u32 levels;
 
-	return (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) == PPSMC_Result_OK) ?
-		0 : -EINVAL;
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 1) != PPSMC_Result_OK)
+			return -EINVAL;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		levels = ps->performance_level_count - 1;
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
+			return -EINVAL;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+	}
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
 }
-#endif
 
 static int si_set_boot_state(struct radeon_device *rdev)
 {
@@ -5992,11 +6015,13 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 
 #if 0
 	/* XXX */
-	ret = si_unrestrict_performance_levels_after_switch(rdev);
+	ret = si_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
-		DRM_ERROR("si_unrestrict_performance_levels_after_switch failed\n");
+		DRM_ERROR("si_dpm_force_performance_level failed\n");
 		return ret;
 	}
+#else
+	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
 #endif
 
 	return 0;

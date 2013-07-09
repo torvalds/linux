@@ -1504,8 +1504,8 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
 	if (voltage->type == VOLTAGE_SW) {
-		/* 0xff01 is a flag rather then an actual voltage */
-		if (voltage->voltage == 0xff01)
+		/* 0xff0x are flags rather then an actual voltage */
+		if ((voltage->voltage & 0xff00) == 0xff00)
 			return;
 		if (voltage->voltage && (voltage->voltage != rdev->pm.current_vddc)) {
 			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
@@ -1525,8 +1525,8 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 			voltage = &rdev->pm.power_state[req_ps_idx].
 				clock_info[rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_cm_idx].voltage;
 
-		/* 0xff01 is a flag rather then an actual voltage */
-		if (voltage->vddci == 0xff01)
+		/* 0xff0x are flags rather then an actual voltage */
+		if ((voltage->vddci & 0xff00) == 0xff00)
 			return;
 		if (voltage->vddci && (voltage->vddci != rdev->pm.current_vddci)) {
 			radeon_atom_set_voltage(rdev, voltage->vddci, SET_VOLTAGE_TYPE_ASIC_VDDCI);
