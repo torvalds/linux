@@ -216,6 +216,13 @@ static inline void vgic_arch_setup(const struct vgic_params *vgic)
 		__vgic_sr_vectors.restore_vgic	= __restore_vgic_v2_state;
 		break;
 
+#ifdef CONFIG_ARM_GIC_V3
+	case VGIC_V3:
+		__vgic_sr_vectors.save_vgic	= __save_vgic_v3_state;
+		__vgic_sr_vectors.restore_vgic	= __restore_vgic_v3_state;
+		break;
+#endif
+
 	default:
 		BUG();
 	}
