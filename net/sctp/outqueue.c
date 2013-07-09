@@ -1334,6 +1334,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 	__u8 restart_timer = 0;
 	int bytes_acked = 0;
 	int migrate_bytes = 0;
+	bool forward_progress = false;
 
 	sack_ctsn = ntohl(sack->cum_tsn_ack);
 
@@ -1400,6 +1401,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				bytes_acked += sctp_data_size(tchunk);
 				if (!tchunk->transport)
 					migrate_bytes += sctp_data_size(tchunk);
+				forward_progress = true;
 			}
 
 			if (TSN_lte(tsn, sack_ctsn)) {
@@ -1413,6 +1415,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 				 * current RTO.
 				 */
 				restart_timer = 1;
+				forward_progress = true;
 
 				if (!tchunk->tsn_gap_acked) {
 					/*
@@ -1503,6 +1506,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			 */
 			transport->error_count = 0;
 			transport->asoc->overall_error_count = 0;
+			forward_progress = true;
 
 			/*
 			 * While in SHUTDOWN PENDING, we may have started
@@ -1575,6 +1579,11 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			if (!mod_timer(&transport->T3_rtx_timer,
 				       jiffies + transport->rto))
 				sctp_transport_hold(transport);
+		}
+
+		if (forward_progress) {
+			if (transport->dst)
+				dst_confirm(transport->dst);
 		}
 	}
 
