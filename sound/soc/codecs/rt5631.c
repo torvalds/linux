@@ -35,7 +35,11 @@
 #else
 #define DBG(x...)
 #endif
-#define RT5631_VERSION "0.01 alsa 1.0.24"
+/*
+1.0.25
+     add support sample rate up to 192k
+*/
+#define RT5631_VERSION "0.01 alsa 1.0.25"
 
 #define RT5631_ALC_DAC_FUNC_ENA 0	//ALC functio for DAC
 #define RT5631_ALC_ADC_FUNC_ENA 0	//ALC function for ADC
@@ -1574,6 +1578,10 @@ struct coeff_clk_div coeff_div[] = {
 	{22579200,  88200 * 64,  88200,  0x0000},
 	{24576000,  96000 * 32,  96000,  0x1000},
 	{24576000,  96000 * 64,  96000,  0x0000},
+	{22579200,  176400 * 32,  176400,  0x1000},
+	{22579200,  176400 * 64,  176400,  0x0000},
+	{24576000,  192000 * 32,  192000,  0x1000},
+	{24576000,  162000 * 64,  192000,  0x0000},
 	/* sysclk is 512fs */
 	{4096000,  8000 * 32,  8000, 0x3000},
 	{4096000,  8000 * 64,  8000, 0x2000},
@@ -1889,7 +1897,7 @@ static ssize_t rt5631_index_reg_show(struct device *dev,
 }
 static DEVICE_ATTR(index_reg, 0444, rt5631_index_reg_show, NULL);
 
-#define RT5631_STEREO_RATES SNDRV_PCM_RATE_8000_96000
+#define RT5631_STEREO_RATES SNDRV_PCM_RATE_8000_192000
 #define RT5631_FORMAT	(SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | \
@@ -2158,7 +2166,7 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 	struct rt5631_priv *rt5631;
 	int ret;
 
-	DBG("RT5631 Audio Codec %s\n", RT5631_VERSION);
+	printk("RT5631 Audio Codec %s\n", RT5631_VERSION);
 
 	rt5631 = kzalloc(sizeof(struct rt5631_priv), GFP_KERNEL);
 	if (NULL == rt5631)

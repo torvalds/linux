@@ -83,37 +83,40 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         case 24000:
         case 32000:
         case 48000:
-        case 96000:
-        case 192000:
                 pll_out = 12288000;
                 break;
         case 11025:
         case 22050:
         case 44100:
-        case 88100:
-        case 176400:
                 pll_out = 11289600;
                 break;
+        case 96000:
+        case 192000:	
+                pll_out = 12288000*2;
+                break;		
+        case 88200:
+        case 176400:	
+                pll_out = 11289600*2;
+                break;		
         default:
                 DBG("Enter:%s, %d, Error rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
                 return -EINVAL;
                 break;
         }
-        DBG("Enter:%s, %d, LRCK=%d rate=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params),params_rate(params));
 #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
 	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, 64-1);//bclk = 2*32*lrck; 2*32fs
 	switch(params_rate(params)) {
-		case 96000:
-        case 88100:		
-			snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 1);	
-			break;
         case 176400:		
 		case 192000:
-			snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 0);	
+			snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 1);	
+        DBG("Enter:%s, %d, MCLK=%d BCLK=%d LRCK=%d\n",
+		__FUNCTION__,__LINE__,pll_out,pll_out/2,params_rate(params));			
 			break;
 		default:
 			snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);	
+        DBG("default:%s, %d, MCLK=%d BCLK=%d LRCK=%d\n",
+		__FUNCTION__,__LINE__,pll_out,pll_out/4,params_rate(params));			
 			break;
 	}	
 		
