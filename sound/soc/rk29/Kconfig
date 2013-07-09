@@ -74,6 +74,7 @@ choice
   bool "Set audio support for HDMI"
   default SND_RK_SOC_HDMI_I2S
 	config SND_RK_SOC_HDMI_I2S
+		depends on !RK616_USE_MCLK_12M || !SND_RK_SOC_RK616
 		select SND_RK29_SOC_I2S
 		select SND_SOC_HDMI_I2S
 		tristate  "HDMI use I2S"
