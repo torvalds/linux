@@ -1093,6 +1093,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	}
 
 	info->fbops->fb_set_par(info);
+	info->fbops->fb_ioctl(info,RK_FBIOSET_CONFIG_DONE,0);
 	return 0;
 	
 	
