@@ -127,6 +127,7 @@ xlog_cil_prepare_log_vecs(
 		int	index;
 		int	len = 0;
 		uint	niovecs;
+		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
 		if (!(lidp->lid_flags & XFS_LID_DIRTY))
@@ -137,14 +138,30 @@ xlog_cil_prepare_log_vecs(
 		if (!niovecs)
 			continue;
 
+		/*
+		 * Ordered items need to be tracked but we do not wish to write
+		 * them. We need a logvec to track the object, but we do not
+		 * need an iovec or buffer to be allocated for copying data.
+		 */
+		if (niovecs == XFS_LOG_VEC_ORDERED) {
+			ordered = true;
+			niovecs = 0;
+		}
+
 		new_lv = kmem_zalloc(sizeof(*new_lv) +
 				niovecs * sizeof(struct xfs_log_iovec),
 				KM_SLEEP|KM_NOFS);
 
+		new_lv->lv_item = lidp->lid_item;
+		new_lv->lv_niovecs = niovecs;
+		if (ordered) {
+			/* track as an ordered logvec */
+			new_lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
+			goto next;
+		}
+
 		/* The allocated iovec region lies beyond the log vector. */
 		new_lv->lv_iovecp = (struct xfs_log_iovec *)&new_lv[1];
-		new_lv->lv_niovecs = niovecs;
-		new_lv->lv_item = lidp->lid_item;
 
 		/* build the vector array and calculate it's length */
 		IOP_FORMAT(new_lv->lv_item, new_lv->lv_iovecp);
@@ -165,6 +182,7 @@ xlog_cil_prepare_log_vecs(
 		}
 		ASSERT(ptr == new_lv->lv_buf + new_lv->lv_buf_len);
 
+next:
 		if (!ret_lv)
 			ret_lv = new_lv;
 		else
@@ -191,8 +209,18 @@ xfs_cil_prepare_item(
 
 	if (old) {
 		/* existing lv on log item, space used is a delta */
-		ASSERT(!list_empty(&lv->lv_item->li_cil));
-		ASSERT(old->lv_buf && old->lv_buf_len && old->lv_niovecs);
+		ASSERT((old->lv_buf && old->lv_buf_len && old->lv_niovecs) ||
+			old->lv_buf_len == XFS_LOG_VEC_ORDERED);
+
+		/*
+		 * If the new item is ordered, keep the old one that is already
+		 * tracking dirty or ordered regions
+		 */
+		if (lv->lv_buf_len == XFS_LOG_VEC_ORDERED) {
+			ASSERT(!lv->lv_buf);
+			kmem_free(lv);
+			return;
+		}
 
 		*len += lv->lv_buf_len - old->lv_buf_len;
 		*diff_iovecs += lv->lv_niovecs - old->lv_niovecs;
@@ -201,10 +229,11 @@ xfs_cil_prepare_item(
 	} else {
 		/* new lv, must pin the log item */
 		ASSERT(!lv->lv_item->li_lv);
-		ASSERT(list_empty(&lv->lv_item->li_cil));
 
-		*len += lv->lv_buf_len;
-		*diff_iovecs += lv->lv_niovecs;
+		if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED) {
+			*len += lv->lv_buf_len;
+			*diff_iovecs += lv->lv_niovecs;
+		}
 		IOP_PIN(lv->lv_item);
 
 	}
@@ -259,18 +288,24 @@ xlog_cil_insert_items(
 	 * We can do this safely because the context can't checkpoint until we
 	 * are done so it doesn't matter exactly how we update the CIL.
 	 */
-	for (lv = log_vector; lv; lv = lv->lv_next)
+	spin_lock(&cil->xc_cil_lock);
+	for (lv = log_vector; lv; ) {
+		struct xfs_log_vec *next = lv->lv_next;
+
+		ASSERT(lv->lv_item->li_lv || list_empty(&lv->lv_item->li_cil));
+		lv->lv_next = NULL;
+
+		/*
+		 * xfs_cil_prepare_item() may free the lv, so move the item on
+		 * the CIL first.
+		 */
+		list_move_tail(&lv->lv_item->li_cil, &cil->xc_cil);
 		xfs_cil_prepare_item(log, lv, &len, &diff_iovecs);
+		lv = next;
+	}
 
 	/* account for space used by new iovec headers  */
 	len += diff_iovecs * sizeof(xlog_op_header_t);
-
-	spin_lock(&cil->xc_cil_lock);
-
-	/* move the items to the tail of the CIL */
-	for (lv = log_vector; lv; lv = lv->lv_next)
-		list_move_tail(&lv->lv_item->li_cil, &cil->xc_cil);
-
 	ctx->nvecs += diff_iovecs;
 
 	/*
@@ -381,9 +416,7 @@ xlog_cil_push(
 	struct xfs_cil_ctx	*new_ctx;
 	struct xlog_in_core	*commit_iclog;
 	struct xlog_ticket	*tic;
-	int			num_lv;
 	int			num_iovecs;
-	int			len;
 	int			error = 0;
 	struct xfs_trans_header thdr;
 	struct xfs_log_iovec	lhdr;
@@ -428,12 +461,9 @@ xlog_cil_push(
 	 * side which is currently locked out by the flush lock.
 	 */
 	lv = NULL;
-	num_lv = 0;
 	num_iovecs = 0;
-	len = 0;
 	while (!list_empty(&cil->xc_cil)) {
 		struct xfs_log_item	*item;
-		int			i;
 
 		item = list_first_entry(&cil->xc_cil,
 					struct xfs_log_item, li_cil);
@@ -444,11 +474,7 @@ xlog_cil_push(
 			lv->lv_next = item->li_lv;
 		lv = item->li_lv;
 		item->li_lv = NULL;
-
-		num_lv++;
 		num_iovecs += lv->lv_niovecs;
-		for (i = 0; i < lv->lv_niovecs; i++)
-			len += lv->lv_iovecp[i].i_len;
 	}
 
 	/*
@@ -701,6 +727,7 @@ xfs_log_commit_cil(
 	if (commit_lsn)
 		*commit_lsn = log->l_cilp->xc_ctx->sequence;
 
+	/* xlog_cil_insert_items() destroys log_vector list */
 	xlog_cil_insert_items(log, log_vector, tp->t_ticket);
 
 	/* check we didn't blow the reservation */
