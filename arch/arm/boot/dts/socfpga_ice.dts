@@ -129,5 +129,9 @@
 		serial1@ffc03000 {
 			clock-frequency = <77161>;
 		};
+
+		watchdog0: wd@ffd02000 {
+			status = "okay";
+		};
 	};
 };

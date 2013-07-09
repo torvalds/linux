@@ -146,6 +146,10 @@
 			status = "okay";
 		};
 
+		watchdog0: wd@ffd02000 {
+			status = "okay";
+		};
+
 		leds {
 			compatible = "gpio-leds";
 			hps0 {

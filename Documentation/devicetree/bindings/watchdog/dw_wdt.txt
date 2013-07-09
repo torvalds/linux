@@ -1,0 +1,16 @@
+Synopsys Designware Watchdog Timer
+
+Required Properties:
+
+- Compatiblity	: "snps,dw-wdt"
+- reg		: Base address of the watchdog timer register.
+
+Example:
+
+	watchdog0: wd@ffd02000 {
+		compatible = "snps,dw-wdt";
+		reg = <0xffd02000 0x1000>;
+		interrupts = <0 171 4>;
+		clocks = <&per_base_clk>;
+		status = "okay";
+	};

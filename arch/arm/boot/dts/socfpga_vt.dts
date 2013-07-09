@@ -147,6 +147,10 @@
 			cpu1-start-addr = <0xffd08010>;
 		};
 
+		watchdog0: wd@ffd02000 {
+			status = "okay";
+		};
+
 		usb0: usb@ffb00000 {
 			ulpi-ddr = <0>;
 			status = "okay";
