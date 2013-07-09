@@ -815,6 +815,18 @@ struct i915_dri1_state {
 	uint32_t counter;
 };
 
+struct i915_ums_state {
+	/**
+	 * Flag if the X Server, and thus DRM, is not currently in
+	 * control of the device.
+	 *
+	 * This is set between LeaveVT and EnterVT.  It needs to be
+	 * replaced with a semaphore.  It also needs to be
+	 * transitioned away from for kernel modesetting.
+	 */
+	int mm_suspended;
+};
+
 struct intel_l3_parity {
 	u32 *remap_info;
 	struct work_struct error_work;
@@ -884,16 +896,6 @@ struct i915_gem_mm {
 	 * modesetting?
 	 */
 	bool interruptible;
-
-	/**
-	 * Flag if the X Server, and thus DRM, is not currently in
-	 * control of the device.
-	 *
-	 * This is set between LeaveVT and EnterVT.  It needs to be
-	 * replaced with a semaphore.  It also needs to be
-	 * transitioned away from for kernel modesetting.
-	 */
-	int suspended;
 
 	/** Bit 6 swizzling required for X tiling */
 	uint32_t bit_6_swizzle_x;
@@ -1188,6 +1190,8 @@ typedef struct drm_i915_private {
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
 	struct i915_dri1_state dri1;
+	/* Old ums support infrastructure, same warning applies. */
+	struct i915_ums_state ums;
 } drm_i915_private_t;
 
 /* Iterate over initialised rings */

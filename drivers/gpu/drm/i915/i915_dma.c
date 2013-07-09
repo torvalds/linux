@@ -1331,10 +1331,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = 1;
-	if (INTEL_INFO(dev)->num_pipes == 0) {
-		dev_priv->mm.suspended = 0;
+	if (INTEL_INFO(dev)->num_pipes == 0)
 		return 0;
-	}
 
 	ret = intel_fbdev_init(dev);
 	if (ret)
@@ -1359,9 +1357,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	dev_priv->enable_hotplug_processing = true;
 
 	drm_kms_helper_poll_init(dev);
-
-	/* We're off and running w/KMS */
-	dev_priv->mm.suspended = 0;
 
 	return 0;
 
@@ -1639,9 +1634,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_gem_unload;
 	}
 
-	/* Start out suspended */
-	dev_priv->mm.suspended = 1;
-
 	if (HAS_POWER_WELL(dev))
 		i915_init_power_well(dev);
 
@@ -1651,6 +1643,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			DRM_ERROR("failed to init modeset\n");
 			goto out_gem_unload;
 		}
+	} else {
+		/* Start out suspended in ums mode. */
+		dev_priv->ums.mm_suspended = 1;
 	}
 
 	i915_setup_sysfs(dev);

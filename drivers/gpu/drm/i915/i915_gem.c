@@ -2086,7 +2086,7 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	trace_i915_gem_request_add(ring, request->seqno);
 	ring->outstanding_lazy_request = 0;
 
-	if (!dev_priv->mm.suspended) {
+	if (!dev_priv->ums.mm_suspended) {
 		if (i915_enable_hangcheck) {
 			mod_timer(&dev_priv->gpu_error.hangcheck_timer,
 				  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
@@ -2401,7 +2401,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 		idle &= list_empty(&ring->request_list);
 	}
 
-	if (!dev_priv->mm.suspended && !idle)
+	if (!dev_priv->ums.mm_suspended && !idle)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work,
 				   round_jiffies_up_relative(HZ));
 	if (idle)
@@ -3978,9 +3978,7 @@ i915_gem_idle(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
-
-	if (dev_priv->mm.suspended) {
+	if (dev_priv->ums.mm_suspended) {
 		mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}
@@ -3996,17 +3994,10 @@ i915_gem_idle(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_gem_evict_everything(dev);
 
-	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
-	 * We need to replace this with a semaphore, or something.
-	 * And not confound mm.suspended!
-	 */
-	dev_priv->mm.suspended = 1;
 	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 
 	i915_kernel_lost_context(dev);
 	i915_gem_cleanup_ringbuffer(dev);
-
-	mutex_unlock(&dev->struct_mutex);
 
 	/* Cancel the retire work handler, which should be idle now. */
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
@@ -4217,7 +4208,7 @@ int
 i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
@@ -4229,7 +4220,7 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	dev_priv->mm.suspended = 0;
+	dev_priv->ums.mm_suspended = 0;
 
 	ret = i915_gem_init_hw(dev);
 	if (ret != 0) {
@@ -4249,7 +4240,7 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 cleanup_ringbuffer:
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
-	dev_priv->mm.suspended = 1;
+	dev_priv->ums.mm_suspended = 1;
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
@@ -4259,11 +4250,26 @@ int
 i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
 	drm_irq_uninstall(dev);
-	return i915_gem_idle(dev);
+
+	mutex_lock(&dev->struct_mutex);
+	ret =  i915_gem_idle(dev);
+
+	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
+	 * We need to replace this with a semaphore, or something.
+	 * And not confound ums.mm_suspended!
+	 */
+	if (ret != 0)
+		dev_priv->ums.mm_suspended = 1;
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
 }
 
 void
@@ -4274,9 +4280,11 @@ i915_gem_lastclose(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_idle(dev);
 	if (ret)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static void
