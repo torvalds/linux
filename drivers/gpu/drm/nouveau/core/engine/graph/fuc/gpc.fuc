@@ -352,6 +352,9 @@ ctx_xfer:
 
 	// per-TPC mmio context
 	xbit $r10 $flags $p1	// direction
+#if !NV_PGRAPH_GPCX_UNK__SIZE
+	or $r10 4		// last
+#endif
 	mov $r11 0x4000
 	sethi $r11 0x500000	// base = NV_PGRAPH_GPC0_TPC0
 	ld b32 $r12 D[$r0 + #gpc_id]
