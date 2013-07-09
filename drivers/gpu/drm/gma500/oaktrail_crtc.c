@@ -242,7 +242,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 			REG_READ(map->conf);
 		}
 		/* Wait for for the pipe disable to take effect. */
-		psb_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		temp = REG_READ(map->dpll);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
@@ -484,10 +484,10 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 
 	REG_WRITE(map->conf, pipeconf);
 	REG_READ(map->conf);
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	REG_WRITE(map->cntr, dspcntr);
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 oaktrail_crtc_mode_set_exit:
 	gma_power_end(dev);

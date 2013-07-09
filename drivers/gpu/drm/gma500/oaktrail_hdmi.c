@@ -155,12 +155,6 @@ static void oaktrail_hdmi_audio_disable(struct drm_device *dev)
 	HDMI_READ(HDMI_HCR);
 }
 
-static void wait_for_vblank(struct drm_device *dev)
-{
-	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	mdelay(20);
-}
-
 static unsigned int htotal_calculate(struct drm_display_mode *mode)
 {
 	u32 htotal, new_crtc_htotal;
@@ -372,10 +366,10 @@ int oaktrail_crtc_hdmi_mode_set(struct drm_crtc *crtc,
 
 	REG_WRITE(PCH_PIPEBCONF, pipeconf);
 	REG_READ(PCH_PIPEBCONF);
-	wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	REG_WRITE(dspcntr_reg, dspcntr);
-	wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	gma_power_end(dev);
 
@@ -459,7 +453,7 @@ void oaktrail_crtc_hdmi_dpms(struct drm_crtc *crtc, int mode)
 			REG_READ(PCH_PIPEBCONF);
 		}
 
-		wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		/* Enable plane */
 		temp = REG_READ(DSPBCNTR);

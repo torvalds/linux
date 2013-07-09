@@ -82,12 +82,6 @@ static void psb_intel_clock(int refclk, struct gma_clock_t *clock)
 	clock->dot = clock->vco / clock->p;
 }
 
-void psb_intel_wait_for_vblank(struct drm_device *dev)
-{
-	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	mdelay(20);
-}
-
 static int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
@@ -244,7 +238,7 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		/* Wait for vblank for the disable to take effect. */
-		psb_intel_wait_for_vblank(dev);
+		gma_wait_for_vblank(dev);
 
 		temp = REG_READ(map->dpll);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
@@ -516,14 +510,14 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	REG_WRITE(map->conf, pipeconf);
 	REG_READ(map->conf);
 
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	REG_WRITE(map->cntr, dspcntr);
 
 	/* Flush the plane changes */
 	crtc_funcs->mode_set_base(crtc, x, y, old_fb);
 
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	return 0;
 }
@@ -669,12 +663,12 @@ static void psb_intel_crtc_restore(struct drm_crtc *crtc)
 	REG_WRITE(map->base, crtc_state->saveDSPBASE);
 	REG_WRITE(map->conf, crtc_state->savePIPECONF);
 
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	REG_WRITE(map->cntr, crtc_state->saveDSPCNTR);
 	REG_WRITE(map->base, crtc_state->saveDSPBASE);
 
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	paletteReg = map->palette;
 	for (i = 0; i < 256; ++i)

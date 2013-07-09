@@ -246,7 +246,6 @@ extern struct drm_encoder *psb_intel_best_encoder(struct drm_connector
 
 extern struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);
-extern void psb_intel_wait_for_vblank(struct drm_device *dev);
 extern int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 extern struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev,

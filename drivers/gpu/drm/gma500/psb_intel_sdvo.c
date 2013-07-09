@@ -1121,7 +1121,7 @@ static void psb_intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 		if ((temp & SDVO_ENABLE) == 0)
 			psb_intel_sdvo_write_sdvox(psb_intel_sdvo, temp | SDVO_ENABLE);
 		for (i = 0; i < 2; i++)
-			psb_intel_wait_for_vblank(dev);
+			gma_wait_for_vblank(dev);
 
 		status = psb_intel_sdvo_get_trained_inputs(psb_intel_sdvo, &input1, &input2);
 		/* Warn if the device reported failure to sync.

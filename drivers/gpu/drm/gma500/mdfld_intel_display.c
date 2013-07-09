@@ -65,7 +65,7 @@ void mdfldWaitForPipeDisable(struct drm_device *dev, int pipe)
 	}
 
 	/* FIXME JLIU7_PO */
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 	return;
 
 	/* Wait for for the pipe disable to take effect. */
@@ -93,7 +93,7 @@ void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe)
 	}
 
 	/* FIXME JLIU7_PO */
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 	return;
 
 	/* Wait for for the pipe enable to take effect. */
@@ -1034,7 +1034,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Wait for for the pipe enable to take effect. */
 	REG_WRITE(map->cntr, dev_priv->dspcntr[pipe]);
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 mrst_crtc_mode_set_exit:
 
