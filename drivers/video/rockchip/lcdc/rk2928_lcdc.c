@@ -293,7 +293,7 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 	}
  	spin_unlock(&lcdc_dev->reg_lock);
 
-#ifdef CONFIG_RK_LVDS
+#ifdef CONFIG_RK2928_LVDS
 	rk_lvds_register(dev_drv->screen0);
 #endif
 	if(dev_drv->screen0->type == SCREEN_RGB) //iomux for RGB screen

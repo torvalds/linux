@@ -4,7 +4,7 @@ menuconfig RK_TRSM
 	depends on FB_ROCKCHIP
 
 config RK2928_LVDS
-	bool "RK2928、RK2926 lvds transmitter support"
+	bool "RK2928/RK2926 lvds transmitter support"
         depends on ARCH_RK2928 && RK_TRSM
 
 config RK610_LVDS

@@ -3,7 +3,7 @@
 #include <asm/io.h>
 #include <mach/io.h>
 #include <linux/rk_screen.h>
-#include "rk_lvds.h"
+#include "rk2928_lvds.h"
 
 static void rk_output_lvds(rk_screen *screen)
 {
