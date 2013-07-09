@@ -3785,6 +3785,7 @@ static const struct regulator_desc sh73a0_vccq_mc0_desc = {
 
 static struct regulator_consumer_supply sh73a0_vccq_mc0_consumers[] = {
 	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "ee100000.sdhi"),
 };
 
 static const struct regulator_init_data sh73a0_vccq_mc0_init_data = {
