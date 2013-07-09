@@ -34,6 +34,7 @@
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
+#include "gma_display.h"
 #include <drm/drm_dp_helper.h>
 
 #define _wait_for(COND, MS, W) ({ \
@@ -1317,7 +1318,7 @@ cdv_intel_dp_start_link_train(struct psb_intel_encoder *encoder)
 	/* Enable output, wait for it to become active */
 	REG_WRITE(intel_dp->output_reg, reg);
 	REG_READ(intel_dp->output_reg);
-	psb_intel_wait_for_vblank(dev);
+	gma_wait_for_vblank(dev);
 
 	DRM_DEBUG_KMS("Link config\n");
 	/* Write the link configuration data */
