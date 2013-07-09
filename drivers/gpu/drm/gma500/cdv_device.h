@@ -26,12 +26,3 @@ extern void cdv_hdmi_init(struct drm_device *dev, struct psb_intel_mode_device *
 			int reg);
 extern struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 					     struct drm_crtc *crtc);
-
-static inline void cdv_intel_wait_for_vblank(struct drm_device *dev)
-{
-	/* Wait for 20ms, i.e. one cycle at 50hz. */
-        /* FIXME: msleep ?? */
-	mdelay(20);
-}
-
-
