@@ -218,6 +218,9 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev))
 		bios_reserved = 1024*1024; /* top 1M on VLV/BYT */
 
+	if (WARN_ON(bios_reserved > dev_priv->gtt.stolen_size))
+		return 0;
+
 	/* Basic memrange allocator for stolen space */
 	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size -
 		    bios_reserved);
