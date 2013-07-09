@@ -181,7 +181,8 @@ static int palmas_usb_probe(struct platform_device *pdev)
 
 	status = devm_request_threaded_irq(palmas_usb->dev, palmas_usb->id_irq,
 			NULL, palmas_id_irq_handler,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+			IRQF_ONESHOT | IRQF_EARLY_RESUME,
 			"palmas_usb_id", palmas_usb);
 	if (status < 0) {
 		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
@@ -191,7 +192,8 @@ static int palmas_usb_probe(struct platform_device *pdev)
 
 	status = devm_request_threaded_irq(palmas_usb->dev,
 			palmas_usb->vbus_irq, NULL, palmas_vbus_irq_handler,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+			IRQF_ONESHOT | IRQF_EARLY_RESUME,
 			"palmas_usb_vbus", palmas_usb);
 	if (status < 0) {
 		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
@@ -200,7 +202,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	}
 
 	palmas_enable_irq(palmas_usb);
-
+	device_set_wakeup_capable(&pdev->dev, true);
 	return 0;
 
 fail_extcon:
@@ -218,6 +220,35 @@ static int palmas_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int palmas_usb_suspend(struct device *dev)
+{
+	struct palmas_usb *palmas_usb = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev)) {
+		enable_irq_wake(palmas_usb->vbus_irq);
+		enable_irq_wake(palmas_usb->id_irq);
+	}
+	return 0;
+}
+
+static int palmas_usb_resume(struct device *dev)
+{
+	struct palmas_usb *palmas_usb = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev)) {
+		disable_irq_wake(palmas_usb->vbus_irq);
+		disable_irq_wake(palmas_usb->id_irq);
+	}
+	return 0;
+};
+#endif
+
+static const struct dev_pm_ops palmas_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(palmas_usb_suspend,
+				palmas_usb_resume)
+};
+
 static struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas-usb", },
 	{ .compatible = "ti,twl6035-usb", },
@@ -231,6 +262,7 @@ static struct platform_driver palmas_usb_driver = {
 		.name = "palmas-usb",
 		.of_match_table = of_palmas_match_tbl,
 		.owner = THIS_MODULE,
+		.pm = &palmas_pm_ops,
 	},
 };
 
