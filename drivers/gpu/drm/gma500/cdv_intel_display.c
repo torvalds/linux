@@ -1035,132 +1035,6 @@ static void cdv_intel_crtc_restore(struct drm_crtc *crtc)
 		REG_WRITE(paletteReg + (i << 2), crtc_state->savePalette[i]);
 }
 
-static int cdv_intel_crtc_cursor_set(struct drm_crtc *crtc,
-				 struct drm_file *file_priv,
-				 uint32_t handle,
-				 uint32_t width, uint32_t height)
-{
-	struct drm_device *dev = crtc->dev;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
-	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
-	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
-	uint32_t temp;
-	size_t addr = 0;
-	struct gtt_range *gt;
-	struct drm_gem_object *obj;
-	int ret = 0;
-
-	/* if we want to turn of the cursor ignore width and height */
-	if (!handle) {
-		/* turn off the cursor */
-		temp = CURSOR_MODE_DISABLE;
-
-		if (gma_power_begin(dev, false)) {
-			REG_WRITE(control, temp);
-			REG_WRITE(base, 0);
-			gma_power_end(dev);
-		}
-
-		/* unpin the old GEM object */
-		if (psb_intel_crtc->cursor_obj) {
-			gt = container_of(psb_intel_crtc->cursor_obj,
-							struct gtt_range, gem);
-			psb_gtt_unpin(gt);
-			drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
-			psb_intel_crtc->cursor_obj = NULL;
-		}
-
-		return 0;
-	}
-
-	/* Currently we only support 64x64 cursors */
-	if (width != 64 || height != 64) {
-		dev_dbg(dev->dev, "we currently only support 64x64 cursors\n");
-		return -EINVAL;
-	}
-
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
-	if (!obj)
-		return -ENOENT;
-
-	if (obj->size < width * height * 4) {
-		dev_dbg(dev->dev, "buffer is to small\n");
-		ret = -ENOMEM;
-		goto unref_cursor;
-	}
-
-	gt = container_of(obj, struct gtt_range, gem);
-
-	/* Pin the memory into the GTT */
-	ret = psb_gtt_pin(gt);
-	if (ret) {
-		dev_err(dev->dev, "Can not pin down handle 0x%x\n", handle);
-		goto unref_cursor;
-	}
-
-	addr = gt->offset;	/* Or resource.start ??? */
-
-	psb_intel_crtc->cursor_addr = addr;
-
-	temp = 0;
-	/* set the pipe for the cursor */
-	temp |= (pipe << 28);
-	temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
-
-	if (gma_power_begin(dev, false)) {
-		REG_WRITE(control, temp);
-		REG_WRITE(base, addr);
-		gma_power_end(dev);
-	}
-
-	/* unpin the old GEM object */
-	if (psb_intel_crtc->cursor_obj) {
-		gt = container_of(psb_intel_crtc->cursor_obj,
-							struct gtt_range, gem);
-		psb_gtt_unpin(gt);
-		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
-	}
-
-	psb_intel_crtc->cursor_obj = obj;
-	return ret;
-
-unref_cursor:
-	drm_gem_object_unreference(obj);
-	return ret;
-}
-
-static int cdv_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
-{
-	struct drm_device *dev = crtc->dev;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
-	uint32_t temp = 0;
-	uint32_t adder;
-
-
-	if (x < 0) {
-		temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
-		x = -x;
-	}
-	if (y < 0) {
-		temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
-		y = -y;
-	}
-
-	temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
-	temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
-
-	adder = psb_intel_crtc->cursor_addr;
-
-	if (gma_power_begin(dev, false)) {
-		REG_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
-		REG_WRITE((pipe == 0) ? CURABASE : CURBBASE, adder);
-		gma_power_end(dev);
-	}
-	return 0;
-}
-
 static int cdv_crtc_set_config(struct drm_mode_set *set)
 {
 	int ret = 0;
@@ -1331,8 +1205,8 @@ const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
 	.save = cdv_intel_crtc_save,
 	.restore = cdv_intel_crtc_restore,
-	.cursor_set = cdv_intel_crtc_cursor_set,
-	.cursor_move = cdv_intel_crtc_cursor_move,
+	.cursor_set = gma_crtc_cursor_set,
+	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
 	.set_config = cdv_crtc_set_config,
 	.destroy = gma_crtc_destroy,
