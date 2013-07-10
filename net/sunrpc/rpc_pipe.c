@@ -493,7 +493,7 @@ rpc_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 	return NULL;
 }
 
-const struct inode_operations rpc_dir_inode_operations = {
+static const struct inode_operations rpc_dir_inode_operations = {
 	.lookup		= rpc_lookup,
 };
 
