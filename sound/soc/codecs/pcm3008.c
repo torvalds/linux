@@ -57,10 +57,40 @@ static void pcm3008_gpio_free(struct pcm3008_setup_data *setup)
 	gpio_free(setup->pdda_pin);
 }
 
-static int pcm3008_soc_probe(struct snd_soc_codec *codec)
+#ifdef CONFIG_PM
+static int pcm3008_soc_suspend(struct snd_soc_codec *codec)
 {
 	struct pcm3008_setup_data *setup = codec->dev->platform_data;
-	int ret = 0;
+
+	gpio_set_value(setup->pdad_pin, 0);
+	gpio_set_value(setup->pdda_pin, 0);
+
+	return 0;
+}
+
+static int pcm3008_soc_resume(struct snd_soc_codec *codec)
+{
+	struct pcm3008_setup_data *setup = codec->dev->platform_data;
+
+	gpio_set_value(setup->pdad_pin, 1);
+	gpio_set_value(setup->pdda_pin, 1);
+
+	return 0;
+}
+#else
+#define pcm3008_soc_suspend NULL
+#define pcm3008_soc_resume NULL
+#endif
+
+static struct snd_soc_codec_driver soc_codec_dev_pcm3008 = {
+	.suspend =	pcm3008_soc_suspend,
+	.resume =	pcm3008_soc_resume,
+};
+
+static int pcm3008_codec_probe(struct platform_device *pdev)
+{
+	struct pcm3008_setup_data *setup = pdev->dev.platform_data;
+	int ret;
 
 	/* DEM1  DEM0  DE-EMPHASIS_MODE
 	 * Low   Low   De-emphasis 44.1 kHz ON
@@ -97,63 +127,22 @@ static int pcm3008_soc_probe(struct snd_soc_codec *codec)
 	if (ret != 0)
 		goto gpio_err;
 
-	return ret;
+	return snd_soc_register_codec(&pdev->dev,
+			&soc_codec_dev_pcm3008, &pcm3008_dai, 1);
 
 gpio_err:
 	pcm3008_gpio_free(setup);
-
 	return ret;
-}
-
-static int pcm3008_soc_remove(struct snd_soc_codec *codec)
-{
-	struct pcm3008_setup_data *setup = codec->dev->platform_data;
-
-	pcm3008_gpio_free(setup);
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int pcm3008_soc_suspend(struct snd_soc_codec *codec)
-{
-	struct pcm3008_setup_data *setup = codec->dev->platform_data;
-
-	gpio_set_value(setup->pdad_pin, 0);
-	gpio_set_value(setup->pdda_pin, 0);
-
-	return 0;
-}
-
-static int pcm3008_soc_resume(struct snd_soc_codec *codec)
-{
-	struct pcm3008_setup_data *setup = codec->dev->platform_data;
-
-	gpio_set_value(setup->pdad_pin, 1);
-	gpio_set_value(setup->pdda_pin, 1);
-
-	return 0;
-}
-#else
-#define pcm3008_soc_suspend NULL
-#define pcm3008_soc_resume NULL
-#endif
-
-static struct snd_soc_codec_driver soc_codec_dev_pcm3008 = {
-	.probe = 	pcm3008_soc_probe,
-	.remove = 	pcm3008_soc_remove,
-	.suspend =	pcm3008_soc_suspend,
-	.resume =	pcm3008_soc_resume,
-};
-
-static int pcm3008_codec_probe(struct platform_device *pdev)
-{
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_pcm3008, &pcm3008_dai, 1);
 }
 
 static int pcm3008_codec_remove(struct platform_device *pdev)
 {
+	struct pcm3008_setup_data *setup = pdev->dev.platform_data;
+
 	snd_soc_unregister_codec(&pdev->dev);
+
+	pcm3008_gpio_free(setup);
+
 	return 0;
 }
 
