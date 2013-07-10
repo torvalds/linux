@@ -3894,6 +3894,7 @@
 #define  SERR_INT_TRANS_C_FIFO_UNDERRUN	(1<<6)
 #define  SERR_INT_TRANS_B_FIFO_UNDERRUN	(1<<3)
 #define  SERR_INT_TRANS_A_FIFO_UNDERRUN	(1<<0)
+#define  SERR_INT_TRANS_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
 /* digital port hotplug */
 #define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */

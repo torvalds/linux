@@ -217,16 +217,25 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (enable) {
+		I915_WRITE(SERR_INT,
+			   SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder));
+
 		if (!cpt_can_enable_serr_int(dev))
 			return;
 
-		I915_WRITE(SERR_INT, SERR_INT_TRANS_A_FIFO_UNDERRUN |
-				     SERR_INT_TRANS_B_FIFO_UNDERRUN |
-				     SERR_INT_TRANS_C_FIFO_UNDERRUN);
-
 		ibx_enable_display_interrupt(dev_priv, SDE_ERROR_CPT);
 	} else {
+		uint32_t tmp = I915_READ(SERR_INT);
+		bool was_enabled = !(I915_READ(SDEIMR) & SDE_ERROR_CPT);
+
+		/* Change the state _after_ we've read out the current one. */
 		ibx_disable_display_interrupt(dev_priv, SDE_ERROR_CPT);
+
+		if (!was_enabled &&
+		    (tmp & SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder))) {
+			DRM_DEBUG_KMS("uncleared pch fifo underrun on pch transcoder %c\n",
+				      transcoder_name(pch_transcoder));
+		}
 	}
 }
 
