@@ -231,47 +231,6 @@ do_mathemu(struct pt_regs *regs)
 	if (get_user(insn, (u32 *)pc))
 		return -EFAULT;
 
-#ifndef CONFIG_MATH_EMULATION
-	switch (insn >> 26) {
-	case LFD:
-		idx = (insn >> 16) & 0x1f;
-		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
-		lfd(op0, op1, op2, op3);
-		break;
-	case LFDU:
-		idx = (insn >> 16) & 0x1f;
-		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
-		lfd(op0, op1, op2, op3);
-		regs->gpr[idx] = (unsigned long)op1;
-		break;
-	case STFD:
-		idx = (insn >> 16) & 0x1f;
-		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
-		stfd(op0, op1, op2, op3);
-		break;
-	case STFDU:
-		idx = (insn >> 16) & 0x1f;
-		sdisp = (insn & 0xffff);
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)((idx ? regs->gpr[idx] : 0) + sdisp);
-		stfd(op0, op1, op2, op3);
-		regs->gpr[idx] = (unsigned long)op1;
-		break;
-	case OP63:
-		op0 = (void *)&current->thread.TS_FPR((insn >> 21) & 0x1f);
-		op1 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
-		fmr(op0, op1, op2, op3);
-		break;
-	default:
-		goto illegal;
-	}
-#else /* CONFIG_MATH_EMULATION */
 	switch (insn >> 26) {
 	case LFS:	func = lfs;	type = D;	break;
 	case LFSU:	func = lfs;	type = DU;	break;
@@ -485,7 +444,6 @@ do_mathemu(struct pt_regs *regs)
 	default:
 		break;
 	}
-#endif /* CONFIG_MATH_EMULATION */
 
 	regs->nip += 4;
 	return 0;
