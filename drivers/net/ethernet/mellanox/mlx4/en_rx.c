@@ -31,7 +31,7 @@
  *
  */
 
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 #include <linux/mlx4/cq.h>
 #include <linux/slab.h>
 #include <linux/mlx4/qp.h>

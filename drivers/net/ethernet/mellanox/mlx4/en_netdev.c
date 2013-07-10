@@ -38,7 +38,7 @@
 #include <linux/slab.h>
 #include <linux/hash.h>
 #include <net/ip.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/device.h>

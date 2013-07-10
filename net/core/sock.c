@@ -139,7 +139,7 @@
 #include <net/tcp.h>
 #endif
 
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);

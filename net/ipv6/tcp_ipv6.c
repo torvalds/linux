@@ -63,7 +63,7 @@
 #include <net/inet_common.h>
 #include <net/secure_seq.h>
 #include <net/tcp_memcontrol.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 #include <asm/uaccess.h>
 

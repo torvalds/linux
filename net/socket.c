@@ -104,7 +104,7 @@
 #include <linux/route.h>
 #include <linux/sockios.h>
 #include <linux/atalk.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 #ifdef CONFIG_NET_LL_RX_POLL
 unsigned int sysctl_net_ll_read __read_mostly;
