@@ -38,7 +38,8 @@ ENTRY(shmobile_boot_scu)
 	lsl	r1, r1, #3		@ we will shift by cpu_id * 8 bits
 	ldr	r2, [r0, #8]		@ SCU Power Status Register
 	mov	r3, #3
-	bic	r2, r2, r3, lsl r1	@ Clear bits of our CPU (Run Mode)
+	lsl	r3, r3, r1
+	bic	r2, r2, r3		@ Clear bits of our CPU (Run Mode)
 	str	r2, [r0, #8]		@ write back
 
 	b	shmobile_invalidate_start
