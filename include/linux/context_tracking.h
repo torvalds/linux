@@ -38,23 +38,40 @@ static inline bool context_tracking_active(void)
 
 extern void context_tracking_cpu_set(int cpu);
 
-extern void user_enter(void);
-extern void user_exit(void);
+extern void context_tracking_user_enter(void);
+extern void context_tracking_user_exit(void);
+
+static inline void user_enter(void)
+{
+	if (static_key_false(&context_tracking_enabled))
+		context_tracking_user_enter();
+
+}
+static inline void user_exit(void)
+{
+	if (static_key_false(&context_tracking_enabled))
+		context_tracking_user_exit();
+}
 
 static inline enum ctx_state exception_enter(void)
 {
 	enum ctx_state prev_ctx;
 
+	if (!static_key_false(&context_tracking_enabled))
+		return 0;
+
 	prev_ctx = this_cpu_read(context_tracking.state);
-	user_exit();
+	context_tracking_user_exit();
 
 	return prev_ctx;
 }
 
 static inline void exception_exit(enum ctx_state prev_ctx)
 {
-	if (prev_ctx == IN_USER)
-		user_enter();
+	if (static_key_false(&context_tracking_enabled)) {
+		if (prev_ctx == IN_USER)
+			context_tracking_user_enter();
+	}
 }
 
 extern void context_tracking_task_switch(struct task_struct *prev,

@@ -33,15 +33,15 @@ void context_tracking_cpu_set(int cpu)
 }
 
 /**
- * user_enter - Inform the context tracking that the CPU is going to
- *              enter userspace mode.
+ * context_tracking_user_enter - Inform the context tracking that the CPU is going to
+ *                               enter userspace mode.
  *
  * This function must be called right before we switch from the kernel
  * to userspace, when it's guaranteed the remaining kernel instructions
  * to execute won't use any RCU read side critical section because this
  * function sets RCU in extended quiescent state.
  */
-void user_enter(void)
+void context_tracking_user_enter(void)
 {
 	unsigned long flags;
 
@@ -131,8 +131,8 @@ EXPORT_SYMBOL_GPL(preempt_schedule_context);
 #endif /* CONFIG_PREEMPT */
 
 /**
- * user_exit - Inform the context tracking that the CPU is
- *             exiting userspace mode and entering the kernel.
+ * context_tracking_user_exit - Inform the context tracking that the CPU is
+ *                              exiting userspace mode and entering the kernel.
  *
  * This function must be called after we entered the kernel from userspace
  * before any use of RCU read side critical section. This potentially include
@@ -141,7 +141,7 @@ EXPORT_SYMBOL_GPL(preempt_schedule_context);
  * This call supports re-entrancy. This way it can be called from any exception
  * handler without needing to know if we came from userspace or not.
  */
-void user_exit(void)
+void context_tracking_user_exit(void)
 {
 	unsigned long flags;
 
