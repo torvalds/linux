@@ -519,6 +519,47 @@ void gma_crtc_destroy(struct drm_crtc *crtc)
 	kfree(psb_intel_crtc);
 }
 
+void gma_encoder_prepare(struct drm_encoder *encoder)
+{
+	struct drm_encoder_helper_funcs *encoder_funcs =
+	    encoder->helper_private;
+	/* lvds has its own version of prepare see psb_intel_lvds_prepare */
+	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
+}
+
+void gma_encoder_commit(struct drm_encoder *encoder)
+{
+	struct drm_encoder_helper_funcs *encoder_funcs =
+	    encoder->helper_private;
+	/* lvds has its own version of commit see psb_intel_lvds_commit */
+	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
+}
+
+void gma_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+
+	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
+}
+
+/* Currently there is only a 1:1 mapping of encoders and connectors */
+struct drm_encoder *gma_best_encoder(struct drm_connector *connector)
+{
+	struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(connector);
+
+	return &psb_intel_encoder->base;
+}
+
+void gma_connector_attach_encoder(struct psb_intel_connector *connector,
+				  struct psb_intel_encoder *encoder)
+{
+	connector->encoder = encoder;
+	drm_mode_connector_attach_encoder(&connector->base,
+					  &encoder->base);
+}
+
 #define GMA_PLL_INVALID(s) { /* DRM_ERROR(s); */ return false; }
 
 bool gma_pll_is_valid(struct drm_crtc *crtc,
