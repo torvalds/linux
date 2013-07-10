@@ -176,7 +176,6 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 
 	rpf->entity.type = VSP1_ENTITY_RPF;
 	rpf->entity.index = index;
-	rpf->entity.id = VI6_DPR_NODE_RPF(index);
 
 	ret = vsp1_entity_init(vsp1, &rpf->entity, 2);
 	if (ret < 0)

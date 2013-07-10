@@ -461,7 +461,7 @@ static int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		if (entity->route)
-			vsp1_write(entity->vsp1, entity->route,
+			vsp1_write(entity->vsp1, entity->route->reg,
 				   VI6_DPR_NODE_UNUSED);
 
 		v4l2_subdev_call(&entity->subdev, video, s_stream, 0);
@@ -680,11 +680,12 @@ static void vsp1_entity_route_setup(struct vsp1_entity *source)
 {
 	struct vsp1_entity *sink;
 
-	if (source->route == 0)
+	if (source->route->reg == 0)
 		return;
 
 	sink = container_of(source->sink, struct vsp1_entity, subdev.entity);
-	vsp1_write(source->vsp1, source->route, sink->id);
+	vsp1_write(source->vsp1, source->route->reg,
+		   sink->route->inputs[source->sink_pad]);
 }
 
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)

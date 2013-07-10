@@ -322,7 +322,6 @@ struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index)
 
 	uds->entity.type = VSP1_ENTITY_UDS;
 	uds->entity.index = index;
-	uds->entity.id = VI6_DPR_NODE_UDS(index);
 
 	ret = vsp1_entity_init(vsp1, &uds->entity, 2);
 	if (ret < 0)
