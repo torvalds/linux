@@ -1885,11 +1885,12 @@ static void ixgbe_diag_test(struct net_device *netdev,
                             struct ethtool_test *eth_test, u64 *data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
 	bool if_running = netif_running(netdev);
 
 	set_bit(__IXGBE_TESTING, &adapter->state);
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
+		struct ixgbe_hw *hw = &adapter->hw;
+
 		if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
 			int i;
 			for (i = 0; i < adapter->num_vfs; i++) {
@@ -1913,21 +1914,18 @@ static void ixgbe_diag_test(struct net_device *netdev,
 		/* Offline tests */
 		e_info(hw, "offline testing starting\n");
 
-		if (if_running)
-			/* indicate we're in test mode */
-			dev_close(netdev);
-
-		/* bringing adapter down disables SFP+ optics */
-		if (hw->mac.ops.enable_tx_laser)
-			hw->mac.ops.enable_tx_laser(hw);
-
 		/* Link test performed before hardware reset so autoneg doesn't
 		 * interfere with test result
 		 */
 		if (ixgbe_link_test(adapter, &data[4]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		ixgbe_reset(adapter);
+		if (if_running)
+			/* indicate we're in test mode */
+			dev_close(netdev);
+		else
+			ixgbe_reset(adapter);
+
 		e_info(hw, "register testing starting\n");
 		if (ixgbe_reg_test(adapter, &data[0]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -1964,12 +1962,10 @@ skip_loopback:
 		clear_bit(__IXGBE_TESTING, &adapter->state);
 		if (if_running)
 			dev_open(netdev);
+		else if (hw->mac.ops.disable_tx_laser)
+			hw->mac.ops.disable_tx_laser(hw);
 	} else {
 		e_info(hw, "online testing starting\n");
-
-		/* if adapter is down, SFP+ optics will be disabled */
-		if (!if_running && hw->mac.ops.enable_tx_laser)
-			hw->mac.ops.enable_tx_laser(hw);
 
 		/* Online tests */
 		if (ixgbe_link_test(adapter, &data[4]))
@@ -1984,9 +1980,6 @@ skip_loopback:
 		clear_bit(__IXGBE_TESTING, &adapter->state);
 	}
 
-	/* if adapter was down, ensure SFP+ optics are disabled again */
-	if (!if_running && hw->mac.ops.disable_tx_laser)
-		hw->mac.ops.disable_tx_laser(hw);
 skip_ol_tests:
 	msleep_interruptible(4 * 1000);
 }
