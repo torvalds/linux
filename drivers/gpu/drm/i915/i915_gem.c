@@ -2832,56 +2832,17 @@ static inline int fence_number(struct drm_i915_private *dev_priv,
 	return fence - dev_priv->fence_regs;
 }
 
-struct write_fence {
-	struct drm_device *dev;
-	struct drm_i915_gem_object *obj;
-	int fence;
-};
-
-static void i915_gem_write_fence__ipi(void *data)
-{
-	struct write_fence *args = data;
-
-	/* Required for SNB+ with LLC */
-	wbinvd();
-
-	/* Required for VLV */
-	i915_gem_write_fence(args->dev, args->fence, args->obj);
-}
-
 static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 					 struct drm_i915_fence_reg *fence,
 					 bool enable)
 {
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-	struct write_fence args = {
-		.dev = obj->base.dev,
-		.fence = fence_number(dev_priv, fence),
-		.obj = enable ? obj : NULL,
-	};
+	int reg = fence_number(dev_priv, fence);
 
-	/* In order to fully serialize access to the fenced region and
-	 * the update to the fence register we need to take extreme
-	 * measures on SNB+. In theory, the write to the fence register
-	 * flushes all memory transactions before, and coupled with the
-	 * mb() placed around the register write we serialise all memory
-	 * operations with respect to the changes in the tiler. Yet, on
-	 * SNB+ we need to take a step further and emit an explicit wbinvd()
-	 * on each processor in order to manually flush all memory
-	 * transactions before updating the fence register.
-	 *
-	 * However, Valleyview complicates matter. There the wbinvd is
-	 * insufficient and unlike SNB/IVB requires the serialising
-	 * register write. (Note that that register write by itself is
-	 * conversely not sufficient for SNB+.) To compromise, we do both.
-	 */
-	if (INTEL_INFO(args.dev)->gen >= 6)
-		on_each_cpu(i915_gem_write_fence__ipi, &args, 1);
-	else
-		i915_gem_write_fence(args.dev, args.fence, args.obj);
+	i915_gem_write_fence(obj->base.dev, reg, enable ? obj : NULL);
 
 	if (enable) {
-		obj->fence_reg = args.fence;
+		obj->fence_reg = reg;
 		fence->obj = obj;
 		list_move_tail(&fence->lru_list, &dev_priv->mm.fence_list);
 	} else {
