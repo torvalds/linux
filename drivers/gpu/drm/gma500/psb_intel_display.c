@@ -255,18 +255,6 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	REG_WRITE(DSPARB, 0x3F3E);
 }
 
-static void psb_intel_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
-static void psb_intel_crtc_commit(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
 void psb_intel_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs =
@@ -290,14 +278,6 @@ void psb_intel_encoder_destroy(struct drm_encoder *encoder)
 	drm_encoder_cleanup(encoder);
 	kfree(intel_encoder);
 }
-
-static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 
 /**
  * Return the pipe currently connected to the panel fitter,
@@ -1006,27 +986,14 @@ static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 	kfree(psb_intel_crtc);
 }
 
-static void psb_intel_crtc_disable(struct drm_crtc *crtc)
-{
-	struct gtt_range *gt;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-
-	if (crtc->fb) {
-		gt = to_psb_fb(crtc->fb)->gtt;
-		psb_gtt_unpin(gt);
-	}
-}
-
 const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.dpms = psb_intel_crtc_dpms,
-	.mode_fixup = psb_intel_crtc_mode_fixup,
+	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = psb_intel_crtc_mode_set,
 	.mode_set_base = psb_intel_pipe_set_base,
-	.prepare = psb_intel_crtc_prepare,
-	.commit = psb_intel_crtc_commit,
-	.disable = psb_intel_crtc_disable,
+	.prepare = gma_crtc_prepare,
+	.commit = gma_crtc_commit,
+	.disable = gma_crtc_disable,
 };
 
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
