@@ -19,3 +19,11 @@ config ARM_ZYNQ_CPUIDLE
 	bool "CPU Idle Driver for Xilinx Zynq processors"
 	depends on ARCH_ZYNQ
 	help
+	  Select this to enable cpuidle on Xilinx Zynq processors.
+
+config ARM_U8500_CPUIDLE
+	bool "Cpu Idle Driver for the ST-E u8500 processors"
+	depends on ARCH_U8500
+	help
+	  Select this to enable cpuidle for ST-E u8500 processors
+
