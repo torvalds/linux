@@ -726,27 +726,6 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
-{
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	struct gtt_range *gt;
-
-	/* Unpin the old GEM object */
-	if (psb_intel_crtc->cursor_obj) {
-		gt = container_of(psb_intel_crtc->cursor_obj,
-						struct gtt_range, gem);
-		psb_gtt_unpin(gt);
-		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
-		psb_intel_crtc->cursor_obj = NULL;
-	}
-
-	if (psb_intel_crtc->cursor_gt != NULL)
-		psb_gtt_free_range(crtc->dev, psb_intel_crtc->cursor_gt);
-	kfree(psb_intel_crtc->crtc_state);
-	drm_crtc_cleanup(crtc);
-	kfree(psb_intel_crtc);
-}
-
 const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.dpms = gma_crtc_dpms,
 	.mode_fixup = gma_crtc_mode_fixup,
@@ -764,7 +743,7 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.cursor_move = psb_intel_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
 	.set_config = psb_crtc_set_config,
-	.destroy = psb_intel_crtc_destroy,
+	.destroy = gma_crtc_destroy,
 };
 
 const struct gma_clock_funcs psb_clock_funcs = {
