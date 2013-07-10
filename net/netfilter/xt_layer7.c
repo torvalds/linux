@@ -364,25 +364,27 @@ static int my_atoi(const char *s)
 }
 
 /* write out num_packets to userland. */
-static int layer7_read_proc(char* page, char ** start, off_t off, int count,
-                            int* eof, void * data)
+
+static ssize_t
+layer7_read_proc(struct file *file, char __user *buf,
+		  size_t size, loff_t *ppos)
 {
 	if(num_packets > 99 && net_ratelimit())
 		printk(KERN_ERR "layer7: NOT REACHED. num_packets too big\n");
+	char page[4];
 
 	page[0] = num_packets/10 + '0';
 	page[1] = num_packets%10 + '0';
 	page[2] = '\n';
 	page[3] = '\0';
 
-	*eof=1;
-
-	return 3;
+	return simple_read_from_buffer(buf, size, ppos, page,
+					sizeof(page));
 }
 
 /* Read in num_packets from userland */
-static int layer7_write_proc(struct file* file, const char* buffer,
-                             unsigned long count, void *data)
+static ssize_t layer7_write_proc(struct file* file, const char __user * buffer,
+                             size_t count, loff_t *ppos)
 {
 	char * foo = kmalloc(count, GFP_ATOMIC);
 
@@ -655,6 +657,12 @@ static struct xt_match xt_layer7_match[] __read_mostly = {
 }
 };
 
+static const struct file_operations fops = {
+	.read = layer7_read_proc,
+	.write = layer7_write_proc,
+	.llseek = default_llseek,
+};
+
 static void layer7_cleanup_proc(void)
 {
 	remove_proc_entry("layer7_numpackets", init_net.proc_net);
@@ -663,10 +671,7 @@ static void layer7_cleanup_proc(void)
 /* register the proc file */
 static void layer7_init_proc(void)
 {
-	struct proc_dir_entry* entry;
-	entry = create_proc_entry("layer7_numpackets", 0644, init_net.proc_net);
-	entry->read_proc = layer7_read_proc;
-	entry->write_proc = layer7_write_proc;
+	proc_create("layer7_numpackets", 0644, init_net.proc_net, &fops);
 }
 
 static int __init xt_layer7_init(void)
