@@ -1097,7 +1097,7 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	}
 
 	/* Align ring size */
-	rb_bufsz = drm_order(ring_size / 8);
+	rb_bufsz = order_base_2(ring_size / 8);
 	ring_size = (1 << (rb_bufsz + 1)) * 4;
 	r100_cp_load_microcode(rdev);
 	r = radeon_ring_init(rdev, ring, ring_size, RADEON_WB_CP_RPTR_OFFSET,

@@ -3383,8 +3383,8 @@ static int si_cp_resume(struct radeon_device *rdev)
 	/* ring 0 - compute and gfx */
 	/* Set ring buffer size */
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+	rb_bufsz = order_base_2(ring->ring_size / 8);
+	tmp = (order_base_2(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
 #endif
@@ -3416,8 +3416,8 @@ static int si_cp_resume(struct radeon_device *rdev)
 	/* ring1  - compute only */
 	/* Set ring buffer size */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+	rb_bufsz = order_base_2(ring->ring_size / 8);
+	tmp = (order_base_2(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
 #endif
@@ -3442,8 +3442,8 @@ static int si_cp_resume(struct radeon_device *rdev)
 	/* ring2 - compute only */
 	/* Set ring buffer size */
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+	rb_bufsz = order_base_2(ring->ring_size / 8);
+	tmp = (order_base_2(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
 #endif
@@ -5651,7 +5651,7 @@ static int si_irq_init(struct radeon_device *rdev)
 	WREG32(INTERRUPT_CNTL, interrupt_cntl);
 
 	WREG32(IH_RB_BASE, rdev->ih.gpu_addr >> 8);
-	rb_bufsz = drm_order(rdev->ih.ring_size / 4);
+	rb_bufsz = order_base_2(rdev->ih.ring_size / 4);
 
 	ih_rb_cntl = (IH_WPTR_OVERFLOW_ENABLE |
 		      IH_WPTR_OVERFLOW_CLEAR |

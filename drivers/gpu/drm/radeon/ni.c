@@ -1560,8 +1560,8 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 
 		/* Set ring buffer size */
 		ring = &rdev->ring[ridx[i]];
-		rb_cntl = drm_order(ring->ring_size / 8);
-		rb_cntl |= drm_order(RADEON_GPU_PAGE_SIZE/8) << 8;
+		rb_cntl = order_base_2(ring->ring_size / 8);
+		rb_cntl |= order_base_2(RADEON_GPU_PAGE_SIZE/8) << 8;
 #ifdef __BIG_ENDIAN
 		rb_cntl |= BUF_SWAP_32BIT;
 #endif
@@ -1720,7 +1720,7 @@ int cayman_dma_resume(struct radeon_device *rdev)
 		WREG32(DMA_SEM_WAIT_FAIL_TIMER_CNTL + reg_offset, 0);
 
 		/* Set ring buffer size in dwords */
-		rb_bufsz = drm_order(ring->ring_size / 4);
+		rb_bufsz = order_base_2(ring->ring_size / 4);
 		rb_cntl = rb_bufsz << 1;
 #ifdef __BIG_ENDIAN
 		rb_cntl |= DMA_RB_SWAP_ENABLE | DMA_RPTR_WRITEBACK_SWAP_ENABLE;

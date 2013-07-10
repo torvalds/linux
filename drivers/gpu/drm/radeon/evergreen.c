@@ -2881,8 +2881,8 @@ static int evergreen_cp_resume(struct radeon_device *rdev)
 	RREG32(GRBM_SOFT_RESET);
 
 	/* Set ring buffer size */
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+	rb_bufsz = order_base_2(ring->ring_size / 8);
+	tmp = (order_base_2(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
 #endif

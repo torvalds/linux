@@ -2535,8 +2535,8 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	/* ring 0 - compute and gfx */
 	/* Set ring buffer size */
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+	rb_bufsz = order_base_2(ring->ring_size / 8);
+	tmp = (order_base_2(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
 #endif
@@ -2915,7 +2915,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
 		tmp = RREG32(CP_HPD_EOP_CONTROL);
 		tmp &= ~EOP_SIZE_MASK;
-		tmp |= drm_order(MEC_HPD_SIZE / 8);
+		tmp |= order_base_2(MEC_HPD_SIZE / 8);
 		WREG32(CP_HPD_EOP_CONTROL, tmp);
 	}
 	cik_srbm_select(rdev, 0, 0, 0, 0);
@@ -3030,9 +3030,9 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 			~(QUEUE_SIZE_MASK | RPTR_BLOCK_SIZE_MASK);
 
 		mqd->queue_state.cp_hqd_pq_control |=
-			drm_order(rdev->ring[idx].ring_size / 8);
+			order_base_2(rdev->ring[idx].ring_size / 8);
 		mqd->queue_state.cp_hqd_pq_control |=
-			(drm_order(RADEON_GPU_PAGE_SIZE/8) << 8);
+			(order_base_2(RADEON_GPU_PAGE_SIZE/8) << 8);
 #ifdef __BIG_ENDIAN
 		mqd->queue_state.cp_hqd_pq_control |= BUF_SWAP_32BIT;
 #endif
@@ -3375,7 +3375,7 @@ static int cik_sdma_gfx_resume(struct radeon_device *rdev)
 		WREG32(SDMA0_SEM_WAIT_FAIL_TIMER_CNTL + reg_offset, 0);
 
 		/* Set ring buffer size in dwords */
-		rb_bufsz = drm_order(ring->ring_size / 4);
+		rb_bufsz = order_base_2(ring->ring_size / 4);
 		rb_cntl = rb_bufsz << 1;
 #ifdef __BIG_ENDIAN
 		rb_cntl |= SDMA_RB_SWAP_ENABLE | SDMA_RPTR_WRITEBACK_SWAP_ENABLE;
@@ -5030,7 +5030,7 @@ static int cik_irq_init(struct radeon_device *rdev)
 	WREG32(INTERRUPT_CNTL, interrupt_cntl);
 
 	WREG32(IH_RB_BASE, rdev->ih.gpu_addr >> 8);
-	rb_bufsz = drm_order(rdev->ih.ring_size / 4);
+	rb_bufsz = order_base_2(rdev->ih.ring_size / 4);
 
 	ih_rb_cntl = (IH_WPTR_OVERFLOW_ENABLE |
 		      IH_WPTR_OVERFLOW_CLEAR |

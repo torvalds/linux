@@ -2413,8 +2413,8 @@ int r600_cp_resume(struct radeon_device *rdev)
 	WREG32(GRBM_SOFT_RESET, 0);
 
 	/* Set ring buffer size */
-	rb_bufsz = drm_order(ring->ring_size / 8);
-	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+	rb_bufsz = order_base_2(ring->ring_size / 8);
+	tmp = (order_base_2(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
 #endif
@@ -2467,7 +2467,7 @@ void r600_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsign
 	int r;
 
 	/* Align ring size */
-	rb_bufsz = drm_order(ring_size / 8);
+	rb_bufsz = order_base_2(ring_size / 8);
 	ring_size = (1 << (rb_bufsz + 1)) * 4;
 	ring->ring_size = ring_size;
 	ring->align_mask = 16 - 1;
@@ -2547,7 +2547,7 @@ int r600_dma_resume(struct radeon_device *rdev)
 	WREG32(DMA_SEM_WAIT_FAIL_TIMER_CNTL, 0);
 
 	/* Set ring buffer size in dwords */
-	rb_bufsz = drm_order(ring->ring_size / 4);
+	rb_bufsz = order_base_2(ring->ring_size / 4);
 	rb_cntl = rb_bufsz << 1;
 #ifdef __BIG_ENDIAN
 	rb_cntl |= DMA_RB_SWAP_ENABLE | DMA_RPTR_WRITEBACK_SWAP_ENABLE;
@@ -2656,7 +2656,7 @@ int r600_uvd_rbc_start(struct radeon_device *rdev)
 	WREG32(UVD_RBC_RB_BASE, ring->gpu_addr);
 
 	/* Set ring buffer size */
-	rb_bufsz = drm_order(ring->ring_size);
+	rb_bufsz = order_base_2(ring->ring_size);
 	rb_bufsz = (0x1 << 8) | rb_bufsz;
 	WREG32(UVD_RBC_RB_CNTL, rb_bufsz);
 
@@ -3812,7 +3812,7 @@ void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	u32 rb_bufsz;
 
 	/* Align ring size */
-	rb_bufsz = drm_order(ring_size / 4);
+	rb_bufsz = order_base_2(ring_size / 4);
 	ring_size = (1 << rb_bufsz) * 4;
 	rdev->ih.ring_size = ring_size;
 	rdev->ih.ptr_mask = rdev->ih.ring_size - 1;
@@ -4049,7 +4049,7 @@ int r600_irq_init(struct radeon_device *rdev)
 	WREG32(INTERRUPT_CNTL, interrupt_cntl);
 
 	WREG32(IH_RB_BASE, rdev->ih.gpu_addr >> 8);
-	rb_bufsz = drm_order(rdev->ih.ring_size / 4);
+	rb_bufsz = order_base_2(rdev->ih.ring_size / 4);
 
 	ih_rb_cntl = (IH_WPTR_OVERFLOW_ENABLE |
 		      IH_WPTR_OVERFLOW_CLEAR |
