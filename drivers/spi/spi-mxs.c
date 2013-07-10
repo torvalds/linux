@@ -570,7 +570,9 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	clk_set_rate(ssp->clk, clk_freq);
 	ssp->clk_rate = clk_get_rate(ssp->clk) / 1000;
 
-	stmp_reset_block(ssp->base);
+	ret = stmp_reset_block(ssp->base);
+	if (ret)
+		goto out_disable_clk;
 
 	platform_set_drvdata(pdev, master);
 
