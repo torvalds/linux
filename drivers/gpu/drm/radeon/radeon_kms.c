@@ -683,16 +683,6 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 						     drmcrtc);
 }
 
-/*
- * IOCTL.
- */
-int radeon_dma_ioctl_kms(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv)
-{
-	/* Not valid in KMS. */
-	return -EINVAL;
-}
-
 #define KMS_INVALID_IOCTL(name)						\
 int name(struct drm_device *dev, void *data, struct drm_file *file_priv)\
 {									\
