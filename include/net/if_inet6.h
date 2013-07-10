@@ -50,7 +50,7 @@ struct inet6_ifaddr {
 
 	int			state;
 
-	__u8			probes;
+	__u8			dad_probes;
 	__u8			flags;
 
 	__u16			scope;
@@ -58,7 +58,7 @@ struct inet6_ifaddr {
 	unsigned long		cstamp;	/* created timestamp */
 	unsigned long		tstamp; /* updated timestamp */
 
-	struct timer_list	timer;
+	struct timer_list	dad_timer;
 
 	struct inet6_dev	*idev;
 	struct rt6_info		*rt;
@@ -74,6 +74,7 @@ struct inet6_ifaddr {
 	bool			tokenized;
 
 	struct rcu_head		rcu;
+	struct in6_addr		peer_addr;
 };
 
 struct ip6_sf_socklist {
@@ -165,6 +166,7 @@ struct inet6_dev {
 	struct net_device	*dev;
 
 	struct list_head	addr_list;
+	int			valid_ll_addr_cnt;
 
 	struct ifmcaddr6	*mc_list;
 	struct ifmcaddr6	*mc_tomb;
@@ -172,10 +174,12 @@ struct inet6_dev {
 	unsigned char		mc_qrv;
 	unsigned char		mc_gq_running;
 	unsigned char		mc_ifc_count;
+	unsigned char		mc_dad_count;
 	unsigned long		mc_v1_seen;
 	unsigned long		mc_maxdelay;
 	struct timer_list	mc_gq_timer;	/* general query timer */
 	struct timer_list	mc_ifc_timer;	/* interface change timer */
+	struct timer_list	mc_dad_timer;	/* dad complete mc timer */
 
 	struct ifacaddr6	*ac_list;
 	rwlock_t		lock;
@@ -192,9 +196,12 @@ struct inet6_dev {
 	struct in6_addr		token;
 
 	struct neigh_parms	*nd_parms;
-	struct inet6_dev	*next;
 	struct ipv6_devconf	cnf;
 	struct ipv6_devstat	stats;
+
+	struct timer_list	rs_timer;
+	__u8			rs_probes;
+
 	unsigned long		tstamp; /* ipv6InterfaceTable update timestamp */
 	struct rcu_head		rcu;
 };

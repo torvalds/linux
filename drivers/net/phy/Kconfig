@@ -144,6 +144,16 @@ config MDIO_OCTEON
 
 	  If in doubt, say Y.
 
+config MDIO_SUN4I
+	tristate "Allwinner sun4i MDIO interface support"
+	depends on ARCH_SUNXI
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  This driver supports the MDIO interface found in the network
+	  interface units of the Allwinner SoC that have an EMAC (A10,
+	  A12, A10s, etc.)
+
 config MDIO_BUS_MUX
 	tristate
 	depends on OF_MDIO

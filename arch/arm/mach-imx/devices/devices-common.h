@@ -50,7 +50,6 @@ struct platform_device *__init imx_add_fec(
 		const struct imx_fec_data *data,
 		const struct fec_platform_data *pdata);
 
-#include <linux/can/platform/flexcan.h>
 struct imx_flexcan_data {
 	int id;
 	resource_size_t iobase;
@@ -58,8 +57,7 @@ struct imx_flexcan_data {
 	resource_size_t irq;
 };
 struct platform_device *__init imx_add_flexcan(
-		const struct imx_flexcan_data *data,
-		const struct flexcan_platform_data *pdata);
+		const struct imx_flexcan_data *data);
 
 #include <linux/fsl_devices.h>
 struct imx_fsl_usb2_udc_data {

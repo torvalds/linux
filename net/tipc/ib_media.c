@@ -155,8 +155,7 @@ static void setup_bearer(struct work_struct *work)
  */
 static int enable_bearer(struct tipc_bearer *tb_ptr)
 {
-	struct net_device *dev = NULL;
-	struct net_device *pdev = NULL;
+	struct net_device *dev;
 	struct ib_bearer *ib_ptr = &ib_bearers[0];
 	struct ib_bearer *stop = &ib_bearers[MAX_IB_BEARERS];
 	char *driver_name = strchr((const char *)tb_ptr->name, ':') + 1;
@@ -171,15 +170,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	}
 
 	/* Find device with specified name */
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, pdev) {
-		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
-			dev = pdev;
-			dev_hold(dev);
-			break;
-		}
-	}
-	read_unlock(&dev_base_lock);
+	dev = dev_get_by_name(&init_net, driver_name);
 	if (!dev)
 		return -ENODEV;
 
@@ -244,9 +235,9 @@ static void disable_bearer(struct tipc_bearer *tb_ptr)
  * specified device.
  */
 static int recv_notification(struct notifier_block *nb, unsigned long evt,
-			     void *dv)
+			     void *ptr)
 {
-	struct net_device *dev = (struct net_device *)dv;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct ib_bearer *ib_ptr = &ib_bearers[0];
 	struct ib_bearer *stop = &ib_bearers[MAX_IB_BEARERS];
 

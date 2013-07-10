@@ -727,6 +727,8 @@
 /*************************************************************************
  * _REG relative to RSET_ENETDMA
  *************************************************************************/
+#define ENETDMA_CHAN_WIDTH		0x10
+#define ENETDMA_6345_CHAN_WIDTH		0x40
 
 /* Controller Configuration Register */
 #define ENETDMA_CFG_REG			(0x0)
@@ -782,31 +784,56 @@
 /* State Ram Word 4 */
 #define ENETDMA_SRAM4_REG(x)		(0x20c + (x) * 0x10)
 
+/* Broadcom 6345 ENET DMA definitions */
+#define ENETDMA_6345_CHANCFG_REG	(0x00)
+
+#define ENETDMA_6345_MAXBURST_REG	(0x40)
+
+#define ENETDMA_6345_RSTART_REG		(0x08)
+
+#define ENETDMA_6345_LEN_REG		(0x0C)
+
+#define ENETDMA_6345_IR_REG		(0x14)
+
+#define ENETDMA_6345_IRMASK_REG		(0x18)
+
+#define ENETDMA_6345_FC_REG		(0x1C)
+
+#define ENETDMA_6345_BUFALLOC_REG	(0x20)
+
+/* Shift down for EOP, SOP and WRAP bits */
+#define ENETDMA_6345_DESC_SHIFT		(3)
 
 /*************************************************************************
  * _REG relative to RSET_ENETDMAC
  *************************************************************************/
 
 /* Channel Configuration register */
-#define ENETDMAC_CHANCFG_REG(x)		((x) * 0x10)
+#define ENETDMAC_CHANCFG_REG		(0x0)
 #define ENETDMAC_CHANCFG_EN_SHIFT	0
 #define ENETDMAC_CHANCFG_EN_MASK	(1 << ENETDMAC_CHANCFG_EN_SHIFT)
 #define ENETDMAC_CHANCFG_PKTHALT_SHIFT	1
 #define ENETDMAC_CHANCFG_PKTHALT_MASK	(1 << ENETDMAC_CHANCFG_PKTHALT_SHIFT)
 #define ENETDMAC_CHANCFG_BUFHALT_SHIFT	2
 #define ENETDMAC_CHANCFG_BUFHALT_MASK	(1 << ENETDMAC_CHANCFG_BUFHALT_SHIFT)
+#define ENETDMAC_CHANCFG_CHAINING_SHIFT	2
+#define ENETDMAC_CHANCFG_CHAINING_MASK	(1 << ENETDMAC_CHANCFG_CHAINING_SHIFT)
+#define ENETDMAC_CHANCFG_WRAP_EN_SHIFT	3
+#define ENETDMAC_CHANCFG_WRAP_EN_MASK	(1 << ENETDMAC_CHANCFG_WRAP_EN_SHIFT)
+#define ENETDMAC_CHANCFG_FLOWC_EN_SHIFT	4
+#define ENETDMAC_CHANCFG_FLOWC_EN_MASK	(1 << ENETDMAC_CHANCFG_FLOWC_EN_SHIFT)
 
 /* Interrupt Control/Status register */
-#define ENETDMAC_IR_REG(x)		(0x4 + (x) * 0x10)
+#define ENETDMAC_IR_REG			(0x4)
 #define ENETDMAC_IR_BUFDONE_MASK	(1 << 0)
 #define ENETDMAC_IR_PKTDONE_MASK	(1 << 1)
 #define ENETDMAC_IR_NOTOWNER_MASK	(1 << 2)
 
 /* Interrupt Mask register */
-#define ENETDMAC_IRMASK_REG(x)		(0x8 + (x) * 0x10)
+#define ENETDMAC_IRMASK_REG		(0x8)
 
 /* Maximum Burst Length */
-#define ENETDMAC_MAXBURST_REG(x)	(0xc + (x) * 0x10)
+#define ENETDMAC_MAXBURST_REG		(0xc)
 
 
 /*************************************************************************
@@ -814,25 +841,75 @@
  *************************************************************************/
 
 /* Ring Start Address register */
-#define ENETDMAS_RSTART_REG(x)		((x) * 0x10)
+#define ENETDMAS_RSTART_REG		(0x0)
 
 /* State Ram Word 2 */
-#define ENETDMAS_SRAM2_REG(x)		(0x4 + (x) * 0x10)
+#define ENETDMAS_SRAM2_REG		(0x4)
 
 /* State Ram Word 3 */
-#define ENETDMAS_SRAM3_REG(x)		(0x8 + (x) * 0x10)
+#define ENETDMAS_SRAM3_REG		(0x8)
 
 /* State Ram Word 4 */
-#define ENETDMAS_SRAM4_REG(x)		(0xc + (x) * 0x10)
+#define ENETDMAS_SRAM4_REG		(0xc)
 
 
 /*************************************************************************
  * _REG relative to RSET_ENETSW
  *************************************************************************/
 
+/* Port traffic control */
+#define ENETSW_PTCTRL_REG(x)		(0x0 + (x))
+#define ENETSW_PTCTRL_RXDIS_MASK	(1 << 0)
+#define ENETSW_PTCTRL_TXDIS_MASK	(1 << 1)
+
+/* Switch mode register */
+#define ENETSW_SWMODE_REG		(0xb)
+#define ENETSW_SWMODE_FWD_EN_MASK	(1 << 1)
+
+/* IMP override Register */
+#define ENETSW_IMPOV_REG		(0xe)
+#define ENETSW_IMPOV_FORCE_MASK		(1 << 7)
+#define ENETSW_IMPOV_TXFLOW_MASK	(1 << 5)
+#define ENETSW_IMPOV_RXFLOW_MASK	(1 << 4)
+#define ENETSW_IMPOV_1000_MASK		(1 << 3)
+#define ENETSW_IMPOV_100_MASK		(1 << 2)
+#define ENETSW_IMPOV_FDX_MASK		(1 << 1)
+#define ENETSW_IMPOV_LINKUP_MASK	(1 << 0)
+
+/* Port override Register */
+#define ENETSW_PORTOV_REG(x)		(0x58 + (x))
+#define ENETSW_PORTOV_ENABLE_MASK	(1 << 6)
+#define ENETSW_PORTOV_TXFLOW_MASK	(1 << 5)
+#define ENETSW_PORTOV_RXFLOW_MASK	(1 << 4)
+#define ENETSW_PORTOV_1000_MASK		(1 << 3)
+#define ENETSW_PORTOV_100_MASK		(1 << 2)
+#define ENETSW_PORTOV_FDX_MASK		(1 << 1)
+#define ENETSW_PORTOV_LINKUP_MASK	(1 << 0)
+
+/* MDIO control register */
+#define ENETSW_MDIOC_REG		(0xb0)
+#define ENETSW_MDIOC_EXT_MASK		(1 << 16)
+#define ENETSW_MDIOC_REG_SHIFT		20
+#define ENETSW_MDIOC_PHYID_SHIFT	25
+#define ENETSW_MDIOC_RD_MASK		(1 << 30)
+#define ENETSW_MDIOC_WR_MASK		(1 << 31)
+
+/* MDIO data register */
+#define ENETSW_MDIOD_REG		(0xb4)
+
+/* Global Management Configuration Register */
+#define ENETSW_GMCR_REG			(0x200)
+#define ENETSW_GMCR_RST_MIB_MASK	(1 << 0)
+
 /* MIB register */
 #define ENETSW_MIB_REG(x)		(0x2800 + (x) * 4)
 #define ENETSW_MIB_REG_COUNT		47
+
+/* Jumbo control register port mask register */
+#define ENETSW_JMBCTL_PORT_REG		(0x4004)
+
+/* Jumbo control mib good frame register */
+#define ENETSW_JMBCTL_MAXSIZE_REG	(0x4008)
 
 
 /*************************************************************************

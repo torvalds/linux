@@ -1600,7 +1600,6 @@ ks8695_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ks8695_priv *ksp = netdev_priv(ndev);
 
-	platform_set_drvdata(pdev, NULL);
 	netif_napi_del(&ksp->napi);
 
 	unregister_netdev(ndev);

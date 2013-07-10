@@ -122,7 +122,7 @@ static int pch_gbe_set_settings(struct net_device *netdev,
 	}
 	ret = mii_ethtool_sset(&adapter->mii, ecmd);
 	if (ret) {
-		pr_err("Error: mii_ethtool_sset\n");
+		netdev_err(netdev, "Error: mii_ethtool_sset\n");
 		return ret;
 	}
 	hw->mac.link_speed = speed;
