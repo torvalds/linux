@@ -1099,7 +1099,7 @@ static int btusb_setup_intel_patching(struct hci_dev *hdev,
 	if (IS_ERR(skb)) {
 		BT_ERR("%s sending Intel patch command (0x%4.4x) failed (%ld)",
 		       hdev->name, cmd->opcode, PTR_ERR(skb));
-		return -PTR_ERR(skb);
+		return PTR_ERR(skb);
 	}
 
 	/* It ensures that the returned event matches the event data read from
@@ -1151,7 +1151,7 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	if (IS_ERR(skb)) {
 		BT_ERR("%s sending initial HCI reset command failed (%ld)",
 		       hdev->name, PTR_ERR(skb));
-		return -PTR_ERR(skb);
+		return PTR_ERR(skb);
 	}
 	kfree_skb(skb);
 
@@ -1165,7 +1165,7 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	if (IS_ERR(skb)) {
 		BT_ERR("%s reading Intel fw version command failed (%ld)",
 		       hdev->name, PTR_ERR(skb));
-		return -PTR_ERR(skb);
+		return PTR_ERR(skb);
 	}
 
 	if (skb->len != sizeof(*ver)) {
@@ -1223,7 +1223,7 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 		BT_ERR("%s entering Intel manufacturer mode failed (%ld)",
 		       hdev->name, PTR_ERR(skb));
 		release_firmware(fw);
-		return -PTR_ERR(skb);
+		return PTR_ERR(skb);
 	}
 
 	if (skb->data[0]) {
@@ -1280,7 +1280,7 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	if (IS_ERR(skb)) {
 		BT_ERR("%s exiting Intel manufacturer mode failed (%ld)",
 		       hdev->name, PTR_ERR(skb));
-		return -PTR_ERR(skb);
+		return PTR_ERR(skb);
 	}
 	kfree_skb(skb);
 
@@ -1296,7 +1296,7 @@ exit_mfg_disable:
 	if (IS_ERR(skb)) {
 		BT_ERR("%s exiting Intel manufacturer mode failed (%ld)",
 		       hdev->name, PTR_ERR(skb));
-		return -PTR_ERR(skb);
+		return PTR_ERR(skb);
 	}
 	kfree_skb(skb);
 
@@ -1314,7 +1314,7 @@ exit_mfg_deactivate:
 	if (IS_ERR(skb)) {
 		BT_ERR("%s exiting Intel manufacturer mode failed (%ld)",
 		       hdev->name, PTR_ERR(skb));
-		return -PTR_ERR(skb);
+		return PTR_ERR(skb);
 	}
 	kfree_skb(skb);
 
