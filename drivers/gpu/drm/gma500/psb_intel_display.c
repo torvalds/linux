@@ -135,7 +135,7 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 			REG_WRITE(map->base, REG_READ(map->base));
 		}
 
-		psb_intel_crtc_load_lut(crtc);
+		gma_crtc_load_lut(crtc);
 
 		/* Give the overlay scaler a chance to enable
 		 * if it's on this pipe */
@@ -431,54 +431,6 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-/** Loads the palette/gamma unit for the CRTC with the prepared values */
-void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
-	int palreg = map->palette;
-	int i;
-
-	/* The clocks have to be on to load the palette. */
-	if (!crtc->enabled)
-		return;
-
-	switch (psb_intel_crtc->pipe) {
-	case 0:
-	case 1:
-		break;
-	default:
-		dev_err(dev->dev, "Illegal Pipe Number.\n");
-		return;
-	}
-
-	if (gma_power_begin(dev, false)) {
-		for (i = 0; i < 256; i++) {
-			REG_WRITE(palreg + 4 * i,
-				  ((psb_intel_crtc->lut_r[i] +
-				  psb_intel_crtc->lut_adj[i]) << 16) |
-				  ((psb_intel_crtc->lut_g[i] +
-				  psb_intel_crtc->lut_adj[i]) << 8) |
-				  (psb_intel_crtc->lut_b[i] +
-				  psb_intel_crtc->lut_adj[i]));
-		}
-		gma_power_end(dev);
-	} else {
-		for (i = 0; i < 256; i++) {
-			dev_priv->regs.pipe[0].palette[i] =
-				  ((psb_intel_crtc->lut_r[i] +
-				  psb_intel_crtc->lut_adj[i]) << 16) |
-				  ((psb_intel_crtc->lut_g[i] +
-				  psb_intel_crtc->lut_adj[i]) << 8) |
-				  (psb_intel_crtc->lut_b[i] +
-				  psb_intel_crtc->lut_adj[i]);
-		}
-
-	}
-}
-
 /**
  * Save HW states of giving crtc
  */
@@ -737,24 +689,6 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
-static void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
-			 u16 *green, u16 *blue, uint32_t type, uint32_t size)
-{
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int i;
-
-	if (size != 256)
-		return;
-
-	for (i = 0; i < 256; i++) {
-		psb_intel_crtc->lut_r[i] = red[i] >> 8;
-		psb_intel_crtc->lut_g[i] = green[i] >> 8;
-		psb_intel_crtc->lut_b[i] = blue[i] >> 8;
-	}
-
-	psb_intel_crtc_load_lut(crtc);
-}
-
 static int psb_crtc_set_config(struct drm_mode_set *set)
 {
 	int ret;
@@ -930,7 +864,7 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.restore = psb_intel_crtc_restore,
 	.cursor_set = psb_intel_crtc_cursor_set,
 	.cursor_move = psb_intel_crtc_cursor_move,
-	.gamma_set = psb_intel_crtc_gamma_set,
+	.gamma_set = gma_crtc_gamma_set,
 	.set_config = psb_crtc_set_config,
 	.destroy = psb_intel_crtc_destroy,
 };

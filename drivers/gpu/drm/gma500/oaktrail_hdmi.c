@@ -464,7 +464,7 @@ void oaktrail_crtc_hdmi_dpms(struct drm_crtc *crtc, int mode)
 			REG_READ(DSPBSURF);
 		}
 
-		psb_intel_crtc_load_lut(crtc);
+		gma_crtc_load_lut(crtc);
 	}
 
 	/* DSPARB */
