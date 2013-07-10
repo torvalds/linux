@@ -284,11 +284,11 @@ config MMC_OMAP
 
 config MMC_OMAP_HS
 	tristate "TI OMAP High Speed Multimedia Card Interface support"
-	depends on SOC_OMAP2430 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  This selects the TI OMAP High Speed Multimedia card Interface.
-	  If you have an OMAP2430 or OMAP3 board or OMAP4 board with a
-	  Multimedia Card slot, say Y or M here.
+	  If you have an omap2plus board with a Multimedia Card slot,
+	  say Y or M here.
 
 	  If unsure, say N.
 
