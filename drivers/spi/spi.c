@@ -1387,6 +1387,13 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 					BIT(xfer->bits_per_word - 1)))
 				return -EINVAL;
 		}
+
+		if (xfer->speed_hz && master->min_speed_hz &&
+		    xfer->speed_hz < master->min_speed_hz)
+			return -EINVAL;
+		if (xfer->speed_hz && master->max_speed_hz &&
+		    xfer->speed_hz > master->max_speed_hz)
+			return -EINVAL;
 	}
 
 	message->spi = spi;
