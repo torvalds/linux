@@ -752,7 +752,7 @@ S:	Maintained
 F:	arch/arm/mach-highbank/
 
 ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
-M:	Anton Vorontsov <avorontsov@mvista.com>
+M:	Anton Vorontsov <anton@enomsg.org>
 S:	Maintained
 F:	arch/arm/mach-cns3xxx/
 T:	git git://git.infradead.org/users/cbou/linux-cns3xxx.git
@@ -6406,7 +6406,7 @@ F:	include/linux/timer*
 F:	kernel/*timer*
 
 POWER SUPPLY CLASS/SUBSYSTEM and DRIVERS
-M:	Anton Vorontsov <cbou@mail.ru>
+M:	Anton Vorontsov <anton@enomsg.org>
 M:	David Woodhouse <dwmw2@infradead.org>
 T:	git git://git.infradead.org/battery-2.6.git
 S:	Maintained
@@ -6516,7 +6516,7 @@ S:	Maintained
 F:	drivers/block/ps3vram.c
 
 PSTORE FILESYSTEM
-M:	Anton Vorontsov <cbouatmailru@gmail.com>
+M:	Anton Vorontsov <anton@enomsg.org>
 M:	Colin Cross <ccross@android.com>
 M:	Kees Cook <keescook@chromium.org>
 M:	Tony Luck <tony.luck@intel.com>
@@ -7214,7 +7214,7 @@ F:	drivers/mmc/host/sdhci.*
 F:	drivers/mmc/host/sdhci-pltfm.[ch]
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)
-M:	Anton Vorontsov <avorontsov@ru.mvista.com>
+M:	Anton Vorontsov <anton@enomsg.org>
 L:	linuxppc-dev@lists.ozlabs.org
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
