@@ -1613,26 +1613,3 @@ struct drm_local_map *drm_getsarea(struct drm_device *dev)
 	return NULL;
 }
 EXPORT_SYMBOL(drm_getsarea);
-
-/**
- * Compute size order.  Returns the exponent of the smaller power of two which
- * is greater or equal to given number.
- *
- * \param size size.
- * \return order.
- *
- * \todo Can be made faster.
- */
-int drm_order(unsigned long size)
-{
-	int order;
-	unsigned long tmp;
-
-	for (order = 0, tmp = size >> 1; tmp; tmp >>= 1, order++) ;
-
-	if (size & (size - 1))
-		++order;
-
-	return order;
-}
-EXPORT_SYMBOL(drm_order);
