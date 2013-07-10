@@ -437,6 +437,7 @@ static int reinit_vdir(struct au_vdir *vdir)
 #endif
 
 struct fillvdir_arg {
+	struct dir_context	ctx;
 	struct file		*file;
 	struct au_vdir		*vdir;
 	struct au_nhash		delist;
@@ -446,11 +447,11 @@ struct fillvdir_arg {
 	int			err;
 };
 
-static int fillvdir(void *__arg, const char *__name, int nlen,
+static int fillvdir(struct dir_context *ctx, const char *__name, int nlen,
 		    loff_t offset __maybe_unused, u64 h_ino,
 		    unsigned int d_type)
 {
-	struct fillvdir_arg *arg = __arg;
+	struct fillvdir_arg *arg = container_of(ctx, struct fillvdir_arg, ctx);
 	char *name = (void *)__name;
 	struct super_block *sb;
 	ino_t ino;
@@ -598,10 +599,15 @@ static int au_do_read_vdir(struct fillvdir_arg *arg)
 			arg->err = 0;
 			au_fclr_fillvdir(arg->flags, CALLED);
 			/* smp_mb(); */
-			err = vfsub_readdir(hf, fillvdir, arg);
+			err = vfsub_iterate_dir(hf, &arg->ctx);
 			if (err >= 0)
 				err = arg->err;
 		} while (!err && au_ftest_fillvdir(arg->flags, CALLED));
+
+		/*
+		 * dir_relax() may be good for concurrency, but aufs should not
+		 * use it since it will cause a lockdep problem.
+		 */
 	}
 
 	if (!err && shwh)
@@ -620,7 +626,11 @@ static int read_vdir(struct file *file, int may_read)
 	int err;
 	unsigned long expire;
 	unsigned char do_read;
-	struct fillvdir_arg arg;
+	struct fillvdir_arg arg = {
+		.ctx = {
+			.actor = au_diractor(fillvdir)
+		}
+	};
 	struct inode *inode;
 	struct au_vdir *vdir, *allocated;
 
@@ -657,7 +667,7 @@ static int read_vdir(struct file *file, int may_read)
 	arg.vdir = vdir;
 	err = au_do_read_vdir(&arg);
 	if (!err) {
-		/* file->f_pos = 0; */
+		/* file->f_pos = 0; */ /* todo: ctx->pos? */
 		vdir->vd_version = inode->i_version;
 		vdir->vd_last.ul = 0;
 		vdir->vd_last.p.deblk = vdir->vd_deblk[0];
@@ -730,6 +740,7 @@ int au_vdir_init(struct file *file)
 	struct inode *inode;
 	struct au_vdir *vdir_cache, *allocated;
 
+	/* test file->f_pos here instead of ctx->pos */
 	err = read_vdir(file, !file->f_pos);
 	if (unlikely(err))
 		goto out;
@@ -743,6 +754,7 @@ int au_vdir_init(struct file *file)
 			goto out;
 		allocated = vdir_cache;
 	} else if (!file->f_pos && vdir_cache->vd_version != file->f_version) {
+		/* test file->f_pos here instead of ctx->pos */
 		err = reinit_vdir(vdir_cache);
 		if (unlikely(err))
 			goto out;
@@ -774,7 +786,7 @@ static loff_t calc_offset(struct au_vdir *vdir)
 }
 
 /* returns true or false */
-static int seek_vdir(struct file *file)
+static int seek_vdir(struct file *file, struct dir_context *ctx)
 {
 	int valid;
 	unsigned int deblk_sz;
@@ -787,17 +799,17 @@ static int seek_vdir(struct file *file)
 	vdir_cache = au_fvdir_cache(file);
 	offset = calc_offset(vdir_cache);
 	AuDbg("offset %lld\n", offset);
-	if (file->f_pos == offset)
+	if (ctx->pos == offset)
 		goto out;
 
 	vdir_cache->vd_last.ul = 0;
 	vdir_cache->vd_last.p.deblk = vdir_cache->vd_deblk[0];
-	if (!file->f_pos)
+	if (!ctx->pos)
 		goto out;
 
 	valid = 0;
 	deblk_sz = vdir_cache->vd_deblk_sz;
-	ul = div64_u64(file->f_pos, deblk_sz);
+	ul = div64_u64(ctx->pos, deblk_sz);
 	AuDbg("ul %lu\n", ul);
 	if (ul >= vdir_cache->vd_nblk)
 		goto out;
@@ -808,7 +820,7 @@ static int seek_vdir(struct file *file)
 		deblk_end.deblk = p.deblk + deblk_sz;
 		offset = ul;
 		offset *= deblk_sz;
-		while (!is_deblk_end(&p, &deblk_end) && offset < file->f_pos) {
+		while (!is_deblk_end(&p, &deblk_end) && offset < ctx->pos) {
 			unsigned int l;
 
 			l = calc_size(p.de->de_str.len);
@@ -829,16 +841,15 @@ out:
 	return valid;
 }
 
-int au_vdir_fill_de(struct file *file, void *dirent, filldir_t filldir)
+int au_vdir_fill_de(struct file *file, struct dir_context *ctx)
 {
-	int err;
 	unsigned int l, deblk_sz;
 	union au_vdir_deblk_p deblk_end;
 	struct au_vdir *vdir_cache;
 	struct au_vdir_de *de;
 
 	vdir_cache = au_fvdir_cache(file);
-	if (!seek_vdir(file))
+	if (!seek_vdir(file, ctx))
 		return 0;
 
 	deblk_sz = vdir_cache->vd_deblk_sz;
@@ -848,12 +859,11 @@ int au_vdir_fill_de(struct file *file, void *dirent, filldir_t filldir)
 		while (!is_deblk_end(&vdir_cache->vd_last.p, &deblk_end)) {
 			de = vdir_cache->vd_last.p.de;
 			AuDbg("%.*s, off%lld, i%lu, dt%d\n",
-			      de->de_str.len, de->de_str.name, file->f_pos,
+			      de->de_str.len, de->de_str.name, ctx->pos,
 			      (unsigned long)de->de_ino, de->de_type);
-			err = filldir(dirent, de->de_str.name, de->de_str.len,
-				      file->f_pos, de->de_ino, de->de_type);
-			if (unlikely(err)) {
-				AuTraceErr(err);
+			if (unlikely(!dir_emit(ctx, de->de_str.name,
+					       de->de_str.len, de->de_ino,
+					       de->de_type))) {
 				/* todo: ignore the error caused by udba? */
 				/* return err; */
 				return 0;
@@ -861,13 +871,13 @@ int au_vdir_fill_de(struct file *file, void *dirent, filldir_t filldir)
 
 			l = calc_size(de->de_str.len);
 			vdir_cache->vd_last.p.deblk += l;
-			file->f_pos += l;
+			ctx->pos += l;
 		}
 		if (vdir_cache->vd_last.ul < vdir_cache->vd_nblk - 1) {
 			vdir_cache->vd_last.ul++;
 			vdir_cache->vd_last.p.deblk
 				= vdir_cache->vd_deblk[vdir_cache->vd_last.ul];
-			file->f_pos = deblk_sz * vdir_cache->vd_last.ul;
+			ctx->pos = deblk_sz * vdir_cache->vd_last.ul;
 			continue;
 		}
 		break;

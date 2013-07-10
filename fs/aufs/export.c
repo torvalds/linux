@@ -341,6 +341,7 @@ out:
 }
 
 struct find_name_by_ino {
+	struct dir_context ctx;
 	int called, found;
 	ino_t ino;
 	char *name;
@@ -348,10 +349,11 @@ struct find_name_by_ino {
 };
 
 static int
-find_name_by_ino(void *arg, const char *name, int namelen, loff_t offset,
-		 u64 ino, unsigned int d_type)
+find_name_by_ino(struct dir_context *ctx, const char *name, int namelen,
+		 loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct find_name_by_ino *a = arg;
+	struct find_name_by_ino *a = container_of(ctx, struct find_name_by_ino,
+						  ctx);
 
 	a->called++;
 	if (a->ino != ino)
@@ -369,7 +371,11 @@ static struct dentry *au_lkup_by_ino(struct path *path, ino_t ino,
 	struct dentry *dentry, *parent;
 	struct file *file;
 	struct inode *dir;
-	struct find_name_by_ino arg;
+	struct find_name_by_ino arg = {
+		.ctx = {
+			.actor = au_diractor(find_name_by_ino)
+		}
+	};
 	int err;
 
 	parent = path->dentry;
@@ -389,7 +395,7 @@ static struct dentry *au_lkup_by_ino(struct path *path, ino_t ino,
 	do {
 		arg.called = 0;
 		/* smp_mb(); */
-		err = vfsub_readdir(file, find_name_by_ino, &arg);
+		err = vfsub_iterate_dir(file, &arg.ctx);
 	} while (!err && !arg.found && arg.called);
 	dentry = ERR_PTR(err);
 	if (unlikely(err))
