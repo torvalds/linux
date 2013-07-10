@@ -1065,7 +1065,8 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		if (tcon->ses->server->capabilities & SMB2_GLOBAL_CAP_LEASING) {
 			struct create_context *ccontext =
 			    (struct create_context *)iov[num_iovecs-1].iov_base;
-			ccontext->Next = sizeof(struct create_lease);
+			ccontext->Next =
+				cpu_to_le32(sizeof(struct create_lease));
 		}
 		rc = add_durable_context(iov, &num_iovecs, oparms);
 		if (rc) {
