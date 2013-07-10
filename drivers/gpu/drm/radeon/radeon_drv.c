@@ -388,8 +388,8 @@ static const struct file_operations radeon_driver_kms_fops = {
 
 static struct drm_driver kms_driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
-	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED | DRIVER_GEM |
+	    DRIVER_USE_AGP | DRIVER_USE_MTRR | 
+	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
 	    DRIVER_PRIME,
 	.dev_priv_size = 0,
 	.load = radeon_driver_load_kms,
