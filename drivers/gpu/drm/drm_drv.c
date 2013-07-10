@@ -485,19 +485,4 @@ long drm_ioctl(struct file *filp,
 		DRM_DEBUG("ret = %d\n", retcode);
 	return retcode;
 }
-
 EXPORT_SYMBOL(drm_ioctl);
-
-struct drm_local_map *drm_getsarea(struct drm_device *dev)
-{
-	struct drm_map_list *entry;
-
-	list_for_each_entry(entry, &dev->maplist, head) {
-		if (entry->map && entry->map->type == _DRM_SHM &&
-		    (entry->map->flags & _DRM_CONTAINS_LOCK)) {
-			return entry->map;
-		}
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(drm_getsarea);

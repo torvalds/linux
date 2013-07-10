@@ -1600,6 +1600,20 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 	return retcode;
 }
 
+struct drm_local_map *drm_getsarea(struct drm_device *dev)
+{
+	struct drm_map_list *entry;
+
+	list_for_each_entry(entry, &dev->maplist, head) {
+		if (entry->map && entry->map->type == _DRM_SHM &&
+		    (entry->map->flags & _DRM_CONTAINS_LOCK)) {
+			return entry->map;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(drm_getsarea);
+
 /**
  * Compute size order.  Returns the exponent of the smaller power of two which
  * is greater or equal to given number.
