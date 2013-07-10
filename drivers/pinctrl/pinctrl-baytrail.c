@@ -130,10 +130,12 @@ struct byt_gpio {
 	struct pinctrl_gpio_range	*range;
 };
 
+#define to_byt_gpio(c)	container_of(c, struct byt_gpio, chip)
+
 static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 				 int reg)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	u32 reg_offset;
 
 	if (reg == BYT_INT_STAT_REG)
@@ -146,7 +148,7 @@ static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 
 static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 
 	pm_runtime_get(&vg->pdev->dev);
 
@@ -155,7 +157,7 @@ static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static void byt_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(&vg->chip, offset, BYT_CONF0_REG);
 	u32 value;
 
@@ -216,7 +218,7 @@ static int byt_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void byt_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(chip, offset, BYT_VAL_REG);
 	unsigned long flags;
 	u32 old_val;
@@ -235,7 +237,7 @@ static void byt_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int byt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(chip, offset, BYT_VAL_REG);
 	unsigned long flags;
 	u32 value;
@@ -254,7 +256,7 @@ static int byt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int byt_gpio_direction_output(struct gpio_chip *chip,
 				     unsigned gpio, int value)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(chip, gpio, BYT_VAL_REG);
 	unsigned long flags;
 	u32 reg_val;
@@ -272,7 +274,7 @@ static int byt_gpio_direction_output(struct gpio_chip *chip,
 
 static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	int i;
 	unsigned long flags;
 	u32 conf0, val, offs;
@@ -301,7 +303,7 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 static int byt_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
+	struct byt_gpio *vg = to_byt_gpio(chip);
 	return irq_create_mapping(vg->domain, offset);
 }
 
