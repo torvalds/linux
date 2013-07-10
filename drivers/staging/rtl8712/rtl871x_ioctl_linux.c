@@ -1000,12 +1000,8 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		sprintf(ext, "LINKSPEED %d", mbps);
 	} else if (0 == strcasecmp(ext, "MACADDR")) {
 		/*Return mac address of the station */
-		/*Macaddr = xx.xx.xx.xx.xx.xx */
-		sprintf(ext,
-			"MACADDR = %02x.%02x.%02x.%02x.%02x.%02x",
-			*(dev->dev_addr), *(dev->dev_addr+1),
-			*(dev->dev_addr+2), *(dev->dev_addr+3),
-			*(dev->dev_addr+4), *(dev->dev_addr+5));
+		/* Macaddr = xx:xx:xx:xx:xx:xx */
+		sprintf(ext, "MACADDR = %pM", dev->dev_addr);
 	} else if (0 == strcasecmp(ext, "SCAN-ACTIVE")) {
 		/*Set scan type to active */
 		/*OK if successful */
