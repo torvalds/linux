@@ -1169,8 +1169,6 @@ struct drm_device {
 	spinlock_t event_lock;
 
 	/*@} */
-	cycles_t ctx_start;
-	cycles_t lck_start;
 
 	struct fasync_struct *buf_async;/**< Processes waiting for SIGIO */
 	wait_queue_head_t buf_readers;	/**< Processes waiting to read */
