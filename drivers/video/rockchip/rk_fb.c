@@ -505,6 +505,148 @@ static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     return 0;
 }
 
+static ssize_t rk_fb_read(struct fb_info *info, char __user *buf,
+			   size_t count, loff_t *ppos)
+{
+	unsigned long p = *ppos;
+	u8 *buffer, *dst;
+	u8 __iomem *src;
+	int c, cnt = 0, err = 0;
+	unsigned long total_size;
+	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+	struct layer_par *par = NULL;
+	int layer_id = 0;
+
+	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
+	if(layer_id < 0)
+	{
+		return  -ENODEV;
+	}
+	else
+	{
+		par = dev_drv->layer_par[layer_id];
+	}
+
+	if(par->format == RGB565)
+	{
+		total_size = par->xact*par->yact<<1; //only read the current frame buffer
+	}
+	else
+		total_size = par->xact*par->yact<<2;
+	
+	
+	if (p >= total_size)
+		return 0;
+	
+	if (count >= total_size)
+		count = total_size;
+
+	if (count + p > total_size)
+		count = total_size - p;
+
+	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
+			 GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+	
+	src = (u8 __iomem *) (info->screen_base + p + par->y_offset);
+
+	while (count) {
+		c  = (count > PAGE_SIZE) ? PAGE_SIZE : count;
+		dst = buffer;
+		fb_memcpy_fromfb(dst, src, c);
+		dst += c;
+		src += c;
+
+		if (copy_to_user(buf, buffer, c)) {
+			err = -EFAULT;
+			break;
+		}
+		*ppos += c;
+		buf += c;
+		cnt += c;
+		count -= c;
+	}
+
+	kfree(buffer);
+
+	return (err) ? err : cnt;
+}
+
+static ssize_t rk_fb_write(struct fb_info *info, const char __user *buf,
+			    size_t count, loff_t *ppos)
+{
+	unsigned long p = *ppos;
+	u8 *buffer, *src;
+	u8 __iomem *dst;
+	int c, cnt = 0, err = 0;
+	unsigned long total_size;
+	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+	struct layer_par *par = NULL;
+	int layer_id = 0;
+
+	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
+	if(layer_id < 0)
+	{
+		return  -ENODEV;
+	}
+	else
+	{
+		par = dev_drv->layer_par[layer_id];
+	}
+
+	if(par->format == RGB565)
+	{
+		total_size = par->xact*par->yact<<1; //write the current frame buffer
+	}
+	else
+		total_size = par->xact*par->yact<<2;
+	
+	if (p > total_size)
+		return -EFBIG;
+
+	if (count > total_size) {
+		err = -EFBIG;
+		count = total_size;
+	}
+
+	if (count + p > total_size) {
+		if (!err)
+			err = -ENOSPC;
+
+		count = total_size - p;
+	}
+
+	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
+			 GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	dst = (u8 __iomem *) (info->screen_base + p + par->y_offset);
+
+	while (count) {
+		c = (count > PAGE_SIZE) ? PAGE_SIZE : count;
+		src = buffer;
+
+		if (copy_from_user(src, buf, c)) {
+			err = -EFAULT;
+			break;
+		}
+
+		fb_memcpy_tofb(dst, src, c);
+		dst += c;
+		src += c;
+		*ppos += c;
+		buf += c;
+		cnt += c;
+		count -= c;
+	}
+
+	kfree(buffer);
+
+	return (cnt) ? cnt : err;
+	
+}
 
 static int rk_fb_set_par(struct fb_info *info)
 {
@@ -644,7 +786,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	par->yact = var->yres;
 	par->xvir =  var->xres_virtual;		// virtual resolution	 stride --->LCDC_WINx_VIR
 	par->yvir =  var->yres_virtual;
-
 	#if defined(CONFIG_RK_HDMI)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
@@ -683,7 +824,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	#endif
 	dev_drv->set_par(dev_drv,layer_id);
 
-    
 	return 0;
 }
 
@@ -728,6 +868,8 @@ static struct fb_ops fb_ops = {
     .fb_blank       = rk_fb_blank,
     .fb_ioctl       = rk_fb_ioctl,
     .fb_pan_display = rk_pan_display,
+    .fb_read	    = rk_fb_read,
+    .fb_write	    = rk_fb_write,
     .fb_setcolreg   = fb_setcolreg,
     .fb_fillrect    = cfb_fillrect,
     .fb_copyarea    = cfb_copyarea,
@@ -1147,6 +1289,7 @@ static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 			fbi->fix.smem_start,fbi->screen_base,fbi->fix.smem_len);	
 	}
 
+	fbi->screen_size = fbi->fix.smem_len;
 	layer_id = dev_drv->fb_get_layer(dev_drv,fbi->fix.id);
 	if(layer_id >= 0)
 	{
