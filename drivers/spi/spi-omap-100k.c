@@ -495,22 +495,11 @@ static struct platform_driver omap1_spi100k_driver = {
 		.name		= "omap1_spi100k",
 		.owner		= THIS_MODULE,
 	},
+	.probe		= omap1_spi100k_probe,
 	.remove		= omap1_spi100k_remove,
 };
 
-
-static int __init omap1_spi100k_init(void)
-{
-	return platform_driver_probe(&omap1_spi100k_driver, omap1_spi100k_probe);
-}
-
-static void __exit omap1_spi100k_exit(void)
-{
-	platform_driver_unregister(&omap1_spi100k_driver);
-}
-
-module_init(omap1_spi100k_init);
-module_exit(omap1_spi100k_exit);
+module_platform_driver(omap1_spi100k_driver);
 
 MODULE_DESCRIPTION("OMAP7xx SPI 100k controller driver");
 MODULE_AUTHOR("Fabrice Crohas <fcrohas@gmail.com>");
