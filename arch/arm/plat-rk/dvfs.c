@@ -256,28 +256,56 @@ struct regulator *dvfs_get_regulator(char *regulator_name)
 int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate)
 {
 	struct clk_node *dvfs_clk;
-	u32 rate = 0;
-	dvfs_clk = clk->dvfs_info;
+	u32 rate = 0, ret = 0;
+	dvfs_clk = clk_get_dvfs_info(clk);
+	if (IS_ERR_OR_NULL(dvfs_clk)) {
+		DVFS_ERR("%s: can not get dvfs clk(%s)\n", __func__, clk->name);
+		return -1;
 
-	dvfs_clk->freq_limit_en = 1;
-	dvfs_clk->min_rate = min_rate;
-	dvfs_clk->max_rate = max_rate;
+	}
 
-	rate = clk_get_rate(clk);
-	if (rate < min_rate)
-		dvfs_clk_set_rate(clk, min_rate);
-	else if (rate > max_rate)
-		dvfs_clk_set_rate(clk, max_rate);
+	if (dvfs_clk->vd && dvfs_clk->vd->vd_dvfs_target){
+		mutex_lock(&rk_dvfs_mutex);
+
+		dvfs_clk->freq_limit_en = 1;
+		dvfs_clk->min_rate = min_rate;
+		dvfs_clk->max_rate = max_rate;
+		rate = clk_get_rate(clk);
+		ret = dvfs_clk->vd->vd_dvfs_target(clk, rate);
+		clk->last_set_rate = rate;
+
+		mutex_unlock(&rk_dvfs_mutex);
+	}
+
+	DVFS_DBG("%s: clk(%s) last_set_rate=%d; [min_rate, max_rate]=[%d, %d]\n",
+			__func__, clk->name, clk->last_set_rate, dvfs_clk->min_rate, dvfs_clk->max_rate);
 	return 0;
 }
 
 int dvfs_clk_disable_limit(struct clk *clk)
 {
 	struct clk_node *dvfs_clk;
-	dvfs_clk = clk->dvfs_info;
+	u32 ret = 0;
+	dvfs_clk = clk_get_dvfs_info(clk);
+	if (IS_ERR_OR_NULL(dvfs_clk)) {
+		DVFS_ERR("%s: can not get dvfs clk(%s)\n", __func__, clk->name);
+		return -1;
 
-	dvfs_clk->freq_limit_en = 0;
+	}
 
+	if (dvfs_clk->vd && dvfs_clk->vd->vd_dvfs_target){
+		mutex_lock(&rk_dvfs_mutex);
+		/* To reset dvfs_clk->min_rate/max_rate */
+		dvfs_set_freq_volt_table(clk, dvfs_clk->dvfs_table);
+
+		dvfs_clk->freq_limit_en = 0;
+		ret = dvfs_clk->vd->vd_dvfs_target(clk, clk->last_set_rate);
+
+		mutex_unlock(&rk_dvfs_mutex);
+	}
+
+	DVFS_DBG("%s: clk(%s) last_set_rate=%d; [min_rate, max_rate]=[%d, %d]\n",
+			__func__, clk->name, clk->last_set_rate, dvfs_clk->min_rate, dvfs_clk->max_rate);
 	return 0;
 }
 
@@ -539,6 +567,7 @@ int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *ta
 	{
 		info->min_rate=0;	
 		info->max_rate=0;	
+		mutex_unlock(&mutex);
 		return -1;
 	}
 
@@ -1145,9 +1174,14 @@ static int dump_dbg_map(char *buf)
 
 			list_for_each_entry(child, &pd->clk_list, node) {
 				dvfs_clk = child->dvfs_clk;
-				printk( "|  |  |\n|  |  |- clock: %s current: rate %d, volt = %d, enable_dvfs = %s\n",
+				printk( "|  |  |\n|  |  |- clock: %s current: rate %d, volt = %d,"
+						" enable_dvfs = %s\n",
 						dvfs_clk->name, dvfs_clk->set_freq, dvfs_clk->set_volt,
 						dvfs_clk->enable_dvfs == 0 ? "DISABLE" : "ENABLE");
+				printk( "|  |  |- clk limit:[%d, %d]; last set rate = %lu\n",
+						dvfs_clk->min_rate, dvfs_clk->max_rate,
+						dvfs_clk->clk->last_set_rate);
+
 				for (i = 0; dvfs_clk->pds[i].pd != NULL; i++) {
 					clkparent = dvfs_clk->pds[i].pd;
 					printk( "|  |  |  |- clock parents: %s, vd_parent = %s\n",

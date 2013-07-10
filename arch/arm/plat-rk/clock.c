@@ -280,6 +280,8 @@ int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 		__propagate_rate(clk);
 	}
 
+	clk->last_set_rate = rate;
+
 	if (clk->notifier_count)
 		clk_notify(clk, ret ? CLK_ABORT_RATE_CHANGE : CLK_POST_RATE_CHANGE, old_rate, clk->rate);
 

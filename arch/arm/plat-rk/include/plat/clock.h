@@ -39,6 +39,7 @@ struct clk {
 	int			(*set_parent)(struct clk *, struct clk *);	/* default is clksel_set_parent if parents present */
 
 	unsigned long		rate;
+	unsigned long		last_set_rate;
 	u32			flags;
 	s16			usecount;
 	u16			notifier_count;
