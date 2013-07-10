@@ -327,6 +327,157 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 	REG_WRITE(DSPARB, 0x3F3E);
 }
 
+int gma_crtc_cursor_set(struct drm_crtc *crtc,
+			struct drm_file *file_priv,
+			uint32_t handle,
+			uint32_t width, uint32_t height)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	int pipe = psb_intel_crtc->pipe;
+	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
+	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
+	uint32_t temp;
+	size_t addr = 0;
+	struct gtt_range *gt;
+	struct gtt_range *cursor_gt = psb_intel_crtc->cursor_gt;
+	struct drm_gem_object *obj;
+	void *tmp_dst, *tmp_src;
+	int ret = 0, i, cursor_pages;
+
+	/* If we didn't get a handle then turn the cursor off */
+	if (!handle) {
+		temp = CURSOR_MODE_DISABLE;
+
+		if (gma_power_begin(dev, false)) {
+			REG_WRITE(control, temp);
+			REG_WRITE(base, 0);
+			gma_power_end(dev);
+		}
+
+		/* Unpin the old GEM object */
+		if (psb_intel_crtc->cursor_obj) {
+			gt = container_of(psb_intel_crtc->cursor_obj,
+					  struct gtt_range, gem);
+			psb_gtt_unpin(gt);
+			drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
+			psb_intel_crtc->cursor_obj = NULL;
+		}
+
+		return 0;
+	}
+
+	/* Currently we only support 64x64 cursors */
+	if (width != 64 || height != 64) {
+		dev_dbg(dev->dev, "We currently only support 64x64 cursors\n");
+		return -EINVAL;
+	}
+
+	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	if (!obj)
+		return -ENOENT;
+
+	if (obj->size < width * height * 4) {
+		dev_dbg(dev->dev, "Buffer is too small\n");
+		ret = -ENOMEM;
+		goto unref_cursor;
+	}
+
+	gt = container_of(obj, struct gtt_range, gem);
+
+	/* Pin the memory into the GTT */
+	ret = psb_gtt_pin(gt);
+	if (ret) {
+		dev_err(dev->dev, "Can not pin down handle 0x%x\n", handle);
+		goto unref_cursor;
+	}
+
+	if (dev_priv->ops->cursor_needs_phys) {
+		if (cursor_gt == NULL) {
+			dev_err(dev->dev, "No hardware cursor mem available");
+			ret = -ENOMEM;
+			goto unref_cursor;
+		}
+
+		/* Prevent overflow */
+		if (gt->npage > 4)
+			cursor_pages = 4;
+		else
+			cursor_pages = gt->npage;
+
+		/* Copy the cursor to cursor mem */
+		tmp_dst = dev_priv->vram_addr + cursor_gt->offset;
+		for (i = 0; i < cursor_pages; i++) {
+			tmp_src = kmap(gt->pages[i]);
+			memcpy(tmp_dst, tmp_src, PAGE_SIZE);
+			kunmap(gt->pages[i]);
+			tmp_dst += PAGE_SIZE;
+		}
+
+		addr = psb_intel_crtc->cursor_addr;
+	} else {
+		addr = gt->offset;
+		psb_intel_crtc->cursor_addr = addr;
+	}
+
+	temp = 0;
+	/* set the pipe for the cursor */
+	temp |= (pipe << 28);
+	temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+
+	if (gma_power_begin(dev, false)) {
+		REG_WRITE(control, temp);
+		REG_WRITE(base, addr);
+		gma_power_end(dev);
+	}
+
+	/* unpin the old bo */
+	if (psb_intel_crtc->cursor_obj) {
+		gt = container_of(psb_intel_crtc->cursor_obj,
+							struct gtt_range, gem);
+		psb_gtt_unpin(gt);
+		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
+	}
+
+	psb_intel_crtc->cursor_obj = obj;
+	return ret;
+
+unref_cursor:
+	drm_gem_object_unreference(obj);
+	return ret;
+}
+
+int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
+{
+	struct drm_device *dev = crtc->dev;
+	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	int pipe = psb_intel_crtc->pipe;
+	uint32_t temp = 0;
+	uint32_t addr;
+
+	if (x < 0) {
+		temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
+		x = -x;
+	}
+	if (y < 0) {
+		temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
+		y = -y;
+	}
+
+	temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
+	temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
+
+	addr = psb_intel_crtc->cursor_addr;
+
+	if (gma_power_begin(dev, false)) {
+		REG_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
+		REG_WRITE((pipe == 0) ? CURABASE : CURBBASE, addr);
+		gma_power_end(dev);
+	}
+	return 0;
+}
+
 bool gma_crtc_mode_fixup(struct drm_crtc *crtc,
 			 const struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode)
