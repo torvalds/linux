@@ -61,7 +61,7 @@ config PINCTRL_AT91
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
 	depends on GPIOLIB && ACPI && X86
-        select IRQ_DOMAIN
+	select IRQ_DOMAIN
 	help
 	  driver for memory mapped GPIO functionality on Intel Baytrail
 	  platforms. Supports 3 banks with 102, 28 and 44 gpios.
