@@ -102,13 +102,6 @@ void  __iomem *baseaddr;
 #define ST_RUNNING		(1<<0)
 #define ST_OPENED		(1<<1)
 
-struct sun4i_pcm_dma_params {
-	struct sw_dma_client *client;	/* stream identifier */
-	unsigned int channel;				/* Channel ID */
-	dma_addr_t dma_addr;
-	int dma_size;			/* Size of the DMA transfer */
-};
-
 #define codec_rdreg(reg)	    readl((baseaddr+(reg)))
 #define codec_wrreg(reg,val)  writel((val),(baseaddr+(reg)))
 
