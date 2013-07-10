@@ -98,7 +98,7 @@ void __init mxc_arch_reset_init_dt(void)
 }
 
 #ifdef CONFIG_CACHE_L2X0
-static void __init imx_init_l2cache(void)
+void __init imx_init_l2cache(void)
 {
 	void __iomem *l2x0_base;
 	struct device_node *np;
