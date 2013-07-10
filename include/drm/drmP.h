@@ -1132,7 +1132,6 @@ struct drm_device {
 	__volatile__ long context_flag;	/**< Context swapping flag */
 	__volatile__ long interrupt_flag; /**< Interruption handler flag */
 	__volatile__ long dma_flag;	/**< DMA dispatch flag */
-	wait_queue_head_t context_wait;	/**< Processes waiting on ctx switch */
 	int last_checked;		/**< Last context checked for DMA */
 	int last_context;		/**< Last current context */
 	unsigned long last_switch;	/**< jiffies at last context switch */
