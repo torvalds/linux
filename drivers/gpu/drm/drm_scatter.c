@@ -70,8 +70,10 @@ void drm_sg_cleanup(struct drm_sg_mem * entry)
 # define ScatterHandle(x) (unsigned int)(x)
 #endif
 
-int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
+int drm_sg_alloc(struct drm_device *dev, void *data,
+		 struct drm_file *file_priv)
 {
+	struct drm_scatter_gather *request = data;
 	struct drm_sg_mem *entry;
 	unsigned long pages, i, j;
 
@@ -179,15 +181,6 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
       failed:
 	drm_sg_cleanup(entry);
 	return -ENOMEM;
-}
-
-int drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv)
-{
-	struct drm_scatter_gather *request = data;
-
-	return drm_sg_alloc(dev, request);
-
 }
 
 int drm_sg_free(struct drm_device *dev, void *data,
