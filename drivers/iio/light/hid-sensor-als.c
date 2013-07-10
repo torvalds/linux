@@ -30,10 +30,6 @@
 #include <linux/iio/triggered_buffer.h>
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
-/*Format: HID-SENSOR-usage_id_in_hex*/
-/*Usage ID from spec for Ambiant-Light: 0x200041*/
-#define DRIVER_NAME "HID-SENSOR-200041"
-
 #define CHANNEL_SCAN_INDEX_ILLUM 0
 
 struct als_state {
@@ -355,9 +351,19 @@ static int hid_als_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_device_id hid_als_ids[] = {
+	{
+		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
+		.name = "HID-SENSOR-200041",
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, hid_als_ids);
+
 static struct platform_driver hid_als_platform_driver = {
+	.id_table = hid_als_ids,
 	.driver = {
-		.name	= DRIVER_NAME,
+		.name	= KBUILD_MODNAME,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_als_probe,
