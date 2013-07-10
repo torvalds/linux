@@ -321,10 +321,76 @@ static int omap1_spi100k_setup(struct spi_device *spi)
 	return ret;
 }
 
+static int omap1_spi100k_transfer_one_message(struct spi_master *master,
+					      struct spi_message *m)
+{
+	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
+	struct spi_device *spi = m->spi;
+	struct spi_transfer *t = NULL;
+	int cs_active = 0;
+	int par_override = 0;
+	int status = 0;
+
+	list_for_each_entry(t, &m->transfers, transfer_list) {
+		if (t->tx_buf == NULL && t->rx_buf == NULL && t->len) {
+			status = -EINVAL;
+			break;
+		}
+		if (par_override || t->speed_hz || t->bits_per_word) {
+			par_override = 1;
+			status = omap1_spi100k_setup_transfer(spi, t);
+			if (status < 0)
+				break;
+			if (!t->speed_hz && !t->bits_per_word)
+				par_override = 0;
+		}
+
+		if (!cs_active) {
+			omap1_spi100k_force_cs(spi100k, 1);
+			cs_active = 1;
+		}
+
+		if (t->len) {
+			unsigned count;
+
+			count = omap1_spi100k_txrx_pio(spi, t);
+			m->actual_length += count;
+
+			if (count != t->len) {
+				status = -EIO;
+				break;
+			}
+		}
+
+		if (t->delay_usecs)
+			udelay(t->delay_usecs);
+
+		/* ignore the "leave it on after last xfer" hint */
+
+		if (t->cs_change) {
+			omap1_spi100k_force_cs(spi100k, 0);
+			cs_active = 0;
+		}
+	}
+
+	/* Restore defaults if they were overriden */
+	if (par_override) {
+		par_override = 0;
+		status = omap1_spi100k_setup_transfer(spi, NULL);
+	}
+
+	if (cs_active)
+		omap1_spi100k_force_cs(spi100k, 0);
+
+	m->status = status;
+	m->complete(m->context);
+
+	return status;
+}
+
 static void omap1_spi100k_work(struct work_struct *work)
 {
 	struct omap1_spi100k    *spi100k;
-	int status = 0;
 
 	spi100k = container_of(work, struct omap1_spi100k, work);
 	spin_lock_irq(&spi100k->lock);
@@ -340,11 +406,6 @@ static void omap1_spi100k_work(struct work_struct *work)
 	 */
 	 while (!list_empty(&spi100k->msg_queue)) {
 		struct spi_message              *m;
-		struct spi_device               *spi;
-		struct spi_transfer             *t = NULL;
-		int                             cs_active = 0;
-		struct omap1_spi100k_cs         *cs;
-		int                             par_override = 0;
 
 		m = container_of(spi100k->msg_queue.next, struct spi_message,
 				 queue);
@@ -352,62 +413,7 @@ static void omap1_spi100k_work(struct work_struct *work)
 		list_del_init(&m->queue);
 		spin_unlock_irq(&spi100k->lock);
 
-		spi = m->spi;
-		cs = spi->controller_state;
-
-		list_for_each_entry(t, &m->transfers, transfer_list) {
-			if (t->tx_buf == NULL && t->rx_buf == NULL && t->len) {
-				status = -EINVAL;
-				break;
-			}
-			if (par_override || t->speed_hz || t->bits_per_word) {
-				par_override = 1;
-				status = omap1_spi100k_setup_transfer(spi, t);
-				if (status < 0)
-					break;
-				if (!t->speed_hz && !t->bits_per_word)
-					par_override = 0;
-			}
-
-			if (!cs_active) {
-				omap1_spi100k_force_cs(spi100k, 1);
-				cs_active = 1;
-			}
-
-			if (t->len) {
-				unsigned count;
-
-				count = omap1_spi100k_txrx_pio(spi, t);
-				m->actual_length += count;
-
-				if (count != t->len) {
-					status = -EIO;
-					break;
-				}
-			}
-
-			if (t->delay_usecs)
-				udelay(t->delay_usecs);
-
-			/* ignore the "leave it on after last xfer" hint */
-
-			if (t->cs_change) {
-				omap1_spi100k_force_cs(spi100k, 0);
-				cs_active = 0;
-			}
-		}
-
-		/* Restore defaults if they were overriden */
-		if (par_override) {
-			par_override = 0;
-			status = omap1_spi100k_setup_transfer(spi, NULL);
-		}
-
-		if (cs_active)
-			omap1_spi100k_force_cs(spi100k, 0);
-
-		m->status = status;
-		m->complete(m->context);
+		omap1_spi100k_transfer_one_message(m->spi->master, m);
 
 		spin_lock_irq(&spi100k->lock);
 	}
@@ -415,9 +421,6 @@ static void omap1_spi100k_work(struct work_struct *work)
 	clk_disable(spi100k->ick);
 	clk_disable(spi100k->fck);
 	spin_unlock_irq(&spi100k->lock);
-
-	if (status < 0)
-		printk(KERN_WARNING "spi transfer failed with %d\n", status);
 }
 
 static int omap1_spi100k_transfer(struct spi_device *spi, struct spi_message *m)
