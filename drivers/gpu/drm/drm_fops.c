@@ -80,9 +80,6 @@ static int drm_setup(struct drm_device * dev)
 	dev->last_checked = 0;
 	dev->if_version = 0;
 
-	dev->ctx_start = 0;
-	dev->lck_start = 0;
-
 	dev->buf_async = NULL;
 	init_waitqueue_head(&dev->buf_readers);
 	init_waitqueue_head(&dev->buf_writers);
