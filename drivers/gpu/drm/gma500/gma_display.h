@@ -64,6 +64,11 @@ extern bool gma_pipe_has_type(struct drm_crtc *crtc, int type);
 extern void gma_wait_for_vblank(struct drm_device *dev);
 extern int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
+extern int gma_crtc_cursor_set(struct drm_crtc *crtc,
+			       struct drm_file *file_priv,
+			       uint32_t handle,
+			       uint32_t width, uint32_t height);
+extern int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
 extern void gma_crtc_load_lut(struct drm_crtc *crtc);
 extern void gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 			       u16 *blue, u32 start, u32 size);
