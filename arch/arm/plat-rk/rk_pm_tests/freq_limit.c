@@ -51,7 +51,6 @@ ssize_t freq_limit_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (0 == strncmp(cmd, "enable", strlen("enable"))) {
 		PM_DBG("limit enable clk(%s) min(%d) max(%d)\n", clk_name, min_rate, max_rate);
 		dvfs_clk_enable_limit(clk, min_rate, max_rate);
-		clk_set_rate(clk, min_rate);
 	
 	} else if (0 == strncmp(cmd, "disable", strlen("disable"))) {
 		PM_DBG("limit disable clk(%s)\n", clk_name);
