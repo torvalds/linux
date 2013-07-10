@@ -1,9 +1,9 @@
-#ifndef __LCD_E242868__
-#define __LCD_E242868__
+#ifndef __LCD_E242868_RK3028__
+#define __LCD_E242868_RK3028__
 /* Base */
 #define SCREEN_TYPE		SCREEN_RGB
 #define LVDS_FORMAT       	LVDS_8BIT_1
-#define OUT_FACE		OUT_P888
+#define OUT_FACE		OUT_P666
 #define DCLK			50000000
 #define LCDC_ACLK       	500000000     //29 lcdc axi DMA ÆµÂÊ
 

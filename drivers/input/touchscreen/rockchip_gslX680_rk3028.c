@@ -27,7 +27,9 @@
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/input/mt.h>
-#include "rockchip_gslX680_rk3168.h"
+
+#include "rk3028_gslX680_86v.h"
+
 
 //#define GSL_DEBUG
 //#define GSL_TIMER

@@ -69,14 +69,14 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
 *
 */          
 #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RTL8723AU) || defined(CONFIG_MT7601)
-    #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN0_PD5//RK30_PIN3_PD0            
+    #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN0_PB0            
     #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_LOW//GPIO_HIGH        
     
 #elif defined(CONFIG_BCM4329) || defined(CONFIG_BCM4319) || defined(CONFIG_RKWIFI) || defined(CONFIG_RTL8189ES)
     #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0                 
-    #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH                   
+    #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
 
-    #define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN2_PA7
+    #define RK30SDK_WIFI_GPIO_RESET_N             RK30_PIN0_PC2 // RK30_PIN2_PA7
     #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
 
 #elif defined(CONFIG_MT5931_MT6622) || defined(CONFIG_MT5931)
@@ -89,22 +89,22 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
     	//#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH
 
 	#else
-    	#define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0
+    	#define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN0_PA5
     	#define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
 
-//    	#define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN3_PD1
-//    	#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH	
+    	#define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN3_PD1
+    	#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH	
 	#endif
 
 #elif defined(CONFIG_MT6620)
     #define COMBO_MODULE_MT6620_CDT    0  // to control antsel2,antsel3 and gps_lan foot when using AcSip or Cdtech chip. 
 	                                      //- 1--use Cdtech chip; 0--unuse CDT chip
 
-    //power, PMU_EN
-    #define RK30SDK_WIFI_GPIO_POWER_N                   RK30_PIN3_PD0             
+    //power, PMU_EN//hjc test
+    #define RK30SDK_WIFI_GPIO_POWER_N                   RK30_PIN0_PB5          
     #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE        GPIO_HIGH        
     //reset, DAIRST,SYSRST_B
-    #define RK30SDK_WIFI_GPIO_RESET_N                   RK30_PIN3_PD1
+    #define RK30SDK_WIFI_GPIO_RESET_N                   RK30_PIN3_PD0
     #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE        GPIO_HIGH 
     //VDDIO
     //#define RK30SDK_WIFI_GPIO_VCCIO_WL                  RK30_PIN0_PD2 //You do not get control of the foot, and you do not need to define the macro 
@@ -116,7 +116,7 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
     #define RK30SDK_WIFI_GPIO_BGF_INT_B                 RK30_PIN0_PA5
     #define RK30SDK_WIFI_GPIO_BGF_INT_B_ENABLE_VALUE    GPIO_HIGH 
     //GPS_SYNC
-    #define RK30SDK_WIFI_GPIO_GPS_SYNC                  RK30_PIN3_PC6
+    #define RK30SDK_WIFI_GPIO_GPS_SYNC                  RK30_PIN3_PD1
     #define RK30SDK_WIFI_GPIO_GPS_SYNC_ENABLE_VALUE     GPIO_HIGH 
 
     #if COMBO_MODULE_MT6620_CDT
@@ -132,6 +132,11 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
     #endif // #if COMBO_MODULE_MT6620_CDT--#endif
 #endif 
 
+#ifndef RK30SDK_WIFI_GPIO_WIFI_INT_B
+#define RK30SDK_WIFI_GPIO_WIFI_INT_B              INVALID_GPIO
+#define RK30SDK_WIFI_GPIO_WIFI_INT_B_ENABLE_VALUE   GPIO_HIGH 
+#endif
+
 int rk31sdk_get_sdio_wifi_voltage(void)
 {
     int voltage;
@@ -145,7 +150,7 @@ int rk31sdk_get_sdio_wifi_voltage(void)
 #elif defined(CONFIG_MT5931_MT6622)||defined(CONFIG_MT5931)
     voltage = 1800 ; //power 1800V
 #elif defined(CONFIG_MT6620) 
-    voltage = 2800 ; //power 2800V
+    voltage = 1800 ; //power 2800V
 #elif defined(CONFIG_RDA5990)||defined(CONFIG_RTL8723AS)  
     voltage = 3300 ; //power 3300V
 #else

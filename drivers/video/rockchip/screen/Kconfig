@@ -176,12 +176,15 @@ config LCD_B101UANO_1920x1200
 
 config LCD_E242868_1024X600
 	bool "RK3168 86v RGB 1024*600 "
-
+config LCD_E242868_RK616_1024X600
+          bool "RK3168 RK616 86v RGB 1024*600 "
 config LCD_WY_800X480
 	bool "lcd for 760"
 
 config LCD_HH070D_LVDS
 	bool "lcd lvds for 760"
+config LCD_RK3028_86V
+        bool "RGB 1024*600 for RK3028 86V"
 config LCD_LD089WU1_MIPI
 	bool "mipi dsi lcd LD089WU1 1920X1200"
 endchoice
