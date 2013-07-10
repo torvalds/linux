@@ -247,6 +247,7 @@ struct sh_mmcif_host {
 	bool power;
 	bool card_present;
 	bool ccs_enable;		/* Command Completion Signal support */
+	bool clk_ctrl2_enable;
 	struct mutex thread_lock;
 
 	/* DMA support */
@@ -497,6 +498,8 @@ static void sh_mmcif_sync_reset(struct sh_mmcif_host *host)
 	sh_mmcif_writel(host->addr, MMCIF_CE_VERSION, SOFT_RST_OFF);
 	if (host->ccs_enable)
 		tmp |= SCCSTO_29;
+	if (host->clk_ctrl2_enable)
+		sh_mmcif_writel(host->addr, MMCIF_CE_CLK_CTRL2, 0x0F0F0000);
 	sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, tmp |
 		SRSPTO_256 | SRBSYTO_29 | SRWDTO_29);
 	/* byte swap on */
@@ -1398,6 +1401,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	host->addr	= reg;
 	host->timeout	= msecs_to_jiffies(1000);
 	host->ccs_enable = !pd || !pd->ccs_unsupported;
+	host->clk_ctrl2_enable = pd && pd->clk_ctrl2_present;
 
 	host->pd = pdev;
 
