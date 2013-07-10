@@ -443,33 +443,29 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	 */
 	spi100k->base = (void __iomem *) pdev->dev.platform_data;
 
-	spi100k->ick = clk_get(&pdev->dev, "ick");
+	spi100k->ick = devm_clk_get(&pdev->dev, "ick");
 	if (IS_ERR(spi100k->ick)) {
 		dev_dbg(&pdev->dev, "can't get spi100k_ick\n");
 		status = PTR_ERR(spi100k->ick);
-		goto err1;
+		goto err;
 	}
 
-	spi100k->fck = clk_get(&pdev->dev, "fck");
+	spi100k->fck = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(spi100k->fck)) {
 		dev_dbg(&pdev->dev, "can't get spi100k_fck\n");
 		status = PTR_ERR(spi100k->fck);
-		goto err2;
+		goto err;
 	}
 
 	status = spi_register_master(master);
 	if (status < 0)
-		goto err3;
+		goto err;
 
 	spi100k->state = SPI_RUNNING;
 
 	return status;
 
-err3:
-	clk_put(spi100k->fck);
-err2:
-	clk_put(spi100k->ick);
-err1:
+err:
 	spi_master_put(master);
 	return status;
 }
@@ -486,9 +482,6 @@ static int omap1_spi100k_remove(struct platform_device *pdev)
 
 	if (status != 0)
 		return status;
-
-	clk_put(spi100k->fck);
-	clk_put(spi100k->ick);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
