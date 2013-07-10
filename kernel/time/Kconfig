@@ -94,7 +94,7 @@ config NO_HZ_IDLE
 config NO_HZ_FULL
 	bool "Full dynticks system (tickless)"
 	# NO_HZ_COMMON dependency
-	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS && !SCHED_BFS
 	# We need at least one periodic CPU for timekeeping
 	depends on SMP
 	# RCU_USER_QS dependency
