@@ -143,6 +143,8 @@ static struct regulator_consumer_supply fixed3v3_power_consumers[] =
 /* MMCIF */
 static const struct sh_mmcif_plat_data mmcif1_pdata __initconst = {
 	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+	.clk_ctrl2_present = true,
+	.ccs_unsupported = true,
 };
 
 static const struct resource mmcif1_resources[] __initconst = {
