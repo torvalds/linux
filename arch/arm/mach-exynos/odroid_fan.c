@@ -75,7 +75,7 @@ static	ssize_t set_pwm_enable	(struct device *dev, struct device_attribute *attr
 	unsigned int	val;
 
     if(!(sscanf(buf, "%u\n", &val)))	return	-EINVAL;
-	printk("PWM_0 : %s [%d] \n",__FUNCTION__,val);
+	// printk("PWM_0 : %s [%d] \n",__FUNCTION__,val);
 
 	mutex_lock(&fan->mutex);
     if(val) {
