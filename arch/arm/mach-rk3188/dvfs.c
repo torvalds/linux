@@ -82,18 +82,26 @@ struct lkg_maxvolt {
 	int leakage_level;
 	unsigned int maxvolt;
 };
+#if 0
+/* avdd_com & vdd_arm separate circuit */
 static struct lkg_maxvolt lkg_volt_table[] = {
 	{.leakage_level = 1,	.maxvolt = 1350 * 1000},
 	{.leakage_level = 3,	.maxvolt = 1275 * 1000},
 	{.leakage_level = 15,	.maxvolt = 1200 * 1000},
 };
-
+#else
+/* avdd_com & vdd_arm short circuit */
+static struct lkg_maxvolt lkg_volt_table[] = {
+	{.leakage_level = 3,	.maxvolt = 1350 * 1000},
+	{.leakage_level = 15,	.maxvolt = 1250 * 1000},
+};
+#endif
 static int leakage_level = 0;
 #define MHZ	(1000 * 1000)
 #define KHZ	(1000)
 // Delayline bound for nandc = 148.5MHz, Varm = Vlog = 1.00V
 #define HIGH_DELAYLINE	125
-#define LOW_DELAYLINE	110
+#define LOW_DELAYLINE	125
 static u8 rk30_get_avs_val(void);
 void dvfs_adjust_table_lmtvolt(struct clk *clk, struct cpufreq_frequency_table *table)
 {
