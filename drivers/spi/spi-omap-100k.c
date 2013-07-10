@@ -472,11 +472,6 @@ static int omap1_spi100k_transfer(struct spi_device *spi, struct spi_message *m)
 	return 0;
 }
 
-static int omap1_spi100k_reset(struct omap1_spi100k *spi100k)
-{
-	return 0;
-}
-
 static int omap1_spi100k_probe(struct platform_device *pdev)
 {
 	struct spi_master       *master;
@@ -531,9 +526,6 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 		status = PTR_ERR(spi100k->fck);
 		goto err2;
 	}
-
-	if (omap1_spi100k_reset(spi100k) < 0)
-		goto err3;
 
 	status = spi_register_master(master);
 	if (status < 0)
