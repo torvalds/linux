@@ -28,6 +28,7 @@ struct clk;
 struct device;
 
 struct vsp1_platform_data;
+struct vsp1_bru;
 struct vsp1_hsit;
 struct vsp1_lif;
 struct vsp1_lut;
@@ -49,6 +50,7 @@ struct vsp1_device {
 	struct mutex lock;
 	int ref_count;
 
+	struct vsp1_bru *bru;
 	struct vsp1_hsit *hsi;
 	struct vsp1_hsit *hst;
 	struct vsp1_lif *lif;

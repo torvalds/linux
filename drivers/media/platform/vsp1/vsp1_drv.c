@@ -20,6 +20,7 @@
 #include <linux/videodev2.h>
 
 #include "vsp1.h"
+#include "vsp1_bru.h"
 #include "vsp1_hsit.h"
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
@@ -155,6 +156,14 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	/* Instantiate all the entities. */
+	vsp1->bru = vsp1_bru_create(vsp1);
+	if (IS_ERR(vsp1->bru)) {
+		ret = PTR_ERR(vsp1->bru);
+		goto done;
+	}
+
+	list_add_tail(&vsp1->bru->entity.list_dev, &vsp1->entities);
+
 	vsp1->hsi = vsp1_hsit_create(vsp1, true);
 	if (IS_ERR(vsp1->hsi)) {
 		ret = PTR_ERR(vsp1->hsi);

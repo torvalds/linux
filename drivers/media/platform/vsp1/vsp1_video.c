@@ -28,6 +28,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "vsp1.h"
+#include "vsp1_bru.h"
 #include "vsp1_entity.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
@@ -280,6 +281,9 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 	struct media_pad *pad;
 	bool uds_found = false;
 
+	input->location.left = 0;
+	input->location.top = 0;
+
 	pad = media_entity_remote_pad(&input->entity.pads[RWPF_PAD_SOURCE]);
 
 	while (1) {
@@ -291,6 +295,17 @@ static int vsp1_pipeline_validate_branch(struct vsp1_rwpf *input,
 			return -EPIPE;
 
 		entity = to_vsp1_entity(media_entity_to_v4l2_subdev(pad->entity));
+
+		/* A BRU is present in the pipeline, store the compose rectangle
+		 * location in the input RPF for use when configuring the RPF.
+		 */
+		if (entity->type == VSP1_ENTITY_BRU) {
+			struct vsp1_bru *bru = to_bru(&entity->subdev);
+			struct v4l2_rect *rect = &bru->compose[pad->index];
+
+			input->location.left = rect->left;
+			input->location.top = rect->top;
+		}
 
 		/* We've reached the WPF, we're done. */
 		if (entity->type == VSP1_ENTITY_WPF)
@@ -363,6 +378,8 @@ static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
 			rwpf->video.pipe_index = 0;
 		} else if (e->type == VSP1_ENTITY_LIF) {
 			pipe->lif = e;
+		} else if (e->type == VSP1_ENTITY_BRU) {
+			pipe->bru = e;
 		}
 	}
 
@@ -392,6 +409,7 @@ error:
 	pipe->num_video = 0;
 	pipe->num_inputs = 0;
 	pipe->output = NULL;
+	pipe->bru = NULL;
 	pipe->lif = NULL;
 	return ret;
 }
@@ -430,6 +448,7 @@ static void vsp1_pipeline_cleanup(struct vsp1_pipeline *pipe)
 		pipe->num_video = 0;
 		pipe->num_inputs = 0;
 		pipe->output = NULL;
+		pipe->bru = NULL;
 		pipe->lif = NULL;
 	}
 
