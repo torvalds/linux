@@ -1103,8 +1103,6 @@ typedef struct drm_i915_private {
 	} backlight;
 
 	/* LVDS info */
-	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
-	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 	bool no_aux_handshake;
 
 	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
