@@ -336,8 +336,21 @@
  */
 
 #define VI6_SRU_CTRL0			0x2200
+#define VI6_SRU_CTRL0_PARAM0_SHIFT	16
+#define VI6_SRU_CTRL0_PARAM1_SHIFT	8
+#define VI6_SRU_CTRL0_MODE_UPSCALE	(4 << 4)
+#define VI6_SRU_CTRL0_PARAM2		(1 << 3)
+#define VI6_SRU_CTRL0_PARAM3		(1 << 2)
+#define VI6_SRU_CTRL0_PARAM4		(1 << 1)
+#define VI6_SRU_CTRL0_EN		(1 << 0)
+
 #define VI6_SRU_CTRL1			0x2204
+#define VI6_SRU_CTRL1_PARAM5		0x7ff
+
 #define VI6_SRU_CTRL2			0x2208
+#define VI6_SRU_CTRL2_PARAM6_SHIFT	16
+#define VI6_SRU_CTRL2_PARAM7_SHIFT	8
+#define VI6_SRU_CTRL2_PARAM8_SHIFT	0
 
 /* -----------------------------------------------------------------------------
  * UDS Control Registers

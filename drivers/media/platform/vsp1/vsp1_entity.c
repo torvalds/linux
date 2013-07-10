@@ -15,6 +15,7 @@
 #include <linux/gfp.h>
 
 #include <media/media-entity.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
@@ -130,6 +131,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		{ VI6_DPR_NODE_RPF(2), VI6_DPR_RPF_ROUTE(2) },
 		{ VI6_DPR_NODE_RPF(3), VI6_DPR_RPF_ROUTE(3) },
 		{ VI6_DPR_NODE_RPF(4), VI6_DPR_RPF_ROUTE(4) },
+		{ VI6_DPR_NODE_SRU, VI6_DPR_SRU_ROUTE },
 		{ VI6_DPR_NODE_UDS(0), VI6_DPR_UDS_ROUTE(0) },
 		{ VI6_DPR_NODE_UDS(1), VI6_DPR_UDS_ROUTE(1) },
 		{ VI6_DPR_NODE_UDS(2), VI6_DPR_UDS_ROUTE(2) },
@@ -179,5 +181,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 void vsp1_entity_destroy(struct vsp1_entity *entity)
 {
+	if (entity->subdev.ctrl_handler)
+		v4l2_ctrl_handler_free(entity->subdev.ctrl_handler);
 	media_entity_cleanup(&entity->subdev.entity);
 }
