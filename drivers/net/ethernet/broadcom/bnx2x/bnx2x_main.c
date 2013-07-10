@@ -12027,7 +12027,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #endif
 
 #ifdef CONFIG_NET_LL_RX_POLL
-	.ndo_ll_poll		= bnx2x_low_latency_recv,
+	.ndo_busy_poll		= bnx2x_low_latency_recv,
 #endif
 };
 

@@ -974,7 +974,7 @@ struct net_device_ops {
 	void			(*ndo_netpoll_cleanup)(struct net_device *dev);
 #endif
 #ifdef CONFIG_NET_LL_RX_POLL
-	int			(*ndo_ll_poll)(struct napi_struct *dev);
+	int			(*ndo_busy_poll)(struct napi_struct *dev);
 #endif
 	int			(*ndo_set_vf_mac)(struct net_device *dev,
 						  int queue, u8 *mac);

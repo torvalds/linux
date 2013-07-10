@@ -1,5 +1,5 @@
 /*
- * Low Latency Sockets
+ * net busy poll support
  * Copyright(c) 2013 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
  */
 
-#ifndef _LINUX_NET_LL_POLL_H
-#define _LINUX_NET_LL_POLL_H
+#ifndef _LINUX_NET_BUSY_POLL_H
+#define _LINUX_NET_BUSY_POLL_H
 
 #include <linux/netdevice.h>
 #include <net/ip.h>
@@ -110,11 +110,11 @@ static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 		goto out;
 
 	ops = napi->dev->netdev_ops;
-	if (!ops->ndo_ll_poll)
+	if (!ops->ndo_busy_poll)
 		goto out;
 
 	do {
-		rc = ops->ndo_ll_poll(napi);
+		rc = ops->ndo_busy_poll(napi);
 
 		if (rc == LL_FLUSH_FAILED)
 			break; /* permanent failure */
@@ -134,13 +134,14 @@ out:
 }
 
 /* used in the NIC receive handler to mark the skb */
-static inline void skb_mark_ll(struct sk_buff *skb, struct napi_struct *napi)
+static inline void skb_mark_napi_id(struct sk_buff *skb,
+				    struct napi_struct *napi)
 {
 	skb->napi_id = napi->napi_id;
 }
 
 /* used in the protocol hanlder to propagate the napi_id to the socket */
-static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
+static inline void sk_mark_napi_id(struct sock *sk, struct sk_buff *skb)
 {
 	sk->sk_napi_id = skb->napi_id;
 }
@@ -166,11 +167,12 @@ static inline bool sk_busy_poll(struct sock *sk, int nonblock)
 	return false;
 }
 
-static inline void skb_mark_ll(struct sk_buff *skb, struct napi_struct *napi)
+static inline void skb_mark_napi_id(struct sk_buff *skb,
+				    struct napi_struct *napi)
 {
 }
 
-static inline void sk_mark_ll(struct sock *sk, struct sk_buff *skb)
+static inline void sk_mark_napi_id(struct sock *sk, struct sk_buff *skb)
 {
 }
 
@@ -180,4 +182,4 @@ static inline bool busy_loop_timeout(unsigned long end_time)
 }
 
 #endif /* CONFIG_NET_LL_RX_POLL */
-#endif /* _LINUX_NET_LL_POLL_H */
+#endif /* _LINUX_NET_BUSY_POLL_H */

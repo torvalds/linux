@@ -2141,7 +2141,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
 #endif
 #ifdef CONFIG_NET_LL_RX_POLL
-	.ndo_ll_poll		= mlx4_en_low_latency_recv,
+	.ndo_busy_poll		= mlx4_en_low_latency_recv,
 #endif
 };
 
