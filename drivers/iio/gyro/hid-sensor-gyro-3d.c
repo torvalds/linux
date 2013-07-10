@@ -30,10 +30,6 @@
 #include <linux/iio/triggered_buffer.h>
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
-/*Format: HID-SENSOR-usage_id_in_hex*/
-/*Usage ID from spec for Gyro-3D: 0x200076*/
-#define DRIVER_NAME "HID-SENSOR-200076"
-
 enum gyro_3d_channel {
 	CHANNEL_SCAN_INDEX_X,
 	CHANNEL_SCAN_INDEX_Y,
@@ -389,9 +385,19 @@ static int hid_gyro_3d_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_device_id hid_gyro_3d_ids[] = {
+	{
+		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
+		.name = "HID-SENSOR-200076",
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, hid_gyro_3d_ids);
+
 static struct platform_driver hid_gyro_3d_platform_driver = {
+	.id_table = hid_gyro_3d_ids,
 	.driver = {
-		.name	= DRIVER_NAME,
+		.name	= KBUILD_MODNAME,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_gyro_3d_probe,
