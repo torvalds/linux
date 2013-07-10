@@ -821,7 +821,14 @@ static void qfq_make_eligible(struct qfq_sched *q)
 	unsigned long old_vslot = q->oldV >> q->min_slot_shift;
 
 	if (vslot != old_vslot) {
-		unsigned long mask = (1ULL << fls(vslot ^ old_vslot)) - 1;
+		unsigned long mask;
+		int last_flip_pos = fls(vslot ^ old_vslot);
+
+		if (last_flip_pos > 31) /* higher than the number of groups */
+			mask = ~0UL;    /* make all groups eligible */
+		else
+			mask = (1UL << last_flip_pos) - 1;
+
 		qfq_move_groups(q, mask, IR, ER);
 		qfq_move_groups(q, mask, IB, EB);
 	}
