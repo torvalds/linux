@@ -46,6 +46,7 @@ ENTRY(shmobile_boot_scu)
 ENDPROC(shmobile_boot_scu)
 
 	.text
+	.align	2
 	.globl	shmobile_scu_base
 shmobile_scu_base:
 	.space	4
