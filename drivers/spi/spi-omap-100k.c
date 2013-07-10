@@ -83,11 +83,6 @@
 #define SPI_SHUTDOWN	1
 
 struct omap1_spi100k {
-	struct work_struct      work;
-
-	/* lock protects queue and registers */
-	spinlock_t              lock;
-	struct list_head        msg_queue;
 	struct spi_master       *master;
 	struct clk              *ick;
 	struct clk              *fck;
@@ -103,8 +98,6 @@ struct omap1_spi100k_cs {
 	void __iomem            *base;
 	int                     word_len;
 };
-
-static struct workqueue_struct *omap1_spi100k_wq;
 
 #define MOD_REG_BIT(val, mask, set) do { \
 	if (set) \
@@ -321,6 +314,16 @@ static int omap1_spi100k_setup(struct spi_device *spi)
 	return ret;
 }
 
+static int omap1_spi100k_prepare_hardware(struct spi_master *master)
+{
+	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
+
+	clk_enable(spi100k->ick);
+	clk_enable(spi100k->fck);
+
+	return 0;
+}
+
 static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 					      struct spi_message *m)
 {
@@ -383,64 +386,18 @@ static int omap1_spi100k_transfer_one_message(struct spi_master *master,
 		omap1_spi100k_force_cs(spi100k, 0);
 
 	m->status = status;
-	m->complete(m->context);
+
+	spi_finalize_current_message(master);
 
 	return status;
 }
 
-static void omap1_spi100k_work(struct work_struct *work)
+static int omap1_spi100k_unprepare_hardware(struct spi_master *master)
 {
-	struct omap1_spi100k    *spi100k;
-
-	spi100k = container_of(work, struct omap1_spi100k, work);
-	spin_lock_irq(&spi100k->lock);
-
-	clk_enable(spi100k->ick);
-	clk_enable(spi100k->fck);
-
-	/* We only enable one channel at a time -- the one whose message is
-	 * at the head of the queue -- although this controller would gladly
-	 * arbitrate among multiple channels.  This corresponds to "single
-	 * channel" master mode.  As a side effect, we need to manage the
-	 * chipselect with the FORCE bit ... CS != channel enable.
-	 */
-	 while (!list_empty(&spi100k->msg_queue)) {
-		struct spi_message              *m;
-
-		m = container_of(spi100k->msg_queue.next, struct spi_message,
-				 queue);
-
-		list_del_init(&m->queue);
-		spin_unlock_irq(&spi100k->lock);
-
-		omap1_spi100k_transfer_one_message(m->spi->master, m);
-
-		spin_lock_irq(&spi100k->lock);
-	}
+	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
 
 	clk_disable(spi100k->ick);
 	clk_disable(spi100k->fck);
-	spin_unlock_irq(&spi100k->lock);
-}
-
-static int omap1_spi100k_transfer(struct spi_device *spi, struct spi_message *m)
-{
-	struct omap1_spi100k    *spi100k;
-	unsigned long           flags;
-
-	m->actual_length = 0;
-	m->status = -EINPROGRESS;
-
-	spi100k = spi_master_get_devdata(spi->master);
-
-	/* Don't accept new work if we're shutting down */
-	if (spi100k->state == SPI_SHUTDOWN)
-		return -ESHUTDOWN;
-
-	spin_lock_irqsave(&spi100k->lock, flags);
-	list_add_tail(&m->queue, &spi100k->msg_queue);
-	queue_work(omap1_spi100k_wq, &spi100k->work);
-	spin_unlock_irqrestore(&spi100k->lock, flags);
 
 	return 0;
 }
@@ -464,7 +421,9 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	       master->bus_num = pdev->id;
 
 	master->setup = omap1_spi100k_setup;
-	master->transfer = omap1_spi100k_transfer;
+	master->transfer_one_message = omap1_spi100k_transfer_one_message;
+	master->prepare_transfer_hardware = omap1_spi100k_prepare_hardware;
+	master->unprepare_transfer_hardware = omap1_spi100k_unprepare_hardware;
 	master->cleanup = NULL;
 	master->num_chipselect = 2;
 	master->mode_bits = MODEBITS;
@@ -484,10 +443,6 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	 */
 	spi100k->base = (void __iomem *) pdev->dev.platform_data;
 
-	INIT_WORK(&spi100k->work, omap1_spi100k_work);
-
-	spin_lock_init(&spi100k->lock);
-	INIT_LIST_HEAD(&spi100k->msg_queue);
 	spi100k->ick = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(spi100k->ick)) {
 		dev_dbg(&pdev->dev, "can't get spi100k_ick\n");
@@ -524,26 +479,10 @@ static int omap1_spi100k_remove(struct platform_device *pdev)
 	struct spi_master       *master;
 	struct omap1_spi100k    *spi100k;
 	struct resource         *r;
-	unsigned		limit = 500;
-	unsigned long		flags;
 	int			status = 0;
 
 	master = platform_get_drvdata(pdev);
 	spi100k = spi_master_get_devdata(master);
-
-	spin_lock_irqsave(&spi100k->lock, flags);
-
-	spi100k->state = SPI_SHUTDOWN;
-	while (!list_empty(&spi100k->msg_queue) && limit--) {
-		spin_unlock_irqrestore(&spi100k->lock, flags);
-		msleep(10);
-		spin_lock_irqsave(&spi100k->lock, flags);
-	}
-
-	if (!list_empty(&spi100k->msg_queue))
-		status = -EBUSY;
-
-	spin_unlock_irqrestore(&spi100k->lock, flags);
 
 	if (status != 0)
 		return status;
@@ -569,20 +508,12 @@ static struct platform_driver omap1_spi100k_driver = {
 
 static int __init omap1_spi100k_init(void)
 {
-	omap1_spi100k_wq = create_singlethread_workqueue(
-			omap1_spi100k_driver.driver.name);
-
-	if (omap1_spi100k_wq == NULL)
-		return -1;
-
 	return platform_driver_probe(&omap1_spi100k_driver, omap1_spi100k_probe);
 }
 
 static void __exit omap1_spi100k_exit(void)
 {
 	platform_driver_unregister(&omap1_spi100k_driver);
-
-	destroy_workqueue(omap1_spi100k_wq);
 }
 
 module_init(omap1_spi100k_init);
