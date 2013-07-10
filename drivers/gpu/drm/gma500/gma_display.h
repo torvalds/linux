@@ -81,6 +81,10 @@ extern void gma_crtc_commit(struct drm_crtc *crtc);
 extern void gma_crtc_disable(struct drm_crtc *crtc);
 extern void gma_crtc_destroy(struct drm_crtc *crtc);
 
+extern void gma_encoder_prepare(struct drm_encoder *encoder);
+extern void gma_encoder_commit(struct drm_encoder *encoder);
+extern void gma_encoder_destroy(struct drm_encoder *encoder);
+
 /* Common clock related functions */
 extern const struct gma_limit_t *gma_limit(struct drm_crtc *crtc, int refclk);
 extern void gma_clock(int refclk, struct gma_clock_t *clock);
