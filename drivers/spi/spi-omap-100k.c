@@ -424,7 +424,6 @@ static int omap1_spi100k_transfer(struct spi_device *spi, struct spi_message *m)
 {
 	struct omap1_spi100k    *spi100k;
 	unsigned long           flags;
-	struct spi_transfer     *t;
 
 	m->actual_length = 0;
 	m->status = -EINPROGRESS;
@@ -434,35 +433,6 @@ static int omap1_spi100k_transfer(struct spi_device *spi, struct spi_message *m)
 	/* Don't accept new work if we're shutting down */
 	if (spi100k->state == SPI_SHUTDOWN)
 		return -ESHUTDOWN;
-
-	/* reject invalid messages and transfers */
-	if (list_empty(&m->transfers) || !m->complete)
-		return -EINVAL;
-
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		const void      *tx_buf = t->tx_buf;
-		void            *rx_buf = t->rx_buf;
-		unsigned        len = t->len;
-
-		if (t->speed_hz > OMAP1_SPI100K_MAX_FREQ
-				|| (len && !(rx_buf || tx_buf))) {
-			dev_dbg(&spi->dev, "transfer: %d Hz, %d %s%s, %d bpw\n",
-					t->speed_hz,
-					len,
-					tx_buf ? "tx" : "",
-					rx_buf ? "rx" : "",
-					t->bits_per_word);
-			return -EINVAL;
-		}
-
-		if (t->speed_hz && t->speed_hz < OMAP1_SPI100K_MAX_FREQ/(1<<16)) {
-			dev_dbg(&spi->dev, "%d Hz max exceeds %d\n",
-					t->speed_hz,
-					OMAP1_SPI100K_MAX_FREQ/(1<<16));
-			return -EINVAL;
-		}
-
-	}
 
 	spin_lock_irqsave(&spi100k->lock, flags);
 	list_add_tail(&m->queue, &spi100k->msg_queue);
@@ -496,6 +466,8 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	master->num_chipselect = 2;
 	master->mode_bits = MODEBITS;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
+	master->min_speed_hz = OMAP1_SPI100K_MAX_FREQ/(1<<16);
+	master->max_speed_hz = OMAP1_SPI100K_MAX_FREQ;
 
 	platform_set_drvdata(pdev, master);
 
