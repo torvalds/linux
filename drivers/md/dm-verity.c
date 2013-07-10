@@ -695,8 +695,8 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 
-	if (sscanf(argv[0], "%d%c", &num, &dummy) != 1 ||
-	    num < 0 || num > 1) {
+	if (sscanf(argv[0], "%u%c", &num, &dummy) != 1 ||
+	    num > 1) {
 		ti->error = "Invalid version";
 		r = -EINVAL;
 		goto bad;
