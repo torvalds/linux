@@ -104,25 +104,6 @@ void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe)
 	}
 }
 
-static void psb_intel_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
-static void psb_intel_crtc_commit(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
-static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 /**
  * Return the pipe currently connected to the panel fitter,
  * or -1 if the panel fitter is not present or not in use
@@ -1045,10 +1026,10 @@ mrst_crtc_mode_set_exit:
 
 const struct drm_crtc_helper_funcs mdfld_helper_funcs = {
 	.dpms = mdfld_crtc_dpms,
-	.mode_fixup = psb_intel_crtc_mode_fixup,
+	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = mdfld_crtc_mode_set,
 	.mode_set_base = mdfld__intel_pipe_set_base,
-	.prepare = psb_intel_crtc_prepare,
-	.commit = psb_intel_crtc_commit,
+	.prepare = gma_crtc_prepare,
+	.commit = gma_crtc_commit,
 };
 
