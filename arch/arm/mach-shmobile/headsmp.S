@@ -35,6 +35,7 @@ ENTRY(shmobile_boot_vector)
 
 ENDPROC(shmobile_boot_vector)
 
+	.align	2
 	.globl	shmobile_boot_fn
 shmobile_boot_fn:
 1:	.space	4
