@@ -154,7 +154,6 @@ FLOATFUNC(fsqrts);
 #define XEU	15
 #define XFLB	10
 
-#ifdef CONFIG_MATH_EMULATION
 static int
 record_exception(struct pt_regs *regs, int eflag)
 {
@@ -212,7 +211,6 @@ record_exception(struct pt_regs *regs, int eflag)
 
 	return (fpscr & FPSCR_FEX) ? 1 : 0;
 }
-#endif /* CONFIG_MATH_EMULATION */
 
 int
 do_mathemu(struct pt_regs *regs)
@@ -222,11 +220,9 @@ do_mathemu(struct pt_regs *regs)
 	signed short sdisp;
 	u32 insn = 0;
 	int idx = 0;
-#ifdef CONFIG_MATH_EMULATION
 	int (*func)(void *, void *, void *, void *);
 	int type = 0;
 	int eflag, trap;
-#endif
 
 	if (get_user(insn, (u32 *)pc))
 		return -EFAULT;
