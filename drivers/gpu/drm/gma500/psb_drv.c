@@ -459,7 +459,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 	for (i = 0; i < 256; i++)
 		psb_intel_crtc->lut_adj[i] = lut_arg->lut[i];
 
-	psb_intel_crtc_load_lut(crtc);
+	gma_crtc_load_lut(crtc);
 
 	return 0;
 }

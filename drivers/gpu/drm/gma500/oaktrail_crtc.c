@@ -212,7 +212,7 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 			REG_WRITE(map->base, REG_READ(map->base));
 		}
 
-		psb_intel_crtc_load_lut(crtc);
+		gma_crtc_load_lut(crtc);
 
 		/* Give the overlay scaler a chance to enable
 		   if it's on this pipe */
