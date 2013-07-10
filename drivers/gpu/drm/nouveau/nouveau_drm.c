@@ -675,7 +675,7 @@ nouveau_driver_fops = {
 static struct drm_driver
 driver = {
 	.driver_features =
-		DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
+		DRIVER_USE_AGP |
 		DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME,
 
 	.load = nouveau_drm_load,
