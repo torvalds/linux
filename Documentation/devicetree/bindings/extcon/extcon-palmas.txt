@@ -6,6 +6,8 @@ Required Properties:
 
 Optional Properties:
  - ti,wakeup : To enable the wakeup comparator in probe
+ - ti,enable-id-detection: Perform ID detection.
+ - ti,enable-vbus-detection: Perform VBUS detection.
 
 palmas-usb {
        compatible = "ti,twl6035-usb", "ti,palmas-usb";

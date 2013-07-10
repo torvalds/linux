@@ -122,11 +122,14 @@ static void palmas_enable_irq(struct palmas_usb *palmas_usb)
 		PALMAS_USB_ID_INT_EN_HI_SET_ID_GND |
 		PALMAS_USB_ID_INT_EN_HI_SET_ID_FLOAT);
 
-	palmas_vbus_irq_handler(palmas_usb->vbus_irq, palmas_usb);
+	if (palmas_usb->enable_vbus_detection)
+		palmas_vbus_irq_handler(palmas_usb->vbus_irq, palmas_usb);
 
 	/* cold plug for host mode needs this delay */
-	msleep(30);
-	palmas_id_irq_handler(palmas_usb->id_irq, palmas_usb);
+	if (palmas_usb->enable_id_detection) {
+		msleep(30);
+		palmas_id_irq_handler(palmas_usb->id_irq, palmas_usb);
+	}
 }
 
 static int palmas_usb_probe(struct platform_device *pdev)
@@ -137,20 +140,24 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	struct palmas_usb *palmas_usb;
 	int status;
 
-	if (node && !pdata) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-
-		if (!pdata)
-			return -ENOMEM;
-
-		pdata->wakeup = of_property_read_bool(node, "ti,wakeup");
-	} else if (!pdata) {
-		return -EINVAL;
-	}
-
 	palmas_usb = devm_kzalloc(&pdev->dev, sizeof(*palmas_usb), GFP_KERNEL);
 	if (!palmas_usb)
 		return -ENOMEM;
+
+	if (node && !pdata) {
+		palmas_usb->wakeup = of_property_read_bool(node, "ti,wakeup");
+		palmas_usb->enable_id_detection = of_property_read_bool(node,
+						"ti,enable-id-detection");
+		palmas_usb->enable_vbus_detection = of_property_read_bool(node,
+						"ti,enable-vbus-detection");
+	} else {
+		palmas_usb->wakeup = true;
+		palmas_usb->enable_id_detection = true;
+		palmas_usb->enable_vbus_detection = true;
+
+		if (pdata)
+			palmas_usb->wakeup = pdata->wakeup;
+	}
 
 	palmas->usb = palmas_usb;
 	palmas_usb->palmas = palmas;
@@ -166,7 +173,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	palmas_usb->vbus_irq = regmap_irq_get_virq(palmas->irq_data,
 						PALMAS_VBUS_IRQ);
 
-	palmas_usb_wakeup(palmas, pdata->wakeup);
+	palmas_usb_wakeup(palmas, palmas_usb->wakeup);
 
 	platform_set_drvdata(pdev, palmas_usb);
 
@@ -179,26 +186,32 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		return status;
 	}
 
-	status = devm_request_threaded_irq(palmas_usb->dev, palmas_usb->id_irq,
-			NULL, palmas_id_irq_handler,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
-			IRQF_ONESHOT | IRQF_EARLY_RESUME,
-			"palmas_usb_id", palmas_usb);
-	if (status < 0) {
-		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
+	if (palmas_usb->enable_id_detection) {
+		status = devm_request_threaded_irq(palmas_usb->dev,
+				palmas_usb->id_irq,
+				NULL, palmas_id_irq_handler,
+				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				"palmas_usb_id", palmas_usb);
+		if (status < 0) {
+			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->id_irq, status);
-		goto fail_extcon;
+			goto fail_extcon;
+		}
 	}
 
-	status = devm_request_threaded_irq(palmas_usb->dev,
-			palmas_usb->vbus_irq, NULL, palmas_vbus_irq_handler,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
-			IRQF_ONESHOT | IRQF_EARLY_RESUME,
-			"palmas_usb_vbus", palmas_usb);
-	if (status < 0) {
-		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
+	if (palmas_usb->enable_vbus_detection) {
+		status = devm_request_threaded_irq(palmas_usb->dev,
+				palmas_usb->vbus_irq, NULL,
+				palmas_vbus_irq_handler,
+				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				"palmas_usb_vbus", palmas_usb);
+		if (status < 0) {
+			dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 					palmas_usb->vbus_irq, status);
-		goto fail_extcon;
+			goto fail_extcon;
+		}
 	}
 
 	palmas_enable_irq(palmas_usb);
@@ -226,8 +239,10 @@ static int palmas_usb_suspend(struct device *dev)
 	struct palmas_usb *palmas_usb = dev_get_drvdata(dev);
 
 	if (device_may_wakeup(dev)) {
-		enable_irq_wake(palmas_usb->vbus_irq);
-		enable_irq_wake(palmas_usb->id_irq);
+		if (palmas_usb->enable_vbus_detection)
+			enable_irq_wake(palmas_usb->vbus_irq);
+		if (palmas_usb->enable_id_detection)
+			enable_irq_wake(palmas_usb->id_irq);
 	}
 	return 0;
 }
@@ -237,8 +252,10 @@ static int palmas_usb_resume(struct device *dev)
 	struct palmas_usb *palmas_usb = dev_get_drvdata(dev);
 
 	if (device_may_wakeup(dev)) {
-		disable_irq_wake(palmas_usb->vbus_irq);
-		disable_irq_wake(palmas_usb->id_irq);
+		if (palmas_usb->enable_vbus_detection)
+			disable_irq_wake(palmas_usb->vbus_irq);
+		if (palmas_usb->enable_id_detection)
+			disable_irq_wake(palmas_usb->id_irq);
 	}
 	return 0;
 };
