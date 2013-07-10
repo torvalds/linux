@@ -147,7 +147,7 @@ static int __init pasic3_probe(struct platform_device *pdev)
 	if (!request_mem_region(r->start, resource_size(r), "pasic3"))
 		return -EBUSY;
 
-	asic = kzalloc(sizeof(struct pasic3_data), GFP_KERNEL);
+	asic = devm_kzalloc(dev, sizeof(struct pasic3_data), GFP_KERNEL);
 	if (!asic)
 		return -ENOMEM;
 
@@ -156,7 +156,6 @@ static int __init pasic3_probe(struct platform_device *pdev)
 	asic->mapping = ioremap(r->start, resource_size(r));
 	if (!asic->mapping) {
 		dev_err(dev, "couldn't ioremap PASIC3\n");
-		kfree(asic);
 		return -ENOMEM;
 	}
 
@@ -195,7 +194,6 @@ static int pasic3_remove(struct platform_device *pdev)
 	iounmap(asic->mapping);
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(r->start, resource_size(r));
-	kfree(asic);
 	return 0;
 }
 

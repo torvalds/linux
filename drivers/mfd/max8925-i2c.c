@@ -170,7 +170,8 @@ static int max8925_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	chip = kzalloc(sizeof(struct max8925_chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev,
+			    sizeof(struct max8925_chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->i2c = client;
@@ -199,7 +200,6 @@ static int max8925_remove(struct i2c_client *client)
 	max8925_device_exit(chip);
 	i2c_unregister_device(chip->adc);
 	i2c_unregister_device(chip->rtc);
-	kfree(chip);
 	return 0;
 }
 

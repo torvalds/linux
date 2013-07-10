@@ -2757,7 +2757,7 @@ static ssize_t show_irq(struct device *dev,
 	unsigned int irq_index;
 	int err;
 
-	err = strict_strtoul(attr->attr.name, 0, &name);
+	err = kstrtoul(attr->attr.name, 0, &name);
 	if (err)
 		return err;
 
@@ -2937,7 +2937,6 @@ static struct dentry *ab8500_gpadc_dir;
 static int ab8500_debug_probe(struct platform_device *plf)
 {
 	struct dentry *file;
-	int ret = -ENOMEM;
 	struct ab8500 *ab8500;
 	struct resource *res;
 	debug_bank = AB8500_MISC;
@@ -2946,24 +2945,26 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	ab8500 = dev_get_drvdata(plf->dev.parent);
 	num_irqs = ab8500->mask_size;
 
-	irq_count = kzalloc(sizeof(*irq_count)*num_irqs, GFP_KERNEL);
+	irq_count = devm_kzalloc(&plf->dev,
+				 sizeof(*irq_count)*num_irqs, GFP_KERNEL);
 	if (!irq_count)
 		return -ENOMEM;
 
-	dev_attr = kzalloc(sizeof(*dev_attr)*num_irqs,GFP_KERNEL);
+	dev_attr = devm_kzalloc(&plf->dev,
+				sizeof(*dev_attr)*num_irqs,GFP_KERNEL);
 	if (!dev_attr)
-		goto out_freeirq_count;
+		return -ENOMEM;
 
-	event_name = kzalloc(sizeof(*event_name)*num_irqs, GFP_KERNEL);
+	event_name = devm_kzalloc(&plf->dev,
+				  sizeof(*event_name)*num_irqs, GFP_KERNEL);
 	if (!event_name)
-		goto out_freedev_attr;
+		return -ENOMEM;
 
 	res = platform_get_resource_byname(plf, 0, "IRQ_AB8500");
 	if (!res) {
 		dev_err(&plf->dev, "AB8500 irq not found, err %d\n",
 			irq_first);
-		ret = -ENXIO;
-		goto out_freeevent_name;
+		return ENXIO;
 	}
 	irq_ab8500 = res->start;
 
@@ -2971,16 +2972,14 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	if (irq_first < 0) {
 		dev_err(&plf->dev, "First irq not found, err %d\n",
 			irq_first);
-		ret = irq_first;
-		goto out_freeevent_name;
+		return irq_first;
 	}
 
 	irq_last = platform_get_irq_byname(plf, "IRQ_LAST");
 	if (irq_last < 0) {
 		dev_err(&plf->dev, "Last irq not found, err %d\n",
 			irq_last);
-		ret = irq_last;
-		goto out_freeevent_name;
+		return irq_last;
 	}
 
 	ab8500_dir = debugfs_create_dir(AB8500_NAME_STRING, NULL);
@@ -3189,22 +3188,13 @@ err:
 	if (ab8500_dir)
 		debugfs_remove_recursive(ab8500_dir);
 	dev_err(&plf->dev, "failed to create debugfs entries.\n");
-out_freeevent_name:
-	kfree(event_name);
-out_freedev_attr:
-	kfree(dev_attr);
-out_freeirq_count:
-	kfree(irq_count);
 
-	return ret;
+	return -ENOMEM;
 }
 
 static int ab8500_debug_remove(struct platform_device *plf)
 {
 	debugfs_remove_recursive(ab8500_dir);
-	kfree(event_name);
-	kfree(dev_attr);
-	kfree(irq_count);
 
 	return 0;
 }
