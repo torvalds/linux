@@ -27,12 +27,12 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <mach/clock.h>
-#include <plat/sys_config.h>
-
-#include <mach/hardware.h>
 #include <asm/dma.h>
-#include <plat/dma.h>
+#include <mach/clock.h>
+#include <mach/hardware.h>
+#include <plat/system.h>
+#include <plat/sys_config.h>
+#include <plat/dma_compat.h>
 
 #include "sun4i-hdmipcm.h"
 #include "sun4i-hdmiaudio.h"
@@ -40,26 +40,20 @@
 //save the register value
 static int regsave[8];
 
-static struct sw_dma_client sun4i_dma_client_out = {
-	.name = "HDMIAUDIO PCM Stereo out"
-};
-
-static struct sw_dma_client sun4i_dma_client_in = {
-	.name = "HDMIAUDIO PCM Stereo in"
-};
-
-static struct sun4i_dma_params sun4i_hdmiaudio_pcm_stereo_out = {
-	.client		=	&sun4i_dma_client_out,
+static struct sunxi_dma_params sun4i_hdmiaudio_pcm_stereo_out = {
+	.client.name	=	"HDMIAUDIO PCM Stereo out",
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_HDMIAUDIO,
+#endif
 	.dma_addr 	=	0,
-	.dma_size 	=   4,               /* dma transfer 32bits */
 };
 
-static struct sun4i_dma_params sun4i_hdmiaudio_pcm_stereo_in = {
-	.client		=	&sun4i_dma_client_in,
+static struct sunxi_dma_params sun4i_hdmiaudio_pcm_stereo_in = {
+	.client.name	=	"HDMIAUDIO PCM Stereo in",
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_HDMIAUDIO,
+#endif
 	.dma_addr 	=	SUN4I_HDMIAUDIOBASE + SUN4I_HDMIAUDIORXFIFO,
-	.dma_size 	=   4,               /* dma transfer 32bits */
 };
 
 struct sun4i_hdmiaudio_info sun4i_hdmiaudio;
@@ -332,7 +326,7 @@ static int sun4i_hdmiaudio_hw_params(struct snd_pcm_substream *substream,
 																struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct sun4i_dma_params *dma_data;
+	struct sunxi_dma_params *dma_data;
 
 	/* play or record */
 	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -350,8 +344,8 @@ static int sun4i_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 {
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct sun4i_dma_params *dma_data =
-					snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	struct sunxi_dma_params *dma_data =
+			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
@@ -362,8 +356,8 @@ static int sun4i_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 			} else {
 				sun4i_snd_txctrl_hdmiaudio(substream, 1);
 			}
-		sw_dma_ctrl(dma_data->channel, SW_DMAOP_STARTED);
-		break;
+			sunxi_dma_started(dma_data);
+			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:

@@ -32,33 +32,27 @@
 
 #include <mach/hardware.h>
 #include <asm/dma.h>
-#include <plat/dma.h>
+#include <plat/dma_compat.h>
 
 #include "sun4i_spdma.h"
 #include "sun4i_spdif.h"
 
 static int regsave[6];
 
-static struct sw_dma_client sun4i_dma_client_out = {
-	.name = "SPDIF out"
-};
-
-static struct sw_dma_client sun4i_dma_client_in = {
-	.name = "SPDIF in"
-};
-
-static struct sun4i_dma_params sun4i_spdif_stereo_out = {
-	.client		=	&sun4i_dma_client_out,
+static struct sunxi_dma_params sun4i_spdif_stereo_out = {
+	.client.name	=	"SPDIF out",
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_NSPDIF,
+#endif
 	.dma_addr 	=	SUN4I_SPDIFBASE + SUN4I_SPDIF_TXFIFO,
-	.dma_size 	=   4,               /* dma transfer 32bits */
 };
 
-static struct sun4i_dma_params sun4i_spdif_stereo_in = {
-	.client		=	&sun4i_dma_client_in,
+static struct sunxi_dma_params sun4i_spdif_stereo_in = {
+	.client.name	=	"SPDIF out",
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	=	DMACH_NSPDIF,
+#endif
 	.dma_addr 	=	SUN4I_SPDIFBASE + SUN4I_SPDIF_RXFIFO,
-	.dma_size 	=   4,               /* dma transfer 32bits */
 };
 
 struct sun4i_spdif_info sun4i_spdif;
@@ -188,7 +182,7 @@ static int sun4i_spdif_hw_params(struct snd_pcm_substream *substream,
 																struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct sun4i_dma_params *dma_data;
+	struct sunxi_dma_params *dma_data;
 
 	/* play or record */
 	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -206,7 +200,7 @@ static int sun4i_spdif_trigger(struct snd_pcm_substream *substream,
 {
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct sun4i_dma_params *dma_data =
+	struct sunxi_dma_params *dma_data =
 					snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	switch (cmd) {
@@ -218,7 +212,7 @@ static int sun4i_spdif_trigger(struct snd_pcm_substream *substream,
 			} else {
 				sun4i_snd_txctrl(substream, 1);
 			}
-			sw_dma_ctrl(dma_data->channel, SW_DMAOP_STARTED);
+			sunxi_dma_started(dma_data);
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:

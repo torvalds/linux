@@ -18,13 +18,6 @@
 #define ST_RUNNING    (1<<0)
 #define ST_OPENED     (1<<1)
 
-struct sun4i_dma_params {
-	struct sw_dma_client *client;	/* stream identifier */
-	unsigned int channel;				/* Channel ID */
-	dma_addr_t dma_addr;
-	int dma_size;			/* Size of the DMA transfer */
-};
-
 #define SUN4I_DAI_SPDIF			1
 
 enum sun4idma_buffresult {
@@ -32,8 +25,5 @@ enum sun4idma_buffresult {
 	SUN4I_RES_ERR,
 	SUN4I_RES_ABORT
 };
-/* platform data */
-extern int sw_dma_enqueue(unsigned int channel, void *id,
-			dma_addr_t data, int size);
 
 #endif

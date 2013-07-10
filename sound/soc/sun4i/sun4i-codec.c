@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <asm/io.h>
-#include <plat/dma.h>
+#include <plat/dma_compat.h>
 #ifdef CONFIG_PM
 #include <linux/pm.h>
 #endif
@@ -53,27 +53,20 @@ typedef struct codec_board_info {
 	spinlock_t	lock;
 } codec_board_info_t;
 
-/* ID for this card */
-static struct sw_dma_client sun4i_codec_dma_client_play = {
-	.name		= "CODEC PCM Stereo PLAY"
-};
-
-static struct sw_dma_client sun4i_codec_dma_client_capture = {
-	.name		= "CODEC PCM Stereo CAPTURE"
-};
-
-static struct sun4i_pcm_dma_params sun4i_codec_pcm_stereo_play = {
-	.client		= &sun4i_codec_dma_client_play,
+static struct sunxi_dma_params sun4i_codec_pcm_stereo_play = {
+	.client.name	= "CODEC PCM Stereo PLAY",
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	= DMACH_NADDA_PLAY,
+#endif
 	.dma_addr	= CODEC_BASSADDRESS + SUN4I_DAC_TXDATA,//发送数据地址
-	.dma_size	= 4,
 };
 
-static struct sun4i_pcm_dma_params sun4i_codec_pcm_stereo_capture = {
-	.client		= &sun4i_codec_dma_client_capture,
+static struct sunxi_dma_params sun4i_codec_pcm_stereo_capture = {
+	.client.name	= "CODEC PCM Stereo CAPTURE",
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	.channel	= DMACH_NADDA_CAPTURE,  //only support half full
+#endif	
 	.dma_addr	= CODEC_BASSADDRESS + SUN4I_ADC_RXDATA,//接收数据地址
-	.dma_size	= 4,
 };
 
 struct sun4i_playback_runtime_data {
@@ -85,7 +78,7 @@ struct sun4i_playback_runtime_data {
 	dma_addr_t   dma_start;
 	dma_addr_t   dma_pos;
 	dma_addr_t	 dma_end;
-	struct sun4i_pcm_dma_params	*params;
+	struct sunxi_dma_params	*params;
 };
 
 struct sun4i_capture_runtime_data {
@@ -97,7 +90,7 @@ struct sun4i_capture_runtime_data {
 	dma_addr_t   dma_start;
 	dma_addr_t   dma_pos;
 	dma_addr_t	 dma_end;
-	struct sun4i_pcm_dma_params	*params;
+	struct sunxi_dma_params	*params;
 };
 
 /*播放设备硬件定义*/
@@ -588,7 +581,8 @@ static void sun4i_pcm_enqueue(struct snd_pcm_substream *substream)
 			if((play_pos + play_len) > play_prtd->dma_end){
 				play_len  = play_prtd->dma_end - play_pos;
 			}
-			play_ret = sw_dma_enqueue(play_prtd->params->channel, substream, __bus_to_virt(play_pos), play_len);
+			play_ret = sunxi_dma_enqueue(play_prtd->params,
+						     play_pos, play_len, 0);
 			if(play_ret == 0){
 				play_prtd->dma_loaded++;
 				play_pos += play_prtd->dma_period;
@@ -608,7 +602,8 @@ static void sun4i_pcm_enqueue(struct snd_pcm_substream *substream)
 			if((capture_pos + capture_len) > capture_prtd->dma_end){
 				capture_len  = capture_prtd->dma_end - capture_pos;
 			}
-			capture_ret = sw_dma_enqueue(capture_prtd->params->channel, substream, __bus_to_virt(capture_pos), capture_len);
+			capture_ret = sunxi_dma_enqueue(capture_prtd->params,
+						  capture_pos, capture_len, 1);
 			if(capture_ret == 0){
 			capture_prtd->dma_loaded++;
 			capture_pos += capture_prtd->dma_period;
@@ -622,15 +617,11 @@ static void sun4i_pcm_enqueue(struct snd_pcm_substream *substream)
 	}
 }
 
-static void sun4i_audio_capture_buffdone(struct sw_dma_chan *channel,
-		                                  void *dev_id, int size,
-		                                  enum sw_dma_buffresult result)
+static void sun4i_audio_capture_buffdone(struct sunxi_dma_params *dma,
+	void *dev_id)
 {
 	struct sun4i_capture_runtime_data *capture_prtd;
 	struct snd_pcm_substream *substream = dev_id;
-
-	if (result == SW_RES_ABORT || result == SW_RES_ERR)
-		return;
 
 	capture_prtd = substream->runtime->private_data;
 		if (substream){
@@ -645,15 +636,11 @@ static void sun4i_audio_capture_buffdone(struct sw_dma_chan *channel,
 	spin_unlock(&capture_prtd->lock);
 }
 
-static void sun4i_audio_play_buffdone(struct sw_dma_chan *channel,
-		                                  void *dev_id, int size,
-		                                  enum sw_dma_buffresult result)
+static void sun4i_audio_play_buffdone(struct sunxi_dma_params *dma,
+	void *dev_id)
 {
 	struct sun4i_playback_runtime_data *play_prtd;
 	struct snd_pcm_substream *substream = dev_id;
-
-	if (result == SW_RES_ABORT || result == SW_RES_ERR)
-		return;
 
 	play_prtd = substream->runtime->private_data;
 	if (substream){
@@ -676,7 +663,8 @@ static snd_pcm_uframes_t snd_sun4i_codec_pointer(struct snd_pcm_substream *subst
     if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
     	play_prtd = substream->runtime->private_data;
    		spin_lock(&play_prtd->lock);
-		sw_dma_getcurposition(DMACH_NADDA_PLAY, (dma_addr_t*)&play_dmasrc, (dma_addr_t*)&play_dmadst);
+   		sunxi_dma_getcurposition(play_prtd->params,
+   			(dma_addr_t*)&play_dmasrc, (dma_addr_t*)&play_dmadst);
 		play_res = play_dmasrc + play_prtd->dma_period - play_prtd->dma_start;
 		spin_unlock(&play_prtd->lock);
 		if (play_res >= snd_pcm_lib_buffer_bytes(substream)) {
@@ -687,7 +675,8 @@ static snd_pcm_uframes_t snd_sun4i_codec_pointer(struct snd_pcm_substream *subst
     }else{
     	capture_prtd = substream->runtime->private_data;
     	spin_lock(&capture_prtd->lock);
-    	sw_dma_getcurposition(DMACH_NADDA_CAPTURE, (dma_addr_t*)&capture_dmasrc, (dma_addr_t*)&capture_dmadst);
+		sunxi_dma_getcurposition(capture_prtd->params,
+		   (dma_addr_t*)&capture_dmasrc, (dma_addr_t*)&capture_dmadst);
     	capture_res = capture_dmadst + capture_prtd->dma_period - capture_prtd->dma_start;
     	spin_unlock(&capture_prtd->lock);
     	if (capture_res >= snd_pcm_lib_buffer_bytes(substream)) {
@@ -712,12 +701,19 @@ static int sun4i_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct
 		snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 		if(play_prtd->params == NULL){
 			play_prtd->params = &sun4i_codec_pcm_stereo_play;
-			play_ret = sw_dma_request(play_prtd->params->channel, play_prtd->params->client, NULL);
+			play_ret = sunxi_dma_request(play_prtd->params, 0);
 			if(play_ret < 0){
 				printk(KERN_ERR "failed to get dma channel. ret == %d\n", play_ret);
 				return play_ret;
 			}
-			sw_dma_set_buffdone_fn(play_prtd->params->channel, sun4i_audio_play_buffdone);
+			play_ret = sunxi_dma_set_callback(play_prtd->params,
+					sun4i_audio_play_buffdone, substream);
+			if (play_ret < 0){
+				printk(KERN_ERR "failed to set dma callback. ret == %d\n", play_ret);
+				sunxi_dma_release(play_prtd->params);
+				play_prtd->params = NULL;
+				return play_ret;
+			}
 			snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 			play_runtime->dma_bytes = play_totbytes;
    			spin_lock_irq(&play_prtd->lock);
@@ -739,13 +735,19 @@ static int sun4i_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct
 		snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 		if(capture_prtd->params == NULL){
 			capture_prtd->params = &sun4i_codec_pcm_stereo_capture;
-			capture_ret = sw_dma_request(capture_prtd->params->channel, capture_prtd->params->client, NULL);
-
+			capture_ret = sunxi_dma_request(capture_prtd->params, 0);
 			if(capture_ret < 0){
 				printk(KERN_ERR "failed to get dma channel. capture_ret == %d\n", capture_ret);
 				return capture_ret;
 			}
-			sw_dma_set_buffdone_fn(capture_prtd->params->channel, sun4i_audio_capture_buffdone);
+			capture_ret = sunxi_dma_set_callback(capture_prtd->params,
+					sun4i_audio_capture_buffdone, substream);
+			if (capture_ret < 0){
+				printk(KERN_ERR "failed to set dma callback. capture_ret == %d\n", capture_ret);
+				sunxi_dma_release(capture_prtd->params);
+				capture_prtd->params = NULL;
+				return capture_ret;
+			}
 			snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 			capture_runtime->dma_bytes = capture_totbytes;
 			spin_lock_irq(&capture_prtd->lock);
@@ -770,24 +772,25 @@ static int snd_sun4i_codec_hw_free(struct snd_pcm_substream *substream)
 {
 	struct sun4i_playback_runtime_data *play_prtd = NULL;
 	struct sun4i_capture_runtime_data *capture_prtd = NULL;
+
    	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
  		play_prtd = substream->runtime->private_data;
- 		/* TODO - do we need to ensure DMA flushed */
 		if(play_prtd->params)
-	  	sw_dma_ctrl(play_prtd->params->channel, SW_DMAOP_FLUSH);
+			sunxi_dma_flush(play_prtd->params);
 		snd_pcm_set_runtime_buffer(substream, NULL);
 		if (play_prtd->params) {
-			sw_dma_free(play_prtd->params->channel, play_prtd->params->client);
+			sunxi_dma_stop(play_prtd->params);
+			sunxi_dma_release(play_prtd->params);
 			play_prtd->params = NULL;
 		}
    	}else{
 		capture_prtd = substream->runtime->private_data;
-   		/* TODO - do we need to ensure DMA flushed */
 		if(capture_prtd->params)
-	  	sw_dma_ctrl(capture_prtd->params->channel, SW_DMAOP_FLUSH);
+			sunxi_dma_flush(capture_prtd->params);
 		snd_pcm_set_runtime_buffer(substream, NULL);
 		if (capture_prtd->params) {
-			sw_dma_free(capture_prtd->params->channel, capture_prtd->params->client);
+			sunxi_dma_stop(capture_prtd->params);
+			sunxi_dma_release(capture_prtd->params);
 			capture_prtd->params = NULL;
 		}
    	}
@@ -796,8 +799,13 @@ static int snd_sun4i_codec_hw_free(struct snd_pcm_substream *substream)
 
 static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 {
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	struct dma_hw_conf codec_play_dma_conf;
 	struct dma_hw_conf codec_capture_dma_conf;
+#else
+	dma_config_t codec_play_dma_conf;
+	dma_config_t codec_capture_dma_conf;
+#endif
 	int play_ret = 0, capture_ret = 0;
 	unsigned int reg_val;
 	struct sun4i_playback_runtime_data *play_prtd = NULL;
@@ -1031,6 +1039,7 @@ static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 		return 0;
    	 	//open the dac channel register
 		codec_play_open(substream);
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	  	codec_play_dma_conf.drqsrc_type  = D_DRQSRC_SDRAM;
 		codec_play_dma_conf.drqdst_type  = DRQ_TYPE_AUDIO;
 		codec_play_dma_conf.xfer_type    = DMAXFER_D_BHALF_S_BHALF;
@@ -1040,11 +1049,25 @@ static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 		codec_play_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
 		codec_play_dma_conf.from         = play_prtd->dma_start;
 		codec_play_dma_conf.to           = play_prtd->params->dma_addr;
-	  	play_ret = sw_dma_config(play_prtd->params->channel, &codec_play_dma_conf);
+#else
+		memset(&codec_play_dma_conf, 0, sizeof(codec_play_dma_conf));
+		codec_play_dma_conf.xfer_type.src_data_width	= DATA_WIDTH_16BIT;
+		codec_play_dma_conf.xfer_type.src_bst_len	= DATA_BRST_4;
+		codec_play_dma_conf.xfer_type.dst_data_width	= DATA_WIDTH_16BIT;
+		codec_play_dma_conf.xfer_type.dst_bst_len	= DATA_BRST_4;
+		codec_play_dma_conf.address_type.src_addr_mode 	= NDMA_ADDR_INCREMENT;
+		codec_play_dma_conf.address_type.dst_addr_mode 	= NDMA_ADDR_NOCHANGE;
+		codec_play_dma_conf.src_drq_type		= N_SRC_SDRAM;
+		codec_play_dma_conf.dst_drq_type		= N_DST_AUDIO_CODEC_DA;
+		codec_play_dma_conf.bconti_mode			= false;
+		codec_play_dma_conf.irq_spt			= CHAN_IRQ_FD;
+#endif
+		play_ret = sunxi_dma_config(play_prtd->params,
+	  					&codec_play_dma_conf, 0);
 	  	/* flush the DMA channel */
-		sw_dma_ctrl(play_prtd->params->channel, SW_DMAOP_FLUSH);
 		play_prtd->dma_loaded = 0;
-		play_prtd->dma_pos = play_prtd->dma_start;
+		if (sunxi_dma_flush(play_prtd->params) == 0)
+			play_prtd->dma_pos = play_prtd->dma_start;
 		/* enqueue dma buffers */
 		sun4i_pcm_enqueue(substream);
 		return play_ret;
@@ -1057,6 +1080,7 @@ static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 	   	//open the adc channel register
 	   	codec_capture_open();
 	   	//set the dma
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	   	codec_capture_dma_conf.drqsrc_type  = DRQ_TYPE_AUDIO;
 		codec_capture_dma_conf.drqdst_type  = D_DRQSRC_SDRAM;
 		codec_capture_dma_conf.xfer_type    = DMAXFER_D_BHALF_S_BHALF;
@@ -1066,11 +1090,25 @@ static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 		codec_capture_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
 		codec_capture_dma_conf.from         = capture_prtd->params->dma_addr;
 		codec_capture_dma_conf.to           = capture_prtd->dma_start;
-	  	capture_ret = sw_dma_config(capture_prtd->params->channel, &codec_capture_dma_conf);
+#else
+	   	memset(&codec_capture_dma_conf, 0, sizeof(codec_capture_dma_conf));
+		codec_capture_dma_conf.xfer_type.src_data_width = DATA_WIDTH_16BIT;
+		codec_capture_dma_conf.xfer_type.src_bst_len 	= DATA_BRST_4;
+		codec_capture_dma_conf.xfer_type.dst_data_width = DATA_WIDTH_16BIT;
+		codec_capture_dma_conf.xfer_type.dst_bst_len 	= DATA_BRST_4;
+		codec_capture_dma_conf.address_type.src_addr_mode = NDMA_ADDR_NOCHANGE;
+		codec_capture_dma_conf.address_type.dst_addr_mode = NDMA_ADDR_INCREMENT;
+		codec_capture_dma_conf.src_drq_type 		= N_SRC_AUDIO_CODEC_AD;
+		codec_capture_dma_conf.dst_drq_type 		= N_DST_SDRAM;
+		codec_capture_dma_conf.bconti_mode 		= false;
+		codec_capture_dma_conf.irq_spt 			= CHAN_IRQ_FD;
+#endif
+	  	capture_ret = sunxi_dma_config(capture_prtd->params,
+	  					&codec_capture_dma_conf, 0);
 	  	/* flush the DMA channel */
-		sw_dma_ctrl(capture_prtd->params->channel, SW_DMAOP_FLUSH);
 		capture_prtd->dma_loaded = 0;
-		capture_prtd->dma_pos = capture_prtd->dma_start;
+		if (sunxi_dma_flush(capture_prtd->params) == 0)
+			capture_prtd->dma_pos = capture_prtd->dma_start;
 
 		/* enqueue dma buffers */
 		sun4i_pcm_enqueue(substream);
@@ -1092,7 +1130,7 @@ static int snd_sun4i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 				play_prtd->state |= ST_RUNNING;
 				codec_play_start();
-				sw_dma_ctrl(play_prtd->params->channel, SW_DMAOP_START);
+				sunxi_dma_start(play_prtd->params);
 				if(substream->runtime->rate >=192000){
 				}else if(substream->runtime->rate > 22050){
 					mdelay(2);
@@ -1108,12 +1146,11 @@ static int snd_sun4i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			case SNDRV_PCM_TRIGGER_STOP:
 				play_prtd->state &= ~ST_RUNNING;
 				codec_play_stop();
-				sw_dma_ctrl(play_prtd->params->channel, SW_DMAOP_STOP);
-
+				sunxi_dma_stop(play_prtd->params);
 				break;
 			case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 				play_prtd->state &= ~ST_RUNNING;
-				sw_dma_ctrl(play_prtd->params->channel, SW_DMAOP_STOP);
+				sunxi_dma_stop(play_prtd->params);
 				break;
 			default:
 				printk("error:%s,%d\n", __func__, __LINE__);
@@ -1132,7 +1169,7 @@ static int snd_sun4i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			codec_capture_start();
 			mdelay(1);
 			codec_wr_control(SUN4I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
-			sw_dma_ctrl(capture_prtd->params->channel, SW_DMAOP_START);
+			sunxi_dma_start(capture_prtd->params);
 			break;
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 			codec_capture_stop();
@@ -1140,11 +1177,11 @@ static int snd_sun4i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 		case SNDRV_PCM_TRIGGER_STOP:
 			capture_prtd->state &= ~ST_RUNNING;
 			codec_capture_stop();
-			sw_dma_ctrl(capture_prtd->params->channel, SW_DMAOP_STOP);
+			sunxi_dma_stop(capture_prtd->params);
 			break;
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 			capture_prtd->state &= ~ST_RUNNING;
-			sw_dma_ctrl(capture_prtd->params->channel, SW_DMAOP_STOP);
+			sunxi_dma_stop(capture_prtd->params);
 			break;
 		default:
 			printk("error:%s,%d\n", __func__, __LINE__);
