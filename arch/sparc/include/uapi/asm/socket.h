@@ -70,7 +70,7 @@
 
 #define SO_SELECT_ERR_QUEUE	0x0029
 
-#define SO_LL			0x0030
+#define SO_BUSY_POLL		0x0030
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001

@@ -30,8 +30,8 @@
 #ifdef CONFIG_NET_LL_RX_POLL
 
 struct napi_struct;
-extern unsigned int sysctl_net_ll_read __read_mostly;
-extern unsigned int sysctl_net_ll_poll __read_mostly;
+extern unsigned int sysctl_net_busy_read __read_mostly;
+extern unsigned int sysctl_net_busy_poll __read_mostly;
 
 /* return values from ndo_ll_poll */
 #define LL_FLUSH_FAILED		-1
@@ -39,7 +39,7 @@ extern unsigned int sysctl_net_ll_poll __read_mostly;
 
 static inline bool net_busy_loop_on(void)
 {
-	return sysctl_net_ll_poll;
+	return sysctl_net_busy_poll;
 }
 
 /* a wrapper to make debug_smp_processor_id() happy
@@ -72,7 +72,7 @@ static inline unsigned long sk_busy_loop_end_time(struct sock *sk)
 /* in poll/select we use the global sysctl_net_ll_poll value */
 static inline unsigned long busy_loop_end_time(void)
 {
-	return busy_loop_us_clock() + ACCESS_ONCE(sysctl_net_ll_poll);
+	return busy_loop_us_clock() + ACCESS_ONCE(sysctl_net_busy_poll);
 }
 
 static inline bool sk_can_busy_loop(struct sock *sk)

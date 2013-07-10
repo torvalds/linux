@@ -50,26 +50,27 @@ The maximum number of packets that kernel can handle on a NAPI interrupt,
 it's a Per-CPU variable.
 Default: 64
 
-low_latency_read
+busy_read
 ----------------
 Low latency busy poll timeout for socket reads. (needs CONFIG_NET_LL_RX_POLL)
 Approximate time in us to busy loop waiting for packets on the device queue.
-This sets the default value of the SO_LL socket option.
-Can be set or overridden per socket by setting socket option SO_LL, which is
-the preferred method of enabling.
-If you need to enable the feature globally via sysctl, a value of 50 is recommended.
+This sets the default value of the SO_BUSY_POLL socket option.
+Can be set or overridden per socket by setting socket option SO_BUSY_POLL,
+which is the preferred method of enabling. If you need to enable the feature
+globally via sysctl, a value of 50 is recommended.
 Will increase power usage.
 Default: 0 (off)
 
-low_latency_poll
+busy_poll
 ----------------
 Low latency busy poll timeout for poll and select. (needs CONFIG_NET_LL_RX_POLL)
 Approximate time in us to busy loop waiting for events.
 Recommended value depends on the number of sockets you poll on.
 For several sockets 50, for several hundreds 100.
 For more than that you probably want to use epoll.
-Note that only sockets with SO_LL set will be busy polled, so you want to either
-selectively set SO_LL on those sockets or set sysctl.net.low_latency_read globally.
+Note that only sockets with SO_BUSY_POLL set will be busy polled,
+so you want to either selectively set SO_BUSY_POLL on those sockets or set
+sysctl.net.busy_read globally.
 Will increase power usage.
 Default: 0 (off)
 
