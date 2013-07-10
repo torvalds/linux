@@ -8976,7 +8976,7 @@ M:	Liam Girdwood <lgirdwood@gmail.com>
 M:	Mark Brown <broonie@kernel.org>
 W:	http://opensource.wolfsonmicro.com/node/15
 W:	http://www.slimlogic.co.uk/?p=48
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lrg/regulator.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/regulator.git
 S:	Supported
 F:	drivers/regulator/
 F:	include/linux/regulator/
