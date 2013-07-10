@@ -1,5 +1,5 @@
 config AUFS_FS
-	bool "Aufs (Advanced multi layered unification filesystem) support"
+	tristate "Aufs (Advanced multi layered unification filesystem) support"
 	help
 	Aufs is a stackable unification filesystem such as Unionfs,
 	which unifies several directories and provides a merged single
