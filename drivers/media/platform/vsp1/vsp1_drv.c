@@ -22,6 +22,7 @@
 #include "vsp1.h"
 #include "vsp1_hsit.h"
 #include "vsp1_lif.h"
+#include "vsp1_lut.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_sru.h"
 #include "vsp1_uds.h"
@@ -178,6 +179,16 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		}
 
 		list_add_tail(&vsp1->lif->entity.list_dev, &vsp1->entities);
+	}
+
+	if (vsp1->pdata->features & VSP1_HAS_LUT) {
+		vsp1->lut = vsp1_lut_create(vsp1);
+		if (IS_ERR(vsp1->lut)) {
+			ret = PTR_ERR(vsp1->lut);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->lut->entity.list_dev, &vsp1->entities);
 	}
 
 	for (i = 0; i < vsp1->pdata->rpf_count; ++i) {

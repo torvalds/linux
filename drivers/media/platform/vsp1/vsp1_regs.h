@@ -425,6 +425,7 @@
  */
 
 #define VI6_LUT_CTRL			0x2800
+#define VI6_LUT_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * CLU Control Registers
