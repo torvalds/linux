@@ -303,13 +303,13 @@ static int omap1_spi100k_setup(struct spi_device *spi)
 
 	spi100k_open(spi->master);
 
-	clk_enable(spi100k->ick);
-	clk_enable(spi100k->fck);
+	clk_prepare_enable(spi100k->ick);
+	clk_prepare_enable(spi100k->fck);
 
 	ret = omap1_spi100k_setup_transfer(spi, NULL);
 
-	clk_disable(spi100k->ick);
-	clk_disable(spi100k->fck);
+	clk_disable_unprepare(spi100k->ick);
+	clk_disable_unprepare(spi100k->fck);
 
 	return ret;
 }
@@ -318,8 +318,8 @@ static int omap1_spi100k_prepare_hardware(struct spi_master *master)
 {
 	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
 
-	clk_enable(spi100k->ick);
-	clk_enable(spi100k->fck);
+	clk_prepare_enable(spi100k->ick);
+	clk_prepare_enable(spi100k->fck);
 
 	return 0;
 }
@@ -396,8 +396,8 @@ static int omap1_spi100k_unprepare_hardware(struct spi_master *master)
 {
 	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
 
-	clk_disable(spi100k->ick);
-	clk_disable(spi100k->fck);
+	clk_disable_unprepare(spi100k->ick);
+	clk_disable_unprepare(spi100k->fck);
 
 	return 0;
 }
