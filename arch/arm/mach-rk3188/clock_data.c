@@ -3841,6 +3841,9 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep, const stru
 	if (clk->parent)
 		seq_printf(s, " parent = %s", clk->parent->name);
 
+	if (clk->last_set_rate != 0)
+		seq_printf(s, " [set %lu Hz]", clk->last_set_rate);
+
 	seq_printf(s, "\n");
 
 	list_for_each_entry(ck, root_clocks, node) {
