@@ -210,10 +210,8 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
 	 */
 
-	/* FIXME: Uncomment this when we move cdv to generic dpms
 	if (IS_CDV(dev))
 		cdv_intel_disable_self_refresh(dev);
-	*/
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -322,10 +320,8 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 		break;
 	}
 
-	/* FIXME: Uncomment this when we move cdv to generic dpms
 	if (IS_CDV(dev))
 		cdv_intel_update_watermark(dev, crtc);
-	*/
 
 	/* Set FIFO watermarks */
 	REG_WRITE(DSPARB, 0x3F3E);

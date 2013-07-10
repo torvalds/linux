@@ -85,4 +85,9 @@ extern bool gma_pll_is_valid(struct drm_crtc *crtc,
 extern bool gma_find_best_pll(const struct gma_limit_t *limit,
 			      struct drm_crtc *crtc, int target, int refclk,
 			      struct gma_clock_t *best_clock);
+
+/* Cedarview specific functions */
+extern void cdv_intel_disable_self_refresh(struct drm_device *dev);
+extern void cdv_intel_update_watermark(struct drm_device *dev,
+				       struct drm_crtc *crtc);
 #endif

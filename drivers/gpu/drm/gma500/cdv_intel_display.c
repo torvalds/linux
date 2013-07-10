@@ -512,7 +512,7 @@ static bool is_pipeb_lvds(struct drm_device *dev, struct drm_crtc *crtc)
 	return false;
 }
 
-static void cdv_intel_disable_self_refresh (struct drm_device *dev)
+void cdv_intel_disable_self_refresh(struct drm_device *dev)
 {
 	if (REG_READ(FW_BLC_SELF) & FW_BLC_SELF_EN) {
 
@@ -533,7 +533,7 @@ static void cdv_intel_disable_self_refresh (struct drm_device *dev)
 
 }
 
-static void cdv_intel_update_watermark (struct drm_device *dev, struct drm_crtc *crtc)
+void cdv_intel_update_watermark(struct drm_device *dev, struct drm_crtc *crtc)
 {
 
 	if (cdv_intel_single_pipe_active(dev)) {
@@ -643,137 +643,6 @@ static void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
 		}
 
 	}
-}
-
-/**
- * Sets the power management mode of the pipe and plane.
- *
- * This code should probably grow support for turning the cursor off and back
- * on appropriately at the same time as we're turning the pipe off/on.
- */
-static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
-	const struct psb_offset *map = &dev_priv->regmap[pipe];
-	u32 temp;
-
-	/* XXX: When our outputs are all unaware of DPMS modes other than off
-	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
-	 */
-	cdv_intel_disable_self_refresh(dev);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-		if (psb_intel_crtc->active)
-			break;
-
-		psb_intel_crtc->active = true;
-
-		/* Enable the DPLL */
-		temp = REG_READ(map->dpll);
-		if ((temp & DPLL_VCO_ENABLE) == 0) {
-			REG_WRITE(map->dpll, temp);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-		}
-
-		/* Jim Bish - switch plan and pipe per scott */
-		/* Enable the plane */
-		temp = REG_READ(map->cntr);
-		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-			REG_WRITE(map->cntr,
-				  temp | DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			REG_WRITE(map->base, REG_READ(map->base));
-		}
-
-		udelay(150);
-
-		/* Enable the pipe */
-		temp = REG_READ(map->conf);
-		if ((temp & PIPEACONF_ENABLE) == 0)
-			REG_WRITE(map->conf, temp | PIPEACONF_ENABLE);
-
-		temp = REG_READ(map->status);
-		temp &= ~(0xFFFF);
-		temp |= PIPE_FIFO_UNDERRUN;
-		REG_WRITE(map->status, temp);
-		REG_READ(map->status);
-
-		cdv_intel_crtc_load_lut(crtc);
-
-		/* Give the overlay scaler a chance to enable
-		 * if it's on this pipe */
-		/* psb_intel_crtc_dpms_video(crtc, true); TODO */
-		break;
-	case DRM_MODE_DPMS_OFF:
-		if (!psb_intel_crtc->active)
-			break;
-
-		psb_intel_crtc->active = false;
-
-		/* Give the overlay scaler a chance to disable
-		 * if it's on this pipe */
-		/* psb_intel_crtc_dpms_video(crtc, FALSE); TODO */
-
-		/* Disable the VGA plane that we never use */
-		REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
-
-		/* Jim Bish - changed pipe/plane here as well. */
-
-		drm_vblank_off(dev, pipe);
-		/* Wait for vblank for the disable to take effect */
-		gma_wait_for_vblank(dev);
-
-		/* Next, disable display pipes */
-		temp = REG_READ(map->conf);
-		if ((temp & PIPEACONF_ENABLE) != 0) {
-			REG_WRITE(map->conf, temp & ~PIPEACONF_ENABLE);
-			REG_READ(map->conf);
-		}
-
-		/* Wait for vblank for the disable to take effect. */
-		gma_wait_for_vblank(dev);
-
-		udelay(150);
-
-		/* Disable display plane */
-		temp = REG_READ(map->cntr);
-		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			REG_WRITE(map->cntr,
-				  temp & ~DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			REG_WRITE(map->base, REG_READ(map->base));
-			REG_READ(map->base);
-		}
-
-		temp = REG_READ(map->dpll);
-		if ((temp & DPLL_VCO_ENABLE) != 0) {
-			REG_WRITE(map->dpll, temp & ~DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-		}
-
-		/* Wait for the clocks to turn off. */
-		udelay(150);
-		break;
-	}
-	cdv_intel_update_watermark(dev, crtc);
-	/*Set FIFO Watermarks*/
-	REG_WRITE(DSPARB, 0x3F3E);
 }
 
 /**
@@ -1518,7 +1387,7 @@ struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 }
 
 const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
-	.dpms = cdv_intel_crtc_dpms,
+	.dpms = gma_crtc_dpms,
 	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = cdv_intel_crtc_mode_set,
 	.mode_set_base = gma_pipe_set_base,
