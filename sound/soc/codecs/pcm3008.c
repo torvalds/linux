@@ -28,8 +28,6 @@
 
 #include "pcm3008.h"
 
-#define PCM3008_VERSION "0.2"
-
 #define PCM3008_RATES (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |	\
 		       SNDRV_PCM_RATE_48000)
 
@@ -63,8 +61,6 @@ static int pcm3008_soc_probe(struct snd_soc_codec *codec)
 {
 	struct pcm3008_setup_data *setup = codec->dev->platform_data;
 	int ret = 0;
-
-	printk(KERN_INFO "PCM3008 SoC Audio Codec %s\n", PCM3008_VERSION);
 
 	/* DEM1  DEM0  DE-EMPHASIS_MODE
 	 * Low   Low   De-emphasis 44.1 kHz ON
