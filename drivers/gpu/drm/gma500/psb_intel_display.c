@@ -82,108 +82,6 @@ static void psb_intel_clock(int refclk, struct gma_clock_t *clock)
 	clock->dot = clock->vco / clock->p;
 }
 
-/**
- * Sets the power management mode of the pipe and plane.
- *
- * This code should probably grow support for turning the cursor off and back
- * on appropriately at the same time as we're turning the pipe off/on.
- */
-static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
-	const struct psb_offset *map = &dev_priv->regmap[pipe];
-	u32 temp;
-
-	/* XXX: When our outputs are all unaware of DPMS modes other than off
-	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
-	 */
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-		/* Enable the DPLL */
-		temp = REG_READ(map->dpll);
-		if ((temp & DPLL_VCO_ENABLE) == 0) {
-			REG_WRITE(map->dpll, temp);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-			REG_WRITE(map->dpll, temp | DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-			/* Wait for the clocks to stabilize. */
-			udelay(150);
-		}
-
-		/* Enable the pipe */
-		temp = REG_READ(map->conf);
-		if ((temp & PIPEACONF_ENABLE) == 0)
-			REG_WRITE(map->conf, temp | PIPEACONF_ENABLE);
-
-		/* Enable the plane */
-		temp = REG_READ(map->cntr);
-		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-			REG_WRITE(map->cntr,
-				  temp | DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			REG_WRITE(map->base, REG_READ(map->base));
-		}
-
-		gma_crtc_load_lut(crtc);
-
-		/* Give the overlay scaler a chance to enable
-		 * if it's on this pipe */
-		/* psb_intel_crtc_dpms_video(crtc, true); TODO */
-		break;
-	case DRM_MODE_DPMS_OFF:
-		/* Give the overlay scaler a chance to disable
-		 * if it's on this pipe */
-		/* psb_intel_crtc_dpms_video(crtc, FALSE); TODO */
-
-		/* Disable the VGA plane that we never use */
-		REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
-
-		/* Disable display plane */
-		temp = REG_READ(map->cntr);
-		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			REG_WRITE(map->cntr,
-				  temp & ~DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			REG_WRITE(map->base, REG_READ(map->base));
-			REG_READ(map->base);
-		}
-
-		/* Next, disable display pipes */
-		temp = REG_READ(map->conf);
-		if ((temp & PIPEACONF_ENABLE) != 0) {
-			REG_WRITE(map->conf, temp & ~PIPEACONF_ENABLE);
-			REG_READ(map->conf);
-		}
-
-		/* Wait for vblank for the disable to take effect. */
-		gma_wait_for_vblank(dev);
-
-		temp = REG_READ(map->dpll);
-		if ((temp & DPLL_VCO_ENABLE) != 0) {
-			REG_WRITE(map->dpll, temp & ~DPLL_VCO_ENABLE);
-			REG_READ(map->dpll);
-		}
-
-		/* Wait for the clocks to turn off. */
-		udelay(150);
-		break;
-	}
-
-	/*Set FIFO Watermarks*/
-	REG_WRITE(DSPARB, 0x3F3E);
-}
-
 void psb_intel_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs =
@@ -850,7 +748,7 @@ static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 }
 
 const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
-	.dpms = psb_intel_crtc_dpms,
+	.dpms = gma_crtc_dpms,
 	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = psb_intel_crtc_mode_set,
 	.mode_set_base = gma_pipe_set_base,
