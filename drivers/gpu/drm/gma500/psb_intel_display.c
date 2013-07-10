@@ -82,77 +82,6 @@ static void psb_intel_clock(int refclk, struct gma_clock_t *clock)
 	clock->dot = clock->vco / clock->p;
 }
 
-static int psb_intel_pipe_set_base(struct drm_crtc *crtc,
-			    int x, int y, struct drm_framebuffer *old_fb)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
-	int pipe = psb_intel_crtc->pipe;
-	const struct psb_offset *map = &dev_priv->regmap[pipe];
-	unsigned long start, offset;
-	u32 dspcntr;
-	int ret = 0;
-
-	if (!gma_power_begin(dev, true))
-		return 0;
-
-	/* no fb bound */
-	if (!crtc->fb) {
-		dev_dbg(dev->dev, "No FB bound\n");
-		goto psb_intel_pipe_cleaner;
-	}
-
-	/* We are displaying this buffer, make sure it is actually loaded
-	   into the GTT */
-	ret = psb_gtt_pin(psbfb->gtt);
-	if (ret < 0)
-		goto psb_intel_pipe_set_base_exit;
-	start = psbfb->gtt->offset;
-
-	offset = y * crtc->fb->pitches[0] + x * (crtc->fb->bits_per_pixel / 8);
-
-	REG_WRITE(map->stride, crtc->fb->pitches[0]);
-
-	dspcntr = REG_READ(map->cntr);
-	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
-
-	switch (crtc->fb->bits_per_pixel) {
-	case 8:
-		dspcntr |= DISPPLANE_8BPP;
-		break;
-	case 16:
-		if (crtc->fb->depth == 15)
-			dspcntr |= DISPPLANE_15_16BPP;
-		else
-			dspcntr |= DISPPLANE_16BPP;
-		break;
-	case 24:
-	case 32:
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
-		break;
-	default:
-		dev_err(dev->dev, "Unknown color depth\n");
-		ret = -EINVAL;
-		psb_gtt_unpin(psbfb->gtt);
-		goto psb_intel_pipe_set_base_exit;
-	}
-	REG_WRITE(map->cntr, dspcntr);
-
-	REG_WRITE(map->base, start + offset);
-	REG_READ(map->base);
-
-psb_intel_pipe_cleaner:
-	/* If there was a previous display we can now unpin it */
-	if (old_fb)
-		psb_gtt_unpin(to_psb_fb(old_fb)->gtt);
-
-psb_intel_pipe_set_base_exit:
-	gma_power_end(dev);
-	return ret;
-}
-
 /**
  * Sets the power management mode of the pipe and plane.
  *
@@ -990,7 +919,7 @@ const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.dpms = psb_intel_crtc_dpms,
 	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = psb_intel_crtc_mode_set,
-	.mode_set_base = psb_intel_pipe_set_base,
+	.mode_set_base = gma_pipe_set_base,
 	.prepare = gma_crtc_prepare,
 	.commit = gma_crtc_commit,
 	.disable = gma_crtc_disable,
