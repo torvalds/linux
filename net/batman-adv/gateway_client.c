@@ -221,11 +221,6 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 	struct batadv_neigh_node *router = NULL;
 	char gw_addr[18] = { '\0' };
 
-	/* The batman daemon checks here if we already passed a full originator
-	 * cycle in order to make sure we don't choose the first gateway we
-	 * hear about. This check is based on the daemon's uptime which we
-	 * don't have.
-	 */
 	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
 		goto out;
 
