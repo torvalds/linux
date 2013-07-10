@@ -294,9 +294,9 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			   val & BYT_LEVEL ? "hi" : "lo",
 			   vg->range->pins[i], offs,
 			   conf0 & 0x7,
-			   conf0 & BYT_TRIG_NEG ? "fall " : "",
-			   conf0 & BYT_TRIG_POS ? "rise " : "",
-			   conf0 & BYT_TRIG_LVL ? "lvl " : "");
+			   conf0 & BYT_TRIG_NEG ? " fall" : "",
+			   conf0 & BYT_TRIG_POS ? " rise" : "",
+			   conf0 & BYT_TRIG_LVL ? " level" : "");
 	}
 	spin_unlock_irqrestore(&vg->lock, flags);
 }
