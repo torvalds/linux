@@ -890,7 +890,7 @@ program_interrupt:
 			local_irq_enable();
 			r = s;
 		} else {
-			kvmppc_lazy_ee_enable();
+			kvmppc_fix_ee_before_entry();
 		}
 	}
 
@@ -1161,7 +1161,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	if (vcpu->arch.shared->msr & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 
-	kvmppc_lazy_ee_enable();
+	kvmppc_fix_ee_before_entry();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 

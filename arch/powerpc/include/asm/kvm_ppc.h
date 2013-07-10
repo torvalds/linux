@@ -394,10 +394,15 @@ static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
 	}
 }
 
-/* Please call after prepare_to_enter. This function puts the lazy ee state
-   back to normal mode, without actually enabling interrupts. */
-static inline void kvmppc_lazy_ee_enable(void)
+/*
+ * Please call after prepare_to_enter. This function puts the lazy ee and irq
+ * disabled tracking state back to normal mode, without actually enabling
+ * interrupts.
+ */
+static inline void kvmppc_fix_ee_before_entry(void)
 {
+	trace_hardirqs_on();
+
 #ifdef CONFIG_PPC64
 	/* Only need to enable IRQs by hard enabling them after this */
 	local_paca->irq_happened = 0;

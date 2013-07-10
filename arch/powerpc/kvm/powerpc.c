@@ -117,8 +117,6 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			kvm_guest_exit();
 			continue;
 		}
-
-		trace_hardirqs_on();
 #endif
 
 		kvm_guest_enter();
