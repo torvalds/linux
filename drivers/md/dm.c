@@ -133,6 +133,13 @@ struct mapped_device {
 	atomic_t holders;
 	atomic_t open_count;
 
+	/*
+	 * The current mapping.
+	 * Use dm_get_live_table{_fast} or take suspend_lock for
+	 * dereference.
+	 */
+	struct dm_table *map;
+
 	unsigned long flags;
 
 	struct request_queue *queue;
@@ -160,13 +167,6 @@ struct mapped_device {
 	 * Processing queue (flush)
 	 */
 	struct workqueue_struct *wq;
-
-	/*
-	 * The current mapping.
-	 * Use dm_get_live_table{_fast} or take suspend_lock for
-	 * dereference.
-	 */
-	struct dm_table *map;
 
 	/*
 	 * io objects are allocated from here.
