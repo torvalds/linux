@@ -668,7 +668,7 @@ static int rk_mipi_dsi_is_active(void) {
 	return dsi_get_bits(shutdownz);
 }
 
-static int rk_mipi_dsi_send_dcs_packet(unsigned char regs[], u32 n) {
+static int rk_mipi_dsi_send_packet(u32 type, unsigned char regs[], u32 n) {
 
 	u32 data = 0, i = 0, j = 0;
 	if(n <= 0)
@@ -678,10 +678,14 @@ static int rk_mipi_dsi_send_dcs_packet(unsigned char regs[], u32 n) {
 		printk("gen_cmd_full\n");
 		return -1;
 	}
+	
 	dsi_set_bits(0, lpcmden);        //send in high speed mode
 	
 	if(n <= 2) {
-		data = (gDsi.vid << 6) | ((n-1) << 4) | 0x05;
+		if(type == DTYPE_GEN_SWRITE_0P)
+			data = (gDsi.vid << 6) | (n << 4) | type;
+		else 
+			data = (gDsi.vid << 6) | ((n-1) << 4) | type;
 		data |= regs[0] << 8;
 		if(n == 2)
 			data |= regs[1] << 16;
@@ -700,10 +704,10 @@ static int rk_mipi_dsi_send_dcs_packet(unsigned char regs[], u32 n) {
 				data = 0;
 			}
 		}
-		data = (gDsi.vid << 6) | 0x39;		
+		data = (gDsi.vid << 6) | type;		
 		data |= (n & 0xffff) << 8;
 	}
-	//MIPI_DBG("write GEN_HDR:%08x\n", data);
+	MIPI_DBG("write GEN_HDR:%08x\n", data);
 	dsi_write_reg(GEN_HDR, &data);
 	i = 10;
 	
@@ -716,9 +720,23 @@ static int rk_mipi_dsi_send_dcs_packet(unsigned char regs[], u32 n) {
 	return 0;
 }
 
+static int rk_mipi_dsi_send_dcs_packet(unsigned char regs[], u32 n) {
 
-static int rk_mipi_dsi_send_packet(unsigned char type, unsigned char regs[], u32 n) {
+	if(n <= 2) {
+		rk_mipi_dsi_send_packet(DTYPE_DCS_SWRITE_0P, regs, n);
+	} else {
+		rk_mipi_dsi_send_packet(DTYPE_DCS_LWRITE, regs, n);
+	}
+	return 0;
+}
 
+static int rk_mipi_dsi_send_gen_packet(unsigned char regs[], u32 n) {
+
+	if(n <= 2) {
+		rk_mipi_dsi_send_packet(DTYPE_GEN_SWRITE_0P, regs, n);
+	} else {
+		rk_mipi_dsi_send_packet(DTYPE_GEN_LWRITE, regs, n);
+	}
 	return 0;
 }
 
@@ -744,7 +762,6 @@ static int rk_mipi_dsi_get_id(void) {
 	
 	u32 id = 0;
 	dsi_read_reg(VERSION, &id);
-	
 	return id;
 }
 
@@ -752,6 +769,7 @@ static struct mipi_dsi_ops rk_mipi_dsi_ops = {
 	.id = DWC_DSI_VERSION,
 	.name = "rk_mipi_dsi",
 	.get_id = rk_mipi_dsi_get_id,
+	.dsi_send_packet = rk_mipi_dsi_send_gen_packet,
 	.dsi_send_dcs_packet = rk_mipi_dsi_send_dcs_packet,
 	.dsi_read_dcs_packet = rk_mipi_dsi_read_dcs_packet,
 	.dsi_enable_video_mode = rk_mipi_dsi_enable_video_mode,
@@ -781,6 +799,7 @@ int reg_proc_write(struct file *file, const char __user *buff, size_t count, lof
 	char command = 0;
 	u64 regs_val = 0;
 	struct regulator *ldo;
+	memset(buf, 0, count);
 	ret = copy_from_user((void*)buf, buff, count);
 	
 	data = strstr(data, "-");
@@ -825,23 +844,42 @@ int reg_proc_write(struct file *file, const char __user *buff, size_t count, lof
 				sscanf(data, "%d", &read_val);
 				rk_mipi_dsi_init(g_screen, read_val * MHz);
 			break;
-		case 'p':
+		case 'd':
+		case 'g':
+		case 'c':
 				while(*(++data) == ' ');
-				sscanf(data, "%d", &read_val);
-				while(*(++data) == ' ');
-				sscanf(data, "%s", str);
-				printk(" get %s\n", str);
-				ldo = regulator_get(NULL, str);
-				if(!ldo)
-					break;
-				if(read_val == 0) {
-					while(regulator_is_enabled(ldo)>0)
-						regulator_disable(ldo);	
-				} else {
-					regulator_enable(ldo);
-				}	
-				regulator_put(ldo);
+				i = 0;
+				printk("****%d:%d\n", data-buf, count);
 				
+				do {
+					if(i > 31) {
+						printk("payload entry is larger than 32\n");
+						break;
+					}	
+					sscanf(data, "%x,", str + i);        //-c 29,02,03,05,06,   > pro
+					data = strstr(data, ",");
+					if(data == NULL)
+						break;
+					data++;	
+					i++;
+				} while(1);
+				read_val = i;
+				rk_mipi_dsi_enable_video_mode(0);
+				rk_mipi_dsi_enable_command_mode(1);
+				i = 100;
+				while(i--) {
+					msleep(100);
+					if(command == 'd')
+						rk_mipi_dsi_send_dcs_packet(str, read_val);
+					else
+						rk_mipi_dsi_send_gen_packet(str, read_val);
+				}	
+				i = 5;
+				while(i--) {
+					msleep(1000);
+				}
+				rk_mipi_dsi_enable_command_mode(0);
+				rk_mipi_dsi_enable_video_mode(1);
 			break;
 	
 		default:
@@ -978,6 +1016,8 @@ static void rk616_mipi_dsi_early_suspend(struct early_suspend *h)
 	u8 dcs[1] = {0};
 	
 	if(!g_screen->standby) {
+		rk_mipi_dsi_enable_video_mode(0);
+		rk_mipi_dsi_enable_command_mode(1);		
 		dcs[0] = dcs_set_display_off; 
 		dsi_send_dcs_packet(dcs, 1);
 		msleep(1);
@@ -1012,6 +1052,8 @@ static void rk616_mipi_dsi_late_resume(struct early_suspend *h)
 		dcs[0] = dcs_set_display_on;
 		rk_mipi_dsi_send_dcs_packet(dcs, 1);
 		msleep(10);
+		rk_mipi_dsi_enable_command_mode(0);
+		rk_mipi_dsi_enable_video_mode(1);
 	} else {
 		g_screen->standby(0);
 	}
