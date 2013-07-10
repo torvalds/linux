@@ -609,7 +609,6 @@ static const struct i2c_algorithm mpc_algo = {
 
 static struct i2c_adapter mpc_ops = {
 	.owner = THIS_MODULE,
-	.name = "MPC adapter",
 	.algo = &mpc_algo,
 	.timeout = HZ,
 };
@@ -623,6 +622,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 	u32 clock = MPC_I2C_CLOCK_LEGACY;
 	int result = 0;
 	int plen;
+	struct resource res;
 
 	match = of_match_device(mpc_i2c_of_match, &op->dev);
 	if (!match)
@@ -682,6 +682,9 @@ static int fsl_i2c_probe(struct platform_device *op)
 	platform_set_drvdata(op, i2c);
 
 	i2c->adap = mpc_ops;
+	of_address_to_resource(op->dev.of_node, 0, &res);
+	scnprintf(i2c->adap.name, sizeof(i2c->adap.name),
+		  "MPC adapter at 0x%llx", (unsigned long long)res.start);
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &op->dev;
 	i2c->adap.dev.of_node = of_node_get(op->dev.of_node);
