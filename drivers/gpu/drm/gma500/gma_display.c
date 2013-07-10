@@ -38,7 +38,7 @@ bool gma_pipe_has_type(struct drm_crtc *crtc, int type)
 	list_for_each_entry(l_entry, &mode_config->connector_list, head) {
 		if (l_entry->encoder && l_entry->encoder->crtc == crtc) {
 			struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(l_entry);
+						gma_attached_encoder(l_entry);
 			if (psb_intel_encoder->type == type)
 				return true;
 		}
@@ -547,7 +547,7 @@ void gma_encoder_destroy(struct drm_encoder *encoder)
 struct drm_encoder *gma_best_encoder(struct drm_connector *connector)
 {
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 
 	return &psb_intel_encoder->base;
 }

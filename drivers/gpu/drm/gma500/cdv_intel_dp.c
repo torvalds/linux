@@ -315,7 +315,7 @@ static int
 cdv_intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
-	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct psb_intel_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int max_link_clock = cdv_intel_dp_link_clock(cdv_intel_dp_max_link_bw(encoder));
 	int max_lanes = cdv_intel_dp_max_lane_count(encoder);
@@ -1532,7 +1532,7 @@ cdv_dp_detect(struct psb_intel_encoder *encoder)
 static enum drm_connector_status
 cdv_intel_dp_detect(struct drm_connector *connector, bool force)
 {
-	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct psb_intel_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	enum drm_connector_status status;
 	struct edid *edid = NULL;
@@ -1566,7 +1566,8 @@ cdv_intel_dp_detect(struct drm_connector *connector, bool force)
 
 static int cdv_intel_dp_get_modes(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *intel_encoder = psb_intel_attached_encoder(connector);
+	struct psb_intel_encoder *intel_encoder =
+						gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	struct edid *edid = NULL;
 	int ret = 0;
@@ -1622,7 +1623,7 @@ static int cdv_intel_dp_get_modes(struct drm_connector *connector)
 static bool
 cdv_intel_dp_detect_audio(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct psb_intel_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	struct edid *edid;
 	bool has_audio = false;
@@ -1648,7 +1649,7 @@ cdv_intel_dp_set_property(struct drm_connector *connector,
 		      uint64_t val)
 {
 	struct drm_psb_private *dev_priv = connector->dev->dev_private;
-	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct psb_intel_encoder *encoder = gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
 
@@ -1702,7 +1703,7 @@ static void
 cdv_intel_dp_destroy(struct drm_connector *connector)
 {
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 	struct cdv_intel_dp *intel_dp = psb_intel_encoder->dev_priv;
 
 	if (is_edp(psb_intel_encoder)) {
@@ -1742,7 +1743,7 @@ static const struct drm_connector_funcs cdv_intel_dp_connector_funcs = {
 static const struct drm_connector_helper_funcs cdv_intel_dp_connector_helper_funcs = {
 	.get_modes = cdv_intel_dp_get_modes,
 	.mode_valid = cdv_intel_dp_mode_valid,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 static const struct drm_encoder_funcs cdv_intel_dp_enc_funcs = {
@@ -1828,7 +1829,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	drm_connector_init(dev, connector, &cdv_intel_dp_connector_funcs, type);
 	drm_encoder_init(dev, encoder, &cdv_intel_dp_enc_funcs, DRM_MODE_ENCODER_TMDS);
 
-	psb_intel_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
 
 	if (type == DRM_MODE_CONNECTOR_DisplayPort)
         	psb_intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;

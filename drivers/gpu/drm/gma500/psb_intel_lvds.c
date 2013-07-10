@@ -268,7 +268,7 @@ static void psb_intel_lvds_save(struct drm_connector *connector)
 	struct drm_psb_private *dev_priv =
 		(struct drm_psb_private *)dev->dev_private;
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv =
 		(struct psb_intel_lvds_priv *)psb_intel_encoder->dev_priv;
 
@@ -308,7 +308,7 @@ static void psb_intel_lvds_restore(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	u32 pp_status;
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv =
 		(struct psb_intel_lvds_priv *)psb_intel_encoder->dev_priv;
 
@@ -350,7 +350,7 @@ int psb_intel_lvds_mode_valid(struct drm_connector *connector,
 {
 	struct drm_psb_private *dev_priv = connector->dev->dev_private;
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 	struct drm_display_mode *fixed_mode =
 					dev_priv->mode_dev.panel_fixed_mode;
 
@@ -526,7 +526,7 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv = psb_intel_encoder->dev_priv;
 	int ret = 0;
 
@@ -565,7 +565,7 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
 void psb_intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv = psb_intel_encoder->dev_priv;
 
 	if (lvds_priv->ddc_bus)
@@ -656,7 +656,7 @@ const struct drm_connector_helper_funcs
 				psb_intel_lvds_connector_helper_funcs = {
 	.get_modes = psb_intel_lvds_get_modes,
 	.mode_valid = psb_intel_lvds_mode_valid,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 const struct drm_connector_funcs psb_intel_lvds_connector_funcs = {
@@ -734,8 +734,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 			 &psb_intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	psb_intel_connector_attach_encoder(psb_intel_connector,
-					   psb_intel_encoder);
+	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
 	psb_intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	drm_encoder_helper_add(encoder, &psb_intel_lvds_helper_funcs);
