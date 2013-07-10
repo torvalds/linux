@@ -81,7 +81,6 @@ static int drm_setup(struct drm_device * dev)
 	dev->last_context = 0;
 	dev->last_switch = 0;
 	dev->last_checked = 0;
-	init_waitqueue_head(&dev->context_wait);
 	dev->if_version = 0;
 
 	dev->ctx_start = 0;

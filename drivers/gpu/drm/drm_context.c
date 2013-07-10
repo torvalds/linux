@@ -261,7 +261,6 @@ static int drm_context_switch_complete(struct drm_device *dev,
 	   when the kernel holds the lock, release
 	   that lock here. */
 	clear_bit(0, &dev->context_flag);
-	wake_up(&dev->context_wait);
 
 	return 0;
 }
