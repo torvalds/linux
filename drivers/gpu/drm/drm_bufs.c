@@ -243,7 +243,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		}
 		map->handle = vmalloc_user(map->size);
 		DRM_DEBUG("%lu %d %p\n",
-			  map->size, drm_order(map->size), map->handle);
+			  map->size, order_base_2(map->size), map->handle);
 		if (!map->handle) {
 			kfree(map);
 			return -ENOMEM;
@@ -630,7 +630,7 @@ int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 		return -EINVAL;
 
 	count = request->count;
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	size = 1 << order;
 
 	alignment = (request->flags & _DRM_PAGE_ALIGN)
@@ -800,7 +800,7 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 		return -EPERM;
 
 	count = request->count;
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	size = 1 << order;
 
 	DRM_DEBUG("count=%d, size=%d (%d), order=%d\n",
@@ -1002,7 +1002,7 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 		return -EPERM;
 
 	count = request->count;
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	size = 1 << order;
 
 	alignment = (request->flags & _DRM_PAGE_ALIGN)
@@ -1157,7 +1157,7 @@ static int drm_addbufs_fb(struct drm_device * dev, struct drm_buf_desc * request
 		return -EPERM;
 
 	count = request->count;
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	size = 1 << order;
 
 	alignment = (request->flags & _DRM_PAGE_ALIGN)
@@ -1435,7 +1435,7 @@ int drm_markbufs(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("%d, %d, %d\n",
 		  request->size, request->low_mark, request->high_mark);
-	order = drm_order(request->size);
+	order = order_base_2(request->size);
 	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
 		return -EINVAL;
 	entry = &dma->bufs[order];
