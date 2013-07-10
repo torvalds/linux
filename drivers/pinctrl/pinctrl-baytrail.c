@@ -516,6 +516,7 @@ static int byt_gpio_remove(struct platform_device *pdev)
 {
 	struct byt_gpio *vg = platform_get_drvdata(pdev);
 	int err;
+
 	pm_runtime_disable(&pdev->dev);
 	err = gpiochip_remove(&vg->chip);
 	if (err)
