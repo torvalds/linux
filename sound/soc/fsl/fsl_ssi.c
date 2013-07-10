@@ -510,6 +510,9 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 			write_ssi_mask(&ssi->scr, CCSR_SSI_SCR_TE, 0);
 		else
 			write_ssi_mask(&ssi->scr, CCSR_SSI_SCR_RE, 0);
+
+		if ((read_ssi(&ssi->scr) & (CCSR_SSI_SCR_TE | CCSR_SSI_SCR_RE)) == 0)
+			write_ssi_mask(&ssi->scr, CCSR_SSI_SCR_SSIEN, 0);
 		break;
 
 	default:
@@ -534,15 +537,6 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 		ssi_private->first_stream = ssi_private->second_stream;
 
 	ssi_private->second_stream = NULL;
-
-	/*
-	 * If this is the last active substream, disable the SSI.
-	 */
-	if (!ssi_private->first_stream) {
-		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
-
-		write_ssi_mask(&ssi->scr, CCSR_SSI_SCR_SSIEN, 0);
-	}
 }
 
 static int fsl_ssi_dai_probe(struct snd_soc_dai *dai)
