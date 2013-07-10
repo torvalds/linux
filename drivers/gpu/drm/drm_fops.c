@@ -76,8 +76,6 @@ static int drm_setup(struct drm_device * dev)
 	dev->sigdata.lock = NULL;
 
 	dev->context_flag = 0;
-	dev->interrupt_flag = 0;
-	dev->dma_flag = 0;
 	dev->last_context = 0;
 	dev->last_checked = 0;
 	dev->if_version = 0;
