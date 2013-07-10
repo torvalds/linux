@@ -580,8 +580,8 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	return 0;
 
 out_free_dma:
-	dma_release_channel(ssp->dmach);
 	clk_disable_unprepare(ssp->clk);
+	dma_release_channel(ssp->dmach);
 out_master_free:
 	spi_master_put(master);
 	return ret;
@@ -598,11 +598,8 @@ static int mxs_spi_remove(struct platform_device *pdev)
 	ssp = &spi->ssp;
 
 	spi_unregister_master(master);
-
-	dma_release_channel(ssp->dmach);
-
 	clk_disable_unprepare(ssp->clk);
-
+	dma_release_channel(ssp->dmach);
 	spi_master_put(master);
 
 	return 0;
