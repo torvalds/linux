@@ -77,7 +77,6 @@ static int drm_setup(struct drm_device * dev)
 
 	dev->context_flag = 0;
 	dev->last_context = 0;
-	dev->last_checked = 0;
 	dev->if_version = 0;
 
 	dev->buf_async = NULL;

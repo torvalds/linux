@@ -1130,7 +1130,6 @@ struct drm_device {
 	/*@{ */
 	int irq_enabled;		/**< True if irq handler is enabled */
 	__volatile__ long context_flag;	/**< Context swapping flag */
-	int last_checked;		/**< Last context checked for DMA */
 	int last_context;		/**< Last current context */
 	/*@} */
 
