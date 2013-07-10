@@ -21,8 +21,10 @@
 #include <linux/export.h>
 
 struct static_key context_tracking_enabled = STATIC_KEY_INIT_FALSE;
+EXPORT_SYMBOL_GPL(context_tracking_enabled);
 
 DEFINE_PER_CPU(struct context_tracking, context_tracking);
+EXPORT_SYMBOL_GPL(context_tracking);
 
 void context_tracking_cpu_set(int cpu)
 {
@@ -162,27 +164,6 @@ void context_tracking_user_exit(void)
 	}
 	local_irq_restore(flags);
 }
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
-void guest_enter(void)
-{
-	if (vtime_accounting_enabled())
-		vtime_guest_enter(current);
-	else
-		current->flags |= PF_VCPU;
-}
-EXPORT_SYMBOL_GPL(guest_enter);
-
-void guest_exit(void)
-{
-	if (vtime_accounting_enabled())
-		vtime_guest_exit(current);
-	else
-		current->flags &= ~PF_VCPU;
-}
-EXPORT_SYMBOL_GPL(guest_exit);
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING_GEN */
-
 
 /**
  * context_tracking_task_switch - context switch the syscall callbacks
