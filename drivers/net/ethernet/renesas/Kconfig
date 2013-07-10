@@ -4,6 +4,7 @@
 
 config SH_ETH
 	tristate "Renesas SuperH Ethernet support"
+	depends on HAS_DMA
 	select CRC32
 	select NET_CORE
 	select MII
