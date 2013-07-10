@@ -20,6 +20,8 @@
 struct vsp1_device;
 
 enum vsp1_entity_type {
+	VSP1_ENTITY_HSI,
+	VSP1_ENTITY_HST,
 	VSP1_ENTITY_LIF,
 	VSP1_ENTITY_RPF,
 	VSP1_ENTITY_UDS,

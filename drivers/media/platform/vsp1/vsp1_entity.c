@@ -122,6 +122,8 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		unsigned int id;
 		unsigned int reg;
 	} routes[] = {
+		{ VI6_DPR_NODE_HSI, VI6_DPR_HSI_ROUTE },
+		{ VI6_DPR_NODE_HST, VI6_DPR_HST_ROUTE },
 		{ VI6_DPR_NODE_LIF, 0 },
 		{ VI6_DPR_NODE_RPF(0), VI6_DPR_RPF_ROUTE(0) },
 		{ VI6_DPR_NODE_RPF(1), VI6_DPR_RPF_ROUTE(1) },

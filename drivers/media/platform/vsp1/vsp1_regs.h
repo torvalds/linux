@@ -424,12 +424,14 @@
  */
 
 #define VI6_HST_CTRL			0x2a00
+#define VI6_HST_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * HSI Control Registers
  */
 
 #define VI6_HSI_CTRL			0x2b00
+#define VI6_HSI_CTRL_EN			(1 << 0)
 
 /* -----------------------------------------------------------------------------
  * BRU Control Registers

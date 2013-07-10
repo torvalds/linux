@@ -20,6 +20,7 @@
 #include <linux/videodev2.h>
 
 #include "vsp1.h"
+#include "vsp1_hsit.h"
 #include "vsp1_lif.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_uds.h"
@@ -152,6 +153,22 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	/* Instantiate all the entities. */
+	vsp1->hsi = vsp1_hsit_create(vsp1, true);
+	if (IS_ERR(vsp1->hsi)) {
+		ret = PTR_ERR(vsp1->hsi);
+		goto done;
+	}
+
+	list_add_tail(&vsp1->hsi->entity.list_dev, &vsp1->entities);
+
+	vsp1->hst = vsp1_hsit_create(vsp1, false);
+	if (IS_ERR(vsp1->hst)) {
+		ret = PTR_ERR(vsp1->hst);
+		goto done;
+	}
+
+	list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
+
 	if (vsp1->pdata->features & VSP1_HAS_LIF) {
 		vsp1->lif = vsp1_lif_create(vsp1);
 		if (IS_ERR(vsp1->lif)) {
