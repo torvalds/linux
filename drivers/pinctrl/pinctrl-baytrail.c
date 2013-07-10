@@ -135,15 +135,13 @@ static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 {
 	struct byt_gpio *vg = container_of(chip, struct byt_gpio, chip);
 	u32 reg_offset;
-	void __iomem *ptr;
 
 	if (reg == BYT_INT_STAT_REG)
 		reg_offset = (offset / 32) * 4;
 	else
 		reg_offset = vg->range->pins[offset] * 16;
 
-	ptr = (void __iomem *) (vg->reg_base + reg_offset + reg);
-	return ptr;
+	return vg->reg_base + reg_offset + reg;
 }
 
 static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
