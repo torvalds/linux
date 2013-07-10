@@ -1134,7 +1134,6 @@ struct drm_device {
 	__volatile__ long dma_flag;	/**< DMA dispatch flag */
 	int last_checked;		/**< Last context checked for DMA */
 	int last_context;		/**< Last current context */
-	unsigned long last_switch;	/**< jiffies at last context switch */
 	/*@} */
 
 	struct work_struct work;
