@@ -245,7 +245,7 @@ static int byt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	spin_lock_irqsave(&vg->lock, flags);
 
 	value = readl(reg) | BYT_DIR_MASK;
-	value = value & (~BYT_INPUT_EN); /* active low */
+	value &= ~BYT_INPUT_EN;		/* active low */
 	writel(value, reg);
 
 	spin_unlock_irqrestore(&vg->lock, flags);
@@ -263,9 +263,13 @@ static int byt_gpio_direction_output(struct gpio_chip *chip,
 
 	spin_lock_irqsave(&vg->lock, flags);
 
-	reg_val = readl(reg) | (BYT_DIR_MASK | !!value);
-	reg_val &= ~(BYT_OUTPUT_EN | !value);
-	writel(reg_val, reg);
+	reg_val = readl(reg) | BYT_DIR_MASK;
+	reg_val &= ~BYT_OUTPUT_EN;
+
+	if (value)
+		writel(reg_val | BYT_LEVEL, reg);
+	else
+		writel(reg_val & ~BYT_LEVEL, reg);
 
 	spin_unlock_irqrestore(&vg->lock, flags);
 
