@@ -342,12 +342,6 @@ int drm_addctx(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int drm_modctx(struct drm_device *dev, void *data, struct drm_file *file_priv)
-{
-	/* This does nothing */
-	return 0;
-}
-
 /**
  * Get context.
  *
