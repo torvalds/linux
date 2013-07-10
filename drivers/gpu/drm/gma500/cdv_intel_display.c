@@ -499,7 +499,7 @@ static bool is_pipeb_lvds(struct drm_device *dev, struct drm_crtc *crtc)
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+					gma_attached_encoder(connector);
 
 		if (!connector->encoder
 		    || connector->encoder->crtc != crtc)
@@ -634,7 +634,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+					gma_attached_encoder(connector);
 
 		if (!connector->encoder
 		    || connector->encoder->crtc != crtc)

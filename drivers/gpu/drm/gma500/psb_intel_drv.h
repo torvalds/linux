@@ -226,32 +226,15 @@ extern void oaktrail_dsi_init(struct drm_device *dev,
 extern void mid_dsi_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev, int dsi_num);
 
-extern void psb_intel_encoder_prepare(struct drm_encoder *encoder);
-extern void psb_intel_encoder_commit(struct drm_encoder *encoder);
-extern void psb_intel_encoder_destroy(struct drm_encoder *encoder);
-
 extern struct drm_encoder *gma_best_encoder(struct drm_connector *connector);
 extern void gma_connector_attach_encoder(struct psb_intel_connector *connector,
 					 struct psb_intel_encoder *encoder);
-
-static inline struct psb_intel_encoder *psb_intel_attached_encoder(
-						struct drm_connector *connector)
-{
-	return to_psb_intel_connector(connector)->encoder;
-}
 
 static inline struct psb_intel_encoder *gma_attached_encoder(
 						struct drm_connector *connector)
 {
 	return to_psb_intel_connector(connector)->encoder;
 }
-
-extern void psb_intel_connector_attach_encoder(
-					struct psb_intel_connector *connector,
-					struct psb_intel_encoder *encoder);
-
-extern struct drm_encoder *psb_intel_best_encoder(struct drm_connector
-					      *connector);
 
 extern struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);

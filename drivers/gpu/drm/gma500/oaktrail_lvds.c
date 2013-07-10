@@ -352,8 +352,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	drm_encoder_init(dev, encoder, &psb_intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	psb_intel_connector_attach_encoder(psb_intel_connector,
-					   psb_intel_encoder);
+	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
 	psb_intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	drm_encoder_helper_add(encoder, &oaktrail_lvds_helper_funcs);

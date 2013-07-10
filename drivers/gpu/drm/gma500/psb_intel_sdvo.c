@@ -200,7 +200,7 @@ static struct psb_intel_sdvo *to_psb_intel_sdvo(struct drm_encoder *encoder)
 
 static struct psb_intel_sdvo *intel_attached_sdvo(struct drm_connector *connector)
 {
-	return container_of(psb_intel_attached_encoder(connector),
+	return container_of(gma_attached_encoder(connector),
 			    struct psb_intel_sdvo, base);
 }
 
@@ -1837,7 +1837,7 @@ static void psb_intel_sdvo_save(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 	struct psb_intel_sdvo *sdvo =
 				to_psb_intel_sdvo(&psb_intel_encoder->base);
 
@@ -1847,8 +1847,7 @@ static void psb_intel_sdvo_save(struct drm_connector *connector)
 static void psb_intel_sdvo_restore(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_encoder *encoder =
-				&psb_intel_attached_encoder(connector)->base;
+	struct drm_encoder *encoder = &gma_attached_encoder(connector)->base;
 	struct psb_intel_sdvo *sdvo = to_psb_intel_sdvo(encoder);
 	struct drm_crtc *crtc = encoder->crtc;
 
@@ -1864,9 +1863,9 @@ static void psb_intel_sdvo_restore(struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs psb_intel_sdvo_helper_funcs = {
 	.dpms = psb_intel_sdvo_dpms,
 	.mode_fixup = psb_intel_sdvo_mode_fixup,
-	.prepare = psb_intel_encoder_prepare,
+	.prepare = gma_encoder_prepare,
 	.mode_set = psb_intel_sdvo_mode_set,
-	.commit = psb_intel_encoder_commit,
+	.commit = gma_encoder_commit,
 };
 
 static const struct drm_connector_funcs psb_intel_sdvo_connector_funcs = {
@@ -1882,7 +1881,7 @@ static const struct drm_connector_funcs psb_intel_sdvo_connector_funcs = {
 static const struct drm_connector_helper_funcs psb_intel_sdvo_connector_helper_funcs = {
 	.get_modes = psb_intel_sdvo_get_modes,
 	.mode_valid = psb_intel_sdvo_mode_valid,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 static void psb_intel_sdvo_enc_destroy(struct drm_encoder *encoder)
@@ -1894,7 +1893,7 @@ static void psb_intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 				 psb_intel_sdvo->sdvo_lvds_fixed_mode);
 
 	i2c_del_adapter(&psb_intel_sdvo->ddc);
-	psb_intel_encoder_destroy(encoder);
+	gma_encoder_destroy(encoder);
 }
 
 static const struct drm_encoder_funcs psb_intel_sdvo_enc_funcs = {
@@ -2055,7 +2054,7 @@ psb_intel_sdvo_connector_init(struct psb_intel_sdvo_connector *connector,
 	connector->base.base.doublescan_allowed = 0;
 	connector->base.base.display_info.subpixel_order = SubPixelHorizontalRGB;
 
-	psb_intel_connector_attach_encoder(&connector->base, &encoder->base);
+	gma_connector_attach_encoder(&connector->base, &encoder->base);
 	drm_sysfs_connector_add(&connector->base.base);
 }
 

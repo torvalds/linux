@@ -609,16 +609,16 @@ static void oaktrail_hdmi_destroy(struct drm_connector *connector)
 static const struct drm_encoder_helper_funcs oaktrail_hdmi_helper_funcs = {
 	.dpms = oaktrail_hdmi_dpms,
 	.mode_fixup = oaktrail_hdmi_mode_fixup,
-	.prepare = psb_intel_encoder_prepare,
+	.prepare = gma_encoder_prepare,
 	.mode_set = oaktrail_hdmi_mode_set,
-	.commit = psb_intel_encoder_commit,
+	.commit = gma_encoder_commit,
 };
 
 static const struct drm_connector_helper_funcs
 					oaktrail_hdmi_connector_helper_funcs = {
 	.get_modes = oaktrail_hdmi_get_modes,
 	.mode_valid = oaktrail_hdmi_mode_valid,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 static const struct drm_connector_funcs oaktrail_hdmi_connector_funcs = {
@@ -663,8 +663,7 @@ void oaktrail_hdmi_init(struct drm_device *dev,
 			 &oaktrail_hdmi_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
 
-	psb_intel_connector_attach_encoder(psb_intel_connector,
-					   psb_intel_encoder);
+	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
 
 	psb_intel_encoder->type = INTEL_OUTPUT_HDMI;
 	drm_encoder_helper_add(encoder, &oaktrail_hdmi_helper_funcs);

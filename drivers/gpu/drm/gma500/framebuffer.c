@@ -704,7 +704,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
 		struct psb_intel_encoder *psb_intel_encoder =
-			psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 		struct drm_encoder *encoder = &psb_intel_encoder->base;
 		int crtc_mask = 0, clone_mask = 0;
 

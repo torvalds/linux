@@ -82,30 +82,6 @@ static void psb_intel_clock(int refclk, struct gma_clock_t *clock)
 	clock->dot = clock->vco / clock->p;
 }
 
-void psb_intel_encoder_prepare(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs =
-	    encoder->helper_private;
-	/* lvds has its own version of prepare see psb_intel_lvds_prepare */
-	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-void psb_intel_encoder_commit(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs =
-	    encoder->helper_private;
-	/* lvds has its own version of commit see psb_intel_lvds_commit */
-	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
-}
-
-void psb_intel_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
-
-	drm_encoder_cleanup(encoder);
-	kfree(intel_encoder);
-}
-
 /**
  * Return the pipe currently connected to the panel fitter,
  * or -1 if the panel fitter is not present or not in use
@@ -152,7 +128,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 
 		if (!connector->encoder
 		    || connector->encoder->crtc != crtc)
@@ -752,29 +728,10 @@ int psb_intel_connector_clones(struct drm_device *dev, int type_mask)
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
 		struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 		if (type_mask & (1 << psb_intel_encoder->type))
 			index_mask |= (1 << entry);
 		entry++;
 	}
 	return index_mask;
-}
-
-/* current intel driver doesn't take advantage of encoders
-   always give back the encoder for the connector
-*/
-struct drm_encoder *psb_intel_best_encoder(struct drm_connector *connector)
-{
-	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
-
-	return &psb_intel_encoder->base;
-}
-
-void psb_intel_connector_attach_encoder(struct psb_intel_connector *connector,
-					struct psb_intel_encoder *encoder)
-{
-	connector->encoder = encoder;
-	drm_mode_connector_attach_encoder(&connector->base,
-					  &encoder->base);
 }

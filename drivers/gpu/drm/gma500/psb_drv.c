@@ -372,7 +372,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	/* Only add backlight support if we have LVDS output */
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
-		psb_intel_encoder = psb_intel_attached_encoder(connector);
+		psb_intel_encoder = gma_attached_encoder(connector);
 
 		switch (psb_intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:

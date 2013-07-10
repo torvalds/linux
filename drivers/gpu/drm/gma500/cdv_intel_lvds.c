@@ -408,7 +408,7 @@ static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 	int ret;
 
@@ -445,7 +445,7 @@ static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
 static void cdv_intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+						gma_attached_encoder(connector);
 
 	if (psb_intel_encoder->i2c_bus)
 		psb_intel_i2c_destroy(psb_intel_encoder->i2c_bus);
@@ -529,7 +529,7 @@ static const struct drm_connector_helper_funcs
 				cdv_intel_lvds_connector_helper_funcs = {
 	.get_modes = cdv_intel_lvds_get_modes,
 	.mode_valid = cdv_intel_lvds_mode_valid,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 static const struct drm_connector_funcs cdv_intel_lvds_connector_funcs = {
@@ -659,8 +659,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 			 DRM_MODE_ENCODER_LVDS);
 
 
-	psb_intel_connector_attach_encoder(psb_intel_connector,
-					   psb_intel_encoder);
+	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
 	psb_intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	drm_encoder_helper_add(encoder, &cdv_intel_lvds_helper_funcs);

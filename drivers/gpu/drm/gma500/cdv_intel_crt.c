@@ -198,7 +198,7 @@ static enum drm_connector_status cdv_intel_crt_detect(
 static void cdv_intel_crt_destroy(struct drm_connector *connector)
 {
 	struct psb_intel_encoder *psb_intel_encoder =
-					psb_intel_attached_encoder(connector);
+					gma_attached_encoder(connector);
 
 	psb_intel_i2c_destroy(psb_intel_encoder->ddc_bus);
 	drm_sysfs_connector_remove(connector);
@@ -209,7 +209,7 @@ static void cdv_intel_crt_destroy(struct drm_connector *connector)
 static int cdv_intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct psb_intel_encoder *psb_intel_encoder =
-				psb_intel_attached_encoder(connector);
+				gma_attached_encoder(connector);
 	return psb_intel_ddc_get_modes(connector, &psb_intel_encoder->ddc_bus->adapter);
 }
 
@@ -227,8 +227,8 @@ static int cdv_intel_crt_set_property(struct drm_connector *connector,
 static const struct drm_encoder_helper_funcs cdv_intel_crt_helper_funcs = {
 	.dpms = cdv_intel_crt_dpms,
 	.mode_fixup = cdv_intel_crt_mode_fixup,
-	.prepare = psb_intel_encoder_prepare,
-	.commit = psb_intel_encoder_commit,
+	.prepare = gma_encoder_prepare,
+	.commit = gma_encoder_commit,
 	.mode_set = cdv_intel_crt_mode_set,
 };
 
@@ -244,7 +244,7 @@ static const struct drm_connector_helper_funcs
 				cdv_intel_crt_connector_helper_funcs = {
 	.mode_valid = cdv_intel_crt_mode_valid,
 	.get_modes = cdv_intel_crt_get_modes,
-	.best_encoder = psb_intel_best_encoder,
+	.best_encoder = gma_best_encoder,
 };
 
 static void cdv_intel_crt_enc_destroy(struct drm_encoder *encoder)
@@ -284,8 +284,7 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	drm_encoder_init(dev, encoder,
 		&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC);
 
-	psb_intel_connector_attach_encoder(psb_intel_connector,
-					   psb_intel_encoder);
+	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
 
 	/* Set up the DDC bus. */
 	i2c_reg = GPIOA;
