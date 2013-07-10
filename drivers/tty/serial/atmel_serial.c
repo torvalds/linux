@@ -39,7 +39,6 @@
 #include <linux/atmel_pdc.h>
 #include <linux/atmel_serial.h>
 #include <linux/uaccess.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/atmel.h>
 
 #include <asm/io.h>
@@ -1775,7 +1774,6 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	struct atmel_uart_data *pdata = pdev->dev.platform_data;
 	void *data;
 	int ret = -ENODEV;
-	struct pinctrl *pinctrl;
 
 	BUILD_BUG_ON(ATMEL_SERIAL_RINGSIZE & (ATMEL_SERIAL_RINGSIZE - 1));
 
@@ -1808,12 +1806,6 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	ret = atmel_init_port(port, pdev);
 	if (ret)
 		goto err;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		goto err;
-	}
 
 	if (!atmel_use_dma_rx(&port->uart)) {
 		ret = -ENOMEM;
