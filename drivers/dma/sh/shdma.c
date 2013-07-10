@@ -49,12 +49,22 @@
 static DEFINE_SPINLOCK(sh_dmae_lock);
 static LIST_HEAD(sh_dmae_devices);
 
+/*
+ * Different DMAC implementations provide different ways to clear DMA channels:
+ * (1) none - no CHCLR registers are available
+ * (2) one CHCLR register per channel - 0 has to be written to it to clear
+ *     channel buffers
+ * (3) one CHCLR per several channels - 1 has to be written to the bit,
+ *     corresponding to the specific channel to reset it
+ */
 static void channel_clear(struct sh_dmae_chan *sh_dc)
 {
 	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
+	const struct sh_dmae_channel *chan_pdata = shdev->pdata->channel +
+		sh_dc->shdma_chan.id;
+	u32 val = shdev->pdata->chclr_bitwise ? 1 << chan_pdata->chclr_bit : 0;
 
-	__raw_writel(0, shdev->chan_reg +
-		shdev->pdata->channel[sh_dc->shdma_chan.id].chclr_offset);
+	__raw_writel(val, shdev->chan_reg + chan_pdata->chclr_offset);
 }
 
 static void sh_dmae_writel(struct sh_dmae_chan *sh_dc, u32 data, u32 reg)

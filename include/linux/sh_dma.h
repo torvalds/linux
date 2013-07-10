@@ -33,13 +33,44 @@ struct sh_dmae_slave_config {
 	char		mid_rid;
 };
 
+/**
+ * struct sh_dmae_channel - DMAC channel platform data
+ * @offset:		register offset within the main IOMEM resource
+ * @dmars:		channel DMARS register offset
+ * @chclr_offset:	channel CHCLR register offset
+ * @dmars_bit:		channel DMARS field offset within the register
+ * @chclr_bit:		bit position, to be set to reset the channel
+ */
 struct sh_dmae_channel {
 	unsigned int	offset;
 	unsigned int	dmars;
-	unsigned int	dmars_bit;
 	unsigned int	chclr_offset;
+	unsigned char	dmars_bit;
+	unsigned char	chclr_bit;
 };
 
+/**
+ * struct sh_dmae_pdata - DMAC platform data
+ * @slave:		array of slaves
+ * @slave_num:		number of slaves in the above array
+ * @channel:		array of DMA channels
+ * @channel_num:	number of channels in the above array
+ * @ts_low_shift:	shift of the low part of the TS field
+ * @ts_low_mask:	low TS field mask
+ * @ts_high_shift:	additional shift of the high part of the TS field
+ * @ts_high_mask:	high TS field mask
+ * @ts_shift:		array of Transfer Size shifts, indexed by TS value
+ * @ts_shift_num:	number of shifts in the above array
+ * @dmaor_init:		DMAOR initialisation value
+ * @chcr_offset:	CHCR address offset
+ * @chcr_ie_bit:	CHCR Interrupt Enable bit
+ * @dmaor_is_32bit:	DMAOR is a 32-bit register
+ * @needs_tend_set:	the TEND register has to be set
+ * @no_dmars:		DMAC has no DMARS registers
+ * @chclr_present:	DMAC has one or several CHCLR registers
+ * @chclr_bitwise:	channel CHCLR registers are bitwise
+ * @slave_only:		DMAC cannot be used for MEMCPY
+ */
 struct sh_dmae_pdata {
 	const struct sh_dmae_slave_config *slave;
 	int slave_num;
@@ -59,6 +90,7 @@ struct sh_dmae_pdata {
 	unsigned int needs_tend_set:1;
 	unsigned int no_dmars:1;
 	unsigned int chclr_present:1;
+	unsigned int chclr_bitwise:1;
 	unsigned int slave_only:1;
 };
 
