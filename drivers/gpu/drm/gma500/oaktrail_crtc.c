@@ -494,13 +494,6 @@ oaktrail_crtc_mode_set_exit:
 	return 0;
 }
 
-static bool oaktrail_crtc_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
@@ -563,24 +556,12 @@ pipe_set_base_exit:
 	return ret;
 }
 
-static void oaktrail_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
-static void oaktrail_crtc_commit(struct drm_crtc *crtc)
-{
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
 const struct drm_crtc_helper_funcs oaktrail_helper_funcs = {
 	.dpms = oaktrail_crtc_dpms,
-	.mode_fixup = oaktrail_crtc_mode_fixup,
+	.mode_fixup = gma_crtc_mode_fixup,
 	.mode_set = oaktrail_crtc_mode_set,
 	.mode_set_base = oaktrail_pipe_set_base,
-	.prepare = oaktrail_crtc_prepare,
-	.commit = oaktrail_crtc_commit,
+	.prepare = gma_crtc_prepare,
+	.commit = gma_crtc_commit,
 };
 
