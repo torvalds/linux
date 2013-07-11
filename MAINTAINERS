@@ -6676,11 +6676,11 @@ F:	Documentation/scsi/LICENSE.qla2xxx
 F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA4XXX iSCSI DRIVER
-M:	Ravi Anand <ravi.anand@qlogic.com>
 M:	Vikas Chaudhary <vikas.chaudhary@qlogic.com>
 M:	iscsi-driver@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
+F:	Documentation/scsi/LICENSE.qla4xxx
 F:	drivers/scsi/qla4xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
