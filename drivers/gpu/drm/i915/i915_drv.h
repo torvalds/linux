@@ -593,6 +593,17 @@ struct i915_fbc {
 	} no_fbc_reason;
 };
 
+enum no_psr_reason {
+	PSR_NO_SOURCE, /* Not supported on platform */
+	PSR_NO_SINK, /* Not supported by panel */
+	PSR_CRTC_NOT_ACTIVE,
+	PSR_PWR_WELL_ENABLED,
+	PSR_NOT_TILED,
+	PSR_SPRITE_ENABLED,
+	PSR_S3D_ENABLED,
+	PSR_INTERLACED_ENABLED,
+	PSR_HSW_NOT_DDIA,
+};
 
 enum intel_pch {
 	PCH_NONE = 0,	/* No PCH present */
@@ -1173,6 +1184,8 @@ typedef struct drm_i915_private {
 
 	/* Haswell power well */
 	struct i915_power_well power_well;
+
+	enum no_psr_reason no_psr_reason;
 
 	struct i915_gpu_error gpu_error;
 

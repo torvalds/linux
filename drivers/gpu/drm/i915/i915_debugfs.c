@@ -1550,16 +1550,48 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 psrctl, psrstat, psrperf;
+	u32 psrstat, psrperf;
 
 	if (!IS_HASWELL(dev)) {
 		seq_puts(m, "PSR not supported on this platform\n");
+	} else if (IS_HASWELL(dev) && I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE) {
+		seq_puts(m, "PSR enabled\n");
+	} else {
+		seq_puts(m, "PSR disabled: ");
+		switch (dev_priv->no_psr_reason) {
+		case PSR_NO_SOURCE:
+			seq_puts(m, "not supported on this platform");
+			break;
+		case PSR_NO_SINK:
+			seq_puts(m, "not supported by panel");
+			break;
+		case PSR_CRTC_NOT_ACTIVE:
+			seq_puts(m, "crtc not active");
+			break;
+		case PSR_PWR_WELL_ENABLED:
+			seq_puts(m, "power well enabled");
+			break;
+		case PSR_NOT_TILED:
+			seq_puts(m, "not tiled");
+			break;
+		case PSR_SPRITE_ENABLED:
+			seq_puts(m, "sprite enabled");
+			break;
+		case PSR_S3D_ENABLED:
+			seq_puts(m, "stereo 3d enabled");
+			break;
+		case PSR_INTERLACED_ENABLED:
+			seq_puts(m, "interlaced enabled");
+			break;
+		case PSR_HSW_NOT_DDIA:
+			seq_puts(m, "HSW ties PSR to DDI A (eDP)");
+			break;
+		default:
+			seq_puts(m, "unknown reason");
+		}
+		seq_puts(m, "\n");
 		return 0;
 	}
-
-	psrctl = I915_READ(EDP_PSR_CTL);
-	seq_printf(m, "PSR Enabled: %s\n",
-		   yesno(psrctl & EDP_PSR_ENABLE));
 
 	psrstat = I915_READ(EDP_PSR_STATUS_CTL);
 

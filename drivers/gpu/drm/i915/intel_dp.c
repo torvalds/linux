@@ -1508,11 +1508,76 @@ static void intel_edp_psr_enable_source(struct intel_dp *intel_dp)
 		   EDP_PSR_ENABLE);
 }
 
+static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dig_port->base.base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_gem_object *obj = to_intel_framebuffer(crtc->fb)->obj;
+	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
+
+	if (!IS_HASWELL(dev)) {
+		DRM_DEBUG_KMS("PSR not supported on this platform\n");
+		dev_priv->no_psr_reason = PSR_NO_SOURCE;
+		return false;
+	}
+
+	if ((intel_encoder->type != INTEL_OUTPUT_EDP) ||
+	    (dig_port->port != PORT_A)) {
+		DRM_DEBUG_KMS("HSW ties PSR to DDI A (eDP)\n");
+		dev_priv->no_psr_reason = PSR_HSW_NOT_DDIA;
+		return false;
+	}
+
+	if (!is_edp_psr(intel_dp)) {
+		DRM_DEBUG_KMS("PSR not supported by this panel\n");
+		dev_priv->no_psr_reason = PSR_NO_SINK;
+		return false;
+	}
+
+	if (!intel_crtc->active || !crtc->fb || !crtc->mode.clock) {
+		DRM_DEBUG_KMS("crtc not active for PSR\n");
+		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
+		return false;
+	}
+
+	if (obj->tiling_mode != I915_TILING_X ||
+	    obj->fence_reg == I915_FENCE_REG_NONE) {
+		DRM_DEBUG_KMS("PSR condition failed: fb not tiled or fenced\n");
+		dev_priv->no_psr_reason = PSR_NOT_TILED;
+		return false;
+	}
+
+	if (I915_READ(SPRCTL(intel_crtc->pipe)) & SPRITE_ENABLE) {
+		DRM_DEBUG_KMS("PSR condition failed: Sprite is Enabled\n");
+		dev_priv->no_psr_reason = PSR_SPRITE_ENABLED;
+		return false;
+	}
+
+	if (I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config.cpu_transcoder)) &
+	    S3D_ENABLE) {
+		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
+		dev_priv->no_psr_reason = PSR_S3D_ENABLED;
+		return false;
+	}
+
+	if (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) {
+		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
+		dev_priv->no_psr_reason = PSR_INTERLACED_ENABLED;
+		return false;
+	}
+
+	return true;
+}
+
 void intel_edp_psr_enable(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	if (!is_edp_psr(intel_dp) || intel_edp_is_psr_enabled(dev))
+	if (!intel_edp_psr_match_conditions(intel_dp) ||
+	    intel_edp_is_psr_enabled(dev))
 		return;
 
 	/* Setup PSR once */
