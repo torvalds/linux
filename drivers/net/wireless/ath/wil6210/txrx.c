@@ -855,10 +855,12 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		} else {
 			dma_unmap_page(dev, pa, dmalen, DMA_TO_DEVICE);
 		}
-		d->dma.addr.addr_low = 0;
-		d->dma.addr.addr_high = 0;
-		d->dma.length = 0;
-		d->dma.status = TX_DMA_STATUS_DU;
+		/*
+		 * There is no need to touch HW descriptor:
+		 * - ststus bit TX_DMA_STATUS_DU is set by design,
+		 *   so hardware will not try to process this desc.,
+		 * - rest of descriptor will be initialized on Tx.
+		 */
 		vring->swtail = wil_vring_next_tail(vring);
 		done++;
 	}
