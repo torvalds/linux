@@ -1732,7 +1732,13 @@ int sumo_dpm_init(struct radeon_device *rdev)
 	pi->enable_sclk_ds = true;
 	pi->enable_dynamic_m3_arbiter = false;
 	pi->enable_dynamic_patch_ps = true;
-	pi->enable_gfx_power_gating = true;
+	/* Some PALM chips don't seem to properly ungate gfx when UVD is in use;
+	 * for now just disable gfx PG.
+	 */
+	if (rdev->family == CHIP_PALM)
+		pi->enable_gfx_power_gating = false;
+	else
+		pi->enable_gfx_power_gating = true;
 	pi->enable_gfx_clock_gating = true;
 	pi->enable_mg_clock_gating = true;
 	pi->enable_auto_thermal_throttling = true;
