@@ -358,12 +358,15 @@ static int aufs_fsync_dir(struct file *file, loff_t start, loff_t end,
 
 /* ---------------------------------------------------------------------- */
 
-static int aufs_readdir(struct file *file, void *dirent, filldir_t filldir)
+static int aufs_iterate(struct file *file, struct dir_context *ctx)
 {
 	int err;
 	struct dentry *dentry;
 	struct inode *inode, *h_inode;
 	struct super_block *sb;
+
+	AuDbg("%.*s, ctx{%pf, %llu}\n",
+	      AuDLNPair(file->f_dentry), ctx->actor, ctx->pos);
 
 	dentry = file->f_dentry;
 	inode = dentry->d_inode;
@@ -383,7 +386,7 @@ static int aufs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 	h_inode = au_h_iptr(inode, au_ibstart(inode));
 	if (!au_test_nfsd()) {
-		err = au_vdir_fill_de(file, dirent, filldir);
+		err = au_vdir_fill_de(file, ctx);
 		fsstack_copy_attr_atime(inode, h_inode);
 	} else {
 		/*
@@ -393,7 +396,7 @@ static int aufs_readdir(struct file *file, void *dirent, filldir_t filldir)
 		atomic_inc(&h_inode->i_count);
 		di_read_unlock(dentry, AuLock_IR);
 		si_read_unlock(sb);
-		err = au_vdir_fill_de(file, dirent, filldir);
+		err = au_vdir_fill_de(file, ctx);
 		fsstack_copy_attr_atime(inode, h_inode);
 		fi_write_unlock(file);
 		iput(h_inode);
@@ -427,17 +430,19 @@ out:
 #endif
 
 struct test_empty_arg {
+	struct dir_context ctx;
 	struct au_nhash *whlist;
 	unsigned int flags;
 	int err;
 	aufs_bindex_t bindex;
 };
 
-static int test_empty_cb(void *__arg, const char *__name, int namelen,
-			 loff_t offset __maybe_unused, u64 ino,
+static int test_empty_cb(struct dir_context *ctx, const char *__name,
+			 int namelen, loff_t offset __maybe_unused, u64 ino,
 			 unsigned int d_type)
 {
-	struct test_empty_arg *arg = __arg;
+	struct test_empty_arg *arg = container_of(ctx, struct test_empty_arg,
+						  ctx);
 	char *name = (void *)__name;
 
 	arg->err = 0;
@@ -489,7 +494,7 @@ static int do_test_empty(struct dentry *dentry, struct test_empty_arg *arg)
 		arg->err = 0;
 		au_fclr_testempty(arg->flags, CALLED);
 		/* smp_mb(); */
-		err = vfsub_readdir(h_file, test_empty_cb, arg);
+		err = vfsub_iterate_dir(h_file, &arg->ctx);
 		if (err >= 0)
 			err = arg->err;
 	} while (!err && au_ftest_testempty(arg->flags, CALLED));
@@ -550,7 +555,11 @@ int au_test_empty_lower(struct dentry *dentry)
 	unsigned int rdhash;
 	aufs_bindex_t bindex, bstart, btail;
 	struct au_nhash whlist;
-	struct test_empty_arg arg;
+	struct test_empty_arg arg = {
+		.ctx = {
+			.actor = au_diractor(test_empty_cb)
+		}
+	};
 
 	SiMustAnyLock(dentry->d_sb);
 
@@ -592,7 +601,11 @@ out:
 int au_test_empty(struct dentry *dentry, struct au_nhash *whlist)
 {
 	int err;
-	struct test_empty_arg arg;
+	struct test_empty_arg arg = {
+		.ctx = {
+			.actor = au_diractor(test_empty_cb)
+		}
+	};
 	aufs_bindex_t bindex, btail;
 
 	err = 0;
@@ -620,7 +633,7 @@ const struct file_operations aufs_dir_fop = {
 	.owner		= THIS_MODULE,
 	.llseek		= default_llseek,
 	.read		= generic_read_dir,
-	.readdir	= aufs_readdir,
+	.iterate	= aufs_iterate,
 	.unlocked_ioctl	= aufs_ioctl_dir,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= aufs_compat_ioctl_dir,

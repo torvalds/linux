@@ -36,6 +36,7 @@
 	do { (flags) &= ~AuRdu_##name; } while (0)
 
 struct au_rdu_arg {
+	struct dir_context		ctx;
 	struct aufs_rdu			*rdu;
 	union au_rdu_ent_ul		ent;
 	unsigned long			end;
@@ -44,11 +45,11 @@ struct au_rdu_arg {
 	int				err;
 };
 
-static int au_rdu_fill(void *__arg, const char *name, int nlen,
+static int au_rdu_fill(struct dir_context *ctx, const char *name, int nlen,
 		       loff_t offset, u64 h_ino, unsigned int d_type)
 {
 	int err, len;
-	struct au_rdu_arg *arg = __arg;
+	struct au_rdu_arg *arg = container_of(ctx, struct au_rdu_arg, ctx);
 	struct aufs_rdu *rdu = arg->rdu;
 	struct au_rdu_ent ent;
 
@@ -106,7 +107,7 @@ static int au_rdu_do(struct file *h_file, struct au_rdu_arg *arg)
 		arg->err = 0;
 		au_fclr_rdu(cookie->flags, CALLED);
 		/* smp_mb(); */
-		err = vfsub_readdir(h_file, au_rdu_fill, arg);
+		err = vfsub_iterate_dir(h_file, &arg->ctx);
 		if (err >= 0)
 			err = arg->err;
 	} while (!err
@@ -123,7 +124,11 @@ static int au_rdu(struct file *file, struct aufs_rdu *rdu)
 {
 	int err;
 	aufs_bindex_t bend;
-	struct au_rdu_arg arg;
+	struct au_rdu_arg arg = {
+		.ctx = {
+			.actor = au_diractor(au_rdu_fill)
+		}
+	};
 	struct dentry *dentry;
 	struct inode *inode;
 	struct file *h_file;
@@ -144,7 +149,7 @@ static int au_rdu(struct file *file, struct aufs_rdu *rdu)
 	arg.end += rdu->sz;
 
 	err = -ENOTDIR;
-	if (unlikely(!file->f_op || !file->f_op->readdir))
+	if (unlikely(!file->f_op || !file->f_op->iterate))
 		goto out;
 
 	err = security_file_permission(file, MAY_READ);
