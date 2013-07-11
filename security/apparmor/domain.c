@@ -434,7 +434,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 				new_profile = aa_get_profile(profile);
 				goto x_clear;
 			} else if (perms.xindex & AA_X_UNCONFINED) {
-				new_profile = aa_get_profile(ns->unconfined);
+				new_profile = aa_get_newest_profile(ns->unconfined);
 				info = "ux fallback";
 			} else {
 				error = -ENOENT;

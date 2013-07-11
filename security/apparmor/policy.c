@@ -141,7 +141,6 @@ static bool policy_init(struct aa_policy *policy, const char *prefix,
 	policy->name = (char *)hname_tail(policy->hname);
 	INIT_LIST_HEAD(&policy->list);
 	INIT_LIST_HEAD(&policy->profiles);
-	kref_init(&policy->count);
 
 	return 1;
 }
@@ -292,14 +291,10 @@ static struct aa_namespace *alloc_namespace(const char *prefix,
 		goto fail_unconfined;
 
 	ns->unconfined->flags = PFLAG_UNCONFINED | PFLAG_IX_ON_NAME_ERROR |
-	    PFLAG_IMMUTABLE;
+	    PFLAG_IMMUTABLE | PFLAG_NS_COUNT;
 
-	/*
-	 * released by free_namespace, however __remove_namespace breaks
-	 * the cyclic references (ns->unconfined, and unconfined->ns) and
-	 * replaces with refs to parent namespace unconfined
-	 */
-	ns->unconfined->ns = aa_get_namespace(ns);
+	/* ns and ns->unconfined share ns->unconfined refcount */
+	ns->unconfined->ns = ns;
 
 	atomic_set(&ns->uniq_null, 0);
 
@@ -312,6 +307,7 @@ fail_ns:
 	return NULL;
 }
 
+static void free_profile(struct aa_profile *profile);
 /**
  * free_namespace - free a profile namespace
  * @ns: the namespace to free  (MAYBE NULL)
@@ -327,20 +323,33 @@ static void free_namespace(struct aa_namespace *ns)
 	policy_destroy(&ns->base);
 	aa_put_namespace(ns->parent);
 
-	if (ns->unconfined && ns->unconfined->ns == ns)
-		ns->unconfined->ns = NULL;
-
-	aa_put_profile(ns->unconfined);
+	ns->unconfined->ns = NULL;
+	free_profile(ns->unconfined);
 	kzfree(ns);
+}
+
+/**
+ * aa_free_namespace_rcu - free aa_namespace by rcu
+ * @head: rcu_head callback for freeing of a profile  (NOT NULL)
+ *
+ * rcu_head is to the unconfined profile associated with the namespace
+ */
+static void aa_free_namespace_rcu(struct rcu_head *head)
+{
+	struct aa_profile *p = container_of(head, struct aa_profile, base.rcu);
+	free_namespace(p->ns);
 }
 
 /**
  * aa_free_namespace_kref - free aa_namespace by kref (see aa_put_namespace)
  * @kr: kref callback for freeing of a namespace  (NOT NULL)
+ *
+ * kref is to the unconfined profile associated with the namespace
  */
 void aa_free_namespace_kref(struct kref *kref)
 {
-	free_namespace(container_of(kref, struct aa_namespace, base.count));
+	struct aa_profile *p = container_of(kref, struct aa_profile, count);
+	call_rcu(&p->base.rcu, aa_free_namespace_rcu);
 }
 
 /**
@@ -494,8 +503,6 @@ static void __ns_list_release(struct list_head *head);
  */
 static void destroy_namespace(struct aa_namespace *ns)
 {
-	struct aa_profile *unconfined;
-
 	if (!ns)
 		return;
 
@@ -506,28 +513,9 @@ static void destroy_namespace(struct aa_namespace *ns)
 	/* release all sub namespaces */
 	__ns_list_release(&ns->sub_ns);
 
-	unconfined = ns->unconfined;
-	/*
-	 * break the ns, unconfined profile cyclic reference and forward
-	 * all new unconfined profiles requests to the parent namespace
-	 * This will result in all confined tasks that have a profile
-	 * being removed, inheriting the parent->unconfined profile.
-	 */
 	if (ns->parent)
-		ns->unconfined = aa_get_profile(ns->parent->unconfined);
-
-	/* release original ns->unconfined ref */
-	aa_put_profile(unconfined);
-
+		__aa_update_replacedby(ns->unconfined, ns->parent->unconfined);
 	mutex_unlock(&ns->lock);
-}
-
-static void aa_put_ns_rcu(struct rcu_head *head)
-{
-	struct aa_namespace *ns = container_of(head, struct aa_namespace,
-					       base.rcu);
-	/* release ns->base.list ref */
-	aa_put_namespace(ns);
 }
 
 /**
@@ -540,10 +528,8 @@ static void __remove_namespace(struct aa_namespace *ns)
 {
 	/* remove ns from namespace list */
 	list_del_rcu(&ns->base.list);
-
 	destroy_namespace(ns);
-
-	call_rcu(&ns->base.rcu, aa_put_ns_rcu);
+	aa_put_namespace(ns);
 }
 
 /**
@@ -656,8 +642,7 @@ static void aa_free_profile_rcu(struct rcu_head *head)
  */
 void aa_free_profile_kref(struct kref *kref)
 {
-	struct aa_profile *p = container_of(kref, struct aa_profile,
-					    base.count);
+	struct aa_profile *p = container_of(kref, struct aa_profile, count);
 	call_rcu(&p->base.rcu, aa_free_profile_rcu);
 }
 
@@ -683,6 +668,7 @@ struct aa_profile *aa_alloc_profile(const char *hname)
 
 	if (!policy_init(&profile->base, NULL, hname))
 		goto fail;
+	kref_init(&profile->count);
 
 	/* refcount released by caller */
 	return profile;
@@ -884,7 +870,7 @@ struct aa_profile *aa_lookup_profile(struct aa_namespace *ns, const char *hname)
 
 	/* the unconfined profile is not in the regular profile list */
 	if (!profile && strcmp(hname, "unconfined") == 0)
-		profile = aa_get_profile(ns->unconfined);
+		profile = aa_get_newest_profile(ns->unconfined);
 
 	/* refcount released by caller */
 	return profile;

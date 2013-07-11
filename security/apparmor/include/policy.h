@@ -68,6 +68,7 @@ enum profile_flags {
 	PFLAG_NO_LIST_REF = 0x40,	/* list doesn't keep profile ref */
 	PFLAG_OLD_NULL_TRANS = 0x100,	/* use // as the null transition */
 	PFLAG_INVALID = 0x200,		/* profile replaced/removed */
+	PFLAG_NS_COUNT = 0x400,		/* carries NS ref count */
 
 	/* These flags must correspond with PATH_flags */
 	PFLAG_MEDIATE_DELETED = 0x10000, /* mediate instead delegate deleted */
@@ -78,7 +79,6 @@ struct aa_profile;
 /* struct aa_policy - common part of both namespaces and profiles
  * @name: name of the object
  * @hname - The hierarchical name
- * @count: reference count of the obj
  * @list: list policy object is on
  * @rcu: rcu head used when removing from @list
  * @profiles: head of the profiles list contained in the object
@@ -86,7 +86,6 @@ struct aa_profile;
 struct aa_policy {
 	char *name;
 	char *hname;
-	struct kref count;
 	struct list_head list;
 	struct list_head profiles;
 	struct rcu_head rcu;
@@ -157,6 +156,7 @@ struct aa_replacedby {
 
 /* struct aa_profile - basic confinement data
  * @base - base components of the profile (name, refcount, lists, lock ...)
+ * @count: reference count of the obj
  * @parent: parent of profile
  * @ns: namespace the profile is in
  * @replacedby: is set to the profile that replaced this profile
@@ -189,6 +189,7 @@ struct aa_replacedby {
  */
 struct aa_profile {
 	struct aa_policy base;
+	struct kref count;
 	struct aa_profile __rcu *parent;
 
 	struct aa_namespace *ns;
@@ -223,40 +224,6 @@ void aa_free_namespace_kref(struct kref *kref);
 struct aa_namespace *aa_find_namespace(struct aa_namespace *root,
 				       const char *name);
 
-static inline struct aa_policy *aa_get_common(struct aa_policy *c)
-{
-	if (c)
-		kref_get(&c->count);
-
-	return c;
-}
-
-/**
- * aa_get_namespace - increment references count on @ns
- * @ns: namespace to increment reference count of (MAYBE NULL)
- *
- * Returns: pointer to @ns, if @ns is NULL returns NULL
- * Requires: @ns must be held with valid refcount when called
- */
-static inline struct aa_namespace *aa_get_namespace(struct aa_namespace *ns)
-{
-	if (ns)
-		kref_get(&(ns->base.count));
-
-	return ns;
-}
-
-/**
- * aa_put_namespace - decrement refcount on @ns
- * @ns: namespace to put reference of
- *
- * Decrement reference count of @ns and if no longer in use free it
- */
-static inline void aa_put_namespace(struct aa_namespace *ns)
-{
-	if (ns)
-		kref_put(&ns->base.count, aa_free_namespace_kref);
-}
 
 void aa_free_replacedby_kref(struct kref *kref);
 struct aa_profile *aa_alloc_profile(const char *name);
@@ -285,7 +252,7 @@ ssize_t aa_remove_profiles(char *name, size_t size);
 static inline struct aa_profile *aa_get_profile(struct aa_profile *p)
 {
 	if (p)
-		kref_get(&(p->base.count));
+		kref_get(&(p->count));
 
 	return p;
 }
@@ -299,7 +266,7 @@ static inline struct aa_profile *aa_get_profile(struct aa_profile *p)
  */
 static inline struct aa_profile *aa_get_profile_not0(struct aa_profile *p)
 {
-	if (p && kref_get_not0(&p->base.count))
+	if (p && kref_get_not0(&p->count))
 		return p;
 
 	return NULL;
@@ -319,7 +286,7 @@ static inline struct aa_profile *aa_get_profile_rcu(struct aa_profile __rcu **p)
 	rcu_read_lock();
 	do {
 		c = rcu_dereference(*p);
-	} while (c && !kref_get_not0(&c->base.count));
+	} while (c && !kref_get_not0(&c->count));
 	rcu_read_unlock();
 
 	return c;
@@ -350,8 +317,12 @@ static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
  */
 static inline void aa_put_profile(struct aa_profile *p)
 {
-	if (p)
-		kref_put(&p->base.count, aa_free_profile_kref);
+	if (p) {
+		if (p->flags & PFLAG_NS_COUNT)
+			kref_put(&p->count, aa_free_namespace_kref);
+		else
+			kref_put(&p->count, aa_free_profile_kref);
+	}
 }
 
 static inline struct aa_replacedby *aa_get_replacedby(struct aa_replacedby *p)
@@ -376,6 +347,33 @@ static inline void __aa_update_replacedby(struct aa_profile *orig,
 	rcu_assign_pointer(orig->replacedby->profile, aa_get_profile(new));
 	orig->flags |= PFLAG_INVALID;
 	aa_put_profile(tmp);
+}
+
+/**
+ * aa_get_namespace - increment references count on @ns
+ * @ns: namespace to increment reference count of (MAYBE NULL)
+ *
+ * Returns: pointer to @ns, if @ns is NULL returns NULL
+ * Requires: @ns must be held with valid refcount when called
+ */
+static inline struct aa_namespace *aa_get_namespace(struct aa_namespace *ns)
+{
+	if (ns)
+		aa_get_profile(ns->unconfined);
+
+	return ns;
+}
+
+/**
+ * aa_put_namespace - decrement refcount on @ns
+ * @ns: namespace to put reference of
+ *
+ * Decrement reference count of @ns and if no longer in use free it
+ */
+static inline void aa_put_namespace(struct aa_namespace *ns)
+{
+	if (ns)
+		aa_put_profile(ns->unconfined);
 }
 
 static inline int AUDIT_MODE(struct aa_profile *profile)
