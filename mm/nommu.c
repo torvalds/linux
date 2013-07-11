@@ -1871,10 +1871,6 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 	return -ENOMEM;
 }
 
-void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
-{
-}
-
 void unmap_mapping_range(struct address_space *mapping,
 			 loff_t const holebegin, loff_t const holelen,
 			 int even_cows)

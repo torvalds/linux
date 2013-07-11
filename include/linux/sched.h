@@ -322,8 +322,6 @@ extern unsigned long
 arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 			  unsigned long len, unsigned long pgoff,
 			  unsigned long flags);
-extern void arch_unmap_area(struct mm_struct *, unsigned long);
-extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
 #else
 static inline void arch_pick_mmap_layout(struct mm_struct *mm) {}
 #endif
