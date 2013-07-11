@@ -434,6 +434,7 @@ struct bcache_device {
 
 	/* If nonzero, we're detaching/unregistering from cache set */
 	atomic_t		detaching;
+	int			flush_done;
 
 	uint64_t		nr_stripes;
 	unsigned		stripe_size_bits;

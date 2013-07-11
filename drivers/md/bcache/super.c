@@ -706,7 +706,8 @@ static void bcache_device_detach(struct bcache_device *d)
 		atomic_set(&d->detaching, 0);
 	}
 
-	bcache_device_unlink(d);
+	if (!d->flush_done)
+		bcache_device_unlink(d);
 
 	d->c->devices[d->id] = NULL;
 	closure_put(&d->c->caching);
@@ -1054,6 +1055,14 @@ static void cached_dev_flush(struct closure *cl)
 {
 	struct cached_dev *dc = container_of(cl, struct cached_dev, disk.cl);
 	struct bcache_device *d = &dc->disk;
+
+	mutex_lock(&bch_register_lock);
+	d->flush_done = 1;
+
+	if (d->c)
+		bcache_device_unlink(d);
+
+	mutex_unlock(&bch_register_lock);
 
 	bch_cache_accounting_destroy(&dc->accounting);
 	kobject_del(&d->kobj);
