@@ -35,19 +35,11 @@
 # error "Bad timer number for Linux configurations!"
 #endif
 
-#define LINUX_TIMER_MASK        (1L << LINUX_TIMER_INT)
-
-#define CLOCK_TICK_RATE 	1193180	/* (everyone is using this value) */
-#define CLOCK_TICK_FACTOR       20 /* Factor of both 10^6 and CLOCK_TICK_RATE */
-
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
-extern unsigned long ccount_per_jiffy;
-extern unsigned long nsec_per_ccount;
-#define CCOUNT_PER_JIFFY ccount_per_jiffy
-#define NSEC_PER_CCOUNT  nsec_per_ccount
+extern unsigned long ccount_freq;
+#define CCOUNT_PER_JIFFY (ccount_freq / HZ)
 #else
 #define CCOUNT_PER_JIFFY (CONFIG_XTENSA_CPU_CLOCK*(1000000UL/HZ))
-#define NSEC_PER_CCOUNT (1000UL / CONFIG_XTENSA_CPU_CLOCK)
 #endif
 
 
