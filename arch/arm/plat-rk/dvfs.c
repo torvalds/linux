@@ -270,7 +270,10 @@ int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_r
 		dvfs_clk->freq_limit_en = 1;
 		dvfs_clk->min_rate = min_rate;
 		dvfs_clk->max_rate = max_rate;
-		rate = clk_get_rate(clk);
+		if (clk->last_set_rate == 0)
+			rate = clk_get_rate(clk);
+		else
+			rate = clk->last_set_rate;
 		ret = dvfs_clk->vd->vd_dvfs_target(clk, rate);
 		clk->last_set_rate = rate;
 
