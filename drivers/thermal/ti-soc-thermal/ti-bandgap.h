@@ -400,4 +400,9 @@ extern const struct ti_bandgap_data omap5430_data;
 #define omap5430_data					NULL
 #endif
 
+#ifdef CONFIG_DRA752_THERMAL
+extern const struct ti_bandgap_data dra752_data;
+#else
+#define dra752_data					NULL
+#endif
 #endif

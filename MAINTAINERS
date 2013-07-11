@@ -8159,6 +8159,7 @@ M:      Zhang Rui <rui.zhang@intel.com>
 M:      Eduardo Valentin <eduardo.valentin@ti.com>
 L:      linux-pm@vger.kernel.org
 T:      git git://git.kernel.org/pub/scm/linux/kernel/git/rzhang/linux.git
+T:      git git://git.kernel.org/pub/scm/linux/kernel/git/evalenti/linux-soc-thermal.git
 Q:      https://patchwork.kernel.org/project/linux-pm/list/
 S:      Supported
 F:      drivers/thermal/
@@ -8183,8 +8184,8 @@ F:	drivers/platform/x86/thinkpad_acpi.c
 TI BANDGAP AND THERMAL DRIVER
 M:	Eduardo Valentin <eduardo.valentin@ti.com>
 L:	linux-pm@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/omap-thermal/
+S:	Supported
+F:	drivers/thermal/ti-soc-thermal/
 
 TI FLASH MEDIA INTERFACE DRIVER
 M:	Alex Dubov <oakad@yahoo.com>

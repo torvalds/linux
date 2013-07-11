@@ -46,3 +46,15 @@ config OMAP5_THERMAL
 
 	  This includes alert interrupts generation and also the TSHUT
 	  support.
+
+config DRA752_THERMAL
+	bool "Texas Instruments DRA752 thermal support"
+	depends on TI_SOC_THERMAL
+	depends on SOC_DRA7XX
+	help
+	  If you say yes here you get thermal support for the Texas Instruments
+	  DRA752 SoC family. The current chip supported are:
+	   - DRA752
+
+	  This includes alert interrupts generation and also the TSHUT
+	  support.

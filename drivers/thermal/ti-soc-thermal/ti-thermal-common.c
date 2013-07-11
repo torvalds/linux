@@ -101,7 +101,7 @@ static inline int ti_thermal_get_temp(struct thermal_zone_device *thermal,
 
 	pcb_tz = data->pcb_tz;
 	/* In case pcb zone is available, use the extrapolation rule with it */
-	if (!IS_ERR_OR_NULL(pcb_tz)) {
+	if (!IS_ERR(pcb_tz)) {
 		ret = thermal_zone_get_temp(pcb_tz, &pcb_temp);
 		if (!ret) {
 			tmp -= pcb_temp; /* got a valid PCB temp */
@@ -124,7 +124,7 @@ static int ti_thermal_bind(struct thermal_zone_device *thermal,
 	struct ti_thermal_data *data = thermal->devdata;
 	int id;
 
-	if (IS_ERR_OR_NULL(data))
+	if (!data || IS_ERR(data))
 		return -ENODEV;
 
 	/* check if this is the cooling device we registered */
@@ -146,7 +146,7 @@ static int ti_thermal_unbind(struct thermal_zone_device *thermal,
 {
 	struct ti_thermal_data *data = thermal->devdata;
 
-	if (IS_ERR_OR_NULL(data))
+	if (!data || IS_ERR(data))
 		return -ENODEV;
 
 	/* check if this is the cooling device we registered */
@@ -282,6 +282,7 @@ static struct ti_thermal_data
 	data->sensor_id = id;
 	data->bgp = bgp;
 	data->mode = THERMAL_DEVICE_ENABLED;
+	/* pcb_tz will be either valid or PTR_ERR() */
 	data->pcb_tz = thermal_zone_get_zone_by_name("pcb");
 	INIT_WORK(&data->thermal_wq, ti_thermal_work);
 
@@ -295,7 +296,7 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
 
-	if (IS_ERR_OR_NULL(data))
+	if (!data || IS_ERR(data))
 		data = ti_thermal_build_data(bgp, id);
 
 	if (!data)
@@ -306,7 +307,7 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 				OMAP_TRIP_NUMBER, 0, data, &ti_thermal_ops,
 				NULL, FAST_TEMP_MONITORING_RATE,
 				FAST_TEMP_MONITORING_RATE);
-	if (IS_ERR_OR_NULL(data->ti_thermal)) {
+	if (IS_ERR(data->ti_thermal)) {
 		dev_err(bgp->dev, "thermal zone device is NULL\n");
 		return PTR_ERR(data->ti_thermal);
 	}
@@ -343,7 +344,7 @@ int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 	struct ti_thermal_data *data;
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
-	if (IS_ERR_OR_NULL(data))
+	if (!data || IS_ERR(data))
 		data = ti_thermal_build_data(bgp, id);
 
 	if (!data)
@@ -356,7 +357,7 @@ int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 
 	/* Register cooling device */
 	data->cool_dev = cpufreq_cooling_register(cpu_present_mask);
-	if (IS_ERR_OR_NULL(data->cool_dev)) {
+	if (IS_ERR(data->cool_dev)) {
 		dev_err(bgp->dev,
 			"Failed to register cpufreq cooling device\n");
 		return PTR_ERR(data->cool_dev);

@@ -38,6 +38,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
+#include <linux/of_gpio.h>
 #include <linux/io.h>
 
 #include "ti-bandgap.h"
@@ -469,7 +470,7 @@ static inline int ti_bandgap_validate(struct ti_bandgap *bgp, int id)
 {
 	int ret = 0;
 
-	if (IS_ERR_OR_NULL(bgp)) {
+	if (!bgp || IS_ERR(bgp)) {
 		pr_err("%s: invalid bandgap pointer\n", __func__);
 		ret = -EINVAL;
 		goto exit;
@@ -992,9 +993,12 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 		goto exit;
 	}
 
+	spin_lock(&bgp->lock);
+
 	tsr = bgp->conf->sensors[id].registers;
 
 	/* Freeze and read the last 2 valid readings */
+	RMW_BITS(bgp, id, bgap_mask_ctrl, mask_freeze_mask, 1);
 	reg1 = tsr->ctrl_dtemp_1;
 	reg2 = tsr->ctrl_dtemp_2;
 
@@ -1008,22 +1012,25 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 	/* Convert from adc values to mCelsius temperature */
 	ret = ti_bandgap_adc_to_mcelsius(bgp, temp1, &t1);
 	if (ret)
-		goto exit;
+		goto unfreeze;
 
 	ret = ti_bandgap_adc_to_mcelsius(bgp, temp2, &t2);
 	if (ret)
-		goto exit;
+		goto unfreeze;
 
 	/* Fetch the update interval */
 	ret = ti_bandgap_read_update_interval(bgp, id, &interval);
 	if (ret || !interval)
-		goto exit;
+		goto unfreeze;
 
 	*trend = (t1 - t2) / interval;
 
 	dev_dbg(bgp->dev, "The temperatures are t1 = %d and t2 = %d and trend =%d\n",
 		t1, t2, *trend);
 
+unfreeze:
+	RMW_BITS(bgp, id, bgap_mask_ctrl, mask_freeze_mask, 0);
+	spin_unlock(&bgp->lock);
 exit:
 	return ret;
 }
@@ -1123,7 +1130,6 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct ti_bandgap *bgp;
 	struct resource *res;
-	u32 prop;
 	int i;
 
 	/* just for the sake */
@@ -1167,11 +1173,7 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	} while (res);
 
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
-		if (of_property_read_u32(node, "ti,tshut-gpio", &prop) < 0) {
-			dev_err(&pdev->dev, "missing tshut gpio in device tree\n");
-			return ERR_PTR(-EINVAL);
-		}
-		bgp->tshut_gpio = prop;
+		bgp->tshut_gpio = of_get_gpio(node, 0);
 		if (!gpio_is_valid(bgp->tshut_gpio)) {
 			dev_err(&pdev->dev, "invalid gpio for tshut (%d)\n",
 				bgp->tshut_gpio);
@@ -1191,7 +1193,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	int clk_rate, ret = 0, i;
 
 	bgp = ti_bandgap_build(pdev);
-	if (IS_ERR_OR_NULL(bgp)) {
+	if (IS_ERR(bgp)) {
 		dev_err(&pdev->dev, "failed to fetch platform data\n");
 		return PTR_ERR(bgp);
 	}
@@ -1207,17 +1209,19 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	}
 
 	bgp->fclock = clk_get(NULL, bgp->conf->fclock_name);
-	ret = IS_ERR_OR_NULL(bgp->fclock);
+	ret = IS_ERR(bgp->fclock);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request fclock reference\n");
+		ret = PTR_ERR(bgp->fclock);
 		goto free_irqs;
 	}
 
 	bgp->div_clk = clk_get(NULL,  bgp->conf->div_ck_name);
-	ret = IS_ERR_OR_NULL(bgp->div_clk);
+	ret = IS_ERR(bgp->div_clk);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"failed to request div_ts_ck clock ref\n");
+		ret = PTR_ERR(bgp->div_clk);
 		goto free_irqs;
 	}
 
@@ -1521,6 +1525,12 @@ static const struct of_device_id of_ti_bandgap_match[] = {
 	{
 		.compatible = "ti,omap5430-bandgap",
 		.data = (void *)&omap5430_data,
+	},
+#endif
+#ifdef CONFIG_DRA752_THERMAL
+	{
+		.compatible = "ti,dra752-bandgap",
+		.data = (void *)&dra752_data,
 	},
 #endif
 	/* Sentinel */
