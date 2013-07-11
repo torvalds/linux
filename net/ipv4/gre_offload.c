@@ -100,6 +100,9 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		}
 		__skb_push(skb, tnl_hlen - ghl);
 
+		skb_reset_inner_headers(skb);
+		skb->encapsulation = 1;
+
 		skb_reset_mac_header(skb);
 		skb_set_network_header(skb, mac_len);
 		skb->mac_len = mac_len;
