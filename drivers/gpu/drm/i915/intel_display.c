@@ -1321,32 +1321,40 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 	assert_pch_hdmi_disabled(dev_priv, pipe, PCH_HDMID);
 }
 
-static void vlv_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void vlv_enable_pll(struct intel_crtc *crtc)
 {
-	int reg;
-	u32 val;
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int reg = DPLL(crtc->pipe);
+	u32 dpll = crtc->config.dpll_hw_state.dpll;
 
-	assert_pipe_disabled(dev_priv, pipe);
+	assert_pipe_disabled(dev_priv, crtc->pipe);
 
 	/* No really, not for ILK+ */
 	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev));
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (IS_MOBILE(dev_priv->dev) && !IS_I830(dev_priv->dev))
-		assert_panel_unlocked(dev_priv, pipe);
+		assert_panel_unlocked(dev_priv, crtc->pipe);
 
-	reg = DPLL(pipe);
-	val = I915_READ(reg);
-	val |= DPLL_VCO_ENABLE;
+	I915_WRITE(reg, dpll);
+	POSTING_READ(reg);
+	udelay(150);
+
+	if (wait_for(((I915_READ(reg) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
+		DRM_ERROR("DPLL %d failed to lock\n", crtc->pipe);
+
+	I915_WRITE(DPLL_MD(crtc->pipe), crtc->config.dpll_hw_state.dpll_md);
+	POSTING_READ(DPLL_MD(crtc->pipe));
 
 	/* We do this three times for luck */
-	I915_WRITE(reg, val);
+	I915_WRITE(reg, dpll);
 	POSTING_READ(reg);
 	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, val);
+	I915_WRITE(reg, dpll);
 	POSTING_READ(reg);
 	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, val);
+	I915_WRITE(reg, dpll);
 	POSTING_READ(reg);
 	udelay(150); /* wait for warmup */
 }
@@ -3654,7 +3662,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
 
-	vlv_enable_pll(dev_priv, pipe);
+	vlv_enable_pll(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -4405,7 +4413,6 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *encoder;
 	int pipe = crtc->pipe;
 	u32 dpll, mdiv;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
@@ -4494,10 +4501,6 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 
 	vlv_dpio_write(dev_priv, DPIO_PLL_CML(pipe), 0x87871000);
 
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
-		if (encoder->pre_pll_enable)
-			encoder->pre_pll_enable(encoder);
-
 	/* Enable DPIO clock input */
 	dpll = DPLL_EXT_BUFFER_ENABLE_VLV | DPLL_REFA_CLK_ENABLE_VLV |
 		DPLL_VGA_MODE_DIS | DPLL_INTEGRATED_CLOCK_VLV;
@@ -4507,19 +4510,9 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	dpll |= DPLL_VCO_ENABLE;
 	crtc->config.dpll_hw_state.dpll = dpll;
 
-	I915_WRITE(DPLL(pipe), dpll);
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
-	if (wait_for(((I915_READ(DPLL(pipe)) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
-		DRM_ERROR("DPLL %d failed to lock\n", pipe);
-
 	dpll_md = (crtc->config.pixel_multiplier - 1)
 		<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
 	crtc->config.dpll_hw_state.dpll_md = dpll_md;
-
-	I915_WRITE(DPLL_MD(pipe), dpll_md);
-	POSTING_READ(DPLL_MD(pipe));
 
 	if (crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(crtc);
