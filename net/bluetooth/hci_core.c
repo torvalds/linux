@@ -2207,10 +2207,6 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
-	write_lock(&hci_dev_list_lock);
-	list_add(&hdev->list, &hci_dev_list);
-	write_unlock(&hci_dev_list_lock);
-
 	hdev->workqueue = alloc_workqueue(hdev->name, WQ_HIGHPRI | WQ_UNBOUND |
 					  WQ_MEM_RECLAIM, 1);
 	if (!hdev->workqueue) {
@@ -2246,6 +2242,10 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (hdev->dev_type != HCI_AMP)
 		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
 
+	write_lock(&hci_dev_list_lock);
+	list_add(&hdev->list, &hci_dev_list);
+	write_unlock(&hci_dev_list_lock);
+
 	hci_notify(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
 
@@ -2258,9 +2258,6 @@ err_wqueue:
 	destroy_workqueue(hdev->req_workqueue);
 err:
 	ida_simple_remove(&hci_index_ida, hdev->id);
-	write_lock(&hci_dev_list_lock);
-	list_del(&hdev->list);
-	write_unlock(&hci_dev_list_lock);
 
 	return error;
 }
