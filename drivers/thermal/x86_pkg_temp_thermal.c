@@ -511,7 +511,7 @@ static int get_core_online(unsigned int cpu)
 
 	/* Check if there is already an instance for this package */
 	if (!phdev) {
-		if (!cpu_has(c, X86_FEATURE_DTHERM) &&
+		if (!cpu_has(c, X86_FEATURE_DTHERM) ||
 					!cpu_has(c, X86_FEATURE_PTS))
 			return -ENODEV;
 		if (pkg_temp_thermal_device_add(cpu))
@@ -562,7 +562,7 @@ static struct notifier_block pkg_temp_thermal_notifier __refdata = {
 };
 
 static const struct x86_cpu_id __initconst pkg_temp_thermal_ids[] = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_DTHERM },
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_PTS },
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, pkg_temp_thermal_ids);
