@@ -420,6 +420,7 @@ again:
 	/* need to make sure the commit_root doesn't disappear */
 	down_read(&fs_info->extent_commit_sem);
 
+next:
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
@@ -457,6 +458,16 @@ again:
 			leaf = path->nodes[0];
 			nritems = btrfs_header_nritems(leaf);
 			continue;
+		}
+
+		if (key.objectid < last) {
+			key.objectid = last;
+			key.offset = 0;
+			key.type = BTRFS_EXTENT_ITEM_KEY;
+
+			caching_ctl->progress = last;
+			btrfs_release_path(path);
+			goto next;
 		}
 
 		if (key.objectid < block_group->key.objectid) {
