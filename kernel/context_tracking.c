@@ -20,6 +20,9 @@
 #include <linux/hardirq.h>
 #include <linux/export.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/context_tracking.h>
+
 struct static_key context_tracking_enabled = STATIC_KEY_INIT_FALSE;
 EXPORT_SYMBOL_GPL(context_tracking_enabled);
 
@@ -64,6 +67,7 @@ void context_tracking_user_enter(void)
 	local_irq_save(flags);
 	if ( __this_cpu_read(context_tracking.state) != IN_USER) {
 		if (__this_cpu_read(context_tracking.active)) {
+			trace_user_enter(0);
 			/*
 			 * At this stage, only low level arch entry code remains and
 			 * then we'll run in userspace. We can assume there won't be
@@ -159,6 +163,7 @@ void context_tracking_user_exit(void)
 			 */
 			rcu_user_exit();
 			vtime_user_exit(current);
+			trace_user_exit(0);
 		}
 		__this_cpu_write(context_tracking.state, IN_KERNEL);
 	}
