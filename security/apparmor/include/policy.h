@@ -165,6 +165,7 @@ struct aa_replacedby {
  * @ns: namespace the profile is in
  * @replacedby: is set to the profile that replaced this profile
  * @rename: optional profile name that this profile renamed
+ * @attach: human readable attachment string
  * @xmatch: optional extended matching for unconfined executables names
  * @xmatch_len: xmatch prefix len, used to determine xmatch priority
  * @audit: the auditing mode of the profile
@@ -204,6 +205,7 @@ struct aa_profile {
 	struct aa_replacedby *replacedby;
 	const char *rename;
 
+	const char *attach;
 	struct aa_dfa *xmatch;
 	int xmatch_len;
 	enum audit_mode audit;

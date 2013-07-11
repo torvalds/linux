@@ -290,6 +290,34 @@ static const struct file_operations aa_fs_profmode_fops = {
 	.release	= aa_fs_seq_profile_release,
 };
 
+static int aa_fs_seq_profattach_show(struct seq_file *seq, void *v)
+{
+	struct aa_replacedby *r = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	if (profile->attach)
+		seq_printf(seq, "%s\n", profile->attach);
+	else if (profile->xmatch)
+		seq_puts(seq, "<unknown>\n");
+	else
+		seq_printf(seq, "%s\n", profile->base.name);
+	aa_put_profile(profile);
+
+	return 0;
+}
+
+static int aa_fs_seq_profattach_open(struct inode *inode, struct file *file)
+{
+	return aa_fs_seq_profile_open(inode, file, aa_fs_seq_profattach_show);
+}
+
+static const struct file_operations aa_fs_profattach_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_profattach_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= aa_fs_seq_profile_release,
+};
+
 /** fns to setup dynamic per profile/namespace files **/
 void __aa_fs_profile_rmdir(struct aa_profile *profile)
 {
@@ -384,6 +412,12 @@ int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 	if (IS_ERR(dent))
 		goto fail;
 	profile->dents[AAFS_PROF_MODE] = dent;
+
+	dent = create_profile_file(dir, "attach", profile,
+				   &aa_fs_profattach_fops);
+	if (IS_ERR(dent))
+		goto fail;
+	profile->dents[AAFS_PROF_ATTACH] = dent;
 
 	list_for_each_entry(child, &profile->base.profiles, base.list) {
 		error = __aa_fs_profile_mkdir(child, prof_child_dir(profile));
