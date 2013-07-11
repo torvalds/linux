@@ -91,7 +91,7 @@ dma_hdl_t sw_dma_request(char * name, dma_chan_type_e type)
 	dma_channel_t *pchan = NULL;
 
 	DMA_DBG("%s: name %s, chan type %d\n", __func__, name, (u32)type);
-	if((name && strlen(name) >= MAX_NAME_LEN) || (type != CHAN_NORAML && type != CHAN_DEDICATE)) {
+	if((name && strlen(name) >= MAX_NAME_LEN) || (type != CHAN_NORMAL && type != CHAN_DEDICATE)) {
 		DMA_ERR("%s: para err, name %s, type %d\n", __func__, name, (u32)type);
 		return NULL;
 	}
@@ -103,7 +103,7 @@ dma_hdl_t sw_dma_request(char * name, dma_chan_type_e type)
 		goto end;
 	}
 	/* get a free channel */
-	if(CHAN_NORAML == type)
+	if(CHAN_NORMAL == type)
 		i = 0;
 	else
 		i = 8;
