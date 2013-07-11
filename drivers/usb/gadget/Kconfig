@@ -336,6 +336,7 @@ config USB_MV_UDC
 	  full speed USB peripheral.
 
 config USB_MV_U3D
+	depends on HAS_DMA
 	tristate "MARVELL PXA2128 USB 3.0 controller"
 	help
 	  MARVELL PXA2128 Processor series include a super speed USB3.0 device
