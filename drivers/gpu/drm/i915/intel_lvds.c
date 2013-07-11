@@ -109,6 +109,13 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_PVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	/* gen2/3 store dither state in pfit control, needs to match */
+	if (INTEL_INFO(dev)->gen < 4) {
+		tmp = I915_READ(PFIT_CONTROL);
+
+		pipe_config->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
+	}
 }
 
 /* The LVDS pin pair needs to be on before the DPLLs are enabled.
