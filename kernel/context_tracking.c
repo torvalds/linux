@@ -166,7 +166,7 @@ void context_tracking_user_exit(void)
 }
 
 /**
- * context_tracking_task_switch - context switch the syscall callbacks
+ * __context_tracking_task_switch - context switch the syscall callbacks
  * @prev: the task that is being switched out
  * @next: the task that is being switched in
  *
@@ -178,8 +178,8 @@ void context_tracking_user_exit(void)
  * migrate to some CPU that doesn't do the context tracking. As such the TIF
  * flag may not be desired there.
  */
-void context_tracking_task_switch(struct task_struct *prev,
-			     struct task_struct *next)
+void __context_tracking_task_switch(struct task_struct *prev,
+				    struct task_struct *next)
 {
 	clear_tsk_thread_flag(prev, TIF_NOHZ);
 	set_tsk_thread_flag(next, TIF_NOHZ);

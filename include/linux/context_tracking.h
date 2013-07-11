@@ -40,6 +40,8 @@ extern void context_tracking_cpu_set(int cpu);
 
 extern void context_tracking_user_enter(void);
 extern void context_tracking_user_exit(void);
+extern void __context_tracking_task_switch(struct task_struct *prev,
+					   struct task_struct *next);
 
 static inline void user_enter(void)
 {
@@ -74,8 +76,12 @@ static inline void exception_exit(enum ctx_state prev_ctx)
 	}
 }
 
-extern void context_tracking_task_switch(struct task_struct *prev,
-					 struct task_struct *next);
+static inline void context_tracking_task_switch(struct task_struct *prev,
+						struct task_struct *next)
+{
+	if (static_key_false(&context_tracking_enabled))
+		__context_tracking_task_switch(prev, next);
+}
 #else
 static inline bool context_tracking_in_user(void) { return false; }
 static inline void user_enter(void) { }
@@ -112,6 +118,7 @@ static inline void guest_exit(void)
 	else
 		current->flags &= ~PF_VCPU;
 }
+
 #else
 static inline void guest_enter(void)
 {
