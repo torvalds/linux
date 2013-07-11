@@ -837,5 +837,6 @@ extern bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 
 extern void intel_edp_psr_enable(struct intel_dp *intel_dp);
 extern void intel_edp_psr_disable(struct intel_dp *intel_dp);
+extern void intel_edp_psr_update(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */
