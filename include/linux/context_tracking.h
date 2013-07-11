@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/percpu.h>
 #include <linux/vtime.h>
+#include <linux/static_key.h>
 #include <asm/ptrace.h>
 
 struct context_tracking {
@@ -22,6 +23,7 @@ struct context_tracking {
 
 
 #ifdef CONFIG_CONTEXT_TRACKING
+extern struct static_key context_tracking_enabled;
 DECLARE_PER_CPU(struct context_tracking, context_tracking);
 
 static inline bool context_tracking_in_user(void)
@@ -66,6 +68,14 @@ static inline void exception_exit(enum ctx_state prev_ctx) { }
 static inline void context_tracking_task_switch(struct task_struct *prev,
 						struct task_struct *next) { }
 #endif /* !CONFIG_CONTEXT_TRACKING */
+
+
+#ifdef CONFIG_CONTEXT_TRACKING_FORCE
+extern void context_tracking_init(void);
+#else
+static inline void context_tracking_init(void) { }
+#endif /* CONFIG_CONTEXT_TRACKING_FORCE */
+
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 extern void guest_enter(void);

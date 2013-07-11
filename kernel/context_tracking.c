@@ -20,15 +20,16 @@
 #include <linux/hardirq.h>
 #include <linux/export.h>
 
-DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
-#ifdef CONFIG_CONTEXT_TRACKING_FORCE
-	.active = true,
-#endif
-};
+struct static_key context_tracking_enabled = STATIC_KEY_INIT_FALSE;
+
+DEFINE_PER_CPU(struct context_tracking, context_tracking);
 
 void context_tracking_cpu_set(int cpu)
 {
-	per_cpu(context_tracking.active, cpu) = true;
+	if (!per_cpu(context_tracking.active, cpu)) {
+		per_cpu(context_tracking.active, cpu) = true;
+		static_key_slow_inc(&context_tracking_enabled);
+	}
 }
 
 /**
@@ -202,3 +203,13 @@ void context_tracking_task_switch(struct task_struct *prev,
 	clear_tsk_thread_flag(prev, TIF_NOHZ);
 	set_tsk_thread_flag(next, TIF_NOHZ);
 }
+
+#ifdef CONFIG_CONTEXT_TRACKING_FORCE
+void __init context_tracking_init(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		context_tracking_cpu_set(cpu);
+}
+#endif
