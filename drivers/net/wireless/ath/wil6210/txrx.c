@@ -712,6 +712,12 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_DMA_IT_POS);
 	*_d = *d;
 
+	/* hold reference to skb
+	 * to prevent skb release before accounting
+	 * in case of immediate "tx done"
+	 */
+	vring->ctx[i].skb = skb_get(skb);
+
 	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
@@ -720,11 +726,6 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	wil_dbg_txrx(wil, "Tx swhead %d -> %d\n", swhead, vring->swhead);
 	trace_wil6210_tx(vring_index, swhead, skb->len, nr_frags);
 	iowrite32(vring->swhead, wil->csr + HOSTADDR(vring->hwtail));
-	/* hold reference to skb
-	 * to prevent skb release before accounting
-	 * in case of immediate "tx done"
-	 */
-	vring->ctx[i].skb = skb_get(skb);
 
 	return 0;
  dma_error:
