@@ -329,30 +329,6 @@ static void free_namespace(struct aa_namespace *ns)
 }
 
 /**
- * aa_free_namespace_rcu - free aa_namespace by rcu
- * @head: rcu_head callback for freeing of a profile  (NOT NULL)
- *
- * rcu_head is to the unconfined profile associated with the namespace
- */
-static void aa_free_namespace_rcu(struct rcu_head *head)
-{
-	struct aa_profile *p = container_of(head, struct aa_profile, base.rcu);
-	free_namespace(p->ns);
-}
-
-/**
- * aa_free_namespace_kref - free aa_namespace by kref (see aa_put_namespace)
- * @kr: kref callback for freeing of a namespace  (NOT NULL)
- *
- * kref is to the unconfined profile associated with the namespace
- */
-void aa_free_namespace_kref(struct kref *kref)
-{
-	struct aa_profile *p = container_of(kref, struct aa_profile, count);
-	call_rcu(&p->base.rcu, aa_free_namespace_rcu);
-}
-
-/**
  * __aa_find_namespace - find a namespace on a list by @name
  * @head: list to search for namespace on  (NOT NULL)
  * @name: name of namespace to look for  (NOT NULL)
@@ -632,8 +608,11 @@ static void free_profile(struct aa_profile *profile)
  */
 static void aa_free_profile_rcu(struct rcu_head *head)
 {
-	struct aa_profile *p = container_of(head, struct aa_profile, base.rcu);
-	free_profile(p);
+	struct aa_profile *p = container_of(head, struct aa_profile, rcu);
+	if (p->flags & PFLAG_NS_COUNT)
+		free_namespace(p->ns);
+	else
+		free_profile(p);
 }
 
 /**
@@ -643,7 +622,7 @@ static void aa_free_profile_rcu(struct rcu_head *head)
 void aa_free_profile_kref(struct kref *kref)
 {
 	struct aa_profile *p = container_of(kref, struct aa_profile, count);
-	call_rcu(&p->base.rcu, aa_free_profile_rcu);
+	call_rcu(&p->rcu, aa_free_profile_rcu);
 }
 
 /**

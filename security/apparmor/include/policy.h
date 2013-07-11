@@ -80,7 +80,6 @@ struct aa_profile;
  * @name: name of the object
  * @hname - The hierarchical name
  * @list: list policy object is on
- * @rcu: rcu head used when removing from @list
  * @profiles: head of the profiles list contained in the object
  */
 struct aa_policy {
@@ -88,7 +87,6 @@ struct aa_policy {
 	char *hname;
 	struct list_head list;
 	struct list_head profiles;
-	struct rcu_head rcu;
 };
 
 /* struct aa_ns_acct - accounting of profiles in namespace
@@ -157,6 +155,7 @@ struct aa_replacedby {
 /* struct aa_profile - basic confinement data
  * @base - base components of the profile (name, refcount, lists, lock ...)
  * @count: reference count of the obj
+ * @rcu: rcu head used when removing from @list
  * @parent: parent of profile
  * @ns: namespace the profile is in
  * @replacedby: is set to the profile that replaced this profile
@@ -190,6 +189,7 @@ struct aa_replacedby {
 struct aa_profile {
 	struct aa_policy base;
 	struct kref count;
+	struct rcu_head rcu;
 	struct aa_profile __rcu *parent;
 
 	struct aa_namespace *ns;
@@ -317,12 +317,8 @@ static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
  */
 static inline void aa_put_profile(struct aa_profile *p)
 {
-	if (p) {
-		if (p->flags & PFLAG_NS_COUNT)
-			kref_put(&p->count, aa_free_namespace_kref);
-		else
-			kref_put(&p->count, aa_free_profile_kref);
-	}
+	if (p)
+		kref_put(&p->count, aa_free_profile_kref);
 }
 
 static inline struct aa_replacedby *aa_get_replacedby(struct aa_replacedby *p)
