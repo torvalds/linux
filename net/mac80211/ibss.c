@@ -168,8 +168,10 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		if (basic_rates & BIT(ri))
 			basic = 0x80;
 		*pos++ = basic | (u8) rate;
-		if (++rates_added == 8)
+		if (++rates_added == 8) {
+			ri++; /* continue at next rate for EXT_SUPP_RATES */
 			break;
+		}
 	}
 
 	if (sband->band == IEEE80211_BAND_2GHZ) {
