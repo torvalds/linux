@@ -1131,7 +1131,7 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 	}
 
 	/* Need to check both planes against the pipe */
-	for (i = 0; i < INTEL_INFO(dev)->num_pipes; i++) {
+	for_each_pipe(i) {
 		reg = DSPCNTR(i);
 		val = I915_READ(reg);
 		cur_pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
@@ -9739,7 +9739,7 @@ void intel_modeset_init(struct drm_device *dev)
 		      INTEL_INFO(dev)->num_pipes,
 		      INTEL_INFO(dev)->num_pipes > 1 ? "s" : "");
 
-	for (i = 0; i < INTEL_INFO(dev)->num_pipes; i++) {
+	for_each_pipe(i) {
 		intel_crtc_init(dev, i);
 		for (j = 0; j < dev_priv->num_plane; j++) {
 			ret = intel_plane_init(dev, i, j);
