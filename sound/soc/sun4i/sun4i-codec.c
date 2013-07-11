@@ -834,6 +834,10 @@ static int snd_sun4i_codec_hw_free(struct snd_pcm_substream *substream)
 			sunxi_dma_stop(play_prtd->params);
 			sunxi_dma_release(play_prtd->params);
 			play_prtd->params = NULL;
+			/*
+			 * Clear out the DMA and any allocated buffers.
+			 */
+			snd_pcm_lib_free_pages(substream);
 		}
    	}else{
 		capture_prtd = substream->runtime->private_data;
@@ -844,6 +848,10 @@ static int snd_sun4i_codec_hw_free(struct snd_pcm_substream *substream)
 			sunxi_dma_stop(capture_prtd->params);
 			sunxi_dma_release(capture_prtd->params);
 			capture_prtd->params = NULL;
+			/*
+			 * Clear out the DMA and any allocated buffers.
+			 */
+			snd_pcm_lib_free_pages(substream);
 		}
    	}
 	return 0;
