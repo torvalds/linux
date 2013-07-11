@@ -446,6 +446,7 @@ static int i2c_powermac_probe(struct platform_device *dev)
 		printk(KERN_ERR "i2c-powermac: Adapter %s registration "
 		       "failed\n", adapter->name);
 		memset(adapter, 0, sizeof(*adapter));
+		return rc;
 	}
 
 	printk(KERN_INFO "PowerMac i2c bus %s registered\n", adapter->name);
@@ -455,7 +456,7 @@ static int i2c_powermac_probe(struct platform_device *dev)
 	 */
 	i2c_powermac_register_devices(adapter, bus);
 
-	return rc;
+	return 0;
 }
 
 static struct platform_driver i2c_powermac_driver = {
