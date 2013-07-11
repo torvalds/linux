@@ -276,6 +276,39 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 	return status;
 }
 
+static uint32_t get_aux_clock_divider(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* The clock divider is based off the hrawclk,
+	 * and would like to run at 2MHz. So, take the
+	 * hrawclk value and divide by 2 and use that
+	 *
+	 * Note that PCH attached eDP panels should use a 125MHz input
+	 * clock divider.
+	 */
+	if (IS_VALLEYVIEW(dev)) {
+		return 100;
+	} else if (intel_dig_port->port == PORT_A) {
+		if (HAS_DDI(dev))
+			return DIV_ROUND_CLOSEST(
+				intel_ddi_get_cdclk_freq(dev_priv), 2000);
+		else if (IS_GEN6(dev) || IS_GEN7(dev))
+			return 200; /* SNB & IVB eDP input clock at 400Mhz */
+		else
+			return 225; /* eDP input clock at 450Mhz */
+	} else if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
+		/* Workaround for non-ULT HSW */
+		return 74;
+	} else if (HAS_PCH_SPLIT(dev)) {
+		return DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
+	} else {
+		return intel_hrawclk(dev) / 2;
+	}
+}
+
 static int
 intel_dp_aux_ch(struct intel_dp *intel_dp,
 		uint8_t *send, int send_bytes,
@@ -288,7 +321,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	uint32_t ch_data = ch_ctl + 4;
 	int i, ret, recv_bytes;
 	uint32_t status;
-	uint32_t aux_clock_divider;
+	uint32_t aux_clock_divider = get_aux_clock_divider(intel_dp);
 	int try, precharge;
 	bool has_aux_irq = INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev);
 
@@ -299,31 +332,6 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	pm_qos_update_request(&dev_priv->pm_qos, 0);
 
 	intel_dp_check_edp(intel_dp);
-	/* The clock divider is based off the hrawclk,
-	 * and would like to run at 2MHz. So, take the
-	 * hrawclk value and divide by 2 and use that
-	 *
-	 * Note that PCH attached eDP panels should use a 125MHz input
-	 * clock divider.
-	 */
-	if (IS_VALLEYVIEW(dev)) {
-		aux_clock_divider = 100;
-	} else if (intel_dig_port->port == PORT_A) {
-		if (HAS_DDI(dev))
-			aux_clock_divider = DIV_ROUND_CLOSEST(
-				intel_ddi_get_cdclk_freq(dev_priv), 2000);
-		else if (IS_GEN6(dev) || IS_GEN7(dev))
-			aux_clock_divider = 200; /* SNB & IVB eDP input clock at 400Mhz */
-		else
-			aux_clock_divider = 225; /* eDP input clock at 450Mhz */
-	} else if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
-		/* Workaround for non-ULT HSW */
-		aux_clock_divider = 74;
-	} else if (HAS_PCH_SPLIT(dev)) {
-		aux_clock_divider = DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
-	} else {
-		aux_clock_divider = intel_hrawclk(dev) / 2;
-	}
 
 	if (IS_GEN6(dev))
 		precharge = 3;
