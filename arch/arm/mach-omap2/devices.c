@@ -327,44 +327,6 @@ static void omap_init_audio(void)
 static inline void omap_init_audio(void) {}
 #endif
 
-#if defined(CONFIG_SND_OMAP_SOC_MCPDM) || \
-		defined(CONFIG_SND_OMAP_SOC_MCPDM_MODULE)
-
-static void __init omap_init_mcpdm(void)
-{
-	struct omap_hwmod *oh;
-	struct platform_device *pdev;
-
-	oh = omap_hwmod_lookup("mcpdm");
-	if (!oh)
-		return;
-
-	pdev = omap_device_build("omap-mcpdm", -1, oh, NULL, 0);
-	WARN(IS_ERR(pdev), "Can't build omap_device for omap-mcpdm.\n");
-}
-#else
-static inline void omap_init_mcpdm(void) {}
-#endif
-
-#if defined(CONFIG_SND_OMAP_SOC_DMIC) || \
-		defined(CONFIG_SND_OMAP_SOC_DMIC_MODULE)
-
-static void __init omap_init_dmic(void)
-{
-	struct omap_hwmod *oh;
-	struct platform_device *pdev;
-
-	oh = omap_hwmod_lookup("dmic");
-	if (!oh)
-		return;
-
-	pdev = omap_device_build("omap-dmic", -1, oh, NULL, 0);
-	WARN(IS_ERR(pdev), "Can't build omap_device for omap-dmic.\n");
-}
-#else
-static inline void omap_init_dmic(void) {}
-#endif
-
 #if defined(CONFIG_SND_OMAP_SOC_OMAP_HDMI) || \
 		defined(CONFIG_SND_OMAP_SOC_OMAP_HDMI_MODULE)
 
@@ -565,8 +527,6 @@ static int __init omap2_init_devices(void)
 	omap_init_mbox();
 	/* If dtb is there, the devices will be created dynamically */
 	if (!of_have_populated_dt()) {
-		omap_init_dmic();
-		omap_init_mcpdm();
 		omap_init_mcspi();
 		omap_init_sham();
 		omap_init_aes();
