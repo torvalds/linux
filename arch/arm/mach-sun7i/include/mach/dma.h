@@ -234,7 +234,7 @@ typedef struct {
 
 /* dma channel type */
 typedef enum {
-	CHAN_NORAML,		/* normal channel, id 0~7 */
+	CHAN_NORMAL,		/* normal channel, id 0~7 */
 	CHAN_DEDICATE,		/* dedicate channel, id 8~15 */
 }dma_chan_type_e;
 
