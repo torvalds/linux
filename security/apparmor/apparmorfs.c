@@ -199,6 +199,7 @@ static struct aa_fs_entry aa_fs_entry_domain[] = {
 };
 
 static struct aa_fs_entry aa_fs_entry_policy[] = {
+	AA_FS_FILE_BOOLEAN("set_load",          1),
 	{}
 };
 

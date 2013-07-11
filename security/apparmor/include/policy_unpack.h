@@ -15,6 +15,18 @@
 #ifndef __POLICY_INTERFACE_H
 #define __POLICY_INTERFACE_H
 
-struct aa_profile *aa_unpack(void *udata, size_t size, const char **ns);
+#include <linux/list.h>
+
+struct aa_load_ent {
+	struct list_head list;
+	struct aa_profile *new;
+	struct aa_profile *old;
+	struct aa_profile *rename;
+};
+
+void aa_load_ent_free(struct aa_load_ent *ent);
+struct aa_load_ent *aa_load_ent_alloc(void);
+
+int aa_unpack(void *udata, size_t size, struct list_head *lh, const char **ns);
 
 #endif /* __POLICY_INTERFACE_H */
