@@ -1124,6 +1124,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 			intel_dp_stop_link_train(intel_dp);
 
 		ironlake_edp_backlight_on(intel_dp);
+		intel_edp_psr_enable(intel_dp);
 	}
 
 	if (intel_crtc->eld_vld && type != INTEL_OUTPUT_EDP) {
@@ -1154,6 +1155,7 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
+		intel_edp_psr_disable(intel_dp);
 		ironlake_edp_backlight_off(intel_dp);
 	}
 }
