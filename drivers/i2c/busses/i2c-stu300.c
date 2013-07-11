@@ -17,7 +17,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/of_i2c.h>
 
 /* the name of this kernel module */
 #define NAME "stu300"
@@ -936,7 +935,6 @@ stu300_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	dev_info(&pdev->dev, "ST DDC I2C @ %p, irq %d\n",
 		 dev->virtbase, dev->irq);
-	of_i2c_register_devices(adap);
 
 	return 0;
 }

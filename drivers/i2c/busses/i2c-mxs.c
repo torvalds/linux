@@ -28,7 +28,6 @@
 #include <linux/stmp_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_i2c.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 
@@ -706,8 +705,6 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 				i2c->regs + MXS_I2C_CTRL0_SET);
 		return err;
 	}
-
-	of_i2c_register_devices(adap);
 
 	return 0;
 }

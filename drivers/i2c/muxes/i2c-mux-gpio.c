@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/of_i2c.h>
 #include <linux/of_gpio.h>
 
 struct gpiomux {

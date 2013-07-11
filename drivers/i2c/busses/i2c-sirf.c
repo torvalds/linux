@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <linux/of_i2c.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -365,8 +364,6 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	}
 
 	clk_disable(clk);
-
-	of_i2c_register_devices(adap);
 
 	dev_info(&pdev->dev, " I2C adapter ready to operate\n");
 

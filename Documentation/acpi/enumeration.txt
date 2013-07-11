@@ -238,7 +238,6 @@ An I2C bus (controller) driver does:
 	if (ret)
 		/* handle error */
 
-	of_i2c_register_devices(adapter);
 	/* Enumerate the slave devices behind this bus via ACPI */
 	acpi_i2c_register_devices(adapter);
 

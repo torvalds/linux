@@ -25,7 +25,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/of_i2c.h>
 #include <linux/of_device.h>
 #include <linux/module.h>
 #include <linux/clk/tegra.h>
@@ -801,8 +800,6 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add I2C adapter\n");
 		return ret;
 	}
-
-	of_i2c_register_devices(&i2c_dev->adapter);
 
 	return 0;
 }

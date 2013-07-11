@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_i2c.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/platform_data/dma-atmel.h>
@@ -774,8 +773,6 @@ static int at91_twi_probe(struct platform_device *pdev)
 		clk_disable_unprepare(dev->clk);
 		return rc;
 	}
-
-	of_i2c_register_devices(&dev->adapter);
 
 	dev_info(dev->dev, "AT91 i2c bus driver.\n");
 	return 0;

@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/of_gpio.h>
-#include <linux/of_i2c.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 

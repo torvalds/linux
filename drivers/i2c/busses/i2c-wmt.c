@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_i2c.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
@@ -438,8 +437,6 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, i2c_dev);
-
-	of_i2c_register_devices(adap);
 
 	return 0;
 }

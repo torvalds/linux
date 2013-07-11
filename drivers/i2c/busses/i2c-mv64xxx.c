@@ -21,7 +21,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/of_i2c.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/delay.h>
@@ -870,8 +869,6 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 			"mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
 		goto exit_free_irq;
 	}
-
-	of_i2c_register_devices(&drv_data->adapter);
 
 	return 0;
 
