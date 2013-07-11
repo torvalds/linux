@@ -36,7 +36,6 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/of_i2c.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 
@@ -1154,7 +1153,6 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	of_i2c_register_devices(&i2c->adap);
 	platform_set_drvdata(pdev, i2c);
 
 	pm_runtime_enable(&pdev->dev);

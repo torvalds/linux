@@ -24,7 +24,6 @@
 #include <linux/i2c-ocores.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/of_i2c.h>
 #include <linux/log2.h>
 
 struct ocores_i2c {
@@ -432,8 +431,6 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	if (pdata) {
 		for (i = 0; i < pdata->num_devices; i++)
 			i2c_new_device(&i2c->adap, pdata->devices + i);
-	} else {
-		of_i2c_register_devices(&i2c->adap);
 	}
 
 	return 0;

@@ -38,7 +38,6 @@
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
 #include <linux/gpio.h>
-#include <linux/of_i2c.h>
 #include <linux/of_device.h>
 #include <linux/platform_data/i2c-davinci.h>
 
@@ -726,7 +725,6 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failure adding adapter\n");
 		goto err_unuse_clocks;
 	}
-	of_i2c_register_devices(adap);
 
 	return 0;
 

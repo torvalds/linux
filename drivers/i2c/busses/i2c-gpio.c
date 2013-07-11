@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <linux/of_i2c.h>
 
 struct i2c_gpio_private_data {
 	struct i2c_adapter adap;
@@ -223,8 +222,6 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	ret = i2c_bit_add_numbered_bus(adap);
 	if (ret)
 		goto err_add_bus;
-
-	of_i2c_register_devices(adap);
 
 	platform_set_drvdata(pdev, priv);
 

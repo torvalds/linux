@@ -27,7 +27,6 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/of_i2c.h>
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
@@ -758,7 +757,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		 "I2C adapter %d with bus speed %lu Hz (L/H=%x/%x)\n",
 		 adap->nr, pd->bus_speed, pd->iccl, pd->icch);
 
-	of_i2c_register_devices(adap);
 	return 0;
 
  err_all:
