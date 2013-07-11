@@ -16,6 +16,7 @@
 #include <linux/buffer_head.h>
 #include <linux/debugfs.h>
 #include <linux/genhd.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/reboot.h>
@@ -1329,11 +1330,9 @@ static void cache_set_free(struct closure *cl)
 static void cache_set_flush(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, caching);
+	struct cache *ca;
 	struct btree *b;
-
-	/* Shut down allocator threads */
-	set_bit(CACHE_SET_STOPPING_2, &c->flags);
-	wake_up_allocators(c);
+	unsigned i;
 
 	bch_cache_accounting_destroy(&c->accounting);
 
@@ -1347,6 +1346,10 @@ static void cache_set_flush(struct closure *cl)
 	list_for_each_entry(b, &c->btree_cache, list)
 		if (btree_node_dirty(b))
 			bch_btree_node_write(b, NULL);
+
+	for_each_cache(ca, c, i)
+		if (ca->alloc_thread)
+			kthread_stop(ca->alloc_thread);
 
 	closure_return(cl);
 }
