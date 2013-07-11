@@ -56,19 +56,11 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work);
 
 int radeon_uvd_init(struct radeon_device *rdev)
 {
-	struct platform_device *pdev;
 	unsigned long bo_size;
 	const char *fw_name;
 	int i, r;
 
 	INIT_DELAYED_WORK(&rdev->uvd.idle_work, radeon_uvd_idle_work_handler);
-
-	pdev = platform_device_register_simple("radeon_uvd", 0, NULL, 0);
-	r = IS_ERR(pdev);
-	if (r) {
-		dev_err(rdev->dev, "radeon_uvd: Failed to register firmware\n");
-		return -EINVAL;
-	}
 
 	switch (rdev->family) {
 	case CHIP_RV710:
@@ -112,15 +104,12 @@ int radeon_uvd_init(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 
-	r = request_firmware(&rdev->uvd_fw, fw_name, &pdev->dev);
+	r = request_firmware(&rdev->uvd_fw, fw_name, rdev->dev);
 	if (r) {
 		dev_err(rdev->dev, "radeon_uvd: Can't load firmware \"%s\"\n",
 			fw_name);
-		platform_device_unregister(pdev);
 		return r;
 	}
-
-	platform_device_unregister(pdev);
 
 	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 8) +
 		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE;
