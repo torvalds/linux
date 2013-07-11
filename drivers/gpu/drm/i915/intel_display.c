@@ -4913,22 +4913,19 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 	uint32_t tmp;
 
 	tmp = I915_READ(PFIT_CONTROL);
+	if (!(tmp & PFIT_ENABLE))
+		return;
 
+	/* Check whether the pfit is attached to our pipe. */
 	if (INTEL_INFO(dev)->gen < 4) {
 		if (crtc->pipe != PIPE_B)
 			return;
-
-		/* gen2/3 store dither state in pfit control, needs to match */
-		pipe_config->gmch_pfit.control = tmp & PANEL_8TO6_DITHER_ENABLE;
 	} else {
 		if ((tmp & PFIT_PIPE_MASK) != (crtc->pipe << PFIT_PIPE_SHIFT))
 			return;
 	}
 
-	if (!(tmp & PFIT_ENABLE))
-		return;
-
-	pipe_config->gmch_pfit.control = I915_READ(PFIT_CONTROL);
+	pipe_config->gmch_pfit.control = tmp;
 	pipe_config->gmch_pfit.pgm_ratios = I915_READ(PFIT_PGM_RATIOS);
 	if (INTEL_INFO(dev)->gen < 5)
 		pipe_config->gmch_pfit.lvds_border_bits =
