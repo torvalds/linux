@@ -469,7 +469,7 @@ static void __remove_profile(struct aa_profile *profile)
 	/* release any children lists first */
 	__profile_list_release(&profile->base.profiles);
 	/* released by free_profile */
-	profile->replacedby = aa_get_profile(profile->ns->unconfined);
+	__aa_update_replacedby(profile, profile->ns->unconfined);
 	__list_remove_profile(profile);
 }
 
@@ -588,6 +588,23 @@ void __init aa_free_root_ns(void)
 	 aa_put_namespace(ns);
 }
 
+
+static void free_replacedby(struct aa_replacedby *r)
+{
+	if (r) {
+		aa_put_profile(rcu_dereference(r->profile));
+		kzfree(r);
+	}
+}
+
+
+void aa_free_replacedby_kref(struct kref *kref)
+{
+	struct aa_replacedby *r = container_of(kref, struct aa_replacedby,
+					       count);
+	free_replacedby(r);
+}
+
 /**
  * free_profile - free a profile
  * @profile: the profile to free  (MAYBE NULL)
@@ -600,8 +617,6 @@ void __init aa_free_root_ns(void)
  */
 static void free_profile(struct aa_profile *profile)
 {
-	struct aa_profile *p;
-
 	AA_DEBUG("%s(%p)\n", __func__, profile);
 
 	if (!profile)
@@ -620,28 +635,7 @@ static void free_profile(struct aa_profile *profile)
 
 	aa_put_dfa(profile->xmatch);
 	aa_put_dfa(profile->policy.dfa);
-
-	/* put the profile reference for replacedby, but not via
-	 * put_profile(kref_put).
-	 * replacedby can form a long chain that can result in cascading
-	 * frees that blows the stack because kref_put makes a nested fn
-	 * call (it looks like recursion, with free_profile calling
-	 * free_profile) for each profile in the chain lp#1056078.
-	 */
-	for (p = profile->replacedby; p; ) {
-		if (atomic_dec_and_test(&p->base.count.refcount)) {
-			/* no more refs on p, grab its replacedby */
-			struct aa_profile *next = p->replacedby;
-			/* break the chain */
-			p->replacedby = NULL;
-			/* now free p, chain is broken */
-			free_profile(p);
-
-			/* follow up with next profile in the chain */
-			p = next;
-		} else
-			break;
-	}
+	aa_put_replacedby(profile->replacedby);
 
 	kzfree(profile);
 }
@@ -682,13 +676,22 @@ struct aa_profile *aa_alloc_profile(const char *hname)
 	if (!profile)
 		return NULL;
 
-	if (!policy_init(&profile->base, NULL, hname)) {
-		kzfree(profile);
-		return NULL;
-	}
+	profile->replacedby = kzalloc(sizeof(struct aa_replacedby), GFP_KERNEL);
+	if (!profile->replacedby)
+		goto fail;
+	kref_init(&profile->replacedby->count);
+
+	if (!policy_init(&profile->base, NULL, hname))
+		goto fail;
 
 	/* refcount released by caller */
 	return profile;
+
+fail:
+	kzfree(profile->replacedby);
+	kzfree(profile);
+
+	return NULL;
 }
 
 /**
@@ -985,6 +988,7 @@ static struct aa_profile *__list_lookup_parent(struct list_head *lh,
  * __replace_profile - replace @old with @new on a list
  * @old: profile to be replaced  (NOT NULL)
  * @new: profile to replace @old with  (NOT NULL)
+ * @share_replacedby: transfer @old->replacedby to @new
  *
  * Will duplicate and refcount elements that @new inherits from @old
  * and will inherit @old children.
@@ -993,7 +997,8 @@ static struct aa_profile *__list_lookup_parent(struct list_head *lh,
  *
  * Requires: namespace list lock be held, or list not be shared
  */
-static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
+static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
+			      bool share_replacedby)
 {
 	struct aa_profile *child, *tmp;
 
@@ -1008,7 +1013,7 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
 			p = __find_child(&new->base.profiles, child->base.name);
 			if (p) {
 				/* @p replaces @child  */
-				__replace_profile(child, p);
+				__replace_profile(child, p, share_replacedby);
 				continue;
 			}
 
@@ -1027,8 +1032,11 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new)
 		struct aa_profile *parent = rcu_dereference(old->parent);
 		rcu_assign_pointer(new->parent, aa_get_profile(parent));
 	}
-	/* released by free_profile */
-	old->replacedby = aa_get_profile(new);
+	__aa_update_replacedby(old, new);
+	if (share_replacedby) {
+		aa_put_replacedby(new->replacedby);
+		new->replacedby = aa_get_replacedby(old->replacedby);
+	}
 
 	if (list_empty(&new->base.list)) {
 		/* new is not on a list already */
@@ -1152,23 +1160,24 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 		audit_policy(op, GFP_ATOMIC, ent->new->base.name, NULL, error);
 
 		if (ent->old) {
-			__replace_profile(ent->old, ent->new);
+			__replace_profile(ent->old, ent->new, 1);
 			if (ent->rename)
-				__replace_profile(ent->rename, ent->new);
+				__replace_profile(ent->rename, ent->new, 0);
 		} else if (ent->rename) {
-			__replace_profile(ent->rename, ent->new);
+			__replace_profile(ent->rename, ent->new, 0);
 		} else if (ent->new->parent) {
 			struct aa_profile *parent, *newest;
 			parent = rcu_dereference_protected(ent->new->parent,
 						    mutex_is_locked(&ns->lock));
-			newest = aa_newest_version(parent);
+			newest = aa_get_newest_profile(parent);
 
 			/* parent replaced in this atomic set? */
 			if (newest != parent) {
 				aa_get_profile(newest);
 				aa_put_profile(parent);
 				rcu_assign_pointer(ent->new->parent, newest);
-			}
+			} else
+				aa_put_profile(newest);
 			__list_add_profile(&parent->base.profiles, ent->new);
 		} else
 			__list_add_profile(&ns->base.profiles, ent->new);

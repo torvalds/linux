@@ -359,7 +359,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	cxt = cred_cxt(bprm->cred);
 	BUG_ON(!cxt);
 
-	profile = aa_get_profile(aa_newest_version(cxt->profile));
+	profile = aa_get_newest_profile(cxt->profile);
 	/*
 	 * get the namespace from the replacement profile as replacement
 	 * can change the namespace
@@ -417,7 +417,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 
 		if (!(cp.allow & AA_MAY_ONEXEC))
 			goto audit;
-		new_profile = aa_get_profile(aa_newest_version(cxt->onexec));
+		new_profile = aa_get_newest_profile(cxt->onexec);
 		goto apply;
 	}
 

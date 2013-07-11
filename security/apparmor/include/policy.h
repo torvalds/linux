@@ -42,6 +42,8 @@ extern const char *const profile_mode_names[];
 
 #define PROFILE_IS_HAT(_profile) ((_profile)->flags & PFLAG_HAT)
 
+#define PROFILE_INVALID(_profile) ((_profile)->flags & PFLAG_INVALID)
+
 #define on_list_rcu(X) (!list_empty(X) && (X)->prev != LIST_POISON2)
 
 /*
@@ -65,6 +67,7 @@ enum profile_flags {
 	PFLAG_USER_DEFINED = 0x20,	/* user based profile - lower privs */
 	PFLAG_NO_LIST_REF = 0x40,	/* list doesn't keep profile ref */
 	PFLAG_OLD_NULL_TRANS = 0x100,	/* use // as the null transition */
+	PFLAG_INVALID = 0x200,		/* profile replaced/removed */
 
 	/* These flags must correspond with PATH_flags */
 	PFLAG_MEDIATE_DELETED = 0x10000, /* mediate instead delegate deleted */
@@ -146,6 +149,12 @@ struct aa_policydb {
 
 };
 
+struct aa_replacedby {
+	struct kref count;
+	struct aa_profile __rcu *profile;
+};
+
+
 /* struct aa_profile - basic confinement data
  * @base - base components of the profile (name, refcount, lists, lock ...)
  * @parent: parent of profile
@@ -169,8 +178,7 @@ struct aa_policydb {
  * used to determine profile attachment against unconfined tasks.  All other
  * attachments are determined by profile X transition rules.
  *
- * The @replacedby field is write protected by the profile lock.  Reads
- * are assumed to be atomic.
+ * The @replacedby struct is write protected by the profile lock.
  *
  * Profiles have a hierarchy where hats and children profiles keep
  * a reference to their parent.
@@ -184,14 +192,14 @@ struct aa_profile {
 	struct aa_profile __rcu *parent;
 
 	struct aa_namespace *ns;
-	struct aa_profile *replacedby;
+	struct aa_replacedby *replacedby;
 	const char *rename;
 
 	struct aa_dfa *xmatch;
 	int xmatch_len;
 	enum audit_mode audit;
 	enum profile_mode mode;
-	u32 flags;
+	long flags;
 	u32 path_flags;
 	int size;
 
@@ -250,6 +258,7 @@ static inline void aa_put_namespace(struct aa_namespace *ns)
 		kref_put(&ns->base.count, aa_free_namespace_kref);
 }
 
+void aa_free_replacedby_kref(struct kref *kref);
 struct aa_profile *aa_alloc_profile(const char *name);
 struct aa_profile *aa_new_null_profile(struct aa_profile *parent, int hat);
 void aa_free_profile_kref(struct kref *kref);
@@ -265,24 +274,6 @@ ssize_t aa_remove_profiles(char *name, size_t size);
 
 #define unconfined(X) ((X)->flags & PFLAG_UNCONFINED)
 
-/**
- * aa_newest_version - find the newest version of @profile
- * @profile: the profile to check for newer versions of (NOT NULL)
- *
- * Returns: newest version of @profile, if @profile is the newest version
- *          return @profile.
- *
- * NOTE: the profile returned is not refcounted, The refcount on @profile
- * must be held until the caller decides what to do with the returned newest
- * version.
- */
-static inline struct aa_profile *aa_newest_version(struct aa_profile *profile)
-{
-	while (profile->replacedby)
-		profile = profile->replacedby;
-
-	return profile;
-}
 
 /**
  * aa_get_profile - increment refcount on profile @p
@@ -335,6 +326,25 @@ static inline struct aa_profile *aa_get_profile_rcu(struct aa_profile __rcu **p)
 }
 
 /**
+ * aa_get_newest_profile - find the newest version of @profile
+ * @profile: the profile to check for newer versions of
+ *
+ * Returns: refcounted newest version of @profile taking into account
+ *          replacement, renames and removals
+ *          return @profile.
+ */
+static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
+{
+	if (!p)
+		return NULL;
+
+	if (PROFILE_INVALID(p))
+		return aa_get_profile_rcu(&p->replacedby->profile);
+
+	return aa_get_profile(p);
+}
+
+/**
  * aa_put_profile - decrement refcount on profile @p
  * @p: profile  (MAYBE NULL)
  */
@@ -342,6 +352,30 @@ static inline void aa_put_profile(struct aa_profile *p)
 {
 	if (p)
 		kref_put(&p->base.count, aa_free_profile_kref);
+}
+
+static inline struct aa_replacedby *aa_get_replacedby(struct aa_replacedby *p)
+{
+	if (p)
+		kref_get(&(p->count));
+
+	return p;
+}
+
+static inline void aa_put_replacedby(struct aa_replacedby *p)
+{
+	if (p)
+		kref_put(&p->count, aa_free_replacedby_kref);
+}
+
+/* requires profile list write lock held */
+static inline void __aa_update_replacedby(struct aa_profile *orig,
+					  struct aa_profile *new)
+{
+	struct aa_profile *tmp = rcu_dereference(orig->replacedby->profile);
+	rcu_assign_pointer(orig->replacedby->profile, aa_get_profile(new));
+	orig->flags |= PFLAG_INVALID;
+	aa_put_profile(tmp);
 }
 
 static inline int AUDIT_MODE(struct aa_profile *profile)

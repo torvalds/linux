@@ -112,9 +112,9 @@ int aa_replace_current_profile(struct aa_profile *profile)
 		aa_clear_task_cxt_trans(cxt);
 
 	/* be careful switching cxt->profile, when racing replacement it
-	 * is possible that cxt->profile->replacedby is the reference keeping
-	 * @profile valid, so make sure to get its reference before dropping
-	 * the reference on cxt->profile */
+	 * is possible that cxt->profile->replacedby->profile is the reference
+	 * keeping @profile valid, so make sure to get its reference before
+	 * dropping the reference on cxt->profile */
 	aa_get_profile(profile);
 	aa_put_profile(cxt->profile);
 	cxt->profile = profile;
@@ -175,7 +175,7 @@ int aa_set_current_hat(struct aa_profile *profile, u64 token)
 		abort_creds(new);
 		return -EACCES;
 	}
-	cxt->profile = aa_get_profile(aa_newest_version(profile));
+	cxt->profile = aa_get_newest_profile(profile);
 	/* clear exec on switching context */
 	aa_put_profile(cxt->onexec);
 	cxt->onexec = NULL;
@@ -212,14 +212,8 @@ int aa_restore_previous_profile(u64 token)
 	}
 
 	aa_put_profile(cxt->profile);
-	cxt->profile = aa_newest_version(cxt->previous);
+	cxt->profile = aa_get_newest_profile(cxt->previous);
 	BUG_ON(!cxt->profile);
-	if (unlikely(cxt->profile != cxt->previous)) {
-		aa_get_profile(cxt->profile);
-		aa_put_profile(cxt->previous);
-	}
-	/* ref has been transfered so avoid putting ref in clear_task_cxt */
-	cxt->previous = NULL;
 	/* clear exec && prev information when restoring to previous context */
 	aa_clear_task_cxt_trans(cxt);
 
