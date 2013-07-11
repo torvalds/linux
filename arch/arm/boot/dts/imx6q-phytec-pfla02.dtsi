@@ -27,7 +27,7 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX6Q_PAD_EIM_D23__GPIO3_IO23    0x80000000
+				MX6QDL_PAD_EIM_D23__GPIO3_IO23 0x80000000
 			>;
 		};
 	};
@@ -35,8 +35,8 @@
 	pfla02 {
 		pinctrl_usdhc3_pfla02: usdhc3grp-pfla02 {
 			fsl,pins = <
-				MX6Q_PAD_ENET_RXD0__GPIO1_IO27  0x80000000
-				MX6Q_PAD_ENET_TXD1__GPIO1_IO29  0x80000000
+				MX6QDL_PAD_ENET_RXD0__GPIO1_IO27 0x80000000
+				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x80000000
 			>;
 		};
 	};

@@ -19,22 +19,3 @@
 	model = "Freescale i.MX6 Quad SABRE Smart Device Board";
 	compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
 };
-
-&iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
-
-	hog {
-		pinctrl_hog: hoggrp {
-			fsl,pins = <
-				MX6Q_PAD_GPIO_4__GPIO1_IO04   0x80000000
-				MX6Q_PAD_GPIO_5__GPIO1_IO05   0x80000000
-				MX6Q_PAD_NANDF_D0__GPIO2_IO00 0x80000000
-				MX6Q_PAD_NANDF_D1__GPIO2_IO01 0x80000000
-				MX6Q_PAD_NANDF_D2__GPIO2_IO02 0x80000000
-				MX6Q_PAD_NANDF_D3__GPIO2_IO03 0x80000000
-				MX6Q_PAD_GPIO_0__CCM_CLKO1    0x130b0
-			>;
-		};
-	};
-};
