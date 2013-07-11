@@ -1545,6 +1545,100 @@ static int i915_llc(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_edp_psr_status(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 psrctl, psrstat, psrperf;
+
+	if (!IS_HASWELL(dev)) {
+		seq_puts(m, "PSR not supported on this platform\n");
+		return 0;
+	}
+
+	psrctl = I915_READ(EDP_PSR_CTL);
+	seq_printf(m, "PSR Enabled: %s\n",
+		   yesno(psrctl & EDP_PSR_ENABLE));
+
+	psrstat = I915_READ(EDP_PSR_STATUS_CTL);
+
+	seq_puts(m, "PSR Current State: ");
+	switch (psrstat & EDP_PSR_STATUS_STATE_MASK) {
+	case EDP_PSR_STATUS_STATE_IDLE:
+		seq_puts(m, "Reset state\n");
+		break;
+	case EDP_PSR_STATUS_STATE_SRDONACK:
+		seq_puts(m, "Wait for TG/Stream to send on frame of data after SRD conditions are met\n");
+		break;
+	case EDP_PSR_STATUS_STATE_SRDENT:
+		seq_puts(m, "SRD entry\n");
+		break;
+	case EDP_PSR_STATUS_STATE_BUFOFF:
+		seq_puts(m, "Wait for buffer turn off\n");
+		break;
+	case EDP_PSR_STATUS_STATE_BUFON:
+		seq_puts(m, "Wait for buffer turn on\n");
+		break;
+	case EDP_PSR_STATUS_STATE_AUXACK:
+		seq_puts(m, "Wait for AUX to acknowledge on SRD exit\n");
+		break;
+	case EDP_PSR_STATUS_STATE_SRDOFFACK:
+		seq_puts(m, "Wait for TG/Stream to acknowledge the SRD VDM exit\n");
+		break;
+	default:
+		seq_puts(m, "Unknown\n");
+		break;
+	}
+
+	seq_puts(m, "Link Status: ");
+	switch (psrstat & EDP_PSR_STATUS_LINK_MASK) {
+	case EDP_PSR_STATUS_LINK_FULL_OFF:
+		seq_puts(m, "Link is fully off\n");
+		break;
+	case EDP_PSR_STATUS_LINK_FULL_ON:
+		seq_puts(m, "Link is fully on\n");
+		break;
+	case EDP_PSR_STATUS_LINK_STANDBY:
+		seq_puts(m, "Link is in standby\n");
+		break;
+	default:
+		seq_puts(m, "Unknown\n");
+		break;
+	}
+
+	seq_printf(m, "PSR Entry Count: %u\n",
+		   psrstat >> EDP_PSR_STATUS_COUNT_SHIFT &
+		   EDP_PSR_STATUS_COUNT_MASK);
+
+	seq_printf(m, "Max Sleep Timer Counter: %u\n",
+		   psrstat >> EDP_PSR_STATUS_MAX_SLEEP_TIMER_SHIFT &
+		   EDP_PSR_STATUS_MAX_SLEEP_TIMER_MASK);
+
+	seq_printf(m, "Had AUX error: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_AUX_ERROR));
+
+	seq_printf(m, "Sending AUX: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_AUX_SENDING));
+
+	seq_printf(m, "Sending Idle: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_SENDING_IDLE));
+
+	seq_printf(m, "Sending TP2 TP3: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_SENDING_TP2_TP3));
+
+	seq_printf(m, "Sending TP1: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_SENDING_TP1));
+
+	seq_printf(m, "Idle Count: %u\n",
+		   psrstat & EDP_PSR_STATUS_IDLE_MASK);
+
+	psrperf = (I915_READ(EDP_PSR_PERF_CNT)) & EDP_PSR_PERF_CNT_MASK;
+	seq_printf(m, "Performance Counter: %u\n", psrperf);
+
+	return 0;
+}
+
 static int
 i915_wedged_get(void *data, u64 *val)
 {
@@ -1977,6 +2071,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},
 	{"i915_dpio", i915_dpio_info, 0},
 	{"i915_llc", i915_llc, 0},
+	{"i915_edp_psr_status", i915_edp_psr_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
