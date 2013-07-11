@@ -1779,6 +1779,47 @@
 #define BCLRPAT(pipe) _PIPE(pipe, _BCLRPAT_A, _BCLRPAT_B)
 #define VSYNCSHIFT(trans) _TRANSCODER(trans, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
 
+/* HSW eDP PSR registers */
+#define EDP_PSR_CTL				0x64800
+#define   EDP_PSR_ENABLE			(1<<31)
+#define   EDP_PSR_LINK_DISABLE			(0<<27)
+#define   EDP_PSR_LINK_STANDBY			(1<<27)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_MASK	(3<<25)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES	(0<<25)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_4_LINES	(1<<25)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_2_LINES	(2<<25)
+#define   EDP_PSR_MIN_LINK_ENTRY_TIME_0_LINES	(3<<25)
+#define   EDP_PSR_MAX_SLEEP_TIME_SHIFT		20
+#define   EDP_PSR_SKIP_AUX_EXIT			(1<<12)
+#define   EDP_PSR_TP1_TP2_SEL			(0<<11)
+#define   EDP_PSR_TP1_TP3_SEL			(1<<11)
+#define   EDP_PSR_TP2_TP3_TIME_500us		(0<<8)
+#define   EDP_PSR_TP2_TP3_TIME_100us		(1<<8)
+#define   EDP_PSR_TP2_TP3_TIME_2500us		(2<<8)
+#define   EDP_PSR_TP2_TP3_TIME_0us		(3<<8)
+#define   EDP_PSR_TP1_TIME_500us		(0<<4)
+#define   EDP_PSR_TP1_TIME_100us		(1<<4)
+#define   EDP_PSR_TP1_TIME_2500us		(2<<4)
+#define   EDP_PSR_TP1_TIME_0us			(3<<4)
+#define   EDP_PSR_IDLE_FRAME_SHIFT		0
+
+#define EDP_PSR_AUX_CTL			0x64810
+#define EDP_PSR_AUX_DATA1		0x64814
+#define   EDP_PSR_DPCD_COMMAND		0x80060000
+#define EDP_PSR_AUX_DATA2		0x64818
+#define   EDP_PSR_DPCD_NORMAL_OPERATION	(1<<24)
+#define EDP_PSR_AUX_DATA3		0x6481c
+#define EDP_PSR_AUX_DATA4		0x64820
+#define EDP_PSR_AUX_DATA5		0x64824
+
+#define EDP_PSR_STATUS_CTL			0x64840
+#define   EDP_PSR_STATUS_STATE_MASK		(7<<29)
+
+#define EDP_PSR_DEBUG_CTL		0x64860
+#define   EDP_PSR_DEBUG_MASK_LPSP	(1<<27)
+#define   EDP_PSR_DEBUG_MASK_MEMUP	(1<<26)
+#define   EDP_PSR_DEBUG_MASK_HPD	(1<<25)
+
 /* VGA port control */
 #define ADPA			0x61100
 #define PCH_ADPA                0xe1100
@@ -2048,6 +2089,7 @@
  * (Haswell and newer) to see which VIDEO_DIP_DATA byte corresponds to each byte
  * of the infoframe structure specified by CEA-861. */
 #define   VIDEO_DIP_DATA_SIZE	32
+#define   VIDEO_DIP_VSC_DATA_SIZE	36
 #define VIDEO_DIP_CTL		0x61170
 /* Pre HSW: */
 #define   VIDEO_DIP_ENABLE		(1 << 31)
