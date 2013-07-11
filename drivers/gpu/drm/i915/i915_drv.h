@@ -596,6 +596,7 @@ struct i915_fbc {
 enum no_psr_reason {
 	PSR_NO_SOURCE, /* Not supported on platform */
 	PSR_NO_SINK, /* Not supported by panel */
+	PSR_MODULE_PARAM,
 	PSR_CRTC_NOT_ACTIVE,
 	PSR_PWR_WELL_ENABLED,
 	PSR_NOT_TILED,
@@ -1622,6 +1623,7 @@ extern int i915_enable_rc6 __read_mostly;
 extern int i915_enable_fbc __read_mostly;
 extern bool i915_enable_hangcheck __read_mostly;
 extern int i915_enable_ppgtt __read_mostly;
+extern int i915_enable_psr __read_mostly;
 extern unsigned int i915_preliminary_hw_support __read_mostly;
 extern int i915_disable_power_well __read_mostly;
 extern int i915_enable_ips __read_mostly;

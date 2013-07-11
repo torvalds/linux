@@ -1537,6 +1537,12 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
+	if (!i915_enable_psr) {
+		DRM_DEBUG_KMS("PSR disable by flag\n");
+		dev_priv->no_psr_reason = PSR_MODULE_PARAM;
+		return false;
+	}
+
 	if (!intel_crtc->active || !crtc->fb || !crtc->mode.clock) {
 		DRM_DEBUG_KMS("crtc not active for PSR\n");
 		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
