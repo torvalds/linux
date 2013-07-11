@@ -1380,6 +1380,12 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	}
 }
 
+static bool is_edp_psr(struct intel_dp *intel_dp)
+{
+	return is_edp(intel_dp) &&
+		intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED;
+}
+
 static void intel_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -2293,6 +2299,13 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] == 0)
 		return false; /* DPCD not present */
 
+	/* Check if the panel supports PSR */
+	memset(intel_dp->psr_dpcd, 0, sizeof(intel_dp->psr_dpcd));
+	intel_dp_aux_native_read_retry(intel_dp, DP_PSR_SUPPORT,
+				       intel_dp->psr_dpcd,
+				       sizeof(intel_dp->psr_dpcd));
+	if (is_edp_psr(intel_dp))
+		DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
 	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 	      DP_DWN_STRM_PORT_PRESENT))
 		return true; /* native DP sink */
