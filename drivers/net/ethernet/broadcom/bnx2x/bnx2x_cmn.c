@@ -3543,9 +3543,9 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 	/* outer IP header info */
 	if (xmit_type & XMIT_CSUM_V4) {
 		struct iphdr *iph = ip_hdr(skb);
-		u16 csum = (__force u16)(~iph->check) -
-			   (__force u16)iph->tot_len -
-			   (__force u16)iph->frag_off;
+		u32 csum = (__force u32)(~iph->check) -
+			   (__force u32)iph->tot_len -
+			   (__force u32)iph->frag_off;
 
 		pbd2->fw_ip_csum_wo_len_flags_frag =
 			bswab16(csum_fold((__force __wsum)csum));
