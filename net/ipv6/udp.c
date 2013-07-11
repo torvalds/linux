@@ -46,7 +46,7 @@
 #include <net/ip6_checksum.h>
 #include <net/xfrm.h>
 #include <net/inet6_hashtables.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -844,7 +844,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	if (sk != NULL) {
 		int ret;
 
-		sk_mark_ll(sk, skb);
+		sk_mark_napi_id(sk, skb);
 		ret = udpv6_queue_rcv_skb(sk, skb);
 		sock_put(sk);
 

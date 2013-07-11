@@ -24,7 +24,7 @@
 #include <net/tcp.h>
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 #include <linux/prefetch.h>
 #include "bnx2x_cmn.h"
 #include "bnx2x_init.h"
@@ -990,7 +990,7 @@ reuse_rx:
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       le16_to_cpu(cqe_fp->vlan_tag));
 
-		skb_mark_ll(skb, &fp->napi);
+		skb_mark_napi_id(skb, &fp->napi);
 
 		if (bnx2x_fp_ll_polling(fp))
 			netif_receive_skb(skb);

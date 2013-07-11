@@ -104,11 +104,11 @@
 #include <linux/route.h>
 #include <linux/sockios.h>
 #include <linux/atalk.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 #ifdef CONFIG_NET_LL_RX_POLL
-unsigned int sysctl_net_ll_read __read_mostly;
-unsigned int sysctl_net_ll_poll __read_mostly;
+unsigned int sysctl_net_busy_read __read_mostly;
+unsigned int sysctl_net_busy_poll __read_mostly;
 #endif
 
 static int sock_no_open(struct inode *irrelevant, struct file *dontcare);
