@@ -42,6 +42,8 @@ extern const char *const profile_mode_names[];
 
 #define PROFILE_IS_HAT(_profile) ((_profile)->flags & PFLAG_HAT)
 
+#define on_list_rcu(X) (!list_empty(X) && (X)->prev != LIST_POISON2)
+
 /*
  * FIXME: currently need a clean way to replace and remove profiles as a
  * set.  It should be done at the namespace level.
@@ -75,6 +77,7 @@ struct aa_profile;
  * @hname - The hierarchical name
  * @count: reference count of the obj
  * @list: list policy object is on
+ * @rcu: rcu head used when removing from @list
  * @profiles: head of the profiles list contained in the object
  */
 struct aa_policy {
@@ -83,6 +86,7 @@ struct aa_policy {
 	struct kref count;
 	struct list_head list;
 	struct list_head profiles;
+	struct rcu_head rcu;
 };
 
 /* struct aa_ns_acct - accounting of profiles in namespace
@@ -124,7 +128,7 @@ struct aa_ns_acct {
 struct aa_namespace {
 	struct aa_policy base;
 	struct aa_namespace *parent;
-	rwlock_t lock;
+	struct mutex lock;
 	struct aa_ns_acct acct;
 	struct aa_profile *unconfined;
 	struct list_head sub_ns;
@@ -166,7 +170,7 @@ struct aa_policydb {
  * attachments are determined by profile X transition rules.
  *
  * The @replacedby field is write protected by the profile lock.  Reads
- * are assumed to be atomic, and are done without locking.
+ * are assumed to be atomic.
  *
  * Profiles have a hierarchy where hats and children profiles keep
  * a reference to their parent.
@@ -177,7 +181,7 @@ struct aa_policydb {
  */
 struct aa_profile {
 	struct aa_policy base;
-	struct aa_profile *parent;
+	struct aa_profile __rcu *parent;
 
 	struct aa_namespace *ns;
 	struct aa_profile *replacedby;
@@ -293,6 +297,41 @@ static inline struct aa_profile *aa_get_profile(struct aa_profile *p)
 		kref_get(&(p->base.count));
 
 	return p;
+}
+
+/**
+ * aa_get_profile_not0 - increment refcount on profile @p found via lookup
+ * @p: profile  (MAYBE NULL)
+ *
+ * Returns: pointer to @p if @p is NULL will return NULL
+ * Requires: @p must be held with valid refcount when called
+ */
+static inline struct aa_profile *aa_get_profile_not0(struct aa_profile *p)
+{
+	if (p && kref_get_not0(&p->base.count))
+		return p;
+
+	return NULL;
+}
+
+/**
+ * aa_get_profile_rcu - increment a refcount profile that can be replaced
+ * @p: pointer to profile that can be replaced (NOT NULL)
+ *
+ * Returns: pointer to a refcounted profile.
+ *     else NULL if no profile
+ */
+static inline struct aa_profile *aa_get_profile_rcu(struct aa_profile __rcu **p)
+{
+	struct aa_profile *c;
+
+	rcu_read_lock();
+	do {
+		c = rcu_dereference(*p);
+	} while (c && !kref_get_not0(&c->base.count));
+	rcu_read_unlock();
+
+	return c;
 }
 
 /**
