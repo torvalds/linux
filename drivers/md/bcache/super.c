@@ -1354,18 +1354,22 @@ static void cache_set_flush(struct closure *cl)
 static void __cache_set_unregister(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, caching);
-	struct cached_dev *dc, *t;
+	struct cached_dev *dc;
 	size_t i;
 
 	mutex_lock(&bch_register_lock);
 
-	if (test_bit(CACHE_SET_UNREGISTERING, &c->flags))
-		list_for_each_entry_safe(dc, t, &c->cached_devs, list)
-			bch_cached_dev_detach(dc);
-
 	for (i = 0; i < c->nr_uuids; i++)
-		if (c->devices[i] && UUID_FLASH_ONLY(&c->uuids[i]))
-			bcache_device_stop(c->devices[i]);
+		if (c->devices[i]) {
+			if (!UUID_FLASH_ONLY(&c->uuids[i]) &&
+			    test_bit(CACHE_SET_UNREGISTERING, &c->flags)) {
+				dc = container_of(c->devices[i],
+						  struct cached_dev, disk);
+				bch_cached_dev_detach(dc);
+			} else {
+				bcache_device_stop(c->devices[i]);
+			}
+		}
 
 	mutex_unlock(&bch_register_lock);
 
