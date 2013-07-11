@@ -848,8 +848,13 @@ static int spi_imx_probe(struct platform_device *pdev)
 		goto out_master_put;
 	}
 
-	clk_prepare_enable(spi_imx->clk_per);
-	clk_prepare_enable(spi_imx->clk_ipg);
+	ret = clk_prepare_enable(spi_imx->clk_per);
+	if (ret)
+		goto out_master_put;
+
+	ret = clk_prepare_enable(spi_imx->clk_ipg);
+	if (ret)
+		goto out_put_per;
 
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk_per);
 
@@ -869,8 +874,9 @@ static int spi_imx_probe(struct platform_device *pdev)
 	return ret;
 
 out_clk_put:
-	clk_disable_unprepare(spi_imx->clk_per);
 	clk_disable_unprepare(spi_imx->clk_ipg);
+out_put_per:
+	clk_disable_unprepare(spi_imx->clk_per);
 out_master_put:
 	spi_master_put(master);
 
@@ -885,8 +891,8 @@ static int spi_imx_remove(struct platform_device *pdev)
 	spi_bitbang_stop(&spi_imx->bitbang);
 
 	writel(0, spi_imx->base + MXC_CSPICTRL);
-	clk_disable_unprepare(spi_imx->clk_per);
 	clk_disable_unprepare(spi_imx->clk_ipg);
+	clk_disable_unprepare(spi_imx->clk_per);
 	spi_master_put(master);
 
 	return 0;
