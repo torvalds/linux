@@ -2829,7 +2829,6 @@ void usb_enable_ltm(struct usb_device *udev)
 }
 EXPORT_SYMBOL_GPL(usb_enable_ltm);
 
-#ifdef	CONFIG_PM
 /*
  * usb_disable_function_remotewakeup - disable usb3.0
  * device's function remote wakeup
@@ -3248,8 +3247,6 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 
 	return status;
 }
-
-#endif	/* CONFIG_PM */
 
 #ifdef	CONFIG_PM_RUNTIME
 
@@ -3811,7 +3808,8 @@ EXPORT_SYMBOL_GPL(usb_disable_ltm);
 
 void usb_enable_ltm(struct usb_device *udev) { }
 EXPORT_SYMBOL_GPL(usb_enable_ltm);
-#endif
+
+#endif	/* CONFIG_PM */
 
 
 /* USB 2.0 spec, 7.1.7.3 / fig 7-29:
