@@ -1,0 +1,75 @@
+Altera FPGA Bridge Driver
+
+Required properties:
+
+  - compatible : should be "<manufacturer>,<type>"
+                 "altr,socfpga-fpga2sdram-bridge"
+		 "altr,socfpga-hps2fpga-bridge"
+		 "altr,socfpga-lwhps2fpga-bridge"
+		 "altr,socfpga-fpga2hps-bridge"
+
+Required for fpga2sdram bridge only:
+  - read-port  : which read port is used for this bridge (0-3)
+  - write-port : which write port is used for this bridge (0-3)
+  - control-ports : which conrtol port(s) are used for this bridge.
+                    index 0 is first port # (0-5)
+		    index 1 is number of ports used (1-2)
+
+Optional properties:
+  - label      : name that you want this bridge to show up as under /sys
+                 Default is br<device#> if this is not specified
+
+  - enable     : If 'enable' is specified, the bridge will be enabled or
+                 disabled upon load, depending on the value of this parameter.
+		 if 'enable' is not specified, the driver will not enable
+		 or disable the bridge by default.
+
+Example:
+	hps_fpgabridge0: fpgabridge@0 {
+		compatible = "altr,socfpga-hps2fpga-bridge";
+		label = "hps2fpga";
+		enable = <1>;
+	};
+
+	hps_fpgabridge1: fpgabridge@1 {
+		compatible = "altr,socfpga-lwhps2fpga-bridge";
+		label = "lwhps2fpga";
+	};
+
+	hps_fpgabridge2: fpgabridge@2 {
+		compatible = "altr,socfpga-fpga2hps-bridge";
+		label = "fpga2hps";
+	};
+
+	hps_fpgabridge3: fpgabridge@3 {
+		compatible = "altr,socfpga-fpga2sdram-bridge";
+		label = "fpga2sdram0";
+		read-port = <0>;
+		write-port = <0>;
+		control-ports = <0 2>; /* ports 0 and 1 */
+		enable = <1>;
+	};
+
+	hps_fpgabridge4: fpgabridge@4 {
+		compatible = "altr,socfpga-fpga2sdram-bridge";
+		label = "fpga2sdram1";
+		read-port = <1>;
+		write-port = <1>;
+		control-ports = <2 1>; /* port 2 only */
+	};
+
+	hps_fpgabridge5: fpgabridge@5 {
+		compatible = "altr,socfpga-fpga2sdram-bridge";
+		label = "fpga2sdram2";
+		read-port = <2>;
+		write-port = <2>;
+		control-ports = <3 1>; /* port 3 only */
+	};
+
+	hps_fpgabridge6: fpgabridge@6 {
+		compatible = "altr,socfpga-fpga2sdram-bridge";
+		label = "fpga2sdram3";
+		read-port = <3>;
+		write-port = <3>;
+		control-ports = <4 2>; /* ports 4 and 5 */
+	};

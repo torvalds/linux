@@ -39,6 +39,8 @@
 void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
 void __iomem *sys_manager_base_addr;
 void __iomem *rst_manager_base_addr;
+void __iomem *sdr_ctl_base_addr;
+void __iomem *l3regs_base_addr;
 
 void __iomem *clk_mgr_base_addr;
 unsigned long	cpu1start_addr;
@@ -258,6 +260,24 @@ static void __init socfpga_sysmgr_init(void)
 
 	clk_mgr_base_addr = of_iomap(np, 0);
 	WARN_ON(!clk_mgr_base_addr);
+
+	np = of_find_compatible_node(NULL, NULL, "altr,sdr-ctl");
+	if (!np) {
+		pr_err("SOCFPGA: Unable to find sdr-ctl\n");
+		return;
+	}
+
+	sdr_ctl_base_addr = of_iomap(np, 0);
+	WARN_ON(!sdr_ctl_base_addr);
+
+	np = of_find_compatible_node(NULL, NULL, "altr,l3regs");
+	if (!np) {
+		pr_err("SOCFPGA: Unable to find l3regs\n");
+		return;
+	}
+
+	l3regs_base_addr = of_iomap(np, 0);
+	WARN_ON(!l3regs_base_addr);
 }
 
 static void __init socfpga_init_irq(void)

@@ -1,14 +1,14 @@
-Altera SOCFPGA Reset Manager
+Altera SOCFPGA L3 Interconnect (NIC-301)
 
 Required properties:
-- compatible : "altr,rst-mgr", "syscon";
+- compatible : "altr,l3regs", "syscon";
                 Note that syscon is invoked for this device to support the FPGA
 		bridge driver and possibly other devices in the future.  See
 		also Documentation/devicetree/bindings/mfd/syscon.txt
 - reg : Should contain 1 register ranges(address and length)
 
 Example:
-	 rstmgr@ffd05000 {
-		compatible = "altr,rst-mgr", "syscon";
-		reg = <0xffd05000 0x1000>;
+	l3regs@0xff800000 {
+		compatible = "altr,l3regs", "syscon";
+		reg = <0xff800000 0x1000>;
 	};

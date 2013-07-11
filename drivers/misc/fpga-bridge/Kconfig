@@ -1,0 +1,20 @@
+#
+# FPGA bridge manager configuration
+#
+
+menu "FPGA Bridges"
+
+config FPGA_BRIDGE
+       tristate "FPGA Bridge Drivers"
+       depends on OF
+       help
+         Say Y here if you want to support bridges connected between host
+	 processors and FPGAs or between FPGAs.
+
+config ALTERA_SOCFPGA_BRIDGE
+       tristate "Altera SoCFPGA Bridges"
+       depends on FPGA_BRIDGE
+       help
+         Say Y to enable drivers for FPGA bridges for Altera socfpga
+	 devices.
+endmenu
