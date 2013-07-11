@@ -37,6 +37,9 @@
 #include "hda_jack.h"
 #include "hda_generic.h"
 
+/* keep halting ALC5505 DSP, for power saving */
+#define HALT_REALTEK_ALC5505
+
 /* unsol event tags */
 #define ALC_DCVOL_EVENT		0x08
 
@@ -2659,7 +2662,19 @@ static void alc5505_dsp_init(struct hda_codec *codec)
 	alc5505_coef_set(codec, 0x880c, 0x00000004); /* DRAM Function control */
 	alc5505_coef_set(codec, 0x880c, 0x00000003);
 	alc5505_coef_set(codec, 0x880c, 0x00000010);
+
+#ifdef HALT_REALTEK_ALC5505
+	alc5505_dsp_halt(codec);
+#endif
 }
+
+#ifdef HALT_REALTEK_ALC5505
+#define alc5505_dsp_suspend(codec)	/* NOP */
+#define alc5505_dsp_resume(codec)	/* NOP */
+#else
+#define alc5505_dsp_suspend(codec)	alc5505_dsp_halt(codec)
+#define alc5505_dsp_resume(codec)	alc5505_dsp_back_from_halt(codec)
+#endif
 
 #ifdef CONFIG_PM
 static int alc269_suspend(struct hda_codec *codec)
@@ -2667,7 +2682,7 @@ static int alc269_suspend(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 
 	if (spec->has_alc5505_dsp)
-		alc5505_dsp_halt(codec);
+		alc5505_dsp_suspend(codec);
 	return alc_suspend(codec);
 }
 
@@ -2696,7 +2711,7 @@ static int alc269_resume(struct hda_codec *codec)
 	alc_inv_dmic_sync(codec, true);
 	hda_call_check_power_status(codec, 0x01);
 	if (spec->has_alc5505_dsp)
-		alc5505_dsp_back_from_halt(codec);
+		alc5505_dsp_resume(codec);
 	return 0;
 }
 #endif /* CONFIG_PM */
