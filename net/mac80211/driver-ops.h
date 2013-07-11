@@ -1072,4 +1072,17 @@ static inline void drv_ipv6_addr_change(struct ieee80211_local *local,
 }
 #endif
 
+static inline void
+drv_channel_switch_beacon(struct ieee80211_sub_if_data *sdata,
+			  struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (local->ops->channel_switch_beacon) {
+		trace_drv_channel_switch_beacon(local, sdata, chandef);
+		local->ops->channel_switch_beacon(&local->hw, &sdata->vif,
+						  chandef);
+	}
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

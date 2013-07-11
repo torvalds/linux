@@ -259,6 +259,8 @@ struct ieee80211_if_ap {
 	struct beacon_data __rcu *beacon;
 	struct probe_resp __rcu *probe_resp;
 
+	/* to be used after channel switch. */
+	struct cfg80211_beacon_data *next_beacon;
 	struct list_head vlans;
 
 	struct ps_data ps;
@@ -715,6 +717,11 @@ struct ieee80211_sub_if_data {
 	bool control_port_no_encrypt;
 
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
+
+	struct work_struct csa_finalize_work;
+	int csa_counter_offset_beacon;
+	int csa_counter_offset_presp;
+	bool csa_radar_required;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -1372,6 +1379,9 @@ void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc, bool free);
 void ieee80211_sw_roc_work(struct work_struct *work);
 void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc);
 
+/* channel switch handling */
+void ieee80211_csa_finalize_work(struct work_struct *work);
+
 /* interface handling */
 int ieee80211_iface_init(void);
 void ieee80211_iface_exit(void);
@@ -1393,6 +1403,8 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
+int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
+			    struct cfg80211_beacon_data *params);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {
@@ -1654,6 +1666,11 @@ int __must_check
 ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 			       const struct cfg80211_chan_def *chandef,
 			       u32 *changed);
+/* NOTE: only use ieee80211_vif_change_channel() for channel switch */
+int __must_check
+ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
+			     const struct cfg80211_chan_def *chandef,
+			     u32 *changed);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
