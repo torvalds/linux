@@ -106,7 +106,7 @@ int au_nhash_append_wh(struct au_nhash *whlist, char *name, int nlen, ino_t ino,
 		       unsigned char shwh);
 void au_vdir_free(struct au_vdir *vdir);
 int au_vdir_init(struct file *file);
-int au_vdir_fill_de(struct file *file, void *dirent, filldir_t filldir);
+int au_vdir_fill_de(struct file *file, struct dir_context *ctx);
 
 /* ioctl.c */
 long aufs_ioctl_dir(struct file *file, unsigned int cmd, unsigned long arg);

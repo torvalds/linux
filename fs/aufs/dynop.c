@@ -193,6 +193,7 @@ static void dy_aop(struct au_dykey *key, const void *h_op,
 	DySetAop(migratepage);
 	DySetAop(launder_page);
 	DySetAop(is_partially_uptodate);
+	DySetAop(is_dirty_writeback);
 	DySetAop(error_remove_page);
 	DySetAop(swap_activate);
 	DySetAop(swap_deactivate);
