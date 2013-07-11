@@ -489,6 +489,12 @@ static void bch_insert_data_loop(struct closure *cl)
 		bch_queue_gc(op->c);
 	}
 
+	/*
+	 * Journal writes are marked REQ_FLUSH; if the original write was a
+	 * flush, it'll wait on the journal write.
+	 */
+	bio->bi_rw &= ~(REQ_FLUSH|REQ_FUA);
+
 	do {
 		unsigned i;
 		struct bkey *k;
@@ -716,7 +722,7 @@ static struct search *search_alloc(struct bio *bio, struct bcache_device *d)
 	s->task			= current;
 	s->orig_bio		= bio;
 	s->write		= (bio->bi_rw & REQ_WRITE) != 0;
-	s->op.flush_journal	= (bio->bi_rw & REQ_FLUSH) != 0;
+	s->op.flush_journal	= (bio->bi_rw & (REQ_FLUSH|REQ_FUA)) != 0;
 	s->op.skip		= (bio->bi_rw & REQ_DISCARD) != 0;
 	s->recoverable		= 1;
 	s->start_time		= jiffies;
