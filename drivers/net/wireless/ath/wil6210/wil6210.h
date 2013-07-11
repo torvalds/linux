@@ -183,6 +183,14 @@ struct pending_wmi_event {
 	} __packed event;
 };
 
+/**
+ * struct wil_ctx - software context for Vring descriptor
+ */
+struct wil_ctx {
+	struct sk_buff *skb;
+	u8 mapped_as_page:1;
+};
+
 union vring_desc;
 
 struct vring {
@@ -192,7 +200,7 @@ struct vring {
 	u32 swtail;
 	u32 swhead;
 	u32 hwtail; /* write here to inform hw */
-	void **ctx; /* void *ctx[size] - software context */
+	struct wil_ctx *ctx; /* ctx[size] - software context */
 };
 
 enum { /* for wil6210_priv.status */
