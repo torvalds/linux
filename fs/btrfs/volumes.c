@@ -4196,13 +4196,13 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 	 * and exit, so return 1 so the callers don't try to use other copies.
 	 */
 	if (!em) {
-		btrfs_emerg(fs_info, "No mapping for %Lu-%Lu\n", logical,
+		btrfs_crit(fs_info, "No mapping for %Lu-%Lu\n", logical,
 			    logical+len);
 		return 1;
 	}
 
 	if (em->start > logical || em->start + em->len < logical) {
-		btrfs_emerg(fs_info, "Invalid mapping for %Lu-%Lu, got "
+		btrfs_crit(fs_info, "Invalid mapping for %Lu-%Lu, got "
 			    "%Lu-%Lu\n", logical, logical+len, em->start,
 			    em->start + em->len);
 		return 1;
