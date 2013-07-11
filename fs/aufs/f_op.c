@@ -438,7 +438,7 @@ out:
  * It means that when aufs acquires si_rwsem for write, the process should never
  * acquire mmap_sem.
  *
- * Actually aufs_readdir() holds [fdi]i_rwsem before mmap_sem, but this is not a
+ * Actually aufs_iterate() holds [fdi]i_rwsem before mmap_sem, but this is not a
  * problem either since any directory is not able to be mmap-ed.
  * The similar scenario is applied to aufs_readlink() too.
  */

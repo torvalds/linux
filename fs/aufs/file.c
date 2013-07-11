@@ -642,7 +642,8 @@ static int aufs_writepage(struct page *page, struct writeback_control *wbc)
 
 static int aufs_set_page_dirty(struct page *page)
 { AuUnsupport(); return 0; }
-static void aufs_invalidatepage(struct page *page, unsigned long offset)
+static void aufs_invalidatepage(struct page *page, unsigned int offset,
+				unsigned int length)
 { AuUnsupport(); }
 static int aufs_releasepage(struct page *page, gfp_t gfp)
 { AuUnsupport(); return 0; }
@@ -655,6 +656,9 @@ static int aufs_is_partially_uptodate(struct page *page,
 				      read_descriptor_t *desc,
 				      unsigned long from)
 { AuUnsupport(); return 0; }
+static void aufs_is_dirty_writeback(struct page *page, bool *dirty,
+				    bool *writeback)
+{ AuUnsupport(); }
 static int aufs_error_remove_page(struct address_space *mapping,
 				  struct page *page)
 { AuUnsupport(); return 0; }
@@ -682,6 +686,7 @@ const struct address_space_operations aufs_aop = {
 	.migratepage		= aufs_migratepage,
 	.launder_page		= aufs_launder_page,
 	.is_partially_uptodate	= aufs_is_partially_uptodate,
+	.is_dirty_writeback	= aufs_is_dirty_writeback,
 	.error_remove_page	= aufs_error_remove_page,
 	.swap_activate		= aufs_swap_activate,
 	.swap_deactivate	= aufs_swap_deactivate
