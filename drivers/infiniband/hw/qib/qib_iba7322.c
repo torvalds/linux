@@ -83,6 +83,7 @@ static void ibsd_wr_allchans(struct qib_pportdata *, int, unsigned, unsigned);
 static void serdes_7322_los_enable(struct qib_pportdata *, int);
 static int serdes_7322_init_old(struct qib_pportdata *);
 static int serdes_7322_init_new(struct qib_pportdata *);
+static void dump_sdma_7322_state(struct qib_pportdata *);
 
 #define BMASK(msb, lsb) (((1 << ((msb) + 1 - (lsb))) - 1) << (lsb))
 
@@ -652,6 +653,7 @@ struct qib_chippport_specific {
 	u8 ibmalfusesnap;
 	struct qib_qsfp_data qsfp_data;
 	char epmsgbuf[192]; /* for port error interrupt msg buffer */
+	char sdmamsgbuf[192]; /* for per-port sdma error messages */
 };
 
 static struct {
@@ -1601,6 +1603,15 @@ static void sdma_7322_p_errors(struct qib_pportdata *ppd, u64 errs)
 
 	spin_lock_irqsave(&ppd->sdma_lock, flags);
 
+	if (errs != QIB_E_P_SDMAHALT) {
+		/* SDMA errors have QIB_E_P_SDMAHALT and another bit set */
+		qib_dev_porterr(dd, ppd->port,
+			"SDMA %s 0x%016llx %s\n",
+			qib_sdma_state_names[ppd->sdma_state.current_state],
+			errs, ppd->cpspec->sdmamsgbuf);
+		dump_sdma_7322_state(ppd);
+	}
+
 	switch (ppd->sdma_state.current_state) {
 	case qib_sdma_state_s00_hw_down:
 		break;
@@ -2155,6 +2166,29 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 	/* Ignore esoteric PLL failures et al. */
 
 	qib_dev_err(dd, "%s hardware error\n", msg);
+
+	if (hwerrs &
+		   (SYM_MASK(HwErrMask, SDmaMemReadErrMask_0) |
+		    SYM_MASK(HwErrMask, SDmaMemReadErrMask_1))) {
+		int pidx = 0;
+		int err;
+		unsigned long flags;
+		struct qib_pportdata *ppd = dd->pport;
+		for (; pidx < dd->num_pports; ++pidx, ppd++) {
+			err = 0;
+			if (pidx == 0 && (hwerrs &
+				SYM_MASK(HwErrMask, SDmaMemReadErrMask_0)))
+				err++;
+			if (pidx == 1 && (hwerrs &
+				SYM_MASK(HwErrMask, SDmaMemReadErrMask_1)))
+				err++;
+			if (err) {
+				spin_lock_irqsave(&ppd->sdma_lock, flags);
+				dump_sdma_7322_state(ppd);
+				spin_unlock_irqrestore(&ppd->sdma_lock, flags);
+			}
+		}
+	}
 
 	if (isfatal && !dd->diag_client) {
 		qib_dev_err(dd,
@@ -6751,6 +6785,86 @@ static void qib_set_cntr_7322_sample(struct qib_pportdata *ppd, u32 intv,
 static void qib_sdma_set_7322_desc_cnt(struct qib_pportdata *ppd, unsigned cnt)
 {
 	qib_write_kreg_port(ppd, krp_senddmadesccnt, cnt);
+}
+
+/*
+ * sdma_lock should be acquired before calling this routine
+ */
+static void dump_sdma_7322_state(struct qib_pportdata *ppd)
+{
+	u64 reg, reg1, reg2;
+
+	reg = qib_read_kreg_port(ppd, krp_senddmastatus);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmastatus: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_sendctrl);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA sendctrl: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmabase);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmabase: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmabufmask0);
+	reg1 = qib_read_kreg_port(ppd, krp_senddmabufmask1);
+	reg2 = qib_read_kreg_port(ppd, krp_senddmabufmask2);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmabufmask 0:%llx  1:%llx  2:%llx\n",
+		 reg, reg1, reg2);
+
+	/* get bufuse bits, clear them, and print them again if non-zero */
+	reg = qib_read_kreg_port(ppd, krp_senddmabuf_use0);
+	qib_write_kreg_port(ppd, krp_senddmabuf_use0, reg);
+	reg1 = qib_read_kreg_port(ppd, krp_senddmabuf_use1);
+	qib_write_kreg_port(ppd, krp_senddmabuf_use0, reg1);
+	reg2 = qib_read_kreg_port(ppd, krp_senddmabuf_use2);
+	qib_write_kreg_port(ppd, krp_senddmabuf_use0, reg2);
+	/* 0 and 1 should always be zero, so print as short form */
+	qib_dev_porterr(ppd->dd, ppd->port,
+		 "SDMA current senddmabuf_use 0:%llx  1:%llx  2:%llx\n",
+		 reg, reg1, reg2);
+	reg = qib_read_kreg_port(ppd, krp_senddmabuf_use0);
+	reg1 = qib_read_kreg_port(ppd, krp_senddmabuf_use1);
+	reg2 = qib_read_kreg_port(ppd, krp_senddmabuf_use2);
+	/* 0 and 1 should always be zero, so print as short form */
+	qib_dev_porterr(ppd->dd, ppd->port,
+		 "SDMA cleared senddmabuf_use 0:%llx  1:%llx  2:%llx\n",
+		 reg, reg1, reg2);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmatail);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmatail: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmahead);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmahead: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmaheadaddr);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmaheadaddr: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmalengen);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmalengen: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmadesccnt);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmadesccnt: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmaidlecnt);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmaidlecnt: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmaprioritythld);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmapriorityhld: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmareloadcnt);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmareloadcnt: 0x%016llx\n", reg);
+
+	dump_sdma_state(ppd);
 }
 
 static struct sdma_set_state_action sdma_7322_action_table[] = {
