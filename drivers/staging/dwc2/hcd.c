@@ -2719,7 +2719,7 @@ void dwc2_set_all_params(struct dwc2_core_params *params, int value)
 	int i;
 
 	for (i = 0; i < size; i++)
-		p[i] = -1;
+		p[i] = value;
 }
 EXPORT_SYMBOL_GPL(dwc2_set_all_params);
 
