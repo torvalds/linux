@@ -40,6 +40,8 @@
 #define SUN4I_ADC_DEBUG              (0x2c)
 #define SUN4I_DAC_TXCNT              (0x30)
 #define SUN4I_ADC_RXCNT              (0x34)
+#define SUN4I_BIAS_CRT               (0x38)
+#define SUN4I_MIC_CRT                (0x3c)
 #define SUN4I_CODEC_REGS_NUM         (13)
 
 #define DAIFMT_16BITS             (16)

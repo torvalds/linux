@@ -390,6 +390,11 @@ static int codec_capture_open(void)
 	  //enable VMIC
 	 codec_wr_control(SUN4I_ADC_ACTL, 0x1, VMIC_EN, 0x1);
 
+	if (sunxi_is_sun7i()) {
+		/* boost up record effect */
+		codec_wr_control(SUN4I_DAC_TUNE, 0x3, 8, 0x3);
+	}
+
 	 //enable adc digital
 	 codec_wr_control(SUN4I_ADC_FIFOC, 0x1,ADC_DIG_EN, 0x1);
 	 //set RX FIFO mode
@@ -445,6 +450,10 @@ static int codec_capture_stop(void)
 
 	//enable VMIC
 	codec_wr_control(SUN4I_ADC_ACTL, 0x1, VMIC_EN, 0x0);
+
+	if (sunxi_is_sun7i())
+		codec_wr_control(SUN4I_DAC_TUNE, 0x3, 8, 0x0);
+
 	//enable adc digital
 	codec_wr_control(SUN4I_ADC_FIFOC, 0x1,ADC_DIG_EN, 0x0);
 	//set RX FIFO mode
@@ -504,6 +513,40 @@ static const struct snd_kcontrol_new codec_adc_controls[] = {
 	CODEC_SINGLE("ADC Input Mux",SUN4I_ADC_ACTL,17,7,0),//ADC输入静音
 };
 
+static const struct snd_kcontrol_new sun7i_dac_ctls[] = {
+	/*SUN4I_DAC_ACTL = 0x10,PAVOL*/
+	CODEC_SINGLE("Master Playback Volume", SUN4I_DAC_ACTL, 0, 0x3f, 0),
+	CODEC_SINGLE("MIC output volume", SUN4I_DAC_ACTL, 20, 7, 0),
+	/*	FM Input to output mixer Gain Control
+	 * 	From -4.5db to 6db,1.5db/step,default is 0db
+	 *	-4.5db:0x0,-3.0db:0x1,-1.5db:0x2,0db:0x3
+	 *	1.5db:0x4,3.0db:0x5,4.5db:0x6,6db:0x7
+	 */
+	CODEC_SINGLE("Fm output Volume", SUN4I_DAC_ACTL, 23,  7, 0),
+	/*	Line-in gain stage to output mixer Gain Control
+	 *	0:-1.5db,1:0db
+	 */
+	CODEC_SINGLE("Line output Volume", SUN4I_DAC_ACTL, 26, 1, 0),
+};
+
+static const struct snd_kcontrol_new sun7i_adc_ctls[] = {
+	CODEC_SINGLE("LINEIN APM Volume", SUN4I_MIC_CRT, 13, 0x7, 0),
+	/* ADC Input Gain Control, capture volume
+	 * 000:-4.5db,001:-3db,010:-1.5db,011:0db,100:1.5db,101:3db,110:4.5db,111:6db
+	 */
+	CODEC_SINGLE("Capture Volume", SUN4I_ADC_ACTL, 20, 7, 0),
+	/*
+	 *	MIC2 pre-amplifier Gain Control
+	 *	00:0db,01:35db,10:38db,11:41db
+	 */
+	CODEC_SINGLE("Mic2 gain Volume", SUN4I_MIC_CRT, 26, 7, 0),
+	/*
+	 *	MIC1 pre-amplifier Gain Control
+	 *	00:0db,01:35db,10:38db,11:41db
+	 */
+	CODEC_SINGLE("Mic1 gain Volume", SUN4I_MIC_CRT, 29, 3, 0),
+};
+
 int __devinit snd_chip_codec_mixer_new(struct snd_card *card)
 {
   	/*
@@ -541,6 +584,15 @@ int __devinit snd_chip_codec_mixer_new(struct snd_card *card)
 		if (has_capture)
 			for (idx = 0; idx < ARRAY_SIZE(codec_adc_controls); idx++)
 				if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_adc_controls[idx], clnt))) < 0)
+					return err;
+	} else if (sunxi_is_sun7i()) {
+		if (has_playback)
+			for (idx = 0; idx < ARRAY_SIZE(sun7i_dac_ctls); idx++)
+				if ((err = snd_ctl_add(card, snd_ctl_new1(&sun7i_dac_ctls[idx], clnt))) < 0)
+					return err;
+		if (has_capture)
+			for (idx = 0; idx < ARRAY_SIZE(sun7i_adc_ctls); idx++)
+				if ((err = snd_ctl_add(card, snd_ctl_new1(&sun7i_adc_ctls[idx], clnt))) < 0)
 					return err;
 	} else {
 		printk("[audio codec] chip version is unknown!\n");
@@ -1332,16 +1384,24 @@ void snd_sun4i_codec_free(struct snd_card *card)
 static void codec_resume_events(struct work_struct *work)
 {
 	printk("%s,%d\n",__func__,__LINE__);
-	codec_wr_control(SUN4I_DAC_DPC ,  0x1, DAC_EN, 0x1);
+	if (sunxi_is_sun7i())
+		codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x0);
+	else
+		codec_wr_control(SUN4I_DAC_DPC ,  0x1, DAC_EN, 0x1);
 	msleep(20);
 	//enable PA
 	codec_wr_control(SUN4I_ADC_ACTL, 0x1, PA_ENABLE, 0x1);
 	msleep(550);
     //enable dac analog
-	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_L, 0x1);
-	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_R, 0x1);
+	if (sunxi_is_sun7i()) {
+		codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x1);
+		codec_wr_control(SUN4I_ADC_ACTL, 0x1, 8, 0x0);
+	} else {
+		codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_L, 0x1);
+		codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_R, 0x1);
 
-	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACPAS, 0x1);
+		codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACPAS, 0x1);
+	}
     msleep(50);
 	printk("====pa turn on===\n");
 	gpio_write_one_pin_value(gpio_pa_shutdown, 1, "audio_pa_ctrl");
@@ -1405,6 +1465,7 @@ static int __devinit sun4i_codec_probe(struct platform_device *pdev)
 	}
 	/* codec_pll2clk */
 	codec_pll2clk = clk_get(NULL,"audio_pll");
+	clk_enable(codec_pll2clk);
 
 	/* codec_moduleclk */
 	codec_moduleclk = clk_get(NULL,"audio_codec");

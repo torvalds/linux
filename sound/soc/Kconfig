@@ -50,7 +50,7 @@ source "sound/soc/tegra/Kconfig"
 source "sound/soc/txx9/Kconfig"
 config SOUND_SUN4I
        tristate "SOUND driver for sun4i"
-       depends on (ARCH_SUN4I || ARCH_SUN5I)
+       depends on (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
        help
          SOUND driver for sun4i
          
@@ -58,7 +58,10 @@ if SOUND_SUN4I
 source "sound/soc/sun4i/Kconfig"
 source "sound/soc/sun4i/hdmiaudio/Kconfig"
 source "sound/soc/sun4i/spdif/Kconfig"
+# i2s needs various adjustments for sun7i
+if ARCH_SUN4I || ARCH_SUN5I
 source "sound/soc/sun4i/i2s/Kconfig"
+endif
 endif
 
 # Supported codecs
