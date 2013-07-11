@@ -196,6 +196,20 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_cmt(00);
 }
 
+#define MODEMR 0xe6160060
+
+u32 __init r8a7790_read_mode_pins(void)
+{
+	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
+	u32 mode;
+
+	BUG_ON(!modemr);
+	mode = ioread32(modemr);
+	iounmap(modemr);
+
+	return mode;
+}
+
 void __init r8a7790_timer_init(void)
 {
 	void __iomem *cntcr;
