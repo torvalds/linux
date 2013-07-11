@@ -102,9 +102,6 @@ int perf_session__write_header(struct perf_session *session,
 			       int fd, bool at_exit);
 int perf_header__write_pipe(int fd);
 
-int perf_header__push_event(u64 id, const char *name);
-char *perf_header__find_event(u64 id);
-
 void perf_header__set_feat(struct perf_header *header, int feat);
 void perf_header__clear_feat(struct perf_header *header, int feat);
 bool perf_header__has_feat(const struct perf_header *header, int feat);
@@ -131,16 +128,6 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 				 perf_event__handler_t process);
 int perf_event__process_attr(struct perf_tool *tool, union perf_event *event,
 			     struct perf_evlist **pevlist);
-
-int perf_event__synthesize_event_type(struct perf_tool *tool,
-				      u64 event_id, char *name,
-				      perf_event__handler_t process,
-				      struct machine *machine);
-int perf_event__synthesize_event_types(struct perf_tool *tool,
-				       perf_event__handler_t process,
-				       struct machine *machine);
-int perf_event__process_event_type(struct perf_tool *tool,
-				   union perf_event *event);
 
 int perf_event__synthesize_tracing_data(struct perf_tool *tool,
 					int fd, struct perf_evlist *evlist,

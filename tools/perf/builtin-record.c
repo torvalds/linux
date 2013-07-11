@@ -474,13 +474,6 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 			goto out_delete_session;
 		}
 
-		err = perf_event__synthesize_event_types(tool, process_synthesized_event,
-							 machine);
-		if (err < 0) {
-			pr_err("Couldn't synthesize event_types.\n");
-			goto out_delete_session;
-		}
-
 		if (have_tracepoints(&evsel_list->entries)) {
 			/*
 			 * FIXME err <= 0 here actually means that

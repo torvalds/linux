@@ -741,7 +741,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.lost		 = perf_event__process_lost,
 			.read		 = process_read_event,
 			.attr		 = perf_event__process_attr,
-			.event_type	 = perf_event__process_event_type,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
 			.ordered_samples = true,

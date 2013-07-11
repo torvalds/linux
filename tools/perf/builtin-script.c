@@ -524,7 +524,6 @@ static struct perf_tool perf_script = {
 	.exit		 = perf_event__process_exit,
 	.fork		 = perf_event__process_fork,
 	.attr		 = perf_event__process_attr,
-	.event_type	 = perf_event__process_event_type,
 	.tracing_data	 = perf_event__process_tracing_data,
 	.build_id	 = perf_event__process_build_id,
 	.ordered_samples = true,

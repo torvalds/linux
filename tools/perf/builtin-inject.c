@@ -67,12 +67,6 @@ static int perf_event__repipe_op2_synth(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-static int perf_event__repipe_event_type_synth(struct perf_tool *tool,
-					       union perf_event *event)
-{
-	return perf_event__repipe_synth(tool, event);
-}
-
 static int perf_event__repipe_attr(struct perf_tool *tool,
 				   union perf_event *event,
 				   struct perf_evlist **pevlist)
@@ -402,7 +396,6 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.throttle	= perf_event__repipe,
 			.unthrottle	= perf_event__repipe,
 			.attr		= perf_event__repipe_attr,
-			.event_type	= perf_event__repipe_event_type_synth,
 			.tracing_data	= perf_event__repipe_op2_synth,
 			.finished_round	= perf_event__repipe_op2_synth,
 			.build_id	= perf_event__repipe_op2_synth,

@@ -241,13 +241,6 @@ static int process_finished_round_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_event_type_stub(struct perf_tool *tool __maybe_unused,
-				   union perf_event *event __maybe_unused)
-{
-	dump_printf(": unhandled!\n");
-	return 0;
-}
-
 static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event,
 				  struct perf_session *session);
@@ -274,8 +267,6 @@ static void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->unthrottle = process_event_stub;
 	if (tool->attr == NULL)
 		tool->attr = process_event_synth_attr_stub;
-	if (tool->event_type == NULL)
-		tool->event_type = process_event_type_stub;
 	if (tool->tracing_data == NULL)
 		tool->tracing_data = process_event_synth_tracing_data_stub;
 	if (tool->build_id == NULL)
@@ -928,8 +919,6 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 		if (err == 0)
 			perf_session__set_id_hdr_size(session);
 		return err;
-	case PERF_RECORD_HEADER_EVENT_TYPE:
-		return tool->event_type(tool, event);
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
 		lseek(session->fd, file_offset, SEEK_SET);

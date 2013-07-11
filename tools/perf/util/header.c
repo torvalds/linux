@@ -25,40 +25,8 @@
 
 static bool no_buildid_cache = false;
 
-static int trace_event_count;
-static struct perf_trace_event_type *trace_events;
-
 static u32 header_argc;
 static const char **header_argv;
-
-int perf_header__push_event(u64 id, const char *name)
-{
-	struct perf_trace_event_type *nevents;
-
-	if (strlen(name) > MAX_EVENT_NAME)
-		pr_warning("Event %s will be truncated\n", name);
-
-	nevents = realloc(trace_events, (trace_event_count + 1) * sizeof(*trace_events));
-	if (nevents == NULL)
-		return -ENOMEM;
-	trace_events = nevents;
-
-	memset(&trace_events[trace_event_count], 0, sizeof(struct perf_trace_event_type));
-	trace_events[trace_event_count].event_id = id;
-	strncpy(trace_events[trace_event_count].name, name, MAX_EVENT_NAME - 1);
-	trace_event_count++;
-	return 0;
-}
-
-char *perf_header__find_event(u64 id)
-{
-	int i;
-	for (i = 0 ; i < trace_event_count; i++) {
-		if (trace_events[i].event_id == id)
-			return trace_events[i].name;
-	}
-	return NULL;
-}
 
 /*
  * magic2 = "PERFILE2"
@@ -2932,64 +2900,6 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	}
 
 	symbol_conf.nr_events = evlist->nr_entries;
-
-	return 0;
-}
-
-int perf_event__synthesize_event_type(struct perf_tool *tool,
-				      u64 event_id, char *name,
-				      perf_event__handler_t process,
-				      struct machine *machine)
-{
-	union perf_event ev;
-	size_t size = 0;
-	int err = 0;
-
-	memset(&ev, 0, sizeof(ev));
-
-	ev.event_type.event_type.event_id = event_id;
-	memset(ev.event_type.event_type.name, 0, MAX_EVENT_NAME);
-	strncpy(ev.event_type.event_type.name, name, MAX_EVENT_NAME - 1);
-
-	ev.event_type.header.type = PERF_RECORD_HEADER_EVENT_TYPE;
-	size = strlen(ev.event_type.event_type.name);
-	size = PERF_ALIGN(size, sizeof(u64));
-	ev.event_type.header.size = sizeof(ev.event_type) -
-		(sizeof(ev.event_type.event_type.name) - size);
-
-	err = process(tool, &ev, NULL, machine);
-
-	return err;
-}
-
-int perf_event__synthesize_event_types(struct perf_tool *tool,
-				       perf_event__handler_t process,
-				       struct machine *machine)
-{
-	struct perf_trace_event_type *type;
-	int i, err = 0;
-
-	for (i = 0; i < trace_event_count; i++) {
-		type = &trace_events[i];
-
-		err = perf_event__synthesize_event_type(tool, type->event_id,
-							type->name, process,
-							machine);
-		if (err) {
-			pr_debug("failed to create perf header event type\n");
-			return err;
-		}
-	}
-
-	return err;
-}
-
-int perf_event__process_event_type(struct perf_tool *tool __maybe_unused,
-				   union perf_event *event)
-{
-	if (perf_header__push_event(event->event_type.event_type.event_id,
-				    event->event_type.event_type.name) < 0)
-		return -ENOMEM;
 
 	return 0;
 }
