@@ -193,6 +193,7 @@ config USB_FUSB300
 	   Faraday usb device controller FUSB300 driver
 
 config USB_FOTG210_UDC
+	depends on HAS_DMA
 	tristate "Faraday FOTG210 USB Peripheral Controller"
 	help
 	   Faraday USB2.0 OTG controller which can be configured as
