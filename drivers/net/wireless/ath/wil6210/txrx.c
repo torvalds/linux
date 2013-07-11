@@ -133,7 +133,7 @@ static void wil_vring_free(struct wil6210_priv *wil, struct vring *vring,
 		} else { /* rx */
 			struct vring_rx_desc dd, *d = &dd;
 			volatile struct vring_rx_desc *_d =
-					&vring->va[vring->swtail].rx;
+					&vring->va[vring->swhead].rx;
 
 			*d = *_d;
 			pa = wil_desc_addr(&d->dma.addr);
