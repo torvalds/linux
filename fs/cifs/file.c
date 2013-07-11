@@ -681,6 +681,13 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 	 * not dirty locally we could do this.
 	 */
 	rc = server->ops->open(xid, &oparms, &oplock, NULL);
+	if (rc == -ENOENT && oparms.reconnect == false) {
+		/* durable handle timeout is expired - open the file again */
+		rc = server->ops->open(xid, &oparms, &oplock, NULL);
+		/* indicate that we need to relock the file */
+		oparms.reconnect = true;
+	}
+
 	if (rc) {
 		mutex_unlock(&cfile->fh_mutex);
 		cifs_dbg(FYI, "cifs_reopen returned 0x%x\n", rc);
@@ -1509,7 +1516,6 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		}
 		if (!rc)
 			goto out;
-
 
 		/*
 		 * Windows 7 server can delay breaking lease from read to None
