@@ -49,9 +49,9 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_supported_band *sband;
 	struct cfg80211_bss *bss;
 	u32 bss_change, rate_flags, rates = 0, rates_added = 0;
-	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	struct cfg80211_chan_def chandef;
 	enum nl80211_bss_scan_width scan_width;
+	bool have_higher_than_11mbit = false;
 	struct beacon_data *presp;
 	int frame_len;
 	int shift;
@@ -149,6 +149,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < sband->n_bitrates; i++) {
 		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
 			continue;
+		if (sband->bitrates[i].bitrate > 110)
+			have_higher_than_11mbit = true;
 
 		rates |= BIT(i);
 		rates_n++;
@@ -270,11 +272,17 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.use_short_slot = chan->band == IEEE80211_BAND_5GHZ;
 	bss_change |= BSS_CHANGED_ERP_SLOT;
 
+	/* cf. IEEE 802.11 9.2.12 */
+	if (chan->band == IEEE80211_BAND_2GHZ && have_higher_than_11mbit)
+		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
+	else
+		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+
 	sdata->vif.bss_conf.ibss_joined = true;
 	sdata->vif.bss_conf.ibss_creator = creator;
 	ieee80211_bss_info_change_notify(sdata, bss_change);
 
-	ieee80211_sta_def_wmm_params(sdata, rates, supp_rates);
+	ieee80211_set_wmm_default(sdata, true);
 
 	ifibss->state = IEEE80211_IBSS_MLME_JOINED;
 	mod_timer(&ifibss->timer,
