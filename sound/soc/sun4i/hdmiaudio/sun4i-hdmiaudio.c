@@ -194,15 +194,13 @@ void sun4i_snd_rxctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 	}
 }
 
-static inline int sun4i_snd_is_clkmaster(void)
-{
-	return ((readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL) & SUN4I_HDMIAUDIOCTL_MS) ? 0 : 1);
-}
-
 static int sun4i_hdmiaudio_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	u32 reg_val;
 	u32 reg_val1;
+
+	if (sunxi_is_sun7i())
+		return 0; /* No rx / tx control, etc. on sun7i() */
 
 	//SDO ON
 	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_HDMIAUDIOCTL);
@@ -347,6 +345,9 @@ static int sun4i_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 	struct sunxi_dma_params *dma_data =
 			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
+	if (sunxi_is_sun7i())
+		return 0; /* No rx / tx control, etc. on sun7i() */
+
 	switch (cmd) {
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
@@ -378,6 +379,9 @@ static int sun4i_hdmiaudio_trigger(struct snd_pcm_substream *substream,
 static int sun4i_hdmiaudio_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
                                  unsigned int freq, int dir)
 {
+	if (sunxi_is_sun7i())
+		return 0; /* No rx / tx control, etc. on sun7i() */
+
 	if (!freq) {
 		clk_set_rate(hdmiaudio_pll2clk, 24576000);
 	} else {
@@ -390,6 +394,9 @@ static int sun4i_hdmiaudio_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 static int sun4i_hdmiaudio_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div)
 {
 	u32 reg;
+
+	if (sunxi_is_sun7i())
+		return 0; /* No rx / tx control, etc. on sun7i() */
 
 	switch (div_id) {
 	case SUN4I_DIV_MCLK:
@@ -483,6 +490,10 @@ static void hdmiaudioregrestore(void)
 static int sun4i_hdmiaudio_suspend(struct snd_soc_dai *cpu_dai)
 {
 	u32 reg_val;
+
+	if (sunxi_is_sun7i())
+		return 0; /* No rx / tx control, etc. on sun7i() */
+
  	printk("[HDMIAUDIO]Entered %s\n", __func__);
 
 	//Global Enable Digital Audio Interface
@@ -506,6 +517,10 @@ static int sun4i_hdmiaudio_suspend(struct snd_soc_dai *cpu_dai)
 static int sun4i_hdmiaudio_resume(struct snd_soc_dai *cpu_dai)
 {
 	u32 reg_val;
+
+	if (sunxi_is_sun7i())
+		return 0; /* No rx / tx control, etc. on sun7i() */
+
 	printk("[HDMIAUDIO]Entered %s\n", __func__);
 
 	//release the module clock
@@ -560,6 +575,11 @@ static int __devinit sun4i_hdmiaudio_dev_probe(struct platform_device *pdev)
 	int reg_val = 0;
 	int ret = 0;
 
+	if (sunxi_is_sun7i()) {
+		/* No rx / tx control, etc. on sun7i() */
+		return snd_soc_register_dai(&pdev->dev, &sun4i_hdmiaudio_dai);
+	}
+
 	sun4i_hdmiaudio.regs = ioremap(SUN4I_HDMIAUDIOBASE, 0x100);
 	if (sun4i_hdmiaudio.regs == NULL)
 		return -ENXIO;
@@ -613,6 +633,12 @@ static int __devinit sun4i_hdmiaudio_dev_probe(struct platform_device *pdev)
 
 static int __devexit sun4i_hdmiaudio_dev_remove(struct platform_device *pdev)
 {
+	if (sunxi_is_sun7i()) {
+		/* No rx / tx control, etc. on sun7i() */
+		snd_soc_unregister_dai(&pdev->dev);
+		return 0;
+	}
+
 	//release the module clock
 	clk_disable(hdmiaudio_moduleclk);
 
