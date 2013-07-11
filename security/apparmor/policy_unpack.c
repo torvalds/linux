@@ -616,7 +616,7 @@ fail:
 	else if (!name)
 		name = "unknown";
 	audit_iface(profile, name, "failed to unpack profile", e, error);
-	aa_put_profile(profile);
+	aa_free_profile(profile);
 
 	return ERR_PTR(error);
 }
@@ -763,7 +763,7 @@ int aa_unpack(void *udata, size_t size, struct list_head *lh, const char **ns)
 
 		error = verify_profile(profile);
 		if (error) {
-			aa_put_profile(profile);
+			aa_free_profile(profile);
 			goto fail;
 		}
 

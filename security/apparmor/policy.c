@@ -307,7 +307,6 @@ fail_ns:
 	return NULL;
 }
 
-static void free_profile(struct aa_profile *profile);
 /**
  * free_namespace - free a profile namespace
  * @ns: the namespace to free  (MAYBE NULL)
@@ -324,7 +323,7 @@ static void free_namespace(struct aa_namespace *ns)
 	aa_put_namespace(ns->parent);
 
 	ns->unconfined->ns = NULL;
-	free_profile(ns->unconfined);
+	aa_free_profile(ns->unconfined);
 	kzfree(ns);
 }
 
@@ -568,7 +567,7 @@ void aa_free_replacedby_kref(struct kref *kref)
 }
 
 /**
- * free_profile - free a profile
+ * aa_free_profile - free a profile
  * @profile: the profile to free  (MAYBE NULL)
  *
  * Free a profile, its hats and null_profile. All references to the profile,
@@ -577,7 +576,7 @@ void aa_free_replacedby_kref(struct kref *kref)
  * If the profile was referenced from a task context, free_profile() will
  * be called from an rcu callback routine, so we must not sleep here.
  */
-static void free_profile(struct aa_profile *profile)
+void aa_free_profile(struct aa_profile *profile)
 {
 	AA_DEBUG("%s(%p)\n", __func__, profile);
 
@@ -612,7 +611,7 @@ static void aa_free_profile_rcu(struct rcu_head *head)
 	if (p->flags & PFLAG_NS_COUNT)
 		free_namespace(p->ns);
 	else
-		free_profile(p);
+		aa_free_profile(p);
 }
 
 /**
