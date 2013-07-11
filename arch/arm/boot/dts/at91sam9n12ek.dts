@@ -137,7 +137,7 @@
 
 		enter {
 			label = "Enter";
-			gpios = <&pioB 4 GPIO_ACTIVE_LOW>;
+			gpios = <&pioB 3 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
 			gpio-key,wakeup;
 		};
