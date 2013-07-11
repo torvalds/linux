@@ -156,11 +156,22 @@ struct wil6210_mbox_hdr {
 /* max. value for wil6210_mbox_hdr.len */
 #define MAX_MBOXITEM_SIZE   (240)
 
+/**
+ * struct wil6210_mbox_hdr_wmi - WMI header
+ *
+ * @mid: MAC ID
+ *	00 - default, created by FW
+ *	01..0f - WiFi ports, driver to create
+ *	10..fe - debug
+ *	ff - broadcast
+ * @id: command/event ID
+ * @timestamp: FW fills for events, free-running msec timer
+ */
 struct wil6210_mbox_hdr_wmi {
-	u8 reserved0[2];
+	u8 mid;
+	u8 reserved;
 	__le16 id;
-	__le16 info1; /* bits [0..3] - device_id, rest - unused */
-	u8 reserved1[2];
+	__le32 timestamp;
 } __packed;
 
 struct pending_wmi_event {
