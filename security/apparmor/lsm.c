@@ -742,7 +742,7 @@ module_param_named(paranoid_load, aa_g_paranoid_load, aabool,
 
 /* Boot time disable flag */
 static bool apparmor_enabled = CONFIG_SECURITY_APPARMOR_BOOTPARAM_VALUE;
-module_param_named(enabled, apparmor_enabled, aabool, S_IRUSR);
+module_param_named(enabled, apparmor_enabled, bool, S_IRUGO);
 
 static int __init apparmor_enabled_setup(char *str)
 {
