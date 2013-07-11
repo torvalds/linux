@@ -308,6 +308,7 @@ ext4_io_end_t *ext4_get_io_end(ext4_io_end_t *io_end)
 	return io_end;
 }
 
+/* BIO completion function for page writeback */
 static void ext4_end_bio(struct bio *bio, int error)
 {
 	ext4_io_end_t *io_end = bio->bi_private;
@@ -317,18 +318,6 @@ static void ext4_end_bio(struct bio *bio, int error)
 	bio->bi_end_io = NULL;
 	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
 		error = 0;
-
-	if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
-		/*
-		 * Link bio into list hanging from io_end. We have to do it
-		 * atomically as bio completions can be racing against each
-		 * other.
-		 */
-		bio->bi_private = xchg(&io_end->bio, bio);
-	} else {
-		ext4_finish_bio(bio);
-		bio_put(bio);
-	}
 
 	if (error) {
 		struct inode *inode = io_end->inode;
@@ -341,7 +330,24 @@ static void ext4_end_bio(struct bio *bio, int error)
 			     (unsigned long long)
 			     bi_sector >> (inode->i_blkbits - 9));
 	}
-	ext4_put_io_end_defer(io_end);
+
+	if (io_end->flag & EXT4_IO_END_UNWRITTEN) {
+		/*
+		 * Link bio into list hanging from io_end. We have to do it
+		 * atomically as bio completions can be racing against each
+		 * other.
+		 */
+		bio->bi_private = xchg(&io_end->bio, bio);
+		ext4_put_io_end_defer(io_end);
+	} else {
+		/*
+		 * Drop io_end reference early. Inode can get freed once
+		 * we finish the bio.
+		 */
+		ext4_put_io_end_defer(io_end);
+		ext4_finish_bio(bio);
+		bio_put(bio);
+	}
 }
 
 void ext4_io_submit(struct ext4_io_submit *io)
