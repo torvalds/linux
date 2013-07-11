@@ -843,7 +843,7 @@ static int param_get_mode(char *buffer, struct kernel_param *kp)
 	if (!apparmor_enabled)
 		return -EINVAL;
 
-	return sprintf(buffer, "%s", profile_mode_names[aa_g_profile_mode]);
+	return sprintf(buffer, "%s", aa_profile_mode_names[aa_g_profile_mode]);
 }
 
 static int param_set_mode(const char *val, struct kernel_param *kp)
@@ -858,8 +858,8 @@ static int param_set_mode(const char *val, struct kernel_param *kp)
 	if (!val)
 		return -EINVAL;
 
-	for (i = 0; i < APPARMOR_NAMES_MAX_INDEX; i++) {
-		if (strcmp(val, profile_mode_names[i]) == 0) {
+	for (i = 0; i < APPARMOR_MODE_NAMES_MAX_INDEX; i++) {
+		if (strcmp(val, aa_profile_mode_names[i]) == 0) {
 			aa_g_profile_mode = i;
 			return 0;
 		}

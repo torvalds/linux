@@ -92,7 +92,7 @@
 /* root profile namespace */
 struct aa_namespace *root_ns;
 
-const char *const profile_mode_names[] = {
+const char *const aa_profile_mode_names[] = {
 	"enforce",
 	"complain",
 	"kill",
@@ -394,7 +394,13 @@ static struct aa_namespace *aa_prepare_namespace(const char *name)
 		ns = alloc_namespace(root->base.hname, name);
 		if (!ns)
 			goto out;
-		/* add parent ref */
+		if (__aa_fs_namespace_mkdir(ns, ns_subns_dir(root), name)) {
+			AA_ERROR("Failed to create interface for ns %s\n",
+				 ns->base.name);
+			free_namespace(ns);
+			ns = NULL;
+			goto out;
+		}
 		ns->parent = aa_get_namespace(root);
 		list_add_rcu(&ns->base.list, &root->sub_ns);
 		/* add list ref */
@@ -456,6 +462,7 @@ static void __remove_profile(struct aa_profile *profile)
 	__profile_list_release(&profile->base.profiles);
 	/* released by free_profile */
 	__aa_update_replacedby(profile, profile->ns->unconfined);
+	__aa_fs_profile_rmdir(profile);
 	__list_remove_profile(profile);
 }
 
@@ -492,6 +499,7 @@ static void destroy_namespace(struct aa_namespace *ns)
 
 	if (ns->parent)
 		__aa_update_replacedby(ns->unconfined, ns->parent->unconfined);
+	__aa_fs_namespace_rmdir(ns);
 	mutex_unlock(&ns->lock);
 }
 
@@ -596,6 +604,7 @@ void aa_free_profile(struct aa_profile *profile)
 	aa_free_cap_rules(&profile->caps);
 	aa_free_rlimit_rules(&profile->rlimits);
 
+	kzfree(profile->dirname);
 	aa_put_dfa(profile->xmatch);
 	aa_put_dfa(profile->policy.dfa);
 	aa_put_replacedby(profile->replacedby);
@@ -986,8 +995,7 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
 			/* inherit @child and its children */
 			/* TODO: update hname of inherited children */
 			/* list refcount transferred to @new */
-			p = rcu_dereference_protected(child->parent,
-					     mutex_is_locked(&child->ns->lock));
+			p = aa_deref_parent(child);
 			rcu_assign_pointer(child->parent, aa_get_profile(new));
 			list_add_rcu(&child->base.list, &new->base.profiles);
 			aa_put_profile(p);
@@ -995,14 +1003,18 @@ static void __replace_profile(struct aa_profile *old, struct aa_profile *new,
 	}
 
 	if (!rcu_access_pointer(new->parent)) {
-		struct aa_profile *parent = rcu_dereference(old->parent);
+		struct aa_profile *parent = aa_deref_parent(old);
 		rcu_assign_pointer(new->parent, aa_get_profile(parent));
 	}
 	__aa_update_replacedby(old, new);
 	if (share_replacedby) {
 		aa_put_replacedby(new->replacedby);
 		new->replacedby = aa_get_replacedby(old->replacedby);
-	}
+	} else if (!rcu_access_pointer(new->replacedby->profile))
+		/* aafs interface uses replacedby */
+		rcu_assign_pointer(new->replacedby->profile,
+				   aa_get_profile(new));
+	__aa_fs_profile_migrate_dents(old, new);
 
 	if (list_empty(&new->base.list)) {
 		/* new is not on a list already */
@@ -1118,7 +1130,33 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 		}
 	}
 
-	/* do actual replacement */
+	/* create new fs entries for introspection if needed */
+	list_for_each_entry(ent, &lh, list) {
+		if (ent->old) {
+			/* inherit old interface files */
+
+			/* if (ent->rename)
+				TODO: support rename */
+		/* } else if (ent->rename) {
+			TODO: support rename */
+		} else {
+			struct dentry *parent;
+			if (rcu_access_pointer(ent->new->parent)) {
+				struct aa_profile *p;
+				p = aa_deref_parent(ent->new);
+				parent = prof_child_dir(p);
+			} else
+				parent = ns_subprofs_dir(ent->new->ns);
+			error = __aa_fs_profile_mkdir(ent->new, parent);
+		}
+
+		if (error) {
+			info = "failed to create ";
+			goto fail_lock;
+		}
+	}
+
+	/* Done with checks that may fail - do actual replacement */
 	list_for_each_entry_safe(ent, tmp, &lh, list) {
 		list_del_init(&ent->list);
 		op = (!ent->old && !ent->rename) ? OP_PROF_LOAD : OP_PROF_REPL;
@@ -1127,14 +1165,21 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 
 		if (ent->old) {
 			__replace_profile(ent->old, ent->new, 1);
-			if (ent->rename)
+			if (ent->rename) {
+				/* aafs interface uses replacedby */
+				struct aa_replacedby *r = ent->new->replacedby;
+				rcu_assign_pointer(r->profile,
+						   aa_get_profile(ent->new));
 				__replace_profile(ent->rename, ent->new, 0);
+			}
 		} else if (ent->rename) {
+			/* aafs interface uses replacedby */
+			rcu_assign_pointer(ent->new->replacedby->profile,
+					   aa_get_profile(ent->new));
 			__replace_profile(ent->rename, ent->new, 0);
 		} else if (ent->new->parent) {
 			struct aa_profile *parent, *newest;
-			parent = rcu_dereference_protected(ent->new->parent,
-						    mutex_is_locked(&ns->lock));
+			parent = aa_deref_parent(ent->new);
 			newest = aa_get_newest_profile(parent);
 
 			/* parent replaced in this atomic set? */
@@ -1144,10 +1189,16 @@ ssize_t aa_replace_profiles(void *udata, size_t size, bool noreplace)
 				rcu_assign_pointer(ent->new->parent, newest);
 			} else
 				aa_put_profile(newest);
+			/* aafs interface uses replacedby */
+			rcu_assign_pointer(ent->new->replacedby->profile,
+					   aa_get_profile(ent->new));
 			__list_add_profile(&parent->base.profiles, ent->new);
-		} else
+		} else {
+			/* aafs interface uses replacedby */
+			rcu_assign_pointer(ent->new->replacedby->profile,
+					   aa_get_profile(ent->new));
 			__list_add_profile(&ns->base.profiles, ent->new);
-
+		}
 		aa_load_ent_free(ent);
 	}
 	mutex_unlock(&ns->lock);

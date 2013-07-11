@@ -12,6 +12,7 @@
  * License.
  */
 
+#include <linux/ctype.h>
 #include <linux/security.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
@@ -26,6 +27,45 @@
 #include "include/context.h"
 #include "include/policy.h"
 #include "include/resource.h"
+
+/**
+ * aa_mangle_name - mangle a profile name to std profile layout form
+ * @name: profile name to mangle  (NOT NULL)
+ * @target: buffer to store mangled name, same length as @name (MAYBE NULL)
+ *
+ * Returns: length of mangled name
+ */
+static int mangle_name(char *name, char *target)
+{
+	char *t = target;
+
+	while (*name == '/' || *name == '.')
+		name++;
+
+	if (target) {
+		for (; *name; name++) {
+			if (*name == '/')
+				*(t)++ = '.';
+			else if (isspace(*name))
+				*(t)++ = '_';
+			else if (isalnum(*name) || strchr("._-", *name))
+				*(t)++ = *name;
+		}
+
+		*t = 0;
+	} else {
+		int len = 0;
+		for (; *name; name++) {
+			if (isalnum(*name) || isspace(*name) ||
+			    strchr("/._-", *name))
+				len++;
+		}
+
+		return len;
+	}
+
+	return t - target;
+}
 
 /**
  * aa_simple_write_to_buffer - common routine for getting policy from user
@@ -182,8 +222,263 @@ const struct file_operations aa_fs_seq_file_ops = {
 	.release	= single_release,
 };
 
-/** Base file system setup **/
+static int aa_fs_seq_profile_open(struct inode *inode, struct file *file,
+				  int (*show)(struct seq_file *, void *))
+{
+	struct aa_replacedby *r = aa_get_replacedby(inode->i_private);
+	int error = single_open(file, show, r);
 
+	if (error) {
+		file->private_data = NULL;
+		aa_put_replacedby(r);
+	}
+
+	return error;
+}
+
+static int aa_fs_seq_profile_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = (struct seq_file *) file->private_data;
+	if (seq)
+		aa_put_replacedby(seq->private);
+	return single_release(inode, file);
+}
+
+static int aa_fs_seq_profname_show(struct seq_file *seq, void *v)
+{
+	struct aa_replacedby *r = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	seq_printf(seq, "%s\n", profile->base.name);
+	aa_put_profile(profile);
+
+	return 0;
+}
+
+static int aa_fs_seq_profname_open(struct inode *inode, struct file *file)
+{
+	return aa_fs_seq_profile_open(inode, file, aa_fs_seq_profname_show);
+}
+
+static const struct file_operations aa_fs_profname_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_profname_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= aa_fs_seq_profile_release,
+};
+
+static int aa_fs_seq_profmode_show(struct seq_file *seq, void *v)
+{
+	struct aa_replacedby *r = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	seq_printf(seq, "%s\n", aa_profile_mode_names[profile->mode]);
+	aa_put_profile(profile);
+
+	return 0;
+}
+
+static int aa_fs_seq_profmode_open(struct inode *inode, struct file *file)
+{
+	return aa_fs_seq_profile_open(inode, file, aa_fs_seq_profmode_show);
+}
+
+static const struct file_operations aa_fs_profmode_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_profmode_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= aa_fs_seq_profile_release,
+};
+
+/** fns to setup dynamic per profile/namespace files **/
+void __aa_fs_profile_rmdir(struct aa_profile *profile)
+{
+	struct aa_profile *child;
+	int i;
+
+	if (!profile)
+		return;
+
+	list_for_each_entry(child, &profile->base.profiles, base.list)
+		__aa_fs_profile_rmdir(child);
+
+	for (i = AAFS_PROF_SIZEOF - 1; i >= 0; --i) {
+		struct aa_replacedby *r;
+		if (!profile->dents[i])
+			continue;
+
+		r = profile->dents[i]->d_inode->i_private;
+		securityfs_remove(profile->dents[i]);
+		aa_put_replacedby(r);
+		profile->dents[i] = NULL;
+	}
+}
+
+void __aa_fs_profile_migrate_dents(struct aa_profile *old,
+				   struct aa_profile *new)
+{
+	int i;
+
+	for (i = 0; i < AAFS_PROF_SIZEOF; i++) {
+		new->dents[i] = old->dents[i];
+		old->dents[i] = NULL;
+	}
+}
+
+static struct dentry *create_profile_file(struct dentry *dir, const char *name,
+					  struct aa_profile *profile,
+					  const struct file_operations *fops)
+{
+	struct aa_replacedby *r = aa_get_replacedby(profile->replacedby);
+	struct dentry *dent;
+
+	dent = securityfs_create_file(name, S_IFREG | 0444, dir, r, fops);
+	if (IS_ERR(dent))
+		aa_put_replacedby(r);
+
+	return dent;
+}
+
+/* requires lock be held */
+int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
+{
+	struct aa_profile *child;
+	struct dentry *dent = NULL, *dir;
+	int error;
+
+	if (!parent) {
+		struct aa_profile *p;
+		p = aa_deref_parent(profile);
+		dent = prof_dir(p);
+		/* adding to parent that previously didn't have children */
+		dent = securityfs_create_dir("profiles", dent);
+		if (IS_ERR(dent))
+			goto fail;
+		prof_child_dir(p) = parent = dent;
+	}
+
+	if (!profile->dirname) {
+		int len, id_len;
+		len = mangle_name(profile->base.name, NULL);
+		id_len = snprintf(NULL, 0, ".%ld", profile->ns->uniq_id);
+
+		profile->dirname = kmalloc(len + id_len + 1, GFP_KERNEL);
+		if (!profile->dirname)
+			goto fail;
+
+		mangle_name(profile->base.name, profile->dirname);
+		sprintf(profile->dirname + len, ".%ld", profile->ns->uniq_id++);
+	}
+
+	dent = securityfs_create_dir(profile->dirname, parent);
+	if (IS_ERR(dent))
+		goto fail;
+	prof_dir(profile) = dir = dent;
+
+	dent = create_profile_file(dir, "name", profile, &aa_fs_profname_fops);
+	if (IS_ERR(dent))
+		goto fail;
+	profile->dents[AAFS_PROF_NAME] = dent;
+
+	dent = create_profile_file(dir, "mode", profile, &aa_fs_profmode_fops);
+	if (IS_ERR(dent))
+		goto fail;
+	profile->dents[AAFS_PROF_MODE] = dent;
+
+	list_for_each_entry(child, &profile->base.profiles, base.list) {
+		error = __aa_fs_profile_mkdir(child, prof_child_dir(profile));
+		if (error)
+			goto fail2;
+	}
+
+	return 0;
+
+fail:
+	error = PTR_ERR(dent);
+
+fail2:
+	__aa_fs_profile_rmdir(profile);
+
+	return error;
+}
+
+void __aa_fs_namespace_rmdir(struct aa_namespace *ns)
+{
+	struct aa_namespace *sub;
+	struct aa_profile *child;
+	int i;
+
+	if (!ns)
+		return;
+
+	list_for_each_entry(child, &ns->base.profiles, base.list)
+		__aa_fs_profile_rmdir(child);
+
+	list_for_each_entry(sub, &ns->sub_ns, base.list) {
+		mutex_lock(&sub->lock);
+		__aa_fs_namespace_rmdir(sub);
+		mutex_unlock(&sub->lock);
+	}
+
+	for (i = AAFS_NS_SIZEOF - 1; i >= 0; --i) {
+		securityfs_remove(ns->dents[i]);
+		ns->dents[i] = NULL;
+	}
+}
+
+int __aa_fs_namespace_mkdir(struct aa_namespace *ns, struct dentry *parent,
+			    const char *name)
+{
+	struct aa_namespace *sub;
+	struct aa_profile *child;
+	struct dentry *dent, *dir;
+	int error;
+
+	if (!name)
+		name = ns->base.name;
+
+	dent = securityfs_create_dir(name, parent);
+	if (IS_ERR(dent))
+		goto fail;
+	ns_dir(ns) = dir = dent;
+
+	dent = securityfs_create_dir("profiles", dir);
+	if (IS_ERR(dent))
+		goto fail;
+	ns_subprofs_dir(ns) = dent;
+
+	dent = securityfs_create_dir("namespaces", dir);
+	if (IS_ERR(dent))
+		goto fail;
+	ns_subns_dir(ns) = dent;
+
+	list_for_each_entry(child, &ns->base.profiles, base.list) {
+		error = __aa_fs_profile_mkdir(child, ns_subprofs_dir(ns));
+		if (error)
+			goto fail2;
+	}
+
+	list_for_each_entry(sub, &ns->sub_ns, base.list) {
+		mutex_lock(&sub->lock);
+		error = __aa_fs_namespace_mkdir(sub, ns_subns_dir(ns), NULL);
+		mutex_unlock(&sub->lock);
+		if (error)
+			goto fail2;
+	}
+
+	return 0;
+
+fail:
+	error = PTR_ERR(dent);
+
+fail2:
+	__aa_fs_namespace_rmdir(ns);
+
+	return error;
+}
+
+
+/** Base file system setup **/
 static struct aa_fs_entry aa_fs_entry_file[] = {
 	AA_FS_FILE_STRING("mask", "create read write exec append mmap_exec " \
 				  "link lock"),
@@ -246,6 +541,7 @@ static int __init aafs_create_file(struct aa_fs_entry *fs_file,
 	return error;
 }
 
+static void __init aafs_remove_dir(struct aa_fs_entry *fs_dir);
 /**
  * aafs_create_dir - recursively create a directory entry in the securityfs
  * @fs_dir: aa_fs_entry (and all child entries) to build (NOT NULL)
@@ -256,17 +552,16 @@ static int __init aafs_create_file(struct aa_fs_entry *fs_file,
 static int __init aafs_create_dir(struct aa_fs_entry *fs_dir,
 				  struct dentry *parent)
 {
-	int error;
 	struct aa_fs_entry *fs_file;
+	struct dentry *dir;
+	int error;
 
-	fs_dir->dentry = securityfs_create_dir(fs_dir->name, parent);
-	if (IS_ERR(fs_dir->dentry)) {
-		error = PTR_ERR(fs_dir->dentry);
-		fs_dir->dentry = NULL;
-		goto failed;
-	}
+	dir = securityfs_create_dir(fs_dir->name, parent);
+	if (IS_ERR(dir))
+		return PTR_ERR(dir);
+	fs_dir->dentry = dir;
 
-	for (fs_file = fs_dir->v.files; fs_file->name; ++fs_file) {
+	for (fs_file = fs_dir->v.files; fs_file && fs_file->name; ++fs_file) {
 		if (fs_file->v_type == AA_FS_TYPE_DIR)
 			error = aafs_create_dir(fs_file, fs_dir->dentry);
 		else
@@ -278,6 +573,8 @@ static int __init aafs_create_dir(struct aa_fs_entry *fs_dir,
 	return 0;
 
 failed:
+	aafs_remove_dir(fs_dir);
+
 	return error;
 }
 
@@ -302,7 +599,7 @@ static void __init aafs_remove_dir(struct aa_fs_entry *fs_dir)
 {
 	struct aa_fs_entry *fs_file;
 
-	for (fs_file = fs_dir->v.files; fs_file->name; ++fs_file) {
+	for (fs_file = fs_dir->v.files; fs_file && fs_file->name; ++fs_file) {
 		if (fs_file->v_type == AA_FS_TYPE_DIR)
 			aafs_remove_dir(fs_file);
 		else
@@ -343,6 +640,11 @@ static int __init aa_create_aafs(void)
 
 	/* Populate fs tree. */
 	error = aafs_create_dir(&aa_fs_entry, NULL);
+	if (error)
+		goto error;
+
+	error = __aa_fs_namespace_mkdir(root_ns, aa_fs_entry.dentry,
+					"policy");
 	if (error)
 		goto error;
 

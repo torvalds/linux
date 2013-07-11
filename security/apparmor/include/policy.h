@@ -29,8 +29,8 @@
 #include "file.h"
 #include "resource.h"
 
-extern const char *const profile_mode_names[];
-#define APPARMOR_NAMES_MAX_INDEX 3
+extern const char *const aa_profile_mode_names[];
+#define APPARMOR_MODE_NAMES_MAX_INDEX 4
 
 #define PROFILE_MODE(_profile, _mode)		\
 	((aa_g_profile_mode == (_mode)) ||	\
@@ -110,6 +110,8 @@ struct aa_ns_acct {
  * @unconfined: special unconfined profile for the namespace
  * @sub_ns: list of namespaces under the current namespace.
  * @uniq_null: uniq value used for null learning profiles
+ * @uniq_id: a unique id count for the profiles in the namespace
+ * @dents: dentries for the namespaces file entries in apparmorfs
  *
  * An aa_namespace defines the set profiles that are searched to determine
  * which profile to attach to a task.  Profiles can not be shared between
@@ -133,6 +135,9 @@ struct aa_namespace {
 	struct aa_profile *unconfined;
 	struct list_head sub_ns;
 	atomic_t uniq_null;
+	long uniq_id;
+
+	struct dentry *dents[AAFS_NS_SIZEOF];
 };
 
 /* struct aa_policydb - match engine for a policy
@@ -172,6 +177,9 @@ struct aa_replacedby {
  * @caps: capabilities for the profile
  * @rlimits: rlimits for the profile
  *
+ * @dents: dentries for the profiles file entries in apparmorfs
+ * @dirname: name of the profile dir in apparmorfs
+ *
  * The AppArmor profile contains the basic confinement data.  Each profile
  * has a name, and exists in a namespace.  The @name and @exec_match are
  * used to determine profile attachment against unconfined tasks.  All other
@@ -208,6 +216,9 @@ struct aa_profile {
 	struct aa_file_rules file;
 	struct aa_caps caps;
 	struct aa_rlimit rlimits;
+
+	char *dirname;
+	struct dentry *dents[AAFS_PROF_SIZEOF];
 };
 
 extern struct aa_namespace *root_ns;
@@ -242,6 +253,12 @@ ssize_t aa_remove_profiles(char *name, size_t size);
 
 #define unconfined(X) ((X)->mode == APPARMOR_UNCONFINED)
 
+
+static inline struct aa_profile *aa_deref_parent(struct aa_profile *p)
+{
+	return rcu_dereference_protected(p->parent,
+					 mutex_is_locked(&p->ns->lock));
+}
 
 /**
  * aa_get_profile - increment refcount on profile @p
