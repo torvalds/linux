@@ -1394,6 +1394,153 @@ static bool is_edp_psr(struct intel_dp *intel_dp)
 		intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED;
 }
 
+static bool intel_edp_is_psr_enabled(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_HASWELL(dev))
+		return false;
+
+	return I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
+}
+
+static void intel_edp_psr_write_vsc(struct intel_dp *intel_dp,
+				    struct edp_vsc_psr *vsc_psr)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
+	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(crtc->config.cpu_transcoder);
+	u32 data_reg = HSW_TVIDEO_DIP_VSC_DATA(crtc->config.cpu_transcoder);
+	uint32_t *data = (uint32_t *) vsc_psr;
+	unsigned int i;
+
+	/* As per BSPec (Pipe Video Data Island Packet), we need to disable
+	   the video DIP being updated before program video DIP data buffer
+	   registers for DIP being updated. */
+	I915_WRITE(ctl_reg, 0);
+	POSTING_READ(ctl_reg);
+
+	for (i = 0; i < VIDEO_DIP_VSC_DATA_SIZE; i += 4) {
+		if (i < sizeof(struct edp_vsc_psr))
+			I915_WRITE(data_reg + i, *data++);
+		else
+			I915_WRITE(data_reg + i, 0);
+	}
+
+	I915_WRITE(ctl_reg, VIDEO_DIP_ENABLE_VSC_HSW);
+	POSTING_READ(ctl_reg);
+}
+
+static void intel_edp_psr_setup(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct edp_vsc_psr psr_vsc;
+
+	if (intel_dp->psr_setup_done)
+		return;
+
+	/* Prepare VSC packet as per EDP 1.3 spec, Table 3.10 */
+	memset(&psr_vsc, 0, sizeof(psr_vsc));
+	psr_vsc.sdp_header.HB0 = 0;
+	psr_vsc.sdp_header.HB1 = 0x7;
+	psr_vsc.sdp_header.HB2 = 0x2;
+	psr_vsc.sdp_header.HB3 = 0x8;
+	intel_edp_psr_write_vsc(intel_dp, &psr_vsc);
+
+	/* Avoid continuous PSR exit by masking memup and hpd */
+	I915_WRITE(EDP_PSR_DEBUG_CTL, EDP_PSR_DEBUG_MASK_MEMUP |
+		   EDP_PSR_DEBUG_MASK_HPD);
+
+	intel_dp->psr_setup_done = true;
+}
+
+static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t aux_clock_divider = get_aux_clock_divider(intel_dp);
+	int precharge = 0x3;
+	int msg_size = 5;       /* Header(4) + Message(1) */
+
+	/* Enable PSR in sink */
+	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT)
+		intel_dp_aux_native_write_1(intel_dp, DP_PSR_EN_CFG,
+					    DP_PSR_ENABLE &
+					    ~DP_PSR_MAIN_LINK_ACTIVE);
+	else
+		intel_dp_aux_native_write_1(intel_dp, DP_PSR_EN_CFG,
+					    DP_PSR_ENABLE |
+					    DP_PSR_MAIN_LINK_ACTIVE);
+
+	/* Setup AUX registers */
+	I915_WRITE(EDP_PSR_AUX_DATA1, EDP_PSR_DPCD_COMMAND);
+	I915_WRITE(EDP_PSR_AUX_DATA2, EDP_PSR_DPCD_NORMAL_OPERATION);
+	I915_WRITE(EDP_PSR_AUX_CTL,
+		   DP_AUX_CH_CTL_TIME_OUT_400us |
+		   (msg_size << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+		   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+		   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT));
+}
+
+static void intel_edp_psr_enable_source(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t max_sleep_time = 0x1f;
+	uint32_t idle_frames = 1;
+	uint32_t val = 0x0;
+
+	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT) {
+		val |= EDP_PSR_LINK_STANDBY;
+		val |= EDP_PSR_TP2_TP3_TIME_0us;
+		val |= EDP_PSR_TP1_TIME_0us;
+		val |= EDP_PSR_SKIP_AUX_EXIT;
+	} else
+		val |= EDP_PSR_LINK_DISABLE;
+
+	I915_WRITE(EDP_PSR_CTL, val |
+		   EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES |
+		   max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT |
+		   idle_frames << EDP_PSR_IDLE_FRAME_SHIFT |
+		   EDP_PSR_ENABLE);
+}
+
+void intel_edp_psr_enable(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+
+	if (!is_edp_psr(intel_dp) || intel_edp_is_psr_enabled(dev))
+		return;
+
+	/* Setup PSR once */
+	intel_edp_psr_setup(intel_dp);
+
+	/* Enable PSR on the panel */
+	intel_edp_psr_enable_sink(intel_dp);
+
+	/* Enable PSR on the host */
+	intel_edp_psr_enable_source(intel_dp);
+}
+
+void intel_edp_psr_disable(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!intel_edp_is_psr_enabled(dev))
+		return;
+
+	I915_WRITE(EDP_PSR_CTL, I915_READ(EDP_PSR_CTL) & ~EDP_PSR_ENABLE);
+
+	/* Wait till PSR is idle */
+	if (_wait_for((I915_READ(EDP_PSR_STATUS_CTL) &
+		       EDP_PSR_STATUS_STATE_MASK) == 0, 2000, 10))
+		DRM_ERROR("Timed out waiting for PSR Idle State\n");
+}
+
 static void intel_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -3220,6 +3367,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	error = intel_dp_i2c_init(intel_dp, intel_connector, name);
 	WARN(error, "intel_dp_i2c_init failed with error %d for port %c\n",
 	     error, port_name(port));
+
+	intel_dp->psr_setup_done = false;
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
 		i2c_del_adapter(&intel_dp->adapter);

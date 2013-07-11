@@ -499,6 +499,7 @@ struct intel_dp {
 	int backlight_off_delay;
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
+	bool psr_setup_done;
 	struct intel_connector *attached_connector;
 };
 
@@ -833,5 +834,8 @@ extern bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 extern bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 						 enum transcoder pch_transcoder,
 						 bool enable);
+
+extern void intel_edp_psr_enable(struct intel_dp *intel_dp);
+extern void intel_edp_psr_disable(struct intel_dp *intel_dp);
 
 #endif /* __INTEL_DRV_H__ */
