@@ -441,10 +441,31 @@ static struct regulator_init_data ricoh619_ldortc1 = {
 };
 
 static struct ricoh619_battery_platform_data ricoh619_power_battery = {
-	.irq = IRQ_BOARD_BASE,
+	.irq = IRQ_BOARD_BASE,//INT_PMIC_BASE,
 	.alarm_vol_mv = 3300,
-	.multiple =0,
-	.monitor_time = 1,
+	.multiple = 100,
+	.monitor_time = 60,
+	
+	//4200mv type battery
+	
+	.ch_vfchg		= 0xFF,	/* VFCHG		= 0x0-0x4 (4.05v 4.10v 4.15v 4.20v 4.35v) 0xFF is OTP setting*/
+	.ch_vrchg		= 0xFF,	/* VRCHG		= 0x0-0x4 (3.85v 3.90v 3.95v 4.00v 4.10v) 0xFF is OTP setting*/
+	.ch_vbatovset	= 0xFF,	/* VBATOVSET	= 0 or 1 (0 : 4.38V(up)/3.95V(down) 1: 4.53V(up)/4.10V(down)) 
+							   0xFF is OTP setting*/
+	.ch_ichg		= 0xFF,	/* ICHG			= 0x0-0x1D (100mA - 3000mA)  0xFF is OTP setting*/
+	.ch_icchg		= 0x03,	/* ICCHG		= 0x0-3 (50mA 100mA 150mA 200mA)  0xFF is OTP setting*/
+	.ch_ilim_adp	= 0xFF,	/* ILIM_ADP		= 0x0-0x1D (100mA - 3000mA) */
+	.ch_ilim_usb	= 0xFF,	/* ILIM_USB		= 0x0-0x1D (100mA - 3000mA) */
+	.fg_target_vsys	= 3200, /* This value is the target one to DSOC=0% */
+	.fg_target_ibat	= 2000, /* This value is the target one to DSOC=0% */
+	.jt_en			= 0,	/* JEITA Switch	= 1:enable, 0:disable */
+	.jt_hw_sw		= 1,	/* JEITA is controlled by 1:HW, 0:SW */
+	.jt_temp_h		= 50,	/* degree C */ 
+	.jt_temp_l		= 12,	/* degree C */
+	.jt_vfchg_h		= 0x03,	/* VFCHG High  	= 0 - 0x04 (4.05, 4.10, 4.15, 4.20, 4.35V) */
+	.jt_vfchg_l		= 0,	/* VFCHG Low  	= 0 - 0x04 (4.05, 4.10, 4.15, 4.20, 4.35V) */
+	.jt_ichg_h		= 0x0D,	/* ICHG High   	= 0 - 0x1D (100 - 3000mA) */
+	.jt_ichg_l		= 0x09,	/* ICHG Low   	= 0 - 0x1D (100 - 3000mA) */
 };
 
 static struct rtc_time rk_time = {	//	2012.1.1 12:00:00 Saturday

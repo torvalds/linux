@@ -116,6 +116,7 @@
 
 /* Charger Control register */
 #define RICOH619_CHG_CTL1		0xB3
+#define	TIMSET_REG			0xB9
 
 /* ADC Control register */
 #define RICOH619_ADC_CNT1		0x64

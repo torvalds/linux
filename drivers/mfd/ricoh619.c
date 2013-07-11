@@ -24,7 +24,6 @@
  */
 /*#define DEBUG			1*/
 /*#define VERBOSE_DEBUG		1*/
-#define CONFIG_DEBUG_FS
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -35,6 +34,7 @@
 #include <linux/i2c.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/ricoh619.h>
+#include <linux/power/ricoh619_battery.h>
 
 
 struct ricoh619 *g_ricoh619;
@@ -381,10 +381,15 @@ int ricoh619_power_off(void)
 	int ret;
 	uint8_t val;
 	int err = -1;
+	int status, charge_state;
 	struct ricoh619 *ricoh619 = g_ricoh619;
 
 	val = g_soc;
 	val &= 0x7f;
+	ricoh619_read(ricoh619->dev, 0xBD, &status);
+	charge_state = (status & 0x1F);
+//	supply_state = ((status & 0xC0) >> 6);
+
 	ret = ricoh619_write(ricoh619->dev, RICOH619_PSWR, val);
 	if (ret < 0)
 		dev_err(ricoh619->dev, "Error in writing PSWR_REG\n");
@@ -395,12 +400,22 @@ int ricoh619_power_off(void)
 		if (ret < 0)
 			dev_err(ricoh619->dev, "Error in writing FG_CTRL\n");
 	}
+	
+	/* set rapid timer 300 min */
+	err = ricoh619_set_bits(ricoh619->dev, TIMSET_REG, 0x03);
+	if (err < 0)
+		dev_err(ricoh619->dev, "Error in writing the TIMSET_Reg\n");
+  
+        ret = ricoh619_write(ricoh619->dev, RICOH619_INTC_INTEN, 0); 
 
 	if (!ricoh619_i2c_client)
 		return -EINVAL;
 //__ricoh618_write(ricoh618_i2c_client, RICOH618_PWR_REP_CNT, 0x0); //Not repeat power ON after power off(Power Off/N_OE)
 //	__ricoh618_write(ricoh618_i2c_client, RICOH618_PWR_SLP_CNT, 0x1); //Power OFF
 	ret = ricoh619_clr_bits(ricoh619->dev,RICOH619_PWR_REP_CNT,(0x1<<0));//Not repeat power ON after power off(Power Off/N_OE)
+
+	if(( charge_state == CHG_STATE_CHG_TRICKLE)||( charge_state == CHG_STATE_CHG_RAPID))
+		 ricoh619_set_bits(ricoh619->dev, RICOH619_PWR_REP_CNT,(0x1<<0));//Power OFF
 	ret = ricoh619_set_bits(ricoh619->dev, RICOH619_PWR_SLP_CNT,(0x1<<0));//Power OFF
 	if (ret < 0) {
 		printk("ricoh619 power off error!\n");
@@ -700,7 +715,7 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 	mutex_init(&ricoh619->io_lock);
 
 	ret = ricoh619_read(ricoh619->dev, 0x36, &control);
-	if ((control < 0) || (control == 0x00)) {
+	if ((control < 0) || (control == 0xff)) {
 		printk(KERN_INFO "The device is not ricoh619\n");
 		return 0;
 	}
@@ -800,11 +815,6 @@ static int ricoh619_i2c_resume(struct i2c_client *client)
 		pwrkey_wakeup = 1;
 		__ricoh619_write(client, RICOH619_INT_IR_SYS, 0x0); //Clear PWR_KEY IRQ
 	}
-
-	//__ricoh619_write(client, RICOH619_INT_IR_CHGCTR, 0);
-	//__ricoh619_write(client, RICOH619_INT_IR_CHGSTS1, 0);
-	__ricoh619_write(client, RICOH619_INT_IR_ADCL, 0);
-	__ricoh619_write(client, RICOH619_INT_IR_ADCH, 0);
 
 	enable_irq(client->irq);
 	return 0;

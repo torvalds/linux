@@ -39,6 +39,7 @@
 /* 619 Register information */
 /* bank 0 */
 #define PSWR_REG		0x07
+#define VINDAC_REG		0x03
 /* for ADC */
 #define	INTEN_REG		0x9D
 #define	EN_ADCIR3_REG		0x8A
@@ -53,6 +54,7 @@
 #define	REGISET1_REG	0xB6
 #define	REGISET2_REG	0xB7
 #define	CHGISET_REG		0xB8
+#define	BATSET1_REG		0xBA
 #define	BATSET2_REG		0xBB
 
 #define CHGSTATE_REG		0xBD
@@ -84,6 +86,7 @@
 /* Top address for battery initial setting */
 #define	BAT_INIT_TOP_REG	0xBC
 #define	BAT_REL_SEL_REG		0xDA
+#define	BAT_TA_SEL_REG		0xDB
 /**************************/
 
 /* detailed status in CHGSTATE (0xBD) */
@@ -116,6 +119,23 @@ struct ricoh619_battery_platform_data {
 	int	alarm_vol_mv;
 	int	multiple;
 	unsigned long	monitor_time;
+	int	ch_vfchg;
+	int	ch_vrchg;
+	int	ch_vbatovset;
+	int	ch_ichg;
+	int	ch_ilim_adp;
+	int	ch_ilim_usb;
+	int	ch_icchg;
+	int	fg_target_vsys;
+	int	fg_target_ibat;
+	int	jt_en;
+	int	jt_hw_sw;
+	int	jt_temp_h;
+	int	jt_temp_l;
+	int	jt_vfchg_h;
+	int	jt_vfchg_l;
+	int	jt_ichg_h;
+	int	jt_ichg_l;
 };
 
 extern struct ricoh619 *g_ricoh619;
