@@ -297,12 +297,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 		goto fail_detach;
 	}
 
-	ret = drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
-	if (ret) {
-		i915_gem_object_free(obj);
-		goto fail_detach;
-	}
-
+	drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
 	i915_gem_object_init(obj, &i915_gem_object_dmabuf_ops);
 	obj->base.import_attach = attach;
 

@@ -291,9 +291,7 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 	if (obj == NULL)
 		return NULL;
 
-	if (drm_gem_private_object_init(dev, &obj->base, stolen->size))
-		goto cleanup;
-
+	drm_gem_private_object_init(dev, &obj->base, stolen->size);
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops);
 
 	obj->pages = i915_pages_create_for_stolen(dev,

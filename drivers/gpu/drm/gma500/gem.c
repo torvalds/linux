@@ -261,11 +261,12 @@ static int psb_gem_create_stolen(struct drm_file *file, struct drm_device *dev,
 	struct gtt_range *gtt = psb_gtt_alloc_range(dev, size, "gem", 1);
 	if (gtt == NULL)
 		return -ENOMEM;
-	if (drm_gem_private_object_init(dev, &gtt->gem, size) != 0)
-		goto free_gtt;
+
+	drm_gem_private_object_init(dev, &gtt->gem, size);
 	if (drm_gem_handle_create(file, &gtt->gem, handle) == 0)
 		return 0;
-free_gtt:
+
+	drm_gem_object_release(&gtt->gem);
 	psb_gtt_free_range(dev, gtt);
 	return -ENOMEM;
 }

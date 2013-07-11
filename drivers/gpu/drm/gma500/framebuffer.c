@@ -321,10 +321,8 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 	/* Begin by trying to use stolen memory backing */
 	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
 	if (backing) {
-		if (drm_gem_private_object_init(dev,
-					&backing->gem, aligned_size) == 0)
-			return backing;
-		psb_gtt_free_range(dev, backing);
+		drm_gem_private_object_init(dev, &backing->gem, aligned_size);
+		return backing;
 	}
 	return NULL;
 }

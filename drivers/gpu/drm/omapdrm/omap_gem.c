@@ -1427,8 +1427,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		omap_obj->height = gsize.tiled.height;
 	}
 
+	ret = 0;
 	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM))
-		ret = drm_gem_private_object_init(dev, obj, size);
+		drm_gem_private_object_init(dev, obj, size);
 	else
 		ret = drm_gem_object_init(dev, obj, size);
 
