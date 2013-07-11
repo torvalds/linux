@@ -27,6 +27,13 @@ struct aa_load_ent {
 void aa_load_ent_free(struct aa_load_ent *ent);
 struct aa_load_ent *aa_load_ent_alloc(void);
 
+#define PACKED_FLAG_HAT		1
+
+#define PACKED_MODE_ENFORCE	0
+#define PACKED_MODE_COMPLAIN	1
+#define PACKED_MODE_KILL	2
+#define PACKED_MODE_UNCONFINED	3
+
 int aa_unpack(void *udata, size_t size, struct list_head *lh, const char **ns);
 
 #endif /* __POLICY_INTERFACE_H */

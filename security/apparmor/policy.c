@@ -96,6 +96,7 @@ const char *const profile_mode_names[] = {
 	"enforce",
 	"complain",
 	"kill",
+	"unconfined",
 };
 
 /**
@@ -290,8 +291,9 @@ static struct aa_namespace *alloc_namespace(const char *prefix,
 	if (!ns->unconfined)
 		goto fail_unconfined;
 
-	ns->unconfined->flags = PFLAG_UNCONFINED | PFLAG_IX_ON_NAME_ERROR |
-	    PFLAG_IMMUTABLE | PFLAG_NS_COUNT;
+	ns->unconfined->flags = PFLAG_IX_ON_NAME_ERROR |
+		PFLAG_IMMUTABLE | PFLAG_NS_COUNT;
+	ns->unconfined->mode = APPARMOR_UNCONFINED;
 
 	/* ns and ns->unconfined share ns->unconfined refcount */
 	ns->unconfined->ns = ns;

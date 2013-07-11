@@ -511,12 +511,16 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 		goto fail;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
-	if (tmp)
+	if (tmp & PACKED_FLAG_HAT)
 		profile->flags |= PFLAG_HAT;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
-	if (tmp)
+	if (tmp == PACKED_MODE_COMPLAIN)
 		profile->mode = APPARMOR_COMPLAIN;
+	else if (tmp == PACKED_MODE_KILL)
+		profile->mode = APPARMOR_KILL;
+	else if (tmp == PACKED_MODE_UNCONFINED)
+		profile->mode = APPARMOR_UNCONFINED;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp)

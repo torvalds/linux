@@ -371,8 +371,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	error = aa_path_name(&bprm->file->f_path, profile->path_flags, &buffer,
 			     &name, &info);
 	if (error) {
-		if (profile->flags &
-		    (PFLAG_IX_ON_NAME_ERROR | PFLAG_UNCONFINED))
+		if (unconfined(profile) ||
+		    (profile->flags & PFLAG_IX_ON_NAME_ERROR))
 			error = 0;
 		name = bprm->filename;
 		goto audit;

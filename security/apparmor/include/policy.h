@@ -56,11 +56,11 @@ enum profile_mode {
 	APPARMOR_ENFORCE,	/* enforce access rules */
 	APPARMOR_COMPLAIN,	/* allow and log access violations */
 	APPARMOR_KILL,		/* kill task on access violation */
+	APPARMOR_UNCONFINED,	/* profile set to unconfined */
 };
 
 enum profile_flags {
 	PFLAG_HAT = 1,			/* profile is a hat */
-	PFLAG_UNCONFINED = 2,		/* profile is an unconfined profile */
 	PFLAG_NULL = 4,			/* profile is null learning profile */
 	PFLAG_IX_ON_NAME_ERROR = 8,	/* fallback to ix on name lookup fail */
 	PFLAG_IMMUTABLE = 0x10,		/* don't allow changes/replacement */
@@ -199,7 +199,7 @@ struct aa_profile {
 	struct aa_dfa *xmatch;
 	int xmatch_len;
 	enum audit_mode audit;
-	enum profile_mode mode;
+	long mode;
 	long flags;
 	u32 path_flags;
 	int size;
@@ -240,7 +240,7 @@ ssize_t aa_remove_profiles(char *name, size_t size);
 #define PROF_ADD 1
 #define PROF_REPLACE 0
 
-#define unconfined(X) ((X)->flags & PFLAG_UNCONFINED)
+#define unconfined(X) ((X)->mode == APPARMOR_UNCONFINED)
 
 
 /**
