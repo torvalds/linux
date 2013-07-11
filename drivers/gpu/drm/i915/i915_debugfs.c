@@ -1565,6 +1565,9 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		case PSR_NO_SINK:
 			seq_puts(m, "not supported by panel");
 			break;
+		case PSR_MODULE_PARAM:
+			seq_puts(m, "disabled by flag");
+			break;
 		case PSR_CRTC_NOT_ACTIVE:
 			seq_puts(m, "crtc not active");
 			break;
