@@ -959,7 +959,7 @@ static int msi3101_ctrl_msg(struct msi3101_state *s, u8 cmd, u32 data)
 	msi3101_dbg_usb_control_msg(s->udev,
 			request, requesttype, value, index, NULL, 0);
 
-	ret = usb_control_msg(s->udev, usb_rcvctrlpipe(s->udev, 0),
+	ret = usb_control_msg(s->udev, usb_sndctrlpipe(s->udev, 0),
 			request, requesttype, value, index, NULL, 0, 2000);
 
 	if (ret)
@@ -1300,12 +1300,15 @@ static int msi3101_stop_streaming(struct vb2_queue *vq)
 	if (mutex_lock_interruptible(&s->v4l2_lock))
 		return -ERESTARTSYS;
 
-	msi3101_ctrl_msg(s, CMD_STOP_STREAMING, 0);
-
 	if (s->udev)
 		msi3101_isoc_cleanup(s);
 
 	msi3101_cleanup_queued_bufs(s);
+
+	/* according to tests, at least 700us delay is required  */
+	msleep(20);
+	msi3101_ctrl_msg(s, CMD_STOP_STREAMING, 0);
+
 	mutex_unlock(&s->v4l2_lock);
 
 	return 0;
