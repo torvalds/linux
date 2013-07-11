@@ -1348,7 +1348,7 @@ static inline int __qib_sdma_running(struct qib_pportdata *ppd)
 	return ppd->sdma_state.current_state == qib_sdma_state_s99_running;
 }
 int qib_sdma_running(struct qib_pportdata *);
-
+void dump_sdma_state(struct qib_pportdata *ppd);
 void __qib_sdma_process_event(struct qib_pportdata *, enum qib_sdma_events);
 void qib_sdma_process_event(struct qib_pportdata *, enum qib_sdma_events);
 

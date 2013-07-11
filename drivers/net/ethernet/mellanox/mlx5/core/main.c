@@ -212,7 +212,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 		set_ctx->hca_cap.log_max_qp = dev->profile->log_max_qp;
 
 	memset(&set_out, 0, sizeof(set_out));
-	set_ctx->hca_cap.uar_page_sz = cpu_to_be16(PAGE_SHIFT - 12);
+	set_ctx->hca_cap.log_uar_page_sz = cpu_to_be16(PAGE_SHIFT - 12);
 	set_ctx->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_SET_HCA_CAP);
 	err = mlx5_cmd_exec(dev, set_ctx, sizeof(*set_ctx),
 				 &set_out, sizeof(set_out));

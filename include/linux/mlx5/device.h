@@ -317,8 +317,8 @@ struct mlx5_hca_cap {
 	u8	log_max_pd;
 	u8	rsvd25;
 	u8	log_max_xrcd;
-	u8	rsvd26[40];
-	__be32  uar_page_sz;
+	u8	rsvd26[42];
+	__be16  log_uar_page_sz;
 	u8	rsvd27[28];
 	u8	log_msx_atomic_size_qp;
 	u8	rsvd28[2];

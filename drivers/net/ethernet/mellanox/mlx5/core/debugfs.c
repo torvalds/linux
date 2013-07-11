@@ -148,7 +148,6 @@ static ssize_t average_read(struct file *filp, char __user *buf, size_t count,
 	struct mlx5_cmd_stats *stats;
 	u64 field = 0;
 	int ret;
-	int err;
 	char tbuf[22];
 
 	if (*pos)
@@ -161,9 +160,8 @@ static ssize_t average_read(struct file *filp, char __user *buf, size_t count,
 	spin_unlock(&stats->lock);
 	ret = snprintf(tbuf, sizeof(tbuf), "%llu\n", field);
 	if (ret > 0) {
-		err = copy_to_user(buf, tbuf, ret);
-		if (err)
-			return err;
+		if (copy_to_user(buf, tbuf, ret))
+			return -EFAULT;
 	}
 
 	*pos += ret;
@@ -418,7 +416,6 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 	char tbuf[18];
 	u64 field;
 	int ret;
-	int err;
 
 	if (*pos)
 		return 0;
@@ -445,9 +442,8 @@ static ssize_t dbg_read(struct file *filp, char __user *buf, size_t count,
 
 	ret = snprintf(tbuf, sizeof(tbuf), "0x%llx\n", field);
 	if (ret > 0) {
-		err = copy_to_user(buf, tbuf, ret);
-		if (err)
-			return err;
+		if (copy_to_user(buf, tbuf, ret))
+			return -EFAULT;
 	}
 
 	*pos += ret;

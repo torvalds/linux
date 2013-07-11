@@ -1350,7 +1350,7 @@ static void cleanup_device_data(struct qib_devdata *dd)
 	if (dd->pageshadow) {
 		struct page **tmpp = dd->pageshadow;
 		dma_addr_t *tmpd = dd->physshadow;
-		int i, cnt = 0;
+		int i;
 
 		for (ctxt = 0; ctxt < dd->cfgctxts; ctxt++) {
 			int ctxt_tidbase = ctxt * dd->rcvtidcnt;
@@ -1363,13 +1363,13 @@ static void cleanup_device_data(struct qib_devdata *dd)
 					       PAGE_SIZE, PCI_DMA_FROMDEVICE);
 				qib_release_user_pages(&tmpp[i], 1);
 				tmpp[i] = NULL;
-				cnt++;
 			}
 		}
 
-		tmpp = dd->pageshadow;
 		dd->pageshadow = NULL;
 		vfree(tmpp);
+		dd->physshadow = NULL;
+		vfree(tmpd);
 	}
 
 	/*

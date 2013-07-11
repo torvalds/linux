@@ -693,7 +693,7 @@ static ssize_t dbg_write(struct file *filp, const char __user *buf,
 		return -ENOMEM;
 
 	if (copy_from_user(lbuf, buf, sizeof(lbuf)))
-		return -EPERM;
+		return -EFAULT;
 
 	lbuf[sizeof(lbuf) - 1] = 0;
 
@@ -889,7 +889,7 @@ static ssize_t data_write(struct file *filp, const char __user *buf,
 		return -ENOMEM;
 
 	if (copy_from_user(ptr, buf, count)) {
-		err = -EPERM;
+		err = -EFAULT;
 		goto out;
 	}
 	dbg->in_msg = ptr;
@@ -919,7 +919,7 @@ static ssize_t data_read(struct file *filp, char __user *buf, size_t count,
 
 	copy = min_t(int, count, dbg->outlen);
 	if (copy_to_user(buf, dbg->out_msg, copy))
-		return -EPERM;
+		return -EFAULT;
 
 	*pos += copy;
 
@@ -949,7 +949,7 @@ static ssize_t outlen_read(struct file *filp, char __user *buf, size_t count,
 		return err;
 
 	if (copy_to_user(buf, &outlen, err))
-		return -EPERM;
+		return -EFAULT;
 
 	*pos += err;
 
@@ -974,7 +974,7 @@ static ssize_t outlen_write(struct file *filp, const char __user *buf,
 	dbg->outlen = 0;
 
 	if (copy_from_user(outlen_str, buf, count))
-		return -EPERM;
+		return -EFAULT;
 
 	outlen_str[7] = 0;
 
