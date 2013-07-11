@@ -125,7 +125,7 @@ int debug_level = 5;
 
 #define RK29_SDMMC_DEFAULT_SDIO_FREQ   0 // 1--run in default frequency(50Mhz); 0---run in 25Mhz, 
 #if defined(CONFIG_MT6620)
-#define RK29_MAX_SDIO_FREQ   45000000    //set max-sdio-frequency 45Mhz in MTK module.
+#define RK29_MAX_SDIO_FREQ   50000000    //set max-sdio-frequency 50Mhz in MTK module.
 #else
 #define RK29_MAX_SDIO_FREQ   25000000    //set max-sdio-frequency 25Mhz at the present time
 #endif
