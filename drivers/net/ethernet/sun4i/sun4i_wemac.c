@@ -101,12 +101,7 @@ typedef struct wemac_board_info {
 	u16		 irq;		/* IRQ */
 
 	u16		tx_fifo_stat;
-	u16		dbug_cnt;
-	u8		io_mode;		/* 0:word, 2:byte */
-	u8		phy_addr;
-	u8		imr_all;
 
-	unsigned int	flags;
 	unsigned int	in_suspend:1;
 	int		debug_level;
 	unsigned long	bit_flags;
@@ -319,14 +314,8 @@ static int wemac_nway_reset(struct net_device *dev)
 static u32 wemac_get_link(struct net_device *dev)
 {
 	wemac_board_info_t *dm = to_wemac_board(dev);
-	u32 ret;
 
-/*	if (dm->flags & WEMAC_PLATF_EXT_PHY) */
-		ret = mii_link_ok(&dm->mii);
-/*	else
-		ret = wemac_phy_read(dev, 0, 1)  & 0x04 ? 1 : 0; */
-
-	return ret;
+	return mii_link_ok(&dm->mii);
 }
 
 static const struct ethtool_ops wemac_ethtool_ops = {
@@ -338,30 +327,6 @@ static const struct ethtool_ops wemac_ethtool_ops = {
 	.nway_reset		= wemac_nway_reset,
 	.get_link		= wemac_get_link,
 };
-
-/*
- * ****************************************************************************
- *	void phy_link_check()
- *  Description:
- *
- *
- *	Return Value:	1: Link valid		0: Link not valid
- * ****************************************************************************
- */
-unsigned int phy_link_check(struct net_device *dev)
-{
-	unsigned int reg_val;
-
-	reg_val = wemac_phy_read(dev, 0, 1);
-
-	if (reg_val & 0x4) {
-		printk(KERN_INFO "EMAC PHY Linked...\n");
-		return 1;
-	} else {
-		printk(KERN_INFO "EMAC PHY Link waiting......\n");
-		return 0;
-	}
-}
 
 static void emac_gpio_pin_function(wemac_board_info_t *db, int cfg0, int pin,
 	int func, int set)
@@ -773,49 +738,12 @@ unsigned int wemac_powerup(struct net_device *ndev)
 	return 1;
 }
 
-#if 0
-static void wemac_show_carrier(wemac_board_info_t *db,
-				unsigned carrier, unsigned nsr)
-{
-	struct net_device *ndev = db->ndev;
-	unsigned ncr = wemac_read_locked(db, WEMAC_NCR);
-
-	if (carrier)
-		dev_info(db->dev, "%s: link up, %dMbps, %s-duplex, no LPA\n",
-			 ndev->name, (nsr & NSR_SPEED) ? 10 : 100,
-			 (ncr & NCR_FDX) ? "full" : "half");
-	else
-		dev_info(db->dev, "%s: link down\n", ndev->name);
-}
-#endif
-
 static void
 wemac_poll_work(struct work_struct *w)
 {
 	struct delayed_work *dw = container_of(w, struct delayed_work, work);
 	wemac_board_info_t *db = container_of(dw, wemac_board_info_t, phy_poll);
 	struct net_device *ndev = db->ndev;
-
-#if 0
-	if (db->flags & WEMAC_PLATF_SIMPLE_PHY &&
-	    !(db->flags & WEMAC_PLATF_EXT_PHY)) {
-		unsigned nsr = wemac_read_locked(db, WEMAC_NSR);
-		unsigned old_carrier = netif_carrier_ok(ndev) ? 1 : 0;
-		unsigned new_carrier;
-
-		new_carrier = (nsr & NSR_LINKST) ? 1 : 0;
-
-		if (old_carrier != new_carrier) {
-			if (netif_msg_link(db))
-				wemac_show_carrier(db, new_carrier, nsr);
-
-			if (!new_carrier)
-				netif_carrier_off(ndev);
-			else
-				netif_carrier_on(ndev);
-		}
-	} else
-#endif
 
 	mii_check_media(&db->mii, netif_msg_link(db), 0);
 
@@ -954,7 +882,6 @@ wemac_init_wemac(struct net_device *dev)
 	phy_reg = wemac_phy_read(dev, 0, 0);
 	wemac_phy_write(dev, 0, 0, phy_reg & (~(1<<11)));
 	mdelay(1);
-	/*phy_link_check();*/
 
 	phy_reg = wemac_phy_read(dev, 0, 0);
 
@@ -1384,10 +1311,6 @@ static int wemac_open(struct net_device *dev)
 	/* Initialize WEMAC board */
 	wemac_reset(db);
 	wemac_init_wemac(dev);
-
-
-	/* Init driver variable */
-	db->dbug_cnt = 0;
 
 	mii_check_media(&db->mii, netif_msg_link(db), 1);
 	netif_start_queue(dev);
