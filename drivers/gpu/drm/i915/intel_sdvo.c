@@ -1357,17 +1357,19 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	}
 
 	/* Cross check the port pixel multiplier with the sdvo encoder state. */
-	intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_CLOCK_RATE_MULT, &val, 1);
-	switch (val) {
-	case SDVO_CLOCK_RATE_MULT_1X:
-		encoder_pixel_multiplier = 1;
-		break;
-	case SDVO_CLOCK_RATE_MULT_2X:
-		encoder_pixel_multiplier = 2;
-		break;
-	case SDVO_CLOCK_RATE_MULT_4X:
-		encoder_pixel_multiplier = 4;
-		break;
+	if (intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_CLOCK_RATE_MULT,
+				 &val, 1)) {
+		switch (val) {
+		case SDVO_CLOCK_RATE_MULT_1X:
+			encoder_pixel_multiplier = 1;
+			break;
+		case SDVO_CLOCK_RATE_MULT_2X:
+			encoder_pixel_multiplier = 2;
+			break;
+		case SDVO_CLOCK_RATE_MULT_4X:
+			encoder_pixel_multiplier = 4;
+			break;
+		}
 	}
 
 	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
