@@ -158,6 +158,4 @@
 #define EMAC_CRCERR		(1<<4)
 #define EMAC_LENERR		(3<<5)
 
-#define EMAC_EEPROM_MAGIC		(0x444D394B)
-
 #endif /* _WEMACX_H_ */
