@@ -784,6 +784,11 @@ struct radeon_mec {
 /* number of entries in page table */
 #define RADEON_VM_PTE_COUNT (1 << RADEON_VM_BLOCK_SIZE)
 
+/* PTBs (Page Table Blocks) need to be aligned to 32K */
+#define RADEON_VM_PTB_ALIGN_SIZE   32768
+#define RADEON_VM_PTB_ALIGN_MASK (RADEON_VM_PTB_ALIGN_SIZE - 1)
+#define RADEON_VM_PTB_ALIGN(a) (((a) + RADEON_VM_PTB_ALIGN_MASK) & ~RADEON_VM_PTB_ALIGN_MASK)
+
 struct radeon_vm {
 	struct list_head		list;
 	struct list_head		va;
