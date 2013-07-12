@@ -194,6 +194,9 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 	    adjusted_mode->vdisplay == mode->vdisplay)
 		goto out;
 
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+	pipe_config->timings_set = true;
+
 	switch (fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
 		/*
