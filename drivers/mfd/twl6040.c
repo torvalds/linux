@@ -549,7 +549,7 @@ static int twl6040_probe(struct i2c_client *client,
 	twl6040->supplies[0].supply = "vio";
 	twl6040->supplies[1].supply = "v2v1";
 	ret = devm_regulator_bulk_get(&client->dev, TWL6040_NUM_SUPPLIES,
-				 twl6040->supplies);
+				      twl6040->supplies);
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to get supplies: %d\n", ret);
 		goto regulator_get_err;
@@ -578,33 +578,32 @@ static int twl6040_probe(struct i2c_client *client,
 
 	if (gpio_is_valid(twl6040->audpwron)) {
 		ret = devm_gpio_request_one(&client->dev, twl6040->audpwron,
-					GPIOF_OUT_INIT_LOW, "audpwron");
+					    GPIOF_OUT_INIT_LOW, "audpwron");
 		if (ret)
 			goto gpio_err;
 	}
 
-	ret = regmap_add_irq_chip(twl6040->regmap, twl6040->irq,
-			IRQF_ONESHOT, 0, &twl6040_irq_chip,
-			&twl6040->irq_data);
+	ret = regmap_add_irq_chip(twl6040->regmap, twl6040->irq, IRQF_ONESHOT,
+				  0, &twl6040_irq_chip,&twl6040->irq_data);
 	if (ret < 0)
 		goto gpio_err;
 
 	twl6040->irq_ready = regmap_irq_get_virq(twl6040->irq_data,
-					       TWL6040_IRQ_READY);
+						 TWL6040_IRQ_READY);
 	twl6040->irq_th = regmap_irq_get_virq(twl6040->irq_data,
-					       TWL6040_IRQ_TH);
+					      TWL6040_IRQ_TH);
 
 	ret = devm_request_threaded_irq(twl6040->dev, twl6040->irq_ready, NULL,
-				   twl6040_readyint_handler, IRQF_ONESHOT,
-				   "twl6040_irq_ready", twl6040);
+					twl6040_readyint_handler, IRQF_ONESHOT,
+					"twl6040_irq_ready", twl6040);
 	if (ret) {
 		dev_err(twl6040->dev, "READY IRQ request failed: %d\n", ret);
 		goto readyirq_err;
 	}
 
 	ret = devm_request_threaded_irq(twl6040->dev, twl6040->irq_th, NULL,
-				   twl6040_thint_handler, IRQF_ONESHOT,
-				   "twl6040_irq_th", twl6040);
+					twl6040_thint_handler, IRQF_ONESHOT,
+					"twl6040_irq_th", twl6040);
 	if (ret) {
 		dev_err(twl6040->dev, "Thermal IRQ request failed: %d\n", ret);
 		goto thirq_err;
