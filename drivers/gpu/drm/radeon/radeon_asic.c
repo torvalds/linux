@@ -1022,7 +1022,7 @@ static struct radeon_asic r600_asic = {
 		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &r600_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -1115,7 +1115,7 @@ static struct radeon_asic rv6xx_asic = {
 		.get_backlight_level = &atombios_get_backlight_level,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &r600_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -1226,7 +1226,7 @@ static struct radeon_asic rs780_asic = {
 		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &r600_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -1348,7 +1348,7 @@ static struct radeon_asic rv770_asic = {
 		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &rv770_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -1473,7 +1473,7 @@ static struct radeon_asic evergreen_asic = {
 		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &evergreen_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -1598,7 +1598,7 @@ static struct radeon_asic sumo_asic = {
 		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &evergreen_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -1722,7 +1722,7 @@ static struct radeon_asic btc_asic = {
 		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &evergreen_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -1899,7 +1899,7 @@ static struct radeon_asic cayman_asic = {
 		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &evergreen_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
@@ -2074,7 +2074,7 @@ static struct radeon_asic trinity_asic = {
 		.get_backlight_level = &atombios_get_backlight_level,
 	},
 	.copy = {
-		.blit = &r600_copy_blit,
+		.blit = &r600_copy_cpdma,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &evergreen_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
