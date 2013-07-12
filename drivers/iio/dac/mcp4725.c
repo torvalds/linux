@@ -69,7 +69,7 @@ static SIMPLE_DEV_PM_OPS(mcp4725_pm_ops, mcp4725_suspend, mcp4725_resume);
 #define MCP4725_PM_OPS NULL
 #endif
 
-static int mcp4725_store_eeprom(struct device *dev,
+static ssize_t mcp4725_store_eeprom(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
