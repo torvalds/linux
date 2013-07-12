@@ -212,7 +212,7 @@ static void _ddr_change_freq(uint32_t nMHz)
 static void ddr_set_rate(uint32_t nMHz)
 {
 	_ddr_change_freq(nMHz);
-	clk_set_rate(ddr.pll, 0);
+	ddr.clk->rate = ddr.clk->recalc(ddr.clk);
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -339,7 +339,7 @@ static int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set
 {
         ddr_set_rate(rate/(1000*1000));
 	/* return 0 when ok */
-	return !(clk_get_rate(clk) == rate);
+        return !( (clk_get_rate(clk)/MHZ) == (rate/MHZ));
 }
 
 #if defined(CONFIG_ARCH_RK3066B)
