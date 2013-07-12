@@ -1384,7 +1384,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
-	u32 de_iir, gt_iir, de_ier, pm_iir = 0, sde_ier;
+	u32 de_iir, gt_iir, de_ier, sde_ier;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -1402,33 +1402,33 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	I915_WRITE(SDEIER, 0);
 	POSTING_READ(SDEIER);
 
-	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
-	if (IS_GEN6(dev))
-		pm_iir = I915_READ(GEN6_PMIIR);
+	if (gt_iir) {
+		if (IS_GEN5(dev))
+			ilk_gt_irq_handler(dev, dev_priv, gt_iir);
+		else
+			snb_gt_irq_handler(dev, dev_priv, gt_iir);
+		I915_WRITE(GTIIR, gt_iir);
+		ret = IRQ_HANDLED;
+	}
 
-	if (de_iir == 0 && gt_iir == 0 && pm_iir == 0)
-		goto done;
-
-	ret = IRQ_HANDLED;
-
-	if (IS_GEN5(dev))
-		ilk_gt_irq_handler(dev, dev_priv, gt_iir);
-	else
-		snb_gt_irq_handler(dev, dev_priv, gt_iir);
-
-	if (de_iir)
+	de_iir = I915_READ(DEIIR);
+	if (de_iir) {
 		ilk_display_irq_handler(dev, de_iir);
+		I915_WRITE(DEIIR, de_iir);
+		ret = IRQ_HANDLED;
+	}
 
-	if (pm_iir & GEN6_PM_RPS_EVENTS)
-		gen6_rps_irq_handler(dev_priv, pm_iir);
+	if (IS_GEN6(dev)) {
+		u32 pm_iir = I915_READ(GEN6_PMIIR);
+		if (pm_iir) {
+			if (pm_iir & GEN6_PM_RPS_EVENTS)
+				gen6_rps_irq_handler(dev_priv, pm_iir);
+			I915_WRITE(GEN6_PMIIR, pm_iir);
+			ret = IRQ_HANDLED;
+		}
+	}
 
-	I915_WRITE(GTIIR, gt_iir);
-	I915_WRITE(DEIIR, de_iir);
-	if (pm_iir)
-		I915_WRITE(GEN6_PMIIR, pm_iir);
-
-done:
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
 	I915_WRITE(SDEIER, sde_ier);
