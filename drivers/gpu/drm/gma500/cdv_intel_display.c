@@ -19,7 +19,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/pm_runtime.h>
 
 #include <drm/drmP.h>
 #include "framebuffer.h"
@@ -867,24 +866,6 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-static int cdv_crtc_set_config(struct drm_mode_set *set)
-{
-	int ret = 0;
-	struct drm_device *dev = set->crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	if (!dev_priv->rpm_enabled)
-		return drm_crtc_helper_set_config(set);
-
-	pm_runtime_forbid(&dev->pdev->dev);
-
-	ret = drm_crtc_helper_set_config(set);
-
-	pm_runtime_allow(&dev->pdev->dev);
-
-	return ret;
-}
-
 /** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
 
 /* FIXME: why are we using this, should it be cdv_ in this tree ? */
@@ -1040,7 +1021,7 @@ const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
-	.set_config = cdv_crtc_set_config,
+	.set_config = gma_crtc_set_config,
 	.destroy = gma_crtc_destroy,
 };
 
