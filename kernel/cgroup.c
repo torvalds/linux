@@ -965,10 +965,12 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 static void cgroup_clear_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 {
 	struct cgroup_subsys *ss;
+	int i;
 
-	for_each_root_subsys(cgrp->root, ss) {
+	for_each_subsys(ss, i) {
 		struct cftype_set *set;
-		if (!test_bit(ss->subsys_id, &subsys_mask))
+
+		if (!test_bit(i, &subsys_mask))
 			continue;
 		list_for_each_entry(set, &ss->cftsets, node)
 			cgroup_addrm_files(cgrp, NULL, set->cfts, false);
@@ -4177,12 +4179,13 @@ static struct cftype cgroup_base_files[] = {
 static int cgroup_populate_dir(struct cgroup *cgrp, unsigned long subsys_mask)
 {
 	struct cgroup_subsys *ss;
-	int ret = 0;
+	int i, ret = 0;
 
 	/* process cftsets of each subsystem */
-	for_each_root_subsys(cgrp->root, ss) {
+	for_each_subsys(ss, i) {
 		struct cftype_set *set;
-		if (!test_bit(ss->subsys_id, &subsys_mask))
+
+		if (!test_bit(i, &subsys_mask))
 			continue;
 
 		list_for_each_entry(set, &ss->cftsets, node) {
