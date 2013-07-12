@@ -9,6 +9,8 @@
 #include <linux/init.h>
 #include <linux/kobject.h>
 #include <linux/export.h>
+#include <linux/memory.h>
+#include <linux/notifier.h>
 #include "internal.h"
 
 #ifdef CONFIG_DEBUG_MEMORY_INIT
@@ -146,6 +148,51 @@ early_param("mminit_loglevel", set_mminit_loglevel);
 
 struct kobject *mm_kobj;
 EXPORT_SYMBOL_GPL(mm_kobj);
+
+#ifdef CONFIG_SMP
+s32 vm_committed_as_batch = 32;
+
+static void __meminit mm_compute_batch(void)
+{
+	u64 memsized_batch;
+	s32 nr = num_present_cpus();
+	s32 batch = max_t(s32, nr*2, 32);
+
+	/* batch size set to 0.4% of (total memory/#cpus), or max int32 */
+	memsized_batch = min_t(u64, (totalram_pages/nr)/256, 0x7fffffff);
+
+	vm_committed_as_batch = max_t(s32, memsized_batch, batch);
+}
+
+static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
+					unsigned long action, void *arg)
+{
+	switch (action) {
+	case MEM_ONLINE:
+	case MEM_OFFLINE:
+		mm_compute_batch();
+	default:
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block compute_batch_nb __meminitdata = {
+	.notifier_call = mm_compute_batch_notifier,
+	.priority = IPC_CALLBACK_PRI, /* use lowest priority */
+};
+
+static int __init mm_compute_batch_init(void)
+{
+	mm_compute_batch();
+	register_hotmemory_notifier(&compute_batch_nb);
+
+	return 0;
+}
+
+__initcall(mm_compute_batch_init);
+
+#endif
 
 static int __init mm_sysfs_init(void)
 {

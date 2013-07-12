@@ -14,6 +14,7 @@ struct thread *thread__new(pid_t pid)
 	if (self != NULL) {
 		map_groups__init(&self->mg);
 		self->pid = pid;
+		self->ppid = -1;
 		self->comm = malloc(32);
 		if (self->comm)
 			snprintf(self->comm, 32, ":%d", self->pid);
@@ -82,5 +83,8 @@ int thread__fork(struct thread *self, struct thread *parent)
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		if (map_groups__clone(&self->mg, &parent->mg, i) < 0)
 			return -ENOMEM;
+
+	self->ppid = parent->pid;
+
 	return 0;
 }

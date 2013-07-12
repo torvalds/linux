@@ -163,9 +163,3 @@ int aa_setprocattr_changeprofile(char *fqname, bool onexec, int test)
 	name = aa_split_fqname(fqname, &ns_name);
 	return aa_change_profile(ns_name, name, onexec, test);
 }
-
-int aa_setprocattr_permipc(char *fqname)
-{
-	/* TODO: add ipc permission querying */
-	return -ENOTSUPP;
-}

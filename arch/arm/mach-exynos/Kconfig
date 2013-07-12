@@ -93,7 +93,7 @@ config SOC_EXYNOS5440
 	default y
 	depends on ARCH_EXYNOS5
 	select ARCH_HAS_OPP
-	select ARM_ARCH_TIMER
+	select HAVE_ARM_ARCH_TIMER
 	select AUTO_ZRELADDR
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI

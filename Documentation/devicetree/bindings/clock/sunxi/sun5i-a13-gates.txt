@@ -1,0 +1,58 @@
+Gate clock outputs
+------------------
+
+  * AXI gates ("allwinner,sun4i-axi-gates-clk")
+
+    DRAM					0
+
+  * AHB gates ("allwinner,sun5i-a13-ahb-gates-clk")
+
+    USBOTG					0
+    EHCI					1
+    OHCI					2
+
+    SS						5
+    DMA						6
+    BIST					7
+    MMC0					8
+    MMC1					9
+    MMC2					10
+
+    NAND					13
+    SDRAM					14
+
+    SPI0					20
+    SPI1					21
+    SPI2					22
+
+    STIMER					28
+
+    VE						32
+
+    LCD						36
+
+    CSI						40
+
+    DE_BE					44
+
+    DE_FE					46
+
+    IEP						51
+    MALI400					52
+
+  * APB0 gates ("allwinner,sun5i-a13-apb0-gates-clk")
+
+    CODEC					0
+
+    PIO						5
+    IR						6
+
+  * APB1 gates ("allwinner,sun5i-a13-apb1-gates-clk")
+
+    I2C0					0
+    I2C1					1
+    I2C2					2
+
+    UART1					17
+
+    UART3					19

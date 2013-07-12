@@ -144,6 +144,9 @@ struct samsung_mux_clock {
 #define MUX_F(_id, cname, pnames, o, s, w, f, mf)		\
 	__MUX(_id, NULL, cname, pnames, o, s, w, f, mf, NULL)
 
+#define MUX_FA(_id, cname, pnames, o, s, w, f, mf, a)		\
+	__MUX(_id, NULL, cname, pnames, o, s, w, f, mf, a)
+
 /**
  * @id: platform specific id of the clock.
  * struct samsung_div_clock: information about div clock

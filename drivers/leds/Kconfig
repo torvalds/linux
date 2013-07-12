@@ -388,12 +388,12 @@ config LEDS_DELL_NETBOOKS
 	  notebooks that have an external LED.
 
 config LEDS_MC13783
-	tristate "LED Support for MC13783 PMIC"
+	tristate "LED Support for MC13XXX PMIC"
 	depends on LEDS_CLASS
-	depends on MFD_MC13783
+	depends on MFD_MC13XXX
 	help
 	  This option enable support for on-chip LED drivers found
-	  on Freescale Semiconductor MC13783 PMIC.
+	  on Freescale Semiconductor MC13783/MC13892 PMIC.
 
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"

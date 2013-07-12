@@ -70,7 +70,7 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 struct ecryptfs_getdents_callback {
 	struct dir_context ctx;
 	struct dir_context *caller;
-	struct dentry *dentry;
+	struct super_block *sb;
 	int filldir_called;
 	int entries_written;
 };
@@ -88,7 +88,7 @@ ecryptfs_filldir(void *dirent, const char *lower_name, int lower_namelen,
 
 	buf->filldir_called++;
 	rc = ecryptfs_decode_and_decrypt_filename(&name, &name_size,
-						  buf->dentry, lower_name,
+						  buf->sb, lower_name,
 						  lower_namelen);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to decode and decrypt "
@@ -114,15 +114,14 @@ static int ecryptfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	int rc;
 	struct file *lower_file;
-	struct inode *inode;
+	struct inode *inode = file_inode(file);
 	struct ecryptfs_getdents_callback buf = {
 		.ctx.actor = ecryptfs_filldir,
 		.caller = ctx,
-		.dentry = file->f_path.dentry
+		.sb = inode->i_sb,
 	};
 	lower_file = ecryptfs_file_to_lower(file);
 	lower_file->f_pos = ctx->pos;
-	inode = file_inode(file);
 	rc = iterate_dir(lower_file, &buf.ctx);
 	ctx->pos = buf.ctx.pos;
 	if (rc < 0)

@@ -942,6 +942,9 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		}
 	}
 
+	if (!bus->no_response_fallback)
+		return -1;
+
 	if (!chip->polling_mode && chip->poll_count < 2) {
 		snd_printdd(SFX "%s: azx_get_response timeout, "
 			   "polling the codec once: last cmd=0x%08x\n",
@@ -1117,11 +1120,36 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 				 struct snd_dma_buffer *dmab);
 #endif
 
-/* reset codec link */
-static int azx_reset(struct azx *chip, int full_reset)
+/* enter link reset */
+static void azx_enter_link_reset(struct azx *chip)
 {
 	unsigned long timeout;
 
+	/* reset controller */
+	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~ICH6_GCTL_RESET);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+	while ((azx_readb(chip, GCTL) & ICH6_GCTL_RESET) &&
+			time_before(jiffies, timeout))
+		usleep_range(500, 1000);
+}
+
+/* exit link reset */
+static void azx_exit_link_reset(struct azx *chip)
+{
+	unsigned long timeout;
+
+	azx_writeb(chip, GCTL, azx_readb(chip, GCTL) | ICH6_GCTL_RESET);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+	while (!azx_readb(chip, GCTL) &&
+			time_before(jiffies, timeout))
+		usleep_range(500, 1000);
+}
+
+/* reset codec link */
+static int azx_reset(struct azx *chip, int full_reset)
+{
 	if (!full_reset)
 		goto __skip;
 
@@ -1129,12 +1157,7 @@ static int azx_reset(struct azx *chip, int full_reset)
 	azx_writeb(chip, STATESTS, STATESTS_INT_MASK);
 
 	/* reset controller */
-	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~ICH6_GCTL_RESET);
-
-	timeout = jiffies + msecs_to_jiffies(100);
-	while (azx_readb(chip, GCTL) &&
-			time_before(jiffies, timeout))
-		usleep_range(500, 1000);
+	azx_enter_link_reset(chip);
 
 	/* delay for >= 100us for codec PLL to settle per spec
 	 * Rev 0.9 section 5.5.1
@@ -1142,12 +1165,7 @@ static int azx_reset(struct azx *chip, int full_reset)
 	usleep_range(500, 1000);
 
 	/* Bring controller out of reset */
-	azx_writeb(chip, GCTL, azx_readb(chip, GCTL) | ICH6_GCTL_RESET);
-
-	timeout = jiffies + msecs_to_jiffies(100);
-	while (!azx_readb(chip, GCTL) &&
-			time_before(jiffies, timeout))
-		usleep_range(500, 1000);
+	azx_exit_link_reset(chip);
 
 	/* Brent Chartrand said to wait >= 540us for codecs to initialize */
 	usleep_range(1000, 1200);
@@ -2891,6 +2909,7 @@ static int azx_suspend(struct device *dev)
 	if (chip->initialized)
 		snd_hda_suspend(chip->bus);
 	azx_stop_chip(chip);
+	azx_enter_link_reset(chip);
 	if (chip->irq >= 0) {
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
@@ -2943,6 +2962,7 @@ static int azx_runtime_suspend(struct device *dev)
 	struct azx *chip = card->private_data;
 
 	azx_stop_chip(chip);
+	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
 	return 0;
 }
@@ -3764,7 +3784,6 @@ static int azx_probe(struct pci_dev *pci,
 
 out_free:
 	snd_card_free(card);
-	pci_set_drvdata(pci, NULL);
 	return err;
 }
 
@@ -3834,7 +3853,6 @@ static void azx_remove(struct pci_dev *pci)
 
 	if (card)
 		snd_card_free(card);
-	pci_set_drvdata(pci, NULL);
 }
 
 /* PCI IDs */
@@ -3878,6 +3896,9 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	/* Oaktrail */
 	{ PCI_DEVICE(0x8086, 0x080a),
 	  .driver_data = AZX_DRIVER_SCH | AZX_DCAPS_INTEL_PCH_NOPM },
+	/* BayTrail */
+	{ PCI_DEVICE(0x8086, 0x0f04),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_INTEL_PCH_NOPM },
 	/* ICH */
 	{ PCI_DEVICE(0x8086, 0x2668),
 	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC |

@@ -131,7 +131,7 @@ static void __cpuinit init_thread_xstate(void)
 	 * xsave_init().
 	 */
 
-	if (!HAVE_HWFP) {
+	if (!cpu_has_fpu) {
 		/*
 		 * Disable xsave as we do not support it if i387
 		 * emulation is enabled.
@@ -158,6 +158,14 @@ void __cpuinit fpu_init(void)
 	unsigned long cr0;
 	unsigned long cr4_mask = 0;
 
+#ifndef CONFIG_MATH_EMULATION
+	if (!cpu_has_fpu) {
+		pr_emerg("No FPU found and no math emulation present\n");
+		pr_emerg("Giving up\n");
+		for (;;)
+			asm volatile("hlt");
+	}
+#endif
 	if (cpu_has_fxsr)
 		cr4_mask |= X86_CR4_OSFXSR;
 	if (cpu_has_xmm)
@@ -167,7 +175,7 @@ void __cpuinit fpu_init(void)
 
 	cr0 = read_cr0();
 	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
-	if (!HAVE_HWFP)
+	if (!cpu_has_fpu)
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
 
@@ -185,7 +193,7 @@ void __cpuinit fpu_init(void)
 
 void fpu_finit(struct fpu *fpu)
 {
-	if (!HAVE_HWFP) {
+	if (!cpu_has_fpu) {
 		finit_soft_fpu(&fpu->state->soft);
 		return;
 	}
@@ -214,7 +222,7 @@ int init_fpu(struct task_struct *tsk)
 	int ret;
 
 	if (tsk_used_math(tsk)) {
-		if (HAVE_HWFP && tsk == current)
+		if (cpu_has_fpu && tsk == current)
 			unlazy_fpu(tsk);
 		tsk->thread.fpu.last_cpu = ~0;
 		return 0;
@@ -511,14 +519,13 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	if (!HAVE_HWFP)
+	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr) {
+	if (!cpu_has_fxsr)
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					   &target->thread.fpu.state->fsave, 0,
 					   -1);
-	}
 
 	sanitize_i387_state(target);
 
@@ -545,13 +552,13 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 
 	sanitize_i387_state(target);
 
-	if (!HAVE_HWFP)
+	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr) {
+	if (!cpu_has_fxsr)
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.fpu.state->fsave, 0, -1);
-	}
+					  &target->thread.fpu.state->fsave, 0,
+					  -1);
 
 	if (pos > 0 || count < sizeof(env))
 		convert_from_fxsr(&env, target);
@@ -592,3 +599,33 @@ int dump_fpu(struct pt_regs *regs, struct user_i387_struct *fpu)
 EXPORT_SYMBOL(dump_fpu);
 
 #endif	/* CONFIG_X86_32 || CONFIG_IA32_EMULATION */
+
+static int __init no_387(char *s)
+{
+	setup_clear_cpu_cap(X86_FEATURE_FPU);
+	return 1;
+}
+
+__setup("no387", no_387);
+
+void __cpuinit fpu_detect(struct cpuinfo_x86 *c)
+{
+	unsigned long cr0;
+	u16 fsw, fcw;
+
+	fsw = fcw = 0xffff;
+
+	cr0 = read_cr0();
+	cr0 &= ~(X86_CR0_TS | X86_CR0_EM);
+	write_cr0(cr0);
+
+	asm volatile("fninit ; fnstsw %0 ; fnstcw %1"
+		     : "+m" (fsw), "+m" (fcw));
+
+	if (fsw == 0 && (fcw & 0x103f) == 0x003f)
+		set_cpu_cap(c, X86_FEATURE_FPU);
+	else
+		clear_cpu_cap(c, X86_FEATURE_FPU);
+
+	/* The final cr0 value is set in fpu_init() */
+}

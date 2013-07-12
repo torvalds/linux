@@ -731,6 +731,9 @@ static inline void bau_cpubits_clear(struct bau_local_cpumask *dstp, int nbits)
 }
 
 extern void uv_bau_message_intr1(void);
+#ifdef CONFIG_TRACING
+#define trace_uv_bau_message_intr1 uv_bau_message_intr1
+#endif
 extern void uv_bau_timeout_intr1(void);
 
 struct atomic_short {

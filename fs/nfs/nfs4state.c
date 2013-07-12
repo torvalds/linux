@@ -1194,7 +1194,7 @@ void nfs4_schedule_state_manager(struct nfs_client *clp)
 	snprintf(buf, sizeof(buf), "%s-manager",
 			rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR));
 	rcu_read_unlock();
-	task = kthread_run(nfs4_run_state_manager, clp, buf);
+	task = kthread_run(nfs4_run_state_manager, clp, "%s", buf);
 	if (IS_ERR(task)) {
 		printk(KERN_ERR "%s: kthread_run: %ld\n",
 			__func__, PTR_ERR(task));
@@ -1373,13 +1373,13 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 	/* Guard against delegation returns and new lock/unlock calls */
 	down_write(&nfsi->rwsem);
 	/* Protect inode->i_flock using the BKL */
-	lock_flocks();
+	spin_lock(&inode->i_lock);
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
 		if (nfs_file_open_context(fl->fl_file)->state != state)
 			continue;
-		unlock_flocks();
+		spin_unlock(&inode->i_lock);
 		status = ops->recover_lock(state, fl);
 		switch (status) {
 			case 0:
@@ -1406,9 +1406,9 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
 				status = 0;
 		}
-		lock_flocks();
+		spin_lock(&inode->i_lock);
 	}
-	unlock_flocks();
+	spin_unlock(&inode->i_lock);
 out:
 	up_write(&nfsi->rwsem);
 	return status;

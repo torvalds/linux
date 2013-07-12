@@ -13,7 +13,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
 	 sha1.o md5.o irq_regs.o reciprocal_div.o argv_split.o \
 	 proportions.o flex_proportions.o prio_heap.o ratelimit.o show_mem.o \
 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
-	 earlycpio.o
+	 earlycpio.o percpu-refcount.o
 
 obj-$(CONFIG_ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS) += usercopy.o
 lib-$(CONFIG_MMU) += ioremap.o
@@ -152,6 +152,8 @@ obj-$(CONFIG_INTERVAL_TREE_TEST) += interval_tree_test.o
 interval_tree_test-objs := interval_tree_test_main.o interval_tree.o
 
 obj-$(CONFIG_ASN1) += asn1_decoder.o
+
+obj-$(CONFIG_FONT_SUPPORT) += fonts/
 
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
