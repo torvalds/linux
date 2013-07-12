@@ -370,6 +370,9 @@ struct smb_version_operations {
 	void (*generate_signingkey)(struct TCP_Server_Info *server);
 	int (*calc_signature)(struct smb_rqst *rqst,
 				   struct TCP_Server_Info *server);
+	int (*query_mf_symlink)(const unsigned char *path, char *pbuf,
+			unsigned int *pbytes_read, struct cifs_sb_info *cifs_sb,
+			unsigned int xid);
 };
 
 struct smb_version_values {
