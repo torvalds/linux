@@ -233,6 +233,7 @@ struct text_poke_param {
 };
 
 extern void *text_poke(void *addr, const void *opcode, size_t len);
+extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
 extern void *text_poke_smp(void *addr, const void *opcode, size_t len);
 extern void text_poke_smp_batch(struct text_poke_param *params, int n);
 

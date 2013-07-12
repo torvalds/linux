@@ -11,6 +11,7 @@
 #include <linux/memory.h>
 #include <linux/stop_machine.h>
 #include <linux/slab.h>
+#include <linux/kdebug.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
@@ -596,6 +597,111 @@ void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
 	return addr;
 }
 
+static void do_sync_core(void *info)
+{
+	sync_core();
+}
+
+static bool bp_patching_in_progress;
+static void *bp_int3_handler, *bp_int3_addr;
+
+static int int3_notify(struct notifier_block *self, unsigned long val, void *data)
+{
+	struct die_args *args = data;
+
+	/* bp_patching_in_progress */
+	smp_rmb();
+
+	if (likely(!bp_patching_in_progress))
+		return NOTIFY_DONE;
+
+	/* we are not interested in non-int3 faults and ring > 0 faults */
+	if (val != DIE_INT3 || !args->regs || user_mode_vm(args->regs)
+			    || args->regs->ip != (unsigned long)bp_int3_addr)
+		return NOTIFY_DONE;
+
+	/* set up the specified breakpoint handler */
+	args->regs->ip = (unsigned long) bp_int3_handler;
+
+	return NOTIFY_STOP;
+}
+/**
+ * text_poke_bp() -- update instructions on live kernel on SMP
+ * @addr:	address to patch
+ * @opcode:	opcode of new instruction
+ * @len:	length to copy
+ * @handler:	address to jump to when the temporary breakpoint is hit
+ *
+ * Modify multi-byte instruction by using int3 breakpoint on SMP.
+ * In contrary to text_poke_smp(), we completely avoid stop_machine() here,
+ * and achieve the synchronization using int3 breakpoint.
+ *
+ * The way it is done:
+ *	- add a int3 trap to the address that will be patched
+ *	- sync cores
+ *	- update all but the first byte of the patched range
+ *	- sync cores
+ *	- replace the first byte (int3) by the first byte of
+ *	  replacing opcode
+ *	- sync cores
+ *
+ * Note: must be called under text_mutex.
+ */
+void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
+{
+	unsigned char int3 = 0xcc;
+
+	bp_int3_handler = handler;
+	bp_int3_addr = (u8 *)addr + sizeof(int3);
+	bp_patching_in_progress = true;
+	/*
+	 * Corresponding read barrier in int3 notifier for
+	 * making sure the in_progress flags is correctly ordered wrt.
+	 * patching
+	 */
+	smp_wmb();
+
+	text_poke(addr, &int3, sizeof(int3));
+
+	on_each_cpu(do_sync_core, NULL, 1);
+
+	if (len - sizeof(int3) > 0) {
+		/* patch all but the first byte */
+		text_poke((char *)addr + sizeof(int3),
+			  (const char *) opcode + sizeof(int3),
+			  len - sizeof(int3));
+		/*
+		 * According to Intel, this core syncing is very likely
+		 * not necessary and we'd be safe even without it. But
+		 * better safe than sorry (plus there's not only Intel).
+		 */
+		on_each_cpu(do_sync_core, NULL, 1);
+	}
+
+	/* patch the first byte */
+	text_poke(addr, opcode, sizeof(int3));
+
+	on_each_cpu(do_sync_core, NULL, 1);
+
+	bp_patching_in_progress = false;
+	smp_wmb();
+
+	return addr;
+}
+
+/* this one needs to run before anything else handles it as a
+ * regular exception */
+static struct notifier_block int3_nb = {
+	.priority = 0x7fffffff,
+	.notifier_call = int3_notify
+};
+
+static int __init int3_init(void)
+{
+	return register_die_notifier(&int3_nb);
+}
+
+arch_initcall(int3_init);
 /*
  * Cross-modifying kernel text with stop_machine().
  * This code originally comes from immediate value.
