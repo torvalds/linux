@@ -1039,6 +1039,15 @@
 							MX6QDL_PAD_EIM_EB3__UART3_RTS_B   0x1b0b1
 						>;
 					};
+
+					pinctrl_uart3_2: uart3grp-2 {
+						fsl,pins = <
+							MX6QDL_PAD_EIM_D24__UART3_TX_DATA 0x1b0b1
+							MX6QDL_PAD_EIM_D25__UART3_RX_DATA 0x1b0b1
+							MX6QDL_PAD_EIM_D23__UART3_CTS_B	  0x1b0b1
+							MX6QDL_PAD_EIM_EB3__UART3_RTS_B	  0x1b0b1
+						>;
+					};
 				};
 
 				uart4 {
