@@ -627,9 +627,41 @@ config VERBOSE_MCHECK_ON
 
 	  Take the default (1) unless you want more control or more info.
 
+choice
+	prompt "Timer interrupt frequency (HZ)?"
+	default HZ_128 if ALPHA_QEMU
+	default HZ_1200 if ALPHA_RAWHIDE
+	default HZ_1024
+	---help---
+	  The frequency at which timer interrupts occur.  A high frequency
+	  minimizes latency, whereas a low frequency minimizes overhead of
+	  process accounting.  The later effect is especially significant
+	  when being run under QEMU.
+
+	  Note that some Alpha hardware cannot change the interrupt frequency
+	  of the timer.  If unsure, say 1024 (or 1200 for Rawhide).
+
+	config HZ_32
+		bool "32 Hz"
+	config HZ_64
+		bool "64 Hz"
+	config HZ_128
+		bool "128 Hz"
+	config HZ_256
+		bool "256 Hz"
+	config HZ_1024
+		bool "1024 Hz"
+	config HZ_1200
+		bool "1200 Hz"
+endchoice
+
 config HZ
-	int
-	default 1200 if ALPHA_RAWHIDE
+	int 
+	default 32 if HZ_32
+	default 64 if HZ_64
+	default 128 if HZ_128
+	default 256 if HZ_256
+	default 1200 if HZ_1200
 	default 1024
 
 source "drivers/pci/Kconfig"

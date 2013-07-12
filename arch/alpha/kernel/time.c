@@ -201,16 +201,26 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 void __init
 common_init_rtc(void)
 {
-	unsigned char x;
+	unsigned char x, sel = 0;
 
 	/* Reset periodic interrupt frequency.  */
-	x = CMOS_READ(RTC_FREQ_SELECT) & 0x3f;
-        /* Test includes known working values on various platforms
-           where 0x26 is wrong; we refuse to change those. */
-	if (x != 0x26 && x != 0x25 && x != 0x19 && x != 0x06) {
-		printk("Setting RTC_FREQ to 1024 Hz (%x)\n", x);
-		CMOS_WRITE(0x26, RTC_FREQ_SELECT);
+#if CONFIG_HZ == 1024 || CONFIG_HZ == 1200
+ 	x = CMOS_READ(RTC_FREQ_SELECT) & 0x3f;
+	/* Test includes known working values on various platforms
+	   where 0x26 is wrong; we refuse to change those. */
+ 	if (x != 0x26 && x != 0x25 && x != 0x19 && x != 0x06) {
+		sel = RTC_REF_CLCK_32KHZ + 6;
 	}
+#elif CONFIG_HZ == 256 || CONFIG_HZ == 128 || CONFIG_HZ == 64 || CONFIG_HZ == 32
+	sel = RTC_REF_CLCK_32KHZ + __builtin_ffs(32768 / CONFIG_HZ);
+#else
+# error "Unknown HZ from arch/alpha/Kconfig"
+#endif
+	if (sel) {
+		printk(KERN_INFO "Setting RTC_FREQ to %d Hz (%x)\n",
+		       CONFIG_HZ, sel);
+		CMOS_WRITE(sel, RTC_FREQ_SELECT);
+ 	}
 
 	/* Turn on periodic interrupts.  */
 	x = CMOS_READ(RTC_CONTROL);
