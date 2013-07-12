@@ -329,64 +329,6 @@ static u32 wemac_get_link(struct net_device *dev)
 	return ret;
 }
 
-static int wemac_get_eeprom_len(struct net_device *dev)
-{
-	return 128;
-}
-
-static int wemac_get_eeprom(struct net_device *dev,
-		struct ethtool_eeprom *ee, u8 *data)
-{
-#if 0
-	wemac_board_info_t *dm = to_wemac_board(dev);
-	int offset = ee->offset;
-	int len = ee->len;
-	int i;
-
-	/* EEPROM access is aligned to two bytes */
-
-	if ((len & 1) != 0 || (offset & 1) != 0)
-		return -EINVAL;
-
-	if (dm->flags & WEMAC_PLATF_NO_EEPROM)
-		return -ENOENT;
-
-	ee->magic = EMAC_EEPROM_MAGIC;
-
-	for (i = 0; i < len; i += 2)
-		wemac_read_eeprom(dm, (offset + i) / 2, data + i);
-#endif
-
-	return 0;
-}
-
-static int wemac_set_eeprom(struct net_device *dev,
-		struct ethtool_eeprom *ee, u8 *data)
-{
-#if 0
-	wemac_board_info_t *dm = to_wemac_board(dev);
-	int offset = ee->offset;
-	int len = ee->len;
-	int i;
-
-	/* EEPROM access is aligned to two bytes */
-
-	if ((len & 1) != 0 || (offset & 1) != 0)
-		return -EINVAL;
-
-	if (dm->flags & WEMAC_PLATF_NO_EEPROM)
-		return -ENOENT;
-
-	if (ee->magic != EMAC_EEPROM_MAGIC)
-		return -EINVAL;
-
-	for (i = 0; i < len; i += 2)
-		wemac_write_eeprom(dm, (offset + i) / 2, data + i);
-#endif
-
-	return 0;
-}
-
 static const struct ethtool_ops wemac_ethtool_ops = {
 	.get_drvinfo		= wemac_get_drvinfo,
 	.get_settings		= wemac_get_settings,
@@ -395,9 +337,6 @@ static const struct ethtool_ops wemac_ethtool_ops = {
 	.set_msglevel		= wemac_set_msglevel,
 	.nway_reset		= wemac_nway_reset,
 	.get_link		= wemac_get_link,
-	.get_eeprom_len		= wemac_get_eeprom_len,
-	.get_eeprom		= wemac_get_eeprom,
-	.set_eeprom		= wemac_set_eeprom,
 };
 
 /*
