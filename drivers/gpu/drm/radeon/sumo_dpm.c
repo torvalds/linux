@@ -1851,6 +1851,8 @@ int sumo_dpm_force_performance_level(struct radeon_device *rdev,
 		return 0;
 
 	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (pi->enable_boost)
+			sumo_enable_boost(rdev, rps, false);
 		sumo_power_level_enable(rdev, ps->num_levels - 1, true);
 		sumo_set_forced_level(rdev, ps->num_levels - 1);
 		sumo_set_forced_mode_enabled(rdev);
@@ -1861,6 +1863,8 @@ int sumo_dpm_force_performance_level(struct radeon_device *rdev,
 		sumo_set_forced_mode_enabled(rdev);
 		sumo_set_forced_mode(rdev, false);
 	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		if (pi->enable_boost)
+			sumo_enable_boost(rdev, rps, false);
 		sumo_power_level_enable(rdev, 0, true);
 		sumo_set_forced_level(rdev, 0);
 		sumo_set_forced_mode_enabled(rdev);
@@ -1874,6 +1878,8 @@ int sumo_dpm_force_performance_level(struct radeon_device *rdev,
 		for (i = 0; i < ps->num_levels; i++) {
 			sumo_power_level_enable(rdev, i, true);
 		}
+		if (pi->enable_boost)
+			sumo_enable_boost(rdev, rps, true);
 	}
 
 	rdev->pm.dpm.forced_level = level;
