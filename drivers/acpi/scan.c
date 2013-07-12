@@ -1981,6 +1981,9 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	if (acpi_bus_get_device(handle, &device))
 		return AE_CTRL_DEPTH;
 
+	if (device->handler)
+		return AE_OK;
+
 	ret = acpi_scan_attach_handler(device);
 	if (ret)
 		return ret > 0 ? AE_OK : AE_CTRL_DEPTH;
