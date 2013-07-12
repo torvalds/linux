@@ -1094,6 +1094,34 @@
 					};
 				};
 
+				usdhc1 {
+					pinctrl_usdhc1_1: usdhc1grp-1 {
+						fsl,pins = <
+							MX6QDL_PAD_SD1_CMD__SD1_CMD    0x17059
+							MX6QDL_PAD_SD1_CLK__SD1_CLK    0x10059
+							MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x17059
+							MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x17059
+							MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x17059
+							MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x17059
+							MX6QDL_PAD_NANDF_D0__SD1_DATA4 0x17059
+							MX6QDL_PAD_NANDF_D1__SD1_DATA5 0x17059
+							MX6QDL_PAD_NANDF_D2__SD1_DATA6 0x17059
+							MX6QDL_PAD_NANDF_D3__SD1_DATA7 0x17059
+						>;
+					};
+
+					pinctrl_usdhc1_2: usdhc1grp-2 {
+						fsl,pins = <
+							MX6QDL_PAD_SD1_CMD__SD1_CMD    0x17059
+							MX6QDL_PAD_SD1_CLK__SD1_CLK    0x10059
+							MX6QDL_PAD_SD1_DAT0__SD1_DATA0 0x17059
+							MX6QDL_PAD_SD1_DAT1__SD1_DATA1 0x17059
+							MX6QDL_PAD_SD1_DAT2__SD1_DATA2 0x17059
+							MX6QDL_PAD_SD1_DAT3__SD1_DATA3 0x17059
+						>;
+					};
+				};
+
 				usdhc2 {
 					pinctrl_usdhc2_1: usdhc2grp-1 {
 						fsl,pins = <
