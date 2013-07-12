@@ -1113,11 +1113,14 @@ static int __init mt3326_gps_mod_init(void)
     if (ret != 0){
         GPS_ERR("platform_driver_register error\n");      
     }
+
+#if 0 //eliminate the warning about mt6620-gps.
     ret = platform_device_register(&mt3326_device_gps);
 
     if (ret != 0){
         GPS_ERR("platform_device_register error\n");        
-    } 
+    }
+#endif 
     return ret;
 }
 /*****************************************************************************/
