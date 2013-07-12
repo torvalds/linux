@@ -186,41 +186,45 @@ static __s32 Hdmi_set_display_videomode(const struct __disp_video_timing *mode)
 
 static __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel)
 {
+	__s32 audio_en = (channel == 0) ? 0 : 1;
+
 	__inf("[Hdmi_Audio_Enable],ch:%d\n", channel);
 
-	/* ???????????????????????? */
-	if (hdmi_state >= HDMI_State_Audio_config)
-		hdmi_state = HDMI_State_Audio_config;
-
-	audio_info.audio_en = (channel == 0) ? 0 : 1;
+	if (audio_info.audio_en != audio_en) {
+		audio_info.audio_en = audio_en;
+		if (hdmi_state > HDMI_State_Audio_config)
+			hdmi_state = HDMI_State_Audio_config;
+	}
 
 	return 0;
 }
 
 static __s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para)
 {
+	int change = 0;
+
 	__inf("[Hdmi_Set_Audio_Para]\n");
 
 	if (!audio_para)
 		return -1;
 
 	if (audio_para->sample_rate != audio_info.sample_rate) {
-		if (hdmi_state >= HDMI_State_Audio_config)
-			hdmi_state = HDMI_State_Audio_config;
 		audio_info.sample_rate = audio_para->sample_rate;
-		/* audio_info.channel_num  = 2; */
+		change = audio_info.audio_en;
 
 		__inf("sample_rate:%d in Hdmi_hal_set_audio_para\n",
 		      audio_info.sample_rate);
 	}
 	if (audio_para->channel_num != audio_info.channel_num) {
-		if (hdmi_state >= HDMI_State_Audio_config)
-			hdmi_state = HDMI_State_Audio_config;
 		audio_info.channel_num = audio_para->channel_num;
+		change = audio_info.audio_en;
 
 		__inf("channel_num:%d in Hdmi_hal_set_audio_para\n",
 		      audio_info.channel_num);
 	}
+
+	if (change && hdmi_state > HDMI_State_Audio_config)
+		hdmi_state = HDMI_State_Audio_config;
 
 	return 0;
 }
@@ -281,7 +285,7 @@ Hdmi_run_thread(void *parg)
 
 		if (hdmi_state == HDMI_State_Wait_Hpd ||
 		    hdmi_state == HDMI_State_Playback)
-			hdmi_delay_ms(2000);
+			hdmi_delay_ms(250);
 		else
 			hdmi_delay_ms(1);
 	}

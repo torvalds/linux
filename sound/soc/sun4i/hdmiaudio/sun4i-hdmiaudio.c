@@ -68,9 +68,6 @@ void sun4i_snd_txctrl_hdmiaudio(struct snd_pcm_substream *substream, int on)
 {
 	u32 reg_val;
 
-	hdmi_para.channel_num = substream->runtime->channels;
-	g_hdmi_func.hdmi_set_audio_para(&hdmi_para);
-
 	reg_val = readl(sun4i_hdmiaudio.regs + SUN4I_TXCHSEL);
 	reg_val &= ~0x7;
 	reg_val |= SUN4I_TXCHSEL_CHNUM(substream->runtime->channels);

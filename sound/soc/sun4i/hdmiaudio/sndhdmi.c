@@ -25,8 +25,6 @@
 
 #include "sndhdmi.h"
 
-#define HDMI
-
 struct sndhdmi_priv {
 	int sysclk;
 	int dai_fmt;
@@ -35,8 +33,8 @@ struct sndhdmi_priv {
 	struct snd_pcm_substream *slave_substream;
 };
 
-#ifdef HDMI
-__audio_hdmi_func g_hdmi_func;
+static hdmi_audio_t hdmi_para;
+static __audio_hdmi_func g_hdmi_func;
 
 void audio_set_hdmi_func(__audio_hdmi_func * hdmi_func)
 {
@@ -45,13 +43,10 @@ void audio_set_hdmi_func(__audio_hdmi_func * hdmi_func)
 }
 
 EXPORT_SYMBOL(audio_set_hdmi_func);
-#endif
 
 #define SNDHDMI_RATES  (SNDRV_PCM_RATE_8000_192000|SNDRV_PCM_RATE_KNOT)
 #define SNDHDMI_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE | \
 		                     SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S20_3LE)
-
-hdmi_audio_t hdmi_para;
 
 static int sndhdmi_mute(struct snd_soc_dai *dai, int mute)
 {
@@ -75,11 +70,9 @@ static int sndhdmi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
 	hdmi_para.sample_rate = params_rate(params);
-
-	#ifdef HDMI
-		g_hdmi_func.hdmi_audio_enable(1, 1);
-
-	#endif
+	hdmi_para.channel_num = params_channels(params);
+	g_hdmi_func.hdmi_set_audio_para(&hdmi_para);
+	g_hdmi_func.hdmi_audio_enable(1, 1);
 
 	return 0;
 }
