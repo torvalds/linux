@@ -533,16 +533,12 @@ static int twl6040_probe(struct i2c_client *client,
 
 	twl6040 = devm_kzalloc(&client->dev, sizeof(struct twl6040),
 			       GFP_KERNEL);
-	if (!twl6040) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!twl6040)
+		return -ENOMEM;
 
 	twl6040->regmap = devm_regmap_init_i2c(client, &twl6040_regmap_config);
-	if (IS_ERR(twl6040->regmap)) {
-		ret = PTR_ERR(twl6040->regmap);
-		goto err;
-	}
+	if (IS_ERR(twl6040->regmap))
+		return PTR_ERR(twl6040->regmap);
 
 	i2c_set_clientdata(client, twl6040);
 
@@ -660,7 +656,7 @@ gpio_err:
 	regulator_bulk_disable(TWL6040_NUM_SUPPLIES, twl6040->supplies);
 regulator_get_err:
 	i2c_set_clientdata(client, NULL);
-err:
+
 	return ret;
 }
 
