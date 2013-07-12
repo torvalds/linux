@@ -89,6 +89,7 @@ __CALL_PAL_W1(wrmces, unsigned long);
 __CALL_PAL_RW2(wrperfmon, unsigned long, unsigned long, unsigned long);
 __CALL_PAL_W1(wrusp, unsigned long);
 __CALL_PAL_W1(wrvptptr, unsigned long);
+__CALL_PAL_RW1(wtint, unsigned long, unsigned long);
 
 /*
  * TB routines..

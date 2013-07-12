@@ -586,6 +586,30 @@ config NUMA
 	  Access).  This option is for configuring high-end multiprocessor
 	  server machines.  If in doubt, say N.
 
+config ALPHA_WTINT
+	bool "Use WTINT" if ALPHA_SRM || ALPHA_GENERIC
+	default y if ALPHA_QEMU
+	default n if ALPHA_EV5 || ALPHA_EV56 || (ALPHA_EV4 && !ALPHA_LCA)
+	default n if !ALPHA_SRM && !ALPHA_GENERIC
+	default y if SMP
+	---help---
+	  The Wait for Interrupt (WTINT) PALcall attempts to place the CPU
+	  to sleep until the next interrupt.  This may reduce the power
+	  consumed, and the heat produced by the computer.  However, it has
+	  the side effect of making the cycle counter unreliable as a timing
+	  device across the sleep.
+
+	  For emulation under QEMU, definitely say Y here, as we have other
+	  mechanisms for measuring time than the cycle counter.
+
+	  For EV4 (but not LCA), EV5 and EV56 systems, or for systems running
+	  MILO, sleep mode is not supported so you might as well say N here.
+
+	  For SMP systems we cannot use the cycle counter for timing anyway,
+	  so you might as well say Y here.
+
+	  If unsure, say N.
+
 config NODES_SHIFT
 	int
 	default "7"
