@@ -393,8 +393,6 @@ void emac_sys_setup(wemac_board_info_t *db)
 	/*  set up clock gating  */
 	tmpClk = clk_get(NULL, "ahb_emac");
 	clk_enable(tmpClk);
-	printk(KERN_INFO "[EMAC] ahb clk enable\n");
-	printk(KERN_INFO "[EMAC] ahb gate clk: 0x%x\n", *((__u32 *)0xf1c20060));
 }
 
 unsigned int emac_setup(struct net_device *ndev)
@@ -1790,7 +1788,6 @@ static int __init wemac_init(void)
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "%s Ethernet Driver, V%s in file:%s\n", CARDNAME, DRV_VERSION, __FILE__);
 	pr_info("%s Using mii phy on Port%c\n", CARDNAME, 'A' + emac_used - 1);
 
 	platform_device_register(&wemac_device);
