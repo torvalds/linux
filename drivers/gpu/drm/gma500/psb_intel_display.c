@@ -19,7 +19,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/pm_runtime.h>
 
 #include <drm/drmP.h>
 #include "framebuffer.h"
@@ -305,21 +304,6 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-static int psb_crtc_set_config(struct drm_mode_set *set)
-{
-	int ret;
-	struct drm_device *dev = set->crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	if (!dev_priv->rpm_enabled)
-		return drm_crtc_helper_set_config(set);
-
-	pm_runtime_forbid(&dev->pdev->dev);
-	ret = drm_crtc_helper_set_config(set);
-	pm_runtime_allow(&dev->pdev->dev);
-	return ret;
-}
-
 /* Returns the clock of the currently programmed mode of the given pipe. */
 static int psb_intel_crtc_clock_get(struct drm_device *dev,
 				struct drm_crtc *crtc)
@@ -460,7 +444,7 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
-	.set_config = psb_crtc_set_config,
+	.set_config = gma_crtc_set_config,
 	.destroy = gma_crtc_destroy,
 };
 
