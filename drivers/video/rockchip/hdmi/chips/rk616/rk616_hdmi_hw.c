@@ -8,10 +8,49 @@
 // static char edid_result = 0;
 
 
+static int rk616_set_polarity(struct mfd_rk616 * rk616, int vic)
+{
+        u32 val;
+        int ret;
+        u32 hdmi_polarity_mask = (3<<14);
+
+        // printk("----------xhc---------vic = %d\n", vic);
+        switch(vic)
+        {
+                
+                case HDMI_1920x1080p_60Hz:
+                case HDMI_1920x1080p_50Hz:
+                case HDMI_1920x1080i_60Hz:
+                case HDMI_1920x1080i_50Hz:
+                case HDMI_1280x720p_60Hz:
+                case HDMI_1280x720p_50Hz:
+                        val = 0xc000;
+                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
+                        break;
+			
+                case HDMI_720x576p_50Hz_4_3:
+                case HDMI_720x576p_50Hz_16_9:
+                case HDMI_720x480p_60Hz_4_3:
+                case HDMI_720x480p_60Hz_16_9:
+                        val = 0x0;
+                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
+                        break;
+                default:
+                        val = 0x0;
+                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
+                        break;
+        }
+        return ret;
+}
+
 static int rk616_hdmi_set_vif(rk_screen * screen,bool connect)
 {
         struct rk616_hdmi *rk616_hdmi;
         rk616_hdmi = container_of(hdmi, struct rk616_hdmi, g_hdmi);
+
+
+        if (connect) 
+                rk616_set_polarity(rk616_hdmi->rk616_drv, hdmi->vic); 
 
 	rk616_set_vif(rk616_hdmi->rk616_drv,screen,connect);
 	return 0;
@@ -109,55 +148,94 @@ int rk616_hdmi_detect_hotplug(void)
 		return HDMI_HPD_REMOVED;
 }
 
-#define HDMI_SYS_FREG_CLK        11289600
-#define HDMI_SCL_RATE            (100*1000)
-#define HDMI_DDC_CONFIG          (HDMI_SYS_FREG_CLK>>2)/HDMI_SCL_RATE
-#define DDC_BUS_FREQ_L 			0x4b
-#define DDC_BUS_FREQ_H 			0x4c
-#define EDID_BLOCK_SIZE 128
 
 int rk616_hdmi_read_edid(int block, u8 * buf)
 {
-	u32 c = 0;
-	int ret = 0,i;
+        u32 c = 0;
 	u8 Segment = 0;
 	u8 Offset = 0;
+
+        int ret = -1;
+        int i, j;
+        int ddc_bus_freq;
+        int trytime;
+        int checksum = 0;
+
 	if(block%2)
-		Offset = EDID_BLOCK_SIZE;
+		Offset = HDMI_EDID_BLOCK_SIZE;
+
 	if(block/2)
 		Segment = 1;
-	printk("EDID DATA (Segment = %d Block = %d Offset = %d):\n", (int) Segment, (int) block, (int) Offset);
-	//set edid fifo first addr
-	c = 0x00;
-	hdmi_writel(0x4f,0);
-	//set edid word address 00/80
-	c = Offset;
-	hdmi_writel(0x4e, c);
-	//set edid segment pointer
-	c = Segment;
-	hdmi_writel(0x4d, c);
 
-	//enable edid interrupt
-//	c=0xc6;
-//	hdmi_writel(0xc0, c);
-	//wait edid interrupt
-	msleep(10);
-	//printk("Interrupt generated\n");
-	//c=0x00;
-	//ret = hdmi_readl(0xc1, &c);
-	//printk("Interrupt reg=%x \n",c);
-	//clear EDID interrupt reg
-	//c=0x04;
-	//hdmi_writel(0xc1, c);
-	for(i=0; i <EDID_BLOCK_SIZE;i++){
-		c = 0;	    
-		hdmi_readl( 0x50, &c);
-		buf[i] = c;
-		if(i%16==0)
-			printk("\n>>>%d:",i);
-		printk("%02x ",c);
-	}
-	return ret;
+        ddc_bus_freq = (HDMI_SYS_FREG_CLK>>2)/HDMI_SCL_RATE;
+        hdmi_writel(DDC_BUS_FREQ_L, ddc_bus_freq & 0xFF);
+        hdmi_writel(DDC_BUS_FREQ_H, (ddc_bus_freq >> 8) & 0xFF);
+
+        hdmi_dbg(hdmi->dev, "EDID DATA (Segment = %d Block = %d Offset = %d):\n", (int) Segment, (int) block, (int) Offset);
+        disable_irq(hdmi->irq);
+
+        //enable edid interrupt
+        hdmi_writel(INTERRUPT_MASK1, m_INT_HOTPLUG | m_INT_EDID_READY);
+       
+        for (trytime = 0; trytime < 10; trytime++) {
+                c=0x04;
+                hdmi_writel(INTERRUPT_STATUS1, c);
+
+                //set edid fifo first addr
+                c = 0x00;
+                hdmi_writel(EDID_FIFO_OFFSET, c);
+
+                //set edid word address 00/80
+                c = Offset;
+                hdmi_writel(EDID_WORD_ADDR, c);
+
+                //set edid segment pointer
+                c = Segment;
+                hdmi_writel(EDID_SEGMENT_POINTER, c);
+ 
+                for (i = 0; i < 10; i++) {
+                        //wait edid interrupt
+                        msleep(10);
+                        c=0x00;
+                        hdmi_readl(INTERRUPT_STATUS1, &c);
+
+                        if (c & 0x04) {
+                                break;
+                        }
+                    
+                }
+
+                if (c & 0x04) {
+                        for(j = 0; j < HDMI_EDID_BLOCK_SIZE; j++){
+                                c = 0;	    
+                                hdmi_readl(0x50, &c);
+                                buf[j] = c;
+                                checksum += c;
+#ifdef HDMI_DEBUG
+                                if(j%16==0)
+                                        printk("\n>>>0x%02x: ", j);
+
+                                printk("0x%02x ",c);
+#endif
+                        }
+
+	                //clear EDID interrupt reg
+                        c=0x04;
+                        hdmi_writel(INTERRUPT_STATUS1, c);
+                        
+                        // printk("checksum = 0x%x\n", checksum);
+                        if ((checksum &= 0xff) == 0) {
+                                ret = 0;
+                                hdmi_dbg(hdmi->dev, "[%s] edid read sucess\n", __FUNCTION__);
+                                break;
+                        }
+                }
+        }
+
+        hdmi_writel(INTERRUPT_MASK1, m_INT_HOTPLUG);
+        enable_irq(hdmi->irq);  
+
+        return ret;
 }
 
 static void rk616_hdmi_config_avi(unsigned char vic, unsigned char output_color)
@@ -180,7 +258,7 @@ static void rk616_hdmi_config_avi(unsigned char vic, unsigned char output_color)
 	// Calculate AVI InfoFrame ChecKsum
 	for (i = 4; i < SIZE_AVI_INFOFRAME; i++)
 	{
-    	info[3] += info[i];
+    	        info[3] += info[i];
 	}
 	info[3] = 0x100 - info[3];
 	
@@ -188,39 +266,6 @@ static void rk616_hdmi_config_avi(unsigned char vic, unsigned char output_color)
 		hdmi_writel(CONTROL_PACKET_ADDR + i, info[i]);
 }
 
-
-static int rk616_set_polarity(struct mfd_rk616 * rk616, int vic)
-{
-        u32 val;
-        int ret;
-        u32 hdmi_polarity_mask = (3<<14);
-        switch(vic)
-        {
-                
-                case HDMI_1920x1080p_60Hz:
-                case HDMI_1920x1080p_50Hz:
-                case HDMI_1920x1080i_60Hz:
-                case HDMI_1920x1080i_50Hz:
-                case HDMI_1280x720p_60Hz:
-                case HDMI_1280x720p_50Hz:
-                        val = 0xc000;
-                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
-                        break;
-			
-                case HDMI_720x576p_50Hz_4_3:
-                case HDMI_720x576p_50Hz_16_9:
-                case HDMI_720x480p_60Hz_4_3:
-                case HDMI_720x480p_60Hz_16_9:
-                        val = 0x0;
-                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
-                        break;
-                default:
-                        val = 0x0;
-                        ret = rk616->write_dev_bits(rk616, CRU_CFGMISC_CON, hdmi_polarity_mask, &val);
-                        break;
-        }
-        return ret;
-}
 
 static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 {
@@ -313,7 +358,7 @@ static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 	value = mode->vsync_len;
 	hdmi_writel(VIDEO_EXT_VDURATION, value & 0xFF);
 #endif
-        rk616_set_polarity(rk616_hdmi->rk616_drv, vpara->vic); 
+        //rk616_set_polarity(rk616_hdmi->rk616_drv, vpara->vic); 
 
         if(vpara->output_mode == OUTPUT_HDMI) {
 		rk616_hdmi_config_avi(vpara->vic, vpara->output_color);
@@ -483,8 +528,8 @@ void rk616_hdmi_work(void)
 	if(interrupt & m_HOTPLUG){
                 if(hdmi->state == HDMI_SLEEP)
 			hdmi->state = WAIT_HOTPLUG;
-        	if(hdmi->pwr_mode == LOWER_PWR)
-	        	rk616_hdmi_set_pwr_mode(NORMAL);
+        	//if(hdmi->pwr_mode == LOWER_PWR)
+	        //	rk616_hdmi_set_pwr_mode(NORMAL);
 
 		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(40));	
 
