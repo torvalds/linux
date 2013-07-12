@@ -844,6 +844,17 @@ static void ivybridge_parity_error_irq_handler(struct drm_device *dev)
 	queue_work(dev_priv->wq, &dev_priv->l3_parity.error_work);
 }
 
+static void ilk_gt_irq_handler(struct drm_device *dev,
+			       struct drm_i915_private *dev_priv,
+			       u32 gt_iir)
+{
+	if (gt_iir &
+	    (GT_RENDER_USER_INTERRUPT | GT_RENDER_PIPECTL_NOTIFY_INTERRUPT))
+		notify_ring(dev, &dev_priv->ring[RCS]);
+	if (gt_iir & ILK_BSD_USER_INTERRUPT)
+		notify_ring(dev, &dev_priv->ring[VCS]);
+}
+
 static void snb_gt_irq_handler(struct drm_device *dev,
 			       struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
@@ -1285,11 +1296,11 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	}
 }
 
-static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
+static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 de_iir, gt_iir, de_ier, pm_iir, sde_ier = 0;
+	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
 
 	atomic_inc(&dev_priv->irq_received);
@@ -1329,27 +1340,34 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
-		snb_gt_irq_handler(dev, dev_priv, gt_iir);
+		if (IS_GEN5(dev))
+			ilk_gt_irq_handler(dev, dev_priv, gt_iir);
+		else
+			snb_gt_irq_handler(dev, dev_priv, gt_iir);
 		I915_WRITE(GTIIR, gt_iir);
 		ret = IRQ_HANDLED;
 	}
 
 	de_iir = I915_READ(DEIIR);
 	if (de_iir) {
-		ivb_display_irq_handler(dev, de_iir);
-
+		if (INTEL_INFO(dev)->gen >= 7)
+			ivb_display_irq_handler(dev, de_iir);
+		else
+			ilk_display_irq_handler(dev, de_iir);
 		I915_WRITE(DEIIR, de_iir);
 		ret = IRQ_HANDLED;
 	}
 
-	pm_iir = I915_READ(GEN6_PMIIR);
-	if (pm_iir) {
-		if (IS_HASWELL(dev))
-			hsw_pm_irq_handler(dev_priv, pm_iir);
-		else if (pm_iir & GEN6_PM_RPS_EVENTS)
-			gen6_rps_irq_handler(dev_priv, pm_iir);
-		I915_WRITE(GEN6_PMIIR, pm_iir);
-		ret = IRQ_HANDLED;
+	if (INTEL_INFO(dev)->gen >= 6) {
+		u32 pm_iir = I915_READ(GEN6_PMIIR);
+		if (pm_iir) {
+			if (IS_HASWELL(dev))
+				hsw_pm_irq_handler(dev_priv, pm_iir);
+			else if (pm_iir & GEN6_PM_RPS_EVENTS)
+				gen6_rps_irq_handler(dev_priv, pm_iir);
+			I915_WRITE(GEN6_PMIIR, pm_iir);
+			ret = IRQ_HANDLED;
+		}
 	}
 
 	if (IS_HASWELL(dev)) {
@@ -1365,75 +1383,6 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 		I915_WRITE(SDEIER, sde_ier);
 		POSTING_READ(SDEIER);
 	}
-
-	return ret;
-}
-
-static void ilk_gt_irq_handler(struct drm_device *dev,
-			       struct drm_i915_private *dev_priv,
-			       u32 gt_iir)
-{
-	if (gt_iir &
-	    (GT_RENDER_USER_INTERRUPT | GT_RENDER_PIPECTL_NOTIFY_INTERRUPT))
-		notify_ring(dev, &dev_priv->ring[RCS]);
-	if (gt_iir & ILK_BSD_USER_INTERRUPT)
-		notify_ring(dev, &dev_priv->ring[VCS]);
-}
-
-static irqreturn_t ironlake_irq_handler(int irq, void *arg)
-{
-	struct drm_device *dev = (struct drm_device *) arg;
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	int ret = IRQ_NONE;
-	u32 de_iir, gt_iir, de_ier, sde_ier;
-
-	atomic_inc(&dev_priv->irq_received);
-
-	/* disable master interrupt before clearing iir  */
-	de_ier = I915_READ(DEIER);
-	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
-	POSTING_READ(DEIER);
-
-	/* Disable south interrupts. We'll only write to SDEIIR once, so further
-	 * interrupts will will be stored on its back queue, and then we'll be
-	 * able to process them after we restore SDEIER (as soon as we restore
-	 * it, we'll get an interrupt if SDEIIR still has something to process
-	 * due to its back queue). */
-	sde_ier = I915_READ(SDEIER);
-	I915_WRITE(SDEIER, 0);
-	POSTING_READ(SDEIER);
-
-	gt_iir = I915_READ(GTIIR);
-	if (gt_iir) {
-		if (IS_GEN5(dev))
-			ilk_gt_irq_handler(dev, dev_priv, gt_iir);
-		else
-			snb_gt_irq_handler(dev, dev_priv, gt_iir);
-		I915_WRITE(GTIIR, gt_iir);
-		ret = IRQ_HANDLED;
-	}
-
-	de_iir = I915_READ(DEIIR);
-	if (de_iir) {
-		ilk_display_irq_handler(dev, de_iir);
-		I915_WRITE(DEIIR, de_iir);
-		ret = IRQ_HANDLED;
-	}
-
-	if (IS_GEN6(dev)) {
-		u32 pm_iir = I915_READ(GEN6_PMIIR);
-		if (pm_iir) {
-			if (pm_iir & GEN6_PM_RPS_EVENTS)
-				gen6_rps_irq_handler(dev_priv, pm_iir);
-			I915_WRITE(GEN6_PMIIR, pm_iir);
-			ret = IRQ_HANDLED;
-		}
-	}
-
-	I915_WRITE(DEIER, de_ier);
-	POSTING_READ(DEIER);
-	I915_WRITE(SDEIER, sde_ier);
-	POSTING_READ(SDEIER);
 
 	return ret;
 }
@@ -3164,7 +3113,7 @@ void intel_irq_init(struct drm_device *dev)
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
 		/* Share uninstall handlers with ILK/SNB */
-		dev->driver->irq_handler = ivybridge_irq_handler;
+		dev->driver->irq_handler = ironlake_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_preinstall;
 		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
 		dev->driver->irq_uninstall = ironlake_irq_uninstall;
