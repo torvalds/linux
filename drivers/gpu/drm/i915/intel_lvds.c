@@ -297,14 +297,11 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 
 		intel_pch_panel_fitting(intel_crtc, pipe_config,
 					intel_connector->panel.fitting_mode);
-		return true;
 	} else {
 		intel_gmch_panel_fitting(intel_crtc, pipe_config,
 					 intel_connector->panel.fitting_mode);
-	}
 
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
-	pipe_config->timings_set = true;
+	}
 
 	/*
 	 * XXX: It would be nice to support lower refresh rates on the
