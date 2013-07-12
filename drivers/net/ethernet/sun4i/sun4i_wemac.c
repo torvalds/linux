@@ -934,9 +934,9 @@ unsigned int wemac_powerup(struct net_device *ndev)
 		got_mac = 1;
 	}
 
-	if (!got_mac) {
+	reg_val = readl(SW_VA_SID_IO_BASE);
+	if (!got_mac && reg_val != 0) {
 		mac_addr[0] = 0x02; /* Non OUI / registered MAC address */
-		reg_val = readl(SW_VA_SID_IO_BASE);
 		mac_addr[1] = (reg_val >>  0) & 0xff;
 		reg_val = readl(SW_VA_SID_IO_BASE + 0x0c);
 		mac_addr[2] = (reg_val >> 24) & 0xff;
