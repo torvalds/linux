@@ -2242,6 +2242,46 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(SDEIMR, ~mask);
 }
 
+static void gen5_gt_irq_postinstall(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pm_irqs, gt_irqs;
+
+	pm_irqs = gt_irqs = 0;
+
+	dev_priv->gt_irq_mask = ~0;
+	if (HAS_L3_GPU_CACHE(dev)) {
+		/* L3 parity interrupt is always unmasked. */
+		dev_priv->gt_irq_mask = ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
+		gt_irqs |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
+	}
+
+	gt_irqs |= GT_RENDER_USER_INTERRUPT;
+	if (IS_GEN5(dev)) {
+		gt_irqs |= GT_RENDER_PIPECTL_NOTIFY_INTERRUPT |
+			   ILK_BSD_USER_INTERRUPT;
+	} else {
+		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
+	}
+
+	I915_WRITE(GTIIR, I915_READ(GTIIR));
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	I915_WRITE(GTIER, gt_irqs);
+	POSTING_READ(GTIER);
+
+	if (INTEL_INFO(dev)->gen >= 6) {
+		pm_irqs |= GEN6_PM_RPS_EVENTS;
+
+		if (HAS_VEBOX(dev))
+			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
+
+		I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
+		I915_WRITE(GEN6_PMIMR, 0xffffffff);
+		I915_WRITE(GEN6_PMIER, pm_irqs);
+		POSTING_READ(GEN6_PMIER);
+	}
+}
+
 static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	unsigned long irqflags;
@@ -2252,7 +2292,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
 			   DE_AUX_CHANNEL_A | DE_PIPEB_FIFO_UNDERRUN |
 			   DE_PIPEA_FIFO_UNDERRUN | DE_POISON;
-	u32 gt_irqs;
 
 	dev_priv->irq_mask = ~display_mask;
 
@@ -2263,21 +2302,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 			  DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT);
 	POSTING_READ(DEIER);
 
-	dev_priv->gt_irq_mask = ~0;
-
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
-	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-
-	gt_irqs = GT_RENDER_USER_INTERRUPT;
-
-	if (IS_GEN6(dev))
-		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
-	else
-		gt_irqs |= GT_RENDER_PIPECTL_NOTIFY_INTERRUPT |
-			   ILK_BSD_USER_INTERRUPT;
-
-	I915_WRITE(GTIER, gt_irqs);
-	POSTING_READ(GTIER);
+	gen5_gt_irq_postinstall(dev);
 
 	ibx_irq_postinstall(dev);
 
@@ -2306,8 +2331,6 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 		DE_PLANEA_FLIP_DONE_IVB |
 		DE_AUX_CHANNEL_A_IVB |
 		DE_ERR_INT_IVB;
-	u32 pm_irqs = GEN6_PM_RPS_EVENTS;
-	u32 gt_irqs;
 
 	dev_priv->irq_mask = ~display_mask;
 
@@ -2322,30 +2345,7 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 		   DE_PIPEA_VBLANK_IVB);
 	POSTING_READ(DEIER);
 
-	dev_priv->gt_irq_mask = ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
-	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-
-	gt_irqs = GT_RENDER_USER_INTERRUPT | GT_BSD_USER_INTERRUPT |
-		  GT_BLT_USER_INTERRUPT | GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-	I915_WRITE(GTIER, gt_irqs);
-	POSTING_READ(GTIER);
-
-	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
-	if (HAS_VEBOX(dev))
-		pm_irqs |= PM_VEBOX_USER_INTERRUPT;
-
-	/* Our enable/disable rps functions may touch these registers so
-	 * make sure to set a known state for only the non-RPS bits.
-	 * The RMW is extra paranoia since this should be called after being set
-	 * to a known state in preinstall.
-	 * */
-	I915_WRITE(GEN6_PMIMR,
-		   (I915_READ(GEN6_PMIMR) | ~GEN6_PM_RPS_EVENTS) & ~pm_irqs);
-	I915_WRITE(GEN6_PMIER,
-		   (I915_READ(GEN6_PMIER) & GEN6_PM_RPS_EVENTS) | pm_irqs);
-	POSTING_READ(GEN6_PMIER);
+	gen5_gt_irq_postinstall(dev);
 
 	ibx_irq_postinstall(dev);
 
@@ -2355,7 +2355,6 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 static int valleyview_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 gt_irqs;
 	u32 enable_mask;
 	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV;
 	unsigned long irqflags;
@@ -2395,13 +2394,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IIR, 0xffffffff);
 
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
-	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-
-	gt_irqs = GT_RENDER_USER_INTERRUPT | GT_BSD_USER_INTERRUPT |
-		GT_BLT_USER_INTERRUPT;
-	I915_WRITE(GTIER, gt_irqs);
-	POSTING_READ(GTIER);
+	gen5_gt_irq_postinstall(dev);
 
 	/* ack & enable invalid PTE error interrupts */
 #if 0 /* FIXME: add support to irq handler for checking these bits */

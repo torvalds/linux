@@ -3319,8 +3319,6 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	gen6_set_rps(dev_priv->dev, (gt_perf_status & 0xff00) >> 8);
 
-	/* requires MSI enabled */
-	I915_WRITE(GEN6_PMIER, I915_READ(GEN6_PMIER) | GEN6_PM_RPS_EVENTS);
 	spin_lock_irq(&dev_priv->irq_lock);
 	/* FIXME: Our interrupt enabling sequence is bonghits.
 	 * dev_priv->rps.pm_iir really should be 0 here. */
@@ -3599,8 +3597,6 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
 
-	/* requires MSI enabled */
-	I915_WRITE(GEN6_PMIER, GEN6_PM_RPS_EVENTS);
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir != 0);
 	I915_WRITE(GEN6_PMIMR, 0);
