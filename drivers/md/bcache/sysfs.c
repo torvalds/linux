@@ -21,6 +21,12 @@ static const char * const cache_replacement_policies[] = {
 	NULL
 };
 
+static const char * const error_actions[] = {
+	"unregister",
+	"panic",
+	NULL
+};
+
 write_attribute(attach);
 write_attribute(detach);
 write_attribute(unregister);
@@ -90,6 +96,7 @@ rw_attribute(discard);
 rw_attribute(running);
 rw_attribute(label);
 rw_attribute(readahead);
+rw_attribute(errors);
 rw_attribute(io_error_limit);
 rw_attribute(io_error_halflife);
 rw_attribute(verify);
@@ -492,6 +499,10 @@ lock_root:
 	sysfs_print(writeback_keys_failed,
 		    atomic_long_read(&c->writeback_keys_failed));
 
+	if (attr == &sysfs_errors)
+		return bch_snprint_string_list(buf, PAGE_SIZE, error_actions,
+					       c->on_error);
+
 	/* See count_io_errors for why 88 */
 	sysfs_print(io_error_halflife,	c->error_decay * 88);
 	sysfs_print(io_error_limit,	c->error_limit >> IO_ERROR_SHIFT);
@@ -569,6 +580,15 @@ STORE(__bch_cache_set)
 	sysfs_strtoul(congested_write_threshold_us,
 		      c->congested_write_threshold_us);
 
+	if (attr == &sysfs_errors) {
+		ssize_t v = bch_read_string_list(buf, error_actions);
+
+		if (v < 0)
+			return v;
+
+		c->on_error = v;
+	}
+
 	if (attr == &sysfs_io_error_limit)
 		c->error_limit = strtoul_or_return(buf) << IO_ERROR_SHIFT;
 
@@ -620,6 +640,7 @@ static struct attribute *bch_cache_set_files[] = {
 	&sysfs_average_key_size,
 	&sysfs_dirty_data,
 
+	&sysfs_errors,
 	&sysfs_io_error_limit,
 	&sysfs_io_error_halflife,
 	&sysfs_congested,

@@ -305,10 +305,9 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list,
 	list_for_each_entry(i, list, list) {
 		BUG_ON(i->pin && atomic_read(i->pin) != 1);
 
-		if (n != i->j.seq)
-			pr_err(
-		"journal entries %llu-%llu missing! (replaying %llu-%llu)\n",
-		n, i->j.seq - 1, start, end);
+		cache_set_err_on(n != i->j.seq, s,
+"bcache: journal entries %llu-%llu missing! (replaying %llu-%llu)",
+				 n, i->j.seq - 1, start, end);
 
 		for (k = i->j.start;
 		     k < end(&i->j);

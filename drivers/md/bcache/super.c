@@ -1260,7 +1260,8 @@ bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...)
 {
 	va_list args;
 
-	if (test_bit(CACHE_SET_STOPPING, &c->flags))
+	if (c->on_error != ON_ERROR_PANIC &&
+	    test_bit(CACHE_SET_STOPPING, &c->flags))
 		return false;
 
 	/* XXX: we can be called from atomic context
@@ -1274,6 +1275,9 @@ bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...)
 	va_end(args);
 
 	printk(", disabling caching\n");
+
+	if (c->on_error == ON_ERROR_PANIC)
+		panic("panic forced after error\n");
 
 	bch_cache_set_unregister(c);
 	return true;

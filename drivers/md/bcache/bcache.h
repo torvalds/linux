@@ -843,8 +843,14 @@ struct cache_set {
 	atomic_long_t		cache_read_races;
 	atomic_long_t		writeback_keys_done;
 	atomic_long_t		writeback_keys_failed;
+
+	enum			{
+		ON_ERROR_UNREGISTER,
+		ON_ERROR_PANIC,
+	}			on_error;
 	unsigned		error_limit;
 	unsigned		error_decay;
+
 	unsigned short		journal_delay_ms;
 	unsigned		verify:1;
 	unsigned		key_merging_disabled:1;
