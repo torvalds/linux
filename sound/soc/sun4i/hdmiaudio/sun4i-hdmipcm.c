@@ -233,14 +233,12 @@ static int sun4i_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		printk("[HDMI-AUDIO] PCM trigger start...\n");
 		sunxi_dma_start(prtd->params);
 		break;
 
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		printk("[HDMI-AUDIO] PCM trigger stop...\n");
 		sunxi_dma_stop(prtd->params);
 		break;
 

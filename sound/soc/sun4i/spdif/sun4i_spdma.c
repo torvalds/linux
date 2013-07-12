@@ -247,7 +247,6 @@ static int sun4i_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		printk("[SPDIF] dma trigger start\n");
 		sunxi_dma_start(prtd->params);
 		break;
 

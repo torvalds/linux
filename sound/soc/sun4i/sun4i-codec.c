@@ -1422,7 +1422,6 @@ static int __devinit sun4i_codec_probe(struct platform_device *pdev)
 	struct snd_card *card;
 	struct sun4i_codec *chip;
 	struct codec_board_info  *db;
-    printk("enter sun4i Audio codec!!!\n");
 	/* register the soundcard */
 	ret = snd_card_create(0, "sun4i-codec", THIS_MODULE, sizeof(struct sun4i_codec),
 			      &card);
@@ -1457,7 +1456,6 @@ static int __devinit sun4i_codec_probe(struct platform_device *pdev)
 
 	//注册card
 	if ((err = snd_card_register(card)) == 0) {
-		printk( KERN_INFO "sun4i audio support initialized\n" );
 		platform_set_drvdata(pdev, card);
 	}else{
       return err;
@@ -1526,7 +1524,6 @@ static int __devinit sun4i_codec_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_resume_work_queue;
 	}
-	 printk("sun4i Audio codec successfully loaded..\n");
 	 return 0;
      err_resume_work_queue:
 	 out:
