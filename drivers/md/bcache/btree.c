@@ -1410,8 +1410,10 @@ static void btree_gc_start(struct cache_set *c)
 	for_each_cache(ca, c, i)
 		for_each_bucket(b, ca) {
 			b->gc_gen = b->gen;
-			if (!atomic_read(&b->pin))
+			if (!atomic_read(&b->pin)) {
 				SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
+				SET_GC_SECTORS_USED(b, 0);
+			}
 		}
 
 	mutex_unlock(&c->bucket_lock);
