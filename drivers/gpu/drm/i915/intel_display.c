@@ -5261,24 +5261,10 @@ static void lpt_program_fdi_mphy(struct drm_i915_private *dev_priv)
 }
 
 /* Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O. */
-static void lpt_init_pch_refclk(struct drm_device *dev)
+static void lpt_enable_clkout_dp(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct intel_encoder *encoder;
-	bool has_vga = false;
-	u32 tmp;
-
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
-		switch (encoder->type) {
-		case INTEL_OUTPUT_ANALOG:
-			has_vga = true;
-			break;
-		}
-	}
-
-	if (!has_vga)
-		return;
+	uint32_t tmp;
 
 	mutex_lock(&dev_priv->dpio_lock);
 
@@ -5302,6 +5288,26 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	intel_sbi_write(dev_priv, SBI_DBUFF0, tmp, SBI_ICLK);
 
 	mutex_unlock(&dev_priv->dpio_lock);
+}
+
+static void lpt_init_pch_refclk(struct drm_device *dev)
+{
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
+	bool has_vga = false;
+
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
+		switch (encoder->type) {
+		case INTEL_OUTPUT_ANALOG:
+			has_vga = true;
+			break;
+		}
+	}
+
+	if (!has_vga)
+		return;
+
+	lpt_enable_clkout_dp(dev);
 }
 
 /*
