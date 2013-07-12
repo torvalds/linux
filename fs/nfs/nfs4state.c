@@ -2116,7 +2116,7 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 }
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
-static int nfs4_end_drain_session(struct nfs_client *clp) { return 0; }
+static void nfs4_end_drain_session(struct nfs_client *clp) { }
 
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
