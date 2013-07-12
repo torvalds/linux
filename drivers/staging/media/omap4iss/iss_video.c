@@ -496,6 +496,41 @@ iss_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 }
 
 static int
+iss_video_enum_format(struct file *file, void *fh, struct v4l2_fmtdesc *f)
+{
+	struct iss_video *video = video_drvdata(file);
+	struct v4l2_mbus_framefmt format;
+	unsigned int index = f->index;
+	unsigned int i;
+	int ret;
+
+	if (f->type != video->type)
+		return -EINVAL;
+
+	ret = __iss_video_get_format(video, &format);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(formats); ++i) {
+		const struct iss_format_info *info = &formats[i];
+
+		if (format.code != info->code)
+			continue;
+
+		if (index == 0) {
+			f->pixelformat = info->pixelformat;
+			strlcpy(f->description, info->description,
+				sizeof(f->description));
+			return 0;
+		}
+
+		index--;
+	}
+
+	return -EINVAL;
+}
+
+static int
 iss_video_get_format(struct file *file, void *fh, struct v4l2_format *format)
 {
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
@@ -918,6 +953,7 @@ iss_video_s_input(struct file *file, void *fh, unsigned int input)
 
 static const struct v4l2_ioctl_ops iss_video_ioctl_ops = {
 	.vidioc_querycap		= iss_video_querycap,
+	.vidioc_enum_fmt_vid_cap        = iss_video_enum_format,
 	.vidioc_g_fmt_vid_cap		= iss_video_get_format,
 	.vidioc_s_fmt_vid_cap		= iss_video_set_format,
 	.vidioc_try_fmt_vid_cap		= iss_video_try_format,
