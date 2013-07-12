@@ -1650,6 +1650,8 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 
 		dep->endpoint.name = dep->name;
 
+		dev_vdbg(dwc->dev, "initializing %s\n", dep->name);
+
 		if (epnum == 0 || epnum == 1) {
 			dep->endpoint.maxpacket = 512;
 			dep->endpoint.maxburst = 1;
