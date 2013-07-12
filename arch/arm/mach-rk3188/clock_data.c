@@ -1361,7 +1361,9 @@ static unsigned long ddr_clk_recalc_rate(struct clk *clk)
 	u32 shift = get_cru_bits(clk->clksel_con, clk->div_mask, clk->div_shift);
 	unsigned long rate = 0;
 	clk->parent = clk->get_parent(clk);
-	rate = clk->parent->recalc(clk->parent) >> shift;
+	clk->parent->rate = clk->parent->recalc(clk->parent);
+	rate = clk->parent->rate >> shift;
+
 	CLKDATA_DBG("%s new clock rate is %lu (shift %u), parent=%s, rate=%lu\n", 
 			clk->name, rate, shift, clk->parent->name, clk->parent->rate);
 	return rate;
