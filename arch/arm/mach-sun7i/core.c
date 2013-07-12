@@ -147,14 +147,11 @@ static void sun7i_restart(char mode, const char *cmd)
 
 static void __init sun7i_init(void)
 {
-	pr_info("%s: enter\n", __func__);
 	sw_pdev_init();
-	/* Register platform devices here!! */
 }
 
 void __init sun7i_init_early(void)
 {
-	pr_info("%s: enter\n", __func__);
 }
 
 MACHINE_START(SUN7I, "sun7i")
