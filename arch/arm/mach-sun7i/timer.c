@@ -36,7 +36,6 @@ cycle_t aw_clksrc_read(struct clocksource *cs)
 	unsigned long flags;
 	u32 lower, upper, temp, cnt = 0x0fffff;
 
-//	pr_info("%s(%d)\n", __func__, __LINE__);
 	spin_lock_irqsave(&clksrc_lock, flags);
 
 	/* latch 64bit counter and wait ready for read */
@@ -52,7 +51,6 @@ cycle_t aw_clksrc_read(struct clocksource *cs)
 	upper = readl(SW_HSTMR_HIGH_REG);
 
 	spin_unlock_irqrestore(&clksrc_lock, flags);
-//	pr_info("%s(%d)\n", __func__, __LINE__);
 	return (((u64)upper)<<32) | lower;
 }
 EXPORT_SYMBOL(aw_clksrc_read);
@@ -95,8 +93,6 @@ u32 sched_clock_read(void)
 
 void __init aw_clksrc_init(void)
 {
-	pr_info("%s(%d)\n", __func__, __LINE__);
-
 #if 0	/* start counting on booting, so cannot clear it, otherwise systime will be err */
 	/* we use 64bits counter as HPET(High Precision Event Timer) */
 	writel(0, SW_HSTMR_CTRL_REG);
@@ -119,7 +115,6 @@ void __init aw_clksrc_init(void)
 	clocksource_register(&aw_clocksrc);
 	/* set sched clock */
 	setup_sched_clock(sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
-	pr_info("%s(%d)\n", __func__, __LINE__);
 }
 
 static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device *clk)
@@ -232,7 +227,6 @@ void __init aw_clkevt_init(void)
 	u32 val = 0;
 
 	timer_cpu_base = ioremap_nocache(SW_PA_TIMERC_IO_BASE, 0x1000);
-	pr_info("%s: timer base 0x%08x\n", __func__, (int)timer_cpu_base);
 
 	/* disable & clear all timers */
 	writel(0x0, timer_cpu_base + TMR_IRQ_EN_REG_OFF);
@@ -261,14 +255,10 @@ void __init aw_clkevt_init(void)
 	sun7i_timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &sun7i_timer0_clockevent); /* liugang */
 	sun7i_timer0_clockevent.cpumask = cpu_all_mask;
 	sun7i_timer0_clockevent.irq = sun7i_timer_irq.irq;
-	early_printk("%s: sun7i_timer0_clockevent mult %d, max_delta_ns %d, min_delta_ns %d, cpumask 0x%08x, irq %d\n",
-		__func__, (int)sun7i_timer0_clockevent.mult, (int)sun7i_timer0_clockevent.max_delta_ns,
-		(int)sun7i_timer0_clockevent.min_delta_ns, (int)sun7i_timer0_clockevent.cpumask,
-		(int)sun7i_timer0_clockevent.irq);
+
 	clockevents_register_device(&sun7i_timer0_clockevent);
 
 #ifdef CONFIG_AW_TIME_DELAY
 	use_time_delay();
 #endif
 }
-
