@@ -1134,6 +1134,12 @@ static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
 		hlist_add_head(&io->hash, dc->io_hash + RECENT_IO);
 	}
 
+	dc->disk.stripe_size = q->limits.io_opt >> 9;
+
+	if (dc->disk.stripe_size)
+		dc->partial_stripes_expensive =
+			q->limits.raid_partial_stripes_expensive;
+
 	ret = bcache_device_init(&dc->disk, block_size,
 			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset);
 	if (ret)
