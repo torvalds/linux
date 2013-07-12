@@ -934,7 +934,8 @@ static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 	struct r8152 *tp = netdev_priv(netdev);
 	struct net_device_stats *stats = rtl8152_get_stats(netdev);
 	struct tx_desc *tx_desc;
-	int len, res;
+	unsigned int len;
+	int res;
 
 	netif_stop_queue(netdev);
 	len = skb->len;
