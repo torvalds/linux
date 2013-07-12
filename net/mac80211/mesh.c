@@ -273,7 +273,9 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	neighbors = min_t(int, neighbors, IEEE80211_MAX_MESH_PEERINGS);
 	*pos++ = neighbors << 1;
 	/* Mesh capability */
-	*pos = IEEE80211_MESHCONF_CAPAB_FORWARDING;
+	*pos = 0x00;
+	*pos |= ifmsh->mshcfg.dot11MeshForwarding ?
+			IEEE80211_MESHCONF_CAPAB_FORWARDING : 0x00;
 	*pos |= ifmsh->accepting_plinks ?
 			IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	/* Mesh PS mode. See IEEE802.11-2012 8.4.2.100.8 */
