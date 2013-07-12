@@ -252,6 +252,31 @@ struct regulator *dvfs_get_regulator(char *regulator_name)
 	return NULL;
 }
 
+int dvfs_get_rate_range(struct clk *clk)
+{
+	struct clk_node *dvfs_clk = clk_get_dvfs_info(clk);
+	struct cpufreq_frequency_table *table;
+	int i = 0;
+
+	if (!dvfs_clk)
+		return -1;
+
+	dvfs_clk->min_rate = 0;
+	dvfs_clk->max_rate = 0;
+
+	table = dvfs_clk->dvfs_table;
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		dvfs_clk->max_rate = table[i].frequency / 1000 * 1000 * 1000;
+		if (i == 0)
+			dvfs_clk->min_rate = table[i].frequency / 1000 * 1000 * 1000;
+	}
+
+	DVFS_DBG("%s: clk %s, limit rate [min, max] = [%lu, %lu]\n",
+			__func__, dvfs_clk->name, dvfs_clk->min_rate, dvfs_clk->max_rate);
+
+	return 0;
+}
+
 /**************************************dvfs clocks functions***************************************/
 int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate)
 {
@@ -299,7 +324,7 @@ int dvfs_clk_disable_limit(struct clk *clk)
 	if (dvfs_clk->vd && dvfs_clk->vd->vd_dvfs_target){
 		mutex_lock(&rk_dvfs_mutex);
 		/* To reset dvfs_clk->min_rate/max_rate */
-		dvfs_set_freq_volt_table(clk, dvfs_clk->dvfs_table);
+		dvfs_get_rate_range(clk);
 
 		dvfs_clk->freq_limit_en = 0;
 		ret = dvfs_clk->vd->vd_dvfs_target(clk, clk->last_set_rate);
@@ -548,7 +573,6 @@ EXPORT_SYMBOL(dvfs_get_freq_volt_table);
 int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table)
 {
 	struct clk_node *info = clk_get_dvfs_info(clk);
-	int i=0;
 
 	if (!info)
 		return -1;	
@@ -561,28 +585,9 @@ int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *ta
 
 	mutex_lock(&mutex);
 	info->dvfs_table = table;
-	if(table[0].frequency!= CPUFREQ_TABLE_END)
-	{
-
-		info->min_rate=(table[0].frequency/1000)*1000*1000;//to hz
-	}
-	else
-	{
-		info->min_rate=0;	
-		info->max_rate=0;	
-		mutex_unlock(&mutex);
-		return -1;
-	}
-
-	for(i=0;table[i].frequency!= CPUFREQ_TABLE_END;i++)
-	{
-	
-	}	
-	info->max_rate=(table[i-1].frequency/1000)*1000*1000;
-
-	DVFS_DBG("%s,clk %s,limit max=%lu,min=%lu\n",__FUNCTION__,info->name,info->max_rate,info->min_rate);
-
+	dvfs_get_rate_range(clk);
 	mutex_unlock(&mutex);
+
 	dvfs_table_round_clk_rate(info);
 	dvfs_table_round_volt(info);
 	return 0;
