@@ -393,7 +393,8 @@
 				status = "disabled";
 			};
 
-			lcdc@53fbc000 {
+			lcdc: lcdc@53fbc000 {
+				compatible = "fsl,imx25-fb", "fsl,imx21-fb";
 				reg = <0x53fbc000 0x4000>;
 				interrupts = <39>;
 				clocks = <&clks 103>, <&clks 66>, <&clks 49>;
