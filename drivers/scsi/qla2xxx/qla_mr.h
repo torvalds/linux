@@ -434,9 +434,11 @@ struct qla_mt_iocb_rqst_fx00 {
 
 	__le32 dataword_extra;
 
-	__le32 req_len;
+	__le16 req_len;
+	__le16 reserved_2;
 
-	__le32 rsp_len;
+	__le16 rsp_len;
+	__le16 reserved_3;
 };
 
 struct qla_mt_iocb_rsp_fx00 {
