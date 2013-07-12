@@ -305,111 +305,6 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-/**
- * Save HW states of giving crtc
- */
-static void psb_intel_crtc_save(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	struct psb_intel_crtc_state *crtc_state = psb_intel_crtc->crtc_state;
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
-	uint32_t paletteReg;
-	int i;
-
-	if (!crtc_state) {
-		dev_err(dev->dev, "No CRTC state found\n");
-		return;
-	}
-
-	crtc_state->saveDSPCNTR = REG_READ(map->cntr);
-	crtc_state->savePIPECONF = REG_READ(map->conf);
-	crtc_state->savePIPESRC = REG_READ(map->src);
-	crtc_state->saveFP0 = REG_READ(map->fp0);
-	crtc_state->saveFP1 = REG_READ(map->fp1);
-	crtc_state->saveDPLL = REG_READ(map->dpll);
-	crtc_state->saveHTOTAL = REG_READ(map->htotal);
-	crtc_state->saveHBLANK = REG_READ(map->hblank);
-	crtc_state->saveHSYNC = REG_READ(map->hsync);
-	crtc_state->saveVTOTAL = REG_READ(map->vtotal);
-	crtc_state->saveVBLANK = REG_READ(map->vblank);
-	crtc_state->saveVSYNC = REG_READ(map->vsync);
-	crtc_state->saveDSPSTRIDE = REG_READ(map->stride);
-
-	/*NOTE: DSPSIZE DSPPOS only for psb*/
-	crtc_state->saveDSPSIZE = REG_READ(map->size);
-	crtc_state->saveDSPPOS = REG_READ(map->pos);
-
-	crtc_state->saveDSPBASE = REG_READ(map->base);
-
-	paletteReg = map->palette;
-	for (i = 0; i < 256; ++i)
-		crtc_state->savePalette[i] = REG_READ(paletteReg + (i << 2));
-}
-
-/**
- * Restore HW states of giving crtc
- */
-static void psb_intel_crtc_restore(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc =  to_psb_intel_crtc(crtc);
-	struct psb_intel_crtc_state *crtc_state = psb_intel_crtc->crtc_state;
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
-	uint32_t paletteReg;
-	int i;
-
-	if (!crtc_state) {
-		dev_err(dev->dev, "No crtc state\n");
-		return;
-	}
-
-	if (crtc_state->saveDPLL & DPLL_VCO_ENABLE) {
-		REG_WRITE(map->dpll,
-			crtc_state->saveDPLL & ~DPLL_VCO_ENABLE);
-		REG_READ(map->dpll);
-		udelay(150);
-	}
-
-	REG_WRITE(map->fp0, crtc_state->saveFP0);
-	REG_READ(map->fp0);
-
-	REG_WRITE(map->fp1, crtc_state->saveFP1);
-	REG_READ(map->fp1);
-
-	REG_WRITE(map->dpll, crtc_state->saveDPLL);
-	REG_READ(map->dpll);
-	udelay(150);
-
-	REG_WRITE(map->htotal, crtc_state->saveHTOTAL);
-	REG_WRITE(map->hblank, crtc_state->saveHBLANK);
-	REG_WRITE(map->hsync, crtc_state->saveHSYNC);
-	REG_WRITE(map->vtotal, crtc_state->saveVTOTAL);
-	REG_WRITE(map->vblank, crtc_state->saveVBLANK);
-	REG_WRITE(map->vsync, crtc_state->saveVSYNC);
-	REG_WRITE(map->stride, crtc_state->saveDSPSTRIDE);
-
-	REG_WRITE(map->size, crtc_state->saveDSPSIZE);
-	REG_WRITE(map->pos, crtc_state->saveDSPPOS);
-
-	REG_WRITE(map->src, crtc_state->savePIPESRC);
-	REG_WRITE(map->base, crtc_state->saveDSPBASE);
-	REG_WRITE(map->conf, crtc_state->savePIPECONF);
-
-	gma_wait_for_vblank(dev);
-
-	REG_WRITE(map->cntr, crtc_state->saveDSPCNTR);
-	REG_WRITE(map->base, crtc_state->saveDSPBASE);
-
-	gma_wait_for_vblank(dev);
-
-	paletteReg = map->palette;
-	for (i = 0; i < 256; ++i)
-		REG_WRITE(paletteReg + (i << 2), crtc_state->savePalette[i]);
-}
-
 static int psb_crtc_set_config(struct drm_mode_set *set)
 {
 	int ret;
@@ -560,8 +455,8 @@ const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 };
 
 const struct drm_crtc_funcs psb_intel_crtc_funcs = {
-	.save = psb_intel_crtc_save,
-	.restore = psb_intel_crtc_restore,
+	.save = gma_crtc_save,
+	.restore = gma_crtc_restore,
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
