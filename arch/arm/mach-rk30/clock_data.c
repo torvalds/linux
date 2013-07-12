@@ -1260,8 +1260,8 @@ static int core_clksel_set_parent(struct clk *clk, struct clk *new_prt)
 
 static int core_gpll_clk_set_rate(struct clk *c, unsigned long rate)
 {
-	unsigned long flags;
-	u32 pll_id=APLL_ID;
+	//unsigned long flags;
+	//u32 pll_id=APLL_ID;
 	u32 temp_div;
 	u32 old_aclk_div=0,new_aclk_div;
 	struct arm_clks_div_set *temp_clk_div;
@@ -3299,7 +3299,7 @@ static void periph_clk_set_init(void)
 
 void rk30_clock_common_i2s_init(void)
 {
-	struct clk *max_clk,*min_clk;
+	//struct clk *max_clk,*min_clk;
 	unsigned long i2s_rate;
 	//20 times
 	if(rk30_clock_flags&CLK_FLG_MAX_I2S_49152KHZ)
