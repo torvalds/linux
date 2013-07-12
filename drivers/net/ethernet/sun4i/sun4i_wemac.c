@@ -55,7 +55,6 @@
 #define CARDNAME	"wemac"
 #define DRV_VERSION	"1.01"
 #define DMA_CPU_TRRESHOLD 2000
-#define TOLOWER(x) ((x) | 0x20)
 /* bit_flags */
 #define EMAC_TX_TIMEOUT_PENDING		0
 
@@ -99,7 +98,6 @@ typedef struct wemac_board_info {
 	void __iomem	*emac_vbase;	/* mac I/O base address */
 	void __iomem	*sram_vbase;	/* sram control I/O base address */
 	void __iomem	*gpio_vbase;	/* gpio I/O base address */
-	void __iomem	*ccmu_vbase;	/* ccmu I/O base address */
 	u16		 irq;		/* IRQ */
 
 	u16		tx_fifo_stat;
@@ -122,12 +120,10 @@ typedef struct wemac_board_info {
 	struct resource	*emac_base_res;   /* resources found */
 	struct resource	*sram_base_res;   /* resources found */
 	struct resource	*gpio_base_res;   /* resources found */
-	struct resource	*ccmu_base_res;   /* resources found */
 
 	struct resource	*emac_base_req;   /* resources found */
 	struct resource	*sram_base_req;   /* resources found */
 	struct resource	*gpio_base_req;   /* resources found */
-	struct resource	*ccmu_base_req;   /* resources found */
 
 	struct resource *irq_res;
 
@@ -483,15 +479,6 @@ void emac_sys_setup(wemac_board_info_t *db)
 	clk_enable(tmpClk);
 	printk(KERN_INFO "[EMAC] ahb clk enable\n");
 	printk(KERN_INFO "[EMAC] ahb gate clk: 0x%x\n", *((__u32 *)0xf1c20060));
-
-#if 0
-	reg_val = readl(db->ccmu_vbase + CCM_AHB_GATING_REG);
-	printk(KERN_INFO "db->ccmu_vbase: %x, ccmu ahb gate: 0x%x\n", db->ccmu_vbase + CCM_AHB_GATING_REG, reg_val);
-	reg_val |= 0x1<<17; /*EMAC*/
-	writel(reg_val, db->ccmu_vbase + CCM_AHB_GATING_REG);
-	reg_val = readl(db->ccmu_vbase + CCM_AHB_GATING_REG);
-	printk(KERN_INFO "db->ccmu_vbase: %x, ccmu ahb gate: 0x%x\n", db->ccmu_vbase + CCM_AHB_GATING_REG, reg_val);
-#endif
 }
 
 unsigned int emac_setup(struct net_device *ndev)
@@ -909,7 +896,6 @@ wemac_release_board(struct platform_device *pdev, struct wemac_board_info *db)
 	iounmap(db->emac_vbase);
 	iounmap(db->sram_vbase);
 	iounmap(db->gpio_vbase);
-	iounmap(db->ccmu_vbase);
 
 	/* release the resources */
 	release_resource(db->emac_base_req);
@@ -918,8 +904,6 @@ wemac_release_board(struct platform_device *pdev, struct wemac_board_info *db)
 	kfree(db->sram_base_req);
 	release_resource(db->gpio_base_req);
 	kfree(db->gpio_base_req);
-	release_resource(db->ccmu_base_req);
-	kfree(db->ccmu_base_req);
 }
 
 /*
@@ -1667,14 +1651,12 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	db->emac_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	db->sram_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	db->gpio_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	db->ccmu_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 
 	db->irq_res  = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 
 	if (db->emac_base_res == NULL ||
 			db->sram_base_res == NULL ||
 			db->gpio_base_res == NULL ||
-			db->ccmu_base_res == NULL ||
 			db->irq_res == NULL) {
 		dev_err(db->dev, "insufficient resources\n");
 		ret = -ENOENT;
@@ -1749,25 +1731,6 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 			db->mos_gpio = NULL;
 		}
 	}
-
-	/* ccmu address remap */
-	iosize = res_size(db->ccmu_base_res);
-	db->ccmu_base_req = request_mem_region(db->ccmu_base_res->start, iosize,
-			pdev->name);
-	if (db->ccmu_base_req == NULL) {
-		dev_err(db->dev, "cannot claim ccmu address reg area\n");
-		ret = -EIO;
-		goto out;
-	}
-	db->ccmu_vbase = ioremap(db->ccmu_base_res->start, iosize);
-	if (db->ccmu_vbase == NULL) {
-		dev_err(db->dev, "failed to ioremap ccmu address reg\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	wemac_dbg(db, 3, "emac_vbase: %p, sram_vbase: %p, gpio_vbase: %p, ccmu_vbase: %p\n",
-			db->emac_vbase, db->sram_vbase, db->gpio_vbase, db->ccmu_vbase);
 
 	/* fill in parameters for net-dev structure */
 	ndev->base_addr = (unsigned long)db->emac_vbase;
@@ -1854,13 +1817,10 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	/* only for debug */
 	iounmap(db->sram_vbase);
 	iounmap(db->gpio_vbase);
-	iounmap(db->ccmu_vbase);
 	release_resource(db->sram_base_req);
 	kfree(db->sram_base_req);
 	release_resource(db->gpio_base_req);
 	kfree(db->gpio_base_req);
-	release_resource(db->ccmu_base_req);
-	kfree(db->ccmu_base_req);
 
 	return 0;
 
@@ -1941,11 +1901,6 @@ static struct resource wemac_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[3] = {
-		.start	= CCM_BASE,
-		.end	= CCM_BASE+1024,
-		.flags	= IORESOURCE_MEM,
-	},
-	[4] = {
 		.start	= SW_INT_IRQNO_EMAC,
 		.end	= SW_INT_IRQNO_EMAC,
 		.flags	= IORESOURCE_IRQ,
