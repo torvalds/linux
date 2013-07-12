@@ -712,6 +712,13 @@ void vtime_user_enter(struct task_struct *tsk)
 
 void vtime_guest_enter(struct task_struct *tsk)
 {
+	/*
+	 * The flags must be updated under the lock with
+	 * the vtime_snap flush and update.
+	 * That enforces a right ordering and update sequence
+	 * synchronization against the reader (task_gtime())
+	 * that can thus safely catch up with a tickless delta.
+	 */
 	write_seqlock(&tsk->vtime_seqlock);
 	__vtime_account_system(tsk);
 	current->flags |= PF_VCPU;

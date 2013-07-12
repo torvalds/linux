@@ -72,8 +72,9 @@ extern void guest_exit(void);
 static inline void guest_enter(void)
 {
 	/*
-	 * This is running in ioctl context so we can avoid
-	 * the call to vtime_account() with its unnecessary idle check.
+	 * This is running in ioctl context so its safe
+	 * to assume that it's the stime pending cputime
+	 * to flush.
 	 */
 	vtime_account_system(current);
 	current->flags |= PF_VCPU;
@@ -81,10 +82,7 @@ static inline void guest_enter(void)
 
 static inline void guest_exit(void)
 {
-	/*
-	 * This is running in ioctl context so we can avoid
-	 * the call to vtime_account() with its unnecessary idle check.
-	 */
+	/* Flush the guest cputime we spent on the guest */
 	vtime_account_system(current);
 	current->flags &= ~PF_VCPU;
 }
