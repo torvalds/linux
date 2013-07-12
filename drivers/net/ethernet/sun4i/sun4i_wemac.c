@@ -168,57 +168,14 @@ struct sw_dma_client emacrx_dma_client = {
 	.name = "EMACRX_DMA",
 };
 
-struct sw_dma_client emactx_dma_client = {
-	.name = "EMACTX_DMA",
-};
-
-static int ch_rx, ch_tx;
-static int emacrx_dma_completed_flag = 1;
-static int emactx_dma_completed_flag = 1;
+static int ch_rx;
 static int emacrx_completed_flag = 1;
-
 
 void emacrx_dma_buffdone(struct sw_dma_chan *ch, void *buf, int size, enum sw_dma_buffresult result)
 {
 	struct net_device *dev = ch->dev_id;
 	wemac_rx(dev);
 }
-
-int emacrx_dma_opfn(struct sw_dma_chan *ch, enum sw_chan_op op_code)
-{
-	if (op_code == SW_DMAOP_START)
-		emacrx_dma_completed_flag = 0;
-	return 0;
-}
-
-void emactx_dma_buffdone(struct sw_dma_chan *ch, void *buf,
-			int size, enum sw_dma_buffresult result)
-{
-	emactx_dma_completed_flag = 1;
-}
-
-int  emactx_dma_opfn(struct sw_dma_chan *ch, enum sw_chan_op op_code)
-{
-	if (op_code == SW_DMAOP_START)
-		emactx_dma_completed_flag = 0;
-	return 0;
-}
-
-#if 0
-__hdle emac_RequestDMA(__u32 dmatype)
-{
-	__hdle ch;
-
-	ch = sw_dma_request(dmatype, &nand_dma_client, NULL);
-	if (ch < 0)
-		return ch;
-
-	sw_dma_set_opfn(ch, nanddma_opfn);
-	sw_dma_set_buffdone_fn(ch, nanddma_buffdone);
-
-	return ch;
-}
-#endif
 
 void eLIBs_CleanFlushDCacheRegion(void *adr, __u32 bytes)
 {
@@ -227,94 +184,36 @@ void eLIBs_CleanFlushDCacheRegion(void *adr, __u32 bytes)
 
 __s32 emacrx_DMAEqueueBuf(int hDma,  void *buff_addr, __u32 len)
 {
-	static int seq_rx;
 	eLIBs_CleanFlushDCacheRegion((void *)buff_addr, len);
 
-	emacrx_dma_completed_flag = 0;
-	return sw_dma_enqueue(hDma, (void *)(seq_rx++), (dma_addr_t)buff_addr, len);
+	return sw_dma_enqueue(hDma, NULL, (dma_addr_t)buff_addr, len);
 }
 
-__s32 emactx_DMAEqueueBuf(int hDma,  void *buff_addr, __u32 len)
-{
-	static int seq_tx;
-	eLIBs_CleanFlushDCacheRegion(buff_addr, len);
-
-	emactx_dma_completed_flag = 0;
-	return sw_dma_enqueue(hDma, (void *)(seq_tx++), (dma_addr_t)buff_addr, len);
-}
-
-int wemac_dma_config_start(__u8 rw, void *buff_addr, __u32 len)
+int emacrx_dma_config_start(void *buff_addr, __u32 len)
 {
 	int ret;
-	if (rw == 0) {
-		struct dma_hw_conf emac_hwconf = {
-			.xfer_type = DMAXFER_D_SWORD_S_SWORD,
-			.hf_irq = SW_DMA_IRQ_FULL,
-			.cmbk = 0x03030303,
-			.dir = SW_DMA_RDEV,
-			.from = 0x01C0B04C,
-			.address_type = DMAADDRT_D_LN_S_IO,
-			.drqsrc_type = DRQ_TYPE_EMAC
-		};
+	struct dma_hw_conf emac_hwconf = {
+		.xfer_type = DMAXFER_D_SWORD_S_SWORD,
+		.hf_irq = SW_DMA_IRQ_FULL,
+		.cmbk = 0x03030303,
+		.dir = SW_DMA_RDEV,
+		.from = 0x01C0B04C,
+		.address_type = DMAADDRT_D_LN_S_IO,
+		.drqsrc_type = DRQ_TYPE_EMAC
+	};
 
-		ret = sw_dma_setflags(ch_rx, SW_DMAF_AUTOSTART);
-		if (ret != 0)
-			return ret;
-		ret = sw_dma_config(ch_rx, &emac_hwconf);
-		if (ret != 0)
-			return ret;
-		ret = emacrx_DMAEqueueBuf(ch_rx, buff_addr, len);
-		if (ret != 0)
-			return ret;
-		ret = sw_dma_ctrl(ch_rx, SW_DMAOP_START);
-	} else {
-		struct dma_hw_conf emac_hwconf = {
-			.xfer_type = DMAXFER_D_SWORD_S_SWORD,
-			.hf_irq = SW_DMA_IRQ_FULL,
-			.cmbk = 0x03030303,
-			.dir = SW_DMA_WDEV,
-			.to = 0x01C0B024,
-			.address_type = DMAADDRT_D_IO_S_LN,
-			.drqdst_type = DRQ_TYPE_EMAC
-		};
-
-		ret = sw_dma_setflags(ch_tx, SW_DMAF_AUTOSTART);
-		if (ret != 0)
-			return ret;
-		ret = sw_dma_config(ch_tx, &emac_hwconf);
-		if (ret != 0)
-			return ret;
-		ret = emactx_DMAEqueueBuf(ch_tx, buff_addr, len);
-		if (ret != 0)
-			return ret;
-		ret = sw_dma_ctrl(ch_tx, SW_DMAOP_START);
-	}
-	return 0;
-}
-
-__s32 emacrx_WaitDmaFinish(void)
-{
-	unsigned long flags;
-
-	while (1) {
-		local_irq_save(flags);
-		if (emacrx_dma_completed_flag) {
-			local_irq_restore(flags);
-			break;
-		}
-		local_irq_restore(flags);
-	}
-
-	return 0;
-}
-
-__s32 emactx_WaitDmaFinish(void)
-{
-	while (1) {
-		poll_dma_pending(ch_tx);
-		if (emactx_dma_completed_flag)
-			break;
-	}
+	ret = sw_dma_setflags(ch_rx, SW_DMAF_AUTOSTART);
+	if (ret != 0)
+		return ret;
+	ret = sw_dma_config(ch_rx, &emac_hwconf);
+	if (ret != 0)
+		return ret;
+	ret = emacrx_DMAEqueueBuf(ch_rx, buff_addr, len);
+	if (ret != 0)
+		return ret;
+	ret = sw_dma_ctrl(ch_rx, SW_DMAOP_START);
+	if (ret != 0)
+		return ret;
 
 	return 0;
 }
@@ -333,18 +232,10 @@ wemac_reset(wemac_board_info_t *db)
 	udelay(200);
 }
 
-#if 0
-static void wemac_outblk_dma(void __iomem *reg, void *data, int count)
-{
-	wemac_dma_config_start(1, data, count);
-	emactx_WaitDmaFinish();
-}
-#else
 static int wemac_inblk_dma(void __iomem *reg, void *data, int count)
 {
-	return wemac_dma_config_start(0, data, count);
+	return emacrx_dma_config_start(data, count);
 }
-#endif
 
 static void wemac_outblk_32bit(void __iomem *reg, void *data, int count)
 {
@@ -1761,19 +1652,7 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 		printk(KERN_ERR "error when request dma for emac rx\n");
 		return ch_rx;
 	}
-
-	sw_dma_set_opfn(ch_rx, emacrx_dma_opfn);
 	sw_dma_set_buffdone_fn(ch_rx, emacrx_dma_buffdone);
-
-	ch_tx = sw_dma_request(DMACH_DEMACT, &emactx_dma_client, ndev);
-	if (ch_tx < 0) {
-		printk(KERN_ERR "error when request dma for emac tx\n");
-		sw_dma_free(DMACH_DEMACR, &emacrx_dma_client);
-		return ch_tx;
-	}
-
-	sw_dma_set_opfn(ch_tx, emactx_dma_opfn);
-	sw_dma_set_buffdone_fn(ch_tx, emactx_dma_buffdone);
 
 	db->debug_level = 0;
 	db->dev = &pdev->dev;
