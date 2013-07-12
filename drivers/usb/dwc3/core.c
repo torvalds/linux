@@ -389,23 +389,15 @@ static int dwc3_probe(struct platform_device *pdev)
 	dwc->xhci_resources[0].flags = res->flags;
 	dwc->xhci_resources[0].name = res->name;
 
+	res->start += DWC3_GLOBALS_REGS_START;
+
 	 /*
 	  * Request memory region but exclude xHCI regs,
 	  * since it will be requested by the xhci-plat driver.
 	  */
-	res = devm_request_mem_region(dev, res->start + DWC3_GLOBALS_REGS_START,
-			resource_size(res) - DWC3_GLOBALS_REGS_START,
-			dev_name(dev));
-	if (!res) {
-		dev_err(dev, "can't request mem region\n");
-		return -ENOMEM;
-	}
-
-	regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (!regs) {
-		dev_err(dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	if (node) {
 		dwc->maximum_speed = of_usb_get_maximum_speed(node);
