@@ -82,7 +82,9 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX6QDL_PAD_GPIO_0__CCM_CLKO1 0x130b0
+				MX6QDL_PAD_GPIO_0__CCM_CLKO1 	0x130b0
+				MX6QDL_PAD_GPIO_2__GPIO1_IO02	0x80000000
+				MX6QDL_PAD_EIM_DA9__GPIO3_IO09	0x80000000
 			>;
 		};
 	};
@@ -110,8 +112,23 @@
 	status = "okay";
 };
 
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1_2>;
+	cd-gpios = <&gpio1 2 0>;
+	status = "okay";
+};
+
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2_2>;
+	non-removable;
+	status = "okay";
+};
+
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3_2>;
+	cd-gpios = <&gpio3 9 0>;
 	status = "okay";
 };
