@@ -1305,6 +1305,7 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
 	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
+	POSTING_READ(DEIER);
 
 	/* Disable south interrupts. We'll only write to SDEIIR once, so further
 	 * interrupts will will be stored on its back queue, and then we'll be
