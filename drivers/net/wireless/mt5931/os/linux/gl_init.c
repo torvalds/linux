@@ -1980,6 +1980,15 @@ wlanInit(
     return 0; /* success */
 } /* end of wlanInit() */
 
+void mtk_init_delayed_work(struct delayed_work *work, void *func) 
+{
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 12)
+    INIT_DELAYED_WORK(work, func);
+#else
+    INIT_DELAYED_WORK(work, func, NULL);
+#endif
+}
+EXPORT_SYMBOL(mtk_init_delayed_work);
 
 /*----------------------------------------------------------------------------*/
 /*!
