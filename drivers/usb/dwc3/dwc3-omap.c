@@ -389,11 +389,9 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	base = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (!base) {
-		dev_err(dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	spin_lock_init(&omap->lock);
 
