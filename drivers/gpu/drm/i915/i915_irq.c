@@ -2100,6 +2100,23 @@ static void ibx_irq_preinstall(struct drm_device *dev)
 	POSTING_READ(SDEIER);
 }
 
+static void gen5_gt_irq_preinstall(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* and GT */
+	I915_WRITE(GTIMR, 0xffffffff);
+	I915_WRITE(GTIER, 0x0);
+	POSTING_READ(GTIER);
+
+	if (INTEL_INFO(dev)->gen >= 6) {
+		/* and PM */
+		I915_WRITE(GEN6_PMIMR, 0xffffffff);
+		I915_WRITE(GEN6_PMIER, 0x0);
+		POSTING_READ(GEN6_PMIER);
+	}
+}
+
 /* drm_dma.h hooks
 */
 static void ironlake_irq_preinstall(struct drm_device *dev)
@@ -2110,16 +2127,11 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xeffe);
 
-	/* XXX hotplug from PCH */
-
 	I915_WRITE(DEIMR, 0xffffffff);
 	I915_WRITE(DEIER, 0x0);
 	POSTING_READ(DEIER);
 
-	/* and GT */
-	I915_WRITE(GTIMR, 0xffffffff);
-	I915_WRITE(GTIER, 0x0);
-	POSTING_READ(GTIER);
+	gen5_gt_irq_preinstall(dev);
 
 	ibx_irq_preinstall(dev);
 }
@@ -2138,15 +2150,7 @@ static void ivybridge_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(DEIER, 0x0);
 	POSTING_READ(DEIER);
 
-	/* and GT */
-	I915_WRITE(GTIMR, 0xffffffff);
-	I915_WRITE(GTIER, 0x0);
-	POSTING_READ(GTIER);
-
-	/* Power management */
-	I915_WRITE(GEN6_PMIMR, 0xffffffff);
-	I915_WRITE(GEN6_PMIER, 0x0);
-	POSTING_READ(GEN6_PMIER);
+	gen5_gt_irq_preinstall(dev);
 
 	ibx_irq_preinstall(dev);
 }
@@ -2167,9 +2171,8 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	/* and GT */
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
-	I915_WRITE(GTIMR, 0xffffffff);
-	I915_WRITE(GTIER, 0x0);
-	POSTING_READ(GTIER);
+
+	gen5_gt_irq_preinstall(dev);
 
 	I915_WRITE(DPINVGTT, 0xff);
 
