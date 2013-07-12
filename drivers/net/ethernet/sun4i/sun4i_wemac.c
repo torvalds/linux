@@ -1434,20 +1434,12 @@ static void wemac_poll_controller(struct net_device *dev)
 static int wemac_open(struct net_device *dev)
 {
 	wemac_board_info_t *db = netdev_priv(dev);
-	unsigned long irqflags = db->irq_res->flags & IRQF_TRIGGER_MASK;
 
 	if (netif_msg_ifup(db))
 		dev_dbg(db->dev, "enabling %s\n", dev->name);
 
-	/* If there is no IRQ type specified, default to something that
-	 * may work, and tell the user that this is a problem */
-
-	if (irqflags == IRQF_TRIGGER_NONE)
-		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
-
-	irqflags |= IRQF_SHARED;
-
-	if (request_irq(dev->irq, &wemac_interrupt, irqflags, dev->name, dev))
+	if (request_irq(dev->irq, &wemac_interrupt, IRQF_SHARED,
+			dev->name, dev))
 		return -EAGAIN;
 
 	/* Initialize WEMAC board */
@@ -1611,7 +1603,6 @@ static const struct net_device_ops wemac_netdev_ops = {
  */
 static int __devinit wemac_probe(struct platform_device *pdev)
 {
-	struct wemac_plat_data *pdata = pdev->dev.platform_data;
 	struct wemac_board_info *db;	/* Point a board information structure */
 	struct net_device *ndev;
 	int ret = 0;
@@ -1740,26 +1731,6 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	db->dumpblk = wemac_dumpblk_32bit;
 	db->outblk  = wemac_outblk_32bit;
 	db->inblk   = wemac_inblk_32bit;
-
-	/* check to see if anything is being over-ridden */
-	if (pdata != NULL) {
-		/* check to see if the driver wants to over-ride the
-		 * default IO width */
-
-		/* check to see if there are any IO routine
-		 * over-rides */
-
-		if (pdata->inblk != NULL)
-			db->inblk = pdata->inblk;
-
-		if (pdata->outblk != NULL)
-			db->outblk = pdata->outblk;
-
-		if (pdata->dumpblk != NULL)
-			db->dumpblk = pdata->dumpblk;
-
-		db->flags = pdata->flags;
-	}
 
 	emac_sys_setup(db);
 	wemac_powerup(ndev);
@@ -1907,18 +1878,11 @@ static struct resource wemac_resources[] = {
 	}
 };
 
-static struct wemac_plat_data wemac_platdata = {
-};
-
 static struct platform_device wemac_device = {
 	.name		= "wemac",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(wemac_resources),
 	.resource	= wemac_resources,
-	.dev		= {
-		.platform_data = &wemac_platdata,
-	}
-
 };
 
 static struct platform_driver wemac_driver = {
