@@ -2211,21 +2211,33 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	unsigned long irqflags;
-
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	/* enable kind of interrupts always enabled */
-	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
-			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
-			   DE_AUX_CHANNEL_A | DE_PIPEB_FIFO_UNDERRUN |
-			   DE_PIPEA_FIFO_UNDERRUN | DE_POISON;
+	u32 display_mask, extra_mask;
+
+	if (INTEL_INFO(dev)->gen >= 7) {
+		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE_IVB |
+				DE_PCH_EVENT_IVB | DE_PLANEC_FLIP_DONE_IVB |
+				DE_PLANEB_FLIP_DONE_IVB |
+				DE_PLANEA_FLIP_DONE_IVB | DE_AUX_CHANNEL_A_IVB |
+				DE_ERR_INT_IVB);
+		extra_mask = (DE_PIPEC_VBLANK_IVB | DE_PIPEB_VBLANK_IVB |
+			      DE_PIPEA_VBLANK_IVB);
+
+		I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
+	} else {
+		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
+				DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
+				DE_AUX_CHANNEL_A | DE_PIPEB_FIFO_UNDERRUN |
+				DE_PIPEA_FIFO_UNDERRUN | DE_POISON);
+		extra_mask = DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT;
+	}
 
 	dev_priv->irq_mask = ~display_mask;
 
 	/* should always can generate irq */
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
 	I915_WRITE(DEIMR, dev_priv->irq_mask);
-	I915_WRITE(DEIER, display_mask |
-			  DE_PIPEA_VBLANK | DE_PIPEB_VBLANK | DE_PCU_EVENT);
+	I915_WRITE(DEIER, display_mask | extra_mask);
 	POSTING_READ(DEIER);
 
 	gen5_gt_irq_postinstall(dev);
@@ -2242,38 +2254,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 		ironlake_enable_display_irq(dev_priv, DE_PCU_EVENT);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
-
-	return 0;
-}
-
-static int ivybridge_irq_postinstall(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	/* enable kind of interrupts always enabled */
-	u32 display_mask =
-		DE_MASTER_IRQ_CONTROL | DE_GSE_IVB | DE_PCH_EVENT_IVB |
-		DE_PLANEC_FLIP_DONE_IVB |
-		DE_PLANEB_FLIP_DONE_IVB |
-		DE_PLANEA_FLIP_DONE_IVB |
-		DE_AUX_CHANNEL_A_IVB |
-		DE_ERR_INT_IVB;
-
-	dev_priv->irq_mask = ~display_mask;
-
-	/* should always can generate irq */
-	I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
-	I915_WRITE(DEIIR, I915_READ(DEIIR));
-	I915_WRITE(DEIMR, dev_priv->irq_mask);
-	I915_WRITE(DEIER,
-		   display_mask |
-		   DE_PIPEC_VBLANK_IVB |
-		   DE_PIPEB_VBLANK_IVB |
-		   DE_PIPEA_VBLANK_IVB);
-	POSTING_READ(DEIER);
-
-	gen5_gt_irq_postinstall(dev);
-
-	ibx_irq_postinstall(dev);
 
 	return 0;
 }
@@ -3086,15 +3066,6 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->enable_vblank = valleyview_enable_vblank;
 		dev->driver->disable_vblank = valleyview_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
-	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
-		/* Share uninstall handlers with ILK/SNB */
-		dev->driver->irq_handler = ironlake_irq_handler;
-		dev->driver->irq_preinstall = ironlake_irq_preinstall;
-		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
-		dev->driver->irq_uninstall = ironlake_irq_uninstall;
-		dev->driver->enable_vblank = ironlake_enable_vblank;
-		dev->driver->disable_vblank = ironlake_disable_vblank;
-		dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev->driver->irq_handler = ironlake_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_preinstall;
