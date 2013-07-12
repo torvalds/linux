@@ -185,6 +185,7 @@
 
 #define TWL6040_GPO_MAX	3
 
+/* TODO: All platform data struct can be removed */
 struct twl6040_codec_data {
 	u16 hs_left_step;
 	u16 hs_right_step;
