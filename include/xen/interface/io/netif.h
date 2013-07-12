@@ -38,6 +38,18 @@
  * that it cannot safely queue packets (as it may not be kicked to send them).
  */
 
+ /*
+ * "feature-split-event-channels" is introduced to separate guest TX
+ * and RX notificaion. Backend either doesn't support this feature or
+ * advertise it via xenstore as 0 (disabled) or 1 (enabled).
+ *
+ * To make use of this feature, frontend should allocate two event
+ * channels for TX and RX, advertise them to backend as
+ * "event-channel-tx" and "event-channel-rx" respectively. If frontend
+ * doesn't want to use this feature, it just writes "event-channel"
+ * node as before.
+ */
+
 /*
  * This is the 'wire' format for packets:
  *  Request 1: xen_netif_tx_request  -- XEN_NETTXF_* (any flags)

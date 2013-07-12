@@ -594,7 +594,6 @@ fail_chg_irq:
 fail_register_usb:
 	power_supply_unregister(&bci->ac);
 fail_register_ac:
-	platform_set_drvdata(pdev, NULL);
 	kfree(bci);
 
 	return ret;
@@ -622,7 +621,6 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 	free_irq(bci->irq_chg, bci);
 	power_supply_unregister(&bci->usb);
 	power_supply_unregister(&bci->ac);
-	platform_set_drvdata(pdev, NULL);
 	kfree(bci);
 
 	return 0;

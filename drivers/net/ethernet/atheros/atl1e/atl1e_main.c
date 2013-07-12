@@ -2489,27 +2489,4 @@ static struct pci_driver atl1e_driver = {
 	.err_handler = &atl1e_err_handler
 };
 
-/**
- * atl1e_init_module - Driver Registration Routine
- *
- * atl1e_init_module is the first routine called when the driver is
- * loaded. All it does is register with the PCI subsystem.
- */
-static int __init atl1e_init_module(void)
-{
-	return pci_register_driver(&atl1e_driver);
-}
-
-/**
- * atl1e_exit_module - Driver Exit Cleanup Routine
- *
- * atl1e_exit_module is called just before the driver is removed
- * from memory.
- */
-static void __exit atl1e_exit_module(void)
-{
-	pci_unregister_driver(&atl1e_driver);
-}
-
-module_init(atl1e_init_module);
-module_exit(atl1e_exit_module);
+module_pci_driver(atl1e_driver);

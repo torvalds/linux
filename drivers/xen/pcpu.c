@@ -31,6 +31,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) "xen_cpu: " fmt
+
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
@@ -44,7 +46,6 @@
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
-#define XEN_PCPU "xen_cpu: "
 
 /*
  * @cpu_id: Xen physical cpu logic number
@@ -242,8 +243,7 @@ static struct pcpu *create_and_register_pcpu(struct xenpf_pcpuinfo *info)
 
 	err = register_pcpu(pcpu);
 	if (err) {
-		pr_warning(XEN_PCPU "Failed to register pcpu%u\n",
-			   info->xen_cpuid);
+		pr_warn("Failed to register pcpu%u\n", info->xen_cpuid);
 		return ERR_PTR(-ENOENT);
 	}
 
@@ -378,19 +378,19 @@ static int __init xen_pcpu_init(void)
 				      xen_pcpu_interrupt, 0,
 				      "xen-pcpu", NULL);
 	if (irq < 0) {
-		pr_warning(XEN_PCPU "Failed to bind pcpu virq\n");
+		pr_warn("Failed to bind pcpu virq\n");
 		return irq;
 	}
 
 	ret = subsys_system_register(&xen_pcpu_subsys, NULL);
 	if (ret) {
-		pr_warning(XEN_PCPU "Failed to register pcpu subsys\n");
+		pr_warn("Failed to register pcpu subsys\n");
 		goto err1;
 	}
 
 	ret = xen_sync_pcpus();
 	if (ret) {
-		pr_warning(XEN_PCPU "Failed to sync pcpu info\n");
+		pr_warn("Failed to sync pcpu info\n");
 		goto err2;
 	}
 

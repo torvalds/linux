@@ -52,6 +52,7 @@ struct regmap_async {
 struct regmap {
 	struct mutex mutex;
 	spinlock_t spinlock;
+	unsigned long spinlock_flags;
 	regmap_lock lock;
 	regmap_unlock unlock;
 	void *lock_arg; /* This is passed to lock/unlock functions */
@@ -148,6 +149,7 @@ struct regcache_ops {
 	int (*read)(struct regmap *map, unsigned int reg, unsigned int *value);
 	int (*write)(struct regmap *map, unsigned int reg, unsigned int value);
 	int (*sync)(struct regmap *map, unsigned int min, unsigned int max);
+	int (*drop)(struct regmap *map, unsigned int min, unsigned int max);
 };
 
 bool regmap_writeable(struct regmap *map, unsigned int reg);
@@ -172,6 +174,14 @@ struct regmap_range_node {
 
 	unsigned int window_start;
 	unsigned int window_len;
+};
+
+struct regmap_field {
+	struct regmap *regmap;
+	unsigned int mask;
+	/* lsb */
+	unsigned int shift;
+	unsigned int reg;
 };
 
 #ifdef CONFIG_DEBUG_FS

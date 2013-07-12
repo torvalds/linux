@@ -773,14 +773,12 @@ static void pcie_shutdown_notification(struct controller *ctrl)
 static int pcie_init_slot(struct controller *ctrl)
 {
 	struct slot *slot;
-	char name[32];
 
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
 		return -ENOMEM;
 
-	snprintf(name, sizeof(name), "pciehp-%u", PSN(ctrl));
-	slot->wq = alloc_workqueue(name, 0, 0);
+	slot->wq = alloc_workqueue("pciehp-%u", 0, 0, PSN(ctrl));
 	if (!slot->wq)
 		goto abort;
 

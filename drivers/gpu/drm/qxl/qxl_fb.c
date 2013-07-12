@@ -520,10 +520,6 @@ static int qxl_fbdev_destroy(struct drm_device *dev, struct qxl_fbdev *qfbdev)
 }
 
 static struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
-	/* TODO
-	.gamma_set = qxl_crtc_fb_gamma_set,
-	.gamma_get = qxl_crtc_fb_gamma_get,
-	*/
 	.fb_probe = qxl_fb_find_or_create_single,
 };
 
@@ -542,7 +538,7 @@ int qxl_fbdev_init(struct qxl_device *qdev)
 	qfbdev->helper.funcs = &qxl_fb_helper_funcs;
 
 	ret = drm_fb_helper_init(qdev->ddev, &qfbdev->helper,
-				 1 /* num_crtc - QXL supports just 1 */,
+				 qxl_num_crtc /* num_crtc - QXL supports just 1 */,
 				 QXLFB_CONN_LIMIT);
 	if (ret) {
 		kfree(qfbdev);
@@ -564,4 +560,14 @@ void qxl_fbdev_fini(struct qxl_device *qdev)
 	qdev->mode_info.qfbdev = NULL;
 }
 
+void qxl_fbdev_set_suspend(struct qxl_device *qdev, int state)
+{
+	fb_set_suspend(qdev->mode_info.qfbdev->helper.fbdev, state);
+}
 
+bool qxl_fbdev_qobj_is_fb(struct qxl_device *qdev, struct qxl_bo *qobj)
+{
+	if (qobj == gem_to_qxl_bo(qdev->mode_info.qfbdev->qfb.obj))
+		return true;
+	return false;
+}

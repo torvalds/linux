@@ -76,7 +76,10 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	evergreen.o evergreen_cs.o evergreen_blit_shaders.o evergreen_blit_kms.o \
 	evergreen_hdmi.o radeon_trace_points.o ni.o cayman_blit_shaders.o \
 	atombios_encoders.o radeon_semaphore.o radeon_sa.o atombios_i2c.o si.o \
-	si_blit_shaders.o radeon_prime.o radeon_uvd.o
+	si_blit_shaders.o radeon_prime.o radeon_uvd.o cik.o cik_blit_shaders.o \
+	r600_dpm.o rs780_dpm.o rv6xx_dpm.o rv770_dpm.o rv730_dpm.o rv740_dpm.o \
+	rv770_smc.o cypress_dpm.o btc_dpm.o sumo_dpm.o sumo_smc.o trinity_dpm.o \
+	trinity_smc.o ni_dpm.o si_smc.o si_dpm.o
 
 radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o

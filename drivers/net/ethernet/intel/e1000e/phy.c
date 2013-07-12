@@ -1583,13 +1583,13 @@ s32 e1000e_check_downshift(struct e1000_hw *hw)
 	case e1000_phy_gg82563:
 	case e1000_phy_bm:
 	case e1000_phy_82578:
-		offset	= M88E1000_PHY_SPEC_STATUS;
-		mask	= M88E1000_PSSR_DOWNSHIFT;
+		offset = M88E1000_PHY_SPEC_STATUS;
+		mask = M88E1000_PSSR_DOWNSHIFT;
 		break;
 	case e1000_phy_igp_2:
 	case e1000_phy_igp_3:
-		offset	= IGP01E1000_PHY_LINK_HEALTH;
-		mask	= IGP01E1000_PLHR_SS_DOWNGRADE;
+		offset = IGP01E1000_PHY_LINK_HEALTH;
+		mask = IGP01E1000_PLHR_SS_DOWNGRADE;
 		break;
 	default:
 		/* speed downshift not supported */
@@ -1653,14 +1653,14 @@ s32 e1000_check_polarity_igp(struct e1000_hw *hw)
 
 	if ((data & IGP01E1000_PSSR_SPEED_MASK) ==
 	    IGP01E1000_PSSR_SPEED_1000MBPS) {
-		offset	= IGP01E1000_PHY_PCS_INIT_REG;
-		mask	= IGP01E1000_PHY_POLARITY_MASK;
+		offset = IGP01E1000_PHY_PCS_INIT_REG;
+		mask = IGP01E1000_PHY_POLARITY_MASK;
 	} else {
 		/* This really only applies to 10Mbps since
 		 * there is no polarity for 100Mbps (always 0).
 		 */
-		offset	= IGP01E1000_PHY_PORT_STATUS;
-		mask	= IGP01E1000_PSSR_POLARITY_REVERSED;
+		offset = IGP01E1000_PHY_PORT_STATUS;
+		mask = IGP01E1000_PSSR_POLARITY_REVERSED;
 	}
 
 	ret_val = e1e_rphy(hw, offset, &data);
@@ -1900,7 +1900,7 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 s32 e1000e_get_phy_info_m88(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32  ret_val;
+	s32 ret_val;
 	u16 phy_data;
 	bool link;
 
@@ -2253,7 +2253,7 @@ enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id)
 	case M88E1011_I_PHY_ID:
 		phy_type = e1000_phy_m88;
 		break;
-	case IGP01E1000_I_PHY_ID: /* IGP 1 & 2 share this */
+	case IGP01E1000_I_PHY_ID:	/* IGP 1 & 2 share this */
 		phy_type = e1000_phy_igp_2;
 		break;
 	case GG82563_E_PHY_ID:
@@ -2317,7 +2317,7 @@ s32 e1000e_determine_phy_address(struct e1000_hw *hw)
 			/* If phy_type is valid, break - we found our
 			 * PHY address
 			 */
-			if (phy_type  != e1000_phy_unknown)
+			if (phy_type != e1000_phy_unknown)
 				return 0;
 
 			usleep_range(1000, 2000);

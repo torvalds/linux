@@ -42,6 +42,7 @@ struct ip_tunnel {
 	struct ip_tunnel __rcu	*next;
 	struct hlist_node hash_node;
 	struct net_device	*dev;
+	struct net		*net;	/* netns for packet i/o */
 
 	int		err_count;	/* Number of arrived ICMP errors */
 	unsigned long	err_time;	/* Time when the last ICMP error
@@ -73,6 +74,7 @@ struct ip_tunnel {
 #define TUNNEL_REC	__cpu_to_be16(0x20)
 #define TUNNEL_VERSION	__cpu_to_be16(0x40)
 #define TUNNEL_NO_KEY	__cpu_to_be16(0x80)
+#define TUNNEL_DONT_FRAGMENT    __cpu_to_be16(0x0100)
 
 struct tnl_ptk_info {
 	__be16 flags;
@@ -92,6 +94,8 @@ struct ip_tunnel_net {
 	struct net_device *fb_tunnel_dev;
 };
 
+#ifdef CONFIG_INET
+
 int ip_tunnel_init(struct net_device *dev);
 void ip_tunnel_uninit(struct net_device *dev);
 void  ip_tunnel_dellink(struct net_device *dev, struct list_head *head);
@@ -101,7 +105,7 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 void ip_tunnel_delete_net(struct ip_tunnel_net *itn);
 
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
-		    const struct iphdr *tnl_params);
+		    const struct iphdr *tnl_params, const u8 protocol);
 int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd);
 int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu);
 
@@ -155,23 +159,31 @@ static inline void tunnel_ip_select_ident(struct sk_buff *skb,
 				  (skb_shinfo(skb)->gso_segs ?: 1) - 1);
 }
 
-static inline void iptunnel_xmit(struct sk_buff *skb, struct net_device *dev)
+int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
+int iptunnel_xmit(struct net *net, struct rtable *rt,
+		  struct sk_buff *skb,
+		  __be32 src, __be32 dst, __u8 proto,
+		  __u8 tos, __u8 ttl, __be16 df);
+
+static inline void iptunnel_xmit_stats(int err,
+				       struct net_device_stats *err_stats,
+				       struct pcpu_tstats __percpu *stats)
 {
-	int err;
-	int pkt_len = skb->len - skb_transport_offset(skb);
-	struct pcpu_tstats *tstats = this_cpu_ptr(dev->tstats);
+	if (err > 0) {
+		struct pcpu_tstats *tstats = this_cpu_ptr(stats);
 
-	nf_reset(skb);
-
-	err = ip_local_out(skb);
-	if (likely(net_xmit_eval(err) == 0)) {
 		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += pkt_len;
+		tstats->tx_bytes += err;
 		tstats->tx_packets++;
 		u64_stats_update_end(&tstats->syncp);
+	} else if (err < 0) {
+		err_stats->tx_errors++;
+		err_stats->tx_aborted_errors++;
 	} else {
-		dev->stats.tx_errors++;
-		dev->stats.tx_aborted_errors++;
+		err_stats->tx_dropped++;
 	}
 }
+
+#endif /* CONFIG_INET */
+
 #endif /* __NET_IP_TUNNELS_H */

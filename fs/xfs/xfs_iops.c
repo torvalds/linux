@@ -987,7 +987,8 @@ xfs_fiemap_format(
 	if (bmv->bmv_oflags & BMV_OF_PREALLOC)
 		fiemap_flags |= FIEMAP_EXTENT_UNWRITTEN;
 	else if (bmv->bmv_oflags & BMV_OF_DELALLOC) {
-		fiemap_flags |= FIEMAP_EXTENT_DELALLOC;
+		fiemap_flags |= (FIEMAP_EXTENT_DELALLOC |
+				 FIEMAP_EXTENT_UNKNOWN);
 		physical = 0;   /* no block yet */
 	}
 	if (bmv->bmv_oflags & BMV_OF_LAST)

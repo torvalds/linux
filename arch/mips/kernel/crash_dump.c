@@ -4,16 +4,6 @@
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 
-static int __init parse_savemaxmem(char *p)
-{
-	if (p)
-		saved_max_pfn = (memparse(p, &p) >> PAGE_SHIFT) - 1;
-
-	return 1;
-}
-__setup("savemaxmem=", parse_savemaxmem);
-
-
 static void *kdump_buf_page;
 
 /**

@@ -39,6 +39,14 @@
 #define TTB_FLAGS_SMP	(TTB_IRGN_WBWA|TTB_S|TTB_RGN_OC_WBWA)
 #define PMD_FLAGS_SMP	(PMD_SECT_WBWA|PMD_SECT_S)
 
+#ifndef __ARMEB__
+#  define rpgdl	r0
+#  define rpgdh	r1
+#else
+#  define rpgdl	r1
+#  define rpgdh	r0
+#endif
+
 /*
  * cpu_v7_switch_mm(pgd_phys, tsk)
  *
@@ -47,10 +55,10 @@
  */
 ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
-	mmid	r1, r1				@ get mm->context.id
-	asid	r3, r1
-	mov	r3, r3, lsl #(48 - 32)		@ ASID
-	mcrr	p15, 0, r0, r3, c2		@ set TTB 0
+	mmid	r2, r2
+	asid	r2, r2
+	orr	rpgdh, rpgdh, r2, lsl #(48 - 32)	@ upper 32-bits of pgd
+	mcrr	p15, 0, rpgdl, rpgdh, c2		@ set TTB 0
 	isb
 #endif
 	mov	pc, lr
@@ -106,7 +114,8 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 */
 	.macro	v7_ttb_setup, zero, ttbr0, ttbr1, tmp
 	ldr	\tmp, =swapper_pg_dir		@ swapper_pg_dir virtual address
-	cmp	\ttbr1, \tmp			@ PHYS_OFFSET > PAGE_OFFSET? (branch below)
+	mov	\tmp, \tmp, lsr #ARCH_PGD_SHIFT
+	cmp	\ttbr1, \tmp			@ PHYS_OFFSET > PAGE_OFFSET?
 	mrc	p15, 0, \tmp, c2, c0, 2		@ TTB control register
 	orr	\tmp, \tmp, #TTB_EAE
 	ALT_SMP(orr	\tmp, \tmp, #TTB_FLAGS_SMP)
@@ -114,27 +123,21 @@ ENDPROC(cpu_v7_set_pte_ext)
 	ALT_SMP(orr	\tmp, \tmp, #TTB_FLAGS_SMP << 16)
 	ALT_UP(orr	\tmp, \tmp, #TTB_FLAGS_UP << 16)
 	/*
-	 * TTBR0/TTBR1 split (PAGE_OFFSET):
-	 *   0x40000000: T0SZ = 2, T1SZ = 0 (not used)
-	 *   0x80000000: T0SZ = 0, T1SZ = 1
-	 *   0xc0000000: T0SZ = 0, T1SZ = 2
-	 *
-	 * Only use this feature if PHYS_OFFSET <= PAGE_OFFSET, otherwise
-	 * booting secondary CPUs would end up using TTBR1 for the identity
-	 * mapping set up in TTBR0.
+	 * Only use split TTBRs if PHYS_OFFSET <= PAGE_OFFSET (cmp above),
+	 * otherwise booting secondary CPUs would end up using TTBR1 for the
+	 * identity mapping set up in TTBR0.
 	 */
-	bhi	9001f				@ PHYS_OFFSET > PAGE_OFFSET?
-	orr	\tmp, \tmp, #(((PAGE_OFFSET >> 30) - 1) << 16) @ TTBCR.T1SZ
-#if defined CONFIG_VMSPLIT_2G
-	/* PAGE_OFFSET == 0x80000000, T1SZ == 1 */
-	add	\ttbr1, \ttbr1, #1 << 4		@ skip two L1 entries
-#elif defined CONFIG_VMSPLIT_3G
-	/* PAGE_OFFSET == 0xc0000000, T1SZ == 2 */
-	add	\ttbr1, \ttbr1, #4096 * (1 + 3)	@ only L2 used, skip pgd+3*pmd
-#endif
-	/* CONFIG_VMSPLIT_1G does not need TTBR1 adjustment */
-9001:	mcr	p15, 0, \tmp, c2, c0, 2		@ TTB control register
-	mcrr	p15, 1, \ttbr1, \zero, c2	@ load TTBR1
+	orrls	\tmp, \tmp, #TTBR1_SIZE				@ TTBCR.T1SZ
+	mcr	p15, 0, \tmp, c2, c0, 2				@ TTBCR
+	mov	\tmp, \ttbr1, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
+	mov	\ttbr1, \ttbr1, lsl #ARCH_PGD_SHIFT		@ lower bits
+	addls	\ttbr1, \ttbr1, #TTBR1_OFFSET
+	mcrr	p15, 1, \ttbr1, \zero, c2			@ load TTBR1
+	mov	\tmp, \ttbr0, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
+	mov	\ttbr0, \ttbr0, lsl #ARCH_PGD_SHIFT		@ lower bits
+	mcrr	p15, 0, \ttbr0, \zero, c2			@ load TTBR0
+	mcrr	p15, 1, \ttbr1, \zero, c2			@ load TTBR1
+	mcrr	p15, 0, \ttbr0, \zero, c2			@ load TTBR0
 	.endm
 
 	__CPUINIT

@@ -813,7 +813,7 @@ int ib_device_register_sysfs(struct ib_device *device,
 
 	class_dev->class      = &ib_class;
 	class_dev->parent     = device->dma_device;
-	dev_set_name(class_dev, device->name);
+	dev_set_name(class_dev, "%s", device->name);
 	dev_set_drvdata(class_dev, device);
 
 	INIT_LIST_HEAD(&device->port_list);

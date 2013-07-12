@@ -208,6 +208,14 @@ int arizona_irq_init(struct arizona *arizona)
 		ctrlif_error = false;
 		break;
 #endif
+#ifdef CONFIG_MFD_WM8997
+	case WM8997:
+		aod = &wm8997_aod;
+		irq = &wm8997_irq;
+
+		ctrlif_error = false;
+		break;
+#endif
 	default:
 		BUG_ON("Unknown Arizona class device" == NULL);
 		return -EINVAL;

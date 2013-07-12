@@ -551,20 +551,25 @@ static int pn544_hci_complete_target_discovered(struct nfc_hci_dev *hdev,
 			return -EPROTO;
 		}
 
-		r = nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
-				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
-				     uid_skb->data, uid_skb->len, NULL);
-		kfree_skb(uid_skb);
-
-		r = nfc_hci_send_cmd(hdev,
+		/* Type F NFC-DEP IDm has prefix 0x01FE */
+		if ((uid_skb->data[0] == 0x01) && (uid_skb->data[1] == 0xfe)) {
+			kfree_skb(uid_skb);
+			r = nfc_hci_send_cmd(hdev,
 					PN544_RF_READER_NFCIP1_INITIATOR_GATE,
 					PN544_HCI_CMD_CONTINUE_ACTIVATION,
 					NULL, 0, NULL);
-		if (r < 0)
-			return r;
+			if (r < 0)
+				return r;
 
-		target->hci_reader_gate = PN544_RF_READER_NFCIP1_INITIATOR_GATE;
-		target->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+			target->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+			target->hci_reader_gate =
+				PN544_RF_READER_NFCIP1_INITIATOR_GATE;
+		} else {
+			r = nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
+					     PN544_RF_READER_CMD_ACTIVATE_NEXT,
+					     uid_skb->data, uid_skb->len, NULL);
+			kfree_skb(uid_skb);
+		}
 	} else if (target->supported_protocols & NFC_PROTO_ISO14443_MASK) {
 		/*
 		 * TODO: maybe other ISO 14443 require some kind of continue
@@ -706,12 +711,9 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 		 return nfc_hci_send_cmd(hdev, NFC_HCI_RF_READER_A_GATE,
 				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
 				     target->nfcid1, target->nfcid1_len, NULL);
-	} else if (target->supported_protocols & NFC_PROTO_JEWEL_MASK) {
-		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
-					PN544_JEWEL_RAW_CMD, NULL, 0, NULL);
-	} else if (target->supported_protocols & NFC_PROTO_FELICA_MASK) {
-		return nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
-					PN544_FELICA_RAW, NULL, 0, NULL);
+	} else if (target->supported_protocols & (NFC_PROTO_JEWEL_MASK |
+						NFC_PROTO_FELICA_MASK)) {
+		return -EOPNOTSUPP;
 	} else if (target->supported_protocols & NFC_PROTO_NFC_DEP_MASK) {
 		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
 					PN544_HCI_CMD_ATTREQUEST,
@@ -801,7 +803,7 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    struct nfc_hci_dev **hdev)
 {
 	struct pn544_hci_info *info;
-	u32 protocols, se;
+	u32 protocols;
 	struct nfc_hci_init_data init_data;
 	int r;
 
@@ -834,10 +836,8 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    NFC_PROTO_ISO14443_B_MASK |
 		    NFC_PROTO_NFC_DEP_MASK;
 
-	se = NFC_SE_UICC | NFC_SE_EMBEDDED;
-
 	info->hdev = nfc_hci_allocate_device(&pn544_hci_ops, &init_data, 0,
-					     protocols, se, llc_name,
+					     protocols, llc_name,
 					     phy_headroom + PN544_CMDS_HEADROOM,
 					     phy_tailroom, phy_payload);
 	if (!info->hdev) {

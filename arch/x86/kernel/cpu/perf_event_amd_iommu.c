@@ -491,10 +491,8 @@ static struct perf_amd_iommu __perf_iommu = {
 static __init int amd_iommu_pc_init(void)
 {
 	/* Make sure the IOMMU PC resource is available */
-	if (!amd_iommu_pc_supported()) {
-		pr_err("perf: amd_iommu PMU not installed. No support!\n");
+	if (!amd_iommu_pc_supported())
 		return -ENODEV;
-	}
 
 	_init_perf_amd_iommu(&__perf_iommu, "amd_iommu");
 

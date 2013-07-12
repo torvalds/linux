@@ -965,6 +965,19 @@ TF_CIT_SETUP(tpg_attrib, &target_fabric_tpg_attrib_item_ops, NULL, NULL);
 
 /* End of tfc_tpg_attrib_cit */
 
+/* Start of tfc_tpg_auth_cit */
+
+CONFIGFS_EATTR_OPS(target_fabric_tpg_auth, se_portal_group, tpg_auth_group);
+
+static struct configfs_item_operations target_fabric_tpg_auth_item_ops = {
+	.show_attribute		= target_fabric_tpg_auth_attr_show,
+	.store_attribute	= target_fabric_tpg_auth_attr_store,
+};
+
+TF_CIT_SETUP(tpg_auth, &target_fabric_tpg_auth_item_ops, NULL, NULL);
+
+/* End of tfc_tpg_attrib_cit */
+
 /* Start of tfc_tpg_param_cit */
 
 CONFIGFS_EATTR_OPS(target_fabric_tpg_param, se_portal_group, tpg_param_group);
@@ -1030,8 +1043,9 @@ static struct config_group *target_fabric_make_tpg(
 	se_tpg->tpg_group.default_groups[1] = &se_tpg->tpg_np_group;
 	se_tpg->tpg_group.default_groups[2] = &se_tpg->tpg_acl_group;
 	se_tpg->tpg_group.default_groups[3] = &se_tpg->tpg_attrib_group;
-	se_tpg->tpg_group.default_groups[4] = &se_tpg->tpg_param_group;
-	se_tpg->tpg_group.default_groups[5] = NULL;
+	se_tpg->tpg_group.default_groups[4] = &se_tpg->tpg_auth_group;
+	se_tpg->tpg_group.default_groups[5] = &se_tpg->tpg_param_group;
+	se_tpg->tpg_group.default_groups[6] = NULL;
 
 	config_group_init_type_name(&se_tpg->tpg_group, name,
 			&TF_CIT_TMPL(tf)->tfc_tpg_base_cit);
@@ -1043,6 +1057,8 @@ static struct config_group *target_fabric_make_tpg(
 			&TF_CIT_TMPL(tf)->tfc_tpg_nacl_cit);
 	config_group_init_type_name(&se_tpg->tpg_attrib_group, "attrib",
 			&TF_CIT_TMPL(tf)->tfc_tpg_attrib_cit);
+	config_group_init_type_name(&se_tpg->tpg_auth_group, "auth",
+			&TF_CIT_TMPL(tf)->tfc_tpg_auth_cit);
 	config_group_init_type_name(&se_tpg->tpg_param_group, "param",
 			&TF_CIT_TMPL(tf)->tfc_tpg_param_cit);
 
@@ -1202,6 +1218,7 @@ int target_fabric_setup_cits(struct target_fabric_configfs *tf)
 	target_fabric_setup_tpg_np_cit(tf);
 	target_fabric_setup_tpg_np_base_cit(tf);
 	target_fabric_setup_tpg_attrib_cit(tf);
+	target_fabric_setup_tpg_auth_cit(tf);
 	target_fabric_setup_tpg_param_cit(tf);
 	target_fabric_setup_tpg_nacl_cit(tf);
 	target_fabric_setup_tpg_nacl_base_cit(tf);

@@ -169,7 +169,7 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 }
 
 /**
- * Must be called with BKL already held. Fills in the passed
+ * Must be called with lock_flocks() already held. Fills in the passed
  * counter variables, so you can prepare pagelist metadata before calling
  * ceph_encode_locks.
  */
@@ -192,7 +192,7 @@ void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
 
 /**
  * Encode the flock and fcntl locks for the given inode into the ceph_filelock
- * array. Must be called with lock_flocks() already held.
+ * array. Must be called with inode->i_lock already held.
  * If we encounter more of a specific lock type than expected, return -ENOSPC.
  */
 int ceph_encode_locks_to_buffer(struct inode *inode,

@@ -58,17 +58,24 @@ static void bdev_inode_switch_bdi(struct inode *inode,
 			struct backing_dev_info *dst)
 {
 	struct backing_dev_info *old = inode->i_data.backing_dev_info;
+	bool wakeup_bdi = false;
 
 	if (unlikely(dst == old))		/* deadlock avoidance */
 		return;
 	bdi_lock_two(&old->wb, &dst->wb);
 	spin_lock(&inode->i_lock);
 	inode->i_data.backing_dev_info = dst;
-	if (inode->i_state & I_DIRTY)
+	if (inode->i_state & I_DIRTY) {
+		if (bdi_cap_writeback_dirty(dst) && !wb_has_dirty_io(&dst->wb))
+			wakeup_bdi = true;
 		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
+	}
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&old->wb.list_lock);
 	spin_unlock(&dst->wb.list_lock);
+
+	if (wakeup_bdi)
+		bdi_wakeup_thread_delayed(dst);
 }
 
 /* Kill _all_ buffers and pagecache , dirty or not.. */
@@ -325,31 +332,10 @@ static int blkdev_write_end(struct file *file, struct address_space *mapping,
 static loff_t block_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *bd_inode = file->f_mapping->host;
-	loff_t size;
 	loff_t retval;
 
 	mutex_lock(&bd_inode->i_mutex);
-	size = i_size_read(bd_inode);
-
-	retval = -EINVAL;
-	switch (whence) {
-		case SEEK_END:
-			offset += size;
-			break;
-		case SEEK_CUR:
-			offset += file->f_pos;
-		case SEEK_SET:
-			break;
-		default:
-			goto out;
-	}
-	if (offset >= 0 && offset <= size) {
-		if (offset != file->f_pos) {
-			file->f_pos = offset;
-		}
-		retval = offset;
-	}
-out:
+	retval = fixed_size_llseek(file, offset, whence, i_size_read(bd_inode));
 	mutex_unlock(&bd_inode->i_mutex);
 	return retval;
 }
@@ -1583,6 +1569,7 @@ static const struct address_space_operations def_blk_aops = {
 	.writepages	= generic_writepages,
 	.releasepage	= blkdev_releasepage,
 	.direct_IO	= blkdev_direct_IO,
+	.is_dirty_writeback = buffer_check_dirty_writeback,
 };
 
 const struct file_operations def_blk_fops = {

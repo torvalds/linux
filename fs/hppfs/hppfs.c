@@ -69,7 +69,7 @@ static char *dentry_name(struct dentry *dentry, int extra)
 	struct dentry *parent;
 	char *root, *name;
 	const char *seg_name;
-	int len, seg_len;
+	int len, seg_len, root_len;
 
 	len = 0;
 	parent = dentry;
@@ -81,7 +81,8 @@ static char *dentry_name(struct dentry *dentry, int extra)
 	}
 
 	root = "proc";
-	len += strlen(root);
+	root_len = strlen(root);
+	len += root_len;
 	name = kmalloc(len + extra + 1, GFP_KERNEL);
 	if (name == NULL)
 		return NULL;
@@ -91,7 +92,7 @@ static char *dentry_name(struct dentry *dentry, int extra)
 	while (parent->d_parent != parent) {
 		if (is_pid(parent)) {
 			seg_name = "pid";
-			seg_len = strlen("pid");
+			seg_len = strlen(seg_name);
 		}
 		else {
 			seg_name = parent->d_name.name;
@@ -100,10 +101,10 @@ static char *dentry_name(struct dentry *dentry, int extra)
 
 		len -= seg_len + 1;
 		name[len] = '/';
-		strncpy(&name[len + 1], seg_name, seg_len);
+		memcpy(&name[len + 1], seg_name, seg_len);
 		parent = parent->d_parent;
 	}
-	strncpy(name, root, strlen(root));
+	memcpy(name, root, root_len);
 	return name;
 }
 

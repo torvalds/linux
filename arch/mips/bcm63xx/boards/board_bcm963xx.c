@@ -845,6 +845,10 @@ int __init board_register_devices(void)
 	    !bcm63xx_nvram_get_mac_address(board.enet1.mac_addr))
 		bcm63xx_enet_register(1, &board.enet1);
 
+	if (board.has_enetsw &&
+	    !bcm63xx_nvram_get_mac_address(board.enetsw.mac_addr))
+		bcm63xx_enetsw_register(&board.enetsw);
+
 	if (board.has_usbd)
 		bcm63xx_usbd_register(&board.usbd);
 

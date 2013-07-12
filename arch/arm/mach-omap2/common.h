@@ -31,6 +31,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/twl.h>
 #include <linux/i2c-omap.h>
+#include <linux/reboot.h>
 
 #include <asm/proc-fns.h>
 
@@ -119,33 +120,33 @@ static inline void omap_soc_device_init(void)
 #endif
 
 #if defined(CONFIG_SOC_OMAP2420) || defined(CONFIG_SOC_OMAP2430)
-void omap2xxx_restart(char mode, const char *cmd);
+void omap2xxx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap2xxx_restart(char mode, const char *cmd)
+static inline void omap2xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif
 
 #ifdef CONFIG_SOC_AM33XX
-void am33xx_restart(char mode, const char *cmd);
+void am33xx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void am33xx_restart(char mode, const char *cmd)
+static inline void am33xx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
-void omap3xxx_restart(char mode, const char *cmd);
+void omap3xxx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap3xxx_restart(char mode, const char *cmd)
+static inline void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif
 
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
-void omap44xx_restart(char mode, const char *cmd);
+void omap44xx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap44xx_restart(char mode, const char *cmd)
+static inline void omap44xx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif

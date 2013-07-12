@@ -2323,47 +2323,6 @@ static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_memcpy(
 }
 
 /**
- * ppc440spe_adma_prep_dma_memset - prepare CDB for a MEMSET operation
- */
-static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_memset(
-		struct dma_chan *chan, dma_addr_t dma_dest, int value,
-		size_t len, unsigned long flags)
-{
-	struct ppc440spe_adma_chan *ppc440spe_chan;
-	struct ppc440spe_adma_desc_slot *sw_desc, *group_start;
-	int slot_cnt, slots_per_op;
-
-	ppc440spe_chan = to_ppc440spe_adma_chan(chan);
-
-	if (unlikely(!len))
-		return NULL;
-
-	BUG_ON(len > PPC440SPE_ADMA_DMA_MAX_BYTE_COUNT);
-
-	spin_lock_bh(&ppc440spe_chan->lock);
-
-	dev_dbg(ppc440spe_chan->device->common.dev,
-		"ppc440spe adma%d: %s cal: %u len: %u int_en %d\n",
-		ppc440spe_chan->device->id, __func__, value, len,
-		flags & DMA_PREP_INTERRUPT ? 1 : 0);
-
-	slot_cnt = slots_per_op = 1;
-	sw_desc = ppc440spe_adma_alloc_slots(ppc440spe_chan, slot_cnt,
-		slots_per_op);
-	if (sw_desc) {
-		group_start = sw_desc->group_head;
-		ppc440spe_desc_init_memset(group_start, value, flags);
-		ppc440spe_adma_set_dest(group_start, dma_dest, 0);
-		ppc440spe_desc_set_byte_count(group_start, ppc440spe_chan, len);
-		sw_desc->unmap_len = len;
-		sw_desc->async_tx.flags = flags;
-	}
-	spin_unlock_bh(&ppc440spe_chan->lock);
-
-	return sw_desc ? &sw_desc->async_tx : NULL;
-}
-
-/**
  * ppc440spe_adma_prep_dma_xor - prepare CDB for a XOR operation
  */
 static struct dma_async_tx_descriptor *ppc440spe_adma_prep_dma_xor(
@@ -4125,7 +4084,6 @@ static void ppc440spe_adma_init_capabilities(struct ppc440spe_adma_device *adev)
 	case PPC440SPE_DMA1_ID:
 		dma_cap_set(DMA_MEMCPY, adev->common.cap_mask);
 		dma_cap_set(DMA_INTERRUPT, adev->common.cap_mask);
-		dma_cap_set(DMA_MEMSET, adev->common.cap_mask);
 		dma_cap_set(DMA_PQ, adev->common.cap_mask);
 		dma_cap_set(DMA_PQ_VAL, adev->common.cap_mask);
 		dma_cap_set(DMA_XOR_VAL, adev->common.cap_mask);
@@ -4150,10 +4108,6 @@ static void ppc440spe_adma_init_capabilities(struct ppc440spe_adma_device *adev)
 	if (dma_has_cap(DMA_MEMCPY, adev->common.cap_mask)) {
 		adev->common.device_prep_dma_memcpy =
 			ppc440spe_adma_prep_dma_memcpy;
-	}
-	if (dma_has_cap(DMA_MEMSET, adev->common.cap_mask)) {
-		adev->common.device_prep_dma_memset =
-			ppc440spe_adma_prep_dma_memset;
 	}
 	if (dma_has_cap(DMA_XOR, adev->common.cap_mask)) {
 		adev->common.max_xor = XOR_MAX_OPS;
@@ -4217,7 +4171,6 @@ static void ppc440spe_adma_init_capabilities(struct ppc440spe_adma_device *adev)
 	  dma_has_cap(DMA_XOR, adev->common.cap_mask) ? "xor " : "",
 	  dma_has_cap(DMA_XOR_VAL, adev->common.cap_mask) ? "xor_val " : "",
 	  dma_has_cap(DMA_MEMCPY, adev->common.cap_mask) ? "memcpy " : "",
-	  dma_has_cap(DMA_MEMSET, adev->common.cap_mask)  ? "memset " : "",
 	  dma_has_cap(DMA_INTERRUPT, adev->common.cap_mask) ? "intr " : "");
 }
 
@@ -4481,7 +4434,7 @@ static int ppc440spe_adma_probe(struct platform_device *ofdev)
 	adev->dev = &ofdev->dev;
 	adev->common.dev = &ofdev->dev;
 	INIT_LIST_HEAD(&adev->common.channels);
-	dev_set_drvdata(&ofdev->dev, adev);
+	platform_set_drvdata(ofdev, adev);
 
 	/* create a channel */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
@@ -4594,14 +4547,13 @@ out:
  */
 static int ppc440spe_adma_remove(struct platform_device *ofdev)
 {
-	struct ppc440spe_adma_device *adev = dev_get_drvdata(&ofdev->dev);
+	struct ppc440spe_adma_device *adev = platform_get_drvdata(ofdev);
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct dma_chan *chan, *_chan;
 	struct ppc_dma_chan_ref *ref, *_ref;
 	struct ppc440spe_adma_chan *ppc440spe_chan;
 
-	dev_set_drvdata(&ofdev->dev, NULL);
 	if (adev->id < PPC440SPE_ADMA_ENGINES_NUM)
 		ppc440spe_adma_devices[adev->id] = -1;
 

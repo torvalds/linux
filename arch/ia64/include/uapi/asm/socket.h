@@ -83,4 +83,6 @@
 
 #define SO_SELECT_ERR_QUEUE	45
 
+#define SO_LL			46
+
 #endif /* _ASM_IA64_SOCKET_H */

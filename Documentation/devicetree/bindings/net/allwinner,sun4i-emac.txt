@@ -1,0 +1,22 @@
+* Allwinner EMAC ethernet controller
+
+Required properties:
+- compatible: should be "allwinner,sun4i-emac".
+- reg: address and length of the register set for the device.
+- interrupts: interrupt for the device
+- phy: A phandle to a phy node defining the PHY address (as the reg
+  property, a single integer).
+- clocks: A phandle to the reference clock for this device
+
+Optional properties:
+- (local-)mac-address: mac address to be used by this driver
+
+Example:
+
+emac: ethernet@01c0b000 {
+       compatible = "allwinner,sun4i-emac";
+       reg = <0x01c0b000 0x1000>;
+       interrupts = <55>;
+       clocks = <&ahb_gates 17>;
+       phy = <&phy0>;
+};

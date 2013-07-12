@@ -3444,7 +3444,7 @@ static int vxge_device_register(struct __vxge_hw_device *hldev,
 	}
 
 	vxge_debug_init(vxge_hw_device_trace_level_get(hldev),
-		"%s : checksuming enabled", __func__);
+		"%s : checksumming enabled", __func__);
 
 	if (high_dma) {
 		ndev->features |= NETIF_F_HIGHDMA;

@@ -465,6 +465,7 @@ static int ioh_gpio_probe(struct pci_dev *pdev,
 			dev_warn(&pdev->dev,
 				"ml_ioh_gpio: Failed to get IRQ base num\n");
 			chip->irq_base = -1;
+			ret = irq_base;
 			goto err_irq_alloc_descs;
 		}
 		chip->irq_base = irq_base;

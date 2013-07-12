@@ -363,10 +363,6 @@ static void udl_crtc_destroy(struct drm_crtc *crtc)
 	kfree(crtc);
 }
 
-static void udl_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static void udl_crtc_prepare(struct drm_crtc *crtc)
 {
 }
@@ -383,7 +379,6 @@ static struct drm_crtc_helper_funcs udl_helper_funcs = {
 	.prepare = udl_crtc_prepare,
 	.commit = udl_crtc_commit,
 	.disable = udl_crtc_disable,
-	.load_lut = udl_load_lut,
 };
 
 static const struct drm_crtc_funcs udl_crtc_funcs = {

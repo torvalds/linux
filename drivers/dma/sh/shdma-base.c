@@ -175,7 +175,18 @@ static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
 {
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
-	int ret;
+	int ret, match;
+
+	if (schan->dev->of_node) {
+		match = schan->hw_req;
+		ret = ops->set_slave(schan, match, true);
+		if (ret < 0)
+			return ret;
+
+		slave_id = schan->slave_id;
+	} else {
+		match = slave_id;
+	}
 
 	if (slave_id < 0 || slave_id >= slave_num)
 		return -EINVAL;
@@ -183,7 +194,7 @@ static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
 	if (test_and_set_bit(slave_id, shdma_slave_used))
 		return -EBUSY;
 
-	ret = ops->set_slave(schan, slave_id, false);
+	ret = ops->set_slave(schan, match, false);
 	if (ret < 0) {
 		clear_bit(slave_id, shdma_slave_used);
 		return ret;
@@ -206,23 +217,26 @@ static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
  * services would have to provide their own filters, which first would check
  * the device driver, similar to how other DMAC drivers, e.g., sa11x0-dma.c, do
  * this, and only then, in case of a match, call this common filter.
+ * NOTE 2: This filter function is also used in the DT case by shdma_of_xlate().
+ * In that case the MID-RID value is used for slave channel filtering and is
+ * passed to this function in the "arg" parameter.
  */
 bool shdma_chan_filter(struct dma_chan *chan, void *arg)
 {
 	struct shdma_chan *schan = to_shdma_chan(chan);
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
-	int slave_id = (int)arg;
+	int match = (int)arg;
 	int ret;
 
-	if (slave_id < 0)
+	if (match < 0)
 		/* No slave requested - arbitrary channel */
 		return true;
 
-	if (slave_id >= slave_num)
+	if (!schan->dev->of_node && match >= slave_num)
 		return false;
 
-	ret = ops->set_slave(schan, slave_id, true);
+	ret = ops->set_slave(schan, match, true);
 	if (ret < 0)
 		return false;
 

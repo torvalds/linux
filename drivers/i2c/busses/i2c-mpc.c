@@ -679,7 +679,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 	}
 	dev_info(i2c->dev, "timeout %u us\n", mpc_ops.timeout * 1000000 / HZ);
 
-	dev_set_drvdata(&op->dev, i2c);
+	platform_set_drvdata(op, i2c);
 
 	i2c->adap = mpc_ops;
 	i2c_set_adapdata(&i2c->adap, i2c);
@@ -707,7 +707,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 
 static int fsl_i2c_remove(struct platform_device *op)
 {
-	struct mpc_i2c *i2c = dev_get_drvdata(&op->dev);
+	struct mpc_i2c *i2c = platform_get_drvdata(op);
 
 	i2c_del_adapter(&i2c->adap);
 
