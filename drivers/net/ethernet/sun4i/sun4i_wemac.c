@@ -42,7 +42,7 @@
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
 
-#include <plat/dma.h>
+#include <plat/dma_compat.h>
 #include <plat/sys_config.h>
 #include <plat/system.h>
 #include <mach/clock.h>
@@ -155,54 +155,65 @@ static void wemac_phy_write(struct net_device *dev, int phyaddr_unused, int reg,
 static void wemac_rx(struct net_device *dev);
 static void read_random_macaddr(unsigned char *mac, struct net_device *ndev);
 
-struct sw_dma_client emacrx_dma_client = {
-	.name = "EMACRX_DMA",
+static struct sunxi_dma_params emacrx_dma = {
+	.client.name	= "EMACRX_DMA",
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
+	.channel	= DMACH_DEMACR,
+#endif
+	.dma_addr	= 0x01C0B04C,
 };
 
-static int ch_rx;
 static int emacrx_completed_flag = 1;
 
-void emacrx_dma_buffdone(struct sw_dma_chan *ch, void *buf, int size, enum sw_dma_buffresult result)
+void emacrx_dma_buffdone(struct sunxi_dma_params *dma, void *arg)
 {
-	struct net_device *dev = ch->dev_id;
+	struct net_device *dev = arg;
 	wemac_rx(dev);
-}
-
-void eLIBs_CleanFlushDCacheRegion(void *adr, __u32 bytes)
-{
-	__cpuc_flush_dcache_area(adr, bytes + (1 << 5) * 2 - 2);
-}
-
-__s32 emacrx_DMAEqueueBuf(int hDma,  void *buff_addr, __u32 len)
-{
-	eLIBs_CleanFlushDCacheRegion((void *)buff_addr, len);
-
-	return sw_dma_enqueue(hDma, NULL, (dma_addr_t)buff_addr, len);
 }
 
 int emacrx_dma_config_start(void *buff_addr, __u32 len)
 {
 	int ret;
+#if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
 	struct dma_hw_conf emac_hwconf = {
 		.xfer_type = DMAXFER_D_SWORD_S_SWORD,
 		.hf_irq = SW_DMA_IRQ_FULL,
 		.cmbk = 0x03030303,
 		.dir = SW_DMA_RDEV,
-		.from = 0x01C0B04C,
+		.from = emacrx_dma.dma_addr,
 		.address_type = DMAADDRT_D_LN_S_IO,
 		.drqsrc_type = DRQ_TYPE_EMAC
 	};
 
-	ret = sw_dma_setflags(ch_rx, SW_DMAF_AUTOSTART);
+	ret = sw_dma_setflags(emacrx_dma.channel, SW_DMAF_AUTOSTART);
 	if (ret != 0)
 		return ret;
-	ret = sw_dma_config(ch_rx, &emac_hwconf);
+#else
+	dma_config_t dma_cfg = {
+		.xfer_type = {
+			.src_data_width = DATA_WIDTH_32BIT,
+			.src_bst_len	= DATA_BRST_4,
+			.dst_data_width = DATA_WIDTH_32BIT,
+			.dst_bst_len	= DATA_BRST_4
+		},
+		.address_type = {
+			.src_addr_mode  = DDMA_ADDR_IO,
+			.dst_addr_mode  = DDMA_ADDR_LINEAR
+		},
+		.bconti_mode	= false,
+		.src_drq_type   = D_SRC_EMAC_RX, 
+		.dst_drq_type   = D_DST_SRAM,
+		.irq_spt	= CHAN_IRQ_FD
+	};
+#endif
+	ret = sunxi_dma_config(&emacrx_dma, &emac_hwconf, 0x03030303);
 	if (ret != 0)
 		return ret;
-	ret = emacrx_DMAEqueueBuf(ch_rx, buff_addr, len);
+	__cpuc_flush_dcache_area(buff_addr, len + (1 << 5) * 2 - 2);
+	ret = sunxi_dma_enqueue(&emacrx_dma, (u32)buff_addr, len, 1);
 	if (ret != 0)
 		return ret;
-	ret = sw_dma_ctrl(ch_rx, SW_DMAOP_START);
+	ret = sunxi_dma_start(&emacrx_dma);
 	if (ret != 0)
 		return ret;
 
@@ -1484,12 +1495,12 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	db = netdev_priv(ndev);
 	memset(db, 0, sizeof(*db));
 
-	ch_rx = sw_dma_request(DMACH_DEMACR, &emacrx_dma_client, ndev);
-	if (ch_rx < 0) {
+	ret = sunxi_dma_request(&emacrx_dma, 1);
+	if (ret < 0) {
 		printk(KERN_ERR "error when request dma for emac rx\n");
-		return ch_rx;
+		return ret;
 	}
-	sw_dma_set_buffdone_fn(ch_rx, emacrx_dma_buffdone);
+	sunxi_dma_set_callback(&emacrx_dma, emacrx_dma_buffdone, ndev);
 
 	db->debug_level = 0;
 	db->dev = &pdev->dev;
