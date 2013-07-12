@@ -1386,7 +1386,7 @@ static struct clk clk_i2s_pll = {
 	.name		= "i2s_pll",
 	.parent		= &general_pll_clk,
 	.clksel_con	= CRU_CLKSELS_CON(2),
-	CRU_SRC_SET(0x1,16),
+	CRU_SRC_SET(0x1, 15),
 	CRU_PARENTS_SET(clk_i2s_div_parents),
 };
 
@@ -1440,13 +1440,20 @@ static struct clk clk_spdif_div = {
 static int clk_i2s_fracdiv_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 numerator, denominator;
+	int i = 10;
 	//clk_i2s_div->clk_i2s_pll->gpll/cpll
 	//clk->parent->parent
 	if(frac_div_get_seting(rate,clk->parent->parent->rate,
 			&numerator,&denominator)==0)
 	{
 		clk_set_rate_nolock(clk->parent,clk->parent->parent->rate);//PLL:DIV 1:
-		cru_writel_frac(numerator << 16 | denominator, clk->clksel_con);
+
+		while (i--) {
+			cru_writel_frac((numerator - 1) << 16 | denominator, clk->clksel_con);
+			mdelay(1);
+			cru_writel_frac(numerator << 16 | denominator, clk->clksel_con);
+			mdelay(1);
+		}
 		CRU_PRINTK_DBG("%s set rate=%lu,is ok\n",clk->name,rate);
 	}
 	else
@@ -3315,27 +3322,16 @@ void rk30_clock_common_i2s_init(void)
 		i2s_rate=49152000;	
 	}	
 
-	if(((i2s_rate*20)<=general_pll_clk.rate)||!(general_pll_clk.rate%i2s_rate))
-	{
-		clk_set_parent_nolock(&clk_i2s_pll, &general_pll_clk);
-	}
-	else if(((i2s_rate*20)<=codec_pll_clk.rate)||!(codec_pll_clk.rate%i2s_rate))
-	{
+	if (((i2s_rate * 20) <= codec_pll_clk.rate) || !(codec_pll_clk.rate % i2s_rate)) {
 		clk_set_parent_nolock(&clk_i2s_pll, &codec_pll_clk);
-	}
-	else
-	{
-		if(general_pll_clk.rate>codec_pll_clk.rate)	
+	} else if (((i2s_rate * 20) <= general_pll_clk.rate) || !(general_pll_clk.rate % i2s_rate)) {
+		clk_set_parent_nolock(&clk_i2s_pll, &general_pll_clk);
+	} else {
+		if (general_pll_clk.rate > codec_pll_clk.rate)
 			clk_set_parent_nolock(&clk_i2s_pll, &general_pll_clk);
 		else
 			clk_set_parent_nolock(&clk_i2s_pll, &codec_pll_clk);	
 	}
-		
-
-	
-
-	
-
 }
 static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long cpll_rate)
 {
