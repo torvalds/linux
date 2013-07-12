@@ -163,6 +163,69 @@ void hwmon_device_unregister(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(hwmon_device_unregister);
 
+static void devm_hwmon_release(struct device *dev, void *res)
+{
+	struct device *hwdev = *(struct device **)res;
+
+	hwmon_device_unregister(hwdev);
+}
+
+/**
+ * devm_hwmon_device_register_with_groups - register w/ hwmon
+ * @dev: the parent device
+ * @name: hwmon name attribute
+ * @drvdata: driver data to attach to created device
+ * @groups: List of attribute groups to create
+ *
+ * Returns the pointer to the new device. The new device is automatically
+ * unregistered with the parent device.
+ */
+struct device *
+devm_hwmon_device_register_with_groups(struct device *dev, const char *name,
+				       void *drvdata,
+				       const struct attribute_group **groups)
+{
+	struct device **ptr, *hwdev;
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	ptr = devres_alloc(devm_hwmon_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	hwdev = hwmon_device_register_with_groups(dev, name, drvdata, groups);
+	if (IS_ERR(hwdev))
+		goto error;
+
+	*ptr = hwdev;
+	devres_add(dev, ptr);
+	return hwdev;
+
+error:
+	devres_free(ptr);
+	return hwdev;
+}
+EXPORT_SYMBOL_GPL(devm_hwmon_device_register_with_groups);
+
+static int devm_hwmon_match(struct device *dev, void *res, void *data)
+{
+	struct device **hwdev = res;
+
+	return *hwdev == data;
+}
+
+/**
+ * devm_hwmon_device_unregister - removes a previously registered hwmon device
+ *
+ * @dev: the parent device of the device to unregister
+ */
+void devm_hwmon_device_unregister(struct device *dev)
+{
+	WARN_ON(devres_release(dev, devm_hwmon_release, devm_hwmon_match, dev));
+}
+EXPORT_SYMBOL_GPL(devm_hwmon_device_unregister);
+
 static void __init hwmon_pci_quirks(void)
 {
 #if defined CONFIG_X86 && defined CONFIG_PCI
