@@ -267,7 +267,7 @@ rcutorture_shutdown_notify(struct notifier_block *unused1,
  * Absorb kthreads into a kernel function that won't return, so that
  * they won't ever access module text or data again.
  */
-static void rcutorture_shutdown_absorb(char *title)
+static void rcutorture_shutdown_absorb(const char *title)
 {
 	if (ACCESS_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
 		pr_notice(
@@ -337,7 +337,7 @@ rcu_random(struct rcu_random_state *rrsp)
 }
 
 static void
-rcu_stutter_wait(char *title)
+rcu_stutter_wait(const char *title)
 {
 	while (stutter_pause_test || !rcutorture_runnable) {
 		if (rcutorture_runnable)
@@ -366,7 +366,7 @@ struct rcu_torture_ops {
 	int (*stats)(char *page);
 	int irq_capable;
 	int can_boost;
-	char *name;
+	const char *name;
 };
 
 static struct rcu_torture_ops *cur_ops;
@@ -1364,7 +1364,7 @@ rcu_torture_stutter(void *arg)
 }
 
 static inline void
-rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, char *tag)
+rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" TORTURE_FLAG
 		 "--- %s: nreaders=%d nfakewriters=%d "
