@@ -180,7 +180,7 @@ config WEMAC_SUN3I
 
 config WEMAC_SUN4I
         tristate "wemac support(A1x)"
-        depends on ARCH_SUN4I || ARCH_SUN5I
+        depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I
 	select MII
         ---help---
           Support for Softwinner chipset.

@@ -43,6 +43,7 @@
 #include <asm/irq.h>
 
 #include <plat/dma_compat.h>
+#include <plat/platform.h>
 #include <plat/sys_config.h>
 #include <plat/system.h>
 #include <mach/clock.h>
@@ -189,7 +190,7 @@ int emacrx_dma_config_start(void *buff_addr, __u32 len)
 	if (ret != 0)
 		return ret;
 #else
-	dma_config_t dma_cfg = {
+	dma_config_t emac_hwconf = {
 		.xfer_type = {
 			.src_data_width = DATA_WIDTH_32BIT,
 			.src_bst_len	= DATA_BRST_4,

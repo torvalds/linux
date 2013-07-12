@@ -118,7 +118,7 @@
 #define AW_IRQ_PATA       	(AW_IRQ_GIC_START + 52)    /* PATA  */
 #define AW_IRQ_VE       	(AW_IRQ_GIC_START + 53)    /* VE    */
 #define AW_IRQ_SS       	(AW_IRQ_GIC_START + 54)    /* SS    */
-#define AW_IRQ_EMAC       	(AW_IRQ_GIC_START + 55)    /* EMAC  */
+#define SW_INT_IRQNO_EMAC      	(AW_IRQ_GIC_START + 55)    /* EMAC  */
 #define AW_IRQ_SATA       	(AW_IRQ_GIC_START + 56)    /* sata  */
 #define AW_IRQ_GPS       	(AW_IRQ_GIC_START + 57)    /* GPS   */
 #define AW_IRQ_HDMI       	(AW_IRQ_GIC_START + 58)    /* HDMI  */
