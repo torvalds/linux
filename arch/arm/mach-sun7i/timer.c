@@ -118,7 +118,7 @@ void __init aw_clksrc_init(void)
 	/* register clock source */
 	clocksource_register(&aw_clocksrc);
 	/* set sched clock */
-//	setup_sched_clock(sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
+	setup_sched_clock(sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
 	pr_info("%s(%d)\n", __func__, __LINE__);
 }
 
