@@ -1113,11 +1113,16 @@ struct f2fs_stat_info {
 	unsigned base_mem, cache_mem;
 };
 
+static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
+{
+	return (struct f2fs_stat_info*)sbi->stat_info;
+}
+
 #define stat_inc_call_count(si)	((si)->call_count++)
 
 #define stat_inc_seg_count(sbi, type)					\
 	do {								\
-		struct f2fs_stat_info *si = sbi->stat_info;		\
+		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
 		(si)->tot_segs++;					\
 		if (type == SUM_TYPE_DATA)				\
 			si->data_segs++;				\
@@ -1130,14 +1135,14 @@ struct f2fs_stat_info {
 
 #define stat_inc_data_blk_count(sbi, blks)				\
 	do {								\
-		struct f2fs_stat_info *si = sbi->stat_info;		\
+		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
 		stat_inc_tot_blk_count(si, blks);			\
 		si->data_blks += (blks);				\
 	} while (0)
 
 #define stat_inc_node_blk_count(sbi, blks)				\
 	do {								\
-		struct f2fs_stat_info *si = sbi->stat_info;		\
+		struct f2fs_stat_info *si = F2FS_STAT(sbi);		\
 		stat_inc_tot_blk_count(si, blks);			\
 		si->node_blks += (blks);				\
 	} while (0)
