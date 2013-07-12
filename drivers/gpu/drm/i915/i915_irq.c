@@ -1704,29 +1704,14 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
+	uint32_t bit = (INTEL_INFO(dev)->gen >= 7) ? DE_PIPE_VBLANK_IVB(pipe) :
+						     DE_PIPE_VBLANK_ILK(pipe);
 
 	if (!i915_pipe_enabled(dev, pipe))
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
-				    DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-
-	return 0;
-}
-
-static int ivybridge_enable_vblank(struct drm_device *dev, int pipe)
-{
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned long irqflags;
-
-	if (!i915_pipe_enabled(dev, pipe))
-		return -EINVAL;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	ironlake_enable_display_irq(dev_priv,
-				    DE_PIPEA_VBLANK_IVB << (5 * pipe));
+	ironlake_enable_display_irq(dev_priv, bit);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -1777,21 +1762,11 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
+	uint32_t bit = (INTEL_INFO(dev)->gen >= 7) ? DE_PIPE_VBLANK_IVB(pipe) :
+						     DE_PIPE_VBLANK_ILK(pipe);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
-				     DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
-	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-}
-
-static void ivybridge_disable_vblank(struct drm_device *dev, int pipe)
-{
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	ironlake_disable_display_irq(dev_priv,
-				     DE_PIPEA_VBLANK_IVB << (pipe * 5));
+	ironlake_disable_display_irq(dev_priv, bit);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -3117,8 +3092,8 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->irq_preinstall = ironlake_irq_preinstall;
 		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
 		dev->driver->irq_uninstall = ironlake_irq_uninstall;
-		dev->driver->enable_vblank = ivybridge_enable_vblank;
-		dev->driver->disable_vblank = ivybridge_disable_vblank;
+		dev->driver->enable_vblank = ironlake_enable_vblank;
+		dev->driver->disable_vblank = ironlake_disable_vblank;
 		dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev->driver->irq_handler = ironlake_irq_handler;

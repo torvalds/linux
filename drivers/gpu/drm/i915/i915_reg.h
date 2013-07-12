@@ -3799,6 +3799,9 @@
 #define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
 #define DE_PIPEA_VBLANK_IVB		(1<<0)
 
+#define DE_PIPE_VBLANK_ILK(pipe)	(1 << ((pipe * 8) + 7))
+#define DE_PIPE_VBLANK_IVB(pipe)	(1 << (pipe * 5))
+
 #define VLV_MASTER_IER			0x4400c /* Gunit master IER */
 #define   MASTER_INTERRUPT_ENABLE	(1<<31)
 
