@@ -1251,13 +1251,46 @@ static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
 		ironlake_rps_change_irq_handler(dev);
 }
 
+static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	if (de_iir & DE_ERR_INT_IVB)
+		ivb_err_int_handler(dev);
+
+	if (de_iir & DE_AUX_CHANNEL_A_IVB)
+		dp_aux_irq_handler(dev);
+
+	if (de_iir & DE_GSE_IVB)
+		intel_opregion_asle_intr(dev);
+
+	for (i = 0; i < 3; i++) {
+		if (de_iir & (DE_PIPEA_VBLANK_IVB << (5 * i)))
+			drm_handle_vblank(dev, i);
+		if (de_iir & (DE_PLANEA_FLIP_DONE_IVB << (5 * i))) {
+			intel_prepare_page_flip(dev, i);
+			intel_finish_page_flip_plane(dev, i);
+		}
+	}
+
+	/* check event from PCH */
+	if (!HAS_PCH_NOP(dev) && (de_iir & DE_PCH_EVENT_IVB)) {
+		u32 pch_iir = I915_READ(SDEIIR);
+
+		cpt_irq_handler(dev, pch_iir);
+
+		/* clear PCH hotplug event before clear CPU irq */
+		I915_WRITE(SDEIIR, pch_iir);
+	}
+}
+
 static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 de_iir, gt_iir, de_ier, pm_iir, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
-	int i;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -1302,33 +1335,7 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 
 	de_iir = I915_READ(DEIIR);
 	if (de_iir) {
-		if (de_iir & DE_ERR_INT_IVB)
-			ivb_err_int_handler(dev);
-
-		if (de_iir & DE_AUX_CHANNEL_A_IVB)
-			dp_aux_irq_handler(dev);
-
-		if (de_iir & DE_GSE_IVB)
-			intel_opregion_asle_intr(dev);
-
-		for (i = 0; i < 3; i++) {
-			if (de_iir & (DE_PIPEA_VBLANK_IVB << (5 * i)))
-				drm_handle_vblank(dev, i);
-			if (de_iir & (DE_PLANEA_FLIP_DONE_IVB << (5 * i))) {
-				intel_prepare_page_flip(dev, i);
-				intel_finish_page_flip_plane(dev, i);
-			}
-		}
-
-		/* check event from PCH */
-		if (!HAS_PCH_NOP(dev) && (de_iir & DE_PCH_EVENT_IVB)) {
-			u32 pch_iir = I915_READ(SDEIIR);
-
-			cpt_irq_handler(dev, pch_iir);
-
-			/* clear PCH hotplug event before clear CPU irq */
-			I915_WRITE(SDEIIR, pch_iir);
-		}
+		ivb_display_irq_handler(dev, de_iir);
 
 		I915_WRITE(DEIIR, de_iir);
 		ret = IRQ_HANDLED;
