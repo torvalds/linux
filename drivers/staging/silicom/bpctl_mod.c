@@ -1809,7 +1809,7 @@ int cmnd_off(struct bpctl_dev *pbpctl_dev)
 		else
 			data_pulse(pbpctl_dev, CMND_OFF);
 		ret = 0;
-	};
+	}
 	return ret;
 }
 
@@ -1830,7 +1830,7 @@ int bypass_on(struct bpctl_dev *pbpctl_dev)
 		} else
 			data_pulse(pbpctl_dev, BYPASS_ON);
 		ret = 0;
-	};
+	}
 	return ret;
 }
 
@@ -1866,7 +1866,7 @@ int tap_off(struct bpctl_dev *pbpctl_dev)
 		write_data(pbpctl_dev, TAP_OFF);
 		msec_delay_bp(LATCH_DELAY);
 		ret = 0;
-	};
+	}
 	return ret;
 }
 
@@ -1879,7 +1879,7 @@ int tap_on(struct bpctl_dev *pbpctl_dev)
 		write_data(pbpctl_dev, TAP_ON);
 		msec_delay_bp(LATCH_DELAY);
 		ret = 0;
-	};
+	}
 	return ret;
 }
 
@@ -2025,7 +2025,7 @@ int wdt_off(struct bpctl_dev *pbpctl_dev)
 			data_pulse(pbpctl_dev, WDT_OFF);
 		pbpctl_dev->wdt_status = WDT_STATUS_DIS;
 		ret = 0;
-	};
+	}
 	return ret;
 }
 
@@ -2568,7 +2568,7 @@ int reset_cont(struct bpctl_dev *pbpctl_dev)
 		else
 			data_pulse(pbpctl_dev, RESET_CONT);
 		ret = 0;
-	};
+	}
 	return ret;
 }
 
@@ -3497,7 +3497,7 @@ int wdt_programmed(struct bpctl_dev *pbpctl_dev, int *timeout)
 				*timeout =
 				    curr_wdt_status ==
 				    0 ? 0 : pbpctl_dev->bypass_timer_interval;
-		};
+		}
 	} else
 		ret = BP_NOT_CAP;
 	return ret;
@@ -3548,7 +3548,7 @@ int normal_support(struct bpctl_dev *pbpctl_dev)
 			      NORMAL_UNSUPPORT_MASK) ? 0 : 1);
 		} else
 			ret = 1;
-	};
+	}
 	return ret;
 }
 
@@ -5111,7 +5111,7 @@ int set_bypass_tpl_auto(struct bpctl_dev *pbpctl_dev, unsigned int param)
 			pbpctl_dev->bp_tpl_flag = param;
 			mod_timer(&pbpctl_dev->bp_tpl_timer, jiffies + 1);
 			return BP_OK;
-		};
+		}
 		if ((!param) && (pbpctl_dev->bp_tpl_flag))
 			remove_bypass_tpl_auto(pbpctl_dev);
 
