@@ -1629,20 +1629,11 @@ extern void intel_hpd_init(struct drm_device *dev);
 extern void intel_gt_init(struct drm_device *dev);
 extern void intel_gt_sanitize(struct drm_device *dev);
 
-void i915_error_state_free(struct kref *error_ref);
-
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 
 void
 i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
-
-#ifdef CONFIG_DEBUG_FS
-extern void i915_destroy_error_state(struct drm_device *dev);
-#else
-#define i915_destroy_error_state(x)
-#endif
-
 
 /* i915_gem.c */
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
@@ -1954,13 +1945,12 @@ void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
 /* i915_debugfs.c */
 int i915_debugfs_init(struct drm_minor *minor);
 void i915_debugfs_cleanup(struct drm_minor *minor);
+
+/* i915_gpu_error.c */
 __printf(2, 3)
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 int i915_error_state_to_str(struct drm_i915_error_state_buf *estr,
 			    const struct i915_error_state_file_priv *error);
-void i915_error_state_get(struct drm_device *dev,
-			  struct i915_error_state_file_priv *error_priv);
-void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
 int i915_error_state_buf_init(struct drm_i915_error_state_buf *eb,
 			      size_t count, loff_t pos);
 static inline void i915_error_state_buf_release(
@@ -1968,6 +1958,14 @@ static inline void i915_error_state_buf_release(
 {
 	kfree(eb->buf);
 }
+void i915_capture_error_state(struct drm_device *dev);
+void i915_error_state_get(struct drm_device *dev,
+			  struct i915_error_state_file_priv *error_priv);
+void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
+void i915_destroy_error_state(struct drm_device *dev);
+
+void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone);
+const char *i915_cache_level_str(int type);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
@@ -2047,7 +2045,6 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 
 /* overlay */
-#ifdef CONFIG_DEBUG_FS
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
 extern void intel_overlay_print_error_state(struct drm_i915_error_state_buf *e,
 					    struct intel_overlay_error_state *error);
@@ -2056,7 +2053,6 @@ extern struct intel_display_error_state *intel_display_capture_error_state(struc
 extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 					    struct drm_device *dev,
 					    struct intel_display_error_state *error);
-#endif
 
 /* On SNB platform, before reading ring registers forcewake bit
  * must be set to prevent GT core from power down and stale values being

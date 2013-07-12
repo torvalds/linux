@@ -10216,9 +10216,6 @@ int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/seq_file.h>
-
 struct intel_display_error_state {
 
 	u32 power_well_driver;
@@ -10390,4 +10387,3 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 		err_printf(m, "  VSYNC: %08x\n", error->transcoder[i].vsync);
 	}
 }
-#endif

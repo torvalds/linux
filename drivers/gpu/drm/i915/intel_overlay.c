@@ -1412,9 +1412,6 @@ void intel_cleanup_overlay(struct drm_device *dev)
 	kfree(dev_priv->overlay);
 }
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/seq_file.h>
-
 struct intel_overlay_error_state {
 	struct overlay_registers regs;
 	unsigned long base;
@@ -1537,4 +1534,3 @@ intel_overlay_print_error_state(struct drm_i915_error_state_buf *m,
 	P(UVSCALEV);
 #undef P
 }
-#endif
