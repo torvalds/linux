@@ -1197,6 +1197,60 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 		cpt_serr_int_handler(dev);
 }
 
+static void ilk_display_irq_handler(struct drm_device *dev, u32 de_iir)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (de_iir & DE_AUX_CHANNEL_A)
+		dp_aux_irq_handler(dev);
+
+	if (de_iir & DE_GSE)
+		intel_opregion_asle_intr(dev);
+
+	if (de_iir & DE_PIPEA_VBLANK)
+		drm_handle_vblank(dev, 0);
+
+	if (de_iir & DE_PIPEB_VBLANK)
+		drm_handle_vblank(dev, 1);
+
+	if (de_iir & DE_POISON)
+		DRM_ERROR("Poison interrupt\n");
+
+	if (de_iir & DE_PIPEA_FIFO_UNDERRUN)
+		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
+			DRM_DEBUG_DRIVER("Pipe A FIFO underrun\n");
+
+	if (de_iir & DE_PIPEB_FIFO_UNDERRUN)
+		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
+			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
+
+	if (de_iir & DE_PLANEA_FLIP_DONE) {
+		intel_prepare_page_flip(dev, 0);
+		intel_finish_page_flip_plane(dev, 0);
+	}
+
+	if (de_iir & DE_PLANEB_FLIP_DONE) {
+		intel_prepare_page_flip(dev, 1);
+		intel_finish_page_flip_plane(dev, 1);
+	}
+
+	/* check event from PCH */
+	if (de_iir & DE_PCH_EVENT) {
+		u32 pch_iir = I915_READ(SDEIIR);
+
+		if (HAS_PCH_CPT(dev))
+			cpt_irq_handler(dev, pch_iir);
+		else
+			ibx_irq_handler(dev, pch_iir);
+
+		/* should clear PCH hotplug event before clear CPU irq */
+		I915_WRITE(SDEIIR, pch_iir);
+	}
+
+	if (IS_GEN5(dev) && de_iir & DE_PCU_EVENT)
+		ironlake_rps_change_irq_handler(dev);
+}
+
 static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -1355,54 +1409,8 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	else
 		snb_gt_irq_handler(dev, dev_priv, gt_iir);
 
-	if (de_iir & DE_AUX_CHANNEL_A)
-		dp_aux_irq_handler(dev);
-
-	if (de_iir & DE_GSE)
-		intel_opregion_asle_intr(dev);
-
-	if (de_iir & DE_PIPEA_VBLANK)
-		drm_handle_vblank(dev, 0);
-
-	if (de_iir & DE_PIPEB_VBLANK)
-		drm_handle_vblank(dev, 1);
-
-	if (de_iir & DE_POISON)
-		DRM_ERROR("Poison interrupt\n");
-
-	if (de_iir & DE_PIPEA_FIFO_UNDERRUN)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
-			DRM_DEBUG_DRIVER("Pipe A FIFO underrun\n");
-
-	if (de_iir & DE_PIPEB_FIFO_UNDERRUN)
-		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
-			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
-
-	if (de_iir & DE_PLANEA_FLIP_DONE) {
-		intel_prepare_page_flip(dev, 0);
-		intel_finish_page_flip_plane(dev, 0);
-	}
-
-	if (de_iir & DE_PLANEB_FLIP_DONE) {
-		intel_prepare_page_flip(dev, 1);
-		intel_finish_page_flip_plane(dev, 1);
-	}
-
-	/* check event from PCH */
-	if (de_iir & DE_PCH_EVENT) {
-		u32 pch_iir = I915_READ(SDEIIR);
-
-		if (HAS_PCH_CPT(dev))
-			cpt_irq_handler(dev, pch_iir);
-		else
-			ibx_irq_handler(dev, pch_iir);
-
-		/* should clear PCH hotplug event before clear CPU irq */
-		I915_WRITE(SDEIIR, pch_iir);
-	}
-
-	if (IS_GEN5(dev) &&  de_iir & DE_PCU_EVENT)
-		ironlake_rps_change_irq_handler(dev);
+	if (de_iir)
+		ilk_display_irq_handler(dev, de_iir);
 
 	if (IS_GEN6(dev) && pm_iir & GEN6_PM_RPS_EVENTS)
 		gen6_rps_irq_handler(dev_priv, pm_iir);
