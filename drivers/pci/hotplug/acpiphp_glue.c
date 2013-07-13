@@ -283,7 +283,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	struct acpiphp_func *newfunc;
 	acpi_status status = AE_OK;
 	unsigned long long adr, sun;
-	int device, function, retval, found = 0;
+	int device, function, retval;
 	struct pci_bus *pbus = bridge->pci_bus;
 	struct pci_dev *pdev;
 	u32 val;
@@ -352,44 +352,49 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 		if (slot->device == device) {
 			if (slot->sun != sun)
 				warn("sibling found, but _SUN doesn't match!\n");
-			found = 1;
-			break;
+
+			goto slot_found;
 		}
 
-	if (!found) {
-		slot = kzalloc(sizeof(struct acpiphp_slot), GFP_KERNEL);
-		if (!slot) {
-			status = AE_NO_MEMORY;
-			goto err_out;
-		}
-
-		slot->bridge = bridge;
-		slot->device = device;
-		slot->sun = sun;
-		INIT_LIST_HEAD(&slot->funcs);
-		mutex_init(&slot->crit_sect);
-
-		mutex_lock(&bridge_mutex);
-		list_add_tail(&slot->node, &bridge->slots);
-		mutex_unlock(&bridge_mutex);
-		bridge->nr_slots++;
-
-		dbg("found ACPI PCI Hotplug slot %llu at PCI %04x:%02x:%02x\n",
-		    slot->sun, pci_domain_nr(pbus), pbus->number, device);
-		retval = acpiphp_register_hotplug_slot(slot);
-		if (retval) {
-			if (retval == -EBUSY)
-				warn("Slot %llu already registered by another "
-					"hotplug driver\n", slot->sun);
-			else
-				warn("acpiphp_register_hotplug_slot failed "
-					"(err code = 0x%x)\n", retval);
-
-			status = AE_OK;
-			goto err;
-		}
+	slot = kzalloc(sizeof(struct acpiphp_slot), GFP_KERNEL);
+	if (!slot) {
+		status = AE_NO_MEMORY;
+		goto err;
 	}
 
+	slot->bridge = bridge;
+	slot->device = device;
+	slot->sun = sun;
+	INIT_LIST_HEAD(&slot->funcs);
+	mutex_init(&slot->crit_sect);
+
+	mutex_lock(&bridge_mutex);
+	list_add_tail(&slot->node, &bridge->slots);
+	mutex_unlock(&bridge_mutex);
+	bridge->nr_slots++;
+
+	dbg("found ACPI PCI Hotplug slot %llu at PCI %04x:%02x:%02x\n",
+	    slot->sun, pci_domain_nr(pbus), pbus->number, device);
+
+	retval = acpiphp_register_hotplug_slot(slot);
+	if (retval) {
+		if (retval == -EBUSY)
+			warn("Slot %llu already registered by another "
+				"hotplug driver\n", slot->sun);
+		else
+			warn("acpiphp_register_hotplug_slot failed "
+				"(err code = 0x%x)\n", retval);
+
+		bridge->nr_slots--;
+		mutex_lock(&bridge_mutex);
+		list_del(&slot->node);
+		mutex_unlock(&bridge_mutex);
+		kfree(slot);
+		status = AE_OK;
+		goto err;
+	}
+
+ slot_found:
 	newfunc->slot = slot;
 	mutex_lock(&bridge_mutex);
 	list_add_tail(&newfunc->sibling, &slot->funcs);
@@ -425,13 +430,6 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	return AE_OK;
 
  err:
-	bridge->nr_slots--;
-	mutex_lock(&bridge_mutex);
-	list_del(&slot->node);
-	mutex_unlock(&bridge_mutex);
-	kfree(slot);
-
- err_out:
 	mutex_lock(&acpiphp_context_lock);
 	context->func = NULL;
 	acpiphp_put_context(context);
