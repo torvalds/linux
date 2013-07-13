@@ -765,27 +765,6 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
 }
 
 /**
- * acpiphp_eject_slot - physically eject the slot
- * @slot: ACPI PHP slot
- */
-int acpiphp_eject_slot(struct acpiphp_slot *slot)
-{
-	struct acpiphp_func *func;
-
-	list_for_each_entry(func, &slot->funcs, sibling) {
-		/* We don't want to call _EJ0 on non-existing functions. */
-		if (!(func->flags & FUNC_HAS_EJ0))
-			continue;
-
-		if (ACPI_FAILURE(acpi_evaluate_ej0(func_to_handle(func))))
-			return -1;
-		else
-			break;
-	}
-	return 0;
-}
-
-/**
  * acpiphp_check_bridge - re-enumerate devices
  * @bridge: where to begin re-enumeration
  *
@@ -805,13 +784,11 @@ static int acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 		if (slot->flags & SLOT_ENABLED) {
 			if (status == ACPI_STA_ALL)
 				continue;
-			retval = acpiphp_disable_slot(slot);
-			if (retval) {
-				err("Error occurred in disabling\n");
+
+			retval = acpiphp_disable_and_eject_slot(slot);
+			if (retval)
 				goto err_exit;
-			} else {
-				acpiphp_eject_slot(slot);
-			}
+
 			disabled++;
 		} else {
 			if (status != ACPI_STA_ALL)
@@ -951,9 +928,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
 		dbg("%s: Device eject notify on %s\n", __func__, objname);
-		if (!(acpiphp_disable_slot(func->slot)))
-			acpiphp_eject_slot(func->slot);
-
+		acpiphp_disable_and_eject_slot(func->slot);
 		break;
 
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
@@ -1148,11 +1123,12 @@ int acpiphp_enable_slot(struct acpiphp_slot *slot)
 }
 
 /**
- * acpiphp_disable_slot - power off slot
+ * acpiphp_disable_and_eject_slot - power off and eject slot
  * @slot: ACPI PHP slot
  */
-int acpiphp_disable_slot(struct acpiphp_slot *slot)
+int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot)
 {
+	struct acpiphp_func *func;
 	int retval = 0;
 
 	mutex_lock(&slot->crit_sect);
@@ -1166,6 +1142,16 @@ int acpiphp_disable_slot(struct acpiphp_slot *slot)
 	retval = power_off_slot(slot);
 	if (retval)
 		goto err_exit;
+
+	list_for_each_entry(func, &slot->funcs, sibling)
+		if (func->flags & FUNC_HAS_EJ0) {
+			acpi_handle handle = func_to_handle(func);
+
+			if (ACPI_FAILURE(acpi_evaluate_ej0(handle)))
+				acpi_handle_err(handle, "_EJ0 failed\n");
+
+			break;
+		}
 
  err_exit:
 	mutex_unlock(&slot->crit_sect);
