@@ -5387,6 +5387,12 @@ F:	drivers/mtd/
 F:	include/linux/mtd/
 F:	include/uapi/mtd/
 
+MEN A21 WATCHDOG DRIVER
+M:  	Johannes Thumshirn <johannes.thumshirn@men.de>
+L:	linux-watchdog@vger.kernel.org
+S:	Supported
+F:	drivers/watchdog/mena21_wdt.c
+
 METAG ARCHITECTURE
 M:	James Hogan <james.hogan@imgtec.com>
 S:	Supported
