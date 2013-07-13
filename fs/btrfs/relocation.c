@@ -3628,7 +3628,7 @@ int add_data_references(struct reloc_control *rc,
 	unsigned long ptr;
 	unsigned long end;
 	u32 blocksize = btrfs_level_size(rc->extent_root, 0);
-	int ret;
+	int ret = 0;
 	int err = 0;
 
 	eb = path->nodes[0];
@@ -3654,6 +3654,10 @@ int add_data_references(struct reloc_control *rc,
 						   eb, dref, blocks);
 		} else {
 			BUG();
+		}
+		if (ret) {
+			err = ret;
+			goto out;
 		}
 		ptr += btrfs_extent_inline_ref_size(key.type);
 	}
@@ -3700,6 +3704,7 @@ int add_data_references(struct reloc_control *rc,
 		}
 		path->slots[0]++;
 	}
+out:
 	btrfs_release_path(path);
 	if (err)
 		free_block_list(blocks);
