@@ -467,7 +467,7 @@ static int dwc2_update_urb_state(struct dwc2_hsotg *hsotg,
 
 	/* Non DWORD-aligned buffer case handling */
 	if (chan->align_buf && xfer_length && chan->ep_is_in) {
-		dev_dbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
+		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
 		dma_sync_single_for_cpu(hsotg->dev, urb->dma, urb->length,
 					DMA_FROM_DEVICE);
 		memcpy(urb->buf + urb->actual_length, chan->qh->dw_align_buf,
@@ -562,8 +562,8 @@ static enum dwc2_halt_status dwc2_update_isoc_urb_state(
 		/* Non DWORD-aligned buffer case handling */
 		if (chan->align_buf && frame_desc->actual_length &&
 		    chan->ep_is_in) {
-			dev_dbg(hsotg->dev, "%s(): non-aligned buffer\n",
-				__func__);
+			dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n",
+				 __func__);
 			dma_sync_single_for_cpu(hsotg->dev, urb->dma,
 						urb->length, DMA_FROM_DEVICE);
 			memcpy(urb->buf + frame_desc->offset +
@@ -596,8 +596,8 @@ static enum dwc2_halt_status dwc2_update_isoc_urb_state(
 		/* Non DWORD-aligned buffer case handling */
 		if (chan->align_buf && frame_desc->actual_length &&
 		    chan->ep_is_in) {
-			dev_dbg(hsotg->dev, "%s(): non-aligned buffer\n",
-				__func__);
+			dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n",
+				 __func__);
 			dma_sync_single_for_cpu(hsotg->dev, urb->dma,
 						urb->length, DMA_FROM_DEVICE);
 			memcpy(urb->buf + frame_desc->offset +
@@ -935,7 +935,7 @@ static int dwc2_xfercomp_isoc_split_in(struct dwc2_hsotg *hsotg,
 	frame_desc->actual_length += len;
 
 	if (chan->align_buf && len) {
-		dev_dbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
+		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
 		dma_sync_single_for_cpu(hsotg->dev, qtd->urb->dma,
 					qtd->urb->length, DMA_FROM_DEVICE);
 		memcpy(qtd->urb->buf + frame_desc->offset +
@@ -1164,7 +1164,7 @@ static void dwc2_update_urb_state_abn(struct dwc2_hsotg *hsotg,
 
 	/* Non DWORD-aligned buffer case handling */
 	if (chan->align_buf && xfer_length && chan->ep_is_in) {
-		dev_dbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
+		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
 		dma_sync_single_for_cpu(hsotg->dev, urb->dma, urb->length,
 					DMA_FROM_DEVICE);
 		memcpy(urb->buf + urb->actual_length, chan->qh->dw_align_buf,
