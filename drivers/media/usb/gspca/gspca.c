@@ -1029,8 +1029,19 @@ static int gspca_get_mode(struct gspca_dev *gspca_dev,
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+static int vidioc_g_chip_info(struct file *file, void *priv,
+				struct v4l2_dbg_chip_info *chip)
+{
+	struct gspca_dev *gspca_dev = video_drvdata(file);
+
+	gspca_dev->usb_err = 0;
+	if (gspca_dev->sd_desc->get_chip_info)
+		return gspca_dev->sd_desc->get_chip_info(gspca_dev, chip);
+	return chip->match.addr ? -EINVAL : 0;
+}
+
 static int vidioc_g_register(struct file *file, void *priv,
-			struct v4l2_dbg_register *reg)
+		struct v4l2_dbg_register *reg)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
@@ -1039,7 +1050,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 }
 
 static int vidioc_s_register(struct file *file, void *priv,
-			const struct v4l2_dbg_register *reg)
+		const struct v4l2_dbg_register *reg)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
@@ -1047,15 +1058,6 @@ static int vidioc_s_register(struct file *file, void *priv,
 	return gspca_dev->sd_desc->set_register(gspca_dev, reg);
 }
 #endif
-
-static int vidioc_g_chip_ident(struct file *file, void *priv,
-			struct v4l2_dbg_chip_ident *chip)
-{
-	struct gspca_dev *gspca_dev = video_drvdata(file);
-
-	gspca_dev->usb_err = 0;
-	return gspca_dev->sd_desc->get_chip_ident(gspca_dev, chip);
-}
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *fmtdesc)
@@ -1974,10 +1976,10 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_enum_framesizes = vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_chip_info	= vidioc_g_chip_info,
 	.vidioc_g_register	= vidioc_g_register,
 	.vidioc_s_register	= vidioc_s_register,
 #endif
-	.vidioc_g_chip_ident	= vidioc_g_chip_ident,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
@@ -2086,14 +2088,10 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_DQBUF);
 	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_QBUF);
 	v4l2_disable_ioctl_locking(&gspca_dev->vdev, VIDIOC_QUERYBUF);
-	if (!gspca_dev->sd_desc->get_chip_ident)
-		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_DBG_G_CHIP_IDENT);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	if (!gspca_dev->sd_desc->get_chip_ident ||
-	    !gspca_dev->sd_desc->get_register)
+	if (!gspca_dev->sd_desc->get_register)
 		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_DBG_G_REGISTER);
-	if (!gspca_dev->sd_desc->get_chip_ident ||
-	    !gspca_dev->sd_desc->set_register)
+	if (!gspca_dev->sd_desc->set_register)
 		v4l2_disable_ioctl(&gspca_dev->vdev, VIDIOC_DBG_S_REGISTER);
 #endif
 	if (!gspca_dev->sd_desc->get_jcomp)
