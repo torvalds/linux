@@ -323,9 +323,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	INIT_LIST_HEAD(&slot->funcs);
 	mutex_init(&slot->crit_sect);
 
-	mutex_lock(&bridge_mutex);
 	list_add_tail(&slot->node, &bridge->slots);
-	mutex_unlock(&bridge_mutex);
 
 	/* Register slots for ejectable funtions only. */
 	if (acpi_pci_check_ejectable(pbus, handle)  || is_dock_device(handle)) {
@@ -355,9 +353,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
  slot_found:
 	newfunc->slot = slot;
-	mutex_lock(&bridge_mutex);
 	list_add_tail(&newfunc->sibling, &slot->funcs);
-	mutex_unlock(&bridge_mutex);
 
 	if (pci_bus_read_dev_vendor_id(pbus, PCI_DEVFN(device, function),
 				       &val, 60*1000))
@@ -1025,17 +1021,21 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 /* Destroy hotplug slots associated with the PCI bus */
 void acpiphp_remove_slots(struct pci_bus *bus)
 {
-	struct acpiphp_bridge *bridge, *tmp;
+	struct acpiphp_bridge *bridge;
 
 	if (acpiphp_disabled)
 		return;
 
-	list_for_each_entry_safe(bridge, tmp, &bridge_list, list)
+	mutex_lock(&bridge_mutex);
+	list_for_each_entry(bridge, &bridge_list, list)
 		if (bridge->pci_bus == bus) {
+			mutex_unlock(&bridge_mutex);
 			cleanup_bridge(bridge);
 			put_bridge(bridge);
-			break;
+			return;
 		}
+
+	mutex_unlock(&bridge_mutex);
 }
 
 /**
