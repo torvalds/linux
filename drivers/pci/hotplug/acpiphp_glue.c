@@ -989,6 +989,7 @@ void acpiphp_check_host_bridge(acpi_handle handle)
 
 static void _handle_hotplug_event_bridge(struct work_struct *work)
 {
+	struct acpiphp_context *context;
 	struct acpiphp_bridge *bridge;
 	char objname[64];
 	struct acpi_buffer buffer = { .length = sizeof(objname),
@@ -1000,7 +1001,8 @@ static void _handle_hotplug_event_bridge(struct work_struct *work)
 	hp_work = container_of(work, struct acpi_hp_work, work);
 	handle = hp_work->handle;
 	type = hp_work->type;
-	bridge = (struct acpiphp_bridge *)hp_work->context;
+	context = hp_work->context;
+	bridge = context->bridge;
 
 	acpi_scan_lock_acquire();
 
@@ -1105,18 +1107,18 @@ static void hotplug_event_func(acpi_handle handle, u32 type, void *context)
 
 static void _handle_hotplug_event_func(struct work_struct *work)
 {
+	struct acpiphp_context *context;
 	struct acpi_hp_work *hp_work;
-	struct acpiphp_func *func;
 
 	hp_work = container_of(work, struct acpi_hp_work, work);
-	func = hp_work->context;
+	context = hp_work->context;
 	acpi_scan_lock_acquire();
 
-	hotplug_event_func(hp_work->handle, hp_work->type, func);
+	hotplug_event_func(hp_work->handle, hp_work->type, context->func);
 
 	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event_func */
-	put_bridge(func->slot->bridge);
+	put_bridge(context->func->slot->bridge);
 }
 
 /**
@@ -1137,11 +1139,9 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 	if (context) {
 		if (context->bridge) {
 			get_bridge(context->bridge);
-			data = context->bridge;
 			work_func = _handle_hotplug_event_bridge;
 		} else if (context->func) {
 			get_bridge(context->func->slot->bridge);
-			data = context->func;
 			work_func = _handle_hotplug_event_func;
 		}
 		acpiphp_put_context(context);
@@ -1157,7 +1157,7 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 	 * don't deadlock on hotplug actions.
 	 */
 	if (work_func)
-		alloc_acpi_hp_work(handle, type, data, work_func);
+		alloc_acpi_hp_work(handle, type, context, work_func);
 }
 
 /*
