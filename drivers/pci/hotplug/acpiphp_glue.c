@@ -128,7 +128,7 @@ static void acpiphp_put_context(struct acpiphp_context *context)
 	if (--context->refcount)
 		return;
 
-	WARN_ON(context->func || context->bridge);
+	WARN_ON(context->bridge);
 	acpi_detach_data(context->handle, acpiphp_context_handler);
 	kfree(context);
 }
@@ -155,12 +155,9 @@ static void free_bridge(struct kref *kref)
 	bridge = container_of(kref, struct acpiphp_bridge, ref);
 
 	list_for_each_entry_safe(slot, next, &bridge->slots, node) {
-		list_for_each_entry_safe(func, tmp, &slot->funcs, sibling) {
-			context = func->context;
-			context->func = NULL;
-			acpiphp_put_context(context);
-			kfree(func);
-		}
+		list_for_each_entry_safe(func, tmp, &slot->funcs, sibling)
+			acpiphp_put_context(func_to_context(func));
+
 		kfree(slot);
 	}
 
@@ -168,7 +165,7 @@ static void free_bridge(struct kref *kref)
 	/* Root bridges will not have hotplug context. */
 	if (context) {
 		/* Release the reference taken by acpiphp_enumerate_slots(). */
-		put_bridge(context->func->slot->bridge);
+		put_bridge(context->func.slot->bridge);
 		context->bridge = NULL;
 		acpiphp_put_context(context);
 	}
@@ -190,7 +187,7 @@ static void free_bridge(struct kref *kref)
 static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
 {
 	struct acpiphp_context *context = data;
-	struct pci_bus *bus = context->func->slot->bridge->pci_bus;
+	struct pci_bus *bus = context->func.slot->bridge->pci_bus;
 	u32 buses;
 
 	if (!bus->self)
@@ -251,14 +248,14 @@ static void acpiphp_dock_init(void *data)
 {
 	struct acpiphp_context *context = data;
 
-	get_bridge(context->func->slot->bridge);
+	get_bridge(context->func.slot->bridge);
 }
 
 static void acpiphp_dock_release(void *data)
 {
 	struct acpiphp_context *context = data;
 
-	put_bridge(context->func->slot->bridge);
+	put_bridge(context->func.slot->bridge);
 }
 
 /* callback routine to register each ACPI PCI slot object */
@@ -288,23 +285,16 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	device = (adr >> 16) & 0xffff;
 	function = adr & 0xffff;
 
-	newfunc = kzalloc(sizeof(struct acpiphp_func), GFP_KERNEL);
-	if (!newfunc)
-		return AE_NO_MEMORY;
-
-	newfunc->handle = handle;
-	newfunc->function = function;
-
 	mutex_lock(&acpiphp_context_lock);
 	context = acpiphp_init_context(handle);
 	if (!context) {
 		mutex_unlock(&acpiphp_context_lock);
 		acpi_handle_err(handle, "No hotplug context\n");
-		kfree(newfunc);
 		return AE_NOT_EXIST;
 	}
-	newfunc->context = context;
-	context->func = newfunc;
+	newfunc = &context->func;
+	newfunc->handle = handle;
+	newfunc->function = function;
 	mutex_unlock(&acpiphp_context_lock);
 
 	if (acpi_has_method(handle, "_EJ0"))
@@ -404,10 +394,8 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
  err:
 	mutex_lock(&acpiphp_context_lock);
-	context->func = NULL;
 	acpiphp_put_context(context);
 	mutex_unlock(&acpiphp_context_lock);
-	kfree(newfunc);
 	return status;
 }
 
@@ -938,7 +926,7 @@ void acpiphp_check_host_bridge(acpi_handle handle)
 static void hotplug_event(acpi_handle handle, u32 type, void *data)
 {
 	struct acpiphp_context *context = data;
-	struct acpiphp_func *func = context->func;
+	struct acpiphp_func *func = &context->func;
 	struct acpiphp_bridge *bridge;
 	char objname[64];
 	struct acpi_buffer buffer = { .length = sizeof(objname),
@@ -1029,7 +1017,7 @@ static void hotplug_event_work(struct work_struct *work)
 
 	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event() */
-	put_bridge(context->func->slot->bridge);
+	put_bridge(context->func.slot->bridge);
 }
 
 /**
@@ -1047,7 +1035,7 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 	mutex_lock(&acpiphp_context_lock);
 	context = acpiphp_get_context(handle);
 	if (context) {
-		get_bridge(context->func->slot->bridge);
+		get_bridge(context->func.slot->bridge);
 		acpiphp_put_context(context);
 	}
 	mutex_unlock(&acpiphp_context_lock);
@@ -1109,7 +1097,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		 */
 		mutex_lock(&acpiphp_context_lock);
 		context = acpiphp_get_context(handle);
-		if (WARN_ON(!context || !context->func)) {
+		if (WARN_ON(!context)) {
 			mutex_unlock(&acpiphp_context_lock);
 			put_device(&bus->dev);
 			kfree(bridge);
@@ -1118,7 +1106,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		bridge->context = context;
 		context->bridge = bridge;
 		/* Get a reference to the parent bridge. */
-		get_bridge(context->func->slot->bridge);
+		get_bridge(context->func.slot->bridge);
 		mutex_unlock(&acpiphp_context_lock);
 	}
 

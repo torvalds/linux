@@ -116,7 +116,6 @@ struct acpiphp_slot {
  * typically 8 objects per slot (i.e. for each PCI function)
  */
 struct acpiphp_func {
-	struct acpiphp_context *context;
 	struct acpiphp_slot *slot;	/* parent */
 
 	struct list_head sibling;
@@ -128,10 +127,15 @@ struct acpiphp_func {
 
 struct acpiphp_context {
 	acpi_handle handle;
-	struct acpiphp_func *func;
+	struct acpiphp_func func;
 	struct acpiphp_bridge *bridge;
 	unsigned int refcount;
 };
+
+static inline struct acpiphp_context *func_to_context(struct acpiphp_func *func)
+{
+	return container_of(func, struct acpiphp_context, func);
+}
 
 /*
  * struct acpiphp_attention_info - device specific attention registration
