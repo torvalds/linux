@@ -325,10 +325,9 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 		if (ACPI_FAILURE(status))
 			err("failed to register interrupt notify handler\n");
-	} else
-		status = AE_OK;
+	}
 
-	return status;
+	return AE_OK;
 
  err_exit:
 	bridge->nr_slots--;
