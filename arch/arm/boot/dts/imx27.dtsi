@@ -57,13 +57,14 @@
 			device_type = "cpu";
 			compatible = "arm,arm926ej-s";
 			operating-points = <
-				/* kHz  uV (No regulator support) */
-				133000  0
-				399000  0
+				/* kHz uV */
+				266000 1300000
+				399000 1450000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
 			clocks = <&clks 18>;
 			clock-names = "cpu";
+			voltage-tolerance = <5>;
 		};
 	};
 
