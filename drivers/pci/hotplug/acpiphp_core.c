@@ -321,10 +321,8 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 	slot->sun = sun;
 	snprintf(name, SLOT_NAME_SIZE, "%u", sun);
 
-	retval = pci_hp_register(slot->hotplug_slot,
-					acpiphp_slot->bridge->pci_bus,
-					acpiphp_slot->device,
-					name);
+	retval = pci_hp_register(slot->hotplug_slot, acpiphp_slot->bus,
+				 acpiphp_slot->device, name);
 	if (retval == -EBUSY)
 		goto error_hpslot;
 	if (retval) {

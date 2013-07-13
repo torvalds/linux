@@ -165,7 +165,7 @@ static void free_bridge(struct kref *kref)
 	/* Root bridges will not have hotplug context. */
 	if (context) {
 		/* Release the reference taken by acpiphp_enumerate_slots(). */
-		put_bridge(context->func.slot->bridge);
+		put_bridge(context->func.parent);
 		context->bridge = NULL;
 		acpiphp_put_context(context);
 	}
@@ -187,7 +187,7 @@ static void free_bridge(struct kref *kref)
 static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
 {
 	struct acpiphp_context *context = data;
-	struct pci_bus *bus = context->func.slot->bridge->pci_bus;
+	struct pci_bus *bus = context->func.slot->bus;
 	u32 buses;
 
 	if (!bus->self)
@@ -248,14 +248,14 @@ static void acpiphp_dock_init(void *data)
 {
 	struct acpiphp_context *context = data;
 
-	get_bridge(context->func.slot->bridge);
+	get_bridge(context->func.parent);
 }
 
 static void acpiphp_dock_release(void *data)
 {
 	struct acpiphp_context *context = data;
 
-	put_bridge(context->func.slot->bridge);
+	put_bridge(context->func.parent);
 }
 
 /* callback routine to register each ACPI PCI slot object */
@@ -294,6 +294,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	}
 	newfunc = &context->func;
 	newfunc->function = function;
+	newfunc->parent = bridge;
 	mutex_unlock(&acpiphp_context_lock);
 
 	if (acpi_has_method(handle, "_EJ0"))
@@ -322,7 +323,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 		goto err;
 	}
 
-	slot->bridge = bridge;
+	slot->bus = bridge->pci_bus;
 	slot->device = device;
 	INIT_LIST_HEAD(&slot->funcs);
 	mutex_init(&slot->crit_sect);
@@ -639,7 +640,7 @@ static void check_hotplug_bridge(struct acpiphp_slot *slot, struct pci_dev *dev)
 static int __ref enable_device(struct acpiphp_slot *slot)
 {
 	struct pci_dev *dev;
-	struct pci_bus *bus = slot->bridge->pci_bus;
+	struct pci_bus *bus = slot->bus;
 	struct acpiphp_func *func;
 	int num, max, pass;
 	LIST_HEAD(add_list);
@@ -709,7 +710,7 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 /* return first device in slot, acquiring a reference on it */
 static struct pci_dev *dev_in_slot(struct acpiphp_slot *slot)
 {
-	struct pci_bus *bus = slot->bridge->pci_bus;
+	struct pci_bus *bus = slot->bus;
 	struct pci_dev *dev;
 	struct pci_dev *ret = NULL;
 
@@ -781,7 +782,7 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
 		} else {
 			u32 dvid;
 
-			pci_bus_read_config_dword(slot->bridge->pci_bus,
+			pci_bus_read_config_dword(slot->bus,
 						  PCI_DEVFN(slot->device,
 							    func->function),
 						  PCI_VENDOR_ID, &dvid);
@@ -970,7 +971,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 		if (bridge)
 			acpiphp_check_bridge(bridge);
 		else
-			acpiphp_check_bridge(func->slot->bridge);
+			acpiphp_check_bridge(func->parent);
 
 		break;
 
@@ -1025,7 +1026,7 @@ static void hotplug_event_work(struct work_struct *work)
 
 	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event() */
-	put_bridge(context->func.slot->bridge);
+	put_bridge(context->func.parent);
 }
 
 /**
@@ -1043,7 +1044,7 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 	mutex_lock(&acpiphp_context_lock);
 	context = acpiphp_get_context(handle);
 	if (context) {
-		get_bridge(context->func.slot->bridge);
+		get_bridge(context->func.parent);
 		acpiphp_put_context(context);
 	}
 	mutex_unlock(&acpiphp_context_lock);
@@ -1113,7 +1114,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		bridge->context = context;
 		context->bridge = bridge;
 		/* Get a reference to the parent bridge. */
-		get_bridge(context->func.slot->bridge);
+		get_bridge(context->func.parent);
 		mutex_unlock(&acpiphp_context_lock);
 	}
 

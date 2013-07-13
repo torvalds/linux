@@ -97,7 +97,7 @@ struct acpiphp_bridge {
  */
 struct acpiphp_slot {
 	struct list_head node;
-	struct acpiphp_bridge *bridge;	/* parent */
+	struct pci_bus *bus;
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */
 	struct slot *slot;
@@ -115,7 +115,8 @@ struct acpiphp_slot {
  * typically 8 objects per slot (i.e. for each PCI function)
  */
 struct acpiphp_func {
-	struct acpiphp_slot *slot;	/* parent */
+	struct acpiphp_bridge *parent;
+	struct acpiphp_slot *slot;
 
 	struct list_head sibling;
 
