@@ -293,7 +293,6 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 		return AE_NOT_EXIST;
 	}
 	newfunc = &context->func;
-	newfunc->handle = handle;
 	newfunc->function = function;
 	mutex_unlock(&acpiphp_context_lock);
 
@@ -425,11 +424,13 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 
 	list_for_each_entry(slot, &bridge->slots, node) {
 		list_for_each_entry(func, &slot->funcs, sibling) {
-			if (is_dock_device(func->handle)) {
-				unregister_hotplug_dock_device(func->handle);
-			}
+			acpi_handle handle = func_to_handle(func);
+
+			if (is_dock_device(handle))
+				unregister_hotplug_dock_device(handle);
+
 			if (!(func->flags & FUNC_HAS_DCK)) {
-				status = acpi_remove_notify_handler(func->handle,
+				status = acpi_remove_notify_handler(handle,
 							ACPI_SYSTEM_NOTIFY,
 							handle_hotplug_event);
 				if (ACPI_FAILURE(status))
@@ -457,7 +458,8 @@ static int power_on_slot(struct acpiphp_slot *slot)
 	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (func->flags & FUNC_HAS_PS0) {
 			dbg("%s: executing _PS0\n", __func__);
-			status = acpi_evaluate_object(func->handle, "_PS0", NULL, NULL);
+			status = acpi_evaluate_object(func_to_handle(func),
+						      "_PS0", NULL, NULL);
 			if (ACPI_FAILURE(status)) {
 				warn("%s: _PS0 failed\n", __func__);
 				retval = -1;
@@ -489,7 +491,8 @@ static int power_off_slot(struct acpiphp_slot *slot)
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (func->flags & FUNC_HAS_PS3) {
-			status = acpi_evaluate_object(func->handle, "_PS3", NULL, NULL);
+			status = acpi_evaluate_object(func_to_handle(func),
+						      "_PS3", NULL, NULL);
 			if (ACPI_FAILURE(status)) {
 				warn("%s: _PS3 failed\n", __func__);
 				retval = -1;
@@ -543,10 +546,11 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
  */
 static int acpiphp_bus_add(struct acpiphp_func *func)
 {
+	acpi_handle handle = func_to_handle(func);
 	struct acpi_device *device;
 	int ret_val;
 
-	if (!acpi_bus_get_device(func->handle, &device)) {
+	if (!acpi_bus_get_device(handle, &device)) {
 		dbg("bus exists... trim\n");
 		/* this shouldn't be in here, so remove
 		 * the bus then re-add it...
@@ -554,9 +558,9 @@ static int acpiphp_bus_add(struct acpiphp_func *func)
 		acpi_bus_trim(device);
 	}
 
-	ret_val = acpi_bus_scan(func->handle);
+	ret_val = acpi_bus_scan(handle);
 	if (!ret_val)
-		ret_val = acpi_bus_get_device(func->handle, &device);
+		ret_val = acpi_bus_get_device(handle, &device);
 
 	if (ret_val)
 		dbg("error adding bus, %x\n", -ret_val);
@@ -598,7 +602,8 @@ static void acpiphp_set_acpi_region(struct acpiphp_slot *slot)
 		params[1].type = ACPI_TYPE_INTEGER;
 		params[1].integer.value = 1;
 		/* _REG is optional, we don't care about if there is failure */
-		acpi_evaluate_object(func->handle, "_REG", &arg_list, NULL);
+		acpi_evaluate_object(func_to_handle(func), "_REG", &arg_list,
+				     NULL);
 	}
 }
 
@@ -739,9 +744,8 @@ static int disable_device(struct acpiphp_slot *slot)
 		pci_dev_put(pdev);
 	}
 
-	list_for_each_entry(func, &slot->funcs, sibling) {
-		acpiphp_bus_trim(func->handle);
-	}
+	list_for_each_entry(func, &slot->funcs, sibling)
+		acpiphp_bus_trim(func_to_handle(func));
 
 	slot->flags &= (~SLOT_ENABLED);
 
@@ -763,17 +767,20 @@ static int disable_device(struct acpiphp_slot *slot)
  */
 static unsigned int get_slot_status(struct acpiphp_slot *slot)
 {
-	acpi_status status;
 	unsigned long long sta = 0;
-	u32 dvid;
 	struct acpiphp_func *func;
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (func->flags & FUNC_HAS_STA) {
-			status = acpi_evaluate_integer(func->handle, "_STA", NULL, &sta);
+			acpi_status status;
+
+			status = acpi_evaluate_integer(func_to_handle(func),
+						       "_STA", NULL, &sta);
 			if (ACPI_SUCCESS(status) && sta)
 				break;
 		} else {
+			u32 dvid;
+
 			pci_bus_read_config_dword(slot->bridge->pci_bus,
 						  PCI_DEVFN(slot->device,
 							    func->function),
@@ -798,12 +805,13 @@ int acpiphp_eject_slot(struct acpiphp_slot *slot)
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
 		/* We don't want to call _EJ0 on non-existing functions. */
-		if ((func->flags & FUNC_HAS_EJ0)) {
-			if (ACPI_FAILURE(acpi_evaluate_ej0(func->handle)))
-				return -1;
-			else
-				break;
-		}
+		if (!(func->flags & FUNC_HAS_EJ0))
+			continue;
+
+		if (ACPI_FAILURE(acpi_evaluate_ej0(func_to_handle(func))))
+			return -1;
+		else
+			break;
 	}
 	return 0;
 }
