@@ -15,6 +15,39 @@
 /* Clock Control register */
 #define PERF_CKCTL_REG			0x4
 
+#define CKCTL_3368_MAC_EN		(1 << 3)
+#define CKCTL_3368_TC_EN		(1 << 5)
+#define CKCTL_3368_US_TOP_EN		(1 << 6)
+#define CKCTL_3368_DS_TOP_EN		(1 << 7)
+#define CKCTL_3368_APM_EN		(1 << 8)
+#define CKCTL_3368_SPI_EN		(1 << 9)
+#define CKCTL_3368_USBS_EN		(1 << 10)
+#define CKCTL_3368_BMU_EN		(1 << 11)
+#define CKCTL_3368_PCM_EN		(1 << 12)
+#define CKCTL_3368_NTP_EN		(1 << 13)
+#define CKCTL_3368_ACP_B_EN		(1 << 14)
+#define CKCTL_3368_ACP_A_EN		(1 << 15)
+#define CKCTL_3368_EMUSB_EN		(1 << 17)
+#define CKCTL_3368_ENET0_EN		(1 << 18)
+#define CKCTL_3368_ENET1_EN		(1 << 19)
+#define CKCTL_3368_USBU_EN		(1 << 20)
+#define CKCTL_3368_EPHY_EN		(1 << 21)
+
+#define CKCTL_3368_ALL_SAFE_EN		(CKCTL_3368_MAC_EN | \
+					 CKCTL_3368_TC_EN | \
+					 CKCTL_3368_US_TOP_EN | \
+					 CKCTL_3368_DS_TOP_EN | \
+					 CKCTL_3368_APM_EN | \
+					 CKCTL_3368_SPI_EN | \
+					 CKCTL_3368_USBS_EN | \
+					 CKCTL_3368_BMU_EN | \
+					 CKCTL_3368_PCM_EN | \
+					 CKCTL_3368_NTP_EN | \
+					 CKCTL_3368_ACP_B_EN | \
+					 CKCTL_3368_ACP_A_EN | \
+					 CKCTL_3368_EMUSB_EN | \
+					 CKCTL_3368_USBU_EN)
+
 #define CKCTL_6328_PHYMIPS_EN		(1 << 0)
 #define CKCTL_6328_ADSL_QPROC_EN	(1 << 1)
 #define CKCTL_6328_ADSL_AFE_EN		(1 << 2)
@@ -181,6 +214,7 @@
 #define SYS_PLL_SOFT_RESET		0x1
 
 /* Interrupt Mask register */
+#define PERF_IRQMASK_3368_REG		0xc
 #define PERF_IRQMASK_6328_REG		0x20
 #define PERF_IRQMASK_6338_REG		0xc
 #define PERF_IRQMASK_6345_REG		0xc
@@ -190,6 +224,7 @@
 #define PERF_IRQMASK_6368_REG		0x20
 
 /* Interrupt Status register */
+#define PERF_IRQSTAT_3368_REG		0x10
 #define PERF_IRQSTAT_6328_REG		0x28
 #define PERF_IRQSTAT_6338_REG		0x10
 #define PERF_IRQSTAT_6345_REG		0x10
@@ -199,6 +234,7 @@
 #define PERF_IRQSTAT_6368_REG		0x28
 
 /* External Interrupt Configuration register */
+#define PERF_EXTIRQ_CFG_REG_3368	0x14
 #define PERF_EXTIRQ_CFG_REG_6328	0x18
 #define PERF_EXTIRQ_CFG_REG_6338	0x14
 #define PERF_EXTIRQ_CFG_REG_6345	0x14
@@ -235,6 +271,13 @@
 #define PERF_SOFTRESET_6358_REG		0x34
 #define PERF_SOFTRESET_6362_REG		0x10
 #define PERF_SOFTRESET_6368_REG		0x10
+
+#define SOFTRESET_3368_SPI_MASK		(1 << 0)
+#define SOFTRESET_3368_ENET_MASK	(1 << 2)
+#define SOFTRESET_3368_MPI_MASK		(1 << 3)
+#define SOFTRESET_3368_EPHY_MASK	(1 << 6)
+#define SOFTRESET_3368_USBS_MASK	(1 << 11)
+#define SOFTRESET_3368_PCM_MASK		(1 << 13)
 
 #define SOFTRESET_6328_SPI_MASK		(1 << 0)
 #define SOFTRESET_6328_EPHY_MASK	(1 << 1)
@@ -1370,7 +1413,7 @@
 #define SPI_6348_RX_DATA		0x80
 #define SPI_6348_RX_DATA_SIZE		0x3f
 
-/* BCM 6358/6262/6368 SPI core */
+/* BCM 3368/6358/6262/6368 SPI core */
 #define SPI_6358_MSG_CTL		0x00	/* 16-bits register */
 #define SPI_6358_MSG_CTL_WIDTH		16
 #define SPI_6358_MSG_DATA		0x02
@@ -1510,5 +1553,12 @@
 #define PCIE_RC_INT_D			(1 << 3)
 
 #define PCIE_DEVICE_OFFSET		0x8000
+
+/*************************************************************************
+ * _REG relative to RSET_OTP
+ *************************************************************************/
+
+#define OTP_USER_BITS_6328_REG(i)	(0x20 + (i) * 4)
+#define   OTP_6328_REG3_TP1_DISABLED	BIT(9)
 
 #endif /* BCM63XX_REGS_H_ */

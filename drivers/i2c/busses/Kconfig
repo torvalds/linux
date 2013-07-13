@@ -739,7 +739,7 @@ config I2C_WMT
 
 config I2C_OCTEON
 	tristate "Cavium OCTEON I2C bus support"
-	depends on CPU_CAVIUM_OCTEON
+	depends on CAVIUM_OCTEON_SOC
 	help
 	  Say yes if you want to support the I2C serial bus on Cavium
 	  OCTEON SOC.
