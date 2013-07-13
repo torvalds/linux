@@ -542,18 +542,13 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 	struct pci_dev *dev;
 	struct pci_bus *bus = slot->bus;
 	struct acpiphp_func *func;
-	int num, max, pass;
+	int max, pass;
 	LIST_HEAD(add_list);
 
 	list_for_each_entry(func, &slot->funcs, sibling)
 		acpiphp_bus_add(func_to_handle(func));
 
-	num = pci_scan_slot(bus, PCI_DEVFN(slot->device, 0));
-	if (num == 0) {
-		/* Maybe only part of funcs are added. */
-		dbg("No new device found\n");
-		goto err_exit;
-	}
+	pci_scan_slot(bus, PCI_DEVFN(slot->device, 0));
 
 	max = acpiphp_max_busnr(bus);
 	for (pass = 0; pass < 2; pass++) {
@@ -599,8 +594,6 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 		}
 	}
 
-
- err_exit:
 	return 0;
 }
 
