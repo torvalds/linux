@@ -33,6 +33,7 @@ struct alpha_machine_vector
 
 	int nr_irqs;
 	int rtc_port;
+	int rtc_boot_cpu_only;
 	unsigned int max_asn;
 	unsigned long max_isa_dma_address;
 	unsigned long irq_probe_mask;
@@ -94,9 +95,6 @@ struct alpha_machine_vector
 	struct pci_ops *pci_ops;
 
 	struct _alpha_agp_info *(*agp_info)(void);
-
-	unsigned int (*rtc_get_time)(struct rtc_time *);
-	int (*rtc_set_time)(struct rtc_time *);
 
 	const char *vector_name;
 

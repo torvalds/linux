@@ -3,13 +3,7 @@
  *
  *  Copyright (C) 1991, 1992, 1995, 1999, 2000  Linus Torvalds
  *
- * This file contains the PC-specific time handling details:
- * reading the RTC at bootup, etc..
- * 1994-07-02    Alan Modra
- *	fixed set_rtc_mmss, fixed time.year for >= 2000, new mktime
- * 1995-03-26    Markus Kuhn
- *      fixed 500 ms bug at call to set_rtc_mmss, fixed DS12887
- *      precision CMOS clock update
+ * This file contains the clocksource time handling.
  * 1997-09-10	Updated NTP code according to technical memorandum Jan '96
  *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  * 1997-01-09    Adrian Sun
@@ -21,9 +15,6 @@
  * 1999-04-16	Thorsten Kranzkowski (dl8bcu@gmx.net)
  *	fixed algorithm in do_gettimeofday() for calculating the precise time
  *	from processor cycle counter (now taking lost_ticks into account)
- * 2000-08-13	Jan-Benedict Glaw <jbglaw@lug-owl.de>
- * 	Fixed time_init to be aware of epoches != 1900. This prevents
- * 	booting up in 2048 for me;) Code is stolen from rtc.c.
  * 2003-06-03	R. Scott Bailey <scott.bailey@eds.com>
  *	Tighten sanity in time_init from 1% (10,000 PPM) to 250 PPM
  */
@@ -46,7 +37,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/hwrpb.h>
-#include <asm/rtc.h>
 
 #include <linux/mc146818rtc.h>
 #include <linux/time.h>
@@ -55,8 +45,6 @@
 
 #include "proto.h"
 #include "irq_impl.h"
-
-static int set_rtc_mmss(unsigned long);
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
@@ -107,53 +95,6 @@ static inline __u32 rpcc(void)
 {
 	return __builtin_alpha_rpcc();
 }
-
-int update_persistent_clock(struct timespec now)
-{
-	return set_rtc_mmss(now.tv_sec);
-}
-
-void read_persistent_clock(struct timespec *ts)
-{
-	unsigned int year, mon, day, hour, min, sec, epoch;
-
-	sec = CMOS_READ(RTC_SECONDS);
-	min = CMOS_READ(RTC_MINUTES);
-	hour = CMOS_READ(RTC_HOURS);
-	day = CMOS_READ(RTC_DAY_OF_MONTH);
-	mon = CMOS_READ(RTC_MONTH);
-	year = CMOS_READ(RTC_YEAR);
-
-	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		sec = bcd2bin(sec);
-		min = bcd2bin(min);
-		hour = bcd2bin(hour);
-		day = bcd2bin(day);
-		mon = bcd2bin(mon);
-		year = bcd2bin(year);
-	}
-
-	/* PC-like is standard; used for year >= 70 */
-	epoch = 1900;
-	if (year < 20)
-		epoch = 2000;
-	else if (year >= 20 && year < 48)
-		/* NT epoch */
-		epoch = 1980;
-	else if (year >= 48 && year < 70)
-		/* Digital UNIX epoch */
-		epoch = 1952;
-
-	printk(KERN_INFO "Using epoch = %d\n", epoch);
-
-	if ((year += epoch) < 1970)
-		year += 100;
-
-	ts->tv_sec = mktime(year, mon, day, hour, min, sec);
-	ts->tv_nsec = 0;
-}
-
-
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -241,16 +182,6 @@ common_init_rtc(void)
 	outb(0x13, 0x42);
 
 	init_rtc_irq();
-}
-
-unsigned int common_get_rtc_time(struct rtc_time *time)
-{
-	return __get_rtc_time(time);
-}
-
-int common_set_rtc_time(struct rtc_time *time)
-{
-	return __set_rtc_time(time);
 }
 
 /* Validate a computed cycle counter result against the known bounds for
@@ -452,79 +383,4 @@ time_init(void)
 
 	/* Startup the timer source. */
 	alpha_mv.init_rtc();
-}
-
-/*
- * In order to set the CMOS clock precisely, set_rtc_mmss has to be
- * called 500 ms after the second nowtime has started, because when
- * nowtime is written into the registers of the CMOS clock, it will
- * jump to the next second precisely 500 ms later. Check the Motorola
- * MC146818A or Dallas DS12887 data sheet for details.
- *
- * BUG: This routine does not handle hour overflow properly; it just
- *      sets the minutes. Usually you won't notice until after reboot!
- */
-
-
-static int
-set_rtc_mmss(unsigned long nowtime)
-{
-	int retval = 0;
-	int real_seconds, real_minutes, cmos_minutes;
-	unsigned char save_control, save_freq_select;
-
-	/* irq are locally disabled here */
-	spin_lock(&rtc_lock);
-	/* Tell the clock it's being set */
-	save_control = CMOS_READ(RTC_CONTROL);
-	CMOS_WRITE((save_control|RTC_SET), RTC_CONTROL);
-
-	/* Stop and reset prescaler */
-	save_freq_select = CMOS_READ(RTC_FREQ_SELECT);
-	CMOS_WRITE((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
-
-	cmos_minutes = CMOS_READ(RTC_MINUTES);
-	if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
-		cmos_minutes = bcd2bin(cmos_minutes);
-
-	/*
-	 * since we're only adjusting minutes and seconds,
-	 * don't interfere with hour overflow. This avoids
-	 * messing with unknown time zones but requires your
-	 * RTC not to be off by more than 15 minutes
-	 */
-	real_seconds = nowtime % 60;
-	real_minutes = nowtime / 60;
-	if (((abs(real_minutes - cmos_minutes) + 15)/30) & 1) {
-		/* correct for half hour time zone */
-		real_minutes += 30;
-	}
-	real_minutes %= 60;
-
-	if (abs(real_minutes - cmos_minutes) < 30) {
-		if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-			real_seconds = bin2bcd(real_seconds);
-			real_minutes = bin2bcd(real_minutes);
-		}
-		CMOS_WRITE(real_seconds,RTC_SECONDS);
-		CMOS_WRITE(real_minutes,RTC_MINUTES);
-	} else {
-		printk_once(KERN_NOTICE
-		       "set_rtc_mmss: can't update from %d to %d\n",
-		       cmos_minutes, real_minutes);
- 		retval = -1;
-	}
-
-	/* The following flags have to be released exactly in this order,
-	 * otherwise the DS12887 (popular MC146818A clone with integrated
-	 * battery and quartz) will not reset the oscillator and will not
-	 * update precisely 500 ms later. You won't find this mentioned in
-	 * the Dallas Semiconductor data sheets, but who believes data
-	 * sheets anyway ...                           -- Markus Kuhn
-	 */
-	CMOS_WRITE(save_control, RTC_CONTROL);
-	CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);
-	spin_unlock(&rtc_lock);
-
-	return retval;
 }
