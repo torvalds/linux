@@ -532,13 +532,13 @@ static void check_hotplug_bridge(struct acpiphp_slot *slot, struct pci_dev *dev)
 }
 
 /**
- * enable_device - enable, configure a slot
+ * enable_slot - enable, configure a slot
  * @slot: slot to be enabled
  *
  * This function should be called per *physical slot*,
  * not per each slot object in ACPI namespace.
  */
-static int __ref enable_device(struct acpiphp_slot *slot)
+static void __ref enable_slot(struct acpiphp_slot *slot)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus = slot->bus;
@@ -556,6 +556,7 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 		list_for_each_entry(dev, &bus->devices, bus_list) {
 			if (PCI_SLOT(dev->devfn) != slot->device)
 				continue;
+
 			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
 			    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS) {
 				max = pci_scan_bridge(bus, dev, max, pass);
@@ -594,8 +595,6 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 			continue;
 		}
 	}
-
-	return 0;
 }
 
 /* return first device in slot, acquiring a reference on it */
@@ -617,16 +616,16 @@ static struct pci_dev *dev_in_slot(struct acpiphp_slot *slot)
 }
 
 /**
- * disable_device - disable a slot
+ * disable_slot - disable a slot
  * @slot: ACPI PHP slot
  */
-static int disable_device(struct acpiphp_slot *slot)
+static void disable_slot(struct acpiphp_slot *slot)
 {
 	struct acpiphp_func *func;
 	struct pci_dev *pdev;
 
 	/*
-	 * enable_device() enumerates all functions in this device via
+	 * enable_slot() enumerates all functions in this device via
 	 * pci_scan_slot(), whether they have associated ACPI hotplug
 	 * methods (_EJ0, etc.) or not.  Therefore, we remove all functions
 	 * here.
@@ -640,8 +639,6 @@ static int disable_device(struct acpiphp_slot *slot)
 		acpiphp_bus_trim(func_to_handle(func));
 
 	slot->flags &= (~SLOT_ENABLED);
-
-	return 0;
 }
 
 
@@ -751,9 +748,9 @@ static void acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 					trim_stale_devices(dev);
 
 			/* configure all functions */
-			enable_device(slot);
+			enable_slot(slot);
 		} else {
-			disable_device(slot);
+			disable_slot(slot);
 		}
 		mutex_unlock(&slot->crit_sect);
 	}
@@ -860,7 +857,7 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 			struct acpiphp_slot *slot = func->slot;
 
 			mutex_lock(&slot->crit_sect);
-			enable_device(slot);
+			enable_slot(slot);
 			mutex_unlock(&slot->crit_sect);
 		}
 		break;
@@ -1047,16 +1044,13 @@ void acpiphp_remove_slots(struct pci_bus *bus)
  */
 int acpiphp_enable_slot(struct acpiphp_slot *slot)
 {
-	int retval = 0;
-
 	mutex_lock(&slot->crit_sect);
-
 	/* configure all functions */
 	if (!(slot->flags & SLOT_ENABLED))
-		retval = enable_device(slot);
+		enable_slot(slot);
 
 	mutex_unlock(&slot->crit_sect);
-	return retval;
+	return 0;
 }
 
 /**
@@ -1071,9 +1065,7 @@ int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot)
 	mutex_lock(&slot->crit_sect);
 
 	/* unconfigure all functions */
-	retval = disable_device(slot);
-	if (retval)
-		goto err_exit;
+	disable_slot(slot);
 
 	list_for_each_entry(func, &slot->funcs, sibling)
 		if (func->flags & FUNC_HAS_EJ0) {
@@ -1085,7 +1077,6 @@ int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot)
 			break;
 		}
 
- err_exit:
 	mutex_unlock(&slot->crit_sect);
 	return retval;
 }
