@@ -683,9 +683,10 @@ void vtime_account_irq_exit(struct task_struct *tsk)
 
 void vtime_account_user(struct task_struct *tsk)
 {
-	cputime_t delta_cpu = get_vtime_delta(tsk);
+	cputime_t delta_cpu;
 
 	write_seqlock(&tsk->vtime_seqlock);
+	delta_cpu = get_vtime_delta(tsk);
 	tsk->vtime_snap_whence = VTIME_SYS;
 	account_user_time(tsk, delta_cpu, cputime_to_scaled(delta_cpu));
 	write_sequnlock(&tsk->vtime_seqlock);
