@@ -540,53 +540,27 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
 	return max;
 }
 
-
 /**
- * acpiphp_bus_add - add a new bus to acpi subsystem
- * @func: acpiphp_func of the bridge
+ * acpiphp_bus_trim - Trim device objects in an ACPI namespace subtree.
+ * @handle: ACPI device object handle to start from.
  */
-static int acpiphp_bus_add(struct acpiphp_func *func)
+static void acpiphp_bus_trim(acpi_handle handle)
 {
-	acpi_handle handle = func_to_handle(func);
-	struct acpi_device *device;
-	int ret_val;
+	struct acpi_device *adev = NULL;
 
-	if (!acpi_bus_get_device(handle, &device)) {
-		dbg("bus exists... trim\n");
-		/* this shouldn't be in here, so remove
-		 * the bus then re-add it...
-		 */
-		acpi_bus_trim(device);
-	}
-
-	ret_val = acpi_bus_scan(handle);
-	if (!ret_val)
-		ret_val = acpi_bus_get_device(handle, &device);
-
-	if (ret_val)
-		dbg("error adding bus, %x\n", -ret_val);
-
-	return ret_val;
+	acpi_bus_get_device(handle, &adev);
+	if (adev)
+		acpi_bus_trim(adev);
 }
 
-
 /**
- * acpiphp_bus_trim - trim a bus from acpi subsystem
- * @handle: handle to acpi namespace
+ * acpiphp_bus_add - Scan ACPI namespace subtree.
+ * @handle: ACPI object handle to start the scan from.
  */
-static int acpiphp_bus_trim(acpi_handle handle)
+static void acpiphp_bus_add(acpi_handle handle)
 {
-	struct acpi_device *device;
-	int retval;
-
-	retval = acpi_bus_get_device(handle, &device);
-	if (retval) {
-		dbg("acpi_device not found\n");
-		return retval;
-	}
-
-	acpi_bus_trim(device);
-	return 0;
+	acpiphp_bus_trim(handle);
+	acpi_bus_scan(handle);
 }
 
 static void acpiphp_set_acpi_region(struct acpiphp_slot *slot)
@@ -649,7 +623,7 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 		goto err_exit;
 
 	list_for_each_entry(func, &slot->funcs, sibling)
-		acpiphp_bus_add(func);
+		acpiphp_bus_add(func_to_handle(func));
 
 	num = pci_scan_slot(bus, PCI_DEVFN(slot->device, 0));
 	if (num == 0) {
