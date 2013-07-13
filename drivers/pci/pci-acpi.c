@@ -290,24 +290,16 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 
 void acpi_pci_add_bus(struct pci_bus *bus)
 {
-	acpi_handle handle = NULL;
-
-	if (bus->bridge)
-		handle = ACPI_HANDLE(bus->bridge);
-	if (acpi_pci_disabled || handle == NULL)
+	if (acpi_pci_disabled || !bus->bridge)
 		return;
 
-	acpi_pci_slot_enumerate(bus, handle);
-	acpiphp_enumerate_slots(bus, handle);
+	acpi_pci_slot_enumerate(bus);
+	acpiphp_enumerate_slots(bus);
 }
 
 void acpi_pci_remove_bus(struct pci_bus *bus)
 {
-	/*
-	 * bus->bridge->acpi_node.handle has already been reset to NULL
-	 * when acpi_pci_remove_bus() is called, so don't check ACPI handle.
-	 */
-	if (acpi_pci_disabled)
+	if (acpi_pci_disabled || !bus->bridge)
 		return;
 
 	acpiphp_remove_slots(bus);

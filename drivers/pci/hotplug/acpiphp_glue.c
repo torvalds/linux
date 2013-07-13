@@ -1147,14 +1147,16 @@ static void handle_hotplug_event_func(acpi_handle handle, u32 type,
  * Create hotplug slots for the PCI bus.
  * It should always return 0 to avoid skipping following notifiers.
  */
-void acpiphp_enumerate_slots(struct pci_bus *bus, acpi_handle handle)
+void acpiphp_enumerate_slots(struct pci_bus *bus)
 {
+	acpi_handle handle;
 	struct acpiphp_bridge *bridge;
 
 	if (acpiphp_disabled)
 		return;
 
-	if (detect_ejectable_slots(handle) <= 0)
+	handle = ACPI_HANDLE(bus->bridge);
+	if (!handle || detect_ejectable_slots(handle) <= 0)
 		return;
 
 	bridge = kzalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
