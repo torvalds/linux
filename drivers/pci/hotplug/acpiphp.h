@@ -134,7 +134,6 @@ struct acpiphp_context {
 	struct acpiphp_func *func;
 	struct acpiphp_bridge *bridge;
 	unsigned int refcount;
-	bool handler_for_func;
 };
 
 /*
