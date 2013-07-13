@@ -290,7 +290,8 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 }
 
 /* callback routine to initialize 'struct slot' for each slot */
-int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
+int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
+				  unsigned int sun)
 {
 	struct slot *slot;
 	int retval = -ENOMEM;
@@ -317,7 +318,8 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 	slot->hotplug_slot->info->adapter_status = acpiphp_get_adapter_status(slot->acpi_slot);
 
 	acpiphp_slot->slot = slot;
-	snprintf(name, SLOT_NAME_SIZE, "%llu", slot->acpi_slot->sun);
+	slot->sun = sun;
+	snprintf(name, SLOT_NAME_SIZE, "%u", sun);
 
 	retval = pci_hp_register(slot->hotplug_slot,
 					acpiphp_slot->bridge->pci_bus,

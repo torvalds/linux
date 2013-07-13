@@ -60,6 +60,7 @@ struct slot {
 	struct hotplug_slot	*hotplug_slot;
 	struct acpiphp_slot	*acpi_slot;
 	struct hotplug_slot_info info;
+	unsigned int sun;	/* ACPI _SUN (Slot User Number) value */
 };
 
 static inline const char *slot_name(struct slot *slot)
@@ -106,8 +107,6 @@ struct acpiphp_slot {
 	struct mutex crit_sect;
 
 	u8		device;		/* pci device# */
-
-	unsigned long long sun;		/* ACPI _SUN (slot unique number) */
 	u32		flags;		/* see below */
 };
 
@@ -179,7 +178,7 @@ struct acpiphp_attention_info
 /* acpiphp_core.c */
 int acpiphp_register_attention(struct acpiphp_attention_info*info);
 int acpiphp_unregister_attention(struct acpiphp_attention_info *info);
-int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot);
+int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot, unsigned int sun);
 void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 
 /* acpiphp_glue.c */

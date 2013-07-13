@@ -352,16 +352,15 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 		if (ACPI_FAILURE(status))
 			sun = bridge->nr_slots;
 
-		slot->sun = sun;
 		dbg("found ACPI PCI Hotplug slot %llu at PCI %04x:%02x:%02x\n",
-		    slot->sun, pci_domain_nr(pbus), pbus->number, device);
+		    sun, pci_domain_nr(pbus), pbus->number, device);
 
-		retval = acpiphp_register_hotplug_slot(slot);
+		retval = acpiphp_register_hotplug_slot(slot, sun);
 		if (retval) {
 			bridge->nr_slots--;
 			if (retval == -EBUSY)
 				warn("Slot %llu already registered by another "
-					"hotplug driver\n", slot->sun);
+					"hotplug driver\n", sun);
 			else
 				warn("acpiphp_register_hotplug_slot failed "
 					"(err code = 0x%x)\n", retval);
