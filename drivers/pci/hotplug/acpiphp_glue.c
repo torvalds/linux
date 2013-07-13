@@ -986,9 +986,6 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
 		dbg("%s: Device eject notify on %s\n", __func__, objname);
-		if (bridge && !(bridge->flags & BRIDGE_HAS_EJ0))
-			break;
-
 		if (!(acpiphp_disable_slot(func->slot)))
 			acpiphp_eject_slot(func->slot);
 
@@ -1123,12 +1120,6 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		/* Get a reference to the parent bridge. */
 		get_bridge(context->func->slot->bridge);
 		mutex_unlock(&acpiphp_context_lock);
-	}
-
-	status = acpi_get_handle(bridge->handle, "_EJ0", &handle);
-	if (ACPI_SUCCESS(status)) {
-		dbg("found ejectable p2p bridge\n");
-		bridge->flags |= BRIDGE_HAS_EJ0;
 	}
 
 	/* must be added to the list prior to calling register_slot */

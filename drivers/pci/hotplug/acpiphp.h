@@ -83,8 +83,6 @@ struct acpiphp_bridge {
 
 	int nr_slots;
 
-	u32 flags;
-
 	/* This bus (host bridge) or Secondary bus (PCI-to-PCI bridge) */
 	struct pci_bus *pci_bus;
 
@@ -153,9 +151,6 @@ struct acpiphp_attention_info
 
 /* ACPI _STA method value (ignore bit 4; battery present) */
 #define ACPI_STA_ALL			(0x0000000f)
-
-/* bridge flags */
-#define BRIDGE_HAS_EJ0		(0x00000001)
 
 /* slot flags */
 
