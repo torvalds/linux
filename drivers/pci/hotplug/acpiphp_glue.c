@@ -62,7 +62,7 @@ static DEFINE_MUTEX(acpiphp_context_lock);
 static void handle_hotplug_event(acpi_handle handle, u32 type, void *data);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(struct pci_bus *bus);
-static void hotplug_event_func(acpi_handle handle, u32 type, void *context);
+static void hotplug_event(acpi_handle handle, u32 type, void *data);
 static void free_bridge(struct kref *kref);
 
 /* callback routine to check for the existence of a pci dock device */
@@ -201,8 +201,8 @@ static void free_bridge(struct kref *kref)
  */
 static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
 {
-	struct acpiphp_func *func = data;
-	struct pci_bus *bus = func->slot->bridge->pci_bus;
+	struct acpiphp_context *context = data;
+	struct pci_bus *bus = context->func->slot->bridge->pci_bus;
 	u32 buses;
 
 	if (!bus->self)
@@ -227,7 +227,7 @@ static void post_dock_fixups(acpi_handle not_used, u32 event, void *data)
 
 static const struct acpi_dock_ops acpiphp_dock_ops = {
 	.fixup = post_dock_fixups,
-	.handler = hotplug_event_func,
+	.handler = hotplug_event,
 };
 
 /* Check whether the PCI device is managed by native PCIe hotplug driver */
@@ -261,16 +261,16 @@ static bool device_is_managed_by_native_pciehp(struct pci_dev *pdev)
 
 static void acpiphp_dock_init(void *data)
 {
-	struct acpiphp_func *func = data;
+	struct acpiphp_context *context = data;
 
-	get_bridge(func->slot->bridge);
+	get_bridge(context->func->slot->bridge);
 }
 
 static void acpiphp_dock_release(void *data)
 {
-	struct acpiphp_func *func = data;
+	struct acpiphp_context *context = data;
 
-	put_bridge(func->slot->bridge);
+	put_bridge(context->func->slot->bridge);
 }
 
 /* callback routine to register each ACPI PCI slot object */
@@ -406,7 +406,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 		 */
 		newfunc->flags &= ~FUNC_HAS_EJ0;
 		if (register_hotplug_dock_device(handle,
-			&acpiphp_dock_ops, newfunc,
+			&acpiphp_dock_ops, context,
 			acpiphp_dock_init, acpiphp_dock_release))
 			dbg("failed to register dock device\n");
 	}
@@ -987,24 +987,26 @@ void acpiphp_check_host_bridge(acpi_handle handle)
 		ACPI_UINT32_MAX, check_sub_bridges, NULL, NULL, NULL);
 }
 
-static void _handle_hotplug_event_bridge(struct work_struct *work)
+static void hotplug_event(acpi_handle handle, u32 type, void *data)
 {
-	struct acpiphp_context *context;
+	struct acpiphp_context *context = data;
 	struct acpiphp_bridge *bridge;
+	struct acpiphp_func *func;
 	char objname[64];
 	struct acpi_buffer buffer = { .length = sizeof(objname),
 				      .pointer = objname };
-	struct acpi_hp_work *hp_work;
-	acpi_handle handle;
-	u32 type;
 
-	hp_work = container_of(work, struct acpi_hp_work, work);
-	handle = hp_work->handle;
-	type = hp_work->type;
-	context = hp_work->context;
+	mutex_lock(&acpiphp_context_lock);
 	bridge = context->bridge;
+	if (bridge)
+		get_bridge(bridge);
 
-	acpi_scan_lock_acquire();
+	/*
+	 * If context->func is not NULL, we are holding a reference to its
+	 * parent bridge, so it won't go away until we drop that reference.
+	 */
+	func = context->func;
+	mutex_unlock(&acpiphp_context_lock);
 
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
@@ -1013,15 +1015,24 @@ static void _handle_hotplug_event_bridge(struct work_struct *work)
 		/* bus re-enumerate */
 		dbg("%s: Bus check notify on %s\n", __func__, objname);
 		dbg("%s: re-enumerating slots under %s\n", __func__, objname);
-		acpiphp_check_bridge(bridge);
-		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-			ACPI_UINT32_MAX, check_sub_bridges, NULL, NULL, NULL);
+		if (bridge) {
+			acpiphp_check_bridge(bridge);
+			acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
+					    ACPI_UINT32_MAX, check_sub_bridges,
+					    NULL, NULL, NULL);
+		} else {
+			acpiphp_enable_slot(func->slot);
+		}
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		/* device check */
 		dbg("%s: Device check notify on %s\n", __func__, objname);
-		acpiphp_check_bridge(bridge);
+		if (bridge)
+			acpiphp_check_bridge(bridge);
+		else
+			acpiphp_check_bridge(func->slot->bridge);
+
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:
@@ -1032,12 +1043,15 @@ static void _handle_hotplug_event_bridge(struct work_struct *work)
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
 		dbg("%s: Device eject notify on %s\n", __func__, objname);
-		if ((bridge->flags & BRIDGE_HAS_EJ0) && bridge->func) {
-			struct acpiphp_slot *slot;
-			slot = bridge->func->slot;
-			if (!acpiphp_disable_slot(slot))
-				acpiphp_eject_slot(slot);
-		}
+		if (!func)
+			break;
+
+		if (bridge && !(bridge->flags & BRIDGE_HAS_EJ0))
+			break;
+
+		if (!(acpiphp_disable_slot(func->slot)))
+			acpiphp_eject_slot(func->slot);
+
 		break;
 
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
@@ -1056,56 +1070,16 @@ static void _handle_hotplug_event_bridge(struct work_struct *work)
 		break;
 
 	default:
-		warn("notify_handler: unknown event type 0x%x for %s\n", type, objname);
+		warn("notify_handler: unknown event type 0x%x for %s\n", type,
+		     objname);
 		break;
 	}
 
-	acpi_scan_lock_release();
-	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
-	put_bridge(bridge);
+	if (bridge)
+		put_bridge(bridge);
 }
 
-static void hotplug_event_func(acpi_handle handle, u32 type, void *context)
-{
-	struct acpiphp_func *func = context;
-	char objname[64];
-	struct acpi_buffer buffer = { .length = sizeof(objname),
-				      .pointer = objname };
-
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-
-	switch (type) {
-	case ACPI_NOTIFY_BUS_CHECK:
-		/* bus re-enumerate */
-		dbg("%s: Bus check notify on %s\n", __func__, objname);
-		acpiphp_enable_slot(func->slot);
-		break;
-
-	case ACPI_NOTIFY_DEVICE_CHECK:
-		/* device check : re-enumerate from parent bus */
-		dbg("%s: Device check notify on %s\n", __func__, objname);
-		acpiphp_check_bridge(func->slot->bridge);
-		break;
-
-	case ACPI_NOTIFY_DEVICE_WAKE:
-		/* wake event */
-		dbg("%s: Device wake notify on %s\n", __func__, objname);
-		break;
-
-	case ACPI_NOTIFY_EJECT_REQUEST:
-		/* request device eject */
-		dbg("%s: Device eject notify on %s\n", __func__, objname);
-		if (!(acpiphp_disable_slot(func->slot)))
-			acpiphp_eject_slot(func->slot);
-		break;
-
-	default:
-		warn("notify_handler: unknown event type 0x%x for %s\n", type, objname);
-		break;
-	}
-}
-
-static void _handle_hotplug_event_func(struct work_struct *work)
+static void hotplug_event_work(struct work_struct *work)
 {
 	struct acpiphp_context *context;
 	struct acpi_hp_work *hp_work;
@@ -1114,11 +1088,18 @@ static void _handle_hotplug_event_func(struct work_struct *work)
 	context = hp_work->context;
 	acpi_scan_lock_acquire();
 
-	hotplug_event_func(hp_work->handle, hp_work->type, context->func);
+	hotplug_event(hp_work->handle, hp_work->type, context);
 
 	acpi_scan_lock_release();
-	kfree(hp_work); /* allocated in handle_hotplug_event_func */
-	put_bridge(context->func->slot->bridge);
+	kfree(hp_work); /* allocated in handle_hotplug_event() */
+
+	mutex_lock(&acpiphp_context_lock);
+	if (context->func)
+		put_bridge(context->func->slot->bridge);
+	else
+		acpiphp_put_context(context);
+
+	mutex_unlock(&acpiphp_context_lock);
 }
 
 /**
@@ -1132,22 +1113,19 @@ static void _handle_hotplug_event_func(struct work_struct *work)
 static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 {
 	struct acpiphp_context *context;
-	void (*work_func)(struct work_struct *work) = NULL;
 
 	mutex_lock(&acpiphp_context_lock);
 	context = acpiphp_get_context(handle);
 	if (context) {
-		if (context->bridge) {
-			get_bridge(context->bridge);
-			work_func = _handle_hotplug_event_bridge;
-		} else if (context->func) {
+		if (context->func) {
 			get_bridge(context->func->slot->bridge);
-			work_func = _handle_hotplug_event_func;
+			acpiphp_put_context(context);
+		} else if (!context->bridge) {
+			acpiphp_put_context(context);
+			context = NULL;
 		}
-		acpiphp_put_context(context);
 	}
 	mutex_unlock(&acpiphp_context_lock);
-
 	/*
 	 * Currently the code adds all hotplug events to the kacpid_wq
 	 * queue when it should add hotplug events to the kacpi_hotplug_wq.
@@ -1156,8 +1134,8 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 	 * For now just re-add this work to the kacpi_hotplug_wq so we
 	 * don't deadlock on hotplug actions.
 	 */
-	if (work_func)
-		alloc_acpi_hp_work(handle, type, context, work_func);
+	if (context)
+		alloc_acpi_hp_work(handle, type, context, hotplug_event_work);
 }
 
 /*
