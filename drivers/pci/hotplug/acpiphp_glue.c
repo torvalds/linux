@@ -454,18 +454,20 @@ static int detect_ejectable_slots(acpi_handle handle)
 
 static struct acpiphp_bridge *acpiphp_handle_to_bridge(acpi_handle handle)
 {
-	struct acpiphp_bridge *bridge;
+	struct acpiphp_context *context;
+	struct acpiphp_bridge *bridge = NULL;
 
-	mutex_lock(&bridge_mutex);
-	list_for_each_entry(bridge, &bridge_list, list)
-		if (bridge->handle == handle) {
+	mutex_lock(&acpiphp_context_lock);
+	context = acpiphp_get_context(handle);
+	if (context) {
+		bridge = context->bridge;
+		if (bridge)
 			get_bridge(bridge);
-			mutex_unlock(&bridge_mutex);
-			return bridge;
-		}
-	mutex_unlock(&bridge_mutex);
 
-	return NULL;
+		acpiphp_put_context(context);
+	}
+	mutex_unlock(&acpiphp_context_lock);
+	return bridge;
 }
 
 static void cleanup_bridge(struct acpiphp_bridge *bridge)
