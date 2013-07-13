@@ -220,7 +220,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 					 int posted)
 {
 	char name[10]; /* 10 = sizeof("gptXX_Xck0") */
-	const char *oh_name;
+	const char *oh_name = NULL;
 	struct device_node *np;
 	struct omap_hwmod *oh;
 	struct resource irq, mem;
