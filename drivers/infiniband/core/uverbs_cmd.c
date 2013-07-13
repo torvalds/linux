@@ -334,7 +334,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 
 	resp.num_comp_vectors = file->device->num_comp_vectors;
 
-	ret = get_unused_fd();
+	ret = get_unused_fd_flags(O_CLOEXEC);
 	if (ret < 0)
 		goto err_free;
 	resp.async_fd = ret;
@@ -1184,7 +1184,7 @@ ssize_t ib_uverbs_create_comp_channel(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	ret = get_unused_fd();
+	ret = get_unused_fd_flags(O_CLOEXEC);
 	if (ret < 0)
 		return ret;
 	resp.fd = ret;
