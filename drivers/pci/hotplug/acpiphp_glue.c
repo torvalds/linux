@@ -586,14 +586,8 @@ static void check_hotplug_bridge(struct acpiphp_slot *slot, struct pci_dev *dev)
 {
 	struct acpiphp_func *func;
 
-	if (!dev->subordinate)
-		return;
-
 	/* quirk, or pcie could set it already */
 	if (dev->is_hotplug_bridge)
-		return;
-
-	if (PCI_SLOT(dev->devfn) != slot->device)
 		return;
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
