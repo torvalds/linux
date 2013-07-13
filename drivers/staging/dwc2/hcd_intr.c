@@ -89,15 +89,20 @@ static void dwc2_hc_handle_tt_clear(struct dwc2_hsotg *hsotg,
 {
 	struct urb *usb_urb;
 
-	if (!chan->qh || !qtd->urb)
+	if (!chan->qh)
+		return;
+
+	if (chan->qh->dev_speed == USB_SPEED_HIGH)
+		return;
+
+	if (!qtd->urb)
 		return;
 
 	usb_urb = qtd->urb->priv;
-	if (!usb_urb || !usb_urb->dev)
+	if (!usb_urb || !usb_urb->dev || !usb_urb->dev->tt)
 		return;
 
-	if (chan->qh->dev_speed != USB_SPEED_HIGH &&
-	    qtd->urb->status != -EPIPE && qtd->urb->status != -EREMOTEIO) {
+	if (qtd->urb->status != -EPIPE && qtd->urb->status != -EREMOTEIO) {
 		chan->qh->tt_buffer_dirty = 1;
 		if (usb_hub_clear_tt_buffer(usb_urb))
 			/* Clear failed; let's hope things work anyway */
