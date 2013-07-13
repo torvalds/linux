@@ -1107,11 +1107,7 @@ u8 acpiphp_get_power_status(struct acpiphp_slot *slot)
  */
 u8 acpiphp_get_latch_status(struct acpiphp_slot *slot)
 {
-	unsigned int sta;
-
-	sta = get_slot_status(slot);
-
-	return (sta & ACPI_STA_DEVICE_UI) ? 0 : 1;
+	return !(get_slot_status(slot) & ACPI_STA_DEVICE_UI);
 }
 
 
@@ -1121,9 +1117,5 @@ u8 acpiphp_get_latch_status(struct acpiphp_slot *slot)
  */
 u8 acpiphp_get_adapter_status(struct acpiphp_slot *slot)
 {
-	unsigned int sta;
-
-	sta = get_slot_status(slot);
-
-	return (sta == 0) ? 0 : 1;
+	return !!get_slot_status(slot);
 }
