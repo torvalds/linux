@@ -621,10 +621,19 @@ static struct power_pmu power8_pmu = {
 
 static int __init init_power8_pmu(void)
 {
+	int rc;
+
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power8"))
 		return -ENODEV;
 
-	return register_power_pmu(&power8_pmu);
+	rc = register_power_pmu(&power8_pmu);
+	if (rc)
+		return rc;
+
+	/* Tell userspace that EBB is supported */
+	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_EBB;
+
+	return 0;
 }
 early_initcall(init_power8_pmu);
