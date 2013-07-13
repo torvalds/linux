@@ -788,25 +788,6 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
  * ACPI event handlers
  */
 
-static acpi_status
-check_sub_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
-{
-	struct acpiphp_bridge *bridge;
-	char objname[64];
-	struct acpi_buffer buffer = { .length = sizeof(objname),
-				      .pointer = objname };
-
-	bridge = acpiphp_handle_to_bridge(handle);
-	if (bridge) {
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-		dbg("%s: re-enumerating slots under %s\n",
-			__func__, objname);
-		acpiphp_check_bridge(bridge);
-		put_bridge(bridge);
-	}
-	return AE_OK ;
-}
-
 void acpiphp_check_host_bridge(acpi_handle handle)
 {
 	struct acpiphp_bridge *bridge;
@@ -816,9 +797,6 @@ void acpiphp_check_host_bridge(acpi_handle handle)
 		acpiphp_check_bridge(bridge);
 		put_bridge(bridge);
 	}
-
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-		ACPI_UINT32_MAX, check_sub_bridges, NULL, NULL, NULL);
 }
 
 static void hotplug_event(acpi_handle handle, u32 type, void *data)
@@ -846,9 +824,6 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 		dbg("%s: re-enumerating slots under %s\n", __func__, objname);
 		if (bridge) {
 			acpiphp_check_bridge(bridge);
-			acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-					    ACPI_UINT32_MAX, check_sub_bridges,
-					    NULL, NULL, NULL);
 		} else {
 			struct acpiphp_slot *slot = func->slot;
 
