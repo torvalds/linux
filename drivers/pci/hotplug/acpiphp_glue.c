@@ -920,35 +920,10 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 
 		break;
 
-	case ACPI_NOTIFY_DEVICE_WAKE:
-		/* wake event */
-		dbg("%s: Device wake notify on %s\n", __func__, objname);
-		break;
-
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
 		dbg("%s: Device eject notify on %s\n", __func__, objname);
 		acpiphp_disable_and_eject_slot(func->slot);
-		break;
-
-	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
-		printk(KERN_ERR "Device %s cannot be configured due"
-				" to a frequency mismatch\n", objname);
-		break;
-
-	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
-		printk(KERN_ERR "Device %s cannot be configured due"
-				" to a bus mode mismatch\n", objname);
-		break;
-
-	case ACPI_NOTIFY_POWER_FAULT:
-		printk(KERN_ERR "Device %s has suffered a power fault\n",
-				objname);
-		break;
-
-	default:
-		warn("notify_handler: unknown event type 0x%x for %s\n", type,
-		     objname);
 		break;
 	}
 
@@ -984,23 +959,42 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 {
 	struct acpiphp_context *context;
 
+	switch (type) {
+	case ACPI_NOTIFY_BUS_CHECK:
+	case ACPI_NOTIFY_DEVICE_CHECK:
+	case ACPI_NOTIFY_EJECT_REQUEST:
+		break;
+
+	case ACPI_NOTIFY_DEVICE_WAKE:
+		return;
+
+	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
+		acpi_handle_err(handle, "Device cannot be configured due "
+				"to a frequency mismatch\n");
+		return;
+
+	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
+		acpi_handle_err(handle, "Device cannot be configured due "
+				"to a bus mode mismatch\n");
+		return;
+
+	case ACPI_NOTIFY_POWER_FAULT:
+		acpi_handle_err(handle, "Device has suffered a power fault\n");
+		return;
+
+	default:
+		acpi_handle_warn(handle, "Unsupported event type 0x%x\n", type);
+		return;
+	}
+
 	mutex_lock(&acpiphp_context_lock);
 	context = acpiphp_get_context(handle);
 	if (context) {
 		get_bridge(context->func.parent);
 		acpiphp_put_context(context);
+		alloc_acpi_hp_work(handle, type, context, hotplug_event_work);
 	}
 	mutex_unlock(&acpiphp_context_lock);
-	/*
-	 * Currently the code adds all hotplug events to the kacpid_wq
-	 * queue when it should add hotplug events to the kacpi_hotplug_wq.
-	 * The proper way to fix this is to reorganize the code so that
-	 * drivers (dock, etc.) do not call acpi_os_execute(), etc.
-	 * For now just re-add this work to the kacpi_hotplug_wq so we
-	 * don't deadlock on hotplug actions.
-	 */
-	if (context)
-		alloc_acpi_hp_work(handle, type, context, hotplug_event_work);
 }
 
 /*
