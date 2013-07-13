@@ -1084,7 +1084,6 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 
 	INIT_LIST_HEAD(&bridge->slots);
 	kref_init(&bridge->ref);
-	bridge->handle = handle;
 	bridge->pci_dev = pci_dev_get(bus->self);
 	bridge->pci_bus = bus;
 
@@ -1124,10 +1123,10 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 	mutex_unlock(&bridge_mutex);
 
 	/* register all slot objects under this bridge */
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge->handle, 1,
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
 				     register_slot, NULL, bridge, NULL);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_err(bridge->handle, "failed to register slots\n");
+		acpi_handle_err(handle, "failed to register slots\n");
 		cleanup_bridge(bridge);
 		put_bridge(bridge);
 	}

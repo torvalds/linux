@@ -77,7 +77,6 @@ struct acpiphp_bridge {
 	struct list_head list;
 	struct list_head slots;
 	struct kref ref;
-	acpi_handle handle;
 
 	struct acpiphp_context *context;
 
