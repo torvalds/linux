@@ -43,7 +43,6 @@ config LUSTRE_OBD_MAX_IOCTL_BUFFER
 config LUSTRE_DEBUG_EXPENSIVE_CHECK
 	bool "Enable Lustre DEBUG checks"
 	depends on LUSTRE_FS
-	default false
 	help
 	  This option is mainly for debug purpose. It enables Lustre code to do
 	  expensive checks that may have a performance impact.
