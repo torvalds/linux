@@ -162,7 +162,6 @@ struct acpiphp_attention_info
 
 /* slot flags */
 
-#define SLOT_POWEREDON		(0x00000001)
 #define SLOT_ENABLED		(0x00000002)
 #define SLOT_MULTIFUNCTION	(0x00000004)
 
@@ -170,11 +169,7 @@ struct acpiphp_attention_info
 
 #define FUNC_HAS_STA		(0x00000001)
 #define FUNC_HAS_EJ0		(0x00000002)
-#define FUNC_HAS_PS0		(0x00000010)
-#define FUNC_HAS_PS1		(0x00000020)
-#define FUNC_HAS_PS2		(0x00000040)
-#define FUNC_HAS_PS3		(0x00000080)
-#define FUNC_HAS_DCK            (0x00000100)
+#define FUNC_HAS_DCK            (0x00000004)
 
 /* function prototypes */
 

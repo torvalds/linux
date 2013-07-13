@@ -303,12 +303,6 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 	if (acpi_has_method(handle, "_STA"))
 		newfunc->flags |= FUNC_HAS_STA;
 
-	if (acpi_has_method(handle, "_PS0"))
-		newfunc->flags |= FUNC_HAS_PS0;
-
-	if (acpi_has_method(handle, "_PS3"))
-		newfunc->flags |= FUNC_HAS_PS3;
-
 	if (acpi_has_method(handle, "_DCK"))
 		newfunc->flags |= FUNC_HAS_DCK;
 
@@ -366,7 +360,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
 	if (pci_bus_read_dev_vendor_id(pbus, PCI_DEVFN(device, function),
 				       &val, 60*1000))
-		slot->flags |= (SLOT_ENABLED | SLOT_POWEREDON);
+		slot->flags |= SLOT_ENABLED;
 
 	if (is_dock_device(handle)) {
 		/* we don't want to call this device's _EJ0
@@ -446,73 +440,6 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 	mutex_unlock(&bridge_mutex);
 }
 
-static int power_on_slot(struct acpiphp_slot *slot)
-{
-	acpi_status status;
-	struct acpiphp_func *func;
-	int retval = 0;
-
-	/* if already enabled, just skip */
-	if (slot->flags & SLOT_POWEREDON)
-		goto err_exit;
-
-	list_for_each_entry(func, &slot->funcs, sibling) {
-		if (func->flags & FUNC_HAS_PS0) {
-			dbg("%s: executing _PS0\n", __func__);
-			status = acpi_evaluate_object(func_to_handle(func),
-						      "_PS0", NULL, NULL);
-			if (ACPI_FAILURE(status)) {
-				warn("%s: _PS0 failed\n", __func__);
-				retval = -1;
-				goto err_exit;
-			} else
-				break;
-		}
-	}
-
-	/* TBD: evaluate _STA to check if the slot is enabled */
-
-	slot->flags |= SLOT_POWEREDON;
-
- err_exit:
-	return retval;
-}
-
-
-static int power_off_slot(struct acpiphp_slot *slot)
-{
-	acpi_status status;
-	struct acpiphp_func *func;
-
-	int retval = 0;
-
-	/* if already disabled, just skip */
-	if ((slot->flags & SLOT_POWEREDON) == 0)
-		goto err_exit;
-
-	list_for_each_entry(func, &slot->funcs, sibling) {
-		if (func->flags & FUNC_HAS_PS3) {
-			status = acpi_evaluate_object(func_to_handle(func),
-						      "_PS3", NULL, NULL);
-			if (ACPI_FAILURE(status)) {
-				warn("%s: _PS3 failed\n", __func__);
-				retval = -1;
-				goto err_exit;
-			} else
-				break;
-		}
-	}
-
-	/* TBD: evaluate _STA to check if the slot is disabled */
-
-	slot->flags &= (~SLOT_POWEREDON);
-
- err_exit:
-	return retval;
-}
-
-
-
 /**
  * acpiphp_max_busnr - return the highest reserved bus number under the given bus.
  * @bus: bus to start search with
@@ -559,8 +486,13 @@ static void acpiphp_bus_trim(acpi_handle handle)
  */
 static void acpiphp_bus_add(acpi_handle handle)
 {
+	struct acpi_device *adev = NULL;
+
 	acpiphp_bus_trim(handle);
 	acpi_bus_scan(handle);
+	acpi_bus_get_device(handle, &adev);
+	if (adev)
+		acpi_device_set_power(adev, ACPI_STATE_D0);
 }
 
 static void acpiphp_set_acpi_region(struct acpiphp_slot *slot)
@@ -1095,23 +1027,8 @@ int acpiphp_enable_slot(struct acpiphp_slot *slot)
 	int retval;
 
 	mutex_lock(&slot->crit_sect);
-
-	/* wake up all functions */
-	retval = power_on_slot(slot);
-	if (retval)
-		goto err_exit;
-
-	if (get_slot_status(slot) == ACPI_STA_ALL) {
-		/* configure all functions */
-		retval = enable_device(slot);
-		if (retval)
-			power_off_slot(slot);
-	} else {
-		dbg("%s: Slot status is not ACPI_STA_ALL\n", __func__);
-		power_off_slot(slot);
-	}
-
- err_exit:
+	/* configure all functions */
+	retval = enable_device(slot);
 	mutex_unlock(&slot->crit_sect);
 	return retval;
 }
@@ -1129,11 +1046,6 @@ int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot)
 
 	/* unconfigure all functions */
 	retval = disable_device(slot);
-	if (retval)
-		goto err_exit;
-
-	/* power off all functions */
-	retval = power_off_slot(slot);
 	if (retval)
 		goto err_exit;
 
@@ -1159,7 +1071,7 @@ int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot)
  */
 u8 acpiphp_get_power_status(struct acpiphp_slot *slot)
 {
-	return (slot->flags & SLOT_POWEREDON);
+	return (slot->flags & SLOT_ENABLED);
 }
 
 
