@@ -79,8 +79,6 @@ struct acpiphp_bridge {
 	acpi_handle handle;
 
 	struct acpiphp_context *context;
-	/* Ejectable PCI-to-PCI bridge (PCI bridge and PCI function) */
-	struct acpiphp_func *func;
 
 	int nr_slots;
 

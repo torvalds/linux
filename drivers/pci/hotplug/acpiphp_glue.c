@@ -181,7 +181,7 @@ static void free_bridge(struct kref *kref)
 	context = bridge->context;
 	/* Release the reference acquired by acpiphp_enumerate_slots(). */
 	if (context->handler_for_func)
-		put_bridge(bridge->func->slot->bridge);
+		put_bridge(context->func->slot->bridge);
 
 	put_device(&bridge->pci_bus->dev);
 	pci_dev_put(bridge->pci_dev);
@@ -1212,7 +1212,6 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 	}
 	if (context->handler_for_func) {
 		/* Notify handler already installed. */
-		bridge->func = context->func;
 		get_bridge(context->func->slot->bridge);
 		return;
 	}
