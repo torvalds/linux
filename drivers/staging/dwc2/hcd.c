@@ -134,11 +134,8 @@ static void dwc2_kill_urbs_in_qh_list(struct dwc2_hsotg *hsotg,
 	list_for_each_entry_safe(qh, qh_tmp, qh_list, qh_list_entry) {
 		list_for_each_entry_safe(qtd, qtd_tmp, &qh->qtd_list,
 					 qtd_list_entry) {
-			if (qtd->urb != NULL) {
-				dwc2_host_complete(hsotg, qtd->urb->priv,
-						   qtd->urb, -ETIMEDOUT);
-				dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
-			}
+			dwc2_host_complete(hsotg, qtd, -ETIMEDOUT);
+			dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 		}
 	}
 }
@@ -420,6 +417,8 @@ static int dwc2_hcd_urb_dequeue(struct dwc2_hsotg *hsotg,
 		dev_dbg(hsotg->dev, "## Urb QTD QH is NULL ##\n");
 		return -EINVAL;
 	}
+
+	urb->priv = NULL;
 
 	if (urb_qtd->in_process && qh->channel) {
 		dwc2_dump_channel_info(hsotg, qh->channel);
@@ -2088,23 +2087,29 @@ static void dwc2_free_bus_bandwidth(struct usb_hcd *hcd, u16 bw,
  *
  * Must be called with interrupt disabled and spinlock held
  */
-void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
-			struct dwc2_hcd_urb *dwc2_urb, int status)
+void dwc2_host_complete(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
+			int status)
 {
-	struct urb *urb = context;
+	struct urb *urb;
 	int i;
 
+	if (!qtd) {
+		dev_dbg(hsotg->dev, "## %s: qtd is NULL ##\n", __func__);
+		return;
+	}
+
+	if (!qtd->urb) {
+		dev_dbg(hsotg->dev, "## %s: qtd->urb is NULL ##\n", __func__);
+		return;
+	}
+
+	urb = qtd->urb->priv;
 	if (!urb) {
-		dev_dbg(hsotg->dev, "## %s: context is NULL ##\n", __func__);
+		dev_dbg(hsotg->dev, "## %s: urb->priv is NULL ##\n", __func__);
 		return;
 	}
 
-	if (!dwc2_urb) {
-		dev_dbg(hsotg->dev, "## %s: dwc2_urb is NULL ##\n", __func__);
-		return;
-	}
-
-	urb->actual_length = dwc2_hcd_urb_get_actual_length(dwc2_urb);
+	urb->actual_length = dwc2_hcd_urb_get_actual_length(qtd->urb);
 
 	if (dbg_urb(urb))
 		dev_vdbg(hsotg->dev,
@@ -2121,18 +2126,17 @@ void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
 	}
 
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
-		urb->error_count = dwc2_hcd_urb_get_error_count(dwc2_urb);
+		urb->error_count = dwc2_hcd_urb_get_error_count(qtd->urb);
 		for (i = 0; i < urb->number_of_packets; ++i) {
 			urb->iso_frame_desc[i].actual_length =
 				dwc2_hcd_urb_get_iso_desc_actual_length(
-						dwc2_urb, i);
+						qtd->urb, i);
 			urb->iso_frame_desc[i].status =
-				dwc2_hcd_urb_get_iso_desc_status(dwc2_urb, i);
+				dwc2_hcd_urb_get_iso_desc_status(qtd->urb, i);
 		}
 	}
 
 	urb->status = status;
-	urb->hcpriv = NULL;
 	if (!status) {
 		if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
 		    urb->actual_length < urb->transfer_buffer_length)
@@ -2149,7 +2153,9 @@ void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
 					urb);
 	}
 
-	kfree(dwc2_urb);
+	urb->hcpriv = NULL;
+	kfree(qtd->urb);
+	qtd->urb = NULL;
 
 	spin_unlock(&hsotg->lock);
 	usb_hcd_giveback_urb(dwc2_hsotg_to_hcd(hsotg), urb, status);

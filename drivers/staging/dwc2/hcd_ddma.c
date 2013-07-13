@@ -800,6 +800,9 @@ static int dwc2_cmpl_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 	u16 remain = 0;
 	int rc = 0;
 
+	if (!qtd->urb)
+		return -EINVAL;
+
 	frame_desc = &qtd->urb->iso_descs[qtd->isoc_frame_index_last];
 	dma_desc->buf = (u32)(qtd->urb->dma + frame_desc->offset);
 	if (chan->ep_is_in)
@@ -826,7 +829,7 @@ static int dwc2_cmpl_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 		 * urb->status is not used for isoc transfers here. The
 		 * individual frame_desc status are used instead.
 		 */
-		dwc2_host_complete(hsotg, qtd->urb->priv, qtd->urb, 0);
+		dwc2_host_complete(hsotg, qtd, 0);
 		dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 
 		/*
@@ -884,13 +887,16 @@ static void dwc2_complete_isoc_xfer_ddma(struct dwc2_hsotg *hsotg,
 
 		list_for_each_entry_safe(qtd, qtd_tmp, &qh->qtd_list,
 					 qtd_list_entry) {
-			for (idx = 0; idx < qtd->urb->packet_count; idx++) {
-				frame_desc = &qtd->urb->iso_descs[idx];
-				frame_desc->status = err;
+			if (qtd->urb) {
+				for (idx = 0; idx < qtd->urb->packet_count;
+				     idx++) {
+					frame_desc = &qtd->urb->iso_descs[idx];
+					frame_desc->status = err;
+				}
+
+				dwc2_host_complete(hsotg, qtd, err);
 			}
 
-			dwc2_host_complete(hsotg, qtd->urb->priv, qtd->urb,
-					   err);
 			dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 		}
 
@@ -1015,6 +1021,9 @@ static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
+	if (!urb)
+		return -EINVAL;
+
 	dma_desc = &qh->desc_list[desc_num];
 	n_bytes = qh->n_bytes[desc_num];
 	dev_vdbg(hsotg->dev,
@@ -1024,7 +1033,7 @@ static int dwc2_process_non_isoc_desc(struct dwc2_hsotg *hsotg,
 						     halt_status, n_bytes,
 						     xfer_done);
 	if (failed || (*xfer_done && urb->status != -EINPROGRESS)) {
-		dwc2_host_complete(hsotg, urb->priv, urb, urb->status);
+		dwc2_host_complete(hsotg, qtd, urb->status);
 		dwc2_hcd_qtd_unlink_and_free(hsotg, qtd, qh);
 		dev_vdbg(hsotg->dev, "failed=%1x xfer_done=%1x status=%08x\n",
 			 failed, *xfer_done, urb->status);

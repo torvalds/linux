@@ -716,8 +716,8 @@ extern void dwc2_host_disconnect(struct dwc2_hsotg *hsotg);
 extern void dwc2_host_hub_info(struct dwc2_hsotg *hsotg, void *context,
 			       int *hub_addr, int *hub_port);
 extern int dwc2_host_get_speed(struct dwc2_hsotg *hsotg, void *context);
-extern void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
-			       struct dwc2_hcd_urb *dwc2_urb, int status);
+extern void dwc2_host_complete(struct dwc2_hsotg *hsotg, struct dwc2_qtd *qtd,
+			       int status);
 
 #ifdef DEBUG
 /*
