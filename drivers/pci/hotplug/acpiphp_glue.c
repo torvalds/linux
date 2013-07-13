@@ -545,9 +545,6 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 	int num, max, pass;
 	LIST_HEAD(add_list);
 
-	if (slot->flags & SLOT_ENABLED)
-		goto err_exit;
-
 	list_for_each_entry(func, &slot->funcs, sibling)
 		acpiphp_bus_add(func_to_handle(func));
 
@@ -1024,11 +1021,14 @@ void acpiphp_remove_slots(struct pci_bus *bus)
  */
 int acpiphp_enable_slot(struct acpiphp_slot *slot)
 {
-	int retval;
+	int retval = 0;
 
 	mutex_lock(&slot->crit_sect);
+
 	/* configure all functions */
-	retval = enable_device(slot);
+	if (!(slot->flags & SLOT_ENABLED))
+		retval = enable_device(slot);
+
 	mutex_unlock(&slot->crit_sect);
 	return retval;
 }
