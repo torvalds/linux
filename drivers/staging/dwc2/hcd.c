@@ -2396,14 +2396,15 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 						!(usb_pipein(urb->pipe))));
 
 	buf = urb->transfer_buffer;
+
 	if (hcd->self.uses_dma) {
-		/*
-		 * Calculate virtual address from physical address, because
-		 * some class driver may not fill transfer_buffer.
-		 * In Buffer DMA mode virtual address is used, when handling
-		 * non-DWORD aligned buffers.
-		 */
-		buf = bus_to_virt(urb->transfer_dma);
+		if (!buf && (urb->transfer_dma & 3)) {
+			dev_err(hsotg->dev,
+				"%s: unaligned transfer with no transfer_buffer",
+				__func__);
+			retval = -EINVAL;
+			goto fail1;
+		}
 	}
 
 	if (!(urb->transfer_flags & URB_NO_INTERRUPT))
@@ -2833,9 +2834,8 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	if (hsotg->core_params->dma_enable > 0) {
 		if (dma_set_mask(hsotg->dev, DMA_BIT_MASK(32)) < 0)
 			dev_warn(hsotg->dev, "can't set DMA mask\n");
-		if (dma_set_coherent_mask(hsotg->dev, DMA_BIT_MASK(31)) < 0)
-			dev_warn(hsotg->dev,
-				 "can't enable workaround for >2GB RAM\n");
+		if (dma_set_coherent_mask(hsotg->dev, DMA_BIT_MASK(32)) < 0)
+			dev_warn(hsotg->dev, "can't set coherent DMA mask\n");
 	} else {
 		dma_set_mask(hsotg->dev, 0);
 		dma_set_coherent_mask(hsotg->dev, 0);
