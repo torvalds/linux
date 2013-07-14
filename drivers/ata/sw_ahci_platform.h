@@ -31,6 +31,8 @@
 #ifndef _SW_AHCI_PLATFORM_H
 #define _SW_AHCI_PLATFORM_H
 
+#include <mach/irqs.h>
+
 #define	ahci_readb(base,offset)  		(*((volatile unsigned char*)((base)+(offset))))
 #define	ahci_readw(base,offset)  		(*((volatile unsigned short*)((base)+(offset))))
 #define	ahci_readl(base,offset)  		(*((volatile unsigned int*)((base)+(offset))))
@@ -66,7 +68,7 @@
 
 #define SW_AHCI_ACCESS_LOCK(base,x)		(*((volatile unsigned int *)((base)+SW_AHCI_RWCR_OFFSET)) = (x))
 
-#define INTC_IRQNO_AHCI				56
+#define INTC_IRQNO_AHCI				SW_INT_IRQNO_SATA
 
 #define CCMU_PLL6_VBASE				0xF1C20028
 
