@@ -42,31 +42,13 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/clocksource.h>
+#include <linux/clockchips.h>
 
 #include "proto.h"
 #include "irq_impl.h"
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
-
-#define TICK_SIZE (tick_nsec / 1000)
-
-/*
- * Shift amount by which scaled_ticks_per_cycle is scaled.  Shifting
- * by 48 gives us 16 bits for HZ while keeping the accuracy good even
- * for large CPU clock rates.
- */
-#define FIX_SHIFT	48
-
-/* lump static variables together for more efficient access: */
-static struct {
-	/* cycle counter last time it got invoked */
-	__u32 last_time;
-	/* ticks/cycle * 2^48 */
-	unsigned long scaled_ticks_per_cycle;
-	/* partial unused tick */
-	unsigned long partial_tick;
-} state;
 
 unsigned long est_cycle_freq;
 
@@ -96,47 +78,62 @@ static inline __u32 rpcc(void)
 	return __builtin_alpha_rpcc();
 }
 
+
+
 /*
- * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "xtime_update()" routine every clocktick
+ * The RTC as a clock_event_device primitive.
  */
-irqreturn_t timer_interrupt(int irq, void *dev)
+
+static DEFINE_PER_CPU(struct clock_event_device, cpu_ce);
+
+irqreturn_t
+timer_interrupt(int irq, void *dev)
 {
-	unsigned long delta;
-	__u32 now;
-	long nticks;
+	int cpu = smp_processor_id();
+	struct clock_event_device *ce = &per_cpu(cpu_ce, cpu);
 
-#ifndef CONFIG_SMP
-	/* Not SMP, do kernel PC profiling here.  */
-	profile_tick(CPU_PROFILING);
-#endif
-
-	/*
-	 * Calculate how many ticks have passed since the last update,
-	 * including any previous partial leftover.  Save any resulting
-	 * fraction for the next pass.
-	 */
-	now = rpcc();
-	delta = now - state.last_time;
-	state.last_time = now;
-	delta = delta * state.scaled_ticks_per_cycle + state.partial_tick;
-	state.partial_tick = delta & ((1UL << FIX_SHIFT) - 1); 
-	nticks = delta >> FIX_SHIFT;
-
-	if (nticks)
-		xtime_update(nticks);
+	/* Don't run the hook for UNUSED or SHUTDOWN.  */
+	if (likely(ce->mode == CLOCK_EVT_MODE_PERIODIC))
+		ce->event_handler(ce);
 
 	if (test_irq_work_pending()) {
 		clear_irq_work_pending();
 		irq_work_run();
 	}
 
-#ifndef CONFIG_SMP
-	while (nticks--)
-		update_process_times(user_mode(get_irq_regs()));
-#endif
-
 	return IRQ_HANDLED;
+}
+
+static void
+rtc_ce_set_mode(enum clock_event_mode mode, struct clock_event_device *ce)
+{
+	/* The mode member of CE is updated in generic code.
+	   Since we only support periodic events, nothing to do.  */
+}
+
+static int
+rtc_ce_set_next_event(unsigned long evt, struct clock_event_device *ce)
+{
+	/* This hook is for oneshot mode, which we don't support.  */
+	return -EINVAL;
+}
+
+void __init
+init_clockevent(void)
+{
+	int cpu = smp_processor_id();
+	struct clock_event_device *ce = &per_cpu(cpu_ce, cpu);
+
+	*ce = (struct clock_event_device){
+		.name = "rtc",
+		.features = CLOCK_EVT_FEAT_PERIODIC,
+		.rating = 100,
+		.cpumask = cpumask_of(cpu),
+		.set_mode = rtc_ce_set_mode,
+		.set_next_event = rtc_ce_set_next_event,
+	};
+
+	clockevents_config_and_register(ce, CONFIG_HZ, 0, 0);
 }
 
 void __init
@@ -372,22 +369,9 @@ time_init(void)
 		clocksource_register_hz(&clocksource_rpcc, cycle_freq);
 #endif
 
-	/* From John Bowman <bowman@math.ualberta.ca>: allow the values
-	   to settle, as the Update-In-Progress bit going low isn't good
-	   enough on some hardware.  2ms is our guess; we haven't found 
-	   bogomips yet, but this is close on a 500Mhz box.  */
-	__delay(1000000);
-
-	if (HZ > (1<<16)) {
-		extern void __you_loose (void);
-		__you_loose();
-	}
-
-	state.last_time = cc1;
-	state.scaled_ticks_per_cycle
-		= ((unsigned long) HZ << FIX_SHIFT) / cycle_freq;
-	state.partial_tick = 0L;
-
 	/* Startup the timer source. */
 	alpha_mv.init_rtc();
+
+	/* Start up the clock event device.  */
+	init_clockevent();
 }

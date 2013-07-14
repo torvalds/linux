@@ -135,13 +135,13 @@ extern void unregister_srm_console(void);
 /* smp.c */
 extern void setup_smp(void);
 extern void handle_ipi(struct pt_regs *);
-extern void smp_percpu_timer_interrupt(struct pt_regs *);
 
 /* bios32.c */
 /* extern void reset_for_srm(void); */
 
 /* time.c */
 extern irqreturn_t timer_interrupt(int irq, void *dev);
+extern void init_clockevent(void);
 extern void common_init_rtc(void);
 extern unsigned long est_cycle_freq;
 
