@@ -24,6 +24,5 @@
 ENTRY(keystone_cpu_smc)
 	stmfd   sp!, {r4-r11, lr}
 	smc	#0
-	dsb
 	ldmfd   sp!, {r4-r11, pc}
 ENDPROC(keystone_cpu_smc)
