@@ -665,10 +665,8 @@ static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
 		if (!dentry)
 			return ERR_PTR(-ENOMEM);
 	}
-	if (dentry->d_inode == NULL) {
-		d_set_d_op(dentry, &rpc_dentry_operations);
+	if (dentry->d_inode == NULL)
 		return dentry;
-	}
 	dput(dentry);
 	return ERR_PTR(-EEXIST);
 }
@@ -1102,6 +1100,7 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = RPCAUTH_GSSMAGIC;
 	sb->s_op = &s_ops;
+	sb->s_d_op = &rpc_dentry_operations;
 	sb->s_time_gran = 1;
 
 	inode = rpc_get_inode(sb, S_IFDIR | S_IRUGO | S_IXUGO);
