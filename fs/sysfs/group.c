@@ -20,38 +20,64 @@ static void remove_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 			 const struct attribute_group *grp)
 {
 	struct attribute *const* attr;
-	int i;
+	struct bin_attribute *const* bin_attr;
 
-	for (i = 0, attr = grp->attrs; *attr; i++, attr++)
-		sysfs_hash_and_remove(dir_sd, NULL, (*attr)->name);
+	if (grp->attrs)
+		for (attr = grp->attrs; *attr; attr++)
+			sysfs_hash_and_remove(dir_sd, NULL, (*attr)->name);
+	if (grp->bin_attrs)
+		for (bin_attr = grp->bin_attrs; *bin_attr; bin_attr++)
+			sysfs_remove_bin_file(kobj, *bin_attr);
 }
 
 static int create_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 			const struct attribute_group *grp, int update)
 {
 	struct attribute *const* attr;
+	struct bin_attribute *const* bin_attr;
 	int error = 0, i;
 
-	for (i = 0, attr = grp->attrs; *attr && !error; i++, attr++) {
-		umode_t mode = 0;
+	if (grp->attrs) {
+		for (i = 0, attr = grp->attrs; *attr && !error; i++, attr++) {
+			umode_t mode = 0;
 
-		/* in update mode, we're changing the permissions or
-		 * visibility.  Do this by first removing then
-		 * re-adding (if required) the file */
-		if (update)
-			sysfs_hash_and_remove(dir_sd, NULL, (*attr)->name);
-		if (grp->is_visible) {
-			mode = grp->is_visible(kobj, *attr, i);
-			if (!mode)
-				continue;
+			/*
+			 * In update mode, we're changing the permissions or
+			 * visibility.  Do this by first removing then
+			 * re-adding (if required) the file.
+			 */
+			if (update)
+				sysfs_hash_and_remove(dir_sd, NULL,
+						      (*attr)->name);
+			if (grp->is_visible) {
+				mode = grp->is_visible(kobj, *attr, i);
+				if (!mode)
+					continue;
+			}
+			error = sysfs_add_file_mode(dir_sd, *attr,
+						    SYSFS_KOBJ_ATTR,
+						    (*attr)->mode | mode);
+			if (unlikely(error))
+				break;
 		}
-		error = sysfs_add_file_mode(dir_sd, *attr, SYSFS_KOBJ_ATTR,
-					    (*attr)->mode | mode);
-		if (unlikely(error))
-			break;
+		if (error) {
+			remove_files(dir_sd, kobj, grp);
+			goto exit;
+		}
 	}
-	if (error)
-		remove_files(dir_sd, kobj, grp);
+
+	if (grp->bin_attrs) {
+		for (bin_attr = grp->bin_attrs; *bin_attr; bin_attr++) {
+			if (update)
+				sysfs_remove_bin_file(kobj, *bin_attr);
+			error = sysfs_create_bin_file(kobj, *bin_attr);
+			if (error)
+				break;
+		}
+		if (error)
+			remove_files(dir_sd, kobj, grp);
+	}
+exit:
 	return error;
 }
 
