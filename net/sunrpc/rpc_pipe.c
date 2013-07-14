@@ -656,13 +656,12 @@ static int __rpc_rmpipe(struct inode *dir, struct dentry *dentry)
 }
 
 static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
-					  struct qstr *name)
+					  const char *name)
 {
-	struct dentry *dentry;
-
-	dentry = d_lookup(parent, name);
+	struct qstr q = QSTR_INIT(name, strlen(name));
+	struct dentry *dentry = d_hash_and_lookup(parent, &q);
 	if (!dentry) {
-		dentry = d_alloc(parent, name);
+		dentry = d_alloc(parent, &q);
 		if (!dentry)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -689,8 +688,7 @@ static void __rpc_depopulate(struct dentry *parent,
 	for (i = start; i < eof; i++) {
 		name.name = files[i].name;
 		name.len = strlen(files[i].name);
-		name.hash = full_name_hash(name.name, name.len);
-		dentry = d_lookup(parent, &name);
+		dentry = d_hash_and_lookup(parent, &name);
 
 		if (dentry == NULL)
 			continue;
@@ -732,12 +730,7 @@ static int rpc_populate(struct dentry *parent,
 
 	mutex_lock(&dir->i_mutex);
 	for (i = start; i < eof; i++) {
-		struct qstr q;
-
-		q.name = files[i].name;
-		q.len = strlen(files[i].name);
-		q.hash = full_name_hash(q.name, q.len);
-		dentry = __rpc_lookup_create_exclusive(parent, &q);
+		dentry = __rpc_lookup_create_exclusive(parent, files[i].name);
 		err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
 			goto out_bad;
@@ -774,13 +767,11 @@ static struct dentry *rpc_mkdir_populate(struct dentry *parent,
 		int (*populate)(struct dentry *, void *), void *args_populate)
 {
 	struct dentry *dentry;
-	struct qstr q = QSTR_INIT(name, strlen(name));
 	struct inode *dir = parent->d_inode;
 	int error;
 
-	q.hash = full_name_hash(q.name, q.len);
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = __rpc_lookup_create_exclusive(parent, &q);
+	dentry = __rpc_lookup_create_exclusive(parent, name);
 	if (IS_ERR(dentry))
 		goto out;
 	error = __rpc_mkdir(dir, dentry, mode, NULL, private);
@@ -843,7 +834,6 @@ struct dentry *rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 	struct dentry *dentry;
 	struct inode *dir = parent->d_inode;
 	umode_t umode = S_IFIFO | S_IRUSR | S_IWUSR;
-	struct qstr q;
 	int err;
 
 	if (pipe->ops->upcall == NULL)
@@ -851,12 +841,8 @@ struct dentry *rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 	if (pipe->ops->downcall == NULL)
 		umode &= ~S_IWUGO;
 
-	q.name = name;
-	q.len = strlen(name);
-	q.hash = full_name_hash(q.name, q.len),
-
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = __rpc_lookup_create_exclusive(parent, &q);
+	dentry = __rpc_lookup_create_exclusive(parent, name);
 	if (IS_ERR(dentry))
 		goto out;
 	err = __rpc_mkpipe_dentry(dir, dentry, umode, &rpc_pipe_fops,
@@ -1063,9 +1049,7 @@ struct dentry *rpc_d_lookup_sb(const struct super_block *sb,
 			       const unsigned char *dir_name)
 {
 	struct qstr dir = QSTR_INIT(dir_name, strlen(dir_name));
-
-	dir.hash = full_name_hash(dir.name, dir.len);
-	return d_lookup(sb->s_root, &dir);
+	return d_hash_and_lookup(sb->s_root, &dir);
 }
 EXPORT_SYMBOL_GPL(rpc_d_lookup_sb);
 
