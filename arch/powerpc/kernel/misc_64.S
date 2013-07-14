@@ -449,19 +449,6 @@ _GLOBAL(scom970_write)
 	blr
 #endif /* CONFIG_CPU_FREQ_PMAC64 || CONFIG_CPU_FREQ_MAPLE */
 
-
-/*
- * disable_kernel_fp()
- * Disable the FPU.
- */
-_GLOBAL(disable_kernel_fp)
-	mfmsr	r3
-	rldicl	r0,r3,(63-MSR_FP_LG),1
-	rldicl	r3,r0,(MSR_FP_LG+1),0
-	mtmsrd	r3			/* disable use of fpu now */
-	isync
-	blr
-
 /* kexec_wait(phys_cpu)
  *
  * wait for the flag to change, indicating this kernel is going away but

@@ -18,7 +18,6 @@ extern struct task_struct *_switch(struct thread_struct *prev,
 
 extern void giveup_fpu(struct task_struct *);
 extern void load_up_fpu(void);
-extern void disable_kernel_fp(void);
 extern void enable_kernel_fp(void);
 extern void flush_fp_to_thread(struct task_struct *);
 extern void enable_kernel_altivec(void);
