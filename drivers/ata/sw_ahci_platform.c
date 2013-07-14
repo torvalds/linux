@@ -269,6 +269,7 @@ static struct platform_device sw_ahci_device = {
 	.dev 		= {
 		.platform_data = &sw_ahci_platform_data,
 		.release = &sw_ahci_release,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 
 	.num_resources	= ARRAY_SIZE(sw_ahci_resources),
