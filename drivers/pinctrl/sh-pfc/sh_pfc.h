@@ -30,7 +30,7 @@ enum {
 #define SH_PFC_PIN_CFG_PULL_DOWN	(1 << 3)
 
 struct sh_pfc_pin {
-	const pinmux_enum_t enum_id;
+	pinmux_enum_t enum_id;
 	const char *name;
 	unsigned int configs;
 };
@@ -64,7 +64,7 @@ struct sh_pfc_function {
 };
 
 struct pinmux_func {
-	const pinmux_enum_t enum_id;
+	pinmux_enum_t enum_id;
 	const char *name;
 };
 
