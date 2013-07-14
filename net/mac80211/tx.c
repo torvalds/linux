@@ -1272,6 +1272,10 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MONITOR:
+		if (sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE) {
+			vif = &sdata->vif;
+			break;
+		}
 		sdata = rcu_dereference(local->monitor_sdata);
 		if (sdata) {
 			vif = &sdata->vif;
