@@ -938,6 +938,11 @@ extern __printf(5, 6)
 struct device *device_create(struct class *cls, struct device *parent,
 			     dev_t devt, void *drvdata,
 			     const char *fmt, ...);
+extern __printf(6, 7)
+struct device *device_create_with_groups(struct class *cls,
+			     struct device *parent, dev_t devt, void *drvdata,
+			     const struct attribute_group **groups,
+			     const char *fmt, ...);
 extern void device_destroy(struct class *cls, dev_t devt);
 
 /*
