@@ -93,8 +93,8 @@ static int internal_create_group(struct kobject *kobj, int update,
 	/* Updates may happen before the object has been instantiated */
 	if (unlikely(update && !kobj->sd))
 		return -EINVAL;
-	if (!grp->attrs) {
-		WARN(1, "sysfs: attrs not set by subsystem for group: %s/%s\n",
+	if (!grp->attrs && !grp->bin_attrs) {
+		WARN(1, "sysfs: (bin_)attrs not set by subsystem for group: %s/%s\n",
 			kobj->name, grp->name ? "" : grp->name);
 		return -EINVAL;
 	}
