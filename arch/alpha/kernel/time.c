@@ -184,6 +184,37 @@ common_init_rtc(void)
 	init_rtc_irq();
 }
 
+
+#ifndef CONFIG_ALPHA_WTINT
+/*
+ * The RPCC as a clocksource primitive.
+ *
+ * While we have free-running timecounters running on all CPUs, and we make
+ * a half-hearted attempt in init_rtc_rpcc_info to sync the timecounter
+ * with the wall clock, that initialization isn't kept up-to-date across
+ * different time counters in SMP mode.  Therefore we can only use this
+ * method when there's only one CPU enabled.
+ *
+ * When using the WTINT PALcall, the RPCC may shift to a lower frequency,
+ * or stop altogether, while waiting for the interrupt.  Therefore we cannot
+ * use this method when WTINT is in use.
+ */
+
+static cycle_t read_rpcc(struct clocksource *cs)
+{
+	return rpcc();
+}
+
+static struct clocksource clocksource_rpcc = {
+	.name                   = "rpcc",
+	.rating                 = 300,
+	.read                   = read_rpcc,
+	.mask                   = CLOCKSOURCE_MASK(32),
+	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS
+};
+#endif /* ALPHA_WTINT */
+
+
 /* Validate a computed cycle counter result against the known bounds for
    the given processor core.  There's too much brokenness in the way of
    timing hardware for any one method to work everywhere.  :-(
@@ -294,33 +325,6 @@ rpcc_after_update_in_progress(void)
 	return rpcc();
 }
 
-#ifndef CONFIG_SMP
-/* Until and unless we figure out how to get cpu cycle counters
-   in sync and keep them there, we can't use the rpcc.  */
-static cycle_t read_rpcc(struct clocksource *cs)
-{
-	cycle_t ret = (cycle_t)rpcc();
-	return ret;
-}
-
-static struct clocksource clocksource_rpcc = {
-	.name                   = "rpcc",
-	.rating                 = 300,
-	.read                   = read_rpcc,
-	.mask                   = CLOCKSOURCE_MASK(32),
-	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS
-};
-
-static inline void register_rpcc_clocksource(long cycle_freq)
-{
-	clocksource_register_hz(&clocksource_rpcc, cycle_freq);
-}
-#else /* !CONFIG_SMP */
-static inline void register_rpcc_clocksource(long cycle_freq)
-{
-}
-#endif /* !CONFIG_SMP */
-
 void __init
 time_init(void)
 {
@@ -362,19 +366,22 @@ time_init(void)
 		       "and unable to estimate a proper value!\n");
 	}
 
+	/* See above for restrictions on using clocksource_rpcc.  */
+#ifndef CONFIG_ALPHA_WTINT
+	if (hwrpb->nr_processors == 1)
+		clocksource_register_hz(&clocksource_rpcc, cycle_freq);
+#endif
+
 	/* From John Bowman <bowman@math.ualberta.ca>: allow the values
 	   to settle, as the Update-In-Progress bit going low isn't good
 	   enough on some hardware.  2ms is our guess; we haven't found 
 	   bogomips yet, but this is close on a 500Mhz box.  */
 	__delay(1000000);
 
-
 	if (HZ > (1<<16)) {
 		extern void __you_loose (void);
 		__you_loose();
 	}
-
-	register_rpcc_clocksource(cycle_freq);
 
 	state.last_time = cc1;
 	state.scaled_ticks_per_cycle
