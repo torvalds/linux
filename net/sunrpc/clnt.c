@@ -128,9 +128,7 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 {
 	static uint32_t clntid;
 	char name[15];
-	struct qstr q = { .name = name };
 	struct dentry *dir, *dentry;
-	int error;
 
 	dir = rpc_d_lookup_sb(sb, dir_name);
 	if (dir == NULL) {
@@ -138,19 +136,17 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 		return dir;
 	}
 	for (;;) {
-		q.len = snprintf(name, sizeof(name), "clnt%x", (unsigned int)clntid++);
+		snprintf(name, sizeof(name), "clnt%x", (unsigned int)clntid++);
 		name[sizeof(name) - 1] = '\0';
-		q.hash = full_name_hash(q.name, q.len);
-		dentry = rpc_create_client_dir(dir, &q, clnt);
+		dentry = rpc_create_client_dir(dir, name, clnt);
 		if (!IS_ERR(dentry))
 			break;
-		error = PTR_ERR(dentry);
-		if (error != -EEXIST) {
-			printk(KERN_INFO "RPC: Couldn't create pipefs entry"
-					" %s/%s, error %d\n",
-					dir_name, name, error);
-			break;
-		}
+		if (dentry == ERR_PTR(-EEXIST))
+			continue;
+		printk(KERN_INFO "RPC: Couldn't create pipefs entry"
+				" %s/%s, error %ld\n",
+				dir_name, name, PTR_ERR(dentry));
+		break;
 	}
 	dput(dir);
 	return dentry;
