@@ -867,7 +867,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 
 	if (WARN_ON(skb->len < 10)) {
 		/* Should not happen; just a sanity check for addr1 use */
-		dev_kfree_skb(skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 
@@ -884,13 +884,13 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	}
 
 	if (WARN(!channel, "TX w/o channel - queue = %d\n", txi->hw_queue)) {
-		dev_kfree_skb(skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 
 	if (data->idle && !data->tmp_chan) {
 		wiphy_debug(hw->wiphy, "Trying to TX when idle - reject\n");
-		dev_kfree_skb(skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 
