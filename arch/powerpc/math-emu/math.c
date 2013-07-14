@@ -7,6 +7,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/reg.h>
+#include <asm/switch_to.h>
 
 #include <asm/sfp-machine.h>
 #include <math-emu/double.h>
@@ -433,9 +434,7 @@ do_mathemu(struct pt_regs *regs)
 	 * is flushed into the thread_struct before attempting
 	 * emulation
 	 */
-#ifdef CONFIG_PPC_FPU
 	flush_fp_to_thread(current);
-#endif
 
 	eflag = func(op0, op1, op2, op3);
 

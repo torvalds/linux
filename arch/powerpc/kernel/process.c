@@ -74,6 +74,7 @@ struct task_struct *last_task_used_vsx = NULL;
 struct task_struct *last_task_used_spe = NULL;
 #endif
 
+#ifdef CONFIG_PPC_FPU
 /*
  * Make sure the floating-point register state in the
  * the thread_struct is up to date for task tsk.
@@ -107,6 +108,7 @@ void flush_fp_to_thread(struct task_struct *tsk)
 	}
 }
 EXPORT_SYMBOL_GPL(flush_fp_to_thread);
+#endif
 
 void enable_kernel_fp(void)
 {
