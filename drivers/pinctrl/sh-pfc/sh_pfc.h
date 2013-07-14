@@ -209,39 +209,9 @@ enum { GPIO_CFG_REQ, GPIO_CFG_FREE };
 #define GPIO_FN(str) PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
 
 /* helper macro for pinmux_enum_t */
-#define PORT_DATA_I(nr)	\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_IN)
-
-#define PORT_DATA_I_PD(nr)	\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0,	\
-		    PORT##nr##_IN, PORT##nr##_IN_PD)
-
-#define PORT_DATA_I_PU(nr)	\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0,	\
-		    PORT##nr##_IN, PORT##nr##_IN_PU)
-
-#define PORT_DATA_I_PU_PD(nr)	\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0,			\
-		    PORT##nr##_IN, PORT##nr##_IN_PD, PORT##nr##_IN_PU)
-
-#define PORT_DATA_O(nr)		\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT)
-
 #define PORT_DATA_IO(nr)	\
 	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT,	\
 		    PORT##nr##_IN)
-
-#define PORT_DATA_IO_PD(nr)	\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT,	\
-		    PORT##nr##_IN, PORT##nr##_IN_PD)
-
-#define PORT_DATA_IO_PU(nr)	\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT,	\
-		    PORT##nr##_IN, PORT##nr##_IN_PU)
-
-#define PORT_DATA_IO_PU_PD(nr)	\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT,	\
-		    PORT##nr##_IN, PORT##nr##_IN_PD, PORT##nr##_IN_PU)
 
 /* helper macro for top 4 bits in PORTnCR */
 #define _PCRH(in, in_pd, in_pu, out)	\
