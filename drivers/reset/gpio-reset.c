@@ -165,7 +165,17 @@ static struct platform_driver gpio_reset_driver = {
 	},
 };
 
-module_platform_driver(gpio_reset_driver);
+static int __init gpio_reset_init(void)
+{
+	return platform_driver_register(&gpio_reset_driver);
+}
+arch_initcall(gpio_reset_init);
+
+static void __exit gpio_reset_exit(void)
+{
+	platform_driver_unregister(&gpio_reset_driver);
+}
+module_exit(gpio_reset_exit);
 
 MODULE_AUTHOR("Philipp Zabel <p.zabel@pengutronix.de>");
 MODULE_DESCRIPTION("gpio reset controller");
