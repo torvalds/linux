@@ -9,6 +9,7 @@ config ARCH_KEYSTONE
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_ERRATA_798181 if SMP
+	select COMMON_CLK_KEYSTONE
 	help
 	  Support for boards based on the Texas Instruments Keystone family of
 	  SoCs.
