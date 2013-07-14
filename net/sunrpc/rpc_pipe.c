@@ -770,15 +770,17 @@ out_bad:
 }
 
 static struct dentry *rpc_mkdir_populate(struct dentry *parent,
-		struct qstr *name, umode_t mode, void *private,
+		const char *name, umode_t mode, void *private,
 		int (*populate)(struct dentry *, void *), void *args_populate)
 {
 	struct dentry *dentry;
+	struct qstr q = QSTR_INIT(name, strlen(name));
 	struct inode *dir = parent->d_inode;
 	int error;
 
+	q.hash = full_name_hash(q.name, q.len);
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
-	dentry = __rpc_lookup_create_exclusive(parent, name);
+	dentry = __rpc_lookup_create_exclusive(parent, &q);
 	if (IS_ERR(dentry))
 		goto out;
 	error = __rpc_mkdir(dir, dentry, mode, NULL, private);
@@ -925,8 +927,8 @@ static void rpc_clntdir_depopulate(struct dentry *dentry)
 
 /**
  * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
- * @dentry: dentry from the rpc_pipefs root to the new directory
- * @name: &struct qstr for the name
+ * @dentry: the parent of new directory
+ * @name: the name of new directory
  * @rpc_client: rpc client to associate with this directory
  *
  * This creates a directory at the given @path associated with
@@ -935,7 +937,7 @@ static void rpc_clntdir_depopulate(struct dentry *dentry)
  * later be created using rpc_mkpipe().
  */
 struct dentry *rpc_create_client_dir(struct dentry *dentry,
-				   struct qstr *name,
+				   const char *name,
 				   struct rpc_clnt *rpc_client)
 {
 	return rpc_mkdir_populate(dentry, name, S_IRUGO | S_IXUGO, NULL,
@@ -981,7 +983,7 @@ static void rpc_cachedir_depopulate(struct dentry *dentry)
 	rpc_depopulate(dentry, cache_pipefs_files, 0, 3);
 }
 
-struct dentry *rpc_create_cache_dir(struct dentry *parent, struct qstr *name,
+struct dentry *rpc_create_cache_dir(struct dentry *parent, const char *name,
 				    umode_t umode, struct cache_detail *cd)
 {
 	return rpc_mkdir_populate(parent, name, umode, NULL,
