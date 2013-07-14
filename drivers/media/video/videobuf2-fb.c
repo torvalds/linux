@@ -24,6 +24,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-fb.h>
+#include "exynos/tv/mixer.h"
 
 static int debug = 1;
 module_param(debug, int, 0644);
@@ -110,6 +111,42 @@ static inline void vb2_drv_lock(struct vb2_queue *q)
 static inline void vb2_drv_unlock(struct vb2_queue *q)
 {
 	q->ops->wait_prepare(q);
+}
+
+static int vb2_wait_for_vsync(struct fb_info *info, u32 crtc) {
+        struct vb2_fb_data *data = info->par;
+        struct vb2_queue *q = data->q;
+        struct mxr_layer *layer = vb2_get_drv_priv(q);
+        struct mxr_device *mdev = layer->mdev;
+
+        if(crtc != 0)
+                return -ENODEV;
+
+        if(mxr_reg_wait4vsync(mdev) < 0)
+                return -ETIMEDOUT;
+
+        return 0;
+}
+static int do_hkdk_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg) {
+
+        struct vb2_fb_data *data = info->par;
+        u32 crtc;
+        int ret = 0;
+
+        switch (cmd) {
+        case FBIO_WAITFORVSYNC:
+                pr_emerg("videobuf2-fb: FBIO_WAITFORVSYNC called\n");
+                if(get_user(crtc, (__u32 __user *)arg))
+                        ret = -EFAULT;
+                else
+                        ret = vb2_wait_for_vsync(info, crtc);
+                break;
+        default:
+                printk(KERN_ERR "videobuf2-fb: unknown ioctl command: %x\n", cmd);
+                ret =  -EINVAL;
+                break;
+        }
+        return ret;
 }
 
 /**
@@ -516,6 +553,7 @@ static struct fb_ops vb2_fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	.fb_ioctl		= do_hkdk_ioctl,
 };
 
 /**
