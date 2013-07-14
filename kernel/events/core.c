@@ -6234,8 +6234,6 @@ perf_event_mux_interval_ms_store(struct device *dev,
 	return count;
 }
 
-#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
-
 static struct device_attribute pmu_dev_attrs[] = {
 	__ATTR_RO(type),
 	__ATTR_RW(perf_event_mux_interval_ms),
