@@ -96,8 +96,6 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	unsigned long msr = regs->msr;
 	long err = 0;
 
-	flush_fp_to_thread(current);
-
 #ifdef CONFIG_ALTIVEC
 	err |= __put_user(v_regs, &sc->v_regs);
 
