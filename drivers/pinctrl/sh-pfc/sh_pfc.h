@@ -16,17 +16,12 @@
 
 typedef unsigned short pinmux_enum_t;
 
-#define SH_PFC_MARK_INVALID	((pinmux_enum_t)-1)
-
 enum {
 	PINMUX_TYPE_NONE,
-
 	PINMUX_TYPE_FUNCTION,
 	PINMUX_TYPE_GPIO,
 	PINMUX_TYPE_OUTPUT,
 	PINMUX_TYPE_INPUT,
-
-	PINMUX_FLAG_TYPE,	/* must be last */
 };
 
 #define SH_PFC_PIN_CFG_INPUT		(1 << 0)
@@ -165,8 +160,6 @@ struct sh_pfc_soc_info {
 
 	unsigned long unlock_reg;
 };
-
-enum { GPIO_CFG_REQ, GPIO_CFG_FREE };
 
 /* helper macro for port */
 #define PORT_1(fn, pfx, sfx) fn(pfx, sfx)
