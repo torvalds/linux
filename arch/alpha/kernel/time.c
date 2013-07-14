@@ -87,7 +87,7 @@ static inline __u32 rpcc(void)
 static DEFINE_PER_CPU(struct clock_event_device, cpu_ce);
 
 irqreturn_t
-timer_interrupt(int irq, void *dev)
+rtc_timer_interrupt(int irq, void *dev)
 {
 	int cpu = smp_processor_id();
 	struct clock_event_device *ce = &per_cpu(cpu_ce, cpu);
@@ -118,8 +118,8 @@ rtc_ce_set_next_event(unsigned long evt, struct clock_event_device *ce)
 	return -EINVAL;
 }
 
-void __init
-init_clockevent(void)
+static void __init
+init_rtc_clockevent(void)
 {
 	int cpu = smp_processor_id();
 	struct clock_event_device *ce = &per_cpu(cpu_ce, cpu);
@@ -136,6 +136,75 @@ init_clockevent(void)
 	clockevents_config_and_register(ce, CONFIG_HZ, 0, 0);
 }
 
+
+/*
+ * The QEMU clock as a clocksource primitive.
+ */
+
+static cycle_t
+qemu_cs_read(struct clocksource *cs)
+{
+	return qemu_get_vmtime();
+}
+
+static struct clocksource qemu_cs = {
+	.name                   = "qemu",
+	.rating                 = 400,
+	.read                   = qemu_cs_read,
+	.mask                   = CLOCKSOURCE_MASK(64),
+	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS,
+	.max_idle_ns		= LONG_MAX
+};
+
+
+/*
+ * The QEMU alarm as a clock_event_device primitive.
+ */
+
+static void
+qemu_ce_set_mode(enum clock_event_mode mode, struct clock_event_device *ce)
+{
+	/* The mode member of CE is updated for us in generic code.
+	   Just make sure that the event is disabled.  */
+	qemu_set_alarm_abs(0);
+}
+
+static int
+qemu_ce_set_next_event(unsigned long evt, struct clock_event_device *ce)
+{
+	qemu_set_alarm_rel(evt);
+	return 0;
+}
+
+static irqreturn_t
+qemu_timer_interrupt(int irq, void *dev)
+{
+	int cpu = smp_processor_id();
+	struct clock_event_device *ce = &per_cpu(cpu_ce, cpu);
+
+	ce->event_handler(ce);
+	return IRQ_HANDLED;
+}
+
+static void __init
+init_qemu_clockevent(void)
+{
+	int cpu = smp_processor_id();
+	struct clock_event_device *ce = &per_cpu(cpu_ce, cpu);
+
+	*ce = (struct clock_event_device){
+		.name = "qemu",
+		.features = CLOCK_EVT_FEAT_ONESHOT,
+		.rating = 400,
+		.cpumask = cpumask_of(cpu),
+		.set_mode = qemu_ce_set_mode,
+		.set_next_event = qemu_ce_set_next_event,
+	};
+
+	clockevents_config_and_register(ce, NSEC_PER_SEC, 1000, LONG_MAX);
+}
+
+
 void __init
 common_init_rtc(void)
 {
@@ -329,6 +398,15 @@ time_init(void)
 	unsigned long cycle_freq, tolerance;
 	long diff;
 
+	if (alpha_using_qemu) {
+		clocksource_register_hz(&qemu_cs, NSEC_PER_SEC);
+		init_qemu_clockevent();
+
+		timer_irqaction.handler = qemu_timer_interrupt;
+		init_rtc_irq();
+		return;
+	}
+
 	/* Calibrate CPU clock -- attempt #1.  */
 	if (!est_cycle_freq)
 		est_cycle_freq = validate_cc_value(calibrate_cc_with_pit());
@@ -371,7 +449,17 @@ time_init(void)
 
 	/* Startup the timer source. */
 	alpha_mv.init_rtc();
-
-	/* Start up the clock event device.  */
-	init_clockevent();
+	init_rtc_clockevent();
 }
+
+/* Initialize the clock_event_device for secondary cpus.  */
+#ifdef CONFIG_SMP
+void __init
+init_clockevent(void)
+{
+	if (alpha_using_qemu)
+		init_qemu_clockevent();
+	else
+		init_rtc_clockevent();
+}
+#endif

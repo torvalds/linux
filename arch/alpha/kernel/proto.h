@@ -140,7 +140,7 @@ extern void handle_ipi(struct pt_regs *);
 /* extern void reset_for_srm(void); */
 
 /* time.c */
-extern irqreturn_t timer_interrupt(int irq, void *dev);
+extern irqreturn_t rtc_timer_interrupt(int irq, void *dev);
 extern void init_clockevent(void);
 extern void common_init_rtc(void);
 extern unsigned long est_cycle_freq;

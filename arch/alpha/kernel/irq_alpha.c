@@ -214,7 +214,7 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
  */
 
 struct irqaction timer_irqaction = {
-	.handler	= timer_interrupt,
+	.handler	= rtc_timer_interrupt,
 	.name		= "timer",
 };
 
