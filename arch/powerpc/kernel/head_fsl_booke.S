@@ -948,16 +948,6 @@ _GLOBAL(giveup_spe)
 #endif /* CONFIG_SPE */
 
 /*
- * extern void giveup_fpu(struct task_struct *prev)
- *
- * Not all FSL Book-E cores have an FPU
- */
-#ifndef CONFIG_PPC_FPU
-_GLOBAL(giveup_fpu)
-	blr
-#endif
-
-/*
  * extern void abort(void)
  *
  * At present, this routine just applies a system reset.

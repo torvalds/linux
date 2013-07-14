@@ -16,7 +16,6 @@ struct thread_struct;
 extern struct task_struct *_switch(struct thread_struct *prev,
 				   struct thread_struct *next);
 
-extern void giveup_fpu(struct task_struct *);
 extern void load_up_fpu(void);
 extern void enable_kernel_fp(void);
 extern void enable_kernel_altivec(void);
@@ -38,8 +37,10 @@ static inline void discard_lazy_cpu_state(void)
 
 #ifdef CONFIG_PPC_FPU
 extern void flush_fp_to_thread(struct task_struct *);
+extern void giveup_fpu(struct task_struct *);
 #else
 static inline void flush_fp_to_thread(struct task_struct *t) { }
+static inline void giveup_fpu(struct task_struct *t) { }
 #endif
 
 #ifdef CONFIG_ALTIVEC
