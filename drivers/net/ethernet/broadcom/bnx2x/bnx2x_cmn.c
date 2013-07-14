@@ -24,7 +24,7 @@
 #include <net/tcp.h>
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 #include <linux/prefetch.h>
 #include "bnx2x_cmn.h"
 #include "bnx2x_init.h"
@@ -990,7 +990,7 @@ reuse_rx:
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       le16_to_cpu(cqe_fp->vlan_tag));
 
-		skb_mark_ll(skb, &fp->napi);
+		skb_mark_napi_id(skb, &fp->napi);
 
 		if (bnx2x_fp_ll_polling(fp))
 			netif_receive_skb(skb);
@@ -3543,9 +3543,9 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 	/* outer IP header info */
 	if (xmit_type & XMIT_CSUM_V4) {
 		struct iphdr *iph = ip_hdr(skb);
-		u16 csum = (__force u16)(~iph->check) -
-			   (__force u16)iph->tot_len -
-			   (__force u16)iph->frag_off;
+		u32 csum = (__force u32)(~iph->check) -
+			   (__force u32)iph->tot_len -
+			   (__force u32)iph->frag_off;
 
 		pbd2->fw_ip_csum_wo_len_flags_frag =
 			bswab16(csum_fold((__force __wsum)csum));

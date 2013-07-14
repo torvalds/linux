@@ -31,7 +31,7 @@
  *
  */
 
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 #include <linux/mlx4/cq.h>
 #include <linux/slab.h>
 #include <linux/mlx4/qp.h>
@@ -767,7 +767,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					       timestamp);
 		}
 
-		skb_mark_ll(skb, &cq->napi);
+		skb_mark_napi_id(skb, &cq->napi);
 
 		/* Push it up the stack */
 		netif_receive_skb(skb);

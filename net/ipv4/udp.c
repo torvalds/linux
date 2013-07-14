@@ -109,7 +109,7 @@
 #include <trace/events/udp.h>
 #include <linux/static_key.h>
 #include <trace/events/skb.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 #include "udp_impl.h"
 
 struct udp_table udp_table __read_mostly;
@@ -1713,7 +1713,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	if (sk != NULL) {
 		int ret;
 
-		sk_mark_ll(sk, skb);
+		sk_mark_napi_id(sk, skb);
 		ret = udp_queue_rcv_skb(sk, skb);
 		sock_put(sk);
 
@@ -2323,6 +2323,9 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 		struct udphdr *uh;
 		int udp_offset = outer_hlen - tnl_hlen;
 
+		skb_reset_inner_headers(skb);
+		skb->encapsulation = 1;
+
 		skb->mac_len = mac_len;
 
 		skb_push(skb, outer_hlen);
@@ -2345,7 +2348,6 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 				uh->check = CSUM_MANGLED_0;
 
 		}
-		skb->ip_summed = CHECKSUM_NONE;
 		skb->protocol = protocol;
 	} while ((skb = skb->next));
 out:
