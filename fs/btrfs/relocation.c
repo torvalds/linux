@@ -1305,6 +1305,7 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 	struct extent_buffer *eb;
 	struct btrfs_root_item *root_item;
 	struct btrfs_key root_key;
+	u64 last_snap = 0;
 	int ret;
 
 	root_item = kmalloc(sizeof(*root_item), GFP_NOFS);
@@ -1320,6 +1321,7 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 				      BTRFS_TREE_RELOC_OBJECTID);
 		BUG_ON(ret);
 
+		last_snap = btrfs_root_last_snapshot(&root->root_item);
 		btrfs_set_root_last_snapshot(&root->root_item,
 					     trans->transid - 1);
 	} else {
@@ -1345,6 +1347,12 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 		memset(&root_item->drop_progress, 0,
 		       sizeof(struct btrfs_disk_key));
 		root_item->drop_level = 0;
+		/*
+		 * abuse rtransid, it is safe because it is impossible to
+		 * receive data into a relocation tree.
+		 */
+		btrfs_set_root_rtransid(root_item, last_snap);
+		btrfs_set_root_otransid(root_item, trans->transid);
 	}
 
 	btrfs_tree_unlock(eb);
@@ -1355,8 +1363,7 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 	kfree(root_item);
 
-	reloc_root = btrfs_read_fs_root_no_radix(root->fs_info->tree_root,
-						 &root_key);
+	reloc_root = btrfs_read_fs_root(root->fs_info->tree_root, &root_key);
 	BUG_ON(IS_ERR(reloc_root));
 	reloc_root->last_trans = trans->transid;
 	return reloc_root;
@@ -2273,8 +2280,12 @@ void free_reloc_roots(struct list_head *list)
 static noinline_for_stack
 int merge_reloc_roots(struct reloc_control *rc)
 {
+	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;
 	struct btrfs_root *reloc_root;
+	u64 last_snap;
+	u64 otransid;
+	u64 objectid;
 	LIST_HEAD(reloc_roots);
 	int found = 0;
 	int ret = 0;
@@ -2308,12 +2319,44 @@ again:
 		} else {
 			list_del_init(&reloc_root->root_list);
 		}
+
+		/*
+		 * we keep the old last snapshod transid in rtranid when we
+		 * created the relocation tree.
+		 */
+		last_snap = btrfs_root_rtransid(&reloc_root->root_item);
+		otransid = btrfs_root_otransid(&reloc_root->root_item);
+		objectid = reloc_root->root_key.offset;
+
 		ret = btrfs_drop_snapshot(reloc_root, rc->block_rsv, 0, 1);
 		if (ret < 0) {
 			if (list_empty(&reloc_root->root_list))
 				list_add_tail(&reloc_root->root_list,
 					      &reloc_roots);
 			goto out;
+		} else if (!ret) {
+			/*
+			 * recover the last snapshot tranid to avoid
+			 * the space balance break NOCOW.
+			 */
+			root = read_fs_root(rc->extent_root->fs_info,
+					    objectid);
+			if (IS_ERR(root))
+				continue;
+
+			if (btrfs_root_refs(&root->root_item) == 0)
+				continue;
+
+			trans = btrfs_join_transaction(root);
+			BUG_ON(IS_ERR(trans));
+
+			/* Check if the fs/file tree was snapshoted or not. */
+			if (btrfs_root_last_snapshot(&root->root_item) ==
+			    otransid - 1)
+				btrfs_set_root_last_snapshot(&root->root_item,
+							     last_snap);
+				
+			btrfs_end_transaction(trans, root);
 		}
 	}
 
@@ -3266,6 +3309,8 @@ static int __add_tree_block(struct reloc_control *rc,
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	int ret;
+	bool skinny = btrfs_fs_incompat(rc->extent_root->fs_info,
+					SKINNY_METADATA);
 
 	if (tree_block_processed(bytenr, blocksize, rc))
 		return 0;
@@ -3276,10 +3321,15 @@ static int __add_tree_block(struct reloc_control *rc,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-
+again:
 	key.objectid = bytenr;
-	key.type = BTRFS_EXTENT_ITEM_KEY;
-	key.offset = blocksize;
+	if (skinny) {
+		key.type = BTRFS_METADATA_ITEM_KEY;
+		key.offset = (u64)-1;
+	} else {
+		key.type = BTRFS_EXTENT_ITEM_KEY;
+		key.offset = blocksize;
+	}
 
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
@@ -3287,11 +3337,23 @@ static int __add_tree_block(struct reloc_control *rc,
 	if (ret < 0)
 		goto out;
 
-	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-	if (ret > 0) {
-		if (key.objectid == bytenr &&
-		    key.type == BTRFS_METADATA_ITEM_KEY)
-			ret = 0;
+	if (ret > 0 && skinny) {
+		if (path->slots[0]) {
+			path->slots[0]--;
+			btrfs_item_key_to_cpu(path->nodes[0], &key,
+					      path->slots[0]);
+			if (key.objectid == bytenr &&
+			    (key.type == BTRFS_METADATA_ITEM_KEY ||
+			     (key.type == BTRFS_EXTENT_ITEM_KEY &&
+			      key.offset == blocksize)))
+				ret = 0;
+		}
+
+		if (ret) {
+			skinny = false;
+			btrfs_release_path(path);
+			goto again;
+		}
 	}
 	BUG_ON(ret);
 
@@ -4160,12 +4222,12 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	       (unsigned long long)rc->block_group->key.objectid,
 	       (unsigned long long)rc->block_group->flags);
 
-	ret = btrfs_start_delalloc_inodes(fs_info->tree_root, 0);
+	ret = btrfs_start_all_delalloc_inodes(fs_info, 0);
 	if (ret < 0) {
 		err = ret;
 		goto out;
 	}
-	btrfs_wait_ordered_extents(fs_info->tree_root, 0);
+	btrfs_wait_all_ordered_extents(fs_info, 0);
 
 	while (1) {
 		mutex_lock(&fs_info->cleaner_mutex);
@@ -4277,7 +4339,7 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 		    key.type != BTRFS_ROOT_ITEM_KEY)
 			break;
 
-		reloc_root = btrfs_read_fs_root_no_radix(root, &key);
+		reloc_root = btrfs_read_fs_root(root, &key);
 		if (IS_ERR(reloc_root)) {
 			err = PTR_ERR(reloc_root);
 			goto out;
@@ -4396,10 +4458,8 @@ out:
 int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 {
 	struct btrfs_ordered_sum *sums;
-	struct btrfs_sector_sum *sector_sum;
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	size_t offset;
 	int ret;
 	u64 disk_bytenr;
 	LIST_HEAD(list);
@@ -4413,19 +4473,13 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 	if (ret)
 		goto out;
 
+	disk_bytenr = ordered->start;
 	while (!list_empty(&list)) {
 		sums = list_entry(list.next, struct btrfs_ordered_sum, list);
 		list_del_init(&sums->list);
 
-		sector_sum = sums->sums;
-		sums->bytenr = ordered->start;
-
-		offset = 0;
-		while (offset < sums->len) {
-			sector_sum->bytenr += ordered->start - disk_bytenr;
-			sector_sum++;
-			offset += root->sectorsize;
-		}
+		sums->bytenr = disk_bytenr;
+		disk_bytenr += sums->len;
 
 		btrfs_add_ordered_sum(inode, ordered, sums);
 	}

@@ -586,6 +586,7 @@
 			regulator-name = "vbus1";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
+			enable-active-high;
 			gpio = <&tca6416 0 0>; /* GPIO_PMU0 */
 		};
 
@@ -595,6 +596,7 @@
 			regulator-name = "vbus3";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
+			enable-active-high;
 			gpio = <&tca6416 1 0>; /* GPIO_PMU1 */
 		};
 	};

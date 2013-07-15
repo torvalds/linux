@@ -112,16 +112,16 @@ xfs_qm_newmount(
 
 	if (((uquotaondisk && !XFS_IS_UQUOTA_ON(mp)) ||
 	    (!uquotaondisk &&  XFS_IS_UQUOTA_ON(mp)) ||
-	     (pquotaondisk && !XFS_IS_PQUOTA_ON(mp)) ||
-	    (!pquotaondisk &&  XFS_IS_PQUOTA_ON(mp)) ||
 	     (gquotaondisk && !XFS_IS_GQUOTA_ON(mp)) ||
-	    (!gquotaondisk &&  XFS_IS_OQUOTA_ON(mp)))  &&
+	    (!gquotaondisk &&  XFS_IS_GQUOTA_ON(mp)) ||
+	     (pquotaondisk && !XFS_IS_PQUOTA_ON(mp)) ||
+	    (!pquotaondisk &&  XFS_IS_PQUOTA_ON(mp)))  &&
 	    xfs_dev_is_read_only(mp, "changing quota state")) {
 		xfs_warn(mp, "please mount with%s%s%s%s.",
 			(!quotaondisk ? "out quota" : ""),
 			(uquotaondisk ? " usrquota" : ""),
-			(pquotaondisk ? " prjquota" : ""),
-			(gquotaondisk ? " grpquota" : ""));
+			(gquotaondisk ? " grpquota" : ""),
+			(pquotaondisk ? " prjquota" : ""));
 		return XFS_ERROR(EPERM);
 	}
 

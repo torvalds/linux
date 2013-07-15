@@ -1842,9 +1842,8 @@ static int sbp_queue_status(struct se_cmd *se_cmd)
 	return sbp_send_sense(req);
 }
 
-static int sbp_queue_tm_rsp(struct se_cmd *se_cmd)
+static void sbp_queue_tm_rsp(struct se_cmd *se_cmd)
 {
-	return 0;
 }
 
 static int sbp_check_stop_free(struct se_cmd *se_cmd)

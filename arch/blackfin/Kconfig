@@ -283,7 +283,7 @@ config BF_REV_0_0
 
 config BF_REV_0_1
 	bool "0.1"
-	depends on (BF51x || BF52x || (BF54x && !BF54xM))
+	depends on (BF51x || BF52x || (BF54x && !BF54xM) || BF60x)
 
 config BF_REV_0_2
 	bool "0.2"

@@ -26,6 +26,7 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
+#include <drm/drm_crtc_helper.h>
 #include <linux/io-mapping.h>
 
 int qxl_log_level;
@@ -72,27 +73,40 @@ static bool qxl_check_device(struct qxl_device *qdev)
 	return true;
 }
 
+static void setup_hw_slot(struct qxl_device *qdev, int slot_index,
+			  struct qxl_memslot *slot)
+{
+	qdev->ram_header->mem_slot.mem_start = slot->start_phys_addr;
+	qdev->ram_header->mem_slot.mem_end = slot->end_phys_addr;
+	qxl_io_memslot_add(qdev, slot_index);
+}
+
 static uint8_t setup_slot(struct qxl_device *qdev, uint8_t slot_index_offset,
 	unsigned long start_phys_addr, unsigned long end_phys_addr)
 {
 	uint64_t high_bits;
 	struct qxl_memslot *slot;
 	uint8_t slot_index;
-	struct qxl_ram_header *ram_header = qdev->ram_header;
 
 	slot_index = qdev->rom->slots_start + slot_index_offset;
 	slot = &qdev->mem_slots[slot_index];
 	slot->start_phys_addr = start_phys_addr;
 	slot->end_phys_addr = end_phys_addr;
-	ram_header->mem_slot.mem_start = slot->start_phys_addr;
-	ram_header->mem_slot.mem_end = slot->end_phys_addr;
-	qxl_io_memslot_add(qdev, slot_index);
+
+	setup_hw_slot(qdev, slot_index, slot);
+
 	slot->generation = qdev->rom->slot_generation;
 	high_bits = slot_index << qdev->slot_gen_bits;
 	high_bits |= slot->generation;
 	high_bits <<= (64 - (qdev->slot_gen_bits + qdev->slot_id_bits));
 	slot->high_bits = high_bits;
 	return slot_index;
+}
+
+void qxl_reinit_memslots(struct qxl_device *qdev)
+{
+	setup_hw_slot(qdev, qdev->main_mem_slot, &qdev->mem_slots[qdev->main_mem_slot]);
+	setup_hw_slot(qdev, qdev->surfaces_mem_slot, &qdev->mem_slots[qdev->surfaces_mem_slot]);
 }
 
 static void qxl_gc_work(struct work_struct *work)
@@ -293,6 +307,8 @@ int qxl_driver_load(struct drm_device *dev, unsigned long flags)
 		qxl_driver_unload(dev);
 		goto out;
 	}
+
+	drm_kms_helper_poll_init(qdev->ddev);
 
 	return 0;
 out:

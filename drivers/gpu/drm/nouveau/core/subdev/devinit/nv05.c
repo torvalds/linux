@@ -24,12 +24,12 @@
  *
  */
 
-#include <subdev/devinit.h>
 #include <subdev/bios.h>
 #include <subdev/bios/bmp.h>
 #include <subdev/vga.h>
 
 #include "fbmem.h"
+#include "priv.h"
 
 struct nv05_devinit_priv {
 	struct nouveau_devinit base;
@@ -144,6 +144,7 @@ nv05_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	priv->base.meminit = nv05_devinit_meminit;
+	priv->base.pll_set = nv04_devinit_pll_set;
 	return 0;
 }
 

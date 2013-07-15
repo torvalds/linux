@@ -185,6 +185,9 @@
 #define BTTV_BOARD_PV183                   0x9f
 #define BTTV_BOARD_TVT_TD3116		   0xa0
 #define BTTV_BOARD_APOSONIC_WDVR           0xa1
+#define BTTV_BOARD_ADLINK_MPG24            0xa2
+#define BTTV_BOARD_BT848_CAP_14            0xa3
+#define BTTV_BOARD_CYBERVISION_CV06        0xa4
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10
@@ -232,6 +235,7 @@ struct tvcard {
 #define PLL_NONE 0
 #define PLL_28   1
 #define PLL_35   2
+#define PLL_14   3
 
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;

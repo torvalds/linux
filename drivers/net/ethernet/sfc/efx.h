@@ -124,6 +124,7 @@ extern const struct ethtool_ops efx_ethtool_ops;
 extern int efx_reset(struct efx_nic *efx, enum reset_type method);
 extern void efx_reset_down(struct efx_nic *efx, enum reset_type method);
 extern int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok);
+extern int efx_try_recovery(struct efx_nic *efx);
 
 /* Global */
 extern void efx_schedule_reset(struct efx_nic *efx, enum reset_type type);

@@ -15,7 +15,7 @@ extern struct iscsi_np *iscsit_add_np(struct __kernel_sockaddr_storage *,
 extern int iscsit_reset_np_thread(struct iscsi_np *, struct iscsi_tpg_np *,
 				struct iscsi_portal_group *);
 extern int iscsit_del_np(struct iscsi_np *);
-extern int iscsit_add_reject_from_cmd(u8, int, int, unsigned char *, struct iscsi_cmd *);
+extern int iscsit_reject_cmd(struct iscsi_cmd *cmd, u8, unsigned char *);
 extern void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *);
 extern int iscsit_logout_closesession(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_logout_closeconnection(struct iscsi_cmd *, struct iscsi_conn *);

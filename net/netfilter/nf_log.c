@@ -245,7 +245,7 @@ static const struct file_operations nflog_file_ops = {
 static char nf_log_sysctl_fnames[NFPROTO_NUMPROTO-NFPROTO_UNSPEC][3];
 static struct ctl_table nf_log_sysctl_table[NFPROTO_NUMPROTO+1];
 
-static int nf_log_proc_dostring(ctl_table *table, int write,
+static int nf_log_proc_dostring(struct ctl_table *table, int write,
 			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	const struct nf_logger *logger;
@@ -369,9 +369,7 @@ static int __net_init nf_log_net_init(struct net *net)
 
 out_sysctl:
 #ifdef CONFIG_PROC_FS
-	/* For init_net: errors will trigger panic, don't unroll on error. */
-	if (!net_eq(net, &init_net))
-		remove_proc_entry("nf_log", net->nf.proc_netfilter);
+	remove_proc_entry("nf_log", net->nf.proc_netfilter);
 #endif
 	return ret;
 }

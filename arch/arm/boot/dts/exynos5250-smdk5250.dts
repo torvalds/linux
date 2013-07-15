@@ -105,7 +105,7 @@
 		samsung,i2c-max-bus-freq = <66000>;
 
 		hdmiddc@50 {
-			compatible = "samsung,exynos5-hdmiddc";
+			compatible = "samsung,exynos4210-hdmiddc";
 			reg = <0x50>;
 		};
 	};
@@ -135,7 +135,7 @@
 		samsung,i2c-max-bus-freq = <66000>;
 
 		hdmiphy@38 {
-			compatible = "samsung,exynos5-hdmiphy";
+			compatible = "samsung,exynos4212-hdmiphy";
 			reg = <0x38>;
 		};
 	};

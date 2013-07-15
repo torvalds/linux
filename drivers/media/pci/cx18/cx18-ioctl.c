@@ -39,7 +39,6 @@
 #include "cx18-cards.h"
 #include "cx18-av-core.h"
 #include <media/tveeprom.h>
-#include <media/v4l2-chip-ident.h>
 
 u16 cx18_service2vbi(int type)
 {
@@ -362,73 +361,18 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int cx18_g_chip_ident(struct file *file, void *fh,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	struct cx18 *cx = fh2id(fh)->cx;
-	int err = 0;
-
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	switch (chip->match.type) {
-	case V4L2_CHIP_MATCH_HOST:
-		switch (chip->match.addr) {
-		case 0:
-			chip->ident = V4L2_IDENT_CX23418;
-			chip->revision = cx18_read_reg(cx, 0xC72028);
-			break;
-		case 1:
-			/*
-			 * The A/V decoder is always present, but in the rare
-			 * case that the card doesn't have analog, we don't
-			 * use it.  We find it w/o using the cx->sd_av pointer
-			 */
-			cx18_call_hw(cx, CX18_HW_418_AV,
-				     core, g_chip_ident, chip);
-			break;
-		default:
-			/*
-			 * Could return ident = V4L2_IDENT_UNKNOWN if we had
-			 * other host chips at higher addresses, but we don't
-			 */
-			err = -EINVAL; /* per V4L2 spec */
-			break;
-		}
-		break;
-	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		/* If needed, returns V4L2_IDENT_AMBIGUOUS without extra work */
-		cx18_call_all(cx, core, g_chip_ident, chip);
-		break;
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/*
-		 * We could return V4L2_IDENT_UNKNOWN, but we don't do the work
-		 * to look if a chip is at the address with no driver.  That's a
-		 * dangerous thing to do with EEPROMs anyway.
-		 */
-		cx18_call_all(cx, core, g_chip_ident, chip);
-		break;
-	default:
-		err = -EINVAL;
-		break;
-	}
-	return err;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int cx18_g_register(struct file *file, void *fh,
 				struct v4l2_dbg_register *reg)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (v4l2_chip_match_host(&reg->match)) {
-		if (reg->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
-			return -EINVAL;
-		reg->size = 4;
-		reg->val = cx18_read_enc(cx, reg->reg);
-		return 0;
-	}
-	/* FIXME - errors shouldn't be ignored */
-	cx18_call_all(cx, core, g_register, reg);
+	if (reg->reg & 0x3)
+		return -EINVAL;
+	if (reg->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
+		return -EINVAL;
+	reg->size = 4;
+	reg->val = cx18_read_enc(cx, reg->reg);
 	return 0;
 }
 
@@ -437,14 +381,11 @@ static int cx18_s_register(struct file *file, void *fh,
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 
-	if (v4l2_chip_match_host(&reg->match)) {
-		if (reg->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
-			return -EINVAL;
-		cx18_write_enc(cx, reg->val, reg->reg);
-		return 0;
-	}
-	/* FIXME - errors shouldn't be ignored */
-	cx18_call_all(cx, core, s_register, reg);
+	if (reg->reg & 0x3)
+		return -EINVAL;
+	if (reg->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
+		return -EINVAL;
+	cx18_write_enc(cx, reg->val, reg->reg);
 	return 0;
 }
 #endif
@@ -1162,7 +1103,6 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_try_fmt_vbi_cap         = cx18_try_fmt_vbi_cap,
 	.vidioc_try_fmt_sliced_vbi_cap  = cx18_try_fmt_sliced_vbi_cap,
 	.vidioc_g_sliced_vbi_cap        = cx18_g_sliced_vbi_cap,
-	.vidioc_g_chip_ident            = cx18_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register              = cx18_g_register,
 	.vidioc_s_register              = cx18_s_register,

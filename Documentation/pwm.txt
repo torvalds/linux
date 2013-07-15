@@ -45,6 +45,43 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns);
 
 To start/stop toggling the PWM output use pwm_enable()/pwm_disable().
 
+Using PWMs with the sysfs interface
+-----------------------------------
+
+If CONFIG_SYSFS is enabled in your kernel configuration a simple sysfs
+interface is provided to use the PWMs from userspace. It is exposed at
+/sys/class/pwm/. Each probed PWM controller/chip will be exported as
+pwmchipN, where N is the base of the PWM chip. Inside the directory you
+will find:
+
+npwm - The number of PWM channels this chip supports (read-only).
+
+export - Exports a PWM channel for use with sysfs (write-only).
+
+unexport - Unexports a PWM channel from sysfs (write-only).
+
+The PWM channels are numbered using a per-chip index from 0 to npwm-1.
+
+When a PWM channel is exported a pwmX directory will be created in the
+pwmchipN directory it is associated with, where X is the number of the
+channel that was exported. The following properties will then be available:
+
+period - The total period of the PWM signal (read/write).
+	Value is in nanoseconds and is the sum of the active and inactive
+	time of the PWM.
+
+duty_cycle - The active time of the PWM signal (read/write).
+	Value is in nanoseconds and must be less than the period.
+
+polarity - Changes the polarity of the PWM signal (read/write).
+	Writes to this property only work if the PWM chip supports changing
+	the polarity. The polarity can only be changed if the PWM is not
+	enabled. Value is the string "normal" or "inversed".
+
+enable - Enable/disable the PWM signal (read/write).
+	0 - disabled
+	1 - enabled
+
 Implementing a PWM driver
 -------------------------
 

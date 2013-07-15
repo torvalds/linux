@@ -35,6 +35,8 @@
 #define ATC_REG_ATC_INT_STS_CLR					 0x1101c0
 /* [RW 5] Parity mask register #0 read/write */
 #define ATC_REG_ATC_PRTY_MASK					 0x1101d8
+/* [R 5] Parity register #0 read */
+#define ATC_REG_ATC_PRTY_STS					 0x1101cc
 /* [RC 5] Parity register #0 read clear */
 #define ATC_REG_ATC_PRTY_STS_CLR				 0x1101d0
 /* [RW 19] Interrupt mask register #0 read/write */
@@ -2750,6 +2752,8 @@
 #define PBF_REG_PBF_INT_STS					 0x1401c8
 /* [RW 20] Parity mask register #0 read/write */
 #define PBF_REG_PBF_PRTY_MASK					 0x1401e4
+/* [R 28] Parity register #0 read */
+#define PBF_REG_PBF_PRTY_STS					 0x1401d8
 /* [RC 20] Parity register #0 read clear */
 #define PBF_REG_PBF_PRTY_STS_CLR				 0x1401dc
 /* [RW 16] The Ethernet type value for L2 tag 0 */
@@ -4517,6 +4521,8 @@
 #define TM_REG_TM_INT_STS					 0x1640f0
 /* [RW 7] Parity mask register #0 read/write */
 #define TM_REG_TM_PRTY_MASK					 0x16410c
+/* [R 7] Parity register #0 read */
+#define TM_REG_TM_PRTY_STS					 0x164100
 /* [RC 7] Parity register #0 read clear */
 #define TM_REG_TM_PRTY_STS_CLR					 0x164104
 /* [RW 8] The event id for aggregated interrupt 0 */
