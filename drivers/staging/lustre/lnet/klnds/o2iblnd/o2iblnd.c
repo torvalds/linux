@@ -702,6 +702,8 @@ kiblnd_get_completion_vector(kib_conn_t *conn, int cpt)
 		return 0;
 
 	mask = cfs_cpt_cpumask(lnet_cpt_table(), cpt);
+	if (mask == NULL)
+		return 0;
 
 	/* hash NID to CPU id in this partition... */
 	off = do_div(nid, cpus_weight(*mask));

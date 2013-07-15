@@ -81,12 +81,6 @@ struct cfs_cpt_table {
 	nodemask_t			*ctb_nodemask;
 };
 
-void cfs_cpu_core_siblings(int cpu, cpumask_t *mask);
-void cfs_cpu_ht_siblings(int cpu, cpumask_t *mask);
-void cfs_node_to_cpumask(int node, cpumask_t *mask);
-int cfs_cpu_core_nsiblings(int cpu);
-int cfs_cpu_ht_nsiblings(int cpu);
-
 /**
  * comment out definitions for compatible layer
  * #define CFS_CPU_NR			  NR_CPUS

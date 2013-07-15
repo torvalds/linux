@@ -551,6 +551,7 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 	if (tc->tc_thr_factor != 0) {
 		int	  factor = tc->tc_thr_factor;
 		const int fade = 4;
+		cpumask_t mask;
 
 		/*
 		 * User wants to increase number of threads with for
@@ -564,7 +565,8 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 		 * have too many threads no matter how many cores/HTs
 		 * there are.
 		 */
-		if (cfs_cpu_ht_nsiblings(0) > 1) { /* weight is # of HTs */
+		cpumask_copy(&mask, topology_thread_cpumask(0));
+		if (cpus_weight(mask) > 1) { /* weight is # of HTs */
 			/* depress thread factor for hyper-thread */
 			factor = factor - (factor >> 1) + (factor >> 3);
 		}
@@ -2776,11 +2778,13 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 
 int ptlrpc_hr_init(void)
 {
+	cpumask_t			mask;
 	struct ptlrpc_hr_partition	*hrp;
 	struct ptlrpc_hr_thread		*hrt;
 	int				rc;
 	int				i;
 	int				j;
+	int				weight;
 	ENTRY;
 
 	memset(&ptlrpc_hr, 0, sizeof(ptlrpc_hr));
@@ -2793,6 +2797,9 @@ int ptlrpc_hr_init(void)
 
 	init_waitqueue_head(&ptlrpc_hr.hr_waitq);
 
+	cpumask_copy(&mask, topology_thread_cpumask(0));
+	weight = cpus_weight(mask);
+
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
 		hrp->hrp_cpt = i;
 
@@ -2800,7 +2807,7 @@ int ptlrpc_hr_init(void)
 		atomic_set(&hrp->hrp_nstopped, 0);
 
 		hrp->hrp_nthrs = cfs_cpt_weight(ptlrpc_hr.hr_cpt_table, i);
-		hrp->hrp_nthrs /= cfs_cpu_ht_nsiblings(0);
+		hrp->hrp_nthrs /= weight;
 
 		LASSERT(hrp->hrp_nthrs > 0);
 		OBD_CPT_ALLOC(hrp->hrp_thrs, ptlrpc_hr.hr_cpt_table, i,
