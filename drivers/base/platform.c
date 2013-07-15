@@ -522,6 +522,7 @@ static void platform_drv_shutdown(struct device *_dev)
 /**
  * __platform_driver_register - register a driver for platform-level devices
  * @drv: platform driver structure
+ * @owner: owning module/driver
  */
 int __platform_driver_register(struct platform_driver *drv,
 				struct module *owner)
