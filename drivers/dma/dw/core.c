@@ -1098,12 +1098,12 @@ dwc_tx_status(struct dma_chan *chan,
 	enum dma_status		ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS) {
-		dwc_scan_descriptors(to_dw_dma(chan->device), dwc);
+	if (ret == DMA_SUCCESS)
+		return ret;
 
-		ret = dma_cookie_status(chan, cookie, txstate);
-	}
+	dwc_scan_descriptors(to_dw_dma(chan->device), dwc);
 
+	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret != DMA_SUCCESS)
 		dma_set_residue(txstate, dwc_get_residue(dwc));
 
