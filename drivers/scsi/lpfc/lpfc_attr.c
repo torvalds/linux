@@ -3950,6 +3950,14 @@ LPFC_VPORT_ATTR_RW(use_adisc, 0, 0, 1,
 		   "Use ADISC on rediscovery to authenticate FCP devices");
 
 /*
+# lpfc_first_burst_size: First burst size to use on the NPorts
+# that support first burst.
+# Value range is [0,65536]. Default value is 0.
+*/
+LPFC_VPORT_ATTR_RW(first_burst_size, 0, 0, 65536,
+		   "First burst size for Targets that support first burst");
+
+/*
 # lpfc_max_scsicmpl_time: Use scsi command completion time to control I/O queue
 # depth. Default value is 0. When the value of this parameter is zero the
 # SCSI command completion time is not used for controlling I/O queue depth. When
@@ -4277,6 +4285,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_devloss_tmo,
 	&dev_attr_lpfc_fcp_class,
 	&dev_attr_lpfc_use_adisc,
+	&dev_attr_lpfc_first_burst_size,
 	&dev_attr_lpfc_ack0,
 	&dev_attr_lpfc_topology,
 	&dev_attr_lpfc_scan_down,
@@ -4353,6 +4362,7 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_lpfc_restrict_login,
 	&dev_attr_lpfc_fcp_class,
 	&dev_attr_lpfc_use_adisc,
+	&dev_attr_lpfc_first_burst_size,
 	&dev_attr_lpfc_fdmi_on,
 	&dev_attr_lpfc_max_luns,
 	&dev_attr_nport_evt_cnt,
@@ -5332,6 +5342,7 @@ lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
 	lpfc_restrict_login_init(vport, lpfc_restrict_login);
 	lpfc_fcp_class_init(vport, lpfc_fcp_class);
 	lpfc_use_adisc_init(vport, lpfc_use_adisc);
+	lpfc_first_burst_size_init(vport, lpfc_first_burst_size);
 	lpfc_max_scsicmpl_time_init(vport, lpfc_max_scsicmpl_time);
 	lpfc_fdmi_on_init(vport, lpfc_fdmi_on);
 	lpfc_discovery_threads_init(vport, lpfc_discovery_threads);

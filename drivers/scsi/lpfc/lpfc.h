@@ -421,6 +421,7 @@ struct lpfc_vport {
 	uint32_t cfg_enable_da_id;
 	uint32_t cfg_max_scsicmpl_time;
 	uint32_t cfg_tgt_queue_depth;
+	uint32_t cfg_first_burst_size;
 
 	uint32_t dev_loss_tmo_changed;
 
