@@ -1315,7 +1315,6 @@ int lu_context_key_register(struct lu_context_key *key)
 	LASSERT(key->lct_init != NULL);
 	LASSERT(key->lct_fini != NULL);
 	LASSERT(key->lct_tags != 0);
-	LASSERT(key->lct_owner != NULL);
 
 	result = -ENFILE;
 	spin_lock(&lu_keys_guard);
@@ -1349,7 +1348,6 @@ static void key_fini(struct lu_context *ctx, int index)
 		lu_ref_del(&key->lct_reference, "ctx", ctx);
 		atomic_dec(&key->lct_used);
 
-		LASSERT(key->lct_owner != NULL);
 		if ((ctx->lc_tags & LCT_NOREF) == 0) {
 #ifdef CONFIG_MODULE_UNLOAD
 			LINVRNT(module_refcount(key->lct_owner) > 0);
@@ -1557,7 +1555,6 @@ static int keys_fill(struct lu_context *ctx)
 			if (unlikely(IS_ERR(value)))
 				return PTR_ERR(value);
 
-			LASSERT(key->lct_owner != NULL);
 			if (!(ctx->lc_tags & LCT_NOREF))
 				try_module_get(key->lct_owner);
 			lu_ref_add_atomic(&key->lct_reference, "ctx", ctx);
