@@ -1216,7 +1216,7 @@ static void ntb_tx_copy_callback(void *data)
 	wmb();
 	iowrite32(entry->flags | DESC_DONE_FLAG, &hdr->flags);
 
-	ntb_ring_sdb(qp->ndev, qp->qp_num);
+	ntb_ring_doorbell(qp->ndev, qp->qp_num);
 
 	/* The entry length can only be zero if the packet is intended to be a
 	 * "link down" or similar.  Since no payload is being sent in these

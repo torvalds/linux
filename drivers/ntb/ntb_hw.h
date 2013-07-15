@@ -124,11 +124,11 @@ struct ntb_device {
 		unsigned char msix_cnt;
 	} limits;
 	struct {
-		void __iomem *pdb;
-		void __iomem *pdb_mask;
-		void __iomem *sdb;
-		void __iomem *sbar2_xlat;
-		void __iomem *sbar4_xlat;
+		void __iomem *ldb;
+		void __iomem *ldb_mask;
+		void __iomem *rdb;
+		void __iomem *bar2_xlat;
+		void __iomem *bar4_xlat;
 		void __iomem *spad_write;
 		void __iomem *spad_read;
 		void __iomem *lnk_cntl;
@@ -243,7 +243,7 @@ int ntb_read_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 *val);
 resource_size_t ntb_get_mw_base(struct ntb_device *ndev, unsigned int mw);
 void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw);
 u64 ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw);
-void ntb_ring_sdb(struct ntb_device *ndev, unsigned int idx);
+void ntb_ring_doorbell(struct ntb_device *ndev, unsigned int idx);
 void *ntb_find_transport(struct pci_dev *pdev);
 
 int ntb_transport_init(struct pci_dev *pdev);
