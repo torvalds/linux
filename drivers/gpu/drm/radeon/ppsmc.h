@@ -119,6 +119,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_SCLKDPM_SetEnabledMask      ((uint16_t) 0x145)
 #define PPSMC_MSG_MCLKDPM_SetEnabledMask      ((uint16_t) 0x146)
 #define PPSMC_MSG_PCIeDPM_ForceLevel          ((uint16_t) 0x147)
+#define PPSMC_MSG_PCIeDPM_UnForceLevel        ((uint16_t) 0x148)
 #define PPSMC_MSG_EnableVRHotGPIOInterrupt    ((uint16_t) 0x14a)
 #define PPSMC_MSG_DPM_Enable                  ((uint16_t) 0x14e)
 #define PPSMC_MSG_DPM_Disable                 ((uint16_t) 0x14f)

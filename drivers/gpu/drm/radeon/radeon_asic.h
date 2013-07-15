@@ -765,6 +765,8 @@ void ci_dpm_print_power_state(struct radeon_device *rdev,
 			      struct radeon_ps *ps);
 void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m);
+int ci_dpm_force_performance_level(struct radeon_device *rdev,
+				   enum radeon_dpm_forced_level level);
 
 int kv_dpm_init(struct radeon_device *rdev);
 int kv_dpm_enable(struct radeon_device *rdev);

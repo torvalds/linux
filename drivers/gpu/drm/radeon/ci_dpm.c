@@ -3601,6 +3601,153 @@ static int ci_generate_dpm_level_enable_mask(struct radeon_device *rdev,
 	return 0;
 }
 
+static u32 ci_get_lowest_enabled_level(struct radeon_device *rdev,
+				       u32 level_mask)
+{
+	u32 level = 0;
+
+	while ((level_mask & (1 << level)) == 0)
+		level++;
+
+	return level;
+}
+
+
+int ci_dpm_force_performance_level(struct radeon_device *rdev,
+				   enum radeon_dpm_forced_level level)
+{
+	struct ci_power_info *pi = ci_get_pi(rdev);
+	PPSMC_Result smc_result;
+	u32 tmp, levels, i;
+	int ret;
+
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if ((!pi->sclk_dpm_key_disabled) &&
+		    pi->dpm_level_enable_mask.sclk_dpm_enable_mask) {
+			levels = 0;
+			tmp = pi->dpm_level_enable_mask.sclk_dpm_enable_mask;
+			while (tmp >>= 1)
+				levels++;
+			if (levels) {
+				ret = ci_dpm_force_state_sclk(rdev, levels);
+				if (ret)
+					return ret;
+				for (i = 0; i < rdev->usec_timeout; i++) {
+					tmp = (RREG32_SMC(TARGET_AND_CURRENT_PROFILE_INDEX) &
+					       CURR_SCLK_INDEX_MASK) >> CURR_SCLK_INDEX_SHIFT;
+					if (tmp == levels)
+						break;
+					udelay(1);
+				}
+			}
+		}
+		if ((!pi->mclk_dpm_key_disabled) &&
+		    pi->dpm_level_enable_mask.mclk_dpm_enable_mask) {
+			levels = 0;
+			tmp = pi->dpm_level_enable_mask.mclk_dpm_enable_mask;
+			while (tmp >>= 1)
+				levels++;
+			if (levels) {
+				ret = ci_dpm_force_state_mclk(rdev, levels);
+				if (ret)
+					return ret;
+				for (i = 0; i < rdev->usec_timeout; i++) {
+					tmp = (RREG32_SMC(TARGET_AND_CURRENT_PROFILE_INDEX) &
+					       CURR_MCLK_INDEX_MASK) >> CURR_MCLK_INDEX_SHIFT;
+					if (tmp == levels)
+						break;
+					udelay(1);
+				}
+			}
+		}
+		if ((!pi->pcie_dpm_key_disabled) &&
+		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
+			levels = 0;
+			tmp = pi->dpm_level_enable_mask.pcie_dpm_enable_mask;
+			while (tmp >>= 1)
+				levels++;
+			if (levels) {
+				ret = ci_dpm_force_state_pcie(rdev, level);
+				if (ret)
+					return ret;
+				for (i = 0; i < rdev->usec_timeout; i++) {
+					tmp = (RREG32_SMC(TARGET_AND_CURRENT_PROFILE_INDEX_1) &
+					       CURR_PCIE_INDEX_MASK) >> CURR_PCIE_INDEX_SHIFT;
+					if (tmp == levels)
+						break;
+					udelay(1);
+				}
+			}
+		}
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		if ((!pi->sclk_dpm_key_disabled) &&
+		    pi->dpm_level_enable_mask.sclk_dpm_enable_mask) {
+			levels = ci_get_lowest_enabled_level(rdev,
+							     pi->dpm_level_enable_mask.sclk_dpm_enable_mask);
+			ret = ci_dpm_force_state_sclk(rdev, levels);
+			if (ret)
+				return ret;
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				tmp = (RREG32_SMC(TARGET_AND_CURRENT_PROFILE_INDEX) &
+				       CURR_SCLK_INDEX_MASK) >> CURR_SCLK_INDEX_SHIFT;
+				if (tmp == levels)
+					break;
+				udelay(1);
+			}
+		}
+		if ((!pi->mclk_dpm_key_disabled) &&
+		    pi->dpm_level_enable_mask.mclk_dpm_enable_mask) {
+			levels = ci_get_lowest_enabled_level(rdev,
+							     pi->dpm_level_enable_mask.mclk_dpm_enable_mask);
+			ret = ci_dpm_force_state_mclk(rdev, levels);
+			if (ret)
+				return ret;
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				tmp = (RREG32_SMC(TARGET_AND_CURRENT_PROFILE_INDEX) &
+				       CURR_MCLK_INDEX_MASK) >> CURR_MCLK_INDEX_SHIFT;
+				if (tmp == levels)
+					break;
+				udelay(1);
+			}
+		}
+		if ((!pi->pcie_dpm_key_disabled) &&
+		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
+			levels = ci_get_lowest_enabled_level(rdev,
+							     pi->dpm_level_enable_mask.pcie_dpm_enable_mask);
+			ret = ci_dpm_force_state_pcie(rdev, levels);
+			if (ret)
+				return ret;
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				tmp = (RREG32_SMC(TARGET_AND_CURRENT_PROFILE_INDEX_1) &
+				       CURR_PCIE_INDEX_MASK) >> CURR_PCIE_INDEX_SHIFT;
+				if (tmp == levels)
+					break;
+				udelay(1);
+			}
+		}
+	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
+		if (!pi->sclk_dpm_key_disabled) {
+			smc_result = ci_send_msg_to_smc(rdev, PPSMC_MSG_NoForcedLevel);
+			if (smc_result != PPSMC_Result_OK)
+				return -EINVAL;
+		}
+		if (!pi->mclk_dpm_key_disabled) {
+			smc_result = ci_send_msg_to_smc(rdev, PPSMC_MSG_MCLKDPM_NoForcedLevel);
+			if (smc_result != PPSMC_Result_OK)
+				return -EINVAL;
+		}
+		if (!pi->pcie_dpm_key_disabled) {
+			smc_result = ci_send_msg_to_smc(rdev, PPSMC_MSG_PCIeDPM_UnForceLevel);
+			if (smc_result != PPSMC_Result_OK)
+				return -EINVAL;
+		}
+	}
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
+}
+
 static int ci_set_mc_special_registers(struct radeon_device *rdev,
 				       struct ci_mc_reg_table *table)
 {
@@ -4547,6 +4694,12 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 	}
 	if (pi->pcie_performance_request)
 		ci_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
+
+	ret = ci_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
+	if (ret) {
+		DRM_ERROR("ci_dpm_force_performance_level failed\n");
+		return ret;
+	}
 
 	return 0;
 }
