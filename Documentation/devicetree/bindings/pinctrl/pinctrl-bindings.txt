@@ -71,6 +71,13 @@ pinctrl-names:	The list of names to assign states. List entry 0 defines the
 		name for integer state ID 0, list entry 1 for state ID 1, and
 		so on.
 
+pinctrl-assert-gpios:
+		List of phandles, each pointing at a GPIO which is used by some
+		board design to steer pins between two peripherals on the board.
+		It plays like a board level pin multiplexer to choose different
+		functions for given pins by pulling up/down the GPIOs.  See
+		bindings/gpio/gpio.txt for details of how to specify GPIO.
+
 For example:
 
 	/* For a client device requiring named states */
