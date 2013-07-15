@@ -1266,19 +1266,12 @@ static const u16 pinmux_data[] = {
 	PINMUX_DATA(IRQ57_MARK,			PORT329_FN0),
 };
 
-#define R8A73A4_PIN(pin, cfgs)			\
-	{					\
-		.name = __stringify(PORT##pin),	\
-		.enum_id = PORT##pin##_DATA,	\
-		.configs = cfgs,		\
-	}
-
 #define __O	(SH_PFC_PIN_CFG_OUTPUT)
 #define __IO	(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
 #define __PUD	(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
 
-#define R8A73A4_PIN_IO_PU_PD(pin)       R8A73A4_PIN(pin, __IO | __PUD)
-#define R8A73A4_PIN_O(pin)              R8A73A4_PIN(pin, __O)
+#define R8A73A4_PIN_IO_PU_PD(pin)       SH_PFC_PIN_CFG(pin, __IO | __PUD)
+#define R8A73A4_PIN_O(pin)              SH_PFC_PIN_CFG(pin, __O)
 
 static struct sh_pfc_pin pinmux_pins[] = {
 	R8A73A4_PIN_IO_PU_PD(0), R8A73A4_PIN_IO_PU_PD(1),

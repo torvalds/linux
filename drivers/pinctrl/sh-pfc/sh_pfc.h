@@ -273,6 +273,14 @@ struct sh_pfc_soc_info {
 		.enum_id = data_or_mark,				\
 	}
 
+/* SH_PFC_PIN_CFG - Expand to a sh_pfc_pin entry (named PORT#) with config */
+#define SH_PFC_PIN_CFG(pin, cfgs)					\
+	{								\
+		.name = __stringify(PORT##pin),				\
+		.enum_id = PORT##pin##_DATA,				\
+		.configs = cfgs,					\
+	}
+
 /* PINMUX_DATA_ALL - Expand to a list of PORT_name_DATA, PORT_name_FN0,
  *		     PORT_name_OUT, PORT_name_IN marks
  */

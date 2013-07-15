@@ -1527,13 +1527,6 @@ static const u16 pinmux_data[] = {
 	PINMUX_DATA(TRACEAUD_FROM_MEMC_MARK,			MSEL5CR_30_1,	MSEL5CR_29_0),
 };
 
-#define R8A7740_PIN(pin, cfgs)						\
-	{								\
-		.name = __stringify(PORT##pin),				\
-		.enum_id = PORT##pin##_DATA,				\
-		.configs = cfgs,					\
-	}
-
 #define __I		(SH_PFC_PIN_CFG_INPUT)
 #define __O		(SH_PFC_PIN_CFG_OUTPUT)
 #define __IO		(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
@@ -1541,15 +1534,15 @@ static const u16 pinmux_data[] = {
 #define __PU		(SH_PFC_PIN_CFG_PULL_UP)
 #define __PUD		(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
 
-#define R8A7740_PIN_I_PD(pin)		R8A7740_PIN(pin, __I | __PD)
-#define R8A7740_PIN_I_PU(pin)		R8A7740_PIN(pin, __I | __PU)
-#define R8A7740_PIN_I_PU_PD(pin)		R8A7740_PIN(pin, __I | __PUD)
-#define R8A7740_PIN_IO(pin)		R8A7740_PIN(pin, __IO)
-#define R8A7740_PIN_IO_PD(pin)		R8A7740_PIN(pin, __IO | __PD)
-#define R8A7740_PIN_IO_PU(pin)		R8A7740_PIN(pin, __IO | __PU)
-#define R8A7740_PIN_IO_PU_PD(pin)	R8A7740_PIN(pin, __IO | __PUD)
-#define R8A7740_PIN_O(pin)		R8A7740_PIN(pin, __O)
-#define R8A7740_PIN_O_PU_PD(pin)		R8A7740_PIN(pin, __O | __PUD)
+#define R8A7740_PIN_I_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PD)
+#define R8A7740_PIN_I_PU(pin)		SH_PFC_PIN_CFG(pin, __I | __PU)
+#define R8A7740_PIN_I_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __I | __PUD)
+#define R8A7740_PIN_IO(pin)		SH_PFC_PIN_CFG(pin, __IO)
+#define R8A7740_PIN_IO_PD(pin)		SH_PFC_PIN_CFG(pin, __IO | __PD)
+#define R8A7740_PIN_IO_PU(pin)		SH_PFC_PIN_CFG(pin, __IO | __PU)
+#define R8A7740_PIN_IO_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __IO | __PUD)
+#define R8A7740_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
+#define R8A7740_PIN_O_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __O | __PUD)
 
 static struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 56-1 (I/O and Pull U/D) */
