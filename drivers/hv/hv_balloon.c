@@ -975,6 +975,14 @@ static void post_status(struct hv_dynmem_device *dm)
 				dm->num_pages_ballooned +
 				compute_balloon_floor();
 
+	/*
+	 * If our transaction ID is no longer current, just don't
+	 * send the status. This can happen if we were interrupted
+	 * after we picked our transaction ID.
+	 */
+	if (status.hdr.trans_id != atomic_read(&trans_id))
+		return;
+
 	vmbus_sendpacket(dm->dev->channel, &status,
 				sizeof(struct dm_status),
 				(unsigned long)NULL,
