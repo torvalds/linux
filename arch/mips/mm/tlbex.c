@@ -1466,7 +1466,7 @@ static void __cpuinit build_r4000_setup_pgd(void)
 {
 	const int a0 = 4;
 	const int a1 = 5;
-	u32 *p = tlbmiss_handler_setup_pgd_array;
+	u32 *p = tlbmiss_handler_setup_pgd;
 	const int tlbmiss_handler_setup_pgd_size =
 		tlbmiss_handler_setup_pgd_end - tlbmiss_handler_setup_pgd;
 	struct uasm_label *l = labels;
