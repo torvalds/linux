@@ -1739,10 +1739,15 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 	return min(result & 0xffff, result >> 16) + 1;
 }
 
+static size_t db_bar_size(struct nvme_dev *dev, unsigned nr_io_queues)
+{
+	return 4096 + ((nr_io_queues + 1) << (dev->db_stride + 3));
+}
+
 static int nvme_setup_io_queues(struct nvme_dev *dev)
 {
 	struct pci_dev *pdev = dev->pci_dev;
-	int result, cpu, i, vecs, nr_io_queues, db_bar_size, q_depth;
+	int result, cpu, i, vecs, nr_io_queues, size, q_depth;
 
 	nr_io_queues = num_online_cpus();
 	result = set_queue_count(dev, nr_io_queues);
@@ -1751,16 +1756,23 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	if (result < nr_io_queues)
 		nr_io_queues = result;
 
-	/* Deregister the admin queue's interrupt */
-	free_irq(dev->entry[0].vector, dev->queues[0]);
-
-	db_bar_size = 4096 + ((nr_io_queues + 1) << (dev->db_stride + 3));
-	if (db_bar_size > 8192) {
+	size = db_bar_size(dev, nr_io_queues);
+	if (size > 8192) {
 		iounmap(dev->bar);
-		dev->bar = ioremap(pci_resource_start(pdev, 0), db_bar_size);
+		do {
+			dev->bar = ioremap(pci_resource_start(pdev, 0), size);
+			if (dev->bar)
+				break;
+			if (!--nr_io_queues)
+				return -ENOMEM;
+			size = db_bar_size(dev, nr_io_queues);
+		} while (1);
 		dev->dbs = ((void __iomem *)dev->bar) + 4096;
 		dev->queues[0]->q_db = dev->dbs;
 	}
+
+	/* Deregister the admin queue's interrupt */
+	free_irq(dev->entry[0].vector, dev->queues[0]);
 
 	vecs = nr_io_queues;
 	for (i = 0; i < vecs; i++)
@@ -1799,8 +1811,10 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	nr_io_queues = vecs;
 
 	result = queue_request_irq(dev, dev->queues[0], "nvme admin");
-	if (result)
+	if (result) {
+		dev->queues[0]->q_suspended = 1;
 		goto free_queues;
+	}
 
 	/* Free previously allocated queues that are no longer usable */
 	spin_lock(&dev_list_lock);
