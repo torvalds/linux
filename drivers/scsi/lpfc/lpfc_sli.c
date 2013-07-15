@@ -9889,6 +9889,24 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 	struct lpfc_scsi_buf *lpfc_cmd;
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
+	if (cmdiocbq->iocb_flag & LPFC_IO_WAKE_TMO) {
+
+		/*
+		 * A time out has occurred for the iocb.  If a time out
+		 * completion handler has been supplied, call it.  Otherwise,
+		 * just free the iocbq.
+		 */
+
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		cmdiocbq->iocb_cmpl = cmdiocbq->wait_iocb_cmpl;
+		cmdiocbq->wait_iocb_cmpl = NULL;
+		if (cmdiocbq->iocb_cmpl)
+			(cmdiocbq->iocb_cmpl)(phba, cmdiocbq, NULL);
+		else
+			lpfc_sli_release_iocbq(phba, cmdiocbq);
+		return;
+	}
+
 	cmdiocbq->iocb_flag |= LPFC_IO_WAKE;
 	if (cmdiocbq->context2 && rspiocbq)
 		memcpy(&((struct lpfc_iocbq *)cmdiocbq->context2)->iocb,
@@ -9944,10 +9962,16 @@ lpfc_chk_iocb_flg(struct lpfc_hba *phba,
  * @timeout: Timeout in number of seconds.
  *
  * This function issues the iocb to firmware and waits for the
- * iocb to complete. If the iocb command is not
- * completed within timeout seconds, it returns IOCB_TIMEDOUT.
- * Caller should not free the iocb resources if this function
- * returns IOCB_TIMEDOUT.
+ * iocb to complete. The iocb_cmpl field of the shall be used
+ * to handle iocbs which time out. If the field is NULL, the
+ * function shall free the iocbq structure.  If more clean up is
+ * needed, the caller is expected to provide a completion function
+ * that will provide the needed clean up.  If the iocb command is
+ * not completed within timeout seconds, the function will either
+ * free the iocbq structure (if iocb_cmpl == NULL) or execute the
+ * completion function set in the iocb_cmpl field and then return
+ * a status of IOCB_TIMEDOUT.  The caller should not free the iocb
+ * resources if this function returns IOCB_TIMEDOUT.
  * The function waits for the iocb completion using an
  * non-interruptible wait.
  * This function will sleep while waiting for iocb completion.
@@ -9980,6 +10004,9 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 	int txq_cnt = 0;
 	int txcmplq_cnt = 0;
 	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
+	unsigned long iflags;
+	bool iocb_completed = true;
+
 	/*
 	 * If the caller has provided a response iocbq buffer, then context2
 	 * is NULL or its an error.
@@ -9990,9 +10017,10 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 		piocb->context2 = prspiocbq;
 	}
 
+	piocb->wait_iocb_cmpl = piocb->iocb_cmpl;
 	piocb->iocb_cmpl = lpfc_sli_wake_iocb_wait;
 	piocb->context_un.wait_queue = &done_q;
-	piocb->iocb_flag &= ~LPFC_IO_WAKE;
+	piocb->iocb_flag &= ~(LPFC_IO_WAKE | LPFC_IO_WAKE_TMO);
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
 		if (lpfc_readl(phba->HCregaddr, &creg_val))
@@ -10009,8 +10037,19 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 		timeleft = wait_event_timeout(done_q,
 				lpfc_chk_iocb_flg(phba, piocb, LPFC_IO_WAKE),
 				timeout_req);
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		if (!(piocb->iocb_flag & LPFC_IO_WAKE)) {
 
-		if (piocb->iocb_flag & LPFC_IO_WAKE) {
+			/*
+			 * IOCB timed out.  Inform the wake iocb wait
+			 * completion function and set local status
+			 */
+
+			iocb_completed = false;
+			piocb->iocb_flag |= LPFC_IO_WAKE_TMO;
+		}
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		if (iocb_completed) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 					"0331 IOCB wake signaled\n");
 		} else if (timeleft == 0) {

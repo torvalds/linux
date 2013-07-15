@@ -2498,7 +2498,7 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 	struct lpfc_sli_ct_request *ctreq = NULL;
 	int ret_val = 0;
 	int time_left;
-	int iocb_stat = 0;
+	int iocb_stat = IOCB_SUCCESS;
 	unsigned long flags;
 
 	*txxri = 0;
@@ -2574,6 +2574,7 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 
 	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
 	cmdiocbq->vport = phba->pport;
+	cmdiocbq->iocb_cmpl = NULL;
 
 	iocb_stat = lpfc_sli_issue_iocb_wait(phba, LPFC_ELS_RING, cmdiocbq,
 				rspiocbq,
@@ -2963,7 +2964,7 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	uint8_t *ptr = NULL, *rx_databuf = NULL;
 	int rc = 0;
 	int time_left;
-	int iocb_stat;
+	int iocb_stat = IOCB_SUCCESS;
 	unsigned long flags;
 	void *dataout = NULL;
 	uint32_t total_mem;
@@ -3149,6 +3150,7 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	}
 	cmdiocbq->iocb_flag |= LPFC_IO_LIBDFC;
 	cmdiocbq->vport = phba->pport;
+	cmdiocbq->iocb_cmpl = NULL;
 	iocb_stat = lpfc_sli_issue_iocb_wait(phba, LPFC_ELS_RING, cmdiocbq,
 					     rspiocbq, (phba->fc_ratov * 2) +
 					     LPFC_DRVR_TIMEOUT);
@@ -3209,7 +3211,7 @@ err_loopback_test_exit:
 	lpfc_bsg_event_unref(evt); /* delete */
 	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
-	if (cmdiocbq != NULL)
+	if ((cmdiocbq != NULL) && (iocb_stat != IOCB_TIMEDOUT))
 		lpfc_sli_release_iocbq(phba, cmdiocbq);
 
 	if (rspiocbq != NULL)

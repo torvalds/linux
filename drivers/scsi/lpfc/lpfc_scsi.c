@@ -5022,6 +5022,7 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return FAILED;
 	}
+	iocbq->iocb_cmpl = lpfc_tskmgmt_def_cmpl;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
 			 "0702 Issue %s to TGT %d LUN %d "
@@ -5034,7 +5035,6 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 					  iocbq, iocbqrsp, lpfc_cmd->timeout);
 	if (status != IOCB_SUCCESS) {
 		if (status == IOCB_TIMEDOUT) {
-			iocbq->iocb_cmpl = lpfc_tskmgmt_def_cmpl;
 			ret = TIMEOUT_ERROR;
 		} else
 			ret = FAILED;
