@@ -232,4 +232,7 @@
 /* SH-SCI */
 #define PORT_HSCIF	104
 
+/* ST ASC type numbers */
+#define PORT_ASC       105
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
