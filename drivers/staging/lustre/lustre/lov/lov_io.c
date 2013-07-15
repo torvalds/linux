@@ -430,7 +430,7 @@ static int lov_io_rw_iter_init(const struct lu_env *env,
 	struct lov_io	*lio = cl2lov_io(env, ios);
 	struct cl_io	 *io  = ios->cis_io;
 	struct lov_stripe_md *lsm = lio->lis_object->lo_lsm;
-	loff_t start = io->u.ci_rw.crw_pos;
+	__u64 start = io->u.ci_rw.crw_pos;
 	loff_t next;
 	unsigned long ssize = lsm->lsm_stripe_size;
 

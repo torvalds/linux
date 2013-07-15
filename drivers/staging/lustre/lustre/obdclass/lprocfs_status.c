@@ -1873,7 +1873,7 @@ static char *lprocfs_strnstr(const char *s1, const char *s2, size_t len)
  * If \a name is not found the original \a buffer is returned.
  */
 char *lprocfs_find_named_value(const char *buffer, const char *name,
-				unsigned long *count)
+			       size_t *count)
 {
 	char *val;
 	size_t buflen = *count;
