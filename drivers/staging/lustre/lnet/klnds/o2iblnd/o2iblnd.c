@@ -2574,8 +2574,8 @@ kiblnd_dev_need_failover(kib_dev_t *dev)
 	rc = rdma_resolve_addr(cmid, (struct sockaddr *)&srcaddr,
 			       (struct sockaddr *)&dstaddr, 1);
 	if (rc != 0 || cmid->device == NULL) {
-		CERROR("Failed to bind %s:%u.%u.%u.%u to device(%p): %d\n",
-		       dev->ibd_ifname, HIPQUAD(dev->ibd_ifip),
+		CERROR("Failed to bind %s:%pI4h to device(%p): %d\n",
+		       dev->ibd_ifname, &dev->ibd_ifip,
 		       cmid->device, rc);
 		rdma_destroy_id(cmid);
 		return rc;
@@ -2647,8 +2647,8 @@ kiblnd_dev_failover(kib_dev_t *dev)
 	/* Bind to failover device or port */
 	rc = rdma_bind_addr(cmid, (struct sockaddr *)&addr);
 	if (rc != 0 || cmid->device == NULL) {
-		CERROR("Failed to bind %s:%u.%u.%u.%u to device(%p): %d\n",
-		       dev->ibd_ifname, HIPQUAD(dev->ibd_ifip),
+		CERROR("Failed to bind %s:%pI4h to device(%p): %d\n",
+		       dev->ibd_ifname, &dev->ibd_ifip,
 		       cmid->device, rc);
 		rdma_destroy_id(cmid);
 		goto out;
