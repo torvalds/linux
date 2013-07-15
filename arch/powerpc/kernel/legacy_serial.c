@@ -221,14 +221,19 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	/* Translate ISA address. If it fails, we still register the port
 	 * with no translated address so that it can be picked up as an IO
 	 * port later by the serial driver
+	 *
+	 * Note: Don't even try on P8 lpc, we know it's not directly mapped
 	 */
-	taddr = of_translate_address(np, reg);
-	if (taddr == OF_BAD_ADDR)
+	if (!of_device_is_compatible(isa_brg, "ibm,power8-lpc")) {
+		taddr = of_translate_address(np, reg);
+		if (taddr == OF_BAD_ADDR)
+			taddr = 0;
+	} else
 		taddr = 0;
 
 	/* Add port, irq will be dealt with later */
-	return add_legacy_port(np, index, UPIO_PORT, be32_to_cpu(reg[1]), taddr,
-			       NO_IRQ, UPF_BOOT_AUTOCONF, 0);
+	return add_legacy_port(np, index, UPIO_PORT, be32_to_cpu(reg[1]),
+			       taddr, NO_IRQ, UPF_BOOT_AUTOCONF, 0);
 
 }
 
@@ -307,19 +312,31 @@ static int __init add_legacy_pci_port(struct device_node *np,
 
 static void __init setup_legacy_serial_console(int console)
 {
-	struct legacy_serial_info *info =
-		&legacy_serial_infos[console];
+	struct legacy_serial_info *info = &legacy_serial_infos[console];
+	struct plat_serial8250_port *port = &legacy_serial_ports[console];
 	void __iomem *addr;
 
-	if (info->taddr == 0)
-		return;
-	addr = ioremap(info->taddr, 0x1000);
-	if (addr == NULL)
-		return;
+	/* Check if a translated MMIO address has been found */
+	if (info->taddr) {
+		addr = ioremap(info->taddr, 0x1000);
+		if (addr == NULL)
+			return;
+		udbg_uart_init_mmio(addr, 1);
+	} else {
+		/* Check if it's PIO and we support untranslated PIO */
+		if (port->iotype == UPIO_PORT && isa_io_special)
+			udbg_uart_init_pio(port->iobase, 1);
+		else
+			return;
+	}
+
+	/* Try to query the current speed */
 	if (info->speed == 0)
-		info->speed = udbg_probe_uart_speed(addr, info->clock);
+		info->speed = udbg_probe_uart_speed(info->clock);
+
+	/* Set it up */
 	DBG("default console speed = %d\n", info->speed);
-	udbg_init_uart(addr, info->speed, info->clock);
+	udbg_uart_setup(info->speed, info->clock);
 }
 
 /*
@@ -367,7 +384,8 @@ void __init find_legacy_serial_ports(void)
 	/* Next, fill our array with ISA ports */
 	for_each_node_by_type(np, "serial") {
 		struct device_node *isa = of_get_parent(np);
-		if (isa && !strcmp(isa->name, "isa")) {
+		if (isa && (!strcmp(isa->name, "isa") ||
+			    !strcmp(isa->name, "lpc"))) {
 			index = add_legacy_isa_port(np, isa);
 			if (index >= 0 && np == stdout)
 				legacy_serial_console = index;
