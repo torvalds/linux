@@ -724,17 +724,26 @@ static void __init rk2928_init_sdmmc(void)
 #endif
 }
 
-static struct resource resource_arm_pmu = {
-	.start		= IRQ_ARM_PMU,
-	.end		= IRQ_ARM_PMU,
-	.flags		= IORESOURCE_IRQ,
+static struct resource resource_arm_pmu[] = {
+	{
+		.start	= IRQ_ARM_PMU,
+		.end	= IRQ_ARM_PMU,
+		.flags	= IORESOURCE_IRQ,
+	},
+#if defined(CONFIG_ARCH_RK3026)
+	{
+		.start	= IRQ_ARM_PMU + 1,
+		.end	= IRQ_ARM_PMU + 1,
+		.flags	= IORESOURCE_IRQ,
+	},
+#endif
 };
 
 struct platform_device device_arm_pmu = {
 	.name		= "arm-pmu",
 	.id		= ARM_PMU_DEVICE_CPU,
-	.num_resources	= 1,
-	.resource	= &resource_arm_pmu,
+	.num_resources	= ARRAY_SIZE(resource_arm_pmu),
+	.resource	= resource_arm_pmu,
 };
 
 static int __init rk2928_init_devices(void)

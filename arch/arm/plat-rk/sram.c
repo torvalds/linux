@@ -27,7 +27,7 @@ extern char __sram_data_start, __ssram_data, __esram_data;
 #define SRAM_CACHED	RK30_IMEM_BASE
 #define SRAM_PHYS	RK30_IMEM_PHYS
 #define SRAM_SIZE	RK30_IMEM_SIZE
-#elif defined(CONFIG_ARCH_RK2928)
+#elif defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
 #define SRAM_NONCACHED	RK2928_IMEM_NONCACHED
 #define SRAM_CACHED	RK2928_IMEM_BASE
 #define SRAM_PHYS	RK2928_IMEM_PHYS
@@ -179,7 +179,7 @@ void __sramfunc sram_printhex(unsigned int hex)
 }
 
 struct sram_gpio_data __sramdata pmic_sleep,pmic_vsel;
-#if defined(CONFIG_ARCH_RK2928)
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
 static void __iomem *gpio_base[] = {RK2928_GPIO0_BASE, RK2928_GPIO1_BASE, RK2928_GPIO2_BASE, RK2928_GPIO3_BASE};
 #elif defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 static void __iomem *gpio_base[] = {RK30_GPIO0_BASE, RK30_GPIO1_BASE, RK30_GPIO2_BASE, RK30_GPIO3_BASE};

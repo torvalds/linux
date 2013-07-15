@@ -62,7 +62,7 @@
 
 #define RGA_MAJOR		255
 
-#if defined(CONFIG_ARCH_RK2928)
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
 #define RK30_RGA_PHYS		RK2928_RGA_PHYS
 #define RK30_RGA_SIZE		RK2928_RGA_SIZE
 #endif

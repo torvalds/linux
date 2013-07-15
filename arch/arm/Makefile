@@ -173,6 +173,7 @@ machine-$(CONFIG_ARCH_PXA)		:= pxa
 machine-$(CONFIG_ARCH_REALVIEW)		:= realview
 machine-$(CONFIG_ARCH_RK29)   		:= rk29
 machine-$(CONFIG_ARCH_RK2928)		:= rk2928
+machine-$(CONFIG_ARCH_RK3026)		:= rk3026
 machine-$(CONFIG_ARCH_RK30)		:= rk30
 machine-$(CONFIG_ARCH_RK3188)		:= rk3188
 machine-$(CONFIG_ARCH_RPC)		:= rpc

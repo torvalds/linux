@@ -131,7 +131,7 @@ int debug_level = 5;
 #endif
 
 //use the new iomux-API
-#if defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3168)||defined(CONFIG_ARCH_RK3188)
+#if defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3168)||defined(CONFIG_ARCH_RK3188)||defined(CONFIG_ARCH_RK3026)
 #define DRIVER_SDMMC_USE_NEW_IOMUX_API 1
 #else
 #define DRIVER_SDMMC_USE_NEW_IOMUX_API 0

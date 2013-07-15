@@ -644,7 +644,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 		i2s->dma_playback->dma_addr = RK30_I2S1_2CH_PHYS + I2S_TXR_BUFF;
 		break;
 #endif
-#ifdef CONFIG_ARCH_RK2928
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
 	case 0:
 		i2s->dma_capture->channel = DMACH_I2S0_8CH_RX;
 		i2s->dma_capture->dma_addr = RK2928_I2S_PHYS + I2S_RXR_BUFF;

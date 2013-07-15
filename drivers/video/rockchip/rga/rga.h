@@ -390,7 +390,7 @@ typedef struct rga_service_info {
 
 
 
-#if defined(CONFIG_ARCH_RK2928)
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
 #define RGA_BASE                 0x1010c000
 #elif defined(CONFIG_ARCH_RK30)
 #define RGA_BASE                 0x10114000

@@ -16,8 +16,10 @@
 #include <mach/loader.h>
 #include <mach/ddr.h>
 #include <mach/cpu.h>
+#include <mach/cpu_axi.h>
 #include <mach/debug_uart.h>
 
+#ifdef CONFIG_ARCH_RK2928
 static void __init rk2928_cpu_axi_init(void)
 {
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x0088);	// cpu0
@@ -32,6 +34,23 @@ static void __init rk2928_cpu_axi_init(void)
 	writel_relaxed(0x3f, RK2928_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
 	dsb();
 }
+#define cpu_axi_init rk2928_cpu_axi_init
+#else
+static void __init rk3026_cpu_axi_init(void)
+{
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU0);
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU1R);
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU1W);
+	CPU_AXI_SET_QOS_PRIORITY(0, 0, PERI);
+	CPU_AXI_SET_QOS_PRIORITY(3, 3, LCDC0);
+	CPU_AXI_SET_QOS_PRIORITY(3, 3, LCDC1);
+	CPU_AXI_SET_QOS_PRIORITY(2, 1, GPU);
+
+	writel_relaxed(0x3f, RK2928_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
+	dsb();
+}
+#define cpu_axi_init rk3026_cpu_axi_init
+#endif
 
 #define L2_LY_SP_OFF (0)
 #define L2_LY_SP_MSK (0x7)
@@ -43,20 +62,25 @@ static void __init rk2928_cpu_axi_init(void)
 #define L2_LY_WR_MSK (0x7)
 #define L2_LY_SET(ly,off) (((ly)-1)<<(off))
 
+#define L2_LATENCY(setup_cycles, read_cycles, write_cycles) \
+	L2_LY_SET(setup_cycles, L2_LY_SP_OFF) | \
+	L2_LY_SET(read_cycles, L2_LY_RD_OFF) | \
+	L2_LY_SET(write_cycles, L2_LY_WR_OFF)
+
 static void __init rk2928_l2_cache_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	u32 aux_ctrl, aux_ctrl_mask;
 
-	writel_relaxed(L2_LY_SET(1,L2_LY_SP_OFF)
-				|L2_LY_SET(1,L2_LY_RD_OFF)
-				|L2_LY_SET(1,L2_LY_WR_OFF), RK2928_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
-	writel_relaxed(L2_LY_SET(2,L2_LY_SP_OFF)
-				|L2_LY_SET(3,L2_LY_RD_OFF)
-				|L2_LY_SET(1,L2_LY_WR_OFF), RK2928_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
+	writel_relaxed(L2_LATENCY(1, 1, 1), RK2928_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
+	writel_relaxed(L2_LATENCY(2, 3, 1), RK2928_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
 
 	/* L2X0 Prefetch Control */
+#ifdef CONFIG_ARCH_RK2928
 	writel_relaxed(0x30000000, RK2928_L2C_BASE + L2X0_PREFETCH_CTRL);
+#else
+	writel_relaxed(0x70000003, RK2928_L2C_BASE + L2X0_PREFETCH_CTRL);
+#endif
 
 	/* L2X0 Power Control */
 	writel_relaxed(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN, RK2928_L2C_BASE + L2X0_POWER_CTRL);
@@ -86,16 +110,51 @@ static void __init rk2928_l2_cache_init(void)
 }
 
 static int boot_mode;
+
+static const char *boot_flag_name(u32 flag)
+{
+	flag -= SYS_KERNRL_REBOOT_FLAG;
+	switch (flag) {
+	case BOOT_NORMAL: return "NORMAL";
+	case BOOT_LOADER: return "LOADER";
+	case BOOT_MASKROM: return "MASKROM";
+	case BOOT_RECOVER: return "RECOVER";
+	case BOOT_NORECOVER: return "NORECOVER";
+	case BOOT_SECONDOS: return "SECONDOS";
+	case BOOT_WIPEDATA: return "WIPEDATA";
+	case BOOT_WIPEALL: return "WIPEALL";
+	case BOOT_CHECKIMG: return "CHECKIMG";
+	case BOOT_FASTBOOT: return "FASTBOOT";
+	default: return "";
+	}
+}
+
+static const char *boot_mode_name(u32 mode)
+{
+	switch (mode) {
+	case BOOT_MODE_NORMAL: return "NORMAL";
+	case BOOT_MODE_FACTORY2: return "FACTORY2";
+	case BOOT_MODE_RECOVERY: return "RECOVERY";
+	case BOOT_MODE_CHARGE: return "CHARGE";
+	case BOOT_MODE_POWER_TEST: return "POWER_TEST";
+	case BOOT_MODE_OFFMODE_CHARGING: return "OFFMODE_CHARGING";
+	case BOOT_MODE_REBOOT: return "REBOOT";
+	case BOOT_MODE_PANIC: return "PANIC";
+	case BOOT_MODE_WATCHDOG: return "WATCHDOG";
+	default: return "";
+	}
+}
+
 static void __init rk2928_boot_mode_init(void)
 {
-	u32 boot_flag = (readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG4) | (readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG5) << 16)) - SYS_KERNRL_REBOOT_FLAG;
+	u32 boot_flag = readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG4) | (readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG5) << 16);
 	boot_mode = readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG6);
 
-	if (boot_flag == BOOT_RECOVER) {
+	if (boot_flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
 		boot_mode = BOOT_MODE_RECOVERY;
 	}
-	if (boot_mode || boot_flag)
-		printk("Boot mode: %d flag: %d\n", boot_mode, boot_flag);
+	if (boot_mode || ((boot_flag & 0xff) && ((boot_flag & 0xffffff00) == SYS_KERNRL_REBOOT_FLAG)))
+		printk("Boot mode: %s (%d) flag: %s (0x%08x)\n", boot_mode_name(boot_mode), boot_mode, boot_flag_name(boot_flag), boot_flag);
 }
 
 int board_boot_mode(void)
@@ -111,7 +170,7 @@ void __init rk2928_init_irq(void)
 	rk_fiq_init();
 #endif
 	rk30_gpio_init();
-        soc_gpio_init();
+	soc_gpio_init();
 }
 
 static unsigned int __initdata ddr_freq = DDR_FREQ;
@@ -122,42 +181,47 @@ static int __init ddr_freq_setup(char *str)
 }
 early_param("ddr_freq", ddr_freq_setup);
 
-void __init rk2928_map_io(void)
+static void usb_uart_init(void)
 {
-	rk2928_map_common_io();
 #ifdef DEBUG_UART_BASE
 #ifdef CONFIG_RK_USB_UART
 	writel_relaxed(0x04000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
 	if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<10)))//detect id
 	{
-	    writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+		writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
 	}
 	else
 	{
-        if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<7)))//detect vbus
-        {
-            writel_relaxed(0x10001000, RK2928_GRF_BASE + GRF_UOC0_CON0);
-            writel_relaxed(0x007f0055, RK2928_GRF_BASE + GRF_UOC0_CON5);
-            writel_relaxed(0x34003000, RK2928_GRF_BASE + GRF_UOC1_CON4);
-        }   
-        else
-	    {
-            writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
-	    }
-    }
+		if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<7)))//detect vbus
+		{
+			writel_relaxed(0x10001000, RK2928_GRF_BASE + GRF_UOC0_CON0);
+			writel_relaxed(0x007f0055, RK2928_GRF_BASE + GRF_UOC0_CON5);
+			writel_relaxed(0x34003000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+		}
+		else
+		{
+			writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+		}
+	}
 #else
-        writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+	writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
 #endif
-        writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
-        writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
-        writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
-        writel_relaxed(0x83, DEBUG_UART_BASE + 0x0c);
-        writel_relaxed(0x0d, DEBUG_UART_BASE + 0x00);
-        writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
-        writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
+	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
+	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
+	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
+	writel_relaxed(0x83, DEBUG_UART_BASE + 0x0c);
+	writel_relaxed(0x0d, DEBUG_UART_BASE + 0x00);
+	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
+	writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
 #endif
+}
+
+void __init rk2928_map_io(void)
+{
+	rk2928_map_common_io();
+	usb_uart_init();
 	rk29_setup_early_printk();
-	rk2928_cpu_axi_init();
+	cpu_axi_init();
 	rk29_sram_init();
 	board_clock_init();
 	rk2928_l2_cache_init();

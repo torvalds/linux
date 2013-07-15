@@ -883,6 +883,21 @@ config ARCH_RK2928
 	help
 	  Support for Rockchip's RK2928 SoCs.
 
+config ARCH_RK3026
+	bool "Rockchip RK3026/RK3028A"
+	select PLAT_RK
+	select CPU_V7
+	select ARM_GIC
+	select RK_PL330_DMA
+	select RK_TIMER
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369
+	help
+	  Support for Rockchip's RK3026/RK3028A SoCs.
+
 config ARCH_RK30
 	bool "Rockchip RK30xx/RK3108/RK3168"
 	select PLAT_RK

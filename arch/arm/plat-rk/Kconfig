@@ -153,7 +153,7 @@ endchoice
 
 config RK29_VPU
 	tristate "VPU (Video Processing Unit) service driver in kernel"
-	depends on ARCH_RK29 || ARCH_RK30 || ARCH_RK2928
+	depends on ARCH_RK29 || ARCH_RK30 || ARCH_RK2928 || ARCH_RK3026
 	default m
 
 config RK29_LAST_LOG
@@ -174,13 +174,13 @@ config RK_EARLY_PRINTK
 config RK_DEBUG_UART
 	int "Debug UART"
 	default 1 if ARCH_RK29
-	default 2 if ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188
+	default 2 if ARCH_RK30 || ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026
 	help
 	  Select a UART for debugging. -1 disable.
 
 config RK_USB_UART
 	bool "Support USB UART Bypass Function"
-	depends on (ARCH_RK2928 || ARCH_RK3188) && (RK_DEBUG_UART = 2)
+	depends on (ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026) && (RK_DEBUG_UART = 2)
 
 config RK_CONSOLE_THREAD
 	bool "Console write by thread"
@@ -214,7 +214,7 @@ config RK_TIMER
 
 config RK_USB_DETECT_BY_OTG_BVALID
 	bool "Wakeup system by OTG BVALID interrupt when USB OTG conneted"
-	depends on USB_GADGET && (ARCH_RK2928 || ARCH_RK3188)
-	default y if ARCH_RK2928 || ARCH_RK3188
+	depends on USB_GADGET && (ARCH_RK2928 || ARCH_RK3188 || ARCH_RK3026)
+	default y
 
 endif

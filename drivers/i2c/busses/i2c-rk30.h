@@ -50,7 +50,7 @@
 #if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3188)
 #define GRF_I2C_CON_BASE            (RK30_GRF_BASE + GRF_SOC_CON1)
 #endif
-#ifdef CONFIG_ARCH_RK2928
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
 #define GRF_I2C_CON_BASE            (RK2928_GRF_BASE + GRF_SOC_CON1)
 #endif
 #define I2C_ADAP_SEL_BIT(nr)        ((nr) + 11)

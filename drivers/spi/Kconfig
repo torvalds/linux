@@ -438,7 +438,7 @@ config SPIM0_RK29
 
 config SPIM1_RK29
 	bool "RK SPI1 master controller"
-	depends on SPIM_RK29 && !ARCH_RK2928
+	depends on SPIM_RK29 && !ARCH_RK2928 && !ARCH_RK3026
 	help
 	  enable SPI1 master controller for RK29 	
 

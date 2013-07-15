@@ -45,13 +45,27 @@
 #define IRQ_GPIO1                       69
 #define IRQ_GPIO2                       70
 #define IRQ_GPIO3                       71
+#define IRQ_CRYPTO                      72
 
+#ifdef CONFIG_ARCH_RK2928
 #define IRQ_PERI_AHB_USB_ARBITER        74
 #define IRQ_PERI_AHB_EMEM_ARBITER       75
+#else
+#define IRQ_PERI_AHB_USB_ARBITER        73
+#define IRQ_PERI_AHB_EMEM_ARBITER       74
+#endif
+#define IRQ_LCDC1                       75
 #define IRQ_RGA                         76
 #define IRQ_HDMI                        77
 #define IRQ_SDMMC_DETECT                78
 #define IRQ_SDIO_DETECT                 79
+#define IRQ_IEP                         80
+#define IRQ_EBC                         81
+
+#define IRQ_OTG0_ID                     83
+#define IRQ_OTG0_LINESTATE              84
+#define IRQ_OTG1_LINESTATE              85
+#define IRQ_SD_DETECTN                  86
 
 #define IRQ_ARM_PMU                     118
 
