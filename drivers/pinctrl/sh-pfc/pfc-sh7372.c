@@ -387,7 +387,7 @@ enum {
 #define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
 #define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_PORT_DATA, , unused)
 
-static const pinmux_enum_t pinmux_data[] = {
+static const u16 pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(),
 
 	/* IRQ */

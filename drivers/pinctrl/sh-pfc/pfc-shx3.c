@@ -127,8 +127,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static const pinmux_enum_t shx3_pinmux_data[] = {
-
+static const u16 shx3_pinmux_data[] = {
 	/* PA GPIO */
 	PINMUX_DATA(PA7_DATA, PA7_IN, PA7_OUT),
 	PINMUX_DATA(PA6_DATA, PA6_IN, PA6_OUT),

@@ -98,8 +98,7 @@ int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin)
 	return -EINVAL;
 }
 
-static int sh_pfc_enum_in_range(pinmux_enum_t enum_id,
-				const struct pinmux_range *r)
+static int sh_pfc_enum_in_range(u16 enum_id, const struct pinmux_range *r)
 {
 	if (enum_id < r->begin)
 		return 0;
@@ -194,7 +193,7 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 	sh_pfc_write_raw_reg(mapped_reg, crp->reg_width, data);
 }
 
-static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
+static int sh_pfc_get_config_reg(struct sh_pfc *pfc, u16 enum_id,
 				 const struct pinmux_cfg_reg **crp, int *fieldp,
 				 int *valuep)
 {
@@ -238,10 +237,10 @@ static int sh_pfc_get_config_reg(struct sh_pfc *pfc, pinmux_enum_t enum_id,
 	return -EINVAL;
 }
 
-static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
-			      pinmux_enum_t *enum_idp)
+static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, u16 mark, int pos,
+			      u16 *enum_idp)
 {
-	const pinmux_enum_t *data = pfc->info->gpio_data;
+	const u16 *data = pfc->info->gpio_data;
 	int k;
 
 	if (pos) {
@@ -264,7 +263,7 @@ static int sh_pfc_mark_to_enum(struct sh_pfc *pfc, pinmux_enum_t mark, int pos,
 int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 {
 	const struct pinmux_cfg_reg *cr = NULL;
-	pinmux_enum_t enum_id;
+	u16 enum_id;
 	const struct pinmux_range *range;
 	int in_range, pos, field, value;
 	int ret;
