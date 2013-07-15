@@ -250,10 +250,10 @@ struct sh_pfc_soc_info {
 #define PORT_ALL(str)			CPU_ALL_PORT(_PORT_ALL, PORT, str)
 
 /* PINMUX_GPIO - Expand to a sh_pfc_pin entry */
-#define PINMUX_GPIO(gpio, data_or_mark)					\
-	[gpio] = {							\
-		.name = __stringify(gpio),				\
-		.enum_id = data_or_mark,				\
+#define PINMUX_GPIO(pin)						\
+	[GPIO_##pin] = {						\
+		.name = __stringify(name),				\
+		.enum_id = pin##_DATA,					\
 	}
 
 /* SH_PFC_PIN_CFG - Expand to a sh_pfc_pin entry (named PORT#) with config */
