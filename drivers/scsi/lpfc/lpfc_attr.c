@@ -674,9 +674,6 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	int i;
 	int rc;
 
-	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
-		return 0;
-
 	init_completion(&online_compl);
 	rc = lpfc_workq_post_event(phba, &status, &online_compl,
 			      LPFC_EVT_OFFLINE_PREP);
