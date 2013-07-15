@@ -1908,7 +1908,7 @@ static int zcache_init(void)
 #endif
 		if (IS_ERR(old_ops) || old_ops) {
 			if (IS_ERR(old_ops))
-				return PTR_RET(old_ops);
+				return PTR_ERR(old_ops);
 			pr_warn("%s: frontswap_ops overridden\n", namestr);
 		}
 	}
