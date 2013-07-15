@@ -660,9 +660,9 @@ void vtime_account_system(struct task_struct *tsk)
 void vtime_gen_account_irq_exit(struct task_struct *tsk)
 {
 	write_seqlock(&tsk->vtime_seqlock);
+	__vtime_account_system(tsk);
 	if (context_tracking_in_user())
 		tsk->vtime_snap_whence = VTIME_USER;
-	__vtime_account_system(tsk);
 	write_sequnlock(&tsk->vtime_seqlock);
 }
 
@@ -680,8 +680,8 @@ void vtime_account_user(struct task_struct *tsk)
 void vtime_user_enter(struct task_struct *tsk)
 {
 	write_seqlock(&tsk->vtime_seqlock);
-	tsk->vtime_snap_whence = VTIME_USER;
 	__vtime_account_system(tsk);
+	tsk->vtime_snap_whence = VTIME_USER;
 	write_sequnlock(&tsk->vtime_seqlock);
 }
 
