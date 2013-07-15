@@ -3820,24 +3820,12 @@ static void cfg_vbus_draw(unsigned int ma)
 */
 static int __init udc_init(void)
 {
-	int retval = 0;
-
 	DMSG_INFO_UDC("udc_init: version %s\n", DRIVER_VERSION);
 
     usb_connect = 0;
 
     /* driver register */
-	retval = platform_driver_probe(&sw_udc_driver, sw_udc_probe);
-	if(retval){
-        DMSG_PANIC("ERR: platform_driver_register failed\n");
-        retval = -1;
-		goto err;
-    }
-
-	return 0;
-
-err:
-	return retval;
+	return platform_driver_probe(&sw_udc_driver, sw_udc_probe);
 }
 
 /*
