@@ -1221,6 +1221,30 @@ static int nvme_enable_ctrl(struct nvme_dev *dev, u64 cap)
 	return nvme_wait_ready(dev, cap, true);
 }
 
+static int nvme_shutdown_ctrl(struct nvme_dev *dev)
+{
+	unsigned long timeout;
+	u32 cc;
+
+	cc = (readl(&dev->bar->cc) & ~NVME_CC_SHN_MASK) | NVME_CC_SHN_NORMAL;
+	writel(cc, &dev->bar->cc);
+
+	timeout = 2 * HZ + jiffies;
+	while ((readl(&dev->bar->csts) & NVME_CSTS_SHST_MASK) !=
+							NVME_CSTS_SHST_CMPLT) {
+		msleep(100);
+		if (fatal_signal_pending(current))
+			return -EINTR;
+		if (time_after(jiffies, timeout)) {
+			dev_err(&dev->pci_dev->dev,
+				"Device shutdown incomplete; abort shutdown\n");
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
 static int nvme_configure_admin_queue(struct nvme_dev *dev)
 {
 	int result;
@@ -1943,6 +1967,8 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 	list_del_init(&dev->node);
 	spin_unlock(&dev_list_lock);
 
+	if (dev->bar)
+		nvme_shutdown_ctrl(dev);
 	nvme_dev_unmap(dev);
 }
 

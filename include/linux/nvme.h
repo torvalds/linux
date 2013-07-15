@@ -53,6 +53,7 @@ enum {
 	NVME_CC_SHN_NONE	= 0 << 14,
 	NVME_CC_SHN_NORMAL	= 1 << 14,
 	NVME_CC_SHN_ABRUPT	= 2 << 14,
+	NVME_CC_SHN_MASK	= 3 << 14,
 	NVME_CC_IOSQES		= 6 << 16,
 	NVME_CC_IOCQES		= 4 << 20,
 	NVME_CSTS_RDY		= 1 << 0,
@@ -60,6 +61,7 @@ enum {
 	NVME_CSTS_SHST_NORMAL	= 0 << 2,
 	NVME_CSTS_SHST_OCCUR	= 1 << 2,
 	NVME_CSTS_SHST_CMPLT	= 2 << 2,
+	NVME_CSTS_SHST_MASK	= 3 << 2,
 };
 
 #define NVME_VS(major, minor)	(major << 16 | minor)
