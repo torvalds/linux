@@ -547,7 +547,7 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 	if (ndev->conn_type == NTB_CONN_B2B) {
 		ndev->reg_ofs.sdb = ndev->reg_base + SNB_B2B_DOORBELL_OFFSET;
 		ndev->reg_ofs.spad_write = ndev->reg_base + SNB_B2B_SPAD_OFFSET;
-		ndev->limits.max_spads = SNB_MAX_SPADS;
+		ndev->limits.max_spads = SNB_MAX_B2B_SPADS;
 	} else {
 		ndev->reg_ofs.sdb = ndev->reg_base + SNB_SDOORBELL_OFFSET;
 		ndev->reg_ofs.spad_write = ndev->reg_base + SNB_SPAD_OFFSET;
