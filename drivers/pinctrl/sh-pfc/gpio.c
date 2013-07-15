@@ -48,11 +48,11 @@ static struct sh_pfc *gpio_to_pfc(struct gpio_chip *gc)
 	return gpio_to_pfc_chip(gc)->pfc;
 }
 
-static void gpio_get_data_reg(struct sh_pfc_chip *chip, unsigned int gpio,
+static void gpio_get_data_reg(struct sh_pfc_chip *chip, unsigned int offset,
 			      struct sh_pfc_gpio_data_reg **reg,
 			      unsigned int *bit)
 {
-	int idx = sh_pfc_get_pin_index(chip->pfc, gpio);
+	int idx = sh_pfc_get_pin_index(chip->pfc, offset);
 	struct sh_pfc_gpio_pin *gpio_pin = &chip->pins[idx];
 
 	*reg = &chip->regs[gpio_pin->dreg];
@@ -76,11 +76,11 @@ static void gpio_write_data_reg(struct sh_pfc_chip *chip,
 	sh_pfc_write_raw_reg(mem, dreg->reg_width, value);
 }
 
-static void gpio_setup_data_reg(struct sh_pfc_chip *chip, unsigned gpio)
+static void gpio_setup_data_reg(struct sh_pfc_chip *chip, unsigned idx)
 {
 	struct sh_pfc *pfc = chip->pfc;
-	struct sh_pfc_gpio_pin *gpio_pin = &chip->pins[gpio];
-	const struct sh_pfc_pin *pin = &pfc->info->pins[gpio];
+	struct sh_pfc_gpio_pin *gpio_pin = &chip->pins[idx];
+	const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
 	const struct pinmux_data_reg *dreg;
 	unsigned int bit;
 	unsigned int i;
