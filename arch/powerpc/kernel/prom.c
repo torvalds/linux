@@ -795,6 +795,32 @@ struct device_node *of_find_next_cache_node(struct device_node *np)
 	return NULL;
 }
 
+/**
+ * of_get_ibm_chip_id - Returns the IBM "chip-id" of a device
+ * @np: device node of the device
+ *
+ * This looks for a property "ibm,chip-id" in the node or any
+ * of its parents and returns its content, or -1 if it cannot
+ * be found.
+ */
+int of_get_ibm_chip_id(struct device_node *np)
+{
+	of_node_get(np);
+	while(np) {
+		struct device_node *old = np;
+		const __be32 *prop;
+
+		prop = of_get_property(np, "ibm,chip-id", NULL);
+		if (prop) {
+			of_node_put(np);
+			return be32_to_cpup(prop);
+		}
+		np = of_get_parent(np);
+		of_node_put(old);
+	}
+	return -1;
+}
+
 #ifdef CONFIG_PPC_PSERIES
 /*
  * Fix up the uninitialized fields in a new device node:
