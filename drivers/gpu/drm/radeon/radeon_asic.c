@@ -2469,6 +2469,7 @@ static struct radeon_asic ci_asic = {
 		.print_power_state = &ci_dpm_print_power_state,
 		.debugfs_print_current_performance_level = &ci_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &ci_dpm_force_performance_level,
+		.vblank_too_short = &ci_dpm_vblank_too_short,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,

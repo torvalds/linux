@@ -682,6 +682,19 @@ static void ci_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 	ci_update_uvd_dpm(rdev, gate);
 }
 
+bool ci_dpm_vblank_too_short(struct radeon_device *rdev)
+{
+	struct ci_power_info *pi = ci_get_pi(rdev);
+	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+	u32 switch_limit = pi->mem_gddr5 ? 450 : 300;
+
+	if (vblank_time < switch_limit)
+		return true;
+	else
+		return false;
+
+}
+
 static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 					struct radeon_ps *rps)
 {
@@ -692,7 +705,8 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 	u32 sclk, mclk;
 	int i;
 
-	if (rdev->pm.dpm.new_active_crtc_count > 1)
+	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
+	    ci_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
 	else
 		disable_mclk_switching = false;
