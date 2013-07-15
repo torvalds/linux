@@ -35,13 +35,8 @@
 # error "Bad timer number for Linux configurations!"
 #endif
 
-#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 extern unsigned long ccount_freq;
 #define CCOUNT_PER_JIFFY (ccount_freq / HZ)
-#else
-#define CCOUNT_PER_JIFFY (CONFIG_XTENSA_CPU_CLOCK*(1000000UL/HZ))
-#endif
-
 
 typedef unsigned long long cycles_t;
 

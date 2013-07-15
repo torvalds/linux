@@ -29,9 +29,7 @@
 #include <asm/timex.h>
 #include <asm/platform.h>
 
-#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 unsigned long ccount_freq;		/* ccount Hz */
-#endif
 
 static cycle_t ccount_read(struct clocksource *cs)
 {
@@ -129,6 +127,8 @@ void __init time_init(void)
 	platform_calibrate_ccount();
 	printk("%d.%02d MHz\n", (int)ccount_freq/1000000,
 			(int)(ccount_freq/10000)%100);
+#else
+	ccount_freq = CONFIG_XTENSA_CPU_CLOCK*1000000UL;
 #endif
 	clocksource_register_hz(&ccount_clocksource, CCOUNT_PER_JIFFY * HZ);
 
