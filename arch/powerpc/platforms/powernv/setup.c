@@ -54,6 +54,12 @@ static void __init pnv_setup_arch(void)
 
 static void __init pnv_init_early(void)
 {
+	/*
+	 * Initialize the LPC bus now so that legacy serial
+	 * ports can be found on it
+	 */
+	opal_lpc_init();
+
 #ifdef CONFIG_HVC_OPAL
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		hvc_opal_init_early();

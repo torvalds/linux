@@ -69,6 +69,14 @@ extern unsigned long pci_dram_offset;
 
 extern resource_size_t isa_mem_base;
 
+/* Boolean set by platform if PIO accesses are suppored while _IO_BASE
+ * is not set or addresses cannot be translated to MMIO. This is typically
+ * set when the platform supports "special" PIO accesses via a non memory
+ * mapped mechanism, and allows things like the early udbg UART code to
+ * function.
+ */
+extern bool isa_io_special;
+
 #ifdef CONFIG_PPC32
 #if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
 #error CONFIG_PPC_INDIRECT_{PIO,MMIO} are not yet supported on 32 bits
