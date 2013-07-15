@@ -12869,10 +12869,44 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		    wq->page_count);
 	bf_set(lpfc_mbx_wq_create_cq_id, &wq_create->u.request,
 		    cq->queue_id);
+
+	/* wqv is the earliest version supported, NOT the latest */
 	bf_set(lpfc_mbox_hdr_version, &shdr->request,
 	       phba->sli4_hba.pc_sli4_params.wqv);
 
-	if (phba->sli4_hba.pc_sli4_params.wqv == LPFC_Q_CREATE_VERSION_1) {
+	switch (phba->sli4_hba.pc_sli4_params.wqv) {
+	case LPFC_Q_CREATE_VERSION_0:
+		switch (wq->entry_size) {
+		default:
+		case 64:
+			/* Nothing to do, version 0 ONLY supports 64 byte */
+			page = wq_create->u.request.page;
+			break;
+		case 128:
+			if (!(phba->sli4_hba.pc_sli4_params.wqsize &
+			    LPFC_WQ_SZ128_SUPPORT)) {
+				status = -ERANGE;
+				goto out;
+			}
+			/* If we get here the HBA MUST also support V1 and
+			 * we MUST use it
+			 */
+			bf_set(lpfc_mbox_hdr_version, &shdr->request,
+			       LPFC_Q_CREATE_VERSION_1);
+
+			bf_set(lpfc_mbx_wq_create_wqe_count,
+			       &wq_create->u.request_1, wq->entry_count);
+			bf_set(lpfc_mbx_wq_create_wqe_size,
+			       &wq_create->u.request_1,
+			       LPFC_WQ_WQE_SIZE_128);
+			bf_set(lpfc_mbx_wq_create_page_size,
+			       &wq_create->u.request_1,
+			       (PAGE_SIZE/SLI4_PAGE_SIZE));
+			page = wq_create->u.request_1.page;
+			break;
+		}
+		break;
+	case LPFC_Q_CREATE_VERSION_1:
 		bf_set(lpfc_mbx_wq_create_wqe_count, &wq_create->u.request_1,
 		       wq->entry_count);
 		switch (wq->entry_size) {
@@ -12883,6 +12917,11 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 			       LPFC_WQ_WQE_SIZE_64);
 			break;
 		case 128:
+			if (!(phba->sli4_hba.pc_sli4_params.wqsize &
+				LPFC_WQ_SZ128_SUPPORT)) {
+				status = -ERANGE;
+				goto out;
+			}
 			bf_set(lpfc_mbx_wq_create_wqe_size,
 			       &wq_create->u.request_1,
 			       LPFC_WQ_WQE_SIZE_128);
@@ -12891,9 +12930,12 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		bf_set(lpfc_mbx_wq_create_page_size, &wq_create->u.request_1,
 		       (PAGE_SIZE/SLI4_PAGE_SIZE));
 		page = wq_create->u.request_1.page;
-	} else {
-		page = wq_create->u.request.page;
+		break;
+	default:
+		status = -ERANGE;
+		goto out;
 	}
+
 	list_for_each_entry(dmabuf, &wq->page_list, list) {
 		memset(dmabuf->virt, 0, hw_page_size);
 		page[dmabuf->buffer_tag].addr_lo = putPaddrLow(dmabuf->phys);
