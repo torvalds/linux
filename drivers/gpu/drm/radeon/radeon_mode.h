@@ -307,6 +307,8 @@ struct radeon_crtc {
 	uint64_t cursor_addr;
 	int cursor_width;
 	int cursor_height;
+	int max_cursor_width;
+	int max_cursor_height;
 	uint32_t legacy_display_base_addr;
 	uint32_t legacy_cursor_offset;
 	enum radeon_rmx_type rmx_type;
@@ -329,6 +331,11 @@ struct radeon_crtc {
 	u32 pll_flags;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	/* for dpm */
+	u32 line_time;
+	u32 wm_low;
+	u32 wm_high;
+	struct drm_display_mode hw_mode;
 };
 
 struct radeon_encoder_primary_dac {
@@ -512,12 +519,99 @@ struct atom_clock_dividers {
 	bool enable_dithen;
 	u32 vco_mode;
 	u32 real_clock;
+	/* added for CI */
+	u32 post_divider;
+	u32 flags;
+};
+
+struct atom_mpll_param {
+	union {
+		struct {
+#ifdef __BIG_ENDIAN
+			u32 reserved : 8;
+			u32 clkfrac : 12;
+			u32 clkf : 12;
+#else
+			u32 clkf : 12;
+			u32 clkfrac : 12;
+			u32 reserved : 8;
+#endif
+		};
+		u32 fb_div;
+	};
+	u32 post_div;
+	u32 bwcntl;
+	u32 dll_speed;
+	u32 vco_mode;
+	u32 yclk_sel;
+	u32 qdr;
+	u32 half_rate;
+};
+
+#define MEM_TYPE_GDDR5  0x50
+#define MEM_TYPE_GDDR4  0x40
+#define MEM_TYPE_GDDR3  0x30
+#define MEM_TYPE_DDR2   0x20
+#define MEM_TYPE_GDDR1  0x10
+#define MEM_TYPE_DDR3   0xb0
+#define MEM_TYPE_MASK   0xf0
+
+struct atom_memory_info {
+	u8 mem_vendor;
+	u8 mem_type;
+};
+
+#define MAX_AC_TIMING_ENTRIES 16
+
+struct atom_memory_clock_range_table
+{
+	u8 num_entries;
+	u8 rsv[3];
+	u32 mclk[MAX_AC_TIMING_ENTRIES];
+};
+
+#define VBIOS_MC_REGISTER_ARRAY_SIZE 32
+#define VBIOS_MAX_AC_TIMING_ENTRIES 20
+
+struct atom_mc_reg_entry {
+	u32 mclk_max;
+	u32 mc_data[VBIOS_MC_REGISTER_ARRAY_SIZE];
+};
+
+struct atom_mc_register_address {
+	u16 s1;
+	u8 pre_reg_data;
+};
+
+struct atom_mc_reg_table {
+	u8 last;
+	u8 num_entries;
+	struct atom_mc_reg_entry mc_reg_table_entry[VBIOS_MAX_AC_TIMING_ENTRIES];
+	struct atom_mc_register_address mc_reg_address[VBIOS_MC_REGISTER_ARRAY_SIZE];
+};
+
+#define MAX_VOLTAGE_ENTRIES 32
+
+struct atom_voltage_table_entry
+{
+	u16 value;
+	u32 smio_low;
+};
+
+struct atom_voltage_table
+{
+	u32 count;
+	u32 mask_low;
+	u32 phase_delay;
+	struct atom_voltage_table_entry entries[MAX_VOLTAGE_ENTRIES];
 };
 
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std
 radeon_atombios_get_tv_info(struct radeon_device *rdev);
+extern void radeon_atombios_get_default_voltages(struct radeon_device *rdev,
+						 u16 *vddc, u16 *vddci, u16 *mvdd);
 
 extern struct drm_connector *
 radeon_get_connector_for_encoder(struct drm_encoder *encoder);

@@ -595,7 +595,6 @@ failed_videomem:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return err;
 }
@@ -614,7 +613,6 @@ static int ep93xxfb_remove(struct platform_device *pdev)
 		fbi->mach_info->teardown(pdev);
 
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -668,7 +668,10 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_fl
  * of available devices, and return it.
  */
 struct nfs4_file_layout_dsaddr *
-filelayout_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags)
+filelayout_get_device_info(struct inode *inode,
+		struct nfs4_deviceid *dev_id,
+		struct rpc_cred *cred,
+		gfp_t gfp_flags)
 {
 	struct pnfs_device *pdev = NULL;
 	u32 max_resp_sz;
@@ -708,8 +711,9 @@ filelayout_get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gf
 	pdev->pgbase = 0;
 	pdev->pglen = max_resp_sz;
 	pdev->mincount = 0;
+	pdev->maxcount = max_resp_sz - nfs41_maxgetdevinfo_overhead;
 
-	rc = nfs4_proc_getdeviceinfo(server, pdev);
+	rc = nfs4_proc_getdeviceinfo(server, pdev, cred);
 	dprintk("%s getdevice info returns %d\n", __func__, rc);
 	if (rc)
 		goto out_free;

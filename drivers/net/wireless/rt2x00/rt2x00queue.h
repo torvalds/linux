@@ -453,6 +453,7 @@ enum data_queue_flags {
  * @cw_max: The cw max value for outgoing frames (field ignored in RX queue).
  * @data_size: Maximum data size for the frames in this queue.
  * @desc_size: Hardware descriptor size for the data in this queue.
+ * @priv_size: Size of per-queue_entry private data.
  * @usb_endpoint: Device endpoint used for communication (USB only)
  * @usb_maxpacket: Max packet size for given endpoint (USB only)
  */
@@ -481,28 +482,10 @@ struct data_queue {
 	unsigned short data_size;
 	unsigned char  desc_size;
 	unsigned char  winfo_size;
+	unsigned short priv_size;
 
 	unsigned short usb_endpoint;
 	unsigned short usb_maxpacket;
-};
-
-/**
- * struct data_queue_desc: Data queue description
- *
- * The information in this structure is used by drivers
- * to inform rt2x00lib about the creation of the data queue.
- *
- * @entry_num: Maximum number of entries for a queue.
- * @data_size: Maximum data size for the frames in this queue.
- * @desc_size: Hardware descriptor size for the data in this queue.
- * @priv_size: Size of per-queue_entry private data.
- */
-struct data_queue_desc {
-	unsigned short entry_num;
-	unsigned short data_size;
-	unsigned char  desc_size;
-	unsigned char  winfo_size;
-	unsigned short priv_size;
 };
 
 /**

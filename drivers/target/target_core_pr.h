@@ -45,7 +45,7 @@
 
 extern struct kmem_cache *t10_pr_reg_cache;
 
-extern int core_pr_dump_initiator_port(struct t10_pr_registration *,
+extern void core_pr_dump_initiator_port(struct t10_pr_registration *,
 			char *, u32);
 extern sense_reason_t target_scsi2_reservation_release(struct se_cmd *);
 extern sense_reason_t target_scsi2_reservation_reserve(struct se_cmd *);

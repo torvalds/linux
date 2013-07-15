@@ -792,9 +792,9 @@ int omap3isp_pipeline_pm_use(struct media_entity *entity, int use)
 
 /*
  * isp_pipeline_link_notify - Link management notification callback
- * @source: Pad at the start of the link
- * @sink: Pad at the end of the link
+ * @link: The link
  * @flags: New link flags that will be applied
+ * @notification: The link's state change notification type (MEDIA_DEV_NOTIFY_*)
  *
  * React to link management on powered pipelines by updating the use count of
  * all entities in the source and sink sides of the link. Entities are powered
@@ -804,29 +804,38 @@ int omap3isp_pipeline_pm_use(struct media_entity *entity, int use)
  * off is assumed to never fail. This function will not fail for disconnection
  * events.
  */
-static int isp_pipeline_link_notify(struct media_pad *source,
-				    struct media_pad *sink, u32 flags)
+static int isp_pipeline_link_notify(struct media_link *link, u32 flags,
+				    unsigned int notification)
 {
-	int source_use = isp_pipeline_pm_use_count(source->entity);
-	int sink_use = isp_pipeline_pm_use_count(sink->entity);
+	struct media_entity *source = link->source->entity;
+	struct media_entity *sink = link->sink->entity;
+	int source_use = isp_pipeline_pm_use_count(source);
+	int sink_use = isp_pipeline_pm_use_count(sink);
 	int ret;
 
-	if (!(flags & MEDIA_LNK_FL_ENABLED)) {
+	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+	    !(link->flags & MEDIA_LNK_FL_ENABLED)) {
 		/* Powering off entities is assumed to never fail. */
-		isp_pipeline_pm_power(source->entity, -sink_use);
-		isp_pipeline_pm_power(sink->entity, -source_use);
+		isp_pipeline_pm_power(source, -sink_use);
+		isp_pipeline_pm_power(sink, -source_use);
 		return 0;
 	}
 
-	ret = isp_pipeline_pm_power(source->entity, sink_use);
-	if (ret < 0)
+	if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
+		(flags & MEDIA_LNK_FL_ENABLED)) {
+
+		ret = isp_pipeline_pm_power(source, sink_use);
+		if (ret < 0)
+			return ret;
+
+		ret = isp_pipeline_pm_power(sink, source_use);
+		if (ret < 0)
+			isp_pipeline_pm_power(source, -sink_use);
+
 		return ret;
+	}
 
-	ret = isp_pipeline_pm_power(sink->entity, source_use);
-	if (ret < 0)
-		isp_pipeline_pm_power(source->entity, -sink_use);
-
-	return ret;
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -877,7 +886,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 
-		pad = media_entity_remote_source(pad);
+		pad = media_entity_remote_pad(pad);
 		if (pad == NULL ||
 		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
@@ -967,7 +976,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 
-		pad = media_entity_remote_source(pad);
+		pad = media_entity_remote_pad(pad);
 		if (pad == NULL ||
 		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 			break;
@@ -1083,7 +1092,7 @@ static int isp_pipeline_is_last(struct media_entity *me)
 	pipe = to_isp_pipeline(me);
 	if (pipe->stream_state == ISP_PIPELINE_STREAM_STOPPED)
 		return 0;
-	pad = media_entity_remote_source(&pipe->output->pad);
+	pad = media_entity_remote_pad(&pipe->output->pad);
 	return pad->entity == me;
 }
 
@@ -2249,6 +2258,7 @@ static int isp_probe(struct platform_device *pdev)
 	ret = iommu_attach_device(isp->domain, &pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "can't attach iommu device: %d\n", ret);
+		ret = -EPROBE_DEFER;
 		goto free_domain;
 	}
 
@@ -2287,12 +2297,11 @@ detach_dev:
 	iommu_detach_device(isp->domain, &pdev->dev);
 free_domain:
 	iommu_domain_free(isp->domain);
+	isp->domain = NULL;
 error_isp:
 	isp_xclk_cleanup(isp);
 	omap3isp_put(isp);
 error:
-	platform_set_drvdata(pdev, NULL);
-
 	mutex_destroy(&isp->isp_mutex);
 
 	return ret;

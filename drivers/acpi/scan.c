@@ -35,7 +35,6 @@ bool acpi_force_hot_remove;
 
 static const char *dummy_hid = "device";
 
-static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
 static DEFINE_MUTEX(acpi_scan_lock);
 static LIST_HEAD(acpi_scan_handlers_list);

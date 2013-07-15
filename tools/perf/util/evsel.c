@@ -124,7 +124,7 @@ struct event_format *event_format__new(const char *sys, const char *name)
 			bf = nbf;
 		}
 
-		n = read(fd, bf + size, BUFSIZ);
+		n = read(fd, bf + size, alloc_size - size);
 		if (n < 0)
 			goto out_free_bf;
 		size += n;
@@ -1170,7 +1170,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		} else {
 			data->user_stack.data = (char *)array;
 			array += size / sizeof(*array);
-			data->user_stack.size = *array;
+			data->user_stack.size = *array++;
 		}
 	}
 

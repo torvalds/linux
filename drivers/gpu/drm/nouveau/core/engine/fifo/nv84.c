@@ -56,7 +56,9 @@ nv84_fifo_context_attach(struct nouveau_object *parent,
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW   : return 0;
 	case NVDEV_ENGINE_GR   : addr = 0x0020; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0040; break;
 	case NVDEV_ENGINE_MPEG : addr = 0x0060; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0080; break;
 	case NVDEV_ENGINE_CRYPT: addr = 0x00a0; break;
 	case NVDEV_ENGINE_COPY0: addr = 0x00c0; break;
 	default:
@@ -89,7 +91,9 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW   : return 0;
 	case NVDEV_ENGINE_GR   : engn = 0; addr = 0x0020; break;
+	case NVDEV_ENGINE_VP   : engn = 3; addr = 0x0040; break;
 	case NVDEV_ENGINE_MPEG : engn = 1; addr = 0x0060; break;
+	case NVDEV_ENGINE_BSP  : engn = 5; addr = 0x0080; break;
 	case NVDEV_ENGINE_CRYPT: engn = 4; addr = 0x00a0; break;
 	case NVDEV_ENGINE_COPY0: engn = 2; addr = 0x00c0; break;
 	default:

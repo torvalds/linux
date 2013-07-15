@@ -249,6 +249,17 @@ config MMC_SDHCI_S3C_DMA
 
 	  YMMV.
 
+config MMC_SDHCI_BCM_KONA
+	tristate "SDHCI support on Broadcom KONA platform"
+	depends on ARCH_BCM
+	select MMC_SDHCI_PLTFM
+	help
+	  This selects the Broadcom Kona Secure Digital Host Controller
+	  Interface(SDHCI) support.
+	  This is used in Broadcom mobile SoCs.
+
+	  If you have a controller with this interface, say Y or M here.
+
 config MMC_SDHCI_BCM2835
 	tristate "SDHCI platform support for the BCM2835 SD/MMC Controller"
 	depends on ARCH_BCM2835
@@ -555,6 +566,14 @@ config MMC_DW_EXYNOS
 	  This selects support for Samsung Exynos SoC specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on Exynos4 and Exynos5 SoC's.
+
+config MMC_DW_SOCFPGA
+	tristate "SOCFPGA specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW
+	select MMC_DW_PLTFM
+	help
+	  This selects support for Altera SoCFPGA specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver.
 
 config MMC_DW_PCI
 	tristate "Synopsys Designware MCI support on PCI bus"

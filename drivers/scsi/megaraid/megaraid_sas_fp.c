@@ -585,7 +585,7 @@ u8 get_arm(struct megasas_instance *instance, u32 ld, u8 span, u64 stripe,
 	case 1:
 		/* start with logical arm */
 		arm = get_arm_from_strip(instance, ld, stripe, map);
-		if (arm != -1UL)
+		if (arm != -1U)
 			arm *= 2;
 		break;
 	}
@@ -637,7 +637,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 
 	if (raid->level == 6) {
 		logArm = get_arm_from_strip(instance, ld, stripRow, map);
-		if (logArm == -1UL)
+		if (logArm == -1U)
 			return FALSE;
 		rowMod = mega_mod64(row, SPAN_ROW_SIZE(map, ld, span));
 		armQ = SPAN_ROW_SIZE(map, ld, span) - 1 - rowMod;

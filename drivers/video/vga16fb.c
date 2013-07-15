@@ -1269,7 +1269,6 @@ static void vga16fb_destroy(struct fb_info *info)
 	iounmap(info->screen_base);
 	fb_dealloc_cmap(&info->cmap);
 	/* XXX unshare VGA regions */
-	platform_set_drvdata(dev, NULL);
 	framebuffer_release(info);
 }
 

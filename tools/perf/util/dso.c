@@ -513,10 +513,16 @@ void dsos__add(struct list_head *head, struct dso *dso)
 	list_add_tail(&dso->node, head);
 }
 
-struct dso *dsos__find(struct list_head *head, const char *name)
+struct dso *dsos__find(struct list_head *head, const char *name, bool cmp_short)
 {
 	struct dso *pos;
 
+	if (cmp_short) {
+		list_for_each_entry(pos, head, node)
+			if (strcmp(pos->short_name, name) == 0)
+				return pos;
+		return NULL;
+	}
 	list_for_each_entry(pos, head, node)
 		if (strcmp(pos->long_name, name) == 0)
 			return pos;
@@ -525,7 +531,7 @@ struct dso *dsos__find(struct list_head *head, const char *name)
 
 struct dso *__dsos__findnew(struct list_head *head, const char *name)
 {
-	struct dso *dso = dsos__find(head, name);
+	struct dso *dso = dsos__find(head, name, false);
 
 	if (!dso) {
 		dso = dso__new(name);

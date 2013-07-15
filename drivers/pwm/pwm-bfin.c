@@ -149,6 +149,7 @@ static int bfin_pwm_remove(struct platform_device *pdev)
 static struct platform_driver bfin_pwm_driver = {
 	.driver = {
 		.name = "bfin-pwm",
+		.owner = THIS_MODULE,
 	},
 	.probe = bfin_pwm_probe,
 	.remove = bfin_pwm_remove,

@@ -176,7 +176,7 @@ xfs_growfs_data_private(
 	if (!bp)
 		return EIO;
 	if (bp->b_error) {
-		int	error = bp->b_error;
+		error = bp->b_error;
 		xfs_buf_relse(bp);
 		return error;
 	}

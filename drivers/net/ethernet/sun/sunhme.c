@@ -2506,7 +2506,7 @@ static struct quattro *quattro_sbus_find(struct platform_device *child)
 	struct quattro *qp;
 
 	op = to_platform_device(parent);
-	qp = dev_get_drvdata(&op->dev);
+	qp = platform_get_drvdata(op);
 	if (qp)
 		return qp;
 
@@ -2521,7 +2521,7 @@ static struct quattro *quattro_sbus_find(struct platform_device *child)
 		qp->next = qfe_sbus_list;
 		qfe_sbus_list = qp;
 
-		dev_set_drvdata(&op->dev, qp);
+		platform_set_drvdata(op, qp);
 	}
 	return qp;
 }

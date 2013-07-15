@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/bcd.h>
+#include <linux/irqdomain.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/max8998.h>
@@ -252,7 +253,7 @@ static const struct rtc_class_ops max8998_rtc_ops = {
 static int max8998_rtc_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *max8998 = dev_get_drvdata(pdev->dev.parent);
-	struct max8998_platform_data *pdata = dev_get_platdata(max8998->dev);
+	struct max8998_platform_data *pdata = max8998->pdata;
 	struct max8998_rtc_info *info;
 	int ret;
 
@@ -264,7 +265,6 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->max8998 = max8998;
 	info->rtc = max8998->rtc;
-	info->irq = max8998->irq_base + MAX8998_IRQ_ALARM0;
 
 	platform_set_drvdata(pdev, info);
 
@@ -277,6 +277,15 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (!max8998->irq_domain)
+		goto no_irq;
+
+	info->irq = irq_create_mapping(max8998->irq_domain, MAX8998_IRQ_ALARM0);
+	if (!info->irq) {
+		dev_warn(&pdev->dev, "Failed to map alarm IRQ\n");
+		goto no_irq;
+	}
+
 	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
 				max8998_rtc_alarm_irq, 0, "rtc-alarm0", info);
 
@@ -284,6 +293,7 @@ static int max8998_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->irq, ret);
 
+no_irq:
 	dev_info(&pdev->dev, "RTC CHIP NAME: %s\n", pdev->id_entry->name);
 	if (pdata && pdata->rtc_delay) {
 		info->lp3974_bug_workaround = true;

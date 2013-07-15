@@ -146,8 +146,7 @@ static void __cpuinit set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	case MIPS_CPU_ISA_IV:
 		c->isa_level |= MIPS_CPU_ISA_IV;
 	case MIPS_CPU_ISA_III:
-		c->isa_level |= MIPS_CPU_ISA_I | MIPS_CPU_ISA_II |
-				MIPS_CPU_ISA_III;
+		c->isa_level |= MIPS_CPU_ISA_II | MIPS_CPU_ISA_III;
 		break;
 
 	case MIPS_CPU_ISA_M32R2:
@@ -156,8 +155,6 @@ static void __cpuinit set_isa(struct cpuinfo_mips *c, unsigned int isa)
 		c->isa_level |= MIPS_CPU_ISA_M32R1;
 	case MIPS_CPU_ISA_II:
 		c->isa_level |= MIPS_CPU_ISA_II;
-	case MIPS_CPU_ISA_I:
-		c->isa_level |= MIPS_CPU_ISA_I;
 		break;
 	}
 }
@@ -272,9 +269,6 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_ULRI;
 	if (config3 & MIPS_CONF3_ISA)
 		c->options |= MIPS_CPU_MICROMIPS;
-#ifdef CONFIG_CPU_MICROMIPS
-	write_c0_config3(read_c0_config3() | MIPS_CONF3_ISA_OE);
-#endif
 	if (config3 & MIPS_CONF3_VZ)
 		c->ases |= MIPS_ASE_VZ;
 
@@ -332,7 +326,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_R2000:
 		c->cputype = CPU_R2000;
 		__cpu_name[cpu] = "R2000";
-		set_isa(c, MIPS_CPU_ISA_I);
 		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
 			     MIPS_CPU_NOFPUEX;
 		if (__cpu_has_fpu())
@@ -352,7 +345,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			c->cputype = CPU_R3000;
 			__cpu_name[cpu] = "R3000";
 		}
-		set_isa(c, MIPS_CPU_ISA_I);
 		c->options = MIPS_CPU_TLB | MIPS_CPU_3K_CACHE |
 			     MIPS_CPU_NOFPUEX;
 		if (__cpu_has_fpu())
@@ -455,7 +447,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		break;
 	#endif
 	case PRID_IMP_TX39:
-		set_isa(c, MIPS_CPU_ISA_I);
 		c->options = MIPS_CPU_TLB | MIPS_CPU_TX39_CACHE;
 
 		if ((c->processor_id & 0xf0) == (PRID_REV_TX3927 & 0xf0)) {
@@ -959,6 +950,7 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 		set_isa(c, MIPS_CPU_ISA_M64R1);
 		c->tlbsize = ((read_c0_config1() >> 25) & 0x3f) + 1;
 	}
+	c->kscratch_mask = 0xf;
 }
 
 #ifdef CONFIG_64BIT

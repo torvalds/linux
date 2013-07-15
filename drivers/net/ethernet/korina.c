@@ -483,7 +483,6 @@ static void korina_multicast_list(struct net_device *dev)
 	unsigned long flags;
 	struct netdev_hw_addr *ha;
 	u32 recognise = ETH_ARC_AB;	/* always accept broadcasts */
-	int i;
 
 	/* Set promiscuous mode */
 	if (dev->flags & IFF_PROMISC)
@@ -495,11 +494,8 @@ static void korina_multicast_list(struct net_device *dev)
 
 	/* Build the hash table */
 	if (netdev_mc_count(dev) > 4) {
-		u16 hash_table[4];
+		u16 hash_table[4] = { 0 };
 		u32 crc;
-
-		for (i = 0; i < 4; i++)
-			hash_table[i] = 0;
 
 		netdev_for_each_mc_addr(ha, dev) {
 			crc = ether_crc_le(6, ha->addr);
@@ -1214,7 +1210,6 @@ static int korina_remove(struct platform_device *pdev)
 	iounmap(lp->rx_dma_regs);
 	iounmap(lp->tx_dma_regs);
 
-	platform_set_drvdata(pdev, NULL);
 	unregister_netdev(bif->dev);
 	free_netdev(bif->dev);
 

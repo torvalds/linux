@@ -565,7 +565,7 @@ static void init_node_lock_keys(int q)
 	if (slab_state < UP)
 		return;
 
-	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
+	for (i = 1; i <= KMALLOC_SHIFT_HIGH; i++) {
 		struct kmem_cache_node *n;
 		struct kmem_cache *cache = kmalloc_caches[i];
 
@@ -1180,6 +1180,12 @@ static int init_cache_node_node(int node)
 	return 0;
 }
 
+static inline int slabs_tofree(struct kmem_cache *cachep,
+						struct kmem_cache_node *n)
+{
+	return (n->free_objects + cachep->num - 1) / cachep->num;
+}
+
 static void __cpuinit cpuup_canceled(long cpu)
 {
 	struct kmem_cache *cachep;
@@ -1241,7 +1247,7 @@ free_array_cache:
 		n = cachep->node[node];
 		if (!n)
 			continue;
-		drain_freelist(cachep, n, n->free_objects);
+		drain_freelist(cachep, n, slabs_tofree(cachep, n));
 	}
 }
 
@@ -1408,7 +1414,7 @@ static int __meminit drain_cache_node_node(int node)
 		if (!n)
 			continue;
 
-		drain_freelist(cachep, n, n->free_objects);
+		drain_freelist(cachep, n, slabs_tofree(cachep, n));
 
 		if (!list_empty(&n->slabs_full) ||
 		    !list_empty(&n->slabs_partial)) {
@@ -2532,7 +2538,7 @@ static int __cache_shrink(struct kmem_cache *cachep)
 		if (!n)
 			continue;
 
-		drain_freelist(cachep, n, n->free_objects);
+		drain_freelist(cachep, n, slabs_tofree(cachep, n));
 
 		ret += !list_empty(&n->slabs_full) ||
 			!list_empty(&n->slabs_partial);
@@ -3338,18 +3344,6 @@ done:
 	return obj;
 }
 
-/**
- * kmem_cache_alloc_node - Allocate an object on the specified node
- * @cachep: The cache to allocate from.
- * @flags: See kmalloc().
- * @nodeid: node number of the target node.
- * @caller: return address of caller, used for debug information
- *
- * Identical to kmem_cache_alloc but it will allocate memory on the given
- * node, which can improve the performance for cpu bound structures.
- *
- * Fallback to other node is possible if __GFP_THISNODE is not set.
- */
 static __always_inline void *
 slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
 		   unsigned long caller)
@@ -3643,6 +3637,17 @@ EXPORT_SYMBOL(kmem_cache_alloc_trace);
 #endif
 
 #ifdef CONFIG_NUMA
+/**
+ * kmem_cache_alloc_node - Allocate an object on the specified node
+ * @cachep: The cache to allocate from.
+ * @flags: See kmalloc().
+ * @nodeid: node number of the target node.
+ *
+ * Identical to kmem_cache_alloc but it will allocate memory on the given
+ * node, which can improve the performance for cpu bound structures.
+ *
+ * Fallback to other node is possible if __GFP_THISNODE is not set.
+ */
 void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 {
 	void *ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
@@ -4431,20 +4436,10 @@ static int leaks_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static void *s_next(struct seq_file *m, void *p, loff_t *pos)
-{
-	return seq_list_next(p, &slab_caches, pos);
-}
-
-static void s_stop(struct seq_file *m, void *p)
-{
-	mutex_unlock(&slab_mutex);
-}
-
 static const struct seq_operations slabstats_op = {
 	.start = leaks_start,
-	.next = s_next,
-	.stop = s_stop,
+	.next = slab_next,
+	.stop = slab_stop,
 	.show = leaks_show,
 };
 

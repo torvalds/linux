@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2012 LSI Corporation.
+ * Copyright (c) 2000-2013 LSI Corporation.
  *
  *
  *          Name:  mpi2_tool.h
  *         Title:  MPI diagnostic tool structures and definitions
  * Creation Date:  March 26, 2007
  *
- *   mpi2_tool.h Version:  02.00.09
+ *   mpi2_tool.h Version:  02.00.10
  *
  * Version History
  * ---------------
@@ -30,6 +30,8 @@
  * 11-18-11  02.00.08  Incorporating additions for MPI v2.5.
  * 07-10-12  02.00.09  Add MPI v2.5 Toolbox Diagnostic CLI Tool Request
  *                     message.
+ * 07-26-12  02.00.10  Modified MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST so that
+ *                     it uses MPI Chain SGE as well as MPI Simple SGE.
  * --------------------------------------------------------------------------
  */
 
@@ -279,7 +281,7 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
 	U16 Reserved6;		/*0x0E */
 	U32 DataLength;		/*0x10 */
 	U8 DiagnosticCliCommand[MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH];/*0x14 */
-	MPI2_SGE_SIMPLE_UNION SGL;	/*0x70 */
+	MPI2_MPI_SGE_IO_UNION SGL;	/*0x70 */
 } MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
 	*PTR_MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
 	Mpi2ToolboxDiagnosticCliRequest_t,
@@ -302,7 +304,7 @@ typedef struct _MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
 	U32 Reserved5;		/*0x0C */
 	U32 DataLength;		/*0x10 */
 	U8 DiagnosticCliCommand[MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH];/*0x14 */
-	MPI25_SGE_IO_UNION SGL;	/*0x70 */
+	MPI25_SGE_IO_UNION      SGL;                        /* 0x70 */
 } MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
 	*PTR_MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
 	Mpi25ToolboxDiagnosticCliRequest_t,

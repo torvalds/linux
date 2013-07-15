@@ -25,6 +25,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-device.h>
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -99,6 +100,8 @@ static DECLARE_RWSEM(sn9c102_dev_lock);
 
 struct sn9c102_device {
 	struct video_device* v4ldev;
+
+	struct v4l2_device v4l2_dev;
 
 	enum sn9c102_bridge bridge;
 	struct sn9c102_sensor sensor;

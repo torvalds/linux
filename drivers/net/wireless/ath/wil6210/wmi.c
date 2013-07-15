@@ -20,6 +20,7 @@
 #include "wil6210.h"
 #include "txrx.h"
 #include "wmi.h"
+#include "trace.h"
 
 /**
  * WMI event receiving - theory of operations
@@ -74,10 +75,11 @@ static const struct {
 	{0x800000, 0x808000, 0x900000}, /* FW data RAM 32k */
 	{0x840000, 0x860000, 0x908000}, /* peripheral data RAM 128k/96k used */
 	{0x880000, 0x88a000, 0x880000}, /* various RGF */
-	{0x8c0000, 0x932000, 0x8c0000}, /* trivial mapping for upper area */
+	{0x8c0000, 0x949000, 0x8c0000}, /* trivial mapping for upper area */
 	/*
 	 * 920000..930000 ucode code RAM
 	 * 930000..932000 ucode data RAM
+	 * 932000..949000 back-door debug data
 	 */
 };
 
@@ -246,6 +248,8 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	iowrite32(r->head = next_head, wil->csr + HOST_MBOX +
 		  offsetof(struct wil6210_mbox_ctl, tx.head));
 
+	trace_wil6210_wmi_cmd(cmdid, buf, len);
+
 	/* interrupt to FW */
 	iowrite32(SW_INT_MBOX, wil->csr + HOST_SW_INT);
 
@@ -311,8 +315,8 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 
 	wil_dbg_wmi(wil, "MGMT: channel %d MCS %d SNR %d\n",
 		    data->info.channel, data->info.mcs, data->info.snr);
-	wil_dbg_wmi(wil, "status 0x%04x len %d stype %04x\n", d_status, d_len,
-		    le16_to_cpu(data->info.stype));
+	wil_dbg_wmi(wil, "status 0x%04x len %d fc 0x%04x\n", d_status, d_len,
+		    le16_to_cpu(fc));
 	wil_dbg_wmi(wil, "qid %d mid %d cid %d\n",
 		    data->info.qid, data->info.mid, data->info.cid);
 
@@ -406,7 +410,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 	if ((wdev->iftype == NL80211_IFTYPE_STATION) ||
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
-		if (wdev->sme_state != CFG80211_SME_CONNECTING) {
+		if (!test_bit(wil_status_fwconnecting, &wil->status)) {
 			wil_err(wil, "Not in connecting state\n");
 			return;
 		}
@@ -430,6 +434,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 		cfg80211_new_sta(ndev, evt->bssid, &sinfo, GFP_KERNEL);
 	}
+	clear_bit(wil_status_fwconnecting, &wil->status);
 	set_bit(wil_status_fwconnected, &wil->status);
 
 	/* FIXME FW can transmit only ucast frames to peer */
@@ -635,8 +640,9 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 			    hdr.flags);
 		if ((hdr.type == WIL_MBOX_HDR_TYPE_WMI) &&
 		    (len >= sizeof(struct wil6210_mbox_hdr_wmi))) {
-			wil_dbg_wmi(wil, "WMI event 0x%04x\n",
-				    evt->event.wmi.id);
+			u16 id = le16_to_cpu(evt->event.wmi.id);
+			wil_dbg_wmi(wil, "WMI event 0x%04x\n", id);
+			trace_wil6210_wmi_event(id, &evt->event.wmi, len);
 		}
 		wil_hex_dump_wmi("evt ", DUMP_PREFIX_OFFSET, 16, 1,
 				 &evt->event.hdr, sizeof(hdr) + len, true);
@@ -724,7 +730,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		.bcon_interval = cpu_to_le16(bi),
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
-		.channel = chan,
+		.channel = chan - 1,
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;
@@ -734,8 +740,12 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 	if (!wil->secure_pcp)
 		cmd.disable_sec = 1;
 
+	/*
+	 * Processing time may be huge, in case of secure AP it takes about
+	 * 3500ms for FW to start AP
+	 */
 	rc = wmi_call(wil, WMI_PCP_START_CMDID, &cmd, sizeof(cmd),
-		      WMI_PCP_STARTED_EVENTID, &reply, sizeof(reply), 100);
+		      WMI_PCP_STARTED_EVENTID, &reply, sizeof(reply), 5000);
 	if (rc)
 		return rc;
 
@@ -827,40 +837,6 @@ int wmi_p2p_cfg(struct wil6210_priv *wil, int channel)
 	};
 
 	return wmi_send(wil, WMI_P2P_CFG_CMDID, &cmd, sizeof(cmd));
-}
-
-int wmi_tx_eapol(struct wil6210_priv *wil, struct sk_buff *skb)
-{
-	struct wmi_eapol_tx_cmd *cmd;
-	struct ethhdr *eth;
-	u16 eapol_len = skb->len - ETH_HLEN;
-	void *eapol = skb->data + ETH_HLEN;
-	uint i;
-	int rc;
-
-	skb_set_mac_header(skb, 0);
-	eth = eth_hdr(skb);
-	wil_dbg_wmi(wil, "EAPOL %d bytes to %pM\n", eapol_len, eth->h_dest);
-	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
-		if (memcmp(wil->dst_addr[i], eth->h_dest, ETH_ALEN) == 0)
-			goto found_dest;
-	}
-
-	return -EINVAL;
-
- found_dest:
-	/* find out eapol data & len */
-	cmd = kzalloc(sizeof(*cmd) + eapol_len, GFP_KERNEL);
-	if (!cmd)
-		return -EINVAL;
-
-	memcpy(cmd->dst_mac, eth->h_dest, ETH_ALEN);
-	cmd->eapol_len = cpu_to_le16(eapol_len);
-	memcpy(cmd->eapol, eapol, eapol_len);
-	rc = wmi_send(wil, WMI_EAPOL_TX_CMDID, cmd, sizeof(*cmd) + eapol_len);
-	kfree(cmd);
-
-	return rc;
 }
 
 int wmi_del_cipher_key(struct wil6210_priv *wil, u8 key_index,
