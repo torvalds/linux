@@ -125,8 +125,6 @@ struct sh_pfc_soc_info {
 
 	const struct sh_pfc_pin *pins;
 	unsigned int nr_pins;
-	const struct pinmux_range *ranges;
-	unsigned int nr_ranges;
 	const struct sh_pfc_pin_group *groups;
 	unsigned int nr_groups;
 	const struct sh_pfc_function *functions;

@@ -587,22 +587,9 @@ static const struct pinconf_ops sh_pfc_pinconf_ops = {
 /* PFC ranges -> pinctrl pin descs */
 static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 {
-	const struct pinmux_range *ranges;
-	struct pinmux_range def_range;
-	unsigned int nr_ranges;
-	unsigned int nr_pins;
 	unsigned int i;
 
-	if (pfc->info->ranges == NULL) {
-		def_range.begin = 0;
-		def_range.end = pfc->info->nr_pins - 1;
-		ranges = &def_range;
-		nr_ranges = 1;
-	} else {
-		ranges = pfc->info->ranges;
-		nr_ranges = pfc->info->nr_ranges;
-	}
-
+	/* Allocate and initialize the pins and configs arrays. */
 	pmx->pins = devm_kzalloc(pfc->dev,
 				 sizeof(*pmx->pins) * pfc->info->nr_pins,
 				 GFP_KERNEL);
@@ -615,32 +602,24 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	if (unlikely(!pmx->configs))
 		return -ENOMEM;
 
-	for (i = 0, nr_pins = 0; i < nr_ranges; ++i) {
-		const struct pinmux_range *range = &ranges[i];
-		unsigned int number;
+	for (i = 0; i < pfc->info->nr_pins; ++i) {
+		const struct sh_pfc_pin *info = &pfc->info->pins[i];
+		struct sh_pfc_pin_config *cfg = &pmx->configs[i];
+		struct pinctrl_pin_desc *pin = &pmx->pins[i];
 
-		for (number = range->begin; number <= range->end;
-		     number++, nr_pins++) {
-			struct sh_pfc_pin_config *cfg = &pmx->configs[nr_pins];
-			struct pinctrl_pin_desc *pin = &pmx->pins[nr_pins];
-			const struct sh_pfc_pin *info =
-				&pfc->info->pins[nr_pins];
-
-			pin->number = number;
-			pin->name = info->name;
-			cfg->type = PINMUX_TYPE_NONE;
-		}
+		/* If the pin number is equal to -1 all pins are considered */
+		pin->number = info->pin != (u16)-1 ? info->pin : i;
+		pin->name = info->name;
+		cfg->type = PINMUX_TYPE_NONE;
 	}
 
-	pfc->nr_gpio_pins = ranges[nr_ranges-1].end + 1;
-
-	return nr_ranges;
+	return 0;
 }
 
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 {
 	struct sh_pfc_pinctrl *pmx;
-	int nr_ranges;
+	int ret;
 
 	pmx = devm_kzalloc(pfc->dev, sizeof(*pmx), GFP_KERNEL);
 	if (unlikely(!pmx))
@@ -649,9 +628,9 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pfc = pfc;
 	pfc->pinctrl = pmx;
 
-	nr_ranges = sh_pfc_map_pins(pfc, pmx);
-	if (unlikely(nr_ranges < 0))
-		return nr_ranges;
+	ret = sh_pfc_map_pins(pfc, pmx);
+	if (ret < 0)
+		return ret;
 
 	pmx->pctl_desc.name = DRV_NAME;
 	pmx->pctl_desc.owner = THIS_MODULE;

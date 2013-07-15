@@ -334,10 +334,7 @@ sh_pfc_add_gpiochip(struct sh_pfc *pfc, int(*setup)(struct sh_pfc_chip *),
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 {
-	const struct pinmux_range *ranges;
-	struct pinmux_range def_range;
 	struct sh_pfc_chip *chip;
-	unsigned int nr_ranges;
 	unsigned int i;
 	int ret;
 
@@ -368,23 +365,13 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	pfc->gpio = chip;
 
 	/* Register the GPIO to pin mappings. */
-	if (pfc->info->ranges == NULL) {
-		def_range.begin = 0;
-		def_range.end = pfc->info->nr_pins - 1;
-		ranges = &def_range;
-		nr_ranges = 1;
-	} else {
-		ranges = pfc->info->ranges;
-		nr_ranges = pfc->info->nr_ranges;
-	}
-
-	for (i = 0; i < nr_ranges; ++i) {
-		const struct pinmux_range *range = &ranges[i];
+	for (i = 0; i < pfc->nr_ranges; ++i) {
+		const struct sh_pfc_pin_range *range = &pfc->ranges[i];
 
 		ret = gpiochip_add_pin_range(&chip->gpio_chip,
 					     dev_name(pfc->dev),
-					     range->begin, range->begin,
-					     range->end - range->begin + 1);
+					     range->start, range->start,
+					     range->end - range->start + 1);
 		if (ret < 0)
 			return ret;
 	}

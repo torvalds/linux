@@ -82,17 +82,14 @@ int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin)
 	unsigned int offset;
 	unsigned int i;
 
-	if (pfc->info->ranges == NULL)
-		return pin;
-
-	for (i = 0, offset = 0; i < pfc->info->nr_ranges; ++i) {
-		const struct pinmux_range *range = &pfc->info->ranges[i];
+	for (i = 0, offset = 0; i < pfc->nr_ranges; ++i) {
+		const struct sh_pfc_pin_range *range = &pfc->ranges[i];
 
 		if (pin <= range->end)
-			return pin >= range->begin
-			     ? offset + pin - range->begin : -1;
+			return pin >= range->start
+			     ? offset + pin - range->start : -1;
 
-		offset += range->end - range->begin + 1;
+		offset += range->end - range->start + 1;
 	}
 
 	return -EINVAL;
@@ -341,6 +338,59 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	return 0;
 }
 
+static int sh_pfc_init_ranges(struct sh_pfc *pfc)
+{
+	struct sh_pfc_pin_range *range;
+	unsigned int nr_ranges;
+	unsigned int i;
+
+	if (pfc->info->pins[0].pin == (u16)-1) {
+		/* Pin number -1 denotes that the SoC doesn't report pin numbers
+		 * in its pin arrays yet. Consider the pin numbers range as
+		 * continuous and allocate a single range.
+		 */
+		pfc->nr_ranges = 1;
+		pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges),
+					   GFP_KERNEL);
+		if (pfc->ranges == NULL)
+			return -ENOMEM;
+
+		pfc->ranges->start = 0;
+		pfc->ranges->end = pfc->info->nr_pins - 1;
+		pfc->nr_gpio_pins = pfc->info->nr_pins;
+
+		return 0;
+	}
+
+	/* Count, allocate and fill the ranges. */
+	for (i = 1, nr_ranges = 1; i < pfc->info->nr_pins; ++i) {
+		if (pfc->info->pins[i-1].pin != pfc->info->pins[i].pin - 1)
+			nr_ranges++;
+	}
+
+	pfc->nr_ranges = nr_ranges;
+	pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges) * nr_ranges,
+				   GFP_KERNEL);
+	if (pfc->ranges == NULL)
+		return -ENOMEM;
+
+	range = pfc->ranges;
+	range->start = pfc->info->pins[0].pin;
+
+	for (i = 1; i < pfc->info->nr_pins; ++i) {
+		if (pfc->info->pins[i-1].pin != pfc->info->pins[i].pin - 1) {
+			range->end = pfc->info->pins[i-1].pin;
+			range++;
+			range->start = pfc->info->pins[i].pin;
+		}
+	}
+
+	range->end = pfc->info->pins[i-1].pin;
+	pfc->nr_gpio_pins = range->end + 1;
+
+	return 0;
+}
+
 #ifdef CONFIG_OF
 static const struct of_device_id sh_pfc_of_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_R8A73A4
@@ -430,6 +480,10 @@ static int sh_pfc_probe(struct platform_device *pdev)
 	}
 
 	pinctrl_provide_dummies();
+
+	ret = sh_pfc_init_ranges(pfc);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * Initialize pinctrl bindings first
