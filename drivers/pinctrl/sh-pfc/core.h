@@ -34,7 +34,7 @@ struct sh_pfc {
 	unsigned int num_windows;
 	struct sh_pfc_window *window;
 
-	unsigned int nr_pins;
+	unsigned int nr_gpio_pins;
 
 	struct sh_pfc_chip *gpio;
 	struct sh_pfc_chip *func;

@@ -632,7 +632,7 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 		}
 	}
 
-	pfc->nr_pins = ranges[nr_ranges-1].end + 1;
+	pfc->nr_gpio_pins = ranges[nr_ranges-1].end + 1;
 
 	return nr_ranges;
 }
