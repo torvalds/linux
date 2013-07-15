@@ -12,10 +12,10 @@ Fn keys (hotkeys):
 ------------------
 Some models report hotkeys through the SNC or SPIC devices, such events are
 reported both through the ACPI subsystem as acpi events and through the INPUT
-subsystem. See the logs of acpid or /proc/acpi/event and
-/proc/bus/input/devices to find out what those events are and which input
-devices are created by the driver. Additionally, loading the driver with the
-debug option will report all events in the kernel log.
+subsystem. See the logs of /proc/bus/input/devices to find out what those
+events are and which input devices are created by the driver.
+Additionally, loading the driver with the debug option will report all events
+in the kernel log.
 
 The "scancodes" passed to the input system (that can be remapped with udev)
 are indexes to the table "sony_laptop_input_keycode_map" in the sony-laptop.c

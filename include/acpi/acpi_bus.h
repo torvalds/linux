@@ -383,15 +383,6 @@ bool acpi_bus_can_wakeup(acpi_handle handle);
 static inline bool acpi_bus_can_wakeup(acpi_handle handle) { return false; }
 #endif
 
-#ifdef CONFIG_ACPI_PROC_EVENT
-int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data);
-int acpi_bus_generate_proc_event4(const char *class, const char *bid, u8 type, int data);
-int acpi_bus_receive_event(struct acpi_bus_event *event);
-#else
-static inline int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data)
-	{ return 0; }
-#endif
-
 void acpi_scan_lock_acquire(void);
 void acpi_scan_lock_release(void);
 int acpi_scan_add_handler(struct acpi_scan_handler *handler);

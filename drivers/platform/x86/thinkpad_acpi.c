@@ -2282,10 +2282,6 @@ static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
 	tpacpi_input_send_key_masked(scancode);
-	if (hotkey_report_mode < 2) {
-		acpi_bus_generate_proc_event(ibm_hotkey_acpidriver.device,
-				0x80, TP_HKEY_EV_HOTKEY_BASE + scancode);
-	}
 }
 
 static void hotkey_read_nvram(struct tp_nvram_state *n, const u32 m)
@@ -3735,13 +3731,6 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			pr_notice("unhandled HKEY event 0x%04x\n", hkey);
 			pr_notice("please report the conditions when this "
 				  "event happened to %s\n", TPACPI_MAIL);
-		}
-
-		/* Legacy events */
-		if (!ignore_acpi_ev &&
-		    (send_acpi_ev || hotkey_report_mode < 2)) {
-			acpi_bus_generate_proc_event(ibm->acpi->device,
-						     event, hkey);
 		}
 
 		/* netlink events */

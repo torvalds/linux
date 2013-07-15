@@ -21,100 +21,6 @@
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("event");
 
-#ifdef CONFIG_ACPI_PROC_EVENT
-/* Global vars for handling event proc entry */
-static DEFINE_SPINLOCK(acpi_system_event_lock);
-int event_is_open = 0;
-extern struct list_head acpi_bus_event_list;
-extern wait_queue_head_t acpi_bus_event_queue;
-
-static int acpi_system_open_event(struct inode *inode, struct file *file)
-{
-	spin_lock_irq(&acpi_system_event_lock);
-
-	if (event_is_open)
-		goto out_busy;
-
-	event_is_open = 1;
-
-	spin_unlock_irq(&acpi_system_event_lock);
-	return 0;
-
-      out_busy:
-	spin_unlock_irq(&acpi_system_event_lock);
-	return -EBUSY;
-}
-
-static ssize_t
-acpi_system_read_event(struct file *file, char __user * buffer, size_t count,
-		       loff_t * ppos)
-{
-	int result = 0;
-	struct acpi_bus_event event;
-	static char str[ACPI_MAX_STRING];
-	static int chars_remaining = 0;
-	static char *ptr;
-
-	if (!chars_remaining) {
-		memset(&event, 0, sizeof(struct acpi_bus_event));
-
-		if ((file->f_flags & O_NONBLOCK)
-		    && (list_empty(&acpi_bus_event_list)))
-			return -EAGAIN;
-
-		result = acpi_bus_receive_event(&event);
-		if (result)
-			return result;
-
-		chars_remaining = sprintf(str, "%s %s %08x %08x\n",
-					  event.device_class ? event.
-					  device_class : "<unknown>",
-					  event.bus_id ? event.
-					  bus_id : "<unknown>", event.type,
-					  event.data);
-		ptr = str;
-	}
-
-	if (chars_remaining < count) {
-		count = chars_remaining;
-	}
-
-	if (copy_to_user(buffer, ptr, count))
-		return -EFAULT;
-
-	*ppos += count;
-	chars_remaining -= count;
-	ptr += count;
-
-	return count;
-}
-
-static int acpi_system_close_event(struct inode *inode, struct file *file)
-{
-	spin_lock_irq(&acpi_system_event_lock);
-	event_is_open = 0;
-	spin_unlock_irq(&acpi_system_event_lock);
-	return 0;
-}
-
-static unsigned int acpi_system_poll_event(struct file *file, poll_table * wait)
-{
-	poll_wait(file, &acpi_bus_event_queue, wait);
-	if (!list_empty(&acpi_bus_event_list))
-		return POLLIN | POLLRDNORM;
-	return 0;
-}
-
-static const struct file_operations acpi_system_event_ops = {
-	.owner = THIS_MODULE,
-	.open = acpi_system_open_event,
-	.read = acpi_system_read_event,
-	.release = acpi_system_close_event,
-	.poll = acpi_system_poll_event,
-	.llseek = default_llseek,
-};
-#endif	/* CONFIG_ACPI_PROC_EVENT */
-
 /* ACPI notifier chain */
 static BLOCKING_NOTIFIER_HEAD(acpi_chain_head);
 
@@ -280,9 +186,6 @@ static int acpi_event_genetlink_init(void)
 
 static int __init acpi_event_init(void)
 {
-#ifdef CONFIG_ACPI_PROC_EVENT
-	struct proc_dir_entry *entry;
-#endif
 	int error = 0;
 
 	if (acpi_disabled)
@@ -293,15 +196,6 @@ static int __init acpi_event_init(void)
 	if (error)
 		printk(KERN_WARNING PREFIX
 		       "Failed to create genetlink family for ACPI event\n");
-
-#ifdef CONFIG_ACPI_PROC_EVENT
-	/* 'event' [R] */
-	entry = proc_create("event", S_IRUSR, acpi_root_dir,
-			    &acpi_system_event_ops);
-	if (!entry)
-		return -ENODEV;
-#endif
-
 	return 0;
 }
 
