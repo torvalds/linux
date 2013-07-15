@@ -1398,20 +1398,6 @@ static struct sh_pfc_pin pinmux_pins[] = {
 	R8A73A4_PIN_IO_PU_PD(328), R8A73A4_PIN_IO_PU_PD(329),
 };
 
-static const struct pinmux_range pinmux_ranges[] = {
-	{.begin = 0, .end = 30,},
-	{.begin = 32, .end = 40,},
-	{.begin = 64, .end = 85,},
-	{.begin = 96, .end = 126,},
-	{.begin = 128, .end = 134,},
-	{.begin = 160, .end = 178,},
-	{.begin = 192, .end = 222,},
-	{.begin = 224, .end = 250,},
-	{.begin = 256, .end = 283,},
-	{.begin = 288, .end = 308,},
-	{.begin = 320, .end = 329,},
-};
-
 /* - IRQC ------------------------------------------------------------------- */
 #define IRQC_PINS_MUX(pin, irq_mark)				\
 static const unsigned int irqc_irq##irq_mark##_pins[] = {	\
@@ -2755,9 +2741,6 @@ const struct sh_pfc_soc_info r8a73a4_pinmux_info = {
 
 	.pins = pinmux_pins,
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
-
-	.ranges = pinmux_ranges,
-	.nr_ranges = ARRAY_SIZE(pinmux_ranges),
 
 	.groups = pinmux_groups,
 	.nr_groups = ARRAY_SIZE(pinmux_groups),

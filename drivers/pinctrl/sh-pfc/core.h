@@ -25,6 +25,11 @@ struct sh_pfc_window {
 struct sh_pfc_chip;
 struct sh_pfc_pinctrl;
 
+struct sh_pfc_pin_range {
+	u16 start;
+	u16 end;
+};
+
 struct sh_pfc {
 	struct device *dev;
 	const struct sh_pfc_soc_info *info;
@@ -33,6 +38,9 @@ struct sh_pfc {
 
 	unsigned int num_windows;
 	struct sh_pfc_window *window;
+
+	struct sh_pfc_pin_range *ranges;
+	unsigned int nr_ranges;
 
 	unsigned int nr_gpio_pins;
 

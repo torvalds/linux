@@ -1446,13 +1446,6 @@ static struct sh_pfc_pin pinmux_pins[] = {
 	SH73A0_PIN_O(309),
 };
 
-static const struct pinmux_range pinmux_ranges[] = {
-	{.begin = 0, .end = 118,},
-	{.begin = 128, .end = 164,},
-	{.begin = 192, .end = 282,},
-	{.begin = 288, .end = 309,},
-};
-
 /* Pin numbers for pins without a corresponding GPIO port number are computed
  * from the row and column numbers with a 1000 offset to avoid collisions with
  * GPIO port numbers.
@@ -3895,8 +3888,6 @@ const struct sh_pfc_soc_info sh73a0_pinmux_info = {
 
 	.pins = pinmux_pins,
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
-	.ranges = pinmux_ranges,
-	.nr_ranges = ARRAY_SIZE(pinmux_ranges),
 	.groups = pinmux_groups,
 	.nr_groups = ARRAY_SIZE(pinmux_groups),
 	.functions = pinmux_functions,
