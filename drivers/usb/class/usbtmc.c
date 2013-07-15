@@ -554,14 +554,14 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 				if (remaining > n_characters)
 					remaining = n_characters;
 				/* Remove padding if it exists */
-				if (actual > remaining) 
+				if (actual > remaining)
 					actual = remaining;
 			}
 			else {
 				if (this_part > n_characters)
 					this_part = n_characters;
 				/* Remove padding if it exists */
-				if (actual > this_part) 
+				if (actual > this_part)
 					actual = this_part;
 			}
 
@@ -585,7 +585,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 			done += actual;
 		}
 		else  {
-			if (actual > remaining) 
+			if (actual > remaining)
 				actual = remaining;
 
 			remaining -= actual;
