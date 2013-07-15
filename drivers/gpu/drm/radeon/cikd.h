@@ -110,6 +110,14 @@
 #       define RESET_SCLK_CNT                             (1 << 5)
 #       define DYNAMIC_PM_EN                              (1 << 21)
 
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0xC0200014
+#       define CURRENT_STATE_MASK                         (0xf << 4)
+#       define CURRENT_STATE_SHIFT                        4
+#       define CURR_MCLK_INDEX_MASK                       (0xf << 8)
+#       define CURR_MCLK_INDEX_SHIFT                      8
+#       define CURR_SCLK_INDEX_MASK                       (0x1f << 16)
+#       define CURR_SCLK_INDEX_SHIFT                      16
+
 #define CG_SSP                                            0xC0200044
 #       define SST(x)                                     ((x) << 0)
 #       define SST_MASK                                   (0xffff << 0)
@@ -125,6 +133,10 @@
 #       define VBI_TIMER_UNIT_MASK                        (7 << 20)
 #       define DISP_GAP_MCHG(x)                           ((x) << 24)
 #       define DISP_GAP_MCHG_MASK                         (3 << 24)
+
+#define TARGET_AND_CURRENT_PROFILE_INDEX_1                0xC02000F0
+#       define CURR_PCIE_INDEX_MASK                       (0xf << 24)
+#       define CURR_PCIE_INDEX_SHIFT                      24
 
 #define CG_ULV_PARAMETER                                  0xC0200158
 

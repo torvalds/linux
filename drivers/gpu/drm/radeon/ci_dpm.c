@@ -27,6 +27,7 @@
 #include "r600_dpm.h"
 #include "ci_dpm.h"
 #include "atom.h"
+#include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -4963,6 +4964,16 @@ int ci_dpm_init(struct radeon_device *rdev)
 	pi->caps_dynamic_ac_timing = true;
 
 	return 0;
+}
+
+void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						    struct seq_file *m)
+{
+	u32 sclk = ci_get_average_sclk_freq(rdev);
+	u32 mclk = ci_get_average_mclk_freq(rdev);
+
+	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
+		   sclk, mclk);
 }
 
 void ci_dpm_print_power_state(struct radeon_device *rdev,
