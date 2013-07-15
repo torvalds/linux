@@ -34,13 +34,6 @@
 	PORT_10(fn, pfx##20, sfx),					\
 	PORT_1(fn, pfx##210, sfx),	PORT_1(fn, pfx##211, sfx)
 
-#undef _GPIO_PORT
-#define _GPIO_PORT(gpio, sfx)						\
-	[gpio] = {							\
-		.name = __stringify(PORT##gpio),			\
-		.enum_id = PORT##gpio##_DATA,				\
-	}
-
 #define IRQC_PIN_MUX(irq, pin)						\
 static const unsigned int intc_irq##irq##_pins[] = {			\
 	pin,								\

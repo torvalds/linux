@@ -196,9 +196,7 @@ struct sh_pfc_soc_info {
 	PORT_10(fn, pfx##9, sfx)
 
 #define _PORT_ALL(pfx, sfx) pfx##_##sfx
-#define _GPIO_PORT(pfx, sfx) PINMUX_GPIO(GPIO_PORT##pfx, PORT##pfx##_DATA)
 #define PORT_ALL(str)	CPU_ALL_PORT(_PORT_ALL, PORT, str)
-#define GPIO_PORT_ALL()	CPU_ALL_PORT(_GPIO_PORT, , unused)
 #define GPIO_FN(str) PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
 
 /* helper macro for pinmux_enum_t */
