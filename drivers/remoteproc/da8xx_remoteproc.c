@@ -165,7 +165,7 @@ static int reset_assert(struct device *dev)
 	dsp_clk = clk_get(dev, NULL);
 	if (IS_ERR(dsp_clk)) {
 		dev_err(dev, "clk_get error: %ld\n", PTR_ERR(dsp_clk));
-		return PTR_RET(dsp_clk);
+		return PTR_ERR(dsp_clk);
 	}
 
 	davinci_clk_reset_assert(dsp_clk);
