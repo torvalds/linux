@@ -175,7 +175,7 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 	entry = syscall_nr_to_meta(syscall);
 
 	if (!entry) {
-		trace_seq_printf(s, "\n");
+		trace_seq_putc(s, '\n');
 		return TRACE_TYPE_HANDLED;
 	}
 

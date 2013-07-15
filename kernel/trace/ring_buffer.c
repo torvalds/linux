@@ -36,11 +36,11 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
 {
 	int ret;
 
-	ret = trace_seq_printf(s, "# compressed entry header\n");
-	ret = trace_seq_printf(s, "\ttype_len    :    5 bits\n");
-	ret = trace_seq_printf(s, "\ttime_delta  :   27 bits\n");
-	ret = trace_seq_printf(s, "\tarray       :   32 bits\n");
-	ret = trace_seq_printf(s, "\n");
+	ret = trace_seq_puts(s, "# compressed entry header\n");
+	ret = trace_seq_puts(s, "\ttype_len    :    5 bits\n");
+	ret = trace_seq_puts(s, "\ttime_delta  :   27 bits\n");
+	ret = trace_seq_puts(s, "\tarray       :   32 bits\n");
+	ret = trace_seq_putc(s, '\n');
 	ret = trace_seq_printf(s, "\tpadding     : type == %d\n",
 			       RINGBUF_TYPE_PADDING);
 	ret = trace_seq_printf(s, "\ttime_extend : type == %d\n",

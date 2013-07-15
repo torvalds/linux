@@ -646,7 +646,7 @@ void print_event_filter(struct ftrace_event_call *call, struct trace_seq *s)
 	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
-		trace_seq_printf(s, "none\n");
+		trace_seq_puts(s, "none\n");
 	mutex_unlock(&event_mutex);
 }
 
@@ -660,7 +660,7 @@ void print_subsystem_event_filter(struct event_subsystem *system,
 	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
-		trace_seq_printf(s, DEFAULT_SYS_FILTER_MESSAGE "\n");
+		trace_seq_puts(s, DEFAULT_SYS_FILTER_MESSAGE "\n");
 	mutex_unlock(&event_mutex);
 }
 
