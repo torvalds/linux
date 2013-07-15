@@ -386,9 +386,11 @@ void __init find_legacy_serial_ports(void)
 		struct device_node *isa = of_get_parent(np);
 		if (isa && (!strcmp(isa->name, "isa") ||
 			    !strcmp(isa->name, "lpc"))) {
-			index = add_legacy_isa_port(np, isa);
-			if (index >= 0 && np == stdout)
-				legacy_serial_console = index;
+			if (of_device_is_available(np)) {
+				index = add_legacy_isa_port(np, isa);
+				if (index >= 0 && np == stdout)
+					legacy_serial_console = index;
+			}
 		}
 		of_node_put(isa);
 	}
