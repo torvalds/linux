@@ -336,8 +336,10 @@ static int acquire_dma(struct s3c64xx_spi_driver_data *sdd)
 	req.cap = DMA_SLAVE;
 	req.client = &s3c64xx_spi_dma_client;
 
-	sdd->rx_dma.ch = (void *)sdd->ops->request(sdd->rx_dma.dmach, &req, dev, "rx");
-	sdd->tx_dma.ch = (void *)sdd->ops->request(sdd->tx_dma.dmach, &req, dev, "tx");
+	sdd->rx_dma.ch = (void *)sdd->ops->request(sdd->rx_dma.dmach,
+						&req, dev, "rx");
+	sdd->tx_dma.ch = (void *)sdd->ops->request(sdd->tx_dma.dmach,
+						&req, dev, "tx");
 
 	return 1;
 }
@@ -440,7 +442,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 
 	/* Acquire DMA channels */
 	sdd->rx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				(void*)sdd->rx_dma.dmach, dev, "rx");
+				(void *)sdd->rx_dma.dmach, dev, "rx");
 	if (!sdd->rx_dma.ch) {
 		dev_err(dev, "Failed to get RX DMA channel\n");
 		ret = -EBUSY;
@@ -448,7 +450,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	}
 
 	sdd->tx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				(void*)sdd->tx_dma.dmach, dev, "tx");
+				(void *)sdd->tx_dma.dmach, dev, "tx");
 	if (!sdd->tx_dma.ch) {
 		dev_err(dev, "Failed to get TX DMA channel\n");
 		ret = -EBUSY;
@@ -1344,16 +1346,14 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	if (!sdd->pdev->dev.of_node) {
 		res = platform_get_resource(pdev, IORESOURCE_DMA,  0);
 		if (!res) {
-			dev_warn(&pdev->dev, "Unable to get SPI tx dma "
-					"resource. Switching to poll mode\n");
+			dev_warn(&pdev->dev, "Unable to get SPI tx dma resource. Switching to poll mode\n");
 			sdd->port_conf->quirks = S3C64XX_SPI_QUIRK_POLL;
 		} else
 			sdd->tx_dma.dmach = res->start;
 
 		res = platform_get_resource(pdev, IORESOURCE_DMA,  1);
 		if (!res) {
-			dev_warn(&pdev->dev, "Unable to get SPI rx dma "
-					"resource. Switching to poll mode\n");
+			dev_warn(&pdev->dev, "Unable to get SPI rx dma resource. Switching to poll mode\n");
 			sdd->port_conf->quirks = S3C64XX_SPI_QUIRK_POLL;
 		} else
 			sdd->rx_dma.dmach = res->start;
