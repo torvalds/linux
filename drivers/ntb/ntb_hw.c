@@ -69,7 +69,7 @@ module_param(xeon_errata_workaround, bool, 0644);
 MODULE_PARM_DESC(xeon_errata_workaround, "Workaround for the Xeon Errata");
 
 enum {
-	NTB_CONN_CLASSIC = 0,
+	NTB_CONN_TRANSPARENT = 0,
 	NTB_CONN_B2B,
 	NTB_CONN_RP,
 };
@@ -509,7 +509,8 @@ static void ntb_link_event(struct ntb_device *ndev, int link_state)
 		ndev->link_status = NTB_LINK_UP;
 		event = NTB_EVENT_HW_LINK_UP;
 
-		if (ndev->hw_type == BWD_HW)
+		if (ndev->hw_type == BWD_HW ||
+		    ndev->conn_type == NTB_CONN_TRANSPARENT)
 			status = readw(ndev->reg_ofs.lnk_stat);
 		else {
 			int rc = pci_read_config_word(ndev->pdev,
@@ -649,119 +650,174 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 	if (rc)
 		return rc;
 
-	switch (val & SNB_PPD_CONN_TYPE) {
-	case NTB_CONN_B2B:
-		ndev->conn_type = NTB_CONN_B2B;
-		break;
-	case NTB_CONN_CLASSIC:
-	case NTB_CONN_RP:
-	default:
-		dev_err(&ndev->pdev->dev, "Only B2B supported at this time\n");
-		return -EINVAL;
-	}
-
 	if (val & SNB_PPD_DEV_TYPE)
 		ndev->dev_type = NTB_DEV_USD;
 	else
 		ndev->dev_type = NTB_DEV_DSD;
 
-	ndev->reg_ofs.ldb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
-	ndev->reg_ofs.ldb_mask = ndev->reg_base + SNB_PDBMSK_OFFSET;
-	ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_SBAR2XLAT_OFFSET;
-	ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_SBAR4XLAT_OFFSET;
+	switch (val & SNB_PPD_CONN_TYPE) {
+	case NTB_CONN_B2B:
+		dev_info(&ndev->pdev->dev, "Conn Type = B2B\n");
+		ndev->conn_type = NTB_CONN_B2B;
+		ndev->reg_ofs.ldb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
+		ndev->reg_ofs.ldb_mask = ndev->reg_base + SNB_PDBMSK_OFFSET;
+		ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET;
+		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_SBAR2XLAT_OFFSET;
+		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_SBAR4XLAT_OFFSET;
+		ndev->limits.max_spads = SNB_MAX_B2B_SPADS;
+
+		/* There is a Xeon hardware errata related to writes to
+		 * SDOORBELL or B2BDOORBELL in conjunction with inbound access
+		 * to NTB MMIO Space, which may hang the system.  To workaround
+		 * this use the second memory window to access the interrupt and
+		 * scratch pad registers on the remote system.
+		 */
+		if (xeon_errata_workaround) {
+			if (!ndev->mw[1].bar_sz)
+				return -EINVAL;
+
+			ndev->limits.max_mw = SNB_ERRATA_MAX_MW;
+			ndev->reg_ofs.spad_write = ndev->mw[1].vbase +
+						   SNB_SPAD_OFFSET;
+			ndev->reg_ofs.rdb = ndev->mw[1].vbase +
+					    SNB_PDOORBELL_OFFSET;
+
+			/* Set the Limit register to 4k, the minimum size, to
+			 * prevent an illegal access
+			 */
+			writeq(ndev->mw[1].bar_sz + 0x1000, ndev->reg_base +
+			       SNB_PBAR4LMT_OFFSET);
+		} else {
+			ndev->limits.max_mw = SNB_MAX_MW;
+			ndev->reg_ofs.spad_write = ndev->reg_base +
+						   SNB_B2B_SPAD_OFFSET;
+			ndev->reg_ofs.rdb = ndev->reg_base +
+					    SNB_B2B_DOORBELL_OFFSET;
+
+			/* Disable the Limit register, just incase it is set to
+			 * something silly
+			 */
+			writeq(0, ndev->reg_base + SNB_PBAR4LMT_OFFSET);
+		}
+
+		/* The Xeon errata workaround requires setting SBAR Base
+		 * addresses to known values, so that the PBAR XLAT can be
+		 * pointed at SBAR0 of the remote system.
+		 */
+		if (ndev->dev_type == NTB_DEV_USD) {
+			writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
+			       SNB_PBAR2XLAT_OFFSET);
+			if (xeon_errata_workaround)
+				writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
+				       SNB_PBAR4XLAT_OFFSET);
+			else {
+				writeq(SNB_MBAR45_DSD_ADDR, ndev->reg_base +
+				       SNB_PBAR4XLAT_OFFSET);
+				/* B2B_XLAT_OFFSET is a 64bit register, but can
+				 * only take 32bit writes
+				 */
+				writel(SNB_MBAR01_DSD_ADDR & 0xffffffff,
+				       ndev->reg_base + SNB_B2B_XLAT_OFFSETL);
+				writel(SNB_MBAR01_DSD_ADDR >> 32,
+				       ndev->reg_base + SNB_B2B_XLAT_OFFSETU);
+			}
+
+			writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
+			       SNB_SBAR0BASE_OFFSET);
+			writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
+			       SNB_SBAR2BASE_OFFSET);
+			writeq(SNB_MBAR45_USD_ADDR, ndev->reg_base +
+			       SNB_SBAR4BASE_OFFSET);
+		} else {
+			writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
+			       SNB_PBAR2XLAT_OFFSET);
+			if (xeon_errata_workaround)
+				writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
+				       SNB_PBAR4XLAT_OFFSET);
+			else {
+				writeq(SNB_MBAR45_USD_ADDR, ndev->reg_base +
+				       SNB_PBAR4XLAT_OFFSET);
+				/* B2B_XLAT_OFFSET is a 64bit register, but can
+				 * only take 32bit writes
+				 */
+				writel(SNB_MBAR01_DSD_ADDR & 0xffffffff,
+				       ndev->reg_base + SNB_B2B_XLAT_OFFSETL);
+				writel(SNB_MBAR01_USD_ADDR >> 32,
+				       ndev->reg_base + SNB_B2B_XLAT_OFFSETU);
+			}
+			writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
+			       SNB_SBAR0BASE_OFFSET);
+			writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
+			       SNB_SBAR2BASE_OFFSET);
+			writeq(SNB_MBAR45_DSD_ADDR, ndev->reg_base +
+			       SNB_SBAR4BASE_OFFSET);
+		}
+		break;
+	case NTB_CONN_RP:
+		dev_info(&ndev->pdev->dev, "Conn Type = RP\n");
+		ndev->conn_type = NTB_CONN_RP;
+
+		if (xeon_errata_workaround) {
+			dev_err(&ndev->pdev->dev, 
+				"NTB-RP disabled due to hardware errata.  To disregard this warning and potentially lock-up the system, add the parameter 'xeon_errata_workaround=0'.\n");
+			return -EINVAL;
+		}
+
+		/* Scratch pads need to have exclusive access from the primary
+		 * or secondary side.  Halve the num spads so that each side can
+		 * have an equal amount.
+		 */
+		ndev->limits.max_spads = SNB_MAX_COMPAT_SPADS / 2;
+		/* Note: The SDOORBELL is the cause of the errata.  You REALLY
+		 * don't want to touch it.
+		 */
+		ndev->reg_ofs.rdb = ndev->reg_base + SNB_SDOORBELL_OFFSET;
+		ndev->reg_ofs.ldb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
+		ndev->reg_ofs.ldb_mask = ndev->reg_base + SNB_PDBMSK_OFFSET;
+		/* Offset the start of the spads to correspond to whether it is
+		 * primary or secondary
+		 */
+		ndev->reg_ofs.spad_write = ndev->reg_base + SNB_SPAD_OFFSET +
+					   ndev->limits.max_spads * 4;
+		ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET;
+		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_SBAR2XLAT_OFFSET;
+		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_SBAR4XLAT_OFFSET;
+		ndev->limits.max_mw = SNB_MAX_MW;
+		break;
+	case NTB_CONN_TRANSPARENT:
+		dev_info(&ndev->pdev->dev, "Conn Type = TRANSPARENT\n");
+		ndev->conn_type = NTB_CONN_TRANSPARENT;
+		/* Scratch pads need to have exclusive access from the primary
+		 * or secondary side.  Halve the num spads so that each side can
+		 * have an equal amount.
+		 */
+		ndev->limits.max_spads = SNB_MAX_COMPAT_SPADS / 2;
+		ndev->reg_ofs.rdb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
+		ndev->reg_ofs.ldb = ndev->reg_base + SNB_SDOORBELL_OFFSET;
+		ndev->reg_ofs.ldb_mask = ndev->reg_base + SNB_SDBMSK_OFFSET;
+		ndev->reg_ofs.spad_write = ndev->reg_base + SNB_SPAD_OFFSET;
+		/* Offset the start of the spads to correspond to whether it is
+		 * primary or secondary
+		 */
+		ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET +
+					  ndev->limits.max_spads * 4;
+		ndev->reg_ofs.bar2_xlat = ndev->reg_base + SNB_PBAR2XLAT_OFFSET;
+		ndev->reg_ofs.bar4_xlat = ndev->reg_base + SNB_PBAR4XLAT_OFFSET;
+
+		ndev->limits.max_mw = SNB_MAX_MW;
+		break;
+	default:
+		/* Most likely caused by the remote NTB-RP device not being
+		 * configured
+		 */
+		dev_err(&ndev->pdev->dev, "Unknown PPD %x\n", val);
+		return -EINVAL;
+	}
+
 	ndev->reg_ofs.lnk_cntl = ndev->reg_base + SNB_NTBCNTL_OFFSET;
-	ndev->reg_ofs.lnk_stat = ndev->reg_base + SNB_LINK_STATUS_OFFSET;
-	ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET;
+	ndev->reg_ofs.lnk_stat = ndev->reg_base + SNB_SLINK_STATUS_OFFSET;
 	ndev->reg_ofs.spci_cmd = ndev->reg_base + SNB_PCICMD_OFFSET;
 
-	/* There is a Xeon hardware errata related to writes to
-	 * SDOORBELL or B2BDOORBELL in conjunction with inbound access
-	 * to NTB MMIO Space, which may hang the system.  To workaround
-	 * this use the second memory window to access the interrupt and
-	 * scratch pad registers on the remote system.
-	 */
-	if (xeon_errata_workaround) {
-		if (!ndev->mw[1].bar_sz)
-			return -EINVAL;
-
-		ndev->limits.max_mw = SNB_ERRATA_MAX_MW;
-		ndev->reg_ofs.spad_write = ndev->mw[1].vbase +
-					   SNB_SPAD_OFFSET;
-		ndev->reg_ofs.rdb = ndev->mw[1].vbase +
-				    SNB_PDOORBELL_OFFSET;
-
-		/* Set the Limit register to 4k, the minimum size, to
-		 * prevent an illegal access
-		 */
-		writeq(ndev->mw[1].bar_sz + 0x1000, ndev->reg_base +
-		       SNB_PBAR4LMT_OFFSET);
-	} else {
-		ndev->limits.max_mw = SNB_MAX_MW;
-		ndev->reg_ofs.spad_write = ndev->reg_base +
-					   SNB_B2B_SPAD_OFFSET;
-		ndev->reg_ofs.rdb = ndev->reg_base +
-				    SNB_B2B_DOORBELL_OFFSET;
-
-		/* Disable the Limit register, just incase it is set to
-		 * something silly
-		 */
-		writeq(0, ndev->reg_base + SNB_PBAR4LMT_OFFSET);
-	}
-
-	/* The Xeon errata workaround requires setting SBAR Base
-	 * addresses to known values, so that the PBAR XLAT can be
-	 * pointed at SBAR0 of the remote system.
-	 */
-	if (ndev->dev_type == NTB_DEV_USD) {
-		writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
-		       SNB_PBAR2XLAT_OFFSET);
-		if (xeon_errata_workaround)
-			writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
-			       SNB_PBAR4XLAT_OFFSET);
-		else {
-			writeq(SNB_MBAR45_DSD_ADDR, ndev->reg_base +
-			       SNB_PBAR4XLAT_OFFSET);
-			/* B2B_XLAT_OFFSET is a 64bit register, but can
-			 * only take 32bit writes
-			 */
-			writel(SNB_MBAR01_USD_ADDR & 0xffffffff,
-			       ndev->reg_base + SNB_B2B_XLAT_OFFSETL);
-			writel(SNB_MBAR01_DSD_ADDR >> 32,
-			       ndev->reg_base + SNB_B2B_XLAT_OFFSETU);
-		}
-
-		writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
-		       SNB_SBAR0BASE_OFFSET);
-		writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
-		       SNB_SBAR2BASE_OFFSET);
-		writeq(SNB_MBAR45_USD_ADDR, ndev->reg_base +
-		       SNB_SBAR4BASE_OFFSET);
-	} else {
-		writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
-		       SNB_PBAR2XLAT_OFFSET);
-		if (xeon_errata_workaround)
-			writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
-			       SNB_PBAR4XLAT_OFFSET);
-		else {
-			writeq(SNB_MBAR45_USD_ADDR, ndev->reg_base +
-			       SNB_PBAR4XLAT_OFFSET);
-			/* B2B_XLAT_OFFSET is a 64bit register, but can
-			 * only take 32bit writes
-			 */
-			writel(SNB_MBAR01_USD_ADDR & 0xffffffff,
-			       ndev->reg_base + SNB_B2B_XLAT_OFFSETL);
-			writel(SNB_MBAR01_USD_ADDR >> 32,
-			       ndev->reg_base + SNB_B2B_XLAT_OFFSETU);
-		}
-		writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
-		       SNB_SBAR0BASE_OFFSET);
-		writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
-		       SNB_SBAR2BASE_OFFSET);
-		writeq(SNB_MBAR45_DSD_ADDR, ndev->reg_base +
-		       SNB_SBAR4BASE_OFFSET);
-	}
-
-	ndev->limits.max_spads = SNB_MAX_B2B_SPADS;
 	ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
 	ndev->limits.msix_cnt = SNB_MSIX_CNT;
 	ndev->bits_per_vector = SNB_DB_BITS_PER_VEC;
@@ -865,8 +921,10 @@ static int ntb_device_setup(struct ntb_device *ndev)
 	dev_info(&ndev->pdev->dev, "Device Type = %s\n",
 		 ndev->dev_type == NTB_DEV_USD ? "USD/DSP" : "DSD/USP");
 
-	/* Enable Bus Master and Memory Space on the secondary side */
-	writew(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER, ndev->reg_ofs.spci_cmd);
+	if (ndev->conn_type == NTB_CONN_B2B)
+		/* Enable Bus Master and Memory Space on the secondary side */
+		writew(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER,
+		       ndev->reg_ofs.spci_cmd);
 
 	return 0;
 }
@@ -1360,7 +1418,7 @@ static void ntb_pci_remove(struct pci_dev *pdev)
 
 	/* Bring NTB link down */
 	ntb_cntl = readl(ndev->reg_ofs.lnk_cntl);
-	ntb_cntl |= NTB_LINK_DISABLE;
+	ntb_cntl |= NTB_CNTL_LINK_DISABLE;
 	writel(ntb_cntl, ndev->reg_ofs.lnk_cntl);
 
 	ntb_transport_free(ndev->ntb_transport);
