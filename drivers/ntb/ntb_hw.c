@@ -842,7 +842,7 @@ static int ntb_bwd_setup(struct ntb_device *ndev)
 		break;
 	case NTB_CONN_RP:
 	default:
-		dev_err(&ndev->pdev->dev, "Only B2B supported at this time\n");
+		dev_err(&ndev->pdev->dev, "Unsupported NTB configuration\n");
 		return -EINVAL;
 	}
 
@@ -859,24 +859,16 @@ static int ntb_bwd_setup(struct ntb_device *ndev)
 
 	ndev->reg_ofs.ldb = ndev->reg_base + BWD_PDOORBELL_OFFSET;
 	ndev->reg_ofs.ldb_mask = ndev->reg_base + BWD_PDBMSK_OFFSET;
+	ndev->reg_ofs.rdb = ndev->reg_base + BWD_B2B_DOORBELL_OFFSET;
 	ndev->reg_ofs.bar2_xlat = ndev->reg_base + BWD_SBAR2XLAT_OFFSET;
 	ndev->reg_ofs.bar4_xlat = ndev->reg_base + BWD_SBAR4XLAT_OFFSET;
 	ndev->reg_ofs.lnk_cntl = ndev->reg_base + BWD_NTBCNTL_OFFSET;
 	ndev->reg_ofs.lnk_stat = ndev->reg_base + BWD_LINK_STATUS_OFFSET;
 	ndev->reg_ofs.spad_read = ndev->reg_base + BWD_SPAD_OFFSET;
+	ndev->reg_ofs.spad_write = ndev->reg_base + BWD_B2B_SPAD_OFFSET;
 	ndev->reg_ofs.spci_cmd = ndev->reg_base + BWD_PCICMD_OFFSET;
-
-	if (ndev->conn_type == NTB_CONN_B2B) {
-		ndev->reg_ofs.rdb = ndev->reg_base + BWD_B2B_DOORBELL_OFFSET;
-		ndev->reg_ofs.spad_write = ndev->reg_base + BWD_B2B_SPAD_OFFSET;
-		ndev->limits.max_spads = BWD_MAX_SPADS;
-	} else {
-		ndev->reg_ofs.rdb = ndev->reg_base + BWD_PDOORBELL_OFFSET;
-		ndev->reg_ofs.spad_write = ndev->reg_base + BWD_SPAD_OFFSET;
-		ndev->limits.max_spads = BWD_MAX_COMPAT_SPADS;
-	}
-
 	ndev->limits.max_mw = BWD_MAX_MW;
+	ndev->limits.max_spads = BWD_MAX_SPADS;
 	ndev->limits.max_db_bits = BWD_MAX_DB_BITS;
 	ndev->limits.msix_cnt = BWD_MSIX_CNT;
 	ndev->bits_per_vector = BWD_DB_BITS_PER_VEC;

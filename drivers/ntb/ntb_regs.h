@@ -104,7 +104,6 @@
 
 #define BWD_MSIX_CNT		34
 #define BWD_MAX_SPADS		16
-#define BWD_MAX_COMPAT_SPADS	16
 #define BWD_MAX_DB_BITS		34
 #define BWD_DB_BITS_PER_VEC	1
 #define BWD_MAX_MW		2
