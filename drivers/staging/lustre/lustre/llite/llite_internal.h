@@ -784,8 +784,7 @@ void ll_intent_release(struct lookup_intent *);
 void ll_invalidate_aliases(struct inode *);
 void ll_frob_intent(struct lookup_intent **itp, struct lookup_intent *deft);
 void ll_lookup_finish_locks(struct lookup_intent *it, struct dentry *dentry);
-int ll_dcompare(const struct dentry *parent, const struct inode *pinode,
-		const struct dentry *dentry, const struct inode *inode,
+int ll_dcompare(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *d_name);
 int ll_revalidate_it_finish(struct ptlrpc_request *request,
 			    struct lookup_intent *it, struct dentry *de);
