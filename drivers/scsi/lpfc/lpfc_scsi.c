@@ -4386,12 +4386,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	if (scsi_sg_count(scsi_cmnd)) {
 		if (datadir == DMA_TO_DEVICE) {
 			iocb_cmd->ulpCommand = CMD_FCP_IWRITE64_CR;
-			if (sli4)
-				iocb_cmd->ulpPU = PARM_READ_CHECK;
-			else {
-				iocb_cmd->un.fcpi.fcpi_parm = 0;
-				iocb_cmd->ulpPU = 0;
-			}
+			iocb_cmd->ulpPU = PARM_READ_CHECK;
 			fcp_cmnd->fcpCntl3 = WRITE_DATA;
 			phba->fc4OutputRequests++;
 		} else {
