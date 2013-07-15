@@ -940,7 +940,7 @@ static struct net_device *sun3lance_dev;
 int __init init_module(void)
 {
 	sun3lance_dev = sun3lance_probe(-1);
-	return PTR_RET(sun3lance_dev);
+	return PTR_ERR_OR_ZERO(sun3lance_dev);
 }
 
 void __exit cleanup_module(void)

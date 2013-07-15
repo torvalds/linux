@@ -747,7 +747,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 	WARN_ON(atomic_xchg(
 		&fs_info->mutually_exclusive_operation_running, 1));
 	task = kthread_run(btrfs_dev_replace_kthread, fs_info, "btrfs-devrepl");
-	return PTR_RET(task);
+	return PTR_ERR_OR_ZERO(task);
 }
 
 static int btrfs_dev_replace_kthread(void *data)
