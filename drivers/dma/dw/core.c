@@ -650,10 +650,13 @@ static void dw_dma_tasklet(unsigned long data)
 static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 {
 	struct dw_dma *dw = dev_id;
-	u32 status;
+	u32 status = dma_readl(dw, STATUS_INT);
 
-	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__,
-			dma_readl(dw, STATUS_INT));
+	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__, status);
+
+	/* Check if we have any interrupt from the DMAC */
+	if (!status)
+		return IRQ_NONE;
 
 	/*
 	 * Just disable the interrupts. We'll turn them back on in the
@@ -1566,8 +1569,8 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	/* Disable BLOCK interrupts as well */
 	channel_clear_bit(dw, MASK.BLOCK, dw->all_chan_mask);
 
-	err = devm_request_irq(chip->dev, chip->irq, dw_dma_interrupt, 0,
-			       "dw_dmac", dw);
+	err = devm_request_irq(chip->dev, chip->irq, dw_dma_interrupt,
+			       IRQF_SHARED, "dw_dmac", dw);
 	if (err)
 		return err;
 
