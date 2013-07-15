@@ -149,6 +149,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include <asm/visws/cobalt.h>
 
