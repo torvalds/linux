@@ -1876,7 +1876,11 @@ static int sw_hcd_probe_host_only(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if(!g_sw_hcd_io.host_init_state){
+	if (g_sw_hcd_io.host_init_state) {
+		USBC_Host_StartSession(g_sw_hcd_io.usb_bsp_hdle);
+		USBC_ForceVbusValid(g_sw_hcd_io.usb_bsp_hdle,
+				    USBC_VBUS_TYPE_HIGH);
+	} else {
 		sw_usb_disable_hcd0();
 	}
 
