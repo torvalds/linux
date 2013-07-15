@@ -362,7 +362,10 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 		return 0;
 	}
 
-	/* Count, allocate and fill the ranges. */
+	/* Count, allocate and fill the ranges. The PFC SoC data pins array must
+	 * be sorted by pin numbers, and pins without a GPIO port must come
+	 * last.
+	 */
 	for (i = 1, nr_ranges = 1; i < pfc->info->nr_pins; ++i) {
 		if (pfc->info->pins[i-1].pin != pfc->info->pins[i].pin - 1)
 			nr_ranges++;
@@ -378,15 +381,20 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 	range->start = pfc->info->pins[0].pin;
 
 	for (i = 1; i < pfc->info->nr_pins; ++i) {
-		if (pfc->info->pins[i-1].pin != pfc->info->pins[i].pin - 1) {
-			range->end = pfc->info->pins[i-1].pin;
-			range++;
-			range->start = pfc->info->pins[i].pin;
-		}
+		if (pfc->info->pins[i-1].pin == pfc->info->pins[i].pin - 1)
+			continue;
+
+		range->end = pfc->info->pins[i-1].pin;
+		if (!(pfc->info->pins[i-1].configs & SH_PFC_PIN_CFG_NO_GPIO))
+			pfc->nr_gpio_pins = range->end + 1;
+
+		range++;
+		range->start = pfc->info->pins[i].pin;
 	}
 
 	range->end = pfc->info->pins[i-1].pin;
-	pfc->nr_gpio_pins = range->end + 1;
+	if (!(pfc->info->pins[i-1].configs & SH_PFC_PIN_CFG_NO_GPIO))
+		pfc->nr_gpio_pins = range->end + 1;
 
 	return 0;
 }

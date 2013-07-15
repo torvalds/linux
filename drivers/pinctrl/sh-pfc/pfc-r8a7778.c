@@ -1254,15 +1254,20 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP10_24_22,	CAN_CLK_C,	SEL_CANCLK_C),
 };
 
-static struct sh_pfc_pin pinmux_pins[] = {
-	PINMUX_GPIO_GP_ALL(),
-};
-
 /* Pin numbers for pins without a corresponding GPIO port number are computed
  * from the row and column numbers with a 1000 offset to avoid collisions with
  * GPIO port numbers.
  */
 #define PIN_NUMBER(row, col)		(1000+((row)-1)*25+(col)-1)
+
+static struct sh_pfc_pin pinmux_pins[] = {
+	PINMUX_GPIO_GP_ALL(),
+
+	/* Pins not associated with a GPIO port */
+	SH_PFC_PIN_NAMED(3, 20, C20),
+	SH_PFC_PIN_NAMED(20, 1, T1),
+	SH_PFC_PIN_NAMED(25, 2, Y2),
+};
 
 /* - macro */
 #define SH_PFC_PINS(name, args...) \

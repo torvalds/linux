@@ -364,9 +364,15 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 
 	pfc->gpio = chip;
 
-	/* Register the GPIO to pin mappings. */
+	/* Register the GPIO to pin mappings. As pins with GPIO ports must come
+	 * first in the ranges, skip the pins without GPIO ports by stopping at
+	 * the first range that contains such a pin.
+	 */
 	for (i = 0; i < pfc->nr_ranges; ++i) {
 		const struct sh_pfc_pin_range *range = &pfc->ranges[i];
+
+		if (range->start >= pfc->nr_gpio_pins)
+			break;
 
 		ret = gpiochip_add_pin_range(&chip->gpio_chip,
 					     dev_name(pfc->dev),
