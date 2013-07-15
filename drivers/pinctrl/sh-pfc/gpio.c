@@ -224,8 +224,8 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	struct gpio_chip *gc = &chip->gpio_chip;
 	int ret;
 
-	chip->pins = devm_kzalloc(pfc->dev, pfc->nr_pins * sizeof(*chip->pins),
-				  GFP_KERNEL);
+	chip->pins = devm_kzalloc(pfc->dev, pfc->info->nr_pins *
+				  sizeof(*chip->pins), GFP_KERNEL);
 	if (chip->pins == NULL)
 		return -ENOMEM;
 
