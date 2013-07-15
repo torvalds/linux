@@ -14,8 +14,6 @@
 #include <linux/bug.h>
 #include <linux/stringify.h>
 
-typedef unsigned short pinmux_enum_t;
-
 enum {
 	PINMUX_TYPE_NONE,
 	PINMUX_TYPE_FUNCTION,
@@ -30,7 +28,7 @@ enum {
 #define SH_PFC_PIN_CFG_PULL_DOWN	(1 << 3)
 
 struct sh_pfc_pin {
-	pinmux_enum_t enum_id;
+	u16 enum_id;
 	const char *name;
 	unsigned int configs;
 };
@@ -64,7 +62,7 @@ struct sh_pfc_function {
 };
 
 struct pinmux_func {
-	pinmux_enum_t enum_id;
+	u16 enum_id;
 	const char *name;
 };
 
@@ -83,27 +81,27 @@ struct pinmux_func {
 
 struct pinmux_cfg_reg {
 	unsigned long reg, reg_width, field_width;
-	const pinmux_enum_t *enum_ids;
+	const u16 *enum_ids;
 	const unsigned long *var_field_width;
 };
 
 #define PINMUX_CFG_REG(name, r, r_width, f_width) \
 	.reg = r, .reg_width = r_width, .field_width = f_width,		\
-	.enum_ids = (pinmux_enum_t [(r_width / f_width) * (1 << f_width)])
+	.enum_ids = (u16 [(r_width / f_width) * (1 << f_width)])
 
 #define PINMUX_CFG_REG_VAR(name, r, r_width, var_fw0, var_fwn...) \
 	.reg = r, .reg_width = r_width,	\
 	.var_field_width = (unsigned long [r_width]) { var_fw0, var_fwn, 0 }, \
-	.enum_ids = (pinmux_enum_t [])
+	.enum_ids = (u16 [])
 
 struct pinmux_data_reg {
 	unsigned long reg, reg_width;
-	const pinmux_enum_t *enum_ids;
+	const u16 *enum_ids;
 };
 
 #define PINMUX_DATA_REG(name, r, r_width) \
 	.reg = r, .reg_width = r_width,	\
-	.enum_ids = (pinmux_enum_t [r_width]) \
+	.enum_ids = (u16 [r_width]) \
 
 struct pinmux_irq {
 	int irq;
@@ -114,9 +112,9 @@ struct pinmux_irq {
 	{ .irq = irq_nr, .gpios = (unsigned short []) { ids, 0 } }	\
 
 struct pinmux_range {
-	pinmux_enum_t begin;
-	pinmux_enum_t end;
-	pinmux_enum_t force;
+	u16 begin;
+	u16 end;
+	u16 force;
 };
 
 struct sh_pfc;
@@ -152,7 +150,7 @@ struct sh_pfc_soc_info {
 	const struct pinmux_cfg_reg *cfg_regs;
 	const struct pinmux_data_reg *data_regs;
 
-	const pinmux_enum_t *gpio_data;
+	const u16 *gpio_data;
 	unsigned int gpio_data_size;
 
 	const struct pinmux_irq *gpio_irq;
@@ -199,7 +197,7 @@ struct sh_pfc_soc_info {
 #define PORT_ALL(str)	CPU_ALL_PORT(_PORT_ALL, PORT, str)
 #define GPIO_FN(str) PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
 
-/* helper macro for pinmux_enum_t */
+/* helper macro for pinmux data arrays */
 #define PORT_DATA_IO(nr)	\
 	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT,	\
 		    PORT##nr##_IN)

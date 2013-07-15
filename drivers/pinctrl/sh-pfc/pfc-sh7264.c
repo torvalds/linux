@@ -604,8 +604,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static const pinmux_enum_t pinmux_data[] = {
-
+static const u16 pinmux_data[] = {
 	/* Port A */
 	PINMUX_DATA(PA3_DATA, PA3_IN),
 	PINMUX_DATA(PA2_DATA, PA2_IN),

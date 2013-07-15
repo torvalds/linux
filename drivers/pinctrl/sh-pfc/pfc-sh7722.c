@@ -263,7 +263,7 @@ enum {
 	PINMUX_FUNCTION_END,
 };
 
-static const pinmux_enum_t pinmux_data[] = {
+static const u16 pinmux_data[] = {
 	/* PTA */
 	PINMUX_DATA(PTA7_DATA, PTA7_IN, PTA7_OUT),
 	PINMUX_DATA(PTA6_DATA, PTA6_IN),
