@@ -66,19 +66,6 @@ struct pinmux_func {
 	const char *name;
 };
 
-#define PINMUX_GPIO(gpio, data_or_mark)			\
-	[gpio] = {					\
-		.name = __stringify(gpio),		\
-		.enum_id = data_or_mark,		\
-	}
-#define PINMUX_GPIO_FN(gpio, base, data_or_mark)	\
-	[gpio - (base)] = {				\
-		.name = __stringify(gpio),		\
-		.enum_id = data_or_mark,		\
-	}
-
-#define PINMUX_DATA(data_or_mark, ids...) data_or_mark, ids, 0
-
 struct pinmux_cfg_reg {
 	unsigned long reg, reg_width, field_width;
 	const u16 *enum_ids;
@@ -159,26 +146,108 @@ struct sh_pfc_soc_info {
 	unsigned long unlock_reg;
 };
 
-/* helper macro for port */
+/* -----------------------------------------------------------------------------
+ * Helper macros to create pin and port lists
+ */
+
+/*
+ * sh_pfc_soc_info gpio_data array macros
+ */
+
+#define PINMUX_DATA(data_or_mark, ids...)	data_or_mark, ids, 0
+
+#define PINMUX_IPSR_NOGP(ispr, fn)					\
+	PINMUX_DATA(fn##_MARK, FN_##fn)
+#define PINMUX_IPSR_DATA(ipsr, fn)					\
+	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr)
+#define PINMUX_IPSR_NOGM(ispr, fn, ms)					\
+	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ms)
+#define PINMUX_IPSR_MSEL(ipsr, fn, ms)					\
+	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr, FN_##ms)
+#define PINMUX_IPSR_MODSEL_DATA(ipsr, fn, ms)				\
+	PINMUX_DATA(fn##_MARK, FN_##ms, FN_##ipsr, FN_##fn)
+
+/*
+ * GP port style (32 ports banks)
+ */
+
+#define PORT_GP_1(bank, pin, fn, sfx) fn(bank, pin, GP_##bank##_##pin, sfx)
+
+#define PORT_GP_32(bank, fn, sfx)					\
+	PORT_GP_1(bank, 0,  fn, sfx), PORT_GP_1(bank, 1,  fn, sfx),	\
+	PORT_GP_1(bank, 2,  fn, sfx), PORT_GP_1(bank, 3,  fn, sfx),	\
+	PORT_GP_1(bank, 4,  fn, sfx), PORT_GP_1(bank, 5,  fn, sfx),	\
+	PORT_GP_1(bank, 6,  fn, sfx), PORT_GP_1(bank, 7,  fn, sfx),	\
+	PORT_GP_1(bank, 8,  fn, sfx), PORT_GP_1(bank, 9,  fn, sfx),	\
+	PORT_GP_1(bank, 10, fn, sfx), PORT_GP_1(bank, 11, fn, sfx),	\
+	PORT_GP_1(bank, 12, fn, sfx), PORT_GP_1(bank, 13, fn, sfx),	\
+	PORT_GP_1(bank, 14, fn, sfx), PORT_GP_1(bank, 15, fn, sfx),	\
+	PORT_GP_1(bank, 16, fn, sfx), PORT_GP_1(bank, 17, fn, sfx),	\
+	PORT_GP_1(bank, 18, fn, sfx), PORT_GP_1(bank, 19, fn, sfx),	\
+	PORT_GP_1(bank, 20, fn, sfx), PORT_GP_1(bank, 21, fn, sfx),	\
+	PORT_GP_1(bank, 22, fn, sfx), PORT_GP_1(bank, 23, fn, sfx),	\
+	PORT_GP_1(bank, 24, fn, sfx), PORT_GP_1(bank, 25, fn, sfx),	\
+	PORT_GP_1(bank, 26, fn, sfx), PORT_GP_1(bank, 27, fn, sfx),	\
+	PORT_GP_1(bank, 28, fn, sfx), PORT_GP_1(bank, 29, fn, sfx),	\
+	PORT_GP_1(bank, 30, fn, sfx), PORT_GP_1(bank, 31, fn, sfx)
+
+#define PORT_GP_32_REV(bank, fn, sfx)					\
+	PORT_GP_1(bank, 31, fn, sfx), PORT_GP_1(bank, 30, fn, sfx),	\
+	PORT_GP_1(bank, 29, fn, sfx), PORT_GP_1(bank, 28, fn, sfx),	\
+	PORT_GP_1(bank, 27, fn, sfx), PORT_GP_1(bank, 26, fn, sfx),	\
+	PORT_GP_1(bank, 25, fn, sfx), PORT_GP_1(bank, 24, fn, sfx),	\
+	PORT_GP_1(bank, 23, fn, sfx), PORT_GP_1(bank, 22, fn, sfx),	\
+	PORT_GP_1(bank, 21, fn, sfx), PORT_GP_1(bank, 20, fn, sfx),	\
+	PORT_GP_1(bank, 19, fn, sfx), PORT_GP_1(bank, 18, fn, sfx),	\
+	PORT_GP_1(bank, 17, fn, sfx), PORT_GP_1(bank, 16, fn, sfx),	\
+	PORT_GP_1(bank, 15, fn, sfx), PORT_GP_1(bank, 14, fn, sfx),	\
+	PORT_GP_1(bank, 13, fn, sfx), PORT_GP_1(bank, 12, fn, sfx),	\
+	PORT_GP_1(bank, 11, fn, sfx), PORT_GP_1(bank, 10, fn, sfx),	\
+	PORT_GP_1(bank, 9,  fn, sfx), PORT_GP_1(bank, 8,  fn, sfx),	\
+	PORT_GP_1(bank, 7,  fn, sfx), PORT_GP_1(bank, 6,  fn, sfx),	\
+	PORT_GP_1(bank, 5,  fn, sfx), PORT_GP_1(bank, 4,  fn, sfx),	\
+	PORT_GP_1(bank, 3,  fn, sfx), PORT_GP_1(bank, 2,  fn, sfx),	\
+	PORT_GP_1(bank, 1,  fn, sfx), PORT_GP_1(bank, 0,  fn, sfx)
+
+/* GP_ALL(suffix) - Expand to a list of GP_#_#_suffix */
+#define _GP_ALL(bank, pin, name, sfx)	name##_##sfx
+#define GP_ALL(str)			CPU_ALL_PORT(_GP_ALL, str)
+
+/* PINMUX_GPIO_GP_ALL - Expand to a list of sh_pfc_pin entries */
+#define _GP_GPIO(bank, pin, _name, sfx)					\
+	[(bank * 32) + pin] = {						\
+		.name = __stringify(_name),				\
+		.enum_id = _name##_DATA,				\
+	}
+#define PINMUX_GPIO_GP_ALL()		CPU_ALL_PORT(_GP_GPIO, unused)
+
+/* PINMUX_DATA_GP_ALL -  Expand to a list of name_DATA, name_FN marks */
+#define _GP_DATA(bank, pin, name, sfx)	PINMUX_DATA(name##_DATA, name##_FN)
+#define PINMUX_DATA_GP_ALL()		CPU_ALL_PORT(_GP_DATA, unused)
+
+/*
+ * PORT style (linear pin space)
+ */
+
 #define PORT_1(fn, pfx, sfx) fn(pfx, sfx)
 
-#define PORT_10(fn, pfx, sfx) \
-	PORT_1(fn, pfx##0, sfx), PORT_1(fn, pfx##1, sfx),	\
-	PORT_1(fn, pfx##2, sfx), PORT_1(fn, pfx##3, sfx),	\
-	PORT_1(fn, pfx##4, sfx), PORT_1(fn, pfx##5, sfx),	\
-	PORT_1(fn, pfx##6, sfx), PORT_1(fn, pfx##7, sfx),	\
+#define PORT_10(fn, pfx, sfx)						\
+	PORT_1(fn, pfx##0, sfx), PORT_1(fn, pfx##1, sfx),		\
+	PORT_1(fn, pfx##2, sfx), PORT_1(fn, pfx##3, sfx),		\
+	PORT_1(fn, pfx##4, sfx), PORT_1(fn, pfx##5, sfx),		\
+	PORT_1(fn, pfx##6, sfx), PORT_1(fn, pfx##7, sfx),		\
 	PORT_1(fn, pfx##8, sfx), PORT_1(fn, pfx##9, sfx)
 
-#define PORT_10_REV(fn, pfx, sfx)	\
-	PORT_1(fn, pfx##9, sfx), PORT_1(fn, pfx##8, sfx),	\
-	PORT_1(fn, pfx##7, sfx), PORT_1(fn, pfx##6, sfx),	\
-	PORT_1(fn, pfx##5, sfx), PORT_1(fn, pfx##4, sfx),	\
-	PORT_1(fn, pfx##3, sfx), PORT_1(fn, pfx##2, sfx),	\
+#define PORT_10_REV(fn, pfx, sfx)					\
+	PORT_1(fn, pfx##9, sfx), PORT_1(fn, pfx##8, sfx),		\
+	PORT_1(fn, pfx##7, sfx), PORT_1(fn, pfx##6, sfx),		\
+	PORT_1(fn, pfx##5, sfx), PORT_1(fn, pfx##4, sfx),		\
+	PORT_1(fn, pfx##3, sfx), PORT_1(fn, pfx##2, sfx),		\
 	PORT_1(fn, pfx##1, sfx), PORT_1(fn, pfx##0, sfx)
 
-#define PORT_32(fn, pfx, sfx)					\
-	PORT_10(fn, pfx, sfx), PORT_10(fn, pfx##1, sfx),	\
-	PORT_10(fn, pfx##2, sfx), PORT_1(fn, pfx##30, sfx),	\
+#define PORT_32(fn, pfx, sfx)						\
+	PORT_10(fn, pfx, sfx), PORT_10(fn, pfx##1, sfx),		\
+	PORT_10(fn, pfx##2, sfx), PORT_1(fn, pfx##30, sfx),		\
 	PORT_1(fn, pfx##31, sfx)
 
 #define PORT_32_REV(fn, pfx, sfx)					\
@@ -187,22 +256,43 @@ struct sh_pfc_soc_info {
 	PORT_10_REV(fn, pfx, sfx)
 
 #define PORT_90(fn, pfx, sfx) \
-	PORT_10(fn, pfx##1, sfx), PORT_10(fn, pfx##2, sfx),	\
-	PORT_10(fn, pfx##3, sfx), PORT_10(fn, pfx##4, sfx),	\
-	PORT_10(fn, pfx##5, sfx), PORT_10(fn, pfx##6, sfx),	\
-	PORT_10(fn, pfx##7, sfx), PORT_10(fn, pfx##8, sfx),	\
+	PORT_10(fn, pfx##1, sfx), PORT_10(fn, pfx##2, sfx),		\
+	PORT_10(fn, pfx##3, sfx), PORT_10(fn, pfx##4, sfx),		\
+	PORT_10(fn, pfx##5, sfx), PORT_10(fn, pfx##6, sfx),		\
+	PORT_10(fn, pfx##7, sfx), PORT_10(fn, pfx##8, sfx),		\
 	PORT_10(fn, pfx##9, sfx)
 
-#define _PORT_ALL(pfx, sfx) pfx##_##sfx
-#define PORT_ALL(str)	CPU_ALL_PORT(_PORT_ALL, PORT, str)
-#define GPIO_FN(str) PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
+/* PORT_ALL(suffix) - Expand to a list of PORT_#_suffix */
+#define _PORT_ALL(pfx, sfx)		pfx##_##sfx
+#define PORT_ALL(str)			CPU_ALL_PORT(_PORT_ALL, PORT, str)
 
-/* helper macro for pinmux data arrays */
-#define PORT_DATA_IO(nr)	\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT,	\
-		    PORT##nr##_IN)
+/* PINMUX_GPIO - Expand to a sh_pfc_pin entry */
+#define PINMUX_GPIO(gpio, data_or_mark)					\
+	[gpio] = {							\
+		.name = __stringify(gpio),				\
+		.enum_id = data_or_mark,				\
+	}
 
-/* helper macro for top 4 bits in PORTnCR */
+/* PINMUX_DATA_ALL - Expand to a list of PORT_name_DATA, PORT_name_FN0,
+ *		     PORT_name_OUT, PORT_name_IN marks
+ */
+#define _PORT_DATA(pfx, sfx)						\
+	PINMUX_DATA(PORT##pfx##_DATA, PORT##pfx##_FN0,			\
+		    PORT##pfx##_OUT, PORT##pfx##_IN)
+#define PINMUX_DATA_ALL()		CPU_ALL_PORT(_PORT_DATA, , unused)
+
+/* GPIO_FN(name) - Expand to a sh_pfc_pin entry for a function GPIO */
+#define PINMUX_GPIO_FN(gpio, base, data_or_mark)			\
+	[gpio - (base)] = {						\
+		.name = __stringify(gpio),				\
+		.enum_id = data_or_mark,				\
+	}
+#define GPIO_FN(str)							\
+	PINMUX_GPIO_FN(GPIO_FN_##str, PINMUX_FN_BASE, str##_MARK)
+
+/*
+ * PORTnCR macro
+ */
 #define _PCRH(in, in_pd, in_pu, out)	\
 	0, (out), (in), 0,		\
 	0, 0, 0, 0,			\

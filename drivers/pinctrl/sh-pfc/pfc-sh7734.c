@@ -31,6 +31,12 @@
 	PORT_32(fn, pfx##_4_, sfx),				\
 	CPU_32_PORT5(fn, pfx##_5_, sfx)
 
+#undef _GP_GPIO
+#undef _GP_DATA
+#undef GP_ALL
+#undef PINMUX_GPIO_GP_ALL
+#undef PINMUX_DATA_GP_ALL
+
 #define _GP_GPIO(pfx, sfx) PINMUX_GPIO(GPIO_GP##pfx, GP##pfx##_DATA)
 #define _GP_DATA(pfx, sfx) PINMUX_DATA(GP##pfx##_DATA, GP##pfx##_FN,	\
 				       GP##pfx##_IN, GP##pfx##_OUT)
@@ -44,10 +50,6 @@
 
 #define GP_INOUTSEL(bank) PORT_32_REV(_GP_INOUTSEL, _##bank##_, unused)
 #define GP_INDT(bank) PORT_32_REV(_GP_INDT, _##bank##_, unused)
-
-#define PINMUX_IPSR_DATA(ipsr, fn) PINMUX_DATA(fn##_MARK, FN_##ipsr, FN_##fn)
-#define PINMUX_IPSR_MODSEL_DATA(ipsr, fn, ms) PINMUX_DATA(fn##_MARK, FN_##ms, \
-							  FN_##ipsr, FN_##fn)
 
 enum {
 	PINMUX_RESERVED = 0,
