@@ -302,7 +302,7 @@ ptlrpc_lprocfs_req_history_max_seq_write(struct file *file, const char *buffer,
 	 * hose a kernel by allowing the request history to grow too
 	 * far. */
 	bufpages = (svc->srv_buf_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	if (val > num_physpages/(2 * bufpages))
+	if (val > totalram_pages / (2 * bufpages))
 		return -ERANGE;
 
 	spin_lock(&svc->srv_lock);

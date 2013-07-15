@@ -202,12 +202,12 @@ int LL_PROC_PROTO(proc_max_dirty_pages_in_mb)
 					       1 << (20 - PAGE_CACHE_SHIFT));
 		/* Don't allow them to let dirty pages exceed 90% of system
 		 * memory and set a hard minimum of 4MB. */
-		if (obd_max_dirty_pages > ((num_physpages / 10) * 9)) {
+		if (obd_max_dirty_pages > ((totalram_pages / 10) * 9)) {
 			CERROR("Refusing to set max dirty pages to %u, which "
 			       "is more than 90%% of available RAM; setting "
 			       "to %lu\n", obd_max_dirty_pages,
-			       ((num_physpages / 10) * 9));
-			obd_max_dirty_pages = ((num_physpages / 10) * 9);
+			       ((totalram_pages / 10) * 9));
+			obd_max_dirty_pages = ((totalram_pages / 10) * 9);
 		} else if (obd_max_dirty_pages < 4 << (20 - PAGE_CACHE_SHIFT)) {
 			obd_max_dirty_pages = 4 << (20 - PAGE_CACHE_SHIFT);
 		}

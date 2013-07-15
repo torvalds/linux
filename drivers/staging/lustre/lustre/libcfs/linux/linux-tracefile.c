@@ -269,7 +269,7 @@ void cfs_print_to_console(struct ptldebug_header *hdr, int mask,
 
 int cfs_trace_max_debug_mb(void)
 {
-	int  total_mb = (num_physpages >> (20 - PAGE_SHIFT));
+	int  total_mb = (totalram_pages >> (20 - PAGE_SHIFT));
 
 	return MAX(512, (total_mb * 80)/100);
 }
