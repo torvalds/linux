@@ -37,18 +37,12 @@
 #include <asm/string.h>
 #include <linux/clk.h>
 
+#include <plat/system.h>
 #include <plat/sys_config.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
 
 #include "8250.h"
-#if defined(CONFIG_ARCH_SUN4I) || defined(CONFIG_ARCH_SUN7I)
-#define MAX_PORTS	    8
-#elif defined(CONFIG_ARCH_SUN5I)
-#define MAX_PORTS	    4
-#else
-#error "Unknown chip ID for Serial"
-#endif
 
 /* Register base define */
 #define UART_BASE       (0x01C28000)
@@ -321,16 +315,26 @@ static struct platform_device sw_uart_dev[] = {
 	},
 };
 
+static int sw_serial_get_max_ports(void)
+{
+	if (sunxi_is_a13())
+		return 2;
+	else if (sunxi_is_a10s())
+		return 4;
+	else /* a10 / a20 */
+		return 8;
+}
+
 static unsigned uart_used;
 static int __init sw_serial_init(void)
 {
 	int ret;
-	int i;
+	int i, max = sw_serial_get_max_ports();
 	int used = 0;
 	char uart_para[16];
 
 	uart_used = 0;
-	for (i = 0; i < MAX_PORTS; i++, used = 0) {
+	for (i = 0; i < max; i++, used = 0) {
 		sprintf(uart_para, "uart_para%d", i);
 		ret = script_parser_fetch(uart_para, "uart_used", &used, sizeof(int));
 		if (ret)
@@ -353,11 +357,12 @@ static int __init sw_serial_init(void)
 
 static void __exit sw_serial_exit(void)
 {
-	int i;
+	int i, max = sw_serial_get_max_ports();
+
 	if (uart_used)
 		platform_driver_unregister(&sw_serial_driver);
 
-	for (i = 0; i < MAX_PORTS; i++) {
+	for (i = 0; i < max; i++) {
 		if (uart_used & (1 << i))
 			platform_device_unregister(&sw_uart_dev[i]);
 	}
