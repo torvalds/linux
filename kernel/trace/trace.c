@@ -3537,14 +3537,14 @@ static const char readme_msg[] =
 	"\n  snapshot\t\t- Like 'trace' but shows the content of the static snapshot buffer\n"
 	"\t\t\t  Read the contents for more information\n"
 #endif
-#ifdef CONFIG_STACKTRACE
+#ifdef CONFIG_STACK_TRACER
 	"  stack_trace\t\t- Shows the max stack trace when active\n"
 	"  stack_max_size\t- Shows current max stack size that was traced\n"
 	"\t\t\t  Write into this file to reset the max size (trigger a new trace)\n"
 #ifdef CONFIG_DYNAMIC_FTRACE
 	"  stack_trace_filter\t- Like set_ftrace_filter but limits what stack_trace traces\n"
 #endif
-#endif /* CONFIG_STACKTRACE */
+#endif /* CONFIG_STACK_TRACER */
 ;
 
 static ssize_t
