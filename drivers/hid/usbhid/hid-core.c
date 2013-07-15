@@ -664,6 +664,19 @@ static void hid_led(struct work_struct *work)
 		return;
 	}
 
+	/*
+	 * field->report is accessed unlocked regarding HID core. So there might
+	 * be another incoming SET-LED request from user-space, which changes
+	 * the LED state while we assemble our outgoing buffer. However, this
+	 * doesn't matter as hid_output_report() correctly converts it into a
+	 * boolean value no matter what information is currently set on the LED
+	 * field (even garbage). So the remote device will always get a valid
+	 * request.
+	 * And in case we send a wrong value, a next hid_led() worker is spawned
+	 * for every SET-LED request so the following hid_led() worker will send
+	 * the correct value, guaranteed!
+	 */
+
 	spin_lock_irqsave(&usbhid->lock, flags);
 	if (!test_bit(HID_DISCONNECTED, &usbhid->iofl)) {
 		usbhid->ledcount = hidinput_count_leds(hid);
@@ -678,7 +691,6 @@ static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, un
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct usbhid_device *usbhid = hid->driver_data;
 	struct hid_field *field;
-	unsigned long flags;
 	int offset;
 
 	if (type == EV_FF)
@@ -692,9 +704,7 @@ static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, un
 		return -1;
 	}
 
-	spin_lock_irqsave(&usbhid->lock, flags);
 	hid_set_field(field, offset, value);
-	spin_unlock_irqrestore(&usbhid->lock, flags);
 
 	/*
 	 * Defer performing requested LED action.
