@@ -4261,8 +4261,8 @@ got_allocated_blocks:
 		/* not a good idea to call discard here directly,
 		 * but otherwise we'd need to call it every free() */
 		ext4_discard_preallocations(inode);
-		ext4_free_blocks(handle, inode, NULL, ext4_ext_pblock(&newex),
-				 ext4_ext_get_actual_len(&newex), fb_flags);
+		ext4_free_blocks(handle, inode, NULL, newblock,
+				 EXT4_C2B(sbi, allocated_clusters), fb_flags);
 		goto out2;
 	}
 
