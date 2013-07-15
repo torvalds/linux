@@ -438,14 +438,6 @@ struct rmtacl_ctl_table {
 
 #define EE_HASHES       32
 
-struct eacl_entry {
-	struct list_head	    ee_list;
-	pid_t		 ee_key; /* hash key */
-	struct lu_fid	 ee_fid;
-	int		   ee_type; /* ACL type for ACCESS or DEFAULT */
-	ext_acl_xattr_header *ee_acl;
-};
-
 struct eacl_table {
 	spinlock_t	et_lock;
 	struct list_head	et_entries[EE_HASHES];
@@ -1168,6 +1160,14 @@ void ll_ra_stats_inc(struct address_space *mapping, enum ra_stat which);
 
 /* llite/llite_rmtacl.c */
 #ifdef CONFIG_FS_POSIX_ACL
+struct eacl_entry {
+	struct list_head	    ee_list;
+	pid_t		 ee_key; /* hash key */
+	struct lu_fid	 ee_fid;
+	int		   ee_type; /* ACL type for ACCESS or DEFAULT */
+	ext_acl_xattr_header *ee_acl;
+};
+
 obd_valid rce_ops2valid(int ops);
 struct rmtacl_ctl_entry *rct_search(struct rmtacl_ctl_table *rct, pid_t key);
 int rct_add(struct rmtacl_ctl_table *rct, pid_t key, int ops);
@@ -1183,6 +1183,11 @@ struct eacl_entry *et_search_del(struct eacl_table *et, pid_t key,
 void et_search_free(struct eacl_table *et, pid_t key);
 void et_init(struct eacl_table *et);
 void et_fini(struct eacl_table *et);
+#else
+static inline obd_valid rce_ops2valid(int ops)
+{
+	return 0;
+}
 #endif
 
 /* statahead.c */

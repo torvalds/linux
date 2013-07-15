@@ -112,9 +112,11 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	struct ptlrpc_request *req;
 	int xattr_type, rc;
 	struct obd_capa *oc;
+#ifdef CONFIG_FS_POSIX_ACL
 	posix_acl_xattr_header *new_value = NULL;
 	struct rmtacl_ctl_entry *rce = NULL;
 	ext_acl_xattr_header *acl = NULL;
+#endif
 	const char *pv = value;
 	ENTRY;
 
