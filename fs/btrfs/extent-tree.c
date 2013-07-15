@@ -7552,11 +7552,6 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	wc->reada_count = BTRFS_NODEPTRS_PER_BLOCK(root);
 
 	while (1) {
-		if (!for_reloc && btrfs_need_cleaner_sleep(root)) {
-			pr_debug("btrfs: drop snapshot early exit\n");
-			err = -EAGAIN;
-			goto out_end_trans;
-		}
 
 		ret = walk_down_tree(trans, root, path, wc);
 		if (ret < 0) {
@@ -7584,7 +7579,8 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		}
 
 		BUG_ON(wc->level == 0);
-		if (btrfs_should_end_transaction(trans, tree_root)) {
+		if (btrfs_should_end_transaction(trans, tree_root) ||
+		    (!for_reloc && btrfs_need_cleaner_sleep(root))) {
 			ret = btrfs_update_root(trans, tree_root,
 						&root->root_key,
 						root_item);
@@ -7595,6 +7591,12 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 			}
 
 			btrfs_end_transaction_throttle(trans, tree_root);
+			if (!for_reloc && btrfs_need_cleaner_sleep(root)) {
+				pr_debug("btrfs: drop snapshot early exit\n");
+				err = -EAGAIN;
+				goto out_free;
+			}
+
 			trans = btrfs_start_transaction(tree_root, 0);
 			if (IS_ERR(trans)) {
 				err = PTR_ERR(trans);
