@@ -73,7 +73,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 	if (si->mmio_base_low != mem || si->gsi_interrupt != irq)
 		return 0;
 
-	vendor_id = le32_to_cpu(grp->vendor_id);
+	vendor_id = le32_to_cpu((__force __le32)grp->vendor_id);
 	dev_dbg(&adev->dev, "matches with %.4s%04X (rev %u)\n",
 		(char *)&vendor_id, grp->device_id, grp->revision);
 
