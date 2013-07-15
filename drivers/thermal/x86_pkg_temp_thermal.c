@@ -54,6 +54,8 @@ MODULE_PARM_DESC(notify_delay_ms,
 * is some wrong values returned by cpuid for number of thresholds.
 */
 #define MAX_NUMBER_OF_TRIPS	2
+/* Limit number of package temp zones */
+#define MAX_PKG_TEMP_ZONE_IDS	256
 
 struct phy_dev_entry {
 	struct list_head list;
@@ -399,6 +401,9 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 	cpuid(6, &eax, &ebx, &ecx, &edx);
 	thres_count = ebx & 0x07;
 	if (!thres_count)
+		return -ENODEV;
+
+	if (topology_physical_package_id(cpu) > MAX_PKG_TEMP_ZONE_IDS)
 		return -ENODEV;
 
 	thres_count = clamp_val(thres_count, 0, MAX_NUMBER_OF_TRIPS);
