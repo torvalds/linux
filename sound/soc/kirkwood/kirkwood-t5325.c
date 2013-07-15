@@ -15,9 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/soc.h>
-#include <mach/kirkwood.h>
 #include <linux/platform_data/asoc-kirkwood.h>
-#include <asm/mach-types.h>
 #include "../codecs/alc5623.h"
 
 static int t5325_hw_params(struct snd_pcm_substream *substream,
