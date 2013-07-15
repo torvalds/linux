@@ -806,7 +806,10 @@ static int machine__create_modules(struct machine *machine)
 	free(line);
 	fclose(file);
 
-	return machine__set_modules_path(machine);
+	if (machine__set_modules_path(machine) < 0) {
+		pr_debug("Problems setting modules path maps, continuing anyway...\n");
+	}
+	return 0;
 
 out_delete_line:
 	free(line);
