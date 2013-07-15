@@ -19,6 +19,8 @@
  * http://www.gnu.org/copyleft/gpl.html.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -130,10 +132,8 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 
 	intf = usb_find_interface(&usbtmc_driver, iminor(inode));
 	if (!intf) {
-		printk(KERN_ERR KBUILD_MODNAME
-		       ": can not find device for minor %d", iminor(inode));
-		retval = -ENODEV;
-		goto exit;
+		pr_err("can not find device for minor %d", iminor(inode));
+		return -ENODEV;
 	}
 
 	data = usb_get_intfdata(intf);
@@ -142,7 +142,6 @@ static int usbtmc_open(struct inode *inode, struct file *filp)
 	/* Store pointer in file structure's private data field */
 	filp->private_data = data;
 
-exit:
 	return retval;
 }
 
