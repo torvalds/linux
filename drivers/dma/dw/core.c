@@ -37,16 +37,22 @@
  * which does not support descriptor writeback.
  */
 
+static inline bool is_request_line_unset(struct dw_dma_chan *dwc)
+{
+	return dwc->request_line == (typeof(dwc->request_line))~0;
+}
+
 static inline void dwc_set_masters(struct dw_dma_chan *dwc)
 {
 	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
 	struct dw_dma_slave *dws = dwc->chan.private;
 	unsigned char mmax = dw->nr_masters - 1;
 
-	if (dwc->request_line == ~0) {
-		dwc->src_master = min_t(unsigned char, mmax, dwc_get_sms(dws));
-		dwc->dst_master = min_t(unsigned char, mmax, dwc_get_dms(dws));
-	}
+	if (!is_request_line_unset(dwc))
+		return;
+
+	dwc->src_master = min_t(unsigned char, mmax, dwc_get_sms(dws));
+	dwc->dst_master = min_t(unsigned char, mmax, dwc_get_dms(dws));
 }
 
 #define DWC_DEFAULT_CTLLO(_chan) ({				\
@@ -984,7 +990,7 @@ set_runtime_config(struct dma_chan *chan, struct dma_slave_config *sconfig)
 	dwc->direction = sconfig->direction;
 
 	/* Take the request line from slave_id member */
-	if (dwc->request_line == ~0)
+	if (is_request_line_unset(dwc))
 		dwc->request_line = sconfig->slave_id;
 
 	convert_burst(&dwc->dma_sconfig.src_maxburst);
