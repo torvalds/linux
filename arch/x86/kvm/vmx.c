@@ -7969,6 +7969,8 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 				   struct vmcs12 *vmcs12)
 {
+	struct kvm_segment seg;
+
 	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_EFER)
 		vcpu->arch.efer = vmcs12->host_ia32_efer;
 	else if (vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE)
@@ -8022,22 +8024,58 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	vmcs_writel(GUEST_SYSENTER_EIP, vmcs12->host_ia32_sysenter_eip);
 	vmcs_writel(GUEST_IDTR_BASE, vmcs12->host_idtr_base);
 	vmcs_writel(GUEST_GDTR_BASE, vmcs12->host_gdtr_base);
-	vmcs_writel(GUEST_TR_BASE, vmcs12->host_tr_base);
-	vmcs_writel(GUEST_GS_BASE, vmcs12->host_gs_base);
-	vmcs_writel(GUEST_FS_BASE, vmcs12->host_fs_base);
-	vmcs_write16(GUEST_ES_SELECTOR, vmcs12->host_es_selector);
-	vmcs_write16(GUEST_CS_SELECTOR, vmcs12->host_cs_selector);
-	vmcs_write16(GUEST_SS_SELECTOR, vmcs12->host_ss_selector);
-	vmcs_write16(GUEST_DS_SELECTOR, vmcs12->host_ds_selector);
-	vmcs_write16(GUEST_FS_SELECTOR, vmcs12->host_fs_selector);
-	vmcs_write16(GUEST_GS_SELECTOR, vmcs12->host_gs_selector);
-	vmcs_write16(GUEST_TR_SELECTOR, vmcs12->host_tr_selector);
 
 	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_PAT)
 		vmcs_write64(GUEST_IA32_PAT, vmcs12->host_ia32_pat);
 	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
 		vmcs_write64(GUEST_IA32_PERF_GLOBAL_CTRL,
 			vmcs12->host_ia32_perf_global_ctrl);
+
+	/* Set L1 segment info according to Intel SDM
+	    27.5.2 Loading Host Segment and Descriptor-Table Registers */
+	seg = (struct kvm_segment) {
+		.base = 0,
+		.limit = 0xFFFFFFFF,
+		.selector = vmcs12->host_cs_selector,
+		.type = 11,
+		.present = 1,
+		.s = 1,
+		.g = 1
+	};
+	if (vmcs12->vm_exit_controls & VM_EXIT_HOST_ADDR_SPACE_SIZE)
+		seg.l = 1;
+	else
+		seg.db = 1;
+	vmx_set_segment(vcpu, &seg, VCPU_SREG_CS);
+	seg = (struct kvm_segment) {
+		.base = 0,
+		.limit = 0xFFFFFFFF,
+		.type = 3,
+		.present = 1,
+		.s = 1,
+		.db = 1,
+		.g = 1
+	};
+	seg.selector = vmcs12->host_ds_selector;
+	vmx_set_segment(vcpu, &seg, VCPU_SREG_DS);
+	seg.selector = vmcs12->host_es_selector;
+	vmx_set_segment(vcpu, &seg, VCPU_SREG_ES);
+	seg.selector = vmcs12->host_ss_selector;
+	vmx_set_segment(vcpu, &seg, VCPU_SREG_SS);
+	seg.selector = vmcs12->host_fs_selector;
+	seg.base = vmcs12->host_fs_base;
+	vmx_set_segment(vcpu, &seg, VCPU_SREG_FS);
+	seg.selector = vmcs12->host_gs_selector;
+	seg.base = vmcs12->host_gs_base;
+	vmx_set_segment(vcpu, &seg, VCPU_SREG_GS);
+	seg = (struct kvm_segment) {
+		.base = 0,
+		.limit = 0x67,
+		.selector = vmcs12->host_tr_selector,
+		.type = 11,
+		.present = 1
+	};
+	vmx_set_segment(vcpu, &seg, VCPU_SREG_TR);
 
 	kvm_set_dr(vcpu, 7, 0x400);
 	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
