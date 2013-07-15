@@ -1,1 +1,1 @@
-obj-$(CONFIG_LNET) := klnds/ lnet/ selftest/
+obj-$(CONFIG_LNET) += lnet/ klnds/ selftest/
