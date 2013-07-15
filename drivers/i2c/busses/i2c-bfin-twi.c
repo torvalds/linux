@@ -582,6 +582,7 @@ static struct i2c_algorithm bfin_twi_algorithm = {
 	.functionality = bfin_twi_functionality,
 };
 
+#ifdef CONFIG_PM_SLEEP
 static int i2c_bfin_twi_suspend(struct device *dev)
 {
 	struct bfin_twi_iface *iface = dev_get_drvdata(dev);
@@ -619,6 +620,10 @@ static int i2c_bfin_twi_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(i2c_bfin_twi_pm,
 			 i2c_bfin_twi_suspend, i2c_bfin_twi_resume);
+#define I2C_BFIN_TWI_PM_OPS	(&i2c_bfin_twi_pm)
+#else
+#define I2C_BFIN_TWI_PM_OPS	NULL
+#endif
 
 static int i2c_bfin_twi_probe(struct platform_device *pdev)
 {
@@ -746,7 +751,7 @@ static struct platform_driver i2c_bfin_twi_driver = {
 	.driver		= {
 		.name	= "i2c-bfin-twi",
 		.owner	= THIS_MODULE,
-		.pm	= &i2c_bfin_twi_pm,
+		.pm	= I2C_BFIN_TWI_PM_OPS,
 	},
 };
 
