@@ -214,9 +214,12 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		       struct dentry *child)
 {
 	struct inode *dir = dentry->d_inode;
-	struct ll_getname_data lgd;
-	__u64 offset = 0;
 	int rc;
+	struct ll_getname_data lgd = {
+		.lgd_name = name,
+		.lgd_fid = ll_i2info(child->d_inode)->lli_fid,
+		.ctx.actor = ll_nfs_get_name_filldir,
+	};
 	ENTRY;
 
 	if (!dir || !S_ISDIR(dir->i_mode))
@@ -225,12 +228,8 @@ static int ll_get_name(struct dentry *dentry, char *name,
 	if (!dir->i_fop)
 		GOTO(out, rc = -EINVAL);
 
-	lgd.lgd_name = name;
-	lgd.lgd_fid = ll_i2info(child->d_inode)->lli_fid;
-	lgd.lgd_found = 0;
-
 	mutex_lock(&dir->i_mutex);
-	rc = ll_dir_read(dir, &offset, &lgd, ll_nfs_get_name_filldir);
+	rc = ll_dir_read(dir, &lgd.ctx);
 	mutex_unlock(&dir->i_mutex);
 	if (!rc && !lgd.lgd_found)
 		rc = -ENOENT;
