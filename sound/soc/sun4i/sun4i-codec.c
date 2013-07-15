@@ -1647,6 +1647,8 @@ static int __init sun4i_codec_init(void)
 	int ret = 0, audio_used = 0;
 
 	ret = script_parser_fetch("audio_para", "audio_used", &audio_used, 1);
+	if (ret != 0)
+		return -ENODEV;
 
 	ret = script_parser_fetch("audio_para", "playback_used", &has_playback, 1);
 	/* On error set playback to 1 as this is a linux-sunxi.org extension */
@@ -1662,7 +1664,7 @@ static int __init sun4i_codec_init(void)
 	else
 		has_capture = 0;
 
-	if (ret != 0 || !audio_used || (!has_playback && !has_capture))
+	if (!audio_used || (!has_playback && !has_capture))
 		return -ENODEV;
 
 	ret = platform_device_register(&sun4i_device_codec);
