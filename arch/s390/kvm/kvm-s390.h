@@ -136,6 +136,7 @@ int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 						    u64 cr6, u64 schid);
+int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
 
 /* implemented in priv.c */
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
@@ -162,5 +163,6 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
 /* implemented in interrupt.c */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int psw_extint_disabled(struct kvm_vcpu *vcpu);
+void kvm_s390_destroy_adapters(struct kvm *kvm);
 
 #endif

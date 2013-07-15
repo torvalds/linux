@@ -1,7 +1,7 @@
 /*
  * handling kvm guest interrupts
  *
- * Copyright IBM Corp. 2008
+ * Copyright IBM Corp. 2008,2014
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -1054,6 +1054,171 @@ static int enqueue_floating_irq(struct kvm_device *dev,
 	return r;
 }
 
+static struct s390_io_adapter *get_io_adapter(struct kvm *kvm, unsigned int id)
+{
+	if (id >= MAX_S390_IO_ADAPTERS)
+		return NULL;
+	return kvm->arch.adapters[id];
+}
+
+static int register_io_adapter(struct kvm_device *dev,
+			       struct kvm_device_attr *attr)
+{
+	struct s390_io_adapter *adapter;
+	struct kvm_s390_io_adapter adapter_info;
+
+	if (copy_from_user(&adapter_info,
+			   (void __user *)attr->addr, sizeof(adapter_info)))
+		return -EFAULT;
+
+	if ((adapter_info.id >= MAX_S390_IO_ADAPTERS) ||
+	    (dev->kvm->arch.adapters[adapter_info.id] != NULL))
+		return -EINVAL;
+
+	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	if (!adapter)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&adapter->maps);
+	init_rwsem(&adapter->maps_lock);
+	atomic_set(&adapter->nr_maps, 0);
+	adapter->id = adapter_info.id;
+	adapter->isc = adapter_info.isc;
+	adapter->maskable = adapter_info.maskable;
+	adapter->masked = false;
+	adapter->swap = adapter_info.swap;
+	dev->kvm->arch.adapters[adapter->id] = adapter;
+
+	return 0;
+}
+
+int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked)
+{
+	int ret;
+	struct s390_io_adapter *adapter = get_io_adapter(kvm, id);
+
+	if (!adapter || !adapter->maskable)
+		return -EINVAL;
+	ret = adapter->masked;
+	adapter->masked = masked;
+	return ret;
+}
+
+static int kvm_s390_adapter_map(struct kvm *kvm, unsigned int id, __u64 addr)
+{
+	struct s390_io_adapter *adapter = get_io_adapter(kvm, id);
+	struct s390_map_info *map;
+	int ret;
+
+	if (!adapter || !addr)
+		return -EINVAL;
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (!map) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	INIT_LIST_HEAD(&map->list);
+	map->guest_addr = addr;
+	map->addr = gmap_translate(addr, kvm->arch.gmap);
+	if (map->addr == -EFAULT) {
+		ret = -EFAULT;
+		goto out;
+	}
+	ret = get_user_pages_fast(map->addr, 1, 1, &map->page);
+	if (ret < 0)
+		goto out;
+	BUG_ON(ret != 1);
+	down_write(&adapter->maps_lock);
+	if (atomic_inc_return(&adapter->nr_maps) < MAX_S390_ADAPTER_MAPS) {
+		list_add_tail(&map->list, &adapter->maps);
+		ret = 0;
+	} else {
+		put_page(map->page);
+		ret = -EINVAL;
+	}
+	up_write(&adapter->maps_lock);
+out:
+	if (ret)
+		kfree(map);
+	return ret;
+}
+
+static int kvm_s390_adapter_unmap(struct kvm *kvm, unsigned int id, __u64 addr)
+{
+	struct s390_io_adapter *adapter = get_io_adapter(kvm, id);
+	struct s390_map_info *map, *tmp;
+	int found = 0;
+
+	if (!adapter || !addr)
+		return -EINVAL;
+
+	down_write(&adapter->maps_lock);
+	list_for_each_entry_safe(map, tmp, &adapter->maps, list) {
+		if (map->guest_addr == addr) {
+			found = 1;
+			atomic_dec(&adapter->nr_maps);
+			list_del(&map->list);
+			put_page(map->page);
+			kfree(map);
+			break;
+		}
+	}
+	up_write(&adapter->maps_lock);
+
+	return found ? 0 : -EINVAL;
+}
+
+void kvm_s390_destroy_adapters(struct kvm *kvm)
+{
+	int i;
+	struct s390_map_info *map, *tmp;
+
+	for (i = 0; i < MAX_S390_IO_ADAPTERS; i++) {
+		if (!kvm->arch.adapters[i])
+			continue;
+		list_for_each_entry_safe(map, tmp,
+					 &kvm->arch.adapters[i]->maps, list) {
+			list_del(&map->list);
+			put_page(map->page);
+			kfree(map);
+		}
+		kfree(kvm->arch.adapters[i]);
+	}
+}
+
+static int modify_io_adapter(struct kvm_device *dev,
+			     struct kvm_device_attr *attr)
+{
+	struct kvm_s390_io_adapter_req req;
+	struct s390_io_adapter *adapter;
+	int ret;
+
+	if (copy_from_user(&req, (void __user *)attr->addr, sizeof(req)))
+		return -EFAULT;
+
+	adapter = get_io_adapter(dev->kvm, req.id);
+	if (!adapter)
+		return -EINVAL;
+	switch (req.type) {
+	case KVM_S390_IO_ADAPTER_MASK:
+		ret = kvm_s390_mask_adapter(dev->kvm, req.id, req.mask);
+		if (ret > 0)
+			ret = 0;
+		break;
+	case KVM_S390_IO_ADAPTER_MAP:
+		ret = kvm_s390_adapter_map(dev->kvm, req.id, req.addr);
+		break;
+	case KVM_S390_IO_ADAPTER_UNMAP:
+		ret = kvm_s390_adapter_unmap(dev->kvm, req.id, req.addr);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 {
 	int r = 0;
@@ -1081,6 +1246,12 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 		synchronize_srcu(&dev->kvm->srcu);
 		kvm_for_each_vcpu(i, vcpu, dev->kvm)
 			kvm_clear_async_pf_completion_queue(vcpu);
+		break;
+	case KVM_DEV_FLIC_ADAPTER_REGISTER:
+		r = register_io_adapter(dev, attr);
+		break;
+	case KVM_DEV_FLIC_ADAPTER_MODIFY:
+		r = modify_io_adapter(dev, attr);
 		break;
 	default:
 		r = -EINVAL;

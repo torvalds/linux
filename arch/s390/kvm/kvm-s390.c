@@ -343,6 +343,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	debug_unregister(kvm->arch.dbf);
 	if (!kvm_is_ucontrol(kvm))
 		gmap_free(kvm->arch.gmap);
+	kvm_s390_destroy_adapters(kvm);
 }
 
 /* Section: vcpu related */
