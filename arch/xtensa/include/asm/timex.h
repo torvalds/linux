@@ -36,7 +36,6 @@
 #endif
 
 extern unsigned long ccount_freq;
-#define CCOUNT_PER_JIFFY (ccount_freq / HZ)
 
 typedef unsigned long long cycles_t;
 
