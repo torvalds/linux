@@ -586,8 +586,8 @@ struct kvm_fpu {
 
 4.24 KVM_CREATE_IRQCHIP
 
-Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64, ARM, arm64
+Capability: KVM_CAP_IRQCHIP, KVM_CAP_S390_IRQCHIP (s390)
+Architectures: x86, ia64, ARM, arm64, s390
 Type: vm ioctl
 Parameters: none
 Returns: 0 on success, -1 on error
@@ -596,7 +596,10 @@ Creates an interrupt controller model in the kernel.  On x86, creates a virtual
 ioapic, a virtual PIC (two PICs, nested), and sets up future vcpus to have a
 local APIC.  IRQ routing for GSIs 0-15 is set to both PIC and IOAPIC; GSI 16-23
 only go to the IOAPIC.  On ia64, a IOSAPIC is created. On ARM/arm64, a GIC is
-created.
+created. On s390, a dummy irq routing table is created.
+
+Note that on s390 the KVM_CAP_S390_IRQCHIP vm capability needs to be enabled
+before KVM_CREATE_IRQCHIP can be used.
 
 
 4.25 KVM_IRQ_LINE
@@ -1336,7 +1339,7 @@ KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
 4.52 KVM_SET_GSI_ROUTING
 
 Capability: KVM_CAP_IRQ_ROUTING
-Architectures: x86 ia64
+Architectures: x86 ia64 s390
 Type: vm ioctl
 Parameters: struct kvm_irq_routing (in)
 Returns: 0 on success, -1 on error
@@ -1359,6 +1362,7 @@ struct kvm_irq_routing_entry {
 	union {
 		struct kvm_irq_routing_irqchip irqchip;
 		struct kvm_irq_routing_msi msi;
+		struct kvm_irq_routing_s390_adapter adapter;
 		__u32 pad[8];
 	} u;
 };
@@ -1366,6 +1370,7 @@ struct kvm_irq_routing_entry {
 /* gsi routing entry types */
 #define KVM_IRQ_ROUTING_IRQCHIP 1
 #define KVM_IRQ_ROUTING_MSI 2
+#define KVM_IRQ_ROUTING_S390_ADAPTER 3
 
 No flags are specified so far, the corresponding field must be set to zero.
 
@@ -1379,6 +1384,14 @@ struct kvm_irq_routing_msi {
 	__u32 address_hi;
 	__u32 data;
 	__u32 pad;
+};
+
+struct kvm_irq_routing_s390_adapter {
+	__u64 ind_addr;
+	__u64 summary_addr;
+	__u64 ind_offset;
+	__u32 summary_offset;
+	__u32 adapter_id;
 };
 
 

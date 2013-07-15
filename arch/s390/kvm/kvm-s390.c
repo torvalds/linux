@@ -196,6 +196,10 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		return -EINVAL;
 
 	switch (cap->cap) {
+	case KVM_CAP_S390_IRQCHIP:
+		kvm->arch.use_irqchip = 1;
+		r = 0;
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -226,6 +230,18 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (copy_from_user(&cap, argp, sizeof(cap)))
 			break;
 		r = kvm_vm_ioctl_enable_cap(kvm, &cap);
+		break;
+	}
+	case KVM_CREATE_IRQCHIP: {
+		struct kvm_irq_routing_entry routing;
+
+		r = -EINVAL;
+		if (kvm->arch.use_irqchip) {
+			/* Set up dummy routing. */
+			memset(&routing, 0, sizeof(routing));
+			kvm_set_irq_routing(kvm, &routing, 0, 0);
+			r = 0;
+		}
 		break;
 	}
 	default:
@@ -284,6 +300,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	}
 
 	kvm->arch.css_support = 0;
+	kvm->arch.use_irqchip = 0;
 
 	return 0;
 out_nogmap:

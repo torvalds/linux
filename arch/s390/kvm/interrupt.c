@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/kvm_host.h>
 #include <linux/hrtimer.h>
+#include <linux/mmu_context.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <asm/asm-offsets.h>
@@ -1284,3 +1285,123 @@ struct kvm_device_ops kvm_flic_ops = {
 	.create = flic_create,
 	.destroy = flic_destroy,
 };
+
+static unsigned long get_ind_bit(__u64 addr, unsigned long bit_nr, bool swap)
+{
+	unsigned long bit;
+
+	bit = bit_nr + (addr % PAGE_SIZE) * 8;
+
+	return swap ? (bit ^ (BITS_PER_LONG - 1)) : bit;
+}
+
+static struct s390_map_info *get_map_info(struct s390_io_adapter *adapter,
+					  u64 addr)
+{
+	struct s390_map_info *map;
+
+	if (!adapter)
+		return NULL;
+
+	list_for_each_entry(map, &adapter->maps, list) {
+		if (map->guest_addr == addr)
+			return map;
+	}
+	return NULL;
+}
+
+static int adapter_indicators_set(struct kvm *kvm,
+				  struct s390_io_adapter *adapter,
+				  struct kvm_s390_adapter_int *adapter_int)
+{
+	unsigned long bit;
+	int summary_set, idx;
+	struct s390_map_info *info;
+	void *map;
+
+	info = get_map_info(adapter, adapter_int->ind_addr);
+	if (!info)
+		return -1;
+	map = page_address(info->page);
+	bit = get_ind_bit(info->addr, adapter_int->ind_offset, adapter->swap);
+	set_bit(bit, map);
+	idx = srcu_read_lock(&kvm->srcu);
+	mark_page_dirty(kvm, info->guest_addr >> PAGE_SHIFT);
+	set_page_dirty_lock(info->page);
+	info = get_map_info(adapter, adapter_int->summary_addr);
+	if (!info) {
+		srcu_read_unlock(&kvm->srcu, idx);
+		return -1;
+	}
+	map = page_address(info->page);
+	bit = get_ind_bit(info->addr, adapter_int->summary_offset,
+			  adapter->swap);
+	summary_set = test_and_set_bit(bit, map);
+	mark_page_dirty(kvm, info->guest_addr >> PAGE_SHIFT);
+	set_page_dirty_lock(info->page);
+	srcu_read_unlock(&kvm->srcu, idx);
+	return summary_set ? 0 : 1;
+}
+
+/*
+ * < 0 - not injected due to error
+ * = 0 - coalesced, summary indicator already active
+ * > 0 - injected interrupt
+ */
+static int set_adapter_int(struct kvm_kernel_irq_routing_entry *e,
+			   struct kvm *kvm, int irq_source_id, int level,
+			   bool line_status)
+{
+	int ret;
+	struct s390_io_adapter *adapter;
+
+	/* We're only interested in the 0->1 transition. */
+	if (!level)
+		return 0;
+	adapter = get_io_adapter(kvm, e->adapter.adapter_id);
+	if (!adapter)
+		return -1;
+	down_read(&adapter->maps_lock);
+	ret = adapter_indicators_set(kvm, adapter, &e->adapter);
+	up_read(&adapter->maps_lock);
+	if ((ret > 0) && !adapter->masked) {
+		struct kvm_s390_interrupt s390int = {
+			.type = KVM_S390_INT_IO(1, 0, 0, 0),
+			.parm = 0,
+			.parm64 = (adapter->isc << 27) | 0x80000000,
+		};
+		ret = kvm_s390_inject_vm(kvm, &s390int);
+		if (ret == 0)
+			ret = 1;
+	}
+	return ret;
+}
+
+int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
+			  struct kvm_kernel_irq_routing_entry *e,
+			  const struct kvm_irq_routing_entry *ue)
+{
+	int ret;
+
+	switch (ue->type) {
+	case KVM_IRQ_ROUTING_S390_ADAPTER:
+		e->set = set_adapter_int;
+		e->adapter.summary_addr = ue->u.adapter.summary_addr;
+		e->adapter.ind_addr = ue->u.adapter.ind_addr;
+		e->adapter.summary_offset = ue->u.adapter.summary_offset;
+		e->adapter.ind_offset = ue->u.adapter.ind_offset;
+		e->adapter.adapter_id = ue->u.adapter.adapter_id;
+		ret = 0;
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
+		int irq_source_id, int level, bool line_status)
+{
+	return -EINVAL;
+}

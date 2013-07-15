@@ -24,6 +24,14 @@
 #define KVM_MAX_VCPUS 64
 #define KVM_USER_MEM_SLOTS 32
 
+/*
+ * These seem to be used for allocating ->chip in the routing table,
+ * which we don't use. 4096 is an out-of-thin-air value. If we need
+ * to look at ->chip later on, we'll need to revisit this.
+ */
+#define KVM_NR_IRQCHIPS 1
+#define KVM_IRQCHIP_NUM_PINS 4096
+
 struct sca_entry {
 	atomic_t scn;
 	__u32	reserved;
@@ -274,6 +282,7 @@ struct kvm_arch{
 	struct kvm_device *flic;
 	struct gmap *gmap;
 	int css_support;
+	int use_irqchip;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 };
 
