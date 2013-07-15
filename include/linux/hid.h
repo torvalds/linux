@@ -989,7 +989,6 @@ int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
 int usbhid_quirks_init(char **quirks_param);
 void usbhid_quirks_exit(void);
-void usbhid_set_leds(struct hid_device *hid);
 
 #ifdef CONFIG_HID_PID
 int hid_pidff_init(struct hid_device *hid);
