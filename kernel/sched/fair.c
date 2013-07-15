@@ -3959,8 +3959,7 @@ static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
 	u64 min_target_last_migration = ULLONG_MAX;
 	u64 curr_last_migration;
 	unsigned long min_runnable_load = INT_MAX;
-	unsigned long scaled_min_runnable_load = INT_MAX;
-	unsigned long contrib, scaled_contrib;
+	unsigned long contrib;
 	struct sched_avg *avg;
 
 	for_each_cpu_mask(cpu, hmpd->cpus) {
@@ -3969,12 +3968,17 @@ static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
 		curr_last_migration = avg->hmp_last_up_migration ?
 			avg->hmp_last_up_migration : avg->hmp_last_down_migration;
 
-		/* don't use the divisor in the loop, just at the end */
-		contrib = avg->load_avg_ratio * scale_load_down(1024);
-		scaled_contrib = contrib >> 13;
+		contrib = avg->load_avg_ratio;
+		/*
+		 * Consider a runqueue completely busy if there is any load
+		 * on it. Definitely not the best for overall fairness, but
+		 * does well in typical Android use cases.
+		 */
+		if (contrib)
+			contrib = 1023;
 
 		if ((contrib < min_runnable_load) ||
-			(scaled_contrib == scaled_min_runnable_load &&
+			(contrib == min_runnable_load &&
 			 curr_last_migration < min_target_last_migration)) {
 			/*
 			 * if the load is the same target the CPU with
@@ -3984,7 +3988,6 @@ static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
 			 * domain is fully loaded
 			 */
 			min_runnable_load = contrib;
-			scaled_min_runnable_load = scaled_contrib;
 			min_cpu_runnable_temp = cpu;
 			min_target_last_migration = curr_last_migration;
 		}
@@ -3993,10 +3996,7 @@ static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
 	if (min_cpu)
 		*min_cpu = min_cpu_runnable_temp;
 
-	/* domain will often have at least one empty CPU */
-	trace_printk("hmp_domain_min_load returning %lu\n",
-		min_runnable_load > 1023 ? 1023 : min_runnable_load);
-	return min_runnable_load > 1023 ? 1023 : min_runnable_load;
+	return min_runnable_load;
 }
 
 /*
@@ -4023,10 +4023,9 @@ static inline unsigned int hmp_offload_down(int cpu, struct sched_entity *se)
 	if (hmp_cpu_is_slowest(cpu))
 		return NR_CPUS;
 
-	/* Is the current domain fully loaded? */
-	/* load < ~50% */
+	/* Is there an idle CPU in the current domain */
 	min_usage = hmp_domain_min_load(hmp_cpu_domain(cpu), NULL);
-	if (min_usage < (NICE_0_LOAD>>1))
+	if (min_usage == 0)
 		return NR_CPUS;
 
 	/* Is the task alone on the cpu? */
@@ -4038,10 +4037,9 @@ static inline unsigned int hmp_offload_down(int cpu, struct sched_entity *se)
 	if (hmp_task_starvation(se) > 768)
 		return NR_CPUS;
 
-	/* Does the slower domain have spare cycles? */
+	/* Does the slower domain have any idle CPUs? */
 	min_usage = hmp_domain_min_load(hmp_slower_domain(cpu), &dest_cpu);
-	/* load > 50% */
-	if (min_usage > NICE_0_LOAD/2)
+	if (min_usage > 0)
 		return NR_CPUS;
 
 	if (cpumask_test_cpu(dest_cpu, &hmp_slower_domain(cpu)->cpus))
@@ -6501,9 +6499,11 @@ static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_enti
 					< hmp_next_up_threshold)
 		return 0;
 
-	/* Target domain load < 94% */
-	if (hmp_domain_min_load(hmp_faster_domain(cpu), target_cpu)
-			> NICE_0_LOAD-64)
+	/* hmp_domain_min_load only returns 0 for an
+	 * idle CPU or 1023 for any partly-busy one.
+	 * Be explicit about requirement for an idle CPU.
+	 */
+	if (hmp_domain_min_load(hmp_faster_domain(cpu), target_cpu) != 0)
 		return 0;
 
 	if (cpumask_intersects(&hmp_faster_domain(cpu)->cpus,
