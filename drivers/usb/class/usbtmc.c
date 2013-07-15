@@ -393,12 +393,12 @@ static int send_request_dev_dep_msg_in(struct usbtmc_device_data *data, size_t t
 	 */
 	buffer[0] = 2;
 	buffer[1] = data->bTag;
-	buffer[2] = ~(data->bTag);
+	buffer[2] = ~data->bTag;
 	buffer[3] = 0; /* Reserved */
-	buffer[4] = (transfer_size) & 255;
-	buffer[5] = ((transfer_size) >> 8) & 255;
-	buffer[6] = ((transfer_size) >> 16) & 255;
-	buffer[7] = ((transfer_size) >> 24) & 255;
+	buffer[4] = transfer_size >> 0;
+	buffer[5] = transfer_size >> 8;
+	buffer[6] = transfer_size >> 16;
+	buffer[7] = transfer_size >> 24;
 	buffer[8] = data->TermCharEnabled * 2;
 	/* Use term character? */
 	buffer[9] = data->TermChar;
@@ -417,7 +417,7 @@ static int send_request_dev_dep_msg_in(struct usbtmc_device_data *data, size_t t
 	/* Increment bTag -- and increment again if zero */
 	data->bTag++;
 	if (!data->bTag)
-		(data->bTag)++;
+		data->bTag++;
 
 	if (retval < 0) {
 		dev_err(&data->intf->dev, "usb_bulk_msg in send_request_dev_dep_msg_in() returned %d\n", retval);
@@ -472,7 +472,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 	done = 0;
 
 	while (remaining > 0) {
-		if (!(data->rigol_quirk)) {
+		if (!data->rigol_quirk) {
 			dev_dbg(dev, "usb_bulk_msg_in: remaining(%zu), count(%zu)\n", remaining, count);
 
 			if (remaining > USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE - 3)
@@ -509,7 +509,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		}
 
 		/* Parse header in first packet */
-		if ((done == 0) || (!(data->rigol_quirk))) {
+		if ((done == 0) || !data->rigol_quirk) {
 			/* Sanity checks for the header */
 			if (actual < USBTMC_HEADER_SIZE) {
 				dev_err(dev, "Device sent too small first packet: %u < %u\n", actual, USBTMC_HEADER_SIZE);
@@ -569,7 +569,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 			remaining -= actual;
 
 			/* Terminate if end-of-message bit received from device */
-			if ((buffer[8] &  0x01) && (actual >= n_characters))
+			if ((buffer[8] & 0x01) && (actual >= n_characters))
 				remaining = 0;
 
 			dev_dbg(dev, "Bulk-IN header: remaining(%zu), buf(%p), buffer(%p) done(%zu)\n", remaining,buf,buffer,done);
@@ -650,12 +650,12 @@ static ssize_t usbtmc_write(struct file *filp, const char __user *buf,
 		/* Setup IO buffer for DEV_DEP_MSG_OUT message */
 		buffer[0] = 1;
 		buffer[1] = data->bTag;
-		buffer[2] = ~(data->bTag);
+		buffer[2] = ~data->bTag;
 		buffer[3] = 0; /* Reserved */
-		buffer[4] = this_part & 255;
-		buffer[5] = (this_part >> 8) & 255;
-		buffer[6] = (this_part >> 16) & 255;
-		buffer[7] = (this_part >> 24) & 255;
+		buffer[4] = this_part >> 0;
+		buffer[5] = this_part >> 8;
+		buffer[6] = this_part >> 16;
+		buffer[7] = this_part >> 24;
 		/* buffer[8] is set above... */
 		buffer[9] = 0; /* Reserved */
 		buffer[10] = 0; /* Reserved */
