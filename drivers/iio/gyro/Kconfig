@@ -1,6 +1,8 @@
 #
 # IIO Digital Gyroscope Sensor drivers configuration
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Digital gyroscope sensors"
 
 config ADIS16080

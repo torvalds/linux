@@ -1,6 +1,8 @@
 #
 # Accelerometer drivers
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Accelerometers"
 
 config HID_SENSOR_ACCEL_3D
@@ -13,13 +15,6 @@ config HID_SENSOR_ACCEL_3D
 	help
 	  Say yes here to build support for the HID SENSOR
 	  accelerometers 3D.
-
-config KXSD9
-	tristate "Kionix KXSD9 Accelerometer Driver"
-	depends on SPI
-	help
-	  Say yes here to build support for the Kionix KXSD9 accelerometer.
-	  Currently this only supports the device via an SPI interface.
 
 config IIO_ST_ACCEL_3AXIS
 	tristate "STMicroelectronics accelerometers 3-Axis Driver"
@@ -50,5 +45,12 @@ config IIO_ST_ACCEL_SPI_3AXIS
 	tristate
 	depends on IIO_ST_ACCEL_3AXIS
 	depends on IIO_ST_SENSORS_SPI
+
+config KXSD9
+	tristate "Kionix KXSD9 Accelerometer Driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Kionix KXSD9 accelerometer.
+	  Currently this only supports the device via an SPI interface.
 
 endmenu

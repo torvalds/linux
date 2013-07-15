@@ -1,6 +1,8 @@
 #
 # Magnetometer sensors
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Magnetometer sensors"
 
 config AK8975

@@ -1,6 +1,8 @@
 #
 # Industrial I/O standalone triggers
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Triggers - standalone"
 
 config IIO_INTERRUPT_TRIGGER

@@ -1,6 +1,8 @@
 #
 # Pressure drivers
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Pressure sensors"
 
 config IIO_ST_PRESS
