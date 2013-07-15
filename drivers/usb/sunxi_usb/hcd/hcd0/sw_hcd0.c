@@ -431,7 +431,7 @@ static __s32 pin_init(sw_hcd_io_t *sw_hcd_io)
 					sw_hcd_io->drv_vbus_gpio_set.mul_sel);
 			axp_gpio_set_value(
 					sw_hcd_io->drv_vbus_gpio_set.port_num,
-					sw_hcd_io->drv_vbus_gpio_set.data);
+					!sw_hcd_io->drv_vbus_gpio_set.data);
 
 			return 100 + sw_hcd_io->drv_vbus_gpio_set.port_num;
 		} else {
@@ -448,7 +448,8 @@ static __s32 pin_init(sw_hcd_io_t *sw_hcd_io)
 	}
 
 	/* set config, ouput */
-	gpio_set_one_pin_io_status(sw_hcd_io->Drv_vbus_Handle, 1, NULL);
+	gpio_set_one_pin_io_status(sw_hcd_io->Drv_vbus_Handle,
+				   !sw_hcd_io->drv_vbus_gpio_set.data, NULL);
 
 	/* reserved is pull down */
 	gpio_set_one_pin_pull(sw_hcd_io->Drv_vbus_Handle, 2, NULL);
