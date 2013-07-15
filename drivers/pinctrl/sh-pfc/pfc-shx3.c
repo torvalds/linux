@@ -127,7 +127,7 @@ enum {
 	PINMUX_MARK_END,
 };
 
-static const u16 shx3_pinmux_data[] = {
+static const u16 pinmux_data[] = {
 	/* PA GPIO */
 	PINMUX_DATA(PA7_DATA, PA7_IN, PA7_OUT),
 	PINMUX_DATA(PA6_DATA, PA6_IN, PA6_OUT),
@@ -285,7 +285,7 @@ static const u16 shx3_pinmux_data[] = {
 	PINMUX_DATA(IRQOUT_MARK,	PH0_FN),
 };
 
-static struct sh_pfc_pin shx3_pinmux_pins[] = {
+static struct sh_pfc_pin pinmux_pins[] = {
 	/* PA */
 	PINMUX_GPIO(GPIO_PA7, PA7_DATA),
 	PINMUX_GPIO(GPIO_PA6, PA6_DATA),
@@ -365,9 +365,9 @@ static struct sh_pfc_pin shx3_pinmux_pins[] = {
 	PINMUX_GPIO(GPIO_PH0, PH0_DATA),
 };
 
-#define PINMUX_FN_BASE	ARRAY_SIZE(shx3_pinmux_pins)
+#define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
 
-static const struct pinmux_func shx3_pinmux_func_gpios[] = {
+static const struct pinmux_func pinmux_func_gpios[] = {
 	/* FN */
 	GPIO_FN(D31),
 	GPIO_FN(D30),
@@ -433,7 +433,7 @@ static const struct pinmux_func shx3_pinmux_func_gpios[] = {
 	GPIO_FN(IRQOUT),
 };
 
-static const struct pinmux_cfg_reg shx3_pinmux_config_regs[] = {
+static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ PINMUX_CFG_REG("PABCR", 0xffc70000, 32, 2) {
 		PA7_FN, PA7_OUT, PA7_IN, 0,
 		PA6_FN, PA6_OUT, PA6_IN, 0,
@@ -509,7 +509,7 @@ static const struct pinmux_cfg_reg shx3_pinmux_config_regs[] = {
 	{ },
 };
 
-static const struct pinmux_data_reg shx3_pinmux_data_regs[] = {
+static const struct pinmux_data_reg pinmux_data_regs[] = {
 	{ PINMUX_DATA_REG("PABDR", 0xffc70010, 32) {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		PA7_DATA, PA6_DATA, PA5_DATA, PA4_DATA,
@@ -550,12 +550,12 @@ const struct sh_pfc_soc_info shx3_pinmux_info = {
 	.input		= { PINMUX_INPUT_BEGIN,	   PINMUX_INPUT_END },
 	.output		= { PINMUX_OUTPUT_BEGIN,   PINMUX_OUTPUT_END },
 	.function	= { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
-	.pins		= shx3_pinmux_pins,
-	.nr_pins	= ARRAY_SIZE(shx3_pinmux_pins),
-	.func_gpios	= shx3_pinmux_func_gpios,
-	.nr_func_gpios	= ARRAY_SIZE(shx3_pinmux_func_gpios),
-	.gpio_data	= shx3_pinmux_data,
-	.gpio_data_size	= ARRAY_SIZE(shx3_pinmux_data),
-	.cfg_regs	= shx3_pinmux_config_regs,
-	.data_regs	= shx3_pinmux_data_regs,
+	.pins		= pinmux_pins,
+	.nr_pins	= ARRAY_SIZE(pinmux_pins),
+	.func_gpios	= pinmux_func_gpios,
+	.nr_func_gpios	= ARRAY_SIZE(pinmux_func_gpios),
+	.gpio_data	= pinmux_data,
+	.gpio_data_size	= ARRAY_SIZE(pinmux_data),
+	.cfg_regs	= pinmux_config_regs,
+	.data_regs	= pinmux_data_regs,
 };
