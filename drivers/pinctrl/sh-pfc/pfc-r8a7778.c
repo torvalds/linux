@@ -23,26 +23,6 @@
 #include <linux/kernel.h>
 #include "sh_pfc.h"
 
-#define PORT_GP_1(bank, pin, fn, sfx) fn(bank, pin, GP_##bank##_##pin, sfx)
-
-#define PORT_GP_32(bank, fn, sfx)					\
-	PORT_GP_1(bank, 0,  fn, sfx), PORT_GP_1(bank, 1,  fn, sfx),	\
-	PORT_GP_1(bank, 2,  fn, sfx), PORT_GP_1(bank, 3,  fn, sfx),	\
-	PORT_GP_1(bank, 4,  fn, sfx), PORT_GP_1(bank, 5,  fn, sfx),	\
-	PORT_GP_1(bank, 6,  fn, sfx), PORT_GP_1(bank, 7,  fn, sfx),	\
-	PORT_GP_1(bank, 8,  fn, sfx), PORT_GP_1(bank, 9,  fn, sfx),	\
-	PORT_GP_1(bank, 10, fn, sfx), PORT_GP_1(bank, 11, fn, sfx),	\
-	PORT_GP_1(bank, 12, fn, sfx), PORT_GP_1(bank, 13, fn, sfx),	\
-	PORT_GP_1(bank, 14, fn, sfx), PORT_GP_1(bank, 15, fn, sfx),	\
-	PORT_GP_1(bank, 16, fn, sfx), PORT_GP_1(bank, 17, fn, sfx),	\
-	PORT_GP_1(bank, 18, fn, sfx), PORT_GP_1(bank, 19, fn, sfx),	\
-	PORT_GP_1(bank, 20, fn, sfx), PORT_GP_1(bank, 21, fn, sfx),	\
-	PORT_GP_1(bank, 22, fn, sfx), PORT_GP_1(bank, 23, fn, sfx),	\
-	PORT_GP_1(bank, 24, fn, sfx), PORT_GP_1(bank, 25, fn, sfx),	\
-	PORT_GP_1(bank, 26, fn, sfx), PORT_GP_1(bank, 27, fn, sfx),	\
-	PORT_GP_1(bank, 28, fn, sfx), PORT_GP_1(bank, 29, fn, sfx),	\
-	PORT_GP_1(bank, 30, fn, sfx), PORT_GP_1(bank, 31, fn, sfx)
-
 #define PORT_GP_27(bank, fn, sfx)					\
 	PORT_GP_1(bank, 0,  fn, sfx), PORT_GP_1(bank, 1,  fn, sfx),	\
 	PORT_GP_1(bank, 2,  fn, sfx), PORT_GP_1(bank, 3,  fn, sfx),	\
@@ -65,26 +45,6 @@
 	PORT_GP_32(2, fn, sfx),		\
 	PORT_GP_32(3, fn, sfx),		\
 	PORT_GP_27(4, fn, sfx)
-
-#define _GP_PORT_ALL(bank, pin, name, sfx)	name##_##sfx
-
-#define _GP_GPIO(bank, pin, _name, sfx)		\
-	[RCAR_GP_PIN(bank, pin)] = {		\
-		.name = __stringify(_name),	\
-		.enum_id = _name##_DATA,	\
-	}
-
-#define _GP_DATA(bank, pin, name, sfx)		\
-	PINMUX_DATA(name##_DATA, name##_FN)
-
-#define GP_ALL(str)		CPU_ALL_PORT(_GP_PORT_ALL, str)
-#define PINMUX_GPIO_GP_ALL()	CPU_ALL_PORT(_GP_GPIO, unused)
-#define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_GP_DATA, unused)
-
-#define PINMUX_IPSR_NOGP(ispr, fn)	PINMUX_DATA(fn##_MARK, FN_##fn)
-#define PINMUX_IPSR_DATA(ipsr, fn)	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr)
-#define PINMUX_IPSR_MSEL(ipsr, fn, ms)	PINMUX_DATA(fn##_MARK, FN_##fn, FN_##ipsr, FN_##ms)
-#define PINMUX_IPSR_NOGM(ispr, fn, ms)	PINMUX_DATA(fn##_MARK, FN_##fn,            FN_##ms)
 
 enum {
 	PINMUX_RESERVED = 0,

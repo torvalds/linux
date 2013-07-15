@@ -384,11 +384,8 @@ enum {
 	PINMUX_MARK_END,
 };
 
-#define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
-#define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_PORT_DATA, , unused)
-
 static const u16 pinmux_data[] = {
-	PINMUX_DATA_GP_ALL(),
+	PINMUX_DATA_ALL(),
 
 	/* IRQ */
 	PINMUX_DATA(IRQ0_6_MARK,	PORT6_FN0, 	MSEL1CR_0_0),

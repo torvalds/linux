@@ -428,9 +428,6 @@ enum {
 	PINMUX_MARK_END,
 };
 
-#define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
-#define PINMUX_DATA_ALL()    CPU_ALL_PORT(_PORT_DATA, , unused)
-
 static const u16 pinmux_data[] = {
 	/* specify valid pin states for each pin in GPIO mode */
 	PINMUX_DATA_ALL(),
