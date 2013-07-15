@@ -1121,6 +1121,7 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 	struct iwl_trans *trans = data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 inta, inta_mask;
+	irqreturn_t ret = IRQ_NONE;
 
 	lockdep_assert_held(&trans_pcie->irq_lock);
 
@@ -1169,10 +1170,8 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 	/* the thread will service interrupts and re-enable them */
 	if (likely(inta))
 		return IRQ_WAKE_THREAD;
-	else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
-		 !trans_pcie->inta)
-		iwl_enable_interrupts(trans);
-	return IRQ_HANDLED;
+
+	ret = IRQ_HANDLED;
 
 none:
 	/* re-enable interrupts here since we don't have anything to service. */
@@ -1181,7 +1180,7 @@ none:
 	    !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
-	return IRQ_NONE;
+	return ret;
 }
 
 /* interrupt handler using ict table, with this interrupt driver will
@@ -1200,6 +1199,7 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	u32 val = 0;
 	u32 read;
 	unsigned long flags;
+	irqreturn_t ret = IRQ_NONE;
 
 	if (!trans)
 		return IRQ_NONE;
@@ -1212,7 +1212,7 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	 * use legacy interrupt.
 	 */
 	if (unlikely(!trans_pcie->use_ict)) {
-		irqreturn_t ret = iwl_pcie_isr(irq, data);
+		ret = iwl_pcie_isr(irq, data);
 		spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 		return ret;
 	}
@@ -1281,17 +1281,9 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	if (likely(inta)) {
 		spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 		return IRQ_WAKE_THREAD;
-	} else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
-		 !trans_pcie->inta) {
-		/* Allow interrupt if was disabled by this handler and
-		 * no tasklet was schedules, We should not enable interrupt,
-		 * tasklet will enable it.
-		 */
-		iwl_enable_interrupts(trans);
 	}
 
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
-	return IRQ_HANDLED;
+	ret = IRQ_HANDLED;
 
  none:
 	/* re-enable interrupts here since we don't have anything to service.
@@ -1302,5 +1294,5 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 		iwl_enable_interrupts(trans);
 
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
-	return IRQ_NONE;
+	return ret;
 }
