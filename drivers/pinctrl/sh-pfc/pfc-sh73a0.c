@@ -1173,6 +1173,12 @@ static const u16 pinmux_data[] = {
 #define SH73A0_PIN_IO_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __IO | __PUD)
 #define SH73A0_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
 
+/* Pin numbers for pins without a corresponding GPIO port number are computed
+ * from the row and column numbers with a 1000 offset to avoid collisions with
+ * GPIO port numbers.
+ */
+#define PIN_NUMBER(row, col)		(1000+((row)-1)*34+(col)-1)
+
 static struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 25-1 (I/O and Pull U/D) */
 	SH73A0_PIN_I_PD(0),
@@ -1444,13 +1450,10 @@ static struct sh_pfc_pin pinmux_pins[] = {
 	SH73A0_PIN_O(307),
 	SH73A0_PIN_I_PU(308),
 	SH73A0_PIN_O(309),
-};
 
-/* Pin numbers for pins without a corresponding GPIO port number are computed
- * from the row and column numbers with a 1000 offset to avoid collisions with
- * GPIO port numbers.
- */
-#define PIN_NUMBER(row, col)		(1000+((row)-1)*34+(col)-1)
+	/* Pins not associated with a GPIO port */
+	SH_PFC_PIN_NAMED(6, 26, F26),
+};
 
 /* - BSC -------------------------------------------------------------------- */
 static const unsigned int bsc_data_0_7_pins[] = {
