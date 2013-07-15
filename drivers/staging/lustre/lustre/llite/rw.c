@@ -132,7 +132,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 			 * add dirty pages into cache during truncate */
 			CERROR("Proc %s is dirting page w/o inode lock, this"
 			       "will break truncate.\n", current->comm);
-			libcfs_debug_dumpstack(NULL);
+			dump_stack();
 			LBUG();
 			return ERR_PTR(-EIO);
 		}

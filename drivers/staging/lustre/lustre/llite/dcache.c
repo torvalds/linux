@@ -300,7 +300,7 @@ void ll_invalidate_aliases(struct inode *inode)
 			CERROR("called on root (?) dentry=%p, inode=%p "
 			       "ino=%lu\n", dentry, inode, inode->i_ino);
 			lustre_dump_dentry(dentry, 1);
-			libcfs_debug_dumpstack(NULL);
+			dump_stack();
 		}
 
 		d_lustre_invalidate(dentry, 0);

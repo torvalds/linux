@@ -168,7 +168,7 @@ void lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 		/* not reached */
 	}
 
-	libcfs_debug_dumpstack(NULL);
+	dump_stack();
 	if (!libcfs_panic_on_lbug)
 		libcfs_debug_dumplog();
 	libcfs_run_lbug_upcall(msgdata);
@@ -177,48 +177,6 @@ void lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 	set_task_state(current, TASK_UNINTERRUPTIBLE);
 	while (1)
 		schedule();
-}
-
-
-#include <linux/nmi.h>
-#include <asm/stacktrace.h>
-
-
-static int print_trace_stack(void *data, char *name)
-{
-	printk(" <%s> ", name);
-	return 0;
-}
-
-# define RELIABLE reliable
-# define DUMP_TRACE_CONST const
-static void print_trace_address(void *data, unsigned long addr, int reliable)
-{
-	char fmt[32];
-	touch_nmi_watchdog();
-	sprintf(fmt, " [<%016lx>] %s%%s\n", addr, RELIABLE ? "": "? ");
-	__print_symbol(fmt, addr);
-}
-
-static DUMP_TRACE_CONST struct stacktrace_ops print_trace_ops = {
-	.stack = print_trace_stack,
-	.address = print_trace_address,
-	.walk_stack = print_context_stack,
-};
-
-void libcfs_debug_dumpstack(struct task_struct *tsk)
-{
-	/* dump_stack() */
-	/* show_trace() */
-	if (tsk == NULL)
-		tsk = current;
-	printk("Pid: %d, comm: %.20s\n", tsk->pid, tsk->comm);
-	/* show_trace_log_lvl() */
-	printk("\nCall Trace:\n");
-	dump_trace(tsk, NULL, NULL,
-		   0,
-		   &print_trace_ops, NULL);
-	printk("\n");
 }
 
 task_t *libcfs_current(void)
@@ -255,7 +213,6 @@ void libcfs_unregister_panic_notifier(void)
 	atomic_notifier_chain_unregister(&panic_notifier_list, &libcfs_panic_notifier);
 }
 
-EXPORT_SYMBOL(libcfs_debug_dumpstack);
 EXPORT_SYMBOL(libcfs_current);
 
 

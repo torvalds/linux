@@ -785,7 +785,7 @@ static void osc_req_attr_set(const struct lu_env *env,
 					      "no cover page!\n");
 			CL_PAGE_DEBUG(D_ERROR, env, apage,
 				      "dump uncover page!\n");
-			libcfs_debug_dumpstack(NULL);
+			dump_stack();
 			LBUG();
 		}
 

@@ -2254,7 +2254,9 @@ ptlrpc_wait_event(struct ptlrpc_service_part *svcpt,
 	struct l_wait_info lwi = LWI_TIMEOUT(svcpt->scp_rqbd_timeout,
 					     ptlrpc_retry_rqbds, svcpt);
 
+	/* XXX: Add this back when libcfs watchdog is merged upstream
 	lc_watchdog_disable(thread->t_watchdog);
+	 */
 
 	cond_resched();
 
@@ -2268,8 +2270,10 @@ ptlrpc_wait_event(struct ptlrpc_service_part *svcpt,
 	if (ptlrpc_thread_stopping(thread))
 		return -EINTR;
 
+	/*
 	lc_watchdog_touch(thread->t_watchdog,
 			  ptlrpc_server_get_timeout(svcpt));
+	 */
 	return 0;
 }
 
@@ -2372,8 +2376,10 @@ static int ptlrpc_main(void *arg)
 	/* wake up our creator in case he's still waiting. */
 	wake_up(&thread->t_ctl_waitq);
 
+	/*
 	thread->t_watchdog = lc_watchdog_add(ptlrpc_server_get_timeout(svcpt),
 					     NULL, NULL);
+	 */
 
 	spin_lock(&svcpt->scp_rep_lock);
 	list_add(&rs->rs_list, &svcpt->scp_rep_idle);
@@ -2428,8 +2434,10 @@ static int ptlrpc_main(void *arg)
 		}
 	}
 
+	/*
 	lc_watchdog_delete(thread->t_watchdog);
 	thread->t_watchdog = NULL;
+	*/
 
 out_srv_fini:
 	/*

@@ -210,7 +210,6 @@ do {								    \
 #define ntohs(x) ___ntohs(x)
 #endif
 
-void libcfs_debug_dumpstack(task_t *tsk);
 void libcfs_run_upcall(char **argv);
 void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *);
 void libcfs_debug_dumplog(void);
