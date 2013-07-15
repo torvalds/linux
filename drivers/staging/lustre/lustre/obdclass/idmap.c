@@ -71,7 +71,8 @@ static int lustre_groups_search(group_info_t *group_info,
 	right = group_info->ngroups;
 	while (left < right) {
 		int mid = (left + right) / 2;
-		int cmp = grp - CFS_GROUP_AT(group_info, mid);
+		int cmp = grp -
+			from_kgid(&init_user_ns, CFS_GROUP_AT(group_info, mid));
 
 		if (cmp > 0)
 			left = mid + 1;
@@ -116,16 +117,19 @@ void lustre_groups_sort(group_info_t *group_info)
 		for (base = 0; base < max; base++) {
 			int left = base;
 			int right = left + stride;
-			gid_t tmp = CFS_GROUP_AT(group_info, right);
+			gid_t tmp = from_kgid(&init_user_ns,
+					      CFS_GROUP_AT(group_info, right));
 
 			while (left >= 0 &&
-			       CFS_GROUP_AT(group_info, left) > tmp) {
+			       tmp < from_kgid(&init_user_ns,
+					       CFS_GROUP_AT(group_info, left))) {
 				CFS_GROUP_AT(group_info, right) =
 				    CFS_GROUP_AT(group_info, left);
 				right = left;
 				left -= stride;
 			}
-			CFS_GROUP_AT(group_info, right) = tmp;
+			CFS_GROUP_AT(group_info, right) =
+						make_kgid(&init_user_ns, tmp);
 		}
 		stride /= 3;
 	}

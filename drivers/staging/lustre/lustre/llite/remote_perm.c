@@ -129,17 +129,18 @@ static int do_check_remote_perm(struct ll_inode_info *lli, int mask)
 	if (!lli->lli_remote_perms)
 		RETURN(-ENOENT);
 
-	head = lli->lli_remote_perms + remote_perm_hashfunc(current_uid());
+	head = lli->lli_remote_perms +
+		remote_perm_hashfunc(from_kuid(&init_user_ns, current_uid()));
 
 	spin_lock(&lli->lli_lock);
 	hlist_for_each_entry(lrp, head, lrp_list) {
-		if (lrp->lrp_uid != current_uid())
+		if (lrp->lrp_uid != from_kuid(&init_user_ns, current_uid()))
 			continue;
-		if (lrp->lrp_gid != current_gid())
+		if (lrp->lrp_gid != from_kgid(&init_user_ns, current_gid()))
 			continue;
-		if (lrp->lrp_fsuid != current_fsuid())
+		if (lrp->lrp_fsuid != from_kuid(&init_user_ns, current_fsuid()))
 			continue;
-		if (lrp->lrp_fsgid != current_fsgid())
+		if (lrp->lrp_fsgid != from_kgid(&init_user_ns, current_fsgid()))
 			continue;
 		found = 1;
 		break;

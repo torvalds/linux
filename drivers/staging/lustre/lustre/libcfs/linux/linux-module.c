@@ -137,7 +137,7 @@ static long libcfs_ioctl(struct file *file,
 	struct cfs_psdev_file	 pfile;
 	int    rc = 0;
 
-	if (current_fsuid() != 0)
+	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
 	if ( _IOC_TYPE(cmd) != IOC_LIBCFS_TYPE ||

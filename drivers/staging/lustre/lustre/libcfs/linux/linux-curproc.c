@@ -65,20 +65,6 @@ int    cfs_curproc_groups_nr(void)
 	return nr;
 }
 
-void   cfs_curproc_groups_dump(gid_t *array, int size)
-{
-	task_lock(current);
-	size = min_t(int, size, current_cred()->group_info->ngroups);
-	memcpy(array, current_cred()->group_info->blocks[0], size * sizeof(__u32));
-	task_unlock(current);
-}
-
-
-int    current_is_in_group(gid_t gid)
-{
-	return in_group_p(gid);
-}
-
 /* Currently all the CFS_CAP_* defines match CAP_* ones. */
 #define cfs_cap_pack(cap) (cap)
 #define cfs_cap_unpack(cap) (cap)
@@ -318,8 +304,6 @@ out:
 EXPORT_SYMBOL(cfs_get_environ);
 
 EXPORT_SYMBOL(cfs_curproc_groups_nr);
-EXPORT_SYMBOL(cfs_curproc_groups_dump);
-EXPORT_SYMBOL(current_is_in_group);
 EXPORT_SYMBOL(cfs_cap_raise);
 EXPORT_SYMBOL(cfs_cap_lower);
 EXPORT_SYMBOL(cfs_cap_raised);

@@ -290,10 +290,6 @@ static inline int lustre_cfg_sanity_check(void *buf, int len)
 
 #include <lustre/lustre_user.h>
 
-#ifndef INVALID_UID
-#define INVALID_UID     (-1)
-#endif
-
 /** @} cfg */
 
 #endif // _LUSTRE_CFG_H

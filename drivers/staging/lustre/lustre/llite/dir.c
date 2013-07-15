@@ -685,7 +685,8 @@ int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
 
 	op_data->op_cli_flags |= CLI_SET_MEA;
 	err = md_create(sbi->ll_md_exp, op_data, lump, sizeof(*lump), mode,
-			current_fsuid(), current_fsgid(),
+			from_kuid(&init_user_ns, current_fsuid()),
+			from_kgid(&init_user_ns, current_fsgid()),
 			cfs_curproc_cap_pack(), 0, &request);
 	ll_finish_md_op_data(op_data);
 	if (err)
@@ -1105,8 +1106,10 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 			RETURN(-EPERM);
 		break;
 	case Q_GETQUOTA:
-		if (((type == USRQUOTA && current_euid() != id) ||
-		     (type == GRPQUOTA && !in_egroup_p(id))) &&
+		if (((type == USRQUOTA &&
+		      uid_eq(current_euid(), make_kuid(&init_user_ns, id))) ||
+		     (type == GRPQUOTA &&
+		      !in_egroup_p(make_kgid(&init_user_ns, id)))) &&
 		    (!cfs_capable(CFS_CAP_SYS_ADMIN) ||
 		     sbi->ll_flags & LL_SBI_RMT_CLIENT))
 			RETURN(-EPERM);

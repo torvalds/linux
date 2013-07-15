@@ -269,8 +269,8 @@ struct ptlrpc_cli_ctx *get_my_ctx(struct ptlrpc_sec *sec)
 			remove_dead = 0;
 		}
 	} else {
-		vcred.vc_uid = current_uid();
-		vcred.vc_gid = current_gid();
+		vcred.vc_uid = from_kuid(&init_user_ns, current_uid());
+		vcred.vc_gid = from_kgid(&init_user_ns, current_gid());
 	}
 
 	return sec->ps_policy->sp_cops->lookup_ctx(sec, &vcred,
@@ -1523,7 +1523,8 @@ void sptlrpc_import_flush_root_ctx(struct obd_import *imp)
 
 void sptlrpc_import_flush_my_ctx(struct obd_import *imp)
 {
-	import_flush_ctx_common(imp, current_uid(), 1, 1);
+	import_flush_ctx_common(imp, from_kuid(&init_user_ns, current_uid()),
+				1, 1);
 }
 EXPORT_SYMBOL(sptlrpc_import_flush_my_ctx);
 
@@ -2055,8 +2056,8 @@ int sptlrpc_svc_unwrap_request(struct ptlrpc_request *req)
 
 	req->rq_flvr.sf_rpc = WIRE_FLVR(msg->lm_secflvr);
 	req->rq_sp_from = LUSTRE_SP_ANY;
-	req->rq_auth_uid = INVALID_UID;
-	req->rq_auth_mapped_uid = INVALID_UID;
+	req->rq_auth_uid = -1;
+	req->rq_auth_mapped_uid = -1;
 
 	policy = sptlrpc_wireflavor2policy(req->rq_flvr.sf_rpc);
 	if (!policy) {
@@ -2314,10 +2315,10 @@ int sptlrpc_pack_user_desc(struct lustre_msg *msg, int offset)
 
 	pud = lustre_msg_buf(msg, offset, 0);
 
-	pud->pud_uid = current_uid();
-	pud->pud_gid = current_gid();
-	pud->pud_fsuid = current_fsuid();
-	pud->pud_fsgid = current_fsgid();
+	pud->pud_uid = from_kuid(&init_user_ns, current_uid());
+	pud->pud_gid = from_kgid(&init_user_ns, current_gid());
+	pud->pud_fsuid = from_kuid(&init_user_ns, current_fsuid());
+	pud->pud_fsgid = from_kgid(&init_user_ns, current_fsgid());
 	pud->pud_cap = cfs_curproc_cap_pack();
 	pud->pud_ngroups = (msg->lm_buflens[offset] - sizeof(*pud)) / 4;
 
