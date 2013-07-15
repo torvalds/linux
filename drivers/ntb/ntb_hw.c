@@ -644,10 +644,13 @@ static int ntb_device_setup(struct ntb_device *ndev)
 		rc = -ENODEV;
 	}
 
+	if (rc)
+		return rc;
+
 	/* Enable Bus Master and Memory Space on the secondary side */
 	writew(PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER, ndev->reg_ofs.spci_cmd);
 
-	return rc;
+	return 0;
 }
 
 static void ntb_device_free(struct ntb_device *ndev)
