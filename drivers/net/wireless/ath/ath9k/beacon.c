@@ -39,7 +39,8 @@ static void ath9k_beaconq_config(struct ath_softc *sc)
 
 	ath9k_hw_get_txq_props(ah, sc->beacon.beaconq, &qi);
 
-	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP ||
+	    sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT) {
 		/* Always burst out beacon and CAB traffic. */
 		qi.tqi_aifs = 1;
 		qi.tqi_cwmin = 0;
@@ -105,23 +106,6 @@ static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 	info.rates[0].ChSel = ath_txchainmask_reduction(sc, chainmask, rate);
 
 	ath9k_hw_set_txdesc(ah, bf->bf_desc, &info);
-}
-
-static void ath9k_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	struct ath_softc *sc = hw->priv;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_tx_control txctl;
-
-	memset(&txctl, 0, sizeof(struct ath_tx_control));
-	txctl.txq = sc->beacon.cabq;
-
-	ath_dbg(common, XMIT, "transmitting CABQ packet, skb: %p\n", skb);
-
-	if (ath_tx_start(hw, skb, &txctl) != 0) {
-		ath_dbg(common, XMIT, "CABQ TX failed\n");
-		ieee80211_free_txskb(hw, skb);
-	}
 }
 
 static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
@@ -205,10 +189,8 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 
 	ath9k_beacon_setup(sc, vif, bf, info->control.rates[0].idx);
 
-	while (skb) {
-		ath9k_tx_cabq(hw, skb);
-		skb = ieee80211_get_buffered_bc(hw, vif);
-	}
+	if (skb)
+		ath_tx_cabq(hw, vif, skb);
 
 	return bf;
 }
@@ -273,7 +255,8 @@ static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 	u64 tsf;
 	int slot;
 
-	if (sc->sc_ah->opmode != NL80211_IFTYPE_AP) {
+	if (sc->sc_ah->opmode != NL80211_IFTYPE_AP &&
+	    sc->sc_ah->opmode != NL80211_IFTYPE_MESH_POINT) {
 		ath_dbg(common, BEACON, "slot 0, tsf: %llu\n",
 			ath9k_hw_gettsf64(sc->sc_ah));
 		return 0;
@@ -765,10 +748,10 @@ void ath9k_set_beacon(struct ath_softc *sc)
 
 	switch (sc->sc_ah->opmode) {
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
 		ath9k_beacon_config_ap(sc, cur_conf);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
 		ath9k_beacon_config_adhoc(sc, cur_conf);
 		break;
 	case NL80211_IFTYPE_STATION:

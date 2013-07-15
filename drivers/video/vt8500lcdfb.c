@@ -448,7 +448,6 @@ failed_free_io:
 failed_free_res:
 	release_mem_region(res->start, resource_size(res));
 failed_fbi:
-	platform_set_drvdata(pdev, NULL);
 	kfree(fbi);
 failed:
 	return ret;

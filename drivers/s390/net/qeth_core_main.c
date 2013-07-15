@@ -1282,8 +1282,10 @@ static void qeth_free_qdio_buffers(struct qeth_card *card)
 
 	qeth_free_cq(card);
 	cancel_delayed_work_sync(&card->buffer_reclaim_work);
-	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j)
-		dev_kfree_skb_any(card->qdio.in_q->bufs[j].rx_skb);
+	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
+		if (card->qdio.in_q->bufs[j].rx_skb)
+			dev_kfree_skb_any(card->qdio.in_q->bufs[j].rx_skb);
+	}
 	kfree(card->qdio.in_q);
 	card->qdio.in_q = NULL;
 	/* inbound buffer pool */
@@ -1729,14 +1731,14 @@ static void qeth_configure_blkt_default(struct qeth_card *card, char *prcd)
 	QETH_DBF_TEXT(SETUP, 2, "cfgblkt");
 
 	if (prcd[74] == 0xF0 && prcd[75] == 0xF0 &&
-	    (prcd[76] == 0xF5 || prcd[76] == 0xF6)) {
-		card->info.blkt.time_total = 250;
-		card->info.blkt.inter_packet = 5;
-		card->info.blkt.inter_packet_jumbo = 15;
-	} else {
+	    prcd[76] >= 0xF1 && prcd[76] <= 0xF4) {
 		card->info.blkt.time_total = 0;
 		card->info.blkt.inter_packet = 0;
 		card->info.blkt.inter_packet_jumbo = 0;
+	} else {
+		card->info.blkt.time_total = 250;
+		card->info.blkt.inter_packet = 5;
+		card->info.blkt.inter_packet_jumbo = 15;
 	}
 }
 
@@ -2198,11 +2200,11 @@ static inline int qeth_get_initial_mtu_for_card(struct qeth_card *card)
 		case QETH_LINK_TYPE_LANE_TR:
 			return 2000;
 		default:
-			return 1492;
+			return card->options.layer2 ? 1500 : 1492;
 		}
 	case QETH_CARD_TYPE_OSM:
 	case QETH_CARD_TYPE_OSX:
-		return 1492;
+		return card->options.layer2 ? 1500 : 1492;
 	default:
 		return 1500;
 	}
@@ -2275,9 +2277,10 @@ static int qeth_ulp_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 		card->info.max_mtu = mtu;
 		card->qdio.in_buf_size = mtu + 2 * PAGE_SIZE;
 	} else {
-		card->info.initial_mtu = qeth_get_initial_mtu_for_card(card);
 		card->info.max_mtu = *(__u16 *)QETH_ULP_ENABLE_RESP_MAX_MTU(
 			iob->data);
+		card->info.initial_mtu = min(card->info.max_mtu,
+					qeth_get_initial_mtu_for_card(card));
 		card->qdio.in_buf_size = QETH_IN_BUF_SIZE_DEFAULT;
 	}
 

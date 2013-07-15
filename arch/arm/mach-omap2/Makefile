@@ -95,10 +95,6 @@ obj-$(CONFIG_POWER_AVS_OMAP_CLASS3)    += smartreflex-class3.o
 AFLAGS_sleep24xx.o			:=-Wa,-march=armv6
 AFLAGS_sleep34xx.o			:=-Wa,-march=armv7-a$(plus_sec)
 
-ifeq ($(CONFIG_PM_VERBOSE),y)
-CFLAGS_pm_bus.o				+= -DDEBUG
-endif
-
 endif
 
 ifeq ($(CONFIG_CPU_IDLE),y)

@@ -403,18 +403,24 @@ static int ncp_parse_options(struct ncp_mount_data_kernel *data, char *options) 
 		switch (optval) {
 			case 'u':
 				data->uid = make_kuid(current_user_ns(), optint);
-				if (!uid_valid(data->uid))
+				if (!uid_valid(data->uid)) {
+					ret = -EINVAL;
 					goto err;
+				}
 				break;
 			case 'g':
 				data->gid = make_kgid(current_user_ns(), optint);
-				if (!gid_valid(data->gid))
+				if (!gid_valid(data->gid)) {
+					ret = -EINVAL;
 					goto err;
+				}
 				break;
 			case 'o':
 				data->mounted_uid = make_kuid(current_user_ns(), optint);
-				if (!uid_valid(data->mounted_uid))
+				if (!uid_valid(data->mounted_uid)) {
+					ret = -EINVAL;
 					goto err;
+				}
 				break;
 			case 'm':
 				data->file_mode = optint;

@@ -36,7 +36,6 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 MODULE_DESCRIPTION("Brooktree-856A video encoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");
@@ -177,17 +176,9 @@ static int bt856_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int bt856_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_BT856, 0);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops bt856_core_ops = {
-	.g_chip_ident = bt856_g_chip_ident,
 	.init = bt856_init,
 };
 
@@ -216,7 +207,7 @@ static int bt856_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	encoder = kzalloc(sizeof(struct bt856), GFP_KERNEL);
+	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
 	sd = &encoder->sd;
@@ -250,7 +241,6 @@ static int bt856_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_bt856(sd));
 	return 0;
 }
 

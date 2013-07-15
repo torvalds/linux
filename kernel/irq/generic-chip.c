@@ -275,7 +275,7 @@ int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 	if (d->gc)
 		return -EBUSY;
 
-	numchips = d->revmap_size / irqs_per_chip;
+	numchips = DIV_ROUND_UP(d->revmap_size, irqs_per_chip);
 	if (!numchips)
 		return -EINVAL;
 

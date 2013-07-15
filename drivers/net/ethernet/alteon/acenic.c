@@ -702,19 +702,6 @@ static struct pci_driver acenic_pci_driver = {
 	.remove		= acenic_remove_one,
 };
 
-static int __init acenic_init(void)
-{
-	return pci_register_driver(&acenic_pci_driver);
-}
-
-static void __exit acenic_exit(void)
-{
-	pci_unregister_driver(&acenic_pci_driver);
-}
-
-module_init(acenic_init);
-module_exit(acenic_exit);
-
 static void ace_free_descriptors(struct net_device *dev)
 {
 	struct ace_private *ap = netdev_priv(dev);
@@ -3199,3 +3186,5 @@ static int read_eeprom_byte(struct net_device *dev, unsigned long offset)
 	       ap->name, offset);
 	goto out;
 }
+
+module_pci_driver(acenic_pci_driver);

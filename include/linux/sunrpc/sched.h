@@ -88,15 +88,6 @@ struct rpc_task {
 				tk_rebind_retry : 2;
 };
 
-/* support walking a list of tasks on a wait queue */
-#define	task_for_each(task, pos, head) \
-	list_for_each(pos, head) \
-		if ((task=list_entry(pos, struct rpc_task, u.tk_wait.list)),1)
-
-#define	task_for_first(task, head) \
-	if (!list_empty(head) &&  \
-	    ((task=list_entry((head)->next, struct rpc_task, u.tk_wait.list)),1))
-
 typedef void			(*rpc_action)(struct rpc_task *);
 
 struct rpc_call_ops {
@@ -238,7 +229,6 @@ struct rpc_task *rpc_wake_up_first(struct rpc_wait_queue *,
 					bool (*)(struct rpc_task *, void *),
 					void *);
 void		rpc_wake_up_status(struct rpc_wait_queue *, int);
-int		rpc_queue_empty(struct rpc_wait_queue *);
 void		rpc_delay(struct rpc_task *, unsigned long);
 void *		rpc_malloc(struct rpc_task *, size_t);
 void		rpc_free(void *);
@@ -257,16 +247,6 @@ void		rpc_prepare_task(struct rpc_task *task);
 static inline int rpc_wait_for_completion_task(struct rpc_task *task)
 {
 	return __rpc_wait_for_completion_task(task, NULL);
-}
-
-static inline void rpc_task_set_priority(struct rpc_task *task, unsigned char prio)
-{
-	task->tk_priority = prio - RPC_PRIORITY_LOW;
-}
-
-static inline int rpc_task_has_priority(struct rpc_task *task, unsigned char prio)
-{
-	return (task->tk_priority + RPC_PRIORITY_LOW == prio);
 }
 
 #if defined(RPC_DEBUG) || defined (RPC_TRACEPOINTS)

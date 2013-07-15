@@ -35,6 +35,7 @@
 #include <linux/spi/spi.h>
 #include <linux/export.h>
 #include <linux/irqchip/arm-vic.h>
+#include <linux/reboot.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
@@ -921,7 +922,7 @@ void __init ep93xx_init_devices(void)
 	gpio_led_register_device(-1, &ep93xx_led_data);
 }
 
-void ep93xx_restart(char mode, const char *cmd)
+void ep93xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Set then clear the SWRST bit to initiate a software reset

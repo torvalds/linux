@@ -232,7 +232,7 @@ static inline void __cpuinit build_clear_pref(u32 **buf, int off)
 
 			uasm_i_cache(buf, Create_Dirty_Excl_D, off, A0);
 		}
-		}
+	}
 }
 
 extern u32 __clear_page_start;

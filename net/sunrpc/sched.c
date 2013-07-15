@@ -446,20 +446,6 @@ static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct r
 }
 
 /*
- * Tests whether rpc queue is empty
- */
-int rpc_queue_empty(struct rpc_wait_queue *queue)
-{
-	int res;
-
-	spin_lock_bh(&queue->lock);
-	res = queue->qlen;
-	spin_unlock_bh(&queue->lock);
-	return res == 0;
-}
-EXPORT_SYMBOL_GPL(rpc_queue_empty);
-
-/*
  * Wake up a task on a specific queue
  */
 void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task)
@@ -804,7 +790,6 @@ static void __rpc_execute(struct rpc_task *task)
 			task->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(task, -ERESTARTSYS);
 		}
-		rpc_set_running(task);
 		dprintk("RPC: %5u sync task resuming\n", task->tk_pid);
 	}
 
@@ -825,9 +810,11 @@ static void __rpc_execute(struct rpc_task *task)
  */
 void rpc_execute(struct rpc_task *task)
 {
+	bool is_async = RPC_IS_ASYNC(task);
+
 	rpc_set_active(task);
 	rpc_make_runnable(task);
-	if (!RPC_IS_ASYNC(task))
+	if (!is_async)
 		__rpc_execute(task);
 }
 

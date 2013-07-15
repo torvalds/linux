@@ -8,6 +8,9 @@ config SOC_CAMERA
 	  over a bus like PCI or USB. For example some i2c camera connected
 	  directly to the data bus of an SoC.
 
+config SOC_CAMERA_SCALE_CROP
+	tristate
+
 config SOC_CAMERA_PLATFORM
 	tristate "platform camera support"
 	depends on SOC_CAMERA
@@ -27,14 +30,10 @@ config VIDEO_MX1
 	---help---
 	  This is a v4l2 driver for the i.MX1/i.MXL CMOS Sensor Interface
 
-config MX3_VIDEO
-	bool
-
 config VIDEO_MX3
 	tristate "i.MX3x Camera Sensor Interface driver"
 	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
 	select VIDEOBUF2_DMA_CONTIG
-	select MX3_VIDEO
 	---help---
 	  This is a v4l2 driver for the i.MX3x Camera Sensor Interface
 
@@ -55,6 +54,7 @@ config VIDEO_SH_MOBILE_CEU
 	tristate "SuperH Mobile CEU Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA && HAVE_CLK
 	select VIDEOBUF2_DMA_CONTIG
+	select SOC_CAMERA_SCALE_CROP
 	---help---
 	  This is a v4l2 driver for the SuperH Mobile CEU Interface
 
@@ -66,14 +66,10 @@ config VIDEO_OMAP1
 	---help---
 	  This is a v4l2 driver for the TI OMAP1 camera interface
 
-config VIDEO_MX2_HOSTSUPPORT
-	bool
-
 config VIDEO_MX2
 	tristate "i.MX27 Camera Sensor Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && MACH_MX27
 	select VIDEOBUF2_DMA_CONTIG
-	select VIDEO_MX2_HOSTSUPPORT
 	---help---
 	  This is a v4l2 driver for the i.MX27 Camera Sensor Interface
 

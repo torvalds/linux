@@ -22,8 +22,7 @@
  * Authors: Maarten Lankhorst
  */
 
-#include <core/falcon.h>
-
+#include <engine/falcon.h>
 #include <engine/vp.h>
 
 struct nvc0_vp_priv {

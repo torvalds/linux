@@ -27,6 +27,7 @@
 #include <linux/of_platform.h>
 #include <linux/opp.h>
 #include <linux/phy.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/syscon.h>
@@ -67,7 +68,7 @@ static void __init imx6q_init_revision(void)
 	mxc_set_cpu_type(rev >> 16 & 0xff);
 }
 
-static void imx6q_restart(char mode, const char *cmd)
+static void imx6q_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device_node *np;
 	void __iomem *wdog_base;

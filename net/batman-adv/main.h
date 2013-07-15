@@ -26,7 +26,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2013.2.0"
+#define BATADV_SOURCE_VERSION "2013.3.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -75,6 +75,11 @@
 #define BATADV_NUM_WORDS BITS_TO_LONGS(BATADV_TQ_LOCAL_WINDOW_SIZE)
 
 #define BATADV_LOG_BUF_LEN 8192	  /* has to be a power of 2 */
+
+/* number of packets to send for broadcasts on different interface types */
+#define BATADV_NUM_BCASTS_DEFAULT 1
+#define BATADV_NUM_BCASTS_WIRELESS 3
+#define BATADV_NUM_BCASTS_MAX 3
 
 /* msecs after which an ARP_REQUEST is sent in broadcast as fallback */
 #define ARP_REQ_DELAY 250
@@ -156,6 +161,17 @@ enum batadv_uev_type {
 #include <linux/jiffies.h>
 #include <linux/seq_file.h>
 #include "types.h"
+
+/**
+ * batadv_vlan_flags - flags for the four MSB of any vlan ID field
+ * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or not
+ */
+enum batadv_vlan_flags {
+	BATADV_VLAN_HAS_TAG	= BIT(15),
+};
+
+#define BATADV_PRINT_VID(vid) (vid & BATADV_VLAN_HAS_TAG ? \
+			       (int)(vid & VLAN_VID_MASK) : -1)
 
 extern char batadv_routing_algo[];
 extern struct list_head batadv_hardif_list;

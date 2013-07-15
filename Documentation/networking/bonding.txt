@@ -104,8 +104,7 @@ Table of Contents
 ==============================
 
 	Most popular distro kernels ship with the bonding driver
-already available as a module and the ifenslave user level control
-program installed and ready for use. If your distro does not, or you
+already available as a module. If your distro does not, or you
 have need to compile bonding from source (e.g., configuring and
 installing a mainline kernel from kernel.org), you'll need to perform
 the following steps:
@@ -124,46 +123,13 @@ device support" section.  It is recommended that you configure the
 driver as module since it is currently the only way to pass parameters
 to the driver or configure more than one bonding device.
 
-	Build and install the new kernel and modules, then continue
-below to install ifenslave.
+	Build and install the new kernel and modules.
 
-1.2 Install ifenslave Control Utility
+1.2 Bonding Control Utility
 -------------------------------------
 
-	The ifenslave user level control program is included in the
-kernel source tree, in the file Documentation/networking/ifenslave.c.
-It is generally recommended that you use the ifenslave that
-corresponds to the kernel that you are using (either from the same
-source tree or supplied with the distro), however, ifenslave
-executables from older kernels should function (but features newer
-than the ifenslave release are not supported).  Running an ifenslave
-that is newer than the kernel is not supported, and may or may not
-work.
-
-	To install ifenslave, do the following:
-
-# gcc -Wall -O -I/usr/src/linux/include ifenslave.c -o ifenslave
-# cp ifenslave /sbin/ifenslave
-
-	If your kernel source is not in "/usr/src/linux," then replace
-"/usr/src/linux/include" in the above with the location of your kernel
-source include directory.
-
-	You may wish to back up any existing /sbin/ifenslave, or, for
-testing or informal use, tag the ifenslave to the kernel version
-(e.g., name the ifenslave executable /sbin/ifenslave-2.6.10).
-
-IMPORTANT NOTE:
-
-	If you omit the "-I" or specify an incorrect directory, you
-may end up with an ifenslave that is incompatible with the kernel
-you're trying to build it for.  Some distros (e.g., Red Hat from 7.1
-onwards) do not have /usr/include/linux symbolically linked to the
-default kernel source include directory.
-
-SECOND IMPORTANT NOTE:
-	If you plan to configure bonding using sysfs or using the
-/etc/network/interfaces file, you do not need to use ifenslave.
+	 It is recommended to configure bonding via iproute2 (netlink)
+or sysfs, the old ifenslave control utility is obsolete.
 
 2. Bonding Driver Options
 =========================
@@ -337,6 +303,12 @@ arp_validate
 	such a situation, validation of backup slaves must be
 	disabled.
 
+	The validation of ARP requests on backup slaves is mainly
+	helping bonding to decide which slaves are more likely to
+	work in case of the active slave failure, it doesn't really
+	guarantee that the backup slave will work if it's selected
+	as the next active slave.
+
 	This option is useful in network configurations in which
 	multiple bonding hosts are concurrently issuing ARPs to one or
 	more targets beyond a common switch.  Should the link between
@@ -348,6 +320,25 @@ arp_validate
 	associated with its own instance of bonding.
 
 	This option was added in bonding version 3.1.0.
+
+arp_all_targets
+
+	Specifies the quantity of arp_ip_targets that must be reachable
+	in order for the ARP monitor to consider a slave as being up.
+	This option affects only active-backup mode for slaves with
+	arp_validation enabled.
+
+	Possible values are:
+
+	any or 0
+
+		consider the slave up only when any of the arp_ip_targets
+		is reachable
+
+	all or 1
+
+		consider the slave up only when all of the arp_ip_targets
+		are reachable
 
 downdelay
 
@@ -851,7 +842,7 @@ resend_igmp
 ==============================
 
 	You can configure bonding using either your distro's network
-initialization scripts, or manually using either ifenslave or the
+initialization scripts, or manually using either iproute2 or the
 sysfs interface.  Distros generally use one of three packages for the
 network initialization scripts: initscripts, sysconfig or interfaces.
 Recent versions of these packages have support for bonding, while older
@@ -1160,7 +1151,7 @@ not support this method for specifying multiple bonding interfaces; for
 those instances, see the "Configuring Multiple Bonds Manually" section,
 below.
 
-3.3 Configuring Bonding Manually with Ifenslave
+3.3 Configuring Bonding Manually with iproute2
 -----------------------------------------------
 
 	This section applies to distros whose network initialization
@@ -1171,7 +1162,7 @@ version 8.
 	The general method for these systems is to place the bonding
 module parameters into a config file in /etc/modprobe.d/ (as
 appropriate for the installed distro), then add modprobe and/or
-ifenslave commands to the system's global init script.  The name of
+`ip link` commands to the system's global init script.  The name of
 the global init script differs; for sysconfig, it is
 /etc/init.d/boot.local and for initscripts it is /etc/rc.d/rc.local.
 
@@ -1183,8 +1174,8 @@ reboots, edit the appropriate file (/etc/init.d/boot.local or
 modprobe bonding mode=balance-alb miimon=100
 modprobe e100
 ifconfig bond0 192.168.1.1 netmask 255.255.255.0 up
-ifenslave bond0 eth0
-ifenslave bond0 eth1
+ip link set eth0 master bond0
+ip link set eth1 master bond0
 
 	Replace the example bonding module parameters and bond0
 network configuration (IP address, netmask, etc) with the appropriate
