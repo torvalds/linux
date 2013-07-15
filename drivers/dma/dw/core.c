@@ -1107,7 +1107,7 @@ dwc_tx_status(struct dma_chan *chan,
 	if (ret != DMA_SUCCESS)
 		dma_set_residue(txstate, dwc_get_residue(dwc));
 
-	if (dwc->paused)
+	if (dwc->paused && ret == DMA_IN_PROGRESS)
 		return DMA_PAUSED;
 
 	return ret;
