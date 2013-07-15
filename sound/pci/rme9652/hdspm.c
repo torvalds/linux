@@ -1250,7 +1250,7 @@ static int hdspm_rate_multiplier(struct hdspm *hdspm, int rate)
 		else if (hdspm->control_register &
 				HDSPM_DoubleSpeed)
 			return rate * 2;
-	};
+	}
 	return rate;
 }
 
