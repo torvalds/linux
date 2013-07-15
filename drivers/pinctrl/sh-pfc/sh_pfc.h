@@ -238,23 +238,6 @@ struct sh_pfc_soc_info {
 	PORT_1(fn, pfx##6, sfx), PORT_1(fn, pfx##7, sfx),		\
 	PORT_1(fn, pfx##8, sfx), PORT_1(fn, pfx##9, sfx)
 
-#define PORT_10_REV(fn, pfx, sfx)					\
-	PORT_1(fn, pfx##9, sfx), PORT_1(fn, pfx##8, sfx),		\
-	PORT_1(fn, pfx##7, sfx), PORT_1(fn, pfx##6, sfx),		\
-	PORT_1(fn, pfx##5, sfx), PORT_1(fn, pfx##4, sfx),		\
-	PORT_1(fn, pfx##3, sfx), PORT_1(fn, pfx##2, sfx),		\
-	PORT_1(fn, pfx##1, sfx), PORT_1(fn, pfx##0, sfx)
-
-#define PORT_32(fn, pfx, sfx)						\
-	PORT_10(fn, pfx, sfx), PORT_10(fn, pfx##1, sfx),		\
-	PORT_10(fn, pfx##2, sfx), PORT_1(fn, pfx##30, sfx),		\
-	PORT_1(fn, pfx##31, sfx)
-
-#define PORT_32_REV(fn, pfx, sfx)					\
-	PORT_1(fn, pfx##31, sfx), PORT_1(fn, pfx##30, sfx),		\
-	PORT_10_REV(fn, pfx##2, sfx), PORT_10_REV(fn, pfx##1, sfx),	\
-	PORT_10_REV(fn, pfx, sfx)
-
 #define PORT_90(fn, pfx, sfx) \
 	PORT_10(fn, pfx##1, sfx), PORT_10(fn, pfx##2, sfx),		\
 	PORT_10(fn, pfx##3, sfx), PORT_10(fn, pfx##4, sfx),		\
