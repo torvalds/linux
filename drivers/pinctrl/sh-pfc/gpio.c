@@ -245,7 +245,7 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	gc->dev = pfc->dev;
 	gc->owner = THIS_MODULE;
 	gc->base = 0;
-	gc->ngpio = pfc->nr_pins;
+	gc->ngpio = pfc->nr_gpio_pins;
 
 	return 0;
 }
@@ -293,7 +293,7 @@ static int gpio_function_setup(struct sh_pfc_chip *chip)
 
 	gc->label = pfc->info->name;
 	gc->owner = THIS_MODULE;
-	gc->base = pfc->nr_pins;
+	gc->base = pfc->nr_gpio_pins;
 	gc->ngpio = pfc->info->nr_func_gpios;
 
 	return 0;
