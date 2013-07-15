@@ -565,7 +565,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 		return PTR_ERR(page);
 	}
 
-	rn = (struct f2fs_node *)page_address(page);
+	rn = F2FS_NODE(page);
 	if (depth < 3) {
 		for (i = ofs; i < NIDS_PER_BLOCK; i++, freed++) {
 			child_nid = le32_to_cpu(rn->in.nid[i]);
@@ -698,7 +698,7 @@ restart:
 	set_new_dnode(&dn, inode, page, NULL, 0);
 	unlock_page(page);
 
-	rn = page_address(page);
+	rn = F2FS_NODE(page);
 	switch (level) {
 	case 0:
 	case 1:
@@ -1484,8 +1484,8 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	SetPageUptodate(ipage);
 	fill_node_footer(ipage, ino, ino, 0, true);
 
-	src = (struct f2fs_node *)page_address(page);
-	dst = (struct f2fs_node *)page_address(ipage);
+	src = F2FS_NODE(page);
+	dst = F2FS_NODE(ipage);
 
 	memcpy(dst, src, (unsigned long)&src->i.i_ext - (unsigned long)&src->i);
 	dst->i.i_size = 0;
@@ -1535,7 +1535,7 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 			goto out;
 
 		lock_page(page);
-		rn = (struct f2fs_node *)page_address(page);
+		rn = F2FS_NODE(page);
 		sum_entry->nid = rn->footer.nid;
 		sum_entry->version = 0;
 		sum_entry->ofs_in_node = 0;

@@ -270,7 +270,7 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
 	struct f2fs_node *rn;
 
 	/* copy name info. to this inode page */
-	rn = (struct f2fs_node *)page_address(ipage);
+	rn = F2FS_NODE(ipage);
 	rn->i.i_namelen = cpu_to_le32(name->len);
 	memcpy(rn->i.i_name, name->name, name->len);
 	set_page_dirty(ipage);
