@@ -46,6 +46,7 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/pci-acpi.h>
+#include <linux/pm_runtime.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
@@ -687,47 +688,75 @@ static unsigned int get_slot_status(struct acpiphp_slot *slot)
 }
 
 /**
+ * trim_stale_devices - remove PCI devices that are not responding.
+ * @dev: PCI device to start walking the hierarchy from.
+ */
+static void trim_stale_devices(struct pci_dev *dev)
+{
+	acpi_handle handle = ACPI_HANDLE(&dev->dev);
+	struct pci_bus *bus = dev->subordinate;
+	bool alive = false;
+
+	if (handle) {
+		acpi_status status;
+		unsigned long long sta;
+
+		status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
+		alive = ACPI_SUCCESS(status) && sta == ACPI_STA_ALL;
+	}
+	if (!alive) {
+		u32 v;
+
+		/* Check if the device responds. */
+		alive = pci_bus_read_dev_vendor_id(dev->bus, dev->devfn, &v, 0);
+	}
+	if (!alive) {
+		pci_stop_and_remove_bus_device(dev);
+		if (handle)
+			acpiphp_bus_trim(handle);
+	} else if (bus) {
+		struct pci_dev *child, *tmp;
+
+		/* The device is a bridge. so check the bus below it. */
+		pm_runtime_get_sync(&dev->dev);
+		list_for_each_entry_safe(child, tmp, &bus->devices, bus_list)
+			trim_stale_devices(child);
+
+		pm_runtime_put(&dev->dev);
+	}
+}
+
+/**
  * acpiphp_check_bridge - re-enumerate devices
  * @bridge: where to begin re-enumeration
  *
  * Iterate over all slots under this bridge and make sure that if a
  * card is present they are enabled, and if not they are disabled.
  */
-static int acpiphp_check_bridge(struct acpiphp_bridge *bridge)
+static void acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 {
 	struct acpiphp_slot *slot;
-	int retval = 0;
-	int enabled, disabled;
-
-	enabled = disabled = 0;
 
 	list_for_each_entry(slot, &bridge->slots, node) {
-		unsigned int status = get_slot_status(slot);
-		if (slot->flags & SLOT_ENABLED) {
-			if (status == ACPI_STA_ALL)
-				continue;
+		struct pci_bus *bus = slot->bus;
+		struct pci_dev *dev, *tmp;
 
-			retval = acpiphp_disable_and_eject_slot(slot);
-			if (retval)
-				goto err_exit;
+		mutex_lock(&slot->crit_sect);
+		/* wake up all functions */
+		if (get_slot_status(slot) == ACPI_STA_ALL) {
+			/* remove stale devices if any */
+			list_for_each_entry_safe(dev, tmp, &bus->devices,
+						 bus_list)
+				if (PCI_SLOT(dev->devfn) == slot->device)
+					trim_stale_devices(dev);
 
-			disabled++;
+			/* configure all functions */
+			enable_device(slot);
 		} else {
-			if (status != ACPI_STA_ALL)
-				continue;
-			retval = acpiphp_enable_slot(slot);
-			if (retval) {
-				err("Error occurred in enabling\n");
-				goto err_exit;
-			}
-			enabled++;
+			disable_device(slot);
 		}
+		mutex_unlock(&slot->crit_sect);
 	}
-
-	dbg("%s: %d enabled, %d disabled\n", __func__, enabled, disabled);
-
- err_exit:
-	return retval;
 }
 
 static void acpiphp_set_hpp_values(struct pci_bus *bus)
@@ -828,7 +857,11 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 					    ACPI_UINT32_MAX, check_sub_bridges,
 					    NULL, NULL, NULL);
 		} else {
-			acpiphp_enable_slot(func->slot);
+			struct acpiphp_slot *slot = func->slot;
+
+			mutex_lock(&slot->crit_sect);
+			enable_device(slot);
+			mutex_unlock(&slot->crit_sect);
 		}
 		break;
 
