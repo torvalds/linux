@@ -1637,7 +1637,7 @@ int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err)
 		dev_info(&adapter->pdev->dev,
-			 "Promiscous mode config failed\n");
+			 "Promiscuous mode config failed\n");
 
 	qlcnic_free_mbx_args(&cmd);
 	return err;
@@ -3082,7 +3082,7 @@ int qlcnic_83xx_set_settings(struct qlcnic_adapter *adapter,
 	status = qlcnic_83xx_set_port_config(adapter);
 	if (status) {
 		dev_info(&adapter->pdev->dev,
-			 "Faild to Set Link Speed and autoneg.\n");
+			 "Failed to Set Link Speed and autoneg.\n");
 		adapter->ahw->port_config = config;
 	}
 	return status;

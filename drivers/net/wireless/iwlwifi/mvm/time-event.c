@@ -184,7 +184,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		    (!te_data->vif->bss_conf.assoc ||
 		     !te_data->vif->bss_conf.dtim_period)) {
 			IWL_ERR(mvm,
-				"No assocation and the time event is over already...\n");
+				"No association and the time event is over already...\n");
 			ieee80211_connection_loss(te_data->vif);
 		}
 

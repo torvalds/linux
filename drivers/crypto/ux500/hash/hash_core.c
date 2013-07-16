@@ -282,7 +282,7 @@ static int get_empty_message_digest(
 			}
 		} else {
 			dev_dbg(device_data->dev, "[%s] Continue hash "
-					"calculation, since hmac key avalable",
+					"calculation, since hmac key available",
 					__func__);
 		}
 	}
