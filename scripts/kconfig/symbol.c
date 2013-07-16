@@ -963,7 +963,7 @@ struct sym_match {
  * - first, symbols that match exactly
  * - then, alphabetical sort
  */
-static int sym_rel_comp( const void *sym1, const void *sym2 )
+static int sym_rel_comp(const void *sym1, const void *sym2)
 {
 	struct sym_match *s1 = *(struct sym_match **)sym1;
 	struct sym_match *s2 = *(struct sym_match **)sym2;
@@ -1014,9 +1014,8 @@ struct symbol **sym_re_search(const char *pattern)
 			void *tmp;
 			size += 16;
 			tmp = realloc(sym_match_arr, size * sizeof(struct sym_match *));
-			if (!tmp) {
+			if (!tmp)
 				goto sym_re_search_free;
-			}
 			sym_match_arr = tmp;
 		}
 		sym_calc_value(sym);
@@ -1024,7 +1023,7 @@ struct symbol **sym_re_search(const char *pattern)
 		if (!tmp_sym_match)
 			goto sym_re_search_free;
 		tmp_sym_match->sym = sym;
-		/* As regexec return 0, we know we have a match, so
+		/* As regexec returned 0, we know we have a match, so
 		 * we can use match[0].rm_[se]o without further checks
 		 */
 		tmp_sym_match->so = match[0].rm_so;
