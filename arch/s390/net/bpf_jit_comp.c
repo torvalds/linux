@@ -787,15 +787,9 @@ void bpf_jit_compile(struct sk_filter *fp)
 		cjit = jit;
 	}
 	if (bpf_jit_enable > 1) {
-		pr_err("flen=%d proglen=%lu pass=%d image=%p\n",
-		       fp->len, jit.end - jit.start, pass, jit.start);
-		if (jit.start) {
-			printk(KERN_ERR "JIT code:\n");
+		bpf_jit_dump(fp->len, jit.end - jit.start, pass, jit.start);
+		if (jit.start)
 			print_fn_code(jit.start, jit.mid - jit.start);
-			print_hex_dump(KERN_ERR, "JIT literals:\n",
-				       DUMP_PREFIX_ADDRESS, 16, 1,
-				       jit.mid, jit.end - jit.mid, false);
-		}
 	}
 	if (jit.start)
 		fp->bpf_func = (void *) jit.start;
