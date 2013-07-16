@@ -110,6 +110,7 @@ enum e1000_nvm_type {
 	e1000_nvm_none,
 	e1000_nvm_eeprom_spi,
 	e1000_nvm_flash_hw,
+	e1000_nvm_invm,
 	e1000_nvm_flash_sw
 };
 

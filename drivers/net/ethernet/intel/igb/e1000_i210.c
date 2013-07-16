@@ -661,6 +661,23 @@ static s32 igb_pool_flash_update_done_i210(struct e1000_hw *hw)
 }
 
 /**
+ *  igb_get_flash_presence_i210 - Check if flash device is detected.
+ *  @hw: pointer to the HW structure
+ *
+ **/
+bool igb_get_flash_presence_i210(struct e1000_hw *hw)
+{
+	u32 eec = 0;
+	bool ret_val = false;
+
+	eec = rd32(E1000_EECD);
+	if (eec & E1000_EECD_FLASH_DETECTED_I210)
+		ret_val = true;
+
+	return ret_val;
+}
+
+/**
  *  igb_update_flash_i210 - Commit EEPROM to the flash
  *  @hw: pointer to the HW structure
  *
@@ -785,4 +802,34 @@ s32 igb_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 *data)
 s32 igb_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 data)
 {
 	return __igb_access_xmdio_reg(hw, addr, dev_addr, &data, false);
+}
+
+/**
+ *  igb_init_nvm_params_i210 - Init NVM func ptrs.
+ *  @hw: pointer to the HW structure
+ **/
+s32 igb_init_nvm_params_i210(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	struct e1000_nvm_info *nvm = &hw->nvm;
+
+	nvm->ops.acquire = igb_acquire_nvm_i210;
+	nvm->ops.release = igb_release_nvm_i210;
+	nvm->ops.valid_led_default = igb_valid_led_default_i210;
+
+	/* NVM Function Pointers */
+	if (igb_get_flash_presence_i210(hw)) {
+		hw->nvm.type = e1000_nvm_flash_hw;
+		nvm->ops.read    = igb_read_nvm_srrd_i210;
+		nvm->ops.write   = igb_write_nvm_srwr_i210;
+		nvm->ops.validate = igb_validate_nvm_checksum_i210;
+		nvm->ops.update   = igb_update_nvm_checksum_i210;
+	} else {
+		hw->nvm.type = e1000_nvm_invm;
+		nvm->ops.read     = igb_read_nvm_i211;
+		nvm->ops.write    = NULL;
+		nvm->ops.validate = NULL;
+		nvm->ops.update   = NULL;
+	}
+	return ret_val;
 }
