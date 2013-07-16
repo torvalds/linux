@@ -10,6 +10,7 @@
 
 /dts-v1/;
 /include/ "r8a7790.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Lager";
@@ -27,5 +28,18 @@
 	lbsc {
 		#address-cells = <1>;
 		#size-cells = <1>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led6 {
+			gpios = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+		};
+		led7 {
+			gpios = <&gpio4 23 GPIO_ACTIVE_HIGH>;
+		};
+		led8 {
+			gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
+		};
 	};
 };
