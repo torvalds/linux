@@ -229,21 +229,6 @@ static int ade7759_reset(struct device *dev)
 	return ret;
 }
 
-static ssize_t ade7759_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	if (len < 1)
-		return -1;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return ade7759_reset(dev);
-	}
-	return -1;
-}
-
 static IIO_DEV_ATTR_AENERGY(ade7759_read_40bit, ADE7759_AENERGY);
 static IIO_DEV_ATTR_CFDEN(S_IWUSR | S_IRUGO,
 		ade7759_read_16bit,
@@ -418,8 +403,6 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ade7759_read_frequency,
 		ade7759_write_frequency);
 
-static IIO_DEV_ATTR_RESET(ade7759_write_reset);
-
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("27900 14000 7000 3500");
 
 static struct attribute *ade7759_attributes[] = {
@@ -428,7 +411,6 @@ static struct attribute *ade7759_attributes[] = {
 	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_phcal.dev_attr.attr,
 	&iio_dev_attr_cfden.dev_attr.attr,
 	&iio_dev_attr_aenergy.dev_attr.attr,
