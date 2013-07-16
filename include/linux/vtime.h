@@ -1,6 +1,10 @@
 #ifndef _LINUX_KERNEL_VTIME_H
 #define _LINUX_KERNEL_VTIME_H
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+#include <asm/vtime.h>
+#endif
+
 struct task_struct;
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
