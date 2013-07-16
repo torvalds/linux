@@ -25,8 +25,6 @@ enum {
 	PINMUX_TYPE_GPIO,
 	PINMUX_TYPE_OUTPUT,
 	PINMUX_TYPE_INPUT,
-	PINMUX_TYPE_INPUT_PULLUP,
-	PINMUX_TYPE_INPUT_PULLDOWN,
 
 	PINMUX_FLAG_TYPE,	/* must be last */
 };
@@ -141,8 +139,6 @@ struct sh_pfc_soc_info {
 	const struct sh_pfc_soc_operations *ops;
 
 	struct pinmux_range input;
-	struct pinmux_range input_pd;
-	struct pinmux_range input_pu;
 	struct pinmux_range output;
 	struct pinmux_range function;
 

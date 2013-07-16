@@ -283,14 +283,6 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 		range = &pfc->info->input;
 		break;
 
-	case PINMUX_TYPE_INPUT_PULLUP:
-		range = &pfc->info->input_pu;
-		break;
-
-	case PINMUX_TYPE_INPUT_PULLDOWN:
-		range = &pfc->info->input_pd;
-		break;
-
 	default:
 		return -EINVAL;
 	}
