@@ -449,6 +449,7 @@ typedef uint32_t gen6_gtt_pte_t;
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_device *dev;
+	struct list_head global_link;
 	unsigned long start;		/* Start offset always 0 for dri2 */
 	size_t total;		/* size addr space maps (ex. 2GB for ggtt) */
 
@@ -1121,6 +1122,7 @@ typedef struct drm_i915_private {
 	enum modeset_restore modeset_restore;
 	struct mutex modeset_restore_lock;
 
+	struct list_head vm_list; /* Global list of all address spaces */
 	struct i915_gtt gtt; /* VMA representing the global address space */
 
 	struct i915_gem_mm mm;
