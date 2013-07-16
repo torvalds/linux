@@ -8441,9 +8441,13 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		 * avoid allocating from un-mirrored block group if there are
 		 * mirrored block groups.
 		 */
-		list_for_each_entry(cache, &space_info->block_groups[3], list)
+		list_for_each_entry(cache,
+				&space_info->block_groups[BTRFS_RAID_RAID0],
+				list)
 			set_block_group_ro(cache, 1);
-		list_for_each_entry(cache, &space_info->block_groups[4], list)
+		list_for_each_entry(cache,
+				&space_info->block_groups[BTRFS_RAID_SINGLE],
+				list)
 			set_block_group_ro(cache, 1);
 	}
 
