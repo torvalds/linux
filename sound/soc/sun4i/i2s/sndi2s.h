@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\i2s\sndi2s.h
+ * sound\soc\sunxi\i2s\sndi2s.h
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>

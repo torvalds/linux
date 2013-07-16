@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\i2s\sndi2s.c
+ * sound\soc\sunxi\i2s\sndi2s.c
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>
@@ -153,13 +153,13 @@ static int __devexit sndi2s_codec_remove(struct platform_device *pdev)
 }
 /*data relating*/
 static struct platform_device sndi2s_codec_device = {
-	.name = "sun4i-i2s-codec",
+	.name = "sunxi-i2s-codec",
 };
 
 /*method relating*/
 static struct platform_driver sndi2s_codec_driver = {
 	.driver = {
-		.name = "sun4i-i2s-codec",
+		.name = "sunxi-i2s-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe = sndi2s_codec_probe,
@@ -203,4 +203,4 @@ module_exit(sndi2s_codec_exit);
 MODULE_DESCRIPTION("SNDI2S ALSA soc codec driver");
 MODULE_AUTHOR("Zoltan Devai, Christian Pellegrin <chripell@evolware.org>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:sun4i-i2s-codec");
+MODULE_ALIAS("platform:sunxi-i2s-codec");

@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\i2s\sun4i-i2sdma.h
+ * sound\soc\sunxi\i2s\sunxi_sndi2s.h
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>
@@ -12,24 +12,14 @@
  * the License, or (at your option) any later version.
  *
  */
+#ifndef SUNXI_SNDI2S_H_
+#define SUNXI_SNDI2S_H_
 
-
-#ifndef SUN4I_PCM_H_
-#define SUN4I_PCM_H_
-
-#define ST_RUNNING    (1<<0)
-#define ST_OPENED     (1<<1)
-
-#define SUN4I_DAI_I2S			1
-
-enum sun4i_dma_buffresult {
-	SUN4I_RES_OK,
-	SUN4I_RES_ERR,
-	SUN4I_RES_ABORT
-};
-
-/* platform data */
-extern struct snd_soc_platform sun4i_soc_platform_i2s;
-extern struct sun4i_i2s_info sun4i_iis;
-
-#endif //SUN4I_PCM_H_
+struct sunxi_sndi2s_platform_data {
+	int iis_bclk;
+	int iis_ws;
+	int iis_data;
+	void (*power)(int);
+	int model;
+}
+#endif
