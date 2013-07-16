@@ -1738,7 +1738,7 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 /*
  * Initialize various parameters with default vaules.
  */
-static void ath10k_halt(struct ath10k *ar)
+void ath10k_halt(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -1764,7 +1764,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&ar->conf_mutex);
 
-	if (ar->state != ATH10K_STATE_OFF) {
+	if (ar->state != ATH10K_STATE_OFF &&
+	    ar->state != ATH10K_STATE_RESTARTING) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -1783,6 +1784,11 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		ar->state = ATH10K_STATE_OFF;
 		goto exit;
 	}
+
+	if (ar->state == ATH10K_STATE_OFF)
+		ar->state = ATH10K_STATE_ON;
+	else if (ar->state == ATH10K_STATE_RESTARTING)
+		ar->state = ATH10K_STATE_RESTARTED;
 
 	ret = ath10k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_PMF_QOS, 1);
 	if (ret)
@@ -1806,22 +1812,47 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 	struct ath10k *ar = hw->priv;
 
 	mutex_lock(&ar->conf_mutex);
-	if (ar->state == ATH10K_STATE_ON)
+	if (ar->state == ATH10K_STATE_ON ||
+	    ar->state == ATH10K_STATE_RESTARTED ||
+	    ar->state == ATH10K_STATE_WEDGED)
 		ath10k_halt(ar);
 
 	ar->state = ATH10K_STATE_OFF;
 	mutex_unlock(&ar->conf_mutex);
 
 	cancel_work_sync(&ar->offchan_tx_work);
+	cancel_work_sync(&ar->restart_work);
+}
+
+static void ath10k_config_ps(struct ath10k *ar)
+{
+	struct ath10k_generic_iter ar_iter;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	/* During HW reconfiguration mac80211 reports all interfaces that were
+	 * running until reconfiguration was started. Since FW doesn't have any
+	 * vdevs at this point we must not iterate over this interface list.
+	 * This setting will be updated upon add_interface(). */
+	if (ar->state == ATH10K_STATE_RESTARTED)
+		return;
+
+	memset(&ar_iter, 0, sizeof(struct ath10k_generic_iter));
+	ar_iter.ar = ar;
+
+	ieee80211_iterate_active_interfaces_atomic(
+		ar->hw, IEEE80211_IFACE_ITER_NORMAL,
+		ath10k_ps_iter, &ar_iter);
+
+	if (ar_iter.ret)
+		ath10k_warn("failed to set ps config (%d)\n", ar_iter.ret);
 }
 
 static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct ath10k_generic_iter ar_iter;
 	struct ath10k *ar = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
 	int ret = 0;
-	u32 flags;
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -1833,18 +1864,8 @@ static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
 		spin_unlock_bh(&ar->data_lock);
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_PS) {
-		memset(&ar_iter, 0, sizeof(struct ath10k_generic_iter));
-		ar_iter.ar = ar;
-		flags = IEEE80211_IFACE_ITER_RESUME_ALL;
-
-		ieee80211_iterate_active_interfaces_atomic(hw,
-							   flags,
-							   ath10k_ps_iter,
-							   &ar_iter);
-
-		ret = ar_iter.ret;
-	}
+	if (changed & IEEE80211_CONF_CHANGE_PS)
+		ath10k_config_ps(ar);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (conf->flags & IEEE80211_CONF_MONITOR)
@@ -1853,6 +1874,7 @@ static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
 			ret = ath10k_monitor_destroy(ar);
 	}
 
+	ath10k_wmi_flush_tx(ar);
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
@@ -2695,6 +2717,13 @@ static void ath10k_set_rts_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&arvif->ar->conf_mutex);
 
+	/* During HW reconfiguration mac80211 reports all interfaces that were
+	 * running until reconfiguration was started. Since FW doesn't have any
+	 * vdevs at this point we must not iterate over this interface list.
+	 * This setting will be updated upon add_interface(). */
+	if (ar_iter->ar->state == ATH10K_STATE_RESTARTED)
+		return;
+
 	rts = min_t(u32, rts, ATH10K_RTS_MAX);
 
 	ar_iter->ret = ath10k_wmi_vdev_set_param(ar_iter->ar, arvif->vdev_id,
@@ -2735,6 +2764,13 @@ static void ath10k_set_frag_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&arvif->ar->conf_mutex);
 
+	/* During HW reconfiguration mac80211 reports all interfaces that were
+	 * running until reconfiguration was started. Since FW doesn't have any
+	 * vdevs at this point we must not iterate over this interface list.
+	 * This setting will be updated upon add_interface(). */
+	if (ar_iter->ar->state == ATH10K_STATE_RESTARTED)
+		return;
+
 	frag = clamp_t(u32, frag,
 		       ATH10K_FRAGMT_THRESHOLD_MIN,
 		       ATH10K_FRAGMT_THRESHOLD_MAX);
@@ -2773,6 +2809,7 @@ static int ath10k_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	struct ath10k *ar = hw->priv;
+	bool skip;
 	int ret;
 
 	/* mac80211 doesn't care if we really xmit queued frames or not
@@ -2782,17 +2819,26 @@ static void ath10k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 
 	mutex_lock(&ar->conf_mutex);
 
+	if (ar->state == ATH10K_STATE_WEDGED)
+		goto skip;
+
 	ret = wait_event_timeout(ar->htt.empty_tx_wq, ({
 			bool empty;
+
 			spin_lock_bh(&ar->htt.tx_lock);
 			empty = bitmap_empty(ar->htt.used_msdu_ids,
 					     ar->htt.max_num_pending_tx);
 			spin_unlock_bh(&ar->htt.tx_lock);
-			(empty);
+
+			skip = (ar->state == ATH10K_STATE_WEDGED);
+
+			(empty || skip);
 		}), ATH10K_FLUSH_TIMEOUT_HZ);
-	if (ret <= 0)
+
+	if (ret <= 0 || skip)
 		ath10k_warn("tx not flushed\n");
 
+skip:
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -2866,6 +2912,22 @@ static int ath10k_resume(struct ieee80211_hw *hw)
 }
 #endif
 
+static void ath10k_restart_complete(struct ieee80211_hw *hw)
+{
+	struct ath10k *ar = hw->priv;
+
+	mutex_lock(&ar->conf_mutex);
+
+	/* If device failed to restart it will be in a different state, e.g.
+	 * ATH10K_STATE_WEDGED */
+	if (ar->state == ATH10K_STATE_RESTARTED) {
+		ath10k_info("device successfully recovered\n");
+		ar->state = ATH10K_STATE_ON;
+	}
+
+	mutex_unlock(&ar->conf_mutex);
+}
+
 static const struct ieee80211_ops ath10k_ops = {
 	.tx				= ath10k_tx,
 	.start				= ath10k_start,
@@ -2886,6 +2948,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.set_frag_threshold		= ath10k_set_frag_threshold,
 	.flush				= ath10k_flush,
 	.tx_last_beacon			= ath10k_tx_last_beacon,
+	.restart_complete		= ath10k_restart_complete,
 #ifdef CONFIG_PM
 	.suspend			= ath10k_suspend,
 	.resume				= ath10k_resume,

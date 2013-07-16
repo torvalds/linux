@@ -246,6 +246,9 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 {
 	struct ath10k_htc_ep *ep = &htc->endpoint[eid];
 
+	if (htc->ar->state == ATH10K_STATE_WEDGED)
+		return -ECOMM;
+
 	if (eid >= ATH10K_HTC_EP_COUNT) {
 		ath10k_warn("Invalid endpoint id: %d\n", eid);
 		return -ENOENT;

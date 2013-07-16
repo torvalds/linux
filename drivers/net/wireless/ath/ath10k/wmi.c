@@ -27,6 +27,13 @@ void ath10k_wmi_flush_tx(struct ath10k *ar)
 {
 	int ret;
 
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (ar->state == ATH10K_STATE_WEDGED) {
+		ath10k_warn("wmi flush skipped - device is wedged anyway\n");
+		return;
+	}
+
 	ret = wait_event_timeout(ar->wmi.wq,
 				 atomic_read(&ar->wmi.pending_tx_count) == 0,
 				 5*HZ);

@@ -250,6 +250,23 @@ struct ath10k_debug {
 enum ath10k_state {
 	ATH10K_STATE_OFF = 0,
 	ATH10K_STATE_ON,
+
+	/* When doing firmware recovery the device is first powered down.
+	 * mac80211 is supposed to call in to start() hook later on. It is
+	 * however possible that driver unloading and firmware crash overlap.
+	 * mac80211 can wait on conf_mutex in stop() while the device is
+	 * stopped in ath10k_core_restart() work holding conf_mutex. The state
+	 * RESTARTED means that the device is up and mac80211 has started hw
+	 * reconfiguration. Once mac80211 is done with the reconfiguration we
+	 * set the state to STATE_ON in restart_complete(). */
+	ATH10K_STATE_RESTARTING,
+	ATH10K_STATE_RESTARTED,
+
+	/* The device has crashed while restarting hw. This state is like ON
+	 * but commands are blocked in HTC and -ECOMM response is given. This
+	 * prevents completion timeouts and makes the driver more responsive to
+	 * userspace commands. This is also prevents recursive recovery. */
+	ATH10K_STATE_WEDGED,
 };
 
 struct ath10k {
@@ -354,6 +371,8 @@ struct ath10k {
 	struct sk_buff *offchan_tx_skb;
 
 	enum ath10k_state state;
+
+	struct work_struct restart_work;
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;

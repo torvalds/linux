@@ -476,6 +476,34 @@ static int ath10k_init_hw_params(struct ath10k *ar)
 	return 0;
 }
 
+static void ath10k_core_restart(struct work_struct *work)
+{
+	struct ath10k *ar = container_of(work, struct ath10k, restart_work);
+
+	mutex_lock(&ar->conf_mutex);
+
+	switch (ar->state) {
+	case ATH10K_STATE_ON:
+		ath10k_halt(ar);
+		ar->state = ATH10K_STATE_RESTARTING;
+		ieee80211_restart_hw(ar->hw);
+		break;
+	case ATH10K_STATE_OFF:
+		/* this can happen if driver is being unloaded */
+		ath10k_warn("cannot restart a device that hasn't been started\n");
+		break;
+	case ATH10K_STATE_RESTARTING:
+	case ATH10K_STATE_RESTARTED:
+		ar->state = ATH10K_STATE_WEDGED;
+		/* fall through */
+	case ATH10K_STATE_WEDGED:
+		ath10k_warn("device is wedged, will not restart\n");
+		break;
+	}
+
+	mutex_unlock(&ar->conf_mutex);
+}
+
 struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 				  const struct ath10k_hif_ops *hif_ops)
 {
@@ -518,6 +546,8 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	skb_queue_head_init(&ar->offchan_tx_queue);
 
 	init_waitqueue_head(&ar->event_queue);
+
+	INIT_WORK(&ar->restart_work, ath10k_core_restart);
 
 	return ar;
 
