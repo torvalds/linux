@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\spdif\sndspdif.c
+ * sound\soc\sunxi\spdif\sndspdif.c
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>
@@ -142,13 +142,13 @@ static int __devexit sndspdif_codec_remove(struct platform_device *pdev)
 
 /*data relating*/
 static struct platform_device sndspdif_codec_device = {
-	.name = "sun4i-spdif-codec",
+	.name = "sunxi-spdif-codec",
 };
 
 /*method relating*/
 static struct platform_driver sndspdif_codec_driver = {
 	.driver = {
-		.name = "sun4i-spdif-codec",
+		.name = "sunxi-spdif-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe = sndspdif_codec_probe,
@@ -187,4 +187,4 @@ module_exit(sndspdif_codec_exit);
 MODULE_DESCRIPTION("SNDSPDIF ALSA soc codec driver");
 MODULE_AUTHOR("Zoltan Devai, Christian Pellegrin <chripell@evolware.org>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:sun4i-spdif-codec");
+MODULE_ALIAS("platform:sunxi-spdif-codec");

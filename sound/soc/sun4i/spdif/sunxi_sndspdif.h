@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\spdif\sun4i_sndspdif.h
+ * sound\soc\sunxi\spdif\sunxi_sndspdif.h
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>
@@ -12,7 +12,7 @@
  * the License, or (at your option) any later version.
  *
  */
-#ifndef SUN4I_SNDSPDIF_H_
-#define SUN4I_SNDSPDIF_H_
+#ifndef SUNXI_SNDSPDIF_H_
+#define SUNXI_SNDSPDIF_H_
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\spdif\sun4i_sndspdif.c
+ * sound\soc\sunxi\spdif\sunxi_sndspdif.c
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>
@@ -24,8 +24,8 @@
 #include <plat/sys_config.h>
 #include <linux/io.h>
 
-#include "sun4i_spdif.h"
-#include "sun4i_spdma.h"
+#include "sunxi_spdif.h"
+#include "sunxi_spdma.h"
 
 #include "sndspdif.h"
 
@@ -41,7 +41,7 @@ static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 };
 #endif
 
-static int sun4i_sndspdif_startup(struct snd_pcm_substream *substream)
+static int sunxi_sndspdif_startup(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
 	#ifdef ENFORCE_RATES
@@ -57,7 +57,7 @@ static int sun4i_sndspdif_startup(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static void sun4i_sndspdif_shutdown(struct snd_pcm_substream *substream)
+static void sunxi_sndspdif_shutdown(struct snd_pcm_substream *substream)
 {
 	mutex_lock(&clk_lock);
 	clk_users -= 1;
@@ -167,7 +167,7 @@ static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div, u
 	return ret;
 }
 
-static int sun4i_sndspdif_hw_params(struct snd_pcm_substream *substream,
+static int sunxi_sndspdif_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -196,11 +196,11 @@ static int sun4i_sndspdif_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUN4I_DIV_MCLK, mclk_div);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_MCLK, mclk_div);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUN4I_DIV_BCLK, bclk_div);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_BCLK, bclk_div);
 	if (ret < 0)
 		return ret;
 
@@ -211,55 +211,55 @@ static int sun4i_sndspdif_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops sun4i_sndspdif_ops = {
-	.startup 	= sun4i_sndspdif_startup,
-	.shutdown 	= sun4i_sndspdif_shutdown,
-	.hw_params 	= sun4i_sndspdif_hw_params,
+static struct snd_soc_ops sunxi_sndspdif_ops = {
+	.startup 	= sunxi_sndspdif_startup,
+	.shutdown 	= sunxi_sndspdif_shutdown,
+	.hw_params 	= sunxi_sndspdif_hw_params,
 };
 
-static struct snd_soc_dai_link sun4i_sndspdif_dai_link = {
+static struct snd_soc_dai_link sunxi_sndspdif_dai_link = {
 	.name 			= "SPDIF",
-	.stream_name 	= "SUN4I-SPDIF",
-	.cpu_dai_name 	= "sun4i-spdif.0",
+	.stream_name 	= "SUNXI-SPDIF",
+	.cpu_dai_name 	= "sunxi-spdif.0",
 	.codec_dai_name = "sndspdif",
-	.platform_name 	= "sun4i-spdif-pcm-audio.0",
-	.codec_name 	= "sun4i-spdif-codec.0",
-	.ops 			= &sun4i_sndspdif_ops,
+	.platform_name 	= "sunxi-spdif-pcm-audio.0",
+	.codec_name 	= "sunxi-spdif-codec.0",
+	.ops 			= &sunxi_sndspdif_ops,
 };
 
-static struct snd_soc_card snd_soc_sun4i_sndspdif = {
-	.name 		= "sun4i-sndspdif",
+static struct snd_soc_card snd_soc_sunxi_sndspdif = {
+	.name 		= "sunxi-sndspdif",
 	.owner		= THIS_MODULE,
-	.dai_link 	= &sun4i_sndspdif_dai_link,
+	.dai_link 	= &sunxi_sndspdif_dai_link,
 	.num_links 	= 1,
 };
 
-static int __devinit sun4i_sndspdif_probe(struct platform_device *pdev)
+static int __devinit sunxi_sndspdif_probe(struct platform_device *pdev)
 {
-	snd_soc_sun4i_sndspdif.dev = &pdev->dev;
-	return snd_soc_register_card(&snd_soc_sun4i_sndspdif);
+	snd_soc_sunxi_sndspdif.dev = &pdev->dev;
+	return snd_soc_register_card(&snd_soc_sunxi_sndspdif);
 }
 
-static int __devexit sun4i_sndspdif_remove(struct platform_device *pdev)
+static int __devexit sunxi_sndspdif_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_card(&snd_soc_sun4i_sndspdif);
+	snd_soc_unregister_card(&snd_soc_sunxi_sndspdif);
 	return 0;
 }
 
-static struct platform_device sun4i_sndspdif_device = {
-	.name = "sun4i-sndspdif",
+static struct platform_device sunxi_sndspdif_device = {
+	.name = "sunxi-sndspdif",
 };
 
-static struct platform_driver sun4i_sndspdif_driver = {
-	.probe = sun4i_sndspdif_probe,
-	.remove = __devexit_p(sun4i_sndspdif_remove),
+static struct platform_driver sunxi_sndspdif_driver = {
+	.probe = sunxi_sndspdif_probe,
+	.remove = __devexit_p(sunxi_sndspdif_remove),
 	.driver = {
-		.name = "sun4i-sndspdif",
+		.name = "sunxi-sndspdif",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init sun4i_sndspdif_init(void)
+static int __init sunxi_sndspdif_init(void)
 {
 	int ret, spdif_used = 0;
 
@@ -267,28 +267,28 @@ static int __init sun4i_sndspdif_init(void)
 	if (ret != 0 || !spdif_used)
 		return -ENODEV;
 
-	ret = platform_device_register(&sun4i_sndspdif_device);
+	ret = platform_device_register(&sunxi_sndspdif_device);
 	if (ret < 0)
 		return ret;
 
-	ret = platform_driver_register(&sun4i_sndspdif_driver);
+	ret = platform_driver_register(&sunxi_sndspdif_driver);
 	if (ret < 0) {
-		platform_device_unregister(&sun4i_sndspdif_device);
+		platform_device_unregister(&sunxi_sndspdif_device);
 		return ret;
 	}
 	return 0;
 }
 
-static void __exit sun4i_sndspdif_exit(void)
+static void __exit sunxi_sndspdif_exit(void)
 {
-	platform_driver_unregister(&sun4i_sndspdif_driver);
-	platform_device_unregister(&sun4i_sndspdif_device);
+	platform_driver_unregister(&sunxi_sndspdif_driver);
+	platform_device_unregister(&sunxi_sndspdif_device);
 }
 
-module_init(sun4i_sndspdif_init);
-module_exit(sun4i_sndspdif_exit);
+module_init(sunxi_sndspdif_init);
+module_exit(sunxi_sndspdif_exit);
 
 MODULE_AUTHOR("ALL WINNER");
-MODULE_DESCRIPTION("SUN4I_SNDSPDIF ALSA SoC audio driver");
+MODULE_DESCRIPTION("SUNXI_SNDSPDIF ALSA SoC audio driver");
 MODULE_LICENSE("GPL");
 
