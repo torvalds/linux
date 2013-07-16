@@ -2815,16 +2815,19 @@ static void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 	kfree(bus);
 }
 
-static int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
+static inline int __kvm_io_bus_sort_cmp(const struct kvm_io_range *r1,
+                                        const struct kvm_io_range *r2)
 {
-	const struct kvm_io_range *r1 = p1;
-	const struct kvm_io_range *r2 = p2;
-
 	if (r1->addr < r2->addr)
 		return -1;
 	if (r1->addr + r1->len > r2->addr + r2->len)
 		return 1;
 	return 0;
+}
+
+static int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
+{
+	return __kvm_io_bus_sort_cmp(p1, p2);
 }
 
 static int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
@@ -2860,7 +2863,7 @@ static int kvm_io_bus_get_first_dev(struct kvm_io_bus *bus,
 
 	off = range - bus->range;
 
-	while (off > 0 && kvm_io_bus_sort_cmp(&key, &bus->range[off-1]) == 0)
+	while (off > 0 && __kvm_io_bus_sort_cmp(&key, &bus->range[off-1]) == 0)
 		off--;
 
 	return off;
@@ -2876,7 +2879,7 @@ static int __kvm_io_bus_write(struct kvm_io_bus *bus,
 		return -EOPNOTSUPP;
 
 	while (idx < bus->dev_count &&
-		kvm_io_bus_sort_cmp(range, &bus->range[idx]) == 0) {
+		__kvm_io_bus_sort_cmp(range, &bus->range[idx]) == 0) {
 		if (!kvm_iodevice_write(bus->range[idx].dev, range->addr,
 					range->len, val))
 			return idx;
@@ -2920,7 +2923,7 @@ int kvm_io_bus_write_cookie(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 
 	/* First try the device referenced by cookie. */
 	if ((cookie >= 0) && (cookie < bus->dev_count) &&
-	    (kvm_io_bus_sort_cmp(&range, &bus->range[cookie]) == 0))
+	    (__kvm_io_bus_sort_cmp(&range, &bus->range[cookie]) == 0))
 		if (!kvm_iodevice_write(bus->range[cookie].dev, addr, len,
 					val))
 			return cookie;
@@ -2942,7 +2945,7 @@ static int __kvm_io_bus_read(struct kvm_io_bus *bus, struct kvm_io_range *range,
 		return -EOPNOTSUPP;
 
 	while (idx < bus->dev_count &&
-		kvm_io_bus_sort_cmp(range, &bus->range[idx]) == 0) {
+		__kvm_io_bus_sort_cmp(range, &bus->range[idx]) == 0) {
 		if (!kvm_iodevice_read(bus->range[idx].dev, range->addr,
 				       range->len, val))
 			return idx;
@@ -2986,7 +2989,7 @@ int kvm_io_bus_read_cookie(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 
 	/* First try the device referenced by cookie. */
 	if ((cookie >= 0) && (cookie < bus->dev_count) &&
-	    (kvm_io_bus_sort_cmp(&range, &bus->range[cookie]) == 0))
+	    (__kvm_io_bus_sort_cmp(&range, &bus->range[cookie]) == 0))
 		if (!kvm_iodevice_read(bus->range[cookie].dev, addr, len,
 				       val))
 			return cookie;
