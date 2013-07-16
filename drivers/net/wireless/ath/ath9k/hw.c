@@ -1526,7 +1526,8 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 		ath9k_hw_mark_phy_inactive(ah);
 		udelay(5);
 
-		ath9k_hw_init_pll(ah, NULL);
+		if (band_switch)
+			ath9k_hw_init_pll(ah, chan);
 
 		if (ath9k_hw_fast_chan_change(ah, chan, &ini_reloaded)) {
 			ath_err(common, "Failed to do fast channel change\n");
