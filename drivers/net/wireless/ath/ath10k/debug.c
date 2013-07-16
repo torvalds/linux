@@ -161,7 +161,7 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	struct wmi_pdev_stats *ps;
 	int i;
 
-	mutex_lock(&ar->conf_mutex);
+	spin_lock_bh(&ar->data_lock);
 
 	stats = &ar->debug.target_stats;
 
@@ -259,6 +259,7 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 		}
 	}
 
+	spin_unlock_bh(&ar->data_lock);
 	mutex_unlock(&ar->conf_mutex);
 	complete(&ar->debug.event_stats_compl);
 }
@@ -268,35 +269,35 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 {
 	struct ath10k *ar = file->private_data;
 	struct ath10k_target_stats *fw_stats;
-	char *buf;
+	char *buf = NULL;
 	unsigned int len = 0, buf_len = 2500;
-	ssize_t ret_cnt;
+	ssize_t ret_cnt = 0;
 	long left;
 	int i;
 	int ret;
 
 	fw_stats = &ar->debug.target_stats;
 
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON)
+		goto exit;
+
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		goto exit;
 
 	ret = ath10k_wmi_request_stats(ar, WMI_REQUEST_PEER_STAT);
 	if (ret) {
 		ath10k_warn("could not request stats (%d)\n", ret);
-		kfree(buf);
-		return -EIO;
+		goto exit;
 	}
 
 	left = wait_for_completion_timeout(&ar->debug.event_stats_compl, 1*HZ);
+	if (left <= 0)
+		goto exit;
 
-	if (left <= 0) {
-		kfree(buf);
-		return -ETIMEDOUT;
-	}
-
-	mutex_lock(&ar->conf_mutex);
-
+	spin_lock_bh(&ar->data_lock);
 	len += scnprintf(buf + len, buf_len - len, "\n");
 	len += scnprintf(buf + len, buf_len - len, "%30s\n",
 			 "ath10k PDEV stats");
@@ -424,14 +425,15 @@ static ssize_t ath10k_read_fw_stats(struct file *file, char __user *user_buf,
 				 fw_stats->peer_stat[i].peer_tx_rate);
 		len += scnprintf(buf + len, buf_len - len, "\n");
 	}
+	spin_unlock_bh(&ar->data_lock);
 
 	if (len > buf_len)
 		len = buf_len;
 
 	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 
+exit:
 	mutex_unlock(&ar->conf_mutex);
-
 	kfree(buf);
 	return ret_cnt;
 }
