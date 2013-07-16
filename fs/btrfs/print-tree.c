@@ -95,7 +95,7 @@ static void print_extent_item(struct extent_buffer *eb, int slot)
 		struct btrfs_tree_block_info *info;
 		info = (struct btrfs_tree_block_info *)(ei + 1);
 		btrfs_tree_block_key(eb, info, &key);
-		printk(KERN_INFO "\t\ttree block key (%llu %x %llu) "
+		printk(KERN_INFO "\t\ttree block key (%llu %u %llu) "
 		       "level %d\n",
 		       (unsigned long long)btrfs_disk_key_objectid(&key),
 		       key.type,
@@ -183,7 +183,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 		item = btrfs_item_nr(l, i);
 		btrfs_item_key_to_cpu(l, &key, i);
 		type = btrfs_key_type(&key);
-		printk(KERN_INFO "\titem %d key (%llu %x %llu) itemoff %d "
+		printk(KERN_INFO "\titem %d key (%llu %u %llu) itemoff %d "
 		       "itemsize %d\n",
 			i,
 			(unsigned long long)key.objectid, type,
