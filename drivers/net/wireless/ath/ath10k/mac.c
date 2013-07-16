@@ -369,6 +369,20 @@ static void ath10k_peer_cleanup(struct ath10k *ar, u32 vdev_id)
 	spin_unlock_bh(&ar->data_lock);
 }
 
+static void ath10k_peer_cleanup_all(struct ath10k *ar)
+{
+	struct ath10k_peer *peer, *tmp;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	spin_lock_bh(&ar->data_lock);
+	list_for_each_entry_safe(peer, tmp, &ar->peers, list) {
+		list_del(&peer->list);
+		kfree(peer);
+	}
+	spin_unlock_bh(&ar->data_lock);
+}
+
 /************************/
 /* Interface management */
 /************************/
@@ -1753,7 +1767,18 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 	struct ath10k *ar = hw->priv;
 
 	mutex_lock(&ar->conf_mutex);
+	del_timer_sync(&ar->scan.timeout);
 	ath10k_offchan_tx_purge(ar);
+	ath10k_peer_cleanup_all(ar);
+
+	spin_lock_bh(&ar->data_lock);
+	if (ar->scan.in_progress) {
+		del_timer(&ar->scan.timeout);
+		ar->scan.in_progress = false;
+		ieee80211_scan_completed(ar->hw, true);
+	}
+	spin_unlock_bh(&ar->data_lock);
+
 	ar->state = ATH10K_STATE_OFF;
 	mutex_unlock(&ar->conf_mutex);
 
