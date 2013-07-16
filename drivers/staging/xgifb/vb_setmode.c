@@ -63,8 +63,7 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 
 }
 
-static void XGI_SetSeqRegs(unsigned short ModeIdIndex,
-			   struct vb_device_info *pVBInfo)
+static void XGI_SetSeqRegs(struct vb_device_info *pVBInfo)
 {
 	unsigned char SRdata, i;
 
@@ -399,8 +398,7 @@ static void XGI_SetCRT1CRTC(unsigned short ModeIdIndex,
 /* Output : Fill CRT Hsync/Vsync to SR2E/SR2F/SR30/SR33/SR34/SR3F */
 /* Description : Set LCD timing */
 /* --------------------------------------------------------------------- */
-static void XGI_SetXG21CRTC(unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
+static void XGI_SetXG21CRTC(unsigned short RefreshRateTableIndex,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned char index, Tempax, Tempbx, Tempcx, Tempdx;
@@ -496,8 +494,7 @@ static void XGI_SetXG21CRTC(unsigned short ModeIdIndex,
 	xgifb_reg_set(pVBInfo->P3c4, 0x3F, Tempax);
 }
 
-static void XGI_SetXG27CRTC(unsigned short ModeIdIndex,
-			    unsigned short RefreshRateTableIndex,
+static void XGI_SetXG27CRTC(unsigned short RefreshRateTableIndex,
 			    struct vb_device_info *pVBInfo)
 {
 	unsigned short index, Tempax, Tempbx, Tempcx;
@@ -1111,8 +1108,7 @@ static void XGI_WriteDAC(unsigned short dl,
 	outb((unsigned short) bl, pVBInfo->P3c9);
 }
 
-static void XGI_LoadDAC(unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+static void XGI_LoadDAC(struct vb_device_info *pVBInfo)
 {
 	unsigned short data, data2, i, k, m, n, o, si, di, bx, dl, al, ah, dh;
 	const unsigned short *table = XGINew_VGA_DAC;
@@ -4210,8 +4206,7 @@ static void XGINew_EnableCRT2(struct vb_device_info *pVBInfo)
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x1E, 0xFF, 0x20);
 }
 
-static void XGI_SetGroup5(unsigned short ModeIdIndex,
-			  struct vb_device_info *pVBInfo)
+static void XGI_SetGroup5(struct vb_device_info *pVBInfo)
 {
 	if (pVBInfo->ModeType == ModeVGA) {
 		if (!(pVBInfo->VBInfo & (SetInSlaveMode | LoadDACFlag
@@ -4808,8 +4803,7 @@ static void XGI_SetLCDCap(struct vb_device_info *pVBInfo)
 /* Output : */
 /* Description : Set TV Customized Param. */
 /* --------------------------------------------------------------------- */
-static void XGI_SetAntiFlicker(unsigned short ModeIdIndex,
-			       struct vb_device_info *pVBInfo)
+static void XGI_SetAntiFlicker(struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbx;
 
@@ -4826,8 +4820,7 @@ static void XGI_SetAntiFlicker(unsigned short ModeIdIndex,
 	xgifb_reg_and_or(pVBInfo->Part2Port, 0x0A, 0x8F, tempah);
 }
 
-static void XGI_SetEdgeEnhance(unsigned short ModeIdIndex,
-			       struct vb_device_info *pVBInfo)
+static void XGI_SetEdgeEnhance(struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbx;
 
@@ -4943,10 +4936,10 @@ static void XGI_OEM310Setting(unsigned short ModeIdIndex,
 	if (pVBInfo->VBInfo & SetCRT2ToTV) {
 		XGI_SetPhaseIncr(pVBInfo);
 		XGI_SetYFilter(ModeIdIndex, pVBInfo);
-		XGI_SetAntiFlicker(ModeIdIndex, pVBInfo);
+		XGI_SetAntiFlicker(pVBInfo);
 
 		if (pVBInfo->VBType & VB_SIS301)
-			XGI_SetEdgeEnhance(ModeIdIndex, pVBInfo);
+			XGI_SetEdgeEnhance(pVBInfo);
 	}
 }
 
@@ -5256,7 +5249,7 @@ static unsigned char XGI_SetCRT2Group301(unsigned short ModeNo,
 	XGI_SetGroup4(ModeIdIndex, RefreshRateTableIndex, HwDeviceExtension,
 		      pVBInfo);
 	XGI_SetCRT2VCLK(ModeIdIndex, RefreshRateTableIndex, pVBInfo);
-	XGI_SetGroup5(ModeIdIndex, pVBInfo);
+	XGI_SetGroup5(pVBInfo);
 	XGI_AutoThreshold(pVBInfo);
 	return 1;
 }
@@ -5440,7 +5433,7 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 {
 	unsigned short RefreshRateTableIndex, temp;
 
-	XGI_SetSeqRegs(ModeIdIndex, pVBInfo);
+	XGI_SetSeqRegs(pVBInfo);
 	outb(XGI330_StandTable.MISC, pVBInfo->P3c2);
 	XGI_SetCRTCRegs(HwDeviceExtension, pVBInfo);
 	XGI_SetATTRegs(ModeIdIndex, pVBInfo);
@@ -5483,11 +5476,9 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 		if (temp & 0xA0) {
 
 			if (HwDeviceExtension->jChipType == XG27)
-				XGI_SetXG27CRTC(ModeIdIndex,
-						RefreshRateTableIndex, pVBInfo);
+				XGI_SetXG27CRTC(RefreshRateTableIndex, pVBInfo);
 			else
-				XGI_SetXG21CRTC(ModeIdIndex,
-						RefreshRateTableIndex, pVBInfo);
+				XGI_SetXG21CRTC(RefreshRateTableIndex, pVBInfo);
 
 			XGI_UpdateXG21CRTC(ModeNo, pVBInfo,
 					RefreshRateTableIndex);
@@ -5506,7 +5497,7 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 	XGI_SetCRT1FIFO(HwDeviceExtension, pVBInfo);
 	XGI_SetCRT1ModeRegs(HwDeviceExtension, ModeIdIndex,
 			    RefreshRateTableIndex, pVBInfo);
-	XGI_LoadDAC(ModeIdIndex, pVBInfo);
+	XGI_LoadDAC(pVBInfo);
 }
 
 unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
