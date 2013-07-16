@@ -38,6 +38,20 @@
 
 static void __iomem *timer_base;
 
+/*
+ * When we disable a timer, we need to wait at least for 2 cycles of
+ * the timer source clock. We will use for that the clocksource timer
+ * that is already setup and runs at the same frequency than the other
+ * timers, and we never will be disabled.
+ */
+static void sun4i_clkevt_sync(void)
+{
+	u32 old = readl(timer_base + TIMER_CNTVAL_REG(1));
+
+	while ((old - readl(timer_base + TIMER_CNTVAL_REG(1))) < 3)
+		cpu_relax();
+}
+
 static void sun4i_clkevt_mode(enum clock_event_mode mode,
 			      struct clock_event_device *clk)
 {
@@ -63,9 +77,14 @@ static void sun4i_clkevt_mode(enum clock_event_mode mode,
 static int sun4i_clkevt_next_event(unsigned long evt,
 				   struct clock_event_device *unused)
 {
-	u32 u = readl(timer_base + TIMER_CTL_REG(0));
-	writel(evt, timer_base + TIMER_CNTVAL_REG(0));
-	writel(u | TIMER_CTL_ENABLE | TIMER_CTL_AUTORELOAD,
+	u32 val = readl(timer_base + TIMER_CTL_REG(0));
+	writel(val & ~TIMER_CTL_ENABLE, timer_base + TIMER_CTL_REG(0));
+	sun4i_clkevt_sync();
+
+	writel(evt, timer_base + TIMER_INTVAL_REG(0));
+
+	val = readl(timer_base + TIMER_CTL_REG(0));
+	writel(val | TIMER_CTL_ENABLE | TIMER_CTL_AUTORELOAD,
 	       timer_base + TIMER_CTL_REG(0));
 
 	return 0;
