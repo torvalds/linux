@@ -28,7 +28,7 @@
 #define TIMER_IRQ_ST_REG	0x04
 #define TIMER_CTL_REG(val)	(0x10 * val + 0x10)
 #define TIMER_CTL_ENABLE		BIT(0)
-#define TIMER_CTL_AUTORELOAD		BIT(1)
+#define TIMER_CTL_RELOAD		BIT(1)
 #define TIMER_CTL_ONESHOT		BIT(7)
 #define TIMER_INTVAL_REG(val)	(0x10 * (val) + 0x14)
 #define TIMER_CNTVAL_REG(val)	(0x10 * (val) + 0x18)
@@ -129,7 +129,7 @@ static void __init sun4i_timer_init(struct device_node *node)
 
 	/* set mode to auto reload */
 	val = readl(timer_base + TIMER_CTL_REG(0));
-	writel(val | TIMER_CTL_AUTORELOAD, timer_base + TIMER_CTL_REG(0));
+	writel(val | TIMER_CTL_RELOAD, timer_base + TIMER_CTL_REG(0));
 
 	ret = setup_irq(irq, &sun4i_timer_irq);
 	if (ret)
