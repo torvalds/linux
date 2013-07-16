@@ -398,11 +398,6 @@ static int kirkwood_i2s_probe(struct snd_soc_dai *dai)
 
 }
 
-static int kirkwood_i2s_remove(struct snd_soc_dai *dai)
-{
-	return 0;
-}
-
 static const struct snd_soc_dai_ops kirkwood_i2s_dai_ops = {
 	.startup	= kirkwood_i2s_startup,
 	.trigger	= kirkwood_i2s_trigger,
@@ -413,7 +408,6 @@ static const struct snd_soc_dai_ops kirkwood_i2s_dai_ops = {
 
 static struct snd_soc_dai_driver kirkwood_i2s_dai = {
 	.probe = kirkwood_i2s_probe,
-	.remove = kirkwood_i2s_remove,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
@@ -431,7 +425,6 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai = {
 
 static struct snd_soc_dai_driver kirkwood_i2s_dai_extclk = {
 	.probe = kirkwood_i2s_probe,
-	.remove = kirkwood_i2s_remove,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
