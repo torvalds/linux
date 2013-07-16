@@ -140,12 +140,12 @@ static void spdif_snd_txctrl(struct rockchip_spdif_info *spdif, int on)
 		writel(xfer, regs + XFER);
 		writel(opr|0x10, regs + DMACR);
 		RK_SPDIF_DBG("on xfer=0x%x,opr=0x%x\n",readl(regs + XFER),readl(regs + DMACR));
-  }	else{
-  	xfer &= ~XFER_TRAN_START;
-  	opr  &= ~DMACR_TRAN_DMA_ENABLE; 
+    }else{
+  	    xfer &= ~XFER_TRAN_START;
+  	    opr  &= ~DMACR_TRAN_DMA_ENABLE; 
 		writel(xfer, regs + XFER);
 		writel(opr|0x10, regs + DMACR);
-  }
+    }
 }
 
 static int spdif_set_syclk(struct snd_soc_dai *cpu_dai,
@@ -218,7 +218,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	
 	cfgr = readl(regs + CFGR) & CFGR_VALID_DATA_MASK;
 	
-  cfgr &= ~CFGR_VALID_DATA_MASK;
+    cfgr &= ~CFGR_VALID_DATA_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		cfgr |= CFGR_VALID_DATA_16bit;
@@ -244,9 +244,9 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	
 	writel(cfgr, regs + CFGR);
   
-  dmac = readl(regs + DMACR) & DMACR_TRAN_DMA_MASK & (~DMACR_TRAN_DATA_LEVEL_MASK);
-  dmac |= 0x10;
-  writel(dmac, regs + DMACR);
+    dmac = readl(regs + DMACR) & DMACR_TRAN_DMA_MASK & (~DMACR_TRAN_DATA_LEVEL_MASK);
+    dmac |= 0x10;
+    writel(dmac, regs + DMACR);
   
 	spin_unlock_irqrestore(&spdif->lock, flags);
 
@@ -343,7 +343,6 @@ static __devinit int spdif_probe(struct platform_device *pdev)
     iomux_set(SPDIF_TX);
 #endif
 
-
 	dma_res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "spdif_dma");
 	if (!dma_res) {
 		printk("spdif:Unable to get dma resource.\n");
@@ -369,8 +368,7 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 	}
 	clk_enable(spdif->clk);
 	clk_set_rate(spdif->clk, 11289600);
-	
-#if 1// defined (CONFIG_ARCH_RK30)	
+		
 	spdif->hclk = clk_get(&pdev->dev, "hclk_spdif");
 	if (IS_ERR(spdif->hclk)) {
 		printk("spdif:failed to get spdif hclk\n");
@@ -379,7 +377,6 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 	}
 	clk_enable(spdif->hclk);
 	clk_set_rate(spdif->hclk, 11289600);
-#endif
 
 	/* Request S/PDIF Register's memory region */
 	if (!request_mem_region(mem_res->start,
@@ -410,7 +407,7 @@ static __devinit int spdif_probe(struct platform_device *pdev)
 	spdif_stereo_out.channel = dma_res->start;
 
 	spdif->dma_playback = &spdif_stereo_out;
-#ifdef CONFIG_SND_DMA_EVENT_STATIC
+#ifdef CONFIG_SND_I2S_DMA_EVENT_STATIC
 	WARN_ON(rk29_dma_request(spdif_stereo_out.channel, spdif_stereo_out.client, NULL));
 #endif
 
@@ -427,10 +424,8 @@ err2:
 	clk_put(spdif->clk);
 err1:
 	clk_disable(spdif->hclk);
-	clk_put(spdif->hclk);
-#if  1//defined (CONFIG_ARCH_RK30)	
+	clk_put(spdif->hclk);	
 err0:
-#endif
 	return ret;
 }
 
