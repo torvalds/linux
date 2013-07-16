@@ -20,6 +20,7 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 
+#include "hif.h"
 #include "core.h"
 #include "debug.h"
 #include "wmi.h"
@@ -2749,6 +2750,67 @@ static int ath10k_tx_last_beacon(struct ieee80211_hw *hw)
 	return 1;
 }
 
+#ifdef CONFIG_PM
+static int ath10k_suspend(struct ieee80211_hw *hw,
+			  struct cfg80211_wowlan *wowlan)
+{
+	struct ath10k *ar = hw->priv;
+	int ret;
+
+	ar->is_target_paused = false;
+
+	ret = ath10k_wmi_pdev_suspend_target(ar);
+	if (ret) {
+		ath10k_warn("could not suspend target (%d)\n", ret);
+		return 1;
+	}
+
+	ret = wait_event_interruptible_timeout(ar->event_queue,
+					       ar->is_target_paused == true,
+					       1 * HZ);
+	if (ret < 0) {
+		ath10k_warn("suspend interrupted (%d)\n", ret);
+		goto resume;
+	} else if (ret == 0) {
+		ath10k_warn("suspend timed out - target pause event never came\n");
+		goto resume;
+	}
+
+	ret = ath10k_hif_suspend(ar);
+	if (ret) {
+		ath10k_warn("could not suspend hif (%d)\n", ret);
+		goto resume;
+	}
+
+	return 0;
+resume:
+	ret = ath10k_wmi_pdev_resume_target(ar);
+	if (ret)
+		ath10k_warn("could not resume target (%d)\n", ret);
+	return 1;
+}
+
+static int ath10k_resume(struct ieee80211_hw *hw)
+{
+	struct ath10k *ar = hw->priv;
+	int ret;
+
+	ret = ath10k_hif_resume(ar);
+	if (ret) {
+		ath10k_warn("could not resume hif (%d)\n", ret);
+		return 1;
+	}
+
+	ret = ath10k_wmi_pdev_resume_target(ar);
+	if (ret) {
+		ath10k_warn("could not resume target (%d)\n", ret);
+		return 1;
+	}
+
+	return 0;
+}
+#endif
+
 static const struct ieee80211_ops ath10k_ops = {
 	.tx				= ath10k_tx,
 	.start				= ath10k_start,
@@ -2769,6 +2831,10 @@ static const struct ieee80211_ops ath10k_ops = {
 	.set_frag_threshold		= ath10k_set_frag_threshold,
 	.flush				= ath10k_flush,
 	.tx_last_beacon			= ath10k_tx_last_beacon,
+#ifdef CONFIG_PM
+	.suspend			= ath10k_suspend,
+	.resume				= ath10k_resume,
+#endif
 };
 
 #define RATETAB_ENT(_rate, _rateid, _flags) { \

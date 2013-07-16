@@ -80,6 +80,9 @@ struct ath10k_hif_ops {
 	/* Power down the device and free up resources. stop() must be called
 	 * before this if start() was called earlier */
 	void (*power_down)(struct ath10k *ar);
+
+	int (*suspend)(struct ath10k *ar);
+	int (*resume)(struct ath10k *ar);
 };
 
 
@@ -152,6 +155,22 @@ static inline int ath10k_hif_power_up(struct ath10k *ar)
 static inline void ath10k_hif_power_down(struct ath10k *ar)
 {
 	ar->hif.ops->power_down(ar);
+}
+
+static inline int ath10k_hif_suspend(struct ath10k *ar)
+{
+	if (!ar->hif.ops->suspend)
+		return -EOPNOTSUPP;
+
+	return ar->hif.ops->suspend(ar);
+}
+
+static inline int ath10k_hif_resume(struct ath10k *ar)
+{
+	if (!ar->hif.ops->resume)
+		return -EOPNOTSUPP;
+
+	return ar->hif.ops->resume(ar);
 }
 
 #endif /* _HIF_H_ */

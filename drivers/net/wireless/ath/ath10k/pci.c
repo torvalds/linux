@@ -1796,6 +1796,55 @@ static void ath10k_pci_hif_power_down(struct ath10k *ar)
 		ath10k_do_pci_sleep(ar);
 }
 
+#ifdef CONFIG_PM
+
+#define ATH10K_PCI_PM_CONTROL 0x44
+
+static int ath10k_pci_hif_suspend(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct pci_dev *pdev = ar_pci->pdev;
+	u32 val;
+
+	pci_read_config_dword(pdev, ATH10K_PCI_PM_CONTROL, &val);
+
+	if ((val & 0x000000ff) != 0x3) {
+		pci_save_state(pdev);
+		pci_disable_device(pdev);
+		pci_write_config_dword(pdev, ATH10K_PCI_PM_CONTROL,
+				       (val & 0xffffff00) | 0x03);
+	}
+
+	return 0;
+}
+
+static int ath10k_pci_hif_resume(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct pci_dev *pdev = ar_pci->pdev;
+	u32 val;
+
+	pci_read_config_dword(pdev, ATH10K_PCI_PM_CONTROL, &val);
+
+	if ((val & 0x000000ff) != 0) {
+		pci_restore_state(pdev);
+		pci_write_config_dword(pdev, ATH10K_PCI_PM_CONTROL,
+				       val & 0xffffff00);
+		/*
+		 * Suspend/Resume resets the PCI configuration space,
+		 * so we have to re-disable the RETRY_TIMEOUT register (0x41)
+		 * to keep PCI Tx retries from interfering with C3 CPU state
+		 */
+		pci_read_config_dword(pdev, 0x40, &val);
+
+		if ((val & 0x0000ff00) != 0)
+			pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
+	}
+
+	return 0;
+}
+#endif
+
 static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.send_head		= ath10k_pci_hif_send_head,
 	.exchange_bmi_msg	= ath10k_pci_hif_exchange_bmi_msg,
@@ -1808,6 +1857,10 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.get_free_queue_number	= ath10k_pci_hif_get_free_queue_number,
 	.power_up		= ath10k_pci_hif_power_up,
 	.power_down		= ath10k_pci_hif_power_down,
+#ifdef CONFIG_PM
+	.suspend		= ath10k_pci_hif_suspend,
+	.resume			= ath10k_pci_hif_resume,
+#endif
 };
 
 static void ath10k_pci_ce_tasklet(unsigned long ptr)
@@ -2376,128 +2429,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	kfree(ar_pci);
 }
 
-#if defined(CONFIG_PM_SLEEP)
-
-#define ATH10K_PCI_PM_CONTROL 0x44
-
-static int ath10k_pci_suspend(struct device *device)
-{
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct ath10k *ar = pci_get_drvdata(pdev);
-	struct ath10k_pci *ar_pci;
-	u32 val;
-	int ret, retval;
-
-	ath10k_dbg(ATH10K_DBG_PCI, "%s\n", __func__);
-
-	if (!ar)
-		return -ENODEV;
-
-	ar_pci = ath10k_pci_priv(ar);
-	if (!ar_pci)
-		return -ENODEV;
-
-	if (ath10k_core_target_suspend(ar))
-		return -EBUSY;
-
-	ret = wait_event_interruptible_timeout(ar->event_queue,
-						ar->is_target_paused == true,
-						1 * HZ);
-	if (ret < 0) {
-		ath10k_warn("suspend interrupted (%d)\n", ret);
-		retval = ret;
-		goto resume;
-	} else if (ret == 0) {
-		ath10k_warn("suspend timed out - target pause event never came\n");
-		retval = EIO;
-		goto resume;
-	}
-
-	/*
-	 * reset is_target_paused and host can check that in next time,
-	 * or it will always be TRUE and host just skip the waiting
-	 * condition, it causes target assert due to host already
-	 * suspend
-	 */
-	ar->is_target_paused = false;
-
-	pci_read_config_dword(pdev, ATH10K_PCI_PM_CONTROL, &val);
-
-	if ((val & 0x000000ff) != 0x3) {
-		pci_save_state(pdev);
-		pci_disable_device(pdev);
-		pci_write_config_dword(pdev, ATH10K_PCI_PM_CONTROL,
-				       (val & 0xffffff00) | 0x03);
-	}
-
-	return 0;
-resume:
-	ret = ath10k_core_target_resume(ar);
-	if (ret)
-		ath10k_warn("could not resume (%d)\n", ret);
-
-	return retval;
-}
-
-static int ath10k_pci_resume(struct device *device)
-{
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct ath10k *ar = pci_get_drvdata(pdev);
-	struct ath10k_pci *ar_pci;
-	int ret;
-	u32 val;
-
-	ath10k_dbg(ATH10K_DBG_PCI, "%s\n", __func__);
-
-	if (!ar)
-		return -ENODEV;
-	ar_pci = ath10k_pci_priv(ar);
-
-	if (!ar_pci)
-		return -ENODEV;
-
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		ath10k_warn("cannot enable PCI device: %d\n", ret);
-		return ret;
-	}
-
-	pci_read_config_dword(pdev, ATH10K_PCI_PM_CONTROL, &val);
-
-	if ((val & 0x000000ff) != 0) {
-		pci_restore_state(pdev);
-		pci_write_config_dword(pdev, ATH10K_PCI_PM_CONTROL,
-				       val & 0xffffff00);
-		/*
-		 * Suspend/Resume resets the PCI configuration space,
-		 * so we have to re-disable the RETRY_TIMEOUT register (0x41)
-		 * to keep PCI Tx retries from interfering with C3 CPU state
-		 */
-		pci_read_config_dword(pdev, 0x40, &val);
-
-		if ((val & 0x0000ff00) != 0)
-			pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
-	}
-
-	ret = ath10k_core_target_resume(ar);
-	if (ret)
-		ath10k_warn("target resume failed: %d\n", ret);
-
-	return ret;
-}
-
-static SIMPLE_DEV_PM_OPS(ath10k_dev_pm_ops,
-			 ath10k_pci_suspend,
-			 ath10k_pci_resume);
-
-#define ATH10K_PCI_PM_OPS (&ath10k_dev_pm_ops)
-
-#else
-
-#define ATH10K_PCI_PM_OPS NULL
-
-#endif /* CONFIG_PM_SLEEP */
-
 MODULE_DEVICE_TABLE(pci, ath10k_pci_id_table);
 
 static struct pci_driver ath10k_pci_driver = {
@@ -2505,7 +2436,6 @@ static struct pci_driver ath10k_pci_driver = {
 	.id_table = ath10k_pci_id_table,
 	.probe = ath10k_pci_probe,
 	.remove = ath10k_pci_remove,
-	.driver.pm = ATH10K_PCI_PM_OPS,
 };
 
 static int __init ath10k_pci_init(void)

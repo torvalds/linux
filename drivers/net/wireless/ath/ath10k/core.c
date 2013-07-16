@@ -648,34 +648,6 @@ void ath10k_core_unregister(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
-int ath10k_core_target_suspend(struct ath10k *ar)
-{
-	int ret;
-
-	ath10k_dbg(ATH10K_DBG_CORE, "%s: called", __func__);
-
-	ret = ath10k_wmi_pdev_suspend_target(ar);
-	if (ret)
-		ath10k_warn("could not suspend target (%d)\n", ret);
-
-	return ret;
-}
-EXPORT_SYMBOL(ath10k_core_target_suspend);
-
-int ath10k_core_target_resume(struct ath10k *ar)
-{
-	int ret;
-
-	ath10k_dbg(ATH10K_DBG_CORE, "%s: called", __func__);
-
-	ret = ath10k_wmi_pdev_resume_target(ar);
-	if (ret)
-		ath10k_warn("could not resume target (%d)\n", ret);
-
-	return ret;
-}
-EXPORT_SYMBOL(ath10k_core_target_resume);
-
 MODULE_AUTHOR("Qualcomm Atheros");
 MODULE_DESCRIPTION("Core module for QCA988X PCIe devices.");
 MODULE_LICENSE("Dual BSD/GPL");
