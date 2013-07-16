@@ -874,8 +874,7 @@ done:
 	return rom_copy;
 }
 
-static bool xgifb_read_vbios(struct pci_dev *pdev,
-			      struct vb_device_info *pVBInfo)
+static bool xgifb_read_vbios(struct pci_dev *pdev)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	u8 *vbios;
@@ -1098,7 +1097,7 @@ static void XGINew_GetXG21Sense(struct pci_dev *pdev,
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	unsigned char Temp;
 
-	if (xgifb_read_vbios(pdev, pVBInfo)) { /* For XG21 LVDS */
+	if (xgifb_read_vbios(pdev)) { /* For XG21 LVDS */
 		xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 		/* LVDS on chip */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);

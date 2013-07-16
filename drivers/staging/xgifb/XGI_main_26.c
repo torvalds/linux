@@ -68,7 +68,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	int Clock;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
-	XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr);
+	XGI_SearchModeID(ModeNo, &ModeIdIndex);
 
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
@@ -96,7 +96,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned char sr_data, cr_data, cr_data2;
 	int B, C, D, F, temp, j;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
-	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr))
+	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex))
 		return 0;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);

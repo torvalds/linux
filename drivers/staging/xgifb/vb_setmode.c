@@ -2164,7 +2164,7 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeIdIndex,
 }
 
 unsigned char XGI_SearchModeID(unsigned short ModeNo,
-		unsigned short *ModeIdIndex, struct vb_device_info *pVBInfo)
+			       unsigned short *ModeIdIndex)
 {
 	for (*ModeIdIndex = 0;; (*ModeIdIndex)++) {
 		if (XGI330_EModeIDTable[*ModeIdIndex].Ext_ModeID == ModeNo)
@@ -2715,8 +2715,7 @@ static void XGI_SetCRT2VCLK(unsigned short ModeIdIndex,
 		xgifb_reg_or(pVBInfo->Part4Port, 0x12, 0x08);
 }
 
-static unsigned short XGI_GetColorDepth(unsigned short ModeIdIndex,
-					struct vb_device_info *pVBInfo)
+static unsigned short XGI_GetColorDepth(unsigned short ModeIdIndex)
 {
 	unsigned short ColorDepth[6] = { 1, 2, 4, 4, 6, 8 };
 	short index;
@@ -2733,8 +2732,7 @@ static unsigned short XGI_GetColorDepth(unsigned short ModeIdIndex,
 
 static unsigned short XGI_GetOffset(unsigned short ModeNo,
 				    unsigned short ModeIdIndex,
-		unsigned short RefreshRateTableIndex,
-		struct vb_device_info *pVBInfo)
+		unsigned short RefreshRateTableIndex)
 {
 	unsigned short temp, colordepth, modeinfo, index, infoflag,
 			ColorDepth[] = { 0x01, 0x02, 0x04 };
@@ -2749,7 +2747,7 @@ static unsigned short XGI_GetOffset(unsigned short ModeNo,
 	if (infoflag & InterlaceMode)
 		temp = temp << 1;
 
-	colordepth = XGI_GetColorDepth(ModeIdIndex, pVBInfo);
+	colordepth = XGI_GetColorDepth(ModeIdIndex);
 
 	if ((ModeNo >= 0x7C) && (ModeNo <= 0x7E)) {
 		temp = ModeNo - 0x7C;
@@ -2772,8 +2770,7 @@ static void XGI_SetCRT2Offset(unsigned short ModeNo,
 	if (pVBInfo->VBInfo & SetInSlaveMode)
 		return;
 
-	offset = XGI_GetOffset(ModeNo, ModeIdIndex, RefreshRateTableIndex,
-			       pVBInfo);
+	offset = XGI_GetOffset(ModeNo, ModeIdIndex, RefreshRateTableIndex);
 	temp = (unsigned char) (offset & 0xFF);
 	xgifb_reg_set(pVBInfo->Part1Port, 0x07, temp);
 	temp = (unsigned char) ((offset & 0xFF00) >> 8);
@@ -4199,8 +4196,7 @@ static void XGI_DisableGatingCRT(struct vb_device_info *pVBInfo)
 }
 
 static unsigned char XGI_XG21CheckLVDSMode(struct xgifb_video_info *xgifb_info,
-		unsigned short ModeNo, unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+		unsigned short ModeNo, unsigned short ModeIdIndex)
 {
 	unsigned short xres, yres, colordepth, modeflag, resindex;
 
@@ -4229,7 +4225,7 @@ static unsigned char XGI_XG21CheckLVDSMode(struct xgifb_video_info *xgifb_info,
 
 	if (xres != xgifb_info->lvds_data.LVDSHDE ||
 	    yres != xgifb_info->lvds_data.LVDSVDE) {
-		colordepth = XGI_GetColorDepth(ModeIdIndex, pVBInfo);
+		colordepth = XGI_GetColorDepth(ModeIdIndex);
 		if (colordepth > 2)
 			return 0;
 	}
@@ -5194,7 +5190,7 @@ static unsigned char XGI_SetCRT2Group301(unsigned short ModeNo,
 	unsigned short ModeIdIndex, RefreshRateTableIndex;
 
 	pVBInfo->SetFlag |= ProgrammingCRT2;
-	XGI_SearchModeID(ModeNo, &ModeIdIndex, pVBInfo);
+	XGI_SearchModeID(ModeNo, &ModeIdIndex);
 	pVBInfo->SelectCRT2Rate = 4;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, pVBInfo);
@@ -5494,7 +5490,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 	if (HwDeviceExtension->jChipType < XG20)
 		XGI_UnLockCRT2(pVBInfo);
 
-	XGI_SearchModeID(ModeNo, &ModeIdIndex, pVBInfo);
+	XGI_SearchModeID(ModeNo, &ModeIdIndex);
 
 	if (HwDeviceExtension->jChipType < XG20) {
 		XGI_GetVBInfo(ModeIdIndex, pVBInfo);
@@ -5533,8 +5529,7 @@ unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 	else {
 		if (pVBInfo->IF_DEF_LVDS == 1)
 			if (!XGI_XG21CheckLVDSMode(xgifb_info, ModeNo,
-						   ModeIdIndex,
-						   pVBInfo))
+						   ModeIdIndex))
 				return 0;
 
 		pVBInfo->ModeType = XGI330_EModeIDTable[ModeIdIndex].
