@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\hdmiaudio\sun4i-sndhdmi.h
+ * sound\soc\sunxi\hdmiaudio\sunxi-sndhdmi.h
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>
@@ -13,10 +13,10 @@
  *
  */
 
-#ifndef SUN4I_SNDHDMI_H_
-#define SUN4I_SNDHDMI_H_
+#ifndef SUNXI_SNDHDMI_H_
+#define SUNXI_SNDHDMI_H_
 
-struct sun4i_sndhdmi_platform_data {
+struct sunxi_sndhdmi_platform_data {
 	int hdmiaudio_bclk;
 	int hdmiaudio_ws;
 	int hdmiaudio_data;

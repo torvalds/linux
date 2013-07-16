@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\hdmiaudio\sndhdmi.c
+ * sound\soc\sunxi\hdmiaudio\sndhdmi.c
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>
@@ -167,7 +167,7 @@ static int __devexit sndhdmi_codec_remove(struct platform_device *pdev)
 
 static struct platform_driver sndhdmi_codec_driver = {
 	.driver = {
-		.name = "sun4i-hdmiaudio-codec",
+		.name = "sunxi-hdmiaudio-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe = sndhdmi_codec_probe,

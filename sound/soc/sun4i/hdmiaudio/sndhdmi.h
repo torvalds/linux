@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\hdmiaudio\sndhdmi.h
+ * sound\soc\sunxi\hdmiaudio\sndhdmi.h
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>

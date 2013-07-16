@@ -1,5 +1,5 @@
 /*
- * sound\soc\sun4i\hdmiaudio\sun4i-sndhdmi.c
+ * sound\soc\sunxi\hdmiaudio\sunxi-sndhdmi.c
  * (C) Copyright 2007-2011
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
  * chenpailin <chenpailin@allwinnertech.com>
@@ -24,8 +24,8 @@
 #include <plat/sys_config.h>
 #include <linux/io.h>
 
-#include "sun4i-hdmiaudio.h"
-#include "sun4i-hdmipcm.h"
+#include "sunxi-hdmiaudio.h"
+#include "sunxi-hdmipcm.h"
 
 #include "sndhdmi.h"
 
@@ -42,7 +42,7 @@ static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 };
 #endif
 
-static int sun4i_sndhdmi_startup(struct snd_pcm_substream *substream)
+static int sunxi_sndhdmi_startup(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
 	#ifdef ENFORCE_RATES
@@ -62,7 +62,7 @@ static int sun4i_sndhdmi_startup(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static void sun4i_sndhdmi_shutdown(struct snd_pcm_substream *substream)
+static void sunxi_sndhdmi_shutdown(struct snd_pcm_substream *substream)
 {
 	mutex_lock(&clk_lock);
 	clk_users -= 1;
@@ -192,7 +192,7 @@ static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div,
 	return ret;
 }
 
-static int sun4i_sndhdmi_hw_params(struct snd_pcm_substream *substream,
+static int sunxi_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -222,11 +222,11 @@ static int sun4i_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUN4I_DIV_MCLK, mclk_div);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_MCLK, mclk_div);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUN4I_DIV_BCLK, bclk_div);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, SUNXI_DIV_BCLK, bclk_div);
 	if (ret < 0)
 		return ret;
 
@@ -237,63 +237,63 @@ static int sun4i_sndhdmi_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops sun4i_sndhdmi_ops = {
-	.startup 	= sun4i_sndhdmi_startup,
-	.shutdown 	= sun4i_sndhdmi_shutdown,
-	.hw_params 	= sun4i_sndhdmi_hw_params,
+static struct snd_soc_ops sunxi_sndhdmi_ops = {
+	.startup 	= sunxi_sndhdmi_startup,
+	.shutdown 	= sunxi_sndhdmi_shutdown,
+	.hw_params 	= sunxi_sndhdmi_hw_params,
 };
 
-static struct snd_soc_dai_link sun4i_sndhdmi_dai_link = {
+static struct snd_soc_dai_link sunxi_sndhdmi_dai_link = {
 	.name 			= "HDMIAUDIO",
-	.stream_name 	= "SUN4I-HDMIAUDIO",
-	.cpu_dai_name 	= "sun4i-hdmiaudio.0",
+	.stream_name 	= "SUNXI-HDMIAUDIO",
+	.cpu_dai_name 	= "sunxi-hdmiaudio.0",
 	.codec_dai_name = "sndhdmi",
-	.platform_name 	= "sun4i-hdmiaudio-pcm-audio.0",
-	.codec_name 	= "sun4i-hdmiaudio-codec.0",
-	.ops 			= &sun4i_sndhdmi_ops,
+	.platform_name 	= "sunxi-hdmiaudio-pcm-audio.0",
+	.codec_name 	= "sunxi-hdmiaudio-codec.0",
+	.ops 			= &sunxi_sndhdmi_ops,
 };
 
-static struct snd_soc_card snd_soc_sun4i_sndhdmi = {
-	.name 		= "sun4i-sndhdmi",
+static struct snd_soc_card snd_soc_sunxi_sndhdmi = {
+	.name 		= "sunxi-sndhdmi",
 	.owner		= THIS_MODULE,
-	.dai_link 	= &sun4i_sndhdmi_dai_link,
+	.dai_link 	= &sunxi_sndhdmi_dai_link,
 	.num_links 	= 1,
 };
 
-static int __devinit sun4i_sndhdmi_probe(struct platform_device *pdev)
+static int __devinit sunxi_sndhdmi_probe(struct platform_device *pdev)
 {
-	snd_soc_sun4i_sndhdmi.dev = &pdev->dev;
-	return snd_soc_register_card(&snd_soc_sun4i_sndhdmi);
+	snd_soc_sunxi_sndhdmi.dev = &pdev->dev;
+	return snd_soc_register_card(&snd_soc_sunxi_sndhdmi);
 }
 
-static int __devexit sun4i_sndhdmi_remove(struct platform_device *pdev)
+static int __devexit sunxi_sndhdmi_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_card(&snd_soc_sun4i_sndhdmi);
+	snd_soc_unregister_card(&snd_soc_sunxi_sndhdmi);
 	return 0;
 }
 
-static struct platform_driver sun4i_sndhdmi_driver = {
-	.probe = sun4i_sndhdmi_probe,
-	.remove = __devexit_p(sun4i_sndhdmi_remove),
+static struct platform_driver sunxi_sndhdmi_driver = {
+	.probe = sunxi_sndhdmi_probe,
+	.remove = __devexit_p(sunxi_sndhdmi_remove),
 	.driver = {
-		.name = "sun4i-sndhdmi",
+		.name = "sunxi-sndhdmi",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init sun4i_sndhdmi_init(void)
+static int __init sunxi_sndhdmi_init(void)
 {
-	return platform_driver_register(&sun4i_sndhdmi_driver);
+	return platform_driver_register(&sunxi_sndhdmi_driver);
 }
 
-static void __exit sun4i_sndhdmi_exit(void)
+static void __exit sunxi_sndhdmi_exit(void)
 {
-	platform_driver_unregister(&sun4i_sndhdmi_driver);
+	platform_driver_unregister(&sunxi_sndhdmi_driver);
 }
 
-module_init(sun4i_sndhdmi_init);
-module_exit(sun4i_sndhdmi_exit);
+module_init(sunxi_sndhdmi_init);
+module_exit(sunxi_sndhdmi_exit);
 
 MODULE_AUTHOR("ALL WINNER");
-MODULE_DESCRIPTION("SUN4I_SNDHDMI ALSA SoC audio driver");
+MODULE_DESCRIPTION("SUNXI_SNDHDMI ALSA SoC audio driver");
 MODULE_LICENSE("GPL");

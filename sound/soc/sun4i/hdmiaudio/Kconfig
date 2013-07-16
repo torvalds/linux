@@ -1,6 +1,6 @@
 
-config SND_SUN4I_SOC_HDMIAUDIO
-	tristate "HDMI Audio for the AllWinner SUN4I chips"
+config SND_SUNXI_SOC_HDMIAUDIO
+	tristate "HDMI Audio for the AllWinner sun4i and sun5i chips"
 	default n
 	help
 	  Say Y or M if you want to add support for hdmi audio

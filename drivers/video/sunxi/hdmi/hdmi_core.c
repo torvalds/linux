@@ -69,10 +69,10 @@ struct __disp_video_timing video_timing[] = {
 const int video_timing_edid = ARRAY_SIZE(video_timing) - 1;
 
 static struct platform_device audio_devs[] = {
-	{ .name = "sun4i-sndhdmi" },
-	{ .name = "sun4i-hdmiaudio" },
-	{ .name = "sun4i-hdmiaudio-codec" },
-	{ .name = "sun4i-hdmiaudio-pcm-audio" },
+	{ .name = "sunxi-sndhdmi" },
+	{ .name = "sunxi-hdmiaudio" },
+	{ .name = "sunxi-hdmiaudio-codec" },
+	{ .name = "sunxi-hdmiaudio-pcm-audio" },
 };
 
 void hdmi_delay_ms(__u32 t)
