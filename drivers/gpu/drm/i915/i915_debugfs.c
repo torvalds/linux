@@ -135,7 +135,8 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	uintptr_t list = (uintptr_t) node->info_ent->data;
 	struct list_head *head;
 	struct drm_device *dev = node->minor->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_i915_gem_object *obj;
 	size_t total_obj_size, total_gtt_size;
 	int count, ret;
@@ -147,11 +148,11 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	switch (list) {
 	case ACTIVE_LIST:
 		seq_puts(m, "Active:\n");
-		head = &dev_priv->mm.active_list;
+		head = &vm->active_list;
 		break;
 	case INACTIVE_LIST:
 		seq_puts(m, "Inactive:\n");
-		head = &dev_priv->mm.inactive_list;
+		head = &vm->inactive_list;
 		break;
 	default:
 		mutex_unlock(&dev->struct_mutex);
@@ -219,6 +220,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	u32 count, mappable_count, purgeable_count;
 	size_t size, mappable_size, purgeable_size;
 	struct drm_i915_gem_object *obj;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_file *file;
 	int ret;
 
@@ -236,12 +238,12 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.active_list, mm_list);
+	count_objects(&vm->active_list, mm_list);
 	seq_printf(m, "  %u [%u] active objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.inactive_list, mm_list);
+	count_objects(&vm->inactive_list, mm_list);
 	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -1625,6 +1627,7 @@ i915_drop_caches_set(void *data, u64 val)
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj, *next;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	int ret;
 
 	DRM_DEBUG_DRIVER("Dropping caches: 0x%08llx\n", val);
@@ -1645,7 +1648,8 @@ i915_drop_caches_set(void *data, u64 val)
 		i915_gem_retire_requests(dev);
 
 	if (val & DROP_BOUND) {
-		list_for_each_entry_safe(obj, next, &dev_priv->mm.inactive_list, mm_list)
+		list_for_each_entry_safe(obj, next, &vm->inactive_list,
+					 mm_list)
 			if (obj->pin_count == 0) {
 				ret = i915_gem_object_unbind(obj);
 				if (ret)
