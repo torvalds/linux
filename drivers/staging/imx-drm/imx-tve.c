@@ -131,12 +131,14 @@ struct imx_tve {
 };
 
 static void tve_lock(void *__tve)
+__acquires(&tve->lock)
 {
 	struct imx_tve *tve = __tve;
 	spin_lock(&tve->lock);
 }
 
 static void tve_unlock(void *__tve)
+__releases(&tve->lock)
 {
 	struct imx_tve *tve = __tve;
 	spin_unlock(&tve->lock);
