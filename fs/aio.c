@@ -35,6 +35,9 @@
 #include <linux/eventfd.h>
 #include <linux/blkdev.h>
 #include <linux/compat.h>
+#include <linux/anon_inodes.h>
+#include <linux/migrate.h>
+#include <linux/ramfs.h>
 
 #include <asm/kmap_types.h>
 #include <asm/uaccess.h>
@@ -110,6 +113,7 @@ struct kioctx {
 	} ____cacheline_aligned_in_smp;
 
 	struct page		*internal_pages[AIO_RING_PAGES];
+	struct file		*aio_ring_file;
 };
 
 /*------ sysctl variables----*/
@@ -138,14 +142,77 @@ __initcall(aio_setup);
 
 static void aio_free_ring(struct kioctx *ctx)
 {
-	long i;
+	int i;
+	struct file *aio_ring_file = ctx->aio_ring_file;
 
-	for (i = 0; i < ctx->nr_pages; i++)
+	for (i = 0; i < ctx->nr_pages; i++) {
+		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
+				page_count(ctx->ring_pages[i]));
 		put_page(ctx->ring_pages[i]);
+	}
 
 	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages)
 		kfree(ctx->ring_pages);
+
+	if (aio_ring_file) {
+		truncate_setsize(aio_ring_file->f_inode, 0);
+		pr_debug("pid(%d) i_nlink=%u d_count=%d d_unhashed=%d i_count=%d\n",
+			current->pid, aio_ring_file->f_inode->i_nlink,
+			aio_ring_file->f_path.dentry->d_count,
+			d_unhashed(aio_ring_file->f_path.dentry),
+			atomic_read(&aio_ring_file->f_inode->i_count));
+		fput(aio_ring_file);
+		ctx->aio_ring_file = NULL;
+	}
 }
+
+static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	vma->vm_ops = &generic_file_vm_ops;
+	return 0;
+}
+
+static const struct file_operations aio_ring_fops = {
+	.mmap = aio_ring_mmap,
+};
+
+static int aio_set_page_dirty(struct page *page)
+{
+	return 0;
+}
+
+static int aio_migratepage(struct address_space *mapping, struct page *new,
+			struct page *old, enum migrate_mode mode)
+{
+	struct kioctx *ctx = mapping->private_data;
+	unsigned long flags;
+	unsigned idx = old->index;
+	int rc;
+
+	/* Writeback must be complete */
+	BUG_ON(PageWriteback(old));
+	put_page(old);
+
+	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode);
+	if (rc != MIGRATEPAGE_SUCCESS) {
+		get_page(old);
+		return rc;
+	}
+
+	get_page(new);
+
+	spin_lock_irqsave(&ctx->completion_lock, flags);
+	migrate_page_copy(new, old);
+	ctx->ring_pages[idx] = new;
+	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+
+	return rc;
+}
+
+static const struct address_space_operations aio_ctx_aops = {
+	.set_page_dirty = aio_set_page_dirty,
+	.migratepage	= aio_migratepage,
+};
 
 static int aio_setup_ring(struct kioctx *ctx)
 {
@@ -154,20 +221,45 @@ static int aio_setup_ring(struct kioctx *ctx)
 	struct mm_struct *mm = current->mm;
 	unsigned long size, populate;
 	int nr_pages;
+	int i;
+	struct file *file;
 
 	/* Compensate for the ring buffer's head/tail overlap entry */
 	nr_events += 2;	/* 1 is required, 2 for good luck */
 
 	size = sizeof(struct aio_ring);
 	size += sizeof(struct io_event) * nr_events;
-	nr_pages = (size + PAGE_SIZE-1) >> PAGE_SHIFT;
 
+	nr_pages = PFN_UP(size);
 	if (nr_pages < 0)
 		return -EINVAL;
 
-	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring)) / sizeof(struct io_event);
+	file = anon_inode_getfile_private("[aio]", &aio_ring_fops, ctx, O_RDWR);
+	if (IS_ERR(file)) {
+		ctx->aio_ring_file = NULL;
+		return -EAGAIN;
+	}
 
-	ctx->nr_events = 0;
+	file->f_inode->i_mapping->a_ops = &aio_ctx_aops;
+	file->f_inode->i_mapping->private_data = ctx;
+	file->f_inode->i_size = PAGE_SIZE * (loff_t)nr_pages;
+
+	for (i = 0; i < nr_pages; i++) {
+		struct page *page;
+		page = find_or_create_page(file->f_inode->i_mapping,
+					   i, GFP_HIGHUSER | __GFP_ZERO);
+		if (!page)
+			break;
+		pr_debug("pid(%d) page[%d]->count=%d\n",
+			 current->pid, i, page_count(page));
+		SetPageUptodate(page);
+		SetPageDirty(page);
+		unlock_page(page);
+	}
+	ctx->aio_ring_file = file;
+	nr_events = (PAGE_SIZE * nr_pages - sizeof(struct aio_ring))
+			/ sizeof(struct io_event);
+
 	ctx->ring_pages = ctx->internal_pages;
 	if (nr_pages > AIO_RING_PAGES) {
 		ctx->ring_pages = kcalloc(nr_pages, sizeof(struct page *),
@@ -178,28 +270,31 @@ static int aio_setup_ring(struct kioctx *ctx)
 
 	ctx->mmap_size = nr_pages * PAGE_SIZE;
 	pr_debug("attempting mmap of %lu bytes\n", ctx->mmap_size);
+
 	down_write(&mm->mmap_sem);
-	ctx->mmap_base = do_mmap_pgoff(NULL, 0, ctx->mmap_size,
-				       PROT_READ|PROT_WRITE,
-				       MAP_ANONYMOUS|MAP_PRIVATE, 0, &populate);
+	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
+				       PROT_READ | PROT_WRITE,
+				       MAP_SHARED | MAP_POPULATE, 0, &populate);
 	if (IS_ERR((void *)ctx->mmap_base)) {
 		up_write(&mm->mmap_sem);
 		ctx->mmap_size = 0;
 		aio_free_ring(ctx);
 		return -EAGAIN;
 	}
+	up_write(&mm->mmap_sem);
+
+	mm_populate(ctx->mmap_base, populate);
 
 	pr_debug("mmap address: 0x%08lx\n", ctx->mmap_base);
 	ctx->nr_pages = get_user_pages(current, mm, ctx->mmap_base, nr_pages,
 				       1, 0, ctx->ring_pages, NULL);
-	up_write(&mm->mmap_sem);
+	for (i = 0; i < ctx->nr_pages; i++)
+		put_page(ctx->ring_pages[i]);
 
 	if (unlikely(ctx->nr_pages != nr_pages)) {
 		aio_free_ring(ctx);
 		return -EAGAIN;
 	}
-	if (populate)
-		mm_populate(ctx->mmap_base, populate);
 
 	ctx->user_id = ctx->mmap_base;
 	ctx->nr_events = nr_events; /* trusted copy */
@@ -399,6 +494,8 @@ out_cleanup:
 	err = -EAGAIN;
 	aio_free_ring(ctx);
 out_freectx:
+	if (ctx->aio_ring_file)
+		fput(ctx->aio_ring_file);
 	kmem_cache_free(kioctx_cachep, ctx);
 	pr_debug("error allocating ioctx %d\n", err);
 	return ERR_PTR(err);
