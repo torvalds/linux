@@ -599,7 +599,6 @@ static int __init pkg_temp_thermal_init(void)
 	return 0;
 
 err_ret:
-	get_online_cpus();
 	for_each_online_cpu(i)
 		put_core_offline(i);
 	put_online_cpus();
