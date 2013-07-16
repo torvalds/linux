@@ -1498,7 +1498,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	bool band_switch = false, mode_diff = false;
-	u8 ini_reloaded;
+	u8 ini_reloaded = 0;
 	u32 qnum;
 	int r;
 
@@ -1544,22 +1544,21 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	}
 	ath9k_hw_set_clockrate(ah);
 	ath9k_hw_apply_txpower(ah, chan, false);
-	ath9k_hw_rfbus_done(ah);
 
 	if (IS_CHAN_OFDM(chan) || IS_CHAN_HT(chan))
 		ath9k_hw_set_delta_slope(ah, chan);
 
 	ath9k_hw_spur_mitigate_freq(ah, chan);
 
-	if (band_switch || mode_diff) {
+	if (band_switch || ini_reloaded)
+		ah->eep_ops->set_board_values(ah, chan);
+
+	ath9k_hw_init_bb(ah, chan);
+	ath9k_hw_rfbus_done(ah);
+
+	if (band_switch || ini_reloaded) {
 		ah->ah_flags |= AH_FASTCC;
-		if (band_switch || ini_reloaded)
-			ah->eep_ops->set_board_values(ah, chan);
-
-		ath9k_hw_init_bb(ah, chan);
-
-		if (band_switch || ini_reloaded)
-			ath9k_hw_init_cal(ah, chan);
+		ath9k_hw_init_cal(ah, chan);
 		ah->ah_flags &= ~AH_FASTCC;
 	}
 
