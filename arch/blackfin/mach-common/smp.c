@@ -147,7 +147,7 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 	platform_clear_ipi(cpu, IRQ_SUPPLE_1);
 
 	bfin_ipi_data = &__get_cpu_var(bfin_ipi);
-	while ((pending = xchg(&bfin_ipi_data->bits, 0)) != 0) {
+	while ((pending = atomic_xchg(&bfin_ipi_data->bits, 0)) != 0) {
 		msg = 0;
 		do {
 			msg = find_next_bit(&pending, BITS_PER_LONG, msg + 1);
@@ -182,8 +182,8 @@ static void bfin_ipi_init(void)
 	struct ipi_data *bfin_ipi_data;
 	for_each_possible_cpu(cpu) {
 		bfin_ipi_data = &per_cpu(bfin_ipi, cpu);
-		bfin_ipi_data->bits = 0;
-		bfin_ipi_data->count = 0;
+		atomic_set(&bfin_ipi_data->bits, 0);
+		atomic_set(&bfin_ipi_data->count, 0);
 	}
 }
 
