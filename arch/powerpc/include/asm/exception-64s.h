@@ -479,7 +479,7 @@ label##_relon_hv:							\
  */
 
 /* Exception addition: Hard disable interrupts */
-#define DISABLE_INTS	SOFT_DISABLE_INTS(r10,r11)
+#define DISABLE_INTS	RECONCILE_IRQ_STATE(r10,r11)
 
 #define ADD_NVGPRS				\
 	bl	.save_nvgprs

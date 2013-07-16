@@ -198,9 +198,9 @@ exc_##n##_common:							    \
 /* This second version is meant for exceptions that don't immediately
  * hard-enable. We set a bit in paca->irq_happened to ensure that
  * a subsequent call to arch_local_irq_restore() will properly
- * hard-enable and avoid the fast-path
+ * hard-enable and avoid the fast-path, and then reconcile irq state.
  */
-#define INTS_DISABLE	SOFT_DISABLE_INTS(r3,r4)
+#define INTS_DISABLE	RECONCILE_IRQ_STATE(r3,r4)
 
 /* This is called by exceptions that used INTS_KEEP (that did not touch
  * irq indicators in the PACA). This will restore MSR:EE to it's previous
