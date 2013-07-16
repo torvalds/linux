@@ -1738,12 +1738,51 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 /*
  * Initialize various parameters with default vaules.
  */
+static void ath10k_halt(struct ath10k *ar)
+{
+	lockdep_assert_held(&ar->conf_mutex);
+
+	del_timer_sync(&ar->scan.timeout);
+	ath10k_offchan_tx_purge(ar);
+	ath10k_peer_cleanup_all(ar);
+	ath10k_core_stop(ar);
+	ath10k_hif_power_down(ar);
+
+	spin_lock_bh(&ar->data_lock);
+	if (ar->scan.in_progress) {
+		del_timer(&ar->scan.timeout);
+		ar->scan.in_progress = false;
+		ieee80211_scan_completed(ar->hw, true);
+	}
+	spin_unlock_bh(&ar->data_lock);
+}
+
 static int ath10k_start(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_OFF) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ret = ath10k_hif_power_up(ar);
+	if (ret) {
+		ath10k_err("could not init hif (%d)\n", ret);
+		ar->state = ATH10K_STATE_OFF;
+		goto exit;
+	}
+
+	ret = ath10k_core_start(ar);
+	if (ret) {
+		ath10k_err("could not init core (%d)\n", ret);
+		ath10k_hif_power_down(ar);
+		ar->state = ATH10K_STATE_OFF;
+		goto exit;
+	}
 
 	ret = ath10k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_PMF_QOS, 1);
 	if (ret)
@@ -1755,9 +1794,9 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		ath10k_warn("could not init WMI_PDEV_PARAM_DYNAMIC_BW (%d)\n",
 			    ret);
 
-	ar->state = ATH10K_STATE_ON;
 	ath10k_regd_update(ar);
 
+exit:
 	mutex_unlock(&ar->conf_mutex);
 	return 0;
 }
@@ -1767,17 +1806,8 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 	struct ath10k *ar = hw->priv;
 
 	mutex_lock(&ar->conf_mutex);
-	del_timer_sync(&ar->scan.timeout);
-	ath10k_offchan_tx_purge(ar);
-	ath10k_peer_cleanup_all(ar);
-
-	spin_lock_bh(&ar->data_lock);
-	if (ar->scan.in_progress) {
-		del_timer(&ar->scan.timeout);
-		ar->scan.in_progress = false;
-		ieee80211_scan_completed(ar->hw, true);
-	}
-	spin_unlock_bh(&ar->data_lock);
+	if (ar->state == ATH10K_STATE_ON)
+		ath10k_halt(ar);
 
 	ar->state = ATH10K_STATE_OFF;
 	mutex_unlock(&ar->conf_mutex);

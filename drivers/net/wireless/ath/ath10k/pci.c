@@ -2362,22 +2362,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_iomap;
 	}
 
-	ret = ath10k_pci_hif_power_up(ar);
-	if (ret) {
-		ath10k_err("could not start pci hif (%d)\n", ret);
-		goto err_intr;
-	}
-
 	ret = ath10k_core_register(ar);
 	if (ret) {
 		ath10k_err("could not register driver core (%d)\n", ret);
-		goto err_hif;
+		goto err_intr;
 	}
 
 	return 0;
 
-err_hif:
-	ath10k_pci_hif_power_down(ar);
 err_intr:
 	ath10k_pci_stop_intr(ar);
 err_iomap:
@@ -2416,7 +2408,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	tasklet_kill(&ar_pci->msi_fw_err);
 
 	ath10k_core_unregister(ar);
-	ath10k_pci_hif_power_down(ar);
 	ath10k_pci_stop_intr(ar);
 
 	pci_set_drvdata(pdev, NULL);

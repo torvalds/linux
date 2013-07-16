@@ -601,6 +601,7 @@ err_wmi_detach:
 err:
 	return status;
 }
+EXPORT_SYMBOL(ath10k_core_start);
 
 void ath10k_core_stop(struct ath10k *ar)
 {
@@ -608,18 +609,49 @@ void ath10k_core_stop(struct ath10k *ar)
 	ath10k_htt_detach(&ar->htt);
 	ath10k_wmi_detach(ar);
 }
+EXPORT_SYMBOL(ath10k_core_stop);
+
+/* mac80211 manages fw/hw initialization through start/stop hooks. However in
+ * order to know what hw capabilities should be advertised to mac80211 it is
+ * necessary to load the firmware (and tear it down immediately since start
+ * hook will try to init it again) before registering */
+static int ath10k_core_probe_fw(struct ath10k *ar)
+{
+	int ret;
+
+	ret = ath10k_hif_power_up(ar);
+	if (ret) {
+		ath10k_err("could not start pci hif (%d)\n", ret);
+		return ret;
+	}
+
+	ret = ath10k_core_start(ar);
+	if (ret) {
+		ath10k_err("could not init core (%d)\n", ret);
+		ath10k_hif_power_down(ar);
+		return ret;
+	}
+
+	ath10k_core_stop(ar);
+	ath10k_hif_power_down(ar);
+	return 0;
+}
 
 int ath10k_core_register(struct ath10k *ar)
 {
 	int status;
 
-	status = ath10k_core_start(ar);
-	if (status)
-		goto err;
+	status = ath10k_core_probe_fw(ar);
+	if (status) {
+		ath10k_err("could not probe fw (%d)\n", status);
+		return status;
+	}
 
 	status = ath10k_mac_register(ar);
-	if (status)
-		goto err_core_stop;
+	if (status) {
+		ath10k_err("could not register to mac80211 (%d)\n", status);
+		return status;
+	}
 
 	status = ath10k_debug_create(ar);
 	if (status) {
@@ -631,9 +663,6 @@ int ath10k_core_register(struct ath10k *ar)
 
 err_unregister_mac:
 	ath10k_mac_unregister(ar);
-err_core_stop:
-	ath10k_core_stop(ar);
-err:
 	return status;
 }
 EXPORT_SYMBOL(ath10k_core_register);
@@ -644,7 +673,6 @@ void ath10k_core_unregister(struct ath10k *ar)
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
 	 * unhappy about callback failures. */
 	ath10k_mac_unregister(ar);
-	ath10k_core_stop(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
