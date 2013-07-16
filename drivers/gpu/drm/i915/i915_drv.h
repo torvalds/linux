@@ -447,6 +447,7 @@ enum i915_cache_level {
 typedef uint32_t gen6_gtt_pte_t;
 
 struct i915_address_space {
+	struct drm_mm mm;
 	struct drm_device *dev;
 	unsigned long start;		/* Start offset always 0 for dri2 */
 	size_t total;		/* size addr space maps (ex. 2GB for ggtt) */
@@ -832,8 +833,6 @@ struct intel_l3_parity {
 struct i915_gem_mm {
 	/** Memory allocator for GTT stolen memory */
 	struct drm_mm stolen;
-	/** Memory allocator for GTT */
-	struct drm_mm gtt_space;
 	/** List of all objects in gtt_space. Used to restore gtt
 	 * mappings on resume */
 	struct list_head bound_list;

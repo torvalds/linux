@@ -399,8 +399,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	 */
 	obj->gtt_space.start = gtt_offset;
 	obj->gtt_space.size = size;
-	if (drm_mm_initialized(&dev_priv->mm.gtt_space)) {
-		ret = drm_mm_reserve_node(&dev_priv->mm.gtt_space,
+	if (drm_mm_initialized(&dev_priv->gtt.base.mm)) {
+		ret = drm_mm_reserve_node(&dev_priv->gtt.base.mm,
 					  &obj->gtt_space);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");

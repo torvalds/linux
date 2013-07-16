@@ -78,12 +78,12 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 
 	INIT_LIST_HEAD(&unwind_list);
 	if (mappable)
-		drm_mm_init_scan_with_range(&dev_priv->mm.gtt_space,
-					    min_size, alignment, cache_level,
-					    0, dev_priv->gtt.mappable_end);
+		drm_mm_init_scan_with_range(&dev_priv->gtt.base.mm, min_size,
+					    alignment, cache_level, 0,
+					    dev_priv->gtt.mappable_end);
 	else
-		drm_mm_init_scan(&dev_priv->mm.gtt_space,
-				 min_size, alignment, cache_level);
+		drm_mm_init_scan(&dev_priv->gtt.base.mm, min_size, alignment,
+				 cache_level);
 
 	/* First see if there is a large enough contiguous idle region... */
 	list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list) {

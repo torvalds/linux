@@ -3107,7 +3107,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	i915_gem_object_pin_pages(obj);
 
 search_free:
-	ret = drm_mm_insert_node_in_range_generic(&dev_priv->mm.gtt_space,
+	ret = drm_mm_insert_node_in_range_generic(&dev_priv->gtt.base.mm,
 						  &obj->gtt_space,
 						  size, alignment,
 						  obj->cache_level, 0, gtt_max);

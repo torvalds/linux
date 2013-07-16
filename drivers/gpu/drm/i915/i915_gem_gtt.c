@@ -269,6 +269,8 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 		container_of(vm, struct i915_hw_ppgtt, base);
 	int i;
 
+	drm_mm_takedown(&ppgtt->base.mm);
+
 	if (ppgtt->pt_dma_addr) {
 		for (i = 0; i < ppgtt->num_pd_entries; i++)
 			pci_unmap_page(ppgtt->base.dev->pdev,
@@ -382,8 +384,11 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	if (ret)
 		kfree(ppgtt);
-	else
+	else {
 		dev_priv->mm.aliasing_ppgtt = ppgtt;
+		drm_mm_init(&ppgtt->base.mm, ppgtt->base.start,
+			    ppgtt->base.total);
+	}
 
 	return ret;
 }
@@ -651,9 +656,9 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	BUG_ON(mappable_end > end);
 
 	/* Subtract the guard page ... */
-	drm_mm_init(&dev_priv->mm.gtt_space, start, end - start - PAGE_SIZE);
+	drm_mm_init(&dev_priv->gtt.base.mm, start, end - start - PAGE_SIZE);
 	if (!HAS_LLC(dev))
-		dev_priv->mm.gtt_space.color_adjust = i915_gtt_color_adjust;
+		dev_priv->gtt.base.mm.color_adjust = i915_gtt_color_adjust;
 
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
@@ -662,7 +667,7 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 			      i915_gem_obj_ggtt_offset(obj), obj->base.size);
 
 		WARN_ON(i915_gem_obj_ggtt_bound(obj));
-		ret = drm_mm_reserve_node(&dev_priv->mm.gtt_space,
+		ret = drm_mm_reserve_node(&dev_priv->gtt.base.mm,
 					  &obj->gtt_space);
 		if (ret)
 			DRM_DEBUG_KMS("Reservation failed\n");
@@ -673,7 +678,7 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	dev_priv->gtt.base.total = end - start;
 
 	/* Clear any non-preallocated blocks */
-	drm_mm_for_each_hole(entry, &dev_priv->mm.gtt_space,
+	drm_mm_for_each_hole(entry, &dev_priv->gtt.base.mm,
 			     hole_start, hole_end) {
 		const unsigned long count = (hole_end - hole_start) / PAGE_SIZE;
 		DRM_DEBUG_KMS("clearing unused GTT space: [%lx, %lx]\n",
@@ -727,7 +732,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 			return;
 
 		DRM_ERROR("Aliased PPGTT setup failed %d\n", ret);
-		drm_mm_takedown(&dev_priv->mm.gtt_space);
+		drm_mm_takedown(&dev_priv->gtt.base.mm);
 		gtt_size += GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE;
 	}
 	i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
