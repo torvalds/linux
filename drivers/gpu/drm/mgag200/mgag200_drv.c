@@ -104,7 +104,7 @@ static struct drm_driver driver = {
 	.gem_free_object = mgag200_gem_free_object,
 	.dumb_create = mgag200_dumb_create,
 	.dumb_map_offset = mgag200_dumb_mmap_offset,
-	.dumb_destroy = mgag200_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 };
 
 static struct pci_driver mgag200_pci_driver = {

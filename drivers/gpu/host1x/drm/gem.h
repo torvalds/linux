@@ -49,8 +49,6 @@ int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 			 struct drm_mode_create_dumb *args);
 int tegra_bo_dumb_map_offset(struct drm_file *file, struct drm_device *drm,
 			     uint32_t handle, uint64_t *offset);
-int tegra_bo_dumb_destroy(struct drm_file *file, struct drm_device *drm,
-			  unsigned int handle);
 
 int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma);
 

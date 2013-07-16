@@ -629,21 +629,6 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 }
 
 /**
- * omap_gem_dumb_destroy	-	destroy a dumb buffer
- * @file: client file
- * @dev: our DRM device
- * @handle: the object handle
- *
- * Destroy a handle that was created via omap_gem_dumb_create.
- */
-int omap_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle)
-{
-	/* No special work needed, drop the reference and see what falls out */
-	return drm_gem_handle_delete(file, handle);
-}
-
-/**
  * omap_gem_dumb_map	-	buffer mapping for dumb interface
  * @file: our drm client file
  * @dev: drm device

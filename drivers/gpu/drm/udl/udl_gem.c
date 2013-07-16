@@ -66,12 +66,6 @@ int udl_dumb_create(struct drm_file *file,
 			      args->size, &args->handle);
 }
 
-int udl_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-		     uint32_t handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}
-
 int udl_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	int ret;

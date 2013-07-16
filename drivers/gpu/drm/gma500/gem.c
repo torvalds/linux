@@ -162,23 +162,6 @@ int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 }
 
 /**
- *	psb_gem_dumb_destroy	-	destroy a dumb buffer
- *	@file: client file
- *	@dev: our DRM device
- *	@handle: the object handle
- *
- *	Destroy a handle that was created via psb_gem_dumb_create, at least
- *	we hope it was created that way. i915 seems to assume the caller
- *	does the checking but that might be worth review ! FIXME
- */
-int psb_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-			uint32_t handle)
-{
-	/* No special work needed, drop the reference and see what falls out */
-	return drm_gem_handle_delete(file, handle);
-}
-
-/**
  *	psb_gem_fault		-	pagefault handler for GEM objects
  *	@vma: the VMA of the GEM object
  *	@vmf: fault detail

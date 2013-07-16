@@ -151,15 +151,6 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 				   struct drm_device *dev, uint32_t handle,
 				   uint64_t *offset);
 
-/*
- * destroy memory region allocated.
- *	- a gem handle and physical memory region pointed by a gem object
- *	would be released by drm_gem_handle_delete().
- */
-int exynos_drm_gem_dumb_destroy(struct drm_file *file_priv,
-				struct drm_device *dev,
-				unsigned int handle);
-
 /* page fault handler and mmap fault address(virtual) to physical memory. */
 int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 
