@@ -9,6 +9,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/filter.h>
+#include <linux/random.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/facility.h>
@@ -738,8 +739,41 @@ out:
 	return -1;
 }
 
+/*
+ * Note: for security reasons, bpf code will follow a randomly
+ *	 sized amount of illegal instructions.
+ */
+struct bpf_binary_header {
+	unsigned int pages;
+	u8 image[];
+};
+
+static struct bpf_binary_header *bpf_alloc_binary(unsigned int bpfsize,
+						  u8 **image_ptr)
+{
+	struct bpf_binary_header *header;
+	unsigned int sz, hole;
+
+	/* Most BPF filters are really small, but if some of them fill a page,
+	 * allow at least 128 extra bytes for illegal instructions.
+	 */
+	sz = round_up(bpfsize + sizeof(*header) + 128, PAGE_SIZE);
+	header = module_alloc(sz);
+	if (!header)
+		return NULL;
+	memset(header, 0, sz);
+	header->pages = sz / PAGE_SIZE;
+	hole = sz - bpfsize + sizeof(*header);
+	/* Insert random number of illegal instructions before BPF code
+	 * and make sure the first instruction starts at an even address.
+	 */
+	*image_ptr = &header->image[(prandom_u32() % hole) & -2];
+	return header;
+}
+
 void bpf_jit_compile(struct sk_filter *fp)
 {
+	struct bpf_binary_header *header = NULL;
 	unsigned long size, prg_len, lit_len;
 	struct bpf_jit jit, cjit;
 	unsigned int *addrs;
@@ -775,8 +809,8 @@ void bpf_jit_compile(struct sk_filter *fp)
 			size = prg_len + lit_len;
 			if (size >= BPF_SIZE_MAX)
 				goto out;
-			jit.start = module_alloc(size);
-			if (!jit.start)
+			header = bpf_alloc_binary(size, &jit.start);
+			if (!header)
 				goto out;
 			jit.prg = jit.mid = jit.start + prg_len;
 			jit.lit = jit.end = jit.start + prg_len + lit_len;
@@ -791,14 +825,21 @@ void bpf_jit_compile(struct sk_filter *fp)
 		if (jit.start)
 			print_fn_code(jit.start, jit.mid - jit.start);
 	}
-	if (jit.start)
+	if (jit.start) {
+		set_memory_ro((unsigned long)header, header->pages);
 		fp->bpf_func = (void *) jit.start;
+	}
 out:
 	kfree(addrs);
 }
 
 void bpf_jit_free(struct sk_filter *fp)
 {
-	if (fp->bpf_func != sk_run_filter)
-		module_free(NULL, fp->bpf_func);
+	unsigned long addr = (unsigned long)fp->bpf_func & PAGE_MASK;
+	struct bpf_binary_header *header = (void *)addr;
+
+	if (fp->bpf_func == sk_run_filter)
+		return;
+	set_memory_rw(addr, header->pages);
+	module_free(NULL, header);
 }
