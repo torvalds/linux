@@ -147,9 +147,6 @@ static void __init enable_periphs(void)
 {
 	/* Release all peripherals from reset.*/
 	__raw_writel(0, rst_manager_base_addr + SOCFPGA_RSTMGR_MODPERRST);
-
-	/* Release all FPGA bridges from reset.*/
-	__raw_writel(0, rst_manager_base_addr + SOCFPGA_RSTMGR_BRGMODRST);
 }
 
 #define MICREL_KSZ9021_EXTREG_CTRL 11
