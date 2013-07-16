@@ -1107,6 +1107,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		rtnl_lock();
 		ret = macvtap_ioctl_set_queue(file, u);
 		rtnl_unlock();
+		return ret;
 
 	case TUNGETFEATURES:
 		if (put_user(IFF_TAP | IFF_NO_PI | IFF_VNET_HDR |
