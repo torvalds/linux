@@ -4385,8 +4385,9 @@ out2:
 	}
 
 out3:
-	trace_ext4_ext_map_blocks_exit(inode, flags, map, err ? err : allocated);
-
+	trace_ext4_ext_map_blocks_exit(inode, flags, map,
+				       err ? err : allocated);
+	ext4_es_lru_add(inode);
 	return err ? err : allocated;
 }
 
