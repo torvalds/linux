@@ -1710,10 +1710,14 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	}
 
-	ath10k_tx_h_qos_workaround(hw, control, skb);
-	ath10k_tx_h_update_wep_key(skb);
-	ath10k_tx_h_add_p2p_noa_ie(ar, skb);
-	ath10k_tx_h_seq_no(skb);
+	/* it makes no sense to process injected frames like that */
+	if (info->control.vif &&
+	    info->control.vif->type != NL80211_IFTYPE_MONITOR) {
+		ath10k_tx_h_qos_workaround(hw, control, skb);
+		ath10k_tx_h_update_wep_key(skb);
+		ath10k_tx_h_add_p2p_noa_ie(ar, skb);
+		ath10k_tx_h_seq_no(skb);
+	}
 
 	memset(ATH10K_SKB_CB(skb), 0, sizeof(*ATH10K_SKB_CB(skb)));
 	ATH10K_SKB_CB(skb)->htt.vdev_id = vdev_id;
