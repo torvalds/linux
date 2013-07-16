@@ -46,8 +46,11 @@ struct ath10k_hif_ops {
 				void *request, u32 request_len,
 				void *response, u32 *response_len);
 
+	/* Post BMI phase, after FW is loaded. Starts regular operation */
 	int (*start)(struct ath10k *ar);
 
+	/* Clean up what start() did. This does not revert to BMI phase. If
+	 * desired so, call power_down() and power_up() */
 	void (*stop)(struct ath10k *ar);
 
 	int (*map_service_to_pipe)(struct ath10k *ar, u16 service_id,
@@ -70,6 +73,13 @@ struct ath10k_hif_ops {
 			      struct ath10k_hif_cb *callbacks);
 
 	u16 (*get_free_queue_number)(struct ath10k *ar, u8 pipe_id);
+
+	/* Power up the device and enter BMI transfer mode for FW download */
+	int (*power_up)(struct ath10k *ar);
+
+	/* Power down the device and free up resources. stop() must be called
+	 * before this if start() was called earlier */
+	void (*power_down)(struct ath10k *ar);
 };
 
 
@@ -132,6 +142,16 @@ static inline u16 ath10k_hif_get_free_queue_number(struct ath10k *ar,
 						   u8 pipe_id)
 {
 	return ar->hif.ops->get_free_queue_number(ar, pipe_id);
+}
+
+static inline int ath10k_hif_power_up(struct ath10k *ar)
+{
+	return ar->hif.ops->power_up(ar);
+}
+
+static inline void ath10k_hif_power_down(struct ath10k *ar)
+{
+	ar->hif.ops->power_down(ar);
 }
 
 #endif /* _HIF_H_ */
