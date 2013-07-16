@@ -1517,6 +1517,18 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 
 	REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
 
+	if (AR_SREV_9462_20_OR_LATER(ah)) {
+		/*
+		 * CUS217 mix LNA mode.
+		 */
+		if (ar9003_hw_get_rx_gain_idx(ah) == 2) {
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_bb_core,
+					1, regWrites);
+			REG_WRITE_ARRAY(&ah->ini_modes_rxgain_bb_postamble,
+					modesIndex, regWrites);
+		}
+	}
+
 	/*
 	 * For 5GHz channels requiring Fast Clock, apply
 	 * different modal values.
@@ -1527,7 +1539,11 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 	if (AR_SREV_9565(ah))
 		REG_WRITE_ARRAY(&ah->iniModesFastClock, 1, regWrites);
 
-	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
+	/*
+	 * JAPAN regulatory.
+	 */
+	if (chan->channel == 2484)
+		ar9003_hw_prog_ini(ah, &ah->iniCckfirJapan2484, 1);
 
 	ah->modes_index = modesIndex;
 	*ini_reloaded = true;
