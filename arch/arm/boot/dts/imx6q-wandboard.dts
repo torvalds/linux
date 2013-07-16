@@ -9,14 +9,14 @@
  *
  */
 /dts-v1/;
-#include "imx6dl.dtsi"
+#include "imx6q.dtsi"
 #include "imx6qdl-wandboard.dtsi"
 
 / {
-	model = "Wandboard i.MX6 Dual Lite Board";
-	compatible = "wand,imx6dl-wandboard", "fsl,imx6dl";
+	model = "Wandboard i.MX6 Quad Board";
+	compatible = "wand,imx6q-wandboard", "fsl,imx6q";
 
 	memory {
-		reg = <0x10000000 0x40000000>;
+		reg = <0x10000000 0x80000000>;
 	};
 };
