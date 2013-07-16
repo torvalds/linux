@@ -432,8 +432,6 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_unregister_pcm:
-	tegra_pcm_platform_unregister(&pdev->dev);
 err_unregister_component:
 	snd_soc_unregister_component(&pdev->dev);
 err_asoc_utils_fini:
