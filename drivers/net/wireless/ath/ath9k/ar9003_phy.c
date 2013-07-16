@@ -632,6 +632,22 @@ static void ar9003_hw_override_ini(struct ath_hw *ah)
 
 	REG_SET_BIT(ah, AR_PHY_CCK_DETECT,
 		    AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
+		REG_WRITE(ah, AR_GLB_SWREG_DISCONT_MODE,
+			  AR_GLB_SWREG_DISCONT_EN_BT_WLAN);
+
+		if (REG_READ_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_0,
+				   AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL))
+			ah->enabled_cals |= TX_IQ_CAL;
+		else
+			ah->enabled_cals &= ~TX_IQ_CAL;
+
+		if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
+			ah->enabled_cals |= TX_CL_CAL;
+		else
+			ah->enabled_cals &= ~TX_CL_CAL;
+	}
 }
 
 static void ar9003_hw_prog_ini(struct ath_hw *ah,
@@ -814,28 +830,11 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	if (chan->channel == 2484)
 		ar9003_hw_prog_ini(ah, &ah->iniCckfirJapan2484, 1);
 
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
-		REG_WRITE(ah, AR_GLB_SWREG_DISCONT_MODE,
-			  AR_GLB_SWREG_DISCONT_EN_BT_WLAN);
-
 	ah->modes_index = modesIndex;
 	ar9003_hw_override_ini(ah);
 	ar9003_hw_set_channel_regs(ah, chan);
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 	ath9k_hw_apply_txpower(ah, chan, false);
-
-	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
-		if (REG_READ_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_0,
-				   AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL))
-			ah->enabled_cals |= TX_IQ_CAL;
-		else
-			ah->enabled_cals &= ~TX_IQ_CAL;
-
-		if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE)
-			ah->enabled_cals |= TX_CL_CAL;
-		else
-			ah->enabled_cals &= ~TX_CL_CAL;
-	}
 
 	return 0;
 }
