@@ -85,23 +85,27 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 
 	if (!ret) {
 		IWL_DEBUG_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
-				cmd->ba_enable_beacon_abort);
+				le32_to_cpu(cmd->ba_enable_beacon_abort));
 		IWL_DEBUG_POWER(mvm, "ba_escape_timer is: %d\n",
-				cmd->ba_escape_timer);
+				le32_to_cpu(cmd->ba_escape_timer));
 		IWL_DEBUG_POWER(mvm, "bf_debug_flag is: %d\n",
-				cmd->bf_debug_flag);
+				le32_to_cpu(cmd->bf_debug_flag));
 		IWL_DEBUG_POWER(mvm, "bf_enable_beacon_filter is: %d\n",
-				cmd->bf_enable_beacon_filter);
+				le32_to_cpu(cmd->bf_enable_beacon_filter));
 		IWL_DEBUG_POWER(mvm, "bf_energy_delta is: %d\n",
-				cmd->bf_energy_delta);
+				le32_to_cpu(cmd->bf_energy_delta));
 		IWL_DEBUG_POWER(mvm, "bf_escape_timer is: %d\n",
-				cmd->bf_escape_timer);
+				le32_to_cpu(cmd->bf_escape_timer));
 		IWL_DEBUG_POWER(mvm, "bf_roaming_energy_delta is: %d\n",
-				cmd->bf_roaming_energy_delta);
+				le32_to_cpu(cmd->bf_roaming_energy_delta));
 		IWL_DEBUG_POWER(mvm, "bf_roaming_state is: %d\n",
-				cmd->bf_roaming_state);
-		IWL_DEBUG_POWER(mvm, "bf_temperature_delta is: %d\n",
-				cmd->bf_temperature_delta);
+				le32_to_cpu(cmd->bf_roaming_state));
+		IWL_DEBUG_POWER(mvm, "bf_temp_threshold is: %d\n",
+				le32_to_cpu(cmd->bf_temp_threshold));
+		IWL_DEBUG_POWER(mvm, "bf_temp_fast_filter is: %d\n",
+				le32_to_cpu(cmd->bf_temp_fast_filter));
+		IWL_DEBUG_POWER(mvm, "bf_temp_slow_filter is: %d\n",
+				le32_to_cpu(cmd->bf_temp_slow_filter));
 	}
 	return ret;
 }
@@ -112,8 +116,8 @@ int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_beacon_filter_cmd cmd = {
 		IWL_BF_CMD_CONFIG_DEFAULTS,
-		.bf_enable_beacon_filter = 1,
-		.ba_enable_beacon_abort = enable,
+		.bf_enable_beacon_filter = cpu_to_le32(1),
+		.ba_enable_beacon_abort = cpu_to_le32(enable),
 	};
 
 	if (!mvmvif->bf_enabled)
@@ -369,22 +373,30 @@ iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
 	struct iwl_dbgfs_bf *dbgfs_bf = &mvmvif->dbgfs_bf;
 
 	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ENERGY_DELTA)
-		cmd->bf_energy_delta = dbgfs_bf->bf_energy_delta;
+		cmd->bf_energy_delta = cpu_to_le32(dbgfs_bf->bf_energy_delta);
 	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ROAMING_ENERGY_DELTA)
 		cmd->bf_roaming_energy_delta =
-				 dbgfs_bf->bf_roaming_energy_delta;
+				cpu_to_le32(dbgfs_bf->bf_roaming_energy_delta);
 	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ROAMING_STATE)
-		cmd->bf_roaming_state = dbgfs_bf->bf_roaming_state;
-	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_TEMPERATURE_DELTA)
-		cmd->bf_temperature_delta = dbgfs_bf->bf_temperature_delta;
+		cmd->bf_roaming_state = cpu_to_le32(dbgfs_bf->bf_roaming_state);
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_TEMP_THRESHOLD)
+		cmd->bf_temp_threshold =
+				cpu_to_le32(dbgfs_bf->bf_temp_threshold);
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_TEMP_FAST_FILTER)
+		cmd->bf_temp_fast_filter =
+				cpu_to_le32(dbgfs_bf->bf_temp_fast_filter);
+	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_TEMP_SLOW_FILTER)
+		cmd->bf_temp_slow_filter =
+				cpu_to_le32(dbgfs_bf->bf_temp_slow_filter);
 	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_DEBUG_FLAG)
-		cmd->bf_debug_flag = dbgfs_bf->bf_debug_flag;
+		cmd->bf_debug_flag = cpu_to_le32(dbgfs_bf->bf_debug_flag);
 	if (dbgfs_bf->mask & MVM_DEBUGFS_BF_ESCAPE_TIMER)
 		cmd->bf_escape_timer = cpu_to_le32(dbgfs_bf->bf_escape_timer);
 	if (dbgfs_bf->mask & MVM_DEBUGFS_BA_ESCAPE_TIMER)
 		cmd->ba_escape_timer = cpu_to_le32(dbgfs_bf->ba_escape_timer);
 	if (dbgfs_bf->mask & MVM_DEBUGFS_BA_ENABLE_BEACON_ABORT)
-		cmd->ba_enable_beacon_abort = dbgfs_bf->ba_enable_beacon_abort;
+		cmd->ba_enable_beacon_abort =
+				cpu_to_le32(dbgfs_bf->ba_enable_beacon_abort);
 }
 #endif
 
@@ -394,7 +406,7 @@ int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_beacon_filter_cmd cmd = {
 		IWL_BF_CMD_CONFIG_DEFAULTS,
-		.bf_enable_beacon_filter = 1,
+		.bf_enable_beacon_filter = cpu_to_le32(1),
 	};
 	int ret;
 
@@ -418,7 +430,8 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
-	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BF_UPDATED) ||
+	    vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);

@@ -563,7 +563,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	/* beacon filtering */
 	if (!mvm->bf_allowed_vif &&
-	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p){
+	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
+	    mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BF_UPDATED){
 		mvm->bf_allowed_vif = mvmvif;
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 	}

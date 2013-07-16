@@ -216,10 +216,20 @@ struct iwl_mac_power_cmd {
  *      calculated for current beacon is less than the threshold, use
  *      Roaming Energy Delta Threshold, otherwise use normal Energy Delta
  *      Threshold. Typical energy threshold is -72dBm.
- * @bf_temperature_delta: Send Beacon to driver if delta in temperature values
- *      calculated for this and the last passed beacon is greater than  this
- *      threshold. Zero value means that the temperature changeis ignored for
+ * @bf_temp_threshold: This threshold determines the type of temperature
+ *	filtering (Slow or Fast) that is selected (Units are in Celsuis):
+ *      If the current temperature is above this threshold - Fast filter
+ *	will be used, If the current temperature is below this threshold -
+ *	Slow filter will be used.
+ * @bf_temp_fast_filter: Send Beacon to driver if delta in temperature values
+ *      calculated for this and the last passed beacon is greater than this
+ *      threshold. Zero value means that the temperature change is ignored for
  *      beacon filtering; beacons will not be  forced to be sent to driver
+ *      regardless of whether its temerature has been changed.
+ * @bf_temp_slow_filter: Send Beacon to driver if delta in temperature values
+ *      calculated for this and the last passed beacon is greater than this
+ *      threshold. Zero value means that the temperature change is ignored for
+ *      beacon filtering; beacons will not be forced to be sent to driver
  *      regardless of whether its temerature has been changed.
  * @bf_enable_beacon_filter: 1, beacon filtering is enabled; 0, disabled.
  * @bf_filter_escape_timer: Send beacons to to driver if no beacons were passed
@@ -229,17 +239,17 @@ struct iwl_mac_power_cmd {
  * @ba_enable_beacon_abort: 1, beacon abort is enabled; 0, disabled.
  */
 struct iwl_beacon_filter_cmd {
-	u8 bf_energy_delta;
-	u8 bf_roaming_energy_delta;
-	u8 bf_roaming_state;
-	u8 bf_temperature_delta;
-	u8 bf_enable_beacon_filter;
-	u8 bf_debug_flag;
-	__le16 reserved1;
+	__le32 bf_energy_delta;
+	__le32 bf_roaming_energy_delta;
+	__le32 bf_roaming_state;
+	__le32 bf_temp_threshold;
+	__le32 bf_temp_fast_filter;
+	__le32 bf_temp_slow_filter;
+	__le32 bf_enable_beacon_filter;
+	__le32 bf_debug_flag;
 	__le32 bf_escape_timer;
 	__le32 ba_escape_timer;
-	u8 ba_enable_beacon_abort;
-	u8 reserved2[3];
+	__le32 ba_enable_beacon_abort;
 } __packed;
 
 /* Beacon filtering and beacon abort */
@@ -255,9 +265,17 @@ struct iwl_beacon_filter_cmd {
 #define IWL_BF_ROAMING_STATE_MAX 255
 #define IWL_BF_ROAMING_STATE_MIN 0
 
-#define IWL_BF_TEMPERATURE_DELTA_DEFAULT 5
-#define IWL_BF_TEMPERATURE_DELTA_MAX 255
-#define IWL_BF_TEMPERATURE_DELTA_MIN 0
+#define IWL_BF_TEMP_THRESHOLD_DEFAULT 112
+#define IWL_BF_TEMP_THRESHOLD_MAX 255
+#define IWL_BF_TEMP_THRESHOLD_MIN 0
+
+#define IWL_BF_TEMP_FAST_FILTER_DEFAULT 1
+#define IWL_BF_TEMP_FAST_FILTER_MAX 255
+#define IWL_BF_TEMP_FAST_FILTER_MIN 0
+
+#define IWL_BF_TEMP_SLOW_FILTER_DEFAULT 5
+#define IWL_BF_TEMP_SLOW_FILTER_MAX 255
+#define IWL_BF_TEMP_SLOW_FILTER_MIN 0
 
 #define IWL_BF_ENABLE_BEACON_FILTER_DEFAULT 1
 
@@ -273,13 +291,16 @@ struct iwl_beacon_filter_cmd {
 
 #define IWL_BA_ENABLE_BEACON_ABORT_DEFAULT 1
 
-#define IWL_BF_CMD_CONFIG_DEFAULTS					\
-	.bf_energy_delta = IWL_BF_ENERGY_DELTA_DEFAULT,			\
-	.bf_roaming_energy_delta = IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT,	\
-	.bf_roaming_state = IWL_BF_ROAMING_STATE_DEFAULT,		\
-	.bf_temperature_delta = IWL_BF_TEMPERATURE_DELTA_DEFAULT,	\
-	.bf_debug_flag = IWL_BF_DEBUG_FLAG_DEFAULT,			\
-	.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER_DEFAULT),	\
+#define IWL_BF_CMD_CONFIG_DEFAULTS					     \
+	.bf_energy_delta = cpu_to_le32(IWL_BF_ENERGY_DELTA_DEFAULT),	     \
+	.bf_roaming_energy_delta =					     \
+		cpu_to_le32(IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT),	     \
+	.bf_roaming_state = cpu_to_le32(IWL_BF_ROAMING_STATE_DEFAULT),	     \
+	.bf_temp_threshold = cpu_to_le32(IWL_BF_TEMP_THRESHOLD_DEFAULT),     \
+	.bf_temp_fast_filter = cpu_to_le32(IWL_BF_TEMP_FAST_FILTER_DEFAULT), \
+	.bf_temp_slow_filter = cpu_to_le32(IWL_BF_TEMP_SLOW_FILTER_DEFAULT), \
+	.bf_debug_flag = cpu_to_le32(IWL_BF_DEBUG_FLAG_DEFAULT),	     \
+	.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER_DEFAULT),	     \
 	.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_DEFAULT)
 
 #endif

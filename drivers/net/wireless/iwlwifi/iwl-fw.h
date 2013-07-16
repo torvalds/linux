@@ -78,6 +78,7 @@
  * @IWL_UCODE_TLV_FLAGS_RX_ENERGY_API: supports rx signal strength api
  * @IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS: D3 image supports up to six
  *	(rather than two) IPv6 addresses
+ * @IWL_UCODE_TLV_FLAGS_BF_UPDATED: new beacon filtering API
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN			= BIT(0),
@@ -88,6 +89,7 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_UAPSD		= BIT(6),
 	IWL_UCODE_TLV_FLAGS_RX_ENERGY_API	= BIT(8),
 	IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS	= BIT(10),
+	IWL_UCODE_TLV_FLAGS_BF_UPDATED		= BIT(11),
 };
 
 /* The default calibrate table size if not specified by firmware file */
