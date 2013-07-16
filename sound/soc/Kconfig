@@ -48,19 +48,19 @@ source "sound/soc/s6000/Kconfig"
 source "sound/soc/sh/Kconfig"
 source "sound/soc/tegra/Kconfig"
 source "sound/soc/txx9/Kconfig"
-config SOUND_SUN4I
-       tristate "SOUND driver for sun4i"
+config SOUND_SUNXI
+       tristate "SOUND driver for sunxi"
        depends on (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
        help
-         SOUND driver for sun4i
+         SOUND driver for sunxi
          
-if SOUND_SUN4I          
-source "sound/soc/sun4i/Kconfig"
-source "sound/soc/sun4i/hdmiaudio/Kconfig"
-source "sound/soc/sun4i/spdif/Kconfig"
+if SOUND_SUNXI          
+source "sound/soc/sunxi/Kconfig"
+source "sound/soc/sunxi/hdmiaudio/Kconfig"
+source "sound/soc/sunxi/spdif/Kconfig"
 # i2s needs various adjustments for sun7i
 if ARCH_SUN4I || ARCH_SUN5I
-source "sound/soc/sun4i/i2s/Kconfig"
+source "sound/soc/sunxi/i2s/Kconfig"
 endif
 endif
 
