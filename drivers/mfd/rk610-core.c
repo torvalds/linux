@@ -262,7 +262,7 @@ static int rk610_control_probe(struct i2c_client *client,
 		#if defined(CONFIG_ARCH_RK29)
 		rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
 		#elif defined(CONFIG_ARCH_RK3066B)||defined(CONFIG_ARCH_RK3188)
-		iomux_set(I2S0_CLK);
+		iomux_set(I2S0_MCLK);
 		#elif defined(CONFIG_ARCH_RK30)
                 rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);
 		#endif

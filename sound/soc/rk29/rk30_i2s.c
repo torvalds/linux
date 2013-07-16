@@ -439,9 +439,9 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 	switch(dai->id) {
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         case 1:
-                        iomux_set(I2S0_CLK);
+                        iomux_set(I2S0_MCLK);
                         iomux_set(I2S0_SCLK);
-                        iomux_set(I2S0_LRCLKRX);
+                        iomux_set(I2S0_LRCKRX);
                         iomux_set(I2S0_LRCKTX);
                         iomux_set(I2S0_SDI);
                         iomux_set(I2S0_SDO);

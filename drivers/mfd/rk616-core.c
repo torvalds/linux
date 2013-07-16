@@ -473,7 +473,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 		#if defined(CONFIG_ARCH_RK29)
 		rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
 		#else
-		iomux_set(I2S0_CLK);
+		iomux_set(I2S0_MCLK);
 		#endif
 		clk_enable(iis_clk);
 		clk_set_rate(iis_clk, 11289600);
