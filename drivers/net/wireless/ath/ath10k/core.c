@@ -502,8 +502,7 @@ void ath10k_core_destroy(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_core_destroy);
 
-
-int ath10k_core_register(struct ath10k *ar)
+int ath10k_core_start(struct ath10k *ar)
 {
 	struct bmi_target_info target_info;
 	int status;
@@ -589,9 +588,36 @@ int ath10k_core_register(struct ath10k *ar)
 	if (status)
 		goto err_disconnect_htc;
 
+	return 0;
+
+err_disconnect_htc:
+	ath10k_htc_stop(&ar->htc);
+err_htt_detach:
+	ath10k_htt_detach(&ar->htt);
+err_wmi_detach:
+	ath10k_wmi_detach(ar);
+err:
+	return status;
+}
+
+void ath10k_core_stop(struct ath10k *ar)
+{
+	ath10k_htc_stop(&ar->htc);
+	ath10k_htt_detach(&ar->htt);
+	ath10k_wmi_detach(ar);
+}
+
+int ath10k_core_register(struct ath10k *ar)
+{
+	int status;
+
+	status = ath10k_core_start(ar);
+	if (status)
+		goto err;
+
 	status = ath10k_mac_register(ar);
 	if (status)
-		goto err_disconnect_htc;
+		goto err_core_stop;
 
 	status = ath10k_debug_create(ar);
 	if (status) {
@@ -603,12 +629,8 @@ int ath10k_core_register(struct ath10k *ar)
 
 err_unregister_mac:
 	ath10k_mac_unregister(ar);
-err_disconnect_htc:
-	ath10k_htc_stop(&ar->htc);
-err_htt_detach:
-	ath10k_htt_detach(&ar->htt);
-err_wmi_detach:
-	ath10k_wmi_detach(ar);
+err_core_stop:
+	ath10k_core_stop(ar);
 err:
 	return status;
 }
@@ -620,9 +642,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
 	 * unhappy about callback failures. */
 	ath10k_mac_unregister(ar);
-	ath10k_htc_stop(&ar->htc);
-	ath10k_htt_detach(&ar->htt);
-	ath10k_wmi_detach(ar);
+	ath10k_core_stop(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
