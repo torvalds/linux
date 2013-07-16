@@ -813,7 +813,7 @@ static int btrfsic_process_superblock_dev_mirror(
 	    (bh->b_data + (dev_bytenr & 4095));
 
 	if (btrfs_super_bytenr(super_tmp) != dev_bytenr ||
-	    super_tmp->magic != cpu_to_le64(BTRFS_MAGIC) ||
+	    btrfs_super_magic(super_tmp) != BTRFS_MAGIC ||
 	    memcmp(device->uuid, super_tmp->dev_item.uuid, BTRFS_UUID_SIZE) ||
 	    btrfs_super_nodesize(super_tmp) != state->metablock_size ||
 	    btrfs_super_leafsize(super_tmp) != state->metablock_size ||
@@ -880,20 +880,20 @@ static int btrfsic_process_superblock_dev_mirror(
 		tmp_disk_key.offset = 0;
 		switch (pass) {
 		case 0:
-			tmp_disk_key.objectid =
-			    cpu_to_le64(BTRFS_ROOT_TREE_OBJECTID);
+			btrfs_set_disk_key_objectid(&tmp_disk_key,
+						    BTRFS_ROOT_TREE_OBJECTID);
 			additional_string = "initial root ";
 			next_bytenr = btrfs_super_root(super_tmp);
 			break;
 		case 1:
-			tmp_disk_key.objectid =
-			    cpu_to_le64(BTRFS_CHUNK_TREE_OBJECTID);
+			btrfs_set_disk_key_objectid(&tmp_disk_key,
+						    BTRFS_CHUNK_TREE_OBJECTID);
 			additional_string = "initial chunk ";
 			next_bytenr = btrfs_super_chunk_root(super_tmp);
 			break;
 		case 2:
-			tmp_disk_key.objectid =
-			    cpu_to_le64(BTRFS_TREE_LOG_OBJECTID);
+			btrfs_set_disk_key_objectid(&tmp_disk_key,
+						    BTRFS_TREE_LOG_OBJECTID);
 			additional_string = "initial log ";
 			next_bytenr = btrfs_super_log_root(super_tmp);
 			if (0 == next_bytenr)
@@ -1003,7 +1003,7 @@ continue_with_new_stack_frame:
 		    (struct btrfs_leaf *)sf->hdr;
 
 		if (-1 == sf->i) {
-			sf->nr = le32_to_cpu(leafhdr->header.nritems);
+			sf->nr = btrfs_stack_header_nritems(&leafhdr->header);
 
 			if (state->print_mask & BTRFSIC_PRINT_MASK_VERBOSE)
 				printk(KERN_INFO
@@ -1013,9 +1013,11 @@ continue_with_new_stack_frame:
 				       sf->block_ctx->start,
 				       sf->nr,
 				       (unsigned long long)
-				       le64_to_cpu(leafhdr->header.generation),
+				       btrfs_stack_header_generation(
+					       &leafhdr->header),
 				       (unsigned long long)
-				       le64_to_cpu(leafhdr->header.owner));
+				       btrfs_stack_header_owner(
+					       &leafhdr->header));
 		}
 
 continue_with_current_leaf_stack_frame:
@@ -1047,10 +1049,10 @@ leaf_item_out_of_bounce_error:
 						     &disk_item,
 						     disk_item_offset,
 						     sizeof(struct btrfs_item));
-			item_offset = le32_to_cpu(disk_item.offset);
-			item_size = le32_to_cpu(disk_item.size);
+			item_offset = btrfs_stack_item_offset(&disk_item);
+			item_size = btrfs_stack_item_offset(&disk_item);
 			disk_key = &disk_item.key;
-			type = disk_key->type;
+			type = btrfs_disk_key_type(disk_key);
 
 			if (BTRFS_ROOT_ITEM_KEY == type) {
 				struct btrfs_root_item root_item;
@@ -1066,7 +1068,7 @@ leaf_item_out_of_bounce_error:
 					sf->block_ctx, &root_item,
 					root_item_offset,
 					item_size);
-				next_bytenr = le64_to_cpu(root_item.bytenr);
+				next_bytenr = btrfs_root_bytenr(&root_item);
 
 				sf->error =
 				    btrfsic_create_link_to_next_block(
@@ -1081,8 +1083,8 @@ leaf_item_out_of_bounce_error:
 						&sf->num_copies,
 						&sf->mirror_num,
 						disk_key,
-						le64_to_cpu(root_item.
-						generation));
+						btrfs_root_generation(
+						&root_item));
 				if (sf->error)
 					goto one_stack_frame_backwards;
 
@@ -1130,7 +1132,7 @@ leaf_item_out_of_bounce_error:
 		struct btrfs_node *const nodehdr = (struct btrfs_node *)sf->hdr;
 
 		if (-1 == sf->i) {
-			sf->nr = le32_to_cpu(nodehdr->header.nritems);
+			sf->nr = btrfs_stack_header_nritems(&nodehdr->header);
 
 			if (state->print_mask & BTRFSIC_PRINT_MASK_VERBOSE)
 				printk(KERN_INFO "node %llu level %d items %d"
@@ -1139,9 +1141,11 @@ leaf_item_out_of_bounce_error:
 				       sf->block_ctx->start,
 				       nodehdr->header.level, sf->nr,
 				       (unsigned long long)
-				       le64_to_cpu(nodehdr->header.generation),
+				       btrfs_stack_header_generation(
+				       &nodehdr->header),
 				       (unsigned long long)
-				       le64_to_cpu(nodehdr->header.owner));
+				       btrfs_stack_header_owner(
+				       &nodehdr->header));
 		}
 
 continue_with_current_node_stack_frame:
@@ -1168,7 +1172,7 @@ continue_with_current_node_stack_frame:
 			btrfsic_read_from_block_data(
 				sf->block_ctx, &key_ptr, key_ptr_offset,
 				sizeof(struct btrfs_key_ptr));
-			next_bytenr = le64_to_cpu(key_ptr.blockptr);
+			next_bytenr = btrfs_stack_key_blockptr(&key_ptr);
 
 			sf->error = btrfsic_create_link_to_next_block(
 					state,
@@ -1182,7 +1186,7 @@ continue_with_current_node_stack_frame:
 					&sf->num_copies,
 					&sf->mirror_num,
 					&key_ptr.key,
-					le64_to_cpu(key_ptr.generation));
+					btrfs_stack_key_generation(&key_ptr));
 			if (sf->error)
 				goto one_stack_frame_backwards;
 
@@ -1444,12 +1448,13 @@ static int btrfsic_handle_extent_data(
 		file_extent_item_offset,
 		offsetof(struct btrfs_file_extent_item, disk_num_bytes));
 	if (BTRFS_FILE_EXTENT_REG != file_extent_item.type ||
-	    ((u64)0) == le64_to_cpu(file_extent_item.disk_bytenr)) {
+	    btrfs_stack_file_extent_disk_bytenr(&file_extent_item) == 0) {
 		if (state->print_mask & BTRFSIC_PRINT_MASK_VERY_VERBOSE)
 			printk(KERN_INFO "extent_data: type %u, disk_bytenr = %llu\n",
 			       file_extent_item.type,
 			       (unsigned long long)
-			       le64_to_cpu(file_extent_item.disk_bytenr));
+			       btrfs_stack_file_extent_disk_bytenr(
+			       &file_extent_item));
 		return 0;
 	}
 
@@ -1463,19 +1468,20 @@ static int btrfsic_handle_extent_data(
 	btrfsic_read_from_block_data(block_ctx, &file_extent_item,
 				     file_extent_item_offset,
 				     sizeof(struct btrfs_file_extent_item));
-	next_bytenr = le64_to_cpu(file_extent_item.disk_bytenr) +
-		      le64_to_cpu(file_extent_item.offset);
-	generation = le64_to_cpu(file_extent_item.generation);
-	num_bytes = le64_to_cpu(file_extent_item.num_bytes);
-	generation = le64_to_cpu(file_extent_item.generation);
+	next_bytenr = btrfs_stack_file_extent_disk_bytenr(&file_extent_item) +
+		      btrfs_stack_file_extent_offset(&file_extent_item);
+	generation = btrfs_stack_file_extent_generation(&file_extent_item);
+	num_bytes = btrfs_stack_file_extent_num_bytes(&file_extent_item);
+	generation = btrfs_stack_file_extent_generation(&file_extent_item);
 
 	if (state->print_mask & BTRFSIC_PRINT_MASK_VERY_VERBOSE)
 		printk(KERN_INFO "extent_data: type %u, disk_bytenr = %llu,"
 		       " offset = %llu, num_bytes = %llu\n",
 		       file_extent_item.type,
 		       (unsigned long long)
-		       le64_to_cpu(file_extent_item.disk_bytenr),
-		       (unsigned long long)le64_to_cpu(file_extent_item.offset),
+		       btrfs_stack_file_extent_disk_bytenr(&file_extent_item),
+		       (unsigned long long)
+		       btrfs_stack_file_extent_offset(&file_extent_item),
 		       (unsigned long long)num_bytes);
 	while (num_bytes > 0) {
 		u32 chunk_len;
@@ -1896,8 +1902,8 @@ again:
 		struct list_head *tmp_ref_to;
 
 		if (block->is_superblock) {
-			bytenr = le64_to_cpu(((struct btrfs_super_block *)
-					      mapped_datav[0])->bytenr);
+			bytenr = btrfs_super_bytenr((struct btrfs_super_block *)
+						    mapped_datav[0]);
 			if (num_pages * PAGE_CACHE_SIZE <
 			    BTRFS_SUPER_INFO_SIZE) {
 				printk(KERN_INFO
@@ -1923,8 +1929,9 @@ again:
 					return;
 				}
 				processed_len = state->metablock_size;
-				bytenr = le64_to_cpu(((struct btrfs_header *)
-						      mapped_datav[0])->bytenr);
+				bytenr = btrfs_stack_header_bytenr(
+						(struct btrfs_header *)
+						mapped_datav[0]);
 				btrfsic_cmp_log_and_dev_bytenr(state, bytenr,
 							       dev_state,
 							       dev_bytenr);
@@ -1992,13 +1999,13 @@ again:
 			       block->mirror_num,
 			       (unsigned long long)block->generation,
 			       (unsigned long long)
-			       le64_to_cpu(block->disk_key.objectid),
+			       btrfs_disk_key_objectid(&block->disk_key),
 			       block->disk_key.type,
 			       (unsigned long long)
-			       le64_to_cpu(block->disk_key.offset),
+			       btrfs_disk_key_offset(&block->disk_key),
 			       (unsigned long long)
-			       le64_to_cpu(((struct btrfs_header *)
-					    mapped_datav[0])->generation),
+			       btrfs_stack_header_generation(
+				       (struct btrfs_header *) mapped_datav[0]),
 			       (unsigned long long)
 			       state->max_superblock_generation);
 			btrfsic_dump_tree(state);
@@ -2015,8 +2022,9 @@ again:
 			       block->mirror_num,
 			       (unsigned long long)block->generation,
 			       (unsigned long long)
-			       le64_to_cpu(((struct btrfs_header *)
-					    mapped_datav[0])->generation));
+			       btrfs_stack_header_generation(
+				       (struct btrfs_header *)
+				       mapped_datav[0]));
 			/* it would not be safe to go on */
 			btrfsic_dump_tree(state);
 			goto continue_loop;
@@ -2184,8 +2192,9 @@ again:
 			block_ctx.pagev = NULL;
 		} else {
 			processed_len = state->metablock_size;
-			bytenr = le64_to_cpu(((struct btrfs_header *)
-					      mapped_datav[0])->bytenr);
+			bytenr = btrfs_stack_header_bytenr(
+					(struct btrfs_header *)
+					mapped_datav[0]);
 			btrfsic_cmp_log_and_dev_bytenr(state, bytenr, dev_state,
 						       dev_bytenr);
 			if (state->print_mask & BTRFSIC_PRINT_MASK_VERBOSE)
@@ -2434,13 +2443,14 @@ static int btrfsic_process_written_superblock(
 		const char *additional_string = NULL;
 		struct btrfs_disk_key tmp_disk_key;
 
-		tmp_disk_key.type = BTRFS_ROOT_ITEM_KEY;
-		tmp_disk_key.offset = 0;
+		btrfs_set_disk_key_objectid(&tmp_disk_key,
+					    BTRFS_ROOT_ITEM_KEY);
+		btrfs_set_disk_key_objectid(&tmp_disk_key, 0);
 
 		switch (pass) {
 		case 0:
-			tmp_disk_key.objectid =
-			    cpu_to_le64(BTRFS_ROOT_TREE_OBJECTID);
+			btrfs_set_disk_key_objectid(&tmp_disk_key,
+						    BTRFS_ROOT_TREE_OBJECTID);
 			additional_string = "root ";
 			next_bytenr = btrfs_super_root(super_hdr);
 			if (state->print_mask &
@@ -2449,8 +2459,8 @@ static int btrfsic_process_written_superblock(
 				       (unsigned long long)next_bytenr);
 			break;
 		case 1:
-			tmp_disk_key.objectid =
-			    cpu_to_le64(BTRFS_CHUNK_TREE_OBJECTID);
+			btrfs_set_disk_key_objectid(&tmp_disk_key,
+						    BTRFS_CHUNK_TREE_OBJECTID);
 			additional_string = "chunk ";
 			next_bytenr = btrfs_super_chunk_root(super_hdr);
 			if (state->print_mask &
@@ -2459,8 +2469,8 @@ static int btrfsic_process_written_superblock(
 				       (unsigned long long)next_bytenr);
 			break;
 		case 2:
-			tmp_disk_key.objectid =
-			    cpu_to_le64(BTRFS_TREE_LOG_OBJECTID);
+			btrfs_set_disk_key_objectid(&tmp_disk_key,
+						    BTRFS_TREE_LOG_OBJECTID);
 			additional_string = "log ";
 			next_bytenr = btrfs_super_log_root(super_hdr);
 			if (0 == next_bytenr)
