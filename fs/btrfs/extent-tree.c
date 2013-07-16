@@ -2035,6 +2035,8 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
 
 	ref = btrfs_delayed_node_to_data_ref(node);
+	trace_run_delayed_data_ref(node, ref, node->action);
+
 	if (node->type == BTRFS_SHARED_DATA_REF_KEY)
 		parent = ref->parent;
 	else
@@ -2178,6 +2180,8 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 						 SKINNY_METADATA);
 
 	ref = btrfs_delayed_node_to_tree_ref(node);
+	trace_run_delayed_tree_ref(node, ref, node->action);
+
 	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY)
 		parent = ref->parent;
 	else
@@ -2236,6 +2240,8 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 		 */
 		BUG_ON(extent_op);
 		head = btrfs_delayed_node_to_head(node);
+		trace_run_delayed_ref_head(node, head, node->action);
+
 		if (insert_reserved) {
 			btrfs_pin_extent(root, node->bytenr,
 					 node->num_bytes, 1);
