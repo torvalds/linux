@@ -1335,12 +1335,23 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 
 static int igb_eeprom_test(struct igb_adapter *adapter, u64 *data)
 {
+	struct e1000_hw *hw = &adapter->hw;
+
 	*data = 0;
 
-	/* Validate eeprom on all parts but i211 */
-	if (adapter->hw.mac.type != e1000_i211) {
+	/* Validate eeprom on all parts but flashless */
+	switch (hw->mac.type) {
+	case e1000_i210:
+	case e1000_i211:
+		if (igb_get_flash_presence_i210(hw)) {
+			if (adapter->hw.nvm.ops.validate(&adapter->hw) < 0)
+				*data = 2;
+		}
+		break;
+	default:
 		if (adapter->hw.nvm.ops.validate(&adapter->hw) < 0)
 			*data = 2;
+		break;
 	}
 
 	return *data;
