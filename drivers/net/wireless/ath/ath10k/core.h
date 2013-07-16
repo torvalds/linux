@@ -247,6 +247,11 @@ struct ath10k_debug {
 	struct completion event_stats_compl;
 };
 
+enum ath10k_state {
+	ATH10K_STATE_OFF = 0,
+	ATH10K_STATE_ON,
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -343,6 +348,8 @@ struct ath10k {
 	struct sk_buff_head offchan_tx_queue;
 	struct completion offchan_tx_completed;
 	struct sk_buff *offchan_tx_skb;
+
+	enum ath10k_state state;
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;

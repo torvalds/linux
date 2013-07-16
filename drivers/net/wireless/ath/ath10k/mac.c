@@ -1310,23 +1310,19 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 	return ret;
 }
 
-static void ath10k_reg_notifier(struct wiphy *wiphy,
-				struct regulatory_request *request)
+static void ath10k_regd_update(struct ath10k *ar)
 {
-	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct reg_dmn_pair_mapping *regpair;
-	struct ath10k *ar = hw->priv;
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
-
-	ath_reg_notifier_apply(wiphy, request, &ar->ath_common.regulatory);
+	lockdep_assert_held(&ar->conf_mutex);
 
 	ret = ath10k_update_channel_list(ar);
 	if (ret)
 		ath10k_warn("could not update channel list (%d)\n", ret);
 
 	regpair = ar->ath_common.regulatory.regpair;
+
 	/* Target allows setting up per-band regdomain but ath_common provides
 	 * a combined one only */
 	ret = ath10k_wmi_pdev_set_regdomain(ar,
@@ -1337,7 +1333,19 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 					    regpair->reg_5ghz_ctl);
 	if (ret)
 		ath10k_warn("could not set pdev regdomain (%d)\n", ret);
+}
 
+static void ath10k_reg_notifier(struct wiphy *wiphy,
+				struct regulatory_request *request)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct ath10k *ar = hw->priv;
+
+	ath_reg_notifier_apply(wiphy, request, &ar->ath_common.regulatory);
+
+	mutex_lock(&ar->conf_mutex);
+	if (ar->state == ATH10K_STATE_ON)
+		ath10k_regd_update(ar);
 	mutex_unlock(&ar->conf_mutex);
 }
 
@@ -1732,6 +1740,9 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		ath10k_warn("could not init WMI_PDEV_PARAM_DYNAMIC_BW (%d)\n",
 			    ret);
 
+	ar->state = ATH10K_STATE_ON;
+	ath10k_regd_update(ar);
+
 	mutex_unlock(&ar->conf_mutex);
 	return 0;
 }
@@ -1742,6 +1753,7 @@ static void ath10k_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&ar->conf_mutex);
 	ath10k_offchan_tx_purge(ar);
+	ar->state = ATH10K_STATE_OFF;
 	mutex_unlock(&ar->conf_mutex);
 
 	cancel_work_sync(&ar->offchan_tx_work);
