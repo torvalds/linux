@@ -429,18 +429,6 @@ config LEDS_ASIC3
 	  cannot be used. This driver supports hardware blinking with an on+off
 	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
 
-config LEDS_RENESAS_TPU
-	bool "LED support for Renesas TPU"
-	depends on LEDS_CLASS=y && HAVE_CLK && GPIOLIB
-	help
-	  This option enables build of the LED TPU platform driver,
-	  suitable to drive any TPU channel on newer Renesas SoCs.
-	  The driver controls the GPIO pin connected to the LED via
-	  the GPIO framework and expects the LED to be connected to
-	  a pin that can be driven in both GPIO mode and using TPU
-	  pin function. The latter to support brightness control.
-	  Brightness control is supported but hardware blinking is not.
-
 config LEDS_TCA6507
 	tristate "LED Support for TCA6507 I2C chip"
 	depends on LEDS_CLASS && I2C
