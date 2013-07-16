@@ -1587,7 +1587,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	* ADDI-DATA GmbH communication cards <info@addi-data.com>
 	*/
 	{
-		.vendor         = PCI_VENDOR_ID_ADDIDATA_OLD,
+		.vendor         = PCI_VENDOR_ID_AMCC,
 		.device         = PCI_DEVICE_ID_ADDIDATA_APCI7800,
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
@@ -4697,7 +4697,7 @@ static struct pci_device_id serial_pci_tbl[] = {
 		0,
 		pbn_b0_1_115200 },
 
-	{	PCI_VENDOR_ID_ADDIDATA_OLD,
+	{	PCI_VENDOR_ID_AMCC,
 		PCI_DEVICE_ID_ADDIDATA_APCI7800,
 		PCI_ANY_ID,
 		PCI_ANY_ID,
