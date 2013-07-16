@@ -65,6 +65,10 @@
 	};
 };
 
+&sata {
+	status = "okay";
+};
+
 &ecspi1 {
 	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio3 19 0>;

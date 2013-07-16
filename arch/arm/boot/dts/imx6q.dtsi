@@ -116,6 +116,15 @@
 			};
 		};
 
+		sata: sata@02200000 {
+			compatible = "fsl,imx6q-ahci";
+			reg = <0x02200000 0x4000>;
+			interrupts = <0 39 0x04>;
+			clocks =  <&clks 154>, <&clks 187>, <&clks 105>;
+			clock-names = "sata", "sata_ref", "ahb";
+			status = "disabled";
+		};
+
 		ipu2: ipu@02800000 {
 			#crtc-cells = <1>;
 			compatible = "fsl,imx6q-ipu";
