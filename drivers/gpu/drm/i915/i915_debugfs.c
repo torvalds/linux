@@ -276,8 +276,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		   count, size);
 
 	seq_printf(m, "%zu [%lu] gtt total\n",
-		   dev_priv->gtt.total,
-		   dev_priv->gtt.mappable_end - dev_priv->gtt.start);
+		   dev_priv->gtt.base.total,
+		   dev_priv->gtt.mappable_end - dev_priv->gtt.base.start);
 
 	seq_putc(m, '\n');
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {

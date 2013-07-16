@@ -446,6 +446,29 @@ enum i915_cache_level {
 
 typedef uint32_t gen6_gtt_pte_t;
 
+struct i915_address_space {
+	struct drm_device *dev;
+	unsigned long start;		/* Start offset always 0 for dri2 */
+	size_t total;		/* size addr space maps (ex. 2GB for ggtt) */
+
+	struct {
+		dma_addr_t addr;
+		struct page *page;
+	} scratch;
+
+	/* FIXME: Need a more generic return type */
+	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
+				     enum i915_cache_level level);
+	void (*clear_range)(struct i915_address_space *vm,
+			    unsigned int first_entry,
+			    unsigned int num_entries);
+	void (*insert_entries)(struct i915_address_space *vm,
+			       struct sg_table *st,
+			       unsigned int first_entry,
+			       enum i915_cache_level cache_level);
+	void (*cleanup)(struct i915_address_space *vm);
+};
+
 /* The Graphics Translation Table is the way in which GEN hardware translates a
  * Graphics Virtual Address into a Physical Address. In addition to the normal
  * collateral associated with any va->pa translations GEN hardware also has a
@@ -454,8 +477,7 @@ typedef uint32_t gen6_gtt_pte_t;
  * the spec.
  */
 struct i915_gtt {
-	unsigned long start;		/* Start offset of used GTT */
-	size_t total;			/* Total size GTT can map */
+	struct i915_address_space base;
 	size_t stolen_size;		/* Total size of stolen memory */
 
 	unsigned long mappable_end;	/* End offset that we can CPU map */
@@ -466,10 +488,6 @@ struct i915_gtt {
 	void __iomem *gsm;
 
 	bool do_idle_maps;
-	struct {
-		dma_addr_t addr;
-		struct page *page;
-	} scratch;
 
 	int mtrr;
 
@@ -477,38 +495,17 @@ struct i915_gtt {
 	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
 			  size_t *stolen, phys_addr_t *mappable_base,
 			  unsigned long *mappable_end);
-	void (*gtt_remove)(struct drm_device *dev);
-	void (*gtt_clear_range)(struct drm_device *dev,
-				unsigned int first_entry,
-				unsigned int num_entries);
-	void (*gtt_insert_entries)(struct drm_device *dev,
-				   struct sg_table *st,
-				   unsigned int pg_start,
-				   enum i915_cache_level cache_level);
-	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
-				     enum i915_cache_level level);
 };
-#define gtt_total_entries(gtt) ((gtt).total >> PAGE_SHIFT)
+#define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
 
 struct i915_hw_ppgtt {
-	struct drm_device *dev;
+	struct i915_address_space base;
 	unsigned num_pd_entries;
 	struct page **pt_pages;
 	uint32_t pd_offset;
 	dma_addr_t *pt_dma_addr;
 
-	/* pte functions, mirroring the interface of the global gtt. */
-	void (*clear_range)(struct i915_hw_ppgtt *ppgtt,
-			    unsigned int first_entry,
-			    unsigned int num_entries);
-	void (*insert_entries)(struct i915_hw_ppgtt *ppgtt,
-			       struct sg_table *st,
-			       unsigned int pg_start,
-			       enum i915_cache_level cache_level);
-	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
-				     enum i915_cache_level level);
 	int (*enable)(struct drm_device *dev);
-	void (*cleanup)(struct i915_hw_ppgtt *ppgtt);
 };
 
 struct i915_ctx_hang_stats {
@@ -1125,7 +1122,7 @@ typedef struct drm_i915_private {
 	enum modeset_restore modeset_restore;
 	struct mutex modeset_restore_lock;
 
-	struct i915_gtt gtt;
+	struct i915_gtt gtt; /* VMA representing the global address space */
 
 	struct i915_gem_mm mm;
 

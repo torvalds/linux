@@ -181,7 +181,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			pinned += i915_gem_obj_ggtt_size(obj);
 	mutex_unlock(&dev->struct_mutex);
 
-	args->aper_size = dev_priv->gtt.total;
+	args->aper_size = dev_priv->gtt.base.total;
 	args->aper_available_size = args->aper_size - pinned;
 
 	return 0;
@@ -3065,7 +3065,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	u32 size, fence_size, fence_alignment, unfenced_alignment;
 	bool mappable, fenceable;
 	size_t gtt_max = map_and_fenceable ?
-		dev_priv->gtt.mappable_end : dev_priv->gtt.total;
+		dev_priv->gtt.mappable_end : dev_priv->gtt.base.total;
 	int ret;
 
 	fence_size = i915_gem_get_gtt_size(dev,
