@@ -277,7 +277,7 @@ static void dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 
 static int dwc2_gahbcfg_init(struct dwc2_hsotg *hsotg)
 {
-	u32 ahbcfg = 0;
+	u32 ahbcfg = readl(hsotg->regs + GAHBCFG);
 
 	switch (hsotg->hwcfg2 & GHWCFG2_ARCHITECTURE_MASK) {
 	case GHWCFG2_EXT_DMA_ARCH:
@@ -286,11 +286,11 @@ static int dwc2_gahbcfg_init(struct dwc2_hsotg *hsotg)
 
 	case GHWCFG2_INT_DMA_ARCH:
 		dev_dbg(hsotg->dev, "Internal DMA Mode\n");
-		/*
-		 * Old value was GAHBCFG_HBSTLEN_INCR - done for
-		 * Host mode ISOC in issue fix - vahrama
-		 */
-		ahbcfg |= GAHBCFG_HBSTLEN_INCR4;
+		if (hsotg->core_params->ahbcfg != -1) {
+			ahbcfg &= GAHBCFG_CTRL_MASK;
+			ahbcfg |= hsotg->core_params->ahbcfg &
+				  ~GAHBCFG_CTRL_MASK;
+		}
 		break;
 
 	case GHWCFG2_SLAVE_ONLY_ARCH:
@@ -312,9 +312,6 @@ static int dwc2_gahbcfg_init(struct dwc2_hsotg *hsotg)
 		dev_dbg(hsotg->dev, "Using Slave mode\n");
 		hsotg->core_params->dma_desc_enable = 0;
 	}
-
-	if (hsotg->core_params->ahb_single > 0)
-		ahbcfg |= GAHBCFG_AHB_SINGLE;
 
 	if (hsotg->core_params->dma_enable > 0)
 		ahbcfg |= GAHBCFG_DMA_EN;
@@ -2586,35 +2583,13 @@ int dwc2_set_param_reload_ctl(struct dwc2_hsotg *hsotg, int val)
 	return retval;
 }
 
-int dwc2_set_param_ahb_single(struct dwc2_hsotg *hsotg, int val)
+int dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val)
 {
-	int valid = 1;
-	int retval = 0;
-
-	if (DWC2_PARAM_TEST(val, 0, 1)) {
-		if (val >= 0) {
-			dev_err(hsotg->dev,
-				"'%d' invalid for parameter ahb_single\n", val);
-			dev_err(hsotg->dev, "ahb_single must be 0 or 1\n");
-		}
-		valid = 0;
-	}
-
-	if (val > 0 && hsotg->snpsid < DWC2_CORE_REV_2_94a)
-		valid = 0;
-
-	if (!valid) {
-		if (val >= 0)
-			dev_err(hsotg->dev,
-				"%d invalid for parameter ahb_single. Check HW configuration.\n",
-				val);
-		val = 0;
-		dev_dbg(hsotg->dev, "Setting ahb_single to %d\n", val);
-		retval = -EINVAL;
-	}
-
-	hsotg->core_params->ahb_single = val;
-	return retval;
+	if (val != -1)
+		hsotg->core_params->ahbcfg = val;
+	else
+		hsotg->core_params->ahbcfg = GAHBCFG_HBSTLEN_INCR4;
+	return 0;
 }
 
 int dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val)
@@ -2681,7 +2656,7 @@ int dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	retval |= dwc2_set_param_en_multiple_tx_fifo(hsotg,
 			params->en_multiple_tx_fifo);
 	retval |= dwc2_set_param_reload_ctl(hsotg, params->reload_ctl);
-	retval |= dwc2_set_param_ahb_single(hsotg, params->ahb_single);
+	retval |= dwc2_set_param_ahbcfg(hsotg, params->ahbcfg);
 	retval |= dwc2_set_param_otg_ver(hsotg, params->otg_ver);
 
 	return retval;

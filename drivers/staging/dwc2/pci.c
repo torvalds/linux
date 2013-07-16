@@ -83,7 +83,7 @@ static const struct dwc2_core_params dwc2_module_params = {
 	.host_ls_low_power_phy_clk	= -1,
 	.ts_dline			= -1,
 	.reload_ctl			= -1,
-	.ahb_single			= -1,
+	.ahbcfg				= -1,
 };
 
 /**

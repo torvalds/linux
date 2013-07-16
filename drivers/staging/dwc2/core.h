@@ -150,10 +150,11 @@ enum dwc2_lx_state {
  *                      are enabled
  * @reload_ctl:         True to allow dynamic reloading of HFIR register during
  *                      runtime
- * @ahb_single:         This bit enables SINGLE transfers for remainder data in
- *                      a transfer for DMA mode of operation.
- *                       0 - remainder data will be sent using INCR burst size
- *                       1 - remainder data will be sent using SINGLE burst size
+ * @ahbcfg:             This field allows the default value of the GAHBCFG
+ *                      register to be overridden
+ *                       -1         - GAHBCFG value will not be overridden
+ *                       all others - GAHBCFG value will be overridden with
+ *                                    this value
  * @otg_ver:            OTG version supported
  *                       0 - 1.3
  *                       1 - 2.0
@@ -189,7 +190,7 @@ struct dwc2_core_params {
 	int host_ls_low_power_phy_clk;
 	int ts_dline;
 	int reload_ctl;
-	int ahb_single;
+	int ahbcfg;
 };
 
 /**
@@ -643,7 +644,7 @@ extern int dwc2_set_param_en_multiple_tx_fifo(struct dwc2_hsotg *hsotg,
 
 extern int dwc2_set_param_reload_ctl(struct dwc2_hsotg *hsotg, int val);
 
-extern int dwc2_set_param_ahb_single(struct dwc2_hsotg *hsotg, int val);
+extern int dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val);
 
 extern int dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val);
 
