@@ -1605,24 +1605,6 @@ drm_gem_object_handle_reference(struct drm_gem_object *obj)
 }
 
 static inline void
-drm_gem_object_handle_unreference(struct drm_gem_object *obj)
-{
-	if (obj == NULL)
-		return;
-
-	if (atomic_read(&obj->handle_count) == 0)
-		return;
-	/*
-	 * Must bump handle count first as this may be the last
-	 * ref, in which case the object would disappear before we
-	 * checked for a name
-	 */
-	if (atomic_dec_and_test(&obj->handle_count))
-		drm_gem_object_handle_free(obj);
-	drm_gem_object_unreference(obj);
-}
-
-static inline void
 drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 {
 	if (obj == NULL)
