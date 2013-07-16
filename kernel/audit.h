@@ -247,10 +247,15 @@ extern void		    audit_panic(const char *message);
 
 struct audit_netlink_list {
 	__u32 portid;
+	pid_t pid;
 	struct sk_buff_head q;
 };
 
 int audit_send_list(void *);
+
+struct audit_net {
+	struct sock *nlsk;
+};
 
 extern int selinux_audit_rule_update(void);
 

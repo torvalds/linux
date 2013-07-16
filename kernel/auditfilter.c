@@ -1050,6 +1050,7 @@ int audit_receive_filter(int type, __u32 portid, int seq, void *data,
 		if (!dest)
 			return -ENOMEM;
 		dest->portid = portid;
+		dest->pid = task_pid_vnr(current);
 		skb_queue_head_init(&dest->q);
 
 		mutex_lock(&audit_filter_mutex);
