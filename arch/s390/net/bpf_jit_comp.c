@@ -772,8 +772,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 		} else if (jit.prg == cjit.prg && jit.lit == cjit.lit) {
 			prg_len = jit.prg - jit.start;
 			lit_len = jit.lit - jit.mid;
-			size = max_t(unsigned long, prg_len + lit_len,
-				     sizeof(struct work_struct));
+			size = prg_len + lit_len;
 			if (size >= BPF_SIZE_MAX)
 				goto out;
 			jit.start = module_alloc(size);
@@ -804,21 +803,8 @@ out:
 	kfree(addrs);
 }
 
-static void jit_free_defer(struct work_struct *arg)
-{
-	module_free(NULL, arg);
-}
-
-/* run from softirq, we must use a work_struct to call
- * module_free() from process context
- */
 void bpf_jit_free(struct sk_filter *fp)
 {
-	struct work_struct *work;
-
-	if (fp->bpf_func == sk_run_filter)
-		return;
-	work = (struct work_struct *)fp->bpf_func;
-	INIT_WORK(work, jit_free_defer);
-	schedule_work(work);
+	if (fp->bpf_func != sk_run_filter)
+		module_free(NULL, fp->bpf_func);
 }
