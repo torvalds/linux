@@ -458,8 +458,6 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 	ar->hif.priv = hif_priv;
 	ar->hif.ops = hif_ops;
 
-	ar->free_vdev_map = 0xFF; /* 8 vdevs */
-
 	init_completion(&ar->scan.started);
 	init_completion(&ar->scan.completed);
 	init_completion(&ar->scan.on_channel);
@@ -589,6 +587,8 @@ int ath10k_core_start(struct ath10k *ar)
 	status = ath10k_htt_attach_target(&ar->htt);
 	if (status)
 		goto err_disconnect_htc;
+
+	ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
 
 	return 0;
 
