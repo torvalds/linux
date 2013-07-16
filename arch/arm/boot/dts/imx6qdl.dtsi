@@ -511,6 +511,13 @@
 				};
 			};
 
+			tempmon: tempmon {
+				compatible = "fsl,imx6q-tempmon";
+				interrupts = <0 49 0x04>;
+				fsl,tempmon = <&anatop>;
+				fsl,tempmon-data = <&ocotp>;
+			};
+
 			usbphy1: usbphy@020c9000 {
 				compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020c9000 0x1000>;
@@ -1477,8 +1484,8 @@
 				clocks = <&clks 196>;
 			};
 
-			ocotp@021bc000 {
-				compatible = "fsl,imx6q-ocotp";
+			ocotp: ocotp@021bc000 {
+				compatible = "fsl,imx6q-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 			};
 
