@@ -88,15 +88,14 @@
 			#size-cells = <1>;
 			reg = <0x00112000 0x2000>, <0x00114000 0x2000>;
 			reg-names = "gpmi-nand", "bch";
-			interrupts = <0 13 0x04>, <0 15 0x04>;
-			interrupt-names = "gpmi-dma", "bch";
+			interrupts = <0 15 0x04>;
+			interrupt-names = "bch";
 			clocks = <&clks 152>, <&clks 153>, <&clks 151>,
 				 <&clks 150>, <&clks 149>;
 			clock-names = "gpmi_io", "gpmi_apb", "gpmi_bch",
 				      "gpmi_bch_apb", "per1_bch";
 			dmas = <&dma_apbh 0>;
 			dma-names = "rx-tx";
-			fsl,gpmi-dma-channel = <0>;
 			status = "disabled";
 		};
 
