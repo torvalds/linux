@@ -2087,12 +2087,12 @@ static  struct pmu_info  ricoh619_ldo_info[] = {
 
 static struct pmu_info  rt5025_dcdc_info[] = {
 	{
-		.name          = "rt5025-dcdc1",   //arm
+		.name          = "vdd_cpu",   //arm
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
 	},
 	{
-		.name          = "rt5025-dcdc2",    //logic
+		.name          = "vdd_core",    //logic
 		.min_uv          = 1000000,
 		.max_uv         = 1000000,
 	},
@@ -2106,9 +2106,9 @@ static struct pmu_info  rt5025_dcdc_info[] = {
 };
 static  struct pmu_info  rt5025_ldo_info[] = {
 	{
-		.name          = "rt5025-ldo1",   //vdd10
-		.min_uv          = 1000000,
-		.max_uv         = 1000000,
+		.name          = "rt5025-ldo1",   //vcc18
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
 	},
 	{
 		.name          = "rt5025-ldo2",    //vddjetta
@@ -2116,9 +2116,9 @@ static  struct pmu_info  rt5025_ldo_info[] = {
 		.max_uv         = 1200000,
 	},
 	{
-		.name          = "rt5025-ldo3",   //vcc18
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
+		.name          = "rt5025-ldo3",   //vdd10
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
 	},
 	{
 		.name          = "rt5025-ldo4",   //vccjetta
@@ -2126,14 +2126,14 @@ static  struct pmu_info  rt5025_ldo_info[] = {
 		.max_uv         = 3300000,
 	},
 	{
-		.name          = "rt5025-ldo5",   //vcctp
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "rt5025-ldo6",   //vccio_wl
+		.name          = "rt5025-ldo5",   //vccio_wl
 		.min_uv          = 1800000,
 		.max_uv         = 1800000,
+	},
+	{
+		.name          = "rt5025-ldo6",   //vcc_tp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
 	},	
 	
  };

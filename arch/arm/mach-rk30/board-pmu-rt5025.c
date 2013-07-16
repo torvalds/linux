@@ -37,6 +37,10 @@ static int rt5025_pre_init(struct rt5025_chip *rt5025_chip){
 	ret |= (1<<3);  //enable DC4 boost
 	rt5025_reg_write(rt5025_chip->i2c, 0x17,ret);
 	/***********************************************/
+	 ret = rt5025_reg_read(rt5025_chip->i2c, 0x07);
+        ret |= (1<<5);  //
+        rt5025_reg_write(rt5025_chip->i2c, 0x07,ret);
+
 	/************************************************/
 	return 0;
   }
@@ -86,18 +90,18 @@ static struct regulator_consumer_supply rt5025_dcdc1_supply[] = {
 	{
 		.supply = "rt5025-dcdc1",
 	},
-//	{
-//		.supply = "vdd_cpu",
-//	},
+	{
+		.supply = "vdd_cpu",
+	},
 	
 };
 static struct regulator_consumer_supply rt5025_dcdc2_supply[] = {
 	{
 		.supply = "rt5025-dcdc2",
 	},
-//	{
-//		.supply = "vdd_core",
-//	},
+	{
+		.supply = "vdd_core",
+	},
 };
 static struct regulator_consumer_supply rt5025_dcdc3_supply[] = {
 	{
@@ -298,7 +302,7 @@ static struct rt5025_power_data rt5025_power_data = {
 	.CHGControl7 = {
 		.bitfield = {
 			.CHGC_EN = 1,
-			.CHG_DCDC_MODE = 0,
+			.CHG_DCDC_MODE = 1,
 			.BATD_EN = 0,
 		},
 	},
