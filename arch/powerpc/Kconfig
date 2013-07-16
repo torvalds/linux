@@ -312,6 +312,26 @@ config MATH_EMULATION
 	  such as fsqrt on cores that do have an FPU but do not implement
 	  them (such as Freescale BookE).
 
+choice
+	prompt "Math emulation options"
+	default MATH_EMULATION_FULL
+	depends on MATH_EMULATION
+
+config	MATH_EMULATION_FULL
+	bool "Emulate all the floating point instructions"
+	---help---
+	  Select this option will enable the kernel to support to emulate
+	  all the floating point instructions. If your SoC doesn't have
+	  a FPU, you should select this.
+
+config MATH_EMULATION_HW_UNIMPLEMENTED
+	bool "Just emulate the FPU unimplemented instructions"
+	---help---
+	  Select this if you know there does have a hardware FPU on your
+	  SoC, but some floating point instructions are not implemented by that.
+
+endchoice
+
 config PPC_TRANSACTIONAL_MEM
        bool "Transactional Memory support for POWERPC"
        depends on PPC_BOOK3S_64

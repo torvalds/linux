@@ -13,6 +13,20 @@
 
 #define FLOATFUNC(x)	extern int x(void *, void *, void *, void *)
 
+/* The instructions list which may be not implemented by a hardware FPU */
+FLOATFUNC(fre);
+FLOATFUNC(frsqrtes);
+FLOATFUNC(fsqrt);
+FLOATFUNC(fsqrts);
+FLOATFUNC(mtfsf);
+FLOATFUNC(mtfsfi);
+
+#ifdef CONFIG_MATH_EMULATION_HW_UNIMPLEMENTED
+#undef FLOATFUNC(x)
+#define FLOATFUNC(x)	static inline int x(void *op1, void *op2, void *op3, \
+						 void *op4) { }
+#endif
+
 FLOATFUNC(fadd);
 FLOATFUNC(fadds);
 FLOATFUNC(fdiv);
@@ -42,8 +56,6 @@ FLOATFUNC(mcrfs);
 FLOATFUNC(mffs);
 FLOATFUNC(mtfsb0);
 FLOATFUNC(mtfsb1);
-FLOATFUNC(mtfsf);
-FLOATFUNC(mtfsfi);
 
 FLOATFUNC(lfd);
 FLOATFUNC(lfs);
@@ -58,13 +70,9 @@ FLOATFUNC(fnabs);
 FLOATFUNC(fneg);
 
 /* Optional */
-FLOATFUNC(fre);
 FLOATFUNC(fres);
 FLOATFUNC(frsqrte);
-FLOATFUNC(frsqrtes);
 FLOATFUNC(fsel);
-FLOATFUNC(fsqrt);
-FLOATFUNC(fsqrts);
 
 
 #define OP31		0x1f		/*   31 */
