@@ -2092,3 +2092,22 @@ int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id)
 	ath10k_dbg(ATH10K_DBG_WMI, "wmi request stats %d\n", (int)stats_id);
 	return ath10k_wmi_cmd_send(ar, skb, WMI_REQUEST_STATS_CMDID);
 }
+
+int ath10k_wmi_force_fw_hang(struct ath10k *ar,
+			     enum wmi_force_fw_hang_type type, u32 delay_ms)
+{
+	struct wmi_force_fw_hang_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_force_fw_hang_cmd *)skb->data;
+	cmd->type = __cpu_to_le32(type);
+	cmd->delay_ms = __cpu_to_le32(delay_ms);
+
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi force fw hang %d delay %d\n",
+		   type, delay_ms);
+	return ath10k_wmi_cmd_send(ar, skb, WMI_FORCE_FW_HANG_CMDID);
+}

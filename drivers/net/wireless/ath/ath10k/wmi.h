@@ -416,6 +416,7 @@ enum wmi_cmd_id {
 	WMI_PDEV_FTM_INTG_CMDID,
 	WMI_VDEV_SET_KEEPALIVE_CMDID,
 	WMI_VDEV_GET_KEEPALIVE_CMDID,
+	WMI_FORCE_FW_HANG_CMDID,
 
 	/* GPIO Configuration */
 	WMI_GPIO_CONFIG_CMDID = WMI_CMD_GRP(WMI_GRP_GPIO),
@@ -2972,6 +2973,22 @@ struct wmi_sta_keepalive_cmd {
 	struct wmi_sta_keepalive_arp_resp arp_resp;
 } __packed;
 
+enum wmi_force_fw_hang_type {
+	WMI_FORCE_FW_HANG_ASSERT = 1,
+	WMI_FORCE_FW_HANG_NO_DETECT,
+	WMI_FORCE_FW_HANG_CTRL_EP_FULL,
+	WMI_FORCE_FW_HANG_EMPTY_POINT,
+	WMI_FORCE_FW_HANG_STACK_OVERFLOW,
+	WMI_FORCE_FW_HANG_INFINITE_LOOP,
+};
+
+#define WMI_FORCE_FW_HANG_RANDOM_TIME 0xFFFFFFFF
+
+struct wmi_force_fw_hang_cmd {
+	__le32 type;
+	__le32 delay_ms;
+} __packed;
+
 #define ATH10K_RTS_MAX		2347
 #define ATH10K_FRAGMT_THRESHOLD_MIN	540
 #define ATH10K_FRAGMT_THRESHOLD_MAX	2346
@@ -3048,5 +3065,7 @@ int ath10k_wmi_beacon_send(struct ath10k *ar, const struct wmi_bcn_tx_arg *arg);
 int ath10k_wmi_pdev_set_wmm_params(struct ath10k *ar,
 			const struct wmi_pdev_set_wmm_params_arg *arg);
 int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id);
+int ath10k_wmi_force_fw_hang(struct ath10k *ar,
+			     enum wmi_force_fw_hang_type type, u32 delay_ms);
 
 #endif /* _WMI_H_ */
