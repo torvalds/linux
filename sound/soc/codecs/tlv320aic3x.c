@@ -1582,6 +1582,8 @@ static int aic3x_i2c_remove(struct i2c_client *client)
 #if defined(CONFIG_OF)
 static const struct of_device_id tlv320aic3x_of_match[] = {
 	{ .compatible = "ti,tlv320aic3x", },
+	{ .compatible = "ti,tlv320aic33" },
+	{ .compatible = "ti,tlv320aic3007" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tlv320aic3x_of_match);
