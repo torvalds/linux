@@ -1,5 +1,5 @@
-config SND_SUN4I_SOC_CODEC
-	tristate "APB On-Chip Codec"
+config SND_SUNXI_SOC_CODEC
+	tristate "APB On-Chip sun4i and sun5i Codec"
 	default n
 
 

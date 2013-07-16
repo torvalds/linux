@@ -1,2 +1,2 @@
-obj-$(CONFIG_SND_SUN4I_SOC_CODEC) += sun4i-codec.o
+obj-$(CONFIG_SND_SUNXI_SOC_CODEC) += sunxi-codec.o
 

@@ -1,5 +1,5 @@
 /*
- * sound/soc/sun4i/sun4i-codec.h
+ * sound/soc/sunxi/sunxi-codec.h
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -21,28 +21,28 @@
  */
 
 
-#ifndef _SUN4I_CODEC_H
-#define _SUN4I_CODEC_H
+#ifndef _SUNXI_CODEC_H
+#define _SUNXI_CODEC_H
 
 //Codec Register
 #define CODEC_BASSADDRESS         (0x01c22c00)
-#define SUN4I_DAC_DPC                (0x00)
-#define SUN4I_DAC_FIFOC              (0x04)
-#define SUN4I_DAC_FIFOS              (0x08)
-#define SUN4I_DAC_TXDATA             (0x0c)
-#define SUN4I_DAC_ACTL               (0x10)
-#define SUN4I_DAC_TUNE               (0x14)
-#define SUN4I_DAC_DEBUG              (0x18)
-#define SUN4I_ADC_FIFOC              (0x1c)
-#define SUN4I_ADC_FIFOS              (0x20)
-#define SUN4I_ADC_RXDATA             (0x24)
-#define SUN4I_ADC_ACTL               (0x28)
-#define SUN4I_ADC_DEBUG              (0x2c)
-#define SUN4I_DAC_TXCNT              (0x30)
-#define SUN4I_ADC_RXCNT              (0x34)
-#define SUN4I_BIAS_CRT               (0x38)
-#define SUN4I_MIC_CRT                (0x3c)
-#define SUN4I_CODEC_REGS_NUM         (13)
+#define SUNXI_DAC_DPC                (0x00)
+#define SUNXI_DAC_FIFOC              (0x04)
+#define SUNXI_DAC_FIFOS              (0x08)
+#define SUNXI_DAC_TXDATA             (0x0c)
+#define SUNXI_DAC_ACTL               (0x10)
+#define SUNXI_DAC_TUNE               (0x14)
+#define SUNXI_DAC_DEBUG              (0x18)
+#define SUNXI_ADC_FIFOC              (0x1c)
+#define SUNXI_ADC_FIFOS              (0x20)
+#define SUNXI_ADC_RXDATA             (0x24)
+#define SUNXI_ADC_ACTL               (0x28)
+#define SUNXI_ADC_DEBUG              (0x2c)
+#define SUNXI_DAC_TXCNT              (0x30)
+#define SUNXI_ADC_RXCNT              (0x34)
+#define SUNXI_BIAS_CRT               (0x38)
+#define SUNXI_MIC_CRT                (0x3c)
+#define SUNXI_CODEC_REGS_NUM         (13)
 
 #define DAIFMT_16BITS             (16)
 #define DAIFMT_20BITS             (20)
