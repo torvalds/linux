@@ -1010,7 +1010,7 @@ struct symbol **sym_re_search(const char *pattern)
 			continue;
 		if (regexec(&re, sym->name, 1, match, 0))
 			continue;
-		if (cnt + 1 >= size) {
+		if (cnt >= size) {
 			void *tmp;
 			size += 16;
 			tmp = realloc(sym_match_arr, size * sizeof(struct sym_match *));
