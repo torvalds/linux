@@ -261,9 +261,3 @@ int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma)
 
 	return ret;
 }
-
-int tegra_bo_dumb_destroy(struct drm_file *file, struct drm_device *drm,
-			  unsigned int handle)
-{
-	return drm_gem_handle_delete(file, handle);
-}

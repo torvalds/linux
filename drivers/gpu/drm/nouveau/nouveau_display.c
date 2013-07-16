@@ -689,13 +689,6 @@ nouveau_display_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 }
 
 int
-nouveau_display_dumb_destroy(struct drm_file *file_priv, struct drm_device *dev,
-			     uint32_t handle)
-{
-	return drm_gem_handle_delete(file_priv, handle);
-}
-
-int
 nouveau_display_dumb_map_offset(struct drm_file *file_priv,
 				struct drm_device *dev,
 				uint32_t handle, uint64_t *poffset)

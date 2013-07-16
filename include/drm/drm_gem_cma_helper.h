@@ -30,14 +30,6 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 /* set vm_flags and we can change the vm attribute to other one at here. */
 int drm_gem_cma_mmap(struct file *filp, struct vm_area_struct *vma);
 
-/*
- * destroy memory region allocated.
- *	- a gem handle and physical memory region pointed by a gem object
- *	would be released by drm_gem_handle_delete().
- */
-int drm_gem_cma_dumb_destroy(struct drm_file *file_priv,
-		struct drm_device *drm, unsigned int handle);
-
 /* allocate physical memory. */
 struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 		unsigned int size);

@@ -1038,7 +1038,7 @@ static struct drm_driver driver = {
 
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_mmap_gtt,
-	.dumb_destroy = i915_gem_dumb_destroy,
+	.dumb_destroy = drm_gem_dumb_destroy,
 	.ioctls = i915_ioctls,
 	.fops = &i915_driver_fops,
 	.name = DRIVER_NAME,

@@ -284,16 +284,6 @@ int drm_gem_cma_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_mmap);
 
-/*
- * drm_gem_cma_dumb_destroy - (struct drm_driver)->dumb_destroy callback function
- */
-int drm_gem_cma_dumb_destroy(struct drm_file *file_priv,
-		struct drm_device *drm, unsigned int handle)
-{
-	return drm_gem_handle_delete(file_priv, handle);
-}
-EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_destroy);
-
 #ifdef CONFIG_DEBUG_FS
 void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj, struct seq_file *m)
 {
