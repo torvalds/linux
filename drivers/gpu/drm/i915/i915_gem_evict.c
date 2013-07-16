@@ -47,6 +47,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 			 bool mappable, bool nonblocking)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct list_head eviction_list, unwind_list;
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
@@ -78,15 +79,14 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 
 	INIT_LIST_HEAD(&unwind_list);
 	if (mappable)
-		drm_mm_init_scan_with_range(&dev_priv->gtt.base.mm, min_size,
+		drm_mm_init_scan_with_range(&vm->mm, min_size,
 					    alignment, cache_level, 0,
 					    dev_priv->gtt.mappable_end);
 	else
-		drm_mm_init_scan(&dev_priv->gtt.base.mm, min_size, alignment,
-				 cache_level);
+		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 
 	/* First see if there is a large enough contiguous idle region... */
-	list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list) {
+	list_for_each_entry(obj, &vm->inactive_list, mm_list) {
 		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
@@ -95,7 +95,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 		goto none;
 
 	/* Now merge in the soon-to-be-expired objects... */
-	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
+	list_for_each_entry(obj, &vm->active_list, mm_list) {
 		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
@@ -154,12 +154,13 @@ int
 i915_gem_evict_everything(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_i915_gem_object *obj, *next;
 	bool lists_empty;
 	int ret;
 
-	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
-		       list_empty(&dev_priv->mm.active_list));
+	lists_empty = (list_empty(&vm->inactive_list) &&
+		       list_empty(&vm->active_list));
 	if (lists_empty)
 		return -ENOSPC;
 
@@ -176,8 +177,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 	i915_gem_retire_requests(dev);
 
 	/* Having flushed everything, unbind() should never raise an error */
-	list_for_each_entry_safe(obj, next,
-				 &dev_priv->mm.inactive_list, mm_list)
+	list_for_each_entry_safe(obj, next, &vm->inactive_list, mm_list)
 		if (obj->pin_count == 0)
 			WARN_ON(i915_gem_object_unbind(obj));
 

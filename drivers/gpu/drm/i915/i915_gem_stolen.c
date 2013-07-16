@@ -351,6 +351,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 					       u32 size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 	int ret;
@@ -411,7 +412,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	obj->has_global_gtt_mapping = 1;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
+	list_add_tail(&obj->mm_list, &vm->inactive_list);
 
 	return obj;
 

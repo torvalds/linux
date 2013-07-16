@@ -622,6 +622,7 @@ static struct drm_i915_error_object *
 i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			     struct intel_ring_buffer *ring)
 {
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_i915_gem_object *obj;
 	u32 seqno;
 
@@ -641,7 +642,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	}
 
 	seqno = ring->get_seqno(ring, false);
-	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
+	list_for_each_entry(obj, &vm->active_list, mm_list) {
 		if (obj->ring != ring)
 			continue;
 
@@ -773,11 +774,12 @@ static void i915_gem_record_rings(struct drm_device *dev,
 static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 				     struct drm_i915_error_state *error)
 {
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_i915_gem_object *obj;
 	int i;
 
 	i = 0;
-	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
+	list_for_each_entry(obj, &vm->active_list, mm_list)
 		i++;
 	error->active_bo_count = i;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
@@ -797,7 +799,7 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 		error->active_bo_count =
 			capture_active_bo(error->active_bo,
 					  error->active_bo_count,
-					  &dev_priv->mm.active_list);
+					  &vm->active_list);
 
 	if (error->pinned_bo)
 		error->pinned_bo_count =
