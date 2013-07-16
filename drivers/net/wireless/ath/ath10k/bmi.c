@@ -20,6 +20,12 @@
 #include "debug.h"
 #include "htc.h"
 
+void ath10k_bmi_start(struct ath10k *ar)
+{
+	ath10k_dbg(ATH10K_DBG_CORE, "BMI started\n");
+	ar->bmi.done_sent = false;
+}
+
 int ath10k_bmi_done(struct ath10k *ar)
 {
 	struct bmi_cmd cmd;

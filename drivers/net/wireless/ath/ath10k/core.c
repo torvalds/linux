@@ -507,6 +507,8 @@ int ath10k_core_start(struct ath10k *ar)
 	struct bmi_target_info target_info;
 	int status;
 
+	ath10k_bmi_start(ar);
+
 	memset(&target_info, 0, sizeof(target_info));
 	status = ath10k_bmi_get_target_info(ar, &target_info);
 	if (status)
