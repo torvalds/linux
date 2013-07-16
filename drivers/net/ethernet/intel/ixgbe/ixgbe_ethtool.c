@@ -1141,11 +1141,11 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 			sprintf(p, "tx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
 #ifdef LL_EXTENDED_STATS
-			sprintf(p, "tx_q_%u_napi_yield", i);
+			sprintf(p, "tx_queue_%u_ll_napi_yield", i);
 			p += ETH_GSTRING_LEN;
-			sprintf(p, "tx_q_%u_misses", i);
+			sprintf(p, "tx_queue_%u_ll_misses", i);
 			p += ETH_GSTRING_LEN;
-			sprintf(p, "tx_q_%u_cleaned", i);
+			sprintf(p, "tx_queue_%u_ll_cleaned", i);
 			p += ETH_GSTRING_LEN;
 #endif /* LL_EXTENDED_STATS */
 		}
@@ -1155,11 +1155,11 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 			sprintf(p, "rx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
 #ifdef LL_EXTENDED_STATS
-			sprintf(p, "rx_q_%u_ll_poll_yield", i);
+			sprintf(p, "rx_queue_%u_ll_poll_yield", i);
 			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_q_%u_misses", i);
+			sprintf(p, "rx_queue_%u_ll_misses", i);
 			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_q_%u_cleaned", i);
+			sprintf(p, "rx_queue_%u_ll_cleaned", i);
 			p += ETH_GSTRING_LEN;
 #endif /* LL_EXTENDED_STATS */
 		}
