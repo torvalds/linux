@@ -2,10 +2,8 @@
 #define _VBSETMODE_
 
 extern void InitTo330Pointer(unsigned char, struct vb_device_info *);
-extern void XGI_UnLockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
-			   struct vb_device_info *);
-extern void XGI_LockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
-			 struct vb_device_info *);
+extern void XGI_UnLockCRT2(struct vb_device_info *);
+extern void XGI_LockCRT2(struct vb_device_info *);
 extern void XGI_DisplayOff(struct xgifb_video_info *,
 			   struct xgi_hw_device_info *,
 			   struct vb_device_info *);
