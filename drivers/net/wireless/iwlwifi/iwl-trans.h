@@ -180,7 +180,7 @@ struct iwl_rx_packet {
  * enum CMD_MODE - how to send the host commands ?
  *
  * @CMD_SYNC: The caller will be stalled until the fw responds to the command
- * @CMD_ASYNC: Return right away and don't want for the response
+ * @CMD_ASYNC: Return right away and don't wait for the response
  * @CMD_WANT_SKB: valid only with CMD_SYNC. The caller needs the buffer of the
  *	response. The caller needs to call iwl_free_resp when done.
  */
@@ -218,7 +218,7 @@ struct iwl_device_cmd {
  *
  * @IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
  *	ring. The transport layer doesn't map the command's buffer to DMA, but
- *	rather copies it to an previously allocated DMA buffer. This flag tells
+ *	rather copies it to a previously allocated DMA buffer. This flag tells
  *	the transport layer not to copy the command, but to map the existing
  *	buffer (that is passed in) instead. This saves the memcpy and allows
  *	commands that are bigger than the fixed buffer to be submitted.
@@ -243,7 +243,7 @@ enum iwl_hcmd_dataflag {
  * @handler_status: return value of the handler of the command
  *	(put in setup_rx_handlers) - valid for SYNC mode only
  * @flags: can be CMD_*
- * @len: array of the lenths of the chunks in data
+ * @len: array of the lengths of the chunks in data
  * @dataflags: IWL_HCMD_DFL_*
  * @id: id of the host command
  */

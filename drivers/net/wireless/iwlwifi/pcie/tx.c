@@ -1153,10 +1153,10 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 /*
  * iwl_pcie_enqueue_hcmd - enqueue a uCode command
  * @priv: device private data point
- * @cmd: a point to the ucode command structure
+ * @cmd: a pointer to the ucode command structure
  *
- * The function returns < 0 values to indicate the operation is
- * failed. On success, it turns the index (> 0) of command in the
+ * The function returns < 0 values to indicate the operation
+ * failed. On success, it returns the index (>= 0) of command in the
  * command queue.
  */
 static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,

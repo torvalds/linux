@@ -173,7 +173,7 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 	}
 
 	/*
-	 * for data packets, rate info comes from the table inside he fw. This
+	 * for data packets, rate info comes from the table inside the fw. This
 	 * table is controlled by LINK_QUALITY commands
 	 */
 
