@@ -1565,6 +1565,7 @@ pci_wch_ch353_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_COMMTECH_4228PCIE	0x0021
 #define PCI_DEVICE_ID_COMMTECH_4222PCIE	0x0022
 #define PCI_DEVICE_ID_BROADCOM_TRUMANAGE 0x160a
+#define PCI_DEVICE_ID_AMCC_ADDIDATA_APCI7800 0x818e
 
 #define PCI_VENDOR_ID_SUNIX		0x1fd4
 #define PCI_DEVICE_ID_SUNIX_1999	0x1999
@@ -1588,7 +1589,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	*/
 	{
 		.vendor         = PCI_VENDOR_ID_AMCC,
-		.device         = PCI_DEVICE_ID_ADDIDATA_APCI7800,
+		.device         = PCI_DEVICE_ID_AMCC_ADDIDATA_APCI7800,
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
 		.setup          = addidata_apci7800_setup,
@@ -4698,7 +4699,7 @@ static struct pci_device_id serial_pci_tbl[] = {
 		pbn_b0_1_115200 },
 
 	{	PCI_VENDOR_ID_AMCC,
-		PCI_DEVICE_ID_ADDIDATA_APCI7800,
+		PCI_DEVICE_ID_AMCC_ADDIDATA_APCI7800,
 		PCI_ANY_ID,
 		PCI_ANY_ID,
 		0,
