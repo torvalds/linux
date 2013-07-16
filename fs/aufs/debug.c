@@ -159,7 +159,7 @@ static int do_pri_dentry(aufs_bindex_t bindex, struct dentry *dentry)
 	     bindex,
 	     AuDLNPair(dentry->d_parent), AuDLNPair(dentry),
 	     dentry->d_sb ? au_sbtype(dentry->d_sb) : "??",
-	     dentry->d_count, dentry->d_flags);
+	     d_count(dentry), dentry->d_flags);
 	hn = -1;
 	if (bindex >= 0 && dentry->d_inode && au_test_aufs(dentry->d_sb)) {
 		struct au_iinfo *iinfo = au_ii(dentry->d_inode);
