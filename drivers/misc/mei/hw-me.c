@@ -238,14 +238,18 @@ static int mei_me_hw_ready_wait(struct mei_device *dev)
 	if (mei_me_hw_is_ready(dev))
 		return 0;
 
+	dev->recvd_hw_ready = false;
 	mutex_unlock(&dev->device_lock);
 	err = wait_event_interruptible_timeout(dev->wait_hw_ready,
-			dev->recvd_hw_ready, MEI_INTEROP_TIMEOUT);
+			dev->recvd_hw_ready,
+			mei_secs_to_jiffies(MEI_INTEROP_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 	if (!err && !dev->recvd_hw_ready) {
+		if (!err)
+			err = -ETIMEDOUT;
 		dev_err(&dev->pdev->dev,
-			"wait hw ready failed. status = 0x%x\n", err);
-		return -ETIMEDOUT;
+			"wait hw ready failed. status = %d\n", err);
+		return err;
 	}
 
 	dev->recvd_hw_ready = false;
