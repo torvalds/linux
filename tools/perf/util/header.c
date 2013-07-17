@@ -2225,7 +2225,7 @@ static int perf_header__adds_write(struct perf_header *header,
 
 	sec_size = sizeof(*feat_sec) * nr_sections;
 
-	sec_start = header->data_offset + header->data_size;
+	sec_start = header->feat_offset;
 	lseek(fd, sec_start + sec_size, SEEK_SET);
 
 	for_each_set_bit(feat, header->adds_features, HEADER_FEAT_BITS) {
@@ -2304,6 +2304,7 @@ int perf_session__write_header(struct perf_session *session,
 	}
 
 	header->data_offset = lseek(fd, 0, SEEK_CUR);
+	header->feat_offset = header->data_offset + header->data_size;
 
 	if (at_exit) {
 		err = perf_header__adds_write(header, evlist, fd);
@@ -2373,7 +2374,7 @@ int perf_header__process_sections(struct perf_header *header, int fd,
 
 	sec_size = sizeof(*feat_sec) * nr_sections;
 
-	lseek(fd, header->data_offset + header->data_size, SEEK_SET);
+	lseek(fd, header->feat_offset, SEEK_SET);
 
 	err = perf_header__getbuffer64(header, fd, feat_sec, sec_size);
 	if (err < 0)
@@ -2572,6 +2573,7 @@ int perf_file_header__read(struct perf_file_header *header,
 
 	ph->data_offset  = header->data.offset;
 	ph->data_size	 = header->data.size;
+	ph->feat_offset  = header->data.offset + header->data.size;
 	return 0;
 }
 
