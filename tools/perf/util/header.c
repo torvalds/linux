@@ -2794,8 +2794,6 @@ int perf_session__read_header(struct perf_session *session)
 	perf_header__process_sections(header, fd, &session->pevent,
 				      perf_file_section__process);
 
-	lseek(fd, header->data_offset, SEEK_SET);
-
 	if (perf_evlist__prepare_tracepoint_events(session->evlist,
 						   session->pevent))
 		goto out_delete_evlist;
