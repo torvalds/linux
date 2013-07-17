@@ -48,5 +48,5 @@ Optional properties:
       peripheral means it is device controller
       otg means it can operate as either ("on the go")
 
-Required properties for dr_mode == otg:
+VBUS control (required for dr_mode == host, optional for dr_mode == otg):
   - vbus-supply: regulator for VBUS
