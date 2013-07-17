@@ -10,5 +10,9 @@ obj-$(CONFIG_ARCH_VEXPRESS_DCSCB)	+= dcscb.o	dcscb_setup.o
 CFLAGS_REMOVE_dcscb.o			= -pg
 obj-$(CONFIG_ARCH_VEXPRESS_TC2)		+= tc2_pm.o tc2_pm_setup.o
 CFLAGS_REMOVE_tc2_pm.o			= -pg
+ifeq ($(CONFIG_ARCH_VEXPRESS_TC2),y)
+obj-$(CONFIG_ARM_PSCI)			+= tc2_pm_psci.o
+CFLAGS_REMOVE_tc2_pm_psci.o		= -pg
+endif
 obj-$(CONFIG_SMP)			+= platsmp.o
 obj-$(CONFIG_HOTPLUG_CPU)		+= hotplug.o

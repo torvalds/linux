@@ -23,8 +23,10 @@
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/cp15.h>
+#include <asm/psci.h>
 
 #include <mach/motherboard.h>
+#include <mach/tc2.h>
 
 #include <linux/vexpress.h>
 #include <linux/arm-cci.h>
@@ -37,12 +39,13 @@
  */
 static arch_spinlock_t tc2_pm_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
-static int tc2_pm_use_count[3][2];
+static int tc2_pm_use_count[TC2_MAX_CPUS][TC2_MAX_CLUSTERS];
 
 static int tc2_pm_power_up(unsigned int cpu, unsigned int cluster)
 {
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	if (cluster >= 2 || cpu >= vexpress_spc_get_nb_cpus(cluster))
+	if (cluster >= TC2_MAX_CLUSTERS ||
+	    cpu >= vexpress_spc_get_nb_cpus(cluster))
 		return -EINVAL;
 
 	/*
@@ -90,7 +93,8 @@ static void tc2_pm_down(u64 residency)
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cluster >= 2 || cpu >= vexpress_spc_get_nb_cpus(cluster));
+	BUG_ON(cluster >= TC2_MAX_CLUSTERS ||
+	       cpu >= vexpress_spc_get_nb_cpus(cluster));
 
 	__mcpm_cpu_going_down(cpu, cluster);
 
@@ -194,7 +198,8 @@ static void tc2_pm_powered_up(void)
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cluster >= 2 || cpu >= vexpress_spc_get_nb_cpus(cluster));
+	BUG_ON(cluster >= TC2_MAX_CLUSTERS ||
+	       cpu >= vexpress_spc_get_nb_cpus(cluster));
 
 	local_irq_save(flags);
 	arch_spin_lock(&tc2_pm_lock);
@@ -232,7 +237,9 @@ static void __init tc2_pm_usage_count_init(void)
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cpu >= 3 || cluster >= 2);
+	BUG_ON(cluster >= TC2_MAX_CLUSTERS ||
+	       cpu >= vexpress_spc_get_nb_cpus(cluster));
+
 	tc2_pm_use_count[cpu][cluster] = 1;
 }
 
@@ -241,6 +248,12 @@ extern void tc2_pm_power_up_setup(unsigned int affinity_level);
 static int __init tc2_pm_init(void)
 {
 	int ret;
+
+	ret = psci_probe();
+	if (!ret) {
+		pr_debug("psci found. Aborting native init\n");
+		return -ENODEV;
+	}
 
 	if (!vexpress_spc_check_loaded())
 		return -ENODEV;
