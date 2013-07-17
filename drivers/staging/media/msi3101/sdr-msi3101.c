@@ -1635,6 +1635,7 @@ err_free_mem:
 /* USB device ID list */
 static struct usb_device_id msi3101_id_table[] = {
 	{ USB_DEVICE(0x1df7, 0x2500) },
+	{ USB_DEVICE(0x2040, 0xd300) }, /* Hauppauge WinTV 133559 LF */
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, msi3101_id_table);
