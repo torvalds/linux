@@ -877,7 +877,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 	pitch = crtc->fb->pitches[0] / (crtc->fb->bits_per_pixel / 8);
 	if (crtc->fb->bits_per_pixel == 24)
-		pitch = pitch >> (4 - bppshift);
+		pitch = (pitch * 3) >> (4 - bppshift);
 	else
 		pitch = pitch >> (4 - bppshift);
 
