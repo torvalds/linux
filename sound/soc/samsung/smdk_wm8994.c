@@ -200,7 +200,7 @@ MODULE_DEVICE_TABLE(of, samsung_wm8994_of_match);
 
 static struct platform_driver smdk_audio_driver = {
 	.driver		= {
-		.name	= "smdk-audio",
+		.name	= "smdk-audio-wm8894",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(samsung_wm8994_of_match),
 	},
@@ -212,4 +212,4 @@ module_platform_driver(smdk_audio_driver);
 
 MODULE_DESCRIPTION("ALSA SoC SMDK WM8994");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:smdk-audio");
+MODULE_ALIAS("platform:smdk-audio-wm8994");
