@@ -34,6 +34,11 @@ enum {
 	HEADER_FEAT_BITS	= 256,
 };
 
+enum perf_header_version {
+	PERF_HEADER_VERSION_1,
+	PERF_HEADER_VERSION_2,
+};
+
 struct perf_file_section {
 	u64 offset;
 	u64 size;
@@ -85,12 +90,13 @@ struct perf_session_env {
 };
 
 struct perf_header {
-	bool			needs_swap;
-	u64			data_offset;
-	u64			data_size;
-	u64			feat_offset;
+	enum perf_header_version	version;
+	bool				needs_swap;
+	u64				data_offset;
+	u64				data_size;
+	u64				feat_offset;
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
-	struct perf_session_env env;
+	struct perf_session_env 	env;
 };
 
 struct perf_evlist;
