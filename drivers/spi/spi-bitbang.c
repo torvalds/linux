@@ -270,7 +270,7 @@ static int spi_bitbang_prepare_hardware(struct spi_master *spi)
 	return 0;
 }
 
-static int spi_bitbang_transfer_one(struct spi_device *spi,
+static int spi_bitbang_transfer_one(struct spi_master *master,
 				    struct spi_message *m)
 {
 	struct spi_bitbang 	*bitbang;
@@ -280,8 +280,9 @@ static int spi_bitbang_transfer_one(struct spi_device *spi,
 	unsigned		cs_change;
 	int			status;
 	int			do_setup = -1;
+	struct spi_device	*spi = m->spi;
 
-	bitbang = spi_master_get_devdata(spi->master);
+	bitbang = spi_master_get_devdata(master);
 
 	/* FIXME this is made-up ... the correct value is known to
 	 * word-at-a-time bitbang code, and presumably chipselect()
@@ -372,7 +373,7 @@ static int spi_bitbang_transfer_one(struct spi_device *spi,
 		ndelay(nsecs);
 	}
 
-	spi_finalize_current_message(spi->master);
+	spi_finalize_current_message(master);
 
 	return status;
 }
