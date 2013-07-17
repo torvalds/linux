@@ -222,7 +222,6 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 {
 	struct adis *adis = iio_priv(indio_dev);
 	int ret;
-	int bits;
 	u8 addr;
 	s16 val16;
 
@@ -263,40 +262,20 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		*val = 250000 / 1453; /* 25 C = 0x00 */
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		switch (chan->type) {
-		case IIO_ANGL_VEL:
-			bits = 12;
-			break;
-		default:
-			return -EINVAL;
-		}
-		mutex_lock(&indio_dev->mlock);
 		addr = adis16260_addresses[chan->scan_index][0];
 		ret = adis_read_reg_16(adis, addr, &val16);
-		if (ret) {
-			mutex_unlock(&indio_dev->mlock);
+		if (ret)
 			return ret;
-		}
-		*val = sign_extend32(val16, bits - 1);
-		mutex_unlock(&indio_dev->mlock);
+
+		*val = sign_extend32(val16, 11);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBSCALE:
-		switch (chan->type) {
-		case IIO_ANGL_VEL:
-			bits = 12;
-			break;
-		default:
-			return -EINVAL;
-		}
-		mutex_lock(&indio_dev->mlock);
 		addr = adis16260_addresses[chan->scan_index][1];
 		ret = adis_read_reg_16(adis, addr, &val16);
-		if (ret) {
-			mutex_unlock(&indio_dev->mlock);
+		if (ret)
 			return ret;
-		}
+
 		*val = val16;
-		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
 	}
 	return -EINVAL;
