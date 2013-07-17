@@ -35,14 +35,11 @@ extern s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset,
 			      u16 words, u16 *data);
 extern s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset,
 			     u16 words, u16 *data);
-extern s32 igb_read_invm_i211(struct e1000_hw *hw, u16 address, u16 *data);
 extern s32 igb_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 extern void igb_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 extern s32 igb_acquire_nvm_i210(struct e1000_hw *hw);
 extern void igb_release_nvm_i210(struct e1000_hw *hw);
 extern s32 igb_valid_led_default_i210(struct e1000_hw *hw, u16 *data);
-extern s32 igb_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
-			       u16 *data);
 extern s32 igb_read_invm_version(struct e1000_hw *hw,
 				 struct e1000_fw_version *invm_ver);
 extern s32 igb_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,

@@ -2166,15 +2166,28 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	hw->mac.ops.reset_hw(hw);
 
-	/* make sure the NVM is good , i211 parts have special NVM that
-	 * doesn't contain a checksum
+	/* make sure the NVM is good , i211/i210 parts can have special NVM
+	 * that doesn't contain a checksum
 	 */
-	if (hw->mac.type != e1000_i211) {
+	switch (hw->mac.type) {
+	case e1000_i210:
+	case e1000_i211:
+		if (igb_get_flash_presence_i210(hw)) {
+			if (hw->nvm.ops.validate(hw) < 0) {
+				dev_err(&pdev->dev,
+					"The NVM Checksum Is Not Valid\n");
+				err = -EIO;
+				goto err_eeprom;
+			}
+		}
+		break;
+	default:
 		if (hw->nvm.ops.validate(hw) < 0) {
 			dev_err(&pdev->dev, "The NVM Checksum Is Not Valid\n");
 			err = -EIO;
 			goto err_eeprom;
 		}
+		break;
 	}
 
 	/* copy the MAC address out of the NVM */
