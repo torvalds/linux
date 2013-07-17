@@ -8540,15 +8540,20 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 }
 
 static bool
-is_crtc_connector_off(struct drm_crtc *crtc, struct drm_connector *connectors,
-		      int num_connectors)
+is_crtc_connector_off(struct drm_mode_set *set)
 {
 	int i;
 
-	for (i = 0; i < num_connectors; i++)
-		if (connectors[i].encoder &&
-		    connectors[i].encoder->crtc == crtc &&
-		    connectors[i].dpms != DRM_MODE_DPMS_ON)
+	if (set->num_connectors == 0)
+		return false;
+
+	if (WARN_ON(set->connectors == NULL))
+		return false;
+
+	for (i = 0; i < set->num_connectors; i++)
+		if (set->connectors[i]->encoder &&
+		    set->connectors[i]->encoder->crtc == set->crtc &&
+		    set->connectors[i]->dpms != DRM_MODE_DPMS_ON)
 			return true;
 
 	return false;
@@ -8561,10 +8566,8 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
-	if (set->connectors != NULL &&
-	    is_crtc_connector_off(set->crtc, *set->connectors,
-				  set->num_connectors)) {
-			config->mode_changed = true;
+	if (is_crtc_connector_off(set)) {
+		config->mode_changed = true;
 	} else if (set->crtc->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
 		if (set->crtc->fb == NULL) {
