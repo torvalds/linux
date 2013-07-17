@@ -142,29 +142,26 @@ static ssize_t adis16260_write_frequency(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis *adis = iio_priv(indio_dev);
-	long val;
+	unsigned int val;
 	int ret;
 	u8 t;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtouint(buf, 10, &val);
 	if (ret)
 		return ret;
-	if (val == 0)
-		return -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);
-	if (spi_get_device_id(adis->spi)->driver_data) {
-		t = (256 / val);
-		if (t > 0)
-			t--;
-		t &= ADIS16260_SMPL_PRD_DIV_MASK;
-	} else {
-		t = (2048 / val);
-		if (t > 0)
-			t--;
-		t &= ADIS16260_SMPL_PRD_DIV_MASK;
-	}
-	if ((t & ADIS16260_SMPL_PRD_DIV_MASK) >= 0x0A)
+	if (spi_get_device_id(adis->spi)->driver_data)
+		t = 256 / val;
+	else
+		t = 2048 / val;
+
+	if (t > ADIS16260_SMPL_PRD_DIV_MASK)
+		t = ADIS16260_SMPL_PRD_DIV_MASK;
+	else if (t > 0)
+		t--;
+
+	if (t >= 0x0A)
 		adis->spi->max_speed_hz = ADIS16260_SPI_SLOW;
 	else
 		adis->spi->max_speed_hz = ADIS16260_SPI_FAST;
