@@ -733,6 +733,10 @@ extern int sd_delay_value;
 module_param(sd_delay_value, uint, 0);
 #endif
 
+#ifdef BCMSDIOH_TXGLOM
+extern uint sd_txglom;
+module_param(sd_txglom, uint, 0);
+#endif
 
 #ifdef BCMSDH_MODULE
 EXPORT_SYMBOL(bcmsdh_attach);

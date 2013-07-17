@@ -274,8 +274,8 @@ struct wl_conf {
 	struct ieee80211_channel channel;
 };
 
-typedef s32(*EVENT_HANDLER) (struct wl_priv *wl,
-                            struct net_device *ndev, const wl_event_msg_t *e, void *data);
+typedef s32(*EVENT_HANDLER) (struct wl_priv *wl, bcm_struct_cfgdev *cfgdev,
+                            const wl_event_msg_t *e, void *data);
 
 /* bss inform structure for cfg80211 interface */
 struct wl_cfg80211_bss_info {
@@ -778,6 +778,30 @@ wl_get_netinfo_by_netdev(struct wl_priv *wl, struct net_device *ndev)
 #define ndev_to_wl(n) (wdev_to_wl(n->ieee80211_ptr))
 #define ndev_to_wdev(ndev) (ndev->ieee80211_ptr)
 #define wdev_to_ndev(wdev) (wdev->netdev)
+
+#if defined(WL_ENABLE_P2P_IF)
+#define ndev_to_wlc_ndev(ndev, wl)	((ndev == wl->p2p_net) ? \
+	wl_to_prmry_ndev(wl) : ndev)
+#else
+#define ndev_to_wlc_ndev(ndev, wl)	(ndev)
+#endif /* WL_ENABLE_P2P_IF */
+
+#if defined(WL_ENABLE_P2P_IF)
+#define cfgdev_to_wlc_ndev(cfgdev, wl)	ndev_to_wlc_ndev(cfgdev, wl)
+#else
+#define cfgdev_to_wlc_ndev(cfgdev, wl)	(cfgdev)
+#endif 
+
+#define ndev_to_cfgdev(ndev)	(ndev)
+
+#if defined(WL_ENABLE_P2P_IF)
+#define scan_req_match(wl)	(((wl) && (wl->scan_request) && \
+	(wl->scan_request->dev == wl->p2p_net)) ? true : false)
+#else
+#define scan_req_match(wl)	(((wl) && p2p_is_on(wl) && p2p_scan(wl)) ? \
+	true : false)
+#endif 
+
 #define wl_to_sr(w) (w->scan_req_int)
 #if defined(STATIC_WL_PRIV_STRUCT)
 #define wl_to_ie(w) (w->ie)

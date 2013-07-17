@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.c 396420 2013-04-12 06:55:45Z $
+ * $Id: wl_cfgp2p.c 406881 2013-06-11 03:15:13Z $
  *
  */
 #include <typedefs.h>
@@ -1470,19 +1470,19 @@ exit:
  * Callback function for WLC_E_P2P_DISC_LISTEN_COMPLETE
  */
 s32
-wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
-            const wl_event_msg_t *e, void *data)
+wl_cfgp2p_listen_complete(struct wl_priv *wl, bcm_struct_cfgdev *cfgdev,
+	const wl_event_msg_t *e, void *data)
 {
 	s32 ret = BCME_OK;
-	struct net_device *netdev;
+	struct net_device *ndev = NULL;
+
 	if (!wl || !wl->p2p)
 		return BCME_ERROR;
-	if (wl->p2p_net == ndev) {
-		netdev = wl_to_prmry_ndev(wl);
-	} else {
-		netdev = ndev;
-	}
+
 	CFGP2P_DBG((" Enter\n"));
+
+	ndev = cfgdev_to_wlc_ndev(cfgdev, wl);
+
 	if (wl_get_p2p_status(wl, LISTEN_EXPIRED) == 0) {
 		wl_set_p2p_status(wl, LISTEN_EXPIRED);
 		if (timer_pending(&wl->p2p->listen_timer)) {
@@ -1496,12 +1496,12 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 		}
 #ifdef WL_CFG80211_SYNC_GON
 		else if (wl_get_drv_status_all(wl, WAITING_NEXT_ACT_FRM_LISTEN)) {
-			wl_clr_drv_status(wl, WAITING_NEXT_ACT_FRM_LISTEN, netdev);
+			wl_clr_drv_status(wl, WAITING_NEXT_ACT_FRM_LISTEN, ndev);
 			WL_DBG(("Listen DONE and wake up wait_next_af !!(%d)\n",
 				jiffies_to_msecs(jiffies - wl->af_tx_sent_jiffies)));
 
 			if (wl_get_drv_status_all(wl, WAITING_NEXT_ACT_FRM))
-				wl_clr_drv_status(wl, WAITING_NEXT_ACT_FRM, netdev);
+				wl_clr_drv_status(wl, WAITING_NEXT_ACT_FRM, ndev);
 
 			complete(&wl->wait_next_af);
 		}
@@ -1514,12 +1514,12 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 			wl_get_drv_status_all(wl, FAKE_REMAINING_ON_CHANNEL)) {
 #endif /* WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST */
 			WL_DBG(("Listen DONE for ramain on channel expired\n"));
-			wl_clr_drv_status(wl, REMAINING_ON_CHANNEL, netdev);
+			wl_clr_drv_status(wl, REMAINING_ON_CHANNEL, ndev);
 #ifdef WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST
-			wl_clr_drv_status(wl, FAKE_REMAINING_ON_CHANNEL, netdev);
+			wl_clr_drv_status(wl, FAKE_REMAINING_ON_CHANNEL, ndev);
 #endif /* WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST */
 			if (ndev && (ndev->ieee80211_ptr != NULL)) {
-				cfg80211_remain_on_channel_expired(ndev, wl->last_roc_id,
+				cfg80211_remain_on_channel_expired(cfgdev, wl->last_roc_id,
 					&wl->remain_on_chan, wl->remain_on_chan_type, GFP_KERNEL);
 			}
 		}
@@ -1547,8 +1547,13 @@ wl_cfgp2p_listen_expired(unsigned long data)
 	CFGP2P_DBG((" Enter\n"));
 	bzero(&msg, sizeof(wl_event_msg_t));
 	msg.event_type =  hton32(WLC_E_P2P_DISC_LISTEN_COMPLETE);
+#if defined(WL_ENABLE_P2P_IF)
 	wl_cfg80211_event(wl->p2p_net ? wl->p2p_net :
 		wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_DEVICE), &msg, NULL);
+#else
+	wl_cfg80211_event(wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_DEVICE), &msg,
+		NULL);
+#endif /* WL_ENABLE_P2P_IF */
 }
 /*
  *  Routine for cancelling the P2P LISTEN
@@ -1670,7 +1675,7 @@ wl_cfgp2p_discover_enable_search(struct wl_priv *wl, u8 enable)
  * Callback function for WLC_E_ACTION_FRAME_COMPLETE, WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE
  */
 s32
-wl_cfgp2p_action_tx_complete(struct wl_priv *wl, struct net_device *ndev,
+wl_cfgp2p_action_tx_complete(struct wl_priv *wl, bcm_struct_cfgdev *cfgdev,
             const wl_event_msg_t *e, void *data)
 {
 	s32 ret = BCME_OK;

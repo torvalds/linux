@@ -176,6 +176,22 @@ enum wl_cfgp2p_status {
 		timer->data = (unsigned long) wl; \
 		add_timer(timer); \
 	} while (0);
+
+#if !0 && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+#define WL_CFG80211_P2P_DEV_IF
+#endif 
+
+#if defined(WL_ENABLE_P2P_IF) && (0 || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)))
+#error Disable 'WL_ENABLE_P2P_IF', if 'WL_CFG80211_P2P_DEV_IF' is enabled \
+	or kernel version is 3.8.0 or above
+#endif 
+
+#if !defined(WLP2P) && defined(WL_ENABLE_P2P_IF)
+#error WLP2P not defined
+#endif 
+
+#define bcm_struct_cfgdev	struct net_device
+
 extern void
 wl_cfgp2p_listen_expired(unsigned long data);
 extern bool
@@ -249,8 +265,8 @@ wl_cfgp2p_find_type(struct wl_priv *wl, s32 bssidx, s32 *type);
 
 
 extern s32
-wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
-            const wl_event_msg_t *e, void *data);
+wl_cfgp2p_listen_complete(struct wl_priv *wl, bcm_struct_cfgdev *cfgdev,
+	const wl_event_msg_t *e, void *data);
 extern s32
 wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms);
 
@@ -258,8 +274,9 @@ extern s32
 wl_cfgp2p_discover_enable_search(struct wl_priv *wl, u8 enable);
 
 extern s32
-wl_cfgp2p_action_tx_complete(struct wl_priv *wl, struct net_device *ndev,
-            const wl_event_msg_t *e, void *data);
+wl_cfgp2p_action_tx_complete(struct wl_priv *wl, bcm_struct_cfgdev *cfgdev,
+	const wl_event_msg_t *e, void *data);
+
 extern s32
 wl_cfgp2p_tx_action_frame(struct wl_priv *wl, struct net_device *dev,
 	wl_af_params_t *af_params, s32 bssidx);
