@@ -737,7 +737,12 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "could not get clock: %d\n", ret);
 			goto error_irqmap;
 		}
-		clk_prepare_enable(ssi_private->clk);
+		ret = clk_prepare_enable(ssi_private->clk);
+		if (ret) {
+			dev_err(&pdev->dev, "clk_prepare_enable failed: %d\n",
+				ret);
+			goto error_irqmap;
+		}
 
 		/*
 		 * We have burstsize be "fifo_depth - 2" to match the SSI
