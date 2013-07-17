@@ -3699,18 +3699,21 @@ int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
 						(ATOM_MEMORY_SETTING_DATA_BLOCK *)
 						((u8 *)reg_block + (2 * sizeof(u16)) +
 						 le16_to_cpu(reg_block->usRegIndexTblSize));
+					ATOM_INIT_REG_INDEX_FORMAT *format = &reg_block->asRegIndexBuf[0];
 					num_entries = (u8)((le16_to_cpu(reg_block->usRegIndexTblSize)) /
 							   sizeof(ATOM_INIT_REG_INDEX_FORMAT)) - 1;
 					if (num_entries > VBIOS_MC_REGISTER_ARRAY_SIZE)
 						return -EINVAL;
 					while (i < num_entries) {
-						if (reg_block->asRegIndexBuf[i].ucPreRegDataLength & ACCESS_PLACEHOLDER)
+						if (format->ucPreRegDataLength & ACCESS_PLACEHOLDER)
 							break;
 						reg_table->mc_reg_address[i].s1 =
-							(u16)(le16_to_cpu(reg_block->asRegIndexBuf[i].usRegIndex));
+							(u16)(le16_to_cpu(format->usRegIndex));
 						reg_table->mc_reg_address[i].pre_reg_data =
-							(u8)(reg_block->asRegIndexBuf[i].ucPreRegDataLength);
+							(u8)(format->ucPreRegDataLength);
 						i++;
+						format = (ATOM_INIT_REG_INDEX_FORMAT *)
+							((u8 *)format + sizeof(ATOM_INIT_REG_INDEX_FORMAT));
 					}
 					reg_table->last = i;
 					while ((*(u32 *)reg_data != END_OF_REG_DATA_BLOCK) &&
