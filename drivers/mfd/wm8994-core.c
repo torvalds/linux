@@ -201,35 +201,7 @@ static int wm8994_suspend(struct device *dev)
 	int ret;
 
 	/* Don't actually go through with the suspend if the CODEC is
-	 * still active (eg, for audio passthrough from CP. */
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_1);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & WM8994_VMID_SEL_MASK) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_4);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & (WM8994_AIF2ADCL_ENA | WM8994_AIF2ADCR_ENA |
-			  WM8994_AIF1ADC2L_ENA | WM8994_AIF1ADC2R_ENA |
-			  WM8994_AIF1ADC1L_ENA | WM8994_AIF1ADC1R_ENA)) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
-	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_5);
-	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
-	} else if (ret & (WM8994_AIF2DACL_ENA | WM8994_AIF2DACR_ENA |
-			  WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA |
-			  WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA)) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
-		return 0;
-	}
-
+	 * still active for accessory detect. */
 	switch (wm8994->type) {
 	case WM8958:
 	case WM1811:
