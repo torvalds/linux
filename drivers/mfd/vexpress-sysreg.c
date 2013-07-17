@@ -165,7 +165,7 @@ static u32 *vexpress_sysreg_config_data;
 static int vexpress_sysreg_config_tries;
 
 static void *vexpress_sysreg_config_func_get(struct device *dev,
-		struct device_node *node)
+		struct device_node *node, const char *id)
 {
 	struct vexpress_sysreg_config_func *config_func;
 	u32 site;
