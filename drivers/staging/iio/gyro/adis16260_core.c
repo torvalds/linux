@@ -311,18 +311,21 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 			       long mask)
 {
 	struct adis *adis = iio_priv(indio_dev);
-	int bits = 12;
-	s16 val16;
 	u8 addr;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
-		val16 = val & ((1 << bits) - 1);
+		if (val < -2048 || val >= 2048)
+			return -EINVAL;
+
 		addr = adis16260_addresses[chan->scan_index][0];
-		return adis_write_reg_16(adis, addr, val16);
+		return adis_write_reg_16(adis, addr, val);
 	case IIO_CHAN_INFO_CALIBSCALE:
-		val16 = val & ((1 << bits) - 1);
+		if (val < 0 || val >= 4096)
+			return -EINVAL;
+
 		addr = adis16260_addresses[chan->scan_index][1];
-		return adis_write_reg_16(adis, addr, val16);
+		return adis_write_reg_16(adis, addr, val);
 	}
 	return -EINVAL;
 }
