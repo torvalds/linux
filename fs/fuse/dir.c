@@ -1227,9 +1227,15 @@ static int fuse_direntplus_link(struct file *file,
 
 	name.hash = full_name_hash(name.name, name.len);
 	dentry = d_lookup(parent, &name);
-	if (dentry && dentry->d_inode) {
+	if (dentry) {
 		inode = dentry->d_inode;
-		if (get_node_id(inode) == o->nodeid) {
+		if (!inode) {
+			d_drop(dentry);
+		} else if (get_node_id(inode) != o->nodeid) {
+			err = d_invalidate(dentry);
+			if (err)
+				goto out;
+		} else {
 			struct fuse_inode *fi;
 			fi = get_fuse_inode(inode);
 			spin_lock(&fc->lock);
@@ -1242,9 +1248,6 @@ static int fuse_direntplus_link(struct file *file,
 			 */
 			goto found;
 		}
-		err = d_invalidate(dentry);
-		if (err)
-			goto out;
 		dput(dentry);
 		dentry = NULL;
 	}
