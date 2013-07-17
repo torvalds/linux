@@ -616,7 +616,7 @@ int acpi_ut_stricmp(char *string1, char *string2);
 
 acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
 
-void acpi_ut_print_string(char *string, u8 max_length);
+void acpi_ut_print_string(char *string, u16 max_length);
 
 void ut_convert_backslashes(char *pathname);
 
