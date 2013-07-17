@@ -82,7 +82,7 @@ struct xilinx_spi {
 	struct completion done;
 	void __iomem	*regs;	/* virt. address of the control registers */
 
-	u32		irq;
+	int		irq;
 
 	u8 *rx_ptr;		/* pointer in the Tx buffer */
 	const u8 *tx_ptr;	/* pointer in the Rx buffer */
