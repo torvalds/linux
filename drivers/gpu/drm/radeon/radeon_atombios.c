@@ -3513,7 +3513,6 @@ int radeon_atom_get_memory_info(struct radeon_device *rdev,
 	u8 frev, crev, i;
 	u16 data_offset, size;
 	union vram_info *vram_info;
-	u8 *p;
 
 	memset(mem_info, 0, sizeof(struct atom_memory_info));
 
@@ -3529,13 +3528,12 @@ int radeon_atom_get_memory_info(struct radeon_device *rdev,
 				if (module_index < vram_info->v1_3.ucNumOfVRAMModule) {
 					ATOM_VRAM_MODULE_V3 *vram_module =
 						(ATOM_VRAM_MODULE_V3 *)vram_info->v1_3.aVramInfo;
-					p = (u8 *)vram_info->v1_3.aVramInfo;
 
 					for (i = 0; i < module_index; i++) {
-						vram_module = (ATOM_VRAM_MODULE_V3 *)p;
 						if (le16_to_cpu(vram_module->usSize) == 0)
 							return -EINVAL;
-						p += le16_to_cpu(vram_module->usSize);
+						vram_module = (ATOM_VRAM_MODULE_V3 *)
+							((u8 *)vram_module + le16_to_cpu(vram_module->usSize));
 					}
 					mem_info->mem_vendor = vram_module->asMemory.ucMemoryVenderID & 0xf;
 					mem_info->mem_type = vram_module->asMemory.ucMemoryType & 0xf0;
@@ -3547,13 +3545,12 @@ int radeon_atom_get_memory_info(struct radeon_device *rdev,
 				if (module_index < vram_info->v1_4.ucNumOfVRAMModule) {
 					ATOM_VRAM_MODULE_V4 *vram_module =
 						(ATOM_VRAM_MODULE_V4 *)vram_info->v1_4.aVramInfo;
-					p = (u8 *)vram_info->v1_4.aVramInfo;
 
 					for (i = 0; i < module_index; i++) {
-						vram_module = (ATOM_VRAM_MODULE_V4 *)p;
 						if (le16_to_cpu(vram_module->usModuleSize) == 0)
 							return -EINVAL;
-						p += le16_to_cpu(vram_module->usModuleSize);
+						vram_module = (ATOM_VRAM_MODULE_V4 *)
+							((u8 *)vram_module + le16_to_cpu(vram_module->usModuleSize));
 					}
 					mem_info->mem_vendor = vram_module->ucMemoryVenderID & 0xf;
 					mem_info->mem_type = vram_module->ucMemoryType & 0xf0;
@@ -3572,13 +3569,12 @@ int radeon_atom_get_memory_info(struct radeon_device *rdev,
 				if (module_index < vram_info->v2_1.ucNumOfVRAMModule) {
 					ATOM_VRAM_MODULE_V7 *vram_module =
 						(ATOM_VRAM_MODULE_V7 *)vram_info->v2_1.aVramInfo;
-					p = (u8 *)vram_info->v2_1.aVramInfo;
 
 					for (i = 0; i < module_index; i++) {
-						vram_module = (ATOM_VRAM_MODULE_V7 *)p;
 						if (le16_to_cpu(vram_module->usModuleSize) == 0)
 							return -EINVAL;
-						p += le16_to_cpu(vram_module->usModuleSize);
+						vram_module = (ATOM_VRAM_MODULE_V7 *)
+							((u8 *)vram_module + le16_to_cpu(vram_module->usModuleSize));
 					}
 					mem_info->mem_vendor = vram_module->ucMemoryVenderID & 0xf;
 					mem_info->mem_type = vram_module->ucMemoryType & 0xf0;
@@ -3628,21 +3624,19 @@ int radeon_atom_get_mclk_range_table(struct radeon_device *rdev,
 				if (module_index < vram_info->v1_4.ucNumOfVRAMModule) {
 					ATOM_VRAM_MODULE_V4 *vram_module =
 						(ATOM_VRAM_MODULE_V4 *)vram_info->v1_4.aVramInfo;
-					ATOM_MEMORY_TIMING_FORMAT *format;
-					p = (u8 *)vram_info->v1_4.aVramInfo;
 
 					for (i = 0; i < module_index; i++) {
-						vram_module = (ATOM_VRAM_MODULE_V4 *)p;
 						if (le16_to_cpu(vram_module->usModuleSize) == 0)
 							return -EINVAL;
-						p += le16_to_cpu(vram_module->usModuleSize);
+						vram_module = (ATOM_VRAM_MODULE_V4 *)
+							((u8 *)vram_module + le16_to_cpu(vram_module->usModuleSize));
 					}
 					mclk_range_table->num_entries = (u8)
 						((le16_to_cpu(vram_module->usModuleSize) - offsetof(ATOM_VRAM_MODULE_V4, asMemTiming)) /
 						 mem_timing_size);
-					p = (u8 *)vram_module->asMemTiming;
+					p = (u8 *)&vram_module->asMemTiming[0];
 					for (i = 0; i < mclk_range_table->num_entries; i++) {
-						format = (ATOM_MEMORY_TIMING_FORMAT *)p;
+						ATOM_MEMORY_TIMING_FORMAT *format = (ATOM_MEMORY_TIMING_FORMAT *)p;
 						mclk_range_table->mclk[i] = le32_to_cpu(format->ulClkRange);
 						p += mem_timing_size;
 					}
