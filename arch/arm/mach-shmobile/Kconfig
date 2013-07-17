@@ -17,6 +17,21 @@ if ARCH_SHMOBILE_MULTI
 
 comment "SH-Mobile System Type"
 
+config ARCH_EMEV2
+	bool "Emma Mobile EV2"
+
+comment "SH-Mobile Board Type"
+
+config MACH_KZM9D_REFERENCE
+	bool "KZM9D board - Reference Device Tree Implementation"
+	depends on ARCH_EMEV2
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	---help---
+	   Use reference implementation of KZM9D board support
+	   which makes a greater use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
 endif
 
 if ARCH_SHMOBILE
