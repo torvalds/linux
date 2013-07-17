@@ -14,18 +14,8 @@
  * 02139, USA.
  */
 
-#include <linux/export.h>
 #include <linux/io.h>
-#include <linux/fs.h>
-#include <linux/interrupt.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/uaccess.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/string.h>
 #include <linux/clk/zynq.h>
 #include "common.h"
 
