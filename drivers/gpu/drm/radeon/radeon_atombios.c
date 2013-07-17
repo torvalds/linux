@@ -3638,7 +3638,7 @@ int radeon_atom_get_mclk_range_table(struct radeon_device *rdev,
 						p += le16_to_cpu(vram_module->usModuleSize);
 					}
 					mclk_range_table->num_entries = (u8)
-						((vram_module->usModuleSize - offsetof(ATOM_VRAM_MODULE_V4, asMemTiming)) /
+						((le16_to_cpu(vram_module->usModuleSize) - offsetof(ATOM_VRAM_MODULE_V4, asMemTiming)) /
 						 mem_timing_size);
 					p = (u8 *)vram_module->asMemTiming;
 					for (i = 0; i < mclk_range_table->num_entries; i++) {
