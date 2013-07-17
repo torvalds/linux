@@ -15,7 +15,7 @@
 	model = "V2P-CA15_CA7";
 	arm,hbi = <0x249>;
 	arm,vexpress,site = <0xf>;
-	compatible = "arm,vexpress,v2p-ca15_a7", "arm,vexpress";
+	compatible = "arm,vexpress,v2p-ca15_a7", "arm,vexpress", "arm,generic";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

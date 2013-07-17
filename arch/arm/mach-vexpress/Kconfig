@@ -67,4 +67,12 @@ config ARCH_VEXPRESS_DCSCB
 	  This is needed to provide CPU and cluster power management
 	  on RTSM implementing big.LITTLE.
 
+config ARCH_VEXPRESS_TC2
+	bool "TC2 cluster management"
+	depends on MCPM
+	select VEXPRESS_SPC
+	select ARM_CCI
+	help
+	  Support for CPU and cluster power management on TC2.
+
 endmenu
