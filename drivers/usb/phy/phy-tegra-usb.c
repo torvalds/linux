@@ -34,6 +34,7 @@
 #include <asm/mach-types.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
+#include <linux/regulator/consumer.h>
 
 #define ULPI_VIEWPORT		0x170
 
@@ -613,6 +614,9 @@ static void tegra_usb_phy_close(struct usb_phy *x)
 {
 	struct tegra_usb_phy *phy = container_of(x, struct tegra_usb_phy, u_phy);
 
+	if (!IS_ERR(phy->vbus))
+		regulator_disable(phy->vbus);
+
 	clk_disable_unprepare(phy->pll_u);
 }
 
@@ -703,6 +707,16 @@ static int tegra_usb_phy_init(struct tegra_usb_phy *phy)
 		pr_err("invalid pll_u parent rate %ld\n", parent_rate);
 		err = -EINVAL;
 		goto fail;
+	}
+
+	if (!IS_ERR(phy->vbus)) {
+		err = regulator_enable(phy->vbus);
+		if (err) {
+			dev_err(phy->dev,
+				"failed to enable usb vbus regulator: %d\n",
+				err);
+			goto fail;
+		}
 	}
 
 	if (phy->is_ulpi_phy)
@@ -895,6 +909,16 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 			tegra_phy->mode = TEGRA_USB_PHY_MODE_DEVICE;
 	} else
 		tegra_phy->mode = TEGRA_USB_PHY_MODE_OTG;
+
+	/* On some boards, the VBUS regulator doesn't need to be controlled */
+	if (of_find_property(np, "vbus-supply", NULL)) {
+		tegra_phy->vbus = devm_regulator_get(&pdev->dev, "vbus");
+		if (IS_ERR(tegra_phy->vbus))
+			return PTR_ERR(tegra_phy->vbus);
+	} else {
+		dev_notice(&pdev->dev, "no vbus regulator");
+		tegra_phy->vbus = ERR_PTR(-ENODEV);
+	}
 
 	tegra_phy->dev = &pdev->dev;
 	err = tegra_usb_phy_init(tegra_phy);

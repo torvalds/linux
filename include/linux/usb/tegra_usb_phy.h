@@ -55,6 +55,7 @@ struct tegra_usb_phy {
 	struct clk *clk;
 	struct clk *pll_u;
 	struct clk *pad_clk;
+	struct regulator *vbus;
 	enum tegra_usb_phy_mode mode;
 	void *config;
 	struct usb_phy *ulpi;
