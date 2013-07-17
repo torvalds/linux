@@ -325,20 +325,6 @@ static int adis16260_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_dev;
 
-	if (indio_dev->buffer) {
-		/* Set default scan mode */
-		iio_scan_mask_set(indio_dev, indio_dev->buffer,
-				  ADIS16260_SCAN_SUPPLY);
-		iio_scan_mask_set(indio_dev, indio_dev->buffer,
-				  ADIS16260_SCAN_GYRO);
-		iio_scan_mask_set(indio_dev, indio_dev->buffer,
-				  ADIS16260_SCAN_AUX_ADC);
-		iio_scan_mask_set(indio_dev, indio_dev->buffer,
-				  ADIS16260_SCAN_TEMP);
-		iio_scan_mask_set(indio_dev, indio_dev->buffer,
-				  ADIS16260_SCAN_ANGL);
-	}
-
 	/* Get the device into a sane initial state */
 	ret = adis_initial_startup(adis);
 	if (ret)
