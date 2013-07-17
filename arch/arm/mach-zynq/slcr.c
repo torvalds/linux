@@ -19,16 +19,15 @@
 #include <linux/clk/zynq.h>
 #include "common.h"
 
-#define SLCR_UNLOCK_MAGIC		0xDF0D
-#define SLCR_UNLOCK			0x8   /* SCLR unlock register */
-
+/* register offsets */
+#define SLCR_UNLOCK_OFFSET		0x8   /* SCLR unlock register */
 #define SLCR_PS_RST_CTRL_OFFSET		0x200 /* PS Software Reset Control */
+#define SLCR_A9_CPU_RST_CTRL_OFFSET	0x244 /* CPU Software Reset Control */
+#define SLCR_REBOOT_STATUS_OFFSET	0x258 /* PS Reboot Status */
 
+#define SLCR_UNLOCK_MAGIC		0xDF0D
 #define SLCR_A9_CPU_CLKSTOP		0x10
 #define SLCR_A9_CPU_RST			0x1
-
-#define SLCR_A9_CPU_RST_CTRL		0x244 /* CPU Software Reset Control */
-#define SLCR_REBOOT_STATUS		0x258 /* PS Reboot Status */
 
 void __iomem *zynq_slcr_base;
 
@@ -44,15 +43,15 @@ void zynq_slcr_system_reset(void)
 	 * Note that this seems to require raw i/o
 	 * functions or there's a lockup?
 	 */
-	writel(SLCR_UNLOCK_MAGIC, zynq_slcr_base + SLCR_UNLOCK);
+	writel(SLCR_UNLOCK_MAGIC, zynq_slcr_base + SLCR_UNLOCK_OFFSET);
 
 	/*
 	 * Clear 0x0F000000 bits of reboot status register to workaround
 	 * the FSBL not loading the bitstream after soft-reboot
 	 * This is a temporary solution until we know more.
 	 */
-	reboot = readl(zynq_slcr_base + SLCR_REBOOT_STATUS);
-	writel(reboot & 0xF0FFFFFF, zynq_slcr_base + SLCR_REBOOT_STATUS);
+	reboot = readl(zynq_slcr_base + SLCR_REBOOT_STATUS_OFFSET);
+	writel(reboot & 0xF0FFFFFF, zynq_slcr_base + SLCR_REBOOT_STATUS_OFFSET);
 	writel(1, zynq_slcr_base + SLCR_PS_RST_CTRL_OFFSET);
 }
 
@@ -64,9 +63,9 @@ void zynq_slcr_cpu_start(int cpu)
 {
 	/* enable CPUn */
 	writel(SLCR_A9_CPU_CLKSTOP << cpu,
-	       zynq_slcr_base + SLCR_A9_CPU_RST_CTRL);
+	       zynq_slcr_base + SLCR_A9_CPU_RST_CTRL_OFFSET);
 	/* enable CLK for CPUn */
-	writel(0x0 << cpu, zynq_slcr_base + SLCR_A9_CPU_RST_CTRL);
+	writel(0x0 << cpu, zynq_slcr_base + SLCR_A9_CPU_RST_CTRL_OFFSET);
 }
 
 /**
@@ -77,7 +76,7 @@ void zynq_slcr_cpu_stop(int cpu)
 {
 	/* stop CLK and reset CPUn */
 	writel((SLCR_A9_CPU_CLKSTOP | SLCR_A9_CPU_RST) << cpu,
-	       zynq_slcr_base + SLCR_A9_CPU_RST_CTRL);
+	       zynq_slcr_base + SLCR_A9_CPU_RST_CTRL_OFFSET);
 }
 
 /**
@@ -103,7 +102,7 @@ int __init zynq_slcr_init(void)
 	}
 
 	/* unlock the SLCR so that registers can be changed */
-	writel(SLCR_UNLOCK_MAGIC, zynq_slcr_base + SLCR_UNLOCK);
+	writel(SLCR_UNLOCK_MAGIC, zynq_slcr_base + SLCR_UNLOCK_OFFSET);
 
 	pr_info("%s mapped to %p\n", np->name, zynq_slcr_base);
 
