@@ -241,6 +241,10 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 				*val2 = IIO_DEGREE_TO_RAD(73260);
 			}
 			return IIO_VAL_INT_PLUS_MICRO;
+		case IIO_INCLI:
+			*val = 0;
+			*val2 = IIO_DEGREE_TO_RAD(36630);
+			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_VOLTAGE:
 			if (chan->channel == 0) {
 				*val = 1;
