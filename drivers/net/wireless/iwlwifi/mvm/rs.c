@@ -492,7 +492,7 @@ static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 	u8 num_of_ant = get_num_of_ant_from_rate(rate_n_flags);
 	u8 mcs;
 
-	memset(tbl, 0, sizeof(struct iwl_scale_tbl_info));
+	memset(tbl, 0, offsetof(struct iwl_scale_tbl_info, win));
 	*rate_idx = iwl_hwrate_to_plcp_idx(rate_n_flags);
 
 	if (*rate_idx  == IWL_RATE_INVALID) {
