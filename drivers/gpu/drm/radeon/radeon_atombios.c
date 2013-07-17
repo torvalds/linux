@@ -3703,8 +3703,9 @@ int radeon_atom_init_mc_reg_table(struct radeon_device *rdev,
 							   sizeof(ATOM_INIT_REG_INDEX_FORMAT)) - 1;
 					if (num_entries > VBIOS_MC_REGISTER_ARRAY_SIZE)
 						return -EINVAL;
-					while (!(reg_block->asRegIndexBuf[i].ucPreRegDataLength & ACCESS_PLACEHOLDER) &&
-					      (i < num_entries)) {
+					while (i < num_entries) {
+						if (reg_block->asRegIndexBuf[i].ucPreRegDataLength & ACCESS_PLACEHOLDER)
+							break;
 						reg_table->mc_reg_address[i].s1 =
 							(u16)(le16_to_cpu(reg_block->asRegIndexBuf[i].usRegIndex));
 						reg_table->mc_reg_address[i].pre_reg_data =
