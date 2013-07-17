@@ -43,7 +43,7 @@ config LEDS_ATMEL_PWM
 config LEDS_SUNXI
 	tristate "LED Support for sunxi platform"
 	depends on LEDS_CLASS
-	depends on (ARCH_SUN3I || ARCH_SUN4I || ARCH_SUN5I)
+	depends on (ARCH_SUN3I || ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
 	help
 	  This option enables support for LEDs connected to gpio
 	  lines on the Allwinner SOCs (sun3i/sun4i/arch_sun5i).
