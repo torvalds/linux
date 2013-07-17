@@ -33,7 +33,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <linux/videodev2.h>
 
 #include <media/v4l2-device.h>
