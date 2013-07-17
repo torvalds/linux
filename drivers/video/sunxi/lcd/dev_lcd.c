@@ -109,13 +109,13 @@ __init lcd_module_init(void)
 		return -1;
 	}
 
-	lcd_class = class_create(THIS_MODULE, "lcd");
+	lcd_class = class_create(THIS_MODULE, "sunxi-lcd");
 	if (IS_ERR(lcd_class)) {
 		__wrn("class_create fail\n");
 		return -1;
 	}
 
-	device_create(lcd_class, NULL, devid, NULL, "lcd");
+	device_create(lcd_class, NULL, devid, NULL, "sunxi-lcd");
 
 	lcd_init();
 
