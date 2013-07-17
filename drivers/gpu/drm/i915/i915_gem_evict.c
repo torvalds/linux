@@ -34,11 +34,13 @@
 static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 {
+	struct i915_vma *vma = __i915_gem_obj_to_vma(obj);
+
 	if (obj->pin_count)
 		return false;
 
 	list_add(&obj->exec_list, unwind);
-	return drm_mm_scan_add_block(&obj->gtt_space);
+	return drm_mm_scan_add_block(&vma->node);
 }
 
 int
@@ -49,6 +51,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct list_head eviction_list, unwind_list;
+	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
@@ -106,8 +109,8 @@ none:
 		obj = list_first_entry(&unwind_list,
 				       struct drm_i915_gem_object,
 				       exec_list);
-
-		ret = drm_mm_scan_remove_block(&obj->gtt_space);
+		vma = __i915_gem_obj_to_vma(obj);
+		ret = drm_mm_scan_remove_block(&vma->node);
 		BUG_ON(ret);
 
 		list_del_init(&obj->exec_list);
@@ -127,7 +130,8 @@ found:
 		obj = list_first_entry(&unwind_list,
 				       struct drm_i915_gem_object,
 				       exec_list);
-		if (drm_mm_scan_remove_block(&obj->gtt_space)) {
+		vma = __i915_gem_obj_to_vma(obj);
+		if (drm_mm_scan_remove_block(&vma->node)) {
 			list_move(&obj->exec_list, &eviction_list);
 			drm_gem_object_reference(&obj->base);
 			continue;

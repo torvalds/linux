@@ -2590,6 +2590,7 @@ int
 i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
 	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
+	struct i915_vma *vma;
 	int ret;
 
 	if (!i915_gem_obj_ggtt_bound(obj))
@@ -2627,11 +2628,20 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	i915_gem_object_unpin_pages(obj);
 
 	list_del(&obj->mm_list);
-	list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
 	obj->map_and_fenceable = true;
 
-	drm_mm_remove_node(&obj->gtt_space);
+	vma = __i915_gem_obj_to_vma(obj);
+	list_del(&vma->vma_link);
+	drm_mm_remove_node(&vma->node);
+	i915_gem_vma_destroy(vma);
+
+	/* Since the unbound list is global, only move to that list if
+	 * no more VMAs exist.
+	 * NB: Until we have real VMAs there will only ever be one */
+	WARN_ON(!list_empty(&obj->vma_list));
+	if (list_empty(&obj->vma_list))
+		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 
 	return 0;
 }
@@ -3065,7 +3075,11 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	bool mappable, fenceable;
 	size_t gtt_max = map_and_fenceable ?
 		dev_priv->gtt.mappable_end : dev_priv->gtt.base.total;
+	struct i915_vma *vma;
 	int ret;
+
+	if (WARN_ON(!list_empty(&obj->vma_list)))
+		return -EBUSY;
 
 	fence_size = i915_gem_get_gtt_size(dev,
 					   obj->base.size,
@@ -3105,9 +3119,15 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
+	vma = i915_gem_vma_create(obj, &dev_priv->gtt.base);
+	if (vma == NULL) {
+		i915_gem_object_unpin_pages(obj);
+		return -ENOMEM;
+	}
+
 search_free:
 	ret = drm_mm_insert_node_in_range_generic(&dev_priv->gtt.base.mm,
-						  &obj->gtt_space,
+						  &vma->node,
 						  size, alignment,
 						  obj->cache_level, 0, gtt_max);
 	if (ret) {
@@ -3118,25 +3138,21 @@ search_free:
 		if (ret == 0)
 			goto search_free;
 
-		i915_gem_object_unpin_pages(obj);
-		return ret;
+		goto err_out;
 	}
-	if (WARN_ON(!i915_gem_valid_gtt_space(dev, &obj->gtt_space,
+	if (WARN_ON(!i915_gem_valid_gtt_space(dev, &vma->node,
 					      obj->cache_level))) {
-		i915_gem_object_unpin_pages(obj);
-		drm_mm_remove_node(&obj->gtt_space);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_out;
 	}
 
 	ret = i915_gem_gtt_prepare_object(obj);
-	if (ret) {
-		i915_gem_object_unpin_pages(obj);
-		drm_mm_remove_node(&obj->gtt_space);
-		return ret;
-	}
+	if (ret)
+		goto err_out;
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &vm->inactive_list);
+	list_add(&vma->vma_link, &obj->vma_list);
 
 	fenceable =
 		i915_gem_obj_ggtt_size(obj) == fence_size &&
@@ -3150,6 +3166,12 @@ search_free:
 	trace_i915_gem_object_bind(obj, map_and_fenceable);
 	i915_gem_verify_gtt(dev);
 	return 0;
+
+err_out:
+	i915_gem_vma_destroy(vma);
+	i915_gem_object_unpin_pages(obj);
+	drm_mm_remove_node(&vma->node);
+	return ret;
 }
 
 void
@@ -3295,6 +3317,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct i915_vma *vma = __i915_gem_obj_to_vma(obj);
 	int ret;
 
 	if (obj->cache_level == cache_level)
@@ -3305,7 +3328,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		return -EBUSY;
 	}
 
-	if (!i915_gem_valid_gtt_space(dev, &obj->gtt_space, cache_level)) {
+	if (vma && !i915_gem_valid_gtt_space(dev, &vma->node, cache_level)) {
 		ret = i915_gem_object_unbind(obj);
 		if (ret)
 			return ret;
@@ -3850,6 +3873,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->global_list);
 	INIT_LIST_HEAD(&obj->ring_list);
 	INIT_LIST_HEAD(&obj->exec_list);
+	INIT_LIST_HEAD(&obj->vma_list);
 
 	obj->ops = ops;
 
@@ -3968,6 +3992,26 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	kfree(obj->bit_17);
 	i915_gem_object_free(obj);
+}
+
+struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
+				     struct i915_address_space *vm)
+{
+	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+	if (vma == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&vma->vma_link);
+	vma->vm = vm;
+	vma->obj = obj;
+
+	return vma;
+}
+
+void i915_gem_vma_destroy(struct i915_vma *vma)
+{
+	WARN_ON(vma->node.allocated);
+	kfree(vma);
 }
 
 int

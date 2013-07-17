@@ -533,6 +533,17 @@ struct i915_hw_ppgtt {
 	int (*enable)(struct drm_device *dev);
 };
 
+/* To make things as simple as possible (ie. no refcounting), a VMA's lifetime
+ * will always be <= an objects lifetime. So object refcounting should cover us.
+ */
+struct i915_vma {
+	struct drm_mm_node node;
+	struct drm_i915_gem_object *obj;
+	struct i915_address_space *vm;
+
+	struct list_head vma_link; /* Link in the object's VMA list */
+};
+
 struct i915_ctx_hang_stats {
 	/* This context had batch pending when hang was declared */
 	unsigned batch_pending;
@@ -1230,8 +1241,9 @@ struct drm_i915_gem_object {
 
 	const struct drm_i915_gem_object_ops *ops;
 
-	/** Current space allocated to this object in the GTT, if any. */
-	struct drm_mm_node gtt_space;
+	/** List of VMAs backed by this object */
+	struct list_head vma_list;
+
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
@@ -1357,18 +1369,32 @@ struct drm_i915_gem_object {
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
-/* Offset of the first PTE pointing to this object */
-static inline unsigned long
-i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
+/* This is a temporary define to help transition us to real VMAs. If you see
+ * this, you're either reviewing code, or bisecting it. */
+static inline struct i915_vma *
+__i915_gem_obj_to_vma(struct drm_i915_gem_object *obj)
 {
-	return o->gtt_space.start;
+	if (list_empty(&obj->vma_list))
+		return NULL;
+	return list_first_entry(&obj->vma_list, struct i915_vma, vma_link);
 }
 
 /* Whether or not this object is currently mapped by the translation tables */
 static inline bool
 i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *o)
 {
-	return drm_mm_node_allocated(&o->gtt_space);
+	struct i915_vma *vma = __i915_gem_obj_to_vma(o);
+	if (vma == NULL)
+		return false;
+	return drm_mm_node_allocated(&vma->node);
+}
+
+/* Offset of the first PTE pointing to this object */
+static inline unsigned long
+i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
+{
+	BUG_ON(list_empty(&o->vma_list));
+	return __i915_gem_obj_to_vma(o)->node.start;
 }
 
 /* The size used in the translation tables may be larger than the actual size of
@@ -1378,14 +1404,15 @@ i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *o)
 static inline unsigned long
 i915_gem_obj_ggtt_size(struct drm_i915_gem_object *o)
 {
-	return o->gtt_space.size;
+	BUG_ON(list_empty(&o->vma_list));
+	return __i915_gem_obj_to_vma(o)->node.size;
 }
 
 static inline void
 i915_gem_obj_ggtt_set_color(struct drm_i915_gem_object *o,
 			    enum i915_cache_level color)
 {
-	o->gtt_space.color = color;
+	__i915_gem_obj_to_vma(o)->node.color = color;
 }
 
 /**
@@ -1693,6 +1720,9 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
+struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
+				     struct i915_address_space *vm);
+void i915_gem_vma_destroy(struct i915_vma *vma);
 
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     uint32_t alignment,
