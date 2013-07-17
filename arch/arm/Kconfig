@@ -1031,6 +1031,7 @@ source "arch/arm/mach-realview/Kconfig"
 source "arch/arm/plat-rk/Kconfig"
 source "arch/arm/mach-rk29/Kconfig"
 source "arch/arm/mach-rk2928/Kconfig"
+source "arch/arm/mach-rk3026/Kconfig"
 source "arch/arm/mach-rk30/Kconfig"
 source "arch/arm/mach-rk3188/Kconfig"
 
