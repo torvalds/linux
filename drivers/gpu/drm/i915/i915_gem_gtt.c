@@ -662,16 +662,17 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		struct i915_vma *vma = __i915_gem_obj_to_vma(obj);
 		int ret;
 		DRM_DEBUG_KMS("reserving preallocated space: %lx + %zx\n",
 			      i915_gem_obj_ggtt_offset(obj), obj->base.size);
 
 		WARN_ON(i915_gem_obj_ggtt_bound(obj));
-		ret = drm_mm_reserve_node(&dev_priv->gtt.base.mm,
-					  &obj->gtt_space);
+		ret = drm_mm_reserve_node(&dev_priv->gtt.base.mm, &vma->node);
 		if (ret)
 			DRM_DEBUG_KMS("Reservation failed\n");
 		obj->has_global_gtt_mapping = 1;
+		list_add(&vma->vma_link, &obj->vma_list);
 	}
 
 	dev_priv->gtt.base.start = start;
