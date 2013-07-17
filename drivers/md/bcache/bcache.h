@@ -434,6 +434,7 @@ struct bcache_device {
 
 	/* If nonzero, we're detaching/unregistering from cache set */
 	atomic_t		detaching;
+	int			flush_done;
 
 	uint64_t		nr_stripes;
 	unsigned		stripe_size_bits;
@@ -663,13 +664,9 @@ struct gc_stat {
  * CACHE_SET_STOPPING always gets set first when we're closing down a cache set;
  * we'll continue to run normally for awhile with CACHE_SET_STOPPING set (i.e.
  * flushing dirty data).
- *
- * CACHE_SET_STOPPING_2 gets set at the last phase, when it's time to shut down
- * the allocation thread.
  */
 #define CACHE_SET_UNREGISTERING		0
 #define	CACHE_SET_STOPPING		1
-#define	CACHE_SET_STOPPING_2		2
 
 struct cache_set {
 	struct closure		cl;

@@ -184,9 +184,14 @@ bsearch:
 		pr_debug("starting binary search, l %u r %u", l, r);
 
 		while (l + 1 < r) {
-			m = (l + r) >> 1;
+			seq = list_entry(list->prev, struct journal_replay,
+					 list)->j.seq;
 
-			if (read_bucket(m))
+			m = (l + r) >> 1;
+			read_bucket(m);
+
+			if (seq != list_entry(list->prev, struct journal_replay,
+					      list)->j.seq)
 				l = m;
 			else
 				r = m;

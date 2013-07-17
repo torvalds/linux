@@ -63,6 +63,7 @@
 #include "bcache.h"
 #include "btree.h"
 
+#include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/random.h>
 #include <trace/events/bcache.h>
@@ -363,11 +364,10 @@ do {									\
 			break;						\
 									\
 		mutex_unlock(&(ca)->set->bucket_lock);			\
-		if (test_bit(CACHE_SET_STOPPING_2, &ca->set->flags)) {	\
-			closure_put(&ca->set->cl);			\
+		if (kthread_should_stop())				\
 			return 0;					\
-		}							\
 									\
+		try_to_freeze();					\
 		schedule();						\
 		mutex_lock(&(ca)->set->bucket_lock);			\
 	}								\
@@ -547,14 +547,12 @@ int bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
 
 int bch_cache_allocator_start(struct cache *ca)
 {
-	ca->alloc_thread = kthread_create(bch_allocator_thread,
-					  ca, "bcache_allocator");
-	if (IS_ERR(ca->alloc_thread))
-		return PTR_ERR(ca->alloc_thread);
+	struct task_struct *k = kthread_run(bch_allocator_thread,
+					    ca, "bcache_allocator");
+	if (IS_ERR(k))
+		return PTR_ERR(k);
 
-	closure_get(&ca->set->cl);
-	wake_up_process(ca->alloc_thread);
-
+	ca->alloc_thread = k;
 	return 0;
 }
 

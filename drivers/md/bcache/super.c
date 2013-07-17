@@ -16,6 +16,7 @@
 #include <linux/buffer_head.h>
 #include <linux/debugfs.h>
 #include <linux/genhd.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/reboot.h>
@@ -706,7 +707,8 @@ static void bcache_device_detach(struct bcache_device *d)
 		atomic_set(&d->detaching, 0);
 	}
 
-	bcache_device_unlink(d);
+	if (!d->flush_done)
+		bcache_device_unlink(d);
 
 	d->c->devices[d->id] = NULL;
 	closure_put(&d->c->caching);
@@ -805,6 +807,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	q->limits.physical_block_size	= block_size;
 	set_bit(QUEUE_FLAG_NONROT,	&d->disk->queue->queue_flags);
 	set_bit(QUEUE_FLAG_DISCARD,	&d->disk->queue->queue_flags);
+
+	blk_queue_flush(q, REQ_FLUSH|REQ_FUA);
 
 	return 0;
 }
@@ -1052,6 +1056,14 @@ static void cached_dev_flush(struct closure *cl)
 {
 	struct cached_dev *dc = container_of(cl, struct cached_dev, disk.cl);
 	struct bcache_device *d = &dc->disk;
+
+	mutex_lock(&bch_register_lock);
+	d->flush_done = 1;
+
+	if (d->c)
+		bcache_device_unlink(d);
+
+	mutex_unlock(&bch_register_lock);
 
 	bch_cache_accounting_destroy(&dc->accounting);
 	kobject_del(&d->kobj);
@@ -1318,11 +1330,9 @@ static void cache_set_free(struct closure *cl)
 static void cache_set_flush(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, caching);
+	struct cache *ca;
 	struct btree *b;
-
-	/* Shut down allocator threads */
-	set_bit(CACHE_SET_STOPPING_2, &c->flags);
-	wake_up_allocators(c);
+	unsigned i;
 
 	bch_cache_accounting_destroy(&c->accounting);
 
@@ -1337,24 +1347,32 @@ static void cache_set_flush(struct closure *cl)
 		if (btree_node_dirty(b))
 			bch_btree_node_write(b, NULL);
 
+	for_each_cache(ca, c, i)
+		if (ca->alloc_thread)
+			kthread_stop(ca->alloc_thread);
+
 	closure_return(cl);
 }
 
 static void __cache_set_unregister(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, caching);
-	struct cached_dev *dc, *t;
+	struct cached_dev *dc;
 	size_t i;
 
 	mutex_lock(&bch_register_lock);
 
-	if (test_bit(CACHE_SET_UNREGISTERING, &c->flags))
-		list_for_each_entry_safe(dc, t, &c->cached_devs, list)
-			bch_cached_dev_detach(dc);
-
 	for (i = 0; i < c->nr_uuids; i++)
-		if (c->devices[i] && UUID_FLASH_ONLY(&c->uuids[i]))
-			bcache_device_stop(c->devices[i]);
+		if (c->devices[i]) {
+			if (!UUID_FLASH_ONLY(&c->uuids[i]) &&
+			    test_bit(CACHE_SET_UNREGISTERING, &c->flags)) {
+				dc = container_of(c->devices[i],
+						  struct cached_dev, disk);
+				bch_cached_dev_detach(dc);
+			} else {
+				bcache_device_stop(c->devices[i]);
+			}
+		}
 
 	mutex_unlock(&bch_register_lock);
 

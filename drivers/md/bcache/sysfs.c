@@ -232,6 +232,8 @@ STORE(__cached_dev)
 			bch_uuid_write(dc->disk.c);
 		}
 		env = kzalloc(sizeof(struct kobj_uevent_env), GFP_KERNEL);
+		if (!env)
+			return -ENOMEM;
 		add_uevent_var(env, "DRIVER=bcache");
 		add_uevent_var(env, "CACHED_UUID=%pU", dc->sb.uuid),
 		add_uevent_var(env, "CACHED_LABEL=%s", buf);
