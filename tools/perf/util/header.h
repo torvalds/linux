@@ -96,7 +96,7 @@ struct perf_header {
 struct perf_evlist;
 struct perf_session;
 
-int perf_session__read_header(struct perf_session *session, int fd);
+int perf_session__read_header(struct perf_session *session);
 int perf_session__write_header(struct perf_session *session,
 			       struct perf_evlist *evlist,
 			       int fd, bool at_exit);
