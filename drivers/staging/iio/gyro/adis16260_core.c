@@ -135,7 +135,7 @@ static ssize_t adis16260_read_frequency(struct device *dev,
 	else
 		sps = (t & ADIS16260_SMPL_PRD_TIME_BASE) ? 66 : 2048;
 	sps /= (t & ADIS16260_SMPL_PRD_DIV_MASK) + 1;
-	len = sprintf(buf, "%d SPS\n", sps);
+	len = sprintf(buf, "%d\n", sps);
 	return len;
 }
 
