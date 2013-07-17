@@ -336,10 +336,10 @@ static int acquire_dma(struct s3c64xx_spi_driver_data *sdd)
 	req.cap = DMA_SLAVE;
 	req.client = &s3c64xx_spi_dma_client;
 
-	sdd->rx_dma.ch = (void *)sdd->ops->request(sdd->rx_dma.dmach,
-						&req, dev, "rx");
-	sdd->tx_dma.ch = (void *)sdd->ops->request(sdd->tx_dma.dmach,
-						&req, dev, "tx");
+	sdd->rx_dma.ch = (struct dma_chan *)(unsigned long)sdd->ops->request(
+					sdd->rx_dma.dmach, &req, dev, "rx");
+	sdd->tx_dma.ch = (struct dma_chan *)(unsigned long)sdd->ops->request(
+					sdd->tx_dma.dmach, &req, dev, "tx");
 
 	return 1;
 }
