@@ -101,18 +101,6 @@
 #define ADIS16260_SCAN_TEMP	3
 #define ADIS16260_SCAN_ANGL	4
 
-static ssize_t adis16260_read_frequency_available(struct device *dev,
-						  struct device_attribute *attr,
-						  char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct adis *adis = iio_priv(indio_dev);
-	if (spi_get_device_id(adis->spi)->driver_data)
-		return sprintf(buf, "%s\n", "0.129 ~ 256");
-	else
-		return sprintf(buf, "%s\n", "256 2048");
-}
-
 static ssize_t adis16260_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
@@ -189,9 +177,6 @@ static int adis16260_stop_device(struct iio_dev *indio_dev)
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		adis16260_read_frequency,
 		adis16260_write_frequency);
-
-static IIO_DEVICE_ATTR(sampling_frequency_available,
-		       S_IRUGO, adis16260_read_frequency_available, NULL, 0);
 
 static const struct iio_chan_spec adis16260_channels[] = {
 	ADIS_GYRO_CHAN(X, ADIS16260_GYRO_OUT, ADIS16260_SCAN_GYRO,
@@ -306,7 +291,6 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 
 static struct attribute *adis16260_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	NULL
 };
 
