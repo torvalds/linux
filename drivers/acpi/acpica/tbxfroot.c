@@ -49,8 +49,6 @@
 ACPI_MODULE_NAME("tbxfroot")
 
 /* Local prototypes */
-static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length);
-
 static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp);
 
 /*******************************************************************************
@@ -231,7 +229,7 @@ acpi_status acpi_find_root_pointer(acpi_size *table_address)
  * DESCRIPTION: Search a block of memory for the RSDP signature
  *
  ******************************************************************************/
-static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
+u8 *acpi_tb_scan_memory_for_rsdp(u8 *start_address, u32 length)
 {
 	acpi_status status;
 	u8 *mem_rover;
