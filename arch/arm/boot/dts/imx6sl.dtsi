@@ -195,6 +195,9 @@
 					reg = <0x02028000 0x4000>;
 					interrupts = <0 46 0x04>;
 					clocks = <&clks IMX6SL_CLK_SSI1>;
+					dmas = <&sdma 37 1 0>,
+					       <&sdma 38 1 0>;
+					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
 					status = "disabled";
 				};
@@ -204,6 +207,9 @@
 					reg = <0x0202c000 0x4000>;
 					interrupts = <0 47 0x04>;
 					clocks = <&clks IMX6SL_CLK_SSI2>;
+					dmas = <&sdma 41 1 0>,
+					       <&sdma 42 1 0>;
+					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
 					status = "disabled";
 				};
@@ -213,6 +219,9 @@
 					reg = <0x02030000 0x4000>;
 					interrupts = <0 48 0x04>;
 					clocks = <&clks IMX6SL_CLK_SSI3>;
+					dmas = <&sdma 45 1 0>,
+					       <&sdma 46 1 0>;
+					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
 					status = "disabled";
 				};
