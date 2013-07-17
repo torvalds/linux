@@ -11,9 +11,7 @@
 /**
  * struct adis16260_platform_data - instance specific data
  * @direction: x y or z
- * @negate: flag to indicate value should be inverted.
  **/
 struct adis16260_platform_data {
 	char direction;
-	unsigned negate:1;
 };

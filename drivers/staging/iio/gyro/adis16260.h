@@ -76,15 +76,6 @@
 #define ADIS16260_SPI_BURST	(u32)(1000 * 1000)
 #define ADIS16260_SPI_FAST	(u32)(2000 * 1000)
 
-/**
- * struct adis16260_state - device instance specific data
- * @negate:		negate the scale parameter
- **/
-struct adis16260_state {
-	unsigned	negate:1;
-	struct adis	adis;
-};
-
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!
  */
