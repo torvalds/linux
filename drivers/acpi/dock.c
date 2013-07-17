@@ -881,8 +881,10 @@ static int __init dock_add(acpi_handle handle)
 
 	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 					     dock_notify_handler, dock_station);
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
+		ret = -ENODEV;
 		goto err_rmgroup;
+	}
 
 	dock_station_count++;
 	list_add(&dock_station->sibling, &dock_stations);
