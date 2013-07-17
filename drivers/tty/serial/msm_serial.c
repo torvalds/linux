@@ -637,7 +637,7 @@ static int msm_request_port(struct uart_port *port)
 		if (!request_mem_region(gsbi_resource->start, size,
 						 "msm_serial")) {
 			ret = -EBUSY;
-			goto fail_release_port;
+			goto fail_release_port_membase;
 		}
 
 		msm_port->gsbi_base = ioremap(gsbi_resource->start, size);
@@ -651,6 +651,8 @@ static int msm_request_port(struct uart_port *port)
 
 fail_release_gsbi:
 	release_mem_region(gsbi_resource->start, size);
+fail_release_port_membase:
+	iounmap(port->membase);
 fail_release_port:
 	release_mem_region(port->mapbase, size);
 	return ret;
