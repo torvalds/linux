@@ -5487,6 +5487,9 @@ void intel_gt_reset(struct drm_device *dev)
 		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 			__gen6_gt_force_wake_mt_reset(dev_priv);
 	}
+
+	/* BIOS often leaves RC6 enabled, but disable it for hw init */
+	intel_disable_gt_powersave(dev);
 }
 
 void intel_gt_init(struct drm_device *dev)
@@ -5494,8 +5497,6 @@ void intel_gt_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	spin_lock_init(&dev_priv->gt_lock);
-
-	intel_gt_reset(dev);
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->gt.force_wake_get = vlv_force_wake_get;
