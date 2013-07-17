@@ -32,6 +32,8 @@ config MACH_KZM9D_REFERENCE
 	   of not supporting a number of devices.
 
 	   This is intended to aid developers
+
+comment "SH-Mobile System Configuration"
 endif
 
 if ARCH_SHMOBILE
@@ -257,6 +259,15 @@ config CPU_HAS_INTEVT
         bool
 	default y
 
+config SH_CLK_CPG
+	bool
+
+source "drivers/sh/Kconfig"
+
+endif
+
+if ARCH_SHMOBILE || ARCH_SHMOBILE_MULTI
+
 menu "Timer and clock configuration"
 
 config SHMOBILE_TIMER_HZ
@@ -290,10 +301,5 @@ config EM_TIMER_STI
 	  This enables build of the STI timer driver.
 
 endmenu
-
-config SH_CLK_CPG
-	bool
-
-source "drivers/sh/Kconfig"
 
 endif
