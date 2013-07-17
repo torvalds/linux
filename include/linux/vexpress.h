@@ -126,6 +126,9 @@ void vexpress_sysreg_of_early_init(void);
 struct clk *vexpress_osc_setup(struct device *dev);
 void vexpress_osc_of_setup(struct device_node *node);
 
+struct clk *vexpress_clk_register_spc(const char *name, int cluster_id);
+void vexpress_clk_of_register_spc(void);
+
 void vexpress_clk_init(void __iomem *sp810_base);
 void vexpress_clk_of_init(void);
 
