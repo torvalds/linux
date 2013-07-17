@@ -8318,6 +8318,8 @@ check_shared_dpll_state(struct drm_device *dev)
 		     pll->active, pll->refcount);
 		WARN(pll->active && !pll->on,
 		     "pll in active use but not on in sw tracking\n");
+		WARN(pll->on && !pll->active,
+		     "pll in on but not on in use in sw tracking\n");
 		WARN(pll->on != active,
 		     "pll on state mismatch (expected %i, found %i)\n",
 		     pll->on, active);
@@ -9837,8 +9839,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		}
 		pll->refcount = pll->active;
 
-		DRM_DEBUG_KMS("%s hw state readout: refcount %i\n",
-			      pll->name, pll->refcount);
+		DRM_DEBUG_KMS("%s hw state readout: refcount %i, on %i\n",
+			      pll->name, pll->refcount, pll->on);
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
@@ -9889,6 +9891,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	struct drm_plane *plane;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
+	int i;
 
 	intel_modeset_readout_hw_state(dev);
 
@@ -9902,6 +9905,18 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 		intel_sanitize_crtc(crtc);
 		intel_dump_pipe_config(crtc, &crtc->config, "[setup_hw_state]");
+	}
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+
+		if (!pll->on || pll->active)
+			continue;
+
+		DRM_DEBUG_KMS("%s enabled but not in use, disabling\n", pll->name);
+
+		pll->disable(dev_priv, pll);
+		pll->on = false;
 	}
 
 	if (force_restore) {
