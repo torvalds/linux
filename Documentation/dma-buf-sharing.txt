@@ -321,7 +321,7 @@ Access to a dma_buf from the kernel context involves three steps:
 
    When the importer is done accessing the range specified in begin_cpu_access,
    it needs to announce this to the exporter (to facilitate cache flushing and
-   unpinning of any pinned resources). The result of of any dma_buf kmap calls
+   unpinning of any pinned resources). The result of any dma_buf kmap calls
    after end_cpu_access is undefined.
 
    Interface:

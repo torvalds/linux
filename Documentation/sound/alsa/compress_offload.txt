@@ -73,7 +73,7 @@ The main requirements are:
 
 Design
 
-The new API shares a number of concepts with with the PCM API for flow
+The new API shares a number of concepts with the PCM API for flow
 control. Start, pause, resume, drain and stop commands have the same
 semantics no matter what the content is.
 
