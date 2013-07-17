@@ -1,7 +1,6 @@
 #ifndef SPI_ADIS16260_H_
 #define SPI_ADIS16260_H_
 
-#include "adis16260_platform_data.h"
 #include <linux/iio/imu/adis.h>
 
 #define ADIS16260_STARTUP_DELAY	220 /* ms */

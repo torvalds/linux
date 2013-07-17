@@ -119,21 +119,16 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 static IIO_DEVICE_ATTR(sampling_frequency_available,
 		       S_IRUGO, adis16260_read_frequency_available, NULL, 0);
 
-#define ADIS16260_GYRO_CHANNEL_SET(axis, mod)				\
-struct iio_chan_spec adis16260_channels_##axis[] = {		\
-	ADIS_GYRO_CHAN(mod, ADIS16260_GYRO_OUT, ADIS16260_SCAN_GYRO, \
-		BIT(IIO_CHAN_INFO_CALIBBIAS) | \
-		BIT(IIO_CHAN_INFO_CALIBSCALE), 14), \
-	ADIS_INCLI_CHAN(mod, ADIS16260_ANGL_OUT, ADIS16260_SCAN_ANGL, 0, 14), \
-	ADIS_TEMP_CHAN(ADIS16260_TEMP_OUT, ADIS16260_SCAN_TEMP, 12), \
-	ADIS_SUPPLY_CHAN(ADIS16260_SUPPLY_OUT, ADIS16260_SCAN_SUPPLY, 12), \
-	ADIS_AUX_ADC_CHAN(ADIS16260_AUX_ADC, ADIS16260_SCAN_AUX_ADC, 12), \
-	IIO_CHAN_SOFT_TIMESTAMP(5),				\
-}
-
-static const ADIS16260_GYRO_CHANNEL_SET(x, X);
-static const ADIS16260_GYRO_CHANNEL_SET(y, Y);
-static const ADIS16260_GYRO_CHANNEL_SET(z, Z);
+static const struct iio_chan_spec adis16260_channels[] = {
+	ADIS_GYRO_CHAN(X, ADIS16260_GYRO_OUT, ADIS16260_SCAN_GYRO,
+		BIT(IIO_CHAN_INFO_CALIBBIAS) |
+		BIT(IIO_CHAN_INFO_CALIBSCALE), 14),
+	ADIS_INCLI_CHAN(X, ADIS16260_ANGL_OUT, ADIS16260_SCAN_ANGL, 0, 14),
+	ADIS_TEMP_CHAN(ADIS16260_TEMP_OUT, ADIS16260_SCAN_TEMP, 12),
+	ADIS_SUPPLY_CHAN(ADIS16260_SUPPLY_OUT, ADIS16260_SCAN_SUPPLY, 12),
+	ADIS_AUX_ADC_CHAN(ADIS16260_AUX_ADC, ADIS16260_SCAN_AUX_ADC, 12),
+	IIO_CHAN_SOFT_TIMESTAMP(5),
+};
 
 static const u8 adis16260_addresses[][2] = {
 	[ADIS16260_SCAN_GYRO] = { ADIS16260_GYRO_OFF, ADIS16260_GYRO_SCALE },
@@ -301,10 +296,9 @@ static const struct adis_data adis16260_data = {
 
 static int adis16260_probe(struct spi_device *spi)
 {
-	int ret;
-	struct adis16260_platform_data *pd = spi->dev.platform_data;
 	struct iio_dev *indio_dev;
 	struct adis *adis;
+	int ret;
 
 	/* setup the industrialio driver allocated elements */
 	indio_dev = iio_device_alloc(sizeof(*adis));
@@ -319,25 +313,8 @@ static int adis16260_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16260_info;
-	indio_dev->num_channels
-		= ARRAY_SIZE(adis16260_channels_x);
-	if (pd && pd->direction)
-		switch (pd->direction) {
-		case 'x':
-			indio_dev->channels = adis16260_channels_x;
-			break;
-		case 'y':
-			indio_dev->channels = adis16260_channels_y;
-			break;
-		case 'z':
-			indio_dev->channels = adis16260_channels_z;
-			break;
-		default:
-			return -EINVAL;
-		}
-	else
-		indio_dev->channels = adis16260_channels_x;
-	indio_dev->num_channels = ARRAY_SIZE(adis16260_channels_x);
+	indio_dev->channels = adis16260_channels;
+	indio_dev->num_channels = ARRAY_SIZE(adis16260_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = adis_init(adis, indio_dev, spi, &adis16260_data);
