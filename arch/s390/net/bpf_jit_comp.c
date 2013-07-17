@@ -10,6 +10,7 @@
 #include <linux/if_vlan.h>
 #include <linux/filter.h>
 #include <linux/random.h>
+#include <linux/init.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/facility.h>
@@ -221,6 +222,37 @@ static void bpf_jit_epilogue(struct bpf_jit *jit)
 	/* br %r14 */
 	EMIT2(0x07fe);
 }
+
+/* Helper to find the offset of pkt_type in sk_buff
+ * Make sure its still a 3bit field starting at the MSBs within a byte.
+ */
+#define PKT_TYPE_MAX 0xe0
+static int pkt_type_offset;
+
+static int __init bpf_pkt_type_offset_init(void)
+{
+	struct sk_buff skb_probe = {
+		.pkt_type = ~0,
+	};
+	char *ct = (char *)&skb_probe;
+	int off;
+
+	pkt_type_offset = -1;
+	for (off = 0; off < sizeof(struct sk_buff); off++) {
+		if (!ct[off])
+			continue;
+		if (ct[off] == PKT_TYPE_MAX)
+			pkt_type_offset = off;
+		else {
+			/* Found non matching bit pattern, fix needed. */
+			WARN_ON_ONCE(1);
+			pkt_type_offset = -1;
+			return -1;
+		}
+	}
+	return 0;
+}
+device_initcall(bpf_pkt_type_offset_init);
 
 /*
  * make sure we dont leak kernel information to user
@@ -720,6 +752,16 @@ call_fn:	/* lg %r1,<d(function)>(%r13) */
 			/* srl %r5,12 */
 			EMIT4_DISP(0x88500000, 12);
 		}
+		break;
+	case BPF_S_ANC_PKTTYPE:
+		if (pkt_type_offset < 0)
+			goto out;
+		/* lhi %r5,0 */
+		EMIT4(0xa7580000);
+		/* ic %r5,<d(pkt_type_offset)>(%r2) */
+		EMIT4_DISP(0x43502000, pkt_type_offset);
+		/* srl %r5,5 */
+		EMIT4_DISP(0x88500000, 5);
 		break;
 	case BPF_S_ANC_CPU: /* A = smp_processor_id() */
 #ifdef CONFIG_SMP
