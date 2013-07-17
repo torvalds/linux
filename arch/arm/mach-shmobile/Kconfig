@@ -1,3 +1,24 @@
+config ARCH_SHMOBILE_MULTI
+	bool "SH-Mobile Series" if ARCH_MULTI_V7
+	depends on MMU
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select ARM_GIC
+	select MIGHT_HAVE_CACHE_L2X0
+	select NO_IOPORT
+	select PINCTRL
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+
+if ARCH_SHMOBILE_MULTI
+
+comment "SH-Mobile System Type"
+
+endif
+
 if ARCH_SHMOBILE
 
 comment "SH-Mobile System Type"
