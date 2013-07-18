@@ -44,7 +44,7 @@ void __init sirfsoc_map_scu(void)
 	scu_base = (void __iomem *)SIRFSOC_VA(base);
 }
 
-static void __cpuinit sirfsoc_secondary_init(unsigned int cpu)
+static void sirfsoc_secondary_init(unsigned int cpu)
 {
 	/*
 	 * let the primary processor know we're out of the
@@ -65,7 +65,7 @@ static struct of_device_id rsc_ids[]  = {
 	{},
 };
 
-static int __cpuinit sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int sirfsoc_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	struct device_node *np;

@@ -639,8 +639,8 @@ out:
 	put_task_struct(tsk);
 }
 
-static int __cpuinit pfault_cpu_notify(struct notifier_block *self,
-				       unsigned long action, void *hcpu)
+static int pfault_cpu_notify(struct notifier_block *self, unsigned long action,
+			     void *hcpu)
 {
 	struct thread_struct *thread, *next;
 	struct task_struct *tsk;

@@ -118,9 +118,9 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 	return;
 }
 
-static __cpuinit int __acpi_processor_start(struct acpi_device *device);
+static int __acpi_processor_start(struct acpi_device *device);
 
-static int __cpuinit acpi_cpu_soft_notify(struct notifier_block *nfb,
+static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 					  unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -162,7 +162,7 @@ static struct notifier_block __refdata acpi_cpu_notifier =
 	    .notifier_call = acpi_cpu_soft_notify,
 };
 
-static __cpuinit int __acpi_processor_start(struct acpi_device *device)
+static int __acpi_processor_start(struct acpi_device *device)
 {
 	struct acpi_processor *pr = acpi_driver_data(device);
 	acpi_status status;
@@ -226,7 +226,7 @@ static __cpuinit int __acpi_processor_start(struct acpi_device *device)
 	return result;
 }
 
-static int __cpuinit acpi_processor_start(struct device *dev)
+static int acpi_processor_start(struct device *dev)
 {
 	struct acpi_device *device;
 
