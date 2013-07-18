@@ -109,7 +109,7 @@
 	codec: wm8962@1a {
 		compatible = "wlf,wm8962";
 		reg = <0x1a>;
-		clocks = <&clks 169>;
+		clocks = <&clks 201>;
 		DCVDD-supply = <&reg_audio>;
 		DBVDD-supply = <&reg_audio>;
 		AVDD-supply = <&reg_audio>;
