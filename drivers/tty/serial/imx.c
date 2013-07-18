@@ -1028,6 +1028,11 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 		 */
 		div = 1;
 	} else {
+		/* custom-baudrate handling */
+		div = sport->port.uartclk / (baud * 16);
+		if (baud == 38400 && quot != div)
+			baud = sport->port.uartclk / (quot * 16);
+
 		div = sport->port.uartclk / (baud * 16);
 		if (div > 7)
 			div = 7;
