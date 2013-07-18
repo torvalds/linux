@@ -427,6 +427,11 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (!new_entry)
 			goto out_dir;
 
+		if (update_dent_inode(old_inode, &new_dentry->d_name)) {
+			f2fs_put_page(new_page, 1);
+			goto out_dir;
+		}
+
 		f2fs_set_link(new_dir, new_entry, new_page, old_inode);
 
 		new_inode->i_ctime = CURRENT_TIME;

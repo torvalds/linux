@@ -276,6 +276,21 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
 	set_page_dirty(ipage);
 }
 
+int update_dent_inode(struct inode *inode, const struct qstr *name)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct page *page;
+
+	page = get_node_page(sbi, inode->i_ino);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
+
+	init_dent_inode(name, page);
+	f2fs_put_page(page, 1);
+
+	return 0;
+}
+
 static int make_empty_dir(struct inode *inode,
 		struct inode *parent, struct page *page)
 {
