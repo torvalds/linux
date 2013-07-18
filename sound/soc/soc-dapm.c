@@ -3126,16 +3126,16 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_value_mux:
 		w->power_check = dapm_generic_check_power;
 		break;
-	case snd_soc_dapm_adc:
-	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_dai_out:
 		w->power_check = dapm_adc_check_power;
 		break;
-	case snd_soc_dapm_dac:
-	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_dai_in:
 		w->power_check = dapm_dac_check_power;
 		break;
+	case snd_soc_dapm_adc:
+	case snd_soc_dapm_aif_out:
+	case snd_soc_dapm_dac:
+	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_pga:
 	case snd_soc_dapm_out_drv:
 	case snd_soc_dapm_input:
