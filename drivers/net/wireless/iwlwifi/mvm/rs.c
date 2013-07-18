@@ -171,6 +171,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 				   struct ieee80211_sta *sta,
 				   struct iwl_lq_sta *lq_sta);
 static void rs_fill_link_cmd(struct iwl_mvm *mvm,
+			     struct ieee80211_sta *sta,
 			     struct iwl_lq_sta *lq_sta, u32 rate_n_flags);
 static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search);
 
@@ -296,7 +297,7 @@ static void rs_program_fix_rate(struct iwl_mvm *mvm,
 		       lq_sta->lq.sta_id, lq_sta->dbg_fixed_rate);
 
 	if (lq_sta->dbg_fixed_rate) {
-		rs_fill_link_cmd(NULL, lq_sta, lq_sta->dbg_fixed_rate);
+		rs_fill_link_cmd(NULL, NULL, lq_sta, lq_sta->dbg_fixed_rate);
 		iwl_mvm_send_lq_cmd(lq_sta->drv, &lq_sta->lq, CMD_ASYNC, false);
 	}
 }
@@ -1708,6 +1709,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
  * setup rate table in uCode
  */
 static void rs_update_rate_tbl(struct iwl_mvm *mvm,
+			       struct ieee80211_sta *sta,
 			       struct iwl_lq_sta *lq_sta,
 			       struct iwl_scale_tbl_info *tbl,
 			       int index)
@@ -1716,7 +1718,7 @@ static void rs_update_rate_tbl(struct iwl_mvm *mvm,
 
 	/* Update uCode's rate table. */
 	rate = rate_n_flags_from_tbl(mvm, tbl, index);
-	rs_fill_link_cmd(mvm, lq_sta, rate);
+	rs_fill_link_cmd(mvm, sta, lq_sta, rate);
 	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_ASYNC, false);
 }
 
@@ -1839,7 +1841,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 			/* get "active" rate info */
 			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
-			rs_update_rate_tbl(mvm, lq_sta, tbl, index);
+			rs_update_rate_tbl(mvm, sta, lq_sta, tbl, index);
 		}
 		return;
 	}
@@ -2074,7 +2076,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq)
-		rs_update_rate_tbl(mvm, lq_sta, tbl, index);
+		rs_update_rate_tbl(mvm, sta, lq_sta, tbl, index);
 
 	rs_stay_in_table(lq_sta, false);
 
@@ -2113,7 +2115,7 @@ lq_update:
 			IWL_DEBUG_RATE(mvm,
 				       "Switch current  mcs: %X index: %d\n",
 				       tbl->current_rate, index);
-			rs_fill_link_cmd(mvm, lq_sta, tbl->current_rate);
+			rs_fill_link_cmd(mvm, sta, lq_sta, tbl->current_rate);
 			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_ASYNC, false);
 		} else {
 			done_search = 1;
@@ -2216,7 +2218,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	rate = rate_n_flags_from_tbl(mvm, tbl, rate_idx);
 	tbl->current_rate = rate;
 	rs_set_expected_tpt_table(lq_sta, tbl);
-	rs_fill_link_cmd(NULL, lq_sta, rate);
+	rs_fill_link_cmd(NULL, NULL, lq_sta, rate);
 	/* TODO restore station should remember the lq cmd */
 	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_SYNC, true);
 }
@@ -2418,6 +2420,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 }
 
 static void rs_fill_link_cmd(struct iwl_mvm *mvm,
+			     struct ieee80211_sta *sta,
 			     struct iwl_lq_sta *lq_sta, u32 new_rate)
 {
 	struct iwl_scale_tbl_info tbl_type;
@@ -2534,6 +2537,10 @@ static void rs_fill_link_cmd(struct iwl_mvm *mvm,
 
 	lq_cmd->agg_time_limit =
 		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
+
+	if (sta)
+		lq_cmd->agg_time_limit =
+			cpu_to_le16(iwl_mvm_bt_coex_agg_time_limit(mvm, sta));
 
 	/*
 	 * overwrite if needed, pass aggregation time limit

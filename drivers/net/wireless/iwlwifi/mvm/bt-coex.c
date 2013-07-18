@@ -267,7 +267,13 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 	enum iwl_bt_coex_lut_type ret;
 	u16 phy_ctx_id;
 
-	lockdep_assert_held(&mvm->mutex);
+	/*
+	 * Checking that we hold mvm->mutex is a good idea, but the rate
+	 * control can't acquire the mutex since it runs in Tx path.
+	 * So this is racy in that case, but in the worst case, the AMPDU
+	 * size limit will be wrong for a short time which is not a big
+	 * issue.
+	 */
 
 	rcu_read_lock();
 
@@ -841,6 +847,28 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, data.reduced_tx_power))
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
+}
+
+#define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000)
+#define LINK_QUAL_AGG_TIME_LIMIT_BT_ACT	(1200)
+
+u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
+				   struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	enum iwl_bt_coex_lut_type lut_type;
+
+	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
+	    BT_LOW_TRAFFIC)
+		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
+
+	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
+
+	if (lut_type == BT_COEX_LOOSE_LUT)
+		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
+
+	/* tight coex, high bt traffic, reduce AGG time limit */
+	return LINK_QUAL_AGG_TIME_LIMIT_BT_ACT;
 }
 
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm, struct ieee80211_vif *vif)

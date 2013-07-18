@@ -791,6 +791,8 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   enum ieee80211_rssi_event rssi_event);
 void iwl_mvm_bt_coex_vif_change(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+u16 iwl_mvm_bt_coex_agg_time_limit(struct iwl_mvm *mvm,
+				   struct ieee80211_sta *sta);
 enum iwl_bt_kill_msk {
 	BT_KILL_MSK_DEFAULT,
 	BT_KILL_MSK_SCO_HID_A2DP,
