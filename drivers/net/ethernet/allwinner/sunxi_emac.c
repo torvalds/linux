@@ -48,7 +48,7 @@
 #include <plat/system.h>
 #include <mach/clock.h>
 
-#include "sun4i_wemac.h"
+#include "sunxi_emac.h"
 
 /* Board/System/Debug information/definition ---------------- */
 

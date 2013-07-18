@@ -178,15 +178,19 @@ config WEMAC_SUN3I
 	  To compile this driver as a module, choose M here.  The module
 	  will be called wemac.
 
-config WEMAC_SUN4I
-        tristate "wemac support(A1x)"
+config SUNXI_EMAC
+        tristate "Allwinner Ethernet MAC support"
         depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I
 	select MII
         ---help---
-          Support for Softwinner chipset.
+          Support for Allwinner sunxi Ethernet MAC chipset support.
+	  Currently known working chipsets are:
+	    * sun4i (A10)
+	    * sun5i (A10s)
+	    * sun7i (A20)
 
           To compile this driver as a module, choose M here.  The module
-          will be called wemac.
+          will be called sunxi_emac.
 
 source "drivers/net/ethernet/tehuti/Kconfig"
 source "drivers/net/ethernet/ti/Kconfig"
