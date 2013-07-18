@@ -249,6 +249,44 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 	return err;
 }
 
+static int mlx5_core_enable_hca(struct mlx5_core_dev *dev)
+{
+	int err;
+	struct mlx5_enable_hca_mbox_in in;
+	struct mlx5_enable_hca_mbox_out out;
+
+	memset(&in, 0, sizeof(in));
+	memset(&out, 0, sizeof(out));
+	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_ENABLE_HCA);
+	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	if (err)
+		return err;
+
+	if (out.hdr.status)
+		return mlx5_cmd_status_to_err(&out.hdr);
+
+	return 0;
+}
+
+static int mlx5_core_disable_hca(struct mlx5_core_dev *dev)
+{
+	int err;
+	struct mlx5_disable_hca_mbox_in in;
+	struct mlx5_disable_hca_mbox_out out;
+
+	memset(&in, 0, sizeof(in));
+	memset(&out, 0, sizeof(out));
+	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DISABLE_HCA);
+	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
+	if (err)
+		return err;
+
+	if (out.hdr.status)
+		return mlx5_cmd_status_to_err(&out.hdr);
+
+	return 0;
+}
+
 int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -304,28 +342,41 @@ int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 	}
 
 	mlx5_pagealloc_init(dev);
+
+	err = mlx5_core_enable_hca(dev);
+	if (err) {
+		dev_err(&pdev->dev, "enable hca failed\n");
+		goto err_pagealloc_cleanup;
+	}
+
+	err = mlx5_satisfy_startup_pages(dev, 1);
+	if (err) {
+		dev_err(&pdev->dev, "failed to allocate boot pages\n");
+		goto err_disable_hca;
+	}
+
 	err = set_hca_ctrl(dev);
 	if (err) {
 		dev_err(&pdev->dev, "set_hca_ctrl failed\n");
-		goto err_pagealloc_cleanup;
+		goto reclaim_boot_pages;
 	}
 
 	err = handle_hca_cap(dev);
 	if (err) {
 		dev_err(&pdev->dev, "handle_hca_cap failed\n");
-		goto err_pagealloc_cleanup;
+		goto reclaim_boot_pages;
 	}
 
-	err = mlx5_satisfy_startup_pages(dev);
+	err = mlx5_satisfy_startup_pages(dev, 0);
 	if (err) {
-		dev_err(&pdev->dev, "failed to allocate startup pages\n");
-		goto err_pagealloc_cleanup;
+		dev_err(&pdev->dev, "failed to allocate init pages\n");
+		goto reclaim_boot_pages;
 	}
 
 	err = mlx5_pagealloc_start(dev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_pagealloc_start failed\n");
-		goto err_reclaim_pages;
+		goto reclaim_boot_pages;
 	}
 
 	err = mlx5_cmd_init_hca(dev);
@@ -396,8 +447,11 @@ err_stop_poll:
 err_pagealloc_stop:
 	mlx5_pagealloc_stop(dev);
 
-err_reclaim_pages:
+reclaim_boot_pages:
 	mlx5_reclaim_startup_pages(dev);
+
+err_disable_hca:
+	mlx5_core_disable_hca(dev);
 
 err_pagealloc_cleanup:
 	mlx5_pagealloc_cleanup(dev);
@@ -434,6 +488,7 @@ void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 	mlx5_cmd_teardown_hca(dev);
 	mlx5_pagealloc_stop(dev);
 	mlx5_reclaim_startup_pages(dev);
+	mlx5_core_disable_hca(dev);
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_cmd_cleanup(dev);
 	iounmap(dev->iseg);
