@@ -268,9 +268,11 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK2928_PIN1_PC0,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO1C0_MMC0_CLKOUT_NAME,
             .fgpio      = GPIO1C_GPIO1C0,
             .fmux       = GPIO1C_MMC0_CLKOUT,
+	    #endif
         },
     },   
 
@@ -278,9 +280,11 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK2928_PIN1_PC7,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO1B7_MMC0_CMD_NAME,
             .fgpio      = GPIO1B_GPIO1B7,
             .fmux       = GPIO1B_MMC0_CMD,
+	    #endif
         },
     },      
 
@@ -288,9 +292,11 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK2928_PIN1_PC2,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO1C2_MMC0_D0_NAME,
             .fgpio      = GPIO1C_GPIO1C2,
             .fmux       = GPIO1C_MMC0_D0,
+	    #endif
         },
     },      
 
@@ -298,9 +304,11 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK2928_PIN1_PC3,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO1C3_MMC0_D1_NAME,
             .fgpio      = GPIO1C_GPIO1C3,
             .fmux       = GPIO1C_MMC0_D1,
+	    #endif
         },
     },      
 
@@ -308,9 +316,11 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK2928_PIN1_PC4,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO1C4_MMC0_D2_NAME,
             .fgpio      = GPIO1C_GPIO1C4,
             .fmux       = GPIO1C_MMC0_D2,
+	    #endif
         },
     }, 
 
@@ -318,9 +328,11 @@ static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK2928_PIN1_PC5,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO1C5_MMC0_D3_NAME,
             .fgpio      = GPIO1C_GPIO1C5,
             .fmux       = GPIO1C_MMC0_D3,
+	    #endif
         },
     }, 
 
@@ -378,9 +390,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK2928_PIN0_PB1,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO0B1_MMC1_CLKOUT_NAME,
             .fgpio      = GPIO0B_GPIO0B1,
             .fmux       = GPIO0B_MMC1_CLKOUT,
+	    #endif
         },
     },   
 
@@ -388,9 +402,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK2928_PIN0_PB0,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO0B0_MMC1_CMD_NAME,
             .fgpio      = GPIO0B_GPIO0B0,
             .fmux       = GPIO0B_MMC1_CMD,
+	    #endif
         },
     },      
 
@@ -398,9 +414,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK2928_PIN0_PB3,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO0B3_MMC1_D0_NAME,
             .fgpio      = GPIO0B_GPIO0B3,
             .fmux       = GPIO0B_MMC1_D0,
+	    #endif
         },
     },      
 
@@ -408,9 +426,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK2928_PIN0_PB4,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO0B4_MMC1_D1_NAME,
             .fgpio      = GPIO0B_GPIO0B4,
             .fmux       = GPIO0B_MMC1_D1,
+	    #endif
         },
     },      
 
@@ -418,9 +438,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK2928_PIN0_PB5,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO0B5_MMC1_D2_NAME,
             .fgpio      = GPIO0B_GPIO0B5,
             .fmux       = GPIO0B_MMC1_D2,
+	    #endif
         },
     }, 
 
@@ -428,9 +450,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK2928_PIN0_PB6,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO0B6_MMC1_D3_NAME,
             .fgpio      = GPIO0B_GPIO0B6,
             .fmux       = GPIO0B_MMC1_D3,
+	    #endif
         },
     }, 
 
@@ -448,9 +472,11 @@ struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PB0,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3B0_SDMMC0CLKOUT_NAME,
             .fgpio      = GPIO3B_GPIO3B0,
             .fmux       = GPIO3B_SDMMC0_CLKOUT,
+	    #endif
         },
     },   
 
@@ -458,9 +484,11 @@ struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PB1,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3B1_SDMMC0CMD_NAME,
             .fgpio      = GPIO3B_GPIO3B1,
             .fmux       = GPIO3B_SDMMC0_CMD,
+	    #endif
         },
     },      
 
@@ -468,9 +496,11 @@ struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PB2,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3B2_SDMMC0DATA0_NAME,
             .fgpio      = GPIO3B_GPIO3B2,
             .fmux       = GPIO3B_SDMMC0_DATA0,
+	    #endif
         },
     },      
 
@@ -478,9 +508,11 @@ struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PB3,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3B3_SDMMC0DATA1_NAME,
             .fgpio      = GPIO3B_GPIO3B3,
             .fmux       = GPIO3B_SDMMC0_DATA1,
+	    #endif
         },
     },      
 
@@ -488,9 +520,11 @@ struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PB4,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3B4_SDMMC0DATA2_NAME,
             .fgpio      = GPIO3B_GPIO3B4,
             .fmux       = GPIO3B_SDMMC0_DATA2,
+	    #endif
         },
     }, 
 
@@ -498,9 +532,11 @@ struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
         .io             = RK30_PIN3_PB5,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3B5_SDMMC0DATA3_NAME,
             .fgpio      = GPIO3B_GPIO3B5,
             .fmux       = GPIO3B_SDMMC0_DATA3,
+	    #endif
         },
     }, 
     
@@ -557,9 +593,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC5,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3C5_SDMMC1CLKOUT_NAME,
             .fgpio      = GPIO3C_GPIO3C5,
             .fmux       = GPIO3B_SDMMC0_CLKOUT,
+	    #endif
         },
     },   
 
@@ -567,9 +605,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC0,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3C0_SMMC1CMD_NAME,
             .fgpio      = GPIO3C_GPIO3C0,
             .fmux       = GPIO3B_SDMMC0_CMD,
+	    #endif
         },
     },      
 
@@ -577,9 +617,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC1,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3C1_SDMMC1DATA0_NAME,
             .fgpio      = GPIO3C_GPIO3C1,
             .fmux       = GPIO3B_SDMMC0_DATA0,
+	    #endif
         },
     },      
 
@@ -587,9 +629,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC2,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3C2_SDMMC1DATA1_NAME,
             .fgpio      = GPIO3C_GPIO3C2,
             .fmux       = GPIO3B_SDMMC0_DATA1,
+	    #endif
         },
     },      
 
@@ -597,9 +641,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC3,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3C3_SDMMC1DATA2_NAME,
             .fgpio      = GPIO3C_GPIO3C3,
             .fmux       = GPIO3B_SDMMC0_DATA2,
+	    #endif
         },
     }, 
 
@@ -607,9 +653,11 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
         .io             = RK30_PIN3_PC4,
         .enable         = GPIO_HIGH,
         .iomux          = {
+            #if !(!!SDMMC_USE_NEW_IOMUX_API)
             .name       = GPIO3C4_SDMMC1DATA3_NAME,
             .fgpio      = GPIO3C_GPIO3C4,
             .fmux       = GPIO3B_SDMMC0_DATA3,
+	    #endif
         },
     }, 
 };
