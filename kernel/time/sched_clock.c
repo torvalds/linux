@@ -16,11 +16,12 @@
 #include <linux/hrtimer.h>
 #include <linux/sched_clock.h>
 #include <linux/seqlock.h>
+#include <linux/bitops.h>
 
 struct clock_data {
 	ktime_t wrap_kt;
 	u64 epoch_ns;
-	u32 epoch_cyc;
+	u64 epoch_cyc;
 	seqcount_t seq;
 	unsigned long rate;
 	u32 mult;
@@ -37,14 +38,25 @@ static struct clock_data cd = {
 	.mult	= NSEC_PER_SEC / HZ,
 };
 
-static u32 __read_mostly sched_clock_mask = 0xffffffff;
+static u64 __read_mostly sched_clock_mask;
 
-static u32 notrace jiffy_sched_clock_read(void)
+static u64 notrace jiffy_sched_clock_read(void)
 {
-	return (u32)(jiffies - INITIAL_JIFFIES);
+	/*
+	 * We don't need to use get_jiffies_64 on 32-bit arches here
+	 * because we register with BITS_PER_LONG
+	 */
+	return (u64)(jiffies - INITIAL_JIFFIES);
 }
 
-static u32 __read_mostly (*read_sched_clock)(void) = jiffy_sched_clock_read;
+static u32 __read_mostly (*read_sched_clock_32)(void);
+
+static u64 notrace read_sched_clock_32_wrapper(void)
+{
+	return read_sched_clock_32();
+}
+
+static u64 __read_mostly (*read_sched_clock)(void) = jiffy_sched_clock_read;
 
 static inline u64 notrace cyc_to_ns(u64 cyc, u32 mult, u32 shift)
 {
@@ -54,8 +66,8 @@ static inline u64 notrace cyc_to_ns(u64 cyc, u32 mult, u32 shift)
 static unsigned long long notrace sched_clock_32(void)
 {
 	u64 epoch_ns;
-	u32 epoch_cyc;
-	u32 cyc;
+	u64 epoch_cyc;
+	u64 cyc;
 	unsigned long seq;
 
 	if (cd.suspended)
@@ -78,7 +90,7 @@ static unsigned long long notrace sched_clock_32(void)
 static void notrace update_sched_clock(void)
 {
 	unsigned long flags;
-	u32 cyc;
+	u64 cyc;
 	u64 ns;
 
 	cyc = read_sched_clock();
@@ -101,7 +113,8 @@ static enum hrtimer_restart sched_clock_poll(struct hrtimer *hrt)
 	return HRTIMER_RESTART;
 }
 
-void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
+void __init sched_clock_register(u64 (*read)(void), int bits,
+				 unsigned long rate)
 {
 	unsigned long r;
 	u64 res, wrap;
@@ -110,14 +123,13 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 	if (cd.rate > rate)
 		return;
 
-	BUG_ON(bits > 32);
 	WARN_ON(!irqs_disabled());
 	read_sched_clock = read;
-	sched_clock_mask = (1 << bits) - 1;
+	sched_clock_mask = CLOCKSOURCE_MASK(bits);
 	cd.rate = rate;
 
 	/* calculate the mult/shift to convert counter ticks to ns. */
-	clocks_calc_mult_shift(&cd.mult, &cd.shift, rate, NSEC_PER_SEC, 0);
+	clocks_calc_mult_shift(&cd.mult, &cd.shift, rate, NSEC_PER_SEC, 3600);
 
 	r = rate;
 	if (r >= 4000000) {
@@ -130,7 +142,7 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 		r_unit = ' ';
 
 	/* calculate how many ns until we wrap */
-	wrap = cyc_to_ns((1ULL << bits) - 1, cd.mult, cd.shift);
+	wrap = clocks_calc_max_nsecs(cd.mult, cd.shift, 0, sched_clock_mask);
 	cd.wrap_kt = ns_to_ktime(wrap - (wrap >> 3));
 
 	/* calculate the ns resolution of this counter */
@@ -152,6 +164,12 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 	pr_debug("Registered %pF as sched_clock source\n", read);
 }
 
+void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
+{
+	read_sched_clock_32 = read;
+	sched_clock_register(read_sched_clock_32_wrapper, bits, rate);
+}
+
 unsigned long long __read_mostly (*sched_clock_func)(void) = sched_clock_32;
 
 unsigned long long notrace sched_clock(void)
@@ -166,7 +184,7 @@ void __init sched_clock_postinit(void)
 	 * make it the final one one.
 	 */
 	if (read_sched_clock == jiffy_sched_clock_read)
-		setup_sched_clock(jiffy_sched_clock_read, 32, HZ);
+		sched_clock_register(jiffy_sched_clock_read, BITS_PER_LONG, HZ);
 
 	update_sched_clock();
 
