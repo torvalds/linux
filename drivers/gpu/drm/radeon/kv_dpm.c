@@ -26,6 +26,7 @@
 #include "cikd.h"
 #include "r600_dpm.h"
 #include "kv_dpm.h"
+#include <linux/seq_file.h>
 
 #define KV_MAX_DEEPSLEEP_DIVIDER_ID     5
 #define KV_MINIMUM_ENGINE_CLOCK         800
@@ -2479,6 +2480,28 @@ int kv_dpm_init(struct radeon_device *rdev)
 	pi->enable_dpm = true;
 
 	return 0;
+}
+
+void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						    struct seq_file *m)
+{
+	struct kv_power_info *pi = kv_get_pi(rdev);
+	u32 current_index =
+		(RREG32_SMC(TARGET_AND_CURRENT_PROFILE_INDEX) & CURR_SCLK_INDEX_MASK) >>
+		CURR_SCLK_INDEX_SHIFT;
+	u32 sclk, tmp;
+	u16 vddc;
+
+	if (current_index >= SMU__NUM_SCLK_DPM_STATE) {
+		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	} else {
+		sclk = be32_to_cpu(pi->graphics_level[current_index].SclkFrequency);
+		tmp = (RREG32_SMC(SMU_VOLTAGE_STATUS) & SMU_VOLTAGE_CURRENT_LEVEL_MASK) >>
+			SMU_VOLTAGE_CURRENT_LEVEL_SHIFT;
+		vddc = kv_convert_8bit_index_to_voltage(rdev, (u16)tmp);
+		seq_printf(m, "power level %d    sclk: %u vddc: %u\n",
+			   current_index, sclk, vddc);
+	}
 }
 
 void kv_dpm_print_power_state(struct radeon_device *rdev,

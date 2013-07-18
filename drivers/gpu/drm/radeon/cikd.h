@@ -134,6 +134,10 @@
 #       define DISP_GAP_MCHG(x)                           ((x) << 24)
 #       define DISP_GAP_MCHG_MASK                         (3 << 24)
 
+#define SMU_VOLTAGE_STATUS                                0xC0200094
+#       define SMU_VOLTAGE_CURRENT_LEVEL_MASK             (0xff << 1)
+#       define SMU_VOLTAGE_CURRENT_LEVEL_SHIFT            1
+
 #define TARGET_AND_CURRENT_PROFILE_INDEX_1                0xC02000F0
 #       define CURR_PCIE_INDEX_MASK                       (0xf << 24)
 #       define CURR_PCIE_INDEX_SHIFT                      24

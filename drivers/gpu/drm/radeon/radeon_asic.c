@@ -2640,6 +2640,7 @@ static struct radeon_asic kv_asic = {
 		.get_sclk = &kv_dpm_get_sclk,
 		.get_mclk = &kv_dpm_get_mclk,
 		.print_power_state = &kv_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &kv_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
