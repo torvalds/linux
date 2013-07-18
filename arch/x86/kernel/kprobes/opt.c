@@ -415,11 +415,6 @@ void __kprobes arch_optimize_kprobes(struct list_head *oplist)
 			break;
 	}
 
-	/*
-	 * text_poke_smp doesn't support NMI/MCE code modifying.
-	 * However, since kprobes itself also doesn't support NMI/MCE
-	 * code probing, it's not a problem.
-	 */
 	text_poke_smp_batch(jump_poke_params, c);
 }
 
@@ -455,11 +450,6 @@ extern void arch_unoptimize_kprobes(struct list_head *oplist,
 			break;
 	}
 
-	/*
-	 * text_poke_smp doesn't support NMI/MCE code modifying.
-	 * However, since kprobes itself also doesn't support NMI/MCE
-	 * code probing, it's not a problem.
-	 */
 	text_poke_smp_batch(jump_poke_params, c);
 }
 
