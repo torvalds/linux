@@ -62,9 +62,19 @@ struct pmu_hw_events {
 	raw_spinlock_t		pmu_lock;
 };
 
+struct cpupmu_regs {
+	u32 pmc;
+	u32 pmcntenset;
+	u32 pmuseren;
+	u32 pmintenset;
+	u32 pmxevttype[8];
+	u32 pmxevtcnt[8];
+};
+
 struct arm_pmu {
 	struct pmu	pmu;
 	cpumask_t	active_irqs;
+	cpumask_t	valid_cpus;
 	char		*name;
 	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
 	void		(*enable)(struct perf_event *event);
@@ -81,6 +91,8 @@ struct arm_pmu {
 	int		(*request_irq)(struct arm_pmu *, irq_handler_t handler);
 	void		(*free_irq)(struct arm_pmu *);
 	int		(*map_event)(struct perf_event *event);
+	void		(*save_regs)(struct arm_pmu *, struct cpupmu_regs *);
+	void		(*restore_regs)(struct arm_pmu *, struct cpupmu_regs *);
 	int		num_events;
 	atomic_t	active_events;
 	struct mutex	reserve_mutex;
