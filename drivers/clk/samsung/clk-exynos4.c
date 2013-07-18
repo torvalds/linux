@@ -969,20 +969,6 @@ static void __init exynos4_clk_register_finpll(unsigned long xom)
 
 }
 
-/*
- * This function allows non-dt platforms to specify the clock speed of the
- * xxti and xusbxti clocks. These clocks are then registered with the specified
- * clock speed.
- */
-void __init exynos4_clk_register_fixed_ext(unsigned long xxti_f,
-						unsigned long xusbxti_f)
-{
-	exynos4_fixed_rate_ext_clks[0].fixed_rate = xxti_f;
-	exynos4_fixed_rate_ext_clks[1].fixed_rate = xusbxti_f;
-	samsung_clk_register_fixed_rate(exynos4_fixed_rate_ext_clks,
-			ARRAY_SIZE(exynos4_fixed_rate_ext_clks));
-}
-
 static __initdata struct of_device_id ext_clk_match[] = {
 	{ .compatible = "samsung,clock-xxti", .data = (void *)0, },
 	{ .compatible = "samsung,clock-xusbxti", .data = (void *)1, },
