@@ -4,4 +4,5 @@ clk-common				= dpll.o composite.o divider.o gate.o \
 					  fixed-factor.o mux.o apll.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clk-common) clk-44xx.o
 obj-$(CONFIG_SOC_OMAP5)			+= $(clk-common) clk-54xx.o
+obj-$(CONFIG_SOC_DRA7XX)		+= $(clk-common) clk-7xx.o
 endif
