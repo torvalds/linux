@@ -633,8 +633,8 @@ static int int3_notify(struct notifier_block *self, unsigned long val, void *dat
  * @handler:	address to jump to when the temporary breakpoint is hit
  *
  * Modify multi-byte instruction by using int3 breakpoint on SMP.
- * In contrary to text_poke_smp(), we completely avoid stop_machine() here,
- * and achieve the synchronization using int3 breakpoint.
+ * We completely avoid stop_machine() here, and achieve the
+ * synchronization using int3 breakpoint.
  *
  * The way it is done:
  *	- add a int3 trap to the address that will be patched
@@ -702,97 +702,3 @@ static int __init int3_init(void)
 }
 
 arch_initcall(int3_init);
-/*
- * Cross-modifying kernel text with stop_machine().
- * This code originally comes from immediate value.
- */
-static atomic_t stop_machine_first;
-static int wrote_text;
-
-struct text_poke_params {
-	struct text_poke_param *params;
-	int nparams;
-};
-
-static int __kprobes stop_machine_text_poke(void *data)
-{
-	struct text_poke_params *tpp = data;
-	struct text_poke_param *p;
-	int i;
-
-	if (atomic_xchg(&stop_machine_first, 0)) {
-		for (i = 0; i < tpp->nparams; i++) {
-			p = &tpp->params[i];
-			text_poke(p->addr, p->opcode, p->len);
-		}
-		smp_wmb();	/* Make sure other cpus see that this has run */
-		wrote_text = 1;
-	} else {
-		while (!wrote_text)
-			cpu_relax();
-		smp_mb();	/* Load wrote_text before following execution */
-	}
-
-	for (i = 0; i < tpp->nparams; i++) {
-		p = &tpp->params[i];
-		flush_icache_range((unsigned long)p->addr,
-				   (unsigned long)p->addr + p->len);
-	}
-	/*
-	 * Intel Archiecture Software Developer's Manual section 7.1.3 specifies
-	 * that a core serializing instruction such as "cpuid" should be
-	 * executed on _each_ core before the new instruction is made visible.
-	 */
-	sync_core();
-	return 0;
-}
-
-/**
- * text_poke_smp - Update instructions on a live kernel on SMP
- * @addr: address to modify
- * @opcode: source of the copy
- * @len: length to copy
- *
- * Modify multi-byte instruction by using stop_machine() on SMP. This allows
- * user to poke/set multi-byte text on SMP. Only non-NMI/MCE code modifying
- * should be allowed, since stop_machine() does _not_ protect code against
- * NMI and MCE.
- *
- * Note: Must be called under get_online_cpus() and text_mutex.
- */
-void *__kprobes text_poke_smp(void *addr, const void *opcode, size_t len)
-{
-	struct text_poke_params tpp;
-	struct text_poke_param p;
-
-	p.addr = addr;
-	p.opcode = opcode;
-	p.len = len;
-	tpp.params = &p;
-	tpp.nparams = 1;
-	atomic_set(&stop_machine_first, 1);
-	wrote_text = 0;
-	/* Use __stop_machine() because the caller already got online_cpus. */
-	__stop_machine(stop_machine_text_poke, (void *)&tpp, cpu_online_mask);
-	return addr;
-}
-
-/**
- * text_poke_smp_batch - Update instructions on a live kernel on SMP
- * @params: an array of text_poke parameters
- * @n: the number of elements in params.
- *
- * Modify multi-byte instruction by using stop_machine() on SMP. Since the
- * stop_machine() is heavy task, it is better to aggregate text_poke requests
- * and do it once if possible.
- *
- * Note: Must be called under get_online_cpus() and text_mutex.
- */
-void __kprobes text_poke_smp_batch(struct text_poke_param *params, int n)
-{
-	struct text_poke_params tpp = {.params = params, .nparams = n};
-
-	atomic_set(&stop_machine_first, 1);
-	wrote_text = 0;
-	__stop_machine(stop_machine_text_poke, (void *)&tpp, cpu_online_mask);
-}

@@ -220,21 +220,10 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
  * no thread can be preempted in the instructions being modified (no iret to an
  * invalid instruction possible) or if the instructions are changed from a
  * consistent state to another consistent state atomically.
- * More care must be taken when modifying code in the SMP case because of
- * Intel's errata. text_poke_smp() takes care that errata, but still
- * doesn't support NMI/MCE handler code modifying.
  * On the local CPU you need to be protected again NMI or MCE handlers seeing an
  * inconsistent instruction while you patch.
  */
-struct text_poke_param {
-	void *addr;
-	const void *opcode;
-	size_t len;
-};
-
 extern void *text_poke(void *addr, const void *opcode, size_t len);
 extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
-extern void *text_poke_smp(void *addr, const void *opcode, size_t len);
-extern void text_poke_smp_batch(struct text_poke_param *params, int n);
 
 #endif /* _ASM_X86_ALTERNATIVE_H */
