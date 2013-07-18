@@ -8,15 +8,17 @@
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/ktime.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/syscore_ops.h>
-#include <linux/timer.h>
+#include <linux/hrtimer.h>
 #include <linux/sched_clock.h>
 #include <linux/seqlock.h>
 
 struct clock_data {
+	ktime_t wrap_kt;
 	u64 epoch_ns;
 	u32 epoch_cyc;
 	seqcount_t seq;
@@ -26,8 +28,7 @@ struct clock_data {
 	bool suspended;
 };
 
-static void sched_clock_poll(unsigned long wrap_ticks);
-static DEFINE_TIMER(sched_clock_timer, sched_clock_poll, 0, 0);
+static struct hrtimer sched_clock_timer;
 static int irqtime = -1;
 
 core_param(irqtime, irqtime, int, 0400);
@@ -93,15 +94,16 @@ static void notrace update_sched_clock(void)
 	raw_local_irq_restore(flags);
 }
 
-static void sched_clock_poll(unsigned long wrap_ticks)
+static enum hrtimer_restart sched_clock_poll(struct hrtimer *hrt)
 {
-	mod_timer(&sched_clock_timer, round_jiffies(jiffies + wrap_ticks));
 	update_sched_clock();
+	hrtimer_forward_now(hrt, cd.wrap_kt);
+	return HRTIMER_RESTART;
 }
 
 void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 {
-	unsigned long r, w;
+	unsigned long r;
 	u64 res, wrap;
 	char r_unit;
 
@@ -129,19 +131,13 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 
 	/* calculate how many ns until we wrap */
 	wrap = cyc_to_ns((1ULL << bits) - 1, cd.mult, cd.shift);
-	do_div(wrap, NSEC_PER_MSEC);
-	w = wrap;
+	cd.wrap_kt = ns_to_ktime(wrap - (wrap >> 3));
 
 	/* calculate the ns resolution of this counter */
 	res = cyc_to_ns(1ULL, cd.mult, cd.shift);
-	pr_info("sched_clock: %u bits at %lu%cHz, resolution %lluns, wraps every %lums\n",
-		bits, r, r_unit, res, w);
+	pr_info("sched_clock: %u bits at %lu%cHz, resolution %lluns, wraps every %lluns\n",
+		bits, r, r_unit, res, wrap);
 
-	/*
-	 * Start the timer to keep sched_clock() properly updated and
-	 * sets the initial epoch.
-	 */
-	sched_clock_timer.data = msecs_to_jiffies(w - (w / 10));
 	update_sched_clock();
 
 	/*
@@ -172,12 +168,20 @@ void __init sched_clock_postinit(void)
 	if (read_sched_clock == jiffy_sched_clock_read)
 		setup_sched_clock(jiffy_sched_clock_read, 32, HZ);
 
-	sched_clock_poll(sched_clock_timer.data);
+	update_sched_clock();
+
+	/*
+	 * Start the timer to keep sched_clock() properly updated and
+	 * sets the initial epoch.
+	 */
+	hrtimer_init(&sched_clock_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	sched_clock_timer.function = sched_clock_poll;
+	hrtimer_start(&sched_clock_timer, cd.wrap_kt, HRTIMER_MODE_REL);
 }
 
 static int sched_clock_suspend(void)
 {
-	sched_clock_poll(sched_clock_timer.data);
+	sched_clock_poll(&sched_clock_timer);
 	cd.suspended = true;
 	return 0;
 }
