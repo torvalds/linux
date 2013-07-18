@@ -178,7 +178,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 
 				err = __skb_linearize(skb);
 				if (err) {
-					kfree_skb(segs);
+					kfree_skb_list(segs);
 					segs = ERR_PTR(err);
 					goto out;
 				}

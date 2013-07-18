@@ -483,15 +483,8 @@ EXPORT_SYMBOL(skb_add_rx_frag);
 
 static void skb_drop_list(struct sk_buff **listp)
 {
-	struct sk_buff *list = *listp;
-
+	kfree_skb_list(*listp);
 	*listp = NULL;
-
-	do {
-		struct sk_buff *this = list;
-		list = list->next;
-		kfree_skb(this);
-	} while (list);
 }
 
 static inline void skb_drop_fraglist(struct sk_buff *skb)
@@ -650,6 +643,17 @@ void kfree_skb(struct sk_buff *skb)
 	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(kfree_skb);
+
+void kfree_skb_list(struct sk_buff *segs)
+{
+	while (segs) {
+		struct sk_buff *next = segs->next;
+
+		kfree_skb(segs);
+		segs = next;
+	}
+}
+EXPORT_SYMBOL(kfree_skb_list);
 
 /**
  *	skb_tx_error - report an sk_buff xmit error

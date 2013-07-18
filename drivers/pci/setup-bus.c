@@ -1044,7 +1044,7 @@ handle_done:
 	;
 }
 
-static void __ref __pci_bus_size_bridges(struct pci_bus *bus,
+void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 			struct list_head *realloc_head)
 {
 	struct pci_dev *dev;
@@ -1115,9 +1115,9 @@ void __ref pci_bus_size_bridges(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_size_bridges);
 
-static void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
-					 struct list_head *realloc_head,
-					 struct list_head *fail_head)
+void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
+				      struct list_head *realloc_head,
+				      struct list_head *fail_head)
 {
 	struct pci_bus *b;
 	struct pci_dev *dev;

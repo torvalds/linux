@@ -565,18 +565,22 @@ skip:
 
 /* Watch incoming packets to learn mapping between Ethernet address
  * and Tunnel endpoint.
+ * Return true if packet is bogus and should be droppped.
  */
-static void vxlan_snoop(struct net_device *dev,
+static bool vxlan_snoop(struct net_device *dev,
 			__be32 src_ip, const u8 *src_mac)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_fdb *f;
-	int err;
 
 	f = vxlan_find_mac(vxlan, src_mac);
 	if (likely(f)) {
 		if (likely(f->remote.remote_ip == src_ip))
-			return;
+			return false;
+
+		/* Don't migrate static entries, drop packets */
+		if (f->state & NUD_NOARP)
+			return true;
 
 		if (net_ratelimit())
 			netdev_info(dev,
@@ -588,14 +592,19 @@ static void vxlan_snoop(struct net_device *dev,
 	} else {
 		/* learned new entry */
 		spin_lock(&vxlan->hash_lock);
-		err = vxlan_fdb_create(vxlan, src_mac, src_ip,
-				       NUD_REACHABLE,
-				       NLM_F_EXCL|NLM_F_CREATE,
-				       vxlan->dst_port,
-				       vxlan->default_dst.remote_vni,
-				       0, NTF_SELF);
+
+		/* close off race between vxlan_flush and incoming packets */
+		if (netif_running(dev))
+			vxlan_fdb_create(vxlan, src_mac, src_ip,
+					 NUD_REACHABLE,
+					 NLM_F_EXCL|NLM_F_CREATE,
+					 vxlan->dst_port,
+					 vxlan->default_dst.remote_vni,
+					 0, NTF_SELF);
 		spin_unlock(&vxlan->hash_lock);
 	}
+
+	return false;
 }
 
 
@@ -727,8 +736,9 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 			       vxlan->dev->dev_addr) == 0)
 		goto drop;
 
-	if (vxlan->flags & VXLAN_F_LEARN)
-		vxlan_snoop(skb->dev, oip->saddr, eth_hdr(skb)->h_source);
+	if ((vxlan->flags & VXLAN_F_LEARN) &&
+	    vxlan_snoop(skb->dev, oip->saddr, eth_hdr(skb)->h_source))
+		goto drop;
 
 	__skb_tunnel_rx(skb, vxlan->dev);
 	skb_reset_network_header(skb);
@@ -1151,9 +1161,11 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct sk_buff *skb1;
 
 		skb1 = skb_clone(skb, GFP_ATOMIC);
-		rc1 = vxlan_xmit_one(skb1, dev, rdst, did_rsc);
-		if (rc == NETDEV_TX_OK)
-			rc = rc1;
+		if (skb1) {
+			rc1 = vxlan_xmit_one(skb1, dev, rdst, did_rsc);
+			if (rc == NETDEV_TX_OK)
+				rc = rc1;
+		}
 	}
 
 	rc1 = vxlan_xmit_one(skb, dev, rdst0, did_rsc);
