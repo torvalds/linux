@@ -729,8 +729,11 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
 	bpp = pipe_config->pipe_bpp;
-	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp)
+	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp) {
+		DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
+			      dev_priv->vbt.edp_bpp);
 		bpp = min_t(int, bpp, dev_priv->vbt.edp_bpp);
+	}
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
 		mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
