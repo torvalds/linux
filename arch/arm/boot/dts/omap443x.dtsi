@@ -31,3 +31,5 @@
 		compatible = "ti,omap4430-bandgap";
 	};
 };
+
+/include/ "omap443x-clocks.dtsi"

@@ -39,3 +39,5 @@
 		gpios = <&gpio3 22 0>; /* tshut */
 	};
 };
+
+/include/ "omap446x-clocks.dtsi"
