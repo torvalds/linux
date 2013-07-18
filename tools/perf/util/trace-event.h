@@ -9,6 +9,7 @@ struct machine;
 struct perf_sample;
 union perf_event;
 struct perf_tool;
+struct thread;
 
 extern struct pevent *perf_pevent;
 
@@ -68,7 +69,8 @@ struct scripting_ops {
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,
-			       struct addr_location *al);
+			       struct thread *thread,
+				   struct addr_location *al);
 	int (*generate_script) (struct pevent *pevent, const char *outfile);
 };
 
