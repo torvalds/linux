@@ -2436,9 +2436,15 @@ int regulator_map_voltage_linear_range(struct regulator_dev *rdev,
 		if (min_uV <= range->min_uV)
 			min_uV = range->min_uV;
 
-		ret = DIV_ROUND_UP(min_uV - range->min_uV, range->uV_step);
-		if (ret < 0)
-			return ret;
+		/* range->uV_step == 0 means fixed voltage range */
+		if (range->uV_step == 0) {
+			ret = 0;
+		} else {
+			ret = DIV_ROUND_UP(min_uV - range->min_uV,
+					   range->uV_step);
+			if (ret < 0)
+				return ret;
+		}
 
 		break;
 	}
