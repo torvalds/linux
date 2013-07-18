@@ -1239,6 +1239,7 @@ static struct clk aclk_vio_pre = {
 	.set_rate	= clksel_set_rate_freediv,
 	.clksel_con	= CRU_CLKSELS_CON(31),
 	CRU_DIV_SET(0x1f, 0, 32),
+	CRU_SRC_SET(0x1, 7),
 	CRU_PARENTS_SET(clk_aclk_vio_pre_parents),
 };
 static struct clk hclk_vio_pre = {
@@ -1267,7 +1268,7 @@ static struct clk peri_aclk = {
 static struct clk peri_hclk = {
 	.name		= "peri_hclk",
 	.parent		= &peri_aclk,
-	.recalc		= clksel_recalc_div,
+	.recalc		= clksel_recalc_shift,
 	.set_rate	= clksel_set_rate_shift,
 	.clksel_con	= CRU_CLKSELS_CON(10),
 	CRU_DIV_SET(PERI_HCLK_DIV_MASK, PERI_HCLK_DIV_SHIFT, 8),
@@ -1276,7 +1277,7 @@ static struct clk peri_hclk = {
 static struct clk peri_pclk = {
 	.name		= "peri_pclk",
 	.parent		= &peri_aclk,
-	.recalc		= clksel_recalc_div,
+	.recalc		= clksel_recalc_shift,
 	.set_rate	= clksel_set_rate_shift,
 	.clksel_con	= CRU_CLKSELS_CON(10),
 	CRU_DIV_SET(PERI_PCLK_DIV_MASK, PERI_PCLK_DIV_SHIFT, 4),
@@ -1811,7 +1812,7 @@ static struct clk clk_uart1_div = {
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_freediv,
 	.round_rate	= clksel_freediv_round_rate,
-	.clksel_con	= CRU_CLKSELS_CON(15),
+	.clksel_con	= CRU_CLKSELS_CON(14),
 	CRU_DIV_SET(0x7f, 0, 64),	
 };
 static struct clk clk_uart2_div = {
