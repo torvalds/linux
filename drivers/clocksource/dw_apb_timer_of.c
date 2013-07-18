@@ -106,7 +106,7 @@ static void add_clocksource(struct device_node *source_timer)
 	sched_rate = rate;
 }
 
-static u32 read_sched_clock(void)
+static u64 read_sched_clock(void)
 {
 	return __raw_readl(sched_io_base);
 }
@@ -128,7 +128,7 @@ static void init_sched_clock(void)
 		of_node_put(sched_timer);
 	}
 
-	setup_sched_clock(read_sched_clock, 32, sched_rate);
+	sched_clock_register(read_sched_clock, 32, sched_rate);
 }
 
 static int num_called;
