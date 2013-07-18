@@ -64,6 +64,16 @@ config REGULATOR_USERSPACE_CONSUMER
 
 	  If unsure, say no.
 
+config REGULATOR_88PM800
+	tristate "Marvell 88PM800 Power regulators"
+	depends on MFD_88PM800=y
+	help
+	  This driver supports Marvell 88PM800 voltage regulator chips.
+	  It delivers digitally programmable output,
+	  the voltage is programmed via I2C interface.
+	  It's suitable to support PXA988 chips to control VCC_MAIN and
+	  various voltages.
+
 config REGULATOR_88PM8607
 	bool "Marvell 88PM8607 Power regulators"
 	depends on MFD_88PM860X=y
