@@ -40,6 +40,7 @@ static void kv_enable_new_levels(struct radeon_device *rdev);
 static void kv_program_nbps_index_settings(struct radeon_device *rdev,
 					   struct radeon_ps *new_rps);
 static int kv_set_enabled_levels(struct radeon_device *rdev);
+static int kv_force_dpm_highest(struct radeon_device *rdev);
 static int kv_force_dpm_lowest(struct radeon_device *rdev);
 static void kv_apply_state_adjust_rules(struct radeon_device *rdev,
 					struct radeon_ps *new_rps,
@@ -1641,6 +1642,30 @@ static int kv_enable_nb_dpm(struct radeon_device *rdev)
 	return ret;
 }
 
+int kv_dpm_force_performance_level(struct radeon_device *rdev,
+				   enum radeon_dpm_forced_level level)
+{
+	int ret;
+
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		ret = kv_force_dpm_highest(rdev);
+		if (ret)
+			return ret;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		ret = kv_force_dpm_lowest(rdev);
+		if (ret)
+			return ret;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
+		ret = kv_unforce_levels(rdev);
+		if (ret)
+			return ret;
+	}
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
+}
+
 int kv_dpm_pre_set_power_state(struct radeon_device *rdev)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
@@ -1720,6 +1745,7 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 			kv_enable_nb_dpm(rdev);
 		}
 	}
+	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
 	return 0;
 }
 
@@ -1794,6 +1820,23 @@ static void kv_construct_boot_state(struct radeon_device *rdev)
 	pi->boot_pl.force_nbp_state = 0;
 	pi->boot_pl.display_wm = 0;
 	pi->boot_pl.vce_wm = 0;
+}
+
+static int kv_force_dpm_highest(struct radeon_device *rdev)
+{
+	int ret;
+	u32 enable_mask, i;
+
+	ret = kv_dpm_get_enable_mask(rdev, &enable_mask);
+	if (ret)
+		return ret;
+
+	for (i = SMU7_MAX_LEVELS_GRAPHICS - 1; i >= 0; i--) {
+		if (enable_mask & (1 << i))
+			break;
+	}
+
+	return kv_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_DPM_ForceState, i);
 }
 
 static int kv_force_dpm_lowest(struct radeon_device *rdev)
