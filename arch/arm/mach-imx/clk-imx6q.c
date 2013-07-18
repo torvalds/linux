@@ -206,6 +206,16 @@ static const char *vpu_axi_sels[]	= { "axi", "pll2_pfd2_396m", "pll2_pfd0_352m",
 static const char *cko1_sels[]	= { "pll3_usb_otg", "pll2_bus", "pll1_sys", "pll5_video_div",
 				    "dummy", "axi", "enfc", "ipu1_di0", "ipu1_di1", "ipu2_di0",
 				    "ipu2_di1", "ahb", "ipg", "ipg_per", "ckil", "pll4_post_div", };
+static const char *cko2_sels[] = {
+	"mmdc_ch0_axi", "mmdc_ch1_axi", "usdhc4", "usdhc1",
+	"gpu2d_axi", "dummy", "ecspi_root", "gpu3d_axi",
+	"usdhc3", "dummy", "arm", "ipu1",
+	"ipu2", "vdo_axi", "osc", "gpu2d_core",
+	"gpu3d_core", "usdhc2", "ssi1", "ssi2",
+	"ssi3", "gpu3d_shader", "vpu_axi", "can_root",
+	"ldb_di0", "ldb_di1", "esai", "eim_slow",
+	"uart_serial", "spdif", "asrc", "hsi_tx",
+};
 
 enum mx6q_clks {
 	dummy, ckil, ckih, osc, pll2_pfd0_352m, pll2_pfd1_594m, pll2_pfd2_396m,
@@ -240,7 +250,7 @@ enum mx6q_clks {
 	ssi2_ipg, ssi3_ipg, rom, usbphy1, usbphy2, ldb_di0_div_3_5, ldb_di1_div_3_5,
 	sata_ref, sata_ref_100m, pcie_ref, pcie_ref_125m, enet_ref, usbphy1_gate,
 	usbphy2_gate, pll4_post_div, pll5_post_div, pll5_video_div, eim_slow,
-	spdif, clk_max
+	spdif, cko2_sel, cko2_podf, cko2, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -398,6 +408,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk[vdo_axi_sel]      = imx_clk_mux("vdo_axi_sel",      base + 0x18, 11, 1, vdo_axi_sels,      ARRAY_SIZE(vdo_axi_sels));
 	clk[vpu_axi_sel]      = imx_clk_mux("vpu_axi_sel",      base + 0x18, 14, 2, vpu_axi_sels,      ARRAY_SIZE(vpu_axi_sels));
 	clk[cko1_sel]         = imx_clk_mux("cko1_sel",         base + 0x60, 0,  4, cko1_sels,         ARRAY_SIZE(cko1_sels));
+	clk[cko2_sel]         = imx_clk_mux("cko2_sel",         base + 0x60, 16, 5, cko2_sels,         ARRAY_SIZE(cko2_sels));
 
 	/*                              name         reg      shift width busy: reg, shift parent_names  num_parents */
 	clk[periph]  = imx_clk_busy_mux("periph",  base + 0x14, 25,  1,   base + 0x48, 5,  periph_sels,  ARRAY_SIZE(periph_sels));
@@ -447,6 +458,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk[emi_slow_podf]    = imx_clk_fixup_divider("emi_slow_podf", "emi_slow_sel",   base + 0x1c, 23, 3, imx_cscmr1_fixup);
 	clk[vpu_axi_podf]     = imx_clk_divider("vpu_axi_podf",     "vpu_axi_sel",       base + 0x24, 25, 3);
 	clk[cko1_podf]        = imx_clk_divider("cko1_podf",        "cko1_sel",          base + 0x60, 4,  3);
+	clk[cko2_podf]        = imx_clk_divider("cko2_podf",        "cko2_sel",          base + 0x60, 21, 3);
 
 	/*                                            name                 parent_name    reg        shift width busy: reg, shift */
 	clk[axi]               = imx_clk_busy_divider("axi",               "axi_sel",     base + 0x14, 16,  3,   base + 0x48, 0);
@@ -537,6 +549,7 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	clk[vdo_axi]      = imx_clk_gate2("vdo_axi",       "vdo_axi_sel",       base + 0x80, 12);
 	clk[vpu_axi]      = imx_clk_gate2("vpu_axi",       "vpu_axi_podf",      base + 0x80, 14);
 	clk[cko1]         = imx_clk_gate("cko1",           "cko1_podf",         base + 0x60, 7);
+	clk[cko2]         = imx_clk_gate("cko2",           "cko2_podf",         base + 0x60, 24);
 
 	for (i = 0; i < ARRAY_SIZE(clk); i++)
 		if (IS_ERR(clk[i]))
