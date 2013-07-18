@@ -43,7 +43,7 @@ static bool arch_timer_use_virtual = true;
  * Architected system timer support.
  */
 
-static inline irqreturn_t timer_handler(const int access,
+static __always_inline irqreturn_t timer_handler(const int access,
 					struct clock_event_device *evt)
 {
 	unsigned long ctrl;
@@ -72,7 +72,7 @@ static irqreturn_t arch_timer_handler_phys(int irq, void *dev_id)
 	return timer_handler(ARCH_TIMER_PHYS_ACCESS, evt);
 }
 
-static inline void timer_set_mode(const int access, int mode)
+static __always_inline void timer_set_mode(const int access, int mode)
 {
 	unsigned long ctrl;
 	switch (mode) {
@@ -99,7 +99,7 @@ static void arch_timer_set_mode_phys(enum clock_event_mode mode,
 	timer_set_mode(ARCH_TIMER_PHYS_ACCESS, mode);
 }
 
-static inline void set_next_event(const int access, unsigned long evt)
+static __always_inline void set_next_event(const int access, unsigned long evt)
 {
 	unsigned long ctrl;
 	ctrl = arch_timer_reg_read(access, ARCH_TIMER_REG_CTRL);

@@ -23,8 +23,10 @@
 #define ARCH_TIMER_CTRL_IT_MASK		(1 << 1)
 #define ARCH_TIMER_CTRL_IT_STAT		(1 << 2)
 
-#define ARCH_TIMER_REG_CTRL		0
-#define ARCH_TIMER_REG_TVAL		1
+enum arch_timer_reg {
+	ARCH_TIMER_REG_CTRL,
+	ARCH_TIMER_REG_TVAL,
+};
 
 #define ARCH_TIMER_PHYS_ACCESS		0
 #define ARCH_TIMER_VIRT_ACCESS		1
