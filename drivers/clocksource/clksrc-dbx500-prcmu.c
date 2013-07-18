@@ -53,7 +53,7 @@ static struct clocksource clocksource_dbx500_prcmu = {
 
 #ifdef CONFIG_CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 
-static u32 notrace dbx500_prcmu_sched_clock_read(void)
+static u64 notrace dbx500_prcmu_sched_clock_read(void)
 {
 	if (unlikely(!clksrc_dbx500_timer_base))
 		return 0;
@@ -81,8 +81,7 @@ void __init clksrc_dbx500_prcmu_init(void __iomem *base)
 		       clksrc_dbx500_timer_base + PRCMU_TIMER_REF);
 	}
 #ifdef CONFIG_CLKSRC_DBX500_PRCMU_SCHED_CLOCK
-	setup_sched_clock(dbx500_prcmu_sched_clock_read,
-			 32, RATE_32K);
+	sched_clock_register(dbx500_prcmu_sched_clock_read, 32, RATE_32K);
 #endif
 	clocksource_register_hz(&clocksource_dbx500_prcmu, RATE_32K);
 }
