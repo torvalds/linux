@@ -71,7 +71,7 @@ static u32 ticks_per_jiffy;
 
 static struct clock_event_device __percpu **percpu_armada_370_xp_evt;
 
-static u32 notrace armada_370_xp_read_sched_clock(void)
+static u64 notrace armada_370_xp_read_sched_clock(void)
 {
 	return ~readl(timer_base + TIMER0_VAL_OFF);
 }
@@ -258,7 +258,7 @@ void __init armada_370_xp_timer_init(void)
 	/*
 	 * Set scale and timer for sched_clock.
 	 */
-	setup_sched_clock(armada_370_xp_read_sched_clock, 32, timer_clk);
+	sched_clock_register(armada_370_xp_read_sched_clock, 32, timer_clk);
 
 	/*
 	 * Setup free-running clocksource timer (interrupts
