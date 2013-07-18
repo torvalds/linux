@@ -1448,7 +1448,7 @@ static struct trace_event graph_trace_ret_event = {
 	.funcs		= &graph_functions
 };
 
-static struct tracer graph_trace __read_mostly = {
+static struct tracer graph_trace __tracer_data = {
 	.name		= "function_graph",
 	.open		= graph_trace_open,
 	.pipe_open	= graph_trace_open,
