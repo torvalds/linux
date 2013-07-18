@@ -20,7 +20,6 @@
  * support for loopback block device as a branch
  */
 
-#include <linux/loop.h>
 #include "aufs.h"
 
 /*
@@ -29,14 +28,14 @@
 int au_test_loopback_overlap(struct super_block *sb, struct dentry *h_adding)
 {
 	struct super_block *h_sb;
-	struct loop_device *l;
+	struct file *backing_file;
 
 	h_sb = h_adding->d_sb;
-	if (MAJOR(h_sb->s_dev) != LOOP_MAJOR)
+	backing_file = loop_backing_file(h_sb);
+	if (!backing_file)
 		return 0;
 
-	l = h_sb->s_bdev->bd_disk->private_data;
-	h_adding = l->lo_backing_file->f_dentry;
+	h_adding = backing_file->f_dentry;
 	/*
 	 * h_adding can be local NFS.
 	 * in this case aufs cannot detect the loop.

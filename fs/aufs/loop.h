@@ -29,6 +29,9 @@ struct dentry;
 struct super_block;
 
 #ifdef CONFIG_AUFS_BDEV_LOOP
+/* drivers/block/loop.c */
+struct file *loop_backing_file(struct super_block *sb);
+
 /* loop.c */
 int au_test_loopback_overlap(struct super_block *sb, struct dentry *h_adding);
 int au_test_loopback_kthread(void);
