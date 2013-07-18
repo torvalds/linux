@@ -1240,6 +1240,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See comment before ip2_setup() in
 			drivers/char/ip2/ip2base.c.
 
+	irqaffinity=	[SMP] Set the default irq affinity mask
+			Format:
+			<cpu number>,...,<cpu number>
+			or
+			<cpu number>-<cpu number>
+			(must be a positive range in ascending order)
+			or a mixture
+			<cpu number>,...,<cpu number>-<cpu number>
+
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
 			for it. Intended to get systems with badly broken
