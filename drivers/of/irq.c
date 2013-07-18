@@ -345,6 +345,7 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 	if (r && irq) {
 		const char *name = NULL;
 
+		memset(r, 0, sizeof(*r));
 		/*
 		 * Get optional "interrupts-names" property to add a name
 		 * to the resource.
