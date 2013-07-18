@@ -1482,7 +1482,7 @@ out:
 bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 			  char *msg, size_t msgsize)
 {
-	if ((err == ENOENT || err == ENXIO) &&
+	if ((err == ENOENT || err == ENXIO || err == ENODEV) &&
 	    evsel->attr.type   == PERF_TYPE_HARDWARE &&
 	    evsel->attr.config == PERF_COUNT_HW_CPU_CYCLES) {
 		/*
