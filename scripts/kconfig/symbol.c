@@ -136,7 +136,7 @@ static struct property *sym_get_range_prop(struct symbol *sym)
 	return NULL;
 }
 
-static long sym_get_range_val(struct symbol *sym, int base)
+static long long sym_get_range_val(struct symbol *sym, int base)
 {
 	sym_calc_value(sym);
 	switch (sym->type) {
@@ -149,13 +149,14 @@ static long sym_get_range_val(struct symbol *sym, int base)
 	default:
 		break;
 	}
-	return strtol(sym->curr.val, NULL, base);
+	return strtoll(sym->curr.val, NULL, base);
 }
 
 static void sym_validate_range(struct symbol *sym)
 {
 	struct property *prop;
-	long base, val, val2;
+	int base;
+	long long val, val2;
 	char str[64];
 
 	switch (sym->type) {
@@ -171,7 +172,7 @@ static void sym_validate_range(struct symbol *sym)
 	prop = sym_get_range_prop(sym);
 	if (!prop)
 		return;
-	val = strtol(sym->curr.val, NULL, base);
+	val = strtoll(sym->curr.val, NULL, base);
 	val2 = sym_get_range_val(prop->expr->left.sym, base);
 	if (val >= val2) {
 		val2 = sym_get_range_val(prop->expr->right.sym, base);
@@ -179,9 +180,9 @@ static void sym_validate_range(struct symbol *sym)
 			return;
 	}
 	if (sym->type == S_INT)
-		sprintf(str, "%ld", val2);
+		sprintf(str, "%lld", val2);
 	else
-		sprintf(str, "0x%lx", val2);
+		sprintf(str, "0x%llx", val2);
 	sym->curr.val = strdup(str);
 }
 
@@ -594,7 +595,7 @@ bool sym_string_valid(struct symbol *sym, const char *str)
 bool sym_string_within_range(struct symbol *sym, const char *str)
 {
 	struct property *prop;
-	long val;
+	long long val;
 
 	switch (sym->type) {
 	case S_STRING:
@@ -605,7 +606,7 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 		prop = sym_get_range_prop(sym);
 		if (!prop)
 			return true;
-		val = strtol(str, NULL, 10);
+		val = strtoll(str, NULL, 10);
 		return val >= sym_get_range_val(prop->expr->left.sym, 10) &&
 		       val <= sym_get_range_val(prop->expr->right.sym, 10);
 	case S_HEX:
@@ -614,7 +615,7 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 		prop = sym_get_range_prop(sym);
 		if (!prop)
 			return true;
-		val = strtol(str, NULL, 16);
+		val = strtoll(str, NULL, 16);
 		return val >= sym_get_range_val(prop->expr->left.sym, 16) &&
 		       val <= sym_get_range_val(prop->expr->right.sym, 16);
 	case S_BOOLEAN:
