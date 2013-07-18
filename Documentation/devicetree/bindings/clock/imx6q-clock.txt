@@ -213,6 +213,7 @@ clocks and IDs.
 	cko2_sel      		198
 	cko2_podf      		199
 	cko2      		200
+	cko      		201
 
 Examples:
 
