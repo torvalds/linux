@@ -726,7 +726,7 @@
 			compatible = "ti,omap4-aes";
 			ti,hwmods = "aes";
 			reg = <0x53500000 0xa0>;
-			interrupts = <102>;
+			interrupts = <103>;
 			dmas = <&edma 6>,
 			       <&edma 5>;
 			dma-names = "tx", "rx";
