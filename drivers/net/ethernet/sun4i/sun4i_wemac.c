@@ -1,5 +1,5 @@
 /*
- *      Davicom WEMAC Fast Ethernet driver for Linux.
+ *      Allwinner sunxi ethernet mac driver for Linux.
  *      Copyright (C) 1997  Sten Wang
  *
  *      This program is free software; you can redistribute it and/or
@@ -52,12 +52,12 @@
 
 /* Board/System/Debug information/definition ---------------- */
 
-#define WEMAC_PHY	0x100 /* PHY address 0x01 */
-#define CARDNAME	"wemac"
+#define SUNXI_EMAC_PHY	0x100 /* PHY address 0x01 */
+#define CARDNAME	"sunxi_emac"
 #define DRV_VERSION	"1.01"
 #define DMA_CPU_TRRESHOLD 2000
 /* bit_flags */
-#define EMAC_TX_TIMEOUT_PENDING		0
+#define SUNXI_EMAC_TX_TIMEOUT_PENDING		0
 
 /*
  * Transmit timeout, default 5 seconds.
@@ -70,9 +70,9 @@ module_param(watchdog, int, 0400);
 MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
 
 
-/* WEMAC register address locking.
+/* SUNXI_EMAC register address locking.
  *
- * The WEMAC uses an address register to control where data written
+ * The SUNXI_EMAC uses an address register to control where data written
  * to the data register goes. This means that the address register
  * must be preserved over interrupts or similar calls.
  *
@@ -88,13 +88,13 @@ MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
  * these two devices.
  */
 
-/* The driver supports the original WEMACE, and now the two newer
- * devices, WEMACA and WEMACB.
+/* The driver supports the original SUNXI_EMACE, and now the two newer
+ * devices, SUNXI_EMACA and SUNXI_EMACB.
  */
 
 
 /* Structure/enum declaration ------------------------------- */
-typedef struct wemac_board_info {
+typedef struct sunxi_emac_board_info {
 
 	void __iomem	*emac_vbase;	/* mac I/O base address */
 	void __iomem	*sram_vbase;	/* sram control I/O base address */
@@ -135,25 +135,25 @@ typedef struct wemac_board_info {
 	u32		msg_enable;
 	user_gpio_set_t *mos_gpio;
 	u32 mos_pin_handler;
-} wemac_board_info_t;
+} sunxi_emac_board_info_t;
 
 /* debug code */
-#define CONFIG_WEMAC_DEBUGLEVEL 00
-#define wemac_dbg(db, lev, msg...) do {		\
-	if ((lev) < CONFIG_WEMAC_DEBUGLEVEL &&		\
+#define CONFIG_SUNXI_EMAC_DEBUGLEVEL 00
+#define sunxi_emac_dbg(db, lev, msg...) do {		\
+	if ((lev) < CONFIG_SUNXI_EMAC_DEBUGLEVEL &&		\
 			(lev) < db->debug_level) {			\
 		dev_dbg(db->dev, msg);			\
 	}						\
 } while (0)
 
-static inline wemac_board_info_t *to_wemac_board(struct net_device *dev)
+static inline sunxi_emac_board_info_t *to_sunxi_emac_board(struct net_device *dev)
 {
 	return netdev_priv(dev);
 }
 
-static int  wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg);
-static void wemac_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value);
-static void wemac_rx(struct net_device *dev);
+static int  sunxi_emac_phy_read(struct net_device *dev, int phyaddr_unused, int reg);
+static void sunxi_emac_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value);
+static void sunxi_emac_rx(struct net_device *dev);
 static void read_random_macaddr(unsigned char *mac, struct net_device *ndev);
 
 static struct sunxi_dma_params emacrx_dma = {
@@ -169,7 +169,7 @@ static int emacrx_completed_flag = 1;
 void emacrx_dma_buffdone(struct sunxi_dma_params *dma, void *arg)
 {
 	struct net_device *dev = arg;
-	wemac_rx(dev);
+	sunxi_emac_rx(dev);
 }
 
 int emacrx_dma_config_start(void *buff_addr, __u32 len)
@@ -221,36 +221,36 @@ int emacrx_dma_config_start(void *buff_addr, __u32 len)
 	return 0;
 }
 
-/* WEMAC network board routine ---------------------------- */
+/* SUNXI_EMAC network board routine ---------------------------- */
 
 static void
-wemac_reset(wemac_board_info_t *db)
+sunxi_emac_reset(sunxi_emac_board_info_t *db)
 {
 	dev_dbg(db->dev, "resetting device\n");
 
 	/* RESET device */
-	writel(0, db->emac_vbase + EMAC_CTL_REG);
+	writel(0, db->emac_vbase + SUNXI_EMAC_CTL_REG);
 	udelay(200);
-	writel(1, db->emac_vbase + EMAC_CTL_REG);
+	writel(1, db->emac_vbase + SUNXI_EMAC_CTL_REG);
 	udelay(200);
 }
 
-static int wemac_inblk_dma(void __iomem *reg, void *data, int count)
+static int sunxi_emac_inblk_dma(void __iomem *reg, void *data, int count)
 {
 	return emacrx_dma_config_start(data, count);
 }
 
-static void wemac_outblk_32bit(void __iomem *reg, void *data, int count)
+static void sunxi_emac_outblk_32bit(void __iomem *reg, void *data, int count)
 {
 	writesl(reg, data, (count+3) >> 2);
 }
 
-static void wemac_inblk_32bit(void __iomem *reg, void *data, int count)
+static void sunxi_emac_inblk_32bit(void __iomem *reg, void *data, int count)
 {
 	readsl(reg, data, (count+3) >> 2);
 }
 
-static void wemac_dumpblk_32bit(void __iomem *reg, int count)
+static void sunxi_emac_dumpblk_32bit(void __iomem *reg, int count)
 {
 	int i;
 	int tmp;
@@ -261,14 +261,14 @@ static void wemac_dumpblk_32bit(void __iomem *reg, int count)
 		tmp = readl(reg);
 }
 
-static void wemac_schedule_poll(wemac_board_info_t *db)
+static void sunxi_emac_schedule_poll(sunxi_emac_board_info_t *db)
 {
 	schedule_delayed_work(&db->phy_poll, HZ * 2);
 }
 
-static int wemac_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
+static int sunxi_emac_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
-	wemac_board_info_t *dm = to_wemac_board(dev);
+	sunxi_emac_board_info_t *dm = to_sunxi_emac_board(dev);
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -278,69 +278,69 @@ static int wemac_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 
 /* ethtool ops */
-static void wemac_get_drvinfo(struct net_device *dev,
+static void sunxi_emac_get_drvinfo(struct net_device *dev,
 		struct ethtool_drvinfo *info)
 {
-	wemac_board_info_t *dm = to_wemac_board(dev);
+	sunxi_emac_board_info_t *dm = to_sunxi_emac_board(dev);
 
 	strcpy(info->driver, CARDNAME);
 	strcpy(info->version, DRV_VERSION);
 	strcpy(info->bus_info, to_platform_device(dm->dev)->name);
 }
 
-static u32 wemac_get_msglevel(struct net_device *dev)
+static u32 sunxi_emac_get_msglevel(struct net_device *dev)
 {
-	wemac_board_info_t *dm = to_wemac_board(dev);
+	sunxi_emac_board_info_t *dm = to_sunxi_emac_board(dev);
 
 	return dm->msg_enable;
 }
 
-static void wemac_set_msglevel(struct net_device *dev, u32 value)
+static void sunxi_emac_set_msglevel(struct net_device *dev, u32 value)
 {
-	wemac_board_info_t *dm = to_wemac_board(dev);
+	sunxi_emac_board_info_t *dm = to_sunxi_emac_board(dev);
 
 	dm->msg_enable = value;
 }
 
-static int wemac_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int sunxi_emac_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	wemac_board_info_t *dm = to_wemac_board(dev);
+	sunxi_emac_board_info_t *dm = to_sunxi_emac_board(dev);
 
 	mii_ethtool_gset(&dm->mii, cmd);
 	return 0;
 }
 
-static int wemac_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int sunxi_emac_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	wemac_board_info_t *dm = to_wemac_board(dev);
+	sunxi_emac_board_info_t *dm = to_sunxi_emac_board(dev);
 
 	return mii_ethtool_sset(&dm->mii, cmd);
 }
 
-static int wemac_nway_reset(struct net_device *dev)
+static int sunxi_emac_nway_reset(struct net_device *dev)
 {
-	wemac_board_info_t *dm = to_wemac_board(dev);
+	sunxi_emac_board_info_t *dm = to_sunxi_emac_board(dev);
 	return mii_nway_restart(&dm->mii);
 }
 
-static u32 wemac_get_link(struct net_device *dev)
+static u32 sunxi_emac_get_link(struct net_device *dev)
 {
-	wemac_board_info_t *dm = to_wemac_board(dev);
+	sunxi_emac_board_info_t *dm = to_sunxi_emac_board(dev);
 
 	return mii_link_ok(&dm->mii);
 }
 
-static const struct ethtool_ops wemac_ethtool_ops = {
-	.get_drvinfo		= wemac_get_drvinfo,
-	.get_settings		= wemac_get_settings,
-	.set_settings		= wemac_set_settings,
-	.get_msglevel		= wemac_get_msglevel,
-	.set_msglevel		= wemac_set_msglevel,
-	.nway_reset		= wemac_nway_reset,
-	.get_link		= wemac_get_link,
+static const struct ethtool_ops sunxi_emac_ethtool_ops = {
+	.get_drvinfo		= sunxi_emac_get_drvinfo,
+	.get_settings		= sunxi_emac_get_settings,
+	.set_settings		= sunxi_emac_set_settings,
+	.get_msglevel		= sunxi_emac_get_msglevel,
+	.set_msglevel		= sunxi_emac_set_msglevel,
+	.nway_reset		= sunxi_emac_nway_reset,
+	.get_link		= sunxi_emac_get_link,
 };
 
-static void emac_gpio_pin_function(wemac_board_info_t *db, int cfg0, int pin,
+static void emac_gpio_pin_function(sunxi_emac_board_info_t *db, int cfg0, int pin,
 	int func, int set)
 {
 	unsigned int orig, val, mask;
@@ -362,7 +362,7 @@ static void emac_gpio_pin_function(wemac_board_info_t *db, int cfg0, int pin,
 		writel(val, db->gpio_vbase + cfg0 + (pin / 8) * 4);
 }
 
-void emac_sys_setup(wemac_board_info_t *db)
+void emac_sys_setup(sunxi_emac_board_info_t *db)
 {
 	struct clk *tmpClk;
 	unsigned int reg_val;
@@ -400,157 +400,157 @@ unsigned int emac_setup(struct net_device *ndev)
 	unsigned int reg_val;
 	unsigned int phy_val;
 	unsigned int duplex_flag;
-	wemac_board_info_t *db = netdev_priv(ndev);
+	sunxi_emac_board_info_t *db = netdev_priv(ndev);
 
-	wemac_dbg(db, 3, "EMAC seting ==>\n"
+	sunxi_emac_dbg(db, 3, "EMAC seting ==>\n"
 		"PHY_AUTO_NEGOTIOATION  %x  0: Normal        1: Auto\n"
 		"PHY_SPEED              %x  0: 10M           1: 100M\n"
-		"EMAC_MAC_FULL          %x  0: Half duplex   1: Full duplex\n"
-		"EMAC_TX_TM             %x  0: CPU           1: DMA\n"
-		"EMAC_TX_AB_M           %x  0: Disable       1: Aborted frame enable\n"
-		"EMAC_RX_TM             %x  0: CPU           1: DMA\n"
-		"EMAC_RX_DRQ_MODE       %x  0: DRQ asserted  1: DRQ automatically\n",
+		"SUNXI_EMAC_MAC_FULL    %x  0: Half duplex   1: Full duplex\n"
+		"SUNXI_EMAC_TX_TM       %x  0: CPU           1: DMA\n"
+		"SUNXI_EMAC_TX_AB_M     %x  0: Disable       1: Aborted frame enable\n"
+		"SUNXI_EMAC_RX_TM       %x  0: CPU           1: DMA\n"
+		"SUNXI_EMAC_RX_DRQ_MODE %x  0: DRQ asserted  1: DRQ automatically\n",
 		PHY_AUTO_NEGOTIOATION,
 		PHY_SPEED,
-		EMAC_MAC_FULL,
-		EMAC_TX_TM,
-		EMAC_TX_AB_M,
-		EMAC_RX_TM,
-		EMAC_RX_DRQ_MODE);
+		SUNXI_EMAC_MAC_FULL,
+		SUNXI_EMAC_TX_TM,
+		SUNXI_EMAC_TX_AB_M,
+		SUNXI_EMAC_RX_TM,
+		SUNXI_EMAC_RX_DRQ_MODE);
 
 	/* set up TX */
-	reg_val = readl(db->emac_vbase + EMAC_TX_MODE_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_TX_MODE_REG);
 
-	if (EMAC_TX_AB_M)
+	if (SUNXI_EMAC_TX_AB_M)
 		reg_val |= 0x1;
 	else
 		reg_val &= (~0x1);
 
-	if (EMAC_TX_TM)
+	if (SUNXI_EMAC_TX_TM)
 		reg_val |= (0x1<<1);
 	else
 		reg_val &= (~(0x1<<1));
 
-	writel(reg_val, db->emac_vbase + EMAC_TX_MODE_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_TX_MODE_REG);
 
 	/* set up RX */
-	reg_val = readl(db->emac_vbase + EMAC_RX_CTL_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 
-	if (EMAC_RX_DRQ_MODE)
+	if (SUNXI_EMAC_RX_DRQ_MODE)
 		reg_val |= (0x1<<1);
 	else
 		reg_val &= (~(0x1<<1));
 
-	if (EMAC_RX_TM)
+	if (SUNXI_EMAC_RX_TM)
 		reg_val |= (0x1<<2);
 	else
 		reg_val &= (~(0x1<<2));
 
-	if (EMAC_RX_PA)
+	if (SUNXI_EMAC_RX_PA)
 		reg_val |= (0x1<<4);
 	else
 		reg_val &= (~(0x1<<4));
 
-	if (EMAC_RX_PCF)
+	if (SUNXI_EMAC_RX_PCF)
 		reg_val |= (0x1<<5);
 	else
 		reg_val &= (~(0x1<<5));
 
-	if (EMAC_RX_PCRCE)
+	if (SUNXI_EMAC_RX_PCRCE)
 		reg_val |= (0x1<<6);
 	else
 		reg_val &= (~(0x1<<6));
 
-	if (EMAC_RX_PLE)
+	if (SUNXI_EMAC_RX_PLE)
 		reg_val |= (0x1<<7);
 	else
 		reg_val &= (~(0x1<<7));
 
-	if (EMAC_RX_POR)
+	if (SUNXI_EMAC_RX_POR)
 		reg_val |= (0x1<<8);
 	else
 		reg_val &= (~(0x1<<8));
 
-	if (EMAC_RX_UCAD)
+	if (SUNXI_EMAC_RX_UCAD)
 		reg_val |= (0x1<<16);
 	else
 		reg_val &= (~(0x1<<16));
 
-	if (EMAC_RX_DAF)
+	if (SUNXI_EMAC_RX_DAF)
 		reg_val |= (0x1<<17);
 	else
 		reg_val &= (~(0x1<<17));
 
-	if (EMAC_RX_MCO)
+	if (SUNXI_EMAC_RX_MCO)
 		reg_val |= (0x1<<20);
 	else
 		reg_val &= (~(0x1<<20));
 
-	if (EMAC_RX_MHF)
+	if (SUNXI_EMAC_RX_MHF)
 		reg_val |= (0x1<<21);
 	else
 		reg_val &= (~(0x1<<21));
 
-	if (EMAC_RX_BCO)
+	if (SUNXI_EMAC_RX_BCO)
 		reg_val |= (0x1<<22);
 	else
 		reg_val &= (~(0x1<<22));
 
-	if (EMAC_RX_SAF)
+	if (SUNXI_EMAC_RX_SAF)
 		reg_val |= (0x1<<24);
 	else
 		reg_val &= (~(0x1<<24));
 
-	if (EMAC_RX_SAIF)
+	if (SUNXI_EMAC_RX_SAIF)
 		reg_val |= (0x1<<25);
 	else
 		reg_val &= (~(0x1<<25));
 
-	writel(reg_val, db->emac_vbase + EMAC_RX_CTL_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 
 	/* set MAC */
 	/* set MAC CTL0 */
-	reg_val = readl(db->emac_vbase + EMAC_MAC_CTL0_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_MAC_CTL0_REG);
 
-	if (EMAC_MAC_TFC)
+	if (SUNXI_EMAC_MAC_TFC)
 		reg_val |= (0x1<<3);
 	else
 		reg_val &= (~(0x1<<3));
 
-	if (EMAC_MAC_RFC)
+	if (SUNXI_EMAC_MAC_RFC)
 		reg_val |= (0x1<<2);
 	else
 		reg_val &= (~(0x1<<2));
 
-	writel(reg_val, db->emac_vbase + EMAC_MAC_CTL0_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_CTL0_REG);
 
 	/* set MAC CTL1 */
-	reg_val = readl(db->emac_vbase + EMAC_MAC_CTL1_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_MAC_CTL1_REG);
 
 	/* phy setup */
 	if (!PHY_AUTO_NEGOTIOATION) {
-		phy_val = wemac_phy_read(ndev, 0, 0);
+		phy_val = sunxi_emac_phy_read(ndev, 0, 0);
 		dev_dbg(db->dev, "PHY reg 0 value: %x\n", phy_val);
 
-		phy_val = (PHY_SPEED<<13)|(EMAC_MAC_FULL<<8) ;
+		phy_val = (PHY_SPEED<<13)|(SUNXI_EMAC_MAC_FULL<<8) ;
 		dev_dbg(db->dev, "PHY SETUP, write reg 0 with value: %x\n", phy_val);
-		wemac_phy_write(ndev, 0, 0, phy_val);
+		sunxi_emac_phy_write(ndev, 0, 0, phy_val);
 
 		/* soft reset phy */
-		phy_val = wemac_phy_read(ndev, 0, 0);
+		phy_val = sunxi_emac_phy_read(ndev, 0, 0);
 		phy_val |= 0x1<<15;
-		wemac_phy_write(ndev, 0, 0, phy_val);
+		sunxi_emac_phy_write(ndev, 0, 0, phy_val);
 
-		phy_val = wemac_phy_read(ndev, 0, 0);
+		phy_val = sunxi_emac_phy_read(ndev, 0, 0);
 		dev_dbg(db->dev, "PHY reg 0 value: %x\n", phy_val);
 
 		mdelay(10);
-		phy_val = (PHY_SPEED<<13)|(EMAC_MAC_FULL<<8) ;
+		phy_val = (PHY_SPEED<<13)|(SUNXI_EMAC_MAC_FULL<<8) ;
 		dev_dbg(db->dev, "PHY SETUP, write reg 0 with value: %x\n", phy_val);
-		wemac_phy_write(ndev, 0, 0, phy_val);
+		sunxi_emac_phy_write(ndev, 0, 0, phy_val);
 	}
 	mdelay(10);
-	phy_val = wemac_phy_read(ndev, 0, 0);
+	phy_val = sunxi_emac_phy_read(ndev, 0, 0);
 	dev_dbg(db->dev, "PHY SETUP, reg 0 value: %x\n", phy_val);
 	duplex_flag = !!(phy_val & (1<<8));
 
@@ -560,134 +560,134 @@ unsigned int emac_setup(struct net_device *ndev)
 		else
 			reg_val &= (~(0x1<<0));
 	} else {
-		if (EMAC_MAC_FULL)
+		if (SUNXI_EMAC_MAC_FULL)
 			reg_val |= (0x1<<0);
 		else
 			reg_val &= (~(0x1<<0));
 	}
 
-	if (EMAC_MAC_FLC)
+	if (SUNXI_EMAC_MAC_FLC)
 		reg_val |= (0x1<<1);
 	else
 		reg_val &= (~(0x1<<1));
 
-	if (EMAC_MAC_HF)
+	if (SUNXI_EMAC_MAC_HF)
 		reg_val |= (0x1<<2);
 	else
 		reg_val &= (~(0x1<<2));
 
-	if (EMAC_MAC_DCRC)
+	if (SUNXI_EMAC_MAC_DCRC)
 		reg_val |= (0x1<<3);
 	else
 		reg_val &= (~(0x1<<3));
 
-	if (EMAC_MAC_CRC)
+	if (SUNXI_EMAC_MAC_CRC)
 		reg_val |= (0x1<<4);
 	else
 		reg_val &= (~(0x1<<4));
 
-	if (EMAC_MAC_PC)
+	if (SUNXI_EMAC_MAC_PC)
 		reg_val |= (0x1<<5);
 	else
 		reg_val &= (~(0x1<<5));
 
-	if (EMAC_MAC_VC)
+	if (SUNXI_EMAC_MAC_VC)
 		reg_val |= (0x1<<6);
 	else
 		reg_val &= (~(0x1<<6));
 
-	if (EMAC_MAC_ADP)
+	if (SUNXI_EMAC_MAC_ADP)
 		reg_val |= (0x1<<7);
 	else
 		reg_val &= (~(0x1<<7));
 
-	if (EMAC_MAC_PRE)
+	if (SUNXI_EMAC_MAC_PRE)
 		reg_val |= (0x1<<8);
 	else
 		reg_val &= (~(0x1<<8));
 
-	if (EMAC_MAC_LPE)
+	if (SUNXI_EMAC_MAC_LPE)
 		reg_val |= (0x1<<9);
 	else
 		reg_val &= (~(0x1<<9));
 
-	if (EMAC_MAC_NB)
+	if (SUNXI_EMAC_MAC_NB)
 		reg_val |= (0x1<<12);
 	else
 		reg_val &= (~(0x1<<12));
 
-	if (EMAC_MAC_BNB)
+	if (SUNXI_EMAC_MAC_BNB)
 		reg_val |= (0x1<<13);
 	else
 		reg_val &= (~(0x1<<13));
 
-	if (EMAC_MAC_ED)
+	if (SUNXI_EMAC_MAC_ED)
 		reg_val |= (0x1<<14);
 	else
 		reg_val &= (~(0x1<<14));
 
-	writel(reg_val, db->emac_vbase + EMAC_MAC_CTL1_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_CTL1_REG);
 
 	/* set up IPGT */
-	reg_val = EMAC_MAC_IPGT;
-	writel(reg_val, db->emac_vbase + EMAC_MAC_IPGT_REG);
+	reg_val = SUNXI_EMAC_MAC_IPGT;
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_IPGT_REG);
 
 	/* set up IPGR */
-	reg_val = EMAC_MAC_NBTB_IPG2;
-	reg_val |= (EMAC_MAC_NBTB_IPG1<<8);
-	writel(reg_val, db->emac_vbase + EMAC_MAC_IPGR_REG);
+	reg_val = SUNXI_EMAC_MAC_NBTB_IPG2;
+	reg_val |= (SUNXI_EMAC_MAC_NBTB_IPG1<<8);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_IPGR_REG);
 
 	/* set up Collison window */
-	reg_val = EMAC_MAC_RM;
-	reg_val |= (EMAC_MAC_CW<<8);
-	writel(reg_val, db->emac_vbase + EMAC_MAC_CLRT_REG);
+	reg_val = SUNXI_EMAC_MAC_RM;
+	reg_val |= (SUNXI_EMAC_MAC_CW<<8);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_CLRT_REG);
 
 	/* set up Max Frame Length */
-	reg_val = EMAC_MAC_MFL;
-	writel(reg_val, db->emac_vbase + EMAC_MAC_MAXF_REG);
+	reg_val = SUNXI_EMAC_MAC_MFL;
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_MAXF_REG);
 
 	return 1;
 }
 
-static void wemac_set_mac_addr(wemac_board_info_t *db, unsigned char *buf)
+static void sunxi_emac_set_mac_addr(sunxi_emac_board_info_t *db, unsigned char *buf)
 {
 	writel(buf[0] << 16 | buf[1] << 8 | buf[2],
-	       db->emac_vbase + EMAC_MAC_A1_REG);
+	       db->emac_vbase + SUNXI_EMAC_MAC_A1_REG);
 	writel(buf[3] << 16 | buf[4] << 8 | buf[5],
-	       db->emac_vbase + EMAC_MAC_A0_REG);
+	       db->emac_vbase + SUNXI_EMAC_MAC_A0_REG);
 }
 
-unsigned int wemac_powerup(struct net_device *ndev)
+unsigned int sunxi_emac_powerup(struct net_device *ndev)
 {
-	wemac_board_info_t *db = netdev_priv(ndev);
+	sunxi_emac_board_info_t *db = netdev_priv(ndev);
 	char emac_mac[13] = {'\0'};
 	int i, got_mac = 0;
 	unsigned int reg_val;
 
 	/* initial EMAC */
 	/* flush RX FIFO */
-	reg_val = readl(db->emac_vbase + EMAC_RX_CTL_REG); /* RX FIFO */
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG); /* RX FIFO */
 	reg_val |= 0x8;
-	writel(reg_val, db->emac_vbase + EMAC_RX_CTL_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 	udelay(1);
 
 	/* initial MAC */
-	reg_val = readl(db->emac_vbase + EMAC_MAC_CTL0_REG); /* soft reset MAC */
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_MAC_CTL0_REG); /* soft reset MAC */
 	reg_val &= (~(0x1<<15));
-	writel(reg_val, db->emac_vbase + EMAC_MAC_CTL0_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_CTL0_REG);
 
-	reg_val = readl(db->emac_vbase + EMAC_MAC_MCFG_REG); /* set MII clock */
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_MAC_MCFG_REG); /* set MII clock */
 	reg_val &= (~(0xf<<2));
 	reg_val |= (0xD<<2);
-	writel(reg_val, db->emac_vbase + EMAC_MAC_MCFG_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_MCFG_REG);
 
 	/* clear RX counter */
-	writel(0x0, db->emac_vbase + EMAC_RX_FBC_REG);
+	writel(0x0, db->emac_vbase + SUNXI_EMAC_RX_FBC_REG);
 
 	/* disable all interrupt and clear interrupt status */
-	writel(0, db->emac_vbase + EMAC_INT_CTL_REG);
-	reg_val = readl(db->emac_vbase + EMAC_INT_STA_REG);
-	writel(reg_val, db->emac_vbase + EMAC_INT_STA_REG);
+	writel(0, db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_INT_STA_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_INT_STA_REG);
 
 	udelay(1);
 
@@ -741,7 +741,7 @@ unsigned int wemac_powerup(struct net_device *ndev)
 		got_mac = 1;
 	}
 
-	wemac_set_mac_addr(db, mac_addr);
+	sunxi_emac_set_mac_addr(db, mac_addr);
 
 	mdelay(1);
 
@@ -749,24 +749,24 @@ unsigned int wemac_powerup(struct net_device *ndev)
 }
 
 static void
-wemac_poll_work(struct work_struct *w)
+sunxi_emac_poll_work(struct work_struct *w)
 {
 	struct delayed_work *dw = container_of(w, struct delayed_work, work);
-	wemac_board_info_t *db = container_of(dw, wemac_board_info_t, phy_poll);
+	sunxi_emac_board_info_t *db = container_of(dw, sunxi_emac_board_info_t, phy_poll);
 	struct net_device *ndev = db->ndev;
 
 	mii_check_media(&db->mii, netif_msg_link(db), 0);
 
 	if (netif_running(ndev))
-		wemac_schedule_poll(db);
+		sunxi_emac_schedule_poll(db);
 }
 
-/* wemac_release_board
+/* sunxi_emac_release_board
  *
  * release a board, and any mapped resources
  */
 static void
-wemac_release_board(struct platform_device *pdev, struct wemac_board_info *db)
+sunxi_emac_release_board(struct platform_device *pdev, struct sunxi_emac_board_info *db)
 {
 	/* unmap our resources */
 
@@ -784,13 +784,13 @@ wemac_release_board(struct platform_device *pdev, struct wemac_board_info *db)
 }
 
 /*
- *  Set WEMAC multicast address
+ *  Set SUNXI_EMAC multicast address
  */
 static void
-wemac_hash_table(struct net_device *dev)
+sunxi_emac_hash_table(struct net_device *dev)
 {
 #if 0
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 	struct dev_mc_list *mcptr = dev->mc_list;
 	int mc_cnt = dev->mc_count;
 	int i, oft;
@@ -799,11 +799,11 @@ wemac_hash_table(struct net_device *dev)
 	u8 rcr = RCR_DIS_LONG | RCR_DIS_CRC | RCR_RXEN;
 	unsigned long flags;
 
-	wemac_dbg(db, 1, "entering %s\n", __func__);
+	sunxi_emac_dbg(db, 1, "entering %s\n", __func__);
 
 	spin_lock_irqsave(&db->lock, flags);
 
-	for (i = 0, oft = WEMAC_PAR; i < 6; i++, oft++)
+	for (i = 0, oft = SUNXI_EMAC_PAR; i < 6; i++, oft++)
 		iow(db, oft, dev->dev_addr[i]);
 
 	/* Clear Hash Table */
@@ -826,12 +826,12 @@ wemac_hash_table(struct net_device *dev)
 	}
 
 	/* Write the hash table to MAC MD table */
-	for (i = 0, oft = WEMAC_MAR; i < 4; i++) {
+	for (i = 0, oft = SUNXI_EMAC_MAR; i < 4; i++) {
 		iow(db, oft++, hash_table[i]);
 		iow(db, oft++, hash_table[i] >> 8);
 	}
 
-	iow(db, WEMAC_RCR, rcr);
+	iow(db, SUNXI_EMAC_RCR, rcr);
 	spin_unlock_irqrestore(&db->lock, flags);
 #endif
 }
@@ -839,7 +839,7 @@ wemac_hash_table(struct net_device *dev)
 static void read_random_macaddr(unsigned char *mac, struct net_device *ndev)
 {
 	unsigned char *buf = mac;
-	wemac_board_info_t *db = netdev_priv(ndev);
+	sunxi_emac_board_info_t *db = netdev_priv(ndev);
 
 	get_random_bytes(buf, 6);
 
@@ -847,13 +847,13 @@ static void read_random_macaddr(unsigned char *mac, struct net_device *ndev)
 	buf[0] |= 0x02;		/*  the 47bit must set 1  */
 
 	/*  we write the random number into chip  */
-	wemac_set_mac_addr(db, buf);
+	sunxi_emac_set_mac_addr(db, buf);
 }
 
-static int wemac_set_mac_address(struct net_device *dev, void *p)
+static int sunxi_emac_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 
 	if (netif_running(dev))
 		return -EBUSY;
@@ -865,18 +865,18 @@ static int wemac_set_mac_address(struct net_device *dev, void *p)
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	wemac_set_mac_addr(db, dev->dev_addr);
+	sunxi_emac_set_mac_addr(db, dev->dev_addr);
 
 	return 0;
 }
 
 /*
- * Initilize wemac board
+ * Initilize sunxi_emac board
  */
 static void
-wemac_init_wemac(struct net_device *dev)
+sunxi_emac_init_sunxi_emac(struct net_device *dev)
 {
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 	unsigned int phy_reg;
 	unsigned int reg_val;
 
@@ -889,39 +889,39 @@ wemac_init_wemac(struct net_device *dev)
 	}
 
 	/* PHY POWER UP */
-	phy_reg = wemac_phy_read(dev, 0, 0);
-	wemac_phy_write(dev, 0, 0, phy_reg & (~(1<<11)));
+	phy_reg = sunxi_emac_phy_read(dev, 0, 0);
+	sunxi_emac_phy_write(dev, 0, 0, phy_reg & (~(1<<11)));
 	mdelay(1);
 
-	phy_reg = wemac_phy_read(dev, 0, 0);
+	phy_reg = sunxi_emac_phy_read(dev, 0, 0);
 
 	/* set EMAC SPEED, depend on PHY  */
-	reg_val = readl(db->emac_vbase + EMAC_MAC_SUPP_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_MAC_SUPP_REG);
 	reg_val &= (~(0x1<<8));
 	/*reg_val |= ((phy_reg & (1<<13)) << 8);*/
 	reg_val |= (((phy_reg & (1<<13))>>13) << 8);
-	writel(reg_val, db->emac_vbase + EMAC_MAC_SUPP_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_SUPP_REG);
 
 	/* set duplex depend on phy*/
-	reg_val = readl(db->emac_vbase + EMAC_MAC_CTL1_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_MAC_CTL1_REG);
 	reg_val &= (~(0x1<<0));
 	/*reg_val |= ((phy_reg & (1<<8)) << 0);*/
 	reg_val |= (((phy_reg & (1<<8))>>8) << 0);
-	writel(reg_val, db->emac_vbase + EMAC_MAC_CTL1_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_MAC_CTL1_REG);
 
 	/* Set address filter table */
-	wemac_hash_table(dev);
+	sunxi_emac_hash_table(dev);
 
 	/* enable RX/TX */
-	reg_val = readl(db->emac_vbase + EMAC_CTL_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_CTL_REG);
 	reg_val |= 0x7;
-	writel(reg_val, db->emac_vbase + EMAC_CTL_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_CTL_REG);
 
 	/* enable RX/TX0/RX Hlevel interrup */
-	reg_val = readl(db->emac_vbase + EMAC_INT_CTL_REG);
+	reg_val = readl(db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
 	/*reg_val |= (0x1<<0) | (0x01<<8)| (0x1<<17);*/
 	reg_val |= (0xf<<0) | (0x01<<8);
-	writel(reg_val, db->emac_vbase + EMAC_INT_CTL_REG);
+	writel(reg_val, db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
 
 	/* Init Driver variable */
 	db->tx_fifo_stat = 0;
@@ -929,32 +929,32 @@ wemac_init_wemac(struct net_device *dev)
 }
 
 /* Our watchdog timed out. Called by the networking layer */
-static void wemac_timeout(struct net_device *dev)
+static void sunxi_emac_timeout(struct net_device *dev)
 {
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 
-	/* init_wemac uses phy_r/w which can sleep, so use a work_queue */
-	if (!test_and_set_bit(EMAC_TX_TIMEOUT_PENDING, &db->bit_flags)) {
+	/* init_sunxi_emac uses phy_r/w which can sleep, so use a work_queue */
+	if (!test_and_set_bit(SUNXI_EMAC_TX_TIMEOUT_PENDING, &db->bit_flags)) {
 		netif_stop_queue(dev);
 		schedule_work(&db->tx_timeout_work);
 	}
 }
 
 /* The real tx timeout handle work is done here, where we can sleep */
-static void wemac_timeout_work(struct work_struct *work)
+static void sunxi_emac_timeout_work(struct work_struct *work)
 {
-	wemac_board_info_t *db =
-		container_of(work, wemac_board_info_t, tx_timeout_work);
+	sunxi_emac_board_info_t *db =
+		container_of(work, sunxi_emac_board_info_t, tx_timeout_work);
 
 	if (netif_msg_timer(db))
 		dev_err(db->dev, "tx time out, resetting emac\n");
 
-	wemac_reset(db);
-	wemac_init_wemac(db->ndev);
+	sunxi_emac_reset(db);
+	sunxi_emac_init_sunxi_emac(db->ndev);
 	/* We can accept TX packets again */
 	db->ndev->trans_start = jiffies;
 	netif_wake_queue(db->ndev);
-	clear_bit(EMAC_TX_TIMEOUT_PENDING, &db->bit_flags);
+	clear_bit(SUNXI_EMAC_TX_TIMEOUT_PENDING, &db->bit_flags);
 }
 
 #define PINGPANG_BUF 1
@@ -963,11 +963,11 @@ static void wemac_timeout_work(struct work_struct *work)
  *  Send a packet to media from the upper layer.
  */
 static int
-wemac_start_xmit(struct sk_buff *skb, struct net_device *dev)
+sunxi_emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long channal;
 	unsigned long flags;
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 
 #if PINGPANG_BUF
 	if ((channal = (db->tx_fifo_stat & 3)) == 3)
@@ -983,25 +983,25 @@ wemac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&db->lock, flags);
 
-	writel(channal, db->emac_vbase + EMAC_TX_INS_REG);
+	writel(channal, db->emac_vbase + SUNXI_EMAC_TX_INS_REG);
 
-	(db->outblk)(db->emac_vbase + EMAC_TX_IO_DATA_REG, skb->data, skb->len);
+	(db->outblk)(db->emac_vbase + SUNXI_EMAC_TX_IO_DATA_REG, skb->data, skb->len);
 	dev->stats.tx_bytes += skb->len;
 
 	db->tx_fifo_stat |= 1 << channal;
 	/* TX control: First packet immediately send, second packet queue */
 	if (channal == 0) {
 		/* set TX len */
-		writel(skb->len, db->emac_vbase + EMAC_TX_PL0_REG);
+		writel(skb->len, db->emac_vbase + SUNXI_EMAC_TX_PL0_REG);
 		/* start translate from fifo to phy */
-		writel(readl(db->emac_vbase + EMAC_TX_CTL0_REG) | 1, db->emac_vbase + EMAC_TX_CTL0_REG);
+		writel(readl(db->emac_vbase + SUNXI_EMAC_TX_CTL0_REG) | 1, db->emac_vbase + SUNXI_EMAC_TX_CTL0_REG);
 
 		dev->trans_start = jiffies;	/* save the time stamp */
 	} else if (channal == 1) {
 		/* set TX len */
-		writel(skb->len, db->emac_vbase + EMAC_TX_PL1_REG);
+		writel(skb->len, db->emac_vbase + SUNXI_EMAC_TX_PL1_REG);
 		/* start translate from fifo to phy */
-		writel(readl(db->emac_vbase + EMAC_TX_CTL1_REG) | 1, db->emac_vbase + EMAC_TX_CTL1_REG);
+		writel(readl(db->emac_vbase + SUNXI_EMAC_TX_CTL1_REG) | 1, db->emac_vbase + SUNXI_EMAC_TX_CTL1_REG);
 
 		dev->trans_start = jiffies;	/* save the time stamp */
 	}
@@ -1021,11 +1021,11 @@ wemac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 /*
- * WEMAC interrupt handler
+ * SUNXI_EMAC interrupt handler
  * receive the packet to upper layer, free the transmitted packet
  */
 
-static void wemac_tx_done(struct net_device *dev, wemac_board_info_t *db, unsigned int tx_status)
+static void sunxi_emac_tx_done(struct net_device *dev, sunxi_emac_board_info_t *db, unsigned int tx_status)
 {
 	/* One packet sent complete */
 	db->tx_fifo_stat &= ~(tx_status & 3);
@@ -1041,16 +1041,16 @@ static void wemac_tx_done(struct net_device *dev, wemac_board_info_t *db, unsign
 	/* Queue packet check & send */
 	if (db->tx_fifo_stat > 0) {
 		/* set TX len */
-		writel(db->queue_pkt_len, db->emac_vbase + EMAC_TX_PL0_REG);
+		writel(db->queue_pkt_len, db->emac_vbase + SUNXI_EMAC_TX_PL0_REG);
 		/* start translate from fifo to mac */
-		writel(readl(db->emac_vbase + EMAC_TX_CTL0_REG) | 1, db->emac_vbase + EMAC_TX_CTL0_REG);
+		writel(readl(db->emac_vbase + SUNXI_EMAC_TX_CTL0_REG) | 1, db->emac_vbase + SUNXI_EMAC_TX_CTL0_REG);
 		dev->trans_start = jiffies;
 	}
 #endif
 	netif_wake_queue(dev);
 }
 
-struct wemac_rxhdr {
+struct sunxi_emac_rxhdr {
 	__s16	RxLen;
 	__u16	RxStatus;
 } __attribute__((__packed__));
@@ -1061,12 +1061,12 @@ char dbg_dump_buf[0x4000];
  *  Received a packet and pass to upper layer
  */
 static void
-wemac_rx(struct net_device *dev)
+sunxi_emac_rx(struct net_device *dev)
 {
-	wemac_board_info_t *db = netdev_priv(dev);
-	struct wemac_rxhdr rxhdr;
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
+	struct sunxi_emac_rxhdr rxhdr;
 	struct sk_buff *skb;
-	static struct sk_buff *skb_last; /*todo: change static variate to member of wemac_board_info_t. bingge */
+	static struct sk_buff *skb_last; /*todo: change static variate to member of sunxi_emac_board_info_t. bingge */
 	u8 *rdptr;
 	bool GoodPacket;
 	int RxLen;
@@ -1079,7 +1079,7 @@ wemac_rx(struct net_device *dev)
 		/* race warning: the first packet might arrive with
 		   the interrupts disabled, but the second will fix
 		   it */
-		Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
+		Rxcount = readl(db->emac_vbase + SUNXI_EMAC_RX_FBC_REG);
 
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "RXCount: %x\n", Rxcount);
@@ -1094,43 +1094,43 @@ wemac_rx(struct net_device *dev)
 			skb_last = NULL;
 			RxLen_last = 0;
 
-			reg_val = readl(db->emac_vbase + EMAC_RX_CTL_REG);
+			reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 			reg_val &= (~(0x1<<2));
-			writel(reg_val, db->emac_vbase + EMAC_RX_CTL_REG);
+			writel(reg_val, db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 		}
 
 		if (!Rxcount) {
 			emacrx_completed_flag = 1;
-			reg_val = readl(db->emac_vbase + EMAC_INT_CTL_REG);
+			reg_val = readl(db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
 			reg_val |= (0xf<<0) | (0x01<<8);
-			writel(reg_val, db->emac_vbase + EMAC_INT_CTL_REG);
+			writel(reg_val, db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
 
 			/* had one stuck? */
-			Rxcount = readl(db->emac_vbase + EMAC_RX_FBC_REG);
+			Rxcount = readl(db->emac_vbase + SUNXI_EMAC_RX_FBC_REG);
 			if (!Rxcount)
 				return;
 		}
 
-		reg_val = readl(db->emac_vbase + EMAC_RX_IO_DATA_REG);
+		reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_IO_DATA_REG);
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "receive header: %x\n", reg_val);
 		if (reg_val != 0x0143414d) {
 			/* disable RX */
-			reg_val = readl(db->emac_vbase + EMAC_CTL_REG);
-			writel(reg_val & (~(1<<2)), db->emac_vbase + EMAC_CTL_REG);
+			reg_val = readl(db->emac_vbase + SUNXI_EMAC_CTL_REG);
+			writel(reg_val & (~(1<<2)), db->emac_vbase + SUNXI_EMAC_CTL_REG);
 
 			/* Flush RX FIFO */
-			reg_val = readl(db->emac_vbase + EMAC_RX_CTL_REG);
-			writel(reg_val | (1<<3), db->emac_vbase + EMAC_RX_CTL_REG);
+			reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
+			writel(reg_val | (1<<3), db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 
-			while (readl(db->emac_vbase + EMAC_RX_CTL_REG)&(0x1<<3));
+			while (readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG)&(0x1<<3));
 
 			/* enable RX */
-			reg_val = readl(db->emac_vbase + EMAC_CTL_REG);
-			writel(reg_val | (1<<2), db->emac_vbase + EMAC_CTL_REG);
-			reg_val = readl(db->emac_vbase + EMAC_INT_CTL_REG);
+			reg_val = readl(db->emac_vbase + SUNXI_EMAC_CTL_REG);
+			writel(reg_val | (1<<2), db->emac_vbase + SUNXI_EMAC_CTL_REG);
+			reg_val = readl(db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
 			reg_val |= (0xf<<0) | (0x01<<8);
-			writel(reg_val, db->emac_vbase + EMAC_INT_CTL_REG);
+			writel(reg_val, db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
 
 			emacrx_completed_flag = 1;
 
@@ -1140,7 +1140,7 @@ wemac_rx(struct net_device *dev)
 		/* A packet ready now  & Get status/length */
 		GoodPacket = true;
 
-		(db->inblk)(db->emac_vbase + EMAC_RX_IO_DATA_REG, &rxhdr, sizeof(rxhdr));
+		(db->inblk)(db->emac_vbase + SUNXI_EMAC_RX_IO_DATA_REG, &rxhdr, sizeof(rxhdr));
 
 		if (netif_msg_rx_status(db))
 			dev_dbg(db->dev, "rxhdr: %x\n", *((int *)(&rxhdr)));
@@ -1160,21 +1160,21 @@ wemac_rx(struct net_device *dev)
 		}
 
 		/* RxStatus is identical to RSR register. */
-		if (0 & RxStatus & (EMAC_CRCERR | EMAC_LENERR)) {
+		if (0 & RxStatus & (SUNXI_EMAC_CRCERR | SUNXI_EMAC_LENERR)) {
 			GoodPacket = false;
-			if (RxStatus & EMAC_CRCERR) {
+			if (RxStatus & SUNXI_EMAC_CRCERR) {
 				if (netif_msg_rx_err(db))
 					dev_dbg(db->dev, "crc error\n");
 				dev->stats.rx_crc_errors++;
 			}
-			if (RxStatus & EMAC_LENERR) {
+			if (RxStatus & SUNXI_EMAC_LENERR) {
 				if (netif_msg_rx_err(db))
 					dev_dbg(db->dev, "length error\n");
 				dev->stats.rx_length_errors++;
 			}
 		}
 
-		/* Move data from WEMAC */
+		/* Move data from SUNXI_EMAC */
 		if (GoodPacket && ((skb = dev_alloc_skb(RxLen + 4)) != NULL)) {
 			skb_reserve(skb, 2);
 			rdptr = (u8 *) skb_put(skb, RxLen - 4);
@@ -1184,17 +1184,17 @@ wemac_rx(struct net_device *dev)
 				dev_dbg(db->dev, "RxLen %x\n", RxLen);
 
 			if (RxLen > DMA_CPU_TRRESHOLD) {
-				reg_val = readl(db->emac_vbase + EMAC_RX_CTL_REG);
+				reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 				reg_val |= (0x1<<2);
-				writel(reg_val, db->emac_vbase + EMAC_RX_CTL_REG);
-				ret = wemac_inblk_dma(db->emac_vbase + EMAC_RX_IO_DATA_REG, rdptr, RxLen);
+				writel(reg_val, db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
+				ret = sunxi_emac_inblk_dma(db->emac_vbase + SUNXI_EMAC_RX_IO_DATA_REG, rdptr, RxLen);
 				if (ret != 0) {
-					printk(KERN_ERR "[emac] wemac_inblk_dma failed,ret=%d, using cpu to read fifo!\n", ret);
-					reg_val = readl(db->emac_vbase + EMAC_RX_CTL_REG);
+					printk(KERN_ERR "[emac] sunxi_emac_inblk_dma failed,ret=%d, using cpu to read fifo!\n", ret);
+					reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 					reg_val &= (~(0x1<<2));
-					writel(reg_val, db->emac_vbase + EMAC_RX_CTL_REG);
+					writel(reg_val, db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 
-					(db->inblk)(db->emac_vbase + EMAC_RX_IO_DATA_REG, rdptr, RxLen);
+					(db->inblk)(db->emac_vbase + SUNXI_EMAC_RX_IO_DATA_REG, rdptr, RxLen);
 
 					dev->stats.rx_bytes += RxLen;
 
@@ -1208,7 +1208,7 @@ wemac_rx(struct net_device *dev)
 					break;
 				}
 			} else {
-				(db->inblk)(db->emac_vbase + EMAC_RX_IO_DATA_REG, rdptr, RxLen);
+				(db->inblk)(db->emac_vbase + SUNXI_EMAC_RX_IO_DATA_REG, rdptr, RxLen);
 
 				dev->stats.rx_bytes += RxLen;
 
@@ -1219,15 +1219,15 @@ wemac_rx(struct net_device *dev)
 			}
 		} else {
 			/* need to dump the packet's data */
-			(db->dumpblk)(db->emac_vbase + EMAC_RX_IO_DATA_REG, RxLen);
+			(db->dumpblk)(db->emac_vbase + SUNXI_EMAC_RX_IO_DATA_REG, RxLen);
 		}
 	}
 }
 
-static irqreturn_t wemac_interrupt(int irq, void *dev_id)
+static irqreturn_t sunxi_emac_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 	int int_status;
 	unsigned long flags;
 	unsigned int reg_val;
@@ -1236,7 +1236,7 @@ static irqreturn_t wemac_interrupt(int irq, void *dev_id)
 	int tmp1, tmp2;
 
 	tmp1 = readl(0xf1c00034);
-	tmp2 = readl(db->emac_vbase + EMAC_RX_FBC_REG);
+	tmp2 = readl(db->emac_vbase + SUNXI_EMAC_RX_FBC_REG);
 	printk(KERN_INFO "%x\n", tmp2);
 #endif
 
@@ -1246,11 +1246,11 @@ static irqreturn_t wemac_interrupt(int irq, void *dev_id)
 	spin_lock_irqsave(&db->lock, flags);
 
 	/* Disable all interrupts */
-	writel(0, db->emac_vbase + EMAC_INT_CTL_REG);					/* Disable all interrupt */
+	writel(0, db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);					/* Disable all interrupt */
 
-	/* Got WEMAC interrupt status */
-	int_status = readl(db->emac_vbase + EMAC_INT_STA_REG);	/* Got ISR */
-	writel(int_status, db->emac_vbase + EMAC_INT_STA_REG);	/* Clear ISR status */
+	/* Got SUNXI_EMAC interrupt status */
+	int_status = readl(db->emac_vbase + SUNXI_EMAC_INT_STA_REG);	/* Got ISR */
+	writel(int_status, db->emac_vbase + SUNXI_EMAC_INT_STA_REG);	/* Clear ISR status */
 
 	if (netif_msg_intr(db))
 		dev_dbg(db->dev, "emac interrupt %02x\n", int_status);
@@ -1265,12 +1265,12 @@ static irqreturn_t wemac_interrupt(int irq, void *dev_id)
 	if ((int_status & 0x100) && (emacrx_completed_flag == 1)) {
 		/* carrier lost */
 		emacrx_completed_flag = 0;
-		wemac_rx(dev);
+		sunxi_emac_rx(dev);
 	}
 
 	/* Transmit Interrupt check */
 	if (int_status & (0x01 | 0x02))
-		wemac_tx_done(dev, db, int_status);
+		sunxi_emac_tx_done(dev, db, int_status);
 
 	if (int_status & (0x04 | 0x08))
 		printk(KERN_INFO " ab : %x\n", int_status);
@@ -1282,9 +1282,9 @@ static irqreturn_t wemac_interrupt(int irq, void *dev_id)
 
 	/* Re-enable interrupt mask */
 	if (emacrx_completed_flag == 1) {
-		reg_val = readl(db->emac_vbase + EMAC_INT_CTL_REG);
+		reg_val = readl(db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
 		reg_val |= (0xf<<0) | (0x01<<8);
-		writel(reg_val, db->emac_vbase + EMAC_INT_CTL_REG);
+		writel(reg_val, db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);
 	}
 	spin_unlock_irqrestore(&db->lock, flags);
 
@@ -1295,10 +1295,10 @@ static irqreturn_t wemac_interrupt(int irq, void *dev_id)
 /*
  *Used by netconsole
  */
-static void wemac_poll_controller(struct net_device *dev)
+static void sunxi_emac_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	wemac_interrupt(dev->irq, dev);
+	sunxi_emac_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
@@ -1307,25 +1307,25 @@ static void wemac_poll_controller(struct net_device *dev)
  *  Open the interface.
  *  The interface is opened whenever "ifconfig" actives it.
  */
-static int wemac_open(struct net_device *dev)
+static int sunxi_emac_open(struct net_device *dev)
 {
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 
 	if (netif_msg_ifup(db))
 		dev_dbg(db->dev, "enabling %s\n", dev->name);
 
-	if (request_irq(dev->irq, &wemac_interrupt, IRQF_SHARED,
+	if (request_irq(dev->irq, &sunxi_emac_interrupt, IRQF_SHARED,
 			dev->name, dev))
 		return -EAGAIN;
 
-	/* Initialize WEMAC board */
-	wemac_reset(db);
-	wemac_init_wemac(dev);
+	/* Initialize SUNXI_EMAC board */
+	sunxi_emac_reset(db);
+	sunxi_emac_init_sunxi_emac(dev);
 
 	mii_check_media(&db->mii, netif_msg_link(db), 1);
 	netif_start_queue(dev);
 
-	wemac_schedule_poll(db);
+	sunxi_emac_schedule_poll(db);
 
 	return 0;
 }
@@ -1334,7 +1334,7 @@ static int wemac_open(struct net_device *dev)
  * Sleep, either by using msleep() or if we are suspending, then
  * use mdelay() to sleep.
  */
-static void wemac_msleep(wemac_board_info_t *db, unsigned int ms)
+static void sunxi_emac_msleep(sunxi_emac_board_info_t *db, unsigned int ms)
 {
 	if (db->in_suspend)
 		mdelay(ms);
@@ -1345,9 +1345,9 @@ static void wemac_msleep(wemac_board_info_t *db, unsigned int ms)
 /*
  *   Read a word from phyxcer
  */
-static int wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
+static int sunxi_emac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
 {
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 	unsigned long flags;
 	int ret;
 
@@ -1355,19 +1355,19 @@ static int wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
 
 	spin_lock_irqsave(&db->lock, flags);
 	/* issue the phy address and reg */
-	writel(WEMAC_PHY | reg, db->emac_vbase + EMAC_MAC_MADR_REG);
+	writel(SUNXI_EMAC_PHY | reg, db->emac_vbase + SUNXI_EMAC_MAC_MADR_REG);
 	/* pull up the phy io line */
-	writel(0x1, db->emac_vbase + EMAC_MAC_MCMD_REG);
+	writel(0x1, db->emac_vbase + SUNXI_EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	wemac_msleep(db, 1); /* Wait read complete */
+	sunxi_emac_msleep(db, 1); /* Wait read complete */
 
 	/* push down the phy io line and read data */
 	spin_lock_irqsave(&db->lock, flags);
 	/* push down the phy io line */
-	writel(0x0, db->emac_vbase + EMAC_MAC_MCMD_REG);
+	writel(0x0, db->emac_vbase + SUNXI_EMAC_MAC_MCMD_REG);
 	/* and write data */
-	ret = readl(db->emac_vbase + EMAC_MAC_MRDD_REG);
+	ret = readl(db->emac_vbase + SUNXI_EMAC_MAC_MRDD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
 	mutex_unlock(&db->addr_lock);
@@ -1378,65 +1378,65 @@ static int wemac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
 /*
  *   Write a word to phyxcer
  */
-static void wemac_phy_write(struct net_device *dev,
+static void sunxi_emac_phy_write(struct net_device *dev,
 		int phyaddr_unused, int reg, int value)
 {
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 	unsigned long flags;
 
 	mutex_lock(&db->addr_lock);
 
 	spin_lock_irqsave(&db->lock, flags);
 	/* issue the phy address and reg */
-	writel(WEMAC_PHY | reg, db->emac_vbase + EMAC_MAC_MADR_REG);
+	writel(SUNXI_EMAC_PHY | reg, db->emac_vbase + SUNXI_EMAC_MAC_MADR_REG);
 	/* pull up the phy io line */
-	writel(0x1, db->emac_vbase + EMAC_MAC_MCMD_REG);
+	writel(0x1, db->emac_vbase + SUNXI_EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	wemac_msleep(db, 1);		/* Wait write complete */
+	sunxi_emac_msleep(db, 1);		/* Wait write complete */
 
 	spin_lock_irqsave(&db->lock, flags);
 	/* push down the phy io line */
-	writel(0x0, db->emac_vbase + EMAC_MAC_MCMD_REG);
+	writel(0x0, db->emac_vbase + SUNXI_EMAC_MAC_MCMD_REG);
 	/* and write data */
-	writel(value, db->emac_vbase + EMAC_MAC_MWTD_REG);
+	writel(value, db->emac_vbase + SUNXI_EMAC_MAC_MWTD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
 	mutex_unlock(&db->addr_lock);
 }
 
-static void wemac_shutdown(struct net_device *dev)
+static void sunxi_emac_shutdown(struct net_device *dev)
 {
 	unsigned int reg_val;
-	wemac_board_info_t *db = netdev_priv(dev);
+	sunxi_emac_board_info_t *db = netdev_priv(dev);
 
 	/* RESET device */
-	reg_val = wemac_phy_read(dev, 0, 0);
-	wemac_phy_write(dev, 0, 0, reg_val | (1<<15));	/* PHY RESET */
+	reg_val = sunxi_emac_phy_read(dev, 0, 0);
+	sunxi_emac_phy_write(dev, 0, 0, reg_val | (1<<15));	/* PHY RESET */
 	udelay(10);
-	reg_val = wemac_phy_read(dev, 0, 0);
+	reg_val = sunxi_emac_phy_read(dev, 0, 0);
 	if (reg_val & (1<<15))
-		wemac_dbg(db, 5, "phy_reset not complete. value of reg0: %x\n",
+		sunxi_emac_dbg(db, 5, "phy_reset not complete. value of reg0: %x\n",
 			reg_val);
-	wemac_phy_write(dev, 0, 0, reg_val | (1<<11));	/* PHY POWER DOWN */
+	sunxi_emac_phy_write(dev, 0, 0, reg_val | (1<<11));	/* PHY POWER DOWN */
 
 	if (db->mos_pin_handler) {
 		db->mos_gpio->data = 0;
 		gpio_set_one_pin_status(db->mos_pin_handler, db->mos_gpio, "emac_power", 1);
 	}
 
-	writel(0, db->emac_vbase + EMAC_INT_CTL_REG);					/* Disable all interrupt */
-	writel(readl(db->emac_vbase + EMAC_INT_STA_REG), db->emac_vbase + EMAC_INT_STA_REG);          /* clear interupt status */
-	writel(readl(db->emac_vbase + EMAC_CTL_REG) & (~(0x7)), db->emac_vbase + EMAC_CTL_REG);	/* Disable RX */
+	writel(0, db->emac_vbase + SUNXI_EMAC_INT_CTL_REG);					/* Disable all interrupt */
+	writel(readl(db->emac_vbase + SUNXI_EMAC_INT_STA_REG), db->emac_vbase + SUNXI_EMAC_INT_STA_REG);          /* clear interupt status */
+	writel(readl(db->emac_vbase + SUNXI_EMAC_CTL_REG) & (~(0x7)), db->emac_vbase + SUNXI_EMAC_CTL_REG);	/* Disable RX */
 }
 
 /*
  * Stop the interface.
  * The interface is stopped when it is brought.
  */
-static int wemac_stop(struct net_device *ndev)
+static int sunxi_emac_stop(struct net_device *ndev)
 {
-	wemac_board_info_t *db = netdev_priv(ndev);
+	sunxi_emac_board_info_t *db = netdev_priv(ndev);
 
 	if (netif_msg_ifdown(db))
 		dev_dbg(db->dev, "shutting down %s\n", ndev->name);
@@ -1449,40 +1449,40 @@ static int wemac_stop(struct net_device *ndev)
 	/* free interrupt */
 	free_irq(ndev->irq, ndev);
 
-	wemac_shutdown(ndev);
+	sunxi_emac_shutdown(ndev);
 
 	return 0;
 }
 
 #define res_size(_r) (((_r)->end - (_r)->start) + 1)
-static const struct net_device_ops wemac_netdev_ops = {
-	.ndo_open		= wemac_open,
-	.ndo_stop		= wemac_stop,
-	.ndo_start_xmit		= wemac_start_xmit,
-	.ndo_tx_timeout		= wemac_timeout,
-	.ndo_set_rx_mode	= wemac_hash_table,
-	.ndo_do_ioctl		= wemac_ioctl,
+static const struct net_device_ops sunxi_emac_netdev_ops = {
+	.ndo_open		= sunxi_emac_open,
+	.ndo_stop		= sunxi_emac_stop,
+	.ndo_start_xmit		= sunxi_emac_start_xmit,
+	.ndo_tx_timeout		= sunxi_emac_timeout,
+	.ndo_set_rx_mode	= sunxi_emac_hash_table,
+	.ndo_do_ioctl		= sunxi_emac_ioctl,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= wemac_set_mac_address,
+	.ndo_set_mac_address	= sunxi_emac_set_mac_address,
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= wemac_poll_controller,
+	.ndo_poll_controller	= sunxi_emac_poll_controller,
 #endif
 };
 
 /*
- * Search WEMAC board, allocate space and register it
+ * Search SUNXI_EMAC board, allocate space and register it
  */
-static int __devinit wemac_probe(struct platform_device *pdev)
+static int __devinit sunxi_emac_probe(struct platform_device *pdev)
 {
-	struct wemac_board_info *db;	/* Point a board information structure */
+	struct sunxi_emac_board_info *db;	/* Point a board information structure */
 	struct net_device *ndev;
 	int ret = 0;
 	int iosize;
 	unsigned int reg_val;
 
 	/* Init network device */
-	ndev = alloc_etherdev(sizeof(struct wemac_board_info));
+	ndev = alloc_etherdev(sizeof(struct sunxi_emac_board_info));
 	if (!ndev) {
 		dev_err(&pdev->dev, "could not allocate device.\n");
 		return -ENOMEM;
@@ -1508,8 +1508,8 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	spin_lock_init(&db->lock);
 	mutex_init(&db->addr_lock);
 
-	INIT_DELAYED_WORK(&db->phy_poll, wemac_poll_work);
-	INIT_WORK(&db->tx_timeout_work, wemac_timeout_work);
+	INIT_DELAYED_WORK(&db->phy_poll, sunxi_emac_poll_work);
+	INIT_WORK(&db->tx_timeout_work, sunxi_emac_timeout_work);
 
 	db->emac_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	db->sram_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -1600,23 +1600,23 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	ndev->irq	= db->irq_res->start;
 
 	/* ensure at least we have a default set of IO routines */
-	db->dumpblk = wemac_dumpblk_32bit;
-	db->outblk  = wemac_outblk_32bit;
-	db->inblk   = wemac_inblk_32bit;
+	db->dumpblk = sunxi_emac_dumpblk_32bit;
+	db->outblk  = sunxi_emac_outblk_32bit;
+	db->inblk   = sunxi_emac_inblk_32bit;
 
 	emac_sys_setup(db);
-	wemac_powerup(ndev);
+	sunxi_emac_powerup(ndev);
 
-	wemac_reset(db);
+	sunxi_emac_reset(db);
 
-	/* from this point we assume that we have found a WEMAC */
+	/* from this point we assume that we have found a SUNXI_EMAC */
 
 	/* driver system function */
 	ether_setup(ndev);
 
-	ndev->netdev_ops	= &wemac_netdev_ops;
+	ndev->netdev_ops	= &sunxi_emac_netdev_ops;
 	ndev->watchdog_timeo	= msecs_to_jiffies(watchdog);
-	ndev->ethtool_ops	= &wemac_ethtool_ops;
+	ndev->ethtool_ops	= &sunxi_emac_ethtool_ops;
 
 	db->msg_enable       = 0xffffffff & (~NETIF_MSG_TX_DONE) & (~NETIF_MSG_INTR) & (~NETIF_MSG_RX_STATUS);
 	db->mii.phy_id_mask  = 0x1f;
@@ -1626,16 +1626,16 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	/* change full_duplex value to 0 to set initial duplex as half */
 	db->mii.full_duplex  = 0;
 	db->mii.dev	     = ndev;
-	db->mii.mdio_read    = wemac_phy_read;
-	db->mii.mdio_write   = wemac_phy_write;
+	db->mii.mdio_read    = sunxi_emac_phy_read;
+	db->mii.mdio_write   = sunxi_emac_phy_write;
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 
-		reg_val = readl(db->emac_vbase + EMAC_MAC_A1_REG);
+		reg_val = readl(db->emac_vbase + SUNXI_EMAC_MAC_A1_REG);
 		*(ndev->dev_addr+0) = (reg_val>>16) & 0xff;
 		*(ndev->dev_addr+1) = (reg_val>>8) & 0xff;
 		*(ndev->dev_addr+2) = (reg_val>>0) & 0xff;
-		reg_val = readl(db->emac_vbase + EMAC_MAC_A0_REG);
+		reg_val = readl(db->emac_vbase + SUNXI_EMAC_MAC_A0_REG);
 		*(ndev->dev_addr+3) = (reg_val>>16) & 0xff;
 		*(ndev->dev_addr+4) = (reg_val>>8) & 0xff;
 		*(ndev->dev_addr+5) = (reg_val>>0) & 0xff;
@@ -1652,7 +1652,7 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 
 	if (ret == 0)
-		wemac_dbg(db, 3, "%s: at %p, IRQ %d MAC: %p\n",
+		sunxi_emac_dbg(db, 3, "%s: at %p, IRQ %d MAC: %p\n",
 				ndev->name,
 				db->emac_vbase, ndev->irq,
 				ndev->dev_addr);
@@ -1670,16 +1670,16 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 out:
 	dev_err(db->dev, "not found (%d).\n", ret);
 
-	wemac_release_board(pdev, db);
+	sunxi_emac_release_board(pdev, db);
 	free_netdev(ndev);
 
 	return ret;
 }
 
-static int wemac_drv_suspend(struct platform_device *dev, pm_message_t state)
+static int sunxi_emac_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct net_device *ndev = platform_get_drvdata(dev);
-	wemac_board_info_t *db;
+	sunxi_emac_board_info_t *db;
 
 	if (ndev) {
 		db = netdev_priv(ndev);
@@ -1689,21 +1689,21 @@ static int wemac_drv_suspend(struct platform_device *dev, pm_message_t state)
 		if (mii_link_ok(&db->mii))
 			netif_carrier_off(ndev);
 		netif_device_detach(ndev);
-		wemac_shutdown(ndev);
+		sunxi_emac_shutdown(ndev);
 		/* endif */
 	}
 	return 0;
 }
 
-static int wemac_drv_resume(struct platform_device *dev)
+static int sunxi_emac_drv_resume(struct platform_device *dev)
 {
 	struct net_device *ndev = platform_get_drvdata(dev);
-	wemac_board_info_t *db = netdev_priv(ndev);
+	sunxi_emac_board_info_t *db = netdev_priv(ndev);
 
 	if (ndev) {
 		/* if (netif_running(ndev)) */
-		wemac_reset(db);
-		wemac_init_wemac(ndev);
+		sunxi_emac_reset(db);
+		sunxi_emac_init_sunxi_emac(ndev);
 		netif_device_attach(ndev);
 		if (mii_link_ok(&db->mii))
 			netif_carrier_on(ndev);
@@ -1713,24 +1713,24 @@ static int wemac_drv_resume(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit wemac_drv_remove(struct platform_device *pdev)
+static int __devexit sunxi_emac_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
-	wemac_release_board(pdev, (wemac_board_info_t *) netdev_priv(ndev));
+	sunxi_emac_release_board(pdev, (sunxi_emac_board_info_t *) netdev_priv(ndev));
 	free_netdev(ndev);		/* free device structure */
 
 	dev_dbg(&pdev->dev, "released and freed device\n");
 	return 0;
 }
 
-static struct resource wemac_resources[] = {
+static struct resource sunxi_emac_resources[] = {
 	[0] = {
-		.start	= EMAC_BASE,
-		.end	= EMAC_BASE+1024,
+		.start	= SUNXI_EMAC_BASE,
+		.end	= SUNXI_EMAC_BASE+1024,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -1750,25 +1750,25 @@ static struct resource wemac_resources[] = {
 	}
 };
 
-static struct platform_device wemac_device = {
-	.name		= "wemac",
+static struct platform_device sunxi_emac_device = {
+	.name		= "sunxi_emac",
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(wemac_resources),
-	.resource	= wemac_resources,
+	.num_resources	= ARRAY_SIZE(sunxi_emac_resources),
+	.resource	= sunxi_emac_resources,
 };
 
-static struct platform_driver wemac_driver = {
+static struct platform_driver sunxi_emac_driver = {
 	.driver	= {
-		.name    = "wemac",
+		.name    = "sunxi_emac",
 		.owner	 = THIS_MODULE,
 	},
-	.probe   = wemac_probe,
-	.remove  = __devexit_p(wemac_drv_remove),
-	.suspend = wemac_drv_suspend,
-	.resume  = wemac_drv_resume,
+	.probe   = sunxi_emac_probe,
+	.remove  = __devexit_p(sunxi_emac_drv_remove),
+	.suspend = sunxi_emac_drv_suspend,
+	.resume  = sunxi_emac_drv_resume,
 };
 
-static int __init wemac_init(void)
+static int __init sunxi_emac_init(void)
 {
 	if (SCRIPT_PARSER_OK != script_parser_fetch("emac_para", "emac_used", &emac_used, 1))
 		printk(KERN_WARNING "emac_init fetch emac using configuration failed\n");
@@ -1790,11 +1790,11 @@ static int __init wemac_init(void)
 
 	pr_info("%s Using mii phy on Port%c\n", CARDNAME, 'A' + emac_used - 1);
 
-	platform_device_register(&wemac_device);
-	return platform_driver_register(&wemac_driver);
+	platform_device_register(&sunxi_emac_device);
+	return platform_driver_register(&sunxi_emac_driver);
 }
 
-static void __exit wemac_cleanup(void)
+static void __exit sunxi_emac_cleanup(void)
 {
 	int emac_used = 0;
 
@@ -1806,16 +1806,16 @@ static void __exit wemac_cleanup(void)
 		return;
 	}
 
-	platform_driver_unregister(&wemac_driver);
+	platform_driver_unregister(&sunxi_emac_driver);
 }
 
-module_init(wemac_init);
-module_exit(wemac_cleanup);
+module_init(sunxi_emac_init);
+module_exit(sunxi_emac_cleanup);
 
 MODULE_AUTHOR("chenlm");
-MODULE_DESCRIPTION("Davicom wemac network driver");
+MODULE_DESCRIPTION("Allwinner sunxi emac network driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:wemac");
+MODULE_ALIAS("platform:sunxi_emac");
 
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX /* empty */
