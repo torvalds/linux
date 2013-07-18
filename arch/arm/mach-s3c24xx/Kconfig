@@ -208,7 +208,7 @@ config S3C24XX_GPIO_EXTRA128
 
 config S3C24XX_PLL
 	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"
-	depends on ARM_S3C24XX
+	depends on ARM_S3C24XX_CPUFREQ
 	help
 	  Compile in support for changing the PLL frequency from the
 	  S3C24XX series CPUfreq driver. The PLL takes time to settle

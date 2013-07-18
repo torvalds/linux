@@ -49,7 +49,7 @@ static struct clk *clk_hclk;
 static struct clk *clk_pclk;
 static struct clk *clk_arm;
 
-#ifdef CONFIG_CPU_FREQ_S3C24XX_DEBUGFS
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ_DEBUGFS
 struct s3c_cpufreq_config *s3c_cpufreq_getconfig(void)
 {
 	return &cpu_cur;
@@ -59,7 +59,7 @@ struct s3c_iotimings *s3c_cpufreq_getiotimings(void)
 {
 	return &s3c24xx_iotiming;
 }
-#endif /* CONFIG_CPU_FREQ_S3C24XX_DEBUGFS */
+#endif /* CONFIG_ARM_S3C24XX_CPUFREQ_DEBUGFS */
 
 static void s3c_cpufreq_getcur(struct s3c_cpufreq_config *cfg)
 {
