@@ -18,7 +18,7 @@ int arch_timer_arch_init(void);
  * the code. At least it does so with a recent GCC (4.6.3).
  */
 static __always_inline
-void arch_timer_reg_write(int access, enum arch_timer_reg reg, u32 val)
+void arch_timer_reg_write_cp15(int access, enum arch_timer_reg reg, u32 val)
 {
 	if (access == ARCH_TIMER_PHYS_ACCESS) {
 		switch (reg) {
@@ -44,7 +44,7 @@ void arch_timer_reg_write(int access, enum arch_timer_reg reg, u32 val)
 }
 
 static __always_inline
-u32 arch_timer_reg_read(int access, enum arch_timer_reg reg)
+u32 arch_timer_reg_read_cp15(int access, enum arch_timer_reg reg)
 {
 	u32 val = 0;
 
