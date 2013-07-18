@@ -5515,6 +5515,9 @@ void evergreen_program_aspm(struct radeon_device *rdev)
 	 */
 	bool fusion_platform = false;
 
+	if (radeon_aspm == 0)
+		return;
+
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		return;
 

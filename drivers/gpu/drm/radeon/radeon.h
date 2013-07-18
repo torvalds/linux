@@ -97,6 +97,7 @@ extern int radeon_msi;
 extern int radeon_lockup_timeout;
 extern int radeon_fastfb;
 extern int radeon_dpm;
+extern int radeon_aspm;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting

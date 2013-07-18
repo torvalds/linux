@@ -1270,6 +1270,7 @@ static struct radeon_asic rs780_asic = {
 		.get_sclk = &rs780_dpm_get_sclk,
 		.get_mclk = &rs780_dpm_get_mclk,
 		.print_power_state = &rs780_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &rs780_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,

@@ -7053,6 +7053,9 @@ static void si_program_aspm(struct radeon_device *rdev)
 	bool disable_l0s = false, disable_l1 = false, disable_plloff_in_l1 = false;
 	bool disable_clkreq = false;
 
+	if (radeon_aspm == 0)
+		return;
+
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		return;
 
