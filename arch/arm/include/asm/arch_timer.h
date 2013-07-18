@@ -105,7 +105,7 @@ static inline void __cpuinit arch_counter_set_user_access(void)
 	asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
 
 	/* disable user access to everything */
-	cntkctl &= ~((3 << 8) | (7 << 0));
+	cntkctl &= ~((3 << 8) | (3 << 0));
 
 	asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
 }
