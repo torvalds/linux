@@ -5164,41 +5164,9 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	BUG_ON(val != final);
 }
 
-/*
- * Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O.
- * WaMPhyProgramming:hsw
- */
-static void lpt_init_pch_refclk(struct drm_device *dev)
+static void lpt_reset_fdi_mphy(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct intel_encoder *encoder;
-	bool has_vga = false;
-	u32 tmp;
-
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
-		switch (encoder->type) {
-		case INTEL_OUTPUT_ANALOG:
-			has_vga = true;
-			break;
-		}
-	}
-
-	if (!has_vga)
-		return;
-
-	mutex_lock(&dev_priv->dpio_lock);
-
-	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
-	tmp &= ~SBI_SSCCTL_DISABLE;
-	tmp |= SBI_SSCCTL_PATHALT;
-	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
-
-	udelay(24);
-
-	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
-	tmp &= ~SBI_SSCCTL_PATHALT;
-	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+	uint32_t tmp;
 
 	tmp = I915_READ(SOUTH_CHICKEN2);
 	tmp |= FDI_MPHY_IOSFSB_RESET_CTL;
@@ -5215,6 +5183,12 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	if (wait_for_atomic_us((I915_READ(SOUTH_CHICKEN2) &
 				FDI_MPHY_IOSFSB_RESET_STATUS) == 0, 100))
 		DRM_ERROR("FDI mPHY reset de-assert timeout\n");
+}
+
+/* WaMPhyProgramming:hsw */
+static void lpt_program_fdi_mphy(struct drm_i915_private *dev_priv)
+{
+	uint32_t tmp;
 
 	tmp = intel_sbi_read(dev_priv, 0x8008, SBI_MPHY);
 	tmp &= ~(0xFF << 24);
@@ -5284,6 +5258,43 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	tmp &= ~(0xF << 28);
 	tmp |= (4 << 28);
 	intel_sbi_write(dev_priv, 0x21EC, tmp, SBI_MPHY);
+}
+
+/* Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O. */
+static void lpt_init_pch_refclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
+	bool has_vga = false;
+	u32 tmp;
+
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
+		switch (encoder->type) {
+		case INTEL_OUTPUT_ANALOG:
+			has_vga = true;
+			break;
+		}
+	}
+
+	if (!has_vga)
+		return;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	tmp &= ~SBI_SSCCTL_DISABLE;
+	tmp |= SBI_SSCCTL_PATHALT;
+	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+
+	udelay(24);
+
+	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	tmp &= ~SBI_SSCCTL_PATHALT;
+	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+
+	lpt_reset_fdi_mphy(dev_priv);
+	lpt_program_fdi_mphy(dev_priv);
 
 	/* ULT uses SBI_GEN0, but ULT doesn't have VGA, so we don't care. */
 	tmp = intel_sbi_read(dev_priv, SBI_DBUFF0, SBI_ICLK);
