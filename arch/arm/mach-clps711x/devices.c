@@ -57,7 +57,7 @@ static void __init clps711x_add_syscon(void)
 	unsigned i;
 
 	for (i = 0; i < ARRAY_SIZE(clps711x_syscon_res); i++)
-		platform_device_register_simple("clps711x-syscon", i + 1,
+		platform_device_register_simple("syscon", i + 1,
 						&clps711x_syscon_res[i], 1);
 }
 
