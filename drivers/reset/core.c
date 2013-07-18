@@ -167,7 +167,7 @@ struct reset_control *reset_control_get(struct device *dev, const char *id)
 
 	if (!rcdev) {
 		mutex_unlock(&reset_controller_list_mutex);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	rstc_id = rcdev->of_xlate(rcdev, &args);
