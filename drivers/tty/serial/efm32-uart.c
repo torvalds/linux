@@ -788,7 +788,7 @@ static int efm32_uart_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id efm32_uart_dt_ids[] = {
+static const struct of_device_id efm32_uart_dt_ids[] = {
 	{
 		.compatible = "efm32,uart",
 	}, {
