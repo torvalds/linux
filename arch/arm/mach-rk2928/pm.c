@@ -291,9 +291,10 @@ static void __sramfunc rk2928_sram_suspend(void)
 	rk30_pwm_logic_suspend_voltage();
 	board_pmu_suspend();
 	sram_printch('7');
-
+#ifdef CONFIG_ARCH_RK2928
         grf_uoc1_con = grf_readl(GRF_UOC1_CON4);
         grf_writel(0x30000000,GRF_UOC1_CON4);
+#endif
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
 	}
@@ -340,7 +341,9 @@ static void __sramfunc rk2928_sram_suspend(void)
 		cru_writel(clkgt_regs[i] | 0xffff0000, CRU_CLKGATES_CON(i));
 	}
 
+#ifdef CONFIG_ARCH_RK2928
 	grf_writel(0x30000000|grf_uoc1_con,GRF_UOC1_CON4);
+#endif
 	sram_printch('7');
 	board_pmu_resume();
 	rk30_pwm_logic_resume_voltage();

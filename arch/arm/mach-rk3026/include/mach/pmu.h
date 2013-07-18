@@ -1,6 +1,7 @@
 #ifndef __MACH_PMU_H
 #define __MACH_PMU_H
 
+#include <linux/io.h>
 #include <mach/cru.h>
 
 enum pmu_power_domain {

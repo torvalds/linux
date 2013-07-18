@@ -3,7 +3,7 @@ obj-y += ../plat-rk/clock.o
 obj-y += clock_data.o
 obj-y += ../mach-rk2928/ddr.o
 obj-y += ../mach-rk2928/reset.o
-obj-$(CONFIG_PM) += ../mach-rk30/pm.o
+obj-$(CONFIG_PM) += ../mach-rk2928/pm.o
 endif
 obj-y += ../mach-rk2928/common.o
 CFLAGS_common.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
@@ -14,7 +14,7 @@ obj-$(CONFIG_SMP) += ../mach-rk30/platsmp.o ../mach-rk30/headsmp.o
 obj-$(CONFIG_HOTPLUG_CPU) += ../mach-rk30/hotplug.o
 obj-$(CONFIG_CPU_IDLE) += ../mach-rk30/cpuidle.o
 obj-$(CONFIG_CPU_FREQ) += ../mach-rk3188/cpufreq.o
-obj-$(CONFIG_DVFS) += dvfs.o
+obj-$(CONFIG_DVFS) += ../mach-rk2928/dvfs.o
 obj-$(CONFIG_RK30_I2C_INSRAM) += ../mach-rk30/i2c_sram.o
 
 obj-y += board.o
