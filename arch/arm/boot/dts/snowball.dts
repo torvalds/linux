@@ -165,13 +165,6 @@
 			status = "okay";
 		};
 
-		i2c@80128000 {
-			bh1780@29 {
-				// compatible = "rohm,bh1780gli";
-				reg = <0x33>;
-			};
-		};
-
 		cpufreq-cooling {
 			status = "okay";
 		};
