@@ -146,6 +146,7 @@ enum nfc_commands {
  * @NFC_ATTR_FIRMWARE_NAME: Free format firmware version
  * @NFC_ATTR_SE_INDEX: Secure element index
  * @NFC_ATTR_SE_TYPE: Secure element type (UICC or EMBEDDED)
+ * @NFC_ATTR_FIRMWARE_DOWNLOAD_STATUS: Firmware download operation status
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -172,6 +173,7 @@ enum nfc_attrs {
 	NFC_ATTR_SE_INDEX,
 	NFC_ATTR_SE_TYPE,
 	NFC_ATTR_SE_AID,
+	NFC_ATTR_FIRMWARE_DOWNLOAD_STATUS,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };

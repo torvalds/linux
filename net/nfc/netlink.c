@@ -1114,7 +1114,8 @@ static int nfc_genl_fw_download(struct sk_buff *skb, struct genl_info *info)
 	return rc;
 }
 
-int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name)
+int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
+			      u32 result)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -1129,6 +1130,7 @@ int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name)
 		goto free_msg;
 
 	if (nla_put_string(msg, NFC_ATTR_FIRMWARE_NAME, firmware_name) ||
+	    nla_put_u32(msg, NFC_ATTR_FIRMWARE_DOWNLOAD_STATUS, result) ||
 	    nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx))
 		goto nla_put_failure;
 

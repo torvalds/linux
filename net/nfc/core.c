@@ -77,11 +77,19 @@ error:
 	return rc;
 }
 
-int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name)
+/**
+ * nfc_fw_download_done - inform that a firmware download was completed
+ *
+ * @dev: The nfc device to which firmware was downloaded
+ * @firmware_name: The firmware filename
+ * @result: The positive value of a standard errno value
+ */
+int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
+			 u32 result)
 {
 	dev->fw_download_in_progress = false;
 
-	return nfc_genl_fw_download_done(dev, firmware_name);
+	return nfc_genl_fw_download_done(dev, firmware_name, result);
 }
 EXPORT_SYMBOL(nfc_fw_download_done);
 
