@@ -428,7 +428,7 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 
 	r = pn544_hci_probe(phy, &i2c_phy_ops, LLC_SHDLC_NAME,
 			    PN544_I2C_FRAME_HEADROOM, PN544_I2C_FRAME_TAILROOM,
-			    PN544_HCI_I2C_LLC_MAX_PAYLOAD, &phy->hdev);
+			    PN544_HCI_I2C_LLC_MAX_PAYLOAD, NULL, &phy->hdev);
 	if (r < 0)
 		goto err_hci;
 

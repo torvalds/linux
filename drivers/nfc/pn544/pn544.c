@@ -127,6 +127,8 @@ struct pn544_hci_info {
 	int async_cb_type;
 	data_exchange_cb_t async_cb;
 	void *async_cb_context;
+
+	fw_download_t fw_download;
 };
 
 static int pn544_hci_open(struct nfc_hci_dev *hdev)
@@ -779,6 +781,17 @@ exit:
 	return r;
 }
 
+static int pn544_hci_fw_download(struct nfc_hci_dev *hdev,
+				 const char *firmware_name)
+{
+	struct pn544_hci_info *info = nfc_hci_get_clientdata(hdev);
+
+	if (info->fw_download == NULL)
+		return -ENOTSUPP;
+
+	return info->fw_download(info->phy_id, firmware_name);
+}
+
 static struct nfc_hci_ops pn544_hci_ops = {
 	.open = pn544_hci_open,
 	.close = pn544_hci_close,
@@ -793,11 +806,12 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.tm_send = pn544_hci_tm_send,
 	.check_presence = pn544_hci_check_presence,
 	.event_received = pn544_hci_event_received,
+	.fw_download = pn544_hci_fw_download,
 };
 
 int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    int phy_headroom, int phy_tailroom, int phy_payload,
-		    struct nfc_hci_dev **hdev)
+		    fw_download_t fw_download, struct nfc_hci_dev **hdev)
 {
 	struct pn544_hci_info *info;
 	u32 protocols;
@@ -813,6 +827,7 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 
 	info->phy_ops = phy_ops;
 	info->phy_id = phy_id;
+	info->fw_download = fw_download;
 	info->state = PN544_ST_COLD;
 	mutex_init(&info->info_lock);
 
