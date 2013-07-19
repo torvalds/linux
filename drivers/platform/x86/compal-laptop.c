@@ -425,7 +425,8 @@ static ssize_t pwm_enable_store(struct device *dev,
 	struct compal_data *data = dev_get_drvdata(dev);
 	long val;
 	int err;
-	err = strict_strtol(buf, 10, &val);
+
+	err = kstrtol(buf, 10, &val);
 	if (err)
 		return err;
 	if (val < 0)
@@ -463,7 +464,8 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
 	struct compal_data *data = dev_get_drvdata(dev);
 	long val;
 	int err;
-	err = strict_strtol(buf, 10, &val);
+
+	err = kstrtol(buf, 10, &val);
 	if (err)
 		return err;
 	if (val < 0 || val > 255)
