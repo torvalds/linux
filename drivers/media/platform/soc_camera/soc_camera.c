@@ -1501,7 +1501,7 @@ static int scan_async_group(struct soc_camera_host *ici,
 		return -ENOMEM;
 	}
 
-	sasc->notifier.subdev = asd;
+	sasc->notifier.subdevs = asd;
 	sasc->notifier.num_subdevs = size;
 	sasc->notifier.bound = soc_camera_async_bound;
 	sasc->notifier.unbind = soc_camera_async_unbind;

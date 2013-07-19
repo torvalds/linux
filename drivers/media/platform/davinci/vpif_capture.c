@@ -2168,7 +2168,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 		vpif_probe_complete();
 	} else {
-		vpif_obj.notifier.subdev = vpif_obj.config->asd;
+		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
 		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
 		vpif_obj.notifier.bound = vpif_async_bound;
 		vpif_obj.notifier.complete = vpif_async_complete;

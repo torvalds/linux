@@ -77,7 +77,7 @@ struct v4l2_async_subdev_list {
 /**
  * v4l2_async_notifier - v4l2_device notifier data
  * @num_subdevs:number of subdevices
- * @subdev:	array of pointers to subdevice descriptors
+ * @subdevs:	array of pointers to subdevice descriptors
  * @v4l2_dev:	pointer to struct v4l2_device
  * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
  * @done:	list of struct v4l2_async_subdev_list, already probed
@@ -88,7 +88,7 @@ struct v4l2_async_subdev_list {
  */
 struct v4l2_async_notifier {
 	unsigned int num_subdevs;
-	struct v4l2_async_subdev **subdev;
+	struct v4l2_async_subdev **subdevs;
 	struct v4l2_device *v4l2_dev;
 	struct list_head waiting;
 	struct list_head done;

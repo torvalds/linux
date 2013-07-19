@@ -147,7 +147,7 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 	INIT_LIST_HEAD(&notifier->done);
 
 	for (i = 0; i < notifier->num_subdevs; i++) {
-		asd = notifier->subdev[i];
+		asd = notifier->subdevs[i];
 
 		switch (asd->match_type) {
 		case V4L2_ASYNC_MATCH_CUSTOM:
