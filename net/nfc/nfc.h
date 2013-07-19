@@ -126,8 +126,6 @@ static inline void nfc_device_iter_exit(struct class_dev_iter *iter)
 int nfc_fw_download(struct nfc_dev *dev, const char *firmware_name);
 int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name);
 
-int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name);
-
 int nfc_dev_up(struct nfc_dev *dev);
 
 int nfc_dev_down(struct nfc_dev *dev);
