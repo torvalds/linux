@@ -256,7 +256,7 @@ static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		return -ENOMEM;
 
-	oprofile_create_files(sb, sb->s_root);
+	oprofile_create_files(sb->s_root);
 
 	// FIXME: verify kill_litter_super removes our dentries
 	return 0;
