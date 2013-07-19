@@ -209,11 +209,13 @@ int mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner)
  */
 static inline int mutex_can_spin_on_owner(struct mutex *lock)
 {
+	struct task_struct *owner;
 	int retval = 1;
 
 	rcu_read_lock();
-	if (lock->owner)
-		retval = lock->owner->on_cpu;
+	owner = ACCESS_ONCE(lock->owner);
+	if (owner)
+		retval = owner->on_cpu;
 	rcu_read_unlock();
 	/*
 	 * if lock->owner is not set, the mutex owner may have just acquired
