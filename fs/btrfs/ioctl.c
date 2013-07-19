@@ -4042,18 +4042,22 @@ out:
 static int btrfs_ioctl_get_fslabel(struct file *file, void __user *arg)
 {
 	struct btrfs_root *root = BTRFS_I(file_inode(file))->root;
-	const char *label = root->fs_info->super_copy->label;
-	size_t len = strnlen(label, BTRFS_LABEL_SIZE);
+	size_t len;
 	int ret;
+	char label[BTRFS_LABEL_SIZE];
+
+	spin_lock(&root->fs_info->super_lock);
+	memcpy(label, root->fs_info->super_copy->label, BTRFS_LABEL_SIZE);
+	spin_unlock(&root->fs_info->super_lock);
+
+	len = strnlen(label, BTRFS_LABEL_SIZE);
 
 	if (len == BTRFS_LABEL_SIZE) {
 		pr_warn("btrfs: label is too long, return the first %zu bytes\n",
 			--len);
 	}
 
-	mutex_lock(&root->fs_info->volume_mutex);
 	ret = copy_to_user(arg, label, len);
-	mutex_unlock(&root->fs_info->volume_mutex);
 
 	return ret ? -EFAULT : 0;
 }
@@ -4082,18 +4086,18 @@ static int btrfs_ioctl_set_fslabel(struct file *file, void __user *arg)
 	if (ret)
 		return ret;
 
-	mutex_lock(&root->fs_info->volume_mutex);
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		goto out_unlock;
 	}
 
+	spin_lock(&root->fs_info->super_lock);
 	strcpy(super_block->label, label);
+	spin_unlock(&root->fs_info->super_lock);
 	ret = btrfs_end_transaction(trans, root);
 
 out_unlock:
-	mutex_unlock(&root->fs_info->volume_mutex);
 	mnt_drop_write_file(file);
 	return ret;
 }
