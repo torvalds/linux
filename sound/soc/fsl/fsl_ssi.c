@@ -36,7 +36,7 @@
 #define read_ssi(addr)			 in_be32(addr)
 #define write_ssi(val, addr)		 out_be32(addr, val)
 #define write_ssi_mask(addr, clear, set) clrsetbits_be32(addr, clear, set)
-#elif defined ARM
+#else
 #define read_ssi(addr)			 readl(addr)
 #define write_ssi(val, addr)		 writel(val, addr)
 /*
