@@ -38,6 +38,7 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o \
 	  intel_sprite.o \
 	  intel_opregion.o \
 	  intel_sideband.o \
+	  intel_uncore.o \
 	  dvo_ch7xxx.o \
 	  dvo_ch7017.o \
 	  dvo_ivch.o \

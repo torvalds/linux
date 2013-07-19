@@ -391,9 +391,18 @@ struct drm_i915_display_funcs {
 	/* pll clock increase/decrease */
 };
 
-struct drm_i915_gt_funcs {
+struct intel_uncore_funcs {
 	void (*force_wake_get)(struct drm_i915_private *dev_priv);
 	void (*force_wake_put)(struct drm_i915_private *dev_priv);
+};
+
+struct intel_uncore {
+	spinlock_t lock; /** lock is also taken in irq contexts. */
+
+	struct intel_uncore_funcs funcs;
+
+	unsigned fifo_count;
+	unsigned forcewake_count;
 };
 
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \
@@ -1045,14 +1054,7 @@ typedef struct drm_i915_private {
 
 	void __iomem *regs;
 
-	struct drm_i915_gt_funcs gt;
-	/** gt_fifo_count and the subsequent register write are synchronized
-	 * with dev->struct_mutex. */
-	unsigned gt_fifo_count;
-	/** forcewake_count is protected by gt_lock */
-	unsigned forcewake_count;
-	/** gt_lock is also taken in irq contexts. */
-	spinlock_t gt_lock;
+	struct intel_uncore uncore;
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PORTS];
 
@@ -1671,8 +1673,14 @@ void i915_handle_error(struct drm_device *dev, bool wedged);
 extern void intel_irq_init(struct drm_device *dev);
 extern void intel_pm_init(struct drm_device *dev);
 extern void intel_hpd_init(struct drm_device *dev);
-extern void intel_gt_init(struct drm_device *dev);
-extern void intel_gt_sanitize(struct drm_device *dev);
+extern void intel_pm_init(struct drm_device *dev);
+
+extern void intel_uncore_sanitize(struct drm_device *dev);
+extern void intel_uncore_early_sanitize(struct drm_device *dev);
+extern void intel_uncore_init(struct drm_device *dev);
+extern void intel_uncore_reset(struct drm_device *dev);
+extern void intel_uncore_clear_errors(struct drm_device *dev);
+extern void intel_uncore_check_errors(struct drm_device *dev);
 
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
@@ -2108,7 +2116,6 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
  */
 void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
-int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val);
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val);

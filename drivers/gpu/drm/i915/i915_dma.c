@@ -1444,22 +1444,6 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_early_sanitize_regs - clean up BIOS state
- * @dev: DRM device
- *
- * This function must be called before we do any I915_READ or I915_WRITE. Its
- * purpose is to clean up any state left by the BIOS that may affect us when
- * reading and/or writing registers.
- */
-static void intel_early_sanitize_regs(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (HAS_FPGA_DBG_UNCLAIMED(dev))
-		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
-}
-
-/**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
  * @flags: startup flags
@@ -1501,7 +1485,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
 	spin_lock_init(&dev_priv->backlight.lock);
-	spin_lock_init(&dev_priv->gt_lock);
+	spin_lock_init(&dev_priv->uncore.lock);
 	mutex_init(&dev_priv->dpio_lock);
 	mutex_init(&dev_priv->rps.hw_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
@@ -1537,7 +1521,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_bridge;
 	}
 
-	intel_early_sanitize_regs(dev);
+	intel_uncore_early_sanitize(dev);
 
 	if (IS_HASWELL(dev) && (I915_READ(HSW_EDRAM_PRESENT) == 1)) {
 		/* The docs do not explain exactly how the calculation can be
@@ -1611,8 +1595,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_irq_init(dev);
 	intel_pm_init(dev);
-	intel_gt_sanitize(dev);
-	intel_gt_init(dev);
+	intel_uncore_sanitize(dev);
+	intel_uncore_init(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev);
