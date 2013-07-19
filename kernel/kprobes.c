@@ -1709,7 +1709,7 @@ EXPORT_SYMBOL_GPL(unregister_kprobes);
 
 static struct notifier_block kprobe_exceptions_nb = {
 	.notifier_call = kprobe_exceptions_notify,
-	.priority = 0x7fffffff /* we need to be notified first */
+	.priority = 0x7ffffff0 /* High priority, but not first.  */
 };
 
 unsigned long __weak arch_deref_entry_point(void *entry)
