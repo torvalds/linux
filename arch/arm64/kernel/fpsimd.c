@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -113,6 +114,39 @@ EXPORT_SYMBOL(kernel_neon_end);
 
 #endif /* CONFIG_KERNEL_MODE_NEON */
 
+#ifdef CONFIG_CPU_PM
+static int fpsimd_cpu_pm_notifier(struct notifier_block *self,
+				  unsigned long cmd, void *v)
+{
+	switch (cmd) {
+	case CPU_PM_ENTER:
+		if (current->mm)
+			fpsimd_save_state(&current->thread.fpsimd_state);
+		break;
+	case CPU_PM_EXIT:
+		if (current->mm)
+			fpsimd_load_state(&current->thread.fpsimd_state);
+		break;
+	case CPU_PM_ENTER_FAILED:
+	default:
+		return NOTIFY_DONE;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block fpsimd_cpu_pm_notifier_block = {
+	.notifier_call = fpsimd_cpu_pm_notifier,
+};
+
+static void fpsimd_pm_init(void)
+{
+	cpu_pm_register_notifier(&fpsimd_cpu_pm_notifier_block);
+}
+
+#else
+static inline void fpsimd_pm_init(void) { }
+#endif /* CONFIG_CPU_PM */
+
 /*
  * FP/SIMD support code initialisation.
  */
@@ -130,6 +164,8 @@ static int __init fpsimd_init(void)
 		pr_notice("Advanced SIMD is not implemented\n");
 	else
 		elf_hwcap |= HWCAP_ASIMD;
+
+	fpsimd_pm_init();
 
 	return 0;
 }
