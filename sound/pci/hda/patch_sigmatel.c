@@ -3233,7 +3233,7 @@ static const struct hda_fixup stac927x_fixups[] = {
 			/* configure the analog microphone on some laptops */
 			{ 0x0c, 0x90a79130 },
 			/* correct the front output jack as a hp out */
-			{ 0x0f, 0x0227011f },
+			{ 0x0f, 0x0221101f },
 			/* correct the front input jack as a mic */
 			{ 0x0e, 0x02a79130 },
 			{}
