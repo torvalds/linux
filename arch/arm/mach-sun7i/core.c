@@ -77,7 +77,9 @@ static void __init sun7i_timer_init(void)
 {
 	aw_clkevt_init();
 	aw_clksrc_init();
+#ifdef ARM_ARCH_TIMER
 	arch_timer_common_register();
+#endif
 }
 
 static struct sys_timer sun7i_timer = {
