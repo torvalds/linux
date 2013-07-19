@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <traceevent/event-parse.h>
 
 #include <byteswap.h>
 #include <unistd.h>
@@ -12,7 +13,6 @@
 #include "sort.h"
 #include "util.h"
 #include "cpumap.h"
-#include "event-parse.h"
 #include "perf_regs.h"
 #include "vdso.h"
 
@@ -24,7 +24,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 		self->fd_pipe = true;
 		self->fd = STDIN_FILENO;
 
-		if (perf_session__read_header(self, self->fd) < 0)
+		if (perf_session__read_header(self) < 0)
 			pr_err("incompatible file format (rerun with -v to learn more)");
 
 		return 0;
@@ -56,7 +56,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 		goto out_close;
 	}
 
-	if (perf_session__read_header(self, self->fd) < 0) {
+	if (perf_session__read_header(self) < 0) {
 		pr_err("incompatible file format (rerun with -v to learn more)");
 		goto out_close;
 	}
@@ -193,7 +193,9 @@ void perf_session__delete(struct perf_session *self)
 	vdso__exit();
 }
 
-static int process_event_synth_tracing_data_stub(union perf_event *event
+static int process_event_synth_tracing_data_stub(struct perf_tool *tool
+						 __maybe_unused,
+						 union perf_event *event
 						 __maybe_unused,
 						 struct perf_session *session
 						__maybe_unused)
@@ -202,7 +204,8 @@ static int process_event_synth_tracing_data_stub(union perf_event *event
 	return 0;
 }
 
-static int process_event_synth_attr_stub(union perf_event *event __maybe_unused,
+static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
+					 union perf_event *event __maybe_unused,
 					 struct perf_evlist **pevlist
 					 __maybe_unused)
 {
@@ -238,13 +241,6 @@ static int process_finished_round_stub(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static int process_event_type_stub(struct perf_tool *tool __maybe_unused,
-				   union perf_event *event __maybe_unused)
-{
-	dump_printf(": unhandled!\n");
-	return 0;
-}
-
 static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event,
 				  struct perf_session *session);
@@ -271,8 +267,6 @@ static void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->unthrottle = process_event_stub;
 	if (tool->attr == NULL)
 		tool->attr = process_event_synth_attr_stub;
-	if (tool->event_type == NULL)
-		tool->event_type = process_event_type_stub;
 	if (tool->tracing_data == NULL)
 		tool->tracing_data = process_event_synth_tracing_data_stub;
 	if (tool->build_id == NULL)
@@ -921,16 +915,14 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 	/* These events are processed right away */
 	switch (event->header.type) {
 	case PERF_RECORD_HEADER_ATTR:
-		err = tool->attr(event, &session->evlist);
+		err = tool->attr(tool, event, &session->evlist);
 		if (err == 0)
 			perf_session__set_id_hdr_size(session);
 		return err;
-	case PERF_RECORD_HEADER_EVENT_TYPE:
-		return tool->event_type(tool, event);
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
 		lseek(session->fd, file_offset, SEEK_SET);
-		return tool->tracing_data(event, session);
+		return tool->tracing_data(tool, event, session);
 	case PERF_RECORD_HEADER_BUILD_ID:
 		return tool->build_id(tool, event, session);
 	case PERF_RECORD_FINISHED_ROUND:
@@ -1091,8 +1083,10 @@ more:
 		perf_event_header__bswap(&event->header);
 
 	size = event->header.size;
-	if (size == 0)
-		size = 8;
+	if (size < sizeof(struct perf_event_header)) {
+		pr_err("bad event header size\n");
+		goto out_err;
+	}
 
 	if (size > cur_size) {
 		void *new = realloc(buf, size);
@@ -1161,8 +1155,12 @@ fetch_mmaped_event(struct perf_session *session,
 	if (session->header.needs_swap)
 		perf_event_header__bswap(&event->header);
 
-	if (head + event->header.size > mmap_size)
+	if (head + event->header.size > mmap_size) {
+		/* We're not fetching the event so swap back again */
+		if (session->header.needs_swap)
+			perf_event_header__bswap(&event->header);
 		return NULL;
+	}
 
 	return event;
 }
@@ -1242,7 +1240,7 @@ more:
 
 	size = event->header.size;
 
-	if (size == 0 ||
+	if (size < sizeof(struct perf_event_header) ||
 	    perf_session__process_event(session, event, tool, file_pos) < 0) {
 		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d\n",
 		       file_offset + head, event->header.size,
@@ -1397,9 +1395,8 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 
 	if (symbol_conf.use_callchain && sample->callchain) {
 
-
 		if (machine__resolve_callchain(machine, evsel, al.thread,
-					       sample, NULL) != 0) {
+					       sample, NULL, NULL) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
 			return;

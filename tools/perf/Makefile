@@ -124,7 +124,7 @@ strip-libs = $(filter-out -l%,$(1))
 ifneq ($(OUTPUT),)
   TE_PATH=$(OUTPUT)
 ifneq ($(subdir),)
-  LK_PATH=$(objtree)/lib/lk/
+  LK_PATH=$(OUTPUT)/../lib/lk/
 else
   LK_PATH=$(OUTPUT)
 endif
@@ -281,7 +281,7 @@ LIB_H += util/cpumap.h
 LIB_H += util/top.h
 LIB_H += $(ARCH_INCLUDE)
 LIB_H += util/cgroup.h
-LIB_H += $(TRACE_EVENT_DIR)event-parse.h
+LIB_H += $(LIB_INCLUDE)traceevent/event-parse.h
 LIB_H += util/target.h
 LIB_H += util/rblist.h
 LIB_H += util/intlist.h

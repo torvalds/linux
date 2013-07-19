@@ -29,6 +29,8 @@ extern const char *sort_order;
 extern const char default_parent_pattern[];
 extern const char *parent_pattern;
 extern const char default_sort_order[];
+extern regex_t ignore_callees_regex;
+extern int have_ignore_callees;
 extern int sort__need_collapse;
 extern int sort__has_parent;
 extern int sort__has_sym;
@@ -86,6 +88,9 @@ struct hist_entry {
 	s32			cpu;
 
 	struct hist_entry_diff	diff;
+
+	/* We are added by hists__add_dummy_entry. */
+	bool			dummy;
 
 	/* XXX These two should move to some tree widget lib */
 	u16			row_offset;
@@ -182,5 +187,7 @@ extern struct list_head hist_entry__sort_list;
 int setup_sorting(void);
 extern int sort_dimension__add(const char *);
 void sort__setup_elide(FILE *fp);
+
+int report_parse_ignore_callees_opt(const struct option *opt, const char *arg, int unset);
 
 #endif	/* __PERF_SORT_H */

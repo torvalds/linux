@@ -7,6 +7,8 @@ const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	default_sort_order[] = "comm,dso,symbol";
 const char	*sort_order = default_sort_order;
+regex_t		ignore_callees_regex;
+int		have_ignore_callees = 0;
 int		sort__need_collapse = 0;
 int		sort__has_parent = 0;
 int		sort__has_sym = 0;
@@ -55,14 +57,14 @@ static int64_t cmp_null(void *l, void *r)
 static int64_t
 sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return right->thread->pid - left->thread->pid;
+	return right->thread->tid - left->thread->tid;
 }
 
 static int hist_entry__thread_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width)
 {
 	return repsep_snprintf(bf, size, "%*s:%5d", width - 6,
-			      self->thread->comm ?: "", self->thread->pid);
+			      self->thread->comm ?: "", self->thread->tid);
 }
 
 struct sort_entry sort_thread = {
@@ -77,7 +79,7 @@ struct sort_entry sort_thread = {
 static int64_t
 sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return right->thread->pid - left->thread->pid;
+	return right->thread->tid - left->thread->tid;
 }
 
 static int64_t

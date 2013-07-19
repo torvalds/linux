@@ -6,7 +6,7 @@
 #include "parse-options.h"
 #include "parse-events.h"
 #include "exec_cmd.h"
-#include "string.h"
+#include "linux/string.h"
 #include "symbol.h"
 #include "cache.h"
 #include "header.h"
@@ -217,6 +217,29 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	return NULL;
 }
 
+struct tracepoint_path *tracepoint_name_to_path(const char *name)
+{
+	struct tracepoint_path *path = zalloc(sizeof(*path));
+	char *str = strchr(name, ':');
+
+	if (path == NULL || str == NULL) {
+		free(path);
+		return NULL;
+	}
+
+	path->system = strndup(name, str - name);
+	path->name = strdup(str+1);
+
+	if (path->system == NULL || path->name == NULL) {
+		free(path->system);
+		free(path->name);
+		free(path);
+		path = NULL;
+	}
+
+	return path;
+}
+
 const char *event_type(int type)
 {
 	switch (type) {
@@ -241,40 +264,29 @@ const char *event_type(int type)
 
 
 
-static int __add_event(struct list_head **_list, int *idx,
+static int __add_event(struct list_head *list, int *idx,
 		       struct perf_event_attr *attr,
 		       char *name, struct cpu_map *cpus)
 {
 	struct perf_evsel *evsel;
-	struct list_head *list = *_list;
-
-	if (!list) {
-		list = malloc(sizeof(*list));
-		if (!list)
-			return -ENOMEM;
-		INIT_LIST_HEAD(list);
-	}
 
 	event_attr_init(attr);
 
 	evsel = perf_evsel__new(attr, (*idx)++);
-	if (!evsel) {
-		free(list);
+	if (!evsel)
 		return -ENOMEM;
-	}
 
 	evsel->cpus = cpus;
 	if (name)
 		evsel->name = strdup(name);
 	list_add_tail(&evsel->node, list);
-	*_list = list;
 	return 0;
 }
 
-static int add_event(struct list_head **_list, int *idx,
+static int add_event(struct list_head *list, int *idx,
 		     struct perf_event_attr *attr, char *name)
 {
-	return __add_event(_list, idx, attr, name, NULL);
+	return __add_event(list, idx, attr, name, NULL);
 }
 
 static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES], int size)
@@ -295,7 +307,7 @@ static int parse_aliases(char *str, const char *names[][PERF_EVSEL__MAX_ALIASES]
 	return -1;
 }
 
-int parse_events_add_cache(struct list_head **list, int *idx,
+int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2)
 {
 	struct perf_event_attr attr;
@@ -356,31 +368,21 @@ int parse_events_add_cache(struct list_head **list, int *idx,
 	return add_event(list, idx, &attr, name);
 }
 
-static int add_tracepoint(struct list_head **listp, int *idx,
+static int add_tracepoint(struct list_head *list, int *idx,
 			  char *sys_name, char *evt_name)
 {
 	struct perf_evsel *evsel;
-	struct list_head *list = *listp;
-
-	if (!list) {
-		list = malloc(sizeof(*list));
-		if (!list)
-			return -ENOMEM;
-		INIT_LIST_HEAD(list);
-	}
 
 	evsel = perf_evsel__newtp(sys_name, evt_name, (*idx)++);
-	if (!evsel) {
-		free(list);
+	if (!evsel)
 		return -ENOMEM;
-	}
 
 	list_add_tail(&evsel->node, list);
-	*listp = list;
+
 	return 0;
 }
 
-static int add_tracepoint_multi_event(struct list_head **list, int *idx,
+static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 				      char *sys_name, char *evt_name)
 {
 	char evt_path[MAXPATHLEN];
@@ -412,7 +414,7 @@ static int add_tracepoint_multi_event(struct list_head **list, int *idx,
 	return ret;
 }
 
-static int add_tracepoint_event(struct list_head **list, int *idx,
+static int add_tracepoint_event(struct list_head *list, int *idx,
 				char *sys_name, char *evt_name)
 {
 	return strpbrk(evt_name, "*?") ?
@@ -420,7 +422,7 @@ static int add_tracepoint_event(struct list_head **list, int *idx,
 	       add_tracepoint(list, idx, sys_name, evt_name);
 }
 
-static int add_tracepoint_multi_sys(struct list_head **list, int *idx,
+static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 				    char *sys_name, char *evt_name)
 {
 	struct dirent *events_ent;
@@ -452,7 +454,7 @@ static int add_tracepoint_multi_sys(struct list_head **list, int *idx,
 	return ret;
 }
 
-int parse_events_add_tracepoint(struct list_head **list, int *idx,
+int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				char *sys, char *event)
 {
 	int ret;
@@ -507,7 +509,7 @@ do {					\
 	return 0;
 }
 
-int parse_events_add_breakpoint(struct list_head **list, int *idx,
+int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				void *ptr, char *type)
 {
 	struct perf_event_attr attr;
@@ -588,7 +590,7 @@ static int config_attr(struct perf_event_attr *attr,
 	return 0;
 }
 
-int parse_events_add_numeric(struct list_head **list, int *idx,
+int parse_events_add_numeric(struct list_head *list, int *idx,
 			     u32 type, u64 config,
 			     struct list_head *head_config)
 {
@@ -621,7 +623,7 @@ static char *pmu_event_name(struct list_head *head_terms)
 	return NULL;
 }
 
-int parse_events_add_pmu(struct list_head **list, int *idx,
+int parse_events_add_pmu(struct list_head *list, int *idx,
 			 char *name, struct list_head *head_config)
 {
 	struct perf_event_attr attr;
@@ -664,6 +666,7 @@ void parse_events__set_leader(char *name, struct list_head *list)
 	leader->group_name = name ? strdup(name) : NULL;
 }
 
+/* list_event is assumed to point to malloc'ed memory */
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all)
 {
@@ -820,6 +823,32 @@ int parse_events_name(struct list_head *list, char *name)
 	return 0;
 }
 
+static int parse_events__scanner(const char *str, void *data, int start_token);
+
+static int parse_events_fixup(int ret, const char *str, void *data,
+			      int start_token)
+{
+	char *o = strdup(str);
+	char *s = NULL;
+	char *t = o;
+	char *p;
+	int len = 0;
+
+	if (!o)
+		return ret;
+	while ((p = strsep(&t, ",")) != NULL) {
+		if (s)
+			str_append(&s, &len, ",");
+		str_append(&s, &len, "cpu/");
+		str_append(&s, &len, p);
+		str_append(&s, &len, "/");
+	}
+	free(o);
+	if (!s)
+		return -ENOMEM;
+	return parse_events__scanner(s, data, start_token);
+}
+
 static int parse_events__scanner(const char *str, void *data, int start_token)
 {
 	YY_BUFFER_STATE buffer;
@@ -840,6 +869,8 @@ static int parse_events__scanner(const char *str, void *data, int start_token)
 	parse_events__flush_buffer(buffer, scanner);
 	parse_events__delete_buffer(buffer, scanner);
 	parse_events_lex_destroy(scanner);
+	if (ret && !strchr(str, '/'))
+		ret = parse_events_fixup(ret, str, data, start_token);
 	return ret;
 }
 
@@ -1079,6 +1110,8 @@ int print_hwcache_events(const char *event_glob, bool name_only)
 		}
 	}
 
+	if (printed)
+		printf("\n");
 	return printed;
 }
 
@@ -1133,11 +1166,12 @@ void print_events(const char *event_glob, bool name_only)
 
 	print_hwcache_events(event_glob, name_only);
 
+	print_pmu_events(event_glob, name_only);
+
 	if (event_glob != NULL)
 		return;
 
 	if (!name_only) {
-		printf("\n");
 		printf("  %-50s [%s]\n",
 		       "rNNN",
 		       event_type_descriptors[PERF_TYPE_RAW]);
@@ -1237,6 +1271,4 @@ void parse_events__free_terms(struct list_head *terms)
 
 	list_for_each_entry_safe(term, h, terms, list)
 		free(term);
-
-	free(terms);
 }

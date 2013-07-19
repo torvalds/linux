@@ -1,3 +1,4 @@
+#include <traceevent/event-parse.h>
 #include "builtin.h"
 #include "util/color.h"
 #include "util/evlist.h"
@@ -5,7 +6,6 @@
 #include "util/thread.h"
 #include "util/parse-options.h"
 #include "util/thread_map.h"
-#include "event-parse.h"
 
 #include <libaudit.h>
 #include <stdlib.h>
@@ -142,7 +142,7 @@ static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thre
 	printed += fprintf_duration(duration, fp);
 
 	if (trace->multiple_threads)
-		printed += fprintf(fp, "%d ", thread->pid);
+		printed += fprintf(fp, "%d ", thread->tid);
 
 	return printed;
 }
@@ -593,7 +593,7 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 			color = PERF_COLOR_YELLOW;
 
 		printed += color_fprintf(fp, color, "%20s", thread->comm);
-		printed += fprintf(fp, " - %-5d :%11lu   [", thread->pid, ttrace->nr_events);
+		printed += fprintf(fp, " - %-5d :%11lu   [", thread->tid, ttrace->nr_events);
 		printed += color_fprintf(fp, color, "%5.1f%%", ratio);
 		printed += fprintf(fp, " ] %10.3f ms\n", ttrace->runtime_ms);
 	}

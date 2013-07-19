@@ -28,12 +28,6 @@
 #include "util.h"
 #include "trace-event.h"
 
-int header_page_size_size;
-int header_page_ts_size;
-int header_page_data_offset;
-
-bool latency_format;
-
 struct pevent *read_trace_init(int file_bigendian, int host_bigendian)
 {
 	struct pevent *pevent = pevent_alloc();

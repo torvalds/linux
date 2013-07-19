@@ -8,7 +8,7 @@ perf-list - List all symbolic event types
 SYNOPSIS
 --------
 [verse]
-'perf list' [hw|sw|cache|tracepoint|event_glob]
+'perf list' [hw|sw|cache|tracepoint|pmu|event_glob]
 
 DESCRIPTION
 -----------
@@ -103,6 +103,8 @@ To limit the list use:
 . 'tracepoint' to list all tracepoint events, alternatively use
   'subsys_glob:event_glob' to filter by tracepoint subsystems such as sched,
   block, etc.
+
+. 'pmu' to print the kernel supplied PMU events.
 
 . If none of the above is matched, it will apply the supplied glob to all
   events, printing the ones that match.

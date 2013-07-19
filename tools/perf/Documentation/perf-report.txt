@@ -135,6 +135,11 @@ OPTIONS
 --inverted::
         alias for inverted caller based call graph.
 
+--ignore-callees=<regex>::
+        Ignore callees of the function(s) matching the given regex.
+        This has the effect of collecting the callers of each such
+        function into one place in the call-graph tree.
+
 --pretty=<key>::
         Pretty printing style.  key: normal, raw
 

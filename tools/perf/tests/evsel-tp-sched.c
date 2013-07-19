@@ -1,6 +1,6 @@
+#include <traceevent/event-parse.h>
 #include "evsel.h"
 #include "tests.h"
-#include "event-parse.h"
 
 static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 				  int size, bool should_be_signed)
@@ -49,7 +49,7 @@ int test__perf_evsel__tp_sched_test(void)
 	if (perf_evsel__test_field(evsel, "prev_prio", 4, true))
 		ret = -1;
 
-	if (perf_evsel__test_field(evsel, "prev_state", 8, true))
+	if (perf_evsel__test_field(evsel, "prev_state", sizeof(long), true))
 		ret = -1;
 
 	if (perf_evsel__test_field(evsel, "next_comm", 16, true))

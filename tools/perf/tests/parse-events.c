@@ -7,14 +7,6 @@
 #include "tests.h"
 #include <linux/hw_breakpoint.h>
 
-#define TEST_ASSERT_VAL(text, cond) \
-do { \
-	if (!(cond)) { \
-		pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
-		return -1; \
-	} \
-} while (0)
-
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
 
@@ -1254,24 +1246,20 @@ static int test_events(struct evlist_test *events, unsigned cnt)
 
 static int test_term(struct terms_test *t)
 {
-	struct list_head *terms;
+	struct list_head terms;
 	int ret;
 
-	terms = malloc(sizeof(*terms));
-	if (!terms)
-		return -ENOMEM;
+	INIT_LIST_HEAD(&terms);
 
-	INIT_LIST_HEAD(terms);
-
-	ret = parse_events_terms(terms, t->str);
+	ret = parse_events_terms(&terms, t->str);
 	if (ret) {
 		pr_debug("failed to parse terms '%s', err %d\n",
 			 t->str , ret);
 		return ret;
 	}
 
-	ret = t->check(terms);
-	parse_events__free_terms(terms);
+	ret = t->check(&terms);
+	parse_events__free_terms(&terms);
 
 	return ret;
 }

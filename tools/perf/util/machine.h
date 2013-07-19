@@ -5,6 +5,7 @@
 #include <linux/rbtree.h>
 #include "map.h"
 
+struct addr_location;
 struct branch_stack;
 struct perf_evsel;
 struct perf_sample;
@@ -36,7 +37,7 @@ struct map *machine__kernel_map(struct machine *machine, enum map_type type)
 	return machine->vmlinux_maps[type];
 }
 
-struct thread *machine__find_thread(struct machine *machine, pid_t pid);
+struct thread *machine__find_thread(struct machine *machine, pid_t tid);
 
 int machine__process_comm_event(struct machine *machine, union perf_event *event);
 int machine__process_exit_event(struct machine *machine, union perf_event *event);
@@ -83,7 +84,8 @@ int machine__resolve_callchain(struct machine *machine,
 			       struct perf_evsel *evsel,
 			       struct thread *thread,
 			       struct perf_sample *sample,
-			       struct symbol **parent);
+			       struct symbol **parent,
+			       struct addr_location *root_al);
 
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
@@ -99,7 +101,7 @@ static inline bool machine__is_host(struct machine *machine)
 	return machine ? machine->pid == HOST_KERNEL_ID : false;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t pid);
+struct thread *machine__findnew_thread(struct machine *machine, pid_t tid);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 

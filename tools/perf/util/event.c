@@ -686,7 +686,7 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	    !strlist__has_entry(symbol_conf.comm_list, thread->comm))
 		goto out_filtered;
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->tid);
 	/*
 	 * Have we already created the kernel maps for this machine?
 	 *

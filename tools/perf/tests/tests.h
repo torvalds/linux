@@ -1,6 +1,14 @@
 #ifndef TESTS_H
 #define TESTS_H
 
+#define TEST_ASSERT_VAL(text, cond)					 \
+do {									 \
+	if (!(cond)) {							 \
+		pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
+		return -1;						 \
+	}								 \
+} while (0)
+
 enum {
 	TEST_OK   =  0,
 	TEST_FAIL = -1,

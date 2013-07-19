@@ -139,11 +139,18 @@ next_pair:
 				 * _really_ have a problem.
 				 */
 				s64 skew = sym->end - pair->end;
-				if (llabs(skew) < page_size)
-					continue;
+				if (llabs(skew) >= page_size)
+					pr_debug("%#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
+						 sym->start, sym->name, sym->end, pair->end);
 
-				pr_debug("%#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
-					 sym->start, sym->name, sym->end, pair->end);
+				/*
+				 * Do not count this as a failure, because we
+				 * could really find a case where it's not
+				 * possible to get proper function end from
+				 * kallsyms.
+				 */
+				continue;
+
 			} else {
 				struct rb_node *nnd;
 detour:

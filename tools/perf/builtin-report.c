@@ -89,7 +89,7 @@ static int perf_report__add_mem_hist_entry(struct perf_tool *tool,
 	if ((sort__has_parent || symbol_conf.use_callchain) &&
 	    sample->callchain) {
 		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent);
+						 sample, &parent, al);
 		if (err)
 			return err;
 	}
@@ -180,7 +180,7 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 	if ((sort__has_parent || symbol_conf.use_callchain)
 	    && sample->callchain) {
 		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent);
+						 sample, &parent, al);
 		if (err)
 			return err;
 	}
@@ -254,7 +254,7 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
 		err = machine__resolve_callchain(machine, evsel, al->thread,
-						 sample, &parent);
+						 sample, &parent, al);
 		if (err)
 			return err;
 	}
@@ -497,7 +497,7 @@ static int __cmd_report(struct perf_report *rep)
 		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
 					       rep->cpu_bitmap);
 		if (ret)
-			goto out_delete;
+			return ret;
 	}
 
 	if (use_browser <= 0)
@@ -508,11 +508,11 @@ static int __cmd_report(struct perf_report *rep)
 
 	ret = perf_report__setup_sample_type(rep);
 	if (ret)
-		goto out_delete;
+		return ret;
 
 	ret = perf_session__process_events(session, &rep->tool);
 	if (ret)
-		goto out_delete;
+		return ret;
 
 	kernel_map = session->machines.host.vmlinux_maps[MAP__FUNCTION];
 	kernel_kmap = map__kmap(kernel_map);
@@ -547,7 +547,7 @@ static int __cmd_report(struct perf_report *rep)
 
 	if (dump_trace) {
 		perf_session__fprintf_nr_events(session, stdout);
-		goto out_delete;
+		return 0;
 	}
 
 	nr_samples = 0;
@@ -572,7 +572,7 @@ static int __cmd_report(struct perf_report *rep)
 
 	if (nr_samples == 0) {
 		ui__error("The %s file has no samples!\n", session->filename);
-		goto out_delete;
+		return 0;
 	}
 
 	list_for_each_entry(pos, &session->evlist->entries, node)
@@ -598,19 +598,6 @@ static int __cmd_report(struct perf_report *rep)
 	} else
 		perf_evlist__tty_browse_hists(session->evlist, rep, help);
 
-out_delete:
-	/*
-	 * Speed up the exit process, for large files this can
-	 * take quite a while.
-	 *
-	 * XXX Enable this when using valgrind or if we ever
-	 * librarize this command.
-	 *
-	 * Also experiment with obstacks to see how much speed
-	 * up we'll get here.
-	 *
- 	 * perf_session__delete(session);
- 	 */
 	return ret;
 }
 
@@ -694,6 +681,24 @@ setup:
 	return 0;
 }
 
+int
+report_parse_ignore_callees_opt(const struct option *opt __maybe_unused,
+				const char *arg, int unset __maybe_unused)
+{
+	if (arg) {
+		int err = regcomp(&ignore_callees_regex, arg, REG_EXTENDED);
+		if (err) {
+			char buf[BUFSIZ];
+			regerror(err, &ignore_callees_regex, buf, sizeof(buf));
+			pr_err("Invalid --ignore-callees regex: %s\n%s", arg, buf);
+			return -1;
+		}
+		have_ignore_callees = 1;
+	}
+
+	return 0;
+}
+
 static int
 parse_branch_mode(const struct option *opt __maybe_unused,
 		  const char *str __maybe_unused, int unset)
@@ -736,7 +741,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.lost		 = perf_event__process_lost,
 			.read		 = process_read_event,
 			.attr		 = perf_event__process_attr,
-			.event_type	 = perf_event__process_event_type,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
 			.ordered_samples = true,
@@ -784,6 +788,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Default: fractal,0.5,callee", &parse_callchain_opt, callchain_default_opt),
 	OPT_BOOLEAN('G', "inverted", &report.inverted_callchain,
 		    "alias for inverted call graph"),
+	OPT_CALLBACK(0, "ignore-callees", NULL, "regex",
+		   "ignore callees of these functions in call graphs",
+		   report_parse_ignore_callees_opt),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
@@ -853,7 +860,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		setup_browser(true);
 	else {
 		use_browser = 0;
-		perf_hpp__column_enable(PERF_HPP__OVERHEAD);
 		perf_hpp__init();
 	}
 
@@ -931,14 +937,6 @@ repeat:
 	if (parent_pattern != default_parent_pattern) {
 		if (sort_dimension__add("parent") < 0)
 			goto error;
-
-		/*
-		 * Only show the parent fields if we explicitly
-		 * sort that way. If we only use parent machinery
-		 * for filtering, we don't want it.
-		 */
-		if (!strstr(sort_order, "parent"))
-			sort_parent.elide = 1;
 	}
 
 	if (argc) {
