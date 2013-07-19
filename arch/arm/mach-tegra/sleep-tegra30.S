@@ -99,6 +99,8 @@ flow_ctrl_setting_for_lp2:
 	cmp	r10, #TEGRA30
 	moveq   r3, #FLOW_CTRL_WAIT_FOR_INTERRUPT	@ For LP2
 	movne	r3, #FLOW_CTRL_WAITEVENT
+	orrne	r3, r3, #FLOW_CTRL_HALT_GIC_IRQ
+	orrne	r3, r3, #FLOW_CTRL_HALT_GIC_FIQ
 flow_ctrl_done:
 	cmp	r10, #TEGRA30
 	str	r3, [r2]
