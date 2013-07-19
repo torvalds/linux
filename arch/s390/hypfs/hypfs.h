@@ -32,7 +32,7 @@ extern struct dentry *hypfs_create_str(struct super_block *sb,
 /* LPAR Hypervisor */
 extern int hypfs_diag_init(void);
 extern void hypfs_diag_exit(void);
-extern int hypfs_diag_create_files(struct super_block *sb, struct dentry *root);
+extern int hypfs_diag_create_files(struct dentry *root);
 
 /* VM Hypervisor */
 extern int hypfs_vm_init(void);

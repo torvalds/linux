@@ -195,7 +195,7 @@ static ssize_t hypfs_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (MACHINE_IS_VM)
 		rc = hypfs_vm_create_files(sb->s_root);
 	else
-		rc = hypfs_diag_create_files(sb, sb->s_root);
+		rc = hypfs_diag_create_files(sb->s_root);
 	if (rc) {
 		pr_err("Updating the hypfs tree failed\n");
 		hypfs_delete_tree(sb->s_root);
@@ -304,7 +304,7 @@ static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (MACHINE_IS_VM)
 		rc = hypfs_vm_create_files(root_dentry);
 	else
-		rc = hypfs_diag_create_files(sb, root_dentry);
+		rc = hypfs_diag_create_files(root_dentry);
 	if (rc)
 		return rc;
 	sbi->update_file = hypfs_create_update_file(sb, root_dentry);
