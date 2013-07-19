@@ -220,8 +220,6 @@ enum {
 };
 #endif
 
-typedef unsigned int __hdle;
-
 __s32 OSAL_CCMU_SetSrcFreq(__u32 nSclkNo, __u32 nFreq);
 __u32 OSAL_CCMU_GetSrcFreq(__u32 nSclkNo);
 __hdle OSAL_CCMU_OpenMclk(__s32 nMclkNo);
