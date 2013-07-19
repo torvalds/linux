@@ -1003,7 +1003,6 @@ int m2p_remove_override(struct page *page,
 
 			set_pte_at(&init_mm, address, ptep,
 					pfn_pte(pfn, PAGE_KERNEL));
-			__flush_tlb_single(address);
 			kmap_op->host_addr = 0;
 		}
 	}
