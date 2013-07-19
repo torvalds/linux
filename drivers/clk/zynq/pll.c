@@ -50,6 +50,9 @@ struct zynq_pll {
 #define PLLCTRL_RESET_MASK	1
 #define PLLCTRL_RESET_SHIFT	0
 
+#define PLL_FBDIV_MIN	13
+#define PLL_FBDIV_MAX	66
+
 /**
  * zynq_pll_round_rate() - Round a clock frequency
  * @hw:		Handle between common and hardware-specific interfaces
@@ -63,10 +66,10 @@ static long zynq_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	u32 fbdiv;
 
 	fbdiv = DIV_ROUND_CLOSEST(rate, *prate);
-	if (fbdiv < 13)
-		fbdiv = 13;
-	else if (fbdiv > 66)
-		fbdiv = 66;
+	if (fbdiv < PLL_FBDIV_MIN)
+		fbdiv = PLL_FBDIV_MIN;
+	else if (fbdiv > PLL_FBDIV_MAX)
+		fbdiv = PLL_FBDIV_MAX;
 
 	return *prate * fbdiv;
 }
