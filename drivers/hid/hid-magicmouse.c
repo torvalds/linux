@@ -36,7 +36,7 @@ MODULE_PARM_DESC(emulate_scroll_wheel, "Emulate a scroll wheel");
 static unsigned int scroll_speed = 32;
 static int param_set_scroll_speed(const char *val, struct kernel_param *kp) {
 	unsigned long speed;
-	if (!val || strict_strtoul(val, 0, &speed) || speed > 63)
+	if (!val || kstrtoul(val, 0, &speed) || speed > 63)
 		return -EINVAL;
 	scroll_speed = speed;
 	return 0;
