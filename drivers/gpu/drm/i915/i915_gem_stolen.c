@@ -395,8 +395,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		return obj;
 
 	vma = i915_gem_vma_create(obj, &dev_priv->gtt.base);
-	if (!vma) {
-		ret = -ENOMEM;
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto err_out;
 	}
 

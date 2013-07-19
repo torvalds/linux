@@ -3120,9 +3120,9 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	i915_gem_object_pin_pages(obj);
 
 	vma = i915_gem_vma_create(obj, &dev_priv->gtt.base);
-	if (vma == NULL) {
+	if (IS_ERR(vma)) {
 		i915_gem_object_unpin_pages(obj);
-		return -ENOMEM;
+		return PTR_ERR(vma);
 	}
 
 search_free:
