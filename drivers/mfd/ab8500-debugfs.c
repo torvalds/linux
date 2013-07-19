@@ -2804,6 +2804,9 @@ static ssize_t ab8500_subscribe_write(struct file *file,
 		return -ENOMEM;
 
 	event_name[irq_index] = kmalloc(count, GFP_KERNEL);
+	if (!event_name[irq_index])
+		return -ENOMEM;
+
 	sprintf(event_name[irq_index], "%lu", user_val);
 	dev_attr[irq_index]->show = show_irq;
 	dev_attr[irq_index]->store = NULL;
