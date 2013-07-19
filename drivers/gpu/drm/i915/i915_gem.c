@@ -3168,9 +3168,9 @@ search_free:
 	return 0;
 
 err_out:
+	drm_mm_remove_node(&vma->node);
 	i915_gem_vma_destroy(vma);
 	i915_gem_object_unpin_pages(obj);
-	drm_mm_remove_node(&vma->node);
 	return ret;
 }
 
