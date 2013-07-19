@@ -279,7 +279,7 @@ struct qib_base_info {
  * may not be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
-#define QIB_USER_SWMINOR 12
+#define QIB_USER_SWMINOR 13
 
 #define QIB_USER_SWVERSION ((QIB_USER_SWMAJOR << 16) | QIB_USER_SWMINOR)
 
@@ -701,7 +701,37 @@ struct qib_message_header {
 	__be32 bth[3];
 	/* fields below this point are in host byte order */
 	struct qib_header iph;
+	/* fields below are simplified, but should match PSM */
+	/* some are accessed by driver when packet spliting is needed */
 	__u8 sub_opcode;
+	__u8 flags;
+	__u16 commidx;
+	__u32 ack_seq_num;
+	__u8 flowid;
+	__u8 hdr_dlen;
+	__u16 mqhdr;
+	__u32 uwords[4];
+};
+
+/* sequence number bits for message */
+union qib_seqnum {
+	struct {
+		__u32 seq:11;
+		__u32 gen:8;
+		__u32 flow:5;
+	};
+	struct {
+		__u32 pkt:16;
+		__u32 msg:8;
+	};
+	__u32 val;
+};
+
+/* qib receiving-dma tid-session-member */
+struct qib_tid_session_member {
+	__u16 tid;
+	__u16 offset;
+	__u16 length;
 };
 
 /* IB - LRH header consts */
