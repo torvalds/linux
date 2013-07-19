@@ -1144,10 +1144,9 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	pgste_t pgste;
 	pte_t pte;
 
-	if (mm_has_pgste(mm)) {
+	if (!full && mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		if (!full)
-			pgste = pgste_ipte_notify(mm, address, ptep, pgste);
+		pgste = pgste_ipte_notify(mm, address, ptep, pgste);
 	}
 
 	pte = *ptep;
@@ -1155,7 +1154,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 		__ptep_ipte(address, ptep);
 	pte_val(*ptep) = _PAGE_INVALID;
 
-	if (mm_has_pgste(mm)) {
+	if (!full && mm_has_pgste(mm)) {
 		pgste = pgste_update_all(&pte, pgste);
 		pgste_set_unlock(ptep, pgste);
 	}
