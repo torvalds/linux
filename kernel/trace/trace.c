@@ -4959,8 +4959,6 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&trace_types_lock);
 
-	tr->ref++;
-
 	info->iter.tr		= tr;
 	info->iter.cpu_file	= tc->cpu;
 	info->iter.trace	= tr->current_trace;
