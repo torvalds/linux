@@ -520,14 +520,13 @@ static int mcp230xx_probe(struct i2c_client *client,
 
 	match = of_match_device(of_match_ptr(mcp23s08_i2c_of_match),
 					&client->dev);
-	if (match) {
+	pdata = client->dev.platform_data;
+	if (match || !pdata) {
 		base = -1;
 		pullups = 0;
 	} else {
-		pdata = client->dev.platform_data;
-		if (!pdata || !gpio_is_valid(pdata->base)) {
-			dev_dbg(&client->dev,
-					"invalid or missing platform data\n");
+		if (!gpio_is_valid(pdata->base)) {
+			dev_dbg(&client->dev, "invalid platform data\n");
 			return -EINVAL;
 		}
 		base = pdata->base;
