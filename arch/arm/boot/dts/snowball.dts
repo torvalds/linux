@@ -165,13 +165,6 @@
 			status = "okay";
 		};
 
-		i2c@80004000 {
-			tps61052@33 {
-				//compatible = "tps61052";
-				reg = <0x33>;
-			};
-		};
-
 		i2c@80128000 {
 			bh1780@29 {
 				// compatible = "rohm,bh1780gli";
