@@ -248,6 +248,7 @@ unsigned long omap3_clkoutx2_recalc(struct clk_hw *hw,
 int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 int omap2_clk_disable_autoidle_all(void);
+void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks);
 int omap3_dpll4_set_rate(struct clk_hw *clk, unsigned long rate,
 			 unsigned long parent_rate);
 int omap2_dflt_clk_enable(struct clk_hw *hw);
@@ -266,6 +267,7 @@ int ti_clk_add_component(struct device_node *node, struct clk_hw *hw, int type);
 int omap4xxx_dt_clk_init(void);
 int omap5xxx_dt_clk_init(void);
 int dra7xx_dt_clk_init(void);
+int am33xx_dt_clk_init(void);
 
 #ifdef CONFIG_OF
 void of_ti_clk_allow_autoidle_all(void);
