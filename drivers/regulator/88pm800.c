@@ -331,6 +331,7 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 		config.init_data = init_data;
 		config.driver_data = info;
 		config.regmap = pm800_data->map;
+		config.of_node = pm800_regulator_matches[i].of_node;
 
 		pm800_data->regulators[i] =
 				regulator_register(&info->desc, &config);
