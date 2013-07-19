@@ -94,21 +94,16 @@ static int aztech_s_frequency(struct radio_isa_card *isa, u32 freq)
 	return 0;
 }
 
-/* thanks to Michael Dwyer for giving me a dose of clues in
- * the signal strength department..
- *
- * This card has a stereo bit - bit 0 set = mono, not set = stereo
- */
 static u32 aztech_g_rxsubchans(struct radio_isa_card *isa)
 {
-	if (inb(isa->io) & 1)
+	if (inb(isa->io) & AZTECH_BIT_MONO)
 		return V4L2_TUNER_SUB_MONO;
 	return V4L2_TUNER_SUB_STEREO;
 }
 
-static int aztech_s_stereo(struct radio_isa_card *isa, bool stereo)
+static u32 aztech_g_signal(struct radio_isa_card *isa)
 {
-	return aztech_s_frequency(isa, isa->freq);
+	return (inb(isa->io) & AZTECH_BIT_NOT_TUNED) ? 0 : 0xffff;
 }
 
 static int aztech_s_mute_volume(struct radio_isa_card *isa, bool mute, int vol)
@@ -126,8 +121,8 @@ static const struct radio_isa_ops aztech_ops = {
 	.alloc = aztech_alloc,
 	.s_mute_volume = aztech_s_mute_volume,
 	.s_frequency = aztech_s_frequency,
-	.s_stereo = aztech_s_stereo,
 	.g_rxsubchans = aztech_g_rxsubchans,
+	.g_signal = aztech_g_signal,
 };
 
 static const int aztech_ioports[] = { 0x350, 0x358 };
