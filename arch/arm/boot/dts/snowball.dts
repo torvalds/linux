@@ -166,12 +166,6 @@
 		};
 
 		i2c@80004000 {
-			tc3589x@42 {
-				//compatible = "tc3589x";
-				reg = <0x42>;
-				gpios = <&gpio6 25 0x4>;
-				interrupt-parent = <&gpio6>;
-			};
 			tps61052@33 {
 				//compatible = "tps61052";
 				reg = <0x33>;
