@@ -16,6 +16,7 @@
  */
 
 #include "msm_drv.h"
+#include "msm_gpu.h"
 
 #include <mach/iommu.h>
 
@@ -135,6 +136,7 @@ static int msm_unload(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
+	struct msm_gpu *gpu = priv->gpu;
 
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
@@ -152,6 +154,12 @@ static int msm_unload(struct drm_device *dev)
 		kms->funcs->destroy(kms);
 	}
 
+	if (gpu) {
+		mutex_lock(&dev->struct_mutex);
+		gpu->funcs->pm_suspend(gpu);
+		gpu->funcs->destroy(gpu);
+		mutex_unlock(&dev->struct_mutex);
+	}
 
 	dev->dev_private = NULL;
 
@@ -176,6 +184,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = priv;
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
+	init_waitqueue_head(&priv->fence_event);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 
@@ -240,12 +249,70 @@ fail:
 	return ret;
 }
 
+static void load_gpu(struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_gpu *gpu;
+
+	if (priv->gpu)
+		return;
+
+	mutex_lock(&dev->struct_mutex);
+	gpu = a3xx_gpu_init(dev);
+	if (IS_ERR(gpu)) {
+		dev_warn(dev->dev, "failed to load a3xx gpu\n");
+		gpu = NULL;
+		/* not fatal */
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	if (gpu) {
+		int ret;
+		gpu->funcs->pm_resume(gpu);
+		ret = gpu->funcs->hw_init(gpu);
+		if (ret) {
+			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
+			gpu->funcs->destroy(gpu);
+			gpu = NULL;
+		}
+	}
+
+	priv->gpu = gpu;
+}
+
+static int msm_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct msm_file_private *ctx;
+
+	/* For now, load gpu on open.. to avoid the requirement of having
+	 * firmware in the initrd.
+	 */
+	load_gpu(dev);
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	file->driver_priv = ctx;
+
+	return 0;
+}
+
 static void msm_preclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_file_private *ctx = file->driver_priv;
 	struct msm_kms *kms = priv->kms;
+
 	if (kms)
 		kms->funcs->preclose(kms, file);
+
+	mutex_lock(&dev->struct_mutex);
+	if (ctx == priv->lastctx)
+		priv->lastctx = NULL;
+	mutex_unlock(&dev->struct_mutex);
+
+	kfree(ctx);
 }
 
 static void msm_lastclose(struct drm_device *dev)
@@ -316,11 +383,30 @@ static void msm_disable_vblank(struct drm_device *dev, int crtc_id)
  */
 
 #ifdef CONFIG_DEBUG_FS
+static int msm_gpu_show(struct drm_device *dev, struct seq_file *m)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_gpu *gpu = priv->gpu;
+
+	if (gpu) {
+		seq_printf(m, "%s Status:\n", gpu->name);
+		gpu->funcs->show(gpu, m);
+	}
+
+	return 0;
+}
+
 static int msm_gem_show(struct drm_device *dev, struct seq_file *m)
 {
 	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_gpu *gpu = priv->gpu;
 
-	seq_printf(m, "All Objects:\n");
+	if (gpu) {
+		seq_printf(m, "Active Objects (%s):\n", gpu->name);
+		msm_gem_describe_objects(&gpu->active_list, m);
+	}
+
+	seq_printf(m, "Inactive Objects:\n");
 	msm_gem_describe_objects(&priv->inactive_list, m);
 
 	return 0;
@@ -375,6 +461,7 @@ static int show_locked(struct seq_file *m, void *arg)
 }
 
 static struct drm_info_list msm_debugfs_list[] = {
+		{"gpu", show_locked, 0, msm_gpu_show},
 		{"gem", show_locked, 0, msm_gem_show},
 		{ "mm", show_locked, 0, msm_mm_show },
 		{ "fb", show_locked, 0, msm_fb_show },
@@ -404,6 +491,158 @@ static void msm_debugfs_cleanup(struct drm_minor *minor)
 }
 #endif
 
+/*
+ * Fences:
+ */
+
+int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
+		struct timespec *timeout)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	unsigned long timeout_jiffies = timespec_to_jiffies(timeout);
+	unsigned long start_jiffies = jiffies;
+	unsigned long remaining_jiffies;
+	int ret;
+
+	if (time_after(start_jiffies, timeout_jiffies))
+		remaining_jiffies = 0;
+	else
+		remaining_jiffies = timeout_jiffies - start_jiffies;
+
+	ret = wait_event_interruptible_timeout(priv->fence_event,
+			priv->completed_fence >= fence,
+			remaining_jiffies);
+	if (ret == 0) {
+		DBG("timeout waiting for fence: %u (completed: %u)",
+				fence, priv->completed_fence);
+		ret = -ETIMEDOUT;
+	} else if (ret != -ERESTARTSYS) {
+		ret = 0;
+	}
+
+	return ret;
+}
+
+/* call under struct_mutex */
+void msm_update_fence(struct drm_device *dev, uint32_t fence)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+
+	if (fence > priv->completed_fence) {
+		priv->completed_fence = fence;
+		wake_up_all(&priv->fence_event);
+	}
+}
+
+/*
+ * DRM ioctls:
+ */
+
+static int msm_ioctl_get_param(struct drm_device *dev, void *data,
+		struct drm_file *file)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_msm_param *args = data;
+	struct msm_gpu *gpu;
+
+	/* for now, we just have 3d pipe.. eventually this would need to
+	 * be more clever to dispatch to appropriate gpu module:
+	 */
+	if (args->pipe != MSM_PIPE_3D0)
+		return -EINVAL;
+
+	gpu = priv->gpu;
+
+	if (!gpu)
+		return -ENXIO;
+
+	return gpu->funcs->get_param(gpu, args->param, &args->value);
+}
+
+static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
+		struct drm_file *file)
+{
+	struct drm_msm_gem_new *args = data;
+	return msm_gem_new_handle(dev, file, args->size,
+			args->flags, &args->handle);
+}
+
+#define TS(t) ((struct timespec){ .tv_sec = (t).tv_sec, .tv_nsec = (t).tv_nsec })
+
+static int msm_ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
+		struct drm_file *file)
+{
+	struct drm_msm_gem_cpu_prep *args = data;
+	struct drm_gem_object *obj;
+	int ret;
+
+	obj = drm_gem_object_lookup(dev, file, args->handle);
+	if (!obj)
+		return -ENOENT;
+
+	ret = msm_gem_cpu_prep(obj, args->op, &TS(args->timeout));
+
+	drm_gem_object_unreference_unlocked(obj);
+
+	return ret;
+}
+
+static int msm_ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
+		struct drm_file *file)
+{
+	struct drm_msm_gem_cpu_fini *args = data;
+	struct drm_gem_object *obj;
+	int ret;
+
+	obj = drm_gem_object_lookup(dev, file, args->handle);
+	if (!obj)
+		return -ENOENT;
+
+	ret = msm_gem_cpu_fini(obj);
+
+	drm_gem_object_unreference_unlocked(obj);
+
+	return ret;
+}
+
+static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
+		struct drm_file *file)
+{
+	struct drm_msm_gem_info *args = data;
+	struct drm_gem_object *obj;
+	int ret = 0;
+
+	if (args->pad)
+		return -EINVAL;
+
+	obj = drm_gem_object_lookup(dev, file, args->handle);
+	if (!obj)
+		return -ENOENT;
+
+	args->offset = msm_gem_mmap_offset(obj);
+
+	drm_gem_object_unreference_unlocked(obj);
+
+	return ret;
+}
+
+static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
+		struct drm_file *file)
+{
+	struct drm_msm_wait_fence *args = data;
+	return msm_wait_fence_interruptable(dev, args->fence, &TS(args->timeout));
+}
+
+static const struct drm_ioctl_desc msm_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(MSM_GET_PARAM,    msm_ioctl_get_param,    DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_NEW,      msm_ioctl_gem_new,      DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_INFO,     msm_ioctl_gem_info,     DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_PREP, msm_ioctl_gem_cpu_prep, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_CPU_FINI, msm_ioctl_gem_cpu_fini, DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MSM_GEM_SUBMIT,   msm_ioctl_gem_submit,   DRM_UNLOCKED|DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(MSM_WAIT_FENCE,   msm_ioctl_wait_fence,   DRM_UNLOCKED|DRM_AUTH),
+};
+
 static const struct vm_operations_struct vm_ops = {
 	.fault = msm_gem_fault,
 	.open = drm_gem_vm_open,
@@ -428,6 +667,7 @@ static struct drm_driver msm_driver = {
 	.driver_features    = DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET,
 	.load               = msm_load,
 	.unload             = msm_unload,
+	.open               = msm_open,
 	.preclose           = msm_preclose,
 	.lastclose          = msm_lastclose,
 	.irq_handler        = msm_irq,
@@ -446,6 +686,8 @@ static struct drm_driver msm_driver = {
 	.debugfs_init       = msm_debugfs_init,
 	.debugfs_cleanup    = msm_debugfs_cleanup,
 #endif
+	.ioctls             = msm_ioctls,
+	.num_ioctls         = DRM_MSM_NUM_IOCTLS,
 	.fops               = &fops,
 	.name               = "msm",
 	.desc               = "MSM Snapdragon DRM",
@@ -514,6 +756,7 @@ static int __init msm_drm_register(void)
 {
 	DBG("init");
 	hdmi_register();
+	a3xx_register();
 	return platform_driver_register(&msm_platform_driver);
 }
 
@@ -522,6 +765,7 @@ static void __exit msm_drm_unregister(void)
 	DBG("fini");
 	platform_driver_unregister(&msm_platform_driver);
 	hdmi_unregister();
+	a3xx_unregister();
 }
 
 module_init(msm_drm_register);

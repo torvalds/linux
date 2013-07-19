@@ -20,6 +20,7 @@
 
 #include "msm_drv.h"
 #include "msm_gem.h"
+#include "msm_gpu.h"
 
 
 /* called with dev->struct_mutex held */
@@ -375,10 +376,74 @@ int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
 {
 	struct drm_device *dev = obj->dev;
 	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	int ret = 0;
 
-	/* just a place-holder until we have gpu.. */
-	queue_work(priv->wq, work);
+	mutex_lock(&dev->struct_mutex);
+	if (!list_empty(&work->entry)) {
+		ret = -EINVAL;
+	} else if (is_active(msm_obj)) {
+		list_add_tail(&work->entry, &msm_obj->inactive_work);
+	} else {
+		queue_work(priv->wq, work);
+	}
+	mutex_unlock(&dev->struct_mutex);
 
+	return ret;
+}
+
+void msm_gem_move_to_active(struct drm_gem_object *obj,
+		struct msm_gpu *gpu, uint32_t fence)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	msm_obj->gpu = gpu;
+	msm_obj->fence = fence;
+	list_del_init(&msm_obj->mm_list);
+	list_add_tail(&msm_obj->mm_list, &gpu->active_list);
+}
+
+void msm_gem_move_to_inactive(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	msm_obj->gpu = NULL;
+	msm_obj->fence = 0;
+	list_del_init(&msm_obj->mm_list);
+	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
+
+	while (!list_empty(&msm_obj->inactive_work)) {
+		struct work_struct *work;
+
+		work = list_first_entry(&msm_obj->inactive_work,
+				struct work_struct, entry);
+
+		list_del_init(&work->entry);
+		queue_work(priv->wq, work);
+	}
+}
+
+int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
+		struct timespec *timeout)
+{
+	struct drm_device *dev = obj->dev;
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	int ret = 0;
+
+	if (is_active(msm_obj) && !(op & MSM_PREP_NOSYNC))
+		ret = msm_wait_fence_interruptable(dev, msm_obj->fence, timeout);
+
+	/* TODO cache maintenance */
+
+	return ret;
+}
+
+int msm_gem_cpu_fini(struct drm_gem_object *obj)
+{
+	/* TODO cache maintenance */
 	return 0;
 }
 
@@ -390,8 +455,9 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-	seq_printf(m, "%08x: %2d (%2d) %08llx %p %d\n",
-			msm_obj->flags, obj->name, obj->refcount.refcount.counter,
+	seq_printf(m, "%08x: %c(%d) %2d (%2d) %08llx %p %d\n",
+			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
+			msm_obj->fence, obj->name, obj->refcount.refcount.counter,
 			off, msm_obj->vaddr, obj->size);
 }
 
@@ -421,6 +487,9 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
+	/* object should not be on active list: */
+	WARN_ON(is_active(msm_obj));
+
 	list_del(&msm_obj->mm_list);
 
 	for (id = 0; id < ARRAY_SIZE(msm_obj->domain); id++) {
@@ -438,6 +507,9 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		vunmap(msm_obj->vaddr);
 
 	put_pages(obj);
+
+	if (msm_obj->resv == &msm_obj->_resv)
+		reservation_object_fini(msm_obj->resv);
 
 	drm_gem_object_release(obj);
 
@@ -508,7 +580,11 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 
 	msm_obj->flags = flags;
 
+	msm_obj->resv = &msm_obj->_resv;
+	reservation_object_init(msm_obj->resv);
 
+	INIT_LIST_HEAD(&msm_obj->submit_entry);
+	INIT_LIST_HEAD(&msm_obj->inactive_work);
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
 
 	return obj;

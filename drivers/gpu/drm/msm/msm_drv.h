@@ -40,16 +40,33 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/msm_drm.h>
 
 struct msm_kms;
+struct msm_gpu;
 
-#define NUM_DOMAINS 1    /* one for KMS, then one per gpu core (?) */
+#define NUM_DOMAINS 2    /* one for KMS, then one per gpu core (?) */
+
+struct msm_file_private {
+	/* currently we don't do anything useful with this.. but when
+	 * per-context address spaces are supported we'd keep track of
+	 * the context's page-tables here.
+	 */
+	int dummy;
+};
 
 struct msm_drm_private {
 
 	struct msm_kms *kms;
 
+	/* when we have more than one 'msm_gpu' these need to be an array: */
+	struct msm_gpu *gpu;
+	struct msm_file_private *lastctx;
+
 	struct drm_fb_helper *fbdev;
+
+	uint32_t next_fence, completed_fence;
+	wait_queue_head_t fence_event;
 
 	/* list of GEM objects: */
 	struct list_head inactive_list;
@@ -108,6 +125,13 @@ int msm_register_iommu(struct drm_device *dev, struct iommu_domain *iommu);
 int msm_iommu_attach(struct drm_device *dev, struct iommu_domain *iommu,
 		const char **names, int cnt);
 
+int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
+		struct timespec *timeout);
+void msm_update_fence(struct drm_device *dev, uint32_t fence);
+
+int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
+		struct drm_file *file);
+
 int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj);
@@ -125,6 +149,12 @@ void *msm_gem_vaddr_locked(struct drm_gem_object *obj);
 void *msm_gem_vaddr(struct drm_gem_object *obj);
 int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
 		struct work_struct *work);
+void msm_gem_move_to_active(struct drm_gem_object *obj,
+		struct msm_gpu *gpu, uint32_t fence);
+void msm_gem_move_to_inactive(struct drm_gem_object *obj);
+int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
+		struct timespec *timeout);
+int msm_gem_cpu_fini(struct drm_gem_object *obj);
 void msm_gem_free_object(struct drm_gem_object *obj);
 int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		uint32_t size, uint32_t flags, uint32_t *handle);
@@ -168,20 +198,14 @@ static inline int align_pitch(int width, int bpp)
 
 /* for the generated headers: */
 #define INVALID_IDX(idx) ({BUG(); 0;})
+#define fui(x)                ({BUG(); 0;})
+#define util_float_to_half(x) ({BUG(); 0;})
+
 
 #define FIELD(val, name) (((val) & name ## __MASK) >> name ## __SHIFT)
 
 /* for conditionally setting boolean flag(s): */
 #define COND(bool, val) ((bool) ? (val) : 0)
-
-/* just put these here until we start adding driver private ioctls: */
-// TODO might shuffle these around.. just need something for now..
-#define MSM_BO_CACHE_MASK	0x0000000f
-#define MSM_BO_SCANOUT		0x00010000	/* scanout capable */
-
-#define MSM_BO_CACHED		0x00000001	/* default */
-#define MSM_BO_WC		0x0000002
-#define MSM_BO_UNCACHED	0x00000004
 
 
 #endif /* __MSM_DRV_H__ */

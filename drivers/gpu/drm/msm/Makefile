@@ -4,6 +4,8 @@ ifeq (, $(findstring -W,$(EXTRA_CFLAGS)))
 endif
 
 msm-y := \
+	adreno/adreno_gpu.o \
+	adreno/a3xx_gpu.o \
 	hdmi/hdmi.o \
 	hdmi/hdmi_connector.o \
 	hdmi/hdmi_i2c.o \
@@ -18,7 +20,10 @@ msm-y := \
 	msm_connector.o \
 	msm_drv.o \
 	msm_fb.o \
-	msm_gem.o
+	msm_gem.o \
+	msm_gem_submit.o \
+	msm_gpu.o \
+	msm_ringbuffer.o
 
 msm-$(CONFIG_DRM_MSM_FBDEV) += msm_fbdev.o
 
