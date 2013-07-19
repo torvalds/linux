@@ -2800,6 +2800,9 @@ static ssize_t ab8500_subscribe_write(struct file *file,
 	 */
 	dev_attr[irq_index] = kmalloc(sizeof(struct device_attribute),
 		GFP_KERNEL);
+	if (!dev_attr[irq_index])
+		return -ENOMEM;
+
 	event_name[irq_index] = kmalloc(count, GFP_KERNEL);
 	sprintf(event_name[irq_index], "%lu", user_val);
 	dev_attr[irq_index]->show = show_irq;
