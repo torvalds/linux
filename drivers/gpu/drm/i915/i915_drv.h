@@ -2134,22 +2134,20 @@ void intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 int vlv_gpu_freq(int ddr_freq, int val);
 int vlv_freq_opcode(int ddr_freq, int val);
 
-#define __i915_read(x, y) \
+#define __i915_read(x) \
 	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);
-
-__i915_read(8, b)
-__i915_read(16, w)
-__i915_read(32, l)
-__i915_read(64, q)
+__i915_read(8)
+__i915_read(16)
+__i915_read(32)
+__i915_read(64)
 #undef __i915_read
 
-#define __i915_write(x, y) \
+#define __i915_write(x) \
 	void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val);
-
-__i915_write(8, b)
-__i915_write(16, w)
-__i915_write(32, l)
-__i915_write(64, q)
+__i915_write(8)
+__i915_write(16)
+__i915_write(32)
+__i915_write(64)
 #undef __i915_write
 
 #define I915_READ8(reg)		i915_read8(dev_priv, (reg))
