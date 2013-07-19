@@ -635,10 +635,12 @@ static int qlcnic_sriov_pf_channel_cfg_cmd(struct qlcnic_bc_trans *trans,
 					   struct qlcnic_cmd_args *cmd)
 {
 	struct qlcnic_vf_info *vf = trans->vf;
-	struct qlcnic_adapter *adapter = vf->adapter;
-	int err;
+	struct qlcnic_vport *vp = vf->vp;
+	struct qlcnic_adapter *adapter;
 	u16 func = vf->pci_func;
+	int err;
 
+	adapter = vf->adapter;
 	cmd->rsp.arg[0] = trans->req_hdr->cmd_op;
 	cmd->rsp.arg[0] |= (1 << 16);
 
@@ -650,6 +652,8 @@ static int qlcnic_sriov_pf_channel_cfg_cmd(struct qlcnic_bc_trans *trans,
 				qlcnic_sriov_pf_config_vport(adapter, 0, func);
 		}
 	} else {
+		if (vp->vlan_mode == QLC_GUEST_VLAN_MODE)
+			vp->vlan = 0;
 		err = qlcnic_sriov_pf_config_vport(adapter, 0, func);
 	}
 
@@ -1561,6 +1565,7 @@ void qlcnic_sriov_pf_handle_flr(struct qlcnic_sriov *sriov,
 				struct qlcnic_vf_info *vf)
 {
 	struct net_device *dev = vf->adapter->netdev;
+	struct qlcnic_vport *vp = vf->vp;
 
 	if (!test_and_clear_bit(QLC_BC_VF_STATE, &vf->state)) {
 		clear_bit(QLC_BC_VF_FLR, &vf->state);
@@ -1572,6 +1577,9 @@ void qlcnic_sriov_pf_handle_flr(struct qlcnic_sriov *sriov,
 			    vf->pci_func);
 		return;
 	}
+
+	if (vp->vlan_mode == QLC_GUEST_VLAN_MODE)
+		vp->vlan = 0;
 
 	qlcnic_sriov_schedule_flr(sriov, vf, qlcnic_sriov_pf_process_flr);
 	netdev_info(dev, "FLR received for PCI func %d\n", vf->pci_func);
