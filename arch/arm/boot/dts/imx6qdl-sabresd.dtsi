@@ -41,12 +41,14 @@
 		volume-up {
 			label = "Volume Up";
 			gpios = <&gpio1 4 0>;
+			gpio-key,wakeup;
 			linux,code = <115>; /* KEY_VOLUMEUP */
 		};
 
 		volume-down {
 			label = "Volume Down";
 			gpios = <&gpio1 5 0>;
+			gpio-key,wakeup;
 			linux,code = <114>; /* KEY_VOLUMEDOWN */
 		};
 	};
