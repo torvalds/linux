@@ -110,7 +110,7 @@ static void diag2fc_free(const void *data)
 #define ATTRIBUTE(dir, name, member) \
 do { \
 	void *rc; \
-	rc = hypfs_create_u64(dir->d_sb, dir, name, member); \
+	rc = hypfs_create_u64(dir, name, member); \
 	if (IS_ERR(rc)) \
 		return PTR_ERR(rc); \
 } while(0)
@@ -129,13 +129,13 @@ static int hpyfs_vm_create_guest(struct dentry *systems_dir,
 	memcpy(guest_name, data->guest_name, NAME_LEN);
 	EBCASC(guest_name, NAME_LEN);
 	strim(guest_name);
-	guest_dir = hypfs_mkdir(systems_dir->d_sb, systems_dir, guest_name);
+	guest_dir = hypfs_mkdir(systems_dir, guest_name);
 	if (IS_ERR(guest_dir))
 		return PTR_ERR(guest_dir);
 	ATTRIBUTE(guest_dir, "onlinetime_us", data->el_time);
 
 	/* logical cpu information */
-	cpus_dir = hypfs_mkdir(guest_dir->d_sb, guest_dir, "cpus");
+	cpus_dir = hypfs_mkdir(guest_dir, "cpus");
 	if (IS_ERR(cpus_dir))
 		return PTR_ERR(cpus_dir);
 	ATTRIBUTE(cpus_dir, "cputime_us", data->used_cpu);
@@ -147,7 +147,7 @@ static int hpyfs_vm_create_guest(struct dentry *systems_dir,
 	ATTRIBUTE(cpus_dir, "weight_cur", data->cpu_shares);
 
 	/* memory information */
-	mem_dir = hypfs_mkdir(guest_dir->d_sb, guest_dir, "mem");
+	mem_dir = hypfs_mkdir(guest_dir, "mem");
 	if (IS_ERR(mem_dir))
 		return PTR_ERR(mem_dir);
 	ATTRIBUTE(mem_dir, "min_KiB", data->mem_min_kb);
@@ -156,7 +156,7 @@ static int hpyfs_vm_create_guest(struct dentry *systems_dir,
 	ATTRIBUTE(mem_dir, "share_KiB", data->mem_share_kb);
 
 	/* samples */
-	samples_dir = hypfs_mkdir(guest_dir->d_sb, guest_dir, "samples");
+	samples_dir = hypfs_mkdir(guest_dir, "samples");
 	if (IS_ERR(samples_dir))
 		return PTR_ERR(samples_dir);
 	ATTRIBUTE(samples_dir, "cpu_using", data->cpu_use_samp);
@@ -180,31 +180,31 @@ int hypfs_vm_create_files(struct dentry *root)
 		return PTR_ERR(data);
 
 	/* Hpervisor Info */
-	dir = hypfs_mkdir(root->d_sb, root, "hyp");
+	dir = hypfs_mkdir(root, "hyp");
 	if (IS_ERR(dir)) {
 		rc = PTR_ERR(dir);
 		goto failed;
 	}
-	file = hypfs_create_str(root->d_sb, dir, "type", "z/VM Hypervisor");
+	file = hypfs_create_str(dir, "type", "z/VM Hypervisor");
 	if (IS_ERR(file)) {
 		rc = PTR_ERR(file);
 		goto failed;
 	}
 
 	/* physical cpus */
-	dir = hypfs_mkdir(root->d_sb, root, "cpus");
+	dir = hypfs_mkdir(root, "cpus");
 	if (IS_ERR(dir)) {
 		rc = PTR_ERR(dir);
 		goto failed;
 	}
-	file = hypfs_create_u64(root->d_sb, dir, "count", data->lcpus);
+	file = hypfs_create_u64(dir, "count", data->lcpus);
 	if (IS_ERR(file)) {
 		rc = PTR_ERR(file);
 		goto failed;
 	}
 
 	/* guests */
-	dir = hypfs_mkdir(root->d_sb, root, "systems");
+	dir = hypfs_mkdir(root, "systems");
 	if (IS_ERR(dir)) {
 		rc = PTR_ERR(dir);
 		goto failed;
