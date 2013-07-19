@@ -5,8 +5,10 @@
 *v0.0.1: this driver is compatible with generic_sensor
 *v0.1.1:
 *        add sensor_focus_af_const_pause_usr_cb;
+*v0.1.2:
+	  crop for rk3188m
 */
-static int version = KERNEL_VERSION(0,1,1);
+static int version = KERNEL_VERSION(0,1,2);
 module_param(version, int, S_IRUGO);
 
 static int debug =1;
@@ -23,8 +25,13 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_BUS_PARAM                     (SOCAM_MASTER |\
                                              SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH| SOCAM_VSYNC_ACTIVE_HIGH|\
                                              SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
-#define SENSOR_PREVIEW_W                     800
-#define SENSOR_PREVIEW_H                     600
+#if defined(CONFIG_SOC_RK3188M)
+#define SENSOR_PREVIEW_W                     (800 - 20)
+#define SENSOR_PREVIEW_H                     (600 - 20)
+#else
+#define SENSOR_PREVIEW_W					 (800)
+#define SENSOR_PREVIEW_H					 (600)
+#endif
 #define SENSOR_PREVIEW_FPS                   15000     // 15fps 
 #define SENSOR_FULLRES_L_FPS                 5000      // 7.5fps
 #define SENSOR_FULLRES_H_FPS                 10000      // 7.5fps
@@ -714,8 +721,8 @@ static	struct rk_sensor_reg sensor_Exposure14[]=
 	SensorEnd
 };
 
-static struct rk_sensor_reg *sensor_ExposureSeqe[] = {sensor_Exposure04,sensor_Exposure03, sensor_Exposure02, sensor_Exposure01, sensor_Exposure00,
-	sensor_Exposure11, sensor_Exposure12,sensor_Exposure13,sensor_Exposure14,NULL,
+static struct rk_sensor_reg *sensor_ExposureSeqe[] = {/*sensor_Exposure04,*/sensor_Exposure03, sensor_Exposure02, sensor_Exposure01, sensor_Exposure00,
+	sensor_Exposure11, sensor_Exposure12,sensor_Exposure13,/*sensor_Exposure14,*/NULL,
 };
 
 
@@ -882,7 +889,7 @@ static struct v4l2_querymenu sensor_menus[] =
 static struct sensor_v4l2ctrl_usr_s sensor_controls[] =
 {
 	new_user_v4l2ctrl(V4L2_CID_DO_WHITE_BALANCE,V4L2_CTRL_TYPE_MENU,"White Balance Control", 0, 5, 1, 0,sensor_v4l2ctrl_default_cb, sensor_WhiteBalanceSeqe),
-	new_user_v4l2ctrl(V4L2_CID_EXPOSURE,V4L2_CTRL_TYPE_INTEGER,"Exposure Control", -4, 4, 1, 0,sensor_v4l2ctrl_default_cb, sensor_ExposureSeqe),
+	new_user_v4l2ctrl(V4L2_CID_EXPOSURE,V4L2_CTRL_TYPE_INTEGER,"Exposure Control", -3, 3, 1, 0,sensor_v4l2ctrl_default_cb, sensor_ExposureSeqe),
 	new_user_v4l2ctrl(V4L2_CID_EFFECT,V4L2_CTRL_TYPE_MENU,"Effect Control", 0, 6, 1, 0,sensor_v4l2ctrl_default_cb, sensor_EffectSeqe),
 	new_user_v4l2ctrl(V4L2_CID_CONTRAST,V4L2_CTRL_TYPE_INTEGER,"Contrast Control", -4, 4, 1, 0,sensor_v4l2ctrl_default_cb, sensor_ContrastSeqe),
 };
@@ -952,6 +959,11 @@ static int sensor_s_fmt_cb_bh (struct i2c_client *client,struct v4l2_mbus_framef
     if (capture) {
         //sensor_ae_transfer(client);
     }
+#if defined(CONFIG_SOC_RK3188M)
+	mf->width-=20;
+	mf->height-=20;
+	msleep(300);
+#endif
     return 0;
 }
 
