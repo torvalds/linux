@@ -1307,11 +1307,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 
 	/* We get interrupts on unclaimed registers, so check for this before we
 	 * do any I915_{READ,WRITE}. */
-	if (IS_HASWELL(dev) &&
-	    (I915_READ_NOTRACE(FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
-		DRM_ERROR("Unclaimed register before interrupt\n");
-		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
-	}
+	intel_uncore_check_errors(dev);
 
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);

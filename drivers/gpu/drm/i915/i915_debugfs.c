@@ -989,9 +989,9 @@ static int gen6_drpc_info(struct seq_file *m)
 	if (ret)
 		return ret;
 
-	spin_lock_irq(&dev_priv->gt_lock);
-	forcewake_count = dev_priv->forcewake_count;
-	spin_unlock_irq(&dev_priv->gt_lock);
+	spin_lock_irq(&dev_priv->uncore.lock);
+	forcewake_count = dev_priv->uncore.forcewake_count;
+	spin_unlock_irq(&dev_priv->uncore.lock);
 
 	if (forcewake_count) {
 		seq_puts(m, "RC information inaccurate because somebody "
@@ -1375,9 +1375,9 @@ static int i915_gen6_forcewake_count_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned forcewake_count;
 
-	spin_lock_irq(&dev_priv->gt_lock);
-	forcewake_count = dev_priv->forcewake_count;
-	spin_unlock_irq(&dev_priv->gt_lock);
+	spin_lock_irq(&dev_priv->uncore.lock);
+	forcewake_count = dev_priv->uncore.forcewake_count;
+	spin_unlock_irq(&dev_priv->uncore.lock);
 
 	seq_printf(m, "forcewake count = %u\n", forcewake_count);
 
