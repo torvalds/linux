@@ -360,6 +360,14 @@ static int tcm_qla2xxx_check_prod_write_protect(struct se_portal_group *se_tpg)
 	return QLA_TPG_ATTRIB(tpg)->prod_mode_write_protect;
 }
 
+static int tcm_qla2xxx_check_demo_mode_login_only(struct se_portal_group *se_tpg)
+{
+	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
+				struct tcm_qla2xxx_tpg, se_tpg);
+
+	return QLA_TPG_ATTRIB(tpg)->demo_mode_login_only;
+}
+
 static struct se_node_acl *tcm_qla2xxx_alloc_fabric_acl(
 	struct se_portal_group *se_tpg)
 {
@@ -939,11 +947,19 @@ DEF_QLA_TPG_ATTR_BOOL(prod_mode_write_protect);
 DEF_QLA_TPG_ATTRIB(prod_mode_write_protect);
 QLA_TPG_ATTR(prod_mode_write_protect, S_IRUGO | S_IWUSR);
 
+/*
+ * Define tcm_qla2xxx_tpg_attrib_s_demo_mode_login_only
+ */
+DEF_QLA_TPG_ATTR_BOOL(demo_mode_login_only);
+DEF_QLA_TPG_ATTRIB(demo_mode_login_only);
+QLA_TPG_ATTR(demo_mode_login_only, S_IRUGO | S_IWUSR);
+
 static struct configfs_attribute *tcm_qla2xxx_tpg_attrib_attrs[] = {
 	&tcm_qla2xxx_tpg_attrib_generate_node_acls.attr,
 	&tcm_qla2xxx_tpg_attrib_cache_dynamic_acls.attr,
 	&tcm_qla2xxx_tpg_attrib_demo_mode_write_protect.attr,
 	&tcm_qla2xxx_tpg_attrib_prod_mode_write_protect.attr,
+	&tcm_qla2xxx_tpg_attrib_demo_mode_login_only.attr,
 	NULL,
 };
 
@@ -1042,6 +1058,7 @@ static struct se_portal_group *tcm_qla2xxx_make_tpg(
 	QLA_TPG_ATTRIB(tpg)->generate_node_acls = 1;
 	QLA_TPG_ATTRIB(tpg)->demo_mode_write_protect = 1;
 	QLA_TPG_ATTRIB(tpg)->cache_dynamic_acls = 1;
+	QLA_TPG_ATTRIB(tpg)->demo_mode_login_only = 1;
 
 	ret = core_tpg_register(&tcm_qla2xxx_fabric_configfs->tf_ops, wwn,
 				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
@@ -1740,7 +1757,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_ops = {
 					tcm_qla2xxx_check_demo_write_protect,
 	.tpg_check_prod_mode_write_protect =
 					tcm_qla2xxx_check_prod_write_protect,
-	.tpg_check_demo_mode_login_only = tcm_qla2xxx_check_true,
+	.tpg_check_demo_mode_login_only = tcm_qla2xxx_check_demo_mode_login_only,
 	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
@@ -1788,7 +1805,7 @@ static struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.tpg_check_demo_mode_cache	= tcm_qla2xxx_check_true,
 	.tpg_check_demo_mode_write_protect = tcm_qla2xxx_check_true,
 	.tpg_check_prod_mode_write_protect = tcm_qla2xxx_check_false,
-	.tpg_check_demo_mode_login_only	= tcm_qla2xxx_check_true,
+	.tpg_check_demo_mode_login_only	= tcm_qla2xxx_check_demo_mode_login_only,
 	.tpg_alloc_fabric_acl		= tcm_qla2xxx_alloc_fabric_acl,
 	.tpg_release_fabric_acl		= tcm_qla2xxx_release_fabric_acl,
 	.tpg_get_inst_index		= tcm_qla2xxx_tpg_get_inst_index,
