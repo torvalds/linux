@@ -336,14 +336,6 @@ xfs_mount_validate_sb(
 		return XFS_ERROR(EWRONGFS);
 	}
 
-	if ((sbp->sb_qflags & (XFS_OQUOTA_ENFD | XFS_OQUOTA_CHKD)) &&
-			(sbp->sb_qflags & (XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD |
-				XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD))) {
-		xfs_notice(mp,
-"Super block has XFS_OQUOTA bits along with XFS_PQUOTA and/or XFS_GQUOTA bits.\n");
-		return XFS_ERROR(EFSCORRUPTED);
-	}
-
 	/*
 	 * Version 5 superblock feature mask validation. Reject combinations the
 	 * kernel cannot support up front before checking anything else. For
@@ -385,6 +377,19 @@ xfs_mount_validate_sb(
 						XFS_SB_FEAT_INCOMPAT_UNKNOWN));
 			return XFS_ERROR(EINVAL);
 		}
+	}
+
+	if (xfs_sb_version_has_pquotino(sbp)) {
+		if (sbp->sb_qflags & (XFS_OQUOTA_ENFD | XFS_OQUOTA_CHKD)) {
+			xfs_notice(mp,
+			   "Version 5 of Super block has XFS_OQUOTA bits.\n");
+			return XFS_ERROR(EFSCORRUPTED);
+		}
+	} else if (sbp->sb_qflags & (XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD |
+				XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD)) {
+			xfs_notice(mp,
+"Superblock earlier than Version 5 has XFS_[PQ]UOTA_{ENFD|CHKD} bits.\n");
+			return XFS_ERROR(EFSCORRUPTED);
 	}
 
 	if (unlikely(
@@ -590,6 +595,13 @@ xfs_sb_quota_from_disk(struct xfs_sb *sbp)
 	if (sbp->sb_pquotino == 0)
 		sbp->sb_pquotino = NULLFSINO;
 
+	/*
+	 * We need to do these manipilations only if we are working
+	 * with an older version of on-disk superblock.
+	 */
+	if (xfs_sb_version_has_pquotino(sbp))
+		return;
+
 	if (sbp->sb_qflags & XFS_OQUOTA_ENFD)
 		sbp->sb_qflags |= (sbp->sb_qflags & XFS_PQUOTA_ACCT) ?
 					XFS_PQUOTA_ENFD : XFS_GQUOTA_ENFD;
@@ -597,6 +609,18 @@ xfs_sb_quota_from_disk(struct xfs_sb *sbp)
 		sbp->sb_qflags |= (sbp->sb_qflags & XFS_PQUOTA_ACCT) ?
 					XFS_PQUOTA_CHKD : XFS_GQUOTA_CHKD;
 	sbp->sb_qflags &= ~(XFS_OQUOTA_ENFD | XFS_OQUOTA_CHKD);
+
+	if (sbp->sb_qflags & XFS_PQUOTA_ACCT)  {
+		/*
+		 * In older version of superblock, on-disk superblock only
+		 * has sb_gquotino, and in-core superblock has both sb_gquotino
+		 * and sb_pquotino. But, only one of them is supported at any
+		 * point of time. So, if PQUOTA is set in disk superblock,
+		 * copy over sb_gquotino to sb_pquotino.
+		 */
+		sbp->sb_pquotino = sbp->sb_gquotino;
+		sbp->sb_gquotino = NULLFSINO;
+	}
 }
 
 void
@@ -668,6 +692,13 @@ xfs_sb_quota_to_disk(
 {
 	__uint16_t	qflags = from->sb_qflags;
 
+	/*
+	 * We need to do these manipilations only if we are working
+	 * with an older version of on-disk superblock.
+	 */
+	if (xfs_sb_version_has_pquotino(from))
+		return;
+
 	if (*fields & XFS_SB_QFLAGS) {
 		/*
 		 * The in-core version of sb_qflags do not have
@@ -687,6 +718,21 @@ xfs_sb_quota_to_disk(
 		to->sb_qflags = cpu_to_be16(qflags);
 		*fields &= ~XFS_SB_QFLAGS;
 	}
+
+	/*
+	 * GQUOTINO and PQUOTINO cannot be used together in versions
+	 * of superblock that do not have pquotino. from->sb_flags
+	 * tells us which quota is active and should be copied to
+	 * disk.
+	 */
+	if ((*fields & XFS_SB_GQUOTINO) &&
+				(from->sb_qflags & XFS_GQUOTA_ACCT))
+		to->sb_gquotino = cpu_to_be64(from->sb_gquotino);
+	else if ((*fields & XFS_SB_PQUOTINO) &&
+				(from->sb_qflags & XFS_PQUOTA_ACCT))
+		to->sb_gquotino = cpu_to_be64(from->sb_pquotino);
+
+	*fields &= ~(XFS_SB_PQUOTINO | XFS_SB_GQUOTINO);
 }
 
 /*

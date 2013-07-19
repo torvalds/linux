@@ -618,15 +618,22 @@ xfs_sb_has_incompat_log_feature(
 	return (sbp->sb_features_log_incompat & feature) != 0;
 }
 
-static inline bool
-xfs_is_quota_inode(struct xfs_sb *sbp, xfs_ino_t ino)
+static inline int xfs_sb_version_has_pquotino(xfs_sb_t *sbp)
 {
-	return (ino == sbp->sb_uquotino || ino == sbp->sb_gquotino);
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5;
 }
 
 /*
  * end of superblock version macros
  */
+
+static inline bool
+xfs_is_quota_inode(struct xfs_sb *sbp, xfs_ino_t ino)
+{
+	return (ino == sbp->sb_uquotino ||
+		ino == sbp->sb_gquotino ||
+		ino == sbp->sb_pquotino);
+}
 
 #define XFS_SB_DADDR		((xfs_daddr_t)0) /* daddr in filesystem/ag */
 #define	XFS_SB_BLOCK(mp)	XFS_HDR_BLOCK(mp, XFS_SB_DADDR)
