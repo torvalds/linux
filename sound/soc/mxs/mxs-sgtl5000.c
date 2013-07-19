@@ -25,7 +25,6 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include <sound/soc-dapm.h>
-#include <asm/mach-types.h>
 
 #include "../codecs/sgtl5000.h"
 #include "mxs-saif.h"
