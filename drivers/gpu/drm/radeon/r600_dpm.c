@@ -174,6 +174,24 @@ u32 r600_dpm_get_vblank_time(struct radeon_device *rdev)
 	return vblank_time_us;
 }
 
+u32 r600_dpm_get_vrefresh(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+	u32 vrefresh = 0;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (crtc->enabled && radeon_crtc->enabled && radeon_crtc->hw_mode.clock) {
+			vrefresh = radeon_crtc->hw_mode.vrefresh;
+			break;
+		}
+	}
+
+	return vrefresh;
+}
+
 void r600_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
 			    u32 *p, u32 *u)
 {
