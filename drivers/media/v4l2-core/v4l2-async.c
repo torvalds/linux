@@ -39,6 +39,11 @@ static bool match_devname(struct device *dev, struct v4l2_async_subdev *asd)
 	return !strcmp(asd->match.device_name.name, dev_name(dev));
 }
 
+static bool match_of(struct device *dev, struct v4l2_async_subdev *asd)
+{
+	return dev->of_node == asd->match.of.node;
+}
+
 static LIST_HEAD(subdev_list);
 static LIST_HEAD(notifier_list);
 static DEFINE_MUTEX(list_lock);
@@ -65,6 +70,9 @@ static struct v4l2_async_subdev *v4l2_async_belongs(struct v4l2_async_notifier *
 			break;
 		case V4L2_ASYNC_MATCH_I2C:
 			match = match_i2c;
+			break;
+		case V4L2_ASYNC_MATCH_OF:
+			match = match_of;
 			break;
 		default:
 			/* Cannot happen, unless someone breaks us */
@@ -145,6 +153,7 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 		case V4L2_ASYNC_MATCH_CUSTOM:
 		case V4L2_ASYNC_MATCH_DEVNAME:
 		case V4L2_ASYNC_MATCH_I2C:
+		case V4L2_ASYNC_MATCH_OF:
 			break;
 		default:
 			dev_err(notifier->v4l2_dev ? notifier->v4l2_dev->dev : NULL,
