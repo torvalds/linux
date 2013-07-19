@@ -1340,10 +1340,10 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
-		if (IS_GEN5(dev))
-			ilk_gt_irq_handler(dev, dev_priv, gt_iir);
-		else
+		if (INTEL_INFO(dev)->gen >= 6)
 			snb_gt_irq_handler(dev, dev_priv, gt_iir);
+		else
+			ilk_gt_irq_handler(dev, dev_priv, gt_iir);
 		I915_WRITE(GTIIR, gt_iir);
 		ret = IRQ_HANDLED;
 	}
