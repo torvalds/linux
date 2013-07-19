@@ -2854,6 +2854,9 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	if (!hcd)
 		goto error1;
 
+	if (hsotg->core_params->dma_enable <= 0)
+		hcd->self.uses_dma = 0;
+
 	hcd->has_tt = 1;
 
 	spin_lock_init(&hsotg->lock);
