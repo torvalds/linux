@@ -407,6 +407,26 @@ static struct vxlan_rdst *vxlan_fdb_find_rdst(struct vxlan_fdb *f,
 	return NULL;
 }
 
+/* Replace destination of unicast mac */
+static int vxlan_fdb_replace(struct vxlan_fdb *f,
+			    __be32 ip, __be16 port, __u32 vni, __u32 ifindex)
+{
+	struct vxlan_rdst *rd;
+
+	rd = vxlan_fdb_find_rdst(f, ip, port, vni, ifindex);
+	if (rd)
+		return 0;
+
+	rd = list_first_entry_or_null(&f->remotes, struct vxlan_rdst, list);
+	if (!rd)
+		return 0;
+	rd->remote_ip = ip;
+	rd->remote_port = port;
+	rd->remote_vni = vni;
+	rd->remote_ifindex = ifindex;
+	return 1;
+}
+
 /* Add/update destinations for multicast */
 static int vxlan_fdb_append(struct vxlan_fdb *f,
 			    __be32 ip, __be16 port, __u32 vni, __u32 ifindex)
@@ -457,6 +477,19 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			f->updated = jiffies;
 			notify = 1;
 		}
+		if ((flags & NLM_F_REPLACE)) {
+			/* Only change unicasts */
+			if (!(is_multicast_ether_addr(f->eth_addr) ||
+			     is_zero_ether_addr(f->eth_addr))) {
+				int rc = vxlan_fdb_replace(f, ip, port, vni,
+							   ifindex);
+
+				if (rc < 0)
+					return rc;
+				notify |= rc;
+			} else
+				return -EOPNOTSUPP;
+		}
 		if ((flags & NLM_F_APPEND) &&
 		    (is_multicast_ether_addr(f->eth_addr) ||
 		     is_zero_ether_addr(f->eth_addr))) {
@@ -472,6 +505,11 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 
 		if (vxlan->addrmax && vxlan->addrcnt >= vxlan->addrmax)
 			return -ENOSPC;
+
+		/* Disallow replace to add a multicast entry */
+		if ((flags & NLM_F_REPLACE) &&
+		    (is_multicast_ether_addr(mac) || is_zero_ether_addr(mac)))
+			return -EOPNOTSUPP;
 
 		netdev_dbg(vxlan->dev, "add %pM -> %pI4\n", mac, &ip);
 		f = kmalloc(sizeof(*f), GFP_ATOMIC);
