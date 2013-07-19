@@ -112,7 +112,7 @@ void fimc_is_hw_set_sensor_num(struct fimc_is *is)
 	mcuctl_write(IH_REPLY_DONE, is, MCUCTL_REG_ISSR(0));
 	mcuctl_write(is->sensor_index, is, MCUCTL_REG_ISSR(1));
 	mcuctl_write(IHC_GET_SENSOR_NUM, is, MCUCTL_REG_ISSR(2));
-	mcuctl_write(FIMC_IS_SENSOR_NUM, is, MCUCTL_REG_ISSR(3));
+	mcuctl_write(FIMC_IS_SENSORS_NUM, is, MCUCTL_REG_ISSR(3));
 }
 
 void fimc_is_hw_close_sensor(struct fimc_is *is, unsigned int index)
