@@ -25,7 +25,6 @@ extern struct oprofile_stat_struct oprofile_stats;
 /* reset all stats to zero */
 void oprofile_reset_stats(void);
 
-struct super_block;
 struct dentry;
 
 /* create the stats/ dir */

@@ -42,7 +42,6 @@
 #define IBS_FETCH_CODE			13
 #define IBS_OP_CODE			14
 
-struct super_block;
 struct dentry;
 struct file_operations;
 struct pt_regs;

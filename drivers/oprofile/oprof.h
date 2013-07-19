@@ -30,7 +30,6 @@ extern struct oprofile_operations oprofile_ops;
 extern unsigned long oprofile_started;
 extern unsigned long oprofile_backtrace_depth;
 
-struct super_block;
 struct dentry;
 
 void oprofile_create_files(struct dentry *root);
