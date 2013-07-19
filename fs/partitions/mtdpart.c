@@ -327,8 +327,8 @@ int mtdpart_partition(struct parsed_partitions *state)
 		return num_parts;
 
 	for(i = 0; i < num_parts; i++){
-		put_partition(state, i, parts[i].from + FROM_OFFSET, parts[i].size);
-		strcpy(state->parts[i].info.volname, parts[i].name);
+		put_partition(state, i+1, parts[i].from + FROM_OFFSET, parts[i].size);
+		strcpy(state->parts[i+1].info.volname, parts[i].name);
 		printk(KERN_INFO "%10s: 0x%09llx -- 0x%09llx (%llu MB)\n", 
 				parts[i].name,
 				parts[i].from * 512,
