@@ -19,17 +19,11 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs, Ilia Mirkin
  */
 
-#include <core/engctx.h>
-#include <core/class.h>
-
+#include <engine/xtensa.h>
 #include <engine/vp.h>
-
-struct nv84_vp_priv {
-	struct nouveau_engine base;
-};
 
 /*******************************************************************************
  * VP object classes
@@ -37,6 +31,7 @@ struct nv84_vp_priv {
 
 static struct nouveau_oclass
 nv84_vp_sclass[] = {
+	{ 0x7476, &nouveau_object_ofuncs },
 	{},
 };
 
@@ -48,7 +43,7 @@ static struct nouveau_oclass
 nv84_vp_cclass = {
 	.handle = NV_ENGCTX(VP, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_engctx_ctor,
+		.ctor = _nouveau_xtensa_engctx_ctor,
 		.dtor = _nouveau_engctx_dtor,
 		.init = _nouveau_engctx_init,
 		.fini = _nouveau_engctx_fini,
@@ -66,10 +61,10 @@ nv84_vp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
 {
-	struct nv84_vp_priv *priv;
+	struct nouveau_xtensa *priv;
 	int ret;
 
-	ret = nouveau_engine_create(parent, engine, oclass, true,
+	ret = nouveau_xtensa_create(parent, engine, oclass, 0xf000, true,
 				    "PVP", "vp", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
@@ -78,6 +73,8 @@ nv84_vp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->unit = 0x01020000;
 	nv_engine(priv)->cclass = &nv84_vp_cclass;
 	nv_engine(priv)->sclass = nv84_vp_sclass;
+	priv->fifo_val = 0x111;
+	priv->unkd28 = 0x9c544;
 	return 0;
 }
 
@@ -86,8 +83,10 @@ nv84_vp_oclass = {
 	.handle = NV_ENGINE(VP, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv84_vp_ctor,
-		.dtor = _nouveau_engine_dtor,
-		.init = _nouveau_engine_init,
-		.fini = _nouveau_engine_fini,
+		.dtor = _nouveau_xtensa_dtor,
+		.init = _nouveau_xtensa_init,
+		.fini = _nouveau_xtensa_fini,
+		.rd32 = _nouveau_xtensa_rd32,
+		.wr32 = _nouveau_xtensa_wr32,
 	},
 };

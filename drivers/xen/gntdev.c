@@ -19,6 +19,8 @@
 
 #undef DEBUG
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -760,7 +762,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	if (use_ptemod && map->vma)
 		goto unlock_out;
 	if (use_ptemod && priv->mm != vma->vm_mm) {
-		printk(KERN_WARNING "Huh? Other mm?\n");
+		pr_warn("Huh? Other mm?\n");
 		goto unlock_out;
 	}
 
@@ -795,7 +797,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 					  vma->vm_end - vma->vm_start,
 					  find_grant_ptes, map);
 		if (err) {
-			printk(KERN_WARNING "find_grant_ptes() failure.\n");
+			pr_warn("find_grant_ptes() failure.\n");
 			goto out_put_map;
 		}
 	}
@@ -855,7 +857,7 @@ static int __init gntdev_init(void)
 
 	err = misc_register(&gntdev_miscdev);
 	if (err != 0) {
-		printk(KERN_ERR "Could not register gntdev device\n");
+		pr_err("Could not register gntdev device\n");
 		return err;
 	}
 	return 0;

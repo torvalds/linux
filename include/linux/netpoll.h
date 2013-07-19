@@ -53,10 +53,10 @@ struct netpoll_info {
 };
 
 #ifdef CONFIG_NETPOLL
-extern int netpoll_rx_disable(struct net_device *dev);
+extern void netpoll_rx_disable(struct net_device *dev);
 extern void netpoll_rx_enable(struct net_device *dev);
 #else
-static inline int netpoll_rx_disable(struct net_device *dev) { return 0; }
+static inline void netpoll_rx_disable(struct net_device *dev) { return; }
 static inline void netpoll_rx_enable(struct net_device *dev) { return; }
 #endif
 

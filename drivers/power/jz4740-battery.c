@@ -292,7 +292,7 @@ static int jz_battery_probe(struct platform_device *pdev)
 			jz_battery);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq %d\n", ret);
-		goto err;
+		return ret;
 	}
 	disable_irq(jz_battery->irq);
 
@@ -349,8 +349,6 @@ err_free_gpio:
 		gpio_free(jz_battery->pdata->gpio_charge);
 err_free_irq:
 	free_irq(jz_battery->irq, jz_battery);
-err:
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 

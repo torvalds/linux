@@ -62,6 +62,7 @@ header-y += auxvec.h
 header-y += ax25.h
 header-y += b1lli.h
 header-y += baycom.h
+header-y += bcm933xx_hcs.h
 header-y += bfs_fs.h
 header-y += binfmts.h
 header-y += blkpg.h

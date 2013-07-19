@@ -9,12 +9,16 @@ config VIDEO_SAMSUNG_EXYNOS4_IS
 
 if VIDEO_SAMSUNG_EXYNOS4_IS
 
+config VIDEO_EXYNOS4_IS_COMMON
+       tristate
+
 config VIDEO_S5P_FIMC
 	tristate "S5P/EXYNOS4 FIMC/CAMIF camera interface driver"
 	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	select MFD_SYSCON if OF
+	select VIDEO_EXYNOS4_IS_COMMON
 	help
 	  This is a V4L2 driver for Samsung S5P and EXYNOS4 SoC camera host
 	  interface and video postprocessor (FIMC) devices.
@@ -39,6 +43,7 @@ config VIDEO_EXYNOS_FIMC_LITE
 	tristate "EXYNOS FIMC-LITE camera interface driver"
 	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
+	select VIDEO_EXYNOS4_IS_COMMON
 	help
 	  This is a V4L2 driver for Samsung EXYNOS4/5 SoC FIMC-LITE camera
 	  host interface.
@@ -59,4 +64,4 @@ config VIDEO_EXYNOS4_FIMC_IS
 	  To compile this driver as a module, choose M here: the
 	  module will be called exynos4-fimc-is.
 
-endif # VIDEO_SAMSUNG_S5P_FIMC
+endif # VIDEO_SAMSUNG_EXYNOS4_IS

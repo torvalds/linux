@@ -46,9 +46,10 @@ struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 unsigned long blackfin_iflush_l1_entry[NR_CPUS];
 #endif
 
-struct blackfin_initial_pda __cpuinitdata initial_pda_coreb;
+struct blackfin_initial_pda initial_pda_coreb;
 
 enum ipi_message_type {
+	BFIN_IPI_NONE,
 	BFIN_IPI_TIMER,
 	BFIN_IPI_RESCHEDULE,
 	BFIN_IPI_CALL_FUNC,
@@ -72,8 +73,8 @@ static DEFINE_SPINLOCK(stop_lock);
 
 /* Simple FIFO buffer, overflow leads to panic */
 struct ipi_data {
-	unsigned long count;
-	unsigned long bits;
+	atomic_t count;
+	atomic_t bits;
 };
 
 static DEFINE_PER_CPU(struct ipi_data, bfin_ipi);
@@ -146,8 +147,7 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 	platform_clear_ipi(cpu, IRQ_SUPPLE_1);
 
 	bfin_ipi_data = &__get_cpu_var(bfin_ipi);
-	smp_mb();
-	while ((pending = xchg(&bfin_ipi_data->bits, 0)) != 0) {
+	while ((pending = atomic_xchg(&bfin_ipi_data->bits, 0)) != 0) {
 		msg = 0;
 		do {
 			msg = find_next_bit(&pending, BITS_PER_LONG, msg + 1);
@@ -170,9 +170,8 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 				ipi_cpu_stop(cpu);
 				break;
 			}
+			atomic_dec(&bfin_ipi_data->count);
 		} while (msg < BITS_PER_LONG);
-
-		smp_mb();
 	}
 	return IRQ_HANDLED;
 }
@@ -183,8 +182,8 @@ static void bfin_ipi_init(void)
 	struct ipi_data *bfin_ipi_data;
 	for_each_possible_cpu(cpu) {
 		bfin_ipi_data = &per_cpu(bfin_ipi, cpu);
-		bfin_ipi_data->bits = 0;
-		bfin_ipi_data->count = 0;
+		atomic_set(&bfin_ipi_data->bits, 0);
+		atomic_set(&bfin_ipi_data->count, 0);
 	}
 }
 
@@ -195,12 +194,10 @@ void send_ipi(const struct cpumask *cpumask, enum ipi_message_type msg)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	smp_mb();
 	for_each_cpu(cpu, cpumask) {
 		bfin_ipi_data = &per_cpu(bfin_ipi, cpu);
-		smp_mb();
-		set_bit(msg, &bfin_ipi_data->bits);
-		bfin_ipi_data->count++;
+		atomic_set_mask((1 << msg), &bfin_ipi_data->bits);
+		atomic_inc(&bfin_ipi_data->count);
 		platform_send_ipi_cpu(cpu, IRQ_SUPPLE_1);
 	}
 
@@ -249,7 +246,7 @@ void smp_send_stop(void)
 	return;
 }
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
+int __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
 
@@ -262,7 +259,7 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	return ret;
 }
 
-static void __cpuinit setup_secondary(unsigned int cpu)
+static void setup_secondary(unsigned int cpu)
 {
 	unsigned long ilat;
 
@@ -280,7 +277,7 @@ static void __cpuinit setup_secondary(unsigned int cpu)
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 }
 
-void __cpuinit secondary_start_kernel(void)
+void secondary_start_kernel(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct mm_struct *mm = &init_mm;
@@ -319,7 +316,6 @@ void __cpuinit secondary_start_kernel(void)
 	setup_secondary(cpu);
 
 	platform_secondary_init(cpu);
-
 	/* setup local core timer */
 	bfin_local_timer_setup();
 
@@ -335,6 +331,8 @@ void __cpuinit secondary_start_kernel(void)
 	 */
 	calibrate_delay();
 
+	/* We are done with local CPU inits, unblock the boot CPU. */
+	set_cpu_online(cpu, true);
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
@@ -404,7 +402,7 @@ EXPORT_SYMBOL(resync_core_dcache);
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
-int __cpuexit __cpu_disable(void)
+int __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 
@@ -417,7 +415,7 @@ int __cpuexit __cpu_disable(void)
 
 static DECLARE_COMPLETION(cpu_killed);
 
-int __cpuexit __cpu_die(unsigned int cpu)
+int __cpu_die(unsigned int cpu)
 {
 	return wait_for_completion_timeout(&cpu_killed, 5000);
 }

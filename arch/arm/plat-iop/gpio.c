@@ -17,6 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/export.h>
 #include <asm/hardware/iop3xx.h>
+#include <mach/gpio.h>
 
 void gpio_line_config(int line, int direction)
 {

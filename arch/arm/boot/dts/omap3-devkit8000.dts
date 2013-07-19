@@ -124,20 +124,21 @@
 		reg = <0 0 0>; /* CS0, offset 0 */
 		nand-bus-width = <16>;
 
-		gpmc,sync-clk = <0>;
-		gpmc,cs-on = <0>;
-		gpmc,cs-rd-off = <44>;
-		gpmc,cs-wr-off = <44>;
-		gpmc,adv-on = <6>;
-		gpmc,adv-rd-off = <34>;
-		gpmc,adv-wr-off = <44>;
-		gpmc,we-off = <40>;
-		gpmc,oe-off = <54>;
-		gpmc,access = <64>;
-		gpmc,rd-cycle = <82>;
-		gpmc,wr-cycle = <82>;
-		gpmc,wr-access = <40>;
-		gpmc,wr-data-mux-bus = <0>;
+		gpmc,device-nand;
+		gpmc,sync-clki-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;

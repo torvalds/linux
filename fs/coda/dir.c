@@ -487,13 +487,7 @@ static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 
 		/* skip null entries */
 		if (vdir->d_fileno && name.len) {
-			/* try to look up this entry in the dcache, that way
-			 * userspace doesn't have to worry about breaking
-			 * getcwd by having mismatched inode numbers for
-			 * internal volume mountpoints. */
-			ino = find_inode_number(de, &name);
-			if (!ino) ino = vdir->d_fileno;
-
+			ino = vdir->d_fileno;
 			type = CDT2DT(vdir->d_type);
 			if (!dir_emit(ctx, name.name, name.len, ino, type))
 				break;
@@ -532,7 +526,7 @@ static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 	if (cii->c_flags & C_FLUSH) 
 		coda_flag_inode_children(inode, C_FLUSH);
 
-	if (de->d_count > 1)
+	if (d_count(de) > 1)
 		/* pretend it's valid, but don't change the flags */
 		goto out;
 

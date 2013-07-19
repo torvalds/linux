@@ -1,6 +1,7 @@
 config MIPS
 	bool
 	default y
+	select HAVE_CONTEXT_TRACKING
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
 	select HAVE_OPROFILE
@@ -27,6 +28,7 @@ config MIPS
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
+	select GENERIC_PCI_IOMAP
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select IRQ_FORCED_THREADING
@@ -42,11 +44,9 @@ config MIPS
 	select MODULES_USE_ELF_REL if MODULES
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select CLONE_BACKWARDS
+	select HAVE_DEBUG_STACKOVERFLOW
 
 menu "Machine selection"
-
-config ZONE_DMA
-	bool
 
 choice
 	prompt "System type"
@@ -123,11 +123,14 @@ config BCM47XX
 
 config BCM63XX
 	bool "Broadcom BCM63XX based boards"
+	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_BMIPS4350 if !BCM63XX_CPU_6338 && !BCM63XX_CPU_6345 && !BCM63XX_CPU_6348
+	select NR_CPUS_DEFAULT_2
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
@@ -340,7 +343,6 @@ config MIPS_SEAD3
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select IRQ_GIC
-	select MIPS_CPU_SCACHE
 	select MIPS_MSC
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
@@ -419,7 +421,6 @@ config POWERTV
 	select CSRC_POWERTV
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
-	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -712,46 +713,8 @@ config MIKROTIK_RB532
 	  Support the Mikrotik(tm) RouterBoard 532 series,
 	  based on the IDT RC32434 SoC.
 
-config WR_PPMC
-	bool "Wind River PPMC board"
-	select CEVT_R4K
-	select CSRC_R4K
-	select IRQ_CPU
-	select BOOT_ELF32
-	select DMA_NONCOHERENT
-	select HW_HAS_PCI
-	select PCI_GT64XXX_PCI0
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_HAS_CPU_MIPS64_R1
-	select SYS_HAS_CPU_NEVADA
-	select SYS_HAS_CPU_RM7000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	help
-	  This enables support for the Wind River MIPS32 4KC PPMC evaluation
-	  board, which is based on GT64120 bridge chip.
-
-config CAVIUM_OCTEON_SIMULATOR
-	bool "Cavium Networks Octeon Simulator"
-	select CEVT_R4K
-	select 64BIT_PHYS_ADDR
-	select DMA_COHERENT
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HOTPLUG_CPU
-	select SYS_HAS_CPU_CAVIUM_OCTEON
-	select HOLES_IN_ZONE
-	help
-	  The Octeon simulator is software performance model of the Cavium
-	  Octeon Processor. It supports simulating Octeon processors on x86
-	  hardware.
-
-config CAVIUM_OCTEON_REFERENCE_BOARD
-	bool "Cavium Networks Octeon reference board"
+config CAVIUM_OCTEON_SOC
+	bool "Cavium Networks Octeon SoC based boards"
 	select CEVT_R4K
 	select 64BIT_PHYS_ADDR
 	select DMA_COHERENT
@@ -805,6 +768,8 @@ config NLM_XLR_BOARD
 	select SYS_HAS_EARLY_PRINTK
 	select USB_ARCH_HAS_OHCI if USB_SUPPORT
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_ZBOOT_UART16550
 	help
 	  Support for systems based on Netlogic XLR and XLS processors.
 	  Say Y here if you have a XLR or XLS based board.
@@ -831,6 +796,8 @@ config NLM_XLP_BOARD
 	select SYNC_R4K
 	select SYS_HAS_EARLY_PRINTK
 	select USE_OF
+	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_ZBOOT_UART16550
 	help
 	  This board is based on Netlogic XLP Processor.
 	  Say Y here if you have a XLP based board.
@@ -1030,7 +997,6 @@ config CPU_BIG_ENDIAN
 config CPU_LITTLE_ENDIAN
 	bool "Little endian"
 	depends on SYS_SUPPORTS_LITTLE_ENDIAN
-	help
 
 endchoice
 
@@ -1963,7 +1929,7 @@ config MIPS_MT_FPAFF
 
 config MIPS_VPE_LOADER
 	bool "VPE loader support."
-	depends on SYS_SUPPORTS_MULTITHREADING
+	depends on SYS_SUPPORTS_MULTITHREADING && MODULES
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select MIPS_MT
@@ -2381,6 +2347,19 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
+config CC_STACKPROTECTOR
+	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	help
+	  This option turns on the -fstack-protector GCC feature. This
+	  feature puts, at the beginning of functions, a canary value on
+	  the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+
+	  This feature requires gcc version 4.2 or above.
+
 config USE_OF
 	bool
 	select OF
@@ -2412,7 +2391,6 @@ config PCI
 	bool "Support for PCI controller"
 	depends on HW_HAS_PCI
 	select PCI_DOMAINS
-	select GENERIC_PCI_IOMAP
 	select NO_GENERIC_PCI_IOPORT_MAP
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
@@ -2477,6 +2455,9 @@ config I8253
 	select CLKSRC_I8253
 	select CLKEVT_I8253
 	select MIPS_EXTERNAL_TIMER
+
+config ZONE_DMA
+	bool
 
 config ZONE_DMA32
 	bool

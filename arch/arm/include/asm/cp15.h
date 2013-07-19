@@ -23,6 +23,11 @@
 #define CR_RR	(1 << 14)	/* Round Robin cache replacement	*/
 #define CR_L4	(1 << 15)	/* LDR pc can set T bit			*/
 #define CR_DT	(1 << 16)
+#ifdef CONFIG_MMU
+#define CR_HA	(1 << 17)	/* Hardware management of Access Flag   */
+#else
+#define CR_BR	(1 << 17)	/* MPU Background region enable (PMSA)  */
+#endif
 #define CR_IT	(1 << 18)
 #define CR_ST	(1 << 19)
 #define CR_FI	(1 << 21)	/* Fast interrupt (lower latency mode)	*/

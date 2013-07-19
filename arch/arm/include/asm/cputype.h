@@ -8,6 +8,7 @@
 #define CPUID_CACHETYPE	1
 #define CPUID_TCM	2
 #define CPUID_TLBTYPE	3
+#define CPUID_MPUIR	4
 #define CPUID_MPIDR	5
 
 #ifdef CONFIG_CPU_V7M

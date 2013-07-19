@@ -46,7 +46,8 @@ static LIST_HEAD(shutdown_files);
 
 static const struct file_operations snd_shutdown_f_ops;
 
-static unsigned int snd_cards_lock;	/* locked for registering/using */
+/* locked for registering/using */
+static DECLARE_BITMAP(snd_cards_lock, SNDRV_CARDS);
 struct snd_card *snd_cards[SNDRV_CARDS];
 EXPORT_SYMBOL(snd_cards);
 
@@ -167,29 +168,35 @@ int snd_card_create(int idx, const char *xid,
 	err = 0;
 	mutex_lock(&snd_card_mutex);
 	if (idx < 0) {
-		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
+		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++) {
 			/* idx == -1 == 0xffff means: take any free slot */
-			if (~snd_cards_lock & idx & 1<<idx2) {
+			if (idx2 < sizeof(int) && !(idx & (1U << idx2)))
+				continue;
+			if (!test_bit(idx2, snd_cards_lock)) {
 				if (module_slot_match(module, idx2)) {
 					idx = idx2;
 					break;
 				}
 			}
+		}
 	}
 	if (idx < 0) {
-		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
+		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++) {
 			/* idx == -1 == 0xffff means: take any free slot */
-			if (~snd_cards_lock & idx & 1<<idx2) {
+			if (idx2 < sizeof(int) && !(idx & (1U << idx2)))
+				continue;
+			if (!test_bit(idx2, snd_cards_lock)) {
 				if (!slots[idx2] || !*slots[idx2]) {
 					idx = idx2;
 					break;
 				}
 			}
+		}
 	}
 	if (idx < 0)
 		err = -ENODEV;
 	else if (idx < snd_ecards_limit) {
-		if (snd_cards_lock & (1 << idx))
+		if (test_bit(idx, snd_cards_lock))
 			err = -EBUSY;	/* invalid */
 	} else if (idx >= SNDRV_CARDS)
 		err = -ENODEV;
@@ -199,7 +206,7 @@ int snd_card_create(int idx, const char *xid,
 			 idx, snd_ecards_limit - 1, err);
 		goto __error;
 	}
-	snd_cards_lock |= 1 << idx;		/* lock it */
+	set_bit(idx, snd_cards_lock);		/* lock it */
 	if (idx >= snd_ecards_limit)
 		snd_ecards_limit = idx + 1; /* increase the limit */
 	mutex_unlock(&snd_card_mutex);
@@ -249,7 +256,7 @@ int snd_card_locked(int card)
 	int locked;
 
 	mutex_lock(&snd_card_mutex);
-	locked = snd_cards_lock & (1 << card);
+	locked = test_bit(card, snd_cards_lock);
 	mutex_unlock(&snd_card_mutex);
 	return locked;
 }
@@ -361,7 +368,7 @@ int snd_card_disconnect(struct snd_card *card)
 	/* phase 1: disable fops (user space) operations for ALSA API */
 	mutex_lock(&snd_card_mutex);
 	snd_cards[card->number] = NULL;
-	snd_cards_lock &= ~(1 << card->number);
+	clear_bit(card->number, snd_cards_lock);
 	mutex_unlock(&snd_card_mutex);
 	
 	/* phase 2: replace file->f_op with special dummy operations */
@@ -549,7 +556,6 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
 				    const char *nid)
 {
 	int len, loops;
-	bool with_suffix;
 	bool is_default = false;
 	char *id;
 	
@@ -565,26 +571,23 @@ static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
 		is_default = true;
 	}
 
-	with_suffix = false;
+	len = strlen(id);
 	for (loops = 0; loops < SNDRV_CARDS; loops++) {
+		char *spos;
+		char sfxstr[5]; /* "_012" */
+		int sfxlen;
+
 		if (card_id_ok(card, id))
 			return; /* OK */
 
-		len = strlen(id);
-		if (!with_suffix) {
-			/* add the "_X" suffix */
-			char *spos = id + len;
-			if (len >  sizeof(card->id) - 3)
-				spos = id + sizeof(card->id) - 3;
-			strcpy(spos, "_1");
-			with_suffix = true;
-		} else {
-			/* modify the existing suffix */
-			if (id[len - 1] != '9')
-				id[len - 1]++;
-			else
-				id[len - 1] = 'A';
-		}
+		/* Add _XYZ suffix */
+		sprintf(sfxstr, "_%X", loops + 1);
+		sfxlen = strlen(sfxstr);
+		if (len + sfxlen >= sizeof(card->id))
+			spos = id + sizeof(card->id) - sfxlen - 1;
+		else
+			spos = id + len;
+		strcpy(spos, sfxstr);
 	}
 	/* fallback to the default id */
 	if (!is_default) {

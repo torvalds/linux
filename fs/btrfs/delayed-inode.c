@@ -535,20 +535,6 @@ static struct btrfs_delayed_item *__btrfs_next_delayed_item(
 	return next;
 }
 
-static inline struct btrfs_root *btrfs_get_fs_root(struct btrfs_root *root,
-						   u64 root_id)
-{
-	struct btrfs_key root_key;
-
-	if (root->objectid == root_id)
-		return root;
-
-	root_key.objectid = root_id;
-	root_key.type = BTRFS_ROOT_ITEM_KEY;
-	root_key.offset = (u64)-1;
-	return btrfs_read_fs_root_no_name(root->fs_info, &root_key);
-}
-
 static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 					       struct btrfs_root *root,
 					       struct btrfs_delayed_item *item)

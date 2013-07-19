@@ -16,6 +16,6 @@ ifneq ($(CONFIG_PCI),)
 	obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_pci.o
 endif
 
-ifneq ($(CONFIG_OF_DEVICE),)
+ifneq ($(CONFIG_OF),)
 	obj-$(CONFIG_USB_CHIPIDEA)	+= ci_hdrc_imx.o usbmisc_imx.o
 endif

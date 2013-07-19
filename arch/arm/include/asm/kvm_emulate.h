@@ -65,11 +65,6 @@ static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 	return cpsr_mode > USR_MODE;;
 }
 
-static inline bool kvm_vcpu_reg_is_pc(struct kvm_vcpu *vcpu, int reg)
-{
-	return reg == 15;
-}
-
 static inline u32 kvm_vcpu_get_hsr(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault.hsr;

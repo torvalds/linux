@@ -536,7 +536,7 @@ static int generic_dpi_panel_power_on(struct omap_dss_device *dssdev)
 {
 	int r, i;
 	struct panel_generic_dpi_data *panel_data = get_panel_data(dssdev);
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
+	struct panel_drv_data *drv_data = dev_get_drvdata(dssdev->dev);
 	struct panel_config *panel_config = drv_data->panel_config;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
@@ -567,7 +567,7 @@ err0:
 static void generic_dpi_panel_power_off(struct omap_dss_device *dssdev)
 {
 	struct panel_generic_dpi_data *panel_data = get_panel_data(dssdev);
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
+	struct panel_drv_data *drv_data = dev_get_drvdata(dssdev->dev);
 	struct panel_config *panel_config = drv_data->panel_config;
 	int i;
 
@@ -593,7 +593,7 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 	struct panel_drv_data *drv_data = NULL;
 	int i, r;
 
-	dev_dbg(&dssdev->dev, "probe\n");
+	dev_dbg(dssdev->dev, "probe\n");
 
 	if (!panel_data || !panel_data->name)
 		return -EINVAL;
@@ -609,7 +609,7 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 		return -EINVAL;
 
 	for (i = 0; i < panel_data->num_gpios; ++i) {
-		r = devm_gpio_request_one(&dssdev->dev, panel_data->gpios[i],
+		r = devm_gpio_request_one(dssdev->dev, panel_data->gpios[i],
 				panel_data->gpio_invert[i] ?
 				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
 				"panel gpio");
@@ -619,7 +619,7 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 
 	dssdev->panel.timings = panel_config->timings;
 
-	drv_data = devm_kzalloc(&dssdev->dev, sizeof(*drv_data), GFP_KERNEL);
+	drv_data = devm_kzalloc(dssdev->dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data)
 		return -ENOMEM;
 
@@ -628,21 +628,21 @@ static int generic_dpi_panel_probe(struct omap_dss_device *dssdev)
 
 	mutex_init(&drv_data->lock);
 
-	dev_set_drvdata(&dssdev->dev, drv_data);
+	dev_set_drvdata(dssdev->dev, drv_data);
 
 	return 0;
 }
 
 static void __exit generic_dpi_panel_remove(struct omap_dss_device *dssdev)
 {
-	dev_dbg(&dssdev->dev, "remove\n");
+	dev_dbg(dssdev->dev, "remove\n");
 
-	dev_set_drvdata(&dssdev->dev, NULL);
+	dev_set_drvdata(dssdev->dev, NULL);
 }
 
 static int generic_dpi_panel_enable(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
+	struct panel_drv_data *drv_data = dev_get_drvdata(dssdev->dev);
 	int r;
 
 	mutex_lock(&drv_data->lock);
@@ -660,7 +660,7 @@ err:
 
 static void generic_dpi_panel_disable(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
+	struct panel_drv_data *drv_data = dev_get_drvdata(dssdev->dev);
 
 	mutex_lock(&drv_data->lock);
 
@@ -674,7 +674,7 @@ static void generic_dpi_panel_disable(struct omap_dss_device *dssdev)
 static void generic_dpi_panel_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
+	struct panel_drv_data *drv_data = dev_get_drvdata(dssdev->dev);
 
 	mutex_lock(&drv_data->lock);
 
@@ -688,7 +688,7 @@ static void generic_dpi_panel_set_timings(struct omap_dss_device *dssdev,
 static void generic_dpi_panel_get_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
+	struct panel_drv_data *drv_data = dev_get_drvdata(dssdev->dev);
 
 	mutex_lock(&drv_data->lock);
 
@@ -700,7 +700,7 @@ static void generic_dpi_panel_get_timings(struct omap_dss_device *dssdev,
 static int generic_dpi_panel_check_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
+	struct panel_drv_data *drv_data = dev_get_drvdata(dssdev->dev);
 	int r;
 
 	mutex_lock(&drv_data->lock);

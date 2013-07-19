@@ -45,9 +45,8 @@ struct stb0899_s2_reg {
 };
 
 enum stb0899_inversion {
-	IQ_SWAP_OFF	= 0,
-	IQ_SWAP_ON,
-	IQ_SWAP_AUTO
+	IQ_SWAP_OFF	= +1, /* inversion affects the sign of e. g. */
+	IQ_SWAP_ON	= -1, /* the derotator frequency register    */
 };
 
 #define STB0899_GPIO00				0xf140

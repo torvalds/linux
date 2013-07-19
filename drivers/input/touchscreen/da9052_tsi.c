@@ -329,8 +329,6 @@ static int  da9052_ts_remove(struct platform_device *pdev)
 	input_unregister_device(tsi->dev);
 	kfree(tsi);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

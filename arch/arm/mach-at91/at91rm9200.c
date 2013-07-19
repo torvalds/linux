@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/reboot.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -304,7 +305,7 @@ static void at91rm9200_idle(void)
 	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
 }
 
-static void at91rm9200_restart(char mode, const char *cmd)
+static void at91rm9200_restart(enum reboot_mode reboot_mode, const char *cmd)
 {
 	/*
 	 * Perform a hardware reset with the use of the Watchdog timer.

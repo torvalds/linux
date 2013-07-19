@@ -295,7 +295,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	unsigned short addr = client->addr;
 	int err;
 
-	ir = kzalloc(sizeof(struct IR_i2c), GFP_KERNEL);
+	ir = devm_kzalloc(&client->dev, sizeof(*ir), GFP_KERNEL);
 	if (!ir)
 		return -ENOMEM;
 
@@ -398,10 +398,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 * internally
 		 */
 		rc = rc_allocate_device();
-		if (!rc) {
-			err = -ENOMEM;
-			goto err_out_free;
-		}
+		if (!rc)
+			return -ENOMEM;
 	}
 	ir->rc = rc;
 
@@ -454,7 +452,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
  err_out_free:
 	/* Only frees rc if it were allocated internally */
 	rc_free_device(rc);
-	kfree(ir);
 	return err;
 }
 
@@ -470,7 +467,6 @@ static int ir_remove(struct i2c_client *client)
 		rc_unregister_device(ir->rc);
 
 	/* free memory */
-	kfree(ir);
 	return 0;
 }
 

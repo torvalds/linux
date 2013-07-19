@@ -1,0 +1,31 @@
+#
+# ARC EMAC network device configuration
+#
+
+config NET_VENDOR_ARC
+	bool "ARC devices"
+	default y
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about ARC cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_ARC
+
+config ARC_EMAC
+	tristate "ARC EMAC support"
+	select MII
+	select PHYLIB
+	depends on OF_IRQ
+	depends on OF_NET
+	---help---
+	  On some legacy ARC (Synopsys) FPGA boards such as ARCAngel4/ML50x
+	  non-standard on-chip ethernet device ARC EMAC 10/100 is used.
+	  Say Y here if you have such a board.  If unsure, say N.
+
+endif # NET_VENDOR_ARC

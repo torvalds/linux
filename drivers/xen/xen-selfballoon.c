@@ -64,6 +64,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/bootmem.h>
 #include <linux/swap.h>
@@ -510,22 +512,19 @@ int xen_selfballoon_init(bool use_selfballooning, bool use_frontswap_selfshrink)
 		return -ENODEV;
 
 	if (xen_initial_domain()) {
-		pr_info("xen/balloon: Xen selfballooning driver "
-				"disabled for domain0.\n");
+		pr_info("Xen selfballooning driver disabled for domain0\n");
 		return -ENODEV;
 	}
 
 	xen_selfballooning_enabled = tmem_enabled && use_selfballooning;
 	if (xen_selfballooning_enabled) {
-		pr_info("xen/balloon: Initializing Xen "
-					"selfballooning driver.\n");
+		pr_info("Initializing Xen selfballooning driver\n");
 		enable = true;
 	}
 #ifdef CONFIG_FRONTSWAP
 	frontswap_selfshrinking = tmem_enabled && use_frontswap_selfshrink;
 	if (frontswap_selfshrinking) {
-		pr_info("xen/balloon: Initializing frontswap "
-					"selfshrinking driver.\n");
+		pr_info("Initializing frontswap selfshrinking driver\n");
 		enable = true;
 	}
 #endif

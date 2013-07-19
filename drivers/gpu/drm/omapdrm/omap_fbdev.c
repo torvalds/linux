@@ -281,21 +281,7 @@ fail:
 	return ret;
 }
 
-static void omap_crtc_fb_gamma_set(struct drm_crtc *crtc,
-		u16 red, u16 green, u16 blue, int regno)
-{
-	DBG("fbdev: set gamma");
-}
-
-static void omap_crtc_fb_gamma_get(struct drm_crtc *crtc,
-		u16 *red, u16 *green, u16 *blue, int regno)
-{
-	DBG("fbdev: get gamma");
-}
-
 static struct drm_fb_helper_funcs omap_fb_helper_funcs = {
-	.gamma_set = omap_crtc_fb_gamma_set,
-	.gamma_get = omap_crtc_fb_gamma_get,
 	.fb_probe = omap_fbdev_create,
 };
 

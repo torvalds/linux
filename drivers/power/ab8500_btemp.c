@@ -1045,7 +1045,6 @@ static int ab8500_btemp_remove(struct platform_device *pdev)
 
 	flush_scheduled_work();
 	power_supply_unregister(&di->btemp_psy);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
