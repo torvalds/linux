@@ -549,13 +549,6 @@ struct intel_unpin_work {
 	bool enable_stall_check;
 };
 
-struct intel_fbc_work {
-	struct delayed_work work;
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
-	int interval;
-};
-
 int intel_pch_rawclk(struct drm_device *dev);
 
 int intel_connector_update_modes(struct drm_connector *connector,
@@ -747,6 +740,22 @@ extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 extern void intel_fb_output_poll_changed(struct drm_device *dev);
 extern void intel_fb_restore_mode(struct drm_device *dev);
 
+struct intel_shared_dpll *
+intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
+
+void assert_shared_dpll(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll,
+			bool state);
+#define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
+#define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
+void assert_pll(struct drm_i915_private *dev_priv,
+		enum pipe pipe, bool state);
+#define assert_pll_enabled(d, p) assert_pll(d, p, true)
+#define assert_pll_disabled(d, p) assert_pll(d, p, false)
+void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
+		       enum pipe pipe, bool state);
+#define assert_fdi_rx_pll_enabled(d, p) assert_fdi_rx_pll(d, p, true)
+#define assert_fdi_rx_pll_disabled(d, p) assert_fdi_rx_pll(d, p, false)
 extern void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 			bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
@@ -780,7 +789,6 @@ extern int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 extern void intel_init_pm(struct drm_device *dev);
 /* FBC */
 extern bool intel_fbc_enabled(struct drm_device *dev);
-extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern void intel_update_fbc(struct drm_device *dev);
 /* IPS */
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);

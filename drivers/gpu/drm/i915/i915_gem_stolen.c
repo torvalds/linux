@@ -46,6 +46,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pdev = dev_priv->bridge_dev;
+	struct resource *r;
 	u32 base;
 
 	/* On the machines I have tested the Graphics Base of Stolen Memory
@@ -88,6 +89,22 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 #endif
 	}
 
+	if (base == 0)
+		return 0;
+
+	/* Verify that nothing else uses this physical address. Stolen
+	 * memory should be reserved by the BIOS and hidden from the
+	 * kernel. So if the region is already marked as busy, something
+	 * is seriously wrong.
+	 */
+	r = devm_request_mem_region(dev->dev, base, dev_priv->gtt.stolen_size,
+				    "Graphics Stolen Memory");
+	if (r == NULL) {
+		DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
+			  base, base + (uint32_t)dev_priv->gtt.stolen_size);
+		base = 0;
+	}
+
 	return base;
 }
 
@@ -120,7 +137,7 @@ static int i915_setup_compression(struct drm_device *dev, int size)
 		if (!compressed_llb)
 			goto err_fb;
 
-		dev_priv->compressed_llb = compressed_llb;
+		dev_priv->fbc.compressed_llb = compressed_llb;
 
 		I915_WRITE(FBC_CFB_BASE,
 			   dev_priv->mm.stolen_base + compressed_fb->start);
@@ -128,8 +145,8 @@ static int i915_setup_compression(struct drm_device *dev, int size)
 			   dev_priv->mm.stolen_base + compressed_llb->start);
 	}
 
-	dev_priv->compressed_fb = compressed_fb;
-	dev_priv->cfb_size = size;
+	dev_priv->fbc.compressed_fb = compressed_fb;
+	dev_priv->fbc.size = size;
 
 	DRM_DEBUG_KMS("reserved %d bytes of contiguous stolen space for FBC\n",
 		      size);
@@ -150,7 +167,7 @@ int i915_gem_stolen_setup_compression(struct drm_device *dev, int size)
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
-	if (size < dev_priv->cfb_size)
+	if (size < dev_priv->fbc.size)
 		return 0;
 
 	/* Release any current block */
@@ -163,16 +180,16 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->cfb_size == 0)
+	if (dev_priv->fbc.size == 0)
 		return;
 
-	if (dev_priv->compressed_fb)
-		drm_mm_put_block(dev_priv->compressed_fb);
+	if (dev_priv->fbc.compressed_fb)
+		drm_mm_put_block(dev_priv->fbc.compressed_fb);
 
-	if (dev_priv->compressed_llb)
-		drm_mm_put_block(dev_priv->compressed_llb);
+	if (dev_priv->fbc.compressed_llb)
+		drm_mm_put_block(dev_priv->fbc.compressed_llb);
 
-	dev_priv->cfb_size = 0;
+	dev_priv->fbc.size = 0;
 }
 
 void i915_gem_cleanup_stolen(struct drm_device *dev)
@@ -200,6 +217,9 @@ int i915_gem_init_stolen(struct drm_device *dev)
 
 	if (IS_VALLEYVIEW(dev))
 		bios_reserved = 1024*1024; /* top 1M on VLV/BYT */
+
+	if (WARN_ON(bios_reserved > dev_priv->gtt.stolen_size))
+		return 0;
 
 	/* Basic memrange allocator for stolen space */
 	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size -
@@ -333,6 +353,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
+	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return NULL;
@@ -347,11 +368,16 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (WARN_ON(size == 0))
 		return NULL;
 
-	stolen = drm_mm_create_block(&dev_priv->mm.stolen,
-				     stolen_offset, size,
-				     false);
-	if (stolen == NULL) {
+	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
+	if (!stolen)
+		return NULL;
+
+	stolen->start = stolen_offset;
+	stolen->size = size;
+	ret = drm_mm_reserve_node(&dev_priv->mm.stolen, stolen);
+	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen space\n");
+		kfree(stolen);
 		return NULL;
 	}
 
@@ -363,7 +389,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	}
 
 	/* Some objects just need physical mem from stolen space */
-	if (gtt_offset == -1)
+	if (gtt_offset == I915_GTT_OFFSET_NONE)
 		return obj;
 
 	/* To simplify the initialisation sequence between KMS and GTT,
@@ -371,25 +397,27 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
+	obj->gtt_space.start = gtt_offset;
+	obj->gtt_space.size = size;
 	if (drm_mm_initialized(&dev_priv->mm.gtt_space)) {
-		obj->gtt_space = drm_mm_create_block(&dev_priv->mm.gtt_space,
-						     gtt_offset, size,
-						     false);
-		if (obj->gtt_space == NULL) {
+		ret = drm_mm_reserve_node(&dev_priv->mm.gtt_space,
+					  &obj->gtt_space);
+		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			drm_gem_object_unreference(&obj->base);
-			return NULL;
+			goto unref_out;
 		}
-	} else
-		obj->gtt_space = I915_GTT_RESERVED;
+	}
 
-	obj->gtt_offset = gtt_offset;
 	obj->has_global_gtt_mapping = 1;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	return obj;
+
+unref_out:
+	drm_gem_object_unreference(&obj->base);
+	return NULL;
 }
 
 void

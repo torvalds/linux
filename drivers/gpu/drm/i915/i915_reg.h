@@ -363,6 +363,7 @@
 #define PUNIT_REG_GPU_LFM			0xd3
 #define PUNIT_REG_GPU_FREQ_REQ			0xd4
 #define PUNIT_REG_GPU_FREQ_STS			0xd8
+#define   GENFREQSTATUS				(1<<0)
 #define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
 
 #define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */
@@ -680,6 +681,7 @@
 #define   ERR_INT_FIFO_UNDERRUN_C	(1<<6)
 #define   ERR_INT_FIFO_UNDERRUN_B	(1<<3)
 #define   ERR_INT_FIFO_UNDERRUN_A	(1<<0)
+#define   ERR_INT_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
 #define FPGA_DBG		0x42300
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
@@ -1125,7 +1127,8 @@
 #define _DPLL_B	(dev_priv->info->display_mmio_offset + 0x6018)
 #define DPLL(pipe) _PIPE(pipe, _DPLL_A, _DPLL_B)
 #define   DPLL_VCO_ENABLE		(1 << 31)
-#define   DPLL_DVO_HIGH_SPEED		(1 << 30)
+#define   DPLL_SDVO_HIGH_SPEED		(1 << 30)
+#define   DPLL_DVO_2X_MODE		(1 << 30)
 #define   DPLL_EXT_BUFFER_ENABLE_VLV	(1 << 30)
 #define   DPLL_SYNCLOCK_ENABLE		(1 << 29)
 #define   DPLL_REFA_CLK_ENABLE_VLV	(1 << 29)
@@ -3880,6 +3883,7 @@
 #define  SERR_INT_TRANS_C_FIFO_UNDERRUN	(1<<6)
 #define  SERR_INT_TRANS_B_FIFO_UNDERRUN	(1<<3)
 #define  SERR_INT_TRANS_A_FIFO_UNDERRUN	(1<<0)
+#define  SERR_INT_TRANS_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
 /* digital port hotplug */
 #define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */

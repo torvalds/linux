@@ -1323,10 +1323,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = 1;
-	if (INTEL_INFO(dev)->num_pipes == 0) {
-		dev_priv->mm.suspended = 0;
+	if (INTEL_INFO(dev)->num_pipes == 0)
 		return 0;
-	}
 
 	ret = intel_fbdev_init(dev);
 	if (ret)
@@ -1351,9 +1349,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	dev_priv->enable_hotplug_processing = true;
 
 	drm_kms_helper_poll_init(dev);
-
-	/* We're off and running w/KMS */
-	dev_priv->mm.suspended = 0;
 
 	return 0;
 
@@ -1558,8 +1553,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_rmmap;
 	}
 
-	dev_priv->mm.gtt_mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
-						 aperture_size);
+	dev_priv->gtt.mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
+					      aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -1612,7 +1607,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
-	spin_lock_init(&dev_priv->rps.lock);
 	spin_lock_init(&dev_priv->backlight.lock);
 	mutex_init(&dev_priv->dpio_lock);
 
@@ -1629,9 +1623,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_gem_unload;
 	}
 
-	/* Start out suspended */
-	dev_priv->mm.suspended = 1;
-
 	if (HAS_POWER_WELL(dev))
 		i915_init_power_well(dev);
 
@@ -1641,6 +1632,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			DRM_ERROR("failed to init modeset\n");
 			goto out_gem_unload;
 		}
+	} else {
+		/* Start out suspended in ums mode. */
+		dev_priv->ums.mm_suspended = 1;
 	}
 
 	i915_setup_sysfs(dev);
@@ -1667,7 +1661,7 @@ out_gem_unload:
 	intel_teardown_mchbar(dev);
 	destroy_workqueue(dev_priv->wq);
 out_mtrrfree:
-	arch_phys_wc_del(dev_priv->mm.gtt_mtrr);
+	arch_phys_wc_del(dev_priv->gtt.mtrr);
 	io_mapping_free(dev_priv->gtt.mappable);
 	dev_priv->gtt.gtt_remove(dev);
 out_rmmap:
@@ -1705,7 +1699,7 @@ int i915_driver_unload(struct drm_device *dev)
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 
 	io_mapping_free(dev_priv->gtt.mappable);
-	arch_phys_wc_del(dev_priv->mm.gtt_mtrr);
+	arch_phys_wc_del(dev_priv->gtt.mtrr);
 
 	acpi_video_unregister();
 

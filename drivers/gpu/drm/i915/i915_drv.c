@@ -132,6 +132,11 @@ int i915_enable_ips __read_mostly = 1;
 module_param_named(enable_ips, i915_enable_ips, int, 0600);
 MODULE_PARM_DESC(enable_ips, "Enable IPS (default: true)");
 
+bool i915_fastboot __read_mostly = 0;
+module_param_named(fastboot, i915_fastboot, bool, 0600);
+MODULE_PARM_DESC(fastboot, "Try to skip unnecessary mode sets at boot time "
+		 "(default: false)");
+
 static struct drm_driver driver;
 extern int intel_agp_enabled;
 
@@ -551,7 +556,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	/* If KMS is active, we do the leavevt stuff here */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		int error = i915_gem_idle(dev);
+		int error;
+
+		mutex_lock(&dev->struct_mutex);
+		error = i915_gem_idle(dev);
+		mutex_unlock(&dev->struct_mutex);
 		if (error) {
 			dev_err(&dev->pdev->dev,
 				"GEM idle failed, resume might fail\n");
@@ -656,7 +665,6 @@ static int __i915_drm_thaw(struct drm_device *dev)
 		intel_init_pch_refclk(dev);
 
 		mutex_lock(&dev->struct_mutex);
-		dev_priv->mm.suspended = 0;
 
 		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
@@ -793,28 +801,29 @@ static int i965_reset_complete(struct drm_device *dev)
 static int i965_do_reset(struct drm_device *dev)
 {
 	int ret;
-	u8 gdrst;
 
 	/*
 	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
 	 * well as the reset bit (GR/bit 0).  Setting the GR bit
 	 * triggers the reset; when done, the hardware will clear it.
 	 */
-	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
 	pci_write_config_byte(dev->pdev, I965_GDRST,
-			      gdrst | GRDOM_RENDER |
-			      GRDOM_RESET_ENABLE);
+			      GRDOM_RENDER | GRDOM_RESET_ENABLE);
 	ret =  wait_for(i965_reset_complete(dev), 500);
 	if (ret)
 		return ret;
 
 	/* We can't reset render&media without also resetting display ... */
-	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
 	pci_write_config_byte(dev->pdev, I965_GDRST,
-			      gdrst | GRDOM_MEDIA |
-			      GRDOM_RESET_ENABLE);
+			      GRDOM_MEDIA | GRDOM_RESET_ENABLE);
 
-	return wait_for(i965_reset_complete(dev), 500);
+	ret =  wait_for(i965_reset_complete(dev), 500);
+	if (ret)
+		return ret;
+
+	pci_write_config_byte(dev->pdev, I965_GDRST, 0);
+
+	return 0;
 }
 
 static int ironlake_do_reset(struct drm_device *dev)
@@ -955,11 +964,11 @@ int i915_reset(struct drm_device *dev)
 	 * switched away).
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
-			!dev_priv->mm.suspended) {
+			!dev_priv->ums.mm_suspended) {
 		struct intel_ring_buffer *ring;
 		int i;
 
-		dev_priv->mm.suspended = 0;
+		dev_priv->ums.mm_suspended = 0;
 
 		i915_gem_init_swizzling(dev);
 
