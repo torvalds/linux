@@ -144,8 +144,7 @@ int oprofilefs_create_ro_atomic(struct super_block * sb, struct dentry * root,
 	char const * name, atomic_t * val);
  
 /** create a directory */
-struct dentry * oprofilefs_mkdir(struct super_block * sb, struct dentry * root,
-	char const * name);
+struct dentry *oprofilefs_mkdir(struct dentry *parent, char const *name);
 
 /**
  * Write the given asciz string to the given user buffer @buf, updating *offset

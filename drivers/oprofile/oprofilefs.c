@@ -211,28 +211,27 @@ int oprofilefs_create_file_perm(struct super_block *sb, struct dentry *root,
 }
 
 
-struct dentry *oprofilefs_mkdir(struct super_block *sb,
-	struct dentry *root, char const *name)
+struct dentry *oprofilefs_mkdir(struct dentry *parent, char const *name)
 {
 	struct dentry *dentry;
 	struct inode *inode;
 
-	mutex_lock(&root->d_inode->i_mutex);
-	dentry = d_alloc_name(root, name);
+	mutex_lock(&parent->d_inode->i_mutex);
+	dentry = d_alloc_name(parent, name);
 	if (!dentry) {
-		mutex_unlock(&root->d_inode->i_mutex);
+		mutex_unlock(&parent->d_inode->i_mutex);
 		return NULL;
 	}
-	inode = oprofilefs_get_inode(sb, S_IFDIR | 0755);
+	inode = oprofilefs_get_inode(parent->d_sb, S_IFDIR | 0755);
 	if (!inode) {
 		dput(dentry);
-		mutex_unlock(&root->d_inode->i_mutex);
+		mutex_unlock(&parent->d_inode->i_mutex);
 		return NULL;
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	d_add(dentry, inode);
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&parent->d_inode->i_mutex);
 	return dentry;
 }
 

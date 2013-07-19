@@ -115,7 +115,7 @@ op_axp_create_files(struct dentry *root)
 		char buf[4];
 
 		snprintf(buf, sizeof buf, "%d", i);
-		dir = oprofilefs_mkdir(root->d_sb, root, buf);
+		dir = oprofilefs_mkdir(root, buf);
 
 		oprofilefs_create_ulong(root->d_sb, dir, "enabled", &ctr[i].enabled);
                 oprofilefs_create_ulong(root->d_sb, dir, "event", &ctr[i].event);

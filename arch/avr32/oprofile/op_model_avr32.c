@@ -105,7 +105,7 @@ static int avr32_perf_counter_create_files(struct dentry *root)
 
 	for (i = 0; i < NR_counter; i++) {
 		snprintf(filename, sizeof(filename), "%u", i);
-		dir = oprofilefs_mkdir(root->d_sb, root, filename);
+		dir = oprofilefs_mkdir(root, filename);
 
 		oprofilefs_create_ulong(root->d_sb, dir, "enabled",
 				&counter[i].enabled);

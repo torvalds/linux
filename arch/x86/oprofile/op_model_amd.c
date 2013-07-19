@@ -479,7 +479,7 @@ static int setup_ibs_files(struct dentry *root)
 	ibs_config.max_cnt_op = 250000;
 
 	if (ibs_caps & IBS_CAPS_FETCHSAM) {
-		dir = oprofilefs_mkdir(root->d_sb, root, "ibs_fetch");
+		dir = oprofilefs_mkdir(root, "ibs_fetch");
 		oprofilefs_create_ulong(root->d_sb, dir, "enable",
 					&ibs_config.fetch_enabled);
 		oprofilefs_create_ulong(root->d_sb, dir, "max_count",
@@ -489,7 +489,7 @@ static int setup_ibs_files(struct dentry *root)
 	}
 
 	if (ibs_caps & IBS_CAPS_OPSAM) {
-		dir = oprofilefs_mkdir(root->d_sb, root, "ibs_op");
+		dir = oprofilefs_mkdir(root, "ibs_op");
 		oprofilefs_create_ulong(root->d_sb, dir, "enable",
 					&ibs_config.op_enabled);
 		oprofilefs_create_ulong(root->d_sb, dir, "max_count",

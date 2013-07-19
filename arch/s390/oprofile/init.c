@@ -350,7 +350,7 @@ static int oprofile_create_hwsampling_files(struct dentry *root)
 {
 	struct dentry *dir;
 
-	dir = oprofilefs_mkdir(root->d_sb, root, "timer");
+	dir = oprofilefs_mkdir(root, "timer");
 	if (!dir)
 		return -EINVAL;
 
@@ -375,7 +375,7 @@ static int oprofile_create_hwsampling_files(struct dentry *root)
 		 * and can only be set to 0.
 		 */
 
-		dir = oprofilefs_mkdir(root->d_sb, root, "0");
+		dir = oprofilefs_mkdir(root, "0");
 		if (!dir)
 			return -EINVAL;
 
@@ -395,7 +395,7 @@ static int oprofile_create_hwsampling_files(struct dentry *root)
 		 * space tools.  The /dev/oprofile/hwsampling fs is
 		 * provided in that case.
 		 */
-		dir = oprofilefs_mkdir(root->d_sb, root, "hwsampling");
+		dir = oprofilefs_mkdir(root, "hwsampling");
 		if (!dir)
 			return -EINVAL;
 

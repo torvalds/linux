@@ -46,14 +46,14 @@ void oprofile_create_stats_files(struct dentry *root)
 	char buf[10];
 	int i;
 
-	dir = oprofilefs_mkdir(root->d_sb, root, "stats");
+	dir = oprofilefs_mkdir(root, "stats");
 	if (!dir)
 		return;
 
 	for_each_possible_cpu(i) {
 		cpu_buf = &per_cpu(op_cpu_buffer, i);
 		snprintf(buf, 10, "cpu%d", i);
-		cpudir = oprofilefs_mkdir(root->d_sb, dir, buf);
+		cpudir = oprofilefs_mkdir(dir, buf);
 
 		/* Strictly speaking access to these ulongs is racy,
 		 * but we can't simply lock them, and they are

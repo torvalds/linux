@@ -420,7 +420,7 @@ static int nmi_create_files(struct dentry *root)
 			continue;
 
 		snprintf(buf,  sizeof(buf), "%d", i);
-		dir = oprofilefs_mkdir(root->d_sb, root, buf);
+		dir = oprofilefs_mkdir(root, buf);
 		oprofilefs_create_ulong(root->d_sb, dir, "enabled", &counter_config[i].enabled);
 		oprofilefs_create_ulong(root->d_sb, dir, "event", &counter_config[i].event);
 		oprofilefs_create_ulong(root->d_sb, dir, "count", &counter_config[i].count);
