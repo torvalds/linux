@@ -91,8 +91,9 @@ struct pm800_regulators {
  * amax - the current
  * Buck has 2 kinds of voltage steps. It is easy to find voltage by ranges,
  * not the constant voltage table.
+ * n_volt - Number of available selectors
  */
-#define PM800_BUCK(vreg, ereg, ebit, amax, volt_ranges)			\
+#define PM800_BUCK(vreg, ereg, ebit, amax, volt_ranges, n_volt)		\
 {									\
 	.desc	= {							\
 		.name	= #vreg,					\
@@ -100,6 +101,7 @@ struct pm800_regulators {
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM800_ID_##vreg,				\
 		.owner	= THIS_MODULE,					\
+		.n_voltages		= n_volt,			\
 		.linear_ranges		= volt_ranges,			\
 		.n_linear_ranges	= ARRAY_SIZE(volt_ranges),	\
 		.vsel_reg		= PM800_##vreg,			\
@@ -204,11 +206,11 @@ static struct regulator_ops pm800_volt_table_ops = {
 
 /* The array is indexed by id(PM800_ID_XXX) */
 static struct pm800_regulator_info pm800_regulator_info[] = {
-	PM800_BUCK(BUCK1, BUCK_ENA, 0, 3000000, buck1_volt_range),
-	PM800_BUCK(BUCK2, BUCK_ENA, 1, 1200000, buck2_5_volt_range),
-	PM800_BUCK(BUCK3, BUCK_ENA, 2, 1200000, buck2_5_volt_range),
-	PM800_BUCK(BUCK4, BUCK_ENA, 3, 1200000, buck2_5_volt_range),
-	PM800_BUCK(BUCK5, BUCK_ENA, 4, 1200000, buck2_5_volt_range),
+	PM800_BUCK(BUCK1, BUCK_ENA, 0, 3000000, buck1_volt_range, 0x55),
+	PM800_BUCK(BUCK2, BUCK_ENA, 1, 1200000, buck2_5_volt_range, 0x73),
+	PM800_BUCK(BUCK3, BUCK_ENA, 2, 1200000, buck2_5_volt_range, 0x73),
+	PM800_BUCK(BUCK4, BUCK_ENA, 3, 1200000, buck2_5_volt_range, 0x73),
+	PM800_BUCK(BUCK5, BUCK_ENA, 4, 1200000, buck2_5_volt_range, 0x73),
 
 	PM800_LDO(LDO1, LDO_ENA1_1, 0, 200000, ldo1_volt_table),
 	PM800_LDO(LDO2, LDO_ENA1_1, 1, 10000, ldo2_volt_table),
