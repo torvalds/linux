@@ -27,7 +27,7 @@
 void au_cpup_attr_flags(struct inode *dst, unsigned int iflags)
 {
 	const unsigned int mask = S_DEAD | S_SWAPFILE | S_PRIVATE
-		| S_NOATIME | S_NOCMTIME;
+		| S_NOATIME | S_NOCMTIME | S_AUTOMOUNT;
 
 	BUILD_BUG_ON(sizeof(iflags) != sizeof(dst->i_flags));
 
