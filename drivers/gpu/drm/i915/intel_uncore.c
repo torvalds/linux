@@ -347,7 +347,7 @@ u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg, bool trace) { \
 	unsigned long irqflags; \
 	u##x val = 0; \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
-	if (IS_GEN5(dev_priv->dev)) \
+	if (dev_priv->info->gen == 5) \
 		ilk_dummy_write(dev_priv); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		if (dev_priv->uncore.forcewake_count == 0) \
@@ -378,7 +378,7 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val, bool tr
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
-	if (IS_GEN5(dev_priv->dev)) \
+	if (dev_priv->info->gen == 5) \
 		ilk_dummy_write(dev_priv); \
 	hsw_unclaimed_reg_clear(dev_priv, reg); \
 	__raw_i915_write##x(dev_priv, reg, val); \
