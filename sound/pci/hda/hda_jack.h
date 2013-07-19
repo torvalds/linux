@@ -75,7 +75,18 @@ int snd_hda_jack_set_gating_jack(struct hda_codec *codec, hda_nid_t gated_nid,
 				 hda_nid_t gating_nid);
 
 u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid);
-int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid);
+
+/* the jack state returned from snd_hda_jack_detect_state() */
+enum {
+	HDA_JACK_NOT_PRESENT, HDA_JACK_PRESENT, HDA_JACK_PHANTOM,
+};
+
+int snd_hda_jack_detect_state(struct hda_codec *codec, hda_nid_t nid);
+
+static inline bool snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid)
+{
+	return snd_hda_jack_detect_state(codec, nid) != HDA_JACK_NOT_PRESENT;
+}
 
 bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid);
 

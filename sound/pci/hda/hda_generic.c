@@ -3724,7 +3724,8 @@ static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
 /* check each pin in the given array; returns true if any of them is plugged */
 static bool detect_jacks(struct hda_codec *codec, int num_pins, hda_nid_t *pins)
 {
-	int i, present = 0;
+	int i;
+	bool present = false;
 
 	for (i = 0; i < num_pins; i++) {
 		hda_nid_t nid = pins[i];
@@ -3733,7 +3734,8 @@ static bool detect_jacks(struct hda_codec *codec, int num_pins, hda_nid_t *pins)
 		/* don't detect pins retasked as inputs */
 		if (snd_hda_codec_get_pin_target(codec, nid) & AC_PINCTL_IN_EN)
 			continue;
-		present |= snd_hda_jack_detect(codec, nid);
+		if (snd_hda_jack_detect_state(codec, nid) == HDA_JACK_PRESENT)
+			present = true;
 	}
 	return present;
 }
@@ -3887,7 +3889,7 @@ void snd_hda_gen_mic_autoswitch(struct hda_codec *codec, struct hda_jack_tbl *ja
 		/* don't detect pins retasked as outputs */
 		if (snd_hda_codec_get_pin_target(codec, pin) & AC_PINCTL_OUT_EN)
 			continue;
-		if (snd_hda_jack_detect(codec, pin)) {
+		if (snd_hda_jack_detect_state(codec, pin) == HDA_JACK_PRESENT) {
 			mux_select(codec, 0, spec->am_entry[i].idx);
 			return;
 		}
