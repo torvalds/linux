@@ -22,10 +22,10 @@ struct v4l2_async_notifier;
 /* A random max subdevice number, used to allocate an array on stack */
 #define V4L2_MAX_SUBDEVS 128U
 
-enum v4l2_async_bus_type {
-	V4L2_ASYNC_BUS_CUSTOM,
-	V4L2_ASYNC_BUS_PLATFORM,
-	V4L2_ASYNC_BUS_I2C,
+enum v4l2_async_match_type {
+	V4L2_ASYNC_MATCH_CUSTOM,
+	V4L2_ASYNC_MATCH_DEVNAME,
+	V4L2_ASYNC_MATCH_I2C,
 };
 
 /**
@@ -36,11 +36,11 @@ enum v4l2_async_bus_type {
  *		probed, to a notifier->waiting list
  */
 struct v4l2_async_subdev {
-	enum v4l2_async_bus_type bus_type;
+	enum v4l2_async_match_type match_type;
 	union {
 		struct {
 			const char *name;
-		} platform;
+		} device_name;
 		struct {
 			int adapter_id;
 			unsigned short address;

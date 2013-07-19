@@ -34,9 +34,9 @@ static bool match_i2c(struct device *dev, struct v4l2_async_subdev *asd)
 #endif
 }
 
-static bool match_platform(struct device *dev, struct v4l2_async_subdev *asd)
+static bool match_devname(struct device *dev, struct v4l2_async_subdev *asd)
 {
-	return !strcmp(asd->match.platform.name, dev_name(dev));
+	return !strcmp(asd->match.device_name.name, dev_name(dev));
 }
 
 static LIST_HEAD(subdev_list);
@@ -53,17 +53,17 @@ static struct v4l2_async_subdev *v4l2_async_belongs(struct v4l2_async_notifier *
 
 	list_for_each_entry(asd, &notifier->waiting, list) {
 		/* bus_type has been verified valid before */
-		switch (asd->bus_type) {
-		case V4L2_ASYNC_BUS_CUSTOM:
+		switch (asd->match_type) {
+		case V4L2_ASYNC_MATCH_CUSTOM:
 			match = asd->match.custom.match;
 			if (!match)
 				/* Match always */
 				return asd;
 			break;
-		case V4L2_ASYNC_BUS_PLATFORM:
-			match = match_platform;
+		case V4L2_ASYNC_MATCH_DEVNAME:
+			match = match_devname;
 			break;
-		case V4L2_ASYNC_BUS_I2C:
+		case V4L2_ASYNC_MATCH_I2C:
 			match = match_i2c;
 			break;
 		default:
@@ -141,15 +141,15 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 	for (i = 0; i < notifier->num_subdevs; i++) {
 		asd = notifier->subdev[i];
 
-		switch (asd->bus_type) {
-		case V4L2_ASYNC_BUS_CUSTOM:
-		case V4L2_ASYNC_BUS_PLATFORM:
-		case V4L2_ASYNC_BUS_I2C:
+		switch (asd->match_type) {
+		case V4L2_ASYNC_MATCH_CUSTOM:
+		case V4L2_ASYNC_MATCH_DEVNAME:
+		case V4L2_ASYNC_MATCH_I2C:
 			break;
 		default:
 			dev_err(notifier->v4l2_dev ? notifier->v4l2_dev->dev : NULL,
-				"Invalid bus-type %u on %p\n",
-				asd->bus_type, asd);
+				"Invalid match type %u on %p\n",
+				asd->match_type, asd);
 			return -EINVAL;
 		}
 		list_add_tail(&asd->list, &notifier->waiting);

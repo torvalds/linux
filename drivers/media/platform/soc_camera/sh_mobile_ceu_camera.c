@@ -1837,9 +1837,9 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		for (j = 0; pcdev->pdata->asd_sizes[j]; j++) {
 			for (i = 0; i < pcdev->pdata->asd_sizes[j]; i++, asd++) {
 				dev_dbg(&pdev->dev, "%s(): subdev #%d, type %u\n",
-					__func__, i, (*asd)->bus_type);
-				if ((*asd)->bus_type == V4L2_ASYNC_BUS_PLATFORM &&
-				    !strncmp(name, (*asd)->match.platform.name,
+					__func__, i, (*asd)->match_type);
+				if ((*asd)->match_type == V4L2_ASYNC_MATCH_DEVNAME &&
+				    !strncmp(name, (*asd)->match.device_name.name,
 					     sizeof(name) - 1)) {
 					pcdev->csi2_asd = *asd;
 					break;
