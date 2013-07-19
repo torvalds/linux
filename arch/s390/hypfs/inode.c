@@ -193,7 +193,7 @@ static ssize_t hypfs_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	}
 	hypfs_delete_tree(sb->s_root);
 	if (MACHINE_IS_VM)
-		rc = hypfs_vm_create_files(sb, sb->s_root);
+		rc = hypfs_vm_create_files(sb->s_root);
 	else
 		rc = hypfs_diag_create_files(sb, sb->s_root);
 	if (rc) {
@@ -302,7 +302,7 @@ static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!root_dentry)
 		return -ENOMEM;
 	if (MACHINE_IS_VM)
-		rc = hypfs_vm_create_files(sb, root_dentry);
+		rc = hypfs_vm_create_files(root_dentry);
 	else
 		rc = hypfs_diag_create_files(sb, root_dentry);
 	if (rc)
