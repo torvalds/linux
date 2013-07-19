@@ -2830,6 +2830,15 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	/* Validate parameter values */
 	dwc2_set_parameters(hsotg, params);
 
+	/* Check if the bus driver or platform code has setup a dma_mask */
+	if (hsotg->core_params->dma_enable > 0 &&
+	    hsotg->dev->dma_mask == NULL) {
+		dev_warn(hsotg->dev,
+			 "dma_mask not set, disabling DMA\n");
+		hsotg->core_params->dma_enable = 0;
+		hsotg->core_params->dma_desc_enable = 0;
+	}
+
 	/* Set device flags indicating whether the HCD supports DMA */
 	if (hsotg->core_params->dma_enable > 0) {
 		if (dma_set_mask(hsotg->dev, DMA_BIT_MASK(32)) < 0)
