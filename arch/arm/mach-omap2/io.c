@@ -581,7 +581,7 @@ void __init am33xx_init_early(void)
 	am33xx_clockdomains_init();
 	am33xx_hwmod_init();
 	omap_hwmod_init_postsetup();
-	omap_clk_soc_init = am33xx_clk_init;
+	omap_clk_soc_init = am33xx_dt_clk_init;
 }
 
 void __init am33xx_init_late(void)
