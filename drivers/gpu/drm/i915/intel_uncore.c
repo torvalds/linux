@@ -343,7 +343,7 @@ hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 }
 
 #define __i915_read(x) \
-u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
+u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg, bool trace) { \
 	unsigned long irqflags; \
 	u##x val = 0; \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
@@ -359,7 +359,7 @@ u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 		val = __raw_i915_read##x(dev_priv, reg); \
 	} \
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
-	trace_i915_reg_rw(false, reg, val, sizeof(val)); \
+	if (trace) trace_i915_reg_rw(false, reg, val, sizeof(val)); \
 	return val; \
 }
 
@@ -370,10 +370,10 @@ __i915_read(64)
 #undef __i915_read
 
 #define __i915_write(x) \
-void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
+void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val, bool trace) { \
 	unsigned long irqflags; \
 	u32 __fifo_ret = 0; \
-	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
+	if (trace) trace_i915_reg_rw(true, reg, val, sizeof(val)); \
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
