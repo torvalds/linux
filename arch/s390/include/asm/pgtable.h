@@ -619,6 +619,15 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 #endif
 }
 
+static inline pgste_t pgste_get(pte_t *ptep)
+{
+	unsigned long pgste = 0;
+#ifdef CONFIG_PGSTE
+	pgste = *(unsigned long *)(ptep + PTRS_PER_PTE);
+#endif
+	return __pgste(pgste);
+}
+
 static inline void pgste_set(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
@@ -1098,7 +1107,7 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
 	pgste_t pgste;
 
 	if (mm_has_pgste(mm)) {
-		pgste = *(pgste_t *)(ptep + PTRS_PER_PTE);
+		pgste = pgste_get(ptep);
 		pgste_set_key(ptep, pgste, pte);
 		pgste_set_pte(ptep, pte);
 		pgste_set_unlock(ptep, pgste);
