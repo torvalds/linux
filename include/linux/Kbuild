@@ -1,0 +1,2 @@
+header-y += if_pppolac.h
+header-y += if_pppopns.h
