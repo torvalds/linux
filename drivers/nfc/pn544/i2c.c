@@ -65,6 +65,7 @@ struct pn544_i2c_phy {
 	unsigned int en_polarity;
 
 	int powered;
+	int run_mode;
 
 	int hard_fault;		/*
 				 * < 0 if hardware error occured (e.g. i2c err)
@@ -122,15 +123,22 @@ out:
 	gpio_set_value(phy->gpio_en, !phy->en_polarity);
 }
 
+static void pn544_hci_i2c_enable_mode(struct pn544_i2c_phy *phy, int run_mode)
+{
+	gpio_set_value(phy->gpio_fw, run_mode == PN544_FW_MODE ? 1 : 0);
+	gpio_set_value(phy->gpio_en, phy->en_polarity);
+	usleep_range(10000, 15000);
+
+	phy->run_mode = run_mode;
+}
+
 static int pn544_hci_i2c_enable(void *phy_id)
 {
 	struct pn544_i2c_phy *phy = phy_id;
 
 	pr_info(DRIVER_DESC ": %s\n", __func__);
 
-	gpio_set_value(phy->gpio_fw, 0);
-	gpio_set_value(phy->gpio_en, phy->en_polarity);
-	usleep_range(10000, 15000);
+	pn544_hci_i2c_enable_mode(phy, PN544_HCI_MODE);
 
 	phy->powered = 1;
 

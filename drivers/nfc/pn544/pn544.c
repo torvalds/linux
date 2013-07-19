@@ -31,9 +31,6 @@
 /* Timing restrictions (ms) */
 #define PN544_HCI_RESETVEN_TIME		30
 
-#define HCI_MODE 0
-#define FW_MODE 1
-
 enum pn544_state {
 	PN544_ST_COLD,
 	PN544_ST_FW_READY,
