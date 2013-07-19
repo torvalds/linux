@@ -428,7 +428,7 @@ static int iscsi_login_zero_tsih_s2(
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
 			return -1;
 		}
-		rc = strict_strtoul(param->value, 0, &mrdsl);
+		rc = kstrtoul(param->value, 0, &mrdsl);
 		if (rc < 0) {
 			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);

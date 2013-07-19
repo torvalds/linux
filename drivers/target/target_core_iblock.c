@@ -536,10 +536,10 @@ static ssize_t iblock_set_configfs_dev_params(struct se_device *dev,
 				ret = -ENOMEM;
 				break;
 			}
-			ret = strict_strtoul(arg_p, 0, &tmp_readonly);
+			ret = kstrtoul(arg_p, 0, &tmp_readonly);
 			kfree(arg_p);
 			if (ret < 0) {
-				pr_err("strict_strtoul() failed for"
+				pr_err("kstrtoul() failed for"
 						" readonly=\n");
 				goto out;
 			}

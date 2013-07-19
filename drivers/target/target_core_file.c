@@ -635,10 +635,10 @@ static ssize_t fd_set_configfs_dev_params(struct se_device *dev,
 				ret = -ENOMEM;
 				break;
 			}
-			ret = strict_strtoull(arg_p, 0, &fd_dev->fd_dev_size);
+			ret = kstrtoull(arg_p, 0, &fd_dev->fd_dev_size);
 			kfree(arg_p);
 			if (ret < 0) {
-				pr_err("strict_strtoull() failed for"
+				pr_err("kstrtoull() failed for"
 						" fd_dev_size=\n");
 				goto out;
 			}

@@ -1182,7 +1182,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 			unsigned long long tmp;
 			int rc;
 
-			rc = strict_strtoull(param->value, 0, &tmp);
+			rc = kstrtoull(param->value, 0, &tmp);
 			if (rc < 0)
 				return -1;
 
