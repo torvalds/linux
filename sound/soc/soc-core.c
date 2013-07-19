@@ -192,7 +192,7 @@ static ssize_t pmdown_time_set(struct device *dev,
 	struct snd_soc_pcm_runtime *rtd = dev_get_drvdata(dev);
 	int ret;
 
-	ret = strict_strtol(buf, 10, &rtd->pmdown_time);
+	ret = kstrtol(buf, 10, &rtd->pmdown_time);
 	if (ret)
 		return ret;
 
@@ -237,6 +237,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 	char *start = buf;
 	unsigned long reg, value;
 	struct snd_soc_codec *codec = file->private_data;
+	int ret;
 
 	buf_size = min(count, (sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
@@ -248,8 +249,9 @@ static ssize_t codec_reg_write_file(struct file *file,
 	reg = simple_strtoul(start, &start, 16);
 	while (*start == ' ')
 		start++;
-	if (strict_strtoul(start, 16, &value))
-		return -EINVAL;
+	ret = kstrtoul(start, 16, &value);
+	if (ret)
+		return ret;
 
 	/* Userspace has been fiddling around behind the kernel's back */
 	add_taint(TAINT_USER, LOCKDEP_NOW_UNRELIABLE);
