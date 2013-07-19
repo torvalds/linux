@@ -2135,7 +2135,7 @@ int vlv_gpu_freq(int ddr_freq, int val);
 int vlv_freq_opcode(int ddr_freq, int val);
 
 #define __i915_read(x) \
-	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);
+	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg, bool trace);
 __i915_read(8)
 __i915_read(16)
 __i915_read(32)
@@ -2143,28 +2143,28 @@ __i915_read(64)
 #undef __i915_read
 
 #define __i915_write(x) \
-	void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val);
+	void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val, bool trace);
 __i915_write(8)
 __i915_write(16)
 __i915_write(32)
 __i915_write(64)
 #undef __i915_write
 
-#define I915_READ8(reg)		i915_read8(dev_priv, (reg))
-#define I915_WRITE8(reg, val)	i915_write8(dev_priv, (reg), (val))
+#define I915_READ8(reg)		i915_read8(dev_priv, (reg), true)
+#define I915_WRITE8(reg, val)	i915_write8(dev_priv, (reg), (val), true)
 
-#define I915_READ16(reg)	i915_read16(dev_priv, (reg))
-#define I915_WRITE16(reg, val)	i915_write16(dev_priv, (reg), (val))
-#define I915_READ16_NOTRACE(reg)	readw(dev_priv->regs + (reg))
-#define I915_WRITE16_NOTRACE(reg, val)	writew(val, dev_priv->regs + (reg))
+#define I915_READ16(reg)	i915_read16(dev_priv, (reg), true)
+#define I915_WRITE16(reg, val)	i915_write16(dev_priv, (reg), (val), true)
+#define I915_READ16_NOTRACE(reg)	i915_read16(dev_priv, (reg), false)
+#define I915_WRITE16_NOTRACE(reg, val)	i915_write16(dev_priv, (reg), (val), false)
 
-#define I915_READ(reg)		i915_read32(dev_priv, (reg))
-#define I915_WRITE(reg, val)	i915_write32(dev_priv, (reg), (val))
-#define I915_READ_NOTRACE(reg)		readl(dev_priv->regs + (reg))
-#define I915_WRITE_NOTRACE(reg, val)	writel(val, dev_priv->regs + (reg))
+#define I915_READ(reg)		i915_read32(dev_priv, (reg), true)
+#define I915_WRITE(reg, val)	i915_write32(dev_priv, (reg), (val), true)
+#define I915_READ_NOTRACE(reg)		i915_read32(dev_priv, (reg), false)
+#define I915_WRITE_NOTRACE(reg, val)	i915_write32(dev_priv, (reg), (val), false)
 
-#define I915_WRITE64(reg, val)	i915_write64(dev_priv, (reg), (val))
-#define I915_READ64(reg)	i915_read64(dev_priv, (reg))
+#define I915_WRITE64(reg, val)	i915_write64(dev_priv, (reg), (val), true)
+#define I915_READ64(reg)	i915_read64(dev_priv, (reg), true)
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
