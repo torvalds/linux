@@ -155,7 +155,7 @@ static void rk3188_lcdc_read_reg_defalut_cfg(struct rk3188_lcdc_device *lcdc_dev
 			break;
 		case WIN_VIR:
 			win0->vir_stride = (value>> 0)&0x1fff;
-			win1->vir_stride = (value>>16)&0x1fff;
+			win1->vir_stride = (value)&0x1fff0000;
 			DBG(2,"win0->vir_stride=%d,win1->vir_stride=%d\n",win0->vir_stride,win1->vir_stride);
 			break;
 		case WIN0_YRGB_MST0:
@@ -256,7 +256,7 @@ static int rk3188_lcdc_reg_update(struct rk_lcdc_device_driver *dev_drv)
 		lcdc_writel(lcdc_dev,WIN0_CBR_MST0, win0->uv_addr);
 		lcdc_writel(lcdc_dev,WIN1_DSP_INFO,v_DSP_WIDTH(win1->xsize) | v_DSP_HEIGHT(win1->ysize));
 		lcdc_writel(lcdc_dev,WIN1_DSP_ST,v_DSP_STX(win1->dsp_stx) | v_DSP_STY(win1->dsp_sty));
-		lcdc_msk_reg(lcdc_dev,WIN_VIR,m_WIN1_VIR,v_WIN1_VIR_VAL(win1->vir_stride));
+		lcdc_msk_reg(lcdc_dev,WIN_VIR,m_WIN1_VIR,win1->vir_stride);
 		lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_WIN1_FORMAT, v_WIN1_FORMAT(win1->fmt_cfg));
 		lcdc_writel(lcdc_dev,WIN1_MST,win1->y_addr);
 		rk3188_lcdc_alpha_cfg(lcdc_dev);
