@@ -23,6 +23,20 @@
 #include <linux/device.h>
 #include <linux/types.h>
 
+/* Currently we support only two clusters */
+#define A15_CLUSTER	0
+#define A7_CLUSTER	1
+#define MAX_CLUSTERS	2
+
+#ifdef CONFIG_BL_SWITCHER
+extern bool bL_switching_enabled;
+#define is_bL_switching_enabled()		bL_switching_enabled
+#define set_switching_enabled(x) 		(bL_switching_enabled = (x))
+#else
+#define is_bL_switching_enabled()		false
+#define set_switching_enabled(x) 		do { } while (0)
+#endif
+
 struct cpufreq_arm_bL_ops {
 	char name[CPUFREQ_NAME_LEN];
 	int (*get_transition_latency)(struct device *cpu_dev);
@@ -36,7 +50,8 @@ struct cpufreq_arm_bL_ops {
 
 static inline int cpu_to_cluster(int cpu)
 {
-	return topology_physical_package_id(cpu);
+	return is_bL_switching_enabled() ? MAX_CLUSTERS:
+		topology_physical_package_id(cpu);
 }
 
 int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops);
