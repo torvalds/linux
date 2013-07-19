@@ -812,7 +812,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 
-	parity_event[0] = "L3_PARITY_ERROR=1";
+	parity_event[0] = I915_L3_PARITY_UEVENT "=1";
 	parity_event[1] = kasprintf(GFP_KERNEL, "ROW=%d", row);
 	parity_event[2] = kasprintf(GFP_KERNEL, "BANK=%d", bank);
 	parity_event[3] = kasprintf(GFP_KERNEL, "SUBBANK=%d", subbank);
@@ -1429,9 +1429,9 @@ static void i915_error_work_func(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(error, drm_i915_private_t,
 						    gpu_error);
 	struct drm_device *dev = dev_priv->dev;
-	char *error_event[] = { "ERROR=1", NULL };
-	char *reset_event[] = { "RESET=1", NULL };
-	char *reset_done_event[] = { "ERROR=0", NULL };
+	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
+	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
+	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
 	int ret;
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
