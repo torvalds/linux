@@ -1621,12 +1621,14 @@ int qlcnic_sriov_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
-	int i, num_vfs = sriov->num_vfs;
+	int i, num_vfs;
 	struct qlcnic_vf_info *vf_info;
 	u8 *curr_mac;
 
 	if (!qlcnic_sriov_pf_check(adapter))
 		return -EOPNOTSUPP;
+
+	num_vfs = sriov->num_vfs;
 
 	if (!is_valid_ether_addr(mac) || vf >= num_vfs)
 		return -EINVAL;
