@@ -187,6 +187,8 @@ config LCD_RK3028_86V
         bool "RGB 1024*600 for RK3028 86V"
 config LCD_LD089WU1_MIPI
 	bool "mipi dsi lcd LD089WU1 1920X1200"
+config LCD_B080XAN02_MIPI
+	bool "mipi dsi lcd B080XAN02 1024X768"	
 endchoice
 
 
