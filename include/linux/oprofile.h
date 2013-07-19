@@ -51,7 +51,7 @@ struct pt_regs;
 struct oprofile_operations {
 	/* create any necessary configuration files in the oprofile fs.
 	 * Optional. */
-	int (*create_files)(struct super_block * sb, struct dentry * root);
+	int (*create_files)(struct dentry * root);
 	/* Do any necessary interrupt setup. Optional. */
 	int (*setup)(void);
 	/* Do any necessary interrupt shutdown. Optional. */

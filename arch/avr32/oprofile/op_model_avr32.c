@@ -97,8 +97,7 @@ static irqreturn_t avr32_perf_counter_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int avr32_perf_counter_create_files(struct super_block *sb,
-		struct dentry *root)
+static int avr32_perf_counter_create_files(struct dentry *root)
 {
 	struct dentry *dir;
 	unsigned int i;
@@ -106,21 +105,21 @@ static int avr32_perf_counter_create_files(struct super_block *sb,
 
 	for (i = 0; i < NR_counter; i++) {
 		snprintf(filename, sizeof(filename), "%u", i);
-		dir = oprofilefs_mkdir(sb, root, filename);
+		dir = oprofilefs_mkdir(root->d_sb, root, filename);
 
-		oprofilefs_create_ulong(sb, dir, "enabled",
+		oprofilefs_create_ulong(root->d_sb, dir, "enabled",
 				&counter[i].enabled);
-		oprofilefs_create_ulong(sb, dir, "event",
+		oprofilefs_create_ulong(root->d_sb, dir, "event",
 				&counter[i].event);
-		oprofilefs_create_ulong(sb, dir, "count",
+		oprofilefs_create_ulong(root->d_sb, dir, "count",
 				&counter[i].count);
 
 		/* Dummy entries */
-		oprofilefs_create_ulong(sb, dir, "kernel",
+		oprofilefs_create_ulong(root->d_sb, dir, "kernel",
 				&counter[i].kernel);
-		oprofilefs_create_ulong(sb, dir, "user",
+		oprofilefs_create_ulong(root->d_sb, dir, "user",
 				&counter[i].user);
-		oprofilefs_create_ulong(sb, dir, "unit_mask",
+		oprofilefs_create_ulong(root->d_sb, dir, "unit_mask",
 				&counter[i].unit_mask);
 	}
 

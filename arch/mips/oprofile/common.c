@@ -33,7 +33,7 @@ static int op_mips_setup(void)
 	return 0;
 }
 
-static int op_mips_create_files(struct super_block *sb, struct dentry *root)
+static int op_mips_create_files(struct dentry *root)
 {
 	int i;
 
@@ -42,16 +42,16 @@ static int op_mips_create_files(struct super_block *sb, struct dentry *root)
 		char buf[4];
 
 		snprintf(buf, sizeof buf, "%d", i);
-		dir = oprofilefs_mkdir(sb, root, buf);
+		dir = oprofilefs_mkdir(root->d_sb, root, buf);
 
-		oprofilefs_create_ulong(sb, dir, "enabled", &ctr[i].enabled);
-		oprofilefs_create_ulong(sb, dir, "event", &ctr[i].event);
-		oprofilefs_create_ulong(sb, dir, "count", &ctr[i].count);
-		oprofilefs_create_ulong(sb, dir, "kernel", &ctr[i].kernel);
-		oprofilefs_create_ulong(sb, dir, "user", &ctr[i].user);
-		oprofilefs_create_ulong(sb, dir, "exl", &ctr[i].exl);
+		oprofilefs_create_ulong(root->d_sb, dir, "enabled", &ctr[i].enabled);
+		oprofilefs_create_ulong(root->d_sb, dir, "event", &ctr[i].event);
+		oprofilefs_create_ulong(root->d_sb, dir, "count", &ctr[i].count);
+		oprofilefs_create_ulong(root->d_sb, dir, "kernel", &ctr[i].kernel);
+		oprofilefs_create_ulong(root->d_sb, dir, "user", &ctr[i].user);
+		oprofilefs_create_ulong(root->d_sb, dir, "exl", &ctr[i].exl);
 		/* Dummy.  */
-		oprofilefs_create_ulong(sb, dir, "unit_mask", &ctr[i].unit_mask);
+		oprofilefs_create_ulong(root->d_sb, dir, "unit_mask", &ctr[i].unit_mask);
 	}
 
 	return 0;
