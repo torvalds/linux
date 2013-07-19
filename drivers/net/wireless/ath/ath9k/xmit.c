@@ -146,6 +146,28 @@ static void ath_set_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 			       ARRAY_SIZE(bf->rates));
 }
 
+static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
+			     struct sk_buff *skb)
+{
+	int q;
+
+	q = skb_get_queue_mapping(skb);
+	if (txq == sc->tx.uapsdq)
+		txq = sc->tx.txq_map[q];
+
+	if (txq != sc->tx.txq_map[q])
+		return;
+
+	if (WARN_ON(--txq->pending_frames < 0))
+		txq->pending_frames = 0;
+
+	if (txq->stopped &&
+	    txq->pending_frames < sc->tx.txq_max_pending[q]) {
+		ieee80211_wake_queue(sc->hw, q);
+		txq->stopped = false;
+	}
+}
+
 static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 {
 	struct ath_txq *txq = tid->ac->txq;
@@ -167,6 +189,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		if (!bf) {
 			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
 			if (!bf) {
+				ath_txq_skb_done(sc, txq, skb);
 				ieee80211_free_txskb(sc->hw, skb);
 				continue;
 			}
@@ -811,6 +834,7 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 
 		if (!bf) {
 			__skb_unlink(skb, &tid->buf_q);
+			ath_txq_skb_done(sc, txq, skb);
 			ieee80211_free_txskb(sc->hw, skb);
 			continue;
 		}
@@ -1824,6 +1848,7 @@ static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_txq *txq,
 
 	bf = ath_tx_setup_buffer(sc, txq, tid, skb);
 	if (!bf) {
+		ath_txq_skb_done(sc, txq, skb);
 		ieee80211_free_txskb(sc->hw, skb);
 		return;
 	}
@@ -2090,6 +2115,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	bf = ath_tx_setup_buffer(sc, txq, tid, skb);
 	if (!bf) {
+		ath_txq_skb_done(sc, txq, skb);
 		if (txctl->paprd)
 			dev_kfree_skb_any(skb);
 		else
@@ -2189,7 +2215,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ieee80211_hdr * hdr = (struct ieee80211_hdr *)skb->data;
-	int q, padpos, padsize;
+	int padpos, padsize;
 	unsigned long flags;
 
 	ath_dbg(common, XMIT, "TX complete: skb: %p\n", skb);
@@ -2225,21 +2251,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
 	__skb_queue_tail(&txq->complete_q, skb);
-
-	q = skb_get_queue_mapping(skb);
-	if (txq == sc->tx.uapsdq)
-		txq = sc->tx.txq_map[q];
-
-	if (txq == sc->tx.txq_map[q]) {
-		if (WARN_ON(--txq->pending_frames < 0))
-			txq->pending_frames = 0;
-
-		if (txq->stopped &&
-		    txq->pending_frames < sc->tx.txq_max_pending[q]) {
-			ieee80211_wake_queue(sc->hw, q);
-			txq->stopped = false;
-		}
-	}
+	ath_txq_skb_done(sc, txq, skb);
 }
 
 static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
