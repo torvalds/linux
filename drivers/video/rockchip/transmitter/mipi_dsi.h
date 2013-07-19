@@ -1,6 +1,6 @@
-
-//drivers/video/display/transmitter/mipi_dsi.h
-
+/*
+drivers/video/rockchip/transmitter/mipi_dsi.h
+*/
 #ifndef MIPI_DSI_H_
 #define MIPI_DSI_H_
 
@@ -12,24 +12,28 @@
 
 
 //DSI DATA TYPE
-#define DTYPE_DCS_SWRITE_0P		0X05 
-#define DTYPE_DCS_SWRITE_1P		0X15 
-#define DTYPE_DCS_LWRITE		0X39 
-#define DTYPE_GEN_LWRITE		0X29 
-#define DTYPE_GEN_SWRITE_2P		0X23 
-#define DTYPE_GEN_SWRITE_1P		0X13
-#define DTYPE_GEN_SWRITE_0P		0X03
+#define DTYPE_DCS_SWRITE_0P		0x05 
+#define DTYPE_DCS_SWRITE_1P		0x15 
+#define DTYPE_DCS_LWRITE		0x39 
+#define DTYPE_GEN_LWRITE		0x29 
+#define DTYPE_GEN_SWRITE_2P		0x23 
+#define DTYPE_GEN_SWRITE_1P		0x13
+#define DTYPE_GEN_SWRITE_0P		0x03
+
+//command transmit mode
+#define HSDT			0x00
+#define LPDT			0x01
 
 //Video Mode
-#define VM_NBMWSP		0X00  //Non burst mode with sync pulses
-#define VM_NBMWSE		0X01  //Non burst mode with sync events
-#define VM_BM			0X02  //Burst mode
+#define VM_NBMWSP		0x00  //Non burst mode with sync pulses
+#define VM_NBMWSE		0x01  //Non burst mode with sync events
+#define VM_BM			0x02  //Burst mode
 
 //Video Pixel Format
-#define VPF_16BPP		0X00
-#define VPF_18BPP		0X01	 //packed
-#define VPF_18BPPL		0X02     //loosely packed
-#define VPF_24BPP		0X03
+#define VPF_16BPP		0x00
+#define VPF_18BPP		0x01	 //packed
+#define VPF_18BPPL		0x02     //loosely packed
+#define VPF_24BPP		0x03
 
 //Display Command Set
 #define dcs_enter_idle_mode 		0x39

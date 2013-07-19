@@ -1,5 +1,5 @@
 /*
-drivers/video/display/transmitter/rk616_mipi_dsi.h
+drivers/video/rockchip/transmitter/rk616_mipi_dsi.h
 */
 #ifndef RK616_MIPI_DSI_H
 #define RK616_MIPI_DSI_H
@@ -45,8 +45,8 @@ drivers/video/display/transmitter/rk616_mipi_dsi.h
 
 
 //function bits definition    register addr | bits | offest
-#define REG_ADDR(a)			(a << 16)
-#define REG_BITS(a)			(a << 8)
+#define REG_ADDR(a)			((a) << 16)
+#define REG_BITS(a)			((a) << 8)
 #define BITS_OFFSET(a)		(a)
 
 #define shutdownz 					(PWR_UP << 16 | 1 << 8 | 0 )
@@ -158,11 +158,11 @@ drivers/video/display/transmitter/rk616_mipi_dsi.h
 
 
 //MIPI DSI DPHY REGISTERS
-#define DPHY_REGISTER0		(MIPI_DSI_PHY_OFFSET + 0X0000)
-#define DPHY_REGISTER1		(MIPI_DSI_PHY_OFFSET + 0X0004)
-#define DPHY_REGISTER3		(MIPI_DSI_PHY_OFFSET + 0X000C)
-#define DPHY_REGISTER4		(MIPI_DSI_PHY_OFFSET + 0X0010)
-#define DPHY_REGISTER20		(MIPI_DSI_PHY_OFFSET + 0X0080)
+#define DPHY_REGISTER0				(MIPI_DSI_PHY_OFFSET + 0X0000)
+#define DPHY_REGISTER1				(MIPI_DSI_PHY_OFFSET + 0X0004)
+#define DPHY_REGISTER3				(MIPI_DSI_PHY_OFFSET + 0X000C)
+#define DPHY_REGISTER4				(MIPI_DSI_PHY_OFFSET + 0X0010)
+#define DPHY_REGISTER20				(MIPI_DSI_PHY_OFFSET + 0X0080)
 
 #define lane_en_ck 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(6))
 #define lane_en_3 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(5))
@@ -170,7 +170,7 @@ drivers/video/display/transmitter/rk616_mipi_dsi.h
 #define lane_en_1 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(3))
 #define lane_en_0 					(REG_ADDR(DPHY_REGISTER0) | REG_BITS(1) | BITS_OFFSET(2))
 
-
+#define reg_da_ppfc 				(REG_ADDR(DPHY_REGISTER1) | REG_BITS(1) | BITS_OFFSET(4))
 #define reg_da_syncrst 				(REG_ADDR(DPHY_REGISTER1) | REG_BITS(1) | BITS_OFFSET(2))
 #define reg_da_ldopd 				(REG_ADDR(DPHY_REGISTER1) | REG_BITS(1) | BITS_OFFSET(1))
 #define reg_da_pllpd 				(REG_ADDR(DPHY_REGISTER1) | REG_BITS(1) | BITS_OFFSET(0))
@@ -183,31 +183,31 @@ drivers/video/display/transmitter/rk616_mipi_dsi.h
 #define reg_dig_rstn 				(REG_ADDR(DPHY_REGISTER20) | REG_BITS(1) | BITS_OFFSET(0))
 
 
-#define DPHY_CLOCK_OFFSET		(MIPI_DSI_PHY_OFFSET + 0X0100)
-#define DPHY_LANE0_OFFSET		(MIPI_DSI_PHY_OFFSET + 0X0180)
-#define DPHY_LANE1_OFFSET		(MIPI_DSI_PHY_OFFSET + 0X0200)
-#define DPHY_LANE2_OFFSET		(MIPI_DSI_PHY_OFFSET + 0X0280)
-#define DPHY_LANE3_OFFSET		(MIPI_DSI_PHY_OFFSET + 0X0300)
+#define DPHY_CLOCK_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0100))
+#define DPHY_LANE0_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0180))
+#define DPHY_LANE1_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0200))
+#define DPHY_LANE2_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0280))
+#define DPHY_LANE3_OFFSET			(REG_ADDR(MIPI_DSI_PHY_OFFSET + 0X0300))
 
-#define reg_ths_settle			0x0000
-#define reg_hs_tlpx				0x0014
-#define reg_hs_ths_prepare		0x0018
-#define reg_hs_the_zero			0x001c
-#define reg_hs_ths_trail		0x0020
-#define reg_hs_ths_exit			0x0024
-#define reg_hs_tclk_post		0x0028
-#define reserved				0x002c
-#define reg_hs_twakup_h			0x0030
-#define reg_hs_twakup_l			0x0034
-#define reg_hs_tclk_pre			0x0038
-#define reg_hs_tta_go			0x0040
-#define reg_hs_tta_sure			0x0044
-#define reg_hs_tta_wait			0x0048
+#define reg_ths_settle				(REG_ADDR(0x0000) | REG_BITS(4) | BITS_OFFSET(0))
+#define reg_hs_tlpx					(REG_ADDR(0x0014) | REG_BITS(6) | BITS_OFFSET(0))
+#define reg_hs_ths_prepare			(REG_ADDR(0x0018) | REG_BITS(7) | BITS_OFFSET(0))
+#define reg_hs_the_zero				(REG_ADDR(0x001c) | REG_BITS(6) | BITS_OFFSET(0))
+#define reg_hs_ths_trail			(REG_ADDR(0x0020) | REG_BITS(7) | BITS_OFFSET(0))
+#define reg_hs_ths_exit				(REG_ADDR(0x0024) | REG_BITS(5) | BITS_OFFSET(0))
+#define reg_hs_tclk_post			(REG_ADDR(0x0028) | REG_BITS(4) | BITS_OFFSET(0))
+#define reserved					(REG_ADDR(0x002c) | REG_BITS(1) | BITS_OFFSET(0))
+#define reg_hs_twakup_h				(REG_ADDR(0x0030) | REG_BITS(2) | BITS_OFFSET(0))
+#define reg_hs_twakup_l				(REG_ADDR(0x0034) | REG_BITS(8) | BITS_OFFSET(0))
+#define reg_hs_tclk_pre				(REG_ADDR(0x0038) | REG_BITS(4) | BITS_OFFSET(0))
+#define reg_hs_tta_go				(REG_ADDR(0x0040) | REG_BITS(6) | BITS_OFFSET(0))
+#define reg_hs_tta_sure				(REG_ADDR(0x0044) | REG_BITS(6) | BITS_OFFSET(0))
+#define reg_hs_tta_wait				(REG_ADDR(0x0048) | REG_BITS(6) | BITS_OFFSET(0))
 
 
 //MISC REGISTERS
-#define CRU_CRU_CLKSEL1_CON		(0x005c)
-#define CRU_CFG_MISC_CON		(0x009c)
+#define CRU_CRU_CLKSEL1_CON			(0x005c)
+#define CRU_CFG_MISC_CON			(0x009c)
 
 #define cfg_mipiclk_gaten 			(REG_ADDR(CRU_CRU_CLKSEL1_CON) | REG_BITS(1) | BITS_OFFSET(10))
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 ROCKCHIP, Inc.
+ * Copyright (C) 2013 ROCKCHIP, Inc.
  * drivers/video/display/transmitter/mipi_dsi.c
  * author: hhb@rock-chips.com
  * create date: 2013-01-17
@@ -12,12 +12,21 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+ 
 #include "mipi_dsi.h"
 #include <linux/module.h>
 #include <linux/init.h>
 #include <asm/system.h>
 
 #define MAX_DSI_CHIPS 5
+
+/*
+*			 Driver Version Note
+*
+*v1.0 : this driver is a top level architecture of mipi dsi driver;
+*/
+#define MIPI_DSI_VERSION_AND_TIME  "mipi_dsi v1.0 2013-07-18"
+
 
 static struct mipi_dsi_ops *dsi_ops[MAX_DSI_CHIPS] = {NULL};
 static struct mipi_dsi_ops *cur_dsi_ops;
@@ -72,6 +81,7 @@ int dsi_probe_current_chip(void) {
 			if(id == ops->id) {
 				cur_dsi_ops = ops;
 				printk("load mipi dsi chip:%s id:%08x\n", ops->name, ops->id);
+				printk("%s\n", MIPI_DSI_VERSION_AND_TIME);
 				break;
 			} else {
 				printk("mipi dsi chip is not found, read id:%08x, but %08x is correct\n", id, ops->id);
