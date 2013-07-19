@@ -117,21 +117,21 @@ op_axp_create_files(struct dentry *root)
 		snprintf(buf, sizeof buf, "%d", i);
 		dir = oprofilefs_mkdir(root, buf);
 
-		oprofilefs_create_ulong(root->d_sb, dir, "enabled", &ctr[i].enabled);
-                oprofilefs_create_ulong(root->d_sb, dir, "event", &ctr[i].event);
-		oprofilefs_create_ulong(root->d_sb, dir, "count", &ctr[i].count);
+		oprofilefs_create_ulong(dir, "enabled", &ctr[i].enabled);
+                oprofilefs_create_ulong(dir, "event", &ctr[i].event);
+		oprofilefs_create_ulong(dir, "count", &ctr[i].count);
 		/* Dummies.  */
-		oprofilefs_create_ulong(root->d_sb, dir, "kernel", &ctr[i].kernel);
-		oprofilefs_create_ulong(root->d_sb, dir, "user", &ctr[i].user);
-		oprofilefs_create_ulong(root->d_sb, dir, "unit_mask", &ctr[i].unit_mask);
+		oprofilefs_create_ulong(dir, "kernel", &ctr[i].kernel);
+		oprofilefs_create_ulong(dir, "user", &ctr[i].user);
+		oprofilefs_create_ulong(dir, "unit_mask", &ctr[i].unit_mask);
 	}
 
 	if (model->can_set_proc_mode) {
-		oprofilefs_create_ulong(root->d_sb, root, "enable_pal",
+		oprofilefs_create_ulong(root, "enable_pal",
 					&sys.enable_pal);
-		oprofilefs_create_ulong(root->d_sb, root, "enable_kernel",
+		oprofilefs_create_ulong(root, "enable_kernel",
 					&sys.enable_kernel);
-		oprofilefs_create_ulong(root->d_sb, root, "enable_user",
+		oprofilefs_create_ulong(root, "enable_user",
 					&sys.enable_user);
 	}
 

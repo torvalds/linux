@@ -125,22 +125,22 @@ void oprofile_add_trace(unsigned long eip);
  * Create a file of the given name as a child of the given root, with
  * the specified file operations.
  */
-int oprofilefs_create_file(struct super_block * sb, struct dentry * root,
+int oprofilefs_create_file(struct dentry * root,
 	char const * name, const struct file_operations * fops);
 
-int oprofilefs_create_file_perm(struct super_block * sb, struct dentry * root,
+int oprofilefs_create_file_perm(struct dentry * root,
 	char const * name, const struct file_operations * fops, int perm);
  
 /** Create a file for read/write access to an unsigned long. */
-int oprofilefs_create_ulong(struct super_block * sb, struct dentry * root,
+int oprofilefs_create_ulong(struct dentry * root,
 	char const * name, ulong * val);
  
 /** Create a file for read-only access to an unsigned long. */
-int oprofilefs_create_ro_ulong(struct super_block * sb, struct dentry * root,
+int oprofilefs_create_ro_ulong(struct dentry * root,
 	char const * name, ulong * val);
  
 /** Create a file for read-only access to an atomic_t. */
-int oprofilefs_create_ro_atomic(struct super_block * sb, struct dentry * root,
+int oprofilefs_create_ro_atomic(struct dentry * root,
 	char const * name, atomic_t * val);
  
 /** create a directory */

@@ -480,25 +480,25 @@ static int setup_ibs_files(struct dentry *root)
 
 	if (ibs_caps & IBS_CAPS_FETCHSAM) {
 		dir = oprofilefs_mkdir(root, "ibs_fetch");
-		oprofilefs_create_ulong(root->d_sb, dir, "enable",
+		oprofilefs_create_ulong(dir, "enable",
 					&ibs_config.fetch_enabled);
-		oprofilefs_create_ulong(root->d_sb, dir, "max_count",
+		oprofilefs_create_ulong(dir, "max_count",
 					&ibs_config.max_cnt_fetch);
-		oprofilefs_create_ulong(root->d_sb, dir, "rand_enable",
+		oprofilefs_create_ulong(dir, "rand_enable",
 					&ibs_config.rand_en);
 	}
 
 	if (ibs_caps & IBS_CAPS_OPSAM) {
 		dir = oprofilefs_mkdir(root, "ibs_op");
-		oprofilefs_create_ulong(root->d_sb, dir, "enable",
+		oprofilefs_create_ulong(dir, "enable",
 					&ibs_config.op_enabled);
-		oprofilefs_create_ulong(root->d_sb, dir, "max_count",
+		oprofilefs_create_ulong(dir, "max_count",
 					&ibs_config.max_cnt_op);
 		if (ibs_caps & IBS_CAPS_OPCNT)
-			oprofilefs_create_ulong(root->d_sb, dir, "dispatched_ops",
+			oprofilefs_create_ulong(dir, "dispatched_ops",
 						&ibs_config.dispatched_ops);
 		if (ibs_caps & IBS_CAPS_BRNTRGT)
-			oprofilefs_create_ulong(root->d_sb, dir, "branch_target",
+			oprofilefs_create_ulong(dir, "branch_target",
 						&ibs_config.branch_target);
 	}
 

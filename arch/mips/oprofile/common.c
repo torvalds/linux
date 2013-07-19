@@ -44,14 +44,14 @@ static int op_mips_create_files(struct dentry *root)
 		snprintf(buf, sizeof buf, "%d", i);
 		dir = oprofilefs_mkdir(root, buf);
 
-		oprofilefs_create_ulong(root->d_sb, dir, "enabled", &ctr[i].enabled);
-		oprofilefs_create_ulong(root->d_sb, dir, "event", &ctr[i].event);
-		oprofilefs_create_ulong(root->d_sb, dir, "count", &ctr[i].count);
-		oprofilefs_create_ulong(root->d_sb, dir, "kernel", &ctr[i].kernel);
-		oprofilefs_create_ulong(root->d_sb, dir, "user", &ctr[i].user);
-		oprofilefs_create_ulong(root->d_sb, dir, "exl", &ctr[i].exl);
+		oprofilefs_create_ulong(dir, "enabled", &ctr[i].enabled);
+		oprofilefs_create_ulong(dir, "event", &ctr[i].event);
+		oprofilefs_create_ulong(dir, "count", &ctr[i].count);
+		oprofilefs_create_ulong(dir, "kernel", &ctr[i].kernel);
+		oprofilefs_create_ulong(dir, "user", &ctr[i].user);
+		oprofilefs_create_ulong(dir, "exl", &ctr[i].exl);
 		/* Dummy.  */
-		oprofilefs_create_ulong(root->d_sb, dir, "unit_mask", &ctr[i].unit_mask);
+		oprofilefs_create_ulong(dir, "unit_mask", &ctr[i].unit_mask);
 	}
 
 	return 0;

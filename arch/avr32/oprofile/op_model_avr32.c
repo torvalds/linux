@@ -107,19 +107,19 @@ static int avr32_perf_counter_create_files(struct dentry *root)
 		snprintf(filename, sizeof(filename), "%u", i);
 		dir = oprofilefs_mkdir(root, filename);
 
-		oprofilefs_create_ulong(root->d_sb, dir, "enabled",
+		oprofilefs_create_ulong(dir, "enabled",
 				&counter[i].enabled);
-		oprofilefs_create_ulong(root->d_sb, dir, "event",
+		oprofilefs_create_ulong(dir, "event",
 				&counter[i].event);
-		oprofilefs_create_ulong(root->d_sb, dir, "count",
+		oprofilefs_create_ulong(dir, "count",
 				&counter[i].count);
 
 		/* Dummy entries */
-		oprofilefs_create_ulong(root->d_sb, dir, "kernel",
+		oprofilefs_create_ulong(dir, "kernel",
 				&counter[i].kernel);
-		oprofilefs_create_ulong(root->d_sb, dir, "user",
+		oprofilefs_create_ulong(dir, "user",
 				&counter[i].user);
-		oprofilefs_create_ulong(root->d_sb, dir, "unit_mask",
+		oprofilefs_create_ulong(dir, "unit_mask",
 				&counter[i].unit_mask);
 	}
 

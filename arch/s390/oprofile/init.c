@@ -354,7 +354,7 @@ static int oprofile_create_hwsampling_files(struct dentry *root)
 	if (!dir)
 		return -EINVAL;
 
-	oprofilefs_create_file(root->d_sb, dir, "enabled", &timer_enabled_fops);
+	oprofilefs_create_file(dir, "enabled", &timer_enabled_fops);
 
 	if (!hwsampler_available)
 		return 0;
@@ -379,13 +379,13 @@ static int oprofile_create_hwsampling_files(struct dentry *root)
 		if (!dir)
 			return -EINVAL;
 
-		oprofilefs_create_file(root->d_sb, dir, "enabled", &hwsampler_fops);
-		oprofilefs_create_file(root->d_sb, dir, "event", &zero_fops);
-		oprofilefs_create_file(root->d_sb, dir, "count", &hw_interval_fops);
-		oprofilefs_create_file(root->d_sb, dir, "unit_mask", &zero_fops);
-		oprofilefs_create_file(root->d_sb, dir, "kernel", &kernel_fops);
-		oprofilefs_create_file(root->d_sb, dir, "user", &user_fops);
-		oprofilefs_create_ulong(root->d_sb, dir, "hw_sdbt_blocks",
+		oprofilefs_create_file(dir, "enabled", &hwsampler_fops);
+		oprofilefs_create_file(dir, "event", &zero_fops);
+		oprofilefs_create_file(dir, "count", &hw_interval_fops);
+		oprofilefs_create_file(dir, "unit_mask", &zero_fops);
+		oprofilefs_create_file(dir, "kernel", &kernel_fops);
+		oprofilefs_create_file(dir, "user", &user_fops);
+		oprofilefs_create_ulong(dir, "hw_sdbt_blocks",
 					&oprofile_sdbt_blocks);
 
 	} else {
@@ -399,15 +399,15 @@ static int oprofile_create_hwsampling_files(struct dentry *root)
 		if (!dir)
 			return -EINVAL;
 
-		oprofilefs_create_file(root->d_sb, dir, "hwsampler",
+		oprofilefs_create_file(dir, "hwsampler",
 				       &hwsampler_fops);
-		oprofilefs_create_file(root->d_sb, dir, "hw_interval",
+		oprofilefs_create_file(dir, "hw_interval",
 				       &hw_interval_fops);
-		oprofilefs_create_ro_ulong(root->d_sb, dir, "hw_min_interval",
+		oprofilefs_create_ro_ulong(dir, "hw_min_interval",
 					   &oprofile_min_interval);
-		oprofilefs_create_ro_ulong(root->d_sb, dir, "hw_max_interval",
+		oprofilefs_create_ro_ulong(dir, "hw_max_interval",
 					   &oprofile_max_interval);
-		oprofilefs_create_ulong(root->d_sb, dir, "hw_sdbt_blocks",
+		oprofilefs_create_ulong(dir, "hw_sdbt_blocks",
 					&oprofile_sdbt_blocks);
 	}
 	return 0;
