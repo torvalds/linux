@@ -572,6 +572,24 @@ out_unwind:
 static void
 xfs_sb_quota_from_disk(struct xfs_sb *sbp)
 {
+	/*
+	 * older mkfs doesn't initialize quota inodes to NULLFSINO. This
+	 * leads to in-core values having two different values for a quota
+	 * inode to be invalid: 0 and NULLFSINO. Change it to a single value
+	 * NULLFSINO.
+	 *
+	 * Note that this change affect only the in-core values. These
+	 * values are not written back to disk unless any quota information
+	 * is written to the disk. Even in that case, sb_pquotino field is
+	 * not written to disk unless the superblock supports pquotino.
+	 */
+	if (sbp->sb_uquotino == 0)
+		sbp->sb_uquotino = NULLFSINO;
+	if (sbp->sb_gquotino == 0)
+		sbp->sb_gquotino = NULLFSINO;
+	if (sbp->sb_pquotino == 0)
+		sbp->sb_pquotino = NULLFSINO;
+
 	if (sbp->sb_qflags & XFS_OQUOTA_ENFD)
 		sbp->sb_qflags |= (sbp->sb_qflags & XFS_PQUOTA_ACCT) ?
 					XFS_PQUOTA_ENFD : XFS_GQUOTA_ENFD;
