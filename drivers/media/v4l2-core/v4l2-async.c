@@ -27,7 +27,6 @@ static bool match_i2c(struct device *dev, struct v4l2_async_subdev *asd)
 #if IS_ENABLED(CONFIG_I2C)
 	struct i2c_client *client = i2c_verify_client(dev);
 	return client &&
-		asd->bus_type == V4L2_ASYNC_BUS_I2C &&
 		asd->match.i2c.adapter_id == client->adapter->nr &&
 		asd->match.i2c.address == client->addr;
 #else
@@ -37,8 +36,7 @@ static bool match_i2c(struct device *dev, struct v4l2_async_subdev *asd)
 
 static bool match_platform(struct device *dev, struct v4l2_async_subdev *asd)
 {
-	return asd->bus_type == V4L2_ASYNC_BUS_PLATFORM &&
-		!strcmp(asd->match.platform.name, dev_name(dev));
+	return !strcmp(asd->match.platform.name, dev_name(dev));
 }
 
 static LIST_HEAD(subdev_list);
