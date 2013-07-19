@@ -52,6 +52,7 @@
 #ifdef CONFIG_MFD_RT5025
 #include <linux/mfd/rt5025.h>
 #endif
+#include <plat/efuse.h>
 
 #ifdef CONFIG_CW2015_BATTERY
 #include <linux/power/cw2015_battery.h>
@@ -2664,6 +2665,12 @@ static struct cpufreq_frequency_table dvfs_ddr_table_volt_level0[] = {
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
+static struct cpufreq_frequency_table dvfs_ddr_table_t[] = {
+	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
+	{.frequency = 460 * 1000 + DDR_FREQ_NORMAL,     .index = 1150 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
 //if you board is good for volt quality,select dvfs_arm_table_volt_level0
 #define dvfs_arm_table dvfs_arm_table_volt_level1
 #define dvfs_gpu_table dvfs_gpu_table_volt_level1
@@ -2731,7 +2738,11 @@ void __init board_clock_init(void)
 	//dvfs_set_arm_logic_volt(dvfs_cpu_logic_table, cpu_dvfs_table, dep_cpu2core_table);	
 	dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), dvfs_arm_table);
 	dvfs_set_freq_volt_table(clk_get(NULL, "gpu"), dvfs_gpu_table);
-	dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table);
+	if (rk_pll_flag() == 0)
+		dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table);
+	else
+		dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table_t);
+
 }
 
 MACHINE_START(RK30, "RK30board")
