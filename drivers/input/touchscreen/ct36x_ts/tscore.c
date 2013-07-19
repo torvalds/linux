@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/regulator/consumer.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
 
@@ -362,6 +363,7 @@ int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	/* Hardware reset */
 	ct36x_platform_hw_reset(ts);
+	mdelay(500);
 
 	// Get binary Checksum
 	binchksum = ct36x_chip_get_binchksum(ts->data.buf);
@@ -372,7 +374,7 @@ int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	fwchksum = ct36x_chip_get_fwchksum(client, ts->data.buf);
 	if ( CT36X_TS_CORE_DEBUG )
 	printk("Fw checksum: 0x%x\n", fwchksum);
-
+#if 1
 	updcnt = 5;
 	while ( binchksum != fwchksum && updcnt--) {
 		/* Update Firmware */
@@ -380,15 +382,15 @@ int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		/* Hardware reset */
 		ct36x_platform_hw_reset(ts);
-
+		mdelay(500);
 		// Get firmware Checksum
 		fwchksum = ct36x_chip_get_fwchksum(client, ts->data.buf);
-		if ( CT36X_TS_CORE_DEBUG )
+//		if ( CT36X_TS_CORE_DEBUG )
 		printk("Fw checksum: 0x%x\n", fwchksum);
 	}
 
 	printk("Fw update %s. 0x%x, 0x%x\n", binchksum != fwchksum ? "Failed" : "Success", binchksum, fwchksum);
-
+#endif
 	/* Hardware reset */
 	ct36x_platform_hw_reset(ts);
 
@@ -468,6 +470,22 @@ void ct36x_ts_shutdown(struct i2c_client *client)
 
 	ct36x_chip_go_sleep(client, ts->data.buf);
 }
+#ifdef  CONFIG_MACH_RK3188M_F304
+int ct36x_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	struct regulator *vcc_tp=NULL;
+       vcc_tp = regulator_get(NULL, "ricoh_ldo3");
+       if (vcc_tp == NULL)
+               printk("%s..get vcc_tp error\n",__func__);
+       else
+       {
+               while(regulator_is_enabled(vcc_tp)>0)   
+                       regulator_disable(vcc_tp);
+                       regulator_put(vcc_tp);
+       }
+	return 0;
+}
+#endif
 
 int ct36x_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
@@ -490,6 +508,23 @@ int ct36x_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 
 	return 0;
 }
+#ifdef CONFIG_MACH_RK3188M_F304
+int ct36x_resume(struct i2c_client *client)
+{
+       struct regulator *vcc_tp=NULL;
+
+       vcc_tp = regulator_get(NULL, "ricoh_ldo3");
+       if (vcc_tp == NULL)
+               printk("%s..get vcc_tp error\n",__func__);
+       else
+       {
+               regulator_enable(vcc_tp);
+               regulator_put(vcc_tp);
+       } 
+
+	return 0;
+}
+#endif
 
 int ct36x_ts_resume(struct i2c_client *client)
 {

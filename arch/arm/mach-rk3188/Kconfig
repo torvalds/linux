@@ -50,5 +50,8 @@ choice
 
 config MACH_RK3188M_TB
 	bool "RK3188m Top Board"
+	
+config MACH_RK3188M_F304
+	bool "RK3188m F304 Board"	
 
 endchoice

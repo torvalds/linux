@@ -6,8 +6,12 @@
 /* max touch points supported */
 #define CT36X_TS_POINT_NUM			10
 
-#define CT36X_TS_ABS_X_MAX			1280
-#define CT36X_TS_ABS_Y_MAX			800
+#define CT36X_TS_ABS_X_MAX			1920
+#define CT36X_TS_ABS_Y_MAX			1200
+
+#define CT36X_CHIP_FLASH_SECTOR_NUM	    256
+#define CT36X_CHIP_FLASH_SECTOR_SIZE	128
+#define CT36X_CHIP_FLASH_SOURCE_SIZE	8
 
 /* data structure of point event */
 /* Old Touch Points Protocol
@@ -82,6 +86,7 @@ struct ct36x_finger_info {
 	unsigned char	pressure;		// Touch Pressure
 };
 
+extern unsigned char binary_data[];
 
 int ct36x_chip_get_binchksum(unsigned char *buf);
 int ct36x_chip_get_fwchksum(struct i2c_client *client, unsigned char *buf);

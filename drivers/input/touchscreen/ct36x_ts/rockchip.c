@@ -27,8 +27,10 @@ struct i2c_driver ct36x_ts_driver  = {
 	.id_table	= ct36x_ts_id,
 	.probe      = ct36x_ts_probe,
 	.shutdown	= ct36x_ts_shutdown,
-	.suspend	= ct36x_ts_suspend,
-	.resume	    = ct36x_ts_resume,
+#ifdef CONFIG_MACH_RK3188M_F304
+	.suspend	= ct36x_suspend,
+	.resume	    = ct36x_resume,
+#endif
 	.remove 	= __devexit_p(ct36x_ts_remove),
 };
 
@@ -117,6 +119,7 @@ int ct36x_platform_get_resource(struct ct36x_ts_info *ct36x_ts)
 	}
 	gpio_direction_input(ct36x_ts->ss);
 
+	printk("%s:rst:%d, ss:%d\n", __func__, ct36x_ts->rst, ct36x_ts->ss);
 	return 0;
 }
 
@@ -128,9 +131,7 @@ void ct36x_platform_put_resource(struct ct36x_ts_info *ct36x_ts)
 
 void ct36x_platform_hw_reset(struct ct36x_ts_info *ct36x_ts)
 {
-	mdelay(500);
 	gpio_set_value(ct36x_ts->rst, 0);
-	mdelay(50);
+	mdelay(100);
 	gpio_set_value(ct36x_ts->rst, 1);
-	mdelay(500);
 }

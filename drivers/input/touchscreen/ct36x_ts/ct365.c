@@ -6,19 +6,19 @@
 #include "platform.h"
 #include "ct365.h"
 
+
+//static 
+unsigned char binary_data[] = {
+//#include "CT365Five3020D_V42120523A.dat"
+//#include "CT365_THSD_40X28_V05_120827_I2C0X01.dat"
+#include "Five_F304_89_1920_1200_CT363_V06_03C2_130403.dat"
+
+//#include "blr.txt"
+};
+
 /*
 * Private functions
 */
-#define CT36X_CHIP_FLASH_SECTOR_NUM	256
-#define CT36X_CHIP_FLASH_SECTOR_SIZE	128
-#define CT36X_CHIP_FLASH_SOURCE_SIZE	8
-
-static unsigned char binary_data[] = {
-//#include "CT365Five3020D_V42120523A.dat"
-//#include "CT365_THSD_40X28_V05_120827_I2C0X01.dat"
-};
-
-
 static void ct36x_chip_set_idle(struct i2c_client *client, unsigned char *buf)
 {
 	if ( CT36X_TS_CHIP_DEBUG )
@@ -386,19 +386,19 @@ int ct36x_chip_go_bootloader(struct i2c_client *client, unsigned char *buf)
 	}
 
 	// trim adc
-	ct36x_chip_read_infoblk(client, buf);
-	ct36x_chip_erase_infoblk(client, buf);
-	ct36x_chip_write_infoblk(client, buf);
+	//ct36x_chip_read_infoblk(client, buf);
+	//ct36x_chip_erase_infoblk(client, buf);
+	//ct36x_chip_write_infoblk(client, buf);
 
 	// Erase flash
-	//ret = ct36x_chip_erase_flash(client, buf);
-	//if ( ret ) {
-	//	printk("Erase flash failed.\n");
-	//	return -1;
-	//}
+	ret = ct36x_chip_erase_flash(client, buf);
+	if ( ret ) {
+		printk("Erase flash failed.\n");
+		return -1;
+	}
 
 	// Write source data
-	//ct36x_chip_write_firmware(client, buf);
+	ct36x_chip_write_firmware(client, buf);
 	
 	return 0;
 }

@@ -30,3 +30,4 @@ board-$(CONFIG_MACH_RK3188_U30GT2)  += board-rk3188-u30gt2.o
 board-$(CONFIG_MACH_RK3188_JETTAB)  += board-rk3188-jettaplus.o
 board-$(CONFIG_MACH_RK3188_RK618)  += board-rk3188-jettaplus.o
 board-$(CONFIG_MACH_RK3188M_TB)  += board-rk3188m-tb.o
+board-$(CONFIG_MACH_RK3188M_F304)  += board-rk3188m-f304.o
