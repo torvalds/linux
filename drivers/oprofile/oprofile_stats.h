@@ -29,6 +29,6 @@ struct super_block;
 struct dentry;
 
 /* create the stats/ dir */
-void oprofile_create_stats_files(struct super_block *sb, struct dentry *root);
+void oprofile_create_stats_files(struct dentry *root);
 
 #endif /* OPROFILE_STATS_H */

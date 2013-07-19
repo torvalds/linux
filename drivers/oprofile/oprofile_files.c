@@ -195,7 +195,7 @@ void oprofile_create_files(struct dentry *root)
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 	oprofilefs_create_file(root->d_sb, root, "time_slice", &timeout_fops);
 #endif
-	oprofile_create_stats_files(root->d_sb, root);
+	oprofile_create_stats_files(root);
 	if (oprofile_ops.create_files)
 		oprofile_ops.create_files(root);
 }
