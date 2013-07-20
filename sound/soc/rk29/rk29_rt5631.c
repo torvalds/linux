@@ -23,6 +23,10 @@
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
 
+#ifdef CONFIG_MACH_RK_FAC
+#include <mach/config.h>
+extern int codec_type;
+#endif
 #if 0
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
@@ -228,6 +232,10 @@ static int __init audio_card_init(void)
 {
 	int ret =0;
 
+#ifdef CONFIG_MACH_RK_FAC
+	if(codec_type!=CODEC_TYPE_RT5631)
+		return -1;
+#endif
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	rk29_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!rk29_snd_device) {

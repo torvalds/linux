@@ -2093,6 +2093,14 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	struct adc_client                   *client;
 	struct rk30_adc_battery_data          *data;
 	struct rk30_adc_battery_platform_data *pdata = pdev->dev.platform_data;
+#ifdef CONFIG_MACH_RK_FAC
+	int i;
+	for(i=0;i<BATT_NUM;i++)
+	{
+		batt_table[6+i]=pdata->chargeArray[i];
+		batt_table[BATT_NUM+6+i]=pdata->chargeArray[i];
+	}
+#endif 	
 	gSecondsCnt = get_seconds();
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {

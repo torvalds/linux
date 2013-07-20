@@ -26,6 +26,10 @@
 #include "rk29_i2s.h"
 
 #include <mach/gpio.h>
+#ifdef CONFIG_MACH_RK_FAC
+#include <mach/config.h>
+extern int codec_type;
+#endif
 
 #if 1
 #define	DBG(x...)	printk(KERN_INFO x)
@@ -190,6 +194,10 @@ static struct platform_device *rk29_snd_device;
 static int __init audio_card_init(void)
 {
     int ret =0;	
+#ifdef CONFIG_MACH_RK_FAC
+	if(codec_type!=CODEC_TYPE_ES8323)
+		return -1;
+#endif	 
 	 DBG("ES8323 audio_card_init\n");
 #if 0
     extern int get_sound_card_exist() ;

@@ -329,6 +329,9 @@ struct rk30_adc_battery_platform_data {
 	int  *charge_table;
 	int  *property_tabel;
 	int *board_batt_table;
+	int chargeArray[11];
+	int dischargeArray[11];
+
 
 };
 
@@ -352,6 +355,27 @@ struct goodix_platform_data {
 	int (*platform_wakeup)(void);
 	void (*exit_platform_hw)(void);
 };
+
+struct tp_platform_data {
+	int model;
+	int x_max;
+	int y_max;
+	int reset_pin;
+	int irq_pin ;
+	int firmVer;
+	int (*get_pendown_state)(void);
+	int (*init_platform_hw)(void);
+	int (*platform_sleep)(void);
+	int (*platform_wakeup)(void);
+	void (*exit_platform_hw)(void);
+};
+
+
+struct codec_platform_data {
+	int spk_pin;
+	int hp_pin ;
+};
+
 
 struct ct360_platform_data {
 	u16		model;

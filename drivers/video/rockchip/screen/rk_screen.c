@@ -4,8 +4,10 @@
 #if defined(CONFIG_RK_HDMI)
 #include "../hdmi/rk_hdmi.h"
 #endif
-
-
+#if defined(CONFIG_MACH_RK_FAC)
+#include <mach/config.h>
+extern uint lcd_param[LCD_PARAM_MAX];
+#endif
 
 
 
@@ -194,6 +196,41 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 #if defined(RK_USE_SCREEN_ID)
 	set_lcd_info_by_id(screen,lcd_info);
 #else
+	#if defined(CONFIG_MACH_RK_FAC)
+	screen->type = lcd_param[OUT_TYPE_INDEX];
+	screen->face = lcd_param[OUT_FACE_INDEX];
+	screen->lvds_format = lcd_param[LVDS_FORMAT_INDEX];  //lvds data format
+	
+		
+	screen->x_res = lcd_param[H_VD_INDEX];
+	screen->y_res = lcd_param[V_VD_INDEX];
+	
+	screen->width = lcd_param[LCD_WIDTH_INDEX];
+	screen->height = lcd_param[LCD_HEIGHT_INDEX];
+	
+	    
+	screen->lcdc_aclk = lcd_param[LCDC_ACLK_INDEX];
+	screen->pixclock = lcd_param[OUT_CLK_INDEX];
+	screen->left_margin = lcd_param[H_BP_INDEX];
+	screen->right_margin = lcd_param[H_FP_INDEX];
+	screen->hsync_len = lcd_param[H_PW_INDEX];
+	screen->upper_margin = lcd_param[V_BP_INDEX];
+	screen->lower_margin = lcd_param[V_FP_INDEX];
+	screen->vsync_len = lcd_param[V_PW_INDEX];
+	
+		
+	screen->pin_hsync = HSYNC_POL; //Pin polarity 
+	screen->pin_vsync = VSYNC_POL;
+	screen->pin_den = DEN_POL;
+	screen->pin_dclk = lcd_param[DCLK_POL_INDEX];
+	
+		
+	screen->swap_rb = lcd_param[SWAP_RB_INDEX];
+	screen->swap_rg = SWAP_RG;
+	screen->swap_gb = SWAP_GB;
+	screen->swap_delta = 0;
+	screen->swap_dumy = 0;
+	#else
 	screen->type = SCREEN_TYPE;
 	screen->face = OUT_FACE;
 	screen->lvds_format = LVDS_FORMAT;  //lvds data format
@@ -227,6 +264,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->swap_gb = SWAP_GB;
 	screen->swap_delta = 0;
 	screen->swap_dumy = 0;
+	#endif
 	
 #if defined(CONFIG_MIPI_DSI)
        /* MIPI DSI */
@@ -265,6 +303,62 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 
 }
 
+#if defined(CONFIG_MACH_RK_FAC)
+size_t get_fb_size(void)
+{
+	size_t size = 0;
+	char *pchar=NULL;
+	char lcdParam[]="lcd_param";
+	char LcdWith[10];
+	char LcdHigh[10];
+	int mLcdWith,mLcdHigh;
+  int num=0,i;
+  int count=20;
+	pchar=strstr(boot_command_line,lcdParam);
+	memset(LcdWith,0,sizeof(char)*10);
+	memset(LcdHigh,0,sizeof(char)*10);
+
+	if(pchar!=NULL)
+	{
+		do{
+			if(count==14)
+			{
+				num=strcspn(pchar,",");
+				for(i=0;i<num;i++)
+					LcdWith[i]=pchar[i];
+
+				mLcdWith=simple_strtol(LcdWith,NULL,10);		
+			}
+			
+		  if(count==10){		
+				num=strcspn(pchar,",");
+				for(i=0;i<num;i++)
+					LcdHigh[i]=pchar[i];
+				
+				mLcdHigh=simple_strtol(LcdHigh,NULL,10);		
+				break;
+			}
+
+			num=strcspn(pchar,",");
+			pchar=pchar+num+1;
+			
+		}while(count--);
+			
+	}
+	
+  if((mLcdWith>0)&&(mLcdHigh>0))
+  {
+		lcd_param[H_VD_INDEX]=mLcdWith;
+		lcd_param[V_VD_INDEX]=mLcdHigh;
+	}
+	#if defined(CONFIG_THREE_FB_BUFFER)
+		size = ((lcd_param[H_VD_INDEX])*(lcd_param[V_VD_INDEX])<<2)* 3; //three buffer
+	#else
+		size = ((lcd_param[H_VD_INDEX])*(lcd_param[V_VD_INDEX])<<2)<<1; //two buffer
+	#endif
+	return ALIGN(size,SZ_1M);
+}
+#else
 size_t get_fb_size(void)
 {
 	size_t size = 0;
@@ -275,3 +369,4 @@ size_t get_fb_size(void)
 	#endif
 	return ALIGN(size,SZ_1M);
 }
+#endif

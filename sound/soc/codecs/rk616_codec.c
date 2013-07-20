@@ -44,6 +44,12 @@
 #define  SPKOUT_VOLUME    22 //0~31
 #define  HPOUT_VOLUME     21 //0~31
 
+#ifdef CONFIG_MACH_RK_FAC   
+//for factorytool          
+  	int rk616_hdmi_ctrl=0;
+#endif 
+
+
 struct rk616_codec_priv {
 	struct snd_soc_codec *codec;
 
@@ -551,7 +557,74 @@ bool get_hdmi_state(void)
 {
 	return is_hdmi_in;
 }
+#ifdef CONFIG_MACH_RK_FAC
+void rk616_codec_set_spk(bool on)
+{
+	struct snd_soc_codec *codec = rk616_priv->codec;
 
+	DBG("%s : %s\n", __func__, on ? "enable spk" : "disable spk");
+        
+  if(rk616_hdmi_ctrl)
+  {
+
+		if (!rk616_priv || !rk616_priv->codec) {
+			printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
+			return;
+		}
+	
+		if (on) {
+			if (rk616_for_mid)
+			{
+				snd_soc_update_bits(codec, RK616_SPKL_CTL,
+					RK616_MUTE, 0);
+				snd_soc_update_bits(codec, RK616_SPKR_CTL,
+					RK616_MUTE, 0);
+				snd_soc_update_bits(codec, RK616_HPL_CTL,
+					RK616_MUTE, 0);
+				snd_soc_update_bits(codec, RK616_HPR_CTL,
+					RK616_MUTE, 0);
+			}
+			else
+			{
+				snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
+				snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
+			}
+		} else {
+			if (rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+				DBG("%s : set spk ctl gpio LOW\n", __func__);
+				gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+			}
+	
+			if (rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+				DBG("%s : set hp ctl gpio LOW\n", __func__);
+				gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+				snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
+			}
+	
+			if (rk616_for_mid)
+			{
+				snd_soc_update_bits(codec, RK616_SPKL_CTL,
+					RK616_MUTE, RK616_MUTE);
+				snd_soc_update_bits(codec, RK616_SPKR_CTL,
+					RK616_MUTE, RK616_MUTE);
+				snd_soc_update_bits(codec, RK616_HPL_CTL,
+					RK616_MUTE, RK616_MUTE);
+				snd_soc_update_bits(codec, RK616_HPR_CTL,
+					RK616_MUTE, RK616_MUTE);
+			}
+			else
+			{
+				snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+				snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
+			}
+		}
+		snd_soc_dapm_sync(&codec->dapm);
+	
+		is_hdmi_in = on ? 0 : 1;
+	}
+}
+EXPORT_SYMBOL_GPL(rk616_codec_set_spk);
+#else
 void codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rk616_priv->codec;
@@ -614,6 +687,7 @@ void codec_set_spk(bool on)
 	is_hdmi_in = on ? 0 : 1;
 }
 EXPORT_SYMBOL_GPL(codec_set_spk);
+#endif
 
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -3900, 150, 0);
 static const DECLARE_TLV_DB_SCALE(pga_vol_tlv, -1800, 150, 0);
@@ -1968,7 +2042,11 @@ static int rk616_codec_power_up(int type)
 			snd_soc_write(codec, playback_power_up_list[i].reg,
 				playback_power_up_list[i].value);
 		}
-		codec_set_spk(!get_hdmi_state());
+		#ifdef CONFIG_MACH_RK_FAC
+			rk616_codec_set_spk(!get_hdmi_state());
+		#else
+			codec_set_spk(!get_hdmi_state());
+		#endif
 	} else if (type == RK616_CODEC_CAPTURE) {
 		for (i = 0; i < RK616_CODEC_CAPTURE_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, capture_power_up_list[i].reg,
@@ -2323,6 +2401,10 @@ static int rk616_probe(struct snd_soc_codec *codec)
 		codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 		rk616_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	}
+	
+	#ifdef CONFIG_MACH_RK_FAC             
+  	 	rk616_hdmi_ctrl=1;
+	#endif 
 
 	return 0;
 

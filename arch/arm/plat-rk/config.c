@@ -14,7 +14,11 @@ int port_output_init(unsigned int value, int on, char *name)
                 gpio_pull_updown(port.gpio, 0);
         if(port.io.pull_mode == PULL_MODE_ENABLE)
                 gpio_pull_updown(port.gpio, 1);
-        gpio_direction_output(port.gpio, (on)? !port.io.active_low: !!port.io.active_low);
+		#ifdef CONFIG_MACH_RK_FAC
+        //gpio_direction_output(port.gpio, (on)? !port.io.active_low: !!port.io.active_low);
+        #else
+		  gpio_direction_output(port.gpio, (on)? !port.io.active_low: !!port.io.active_low);
+		#endif 
 
         return 0;
 }

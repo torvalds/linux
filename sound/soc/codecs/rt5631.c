@@ -60,6 +60,9 @@ struct work_struct  spk_work;
 static int last_is_spk = -1;	//bard 9-13
 #endif
 
+#ifdef CONFIG_MACH_RK_FAC 
+	rt5631_hdmi_ctrl=0;
+#endif
 static struct snd_soc_codec *rt5631_codec;
 struct delayed_work rt5631_delay_cap; //bard 7-16
 EXPORT_SYMBOL(rt5631_delay_cap); //bard 7-16
@@ -2094,6 +2097,34 @@ static int rt5631_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_RK_FAC
+void rt5631_codec_set_spk(bool on)
+{
+	struct snd_soc_codec *codec = rt5631_codec;	
+	if(rt5631_hdmi_ctrl)
+	{
+		DBG("%s: %d\n", __func__, on);
+		
+		if(!codec)
+			return;
+		mutex_lock(&codec->mutex);
+		if(on){
+			DBG("snd_soc_dapm_enable_pin\n");
+			snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
+			snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
+		}
+		else{
+			DBG("snd_soc_dapm_disable_pin\n");
+			snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+			snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
+		}
+	
+		snd_soc_dapm_sync(&codec->dapm);
+		mutex_unlock(&codec->mutex);
+	}
+	return;
+}
+#else
 void codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rt5631_codec;
@@ -2118,6 +2149,7 @@ void codec_set_spk(bool on)
 	mutex_unlock(&codec->mutex);
 	return;
 }
+#endif 
 
 /*
  * detect short current for mic1
@@ -2178,6 +2210,9 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 			rt5631_dai, ARRAY_SIZE(rt5631_dai));
 	if (ret < 0)
 		kfree(rt5631);
+#ifdef CONFIG_MACH_RK_FAC             
+  	rt5631_hdmi_ctrl=1;
+#endif 
 
 	return ret;
 }

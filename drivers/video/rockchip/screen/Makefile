@@ -2,6 +2,7 @@ obj-$(CONFIG_LCD_NULL) += lcd_null.o
 
 obj-$(CONFIG_LCD_RK2928) += lcd_rk2928.o
 
+obj-$(CONFIG_LCD_RK3168_FAC) += lcd_rk3168_fac.o
 obj-$(CONFIG_LCD_TD043MGEA1) += lcd_td043mgea1.o
 obj-$(CONFIG_LCD_HSD070IDW1) += lcd_hsd800x480.o
 obj-$(CONFIG_LCD_HL070VM4AU) += lcd_hl070vm4.o

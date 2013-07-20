@@ -3,7 +3,19 @@
 #include "rk_hdmi.h"
 
 #ifdef CONFIG_RK_HDMI_CTL_CODEC
-extern void codec_set_spk(bool on);
+#ifdef CONFIG_MACH_RK_FAC
+	#ifdef CONFIG_SND_RK29_SOC_ES8323
+		extern void es8323_codec_set_spk(bool on);
+	#endif
+	#ifdef CONFIG_SND_RK29_SOC_RT5616
+		extern void rt5616_codec_set_spk(bool on);
+	#endif
+	#ifdef CONFIG_SND_RK_SOC_RK616
+		extern void rk616_codec_set_spk(bool on);
+	#endif
+#else
+	extern void codec_set_spk(bool on);
+#endif  
 #endif
 
 #define HDMI_MAX_TRY_TIMES	1
@@ -88,7 +100,19 @@ void hdmi_sys_remove(void)
 	switch_set_state(&(hdmi->switch_hdmi), 0);
 	#endif
 	#ifdef CONFIG_RK_HDMI_CTL_CODEC
+#ifdef CONFIG_MACH_RK_FAC
+	#ifdef CONFIG_SND_RK29_SOC_ES8323
+		es8323_codec_set_spk(1);
+	#endif
+	#ifdef CONFIG_SND_RK29_SOC_RT5616
+		 rt5616_codec_set_spk(1);
+	#endif
+	#ifdef CONFIG_SND_RK_SOC_RK616
+		 rk616_codec_set_spk(1);
+	#endif 
+#else
 	codec_set_spk(1);
+#endif
 	#endif
 }
 
@@ -229,7 +253,19 @@ void hdmi_work(struct work_struct *work)
 					switch_set_state(&(hdmi->switch_hdmi), 1);
 					#endif
 					#ifdef CONFIG_RK_HDMI_CTL_CODEC
-					codec_set_spk(0);
+					#ifdef CONFIG_MACH_RK_FAC
+						#if defined(CONFIG_SND_RK29_SOC_ES8323)
+							es8323_codec_set_spk(0);
+						#endif
+						#if defined (CONFIG_SND_RK29_SOC_RT5616)
+							rt5616_codec_set_spk(0);
+						#endif		
+						#if defined (CONFIG_SND_RK_SOC_RK616)
+							rk616_codec_set_spk(0);
+						#endif	
+					#else
+						codec_set_spk(0);
+					#endif
 					#endif
 				}
 				break;

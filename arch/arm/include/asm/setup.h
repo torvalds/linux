@@ -16,7 +16,7 @@
 
 #include <linux/types.h>
 
-#ifdef CONFIG_RK_CONFIG
+#if defined(CONFIG_RK_CONFIG)||defined(CONFIG_MACH_RK_FAC)
 #define COMMAND_LINE_SIZE 65536
 #else
 #define COMMAND_LINE_SIZE 1024

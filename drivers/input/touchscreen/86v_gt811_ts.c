@@ -700,7 +700,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	const char irq_table[2] = {IRQF_TRIGGER_FALLING,IRQF_TRIGGER_RISING};
 	struct gt811_ts_data *ts;
  //   struct gt811_platform_data *811data = client->dev.platform_data;
+#ifdef CONFIG_MACH_RK_FAC
+ 	struct tp_platform_data *pdata;
+#else
 	struct gt811_platform_data *pdata;
+#endif
 	dev_info(&client->dev,"Install gt811 driver.\n");
 	dev_info(&client->dev,"Driver Release Date:2012-02-08\n");	
 

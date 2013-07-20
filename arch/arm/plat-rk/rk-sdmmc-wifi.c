@@ -341,12 +341,17 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     rk29sdk_init_wifi_mem();    
     rk29_mux_api_set(rk_platform_wifi_gpio.power_n.iomux.name, rk_platform_wifi_gpio.power_n.iomux.fgpio);
 
+#ifdef CONFIG_MACH_RK_FAC
+	if(wifi_pwr!=-1)
+		port_output_init(wifi_pwr, 1, "wifi_pwr"); 
+#else
     if (rk_platform_wifi_gpio.power_n.io != INVALID_GPIO) {
         if (gpio_request(rk_platform_wifi_gpio.power_n.io, "wifi_power")) {
                pr_info("%s: request wifi power gpio failed\n", __func__);
                return -1;
         }
     }
+#endif
 
 #ifdef RK30SDK_WIFI_GPIO_RESET_N
     if (rk_platform_wifi_gpio.reset_n.io != INVALID_GPIO) {
@@ -358,8 +363,13 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     }
 #endif    
 
-    if (rk_platform_wifi_gpio.power_n.io != INVALID_GPIO)
+#ifdef CONFIG_MACH_RK_FAC
+	if(wifi_pwr!=-1)
+		port_output_off(wifi_pwr);
+#else
+	if (rk_platform_wifi_gpio.power_n.io != INVALID_GPIO)
         gpio_direction_output(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable) );
+#endif
 
 #ifdef RK30SDK_WIFI_GPIO_RESET_N 
     if (rk_platform_wifi_gpio.reset_n.io != INVALID_GPIO)
@@ -421,7 +431,12 @@ int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
         if (on){
+			#ifdef CONFIG_MACH_RK_FAC
+				if(wifi_pwr!=-1)
+					port_output_on(wifi_pwr);
+			#else
                 gpio_set_value(rk_platform_wifi_gpio.power_n.io, rk_platform_wifi_gpio.power_n.enable);
+			#endif
                 mdelay(50);
 
                 #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
@@ -436,8 +451,12 @@ int rk29sdk_wifi_power(int on)
                 pr_info("wifi turn on power\n");
         }else{
 //                if (!rk29sdk_bt_power_state){
-                        gpio_set_value(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable));
-
+				#ifdef CONFIG_MACH_RK_FAC
+						if(wifi_pwr!=-1)
+							port_output_off(wifi_pwr);
+				#else
+						gpio_set_value(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable));
+				#endif
                         #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
                         rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
                         #endif

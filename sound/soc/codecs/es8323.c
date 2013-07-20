@@ -62,6 +62,9 @@ static bool last_is_spk = false;
 //#define SPK_CON 		RK29_PIN6_PB6
     #undef SPK_CTL
 //    #undef SPK_CON
+#ifdef CONFIG_MACH_RK_FAC 
+int es8323_hdmi_ctrl=0;
+#endif
 #define SPK_CON 		RK30_PIN2_PD7 //RK30_PIN4_PC5
 #define HP_DET          RK30_PIN0_PB5
 static int HP_IRQ=0;
@@ -1140,6 +1143,16 @@ static int es8323_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_RK_FAC
+void es8323_codec_set_spk(bool on)
+{
+	if(es8323_hdmi_ctrl)
+	{
+ set_spk = on;
+  gpio_set_value(SPK_CON, on);
+	}
+}
+#else
 void codec_set_spk(bool on)
 {
 	DBG("Enter::%s----%d--, on = %d\n",__FUNCTION__,__LINE__, on);
@@ -1148,6 +1161,7 @@ void codec_set_spk(bool on)
         gpio_set_value(SPK_CON, on);
 	//return;
 }
+#endif 
 
 static struct snd_soc_codec_driver soc_codec_dev_es8323 = {
 	.probe =	es8323_probe,
@@ -1342,6 +1356,9 @@ static __devinit int es8323_i2c_probe(struct i2c_client *i2c,
 	ret = device_create_file(es8323_dev, &dev_attr_es8323);
         if (ret < 0)
                 printk("failed to add dev_attr_es8323 file\n");
+  #ifdef CONFIG_MACH_RK_FAC              
+  	es8323_hdmi_ctrl=1;
+  #endif 
 
 	return ret;
 }
