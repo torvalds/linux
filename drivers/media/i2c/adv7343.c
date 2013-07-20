@@ -227,12 +227,12 @@ static int adv7343_setoutput(struct v4l2_subdev *sd, u32 output_type)
 	else
 		val = state->pdata->mode_config.sleep_mode << 0 |
 		      state->pdata->mode_config.pll_control << 1 |
-		      state->pdata->mode_config.dac_3 << 2 |
-		      state->pdata->mode_config.dac_2 << 3 |
-		      state->pdata->mode_config.dac_1 << 4 |
-		      state->pdata->mode_config.dac_6 << 5 |
-		      state->pdata->mode_config.dac_5 << 6 |
-		      state->pdata->mode_config.dac_4 << 7;
+		      state->pdata->mode_config.dac[2] << 2 |
+		      state->pdata->mode_config.dac[1] << 3 |
+		      state->pdata->mode_config.dac[0] << 4 |
+		      state->pdata->mode_config.dac[5] << 5 |
+		      state->pdata->mode_config.dac[4] << 6 |
+		      state->pdata->mode_config.dac[3] << 7;
 
 	err = adv7343_write(sd, ADV7343_POWER_MODE_REG, val);
 	if (err < 0)
@@ -251,15 +251,15 @@ static int adv7343_setoutput(struct v4l2_subdev *sd, u32 output_type)
 	/* configure SD DAC Output 2 and SD DAC Output 1 bit to zero */
 	val = state->reg82 & (SD_DAC_1_DI & SD_DAC_2_DI);
 
-	if (state->pdata && state->pdata->sd_config.sd_dac_out1)
-		val = val | (state->pdata->sd_config.sd_dac_out1 << 1);
-	else if (state->pdata && !state->pdata->sd_config.sd_dac_out1)
-		val = val & ~(state->pdata->sd_config.sd_dac_out1 << 1);
+	if (state->pdata && state->pdata->sd_config.sd_dac_out[0])
+		val = val | (state->pdata->sd_config.sd_dac_out[0] << 1);
+	else if (state->pdata && !state->pdata->sd_config.sd_dac_out[0])
+		val = val & ~(state->pdata->sd_config.sd_dac_out[0] << 1);
 
-	if (state->pdata && state->pdata->sd_config.sd_dac_out2)
-		val = val | (state->pdata->sd_config.sd_dac_out2 << 2);
-	else if (state->pdata && !state->pdata->sd_config.sd_dac_out2)
-		val = val & ~(state->pdata->sd_config.sd_dac_out2 << 2);
+	if (state->pdata && state->pdata->sd_config.sd_dac_out[1])
+		val = val | (state->pdata->sd_config.sd_dac_out[1] << 2);
+	else if (state->pdata && !state->pdata->sd_config.sd_dac_out[1])
+		val = val & ~(state->pdata->sd_config.sd_dac_out[1] << 2);
 
 	err = adv7343_write(sd, ADV7343_SD_MODE_REG2, val);
 	if (err < 0)
