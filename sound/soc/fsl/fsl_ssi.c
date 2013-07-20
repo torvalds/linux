@@ -900,6 +900,7 @@ static struct platform_driver fsl_ssi_driver = {
 
 module_platform_driver(fsl_ssi_driver);
 
+MODULE_ALIAS("platform:fsl-ssi-dai");
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale Synchronous Serial Interface (SSI) ASoC Driver");
 MODULE_LICENSE("GPL v2");
