@@ -970,7 +970,7 @@ static int vvp_io_commit_write(const struct lu_env *env,
 	LINVRNT(cl_page_is_vmlocked(env, pg));
 	LASSERT(vmpage->mapping->host == inode);
 
-	LU_OBJECT_HEADER(D_INODE, env, &obj->co_lu, "commiting page write\n");
+	LU_OBJECT_HEADER(D_INODE, env, &obj->co_lu, "committing page write\n");
 	CL_PAGE_HEADER(D_PAGE, env, pg, "committing: [%d, %d]\n", from, to);
 
 	/*

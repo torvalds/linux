@@ -1484,7 +1484,7 @@ int obd_export_evict_by_uuid(struct obd_device *obd, const char *uuid)
 		CERROR("%s: can't disconnect %s: no exports found\n",
 		       obd->obd_name, uuid);
 	} else {
-		CWARN("%s: evicting %s at adminstrative request\n",
+		CWARN("%s: evicting %s at administrative request\n",
 		       obd->obd_name, doomed_exp->exp_client_uuid.uuid);
 		class_fail_export(doomed_exp);
 		class_export_put(doomed_exp);

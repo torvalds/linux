@@ -341,7 +341,7 @@ __u32 import_context_rfc1964(struct krb5_ctx *kctx, char *p, char *end)
 	if (p != end)
 		goto out_err;
 
-	CDEBUG(D_SEC, "succesfully imported rfc1964 context\n");
+	CDEBUG(D_SEC, "successfully imported rfc1964 context\n");
 	return 0;
 out_err:
 	return GSS_S_FAILURE;
@@ -403,7 +403,7 @@ __u32 import_context_rfc4121(struct krb5_ctx *kctx, char *p, char *end)
 	if (get_keyblock(&p, end, &kctx->kc_keyc, keysize))
 		goto out_err;
 
-	CDEBUG(D_SEC, "succesfully imported v2 context\n");
+	CDEBUG(D_SEC, "successfully imported v2 context\n");
 	return 0;
 out_err:
 	return GSS_S_FAILURE;
@@ -494,7 +494,7 @@ __u32 gss_copy_reverse_context_kerberos(struct gss_ctx *gctx,
 		goto out_err;
 
 	gctx_new->internal_ctx_id = knew;
-	CDEBUG(D_SEC, "succesfully copied reverse context\n");
+	CDEBUG(D_SEC, "successfully copied reverse context\n");
 	return GSS_S_COMPLETE;
 
 out_err:
