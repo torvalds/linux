@@ -1087,7 +1087,11 @@ static int ipu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ipu);
 
-	clk_prepare_enable(ipu->clk);
+	ret = clk_prepare_enable(ipu->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "clk_prepare_enable failed: %d\n", ret);
+		return ret;
+	}
 
 	ipu->dev = &pdev->dev;
 	ipu->irq_sync = irq_sync;
