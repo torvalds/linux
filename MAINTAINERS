@@ -6050,12 +6050,23 @@ L:	devicetree@vger.kernel.org
 W:	http://fdt.secretlab.ca
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
-F:	Documentation/devicetree
-F:	drivers/of
+F:	drivers/of/
 F:	include/linux/of*.h
-F:	scripts/dtc
+F:	scripts/dtc/
 K:	of_get_property
 K:	of_match_table
+
+OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
+M:	Rob Herring <rob.herring@calxeda.com>
+M:	Pawel Moll <pawel.moll@arm.com>
+M:	Mark Rutland <mark.rutland@arm.com>
+M:	Stephen Warren <swarren@wwwdotorg.org>
+M:	Ian Campbell <ian.campbell@citrix.com>
+L:	devicetree@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/
+F:	arch/*/boot/dts/
+F:	include/dt-bindings/
 
 OPENRISC ARCHITECTURE
 M:	Jonas Bonn <jonas@southpole.se>
