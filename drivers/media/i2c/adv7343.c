@@ -30,6 +30,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-of.h>
 
 #include "adv7343_regs.h"
 
@@ -399,6 +400,40 @@ static int adv7343_initialize(struct v4l2_subdev *sd)
 	return err;
 }
 
+static struct adv7343_platform_data *
+adv7343_get_pdata(struct i2c_client *client)
+{
+	struct adv7343_platform_data *pdata;
+	struct device_node *np;
+
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+		return client->dev.platform_data;
+
+	np = v4l2_of_get_next_endpoint(client->dev.of_node, NULL);
+	if (!np)
+		return NULL;
+
+	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		goto done;
+
+	pdata->mode_config.sleep_mode =
+			of_property_read_bool(np, "adi,power-mode-sleep-mode");
+
+	pdata->mode_config.pll_control =
+			of_property_read_bool(np, "adi,power-mode-pll-ctrl");
+
+	of_property_read_u32_array(np, "adi,dac-enable",
+				   pdata->mode_config.dac, 6);
+
+	of_property_read_u32_array(np, "adi,sd-dac-enable",
+				   pdata->sd_config.sd_dac_out, 2);
+
+done:
+	of_node_put(np);
+	return pdata;
+}
+
 static int adv7343_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
@@ -417,7 +452,7 @@ static int adv7343_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	/* Copy board specific information here */
-	state->pdata = client->dev.platform_data;
+	state->pdata = adv7343_get_pdata(client);
 
 	state->reg00	= 0x80;
 	state->reg01	= 0x00;
@@ -483,8 +518,17 @@ static const struct i2c_device_id adv7343_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, adv7343_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id adv7343_of_match[] = {
+	{.compatible = "adi,adv7343", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, adv7343_of_match);
+#endif
+
 static struct i2c_driver adv7343_driver = {
 	.driver = {
+		.of_match_table = of_match_ptr(adv7343_of_match),
 		.owner	= THIS_MODULE,
 		.name	= "adv7343",
 	},
