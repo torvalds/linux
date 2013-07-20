@@ -54,6 +54,10 @@ __weak void board_act8846_set_resume_vol(void){}
 
 __weak void __sramfunc rk30_pwm_logic_suspend_voltage(void){}
 __weak void __sramfunc rk30_pwm_logic_resume_voltage(void){}
+__weak int  __sramfunc rk30_phonecall_lowerpower(void)
+{
+	return 0;
+}
 
 static int rk3188plus_soc = 0;
 
@@ -541,14 +545,46 @@ static void __sramfunc rk_pm_soc_sram_clk_gating(void)
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs_sram[i] = cru_readl(CRU_CLKGATES_CON(i));
 	}
+#ifndef CONFIG_PHONE_INCALL_IS_SUSPEND
 	gate_save_soc_clk(0
-			  | (1 << CLK_GATE_CORE_PERIPH)
-			  | (1 << CLK_GATE_ACLK_CPU)
-			  | (1 << CLK_GATE_HCLK_CPU)
-			  | (1 << CLK_GATE_PCLK_CPU)
-			  | (1 << CLK_GATE_ACLK_CORE)
-			  , clkgt_regs_sram[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
+		| (1 << CLK_GATE_CORE_PERIPH)
+		| (1 << CLK_GATE_ACLK_CPU)
+		| (1 << CLK_GATE_HCLK_CPU)
+		| (1 << CLK_GATE_PCLK_CPU)
+		| (1 << CLK_GATE_ACLK_CORE)
+		, clkgt_regs_sram[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
 	
+#else	
+	if(rk30_phonecall_lowerpower() == 0){
+		gate_save_soc_clk(0
+			| (1 << CLK_GATE_CORE_PERIPH)
+			| (1 << CLK_GATE_ACLK_CPU)
+			| (1 << CLK_GATE_HCLK_CPU)
+			| (1 << CLK_GATE_PCLK_CPU)
+			| (1 << CLK_GATE_ACLK_CORE)
+			, clkgt_regs_sram[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
+	}else{
+		gate_save_soc_clk(0
+			| (1 << CLK_GATE_CORE_PERIPH)
+			| (1 << CLK_GATE_ACLK_CPU)
+			| (1 << CLK_GATE_HCLK_CPU)
+			| (1 << CLK_GATE_PCLK_CPU)
+			| (1 << CLK_GATE_ACLK_CORE)
+
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+			| (1 << CLK_GATE_I2S0_SRC)
+			| (1 << CLK_GATE_I2S0_FRAC)
+#else
+			|(1<<CLK_GATE_I2S0_FRAC)
+			|(1<<CLK_GATE_I2S1)
+			|(1<<CLK_GATE_I2S1_FRAC)
+			|(1<<CLK_GATE_I2S2)
+			|(1<<CLK_GATE_I2S2_FRAC)
+#endif
+			, clkgt_regs_sram[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
+
+	}
+#endif
 	gate_save_soc_clk(0, clkgt_regs_sram[1], CRU_CLKGATES_CON(1), CLK_GATE_W_MSK1);
 	
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
@@ -586,9 +622,23 @@ static void __sramfunc rk_pm_soc_sram_clk_gating(void)
 		  | (1 << CLK_GATE_PCLK_GRF % 16)
 		  | (1 << CLK_GATE_PCLK_PMU % 16)
 		  , clkgt_regs_sram[5], CRU_CLKGATES_CON(5), CLK_GATE_W_MSK5);
-	
+#ifndef CONFIG_PHONE_INCALL_IS_SUSPEND
 	gate_save_soc_clk(0, clkgt_regs_sram[7], CRU_CLKGATES_CON(7), CLK_GATE_W_MSK7);
-	
+#else	
+	if(rk30_phonecall_lowerpower() == 0){
+		gate_save_soc_clk(0, clkgt_regs_sram[7], CRU_CLKGATES_CON(7), CLK_GATE_W_MSK7);
+	}else{
+		gate_save_soc_clk(0
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+			| (1 << CLK_GATE_HCLK_I2S0_2CH % 16)
+#else
+			| (1 <<CLK_GATE_HCLK_I2S0_2CH)
+			| (1 <<CLK_GATE_HCLK_I2S1_2CH)
+			| (1 <<CLK_GATE_HCLK_I2S_8CH)
+#endif
+			, clkgt_regs_sram[7], CRU_CLKGATES_CON(7),CLK_GATE_W_MSK7);
+	}	
+#endif
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM0 % 16)
@@ -693,18 +743,58 @@ static void rk_pm_soc_clk_gating_first(void)
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs_first[i] = cru_readl(CRU_CLKGATES_CON(i));
 	}
-
+#ifndef CONFIG_PHONE_INCALL_IS_SUSPEND
 	gate_save_soc_clk(0
-			  | (1 << CLK_GATE_CORE_PERIPH)
+		| (1 << CLK_GATE_CORE_PERIPH)
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-			  | (1 << CLK_GATE_CPU_GPLL_PATH)
-			  | (1 << CLK_GATE_ACLK_CORE)
+		| (1 << CLK_GATE_CPU_GPLL_PATH)
+		| (1 << CLK_GATE_ACLK_CORE)
 #endif
-			  | (1 << CLK_GATE_DDRPHY)
-			  | (1 << CLK_GATE_ACLK_CPU)
-			  | (1 << CLK_GATE_HCLK_CPU)
-			  | (1 << CLK_GATE_PCLK_CPU)
-			  , clkgt_regs_first[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
+		| (1 << CLK_GATE_DDRPHY)
+		| (1 << CLK_GATE_ACLK_CPU)
+		| (1 << CLK_GATE_HCLK_CPU)
+		| (1 << CLK_GATE_PCLK_CPU)
+		, clkgt_regs_first[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
+
+#else
+	if(rk30_phonecall_lowerpower() == 0){
+		gate_save_soc_clk(0
+			| (1 << CLK_GATE_CORE_PERIPH)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+			| (1 << CLK_GATE_CPU_GPLL_PATH)
+			| (1 << CLK_GATE_ACLK_CORE)
+#endif
+			| (1 << CLK_GATE_DDRPHY)
+			| (1 << CLK_GATE_ACLK_CPU)
+			| (1 << CLK_GATE_HCLK_CPU)
+			| (1 << CLK_GATE_PCLK_CPU)
+			, clkgt_regs_first[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
+	}else{
+		gate_save_soc_clk(0
+			| (1 << CLK_GATE_CORE_PERIPH)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+			| (1 << CLK_GATE_CPU_GPLL_PATH)
+			| (1 << CLK_GATE_ACLK_CORE)
+#endif
+			| (1 << CLK_GATE_DDRPHY)
+			| (1 << CLK_GATE_ACLK_CPU)
+			| (1 << CLK_GATE_HCLK_CPU)
+			| (1 << CLK_GATE_PCLK_CPU)
+
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+			| (1 << CLK_GATE_I2S0_SRC)
+				| (1 << CLK_GATE_I2S0_FRAC)
+#else
+			|(1<<CLK_GATE_I2S0_FRAC)
+			|(1<<CLK_GATE_I2S1)
+			|(1<<CLK_GATE_I2S1_FRAC)
+			|(1<<CLK_GATE_I2S2)
+			|(1<<CLK_GATE_I2S2_FRAC)
+#endif
+			, clkgt_regs_first[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
+
+	}
+#endif
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_DDR_GPLL % 16)
 			  , clkgt_regs_first[1], CRU_CLKGATES_CON(1), CLK_GATE_W_MSK1);
@@ -737,10 +827,31 @@ static void rk_pm_soc_clk_gating_first(void)
 			  | (1 << CLK_GATE_PCLK_DDRUPCTL % 16)
 			  , clkgt_regs_first[5], CRU_CLKGATES_CON(5), CLK_GATE_W_MSK5);
 	gate_save_soc_clk(0, clkgt_regs_first[6], CRU_CLKGATES_CON(6), CLK_GATE_W_MSK6);
+#ifndef CONFIG_PHONE_INCALL_IS_SUSPEND
 	gate_save_soc_clk(0
-			  | (1 << CLK_GATE_PCLK_PWM01 % 16)
-			  | (1 << CLK_GATE_PCLK_PWM23 % 16)
-			  , clkgt_regs_first[7], CRU_CLKGATES_CON(7),CLK_GATE_W_MSK7);
+		| (1 << CLK_GATE_PCLK_PWM01 % 16)
+		| (1 << CLK_GATE_PCLK_PWM23 % 16)
+		, clkgt_regs_first[7], CRU_CLKGATES_CON(7),CLK_GATE_W_MSK7);
+#else
+	if(rk30_phonecall_lowerpower() == 0){
+		gate_save_soc_clk(0
+			| (1 << CLK_GATE_PCLK_PWM01 % 16)
+			| (1 << CLK_GATE_PCLK_PWM23 % 16)
+			, clkgt_regs_first[7], CRU_CLKGATES_CON(7),CLK_GATE_W_MSK7);
+	}else{
+		gate_save_soc_clk(0
+			| (1 << CLK_GATE_PCLK_PWM01 % 16)
+			| (1 << CLK_GATE_PCLK_PWM23 % 16)
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+			| (1 << CLK_GATE_HCLK_I2S0_2CH % 16)
+#else
+			| (1 <<CLK_GATE_HCLK_I2S0_2CH% 16)
+			| (1 <<CLK_GATE_HCLK_I2S1_2CH% 16)
+			| (1 <<CLK_GATE_HCLK_I2S_8CH% 16)
+#endif
+			, clkgt_regs_first[7], CRU_CLKGATES_CON(7),CLK_GATE_W_MSK7);
+	}
+#endif
 	gate_save_soc_clk(0 , clkgt_regs_first[8], CRU_CLKGATES_CON(8), CLK_GATE_W_MSK8);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
