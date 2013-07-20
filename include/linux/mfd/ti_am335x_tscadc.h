@@ -114,7 +114,6 @@
 #define CNTRLREG_TSCENB		BIT(7)
 
 #define ADC_CLK			3000000
-#define	MAX_CLK_DIV		7
 #define TOTAL_STEPS		16
 #define TOTAL_CHANNELS		8
 
