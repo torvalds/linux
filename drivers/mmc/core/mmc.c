@@ -341,7 +341,10 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		 * There are two boot regions of equal size, defined in
 		 * multiples of 128K.
 		 */
-		card->ext_csd.boot_size = ext_csd[EXT_CSD_BOOT_MULT] << 17;
+		if(HOST_IS_EMMC(card->host)) //emmc: We do NOT alloc boot partition now (kfx)
+			card->ext_csd.boot_size = 0;
+		else
+			card->ext_csd.boot_size = ext_csd[EXT_CSD_BOOT_MULT] << 17;
 	}
 
 	card->ext_csd.raw_hc_erase_gap_size =
