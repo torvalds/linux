@@ -53,7 +53,7 @@
 		#size-cells = <0>;
 		#address-cells = <1>;
 
-		cpu {
+		cpu: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,arm926ej-s";
 			operating-points = <
