@@ -61,7 +61,7 @@
 *	board config
 ************************************************************/
 //system power on
-#define POWER_ON_PIN		RK2928_PIN1_PA2   //PWR_HOLD
+#define POWER_ON_PIN		RK30_PIN1_PA2   //PWR_HOLD
 
 //touchscreen
 #define TOUCH_RST_PIN		RK2928_PIN2_PB0
@@ -91,14 +91,14 @@
 
 //keyboard
 //#define RK31XX_MAINBOARD_V1      //if mainboard is RK31XX_MAINBOARD_V1.0
-#define PLAY_ON_PIN		RK2928_PIN1_PA4	//wakeup key		
+#define PLAY_ON_PIN		RK30_PIN1_PA4	//wakeup key		
 
 //pwm regulator
 #define REG_PWM			1  // (0 ~ 2)
 
 //pmic
-#define PMU_INT_PIN		RK2928_PIN1_PB1
-#define PMU_SLEEP_PIN		RK2928_PIN1_PA1
+#define PMU_INT_PIN		RK30_PIN1_PB1
+#define PMU_SLEEP_PIN		RK30_PIN1_PA1
 
 //ion reserve memory
 #define ION_RESERVE_SIZE        (80 * SZ_1M)
@@ -843,19 +843,45 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 
 static struct pmu_info tps65910_ldo_info[] = {
 	{
-		.name = "vpll",
-		.min_uv = 2500000,
-		.max_uv = 2500000,
+		.name          = "vpll",   //vcc25
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
 	},
 	{
-		.name = "vdig1",
-		.min_uv = 1800000,
-		.max_uv = 1800000,
+		.name          = "vdig1",    //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+
+	{
+		.name          = "vdig2",   //vdd11
+		.min_uv          = 1100000,
+		.max_uv         = 1100000,
 	},
 	{
-		.name = "vdac",
-		.min_uv = 1800000,
-		.max_uv = 1800000,
+		.name          = "vaux1",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+	{
+		.name          = "vaux2",   //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vaux33",   //vcc_tp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "vmmc",   //vccio_wl
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "vdac",   //
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
 	},
 };
 #include "../mach-rk30/board-pmu-tps65910.c"
