@@ -1163,6 +1163,7 @@ static struct platform_driver imx_ipu_driver = {
 
 module_platform_driver(imx_ipu_driver);
 
+MODULE_ALIAS("platform:imx-ipuv3");
 MODULE_DESCRIPTION("i.MX IPU v3 driver");
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_LICENSE("GPL");
