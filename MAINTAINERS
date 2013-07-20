@@ -5882,7 +5882,7 @@ OMAP DEVICE TREE SUPPORT
 M:	Benoît Cousson <b-cousson@ti.com>
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
-L:	devicetree-discuss@lists.ozlabs.org (moderated for non-subscribers)
+L:	devicetree@vger.kernel.org
 S:	Maintained
 F:	arch/arm/boot/dts/*omap*
 F:	arch/arm/boot/dts/*am3*
@@ -6046,7 +6046,7 @@ F:	drivers/i2c/busses/i2c-ocores.c
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Grant Likely <grant.likely@linaro.org>
 M:	Rob Herring <rob.herring@calxeda.com>
-L:	devicetree-discuss@lists.ozlabs.org (moderated for non-subscribers)
+L:	devicetree@vger.kernel.org
 W:	http://fdt.secretlab.ca
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
