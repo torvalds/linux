@@ -879,6 +879,9 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	struct edid *edid;
 	enum drm_connector_status status = connector_status_disconnected;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector));
+
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
 	intel_hdmi->rgb_quant_range_selectable = false;

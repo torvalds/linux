@@ -332,6 +332,8 @@ static enum drm_connector_status
 intel_dvo_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector));
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);
 }
 

@@ -613,6 +613,10 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status;
 	struct intel_load_detect_pipe tmp;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
+		      connector->base.id, drm_get_connector_name(connector),
+		      force);
+
 	if (I915_HAS_HOTPLUG(dev)) {
 		/* We can not rely on the HPD pin always being correctly wired
 		 * up, for example many KVM do not pass it through, and so

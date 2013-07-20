@@ -2847,6 +2847,9 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status;
 	struct edid *edid = NULL;
 
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector));
+
 	intel_dp->has_audio = false;
 
 	if (HAS_PCH_SPLIT(dev))
