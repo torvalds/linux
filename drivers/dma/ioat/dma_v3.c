@@ -251,7 +251,7 @@ static bool is_bwd_noraid(struct pci_dev *pdev)
 }
 
 static void pq16_set_src(struct ioat_raw_descriptor *desc[3],
-			dma_addr_t addr, u32 offset, u8 coef, int idx)
+			dma_addr_t addr, u32 offset, u8 coef, unsigned idx)
 {
 	struct ioat_pq_descriptor *pq = (struct ioat_pq_descriptor *)desc[0];
 	struct ioat_pq16a_descriptor *pq16 =
