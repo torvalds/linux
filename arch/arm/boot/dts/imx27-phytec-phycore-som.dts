@@ -38,28 +38,16 @@
 		fsl,mc13xxx-uses-rtc;
 
 		regulators {
-			sw1a_reg: sw1a {
+			/* SW1A and SW1B joined operation */
+			sw1_reg: sw1a {
 				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
+				regulator-max-microvolt = <1520000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
-			sw1b_reg: sw1b {
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			sw2a_reg: sw2a {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			sw2b_reg: sw2b {
+			/* SW2A and SW2B joined operation */
+			sw2_reg: sw2a {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
