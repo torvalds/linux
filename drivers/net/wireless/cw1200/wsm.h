@@ -832,7 +832,7 @@ struct wsm_tx {
 	/* the MSDU shall be terminated. Overrides the global */
 	/* dot11MaxTransmitMsduLifeTime setting [optional] */
 	/* Device will set the default value if this is 0. */
-	u32 expire_time;
+	__le32 expire_time;
 
 	/* WSM_HT_TX_... */
 	__le32 ht_tx_parameters;
