@@ -96,7 +96,7 @@
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
 				reg = <0x10002000 0x1000>;
 				interrupts = <27>;
-				clocks = <&clks 0>;
+				clocks = <&clks 74>;
 			};
 
 			gpt1: timer@10003000 {
