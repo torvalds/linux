@@ -5725,6 +5725,7 @@ P:	Vincent Sanders <vince@simtec.co.uk>
 M:	Simtec Linux Team <linux@simtec.co.uk>
 W:	http://www.simtec.co.uk/products/EB110ATX/
 S:	Supported
+F:	Documentation/stable_kernel_rules.txt
 
 SIMTEC EB2410ITX (BAST)
 P:	Ben Dooks
