@@ -2289,10 +2289,10 @@ void __sramfunc rk30_pwm_logic_suspend_voltage(void)
 	gpio3d6_dir = grf_readl(GRF_GPIO3H_DIR);
 	gpio3d6_en = grf_readl(GRF_GPIO3H_EN);
 
-	grf_writel((1<<28), GRF_GPIO3D_IOMUX);
-	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_DIR);
-	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_DO);
-	grf_writel((1<<30)|(1<<14), GRF_GPIO3H_EN);
+	grf_writel((0x03000300), GRF_GPIO3D_IOMUX);
+	grf_writel((1<<28)|(1<<12), GRF_GPIO3H_DIR);
+	grf_writel((1<<28)|(1<<12), GRF_GPIO3H_DO);
+	grf_writel((1<<28)|(1<<12), GRF_GPIO3H_EN);
 #endif 
 }
 void __sramfunc rk30_pwm_logic_resume_voltage(void)
