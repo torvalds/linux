@@ -1075,16 +1075,14 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu->cpmem_base = devm_ioremap(&pdev->dev,
 			ipu_base + devtype->cpmem_ofs, PAGE_SIZE);
 
-	if (!ipu->cm_reg || !ipu->idmac_reg || !ipu->cpmem_base) {
-		ret = -ENOMEM;
-		goto failed_ioremap;
-	}
+	if (!ipu->cm_reg || !ipu->idmac_reg || !ipu->cpmem_base)
+		return -ENOMEM;
 
 	ipu->clk = devm_clk_get(&pdev->dev, "bus");
 	if (IS_ERR(ipu->clk)) {
 		ret = PTR_ERR(ipu->clk);
 		dev_err(&pdev->dev, "clk_get failed with %d", ret);
-		goto failed_clk_get;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, ipu);
@@ -1134,8 +1132,6 @@ out_failed_reset:
 	ipu_irq_exit(ipu);
 out_failed_irq:
 	clk_disable_unprepare(ipu->clk);
-failed_clk_get:
-failed_ioremap:
 	return ret;
 }
 
