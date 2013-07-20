@@ -63,7 +63,6 @@
 			>;
 			clock-latency = <62500>;
 			clocks = <&clks 18>;
-			clock-names = "cpu";
 			voltage-tolerance = <5>;
 		};
 	};
