@@ -706,7 +706,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 {
 	int error = 0;
 
-	intel_gt_reset(dev);
+	intel_gt_sanitize(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		mutex_lock(&dev->struct_mutex);
@@ -732,7 +732,7 @@ int i915_resume(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	intel_gt_reset(dev);
+	intel_gt_sanitize(dev);
 
 	/*
 	 * Platforms with opregion should have sane BIOS, older ones (gen3 and

@@ -5476,7 +5476,7 @@ static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
-void intel_gt_reset(struct drm_device *dev)
+void intel_gt_sanitize(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -5489,7 +5489,8 @@ void intel_gt_reset(struct drm_device *dev)
 	}
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
-	intel_disable_gt_powersave(dev);
+	if (INTEL_INFO(dev)->gen >= 6)
+		intel_disable_gt_powersave(dev);
 }
 
 void intel_gt_init(struct drm_device *dev)
