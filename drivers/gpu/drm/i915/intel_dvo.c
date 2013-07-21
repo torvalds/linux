@@ -100,9 +100,9 @@ struct intel_dvo {
 	bool panel_wants_dither;
 };
 
-static struct intel_dvo *enc_to_intel_dvo(struct drm_encoder *encoder)
+static struct intel_dvo *enc_to_dvo(struct intel_encoder *encoder)
 {
-	return container_of(encoder, struct intel_dvo, base.base);
+	return container_of(encoder, struct intel_dvo, base);
 }
 
 static struct intel_dvo *intel_attached_dvo(struct drm_connector *connector)
@@ -123,7 +123,7 @@ static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	u32 tmp;
 
 	tmp = I915_READ(intel_dvo->dev.dvo_reg);
@@ -140,7 +140,7 @@ static void intel_dvo_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_config *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	u32 tmp, flags = 0;
 
 	tmp = I915_READ(intel_dvo->dev.dvo_reg);
@@ -159,7 +159,7 @@ static void intel_dvo_get_config(struct intel_encoder *encoder,
 static void intel_disable_dvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	u32 dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
@@ -171,7 +171,7 @@ static void intel_disable_dvo(struct intel_encoder *encoder)
 static void intel_enable_dvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	u32 dvo_reg = intel_dvo->dev.dvo_reg;
 	u32 temp = I915_READ(dvo_reg);
 
@@ -245,7 +245,7 @@ static bool intel_dvo_mode_fixup(struct drm_encoder *encoder,
 				 const struct drm_display_mode *mode,
 				 struct drm_display_mode *adjusted_mode)
 {
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(encoder);
+	struct intel_dvo *intel_dvo = enc_to_dvo(to_intel_encoder(encoder));
 
 	/* If we have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,
@@ -279,7 +279,7 @@ static void intel_dvo_mode_set(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(encoder);
+	struct intel_dvo *intel_dvo = enc_to_dvo(to_intel_encoder(encoder));
 	int pipe = intel_crtc->pipe;
 	u32 dvo_val;
 	u32 dvo_reg = intel_dvo->dev.dvo_reg, dvo_srcdim_reg;
@@ -391,7 +391,7 @@ static const struct drm_connector_helper_funcs intel_dvo_connector_helper_funcs 
 
 static void intel_dvo_enc_destroy(struct drm_encoder *encoder)
 {
-	struct intel_dvo *intel_dvo = enc_to_intel_dvo(encoder);
+	struct intel_dvo *intel_dvo = enc_to_dvo(to_intel_encoder(encoder));
 
 	if (intel_dvo->dev.dev_ops->destroy)
 		intel_dvo->dev.dev_ops->destroy(&intel_dvo->dev);
