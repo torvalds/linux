@@ -4105,7 +4105,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	}
 
 	/* All interlaced capable intel hw wants timings in frames. Note though
-	 * that intel_lvds_mode_fixup does some funny tricks with the crtc
+	 * that intel_lvds_compute_config does some funny tricks with the crtc
 	 * timings, so we need to be careful not to clobber these.*/
 	if (!pipe_config->timings_set)
 		drm_mode_set_crtcinfo(adjusted_mode, 0);
@@ -8065,7 +8065,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_display_mode *mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct intel_encoder *encoder;
 	struct intel_crtc_config *pipe_config;
 	int plane_bpp, ret = -EINVAL;
@@ -8110,20 +8109,8 @@ encoder_retry:
 		if (&encoder->new_crtc->base != crtc)
 			continue;
 
-		if (encoder->compute_config) {
-			if (!(encoder->compute_config(encoder, pipe_config))) {
-				DRM_DEBUG_KMS("Encoder config failure\n");
-				goto fail;
-			}
-
-			continue;
-		}
-
-		encoder_funcs = encoder->base.helper_private;
-		if (!(encoder_funcs->mode_fixup(&encoder->base,
-						&pipe_config->requested_mode,
-						&pipe_config->adjusted_mode))) {
-			DRM_DEBUG_KMS("Encoder fixup failed\n");
+		if (!(encoder->compute_config(encoder, pipe_config))) {
+			DRM_DEBUG_KMS("Encoder config failure\n");
 			goto fail;
 		}
 	}
