@@ -241,11 +241,11 @@ static int intel_dvo_mode_valid(struct drm_connector *connector,
 	return intel_dvo->dev.dev_ops->mode_valid(&intel_dvo->dev, mode);
 }
 
-static bool intel_dvo_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
+static bool intel_dvo_compute_config(struct intel_encoder *encoder,
+				     struct intel_crtc_config *pipe_config)
 {
-	struct intel_dvo *intel_dvo = enc_to_dvo(to_intel_encoder(encoder));
+	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 
 	/* If we have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,
@@ -267,7 +267,9 @@ static bool intel_dvo_mode_fixup(struct drm_encoder *encoder,
 	}
 
 	if (intel_dvo->dev.dev_ops->mode_fixup)
-		return intel_dvo->dev.dev_ops->mode_fixup(&intel_dvo->dev, mode, adjusted_mode);
+		return intel_dvo->dev.dev_ops->mode_fixup(&intel_dvo->dev,
+							  &pipe_config->requested_mode,
+							  adjusted_mode);
 
 	return true;
 }
@@ -372,7 +374,6 @@ static void intel_dvo_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
-	.mode_fixup = intel_dvo_mode_fixup,
 	.mode_set = intel_dvo_mode_set,
 };
 
@@ -470,6 +471,7 @@ void intel_dvo_init(struct drm_device *dev)
 	intel_encoder->enable = intel_enable_dvo;
 	intel_encoder->get_hw_state = intel_dvo_get_hw_state;
 	intel_encoder->get_config = intel_dvo_get_config;
+	intel_encoder->compute_config = intel_dvo_compute_config;
 	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
 
 	/* Now, try to find a controller */
