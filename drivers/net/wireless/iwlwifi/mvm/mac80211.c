@@ -575,7 +575,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BF_UPDATED){
 		mvm->bf_allowed_vif = mvmvif;
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 	}
 
 	/*
@@ -615,7 +616,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
  out_free_bf:
 	if (mvm->bf_allowed_vif == mvmvif) {
 		mvm->bf_allowed_vif = NULL;
-		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
+				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
 	}
  out_remove_mac:
 	mvmvif->phy_ctxt = NULL;
@@ -681,7 +683,8 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 
 	if (mvm->bf_allowed_vif == mvmvif) {
 		mvm->bf_allowed_vif = NULL;
-		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
+				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
 	}
 
 	iwl_mvm_vif_dbgfs_clean(mvm, vif);
@@ -799,6 +802,10 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
+
+		/* reset rssi values */
+		mvmvif->bf_data.ave_beacon_signal = 0;
+
 		if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD)) {
 			/* Workaround for FW bug, otherwise FW disables device
 			 * power save upon disassociation
@@ -824,6 +831,15 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_CALIB(mvm, "Changing TX Power to %d\n",
 				bss_conf->txpower);
 		iwl_mvm_set_tx_power(mvm, vif, bss_conf->txpower);
+	}
+
+	if (changes & BSS_CHANGED_CQM) {
+		IWL_DEBUG_MAC80211(mvm, "cqm info_changed");
+		/* reset cqm events tracking */
+		mvmvif->bf_data.last_cqm_event = 0;
+		ret = iwl_mvm_update_beacon_filter(mvm, vif);
+		if (ret)
+			IWL_ERR(mvm, "failed to update CQM thresholds\n");
 	}
 }
 

@@ -233,6 +233,21 @@ enum iwl_mvm_smps_type_request {
 };
 
 /**
+* struct iwl_mvm_vif_bf_data - beacon filtering related data
+* @bf_enabled: indicates if beacon filtering is enabled
+* @ba_enabled: indicated if beacon abort is enabled
+* @last_beacon_signal: last beacon rssi signal in dbm
+* @ave_beacon_signal: average beacon signal
+* @last_cqm_event: rssi of the last cqm event
+*/
+struct iwl_mvm_vif_bf_data {
+	bool bf_enabled;
+	bool ba_enabled;
+	s8 ave_beacon_signal;
+	s8 last_cqm_event;
+};
+
+/**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
  * @id: between 0 and 3
  * @color: to solve races upon MAC addition and removal
@@ -257,8 +272,7 @@ struct iwl_mvm_vif {
 	bool uploaded;
 	bool ap_active;
 	bool monitor_active;
-	/* indicate whether beacon filtering is enabled */
-	bool bf_enabled;
+	struct iwl_mvm_vif_bf_data bf_data;
 
 	u32 ap_beacon_time;
 
@@ -758,6 +772,8 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 				   struct iwl_beacon_filter_cmd *cmd);
 int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif, bool enable);
+int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif);
 
 /* SMPS */
 void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

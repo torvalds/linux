@@ -110,6 +110,23 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 	return ret;
 }
 
+static
+void iwl_mvm_beacon_filter_set_cqm_params(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  struct iwl_beacon_filter_cmd *cmd)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (vif->bss_conf.cqm_rssi_thold) {
+		cmd->bf_energy_delta =
+			cpu_to_le32(vif->bss_conf.cqm_rssi_hyst);
+		/* fw uses an absolute value for this */
+		cmd->bf_roaming_state =
+			cpu_to_le32(-vif->bss_conf.cqm_rssi_thold);
+	}
+	cmd->ba_enable_beacon_abort = cpu_to_le32(mvmvif->bf_data.ba_enabled);
+}
+
 int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif, bool enable)
 {
@@ -120,12 +137,14 @@ int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 		.ba_enable_beacon_abort = cpu_to_le32(enable),
 	};
 
-	if (!mvmvif->bf_enabled)
+	if (!mvmvif->bf_data.bf_enabled)
 		return 0;
 
 	if (mvm->cur_ucode == IWL_UCODE_WOWLAN)
 		cmd.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_D3);
 
+	mvmvif->bf_data.ba_enabled = enable;
+	iwl_mvm_beacon_filter_set_cqm_params(mvm, vif, &cmd);
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
 	return iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
 }
@@ -510,11 +529,12 @@ int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 	    vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
+	iwl_mvm_beacon_filter_set_cqm_params(mvm, vif, &cmd);
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
 
 	if (!ret)
-		mvmvif->bf_enabled = true;
+		mvmvif->bf_data.bf_enabled = true;
 
 	return ret;
 }
@@ -533,9 +553,20 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
 
 	if (!ret)
-		mvmvif->bf_enabled = false;
+		mvmvif->bf_data.bf_enabled = false;
 
 	return ret;
+}
+
+int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (!mvmvif->bf_data.bf_enabled)
+		return 0;
+
+	return iwl_mvm_enable_beacon_filter(mvm, vif);
 }
 
 const struct iwl_mvm_power_ops pm_mac_ops = {
