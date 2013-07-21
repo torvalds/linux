@@ -241,12 +241,18 @@ enum iwl_mvm_smps_type_request {
 * @last_beacon_signal: last beacon rssi signal in dbm
 * @ave_beacon_signal: average beacon signal
 * @last_cqm_event: rssi of the last cqm event
+* @bt_coex_min_thold: minimum threshold for BT coex
+* @bt_coex_max_thold: maximum threshold for BT coex
+* @last_bt_coex_event: rssi of the last BT coex event
 */
 struct iwl_mvm_vif_bf_data {
 	bool bf_enabled;
 	bool ba_enabled;
 	s8 ave_beacon_signal;
 	s8 last_cqm_event;
+	s8 bt_coex_min_thold;
+	s8 bt_coex_max_thold;
+	s8 last_bt_coex_event;
 };
 
 /**

@@ -467,11 +467,14 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		data->reduced_tx_power = false;
 
 		/* ... and there is no need to get reports on RSSI any more. */
-		ieee80211_disable_rssi_reports(vif);
+		mvmvif->bf_data.last_bt_coex_event = 0;
+		mvmvif->bf_data.bt_coex_max_thold = 0;
+		mvmvif->bf_data.bt_coex_min_thold = 0;
 		return;
 	}
 
-	ave_rssi = ieee80211_ave_rssi(vif);
+	/* try to get the avg rssi from fw */
+	ave_rssi = mvmvif->bf_data.ave_beacon_signal;
 
 	/* if the RSSI isn't valid, fake it is very low */
 	if (!ave_rssi)
@@ -499,8 +502,13 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	}
 
 	/* Begin to monitor the RSSI: it may influence the reduced Tx power */
-	ieee80211_enable_rssi_reports(vif, BT_DISABLE_REDUCED_TXPOWER_THRESHOLD,
-				      BT_ENABLE_REDUCED_TXPOWER_THRESHOLD);
+
+	/* reset previous bt coex event tracking */
+	mvmvif->bf_data.last_bt_coex_event = 0;
+	mvmvif->bf_data.bt_coex_max_thold =
+		BT_ENABLE_REDUCED_TXPOWER_THRESHOLD;
+	mvmvif->bf_data.bt_coex_min_thold =
+		BT_DISABLE_REDUCED_TXPOWER_THRESHOLD;
 }
 
 static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
