@@ -2234,6 +2234,8 @@ fec_suspend(struct device *dev)
 		fec_stop(ndev);
 		netif_device_detach(ndev);
 	}
+	if (fep->clk_ptp)
+		clk_disable_unprepare(fep->clk_ptp);
 	if (fep->clk_enet_out)
 		clk_disable_unprepare(fep->clk_enet_out);
 	clk_disable_unprepare(fep->clk_ipg);
@@ -2262,6 +2264,8 @@ fec_resume(struct device *dev)
 	clk_prepare_enable(fep->clk_ipg);
 	if (fep->clk_enet_out)
 		clk_prepare_enable(fep->clk_enet_out);
+	if (fep->clk_ptp)
+		clk_prepare_enable(fep->clk_ptp);
 	if (netif_running(ndev)) {
 		fec_restart(ndev, fep->full_duplex);
 		netif_device_attach(ndev);
