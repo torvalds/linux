@@ -319,14 +319,12 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	return true;
 }
 
-static void intel_lvds_mode_set(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+static void intel_lvds_mode_set(struct intel_encoder *encoder)
 {
 	/*
-	 * The LVDS pin pair will already have been turned on in the
-	 * intel_crtc_mode_set since it has a large impact on the DPLL
-	 * settings.
+	 * We don't do anything here, the LVDS port is fully set up in the pre
+	 * enable hook - the ordering constraints for enabling the lvds port vs.
+	 * enabling the display pll are too strict.
 	 */
 }
 
@@ -506,10 +504,6 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 
 	return 0;
 }
-
-static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
-	.mode_set = intel_lvds_mode_set,
-};
 
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {
 	.get_modes = intel_lvds_get_modes,
@@ -987,6 +981,7 @@ void intel_lvds_init(struct drm_device *dev)
 	intel_encoder->enable = intel_enable_lvds;
 	intel_encoder->pre_enable = intel_pre_enable_lvds;
 	intel_encoder->compute_config = intel_lvds_compute_config;
+	intel_encoder->mode_set = intel_lvds_mode_set;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;
@@ -1003,7 +998,6 @@ void intel_lvds_init(struct drm_device *dev)
 	else
 		intel_encoder->crtc_mask = (1 << 1);
 
-	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->interlace_allowed = false;
