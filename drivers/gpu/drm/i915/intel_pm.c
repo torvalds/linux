@@ -5489,7 +5489,8 @@ void intel_gt_sanitize(struct drm_device *dev)
 	}
 
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
-	intel_disable_gt_powersave(dev);
+	if (INTEL_INFO(dev)->gen >= 6)
+		intel_disable_gt_powersave(dev);
 }
 
 void intel_gt_init(struct drm_device *dev)
