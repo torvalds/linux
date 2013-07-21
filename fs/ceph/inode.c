@@ -1465,7 +1465,14 @@ static void ceph_vmtruncate_work(struct work_struct *work)
 	struct inode *inode = &ci->vfs_inode;
 
 	dout("vmtruncate_work %p\n", inode);
-	mutex_lock(&inode->i_mutex);
+	if (!mutex_trylock(&inode->i_mutex)) {
+		/*
+		 * the i_mutex can be hold by a writer who is waiting for
+		 * caps. wake up waiters, they will do pending vmtruncate.
+		 */
+		wake_up_all(&ci->i_cap_wq);
+		mutex_lock(&inode->i_mutex);
+	}
 	__ceph_do_pending_vmtruncate(inode);
 	mutex_unlock(&inode->i_mutex);
 	iput(inode);
