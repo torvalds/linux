@@ -793,10 +793,10 @@ cdv_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_encoder *encoder;
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int lane_count = 4, bpp = 24;
 	struct cdv_intel_dp_m_n m_n;
-	int pipe = intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 
 	/*
 	 * Find the lane count in the intel_encoder private
@@ -844,7 +844,7 @@ cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode
 {
 	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
 	struct drm_crtc *crtc = encoder->crtc;
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	struct drm_device *dev = encoder->dev;
 
@@ -886,7 +886,7 @@ cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode
 	}
 
 	/* CPT DP's pipe select is decided in TRANS_DP_CTL */
-	if (intel_crtc->pipe == 1)
+	if (gma_crtc->pipe == 1)
 		intel_dp->DP |= DP_PIPEB_SELECT;
 
 	REG_WRITE(intel_dp->output_reg, (intel_dp->DP | DP_PORT_EN));
@@ -901,7 +901,7 @@ cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode
 		else
 			pfit_control = 0;
 
-		pfit_control |= intel_crtc->pipe << PFIT_PIPE_SHIFT;
+		pfit_control |= gma_crtc->pipe << PFIT_PIPE_SHIFT;
 
 		REG_WRITE(PFIT_CONTROL, pfit_control);
 	}

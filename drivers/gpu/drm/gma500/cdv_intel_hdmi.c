@@ -68,7 +68,7 @@ static void cdv_hdmi_mode_set(struct drm_encoder *encoder,
 	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_encoder->dev_priv;
 	u32 hdmib;
 	struct drm_crtc *crtc = encoder->crtc;
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
 	hdmib = (2 << 10);
 
@@ -77,7 +77,7 @@ static void cdv_hdmi_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		hdmib |= HDMI_HSYNC_ACTIVE_HIGH;
 
-	if (intel_crtc->pipe == 1)
+	if (gma_crtc->pipe == 1)
 		hdmib |= HDMIB_PIPE_B_SELECT;
 
 	if (hdmi_priv->has_hdmi_audio) {
@@ -167,7 +167,7 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = connector->encoder;
 
 	if (!strcmp(property->name, "scaling mode") && encoder) {
-		struct psb_intel_crtc *crtc = to_psb_intel_crtc(encoder->crtc);
+		struct gma_crtc *crtc = to_gma_crtc(encoder->crtc);
 		bool centre;
 		uint64_t curValue;
 

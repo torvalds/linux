@@ -95,13 +95,12 @@ static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
 
 	struct drm_device *dev = encoder->dev;
 	struct drm_crtc *crtc = encoder->crtc;
-	struct psb_intel_crtc *psb_intel_crtc =
-					to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int dpll_md_reg;
 	u32 adpa, dpll_md;
 	u32 adpa_reg;
 
-	if (psb_intel_crtc->pipe == 0)
+	if (gma_crtc->pipe == 0)
 		dpll_md_reg = DPLL_A_MD;
 	else
 		dpll_md_reg = DPLL_B_MD;
@@ -124,7 +123,7 @@ static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
-	if (psb_intel_crtc->pipe == 0)
+	if (gma_crtc->pipe == 0)
 		adpa |= ADPA_PIPE_A_SELECT;
 	else
 		adpa |= ADPA_PIPE_B_SELECT;

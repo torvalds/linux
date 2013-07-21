@@ -381,8 +381,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
-	struct psb_intel_crtc *psb_intel_crtc =
-				to_psb_intel_crtc(encoder->crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(encoder->crtc);
 	struct drm_encoder *tmp_encoder;
 	struct drm_display_mode *panel_fixed_mode = mode_dev->panel_fixed_mode;
 	struct psb_intel_encoder *psb_intel_encoder =
@@ -392,11 +391,11 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		panel_fixed_mode = mode_dev->panel_fixed_mode2;
 
 	/* PSB requires the LVDS is on pipe B, MRST has only one pipe anyway */
-	if (!IS_MRST(dev) && psb_intel_crtc->pipe == 0) {
+	if (!IS_MRST(dev) && gma_crtc->pipe == 0) {
 		printk(KERN_ERR "Can't support LVDS on pipe A\n");
 		return false;
 	}
-	if (IS_MRST(dev) && psb_intel_crtc->pipe != 0) {
+	if (IS_MRST(dev) && gma_crtc->pipe != 0) {
 		printk(KERN_ERR "Must use PIPE A\n");
 		return false;
 	}
@@ -585,8 +584,7 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 		return -1;
 
 	if (!strcmp(property->name, "scaling mode")) {
-		struct psb_intel_crtc *crtc =
-					to_psb_intel_crtc(encoder->crtc);
+		struct gma_crtc *crtc = to_gma_crtc(encoder->crtc);
 		uint64_t curval;
 
 		if (!crtc)
