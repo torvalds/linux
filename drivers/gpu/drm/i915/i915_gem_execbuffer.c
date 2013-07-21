@@ -255,7 +255,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 	reloc->delta += target_offset;
 	if (use_cpu_reloc(obj)) {
-		uint32_t page_offset = reloc->offset & ~PAGE_MASK;
+		uint32_t page_offset = offset_in_page(reloc->offset);
 		char *vaddr;
 
 		ret = i915_gem_object_set_to_cpu_domain(obj, 1);
@@ -284,7 +284,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		reloc_page = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
 						      reloc->offset & PAGE_MASK);
 		reloc_entry = (uint32_t __iomem *)
-			(reloc_page + (reloc->offset & ~PAGE_MASK));
+			(reloc_page + offset_in_page(reloc->offset));
 		iowrite32(reloc->delta, reloc_entry);
 		io_mapping_unmap_atomic(reloc_page);
 	}
