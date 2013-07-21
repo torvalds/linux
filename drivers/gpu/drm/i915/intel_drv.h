@@ -208,10 +208,6 @@ struct intel_crtc_config {
 
 	struct drm_display_mode requested_mode;
 	struct drm_display_mode adjusted_mode;
-	/* This flag must be set by the encoder's compute_config callback if it
-	 * changes the crtc timings in the mode to prevent the crtc fixup from
-	 * overwriting them.  Currently only lvds needs that. */
-	bool timings_set;
 	/* Whether to set up the PCH/FDI. Note that we never allow sharing
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;

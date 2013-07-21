@@ -4104,12 +4104,6 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 			return -EINVAL;
 	}
 
-	/* All interlaced capable intel hw wants timings in frames. Note though
-	 * that intel_lvds_compute_config does some funny tricks with the crtc
-	 * timings, so we need to be careful not to clobber these.*/
-	if (!pipe_config->timings_set)
-		drm_mode_set_crtcinfo(adjusted_mode, 0);
-
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
 	 */
@@ -8090,6 +8084,9 @@ encoder_retry:
 	/* Ensure the port clock defaults are reset when retrying. */
 	pipe_config->port_clock = 0;
 	pipe_config->pixel_multiplier = 1;
+
+	/* Fill in default crtc timings, allow encoders to overwrite them. */
+	drm_mode_set_crtcinfo(&pipe_config->adjusted_mode, 0);
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
