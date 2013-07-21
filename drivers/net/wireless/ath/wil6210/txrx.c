@@ -730,12 +730,13 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	return 0;
  dma_error:
 	/* unmap what we have mapped */
-	/* Note: increment @f to operate with positive index */
-	for (f++; f > 0; f--) {
+	nr_frags = f + 1; /* frags mapped + one for skb head */
+	for (f = 0; f < nr_frags; f++) {
 		u16 dmalen;
-		struct wil_ctx *ctx = &vring->ctx[i];
+		struct wil_ctx *ctx;
 
 		i = (swhead + f) % vring->size;
+		ctx = &vring->ctx[i];
 		_d = &(vring->va[i].tx);
 		*d = *_d;
 		_d->dma.status = TX_DMA_STATUS_DU;
