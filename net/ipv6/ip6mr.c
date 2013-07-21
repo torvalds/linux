@@ -110,8 +110,8 @@ static struct kmem_cache *mrt_cachep __read_mostly;
 static struct mr6_table *ip6mr_new_table(struct net *net, u32 id);
 static void ip6mr_free_table(struct mr6_table *mrt);
 
-static int ip6_mr_forward(struct net *net, struct mr6_table *mrt,
-			  struct sk_buff *skb, struct mfc6_cache *cache);
+static void ip6_mr_forward(struct net *net, struct mr6_table *mrt,
+			   struct sk_buff *skb, struct mfc6_cache *cache);
 static int ip6mr_cache_report(struct mr6_table *mrt, struct sk_buff *pkt,
 			      mifi_t mifi, int assert);
 static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
@@ -2069,8 +2069,8 @@ static int ip6mr_find_vif(struct mr6_table *mrt, struct net_device *dev)
 	return ct;
 }
 
-static int ip6_mr_forward(struct net *net, struct mr6_table *mrt,
-			  struct sk_buff *skb, struct mfc6_cache *cache)
+static void ip6_mr_forward(struct net *net, struct mr6_table *mrt,
+			   struct sk_buff *skb, struct mfc6_cache *cache)
 {
 	int psend = -1;
 	int vif, ct;
@@ -2151,12 +2151,11 @@ forward:
 last_forward:
 	if (psend != -1) {
 		ip6mr_forward2(net, mrt, skb, cache, psend);
-		return 0;
+		return;
 	}
 
 dont_forward:
 	kfree_skb(skb);
-	return 0;
 }
 
 
