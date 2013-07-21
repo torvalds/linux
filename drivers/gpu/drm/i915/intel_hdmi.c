@@ -591,14 +591,13 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 	intel_hdmi_set_spd_infoframe(encoder);
 }
 
-static void intel_hdmi_mode_set(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+static void intel_hdmi_mode_set(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
 	u32 hdmi_val;
 
 	hdmi_val = SDVO_ENCODING_HDMI;
@@ -609,7 +608,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		hdmi_val |= SDVO_HSYNC_ACTIVE_HIGH;
 
-	if (intel_crtc->config.pipe_bpp > 24)
+	if (crtc->config.pipe_bpp > 24)
 		hdmi_val |= HDMI_COLOR_FORMAT_12bpc;
 	else
 		hdmi_val |= SDVO_COLOR_FORMAT_8bpc;
@@ -620,21 +619,21 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 
 	if (intel_hdmi->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
-				 pipe_name(intel_crtc->pipe));
+				 pipe_name(crtc->pipe));
 		hdmi_val |= SDVO_AUDIO_ENABLE;
 		hdmi_val |= HDMI_MODE_SELECT_HDMI;
-		intel_write_eld(encoder, adjusted_mode);
+		intel_write_eld(&encoder->base, adjusted_mode);
 	}
 
 	if (HAS_PCH_CPT(dev))
-		hdmi_val |= SDVO_PIPE_SEL_CPT(intel_crtc->pipe);
+		hdmi_val |= SDVO_PIPE_SEL_CPT(crtc->pipe);
 	else
-		hdmi_val |= SDVO_PIPE_SEL(intel_crtc->pipe);
+		hdmi_val |= SDVO_PIPE_SEL(crtc->pipe);
 
 	I915_WRITE(intel_hdmi->hdmi_reg, hdmi_val);
 	POSTING_READ(intel_hdmi->hdmi_reg);
 
-	intel_hdmi->set_infoframes(encoder, adjusted_mode);
+	intel_hdmi->set_infoframes(&encoder->base, adjusted_mode);
 }
 
 static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
@@ -1116,10 +1115,6 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
-	.mode_set = intel_hdmi_mode_set,
-};
-
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_hdmi_detect,
@@ -1242,9 +1237,9 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
 
 	intel_encoder->compute_config = intel_hdmi_compute_config;
+	intel_encoder->mode_set = intel_hdmi_mode_set;
 	intel_encoder->enable = intel_enable_hdmi;
 	intel_encoder->disable = intel_disable_hdmi;
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
