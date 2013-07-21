@@ -163,8 +163,8 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 temp;
 
@@ -292,9 +292,9 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk = 0;
 	struct oaktrail_clock_t clock;
@@ -313,10 +313,10 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	memcpy(&psb_intel_crtc->saved_mode,
+	memcpy(&gma_crtc->saved_mode,
 		mode,
 		sizeof(struct drm_display_mode));
-	memcpy(&psb_intel_crtc->saved_adjusted_mode,
+	memcpy(&gma_crtc->saved_adjusted_mode,
 		adjusted_mode,
 		sizeof(struct drm_display_mode));
 
@@ -499,9 +499,9 @@ static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
 

@@ -162,7 +162,7 @@ struct psb_intel_crtc_state {
 	uint32_t savePalette[256];
 };
 
-struct psb_intel_crtc {
+struct gma_crtc {
 	struct drm_crtc base;
 	int pipe;
 	int plane;
@@ -193,8 +193,8 @@ struct psb_intel_crtc {
 	const struct gma_clock_funcs *clock_funcs;
 };
 
-#define to_psb_intel_crtc(x)	\
-		container_of(x, struct psb_intel_crtc, base)
+#define to_gma_crtc(x)	\
+		container_of(x, struct gma_crtc, base)
 #define to_psb_intel_connector(x) \
 		container_of(x, struct psb_intel_connector, base)
 #define to_psb_intel_encoder(x)	\

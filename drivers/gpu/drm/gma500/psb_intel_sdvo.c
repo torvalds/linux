@@ -987,7 +987,7 @@ static void psb_intel_sdvo_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_crtc *crtc = encoder->crtc;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct psb_intel_sdvo *psb_intel_sdvo = to_psb_intel_sdvo(encoder);
 	u32 sdvox;
 	struct psb_intel_sdvo_in_out_map in_out;
@@ -1070,7 +1070,7 @@ static void psb_intel_sdvo_mode_set(struct drm_encoder *encoder,
 	}
 	sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
 
-	if (psb_intel_crtc->pipe == 1)
+	if (gma_crtc->pipe == 1)
 		sdvox |= SDVO_PIPE_B_SELECT;
 	if (psb_intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;

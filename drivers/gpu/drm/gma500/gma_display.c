@@ -58,9 +58,9 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
 	u32 dspcntr;
@@ -140,8 +140,8 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	const struct psb_offset *map = &dev_priv->regmap[gma_crtc->pipe];
 	int palreg = map->palette;
 	int i;
 
@@ -152,24 +152,24 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 	if (gma_power_begin(dev, false)) {
 		for (i = 0; i < 256; i++) {
 			REG_WRITE(palreg + 4 * i,
-				  ((psb_intel_crtc->lut_r[i] +
-				  psb_intel_crtc->lut_adj[i]) << 16) |
-				  ((psb_intel_crtc->lut_g[i] +
-				  psb_intel_crtc->lut_adj[i]) << 8) |
-				  (psb_intel_crtc->lut_b[i] +
-				  psb_intel_crtc->lut_adj[i]));
+				  ((gma_crtc->lut_r[i] +
+				  gma_crtc->lut_adj[i]) << 16) |
+				  ((gma_crtc->lut_g[i] +
+				  gma_crtc->lut_adj[i]) << 8) |
+				  (gma_crtc->lut_b[i] +
+				  gma_crtc->lut_adj[i]));
 		}
 		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
 			/* FIXME: Why pipe[0] and not pipe[..._crtc->pipe]? */
 			dev_priv->regs.pipe[0].palette[i] =
-				  ((psb_intel_crtc->lut_r[i] +
-				  psb_intel_crtc->lut_adj[i]) << 16) |
-				  ((psb_intel_crtc->lut_g[i] +
-				  psb_intel_crtc->lut_adj[i]) << 8) |
-				  (psb_intel_crtc->lut_b[i] +
-				  psb_intel_crtc->lut_adj[i]);
+				  ((gma_crtc->lut_r[i] +
+				  gma_crtc->lut_adj[i]) << 16) |
+				  ((gma_crtc->lut_g[i] +
+				  gma_crtc->lut_adj[i]) << 8) |
+				  (gma_crtc->lut_b[i] +
+				  gma_crtc->lut_adj[i]);
 		}
 
 	}
@@ -178,14 +178,14 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 void gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
 			u32 start, u32 size)
 {
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int i;
 	int end = (start + size > 256) ? 256 : start + size;
 
 	for (i = start; i < end; i++) {
-		psb_intel_crtc->lut_r[i] = red[i] >> 8;
-		psb_intel_crtc->lut_g[i] = green[i] >> 8;
-		psb_intel_crtc->lut_b[i] = blue[i] >> 8;
+		gma_crtc->lut_r[i] = red[i] >> 8;
+		gma_crtc->lut_g[i] = green[i] >> 8;
+		gma_crtc->lut_b[i] = blue[i] >> 8;
 	}
 
 	gma_crtc_load_lut(crtc);
@@ -201,8 +201,8 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 temp;
 
@@ -217,10 +217,10 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
-		if (psb_intel_crtc->active)
+		if (gma_crtc->active)
 			break;
 
-		psb_intel_crtc->active = true;
+		gma_crtc->active = true;
 
 		/* Enable the DPLL */
 		temp = REG_READ(map->dpll);
@@ -268,10 +268,10 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* psb_intel_crtc_dpms_video(crtc, true); TODO */
 		break;
 	case DRM_MODE_DPMS_OFF:
-		if (!psb_intel_crtc->active)
+		if (!gma_crtc->active)
 			break;
 
-		psb_intel_crtc->active = false;
+		gma_crtc->active = false;
 
 		/* Give the overlay scaler a chance to disable
 		 * if it's on this pipe */
@@ -334,14 +334,14 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
 	uint32_t temp;
 	size_t addr = 0;
 	struct gtt_range *gt;
-	struct gtt_range *cursor_gt = psb_intel_crtc->cursor_gt;
+	struct gtt_range *cursor_gt = gma_crtc->cursor_gt;
 	struct drm_gem_object *obj;
 	void *tmp_dst, *tmp_src;
 	int ret = 0, i, cursor_pages;
@@ -357,12 +357,12 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 		}
 
 		/* Unpin the old GEM object */
-		if (psb_intel_crtc->cursor_obj) {
-			gt = container_of(psb_intel_crtc->cursor_obj,
+		if (gma_crtc->cursor_obj) {
+			gt = container_of(gma_crtc->cursor_obj,
 					  struct gtt_range, gem);
 			psb_gtt_unpin(gt);
-			drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
-			psb_intel_crtc->cursor_obj = NULL;
+			drm_gem_object_unreference(gma_crtc->cursor_obj);
+			gma_crtc->cursor_obj = NULL;
 		}
 
 		return 0;
@@ -415,10 +415,10 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			tmp_dst += PAGE_SIZE;
 		}
 
-		addr = psb_intel_crtc->cursor_addr;
+		addr = gma_crtc->cursor_addr;
 	} else {
 		addr = gt->offset;
-		psb_intel_crtc->cursor_addr = addr;
+		gma_crtc->cursor_addr = addr;
 	}
 
 	temp = 0;
@@ -433,14 +433,13 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	/* unpin the old bo */
-	if (psb_intel_crtc->cursor_obj) {
-		gt = container_of(psb_intel_crtc->cursor_obj,
-							struct gtt_range, gem);
+	if (gma_crtc->cursor_obj) {
+		gt = container_of(gma_crtc->cursor_obj, struct gtt_range, gem);
 		psb_gtt_unpin(gt);
-		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
+		drm_gem_object_unreference(gma_crtc->cursor_obj);
 	}
 
-	psb_intel_crtc->cursor_obj = obj;
+	gma_crtc->cursor_obj = obj;
 	return ret;
 
 unref_cursor:
@@ -451,8 +450,8 @@ unref_cursor:
 int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	uint32_t temp = 0;
 	uint32_t addr;
 
@@ -468,7 +467,7 @@ int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
 	temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 
-	addr = psb_intel_crtc->cursor_addr;
+	addr = gma_crtc->cursor_addr;
 
 	if (gma_power_begin(dev, false)) {
 		REG_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
@@ -512,11 +511,11 @@ void gma_crtc_disable(struct drm_crtc *crtc)
 
 void gma_crtc_destroy(struct drm_crtc *crtc)
 {
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
-	kfree(psb_intel_crtc->crtc_state);
+	kfree(gma_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);
-	kfree(psb_intel_crtc);
+	kfree(gma_crtc);
 }
 
 int gma_crtc_set_config(struct drm_mode_set *set)
@@ -542,9 +541,9 @@ void gma_crtc_save(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	struct psb_intel_crtc_state *crtc_state = psb_intel_crtc->crtc_state;
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	struct psb_intel_crtc_state *crtc_state = gma_crtc->crtc_state;
+	const struct psb_offset *map = &dev_priv->regmap[gma_crtc->pipe];
 	uint32_t palette_reg;
 	int i;
 
@@ -585,9 +584,9 @@ void gma_crtc_restore(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc =  to_psb_intel_crtc(crtc);
-	struct psb_intel_crtc_state *crtc_state = psb_intel_crtc->crtc_state;
-	const struct psb_offset *map = &dev_priv->regmap[psb_intel_crtc->pipe];
+	struct gma_crtc *gma_crtc =  to_gma_crtc(crtc);
+	struct psb_intel_crtc_state *crtc_state = gma_crtc->crtc_state;
+	const struct psb_offset *map = &dev_priv->regmap[gma_crtc->pipe];
 	uint32_t palette_reg;
 	int i;
 
@@ -720,7 +719,7 @@ bool gma_find_best_pll(const struct gma_limit_t *limit,
 {
 	struct drm_device *dev = crtc->dev;
 	const struct gma_clock_funcs *clock_funcs =
-					to_psb_intel_crtc(crtc)->clock_funcs;
+						to_gma_crtc(crtc)->clock_funcs;
 	struct gma_clock_t clock;
 	int err = target;
 

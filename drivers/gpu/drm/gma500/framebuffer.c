@@ -520,21 +520,21 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 static void psbfb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 							u16 blue, int regno)
 {
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
-	intel_crtc->lut_r[regno] = red >> 8;
-	intel_crtc->lut_g[regno] = green >> 8;
-	intel_crtc->lut_b[regno] = blue >> 8;
+	gma_crtc->lut_r[regno] = red >> 8;
+	gma_crtc->lut_g[regno] = green >> 8;
+	gma_crtc->lut_b[regno] = blue >> 8;
 }
 
 static void psbfb_gamma_get(struct drm_crtc *crtc, u16 *red,
 					u16 *green, u16 *blue, int regno)
 {
-	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 
-	*red = intel_crtc->lut_r[regno] << 8;
-	*green = intel_crtc->lut_g[regno] << 8;
-	*blue = intel_crtc->lut_b[regno] << 8;
+	*red = gma_crtc->lut_r[regno] << 8;
+	*green = gma_crtc->lut_g[regno] << 8;
+	*blue = gma_crtc->lut_b[regno] << 8;
 }
 
 static int psbfb_probe(struct drm_fb_helper *helper,

@@ -441,7 +441,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	struct psb_intel_crtc *psb_intel_crtc;
+	struct gma_crtc *gma_crtc;
 	int i = 0;
 	int32_t obj_id;
 
@@ -454,10 +454,10 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 
 	connector = obj_to_connector(obj);
 	crtc = connector->encoder->crtc;
-	psb_intel_crtc = to_psb_intel_crtc(crtc);
+	gma_crtc = to_gma_crtc(crtc);
 
 	for (i = 0; i < 256; i++)
-		psb_intel_crtc->lut_adj[i] = lut_arg->lut[i];
+		gma_crtc->lut_adj[i] = lut_arg->lut[i];
 
 	gma_crtc_load_lut(crtc);
 

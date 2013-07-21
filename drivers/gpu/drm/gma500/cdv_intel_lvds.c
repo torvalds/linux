@@ -356,8 +356,7 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(
-							encoder->crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(encoder->crtc);
 	u32 pfit_control;
 
 	/*
@@ -379,7 +378,7 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 	else
 		pfit_control = 0;
 
-	pfit_control |= psb_intel_crtc->pipe << PFIT_PIPE_SHIFT;
+	pfit_control |= gma_crtc->pipe << PFIT_PIPE_SHIFT;
 
 	if (dev_priv->lvds_dither)
 		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
@@ -461,8 +460,7 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = connector->encoder;
 
 	if (!strcmp(property->name, "scaling mode") && encoder) {
-		struct psb_intel_crtc *crtc =
-					to_psb_intel_crtc(encoder->crtc);
+		struct gma_crtc *crtc = to_gma_crtc(encoder->crtc);
 		uint64_t curValue;
 
 		if (!crtc)

@@ -222,8 +222,8 @@ static int
 cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 		       struct gma_clock_t *clock, bool is_lvds, u32 ddi_select)
 {
-	struct psb_intel_crtc *psb_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	u32 m, n_vco, p;
 	int ret = 0;
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
@@ -458,12 +458,12 @@ static bool cdv_intel_pipe_enabled(struct drm_device *dev, int pipe)
 {
 	struct drm_crtc *crtc;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = NULL;
+	struct gma_crtc *gma_crtc = NULL;
 
 	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-	psb_intel_crtc = to_psb_intel_crtc(crtc);
+	gma_crtc = to_gma_crtc(crtc);
 
-	if (crtc->fb == NULL || !psb_intel_crtc->active)
+	if (crtc->fb == NULL || !gma_crtc->active)
 		return false;
 	return true;
 }
@@ -489,11 +489,11 @@ static bool cdv_intel_single_pipe_active (struct drm_device *dev)
 
 static bool is_pipeb_lvds(struct drm_device *dev, struct drm_crtc *crtc)
 {
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
 
-	if (psb_intel_crtc->pipe != 1)
+	if (gma_crtc->pipe != 1)
 		return false;
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
@@ -616,8 +616,8 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk;
 	struct gma_clock_t clock;
@@ -693,7 +693,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	drm_mode_debug_printmodeline(adjusted_mode);
 	
-	limit = psb_intel_crtc->clock_funcs->limit(crtc, refclk);
+	limit = gma_crtc->clock_funcs->limit(crtc, refclk);
 
 	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk,
 				 &clock);
@@ -883,8 +883,8 @@ static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 				struct drm_crtc *crtc)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 dpll;
 	u32 fp;
@@ -961,8 +961,8 @@ static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 					     struct drm_crtc *crtc)
 {
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
 	const struct psb_offset *map = &dev_priv->regmap[pipe];

@@ -106,9 +106,9 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	int refclk;
 	struct gma_clock_t clock;
@@ -148,7 +148,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	refclk = 96000;
 
-	limit = psb_intel_crtc->clock_funcs->limit(crtc, refclk);
+	limit = gma_crtc->clock_funcs->limit(crtc, refclk);
 
 	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk,
 				 &clock);
@@ -308,9 +308,9 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 static int psb_intel_crtc_clock_get(struct drm_device *dev,
 				struct drm_crtc *crtc)
 {
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int pipe = psb_intel_crtc->pipe;
+	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	u32 dpll;
 	u32 fp;
@@ -384,8 +384,8 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 					     struct drm_crtc *crtc)
 {
-	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	int pipe = psb_intel_crtc->pipe;
+	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+	int pipe = gma_crtc->pipe;
 	struct drm_display_mode *mode;
 	int htot;
 	int hsync;
@@ -459,7 +459,7 @@ const struct gma_clock_funcs psb_clock_funcs = {
  * to zero. This is a workaround for h/w defect on Oaktrail
  */
 static void psb_intel_cursor_init(struct drm_device *dev,
-				  struct psb_intel_crtc *psb_intel_crtc)
+				  struct gma_crtc *gma_crtc)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 control[3] = { CURACNTR, CURBCNTR, CURCCNTR };
@@ -472,91 +472,87 @@ static void psb_intel_cursor_init(struct drm_device *dev,
 		 */
 		cursor_gt = psb_gtt_alloc_range(dev, 4 * PAGE_SIZE, "cursor", 1);
 		if (!cursor_gt) {
-			psb_intel_crtc->cursor_gt = NULL;
+			gma_crtc->cursor_gt = NULL;
 			goto out;
 		}
-		psb_intel_crtc->cursor_gt = cursor_gt;
-		psb_intel_crtc->cursor_addr = dev_priv->stolen_base +
+		gma_crtc->cursor_gt = cursor_gt;
+		gma_crtc->cursor_addr = dev_priv->stolen_base +
 							cursor_gt->offset;
 	} else {
-		psb_intel_crtc->cursor_gt = NULL;
+		gma_crtc->cursor_gt = NULL;
 	}
 
 out:
-	REG_WRITE(control[psb_intel_crtc->pipe], 0);
-	REG_WRITE(base[psb_intel_crtc->pipe], 0);
+	REG_WRITE(control[gma_crtc->pipe], 0);
+	REG_WRITE(base[gma_crtc->pipe], 0);
 }
 
 void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 		     struct psb_intel_mode_device *mode_dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc;
+	struct gma_crtc *gma_crtc;
 	int i;
 	uint16_t *r_base, *g_base, *b_base;
 
 	/* We allocate a extra array of drm_connector pointers
 	 * for fbdev after the crtc */
-	psb_intel_crtc =
-	    kzalloc(sizeof(struct psb_intel_crtc) +
-		    (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)),
-		    GFP_KERNEL);
-	if (psb_intel_crtc == NULL)
+	gma_crtc = kzalloc(sizeof(struct gma_crtc) +
+			(INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)),
+			GFP_KERNEL);
+	if (gma_crtc == NULL)
 		return;
 
-	psb_intel_crtc->crtc_state =
+	gma_crtc->crtc_state =
 		kzalloc(sizeof(struct psb_intel_crtc_state), GFP_KERNEL);
-	if (!psb_intel_crtc->crtc_state) {
+	if (!gma_crtc->crtc_state) {
 		dev_err(dev->dev, "Crtc state error: No memory\n");
-		kfree(psb_intel_crtc);
+		kfree(gma_crtc);
 		return;
 	}
 
 	/* Set the CRTC operations from the chip specific data */
-	drm_crtc_init(dev, &psb_intel_crtc->base, dev_priv->ops->crtc_funcs);
+	drm_crtc_init(dev, &gma_crtc->base, dev_priv->ops->crtc_funcs);
 
 	/* Set the CRTC clock functions from chip specific data */
-	psb_intel_crtc->clock_funcs = dev_priv->ops->clock_funcs;
+	gma_crtc->clock_funcs = dev_priv->ops->clock_funcs;
 
-	drm_mode_crtc_set_gamma_size(&psb_intel_crtc->base, 256);
-	psb_intel_crtc->pipe = pipe;
-	psb_intel_crtc->plane = pipe;
+	drm_mode_crtc_set_gamma_size(&gma_crtc->base, 256);
+	gma_crtc->pipe = pipe;
+	gma_crtc->plane = pipe;
 
-	r_base = psb_intel_crtc->base.gamma_store;
+	r_base = gma_crtc->base.gamma_store;
 	g_base = r_base + 256;
 	b_base = g_base + 256;
 	for (i = 0; i < 256; i++) {
-		psb_intel_crtc->lut_r[i] = i;
-		psb_intel_crtc->lut_g[i] = i;
-		psb_intel_crtc->lut_b[i] = i;
+		gma_crtc->lut_r[i] = i;
+		gma_crtc->lut_g[i] = i;
+		gma_crtc->lut_b[i] = i;
 		r_base[i] = i << 8;
 		g_base[i] = i << 8;
 		b_base[i] = i << 8;
 
-		psb_intel_crtc->lut_adj[i] = 0;
+		gma_crtc->lut_adj[i] = 0;
 	}
 
-	psb_intel_crtc->mode_dev = mode_dev;
-	psb_intel_crtc->cursor_addr = 0;
+	gma_crtc->mode_dev = mode_dev;
+	gma_crtc->cursor_addr = 0;
 
-	drm_crtc_helper_add(&psb_intel_crtc->base,
+	drm_crtc_helper_add(&gma_crtc->base,
 						dev_priv->ops->crtc_helper);
 
 	/* Setup the array of drm_connector pointer array */
-	psb_intel_crtc->mode_set.crtc = &psb_intel_crtc->base;
+	gma_crtc->mode_set.crtc = &gma_crtc->base;
 	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
-	       dev_priv->plane_to_crtc_mapping[psb_intel_crtc->plane] != NULL);
-	dev_priv->plane_to_crtc_mapping[psb_intel_crtc->plane] =
-							&psb_intel_crtc->base;
-	dev_priv->pipe_to_crtc_mapping[psb_intel_crtc->pipe] =
-							&psb_intel_crtc->base;
-	psb_intel_crtc->mode_set.connectors =
-	    (struct drm_connector **) (psb_intel_crtc + 1);
-	psb_intel_crtc->mode_set.num_connectors = 0;
-	psb_intel_cursor_init(dev, psb_intel_crtc);
+	       dev_priv->plane_to_crtc_mapping[gma_crtc->plane] != NULL);
+	dev_priv->plane_to_crtc_mapping[gma_crtc->plane] = &gma_crtc->base;
+	dev_priv->pipe_to_crtc_mapping[gma_crtc->pipe] = &gma_crtc->base;
+	gma_crtc->mode_set.connectors = (struct drm_connector **)(gma_crtc + 1);
+	gma_crtc->mode_set.num_connectors = 0;
+	psb_intel_cursor_init(dev, gma_crtc);
 
 	/* Set to true so that the pipe is forced off on initial config. */
-	psb_intel_crtc->active = true;
+	gma_crtc->active = true;
 }
 
 int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
@@ -565,7 +561,7 @@ int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_psb_get_pipe_from_crtc_id_arg *pipe_from_crtc_id = data;
 	struct drm_mode_object *drmmode_obj;
-	struct psb_intel_crtc *crtc;
+	struct gma_crtc *crtc;
 
 	if (!dev_priv) {
 		dev_err(dev->dev, "called with no initialization\n");
@@ -580,7 +576,7 @@ int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	crtc = to_psb_intel_crtc(obj_to_crtc(drmmode_obj));
+	crtc = to_gma_crtc(obj_to_crtc(drmmode_obj));
 	pipe_from_crtc_id->pipe = crtc->pipe;
 
 	return 0;
@@ -591,8 +587,8 @@ struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
 	struct drm_crtc *crtc = NULL;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-		if (psb_intel_crtc->pipe == pipe)
+		struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
+		if (gma_crtc->pipe == pipe)
 			break;
 	}
 	return crtc;
