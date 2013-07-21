@@ -18,6 +18,9 @@
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
 #include <linux/moduleparam.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <net/ipv6.h>
 
 #include "wil6210.h"
 #include "wmi.h"
@@ -407,6 +410,21 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 		return NULL;
 	}
 
+	/* L4 IDENT is on when HW calculated checksum, check status
+	 * and in case of error drop the packet
+	 * higher stack layers will handle retransmission (if required)
+	 */
+	if (d->dma.status & RX_DMA_STATUS_L4_IDENT) {
+		/* L4 protocol identified, csum calculated */
+		if ((d->dma.error & RX_DMA_ERROR_L4_ERR) == 0) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		} else {
+			wil_err(wil, "Incorrect checksum reported\n");
+			kfree_skb(skb);
+			return NULL;
+		}
+	}
+
 	ds_bits = wil_rxdesc_ds_bits(d);
 	if (ds_bits == 1) {
 		/*
@@ -646,6 +664,53 @@ static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len,
 	return 0;
 }
 
+static int wil_tx_desc_offload_cksum_set(struct wil6210_priv *wil,
+				struct vring_tx_desc *d,
+				struct sk_buff *skb)
+{
+	int protocol;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	switch (skb->protocol) {
+	case cpu_to_be16(ETH_P_IP):
+		protocol = ip_hdr(skb)->protocol;
+		break;
+	case cpu_to_be16(ETH_P_IPV6):
+		protocol = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (protocol) {
+	case IPPROTO_TCP:
+		d->dma.d0 |= (2 << DMA_CFG_DESC_TX_0_L4_TYPE_POS);
+		/* L4 header len: TCP header length */
+		d->dma.d0 |=
+		(tcp_hdrlen(skb) & DMA_CFG_DESC_TX_0_L4_LENGTH_MSK);
+		break;
+	case IPPROTO_UDP:
+		/* L4 header len: UDP header length */
+		d->dma.d0 |=
+		(sizeof(struct udphdr) & DMA_CFG_DESC_TX_0_L4_LENGTH_MSK);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	d->dma.ip_length = skb_network_header_len(skb);
+	d->dma.b11 = ETH_HLEN; /* MAC header length */
+	d->dma.b11 |= BIT(DMA_CFG_DESC_TX_OFFLOAD_CFG_L3T_IPV4_POS);
+	/* Enable TCP/UDP checksum */
+	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_TCP_UDP_CHECKSUM_EN_POS);
+	/* Calculate pseudo-header */
+	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_PSEUDO_HEADER_CALC_EN_POS);
+
+	return 0;
+}
+
 static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 			struct sk_buff *skb)
 {
@@ -655,7 +720,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	u32 swhead = vring->swhead;
 	int avail = wil_vring_avail_tx(vring);
 	int nr_frags = skb_shinfo(skb)->nr_frags;
-	uint f;
+	uint f = 0;
 	int vring_index = vring - wil->vring_tx;
 	uint i = swhead;
 	dma_addr_t pa;
@@ -686,13 +751,20 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		return -EINVAL;
 	/* 1-st segment */
 	wil_tx_desc_map(d, pa, skb_headlen(skb), vring_index);
+	/* Process TCP/UDP checksum offloading */
+	if (wil_tx_desc_offload_cksum_set(wil, d, skb)) {
+		wil_err(wil, "VRING #%d Failed to set cksum, drop packet\n",
+			vring_index);
+		goto dma_error;
+	}
+
 	d->mac.d[2] |= ((nr_frags + 1) <<
 		       MAC_CFG_DESC_TX_2_NUM_OF_DESCRIPTORS_POS);
 	if (nr_frags)
 		*_d = *d;
 
 	/* middle segments */
-	for (f = 0; f < nr_frags; f++) {
+	for (; f < nr_frags; f++) {
 		const struct skb_frag_struct *frag =
 				&skb_shinfo(skb)->frags[f];
 		int len = skb_frag_size(frag);
