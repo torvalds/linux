@@ -6220,11 +6220,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config.adjusted_mode;
 	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	int ret;
@@ -6243,12 +6240,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			encoder->base.base.id,
 			drm_get_encoder_name(&encoder->base),
 			mode->base.id, mode->name);
-		if (encoder->mode_set) {
-			encoder->mode_set(encoder);
-		} else {
-			encoder_funcs = encoder->base.helper_private;
-			encoder_funcs->mode_set(&encoder->base, mode, adjusted_mode);
-		}
+		encoder->mode_set(encoder);
 	}
 
 	return 0;
