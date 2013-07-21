@@ -1446,8 +1446,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	if (host->devtype_data->needs_ip) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -ENODEV;
 		host->regs_ip = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(host->regs_ip))
 			return PTR_ERR(host->regs_ip);
@@ -1456,9 +1454,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	}
-
-	if (!res)
-		return -ENODEV;
 
 	host->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->base))
