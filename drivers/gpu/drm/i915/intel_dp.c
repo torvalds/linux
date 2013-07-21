@@ -844,15 +844,14 @@ static void ironlake_set_pll_cpu_edp(struct intel_dp *intel_dp)
 	udelay(500);
 }
 
-static void
-intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
-		  struct drm_display_mode *adjusted_mode)
+static void intel_dp_mode_set(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
-	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
 
 	/*
 	 * There are four kinds of DP registers:
@@ -884,7 +883,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
 				 pipe_name(crtc->pipe));
 		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
-		intel_write_eld(encoder, adjusted_mode);
+		intel_write_eld(&encoder->base, adjusted_mode);
 	}
 
 	intel_dp_init_link_config(intel_dp);
@@ -3062,10 +3061,6 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_dig_port);
 }
 
-static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
-	.mode_set = intel_dp_mode_set,
-};
-
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_dp_detect,
@@ -3545,9 +3540,9 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(&intel_encoder->base, &intel_dp_helper_funcs);
 
 	intel_encoder->compute_config = intel_dp_compute_config;
+	intel_encoder->mode_set = intel_dp_mode_set;
 	intel_encoder->enable = intel_enable_dp;
 	intel_encoder->pre_enable = intel_pre_enable_dp;
 	intel_encoder->disable = intel_disable_dp;
