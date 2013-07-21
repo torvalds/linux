@@ -52,7 +52,6 @@ struct pci_controller {
 /*
  * Used by boards to register their PCI busses before the actual scanning.
  */
-extern struct pci_controller * alloc_pci_controller(void);
 extern void register_pci_controller(struct pci_controller *hose);
 
 /*

@@ -16,6 +16,7 @@
 struct pci_sys_data;
 struct pci_ops;
 struct pci_bus;
+struct device;
 
 struct hw_pci {
 #ifdef CONFIG_PCI_DOMAINS
@@ -68,7 +69,16 @@ struct pci_sys_data {
 /*
  * Call this with your hw_pci struct to initialise the PCI system.
  */
-void pci_common_init(struct hw_pci *);
+void pci_common_init_dev(struct device *, struct hw_pci *);
+
+/*
+ * Compatibility wrapper for older platforms that do not care about
+ * passing the parent device.
+ */
+static inline void pci_common_init(struct hw_pci *hw)
+{
+	pci_common_init_dev(NULL, hw);
+}
 
 /*
  * Setup early fixed I/O mapping.
@@ -95,10 +105,5 @@ extern void dc21285_postinit(void);
 extern struct pci_ops via82c505_ops;
 extern int via82c505_setup(int nr, struct pci_sys_data *);
 extern void via82c505_init(void *sysdata);
-
-extern struct pci_ops pci_v3_ops;
-extern int pci_v3_setup(int nr, struct pci_sys_data *);
-extern void pci_v3_preinit(void);
-extern void pci_v3_postinit(void);
 
 #endif /* __ASM_MACH_PCI_H */

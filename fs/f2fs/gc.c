@@ -76,7 +76,9 @@ static int gc_thread_func(void *data)
 		else
 			wait_ms = increase_sleep_time(wait_ms);
 
+#ifdef CONFIG_F2FS_STAT_FS
 		sbi->bg_gc++;
+#endif
 
 		/* if return value is not zero, no victim was selected */
 		if (f2fs_gc(sbi))
@@ -89,23 +91,28 @@ int start_gc_thread(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_gc_kthread *gc_th;
 	dev_t dev = sbi->sb->s_bdev->bd_dev;
+	int err = 0;
 
 	if (!test_opt(sbi, BG_GC))
-		return 0;
+		goto out;
 	gc_th = kmalloc(sizeof(struct f2fs_gc_kthread), GFP_KERNEL);
-	if (!gc_th)
-		return -ENOMEM;
+	if (!gc_th) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	sbi->gc_thread = gc_th;
 	init_waitqueue_head(&sbi->gc_thread->gc_wait_queue_head);
 	sbi->gc_thread->f2fs_gc_task = kthread_run(gc_thread_func, sbi,
 			"f2fs_gc-%u:%u", MAJOR(dev), MINOR(dev));
 	if (IS_ERR(gc_th->f2fs_gc_task)) {
+		err = PTR_ERR(gc_th->f2fs_gc_task);
 		kfree(gc_th);
 		sbi->gc_thread = NULL;
-		return -ENOMEM;
 	}
-	return 0;
+
+out:
+	return err;
 }
 
 void stop_gc_thread(struct f2fs_sb_info *sbi)
@@ -234,14 +241,14 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 	struct victim_sel_policy p;
-	unsigned int secno;
+	unsigned int secno, max_cost;
 	int nsearched = 0;
 
 	p.alloc_mode = alloc_mode;
 	select_policy(sbi, gc_type, type, &p);
 
 	p.min_segno = NULL_SEGNO;
-	p.min_cost = get_max_cost(sbi, &p);
+	p.min_cost = max_cost = get_max_cost(sbi, &p);
 
 	mutex_lock(&dirty_i->seglist_lock);
 
@@ -280,7 +287,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 			p.min_cost = cost;
 		}
 
-		if (cost == get_max_cost(sbi, &p))
+		if (cost == max_cost)
 			continue;
 
 		if (nsearched++ >= MAX_VICTIM_SEARCH) {
@@ -288,8 +295,8 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 			break;
 		}
 	}
-got_it:
 	if (p.min_segno != NULL_SEGNO) {
+got_it:
 		if (p.alloc_mode == LFS) {
 			secno = GET_SECNO(sbi, p.min_segno);
 			if (gc_type == FG_GC)
@@ -314,28 +321,21 @@ static const struct victim_selection default_v_ops = {
 
 static struct inode *find_gc_inode(nid_t ino, struct list_head *ilist)
 {
-	struct list_head *this;
 	struct inode_entry *ie;
 
-	list_for_each(this, ilist) {
-		ie = list_entry(this, struct inode_entry, list);
+	list_for_each_entry(ie, ilist, list)
 		if (ie->inode->i_ino == ino)
 			return ie->inode;
-	}
 	return NULL;
 }
 
 static void add_gc_inode(struct inode *inode, struct list_head *ilist)
 {
-	struct list_head *this;
-	struct inode_entry *new_ie, *ie;
+	struct inode_entry *new_ie;
 
-	list_for_each(this, ilist) {
-		ie = list_entry(this, struct inode_entry, list);
-		if (ie->inode == inode) {
-			iput(inode);
-			return;
-		}
+	if (inode == find_gc_inode(inode->i_ino, ilist)) {
+		iput(inode);
+		return;
 	}
 repeat:
 	new_ie = kmem_cache_alloc(winode_slab, GFP_NOFS);

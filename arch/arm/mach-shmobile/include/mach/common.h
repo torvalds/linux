@@ -7,8 +7,10 @@ extern void shmobile_setup_delay(unsigned int max_cpu_core_mhz,
 			 unsigned int mult, unsigned int div);
 struct twd_local_timer;
 extern void shmobile_setup_console(void);
-extern void shmobile_secondary_vector(void);
-extern void shmobile_secondary_vector_scu(void);
+extern void shmobile_boot_vector(void);
+extern unsigned long shmobile_boot_fn;
+extern unsigned long shmobile_boot_arg;
+extern void shmobile_boot_scu(void);
 struct clk;
 extern int shmobile_clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);

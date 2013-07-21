@@ -37,6 +37,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
+#include <linux/platform_data/edma.h>
 #include <linux/platform_data/mmc-davinci.h>
 
 /*
@@ -1406,7 +1407,6 @@ static int __exit davinci_mmcsd_remove(struct platform_device *pdev)
 {
 	struct mmc_davinci_host *host = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	if (host) {
 		mmc_davinci_cpufreq_deregister(host);
 

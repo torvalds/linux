@@ -1,0 +1,49 @@
+Device tree bindings for i.MX Wireless External Interface Module (WEIM)
+
+The term "wireless" does not imply that the WEIM is literally an interface
+without wires. It simply means that this module was originally designed for
+wireless and mobile applications that use low-power technology.
+
+The actual devices are instantiated from the child nodes of a WEIM node.
+
+Required properties:
+
+ - compatible:		Should be set to "fsl,imx6q-weim"
+ - reg:			A resource specifier for the register space
+			(see the example below)
+ - clocks:		the clock, see the example below.
+ - #address-cells:	Must be set to 2 to allow memory address translation
+ - #size-cells:		Must be set to 1 to allow CS address passing
+ - ranges:		Must be set up to reflect the memory layout with four
+			integer values for each chip-select line in use:
+
+			   <cs-number> 0 <physical address of mapping> <size>
+
+Timing property for child nodes. It is mandatory, not optional.
+
+ - fsl,weim-cs-timing:	The timing array, contains 6 timing values for the
+			child node. We can get the CS index from the child
+			node's "reg" property. This property contains the values
+			for the registers EIM_CSnGCR1, EIM_CSnGCR2, EIM_CSnRCR1,
+			EIM_CSnRCR2, EIM_CSnWCR1, EIM_CSnWCR2 in this order.
+
+Example for an imx6q-sabreauto board, the NOR flash connected to the WEIM:
+
+	weim: weim@021b8000 {
+		compatible = "fsl,imx6q-weim";
+		reg = <0x021b8000 0x4000>;
+		clocks = <&clks 196>;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0 0x08000000 0x08000000>;
+
+		nor@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x02000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			bank-width = <2>;
+			fsl,weim-cs-timing = <0x00620081 0x00000001 0x1c022000
+					0x0000c000 0x1404a38e 0x00000000>;
+		};
+	};

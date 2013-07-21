@@ -107,8 +107,6 @@ void __init msm_map_qsd8x50_io(void)
 
 #ifdef CONFIG_ARCH_MSM8X60
 static struct map_desc msm8x60_io_desc[] __initdata = {
-	MSM_CHIP_DEVICE(QGIC_DIST, MSM8X60),
-	MSM_CHIP_DEVICE(QGIC_CPU, MSM8X60),
 	MSM_CHIP_DEVICE(TMR, MSM8X60),
 	MSM_CHIP_DEVICE(TMR0, MSM8X60),
 #ifdef CONFIG_DEBUG_MSM8660_UART
@@ -124,8 +122,6 @@ void __init msm_map_msm8x60_io(void)
 
 #ifdef CONFIG_ARCH_MSM8960
 static struct map_desc msm8960_io_desc[] __initdata = {
-	MSM_CHIP_DEVICE(QGIC_DIST, MSM8960),
-	MSM_CHIP_DEVICE(QGIC_CPU, MSM8960),
 	MSM_CHIP_DEVICE(TMR, MSM8960),
 	MSM_CHIP_DEVICE(TMR0, MSM8960),
 #ifdef CONFIG_DEBUG_MSM8960_UART
@@ -172,7 +168,7 @@ void __init msm_map_msm7x30_io(void)
 }
 #endif /* CONFIG_ARCH_MSM7X30 */
 
-void __iomem *__msm_ioremap_caller(unsigned long phys_addr, size_t size,
+void __iomem *__msm_ioremap_caller(phys_addr_t phys_addr, size_t size,
 				   unsigned int mtype, void *caller)
 {
 	if (mtype == MT_DEVICE) {

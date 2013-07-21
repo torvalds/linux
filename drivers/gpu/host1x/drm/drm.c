@@ -148,6 +148,7 @@ int host1x_drm_init(struct host1x_drm *host1x, struct drm_device *drm)
 				dev_err(host1x->dev,
 					"DRM setup failed for %s: %d\n",
 					dev_name(client->dev), err);
+				mutex_unlock(&host1x->clients_lock);
 				return err;
 			}
 		}
@@ -175,6 +176,7 @@ int host1x_drm_exit(struct host1x_drm *host1x)
 				dev_err(host1x->dev,
 					"DRM cleanup failed for %s: %d\n",
 					dev_name(client->dev), err);
+				mutex_unlock(&host1x->clients_lock);
 				return err;
 			}
 		}
@@ -256,6 +258,13 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	err = host1x_drm_init(host1x, drm);
 	if (err < 0)
 		return err;
+
+	/*
+	 * We don't use the drm_irq_install() helpers provided by the DRM
+	 * core, so we need to set this manually in order to allow the
+	 * DRM_IOCTL_WAIT_VBLANK to operate correctly.
+	 */
+	drm->irq_enabled = 1;
 
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (err < 0)
@@ -378,8 +387,7 @@ static int tegra_syncpt_incr(struct drm_device *drm, void *data,
 	if (!sp)
 		return -EINVAL;
 
-	host1x_syncpt_incr(sp);
-	return 0;
+	return host1x_syncpt_incr(sp);
 }
 
 static int tegra_syncpt_wait(struct drm_device *drm, void *data,
@@ -605,7 +613,7 @@ static void tegra_debugfs_cleanup(struct drm_minor *minor)
 #endif
 
 struct drm_driver tegra_drm_driver = {
-	.driver_features = DRIVER_BUS_PLATFORM | DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.load = tegra_drm_load,
 	.unload = tegra_drm_unload,
 	.open = tegra_drm_open,

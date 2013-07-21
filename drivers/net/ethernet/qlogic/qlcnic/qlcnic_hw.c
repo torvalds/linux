@@ -499,6 +499,7 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan)
 void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct netdev_hw_addr *ha;
 	static const u8 bcast_addr[ETH_ALEN] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
@@ -515,25 +516,30 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 	if (netdev->flags & IFF_PROMISC) {
 		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
 			mode = VPORT_MISS_MODE_ACCEPT_ALL;
-		goto send_fw_cmd;
-	}
-
-	if ((netdev->flags & IFF_ALLMULTI) ||
-	    (netdev_mc_count(netdev) > adapter->ahw->max_mc_count)) {
-		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
-		goto send_fw_cmd;
-	}
-
-	if (!netdev_mc_empty(netdev) && !qlcnic_sriov_vf_check(adapter)) {
-		netdev_for_each_mc_addr(ha, netdev) {
-			qlcnic_nic_add_mac(adapter, ha->addr, vlan);
+	} else if (netdev->flags & IFF_ALLMULTI) {
+		if (netdev_mc_count(netdev) > ahw->max_mc_count) {
+			mode = VPORT_MISS_MODE_ACCEPT_MULTI;
+		} else if (!netdev_mc_empty(netdev) &&
+			   !qlcnic_sriov_vf_check(adapter)) {
+				netdev_for_each_mc_addr(ha, netdev)
+					qlcnic_nic_add_mac(adapter, ha->addr,
+							   vlan);
 		}
+		if (mode != VPORT_MISS_MODE_ACCEPT_MULTI &&
+		    qlcnic_sriov_vf_check(adapter))
+			qlcnic_vf_add_mc_list(netdev, vlan);
 	}
 
-	if (qlcnic_sriov_vf_check(adapter))
-		qlcnic_vf_add_mc_list(netdev, vlan);
+	/* configure unicast MAC address, if there is not sufficient space
+	 * to store all the unicast addresses then enable promiscuous mode
+	 */
+	if (netdev_uc_count(netdev) > ahw->max_uc_count) {
+		mode = VPORT_MISS_MODE_ACCEPT_ALL;
+	} else if (!netdev_uc_empty(netdev)) {
+		netdev_for_each_uc_addr(ha, netdev)
+			qlcnic_nic_add_mac(adapter, ha->addr, vlan);
+	}
 
-send_fw_cmd:
 	if (!qlcnic_sriov_vf_check(adapter)) {
 		if (mode == VPORT_MISS_MODE_ACCEPT_ALL &&
 		    !adapter->fdb_mac_learn) {
@@ -780,7 +786,8 @@ int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	word = 0;
 	if (enable) {
 		word = QLCNIC_ENABLE_IPV4_LRO | QLCNIC_NO_DEST_IPV4_CHECK;
-		if (adapter->ahw->capabilities2 & QLCNIC_FW_CAP2_HW_LRO_IPV6)
+		if (adapter->ahw->extra_capability[0] &
+		    QLCNIC_FW_CAP2_HW_LRO_IPV6)
 			word |= QLCNIC_ENABLE_IPV6_LRO |
 				QLCNIC_NO_DEST_IPV6_CHECK;
 	}
@@ -1503,6 +1510,21 @@ int qlcnic_82xx_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
 	return rv;
 }
 
+int qlcnic_get_beacon_state(struct qlcnic_adapter *adapter, u8 *h_state)
+{
+	struct qlcnic_cmd_args cmd;
+	int err;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LED_STATUS);
+	if (!err) {
+		err = qlcnic_issue_cmd(adapter, &cmd);
+		if (!err)
+			*h_state = cmd.rsp.arg[1];
+	}
+	qlcnic_free_mbx_args(&cmd);
+	return err;
+}
+
 void qlcnic_82xx_get_func_no(struct qlcnic_adapter *adapter)
 {
 	void __iomem *msix_base_addr;
@@ -1554,4 +1576,55 @@ int qlcnic_82xx_api_lock(struct qlcnic_adapter *adapter)
 void qlcnic_82xx_api_unlock(struct qlcnic_adapter *adapter)
 {
 	qlcnic_pcie_sem_unlock(adapter, 5);
+}
+
+int qlcnic_82xx_shutdown(struct pci_dev *pdev)
+{
+	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
+	int retval;
+
+	netif_device_detach(netdev);
+
+	qlcnic_cancel_idc_work(adapter);
+
+	if (netif_running(netdev))
+		qlcnic_down(adapter, netdev);
+
+	qlcnic_clr_all_drv_state(adapter, 0);
+
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+
+	retval = pci_save_state(pdev);
+	if (retval)
+		return retval;
+
+	if (qlcnic_wol_supported(adapter)) {
+		pci_enable_wake(pdev, PCI_D3cold, 1);
+		pci_enable_wake(pdev, PCI_D3hot, 1);
+	}
+
+	return 0;
+}
+
+int qlcnic_82xx_resume(struct qlcnic_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int err;
+
+	err = qlcnic_start_firmware(adapter);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "failed to start firmware\n");
+		return err;
+	}
+
+	if (netif_running(netdev)) {
+		err = qlcnic_up(adapter, netdev);
+		if (!err)
+			qlcnic_restore_indev_addr(netdev, NETDEV_UP);
+	}
+
+	netif_device_attach(netdev);
+	qlcnic_schedule_work(adapter, qlcnic_fw_poll_work, FW_POLL_DELAY);
+	return err;
 }

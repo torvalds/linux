@@ -16,7 +16,6 @@
 #include <asm/asi.h>
 #include <asm/pil.h>
 
-	__CPUINIT
 	.align		8
 	.globl		hv_cpu_startup, hv_cpu_startup_end
 

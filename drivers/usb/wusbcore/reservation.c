@@ -80,6 +80,9 @@ int wusbhc_rsv_establish(struct wusbhc *wusbhc)
 	struct uwb_dev_addr bcid;
 	int ret;
 
+	if (rc == NULL)
+		return -ENODEV;
+
 	rsv = uwb_rsv_create(rc, wusbhc_rsv_complete_cb, wusbhc);
 	if (rsv == NULL)
 		return -ENOMEM;

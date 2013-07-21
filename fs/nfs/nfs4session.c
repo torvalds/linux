@@ -478,48 +478,12 @@ static int nfs41_check_session_ready(struct nfs_client *clp)
 	return 0;
 }
 
-int nfs4_init_session(struct nfs_server *server)
+int nfs4_init_session(struct nfs_client *clp)
 {
-	struct nfs_client *clp = server->nfs_client;
-	struct nfs4_session *session;
-	unsigned int target_max_rqst_sz = NFS_MAX_FILE_IO_SIZE;
-	unsigned int target_max_resp_sz = NFS_MAX_FILE_IO_SIZE;
-
 	if (!nfs4_has_session(clp))
 		return 0;
 
-	if (server->rsize != 0)
-		target_max_resp_sz = server->rsize;
-	target_max_resp_sz += nfs41_maxread_overhead;
-
-	if (server->wsize != 0)
-		target_max_rqst_sz = server->wsize;
-	target_max_rqst_sz += nfs41_maxwrite_overhead;
-
-	session = clp->cl_session;
-	spin_lock(&clp->cl_lock);
-	if (test_and_clear_bit(NFS4_SESSION_INITING, &session->session_state)) {
-		/* Initialise targets and channel attributes */
-		session->fc_target_max_rqst_sz = target_max_rqst_sz;
-		session->fc_attrs.max_rqst_sz = target_max_rqst_sz;
-		session->fc_target_max_resp_sz = target_max_resp_sz;
-		session->fc_attrs.max_resp_sz = target_max_resp_sz;
-	} else {
-		/* Just adjust the targets */
-		if (target_max_rqst_sz > session->fc_target_max_rqst_sz) {
-			session->fc_target_max_rqst_sz = target_max_rqst_sz;
-			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
-		}
-		if (target_max_resp_sz > session->fc_target_max_resp_sz) {
-			session->fc_target_max_resp_sz = target_max_resp_sz;
-			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
-		}
-	}
-	spin_unlock(&clp->cl_lock);
-
-	if (test_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state))
-		nfs4_schedule_lease_recovery(clp);
-
+	clear_bit(NFS4_SESSION_INITING, &clp->cl_session->session_state);
 	return nfs41_check_session_ready(clp);
 }
 

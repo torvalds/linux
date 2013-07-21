@@ -187,20 +187,18 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 					rdc321x_gpio_dev->reg1_data_base,
 					&rdc321x_gpio_dev->data_reg[0]);
 	if (err)
-		goto out_drvdata;
+		goto out_free;
 
 	err = pci_read_config_dword(rdc321x_gpio_dev->sb_pdev,
 					rdc321x_gpio_dev->reg2_data_base,
 					&rdc321x_gpio_dev->data_reg[1]);
 	if (err)
-		goto out_drvdata;
+		goto out_free;
 
 	dev_info(&pdev->dev, "registering %d GPIOs\n",
 					rdc321x_gpio_dev->chip.ngpio);
 	return gpiochip_add(&rdc321x_gpio_dev->chip);
 
-out_drvdata:
-	platform_set_drvdata(pdev, NULL);
 out_free:
 	kfree(rdc321x_gpio_dev);
 	return err;
@@ -216,7 +214,6 @@ static int rdc321x_gpio_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to unregister chip\n");
 
 	kfree(rdc321x_gpio_dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }

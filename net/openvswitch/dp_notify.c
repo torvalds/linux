@@ -78,7 +78,7 @@ static int dp_device_event(struct notifier_block *unused, unsigned long event,
 			   void *ptr)
 {
 	struct ovs_net *ovs_net;
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct vport *vport = NULL;
 
 	if (!ovs_is_internal_dev(dev))

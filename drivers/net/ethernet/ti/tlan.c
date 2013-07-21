@@ -372,7 +372,7 @@ static int tlan_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_enable_wake(pdev, 0, 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 	netif_device_attach(dev);
 
 	if (netif_running(dev))
@@ -533,7 +533,6 @@ static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
 		/* This is a hack. We need to know which board structure
 		 * is suited for this adapter */
 		device_id = inw(ioaddr + EISA_ID2);
-		priv->is_eisa = 1;
 		if (device_id == 0x20F1) {
 			priv->adapter = &board_info[13]; /* NetFlex-3/E */
 			priv->adapter_rev = 23;		/* TLAN 2.3 */

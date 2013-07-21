@@ -348,7 +348,7 @@ static int get_serial_info(struct usb_serial_port *port,
 
 	/* fake emulate a 16550 uart to make userspace code happy */
 	tmp.type		= PORT_16550A;
-	tmp.line		= port->serial->minor;
+	tmp.line		= port->minor;
 	tmp.port		= 0;
 	tmp.irq			= 0;
 	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
@@ -367,7 +367,7 @@ static int opticon_ioctl(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s - port %d, cmd = 0x%x\n", __func__, port->number, cmd);
+	dev_dbg(&port->dev, "%s - cmd = 0x%x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCGSERIAL:

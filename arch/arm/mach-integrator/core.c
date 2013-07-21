@@ -124,7 +124,7 @@ void __init integrator_reserve(void)
 /*
  * To reset, we hit the on-board reset register in the system FPGA
  */
-void integrator_restart(char mode, const char *cmd)
+void integrator_restart(enum reboot_mode mode, const char *cmd)
 {
 	cm_control(CM_CTRL_RESET, CM_CTRL_RESET);
 }

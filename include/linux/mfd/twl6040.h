@@ -125,7 +125,14 @@
 
 #define TWL6040_HSDACENA		(1 << 0)
 #define TWL6040_HSDACMODE		(1 << 1)
+#define TWL6040_HSDRVENA		(1 << 2)
 #define TWL6040_HSDRVMODE		(1 << 3)
+
+/* HFLCTL/R (0x14/0x16) fields */
+
+#define TWL6040_HFDACENA		(1 << 0)
+#define TWL6040_HFPGAENA		(1 << 1)
+#define TWL6040_HFDRVENA		(1 << 4)
 
 /* VIBCTLL/R (0x18/0x1A) fields */
 

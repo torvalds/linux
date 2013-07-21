@@ -46,7 +46,7 @@ __image_start:
 __image_end:
 	.long	_got_end
 __load_base:
-	.long	CONFIG_MEMORY_START + 0x02000000 @ Load at 32Mb into SDRAM
+	.long	MEMORY_START + 0x02000000 @ Load at 32Mb into SDRAM
 __loaded:
 	.long	__continue
 	.align
@@ -55,26 +55,9 @@ __tmp_stack:
 __continue:
 #endif /* CONFIG_ZBOOT_ROM_MMC || CONFIG_ZBOOT_ROM_SH_MOBILE_SDHI */
 
-	b	1f
-__atags:@ tag #1
-	.long	12			@ tag->hdr.size = tag_size(tag_core);
-	.long	0x54410001		@ tag->hdr.tag = ATAG_CORE;
-	.long   0			@ tag->u.core.flags = 0;
-	.long	0			@ tag->u.core.pagesize = 0;
-	.long	0			@ tag->u.core.rootdev = 0;
-	@ tag #2
-	.long	8			@ tag->hdr.size = tag_size(tag_mem32);
-	.long	0x54410002		@ tag->hdr.tag = ATAG_MEM;
-	.long	CONFIG_MEMORY_SIZE	@ tag->u.mem.size = CONFIG_MEMORY_SIZE;
-	.long	CONFIG_MEMORY_START	@ @ tag->u.mem.start = CONFIG_MEMORY_START;
-	@ tag #3
-	.long	0			@ tag->hdr.size = 0
-	.long	0			@ tag->hdr.tag = ATAG_NONE;
-1:
-
 	/* Set board ID necessary for boot */
 	ldr	r7, 1f				@ Set machine type register
-	adr	r8, __atags			@ Set atag register
+	mov	r8, #0				@ pass null pointer as atag
 	b	2f
 
 1 :	.long MACH_TYPE

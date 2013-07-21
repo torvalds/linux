@@ -122,6 +122,13 @@ static void hash_dma_setup_channel(struct hash_device_data *device_data,
 				struct device *dev)
 {
 	struct hash_platform_data *platform_data = dev->platform_data;
+	struct dma_slave_config conf = {
+		.direction = DMA_MEM_TO_DEV,
+		.dst_addr = device_data->phybase + HASH_DMA_FIFO,
+		.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
+		.dst_maxburst = 16,
+        };
+
 	dma_cap_zero(device_data->dma.mask);
 	dma_cap_set(DMA_SLAVE, device_data->dma.mask);
 
@@ -130,6 +137,8 @@ static void hash_dma_setup_channel(struct hash_device_data *device_data,
 		dma_request_channel(device_data->dma.mask,
 				platform_data->dma_filter,
 				device_data->dma.cfg_mem2hash);
+
+	dmaengine_slave_config(device_data->dma.chan_mem2hash, &conf);
 
 	init_completion(&device_data->dma.complete);
 }
@@ -171,9 +180,9 @@ static int hash_set_dma_transfer(struct hash_ctx *ctx, struct scatterlist *sg,
 
 	dev_dbg(ctx->device->dev, "[%s]: Setting up DMA for buffer "
 			"(TO_DEVICE)", __func__);
-	desc = channel->device->device_prep_slave_sg(channel,
+	desc = dmaengine_prep_slave_sg(channel,
 			ctx->device->dma.sg, ctx->device->dma.sg_len,
-			direction, DMA_CTRL_ACK | DMA_PREP_INTERRUPT, NULL);
+			direction, DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
 	if (!desc) {
 		dev_err(ctx->device->dev,
 			"[%s]: device_prep_slave_sg() failed!", __func__);
@@ -183,7 +192,7 @@ static int hash_set_dma_transfer(struct hash_ctx *ctx, struct scatterlist *sg,
 	desc->callback = hash_dma_callback;
 	desc->callback_param = ctx;
 
-	cookie = desc->tx_submit(desc);
+	cookie = dmaengine_submit(desc);
 	dma_async_issue_pending(channel);
 
 	return 0;
@@ -194,7 +203,7 @@ static void hash_dma_done(struct hash_ctx *ctx)
 	struct dma_chan *chan;
 
 	chan = ctx->device->dma.chan_mem2hash;
-	chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+	dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
 	dma_unmap_sg(chan->device->dev, ctx->device->dma.sg,
 			ctx->device->dma.sg_len, DMA_TO_DEVICE);
 
@@ -464,12 +473,12 @@ static void hash_hw_write_key(struct hash_device_data *device_data,
 		HASH_SET_DIN(&word, nwords);
 	}
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	HASH_SET_DCAL;
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 }
 
@@ -652,7 +661,7 @@ static void hash_messagepad(struct hash_device_data *device_data,
 	if (index_bytes)
 		HASH_SET_DIN(message, nwords);
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	/* num_of_bytes == 0 => NBLW <- 0 (32 bits valid in DATAIN) */
@@ -667,7 +676,7 @@ static void hash_messagepad(struct hash_device_data *device_data,
 			(int)(readl_relaxed(&device_data->base->str) &
 				HASH_STR_NBLW_MASK));
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 }
 
@@ -767,7 +776,7 @@ void hash_begin(struct hash_device_data *device_data, struct hash_ctx *ctx)
 	/* HW and SW initializations */
 	/* Note: there is no need to initialize buffer and digest members */
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	/*
@@ -783,8 +792,7 @@ void hash_begin(struct hash_device_data *device_data, struct hash_ctx *ctx)
 	HASH_CLEAR_BITS(&device_data->base->str, HASH_STR_NBLW_MASK);
 }
 
-int hash_process_data(
-		struct hash_device_data *device_data,
+static int hash_process_data(struct hash_device_data *device_data,
 		struct hash_ctx *ctx, struct hash_req_ctx *req_ctx,
 		int msg_length, u8 *data_buffer, u8 *buffer, u8 *index)
 {
@@ -953,7 +961,7 @@ static int hash_dma_final(struct ahash_request *req)
 	wait_for_completion(&ctx->device->dma.complete);
 	hash_dma_done(ctx);
 
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	if (ctx->config.oper_mode == HASH_OPER_MODE_HMAC && ctx->key) {
@@ -983,7 +991,7 @@ out:
  * hash_hw_final - The final hash calculation function
  * @req:	The hash request for the job.
  */
-int hash_hw_final(struct ahash_request *req)
+static int hash_hw_final(struct ahash_request *req)
 {
 	int ret = 0;
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
@@ -1051,7 +1059,7 @@ int hash_hw_final(struct ahash_request *req)
 				req_ctx->state.index);
 	} else {
 		HASH_SET_DCAL;
-		while (device_data->base->str & HASH_STR_DCAL_MASK)
+		while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 			cpu_relax();
 	}
 
@@ -1180,7 +1188,7 @@ int hash_resume_state(struct hash_device_data *device_data,
 	temp_cr = device_state->temp_cr;
 	writel_relaxed(temp_cr & HASH_CR_RESUME_MASK, &device_data->base->cr);
 
-	if (device_data->base->cr & HASH_CR_MODE_MASK)
+	if (readl(&device_data->base->cr) & HASH_CR_MODE_MASK)
 		hash_mode = HASH_OPER_MODE_HMAC;
 	else
 		hash_mode = HASH_OPER_MODE_HASH;
@@ -1224,7 +1232,7 @@ int hash_save_state(struct hash_device_data *device_data,
 	 * actually makes sure that there isn't any ongoing calculation in the
 	 * hardware.
 	 */
-	while (device_data->base->str & HASH_STR_DCAL_MASK)
+	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
 
 	temp_cr = readl_relaxed(&device_data->base->cr);
@@ -1233,7 +1241,7 @@ int hash_save_state(struct hash_device_data *device_data,
 
 	device_state->din_reg = readl_relaxed(&device_data->base->din);
 
-	if (device_data->base->cr & HASH_CR_MODE_MASK)
+	if (readl(&device_data->base->cr) & HASH_CR_MODE_MASK)
 		hash_mode = HASH_OPER_MODE_HMAC;
 	else
 		hash_mode = HASH_OPER_MODE_HASH;
@@ -1699,6 +1707,7 @@ static int ux500_hash_probe(struct platform_device *pdev)
 		goto out_kfree;
 	}
 
+	device_data->phybase = res->start;
 	device_data->base = ioremap(res->start, resource_size(res));
 	if (!device_data->base) {
 		dev_err(dev, "[%s] ioremap() failed!",
@@ -1726,11 +1735,17 @@ static int ux500_hash_probe(struct platform_device *pdev)
 		goto out_regulator;
 	}
 
+	ret = clk_prepare(device_data->clk);
+	if (ret) {
+		dev_err(dev, "[%s] clk_prepare() failed!", __func__);
+		goto out_clk;
+	}
+
 	/* Enable device power (and clock) */
 	ret = hash_enable_power(device_data, false);
 	if (ret) {
 		dev_err(dev, "[%s]: hash_enable_power() failed!", __func__);
-		goto out_clk;
+		goto out_clk_unprepare;
 	}
 
 	ret = hash_check_hw(device_data);
@@ -1756,11 +1771,14 @@ static int ux500_hash_probe(struct platform_device *pdev)
 		goto out_power;
 	}
 
-	dev_info(dev, "[%s] successfully probed\n", __func__);
+	dev_info(dev, "successfully registered\n");
 	return 0;
 
 out_power:
 	hash_disable_power(device_data, false);
+
+out_clk_unprepare:
+	clk_unprepare(device_data->clk);
 
 out_clk:
 	clk_put(device_data->clk);
@@ -1826,6 +1844,7 @@ static int ux500_hash_remove(struct platform_device *pdev)
 		dev_err(dev, "[%s]: hash_disable_power() failed",
 			__func__);
 
+	clk_unprepare(device_data->clk);
 	clk_put(device_data->clk);
 	regulator_put(device_data->regulator);
 
@@ -1961,6 +1980,11 @@ static int ux500_hash_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(ux500_hash_pm, ux500_hash_suspend, ux500_hash_resume);
 
+static const struct of_device_id ux500_hash_match[] = {
+        { .compatible = "stericsson,ux500-hash" },
+        { },
+};
+
 static struct platform_driver hash_driver = {
 	.probe  = ux500_hash_probe,
 	.remove = ux500_hash_remove,
@@ -1968,6 +1992,7 @@ static struct platform_driver hash_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = "hash1",
+		.of_match_table = ux500_hash_match,
 		.pm    = &ux500_hash_pm,
 	}
 };

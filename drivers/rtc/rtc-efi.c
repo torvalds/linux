@@ -201,17 +201,11 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __exit efi_rtc_remove(struct platform_device *dev)
-{
-	return 0;
-}
-
 static struct platform_driver efi_rtc_driver = {
 	.driver = {
 		.name = "rtc-efi",
 		.owner = THIS_MODULE,
 	},
-	.remove = __exit_p(efi_rtc_remove),
 };
 
 module_platform_driver_probe(efi_rtc_driver, efi_rtc_probe);

@@ -85,15 +85,15 @@ void        c4_cleanup (void);
 status_t    c4_chan_up (ci_t *, int channum);
 status_t    c4_del_chan_stats (int channum);
 status_t    c4_del_chan (int channum);
-status_t    c4_get_iidinfo (ci_t * ci, struct sbe_iid_info * iip);
+status_t    c4_get_iidinfo (ci_t *ci, struct sbe_iid_info *iip);
 int         c4_is_chan_up (int channum);
 
 void       *getuserbychan (int channum);
-void        pci_flush_write (ci_t * ci);
+void        pci_flush_write (ci_t *ci);
 void        sbecom_set_loglevel (int debuglevel);
-char       *sbeid_get_bdname (ci_t * ci);
-void        sbeid_set_bdtype (ci_t * ci);
-void        sbeid_set_hdwbid (ci_t * ci);
+char       *sbeid_get_bdname (ci_t *ci);
+void        sbeid_set_bdtype (ci_t *ci);
+void        sbeid_set_hdwbid (ci_t *ci);
 u_int32_t   sbeCrc (u_int8_t *, u_int32_t, u_int32_t, u_int32_t *);
 
 void        VMETRO_TRACE (void *);       /* put data into 8 LEDs */

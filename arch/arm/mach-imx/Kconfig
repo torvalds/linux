@@ -56,9 +56,6 @@ config MXC_USE_EPIT
 	  uses the same clocks as the GPT. Anyway, on some systems the GPT
 	  may be in use for other purposes.
 
-config MXC_ULPI
-	bool
-
 config ARCH_HAS_RNGA
 	bool
 
@@ -111,7 +108,6 @@ config SOC_IMX25
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_ARM926T
-	select HAVE_CAN_FLEXCAN if CAN
 	select MXC_AVIC
 
 config SOC_IMX27
@@ -137,7 +133,6 @@ config SOC_IMX35
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_V6K
-	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_EPIT
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
@@ -176,6 +171,7 @@ config ARCH_MX1ADS
 config MACH_SCB9328
 	bool "Synertronixx scb9328"
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select SOC_IMX1
 	help
 	  Say Y here if you are using a Synertronixx scb9328 board
 
@@ -233,7 +229,7 @@ config MACH_EUKREA_CPUIMX25SD
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX25
 
 choice
@@ -284,7 +280,7 @@ config MACH_PCM038
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
 	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX27
 	help
 	  Include support for phyCORE-i.MX27 (aka pcm038) platform. This
@@ -314,7 +310,7 @@ config MACH_CPUIMX27
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX27
 	help
 	  Include support for Eukrea CPUIMX27 platform. This includes
@@ -369,7 +365,7 @@ config MACH_MX27_3DS
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select MXC_DEBUG_BOARD
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX27
 	help
 	  Include support for MX27PDK platform. This includes specific
@@ -414,7 +410,7 @@ config MACH_PCA100
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
 	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX27
 	help
 	  Include support for phyCARD-s (aka pca100) platform. This
@@ -481,7 +477,7 @@ config MACH_MX31LILLY
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for mx31 based LILLY1131 modules. This includes
@@ -497,7 +493,7 @@ config MACH_MX31LITE
 	select IMX_HAVE_PLATFORM_MXC_RTC
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select LEDS_GPIO_REGISTER
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for MX31 LITEKIT platform. This includes specific
@@ -514,7 +510,7 @@ config MACH_PCM037
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for Phytec pcm037 platform. This includes
@@ -544,7 +540,7 @@ config MACH_MX31_3DS
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select MXC_DEBUG_BOARD
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for MX31PDK (3DS) platform. This includes specific
@@ -571,7 +567,7 @@ config MACH_MX31MOBOARD
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select LEDS_GPIO_REGISTER
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for mx31moboard platform. This includes specific
@@ -595,7 +591,7 @@ config MACH_ARMADILLO5X0
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX31
 	help
 	  Include support for Atmark Armadillo-500 platform. This includes
@@ -639,7 +635,7 @@ config MACH_PCM043
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX35
 	help
 	  Include support for Phytec pcm043 platform. This includes
@@ -673,7 +669,7 @@ config MACH_EUKREA_CPUIMX35SD
 	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select MXC_ULPI if USB_ULPI
+	select USB_ULPI_VIEWPORT if USB_ULPI
 	select SOC_IMX35
 	help
 	  Include support for Eukrea CPUIMX35 platform. This includes
@@ -776,7 +772,6 @@ comment "Device tree only"
 
 config	SOC_IMX53
 	bool "i.MX53 support"
-	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_SRC
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select PINCTRL
@@ -799,7 +794,6 @@ config SOC_IMX6Q
 	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if LOCAL_TIMERS
-	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
@@ -815,6 +809,41 @@ config SOC_IMX6Q
 
 	help
 	  This enables support for Freescale i.MX6 Quad processor.
+
+config SOC_IMX6SL
+	bool "i.MX6 SoloLite support"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select ARM_GIC
+	select CPU_V7
+	select HAVE_IMX_ANATOP
+	select HAVE_IMX_GPC
+	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
+	select MFD_SYSCON
+	select PINCTRL
+	select PINCTRL_IMX6SL
+	select PL310_ERRATA_588369 if CACHE_PL310
+	select PL310_ERRATA_727915 if CACHE_PL310
+	select PL310_ERRATA_769419 if CACHE_PL310
+
+	help
+	  This enables support for Freescale i.MX6 SoloLite processor.
+
+config SOC_VF610
+	bool "Vybrid Family VF610 support"
+	select CPU_V7
+	select ARM_GIC
+	select CLKSRC_OF
+	select PINCTRL
+	select PINCTRL_VF610
+	select VF_PIT_TIMER
+	select PL310_ERRATA_588369 if CACHE_PL310
+	select PL310_ERRATA_727915 if CACHE_PL310
+	select PL310_ERRATA_769419 if CACHE_PL310
+
+	help
+	  This enable support for Freescale Vybrid VF610 processor.
 
 endif
 

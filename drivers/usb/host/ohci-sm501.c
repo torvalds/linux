@@ -207,7 +207,6 @@ static int ohci_hcd_sm501_drv_remove(struct platform_device *pdev)
 	sm501_modify_reg(pdev->dev.parent, SM501_IRQ_MASK, 0, 1 << 6);
 	sm501_unit_power(pdev->dev.parent, SM501_GATE_USB_HOST, 0);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

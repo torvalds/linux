@@ -46,6 +46,8 @@ int vhost_poll_start(struct vhost_poll *poll, struct file *file);
 void vhost_poll_stop(struct vhost_poll *poll);
 void vhost_poll_flush(struct vhost_poll *poll);
 void vhost_poll_queue(struct vhost_poll *poll);
+void vhost_work_flush(struct vhost_dev *dev, struct vhost_work *work);
+long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp);
 
 struct vhost_log {
 	u64 addr;

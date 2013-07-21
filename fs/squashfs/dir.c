@@ -100,7 +100,7 @@ static int get_dir_index_using_offset(struct super_block *sb,
 }
 
 
-static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
+static int squashfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
@@ -127,11 +127,11 @@ static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	 * It also means that the external f_pos is offset by 3 from the
 	 * on-disk directory f_pos.
 	 */
-	while (file->f_pos < 3) {
+	while (ctx->pos < 3) {
 		char *name;
 		int i_ino;
 
-		if (file->f_pos == 0) {
+		if (ctx->pos == 0) {
 			name = ".";
 			size = 1;
 			i_ino = inode->i_ino;
@@ -141,24 +141,18 @@ static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 			i_ino = squashfs_i(inode)->parent;
 		}
 
-		TRACE("Calling filldir(%p, %s, %d, %lld, %d, %d)\n",
-				dirent, name, size, file->f_pos, i_ino,
-				squashfs_filetype_table[1]);
-
-		if (filldir(dirent, name, size, file->f_pos, i_ino,
-				squashfs_filetype_table[1]) < 0) {
-				TRACE("Filldir returned less than 0\n");
+		if (!dir_emit(ctx, name, size, i_ino,
+				squashfs_filetype_table[1]))
 			goto finish;
-		}
 
-		file->f_pos += size;
+		ctx->pos += size;
 	}
 
 	length = get_dir_index_using_offset(inode->i_sb, &block, &offset,
 				squashfs_i(inode)->dir_idx_start,
 				squashfs_i(inode)->dir_idx_offset,
 				squashfs_i(inode)->dir_idx_cnt,
-				file->f_pos);
+				ctx->pos);
 
 	while (length < i_size_read(inode)) {
 		/*
@@ -198,7 +192,7 @@ static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 			length += sizeof(*dire) + size;
 
-			if (file->f_pos >= length)
+			if (ctx->pos >= length)
 				continue;
 
 			dire->name[size] = '\0';
@@ -206,22 +200,12 @@ static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 				((short) le16_to_cpu(dire->inode_number));
 			type = le16_to_cpu(dire->type);
 
-			TRACE("Calling filldir(%p, %s, %d, %lld, %x:%x, %d, %d)"
-					"\n", dirent, dire->name, size,
-					file->f_pos,
-					le32_to_cpu(dirh.start_block),
-					le16_to_cpu(dire->offset),
+			if (!dir_emit(ctx, dire->name, size,
 					inode_number,
-					squashfs_filetype_table[type]);
-
-			if (filldir(dirent, dire->name, size, file->f_pos,
-					inode_number,
-					squashfs_filetype_table[type]) < 0) {
-				TRACE("Filldir returned less than 0\n");
+					squashfs_filetype_table[type]))
 				goto finish;
-			}
 
-			file->f_pos = length;
+			ctx->pos = length;
 		}
 	}
 
@@ -238,6 +222,6 @@ failed_read:
 
 const struct file_operations squashfs_dir_ops = {
 	.read = generic_read_dir,
-	.readdir = squashfs_readdir,
+	.iterate = squashfs_readdir,
 	.llseek = default_llseek,
 };

@@ -1581,7 +1581,7 @@ static struct dvb_frontend_ops stb0899_ops = {
 		.frequency_max 		= 2150000,
 		.frequency_stepsize	= 0,
 		.frequency_tolerance	= 0,
-		.symbol_rate_min 	=  2000000,
+		.symbol_rate_min 	=  5000000,
 		.symbol_rate_max 	= 45000000,
 
 		.caps 			= FE_CAN_INVERSION_AUTO	|

@@ -125,9 +125,9 @@ static void sync_timeline_remove_pt(struct sync_pt *pt)
 	spin_unlock_irqrestore(&obj->active_list_lock, flags);
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
-	if (!list_empty(&pt->child_list)) {
+	if (!list_empty(&pt->child_list))
 		list_del_init(&pt->child_list);
-	}
+
 	spin_unlock_irqrestore(&obj->child_list_lock, flags);
 }
 
@@ -876,11 +876,11 @@ static void sync_print_pt(struct seq_file *s, struct sync_pt *pt, bool fence)
 			seq_printf(s, " / %s", value);
 		}
 	} else if (pt->parent->ops->print_pt) {
-		seq_printf(s, ": ");
+		seq_puts(s, ": ");
 		pt->parent->ops->print_pt(s, pt);
 	}
 
-	seq_printf(s, "\n");
+	seq_puts(s, "\n");
 }
 
 static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
@@ -895,11 +895,11 @@ static void sync_print_obj(struct seq_file *s, struct sync_timeline *obj)
 		obj->ops->timeline_value_str(obj, value, sizeof(value));
 		seq_printf(s, ": %s", value);
 	} else if (obj->ops->print_obj) {
-		seq_printf(s, ": ");
+		seq_puts(s, ": ");
 		obj->ops->print_obj(s, obj);
 	}
 
-	seq_printf(s, "\n");
+	seq_puts(s, "\n");
 
 	spin_lock_irqsave(&obj->child_list_lock, flags);
 	list_for_each(pos, &obj->child_list_head) {
@@ -940,7 +940,7 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 	unsigned long flags;
 	struct list_head *pos;
 
-	seq_printf(s, "objs:\n--------------\n");
+	seq_puts(s, "objs:\n--------------\n");
 
 	spin_lock_irqsave(&sync_timeline_list_lock, flags);
 	list_for_each(pos, &sync_timeline_list_head) {
@@ -949,11 +949,11 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 				     sync_timeline_list);
 
 		sync_print_obj(s, obj);
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 	spin_unlock_irqrestore(&sync_timeline_list_lock, flags);
 
-	seq_printf(s, "fences:\n--------------\n");
+	seq_puts(s, "fences:\n--------------\n");
 
 	spin_lock_irqsave(&sync_fence_list_lock, flags);
 	list_for_each(pos, &sync_fence_list_head) {
@@ -961,7 +961,7 @@ static int sync_debugfs_show(struct seq_file *s, void *unused)
 			container_of(pos, struct sync_fence, sync_fence_list);
 
 		sync_print_fence(s, fence);
-		seq_printf(s, "\n");
+		seq_puts(s, "\n");
 	}
 	spin_unlock_irqrestore(&sync_fence_list_lock, flags);
 	return 0;
@@ -988,7 +988,7 @@ late_initcall(sync_debugfs_init);
 
 #define DUMP_CHUNK 256
 static char sync_dump_buf[64 * 1024];
-void sync_dump(void)
+static void sync_dump(void)
 {
 	struct seq_file s = {
 		.buf = sync_dump_buf,

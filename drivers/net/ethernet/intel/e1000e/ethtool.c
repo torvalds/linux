@@ -244,7 +244,7 @@ static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 		mac->autoneg = 1;
 		adapter->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
 		break;
-	case SPEED_1000 + DUPLEX_HALF: /* not supported */
+	case SPEED_1000 + DUPLEX_HALF:	/* not supported */
 	default:
 		goto err_inval;
 	}
@@ -416,7 +416,7 @@ static void e1000_set_msglevel(struct net_device *netdev, u32 data)
 
 static int e1000_get_regs_len(struct net_device __always_unused *netdev)
 {
-#define E1000_REGS_LEN 32 /* overestimate */
+#define E1000_REGS_LEN 32	/* overestimate */
 	return E1000_REGS_LEN * sizeof(u32);
 }
 
@@ -433,22 +433,22 @@ static void e1000_get_regs(struct net_device *netdev,
 	regs->version = (1 << 24) | (adapter->pdev->revision << 16) |
 	    adapter->pdev->device;
 
-	regs_buff[0]  = er32(CTRL);
-	regs_buff[1]  = er32(STATUS);
+	regs_buff[0] = er32(CTRL);
+	regs_buff[1] = er32(STATUS);
 
-	regs_buff[2]  = er32(RCTL);
-	regs_buff[3]  = er32(RDLEN(0));
-	regs_buff[4]  = er32(RDH(0));
-	regs_buff[5]  = er32(RDT(0));
-	regs_buff[6]  = er32(RDTR);
+	regs_buff[2] = er32(RCTL);
+	regs_buff[3] = er32(RDLEN(0));
+	regs_buff[4] = er32(RDH(0));
+	regs_buff[5] = er32(RDT(0));
+	regs_buff[6] = er32(RDTR);
 
-	regs_buff[7]  = er32(TCTL);
-	regs_buff[8]  = er32(TDLEN(0));
-	regs_buff[9]  = er32(TDH(0));
+	regs_buff[7] = er32(TCTL);
+	regs_buff[8] = er32(TDLEN(0));
+	regs_buff[9] = er32(TDH(0));
 	regs_buff[10] = er32(TDT(0));
 	regs_buff[11] = er32(TIDV);
 
-	regs_buff[12] = adapter->hw.phy.type;  /* PHY type (IGP=1, M88=0) */
+	regs_buff[12] = adapter->hw.phy.type;	/* PHY type (IGP=1, M88=0) */
 
 	/* ethtool doesn't use anything past this point, so all this
 	 * code is likely legacy junk for apps that may or may not exist
@@ -1379,7 +1379,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 	if (hw->phy.media_type == e1000_media_type_copper &&
 	    hw->phy.type == e1000_phy_m88) {
-		ctrl_reg |= E1000_CTRL_ILOS; /* Invert Loss of Signal */
+		ctrl_reg |= E1000_CTRL_ILOS;	/* Invert Loss of Signal */
 	} else {
 		/* Set the ILOS bit on the fiber Nic if half duplex link is
 		 * detected.
@@ -1613,7 +1613,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 		ew32(TDT(0), k);
 		e1e_flush();
 		msleep(200);
-		time = jiffies; /* set the start time for the receive */
+		time = jiffies;	/* set the start time for the receive */
 		good_cnt = 0;
 		/* receive the sent packets */
 		do {
@@ -1636,11 +1636,11 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			 */
 		} while ((good_cnt < 64) && !time_after(jiffies, time + 20));
 		if (good_cnt != 64) {
-			ret_val = 13; /* ret_val is the same as mis-compare */
+			ret_val = 13;	/* ret_val is the same as mis-compare */
 			break;
 		}
 		if (jiffies >= (time + 20)) {
-			ret_val = 14; /* error code for time out error */
+			ret_val = 14;	/* error code for time out error */
 			break;
 		}
 	}

@@ -20,7 +20,6 @@ if NET_VENDOR_INTEL
 config E100
 	tristate "Intel(R) PRO/100+ support"
 	depends on PCI
-	select NET_CORE
 	select MII
 	---help---
 	  This driver supports Intel(R) PRO/100 family of adapters.

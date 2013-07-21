@@ -27,7 +27,7 @@ extern int of_ioapic;
 extern u64 initial_dtb;
 extern void add_dtb(u64 data);
 extern void x86_add_irq_domains(void);
-void __cpuinit x86_of_pci_init(void);
+void x86_of_pci_init(void);
 void x86_dtb_init(void);
 #else
 static inline void add_dtb(u64 data) { }

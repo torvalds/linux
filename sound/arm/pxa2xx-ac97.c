@@ -230,7 +230,6 @@ static int pxa2xx_ac97_remove(struct platform_device *dev)
 
 	if (card) {
 		snd_card_free(card);
-		platform_set_drvdata(dev, NULL);
 		pxa2xx_ac97_hw_remove(dev);
 	}
 

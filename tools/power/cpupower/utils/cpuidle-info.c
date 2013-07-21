@@ -22,7 +22,7 @@
 
 static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 {
-	int idlestates, idlestate;
+	unsigned int idlestates, idlestate;
 	char *tmp;
 
 	printf(_ ("Analyzing CPU %d:\n"), cpu);
@@ -31,10 +31,8 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 	if (idlestates == 0) {
 		printf(_("CPU %u: No idle states\n"), cpu);
 		return;
-	} else if (idlestates <= 0) {
-		printf(_("CPU %u: Can't read idle state info\n"), cpu);
-		return;
 	}
+
 	printf(_("Number of idle states: %d\n"), idlestates);
 	printf(_("Available idle states:"));
 	for (idlestate = 0; idlestate < idlestates; idlestate++) {
@@ -50,10 +48,14 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 		return;
 
 	for (idlestate = 0; idlestate < idlestates; idlestate++) {
+		int disabled = sysfs_is_idlestate_disabled(cpu, idlestate);
+		/* Disabled interface not supported on older kernels */
+		if (disabled < 0)
+			disabled = 0;
 		tmp = sysfs_get_idlestate_name(cpu, idlestate);
 		if (!tmp)
 			continue;
-		printf("%s:\n", tmp);
+		printf("%s%s:\n", tmp, (disabled) ? " (DISABLED) " : "");
 		free(tmp);
 
 		tmp = sysfs_get_idlestate_desc(cpu, idlestate);
@@ -98,21 +100,13 @@ static void cpuidle_general_output(void)
 static void proc_cpuidle_cpu_output(unsigned int cpu)
 {
 	long max_allowed_cstate = 2000000000;
-	int cstates, cstate;
+	unsigned int cstate, cstates;
 
 	cstates = sysfs_get_idlestate_count(cpu);
 	if (cstates == 0) {
-		/*
-		 * Go on and print same useless info as you'd see with
-		 * cat /proc/acpi/processor/../power
-		 *	printf(_("CPU %u: No C-states available\n"), cpu);
-		 *	return;
-		 */
-	} else if (cstates <= 0) {
-		printf(_("CPU %u: Can't read C-state info\n"), cpu);
+		printf(_("CPU %u: No C-states info\n"), cpu);
 		return;
 	}
-	/* printf("Cstates: %d\n", cstates); */
 
 	printf(_("active state:            C0\n"));
 	printf(_("max_cstate:              C%u\n"), cstates-1);

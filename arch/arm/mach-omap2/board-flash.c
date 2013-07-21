@@ -112,6 +112,9 @@ struct gpmc_timings nand_default_timings[1] = {
 		.cs_rd_off = 36,
 		.cs_wr_off = 36,
 
+		.we_on = 6,
+		.oe_on = 6,
+
 		.adv_on = 6,
 		.adv_rd_off = 24,
 		.adv_wr_off = 36,

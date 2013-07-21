@@ -813,8 +813,8 @@ static struct metag_pmu _metag_pmu = {
 };
 
 /* PMU CPU hotplug notifier */
-static int __cpuinit metag_pmu_cpu_notify(struct notifier_block *b,
-		unsigned long action, void *hcpu)
+static int metag_pmu_cpu_notify(struct notifier_block *b, unsigned long action,
+				void *hcpu)
 {
 	unsigned int cpu = (unsigned int)hcpu;
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
@@ -828,7 +828,7 @@ static int __cpuinit metag_pmu_cpu_notify(struct notifier_block *b,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata metag_pmu_notifier = {
+static struct notifier_block metag_pmu_notifier = {
 	.notifier_call = metag_pmu_cpu_notify,
 };
 
@@ -882,7 +882,7 @@ static int __init init_hw_perf_events(void)
 	}
 
 	register_cpu_notifier(&metag_pmu_notifier);
-	ret = perf_pmu_register(&pmu, (char *)metag_pmu->name, PERF_TYPE_RAW);
+	ret = perf_pmu_register(&pmu, metag_pmu->name, PERF_TYPE_RAW);
 out:
 	return ret;
 }

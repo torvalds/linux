@@ -11,10 +11,13 @@
  */
 
 #include <linux/stat.h>
+#include <linux/module.h>
 #include <linux/rio.h>
 #include <linux/rio_drv.h>
 #include <linux/rio_ids.h>
 #include <linux/delay.h>
+
+#include <asm/page.h>
 #include "../rio.h"
 
 #define LOCAL_RTE_CONF_DESTID_SEL	0x010070
@@ -387,12 +390,12 @@ idtg2_show_errlog(struct device *dev, struct device_attribute *attr, char *buf)
 
 static DEVICE_ATTR(errlog, S_IRUGO, idtg2_show_errlog, NULL);
 
-static int idtg2_sysfs(struct rio_dev *rdev, int create)
+static int idtg2_sysfs(struct rio_dev *rdev, bool create)
 {
 	struct device *dev = &rdev->dev;
 	int err = 0;
 
-	if (create == RIO_SW_SYSFS_CREATE) {
+	if (create) {
 		/* Initialize sysfs entries */
 		err = device_create_file(dev, &dev_attr_errlog);
 		if (err)
@@ -403,29 +406,90 @@ static int idtg2_sysfs(struct rio_dev *rdev, int create)
 	return err;
 }
 
-static int idtg2_switch_init(struct rio_dev *rdev, int do_enum)
+static struct rio_switch_ops idtg2_switch_ops = {
+	.owner = THIS_MODULE,
+	.add_entry = idtg2_route_add_entry,
+	.get_entry = idtg2_route_get_entry,
+	.clr_table = idtg2_route_clr_table,
+	.set_domain = idtg2_set_domain,
+	.get_domain = idtg2_get_domain,
+	.em_init = idtg2_em_init,
+	.em_handle = idtg2_em_handler,
+};
+
+static int idtg2_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
 	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
-	rdev->rswitch->add_entry = idtg2_route_add_entry;
-	rdev->rswitch->get_entry = idtg2_route_get_entry;
-	rdev->rswitch->clr_table = idtg2_route_clr_table;
-	rdev->rswitch->set_domain = idtg2_set_domain;
-	rdev->rswitch->get_domain = idtg2_get_domain;
-	rdev->rswitch->em_init = idtg2_em_init;
-	rdev->rswitch->em_handle = idtg2_em_handler;
-	rdev->rswitch->sw_sysfs = idtg2_sysfs;
 
-	if (do_enum) {
+	spin_lock(&rdev->rswitch->lock);
+
+	if (rdev->rswitch->ops) {
+		spin_unlock(&rdev->rswitch->lock);
+		return -EINVAL;
+	}
+
+	rdev->rswitch->ops = &idtg2_switch_ops;
+
+	if (rdev->do_enum) {
 		/* Ensure that default routing is disabled on startup */
 		rio_write_config_32(rdev,
 				    RIO_STD_RTE_DEFAULT_PORT, IDT_NO_ROUTE);
 	}
 
+	/* Create device-specific sysfs attributes */
+	idtg2_sysfs(rdev, true);
+
+	spin_unlock(&rdev->rswitch->lock);
 	return 0;
 }
 
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS1848, idtg2_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS1616, idtg2_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTVPS1616, idtg2_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTSPS1616, idtg2_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS1432, idtg2_switch_init);
+static void idtg2_remove(struct rio_dev *rdev)
+{
+	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	spin_lock(&rdev->rswitch->lock);
+	if (rdev->rswitch->ops != &idtg2_switch_ops) {
+		spin_unlock(&rdev->rswitch->lock);
+		return;
+	}
+	rdev->rswitch->ops = NULL;
+
+	/* Remove device-specific sysfs attributes */
+	idtg2_sysfs(rdev, false);
+
+	spin_unlock(&rdev->rswitch->lock);
+}
+
+static struct rio_device_id idtg2_id_table[] = {
+	{RIO_DEVICE(RIO_DID_IDTCPS1848, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDTCPS1616, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDTVPS1616, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDTSPS1616, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDTCPS1432, RIO_VID_IDT)},
+	{ 0, }	/* terminate list */
+};
+
+static struct rio_driver idtg2_driver = {
+	.name = "idt_gen2",
+	.id_table = idtg2_id_table,
+	.probe = idtg2_probe,
+	.remove = idtg2_remove,
+};
+
+static int __init idtg2_init(void)
+{
+	return rio_register_driver(&idtg2_driver);
+}
+
+static void __exit idtg2_exit(void)
+{
+	pr_debug("RIO: %s\n", __func__);
+	rio_unregister_driver(&idtg2_driver);
+	pr_debug("RIO: %s done\n", __func__);
+}
+
+device_initcall(idtg2_init);
+module_exit(idtg2_exit);
+
+MODULE_DESCRIPTION("IDT CPS Gen.2 Serial RapidIO switch family driver");
+MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_LICENSE("GPL");

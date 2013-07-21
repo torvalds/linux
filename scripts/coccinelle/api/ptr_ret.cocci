@@ -5,7 +5,7 @@
 // Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.  GPLv2.
 // Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.  GPLv2.
 // URL: http://coccinelle.lip6.fr/
-// Options: -no_includes -include_headers
+// Options: --no-includes --include-headers
 //
 // Keywords: ERR_PTR, PTR_ERR, PTR_RET
 // Version min: 2.6.39

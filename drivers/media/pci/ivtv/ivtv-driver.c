@@ -752,7 +752,7 @@ static int ivtv_init_struct1(struct ivtv *itv)
 
 	init_kthread_worker(&itv->irq_worker);
 	itv->irq_worker_task = kthread_run(kthread_worker_fn, &itv->irq_worker,
-					   itv->v4l2_dev.name);
+					   "%s", itv->v4l2_dev.name);
 	if (IS_ERR(itv->irq_worker_task)) {
 		IVTV_ERR("Could not create ivtv task\n");
 		return -1;

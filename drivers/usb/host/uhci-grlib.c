@@ -157,9 +157,7 @@ err_rmr:
 
 static int uhci_hcd_grlib_remove(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
-
-	dev_set_drvdata(&op->dev, NULL);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 
 	dev_dbg(&op->dev, "stopping GRLIB GRUSBHC UHCI USB Controller\n");
 
@@ -183,7 +181,7 @@ static int uhci_hcd_grlib_remove(struct platform_device *op)
  */
 static void uhci_hcd_grlib_shutdown(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 
 	uhci_hc_died(hcd_to_uhci(hcd));
 }

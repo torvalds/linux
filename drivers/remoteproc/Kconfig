@@ -14,8 +14,9 @@ config OMAP_REMOTEPROC
 	depends on HAS_DMA
 	depends on ARCH_OMAP4 || SOC_OMAP5
 	depends on OMAP_IOMMU
-	depends on OMAP_MBOX_FWK
 	select REMOTEPROC
+	select MAILBOX
+	select OMAP2PLUS_MBOX
 	select RPMSG
 	help
 	  Say y here to support OMAP's remote processors (dual M3

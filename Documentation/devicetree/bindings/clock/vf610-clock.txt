@@ -1,0 +1,26 @@
+* Clock bindings for Freescale Vybrid VF610 SOC
+
+Required properties:
+- compatible: Should be "fsl,vf610-ccm"
+- reg: Address and length of the register set
+- #clock-cells: Should be <1>
+
+The clock consumer should specify the desired clock by having the clock
+ID in its "clocks" phandle cell. See include/dt-bindings/clock/vf610-clock.h
+for the full list of VF610 clock IDs.
+
+Examples:
+
+clks: ccm@4006b000 {
+	compatible = "fsl,vf610-ccm";
+	reg = <0x4006b000 0x1000>;
+	#clock-cells = <1>;
+};
+
+uart1: serial@40028000 {
+	compatible = "fsl,vf610-uart";
+	reg = <0x40028000 0x1000>;
+	interrupts = <0 62 0x04>;
+	clocks = <&clks VF610_CLK_UART1>;
+	clock-names = "ipg";
+};

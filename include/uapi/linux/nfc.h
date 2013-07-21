@@ -69,6 +69,8 @@
  *	starting a poll from a device which has a secure element enabled means
  *	we want to do SE based card emulation.
  * @NFC_CMD_DISABLE_SE: Disable the physical link to a specific secure element.
+ * @NFC_CMD_FW_UPLOAD: Request to Load/flash firmware, or event to inform that
+ *	some firmware was loaded
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -92,6 +94,9 @@ enum nfc_commands {
 	NFC_CMD_DISABLE_SE,
 	NFC_CMD_LLC_SDREQ,
 	NFC_EVENT_LLC_SDRES,
+	NFC_CMD_FW_UPLOAD,
+	NFC_EVENT_SE_ADDED,
+	NFC_EVENT_SE_REMOVED,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -121,6 +126,9 @@ enum nfc_commands {
  * @NFC_ATTR_LLC_PARAM_RW: Receive Window size parameter
  * @NFC_ATTR_LLC_PARAM_MIUX: MIU eXtension parameter
  * @NFC_ATTR_SE: Available Secure Elements
+ * @NFC_ATTR_FIRMWARE_NAME: Free format firmware version
+ * @NFC_ATTR_SE_INDEX: Secure element index
+ * @NFC_ATTR_SE_TYPE: Secure element type (UICC or EMBEDDED)
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -143,6 +151,9 @@ enum nfc_attrs {
 	NFC_ATTR_LLC_PARAM_MIUX,
 	NFC_ATTR_SE,
 	NFC_ATTR_LLC_SDP,
+	NFC_ATTR_FIRMWARE_NAME,
+	NFC_ATTR_SE_INDEX,
+	NFC_ATTR_SE_TYPE,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };
@@ -159,9 +170,12 @@ enum nfc_sdp_attr {
 
 #define NFC_DEVICE_NAME_MAXSIZE 8
 #define NFC_NFCID1_MAXSIZE 10
+#define NFC_NFCID2_MAXSIZE 8
+#define NFC_NFCID3_MAXSIZE 10
 #define NFC_SENSB_RES_MAXSIZE 12
 #define NFC_SENSF_RES_MAXSIZE 18
 #define NFC_GB_MAXSIZE        48
+#define NFC_FIRMWARE_NAME_MAXSIZE 32
 
 /* NFC protocols */
 #define NFC_PROTO_JEWEL		1
@@ -191,9 +205,11 @@ enum nfc_sdp_attr {
 #define NFC_PROTO_ISO14443_B_MASK (1 << NFC_PROTO_ISO14443_B)
 
 /* NFC Secure Elements */
-#define NFC_SE_NONE     0x0
 #define NFC_SE_UICC     0x1
 #define NFC_SE_EMBEDDED 0x2
+
+#define NFC_SE_DISABLED 0x0
+#define NFC_SE_ENABLED  0x1
 
 struct sockaddr_nfc {
 	sa_family_t sa_family;

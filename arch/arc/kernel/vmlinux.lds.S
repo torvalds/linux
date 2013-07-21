@@ -125,6 +125,11 @@ SECTIONS
 		*(.debug_frame)
 		__end_unwind = .;
 	}
+	/*
+	 * gcc 4.8 generates this for -fasynchonous-unwind-tables,
+	 * while we still use the .debug_frame based unwinder
+	 */
+	/DISCARD/ : {	*(.eh_frame) }
 #else
 	/DISCARD/ : {	*(.debug_frame) }
 #endif
@@ -142,15 +147,18 @@ SECTIONS
 		*(.arcextmap.*)
 	}
 
+#ifndef CONFIG_DEBUG_INFO
 	/* open-coded because we need .debug_frame seperately for unwinding */
-	.debug_aranges 0 : { *(.debug_aranges) }
-	.debug_pubnames 0 : { *(.debug_pubnames) }
-	.debug_info 0 : { *(.debug_info) }
-	.debug_abbrev 0 : { *(.debug_abbrev) }
-	.debug_line 0 : { *(.debug_line) }
-	.debug_str 0 : { *(.debug_str) }
-	.debug_loc 0 : { *(.debug_loc) }
-	.debug_macinfo 0 : { *(.debug_macinfo) }
+	/DISCARD/ : { *(.debug_aranges) }
+	/DISCARD/ : { *(.debug_pubnames) }
+	/DISCARD/ : { *(.debug_info) }
+	/DISCARD/ : { *(.debug_abbrev) }
+	/DISCARD/ : { *(.debug_line) }
+	/DISCARD/ : { *(.debug_str) }
+	/DISCARD/ : { *(.debug_loc) }
+	/DISCARD/ : { *(.debug_macinfo) }
+	/DISCARD/ : { *(.debug_ranges) }
+#endif
 
 #ifdef CONFIG_ARC_HAS_DCCM
 	. = CONFIG_ARC_DCCM_BASE;

@@ -154,6 +154,10 @@ static void mmp_tdma_disable_chan(struct mmp_tdma_chan *tdmac)
 {
 	writel(readl(tdmac->reg_base + TDCR) & ~TDCR_CHANEN,
 					tdmac->reg_base + TDCR);
+
+	/* disable irq */
+	writel(0, tdmac->reg_base + TDIMR);
+
 	tdmac->status = DMA_SUCCESS;
 }
 

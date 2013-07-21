@@ -17,7 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/usb/musb.h>
-#include <asm/bfin6xx_spi.h>
+#include <asm/bfin_spi3.h>
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
@@ -108,7 +108,6 @@ static struct platform_device bfin_rotary_device = {
 static unsigned short pins[] = P_RMII0;
 
 static struct stmmac_mdio_bus_data phy_private_data = {
-	.bus_id = 0,
 	.phy_mask = 1,
 };
 
@@ -745,13 +744,13 @@ static struct flash_platform_data bfin_spi_flash_data = {
 	.type = "w25q32",
 };
 
-static struct bfin6xx_spi_chip spi_flash_chip_info = {
+static struct bfin_spi3_chip spi_flash_chip_info = {
 	.enable_dma = true,         /* use dma transfer with this chip*/
 };
 #endif
 
 #if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
-static struct bfin6xx_spi_chip spidev_chip_info = {
+static struct bfin_spi3_chip spidev_chip_info = {
 	.enable_dma = true,
 };
 #endif
@@ -821,7 +820,7 @@ static struct platform_device bfin_i2s = {
 #if defined(CONFIG_SND_BF5XX_SOC_AD1836) \
 	        || defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
 static const char * const ad1836_link[] = {
-	"bfin-tdm.0",
+	"bfin-i2s.0",
 	"spi0.76",
 };
 static struct platform_device bfin_ad1836_machine = {
@@ -1296,7 +1295,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 };
-#if defined(CONFIG_SPI_BFIN6XX) || defined(CONFIG_SPI_BFIN6XX_MODULE)
+#if IS_ENABLED(CONFIG_SPI_BFIN_V3)
 /* SPI (0) */
 static struct resource bfin_spi0_resource[] = {
 	{
@@ -1337,13 +1336,13 @@ static struct resource bfin_spi1_resource[] = {
 };
 
 /* SPI controller data */
-static struct bfin6xx_spi_master bf60x_spi_master_info0 = {
+static struct bfin_spi3_master bf60x_spi_master_info0 = {
 	.num_chipselect = MAX_CTRL_CS + MAX_BLACKFIN_GPIOS,
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 static struct platform_device bf60x_spi_master0 = {
-	.name = "bfin-spi",
+	.name = "bfin-spi3",
 	.id = 0, /* Bus number */
 	.num_resources = ARRAY_SIZE(bfin_spi0_resource),
 	.resource = bfin_spi0_resource,
@@ -1352,13 +1351,13 @@ static struct platform_device bf60x_spi_master0 = {
 	},
 };
 
-static struct bfin6xx_spi_master bf60x_spi_master_info1 = {
+static struct bfin_spi3_master bf60x_spi_master_info1 = {
 	.num_chipselect = MAX_CTRL_CS + MAX_BLACKFIN_GPIOS,
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
 
 static struct platform_device bf60x_spi_master1 = {
-	.name = "bfin-spi",
+	.name = "bfin-spi3",
 	.id = 1, /* Bus number */
 	.num_resources = ARRAY_SIZE(bfin_spi1_resource),
 	.resource = bfin_spi1_resource,
@@ -1534,7 +1533,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_sdh_device,
 #endif
 
-#if defined(CONFIG_SPI_BFIN6XX) || defined(CONFIG_SPI_BFIN6XX_MODULE)
+#if IS_ENABLED(CONFIG_SPI_BFIN_V3)
 	&bf60x_spi_master0,
 	&bf60x_spi_master1,
 #endif

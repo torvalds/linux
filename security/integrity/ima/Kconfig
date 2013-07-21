@@ -38,18 +38,6 @@ config IMA_MEASURE_PCR_IDX
 	  that IMA uses to maintain the integrity aggregate of the
 	  measurement list.  If unsure, use the default 10.
 
-config IMA_AUDIT
-	bool "Enables auditing support"
-	depends on IMA
-	depends on AUDIT
-	default y
-	help
-	  This option adds a kernel parameter 'ima_audit', which
-	  allows informational auditing messages to be enabled
-	  at boot.  If this option is selected, informational integrity
-	  auditing messages can be enabled with 'ima_audit=1' on
-	  the kernel command line.
-
 config IMA_LSM_RULES
 	bool
 	depends on IMA && AUDIT && (SECURITY_SELINUX || SECURITY_SMACK)

@@ -21,8 +21,15 @@ config DW_APB_TIMER
 
 config DW_APB_TIMER_OF
 	bool
+	select DW_APB_TIMER
+	select CLKSRC_OF
 
 config ARMADA_370_XP_TIMER
+	bool
+
+config ORION_TIMER
+	select CLKSRC_OF
+	select CLKSRC_MMIO
 	bool
 
 config SUN4I_TIMER
@@ -67,6 +74,19 @@ config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
 
+config ARM_GLOBAL_TIMER
+	bool
+	select CLKSRC_OF if OF
+	help
+	  This options enables support for the ARM global timer unit
+
+config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
+	bool
+	depends on ARM_GLOBAL_TIMER
+	default y
+	help
+	 Use ARM global timer clock source as sched_clock
+
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
 	help
@@ -85,3 +105,8 @@ config CLKSRC_SAMSUNG_PWM
 	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
 	  for all devicetree enabled platforms. This driver will be
 	  needed only on systems that do not have the Exynos MCT available.
+
+config VF_PIT_TIMER
+	bool
+	help
+	  Support for Period Interrupt Timer on Freescale Vybrid Family SoCs.

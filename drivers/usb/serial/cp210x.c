@@ -666,8 +666,6 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	unsigned int bits;
 	unsigned int modem_ctl[4];
 
-	dev_dbg(dev, "%s - port %d\n", __func__, port->number);
-
 	if (!tty)
 		return;
 
