@@ -2103,12 +2103,25 @@ fec_probe(struct platform_device *pdev)
 		fep->bufdesc_ex = 0;
 	}
 
-	clk_prepare_enable(fep->clk_ahb);
-	clk_prepare_enable(fep->clk_ipg);
-	if (fep->clk_enet_out)
-		clk_prepare_enable(fep->clk_enet_out);
-	if (fep->clk_ptp)
-		clk_prepare_enable(fep->clk_ptp);
+	ret = clk_prepare_enable(fep->clk_ahb);
+	if (ret)
+		goto failed_clk;
+
+	ret = clk_prepare_enable(fep->clk_ipg);
+	if (ret)
+		goto failed_clk_ipg;
+
+	if (fep->clk_enet_out) {
+		ret = clk_prepare_enable(fep->clk_enet_out);
+		if (ret)
+			goto failed_clk_enet_out;
+	}
+
+	if (fep->clk_ptp) {
+		ret = clk_prepare_enable(fep->clk_ptp);
+		if (ret)
+			goto failed_clk_ptp;
+	}
 
 	fep->reg_phy = devm_regulator_get(&pdev->dev, "phy");
 	if (!IS_ERR(fep->reg_phy)) {
@@ -2181,9 +2194,12 @@ failed_init:
 failed_regulator:
 	if (fep->clk_ptp)
 		clk_disable_unprepare(fep->clk_ptp);
+failed_clk_ptp:
 	if (fep->clk_enet_out)
 		clk_disable_unprepare(fep->clk_enet_out);
+failed_clk_enet_out:
 	clk_disable_unprepare(fep->clk_ipg);
+failed_clk_ipg:
 	clk_disable_unprepare(fep->clk_ahb);
 failed_clk:
 failed_ioremap:
@@ -2260,18 +2276,44 @@ fec_resume(struct device *dev)
 			return ret;
 	}
 
-	clk_prepare_enable(fep->clk_ahb);
-	clk_prepare_enable(fep->clk_ipg);
-	if (fep->clk_enet_out)
-		clk_prepare_enable(fep->clk_enet_out);
-	if (fep->clk_ptp)
-		clk_prepare_enable(fep->clk_ptp);
+	ret = clk_prepare_enable(fep->clk_ahb);
+	if (ret)
+		goto failed_clk_ahb;
+
+	ret = clk_prepare_enable(fep->clk_ipg);
+	if (ret)
+		goto failed_clk_ipg;
+
+	if (fep->clk_enet_out) {
+		ret = clk_prepare_enable(fep->clk_enet_out);
+		if (ret)
+			goto failed_clk_enet_out;
+	}
+
+	if (fep->clk_ptp) {
+		ret = clk_prepare_enable(fep->clk_ptp);
+		if (ret)
+			goto failed_clk_ptp;
+	}
+
 	if (netif_running(ndev)) {
 		fec_restart(ndev, fep->full_duplex);
 		netif_device_attach(ndev);
 	}
 
 	return 0;
+
+failed_clk_ptp:
+	if (fep->clk_enet_out)
+		clk_disable_unprepare(fep->clk_enet_out);
+failed_clk_enet_out:
+	clk_disable_unprepare(fep->clk_ipg);
+failed_clk_ipg:
+	clk_disable_unprepare(fep->clk_ahb);
+failed_clk_ahb:
+	if (fep->reg_phy)
+		regulator_disable(fep->reg_phy);
+	return ret;
 }
 #endif /* CONFIG_PM_SLEEP */
 
