@@ -107,8 +107,7 @@ static struct intel_dvo *enc_to_dvo(struct intel_encoder *encoder)
 
 static struct intel_dvo *intel_attached_dvo(struct drm_connector *connector)
 {
-	return container_of(intel_attached_encoder(connector),
-			    struct intel_dvo, base);
+	return enc_to_dvo(intel_attached_encoder(connector));
 }
 
 static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
@@ -274,15 +273,14 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
-static void intel_dvo_mode_set(struct drm_encoder *encoder,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode)
+static void intel_dvo_mode_set(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	struct intel_dvo *intel_dvo = enc_to_dvo(to_intel_encoder(encoder));
-	int pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
+	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
+	int pipe = crtc->pipe;
 	u32 dvo_val;
 	u32 dvo_reg = intel_dvo->dev.dvo_reg, dvo_srcdim_reg;
 
@@ -299,7 +297,9 @@ static void intel_dvo_mode_set(struct drm_encoder *encoder,
 		break;
 	}
 
-	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev, mode, adjusted_mode);
+	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
+					 &crtc->config.requested_mode,
+					 adjusted_mode);
 
 	/* Save the data order, since I don't know what it should be set to. */
 	dvo_val = I915_READ(dvo_reg) &
@@ -372,10 +372,6 @@ static void intel_dvo_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
-
-static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
-	.mode_set = intel_dvo_mode_set,
-};
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 	.dpms = intel_dvo_dpms,
@@ -472,6 +468,7 @@ void intel_dvo_init(struct drm_device *dev)
 	intel_encoder->get_hw_state = intel_dvo_get_hw_state;
 	intel_encoder->get_config = intel_dvo_get_config;
 	intel_encoder->compute_config = intel_dvo_compute_config;
+	intel_encoder->mode_set = intel_dvo_mode_set;
 	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
 
 	/* Now, try to find a controller */
@@ -537,9 +534,6 @@ void intel_dvo_init(struct drm_device *dev)
 		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		connector->interlace_allowed = false;
 		connector->doublescan_allowed = false;
-
-		drm_encoder_helper_add(&intel_encoder->base,
-				       &intel_dvo_helper_funcs);
 
 		intel_connector_attach_encoder(intel_connector, intel_encoder);
 		if (dvo->type == INTEL_DVO_CHIP_LVDS) {
