@@ -292,9 +292,10 @@ enum llog_ctxt_id {
 	LLOG_TEST_REPL_CTXT,
 	LLOG_LOVEA_ORIG_CTXT,
 	LLOG_LOVEA_REPL_CTXT,
-	LLOG_CHANGELOG_ORIG_CTXT,      /**< changelog generation on mdd */
-	LLOG_CHANGELOG_REPL_CTXT,      /**< changelog access on clients */
-	LLOG_CHANGELOG_USER_ORIG_CTXT, /**< for multiple changelog consumers */
+	LLOG_CHANGELOG_ORIG_CTXT,	/**< changelog generation on mdd */
+	LLOG_CHANGELOG_REPL_CTXT,	/**< changelog access on clients */
+	LLOG_CHANGELOG_USER_ORIG_CTXT,	/**< for multiple changelog consumers */
+	LLOG_AGENT_ORIG_CTXT,		/**< agent requests generation on cdt */
 	LLOG_MAX_CTXTS
 };
 

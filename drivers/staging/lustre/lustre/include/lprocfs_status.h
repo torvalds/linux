@@ -826,9 +826,6 @@ extern int lprocfs_quota_rd_qs_factor(char *page, char **start, loff_t off,
 extern int lprocfs_quota_wr_qs_factor(struct file *file,
 				      const char *buffer,
 				      unsigned long count, void *data);
-
-
-
 #else
 /* LPROCFS is not defined */
 

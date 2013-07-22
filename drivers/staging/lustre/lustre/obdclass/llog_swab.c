@@ -203,6 +203,23 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		break;
 	}
 
+	case HSM_AGENT_REC: {
+		struct llog_agent_req_rec *arr =
+			(struct llog_agent_req_rec *)rec;
+
+		__swab32s(&arr->arr_hai.hai_len);
+		__swab32s(&arr->arr_hai.hai_action);
+		lustre_swab_lu_fid(&arr->arr_hai.hai_fid);
+		lustre_swab_lu_fid(&arr->arr_hai.hai_dfid);
+		__swab64s(&arr->arr_hai.hai_cookie);
+		__swab64s(&arr->arr_hai.hai_extent.offset);
+		__swab64s(&arr->arr_hai.hai_extent.length);
+		__swab64s(&arr->arr_hai.hai_gid);
+		/* no swabing for opaque data */
+		/* hai_data[0]; */
+		break;
+	}
+
 	case MDS_SETATTR64_REC:
 	{
 		struct llog_setattr64_rec *lsr =

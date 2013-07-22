@@ -2986,6 +2986,7 @@ typedef enum {
 	/* LLOG_JOIN_REC	= LLOG_OP_MAGIC | 0x50000, obsolete  1.8.0 */
 	CHANGELOG_REC		= LLOG_OP_MAGIC | 0x60000,
 	CHANGELOG_USER_REC	= LLOG_OP_MAGIC | 0x70000,
+	HSM_AGENT_REC		= LLOG_OP_MAGIC | 0x80000,
 	LLOG_HDR_MAGIC		= LLOG_OP_MAGIC | 0x45539,
 	LLOG_LOGID_MAGIC	= LLOG_OP_MAGIC | 0x4553b,
 } llog_op_type;
@@ -3103,6 +3104,52 @@ struct llog_changelog_user_rec {
 	__u32		 cur_padding;
 	__u64		 cur_endrec;
 	struct llog_rec_tail  cur_tail;
+} __attribute__((packed));
+
+enum agent_req_status {
+	ARS_WAITING,
+	ARS_STARTED,
+	ARS_FAILED,
+	ARS_CANCELED,
+	ARS_SUCCEED,
+};
+
+static inline char *agent_req_status2name(enum agent_req_status ars)
+{
+	switch (ars) {
+	case ARS_WAITING:
+		return "WAITING";
+	case ARS_STARTED:
+		return "STARTED";
+	case ARS_FAILED:
+		return "FAILED";
+	case ARS_CANCELED:
+		return "CANCELED";
+	case ARS_SUCCEED:
+		return "SUCCEED";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static inline bool agent_req_in_final_state(enum agent_req_status ars)
+{
+	return ((ars == ARS_SUCCEED) || (ars == ARS_FAILED) ||
+		(ars == ARS_CANCELED));
+}
+
+struct llog_agent_req_rec {
+	struct llog_rec_hdr	arr_hdr;	/**< record header */
+	__u32			arr_status;	/**< status of the request */
+						/* must match enum
+						 * agent_req_status */
+	__u32			arr_archive_id;	/**< backend archive number */
+	__u64			arr_flags;	/**< req flags */
+	__u64			arr_compound_id;	/**< compound cookie */
+	__u64			arr_req_create;	/**< req. creation time */
+	__u64			arr_req_change;	/**< req. status change time */
+	struct hsm_action_item	arr_hai;	/**< req. to the agent */
+	struct llog_rec_tail	arr_tail; /**< record tail for_sizezof_only */
 } __attribute__((packed));
 
 /* Old llog gen for compatibility */
