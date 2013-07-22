@@ -41,10 +41,6 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#ifndef EXPORT_SYMTAB
-#define EXPORT_SYMTAB
-#endif
-
 #include <obd.h>
 #include <obd_class.h>
 #include <lustre_fid.h>
