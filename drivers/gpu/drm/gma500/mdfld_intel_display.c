@@ -681,7 +681,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll = 0, fp = 0;
 	bool is_mipi = false, is_mipi2 = false, is_hdmi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct psb_intel_encoder *psb_intel_encoder = NULL;
+	struct gma_encoder *gma_encoder = NULL;
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
@@ -747,9 +747,9 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 
-		psb_intel_encoder = gma_attached_encoder(connector);
+		gma_encoder = gma_attached_encoder(connector);
 
-		switch (psb_intel_encoder->type) {
+		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_MIPI:
 			is_mipi = true;
 			break;
@@ -800,7 +800,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 
 	REG_WRITE(map->pos, 0);
 
-	if (psb_intel_encoder)
+	if (gma_encoder)
 		drm_object_property_get_value(&connector->base,
 			dev->mode_config.scaling_mode_property, &scalingType);
 

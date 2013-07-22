@@ -267,10 +267,9 @@ static void psb_intel_lvds_save(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_psb_private *dev_priv =
 		(struct drm_psb_private *)dev->dev_private;
-	struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv =
-		(struct psb_intel_lvds_priv *)psb_intel_encoder->dev_priv;
+		(struct psb_intel_lvds_priv *)gma_encoder->dev_priv;
 
 	lvds_priv->savePP_ON = REG_READ(LVDSPP_ON);
 	lvds_priv->savePP_OFF = REG_READ(LVDSPP_OFF);
@@ -307,10 +306,9 @@ static void psb_intel_lvds_restore(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	u32 pp_status;
-	struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv =
-		(struct psb_intel_lvds_priv *)psb_intel_encoder->dev_priv;
+		(struct psb_intel_lvds_priv *)gma_encoder->dev_priv;
 
 	dev_dbg(dev->dev, "(0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)\n",
 			lvds_priv->savePP_ON,
@@ -349,12 +347,11 @@ int psb_intel_lvds_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct drm_psb_private *dev_priv = connector->dev->dev_private;
-	struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct drm_display_mode *fixed_mode =
 					dev_priv->mode_dev.panel_fixed_mode;
 
-	if (psb_intel_encoder->type == INTEL_OUTPUT_MIPI2)
+	if (gma_encoder->type == INTEL_OUTPUT_MIPI2)
 		fixed_mode = dev_priv->mode_dev.panel_fixed_mode2;
 
 	/* just in case */
@@ -384,10 +381,9 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	struct gma_crtc *gma_crtc = to_gma_crtc(encoder->crtc);
 	struct drm_encoder *tmp_encoder;
 	struct drm_display_mode *panel_fixed_mode = mode_dev->panel_fixed_mode;
-	struct psb_intel_encoder *psb_intel_encoder =
-						to_psb_intel_encoder(encoder);
+	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
 
-	if (psb_intel_encoder->type == INTEL_OUTPUT_MIPI2)
+	if (gma_encoder->type == INTEL_OUTPUT_MIPI2)
 		panel_fixed_mode = mode_dev->panel_fixed_mode2;
 
 	/* PSB requires the LVDS is on pipe B, MRST has only one pipe anyway */
@@ -524,9 +520,8 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
-	struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
-	struct psb_intel_lvds_priv *lvds_priv = psb_intel_encoder->dev_priv;
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+	struct psb_intel_lvds_priv *lvds_priv = gma_encoder->dev_priv;
 	int ret = 0;
 
 	if (!IS_MRST(dev))
@@ -563,9 +558,8 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
  */
 void psb_intel_lvds_destroy(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
-	struct psb_intel_lvds_priv *lvds_priv = psb_intel_encoder->dev_priv;
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+	struct psb_intel_lvds_priv *lvds_priv = gma_encoder->dev_priv;
 
 	if (lvds_priv->ddc_bus)
 		psb_intel_i2c_destroy(lvds_priv->ddc_bus);
@@ -689,7 +683,7 @@ const struct drm_encoder_funcs psb_intel_lvds_enc_funcs = {
 void psb_intel_lvds_init(struct drm_device *dev,
 			 struct psb_intel_mode_device *mode_dev)
 {
-	struct psb_intel_encoder *psb_intel_encoder;
+	struct gma_encoder *gma_encoder;
 	struct gma_connector *gma_connector;
 	struct psb_intel_lvds_priv *lvds_priv;
 	struct drm_connector *connector;
@@ -700,10 +694,9 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	u32 lvds;
 	int pipe;
 
-	psb_intel_encoder =
-			kzalloc(sizeof(struct psb_intel_encoder), GFP_KERNEL);
-	if (!psb_intel_encoder) {
-		dev_err(dev->dev, "psb_intel_encoder allocation error\n");
+	gma_encoder = kzalloc(sizeof(struct gma_encoder), GFP_KERNEL);
+	if (!gma_encoder) {
+		dev_err(dev->dev, "gma_encoder allocation error\n");
 		return;
 	}
 
@@ -719,10 +712,10 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		goto failed_connector;
 	}
 
-	psb_intel_encoder->dev_priv = lvds_priv;
+	gma_encoder->dev_priv = lvds_priv;
 
 	connector = &gma_connector->base;
-	encoder = &psb_intel_encoder->base;
+	encoder = &gma_encoder->base;
 	drm_connector_init(dev, connector,
 			   &psb_intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
@@ -731,8 +724,8 @@ void psb_intel_lvds_init(struct drm_device *dev,
 			 &psb_intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	gma_connector_attach_encoder(gma_connector, psb_intel_encoder);
-	psb_intel_encoder->type = INTEL_OUTPUT_LVDS;
+	gma_connector_attach_encoder(gma_connector, gma_encoder);
+	gma_encoder->type = INTEL_OUTPUT_LVDS;
 
 	drm_encoder_helper_add(encoder, &psb_intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector,
@@ -849,6 +842,6 @@ failed_blc_i2c:
 failed_connector:
 	kfree(gma_connector);
 failed_encoder:
-	kfree(psb_intel_encoder);
+	kfree(gma_encoder);
 }
 

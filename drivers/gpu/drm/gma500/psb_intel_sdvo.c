@@ -65,7 +65,7 @@ static const char *tv_format_names[] = {
 #define TV_FORMAT_NUM  (sizeof(tv_format_names) / sizeof(*tv_format_names))
 
 struct psb_intel_sdvo {
-	struct psb_intel_encoder base;
+	struct gma_encoder base;
 
 	struct i2c_adapter *i2c;
 	u8 slave_addr;
@@ -1836,10 +1836,8 @@ done:
 static void psb_intel_sdvo_save(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
-	struct psb_intel_sdvo *sdvo =
-				to_psb_intel_sdvo(&psb_intel_encoder->base);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+	struct psb_intel_sdvo *sdvo = to_psb_intel_sdvo(&gma_encoder->base);
 
 	sdvo->saveSDVO = REG_READ(sdvo->sdvo_reg);
 }
@@ -2539,7 +2537,7 @@ psb_intel_sdvo_init_ddc_proxy(struct psb_intel_sdvo *sdvo,
 bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_encoder *psb_intel_encoder;
+	struct gma_encoder *gma_encoder;
 	struct psb_intel_sdvo *psb_intel_sdvo;
 	int i;
 
@@ -2556,9 +2554,9 @@ bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	}
 
 	/* encoder type will be decided later */
-	psb_intel_encoder = &psb_intel_sdvo->base;
-	psb_intel_encoder->type = INTEL_OUTPUT_SDVO;
-	drm_encoder_init(dev, &psb_intel_encoder->base, &psb_intel_sdvo_enc_funcs, 0);
+	gma_encoder = &psb_intel_sdvo->base;
+	gma_encoder->type = INTEL_OUTPUT_SDVO;
+	drm_encoder_init(dev, &gma_encoder->base, &psb_intel_sdvo_enc_funcs, 0);
 
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {
@@ -2576,7 +2574,7 @@ bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	else
 		dev_priv->hotplug_supported_mask |= SDVOC_HOTPLUG_INT_STATUS;
 
-	drm_encoder_helper_add(&psb_intel_encoder->base, &psb_intel_sdvo_helper_funcs);
+	drm_encoder_helper_add(&gma_encoder->base, &psb_intel_sdvo_helper_funcs);
 
 	/* In default case sdvo lvds is false */
 	if (!psb_intel_sdvo_get_capabilities(psb_intel_sdvo, &psb_intel_sdvo->caps))
@@ -2619,7 +2617,7 @@ bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	return true;
 
 err:
-	drm_encoder_cleanup(&psb_intel_encoder->base);
+	drm_encoder_cleanup(&gma_encoder->base);
 	i2c_del_adapter(&psb_intel_sdvo->ddc);
 	kfree(psb_intel_sdvo);
 

@@ -238,7 +238,7 @@ struct mdfld_dsi_connector {
 };
 
 struct mdfld_dsi_encoder {
-	struct psb_intel_encoder base;
+	struct gma_encoder base;
 	void *private;
 };
 
@@ -279,11 +279,11 @@ static inline struct mdfld_dsi_connector *mdfld_dsi_connector(
 static inline struct mdfld_dsi_encoder *mdfld_dsi_encoder(
 		struct drm_encoder *encoder)
 {
-	struct psb_intel_encoder *psb_encoder;
+	struct gma_encoder *gma_encoder;
 
-	psb_encoder = to_psb_intel_encoder(encoder);
+	gma_encoder = to_gma_encoder(encoder);
 
-	return container_of(psb_encoder, struct mdfld_dsi_encoder, base);
+	return container_of(gma_encoder, struct mdfld_dsi_encoder, base);
 }
 
 static inline struct mdfld_dsi_config *

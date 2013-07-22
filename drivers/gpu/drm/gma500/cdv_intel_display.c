@@ -497,14 +497,14 @@ static bool is_pipeb_lvds(struct drm_device *dev, struct drm_crtc *crtc)
 		return false;
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct psb_intel_encoder *psb_intel_encoder =
+		struct gma_encoder *gma_encoder =
 					gma_attached_encoder(connector);
 
 		if (!connector->encoder
 		    || connector->encoder->crtc != crtc)
 			continue;
 
-		if (psb_intel_encoder->type == INTEL_OUTPUT_LVDS)
+		if (gma_encoder->type == INTEL_OUTPUT_LVDS)
 			return true;
 	}
 
@@ -632,15 +632,15 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_edp = false;
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct psb_intel_encoder *psb_intel_encoder =
+		struct gma_encoder *gma_encoder =
 					gma_attached_encoder(connector);
 
 		if (!connector->encoder
 		    || connector->encoder->crtc != crtc)
 			continue;
 
-		ddi_select = psb_intel_encoder->ddi_select;
-		switch (psb_intel_encoder->type) {
+		ddi_select = gma_encoder->ddi_select;
+		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;

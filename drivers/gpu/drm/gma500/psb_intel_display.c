@@ -126,14 +126,13 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
+		struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
 		if (!connector->encoder
 		    || connector->encoder->crtc != crtc)
 			continue;
 
-		switch (psb_intel_encoder->type) {
+		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
@@ -602,9 +601,8 @@ int gma_connector_clones(struct drm_device *dev, int type_mask)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
-		struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
-		if (type_mask & (1 << psb_intel_encoder->type))
+		struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
+		if (type_mask & (1 << gma_encoder->type))
 			index_mask |= (1 << entry);
 		entry++;
 	}

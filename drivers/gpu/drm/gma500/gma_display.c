@@ -37,9 +37,9 @@ bool gma_pipe_has_type(struct drm_crtc *crtc, int type)
 
 	list_for_each_entry(l_entry, &mode_config->connector_list, head) {
 		if (l_entry->encoder && l_entry->encoder->crtc == crtc) {
-			struct psb_intel_encoder *psb_intel_encoder =
+			struct gma_encoder *gma_encoder =
 						gma_attached_encoder(l_entry);
-			if (psb_intel_encoder->type == type)
+			if (gma_encoder->type == type)
 				return true;
 		}
 	}
@@ -657,7 +657,7 @@ void gma_encoder_commit(struct drm_encoder *encoder)
 
 void gma_encoder_destroy(struct drm_encoder *encoder)
 {
-	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+	struct gma_encoder *intel_encoder = to_gma_encoder(encoder);
 
 	drm_encoder_cleanup(encoder);
 	kfree(intel_encoder);
@@ -666,14 +666,13 @@ void gma_encoder_destroy(struct drm_encoder *encoder)
 /* Currently there is only a 1:1 mapping of encoders and connectors */
 struct drm_encoder *gma_best_encoder(struct drm_connector *connector)
 {
-	struct psb_intel_encoder *psb_intel_encoder =
-						gma_attached_encoder(connector);
+	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	return &psb_intel_encoder->base;
+	return &gma_encoder->base;
 }
 
 void gma_connector_attach_encoder(struct gma_connector *connector,
-				  struct psb_intel_encoder *encoder)
+				  struct gma_encoder *encoder)
 {
 	connector->encoder = encoder;
 	drm_mode_connector_attach_encoder(&connector->base,
