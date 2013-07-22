@@ -29,6 +29,11 @@ make_perf_o         := perf.o
 make_util_map_o     := util/map.o
 make_install        := install
 make_install_bin    := install-bin
+make_install_doc    := install-doc
+make_install_man    := install-man
+make_install_html   := install-html
+make_install_info   := install-info
+make_install_pdf    := install-pdf
 
 # all the NO_* variable combined
 make_minimal        := NO_LIBPERL=1 NO_LIBPYTHON=1 NO_NEWT=1 NO_GTK2=1
@@ -60,6 +65,12 @@ run += make_perf_o
 run += make_util_map_o
 run += make_install
 run += make_install_bin
+# FIXME 'install-*' commented out till they're fixed
+# run += make_install_doc
+# run += make_install_man
+# run += make_install_html
+# run += make_install_info
+# run += make_install_pdf
 run += make_minimal
 
 ifneq ($(call has,ctags),)
@@ -99,6 +110,26 @@ test_make_install       := test -x $$TMP_DEST/bin/perf
 test_make_install_O     := $(test_make_install)
 test_make_install_bin   := $(test_make_install)
 test_make_install_bin_O := $(test_make_install)
+
+# FIXME nothing gets installed
+test_make_install_man    := test -f $$TMP_DEST/share/man/man1/perf.1
+test_make_install_man_O  := $(test_make_install_man)
+
+# FIXME nothing gets installed
+test_make_install_doc    := $(test_ok)
+test_make_install_doc_O  := $(test_ok)
+
+# FIXME nothing gets installed
+test_make_install_html   := $(test_ok)
+test_make_install_html_O := $(test_ok)
+
+# FIXME nothing gets installed
+test_make_install_info   := $(test_ok)
+test_make_install_info_O := $(test_ok)
+
+# FIXME nothing gets installed
+test_make_install_pdf    := $(test_ok)
+test_make_install_pdf_O  := $(test_ok)
 
 # Kbuild tests only
 #test_make_python_perf_so_O := test -f $$TMP/tools/perf/python/perf.so
