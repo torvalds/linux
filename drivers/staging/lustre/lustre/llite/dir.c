@@ -1561,6 +1561,8 @@ out_rmdir:
 			RETURN(rc);
 
 		OBD_ALLOC_LARGE(lmm, lmmsize);
+		if (lmm == NULL)
+			RETURN(-ENOMEM);
 		if (copy_from_user(lmm, lum, lmmsize))
 			GOTO(free_lmm, rc = -EFAULT);
 
