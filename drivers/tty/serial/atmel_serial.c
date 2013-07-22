@@ -97,6 +97,7 @@ static void atmel_stop_rx(struct uart_port *port);
 #define UART_PUT_BRGR(port,v)	__raw_writel(v, (port)->membase + ATMEL_US_BRGR)
 #define UART_PUT_RTOR(port,v)	__raw_writel(v, (port)->membase + ATMEL_US_RTOR)
 #define UART_PUT_TTGR(port, v)	__raw_writel(v, (port)->membase + ATMEL_US_TTGR)
+#define UART_GET_IP_NAME(port)	__raw_readl((port)->membase + ATMEL_US_NAME)
 
  /* PDC registers */
 #define UART_PUT_PTCR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_PTCR)
@@ -166,6 +167,7 @@ struct atmel_uart_port {
 
 	struct serial_rs485	rs485;		/* rs485 settings */
 	unsigned int		tx_done_mask;
+	bool			is_usart;	/* usart or uart */
 	int (*prepare_rx)(struct uart_port *port);
 	int (*prepare_tx)(struct uart_port *port);
 	void (*schedule_rx)(struct uart_port *port);
@@ -1478,6 +1480,34 @@ static void atmel_set_ops(struct uart_port *port)
 }
 
 /*
+ * Get ip name usart or uart
+ */
+static int atmel_get_ip_name(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	int name = UART_GET_IP_NAME(port);
+	int usart, uart;
+	/* usart and uart ascii */
+	usart = 0x55534152;
+	uart = 0x44424755;
+
+	atmel_port->is_usart = false;
+
+	if (name == usart) {
+		dev_dbg(port->dev, "This is usart\n");
+		atmel_port->is_usart = true;
+	} else if (name == uart) {
+		dev_dbg(port->dev, "This is uart\n");
+		atmel_port->is_usart = false;
+	} else {
+		dev_err(port->dev, "Not supported ip name, set to uart\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
  * Perform initialization and enable port for reception
  */
 static int atmel_startup(struct uart_port *port)
@@ -2335,6 +2365,13 @@ static int atmel_serial_probe(struct platform_device *pdev)
 		UART_PUT_MR(&port->uart, ATMEL_US_USMODE_NORMAL);
 		UART_PUT_CR(&port->uart, ATMEL_US_RTSEN);
 	}
+
+	/*
+	 * Get port name of usart or uart
+	 */
+	ret = atmel_get_ip_name(&port->uart);
+	if (ret < 0)
+		goto err_add_port;
 
 	return 0;
 
