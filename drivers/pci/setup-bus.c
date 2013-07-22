@@ -1440,7 +1440,7 @@ again:
 
 	/* any device complain? */
 	if (list_empty(&fail_head))
-		goto enable_and_dump;
+		goto dump;
 
 	if (tried_times >= pci_try_num) {
 		if (enable_local == undefined)
@@ -1449,7 +1449,7 @@ again:
 			dev_info(&bus->dev, "Automatically enabled pci realloc, if you have problem, try booting with pci=realloc=off\n");
 
 		free_list(&fail_head);
-		goto enable_and_dump;
+		goto dump;
 	}
 
 	dev_printk(KERN_DEBUG, &bus->dev,
@@ -1482,10 +1482,7 @@ again:
 
 	goto again;
 
-enable_and_dump:
-	/* Depth last, update the hardware. */
-	pci_enable_bridges(bus);
-
+dump:
 	/* dump the resource on buses */
 	pci_bus_dump_resources(bus);
 }
@@ -1556,7 +1553,6 @@ enable_all:
 	if (retval)
 		dev_err(&bridge->dev, "Error reenabling bridge (%d)\n", retval);
 	pci_set_master(bridge);
-	pci_enable_bridges(parent);
 }
 EXPORT_SYMBOL_GPL(pci_assign_unassigned_bridge_resources);
 
