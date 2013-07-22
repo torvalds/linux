@@ -611,7 +611,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 		     struct psb_intel_mode_device *mode_dev)
 {
 	struct psb_intel_encoder *psb_intel_encoder;
-	struct psb_intel_connector *psb_intel_connector;
+	struct gma_connector *gma_connector;
 	struct cdv_intel_lvds_priv *lvds_priv;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
@@ -633,9 +633,9 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	if (!psb_intel_encoder)
 		return;
 
-	psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector),
+	gma_connector = kzalloc(sizeof(struct gma_connector),
 				      GFP_KERNEL);
-	if (!psb_intel_connector)
+	if (!gma_connector)
 		goto failed_connector;
 
 	lvds_priv = kzalloc(sizeof(struct cdv_intel_lvds_priv), GFP_KERNEL);
@@ -644,7 +644,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 
 	psb_intel_encoder->dev_priv = lvds_priv;
 
-	connector = &psb_intel_connector->base;
+	connector = &gma_connector->base;
 	encoder = &psb_intel_encoder->base;
 
 
@@ -657,7 +657,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 			 DRM_MODE_ENCODER_LVDS);
 
 
-	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	gma_connector_attach_encoder(gma_connector, psb_intel_encoder);
 	psb_intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	drm_encoder_helper_add(encoder, &cdv_intel_lvds_helper_funcs);
@@ -791,7 +791,7 @@ failed_blc_i2c:
 	drm_connector_cleanup(connector);
 	kfree(lvds_priv);
 failed_lvds_priv:
-	kfree(psb_intel_connector);
+	kfree(gma_connector);
 failed_connector:
 	kfree(psb_intel_encoder);
 }

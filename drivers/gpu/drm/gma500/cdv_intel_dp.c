@@ -648,7 +648,7 @@ cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 }
 
 static int
-cdv_intel_dp_i2c_init(struct psb_intel_connector *connector, struct psb_intel_encoder *encoder, const char *name)
+cdv_intel_dp_i2c_init(struct gma_connector *connector, struct psb_intel_encoder *encoder, const char *name)
 {
 	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
@@ -1803,7 +1803,7 @@ void
 cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev, int output_reg)
 {
 	struct psb_intel_encoder *psb_intel_encoder;
-	struct psb_intel_connector *psb_intel_connector;
+	struct gma_connector *gma_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct cdv_intel_dp *intel_dp;
@@ -1813,8 +1813,8 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	psb_intel_encoder = kzalloc(sizeof(struct psb_intel_encoder), GFP_KERNEL);
 	if (!psb_intel_encoder)
 		return;
-        psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
-        if (!psb_intel_connector)
+        gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+        if (!gma_connector)
                 goto err_connector;
 	intel_dp = kzalloc(sizeof(struct cdv_intel_dp), GFP_KERNEL);
 	if (!intel_dp)
@@ -1823,13 +1823,13 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	if ((output_reg == DP_C) && cdv_intel_dpc_is_edp(dev))
 		type = DRM_MODE_CONNECTOR_eDP;
 
-	connector = &psb_intel_connector->base;
+	connector = &gma_connector->base;
 	encoder = &psb_intel_encoder->base;
 
 	drm_connector_init(dev, connector, &cdv_intel_dp_connector_funcs, type);
 	drm_encoder_init(dev, encoder, &cdv_intel_dp_enc_funcs, DRM_MODE_ENCODER_TMDS);
 
-	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	gma_connector_attach_encoder(gma_connector, psb_intel_encoder);
 
 	if (type == DRM_MODE_CONNECTOR_DisplayPort)
         	psb_intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
@@ -1864,7 +1864,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 
 	cdv_disable_intel_clock_gating(dev);
 
-	cdv_intel_dp_i2c_init(psb_intel_connector, psb_intel_encoder, name);
+	cdv_intel_dp_i2c_init(gma_connector, psb_intel_encoder, name);
         /* FIXME:fail check */
 	cdv_intel_dp_add_properties(connector);
 
@@ -1947,7 +1947,7 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	return;
 
 err_priv:
-	kfree(psb_intel_connector);
+	kfree(gma_connector);
 err_connector:
 	kfree(psb_intel_encoder);
 }

@@ -326,7 +326,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev)
 {
 	struct psb_intel_encoder *psb_intel_encoder;
-	struct psb_intel_connector *psb_intel_connector;
+	struct gma_connector *gma_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -338,11 +338,11 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	if (!psb_intel_encoder)
 		return;
 
-	psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
-	if (!psb_intel_connector)
+	gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+	if (!gma_connector)
 		goto failed_connector;
 
-	connector = &psb_intel_connector->base;
+	connector = &gma_connector->base;
 	encoder = &psb_intel_encoder->base;
 	dev_priv->is_lvds_on = true;
 	drm_connector_init(dev, connector,
@@ -352,7 +352,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	drm_encoder_init(dev, encoder, &psb_intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	gma_connector_attach_encoder(gma_connector, psb_intel_encoder);
 	psb_intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	drm_encoder_helper_add(encoder, &oaktrail_lvds_helper_funcs);
@@ -440,7 +440,7 @@ failed_find:
 
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);
-	kfree(psb_intel_connector);
+	kfree(gma_connector);
 failed_connector:
 	kfree(psb_intel_encoder);
 }

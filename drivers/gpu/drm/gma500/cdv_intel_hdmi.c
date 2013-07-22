@@ -295,7 +295,7 @@ void cdv_hdmi_init(struct drm_device *dev,
 			struct psb_intel_mode_device *mode_dev, int reg)
 {
 	struct psb_intel_encoder *psb_intel_encoder;
-	struct psb_intel_connector *psb_intel_connector;
+	struct gma_connector *gma_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct mid_intel_hdmi_priv *hdmi_priv;
@@ -307,10 +307,10 @@ void cdv_hdmi_init(struct drm_device *dev,
 	if (!psb_intel_encoder)
 		return;
 
-	psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector),
+	gma_connector = kzalloc(sizeof(struct gma_connector),
 				      GFP_KERNEL);
 
-	if (!psb_intel_connector)
+	if (!gma_connector)
 		goto err_connector;
 
 	hdmi_priv = kzalloc(sizeof(struct mid_intel_hdmi_priv), GFP_KERNEL);
@@ -318,7 +318,7 @@ void cdv_hdmi_init(struct drm_device *dev,
 	if (!hdmi_priv)
 		goto err_priv;
 
-	connector = &psb_intel_connector->base;
+	connector = &gma_connector->base;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	encoder = &psb_intel_encoder->base;
 	drm_connector_init(dev, connector,
@@ -328,7 +328,7 @@ void cdv_hdmi_init(struct drm_device *dev,
 	drm_encoder_init(dev, encoder, &psb_intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
 
-	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	gma_connector_attach_encoder(gma_connector, psb_intel_encoder);
 	psb_intel_encoder->type = INTEL_OUTPUT_HDMI;
 	hdmi_priv->hdmi_reg = reg;
 	hdmi_priv->has_hdmi_sink = false;
@@ -378,7 +378,7 @@ failed_ddc:
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);
 err_priv:
-	kfree(psb_intel_connector);
+	kfree(gma_connector);
 err_connector:
 	kfree(psb_intel_encoder);
 }

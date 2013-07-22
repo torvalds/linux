@@ -140,7 +140,7 @@ struct psb_intel_sdvo {
 };
 
 struct psb_intel_sdvo_connector {
-	struct psb_intel_connector base;
+	struct gma_connector base;
 
 	/* Mark the type of connector */
 	uint16_t output_flag;
@@ -206,7 +206,7 @@ static struct psb_intel_sdvo *intel_attached_sdvo(struct drm_connector *connecto
 
 static struct psb_intel_sdvo_connector *to_psb_intel_sdvo_connector(struct drm_connector *connector)
 {
-	return container_of(to_psb_intel_connector(connector), struct psb_intel_sdvo_connector, base);
+	return container_of(to_gma_connector(connector), struct psb_intel_sdvo_connector, base);
 }
 
 static bool
@@ -2074,7 +2074,7 @@ psb_intel_sdvo_dvi_init(struct psb_intel_sdvo *psb_intel_sdvo, int device)
 {
 	struct drm_encoder *encoder = &psb_intel_sdvo->base.base;
 	struct drm_connector *connector;
-	struct psb_intel_connector *intel_connector;
+	struct gma_connector *intel_connector;
 	struct psb_intel_sdvo_connector *psb_intel_sdvo_connector;
 
 	psb_intel_sdvo_connector = kzalloc(sizeof(struct psb_intel_sdvo_connector), GFP_KERNEL);
@@ -2114,7 +2114,7 @@ psb_intel_sdvo_tv_init(struct psb_intel_sdvo *psb_intel_sdvo, int type)
 {
 	struct drm_encoder *encoder = &psb_intel_sdvo->base.base;
 	struct drm_connector *connector;
-	struct psb_intel_connector *intel_connector;
+	struct gma_connector *intel_connector;
 	struct psb_intel_sdvo_connector *psb_intel_sdvo_connector;
 
 	psb_intel_sdvo_connector = kzalloc(sizeof(struct psb_intel_sdvo_connector), GFP_KERNEL);
@@ -2153,7 +2153,7 @@ psb_intel_sdvo_analog_init(struct psb_intel_sdvo *psb_intel_sdvo, int device)
 {
 	struct drm_encoder *encoder = &psb_intel_sdvo->base.base;
 	struct drm_connector *connector;
-	struct psb_intel_connector *intel_connector;
+	struct gma_connector *intel_connector;
 	struct psb_intel_sdvo_connector *psb_intel_sdvo_connector;
 
 	psb_intel_sdvo_connector = kzalloc(sizeof(struct psb_intel_sdvo_connector), GFP_KERNEL);
@@ -2187,7 +2187,7 @@ psb_intel_sdvo_lvds_init(struct psb_intel_sdvo *psb_intel_sdvo, int device)
 {
 	struct drm_encoder *encoder = &psb_intel_sdvo->base.base;
 	struct drm_connector *connector;
-	struct psb_intel_connector *intel_connector;
+	struct gma_connector *intel_connector;
 	struct psb_intel_sdvo_connector *psb_intel_sdvo_connector;
 
 	psb_intel_sdvo_connector = kzalloc(sizeof(struct psb_intel_sdvo_connector), GFP_KERNEL);

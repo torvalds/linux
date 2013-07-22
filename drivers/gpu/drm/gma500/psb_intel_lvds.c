@@ -690,7 +690,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 			 struct psb_intel_mode_device *mode_dev)
 {
 	struct psb_intel_encoder *psb_intel_encoder;
-	struct psb_intel_connector *psb_intel_connector;
+	struct gma_connector *gma_connector;
 	struct psb_intel_lvds_priv *lvds_priv;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
@@ -707,10 +707,9 @@ void psb_intel_lvds_init(struct drm_device *dev,
 		return;
 	}
 
-	psb_intel_connector =
-		kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
-	if (!psb_intel_connector) {
-		dev_err(dev->dev, "psb_intel_connector allocation error\n");
+	gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+	if (!gma_connector) {
+		dev_err(dev->dev, "gma_connector allocation error\n");
 		goto failed_encoder;
 	}
 
@@ -722,7 +721,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 
 	psb_intel_encoder->dev_priv = lvds_priv;
 
-	connector = &psb_intel_connector->base;
+	connector = &gma_connector->base;
 	encoder = &psb_intel_encoder->base;
 	drm_connector_init(dev, connector,
 			   &psb_intel_lvds_connector_funcs,
@@ -732,7 +731,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 			 &psb_intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 
-	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	gma_connector_attach_encoder(gma_connector, psb_intel_encoder);
 	psb_intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	drm_encoder_helper_add(encoder, &psb_intel_lvds_helper_funcs);
@@ -848,7 +847,7 @@ failed_blc_i2c:
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);
 failed_connector:
-	kfree(psb_intel_connector);
+	kfree(gma_connector);
 failed_encoder:
 	kfree(psb_intel_encoder);
 }

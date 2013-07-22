@@ -227,7 +227,7 @@ enum {
 #define DSI_DPI_DISABLE_BTA					BIT(3)
 
 struct mdfld_dsi_connector {
-	struct psb_intel_connector base;
+	struct gma_connector base;
 
 	int pipe;
 	void *private;
@@ -269,11 +269,11 @@ struct mdfld_dsi_config {
 static inline struct mdfld_dsi_connector *mdfld_dsi_connector(
 		struct drm_connector *connector)
 {
-	struct psb_intel_connector *psb_connector;
+	struct gma_connector *gma_connector;
 
-	psb_connector = to_psb_intel_connector(connector);
+	gma_connector = to_gma_connector(connector);
 
-	return container_of(psb_connector, struct mdfld_dsi_connector, base);
+	return container_of(gma_connector, struct mdfld_dsi_connector, base);
 }
 
 static inline struct mdfld_dsi_encoder *mdfld_dsi_encoder(

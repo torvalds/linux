@@ -259,7 +259,7 @@ void cdv_intel_crt_init(struct drm_device *dev,
 			struct psb_intel_mode_device *mode_dev)
 {
 
-	struct psb_intel_connector *psb_intel_connector;
+	struct gma_connector *gma_connector;
 	struct psb_intel_encoder *psb_intel_encoder;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
@@ -270,11 +270,11 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	if (!psb_intel_encoder)
 		return;
 
-	psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
-	if (!psb_intel_connector)
+	gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+	if (!gma_connector)
 		goto failed_connector;
 
-	connector = &psb_intel_connector->base;
+	connector = &gma_connector->base;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	drm_connector_init(dev, connector,
 		&cdv_intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
@@ -283,7 +283,7 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	drm_encoder_init(dev, encoder,
 		&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC);
 
-	gma_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	gma_connector_attach_encoder(gma_connector, psb_intel_encoder);
 
 	/* Set up the DDC bus. */
 	i2c_reg = GPIOA;
@@ -317,8 +317,8 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	return;
 failed_ddc:
 	drm_encoder_cleanup(&psb_intel_encoder->base);
-	drm_connector_cleanup(&psb_intel_connector->base);
-	kfree(psb_intel_connector);
+	drm_connector_cleanup(&gma_connector->base);
+	kfree(gma_connector);
 failed_connector:
 	kfree(psb_intel_encoder);
 	return;
