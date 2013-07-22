@@ -2792,65 +2792,36 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 	tcp_xmit_retransmit_queue(sk);
 }
 
-void tcp_valid_rtt_meas(struct sock *sk, u32 seq_rtt)
+static inline void tcp_ack_update_rtt(struct sock *sk, const int flag,
+				      s32 seq_rtt)
 {
-	tcp_rtt_estimator(sk, seq_rtt);
-	tcp_set_rto(sk);
-	inet_csk(sk)->icsk_backoff = 0;
-}
-EXPORT_SYMBOL(tcp_valid_rtt_meas);
+	const struct tcp_sock *tp = tcp_sk(sk);
 
-/* Read draft-ietf-tcplw-high-performance before mucking
- * with this code. (Supersedes RFC1323)
- */
-static void tcp_ack_saw_tstamp(struct sock *sk, int flag)
-{
+	/* Prefer RTT measured from ACK's timing to TS-ECR. This is because
+	 * broken middle-boxes or peers may corrupt TS-ECR fields. But
+	 * Karn's algorithm forbids taking RTT if some retransmitted data
+	 * is acked (RFC6298).
+	 */
+	if (flag & FLAG_RETRANS_DATA_ACKED)
+		seq_rtt = -1;
+
 	/* RTTM Rule: A TSecr value received in a segment is used to
 	 * update the averaged RTT measurement only if the segment
 	 * acknowledges some new data, i.e., only if it advances the
 	 * left edge of the send window.
-	 *
 	 * See draft-ietf-tcplw-high-performance-00, section 3.3.
-	 * 1998/04/10 Andrey V. Savochkin <saw@msu.ru>
-	 *
-	 * Changed: reset backoff as soon as we see the first valid sample.
-	 * If we do not, we get strongly overestimated rto. With timestamps
-	 * samples are accepted even from very old segments: f.e., when rtt=1
-	 * increases to 8, we retransmit 5 times and after 8 seconds delayed
-	 * answer arrives rto becomes 120 seconds! If at least one of segments
-	 * in window is lost... Voila.	 			--ANK (010210)
 	 */
-	struct tcp_sock *tp = tcp_sk(sk);
+	if (seq_rtt < 0 && tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
+		seq_rtt = tcp_time_stamp - tp->rx_opt.rcv_tsecr;
 
-	tcp_valid_rtt_meas(sk, tcp_time_stamp - tp->rx_opt.rcv_tsecr);
-}
-
-static void tcp_ack_no_tstamp(struct sock *sk, u32 seq_rtt, int flag)
-{
-	/* We don't have a timestamp. Can only use
-	 * packets that are not retransmitted to determine
-	 * rtt estimates. Also, we must not reset the
-	 * backoff for rto until we get a non-retransmitted
-	 * packet. This allows us to deal with a situation
-	 * where the network delay has increased suddenly.
-	 * I.e. Karn's algorithm. (SIGCOMM '87, p5.)
-	 */
-
-	if (flag & FLAG_RETRANS_DATA_ACKED)
+	if (seq_rtt < 0)
 		return;
 
-	tcp_valid_rtt_meas(sk, seq_rtt);
-}
+	tcp_rtt_estimator(sk, seq_rtt);
+	tcp_set_rto(sk);
 
-static inline void tcp_ack_update_rtt(struct sock *sk, const int flag,
-				      const s32 seq_rtt)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	/* Note that peer MAY send zero echo. In this case it is ignored. (rfc1323) */
-	if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
-		tcp_ack_saw_tstamp(sk, flag);
-	else if (seq_rtt >= 0)
-		tcp_ack_no_tstamp(sk, seq_rtt, flag);
+	/* RFC6298: only reset backoff on valid RTT measurement. */
+	inet_csk(sk)->icsk_backoff = 0;
 }
 
 /* Compute time elapsed between (last) SYNACK and the ACK completing 3WHS. */
@@ -2989,8 +2960,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			if (sacked & TCPCB_SACKED_RETRANS)
 				tp->retrans_out -= acked_pcount;
 			flag |= FLAG_RETRANS_DATA_ACKED;
-			ca_seq_rtt = -1;
-			seq_rtt = -1;
 		} else {
 			ca_seq_rtt = now - scb->when;
 			last_ackt = skb->tstamp;
