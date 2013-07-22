@@ -112,11 +112,13 @@ static int get_parent_ino(struct inode *inode, nid_t *pino)
 	if (!dentry)
 		return 0;
 
-	inode = igrab(dentry->d_parent->d_inode);
-	dput(dentry);
+	if (update_dent_inode(inode, &dentry->d_name)) {
+		dput(dentry);
+		return 0;
+	}
 
-	*pino = inode->i_ino;
-	iput(inode);
+	*pino = parent_ino(dentry);
+	dput(dentry);
 	return 1;
 }
 
