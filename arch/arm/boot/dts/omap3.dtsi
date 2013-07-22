@@ -111,7 +111,7 @@
 			pinctrl-single,function-mask = <0x7f1f>;
 		};
 
-		omap3_pmx_wkup: pinmux@0x48002a00 {
+		omap3_pmx_wkup: pinmux@48002a00 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
 			reg = <0x48002a00 0x5c>;
 			#address-cells = <1>;
