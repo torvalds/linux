@@ -143,9 +143,15 @@ struct atmel_uart_port {
 	short			pdc_rx_idx;	/* current PDC RX buffer */
 	struct atmel_dma_buffer	pdc_rx[2];	/* PDC receier */
 
+	bool			use_dma_tx;     /* enable DMA transmitter */
 	bool			use_pdc_tx;	/* enable PDC transmitter */
 	struct atmel_dma_buffer	pdc_tx;		/* PDC transmitter */
 
+	spinlock_t			lock_tx;	/* port lock */
+	struct dma_chan			*chan_tx;
+	struct dma_async_tx_descriptor	*desc_tx;
+	dma_cookie_t			cookie_tx;
+	struct scatterlist		sg_tx;
 	struct tasklet_struct	tasklet;
 	unsigned int		irq_status;
 	unsigned int		irq_status_prev;
@@ -210,6 +216,13 @@ static bool atmel_use_pdc_tx(struct uart_port *port)
 	return false;
 }
 #endif
+
+static bool atmel_use_dma_tx(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+
+	return atmel_port->use_dma_tx;
+}
 
 /* Enable or disable the rs485 support */
 void atmel_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
@@ -567,6 +580,182 @@ static void atmel_tx_chars(struct uart_port *port)
 	if (!uart_circ_empty(xmit))
 		/* Enable interrupts */
 		UART_PUT_IER(port, atmel_port->tx_done_mask);
+}
+
+static void atmel_complete_tx_dma(void *arg)
+{
+	struct atmel_uart_port *atmel_port = arg;
+	struct uart_port *port = &atmel_port->uart;
+	struct circ_buf *xmit = &port->state->xmit;
+	struct dma_chan *chan = atmel_port->chan_tx;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	if (chan)
+		dmaengine_terminate_all(chan);
+	xmit->tail += sg_dma_len(&atmel_port->sg_tx);
+	xmit->tail &= UART_XMIT_SIZE - 1;
+
+	port->icount.tx += sg_dma_len(&atmel_port->sg_tx);
+
+	spin_lock_irq(&atmel_port->lock_tx);
+	async_tx_ack(atmel_port->desc_tx);
+	atmel_port->cookie_tx = -EINVAL;
+	atmel_port->desc_tx = NULL;
+	spin_unlock_irq(&atmel_port->lock_tx);
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(port);
+
+	/* Do we really need this? */
+	if (!uart_circ_empty(xmit))
+		tasklet_schedule(&atmel_port->tasklet);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+static void atmel_release_tx_dma(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	struct dma_chan *chan = atmel_port->chan_tx;
+
+	if (chan) {
+		dmaengine_terminate_all(chan);
+		dma_release_channel(chan);
+		dma_unmap_sg(port->dev, &atmel_port->sg_tx, 1,
+				DMA_MEM_TO_DEV);
+	}
+
+	atmel_port->desc_tx = NULL;
+	atmel_port->chan_tx = NULL;
+	atmel_port->cookie_tx = -EINVAL;
+}
+
+/*
+ * Called from tasklet with TXRDY interrupt is disabled.
+ */
+static void atmel_tx_dma(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	struct circ_buf *xmit = &port->state->xmit;
+	struct dma_chan *chan = atmel_port->chan_tx;
+	struct dma_async_tx_descriptor *desc;
+	struct scatterlist *sg = &atmel_port->sg_tx;
+
+	/* Make sure we have an idle channel */
+	if (atmel_port->desc_tx != NULL)
+		return;
+
+	if (!uart_circ_empty(xmit) && !uart_tx_stopped(port)) {
+		/*
+		 * DMA is idle now.
+		 * Port xmit buffer is already mapped,
+		 * and it is one page... Just adjust
+		 * offsets and lengths. Since it is a circular buffer,
+		 * we have to transmit till the end, and then the rest.
+		 * Take the port lock to get a
+		 * consistent xmit buffer state.
+		 */
+		sg->offset = xmit->tail & (UART_XMIT_SIZE - 1);
+		sg_dma_address(sg) = (sg_dma_address(sg) &
+					~(UART_XMIT_SIZE - 1))
+					+ sg->offset;
+		sg_dma_len(sg) = CIRC_CNT_TO_END(xmit->head,
+						xmit->tail,
+						UART_XMIT_SIZE);
+		BUG_ON(!sg_dma_len(sg));
+
+		desc = dmaengine_prep_slave_sg(chan,
+						sg,
+						1,
+						DMA_MEM_TO_DEV,
+						DMA_PREP_INTERRUPT |
+						DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(port->dev, "Failed to send via dma!\n");
+			return;
+		}
+
+		dma_sync_sg_for_device(port->dev, sg, 1, DMA_MEM_TO_DEV);
+
+		atmel_port->desc_tx = desc;
+		desc->callback = atmel_complete_tx_dma;
+		desc->callback_param = atmel_port;
+		atmel_port->cookie_tx = dmaengine_submit(desc);
+
+	} else {
+		if (atmel_port->rs485.flags & SER_RS485_ENABLED) {
+			/* DMA done, stop TX, start RX for RS485 */
+			atmel_start_rx(port);
+		}
+	}
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(port);
+}
+
+static int atmel_prepare_tx_dma(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	dma_cap_mask_t		mask;
+	struct dma_slave_config config;
+	int ret, nent;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	atmel_port->chan_tx = dma_request_slave_channel(port->dev, "tx");
+	if (atmel_port->chan_tx == NULL)
+		goto chan_err;
+	dev_info(port->dev, "using %s for tx DMA transfers\n",
+		dma_chan_name(atmel_port->chan_tx));
+
+	spin_lock_init(&atmel_port->lock_tx);
+	sg_init_table(&atmel_port->sg_tx, 1);
+	/* UART circular tx buffer is an aligned page. */
+	BUG_ON((int)port->state->xmit.buf & ~PAGE_MASK);
+	sg_set_page(&atmel_port->sg_tx,
+			virt_to_page(port->state->xmit.buf),
+			UART_XMIT_SIZE,
+			(int)port->state->xmit.buf & ~PAGE_MASK);
+	nent = dma_map_sg(port->dev,
+				&atmel_port->sg_tx,
+				1,
+				DMA_MEM_TO_DEV);
+
+	if (!nent) {
+		dev_dbg(port->dev, "need to release resource of dma\n");
+		goto chan_err;
+	} else {
+		dev_dbg(port->dev, "%s: mapped %d@%p to %x\n", __func__,
+			sg_dma_len(&atmel_port->sg_tx),
+			port->state->xmit.buf,
+			sg_dma_address(&atmel_port->sg_tx));
+	}
+
+	/* Configure the slave DMA */
+	memset(&config, 0, sizeof(config));
+	config.direction = DMA_MEM_TO_DEV;
+	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+	config.dst_addr = port->mapbase + ATMEL_US_THR;
+
+	ret = dmaengine_device_control(atmel_port->chan_tx,
+					DMA_SLAVE_CONFIG,
+					(unsigned long)&config);
+	if (ret) {
+		dev_err(port->dev, "DMA tx slave configuration failed\n");
+		goto chan_err;
+	}
+
+	return 0;
+
+chan_err:
+	dev_err(port->dev, "TX channel not available, switch to pio\n");
+	atmel_port->use_dma_tx = 0;
+	if (atmel_port->chan_tx)
+		atmel_release_tx_dma(port);
+	return -EINVAL;
 }
 
 /*
@@ -997,7 +1186,11 @@ static void atmel_set_ops(struct uart_port *port)
 		atmel_port->release_rx = NULL;
 	}
 
-	if (atmel_use_pdc_tx(port)) {
+	if (atmel_use_dma_tx(port)) {
+		atmel_port->prepare_tx = &atmel_prepare_tx_dma;
+		atmel_port->schedule_tx = &atmel_tx_dma;
+		atmel_port->release_tx = &atmel_release_tx_dma;
+	} else if (atmel_use_pdc_tx(port)) {
 		atmel_port->prepare_tx = &atmel_prepare_tx_pdc;
 		atmel_port->schedule_tx = &atmel_tx_pdc;
 		atmel_port->release_tx = &atmel_release_tx_pdc;
@@ -1488,10 +1681,18 @@ static void atmel_of_init_port(struct atmel_uart_port *atmel_port,
 	else
 		atmel_port->use_pdc_rx	= false;
 
-	if (of_get_property(np, "atmel,use-dma-tx", NULL))
-		atmel_port->use_pdc_tx	= true;
-	else
+	if (of_get_property(np, "atmel,use-dma-tx", NULL)) {
+		if (of_get_property(np, "dmas", NULL)) {
+			atmel_port->use_dma_tx	= true;
+			atmel_port->use_pdc_tx	= false;
+		} else {
+			atmel_port->use_dma_tx	= false;
+			atmel_port->use_pdc_tx	= true;
+		}
+	} else {
+		atmel_port->use_dma_tx	= false;
 		atmel_port->use_pdc_tx	= false;
+	}
 
 	/* rs485 properties */
 	if (of_property_read_u32_array(np, "rs485-rts-delay",
@@ -1525,6 +1726,7 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	} else {
 		atmel_port->use_pdc_rx	= pdata->use_dma_rx;
 		atmel_port->use_pdc_tx	= pdata->use_dma_tx;
+		atmel_port->use_dma_tx	= false;
 		atmel_port->rs485	= pdata->rs485;
 	}
 
