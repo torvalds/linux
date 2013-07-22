@@ -14,8 +14,15 @@
 
 #include <linux/sh_clk.h>
 
+#define RSND_GEN1_SRU	0
 
-#define RSND_BASE_MAX	0
+#define RSND_GEN2_SRU	0
+
+#define RSND_BASE_MAX	1
+
+struct rsnd_scu_platform_info {
+	u32 flags;
+};
 
 struct rsnd_dai_platform_info {
 	int ssi_id_playback;
@@ -34,6 +41,8 @@ struct rsnd_dai_platform_info {
 
 struct rcar_snd_info {
 	u32 flags;
+	struct rsnd_scu_platform_info *scu_info;
+	int scu_info_nr;
 	struct rsnd_dai_platform_info *dai_info;
 	int dai_info_nr;
 	int (*start)(int id);

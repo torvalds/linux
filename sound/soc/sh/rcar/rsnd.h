@@ -28,6 +28,10 @@
  * see gen1/gen2 for detail
  */
 enum rsnd_reg {
+	/* SRU/SCU */
+	RSND_REG_SSI_MODE0,
+	RSND_REG_SSI_MODE1,
+
 	RSND_REG_MAX,
 };
 
@@ -173,6 +177,12 @@ struct rsnd_priv {
 	void *gen;
 
 	/*
+	 * below value will be filled on rsnd_scu_probe()
+	 */
+	void *scu;
+	int scu_nr;
+
+	/*
 	 * below value will be filled on rsnd_dai_probe()
 	 */
 	struct snd_soc_dai_driver *daidrv;
@@ -183,5 +193,16 @@ struct rsnd_priv {
 #define rsnd_priv_to_dev(priv)	((priv)->dev)
 #define rsnd_lock(priv, flags) spin_lock_irqsave(&priv->lock, flags)
 #define rsnd_unlock(priv, flags) spin_unlock_irqrestore(&priv->lock, flags)
+
+/*
+ *	R-Car SCU
+ */
+int rsnd_scu_probe(struct platform_device *pdev,
+		   struct rcar_snd_info *info,
+		   struct rsnd_priv *priv);
+void rsnd_scu_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
+struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
+#define rsnd_scu_nr(priv) ((priv)->scu_nr)
 
 #endif

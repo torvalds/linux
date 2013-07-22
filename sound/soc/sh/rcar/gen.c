@@ -45,10 +45,105 @@ struct rsnd_gen {
 /*
  *		Gen1
  */
+static int rsnd_gen1_path_init(struct rsnd_priv *priv,
+			       struct rsnd_dai *rdai,
+			       struct rsnd_dai_stream *io)
+{
+	struct rsnd_dai_platform_info *info = rsnd_dai_get_platform_info(rdai);
+	struct rsnd_mod *mod;
+	int ret;
+	int id;
+
+	/*
+	 * Gen1 is created by SRU/SSI, and this SRU is base module of
+	 * Gen2's SCU/SSIU/SSI. (Gen2 SCU/SSIU came from SRU)
+	 *
+	 * Easy image is..
+	 *	Gen1 SRU = Gen2 SCU + SSIU + etc
+	 *
+	 * Gen2 SCU path is very flexible, but, Gen1 SRU (SCU parts) is
+	 * using fixed path.
+	 *
+	 * Then, SSI id = SCU id here
+	 */
+
+	if (rsnd_dai_is_play(rdai, io))
+		id = info->ssi_id_playback;
+	else
+		id = info->ssi_id_capture;
+
+	/* SCU */
+	mod = rsnd_scu_mod_get(priv, id);
+	ret = rsnd_dai_connect(rdai, mod, io);
+
+	return ret;
+}
+
+static int rsnd_gen1_path_exit(struct rsnd_priv *priv,
+			       struct rsnd_dai *rdai,
+			       struct rsnd_dai_stream *io)
+{
+	struct rsnd_mod *mod, *n;
+	int ret = 0;
+
+	/*
+	 * remove all mod from rdai
+	 */
+	for_each_rsnd_mod(mod, n, io)
+		ret |= rsnd_dai_disconnect(mod);
+
+	return ret;
+}
+
+static struct rsnd_gen_ops rsnd_gen1_ops = {
+	.path_init	= rsnd_gen1_path_init,
+	.path_exit	= rsnd_gen1_path_exit,
+};
+
+#define RSND_GEN1_REG_MAP(g, s, i, oi, oa)				\
+	do {								\
+		(g)->reg_map[RSND_REG_##i].index  = RSND_GEN1_##s;	\
+		(g)->reg_map[RSND_REG_##i].offset_id = oi;		\
+		(g)->reg_map[RSND_REG_##i].offset_adr = oa;		\
+	} while (0)
+
+static void rsnd_gen1_reg_map_init(struct rsnd_gen *gen)
+{
+	RSND_GEN1_REG_MAP(gen, SRU,	SSI_MODE0,	0x0,	0xD0);
+	RSND_GEN1_REG_MAP(gen, SRU,	SSI_MODE1,	0x0,	0xD4);
+}
+
 static int rsnd_gen1_probe(struct platform_device *pdev,
 			   struct rcar_snd_info *info,
 			   struct rsnd_priv *priv)
 {
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+	struct resource *sru_res;
+
+	/*
+	 * map address
+	 */
+	sru_res	= platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN1_SRU);
+	if (!sru_res) {
+		dev_err(dev, "Not enough SRU/SSI/ADG platform resources.\n");
+		return -ENODEV;
+	}
+
+	gen->ops = &rsnd_gen1_ops;
+
+	gen->base[RSND_GEN1_SRU] = devm_ioremap_resource(dev, sru_res);
+	if (!gen->base[RSND_GEN1_SRU]) {
+		dev_err(dev, "SRU/SSI/ADG ioremap failed\n");
+		return -ENODEV;
+	}
+
+	rsnd_gen1_reg_map_init(gen);
+
+	dev_dbg(dev, "Gen1 device probed\n");
+	dev_dbg(dev, "SRU : %08x => %p\n",	sru_res->start,
+						gen->base[RSND_GEN1_SRU]);
+
 	return 0;
 }
 
