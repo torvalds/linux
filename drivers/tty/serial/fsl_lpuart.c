@@ -863,7 +863,7 @@ static int __init lpuart_serial_init(void)
 	if (ret)
 		uart_unregister_driver(&lpuart_reg);
 
-	return 0;
+	return ret;
 }
 
 static void __exit lpuart_serial_exit(void)
