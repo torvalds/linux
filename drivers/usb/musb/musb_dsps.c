@@ -428,6 +428,8 @@ static int dsps_musb_init(struct musb *musb)
 		goto err0;
 	}
 
+	usb_phy_init(musb->xceiv);
+
 	setup_timer(&glue->timer[pdev->id], otg_timer, (unsigned long) musb);
 
 	/* Reset the musb */
@@ -463,6 +465,7 @@ static int dsps_musb_exit(struct musb *musb)
 
 	/* Shutdown the on-chip PHY and its PLL. */
 	musb_dsps_phy_control(glue, pdev->id, 0);
+	usb_phy_shutdown(musb->xceiv);
 
 	/* NOP driver needs change if supporting dual instance */
 	usb_put_phy(musb->xceiv);
