@@ -642,6 +642,9 @@ static inline int lustre_unpack_ptlrpc_body_v2(struct ptlrpc_request *req,
 		 return -EINVAL;
 	}
 
+	if (!inout)
+		pb->pb_status = ptlrpc_status_ntoh(pb->pb_status);
+
 	return 0;
 }
 

@@ -2347,6 +2347,8 @@ static int osc_enqueue_fini(struct ptlrpc_request *req, struct ost_lvb *lvb,
 						     &RMF_DLM_REP);
 
 			LASSERT(rep != NULL);
+			rep->lock_policy_res1 =
+				ptlrpc_status_ntoh(rep->lock_policy_res1);
 			if (rep->lock_policy_res1)
 				rc = rep->lock_policy_res1;
 		}

@@ -1023,7 +1023,7 @@ static int ldlm_cli_convert_local(struct ldlm_lock *lock, int new_mode,
 		ldlm_reprocess_all(res);
 		rc = 0;
 	} else {
-		rc = EDEADLOCK;
+		rc = LUSTRE_EDEADLK;
 	}
 	LDLM_DEBUG(lock, "client-side local convert handler END");
 	LDLM_LOCK_PUT(lock);
@@ -1095,7 +1095,7 @@ int ldlm_cli_convert(struct lustre_handle *lockh, int new_mode, __u32 *flags)
 				GOTO(out, rc);
 		}
 	} else {
-		rc = EDEADLOCK;
+		rc = LUSTRE_EDEADLK;
 	}
 	EXIT;
  out:
@@ -1248,7 +1248,7 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 		} else {
 			rc = ptlrpc_queue_wait(req);
 		}
-		if (rc == ESTALE) {
+		if (rc == LUSTRE_ESTALE) {
 			CDEBUG(D_DLMTRACE, "client/server (nid %s) "
 			       "out of sync -- not fatal\n",
 			       libcfs_nid2str(req->rq_import->

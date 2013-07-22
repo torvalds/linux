@@ -2208,7 +2208,8 @@ struct ldlm_resource *ldlm_lock_convert(struct ldlm_lock *lock, int new_mode,
 	/* I can't check the type of lock here because the bitlock of lock
 	 * is not held here, so do the allocation blindly. -jay */
 	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
-	if (node == NULL)  /* Actually, this causes EDEADLOCK to be returned */
+	if (node == NULL)
+		/* Actually, this causes EDEADLOCK to be returned */
 		RETURN(NULL);
 
 	LASSERTF((new_mode == LCK_PW && lock->l_granted_mode == LCK_PR),

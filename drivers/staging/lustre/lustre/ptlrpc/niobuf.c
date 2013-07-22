@@ -400,7 +400,8 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 		req->rq_type = PTL_RPC_MSG_REPLY;
 
 	lustre_msg_set_type(req->rq_repmsg, req->rq_type);
-	lustre_msg_set_status(req->rq_repmsg, req->rq_status);
+	lustre_msg_set_status(req->rq_repmsg,
+			      ptlrpc_status_hton(req->rq_status));
 	lustre_msg_set_opc(req->rq_repmsg,
 		req->rq_reqmsg ? lustre_msg_get_opc(req->rq_reqmsg) : 0);
 

@@ -840,6 +840,9 @@ resend:
 	lockrep = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
 	LASSERT(lockrep != NULL);
 
+	lockrep->lock_policy_res2 =
+		ptlrpc_status_ntoh(lockrep->lock_policy_res2);
+
 	/* Retry the create infinitely when we get -EINPROGRESS from
 	 * server. This is required by the new quota design. */
 	if (it && it->it_op & IT_CREAT &&
@@ -1139,6 +1142,7 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 	struct lookup_intent     *it;
 	struct lustre_handle     *lockh;
 	struct obd_device	*obddev;
+	struct ldlm_reply	 *lockrep;
 	__u64		     flags = LDLM_FL_HAS_INTENT;
 	ENTRY;
 
@@ -1158,6 +1162,12 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 		mdc_clear_replay_flag(req, rc);
 		GOTO(out, rc);
 	}
+
+	lockrep = req_capsule_server_get(&req->rq_pill, &RMF_DLM_REP);
+	LASSERT(lockrep != NULL);
+
+	lockrep->lock_policy_res2 =
+		ptlrpc_status_ntoh(lockrep->lock_policy_res2);
 
 	rc = mdc_finish_enqueue(exp, req, einfo, it, lockh, rc);
 	if (rc)

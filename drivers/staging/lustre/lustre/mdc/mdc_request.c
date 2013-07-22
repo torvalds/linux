@@ -1189,6 +1189,7 @@ static int mdc_ioc_hsm_progress(struct obd_export *exp,
 		GOTO(out, rc = -EPROTO);
 
 	*req_hpk = *hpk;
+	req_hpk->hpk_errval = lustre_errno_hton(hpk->hpk_errval);
 
 	ptlrpc_request_set_replen(req);
 

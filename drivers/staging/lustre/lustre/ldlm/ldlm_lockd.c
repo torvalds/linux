@@ -555,6 +555,8 @@ static int ldlm_handle_qc_callback(struct ptlrpc_request *req)
 		RETURN(-EPROTO);
 	}
 
+	oqctl->qc_stat = ptlrpc_status_ntoh(oqctl->qc_stat);
+
 	cli->cl_qchk_stat = oqctl->qc_stat;
 	return 0;
 }
