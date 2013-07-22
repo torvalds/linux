@@ -1670,6 +1670,17 @@ struct lov_mds_md_v3 {	    /* LOV EA mds/wire data (little-endian) */
 	struct lov_ost_data_v1 lmm_objects[0]; /* per-stripe data */
 };
 
+static inline __u32 lov_mds_md_size(__u16 stripes, __u32 lmm_magic)
+{
+	if (lmm_magic == LOV_MAGIC_V3)
+		return sizeof(struct lov_mds_md_v3) +
+				stripes * sizeof(struct lov_ost_data_v1);
+	else
+		return sizeof(struct lov_mds_md_v1) +
+				stripes * sizeof(struct lov_ost_data_v1);
+}
+
+
 #define OBD_MD_FLID	(0x00000001ULL) /* object ID */
 #define OBD_MD_FLATIME     (0x00000002ULL) /* access time */
 #define OBD_MD_FLMTIME     (0x00000004ULL) /* data modification time */
