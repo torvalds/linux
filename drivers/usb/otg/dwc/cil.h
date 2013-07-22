@@ -1017,7 +1017,7 @@ static inline int dwc_otg_hcd_init(struct device *_dev,
 	return 0;
 }
 #else
-extern int __init dwc_otg_hcd_init(struct device *_dev,
+extern int dwc_otg_hcd_init(struct device *_dev,
 				   struct dwc_otg_device *dwc_dev);
 extern void dwc_otg_hcd_remove(struct device *_dev);
 #endif

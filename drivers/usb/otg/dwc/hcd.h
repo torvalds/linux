@@ -209,7 +209,7 @@ static inline struct usb_hcd *dwc_otg_hcd_to_hcd(struct dwc_hcd *dwc_hcd)
 }
 
 /* HCD Create/Destroy Functions */
-extern int __init dwc_otg_hcd_init(struct device *_dev,
+extern int dwc_otg_hcd_init(struct device *_dev,
 				   struct dwc_otg_device *dwc_dev);
 extern void dwc_otg_hcd_remove(struct device *_dev);
 
