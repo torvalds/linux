@@ -1367,9 +1367,14 @@ static int __init iov_resources_unassigned(struct pci_dev *dev, void *data)
 
 	for (i = PCI_IOV_RESOURCES; i <= PCI_IOV_RESOURCE_END; i++) {
 		struct resource *r = &dev->resource[i];
+		struct pci_bus_region region;
 
 		/* Not assigned or rejected by kernel? */
-		if (r->flags && !r->start) {
+		if (!r->flags)
+			continue;
+
+		pcibios_resource_to_bus(dev, &region, r);
+		if (!region.start) {
 			*unassigned = true;
 			return 1; /* return early from pci_walk_bus() */
 		}
