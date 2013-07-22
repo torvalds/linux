@@ -119,7 +119,8 @@ int __dma_init(struct platform_device *device)
 	DMA_INF("%s(%d): g_buf_cache 0x%08x\n", __func__, __LINE__, (u32)g_buf_cache);
 
 	/* register dma interrupt */
-	ret = request_irq(AW_IRQ_DMA, __dma_irq_hdl, IRQF_DISABLED, "dma_irq", (void *)&g_dma_mgr);
+	ret = request_irq(SW_INT_IRQNO_DMA, __dma_irq_hdl, IRQF_DISABLED,
+			"dma_irq", (void *)&g_dma_mgr);
 	if(ret) {
 		DMA_ERR("%s err: request_irq return %d\n", __func__, ret);
 		ret = __LINE__;
@@ -151,7 +152,7 @@ int __dma_deinit(void)
 
 	DMA_INF("%s, line %d\n", __func__, __LINE__);
 	/* free dma irq */
-	free_irq(AW_IRQ_DMA, (void *)&g_dma_mgr);
+	free_irq(SW_INT_IRQNO_DMA, (void *)&g_dma_mgr);
 	/* free kcache */
 	if (NULL != g_buf_cache) {
 		kmem_cache_destroy(g_buf_cache);

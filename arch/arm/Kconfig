@@ -743,6 +743,7 @@ config ARCH_SUN5I
 
 config ARCH_SUN7I
 	bool "Allwinner Ltd. AW165x family"
+	select PLAT_SUNXI
 	select CPU_V7
 	select ARM_AMBA
 	select ARM_GIC

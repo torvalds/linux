@@ -76,8 +76,8 @@ static struct resource sw_dmac_resources[] = {
 		.flags 	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start 	= AW_IRQ_DMA,
-		.end 	= AW_IRQ_DMA,
+		.start 	= SW_INT_IRQNO_DMA,
+		.end 	= SW_INT_IRQNO_DMA,
 		.flags 	= IORESOURCE_IRQ
 	}
 };

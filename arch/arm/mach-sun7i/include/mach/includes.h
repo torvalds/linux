@@ -35,7 +35,6 @@
 #include "i2c.h"
 #include "io.h"
 #include "irqs.h"
-#include "irqs-sun7i.h"
 #include "spi.h"
 #include "timer.h"
 #include "sunxi_dump_reg.h"

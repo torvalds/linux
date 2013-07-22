@@ -19,15 +19,15 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __ASM_ARCH_IRQS_H
-#define __ASM_ARCH_IRQS_H
+#ifndef __MACH_IRQS_H__
+#define __MACH_IRQS_H__
 
-#include <mach/irqs-sun7i.h>
+#include <plat/irqs.h>
 
-#define IRQ_GIC_START		32
+#define IRQ_GIC_START AW_IRQ_GIC_START
 
 #ifndef NR_IRQS
 #error "NR_IRQS not defined by the board-specific files"
 #endif
 
-#endif
+#endif /* __MACH_IRQS_H__ */

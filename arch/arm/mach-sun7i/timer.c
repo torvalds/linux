@@ -218,7 +218,7 @@ static struct irqaction sun7i_timer_irq = {
 	.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler = sun7i_timer_interrupt,
 	.dev_id = &sun7i_timer0_clockevent,
-	.irq = AW_IRQ_TIMER0,
+	.irq = SW_INT_IRQNO_TIMER0,
 };
 
 void __init aw_clkevt_init(void)
@@ -241,7 +241,7 @@ void __init aw_clkevt_init(void)
 	writel(val, timer_cpu_base + TMR0_CTRL_REG_OFF);
 
 	/* register timer0 interrupt */
-	ret = setup_irq(AW_IRQ_TIMER0, &sun7i_timer_irq);
+	ret = setup_irq(SW_INT_IRQNO_TIMER0, &sun7i_timer_irq);
 	if (ret)
 		early_printk("failed to setup irq %d\n", 36);
 
