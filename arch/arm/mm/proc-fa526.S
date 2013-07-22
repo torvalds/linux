@@ -135,8 +135,6 @@ ENTRY(cpu_fa526_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__CPUINIT
-
 	.type	__fa526_setup, #function
 __fa526_setup:
 	/* On return of this routine, r0 must carry correct flags for CFG register */

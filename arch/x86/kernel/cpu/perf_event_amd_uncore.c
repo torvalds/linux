@@ -288,13 +288,13 @@ static struct pmu amd_l2_pmu = {
 	.read		= amd_uncore_read,
 };
 
-static struct amd_uncore * __cpuinit amd_uncore_alloc(unsigned int cpu)
+static struct amd_uncore *amd_uncore_alloc(unsigned int cpu)
 {
 	return kzalloc_node(sizeof(struct amd_uncore), GFP_KERNEL,
 			cpu_to_node(cpu));
 }
 
-static void __cpuinit amd_uncore_cpu_up_prepare(unsigned int cpu)
+static void amd_uncore_cpu_up_prepare(unsigned int cpu)
 {
 	struct amd_uncore *uncore;
 
@@ -322,8 +322,8 @@ static void __cpuinit amd_uncore_cpu_up_prepare(unsigned int cpu)
 }
 
 static struct amd_uncore *
-__cpuinit amd_uncore_find_online_sibling(struct amd_uncore *this,
-					 struct amd_uncore * __percpu *uncores)
+amd_uncore_find_online_sibling(struct amd_uncore *this,
+			       struct amd_uncore * __percpu *uncores)
 {
 	unsigned int cpu;
 	struct amd_uncore *that;
@@ -348,7 +348,7 @@ __cpuinit amd_uncore_find_online_sibling(struct amd_uncore *this,
 	return this;
 }
 
-static void __cpuinit amd_uncore_cpu_starting(unsigned int cpu)
+static void amd_uncore_cpu_starting(unsigned int cpu)
 {
 	unsigned int eax, ebx, ecx, edx;
 	struct amd_uncore *uncore;
@@ -376,8 +376,8 @@ static void __cpuinit amd_uncore_cpu_starting(unsigned int cpu)
 	}
 }
 
-static void __cpuinit uncore_online(unsigned int cpu,
-				    struct amd_uncore * __percpu *uncores)
+static void uncore_online(unsigned int cpu,
+			  struct amd_uncore * __percpu *uncores)
 {
 	struct amd_uncore *uncore = *per_cpu_ptr(uncores, cpu);
 
@@ -388,7 +388,7 @@ static void __cpuinit uncore_online(unsigned int cpu,
 		cpumask_set_cpu(cpu, uncore->active_mask);
 }
 
-static void __cpuinit amd_uncore_cpu_online(unsigned int cpu)
+static void amd_uncore_cpu_online(unsigned int cpu)
 {
 	if (amd_uncore_nb)
 		uncore_online(cpu, amd_uncore_nb);
@@ -397,8 +397,8 @@ static void __cpuinit amd_uncore_cpu_online(unsigned int cpu)
 		uncore_online(cpu, amd_uncore_l2);
 }
 
-static void __cpuinit uncore_down_prepare(unsigned int cpu,
-					  struct amd_uncore * __percpu *uncores)
+static void uncore_down_prepare(unsigned int cpu,
+				struct amd_uncore * __percpu *uncores)
 {
 	unsigned int i;
 	struct amd_uncore *this = *per_cpu_ptr(uncores, cpu);
@@ -423,7 +423,7 @@ static void __cpuinit uncore_down_prepare(unsigned int cpu,
 	}
 }
 
-static void __cpuinit amd_uncore_cpu_down_prepare(unsigned int cpu)
+static void amd_uncore_cpu_down_prepare(unsigned int cpu)
 {
 	if (amd_uncore_nb)
 		uncore_down_prepare(cpu, amd_uncore_nb);
@@ -432,8 +432,7 @@ static void __cpuinit amd_uncore_cpu_down_prepare(unsigned int cpu)
 		uncore_down_prepare(cpu, amd_uncore_l2);
 }
 
-static void __cpuinit uncore_dead(unsigned int cpu,
-				  struct amd_uncore * __percpu *uncores)
+static void uncore_dead(unsigned int cpu, struct amd_uncore * __percpu *uncores)
 {
 	struct amd_uncore *uncore = *per_cpu_ptr(uncores, cpu);
 
@@ -445,7 +444,7 @@ static void __cpuinit uncore_dead(unsigned int cpu,
 	*per_cpu_ptr(amd_uncore_nb, cpu) = NULL;
 }
 
-static void __cpuinit amd_uncore_cpu_dead(unsigned int cpu)
+static void amd_uncore_cpu_dead(unsigned int cpu)
 {
 	if (amd_uncore_nb)
 		uncore_dead(cpu, amd_uncore_nb);
@@ -454,7 +453,7 @@ static void __cpuinit amd_uncore_cpu_dead(unsigned int cpu)
 		uncore_dead(cpu, amd_uncore_l2);
 }
 
-static int __cpuinit
+static int
 amd_uncore_cpu_notifier(struct notifier_block *self, unsigned long action,
 			void *hcpu)
 {
@@ -489,7 +488,7 @@ amd_uncore_cpu_notifier(struct notifier_block *self, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block amd_uncore_cpu_notifier_block __cpuinitdata = {
+static struct notifier_block amd_uncore_cpu_notifier_block = {
 	.notifier_call	= amd_uncore_cpu_notifier,
 	.priority	= CPU_PRI_PERF + 1,
 };

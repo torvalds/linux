@@ -851,7 +851,7 @@ static void clear_APIC_ibs(void *dummy)
 		setup_APIC_eilvt(offset, 0, APIC_EILVT_MSG_FIX, 1);
 }
 
-static int __cpuinit
+static int
 perf_ibs_cpu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	switch (action & ~CPU_TASKS_FROZEN) {

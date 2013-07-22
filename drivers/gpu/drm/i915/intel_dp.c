@@ -75,7 +75,12 @@ intel_dp_max_link_bw(struct intel_dp *intel_dp)
 	case DP_LINK_BW_1_62:
 	case DP_LINK_BW_2_7:
 		break;
+	case DP_LINK_BW_5_4: /* 1.2 capable displays may advertise higher bw */
+		max_link_bw = DP_LINK_BW_2_7;
+		break;
 	default:
+		WARN(1, "invalid max DP link bw val %x, using 1.62Gbps\n",
+		     max_link_bw);
 		max_link_bw = DP_LINK_BW_1_62;
 		break;
 	}
