@@ -551,7 +551,7 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 
 	case USB_STATE_CONFIGURED:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
-		if (!cfg)
+		if (!cfg && !ret)
 			usb_gadget_set_state(&dwc->gadget,
 					USB_STATE_ADDRESS);
 		break;
