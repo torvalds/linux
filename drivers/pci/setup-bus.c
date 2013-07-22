@@ -1395,7 +1395,7 @@ static enum enable_type pci_realloc_detect(struct pci_bus *bus,
  * second  and later try will clear small leaf bridge res
  * will stop till to the max  deepth if can not find good one
  */
-static void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
+void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 {
 	LIST_HEAD(realloc_head); /* list of resources that
 					want additional resources */
