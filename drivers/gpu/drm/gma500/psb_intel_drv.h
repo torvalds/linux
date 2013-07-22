@@ -117,11 +117,11 @@ struct psb_intel_i2c_chan {
 	u8 slave_addr;
 };
 
-struct psb_intel_encoder {
+struct gma_encoder {
 	struct drm_encoder base;
 	int type;
 	bool needs_tv_clock;
-	void (*hot_plug)(struct psb_intel_encoder *);
+	void (*hot_plug)(struct gma_encoder *);
 	int crtc_mask;
 	int clone_mask;
 	u32 ddi_select;	/* Channel info */
@@ -139,7 +139,7 @@ struct psb_intel_encoder {
 
 struct gma_connector {
 	struct drm_connector base;
-	struct psb_intel_encoder *encoder;
+	struct gma_encoder *encoder;
 };
 
 struct psb_intel_crtc_state {
@@ -197,8 +197,8 @@ struct gma_crtc {
 		container_of(x, struct gma_crtc, base)
 #define to_gma_connector(x) \
 		container_of(x, struct gma_connector, base)
-#define to_psb_intel_encoder(x)	\
-		container_of(x, struct psb_intel_encoder, base)
+#define to_gma_encoder(x)	\
+		container_of(x, struct gma_encoder, base)
 #define to_psb_intel_framebuffer(x)	\
 		container_of(x, struct psb_intel_framebuffer, base)
 
@@ -228,9 +228,9 @@ extern void mid_dsi_init(struct drm_device *dev,
 
 extern struct drm_encoder *gma_best_encoder(struct drm_connector *connector);
 extern void gma_connector_attach_encoder(struct gma_connector *connector,
-					 struct psb_intel_encoder *encoder);
+					 struct gma_encoder *encoder);
 
-static inline struct psb_intel_encoder *gma_attached_encoder(
+static inline struct gma_encoder *gma_attached_encoder(
 						struct drm_connector *connector)
 {
 	return to_gma_connector(connector)->encoder;
