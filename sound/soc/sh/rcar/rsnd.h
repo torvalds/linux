@@ -28,8 +28,51 @@
  * see gen1/gen2 for detail
  */
 struct rsnd_priv;
+struct rsnd_mod;
 struct rsnd_dai;
 struct rsnd_dai_stream;
+
+/*
+ *	R-Car sound mod
+ */
+
+struct rsnd_mod_ops {
+	char *name;
+	int (*init)(struct rsnd_mod *mod,
+		    struct rsnd_dai *rdai,
+		    struct rsnd_dai_stream *io);
+	int (*quit)(struct rsnd_mod *mod,
+		    struct rsnd_dai *rdai,
+		    struct rsnd_dai_stream *io);
+	int (*start)(struct rsnd_mod *mod,
+		     struct rsnd_dai *rdai,
+		     struct rsnd_dai_stream *io);
+	int (*stop)(struct rsnd_mod *mod,
+		    struct rsnd_dai *rdai,
+		    struct rsnd_dai_stream *io);
+};
+
+struct rsnd_mod {
+	int id;
+	struct rsnd_priv *priv;
+	struct rsnd_mod_ops *ops;
+	struct list_head list; /* connect to rsnd_dai playback/capture */
+};
+
+#define rsnd_mod_to_priv(mod) ((mod)->priv)
+#define rsnd_mod_id(mod) ((mod)->id)
+#define for_each_rsnd_mod(pos, n, io)	\
+	list_for_each_entry_safe(pos, n, &(io)->head, list)
+#define rsnd_mod_call(mod, func, rdai, io)	\
+	(!(mod) ? -ENODEV :			\
+	 !((mod)->ops->func) ? 0 :		\
+	 (mod)->ops->func(mod, rdai, io))
+
+void rsnd_mod_init(struct rsnd_priv *priv,
+		   struct rsnd_mod *mod,
+		   struct rsnd_mod_ops *ops,
+		   int id);
+char *rsnd_mod_name(struct rsnd_mod *mod);
 
 /*
  *	R-Car sound DAI
@@ -64,6 +107,9 @@ struct rsnd_dai {
 	     i++, (rdai) = rsnd_dai_get(priv, i))
 
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id);
+int rsnd_dai_disconnect(struct rsnd_mod *mod);
+int rsnd_dai_connect(struct rsnd_dai *rdai, struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io);
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
 
