@@ -27,10 +27,34 @@
  * This driver uses pseudo register in order to hide it.
  * see gen1/gen2 for detail
  */
+enum rsnd_reg {
+	RSND_REG_MAX,
+};
+
 struct rsnd_priv;
 struct rsnd_mod;
 struct rsnd_dai;
 struct rsnd_dai_stream;
+
+/*
+ *	R-Car basic functions
+ */
+#define rsnd_mod_read(m, r) \
+	rsnd_read(rsnd_mod_to_priv(m), m, RSND_REG_##r)
+#define rsnd_mod_write(m, r, d) \
+	rsnd_write(rsnd_mod_to_priv(m), m, RSND_REG_##r, d)
+#define rsnd_mod_bset(m, r, s, d) \
+	rsnd_bset(rsnd_mod_to_priv(m), m, RSND_REG_##r, s, d)
+
+#define rsnd_priv_read(p, r)		rsnd_read(p, NULL, RSND_REG_##r)
+#define rsnd_priv_write(p, r, d)	rsnd_write(p, NULL, RSND_REG_##r, d)
+#define rsnd_priv_bset(p, r, s, d)	rsnd_bset(p, NULL, RSND_REG_##r, s, d)
+
+u32 rsnd_read(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg);
+void rsnd_write(struct rsnd_priv *priv, struct rsnd_mod *mod,
+		enum rsnd_reg reg, u32 data);
+void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
+		    u32 mask, u32 data);
 
 /*
  *	R-Car sound mod
@@ -117,6 +141,24 @@ void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
 
 /*
+ *	R-Car Gen1/Gen2
+ */
+int rsnd_gen_probe(struct platform_device *pdev,
+		   struct rcar_snd_info *info,
+		   struct rsnd_priv *priv);
+void rsnd_gen_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
+int rsnd_gen_path_init(struct rsnd_priv *priv,
+		       struct rsnd_dai *rdai,
+		       struct rsnd_dai_stream *io);
+int rsnd_gen_path_exit(struct rsnd_priv *priv,
+		       struct rsnd_dai *rdai,
+		       struct rsnd_dai_stream *io);
+void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
+			       struct rsnd_mod *mod,
+			       enum rsnd_reg reg);
+
+/*
  *	R-Car sound priv
  */
 struct rsnd_priv {
@@ -124,6 +166,11 @@ struct rsnd_priv {
 	struct device *dev;
 	struct rcar_snd_info *info;
 	spinlock_t lock;
+
+	/*
+	 * below value will be filled on rsnd_gen_probe()
+	 */
+	void *gen;
 
 	/*
 	 * below value will be filled on rsnd_dai_probe()

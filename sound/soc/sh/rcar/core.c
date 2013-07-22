@@ -108,6 +108,50 @@
 
 
 /*
+ *	basic function
+ */
+u32 rsnd_read(struct rsnd_priv *priv,
+	      struct rsnd_mod *mod, enum rsnd_reg reg)
+{
+	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
+
+	BUG_ON(!base);
+
+	return ioread32(base);
+}
+
+void rsnd_write(struct rsnd_priv *priv,
+		struct rsnd_mod *mod,
+		enum rsnd_reg reg, u32 data)
+{
+	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
+	struct device *dev = rsnd_priv_to_dev(priv);
+
+	BUG_ON(!base);
+
+	dev_dbg(dev, "w %p : %08x\n", base, data);
+
+	iowrite32(data, base);
+}
+
+void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
+	       enum rsnd_reg reg, u32 mask, u32 data)
+{
+	void __iomem *base = rsnd_gen_reg_get(priv, mod, reg);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	u32 val;
+
+	BUG_ON(!base);
+
+	val = ioread32(base);
+	val &= ~mask;
+	val |= data & mask;
+	iowrite32(val, base);
+
+	dev_dbg(dev, "s %p : %08x\n", base, val);
+}
+
+/*
  *	rsnd_mod functions
  */
 char *rsnd_mod_name(struct rsnd_mod *mod)
@@ -289,6 +333,10 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			goto dai_trigger_end;
 
+		ret = rsnd_gen_path_init(priv, rdai, io);
+		if (ret < 0)
+			goto dai_trigger_end;
+
 		ret = rsnd_dai_call(rdai, io, init);
 		if (ret < 0)
 			goto dai_trigger_end;
@@ -306,10 +354,13 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_platform_call(priv, dai, stop, ssi_id);
+		ret = rsnd_gen_path_exit(priv, rdai, io);
 		if (ret < 0)
 			goto dai_trigger_end;
 
+		ret = rsnd_platform_call(priv, dai, stop, ssi_id);
+		if (ret < 0)
+			goto dai_trigger_end;
 		break;
 	default:
 		ret = -EINVAL;
@@ -572,6 +623,10 @@ static int rsnd_probe(struct platform_device *pdev)
 	/*
 	 *	init each module
 	 */
+	ret = rsnd_gen_probe(pdev, info, priv);
+	if (ret < 0)
+		return ret;
+
 	ret = rsnd_dai_probe(pdev, info, priv);
 	if (ret < 0)
 		return ret;
@@ -615,6 +670,7 @@ static int rsnd_remove(struct platform_device *pdev)
 	 *	remove each module
 	 */
 	rsnd_dai_remove(pdev, priv);
+	rsnd_gen_remove(pdev, priv);
 
 	return 0;
 }

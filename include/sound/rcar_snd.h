@@ -22,6 +22,16 @@ struct rsnd_dai_platform_info {
 	int ssi_id_capture;
 };
 
+/*
+ * flags
+ *
+ * 0x0000000A
+ *
+ * A : generation
+ */
+#define RSND_GEN1	(1 << 0) /* fixme */
+#define RSND_GEN2	(2 << 0) /* fixme */
+
 struct rcar_snd_info {
 	u32 flags;
 	struct rsnd_dai_platform_info *dai_info;
