@@ -740,7 +740,7 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 	int ret;
 	unsigned long val;
 
-	ret = strict_strtoul(buf, 16, &val);
+	ret = kstrtoul(buf, 16, &val);
 	if (ret)
 		return ret;
 	mutex_lock(&css->mutex);
