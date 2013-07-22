@@ -1540,8 +1540,10 @@ static int full_stripe_write(struct btrfs_raid_bio *rbio)
 	int ret;
 
 	ret = alloc_rbio_parity_pages(rbio);
-	if (ret)
+	if (ret) {
+		__free_raid_bio(rbio);
 		return ret;
+	}
 
 	ret = lock_stripe_add(rbio);
 	if (ret == 0)
