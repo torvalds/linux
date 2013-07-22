@@ -1370,6 +1370,80 @@ static void atmel_tasklet_func(unsigned long data)
 	spin_unlock(&port->lock);
 }
 
+static int atmel_init_property(struct atmel_uart_port *atmel_port,
+				struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct atmel_uart_data *pdata = pdev->dev.platform_data;
+
+	if (np) {
+		/* DMA/PDC usage specification */
+		if (of_get_property(np, "atmel,use-dma-rx", NULL)) {
+			if (of_get_property(np, "dmas", NULL)) {
+				atmel_port->use_dma_rx  = true;
+				atmel_port->use_pdc_rx  = false;
+			} else {
+				atmel_port->use_dma_rx  = false;
+				atmel_port->use_pdc_rx  = true;
+			}
+		} else {
+			atmel_port->use_dma_rx  = false;
+			atmel_port->use_pdc_rx  = false;
+		}
+
+		if (of_get_property(np, "atmel,use-dma-tx", NULL)) {
+			if (of_get_property(np, "dmas", NULL)) {
+				atmel_port->use_dma_tx  = true;
+				atmel_port->use_pdc_tx  = false;
+			} else {
+				atmel_port->use_dma_tx  = false;
+				atmel_port->use_pdc_tx  = true;
+			}
+		} else {
+			atmel_port->use_dma_tx  = false;
+			atmel_port->use_pdc_tx  = false;
+		}
+
+	} else {
+		atmel_port->use_pdc_rx  = pdata->use_dma_rx;
+		atmel_port->use_pdc_tx  = pdata->use_dma_tx;
+		atmel_port->use_dma_rx  = false;
+		atmel_port->use_dma_tx  = false;
+	}
+
+	return 0;
+}
+
+static void atmel_init_rs485(struct atmel_uart_port *atmel_port,
+				struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct atmel_uart_data *pdata = pdev->dev.platform_data;
+
+	if (np) {
+		u32 rs485_delay[2];
+		/* rs485 properties */
+		if (of_property_read_u32_array(np, "rs485-rts-delay",
+					rs485_delay, 2) == 0) {
+			struct serial_rs485 *rs485conf = &atmel_port->rs485;
+
+			rs485conf->delay_rts_before_send = rs485_delay[0];
+			rs485conf->delay_rts_after_send = rs485_delay[1];
+			rs485conf->flags = 0;
+
+		if (of_get_property(np, "rs485-rx-during-tx", NULL))
+			rs485conf->flags |= SER_RS485_RX_DURING_TX;
+
+		if (of_get_property(np, "linux,rs485-enabled-at-boot-time",
+								NULL))
+			rs485conf->flags |= SER_RS485_ENABLED;
+		}
+	} else {
+		atmel_port->rs485       = pdata->rs485;
+	}
+
+}
+
 static void atmel_set_ops(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
@@ -1408,6 +1482,7 @@ static void atmel_set_ops(struct uart_port *port)
  */
 static int atmel_startup(struct uart_port *port)
 {
+	struct platform_device *pdev = to_platform_device(port->dev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	struct tty_struct *tty = port->state->port.tty;
 	int retval;
@@ -1432,6 +1507,8 @@ static int atmel_startup(struct uart_port *port)
 	/*
 	 * Initialize DMA (if necessary)
 	 */
+	atmel_init_property(atmel_port, pdev);
+
 	if (atmel_port->prepare_rx) {
 		retval = atmel_port->prepare_rx(port);
 		if (retval < 0)
@@ -1877,55 +1954,6 @@ static struct uart_ops atmel_pops = {
 #endif
 };
 
-static void atmel_of_init_port(struct atmel_uart_port *atmel_port,
-					 struct device_node *np)
-{
-	u32 rs485_delay[2];
-
-	/* DMA/PDC usage specification */
-	if (of_get_property(np, "atmel,use-dma-rx", NULL)) {
-		if (of_get_property(np, "dmas", NULL)) {
-			atmel_port->use_dma_rx	= true;
-			atmel_port->use_pdc_rx	= false;
-		} else {
-			atmel_port->use_dma_rx	= false;
-			atmel_port->use_pdc_rx	= true;
-		}
-	} else {
-		atmel_port->use_dma_rx	= false;
-		atmel_port->use_pdc_rx	= false;
-	}
-
-	if (of_get_property(np, "atmel,use-dma-tx", NULL)) {
-		if (of_get_property(np, "dmas", NULL)) {
-			atmel_port->use_dma_tx	= true;
-			atmel_port->use_pdc_tx	= false;
-		} else {
-			atmel_port->use_dma_tx	= false;
-			atmel_port->use_pdc_tx	= true;
-		}
-	} else {
-		atmel_port->use_dma_tx	= false;
-		atmel_port->use_pdc_tx	= false;
-	}
-
-	/* rs485 properties */
-	if (of_property_read_u32_array(np, "rs485-rts-delay",
-					    rs485_delay, 2) == 0) {
-		struct serial_rs485 *rs485conf = &atmel_port->rs485;
-
-		rs485conf->delay_rts_before_send = rs485_delay[0];
-		rs485conf->delay_rts_after_send = rs485_delay[1];
-		rs485conf->flags = 0;
-
-		if (of_get_property(np, "rs485-rx-during-tx", NULL))
-			rs485conf->flags |= SER_RS485_RX_DURING_TX;
-
-		if (of_get_property(np, "linux,rs485-enabled-at-boot-time", NULL))
-			rs485conf->flags |= SER_RS485_ENABLED;
-	}
-}
-
 /*
  * Configure the port from the platform device resource info.
  */
@@ -1936,17 +1964,10 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	struct uart_port *port = &atmel_port->uart;
 	struct atmel_uart_data *pdata = pdev->dev.platform_data;
 
-	if (pdev->dev.of_node) {
-		atmel_of_init_port(atmel_port, pdev->dev.of_node);
-	} else {
-		atmel_port->use_pdc_rx	= pdata->use_dma_rx;
-		atmel_port->use_pdc_tx	= pdata->use_dma_tx;
-		atmel_port->use_dma_rx	= false;
-		atmel_port->use_dma_tx	= false;
-		atmel_port->rs485	= pdata->rs485;
-	}
+	if (!atmel_init_property(atmel_port, pdev))
+		atmel_set_ops(port);
 
-	atmel_set_ops(port);
+	atmel_init_rs485(atmel_port, pdev);
 
 	port->iotype		= UPIO_MEM;
 	port->flags		= UPF_BOOT_AUTOCONF;
