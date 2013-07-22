@@ -1113,7 +1113,13 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
 
 	for (i = 0; i < (1 << cmd->log_sz); i++) {
 		if (test_bit(i, &vector)) {
+			struct semaphore *sem;
+
 			ent = cmd->ent_arr[i];
+			if (ent->page_queue)
+				sem = &cmd->pages_sem;
+			else
+				sem = &cmd->sem;
 			ktime_get_ts(&ent->ts2);
 			memcpy(ent->out->first.data, ent->lay->out, sizeof(ent->lay->out));
 			dump_command(dev, ent, 0);
@@ -1136,10 +1142,7 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector)
 			} else {
 				complete(&ent->done);
 			}
-			if (ent->page_queue)
-				up(&cmd->pages_sem);
-			else
-				up(&cmd->sem);
+			up(sem);
 		}
 	}
 }
