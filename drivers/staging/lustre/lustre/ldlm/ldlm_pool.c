@@ -1039,6 +1039,7 @@ static int ldlm_pools_shrink(ldlm_side_t client, int nr,
 {
 	int total = 0, cached = 0, nr_ns;
 	struct ldlm_namespace *ns;
+	struct ldlm_namespace *ns_old = NULL; /* loop detection */
 	void *cookie;
 
 	if (client == LDLM_NAMESPACE_CLIENT && nr != 0 &&
@@ -1053,7 +1054,7 @@ static int ldlm_pools_shrink(ldlm_side_t client, int nr,
 	/*
 	 * Find out how many resources we may release.
 	 */
-	for (nr_ns = atomic_read(ldlm_namespace_nr(client));
+	for (nr_ns = ldlm_namespace_nr_read(client);
 	     nr_ns > 0; nr_ns--)
 	{
 		mutex_lock(ldlm_namespace_lock(client));
@@ -1063,8 +1064,23 @@ static int ldlm_pools_shrink(ldlm_side_t client, int nr,
 			return 0;
 		}
 		ns = ldlm_namespace_first_locked(client);
+
+		if (ns == ns_old) {
+			mutex_unlock(ldlm_namespace_lock(client));
+			break;
+		}
+
+		if (ldlm_ns_empty(ns)) {
+			ldlm_namespace_move_to_inactive_locked(ns, client);
+			mutex_unlock(ldlm_namespace_lock(client));
+			continue;
+		}
+
+		if (ns_old == NULL)
+			ns_old = ns;
+
 		ldlm_namespace_get(ns);
-		ldlm_namespace_move_locked(ns, client);
+		ldlm_namespace_move_to_active_locked(ns, client);
 		mutex_unlock(ldlm_namespace_lock(client));
 		total += ldlm_pool_shrink(&ns->ns_pool, 0, gfp_mask);
 		ldlm_namespace_put(ns);
@@ -1078,7 +1094,7 @@ static int ldlm_pools_shrink(ldlm_side_t client, int nr,
 	/*
 	 * Shrink at least ldlm_namespace_nr(client) namespaces.
 	 */
-	for (nr_ns = atomic_read(ldlm_namespace_nr(client));
+	for (nr_ns = ldlm_namespace_nr_read(client) - nr_ns;
 	     nr_ns > 0; nr_ns--)
 	{
 		int cancel, nr_locks;
@@ -1099,7 +1115,7 @@ static int ldlm_pools_shrink(ldlm_side_t client, int nr,
 		}
 		ns = ldlm_namespace_first_locked(client);
 		ldlm_namespace_get(ns);
-		ldlm_namespace_move_locked(ns, client);
+		ldlm_namespace_move_to_active_locked(ns, client);
 		mutex_unlock(ldlm_namespace_lock(client));
 
 		nr_locks = ldlm_pool_granted(&ns->ns_pool);
@@ -1132,6 +1148,7 @@ void ldlm_pools_recalc(ldlm_side_t client)
 {
 	__u32 nr_l = 0, nr_p = 0, l;
 	struct ldlm_namespace *ns;
+	struct ldlm_namespace *ns_old = NULL;
 	int nr, equal = 0;
 
 	/*
@@ -1190,16 +1207,14 @@ void ldlm_pools_recalc(ldlm_side_t client)
 				 * for _all_ pools.
 				 */
 				l = LDLM_POOL_HOST_L /
-					atomic_read(
-						ldlm_namespace_nr(client));
+					ldlm_namespace_nr_read(client);
 			} else {
 				/*
 				 * All the rest of greedy pools will have
 				 * all locks in equal parts.
 				 */
 				l = (LDLM_POOL_HOST_L - nr_l) /
-					(atomic_read(
-						ldlm_namespace_nr(client)) -
+					(ldlm_namespace_nr_read(client) -
 					 nr_p);
 			}
 			ldlm_pool_setup(&ns->ns_pool, l);
@@ -1210,7 +1225,7 @@ void ldlm_pools_recalc(ldlm_side_t client)
 	/*
 	 * Recalc at least ldlm_namespace_nr(client) namespaces.
 	 */
-	for (nr = atomic_read(ldlm_namespace_nr(client)); nr > 0; nr--) {
+	for (nr = ldlm_namespace_nr_read(client); nr > 0; nr--) {
 		int     skip;
 		/*
 		 * Lock the list, get first @ns in the list, getref, move it
@@ -1226,6 +1241,30 @@ void ldlm_pools_recalc(ldlm_side_t client)
 		}
 		ns = ldlm_namespace_first_locked(client);
 
+		if (ns_old == ns) { /* Full pass complete */
+			mutex_unlock(ldlm_namespace_lock(client));
+			break;
+		}
+
+		/* We got an empty namespace, need to move it back to inactive
+		 * list.
+		 * The race with parallel resource creation is fine:
+		 * - If they do namespace_get before our check, we fail the
+		 *   check and they move this item to the end of the list anyway
+		 * - If we do the check and then they do namespace_get, then
+		 *   we move the namespace to inactive and they will move
+		 *   it back to active (synchronised by the lock, so no clash
+		 *   there).
+		 */
+		if (ldlm_ns_empty(ns)) {
+			ldlm_namespace_move_to_inactive_locked(ns, client);
+			mutex_unlock(ldlm_namespace_lock(client));
+			continue;
+		}
+
+		if (ns_old == NULL)
+			ns_old = ns;
+
 		spin_lock(&ns->ns_lock);
 		/*
 		 * skip ns which is being freed, and we don't want to increase
@@ -1239,7 +1278,7 @@ void ldlm_pools_recalc(ldlm_side_t client)
 		}
 		spin_unlock(&ns->ns_lock);
 
-		ldlm_namespace_move_locked(ns, client);
+		ldlm_namespace_move_to_active_locked(ns, client);
 		mutex_unlock(ldlm_namespace_lock(client));
 
 		/*

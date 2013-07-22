@@ -48,14 +48,19 @@
 
 struct kmem_cache *ldlm_resource_slab, *ldlm_lock_slab;
 
-atomic_t ldlm_srv_namespace_nr = ATOMIC_INIT(0);
-atomic_t ldlm_cli_namespace_nr = ATOMIC_INIT(0);
+int ldlm_srv_namespace_nr = 0;
+int ldlm_cli_namespace_nr = 0;
 
 struct mutex ldlm_srv_namespace_lock;
 LIST_HEAD(ldlm_srv_namespace_list);
 
 struct mutex ldlm_cli_namespace_lock;
-LIST_HEAD(ldlm_cli_namespace_list);
+/* Client Namespaces that have active resources in them.
+ * Once all resources go away, ldlm_poold moves such namespaces to the
+ * inactive list */
+LIST_HEAD(ldlm_cli_active_namespace_list);
+/* Client namespaces that don't have any locks in them */
+LIST_HEAD(ldlm_cli_inactive_namespace_list);
 
 proc_dir_entry_t *ldlm_type_proc_dir = NULL;
 proc_dir_entry_t *ldlm_ns_proc_dir = NULL;
@@ -636,7 +641,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 		GOTO(out_hash, rc);
 	}
 
-	idx = atomic_read(ldlm_namespace_nr(client));
+	idx = ldlm_namespace_nr_read(client);
 	rc = ldlm_pool_init(&ns->ns_pool, ns, idx, client);
 	if (rc) {
 		CERROR("Can't initialize lock pool, rc %d\n", rc);
@@ -953,6 +958,12 @@ void ldlm_namespace_get(struct ldlm_namespace *ns)
 }
 EXPORT_SYMBOL(ldlm_namespace_get);
 
+/* This is only for callers that care about refcount */
+int ldlm_namespace_get_return(struct ldlm_namespace *ns)
+{
+	return atomic_inc_return(&ns->ns_bref);
+}
+
 void ldlm_namespace_put(struct ldlm_namespace *ns)
 {
 	if (atomic_dec_and_lock(&ns->ns_bref, &ns->ns_lock)) {
@@ -967,8 +978,8 @@ void ldlm_namespace_register(struct ldlm_namespace *ns, ldlm_side_t client)
 {
 	mutex_lock(ldlm_namespace_lock(client));
 	LASSERT(list_empty(&ns->ns_list_chain));
-	list_add(&ns->ns_list_chain, ldlm_namespace_list(client));
-	atomic_inc(ldlm_namespace_nr(client));
+	list_add(&ns->ns_list_chain, ldlm_namespace_inactive_list(client));
+	ldlm_namespace_nr_inc(client);
 	mutex_unlock(ldlm_namespace_lock(client));
 }
 
@@ -981,16 +992,27 @@ void ldlm_namespace_unregister(struct ldlm_namespace *ns, ldlm_side_t client)
 	 * using list_empty(&ns->ns_list_chain). This is why it is
 	 * important to use list_del_init() here. */
 	list_del_init(&ns->ns_list_chain);
-	atomic_dec(ldlm_namespace_nr(client));
+	ldlm_namespace_nr_dec(client);
 	mutex_unlock(ldlm_namespace_lock(client));
 }
 
 /** Should be called with ldlm_namespace_lock(client) taken. */
-void ldlm_namespace_move_locked(struct ldlm_namespace *ns, ldlm_side_t client)
+void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *ns,
+					  ldlm_side_t client)
 {
 	LASSERT(!list_empty(&ns->ns_list_chain));
 	LASSERT(mutex_is_locked(ldlm_namespace_lock(client)));
 	list_move_tail(&ns->ns_list_chain, ldlm_namespace_list(client));
+}
+
+/** Should be called with ldlm_namespace_lock(client) taken. */
+void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *ns,
+					    ldlm_side_t client)
+{
+	LASSERT(!list_empty(&ns->ns_list_chain));
+	LASSERT(mutex_is_locked(ldlm_namespace_lock(client)));
+	list_move_tail(&ns->ns_list_chain,
+		       ldlm_namespace_inactive_list(client));
 }
 
 /** Should be called with ldlm_namespace_lock(client) taken. */
@@ -1049,6 +1071,7 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	struct ldlm_resource *res;
 	cfs_hash_bd_t	 bd;
 	__u64		 version;
+	int		      ns_refcount = 0;
 
 	LASSERT(ns != NULL);
 	LASSERT(parent == NULL);
@@ -1119,7 +1142,7 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	/* We won! Let's add the resource. */
 	cfs_hash_bd_add_locked(ns->ns_rs_hash, &bd, &res->lr_hash);
 	if (cfs_hash_bd_count_get(&bd) == 1)
-		ldlm_namespace_get(ns);
+		ns_refcount = ldlm_namespace_get_return(ns);
 
 	cfs_hash_bd_unlock(ns->ns_rs_hash, &bd, 1);
 	if (ns->ns_lvbo && ns->ns_lvbo->lvbo_init) {
@@ -1144,6 +1167,20 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 
 	/* We create resource with locked lr_lvb_mutex. */
 	mutex_unlock(&res->lr_lvb_mutex);
+
+	/* Let's see if we happened to be the very first resource in this
+	 * namespace. If so, and this is a client namespace, we need to move
+	 * the namespace into the active namespaces list to be patrolled by
+	 * the ldlm_poold.
+	 * A notable exception, for quota namespaces qsd_lib.c already took a
+	 * namespace reference, so it won't be participating in all of this,
+	 * but I guess that's ok since we have no business cancelling quota
+	 * locks anyway */
+	if (ns_is_client(ns) && ns_refcount == 1) {
+		mutex_lock(ldlm_namespace_lock(LDLM_NAMESPACE_CLIENT));
+		ldlm_namespace_move_to_active_locked(ns, LDLM_NAMESPACE_CLIENT);
+		mutex_unlock(ldlm_namespace_lock(LDLM_NAMESPACE_CLIENT));
+	}
 
 	return res;
 }

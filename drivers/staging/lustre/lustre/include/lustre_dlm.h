@@ -1471,8 +1471,6 @@ void ldlm_namespace_free(struct ldlm_namespace *ns,
 			 struct obd_import *imp, int force);
 void ldlm_namespace_register(struct ldlm_namespace *ns, ldlm_side_t client);
 void ldlm_namespace_unregister(struct ldlm_namespace *ns, ldlm_side_t client);
-void ldlm_namespace_move_locked(struct ldlm_namespace *ns, ldlm_side_t client);
-struct ldlm_namespace *ldlm_namespace_first_locked(ldlm_side_t client);
 void ldlm_namespace_get(struct ldlm_namespace *ns);
 void ldlm_namespace_put(struct ldlm_namespace *ns);
 int ldlm_proc_setup(void);
