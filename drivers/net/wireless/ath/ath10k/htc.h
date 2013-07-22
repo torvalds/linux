@@ -335,7 +335,7 @@ struct ath10k_htc {
 	struct ath10k *ar;
 	struct ath10k_htc_ep endpoint[ATH10K_HTC_EP_COUNT];
 
-	/* protects endpoint and stopping fields */
+	/* protects endpoint and stopped fields */
 	spinlock_t tx_lock;
 
 	struct ath10k_htc_ops htc_ops;
@@ -349,7 +349,7 @@ struct ath10k_htc {
 	struct ath10k_htc_svc_tx_credits service_tx_alloc[ATH10K_HTC_EP_COUNT];
 	int target_credit_size;
 
-	bool stopping;
+	bool stopped;
 };
 
 int ath10k_htc_init(struct ath10k *ar);

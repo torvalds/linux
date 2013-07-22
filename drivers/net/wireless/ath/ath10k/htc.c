@@ -254,10 +254,14 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 		return -ENOENT;
 	}
 
-	skb_push(skb, sizeof(struct ath10k_htc_hdr));
-
 	spin_lock_bh(&htc->tx_lock);
+	if (htc->stopped) {
+		spin_unlock_bh(&htc->tx_lock);
+		return -ESHUTDOWN;
+	}
+
 	__skb_queue_tail(&ep->tx_queue, skb);
+	skb_push(skb, sizeof(struct ath10k_htc_hdr));
 	spin_unlock_bh(&htc->tx_lock);
 
 	queue_work(htc->ar->workqueue, &ep->send_work);
@@ -270,23 +274,17 @@ static int ath10k_htc_tx_completion_handler(struct ath10k *ar,
 {
 	struct ath10k_htc *htc = &ar->htc;
 	struct ath10k_htc_ep *ep = &htc->endpoint[eid];
-	bool stopping;
 
 	ath10k_htc_notify_tx_completion(ep, skb);
 	/* the skb now belongs to the completion handler */
 
+	/* note: when using TX credit flow, the re-checking of queues happens
+	 * when credits flow back from the target.  in the non-TX credit case,
+	 * we recheck after the packet completes */
 	spin_lock_bh(&htc->tx_lock);
-	stopping = htc->stopping;
-	spin_unlock_bh(&htc->tx_lock);
-
-	if (!ep->tx_credit_flow_enabled && !stopping)
-		/*
-		 * note: when using TX credit flow, the re-checking of
-		 * queues happens when credits flow back from the target.
-		 * in the non-TX credit case, we recheck after the packet
-		 * completes
-		 */
+	if (!ep->tx_credit_flow_enabled && !htc->stopped)
 		queue_work(ar->workqueue, &ep->send_work);
+	spin_unlock_bh(&htc->tx_lock);
 
 	return 0;
 }
@@ -951,7 +949,7 @@ void ath10k_htc_stop(struct ath10k_htc *htc)
 	struct ath10k_htc_ep *ep;
 
 	spin_lock_bh(&htc->tx_lock);
-	htc->stopping = true;
+	htc->stopped = true;
 	spin_unlock_bh(&htc->tx_lock);
 
 	for (i = ATH10K_HTC_EP_0; i < ATH10K_HTC_EP_COUNT; i++) {
@@ -972,6 +970,7 @@ int ath10k_htc_init(struct ath10k *ar)
 
 	spin_lock_init(&htc->tx_lock);
 
+	htc->stopped = false;
 	ath10k_htc_reset_endpoint_states(htc);
 
 	/* setup HIF layer callbacks */
