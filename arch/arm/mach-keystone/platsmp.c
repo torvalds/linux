@@ -21,7 +21,7 @@
 
 #include "keystone.h"
 
-static int __cpuinit keystone_smp_boot_secondary(unsigned int cpu,
+static int keystone_smp_boot_secondary(unsigned int cpu,
 						struct task_struct *idle)
 {
 	unsigned long start = virt_to_phys(&secondary_startup);

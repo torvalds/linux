@@ -156,7 +156,7 @@ static ssize_t average_read(struct file *filp, char __user *buf, size_t count,
 	stats = filp->private_data;
 	spin_lock(&stats->lock);
 	if (stats->n)
-		field = stats->sum / stats->n;
+		field = div64_u64(stats->sum, stats->n);
 	spin_unlock(&stats->lock);
 	ret = snprintf(tbuf, sizeof(tbuf), "%llu\n", field);
 	if (ret > 0) {

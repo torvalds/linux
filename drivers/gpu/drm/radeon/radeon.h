@@ -97,6 +97,7 @@ extern int radeon_msi;
 extern int radeon_lockup_timeout;
 extern int radeon_fastfb;
 extern int radeon_dpm;
+extern int radeon_aspm;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -455,6 +456,7 @@ struct radeon_sa_manager {
 	uint64_t		gpu_addr;
 	void			*cpu_ptr;
 	uint32_t		domain;
+	uint32_t		align;
 };
 
 struct radeon_sa_bo;
@@ -782,6 +784,11 @@ struct radeon_mec {
 
 /* number of entries in page table */
 #define RADEON_VM_PTE_COUNT (1 << RADEON_VM_BLOCK_SIZE)
+
+/* PTBs (Page Table Blocks) need to be aligned to 32K */
+#define RADEON_VM_PTB_ALIGN_SIZE   32768
+#define RADEON_VM_PTB_ALIGN_MASK (RADEON_VM_PTB_ALIGN_SIZE - 1)
+#define RADEON_VM_PTB_ALIGN(a) (((a) + RADEON_VM_PTB_ALIGN_MASK) & ~RADEON_VM_PTB_ALIGN_MASK)
 
 struct radeon_vm {
 	struct list_head		list;
@@ -1460,6 +1467,8 @@ struct radeon_uvd {
 	struct radeon_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
+	void			*saved_bo;
+	unsigned		fw_size;
 	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
 	struct delayed_work	idle_work;
@@ -2054,7 +2063,6 @@ struct radeon_device {
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
 	const struct firmware *mc_fw;	/* NI MC firmware */
 	const struct firmware *ce_fw;	/* SI CE firmware */
-	const struct firmware *uvd_fw;	/* UVD firmware */
 	const struct firmware *mec_fw;	/* CIK MEC firmware */
 	const struct firmware *sdma_fw;	/* CIK SDMA firmware */
 	const struct firmware *smc_fw;	/* SMC firmware */
