@@ -1959,7 +1959,7 @@ static void lmv_adjust_dirpages(struct page **pages, int ncfspgs, int nlupgs)
 		__u64			hash_end = dp->ldp_hash_end;
 		__u32			flags = dp->ldp_flags;
 
-		for (; nlupgs > 1; nlupgs--) {
+		while (--nlupgs > 0) {
 			ent = lu_dirent_start(dp);
 			for (end_dirent = ent; ent != NULL;
 			     end_dirent = ent, ent = lu_dirent_next(ent));
@@ -1993,6 +1993,7 @@ static void lmv_adjust_dirpages(struct page **pages, int ncfspgs, int nlupgs)
 
 		kunmap(pages[i]);
 	}
+	LASSERTF(nlupgs == 0, "left = %d", nlupgs);
 }
 #else
 #define lmv_adjust_dirpages(pages, ncfspgs, nlupgs) do {} while (0)
