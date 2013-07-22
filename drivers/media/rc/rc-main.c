@@ -699,19 +699,50 @@ void rc_keydown_notimeout(struct rc_dev *dev, int scancode, u8 toggle)
 }
 EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
 
+int rc_open(struct rc_dev *rdev)
+{
+	int rval = 0;
+
+	if (!rdev)
+		return -EINVAL;
+
+	mutex_lock(&rdev->lock);
+	if (!rdev->users++)
+		rval = rdev->open(rdev);
+
+	if (rval)
+		rdev->users--;
+
+	mutex_unlock(&rdev->lock);
+
+	return rval;
+}
+EXPORT_SYMBOL_GPL(rc_open);
+
 static int ir_open(struct input_dev *idev)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
 
-	return rdev->open(rdev);
+	return rc_open(rdev);
 }
+
+void rc_close(struct rc_dev *rdev)
+{
+	if (rdev) {
+		mutex_lock(&rdev->lock);
+
+		 if (!--rdev->users)
+			rdev->close(rdev);
+
+		mutex_unlock(&rdev->lock);
+	}
+}
+EXPORT_SYMBOL_GPL(rc_close);
 
 static void ir_close(struct input_dev *idev)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
-
-	 if (rdev)
-		rdev->close(rdev);
+	rc_close(rdev);
 }
 
 /* class for /sys/class/rc */
@@ -1076,7 +1107,14 @@ int rc_register_device(struct rc_dev *dev)
 	memcpy(&dev->input_dev->id, &dev->input_id, sizeof(dev->input_id));
 	dev->input_dev->phys = dev->input_phys;
 	dev->input_dev->name = dev->input_name;
+
+	/* input_register_device can call ir_open, so unlock mutex here */
+	mutex_unlock(&dev->lock);
+
 	rc = input_register_device(dev->input_dev);
+
+	mutex_lock(&dev->lock);
+
 	if (rc)
 		goto out_table;
 
