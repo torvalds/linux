@@ -744,7 +744,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 		}
 		encoder->possible_crtcs = crtc_mask;
 		encoder->possible_clones =
-		    psb_intel_connector_clones(dev, clone_mask);
+		    gma_connector_clones(dev, clone_mask);
 	}
 }
 

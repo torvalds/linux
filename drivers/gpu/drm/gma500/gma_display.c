@@ -672,7 +672,7 @@ struct drm_encoder *gma_best_encoder(struct drm_connector *connector)
 	return &psb_intel_encoder->base;
 }
 
-void gma_connector_attach_encoder(struct psb_intel_connector *connector,
+void gma_connector_attach_encoder(struct gma_connector *connector,
 				  struct psb_intel_encoder *encoder)
 {
 	connector->encoder = encoder;

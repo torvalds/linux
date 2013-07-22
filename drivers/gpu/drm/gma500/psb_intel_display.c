@@ -594,7 +594,7 @@ struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
 	return crtc;
 }
 
-int psb_intel_connector_clones(struct drm_device *dev, int type_mask)
+int gma_connector_clones(struct drm_device *dev, int type_mask)
 {
 	int index_mask = 0;
 	struct drm_connector *connector;
