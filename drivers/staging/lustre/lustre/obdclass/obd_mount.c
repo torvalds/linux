@@ -650,6 +650,15 @@ int lustre_put_lsi(struct super_block *sb)
 	RETURN(0);
 }
 
+/*** SERVER NAME ***
+ * <FSNAME><SEPERATOR><TYPE><INDEX>
+ * FSNAME is between 1 and 8 characters (inclusive).
+ *	Excluded characters are '/' and ':'
+ * SEPERATOR is either ':' or '-'
+ * TYPE: "OST", "MDT", etc.
+ * INDEX: Hex representation of the index
+ */
+
 /** Get the fsname ("lustre") from the server name ("lustre-OST003F").
  * @param [in] svname server name including type and index
  * @param [out] fsname Buffer to copy filesystem name prefix into.
@@ -659,22 +668,13 @@ int lustre_put_lsi(struct super_block *sb)
  */
 int server_name2fsname(const char *svname, char *fsname, const char **endptr)
 {
-	const char *dash = strrchr(svname, '-');
-	if (!dash) {
-		dash = strrchr(svname, ':');
-		if (!dash)
-			return -EINVAL;
-	}
+	const char *dash;
 
-	/* interpret <fsname>-MDTXXXXX-mdc as mdt, the better way is to pass
-	 * in the fsname, then determine the server index */
-	if (!strcmp(LUSTRE_MDC_NAME, dash + 1)) {
-		dash--;
-		for (; dash > svname && *dash != '-' && *dash != ':'; dash--)
-			;
-		if (dash == svname)
-			return -EINVAL;
-	}
+	dash = svname + strnlen(svname, 8); /* max fsname length is 8 */
+	for (; dash > svname && *dash != '-' && *dash != ':'; dash--)
+		;
+	if (dash == svname)
+		return -EINVAL;
 
 	if (fsname != NULL) {
 		strncpy(fsname, svname, dash - svname);
@@ -697,15 +697,15 @@ int server_name2svname(const char *label, char *svname, const char **endptr,
 		       size_t svsize)
 {
 	int rc;
-	const const char *dash;
+	const char *dash;
 
 	/* We use server_name2fsname() just for parsing */
 	rc = server_name2fsname(label, NULL, &dash);
 	if (rc != 0)
 		return rc;
 
-	if (*dash != '-')
-		return -1;
+	if (endptr != NULL)
+		*endptr = dash;
 
 	if (strlcpy(svname, dash + 1, svsize) >= svsize)
 		return -E2BIG;
@@ -730,9 +730,6 @@ int server_name2index(const char *svname, __u32 *idx, const char **endptr)
 	if (rc != 0)
 		return rc;
 
-	if (*dash != '-')
-		return -EINVAL;
-
 	dash++;
 
 	if (strncmp(dash, "MDT", 3) == 0)
@@ -744,11 +741,20 @@ int server_name2index(const char *svname, __u32 *idx, const char **endptr)
 
 	dash += 3;
 
-	if (strcmp(dash, "all") == 0)
+	if (strncmp(dash, "all", 3) == 0) {
+		if (endptr != NULL)
+			*endptr = dash + 3;
 		return rc | LDD_F_SV_ALL;
+	}
 
 	index = simple_strtoul(dash, (char **)endptr, 16);
-	*idx = index;
+	if (idx != NULL)
+		*idx = index;
+
+	/* Account for -mdc after index that is possible when specifying mdt */
+	if (endptr != NULL && strncmp(LUSTRE_MDC_NAME, *endptr + 1,
+				      sizeof(LUSTRE_MDC_NAME)-1) == 0)
+		*endptr += sizeof(LUSTRE_MDC_NAME);
 
 	return rc;
 }
@@ -858,13 +864,15 @@ static int lmd_make_exclusion(struct lustre_mount_data *lmd, const char *ptr)
 		s1++;
 		rc = server_name2index(s1, &index, &s2);
 		if (rc < 0) {
-			CERROR("Can't parse server name '%s'\n", s1);
+			CERROR("Can't parse server name '%s': rc = %d\n",
+			       s1, rc);
 			break;
 		}
 		if (rc == LDD_F_SV_TYPE_OST)
 			exclude_list[lmd->lmd_exclude_count++] = index;
 		else
-			CDEBUG(D_MOUNT, "ignoring exclude %.7s\n", s1);
+			CDEBUG(D_MOUNT, "ignoring exclude %.*s: type = %#x\n",
+			       (uint)(s2-s1), s1, rc);
 		s1 = s2;
 		/* now we are pointing at ':' (next exclude)
 		   or ',' (end of excludes) */

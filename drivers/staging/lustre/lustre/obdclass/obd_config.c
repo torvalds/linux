@@ -1426,10 +1426,13 @@ int class_config_llog_handler(const struct lu_env *env,
 		}
 
 
-		if ((clli->cfg_flags & CFG_F_EXCLUDE) &&
-		    (lcfg->lcfg_command == LCFG_LOV_ADD_OBD))
-			/* Add inactive instead */
-			lcfg->lcfg_command = LCFG_LOV_ADD_INA;
+		if (clli->cfg_flags & CFG_F_EXCLUDE) {
+			CDEBUG(D_CONFIG, "cmd: %x marked EXCLUDED\n",
+			       lcfg->lcfg_command);
+			if (lcfg->lcfg_command == LCFG_LOV_ADD_OBD)
+				/* Add inactive instead */
+				lcfg->lcfg_command = LCFG_LOV_ADD_INA;
+		}
 
 		lustre_cfg_bufs_init(&bufs, lcfg);
 
