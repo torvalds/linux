@@ -366,7 +366,6 @@ static int lprocfs_jobstats_seq_show(struct seq_file *p, void *v)
 	struct job_stat			*job = v;
 	struct lprocfs_stats		*s;
 	struct lprocfs_counter		ret;
-	struct lprocfs_counter		*cntr;
 	struct lprocfs_counter_header	*cntr_header;
 	int				i;
 
@@ -380,7 +379,6 @@ static int lprocfs_jobstats_seq_show(struct seq_file *p, void *v)
 
 	s = job->js_stats;
 	for (i = 0; i < s->ls_num; i++) {
-		cntr = lprocfs_stats_counter_get(s, 0, i);
 		cntr_header = &s->ls_cnt_header[i];
 		lprocfs_stats_collect(s, i, &ret);
 

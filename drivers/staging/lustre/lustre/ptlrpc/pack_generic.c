@@ -2462,6 +2462,7 @@ void _debug_req(struct ptlrpc_request *req,
 			   rep_ok ? lustre_msg_get_flags(req->rq_repmsg) : -1,
 			   req->rq_status,
 			   rep_ok ? lustre_msg_get_status(req->rq_repmsg) : -1);
+	va_end(args);
 }
 EXPORT_SYMBOL(_debug_req);
 
