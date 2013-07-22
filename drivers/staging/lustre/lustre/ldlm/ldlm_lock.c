@@ -199,7 +199,7 @@ void ldlm_lock_put(struct ldlm_lock *lock)
 			   "final lock_put on destroyed lock, freeing it.");
 
 		res = lock->l_resource;
-		LASSERT(lock->l_destroyed);
+		LASSERT(lock->l_flags & LDLM_FL_DESTROYED);
 		LASSERT(list_empty(&lock->l_res_link));
 		LASSERT(list_empty(&lock->l_pending_chain));
 
@@ -254,7 +254,7 @@ int ldlm_lock_remove_from_lru(struct ldlm_lock *lock)
 	int rc;
 
 	ENTRY;
-	if (lock->l_ns_srv) {
+	if (lock->l_flags & LDLM_FL_NS_SRV) {
 		LASSERT(list_empty(&lock->l_lru));
 		RETURN(0);
 	}
@@ -305,7 +305,7 @@ void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
 	ENTRY;
-	if (lock->l_ns_srv) {
+	if (lock->l_flags & LDLM_FL_NS_SRV) {
 		LASSERT(list_empty(&lock->l_lru));
 		EXIT;
 		return;
@@ -353,12 +353,12 @@ int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 		LBUG();
 	}
 
-	if (lock->l_destroyed) {
+	if (lock->l_flags & LDLM_FL_DESTROYED) {
 		LASSERT(list_empty(&lock->l_lru));
 		EXIT;
 		return 0;
 	}
-	lock->l_destroyed = 1;
+	lock->l_flags |= LDLM_FL_DESTROYED;
 
 	if (lock->l_export && lock->l_export->exp_lock_hash) {
 		/* NB: it's safe to call cfs_hash_del() even lock isn't
@@ -596,7 +596,7 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 
 	/* It's unlikely but possible that someone marked the lock as
 	 * destroyed after we did handle2object on it */
-	if (flags == 0 && !lock->l_destroyed) {
+	if (flags == 0 && ((lock->l_flags & LDLM_FL_DESTROYED)== 0)) {
 		lu_ref_add(&lock->l_reference, "handle", current);
 		RETURN(lock);
 	}
@@ -606,7 +606,7 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 	LASSERT(lock->l_resource != NULL);
 
 	lu_ref_add_atomic(&lock->l_reference, "handle", current);
-	if (unlikely(lock->l_destroyed)) {
+	if (unlikely(lock->l_flags & LDLM_FL_DESTROYED)) {
 		unlock_res_and_lock(lock);
 		CDEBUG(D_INFO, "lock already destroyed: lock %p\n", lock);
 		LDLM_LOCK_PUT(lock);
@@ -695,7 +695,7 @@ void ldlm_add_bl_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
 		lock->l_flags |= LDLM_FL_AST_SENT;
 		/* If the enqueuing client said so, tell the AST recipient to
 		 * discard dirty data, rather than writing back. */
-		if (new->l_flags & LDLM_AST_DISCARD_DATA)
+		if (new->l_flags & LDLM_FL_AST_DISCARD_DATA)
 			lock->l_flags |= LDLM_FL_DISCARD_DATA;
 		LASSERT(list_empty(&lock->l_bl_ast));
 		list_add(&lock->l_bl_ast, work_list);
@@ -873,7 +873,7 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 	    (lock->l_flags & LDLM_FL_CBPENDING)) {
 		/* If we received a blocked AST and this was the last reference,
 		 * run the callback. */
-		if (lock->l_ns_srv && lock->l_export)
+		if ((lock->l_flags & LDLM_FL_NS_SRV) && lock->l_export)
 			CERROR("FL_CBPENDING set on non-local lock--just a "
 			       "warning\n");
 
@@ -1069,7 +1069,7 @@ static void ldlm_granted_list_add_lock(struct ldlm_lock *lock,
 	ldlm_resource_dump(D_INFO, res);
 	LDLM_DEBUG(lock, "About to add lock:");
 
-	if (lock->l_destroyed) {
+	if (lock->l_flags & LDLM_FL_DESTROYED) {
 		CDEBUG(D_OTHER, "Lock destroyed, not adding to resource\n");
 		return;
 	}
@@ -1203,9 +1203,7 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 		      policy->l_inodebits.bits))
 			continue;
 
-		if (!unref &&
-		    (lock->l_destroyed || lock->l_flags & LDLM_FL_FAILED ||
-		     lock->l_failed))
+		if (!unref && (lock->l_flags & LDLM_FL_GONE_MASK))
 			continue;
 
 		if ((flags & LDLM_FL_LOCAL_ONLY) &&
@@ -1227,8 +1225,8 @@ static struct ldlm_lock *search_queue(struct list_head *queue,
 
 void ldlm_lock_fail_match_locked(struct ldlm_lock *lock)
 {
-	if (!lock->l_failed) {
-		lock->l_failed = 1;
+	if ((lock->l_flags & LDLM_FL_FAIL_NOTIFIED) == 0) {
+		lock->l_flags |= LDLM_FL_FAIL_NOTIFIED;
 		wake_up_all(&lock->l_waitq);
 	}
 }
@@ -1352,6 +1350,8 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 		ldlm_lock2handle(lock, lockh);
 		if ((flags & LDLM_FL_LVB_READY) &&
 		    (!(lock->l_flags & LDLM_FL_LVB_READY))) {
+			__u64 wait_flags = LDLM_FL_LVB_READY |
+				LDLM_FL_DESTROYED | LDLM_FL_FAIL_NOTIFIED;
 			struct l_wait_info lwi;
 			if (lock->l_completion_ast) {
 				int err = lock->l_completion_ast(lock,
@@ -1373,8 +1373,7 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 
 			/* XXX FIXME see comment on CAN_MATCH in lustre_dlm.h */
 			l_wait_event(lock->l_waitq,
-				     lock->l_flags & LDLM_FL_LVB_READY ||
-				     lock->l_destroyed || lock->l_failed,
+				     lock->l_flags & wait_flags,
 				     &lwi);
 			if (!(lock->l_flags & LDLM_FL_LVB_READY)) {
 				if (flags & LDLM_FL_TEST_LOCK)
@@ -1431,8 +1430,7 @@ ldlm_mode_t ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
 	lock = ldlm_handle2lock(lockh);
 	if (lock != NULL) {
 		lock_res_and_lock(lock);
-		if (lock->l_destroyed || lock->l_flags & LDLM_FL_FAILED ||
-		    lock->l_failed)
+		if (lock->l_flags & LDLM_FL_GONE_MASK)
 			GOTO(out, mode);
 
 		if (lock->l_flags & LDLM_FL_CBPENDING &&
@@ -1583,12 +1581,12 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 	lock->l_req_mode = mode;
 	lock->l_ast_data = data;
 	lock->l_pid = current_pid();
-	lock->l_ns_srv = !!ns_is_server(ns);
+	if (ns_is_server(ns))
+		lock->l_flags |= LDLM_FL_NS_SRV;
 	if (cbs) {
 		lock->l_blocking_ast = cbs->lcs_blocking;
 		lock->l_completion_ast = cbs->lcs_completion;
 		lock->l_glimpse_ast = cbs->lcs_glimpse;
-		lock->l_weigh_ast = cbs->lcs_weigh;
 	}
 
 	lock->l_tree_node = NULL;
@@ -1693,7 +1691,7 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 
 	/* Some flags from the enqueue want to make it into the AST, via the
 	 * lock's l_flags. */
-	lock->l_flags |= *flags & LDLM_AST_DISCARD_DATA;
+	lock->l_flags |= *flags & LDLM_FL_AST_DISCARD_DATA;
 
 	/* This distinction between local lock trees is very important; a client
 	 * namespace only has information about locks taken by that client, and
@@ -2046,15 +2044,15 @@ void ldlm_lock_cancel(struct ldlm_lock *lock)
 		LBUG();
 	}
 
-	if (lock->l_waited)
+	if (lock->l_flags & LDLM_FL_WAITED)
 		ldlm_del_waiting_lock(lock);
 
 	/* Releases cancel callback. */
 	ldlm_cancel_callback(lock);
 
 	/* Yes, second time, just in case it was added again while we were
-	   running with no res lock in ldlm_cancel_callback */
-	if (lock->l_waited)
+	 * running with no res lock in ldlm_cancel_callback */
+	if (lock->l_flags & LDLM_FL_WAITED)
 		ldlm_del_waiting_lock(lock);
 
 	ldlm_resource_unlink_lock(lock);

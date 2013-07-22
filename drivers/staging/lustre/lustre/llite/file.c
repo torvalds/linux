@@ -2290,9 +2290,11 @@ int ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
-	struct ldlm_enqueue_info einfo = { .ei_type = LDLM_FLOCK,
-					   .ei_cb_cp =ldlm_flock_completion_ast,
-					   .ei_cbdata = file_lock };
+	struct ldlm_enqueue_info einfo = {
+		.ei_type	= LDLM_FLOCK,
+		.ei_cb_cp	= ldlm_flock_completion_ast,
+		.ei_cbdata	= file_lock,
+	};
 	struct md_op_data *op_data;
 	struct lustre_handle lockh = {0};
 	ldlm_policy_data_t flock = {{0}};
@@ -3116,11 +3118,12 @@ int ll_layout_refresh(struct inode *inode, __u32 *gen)
 	struct lookup_intent   it;
 	struct lustre_handle   lockh;
 	ldlm_mode_t	       mode;
-	struct ldlm_enqueue_info einfo = { .ei_type = LDLM_IBITS,
-					   .ei_mode = LCK_CR,
-					   .ei_cb_bl = ll_md_blocking_ast,
-					   .ei_cb_cp = ldlm_completion_ast,
-					   .ei_cbdata = NULL };
+	struct ldlm_enqueue_info einfo = {
+		.ei_type = LDLM_IBITS,
+		.ei_mode = LCK_CR,
+		.ei_cb_bl = ll_md_blocking_ast,
+		.ei_cb_cp = ldlm_completion_ast,
+	};
 	int rc;
 	ENTRY;
 
