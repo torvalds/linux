@@ -109,13 +109,6 @@ config ARCH_EMEV2
 
 comment "SH-Mobile Board Type"
 
-config MACH_AG5EVM
-	bool "AG5EVM board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SH_LCD_MIPI_DSI
-
 config MACH_APE6EVM
 	bool "APE6EVM board"
 	depends on ARCH_R8A73A4
