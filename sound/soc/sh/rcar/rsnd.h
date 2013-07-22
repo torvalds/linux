@@ -43,6 +43,13 @@ enum rsnd_reg {
 	RSND_REG_AUDIO_CLK_SEL4,
 	RSND_REG_AUDIO_CLK_SEL5,
 
+	/* SSI */
+	RSND_REG_SSICR,
+	RSND_REG_SSISR,
+	RSND_REG_SSITDR,
+	RSND_REG_SSIRDR,
+	RSND_REG_SSIWSR,
+
 	RSND_REG_MAX,
 };
 
@@ -151,6 +158,7 @@ int rsnd_dai_connect(struct rsnd_dai *rdai, struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io);
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
+#define rsnd_io_to_runtime(io) ((io)->substream->runtime)
 
 void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
@@ -210,6 +218,11 @@ struct rsnd_priv {
 	void *adg;
 
 	/*
+	 * below value will be filled on rsnd_ssi_probe()
+	 */
+	void *ssiu;
+
+	/*
 	 * below value will be filled on rsnd_dai_probe()
 	 */
 	struct snd_soc_dai_driver *daidrv;
@@ -231,5 +244,15 @@ void rsnd_scu_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id);
 #define rsnd_scu_nr(priv) ((priv)->scu_nr)
+
+/*
+ *	R-Car SSI
+ */
+int rsnd_ssi_probe(struct platform_device *pdev,
+		   struct rcar_snd_info *info,
+		   struct rsnd_priv *priv);
+void rsnd_ssi_remove(struct platform_device *pdev,
+		   struct rsnd_priv *priv);
+struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 
 #endif

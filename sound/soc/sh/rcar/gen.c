@@ -72,6 +72,12 @@ static int rsnd_gen1_path_init(struct rsnd_priv *priv,
 	else
 		id = info->ssi_id_capture;
 
+	/* SSI */
+	mod = rsnd_ssi_mod_get(priv, id);
+	ret = rsnd_dai_connect(rdai, mod, io);
+	if (ret < 0)
+		return ret;
+
 	/* SCU */
 	mod = rsnd_scu_mod_get(priv, id);
 	ret = rsnd_dai_connect(rdai, mod, io);
@@ -120,6 +126,12 @@ static void rsnd_gen1_reg_map_init(struct rsnd_gen *gen)
 	RSND_GEN1_REG_MAP(gen, ADG,	AUDIO_CLK_SEL3,	0x0,	0x18);
 	RSND_GEN1_REG_MAP(gen, ADG,	AUDIO_CLK_SEL4,	0x0,	0x1c);
 	RSND_GEN1_REG_MAP(gen, ADG,	AUDIO_CLK_SEL5,	0x0,	0x20);
+
+	RSND_GEN1_REG_MAP(gen, SSI,	SSICR,		0x40,	0x00);
+	RSND_GEN1_REG_MAP(gen, SSI,	SSISR,		0x40,	0x04);
+	RSND_GEN1_REG_MAP(gen, SSI,	SSITDR,		0x40,	0x08);
+	RSND_GEN1_REG_MAP(gen, SSI,	SSIRDR,		0x40,	0x0c);
+	RSND_GEN1_REG_MAP(gen, SSI,	SSIWSR,		0x40,	0x20);
 }
 
 static int rsnd_gen1_probe(struct platform_device *pdev,
@@ -130,14 +142,17 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 	struct resource *sru_res;
 	struct resource *adg_res;
+	struct resource *ssi_res;
 
 	/*
 	 * map address
 	 */
 	sru_res	= platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN1_SRU);
 	adg_res = platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN1_ADG);
+	ssi_res	= platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN1_SSI);
 	if (!sru_res ||
-	    !adg_res) {
+	    !adg_res ||
+	    !ssi_res) {
 		dev_err(dev, "Not enough SRU/SSI/ADG platform resources.\n");
 		return -ENODEV;
 	}
@@ -146,8 +161,10 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 
 	gen->base[RSND_GEN1_SRU] = devm_ioremap_resource(dev, sru_res);
 	gen->base[RSND_GEN1_ADG] = devm_ioremap_resource(dev, adg_res);
+	gen->base[RSND_GEN1_SSI] = devm_ioremap_resource(dev, ssi_res);
 	if (!gen->base[RSND_GEN1_SRU] ||
-	    !gen->base[RSND_GEN1_ADG]) {
+	    !gen->base[RSND_GEN1_ADG] ||
+	    !gen->base[RSND_GEN1_SSI]) {
 		dev_err(dev, "SRU/SSI/ADG ioremap failed\n");
 		return -ENODEV;
 	}
@@ -159,8 +176,11 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 						gen->base[RSND_GEN1_SRU]);
 	dev_dbg(dev, "ADG : %08x => %p\n",	adg_res->start,
 						gen->base[RSND_GEN1_ADG]);
+	dev_dbg(dev, "SSI : %08x => %p\n",	ssi_res->start,
+						gen->base[RSND_GEN1_SSI]);
 
 	return 0;
+
 }
 
 static void rsnd_gen1_remove(struct platform_device *pdev,

@@ -639,6 +639,10 @@ static int rsnd_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	ret = rsnd_ssi_probe(pdev, info, priv);
+	if (ret < 0)
+		return ret;
+
 	/*
 	 *	asoc register
 	 */
@@ -677,6 +681,7 @@ static int rsnd_remove(struct platform_device *pdev)
 	/*
 	 *	remove each module
 	 */
+	rsnd_ssi_remove(pdev, priv);
 	rsnd_adg_remove(pdev, priv);
 	rsnd_scu_remove(pdev, priv);
 	rsnd_dai_remove(pdev, priv);
