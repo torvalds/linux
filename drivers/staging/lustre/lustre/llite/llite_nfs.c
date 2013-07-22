@@ -58,6 +58,22 @@ __u32 get_uuid2int(const char *name, int len)
 	return (key0 << 1);
 }
 
+void get_uuid2fsid(const char *name, int len, __kernel_fsid_t *fsid)
+{
+	__u64 key = 0, key0 = 0x12a3fe2d, key1 = 0x37abe8f9;
+
+	while (len--) {
+		key = key1 + (key0 ^ (*name++ * 7152373));
+		if (key & 0x8000000000000000ULL)
+			key -= 0x7fffffffffffffffULL;
+		key1 = key0;
+		key0 = key;
+	}
+
+	fsid->val[0] = key;
+	fsid->val[1] = key >> 32;
+}
+
 static int ll_nfs_test_inode(struct inode *inode, void *opaque)
 {
 	return lu_fid_eq(&ll_i2info(inode)->lli_fid,

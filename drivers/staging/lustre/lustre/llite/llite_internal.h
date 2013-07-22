@@ -505,6 +505,7 @@ struct ll_sb_info {
 						 * clustred nfs */
 	struct rmtacl_ctl_table   ll_rct;
 	struct eacl_table	 ll_et;
+	__kernel_fsid_t		  ll_fsid;
 };
 
 #define LL_DEFAULT_MAX_RW_CHUNK      (32 * 1024 * 1024)
@@ -833,6 +834,7 @@ char *ll_get_fsname(struct super_block *sb, char *buf, int buflen);
 /* llite/llite_nfs.c */
 extern struct export_operations lustre_export_operations;
 __u32 get_uuid2int(const char *name, int len);
+void get_uuid2fsid(const char *name, int len, __kernel_fsid_t *fsid);
 struct inode *search_inode_for_lustre(struct super_block *sb,
 				      const struct lu_fid *fid);
 
