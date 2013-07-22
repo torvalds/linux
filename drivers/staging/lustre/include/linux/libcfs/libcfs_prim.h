@@ -40,10 +40,6 @@
 #ifndef __LIBCFS_PRIM_H__
 #define __LIBCFS_PRIM_H__
 
-#ifndef EXPORT_SYMBOL
-# define EXPORT_SYMBOL(s)
-#endif
-
 /*
  * Schedule
  */
