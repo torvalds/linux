@@ -1832,12 +1832,12 @@ static int ll_swap_layouts(struct file *file1, struct file *file2,
 	rc = -ENOMEM;
 	op_data = ll_prep_md_op_data(NULL, llss->inode1, llss->inode2, NULL, 0,
 				     0, LUSTRE_OPC_ANY, &msl);
-	if (op_data != NULL) {
-		rc = obd_iocontrol(LL_IOC_LOV_SWAP_LAYOUTS,
-				   ll_i2mdexp(llss->inode1),
-				   sizeof(*op_data), op_data, NULL);
-		ll_finish_md_op_data(op_data);
-	}
+	if (IS_ERR(op_data))
+		GOTO(free, rc = PTR_ERR(op_data));
+
+	rc = obd_iocontrol(LL_IOC_LOV_SWAP_LAYOUTS, ll_i2mdexp(llss->inode1),
+			   sizeof(*op_data), op_data, NULL);
+	ll_finish_md_op_data(op_data);
 
 putgl:
 	if (gid != 0) {
@@ -2031,9 +2031,9 @@ long ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
 					     LUSTRE_OPC_ANY, hus);
-		if (op_data == NULL) {
+		if (IS_ERR(op_data)) {
 			OBD_FREE_PTR(hus);
-			RETURN(-ENOMEM);
+			RETURN(PTR_ERR(op_data));
 		}
 
 		rc = obd_iocontrol(cmd, ll_i2mdexp(inode), sizeof(*op_data),
@@ -2069,9 +2069,9 @@ long ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
 					     LUSTRE_OPC_ANY, hss);
-		if (op_data == NULL) {
+		if (IS_ERR(op_data)) {
 			OBD_FREE_PTR(hss);
-			RETURN(-ENOMEM);
+			RETURN(PTR_ERR(op_data));
 		}
 
 		rc = obd_iocontrol(cmd, ll_i2mdexp(inode), sizeof(*op_data),
@@ -2093,9 +2093,9 @@ long ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
 					     LUSTRE_OPC_ANY, hca);
-		if (op_data == NULL) {
+		if (IS_ERR(op_data)) {
 			OBD_FREE_PTR(hca);
-			RETURN(-ENOMEM);
+			RETURN(PTR_ERR(op_data));
 		}
 
 		rc = obd_iocontrol(cmd, ll_i2mdexp(inode), sizeof(*op_data),
