@@ -604,7 +604,7 @@
 			ti,hwmods = "wd_timer2";
 		};
 
-		emif1: emif@0x4c000000 {
+		emif1: emif@4c000000 {
 			compatible	= "ti,emif-4d5";
 			ti,hwmods	= "emif1";
 			phy-type	= <2>; /* DDR PHY type: Intelli PHY */
@@ -615,7 +615,7 @@
 			hw-caps-temp-alert;
 		};
 
-		emif2: emif@0x4d000000 {
+		emif2: emif@4d000000 {
 			compatible	= "ti,emif-4d5";
 			ti,hwmods	= "emif2";
 			phy-type	= <2>; /* DDR PHY type: Intelli PHY */
