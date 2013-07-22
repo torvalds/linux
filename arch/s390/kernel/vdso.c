@@ -63,7 +63,7 @@ static int __init vdso_setup(char *s)
 	else if (strncmp(s, "off", 4) == 0)
 		vdso_enabled = 0;
 	else {
-		rc = strict_strtoul(s, 0, &val);
+		rc = kstrtoul(s, 0, &val);
 		vdso_enabled = rc ? 0 : !!val;
 	}
 	return !rc;

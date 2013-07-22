@@ -1299,7 +1299,7 @@ int regs_query_register_offset(const char *name)
 
 	if (!name || *name != 'r')
 		return -EINVAL;
-	if (strict_strtoul(name + 1, 10, &offset))
+	if (kstrtoul(name + 1, 10, &offset))
 		return -EINVAL;
 	if (offset >= NUM_GPRS)
 		return -EINVAL;
