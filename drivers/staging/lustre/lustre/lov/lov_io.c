@@ -980,9 +980,9 @@ int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 		LASSERTF(0, "invalid type %d\n", io->ci_type);
 	case CIT_MISC:
 	case CIT_FSYNC:
-	case CIT_SETATTR:
 		result = +1;
 		break;
+	case CIT_SETATTR:
 	case CIT_READ:
 	case CIT_WRITE:
 	case CIT_FAULT:
