@@ -3123,8 +3123,8 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	vma = i915_gem_vma_create(obj, &dev_priv->gtt.base);
 	if (IS_ERR(vma)) {
-		i915_gem_object_unpin_pages(obj);
-		return PTR_ERR(vma);
+		ret = PTR_ERR(vma);
+		goto err_unpin;
 	}
 
 search_free:
@@ -3140,17 +3140,17 @@ search_free:
 		if (ret == 0)
 			goto search_free;
 
-		goto err_out;
+		goto err_free_vma;
 	}
 	if (WARN_ON(!i915_gem_valid_gtt_space(dev, &vma->node,
 					      obj->cache_level))) {
 		ret = -EINVAL;
-		goto err_out;
+		goto err_remove_node;
 	}
 
 	ret = i915_gem_gtt_prepare_object(obj);
 	if (ret)
-		goto err_out;
+		goto err_remove_node;
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &vm->inactive_list);
@@ -3169,9 +3169,11 @@ search_free:
 	i915_gem_verify_gtt(dev);
 	return 0;
 
-err_out:
+err_remove_node:
 	drm_mm_remove_node(&vma->node);
+err_free_vma:
 	i915_gem_vma_destroy(vma);
+err_unpin:
 	i915_gem_object_unpin_pages(obj);
 	return ret;
 }
