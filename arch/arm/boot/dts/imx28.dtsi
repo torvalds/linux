@@ -15,6 +15,8 @@
 	interrupt-parent = <&icoll>;
 
 	aliases {
+		ethernet0 = &mac0;
+		ethernet1 = &mac1;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
@@ -27,8 +29,8 @@
 		serial2 = &auart2;
 		serial3 = &auart3;
 		serial4 = &auart4;
-		ethernet0 = &mac0;
-		ethernet1 = &mac1;
+		spi0 = &ssp1;
+		spi1 = &ssp2;
 	};
 
 	cpus {

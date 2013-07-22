@@ -20,6 +20,8 @@
 		gpio2 = &gpio2;
 		serial0 = &auart0;
 		serial1 = &auart1;
+		spi0 = &ssp0;
+		spi1 = &ssp1;
 	};
 
 	cpus {
