@@ -3681,6 +3681,8 @@ int __init osc_init(void)
 	CDEBUG(D_INFO, "Lustre OSC module (%p).\n", &osc_caches);
 
 	rc = lu_kmem_init(osc_caches);
+	if (rc)
+		RETURN(rc);
 
 	lprocfs_osc_init_vars(&lvars);
 
