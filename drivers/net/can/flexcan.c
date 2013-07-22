@@ -850,12 +850,17 @@ static int flexcan_open(struct net_device *dev)
 	struct flexcan_priv *priv = netdev_priv(dev);
 	int err;
 
-	clk_prepare_enable(priv->clk_ipg);
-	clk_prepare_enable(priv->clk_per);
+	err = clk_prepare_enable(priv->clk_ipg);
+	if (err)
+		return err;
+
+	err = clk_prepare_enable(priv->clk_per);
+	if (err)
+		goto out_disable_ipg;
 
 	err = open_candev(dev);
 	if (err)
-		goto out;
+		goto out_disable_per;
 
 	err = request_irq(dev->irq, flexcan_irq, IRQF_SHARED, dev->name, dev);
 	if (err)
@@ -875,8 +880,9 @@ static int flexcan_open(struct net_device *dev)
 
  out_close:
 	close_candev(dev);
- out:
+ out_disable_per:
 	clk_disable_unprepare(priv->clk_per);
+ out_disable_ipg:
 	clk_disable_unprepare(priv->clk_ipg);
 
 	return err;
@@ -933,8 +939,13 @@ static int register_flexcandev(struct net_device *dev)
 	struct flexcan_regs __iomem *regs = priv->base;
 	u32 reg, err;
 
-	clk_prepare_enable(priv->clk_ipg);
-	clk_prepare_enable(priv->clk_per);
+	err = clk_prepare_enable(priv->clk_ipg);
+	if (err)
+		return err;
+
+	err = clk_prepare_enable(priv->clk_per);
+	if (err)
+		goto out_disable_ipg;
 
 	/* select "bus clock", chip must be disabled */
 	flexcan_chip_disable(priv);
@@ -959,15 +970,16 @@ static int register_flexcandev(struct net_device *dev)
 	if (!(reg & FLEXCAN_MCR_FEN)) {
 		netdev_err(dev, "Could not enable RX FIFO, unsupported core\n");
 		err = -ENODEV;
-		goto out;
+		goto out_disable_per;
 	}
 
 	err = register_candev(dev);
 
- out:
+ out_disable_per:
 	/* disable core and turn off clocks */
 	flexcan_chip_disable(priv);
 	clk_disable_unprepare(priv->clk_per);
+ out_disable_ipg:
 	clk_disable_unprepare(priv->clk_ipg);
 
 	return err;
