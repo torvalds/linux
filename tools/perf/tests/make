@@ -1,6 +1,8 @@
 PERF := .
 MK   := Makefile
 
+has = $(shell which $1 2>/dev/null)
+
 # standard single make variable specified
 make_clean_all      := clean all
 make_python_perf_so := python/perf.so
@@ -50,13 +52,18 @@ run += make_no_backtrace
 run += make_no_libnuma
 run += make_no_libaudit
 run += make_no_libbionic
-run += make_tags
-run += make_cscope
 run += make_help
 run += make_doc
 run += make_perf_o
 run += make_util_map_o
 run += make_minimal
+
+ifneq ($(call has,ctags),)
+run += make_tags
+endif
+ifneq ($(call has,cscope),)
+run += make_cscope
+endif
 
 # $(run_O) contains same portion of $(run) tests with '_O' attached
 # to distinguish O=... tests
