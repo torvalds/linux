@@ -1406,9 +1406,9 @@ static void ath10k_tx_h_qos_workaround(struct ieee80211_hw *hw,
 		return;
 
 	qos_ctl = ieee80211_get_qos_ctl(hdr);
-	memmove(qos_ctl, qos_ctl + IEEE80211_QOS_CTL_LEN,
-		skb->len - ieee80211_hdrlen(hdr->frame_control));
-	skb_trim(skb, skb->len - IEEE80211_QOS_CTL_LEN);
+	memmove(skb->data + IEEE80211_QOS_CTL_LEN,
+		skb->data, (void *)qos_ctl - (void *)skb->data);
+	skb_pull(skb, IEEE80211_QOS_CTL_LEN);
 }
 
 static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
