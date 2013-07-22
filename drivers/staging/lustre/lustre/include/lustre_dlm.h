@@ -1643,7 +1643,7 @@ void unlock_res_and_lock(struct ldlm_lock *lock);
  * There are not used outside of ldlm.
  * @{
  */
-void ldlm_pools_recalc(ldlm_side_t client);
+int ldlm_pools_recalc(ldlm_side_t client);
 int ldlm_pools_init(void);
 void ldlm_pools_fini(void);
 
