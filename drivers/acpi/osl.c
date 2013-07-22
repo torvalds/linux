@@ -1380,6 +1380,13 @@ void __init acpi_osi_setup(char *str)
 		if (*str == '\0') {
 			osi_linux.default_disabling = 1;
 			return;
+		} else if (*str == '*') {
+			acpi_update_interfaces(ACPI_DISABLE_ALL_STRINGS);
+			for (i = 0; i < OSI_STRING_ENTRIES_MAX; i++) {
+				osi = &osi_setup_entries[i];
+				osi->enable = false;
+			}
+			return;
 		}
 		enable = false;
 	}
