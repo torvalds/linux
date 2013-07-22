@@ -27,7 +27,7 @@
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2013, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -42,15 +42,12 @@
 
 #define DEBUG_SUBSYSTEM S_FID
 
-# include <linux/libcfs/libcfs.h>
-# include <linux/module.h>
+#include <linux/libcfs/libcfs.h>
+#include <linux/module.h>
 
 #include <obd.h>
 #include <obd_class.h>
-#include <dt_object.h>
-#include <md_object.h>
 #include <obd_support.h>
-#include <lustre_req_layout.h>
 #include <lustre_fid.h>
 /* mdc RPC locks */
 #include <lustre_mdc.h>
@@ -63,9 +60,9 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	struct obd_export     *exp = seq->lcs_exp;
 	struct ptlrpc_request *req;
 	struct lu_seq_range   *out, *in;
-	__u32		 *op;
-	unsigned int	   debug_mask;
-	int		    rc;
+	__u32                 *op;
+	unsigned int           debug_mask;
+	int                    rc;
 	ENTRY;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp), &RQF_SEQ_QUERY,
@@ -153,9 +150,7 @@ int seq_client_alloc_super(struct lu_client_seq *seq,
 	mutex_lock(&seq->lcs_mutex);
 
 	if (seq->lcs_srv) {
-		LASSERT(env != NULL);
-		rc = seq_server_alloc_super(seq->lcs_srv, &seq->lcs_space,
-					    env);
+		rc = 0;
 	} else {
 		/* Check whether the connection to seq controller has been
 		 * setup (lcs_exp != NULL) */
@@ -179,8 +174,7 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 	ENTRY;
 
 	if (seq->lcs_srv) {
-		LASSERT(env != NULL);
-		rc = seq_server_alloc_meta(seq->lcs_srv, &seq->lcs_space, env);
+		rc = 0;
 	} else {
 		do {
 			/* If meta server return -EINPROGRESS or EAGAIN,
@@ -191,6 +185,7 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 					    SEQ_ALLOC_META, "meta");
 		} while (rc == -EINPROGRESS || rc == -EAGAIN);
 	}
+
 	RETURN(rc);
 }
 
@@ -409,11 +404,22 @@ void seq_client_flush(struct lu_client_seq *seq)
 }
 EXPORT_SYMBOL(seq_client_flush);
 
-static void seq_client_proc_fini(struct lu_client_seq *seq);
-
+static void seq_client_proc_fini(struct lu_client_seq *seq)
+{
 #ifdef LPROCFS
+	ENTRY;
+	if (seq->lcs_proc_dir) {
+		if (!IS_ERR(seq->lcs_proc_dir))
+			lprocfs_remove(&seq->lcs_proc_dir);
+		seq->lcs_proc_dir = NULL;
+	}
+	EXIT;
+#endif /* LPROCFS */
+}
+
 static int seq_client_proc_init(struct lu_client_seq *seq)
 {
+#ifdef LPROCFS
 	int rc;
 	ENTRY;
 
@@ -441,29 +447,11 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 out_cleanup:
 	seq_client_proc_fini(seq);
 	return rc;
-}
 
-static void seq_client_proc_fini(struct lu_client_seq *seq)
-{
-	ENTRY;
-	if (seq->lcs_proc_dir) {
-		if (!IS_ERR(seq->lcs_proc_dir))
-			lprocfs_remove(&seq->lcs_proc_dir);
-		seq->lcs_proc_dir = NULL;
-	}
-	EXIT;
-}
-#else
-static int seq_client_proc_init(struct lu_client_seq *seq)
-{
+#else /* LPROCFS */
 	return 0;
-}
-
-static void seq_client_proc_fini(struct lu_client_seq *seq)
-{
-	return;
-}
 #endif
+}
 
 int seq_client_init(struct lu_client_seq *seq,
 		    struct obd_export *exp,
@@ -520,3 +508,76 @@ void seq_client_fini(struct lu_client_seq *seq)
 	EXIT;
 }
 EXPORT_SYMBOL(seq_client_fini);
+
+int client_fid_init(struct obd_device *obd,
+		    struct obd_export *exp, enum lu_cli_type type)
+{
+	struct client_obd *cli = &obd->u.cli;
+	char *prefix;
+	int rc;
+	ENTRY;
+
+	OBD_ALLOC_PTR(cli->cl_seq);
+	if (cli->cl_seq == NULL)
+		RETURN(-ENOMEM);
+
+	OBD_ALLOC(prefix, MAX_OBD_NAME + 5);
+	if (prefix == NULL)
+		GOTO(out_free_seq, rc = -ENOMEM);
+
+	snprintf(prefix, MAX_OBD_NAME + 5, "cli-%s", obd->obd_name);
+
+	/* Init client side sequence-manager */
+	rc = seq_client_init(cli->cl_seq, exp, type, prefix, NULL);
+	OBD_FREE(prefix, MAX_OBD_NAME + 5);
+	if (rc)
+		GOTO(out_free_seq, rc);
+
+	RETURN(rc);
+out_free_seq:
+	OBD_FREE_PTR(cli->cl_seq);
+	cli->cl_seq = NULL;
+	return rc;
+}
+EXPORT_SYMBOL(client_fid_init);
+
+int client_fid_fini(struct obd_device *obd)
+{
+	struct client_obd *cli = &obd->u.cli;
+	ENTRY;
+
+	if (cli->cl_seq != NULL) {
+		seq_client_fini(cli->cl_seq);
+		OBD_FREE_PTR(cli->cl_seq);
+		cli->cl_seq = NULL;
+	}
+
+	RETURN(0);
+}
+EXPORT_SYMBOL(client_fid_fini);
+
+struct proc_dir_entry *seq_type_proc_dir;
+
+static int __init fid_mod_init(void)
+{
+	seq_type_proc_dir = lprocfs_register(LUSTRE_SEQ_NAME,
+					     proc_lustre_root,
+					     NULL, NULL);
+	if (IS_ERR(seq_type_proc_dir))
+		return PTR_ERR(seq_type_proc_dir);
+	return 0;
+}
+
+static void __exit fid_mod_exit(void)
+{
+	if (seq_type_proc_dir != NULL && !IS_ERR(seq_type_proc_dir)) {
+		lprocfs_remove(&seq_type_proc_dir);
+		seq_type_proc_dir = NULL;
+	}
+}
+
+MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_DESCRIPTION("Lustre FID Module");
+MODULE_LICENSE("GPL");
+
+cfs_module(fid, "0.1.0", fid_mod_init, fid_mod_exit);

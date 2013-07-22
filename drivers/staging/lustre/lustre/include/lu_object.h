@@ -665,6 +665,11 @@ lu_site_bkt_from_fid(struct lu_site *site, struct lu_fid *fid)
 	return cfs_hash_bd_extra_get(site->ls_obj_hash, &bd);
 }
 
+static inline struct seq_server_site *lu_site2seq(const struct lu_site *s)
+{
+	return s->ld_seq_site;
+}
+
 /** \name ctors
  * Constructors/destructors.
  * @{

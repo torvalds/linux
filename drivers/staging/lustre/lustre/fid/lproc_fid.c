@@ -204,9 +204,6 @@ lprocfs_fid_server_seq_show(struct seq_file *m, void *unused)
 	RETURN(rc);
 }
 
-struct lprocfs_vars seq_server_proc_list[] = {
-};
-
 LPROC_SEQ_FOPS(lprocfs_fid_space);
 LPROC_SEQ_FOPS(lprocfs_fid_width);
 LPROC_SEQ_FOPS_RO(lprocfs_fid_server);

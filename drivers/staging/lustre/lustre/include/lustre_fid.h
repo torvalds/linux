@@ -38,8 +38,8 @@
  * Author: Yury Umanets <umka@clusterfs.com>
  */
 
-#ifndef __LINUX_FID_H
-#define __LINUX_FID_H
+#ifndef __LUSTRE_FID_H
+#define __LUSTRE_FID_H
 
 /** \defgroup fid fid
  *
@@ -154,13 +154,12 @@
 
 #include <linux/libcfs/libcfs.h>
 #include <lustre/lustre_idl.h>
-#include <lustre_req_layout.h>
-#include <lustre_mdt.h>
-#include <obd.h>
 
-
+struct lu_env;
 struct lu_site;
 struct lu_context;
+struct obd_device;
+struct obd_export;
 
 /* Whole sequences space range and zero range definitions */
 extern const struct lu_seq_range LUSTRE_SEQ_SPACE_RANGE;
@@ -320,6 +319,12 @@ static inline void lu_last_id_fid(struct lu_fid *fid, __u64 seq)
 	fid->f_ver = 0;
 }
 
+/* seq client type */
+enum lu_cli_type {
+	LUSTRE_SEQ_METADATA = 1,
+	LUSTRE_SEQ_DATA
+};
+
 enum lu_mgr_type {
 	LUSTRE_SEQ_SERVER,
 	LUSTRE_SEQ_CONTROLLER
@@ -426,10 +431,14 @@ struct lu_server_seq {
 	struct seq_server_site  *lss_site;
 };
 
+struct com_thread_info;
 int seq_query(struct com_thread_info *info);
+
+struct ptlrpc_request;
 int seq_handle(struct ptlrpc_request *req);
 
 /* Server methods */
+
 int seq_server_init(struct lu_server_seq *seq,
 		    struct dt_device *dev,
 		    const char *prefix,
@@ -472,6 +481,7 @@ int seq_site_fini(const struct lu_env *env, struct seq_server_site *ss);
 int fid_is_local(const struct lu_env *env,
 		 struct lu_site *site, const struct lu_fid *fid);
 
+enum lu_cli_type;
 int client_fid_init(struct obd_device *obd, struct obd_export *exp,
 		    enum lu_cli_type type);
 int client_fid_fini(struct obd_device *obd);
@@ -760,4 +770,4 @@ static inline void range_be_to_cpu(struct lu_seq_range *dst, const struct lu_seq
 
 /** @} fid */
 
-#endif /* __LINUX_FID_H */
+#endif /* __LUSTRE_FID_H */

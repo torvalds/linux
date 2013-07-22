@@ -52,6 +52,7 @@
 #include <lu_ref.h>
 #include <lustre_lib.h>
 #include <lustre_export.h>
+#include <lustre_fid.h>
 #include <lustre_fld.h>
 #include <lustre_capa.h>
 
@@ -1231,12 +1232,6 @@ struct md_enqueue_info;
 typedef int (* md_enqueue_cb_t)(struct ptlrpc_request *req,
 				struct md_enqueue_info *minfo,
 				int rc);
-
-/* seq client type */
-enum lu_cli_type {
-	LUSTRE_SEQ_METADATA = 1,
-	LUSTRE_SEQ_DATA
-};
 
 struct md_enqueue_info {
 	struct md_op_data       mi_data;
