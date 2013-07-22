@@ -242,7 +242,7 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 {
 	unsigned long flags;
 
-	if (!ifp)
+	if (!ifp || !ifp->ndev)
 		return;
 
 	brcmf_dbg(TRACE, "enter: idx=%d stop=0x%X reason=%d state=%d\n",
