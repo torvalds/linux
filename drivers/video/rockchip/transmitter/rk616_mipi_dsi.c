@@ -536,8 +536,8 @@ static int rk_mipi_dsi_host_init(void *array, int n) {
 	//dsi_set_bits(0, outvact_lpcmd_time);   //byte
 	//dsi_set_bits(0, invact_lpcmd_time);
 		
-	dsi_set_bits(0x40, phy_hs2lp_time);
-	dsi_set_bits(0x40, phy_lp2hs_time);	
+	dsi_set_bits(20, phy_hs2lp_time);
+	dsi_set_bits(16, phy_lp2hs_time);	
 	
 	dsi_set_bits(10000, max_rd_time);
 	dsi_set_bits(1, dpicolom);
