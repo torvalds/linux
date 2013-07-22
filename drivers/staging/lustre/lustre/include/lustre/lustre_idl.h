@@ -1546,10 +1546,16 @@ enum obdo_flags {
 #define LOV_MAGIC_V1_DEF  0x0CD10BD0
 #define LOV_MAGIC_V3_DEF  0x0CD30BD0
 
-#define LOV_PATTERN_RAID0 0x001   /* stripes are used round-robin */
-#define LOV_PATTERN_RAID1 0x002   /* stripes are mirrors of each other */
-#define LOV_PATTERN_FIRST 0x100   /* first stripe is not in round-robin */
-#define LOV_PATTERN_CMOBD 0x200
+#define LOV_PATTERN_RAID0	0x001   /* stripes are used round-robin */
+#define LOV_PATTERN_RAID1	0x002   /* stripes are mirrors of each other */
+#define LOV_PATTERN_FIRST	0x100   /* first stripe is not in round-robin */
+#define LOV_PATTERN_CMOBD	0x200
+
+#define LOV_PATTERN_F_MASK	0xffff0000
+#define LOV_PATTERN_F_RELEASED	0x80000000 /* HSM released file */
+
+#define lov_pattern(pattern)		(pattern & ~LOV_PATTERN_F_MASK)
+#define lov_pattern_flags(pattern)	(pattern & LOV_PATTERN_F_MASK)
 
 #define lov_ost_data lov_ost_data_v1
 struct lov_ost_data_v1 {	  /* per-stripe data structure (little-endian)*/

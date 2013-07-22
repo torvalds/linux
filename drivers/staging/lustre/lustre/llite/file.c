@@ -1143,7 +1143,7 @@ static int ll_lov_recreate(struct inode *inode, struct ost_id *oi,
 		RETURN(-ENOMEM);
 
 	lsm = ccc_inode_lsm_get(inode);
-	if (lsm == NULL)
+	if (!lsm_has_objects(lsm))
 		GOTO(out, rc = -ENOENT);
 
 	lsm_size = sizeof(*lsm) + (sizeof(struct lov_oinfo) *
@@ -1299,6 +1299,12 @@ int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
 	 * passing it to userspace.
 	 */
 	if (LOV_MAGIC != cpu_to_le32(LOV_MAGIC)) {
+		int stripe_count;
+
+		stripe_count = le16_to_cpu(lmm->lmm_stripe_count);
+		if (le32_to_cpu(lmm->lmm_pattern) & LOV_PATTERN_F_RELEASED)
+			stripe_count = 0;
+
 		/* if function called for directory - we should
 		 * avoid swab not existent lsm objects */
 		if (lmm->lmm_magic == cpu_to_le32(LOV_MAGIC_V1)) {
@@ -1306,13 +1312,13 @@ int ll_lov_getstripe_ea_info(struct inode *inode, const char *filename,
 			if (S_ISREG(body->mode))
 				lustre_swab_lov_user_md_objects(
 				 ((struct lov_user_md_v1 *)lmm)->lmm_objects,
-				 ((struct lov_user_md_v1 *)lmm)->lmm_stripe_count);
+				 stripe_count);
 		} else if (lmm->lmm_magic == cpu_to_le32(LOV_MAGIC_V3)) {
 			lustre_swab_lov_user_md_v3((struct lov_user_md_v3 *)lmm);
 			if (S_ISREG(body->mode))
 				lustre_swab_lov_user_md_objects(
 				 ((struct lov_user_md_v3 *)lmm)->lmm_objects,
-				 ((struct lov_user_md_v3 *)lmm)->lmm_stripe_count);
+				 stripe_count);
 		}
 	}
 
@@ -1698,20 +1704,18 @@ int ll_data_version(struct inode *inode, __u64 *data_version,
 
 	/* If no stripe, we consider version is 0. */
 	lsm = ccc_inode_lsm_get(inode);
-	if (lsm == NULL) {
+	if (!lsm_has_objects(lsm)) {
 		*data_version = 0;
 		CDEBUG(D_INODE, "No object for inode\n");
-		RETURN(0);
+		GOTO(out, rc = 0);
 	}
 
 	OBD_ALLOC_PTR(obdo);
-	if (obdo == NULL) {
-		ccc_inode_lsm_put(inode, lsm);
-		RETURN(-ENOMEM);
-	}
+	if (obdo == NULL)
+		GOTO(out, rc = -ENOMEM);
 
 	rc = ll_lsm_getattr(lsm, sbi->ll_dt_exp, NULL, obdo, 0, extent_lock);
-	if (!rc) {
+	if (rc == 0) {
 		if (!(obdo->o_valid & OBD_MD_FLDATAVERSION))
 			rc = -EOPNOTSUPP;
 		else
@@ -1719,8 +1723,9 @@ int ll_data_version(struct inode *inode, __u64 *data_version,
 	}
 
 	OBD_FREE_PTR(obdo);
+	EXIT;
+out:
 	ccc_inode_lsm_put(inode, lsm);
-
 	RETURN(rc);
 }
 

@@ -1282,13 +1282,6 @@ int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 		RETURN(rc);
 	}
 
-	ia_valid = op_data->op_attr.ia_valid;
-	/* inode size will be in ll_setattr_ost, can't do it now since dirty
-	 * cache is not cleared yet. */
-	op_data->op_attr.ia_valid &= ~(TIMES_SET_FLAGS | ATTR_SIZE);
-	rc = simple_setattr(dentry, &op_data->op_attr);
-	op_data->op_attr.ia_valid = ia_valid;
-
 	/* Extract epoch data if obtained. */
 	op_data->op_handle = md.body->handle;
 	op_data->op_ioepoch = md.body->ioepoch;
@@ -1371,6 +1364,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct md_op_data *op_data = NULL;
 	struct md_open_data *mod = NULL;
+	unsigned int valid = attr->ia_valid;
 	int rc = 0, rc1 = 0;
 	ENTRY;
 
@@ -1482,6 +1476,13 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr)
 		rc = ll_setattr_ost(inode, attr);
 	EXIT;
 out:
+	if (rc == 0) {
+		/* Update inode attribute after dirty cache is cleaned
+		 * by truncating OST objects. */
+		attr->ia_valid |= ATTR_FORCE;
+		rc = simple_setattr(dentry, attr);
+		LASSERT(rc == 0);
+	}
 	if (op_data) {
 		if (op_data->op_ioepoch) {
 			rc1 = ll_setattr_done_writing(inode, op_data, mod);
@@ -1500,7 +1501,8 @@ out:
 	ll_stats_ops_tally(ll_i2sbi(inode), (attr->ia_valid & ATTR_SIZE) ?
 			LPROC_LL_TRUNC : LPROC_LL_SETATTR, 1);
 
-	return rc;
+	attr->ia_valid = valid;
+	RETURN(rc);
 }
 
 int ll_setattr(struct dentry *de, struct iattr *attr)
@@ -1923,8 +1925,10 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 		inode->i_flags = ll_ext_to_inode_flags(flags);
 
 		lsm = ccc_inode_lsm_get(inode);
-		if (lsm == NULL)
+		if (!lsm_has_objects(lsm)) {
+			ccc_inode_lsm_put(inode, lsm);
 			RETURN(0);
+		}
 
 		OBDO_ALLOC(oinfo.oi_oa);
 		if (!oinfo.oi_oa) {

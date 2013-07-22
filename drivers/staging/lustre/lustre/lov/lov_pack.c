@@ -168,10 +168,12 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 		 * to the actual number of OSTs in this filesystem. */
 		if (!lmmp) {
 			stripe_count = lov_get_stripecnt(lov, lmm_magic,
-							 lsm->lsm_stripe_count);
+							lsm->lsm_stripe_count);
 			lsm->lsm_stripe_count = stripe_count;
-		} else {
+		} else if (!lsm_is_released(lsm)) {
 			stripe_count = lsm->lsm_stripe_count;
+		} else {
+			stripe_count = 0;
 		}
 	} else {
 		/* No need to allocate more than maximum supported stripes.
@@ -325,7 +327,8 @@ int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,
 	(*lsmp)->lsm_pattern = pattern;
 	(*lsmp)->lsm_pool_name[0] = '\0';
 	(*lsmp)->lsm_layout_gen = 0;
-	(*lsmp)->lsm_oinfo[0]->loi_ost_idx = ~0;
+	if (stripe_count > 0)
+		(*lsmp)->lsm_oinfo[0]->loi_ost_idx = ~0;
 
 	for (i = 0; i < stripe_count; i++)
 		loi_init((*lsmp)->lsm_oinfo[i]);
@@ -359,6 +362,7 @@ int lov_unpackmd(struct obd_export *exp,  struct lov_stripe_md **lsmp,
 	int rc = 0, lsm_size;
 	__u16 stripe_count;
 	__u32 magic;
+	__u32 pattern;
 	ENTRY;
 
 	/* If passed an MDS struct use values from there, otherwise defaults */
@@ -384,8 +388,8 @@ int lov_unpackmd(struct obd_export *exp,  struct lov_stripe_md **lsmp,
 		RETURN(0);
 	}
 
-	lsm_size = lov_alloc_memmd(lsmp, stripe_count, LOV_PATTERN_RAID0,
-				   magic);
+	pattern = le32_to_cpu(lmm->lmm_pattern);
+	lsm_size = lov_alloc_memmd(lsmp, stripe_count, pattern, magic);
 	if (lsm_size < 0)
 		RETURN(lsm_size);
 
@@ -430,7 +434,7 @@ static int __lov_setstripe(struct obd_export *exp, int max_lmm_size,
 			lov->desc.ld_pattern : LOV_PATTERN_RAID0;
 	}
 
-	if (lumv1->lmm_pattern != LOV_PATTERN_RAID0) {
+	if (lov_pattern(lumv1->lmm_pattern) != LOV_PATTERN_RAID0) {
 		CDEBUG(D_IOCTL, "bad userland stripe pattern: %#x\n",
 		       lumv1->lmm_pattern);
 		RETURN(-EINVAL);
@@ -489,6 +493,9 @@ static int __lov_setstripe(struct obd_export *exp, int max_lmm_size,
 			lov_pool_putref(pool);
 		}
 	}
+
+	if (lumv1->lmm_pattern & LOV_PATTERN_F_RELEASED)
+		stripe_count = 0;
 
 	rc = lov_alloc_memmd(lsmp, stripe_count, lumv1->lmm_pattern, lmm_magic);
 

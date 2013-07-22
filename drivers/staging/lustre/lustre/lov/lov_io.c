@@ -964,4 +964,38 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 	RETURN(result != 0);
 }
 
+int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
+			struct cl_io *io)
+{
+	struct lov_object *lov = cl2lov(obj);
+	struct lov_io *lio = lov_env_io(env);
+	int result;
+	ENTRY;
+
+	LASSERT(lov->lo_lsm != NULL);
+	lio->lis_object = lov;
+
+	switch (io->ci_type) {
+	default:
+		LASSERTF(0, "invalid type %d\n", io->ci_type);
+	case CIT_MISC:
+	case CIT_FSYNC:
+	case CIT_SETATTR:
+		result = +1;
+		break;
+	case CIT_READ:
+	case CIT_WRITE:
+	case CIT_FAULT:
+		/* TODO: need to restore the file. */
+		result = -EBADF;
+		break;
+	}
+	if (result == 0) {
+		cl_io_slice_add(io, &lio->lis_cl, obj, &lov_empty_io_ops);
+		atomic_inc(&lov->lo_active_ios);
+	}
+
+	io->ci_result = result < 0 ? result : 0;
+	RETURN(result != 0);
+}
 /** @} lov */

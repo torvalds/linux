@@ -407,13 +407,15 @@ static int vvp_io_setattr_start(const struct lu_env *env,
 {
 	struct cl_io	*io    = ios->cis_io;
 	struct inode	*inode = ccc_object_inode(io->ci_obj);
+	int result = 0;
 
 	mutex_lock(&inode->i_mutex);
 	if (cl_io_is_trunc(io))
-		return vvp_io_setattr_trunc(env, ios, inode,
-					    io->u.ci_setattr.sa_attr.lvb_size);
-	else
-		return vvp_io_setattr_time(env, ios);
+		result = vvp_io_setattr_trunc(env, ios, inode,
+					io->u.ci_setattr.sa_attr.lvb_size);
+	if (result == 0)
+		result = vvp_io_setattr_time(env, ios);
+	return result;
 }
 
 static void vvp_io_setattr_end(const struct lu_env *env,
