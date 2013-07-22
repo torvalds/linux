@@ -217,6 +217,7 @@ module_exit(atheros_exit);
 
 static struct mdio_device_id __maybe_unused atheros_tbl[] = {
 	{ 0x004dd076, 0xffffffef },
+	{ 0x004dd074, 0xffffffef },
 	{ 0x004dd072, 0xffffffef },
 	{ }
 };

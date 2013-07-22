@@ -27,6 +27,11 @@ config DW_APB_TIMER_OF
 config ARMADA_370_XP_TIMER
 	bool
 
+config ORION_TIMER
+	select CLKSRC_OF
+	select CLKSRC_MMIO
+	bool
+
 config SUN4I_TIMER
 	bool
 
@@ -68,6 +73,19 @@ config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
+
+config ARM_GLOBAL_TIMER
+	bool
+	select CLKSRC_OF if OF
+	help
+	  This options enables support for the ARM global timer unit
+
+config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
+	bool
+	depends on ARM_GLOBAL_TIMER
+	default y
+	help
+	 Use ARM global timer clock source as sched_clock
 
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG

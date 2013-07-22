@@ -24,12 +24,6 @@
 #define ASCII_DISPLAY_POS_BASE	   0x1f000418
 
 /*
- * Reset register.
- */
-#define SOFTRES_REG	  0x1f000500
-#define GORESET		  0x42
-
-/*
  * Revision register.
  */
 #define MIPS_REVISION_REG		   0x1fc00010

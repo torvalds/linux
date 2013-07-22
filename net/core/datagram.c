@@ -56,7 +56,7 @@
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <trace/events/skb.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 /*
  *	Is a socket 'connection oriented' ?

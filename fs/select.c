@@ -28,7 +28,7 @@
 #include <linux/hrtimer.h>
 #include <linux/sched/rt.h>
 #include <linux/freezer.h>
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 #include <asm/uaccess.h>
 

@@ -52,7 +52,7 @@
 #include <linux/dca.h>
 #endif
 
-#include <net/ll_poll.h>
+#include <net/busy_poll.h>
 
 #ifdef CONFIG_NET_LL_RX_POLL
 #define LL_EXTENDED_STATS

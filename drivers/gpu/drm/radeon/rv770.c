@@ -813,7 +813,7 @@ int rv770_uvd_resume(struct radeon_device *rdev)
 
 	/* programm the VCPU memory controller bits 0-27 */
 	addr = rdev->uvd.gpu_addr >> 3;
-	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 4) >> 3;
+	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd.fw_size + 4) >> 3;
 	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
 	WREG32(UVD_VCPU_CACHE_SIZE0, size);
 

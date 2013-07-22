@@ -1,0 +1,17 @@
+Marvell Orion SoC timer
+
+Required properties:
+- compatible: shall be "marvell,orion-timer"
+- reg: base address of the timer register starting with TIMERS CONTROL register
+- interrupt-parent: phandle of the bridge interrupt controller
+- interrupts: should contain the interrupts for Timer0 and Timer1
+- clocks: phandle of timer reference clock (tclk)
+
+Example:
+	timer: timer {
+		compatible = "marvell,orion-timer";
+		reg = <0x20300 0x20>;
+		interrupt-parent = <&bridge_intc>;
+		interrupts = <1>, <2>;
+		clocks = <&core_clk 0>;
+	};

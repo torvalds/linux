@@ -238,7 +238,7 @@ config DEBUG_SECTION_MISMATCH
 	  any use of code/data previously in these sections would
 	  most likely result in an oops.
 	  In the code, functions and variables are annotated with
-	  __init, __cpuinit, etc. (see the full list in include/linux/init.h),
+	  __init,, etc. (see the full list in include/linux/init.h),
 	  which results in the code/data being placed in specific sections.
 	  The section mismatch analysis is always performed after a full
 	  kernel build, and enabling this option causes the following
@@ -1347,7 +1347,7 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 

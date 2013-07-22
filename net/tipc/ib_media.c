@@ -292,13 +292,7 @@ static int ib_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 	if (str_size < 60)	/* 60 = 19 * strlen("xx:") + strlen("xx\0") */
 		return 1;
 
-	sprintf(str_buf, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:"
-			 "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-		a->value[0], a->value[1], a->value[2], a->value[3],
-		a->value[4], a->value[5], a->value[6], a->value[7],
-		a->value[8], a->value[9], a->value[10], a->value[11],
-		a->value[12], a->value[13], a->value[14], a->value[15],
-		a->value[16], a->value[17], a->value[18], a->value[19]);
+	sprintf(str_buf, "%20phC", a->value);
 
 	return 0;
 }

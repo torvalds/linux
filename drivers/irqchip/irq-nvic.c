@@ -84,7 +84,7 @@ static int __init nvic_of_init(struct device_node *node,
 		return -ENOMEM;
 	}
 
-	ret = irq_alloc_domain_generic_chips(nvic_irq_domain, 32, numbanks,
+	ret = irq_alloc_domain_generic_chips(nvic_irq_domain, 32, 1,
 					     "nvic_irq", handle_fasteoi_irq,
 					     clr, 0, IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {

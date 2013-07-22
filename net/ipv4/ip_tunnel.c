@@ -476,7 +476,7 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 			    struct rtable *rt, __be16 df)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	int pkt_size = skb->len - tunnel->hlen;
+	int pkt_size = skb->len - tunnel->hlen - dev->hard_header_len;
 	int mtu;
 
 	if (df)

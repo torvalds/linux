@@ -30,7 +30,7 @@
 
 #define EMEV2_SCU_BASE 0x1e000000
 
-static int __cpuinit emev2_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int emev2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu_logical_map(cpu)));
 	return 0;

@@ -379,6 +379,17 @@ u32 intel_ring_get_active_head(struct intel_ring_buffer *ring)
 	return I915_READ(acthd_reg);
 }
 
+static void ring_setup_phys_status_page(struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 addr;
+
+	addr = dev_priv->status_page_dmah->busaddr;
+	if (INTEL_INFO(ring->dev)->gen >= 4)
+		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
+	I915_WRITE(HWS_PGA, addr);
+}
+
 static int init_ring_common(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -389,6 +400,11 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 
 	if (HAS_FORCE_WAKE(dev))
 		gen6_gt_force_wake_get(dev_priv);
+
+	if (I915_NEED_GFX_HWS(dev))
+		intel_ring_setup_status_page(ring);
+	else
+		ring_setup_phys_status_page(ring);
 
 	/* Stop the ring if it's running. */
 	I915_WRITE_CTL(ring, 0);
@@ -518,9 +534,6 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 	struct pipe_control *pc = ring->private;
 	struct drm_i915_gem_object *obj;
 
-	if (!ring->private)
-		return;
-
 	obj = pc->obj;
 
 	kunmap(sg_page(obj->pages->sgl));
@@ -528,7 +541,6 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 	drm_gem_object_unreference(&obj->base);
 
 	kfree(pc);
-	ring->private = NULL;
 }
 
 static int init_render_ring(struct intel_ring_buffer *ring)
@@ -601,7 +613,10 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 	if (HAS_BROKEN_CS_TLB(dev))
 		drm_gem_object_unreference(to_gem_object(ring->private));
 
-	cleanup_pipe_control(ring);
+	if (INTEL_INFO(dev)->gen >= 5)
+		cleanup_pipe_control(ring);
+
+	ring->private = NULL;
 }
 
 static void
@@ -1223,7 +1238,6 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	ring->status_page.obj = obj;
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 
-	intel_ring_setup_status_page(ring);
 	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
 			ring->name, ring->status_page.gfx_addr);
 
@@ -1237,10 +1251,9 @@ err:
 	return ret;
 }
 
-static int init_phys_hws_pga(struct intel_ring_buffer *ring)
+static int init_phys_status_page(struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	u32 addr;
 
 	if (!dev_priv->status_page_dmah) {
 		dev_priv->status_page_dmah =
@@ -1248,11 +1261,6 @@ static int init_phys_hws_pga(struct intel_ring_buffer *ring)
 		if (!dev_priv->status_page_dmah)
 			return -ENOMEM;
 	}
-
-	addr = dev_priv->status_page_dmah->busaddr;
-	if (INTEL_INFO(ring->dev)->gen >= 4)
-		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
-	I915_WRITE(HWS_PGA, addr);
 
 	ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
@@ -1281,7 +1289,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 			return ret;
 	} else {
 		BUG_ON(ring->id != RCS);
-		ret = init_phys_hws_pga(ring);
+		ret = init_phys_status_page(ring);
 		if (ret)
 			return ret;
 	}
@@ -1893,7 +1901,7 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	}
 
 	if (!I915_NEED_GFX_HWS(dev)) {
-		ret = init_phys_hws_pga(ring);
+		ret = init_phys_status_page(ring);
 		if (ret)
 			return ret;
 	}
