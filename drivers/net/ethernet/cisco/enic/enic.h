@@ -127,9 +127,57 @@ static inline struct device *enic_get_dev(struct enic *enic)
 	return &(enic->pdev->dev);
 }
 
+static inline unsigned int enic_cq_rq(struct enic *enic, unsigned int rq)
+{
+	return rq;
+}
+
+static inline unsigned int enic_cq_wq(struct enic *enic, unsigned int wq)
+{
+	return enic->rq_count + wq;
+}
+
+static inline unsigned int enic_legacy_io_intr(void)
+{
+	return 0;
+}
+
+static inline unsigned int enic_legacy_err_intr(void)
+{
+	return 1;
+}
+
+static inline unsigned int enic_legacy_notify_intr(void)
+{
+	return 2;
+}
+
+static inline unsigned int enic_msix_rq_intr(struct enic *enic,
+	unsigned int rq)
+{
+	return enic->cq[enic_cq_rq(enic, rq)].interrupt_offset;
+}
+
+static inline unsigned int enic_msix_wq_intr(struct enic *enic,
+	unsigned int wq)
+{
+	return enic->cq[enic_cq_wq(enic, wq)].interrupt_offset;
+}
+
+static inline unsigned int enic_msix_err_intr(struct enic *enic)
+{
+	return enic->rq_count + enic->wq_count;
+}
+
+static inline unsigned int enic_msix_notify_intr(struct enic *enic)
+{
+	return enic->rq_count + enic->wq_count + 1;
+}
+
 void enic_reset_addr_lists(struct enic *enic);
 int enic_sriov_enabled(struct enic *enic);
 int enic_is_valid_vf(struct enic *enic, int vf);
 int enic_is_dynamic(struct enic *enic);
+void enic_set_ethtool_ops(struct net_device *netdev);
 
 #endif /* _ENIC_H_ */
