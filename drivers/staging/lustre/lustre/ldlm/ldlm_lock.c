@@ -2336,91 +2336,90 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 	switch (resource->lr_type) {
 	case LDLM_EXTENT:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-		       " ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
-		       "res: "LPU64"/"LPU64" rrc: %d type: %s ["LPU64"->"LPU64
-		       "] (req "LPU64"->"LPU64") flags: "LPX64" nid: %s remote:"
-		       " "LPX64" expref: %d pid: %u timeout: %lu lvb_type: %d\n",
-		       ldlm_lock_to_ns_name(lock), lock,
-		       lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
-		       lock->l_readers, lock->l_writers,
-		       ldlm_lockname[lock->l_granted_mode],
-		       ldlm_lockname[lock->l_req_mode],
-		       resource->lr_name.name[0],
-		       resource->lr_name.name[1],
-		       atomic_read(&resource->lr_refcount),
-		       ldlm_typename[resource->lr_type],
-		       lock->l_policy_data.l_extent.start,
-		       lock->l_policy_data.l_extent.end,
-		       lock->l_req_extent.start, lock->l_req_extent.end,
-		       lock->l_flags, nid, lock->l_remote_handle.cookie,
-		       exp ? atomic_read(&exp->exp_refcount) : -99,
-		       lock->l_pid, lock->l_callback_timeout, lock->l_lvb_type);
+			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+			"res: "DLDLMRES" rrc: %d type: %s ["LPU64"->"LPU64"] "
+			"(req "LPU64"->"LPU64") flags: "LPX64" nid: %s remote: "
+			LPX64" expref: %d pid: %u timeout: %lu lvb_type: %d\n",
+			ldlm_lock_to_ns_name(lock), lock,
+			lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
+			lock->l_readers, lock->l_writers,
+			ldlm_lockname[lock->l_granted_mode],
+			ldlm_lockname[lock->l_req_mode],
+			PLDLMRES(resource),
+			atomic_read(&resource->lr_refcount),
+			ldlm_typename[resource->lr_type],
+			lock->l_policy_data.l_extent.start,
+			lock->l_policy_data.l_extent.end,
+			lock->l_req_extent.start, lock->l_req_extent.end,
+			lock->l_flags, nid, lock->l_remote_handle.cookie,
+			exp ? atomic_read(&exp->exp_refcount) : -99,
+			lock->l_pid, lock->l_callback_timeout,
+			lock->l_lvb_type);
 		break;
 
 	case LDLM_FLOCK:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-		       " ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
-		       "res: "LPU64"/"LPU64" rrc: %d type: %s pid: %d "
-		       "["LPU64"->"LPU64"] flags: "LPX64" nid: %s remote: "LPX64
-		       " expref: %d pid: %u timeout: %lu\n",
-		       ldlm_lock_to_ns_name(lock), lock,
-		       lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
-		       lock->l_readers, lock->l_writers,
-		       ldlm_lockname[lock->l_granted_mode],
-		       ldlm_lockname[lock->l_req_mode],
-		       resource->lr_name.name[0],
-		       resource->lr_name.name[1],
-		       atomic_read(&resource->lr_refcount),
-		       ldlm_typename[resource->lr_type],
-		       lock->l_policy_data.l_flock.pid,
-		       lock->l_policy_data.l_flock.start,
-		       lock->l_policy_data.l_flock.end,
-		       lock->l_flags, nid, lock->l_remote_handle.cookie,
-		       exp ? atomic_read(&exp->exp_refcount) : -99,
-		       lock->l_pid, lock->l_callback_timeout);
+			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+			"res: "DLDLMRES" rrc: %d type: %s pid: %d "
+			"["LPU64"->"LPU64"] flags: "LPX64" nid: %s "
+			"remote: "LPX64" expref: %d pid: %u timeout: %lu\n",
+			ldlm_lock_to_ns_name(lock), lock,
+			lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
+			lock->l_readers, lock->l_writers,
+			ldlm_lockname[lock->l_granted_mode],
+			ldlm_lockname[lock->l_req_mode],
+			PLDLMRES(resource),
+			atomic_read(&resource->lr_refcount),
+			ldlm_typename[resource->lr_type],
+			lock->l_policy_data.l_flock.pid,
+			lock->l_policy_data.l_flock.start,
+			lock->l_policy_data.l_flock.end,
+			lock->l_flags, nid, lock->l_remote_handle.cookie,
+			exp ? atomic_read(&exp->exp_refcount) : -99,
+			lock->l_pid, lock->l_callback_timeout);
 		break;
 
 	case LDLM_IBITS:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-		       " ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
-		       "res: "LPU64"/"LPU64" bits "LPX64" rrc: %d type: %s "
-		       "flags: "LPX64" nid: %s remote: "LPX64" expref: %d "
-		       "pid: %u timeout: %lu lvb_type: %d\n",
-		       ldlm_lock_to_ns_name(lock),
-		       lock, lock->l_handle.h_cookie,
-		       atomic_read (&lock->l_refc),
-		       lock->l_readers, lock->l_writers,
-		       ldlm_lockname[lock->l_granted_mode],
-		       ldlm_lockname[lock->l_req_mode],
-		       resource->lr_name.name[0],
-		       resource->lr_name.name[1],
-		       lock->l_policy_data.l_inodebits.bits,
-		       atomic_read(&resource->lr_refcount),
-		       ldlm_typename[resource->lr_type],
-		       lock->l_flags, nid, lock->l_remote_handle.cookie,
-		       exp ? atomic_read(&exp->exp_refcount) : -99,
-		       lock->l_pid, lock->l_callback_timeout, lock->l_lvb_type);
+			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+			"res: "DLDLMRES" bits "LPX64" rrc: %d type: %s "
+			"flags: "LPX64" nid: %s remote: "LPX64" expref: %d "
+			"pid: %u timeout: %lu lvb_type: %d\n",
+			ldlm_lock_to_ns_name(lock),
+			lock, lock->l_handle.h_cookie,
+			atomic_read(&lock->l_refc),
+			lock->l_readers, lock->l_writers,
+			ldlm_lockname[lock->l_granted_mode],
+			ldlm_lockname[lock->l_req_mode],
+			PLDLMRES(resource),
+			lock->l_policy_data.l_inodebits.bits,
+			atomic_read(&resource->lr_refcount),
+			ldlm_typename[resource->lr_type],
+			lock->l_flags, nid, lock->l_remote_handle.cookie,
+			exp ? atomic_read(&exp->exp_refcount) : -99,
+			lock->l_pid, lock->l_callback_timeout,
+			lock->l_lvb_type);
 		break;
 
 	default:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-		       " ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
-		       "res: "LPU64"/"LPU64" rrc: %d type: %s flags: "LPX64" "
-		       "nid: %s remote: "LPX64" expref: %d pid: %u timeout: %lu"
-		       "lvb_type: %d\n",
-		       ldlm_lock_to_ns_name(lock),
-		       lock, lock->l_handle.h_cookie,
-		       atomic_read (&lock->l_refc),
-		       lock->l_readers, lock->l_writers,
-		       ldlm_lockname[lock->l_granted_mode],
-		       ldlm_lockname[lock->l_req_mode],
-		       resource->lr_name.name[0],
-		       resource->lr_name.name[1],
-		       atomic_read(&resource->lr_refcount),
-		       ldlm_typename[resource->lr_type],
-		       lock->l_flags, nid, lock->l_remote_handle.cookie,
-		       exp ? atomic_read(&exp->exp_refcount) : -99,
-		       lock->l_pid, lock->l_callback_timeout, lock->l_lvb_type);
+			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+			"res: "DLDLMRES" rrc: %d type: %s flags: "LPX64" "
+			"nid: %s remote: "LPX64" expref: %d pid: %u "
+			"timeout: %lu lvb_type: %d\n",
+			ldlm_lock_to_ns_name(lock),
+			lock, lock->l_handle.h_cookie,
+			atomic_read(&lock->l_refc),
+			lock->l_readers, lock->l_writers,
+			ldlm_lockname[lock->l_granted_mode],
+			ldlm_lockname[lock->l_req_mode],
+			PLDLMRES(resource),
+			atomic_read(&resource->lr_refcount),
+			ldlm_typename[resource->lr_type],
+			lock->l_flags, nid, lock->l_remote_handle.cookie,
+			exp ? atomic_read(&exp->exp_refcount) : -99,
+			lock->l_pid, lock->l_callback_timeout,
+			lock->l_lvb_type);
 		break;
 	}
 	va_end(args);

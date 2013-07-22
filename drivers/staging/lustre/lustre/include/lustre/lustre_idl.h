@@ -2690,6 +2690,10 @@ struct ldlm_res_id {
 	__u64 name[RES_NAME_SIZE];
 };
 
+#define DLDLMRES	"["LPX64":"LPX64":"LPX64"]."LPX64i
+#define PLDLMRES(res)	(res)->lr_name.name[0], (res)->lr_name.name[1], \
+			(res)->lr_name.name[2], (res)->lr_name.name[3]
+
 extern void lustre_swab_ldlm_res_id (struct ldlm_res_id *id);
 
 static inline int ldlm_res_eq(const struct ldlm_res_id *res0,
