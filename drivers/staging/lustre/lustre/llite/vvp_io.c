@@ -525,7 +525,7 @@ out:
 			io->ci_continue = 0;
 		io->ci_nob += result;
 		ll_rw_stats_tally(ll_i2sbi(inode), current->pid,
-				  cio->cui_fd, pos, result, 0);
+				  cio->cui_fd, pos, result, READ);
 		result = 0;
 	}
 	return result;
@@ -580,7 +580,7 @@ static int vvp_io_write_start(const struct lu_env *env,
 			io->ci_continue = 0;
 		io->ci_nob += result;
 		ll_rw_stats_tally(ll_i2sbi(inode), current->pid,
-				  cio->cui_fd, pos, result, 0);
+				  cio->cui_fd, pos, result, WRITE);
 		result = 0;
 	}
 	RETURN(result);
