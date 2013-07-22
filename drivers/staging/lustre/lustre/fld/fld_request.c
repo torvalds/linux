@@ -60,6 +60,8 @@
 #include <lustre_mdc.h>
 #include "fld_internal.h"
 
+struct lu_context_key fld_thread_key;
+
 /* TODO: these 3 functions are copies of flow-control code from mdc_lib.c
  * It should be common thing. The same about mdc RPC lock */
 static int fld_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
@@ -280,6 +282,8 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 EXPORT_SYMBOL(fld_client_del_target);
 
 #ifdef LPROCFS
+proc_dir_entry_t *fld_type_proc_dir = NULL;
+
 static int fld_client_proc_init(struct lu_client_fld *fld)
 {
 	int rc;
@@ -496,12 +500,7 @@ int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
 
 	res.lsr_start = seq;
 	fld_range_set_type(&res, flags);
-	if (target->ft_srv != NULL) {
-		LASSERT(env != NULL);
-		rc = fld_server_lookup(env, target->ft_srv, seq, &res);
-	} else {
-		rc = fld_client_rpc(target->ft_exp, &res, FLD_LOOKUP);
-	}
+	rc = fld_client_rpc(target->ft_exp, &res, FLD_LOOKUP);
 
 	if (rc == 0) {
 		*mds = res.lsr_index;
@@ -517,3 +516,32 @@ void fld_client_flush(struct lu_client_fld *fld)
 	fld_cache_flush(fld->lcf_cache);
 }
 EXPORT_SYMBOL(fld_client_flush);
+
+static int __init fld_mod_init(void)
+{
+	fld_type_proc_dir = lprocfs_register(LUSTRE_FLD_NAME,
+					     proc_lustre_root,
+					     NULL, NULL);
+	if (IS_ERR(fld_type_proc_dir))
+		return PTR_ERR(fld_type_proc_dir);
+
+	LU_CONTEXT_KEY_INIT(&fld_thread_key);
+	lu_context_key_register(&fld_thread_key);
+	return 0;
+}
+
+static void __exit fld_mod_exit(void)
+{
+	lu_context_key_degister(&fld_thread_key);
+	if (fld_type_proc_dir != NULL && !IS_ERR(fld_type_proc_dir)) {
+		lprocfs_remove(&fld_type_proc_dir);
+		fld_type_proc_dir = NULL;
+	}
+}
+
+MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
+MODULE_DESCRIPTION("Lustre FLD");
+MODULE_LICENSE("GPL");
+
+module_init(fld_mod_init)
+module_exit(fld_mod_exit)

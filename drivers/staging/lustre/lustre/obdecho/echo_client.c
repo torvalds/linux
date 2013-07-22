@@ -43,6 +43,7 @@
 #include <lustre_debug.h>
 #include <lprocfs_status.h>
 #include <cl_object.h>
+#include <md_object.h>
 #include <lustre_fid.h>
 #include <lustre_acl.h>
 #include <lustre_net.h>
