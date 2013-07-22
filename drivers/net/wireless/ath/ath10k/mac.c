@@ -3225,8 +3225,10 @@ int ath10k_mac_register(struct ath10k *ar)
 		channels = kmemdup(ath10k_2ghz_channels,
 				   sizeof(ath10k_2ghz_channels),
 				   GFP_KERNEL);
-		if (!channels)
-			return -ENOMEM;
+		if (!channels) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
 
 		band = &ar->mac.sbands[IEEE80211_BAND_2GHZ];
 		band->n_channels = ARRAY_SIZE(ath10k_2ghz_channels);
@@ -3245,11 +3247,8 @@ int ath10k_mac_register(struct ath10k *ar)
 				   sizeof(ath10k_5ghz_channels),
 				   GFP_KERNEL);
 		if (!channels) {
-			if (ar->phy_capability & WHAL_WLAN_11G_CAPABILITY) {
-				band = &ar->mac.sbands[IEEE80211_BAND_2GHZ];
-				kfree(band->channels);
-			}
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_free;
 		}
 
 		band = &ar->mac.sbands[IEEE80211_BAND_5GHZ];
@@ -3313,25 +3312,30 @@ int ath10k_mac_register(struct ath10k *ar)
 			    ath10k_reg_notifier);
 	if (ret) {
 		ath10k_err("Regulatory initialization failed\n");
-		return ret;
+		goto err_free;
 	}
 
 	ret = ieee80211_register_hw(ar->hw);
 	if (ret) {
 		ath10k_err("ieee80211 registration failed: %d\n", ret);
-		return ret;
+		goto err_free;
 	}
 
 	if (!ath_is_world_regd(&ar->ath_common.regulatory)) {
 		ret = regulatory_hint(ar->hw->wiphy,
 				      ar->ath_common.regulatory.alpha2);
 		if (ret)
-			goto exit;
+			goto err_unregister;
 	}
 
 	return 0;
-exit:
+
+err_unregister:
 	ieee80211_unregister_hw(ar->hw);
+err_free:
+	kfree(ar->mac.sbands[IEEE80211_BAND_2GHZ].channels);
+	kfree(ar->mac.sbands[IEEE80211_BAND_5GHZ].channels);
+
 	return ret;
 }
 
