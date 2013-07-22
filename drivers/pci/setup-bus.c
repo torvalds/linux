@@ -1315,21 +1315,6 @@ static int __init pci_bus_get_depth(struct pci_bus *bus)
 
 	return depth;
 }
-static int __init pci_get_max_depth(void)
-{
-	int depth = 0;
-	struct pci_bus *bus;
-
-	list_for_each_entry(bus, &pci_root_buses, node) {
-		int ret;
-
-		ret = pci_bus_get_depth(bus);
-		if (ret > depth)
-			depth = ret;
-	}
-
-	return depth;
-}
 
 /*
  * -1: undefined, will auto detect later
@@ -1410,10 +1395,9 @@ static enum enable_type __init pci_realloc_detect(struct pci_bus *bus,
  * second  and later try will clear small leaf bridge res
  * will stop till to the max  deepth if can not find good one
  */
-void __init
-pci_assign_unassigned_resources(void)
+static void __init
+pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 {
-	struct pci_bus *bus;
 	LIST_HEAD(realloc_head); /* list of resources that
 					want additional resources */
 	struct list_head *add_list = NULL;
@@ -1424,17 +1408,17 @@ pci_assign_unassigned_resources(void)
 	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
 				  IORESOURCE_PREFETCH;
 	int pci_try_num = 1;
-	enum enable_type enable_local = pci_realloc_enable;
+	enum enable_type enable_local;
 
-	list_for_each_entry(bus, &pci_root_buses, node)
-		enable_local = pci_realloc_detect(bus, enable_local);
-
+	/* don't realloc if asked to do so */
+	enable_local = pci_realloc_detect(bus, pci_realloc_enable);
 	if (pci_realloc_enabled(enable_local)) {
-		int max_depth = pci_get_max_depth();
+		int max_depth = pci_bus_get_depth(bus);
 
 		pci_try_num = max_depth + 1;
-		printk(KERN_DEBUG "PCI: max bus depth: %d pci_try_num: %d\n",
-			 max_depth, pci_try_num);
+		dev_printk(KERN_DEBUG, &bus->dev,
+			   "max bus depth: %d pci_try_num: %d\n",
+			   max_depth, pci_try_num);
 	}
 
 again:
@@ -1446,12 +1430,10 @@ again:
 		add_list = &realloc_head;
 	/* Depth first, calculate sizes and alignments of all
 	   subordinate buses. */
-	list_for_each_entry(bus, &pci_root_buses, node)
-		__pci_bus_size_bridges(bus, add_list);
+	__pci_bus_size_bridges(bus, add_list);
 
 	/* Depth last, allocate resources and update the hardware. */
-	list_for_each_entry(bus, &pci_root_buses, node)
-		__pci_bus_assign_resources(bus, add_list, &fail_head);
+	__pci_bus_assign_resources(bus, add_list, &fail_head);
 	if (add_list)
 		BUG_ON(!list_empty(add_list));
 	tried_times++;
@@ -1462,16 +1444,16 @@ again:
 
 	if (tried_times >= pci_try_num) {
 		if (enable_local == undefined)
-			printk(KERN_INFO "Some PCI device resources are unassigned, try booting with pci=realloc\n");
+			dev_info(&bus->dev, "Some PCI device resources are unassigned, try booting with pci=realloc\n");
 		else if (enable_local == auto_enabled)
-			printk(KERN_INFO "Automatically enabled pci realloc, if you have problem, try booting with pci=realloc=off\n");
+			dev_info(&bus->dev, "Automatically enabled pci realloc, if you have problem, try booting with pci=realloc=off\n");
 
 		free_list(&fail_head);
 		goto enable_and_dump;
 	}
 
-	printk(KERN_DEBUG "PCI: No. %d try to assign unassigned res\n",
-			 tried_times + 1);
+	dev_printk(KERN_DEBUG, &bus->dev,
+		   "No. %d try to assign unassigned res\n", tried_times + 1);
 
 	/* third times and later will not check if it is leaf */
 	if ((tried_times + 1) > 2)
@@ -1502,12 +1484,18 @@ again:
 
 enable_and_dump:
 	/* Depth last, update the hardware. */
-	list_for_each_entry(bus, &pci_root_buses, node)
-		pci_enable_bridges(bus);
+	pci_enable_bridges(bus);
 
 	/* dump the resource on buses */
-	list_for_each_entry(bus, &pci_root_buses, node)
-		pci_bus_dump_resources(bus);
+	pci_bus_dump_resources(bus);
+}
+
+void __init pci_assign_unassigned_resources(void)
+{
+	struct pci_bus *root_bus;
+
+	list_for_each_entry(root_bus, &pci_root_buses, node)
+		pci_assign_unassigned_root_bus_resources(root_bus);
 }
 
 void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
