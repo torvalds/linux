@@ -884,7 +884,7 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	struct mdt_body *mdt_body;
 	struct ldlm_lock *lock;
 	int rc;
-
+	ENTRY;
 
 	LASSERT(request != NULL);
 	LASSERT(request != LP_POISON);

@@ -86,7 +86,8 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 {
 	ENTRY;
 
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP))
+	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+			   it->it_op == IT_LAYOUT))
 		return;
 
 	/* This would normally block until the existing request finishes.
@@ -123,7 +124,8 @@ static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP))
+	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
+			   it->it_op == IT_LAYOUT))
 		goto out;
 
 	if (lck->rpcl_it == MDC_FAKE_RPCL_IT) { /* OBD_FAIL_MDC_RPCS_SEM */
