@@ -109,7 +109,7 @@ unsigned long long sched_clock(void)
 	return ticks << HARDWARE_TO_NS_SHIFT;
 }
 
-static void __cpuinit arch_timer_setup(unsigned int cpu)
+static void arch_timer_setup(unsigned int cpu)
 {
 	unsigned int txdivtime;
 	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
@@ -154,7 +154,7 @@ static void __cpuinit arch_timer_setup(unsigned int cpu)
 	}
 }
 
-static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
+static int arch_timer_cpu_notify(struct notifier_block *self,
 					   unsigned long action, void *hcpu)
 {
 	int cpu = (long)hcpu;
@@ -169,7 +169,7 @@ static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata arch_timer_cpu_nb = {
+static struct notifier_block arch_timer_cpu_nb = {
 	.notifier_call = arch_timer_cpu_notify,
 };
 

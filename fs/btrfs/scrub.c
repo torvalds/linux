@@ -2495,7 +2495,7 @@ again:
 			ret = scrub_extent(sctx, extent_logical, extent_len,
 					   extent_physical, extent_dev, flags,
 					   generation, extent_mirror_num,
-					   extent_physical);
+					   extent_logical - logical + physical);
 			if (ret)
 				goto out;
 

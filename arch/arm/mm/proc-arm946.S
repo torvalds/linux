@@ -326,8 +326,6 @@ ENTRY(cpu_arm946_dcache_clean_area)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
-	__CPUINIT
-
 	.type	__arm946_setup, #function
 __arm946_setup:
 	mov	r0, #0

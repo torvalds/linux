@@ -3852,8 +3852,6 @@ static void wm8958_mic_work(struct work_struct *work)
 						  mic_complete_work.work);
 	struct snd_soc_codec *codec = wm8994->hubs.codec;
 
-	dev_crit(codec->dev, "MIC WORK %x\n", wm8994->mic_status);
-
 	pm_runtime_get_sync(codec->dev);
 
 	mutex_lock(&wm8994->accdet_lock);
@@ -3863,8 +3861,6 @@ static void wm8958_mic_work(struct work_struct *work)
 	mutex_unlock(&wm8994->accdet_lock);
 
 	pm_runtime_put(codec->dev);
-
-	dev_crit(codec->dev, "MIC WORK %x DONE\n", wm8994->mic_status);
 }
 
 static irqreturn_t wm8958_mic_irq(int irq, void *data)

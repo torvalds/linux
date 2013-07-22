@@ -1648,7 +1648,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (INTEL_INFO(dev)->num_pipes) {
 		/* Must be done after probing outputs */
 		intel_opregion_init(dev);
-		acpi_video_register();
+		acpi_video_register_with_quirks();
 	}
 
 	if (IS_GEN5(dev))
