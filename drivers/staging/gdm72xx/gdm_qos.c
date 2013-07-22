@@ -250,8 +250,8 @@ static void send_qos_list(struct nic *nic, struct list_head *head)
 
 	list_for_each_entry_safe(entry, n, head, list) {
 		list_del(&entry->list);
-		free_qos_entry(entry);
 		gdm_wimax_send_tx(entry->skb, entry->dev);
+		free_qos_entry(entry);
 	}
 }
 
