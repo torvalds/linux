@@ -2538,13 +2538,12 @@ static void __init rk30_reserve(void)
 #if defined(CONFIG_ARCH_RK3188)
 //sdk
 static struct cpufreq_frequency_table dvfs_arm_table_volt_level0[] = {
-	{.frequency = 312 * 1000,       .index = 900 * 1000},
-	{.frequency = 504 * 1000,       .index = 900 * 1000},
-	{.frequency = 816 * 1000,       .index = 950 * 1000},
-	{.frequency = 1008 * 1000,      .index = 1025 * 1000},
-	{.frequency = 1200 * 1000,      .index = 1100 * 1000},
-	{.frequency = 1300 * 1000,      .index = 1200 * 1000},
-	//{.frequency = 1608 * 1000,      .index = 1300 * 1000},
+	{.frequency = 312 * 1000, .index = 900 * 1000},
+	{.frequency = 504 * 1000, .index = 900 * 1000},
+ 	{.frequency = 816 * 1000, .index = 975 * 1000},
+	{.frequency = 1008 * 1000,.index = 1025 * 1000},
+	{.frequency = 1200 * 1000,.index = 1125 * 1000},
+	{.frequency = 1296 * 1000,.index = 1175 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 //default
@@ -2578,7 +2577,7 @@ static struct cpufreq_frequency_table dvfs_gpu_table_volt_level0[] = {
 	{.frequency = 266 * 1000,       .index = 1000 * 1000},
 	{.frequency = 300 * 1000,       .index = 1050 * 1000},
 	{.frequency = 400 * 1000,       .index = 1100 * 1000},
-	{.frequency = 600 * 1000,       .index = 1200 * 1000},
+	{.frequency = 600 * 1000,       .index = 1125 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 //cube 10'
@@ -2596,7 +2595,7 @@ static struct cpufreq_frequency_table dvfs_gpu_table_volt_level1[] = {
 static struct cpufreq_frequency_table dvfs_ddr_table_volt_level0[] = {
 	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,    .index = 950 * 1000},
 	{.frequency = 528 * 1000 + DDR_FREQ_VIDEO,      .index = 1200 * 1000},
-//	{.frequency = 456 * 1000 + DDR_FREQ_NORMAL,     .index = 1100 * 1000},
+	{.frequency = 528 * 1000 + DDR_FREQ_DUALVIEW,   .index = 1200 * 1000},
 	{.frequency = 528 * 1000 + DDR_FREQ_NORMAL,     .index = 1200 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
