@@ -1128,8 +1128,9 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 		OBD_FAIL_TIMEOUT(OBD_FAIL_LDLM_CREATE_RESOURCE, 2);
 		rc = ns->ns_lvbo->lvbo_init(res);
 		if (rc < 0) {
-			CERROR("lvbo_init failed for resource "
-			       LPU64": rc %d\n", name->name[0], rc);
+			CERROR("%s: lvbo_init failed for resource "LPX64":"
+			       LPX64": rc = %d\n", ns->ns_obd->obd_name,
+			       name->name[0], name->name[1], rc);
 			if (res->lr_lvb_data) {
 				OBD_FREE(res->lr_lvb_data, res->lr_lvb_len);
 				res->lr_lvb_data = NULL;

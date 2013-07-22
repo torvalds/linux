@@ -911,7 +911,7 @@ static inline int lu_fid_cmp(const struct lu_fid *f0,
 		__diff_normalize(fid_ver(f0), fid_ver(f1));
 }
 
-static inline void ostid_cpu_to_le(struct ost_id *src_oi,
+static inline void ostid_cpu_to_le(const struct ost_id *src_oi,
 				   struct ost_id *dst_oi)
 {
 	if (fid_seq_is_mdt0(ostid_seq(src_oi))) {
@@ -922,7 +922,7 @@ static inline void ostid_cpu_to_le(struct ost_id *src_oi,
 	}
 }
 
-static inline void ostid_le_to_cpu(struct ost_id *src_oi,
+static inline void ostid_le_to_cpu(const struct ost_id *src_oi,
 				   struct ost_id *dst_oi)
 {
 	if (fid_seq_is_mdt0(ostid_seq(src_oi))) {
