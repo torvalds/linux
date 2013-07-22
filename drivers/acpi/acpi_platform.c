@@ -52,7 +52,7 @@ int acpi_create_platform_device(struct acpi_device *adev,
 	struct platform_device_info pdevinfo;
 	struct resource_list_entry *rentry;
 	struct list_head resource_list;
-	struct resource *resources;
+	struct resource *resources = NULL;
 	int count;
 
 	/* If the ACPI node already has a physical device attached, skip it. */
@@ -61,8 +61,11 @@ int acpi_create_platform_device(struct acpi_device *adev,
 
 	INIT_LIST_HEAD(&resource_list);
 	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
-	if (count <= 0)
+	if (count < 0)
 		return 0;
+
+	if (!count)
+		goto create_dev;
 
 	resources = kmalloc(count * sizeof(struct resource), GFP_KERNEL);
 	if (!resources) {
@@ -76,6 +79,7 @@ int acpi_create_platform_device(struct acpi_device *adev,
 
 	acpi_dev_free_resource_list(&resource_list);
 
+create_dev:
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	/*
 	 * If the ACPI node has a parent and that parent has a physical device
