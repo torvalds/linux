@@ -1171,11 +1171,7 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 	/* Let's see if we happened to be the very first resource in this
 	 * namespace. If so, and this is a client namespace, we need to move
 	 * the namespace into the active namespaces list to be patrolled by
-	 * the ldlm_poold.
-	 * A notable exception, for quota namespaces qsd_lib.c already took a
-	 * namespace reference, so it won't be participating in all of this,
-	 * but I guess that's ok since we have no business cancelling quota
-	 * locks anyway */
+	 * the ldlm_poold. */
 	if (ns_is_client(ns) && ns_refcount == 1) {
 		mutex_lock(ldlm_namespace_lock(LDLM_NAMESPACE_CLIENT));
 		ldlm_namespace_move_to_active_locked(ns, LDLM_NAMESPACE_CLIENT);

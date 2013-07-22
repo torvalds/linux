@@ -84,8 +84,7 @@ static inline struct mutex *ldlm_namespace_lock(ldlm_side_t client)
 		&ldlm_srv_namespace_lock : &ldlm_cli_namespace_lock;
 }
 
-/* ns_bref is the number of resources in this namespace with the notable
- * exception of quota namespaces which have their empty refcount at 1 */
+/* ns_bref is the number of resources in this namespace */
 static inline int ldlm_ns_empty(struct ldlm_namespace *ns)
 {
 	return atomic_read(&ns->ns_bref) == 0;
