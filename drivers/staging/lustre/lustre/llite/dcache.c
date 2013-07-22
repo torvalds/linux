@@ -295,9 +295,10 @@ void ll_invalidate_aliases(struct inode *inode)
 		       dentry->d_name.name, dentry, dentry->d_parent,
 		       dentry->d_inode, dentry->d_flags);
 
-		if (dentry->d_name.len == 1 && dentry->d_name.name[0] == '/') {
-			CERROR("called on root (?) dentry=%p, inode=%p "
-			       "ino=%lu\n", dentry, inode, inode->i_ino);
+		if (unlikely(dentry == dentry->d_sb->s_root)) {
+			CERROR("%s: called on root dentry=%p, fid="DFID"\n",
+			       ll_get_fsname(dentry->d_sb, NULL, 0),
+			       dentry, PFID(ll_inode2fid(inode)));
 			lustre_dump_dentry(dentry, 1);
 			dump_stack();
 		}
