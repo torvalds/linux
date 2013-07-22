@@ -140,12 +140,6 @@ config MACH_MACKEREL
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select USE_OF
 
-config MACH_KOTA2
-	bool "KOTA2 board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-
 config MACH_ARMADILLO800EVA
 	bool "Armadillo-800 EVA board"
 	depends on ARCH_R8A7740
