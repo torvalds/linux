@@ -27,6 +27,8 @@ make_help           := help
 make_doc            := doc
 make_perf_o         := perf.o
 make_util_map_o     := util/map.o
+make_install        := install
+make_install_bin    := install-bin
 
 # all the NO_* variable combined
 make_minimal        := NO_LIBPERL=1 NO_LIBPYTHON=1 NO_NEWT=1 NO_GTK2=1
@@ -56,6 +58,8 @@ run += make_help
 run += make_doc
 run += make_perf_o
 run += make_util_map_o
+run += make_install
+run += make_install_bin
 run += make_minimal
 
 ifneq ($(call has,ctags),)
@@ -90,6 +94,11 @@ test_make_python_perf_so := test -f $(PERF)/python/perf.so
 
 test_make_perf_o     := test -f $(PERF)/perf.o
 test_make_util_map_o := test -f $(PERF)/util/map.o
+
+test_make_install       := test -x $$TMP_DEST/bin/perf
+test_make_install_O     := $(test_make_install)
+test_make_install_bin   := $(test_make_install)
+test_make_install_bin_O := $(test_make_install)
 
 # Kbuild tests only
 #test_make_python_perf_so_O := test -f $$TMP/tools/perf/python/perf.so
