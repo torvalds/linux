@@ -3350,6 +3350,7 @@ int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 		break;
 	case ISCSI_PARAM_BOOT_TARGET:
 		len = sprintf(buf, "%s\n", session->boot_target);
+		break;
 	case ISCSI_PARAM_AUTO_SND_TGT_DISABLE:
 		len = sprintf(buf, "%u\n", session->auto_snd_tgt_disable);
 		break;
