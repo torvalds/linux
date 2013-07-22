@@ -82,6 +82,10 @@ config DDR_TYPE_DDR3_DEFAULT
 
 endchoice
 
+config EMMC_IO_3_3V
+	bool "Emmc io domain voltage select 3.3v"
+	depends on ARCH_RK3066B || ARCH_RK3188
+
 config DDR_INIT_CHANGE_FREQ
 	bool "Enable change DDR frequence when ddr_init"
 	default y if ARCH_RK2928 || ARCH_RK30XX
