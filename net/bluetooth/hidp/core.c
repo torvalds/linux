@@ -242,6 +242,7 @@ static int hidp_send_report(struct hidp_session *session, struct hid_report *rep
 	hid_output_report(report, buf);
 	hdr = HIDP_TRANS_DATA | HIDP_DATA_RTYPE_OUPUT;
 
+	rsize = ((report->size - 1) >> 3) + 1 + (report->id > 0);
 	ret = hidp_send_intr_message(session, hdr, buf, rsize);
 
 	kfree(buf);
