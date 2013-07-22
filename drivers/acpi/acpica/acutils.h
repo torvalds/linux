@@ -470,6 +470,8 @@ acpi_status acpi_ut_install_interface(acpi_string interface_name);
 
 acpi_status acpi_ut_remove_interface(acpi_string interface_name);
 
+acpi_status acpi_ut_update_interfaces(u8 action);
+
 struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name);
 
 acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state);

@@ -77,21 +77,20 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 
 	/* Feature Group Strings */
 
-	{"Extended Address Space Descriptor", NULL, 0, 0}
+	{"Extended Address Space Descriptor", NULL, ACPI_OSI_FEATURE, 0},
 
 	/*
 	 * All "optional" feature group strings (features that are implemented
-	 * by the host) should be dynamically added by the host via
-	 * acpi_install_interface and should not be manually added here.
-	 *
-	 * Examples of optional feature group strings:
-	 *
-	 * "Module Device"
-	 * "Processor Device"
-	 * "3.0 Thermal Model"
-	 * "3.0 _SCP Extensions"
-	 * "Processor Aggregator Device"
+	 * by the host) should be dynamically modified to VALID by the host via
+	 * acpi_install_interface or acpi_update_interfaces. Such optional feature
+	 * group strings are set as INVALID by default here.
 	 */
+
+	{"Module Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+	{"Processor Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+	{"3.0 Thermal Model", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+	{"3.0 _SCP Extensions", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+	{"Processor Aggregator Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0}
 };
 
 /*******************************************************************************
@@ -158,11 +157,20 @@ acpi_status acpi_ut_interface_terminate(void)
 	while (next_interface) {
 		acpi_gbl_supported_interfaces = next_interface->next;
 
-		/* Only interfaces added at runtime can be freed */
-
 		if (next_interface->flags & ACPI_OSI_DYNAMIC) {
+
+			/* Only interfaces added at runtime can be freed */
+
 			ACPI_FREE(next_interface->name);
 			ACPI_FREE(next_interface);
+		} else {
+			/* Interface is in static list. Reset it to invalid or valid. */
+
+			if (next_interface->flags & ACPI_OSI_DEFAULT_INVALID) {
+				next_interface->flags |= ACPI_OSI_INVALID;
+			} else {
+				next_interface->flags &= ~ACPI_OSI_INVALID;
+			}
 		}
 
 		next_interface = acpi_gbl_supported_interfaces;
@@ -274,6 +282,49 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 	/* Interface was not found */
 
 	return (AE_NOT_EXIST);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_update_interfaces
+ *
+ * PARAMETERS:  action              - Actions to be performed during the
+ *                                    update
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Update _OSI interface strings, disabling or enabling OS vendor
+ *              strings or/and feature group strings.
+ *              Caller MUST hold acpi_gbl_osi_mutex
+ *
+ ******************************************************************************/
+
+acpi_status acpi_ut_update_interfaces(u8 action)
+{
+	struct acpi_interface_info *next_interface;
+
+	next_interface = acpi_gbl_supported_interfaces;
+	while (next_interface) {
+		if (((next_interface->flags & ACPI_OSI_FEATURE) &&
+		     (action & ACPI_FEATURE_STRINGS)) ||
+		    (!(next_interface->flags & ACPI_OSI_FEATURE) &&
+		     (action & ACPI_VENDOR_STRINGS))) {
+			if (action & ACPI_DISABLE_INTERFACES) {
+
+				/* Mark the interfaces as invalid */
+
+				next_interface->flags |= ACPI_OSI_INVALID;
+			} else {
+				/* Mark the interfaces as valid */
+
+				next_interface->flags &= ~ACPI_OSI_INVALID;
+			}
+		}
+
+		next_interface = next_interface->next;
+	}
+
+	return (AE_OK);
 }
 
 /*******************************************************************************

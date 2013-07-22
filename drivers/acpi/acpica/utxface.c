@@ -389,6 +389,34 @@ ACPI_EXPORT_SYMBOL(acpi_install_interface_handler)
 
 /*****************************************************************************
  *
+ * FUNCTION:    acpi_update_interfaces
+ *
+ * PARAMETERS:  action              - Actions to be performed during the
+ *                                    update
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Update _OSI interface strings, disabling or enabling OS vendor
+ *              string or/and feature group strings.
+ *
+ ****************************************************************************/
+acpi_status acpi_update_interfaces(u8 action)
+{
+	acpi_status status;
+
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	status = acpi_ut_update_interfaces(action);
+
+	acpi_os_release_mutex(acpi_gbl_osi_mutex);
+	return (status);
+}
+
+/*****************************************************************************
+ *
  * FUNCTION:    acpi_check_address_range
  *
  * PARAMETERS:  space_id            - Address space ID
@@ -402,6 +430,7 @@ ACPI_EXPORT_SYMBOL(acpi_install_interface_handler)
  *              ASL operation region address ranges.
  *
  ****************************************************************************/
+
 u32
 acpi_check_address_range(acpi_adr_space_type space_id,
 			 acpi_physical_address address,

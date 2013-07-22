@@ -147,6 +147,8 @@ acpi_status acpi_install_interface(acpi_string interface_name);
 
 acpi_status acpi_remove_interface(acpi_string interface_name);
 
+acpi_status acpi_update_interfaces(u8 action);
+
 u32
 acpi_check_address_range(acpi_adr_space_type space_id,
 			 acpi_physical_address address,
