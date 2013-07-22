@@ -15,6 +15,28 @@
 #include <linux/platform_data/clk-ux500.h>
 #include "clk.h"
 
+#define PRCC_SHOW(clk, base, bit) \
+	clk[(base * PRCC_PERIPHS_PER_CLUSTER) + bit]
+
+struct clk *ux500_twocell_get(struct of_phandle_args *clkspec, void *data)
+{
+	struct clk **clk_data = data;
+	unsigned int base, bit;
+
+	if (clkspec->args_count != 2)
+		return  ERR_PTR(-EINVAL);
+
+	base = clkspec->args[0];
+	bit = clkspec->args[1];
+
+	if (base != 1 && base != 2 && base != 3 && base != 5 && base != 6) {
+		pr_err("%s: invalid PRCC base %d\n", __func__, base);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return PRCC_SHOW(clk_data, base, bit);
+}
+
 static const struct of_device_id u8500_clk_of_match[] = {
 	{ .compatible = "stericsson,u8500-clks", },
 	{ },
