@@ -123,6 +123,9 @@ int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 	if (!mvmvif->bf_enabled)
 		return 0;
 
+	if (mvm->cur_ucode == IWL_UCODE_WOWLAN)
+		cmd.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_D3);
+
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
 	return iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
 }
