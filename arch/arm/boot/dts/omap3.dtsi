@@ -89,6 +89,45 @@
 			interrupts = <0>;
 		};
 
+		prm: prm@48306000 {
+			compatible = "ti,omap3-prm";
+			reg = <0x48306000 0x4000>;
+
+			prm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			prm_clockdomains: clockdomains {
+			};
+		};
+
+		cm: cm@48004000 {
+			compatible = "ti,omap3-cm";
+			reg = <0x48004000 0x4000>;
+
+			cm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			cm_clockdomains: clockdomains {
+			};
+		};
+
+		scrm: scrm@48002000 {
+			compatible = "ti,omap3-scrm";
+			reg = <0x48002000 0x2000>;
+
+			scrm_clocks: clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			scrm_clockdomains: clockdomains {
+			};
+		};
+
 		counter32k: counter@48320000 {
 			compatible = "ti,omap-counter32k";
 			reg = <0x48320000 0x20>;
@@ -632,3 +671,5 @@
 		};
 	};
 };
+
+/include/ "omap3xxx-clocks.dtsi"
