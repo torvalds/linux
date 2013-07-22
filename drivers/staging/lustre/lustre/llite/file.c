@@ -526,7 +526,7 @@ int ll_file_open(struct inode *inode, struct file *file)
 
 	fd = ll_file_data_get();
 	if (fd == NULL)
-		GOTO(out_och_free, rc = -ENOMEM);
+		GOTO(out_openerr, rc = -ENOMEM);
 
 	fd->fd_file = file;
 	if (S_ISDIR(inode->i_mode)) {
