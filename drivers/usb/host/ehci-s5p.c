@@ -220,14 +220,6 @@ static int s5p_ehci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void s5p_ehci_shutdown(struct platform_device *pdev)
-{
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
-
 #ifdef CONFIG_PM
 static int s5p_ehci_suspend(struct device *dev)
 {
@@ -297,7 +289,7 @@ MODULE_DEVICE_TABLE(of, exynos_ehci_match);
 static struct platform_driver s5p_ehci_driver = {
 	.probe		= s5p_ehci_probe,
 	.remove		= s5p_ehci_remove,
-	.shutdown	= s5p_ehci_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name	= "s5p-ehci",
 		.owner	= THIS_MODULE,

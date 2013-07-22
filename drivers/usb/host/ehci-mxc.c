@@ -197,20 +197,12 @@ static int ehci_mxc_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void ehci_mxc_drv_shutdown(struct platform_device *pdev)
-{
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
-
 MODULE_ALIAS("platform:mxc-ehci");
 
 static struct platform_driver ehci_mxc_driver = {
 	.probe = ehci_mxc_drv_probe,
 	.remove = ehci_mxc_drv_remove,
-	.shutdown = ehci_mxc_drv_shutdown,
+	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		   .name = "mxc-ehci",
 	},

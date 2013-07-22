@@ -231,14 +231,6 @@ static int ohci_hcd_omap3_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void ohci_hcd_omap3_shutdown(struct platform_device *pdev)
-{
-	struct usb_hcd *hcd = dev_get_drvdata(&pdev->dev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
-}
-
 static const struct of_device_id omap_ohci_dt_ids[] = {
 	{ .compatible = "ti,ohci-omap3" },
 	{ }
@@ -249,7 +241,7 @@ MODULE_DEVICE_TABLE(of, omap_ohci_dt_ids);
 static struct platform_driver ohci_hcd_omap3_driver = {
 	.probe		= ohci_hcd_omap3_probe,
 	.remove		= ohci_hcd_omap3_remove,
-	.shutdown	= ohci_hcd_omap3_shutdown,
+	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "ohci-omap3",
 		.of_match_table = omap_ohci_dt_ids,
