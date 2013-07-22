@@ -218,13 +218,19 @@ static void __init xen_set_identity_and_release_chunk(
 	unsigned long pfn;
 
 	/*
-	 * If the PFNs are currently mapped, the VA mapping also needs
-	 * to be updated to be 1:1.
+	 * If the PFNs are currently mapped, clear the mappings
+	 * (except for the ISA region which must be 1:1 mapped) to
+	 * release the refcounts (in Xen) on the original frames.
 	 */
-	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++)
+	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
+		pte_t pte = __pte_ma(0);
+
+		if (pfn < PFN_UP(ISA_END_ADDRESS))
+			pte = mfn_pte(pfn, PAGE_KERNEL_IO);
+
 		(void)HYPERVISOR_update_va_mapping(
-			(unsigned long)__va(pfn << PAGE_SHIFT),
-			mfn_pte(pfn, PAGE_KERNEL_IO), 0);
+			(unsigned long)__va(pfn << PAGE_SHIFT), pte, 0);
+	}
 
 	if (start_pfn < nr_pages)
 		*released += xen_release_chunk(
