@@ -314,6 +314,7 @@ struct qxl_device {
 	struct workqueue_struct *gc_queue;
 	struct work_struct gc_work;
 
+	struct work_struct fb_work;
 };
 
 /* forward declaration for QXL_INFO_IO */
