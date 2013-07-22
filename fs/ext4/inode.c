@@ -1118,10 +1118,13 @@ static int ext4_write_end(struct file *file,
 		}
 	}
 
-	if (ext4_has_inline_data(inode))
-		copied = ext4_write_inline_data_end(inode, pos, len,
-						    copied, page);
-	else
+	if (ext4_has_inline_data(inode)) {
+		ret = ext4_write_inline_data_end(inode, pos, len,
+						 copied, page);
+		if (ret < 0)
+			goto errout;
+		copied = ret;
+	} else
 		copied = block_write_end(file, mapping, pos,
 					 len, copied, page, fsdata);
 
@@ -4805,7 +4808,7 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		 struct kstat *stat)
 {
 	struct inode *inode;
-	unsigned long delalloc_blocks;
+	unsigned long long delalloc_blocks;
 
 	inode = dentry->d_inode;
 	generic_fillattr(inode, stat);
@@ -4823,7 +4826,7 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	delalloc_blocks = EXT4_C2B(EXT4_SB(inode->i_sb),
 				EXT4_I(inode)->i_reserved_data_blocks);
 
-	stat->blocks += (delalloc_blocks << inode->i_sb->s_blocksize_bits)>>9;
+	stat->blocks += delalloc_blocks << (inode->i_sb->s_blocksize_bits-9);
 	return 0;
 }
 

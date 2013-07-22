@@ -92,6 +92,8 @@ static int virtfn_add(struct pci_dev *dev, int id, int reset)
 	pci_read_config_word(dev, iov->pos + PCI_SRIOV_VF_DID, &virtfn->device);
 	pci_setup_device(virtfn);
 	virtfn->dev.parent = dev->dev.parent;
+	virtfn->physfn = pci_dev_get(dev);
+	virtfn->is_virtfn = 1;
 
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
 		res = dev->resource + PCI_IOV_RESOURCES + i;
@@ -112,9 +114,6 @@ static int virtfn_add(struct pci_dev *dev, int id, int reset)
 
 	pci_device_add(virtfn, virtfn->bus);
 	mutex_unlock(&iov->dev->sriov->lock);
-
-	virtfn->physfn = pci_dev_get(dev);
-	virtfn->is_virtfn = 1;
 
 	rc = pci_bus_add_device(virtfn);
 	sprintf(buf, "virtfn%u", id);
