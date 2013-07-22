@@ -46,9 +46,7 @@
 
 #include "musb_core.h"
 
-#ifdef CONFIG_OF
 static const struct of_device_id musb_dsps_of_match[];
-#endif
 
 /**
  * avoid using musb_readx()/musb_writex() as glue layer should not be
@@ -753,23 +751,12 @@ static const struct dsps_musb_wrapper ti81xx_driver_data = {
 	.instances		= 1,
 };
 
-static const struct platform_device_id musb_dsps_id_table[] = {
-	{
-		.name	= "musb-ti81xx",
-		.driver_data	= (kernel_ulong_t) &ti81xx_driver_data,
-	},
-	{  },	/* Terminating Entry */
-};
-MODULE_DEVICE_TABLE(platform, musb_dsps_id_table);
-
-#ifdef CONFIG_OF
 static const struct of_device_id musb_dsps_of_match[] = {
 	{ .compatible = "ti,musb-am33xx",
 		.data = (void *) &ti81xx_driver_data, },
 	{  },
 };
 MODULE_DEVICE_TABLE(of, musb_dsps_of_match);
-#endif
 
 static struct platform_driver dsps_usbss_driver = {
 	.probe		= dsps_probe,
@@ -779,7 +766,6 @@ static struct platform_driver dsps_usbss_driver = {
 		.pm	= &dsps_pm_ops,
 		.of_match_table	= of_match_ptr(musb_dsps_of_match),
 	},
-	.id_table	= musb_dsps_id_table,
 };
 
 MODULE_DESCRIPTION("TI DSPS MUSB Glue Layer");
