@@ -118,23 +118,27 @@ clean := @(cd $(PERF); make -s -f $(MK) clean >/dev/null)
 
 $(run):
 	$(call clean)
-	@cmd="cd $(PERF) && make -f $(MK) $($@)"; \
+	@TMP_DEST=$$(mktemp -d); \
+	cmd="cd $(PERF) && make -f $(MK) DESTDIR=$$TMP_DEST $($@)"; \
 	echo "- $@: $$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1; \
 	echo "  test: $(call test,$@)"; \
 	$(call test,$@) && \
-	rm -f $@
+	rm -f $@ \
+	rm -rf $$TMP_DEST
 
 $(run_O):
 	$(call clean)
 	@TMP_O=$$(mktemp -d); \
-	cmd="cd $(PERF) && make -f $(MK) $($(patsubst %_O,%,$@)) O=$$TMP_O"; \
+	TMP_DEST=$$(mktemp -d); \
+	cmd="cd $(PERF) && make -f $(MK) O=$$TMP_O DESTDIR=$$TMP_DEST $($(patsubst %_O,%,$@))"; \
 	echo "- $@: $$cmd" && echo $$cmd > $@ && \
 	( eval $$cmd ) >> $@ 2>&1 && \
 	echo "  test: $(call test_O,$@)"; \
 	$(call test_O,$@) && \
 	rm -f $@ && \
-	rm -rf $$TMP_O
+	rm -rf $$TMP_O \
+	rm -rf $$TMP_DEST
 
 all: $(run) $(run_O)
 	@echo OK
