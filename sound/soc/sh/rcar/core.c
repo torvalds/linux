@@ -108,8 +108,73 @@
 
 
 /*
+ *	rsnd_mod functions
+ */
+char *rsnd_mod_name(struct rsnd_mod *mod)
+{
+	if (!mod || !mod->ops)
+		return "unknown";
+
+	return mod->ops->name;
+}
+
+void rsnd_mod_init(struct rsnd_priv *priv,
+		   struct rsnd_mod *mod,
+		   struct rsnd_mod_ops *ops,
+		   int id)
+{
+	mod->priv	= priv;
+	mod->id		= id;
+	mod->ops	= ops;
+	INIT_LIST_HEAD(&mod->list);
+}
+
+/*
  *	rsnd_dai functions
  */
+#define rsnd_dai_call(rdai, io, fn)			\
+({							\
+	struct rsnd_mod *mod, *n;			\
+	int ret = 0;					\
+	for_each_rsnd_mod(mod, n, io) {			\
+		ret = rsnd_mod_call(mod, fn, rdai, io);	\
+		if (ret < 0)				\
+			break;				\
+	}						\
+	ret;						\
+})
+
+int rsnd_dai_connect(struct rsnd_dai *rdai,
+		     struct rsnd_mod *mod,
+		     struct rsnd_dai_stream *io)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+
+	if (!mod) {
+		dev_err(dev, "NULL mod\n");
+		return -EIO;
+	}
+
+	if (!list_empty(&mod->list)) {
+		dev_err(dev, "%s%d is not empty\n",
+			rsnd_mod_name(mod),
+			rsnd_mod_id(mod));
+		return -EIO;
+	}
+
+	list_add_tail(&mod->list, &io->head);
+
+	return 0;
+}
+
+int rsnd_dai_disconnect(struct rsnd_mod *mod)
+{
+	list_del_init(&mod->list);
+
+	return 0;
+}
+
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id)
 {
 	return priv->rdai + id;
@@ -224,8 +289,23 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			goto dai_trigger_end;
 
+		ret = rsnd_dai_call(rdai, io, init);
+		if (ret < 0)
+			goto dai_trigger_end;
+
+		ret = rsnd_dai_call(rdai, io, start);
+		if (ret < 0)
+			goto dai_trigger_end;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+		ret = rsnd_dai_call(rdai, io, stop);
+		if (ret < 0)
+			goto dai_trigger_end;
+
+		ret = rsnd_dai_call(rdai, io, quit);
+		if (ret < 0)
+			goto dai_trigger_end;
+
 		ret = rsnd_platform_call(priv, dai, stop, ssi_id);
 		if (ret < 0)
 			goto dai_trigger_end;
