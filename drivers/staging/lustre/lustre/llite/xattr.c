@@ -564,7 +564,12 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		const size_t name_len   = sizeof("lov") - 1;
 		const size_t total_len  = prefix_len + name_len + 1;
 
-		if (buffer && (rc + total_len) <= size) {
+		if (((rc + total_len) > size) && (buffer != NULL)) {
+			ptlrpc_req_finished(request);
+			return -ERANGE;
+		}
+
+		if (buffer != NULL) {
 			buffer += rc;
 			memcpy(buffer, XATTR_LUSTRE_PREFIX, prefix_len);
 			memcpy(buffer + prefix_len, "lov", name_len);
