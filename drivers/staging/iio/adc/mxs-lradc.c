@@ -909,7 +909,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	int i;
 
 	/* Allocate the IIO device. */
-	iio = iio_device_alloc(sizeof(*lradc));
+	iio = devm_iio_device_alloc(dev, sizeof(*lradc));
 	if (!iio) {
 		dev_err(dev, "Failed to allocate IIO device\n");
 		return -ENOMEM;
@@ -921,10 +921,8 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lradc->dev = &pdev->dev;
 	lradc->base = devm_ioremap_resource(dev, iores);
-	if (IS_ERR(lradc->base)) {
-		ret = PTR_ERR(lradc->base);
-		goto err_addr;
-	}
+	if (IS_ERR(lradc->base))
+		return PTR_ERR(lradc->base);
 
 	INIT_WORK(&lradc->ts_work, mxs_lradc_ts_work);
 
@@ -944,16 +942,14 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	/* Grab all IRQ sources */
 	for (i = 0; i < of_cfg->irq_count; i++) {
 		lradc->irq[i] = platform_get_irq(pdev, i);
-		if (lradc->irq[i] < 0) {
-			ret = -EINVAL;
-			goto err_addr;
-		}
+		if (lradc->irq[i] < 0)
+			return -EINVAL;
 
 		ret = devm_request_irq(dev, lradc->irq[i],
 					mxs_lradc_handle_irq, 0,
 					of_cfg->irq_name[i], iio);
 		if (ret)
-			goto err_addr;
+			return ret;
 	}
 
 	platform_set_drvdata(pdev, iio);
@@ -973,7 +969,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 				&mxs_lradc_trigger_handler,
 				&mxs_lradc_buffer_ops);
 	if (ret)
-		goto err_addr;
+		return ret;
 
 	ret = mxs_lradc_trigger_init(iio);
 	if (ret)
@@ -1004,8 +1000,6 @@ err_dev:
 	mxs_lradc_trigger_remove(iio);
 err_trig:
 	iio_triggered_buffer_cleanup(iio);
-err_addr:
-	iio_device_free(iio);
 	return ret;
 }
 
@@ -1021,7 +1015,6 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	iio_device_unregister(iio);
 	iio_triggered_buffer_cleanup(iio);
 	mxs_lradc_trigger_remove(iio);
-	iio_device_free(iio);
 
 	return 0;
 }
