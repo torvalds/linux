@@ -32,6 +32,17 @@ enum rsnd_reg {
 	RSND_REG_SSI_MODE0,
 	RSND_REG_SSI_MODE1,
 
+	/* ADG */
+	RSND_REG_BRRA,
+	RSND_REG_BRRB,
+	RSND_REG_SSICKR,
+	RSND_REG_AUDIO_CLK_SEL0,
+	RSND_REG_AUDIO_CLK_SEL1,
+	RSND_REG_AUDIO_CLK_SEL2,
+	RSND_REG_AUDIO_CLK_SEL3,
+	RSND_REG_AUDIO_CLK_SEL4,
+	RSND_REG_AUDIO_CLK_SEL5,
+
 	RSND_REG_MAX,
 };
 
@@ -163,6 +174,17 @@ void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       enum rsnd_reg reg);
 
 /*
+ *	R-Car ADG
+ */
+int rsnd_adg_ssi_clk_stop(struct rsnd_mod *mod);
+int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate);
+int rsnd_adg_probe(struct platform_device *pdev,
+		   struct rcar_snd_info *info,
+		   struct rsnd_priv *priv);
+void rsnd_adg_remove(struct platform_device *pdev,
+		   struct rsnd_priv *priv);
+
+/*
  *	R-Car sound priv
  */
 struct rsnd_priv {
@@ -181,6 +203,11 @@ struct rsnd_priv {
 	 */
 	void *scu;
 	int scu_nr;
+
+	/*
+	 * below value will be filled on rsnd_adg_probe()
+	 */
+	void *adg;
 
 	/*
 	 * below value will be filled on rsnd_dai_probe()

@@ -15,10 +15,12 @@
 #include <linux/sh_clk.h>
 
 #define RSND_GEN1_SRU	0
+#define RSND_GEN1_ADG	1
 
 #define RSND_GEN2_SRU	0
+#define RSND_GEN2_ADG	1
 
-#define RSND_BASE_MAX	1
+#define RSND_BASE_MAX	2
 
 struct rsnd_scu_platform_info {
 	u32 flags;
