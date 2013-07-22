@@ -1001,7 +1001,6 @@ static int flexcan_probe(struct platform_device *pdev)
 	struct resource *mem;
 	struct clk *clk_ipg = NULL, *clk_per = NULL;
 	void __iomem *base;
-	resource_size_t mem_size;
 	int err, irq;
 	u32 clock_freq = 0;
 
@@ -1013,43 +1012,25 @@ static int flexcan_probe(struct platform_device *pdev)
 		clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 		if (IS_ERR(clk_ipg)) {
 			dev_err(&pdev->dev, "no ipg clock defined\n");
-			err = PTR_ERR(clk_ipg);
-			goto failed_clock;
+			return PTR_ERR(clk_ipg);
 		}
 		clock_freq = clk_get_rate(clk_ipg);
 
 		clk_per = devm_clk_get(&pdev->dev, "per");
 		if (IS_ERR(clk_per)) {
 			dev_err(&pdev->dev, "no per clock defined\n");
-			err = PTR_ERR(clk_per);
-			goto failed_clock;
+			return PTR_ERR(clk_per);
 		}
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!mem || irq <= 0) {
-		err = -ENODEV;
-		goto failed_get;
-	}
+	if (irq <= 0)
+		return -ENODEV;
 
-	mem_size = resource_size(mem);
-	if (!request_mem_region(mem->start, mem_size, pdev->name)) {
-		err = -EBUSY;
-		goto failed_get;
-	}
-
-	base = ioremap(mem->start, mem_size);
-	if (!base) {
-		err = -ENOMEM;
-		goto failed_map;
-	}
-
-	dev = alloc_candev(sizeof(struct flexcan_priv), 1);
-	if (!dev) {
-		err = -ENOMEM;
-		goto failed_alloc;
-	}
+	base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	of_id = of_match_device(flexcan_of_match, &pdev->dev);
 	if (of_id) {
@@ -1058,9 +1039,12 @@ static int flexcan_probe(struct platform_device *pdev)
 		devtype_data = (struct flexcan_devtype_data *)
 			pdev->id_entry->driver_data;
 	} else {
-		err = -ENODEV;
-		goto failed_devtype;
+		return -ENODEV;
 	}
+
+	dev = alloc_candev(sizeof(struct flexcan_priv), 1);
+	if (!dev)
+		return -ENOMEM;
 
 	dev->netdev_ops = &flexcan_netdev_ops;
 	dev->irq = irq;
@@ -1104,28 +1088,15 @@ static int flexcan_probe(struct platform_device *pdev)
 	return 0;
 
  failed_register:
- failed_devtype:
 	free_candev(dev);
- failed_alloc:
-	iounmap(base);
- failed_map:
-	release_mem_region(mem->start, mem_size);
- failed_get:
- failed_clock:
 	return err;
 }
 
 static int flexcan_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
-	struct flexcan_priv *priv = netdev_priv(dev);
-	struct resource *mem;
 
 	unregister_flexcandev(dev);
-	iounmap(priv->base);
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, resource_size(mem));
 
 	free_candev(dev);
 
