@@ -33,13 +33,13 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
- * lustre/obdclass/lu_object.c
+ * lustre/obdclass/lu_ucred.c
  *
- * Lustre Object.
- * These are the only exported functions, they provide some generic
- * infrastructure for managing object devices
+ * Lustre user credentials context infrastructure.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
+ *   Author: Fan Yong <fan.yong@intel.com>
+ *   Author: Vitaly Fertman <vitaly_fertman@xyratex.com>
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
