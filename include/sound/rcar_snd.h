@@ -16,11 +16,30 @@
 
 #define RSND_GEN1_SRU	0
 #define RSND_GEN1_ADG	1
+#define RSND_GEN1_SSI	2
 
 #define RSND_GEN2_SRU	0
 #define RSND_GEN2_ADG	1
+#define RSND_GEN2_SSIU	2
+#define RSND_GEN2_SSI	3
 
-#define RSND_BASE_MAX	2
+#define RSND_BASE_MAX	4
+
+/*
+ * flags
+ *
+ * 0xA0000000
+ *
+ * A : clock sharing settings
+ */
+#define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
+#define RSND_SSI_CLK_FROM_ADG		(1 << 30) /* clock parent is master */
+#define RSND_SSI_SYNC			(1 << 29) /* SSI34_sync etc */
+
+struct rsnd_ssi_platform_info {
+	int pio_irq;
+	u32 flags;
+};
 
 struct rsnd_scu_platform_info {
 	u32 flags;
@@ -43,6 +62,8 @@ struct rsnd_dai_platform_info {
 
 struct rcar_snd_info {
 	u32 flags;
+	struct rsnd_ssi_platform_info *ssi_info;
+	int ssi_info_nr;
 	struct rsnd_scu_platform_info *scu_info;
 	int scu_info_nr;
 	struct rsnd_dai_platform_info *dai_info;
