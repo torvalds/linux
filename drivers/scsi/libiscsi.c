@@ -3312,6 +3312,9 @@ int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 	case ISCSI_PARAM_DATASEQ_INORDER_EN:
 		len = sprintf(buf, "%d\n", session->dataseq_inorder_en);
 		break;
+	case ISCSI_PARAM_DEF_TASKMGMT_TMO:
+		len = sprintf(buf, "%d\n", session->def_taskmgmt_tmo);
+		break;
 	case ISCSI_PARAM_ERL:
 		len = sprintf(buf, "%d\n", session->erl);
 		break;
@@ -3521,6 +3524,9 @@ int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		break;
 	case ISCSI_PARAM_IPV6_TC:
 		len = sprintf(buf, "%u\n", conn->ipv6_traffic_class);
+		break;
+	case ISCSI_PARAM_IPV6_FLOW_LABEL:
+		len = sprintf(buf, "%u\n", conn->ipv6_flow_label);
 		break;
 	case ISCSI_PARAM_IS_FW_ASSIGNED_IPV6:
 		len = sprintf(buf, "%u\n", conn->is_fw_assigned_ipv6);
