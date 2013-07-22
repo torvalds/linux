@@ -958,7 +958,6 @@ void ath10k_htc_stop(struct ath10k_htc *htc)
 	}
 
 	ath10k_hif_stop(htc->ar);
-	ath10k_htc_reset_endpoint_states(htc);
 }
 
 /* registered target arrival callback from the HIF layer */
