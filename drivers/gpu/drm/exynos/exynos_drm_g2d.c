@@ -1521,7 +1521,6 @@ static const struct of_device_id exynos_g2d_match[] = {
 	{ .compatible = "samsung,exynos5250-g2d" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 #endif
 
 struct platform_driver g2d_driver = {
