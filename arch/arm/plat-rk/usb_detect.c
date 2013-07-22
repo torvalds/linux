@@ -147,3 +147,52 @@ static int __init bvalid_init(void)
 }
 late_initcall(bvalid_init);
 #endif
+
+#if defined(IRQ_OTG0_ID) && defined(CONFIG_ARCH_RK3026)
+#include <linux/io.h>
+#include <mach/iomux.h>
+
+static irqreturn_t otg_id_irq_handler(int irq, void *dev_id)
+{
+    unsigned int uoc_con;
+	/* clear irq */
+    uoc_con = readl_relaxed(RK2928_GRF_BASE + GRF_UOC_CON);
+
+#ifdef CONFIG_RK_USB_UART
+	/* to do @lyz*/
+#endif
+    
+    if(uoc_con & (1<<1)) //id rise 
+    {
+        writel_relaxed((0x1 << 16) | 0x1, RK2928_GRF_BASE + GRF_UOC_CON);;//clear id rise irq pandding
+    }
+    if(uoc_con & (1<<3))//id fall
+    { 
+        writel_relaxed((0x3 << 16) | 0x3, RK2928_GRF_BASE + GRF_UOC_CON);;//clear id fall irq pandding
+    }
+	rk28_send_wakeup_key();
+	return IRQ_HANDLED;
+}
+
+static int __init otg_id_irq_init(void)
+{
+	int ret;
+	int irq = IRQ_OTG0_ID;
+
+	ret = request_irq(irq, otg_id_irq_handler, 0, "otg_id_change", NULL);
+	if (ret < 0) {
+		pr_err("%s: request_irq(%d) failed\n", __func__, irq);
+		return ret;
+	}
+
+	/* clear & enable otg change irq */
+	/* for rk3026 enable and clear id_fall_irq & id_rise_irq*/
+	writel_relaxed((0xf << 16) | 0xf, RK2928_GRF_BASE + GRF_UOC_CON);
+
+	enable_irq_wake(irq);
+
+	return 0;
+}
+late_initcall(otg_id_irq_init);
+#endif
+
