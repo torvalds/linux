@@ -253,21 +253,21 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->nats, NM_WOUT_THRESHOLD);
 		seq_printf(s, "  - SITs: %5d\n  - free_nids: %5d\n",
 			   si->sits, si->fnids);
-		seq_printf(s, "\nDistribution of User Blocks:");
-		seq_printf(s, " [ valid | invalid | free ]\n");
-		seq_printf(s, "  [");
+		seq_puts(s, "\nDistribution of User Blocks:");
+		seq_puts(s, " [ valid | invalid | free ]\n");
+		seq_puts(s, "  [");
 
 		for (j = 0; j < si->util_valid; j++)
-			seq_printf(s, "-");
-		seq_printf(s, "|");
+			seq_putc(s, '-');
+		seq_putc(s, '|');
 
 		for (j = 0; j < si->util_invalid; j++)
-			seq_printf(s, "-");
-		seq_printf(s, "|");
+			seq_putc(s, '-');
+		seq_putc(s, '|');
 
 		for (j = 0; j < si->util_free; j++)
-			seq_printf(s, "-");
-		seq_printf(s, "]\n\n");
+			seq_putc(s, '-');
+		seq_puts(s, "]\n\n");
 		seq_printf(s, "SSR: %u blocks in %u segments\n",
 			   si->block_count[SSR], si->segment_count[SSR]);
 		seq_printf(s, "LFS: %u blocks in %u segments\n",
