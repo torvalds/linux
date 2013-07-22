@@ -4986,7 +4986,7 @@ F:	arch/powerpc/platforms/44x/
 
 LINUX FOR POWERPC EMBEDDED XILINX VIRTEX
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Unmaintained
+S:	Orphan
 F:	arch/powerpc/*/*virtex*
 F:	arch/powerpc/*/*/*virtex*
 
@@ -9294,7 +9294,7 @@ S:	Maintained
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 
 XILINX SYSTEMACE DRIVER
-S:	Unmaintained
+S:	Orphan
 F:	drivers/block/xsysace.c
 
 XILINX UARTLITE SERIAL DRIVER
