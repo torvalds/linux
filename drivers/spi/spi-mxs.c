@@ -513,7 +513,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
-	if (!iores || irq_err < 0)
+	if (irq_err < 0)
 		return -EINVAL;
 
 	base = devm_ioremap_resource(&pdev->dev, iores);
