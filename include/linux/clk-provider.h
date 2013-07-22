@@ -327,8 +327,10 @@ struct clk_mux {
 #define CLK_MUX_INDEX_ONE		BIT(0)
 #define CLK_MUX_INDEX_BIT		BIT(1)
 #define CLK_MUX_HIWORD_MASK		BIT(2)
+#define CLK_MUX_READ_ONLY	BIT(3) /* mux setting cannot be changed */
 
 extern const struct clk_ops clk_mux_ops;
+extern const struct clk_ops clk_mux_ro_ops;
 
 struct clk *clk_register_mux(struct device *dev, const char *name,
 		const char **parent_names, u8 num_parents, unsigned long flags,
