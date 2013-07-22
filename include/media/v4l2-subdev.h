@@ -586,14 +586,13 @@ struct v4l2_subdev {
 	struct video_device *devnode;
 	/* pointer to the physical device, if any */
 	struct device *dev;
-	struct v4l2_async_subdev_list asdl;
+	/* Links this subdev to a global subdev_list or @notifier->done list. */
+	struct list_head async_list;
+	/* Pointer to respective struct v4l2_async_subdev. */
+	struct v4l2_async_subdev *asd;
+	/* Pointer to the managing notifier. */
+	struct v4l2_async_notifier *notifier;
 };
-
-static inline struct v4l2_subdev *v4l2_async_to_subdev(
-			struct v4l2_async_subdev_list *asdl)
-{
-	return container_of(asdl, struct v4l2_subdev, asdl);
-}
 
 #define media_entity_to_v4l2_subdev(ent) \
 	container_of(ent, struct v4l2_subdev, entity)

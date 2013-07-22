@@ -49,12 +49,10 @@ static LIST_HEAD(notifier_list);
 static DEFINE_MUTEX(list_lock);
 
 static struct v4l2_async_subdev *v4l2_async_belongs(struct v4l2_async_notifier *notifier,
-						    struct v4l2_async_subdev_list *asdl)
+						    struct v4l2_subdev *sd)
 {
-	struct v4l2_subdev *sd = v4l2_async_to_subdev(asdl);
 	struct v4l2_async_subdev *asd;
-	bool (*match)(struct device *,
-		      struct v4l2_async_subdev *);
+	bool (*match)(struct device *, struct v4l2_async_subdev *);
 
 	list_for_each_entry(asd, &notifier->waiting, list) {
 		/* bus_type has been verified valid before */
@@ -89,16 +87,15 @@ static struct v4l2_async_subdev *v4l2_async_belongs(struct v4l2_async_notifier *
 }
 
 static int v4l2_async_test_notify(struct v4l2_async_notifier *notifier,
-				  struct v4l2_async_subdev_list *asdl,
+				  struct v4l2_subdev *sd,
 				  struct v4l2_async_subdev *asd)
 {
-	struct v4l2_subdev *sd = v4l2_async_to_subdev(asdl);
 	int ret;
 
 	/* Remove from the waiting list */
 	list_del(&asd->list);
-	asdl->asd = asd;
-	asdl->notifier = notifier;
+	sd->asd = asd;
+	sd->notifier = notifier;
 
 	if (notifier->bound) {
 		ret = notifier->bound(notifier, sd, asd);
@@ -106,7 +103,7 @@ static int v4l2_async_test_notify(struct v4l2_async_notifier *notifier,
 			return ret;
 	}
 	/* Move from the global subdevice list to notifier's done */
-	list_move(&asdl->list, &notifier->done);
+	list_move(&sd->async_list, &notifier->done);
 
 	ret = v4l2_device_register_subdev(notifier->v4l2_dev, sd);
 	if (ret < 0) {
@@ -121,21 +118,19 @@ static int v4l2_async_test_notify(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static void v4l2_async_cleanup(struct v4l2_async_subdev_list *asdl)
+static void v4l2_async_cleanup(struct v4l2_subdev *sd)
 {
-	struct v4l2_subdev *sd = v4l2_async_to_subdev(asdl);
-
 	v4l2_device_unregister_subdev(sd);
-	/* Subdevice driver will reprobe and put asdl back onto the list */
-	list_del_init(&asdl->list);
-	asdl->asd = NULL;
+	/* Subdevice driver will reprobe and put the subdev back onto the list */
+	list_del_init(&sd->async_list);
+	sd->asd = NULL;
 	sd->dev = NULL;
 }
 
 int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 				 struct v4l2_async_notifier *notifier)
 {
-	struct v4l2_async_subdev_list *asdl, *tmp;
+	struct v4l2_subdev *sd, *tmp;
 	struct v4l2_async_subdev *asd;
 	int i;
 
@@ -169,14 +164,14 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 	/* Keep also completed notifiers on the list */
 	list_add(&notifier->list, &notifier_list);
 
-	list_for_each_entry_safe(asdl, tmp, &subdev_list, list) {
+	list_for_each_entry_safe(sd, tmp, &subdev_list, async_list) {
 		int ret;
 
-		asd = v4l2_async_belongs(notifier, asdl);
+		asd = v4l2_async_belongs(notifier, sd);
 		if (!asd)
 			continue;
 
-		ret = v4l2_async_test_notify(notifier, asdl, asd);
+		ret = v4l2_async_test_notify(notifier, sd, asd);
 		if (ret < 0) {
 			mutex_unlock(&list_lock);
 			return ret;
@@ -191,7 +186,7 @@ EXPORT_SYMBOL(v4l2_async_notifier_register);
 
 void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 {
-	struct v4l2_async_subdev_list *asdl, *tmp;
+	struct v4l2_subdev *sd, *tmp;
 	unsigned int notif_n_subdev = notifier->num_subdevs;
 	unsigned int n_subdev = min(notif_n_subdev, V4L2_MAX_SUBDEVS);
 	struct device *dev[n_subdev];
@@ -201,18 +196,16 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 
 	list_del(&notifier->list);
 
-	list_for_each_entry_safe(asdl, tmp, &notifier->done, list) {
-		struct v4l2_subdev *sd = v4l2_async_to_subdev(asdl);
-
+	list_for_each_entry_safe(sd, tmp, &notifier->done, list) {
 		dev[i] = get_device(sd->dev);
 
-		v4l2_async_cleanup(asdl);
+		v4l2_async_cleanup(sd);
 
 		/* If we handled USB devices, we'd have to lock the parent too */
 		device_release_driver(dev[i++]);
 
 		if (notifier->unbind)
-			notifier->unbind(notifier, sd, sd->asdl.asd);
+			notifier->unbind(notifier, sd, sd->asd);
 	}
 
 	mutex_unlock(&list_lock);
@@ -241,24 +234,23 @@ EXPORT_SYMBOL(v4l2_async_notifier_unregister);
 
 int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 {
-	struct v4l2_async_subdev_list *asdl = &sd->asdl;
 	struct v4l2_async_notifier *notifier;
 
 	mutex_lock(&list_lock);
 
-	INIT_LIST_HEAD(&asdl->list);
+	INIT_LIST_HEAD(&sd->async_list);
 
 	list_for_each_entry(notifier, &notifier_list, list) {
-		struct v4l2_async_subdev *asd = v4l2_async_belongs(notifier, asdl);
+		struct v4l2_async_subdev *asd = v4l2_async_belongs(notifier, sd);
 		if (asd) {
-			int ret = v4l2_async_test_notify(notifier, asdl, asd);
+			int ret = v4l2_async_test_notify(notifier, sd, asd);
 			mutex_unlock(&list_lock);
 			return ret;
 		}
 	}
 
 	/* None matched, wait for hot-plugging */
-	list_add(&asdl->list, &subdev_list);
+	list_add(&sd->async_list, &subdev_list);
 
 	mutex_unlock(&list_lock);
 
@@ -268,23 +260,22 @@ EXPORT_SYMBOL(v4l2_async_register_subdev);
 
 void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 {
-	struct v4l2_async_subdev_list *asdl = &sd->asdl;
-	struct v4l2_async_notifier *notifier = asdl->notifier;
+	struct v4l2_async_notifier *notifier = sd->notifier;
 
-	if (!asdl->asd) {
-		if (!list_empty(&asdl->list))
-			v4l2_async_cleanup(asdl);
+	if (!sd->asd) {
+		if (!list_empty(&sd->async_list))
+			v4l2_async_cleanup(sd);
 		return;
 	}
 
 	mutex_lock(&list_lock);
 
-	list_add(&asdl->asd->list, &notifier->waiting);
+	list_add(&sd->asd->list, &notifier->waiting);
 
-	v4l2_async_cleanup(asdl);
+	v4l2_async_cleanup(sd);
 
 	if (notifier->unbind)
-		notifier->unbind(notifier, sd, sd->asdl.asd);
+		notifier->unbind(notifier, sd, sd->asd);
 
 	mutex_unlock(&list_lock);
 }

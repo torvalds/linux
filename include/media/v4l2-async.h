@@ -62,25 +62,12 @@ struct v4l2_async_subdev {
 };
 
 /**
- * v4l2_async_subdev_list - provided by subdevices
- * @list:	links struct v4l2_async_subdev_list objects to a global list
- *		before probing, and onto notifier->done after probing
- * @asd:	pointer to respective struct v4l2_async_subdev
- * @notifier:	pointer to managing notifier
- */
-struct v4l2_async_subdev_list {
-	struct list_head list;
-	struct v4l2_async_subdev *asd;
-	struct v4l2_async_notifier *notifier;
-};
-
-/**
  * v4l2_async_notifier - v4l2_device notifier data
  * @num_subdevs:number of subdevices
  * @subdevs:	array of pointers to subdevice descriptors
  * @v4l2_dev:	pointer to struct v4l2_device
  * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
- * @done:	list of struct v4l2_async_subdev_list, already probed
+ * @done:	list of struct v4l2_subdev, already probed
  * @list:	member in a global list of notifiers
  * @bound:	a subdevice driver has successfully probed one of subdevices
  * @complete:	all subdevices have been probed successfully
