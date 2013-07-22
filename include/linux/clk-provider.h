@@ -12,6 +12,7 @@
 #define __LINUX_CLK_PROVIDER_H
 
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #ifdef CONFIG_COMMON_CLK
 
@@ -443,6 +444,21 @@ void of_clk_init(const struct of_device_id *matches);
 	static const struct of_device_id __clk_of_table_##name	\
 		__used __section(__clk_of_table)		\
 		= { .compatible = compat, .data = fn };
+
+/*
+ * wrap access to peripherals in accessor routines
+ * for improved portability across platforms
+ */
+
+static inline u32 clk_readl(u32 __iomem *reg)
+{
+	return readl(reg);
+}
+
+static inline void clk_writel(u32 val, u32 __iomem *reg)
+{
+	writel(val, reg);
+}
 
 #endif /* CONFIG_COMMON_CLK */
 #endif /* CLK_PROVIDER_H */
