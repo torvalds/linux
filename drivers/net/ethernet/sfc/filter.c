@@ -1209,7 +1209,9 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + 4 * ip->ihl + 4);
 	ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);
 
-	efx_filter_init_rx(&spec, EFX_FILTER_PRI_HINT, 0, rxq_index);
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_HINT,
+			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
+			   rxq_index);
 	rc = efx_filter_set_ipv4_full(&spec, ip->protocol,
 				      ip->daddr, ports[1], ip->saddr, ports[0]);
 	if (rc)
