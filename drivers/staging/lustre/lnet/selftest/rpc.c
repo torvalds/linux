@@ -661,8 +661,10 @@ srpc_finish_service(struct srpc_service *sv)
 
 	cfs_percpt_for_each(scd, i, sv->sv_cpt_data) {
 		spin_lock(&scd->scd_lock);
-		if (!swi_deschedule_workitem(&scd->scd_buf_wi))
+		if (!swi_deschedule_workitem(&scd->scd_buf_wi)) {
+			spin_unlock(&scd->scd_lock);
 			return 0;
+		}
 
 		if (scd->scd_buf_nposted > 0) {
 			CDEBUG(D_NET, "waiting for %d posted buffers to unlink",
