@@ -179,17 +179,21 @@ struct proc_dir_entry *lprocfs_register(const char *name,
 					struct proc_dir_entry *parent,
 					struct lprocfs_vars *list, void *data)
 {
-	struct proc_dir_entry *newchild;
+	struct proc_dir_entry *entry;
 
-	newchild = proc_mkdir(name, parent);
-	if (newchild != NULL && list != NULL) {
-		int rc = lprocfs_add_vars(newchild, list, data);
-		if (rc) {
-			lprocfs_remove(&newchild);
-			return ERR_PTR(rc);
+	entry = proc_mkdir(name, parent);
+	if (entry == NULL)
+		GOTO(out, entry = ERR_PTR(-ENOMEM));
+
+	if (list != NULL) {
+		int rc = lprocfs_add_vars(entry, list, data);
+		if (rc != 0) {
+			lprocfs_remove(&entry);
+			entry = ERR_PTR(rc);
 		}
 	}
-	return newchild;
+out:
+	return entry;
 }
 EXPORT_SYMBOL(lprocfs_register);
 
@@ -1596,10 +1600,12 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 					      NULL, NULL);
 	OBD_FREE(buffer, LNET_NIDSTR_SIZE);
 
-	if (new_stat->nid_proc == NULL) {
+	if (IS_ERR(new_stat->nid_proc)) {
 		CERROR("Error making export directory for nid %s\n",
 		       libcfs_nid2str(*nid));
-		GOTO(destroy_new_ns, rc = -ENOMEM);
+		rc = PTR_ERR(new_stat->nid_proc);
+		new_stat->nid_proc = NULL;
+		GOTO(destroy_new_ns, rc);
 	}
 
 	entry = lprocfs_add_simple(new_stat->nid_proc, "uuid",

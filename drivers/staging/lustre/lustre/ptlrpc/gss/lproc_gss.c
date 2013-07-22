@@ -199,15 +199,17 @@ int gss_init_lproc(void)
 	gss_proc_root = lprocfs_register("gss", sptlrpc_proc_root,
 					 gss_lprocfs_vars, NULL);
 	if (IS_ERR(gss_proc_root)) {
+		rc = PTR_ERR(gss_proc_root);
 		gss_proc_root = NULL;
-		GOTO(err_out, rc = PTR_ERR(gss_proc_root));
+		GOTO(err_out, rc);
 	}
 
 	gss_proc_lk = lprocfs_register("lgss_keyring", gss_proc_root,
 				       gss_lk_lprocfs_vars, NULL);
 	if (IS_ERR(gss_proc_lk)) {
+		rc = PTR_ERR(gss_proc_lk);
 		gss_proc_lk = NULL;
-		GOTO(err_out, rc = PTR_ERR(gss_proc_root));
+		GOTO(err_out, rc);
 	}
 
 	return 0;

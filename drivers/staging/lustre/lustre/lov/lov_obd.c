@@ -836,11 +836,11 @@ int lov_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	lprocfs_obd_setup(obd, lvars.obd_vars);
 #ifdef LPROCFS
 	{
-		int rc;
+		int rc1;
 
-		rc = lprocfs_seq_create(obd->obd_proc_entry, "target_obd",
+		rc1 = lprocfs_seq_create(obd->obd_proc_entry, "target_obd",
 					0444, &lov_proc_target_fops, obd);
-		if (rc)
+		if (rc1)
 			CWARN("Error adding the target_obd file\n");
 	}
 #endif

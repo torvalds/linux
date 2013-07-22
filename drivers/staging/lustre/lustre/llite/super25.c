@@ -214,7 +214,7 @@ static void __exit exit_lustre_lite(void)
 	ll_remote_perm_cachep = NULL;
 
 	kmem_cache_destroy(ll_file_data_slab);
-	if (proc_lustre_fs_root)
+	if (proc_lustre_fs_root && !IS_ERR(proc_lustre_fs_root))
 		lprocfs_remove(&proc_lustre_fs_root);
 }
 
