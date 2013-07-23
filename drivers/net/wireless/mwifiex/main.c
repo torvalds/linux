@@ -191,6 +191,9 @@ static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 {
 	s32 i;
 
+	if (adapter->if_ops.cleanup_if)
+		adapter->if_ops.cleanup_if(adapter);
+
 	del_timer(&adapter->cmd_timer);
 
 	/* Free private structures */
