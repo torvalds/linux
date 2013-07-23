@@ -207,7 +207,7 @@ struct mwifiex_ra_list_tbl {
 	u32 total_pkts_size;
 	u32 is_11n_enabled;
 	u16 max_amsdu;
-	u16 pkt_count;
+	u16 ba_pkt_count;
 	u8 ba_packet_thr;
 };
 

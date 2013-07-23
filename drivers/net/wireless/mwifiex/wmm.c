@@ -188,7 +188,7 @@ mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra)
 			ra_list, ra_list->is_11n_enabled);
 
 		if (ra_list->is_11n_enabled) {
-			ra_list->pkt_count = 0;
+			ra_list->ba_pkt_count = 0;
 			ra_list->ba_packet_thr =
 					      mwifiex_get_random_ba_threshold();
 		}
@@ -680,7 +680,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	skb_queue_tail(&ra_list->skb_head, skb);
 
 	ra_list->total_pkts_size += skb->len;
-	ra_list->pkt_count++;
+	ra_list->ba_pkt_count++;
 
 	if (atomic_read(&priv->wmm.highest_queued_prio) <
 						tos_to_tid_inv[tid_down])
@@ -1063,7 +1063,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 		skb_queue_tail(&ptr->skb_head, skb);
 
 		ptr->total_pkts_size += skb->len;
-		ptr->pkt_count++;
+		ptr->ba_pkt_count++;
 		tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
@@ -1224,7 +1224,7 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 		   mwifiex_send_single_packet() */
 	} else {
 		if (mwifiex_is_ampdu_allowed(priv, tid) &&
-		    ptr->pkt_count > ptr->ba_packet_thr) {
+		    ptr->ba_pkt_count > ptr->ba_packet_thr) {
 			if (mwifiex_space_avail_for_new_ba_stream(adapter)) {
 				mwifiex_create_ba_tbl(priv, ptr->ra, tid,
 						      BA_SETUP_INPROGRESS);
