@@ -527,7 +527,6 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc04000 0x1000>;
 			interrupts = <0 158 4>;
-			emptyfifo_hold_master = <1>;
 			clocks = <&per_base_clk>;
 			status = "disabled";
 		};
@@ -538,7 +537,6 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc05000 0x1000>;
 			interrupts = <0 159 4>;
-			emptyfifo_hold_master = <1>;
 			clocks = <&per_base_clk>;
 			status = "disabled";
 		};
@@ -549,7 +547,6 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc06000 0x1000>;
 			interrupts = <0 160 4>;
-			emptyfifo_hold_master = <1>;
 			clocks = <&per_base_clk>;
 			status = "disabled";
 		};
@@ -560,7 +557,6 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xffc07000 0x1000>;
 			interrupts = <0 161 4>;
-			emptyfifo_hold_master = <1>;
 			clocks = <&per_base_clk>;
 			status = "disabled";
 		};
