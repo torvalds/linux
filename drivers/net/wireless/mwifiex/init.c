@@ -691,7 +691,6 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 		if (!adapter->winner) {
 			dev_notice(adapter->dev,
 				   "FW already running! Skip FW dnld\n");
-			poll_num = MAX_MULTI_INTERFACE_POLL_TRIES;
 			goto poll_fw;
 		}
 	}

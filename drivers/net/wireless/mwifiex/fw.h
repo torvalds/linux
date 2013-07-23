@@ -85,9 +85,6 @@ enum KEY_TYPE_ID {
 #define WAPI_KEY_LEN			50
 
 #define MAX_POLL_TRIES			100
-
-#define MAX_MULTI_INTERFACE_POLL_TRIES  1000
-
 #define MAX_FIRMWARE_POLL_TRIES			100
 
 #define FIRMWARE_READY_SDIO				0xfedc
