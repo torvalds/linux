@@ -329,7 +329,7 @@ static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 	return;
 }
 
-static void xhci_msix_sync_irqs(struct xhci_hcd *xhci)
+static void __maybe_unused xhci_msix_sync_irqs(struct xhci_hcd *xhci)
 {
 	int i;
 
@@ -3898,7 +3898,7 @@ int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1)
  * Issue an Evaluate Context command to change the Maximum Exit Latency in the
  * slot context.  If that succeeds, store the new MEL in the xhci_virt_device.
  */
-static int xhci_change_max_exit_latency(struct xhci_hcd *xhci,
+static int __maybe_unused xhci_change_max_exit_latency(struct xhci_hcd *xhci,
 			struct usb_device *udev, u16 max_exit_latency)
 {
 	struct xhci_virt_device *virt_dev;
