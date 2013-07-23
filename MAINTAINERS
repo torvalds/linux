@@ -7216,6 +7216,7 @@ W:	http://lksctp.sourceforge.net
 S:	Maintained
 F:	Documentation/networking/sctp.txt
 F:	include/linux/sctp.h
+F:	include/uapi/linux/sctp.h
 F:	include/net/sctp/
 F:	net/sctp/
 
