@@ -1088,6 +1088,10 @@ static inline struct cg_proto *parent_cg_proto(struct proto *proto,
 }
 #endif
 
+static inline bool sk_stream_is_writeable(const struct sock *sk)
+{
+	return sk_stream_wspace(sk) >= sk_stream_min_wspace(sk);
+}
 
 static inline bool sk_has_memory_pressure(const struct sock *sk)
 {
