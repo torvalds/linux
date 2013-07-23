@@ -605,26 +605,24 @@ static void do_sync_core(void *info)
 static bool bp_patching_in_progress;
 static void *bp_int3_handler, *bp_int3_addr;
 
-static int int3_notify(struct notifier_block *self, unsigned long val, void *data)
+int poke_int3_handler(struct pt_regs *regs)
 {
-	struct die_args *args = data;
-
 	/* bp_patching_in_progress */
 	smp_rmb();
 
 	if (likely(!bp_patching_in_progress))
-		return NOTIFY_DONE;
+		return 0;
 
-	/* we are not interested in non-int3 faults and ring > 0 faults */
-	if (val != DIE_INT3 || !args->regs || user_mode_vm(args->regs)
-			    || args->regs->ip != (unsigned long)bp_int3_addr)
-		return NOTIFY_DONE;
+	if (user_mode_vm(regs) || regs->ip != (unsigned long)bp_int3_addr)
+		return 0;
 
 	/* set up the specified breakpoint handler */
-	args->regs->ip = (unsigned long) bp_int3_handler;
+	regs->ip = (unsigned long) bp_int3_handler;
 
-	return NOTIFY_STOP;
+	return 1;
+
 }
+
 /**
  * text_poke_bp() -- update instructions on live kernel on SMP
  * @addr:	address to patch
@@ -689,16 +687,3 @@ void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
 	return addr;
 }
 
-/* this one needs to run before anything else handles it as a
- * regular exception */
-static struct notifier_block int3_nb = {
-	.priority = 0x7fffffff,
-	.notifier_call = int3_notify
-};
-
-static int __init int3_init(void)
-{
-	return register_die_notifier(&int3_nb);
-}
-
-arch_initcall(int3_init);
