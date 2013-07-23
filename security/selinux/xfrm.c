@@ -155,42 +155,30 @@ static int selinux_xfrm_delete(struct xfrm_sec_ctx *ctx)
 int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
 {
 	int rc;
-	u32 sel_sid;
 
-	/* Context sid is either set to label or ANY_ASSOC */
-	if (ctx) {
-		if (!selinux_authorizable_ctx(ctx))
-			return -EINVAL;
-
-		sel_sid = ctx->ctx_sid;
-	} else
-		/*
-		 * All flows should be treated as polmatch'ing an
-		 * otherwise applicable "non-labeled" policy. This
-		 * would prevent inadvertent "leaks".
-		 */
+	/* All flows should be treated as polmatch'ing an otherwise applicable
+	 * "non-labeled" policy. This would prevent inadvertent "leaks". */
+	if (!ctx)
 		return 0;
 
-	rc = avc_has_perm(fl_secid, sel_sid, SECCLASS_ASSOCIATION,
-			  ASSOCIATION__POLMATCH,
-			  NULL);
+	/* Context sid is either set to label or ANY_ASSOC */
+	if (!selinux_authorizable_ctx(ctx))
+		return -EINVAL;
 
-	if (rc == -EACCES)
-		return -ESRCH;
-
-	return rc;
+	rc = avc_has_perm(fl_secid, ctx->ctx_sid,
+			  SECCLASS_ASSOCIATION, ASSOCIATION__POLMATCH, NULL);
+	return (rc == -EACCES ? -ESRCH : rc);
 }
 
 /*
  * LSM hook implementation that authorizes that a state matches
  * the given policy, flow combo.
  */
-
-int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *xp,
-			const struct flowi *fl)
+int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
+				      struct xfrm_policy *xp,
+				      const struct flowi *fl)
 {
 	u32 state_sid;
-	int rc;
 
 	if (!xp->security)
 		if (x->security)
@@ -213,18 +201,12 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x, struct xfrm_policy *
 	if (fl->flowi_secid != state_sid)
 		return 0;
 
-	rc = avc_has_perm(fl->flowi_secid, state_sid, SECCLASS_ASSOCIATION,
-			  ASSOCIATION__SENDTO,
-			  NULL)? 0:1;
-
-	/*
-	 * We don't need a separate SA Vs. policy polmatch check
-	 * since the SA is now of the same label as the flow and
-	 * a flow Vs. policy polmatch check had already happened
-	 * in selinux_xfrm_policy_lookup() above.
-	 */
-
-	return rc;
+	/* We don't need a separate SA Vs. policy polmatch check since the SA
+	 * is now of the same label as the flow and a flow Vs. policy polmatch
+	 * check had already happened in selinux_xfrm_policy_lookup() above. */
+	return (avc_has_perm(fl->flowi_secid, state_sid,
+			    SECCLASS_ASSOCIATION, ASSOCIATION__SENDTO,
+			    NULL) ? 0 : 1);
 }
 
 /*
