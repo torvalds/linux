@@ -16,7 +16,13 @@
 
 #include <net/netlabel.h>
 
-#define EBITMAP_UNIT_NUMS	((32 - sizeof(void *) - sizeof(u32))	\
+#ifdef CONFIG_64BIT
+#define	EBITMAP_NODE_SIZE	64
+#else
+#define	EBITMAP_NODE_SIZE	32
+#endif
+
+#define EBITMAP_UNIT_NUMS	((EBITMAP_NODE_SIZE-sizeof(void *)-sizeof(u32))\
 					/ sizeof(unsigned long))
 #define EBITMAP_UNIT_SIZE	BITS_PER_LONG
 #define EBITMAP_SIZE		(EBITMAP_UNIT_NUMS * EBITMAP_UNIT_SIZE)
