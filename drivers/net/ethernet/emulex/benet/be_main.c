@@ -2796,7 +2796,7 @@ done:
 
 static int be_clear(struct be_adapter *adapter)
 {
-	int i = 1;
+	int i;
 
 	if (adapter->flags & BE_FLAGS_WORKER_SCHEDULED) {
 		cancel_delayed_work_sync(&adapter->work);
@@ -2806,9 +2806,11 @@ static int be_clear(struct be_adapter *adapter)
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
-	for (; adapter->uc_macs > 0; adapter->uc_macs--, i++)
+	/* delete the primary mac along with the uc-mac list */
+	for (i = 0; i < (adapter->uc_macs + 1); i++)
 		be_cmd_pmac_del(adapter, adapter->if_handle,
-			adapter->pmac_id[i], 0);
+				adapter->pmac_id[i], 0);
+	adapter->uc_macs = 0;
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
 
