@@ -189,6 +189,7 @@ static const u16 sh_eth_offset_fast_rcar[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[RMCR]		= 0x0258,
 	[TFUCR]		= 0x0264,
 	[RFOCR]		= 0x0268,
+	[RMIIMODE]      = 0x026c,
 	[FCFTR]		= 0x0270,
 	[TRIMD]		= 0x027c,
 };
@@ -1123,6 +1124,9 @@ static int sh_eth_dev_init(struct net_device *ndev, bool start)
 	ret = sh_eth_reset(ndev);
 	if (ret)
 		goto out;
+
+	if (mdp->cd->rmiimode)
+		sh_eth_write(ndev, 0x1, RMIIMODE);
 
 	/* Descriptor format */
 	sh_eth_ring_format(ndev);
