@@ -1150,11 +1150,19 @@
 		ti,invert-autoidle-bit;
 	};
 
+	apll_pcie_in_clk_mux: apll_pcie_in_clk_mux@4ae06118 {
+		compatible = "ti,mux-clock";
+		clocks = <&dpll_pcie_ref_ck>, <&pciesref_acs_clk_ck>;
+		#clock-cells = <0>;
+		reg = <0x021c 0x4>;
+		ti,bit-shift = <7>;
+	};
+
 	apll_pcie_ck: apll_pcie_ck {
 		#clock-cells = <0>;
-		compatible = "ti,omap4-dpll-clock";
-		clocks = <&dpll_pcie_ref_ck>, <&dpll_pcie_ref_ck>;
-		reg = <0x0200>, <0x0204>, <0x020c>, <0x0208>;
+		compatible = "ti,dra7-apll-clock";
+		clocks = <&apll_pcie_in_clk_mux>, <&dpll_pcie_ref_ck>;
+		reg = <0x021c>, <0x0220>;
 	};
 
 	apll_pcie_clkvcoldo: apll_pcie_clkvcoldo {
