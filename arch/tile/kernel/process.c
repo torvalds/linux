@@ -74,19 +74,6 @@ void arch_release_thread_info(struct thread_info *info)
 {
 	struct single_step_state *step_state = info->step_state;
 
-#ifdef CONFIG_HARDWALL
-	/*
-	 * We free a thread_info from the context of the task that has
-	 * been scheduled next, so the original task is already dead.
-	 * Calling deactivate here just frees up the data structures.
-	 * If the task we're freeing held the last reference to a
-	 * hardwall fd, it would have been released prior to this point
-	 * anyway via exit_files(), and the hardwall_task.info pointers
-	 * would be NULL by now.
-	 */
-	hardwall_deactivate_all(info->task);
-#endif
-
 	if (step_state) {
 
 		/*
@@ -564,7 +551,15 @@ void flush_thread(void)
  */
 void exit_thread(void)
 {
-	/* Nothing */
+#ifdef CONFIG_HARDWALL
+	/*
+	 * Remove the task from the list of tasks that are associated
+	 * with any live hardwalls.  (If the task that is exiting held
+	 * the last reference to a hardwall fd, it would already have
+	 * been released and deactivated at this point.)
+	 */
+	hardwall_deactivate_all(current);
+#endif
 }
 
 void show_regs(struct pt_regs *regs)

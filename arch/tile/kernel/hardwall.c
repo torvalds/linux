@@ -540,6 +540,14 @@ static struct hardwall_info *hardwall_create(struct hardwall_type *hwt,
 		}
 	}
 
+	/*
+	 * Eliminate cpus that are not part of this Linux client.
+	 * Note that this allows for configurations that we might not want to
+	 * support, such as one client on every even cpu, another client on
+	 * every odd cpu.
+	 */
+	cpumask_and(&info->cpumask, &info->cpumask, cpu_online_mask);
+
 	/* Confirm it doesn't overlap and add it to the list. */
 	spin_lock_irqsave(&hwt->lock, flags);
 	list_for_each_entry(iter, &hwt->list, list) {
@@ -612,7 +620,7 @@ static int hardwall_activate(struct hardwall_info *info)
 
 /*
  * Deactivate a task's hardwall.  Must hold lock for hardwall_type.
- * This method may be called from free_task(), so we don't want to
+ * This method may be called from exit_thread(), so we don't want to
  * rely on too many fields of struct task_struct still being valid.
  * We assume the cpus_allowed, pid, and comm fields are still valid.
  */
