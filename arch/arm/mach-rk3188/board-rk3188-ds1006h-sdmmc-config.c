@@ -83,6 +83,9 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
     #define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN2_PA7
     #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
 
+	#define RK30SDK_WIFI_GPIO_WIFI_INT_B                RK30_PIN3_PD2
+    #define RK30SDK_WIFI_GPIO_WIFI_INT_B_ENABLE_VALUE   GPIO_HIGH
+
 #elif defined(CONFIG_MT5931_MT6622) || defined(CONFIG_MT5931)
 
 	#ifdef  CONFIG_MACH_RK3168_LR097 

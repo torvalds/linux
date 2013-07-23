@@ -3864,6 +3864,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 
 #endif
 	
+#ifndef CONFIG_BCM_OOB_ENABLED
 #if defined(CONFIG_RK29_SDIO_IRQ_FROM_GPIO)
     if(RK29_CTRL_SDIO1_ID == host->pdev->id)
     {
@@ -3899,6 +3900,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
     }
 
 #endif
+#endif //#ifndef CONFIG_BCM_OOB_ENABLE
     
     /* setup sdmmc1 wifi card detect change */
     if (pdata->register_status_notify) {
