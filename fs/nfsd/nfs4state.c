@@ -282,19 +282,14 @@ static unsigned int file_hashval(struct inode *ino)
 
 static struct hlist_head file_hashtbl[FILE_HASH_SIZE];
 
-static void __nfs4_file_get_access(struct nfs4_file *fp, int oflag)
-{
-	WARN_ON_ONCE(!(fp->fi_fds[oflag] || fp->fi_fds[O_RDWR]));
-	atomic_inc(&fp->fi_access[oflag]);
-}
-
 static void nfs4_file_get_access(struct nfs4_file *fp, int oflag)
 {
+	WARN_ON_ONCE(!fp->fi_fds[oflag]);
 	if (oflag == O_RDWR) {
-		__nfs4_file_get_access(fp, O_RDONLY);
-		__nfs4_file_get_access(fp, O_WRONLY);
+		atomic_inc(&fp->fi_access[O_RDONLY]);
+		atomic_inc(&fp->fi_access[O_WRONLY]);
 	} else
-		__nfs4_file_get_access(fp, oflag);
+		atomic_inc(&fp->fi_access[oflag]);
 }
 
 static void nfs4_file_put_fd(struct nfs4_file *fp, int oflag)
