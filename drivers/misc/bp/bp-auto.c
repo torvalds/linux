@@ -98,6 +98,16 @@ static int bp_request_gpio(struct bp_private_data *bp)
 
 	}
 	
+	if(bp->ops->bp_assert != BP_UNKNOW_DATA)
+	{
+		result = gpio_request(bp->ops->bp_assert, "bp_assert");
+		if(result)
+		{
+			printk("%s:fail to request gpio %d\n",__func__, bp->ops->bp_assert);
+			//return -1;
+		}
+	}
+	
 	if(bp->ops->bp_power != BP_UNKNOW_DATA)
 	{
 		result = gpio_request(bp->ops->bp_power, "bp_power");
@@ -200,7 +210,7 @@ static irqreturn_t bp_wake_up_irq(int irq, void *dev_id)
 {
 	
 	struct bp_private_data *bp = dev_id;
-	printk("<---%s:bp_id=%d--->\n",__FUNCTION__,bp->ops->bp_id);	
+	//printk("<---%s:bp_id=%d--->\n",__FUNCTION__,bp->ops->bp_id);	
 	if(bp->ops->bp_wake_ap){
 		bp->ops->bp_wake_ap(bp);
 	}	
@@ -367,7 +377,7 @@ static long bp_dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		case BP_IOCTL_GET_IMEI:
 			printk("BP_IMEI_READ\n");
 			GetSNSectorInfo(SectorBuffer); 
-			if(copy_to_user(argp, &(SectorBuffer[451]), 16))  // IMEIo¨®¡ä¨®451??¨°??a¨º?¦Ì?16bytes¡ê?¦Ì¨²¨°???byte?a3¡è?¨¨1¨¬?¡§?a15
+			if(copy_to_user(argp, &(SectorBuffer[451]), 16))  // IMEIo¡§???¡§?451??¡§¡ã??a¡§o?|¨¬?16bytes?¨º?|¨¬¡§2¡§¡ã???byte?a3?¨¨?¡§¡§1¡§???¡ì?a15
 			{
 				printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
 				return -EFAULT;
@@ -416,14 +426,21 @@ static ssize_t bp_status_write(struct class *cls, struct class_attribute *attr, 
 			if(bp->ops->active)
 			bp->ops->active(bp, 0);
 			break;		
-			
+		case 2://power en gpio low
+			if(bp->ops->active)
+			bp->ops->active(bp, 2);
+			break;
+		case 3://power en gpio high
+			if(bp->ops->active)
+			bp->ops->active(bp, 3);
+			break;
 		default:
 			break;
 		}
 	}	   
 	return result; 
 }
-//static CLASS_ATTR(bp_status, 0777, bp_status_read, bp_status_write);
+static CLASS_ATTR(bp_status, 0777, bp_status_read, bp_status_write);
 static int bp_probe(struct platform_device *pdev)
 {
 	struct bp_platform_data *pdata = pdev->dev.platform_data;
@@ -473,7 +490,7 @@ static int bp_probe(struct platform_device *pdev)
                 bp->ops->init(bp);
 	bp->ops->irq = 0;
 	wake_lock_init(&bp->bp_wakelock, WAKE_LOCK_SUSPEND, "bp_wakelock");
-	if((bp->ops->bp_wakeup_ap) && (bp->ops->trig != BP_UNKNOW_DATA))
+	if((bp->ops->bp_wakeup_ap != BP_UNKNOW_DATA) && (bp->ops->trig != BP_UNKNOW_DATA))
 	{
 		irq = gpio_to_irq(bp->ops->bp_wakeup_ap);
 		result = request_irq(irq, bp_wake_up_irq, bp->ops->trig, "bp_wakeup_ap", bp);
@@ -619,12 +636,12 @@ static struct platform_driver bp_driver = {
 static int __init bp_init(void)
 {
 	int ret ;
-	//bp_class = class_create(THIS_MODULE, "bp-auto");
-	//ret =  class_create_file(bp_class, &class_attr_bp_status);
-	//if (ret)
-	//{
-	//	printk("Fail to create class bp-auto\n");
-	//}
+	bp_class = class_create(THIS_MODULE, "bp-auto");
+	ret =  class_create_file(bp_class, &class_attr_bp_status);
+	if (ret)
+	{
+		printk("Fail to create class bp-auto\n");
+	}
 	return platform_driver_register(&bp_driver);
 }
 

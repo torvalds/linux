@@ -22,6 +22,10 @@ bool "modem sew290"
 config BP_AUTO_U7501
 bool "modem u7501"
         default n
+	
 config BP_AUTO_U5501
 bool "modem u5501"
+
+config BP_AUTO_AW706
+bool "modem aw706"
         default n
