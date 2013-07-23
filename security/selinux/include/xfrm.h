@@ -76,10 +76,9 @@ static inline void selinux_xfrm_notify_policyload(void)
 }
 #endif
 
-static inline void selinux_skb_xfrm_sid(struct sk_buff *skb, u32 *sid)
+static inline int selinux_skb_xfrm_sid(struct sk_buff *skb, u32 *sid)
 {
-	int err = selinux_xfrm_decode_session(skb, sid, 0);
-	BUG_ON(err);
+	return selinux_xfrm_decode_session(skb, sid, 0);
 }
 
 #endif /* _SELINUX_XFRM_H_ */
