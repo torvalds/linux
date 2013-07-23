@@ -1924,6 +1924,8 @@ extern int be_cmd_get_fn_privileges(struct be_adapter *adapter,
 extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 				    bool *pmac_id_active, u32 *pmac_id,
 				    u8 domain);
+extern int be_cmd_get_active_mac(struct be_adapter *adapter, u32 pmac_id,
+				 u8 *mac);
 extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 						u8 mac_count, u32 domain);
 extern int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,

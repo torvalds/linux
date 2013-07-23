@@ -247,54 +247,54 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 static int be_mac_addr_set(struct net_device *netdev, void *p)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->pdev->dev;
 	struct sockaddr *addr = p;
-	int status = 0;
-	u8 current_mac[ETH_ALEN];
-	u32 pmac_id = adapter->pmac_id[0];
-	bool active_mac = true;
+	int status;
+	u8 mac[ETH_ALEN];
+	u32 old_pmac_id = adapter->pmac_id[0], curr_pmac_id = 0;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	/* For BE VF, MAC address is already activated by PF.
-	 * Hence only operation left is updating netdev->devaddr.
-	 * Update it if user is passing the same MAC which was used
-	 * during configuring VF MAC from PF(Hypervisor).
+	/* The PMAC_ADD cmd may fail if the VF doesn't have FILTMGMT
+	 * privilege or if PF did not provision the new MAC address.
+	 * On BE3, this cmd will always fail if the VF doesn't have the
+	 * FILTMGMT privilege. This failure is OK, only if the PF programmed
+	 * the MAC for the VF.
 	 */
-	if (!lancer_chip(adapter) && !be_physfn(adapter)) {
-		status = be_cmd_mac_addr_query(adapter, current_mac,
-					       false, adapter->if_handle, 0);
-		if (!status && !memcmp(current_mac, addr->sa_data, ETH_ALEN))
-			goto done;
-		else
-			goto err;
+	status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
+				 adapter->if_handle, &adapter->pmac_id[0], 0);
+	if (!status) {
+		curr_pmac_id = adapter->pmac_id[0];
+
+		/* Delete the old programmed MAC. This call may fail if the
+		 * old MAC was already deleted by the PF driver.
+		 */
+		if (adapter->pmac_id[0] != old_pmac_id)
+			be_cmd_pmac_del(adapter, adapter->if_handle,
+					old_pmac_id, 0);
 	}
 
-	if (!memcmp(addr->sa_data, netdev->dev_addr, ETH_ALEN))
-		goto done;
-
-	/* For Lancer check if any MAC is active.
-	 * If active, get its mac id.
+	/* Decide if the new MAC is successfully activated only after
+	 * querying the FW
 	 */
-	if (lancer_chip(adapter) && !be_physfn(adapter))
-		be_cmd_get_mac_from_list(adapter, current_mac, &active_mac,
-					 &pmac_id, 0);
-
-	status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
-				 adapter->if_handle,
-				 &adapter->pmac_id[0], 0);
-
+	status = be_cmd_get_active_mac(adapter, curr_pmac_id, mac);
 	if (status)
 		goto err;
 
-	if (active_mac)
-		be_cmd_pmac_del(adapter, adapter->if_handle,
-				pmac_id, 0);
-done:
+	/* The MAC change did not happen, either due to lack of privilege
+	 * or PF didn't pre-provision.
+	 */
+	if (memcmp(addr->sa_data, mac, ETH_ALEN)) {
+		status = -EPERM;
+		goto err;
+	}
+
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	dev_info(dev, "MAC address changed to %pM\n", mac);
 	return 0;
 err:
-	dev_err(&adapter->pdev->dev, "MAC %pM set Failed\n", addr->sa_data);
+	dev_warn(dev, "MAC address change to %pM failed\n", addr->sa_data);
 	return status;
 }
 

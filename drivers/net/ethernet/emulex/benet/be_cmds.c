@@ -2606,9 +2606,12 @@ err:
 	return status;
 }
 
-/* Uses synchronous MCCQ */
+/* pmac_id_valid: true => pmac_id is supplied and MAC address is requested.
+ * pmac_id_valid: false => pmac_id or MAC address is requested.
+ *		  If pmac_id is returned, pmac_id_valid is returned as true
+ */
 int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
-			     bool *pmac_id_active, u32 *pmac_id, u8 domain)
+			     bool *pmac_id_valid, u32 *pmac_id, u8 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_mac_list *req;
@@ -2644,12 +2647,25 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 			       get_mac_list_cmd.size, wrb, &get_mac_list_cmd);
 	req->hdr.domain = domain;
 	req->mac_type = MAC_ADDRESS_TYPE_NETWORK;
-	req->perm_override = 1;
+	if (*pmac_id_valid) {
+		req->mac_id = cpu_to_le32(*pmac_id);
+		req->iface_id = cpu_to_le16(adapter->if_handle);
+		req->perm_override = 0;
+	} else {
+		req->perm_override = 1;
+	}
 
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_get_mac_list *resp =
 						get_mac_list_cmd.va;
+
+		if (*pmac_id_valid) {
+			memcpy(mac, resp->macid_macaddr.mac_addr_id.macaddr,
+			       ETH_ALEN);
+			goto out;
+		}
+
 		mac_count = resp->true_mac_count + resp->pseudo_mac_count;
 		/* Mac list returned could contain one or more active mac_ids
 		 * or one or more true or pseudo permanant mac addresses.
@@ -2667,14 +2683,14 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 			 * is 6 bytes
 			 */
 			if (mac_addr_size == sizeof(u32)) {
-				*pmac_id_active = true;
+				*pmac_id_valid = true;
 				mac_id = mac_entry->mac_addr_id.s_mac_id.mac_id;
 				*pmac_id = le32_to_cpu(mac_id);
 				goto out;
 			}
 		}
 		/* If no active mac_id found, return first mac addr */
-		*pmac_id_active = false;
+		*pmac_id_valid = false;
 		memcpy(mac, resp->macaddr_list[0].mac_addr_id.macaddr,
 								ETH_ALEN);
 	}
@@ -2684,6 +2700,23 @@ out:
 	pci_free_consistent(adapter->pdev, get_mac_list_cmd.size,
 			get_mac_list_cmd.va, get_mac_list_cmd.dma);
 	return status;
+}
+
+int be_cmd_get_active_mac(struct be_adapter *adapter, u32 curr_pmac_id, u8 *mac)
+{
+	int status;
+	bool active = true;
+
+	/* When SH FW is ready, SH should use Lancer path too */
+	if (lancer_chip(adapter)) {
+		/* Fetch the MAC address using pmac_id */
+		status = be_cmd_get_mac_from_list(adapter, mac, &active,
+						  &curr_pmac_id, 0);
+		return status;
+	} else {
+		return be_cmd_mac_addr_query(adapter, mac, false,
+					     adapter->if_handle, curr_pmac_id);
+	}
 }
 
 /* Uses synchronous MCCQ */
