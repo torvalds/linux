@@ -1339,6 +1339,10 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 	if (!status) {
 		struct be_cmd_resp_if_create *resp = embedded_payload(wrb);
 		*if_handle = le32_to_cpu(resp->interface_id);
+
+		/* Hack to retrieve VF's pmac-id on BE3 */
+		if (BE3_chip(adapter) && !be_physfn(adapter))
+			adapter->pmac_id[0] = le32_to_cpu(resp->pmac_id);
 	}
 
 err:
