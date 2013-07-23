@@ -2258,7 +2258,17 @@ void i915_gem_restore_fences(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
-		i915_gem_write_fence(dev, i, reg->obj);
+
+		/*
+		 * Commit delayed tiling changes if we have an object still
+		 * attached to the fence, otherwise just clear the fence.
+		 */
+		if (reg->obj) {
+			i915_gem_object_update_fence(reg->obj, reg,
+						     reg->obj->tiling_mode);
+		} else {
+			i915_gem_write_fence(dev, i, NULL);
+		}
 	}
 }
 
@@ -2795,6 +2805,10 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 	if (i915_gem_object_needs_mb(dev_priv->fence_regs[reg].obj))
 		mb();
 
+	WARN(obj && (!obj->stride || !obj->tiling_mode),
+	     "bogus fence setup with stride: 0x%x, tiling mode: %i\n",
+	     obj->stride, obj->tiling_mode);
+
 	switch (INTEL_INFO(dev)->gen) {
 	case 7:
 	case 6:
@@ -2836,6 +2850,7 @@ static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 		fence->obj = NULL;
 		list_del_init(&fence->lru_list);
 	}
+	obj->fence_dirty = false;
 }
 
 static int
@@ -2965,7 +2980,6 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 		return 0;
 
 	i915_gem_object_update_fence(obj, reg, enable);
-	obj->fence_dirty = false;
 
 	return 0;
 }
