@@ -1121,6 +1121,7 @@
 		ocram: sram@f8000000 {
 			compatible = "mmio-sram";
 			reg = <0xf8000000 0x20000>;
+			clocks = <&clks 186>;
 		};
 	};
 };
