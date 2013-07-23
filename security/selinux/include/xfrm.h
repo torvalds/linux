@@ -10,7 +10,7 @@
 #include <net/flow.h>
 
 int selinux_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
-			      struct xfrm_user_sec_ctx *sec_ctx);
+			      struct xfrm_user_sec_ctx *uctx);
 int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
 			      struct xfrm_sec_ctx **new_ctxp);
 void selinux_xfrm_policy_free(struct xfrm_sec_ctx *ctx);
@@ -23,18 +23,8 @@ void selinux_xfrm_state_free(struct xfrm_state *x);
 int selinux_xfrm_state_delete(struct xfrm_state *x);
 int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
 int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
-			struct xfrm_policy *xp, const struct flowi *fl);
-
-/*
- * Extract the security blob from the sock (it's actually on the socket)
- */
-static inline struct inode_security_struct *get_sock_isec(struct sock *sk)
-{
-	if (!sk->sk_socket)
-		return NULL;
-
-	return SOCK_INODE(sk->sk_socket)->i_security;
-}
+				      struct xfrm_policy *xp,
+				      const struct flowi *fl);
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 extern atomic_t selinux_xfrm_refcount;
@@ -74,7 +64,8 @@ static inline int selinux_xfrm_postroute_last(u32 sk_sid, struct sk_buff *skb,
 	return 0;
 }
 
-static inline int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
+static inline int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid,
+					      int ckall)
 {
 	*sid = SECSID_NULL;
 	return 0;
