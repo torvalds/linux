@@ -4949,8 +4949,7 @@ static const struct file_operations snapshot_raw_fops = {
 
 static int tracing_buffers_open(struct inode *inode, struct file *filp)
 {
-	struct trace_cpu *tc = inode->i_private;
-	struct trace_array *tr = tc->tr;
+	struct trace_array *tr = inode->i_private;
 	struct ftrace_buffer_info *info;
 	int ret;
 
@@ -4969,7 +4968,7 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 	mutex_lock(&trace_types_lock);
 
 	info->iter.tr		= tr;
-	info->iter.cpu_file	= tc->cpu;
+	info->iter.cpu_file	= tracing_get_cpu(inode);
 	info->iter.trace	= tr->current_trace;
 	info->iter.trace_buffer = &tr->trace_buffer;
 	info->spare		= NULL;
@@ -5576,7 +5575,7 @@ tracing_init_debugfs_percpu(struct trace_array *tr, long cpu)
 				&data->trace_cpu, cpu, &tracing_fops);
 
 	trace_create_cpu_file("trace_pipe_raw", 0444, d_cpu,
-				&data->trace_cpu, cpu, &tracing_buffers_fops);
+				tr, cpu, &tracing_buffers_fops);
 
 	trace_create_cpu_file("stats", 0444, d_cpu,
 				&data->trace_cpu, cpu, &tracing_stats_fops);
@@ -5589,7 +5588,7 @@ tracing_init_debugfs_percpu(struct trace_array *tr, long cpu)
 				&data->trace_cpu, cpu, &snapshot_fops);
 
 	trace_create_cpu_file("snapshot_raw", 0444, d_cpu,
-				&data->trace_cpu, cpu, &snapshot_raw_fops);
+				tr, cpu, &snapshot_raw_fops);
 #endif
 }
 
