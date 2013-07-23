@@ -61,6 +61,12 @@
 	};
 
 	soc {
+		ocram: sram@00900000 {
+			compatible = "mmio-sram";
+			reg = <0x00900000 0x40000>;
+			clocks = <&clks 142>;
+		};
+
 		aips-bus@02000000 { /* AIPS1 */
 			spba-bus@02000000 {
 				ecspi5: ecspi@02018000 {

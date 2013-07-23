@@ -32,6 +32,12 @@
 	};
 
 	soc {
+		ocram: sram@00900000 {
+			compatible = "mmio-sram";
+			reg = <0x00900000 0x20000>;
+			clocks = <&clks 142>;
+		};
+
 		aips1: aips-bus@02000000 {
 			iomuxc: iomuxc@020e0000 {
 				compatible = "fsl,imx6dl-iomuxc";

@@ -99,12 +99,6 @@
 			status = "disabled";
 		};
 
-		ocram: sram@00900000 {
-			compatible = "mmio-sram";
-			reg = <0x00900000 0x3f000>;
-			clocks = <&clks 142>;
-		};
-
 		timer@00a00600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;
