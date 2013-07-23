@@ -786,6 +786,13 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	return 0;
 }
 
+static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
+{
+	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
+
+	usb_set_intfdata(card->intf, NULL);
+}
+
 static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 				    struct mwifiex_fw_image *fw)
 {
@@ -978,6 +985,7 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 
 static struct mwifiex_if_ops usb_ops = {
 	.register_dev =		mwifiex_register_dev,
+	.unregister_dev =	mwifiex_unregister_dev,
 	.wakeup =		mwifiex_pm_wakeup_card,
 	.wakeup_complete =	mwifiex_pm_wakeup_card_complete,
 
