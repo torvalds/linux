@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <mach/irqs.h>
-#include <mach/r8a73a4.h>
 
 #include "core.h"
 #include "sh_pfc.h"
