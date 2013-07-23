@@ -77,39 +77,13 @@ void __init vexpress_dt_smp_map_io(void)
 		WARN_ON(of_scan_flat_dt(vexpress_dt_find_scu, NULL));
 }
 
-static int __init vexpress_dt_cpus_num(unsigned long node, const char *uname,
-		int depth, void *data)
-{
-	static int prev_depth = -1;
-	static int nr_cpus = -1;
-
-	if (prev_depth > depth && nr_cpus > 0)
-		return nr_cpus;
-
-	if (nr_cpus < 0 && strcmp(uname, "cpus") == 0)
-		nr_cpus = 0;
-
-	if (nr_cpus >= 0) {
-		const char *device_type = of_get_flat_dt_prop(node,
-				"device_type", NULL);
-
-		if (device_type && strcmp(device_type, "cpu") == 0)
-			nr_cpus++;
-	}
-
-	prev_depth = depth;
-
-	return 0;
-}
-
 static void __init vexpress_dt_smp_init_cpus(void)
 {
 	int ncores = 0, i;
 
 	switch (vexpress_dt_scu) {
 	case GENERIC_SCU:
-		ncores = of_scan_flat_dt(vexpress_dt_cpus_num, NULL);
-		break;
+		return;
 	case CORTEX_A9_SCU:
 		ncores = scu_get_core_count(vexpress_dt_cortex_a9_scu_base);
 		break;
@@ -133,12 +107,9 @@ static void __init vexpress_dt_smp_init_cpus(void)
 
 static void __init vexpress_dt_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
 
 	switch (vexpress_dt_scu) {
 	case GENERIC_SCU:
-		for (i = 0; i < max_cpus; i++)
-			set_cpu_present(i, true);
 		break;
 	case CORTEX_A9_SCU:
 		scu_enable(vexpress_dt_cortex_a9_scu_base);
