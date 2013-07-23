@@ -36,7 +36,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/clk-provider.h>
+#include <linux/clk.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 #include "core.h"
