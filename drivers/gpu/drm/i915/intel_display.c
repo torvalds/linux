@@ -5922,6 +5922,142 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	return true;
 }
 
+static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
+	struct intel_crtc *crtc;
+	unsigned long irqflags;
+	uint32_t val, pch_hpd_mask;
+
+	pch_hpd_mask = SDE_PORTB_HOTPLUG_CPT | SDE_PORTC_HOTPLUG_CPT;
+	if (!(dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE))
+		pch_hpd_mask |= SDE_PORTD_HOTPLUG_CPT | SDE_CRT_HOTPLUG_CPT;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
+		WARN(crtc->base.enabled, "CRTC for pipe %c enabled\n",
+		     pipe_name(crtc->pipe));
+
+	WARN(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on\n");
+	WARN(plls->spll_refcount, "SPLL enabled\n");
+	WARN(plls->wrpll1_refcount, "WRPLL1 enabled\n");
+	WARN(plls->wrpll2_refcount, "WRPLL2 enabled\n");
+	WARN(I915_READ(PCH_PP_STATUS) & PP_ON, "Panel power on\n");
+	WARN(I915_READ(BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
+	     "CPU PWM1 enabled\n");
+	WARN(I915_READ(HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
+	     "CPU PWM2 enabled\n");
+	WARN(I915_READ(BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
+	     "PCH PWM1 enabled\n");
+	WARN(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
+	     "Utility pin enabled\n");
+	WARN(I915_READ(PCH_GTC_CTL) & PCH_GTC_ENABLE, "PCH GTC enabled\n");
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	val = I915_READ(DEIMR);
+	WARN((val & ~DE_PCH_EVENT_IVB) != val,
+	     "Unexpected DEIMR bits enabled: 0x%x\n", val);
+	val = I915_READ(SDEIMR);
+	WARN((val & ~pch_hpd_mask) != val,
+	     "Unexpected SDEIMR bits enabled: 0x%x\n", val);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+/*
+ * This function implements pieces of two sequences from BSpec:
+ * - Sequence for display software to disable LCPLL
+ * - Sequence for display software to allow package C8+
+ * The steps implemented here are just the steps that actually touch the LCPLL
+ * register. Callers should take care of disabling all the display engine
+ * functions, doing the mode unset, fixing interrupts, etc.
+ */
+void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
+		       bool switch_to_fclk, bool allow_power_down)
+{
+	uint32_t val;
+
+	assert_can_disable_lcpll(dev_priv);
+
+	val = I915_READ(LCPLL_CTL);
+
+	if (switch_to_fclk) {
+		val |= LCPLL_CD_SOURCE_FCLK;
+		I915_WRITE(LCPLL_CTL, val);
+
+		if (wait_for_atomic_us(I915_READ(LCPLL_CTL) &
+				       LCPLL_CD_SOURCE_FCLK_DONE, 1))
+			DRM_ERROR("Switching to FCLK failed\n");
+
+		val = I915_READ(LCPLL_CTL);
+	}
+
+	val |= LCPLL_PLL_DISABLE;
+	I915_WRITE(LCPLL_CTL, val);
+	POSTING_READ(LCPLL_CTL);
+
+	if (wait_for((I915_READ(LCPLL_CTL) & LCPLL_PLL_LOCK) == 0, 1))
+		DRM_ERROR("LCPLL still locked\n");
+
+	val = I915_READ(D_COMP);
+	val |= D_COMP_COMP_DISABLE;
+	I915_WRITE(D_COMP, val);
+	POSTING_READ(D_COMP);
+	ndelay(100);
+
+	if (wait_for((I915_READ(D_COMP) & D_COMP_RCOMP_IN_PROGRESS) == 0, 1))
+		DRM_ERROR("D_COMP RCOMP still in progress\n");
+
+	if (allow_power_down) {
+		val = I915_READ(LCPLL_CTL);
+		val |= LCPLL_POWER_DOWN_ALLOW;
+		I915_WRITE(LCPLL_CTL, val);
+		POSTING_READ(LCPLL_CTL);
+	}
+}
+
+/*
+ * Fully restores LCPLL, disallowing power down and switching back to LCPLL
+ * source.
+ */
+void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
+{
+	uint32_t val;
+
+	val = I915_READ(LCPLL_CTL);
+
+	if ((val & (LCPLL_PLL_LOCK | LCPLL_PLL_DISABLE | LCPLL_CD_SOURCE_FCLK |
+		    LCPLL_POWER_DOWN_ALLOW)) == LCPLL_PLL_LOCK)
+		return;
+
+	if (val & LCPLL_POWER_DOWN_ALLOW) {
+		val &= ~LCPLL_POWER_DOWN_ALLOW;
+		I915_WRITE(LCPLL_CTL, val);
+	}
+
+	val = I915_READ(D_COMP);
+	val |= D_COMP_COMP_FORCE;
+	val &= ~D_COMP_COMP_DISABLE;
+	I915_WRITE(D_COMP, val);
+	I915_READ(D_COMP);
+
+	val = I915_READ(LCPLL_CTL);
+	val &= ~LCPLL_PLL_DISABLE;
+	I915_WRITE(LCPLL_CTL, val);
+
+	if (wait_for(I915_READ(LCPLL_CTL) & LCPLL_PLL_LOCK, 5))
+		DRM_ERROR("LCPLL not locked yet\n");
+
+	if (val & LCPLL_CD_SOURCE_FCLK) {
+		val = I915_READ(LCPLL_CTL);
+		val &= ~LCPLL_CD_SOURCE_FCLK;
+		I915_WRITE(LCPLL_CTL, val);
+
+		if (wait_for_atomic_us((I915_READ(LCPLL_CTL) &
+					LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
+			DRM_ERROR("Switching back to LCPLL failed\n");
+	}
+}
+
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
 	bool enable = false;
