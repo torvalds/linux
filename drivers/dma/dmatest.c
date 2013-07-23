@@ -1131,7 +1131,6 @@ static const struct file_operations dtf_results_fops = {
 static int dmatest_register_dbgfs(struct dmatest_info *info)
 {
 	struct dentry *d;
-	int ret = -ENOMEM;
 
 	d = debugfs_create_dir("dmatest", NULL);
 	if (IS_ERR(d))
@@ -1142,24 +1141,18 @@ static int dmatest_register_dbgfs(struct dmatest_info *info)
 	info->root = d;
 
 	/* Run or stop threaded test */
-	d = debugfs_create_file("run", S_IWUSR | S_IRUGO, info->root,
-				info, &dtf_run_fops);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
+	debugfs_create_file("run", S_IWUSR | S_IRUGO, info->root, info,
+			    &dtf_run_fops);
 
 	/* Results of test in progress */
-	d = debugfs_create_file("results", S_IRUGO, info->root, info,
-				&dtf_results_fops);
-	if (IS_ERR_OR_NULL(d))
-		goto err_node;
+	debugfs_create_file("results", S_IRUGO, info->root, info,
+			    &dtf_results_fops);
 
 	return 0;
 
-err_node:
-	debugfs_remove_recursive(info->root);
 err_root:
 	pr_err("dmatest: Failed to initialize debugfs\n");
-	return ret;
+	return -ENOMEM;
 }
 
 static int __init dmatest_init(void)
