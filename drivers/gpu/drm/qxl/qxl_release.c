@@ -118,7 +118,9 @@ static int qxl_release_bo_alloc(struct qxl_device *qdev,
 				struct qxl_bo **bo)
 {
 	int ret;
-	ret = qxl_bo_create(qdev, PAGE_SIZE, false, QXL_GEM_DOMAIN_VRAM, NULL,
+	/* pin releases bo's they are too messy to evict */
+	ret = qxl_bo_create(qdev, PAGE_SIZE, false, true,
+			    QXL_GEM_DOMAIN_VRAM, NULL,
 			    bo);
 	return ret;
 }
@@ -216,11 +218,6 @@ int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 			mutex_unlock(&qdev->release_mutex);
 			return ret;
 		}
-
-		/* pin releases bo's they are too messy to evict */
-		ret = qxl_bo_reserve(qdev->current_release_bo[cur_idx], false);
-		qxl_bo_pin(qdev->current_release_bo[cur_idx], QXL_GEM_DOMAIN_VRAM, NULL);
-		qxl_bo_unreserve(qdev->current_release_bo[cur_idx]);
 	}
 
 	bo = qxl_bo_ref(qdev->current_release_bo[cur_idx]);
