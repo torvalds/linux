@@ -215,34 +215,35 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
  */
 int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
 {
+	u32 sid_session = SECSID_NULL;
 	struct sec_path *sp;
 
-	*sid = SECSID_NULL;
-
 	if (skb == NULL)
-		return 0;
+		goto out;
 
 	sp = skb->sp;
 	if (sp) {
-		int i, sid_set = 0;
+		int i;
 
-		for (i = sp->len-1; i >= 0; i--) {
+		for (i = sp->len - 1; i >= 0; i--) {
 			struct xfrm_state *x = sp->xvec[i];
 			if (selinux_authorizable_xfrm(x)) {
 				struct xfrm_sec_ctx *ctx = x->security;
 
-				if (!sid_set) {
-					*sid = ctx->ctx_sid;
-					sid_set = 1;
-
+				if (sid_session == SECSID_NULL) {
+					sid_session = ctx->ctx_sid;
 					if (!ckall)
-						break;
-				} else if (*sid != ctx->ctx_sid)
+						goto out;
+				} else if (sid_session != ctx->ctx_sid) {
+					*sid = SECSID_NULL;
 					return -EINVAL;
+				}
 			}
 		}
 	}
 
+out:
+	*sid = sid_session;
 	return 0;
 }
 
