@@ -235,6 +235,14 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	kfree(card);
 }
 
+static void mwifiex_pcie_shutdown(struct pci_dev *pdev)
+{
+	user_rmmod = 1;
+	mwifiex_pcie_remove(pdev);
+
+	return;
+}
+
 static DEFINE_PCI_DEVICE_TABLE(mwifiex_ids) = {
 	{
 		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8766P,
@@ -268,6 +276,7 @@ static struct pci_driver __refdata mwifiex_pcie = {
 		.pm = &mwifiex_pcie_pm_ops,
 	},
 #endif
+	.shutdown = mwifiex_pcie_shutdown,
 };
 
 /*
