@@ -240,16 +240,20 @@ mwifiex_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
 				     u16 frame_type, bool reg)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+	u32 mask;
 
 	if (reg)
-		priv->mgmt_frame_mask |= BIT(frame_type >> 4);
+		mask = priv->mgmt_frame_mask | BIT(frame_type >> 4);
 	else
-		priv->mgmt_frame_mask &= ~BIT(frame_type >> 4);
+		mask = priv->mgmt_frame_mask & ~BIT(frame_type >> 4);
 
-	mwifiex_send_cmd_async(priv, HostCmd_CMD_MGMT_FRAME_REG,
-			       HostCmd_ACT_GEN_SET, 0, &priv->mgmt_frame_mask);
-
-	wiphy_dbg(wiphy, "info: mgmt frame registered\n");
+	if (mask != priv->mgmt_frame_mask) {
+		priv->mgmt_frame_mask = mask;
+		mwifiex_send_cmd_async(priv, HostCmd_CMD_MGMT_FRAME_REG,
+				       HostCmd_ACT_GEN_SET, 0,
+				       &priv->mgmt_frame_mask);
+		wiphy_dbg(wiphy, "info: mgmt frame registered\n");
+	}
 }
 
 /*
