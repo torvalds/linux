@@ -1075,9 +1075,6 @@ static int u300_pmx_probe(struct platform_device *pdev)
 	upmx->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
 	upmx->virtbase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(upmx->virtbase))
 		return PTR_ERR(upmx->virtbase);
