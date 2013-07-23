@@ -8,13 +8,13 @@
 #-
 #---------------------------------------------
 menuconfig USB_SW_SUNXI_USB
-    tristate "SUNXI USB2.0 Dual Role Controller support"
+    boolean "SUNXI USB2.0 Dual Role Controller support"
     depends on (ARCH_SUN4I || ARCH_SUN5I)
     help
         SUNXI USB2.0 Dual Role Controller
 
 config USB_SW_SUNXI_USB_MANAGER
-    tristate "SUNXI USB2.0 Manager"
+    boolean "SUNXI USB2.0 Manager"
     depends on USB_SW_SUNXI_USB
     help
         manager all usb controller.
