@@ -279,26 +279,28 @@ static void __init sunxi_mux_clk_setup(struct device_node *node,
  * sunxi_divider_clk_setup() - Setup function for simple divider clocks
  */
 
-#define SUNXI_DIVISOR_WIDTH	2
-
 struct div_data {
-	u8 shift;
-	u8 pow;
+	u8	shift;
+	u8	pow;
+	u8	width;
 };
 
 static const __initconst struct div_data sun4i_axi_data = {
-	.shift = 0,
-	.pow = 0,
+	.shift	= 0,
+	.pow	= 0,
+	.width	= 2,
 };
 
 static const __initconst struct div_data sun4i_ahb_data = {
-	.shift = 4,
-	.pow = 1,
+	.shift	= 4,
+	.pow	= 1,
+	.width	= 2,
 };
 
 static const __initconst struct div_data sun4i_apb0_data = {
-	.shift = 8,
-	.pow = 1,
+	.shift	= 8,
+	.pow	= 1,
+	.width	= 2,
 };
 
 static void __init sunxi_divider_clk_setup(struct device_node *node,
@@ -314,7 +316,7 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 	clk_parent = of_clk_get_parent_name(node, 0);
 
 	clk = clk_register_divider(NULL, clk_name, clk_parent, 0,
-				   reg, data->shift, SUNXI_DIVISOR_WIDTH,
+				   reg, data->shift, data->width,
 				   data->pow ? CLK_DIVIDER_POWER_OF_TWO : 0,
 				   &clk_lock);
 	if (clk) {
