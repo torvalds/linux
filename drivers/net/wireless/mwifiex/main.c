@@ -390,6 +390,17 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 }
 
 /*
+ * This function cancels all works in the queue and destroys
+ * the main workqueue.
+ */
+static void mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
+{
+	flush_workqueue(adapter->workqueue);
+	destroy_workqueue(adapter->workqueue);
+	adapter->workqueue = NULL;
+}
+
+/*
  * This function gets firmware and initializes it.
  *
  * The main initialization steps followed are -
@@ -398,7 +409,7 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
  */
 static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 {
-	int ret;
+	int ret, i;
 	char fmt[64];
 	struct mwifiex_private *priv;
 	struct mwifiex_adapter *adapter = context;
@@ -407,7 +418,7 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	if (!firmware) {
 		dev_err(adapter->dev,
 			"Failed to get firmware %s\n", adapter->fw_name);
-		goto done;
+		goto err_dnld_fw;
 	}
 
 	memset(&fw, 0, sizeof(struct mwifiex_fw_image));
@@ -420,7 +431,7 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	else
 		ret = mwifiex_dnld_fw(adapter, &fw);
 	if (ret == -1)
-		goto done;
+		goto err_dnld_fw;
 
 	dev_notice(adapter->dev, "WLAN FW is active\n");
 
@@ -432,13 +443,15 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	}
 
 	/* enable host interrupt after fw dnld is successful */
-	if (adapter->if_ops.enable_int)
-		adapter->if_ops.enable_int(adapter);
+	if (adapter->if_ops.enable_int) {
+		if (adapter->if_ops.enable_int(adapter))
+			goto err_dnld_fw;
+	}
 
 	adapter->init_wait_q_woken = false;
 	ret = mwifiex_init_fw(adapter);
 	if (ret == -1) {
-		goto done;
+		goto err_init_fw;
 	} else if (!ret) {
 		adapter->hw_status = MWIFIEX_HW_STATUS_READY;
 		goto done;
@@ -447,12 +460,12 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	wait_event_interruptible(adapter->init_wait_q,
 				 adapter->init_wait_q_woken);
 	if (adapter->hw_status != MWIFIEX_HW_STATUS_READY)
-		goto done;
+		goto err_init_fw;
 
 	priv = adapter->priv[MWIFIEX_BSS_ROLE_STA];
 	if (mwifiex_register_cfg80211(adapter)) {
 		dev_err(adapter->dev, "cannot register with cfg80211\n");
-		goto err_init_fw;
+		goto err_register_cfg80211;
 	}
 
 	rtnl_lock();
@@ -483,13 +496,39 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	goto done;
 
 err_add_intf:
-	mwifiex_del_virtual_intf(adapter->wiphy, priv->wdev);
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+
+		if (!priv)
+			continue;
+
+		if (priv->wdev && priv->netdev)
+			mwifiex_del_virtual_intf(adapter->wiphy, priv->wdev);
+	}
 	rtnl_unlock();
+err_register_cfg80211:
+	wiphy_unregister(adapter->wiphy);
+	wiphy_free(adapter->wiphy);
 err_init_fw:
 	if (adapter->if_ops.disable_int)
 		adapter->if_ops.disable_int(adapter);
+err_dnld_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
-	adapter->if_ops.unregister_dev(adapter);
+	if (adapter->if_ops.unregister_dev)
+		adapter->if_ops.unregister_dev(adapter);
+
+	if ((adapter->hw_status == MWIFIEX_HW_STATUS_FW_READY) ||
+	    (adapter->hw_status == MWIFIEX_HW_STATUS_READY)) {
+		pr_debug("info: %s: shutdown mwifiex\n", __func__);
+		adapter->init_wait_q_woken = false;
+
+		if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
+			wait_event_interruptible(adapter->init_wait_q,
+						 adapter->init_wait_q_woken);
+	}
+	adapter->surprise_removed = true;
+	mwifiex_terminate_workqueue(adapter);
+	mwifiex_free_adapter(adapter);
 done:
 	if (adapter->cal_data) {
 		release_firmware(adapter->cal_data);
@@ -497,6 +536,7 @@ done:
 	}
 	release_firmware(adapter->firmware);
 	complete(&adapter->fw_load);
+	up(adapter->card_sem);
 	return;
 }
 
@@ -807,18 +847,6 @@ static void mwifiex_main_work_queue(struct work_struct *work)
 }
 
 /*
- * This function cancels all works in the queue and destroys
- * the main workqueue.
- */
-static void
-mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
-{
-	flush_workqueue(adapter->workqueue);
-	destroy_workqueue(adapter->workqueue);
-	adapter->workqueue = NULL;
-}
-
-/*
  * This function adds the card.
  *
  * This function follows the following major steps to set up the device -
@@ -846,6 +874,7 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	}
 
 	adapter->iface_type = iface_type;
+	adapter->card_sem = sem;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;
@@ -876,17 +905,12 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 		goto err_init_fw;
 	}
 
-	up(sem);
 	return 0;
 
 err_init_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
-err_registerdev:
-	adapter->surprise_removed = true;
-	mwifiex_terminate_workqueue(adapter);
-err_kmalloc:
 	if ((adapter->hw_status == MWIFIEX_HW_STATUS_FW_READY) ||
 	    (adapter->hw_status == MWIFIEX_HW_STATUS_READY)) {
 		pr_debug("info: %s: shutdown mwifiex\n", __func__);
@@ -896,7 +920,10 @@ err_kmalloc:
 			wait_event_interruptible(adapter->init_wait_q,
 						 adapter->init_wait_q_woken);
 	}
-
+err_registerdev:
+	adapter->surprise_removed = true;
+	mwifiex_terminate_workqueue(adapter);
+err_kmalloc:
 	mwifiex_free_adapter(adapter);
 
 err_init_sw:

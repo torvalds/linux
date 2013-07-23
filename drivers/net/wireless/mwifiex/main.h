@@ -749,6 +749,7 @@ struct mwifiex_adapter {
 
 	atomic_t is_tx_received;
 	atomic_t pending_bridged_pkts;
+	struct semaphore *card_sem;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
