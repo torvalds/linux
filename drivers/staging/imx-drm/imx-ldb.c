@@ -497,7 +497,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 		imx_ldb->ldb_ctrl |= LDB_SPLIT_MODE_EN;
 
 	/*
-	 * There are three diferent possible clock mux configurations:
+	 * There are three different possible clock mux configurations:
 	 * i.MX53:  ipu1_di0_sel, ipu1_di1_sel
 	 * i.MX6q:  ipu1_di0_sel, ipu1_di1_sel, ipu2_di0_sel, ipu2_di1_sel
 	 * i.MX6dl: ipu1_di0_sel, ipu1_di1_sel, lcdif_sel
