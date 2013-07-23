@@ -41,12 +41,18 @@ struct callchain_param;
 typedef void (*sort_chain_func_t)(struct rb_root *, struct callchain_root *,
 				 u64, struct callchain_param *);
 
+enum chain_key {
+	CCKEY_FUNCTION,
+	CCKEY_ADDRESS
+};
+
 struct callchain_param {
 	enum chain_mode 	mode;
 	u32			print_limit;
 	double			min_percent;
 	sort_chain_func_t	sort;
 	enum chain_order	order;
+	enum chain_key		key;
 };
 
 struct callchain_list {
