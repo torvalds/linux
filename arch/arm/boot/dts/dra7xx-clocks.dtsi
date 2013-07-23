@@ -1165,6 +1165,31 @@
 		reg = <0x021c>, <0x0220>;
 	};
 
+	optfclk_pciephy_div: optfclk_pciephy_div@4a00821c {
+		compatible = "ti,divider-clock";
+		clocks = <&apll_pcie_ck>;
+		#clock-cells = <0>;
+		reg = <0x021c>;
+		ti,bit-shift = <8>;
+		ti,max-div = <2>;
+	};
+
+	optfclk_pciephy_clk: optfclk_pciephy_clk@4a0093b0 {
+		compatible = "ti,gate-clock";
+		clocks = <&apll_pcie_ck>;
+		#clock-cells = <0>;
+		reg = <0x13b0>;
+		ti,bit-shift = <9>;
+	};
+
+	optfclk_pciephy_div_clk: optfclk_pciephy_div_clk@4a0093b0 {
+		compatible = "ti,gate-clock";
+		clocks = <&optfclk_pciephy_div>;
+		#clock-cells = <0>;
+		reg = <0x13b0>;
+		ti,bit-shift = <10>;
+	};
+
 	apll_pcie_clkvcoldo: apll_pcie_clkvcoldo {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
