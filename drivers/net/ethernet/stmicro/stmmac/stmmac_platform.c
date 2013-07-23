@@ -109,9 +109,6 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	const char *mac = NULL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
