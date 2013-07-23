@@ -754,7 +754,8 @@ static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm,
 	atomic_set(&page->_mapcount, 3);
 	table = (unsigned long *) page_to_phys(page);
 	clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
-	clear_table(table + PTRS_PER_PTE, 0, PAGE_SIZE/2);
+	clear_table(table + PTRS_PER_PTE, PGSTE_HR_BIT | PGSTE_HC_BIT,
+		    PAGE_SIZE/2);
 	return table;
 }
 
@@ -792,26 +793,21 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	pgste_val(new) |= (key & (_PAGE_CHANGED | _PAGE_REFERENCED)) << 48;
 	pgste_val(new) |= (key & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
 	if (!(pte_val(*ptep) & _PAGE_INVALID)) {
-		unsigned long address, bits;
-		unsigned char skey;
+		unsigned long address, bits, skey;
 
 		address = pte_val(*ptep) & PAGE_MASK;
-		skey = page_get_storage_key(address);
+		skey = (unsigned long) page_get_storage_key(address);
 		bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
+		skey = key & (_PAGE_ACC_BITS | _PAGE_FP_BIT);
 		/* Set storage key ACC and FP */
-		page_set_storage_key(address,
-				(key & (_PAGE_ACC_BITS | _PAGE_FP_BIT)),
-				!nq);
-
+		page_set_storage_key(address, skey, !nq);
 		/* Merge host changed & referenced into pgste  */
 		pgste_val(new) |= bits << 52;
-		/* Transfer skey changed & referenced bit to kvm user bits */
-		pgste_val(new) |= bits << 45;	/* PGSTE_UR_BIT & PGSTE_UC_BIT */
 	}
 	/* changing the guest storage key is considered a change of the page */
 	if ((pgste_val(new) ^ pgste_val(old)) &
 	    (PGSTE_ACC_BITS | PGSTE_FP_BIT | PGSTE_GR_BIT | PGSTE_GC_BIT))
-		pgste_val(new) |= PGSTE_UC_BIT;
+		pgste_val(new) |= PGSTE_HC_BIT;
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(*ptep, ptl);

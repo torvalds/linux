@@ -140,15 +140,6 @@ static inline int page_reset_referenced(unsigned long addr)
 #define _PAGE_FP_BIT		0x08	/* HW fetch protection bit	*/
 #define _PAGE_ACC_BITS		0xf0	/* HW access control bits	*/
 
-/*
- * Test and clear referenced bit in storage key.
- */
-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
-static inline int page_test_and_clear_young(unsigned long pfn)
-{
-	return page_reset_referenced(pfn << PAGE_SHIFT);
-}
-
 struct page;
 void arch_free_page(struct page *page, int order);
 void arch_alloc_page(struct page *page, int order);

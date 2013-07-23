@@ -10,19 +10,25 @@
 
 static inline pmd_t __pte_to_pmd(pte_t pte)
 {
-	int none, prot;
+	int none, young, prot;
 	pmd_t pmd;
 
 	/*
-	 * Convert encoding	  pte bits	  pmd bits
-	 *			.IR.....wdtp	..R...I.....
-	 * empty		.10.....0000 -> ..0...1.....
-	 * prot-none, clean	.11.....0001 -> ..1...1.....
-	 * prot-none, dirty	.10.....0101 -> ..1...1.....
-	 * read-only, clean	.01.....0001 -> ..1...0.....
-	 * read-only, dirty	.01.....0101 -> ..1...0.....
-	 * read-write, clean	.01.....1001 -> ..0...0.....
-	 * read-write, dirty	.00.....1101 -> ..0...0.....
+	 * Convert encoding		  pte bits	  pmd bits
+	 *				.IR...wrdytp	..R...I...y.
+	 * empty			.10...000000 -> ..0...1...0.
+	 * prot-none, clean, old	.11...000001 -> ..0...1...1.
+	 * prot-none, clean, young	.11...000101 -> ..1...1...1.
+	 * prot-none, dirty, old	.10...001001 -> ..0...1...1.
+	 * prot-none, dirty, young	.10...001101 -> ..1...1...1.
+	 * read-only, clean, old	.11...010001 -> ..1...1...0.
+	 * read-only, clean, young	.01...010101 -> ..1...0...1.
+	 * read-only, dirty, old	.11...011001 -> ..1...1...0.
+	 * read-only, dirty, young	.01...011101 -> ..1...0...1.
+	 * read-write, clean, old	.11...110001 -> ..0...1...0.
+	 * read-write, clean, young	.01...110101 -> ..0...0...1.
+	 * read-write, dirty, old	.10...111001 -> ..0...1...0.
+	 * read-write, dirty, young	.00...111101 -> ..0...0...1.
 	 * Huge ptes are dirty by definition, a clean pte is made dirty
 	 * by the conversion.
 	 */
@@ -31,9 +37,14 @@ static inline pmd_t __pte_to_pmd(pte_t pte)
 		if (pte_val(pte) & _PAGE_INVALID)
 			pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
 		none = (pte_val(pte) & _PAGE_PRESENT) &&
-			(pte_val(pte) & _PAGE_INVALID);
-		prot = (pte_val(pte) & _PAGE_PROTECT);
-		if (prot || none)
+			!(pte_val(pte) & _PAGE_READ) &&
+			!(pte_val(pte) & _PAGE_WRITE);
+		prot = (pte_val(pte) & _PAGE_PROTECT) &&
+			!(pte_val(pte) & _PAGE_WRITE);
+		young = pte_val(pte) & _PAGE_YOUNG;
+		if (none || young)
+			pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG;
+		if (prot || (none && young))
 			pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
 	} else
 		pmd_val(pmd) = _SEGMENT_ENTRY_INVALID;
@@ -46,11 +57,14 @@ static inline pte_t __pmd_to_pte(pmd_t pmd)
 
 	/*
 	 * Convert encoding	  pmd bits	  pte bits
-	 *			..R...I.....	.IR.....wdtp
-	 * empty		..0...1..... -> .10.....0000
-	 * prot-none, young	..1...1..... -> .10.....0101
-	 * read-only, young	..1...0..... -> .01.....0101
-	 * read-write, young	..0...0..... -> .00.....1101
+	 *			..R...I...y.	.IR...wrdytp
+	 * empty		..0...1...0. -> .10...000000
+	 * prot-none, old	..0...1...1. -> .10...001001
+	 * prot-none, young	..1...1...1. -> .10...001101
+	 * read-only, old	..1...1...0. -> .11...011001
+	 * read-only, young	..1...0...1. -> .01...011101
+	 * read-write, old	..0...1...0. -> .10...111001
+	 * read-write, young	..0...0...1. -> .00...111101
 	 * Huge ptes are dirty by definition
 	 */
 	if (pmd_present(pmd)) {
@@ -58,11 +72,17 @@ static inline pte_t __pmd_to_pte(pmd_t pmd)
 			(pmd_val(pmd) & PAGE_MASK);
 		if (pmd_val(pmd) & _SEGMENT_ENTRY_INVALID)
 			pte_val(pte) |= _PAGE_INVALID;
-		else {
+		if (pmd_prot_none(pmd)) {
+			if (pmd_val(pmd) & _SEGMENT_ENTRY_PROTECT)
+				pte_val(pte) |= _PAGE_YOUNG;
+		} else {
+			pte_val(pte) |= _PAGE_READ;
 			if (pmd_val(pmd) & _SEGMENT_ENTRY_PROTECT)
 				pte_val(pte) |= _PAGE_PROTECT;
 			else
 				pte_val(pte) |= _PAGE_WRITE;
+			if (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG)
+				pte_val(pte) |= _PAGE_YOUNG;
 		}
 	} else
 		pte_val(pte) = _PAGE_INVALID;
