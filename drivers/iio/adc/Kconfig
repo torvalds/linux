@@ -165,7 +165,7 @@ config TI_ADC081C
 	  called ti-adc081c.
 
 config TI_AM335X_ADC
-	tristate "TI's ADC driver"
+	tristate "TI's AM335X ADC driver"
 	depends on MFD_TI_AM335X_TSCADC
 	help
 	  Say yes here to build support for Texas Instruments ADC
