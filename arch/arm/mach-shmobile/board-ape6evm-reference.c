@@ -29,12 +29,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-static const struct pinctrl_map ape6evm_pinctrl_map[] = {
-	/* SCIFA0 console */
-	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.0", "pfc-r8a73a4",
-				  "scifa0_data", "scifa0"),
-};
-
 static void __init ape6evm_add_standard_devices(void)
 {
 
@@ -52,9 +46,6 @@ static void __init ape6evm_add_standard_devices(void)
 	clk_put(parent);
 	clk_put(mp);
 
-	pinctrl_register_mappings(ape6evm_pinctrl_map,
-				  ARRAY_SIZE(ape6evm_pinctrl_map));
-	r8a73a4_pinmux_init();
 	r8a73a4_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	platform_device_register_simple("cpufreq-cpu0", -1, NULL, 0);

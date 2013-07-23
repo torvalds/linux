@@ -53,3 +53,13 @@
 	>;
 	voltage-tolerance = <1>; /* 1% */
 };
+
+&pfc {
+	pinctrl-0 = <&scifa0_pins>;
+	pinctrl-names = "default";
+
+	scifa0_pins: scifa0 {
+		renesas,groups = "scifa0_data";
+		renesas,function = "scifa0";
+	};
+};
