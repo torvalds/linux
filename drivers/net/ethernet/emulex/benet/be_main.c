@@ -1146,9 +1146,6 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
 	int status;
-	bool active_mac = false;
-	u32 pmac_id;
-	u8 old_mac[ETH_ALEN];
 
 	if (!sriov_enabled(adapter))
 		return -EPERM;
@@ -1156,20 +1153,15 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || vf >= adapter->num_vfs)
 		return -EINVAL;
 
-	if (lancer_chip(adapter)) {
-		status = be_cmd_get_mac_from_list(adapter, old_mac, &active_mac,
-						  &pmac_id, vf + 1);
-		if (!status && active_mac)
-			be_cmd_pmac_del(adapter, vf_cfg->if_handle,
-					pmac_id, vf + 1);
-
-		status = be_cmd_set_mac_list(adapter,  mac, 1, vf + 1);
-	} else {
-		status = be_cmd_pmac_del(adapter, vf_cfg->if_handle,
-					 vf_cfg->pmac_id, vf + 1);
+	if (BEx_chip(adapter)) {
+		be_cmd_pmac_del(adapter, vf_cfg->if_handle, vf_cfg->pmac_id,
+				vf + 1);
 
 		status = be_cmd_pmac_add(adapter, mac, vf_cfg->if_handle,
 					 &vf_cfg->pmac_id, vf + 1);
+	} else {
+		status = be_cmd_set_mac(adapter, mac, vf_cfg->if_handle,
+					vf + 1);
 	}
 
 	if (status)
@@ -2735,13 +2727,13 @@ static int be_vf_eth_addr_config(struct be_adapter *adapter)
 	be_vf_eth_addr_generate(adapter, mac);
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		if (lancer_chip(adapter)) {
-			status = be_cmd_set_mac_list(adapter,  mac, 1, vf + 1);
-		} else {
+		if (BEx_chip(adapter))
 			status = be_cmd_pmac_add(adapter, mac,
 						 vf_cfg->if_handle,
 						 &vf_cfg->pmac_id, vf + 1);
-		}
+		else
+			status = be_cmd_set_mac(adapter, mac, vf_cfg->if_handle,
+						vf + 1);
 
 		if (status)
 			dev_err(&adapter->pdev->dev,
@@ -2788,11 +2780,12 @@ static void be_vf_clear(struct be_adapter *adapter)
 	pci_disable_sriov(adapter->pdev);
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		if (lancer_chip(adapter))
-			be_cmd_set_mac_list(adapter, NULL, 0, vf + 1);
-		else
+		if (BEx_chip(adapter))
 			be_cmd_pmac_del(adapter, vf_cfg->if_handle,
 					vf_cfg->pmac_id, vf + 1);
+		else
+			be_cmd_set_mac(adapter, NULL, vf_cfg->if_handle,
+				       vf + 1);
 
 		be_cmd_if_destroy(adapter, vf_cfg->if_handle, vf + 1);
 	}

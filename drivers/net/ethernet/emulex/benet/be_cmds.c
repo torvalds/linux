@@ -2740,19 +2740,15 @@ out:
 
 int be_cmd_get_active_mac(struct be_adapter *adapter, u32 curr_pmac_id, u8 *mac)
 {
-	int status;
 	bool active = true;
 
-	/* When SH FW is ready, SH should use Lancer path too */
-	if (lancer_chip(adapter)) {
-		/* Fetch the MAC address using pmac_id */
-		status = be_cmd_get_mac_from_list(adapter, mac, &active,
-						  &curr_pmac_id, 0);
-		return status;
-	} else {
+	if (BEx_chip(adapter))
 		return be_cmd_mac_addr_query(adapter, mac, false,
 					     adapter->if_handle, curr_pmac_id);
-	}
+	else
+		/* Fetch the MAC address using pmac_id */
+		return be_cmd_get_mac_from_list(adapter, mac, &active,
+						&curr_pmac_id, 0);
 }
 
 int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac)
@@ -2762,14 +2758,18 @@ int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac)
 
 	memset(mac, 0, ETH_ALEN);
 
-	if (lancer_chip(adapter))
+	if (BEx_chip(adapter)) {
+		if (be_physfn(adapter))
+			status = be_cmd_mac_addr_query(adapter, mac, true, 0,
+						       0);
+		else
+			status = be_cmd_mac_addr_query(adapter, mac, false,
+						       adapter->if_handle, 0);
+	} else {
 		status = be_cmd_get_mac_from_list(adapter, mac, &pmac_valid,
 						  NULL, 0);
-	else if (be_physfn(adapter))
-		status = be_cmd_mac_addr_query(adapter, mac, true, 0, 0);
-	else
-		status = be_cmd_mac_addr_query(adapter, mac, false,
-					       adapter->if_handle, 0);
+	}
+
 	return status;
 }
 
@@ -2814,6 +2814,25 @@ err:
 				cmd.va, cmd.dma);
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
+}
+
+/* Wrapper to delete any active MACs and provision the new mac.
+ * Changes to MAC_LIST are allowed iff none of the MAC addresses in the
+ * current list are active.
+ */
+int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id, u32 dom)
+{
+	bool active_mac = false;
+	u8 old_mac[ETH_ALEN];
+	u32 pmac_id;
+	int status;
+
+	status = be_cmd_get_mac_from_list(adapter, old_mac, &active_mac,
+					  &pmac_id, dom);
+	if (!status && active_mac)
+		be_cmd_pmac_del(adapter, if_id, pmac_id, dom);
+
+	return be_cmd_set_mac_list(adapter, mac, mac ? 1 : 0, dom);
 }
 
 int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
