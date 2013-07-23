@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
-#include <mach/r8a7740.h>
 #include <mach/irqs.h>
 
 #include "core.h"
