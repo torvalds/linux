@@ -178,7 +178,6 @@
 #define pr_fmt(fmt) "bcache: %s() " fmt "\n", __func__
 
 #include <linux/bio.h>
-#include <linux/blktrace_api.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -388,8 +387,6 @@ struct keybuf_key {
 typedef bool (keybuf_pred_fn)(struct keybuf *, struct bkey *);
 
 struct keybuf {
-	keybuf_pred_fn		*key_predicate;
-
 	struct bkey		last_scanned;
 	spinlock_t		lock;
 
@@ -437,9 +434,12 @@ struct bcache_device {
 
 	/* If nonzero, we're detaching/unregistering from cache set */
 	atomic_t		detaching;
+	int			flush_done;
 
-	atomic_long_t		sectors_dirty;
-	unsigned long		sectors_dirty_gc;
+	uint64_t		nr_stripes;
+	unsigned		stripe_size_bits;
+	atomic_t		*stripe_sectors_dirty;
+
 	unsigned long		sectors_dirty_last;
 	long			sectors_dirty_derivative;
 
@@ -531,6 +531,7 @@ struct cached_dev {
 	unsigned		sequential_merge:1;
 	unsigned		verify:1;
 
+	unsigned		partial_stripes_expensive:1;
 	unsigned		writeback_metadata:1;
 	unsigned		writeback_running:1;
 	unsigned char		writeback_percent;
@@ -565,8 +566,7 @@ struct cache {
 
 	unsigned		watermark[WATERMARK_MAX];
 
-	struct closure		alloc;
-	struct workqueue_struct	*alloc_workqueue;
+	struct task_struct	*alloc_thread;
 
 	struct closure		prio;
 	struct prio_set		*disk_buckets;
@@ -664,13 +664,9 @@ struct gc_stat {
  * CACHE_SET_STOPPING always gets set first when we're closing down a cache set;
  * we'll continue to run normally for awhile with CACHE_SET_STOPPING set (i.e.
  * flushing dirty data).
- *
- * CACHE_SET_STOPPING_2 gets set at the last phase, when it's time to shut down
- * the allocation thread.
  */
 #define CACHE_SET_UNREGISTERING		0
 #define	CACHE_SET_STOPPING		1
-#define	CACHE_SET_STOPPING_2		2
 
 struct cache_set {
 	struct closure		cl;
@@ -702,9 +698,6 @@ struct cache_set {
 
 	/* For the btree cache */
 	struct shrinker		shrink;
-
-	/* For the allocator itself */
-	wait_queue_head_t	alloc_wait;
 
 	/* For the btree cache and anything allocation related */
 	struct mutex		bucket_lock;
@@ -823,10 +816,9 @@ struct cache_set {
 
 	/*
 	 * A btree node on disk could have too many bsets for an iterator to fit
-	 * on the stack - this is a single element mempool for btree_read_work()
+	 * on the stack - have to dynamically allocate them
 	 */
-	struct mutex		fill_lock;
-	struct btree_iter	*fill_iter;
+	mempool_t		*fill_iter;
 
 	/*
 	 * btree_sort() is a merge sort and requires temporary space - single
@@ -834,6 +826,7 @@ struct cache_set {
 	 */
 	struct mutex		sort_lock;
 	struct bset		*sort;
+	unsigned		sort_crit_factor;
 
 	/* List of buckets we're currently writing data to */
 	struct list_head	data_buckets;
@@ -905,8 +898,6 @@ static inline unsigned local_clock_us(void)
 {
 	return local_clock() >> 10;
 }
-
-#define MAX_BSETS		4U
 
 #define BTREE_PRIO		USHRT_MAX
 #define INITIAL_PRIO		32768
@@ -1112,23 +1103,6 @@ static inline void __bkey_put(struct cache_set *c, struct bkey *k)
 		atomic_dec_bug(&PTR_BUCKET(c, k, i)->pin);
 }
 
-/* Blktrace macros */
-
-#define blktrace_msg(c, fmt, ...)					\
-do {									\
-	struct request_queue *q = bdev_get_queue(c->bdev);		\
-	if (q)								\
-		blk_add_trace_msg(q, fmt, ##__VA_ARGS__);		\
-} while (0)
-
-#define blktrace_msg_all(s, fmt, ...)					\
-do {									\
-	struct cache *_c;						\
-	unsigned i;							\
-	for_each_cache(_c, (s), i)					\
-		blktrace_msg(_c, fmt, ##__VA_ARGS__);			\
-} while (0)
-
 static inline void cached_dev_put(struct cached_dev *dc)
 {
 	if (atomic_dec_and_test(&dc->count))
@@ -1173,10 +1147,16 @@ static inline uint8_t bucket_disk_gen(struct bucket *b)
 	static struct kobj_attribute ksysfs_##n =			\
 		__ATTR(n, S_IWUSR|S_IRUSR, show, store)
 
-/* Forward declarations */
+static inline void wake_up_allocators(struct cache_set *c)
+{
+	struct cache *ca;
+	unsigned i;
 
-void bch_writeback_queue(struct cached_dev *);
-void bch_writeback_add(struct cached_dev *, unsigned);
+	for_each_cache(ca, c, i)
+		wake_up_process(ca->alloc_thread);
+}
+
+/* Forward declarations */
 
 void bch_count_io_errors(struct cache *, int, const char *);
 void bch_bbio_count_io_errors(struct cache_set *, struct bio *,
@@ -1193,7 +1173,6 @@ void bch_submit_bbio(struct bio *, struct cache_set *, struct bkey *, unsigned);
 uint8_t bch_inc_gen(struct cache *, struct bucket *);
 void bch_rescale_priorities(struct cache_set *, int);
 bool bch_bucket_add_unused(struct cache *, struct bucket *);
-void bch_allocator_thread(struct closure *);
 
 long bch_bucket_alloc(struct cache *, unsigned, struct closure *);
 void bch_bucket_free(struct cache_set *, struct bkey *);
@@ -1241,9 +1220,9 @@ void bch_cache_set_stop(struct cache_set *);
 struct cache_set *bch_cache_set_alloc(struct cache_sb *);
 void bch_btree_cache_free(struct cache_set *);
 int bch_btree_cache_alloc(struct cache_set *);
-void bch_cached_dev_writeback_init(struct cached_dev *);
 void bch_moving_init_cache_set(struct cache_set *);
 
+int bch_cache_allocator_start(struct cache *ca);
 void bch_cache_allocator_exit(struct cache *ca);
 int bch_cache_allocator_init(struct cache *ca);
 
