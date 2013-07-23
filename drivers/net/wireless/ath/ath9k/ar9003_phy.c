@@ -1465,8 +1465,8 @@ static void ar9003_hw_antctrl_shared_chain_lnadiv(struct ath_hw *ah,
 			AR_PHY_ANT_DIV_ALT_LNACONF |
 			AR_PHY_ANT_DIV_MAIN_GAINTB |
 			AR_PHY_ANT_DIV_ALT_GAINTB);
-		regval |= (AR_PHY_ANT_DIV_LNA1 << AR_PHY_ANT_DIV_MAIN_LNACONF_S);
-		regval |= (AR_PHY_ANT_DIV_LNA2 << AR_PHY_ANT_DIV_ALT_LNACONF_S);
+		regval |= (ATH_ANT_DIV_COMB_LNA1 << AR_PHY_ANT_DIV_MAIN_LNACONF_S);
+		regval |= (ATH_ANT_DIV_COMB_LNA2 << AR_PHY_ANT_DIV_ALT_LNACONF_S);
 		REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 	}
 }

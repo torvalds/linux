@@ -3673,9 +3673,9 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 				     AR_PHY_ANT_DIV_ALT_GAINTB |
 				     AR_PHY_ANT_DIV_MAIN_GAINTB));
 			/* by default use LNA1 for the main antenna */
-			regval |= (AR_PHY_ANT_DIV_LNA1 <<
+			regval |= (ATH_ANT_DIV_COMB_LNA1 <<
 				   AR_PHY_ANT_DIV_MAIN_LNACONF_S);
-			regval |= (AR_PHY_ANT_DIV_LNA2 <<
+			regval |= (ATH_ANT_DIV_COMB_LNA2 <<
 				   AR_PHY_ANT_DIV_ALT_LNACONF_S);
 			REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 		}

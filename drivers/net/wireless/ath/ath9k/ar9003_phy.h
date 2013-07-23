@@ -296,11 +296,6 @@
 #define AR_PHY_ANT_DIV_MAIN_GAINTB              0x40000000
 #define AR_PHY_ANT_DIV_MAIN_GAINTB_S            30
 
-#define AR_PHY_ANT_DIV_LNA1_MINUS_LNA2          0x0
-#define AR_PHY_ANT_DIV_LNA2                     0x1
-#define AR_PHY_ANT_DIV_LNA1                     0x2
-#define AR_PHY_ANT_DIV_LNA1_PLUS_LNA2           0x3
-
 #define AR_PHY_EXTCHN_PWRTHR1   (AR_AGC_BASE + 0x2c)
 #define AR_PHY_EXT_CHN_WIN      (AR_AGC_BASE + 0x30)
 #define AR_PHY_20_40_DET_THR    (AR_AGC_BASE + 0x34)
