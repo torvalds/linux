@@ -635,7 +635,6 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
     // The context given to IoSetCompletionRoutine is an USB_CONTEXT struct
     //
     pContext = (PUSB_SEND_CONTEXT) urb->context;
-    ASSERT( NULL != pContext );
 
     pDevice = pContext->pDevice;
     ContextType = pContext->Type;

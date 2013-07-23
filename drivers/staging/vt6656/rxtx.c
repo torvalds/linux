@@ -538,7 +538,6 @@ static u32 s_uGetDataDuration(struct vnt_private *pDevice, u8 byDurType,
         break;
     }
 
-	ASSERT(false);
 	return 0;
 }
 
@@ -1474,8 +1473,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         // while bRelayPacketSend psEthHeader is point to header+payload
         memcpy((pbyPayloadHead + cb802_1_H_len), ((u8 *)psEthHeader) + ETH_HLEN, uSkbPacketLen - ETH_HLEN);
     }
-
-    ASSERT(uLength == cbNdisBodySize);
 
     if ((bNeedEncryption == true) && (pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
 

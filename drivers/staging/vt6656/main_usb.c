@@ -925,7 +925,6 @@ int device_alloc_frag_buf(struct vnt_private *pDevice,
     pDeF->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
     if (pDeF->skb == NULL)
         return false;
-    ASSERT(pDeF->skb);
     pDeF->skb->dev = pDevice->dev;
 
     return true;

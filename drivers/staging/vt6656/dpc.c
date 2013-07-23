@@ -314,7 +314,6 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
          (BytesToIndicate < (*pwPLCP_Length)) ) {
 
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Wrong PLCP Length %x\n", (int) *pwPLCP_Length);
-        ASSERT(0);
         return false;
     }
     for ( ii=RATE_1M;ii<MAX_RATE;ii++) {
@@ -1347,7 +1346,6 @@ void RXvWorkItem(struct vnt_private *pDevice)
             (pDevice->NumRecvFreeList != 0) ) {
         pRCB = pDevice->FirstRecvFreeList;
         pDevice->NumRecvFreeList--;
-        ASSERT(pRCB);// cannot be NULL
         DequeueRCB(pDevice->FirstRecvFreeList, pDevice->LastRecvFreeList);
         ntStatus = PIPEnsBulkInUsbRead(pDevice, pRCB);
     }
@@ -1361,9 +1359,6 @@ void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
 	struct vnt_private *pDevice = pRCB->pDevice;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->RXvFreeRCB\n");
-
-    ASSERT(!pRCB->Ref);     // should be 0
-    ASSERT(pRCB->pDevice);  // shouldn't be NULL
 
 	if (bReAllocSkb == false) {
 		kfree_skb(pRCB->skb);
@@ -1411,7 +1406,6 @@ void RXvMngWorkItem(struct vnt_private *pDevice)
         if(!pRCB){
             break;
         }
-        ASSERT(pRCB);// cannot be NULL
         pRxPacket = &(pRCB->sMngPacket);
 	vMgrRxManagePacket(pDevice, &pDevice->vnt_mgmt, pRxPacket);
         pRCB->Ref--;

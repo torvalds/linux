@@ -680,7 +680,6 @@ BBuGetFrameTime(
     unsigned int uRate = 0;
 
     if (uRateIdx > RATE_54M) {
-        ASSERT(0);
         return 0;
     }
 
