@@ -16,7 +16,9 @@ int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
 void selinux_xfrm_policy_free(struct xfrm_sec_ctx *ctx);
 int selinux_xfrm_policy_delete(struct xfrm_sec_ctx *ctx);
 int selinux_xfrm_state_alloc(struct xfrm_state *x,
-	struct xfrm_user_sec_ctx *sec_ctx, u32 secid);
+			     struct xfrm_user_sec_ctx *uctx);
+int selinux_xfrm_state_alloc_acquire(struct xfrm_state *x,
+				     struct xfrm_sec_ctx *polsec, u32 secid);
 void selinux_xfrm_state_free(struct xfrm_state *x);
 int selinux_xfrm_state_delete(struct xfrm_state *x);
 int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);

@@ -74,6 +74,54 @@ static inline int selinux_authorizable_xfrm(struct xfrm_state *x)
 }
 
 /*
+ * Allocates a xfrm_sec_state and populates it using the supplied security
+ * xfrm_user_sec_ctx context.
+ */
+static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
+				   struct xfrm_user_sec_ctx *uctx)
+{
+	int rc;
+	const struct task_security_struct *tsec = current_security();
+	struct xfrm_sec_ctx *ctx = NULL;
+	u32 str_len;
+
+	if (ctxp == NULL || uctx == NULL ||
+	    uctx->ctx_doi != XFRM_SC_DOI_LSM ||
+	    uctx->ctx_alg != XFRM_SC_ALG_SELINUX)
+		return -EINVAL;
+
+	str_len = uctx->ctx_len;
+	if (str_len >= PAGE_SIZE)
+		return -ENOMEM;
+
+	ctx = kmalloc(sizeof(*ctx) + str_len + 1, GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->ctx_doi = XFRM_SC_DOI_LSM;
+	ctx->ctx_alg = XFRM_SC_ALG_SELINUX;
+	ctx->ctx_len = str_len;
+	memcpy(ctx->ctx_str, &uctx[1], str_len);
+	ctx->ctx_str[str_len] = '\0';
+	rc = security_context_to_sid(ctx->ctx_str, str_len, &ctx->ctx_sid);
+	if (rc)
+		goto err;
+
+	rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
+			  SECCLASS_ASSOCIATION, ASSOCIATION__SETCONTEXT, NULL);
+	if (rc)
+		goto err;
+
+	*ctxp = ctx;
+	atomic_inc(&selinux_xfrm_refcount);
+	return 0;
+
+err:
+	kfree(ctx);
+	return rc;
+}
+
+/*
  * LSM hook implementation that authorizes that a flow can use
  * a xfrm policy rule.
  */
@@ -191,111 +239,13 @@ int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
 }
 
 /*
- * Security blob allocation for xfrm_policy and xfrm_state
- * CTX does not have a meaningful value on input
- */
-static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
-	struct xfrm_user_sec_ctx *uctx, u32 sid)
-{
-	int rc = 0;
-	const struct task_security_struct *tsec = current_security();
-	struct xfrm_sec_ctx *ctx = NULL;
-	char *ctx_str = NULL;
-	u32 str_len;
-
-	BUG_ON(uctx && sid);
-
-	if (!uctx)
-		goto not_from_user;
-
-	if (uctx->ctx_alg != XFRM_SC_ALG_SELINUX)
-		return -EINVAL;
-
-	str_len = uctx->ctx_len;
-	if (str_len >= PAGE_SIZE)
-		return -ENOMEM;
-
-	*ctxp = ctx = kmalloc(sizeof(*ctx) +
-			      str_len + 1,
-			      GFP_KERNEL);
-
-	if (!ctx)
-		return -ENOMEM;
-
-	ctx->ctx_doi = uctx->ctx_doi;
-	ctx->ctx_len = str_len;
-	ctx->ctx_alg = uctx->ctx_alg;
-
-	memcpy(ctx->ctx_str,
-	       uctx+1,
-	       str_len);
-	ctx->ctx_str[str_len] = 0;
-	rc = security_context_to_sid(ctx->ctx_str,
-				     str_len,
-				     &ctx->ctx_sid);
-
-	if (rc)
-		goto out;
-
-	/*
-	 * Does the subject have permission to set security context?
-	 */
-	rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
-			  SECCLASS_ASSOCIATION,
-			  ASSOCIATION__SETCONTEXT, NULL);
-	if (rc)
-		goto out;
-
-	return rc;
-
-not_from_user:
-	rc = security_sid_to_context(sid, &ctx_str, &str_len);
-	if (rc)
-		goto out;
-
-	*ctxp = ctx = kmalloc(sizeof(*ctx) +
-			      str_len,
-			      GFP_ATOMIC);
-
-	if (!ctx) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	ctx->ctx_doi = XFRM_SC_DOI_LSM;
-	ctx->ctx_alg = XFRM_SC_ALG_SELINUX;
-	ctx->ctx_sid = sid;
-	ctx->ctx_len = str_len;
-	memcpy(ctx->ctx_str,
-	       ctx_str,
-	       str_len);
-
-	goto out2;
-
-out:
-	*ctxp = NULL;
-	kfree(ctx);
-out2:
-	kfree(ctx_str);
-	return rc;
-}
-
-/*
  * LSM hook implementation that allocs and transfers uctx spec to
  * xfrm_policy.
  */
 int selinux_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
 			      struct xfrm_user_sec_ctx *uctx)
 {
-	int err;
-
-	BUG_ON(!uctx);
-
-	err = selinux_xfrm_sec_ctx_alloc(ctxp, uctx, 0);
-	if (err == 0)
-		atomic_inc(&selinux_xfrm_refcount);
-
-	return err;
+	return selinux_xfrm_alloc_user(ctxp, uctx);
 }
 
 
@@ -347,20 +297,51 @@ int selinux_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 }
 
 /*
- * LSM hook implementation that allocs and transfers sec_ctx spec to
- * xfrm_state.
+ * LSM hook implementation that allocates a xfrm_sec_state, populates it using
+ * the supplied security context, and assigns it to the xfrm_state.
  */
-int selinux_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *uctx,
-		u32 secid)
+int selinux_xfrm_state_alloc(struct xfrm_state *x,
+			     struct xfrm_user_sec_ctx *uctx)
 {
-	int err;
+	return selinux_xfrm_alloc_user(&x->security, uctx);
+}
 
-	BUG_ON(!x);
+/*
+ * LSM hook implementation that allocates a xfrm_sec_state and populates based
+ * on a secid.
+ */
+int selinux_xfrm_state_alloc_acquire(struct xfrm_state *x,
+				     struct xfrm_sec_ctx *polsec, u32 secid)
+{
+	int rc;
+	struct xfrm_sec_ctx *ctx;
+	char *ctx_str = NULL;
+	int str_len;
 
-	err = selinux_xfrm_sec_ctx_alloc(&x->security, uctx, secid);
-	if (err == 0)
-		atomic_inc(&selinux_xfrm_refcount);
-	return err;
+	if (!polsec)
+		return 0;
+
+	if (secid == 0)
+		return -EINVAL;
+
+	rc = security_sid_to_context(secid, &ctx_str, &str_len);
+	if (rc)
+		return rc;
+
+	ctx = kmalloc(sizeof(*ctx) + str_len, GFP_ATOMIC);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->ctx_doi = XFRM_SC_DOI_LSM;
+	ctx->ctx_alg = XFRM_SC_ALG_SELINUX;
+	ctx->ctx_sid = secid;
+	ctx->ctx_len = str_len;
+	memcpy(ctx->ctx_str, ctx_str, str_len);
+	kfree(ctx_str);
+
+	x->security = ctx;
+	atomic_inc(&selinux_xfrm_refcount);
+	return 0;
 }
 
 /*
