@@ -363,7 +363,8 @@ struct drm_crtc_funcs {
 	 */
 	int (*page_flip)(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
-			 struct drm_pending_vblank_event *event);
+			 struct drm_pending_vblank_event *event,
+			 uint32_t flags);
 
 	int (*set_property)(struct drm_crtc *crtc,
 			    struct drm_property *property, uint64_t val);

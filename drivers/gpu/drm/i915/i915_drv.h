@@ -380,7 +380,8 @@ struct drm_i915_display_funcs {
 	void (*init_clock_gating)(struct drm_device *dev);
 	int (*queue_flip)(struct drm_device *dev, struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
-			  struct drm_i915_gem_object *obj);
+			  struct drm_i915_gem_object *obj,
+			  uint32_t flags);
 	int (*update_plane)(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			    int x, int y);
 	void (*hpd_irq_setup)(struct drm_device *dev);

@@ -345,7 +345,8 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 
 static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
-				 struct drm_pending_vblank_event *event)
+				 struct drm_pending_vblank_event *event,
+				 uint32_t page_flip_flags)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;

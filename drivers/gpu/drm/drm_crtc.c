@@ -3581,7 +3581,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 	old_fb = crtc->fb;
-	ret = crtc->funcs->page_flip(crtc, fb, e);
+	ret = crtc->funcs->page_flip(crtc, fb, e, page_flip->flags);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 			spin_lock_irqsave(&dev->event_lock, flags);
