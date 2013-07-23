@@ -513,7 +513,10 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 
 	hci_setup_event_mask(req);
 
-	if (hdev->hci_ver > BLUETOOTH_VER_1_1)
+	/* AVM Berlin (31), aka "BlueFRITZ!", doesn't support the read
+	 * local supported commands HCI command.
+	 */
+	if (hdev->manufacturer != 31 && hdev->hci_ver > BLUETOOTH_VER_1_1)
 		hci_req_add(req, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
 
 	if (lmp_ssp_capable(hdev)) {
