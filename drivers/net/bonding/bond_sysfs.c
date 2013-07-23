@@ -501,20 +501,25 @@ static ssize_t bonding_store_fail_over_mac(struct device *d,
 					   struct device_attribute *attr,
 					   const char *buf, size_t count)
 {
-	int new_value;
+	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
+
+	if (!rtnl_trylock())
+		return restart_syscall();
 
 	if (bond->slave_cnt != 0) {
 		pr_err("%s: Can't alter fail_over_mac with slaves in bond.\n",
 		       bond->dev->name);
-		return -EPERM;
+		ret = -EPERM;
+		goto out;
 	}
 
 	new_value = bond_parse_parm(buf, fail_over_mac_tbl);
 	if (new_value < 0) {
 		pr_err("%s: Ignoring invalid fail_over_mac value %s.\n",
 		       bond->dev->name, buf);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	bond->params.fail_over_mac = new_value;
@@ -522,7 +527,9 @@ static ssize_t bonding_store_fail_over_mac(struct device *d,
 		bond->dev->name, fail_over_mac_tbl[new_value].modename,
 		new_value);
 
-	return count;
+out:
+	rtnl_unlock();
+	return ret;
 }
 
 static DEVICE_ATTR(fail_over_mac, S_IRUGO | S_IWUSR,
