@@ -2606,6 +2606,38 @@ err:
 	return status;
 }
 
+/* Set privilege(s) for a function */
+int be_cmd_set_fn_privileges(struct be_adapter *adapter, u32 privileges,
+			     u32 domain)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_fn_privileges *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_SET_FN_PRIVILEGES, sizeof(*req),
+			       wrb, NULL);
+	req->hdr.domain = domain;
+	if (lancer_chip(adapter))
+		req->privileges_lancer = cpu_to_le32(privileges);
+	else
+		req->privileges = cpu_to_le32(privileges);
+
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 /* pmac_id_valid: true => pmac_id is supplied and MAC address is requested.
  * pmac_id_valid: false => pmac_id or MAC address is requested.
  *		  If pmac_id is returned, pmac_id_valid is returned as true

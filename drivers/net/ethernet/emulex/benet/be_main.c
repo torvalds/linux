@@ -2880,6 +2880,7 @@ static int be_vf_setup(struct be_adapter *adapter)
 	u16 def_vlan, lnk_speed;
 	int status, old_vfs, vf;
 	struct device *dev = &adapter->pdev->dev;
+	u32 privileges;
 
 	old_vfs = pci_num_vf(adapter->pdev);
 	if (old_vfs) {
@@ -2923,6 +2924,18 @@ static int be_vf_setup(struct be_adapter *adapter)
 	}
 
 	for_all_vfs(adapter, vf_cfg, vf) {
+		/* Allow VFs to programs MAC/VLAN filters */
+		status = be_cmd_get_fn_privileges(adapter, &privileges, vf + 1);
+		if (!status && !(privileges & BE_PRIV_FILTMGMT)) {
+			status = be_cmd_set_fn_privileges(adapter,
+							  privileges |
+							  BE_PRIV_FILTMGMT,
+							  vf + 1);
+			if (!status)
+				dev_info(dev, "VF%d has FILTMGMT privilege\n",
+					 vf);
+		}
+
 		/* BE3 FW, by default, caps VF TX-rate to 100mbps.
 		 * Allow full available bandwidth
 		 */
