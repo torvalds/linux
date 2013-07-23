@@ -642,19 +642,6 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
 		INIT_WORK(&fnic->event_work, fnic_handle_event);
 		skb_queue_head_init(&fnic->fip_frame_queue);
-		spin_lock_irqsave(&fnic_list_lock, flags);
-		if (!fnic_fip_queue) {
-			fnic_fip_queue =
-				create_singlethread_workqueue("fnic_fip_q");
-			if (!fnic_fip_queue) {
-				spin_unlock_irqrestore(&fnic_list_lock, flags);
-				printk(KERN_ERR PFX "fnic FIP work queue "
-						 "create failed\n");
-				err = -ENOMEM;
-				goto err_out_free_max_pool;
-			}
-		}
-		spin_unlock_irqrestore(&fnic_list_lock, flags);
 		INIT_LIST_HEAD(&fnic->evlist);
 		INIT_LIST_HEAD(&fnic->vlans);
 	} else {
@@ -960,6 +947,13 @@ static int __init fnic_init_module(void)
 	spin_lock_init(&fnic_list_lock);
 	INIT_LIST_HEAD(&fnic_list);
 
+	fnic_fip_queue = create_singlethread_workqueue("fnic_fip_q");
+	if (!fnic_fip_queue) {
+		printk(KERN_ERR PFX "fnic FIP work queue create failed\n");
+		err = -ENOMEM;
+		goto err_create_fip_workq;
+	}
+
 	fnic_fc_transport = fc_attach_transport(&fnic_fc_functions);
 	if (!fnic_fc_transport) {
 		printk(KERN_ERR PFX "fc_attach_transport error\n");
@@ -978,6 +972,8 @@ static int __init fnic_init_module(void)
 err_pci_register:
 	fc_release_transport(fnic_fc_transport);
 err_fc_transport:
+	destroy_workqueue(fnic_fip_queue);
+err_create_fip_workq:
 	destroy_workqueue(fnic_event_queue);
 err_create_fnic_workq:
 	kmem_cache_destroy(fnic_io_req_cache);
