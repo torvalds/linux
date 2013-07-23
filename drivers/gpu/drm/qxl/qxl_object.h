@@ -102,6 +102,4 @@ extern int qxl_bo_unpin(struct qxl_bo *bo);
 extern void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned);
 extern bool qxl_ttm_bo_is_qxl_bo(struct ttm_buffer_object *bo);
 
-extern int qxl_bo_list_add(struct qxl_reloc_list *reloc_list, struct qxl_bo *bo);
-extern void qxl_bo_list_unreserve(struct qxl_reloc_list *reloc_list, bool failed);
 #endif
