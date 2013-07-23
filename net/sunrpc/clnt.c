@@ -128,9 +128,7 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 {
 	static uint32_t clntid;
 	char name[15];
-	struct qstr q = { .name = name };
 	struct dentry *dir, *dentry;
-	int error;
 
 	dir = rpc_d_lookup_sb(sb, dir_name);
 	if (dir == NULL) {
@@ -138,19 +136,17 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 		return dir;
 	}
 	for (;;) {
-		q.len = snprintf(name, sizeof(name), "clnt%x", (unsigned int)clntid++);
+		snprintf(name, sizeof(name), "clnt%x", (unsigned int)clntid++);
 		name[sizeof(name) - 1] = '\0';
-		q.hash = full_name_hash(q.name, q.len);
-		dentry = rpc_create_client_dir(dir, &q, clnt);
+		dentry = rpc_create_client_dir(dir, name, clnt);
 		if (!IS_ERR(dentry))
 			break;
-		error = PTR_ERR(dentry);
-		if (error != -EEXIST) {
-			printk(KERN_INFO "RPC: Couldn't create pipefs entry"
-					" %s/%s, error %d\n",
-					dir_name, name, error);
-			break;
-		}
+		if (dentry == ERR_PTR(-EEXIST))
+			continue;
+		printk(KERN_INFO "RPC: Couldn't create pipefs entry"
+				" %s/%s, error %ld\n",
+				dir_name, name, PTR_ERR(dentry));
+		break;
 	}
 	dput(dir);
 	return dentry;
@@ -290,7 +286,7 @@ static int rpc_client_register(const struct rpc_create_args *args,
 	struct rpc_auth *auth;
 	struct net *net = rpc_net_ns(clnt);
 	struct super_block *pipefs_sb;
-	int err = 0;
+	int err;
 
 	pipefs_sb = rpc_get_sb_net(net);
 	if (pipefs_sb) {
@@ -299,6 +295,10 @@ static int rpc_client_register(const struct rpc_create_args *args,
 			goto out;
 	}
 
+	rpc_register_client(clnt);
+	if (pipefs_sb)
+		rpc_put_sb_net(net);
+
 	auth = rpcauth_create(args->authflavor, clnt);
 	if (IS_ERR(auth)) {
 		dprintk("RPC:       Couldn't create auth handle (flavor %u)\n",
@@ -306,16 +306,15 @@ static int rpc_client_register(const struct rpc_create_args *args,
 		err = PTR_ERR(auth);
 		goto err_auth;
 	}
-
-	rpc_register_client(clnt);
+	return 0;
+err_auth:
+	pipefs_sb = rpc_get_sb_net(net);
+	rpc_unregister_client(clnt);
+	__rpc_clnt_remove_pipedir(clnt);
 out:
 	if (pipefs_sb)
 		rpc_put_sb_net(net);
 	return err;
-
-err_auth:
-	__rpc_clnt_remove_pipedir(clnt);
-	goto out;
 }
 
 static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, struct rpc_xprt *xprt)

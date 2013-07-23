@@ -354,19 +354,7 @@ static struct spi_driver ks8995_driver = {
 	.remove	  = ks8995_remove,
 };
 
-static int __init ks8995_init(void)
-{
-	pr_info(DRV_DESC " version " DRV_VERSION "\n");
-
-	return spi_register_driver(&ks8995_driver);
-}
-module_init(ks8995_init);
-
-static void __exit ks8995_exit(void)
-{
-	spi_unregister_driver(&ks8995_driver);
-}
-module_exit(ks8995_exit);
+module_spi_driver(ks8995_driver);
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_VERSION(DRV_VERSION);

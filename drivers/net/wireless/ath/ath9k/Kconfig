@@ -84,14 +84,6 @@ config ATH9K_DFS_CERTIFIED
 	  developed. At this point enabling this option won't do anything
 	  except increase code size.
 
-config ATH9K_MAC_DEBUG
-	bool "Atheros MAC statistics"
-	depends on ATH9K_DEBUGFS
-	default y
-	---help---
-	  This option enables collection of statistics for Rx/Tx status
-	  data and some other MAC related statistics
-
 config ATH9K_LEGACY_RATE_CONTROL
 	bool "Atheros ath9k rate control"
 	depends on ATH9K

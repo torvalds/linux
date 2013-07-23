@@ -76,13 +76,16 @@
 #define IWL_INVALID_STATION	255
 
 /* device operations */
-extern struct iwl_lib_ops iwl1000_lib;
-extern struct iwl_lib_ops iwl2000_lib;
-extern struct iwl_lib_ops iwl2030_lib;
-extern struct iwl_lib_ops iwl5000_lib;
-extern struct iwl_lib_ops iwl5150_lib;
-extern struct iwl_lib_ops iwl6000_lib;
-extern struct iwl_lib_ops iwl6030_lib;
+extern const struct iwl_dvm_cfg iwl_dvm_1000_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_2000_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_105_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_2030_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_5000_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_5150_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_6000_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_6005_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_6050_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_6030_cfg;
 
 
 #define TIME_UNIT		1024
@@ -291,8 +294,8 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena);
 
 static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 {
-	return priv->cfg->bt_params &&
-	       priv->cfg->bt_params->advanced_bt_coexist;
+	return priv->lib->bt_params &&
+	       priv->lib->bt_params->advanced_bt_coexist;
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -401,43 +404,6 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 }
 
 extern int iwl_alive_start(struct iwl_priv *priv);
-
-/* testmode support */
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-
-extern int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data,
-				   int len);
-extern int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw,
-				    struct sk_buff *skb,
-				    struct netlink_callback *cb,
-				    void *data, int len);
-extern void iwl_testmode_init(struct iwl_priv *priv);
-extern void iwl_testmode_free(struct iwl_priv *priv);
-
-#else
-
-static inline
-int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
-{
-	return -ENOSYS;
-}
-
-static inline
-int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
-		      struct netlink_callback *cb,
-		      void *data, int len)
-{
-	return -ENOSYS;
-}
-
-static inline void iwl_testmode_init(struct iwl_priv *priv)
-{
-}
-
-static inline void iwl_testmode_free(struct iwl_priv *priv)
-{
-}
-#endif
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,

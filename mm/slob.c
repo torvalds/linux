@@ -122,7 +122,7 @@ static inline void clear_slob_page_free(struct page *sp)
 }
 
 #define SLOB_UNIT sizeof(slob_t)
-#define SLOB_UNITS(size) (((size) + SLOB_UNIT - 1)/SLOB_UNIT)
+#define SLOB_UNITS(size) DIV_ROUND_UP(size, SLOB_UNIT)
 
 /*
  * struct slob_rcu is inserted at the tail of allocated slob blocks, which
@@ -554,7 +554,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 					    flags, node);
 	}
 
-	if (c->ctor)
+	if (b && c->ctor)
 		c->ctor(b);
 
 	kmemleak_alloc_recursive(b, c->size, 1, c->flags, flags);

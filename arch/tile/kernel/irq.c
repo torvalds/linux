@@ -220,7 +220,7 @@ void __init init_IRQ(void)
 	ipi_init();
 }
 
-void __cpuinit setup_irq_regs(void)
+void setup_irq_regs(void)
 {
 	/* Enable interrupt delivery. */
 	unmask_irqs(~0UL);

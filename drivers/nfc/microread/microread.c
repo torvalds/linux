@@ -650,7 +650,7 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 {
 	struct microread_info *info;
 	unsigned long quirks = 0;
-	u32 protocols, se;
+	u32 protocols;
 	struct nfc_hci_init_data init_data;
 	int r;
 
@@ -678,10 +678,8 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    NFC_PROTO_ISO14443_B_MASK |
 		    NFC_PROTO_NFC_DEP_MASK;
 
-	se = NFC_SE_UICC | NFC_SE_EMBEDDED;
-
 	info->hdev = nfc_hci_allocate_device(&microread_hci_ops, &init_data,
-					     quirks, protocols, se, llc_name,
+					     quirks, protocols, llc_name,
 					     phy_headroom +
 					     MICROREAD_CMDS_HEADROOM,
 					     phy_tailroom +

@@ -62,10 +62,10 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_tx_data *tx)
 
 	tail = MICHAEL_MIC_LEN;
 	if (!info->control.hw_key)
-		tail += TKIP_ICV_LEN;
+		tail += IEEE80211_TKIP_ICV_LEN;
 
 	if (WARN_ON(skb_tailroom(skb) < tail ||
-		    skb_headroom(skb) < TKIP_IV_LEN))
+		    skb_headroom(skb) < IEEE80211_TKIP_IV_LEN))
 		return TX_DROP;
 
 	key = &tx->key->conf.key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY];
@@ -198,15 +198,16 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	if (info->control.hw_key)
 		tail = 0;
 	else
-		tail = TKIP_ICV_LEN;
+		tail = IEEE80211_TKIP_ICV_LEN;
 
 	if (WARN_ON(skb_tailroom(skb) < tail ||
-		    skb_headroom(skb) < TKIP_IV_LEN))
+		    skb_headroom(skb) < IEEE80211_TKIP_IV_LEN))
 		return -1;
 
-	pos = skb_push(skb, TKIP_IV_LEN);
-	memmove(pos, pos + TKIP_IV_LEN, hdrlen);
-	skb_set_network_header(skb, skb_network_offset(skb) + TKIP_IV_LEN);
+	pos = skb_push(skb, IEEE80211_TKIP_IV_LEN);
+	memmove(pos, pos + IEEE80211_TKIP_IV_LEN, hdrlen);
+	skb_set_network_header(skb, skb_network_offset(skb) +
+				    IEEE80211_TKIP_IV_LEN);
 	pos += hdrlen;
 
 	/* the HW only needs room for the IV, but not the actual IV */
@@ -227,7 +228,7 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 		return 0;
 
 	/* Add room for ICV */
-	skb_put(skb, TKIP_ICV_LEN);
+	skb_put(skb, IEEE80211_TKIP_ICV_LEN);
 
 	return ieee80211_tkip_encrypt_data(tx->local->wep_tx_tfm,
 					   key, skb, pos, len);
@@ -290,11 +291,11 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	/* Trim ICV */
-	skb_trim(skb, skb->len - TKIP_ICV_LEN);
+	skb_trim(skb, skb->len - IEEE80211_TKIP_ICV_LEN);
 
 	/* Remove IV */
-	memmove(skb->data + TKIP_IV_LEN, skb->data, hdrlen);
-	skb_pull(skb, TKIP_IV_LEN);
+	memmove(skb->data + IEEE80211_TKIP_IV_LEN, skb->data, hdrlen);
+	skb_pull(skb, IEEE80211_TKIP_IV_LEN);
 
 	return RX_CONTINUE;
 }
@@ -337,9 +338,9 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *scratch,
 	else
 		qos_tid = 0;
 
-	data_len = skb->len - hdrlen - CCMP_HDR_LEN;
+	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN;
 	if (encrypted)
-		data_len -= CCMP_MIC_LEN;
+		data_len -= IEEE80211_CCMP_MIC_LEN;
 
 	/* First block, b_0 */
 	b_0[0] = 0x59; /* flags: Adata: 1, M: 011, L: 001 */
@@ -348,7 +349,7 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *scratch,
 	 */
 	b_0[1] = qos_tid | (mgmt << 4);
 	memcpy(&b_0[2], hdr->addr2, ETH_ALEN);
-	memcpy(&b_0[8], pn, CCMP_PN_LEN);
+	memcpy(&b_0[8], pn, IEEE80211_CCMP_PN_LEN);
 	/* l(m) */
 	put_unaligned_be16(data_len, &b_0[14]);
 
@@ -424,15 +425,16 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	if (info->control.hw_key)
 		tail = 0;
 	else
-		tail = CCMP_MIC_LEN;
+		tail = IEEE80211_CCMP_MIC_LEN;
 
 	if (WARN_ON(skb_tailroom(skb) < tail ||
-		    skb_headroom(skb) < CCMP_HDR_LEN))
+		    skb_headroom(skb) < IEEE80211_CCMP_HDR_LEN))
 		return -1;
 
-	pos = skb_push(skb, CCMP_HDR_LEN);
-	memmove(pos, pos + CCMP_HDR_LEN, hdrlen);
-	skb_set_network_header(skb, skb_network_offset(skb) + CCMP_HDR_LEN);
+	pos = skb_push(skb, IEEE80211_CCMP_HDR_LEN);
+	memmove(pos, pos + IEEE80211_CCMP_HDR_LEN, hdrlen);
+	skb_set_network_header(skb, skb_network_offset(skb) +
+				    IEEE80211_CCMP_HDR_LEN);
 
 	/* the HW only needs room for the IV, but not the actual IV */
 	if (info->control.hw_key &&
@@ -457,10 +459,10 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	if (info->control.hw_key)
 		return 0;
 
-	pos += CCMP_HDR_LEN;
+	pos += IEEE80211_CCMP_HDR_LEN;
 	ccmp_special_blocks(skb, pn, scratch, 0);
 	ieee80211_aes_ccm_encrypt(key->u.ccmp.tfm, scratch, pos, len,
-				  pos, skb_put(skb, CCMP_MIC_LEN));
+				  pos, skb_put(skb, IEEE80211_CCMP_MIC_LEN));
 
 	return 0;
 }
@@ -490,7 +492,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	struct ieee80211_key *key = rx->key;
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	u8 pn[CCMP_PN_LEN];
+	u8 pn[IEEE80211_CCMP_PN_LEN];
 	int data_len;
 	int queue;
 
@@ -500,12 +502,13 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	    !ieee80211_is_robust_mgmt_frame(hdr))
 		return RX_CONTINUE;
 
-	data_len = skb->len - hdrlen - CCMP_HDR_LEN - CCMP_MIC_LEN;
+	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN -
+		   IEEE80211_CCMP_MIC_LEN;
 	if (!rx->sta || data_len < 0)
 		return RX_DROP_UNUSABLE;
 
 	if (status->flag & RX_FLAG_DECRYPTED) {
-		if (!pskb_may_pull(rx->skb, hdrlen + CCMP_HDR_LEN))
+		if (!pskb_may_pull(rx->skb, hdrlen + IEEE80211_CCMP_HDR_LEN))
 			return RX_DROP_UNUSABLE;
 	} else {
 		if (skb_linearize(rx->skb))
@@ -516,7 +519,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 
 	queue = rx->security_idx;
 
-	if (memcmp(pn, key->u.ccmp.rx_pn[queue], CCMP_PN_LEN) <= 0) {
+	if (memcmp(pn, key->u.ccmp.rx_pn[queue], IEEE80211_CCMP_PN_LEN) <= 0) {
 		key->u.ccmp.replays++;
 		return RX_DROP_UNUSABLE;
 	}
@@ -528,19 +531,20 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 
 		if (ieee80211_aes_ccm_decrypt(
 			    key->u.ccmp.tfm, scratch,
-			    skb->data + hdrlen + CCMP_HDR_LEN, data_len,
-			    skb->data + skb->len - CCMP_MIC_LEN,
-			    skb->data + hdrlen + CCMP_HDR_LEN))
+			    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
+			    data_len,
+			    skb->data + skb->len - IEEE80211_CCMP_MIC_LEN,
+			    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN))
 			return RX_DROP_UNUSABLE;
 	}
 
-	memcpy(key->u.ccmp.rx_pn[queue], pn, CCMP_PN_LEN);
+	memcpy(key->u.ccmp.rx_pn[queue], pn, IEEE80211_CCMP_PN_LEN);
 
 	/* Remove CCMP header and MIC */
-	if (pskb_trim(skb, skb->len - CCMP_MIC_LEN))
+	if (pskb_trim(skb, skb->len - IEEE80211_CCMP_MIC_LEN))
 		return RX_DROP_UNUSABLE;
-	memmove(skb->data + CCMP_HDR_LEN, skb->data, hdrlen);
-	skb_pull(skb, CCMP_HDR_LEN);
+	memmove(skb->data + IEEE80211_CCMP_HDR_LEN, skb->data, hdrlen);
+	skb_pull(skb, IEEE80211_CCMP_HDR_LEN);
 
 	return RX_CONTINUE;
 }

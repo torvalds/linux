@@ -44,9 +44,11 @@ extern struct kmem_zone	*xfs_qm_dqtrxzone;
 typedef struct xfs_quotainfo {
 	struct radix_tree_root qi_uquota_tree;
 	struct radix_tree_root qi_gquota_tree;
+	struct radix_tree_root qi_pquota_tree;
 	struct mutex qi_tree_lock;
-	xfs_inode_t	*qi_uquotaip;	 /* user quota inode */
-	xfs_inode_t	*qi_gquotaip;	 /* group quota inode */
+	struct xfs_inode	*qi_uquotaip;	/* user quota inode */
+	struct xfs_inode	*qi_gquotaip;	/* group quota inode */
+	struct xfs_inode	*qi_pquotaip;	/* project quota inode */
 	struct list_head qi_lru_list;
 	struct mutex	 qi_lru_lock;
 	int		 qi_lru_count;
@@ -78,8 +80,9 @@ xfs_dquot_tree(
 	case XFS_DQ_USER:
 		return &qi->qi_uquota_tree;
 	case XFS_DQ_GROUP:
-	case XFS_DQ_PROJ:
 		return &qi->qi_gquota_tree;
+	case XFS_DQ_PROJ:
+		return &qi->qi_pquota_tree;
 	default:
 		ASSERT(0);
 	}
@@ -93,8 +96,9 @@ xfs_dq_to_quota_inode(struct xfs_dquot *dqp)
 	case XFS_DQ_USER:
 		return dqp->q_mount->m_quotainfo->qi_uquotaip;
 	case XFS_DQ_GROUP:
-	case XFS_DQ_PROJ:
 		return dqp->q_mount->m_quotainfo->qi_gquotaip;
+	case XFS_DQ_PROJ:
+		return dqp->q_mount->m_quotainfo->qi_pquotaip;
 	default:
 		ASSERT(0);
 	}
@@ -107,18 +111,20 @@ extern void	xfs_trans_mod_dquot(struct xfs_trans *,
 					struct xfs_dquot *, uint, long);
 extern int	xfs_trans_reserve_quota_bydquots(struct xfs_trans *,
 			struct xfs_mount *, struct xfs_dquot *,
-			struct xfs_dquot *, long, long, uint);
+			struct xfs_dquot *, struct xfs_dquot *,
+			long, long, uint);
 extern void	xfs_trans_dqjoin(struct xfs_trans *, struct xfs_dquot *);
 extern void	xfs_trans_log_dquot(struct xfs_trans *, struct xfs_dquot *);
 
 /*
- * We keep the usr and grp dquots separately so that locking will be easier
- * to do at commit time. All transactions that we know of at this point
+ * We keep the usr, grp, and prj dquots separately so that locking will be
+ * easier to do at commit time. All transactions that we know of at this point
  * affect no more than two dquots of one type. Hence, the TRANS_MAXDQS value.
  */
 enum {
 	XFS_QM_TRANS_USR = 0,
 	XFS_QM_TRANS_GRP,
+	XFS_QM_TRANS_PRJ,
 	XFS_QM_TRANS_DQTYPES
 };
 #define XFS_QM_TRANS_MAXDQS		2

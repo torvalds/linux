@@ -111,7 +111,7 @@ config IP_NF_TARGET_REJECT
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_TARGET_ULOG
-	tristate "ULOG target support"
+	tristate "ULOG target support (obsolete)"
 	default m if NETFILTER_ADVANCED=n
 	---help---
 

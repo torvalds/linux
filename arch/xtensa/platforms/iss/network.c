@@ -700,7 +700,7 @@ struct iss_net_init {
 
 #define ERR KERN_ERR "iss_net_setup: "
 
-static int iss_net_setup(char *str)
+static int __init iss_net_setup(char *str)
 {
 	struct iss_net_private *device = NULL;
 	struct iss_net_init *new;
