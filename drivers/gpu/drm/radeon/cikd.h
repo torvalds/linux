@@ -299,6 +299,10 @@
 #define	VM_CONTEXT0_PAGE_TABLE_END_ADDR			0x157C
 #define	VM_CONTEXT1_PAGE_TABLE_END_ADDR			0x1580
 
+#define VM_L2_CG           				0x15c0
+#define		MC_CG_ENABLE				(1 << 18)
+#define		MC_LS_ENABLE				(1 << 19)
+
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x0000f000
@@ -327,6 +331,17 @@
 #define	MC_VM_FB_OFFSET					0x2068
 
 #define MC_SHARED_BLACKOUT_CNTL           		0x20ac
+
+#define MC_HUB_MISC_HUB_CG           			0x20b8
+#define MC_HUB_MISC_VM_CG           			0x20bc
+
+#define MC_HUB_MISC_SIP_CG           			0x20c0
+
+#define MC_XPB_CLK_GAT           			0x2478
+
+#define MC_CITF_MISC_RD_CG           			0x2648
+#define MC_CITF_MISC_WR_CG           			0x264c
+#define MC_CITF_MISC_VM_CG           			0x2650
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -357,6 +372,7 @@
 #define MC_SEQ_IO_DEBUG_DATA           			0x2a48
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
+#define 	CLOCK_GATING_DIS			(1 << 23)
 #define	HDP_NONSURFACE_BASE				0x2C04
 #define	HDP_NONSURFACE_INFO				0x2C08
 #define	HDP_NONSURFACE_SIZE				0x2C0C
@@ -364,6 +380,10 @@
 #define HDP_ADDR_CONFIG  				0x2F48
 #define HDP_MISC_CNTL					0x2F4C
 #define 	HDP_FLUSH_INVALIDATE_CACHE			(1 << 0)
+#define HDP_MEM_POWER_LS				0x2F50
+#define 	HDP_LS_ENABLE				(1 << 0)
+
+#define ATC_MISC_CG           				0x3350
 
 #define IH_RB_CNTL                                        0x3e00
 #       define IH_RB_ENABLE                               (1 << 0)
@@ -631,6 +651,9 @@
 
 #define	CP_RB0_RPTR					0x8700
 #define	CP_RB_WPTR_DELAY				0x8704
+#define	CP_RB_WPTR_POLL_CNTL				0x8708
+#define		IDLE_POLL_COUNT(x)			((x) << 16)
+#define		IDLE_POLL_COUNT_MASK			(0xffff << 16)
 
 #define CP_MEQ_THRESHOLDS				0x8764
 #define		MEQ1_START(x)				((x) << 0)
@@ -857,6 +880,9 @@
 #       define CP_RINGID1_INT_STAT                      (1 << 30)
 #       define CP_RINGID0_INT_STAT                      (1 << 31)
 
+#define CP_MEM_SLP_CNTL                                 0xC1E4
+#       define CP_MEM_LS_EN                             (1 << 0)
+
 #define CP_CPF_DEBUG                                    0xC200
 
 #define CP_PQ_WPTR_POLL_CNTL                            0xC20C
@@ -902,6 +928,9 @@
 
 #define RLC_MC_CNTL                                       0xC30C
 
+#define RLC_MEM_SLP_CNTL                                  0xC318
+#       define RLC_MEM_LS_EN                              (1 << 0)
+
 #define RLC_LB_CNTR_MAX                                   0xC348
 
 #define RLC_LB_CNTL                                       0xC364
@@ -910,7 +939,9 @@
 #define RLC_LB_CNTR_INIT                                  0xC36C
 
 #define RLC_SAVE_AND_RESTORE_BASE                         0xC374
-#define RLC_DRIVER_DMA_STATUS                             0xC378
+#define RLC_DRIVER_DMA_STATUS                             0xC378 /* dGPU */
+#define RLC_CP_TABLE_RESTORE                              0xC378 /* APU */
+#define RLC_PG_DELAY_2                                    0xC37C
 
 #define RLC_GPM_UCODE_ADDR                                0xC388
 #define RLC_GPM_UCODE_DATA                                0xC38C
@@ -919,11 +950,49 @@
 #define RLC_CAPTURE_GPU_CLOCK_COUNT                       0xC398
 #define RLC_UCODE_CNTL                                    0xC39C
 
+#define RLC_GPM_STAT                                      0xC400
+#       define RLC_GPM_BUSY                               (1 << 0)
+
+#define RLC_PG_CNTL                                       0xC40C
+#       define GFX_PG_ENABLE                              (1 << 0)
+#       define GFX_PG_SRC                                 (1 << 1)
+#       define DYN_PER_CU_PG_ENABLE                       (1 << 2)
+#       define STATIC_PER_CU_PG_ENABLE                    (1 << 3)
+#       define DISABLE_GDS_PG                             (1 << 13)
+#       define DISABLE_CP_PG                              (1 << 15)
+#       define SMU_CLK_SLOWDOWN_ON_PU_ENABLE              (1 << 17)
+#       define SMU_CLK_SLOWDOWN_ON_PD_ENABLE              (1 << 18)
+
+#define RLC_CGTT_MGCG_OVERRIDE                            0xC420
 #define RLC_CGCG_CGLS_CTRL                                0xC424
+#       define CGCG_EN                                    (1 << 0)
+#       define CGLS_EN                                    (1 << 1)
+
+#define RLC_PG_DELAY                                      0xC434
 
 #define RLC_LB_INIT_CU_MASK                               0xC43C
 
 #define RLC_LB_PARAMS                                     0xC444
+
+#define RLC_PG_AO_CU_MASK                                 0xC44C
+
+#define	RLC_MAX_PG_CU					0xC450
+#	define MAX_PU_CU(x)				((x) << 0)
+#	define MAX_PU_CU_MASK				(0xff << 0)
+#define RLC_AUTO_PG_CTRL                                  0xC454
+#       define AUTO_PG_EN                                 (1 << 0)
+#	define GRBM_REG_SGIT(x)				((x) << 3)
+#	define GRBM_REG_SGIT_MASK			(0xffff << 3)
+
+#define RLC_SERDES_WR_CU_MASTER_MASK                      0xC474
+#define RLC_SERDES_WR_NONCU_MASTER_MASK                   0xC478
+#define RLC_SERDES_WR_CTRL                                0xC47C
+#define		BPM_ADDR(x)				((x) << 0)
+#define		BPM_ADDR_MASK      			(0xff << 0)
+#define		CGLS_ENABLE				(1 << 16)
+#define		CGCG_OVERRIDE_0				(1 << 20)
+#define		MGCG_OVERRIDE_0				(1 << 22)
+#define		MGCG_OVERRIDE_1				(1 << 23)
 
 #define RLC_SERDES_CU_MASTER_BUSY                         0xC484
 #define RLC_SERDES_NONCU_MASTER_BUSY                      0xC488
@@ -978,6 +1047,8 @@
 #define CP_MQD_CONTROL                                  0xC99C
 #define		MQD_VMID(x)				((x) << 0)
 #define		MQD_VMID_MASK      			(0xf << 0)
+
+#define DB_RENDER_CONTROL                               0x28000
 
 #define PA_SC_RASTER_CONFIG                             0x28350
 #       define RASTER_CONFIG_RB_MAP_0                   0
@@ -1071,6 +1142,16 @@
 #define	SQC_CACHES					0x30d20
 
 #define	CP_PERFMON_CNTL					0x36020
+
+#define	CGTS_SM_CTRL_REG				0x3c000
+#define		SM_MODE(x)				((x) << 17)
+#define		SM_MODE_MASK				(0x7 << 17)
+#define		SM_MODE_ENABLE				(1 << 20)
+#define		CGTS_OVERRIDE				(1 << 21)
+#define		CGTS_LS_OVERRIDE			(1 << 22)
+#define		ON_MONITOR_ADD_EN			(1 << 23)
+#define		ON_MONITOR_ADD(x)			((x) << 24)
+#define		ON_MONITOR_ADD_MASK			(0xff << 24)
 
 #define	CGTS_TCC_DISABLE				0x3c00c
 #define	CGTS_USER_TCC_DISABLE				0x3c010
@@ -1304,6 +1385,8 @@
 
 #define	SDMA0_UCODE_ADDR                                  0xD000
 #define	SDMA0_UCODE_DATA                                  0xD004
+#define	SDMA0_POWER_CNTL                                  0xD008
+#define	SDMA0_CLK_CTRL                                    0xD00C
 
 #define SDMA0_CNTL                                        0xD010
 #       define TRAP_ENABLE                                (1 << 0)
@@ -1428,6 +1511,13 @@
 #define UVD_RBC_RB_RPTR			0xf690
 #define UVD_RBC_RB_WPTR			0xf694
 
+#define	UVD_CGC_CTRL					0xF4B0
+#	define DCM					(1 << 0)
+#	define CG_DT(x)					((x) << 2)
+#	define CG_DT_MASK				(0xf << 2)
+#	define CLK_OD(x)				((x) << 6)
+#	define CLK_OD_MASK				(0x1f << 6)
+
 /* UVD clocks */
 
 #define CG_DCLK_CNTL			0xC050009C
@@ -1437,5 +1527,8 @@
 #	define DCLK_STATUS		(1 << 0)
 #define CG_VCLK_CNTL			0xC05000A4
 #define CG_VCLK_STATUS			0xC05000A8
+
+/* UVD CTX indirect */
+#define	UVD_CGC_MEM_CTRL				0xC0
 
 #endif

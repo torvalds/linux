@@ -152,6 +152,14 @@ extern int radeon_aspm;
 #define RADEON_RESET_MC				(1 << 10)
 #define RADEON_RESET_DISPLAY			(1 << 11)
 
+/* CG block flags */
+#define RADEON_CG_BLOCK_GFX			(1 << 0)
+#define RADEON_CG_BLOCK_MC			(1 << 1)
+#define RADEON_CG_BLOCK_SDMA			(1 << 2)
+#define RADEON_CG_BLOCK_UVD			(1 << 3)
+#define RADEON_CG_BLOCK_VCE			(1 << 4)
+#define RADEON_CG_BLOCK_HDP			(1 << 5)
+
 /* max cursor sizes (in pixels) */
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64
@@ -861,6 +869,12 @@ struct radeon_rlc {
 	uint64_t		clear_state_gpu_addr;
 	volatile uint32_t	*cs_ptr;
 	const struct cs_section_def   *cs_data;
+	u32                     clear_state_size;
+	/* for cp tables */
+	struct radeon_bo	*cp_table_obj;
+	uint64_t		cp_table_gpu_addr;
+	volatile uint32_t	*cp_table_ptr;
+	u32                     cp_table_size;
 };
 
 int radeon_ib_get(struct radeon_device *rdev, int ring,

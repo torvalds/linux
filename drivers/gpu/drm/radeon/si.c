@@ -4901,7 +4901,7 @@ static void si_set_uvd_dcm(struct radeon_device *rdev,
 	WREG32_UVD_CTX(UVD_CGC_CTRL2, tmp2);
 }
 
-static void si_init_uvd_internal_cg(struct radeon_device *rdev)
+void si_init_uvd_internal_cg(struct radeon_device *rdev)
 {
 	bool hw_mode = true;
 

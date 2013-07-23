@@ -31,6 +31,7 @@
 #include "atom.h"
 #include "cik_blit_shaders.h"
 #include "radeon_ucode.h"
+#include "clearstate_ci.h"
 
 MODULE_FIRMWARE("radeon/BONAIRE_pfp.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_me.bin");
@@ -61,9 +62,12 @@ extern void sumo_rlc_fini(struct radeon_device *rdev);
 extern int sumo_rlc_init(struct radeon_device *rdev);
 extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern void si_rlc_reset(struct radeon_device *rdev);
+extern void si_init_uvd_internal_cg(struct radeon_device *rdev);
 static void cik_rlc_stop(struct radeon_device *rdev);
 static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
+static void cik_init_pg(struct radeon_device *rdev);
+static void cik_init_cg(struct radeon_device *rdev);
 
 /*
  * Indirect registers accessor
@@ -85,6 +89,778 @@ void cik_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 	WREG32(PCIE_DATA, v);
 	(void)RREG32(PCIE_DATA);
 }
+
+static const u32 spectre_rlc_save_restore_register_list[] =
+{
+	(0x0e00 << 16) | (0xc12c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc140 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc150 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc15c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc168 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc170 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc178 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc204 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2b4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2b8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2bc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2c0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8228 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x829c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x869c >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x98f4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x98f8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9900 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc260 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x90e8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c000 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c00c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c1c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9700 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x8e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x9e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0xae00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0xbe00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x89bc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8900 >> 2),
+	0x00000000,
+	0x3,
+	(0x0e00 << 16) | (0xc130 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc134 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc1fc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc208 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc264 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc268 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc26c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc270 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc274 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc278 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc27c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc280 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc284 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc288 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc28c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc290 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc294 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc298 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc29c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2a0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2a4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2a8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2ac  >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2b0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x301d0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30238 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30250 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30254 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30258 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3025c >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x8e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x9e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0xae00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0xbe00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x8e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x9e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0xae00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0xbe00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x8e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x9e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0xae00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0xbe00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x8e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x9e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0xae00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0xbe00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x8e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x9e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0xae00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0xbe00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc99c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9834 >> 2),
+	0x00000000,
+	(0x0000 << 16) | (0x30f00 >> 2),
+	0x00000000,
+	(0x0001 << 16) | (0x30f00 >> 2),
+	0x00000000,
+	(0x0000 << 16) | (0x30f04 >> 2),
+	0x00000000,
+	(0x0001 << 16) | (0x30f04 >> 2),
+	0x00000000,
+	(0x0000 << 16) | (0x30f08 >> 2),
+	0x00000000,
+	(0x0001 << 16) | (0x30f08 >> 2),
+	0x00000000,
+	(0x0000 << 16) | (0x30f0c >> 2),
+	0x00000000,
+	(0x0001 << 16) | (0x30f0c >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x9b7c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8a14 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8a18 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a00 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8bf0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8bcc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8b24 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30a04 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a10 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a14 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a18 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a2c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc700 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc704 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc708 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc768 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc770 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc774 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc778 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc77c >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc780 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc784 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc788 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc78c >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc798 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc79c >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc7a0 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc7a4 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc7a8 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc7ac >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc7b0 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc7b4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9100 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c010 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92a8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92ac >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92b4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92b8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92bc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92c0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92c4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92c8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92cc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x92d0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c00 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c04 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c20 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c38 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c3c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xae00 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9604 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac08 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac0c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac10 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac14 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac58 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac68 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac6c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac70 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac74 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac78 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac7c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac80 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac84 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac88 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac8c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x970c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9714 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9718 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x971c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x8e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x9e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0xae00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0xbe00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xcd10 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xcd14 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88b0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88b4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88b8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88bc >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0x89c0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88c4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88c8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88d0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88d4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88d8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8980 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30938 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3093c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30940 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x89a0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30900 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30904 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x89b4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c210 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c214 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c218 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8904 >> 2),
+	0x00000000,
+	0x5,
+	(0x0e00 << 16) | (0x8c28 >> 2),
+	(0x0e00 << 16) | (0x8c2c >> 2),
+	(0x0e00 << 16) | (0x8c30 >> 2),
+	(0x0e00 << 16) | (0x8c34 >> 2),
+	(0x0e00 << 16) | (0x9600 >> 2),
+};
+
+static const u32 kalindi_rlc_save_restore_register_list[] =
+{
+	(0x0e00 << 16) | (0xc12c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc140 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc150 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc15c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc168 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc170 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc204 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2b4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2b8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2bc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2c0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8228 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x829c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x869c >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x98f4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x98f8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9900 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc260 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x90e8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c000 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c00c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c1c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9700 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xcd20 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x89bc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8900 >> 2),
+	0x00000000,
+	0x3,
+	(0x0e00 << 16) | (0xc130 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc134 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc1fc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc208 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc264 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc268 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc26c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc270 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc274 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc28c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc290 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc294 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc298 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2a0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2a4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2a8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc2ac >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x301d0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30238 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30250 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30254 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30258 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3025c >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc900 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc904 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc908 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc90c >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0xc910 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc99c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9834 >> 2),
+	0x00000000,
+	(0x0000 << 16) | (0x30f00 >> 2),
+	0x00000000,
+	(0x0000 << 16) | (0x30f04 >> 2),
+	0x00000000,
+	(0x0000 << 16) | (0x30f08 >> 2),
+	0x00000000,
+	(0x0000 << 16) | (0x30f0c >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x9b7c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8a14 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8a18 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a00 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8bf0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8bcc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8b24 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30a04 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a10 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a14 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a18 >> 2),
+	0x00000000,
+	(0x0600 << 16) | (0x30a2c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc700 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc704 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc708 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xc768 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc770 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc774 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc798 >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0xc79c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9100 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c010 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c00 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c04 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c20 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c38 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8c3c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xae00 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9604 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac08 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac0c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac10 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac14 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac58 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac68 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac6c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac70 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac74 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac78 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac7c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac80 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac84 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac88 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xac8c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x970c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9714 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x9718 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x971c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x4e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x5e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x6e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x7e00 << 16) | (0x31068 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xcd10 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0xcd14 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88b0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88b4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88b8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88bc >> 2),
+	0x00000000,
+	(0x0400 << 16) | (0x89c0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88c4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88c8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88d0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88d4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x88d8 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8980 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30938 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3093c >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30940 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x89a0 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30900 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x30904 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x89b4 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3e1fc >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c210 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c214 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x3c218 >> 2),
+	0x00000000,
+	(0x0e00 << 16) | (0x8904 >> 2),
+	0x00000000,
+	0x5,
+	(0x0e00 << 16) | (0x8c28 >> 2),
+	(0x0e00 << 16) | (0x8c2c >> 2),
+	(0x0e00 << 16) | (0x8c30 >> 2),
+	(0x0e00 << 16) | (0x8c34 >> 2),
+	(0x0e00 << 16) | (0x9600 >> 2),
+};
 
 static const u32 bonaire_golden_spm_registers[] =
 {
@@ -4778,6 +5554,39 @@ static void cik_wait_for_rlc_serdes(struct radeon_device *rdev)
 	}
 }
 
+static void cik_update_rlc(struct radeon_device *rdev, u32 rlc)
+{
+	u32 tmp;
+
+	tmp = RREG32(RLC_CNTL);
+	if (tmp != rlc)
+		WREG32(RLC_CNTL, rlc);
+}
+
+static u32 cik_halt_rlc(struct radeon_device *rdev)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(RLC_CNTL);
+
+	if (data & RLC_ENABLE) {
+		u32 i;
+
+		data &= ~RLC_ENABLE;
+		WREG32(RLC_CNTL, data);
+
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if ((RREG32(RLC_GPM_STAT) & RLC_GPM_BUSY) == 0)
+				break;
+			udelay(1);
+		}
+
+		cik_wait_for_rlc_serdes(rdev);
+	}
+
+	return orig;
+}
+
 /**
  * cik_rlc_stop - stop the RLC ME
  *
@@ -4787,19 +5596,9 @@ static void cik_wait_for_rlc_serdes(struct radeon_device *rdev)
  */
 static void cik_rlc_stop(struct radeon_device *rdev)
 {
-	u32 tmp;
+	WREG32(RLC_CNTL, 0);
 
 	cik_enable_gui_idle_interrupt(rdev, false);
-
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
-
-	tmp = RREG32(RLC_CGCG_CGLS_CTRL) & 0xfffffffc;
-	WREG32(RLC_CGCG_CGLS_CTRL, tmp);
-
-	WREG32(RLC_CNTL, 0);
 
 	cik_wait_for_rlc_serdes(rdev);
 }
@@ -4831,8 +5630,7 @@ static void cik_rlc_start(struct radeon_device *rdev)
  */
 static int cik_rlc_resume(struct radeon_device *rdev)
 {
-	u32 i, size;
-	u32 clear_state_info[3];
+	u32 i, size, tmp;
 	const __be32 *fw_data;
 
 	if (!rdev->rlc_fw)
@@ -4853,7 +5651,15 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 
 	cik_rlc_stop(rdev);
 
+	/* disable CG */
+	tmp = RREG32(RLC_CGCG_CGLS_CTRL) & 0xfffffffc;
+	WREG32(RLC_CGCG_CGLS_CTRL, tmp);
+
 	si_rlc_reset(rdev);
+
+	cik_init_pg(rdev);
+
+	cik_init_cg(rdev);
 
 	WREG32(RLC_LB_CNTR_INIT, 0);
 	WREG32(RLC_LB_CNTR_MAX, 0x00008000);
@@ -4875,18 +5681,632 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 	/* XXX - find out what chips support lbpw */
 	cik_enable_lbpw(rdev, false);
 
-	/* XXX */
-	clear_state_info[0] = 0;//upper_32_bits(rdev->rlc.save_restore_gpu_addr);
-	clear_state_info[1] = 0;//rdev->rlc.save_restore_gpu_addr;
-	clear_state_info[2] = 0;//cik_default_size;
-	WREG32(RLC_GPM_SCRATCH_ADDR, 0x3d);
-	for (i = 0; i < 3; i++)
-		WREG32(RLC_GPM_SCRATCH_DATA, clear_state_info[i]);
-	WREG32(RLC_DRIVER_DMA_STATUS, 0);
+	if (rdev->family == CHIP_BONAIRE)
+		WREG32(RLC_DRIVER_DMA_STATUS, 0);
 
 	cik_rlc_start(rdev);
 
 	return 0;
+}
+
+static void cik_enable_cgcg(struct radeon_device *rdev, bool enable)
+{
+	u32 data, orig, tmp, tmp2;
+
+	orig = data = RREG32(RLC_CGCG_CGLS_CTRL);
+
+	cik_enable_gui_idle_interrupt(rdev, enable);
+
+	if (enable) {
+		tmp = cik_halt_rlc(rdev);
+
+		cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
+		WREG32(RLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
+		WREG32(RLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
+		tmp2 = BPM_ADDR_MASK | CGCG_OVERRIDE_0 | CGLS_ENABLE;
+		WREG32(RLC_SERDES_WR_CTRL, tmp2);
+
+		cik_update_rlc(rdev, tmp);
+
+		data |= CGCG_EN | CGLS_EN;
+	} else {
+		RREG32(CB_CGTT_SCLK_CTRL);
+		RREG32(CB_CGTT_SCLK_CTRL);
+		RREG32(CB_CGTT_SCLK_CTRL);
+		RREG32(CB_CGTT_SCLK_CTRL);
+
+		data &= ~(CGCG_EN | CGLS_EN);
+	}
+
+	if (orig != data)
+		WREG32(RLC_CGCG_CGLS_CTRL, data);
+
+}
+
+static void cik_enable_mgcg(struct radeon_device *rdev, bool enable)
+{
+	u32 data, orig, tmp = 0;
+
+	if (enable) {
+		orig = data = RREG32(CP_MEM_SLP_CNTL);
+		data |= CP_MEM_LS_EN;
+		if (orig != data)
+			WREG32(CP_MEM_SLP_CNTL, data);
+
+		orig = data = RREG32(RLC_CGTT_MGCG_OVERRIDE);
+		data &= 0xfffffffd;
+		if (orig != data)
+			WREG32(RLC_CGTT_MGCG_OVERRIDE, data);
+
+		tmp = cik_halt_rlc(rdev);
+
+		cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
+		WREG32(RLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
+		WREG32(RLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
+		data = BPM_ADDR_MASK | MGCG_OVERRIDE_0;
+		WREG32(RLC_SERDES_WR_CTRL, data);
+
+		cik_update_rlc(rdev, tmp);
+
+		orig = data = RREG32(CGTS_SM_CTRL_REG);
+		data &= ~SM_MODE_MASK;
+		data |= SM_MODE(0x2);
+		data |= SM_MODE_ENABLE;
+		data &= ~CGTS_OVERRIDE;
+		data &= ~CGTS_LS_OVERRIDE;
+		data &= ~ON_MONITOR_ADD_MASK;
+		data |= ON_MONITOR_ADD_EN;
+		data |= ON_MONITOR_ADD(0x96);
+		if (orig != data)
+			WREG32(CGTS_SM_CTRL_REG, data);
+	} else {
+		orig = data = RREG32(RLC_CGTT_MGCG_OVERRIDE);
+		data |= 0x00000002;
+		if (orig != data)
+			WREG32(RLC_CGTT_MGCG_OVERRIDE, data);
+
+		data = RREG32(RLC_MEM_SLP_CNTL);
+		if (data & RLC_MEM_LS_EN) {
+			data &= ~RLC_MEM_LS_EN;
+			WREG32(RLC_MEM_SLP_CNTL, data);
+		}
+
+		data = RREG32(CP_MEM_SLP_CNTL);
+		if (data & CP_MEM_LS_EN) {
+			data &= ~CP_MEM_LS_EN;
+			WREG32(CP_MEM_SLP_CNTL, data);
+		}
+
+		orig = data = RREG32(CGTS_SM_CTRL_REG);
+		data |= CGTS_OVERRIDE | CGTS_LS_OVERRIDE;
+		if (orig != data)
+			WREG32(CGTS_SM_CTRL_REG, data);
+
+		tmp = cik_halt_rlc(rdev);
+
+		cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
+		WREG32(RLC_SERDES_WR_CU_MASTER_MASK, 0xffffffff);
+		WREG32(RLC_SERDES_WR_NONCU_MASTER_MASK, 0xffffffff);
+		data = BPM_ADDR_MASK | MGCG_OVERRIDE_1;
+		WREG32(RLC_SERDES_WR_CTRL, data);
+
+		cik_update_rlc(rdev, tmp);
+	}
+}
+
+static const u32 mc_cg_registers[] =
+{
+	MC_HUB_MISC_HUB_CG,
+	MC_HUB_MISC_SIP_CG,
+	MC_HUB_MISC_VM_CG,
+	MC_XPB_CLK_GAT,
+	ATC_MISC_CG,
+	MC_CITF_MISC_WR_CG,
+	MC_CITF_MISC_RD_CG,
+	MC_CITF_MISC_VM_CG,
+	VM_L2_CG,
+};
+
+static void cik_enable_mc_ls(struct radeon_device *rdev,
+			     bool enable)
+{
+	int i;
+	u32 orig, data;
+
+	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
+		orig = data = RREG32(mc_cg_registers[i]);
+		if (enable)
+			data |= MC_LS_ENABLE;
+		else
+			data &= ~MC_LS_ENABLE;
+		if (data != orig)
+			WREG32(mc_cg_registers[i], data);
+	}
+}
+
+static void cik_enable_mc_mgcg(struct radeon_device *rdev,
+			       bool enable)
+{
+	int i;
+	u32 orig, data;
+
+	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
+		orig = data = RREG32(mc_cg_registers[i]);
+		if (enable)
+			data |= MC_CG_ENABLE;
+		else
+			data &= ~MC_CG_ENABLE;
+		if (data != orig)
+			WREG32(mc_cg_registers[i], data);
+	}
+}
+
+static void cik_enable_sdma_mgcg(struct radeon_device *rdev,
+				 bool enable)
+{
+	u32 orig, data;
+
+	if (enable) {
+		WREG32(SDMA0_CLK_CTRL + SDMA0_REGISTER_OFFSET, 0x00000100);
+		WREG32(SDMA0_CLK_CTRL + SDMA1_REGISTER_OFFSET, 0x00000100);
+	} else {
+		orig = data = RREG32(SDMA0_CLK_CTRL + SDMA0_REGISTER_OFFSET);
+		data |= 0xff000000;
+		if (data != orig)
+			WREG32(SDMA0_CLK_CTRL + SDMA0_REGISTER_OFFSET, data);
+
+		orig = data = RREG32(SDMA0_CLK_CTRL + SDMA1_REGISTER_OFFSET);
+		data |= 0xff000000;
+		if (data != orig)
+			WREG32(SDMA0_CLK_CTRL + SDMA1_REGISTER_OFFSET, data);
+	}
+}
+
+static void cik_enable_sdma_mgls(struct radeon_device *rdev,
+				 bool enable)
+{
+	u32 orig, data;
+
+	if (enable) {
+		orig = data = RREG32(SDMA0_POWER_CNTL + SDMA0_REGISTER_OFFSET);
+		data |= 0x100;
+		if (orig != data)
+			WREG32(SDMA0_POWER_CNTL + SDMA0_REGISTER_OFFSET, data);
+
+		orig = data = RREG32(SDMA0_POWER_CNTL + SDMA1_REGISTER_OFFSET);
+		data |= 0x100;
+		if (orig != data)
+			WREG32(SDMA0_POWER_CNTL + SDMA1_REGISTER_OFFSET, data);
+	} else {
+		orig = data = RREG32(SDMA0_POWER_CNTL + SDMA0_REGISTER_OFFSET);
+		data &= ~0x100;
+		if (orig != data)
+			WREG32(SDMA0_POWER_CNTL + SDMA0_REGISTER_OFFSET, data);
+
+		orig = data = RREG32(SDMA0_POWER_CNTL + SDMA1_REGISTER_OFFSET);
+		data &= ~0x100;
+		if (orig != data)
+			WREG32(SDMA0_POWER_CNTL + SDMA1_REGISTER_OFFSET, data);
+	}
+}
+
+static void cik_enable_uvd_mgcg(struct radeon_device *rdev,
+				bool enable)
+{
+	u32 orig, data;
+
+	if (enable) {
+		data = RREG32_UVD_CTX(UVD_CGC_MEM_CTRL);
+		data = 0xfff;
+		WREG32_UVD_CTX(UVD_CGC_MEM_CTRL, data);
+
+		orig = data = RREG32(UVD_CGC_CTRL);
+		data |= DCM;
+		if (orig != data)
+			WREG32(UVD_CGC_CTRL, data);
+	} else {
+		data = RREG32_UVD_CTX(UVD_CGC_MEM_CTRL);
+		data &= ~0xfff;
+		WREG32_UVD_CTX(UVD_CGC_MEM_CTRL, data);
+
+		orig = data = RREG32(UVD_CGC_CTRL);
+		data &= ~DCM;
+		if (orig != data)
+			WREG32(UVD_CGC_CTRL, data);
+	}
+}
+
+static void cik_enable_hdp_mgcg(struct radeon_device *rdev,
+				bool enable)
+{
+	u32 orig, data;
+
+	orig = data = RREG32(HDP_HOST_PATH_CNTL);
+
+	if (enable)
+		data &= ~CLOCK_GATING_DIS;
+	else
+		data |= CLOCK_GATING_DIS;
+
+	if (orig != data)
+		WREG32(HDP_HOST_PATH_CNTL, data);
+}
+
+static void cik_enable_hdp_ls(struct radeon_device *rdev,
+			      bool enable)
+{
+	u32 orig, data;
+
+	orig = data = RREG32(HDP_MEM_POWER_LS);
+
+	if (enable)
+		data |= HDP_LS_ENABLE;
+	else
+		data &= ~HDP_LS_ENABLE;
+
+	if (orig != data)
+		WREG32(HDP_MEM_POWER_LS, data);
+}
+
+void cik_update_cg(struct radeon_device *rdev,
+		   u32 block, bool enable)
+{
+	if (block & RADEON_CG_BLOCK_GFX) {
+		/* order matters! */
+		if (enable) {
+			cik_enable_mgcg(rdev, true);
+			cik_enable_cgcg(rdev, true);
+		} else {
+			cik_enable_cgcg(rdev, false);
+			cik_enable_mgcg(rdev, false);
+		}
+	}
+
+	if (block & RADEON_CG_BLOCK_MC) {
+		if (!(rdev->flags & RADEON_IS_IGP)) {
+			cik_enable_mc_mgcg(rdev, enable);
+			cik_enable_mc_ls(rdev, enable);
+		}
+	}
+
+	if (block & RADEON_CG_BLOCK_SDMA) {
+		cik_enable_sdma_mgcg(rdev, enable);
+		cik_enable_sdma_mgls(rdev, enable);
+	}
+
+	if (block & RADEON_CG_BLOCK_UVD) {
+		if (rdev->has_uvd)
+			cik_enable_uvd_mgcg(rdev, enable);
+	}
+
+	if (block & RADEON_CG_BLOCK_HDP) {
+		cik_enable_hdp_mgcg(rdev, enable);
+		cik_enable_hdp_ls(rdev, enable);
+	}
+}
+
+static void cik_init_cg(struct radeon_device *rdev)
+{
+
+	cik_update_cg(rdev, RADEON_CG_BLOCK_GFX, false); /* XXX true */
+
+	if (rdev->has_uvd)
+		si_init_uvd_internal_cg(rdev);
+
+	cik_update_cg(rdev, (RADEON_CG_BLOCK_MC |
+			     RADEON_CG_BLOCK_SDMA |
+			     RADEON_CG_BLOCK_UVD |
+			     RADEON_CG_BLOCK_HDP), true);
+}
+
+static void cik_enable_sck_slowdown_on_pu(struct radeon_device *rdev,
+					  bool enable)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(RLC_PG_CNTL);
+	if (enable)
+		data |= SMU_CLK_SLOWDOWN_ON_PU_ENABLE;
+	else
+		data &= ~SMU_CLK_SLOWDOWN_ON_PU_ENABLE;
+	if (orig != data)
+		WREG32(RLC_PG_CNTL, data);
+}
+
+static void cik_enable_sck_slowdown_on_pd(struct radeon_device *rdev,
+					  bool enable)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(RLC_PG_CNTL);
+	if (enable)
+		data |= SMU_CLK_SLOWDOWN_ON_PD_ENABLE;
+	else
+		data &= ~SMU_CLK_SLOWDOWN_ON_PD_ENABLE;
+	if (orig != data)
+		WREG32(RLC_PG_CNTL, data);
+}
+
+static void cik_enable_cp_pg(struct radeon_device *rdev, bool enable)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(RLC_PG_CNTL);
+	if (enable)
+		data &= ~DISABLE_CP_PG;
+	else
+		data |= DISABLE_CP_PG;
+	if (orig != data)
+		WREG32(RLC_PG_CNTL, data);
+}
+
+static void cik_enable_gds_pg(struct radeon_device *rdev, bool enable)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(RLC_PG_CNTL);
+	if (enable)
+		data &= ~DISABLE_GDS_PG;
+	else
+		data |= DISABLE_GDS_PG;
+	if (orig != data)
+		WREG32(RLC_PG_CNTL, data);
+}
+
+#define CP_ME_TABLE_SIZE    96
+#define CP_ME_TABLE_OFFSET  2048
+#define CP_MEC_TABLE_OFFSET 4096
+
+void cik_init_cp_pg_table(struct radeon_device *rdev)
+{
+	const __be32 *fw_data;
+	volatile u32 *dst_ptr;
+	int me, i, max_me = 4;
+	u32 bo_offset = 0;
+	u32 table_offset;
+
+	if (rdev->family == CHIP_KAVERI)
+		max_me = 5;
+
+	if (rdev->rlc.cp_table_ptr == NULL)
+		return;
+
+	/* write the cp table buffer */
+	dst_ptr = rdev->rlc.cp_table_ptr;
+	for (me = 0; me < max_me; me++) {
+		if (me == 0) {
+			fw_data = (const __be32 *)rdev->ce_fw->data;
+			table_offset = CP_ME_TABLE_OFFSET;
+		} else if (me == 1) {
+			fw_data = (const __be32 *)rdev->pfp_fw->data;
+			table_offset = CP_ME_TABLE_OFFSET;
+		} else if (me == 2) {
+			fw_data = (const __be32 *)rdev->me_fw->data;
+			table_offset = CP_ME_TABLE_OFFSET;
+		} else {
+			fw_data = (const __be32 *)rdev->mec_fw->data;
+			table_offset = CP_MEC_TABLE_OFFSET;
+		}
+
+		for (i = 0; i < CP_ME_TABLE_SIZE; i ++) {
+			dst_ptr[bo_offset + i] = be32_to_cpu(fw_data[table_offset + i]);
+		}
+		bo_offset += CP_ME_TABLE_SIZE;
+	}
+}
+
+static void cik_enable_gfx_cgpg(struct radeon_device *rdev,
+				bool enable)
+{
+	u32 data, orig;
+
+	if (enable) {
+		orig = data = RREG32(RLC_PG_CNTL);
+		data |= GFX_PG_ENABLE;
+		if (orig != data)
+			WREG32(RLC_PG_CNTL, data);
+
+		orig = data = RREG32(RLC_AUTO_PG_CTRL);
+		data |= AUTO_PG_EN;
+		if (orig != data)
+			WREG32(RLC_AUTO_PG_CTRL, data);
+	} else {
+		orig = data = RREG32(RLC_PG_CNTL);
+		data &= ~GFX_PG_ENABLE;
+		if (orig != data)
+			WREG32(RLC_PG_CNTL, data);
+
+		orig = data = RREG32(RLC_AUTO_PG_CTRL);
+		data &= ~AUTO_PG_EN;
+		if (orig != data)
+			WREG32(RLC_AUTO_PG_CTRL, data);
+
+		data = RREG32(DB_RENDER_CONTROL);
+	}
+}
+
+static u32 cik_get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh)
+{
+	u32 mask = 0, tmp, tmp1;
+	int i;
+
+	cik_select_se_sh(rdev, se, sh);
+	tmp = RREG32(CC_GC_SHADER_ARRAY_CONFIG);
+	tmp1 = RREG32(GC_USER_SHADER_ARRAY_CONFIG);
+	cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
+
+	tmp &= 0xffff0000;
+
+	tmp |= tmp1;
+	tmp >>= 16;
+
+	for (i = 0; i < rdev->config.cik.max_cu_per_sh; i ++) {
+		mask <<= 1;
+		mask |= 1;
+	}
+
+	return (~tmp) & mask;
+}
+
+static void cik_init_ao_cu_mask(struct radeon_device *rdev)
+{
+	u32 i, j, k, active_cu_number = 0;
+	u32 mask, counter, cu_bitmap;
+	u32 tmp = 0;
+
+	for (i = 0; i < rdev->config.cik.max_shader_engines; i++) {
+		for (j = 0; j < rdev->config.cik.max_sh_per_se; j++) {
+			mask = 1;
+			cu_bitmap = 0;
+			counter = 0;
+			for (k = 0; k < rdev->config.cik.max_cu_per_sh; k ++) {
+				if (cik_get_cu_active_bitmap(rdev, i, j) & mask) {
+					if (counter < 2)
+						cu_bitmap |= mask;
+					counter ++;
+				}
+				mask <<= 1;
+			}
+
+			active_cu_number += counter;
+			tmp |= (cu_bitmap << (i * 16 + j * 8));
+		}
+	}
+
+	WREG32(RLC_PG_AO_CU_MASK, tmp);
+
+	tmp = RREG32(RLC_MAX_PG_CU);
+	tmp &= ~MAX_PU_CU_MASK;
+	tmp |= MAX_PU_CU(active_cu_number);
+	WREG32(RLC_MAX_PG_CU, tmp);
+}
+
+static void cik_enable_gfx_static_mgpg(struct radeon_device *rdev,
+				       bool enable)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(RLC_PG_CNTL);
+	if (enable)
+		data |= STATIC_PER_CU_PG_ENABLE;
+	else
+		data &= ~STATIC_PER_CU_PG_ENABLE;
+	if (orig != data)
+		WREG32(RLC_PG_CNTL, data);
+}
+
+static void cik_enable_gfx_dynamic_mgpg(struct radeon_device *rdev,
+					bool enable)
+{
+	u32 data, orig;
+
+	orig = data = RREG32(RLC_PG_CNTL);
+	if (enable)
+		data |= DYN_PER_CU_PG_ENABLE;
+	else
+		data &= ~DYN_PER_CU_PG_ENABLE;
+	if (orig != data)
+		WREG32(RLC_PG_CNTL, data);
+}
+
+#define RLC_SAVE_AND_RESTORE_STARTING_OFFSET 0x90
+#define RLC_CLEAR_STATE_DESCRIPTOR_OFFSET    0x3D
+
+static void cik_init_gfx_cgpg(struct radeon_device *rdev)
+{
+	u32 data, orig;
+	u32 i;
+
+	if (rdev->rlc.cs_data) {
+		WREG32(RLC_GPM_SCRATCH_ADDR, RLC_CLEAR_STATE_DESCRIPTOR_OFFSET);
+		WREG32(RLC_GPM_SCRATCH_DATA, upper_32_bits(rdev->rlc.clear_state_gpu_addr));
+		WREG32(RLC_GPM_SCRATCH_DATA, rdev->rlc.clear_state_gpu_addr);
+		WREG32(RLC_GPM_SCRATCH_DATA, rdev->rlc.clear_state_size);
+	} else {
+		WREG32(RLC_GPM_SCRATCH_ADDR, RLC_CLEAR_STATE_DESCRIPTOR_OFFSET);
+		for (i = 0; i < 3; i++)
+			WREG32(RLC_GPM_SCRATCH_DATA, 0);
+	}
+	if (rdev->rlc.reg_list) {
+		WREG32(RLC_GPM_SCRATCH_ADDR, RLC_SAVE_AND_RESTORE_STARTING_OFFSET);
+		for (i = 0; i < rdev->rlc.reg_list_size; i++)
+			WREG32(RLC_GPM_SCRATCH_DATA, rdev->rlc.reg_list[i]);
+	}
+
+	orig = data = RREG32(RLC_PG_CNTL);
+	data |= GFX_PG_SRC;
+	if (orig != data)
+		WREG32(RLC_PG_CNTL, data);
+
+	WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
+	WREG32(RLC_CP_TABLE_RESTORE, rdev->rlc.cp_table_gpu_addr >> 8);
+
+	data = RREG32(CP_RB_WPTR_POLL_CNTL);
+	data &= ~IDLE_POLL_COUNT_MASK;
+	data |= IDLE_POLL_COUNT(0x60);
+	WREG32(CP_RB_WPTR_POLL_CNTL, data);
+
+	data = 0x10101010;
+	WREG32(RLC_PG_DELAY, data);
+
+	data = RREG32(RLC_PG_DELAY_2);
+	data &= ~0xff;
+	data |= 0x3;
+	WREG32(RLC_PG_DELAY_2, data);
+
+	data = RREG32(RLC_AUTO_PG_CTRL);
+	data &= ~GRBM_REG_SGIT_MASK;
+	data |= GRBM_REG_SGIT(0x700);
+	WREG32(RLC_AUTO_PG_CTRL, data);
+
+}
+
+static void cik_update_gfx_pg(struct radeon_device *rdev, bool enable)
+{
+	bool has_pg = false;
+	bool has_dyn_mgpg = false;
+	bool has_static_mgpg = false;
+
+	/* only APUs have PG */
+	if (rdev->flags & RADEON_IS_IGP) {
+		has_pg = true;
+		has_static_mgpg = true;
+		if (rdev->family == CHIP_KAVERI)
+			has_dyn_mgpg = true;
+	}
+
+	if (has_pg) {
+		cik_enable_gfx_cgpg(rdev, enable);
+		if (enable) {
+			cik_enable_gfx_static_mgpg(rdev, has_static_mgpg);
+			cik_enable_gfx_dynamic_mgpg(rdev, has_dyn_mgpg);
+		} else {
+			cik_enable_gfx_static_mgpg(rdev, false);
+			cik_enable_gfx_dynamic_mgpg(rdev, false);
+		}
+	}
+
+}
+
+void cik_init_pg(struct radeon_device *rdev)
+{
+	bool has_pg = false;
+
+	/* only APUs have PG */
+	if (rdev->flags & RADEON_IS_IGP) {
+		/* XXX disable this for now */
+		/* has_pg = true; */
+	}
+
+	if (has_pg) {
+		cik_enable_sck_slowdown_on_pu(rdev, true);
+		cik_enable_sck_slowdown_on_pd(rdev, true);
+		cik_init_gfx_cgpg(rdev);
+		cik_enable_cp_pg(rdev, true);
+		cik_enable_gds_pg(rdev, true);
+		cik_init_ao_cu_mask(rdev);
+		cik_update_gfx_pg(rdev, true);
+	}
 }
 
 /*
@@ -6019,6 +7439,19 @@ static int cik_startup(struct radeon_device *rdev)
 	cik_gpu_init(rdev);
 
 	/* allocate rlc buffers */
+	if (rdev->flags & RADEON_IS_IGP) {
+		if (rdev->family == CHIP_KAVERI) {
+			rdev->rlc.reg_list = spectre_rlc_save_restore_register_list;
+			rdev->rlc.reg_list_size =
+				(u32)ARRAY_SIZE(spectre_rlc_save_restore_register_list);
+		} else {
+			rdev->rlc.reg_list = kalindi_rlc_save_restore_register_list;
+			rdev->rlc.reg_list_size =
+				(u32)ARRAY_SIZE(kalindi_rlc_save_restore_register_list);
+		}
+	}
+	rdev->rlc.cs_data = ci_cs_data;
+	rdev->rlc.cp_table_size = CP_ME_TABLE_SIZE * 5 * 4;
 	r = sumo_rlc_init(rdev);
 	if (r) {
 		DRM_ERROR("Failed to init rlc BOs!\n");

@@ -2780,6 +2780,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_BONAIRE:
 		rdev->asic = &ci_asic;
 		rdev->num_crtc = 6;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
@@ -2789,6 +2790,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 			rdev->num_crtc = 4;
 		else
 			rdev->num_crtc = 2;
+		rdev->has_uvd = true;
 		break;
 	default:
 		/* FIXME: not supported yet */

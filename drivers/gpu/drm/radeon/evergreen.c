@@ -140,6 +140,7 @@ extern void cayman_cp_int_cntl_setup(struct radeon_device *rdev,
 				     int ring, u32 cp_int_cntl);
 extern void cayman_vm_decode_fault(struct radeon_device *rdev,
 				   u32 status, u32 addr);
+void cik_init_cp_pg_table(struct radeon_device *rdev);
 
 static const u32 evergreen_golden_registers[] =
 {
@@ -3893,7 +3894,21 @@ void sumo_rlc_fini(struct radeon_device *rdev)
 		radeon_bo_unref(&rdev->rlc.clear_state_obj);
 		rdev->rlc.clear_state_obj = NULL;
 	}
+
+	/* clear state block */
+	if (rdev->rlc.cp_table_obj) {
+		r = radeon_bo_reserve(rdev->rlc.cp_table_obj, false);
+		if (unlikely(r != 0))
+			dev_warn(rdev->dev, "(%d) reserve RLC cp table bo failed\n", r);
+		radeon_bo_unpin(rdev->rlc.cp_table_obj);
+		radeon_bo_unreserve(rdev->rlc.cp_table_obj);
+
+		radeon_bo_unref(&rdev->rlc.cp_table_obj);
+		rdev->rlc.cp_table_obj = NULL;
+	}
 }
+
+#define CP_ME_TABLE_SIZE    96
 
 int sumo_rlc_init(struct radeon_device *rdev)
 {
@@ -3980,9 +3995,10 @@ int sumo_rlc_init(struct radeon_device *rdev)
 		}
 		reg_list_blk_index = (3 * reg_list_num + 2);
 		dws += reg_list_blk_index;
+		rdev->rlc.clear_state_size = dws;
 
 		if (rdev->rlc.clear_state_obj == NULL) {
-			r = radeon_bo_create(rdev, dws * 4, PAGE_SIZE, true,
+			r = radeon_bo_create(rdev, rdev->rlc.clear_state_size * 4, PAGE_SIZE, true,
 					     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->rlc.clear_state_obj);
 			if (r) {
 				dev_warn(rdev->dev, "(%d) create RLC c bo failed\n", r);
@@ -4044,6 +4060,45 @@ int sumo_rlc_init(struct radeon_device *rdev)
 
 		radeon_bo_kunmap(rdev->rlc.clear_state_obj);
 		radeon_bo_unreserve(rdev->rlc.clear_state_obj);
+	}
+
+	if (rdev->rlc.cp_table_size) {
+		if (rdev->rlc.cp_table_obj == NULL) {
+			r = radeon_bo_create(rdev, rdev->rlc.cp_table_size, PAGE_SIZE, true,
+					     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->rlc.cp_table_obj);
+			if (r) {
+				dev_warn(rdev->dev, "(%d) create RLC cp table bo failed\n", r);
+				sumo_rlc_fini(rdev);
+				return r;
+			}
+		}
+
+		r = radeon_bo_reserve(rdev->rlc.cp_table_obj, false);
+		if (unlikely(r != 0)) {
+			dev_warn(rdev->dev, "(%d) reserve RLC cp table bo failed\n", r);
+			sumo_rlc_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_pin(rdev->rlc.cp_table_obj, RADEON_GEM_DOMAIN_VRAM,
+				  &rdev->rlc.cp_table_gpu_addr);
+		if (r) {
+			radeon_bo_unreserve(rdev->rlc.cp_table_obj);
+			dev_warn(rdev->dev, "(%d) pin RLC cp_table bo failed\n", r);
+			sumo_rlc_fini(rdev);
+			return r;
+		}
+		r = radeon_bo_kmap(rdev->rlc.cp_table_obj, (void **)&rdev->rlc.cp_table_ptr);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) map RLC cp table bo failed\n", r);
+			sumo_rlc_fini(rdev);
+			return r;
+		}
+
+		cik_init_cp_pg_table(rdev);
+
+		radeon_bo_kunmap(rdev->rlc.cp_table_obj);
+		radeon_bo_unreserve(rdev->rlc.cp_table_obj);
+
 	}
 
 	return 0;
