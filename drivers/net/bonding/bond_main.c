@@ -1219,22 +1219,15 @@ static void bond_poll_controller(struct net_device *bond_dev)
 {
 }
 
-static void __bond_netpoll_cleanup(struct bonding *bond)
+static void bond_netpoll_cleanup(struct net_device *bond_dev)
 {
+	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
 	int i;
 
 	bond_for_each_slave(bond, slave, i)
 		if (IS_UP(slave->dev))
 			slave_disable_netpoll(slave);
-}
-static void bond_netpoll_cleanup(struct net_device *bond_dev)
-{
-	struct bonding *bond = netdev_priv(bond_dev);
-
-	read_lock(&bond->lock);
-	__bond_netpoll_cleanup(bond);
-	read_unlock(&bond->lock);
 }
 
 static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni, gfp_t gfp)
@@ -1243,15 +1236,13 @@ static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni, g
 	struct slave *slave;
 	int i, err = 0;
 
-	read_lock(&bond->lock);
 	bond_for_each_slave(bond, slave, i) {
 		err = slave_enable_netpoll(slave);
 		if (err) {
-			__bond_netpoll_cleanup(bond);
+			bond_netpoll_cleanup(dev);
 			break;
 		}
 	}
-	read_unlock(&bond->lock);
 	return err;
 }
 
