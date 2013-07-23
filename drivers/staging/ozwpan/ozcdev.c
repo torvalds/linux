@@ -73,7 +73,6 @@ static void oz_cdev_release_ctx(struct oz_serial_ctx *ctx)
 static int oz_cdev_open(struct inode *inode, struct file *filp)
 {
 	struct oz_cdev *dev;
-	oz_trace("oz_cdev_open()\n");
 	oz_trace("major = %d minor = %d\n", imajor(inode), iminor(inode));
 	dev = container_of(inode->i_cdev, struct oz_cdev, cdev);
 	filp->private_data = dev;
@@ -84,7 +83,6 @@ static int oz_cdev_open(struct inode *inode, struct file *filp)
  */
 static int oz_cdev_release(struct inode *inode, struct file *filp)
 {
-	oz_trace("oz_cdev_release()\n");
 	return 0;
 }
 /*------------------------------------------------------------------------------
