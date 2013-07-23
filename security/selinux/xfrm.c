@@ -367,14 +367,12 @@ int selinux_xfrm_state_delete(struct xfrm_state *x)
  * we need to check for unlabelled access since this may not have
  * gone thru the IPSec process.
  */
-int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
-				struct common_audit_data *ad)
+int selinux_xfrm_sock_rcv_skb(u32 sk_sid, struct sk_buff *skb,
+			      struct common_audit_data *ad)
 {
-	int i, rc = 0;
-	struct sec_path *sp;
-	u32 sel_sid = SECINITSID_UNLABELED;
-
-	sp = skb->sp;
+	int i;
+	struct sec_path *sp = skb->sp;
+	u32 peer_sid = SECINITSID_UNLABELED;
 
 	if (sp) {
 		for (i = 0; i < sp->len; i++) {
@@ -382,23 +380,17 @@ int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
 
 			if (x && selinux_authorizable_xfrm(x)) {
 				struct xfrm_sec_ctx *ctx = x->security;
-				sel_sid = ctx->ctx_sid;
+				peer_sid = ctx->ctx_sid;
 				break;
 			}
 		}
 	}
 
-	/*
-	 * This check even when there's no association involved is
-	 * intended, according to Trent Jaeger, to make sure a
-	 * process can't engage in non-ipsec communication unless
-	 * explicitly allowed by policy.
-	 */
-
-	rc = avc_has_perm(isec_sid, sel_sid, SECCLASS_ASSOCIATION,
-			  ASSOCIATION__RECVFROM, ad);
-
-	return rc;
+	/* This check even when there's no association involved is intended,
+	 * according to Trent Jaeger, to make sure a process can't engage in
+	 * non-IPsec communication unless explicitly allowed by policy. */
+	return avc_has_perm(sk_sid, peer_sid,
+			    SECCLASS_ASSOCIATION, ASSOCIATION__RECVFROM, ad);
 }
 
 /*
@@ -408,49 +400,38 @@ int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb,
  * If we do have a authorizable security association, then it has already been
  * checked in the selinux_xfrm_state_pol_flow_match hook above.
  */
-int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb,
-					struct common_audit_data *ad, u8 proto)
+int selinux_xfrm_postroute_last(u32 sk_sid, struct sk_buff *skb,
+				struct common_audit_data *ad, u8 proto)
 {
 	struct dst_entry *dst;
-	int rc = 0;
-
-	dst = skb_dst(skb);
-
-	if (dst) {
-		struct dst_entry *dst_test;
-
-		for (dst_test = dst; dst_test != NULL;
-		     dst_test = dst_test->child) {
-			struct xfrm_state *x = dst_test->xfrm;
-
-			if (x && selinux_authorizable_xfrm(x))
-				goto out;
-		}
-	}
 
 	switch (proto) {
 	case IPPROTO_AH:
 	case IPPROTO_ESP:
 	case IPPROTO_COMP:
-		/*
-		 * We should have already seen this packet once before
-		 * it underwent xfrm(s). No need to subject it to the
-		 * unlabeled check.
-		 */
-		goto out;
+		/* We should have already seen this packet once before it
+		 * underwent xfrm(s). No need to subject it to the unlabeled
+		 * check. */
+		return 0;
 	default:
 		break;
 	}
 
-	/*
-	 * This check even when there's no association involved is
-	 * intended, according to Trent Jaeger, to make sure a
-	 * process can't engage in non-ipsec communication unless
-	 * explicitly allowed by policy.
-	 */
+	dst = skb_dst(skb);
+	if (dst) {
+		struct dst_entry *iter;
 
-	rc = avc_has_perm(isec_sid, SECINITSID_UNLABELED, SECCLASS_ASSOCIATION,
-			  ASSOCIATION__SENDTO, ad);
-out:
-	return rc;
+		for (iter = dst; iter != NULL; iter = iter->child) {
+			struct xfrm_state *x = iter->xfrm;
+
+			if (x && selinux_authorizable_xfrm(x))
+				return 0;
+		}
+	}
+
+	/* This check even when there's no association involved is intended,
+	 * according to Trent Jaeger, to make sure a process can't engage in
+	 * non-IPsec communication unless explicitly allowed by policy. */
+	return avc_has_perm(sk_sid, SECINITSID_UNLABELED,
+			    SECCLASS_ASSOCIATION, ASSOCIATION__SENDTO, ad);
 }
