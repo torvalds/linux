@@ -645,7 +645,7 @@ config ARCH_SHMOBILE
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_ARM_TWD if SMP
 	select HAVE_CLK
 	select HAVE_MACH_CLKDEV
 	select HAVE_SMP
@@ -1583,16 +1583,6 @@ config ARM_PSCI
 	  management operations described in ARM document number ARM DEN
 	  0022A ("Power State Coordination Interface System Software on
 	  ARM processors").
-
-config LOCAL_TIMERS
-	bool "Use local timer interrupts"
-	depends on SMP
-	default y
-	help
-	  Enable support for local timers on SMP platforms, rather then the
-	  legacy IPI broadcast method.  Local timers allows the system
-	  accounting to be spread across the timer interval, preventing a
-	  "thundering herd" at every timer tick.
 
 # The GPIO number here must be sorted by descending number. In case of
 # a multiplatform kernel, we just want the highest value required by the
