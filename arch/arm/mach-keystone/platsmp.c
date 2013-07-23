@@ -38,6 +38,5 @@ static int keystone_smp_boot_secondary(unsigned int cpu,
 }
 
 struct smp_operations keystone_smp_ops __initdata = {
-	.smp_init_cpus		= arm_dt_init_cpu_maps,
 	.smp_boot_secondary	= keystone_smp_boot_secondary,
 };
