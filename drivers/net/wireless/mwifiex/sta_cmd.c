@@ -707,8 +707,9 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 		if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP) {
 			tlv_mac = (void *)((u8 *)&key_material->key_param_set +
 					   key_param_len);
-			tlv_mac->tlv.type = cpu_to_le16(TLV_TYPE_STA_MAC_ADDR);
-			tlv_mac->tlv.len = cpu_to_le16(ETH_ALEN);
+			tlv_mac->header.type =
+					cpu_to_le16(TLV_TYPE_STA_MAC_ADDR);
+			tlv_mac->header.len = cpu_to_le16(ETH_ALEN);
 			memcpy(tlv_mac->mac_addr, enc_key->mac_addr, ETH_ALEN);
 			cmd_size = key_param_len + S_DS_GEN +
 				   sizeof(key_material->action) +

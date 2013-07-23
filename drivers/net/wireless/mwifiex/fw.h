@@ -1366,11 +1366,6 @@ struct host_cmd_ds_802_11_eeprom_access {
 	u8 value;
 } __packed;
 
-struct host_cmd_tlv {
-	__le16 type;
-	__le16 len;
-} __packed;
-
 struct mwifiex_assoc_event {
 	u8 sta_addr[ETH_ALEN];
 	__le16 type;
@@ -1396,99 +1391,99 @@ struct host_cmd_11ac_vht_cfg {
 } __packed;
 
 struct host_cmd_tlv_akmp {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	__le16 key_mgmt;
 	__le16 key_mgmt_operation;
 } __packed;
 
 struct host_cmd_tlv_pwk_cipher {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	__le16 proto;
 	u8 cipher;
 	u8 reserved;
 } __packed;
 
 struct host_cmd_tlv_gwk_cipher {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 cipher;
 	u8 reserved;
 } __packed;
 
 struct host_cmd_tlv_passphrase {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 passphrase[0];
 } __packed;
 
 struct host_cmd_tlv_wep_key {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 key_index;
 	u8 is_default;
 	u8 key[1];
 };
 
 struct host_cmd_tlv_auth_type {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 auth_type;
 } __packed;
 
 struct host_cmd_tlv_encrypt_protocol {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	__le16 proto;
 } __packed;
 
 struct host_cmd_tlv_ssid {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 ssid[0];
 } __packed;
 
 struct host_cmd_tlv_rates {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 rates[0];
 } __packed;
 
 struct host_cmd_tlv_bcast_ssid {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 bcast_ctl;
 } __packed;
 
 struct host_cmd_tlv_beacon_period {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	__le16 period;
 } __packed;
 
 struct host_cmd_tlv_dtim_period {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 period;
 } __packed;
 
 struct host_cmd_tlv_frag_threshold {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	__le16 frag_thr;
 } __packed;
 
 struct host_cmd_tlv_rts_threshold {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	__le16 rts_thr;
 } __packed;
 
 struct host_cmd_tlv_retry_limit {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 limit;
 } __packed;
 
 struct host_cmd_tlv_mac_addr {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 mac_addr[ETH_ALEN];
 } __packed;
 
 struct host_cmd_tlv_channel_band {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	u8 band_config;
 	u8 channel;
 } __packed;
 
 struct host_cmd_tlv_ageout_timer {
-	struct host_cmd_tlv tlv;
+	struct mwifiex_ie_types_header header;
 	__le32 sta_ao_timer;
 } __packed;
 
