@@ -204,11 +204,11 @@ struct mwifiex_ra_list_tbl {
 	struct list_head list;
 	struct sk_buff_head skb_head;
 	u8 ra[ETH_ALEN];
-	u32 total_pkts_size;
 	u32 is_11n_enabled;
 	u16 max_amsdu;
 	u16 ba_pkt_count;
 	u8 ba_packet_thr;
+	u16 total_pkt_count;
 };
 
 struct mwifiex_tid_tbl {

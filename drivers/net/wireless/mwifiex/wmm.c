@@ -120,7 +120,7 @@ mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, u8 *ra)
 
 	memcpy(ra_list->ra, ra, ETH_ALEN);
 
-	ra_list->total_pkts_size = 0;
+	ra_list->total_pkt_count = 0;
 
 	dev_dbg(adapter->dev, "info: allocated ra_list %p\n", ra_list);
 
@@ -679,8 +679,8 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 
 	skb_queue_tail(&ra_list->skb_head, skb);
 
-	ra_list->total_pkts_size += skb->len;
 	ra_list->ba_pkt_count++;
+	ra_list->total_pkt_count++;
 
 	if (atomic_read(&priv->wmm.highest_queued_prio) <
 						tos_to_tid_inv[tid_down])
@@ -1037,7 +1037,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	tx_info = MWIFIEX_SKB_TXCB(skb);
 	dev_dbg(adapter->dev, "data: dequeuing the packet %p %p\n", ptr, skb);
 
-	ptr->total_pkts_size -= skb->len;
+	ptr->total_pkt_count--;
 
 	if (!skb_queue_empty(&ptr->skb_head))
 		skb_next = skb_peek(&ptr->skb_head);
@@ -1062,7 +1062,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 
 		skb_queue_tail(&ptr->skb_head, skb);
 
-		ptr->total_pkts_size += skb->len;
+		ptr->total_pkt_count++;
 		ptr->ba_pkt_count++;
 		tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
