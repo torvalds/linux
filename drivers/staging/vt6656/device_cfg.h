@@ -82,10 +82,4 @@ typedef enum  _chip_type {
     VT3184 = 1
 } CHIP_TYPE, *PCHIP_TYPE;
 
-#ifdef VIAWET_DEBUG
-#define DBG_PORT80(value)                   outb(value, 0x80)
-#else
-#define DBG_PORT80(value)
-#endif
-
 #endif
