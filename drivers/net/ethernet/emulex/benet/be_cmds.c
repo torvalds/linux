@@ -2755,6 +2755,24 @@ int be_cmd_get_active_mac(struct be_adapter *adapter, u32 curr_pmac_id, u8 *mac)
 	}
 }
 
+int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac)
+{
+	int status;
+	bool pmac_valid = false;
+
+	memset(mac, 0, ETH_ALEN);
+
+	if (lancer_chip(adapter))
+		status = be_cmd_get_mac_from_list(adapter, mac, &pmac_valid,
+						  NULL, 0);
+	else if (be_physfn(adapter))
+		status = be_cmd_mac_addr_query(adapter, mac, true, 0, 0);
+	else
+		status = be_cmd_mac_addr_query(adapter, mac, false,
+					       adapter->if_handle, 0);
+	return status;
+}
+
 /* Uses synchronous MCCQ */
 int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 			u8 mac_count, u32 domain)
