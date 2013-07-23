@@ -7696,7 +7696,7 @@ out:
 	 * don't have it in the radix (like when we recover after a power fail
 	 * or unmount) so we don't leak memory.
 	 */
-	if (root_dropped == false)
+	if (!for_reloc && root_dropped == false)
 		btrfs_add_dead_root(root);
 	if (err)
 		btrfs_std_error(root->fs_info, err);

@@ -2314,8 +2314,13 @@ again:
 			BUG_ON(root->reloc_root != reloc_root);
 
 			ret = merge_reloc_root(rc, root);
-			if (ret)
+			if (ret) {
+				__update_reloc_root(reloc_root, 1);
+				free_extent_buffer(reloc_root->node);
+				free_extent_buffer(reloc_root->commit_root);
+				kfree(reloc_root);
 				goto out;
+			}
 		} else {
 			list_del_init(&reloc_root->root_list);
 		}
