@@ -14,14 +14,12 @@
 #include <linux/input.h>
 #include <asm/unaligned.h>
 #include "ozdbg.h"
-#include "ozconfig.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
 #include "ozpd.h"
 #include "ozproto.h"
 #include "ozusbif.h"
 #include "ozhcd.h"
-#include "oztrace.h"
 #include "ozusbsvc.h"
 /*------------------------------------------------------------------------------
  */

@@ -6,12 +6,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include "ozconfig.h"
 #include "ozdbg.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
 #include "ozpd.h"
-#include "oztrace.h"
 
 /*------------------------------------------------------------------------------
  */

@@ -10,6 +10,7 @@
  * The implementation of this service uses ozhcd.c to implement a USB HCD.
  * -----------------------------------------------------------------------------
  */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/timer.h>
@@ -19,15 +20,14 @@
 #include <linux/input.h>
 #include <asm/unaligned.h>
 #include "ozdbg.h"
-#include "ozconfig.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
 #include "ozpd.h"
 #include "ozproto.h"
 #include "ozusbif.h"
 #include "ozhcd.h"
-#include "oztrace.h"
 #include "ozusbsvc.h"
+
 /*------------------------------------------------------------------------------
  * This is called once when the driver is loaded to initialise the USB service.
  * Context: process

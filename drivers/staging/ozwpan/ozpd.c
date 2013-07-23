@@ -3,6 +3,7 @@
  * Released under the GNU General Public License Version 2 (GPLv2).
  * -----------------------------------------------------------------------------
  */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/timer.h>
@@ -10,17 +11,16 @@
 #include <linux/netdevice.h>
 #include <linux/errno.h>
 #include "ozdbg.h"
-#include "ozconfig.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
 #include "ozpd.h"
 #include "ozproto.h"
-#include "oztrace.h"
 #include "ozcdev.h"
 #include "ozusbsvc.h"
 #include <asm/unaligned.h>
 #include <linux/uaccess.h>
 #include <net/psnap.h>
+
 /*------------------------------------------------------------------------------
  */
 #define OZ_MAX_TX_POOL_SIZE	6
@@ -121,7 +121,6 @@ static void oz_def_app_rx(struct oz_pd *pd, struct oz_elt *elt)
 void oz_pd_set_state(struct oz_pd *pd, unsigned state)
 {
 	pd->state = state;
-#ifdef WANT_TRACE
 	switch (state) {
 	case OZ_PD_S_IDLE:
 		oz_pd_dbg(pd, ON, "PD State: OZ_PD_S_IDLE\n");
@@ -136,7 +135,6 @@ void oz_pd_set_state(struct oz_pd *pd, unsigned state)
 		oz_pd_dbg(pd, ON, "PD State: OZ_PD_S_SLEEP\n");
 		break;
 	}
-#endif /* WANT_TRACE */
 }
 /*------------------------------------------------------------------------------
  * Context: softirq or process

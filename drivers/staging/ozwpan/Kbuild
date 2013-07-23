@@ -2,6 +2,7 @@
 # Copyright (c) 2011 Ozmo Inc
 # Released under the GNU General Public License Version 2 (GPLv2).
 # -----------------------------------------------------------------------------
+
 obj-$(CONFIG_USB_WPAN_HCD) += ozwpan.o
 ozwpan-y := \
 	ozmain.o \
@@ -12,7 +13,4 @@ ozwpan-y := \
 	ozeltbuf.o \
 	ozproto.o \
 	ozcdev.o \
-	ozurbparanoia.o \
-	oztrace.o
-
-
+	ozurbparanoia.o

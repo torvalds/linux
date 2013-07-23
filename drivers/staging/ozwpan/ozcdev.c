@@ -11,10 +11,8 @@
 #include <linux/etherdevice.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
-#include "ozconfig.h"
 #include "ozdbg.h"
 #include "ozprotocol.h"
-#include "oztrace.h"
 #include "ozappif.h"
 #include "ozeltbuf.h"
 #include "ozpd.h"

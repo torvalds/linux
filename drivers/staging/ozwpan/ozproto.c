@@ -3,6 +3,7 @@
  * Released under the GNU General Public License Version 2 (GPLv2).
  * -----------------------------------------------------------------------------
  */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/timer.h>
@@ -11,13 +12,12 @@
 #include <linux/errno.h>
 #include <linux/ieee80211.h>
 #include "ozdbg.h"
-#include "ozconfig.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
 #include "ozpd.h"
 #include "ozproto.h"
 #include "ozusbsvc.h"
-#include "oztrace.h"
+
 #include "ozappif.h"
 #include <asm/unaligned.h>
 #include <linux/uaccess.h>

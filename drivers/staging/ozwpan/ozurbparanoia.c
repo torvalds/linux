@@ -5,10 +5,11 @@
  */
 #include <linux/usb.h>
 #include "ozdbg.h"
-#include "ozconfig.h"
+
 #ifdef WANT_URB_PARANOIA
+
 #include "ozurbparanoia.h"
-#include "oztrace.h"
+
 /*-----------------------------------------------------------------------------
  */
 #define OZ_MAX_URBS	1000

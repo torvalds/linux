@@ -32,9 +32,7 @@
 #include "linux/usb/hcd.h"
 #include <asm/unaligned.h>
 #include "ozdbg.h"
-#include "ozconfig.h"
 #include "ozusbif.h"
-#include "oztrace.h"
 #include "ozurbparanoia.h"
 #include "ozhcd.h"
 /*------------------------------------------------------------------------------
@@ -797,7 +795,6 @@ void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
-#ifdef WANT_TRACE
 static void oz_display_conf_type(u8 t)
 {
 	switch (t) {
@@ -836,9 +833,7 @@ static void oz_display_conf_type(u8 t)
 		break;
 	}
 }
-#else
-#define oz_display_conf_type(__x)
-#endif /* WANT_TRACE */
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
