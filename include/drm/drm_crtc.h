@@ -842,6 +842,9 @@ struct drm_mode_config {
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
+
+	/* whether async page flip is supported or not */
+	bool async_page_flip;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)

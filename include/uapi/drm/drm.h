@@ -780,6 +780,7 @@ struct drm_event_vblank {
 #define DRM_CAP_DUMB_PREFER_SHADOW 0x4
 #define DRM_CAP_PRIME 0x5
 #define DRM_CAP_TIMESTAMP_MONOTONIC 0x6
+#define DRM_CAP_ASYNC_PAGE_FLIP 0x7
 
 #define DRM_PRIME_CAP_IMPORT 0x1
 #define DRM_PRIME_CAP_EXPORT 0x2

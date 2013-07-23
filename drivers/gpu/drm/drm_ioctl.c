@@ -293,6 +293,9 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	case DRM_CAP_TIMESTAMP_MONOTONIC:
 		req->value = drm_timestamp_monotonic;
 		break;
+	case DRM_CAP_ASYNC_PAGE_FLIP:
+		req->value = dev->mode_config.async_page_flip;
+		break;
 	default:
 		return -EINVAL;
 	}
