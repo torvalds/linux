@@ -5865,17 +5865,6 @@ struct dentry *trace_instance_dir;
 static void
 init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer);
 
-static void init_trace_buffers(struct trace_array *tr, struct trace_buffer *buf)
-{
-	int cpu;
-
-	for_each_tracing_cpu(cpu) {
-		memset(per_cpu_ptr(buf->data, cpu), 0, sizeof(struct trace_array_cpu));
-		per_cpu_ptr(buf->data, cpu)->trace_cpu.cpu = cpu;
-		per_cpu_ptr(buf->data, cpu)->trace_cpu.tr = tr;
-	}
-}
-
 static int
 allocate_trace_buffer(struct trace_array *tr, struct trace_buffer *buf, int size)
 {
@@ -5892,8 +5881,6 @@ allocate_trace_buffer(struct trace_array *tr, struct trace_buffer *buf, int size
 		ring_buffer_free(buf->buffer);
 		return -ENOMEM;
 	}
-
-	init_trace_buffers(tr, buf);
 
 	/* Allocate the first page for all buffers */
 	set_buffer_entries(&tr->trace_buffer,
@@ -5960,10 +5947,6 @@ static int new_instance_create(const char *name)
 
 	if (allocate_trace_buffers(tr, trace_buf_size) < 0)
 		goto out_free_tr;
-
-	/* Holder for file callbacks */
-	tr->trace_cpu.cpu = RING_BUFFER_ALL_CPUS;
-	tr->trace_cpu.tr = tr;
 
 	tr->dir = debugfs_create_dir(name, trace_instance_dir);
 	if (!tr->dir)
@@ -6437,10 +6420,6 @@ __init static int tracer_alloc_buffers(void)
 	register_die_notifier(&trace_die_notifier);
 
 	global_trace.flags = TRACE_ARRAY_FL_GLOBAL;
-
-	/* Holder for file callbacks */
-	global_trace.trace_cpu.cpu = RING_BUFFER_ALL_CPUS;
-	global_trace.trace_cpu.tr = &global_trace;
 
 	INIT_LIST_HEAD(&global_trace.systems);
 	INIT_LIST_HEAD(&global_trace.events);

@@ -130,19 +130,12 @@ enum trace_flag_type {
 
 struct trace_array;
 
-struct trace_cpu {
-	struct trace_array	*tr;
-	struct dentry		*dir;
-	int			cpu;
-};
-
 /*
  * The CPU trace array - it consists of thousands of trace entries
  * plus some other descriptor data: (for example which task started
  * the trace, etc.)
  */
 struct trace_array_cpu {
-	struct trace_cpu	trace_cpu;
 	atomic_t		disabled;
 	void			*buffer_page;	/* ring buffer spare */
 
@@ -196,7 +189,6 @@ struct trace_array {
 	bool			allocated_snapshot;
 #endif
 	int			buffer_disabled;
-	struct trace_cpu	trace_cpu;	/* place holder */
 #ifdef CONFIG_FTRACE_SYSCALLS
 	int			sys_refcount_enter;
 	int			sys_refcount_exit;
