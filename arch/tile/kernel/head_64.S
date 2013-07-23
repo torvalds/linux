@@ -77,7 +77,7 @@ ENTRY(_start)
 	{
 	  /* After initializing swapper_pgprot, HV_PTE_GLOBAL is set. */
 	  bfextu r7, r1, HV_PTE_INDEX_GLOBAL, HV_PTE_INDEX_GLOBAL
-	  inv r4
+	  finv r4
 	}
 	bnez r7, .Lno_write
 	{

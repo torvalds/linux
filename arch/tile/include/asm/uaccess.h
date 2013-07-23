@@ -567,37 +567,6 @@ static inline unsigned long __must_check flush_user(
 }
 
 /**
- * inv_user: - Invalidate a block of memory in user space from cache.
- * @mem:   Destination address, in user space.
- * @len:   Number of bytes to invalidate.
- *
- * Returns number of bytes that could not be invalidated.
- * On success, this will be zero.
- *
- * Note that on Tile64, the "inv" operation is in fact a
- * "flush and invalidate", so cache write-backs will occur prior
- * to the cache being marked invalid.
- */
-extern unsigned long inv_user_asm(void __user *mem, unsigned long len);
-static inline unsigned long __must_check __inv_user(
-	void __user *mem, unsigned long len)
-{
-	int retval;
-
-	might_fault();
-	retval = inv_user_asm(mem, len);
-	mb_incoherent();
-	return retval;
-}
-static inline unsigned long __must_check inv_user(
-	void __user *mem, unsigned long len)
-{
-	if (access_ok(VERIFY_WRITE, mem, len))
-		return __inv_user(mem, len);
-	return len;
-}
-
-/**
  * finv_user: - Flush-inval a block of memory in user space from cache.
  * @mem:   Destination address, in user space.
  * @len:   Number of bytes to invalidate.

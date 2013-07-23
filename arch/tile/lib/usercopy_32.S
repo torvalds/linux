@@ -109,25 +109,6 @@ STD_ENTRY(flush_user_asm)
 	.popsection
 
 /*
- * inv_user_asm takes the user target address in r0 and the
- * number of bytes to invalidate in r1.
- * It returns the number of not inv'able bytes (hopefully zero) in r0.
- */
-STD_ENTRY(inv_user_asm)
-	bz r1, 2f
-	{ movei r2, L2_CACHE_BYTES; add r1, r0, r1 }
-	{ sub r2, zero, r2; addi r1, r1, L2_CACHE_BYTES-1 }
-	{ and r0, r0, r2; and r1, r1, r2 }
-	{ sub r1, r1, r0 }
-1:      { inv r0; addi r1, r1, -CHIP_INV_STRIDE() }
-	{ addi r0, r0, CHIP_INV_STRIDE(); bnzt r1, 1b }
-2:      { move r0, r1; jrp lr }
-	STD_ENDPROC(inv_user_asm)
-	.pushsection __ex_table,"a"
-	.word 1b, 2b
-	.popsection
-
-/*
  * finv_user_asm takes the user target address in r0 and the
  * number of bytes to flush-invalidate in r1.
  * It returns the number of not finv'able bytes (hopefully zero) in r0.

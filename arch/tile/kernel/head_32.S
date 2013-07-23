@@ -64,7 +64,7 @@ ENTRY(_start)
 	  auli r0, r0, ha16(swapper_pg_dir - PAGE_OFFSET)
 	}
 	{
-	  inv r6
+	  finv r6
 	  move r1, zero   /* high 32 bits of CPA is zero */
 	}
 	{
