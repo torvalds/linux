@@ -158,9 +158,7 @@ static irqreturn_t otg_id_irq_handler(int irq, void *dev_id)
 	/* clear irq */
     uoc_con = readl_relaxed(RK2928_GRF_BASE + GRF_UOC_CON);
 
-#ifdef CONFIG_RK_USB_UART
-	/* to do @lyz*/
-#endif
+
     
     if(uoc_con & (1<<1)) //id rise 
     {
@@ -168,7 +166,12 @@ static irqreturn_t otg_id_irq_handler(int irq, void *dev_id)
     }
     if(uoc_con & (1<<3))//id fall
     { 
-        writel_relaxed((0x3 << 16) | 0x3, RK2928_GRF_BASE + GRF_UOC_CON);;//clear id fall irq pandding
+#ifdef CONFIG_RK_USB_UART
+        //if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<10))){//id low          
+        writel_relaxed(0x04000000, RK2928_GRF_BASE + GRF_UOC1_CON0);   //enter usb phy    
+    }
+#endif
+        writel_relaxed((0x3 << 16) | 0x3, RK2928_GRF_BASE + GRF_UOC_CON);//clear id fall irq pandding
     }
 	rk28_send_wakeup_key();
 	return IRQ_HANDLED;
