@@ -36,7 +36,7 @@
 
 #include <linux/unistd.h>
 #include <linux/version.h>
-#include <mach/map.h>
+#include <asm/mach/map.h>
 #include <mach/hardware.h>
 
 #include "s3c_mem.h"
