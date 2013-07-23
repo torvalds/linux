@@ -69,7 +69,7 @@ static pte_t __ref *vmem_pte_alloc(unsigned long address)
 		pte = alloc_bootmem(PTRS_PER_PTE * sizeof(pte_t));
 	if (!pte)
 		return NULL;
-	clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY,
+	clear_table((unsigned long *) pte, _PAGE_INVALID,
 		    PTRS_PER_PTE * sizeof(pte_t));
 	return pte;
 }
@@ -101,7 +101,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end)) {
 			pud_val(*pu_dir) = __pa(address) |
 				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
-				(ro ? _REGION_ENTRY_RO : 0);
+				(ro ? _REGION_ENTRY_PROTECT : 0);
 			address += PUD_SIZE;
 			continue;
 		}
@@ -118,7 +118,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end)) {
 			pmd_val(*pm_dir) = __pa(address) |
 				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
-				(ro ? _SEGMENT_ENTRY_RO : 0);
+				(ro ? _SEGMENT_ENTRY_PROTECT : 0);
 			address += PMD_SIZE;
 			continue;
 		}
@@ -131,7 +131,8 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		pte_val(*pt_dir) = __pa(address) | (ro ? _PAGE_RO : 0);
+		pte_val(*pt_dir) = __pa(address) |
+			pgprot_val(ro ? PAGE_KERNEL_RO : PAGE_KERNEL);
 		address += PAGE_SIZE;
 	}
 	ret = 0;
@@ -154,7 +155,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 	pte_t *pt_dir;
 	pte_t  pte;
 
-	pte_val(pte) = _PAGE_TYPE_EMPTY;
+	pte_val(pte) = _PAGE_INVALID;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
@@ -255,7 +256,8 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 			new_page =__pa(vmem_alloc_pages(0));
 			if (!new_page)
 				goto out;
-			pte_val(*pt_dir) = __pa(new_page);
+			pte_val(*pt_dir) =
+				__pa(new_page) | pgprot_val(PAGE_KERNEL);
 		}
 		address += PAGE_SIZE;
 	}
