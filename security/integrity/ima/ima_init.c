@@ -69,7 +69,7 @@ static void __init ima_add_boot_aggregate(void)
 	}
 
 	result = ima_alloc_init_template(iint, NULL, boot_aggregate_name,
-					 &entry);
+					 NULL, 0, &entry);
 	if (result < 0)
 		return;
 

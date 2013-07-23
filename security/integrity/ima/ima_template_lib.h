@@ -24,16 +24,26 @@ void ima_show_template_digest_ng(struct seq_file *m, enum ima_show_type show,
 				 struct ima_field_data *field_data);
 void ima_show_template_string(struct seq_file *m, enum ima_show_type show,
 			      struct ima_field_data *field_data);
+void ima_show_template_sig(struct seq_file *m, enum ima_show_type show,
+			   struct ima_field_data *field_data);
 int ima_eventdigest_init(struct integrity_iint_cache *iint, struct file *file,
 			 const unsigned char *filename,
+			 struct evm_ima_xattr_data *xattr_value, int xattr_len,
 			 struct ima_field_data *field_data);
 int ima_eventname_init(struct integrity_iint_cache *iint, struct file *file,
 		       const unsigned char *filename,
+		       struct evm_ima_xattr_data *xattr_value, int xattr_len,
 		       struct ima_field_data *field_data);
 int ima_eventdigest_ng_init(struct integrity_iint_cache *iint,
 			    struct file *file, const unsigned char *filename,
-			    struct ima_field_data *field_data);
+			    struct evm_ima_xattr_data *xattr_value,
+			    int xattr_len, struct ima_field_data *field_data);
 int ima_eventname_ng_init(struct integrity_iint_cache *iint, struct file *file,
 			  const unsigned char *filename,
+			  struct evm_ima_xattr_data *xattr_value, int xattr_len,
 			  struct ima_field_data *field_data);
+int ima_eventsig_init(struct integrity_iint_cache *iint, struct file *file,
+		      const unsigned char *filename,
+		      struct evm_ima_xattr_data *xattr_value, int xattr_len,
+		      struct ima_field_data *field_data);
 #endif /* __LINUX_IMA_TEMPLATE_LIB_H */

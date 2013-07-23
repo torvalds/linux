@@ -225,7 +225,8 @@ static int process_measurement(struct file *file, const char *filename,
 		pathname = (const char *)file->f_dentry->d_name.name;
 
 	if (action & IMA_MEASURE)
-		ima_store_measurement(iint, file, pathname);
+		ima_store_measurement(iint, file, pathname,
+				      xattr_value, xattr_len);
 	if (action & IMA_APPRAISE_SUBMASK)
 		rc = ima_appraise_measurement(_func, iint, file, pathname,
 					      xattr_value, xattr_len);

@@ -26,7 +26,8 @@
  */
 int ima_alloc_init_template(struct integrity_iint_cache *iint,
 			    struct file *file, const unsigned char *filename,
-			    struct ima_template_entry **entry)
+			    struct evm_ima_xattr_data *xattr_value,
+			    int xattr_len, struct ima_template_entry **entry)
 {
 	struct ima_template_desc *template_desc = ima_template_desc_current();
 	int i, result = 0;
@@ -41,6 +42,7 @@ int ima_alloc_init_template(struct integrity_iint_cache *iint,
 		u32 len;
 
 		result = field->field_init(iint, file, filename,
+					   xattr_value, xattr_len,
 					   &((*entry)->template_data[i]));
 		if (result != 0)
 			goto out;
@@ -123,7 +125,8 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 	/* can overflow, only indicator */
 	atomic_long_inc(&ima_htable.violations);
 
-	result = ima_alloc_init_template(NULL, file, filename, &entry);
+	result = ima_alloc_init_template(NULL, file, filename,
+					 NULL, 0, &entry);
 	if (result < 0) {
 		result = -ENOMEM;
 		goto err_out;
@@ -239,7 +242,9 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
  * Must be called with iint->mutex held.
  */
 void ima_store_measurement(struct integrity_iint_cache *iint,
-			   struct file *file, const unsigned char *filename)
+			   struct file *file, const unsigned char *filename,
+			   struct evm_ima_xattr_data *xattr_value,
+			   int xattr_len)
 {
 	const char *op = "add_template_measure";
 	const char *audit_cause = "ENOMEM";
@@ -251,7 +256,8 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	if (iint->flags & IMA_MEASURED)
 		return;
 
-	result = ima_alloc_init_template(iint, file, filename, &entry);
+	result = ima_alloc_init_template(iint, file, filename,
+					 xattr_value, xattr_len, &entry);
 	if (result < 0) {
 		integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
 				    op, audit_cause, result, 0);

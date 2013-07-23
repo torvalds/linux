@@ -28,7 +28,8 @@ enum data_formats {
 	DATA_FMT_DIGEST = 0,
 	DATA_FMT_DIGEST_WITH_ALGO,
 	DATA_FMT_EVENT_NAME,
-	DATA_FMT_STRING
+	DATA_FMT_STRING,
+	DATA_FMT_HEX
 };
 
 static int ima_write_template_field_data(const void *data, const u32 datalen,
@@ -90,6 +91,9 @@ static void ima_show_template_data_ascii(struct seq_file *m,
 		buf_ptr += 2;
 		buflen -= buf_ptr - field_data->data;
 	case DATA_FMT_DIGEST:
+	case DATA_FMT_HEX:
+		if (!buflen)
+			break;
 		ima_print_digest(m, buf_ptr, buflen);
 		break;
 	case DATA_FMT_STRING:
@@ -147,6 +151,12 @@ void ima_show_template_string(struct seq_file *m, enum ima_show_type show,
 	ima_show_template_field_data(m, show, DATA_FMT_STRING, field_data);
 }
 
+void ima_show_template_sig(struct seq_file *m, enum ima_show_type show,
+			   struct ima_field_data *field_data)
+{
+	ima_show_template_field_data(m, show, DATA_FMT_HEX, field_data);
+}
+
 static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
 				       struct ima_field_data *field_data,
 				       bool size_limit)
@@ -190,6 +200,7 @@ static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
  */
 int ima_eventdigest_init(struct integrity_iint_cache *iint, struct file *file,
 			 const unsigned char *filename,
+			 struct evm_ima_xattr_data *xattr_value, int xattr_len,
 			 struct ima_field_data *field_data)
 {
 	struct {
@@ -237,7 +248,8 @@ out:
  */
 int ima_eventdigest_ng_init(struct integrity_iint_cache *iint,
 			    struct file *file, const unsigned char *filename,
-			    struct ima_field_data *field_data)
+			    struct evm_ima_xattr_data *xattr_value,
+			    int xattr_len, struct ima_field_data *field_data)
 {
 	u8 *cur_digest = NULL, hash_algo = HASH_ALGO__LAST;
 	u32 cur_digestsize = 0;
@@ -295,6 +307,7 @@ out:
  */
 int ima_eventname_init(struct integrity_iint_cache *iint, struct file *file,
 		       const unsigned char *filename,
+		       struct evm_ima_xattr_data *xattr_value, int xattr_len,
 		       struct ima_field_data *field_data)
 {
 	return ima_eventname_init_common(iint, file, filename,
@@ -306,8 +319,29 @@ int ima_eventname_init(struct integrity_iint_cache *iint, struct file *file,
  */
 int ima_eventname_ng_init(struct integrity_iint_cache *iint, struct file *file,
 			  const unsigned char *filename,
+			  struct evm_ima_xattr_data *xattr_value, int xattr_len,
 			  struct ima_field_data *field_data)
 {
 	return ima_eventname_init_common(iint, file, filename,
 					 field_data, false);
+}
+
+/*
+ *  ima_eventsig_init - include the file signature as part of the template data
+ */
+int ima_eventsig_init(struct integrity_iint_cache *iint, struct file *file,
+		      const unsigned char *filename,
+		      struct evm_ima_xattr_data *xattr_value, int xattr_len,
+		      struct ima_field_data *field_data)
+{
+	enum data_formats fmt = DATA_FMT_HEX;
+	int rc = 0;
+
+	if ((!xattr_value) || (xattr_value->type != EVM_IMA_XATTR_DIGSIG))
+		goto out;
+
+	rc = ima_write_template_field_data(xattr_value, xattr_len, fmt,
+					   field_data);
+out:
+	return rc;
 }

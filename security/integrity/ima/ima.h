@@ -59,7 +59,8 @@ struct ima_template_field {
 	const char field_id[IMA_TEMPLATE_FIELD_ID_MAX_LEN];
 	int (*field_init) (struct integrity_iint_cache *iint, struct file *file,
 			   const unsigned char *filename,
-			   struct ima_field_data *field_data);
+			   struct evm_ima_xattr_data *xattr_value,
+			   int xattr_len, struct ima_field_data *field_data);
 	void (*field_show) (struct seq_file *m, enum ima_show_type show,
 			    struct ima_field_data *field_data);
 };
@@ -134,12 +135,15 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 			    struct evm_ima_xattr_data **xattr_value,
 			    int *xattr_len);
 void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
-			   const unsigned char *filename);
+			   const unsigned char *filename,
+			   struct evm_ima_xattr_data *xattr_value,
+			   int xattr_len);
 void ima_audit_measurement(struct integrity_iint_cache *iint,
 			   const unsigned char *filename);
 int ima_alloc_init_template(struct integrity_iint_cache *iint,
 			    struct file *file, const unsigned char *filename,
-			    struct ima_template_entry **entry);
+			    struct evm_ima_xattr_data *xattr_value,
+			    int xattr_len, struct ima_template_entry **entry);
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode, const unsigned char *filename);
 const char *ima_d_path(struct path *path, char **pathbuf);
