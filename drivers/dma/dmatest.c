@@ -407,7 +407,11 @@ static int thread_result_add(struct dmatest_info *info,
 	list_add_tail(&tr->node, &r->results);
 	mutex_unlock(&info->results_lock);
 
-	pr_warn("%s\n", thread_result_get(r->name, tr));
+	if (tr->type == DMATEST_ET_OK)
+		pr_debug("%s\n", thread_result_get(r->name, tr));
+	else
+		pr_warn("%s\n", thread_result_get(r->name, tr));
+
 	return 0;
 }
 
