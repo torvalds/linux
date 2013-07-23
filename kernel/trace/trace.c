@@ -3959,8 +3959,7 @@ tracing_max_lat_write(struct file *filp, const char __user *ubuf,
 
 static int tracing_open_pipe(struct inode *inode, struct file *filp)
 {
-	struct trace_cpu *tc = inode->i_private;
-	struct trace_array *tr = tc->tr;
+	struct trace_array *tr = inode->i_private;
 	struct trace_iterator *iter;
 	int ret = 0;
 
@@ -4006,9 +4005,9 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 	if (trace_clocks[tr->clock_id].in_ns)
 		iter->iter_flags |= TRACE_FILE_TIME_IN_NS;
 
-	iter->cpu_file = tc->cpu;
-	iter->tr = tc->tr;
-	iter->trace_buffer = &tc->tr->trace_buffer;
+	iter->tr = tr;
+	iter->trace_buffer = &tr->trace_buffer;
+	iter->cpu_file = tracing_get_cpu(inode);
 	mutex_init(&iter->mutex);
 	filp->private_data = iter;
 
@@ -4031,8 +4030,7 @@ fail:
 static int tracing_release_pipe(struct inode *inode, struct file *file)
 {
 	struct trace_iterator *iter = file->private_data;
-	struct trace_cpu *tc = inode->i_private;
-	struct trace_array *tr = tc->tr;
+	struct trace_array *tr = inode->i_private;
 
 	mutex_lock(&trace_types_lock);
 
@@ -5571,7 +5569,7 @@ tracing_init_debugfs_percpu(struct trace_array *tr, long cpu)
 
 	/* per cpu trace_pipe */
 	trace_create_cpu_file("trace_pipe", 0444, d_cpu,
-				&data->trace_cpu, cpu, &tracing_pipe_fops);
+				tr, cpu, &tracing_pipe_fops);
 
 	/* per cpu trace */
 	trace_create_cpu_file("trace", 0644, d_cpu,
@@ -6157,7 +6155,7 @@ init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 			(void *)&tr->trace_cpu, &tracing_fops);
 
 	trace_create_file("trace_pipe", 0444, d_tracer,
-			(void *)&tr->trace_cpu, &tracing_pipe_fops);
+			  tr, &tracing_pipe_fops);
 
 	trace_create_file("buffer_size_kb", 0644, d_tracer,
 			(void *)&tr->trace_cpu, &tracing_entries_fops);
