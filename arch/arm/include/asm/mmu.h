@@ -8,6 +8,7 @@ typedef struct {
 	atomic64_t	id;
 #endif
 	unsigned int	vmalloc_seq;
+	unsigned long	sigpage;
 } mm_context_t;
 
 #ifdef CONFIG_CPU_HAS_ASID
