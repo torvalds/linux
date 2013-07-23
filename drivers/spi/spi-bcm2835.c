@@ -325,12 +325,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	init_completion(&bs->done);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "could not get memory resource\n");
-		err = -ENODEV;
-		goto out_master_put;
-	}
-
 	bs->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(bs->regs)) {
 		err = PTR_ERR(bs->regs);
