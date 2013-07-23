@@ -190,11 +190,6 @@ static int rcar_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res0) {
-		dev_err(dev, "Not enough platform resources\n");
-		return -EINVAL;
-	}
-
 	reg0 = devm_ioremap_resource(dev, res0);
 	if (IS_ERR(reg0))
 		return PTR_ERR(reg0);
