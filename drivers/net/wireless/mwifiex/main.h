@@ -515,6 +515,7 @@ struct mwifiex_private {
 	bool scan_aborting;
 	u8 csa_chan;
 	unsigned long csa_expire_time;
+	u8 del_list_idx;
 };
 
 enum mwifiex_ba_status {
