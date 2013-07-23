@@ -117,6 +117,8 @@ int get_callchain_buffers(void)
 	err = alloc_callchain_buffers();
 exit:
 	mutex_unlock(&callchain_mutex);
+	if (err)
+		atomic_dec(&nr_callchain_events);
 
 	return err;
 }
