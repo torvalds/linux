@@ -4954,7 +4954,8 @@
 #define  SBI_SSCAUXDIV6				0x0610
 #define   SBI_SSCAUXDIV_FINALDIV2SEL(x)		((x)<<4)
 #define  SBI_DBUFF0				0x2a00
-#define   SBI_DBUFF0_ENABLE			(1<<0)
+#define  SBI_GEN0				0x1f00
+#define   SBI_GEN0_CFG_BUFFENABLE_DISABLE	(1<<0)
 
 /* LPT PIXCLK_GATE */
 #define PIXCLK_GATE			0xC6020

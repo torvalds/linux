@@ -5260,11 +5260,23 @@ static void lpt_program_fdi_mphy(struct drm_i915_private *dev_priv)
 	intel_sbi_write(dev_priv, 0x21EC, tmp, SBI_MPHY);
 }
 
-/* Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O. */
-static void lpt_enable_clkout_dp(struct drm_device *dev)
+/* Implements 3 different sequences from BSpec chapter "Display iCLK
+ * Programming" based on the parameters passed:
+ * - Sequence to enable CLKOUT_DP
+ * - Sequence to enable CLKOUT_DP without spread
+ * - Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O
+ */
+static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
+				 bool with_fdi)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t tmp;
+	uint32_t reg, tmp;
+
+	if (WARN(with_fdi && !with_spread, "FDI requires downspread\n"))
+		with_spread = true;
+	if (WARN(dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE &&
+		 with_fdi, "LP PCH doesn't have FDI\n"))
+		with_fdi = false;
 
 	mutex_lock(&dev_priv->dpio_lock);
 
@@ -5275,17 +5287,22 @@ static void lpt_enable_clkout_dp(struct drm_device *dev)
 
 	udelay(24);
 
-	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
-	tmp &= ~SBI_SSCCTL_PATHALT;
-	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+	if (with_spread) {
+		tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+		tmp &= ~SBI_SSCCTL_PATHALT;
+		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
 
-	lpt_reset_fdi_mphy(dev_priv);
-	lpt_program_fdi_mphy(dev_priv);
+		if (with_fdi) {
+			lpt_reset_fdi_mphy(dev_priv);
+			lpt_program_fdi_mphy(dev_priv);
+		}
+	}
 
-	/* ULT uses SBI_GEN0, but ULT doesn't have VGA, so we don't care. */
-	tmp = intel_sbi_read(dev_priv, SBI_DBUFF0, SBI_ICLK);
-	tmp |= SBI_DBUFF0_ENABLE;
-	intel_sbi_write(dev_priv, SBI_DBUFF0, tmp, SBI_ICLK);
+	reg = (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) ?
+	       SBI_GEN0 : SBI_DBUFF0;
+	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
+	tmp |= SBI_GEN0_CFG_BUFFENABLE_DISABLE;
+	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
 
 	mutex_unlock(&dev_priv->dpio_lock);
 }
@@ -5307,7 +5324,7 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	if (!has_vga)
 		return;
 
-	lpt_enable_clkout_dp(dev);
+	lpt_enable_clkout_dp(dev, true, true);
 }
 
 /*
