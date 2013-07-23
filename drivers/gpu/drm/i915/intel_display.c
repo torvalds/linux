@@ -5307,6 +5307,34 @@ static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
+/* Sequence to disable CLKOUT_DP */
+static void lpt_disable_clkout_dp(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t reg, tmp;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	reg = (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) ?
+	       SBI_GEN0 : SBI_DBUFF0;
+	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
+	tmp &= ~SBI_GEN0_CFG_BUFFENABLE_DISABLE;
+	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
+
+	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	if (!(tmp & SBI_SSCCTL_DISABLE)) {
+		if (!(tmp & SBI_SSCCTL_PATHALT)) {
+			tmp |= SBI_SSCCTL_PATHALT;
+			intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+			udelay(32);
+		}
+		tmp |= SBI_SSCCTL_DISABLE;
+		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+	}
+
+	mutex_unlock(&dev_priv->dpio_lock);
+}
+
 static void lpt_init_pch_refclk(struct drm_device *dev)
 {
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -5321,10 +5349,10 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 		}
 	}
 
-	if (!has_vga)
-		return;
-
-	lpt_enable_clkout_dp(dev, true, true);
+	if (has_vga)
+		lpt_enable_clkout_dp(dev, true, true);
+	else
+		lpt_disable_clkout_dp(dev);
 }
 
 /*
