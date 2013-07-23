@@ -591,7 +591,6 @@ extern void tcp_initialize_rcv_mss(struct sock *sk);
 extern int tcp_mtu_to_mss(struct sock *sk, int pmtu);
 extern int tcp_mss_to_mtu(struct sock *sk, int mss);
 extern void tcp_mtup_init(struct sock *sk);
-extern void tcp_valid_rtt_meas(struct sock *sk, u32 seq_rtt);
 extern void tcp_init_buffer_space(struct sock *sk);
 
 static inline void tcp_bound_rto(const struct sock *sk)
@@ -1092,15 +1091,6 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->ecn_ok = 0;
 	ireq->rmt_port = tcp_hdr(skb)->source;
 	ireq->loc_port = tcp_hdr(skb)->dest;
-}
-
-/* Compute time elapsed between SYNACK and the ACK completing 3WHS */
-static inline void tcp_synack_rtt_meas(struct sock *sk,
-				       struct request_sock *req)
-{
-	if (tcp_rsk(req)->snt_synack)
-		tcp_valid_rtt_meas(sk,
-		    tcp_time_stamp - tcp_rsk(req)->snt_synack);
 }
 
 extern void tcp_enter_memory_pressure(struct sock *sk);

@@ -1048,6 +1048,7 @@ struct tcp_sacktag_state {
 	int reord;
 	int fack_count;
 	int flag;
+	s32 rtt; /* RTT measured by SACKing never-retransmitted data */
 };
 
 /* Check if skb is fully within the SACK block. In presence of GSO skbs,
@@ -1108,7 +1109,7 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 static u8 tcp_sacktag_one(struct sock *sk,
 			  struct tcp_sacktag_state *state, u8 sacked,
 			  u32 start_seq, u32 end_seq,
-			  bool dup_sack, int pcount)
+			  int dup_sack, int pcount, u32 xmit_time)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int fack_count = state->fack_count;
@@ -1148,6 +1149,9 @@ static u8 tcp_sacktag_one(struct sock *sk,
 							   state->reord);
 				if (!after(end_seq, tp->high_seq))
 					state->flag |= FLAG_ORIG_SACK_ACKED;
+				/* Pick the earliest sequence sacked for RTT */
+				if (state->rtt < 0)
+					state->rtt = tcp_time_stamp - xmit_time;
 			}
 
 			if (sacked & TCPCB_LOST) {
@@ -1205,7 +1209,8 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 	 * tcp_highest_sack_seq() when skb is highest_sack.
 	 */
 	tcp_sacktag_one(sk, state, TCP_SKB_CB(skb)->sacked,
-			start_seq, end_seq, dup_sack, pcount);
+			start_seq, end_seq, dup_sack, pcount,
+			TCP_SKB_CB(skb)->when);
 
 	if (skb == tp->lost_skb_hint)
 		tp->lost_cnt_hint += pcount;
@@ -1479,7 +1484,8 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 						TCP_SKB_CB(skb)->seq,
 						TCP_SKB_CB(skb)->end_seq,
 						dup_sack,
-						tcp_skb_pcount(skb));
+						tcp_skb_pcount(skb),
+						TCP_SKB_CB(skb)->when);
 
 			if (!before(TCP_SKB_CB(skb)->seq,
 				    tcp_highest_sack_seq(tp)))
@@ -1536,7 +1542,7 @@ static int tcp_sack_cache_ok(const struct tcp_sock *tp, const struct tcp_sack_bl
 
 static int
 tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
-			u32 prior_snd_una)
+			u32 prior_snd_una, s32 *sack_rtt)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	const unsigned char *ptr = (skb_transport_header(ack_skb) +
@@ -1554,6 +1560,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 
 	state.flag = 0;
 	state.reord = tp->packets_out;
+	state.rtt = -1;
 
 	if (!tp->sacked_out) {
 		if (WARN_ON(tp->fackets_out))
@@ -1737,6 +1744,7 @@ out:
 	WARN_ON((int)tp->retrans_out < 0);
 	WARN_ON((int)tcp_packets_in_flight(tp) < 0);
 #endif
+	*sack_rtt = state.rtt;
 	return state.flag;
 }
 
@@ -2792,65 +2800,51 @@ static void tcp_fastretrans_alert(struct sock *sk, const int acked,
 	tcp_xmit_retransmit_queue(sk);
 }
 
-void tcp_valid_rtt_meas(struct sock *sk, u32 seq_rtt)
+static inline bool tcp_ack_update_rtt(struct sock *sk, const int flag,
+				      s32 seq_rtt, s32 sack_rtt)
 {
-	tcp_rtt_estimator(sk, seq_rtt);
-	tcp_set_rto(sk);
-	inet_csk(sk)->icsk_backoff = 0;
-}
-EXPORT_SYMBOL(tcp_valid_rtt_meas);
+	const struct tcp_sock *tp = tcp_sk(sk);
 
-/* Read draft-ietf-tcplw-high-performance before mucking
- * with this code. (Supersedes RFC1323)
- */
-static void tcp_ack_saw_tstamp(struct sock *sk, int flag)
-{
+	/* Prefer RTT measured from ACK's timing to TS-ECR. This is because
+	 * broken middle-boxes or peers may corrupt TS-ECR fields. But
+	 * Karn's algorithm forbids taking RTT if some retransmitted data
+	 * is acked (RFC6298).
+	 */
+	if (flag & FLAG_RETRANS_DATA_ACKED)
+		seq_rtt = -1;
+
+	if (seq_rtt < 0)
+		seq_rtt = sack_rtt;
+
 	/* RTTM Rule: A TSecr value received in a segment is used to
 	 * update the averaged RTT measurement only if the segment
 	 * acknowledges some new data, i.e., only if it advances the
 	 * left edge of the send window.
-	 *
 	 * See draft-ietf-tcplw-high-performance-00, section 3.3.
-	 * 1998/04/10 Andrey V. Savochkin <saw@msu.ru>
-	 *
-	 * Changed: reset backoff as soon as we see the first valid sample.
-	 * If we do not, we get strongly overestimated rto. With timestamps
-	 * samples are accepted even from very old segments: f.e., when rtt=1
-	 * increases to 8, we retransmit 5 times and after 8 seconds delayed
-	 * answer arrives rto becomes 120 seconds! If at least one of segments
-	 * in window is lost... Voila.	 			--ANK (010210)
 	 */
+	if (seq_rtt < 0 && tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
+		seq_rtt = tcp_time_stamp - tp->rx_opt.rcv_tsecr;
+
+	if (seq_rtt < 0)
+		return false;
+
+	tcp_rtt_estimator(sk, seq_rtt);
+	tcp_set_rto(sk);
+
+	/* RFC6298: only reset backoff on valid RTT measurement. */
+	inet_csk(sk)->icsk_backoff = 0;
+	return true;
+}
+
+/* Compute time elapsed between (last) SYNACK and the ACK completing 3WHS. */
+static void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req)
+{
 	struct tcp_sock *tp = tcp_sk(sk);
+	s32 seq_rtt = -1;
 
-	tcp_valid_rtt_meas(sk, tcp_time_stamp - tp->rx_opt.rcv_tsecr);
-}
-
-static void tcp_ack_no_tstamp(struct sock *sk, u32 seq_rtt, int flag)
-{
-	/* We don't have a timestamp. Can only use
-	 * packets that are not retransmitted to determine
-	 * rtt estimates. Also, we must not reset the
-	 * backoff for rto until we get a non-retransmitted
-	 * packet. This allows us to deal with a situation
-	 * where the network delay has increased suddenly.
-	 * I.e. Karn's algorithm. (SIGCOMM '87, p5.)
-	 */
-
-	if (flag & FLAG_RETRANS_DATA_ACKED)
-		return;
-
-	tcp_valid_rtt_meas(sk, seq_rtt);
-}
-
-static inline void tcp_ack_update_rtt(struct sock *sk, const int flag,
-				      const s32 seq_rtt)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	/* Note that peer MAY send zero echo. In this case it is ignored. (rfc1323) */
-	if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
-		tcp_ack_saw_tstamp(sk, flag);
-	else if (seq_rtt >= 0)
-		tcp_ack_no_tstamp(sk, seq_rtt, flag);
+	if (tp->lsndtime && !tp->total_retrans)
+		seq_rtt = tcp_time_stamp - tp->lsndtime;
+	tcp_ack_update_rtt(sk, FLAG_SYN_ACKED, seq_rtt, -1);
 }
 
 static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
@@ -2939,7 +2933,7 @@ static u32 tcp_tso_acked(struct sock *sk, struct sk_buff *skb)
  * arrived at the other end.
  */
 static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
-			       u32 prior_snd_una)
+			       u32 prior_snd_una, s32 sack_rtt)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
@@ -2978,8 +2972,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			if (sacked & TCPCB_SACKED_RETRANS)
 				tp->retrans_out -= acked_pcount;
 			flag |= FLAG_RETRANS_DATA_ACKED;
-			ca_seq_rtt = -1;
-			seq_rtt = -1;
 		} else {
 			ca_seq_rtt = now - scb->when;
 			last_ackt = skb->tstamp;
@@ -3031,6 +3023,10 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	if (skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
 		flag |= FLAG_SACK_RENEGING;
 
+	if (tcp_ack_update_rtt(sk, flag, seq_rtt, sack_rtt) ||
+	    (flag & FLAG_ACKED))
+		tcp_rearm_rto(sk);
+
 	if (flag & FLAG_ACKED) {
 		const struct tcp_congestion_ops *ca_ops
 			= inet_csk(sk)->icsk_ca_ops;
@@ -3039,9 +3035,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			     !after(tp->mtu_probe.probe_seq_end, tp->snd_una))) {
 			tcp_mtup_probe_success(sk);
 		}
-
-		tcp_ack_update_rtt(sk, flag, seq_rtt);
-		tcp_rearm_rto(sk);
 
 		if (tcp_is_reno(tp)) {
 			tcp_remove_reno_sacks(sk, pkts_acked);
@@ -3274,6 +3267,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	int prior_packets = tp->packets_out;
 	const int prior_unsacked = tp->packets_out - tp->sacked_out;
 	int acked = 0; /* Number of packets newly acked */
+	s32 sack_rtt = -1;
 
 	/* If the ack is older than previous acks
 	 * then we can probably ignore it.
@@ -3330,7 +3324,8 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		flag |= tcp_ack_update_window(sk, skb, ack, ack_seq);
 
 		if (TCP_SKB_CB(skb)->sacked)
-			flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una);
+			flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una,
+							&sack_rtt);
 
 		if (TCP_ECN_rcv_ecn_echo(tp, tcp_hdr(skb)))
 			flag |= FLAG_ECE;
@@ -3349,7 +3344,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	/* See if we can take anything off of the retransmit queue. */
 	acked = tp->packets_out;
-	flag |= tcp_clean_rtx_queue(sk, prior_fackets, prior_snd_una);
+	flag |= tcp_clean_rtx_queue(sk, prior_fackets, prior_snd_una, sack_rtt);
 	acked -= tp->packets_out;
 
 	if (tcp_ack_is_dubious(sk, flag)) {
@@ -3402,7 +3397,8 @@ old_ack:
 	 * If data was DSACKed, see if we can undo a cwnd reduction.
 	 */
 	if (TCP_SKB_CB(skb)->sacked) {
-		flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una);
+		flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una,
+						&sack_rtt);
 		tcp_fastretrans_alert(sk, acked, prior_unsacked,
 				      is_dupack, flag);
 	}
@@ -5624,9 +5620,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		 * so release it.
 		 */
 		if (req) {
-			tcp_synack_rtt_meas(sk, req);
 			tp->total_retrans = req->num_retrans;
-
 			reqsk_fastopen_remove(sk, req, false);
 		} else {
 			/* Make sure socket is routed, for correct metrics. */
@@ -5651,6 +5645,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		tp->snd_una = TCP_SKB_CB(skb)->ack_seq;
 		tp->snd_wnd = ntohs(th->window) << tp->rx_opt.snd_wscale;
 		tcp_init_wl(tp, TCP_SKB_CB(skb)->seq);
+		tcp_synack_rtt_meas(sk, req);
 
 		if (tp->rx_opt.tstamp_ok)
 			tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
