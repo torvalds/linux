@@ -122,7 +122,6 @@ struct acpiphp_func {
 	struct acpiphp_slot *slot;	/* parent */
 
 	struct list_head sibling;
-	struct notifier_block nb;
 	acpi_handle	handle;
 
 	u8		function;	/* pci function# */
