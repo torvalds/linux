@@ -189,6 +189,7 @@ mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct sk_buff *skb;
 	u16 pkt_len;
 	const struct ieee80211_mgmt *mgmt;
+	struct mwifiex_txinfo *tx_info;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 
 	if (!buf || !len) {
@@ -215,6 +216,10 @@ mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		wiphy_err(wiphy, "allocate skb failed for management frame\n");
 		return -ENOMEM;
 	}
+
+	tx_info = MWIFIEX_SKB_TXCB(skb);
+	tx_info->bss_num = priv->bss_num;
+	tx_info->bss_type = priv->bss_type;
 
 	mwifiex_form_mgmt_frame(skb, buf, len);
 	mwifiex_queue_tx_pkt(priv, skb);
