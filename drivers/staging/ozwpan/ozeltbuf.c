@@ -7,10 +7,12 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include "ozconfig.h"
+#include "ozdbg.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
 #include "ozpd.h"
 #include "oztrace.h"
+
 /*------------------------------------------------------------------------------
  */
 #define OZ_ELT_INFO_MAGIC_USED	0x35791057
@@ -72,8 +74,8 @@ struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 		buf->free_elts--;
 		spin_unlock_bh(&buf->lock);
 		if (ei->magic != OZ_ELT_INFO_MAGIC_FREE) {
-			oz_trace("oz_elt_info_alloc: ei with bad magic: 0x%x\n",
-				ei->magic);
+			oz_dbg(ON, "%s: ei with bad magic: 0x%x\n",
+			       __func__, ei->magic);
 		}
 	} else {
 		spin_unlock_bh(&buf->lock);
@@ -104,9 +106,8 @@ void oz_elt_info_free(struct oz_elt_buf *buf, struct oz_elt_info *ei)
 			buf->elt_pool = &ei->link;
 			ei->magic = OZ_ELT_INFO_MAGIC_FREE;
 		} else {
-			oz_trace("oz_elt_info_free: bad magic ei: %p"
-				" magic: 0x%x\n",
-				ei, ei->magic);
+			oz_dbg(ON, "%s: bad magic ei: %p magic: 0x%x\n",
+			       __func__, ei, ei->magic);
 		}
 	}
 }
@@ -132,7 +133,7 @@ int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 {
 	struct oz_elt_stream *st;
 
-	oz_trace("oz_elt_stream_create(0x%x)\n", id);
+	oz_dbg(ON, "%s: (0x%x)\n", __func__, id);
 
 	st = kzalloc(sizeof(struct oz_elt_stream), GFP_ATOMIC | __GFP_ZERO);
 	if (st == NULL)
@@ -152,7 +153,7 @@ int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 {
 	struct list_head *e;
 	struct oz_elt_stream *st = NULL;
-	oz_trace("oz_elt_stream_delete(0x%x)\n", id);
+	oz_dbg(ON, "%s: (0x%x)\n", __func__, id);
 	spin_lock_bh(&buf->lock);
 	e = buf->stream_list.next;
 	while (e != &buf->stream_list) {
@@ -175,9 +176,8 @@ int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 		list_del_init(&ei->link);
 		list_del_init(&ei->link_order);
 		st->buf_count -= ei->length;
-		oz_trace2(OZ_TRACE_STREAM, "Stream down: %d  %d %d\n",
-			st->buf_count,
-			ei->length, atomic_read(&st->ref_count));
+		oz_dbg(STREAM, "Stream down: %d %d %d\n",
+		       st->buf_count, ei->length, atomic_read(&st->ref_count));
 		oz_elt_stream_put(st);
 		oz_elt_info_free(buf, ei);
 	}
@@ -196,7 +196,7 @@ void oz_elt_stream_get(struct oz_elt_stream *st)
 void oz_elt_stream_put(struct oz_elt_stream *st)
 {
 	if (atomic_dec_and_test(&st->ref_count)) {
-		oz_trace("Stream destroyed\n");
+		oz_dbg(ON, "Stream destroyed\n");
 		kfree(st);
 	}
 }
@@ -242,8 +242,7 @@ int oz_queue_elt_info(struct oz_elt_buf *buf, u8 isoc, u8 id,
 		st->buf_count += ei->length;
 		/* Add to list in stream. */
 		list_add_tail(&ei->link, &st->elt_list);
-		oz_trace2(OZ_TRACE_STREAM, "Stream up: %d  %d\n",
-			st->buf_count, ei->length);
+		oz_dbg(STREAM, "Stream up: %d %d\n", st->buf_count, ei->length);
 		/* Check if we have too much buffered for this stream. If so
 		 * start dropping elements until we are back in bounds.
 		 */
@@ -293,9 +292,8 @@ int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 			list_del(&ei->link_order);
 			if (ei->stream) {
 				ei->stream->buf_count -= ei->length;
-				oz_trace2(OZ_TRACE_STREAM,
-					"Stream down: %d  %d\n",
-					ei->stream->buf_count, ei->length);
+				oz_dbg(STREAM, "Stream down: %d %d\n",
+				       ei->stream->buf_count, ei->length);
 				oz_elt_stream_put(ei->stream);
 				ei->stream = NULL;
 			}

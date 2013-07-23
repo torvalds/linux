@@ -7,7 +7,7 @@
 #define _OZPROTO_H
 
 #include <asm/byteorder.h>
-#include "ozconfig.h"
+#include "ozdbg.h"
 #include "ozappif.h"
 
 #define OZ_ALLOCATED_SPACE(__x)	(LL_RESERVED_SPACE(__x)+(__x)->needed_tailroom)

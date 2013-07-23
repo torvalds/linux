@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <asm/unaligned.h>
+#include "ozdbg.h"
 #include "ozconfig.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
@@ -62,12 +63,12 @@ int oz_usb_get_desc_req(void *hpd, u8 req_id, u8 req_type, u8 desc_type,
 	struct oz_get_desc_req *body;
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
-	oz_trace("    req_type = 0x%x\n", req_type);
-	oz_trace("    desc_type = 0x%x\n", desc_type);
-	oz_trace("    index = 0x%x\n", index);
-	oz_trace("    windex = 0x%x\n", windex);
-	oz_trace("    offset = 0x%x\n", offset);
-	oz_trace("    len = 0x%x\n", len);
+	oz_dbg(ON, "    req_type = 0x%x\n", req_type);
+	oz_dbg(ON, "    desc_type = 0x%x\n", desc_type);
+	oz_dbg(ON, "    index = 0x%x\n", index);
+	oz_dbg(ON, "    windex = 0x%x\n", windex);
+	oz_dbg(ON, "    offset = 0x%x\n", offset);
+	oz_dbg(ON, "    len = 0x%x\n", len);
 	if (len > 200)
 		len = 200;
 	if (ei == NULL)
@@ -376,7 +377,7 @@ void oz_usb_rx(struct oz_pd *pd, struct oz_elt *elt)
 			u16 offs = le16_to_cpu(get_unaligned(&body->offset));
 			u16 total_size =
 				le16_to_cpu(get_unaligned(&body->total_size));
-			oz_trace("USB_REQ_GET_DESCRIPTOR - cnf\n");
+			oz_dbg(ON, "USB_REQ_GET_DESCRIPTOR - cnf\n");
 			oz_hcd_get_desc_cnf(usb_ctx->hport, body->req_id,
 					body->rcode, body->data,
 					data_len, offs, total_size);
@@ -425,7 +426,7 @@ void oz_usb_farewell(struct oz_pd *pd, u8 ep_num, u8 *data, u8 len)
 	if (usb_ctx == NULL)
 		return; /* Context has gone so nothing to do. */
 	if (!usb_ctx->stopped) {
-		oz_trace("Farewell indicated ep = 0x%x\n", ep_num);
+		oz_dbg(ON, "Farewell indicated ep = 0x%x\n", ep_num);
 		oz_hcd_data_ind(usb_ctx->hport, ep_num, data, len);
 	}
 	oz_usb_put(usb_ctx);

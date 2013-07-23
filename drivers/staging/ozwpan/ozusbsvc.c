@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <asm/unaligned.h>
+#include "ozdbg.h"
 #include "ozconfig.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
@@ -53,10 +54,10 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	struct oz_usb_ctx *usb_ctx;
 	struct oz_usb_ctx *old_ctx;
 	if (resume) {
-		oz_trace("USB service resumed.\n");
+		oz_dbg(ON, "USB service resumed\n");
 		return 0;
 	}
-	oz_trace("USB service started.\n");
+	oz_dbg(ON, "USB service started\n");
 	/* Create a USB context in case we need one. If we find the PD already
 	 * has a USB context then we will destroy it.
 	 */
@@ -77,7 +78,7 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	oz_usb_get(pd->app_ctx[OZ_APPID_USB-1]);
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	if (old_ctx) {
-		oz_trace("Already have USB context.\n");
+		oz_dbg(ON, "Already have USB context\n");
 		kfree(usb_ctx);
 		usb_ctx = old_ctx;
 	} else if (usb_ctx) {
@@ -95,7 +96,7 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	} else {
 		usb_ctx->hport = oz_hcd_pd_arrived(usb_ctx);
 		if (usb_ctx->hport == NULL) {
-			oz_trace("USB hub returned null port.\n");
+			oz_dbg(ON, "USB hub returned null port\n");
 			spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 			pd->app_ctx[OZ_APPID_USB-1] = NULL;
 			spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
@@ -114,7 +115,7 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 {
 	struct oz_usb_ctx *usb_ctx;
 	if (pause) {
-		oz_trace("USB service paused.\n");
+		oz_dbg(ON, "USB service paused\n");
 		return;
 	}
 	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
@@ -123,7 +124,7 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	if (usb_ctx) {
 		unsigned long tout = jiffies + HZ;
-		oz_trace("USB service stopping...\n");
+		oz_dbg(ON, "USB service stopping...\n");
 		usb_ctx->stopped = 1;
 		/* At this point the reference count on the usb context should
 		 * be 2 - one from when we created it and one from the hcd
@@ -134,7 +135,7 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 		while ((atomic_read(&usb_ctx->ref_count) > 2) &&
 			time_before(jiffies, tout))
 			;
-		oz_trace("USB service stopped.\n");
+		oz_dbg(ON, "USB service stopped\n");
 		oz_hcd_pd_departed(usb_ctx->hport);
 		/* Release the reference taken in oz_usb_start.
 		 */
@@ -160,7 +161,7 @@ void oz_usb_put(void *hpd)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
 	if (atomic_dec_and_test(&usb_ctx->ref_count)) {
-		oz_trace("Dealloc USB context.\n");
+		oz_dbg(ON, "Dealloc USB context\n");
 		oz_pd_put(usb_ctx->pd);
 		kfree(usb_ctx);
 	}
@@ -195,7 +196,7 @@ int oz_usb_stream_create(void *hpd, u8 ep_num)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
 	struct oz_pd *pd = usb_ctx->pd;
-	oz_trace("oz_usb_stream_create(0x%x)\n", ep_num);
+	oz_dbg(ON, "%s: (0x%x)\n", __func__, ep_num);
 	if (pd->mode & OZ_F_ISOC_NO_ELTS) {
 		oz_isoc_stream_create(pd, ep_num);
 	} else {
@@ -217,7 +218,7 @@ int oz_usb_stream_delete(void *hpd, u8 ep_num)
 	if (usb_ctx) {
 		struct oz_pd *pd = usb_ctx->pd;
 		if (pd) {
-			oz_trace("oz_usb_stream_delete(0x%x)\n", ep_num);
+			oz_dbg(ON, "%s: (0x%x)\n", __func__, ep_num);
 			if (pd->mode & OZ_F_ISOC_NO_ELTS) {
 				oz_isoc_stream_delete(pd, ep_num);
 			} else {

@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/errno.h>
 #include <linux/ieee80211.h>
+#include "ozdbg.h"
 #include "ozconfig.h"
 #include "ozprotocol.h"
 #include "ozeltbuf.h"
@@ -124,7 +125,7 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 		body->session_id = pd->session_id;
 		put_unaligned(cpu_to_le16(pd->total_apps), &body->apps);
 	}
-	oz_trace("TX: OZ_ELT_CONNECT_RSP %d", status);
+	oz_dbg(ON, "TX: OZ_ELT_CONNECT_RSP %d", status);
 	dev_queue_xmit(skb);
 	return;
 }
@@ -152,7 +153,7 @@ static void pd_set_keepalive(struct oz_pd *pd, u8 kalive)
 	default:
 		pd->keep_alive_j = 0;
 	}
-	oz_trace("Keepalive = %lu jiffies\n", pd->keep_alive_j);
+	oz_dbg(ON, "Keepalive = %lu jiffies\n", pd->keep_alive_j);
 }
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
@@ -163,7 +164,7 @@ static void pd_set_presleep(struct oz_pd *pd, u8 presleep)
 		pd->presleep_j = oz_ms_to_jiffies(presleep*100);
 	else
 		pd->presleep_j = OZ_PRESLEEP_TOUT_J;
-	oz_trace("Presleep time = %lu jiffies\n", pd->presleep_j);
+	oz_dbg(ON, "Presleep time = %lu jiffies\n", pd->presleep_j);
 }
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
@@ -210,7 +211,7 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 		dev_hold(net_dev);
 		pd->net_dev = net_dev;
 	}
-	oz_trace("Host vendor: %d\n", body->host_vendor);
+	oz_dbg(ON, "Host vendor: %d\n", body->host_vendor);
 	pd->max_tx_size = OZ_MAX_TX_SIZE;
 	pd->mode = body->mode;
 	pd->pd_info = body->pd_info;
@@ -234,8 +235,8 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 	}
 	if (body->max_len_div16)
 		pd->max_tx_size = ((u16)body->max_len_div16)<<4;
-	oz_trace("Max frame:%u Ms per isoc:%u\n",
-		pd->max_tx_size, pd->ms_per_isoc);
+	oz_dbg(ON, "Max frame:%u Ms per isoc:%u\n",
+	       pd->max_tx_size, pd->ms_per_isoc);
 	pd->max_stream_buffering = 3*1024;
 	pd->timeout_time_j = jiffies + OZ_CONNECTION_TOUT_J;
 	pd->pulse_period_j = OZ_QUANTUM_J;
@@ -272,8 +273,8 @@ done:
 		spin_unlock_bh(&g_polling_lock);
 		oz_pd_set_state(pd, OZ_PD_S_CONNECTED);
 		oz_timer_delete(pd, OZ_TIMER_STOP);
-		oz_trace("new_apps=0x%x total_apps=0x%x paused_apps=0x%x\n",
-			new_apps, pd->total_apps, pd->paused_apps);
+		oz_dbg(ON, "new_apps=0x%x total_apps=0x%x paused_apps=0x%x\n",
+		       new_apps, pd->total_apps, pd->paused_apps);
 		if (start_apps) {
 			if (oz_services_start(pd, start_apps, 0))
 				rsp_status = OZ_STATUS_TOO_MANY_PDS;
@@ -315,7 +316,7 @@ static void oz_add_farewell(struct oz_pd *pd, u8 ep_num, u8 index,
 	f->ep_num = ep_num;
 	f->index = index;
 	memcpy(f->report, report, len);
-	oz_trace("RX: Adding farewell report\n");
+	oz_dbg(ON, "RX: Adding farewell report\n");
 	spin_lock(&g_polling_lock);
 	list_for_each_entry(f2, &pd->farewell_list, link) {
 		if ((f2->ep_num == ep_num) && (f2->index == index)) {
@@ -343,17 +344,16 @@ static void oz_rx_frame(struct sk_buff *skb)
 	int dup = 0;
 	u32 pkt_num;
 
-	oz_trace2(OZ_TRACE_RX_FRAMES,
-		"RX frame PN=0x%x LPN=0x%x control=0x%x\n",
-		oz_hdr->pkt_num, oz_hdr->last_pkt_num, oz_hdr->control);
+	oz_dbg(RX_FRAMES, "RX frame PN=0x%x LPN=0x%x control=0x%x\n",
+	       oz_hdr->pkt_num, oz_hdr->last_pkt_num, oz_hdr->control);
 	mac_hdr = skb_mac_header(skb);
 	src_addr = &mac_hdr[ETH_ALEN] ;
 	length = skb->len;
 
 	/* Check the version field */
 	if (oz_get_prot_ver(oz_hdr->control) != OZ_PROTOCOL_VERSION) {
-		oz_trace("Incorrect protocol version: %d\n",
-			oz_get_prot_ver(oz_hdr->control));
+		oz_dbg(ON, "Incorrect protocol version: %d\n",
+		       oz_get_prot_ver(oz_hdr->control));
 		goto done;
 	}
 
@@ -368,12 +368,12 @@ static void oz_rx_frame(struct sk_buff *skb)
 			pd->last_rx_pkt_num = pkt_num;
 		} else {
 			dup = 1;
-			oz_trace("Duplicate frame\n");
+			oz_dbg(ON, "Duplicate frame\n");
 		}
 	}
 
 	if (pd && !dup && ((pd->mode & OZ_MODE_MASK) == OZ_MODE_TRIGGERED)) {
-		oz_trace2(OZ_TRACE_RX_FRAMES, "Received TRIGGER Frame\n");
+		oz_dbg(RX_FRAMES, "Received TRIGGER Frame\n");
 		pd->last_sent_frame = &pd->tx_queue;
 		if (oz_hdr->control & OZ_F_ACK) {
 			/* Retire completed frames */
@@ -397,18 +397,18 @@ static void oz_rx_frame(struct sk_buff *skb)
 			break;
 		switch (elt->type) {
 		case OZ_ELT_CONNECT_REQ:
-			oz_trace("RX: OZ_ELT_CONNECT_REQ\n");
+			oz_dbg(ON, "RX: OZ_ELT_CONNECT_REQ\n");
 			pd = oz_connect_req(pd, elt, src_addr, skb->dev);
 			break;
 		case OZ_ELT_DISCONNECT:
-			oz_trace("RX: OZ_ELT_DISCONNECT\n");
+			oz_dbg(ON, "RX: OZ_ELT_DISCONNECT\n");
 			if (pd)
 				oz_pd_sleep(pd);
 			break;
 		case OZ_ELT_UPDATE_PARAM_REQ: {
 				struct oz_elt_update_param *body =
 					(struct oz_elt_update_param *)(elt + 1);
-				oz_trace("RX: OZ_ELT_UPDATE_PARAM_REQ\n");
+				oz_dbg(ON, "RX: OZ_ELT_UPDATE_PARAM_REQ\n");
 				if (pd && (pd->state & OZ_PD_S_CONNECTED)) {
 					spin_lock(&g_polling_lock);
 					pd_set_keepalive(pd, body->keepalive);
@@ -420,7 +420,7 @@ static void oz_rx_frame(struct sk_buff *skb)
 		case OZ_ELT_FAREWELL_REQ: {
 				struct oz_elt_farewell *body =
 					(struct oz_elt_farewell *)(elt + 1);
-				oz_trace("RX: OZ_ELT_FAREWELL_REQ\n");
+				oz_dbg(ON, "RX: OZ_ELT_FAREWELL_REQ\n");
 				oz_add_farewell(pd, body->ep_num,
 					body->index, body->report,
 					elt->length + 1 - sizeof(*body));
@@ -436,7 +436,7 @@ static void oz_rx_frame(struct sk_buff *skb)
 			}
 			break;
 		default:
-			oz_trace("RX: Unknown elt %02x\n", elt->type);
+			oz_dbg(ON, "RX: Unknown elt %02x\n", elt->type);
 		}
 		elt = oz_next_elt(elt);
 	}
@@ -488,7 +488,7 @@ void oz_protocol_term(void)
 		chain = chain->next;
 		kfree(t);
 	}
-	oz_trace("Protocol stopped\n");
+	oz_dbg(ON, "Protocol stopped\n");
 }
 /*------------------------------------------------------------------------------
  * Context: softirq
@@ -583,7 +583,7 @@ static void oz_protocol_timer_start(void)
 		}
 		g_timer_state = OZ_TIMER_SET;
 	} else {
-		oz_trace("No queued timers\n");
+		oz_dbg(ON, "No queued timers\n");
 	}
 	spin_unlock_bh(&g_polling_lock);
 }
@@ -795,16 +795,16 @@ void oz_binding_add(char *net_dev)
 		binding->ptype.func = oz_pkt_recv;
 		memcpy(binding->name, net_dev, OZ_MAX_BINDING_LEN);
 		if (net_dev && *net_dev) {
-			oz_trace("Adding binding: %s\n", net_dev);
+			oz_dbg(ON, "Adding binding: %s\n", net_dev);
 			binding->ptype.dev =
 				dev_get_by_name(&init_net, net_dev);
 			if (binding->ptype.dev == NULL) {
-				oz_trace("Netdev %s not found\n", net_dev);
+				oz_dbg(ON, "Netdev %s not found\n", net_dev);
 				kfree(binding);
 				binding = NULL;
 			}
 		} else {
-			oz_trace("Binding to all netcards\n");
+			oz_dbg(ON, "Binding to all netcards\n");
 			binding->ptype.dev = NULL;
 		}
 		if (binding) {
@@ -861,13 +861,13 @@ void oz_binding_remove(char *net_dev)
 {
 	struct oz_binding *binding;
 	struct oz_binding **link;
-	oz_trace("Removing binding: %s\n", net_dev);
+	oz_dbg(ON, "Removing binding: %s\n", net_dev);
 	spin_lock_bh(&g_binding_lock);
 	binding = g_binding;
 	link = &g_binding;
 	while (binding) {
 		if (compare_binding_name(binding->name, net_dev)) {
-			oz_trace("Binding '%s' found\n", net_dev);
+			oz_dbg(ON, "Binding '%s' found\n", net_dev);
 			*link = binding->next;
 			break;
 		} else {
