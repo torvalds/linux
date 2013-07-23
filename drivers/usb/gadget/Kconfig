@@ -506,17 +506,19 @@ config USB_SW_SUN3I_UDC0
 	   Note: Even if selected to build as module, this driver will be
 	   built in to kernel image.
 
-config USB_SW_SUNXI_UDC0
+config USB_SW_SUNXI_UDC0_SELECT
 	tristate "SoftWinner SUNXI USB Peripheral Controller"
 	depends on USB_SW_SUNXI_USB_MANAGER
 	select USB_GADGET_DUALSPEED
 	select USB_GADGET_SELECTED
-	select USB_SW_SUNXI_UDC0_BUILTIN
+	select USB_SW_SUNXI_UDC0
 	help
-	   USB device only or USB OTG
+	   SUNXI USB device/OTG controller driver
 
-	   Note: Even if selected to build as module, this driver will be
-	   built in to kernel image.
+	   Note: This is a dummy menu item which selects the real driver. Due
+	   to Kconfig limitation in this kernel version it needs to be tristate
+	   as the other driver options. Even if selected to build as module,
+	   this driver will be built in to kernel image.
 
 #
 # LAST -- dummy/emulated controller
@@ -559,9 +561,8 @@ config USB_SW_SUN3I_UDC0_BUILTIN
 	prompt "SoftWinner SUN3I USB Peripheral Controller (as built-in driver)" if USB_SW_SUN3I_UDC0
 	depends on USB_SW_SUN3I_USB_MANAGER
 
-config USB_SW_SUNXI_UDC0_BUILTIN
+config USB_SW_SUNXI_UDC0
 	bool
-	prompt "SoftWinner SUNXI USB Peripheral Controller (as built-in driver)" if USB_SW_SUNXI_UDC0
 	depends on USB_SW_SUNXI_USB_MANAGER
 
 
