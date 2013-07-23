@@ -4079,18 +4079,26 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 		if(hmp_cpu_is_fastest(prev_cpu)) {
 			struct hmp_domain *hmpdom = list_entry(&hmp_cpu_domain(prev_cpu)->hmp_domains, struct hmp_domain, hmp_domains);
 			__always_unused int lowest_ratio = hmp_domain_min_load(hmpdom, &new_cpu);
-			if(new_cpu != NR_CPUS && cpumask_test_cpu(new_cpu,tsk_cpus_allowed(p)))
+			if (new_cpu != NR_CPUS &&
+				cpumask_test_cpu(new_cpu,
+						tsk_cpus_allowed(p))) {
+				hmp_next_up_delay(&p->se, new_cpu);
 				return new_cpu;
-			else {
-				new_cpu = cpumask_any_and(&hmp_faster_domain(cpu)->cpus,
+			} else {
+				new_cpu = cpumask_any_and(
+						&hmp_faster_domain(cpu)->cpus,
 						tsk_cpus_allowed(p));
-				if(new_cpu < nr_cpu_ids)
+				if (new_cpu < nr_cpu_ids) {
+					hmp_next_up_delay(&p->se, new_cpu);
 					return new_cpu;
+				}
 			}
 		} else {
 			new_cpu = hmp_select_faster_cpu(p, prev_cpu);
-			if (new_cpu != NR_CPUS)
+			if (new_cpu != NR_CPUS) {
+				hmp_next_up_delay(&p->se, new_cpu);
 				return new_cpu;
+			}
 		}
 	}
 #endif
