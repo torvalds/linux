@@ -13,14 +13,14 @@
 CONFIG ?= pegasus-m400
 
 # Validate selected config
-ifneq ($(shell [ -d $(src)/arch-$(CONFIG) ] && [ -f  $(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
-$(warning Current directory is $(src))
+ifneq ($(shell [ -d $(srctree)/$(src)/arch-$(CONFIG) ] && [ -f  $(srctree)/$(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
+$(warning Current directory is $(srctree)/$(src))
 $(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
 else
 # Link arch to the selected arch-config directory
-$(shell [ -L $(src)/arch ] && rm $(src)/arch)
-$(shell ln -sf arch-$(CONFIG) $(src)/arch)
-$(shell touch $(src)/arch/config.h)
+$(shell [ -L $(srctree)/$(src)/arch ] && rm $(srctree)/$(src)/arch)
+$(shell ln -sf arch-$(CONFIG) $(srctree)/$(src)/arch)
+$(shell touch $(srctree)/$(src)/arch/config.h)
 endif
 
 UDD_FILE_PREFIX = ../mali_r3p2/
@@ -32,7 +32,7 @@ SVN_REV := 0000
 ccflags-y += -DSVN_REV=$(SVN_REV)
 ccflags-y += -DSVN_REV_STRING=\"$(SVN_REV)\"
 
-ccflags-y += -I$(src) -I$(src)/common -I$(src)/linux -I$(src)/../mali_r3p2/common -I$(src)/../mali_r3p2/linux -I$(src)/../../ump_r3p2/include/ump
+ccflags-y += -I$(srctree)/$(src) -I$(srctree)/$(src)/common -I$(srctree)/$(src)/linux -I$(srctree)/$(src)/../mali_r3p2/common -I$(srctree)/$(src)/../mali_r3p2/linux -I$(srctree)/$(src)/../../ump_r3p2/include/ump
 ccflags-y += -DMALI_STATE_TRACKING=0
 ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
 
@@ -40,10 +40,10 @@ ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
-ifeq ($(wildcard $(src)/linux/license/gpl/*),)
-ccflags-y += -I$(src)/linux/license/proprietary
+ifeq ($(wildcard $(srctree)/$(src)/linux/license/gpl/*),)
+ccflags-y += -I$(srctree)/$(src)/linux/license/proprietary
 else
-ccflags-y += -I$(src)/linux/license/gpl
+ccflags-y += -I$(srctree)/$(src)/linux/license/gpl
 endif
 
 ump-y = common/ump_kernel_common.o \

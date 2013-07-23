@@ -2,8 +2,8 @@
 # Makefile for MMC/SD card drivers
 #
 ifeq ($(CONFIG_MMC_CPRM),y)
-EXTRA_CFLAGS += -I$(src)/cprm/softcprm
-EXTRA_CFLAGS += -I$(src)/cprm/include
+EXTRA_CFLAGS += -I$(srctree)/$(src)/cprm/softcprm
+EXTRA_CFLAGS += -I$(srctree)/$(src)/cprm/include
 endif
 
 obj-$(CONFIG_MMC_BLOCK)		+= mmc_block.o

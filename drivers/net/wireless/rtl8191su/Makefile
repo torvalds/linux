@@ -1,5 +1,5 @@
 EXTRA_CFLAGS += -O1 -Wno-unused-variable -Wno-unused-value -Wno-unused-label -Wno-unused-parameter -Wno-uninitialized
-EXTRA_CFLAGS += -I$(src)/include  -Wno-unused -Wno-unused-function
+EXTRA_CFLAGS += -I$(srctree)/$(src)/include  -Wno-unused -Wno-unused-function
 
 CONFIG_RTL8711                  =       n
 CONFIG_RTL8712                  =       y

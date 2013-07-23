@@ -4,7 +4,7 @@ EXTRA_CFLAGS 	+=	-DBCMDRIVER -DBCMDONGLEHOST -DBCMSDIO -DUNRELEASEDCHIP 		\
 					-DDHD_SCHED -DBDC -DTOE -DDHD_BCMEVENTS -DSHOW_EVENTS		\
 					-DWLBTAMP -DDHDTHREAD -DMMC_SDIO_ABORT  	\
 					-DDHD_GPL -DWIFI_ACT_FRAME -DBCMLXSDMMC -DBCMPLATFORM_BUS	\
-					-DPKT_FILTER_SUPPORT -DBCMDBG -DDHD_DEBUG -DSRCBASE=\"$(src)/src\"
+					-DPKT_FILTER_SUPPORT -DBCMDBG -DDHD_DEBUG -DSRCBASE=\"$(srctree)/$(src)/src\"
 # ADD FLAGS
 AFLAGS += -DCUSTOMER_HW -DOEM_ANDROID -DDHD_SDALIGN=64 -DMAX_HDR_READ=64 -DDHD_FIRSTREAD=64
 AFLAGS += -DOOB_INTR_ONLY -DHW_OOB -DCSCAN -DHARD_KERNEL -DOOB_TIMER_INTERVAL_NS=10000000
@@ -16,12 +16,12 @@ AFLAGS += -DGET_CUSTOM_MAC_ENABLE -DSET_RANDOM_MAC_SOFTAP
 # AFLAGS += -DGET_CUSTOM_MAC_ENABLE -DCSCAN -DSDIO_ISR_THREAD
 # AFLAGS += -DWL_CFG80211 -DNEW_COMPAT_WIRELESS 
 
-IFLAGS += -I$(src)/src/include/
-IFLAGS += -I$(src)/src/dhd/sys/
-IFLAGS += -I$(src)/src/dongle/
-IFLAGS += -I$(src)/src/bcmsdio/sys/
-IFLAGS += -I$(src)/src/wl/sys/
-IFLAGS += -I$(src)/src/shared/
+IFLAGS += -I$(srctree)/$(src)/src/include/
+IFLAGS += -I$(srctree)/$(src)/src/dhd/sys/
+IFLAGS += -I$(srctree)/$(src)/src/dongle/
+IFLAGS += -I$(srctree)/$(src)/src/bcmsdio/sys/
+IFLAGS += -I$(srctree)/$(src)/src/wl/sys/
+IFLAGS += -I$(srctree)/$(src)/src/shared/
 
 EXTRA_CFLAGS 	+= 	-Wall -Wstrict-prototypes $(IFLAGS)	$(AFLAGS)	
 EXTRA_LDFLAGS	+= 	--strip-debug
