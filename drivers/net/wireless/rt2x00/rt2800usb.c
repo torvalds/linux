@@ -1198,8 +1198,38 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x5a57, 0x0284) },
 #endif
 #ifdef CONFIG_RT2800USB_RT3573
+	/* AirLive */
+	{ USB_DEVICE(0x1b75, 0x7733) },
+	/* ASUS */
+	{ USB_DEVICE(0x0b05, 0x17bc) },
+	{ USB_DEVICE(0x0b05, 0x17ad) },
+	/* Belkin */
+	{ USB_DEVICE(0x050d, 0x1103) },
+	/* Cameo */
+	{ USB_DEVICE(0x148f, 0xf301) },
+	/* Edimax */
+	{ USB_DEVICE(0x7392, 0x7733) },
+	/* Hawking */
+	{ USB_DEVICE(0x0e66, 0x0020) },
+	{ USB_DEVICE(0x0e66, 0x0021) },
+	/* I-O DATA */
+	{ USB_DEVICE(0x04bb, 0x094e) },
 	/* Linksys */
 	{ USB_DEVICE(0x13b1, 0x003b) },
+	/* Logitec */
+	{ USB_DEVICE(0x0789, 0x016b) },
+	/* NETGEAR */
+	{ USB_DEVICE(0x0846, 0x9012) },
+	{ USB_DEVICE(0x0846, 0x9019) },
+	/* Planex */
+	{ USB_DEVICE(0x2019, 0xed19) },
+	/* Ralink */
+	{ USB_DEVICE(0x148f, 0x3573) },
+	/* Sitecom */
+	{ USB_DEVICE(0x0df6, 0x0067) },
+	{ USB_DEVICE(0x0df6, 0x006a) },
+	/* ZyXEL */
+	{ USB_DEVICE(0x0586, 0x3421) },
 #endif
 #ifdef CONFIG_RT2800USB_RT53XX
 	/* Arcadyan */
