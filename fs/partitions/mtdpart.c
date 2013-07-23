@@ -311,6 +311,23 @@ static int parse_cmdline_partitions(sector_t n,
 	return 0;
 }
 
+static void rk_emmc_fix(void)
+{
+	const char mode_emmc[] = " androidboot.mode=emmc";
+	const char charger_emmc[] = " androidboot.charger.emmc=1";
+	char *new_command_line;
+	size_t saved_command_line_len = strlen(saved_command_line);
+
+	if (strstr(saved_command_line, "androidboot.mode=charger")) {
+		new_command_line = kzalloc(saved_command_line_len + strlen(charger_emmc) + 1, GFP_KERNEL);
+		sprintf(new_command_line, "%s%s", saved_command_line, charger_emmc);
+	} else {
+		new_command_line = kzalloc(saved_command_line_len + strlen(mode_emmc) + 1, GFP_KERNEL);
+		sprintf(new_command_line, "%s%s", saved_command_line, mode_emmc);
+	}
+	saved_command_line = new_command_line;
+}
+
 int mtdpart_partition(struct parsed_partitions *state)
 {
 	int num_parts = 0, i;
@@ -318,6 +335,9 @@ int mtdpart_partition(struct parsed_partitions *state)
 	struct mtd_partition *parts = NULL;
 
 	if(n < SECTOR_1G)
+		return 0;
+
+	if (state->bdev->bd_disk->major != MMC_BLOCK_MAJOR || state->bdev->bd_disk->first_minor != 0)
 		return 0;
 
 	cmdline = strstr(saved_command_line, "mtdparts=") + 9;
@@ -335,6 +355,8 @@ int mtdpart_partition(struct parsed_partitions *state)
 				(parts[i].from + parts[i].size) * 512,
 				parts[i].size / 2048);
 	}
+
+	rk_emmc_fix();
 
 	return 1;
 }

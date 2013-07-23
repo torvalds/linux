@@ -32,6 +32,13 @@ config AIDC
 	default n
 	---help---
 
+config BCM_OOB_ENABLED
+	bool "Enable wifi host wake up function"
+	depends on RKWIFI
+	select RK29_SDIO_IRQ_FROM_GPIO
+	default n
+	---help---
+
 choice
 	prompt "WiFi device driver support"
 	default WIFI_NONE
@@ -157,10 +164,10 @@ choice
 
 endchoice
 
-choice	
+choice
 	depends on RKWIFI && WLAN_80211 && RK903
 	prompt "Select the wifi module crystal freq"
-	default RKWIFI_37_4M
+	default RKWIFI_26M
 
 	config RKWIFI_37_4M
     	bool "37_4M"

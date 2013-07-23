@@ -37,10 +37,6 @@ static int rt5025_pre_init(struct rt5025_chip *rt5025_chip){
 	ret |= (1<<3);  //enable DC4 boost
 	rt5025_reg_write(rt5025_chip->i2c, 0x17,ret);
 	/***********************************************/
-	 ret = rt5025_reg_read(rt5025_chip->i2c, 0x07);
-        ret |= (1<<5);  //
-        rt5025_reg_write(rt5025_chip->i2c, 0x07,ret);
-
 	/************************************************/
 	return 0;
   }
@@ -283,13 +279,14 @@ static struct rt5025_power_data rt5025_power_data = {
 	},
 	.CHGControl4 = {
 		.bitfield = {
+			.AICR_CON = 1,
 			.AICR = RT5025_AICR_500MA,
-			.ICC = RT5025_ICC_1P8A,
+			.ICC = RT5025_ICC_0P5A,
 		},
 	},
 	.CHGControl5 = {
 		.bitfield = {
-			.DPM = RT5025_DPM_DIS,
+			.DPM = RT5025_DPM_4P5V,
 		},
 	},
 	.CHGControl6 = {
@@ -302,10 +299,11 @@ static struct rt5025_power_data rt5025_power_data = {
 	.CHGControl7 = {
 		.bitfield = {
 			.CHGC_EN = 1,
-			.CHG_DCDC_MODE = 1,
+			.CHG_DCDC_MODE = 0,
 			.BATD_EN = 0,
 		},
 	},
+	.fcc = 6200, //6200 mAh
 };
 
 static struct rt5025_gpio_data rt5025_gpio_data = {
@@ -323,7 +321,7 @@ static struct rt5025_misc_data rt5025_misc_data = {
 	},
 	.VSYSCtrl = {
 		.bitfield = {
-			.VOFF = RT5025_VOFF_3P1V,
+			.VOFF = RT5025_VOFF_3P4V,
 		},
 	},
 	.PwrOnCfg = {
@@ -386,7 +384,7 @@ static struct rt5025_irq_data rt5025_irq_data = {
 	},
 	.irq_enable4 = {
 		.bitfield = {
-			.SYSLV = 0,
+			.SYSLV = 1,
 			.DCDC4LVHV = 1,
 			.PWRONLP = 0,
 			.PWRONSP = 0,
@@ -412,11 +410,19 @@ static struct rt5025_irq_data rt5025_irq_data = {
 static void rt5025_charger_event_callback(uint32_t detected)
 {
 	RTINFO("event detected = 0x%08x\n", detected);
+	if (detected & CHG_EVENT_CHTERMI)
+	{
+		pr_info("charger termination OK\n");
+	}
 }
 
 static void rt5025_power_event_callback(uint32_t detected)
 {
 	RTINFO("event detected = 0x%08x\n", detected);
+	if (detected & PWR_EVENT_SYSLV)
+	{
+		pr_info("sys voltage low\n");
+	}
 }
 
 static struct rt5025_event_callback rt5025_event_callback = {

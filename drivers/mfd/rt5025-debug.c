@@ -177,7 +177,7 @@ static int __init rt5025_debug_init(void)
 {
 	return platform_driver_register(&rt5025_debug_driver);
 }
-subsys_initcall_sync(rt5025_debug_init);
+module_init(rt5025_debug_init);
 
 static void __exit rt5025_debug_exit(void)
 {

@@ -216,21 +216,25 @@ static void usb_uart_init(void)
 	writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
 #endif //end of CONFIG_ARCH_RK2928
 #ifdef CONFIG_ARCH_RK3026
+
+writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON0);
 #ifdef CONFIG_RK_USB_UART
-	if (!(readl_relaxed(RK30_GRF_BASE + GRF_SOC_STATUS0) & (1 << 13))) { //detect id
-		writel_relaxed((0x0300 << 16), RK30_GRF_BASE + GRF_UOC0_CON0);
-	} else {
-		if (!(readl_relaxed(RK30_GRF_BASE + GRF_SOC_STATUS0) & (1 << 10))) { //detect vbus
-			writel_relaxed(((0x01 << 2) | ((0x01 << 2) << 16)), RK30_GRF_BASE + GRF_UOC0_CON2); //software control usb phy enable 
-			writel_relaxed((0x2A | (0x3F << 16)), RK30_GRF_BASE + GRF_UOC0_CON3); //usb phy enter suspend
-			writel_relaxed((0x0300 | (0x0300 << 16)), RK30_GRF_BASE + GRF_UOC0_CON0);
-		} else {
-			writel_relaxed((0x0300 << 16), RK30_GRF_BASE + GRF_UOC0_CON0);
+	writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON0);
+
+	if((readl_relaxed(RK2928_GRF_BASE + GRF_SOC_STATUS0) & (1<<10)))//detect id
+	{
+		if(!(readl_relaxed(RK2928_GRF_BASE + GRF_SOC_STATUS0) & (1<<7)))//detect vbus
+		{
+			writel_relaxed(0x007f0055, RK2928_GRF_BASE + GRF_UOC0_CON0);
+			writel_relaxed(0x34003000, RK2928_GRF_BASE + GRF_UOC1_CON0);
+		}
+		else
+		{
+			writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON0);
 		}
 	}
-#else
-	writel_relaxed((0x0300 << 16), RK30_GRF_BASE + GRF_UOC0_CON0);
-#endif //end of CONFIG_RK_USB_UART
+
+#endif // end of CONFIG_RK_USB_UART
 #endif //end of CONFIG_ARCH_RK3026
 #endif //end of DEBUG_UART_BASE
 }

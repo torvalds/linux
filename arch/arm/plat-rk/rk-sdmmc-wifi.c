@@ -501,12 +501,12 @@ int rk29sdk_wifi_set_carddetect(int val)
 }
 EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
-#define WIFI_HOST_WAKE RK30_PIN3_PD2
+//#define WIFI_HOST_WAKE RK30_PIN3_PD2
 
 static struct resource resources[] = {
 	{
-		.start = WIFI_HOST_WAKE,
-		.flags = IORESOURCE_IRQ,
+		.start = RK30SDK_WIFI_GPIO_WIFI_INT_B,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE,
 		.name = "bcmdhd_wlan_irq",
 	},
 };

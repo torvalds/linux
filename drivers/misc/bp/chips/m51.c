@@ -51,31 +51,43 @@
 static int bp_active(struct bp_private_data *bp, int enable)
 {	
 	int result = 0;
-	if(enable)
-	{		
-		printk("<-----m51 power on-------->\n");
-		gpio_set_value(bp->ops->bp_power, GPIO_HIGH);
-		msleep(100);
-		gpio_set_value(bp->ops->bp_reset, GPIO_HIGH);
-		msleep(500);
-		gpio_set_value(bp->ops->bp_reset, GPIO_LOW);
-		gpio_set_value(bp->ops->bp_en, GPIO_HIGH);
-		msleep(1000);
-		//gpio_set_value(bp->ops->bp_en, GPIO_LOW);
-	}
-	else
-	{
-		printk("<-----m51 power off-------->\n");
-		//gpio_set_value(bp->ops->bp_en, GPIO_LOW);
-		//msleep(1000);
-		gpio_set_value(bp->ops->bp_reset, GPIO_HIGH);
-        	msleep(200);
-		gpio_set_value(bp->ops->bp_power, GPIO_LOW);
-		msleep(500);
-	}
-	
+	switch(enable){
+		case 0:
+			printk("<-----m51 power off-------->\n");
+			gpio_set_value(bp->ops->bp_en, GPIO_LOW);
+			msleep(2000);		
+			gpio_set_value(bp->ops->bp_power, GPIO_LOW);
+			msleep(1000);
+			break;
+		case 1:
+			printk("<-----m51 power on-------->\n");
+			
+			gpio_set_value(bp->ops->bp_power, GPIO_HIGH);
+			//msleep(100);		
+			//gpio_set_value(bp->ops->bp_en, GPIO_LOW);
+			msleep(500);
+			gpio_set_value(bp->ops->bp_en, GPIO_HIGH);	
+			msleep(2500);
+			break;
+		case 2:
+			printk("<-----aw706 udate power_en low-------->\n");
+			gpio_set_value(bp->ops->bp_power, GPIO_HIGH);
+			msleep(100);		
+			gpio_set_value(bp->ops->bp_en, GPIO_LOW);
+			msleep(1000);
+			gpio_set_value(bp->ops->bp_en, GPIO_HIGH);
+			break;
+		case 3:
+			printk("<-----aw706 udate power_en high-------->\n");
+			
+			break;
+		default:
+			break;
+	}	
 	return result;
 }
+
+
 static void  ap_wake_bp_work(struct work_struct *work)
 {
 	return;
@@ -96,9 +108,9 @@ static int bp_init(struct bp_private_data *bp)
 		
 	}
 	gpio_direction_output(bp->ops->bp_power, GPIO_LOW);
-	gpio_direction_output(bp->ops->bp_reset, GPIO_HIGH);
+//	gpio_direction_output(bp->ops->bp_reset, GPIO_HIGH);
 	gpio_direction_output(bp->ops->bp_en, GPIO_LOW);
-	gpio_direction_output(bp->ops->ap_ready, GPIO_LOW);
+	//gpio_direction_output(bp->ops->ap_ready, GPIO_LOW);
 	gpio_direction_output(bp->ops->ap_wakeup_bp, GPIO_LOW);
 	gpio_direction_input(bp->ops->bp_wakeup_ap);
 	gpio_pull_updown(bp->ops->bp_wakeup_ap, 1);	
@@ -111,7 +123,7 @@ static int bp_init(struct bp_private_data *bp)
 static int bp_reset(struct bp_private_data *bp)
 {
 	printk("ioctrl m51 reset !!! \n");
-	gpio_set_value(bp->ops->bp_reset, GPIO_HIGH);
+//	gpio_set_value(bp->ops->bp_reset, GPIO_HIGH);
 	msleep(500);
 	//gpio_set_value(bp->ops->bp_reset, GPIO_LOW);
 	gpio_set_value(bp->ops->bp_power, GPIO_LOW);	
@@ -135,7 +147,7 @@ static int bp_shutdown(struct bp_private_data *bp)
 static int bp_suspend(struct bp_private_data *bp)
 {	
 	int result = 0;
-	
+	printk("m51 bp_suspend   !!! \n");
 	bp->suspend_status = 1;
 	//gpio_set_value(bp->ops->ap_ready, GPIO_HIGH);
 	gpio_set_value(bp->ops->ap_wakeup_bp, GPIO_HIGH);
@@ -146,7 +158,7 @@ static int bp_suspend(struct bp_private_data *bp)
 }
 static int bp_resume(struct bp_private_data *bp)
 {
-	
+	printk("m51 bp_resume   !!! \n");
 	bp->suspend_status = 0;	
 	//gpio_set_value(bp->ops->ap_ready, GPIO_LOW);
 	gpio_set_value(bp->ops->ap_wakeup_bp, GPIO_LOW);
@@ -159,15 +171,15 @@ static int bp_resume(struct bp_private_data *bp)
 struct bp_operate bp_m51_ops = {
 #if defined(CONFIG_ARCH_RK2928)
 	.name			= "m51",
-	.bp_id			= BP_ID_M50,
+	.bp_id			= BP_ID_M51,
 	.bp_bus			= BP_BUS_TYPE_UART,		
 	.bp_pid			= 0,	
 	.bp_vid			= 0,	
 	.bp_power		= RK2928_PIN3_PC2, 	// 3g_power
 	.bp_en			= RK2928_PIN3_PC5,//BP_UNKNOW_DATA,	// 3g_en
 	.bp_reset			= RK2928_PIN0_PB6,
-	.ap_ready		= RK2928_PIN0_PD6,	//
-	.bp_ready		= RK2928_PIN0_PD0,
+	.ap_ready		= BP_UNKNOW_DATA,	//
+	.bp_ready		= BP_UNKNOW_DATA,
 	.ap_wakeup_bp	= RK2928_PIN3_PC4,
 	.bp_wakeup_ap	= RK2928_PIN3_PC3,	//
 	.bp_assert		= BP_UNKNOW_DATA,
@@ -189,17 +201,17 @@ struct bp_operate bp_m51_ops = {
 	.private_miscdev	= NULL,
 #elif defined(CONFIG_ARCH_RK30)
 	.name			= "m51",
-	.bp_id			= BP_ID_M50,
+	.bp_id			= BP_ID_M51,
 	.bp_bus			= BP_BUS_TYPE_UART,		
 	.bp_pid			= 0,	
 	.bp_vid			= 0,	
-	.bp_power		= BP_UNKNOW_DATA,	// RK2928_PIN3_PC2, 	// 3g_power
-	.bp_en			= BP_UNKNOW_DATA,	// RK2928_PIN3_PC5,//BP_UNKNOW_DATA,	// 3g_en
+	.bp_power		= RK30_PIN0_PC2,	// RK2928_PIN3_PC2, 	// 3g_power
+	.bp_en			= RK30_PIN0_PC0,	// RK2928_PIN3_PC5,//BP_UNKNOW_DATA,	// 3g_en
 	.bp_reset			= BP_UNKNOW_DATA,	// RK2928_PIN0_PB6,
 	.ap_ready		= BP_UNKNOW_DATA,	// RK2928_PIN0_PD6,	//
 	.bp_ready		= BP_UNKNOW_DATA,	// RK2928_PIN0_PD0,
-	.ap_wakeup_bp	= BP_UNKNOW_DATA,	// RK2928_PIN3_PC4,
-	.bp_wakeup_ap	= BP_UNKNOW_DATA,	// RK2928_PIN3_PC3,	//
+	.ap_wakeup_bp	= RK30_PIN3_PC6,	// RK2928_PIN3_PC4,
+	.bp_wakeup_ap	= RK30_PIN0_PC1,	// RK2928_PIN3_PC3,	//
 	.bp_assert		= BP_UNKNOW_DATA,
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
@@ -219,7 +231,7 @@ struct bp_operate bp_m51_ops = {
 	.private_miscdev	= NULL,
 #else
 	.name			= "m51",
-	.bp_id			= BP_ID_M50,
+	.bp_id			= BP_ID_M51,
 	.bp_bus			= BP_BUS_TYPE_UART,		
 	.bp_pid			= 0,	
 	.bp_vid			= 0,	

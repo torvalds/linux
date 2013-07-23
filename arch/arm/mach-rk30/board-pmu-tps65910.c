@@ -37,7 +37,7 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
 	#endif
 
-
+#if 0
 	/*************set vdd11 (pll) voltage 1.0v********************/
 	val = tps65910_reg_read(tps65910, TPS65910_VDIG2);
 	if (val<0) {
@@ -51,7 +51,7 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 		return err;
 	}
 	/****************************************/
-	
+#endif	
 	val = tps65910_reg_read(tps65910, TPS65910_DEVCTRL2);
 	if (val<0) {
 		printk(KERN_ERR "Unable to read TPS65910_DEVCTRL2 reg\n");

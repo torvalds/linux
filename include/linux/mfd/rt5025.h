@@ -181,7 +181,7 @@ struct rt5025_power_data {
 	}CHGControl3;
 	union {
 		struct {
-			unsigned char Resv:1;
+			unsigned char AICR_CON:1;
 			unsigned char AICR:2;
 			unsigned char ICC:4;
 			unsigned char CHG_RST:1;
@@ -215,6 +215,7 @@ struct rt5025_power_data {
 		}bitfield;
 		unsigned char val;
 	}CHGControl7;
+	u32 fcc;
 };
 
 struct rt5025_gpio_data {
@@ -398,6 +399,10 @@ struct rt5025_power_info {
 	struct rt5025_gauge_callbacks *event_callback;
 	struct power_supply	ac;
 	struct power_supply	usb;
+	struct mutex	var_lock;
+	struct delayed_work usb_detect_work;
+	int usb_cnt;
+	u32	fcc;
 	unsigned		ac_online:1;
 	unsigned		usb_online:1;
 	unsigned		chg_stat:3;
@@ -438,6 +443,7 @@ extern int rt5025_power_charge_detect(struct rt5025_power_info *);
 #endif /* CONFIG_POEWR_RT5025 */
 
 extern int rt5025_reg_block_read(struct i2c_client *, int, int, void *);
+extern int rt5025_reg_block_write(struct i2c_client *, int, int, void *);
 extern int rt5025_reg_read(struct i2c_client *, int);
 extern int rt5025_reg_write(struct i2c_client *, int, unsigned char);
 extern int rt5025_assign_bits(struct i2c_client *, int, unsigned char, unsigned char);

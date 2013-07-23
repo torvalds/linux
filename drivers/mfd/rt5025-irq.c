@@ -43,8 +43,21 @@ static void rt5025_work_func(struct work_struct *work)
 	unsigned char irq_stat[10] = {0};
 	uint32_t chg_event = 0, pwr_event = 0;
 
-	if (rt5025_reg_block_read(ii->i2c, RT5025_REG_IRQEN1, 10, irq_stat) >= 0)
+	#ifdef CONFIG_POWER_RT5025
+	if (!ii->chip->power_info)
 	{
+		queue_delayed_work(ii->wq, &ii->delayed_work, msecs_to_jiffies(1));
+		return;
+	}
+	#endif
+
+	//if (rt5025_reg_block_read(ii->i2c, RT5025_REG_IRQEN1, 10, irq_stat) >= 0)
+	{
+		irq_stat[1] = rt5025_reg_read(ii->i2c, 0x31);
+		irq_stat[3] = rt5025_reg_read(ii->i2c, 0x33);
+		irq_stat[5] = rt5025_reg_read(ii->i2c, 0x35);
+		irq_stat[7] = rt5025_reg_read(ii->i2c, 0x37);
+		irq_stat[9] = rt5025_reg_read(ii->i2c, 0x39);
 		RTINFO("irq1->%02x, irq2->%02x, irq3->%02x\n", irq_stat[1], irq_stat[3], irq_stat[5]);
 		RTINFO("irq4->%02x, irq5->%02x\n", irq_stat[7], irq_stat[9]);
 		RTINFO("stat value = %02x\n", rt5025_reg_read(ii->i2c, RT5025_REG_CHGSTAT));
@@ -63,33 +76,37 @@ static void rt5025_work_func(struct work_struct *work)
 				ii->event_cb->power_event_callkback(pwr_event);
 		}
 	}
+	#if 0
 	else
 		dev_err(ii->dev, "read irq stat io fail\n");
+	#endif
+	
 
 	#ifdef CONFIG_POWER_RT5025
 	rt5025_power_passirq_to_gauge(ii->chip->power_info);
 	#endif /* CONFIG_POWER_RT5025 */
 
-	enable_irq(ii->irq);
+	//enable_irq(ii->irq);
 }
 
 static irqreturn_t rt5025_interrupt(int irqno, void *param)
 {
 	struct rt5025_irq_info *ii = (struct rt5025_irq_info *)param;
 
-	disable_irq_nosync(ii->irq);
+	//disable_irq_nosync(ii->irq);
 	queue_delayed_work(ii->wq, &ii->delayed_work, 0);
 	return IRQ_HANDLED;
 }
 
 static int __devinit rt5025_interrupt_init(struct rt5025_irq_info* ii)
 {
-	int ret;
+	int ret = 0;
 
 	RTINFO("\n");
 	ii->wq = create_workqueue("rt5025_wq");
 	INIT_DELAYED_WORK(&ii->delayed_work, rt5025_work_func);
 
+	#if 0
 	if (gpio_is_valid(ii->intr_pin))
 	{
 		ret = gpio_request(ii->intr_pin, "rt5025_interrupt");
@@ -99,6 +116,7 @@ static int __devinit rt5025_interrupt_init(struct rt5025_irq_info* ii)
 		ret = gpio_direction_input(ii->intr_pin);
 		if (ret)
 			return ret;
+	#endif
 
 		if (request_irq(ii->irq, rt5025_interrupt, IRQ_TYPE_EDGE_FALLING|IRQF_DISABLED, "RT5025_IRQ", ii))
 		{
@@ -106,17 +124,20 @@ static int __devinit rt5025_interrupt_init(struct rt5025_irq_info* ii)
 			return -EINVAL;
 		}
 		enable_irq_wake(ii->irq);
+		queue_delayed_work(ii->wq, &ii->delayed_work, msecs_to_jiffies(100));
+	#if 0
 
 		if (!gpio_get_value(ii->intr_pin))
 		{
-			disable_irq_nosync(ii->irq);
+			//disable_irq_nosync(ii->irq);
 			queue_delayed_work(ii->wq, &ii->delayed_work, 0);
 		}
 	}
 	else
 		return -EINVAL;
+	#endif
 
-	return 0;
+	return ret;
 }
 
 static void __devexit rt5025_interrupt_deinit(struct rt5025_irq_info* ii)
@@ -160,7 +181,7 @@ static int __devinit rt5025_irq_probe(struct platform_device *pdev)
 	ii->dev = &pdev->dev;
 	ii->chip = chip;
 	ii->intr_pin = pdata->intr_pin;
-	ii->irq = gpio_to_irq(pdata->intr_pin);
+	ii->irq = chip->irq;//gpio_to_irq(pdata->intr_pin);
 	if (pdata->cb)
 		ii->event_cb = pdata->cb;
 

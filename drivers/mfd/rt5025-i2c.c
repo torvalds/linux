@@ -16,9 +16,27 @@
 #include <linux/slab.h>
 #include <linux/mfd/rt5025.h>
 
+#define ROCKCHIP_I2C_RATE (200*1000)
+
 static inline int rt5025_read_device(struct i2c_client *i2c,
 				      int reg, int bytes, void *dest)
 {
+	#if 1
+	int ret;
+	unsigned char reg_addr = reg;
+	struct i2c_msg i2c_msg[2];
+	i2c_msg[0].addr = i2c->addr;
+	i2c_msg[0].flags = i2c->flags;
+	i2c_msg[0].len = 1;
+	i2c_msg[0].buf = &reg_addr;
+	i2c_msg[0].scl_rate = ROCKCHIP_I2C_RATE;
+	i2c_msg[1].addr = i2c->addr;
+	i2c_msg[1].flags = i2c->flags | I2C_M_RD;
+	i2c_msg[1].len = bytes;
+	i2c_msg[1].buf = dest;
+	i2c_msg[1].scl_rate = ROCKCHIP_I2C_RATE;
+	ret = i2c_transfer(i2c->adapter, i2c_msg, 2);
+	#else
 	int ret;
 	if (bytes > 1)
 		ret = i2c_smbus_read_i2c_block_data(i2c, reg, bytes, dest);
@@ -28,7 +46,7 @@ static inline int rt5025_read_device(struct i2c_client *i2c,
 			return ret;
 		*(unsigned char *)dest = (unsigned char)ret;
 	}
-
+	#endif
 	return ret;
 }
 
@@ -38,17 +56,75 @@ int rt5025_reg_block_read(struct i2c_client *i2c, \
 	return rt5025_read_device(i2c, reg, bytes, dest);
 }
 EXPORT_SYMBOL(rt5025_reg_block_read);
-#if 0
+
+static inline int rt5025_write_device(struct i2c_client *i2c,
+				      int reg, int bytes, void *dest)
+{
+	#if 1
+	int ret;
+	struct i2c_msg i2c_msg;
+	char *tx_buf = (char*)kmalloc(bytes+1, GFP_KERNEL);
+	tx_buf[0] = reg;
+	memcpy(tx_buf+1, dest, bytes);
+	i2c_msg.addr = i2c->addr;
+	i2c_msg.flags = i2c->flags;
+	i2c_msg.len = bytes + 1;
+	i2c_msg.buf = tx_buf;
+	i2c_msg.scl_rate = ROCKCHIP_I2C_RATE;
+	ret = i2c_transfer(i2c->adapter, &i2c_msg, 1);
+	kfree(tx_buf);
+	#else
+	int ret;
+	if (bytes > 1)
+		ret = i2c_smbus_write_i2c_block_data(i2c, reg, bytes, dest);
+	else {
+		ret = i2c_smbus_write_byte_data(i2c, reg, dest);
+		if (ret < 0)
+			return ret;
+		*(unsigned char *)dest = (unsigned char)ret;
+	}
+	#endif
+	return ret;
+}
+
+int rt5025_reg_block_write(struct i2c_client *i2c, \
+			int reg, int bytes, void *dest)
+{
+	return rt5025_write_device(i2c, reg, bytes, dest);
+}
+EXPORT_SYMBOL(rt5025_reg_block_write);
+
 int rt5025_reg_read(struct i2c_client *i2c, int reg)
 {
 	struct rt5025_chip* chip = i2c_get_clientdata(i2c);
 	int ret;
+	#if 1
+	unsigned char reg_addr = reg;
+	unsigned char reg_data = 0;
+	struct i2c_msg i2c_msg[2];
+	RTINFO("I2C Read (client : 0x%x) reg = 0x%x\n",
+           (unsigned int)i2c,(unsigned int)reg);
+	mutex_lock(&chip->io_lock);
+	i2c_msg[0].addr = i2c->addr;
+	i2c_msg[0].flags = i2c->flags;
+	i2c_msg[0].len = 1;
+	i2c_msg[0].buf = &reg_addr;
+	i2c_msg[0].scl_rate = ROCKCHIP_I2C_RATE;
+	i2c_msg[1].addr = i2c->addr;
+	i2c_msg[1].flags = i2c->flags | I2C_M_RD;
+	i2c_msg[1].len = 1;
+	i2c_msg[1].buf = &reg_data;
+	i2c_msg[1].scl_rate = ROCKCHIP_I2C_RATE;
+	ret = i2c_transfer(i2c->adapter, i2c_msg, 2);
+	mutex_unlock(&chip->io_lock);
+	#else
 	RTINFO("I2C Read (client : 0x%x) reg = 0x%x\n",
            (unsigned int)i2c,(unsigned int)reg);
 	mutex_lock(&chip->io_lock);
 	ret = i2c_smbus_read_byte_data(i2c, reg);
 	mutex_unlock(&chip->io_lock);
-	return ret;
+	#endif
+	return reg_data;
 }
 EXPORT_SYMBOL(rt5025_reg_read);
 
@@ -56,88 +132,58 @@ int rt5025_reg_write(struct i2c_client *i2c, int reg, unsigned char data)
 {
 	struct rt5025_chip* chip = i2c_get_clientdata(i2c);
 	int ret;
-	printk("%s,line=%d\n", __func__,__LINE__);
-
-//	RTINFO("I2C Write (client : 0x%x) reg = 0x%x, data = 0x%x\n",
- //          (unsigned int)i2c,(unsigned int)reg,(unsigned int)data);
+	#if 1
+	unsigned char xfer_data[2];
+	struct i2c_msg i2c_msg;
+	RTINFO("I2C Write (client : 0x%x) reg = 0x%x, data = 0x%x\n",
+           (unsigned int)i2c,(unsigned int)reg,(unsigned int)data);
+	xfer_data[0] = reg;
+	xfer_data[1] = data;
 	mutex_lock(&chip->io_lock);
-printk("%s,line=%d \n", __func__,__LINE__);
-
+	i2c_msg.addr = i2c->addr;
+	i2c_msg.flags = i2c->flags;
+	i2c_msg.len = 2;
+	i2c_msg.buf = xfer_data;
+	i2c_msg.scl_rate = ROCKCHIP_I2C_RATE;
+	ret = i2c_transfer(i2c->adapter, &i2c_msg, 1);
+	mutex_unlock(&chip->io_lock);
+	#else
+	RTINFO("I2C Write (client : 0x%x) reg = 0x%x, data = 0x%x\n",
+           (unsigned int)i2c,(unsigned int)reg,(unsigned int)data);
+	mutex_lock(&chip->io_lock);
 	ret = i2c_smbus_write_byte_data(i2c, reg, data);
 	mutex_unlock(&chip->io_lock);
-	printk("%s,line=%d %d \n", __func__,__LINE__,ret);
+	#endif
 
 	return ret;
 }
 EXPORT_SYMBOL(rt5025_reg_write);
-#else
-int rt5025_reg_read(struct i2c_client *i2c, int reg)
-{
-    struct i2c_adapter *adap;
-    struct i2c_msg msgs[2];
-    int ret;
-    unsigned char *dest;
-    u8 val;
-	
-    dest = &val;
 
-    if(!i2c)
-		return ret;
-  
-    adap = i2c->adapter;		
-    
-    msgs[0].addr = i2c->addr;
-    msgs[0].buf = &reg;
-    msgs[0].flags = i2c->flags;
-    msgs[0].len = 1;
-    msgs[0].scl_rate = 200*1000;
-    
-     msgs[1].buf = dest;
-    msgs[1].addr = i2c->addr;
-    msgs[1].flags = i2c->flags | I2C_M_RD;
-    msgs[1].len = 1;
-    msgs[1].scl_rate = 200*1000;
-    ret = i2c_transfer(adap, msgs, 2);
-
-//	printk("***run in %s %d msgs[1].buf = %d\n",__FUNCTION__,__LINE__,*(msgs[1].buf));
-
-	return val;   
-}
-EXPORT_SYMBOL(rt5025_reg_read);
-
-int rt5025_reg_write(struct i2c_client *i2c, int reg, unsigned char data)
-{
-	
-	int ret=-1;
-	
-	struct i2c_adapter *adap;
-	struct i2c_msg msg;
-	char tx_buf[2];
-
-	if(!i2c)
-		return ret;
-    
-	adap = i2c->adapter;		
-	tx_buf[0] = reg;
-	tx_buf[1] = data;
-	
-	msg.addr = i2c->addr;
-	msg.buf = &tx_buf[0];
-	msg.len = 1 +1;
-	msg.flags = i2c->flags;   
-	msg.scl_rate = 200*1000;	
-
-	ret = i2c_transfer(adap, &msg, 1);
-	return ret;	
-}
-EXPORT_SYMBOL(rt5025_reg_write);
-#endif
 int rt5025_assign_bits(struct i2c_client *i2c, int reg,
 		unsigned char mask, unsigned char data)
 {
 	struct rt5025_chip *chip = i2c_get_clientdata(i2c);
 	unsigned char value;
 	int ret;
+	#if 1
+	struct i2c_msg i2c_msg;
+	u8 xfer_data[2] = {0};
+	mutex_lock(&chip->io_lock);
+	ret = rt5025_read_device(i2c, reg, 1, &value);
+	if (ret < 0)
+		goto out;
+	
+	value &= ~mask;
+	value |= (data&mask);
+	xfer_data[0] = reg;
+	xfer_data[1] = value;
+	i2c_msg.addr = i2c->addr;
+	i2c_msg.flags = i2c->flags;
+	i2c_msg.len = 2;
+	i2c_msg.buf = xfer_data;
+	i2c_msg.scl_rate = ROCKCHIP_I2C_RATE;
+	ret = i2c_transfer(i2c->adapter, &i2c_msg, 1);
+	#else
 	mutex_lock(&chip->io_lock);
 
 	ret = rt5025_read_device(i2c, reg, 1, &value);
@@ -146,7 +192,8 @@ int rt5025_assign_bits(struct i2c_client *i2c, int reg,
 		goto out;
 	value &= ~mask;
 	value |= (data&mask);
-	ret = rt5025_reg_write(i2c,reg,value);
+	ret = i2c_smbus_write_byte_data(i2c,reg,value);
+	#endif
 out:
 	mutex_unlock(&chip->io_lock);
 	return ret;
@@ -198,8 +245,8 @@ static int __devinit rt5025_i2c_probe(struct i2c_client *client, const struct i2
 	
 	rt5025_read_device(client,0x00,1,&val);
 	if (val != 0x81){
-	printk("The PMIC is not RT5025\n");
-	return 0;
+		printk("The PMIC is not RT5025\n");
+		return -ENODEV;
 	}
 	ret = rt5025_core_init(chip, pdata);
 	if (ret < 0)
@@ -231,7 +278,7 @@ static int __devexit rt5025_i2c_remove(struct i2c_client *client)
 	rt5025_core_deinit(chip);
 	#if 0
 	if (chip->event_callback)
-		kfree(chip->event_callback);a
+		kfree(chip->event_callback);
 	#endif
 	kfree(chip);
 	return 0;

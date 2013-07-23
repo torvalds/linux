@@ -48,32 +48,46 @@
 
 
 /****************operate according to bp chip:start************/
+
 static int bp_active(struct bp_private_data *bp, int enable)
 {	
 	int result = 0;
-
-	if(enable)
-	{		
-		printk("<-----a85xx power on-------->\n");	
-		gpio_set_value(bp->ops->bp_power, GPIO_HIGH);
-		msleep(100);
-		gpio_set_value(bp->ops->bp_en,GPIO_HIGH);
-		mdelay(100);
-		gpio_set_value(bp->ops->bp_reset, GPIO_LOW);
-		mdelay(2500);
-		gpio_set_value(bp->ops->bp_en,GPIO_LOW);
-	}
-	else
-	{
-		printk("<-----a85xx power off-------->\n");
-		gpio_set_value(bp->ops->bp_en, GPIO_LOW);
-		msleep(2500);
-		gpio_set_value(bp->ops->bp_en, GPIO_HIGH);
-		msleep(500);
-		gpio_set_value(bp->ops->bp_reset, GPIO_HIGH); 
-		gpio_set_value(bp->ops->bp_power, GPIO_LOW);
-	}
-	
+	switch(enable){
+		case 0:
+			printk("<-----a85xx power off-------->\n");
+			gpio_set_value(bp->ops->bp_en, GPIO_LOW);
+			msleep(2500);
+			gpio_set_value(bp->ops->bp_en, GPIO_HIGH);
+			msleep(500);
+			gpio_set_value(bp->ops->bp_reset, GPIO_HIGH); 
+			gpio_set_value(bp->ops->bp_power, GPIO_LOW);	
+			break;
+		case 1:
+			printk("<-----a85xx power on-------->\n");	
+			gpio_set_value(bp->ops->bp_power, GPIO_HIGH);
+			msleep(100);
+			gpio_set_value(bp->ops->bp_en,GPIO_HIGH);
+			//mdelay(100);
+			//gpio_set_value(bp->ops->bp_reset, GPIO_LOW);
+			mdelay(2500);
+			gpio_set_value(bp->ops->bp_en,GPIO_LOW);
+			break;
+		case 2:
+			printk("<-----a85xx udate power_en low-------->\n");
+			gpio_set_value(bp->ops->bp_power, GPIO_HIGH);
+			msleep(100);
+			
+			gpio_set_value(bp->ops->bp_en,GPIO_HIGH);
+			//mdelay(100);
+			//gpio_set_value(bp->ops->bp_reset, GPIO_LOW);
+			break;
+		case 3:
+			printk("<-----a85xx udate power_en high-------->\n");
+			gpio_set_value(bp->ops->bp_en,GPIO_LOW);
+			break;
+		default:
+			break;
+	}	
 	return result;
 }
 static void  ap_wake_bp_work(struct work_struct *work)
@@ -173,19 +187,19 @@ struct bp_operate bp_a85xx_ops = {
 	.resume			= bp_resume,
 	.misc_name		= NULL,
 	.private_miscdev	= NULL,
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_SOC_RK3028)
 	.name			= "a85xx",
 	.bp_id			= BP_ID_A85XX,
 	.bp_bus			= BP_BUS_TYPE_UART,		
 	.bp_pid			= 0,	
 	.bp_vid			= 0,	
-	.bp_power		= BP_UNKNOW_DATA,	// RK2928_PIN3_PC2, 	// 3g_power
-	.bp_en			= BP_UNKNOW_DATA,	// RK2928_PIN3_PC5,//BP_UNKNOW_DATA,	// 3g_en
+	.bp_power		= RK30_PIN0_PC2,	// RK2928_PIN3_PC2, 	// 3g_power
+	.bp_en			= RK30_PIN3_PD0,	// RK2928_PIN3_PC5,//BP_UNKNOW_DATA,	// 3g_en
 	.bp_reset			= BP_UNKNOW_DATA,	// RK2928_PIN0_PB6,
 	.ap_ready		= BP_UNKNOW_DATA,	// RK2928_PIN0_PD0,	//
 	.bp_ready		= BP_UNKNOW_DATA,	// RK2928_PIN0_PD6,
-	.ap_wakeup_bp	= BP_UNKNOW_DATA,	// RK2928_PIN3_PC4,
-	.bp_wakeup_ap	= BP_UNKNOW_DATA,	// RK2928_PIN3_PC3,	//
+	.ap_wakeup_bp	= RK30_PIN3_PC6,	// RK2928_PIN3_PC4,
+	.bp_wakeup_ap	= RK30_PIN0_PC1,	// RK2928_PIN3_PC3,	//
 	.bp_assert		= BP_UNKNOW_DATA,
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable

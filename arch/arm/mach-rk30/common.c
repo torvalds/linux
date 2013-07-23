@@ -220,6 +220,9 @@ void __init rk30_map_io(void)
 	clk_disable_unused();
 	rk30_iomux_init();
 	rk30_boot_mode_init();
+#if defined(CONFIG_EMMC_IO_3_3V)
+	grf_set_io_power_domain_voltage(IO_PD_FLASH, IO_PD_VOLTAGE_3_3V);
+#endif
 }
 
 static __init u32 rk30_get_ddr_size(void)

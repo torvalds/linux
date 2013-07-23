@@ -116,11 +116,23 @@ struct rt5025_gauge_chip {
   /* charge coulomb counter */
   u32 chg_cc;
   u32 chg_cc_unuse;
+  //u32 chg_cc_raw; // JY: May not necessary
   /* discharge coulomb counter */
   u32 dchg_cc;
   u32 dchg_cc_unuse;
+  //u32 dchg_cc_raw; // JY: May not necessary
+
+  // JY add variable
+  bool soc_init;
+  u32 rm;
+  u32 rm_old;
+  u8 soc_old;
+  // ---------------
+
+  u32 fcc;
   /* battery capacity */
   u8 soc;
+  u32 soc_precise;
   u16 time_interval;
   u16 pre_gauge_timer;
     
@@ -147,6 +159,9 @@ struct rt5025_gauge_chip {
 	u8 temp_recover_cnt;
 };
 
+static u32 battery_vcell_table[] = {3000, 3418, 3598, 3650, 3679, 3722, 3766, 3790, 3826, 3914, 3973, 4046, 4130, 4190};
+static u32 battery_soc_table[] = {0, 2, 5, 7, 14, 24, 40, 49, 58, 71, 80, 89, 98, 100};
+
 struct rt5025_gauge_chip *chip;
 u8 irq_thres[LAST_TYPE];
 
@@ -155,13 +170,95 @@ void rt5025_set_status(int status)
   chip->status = status; 
 }
 
+static int get_vcell_segment_index(u32* pX, size_t size, u32 x)
+{
+	unsigned int i;
+	if (x <= *pX)
+		return 0;
+	for (i=0; i<size; i++)
+	{
+		if (x<=*(pX+i))
+			break;
+	}
+	#if 0 // for linear interpolation
+	#else
+	if (i>=(size-2))
+		return size-3;
+	#endif
+	return i;
+}
+
+static u32 rt5025_vcell2soc(u32* pX, u32* pY, size_t size, u32 _x)
+{
+	#if 0 // Linear interpolation
+	int index;
+	int x1, x2;
+	int y, y1, y2;
+	index = get_vcell_segment_index(pX, size, _x);
+	if (_x<*pX)
+		return 0;
+	if (_x>=*(pX+size-1))
+		return 100;
+	if (_x == *(pX+index))
+		return *(pY+index);
+	x1 = *(pX+index-1);
+	x2 = *(pX+index);
+	y1 = *(pY+index-1);
+	y2 = *(pY+index);
+
+	y = (_x-x1)*(y2-y1)*100/(x2-x1);
+	y /= 100;
+	y += y1;
+	
+	return y;
+	#else  // Lagrange interpolation
+	int index;
+	int32_t x1, x2, x3;
+	int32_t y1, y2, y3;
+	int32_t a1, a2, a3, b1, b2, b3;
+	int32_t x = _x;
+	if (_x<*pX)
+		return 0;
+	if (_x>=*(pX+size-1))
+		return 100;
+	index = get_vcell_segment_index(pX, size, _x);
+	pX+=index;
+	pY+=index;
+	x1 = *pX;
+	x2 = *(pX+1);
+	x3 = *(pX+2);
+	y1 = *pY;
+	y2 = *(pY+1);
+	y3 = *(pY+2);
+	if (x == x1)
+		return y1;
+	if (x == x2)
+		return y2;
+	if (x == x3)
+		return y3;
+	a1 = y1*(x-x2)*(x-x3);
+	a2 = y2*(x-x1)*(x-x3);
+	a3 = y3*(x-x1)*(x-x2);
+	b1 = (x1-x2)*(x1-x3);
+	b2 = (x2-x1)*(x2-x3);
+	b3 = (x3-x1)*(x3-x2);
+	
+	return (100*a1/b1+100*a2/b2+100*a3/b3)/100;
+	#endif
+}
+
 static int rt5025_read_reg(struct i2c_client *client,
 				u8 reg, u8 *data, u8 len)
 {
+	#if 1
+	int ret;
+
+	ret = rt5025_reg_block_read(client, reg, len, data);
+	#else
 	struct i2c_adapter *adap = client->adapter;
 	struct i2c_msg msgs[2];
 	int ret;
-	
+
 	msgs[0].addr = client->addr;
 	msgs[0].flags = client->flags;
 	msgs[0].len = 1;
@@ -173,37 +270,46 @@ static int rt5025_read_reg(struct i2c_client *client,
 	msgs[1].len = len;
 	msgs[1].buf = data;
 	msgs[1].scl_rate = 200*1000;
-	
+
 	ret = i2c_transfer(adap, msgs, 2);
-	 
+	#endif
 	return (ret == 2)? len : ret;  
 }
 
 static int rt5025_write_reg(struct i2c_client *client,
 				u8 reg, u8 *data, u8 len)
 {
+	#if 1
+	int ret;
+
+	ret = rt5025_reg_block_write(client, reg, len, data);
+	#else
 	struct i2c_adapter *adap = client->adapter;
 	struct i2c_msg msg;
+
 	int ret;
-	char *tx_buf = (char *)kmalloc(len + 1, GFP_KERNEL);
-	
-	if(!tx_buf)
+	char* tx_buf = (char *)kmalloc(len + 1, GFP_KERNEL);
+
+	if (!tx_buf)
 		return -ENOMEM;
 	tx_buf[0] = reg;
 	memcpy(tx_buf+1, data, len);
-	
+
 	msg.addr = client->addr;
 	msg.flags = client->flags;
 	msg.len = len + 1;
 	msg.buf = (char *)tx_buf;
-	msg.scl_rate = 200*1000;	
+	msg.scl_rate = 200*1000;
 	ret = i2c_transfer(adap, &msg, 1);
 	kfree(tx_buf);
+
+	#endif
 	return (ret == 1) ? len : ret; 
 }
 
 static void rt5025_gauge_alarm(struct alarm *alarm)
 {
+	pr_info("%s: alarmed \n", __func__);
 	wake_lock(&chip->monitor_wake_lock);
 	schedule_delayed_work(&chip->monitor_work, 0);
 }
@@ -371,13 +477,26 @@ static void rt5025_get_chg_cc(struct i2c_client *client)
   }
   qh_old = (data[0]<<8) + data[1];
   ql_old = (data[2]<<8) + data[3];
+  //pr_info("%s qh_old %04x ql_old %04x\n", __func__, qh_old, ql_old);
   
   if (rt5025_read_reg(client, RT5025_REG_QCHGH_MSB, data, 4) < 0){
     printk(KERN_ERR "%s: Failed to read QCHG\n", __func__);
   }
   qh_new = (data[0]<<8) + data[1];
   ql_new = (data[2]<<8) + data[3];
-   	
+  //pr_info("%s qh_new %04x ql_new %04x\n", __func__, qh_new, ql_new);
+   
+  #if 0
+  if (qh_new > qh_old){
+     cc_masec = qh_new*91266 + ((ql_new*22)>>4);
+  }else if (qh_new == qh_old){
+    if (ql_new >= ql_old){
+      cc_masec = qh_new*91266 + ((ql_new*22)>>4);
+    }else {  
+      cc_masec = qh_old*91266 + ((ql_old*22)>>4);
+		}
+  }
+  #else	
   if (qh_new > qh_old){
      cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
   }else if (qh_new == qh_old){
@@ -386,18 +505,28 @@ static void rt5025_get_chg_cc(struct i2c_client *client)
     }else {  
       cc_masec = (((qh_old<<16) + ql_old) * 50134) / 10;
 		}
-  }	
+  }
+  #endif	
   
 	offset = chip->curr_offset * chip->time_interval;
 		   	  
   if (cc_masec != 0){
+		#if 0
+		cc_masec /= 1000;
+		#else
 		cc_masec = (cc_masec - offset) / 1000;
+		#endif
 	}
 
   RTINFO("[RT5025] chg_cc_mAsec: %d\n", cc_masec);
 
+	#if 0
+	chip->chg_cc = cc_masec;
+	chip->chg_cc_unuse = 0;
+	#else
 	chip->chg_cc = (cc_masec + chip->chg_cc_unuse) / 3600;
   chip->chg_cc_unuse = (cc_masec + chip->chg_cc_unuse) % 3600;
+	#endif
   RTINFO("[RT5025] chg_cc_mAH: %d\n", chip->chg_cc);
   rt5025_clear_cc(CHG);
 }
@@ -413,13 +542,26 @@ static void rt5025_get_dchg_cc(struct i2c_client *client)
   }
   qh_old = (data[0]<<8) + data[1];
   ql_old = (data[2]<<8) + data[3];
+  //pr_info("%s qh_old %04x ql_old %04x\n", __func__, qh_old, ql_old);
   
   if (rt5025_read_reg(client, RT5025_REG_QDCHGH_MSB, data, 4) < 0){
     printk(KERN_ERR "%s: Failed to read QDCHG\n", __func__);
   }
   qh_new = (data[0]<<8) + data[1];
   ql_new = (data[2]<<8) + data[3];
-  
+ // pr_info("%s qh_new %04x ql_new %04x\n", __func__, qh_new, ql_new);
+
+#if 0
+  if (qh_new > qh_old){
+     cc_masec =  qh_new*91266 + ((ql_new*22)>>4);
+  }else if (qh_new == qh_old){
+    if (ql_new >= ql_old){
+      cc_masec = qh_new*91266 + ((ql_new*22)>>4);
+    }else {  
+      cc_masec = qh_old*91266 + ((ql_old*22)>>4);
+		}
+  }
+#else
   if (qh_new > qh_old){
      cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
   }else if (qh_new == qh_old){
@@ -428,18 +570,28 @@ static void rt5025_get_dchg_cc(struct i2c_client *client)
     }else {  
       cc_masec = (((qh_old<<16) + ql_old) * 50134) / 10;
 		}
-  }	
+  }
+#endif	
   
 	offset = chip->curr_offset * chip->time_interval;
 		   	  
   if (cc_masec != 0){
+		#if 0
+		cc_masec /= 1000;
+		#else
 		cc_masec = (cc_masec - offset) / 1000;
+		#endif
 	}
 
   RTINFO("[RT5025] dchg_cc_mAsec: %d\n", cc_masec);
 
+	#if 0
+	chip->dchg_cc = cc_masec;
+	chip->dchg_cc_unuse = 0;
+	#else
 	chip->dchg_cc = (cc_masec + chip->dchg_cc_unuse) / 3600;
   chip->dchg_cc_unuse = (cc_masec + chip->dchg_cc_unuse) % 3600;
+	#endif
   RTINFO("[RT5025] dchg_cc_mAH: %d\n", chip->dchg_cc);
 	rt5025_clear_cc(DCHG);
 }
@@ -475,9 +627,95 @@ static void rt5025_get_timer(struct i2c_client *client)
   RTINFO("[RT5025] timer %d , interval %d\n", gauge_timer,chip->time_interval);
 }
 
+static void rt5025_gauge_init_soc(struct i2c_client *client)
+{
+	/* Update voltage */
+	rt5025_get_vcell(client);
+	/* Update current */
+	rt5025_get_current(client);
+	/* Update external temperature */
+	rt5025_get_external_temp(client);
+	// JY add 
+	if (chip->soc_init)
+	{
+		chip->soc = chip->soc_old;
+		chip->rm = chip->rm_old;
+	}
+	else
+	{
+		chip->soc = rt5025_vcell2soc(battery_vcell_table, battery_soc_table, ARRAY_SIZE(battery_vcell_table), chip->vcell);
+		chip->soc_precise = (u32)(chip->soc);
+		chip->soc_init = true;
+		chip->soc_old = chip->soc;
+		chip->rm = (chip->soc *chip->fcc)/100;
+		chip->rm_old = chip->rm;
+	}
+	// ----------------
+	/*
+	chip->soc = rt5025_vcell2soc(battery_vcell_table, battery_soc_table, ARRAY_SIZE(battery_vcell_table), chip->vcell);
+	chip->soc_precise = (u32)(chip->soc);
+	*/
+	pr_info("%s: vcell = %d, soc = %d\n", __func__, chip->vcell, chip->soc);
+	/* upsampling (extend more 12 bits)*/
+}
+
 static void rt5025_get_soc(struct i2c_client *client)
 {
-  chip->soc = 50;
+	//fcc = full charged capacity (battery capacity)
+	int chg_cc = chip->chg_cc;
+	int dchg_cc = chip->dchg_cc;
+
+	// JY new implement
+	chip->rm = chip->rm_old + (chg_cc - dchg_cc);
+	if (chip->rm  < 0)
+	{
+		chip->rm = 0;
+		chip->chg_cc = 0;
+		chip->dchg_cc = 0;
+	}
+	else if (chip->rm > chip->fcc)
+	{
+		chip->rm = chip->fcc;
+		chip->chg_cc = chip->fcc;
+		chip->dchg_cc = 0;
+	}
+
+	chip->soc_precise = (chip->rm *100)/chip->fcc;
+
+	chip->soc = (chip->soc_precise);
+
+	if (chip->soc > chip->soc_old+1)
+	{
+		chip->soc = chip->soc_old + 1;
+	}
+	else if (chip->soc < chip->soc_old-1)
+	{
+		chip->soc = chip->soc_old -1;
+	}
+
+	if (chip->soc < 0)
+		chip->soc = 0;
+	else if (chip->soc > 100)
+		chip->soc = 100;
+
+	chip->rm_old = chip->rm;
+	chip->soc_old = chip->soc;
+	// --------------------
+
+	/* JY mark it
+
+	chip->soc_precise = chip->soc_precise + ((chg_cc-dchg_cc)*100)/chip->fcc;
+	
+	pr_info("%s chg_cc = %d\n", __func__, chg_cc);
+	pr_info("%s dchg_cc = %d\n", __func__, dchg_cc);
+	pr_info("%s soc_precise = %d\n", __func__, chip->soc_precise);
+	chip->soc = (chip->soc_precise);
+	if (chip->soc < 0)
+		chip->soc = 0;
+	else if (chip->soc > 100)
+		chip->soc = 100;
+	*/
+  //chip->soc = 50;
 }
 
 static void rt5025_channel_cc(bool enable)
@@ -775,7 +1013,13 @@ int rt5025_gauge_init(struct rt5025_power_info *info)
     return -ENOMEM;
 
   chip->client = info->i2c;
+  chip->fcc = info->fcc;
   chip->info = info;  
+  // JY add
+  chip->soc_init = false;
+  chip->rm = chip->fcc/2;
+  chip->rm_old = chip->rm;
+  // ------------
   chip->battery.name = "rt5025-battery";
   chip->battery.type = POWER_SUPPLY_TYPE_BATTERY;
   chip->battery.get_property = rt5025_get_property;
@@ -798,6 +1042,7 @@ int rt5025_gauge_init(struct rt5025_power_info *info)
 			"rt-battery-monitor");
   /* enable channel */
   rt5025_register_init(info->i2c);
+  rt5025_gauge_init_soc(info->i2c);
 
 	/* enable gauge IRQ */
   rt5025_alert_init(info->i2c);
