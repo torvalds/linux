@@ -312,8 +312,8 @@ size_t get_fb_size(void)
 	char LcdWith[10];
 	char LcdHigh[10];
 	int mLcdWith,mLcdHigh;
-  int num=0,i;
-  int count=20;
+ 	int num=0,i;
+  	int count=20;
 	pchar=strstr(boot_command_line,lcdParam);
 	memset(LcdWith,0,sizeof(char)*10);
 	memset(LcdHigh,0,sizeof(char)*10);
@@ -321,7 +321,7 @@ size_t get_fb_size(void)
 	if(pchar!=NULL)
 	{
 		do{
-			if(count==14)
+			if(count==15)
 			{
 				num=strcspn(pchar,",");
 				for(i=0;i<num;i++)
@@ -330,7 +330,7 @@ size_t get_fb_size(void)
 				mLcdWith=simple_strtol(LcdWith,NULL,10);		
 			}
 			
-		  if(count==10){		
+		  	if(count==11){		
 				num=strcspn(pchar,",");
 				for(i=0;i<num;i++)
 					LcdHigh[i]=pchar[i];
@@ -346,8 +346,8 @@ size_t get_fb_size(void)
 			
 	}
 	
-  if((mLcdWith>0)&&(mLcdHigh>0))
-  {
+  	if((mLcdWith>0)&&(mLcdHigh>0))
+  	{
 		lcd_param[H_VD_INDEX]=mLcdWith;
 		lcd_param[V_VD_INDEX]=mLcdHigh;
 	}
