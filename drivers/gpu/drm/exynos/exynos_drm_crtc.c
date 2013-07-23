@@ -197,8 +197,9 @@ static struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 };
 
 static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
-				      struct drm_framebuffer *fb,
-				      struct drm_pending_vblank_event *event)
+				     struct drm_framebuffer *fb,
+				     struct drm_pending_vblank_event *event,
+				     uint32_t page_flip_flags)
 {
 	struct drm_device *dev = crtc->dev;
 	struct exynos_drm_private *dev_priv = dev->dev_private;

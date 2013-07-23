@@ -134,7 +134,8 @@ static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 static int ipu_page_flip(struct drm_crtc *crtc,
 		struct drm_framebuffer *fb,
-		struct drm_pending_vblank_event *event)
+		struct drm_pending_vblank_event *event,
+		uint32_t page_flip_flags)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	int ret;

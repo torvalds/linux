@@ -153,7 +153,8 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 
 static int tilcdc_crtc_page_flip(struct drm_crtc *crtc,
 		struct drm_framebuffer *fb,
-		struct drm_pending_vblank_event *event)
+		struct drm_pending_vblank_event *event,
+		uint32_t page_flip_flags)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
