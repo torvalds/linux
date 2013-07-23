@@ -2118,8 +2118,8 @@ static  struct pmu_info  rt5025_ldo_info[] = {
 	},
 	{
 		.name          = "rt5025-ldo3",   //vdd10
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 	},
 	{
 		.name          = "rt5025-ldo4",   //vccjetta

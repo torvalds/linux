@@ -865,6 +865,12 @@ config MFD_RT5025_DEBUG
 	help
 	  Enable RT5025 core debug driver.
 
+config MFD_RT_SHOW_INFO
+	bool "RT5025 debug message"
+	depends on MFD_RT5025
+	default n
+	help
+	  Eneable RT5025 debug message
 
 config MFD_RK610
 	bool "RK610(Jetta) Multimedia support"

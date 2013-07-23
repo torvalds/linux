@@ -193,7 +193,7 @@ int __devinit rt5025_core_init(struct rt5025_chip *chip, struct rt5025_platform_
 		}
 	}
 	#endif /* CONFIG_MFD_RT5025_IRQ */
-#if 0
+#if 1
 	#ifdef CONFIG_MFD_RT5025_DEBUG
 	RTINFO("mfd add debug dev\n");
 	printk("%s,line=%d\n", __func__,__LINE__);
@@ -219,7 +219,7 @@ out_dev:
 	mfd_remove_devices(chip->dev);
 	return ret;
 }
-subsys_initcall_sync(rt5025_core_init);
+EXPORT_SYMBOL(rt5025_core_init);
 
 int __devexit rt5025_core_deinit(struct rt5025_chip *chip)
 {
