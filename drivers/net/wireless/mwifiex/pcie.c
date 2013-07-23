@@ -1954,12 +1954,10 @@ mwifiex_check_fw_status(struct mwifiex_adapter *adapter, u32 poll_num)
 		else if (!winner_status) {
 			dev_err(adapter->dev, "PCI-E is the winner\n");
 			adapter->winner = 1;
-			ret = -1;
 		} else {
 			dev_err(adapter->dev,
 				"PCI-E is not the winner <%#x,%d>, exit dnld\n",
 				ret, adapter->winner);
-			ret = 0;
 		}
 	}
 
