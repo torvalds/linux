@@ -578,7 +578,7 @@ void eeh_pe_state_clear(struct eeh_pe *pe, int state)
  * blocked on normal path during the stage. So we need utilize
  * eeh operations, which is always permitted.
  */
-static void eeh_bridge_check_link(struct pci_dev *pdev,
+static void eeh_bridge_check_link(struct eeh_dev *edev,
 				  struct device_node *dn)
 {
 	int cap;
@@ -589,16 +589,17 @@ static void eeh_bridge_check_link(struct pci_dev *pdev,
 	 * We only check root port and downstream ports of
 	 * PCIe switches
 	 */
-	if (!pci_is_pcie(pdev) ||
-	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT &&
-	     pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM))
+	if (!(edev->mode & (EEH_DEV_ROOT_PORT | EEH_DEV_DS_PORT)))
 		return;
 
-	pr_debug("%s: Check PCIe link for %s ...\n",
-		 __func__, pci_name(pdev));
+	pr_debug("%s: Check PCIe link for %04x:%02x:%02x.%01x ...\n",
+		 __func__, edev->phb->global_number,
+		 edev->config_addr >> 8,
+		 PCI_SLOT(edev->config_addr & 0xFF),
+		 PCI_FUNC(edev->config_addr & 0xFF));
 
 	/* Check slot status */
-	cap = pdev->pcie_cap;
+	cap = edev->pcie_cap;
 	eeh_ops->read_config(dn, cap + PCI_EXP_SLTSTA, 2, &val);
 	if (!(val & PCI_EXP_SLTSTA_PDS)) {
 		pr_debug("  No card in the slot (0x%04x) !\n", val);
@@ -652,8 +653,7 @@ static void eeh_bridge_check_link(struct pci_dev *pdev,
 #define BYTE_SWAP(OFF)	(8*((OFF)/4)+3-(OFF))
 #define SAVED_BYTE(OFF)	(((u8 *)(edev->config_space))[BYTE_SWAP(OFF)])
 
-static void eeh_restore_bridge_bars(struct pci_dev *pdev,
-				    struct eeh_dev *edev,
+static void eeh_restore_bridge_bars(struct eeh_dev *edev,
 				    struct device_node *dn)
 {
 	int i;
@@ -679,7 +679,7 @@ static void eeh_restore_bridge_bars(struct pci_dev *pdev,
 	eeh_ops->write_config(dn, PCI_COMMAND, 4, edev->config_space[1]);
 
 	/* Check the PCIe link is ready */
-	eeh_bridge_check_link(pdev, dn);
+	eeh_bridge_check_link(edev, dn);
 }
 
 static void eeh_restore_device_bars(struct eeh_dev *edev,
@@ -729,12 +729,11 @@ static void eeh_restore_device_bars(struct eeh_dev *edev,
 static void *eeh_restore_one_device_bars(void *data, void *flag)
 {
 	struct eeh_dev *edev = (struct eeh_dev *)data;
-	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct device_node *dn = eeh_dev_to_of_node(edev);
 
 	/* Do special restore for bridges */
-	if (pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
-		eeh_restore_bridge_bars(pdev, edev, dn);
+	if (edev->mode & EEH_DEV_BRIDGE)
+		eeh_restore_bridge_bars(edev, dn);
 	else
 		eeh_restore_device_bars(edev, dn);
 

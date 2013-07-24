@@ -84,8 +84,11 @@ struct eeh_pe {
  * another tree except the currently existing tree of PCI
  * buses and PCI devices
  */
-#define EEH_DEV_IRQ_DISABLED	(1 << 0)	/* Interrupt disabled	*/
-#define EEH_DEV_DISCONNECTED	(1 << 1)	/* Removing from PE	*/
+#define EEH_DEV_BRIDGE		(1 << 0)	/* PCI bridge		*/
+#define EEH_DEV_ROOT_PORT	(1 << 1)	/* PCIe root port	*/
+#define EEH_DEV_DS_PORT		(1 << 2)	/* Downstream port	*/
+#define EEH_DEV_IRQ_DISABLED	(1 << 3)	/* Interrupt disabled	*/
+#define EEH_DEV_DISCONNECTED	(1 << 4)	/* Removing from PE	*/
 
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
@@ -93,6 +96,7 @@ struct eeh_dev {
 	int config_addr;		/* Config address		*/
 	int pe_config_addr;		/* PE config address		*/
 	u32 config_space[16];		/* Saved PCI config space	*/
+	u8 pcie_cap;			/* Saved PCIe capability	*/
 	struct eeh_pe *pe;		/* Associated PE		*/
 	struct list_head list;		/* Form link list in the PE	*/
 	struct pci_controller *phb;	/* Associated PHB		*/

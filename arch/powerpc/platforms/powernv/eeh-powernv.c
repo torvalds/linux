@@ -124,6 +124,17 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	/* Initialize eeh device */
 	edev->class_code	= dev->class;
 	edev->mode		= 0;
+	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
+		edev->mode |= EEH_DEV_BRIDGE;
+	if (pci_is_pcie(dev)) {
+		edev->pcie_cap = pci_pcie_cap(dev);
+
+		if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
+			edev->mode |= EEH_DEV_ROOT_PORT;
+		else if (pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM)
+			edev->mode |= EEH_DEV_DS_PORT;
+	}
+
 	edev->config_addr	= ((dev->bus->number << 8) | dev->devfn);
 	edev->pe_config_addr	= phb->bdfn_to_pe(phb, dev->bus, dev->devfn & 0xff);
 
