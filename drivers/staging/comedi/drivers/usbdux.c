@@ -78,9 +78,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  *
  */
 
-/* generates loads of debug info */
-/* #define NOISY_DUX_DEBUGBUG */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -936,13 +933,6 @@ static int send_dux_commands(struct usbdux_private *this_usbduxsub, int cmd_type
 	int result, nsent;
 
 	this_usbduxsub->dux_commands[0] = cmd_type;
-#ifdef NOISY_DUX_DEBUGBUG
-	printk(KERN_DEBUG "comedi%d: usbdux: dux_commands: ",
-	       this_usbduxsub->comedidev->minor);
-	for (result = 0; result < SIZEOFDUXBUFFER; result++)
-		printk(" %02x", this_usbduxsub->dux_commands[result]);
-	printk("\n");
-#endif
 	result = usb_bulk_msg(this_usbduxsub->usbdev,
 			      usb_sndbulkpipe(this_usbduxsub->usbdev,
 					      COMMAND_OUT_EP),
