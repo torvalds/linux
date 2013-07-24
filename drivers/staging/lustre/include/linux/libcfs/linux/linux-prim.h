@@ -73,11 +73,6 @@
 #define cfs_for_each_possible_cpu(cpu) for_each_cpu(cpu)
 #endif
 
-#ifdef NR_CPUS
-#else
-#define NR_CPUS     1
-#endif
-
 /*
  * Sysctl register
  */

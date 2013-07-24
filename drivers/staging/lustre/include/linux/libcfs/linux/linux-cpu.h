@@ -81,7 +81,6 @@ struct cfs_cpt_table {
 
 /**
  * comment out definitions for compatible layer
- * #define CFS_CPU_NR			  NR_CPUS
  *
  * typedef cpumask_t			   cfs_cpumask_t;
  *
