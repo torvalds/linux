@@ -202,8 +202,6 @@ static const struct comedi_lrange range_usbdux_ao_range = {
 };
 
 struct usbdux_private {
-	/* pointer to the usb-device */
-	struct usb_device *usbdev;
 	/* actual number of in-buffers */
 	int num_in_buffers;
 	/* actual number of out-buffers */
@@ -384,7 +382,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 		return;
 	}
 
-	urb->dev = devpriv->usbdev;
+	urb->dev = comedi_to_usb_dev(dev);
 
 	/* resubmit the urb */
 	err = usb_submit_urb(urb, GFP_ATOMIC);
@@ -587,7 +585,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 		}
 	}
 	urb->transfer_buffer_length = SIZEOUTBUF;
-	urb->dev = devpriv->usbdev;
+	urb->dev = comedi_to_usb_dev(dev);
 	urb->status = 0;
 	if (devpriv->ao_cmd_running) {
 		if (devpriv->high_speed)
@@ -622,8 +620,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 				  const u8 *data, size_t size,
 				  unsigned long context)
 {
-	struct usbdux_private *usbduxsub = dev->private;
-	struct usb_device *usb = usbduxsub->usbdev;
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	uint8_t *buf;
 	uint8_t *tmp;
 	int ret;
@@ -693,6 +690,7 @@ done:
 
 static int usbduxsub_submit_inurbs(struct comedi_device *dev)
 {
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv = dev->private;
 	struct urb *urb;
 	int ret;
@@ -705,7 +703,7 @@ static int usbduxsub_submit_inurbs(struct comedi_device *dev)
 		/* in case of a resubmission after an unlink... */
 		urb->interval = devpriv->ai_interval;
 		urb->context = dev;
-		urb->dev = devpriv->usbdev;
+		urb->dev = usb;
 		urb->status = 0;
 		urb->transfer_flags = URB_ISO_ASAP;
 
@@ -718,6 +716,7 @@ static int usbduxsub_submit_inurbs(struct comedi_device *dev)
 
 static int usbduxsub_submit_outurbs(struct comedi_device *dev)
 {
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv = dev->private;
 	struct urb *urb;
 	int ret;
@@ -728,7 +727,7 @@ static int usbduxsub_submit_outurbs(struct comedi_device *dev)
 
 		/* in case of a resubmission after an unlink... */
 		urb->context = dev;
-		urb->dev = devpriv->usbdev;
+		urb->dev = usb;
 		urb->status = 0;
 		urb->transfer_flags = URB_ISO_ASAP;
 
@@ -849,8 +848,8 @@ static int8_t create_adc_command(unsigned int chan, int range)
 
 static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 {
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv = dev->private;
-	struct usb_device *usb = devpriv->usbdev;
 	int nsent;
 
 	devpriv->dux_commands[0] = cmd_type;
@@ -862,8 +861,8 @@ static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 
 static int receive_dux_commands(struct comedi_device *dev, int command)
 {
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv = dev->private;
-	struct usb_device *usb = devpriv->usbdev;
 	int ret;
 	int nrec;
 	int i;
@@ -1520,7 +1519,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 		return;
 
 	urb->transfer_buffer_length = devpriv->size_pwm_buf;
-	urb->dev = devpriv->usbdev;
+	urb->dev = comedi_to_usb_dev(dev);
 	urb->status = 0;
 	if (devpriv->pwm_cmd_running) {
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
@@ -1540,12 +1539,12 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 
 static int usbduxsub_submit_pwm_urbs(struct comedi_device *dev)
 {
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv = dev->private;
 	struct urb *urb = devpriv->urb_pwm;
 
 	/* in case of a resubmission after an unlink... */
-	usb_fill_bulk_urb(urb, devpriv->usbdev,
-			  usb_sndbulkpipe(devpriv->usbdev, PWM_EP),
+	usb_fill_bulk_urb(urb, usb, usb_sndbulkpipe(usb, PWM_EP),
 			  urb->transfer_buffer,
 			  devpriv->size_pwm_buf,
 			  usbduxsub_pwm_irq,
@@ -1731,6 +1730,7 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 
 static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 {
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv = dev->private;
 	struct urb *urb;
 	int i;
@@ -1773,11 +1773,11 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 			return -ENOMEM;
 		devpriv->urb_in[i] = urb;
 
-		urb->dev = devpriv->usbdev;
+		urb->dev = usb;
 		/* will be filled later with a pointer to the comedi-device */
 		/* and ONLY then the urb should be submitted */
 		urb->context = NULL;
-		urb->pipe = usb_rcvisocpipe(devpriv->usbdev, ISOINEP);
+		urb->pipe = usb_rcvisocpipe(usb, ISOINEP);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
@@ -1803,11 +1803,11 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 			return -ENOMEM;
 		devpriv->urb_out[i] = urb;
 
-		urb->dev = devpriv->usbdev;
+		urb->dev = usb;
 		/* will be filled later with a pointer to the comedi-device */
 		/* and ONLY then the urb should be submitted */
 		urb->context = NULL;
-		urb->pipe = usb_sndisocpipe(devpriv->usbdev, ISOOUTEP);
+		urb->pipe = usb_sndisocpipe(usb, ISOOUTEP);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
@@ -1896,11 +1896,10 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 
 	sema_init(&devpriv->sem, 1);
 
-	devpriv->usbdev = usb;
 	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
 	usb_set_intfdata(intf, devpriv);
 
-	devpriv->high_speed = (devpriv->usbdev->speed == USB_SPEED_HIGH);
+	devpriv->high_speed = (usb->speed == USB_SPEED_HIGH);
 	if (devpriv->high_speed) {
 		devpriv->num_in_buffers = NUMOFINBUFFERSHIGH;
 		devpriv->num_out_buffers = NUMOFOUTBUFFERSHIGH;
@@ -1915,7 +1914,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	/* setting to alternate setting 3: enabling iso ep and bulk ep. */
-	ret = usb_set_interface(devpriv->usbdev, devpriv->ifnum, 3);
+	ret = usb_set_interface(usb, devpriv->ifnum, 3);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
 			"could not set alternate setting 3 in high speed\n");
