@@ -64,7 +64,7 @@ static inline bool qxl_bo_is_reserved(struct qxl_bo *bo)
 
 static inline u64 qxl_bo_mmap_offset(struct qxl_bo *bo)
 {
-	return bo->tbo.addr_space_offset;
+	return drm_vma_node_offset_addr(&bo->tbo.vma_node);
 }
 
 static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
