@@ -3075,8 +3075,8 @@ static u32 xhci_calculate_no_streams_bitmask(struct xhci_hcd *xhci,
 		/* Are streams already being freed for the endpoint? */
 		if (ep_state & EP_GETTING_NO_STREAMS) {
 			xhci_warn(xhci, "WARN Can't disable streams for "
-					"endpoint 0x%x\n, "
-					"streams are being disabled already.",
+					"endpoint 0x%x, "
+					"streams are being disabled already\n",
 					eps[i]->desc.bEndpointAddress);
 			return 0;
 		}
@@ -3084,8 +3084,8 @@ static u32 xhci_calculate_no_streams_bitmask(struct xhci_hcd *xhci,
 		if (!(ep_state & EP_HAS_STREAMS) &&
 				!(ep_state & EP_GETTING_STREAMS)) {
 			xhci_warn(xhci, "WARN Can't disable streams for "
-					"endpoint 0x%x\n, "
-					"streams are already disabled!",
+					"endpoint 0x%x, "
+					"streams are already disabled!\n",
 					eps[i]->desc.bEndpointAddress);
 			xhci_warn(xhci, "WARN xhci_free_streams() called "
 					"with non-streams endpoint\n");
@@ -4353,7 +4353,7 @@ static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
 				state_name, sel);
 	else
 		dev_dbg(&udev->dev, "Device-initiated %s disabled "
-				"due to long PEL %llu\n ms",
+				"due to long PEL %llu ms\n",
 				state_name, pel);
 	return USB3_LPM_DISABLED;
 }

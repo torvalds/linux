@@ -315,52 +315,10 @@ done:
  * Also they depend on separate root hub suspend/resume.
  */
 
-static bool usb_is_intel_switchable_ehci(struct pci_dev *pdev)
-{
-	return pdev->class == PCI_CLASS_SERIAL_USB_EHCI &&
-		pdev->vendor == PCI_VENDOR_ID_INTEL &&
-		(pdev->device == 0x1E26 ||
-		 pdev->device == 0x8C2D ||
-		 pdev->device == 0x8C26 ||
-		 pdev->device == 0x9C26);
-}
-
-static void ehci_enable_xhci_companion(void)
-{
-	struct pci_dev		*companion = NULL;
-
-	/* The xHCI and EHCI controllers are not on the same PCI slot */
-	for_each_pci_dev(companion) {
-		if (!usb_is_intel_switchable_xhci(companion))
-			continue;
-		usb_enable_xhci_ports(companion);
-		return;
-	}
-}
-
 static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
-
-	/* The BIOS on systems with the Intel Panther Point chipset may or may
-	 * not support xHCI natively.  That means that during system resume, it
-	 * may switch the ports back to EHCI so that users can use their
-	 * keyboard to select a kernel from GRUB after resume from hibernate.
-	 *
-	 * The BIOS is supposed to remember whether the OS had xHCI ports
-	 * enabled before resume, and switch the ports back to xHCI when the
-	 * BIOS/OS semaphore is written, but we all know we can't trust BIOS
-	 * writers.
-	 *
-	 * Unconditionally switch the ports back to xHCI after a system resume.
-	 * We can't tell whether the EHCI or xHCI controller will be resumed
-	 * first, so we have to do the port switchover in both drivers.  Writing
-	 * a '1' to the port switchover registers should have no effect if the
-	 * port was already switched over.
-	 */
-	if (usb_is_intel_switchable_ehci(pdev))
-		ehci_enable_xhci_companion();
 
 	if (ehci_resume(hcd, hibernated) != 0)
 		(void) ehci_pci_reinit(ehci, pdev);
