@@ -723,22 +723,25 @@ static int usbduxsub_submit_inurbs(struct comedi_device *dev)
 	return 0;
 }
 
-static int usbduxsub_submit_outurbs(struct usbdux_private *usbduxsub)
+static int usbduxsub_submit_outurbs(struct comedi_device *dev)
 {
-	int i, err_flag;
+	struct usbdux_private *devpriv = dev->private;
+	struct urb *urb;
+	int ret;
+	int i;
 
-	if (!usbduxsub)
-		return -EFAULT;
+	for (i = 0; i < devpriv->num_out_buffers; i++) {
+		urb = devpriv->urb_out[i];
 
-	for (i = 0; i < usbduxsub->num_out_buffers; i++) {
 		/* in case of a resubmission after an unlink... */
-		usbduxsub->urb_out[i]->context = usbduxsub->comedidev;
-		usbduxsub->urb_out[i]->dev = usbduxsub->usbdev;
-		usbduxsub->urb_out[i]->status = 0;
-		usbduxsub->urb_out[i]->transfer_flags = URB_ISO_ASAP;
-		err_flag = usb_submit_urb(usbduxsub->urb_out[i], GFP_ATOMIC);
-		if (err_flag)
-			return err_flag;
+		urb->context = dev;
+		urb->dev = devpriv->usbdev;
+		urb->status = 0;
+		urb->transfer_flags = URB_ISO_ASAP;
+
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -1131,7 +1134,7 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 	}
 	if (!(this_usbduxsub->ao_cmd_running)) {
 		this_usbduxsub->ao_cmd_running = 1;
-		ret = usbduxsub_submit_outurbs(this_usbduxsub);
+		ret = usbduxsub_submit_outurbs(dev);
 		if (ret < 0) {
 			this_usbduxsub->ao_cmd_running = 0;
 			up(&this_usbduxsub->sem);
@@ -1289,7 +1292,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
 		this_usbduxsub->ao_cmd_running = 1;
-		ret = usbduxsub_submit_outurbs(this_usbduxsub);
+		ret = usbduxsub_submit_outurbs(dev);
 		if (ret < 0) {
 			this_usbduxsub->ao_cmd_running = 0;
 			/* fixme: unlink here?? */
