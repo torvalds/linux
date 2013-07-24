@@ -38,7 +38,7 @@
 #define  RK_SOC_PM_CTR_FUN(ctr,fun) \
 	if(!(rk_soc_pm_ctr_bits_check((1<<RK_PM_CTR_##ctr))))\
 (fun)()
-static bool __sramdata pm_log;
+
 void __sramfunc sram_printch(char byte)
 {
 #ifdef DEBUG_UART_BASE
@@ -76,7 +76,6 @@ void __sramfunc sram_printch(char byte)
 
 #endif
 }
-
 /*********************************pm control******************************************/
 enum rk_soc_pm_ctr_flags_offset {
 
@@ -408,16 +407,63 @@ __weak void rk30_pwm_resume_voltage_set(void) {}
 __weak void __sramfunc rk30_pwm_logic_suspend_voltage(void) {}
 __weak void __sramfunc rk30_pwm_logic_resume_voltage(void) {}
 
-#define CLK_GATE0_W_MSK (0xffff)
-#define CLK_GATE1_W_MSK (0xffff)	//defult:(0xffff); ignore usb:(0xff9f) G1_[6:5]
-#define CLK_GATE2_W_MSK (0xffff)
-#define CLK_GATE3_W_MSK (0xffff)	//defult:(0xff9f); ignore use:(0xff9f) G3_[6]
-#define CLK_GATE4_W_MSK (0xffff)
-#define CLK_GATE5_W_MSK (0xffff)	//defult:(0xffff); ignore usb:(0xdfff) G5_[13]
-#define CLK_GATE6_W_MSK (0xffff)
-#define CLK_GATE7_W_MSK (0xffff)	//defult:(0xffff); ignore usb:(0xffe7) G7_[4:3]
-#define CLK_GATE8_W_MSK (0xffff)
-#define CLK_GATE9_W_MSK (0xffff)
+#define CLK_GATEALL_W_MSK	(0xffff)
+#define PM_HOLDGATE(ID)		(1 << (CLK_GATE_##ID % 16))
+#define PM_GATING(msk, con)	do {cru_writel((msk << 16) | 0xffff, con); } while(0)
+static u16 clkgt_first_w_msk[CRU_CLKGATES_CON_CNT] = {
+	~(0 | PM_HOLDGATE(CORE_PERIPH)
+			| PM_HOLDGATE(CPU_GPLL)
+			| PM_HOLDGATE(DDRPHY_SRC)
+			| PM_HOLDGATE(ACLK_CPU)
+			| PM_HOLDGATE(HCLK_CPU)
+			| PM_HOLDGATE(PCLK_CPU)
+			| PM_HOLDGATE(ACLK_CORE)),
+	~(0),
+	~(0 | PM_HOLDGATE(PERIPH_SRC)
+			| PM_HOLDGATE(PCLK_PERIPH)
+			| PM_HOLDGATE(ACLK_PERIPH)),
+	~(0),
+	~(0 | PM_HOLDGATE(HCLK_PERI_AXI_MATRIX)
+			| PM_HOLDGATE(PCLK_PERI_AXI_MATRIX)
+			| PM_HOLDGATE(ACLK_PERI_AXI_MATRIX)
+			| PM_HOLDGATE(ACLK_CPU_PERI)
+			| PM_HOLDGATE(ACLK_STRC_SYS)
+			| PM_HOLDGATE(ACLK_INTMEM)),
+	~(0 | PM_HOLDGATE(PCLK_GRF)
+			| PM_HOLDGATE(PCLK_DDRUPCTL)),
+	~(0),
+	~(0 | PM_HOLDGATE(PCLK_PWM01)),
+	~(0 | PM_HOLDGATE(PCLK_GPIO0)
+			| PM_HOLDGATE(PCLK_GPIO1)
+			| PM_HOLDGATE(PCLK_GPIO2)
+			| PM_HOLDGATE(PCLK_GPIO3)),
+	~(0 | PM_HOLDGATE(CLK_L2C)
+			| PM_HOLDGATE(HCLK_PERI_ARBI)
+			| PM_HOLDGATE(ACLK_PERI_NIU)),
+};
+static u16 __sramdata clkgt_sram_w_msk[CRU_CLKGATES_CON_CNT] = {
+	~(0 | PM_HOLDGATE(CORE_PERIPH)
+			| PM_HOLDGATE(DDRPHY_SRC)
+			| PM_HOLDGATE(ACLK_CPU)
+			| PM_HOLDGATE(HCLK_CPU)
+			| PM_HOLDGATE(PCLK_CPU)
+			| PM_HOLDGATE(ACLK_CORE)),
+	~(0),
+	~(0 | PM_HOLDGATE(PERIPH_SRC)
+			| PM_HOLDGATE(PCLK_PERIPH)),
+	~(0),
+	~(0 | PM_HOLDGATE(ACLK_STRC_SYS)
+			| PM_HOLDGATE(ACLK_INTMEM)),
+	~(0 | PM_HOLDGATE(PCLK_GRF)
+			| PM_HOLDGATE(PCLK_DDRUPCTL)),
+	~(0),
+	~(0),
+	~(0 | PM_HOLDGATE(PCLK_GPIO0)
+			| PM_HOLDGATE(PCLK_GPIO1)
+			| PM_HOLDGATE(PCLK_GPIO2)
+			| PM_HOLDGATE(PCLK_GPIO3)),
+	~(0 | PM_HOLDGATE(CLK_L2C)),
+};
 static u32 __sramdata clkgt_regs_sram[CRU_CLKGATES_CON_CNT];
 static u32 __sramdata grf_uoc1_con;
 static void __sramfunc rk_pm_soc_sram_volt_suspend(void)
@@ -437,38 +483,12 @@ static void __sramfunc rk_pm_soc_sram_clk_gating(void)
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs_sram[i] = cru_readl(CRU_CLKGATES_CON(i));
+		PM_GATING(clkgt_sram_w_msk[i], CRU_CLKGATES_CON(i));
 	}
 
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_CORE_PERIPH)
-			| (1 << CLK_GATE_DDRPHY_SRC)
-			| (1 << CLK_GATE_ACLK_CPU)
-			| (1 << CLK_GATE_HCLK_CPU)
-			| (1 << CLK_GATE_PCLK_CPU)
-			| (1 << CLK_GATE_ACLK_CORE)
-			, clkgt_regs_sram[0], CRU_CLKGATES_CON(0), CLK_GATE0_W_MSK);
-
-	if (((clkgt_regs_sram[8] >> (CLK_GATE_PCLK_GPIO0 % 16)) & 0xf) != 0xf) {
-		gate_save_soc_clk(0
-				| (1 << CLK_GATE_PERIPH_SRC % 16)
-				| (1 << CLK_GATE_PCLK_PERIPH % 16)
-				, clkgt_regs_sram[2], CRU_CLKGATES_CON(2), CLK_GATE2_W_MSK);
-	} else {
-		gate_save_soc_clk(0, clkgt_regs_sram[2], CRU_CLKGATES_CON(2), CLK_GATE2_W_MSK);
+	if (((clkgt_regs_sram[8] >> (CLK_GATE_PCLK_GPIO0 % 16)) & 0xf) == 0xf) {
+		PM_GATING(CLK_GATEALL_W_MSK, CRU_CLKGATES_CON(2));
 	}
-
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_ACLK_STRC_SYS % 16)
-			| (1 << CLK_GATE_ACLK_INTMEM % 16)
-			, clkgt_regs_sram[4], CRU_CLKGATES_CON(4), CLK_GATE4_W_MSK);
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_PCLK_GRF % 16)
-			| (1 << CLK_GATE_PCLK_DDRUPCTL % 16)
-			, clkgt_regs_sram[5], CRU_CLKGATES_CON(5), CLK_GATE5_W_MSK);
-	gate_save_soc_clk(0, clkgt_regs_sram[7], CRU_CLKGATES_CON(7), CLK_GATE7_W_MSK);
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_CLK_L2C % 16)
-			, clkgt_regs_sram[9], CRU_CLKGATES_CON(9), CLK_GATE9_W_MSK);
 }
 
 static u32 __sramdata sram_cru_clksel0_con;
@@ -546,53 +566,10 @@ static void rk_pm_soc_clk_gating_first(void)
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs_first[i] = cru_readl(CRU_CLKGATES_CON(i));
+		PM_GATING(clkgt_first_w_msk[i], CRU_CLKGATES_CON(i));
 	}
 
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_CORE_PERIPH)
-			| (1 << CLK_GATE_CPU_GPLL)
-			| (1 << CLK_GATE_DDRPHY_SRC)
-			| (1 << CLK_GATE_ACLK_CPU)
-			| (1 << CLK_GATE_HCLK_CPU)
-			| (1 << CLK_GATE_PCLK_CPU)
-			| (1 << CLK_GATE_ACLK_CORE)
-			, clkgt_regs_first[0], CRU_CLKGATES_CON(0), CLK_GATE0_W_MSK);
-	gate_save_soc_clk(0, clkgt_regs_first[1], CRU_CLKGATES_CON(1), CLK_GATE1_W_MSK);
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_PERIPH_SRC % 16)
-			| (1 << CLK_GATE_PCLK_PERIPH % 16)
-			| (1 << CLK_GATE_ACLK_PERIPH % 16)
-			, clkgt_regs_first[2], CRU_CLKGATES_CON(2), CLK_GATE2_W_MSK);
-	gate_save_soc_clk(0, clkgt_regs_first[3], CRU_CLKGATES_CON(3), CLK_GATE3_W_MSK);
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_HCLK_PERI_AXI_MATRIX % 16)
-			| (1 << CLK_GATE_PCLK_PERI_AXI_MATRIX % 16)
-			| (1 << CLK_GATE_ACLK_CPU_PERI % 16)
-			| (1 << CLK_GATE_ACLK_PERI_AXI_MATRIX % 16)
-			| (1 << CLK_GATE_ACLK_STRC_SYS % 16)
-			| (1 << CLK_GATE_ACLK_INTMEM % 16)
-			, clkgt_regs_first[4], CRU_CLKGATES_CON(4), CLK_GATE4_W_MSK);
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_PCLK_GRF % 16)
-			| (1 << CLK_GATE_PCLK_DDRUPCTL % 16)
-			, clkgt_regs_first[5], CRU_CLKGATES_CON(5), CLK_GATE5_W_MSK);
-	gate_save_soc_clk(0, clkgt_regs_first[6], CRU_CLKGATES_CON(6), CLK_GATE6_W_MSK);
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_PCLK_PWM01 % 16)
-			, clkgt_regs_first[7], CRU_CLKGATES_CON(7), CLK_GATE7_W_MSK);
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_PCLK_GPIO0 % 16)
-			| (1 << CLK_GATE_PCLK_GPIO1 % 16)
-			| (1 << CLK_GATE_PCLK_GPIO2 % 16)
-			| (1 << CLK_GATE_PCLK_GPIO3 % 16)
-			, clkgt_regs_first[8], CRU_CLKGATES_CON(8), CLK_GATE8_W_MSK);
 	cru_writel(((1 << CLK_GATE_PCLK_GPIO0 % 16) << 16),  CRU_CLKGATES_CON(8));
-	gate_save_soc_clk(0
-			| (1 << CLK_GATE_CLK_L2C % 16)
-			| (1 << CLK_GATE_HCLK_PERI_ARBI % 16)
-			| (1 << CLK_GATE_ACLK_PERI_NIU % 16)
-			, clkgt_regs_first[9], CRU_CLKGATES_CON(9), CLK_GATE9_W_MSK);
-
 }
 
 static void rk_pm_soc_pll_suspend(void)
@@ -690,12 +667,8 @@ static int rk2928_pm_enter(suspend_state_t state)
 
 	sram_printch('4');
 
-	pm_log = false;
-
 	if (!rk_soc_pm_ctr_bits_check(RK_NO_SUSPEND_CTR_BITS))
 		rk2928_suspend();
-
-	pm_log = true;
 
 	sram_printch('4');
 	RK_SOC_PM_CTR_FUN(NO_GPIO, board_gpio_resume);
