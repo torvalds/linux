@@ -45,7 +45,7 @@ struct msm_port {
 	struct clk		*clk;
 	struct clk		*pclk;
 	unsigned int		imr;
-	unsigned int            *gsbi_base;
+	void __iomem		*gsbi_base;
 	int			is_uartdm;
 	unsigned int		old_snap_state;
 };
@@ -299,7 +299,7 @@ static void msm_reset(struct uart_port *port)
 	msm_write(port, UART_CR_CMD_SET_RFR, UART_CR);
 }
 
-void msm_set_mctrl(struct uart_port *port, unsigned int mctrl)
+static void msm_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	unsigned int mr;
 	mr = msm_read(port, UART_MR1);
@@ -593,12 +593,10 @@ static void msm_release_port(struct uart_port *port)
 	port->membase = NULL;
 
 	if (msm_port->gsbi_base) {
-		iowrite32(GSBI_PROTOCOL_IDLE, msm_port->gsbi_base +
-			  GSBI_CONTROL);
+		writel_relaxed(GSBI_PROTOCOL_IDLE,
+				msm_port->gsbi_base + GSBI_CONTROL);
 
-		gsbi_resource = platform_get_resource(pdev,
-							IORESOURCE_MEM, 1);
-
+		gsbi_resource = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		if (unlikely(!gsbi_resource))
 			return;
 
@@ -672,10 +670,9 @@ static void msm_config_port(struct uart_port *port, int flags)
 		if (ret)
 			return;
 	}
-
 	if (msm_port->is_uartdm)
-		iowrite32(GSBI_PROTOCOL_UART, msm_port->gsbi_base +
-			  GSBI_CONTROL);
+		writel_relaxed(GSBI_PROTOCOL_UART,
+				msm_port->gsbi_base + GSBI_CONTROL);
 }
 
 static int msm_verify_port(struct uart_port *port, struct serial_struct *ser)
