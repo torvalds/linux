@@ -17625,7 +17625,8 @@ err_out_free_res:
 	pci_release_regions(pdev);
 
 err_out_disable_pdev:
-	pci_disable_device(pdev);
+	if (pci_is_enabled(pdev))
+		pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	return err;
 }
