@@ -55,7 +55,6 @@
 #include <linux/stat.h>
 #include <asm/uaccess.h>
 #include <linux/miscdevice.h>
-#include <linux/version.h>
 
 # define DEBUG_SUBSYSTEM S_LNET
 
