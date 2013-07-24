@@ -17,7 +17,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board.h>
 #include "common.h"
 
 static void __init msm8x60_init_late(void)

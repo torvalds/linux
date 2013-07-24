@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/export.h>
@@ -26,8 +27,6 @@
 #include <asm/page.h>
 #include <mach/msm_iomap.h>
 #include <asm/mach/map.h>
-
-#include <mach/board.h>
 
 #include "common.h"
 
