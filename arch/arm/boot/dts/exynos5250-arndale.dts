@@ -328,7 +328,22 @@
 	};
 
 	i2c@12C90000 {
-		status = "disabled";
+		wm1811a@1a {
+			compatible = "wlf,wm1811";
+			reg = <0x1a>;
+
+			AVDD2-supply = <&main_dc_reg>;
+			CPVDD-supply = <&main_dc_reg>;
+			DBVDD1-supply = <&main_dc_reg>;
+			DBVDD2-supply = <&main_dc_reg>;
+			DBVDD3-supply = <&main_dc_reg>;
+			LDO1VDD-supply = <&main_dc_reg>;
+			SPKVDD1-supply = <&main_dc_reg>;
+			SPKVDD2-supply = <&main_dc_reg>;
+
+			wlf,ldo1ena = <&gpb0 0 0>;
+			wlf,ldo2ena = <&gpb0 1 0>;
+		};
 	};
 
 	i2c@12CA0000 {
