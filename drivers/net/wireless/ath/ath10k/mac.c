@@ -3093,19 +3093,18 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 {
 	struct ieee80211_sta_vht_cap vht_cap = {0};
 	u16 mcs_map;
+	int i;
 
 	vht_cap.vht_supported = 1;
 	vht_cap.cap = ar->vht_cap_info;
 
-	/* FIXME: check dynamically how many streams board supports */
-	mcs_map = IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
-		IEEE80211_VHT_MCS_SUPPORT_0_9 << 2 |
-		IEEE80211_VHT_MCS_SUPPORT_0_9 << 4 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 8 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 10 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 14;
+	mcs_map = 0;
+	for (i = 0; i < 8; i++) {
+		if (i < ar->num_rf_chains)
+			mcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << (i*2);
+		else
+			mcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << (i*2);
+	}
 
 	vht_cap.vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
 	vht_cap.vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
@@ -3168,7 +3167,7 @@ static struct ieee80211_sta_ht_cap ath10k_get_ht_cap(struct ath10k *ar)
 	if (ar->vht_cap_info & WMI_VHT_CAP_MAX_MPDU_LEN_MASK)
 		ht_cap.cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
-	for (i = 0; i < WMI_MAX_SPATIAL_STREAM; i++)
+	for (i = 0; i < ar->num_rf_chains; i++)
 		ht_cap.mcs.rx_mask[i] = 0xFF;
 
 	ht_cap.mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;

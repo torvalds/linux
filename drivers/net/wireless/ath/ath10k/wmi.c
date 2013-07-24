@@ -868,6 +868,13 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 		(__le32_to_cpu(ev->sw_version_1) & 0xffff0000) >> 16;
 	ar->fw_version_build = (__le32_to_cpu(ev->sw_version_1) & 0x0000ffff);
 	ar->phy_capability = __le32_to_cpu(ev->phy_capability);
+	ar->num_rf_chains = __le32_to_cpu(ev->num_rf_chains);
+
+	if (ar->num_rf_chains > WMI_MAX_SPATIAL_STREAM) {
+		ath10k_warn("hardware advertises support for more spatial streams than it should (%d > %d)\n",
+			    ar->num_rf_chains, WMI_MAX_SPATIAL_STREAM);
+		ar->num_rf_chains = WMI_MAX_SPATIAL_STREAM;
+	}
 
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
@@ -892,7 +899,7 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	}
 
 	ath10k_dbg(ATH10K_DBG_WMI,
-		   "wmi event service ready sw_ver 0x%08x sw_ver1 0x%08x abi_ver %u phy_cap 0x%08x ht_cap 0x%08x vht_cap 0x%08x vht_supp_msc 0x%08x sys_cap_info 0x%08x mem_reqs %u\n",
+		   "wmi event service ready sw_ver 0x%08x sw_ver1 0x%08x abi_ver %u phy_cap 0x%08x ht_cap 0x%08x vht_cap 0x%08x vht_supp_msc 0x%08x sys_cap_info 0x%08x mem_reqs %u num_rf_chains %u\n",
 		   __le32_to_cpu(ev->sw_version),
 		   __le32_to_cpu(ev->sw_version_1),
 		   __le32_to_cpu(ev->abi_version),
@@ -901,7 +908,8 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 		   __le32_to_cpu(ev->vht_cap_info),
 		   __le32_to_cpu(ev->vht_supp_mcs),
 		   __le32_to_cpu(ev->sys_cap_info),
-		   __le32_to_cpu(ev->num_mem_reqs));
+		   __le32_to_cpu(ev->num_mem_reqs),
+		   __le32_to_cpu(ev->num_rf_chains));
 
 	complete(&ar->wmi.service_ready);
 }
