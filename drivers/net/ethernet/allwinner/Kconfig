@@ -27,6 +27,7 @@ config SUN4I_EMAC
 	select CRC32
 	select MII
 	select PHYLIB
+	select MDIO_SUN4I
         ---help---
           Support for Allwinner A10 EMAC ethernet driver.
 
