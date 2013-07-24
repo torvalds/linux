@@ -247,54 +247,54 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 static int be_mac_addr_set(struct net_device *netdev, void *p)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->pdev->dev;
 	struct sockaddr *addr = p;
-	int status = 0;
-	u8 current_mac[ETH_ALEN];
-	u32 pmac_id = adapter->pmac_id[0];
-	bool active_mac = true;
+	int status;
+	u8 mac[ETH_ALEN];
+	u32 old_pmac_id = adapter->pmac_id[0], curr_pmac_id = 0;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	/* For BE VF, MAC address is already activated by PF.
-	 * Hence only operation left is updating netdev->devaddr.
-	 * Update it if user is passing the same MAC which was used
-	 * during configuring VF MAC from PF(Hypervisor).
+	/* The PMAC_ADD cmd may fail if the VF doesn't have FILTMGMT
+	 * privilege or if PF did not provision the new MAC address.
+	 * On BE3, this cmd will always fail if the VF doesn't have the
+	 * FILTMGMT privilege. This failure is OK, only if the PF programmed
+	 * the MAC for the VF.
 	 */
-	if (!lancer_chip(adapter) && !be_physfn(adapter)) {
-		status = be_cmd_mac_addr_query(adapter, current_mac,
-					       false, adapter->if_handle, 0);
-		if (!status && !memcmp(current_mac, addr->sa_data, ETH_ALEN))
-			goto done;
-		else
-			goto err;
+	status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
+				 adapter->if_handle, &adapter->pmac_id[0], 0);
+	if (!status) {
+		curr_pmac_id = adapter->pmac_id[0];
+
+		/* Delete the old programmed MAC. This call may fail if the
+		 * old MAC was already deleted by the PF driver.
+		 */
+		if (adapter->pmac_id[0] != old_pmac_id)
+			be_cmd_pmac_del(adapter, adapter->if_handle,
+					old_pmac_id, 0);
 	}
 
-	if (!memcmp(addr->sa_data, netdev->dev_addr, ETH_ALEN))
-		goto done;
-
-	/* For Lancer check if any MAC is active.
-	 * If active, get its mac id.
+	/* Decide if the new MAC is successfully activated only after
+	 * querying the FW
 	 */
-	if (lancer_chip(adapter) && !be_physfn(adapter))
-		be_cmd_get_mac_from_list(adapter, current_mac, &active_mac,
-					 &pmac_id, 0);
-
-	status = be_cmd_pmac_add(adapter, (u8 *)addr->sa_data,
-				 adapter->if_handle,
-				 &adapter->pmac_id[0], 0);
-
+	status = be_cmd_get_active_mac(adapter, curr_pmac_id, mac);
 	if (status)
 		goto err;
 
-	if (active_mac)
-		be_cmd_pmac_del(adapter, adapter->if_handle,
-				pmac_id, 0);
-done:
+	/* The MAC change did not happen, either due to lack of privilege
+	 * or PF didn't pre-provision.
+	 */
+	if (memcmp(addr->sa_data, mac, ETH_ALEN)) {
+		status = -EPERM;
+		goto err;
+	}
+
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	dev_info(dev, "MAC address changed to %pM\n", mac);
 	return 0;
 err:
-	dev_err(&adapter->pdev->dev, "MAC %pM set Failed\n", addr->sa_data);
+	dev_warn(dev, "MAC address change to %pM failed\n", addr->sa_data);
 	return status;
 }
 
@@ -1146,9 +1146,6 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
 	int status;
-	bool active_mac = false;
-	u32 pmac_id;
-	u8 old_mac[ETH_ALEN];
 
 	if (!sriov_enabled(adapter))
 		return -EPERM;
@@ -1156,20 +1153,15 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || vf >= adapter->num_vfs)
 		return -EINVAL;
 
-	if (lancer_chip(adapter)) {
-		status = be_cmd_get_mac_from_list(adapter, old_mac, &active_mac,
-						  &pmac_id, vf + 1);
-		if (!status && active_mac)
-			be_cmd_pmac_del(adapter, vf_cfg->if_handle,
-					pmac_id, vf + 1);
-
-		status = be_cmd_set_mac_list(adapter,  mac, 1, vf + 1);
-	} else {
-		status = be_cmd_pmac_del(adapter, vf_cfg->if_handle,
-					 vf_cfg->pmac_id, vf + 1);
+	if (BEx_chip(adapter)) {
+		be_cmd_pmac_del(adapter, vf_cfg->if_handle, vf_cfg->pmac_id,
+				vf + 1);
 
 		status = be_cmd_pmac_add(adapter, mac, vf_cfg->if_handle,
 					 &vf_cfg->pmac_id, vf + 1);
+	} else {
+		status = be_cmd_set_mac(adapter, mac, vf_cfg->if_handle,
+					vf + 1);
 	}
 
 	if (status)
@@ -2735,13 +2727,13 @@ static int be_vf_eth_addr_config(struct be_adapter *adapter)
 	be_vf_eth_addr_generate(adapter, mac);
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		if (lancer_chip(adapter)) {
-			status = be_cmd_set_mac_list(adapter,  mac, 1, vf + 1);
-		} else {
+		if (BEx_chip(adapter))
 			status = be_cmd_pmac_add(adapter, mac,
 						 vf_cfg->if_handle,
 						 &vf_cfg->pmac_id, vf + 1);
-		}
+		else
+			status = be_cmd_set_mac(adapter, mac, vf_cfg->if_handle,
+						vf + 1);
 
 		if (status)
 			dev_err(&adapter->pdev->dev,
@@ -2759,7 +2751,7 @@ static int be_vfs_mac_query(struct be_adapter *adapter)
 	int status, vf;
 	u8 mac[ETH_ALEN];
 	struct be_vf_cfg *vf_cfg;
-	bool active;
+	bool active = false;
 
 	for_all_vfs(adapter, vf_cfg, vf) {
 		be_cmd_get_mac_from_list(adapter, mac, &active,
@@ -2788,11 +2780,12 @@ static void be_vf_clear(struct be_adapter *adapter)
 	pci_disable_sriov(adapter->pdev);
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		if (lancer_chip(adapter))
-			be_cmd_set_mac_list(adapter, NULL, 0, vf + 1);
-		else
+		if (BEx_chip(adapter))
 			be_cmd_pmac_del(adapter, vf_cfg->if_handle,
 					vf_cfg->pmac_id, vf + 1);
+		else
+			be_cmd_set_mac(adapter, NULL, vf_cfg->if_handle,
+				       vf + 1);
 
 		be_cmd_if_destroy(adapter, vf_cfg->if_handle, vf + 1);
 	}
@@ -2803,7 +2796,7 @@ done:
 
 static int be_clear(struct be_adapter *adapter)
 {
-	int i = 1;
+	int i;
 
 	if (adapter->flags & BE_FLAGS_WORKER_SCHEDULED) {
 		cancel_delayed_work_sync(&adapter->work);
@@ -2813,9 +2806,11 @@ static int be_clear(struct be_adapter *adapter)
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
-	for (; adapter->uc_macs > 0; adapter->uc_macs--, i++)
+	/* delete the primary mac along with the uc-mac list */
+	for (i = 0; i < (adapter->uc_macs + 1); i++)
 		be_cmd_pmac_del(adapter, adapter->if_handle,
-			adapter->pmac_id[i], 0);
+				adapter->pmac_id[i], 0);
+	adapter->uc_macs = 0;
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
 
@@ -2880,6 +2875,7 @@ static int be_vf_setup(struct be_adapter *adapter)
 	u16 def_vlan, lnk_speed;
 	int status, old_vfs, vf;
 	struct device *dev = &adapter->pdev->dev;
+	u32 privileges;
 
 	old_vfs = pci_num_vf(adapter->pdev);
 	if (old_vfs) {
@@ -2923,6 +2919,18 @@ static int be_vf_setup(struct be_adapter *adapter)
 	}
 
 	for_all_vfs(adapter, vf_cfg, vf) {
+		/* Allow VFs to programs MAC/VLAN filters */
+		status = be_cmd_get_fn_privileges(adapter, &privileges, vf + 1);
+		if (!status && !(privileges & BE_PRIV_FILTMGMT)) {
+			status = be_cmd_set_fn_privileges(adapter,
+							  privileges |
+							  BE_PRIV_FILTMGMT,
+							  vf + 1);
+			if (!status)
+				dev_info(dev, "VF%d has FILTMGMT privilege\n",
+					 vf);
+		}
+
 		/* BE3 FW, by default, caps VF TX-rate to 100mbps.
 		 * Allow full available bandwidth
 		 */
@@ -2969,41 +2977,6 @@ static void be_setup_init(struct be_adapter *adapter)
 		adapter->cmd_privileges = MAX_PRIVILEGES;
 	else
 		adapter->cmd_privileges = MIN_PRIVILEGES;
-}
-
-static int be_get_mac_addr(struct be_adapter *adapter, u8 *mac, u32 if_handle,
-			   bool *active_mac, u32 *pmac_id)
-{
-	int status = 0;
-
-	if (!is_zero_ether_addr(adapter->netdev->perm_addr)) {
-		memcpy(mac, adapter->netdev->dev_addr, ETH_ALEN);
-		if (!lancer_chip(adapter) && !be_physfn(adapter))
-			*active_mac = true;
-		else
-			*active_mac = false;
-
-		return status;
-	}
-
-	if (lancer_chip(adapter)) {
-		status = be_cmd_get_mac_from_list(adapter, mac,
-						  active_mac, pmac_id, 0);
-		if (*active_mac) {
-			status = be_cmd_mac_addr_query(adapter, mac, false,
-						       if_handle, *pmac_id);
-		}
-	} else if (be_physfn(adapter)) {
-		/* For BE3, for PF get permanent MAC */
-		status = be_cmd_mac_addr_query(adapter, mac, true, 0, 0);
-		*active_mac = false;
-	} else {
-		/* For BE3, for VF get soft MAC assigned by PF*/
-		status = be_cmd_mac_addr_query(adapter, mac, false,
-					       if_handle, 0);
-		*active_mac = true;
-	}
-	return status;
 }
 
 static void be_get_resources(struct be_adapter *adapter)
@@ -3111,14 +3084,38 @@ err:
 	return status;
 }
 
+static int be_mac_setup(struct be_adapter *adapter)
+{
+	u8 mac[ETH_ALEN];
+	int status;
+
+	if (is_zero_ether_addr(adapter->netdev->dev_addr)) {
+		status = be_cmd_get_perm_mac(adapter, mac);
+		if (status)
+			return status;
+
+		memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
+		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
+	} else {
+		/* Maybe the HW was reset; dev_addr must be re-programmed */
+		memcpy(mac, adapter->netdev->dev_addr, ETH_ALEN);
+	}
+
+	/* On BE3 VFs this cmd may fail due to lack of privilege.
+	 * Ignore the failure as in this case pmac_id is fetched
+	 * in the IFACE_CREATE cmd.
+	 */
+	be_cmd_pmac_add(adapter, mac, adapter->if_handle,
+			&adapter->pmac_id[0], 0);
+	return 0;
+}
+
 static int be_setup(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 	u32 en_flags;
 	u32 tx_fc, rx_fc;
 	int status;
-	u8 mac[ETH_ALEN];
-	bool active_mac;
 
 	be_setup_init(adapter);
 
@@ -3158,35 +3155,17 @@ static int be_setup(struct be_adapter *adapter)
 
 	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
-
 	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS)
 		en_flags |= BE_IF_FLAGS_RSS;
-
 	en_flags = en_flags & adapter->if_cap_flags;
-
 	status = be_cmd_if_create(adapter, adapter->if_cap_flags, en_flags,
 				  &adapter->if_handle, 0);
 	if (status != 0)
 		goto err;
 
-	memset(mac, 0, ETH_ALEN);
-	active_mac = false;
-	status = be_get_mac_addr(adapter, mac, adapter->if_handle,
-				 &active_mac, &adapter->pmac_id[0]);
-	if (status != 0)
+	status = be_mac_setup(adapter);
+	if (status)
 		goto err;
-
-	if (!active_mac) {
-		status = be_cmd_pmac_add(adapter, mac, adapter->if_handle,
-					 &adapter->pmac_id[0], 0);
-		if (status != 0)
-			goto err;
-	}
-
-	if (is_zero_ether_addr(adapter->netdev->dev_addr)) {
-		memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
-		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
-	}
 
 	status = be_tx_qs_create(adapter);
 	if (status)

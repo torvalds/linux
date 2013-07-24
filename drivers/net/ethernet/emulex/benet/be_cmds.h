@@ -202,6 +202,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 #define OPCODE_COMMON_GET_PORT_NAME			77
 #define OPCODE_COMMON_SET_INTERRUPT_ENABLE		89
+#define OPCODE_COMMON_SET_FN_PRIVILEGES			100
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
@@ -1474,6 +1475,11 @@ struct be_cmd_resp_get_fn_privileges {
 	u32 privilege_mask;
 };
 
+struct be_cmd_req_set_fn_privileges {
+	struct be_cmd_req_hdr hdr;
+	u32 privileges;		/* Used by BE3, SH-R */
+	u32 privileges_lancer;	/* Used by Lancer */
+};
 
 /******************** GET/SET_MACLIST  **************************/
 #define BE_MAX_MAC			64
@@ -1921,11 +1927,18 @@ extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
 extern int be_cmd_get_fn_privileges(struct be_adapter *adapter,
 				    u32 *privilege, u32 domain);
+extern int be_cmd_set_fn_privileges(struct be_adapter *adapter,
+				    u32 privileges, u32 vf_num);
 extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 				    bool *pmac_id_active, u32 *pmac_id,
 				    u8 domain);
+extern int be_cmd_get_active_mac(struct be_adapter *adapter, u32 pmac_id,
+				 u8 *mac);
+extern int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac);
 extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 						u8 mac_count, u32 domain);
+extern int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id,
+			  u32 dom);
 extern int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
 			u32 domain, u16 intf_id);
 extern int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
