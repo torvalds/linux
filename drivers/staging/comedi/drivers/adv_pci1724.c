@@ -125,10 +125,6 @@ static const struct comedi_lrange ao_ranges_1724 = { 4,
 	}
 };
 
-static const struct comedi_lrange *const ao_range_list_1724[NUM_AO_CHANNELS] = {
-	[0 ... NUM_AO_CHANNELS - 1] = &ao_ranges_1724,
-};
-
 /* this structure is for data unique to this hardware driver. */
 struct adv_pci1724_private {
 	int ao_value[NUM_AO_CHANNELS];
@@ -308,7 +304,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 	s->n_chan = NUM_AO_CHANNELS;
 	s->maxdata = 0x3fff;
-	s->range_table_list = ao_range_list_1724;
+	s->range_table = &ao_ranges_1724;
 	s->insn_read = ao_readback_insn;
 	s->insn_write = ao_winsn;
 
