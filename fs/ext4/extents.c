@@ -2835,6 +2835,9 @@ again:
 				err = -EIO;
 				break;
 			}
+			/* Yield here to deal with large extent trees.
+			 * Should be a no-op if we did IO above. */
+			cond_resched();
 			if (WARN_ON(i + 1 > depth)) {
 				err = -EIO;
 				break;
@@ -4261,8 +4264,8 @@ got_allocated_blocks:
 		/* not a good idea to call discard here directly,
 		 * but otherwise we'd need to call it every free() */
 		ext4_discard_preallocations(inode);
-		ext4_free_blocks(handle, inode, NULL, ext4_ext_pblock(&newex),
-				 ext4_ext_get_actual_len(&newex), fb_flags);
+		ext4_free_blocks(handle, inode, NULL, newblock,
+				 EXT4_C2B(sbi, allocated_clusters), fb_flags);
 		goto out2;
 	}
 
@@ -4382,8 +4385,9 @@ out2:
 	}
 
 out3:
-	trace_ext4_ext_map_blocks_exit(inode, flags, map, err ? err : allocated);
-
+	trace_ext4_ext_map_blocks_exit(inode, flags, map,
+				       err ? err : allocated);
+	ext4_es_lru_add(inode);
 	return err ? err : allocated;
 }
 
@@ -4405,9 +4409,20 @@ void ext4_ext_truncate(handle_t *handle, struct inode *inode)
 
 	last_block = (inode->i_size + sb->s_blocksize - 1)
 			>> EXT4_BLOCK_SIZE_BITS(sb);
+retry:
 	err = ext4_es_remove_extent(inode, last_block,
 				    EXT_MAX_BLOCKS - last_block);
+	if (err == ENOMEM) {
+		cond_resched();
+		congestion_wait(BLK_RW_ASYNC, HZ/50);
+		goto retry;
+	}
+	if (err) {
+		ext4_std_error(inode->i_sb, err);
+		return;
+	}
 	err = ext4_ext_remove_space(inode, last_block, EXT_MAX_BLOCKS - 1);
+	ext4_std_error(inode->i_sb, err);
 }
 
 static void ext4_falloc_update_inode(struct inode *inode,

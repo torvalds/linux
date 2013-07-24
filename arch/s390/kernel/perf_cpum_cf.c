@@ -639,8 +639,8 @@ static struct pmu cpumf_pmu = {
 	.cancel_txn   = cpumf_pmu_cancel_txn,
 };
 
-static int __cpuinit cpumf_pmu_notifier(struct notifier_block *self,
-					unsigned long action, void *hcpu)
+static int cpumf_pmu_notifier(struct notifier_block *self, unsigned long action,
+			      void *hcpu)
 {
 	unsigned int cpu = (long) hcpu;
 	int flags;

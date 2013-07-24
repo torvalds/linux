@@ -71,13 +71,12 @@ void __init set_secondary_cpus_clock(void)
 	}
 }
 
-static void __cpuinit armada_xp_secondary_init(unsigned int cpu)
+static void armada_xp_secondary_init(unsigned int cpu)
 {
 	armada_xp_mpic_smp_cpu_init();
 }
 
-static int __cpuinit armada_xp_boot_secondary(unsigned int cpu,
-					      struct task_struct *idle)
+static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	pr_info("Booting CPU %d\n", cpu);
 

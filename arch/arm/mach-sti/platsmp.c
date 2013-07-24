@@ -27,7 +27,7 @@
 
 #include "smp.h"
 
-static void __cpuinit write_pen_release(int val)
+static void write_pen_release(int val)
 {
 	pen_release = val;
 	smp_wmb();
@@ -37,7 +37,7 @@ static void __cpuinit write_pen_release(int val)
 
 static DEFINE_SPINLOCK(boot_lock);
 
-void __cpuinit sti_secondary_init(unsigned int cpu)
+void sti_secondary_init(unsigned int cpu)
 {
 	trace_hardirqs_off();
 
@@ -54,7 +54,7 @@ void __cpuinit sti_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-int __cpuinit sti_boot_secondary(unsigned int cpu, struct task_struct *idle)
+int sti_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 
