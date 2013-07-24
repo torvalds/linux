@@ -245,6 +245,7 @@ struct tty_struct {
 	struct mutex legacy_mutex;
 	struct mutex throttle_mutex;
 	struct rw_semaphore termios_rwsem;
+	struct mutex winsize_mutex;
 	spinlock_t ctrl_lock;
 	/* Termios values are protected by the termios rwsem */
 	struct ktermios termios, termios_locked;
@@ -254,7 +255,7 @@ struct tty_struct {
 	struct pid *session;
 	unsigned long flags;
 	int count;
-	struct winsize winsize;		/* termios rwsem */
+	struct winsize winsize;		/* winsize_mutex */
 	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
 	unsigned char ctrl_status;	/* ctrl_lock */
 	unsigned int receive_room;	/* Bytes free for queue */

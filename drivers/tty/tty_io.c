@@ -2229,7 +2229,7 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
  *
  *	Copies the kernel idea of the window size into the user buffer.
  *
- *	Locking: tty->termios_rwsem is taken to ensure the winsize data
+ *	Locking: tty->winsize_mutex is taken to ensure the winsize data
  *		is consistent.
  */
 
@@ -2237,9 +2237,9 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user *arg)
 {
 	int err;
 
-	down_read(&tty->termios_rwsem);
+	mutex_lock(&tty->winsize_mutex);
 	err = copy_to_user(arg, &tty->winsize, sizeof(*arg));
-	up_read(&tty->termios_rwsem);
+	mutex_unlock(&tty->winsize_mutex);
 
 	return err ? -EFAULT: 0;
 }
@@ -2260,7 +2260,7 @@ int tty_do_resize(struct tty_struct *tty, struct winsize *ws)
 	unsigned long flags;
 
 	/* Lock the tty */
-	down_write(&tty->termios_rwsem);
+	mutex_lock(&tty->winsize_mutex);
 	if (!memcmp(ws, &tty->winsize, sizeof(*ws)))
 		goto done;
 	/* Get the PID values and reference them so we can
@@ -2275,7 +2275,7 @@ int tty_do_resize(struct tty_struct *tty, struct winsize *ws)
 
 	tty->winsize = *ws;
 done:
-	up_write(&tty->termios_rwsem);
+	mutex_unlock(&tty->winsize_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(tty_do_resize);
@@ -3016,6 +3016,7 @@ void initialize_tty_struct(struct tty_struct *tty,
 	mutex_init(&tty->legacy_mutex);
 	mutex_init(&tty->throttle_mutex);
 	init_rwsem(&tty->termios_rwsem);
+	mutex_init(&tty->winsize_mutex);
 	init_ldsem(&tty->ldisc_sem);
 	init_waitqueue_head(&tty->write_wait);
 	init_waitqueue_head(&tty->read_wait);
