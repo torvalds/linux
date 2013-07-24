@@ -9,6 +9,7 @@ TODO:
 - Explain reason for multiples of 512 bytes in alloc_tx_struct()
 - Review use of atomic allocation for tx structs
 - No error checking for alloc_tx_struct in do_tx()
+- fix up static tty port allocation to be dynamic
 
 Patches to:
 	Jonathan Kim <jonathankim@gctsemi.com>
