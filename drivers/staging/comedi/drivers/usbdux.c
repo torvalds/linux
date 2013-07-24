@@ -436,20 +436,15 @@ static int usbduxsub_unlink_outurbs(struct usbdux_private *usbduxsub_tmp)
 	return err;
 }
 
-/* This will cancel a running acquisition operation
- * in any context.
- */
-static int usbdux_ao_stop(struct usbdux_private *this_usbduxsub, int do_unlink)
+static int usbdux_ao_stop(struct comedi_device *dev, int do_unlink)
 {
+	struct usbdux_private *devpriv = dev->private;
 	int ret = 0;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
-
 	if (do_unlink)
-		ret = usbduxsub_unlink_outurbs(this_usbduxsub);
+		ret = usbduxsub_unlink_outurbs(devpriv);
 
-	this_usbduxsub->ao_cmd_running = 0;
+	devpriv->ao_cmd_running = 0;
 
 	return ret;
 }
@@ -467,7 +462,7 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 	/* prevent other CPUs from submitting a command just now */
 	down(&this_usbduxsub->sem);
 	/* unlink only if it is really running */
-	res = usbdux_ao_stop(this_usbduxsub, this_usbduxsub->ao_cmd_running);
+	res = usbdux_ao_stop(dev, this_usbduxsub->ao_cmd_running);
 	up(&this_usbduxsub->sem);
 	return res;
 }
@@ -494,7 +489,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 		if (devpriv->ao_cmd_running) {
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(dev, s);
-			usbdux_ao_stop(devpriv, 0);
+			usbdux_ao_stop(dev, 0);
 		}
 		return;
 
@@ -508,7 +503,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(dev, s);
 			/* we do an unlink if we are in the high speed mode */
-			usbdux_ao_stop(devpriv, 0);
+			usbdux_ao_stop(dev, 0);
 		}
 		return;
 	}
@@ -529,7 +524,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 			devpriv->ao_sample_count--;
 			if (devpriv->ao_sample_count < 0) {
 				/* all samples transmitted */
-				usbdux_ao_stop(devpriv, 0);
+				usbdux_ao_stop(dev, 0);
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(dev, s);
 				/* no resubmit of the urb */
@@ -588,7 +583,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			/* don't do an unlink here */
-			usbdux_ao_stop(devpriv, 0);
+			usbdux_ao_stop(dev, 0);
 		}
 	}
 }
