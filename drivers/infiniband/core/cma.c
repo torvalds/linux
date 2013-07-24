@@ -423,7 +423,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 	struct sockaddr_ib *addr;
 	union ib_gid gid, sgid, *dgid;
 	u16 pkey, index;
-	u8 port, p;
+	u8 p;
 	int i;
 
 	cma_dev = NULL;
@@ -443,7 +443,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 				if (!memcmp(&gid, dgid, sizeof(gid))) {
 					cma_dev = cur_dev;
 					sgid = gid;
-					port = p;
+					id_priv->id.port_num = p;
 					goto found;
 				}
 
@@ -451,7 +451,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 						 dgid->global.subnet_prefix)) {
 					cma_dev = cur_dev;
 					sgid = gid;
-					port = p;
+					id_priv->id.port_num = p;
 				}
 			}
 		}
@@ -462,7 +462,6 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 
 found:
 	cma_attach_to_dev(id_priv, cma_dev);
-	id_priv->id.port_num = port;
 	addr = (struct sockaddr_ib *) cma_src_addr(id_priv);
 	memcpy(&addr->sib_addr, &sgid, sizeof sgid);
 	cma_translate_ib(addr, &id_priv->id.route.addr.dev_addr);
