@@ -14,7 +14,6 @@
 
 extern void msm7x01_timer_init(void);
 extern void msm7x30_timer_init(void);
-extern void msm_dt_timer_init(void);
 extern void qsd8x50_timer_init(void);
 
 extern void msm_map_common_io(void);
