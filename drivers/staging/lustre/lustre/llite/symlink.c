@@ -37,7 +37,6 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/stat.h>
-#include <linux/version.h>
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include <lustre_lite.h>
