@@ -879,7 +879,8 @@ static int cma_save_net_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_id
 {
 	struct cma_hdr *hdr;
 
-	if (listen_id->route.addr.src_addr.ss_family == AF_IB) {
+	if ((listen_id->route.addr.src_addr.ss_family == AF_IB) &&
+	    (ib_event->event == IB_CM_REQ_RECEIVED)) {
 		cma_save_ib_info(id, listen_id, ib_event->param.req_rcvd.primary_path);
 		return 0;
 	}
