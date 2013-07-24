@@ -484,7 +484,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	struct hid_report *report;
 	int ret;
 
-	msc = kzalloc(sizeof(*msc), GFP_KERNEL);
+	msc = devm_kzalloc(&hdev->dev, sizeof(*msc), GFP_KERNEL);
 	if (msc == NULL) {
 		hid_err(hdev, "can't alloc magicmouse descriptor\n");
 		return -ENOMEM;
@@ -498,13 +498,13 @@ static int magicmouse_probe(struct hid_device *hdev,
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "magicmouse hid parse failed\n");
-		goto err_free;
+		return ret;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "magicmouse hw start failed\n");
-		goto err_free;
+		return ret;
 	}
 
 	if (!msc->input) {
@@ -548,17 +548,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	return 0;
 err_stop_hw:
 	hid_hw_stop(hdev);
-err_free:
-	kfree(msc);
 	return ret;
-}
-
-static void magicmouse_remove(struct hid_device *hdev)
-{
-	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
-
-	hid_hw_stop(hdev);
-	kfree(msc);
 }
 
 static const struct hid_device_id magic_mice[] = {
@@ -574,7 +564,6 @@ static struct hid_driver magicmouse_driver = {
 	.name = "magicmouse",
 	.id_table = magic_mice,
 	.probe = magicmouse_probe,
-	.remove = magicmouse_remove,
 	.raw_event = magicmouse_raw_event,
 	.input_mapping = magicmouse_input_mapping,
 	.input_configured = magicmouse_input_configured,

@@ -623,7 +623,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct sony_sc *sc;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
 
-	sc = kzalloc(sizeof(*sc), GFP_KERNEL);
+	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);
 	if (sc == NULL) {
 		hid_err(hdev, "can't alloc sony descriptor\n");
 		return -ENOMEM;
@@ -635,7 +635,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "parse failed\n");
-		goto err_free;
+		return ret;
 	}
 
 	if (sc->quirks & VAIO_RDESC_CONSTANT)
@@ -648,7 +648,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
-		goto err_free;
+		return ret;
 	}
 
 	if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
@@ -668,8 +668,6 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	return 0;
 err_stop:
 	hid_hw_stop(hdev);
-err_free:
-	kfree(sc);
 	return ret;
 }
 
@@ -681,7 +679,6 @@ static void sony_remove(struct hid_device *hdev)
 		buzz_remove(hdev);
 
 	hid_hw_stop(hdev);
-	kfree(sc);
 }
 
 static const struct hid_device_id sony_devices[] = {
