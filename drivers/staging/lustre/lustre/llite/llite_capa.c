@@ -41,7 +41,6 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include <linux/fs.h>
-#include <linux/version.h>
 #include <asm/uaccess.h>
 #include <linux/file.h>
 #include <linux/kmod.h>
