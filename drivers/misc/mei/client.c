@@ -892,17 +892,21 @@ void mei_cl_all_disconnect(struct mei_device *dev)
 
 
 /**
- * mei_cl_all_read_wakeup  - wake up all readings so they can be interrupted
+ * mei_cl_all_wakeup  - wake up all readers and writers they can be interrupted
  *
  * @dev  - mei device
  */
-void mei_cl_all_read_wakeup(struct mei_device *dev)
+void mei_cl_all_wakeup(struct mei_device *dev)
 {
 	struct mei_cl *cl, *next;
 	list_for_each_entry_safe(cl, next, &dev->file_list, link) {
 		if (waitqueue_active(&cl->rx_wait)) {
-			dev_dbg(&dev->pdev->dev, "Waking up client!\n");
+			dev_dbg(&dev->pdev->dev, "Waking up reading client!\n");
 			wake_up_interruptible(&cl->rx_wait);
+		}
+		if (waitqueue_active(&cl->tx_wait)) {
+			dev_dbg(&dev->pdev->dev, "Waking up writing client!\n");
+			wake_up_interruptible(&cl->tx_wait);
 		}
 	}
 }

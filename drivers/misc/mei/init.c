@@ -196,7 +196,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	mei_hbm_start_req(dev);
 
 	/* wake up all readings so they can be interrupted */
-	mei_cl_all_read_wakeup(dev);
+	mei_cl_all_wakeup(dev);
 
 	/* remove all waiting requests */
 	mei_cl_all_write_clear(dev);
