@@ -474,6 +474,15 @@ void bch_btree_node_write(struct btree *b, struct closure *parent)
 		bch_bset_init_next(b);
 }
 
+static void bch_btree_node_write_sync(struct btree *b)
+{
+	struct closure cl;
+
+	closure_init_stack(&cl);
+	bch_btree_node_write(b, &cl);
+	closure_sync(&cl);
+}
+
 static void btree_node_write_work(struct work_struct *w)
 {
 	struct btree *b = container_of(to_delayed_work(w), struct btree, work);
@@ -655,10 +664,8 @@ static int mca_reap(struct btree *b, unsigned min_order, bool flush)
 		return -ENOMEM;
 	}
 
-	if (btree_node_dirty(b)) {
-		bch_btree_node_write(b, &cl);
-		closure_sync(&cl);
-	}
+	if (btree_node_dirty(b))
+		bch_btree_node_write_sync(b);
 
 	/* wait for any in flight btree write */
 	closure_wait_event(&b->io.wait, &cl,
@@ -1411,9 +1418,6 @@ static int bch_btree_gc_root(struct btree *b, struct btree_op *op,
 	struct btree *n = NULL;
 	unsigned keys = 0;
 	int ret = 0, stale = btree_gc_mark_node(b, &keys, gc);
-	struct closure cl;
-
-	closure_init_stack(&cl);
 
 	if (b->level || stale > 10)
 		n = btree_node_alloc_replacement(b);
@@ -1424,12 +1428,10 @@ static int bch_btree_gc_root(struct btree *b, struct btree_op *op,
 	if (b->level)
 		ret = btree_gc_recurse(b, op, writes, gc);
 
-	if (!b->written || btree_node_dirty(b)) {
-		bch_btree_node_write(b, n ? &cl : NULL);
-	}
+	if (!b->written || btree_node_dirty(b))
+		bch_btree_node_write_sync(b);
 
 	if (!IS_ERR_OR_NULL(n)) {
-		closure_sync(&cl);
 		bch_btree_set_root(b);
 		btree_node_free(n);
 		rw_unlock(true, b);
@@ -2104,15 +2106,10 @@ static int bch_btree_insert_node(struct btree *b, struct btree_op *op,
 
 			if (bch_btree_insert_keys(b, op, insert_keys,
 						  replace_key)) {
-				if (!b->level) {
+				if (!b->level)
 					bch_btree_leaf_dirty(b, journal_ref);
-				} else {
-					struct closure cl;
-
-					closure_init_stack(&cl);
-					bch_btree_node_write(b, &cl);
-					closure_sync(&cl);
-				}
+				else
+					bch_btree_node_write_sync(b);
 			}
 		}
 	} while (!bch_keylist_empty(&split_keys));
