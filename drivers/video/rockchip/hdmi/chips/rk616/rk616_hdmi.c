@@ -447,7 +447,11 @@ static struct platform_driver rk616_hdmi_driver = {
 	.probe		= rk616_hdmi_probe,
 	.remove		= __devexit_p(rk616_hdmi_remove),
 	.driver		= {
+#ifdef CONFIG_ARCH_RK3026
+		.name	= "rk3026-hdmi",
+#else
 		.name	= "rk616-hdmi",
+#endif
 		.owner	= THIS_MODULE,
 	},
 	.shutdown   = rk616_hdmi_shutdown,

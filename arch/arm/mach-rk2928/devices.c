@@ -583,7 +583,7 @@ static struct resource resource_hdmi[] = {
 
 static struct platform_device device_hdmi = {
 #ifdef CONFIG_HDMI_RK616
-        .name                           = "rk616-hdmi",
+        .name                           = "rk3026-hdmi",
 #else
 	.name				= "rk2928-hdmi",
 #endif
