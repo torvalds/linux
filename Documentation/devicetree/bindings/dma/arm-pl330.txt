@@ -7,7 +7,7 @@ Required properties:
   - compatible: should include both "arm,pl330" and "arm,primecell".
   - reg: physical base address of the controller and length of memory mapped
     region.
-  - interrupts: interrupt number to the cpu.
+  - interrupts: interrupt number(s) to the cpu.  A maximum of eight interrupts can be specified.
 
 Optional properties:
   - dma-coherent      : Present if dma operations are coherent
@@ -15,6 +15,7 @@ Optional properties:
     cells in the dmas property of client device.
   - dma-channels: contains the total number of DMA channels supported by the DMAC
   - dma-requests: contains the total number of DMA requests supported by the DMAC
+  - copy-align: power-of-2 alignment for buffers sent to DMAC
 
 Example:
 
@@ -25,6 +26,9 @@ Example:
 		#dma-cells = <1>;
 		#dma-channels = <8>;
 		#dma-requests = <32>;
+		copy-align = <3>;
+		clocks = <&l4_main_clk>;
+		clock-names = "apb_pclk";
 	};
 
 Client drivers (device nodes requiring dma transfers from dev-to-mem or
