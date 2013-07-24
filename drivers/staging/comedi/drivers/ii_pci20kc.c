@@ -149,9 +149,7 @@ union pci20xxx_subdev_private {
 };
 
 struct pci20xxx_private {
-
 	void __iomem *ioaddr;
-	union pci20xxx_subdev_private subdev_private[PCI20000_MODULES];
 };
 
 #define CHAN (CR_CHAN(it->chanlist[0]))
@@ -222,9 +220,10 @@ static int pci20xxx_attach(struct comedi_device *dev,
 
 	for (i = 0; i < PCI20000_MODULES; i++) {
 		s = &dev->subdevices[i];
+		sdp = comedi_alloc_spriv(s, sizeof(*sdp));
+		if (!sdp)
+			return -ENOMEM;
 		id = readb(devpriv->ioaddr + (i + 1) * PCI20000_OFFSET);
-		s->private = devpriv->subdev_private + i;
-		sdp = s->private;
 		switch (id) {
 		case PCI20006_ID:
 			sdp->pci20006.iobase =
