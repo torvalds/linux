@@ -1,61 +1,31 @@
 /*
- *	comedi/drivers/ii_pci20kc.c
- *	Driver for Intelligent Instruments PCI-20001C carrier board
- *	and modules.
+ * ii_pci20kc.c
+ * Driver for Intelligent Instruments PCI-20001C carrier board and modules.
  *
- *	Copyright (C) 2000 Markus Kempf <kempf@matsci.uni-sb.de>
- *	with suggestions from David Schleef
- *			16.06.2000
- *
- *	Linux device driver for COMEDI
- *	Intelligent Instrumentation
- *	PCI-20001 C-2A Carrier Board
- *	PCI-20341 M-1A 16-Bit analog input module
- *				- differential
- *				- range (-5V - +5V)
- *				- 16 bit
- *	PCI-20006 M-2 16-Bit analog output module
- *				- ranges (-10V - +10V) (0V - +10V) (-5V - +5V)
- *				- 16 bit
- *
- *	only ONE PCI-20341 module possible
- *	only ONE PCI-20006 module possible
- *	no extern trigger implemented
- *
- *	NOT WORKING (but soon) only 4 on-board differential channels supported
- *	NOT WORKING (but soon) only ONE di-port and ONE do-port supported
- *			       instead of 4 digital ports
- *	di-port == Port 0
- *	do-port == Port 1
- *
- *	The state of this driver is only a starting point for a complete
- *	COMEDI-driver. The final driver should support all features of the
- *	carrier board and modules.
- *
- *	The test configuration:
- *
- *	kernel 2.2.14 with RTAI v1.2  and patch-2.2.14rthal2
- *	COMEDI 0.7.45
- *	COMEDILIB 0.7.9
- *
+ * Copyright (C) 2000 Markus Kempf <kempf@matsci.uni-sb.de>
+ * with suggestions from David Schleef		16.06.2000
  */
+
 /*
-Driver: ii_pci20kc
-Description: Intelligent Instruments PCI-20001C carrier board
-Author: Markus Kempf <kempf@matsci.uni-sb.de>
-Devices: [Intelligent Instrumentation] PCI-20001C (ii_pci20kc)
-Status: works
-
-Supports the PCI-20001 C-2a Carrier board, and could probably support
-the other carrier boards with small modifications.  Modules supported
-are:
-	PCI-20006 M-2 16-bit analog output module
-	PCI-20341 M-1A 16-bit analog input module
-
-Options:
-  0   Board base address
-  1   IRQ
-*/
+ * Driver: ii_pci20kc
+ * Description: Intelligent Instruments PCI-20001C carrier board
+ * Devices: (Intelligent Instrumentation) PCI-20001C [ii_pci20kc]
+ * Author: Markus Kempf <kempf@matsci.uni-sb.de>
+ * Status: works
+ *
+ * Supports the PCI-20001C-1a and PCI-20001C-2a carrier boards. The
+ * -2a version has 32 on-board DIO channels. Three add-on modules
+ * can be added to the carrier board for additional functionality.
+ *
+ * Supported add-on modules:
+ *	PCI-20006M-1   1 channel, 16-bit analog output module
+ *	PCI-20006M-2   2 channel, 16-bit analog output module
+ *	PCI-20341M-1A  4 channel, 16-bit analog input module
+ *
+ * Options:
+ *   0   Board base address
+ *   1   IRQ (not-used)
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
@@ -104,7 +74,7 @@ Options:
 #define II20K_AO_MSB_REG(x)		(0x0e + ((x) * 0x08))
 #define II20K_AO_STRB_BOTH_REG		0x1b
 
-#define II20K_ID_PCI200341M_1		0x77	/* 4 AI channels */
+#define II20K_ID_PCI20341M_1		0x77	/* 4 AI channels */
 #define II20K_AI_STATUS_CMD_REG		0x01
 #define II20K_AI_STATUS_CMD_BUSY	(1 << 7)
 #define II20K_AI_STATUS_CMD_HW_ENA	(1 << 1)
@@ -165,14 +135,14 @@ struct ii20k_ao_private {
 	unsigned int last_data[2];
 };
 
-struct pci20xxx_private {
+struct ii20k_private {
 	void __iomem *ioaddr;
 };
 
 static void __iomem *ii20k_module_iobase(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
-	struct pci20xxx_private *devpriv = dev->private;
+	struct ii20k_private *devpriv = dev->private;
 
 	return devpriv->ioaddr + (s->index + 1) * II20K_MOD_OFFSET;
 }
@@ -313,7 +283,7 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 static void ii20k_dio_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct pci20xxx_private *devpriv = dev->private;
+	struct ii20k_private *devpriv = dev->private;
 	unsigned char ctrl01 = 0;
 	unsigned char ctrl23 = 0;
 	unsigned char dir_ena = 0;
@@ -416,7 +386,7 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct pci20xxx_private *devpriv = dev->private;
+	struct ii20k_private *devpriv = dev->private;
 	unsigned int mask = data[0] & s->io_bits;	/* outputs only */
 	unsigned int bits = data[1];
 
@@ -470,7 +440,7 @@ static int ii20k_init_module(struct comedi_device *dev,
 		s->insn_read	= ii20k_ao_insn_read;
 		s->insn_write	= ii20k_ao_insn_write;
 		break;
-	case II20K_ID_PCI200341M_1:
+	case II20K_ID_PCI20341M_1:
 		/* Analog Input subdevice */
 		s->type		= COMEDI_SUBD_AI;
 		s->subdev_flags	= SDF_READABLE | SDF_DIFF;
@@ -487,10 +457,10 @@ static int ii20k_init_module(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci20xxx_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it)
+static int ii20k_attach(struct comedi_device *dev,
+			struct comedi_devconfig *it)
 {
-	struct pci20xxx_private *devpriv;
+	struct ii20k_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned char id;
 	bool has_dio;
@@ -561,21 +531,16 @@ static int pci20xxx_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	return 1;
+	return 0;
 }
 
-static void pci20xxx_detach(struct comedi_device *dev)
-{
-	/* Nothing to cleanup */
-}
-
-static struct comedi_driver pci20xxx_driver = {
+static struct comedi_driver ii20k_driver = {
 	.driver_name	= "ii_pci20kc",
 	.module		= THIS_MODULE,
-	.attach		= pci20xxx_attach,
-	.detach		= pci20xxx_detach,
+	.attach		= ii20k_attach,
+	.detach		= comedi_legacy_detach,
 };
-module_comedi_driver(pci20xxx_driver);
+module_comedi_driver(ii20k_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
