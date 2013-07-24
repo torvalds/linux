@@ -58,6 +58,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/delay.h>
 #include "8255.h"
 #include "mite.h"
 #include "comedi_fc.h"
