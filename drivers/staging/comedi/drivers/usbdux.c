@@ -1950,88 +1950,6 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 /* end of PWM */
 /*****************************************************************/
 
-static int usbdux_attach_common(struct comedi_device *dev)
-{
-	struct usbdux_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
-	int ret;
-
-	down(&devpriv->sem);
-
-	ret = comedi_alloc_subdevices(dev, (devpriv->high_speed) ? 5 : 4);
-	if (ret) {
-		up(&devpriv->sem);
-		return ret;
-	}
-
-	/* Analog Input subdevice */
-	s = &dev->subdevices[SUBDEV_AD];
-	dev->read_subdev = s;
-	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan	= 8;
-	s->maxdata	= 0x0fff;
-	s->len_chanlist	= 8;
-	s->range_table	= &range_usbdux_ai_range;
-	s->insn_read	= usbdux_ai_insn_read;
-	s->do_cmdtest	= usbdux_ai_cmdtest;
-	s->do_cmd	= usbdux_ai_cmd;
-	s->cancel	= usbdux_ai_cancel;
-
-	/* Analog Output subdevice */
-	s = &dev->subdevices[SUBDEV_DA];
-	dev->write_subdev = s;
-	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
-	s->n_chan	= 4;
-	s->maxdata	= 0x0fff;
-	s->len_chanlist	= 4;
-	s->range_table	= &range_usbdux_ao_range;
-	s->do_cmdtest	= usbdux_ao_cmdtest;
-	s->do_cmd	= usbdux_ao_cmd;
-	s->cancel	= usbdux_ao_cancel;
-	s->insn_read	= usbdux_ao_insn_read;
-	s->insn_write	= usbdux_ao_insn_write;
-
-	/* Digital I/O subdevice */
-	s = &dev->subdevices[SUBDEV_DIO];
-	s->type		= COMEDI_SUBD_DIO;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	s->n_chan	= 8;
-	s->maxdata	= 1;
-	s->range_table	= &range_digital;
-	s->insn_bits	= usbdux_dio_insn_bits;
-	s->insn_config	= usbdux_dio_insn_config;
-
-	/* Counter subdevice */
-	s = &dev->subdevices[SUBDEV_COUNTER];
-	s->type		= COMEDI_SUBD_COUNTER;
-	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
-	s->n_chan	= 4;
-	s->maxdata	= 0xffff;
-	s->insn_read	= usbdux_counter_read;
-	s->insn_write	= usbdux_counter_write;
-	s->insn_config	= usbdux_counter_config;
-
-	if (devpriv->high_speed) {
-		/* PWM subdevice */
-		s = &dev->subdevices[SUBDEV_PWM];
-		s->type		= COMEDI_SUBD_PWM;
-		s->subdev_flags	= SDF_WRITABLE | SDF_PWM_HBRIDGE;
-		s->n_chan	= 8;
-		s->maxdata	= devpriv->size_pwm_buf;
-		s->insn_write	= usbdux_pwm_write;
-		s->insn_read	= usbdux_pwm_read;
-		s->insn_config	= usbdux_pwm_config;
-
-		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
-	}
-
-	up(&devpriv->sem);
-
-	return 0;
-}
-
 static int usbdux_alloc_usb_buffers(struct usbdux_private *devpriv)
 {
 	struct urb *urb;
@@ -2189,6 +2107,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv;
+	struct comedi_subdevice *s;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -2230,7 +2149,74 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	return usbdux_attach_common(dev);
+	ret = comedi_alloc_subdevices(dev, (devpriv->high_speed) ? 5 : 4);
+	if (ret)
+		return ret;
+
+	/* Analog Input subdevice */
+	s = &dev->subdevices[SUBDEV_AD];
+	dev->read_subdev = s;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->n_chan	= 8;
+	s->maxdata	= 0x0fff;
+	s->len_chanlist	= 8;
+	s->range_table	= &range_usbdux_ai_range;
+	s->insn_read	= usbdux_ai_insn_read;
+	s->do_cmdtest	= usbdux_ai_cmdtest;
+	s->do_cmd	= usbdux_ai_cmd;
+	s->cancel	= usbdux_ai_cancel;
+
+	/* Analog Output subdevice */
+	s = &dev->subdevices[SUBDEV_DA];
+	dev->write_subdev = s;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
+	s->n_chan	= 4;
+	s->maxdata	= 0x0fff;
+	s->len_chanlist	= 4;
+	s->range_table	= &range_usbdux_ao_range;
+	s->do_cmdtest	= usbdux_ao_cmdtest;
+	s->do_cmd	= usbdux_ao_cmd;
+	s->cancel	= usbdux_ao_cancel;
+	s->insn_read	= usbdux_ao_insn_read;
+	s->insn_write	= usbdux_ao_insn_write;
+
+	/* Digital I/O subdevice */
+	s = &dev->subdevices[SUBDEV_DIO];
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= usbdux_dio_insn_bits;
+	s->insn_config	= usbdux_dio_insn_config;
+
+	/* Counter subdevice */
+	s = &dev->subdevices[SUBDEV_COUNTER];
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 0xffff;
+	s->insn_read	= usbdux_counter_read;
+	s->insn_write	= usbdux_counter_write;
+	s->insn_config	= usbdux_counter_config;
+
+	if (devpriv->high_speed) {
+		/* PWM subdevice */
+		s = &dev->subdevices[SUBDEV_PWM];
+		s->type		= COMEDI_SUBD_PWM;
+		s->subdev_flags	= SDF_WRITABLE | SDF_PWM_HBRIDGE;
+		s->n_chan	= 8;
+		s->maxdata	= devpriv->size_pwm_buf;
+		s->insn_write	= usbdux_pwm_write;
+		s->insn_read	= usbdux_pwm_read;
+		s->insn_config	= usbdux_pwm_config;
+
+		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
+	}
+
+	return 0;
 }
 
 static void usbdux_detach(struct comedi_device *dev)
