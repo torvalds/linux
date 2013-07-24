@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "exynos5250.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
@@ -37,6 +38,8 @@
 		s5m8767_pmic@66 {
 			compatible = "samsung,s5m8767-pmic";
 			reg = <0x66>;
+			interrupt-parent = <&gpx3>;
+			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 
 			s5m8767,pmic-buck2-dvs-voltage = <1300000>;
 			s5m8767,pmic-buck3-dvs-voltage = <1100000>;
