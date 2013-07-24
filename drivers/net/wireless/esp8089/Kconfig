@@ -1,0 +1,10 @@
+  config ESP8089
+      depends on WLAN_80211 && MMC
+      select WIRELESS_EXT
+      select WEXT_PRIV
+      select CFG80211
+      select NL80211_TESTMODE
+      bool "Espressif 8089 sdio Wi-Fi"
+      ---help---
+        Espressif 8089 sdio Wi-Fi support
+

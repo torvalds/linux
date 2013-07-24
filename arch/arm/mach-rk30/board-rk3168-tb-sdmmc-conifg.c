@@ -96,6 +96,10 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
     	#define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH	
 	#endif
 
+#elif defined(CONFIG_ESP8089)
+	#define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0
+	#define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH
+
 #elif defined(CONFIG_MT6620)
     #define COMBO_MODULE_MT6620_CDT    1  // to control antsel2,antsel3 and gps_lan foot when using AcSip or Cdtech chip. 
 	                                      //- 1--use Cdtech chip; 0--unuse CDT chip
@@ -149,6 +153,8 @@ int rk31sdk_get_sdio_wifi_voltage(void)
     
 #elif defined(CONFIG_MT5931_MT6622)||defined(CONFIG_MT5931)
     voltage = 1800 ; //power 1800V
+#elif defined(CONFIG_ESP8089)
+	voltage = 3000 ; //power 3000V
 #elif defined(CONFIG_MT6620) 
     voltage = 2800 ; //power 2800V
 #elif defined(CONFIG_RDA5990)||defined(CONFIG_RTL8723AS)  

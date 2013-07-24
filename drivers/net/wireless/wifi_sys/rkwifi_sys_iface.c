@@ -146,6 +146,14 @@ static ssize_t wifi_chip_read(struct class *cls, char *_buf)
     count = sprintf(_buf, "%s", "RTL8723AS");
     printk("Current WiFi chip is RTL8723AS.\n");
 #endif
+
+#ifdef CONFIG_ESP8089
+    count = sprintf(_buf, "%s", "ESP8089");
+    printk("Current WiFi chip is ESP8089.\n");
+#endif
+	
+	
+
 #endif
     return count;
 }

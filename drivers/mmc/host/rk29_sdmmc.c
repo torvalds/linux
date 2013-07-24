@@ -124,7 +124,7 @@ int debug_level = 5;
 //#define RK29_SDMMC_LIST_QUEUE            /* use list-queue for multi-card*/
 
 #define RK29_SDMMC_DEFAULT_SDIO_FREQ   0 // 1--run in default frequency(50Mhz); 0---run in 25Mhz, 
-#if defined(CONFIG_MT6620)
+#if defined(CONFIG_MT6620)|| defined(CONFIG_ESP8089)
 #define RK29_MAX_SDIO_FREQ   50000000    //set max-sdio-frequency 50Mhz in MTK module.
 #else
 #define RK29_MAX_SDIO_FREQ   25000000    //set max-sdio-frequency 25Mhz at the present time
