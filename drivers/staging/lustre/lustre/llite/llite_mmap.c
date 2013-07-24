@@ -106,11 +106,12 @@ struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
 			       struct cl_env_nest *nest,
 			       pgoff_t index, unsigned long *ra_flags)
 {
-	struct file       *file  = vma->vm_file;
-	struct inode      *inode = file->f_dentry->d_inode;
-	struct cl_io      *io;
-	struct cl_fault_io *fio;
-	struct lu_env     *env;
+	struct file	       *file = vma->vm_file;
+	struct inode	       *inode = file->f_dentry->d_inode;
+	struct cl_io	       *io;
+	struct cl_fault_io     *fio;
+	struct lu_env	       *env;
+	int			rc;
 	ENTRY;
 
 	*env_ret = NULL;
@@ -151,17 +152,22 @@ struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
 	CDEBUG(D_MMAP, "vm_flags: %lx (%lu %d)\n", vma->vm_flags,
 	       fio->ft_index, fio->ft_executable);
 
-	if (cl_io_init(env, io, CIT_FAULT, io->ci_obj) == 0) {
+	rc = cl_io_init(env, io, CIT_FAULT, io->ci_obj);
+	if (rc == 0) {
 		struct ccc_io *cio = ccc_env_io(env);
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
 		LASSERT(cio->cui_cl.cis_io == io);
 
-		/* mmap lock must be MANDATORY
-		 * it has to cache pages. */
+		/* mmap lock must be MANDATORY it has to cache
+		 * pages. */
 		io->ci_lockreq = CILR_MANDATORY;
-
-		cio->cui_fd  = fd;
+		cio->cui_fd = fd;
+	} else {
+		LASSERT(rc < 0);
+		cl_io_fini(env, io);
+		cl_env_nested_put(nest, env);
+		io = ERR_PTR(rc);
 	}
 
 	return io;
@@ -189,7 +195,7 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 
 	result = io->ci_result;
 	if (result < 0)
-		GOTO(out, result);
+		GOTO(out_io, result);
 
 	io->u.ci_fault.ft_mkwrite = 1;
 	io->u.ci_fault.ft_writable = 1;
@@ -251,14 +257,14 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	}
 	EXIT;
 
-out:
+out_io:
 	cl_io_fini(env, io);
 	cl_env_nested_put(&nest, env);
-
+out:
 	CDEBUG(D_MMAP, "%s mkwrite with %d\n", current->comm, result);
-
 	LASSERT(ergo(result == 0, PageLocked(vmpage)));
-	return(result);
+
+	return result;
 }
 
 
