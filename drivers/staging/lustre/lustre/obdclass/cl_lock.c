@@ -267,7 +267,7 @@ static void cl_lock_free(const struct lu_env *env, struct cl_lock *lock)
 	}
 	CS_LOCK_DEC(obj, total);
 	CS_LOCKSTATE_DEC(obj, lock->cll_state);
-	lu_object_ref_del_at(&obj->co_lu, lock->cll_obj_ref, "cl_lock", lock);
+	lu_object_ref_del_at(&obj->co_lu, &lock->cll_obj_ref, "cl_lock", lock);
 	cl_object_put(env, obj);
 	lu_ref_fini(&lock->cll_reference);
 	lu_ref_fini(&lock->cll_holders);
@@ -373,8 +373,8 @@ static struct cl_lock *cl_lock_alloc(const struct lu_env *env,
 		lock->cll_descr = *descr;
 		lock->cll_state = CLS_NEW;
 		cl_object_get(obj);
-		lock->cll_obj_ref = lu_object_ref_add(&obj->co_lu,
-						      "cl_lock", lock);
+		lu_object_ref_add_at(&obj->co_lu, &lock->cll_obj_ref, "cl_lock",
+				     lock);
 		INIT_LIST_HEAD(&lock->cll_layers);
 		INIT_LIST_HEAD(&lock->cll_linkage);
 		INIT_LIST_HEAD(&lock->cll_inclosure);

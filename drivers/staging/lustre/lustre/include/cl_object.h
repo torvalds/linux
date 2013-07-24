@@ -768,11 +768,11 @@ struct cl_page {
 	/** List of references to this page, for debugging. */
 	struct lu_ref	    cp_reference;
 	/** Link to an object, for debugging. */
-	struct lu_ref_link      *cp_obj_ref;
+	struct lu_ref_link       cp_obj_ref;
 	/** Link to a queue, for debugging. */
-	struct lu_ref_link      *cp_queue_ref;
+	struct lu_ref_link       cp_queue_ref;
 	/** Per-page flags from enum cl_page_flags. Protected by a VM lock. */
-	unsigned		 cp_flags;
+	unsigned                 cp_flags;
 	/** Assigned if doing a sync_io */
 	struct cl_sync_io       *cp_sync_io;
 };
@@ -1625,7 +1625,7 @@ struct cl_lock {
 	/**
 	 * A reference for cl_lock::cll_descr::cld_obj. For debugging.
 	 */
-	struct lu_ref_link   *cll_obj_ref;
+	struct lu_ref_link    cll_obj_ref;
 #ifdef CONFIG_LOCKDEP
 	/* "dep_map" name is assumed by lockdep.h macros. */
 	struct lockdep_map    dep_map;
@@ -2517,7 +2517,7 @@ struct cl_req_obj {
 	/** object itself */
 	struct cl_object   *ro_obj;
 	/** reference to cl_req_obj::ro_obj. For debugging. */
-	struct lu_ref_link *ro_obj_ref;
+	struct lu_ref_link  ro_obj_ref;
 	/* something else? Number of pages for a given object? */
 };
 

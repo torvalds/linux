@@ -2064,7 +2064,7 @@ static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli,
 
 	while ((osc = osc_next_obj(cli)) != NULL) {
 		struct cl_object *obj = osc2cl(osc);
-		struct lu_ref_link *link;
+		struct lu_ref_link link;
 
 		OSC_IO_DEBUG(osc, "%lu in flight\n", rpcs_in_flight(cli));
 
@@ -2075,7 +2075,8 @@ static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli,
 
 		cl_object_get(obj);
 		client_obd_list_unlock(&cli->cl_loi_list_lock);
-		link = lu_object_ref_add(&obj->co_lu, "check", current);
+		lu_object_ref_add_at(&obj->co_lu, &link, "check",
+				     current);
 
 		/* attempt some read/write balancing by alternating between
 		 * reads and writes in an object.  The makes_rpc checks here
@@ -2116,7 +2117,8 @@ static void osc_check_rpcs(const struct lu_env *env, struct client_obd *cli,
 		osc_object_unlock(osc);
 
 		osc_list_maint(cli, osc);
-		lu_object_ref_del_at(&obj->co_lu, link, "check", current);
+		lu_object_ref_del_at(&obj->co_lu, &link, "check",
+				     current);
 		cl_object_put(env, obj);
 
 		client_obd_list_lock(&cli->cl_loi_list_lock);

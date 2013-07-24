@@ -270,7 +270,7 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 	}
 	CS_PAGE_DEC(obj, total);
 	CS_PAGESTATE_DEC(obj, page->cp_state);
-	lu_object_ref_del_at(&obj->co_lu, page->cp_obj_ref, "cl_page", page);
+	lu_object_ref_del_at(&obj->co_lu, &page->cp_obj_ref, "cl_page", page);
 	cl_object_put(env, obj);
 	lu_ref_fini(&page->cp_reference);
 	OBD_FREE(page, pagesize);
@@ -305,7 +305,8 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 			atomic_inc(&page->cp_ref);
 		page->cp_obj = o;
 		cl_object_get(o);
-		page->cp_obj_ref = lu_object_ref_add(&o->co_lu, "cl_page",page);
+		lu_object_ref_add_at(&o->co_lu, &page->cp_obj_ref, "cl_page",
+				     page);
 		page->cp_index = ind;
 		cl_page_state_set_trust(page, CPS_CACHED);
 		page->cp_type = type;
