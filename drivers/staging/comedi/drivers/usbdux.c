@@ -1729,8 +1729,9 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 /* end of PWM */
 /*****************************************************************/
 
-static int usbdux_alloc_usb_buffers(struct usbdux_private *devpriv)
+static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 {
+	struct usbdux_private *devpriv = dev->private;
 	struct urb *urb;
 	int i;
 
@@ -1909,7 +1910,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 		devpriv->num_out_buffers = NUMOFOUTBUFFERSFULL;
 	}
 
-	ret = usbdux_alloc_usb_buffers(devpriv);
+	ret = usbdux_alloc_usb_buffers(dev);
 	if (ret)
 		return ret;
 
