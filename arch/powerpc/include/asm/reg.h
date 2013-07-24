@@ -1117,7 +1117,7 @@
 				     : "memory")
 
 #ifdef __powerpc64__
-#ifdef CONFIG_PPC_CELL
+#if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
 #define mftb()		({unsigned long rval;				\
 			asm volatile(					\
 				"90:	mftb %0;\n"			\

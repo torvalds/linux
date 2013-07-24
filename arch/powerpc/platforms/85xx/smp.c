@@ -69,7 +69,30 @@ static void mpc85xx_give_timebase(void)
 	tb_req = 0;
 
 	mpc85xx_timebase_freeze(1);
+#ifdef CONFIG_PPC64
+	/*
+	 * e5500/e6500 have a workaround for erratum A-006958 in place
+	 * that will reread the timebase until TBL is non-zero.
+	 * That would be a bad thing when the timebase is frozen.
+	 *
+	 * Thus, we read it manually, and instead of checking that
+	 * TBL is non-zero, we ensure that TB does not change.  We don't
+	 * do that for the main mftb implementation, because it requires
+	 * a scratch register
+	 */
+	{
+		u64 prev;
+
+		asm volatile("mftb %0" : "=r" (timebase));
+
+		do {
+			prev = timebase;
+			asm volatile("mftb %0" : "=r" (timebase));
+		} while (prev != timebase);
+	}
+#else
 	timebase = get_tb();
+#endif
 	mb();
 	tb_valid = 1;
 

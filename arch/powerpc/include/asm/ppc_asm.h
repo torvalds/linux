@@ -431,7 +431,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_601)
 #define ISYNC_601
 #endif
 
-#ifdef CONFIG_PPC_CELL
+#if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
 #define MFTB(dest)			\
 90:	mftb  dest;			\
 BEGIN_FTR_SECTION_NESTED(96);		\
