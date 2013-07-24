@@ -808,17 +808,8 @@ static void g2d_dma_start(struct g2d_data *g2d,
 	int ret;
 
 	ret = pm_runtime_get_sync(g2d->dev);
-	if (ret < 0) {
-		dev_warn(g2d->dev, "failed pm power on.\n");
+	if (ret < 0)
 		return;
-	}
-
-	ret = clk_prepare_enable(g2d->gate_clk);
-	if (ret < 0) {
-		dev_warn(g2d->dev, "failed to enable clock.\n");
-		pm_runtime_put_sync(g2d->dev);
-		return;
-	}
 
 	writel_relaxed(node->dma_addr, g2d->regs + G2D_DMA_SFR_BASE_ADDR);
 	writel_relaxed(G2D_DMA_START, g2d->regs + G2D_DMA_COMMAND);
@@ -871,7 +862,6 @@ static void g2d_runqueue_worker(struct work_struct *work)
 					    runqueue_work);
 
 	mutex_lock(&g2d->runqueue_mutex);
-	clk_disable_unprepare(g2d->gate_clk);
 	pm_runtime_put_sync(g2d->dev);
 
 	complete(&g2d->runqueue_node->complete);
@@ -1524,7 +1514,33 @@ static int g2d_resume(struct device *dev)
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
+#ifdef CONFIG_PM_RUNTIME
+static int g2d_runtime_suspend(struct device *dev)
+{
+	struct g2d_data *g2d = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(g2d->gate_clk);
+
+	return 0;
+}
+
+static int g2d_runtime_resume(struct device *dev)
+{
+	struct g2d_data *g2d = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(g2d->gate_clk);
+	if (ret < 0)
+		dev_warn(dev, "failed to enable clock.\n");
+
+	return ret;
+}
+#endif
+
+static const struct dev_pm_ops g2d_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(g2d_suspend, g2d_resume)
+	SET_RUNTIME_PM_OPS(g2d_runtime_suspend, g2d_runtime_resume, NULL)
+};
 
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_g2d_match[] = {
