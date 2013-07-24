@@ -33,7 +33,6 @@ extern void r8a7778_add_mmc_device(struct sh_mmcif_plat_data *info);
 
 extern void r8a7778_init_late(void);
 extern void r8a7778_init_delay(void);
-extern void r8a7778_init_irq(void);
 extern void r8a7778_init_irq_dt(void);
 extern void r8a7778_clock_init(void);
 extern void r8a7778_init_irq_extpin(int irlm);
