@@ -2294,17 +2294,14 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	}
 
 	ret = usbdux_alloc_usb_buffers(devpriv);
-	if (ret) {
-		tidy_up(devpriv);
+	if (ret)
 		return ret;
-	}
 
 	/* setting to alternate setting 3: enabling iso ep and bulk ep. */
 	ret = usb_set_interface(devpriv->usbdev, devpriv->ifnum, 3);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
 			"could not set alternate setting 3 in high speed\n");
-		tidy_up(devpriv);
 		return ret;
 	}
 
