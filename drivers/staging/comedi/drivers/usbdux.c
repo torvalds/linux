@@ -223,16 +223,14 @@ struct usbdux_private {
 	int16_t *insn_buffer;
 	/* output buffer for single DA outputs */
 	int16_t *out_buffer;
-	/* is it USB_SPEED_HIGH or not? */
-	short int high_speed;
-	/* asynchronous command is running */
-	short int ai_cmd_running;
-	short int ao_cmd_running;
-	/* pwm is running */
-	short int pwm_cmd_running;
-	/* continous acquisition */
-	short int ai_continous;
-	short int ao_continous;
+
+	unsigned int high_speed:1;
+	unsigned int ai_cmd_running:1;
+	unsigned int ai_continous:1;
+	unsigned int ao_cmd_running:1;
+	unsigned int ao_continous:1;
+	unsigned int pwm_cmd_running:1;
+
 	/* number of samples to acquire */
 	int ai_sample_count;
 	int ao_sample_count;
