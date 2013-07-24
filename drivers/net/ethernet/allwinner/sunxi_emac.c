@@ -871,11 +871,37 @@ static int sunxi_emac_set_mac_address(struct net_device *dev, void *p)
 }
 
 /*
+ * ****************************************************************************
+ *      void phy_link_check()
+ *  Description:
+ *
+ *
+ *      Return Value:   1: Link valid           0: Link not valid
+ * ****************************************************************************
+ */
+unsigned int phy_link_check(struct net_device *dev)
+{
+	unsigned int reg_val;
+
+	reg_val = sunxi_emac_phy_read(dev, 0, 1);
+
+	if (reg_val & 0x4) {
+		/* PHY Linked */
+		return 1;
+	} else {
+		/* PHY Link waiting */
+		return 0;
+	}
+}
+
+
+/*
  * Initilize sunxi_emac board
  */
 static void
 sunxi_emac_init_sunxi_emac(struct net_device *dev)
 {
+	int link_wait_limit_ms = 4500; /* wait up to 4.5 seconds for a link */
 	sunxi_emac_board_info_t *db = netdev_priv(dev);
 	unsigned int phy_reg;
 	unsigned int reg_val;
@@ -892,6 +918,10 @@ sunxi_emac_init_sunxi_emac(struct net_device *dev)
 	phy_reg = sunxi_emac_phy_read(dev, 0, 0);
 	sunxi_emac_phy_write(dev, 0, 0, phy_reg & (~(1<<11)));
 	mdelay(1);
+	while (!phy_link_check(dev) && link_wait_limit_ms > 0) {
+		msleep(500);
+		link_wait_limit_ms -= 500;
+	}
 
 	phy_reg = sunxi_emac_phy_read(dev, 0, 0);
 
