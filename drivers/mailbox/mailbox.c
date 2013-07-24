@@ -198,6 +198,9 @@ request_token_t ipc_send_message(void *channel, void *mssg)
 	if (!chan || !chan->assigned)
 		return 0;
 
+	if (chan->tx_block)
+		init_completion(&chan->tx_complete);
+
 	t = _add_to_rbuf(chan, mssg);
 	if (!t)
 		pr_err("Try increasing MBOX_TX_QUEUE_LEN\n");
@@ -209,7 +212,6 @@ request_token_t ipc_send_message(void *channel, void *mssg)
 
 	if (chan->tx_block && chan->active_req) {
 		int ret;
-		init_completion(&chan->tx_complete);
 		ret = wait_for_completion_timeout(&chan->tx_complete,
 			chan->tx_tout);
 		if (ret == 0) {
@@ -467,7 +469,8 @@ void ipc_links_unregister(struct ipc_controller *ipc)
 	list_for_each_entry(chan, &con->channels, node)
 		ipc_free_channel((void *)chan);
 
-	del_timer_sync(&con->poll);
+	if (ipc->txdone_poll)
+		del_timer_sync(&con->poll);
 
 	kfree(con);
 }

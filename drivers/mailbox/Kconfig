@@ -16,4 +16,10 @@ config PL320_MBOX
 	  Management Engine, primarily for cpufreq. Say Y here if you want
 	  to use the PL320 IPCM support.
 
+config ALTERA_MBOX
+	tristate "Altera Mailbox"
+	help
+	  An implementation of the Altera Mailbox (simple) soft core. Is is used
+	  to send message between processors. Say Y here if you want to use the
+	  Altera mailbox support.
 endif
