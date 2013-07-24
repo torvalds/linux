@@ -432,7 +432,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 	RETURN(err);
 } /* class_handle_ioctl */
 
-extern psdev_t obd_psdev;
+extern struct miscdevice obd_psdev;
 
 #define OBD_INIT_CHECK
 int obd_init_checks(void)

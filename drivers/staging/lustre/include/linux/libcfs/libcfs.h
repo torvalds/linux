@@ -124,11 +124,6 @@ void libcfs_sock_release(socket_t *sock);
 /*
  * libcfs pseudo device operations
  *
- * struct psdev_t and
- * misc_register() and
- * misc_deregister() are declared in
- * libcfs/<os>/<os>-prim.h
- *
  * It's just draft now.
  */
 

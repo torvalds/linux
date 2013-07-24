@@ -79,20 +79,6 @@
 #endif
 
 /*
- * cache
- */
-
-/*
- * IRQs
- */
-
-
-/*
- * Pseudo device register
- */
-typedef struct miscdevice		psdev_t;
-
-/*
  * Sysctl register
  */
 typedef struct ctl_table		ctl_table_t;

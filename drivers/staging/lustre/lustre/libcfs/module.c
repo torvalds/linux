@@ -365,7 +365,7 @@ MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
 MODULE_DESCRIPTION("Portals v3.1");
 MODULE_LICENSE("GPL");
 
-extern psdev_t libcfs_dev;
+extern struct miscdevice libcfs_dev;
 extern struct rw_semaphore cfs_tracefile_sem;
 extern struct mutex cfs_trace_thread_mutex;
 extern struct cfs_wi_sched *cfs_sched_rehash;
