@@ -62,6 +62,8 @@ static int __cpuinit sh73a0_boot_secondary(unsigned int cpu, struct task_struct 
 
 static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 {
+	/* setup sh73a0 specific SCU base */
+	shmobile_scu_base = IOMEM(SH73A0_SCU_BASE);
 	scu_enable(shmobile_scu_base);
 
 	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
@@ -72,14 +74,6 @@ static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 
 	/* enable cache coherency on booting CPU */
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
-}
-
-static void __init sh73a0_smp_init_cpus(void)
-{
-	/* setup sh73a0 specific SCU base */
-	shmobile_scu_base = IOMEM(SH73A0_SCU_BASE);
-
-	shmobile_smp_init_cpus(scu_get_core_count(shmobile_scu_base));
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -120,7 +114,6 @@ static int sh73a0_cpu_disable(unsigned int cpu)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 struct smp_operations sh73a0_smp_ops __initdata = {
-	.smp_init_cpus		= sh73a0_smp_init_cpus,
 	.smp_prepare_cpus	= sh73a0_smp_prepare_cpus,
 	.smp_boot_secondary	= sh73a0_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
