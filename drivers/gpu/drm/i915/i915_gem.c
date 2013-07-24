@@ -219,16 +219,10 @@ i915_gem_create(struct drm_file *file,
 		return -ENOMEM;
 
 	ret = drm_gem_handle_create(file, &obj->base, &handle);
-	if (ret) {
-		drm_gem_object_release(&obj->base);
-		i915_gem_info_remove_obj(dev->dev_private, obj->base.size);
-		i915_gem_object_free(obj);
-		return ret;
-	}
-
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_unreference(&obj->base);
-	trace_i915_gem_object_create(obj);
+	drm_gem_object_unreference_unlocked(&obj->base);
+	if (ret)
+		return ret;
 
 	*handle_p = handle;
 	return 0;
@@ -3941,6 +3935,8 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 		obj->cache_level = I915_CACHE_LLC;
 	} else
 		obj->cache_level = I915_CACHE_NONE;
+
+	trace_i915_gem_object_create(obj);
 
 	return obj;
 }
