@@ -316,19 +316,14 @@ static int e4000_set_params(struct dvb_frontend *fe)
 		q_data[i] = (((buf[2] >> 4) & 0x3) << 6) | (buf[1] & 0x3f);
 	}
 
-	buf[0] = q_data[0];
-	buf[1] = q_data[1];
-	buf[2] = q_data[3];
-	buf[3] = q_data[2];
-	ret = e4000_wr_regs(priv, 0x50, buf, 4);
+	swap(q_data[2], q_data[3]);
+	swap(i_data[2], i_data[3]);
+
+	ret = e4000_wr_regs(priv, 0x50, q_data, 4);
 	if (ret < 0)
 		goto err;
 
-	buf[0] = i_data[0];
-	buf[1] = i_data[1];
-	buf[2] = i_data[3];
-	buf[3] = i_data[2];
-	ret = e4000_wr_regs(priv, 0x60, buf, 4);
+	ret = e4000_wr_regs(priv, 0x60, i_data, 4);
 	if (ret < 0)
 		goto err;
 
