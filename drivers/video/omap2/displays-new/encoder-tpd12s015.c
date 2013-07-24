@@ -66,7 +66,7 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	dst->output = dssdev;
+	dst->src = dssdev;
 	dssdev->device = dst;
 
 	INIT_COMPLETION(ddata->hpd_completion);
@@ -102,7 +102,7 @@ static void tpd_disconnect(struct omap_dss_device *dssdev,
 
 	gpio_set_value_cansleep(ddata->ct_cp_hpd_gpio, 0);
 
-	dst->output = NULL;
+	dst->src = NULL;
 	dssdev->device = NULL;
 
 	in->ops.hdmi->disconnect(in, &ddata->dssdev);

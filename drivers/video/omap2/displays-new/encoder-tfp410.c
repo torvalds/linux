@@ -43,7 +43,7 @@ static int tfp410_connect(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	dst->output = dssdev;
+	dst->src = dssdev;
 	dssdev->device = dst;
 
 	return 0;
@@ -63,7 +63,7 @@ static void tfp410_disconnect(struct omap_dss_device *dssdev,
 	if (dst != dssdev->device)
 		return;
 
-	dst->output = NULL;
+	dst->src = NULL;
 	dssdev->device = NULL;
 
 	in->ops.dpi->disconnect(in, &ddata->dssdev);

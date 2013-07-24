@@ -48,7 +48,7 @@ int omapdss_output_set_device(struct omap_dss_device *out,
 	}
 
 	out->device = dssdev;
-	dssdev->output = out;
+	dssdev->src = out;
 
 	mutex_unlock(&output_lock);
 
@@ -79,7 +79,7 @@ int omapdss_output_unset_device(struct omap_dss_device *out)
 		goto err;
 	}
 
-	out->device->output = NULL;
+	out->device->src = NULL;
 	out->device = NULL;
 
 	mutex_unlock(&output_lock);
@@ -146,8 +146,8 @@ EXPORT_SYMBOL(omap_dss_find_output_by_node);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
-	while (dssdev->output)
-		dssdev = dssdev->output;
+	while (dssdev->src)
+		dssdev = dssdev->src;
 
 	if (dssdev->id != 0)
 		return omap_dss_get_device(dssdev);

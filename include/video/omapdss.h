@@ -774,7 +774,7 @@ struct omap_dss_device {
 
 	enum omap_display_caps caps;
 
-	struct omap_dss_device *output;
+	struct omap_dss_device *src;
 
 	enum omap_dss_display_state state;
 
@@ -1011,7 +1011,7 @@ void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
 
 static inline bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
 {
-	return dssdev->output;
+	return dssdev->src;
 }
 
 static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
