@@ -176,7 +176,7 @@ void *eeh_pe_dev_traverse(struct eeh_pe *root,
 		eeh_traverse_func fn, void *flag)
 {
 	struct eeh_pe *pe;
-	struct eeh_dev *edev;
+	struct eeh_dev *edev, *tmp;
 	void *ret;
 
 	if (!root) {
@@ -186,7 +186,7 @@ void *eeh_pe_dev_traverse(struct eeh_pe *root,
 
 	/* Traverse root PE */
 	for (pe = root; pe; pe = eeh_pe_next(pe, root)) {
-		eeh_pe_for_each_dev(pe, edev) {
+		eeh_pe_for_each_dev(pe, edev, tmp) {
 			ret = fn(edev, flag);
 			if (ret)
 				return ret;
@@ -501,7 +501,7 @@ static void *__eeh_pe_state_mark(void *data, void *flag)
 {
 	struct eeh_pe *pe = (struct eeh_pe *)data;
 	int state = *((int *)flag);
-	struct eeh_dev *tmp;
+	struct eeh_dev *edev, *tmp;
 	struct pci_dev *pdev;
 
 	/*
@@ -511,8 +511,8 @@ static void *__eeh_pe_state_mark(void *data, void *flag)
 	 * the PCI device driver.
 	 */
 	pe->state |= state;
-	eeh_pe_for_each_dev(pe, tmp) {
-		pdev = eeh_dev_to_pci_dev(tmp);
+	eeh_pe_for_each_dev(pe, edev, tmp) {
+		pdev = eeh_dev_to_pci_dev(edev);
 		if (pdev)
 			pdev->error_state = pci_channel_io_frozen;
 	}

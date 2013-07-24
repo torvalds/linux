@@ -231,7 +231,7 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 {
 	size_t loglen = 0;
-	struct eeh_dev *edev;
+	struct eeh_dev *edev, *tmp;
 	bool valid_cfg_log = true;
 
 	/*
@@ -251,7 +251,7 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 		eeh_pe_restore_bars(pe);
 
 		pci_regs_buf[0] = 0;
-		eeh_pe_for_each_dev(pe, edev) {
+		eeh_pe_for_each_dev(pe, edev, tmp) {
 			loglen += eeh_gather_pci_data(edev, pci_regs_buf + loglen,
 						      EEH_PCI_REGS_LOG_LEN - loglen);
 		}
