@@ -166,17 +166,21 @@ choice
 endchoice
 
 choice
-	depends on RKWIFI && WLAN_80211 && RK903
+	depends on RKWIFI && WLAN_80211
 	prompt "Select the wifi module crystal freq"
 	default RKWIFI_26M
 
 	config RKWIFI_37_4M
     	bool "37_4M"
-	    depends on RKWIFI && WLAN_80211 && RK903
+	    depends on RKWIFI && WLAN_80211
 
 	config RKWIFI_26M
     	bool "26M"
-	    depends on RKWIFI && WLAN_80211 && RK903
+	    depends on RKWIFI && WLAN_80211
+
+	config RKWIFI_24M
+    	bool "24M"
+	    depends on RKWIFI && WLAN_80211
 
 endchoice
 
