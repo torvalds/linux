@@ -775,10 +775,7 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work)
 
 	if (radeon_fence_count_emitted(rdev, R600_RING_TYPE_UVD_INDEX) == 0) {
 		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
-			mutex_lock(&rdev->pm.mutex);
-			rdev->pm.dpm.uvd_active = false;
-			mutex_unlock(&rdev->pm.mutex);
-			radeon_pm_compute_clocks(rdev);
+			radeon_dpm_enable_uvd(rdev, false);
 		} else {
 			radeon_set_uvd_clocks(rdev, 0, 0);
 		}
@@ -790,13 +787,25 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work)
 
 void radeon_uvd_note_usage(struct radeon_device *rdev)
 {
+	bool streams_changed = false;
 	bool set_clocks = !cancel_delayed_work_sync(&rdev->uvd.idle_work);
 	set_clocks &= schedule_delayed_work(&rdev->uvd.idle_work,
 					    msecs_to_jiffies(UVD_IDLE_TIMEOUT_MS));
-	if (set_clocks) {
+
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+		unsigned hd = 0, sd = 0;
+		radeon_uvd_count_handles(rdev, &sd, &hd);
+		if ((rdev->pm.dpm.sd != sd) ||
+		    (rdev->pm.dpm.hd != hd)) {
+			rdev->pm.dpm.sd = sd;
+			rdev->pm.dpm.hd = hd;
+			streams_changed = true;
+		}
+	}
+
+	if (set_clocks || streams_changed) {
 		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
-			/* XXX pick SD/HD/MVC */
-			radeon_dpm_enable_power_state(rdev, POWER_STATE_TYPE_INTERNAL_UVD);
+			radeon_dpm_enable_uvd(rdev, true);
 		} else {
 			radeon_set_uvd_clocks(rdev, 53300, 40000);
 		}
