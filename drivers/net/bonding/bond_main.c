@@ -273,7 +273,7 @@ const char *bond_mode_name(int mode)
 		[BOND_MODE_ALB] = "adaptive load balancing",
 	};
 
-	if (mode < 0 || mode > BOND_MODE_ALB)
+	if (mode < BOND_MODE_ROUNDROBIN || mode > BOND_MODE_ALB)
 		return "unknown";
 
 	return names[mode];
