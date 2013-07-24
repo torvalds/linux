@@ -2845,9 +2845,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 			dev_warn(hsotg->dev, "can't set DMA mask\n");
 		if (dma_set_coherent_mask(hsotg->dev, DMA_BIT_MASK(32)) < 0)
 			dev_warn(hsotg->dev, "can't set coherent DMA mask\n");
-	} else {
-		dma_set_mask(hsotg->dev, 0);
-		dma_set_coherent_mask(hsotg->dev, 0);
 	}
 
 	hcd = usb_create_hcd(&dwc2_hc_driver, hsotg->dev, dev_name(hsotg->dev));
