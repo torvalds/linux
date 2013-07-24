@@ -567,7 +567,7 @@ static struct platform_device device_nand = {
 	.num_resources	= ARRAY_SIZE(resources_nand),
 };
 #endif
-#ifdef CONFIG_HDMI_RK2928
+#if defined(CONFIG_HDMI_RK2928) || defined(CONFIG_HDMI_RK616)
 static struct resource resource_hdmi[] = {
 	[0] = {
 		.start = RK2928_HDMI_PHYS,
@@ -582,12 +582,17 @@ static struct resource resource_hdmi[] = {
 };
 
 static struct platform_device device_hdmi = {
+#ifdef CONFIG_HDMI_RK616
+        .name                           = "rk616-hdmi",
+#else
 	.name				= "rk2928-hdmi",
+#endif
 	.id					= -1,
 	.num_resources		= ARRAY_SIZE(resource_hdmi),
 	.resource			= resource_hdmi,
 };
 #endif
+
 #ifdef CONFIG_RGA_RK30
 static struct resource resource_rga[] = {
 	[0] = {
@@ -797,7 +802,7 @@ static int __init rk2928_init_devices(void)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
 	rk2928_init_i2s();
-#ifdef CONFIG_HDMI_RK2928
+#if defined(CONFIG_HDMI_RK2928) || defined(CONFIG_HDMI_RK616)
 	platform_device_register(&device_hdmi);
 #endif
 	platform_device_register(&device_arm_pmu);

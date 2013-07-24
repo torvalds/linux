@@ -1,6 +1,6 @@
 config HDCP_RK616
 	bool "RK616 HDCP support"
-        depends on HDMI_RK616
+        depends on HDMI_RK616 || ARCH_RK3026
         default n
 	help
 	  HDCP Interface. This adds the High Definition Content Protection Interface.

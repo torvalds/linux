@@ -32,6 +32,7 @@ struct rk616_hdmi {
         struct delayed_work     rk616_delay_work;
         struct work_struct      rk616_irq_work_struct;
         struct mfd_rk616        *rk616_drv;
+        struct dentry           *debugfs_dir;
 };
 
 #endif /* __RK30_HDMI_H__ */
