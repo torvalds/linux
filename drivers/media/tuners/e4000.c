@@ -41,8 +41,9 @@ static int e4000_wr_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d reg=%02x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
+		dev_warn(&priv->i2c->dev,
+				"%s: i2c wr failed=%d reg=%02x len=%d\n",
+				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
@@ -72,8 +73,9 @@ static int e4000_rd_regs(struct e4000_priv *priv, u8 reg, u8 *val, int len)
 		memcpy(val, buf, len);
 		ret = 0;
 	} else {
-		dev_warn(&priv->i2c->dev, "%s: i2c rd failed=%d reg=%02x " \
-				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
+		dev_warn(&priv->i2c->dev,
+				"%s: i2c rd failed=%d reg=%02x len=%d\n",
+				KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 
@@ -201,12 +203,13 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	struct e4000_priv *priv = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i, sigma_delta;
-	unsigned int f_VCO;
+	unsigned int f_vco;
 	u8 buf[5], i_data[4], q_data[4];
 
-	dev_dbg(&priv->i2c->dev, "%s: delivery_system=%d frequency=%d " \
-			"bandwidth_hz=%d\n", __func__,
-			c->delivery_system, c->frequency, c->bandwidth_hz);
+	dev_dbg(&priv->i2c->dev,
+			"%s: delivery_system=%d frequency=%d bandwidth_hz=%d\n",
+			__func__, c->delivery_system, c->frequency,
+			c->bandwidth_hz);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -226,19 +229,19 @@ static int e4000_set_params(struct dvb_frontend *fe)
 		goto err;
 
 	/*
-	 * Note: Currently f_VCO overflows when c->frequency is 1 073 741 824 Hz
+	 * Note: Currently f_vco overflows when c->frequency is 1 073 741 824 Hz
 	 * or more.
 	 */
-	f_VCO = c->frequency * e4000_pll_lut[i].mul;
-	sigma_delta = 0x10000UL * (f_VCO % priv->cfg->clock) / priv->cfg->clock;
-	buf[0] = f_VCO / priv->cfg->clock;
+	f_vco = c->frequency * e4000_pll_lut[i].mul;
+	sigma_delta = 0x10000UL * (f_vco % priv->cfg->clock) / priv->cfg->clock;
+	buf[0] = f_vco / priv->cfg->clock;
 	buf[1] = (sigma_delta >> 0) & 0xff;
 	buf[2] = (sigma_delta >> 8) & 0xff;
 	buf[3] = 0x00;
 	buf[4] = e4000_pll_lut[i].div;
 
-	dev_dbg(&priv->i2c->dev, "%s: f_VCO=%u pll div=%d sigma_delta=%04x\n",
-			__func__, f_VCO, buf[0], sigma_delta);
+	dev_dbg(&priv->i2c->dev, "%s: f_vco=%u pll div=%d sigma_delta=%04x\n",
+			__func__, f_vco, buf[0], sigma_delta);
 
 	ret = e4000_wr_regs(priv, 0x09, buf, 5);
 	if (ret < 0)
