@@ -131,7 +131,7 @@ static void gdm_tty_close(struct tty_struct *tty, struct file *filp)
 static int gdm_tty_recv_complete(void *data, int len, int index, int minor, int complete)
 {
 	struct tty_str *tty_str = g_tty_str[index][minor];
-	struct tty_struct *tty;
+	struct tty_port *tty_port;
 
 	if (!GDM_TTY_READY(tty_str)) {
 		if (complete == RECV_PACKET_PROCESS_COMPLETE)
@@ -142,17 +142,15 @@ static int gdm_tty_recv_complete(void *data, int len, int index, int minor, int 
 	if (!data || !len)
 		goto complete_routine;
 
-	tty = tty_port_tty_get(&tty_str->port);
+	tty_port = &tty_str->port;
 
-	if (tty_buffer_request_room(tty, len) == len) {
-		tty_insert_flip_string(tty, data, len);
-		tty_flip_buffer_push(tty);
+	if (tty_buffer_request_room(tty_port, len) == len) {
+		tty_insert_flip_string(tty_port, data, len);
+		tty_flip_buffer_push(tty_port);
 	} else {
-		tty_kref_put(tty);
 		return TO_HOST_BUFFER_REQUEST_FAIL;
 	}
 
-	tty_kref_put(tty);
 complete_routine:
 	if (complete == RECV_PACKET_PROCESS_COMPLETE)
 		gdm_tty_recv(tty_str, gdm_tty_recv_complete);
