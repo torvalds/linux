@@ -1546,25 +1546,20 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	}
 }
 
-static int usbduxsub_submit_pwm_urbs(struct usbdux_private *usbduxsub)
+static int usbduxsub_submit_pwm_urbs(struct comedi_device *dev)
 {
-	int err_flag;
-
-	if (!usbduxsub)
-		return -EFAULT;
+	struct usbdux_private *devpriv = dev->private;
+	struct urb *urb = devpriv->urb_pwm;
 
 	/* in case of a resubmission after an unlink... */
-	usb_fill_bulk_urb(usbduxsub->urb_pwm,
-			  usbduxsub->usbdev,
-			  usb_sndbulkpipe(usbduxsub->usbdev, PWM_EP),
-			  usbduxsub->urb_pwm->transfer_buffer,
-			  usbduxsub->size_pwm_buf, usbduxsub_pwm_irq,
-			  usbduxsub->comedidev);
+	usb_fill_bulk_urb(urb, devpriv->usbdev,
+			  usb_sndbulkpipe(devpriv->usbdev, PWM_EP),
+			  urb->transfer_buffer,
+			  devpriv->size_pwm_buf,
+			  usbduxsub_pwm_irq,
+			  dev);
 
-	err_flag = usb_submit_urb(usbduxsub->urb_pwm, GFP_ATOMIC);
-	if (err_flag)
-		return err_flag;
-	return 0;
+	return usb_submit_urb(urb, GFP_ATOMIC);
 }
 
 static int usbdux_pwm_period(struct comedi_device *dev,
@@ -1608,7 +1603,7 @@ static int usbdux_pwm_start(struct comedi_device *dev,
 		((char *)(this_usbduxsub->urb_pwm->transfer_buffer))[i] = 0;
 
 	this_usbduxsub->pwm_cmd_running = 1;
-	ret = usbduxsub_submit_pwm_urbs(this_usbduxsub);
+	ret = usbduxsub_submit_pwm_urbs(dev);
 	if (ret < 0) {
 		this_usbduxsub->pwm_cmd_running = 0;
 		return ret;
