@@ -935,6 +935,7 @@ struct i915_gem_mm {
 	struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 
 	/* accounting, useful for userland debugging */
+	spinlock_t object_stat_lock;
 	size_t object_memory;
 	u32 object_count;
 };

@@ -76,15 +76,19 @@ static inline void i915_gem_object_fence_lost(struct drm_i915_gem_object *obj)
 static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
 				  size_t size)
 {
+	spin_lock(&dev_priv->mm.object_stat_lock);
 	dev_priv->mm.object_count++;
 	dev_priv->mm.object_memory += size;
+	spin_unlock(&dev_priv->mm.object_stat_lock);
 }
 
 static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
 				     size_t size)
 {
+	spin_lock(&dev_priv->mm.object_stat_lock);
 	dev_priv->mm.object_count--;
 	dev_priv->mm.object_memory -= size;
+	spin_unlock(&dev_priv->mm.object_stat_lock);
 }
 
 static int
