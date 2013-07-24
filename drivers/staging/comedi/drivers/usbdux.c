@@ -2299,9 +2299,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 	int i;
 	int index;
 
-	dev_dbg(dev, "comedi_: usbdux_: "
-		"finding a free structure for the usb-device\n");
-
 	down(&start_stop_sem);
 	/* look for a free place in the usbdux array */
 	index = -1;
@@ -2318,8 +2315,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 		up(&start_stop_sem);
 		return -EMFILE;
 	}
-	dev_dbg(dev, "comedi_: usbdux: "
-		"usbduxsub[%d] is ready to connect to comedi.\n", index);
 
 	sema_init(&(usbduxsub[index].sem), 1);
 	/* save a pointer to the usb device */
@@ -2332,8 +2327,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 	/* hand the private data over to the usb subsystem */
 	/* will be needed for disconnect */
 	usb_set_intfdata(uinterf, &(usbduxsub[index]));
-
-	dev_dbg(dev, "comedi_: usbdux: ifnum=%d\n", usbduxsub[index].ifnum);
 
 	/* test if it is high speed (USB 2.0) */
 	usbduxsub[index].high_speed =
@@ -2402,8 +2395,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 		/* one frame: 1ms */
 		usbduxsub[index].urb_in[i] = usb_alloc_urb(1, GFP_KERNEL);
 		if (usbduxsub[index].urb_in[i] == NULL) {
-			dev_err(dev, "comedi_: usbdux%d: "
-				"Could not alloc. urb(%d)\n", index, i);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
 			return -ENOMEM;
@@ -2447,8 +2438,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 		/* one frame: 1ms */
 		usbduxsub[index].urb_out[i] = usb_alloc_urb(1, GFP_KERNEL);
 		if (usbduxsub[index].urb_out[i] == NULL) {
-			dev_err(dev, "comedi_: usbdux%d: "
-				"Could not alloc. urb(%d)\n", index, i);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
 			return -ENOMEM;
@@ -2488,8 +2477,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 		usbduxsub[index].size_pwm_buf = 512;
 		usbduxsub[index].urb_pwm = usb_alloc_urb(0, GFP_KERNEL);
 		if (usbduxsub[index].urb_pwm == NULL) {
-			dev_err(dev, "comedi_: usbdux%d: "
-				"Could not alloc. pwm urb\n", index);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
 			return -ENOMEM;
