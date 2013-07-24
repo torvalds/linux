@@ -122,5 +122,35 @@
 			interrupts = <GIC_SPI 280 IRQ_TYPE_EDGE_RISING>;
 		};
 
+		i2c0: i2c@2530000 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530000 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 283 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dtt@50 {
+				compatible = "at,24c1024";
+				reg = <0x50>;
+			};
+		};
+
+		i2c1: i2c@2530400 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530400 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		i2c2: i2c@2530800 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x02530800 0x400>;
+			clock-frequency = <100000>;
+			clocks = <&clki2c>;
+			interrupts = <GIC_SPI 289 IRQ_TYPE_EDGE_RISING>;
+		};
 	};
 };
