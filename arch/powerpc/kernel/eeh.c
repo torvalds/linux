@@ -499,8 +499,6 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 	}
 
 	eeh_dev_check_failure(edev);
-
-	pci_dev_put(eeh_dev_to_pci_dev(edev));
 	return val;
 }
 
@@ -904,7 +902,6 @@ static void eeh_add_device_late(struct pci_dev *dev)
 	}
 	WARN_ON(edev->pdev);
 
-	pci_dev_get(dev);
 	edev->pdev = dev;
 	dev->dev.archdata.edev = edev;
 
@@ -992,7 +989,6 @@ static void eeh_remove_device(struct pci_dev *dev, int purge_pe)
 	}
 	edev->pdev = NULL;
 	dev->dev.archdata.edev = NULL;
-	pci_dev_put(dev);
 
 	eeh_rmv_from_parent_pe(edev, purge_pe);
 	eeh_addr_cache_rmv_dev(dev);
