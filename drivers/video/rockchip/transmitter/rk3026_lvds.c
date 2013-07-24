@@ -15,12 +15,12 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
-#include "rk3028a_lvds.h"
+#include "rk3026_lvds.h"
 
 #define lvds_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
 #define lvds_writel(v,offset) 	do{ writel_relaxed(v, RK30_GRF_BASE + offset);dsb();} while (0)
 
-static void rk3028a_output_lvds(rk_screen *screen)
+static void rk3026_output_lvds(rk_screen *screen)
 {
 	u32 val =0;
 	
@@ -55,7 +55,7 @@ static void rk3028a_output_lvds(rk_screen *screen)
 	return;
 }
 
-static void rk3028a_output_lvttl(rk_screen *screen)
+static void rk3026_output_lvttl(rk_screen *screen)
 {
 	u32 val =0;
 
@@ -89,7 +89,7 @@ static void rk3028a_output_lvttl(rk_screen *screen)
 	return;			
 }
 
-static void rk3028a_output_disable(void)
+static void rk3026_output_disable(void)
 {	
 	u32 val =0;
 	
@@ -101,29 +101,29 @@ static void rk3028a_output_disable(void)
 }
 
 
-static int rk3028a_lvds_set_param(rk_screen *screen,bool enable)
+static int rk3026_lvds_set_param(rk_screen *screen,bool enable)
 {
 	if(OUT_ENABLE == enable){
 		switch(screen->type){
 			case SCREEN_LVDS:
-				rk3028a_output_lvds(screen);                                       
+				rk3026_output_lvds(screen);                                       
 				break;
 			case SCREEN_RGB:
-				rk3028a_output_lvttl(screen);
+				rk3026_output_lvttl(screen);
 				break;
 			default:
 				printk("%s>>>>LVDS not support this screen type %d,power down LVDS\n",__func__,screen->type);
-				rk3028a_output_disable();
+				rk3026_output_disable();
 				break;
 		}
 	}else{
-		rk3028a_output_disable();
+		rk3026_output_disable();
 	}
 	return 0;
 }
 
 
-static int rk3028a_lvds_probe(struct platform_device *pdev)
+static int rk3026_lvds_probe(struct platform_device *pdev)
 {
 	rk_screen *screen = NULL;
 
@@ -134,42 +134,42 @@ static int rk3028a_lvds_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	
-	rk3028a_lvds_set_param(screen,OUT_ENABLE);
+	rk3026_lvds_set_param(screen,OUT_ENABLE);
 
 	return 0;
 	
 }
 
-static int rk3028a_lvds_remove(struct platform_device *pdev)
+static int rk3026_lvds_remove(struct platform_device *pdev)
 {	
 	return 0;
 }
 
-static void rk3028a_lvds_shutdown(struct platform_device *pdev)
+static void rk3026_lvds_shutdown(struct platform_device *pdev)
 {
 	return;
 }
 
-static struct platform_driver rk3028a_lvds_driver = {
+static struct platform_driver rk3026_lvds_driver = {
 	.driver		= {
-		.name	= "rk3028a-lvds",
+		.name	= "rk3026-lvds",
 		.owner	= THIS_MODULE,
 	},
-	.probe		= rk3028a_lvds_probe,
-	.remove		= rk3028a_lvds_remove,
-	.shutdown	= rk3028a_lvds_shutdown,
+	.probe		= rk3026_lvds_probe,
+	.remove		= rk3026_lvds_remove,
+	.shutdown	= rk3026_lvds_shutdown,
 };
 
-static int __init rk3028a_lvds_init(void)
+static int __init rk3026_lvds_init(void)
 {
-	return platform_driver_register(&rk3028a_lvds_driver);
+	return platform_driver_register(&rk3026_lvds_driver);
 }
-fs_initcall(rk3028a_lvds_init);
-static void __exit rk3028a_lvds_exit(void)
+fs_initcall(rk3026_lvds_init);
+static void __exit rk3026_lvds_exit(void)
 {
-	platform_driver_unregister(&rk3028a_lvds_driver);
+	platform_driver_unregister(&rk3026_lvds_driver);
 }
-module_exit(rk3028a_lvds_exit);
+module_exit(rk3026_lvds_exit);
 
 
 

@@ -779,6 +779,24 @@ struct platform_device device_arm_pmu = {
 	.resource	= resource_arm_pmu,
 };
 
+
+#ifdef CONFIG_RK3026_LVDS
+static struct resource resource_lvds[] = {
+	{
+		.start 	= RK2928_GRF_PHYS + GRF_LVDS_CON0,
+		.end 	= RK2928_GRF_PHYS + GRF_DMAC_CON0,
+		.flags 	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device device_lvds = {
+	.name		= "rk3026-lvds",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resource_lvds),
+	.resource	= resource_lvds,
+};
+#endif
+
 static int __init rk2928_init_devices(void)
 {
 	rk2928_init_dma();
@@ -806,6 +824,11 @@ static int __init rk2928_init_devices(void)
 	platform_device_register(&device_hdmi);
 #endif
 	platform_device_register(&device_arm_pmu);
+
+#ifdef CONFIG_RK3026_LVDS
+	platform_device_register(&device_lvds);
+#endif
+
 	return 0;
 }
 arch_initcall(rk2928_init_devices);
