@@ -229,8 +229,6 @@ struct usbdux_private {
 	int ifnum;
 	/* interface structure in 2.6 */
 	struct usb_interface *interface;
-	/* comedi device for the interrupt context */
-	struct comedi_device *comedidev;
 	/* is it USB_SPEED_HIGH or not? */
 	short int high_speed;
 	/* asynchronous command is running */
@@ -1903,7 +1901,6 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 
 	sema_init(&devpriv->sem, 1);
 
-	devpriv->comedidev = dev;
 	devpriv->usbdev = usb;
 	devpriv->interface = intf;
 	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
@@ -2023,8 +2020,6 @@ static void usbdux_detach(struct comedi_device *dev)
 			usbduxsub_unlink_inurbs(devpriv);
 
 		usbdux_free_usb_buffers(devpriv);
-
-		devpriv->comedidev = NULL;
 
 		up(&devpriv->sem);
 	}
