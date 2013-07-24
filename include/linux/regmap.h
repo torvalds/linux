@@ -471,6 +471,8 @@ struct regmap_irq {
  * @wake_base:   Base address for wake enables.  If zero unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
+ * @mask_invert: Inverted mask register: cleared bits are masked out.
+ * @wake_invert: Inverted wake register: cleared bits are wake enabled.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
  * @num_regs:    Number of registers in each control bank.
