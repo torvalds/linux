@@ -1297,7 +1297,7 @@ static void pci_bus_dump_resources(struct pci_bus *bus)
 	}
 }
 
-static int __init pci_bus_get_depth(struct pci_bus *bus)
+static int pci_bus_get_depth(struct pci_bus *bus)
 {
 	int depth = 0;
 	struct pci_dev *dev;
@@ -1331,7 +1331,7 @@ enum enable_type {
 	auto_enabled,
 };
 
-static enum enable_type pci_realloc_enable __initdata = undefined;
+static enum enable_type pci_realloc_enable = undefined;
 void __init pci_realloc_get_opt(char *str)
 {
 	if (!strncmp(str, "off", 3))
@@ -1339,13 +1339,13 @@ void __init pci_realloc_get_opt(char *str)
 	else if (!strncmp(str, "on", 2))
 		pci_realloc_enable = user_enabled;
 }
-static bool __init pci_realloc_enabled(enum enable_type enable)
+static bool pci_realloc_enabled(enum enable_type enable)
 {
 	return enable >= user_enabled;
 }
 
 #if defined(CONFIG_PCI_IOV) && defined(CONFIG_PCI_REALLOC_ENABLE_AUTO)
-static int __init iov_resources_unassigned(struct pci_dev *dev, void *data)
+static int iov_resources_unassigned(struct pci_dev *dev, void *data)
 {
 	int i;
 	bool *unassigned = data;
@@ -1368,7 +1368,7 @@ static int __init iov_resources_unassigned(struct pci_dev *dev, void *data)
 	return 0;
 }
 
-static enum enable_type __init pci_realloc_detect(struct pci_bus *bus,
+static enum enable_type pci_realloc_detect(struct pci_bus *bus,
 			 enum enable_type enable_local)
 {
 	bool unassigned = false;
@@ -1383,7 +1383,7 @@ static enum enable_type __init pci_realloc_detect(struct pci_bus *bus,
 	return enable_local;
 }
 #else
-static enum enable_type __init pci_realloc_detect(struct pci_bus *bus,
+static enum enable_type pci_realloc_detect(struct pci_bus *bus,
 			 enum enable_type enable_local)
 {
 	return enable_local;
@@ -1395,8 +1395,7 @@ static enum enable_type __init pci_realloc_detect(struct pci_bus *bus,
  * second  and later try will clear small leaf bridge res
  * will stop till to the max  deepth if can not find good one
  */
-static void __init
-pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
+static void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 {
 	LIST_HEAD(realloc_head); /* list of resources that
 					want additional resources */
