@@ -132,8 +132,8 @@ static const char *sd_cache_types[] = {
 };
 
 static ssize_t
-sd_store_cache_type(struct device *dev, struct device_attribute *attr,
-		    const char *buf, size_t count)
+cache_type_store(struct device *dev, struct device_attribute *attr,
+		 const char *buf, size_t count)
 {
 	int i, ct = -1, rcd, wce, sp;
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
@@ -199,8 +199,18 @@ sd_store_cache_type(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-sd_store_manage_start_stop(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+manage_start_stop_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+	struct scsi_device *sdp = sdkp->device;
+
+	return snprintf(buf, 20, "%u\n", sdp->manage_start_stop);
+}
+
+static ssize_t
+manage_start_stop_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
@@ -212,10 +222,19 @@ sd_store_manage_start_stop(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
+static DEVICE_ATTR_RW(manage_start_stop);
 
 static ssize_t
-sd_store_allow_restart(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+allow_restart_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+
+	return snprintf(buf, 40, "%d\n", sdkp->device->allow_restart);
+}
+
+static ssize_t
+allow_restart_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
@@ -230,47 +249,30 @@ sd_store_allow_restart(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
+static DEVICE_ATTR_RW(allow_restart);
 
 static ssize_t
-sd_show_cache_type(struct device *dev, struct device_attribute *attr,
-		   char *buf)
+cache_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	int ct = sdkp->RCD + 2*sdkp->WCE;
 
 	return snprintf(buf, 40, "%s\n", sd_cache_types[ct]);
 }
+static DEVICE_ATTR_RW(cache_type);
 
 static ssize_t
-sd_show_fua(struct device *dev, struct device_attribute *attr, char *buf)
+FUA_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
 	return snprintf(buf, 20, "%u\n", sdkp->DPOFUA);
 }
+static DEVICE_ATTR_RO(FUA);
 
 static ssize_t
-sd_show_manage_start_stop(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct scsi_disk *sdkp = to_scsi_disk(dev);
-	struct scsi_device *sdp = sdkp->device;
-
-	return snprintf(buf, 20, "%u\n", sdp->manage_start_stop);
-}
-
-static ssize_t
-sd_show_allow_restart(struct device *dev, struct device_attribute *attr,
-		      char *buf)
-{
-	struct scsi_disk *sdkp = to_scsi_disk(dev);
-
-	return snprintf(buf, 40, "%d\n", sdkp->device->allow_restart);
-}
-
-static ssize_t
-sd_show_protection_type(struct device *dev, struct device_attribute *attr,
-			char *buf)
+protection_type_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
@@ -278,8 +280,8 @@ sd_show_protection_type(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-sd_store_protection_type(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
+protection_type_store(struct device *dev, struct device_attribute *attr,
+		      const char *buf, size_t count)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	unsigned int val;
@@ -298,10 +300,11 @@ sd_store_protection_type(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
+static DEVICE_ATTR_RW(protection_type);
 
 static ssize_t
-sd_show_protection_mode(struct device *dev, struct device_attribute *attr,
-			char *buf)
+protection_mode_show(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
@@ -320,24 +323,26 @@ sd_show_protection_mode(struct device *dev, struct device_attribute *attr,
 
 	return snprintf(buf, 20, "%s%u\n", dix ? "dix" : "dif", dif);
 }
+static DEVICE_ATTR_RO(protection_mode);
 
 static ssize_t
-sd_show_app_tag_own(struct device *dev, struct device_attribute *attr,
-		    char *buf)
+app_tag_own_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
 	return snprintf(buf, 20, "%u\n", sdkp->ATO);
 }
+static DEVICE_ATTR_RO(app_tag_own);
 
 static ssize_t
-sd_show_thin_provisioning(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+thin_provisioning_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
 	return snprintf(buf, 20, "%u\n", sdkp->lbpme);
 }
+static DEVICE_ATTR_RO(thin_provisioning);
 
 static const char *lbp_mode[] = {
 	[SD_LBP_FULL]		= "full",
@@ -349,8 +354,8 @@ static const char *lbp_mode[] = {
 };
 
 static ssize_t
-sd_show_provisioning_mode(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+provisioning_mode_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
@@ -358,8 +363,8 @@ sd_show_provisioning_mode(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-sd_store_provisioning_mode(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+provisioning_mode_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
@@ -385,10 +390,11 @@ sd_store_provisioning_mode(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
+static DEVICE_ATTR_RW(provisioning_mode);
 
 static ssize_t
-sd_show_max_medium_access_timeouts(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+max_medium_access_timeouts_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
@@ -396,9 +402,9 @@ sd_show_max_medium_access_timeouts(struct device *dev,
 }
 
 static ssize_t
-sd_store_max_medium_access_timeouts(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
+max_medium_access_timeouts_store(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t count)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	int err;
@@ -410,10 +416,11 @@ sd_store_max_medium_access_timeouts(struct device *dev,
 
 	return err ? err : count;
 }
+static DEVICE_ATTR_RW(max_medium_access_timeouts);
 
 static ssize_t
-sd_show_write_same_blocks(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+max_write_same_blocks_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
@@ -421,8 +428,8 @@ sd_show_write_same_blocks(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-sd_store_write_same_blocks(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+max_write_same_blocks_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 	struct scsi_device *sdp = sdkp->device;
@@ -451,35 +458,29 @@ sd_store_write_same_blocks(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
+static DEVICE_ATTR_RW(max_write_same_blocks);
 
-static struct device_attribute sd_disk_attrs[] = {
-	__ATTR(cache_type, S_IRUGO|S_IWUSR, sd_show_cache_type,
-	       sd_store_cache_type),
-	__ATTR(FUA, S_IRUGO, sd_show_fua, NULL),
-	__ATTR(allow_restart, S_IRUGO|S_IWUSR, sd_show_allow_restart,
-	       sd_store_allow_restart),
-	__ATTR(manage_start_stop, S_IRUGO|S_IWUSR, sd_show_manage_start_stop,
-	       sd_store_manage_start_stop),
-	__ATTR(protection_type, S_IRUGO|S_IWUSR, sd_show_protection_type,
-	       sd_store_protection_type),
-	__ATTR(protection_mode, S_IRUGO, sd_show_protection_mode, NULL),
-	__ATTR(app_tag_own, S_IRUGO, sd_show_app_tag_own, NULL),
-	__ATTR(thin_provisioning, S_IRUGO, sd_show_thin_provisioning, NULL),
-	__ATTR(provisioning_mode, S_IRUGO|S_IWUSR, sd_show_provisioning_mode,
-	       sd_store_provisioning_mode),
-	__ATTR(max_write_same_blocks, S_IRUGO|S_IWUSR,
-	       sd_show_write_same_blocks, sd_store_write_same_blocks),
-	__ATTR(max_medium_access_timeouts, S_IRUGO|S_IWUSR,
-	       sd_show_max_medium_access_timeouts,
-	       sd_store_max_medium_access_timeouts),
-	__ATTR_NULL,
+static struct attribute *sd_disk_attrs[] = {
+	&dev_attr_cache_type.attr,
+	&dev_attr_FUA.attr,
+	&dev_attr_allow_restart.attr,
+	&dev_attr_manage_start_stop.attr,
+	&dev_attr_protection_type.attr,
+	&dev_attr_protection_mode.attr,
+	&dev_attr_app_tag_own.attr,
+	&dev_attr_thin_provisioning.attr,
+	&dev_attr_provisioning_mode.attr,
+	&dev_attr_max_write_same_blocks.attr,
+	&dev_attr_max_medium_access_timeouts.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(sd_disk);
 
 static struct class sd_disk_class = {
 	.name		= "scsi_disk",
 	.owner		= THIS_MODULE,
 	.dev_release	= scsi_disk_release,
-	.dev_attrs	= sd_disk_attrs,
+	.dev_groups	= sd_disk_groups,
 };
 
 static const struct dev_pm_ops sd_pm_ops = {
