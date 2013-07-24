@@ -80,33 +80,47 @@ options for PCI-20341M:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#define PCI20000_ID			0x1d
+/*
+ * Register I/O map
+ */
+#define II20K_ID_REG			0x00
+#define II20K_ID_MOD1_EMPTY		(1 << 7)
+#define II20K_ID_MOD2_EMPTY		(1 << 6)
+#define II20K_ID_MOD3_EMPTY		(1 << 5)
+#define II20K_ID_MASK			0x1f
+#define II20K_ID_PCI20001C_1A		0x1b	/* no on-board DIO */
+#define II20K_ID_PCI20001C_2A		0x1d	/* on-board DIO */
+#define II20K_MOD_STATUS_REG		0x40
+#define II20K_MOD_STATUS_IRQ_MOD1	(1 << 7)
+#define II20K_MOD_STATUS_IRQ_MOD2	(1 << 6)
+#define II20K_MOD_STATUS_IRQ_MOD3	(1 << 5)
+#define II20K_DIO0_REG			0x80
+#define II20K_DIO1_REG			0x81
+#define II20K_DIR_ENA_REG		0x82
+#define II20K_DIR_DIO3_OUT		(1 << 7)
+#define II20K_DIR_DIO2_OUT		(1 << 6)
+#define II20K_BUF_DISAB_DIO3		(1 << 5)
+#define II20K_BUF_DISAB_DIO2		(1 << 4)
+#define II20K_DIR_DIO1_OUT		(1 << 3)
+#define II20K_DIR_DIO0_OUT		(1 << 2)
+#define II20K_BUF_DISAB_DIO1		(1 << 1)
+#define II20K_BUF_DISAB_DIO0		(1 << 0)
+#define II20K_CTRL01_REG		0x83
+#define II20K_CTRL01_SET		(1 << 7)
+#define II20K_CTRL01_DIO0_IN		(1 << 4)
+#define II20K_CTRL01_DIO1_IN		(1 << 1)
+#define II20K_DIO2_REG			0xc0
+#define II20K_DIO3_REG			0xc1
+#define II20K_CTRL23_REG		0xc3
+#define II20K_CTRL23_SET		(1 << 7)
+#define II20K_CTRL23_DIO2_IN		(1 << 4)
+#define II20K_CTRL23_DIO3_IN		(1 << 1)
+
 #define PCI20341_ID			0x77
 #define PCI20006_ID			0xe3
 #define PCI20xxx_EMPTY_ID		0xff
 
 #define PCI20000_OFFSET			0x100
-#define PCI20000_MODULES		3
-
-#define PCI20000_DIO_0			0x80
-#define PCI20000_DIO_1			0x81
-#define PCI20000_DIO_2			0xc0
-#define PCI20000_DIO_3			0xc1
-#define PCI20000_DIO_CONTROL_01		0x83	/* port 0, 1 control */
-#define PCI20000_DIO_CONTROL_23		0xc3	/* port 2, 3 control */
-#define PCI20000_DIO_BUFFER		0x82	/* buffer direction & enable */
-#define PCI20000_DIO_EOC		0xef	/* even port, control output */
-#define PCI20000_DIO_OOC		0xfd	/* odd port, control output */
-#define PCI20000_DIO_EIC		0x90	/* even port, control input */
-#define PCI20000_DIO_OIC		0x82	/* odd port, control input */
-#define DIO_CAND			0x12	/* and bit 1 & 4 of control */
-#define DIO_BE				0x01	/* buffer: port enable */
-#define DIO_BO				0x04	/* buffer: output */
-#define DIO_BI				0x05	/* buffer: input */
-#define DIO_PS_0			0x00	/* buffer: port shift 0 */
-#define DIO_PS_1			0x01	/* buffer: port shift 1 */
-#define DIO_PS_2			0x04	/* buffer: port shift 2 */
-#define DIO_PS_3			0x05	/* buffer: port shift 3 */
 
 #define PCI20006_LCHAN0			0x0d
 #define PCI20006_STROBE0		0x0b
@@ -351,103 +365,79 @@ static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-#if 0
-static void pci20xxx_do(struct comedi_device *dev, struct comedi_subdevice *s)
+static void ii20k_dio_config(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
 {
 	struct pci20xxx_private *devpriv = dev->private;
+	unsigned char ctrl01 = 0;
+	unsigned char ctrl23 = 0;
+	unsigned char dir_ena = 0;
 
-	/* XXX if the channel is configured for input, does this
-	   do bad things? */
-	/* XXX it would be a good idea to only update the registers
-	   that _need_ to be updated.  This requires changes to
-	   comedi, however. */
-	writeb((s->state >> 0) & 0xff, devpriv->ioaddr + PCI20000_DIO_0);
-	writeb((s->state >> 8) & 0xff, devpriv->ioaddr + PCI20000_DIO_1);
-	writeb((s->state >> 16) & 0xff, devpriv->ioaddr + PCI20000_DIO_2);
-	writeb((s->state >> 24) & 0xff, devpriv->ioaddr + PCI20000_DIO_3);
+	/* port 0 - channels 0-7 */
+	if (s->io_bits & 0x000000ff) {
+		/* output port */
+		ctrl01 &= ~II20K_CTRL01_DIO0_IN;
+		dir_ena &= ~II20K_BUF_DISAB_DIO0;
+		dir_ena |= II20K_DIR_DIO0_OUT;
+	} else {
+		/* input port */
+		ctrl01 |= II20K_CTRL01_DIO0_IN;
+		dir_ena &= ~II20K_DIR_DIO0_OUT;
+	}
+
+	/* port 1 - channels 8-15 */
+	if (s->io_bits & 0x0000ff00) {
+		/* output port */
+		ctrl01 &= ~II20K_CTRL01_DIO1_IN;
+		dir_ena &= ~II20K_BUF_DISAB_DIO1;
+		dir_ena |= II20K_DIR_DIO1_OUT;
+	} else {
+		/* input port */
+		ctrl01 |= II20K_CTRL01_DIO1_IN;
+		dir_ena &= ~II20K_DIR_DIO1_OUT;
+	}
+
+	/* port 2 - channels 16-23 */
+	if (s->io_bits & 0x00ff0000) {
+		/* output port */
+		ctrl23 &= ~II20K_CTRL23_DIO2_IN;
+		dir_ena &= ~II20K_BUF_DISAB_DIO2;
+		dir_ena |= II20K_DIR_DIO2_OUT;
+	} else {
+		/* input port */
+		ctrl23 |= II20K_CTRL23_DIO2_IN;
+		dir_ena &= ~II20K_DIR_DIO2_OUT;
+	}
+
+	/* port 3 - channels 24-31 */
+	if (s->io_bits & 0xff000000) {
+		/* output port */
+		ctrl23 &= ~II20K_CTRL23_DIO3_IN;
+		dir_ena &= ~II20K_BUF_DISAB_DIO3;
+		dir_ena |= II20K_DIR_DIO3_OUT;
+	} else {
+		/* input port */
+		ctrl23 |= II20K_CTRL23_DIO3_IN;
+		dir_ena &= ~II20K_DIR_DIO3_OUT;
+	}
+
+	ctrl23 |= II20K_CTRL01_SET;
+	ctrl23 |= II20K_CTRL23_SET;
+
+	/* order is important */
+	writeb(ctrl01, devpriv->ioaddr + II20K_CTRL01_REG);
+	writeb(ctrl23, devpriv->ioaddr + II20K_CTRL23_REG);
+	writeb(dir_ena, devpriv->ioaddr + II20K_DIR_ENA_REG);
 }
 
-static unsigned int pci20xxx_di(struct comedi_device *dev,
-				struct comedi_subdevice *s)
+static int ii20k_dio_insn_config(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	struct pci20xxx_private *devpriv = dev->private;
+	unsigned int mask = 1 << CR_CHAN(insn->chanspec);
 	unsigned int bits;
 
-	/* XXX same note as above */
-	bits = readb(devpriv->ioaddr + PCI20000_DIO_0);
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_1) << 8;
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
-
-	return bits;
-}
-#endif
-
-static void pci20xxx_dio_config(struct comedi_device *dev,
-				struct comedi_subdevice *s)
-{
-	struct pci20xxx_private *devpriv = dev->private;
-	unsigned char control_01;
-	unsigned char control_23;
-	unsigned char buffer;
-
-	control_01 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_01);
-	control_23 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_23);
-	buffer = readb(devpriv->ioaddr + PCI20000_DIO_BUFFER);
-
-	if (s->io_bits & 0x000000ff) {
-		/* output port 0 */
-		control_01 &= PCI20000_DIO_EOC;
-		buffer = (buffer & (~(DIO_BE << DIO_PS_0))) | (DIO_BO <<
-							       DIO_PS_0);
-	} else {
-		/* input port 0 */
-		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_EIC;
-		buffer = (buffer & (~(DIO_BI << DIO_PS_0)));
-	}
-	if (s->io_bits & 0x0000ff00) {
-		/* output port 1 */
-		control_01 &= PCI20000_DIO_OOC;
-		buffer = (buffer & (~(DIO_BE << DIO_PS_1))) | (DIO_BO <<
-							       DIO_PS_1);
-	} else {
-		/* input port 1 */
-		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_OIC;
-		buffer = (buffer & (~(DIO_BI << DIO_PS_1)));
-	}
-	if (s->io_bits & 0x00ff0000) {
-		/* output port 2 */
-		control_23 &= PCI20000_DIO_EOC;
-		buffer = (buffer & (~(DIO_BE << DIO_PS_2))) | (DIO_BO <<
-							       DIO_PS_2);
-	} else {
-		/* input port 2 */
-		control_23 = (control_23 & DIO_CAND) | PCI20000_DIO_EIC;
-		buffer = (buffer & (~(DIO_BI << DIO_PS_2)));
-	}
-	if (s->io_bits & 0xff000000) {
-		/* output port 3 */
-		control_23 &= PCI20000_DIO_OOC;
-		buffer = (buffer & (~(DIO_BE << DIO_PS_3))) | (DIO_BO <<
-							       DIO_PS_3);
-	} else {
-		/* input port 3 */
-		control_23 = (control_23 & DIO_CAND) | PCI20000_DIO_OIC;
-		buffer = (buffer & (~(DIO_BI << DIO_PS_3)));
-	}
-	writeb(control_01, devpriv->ioaddr + PCI20000_DIO_CONTROL_01);
-	writeb(control_23, devpriv->ioaddr + PCI20000_DIO_CONTROL_23);
-	writeb(buffer, devpriv->ioaddr + PCI20000_DIO_BUFFER);
-}
-
-static int pci20xxx_dio_insn_config(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
-{
-	int mask, bits;
-
-	mask = 1 << CR_CHAN(insn->chanspec);
 	if (mask & 0x000000ff)
 		bits = 0x000000ff;
 	else if (mask & 0x0000ff00)
@@ -456,79 +446,71 @@ static int pci20xxx_dio_insn_config(struct comedi_device *dev,
 		bits = 0x00ff0000;
 	else
 		bits = 0xff000000;
-	if (data[0])
-		s->io_bits |= bits;
-	else
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
 		s->io_bits &= ~bits;
-	pci20xxx_dio_config(dev, s);
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= bits;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
+	}
 
-	return 1;
-}
-
-static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
-{
-	struct pci20xxx_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-
-	s->state &= ~mask;
-	s->state |= (mask & data[1]);
-
-	mask &= s->io_bits;
-	if (mask & 0x000000ff)
-		writeb((s->state >> 0) & 0xff,
-		       devpriv->ioaddr + PCI20000_DIO_0);
-	if (mask & 0x0000ff00)
-		writeb((s->state >> 8) & 0xff,
-		       devpriv->ioaddr + PCI20000_DIO_1);
-	if (mask & 0x00ff0000)
-		writeb((s->state >> 16) & 0xff,
-		       devpriv->ioaddr + PCI20000_DIO_2);
-	if (mask & 0xff000000)
-		writeb((s->state >> 24) & 0xff,
-		       devpriv->ioaddr + PCI20000_DIO_3);
-
-	data[1] = readb(devpriv->ioaddr + PCI20000_DIO_0);
-	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_1) << 8;
-	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
-	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
+	ii20k_dio_config(dev, s);
 
 	return insn->n;
 }
 
-static int pci20xxx_dio_init(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
+static int ii20k_dio_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 32;
-	s->insn_bits = pci20xxx_dio_insn_bits;
-	s->insn_config = pci20xxx_dio_insn_config;
-	s->maxdata = 1;
-	s->len_chanlist = 32;
-	s->range_table = &range_digital;
-	s->io_bits = 0;
+	struct pci20xxx_private *devpriv = dev->private;
+	unsigned int mask = data[0] & s->io_bits;	/* outputs only */
+	unsigned int bits = data[1];
 
-	/* digital I/O lines default to input on board reset. */
-	pci20xxx_dio_config(dev, s);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-	return 0;
+		if (mask & 0x000000ff)
+			writeb((s->state >> 0) & 0xff,
+			       devpriv->ioaddr + II20K_DIO0_REG);
+		if (mask & 0x0000ff00)
+			writeb((s->state >> 8) & 0xff,
+			       devpriv->ioaddr + II20K_DIO1_REG);
+		if (mask & 0x00ff0000)
+			writeb((s->state >> 16) & 0xff,
+			       devpriv->ioaddr + II20K_DIO2_REG);
+		if (mask & 0xff000000)
+			writeb((s->state >> 24) & 0xff,
+			       devpriv->ioaddr + II20K_DIO3_REG);
+	}
+
+	data[1] = readb(devpriv->ioaddr + II20K_DIO0_REG);
+	data[1] |= readb(devpriv->ioaddr + II20K_DIO1_REG) << 8;
+	data[1] |= readb(devpriv->ioaddr + II20K_DIO2_REG) << 16;
+	data[1] |= readb(devpriv->ioaddr + II20K_DIO3_REG) << 24;
+
+	return insn->n;
 }
 
 static int pci20xxx_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
 	struct pci20xxx_private *devpriv;
-	unsigned char i;
-	int ret;
-	int id;
-	struct comedi_subdevice *s;
 	union pci20xxx_subdev_private *sdp;
-
-	ret = comedi_alloc_subdevices(dev, 1 + PCI20000_MODULES);
-	if (ret)
-		return ret;
+	struct comedi_subdevice *s;
+	unsigned char id;
+	bool has_dio;
+	int ret;
+	int i;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -536,17 +518,22 @@ static int pci20xxx_attach(struct comedi_device *dev,
 
 	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
 
-	/* Check PCI-20001 C-2A Carrier Board ID */
-	if ((readb(devpriv->ioaddr) & PCI20000_ID) != PCI20000_ID) {
-		dev_warn(dev->class_dev,
-			 "PCI-20001 C-2A Carrier Board at base=0x%p not found !\n",
-			 devpriv->ioaddr);
-		return -EINVAL;
+	id = readb(devpriv->ioaddr + II20K_ID_REG);
+	switch (id & II20K_ID_MASK) {
+	case II20K_ID_PCI20001C_1A:
+		break;
+	case II20K_ID_PCI20001C_2A:
+		has_dio = true;
+		break;
+	default:
+		return -ENODEV;
 	}
-	dev_info(dev->class_dev, "PCI-20001 C-2A at base=0x%p\n",
-		 devpriv->ioaddr);
 
-	for (i = 0; i < PCI20000_MODULES; i++) {
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < 3; i++) {
 		s = &dev->subdevices[i];
 		sdp = comedi_alloc_spriv(s, sizeof(*sdp));
 		if (!sdp)
@@ -580,8 +567,22 @@ static int pci20xxx_attach(struct comedi_device *dev,
 		}
 	}
 
-	/* initialize struct pci20xxx_private */
-	pci20xxx_dio_init(dev, &dev->subdevices[PCI20000_MODULES]);
+	/* Digital I/O subdevice */
+	s = &dev->subdevices[3];
+	if (has_dio) {
+		s->type		= COMEDI_SUBD_DIO;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+		s->n_chan	= 32;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= ii20k_dio_insn_bits;
+		s->insn_config	= ii20k_dio_insn_config;
+
+		/* default all channels to input */
+		ii20k_dio_config(dev, s);
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	return 1;
 }
