@@ -182,21 +182,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 /* must have more buffers due to buggy USB ctr */
 #define NUMOFOUTBUFFERSHIGH    10
 
-/* Analogue in subdevice */
-#define SUBDEV_AD             0
-
-/* Analogue out subdevice */
-#define SUBDEV_DA             1
-
-/* Digital I/O */
-#define SUBDEV_DIO            2
-
-/* counter */
-#define SUBDEV_COUNTER        3
-
-/* timer aka pwm output */
-#define SUBDEV_PWM            4
-
 /* number of retries to get the right dux command */
 #define RETRIES 10
 
@@ -2113,7 +2098,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	/* Analog Input subdevice */
-	s = &dev->subdevices[SUBDEV_AD];
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
@@ -2127,7 +2112,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	s->cancel	= usbdux_ai_cancel;
 
 	/* Analog Output subdevice */
-	s = &dev->subdevices[SUBDEV_DA];
+	s = &dev->subdevices[1];
 	dev->write_subdev = s;
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
@@ -2142,7 +2127,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	s->insn_write	= usbdux_ao_insn_write;
 
 	/* Digital I/O subdevice */
-	s = &dev->subdevices[SUBDEV_DIO];
+	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	s->n_chan	= 8;
@@ -2152,7 +2137,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	s->insn_config	= usbdux_dio_insn_config;
 
 	/* Counter subdevice */
-	s = &dev->subdevices[SUBDEV_COUNTER];
+	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_COUNTER;
 	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
 	s->n_chan	= 4;
@@ -2163,7 +2148,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 
 	if (devpriv->high_speed) {
 		/* PWM subdevice */
-		s = &dev->subdevices[SUBDEV_PWM];
+		s = &dev->subdevices[4];
 		s->type		= COMEDI_SUBD_PWM;
 		s->subdev_flags	= SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan	= 8;
