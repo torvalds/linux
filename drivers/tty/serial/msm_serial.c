@@ -322,70 +322,60 @@ static void msm_break_ctl(struct uart_port *port, int break_ctl)
 		msm_write(port, UART_CR_CMD_STOP_BREAK, UART_CR);
 }
 
+struct msm_baud_map {
+	u16	divisor;
+	u8	code;
+	u8	rxstale;
+};
+
+static const struct msm_baud_map *
+msm_find_best_baud(struct uart_port *port, unsigned int baud)
+{
+	unsigned int i, divisor;
+	const struct msm_baud_map *entry;
+	static const struct msm_baud_map table[] = {
+		{ 1536, 0x00,  1 },
+		{  768, 0x11,  1 },
+		{  384, 0x22,  1 },
+		{  192, 0x33,  1 },
+		{   96, 0x44,  1 },
+		{   48, 0x55,  1 },
+		{   32, 0x66,  1 },
+		{   24, 0x77,  1 },
+		{   16, 0x88,  1 },
+		{   12, 0x99,  6 },
+		{    8, 0xaa,  6 },
+		{    6, 0xbb,  6 },
+		{    4, 0xcc,  6 },
+		{    3, 0xdd,  8 },
+		{    2, 0xee, 16 },
+		{    1, 0xff, 31 },
+	};
+
+	divisor = uart_get_divisor(port, baud);
+
+	for (i = 0, entry = table; i < ARRAY_SIZE(table); i++, entry++)
+		if (entry->divisor <= divisor)
+			break;
+
+	return entry; /* Default to smallest divider */
+}
+
 static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 {
-	unsigned int baud_code, rxstale, watermark;
+	unsigned int rxstale, watermark;
 	struct msm_port *msm_port = UART_TO_MSM(port);
+	const struct msm_baud_map *entry;
 
-	switch (baud) {
-	case 300:
-		baud_code = UART_CSR_300;
-		rxstale = 1;
-		break;
-	case 600:
-		baud_code = UART_CSR_600;
-		rxstale = 1;
-		break;
-	case 1200:
-		baud_code = UART_CSR_1200;
-		rxstale = 1;
-		break;
-	case 2400:
-		baud_code = UART_CSR_2400;
-		rxstale = 1;
-		break;
-	case 4800:
-		baud_code = UART_CSR_4800;
-		rxstale = 1;
-		break;
-	case 9600:
-		baud_code = UART_CSR_9600;
-		rxstale = 2;
-		break;
-	case 14400:
-		baud_code = UART_CSR_14400;
-		rxstale = 3;
-		break;
-	case 19200:
-		baud_code = UART_CSR_19200;
-		rxstale = 4;
-		break;
-	case 28800:
-		baud_code = UART_CSR_28800;
-		rxstale = 6;
-		break;
-	case 38400:
-		baud_code = UART_CSR_38400;
-		rxstale = 8;
-		break;
-	case 57600:
-		baud_code = UART_CSR_57600;
-		rxstale = 16;
-		break;
-	case 115200:
-	default:
-		baud_code = UART_CSR_115200;
-		baud = 115200;
-		rxstale = 31;
-		break;
-	}
+	entry = msm_find_best_baud(port, baud);
 
 	if (msm_port->is_uartdm)
 		msm_write(port, UART_CR_CMD_RESET_RX, UART_CR);
 
-	msm_write(port, baud_code, UART_CSR);
+	msm_write(port, entry->code, UART_CSR);
 
 	/* RX stale watermark */
+	rxstale = entry->rxstale;
 	watermark = UART_IPR_STALE_LSB & rxstale;
 	watermark |= UART_IPR_RXSTALE_LAST;
 	watermark |= UART_IPR_STALE_TIMEOUT_MSB & (rxstale << 2);
