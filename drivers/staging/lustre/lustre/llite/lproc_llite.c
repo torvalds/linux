@@ -35,7 +35,6 @@
  */
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <linux/version.h>
 #include <lustre_lite.h>
 #include <lprocfs_status.h>
 #include <linux/seq_file.h>
