@@ -1,0 +1,34 @@
+* SPI driver for Cadence QSPI Controller
+
+Required properties:
+- compatible : Should be "cadence,qspi".
+- reg : Contains two entries, each of which is a tuple consisting of a
+	physical address and length.  The first entry is the address and
+	length of the controller register set.  The second entry is the
+	address and length of the QSPI Controller data area.
+- interrupts : Unit interrupt specifier for the controller interrupt.
+- master-ref-clk : Specifies the frequency of the controller input clock.
+- ext-decoder : Value of 0 means no external chipselect decoder is
+	connected, 1 means there is an external chipselect decoder connected.
+- num-chipselect : Number of chip select lines.
+- fifo-depth : Size of the data FIFO in bytes.
+- bus-num : Number of the SPI bus to which the controller is connected.
+
+Optional properties:
+No optional properties
+
+Example:
+
+	qspi: spi@ff705000 {
+		compatible = "cadence,qspi";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0xff705000 0x1000>,
+			<0xffa00000 0x1000>;
+		interrupts = <0 151 4>;
+		master-ref-clk = <400000000>;
+		ext-decoder = <0>;
+		num-chipselect = <4>;
+		fifo-depth = <128>;
+		bus-num = <2>;
+	}
