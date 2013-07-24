@@ -7812,7 +7812,7 @@ F:	drivers/staging/asus_oled/
 
 STAGING - COMEDI
 M:	Ian Abbott <abbotti@mev.co.uk>
-M:	Mori Hess <fmhess@users.sourceforge.net>
+M:	H Hartley Sweeten <hsweeten@visionengravers.com>
 S:	Odd Fixes
 F:	drivers/staging/comedi/
 
