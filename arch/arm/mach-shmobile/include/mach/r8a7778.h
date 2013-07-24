@@ -30,6 +30,7 @@ extern void r8a7778_add_usb_phy_device(struct rcar_phy_platform_data *pdata);
 extern void r8a7778_add_i2c_device(int id);
 extern void r8a7778_add_hspi_device(int id);
 extern void r8a7778_add_mmc_device(struct sh_mmcif_plat_data *info);
+extern void r8a7778_add_dt_devices(void);
 
 extern void r8a7778_init_late(void);
 extern void r8a7778_init_delay(void);
