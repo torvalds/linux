@@ -42,7 +42,6 @@
 
 #define DEBUG_SUBSYSTEM S_SEC
 
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <asm/unistd.h>
 #include <linux/slab.h>
