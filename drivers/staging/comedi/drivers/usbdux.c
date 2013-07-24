@@ -223,8 +223,6 @@ struct usbdux_private {
 	int16_t *insn_buffer;
 	/* output buffer for single DA outputs */
 	int16_t *out_buffer;
-	/* interface number */
-	int ifnum;
 	/* is it USB_SPEED_HIGH or not? */
 	short int high_speed;
 	/* asynchronous command is running */
@@ -1896,7 +1894,6 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 
 	sema_init(&devpriv->sem, 1);
 
-	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
 	usb_set_intfdata(intf, devpriv);
 
 	devpriv->high_speed = (usb->speed == USB_SPEED_HIGH);
@@ -1914,7 +1911,8 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	/* setting to alternate setting 3: enabling iso ep and bulk ep. */
-	ret = usb_set_interface(usb, devpriv->ifnum, 3);
+	ret = usb_set_interface(usb, intf->altsetting->desc.bInterfaceNumber,
+				3);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
 			"could not set alternate setting 3 in high speed\n");
