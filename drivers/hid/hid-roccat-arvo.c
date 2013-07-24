@@ -75,6 +75,8 @@ static ssize_t arvo_sysfs_set_mode_key(struct device *dev,
 
 	return size;
 }
+static DEVICE_ATTR(mode_key, 0660,
+		   arvo_sysfs_show_mode_key, arvo_sysfs_set_mode_key);
 
 static ssize_t arvo_sysfs_show_key_mask(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -123,6 +125,8 @@ static ssize_t arvo_sysfs_set_key_mask(struct device *dev,
 
 	return size;
 }
+static DEVICE_ATTR(key_mask, 0660,
+		   arvo_sysfs_show_key_mask, arvo_sysfs_set_key_mask);
 
 /* retval is 1-5 on success, < 0 on error */
 static int arvo_get_actual_profile(struct usb_device *usb_dev)
@@ -179,6 +183,9 @@ static ssize_t arvo_sysfs_set_actual_profile(struct device *dev,
 	mutex_unlock(&arvo->arvo_lock);
 	return retval;
 }
+static DEVICE_ATTR(actual_profile, 0660,
+		   arvo_sysfs_show_actual_profile,
+		   arvo_sysfs_set_actual_profile);
 
 static ssize_t arvo_sysfs_write(struct file *fp,
 		struct kobject *kobj, void const *buf,
@@ -239,17 +246,13 @@ static ssize_t arvo_sysfs_read_info(struct file *fp,
 			sizeof(struct arvo_info), ARVO_COMMAND_INFO);
 }
 
-
-static struct device_attribute arvo_attributes[] = {
-	__ATTR(mode_key, 0660,
-			arvo_sysfs_show_mode_key, arvo_sysfs_set_mode_key),
-	__ATTR(key_mask, 0660,
-			arvo_sysfs_show_key_mask, arvo_sysfs_set_key_mask),
-	__ATTR(actual_profile, 0660,
-			arvo_sysfs_show_actual_profile,
-			arvo_sysfs_set_actual_profile),
-	__ATTR_NULL
+static struct attribute *arvo_attrs[] = {
+	&dev_attr_mode_key.attr,
+	&dev_attr_key_mask.attr,
+	&dev_attr_actual_profile.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(arvo);
 
 static struct bin_attribute arvo_bin_attributes[] = {
 	{
@@ -430,7 +433,7 @@ static int __init arvo_init(void)
 	arvo_class = class_create(THIS_MODULE, "arvo");
 	if (IS_ERR(arvo_class))
 		return PTR_ERR(arvo_class);
-	arvo_class->dev_attrs = arvo_attributes;
+	arvo_class->dev_groups = arvo_groups;
 	arvo_class->dev_bin_attrs = arvo_bin_attributes;
 
 	retval = hid_register_driver(&arvo_driver);

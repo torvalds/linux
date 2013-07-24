@@ -109,13 +109,14 @@ static ssize_t isku_sysfs_set_actual_profile(struct device *dev,
 
 	return size;
 }
+static DEVICE_ATTR(actual_profile, 0660, isku_sysfs_show_actual_profile,
+		   isku_sysfs_set_actual_profile);
 
-static struct device_attribute isku_attributes[] = {
-	__ATTR(actual_profile, 0660,
-			isku_sysfs_show_actual_profile,
-			isku_sysfs_set_actual_profile),
-	__ATTR_NULL
+static struct attribute *isku_attrs[] = {
+	&dev_attr_actual_profile.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(isku);
 
 static ssize_t isku_sysfs_read(struct file *fp, struct kobject *kobj,
 		char *buf, loff_t off, size_t count,
@@ -427,7 +428,7 @@ static int __init isku_init(void)
 	isku_class = class_create(THIS_MODULE, "isku");
 	if (IS_ERR(isku_class))
 		return PTR_ERR(isku_class);
-	isku_class->dev_attrs = isku_attributes;
+	isku_class->dev_groups = isku_groups;
 	isku_class->dev_bin_attrs = isku_bin_attributes;
 
 	retval = hid_register_driver(&isku_driver);

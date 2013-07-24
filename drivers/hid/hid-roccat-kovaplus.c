@@ -310,6 +310,9 @@ static ssize_t kovaplus_sysfs_set_actual_profile(struct device *dev,
 
 	return size;
 }
+static DEVICE_ATTR(actual_profile, 0660,
+		   kovaplus_sysfs_show_actual_profile,
+		   kovaplus_sysfs_set_actual_profile);
 
 static ssize_t kovaplus_sysfs_show_actual_cpi(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -318,6 +321,7 @@ static ssize_t kovaplus_sysfs_show_actual_cpi(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", kovaplus->actual_cpi);
 }
+static DEVICE_ATTR(actual_cpi, 0440, kovaplus_sysfs_show_actual_cpi, NULL);
 
 static ssize_t kovaplus_sysfs_show_actual_sensitivity_x(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -326,6 +330,8 @@ static ssize_t kovaplus_sysfs_show_actual_sensitivity_x(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", kovaplus->actual_x_sensitivity);
 }
+static DEVICE_ATTR(actual_sensitivity_x, 0440,
+		   kovaplus_sysfs_show_actual_sensitivity_x, NULL);
 
 static ssize_t kovaplus_sysfs_show_actual_sensitivity_y(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -334,6 +340,8 @@ static ssize_t kovaplus_sysfs_show_actual_sensitivity_y(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", kovaplus->actual_y_sensitivity);
 }
+static DEVICE_ATTR(actual_sensitivity_y, 0440,
+		   kovaplus_sysfs_show_actual_sensitivity_y, NULL);
 
 static ssize_t kovaplus_sysfs_show_firmware_version(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -353,21 +361,18 @@ static ssize_t kovaplus_sysfs_show_firmware_version(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", info.firmware_version);
 }
+static DEVICE_ATTR(firmware_version, 0440,
+		   kovaplus_sysfs_show_firmware_version, NULL);
 
-static struct device_attribute kovaplus_attributes[] = {
-	__ATTR(actual_cpi, 0440,
-		kovaplus_sysfs_show_actual_cpi, NULL),
-	__ATTR(firmware_version, 0440,
-		kovaplus_sysfs_show_firmware_version, NULL),
-	__ATTR(actual_profile, 0660,
-		kovaplus_sysfs_show_actual_profile,
-		kovaplus_sysfs_set_actual_profile),
-	__ATTR(actual_sensitivity_x, 0440,
-		kovaplus_sysfs_show_actual_sensitivity_x, NULL),
-	__ATTR(actual_sensitivity_y, 0440,
-		kovaplus_sysfs_show_actual_sensitivity_y, NULL),
-	__ATTR_NULL
+static struct attribute *kovaplus_attrs[] = {
+	&dev_attr_actual_cpi.attr,
+	&dev_attr_firmware_version.attr,
+	&dev_attr_actual_profile.attr,
+	&dev_attr_actual_sensitivity_x.attr,
+	&dev_attr_actual_sensitivity_y.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(kovaplus);
 
 static struct bin_attribute kovaplus_bin_attributes[] = {
 	KOVAPLUS_BIN_ATTRIBUTE_W(control, CONTROL),
@@ -662,7 +667,7 @@ static int __init kovaplus_init(void)
 	kovaplus_class = class_create(THIS_MODULE, "kovaplus");
 	if (IS_ERR(kovaplus_class))
 		return PTR_ERR(kovaplus_class);
-	kovaplus_class->dev_attrs = kovaplus_attributes;
+	kovaplus_class->dev_groups = kovaplus_groups;
 	kovaplus_class->dev_bin_attrs = kovaplus_bin_attributes;
 
 	retval = hid_register_driver(&kovaplus_driver);

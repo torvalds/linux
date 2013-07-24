@@ -266,6 +266,7 @@ static ssize_t pyra_sysfs_show_actual_cpi(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", pyra->actual_cpi);
 }
+static DEVICE_ATTR(actual_cpi, 0440, pyra_sysfs_show_actual_cpi, NULL);
 
 static ssize_t pyra_sysfs_show_actual_profile(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -282,6 +283,8 @@ static ssize_t pyra_sysfs_show_actual_profile(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", settings.startup_profile);
 }
+static DEVICE_ATTR(actual_profile, 0440, pyra_sysfs_show_actual_profile, NULL);
+static DEVICE_ATTR(startup_profile, 0440, pyra_sysfs_show_actual_profile, NULL);
 
 static ssize_t pyra_sysfs_show_firmware_version(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -301,16 +304,17 @@ static ssize_t pyra_sysfs_show_firmware_version(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", info.firmware_version);
 }
+static DEVICE_ATTR(firmware_version, 0440, pyra_sysfs_show_firmware_version,
+		   NULL);
 
-static struct device_attribute pyra_attributes[] = {
-	__ATTR(actual_cpi, 0440, pyra_sysfs_show_actual_cpi, NULL),
-	__ATTR(actual_profile, 0440, pyra_sysfs_show_actual_profile, NULL),
-	__ATTR(firmware_version, 0440,
-			pyra_sysfs_show_firmware_version, NULL),
-	__ATTR(startup_profile, 0440,
-			pyra_sysfs_show_actual_profile, NULL),
-	__ATTR_NULL
+static struct attribute *pyra_attrs[] = {
+	&dev_attr_actual_cpi.attr,
+	&dev_attr_actual_profile.attr,
+	&dev_attr_firmware_version.attr,
+	&dev_attr_startup_profile.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(pyra);
 
 static struct bin_attribute pyra_bin_attributes[] = {
 	PYRA_BIN_ATTRIBUTE_W(control, CONTROL),
@@ -600,7 +604,7 @@ static int __init pyra_init(void)
 	pyra_class = class_create(THIS_MODULE, "pyra");
 	if (IS_ERR(pyra_class))
 		return PTR_ERR(pyra_class);
-	pyra_class->dev_attrs = pyra_attributes;
+	pyra_class->dev_groups = pyra_groups;
 	pyra_class->dev_bin_attrs = pyra_bin_attributes;
 
 	retval = hid_register_driver(&pyra_driver);

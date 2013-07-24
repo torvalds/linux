@@ -386,6 +386,7 @@ static ssize_t kone_sysfs_show_actual_profile(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", kone->actual_profile);
 }
+static DEVICE_ATTR(actual_profile, 0440, kone_sysfs_show_actual_profile, NULL);
 
 static ssize_t kone_sysfs_show_actual_dpi(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -394,6 +395,7 @@ static ssize_t kone_sysfs_show_actual_dpi(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", kone->actual_dpi);
 }
+static DEVICE_ATTR(actual_dpi, 0440, kone_sysfs_show_actual_dpi, NULL);
 
 /* weight is read each time, since we don't get informed when it's changed */
 static ssize_t kone_sysfs_show_weight(struct device *dev,
@@ -416,6 +418,7 @@ static ssize_t kone_sysfs_show_weight(struct device *dev,
 		return retval;
 	return snprintf(buf, PAGE_SIZE, "%d\n", weight);
 }
+static DEVICE_ATTR(weight, 0440, kone_sysfs_show_weight, NULL);
 
 static ssize_t kone_sysfs_show_firmware_version(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -424,6 +427,8 @@ static ssize_t kone_sysfs_show_firmware_version(struct device *dev,
 			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
 	return snprintf(buf, PAGE_SIZE, "%d\n", kone->firmware_version);
 }
+static DEVICE_ATTR(firmware_version, 0440, kone_sysfs_show_firmware_version,
+		   NULL);
 
 static ssize_t kone_sysfs_show_tcu(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -524,6 +529,7 @@ exit_unlock:
 	mutex_unlock(&kone->kone_lock);
 	return retval;
 }
+static DEVICE_ATTR(tcu, 0660, kone_sysfs_show_tcu, kone_sysfs_set_tcu);
 
 static ssize_t kone_sysfs_show_startup_profile(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -570,15 +576,17 @@ static ssize_t kone_sysfs_set_startup_profile(struct device *dev,
 	mutex_unlock(&kone->kone_lock);
 	return size;
 }
+static DEVICE_ATTR(startup_profile, 0660, kone_sysfs_show_startup_profile,
+		   kone_sysfs_set_startup_profile);
 
-static struct device_attribute kone_attributes[] = {
+static struct attribute *kone_attrs[] = {
 	/*
 	 * Read actual dpi settings.
 	 * Returns raw value for further processing. Refer to enum
 	 * kone_polling_rates to get real value.
 	 */
-	__ATTR(actual_dpi, 0440, kone_sysfs_show_actual_dpi, NULL),
-	__ATTR(actual_profile, 0440, kone_sysfs_show_actual_profile, NULL),
+	&dev_attr_actual_dpi.attr,
+	&dev_attr_actual_profile.attr,
 
 	/*
 	 * The mouse can be equipped with one of four supplied weights from 5
@@ -587,7 +595,7 @@ static struct device_attribute kone_attributes[] = {
 	 * by software. Refer to enum kone_weights to get corresponding real
 	 * weight.
 	 */
-	__ATTR(weight, 0440, kone_sysfs_show_weight, NULL),
+	&dev_attr_weight.attr,
 
 	/*
 	 * Prints firmware version stored in mouse as integer.
@@ -595,22 +603,20 @@ static struct device_attribute kone_attributes[] = {
 	 * to get the real version number the decimal point has to be shifted 2
 	 * positions to the left. E.g. a value of 138 means 1.38.
 	 */
-	__ATTR(firmware_version, 0440,
-			kone_sysfs_show_firmware_version, NULL),
+	&dev_attr_firmware_version.attr,
 
 	/*
 	 * Prints state of Tracking Control Unit as number where 0 = off and
 	 * 1 = on. Writing 0 deactivates tcu and writing 1 calibrates and
 	 * activates the tcu
 	 */
-	__ATTR(tcu, 0660, kone_sysfs_show_tcu, kone_sysfs_set_tcu),
+	&dev_attr_tcu.attr,
 
 	/* Prints and takes the number of the profile the mouse starts with */
-	__ATTR(startup_profile, 0660,
-			kone_sysfs_show_startup_profile,
-			kone_sysfs_set_startup_profile),
-	__ATTR_NULL
+	&dev_attr_startup_profile.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(kone);
 
 static struct bin_attribute kone_bin_attributes[] = {
 	{
@@ -891,7 +897,7 @@ static int __init kone_init(void)
 	kone_class = class_create(THIS_MODULE, "kone");
 	if (IS_ERR(kone_class))
 		return PTR_ERR(kone_class);
-	kone_class->dev_attrs = kone_attributes;
+	kone_class->dev_groups = kone_groups;
 	kone_class->dev_bin_attrs = kone_bin_attributes;
 
 	retval = hid_register_driver(&kone_driver);
