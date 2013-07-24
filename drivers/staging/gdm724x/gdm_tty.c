@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -76,7 +78,7 @@ static int gdm_tty_open(struct tty_struct *tty, struct file *filp)
 	}
 
 	if (!tty_str) {
-		printk(KERN_INFO "glte: no tty device\n");
+		pr_info("no tty device\n");
 		mutex_unlock(&open_mutex);
 		return -ENODEV;
 	}
@@ -100,7 +102,7 @@ static void gdm_tty_close(struct tty_struct *tty, struct file *filp)
 	int i;
 
 	if (!tty_str) {
-		printk(KERN_INFO "glte: tty device already close\n");
+		pr_info("tty device already closed\n");
 		return;
 	}
 
@@ -326,7 +328,7 @@ int register_lte_tty_driver(void)
 	for (i = 0; i < TTY_MAX_COUNT; i++) {
 		tty_driver = alloc_tty_driver(GDM_TTY_MINOR);
 		if (!tty_driver) {
-			printk(KERN_ERR "glte: alloc_tty_driver fail\n");
+			pr_err("alloc_tty_driver fail\n");
 			return -ENOMEM;
 		}
 

@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/version.h>
 #include <linux/export.h>
 #include <linux/etherdevice.h>
@@ -48,19 +50,19 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 	int ifindex;
 
 	if (!rcv_cb) {
-		printk(KERN_ERR "glte: nl cb - unregistered\n");
+		pr_err("nl cb - unregistered\n");
 		return;
 	}
 
 	if (skb->len < NLMSG_SPACE(0)) {
-		printk(KERN_ERR "glte: nl cb - invalid skb length\n");
+		pr_err("nl cb - invalid skb length\n");
 		return;
 	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 
 	if (skb->len < nlh->nlmsg_len || nlh->nlmsg_len > ND_MAX_MSG_LEN) {
-		printk(KERN_ERR "glte: nl cb - invalid length (%d,%d)\n",
+		pr_err("nl cb - invalid length (%d,%d)\n",
 		       skb->len, nlh->nlmsg_len);
 		return;
 	}
@@ -74,7 +76,7 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 		rcv_cb(dev, nlh->nlmsg_type, msg, mlen);
 		dev_put(dev);
 	} else {
-		printk(KERN_ERR "glte: nl cb - dev (%d) not found\n", ifindex);
+		pr_err("nl cb - dev (%d) not found\n", ifindex);
 	}
 }
 
@@ -152,7 +154,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 		return len;
 
 	if (ret != -ESRCH)
-		printk(KERN_ERR "glte: nl broadcast g=%d, t=%d, l=%d, r=%d\n",
+		pr_err("nl broadcast g=%d, t=%d, l=%d, r=%d\n",
 		       group, type, len, ret);
 	else if (netlink_has_listeners(sock, group+1))
 		return -EAGAIN;

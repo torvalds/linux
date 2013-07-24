@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/version.h>
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
@@ -103,7 +105,6 @@ static int gdm_lte_rx(struct sk_buff *skb, struct nic *nic, int nic_type)
 
 	ret = netif_rx_ni(skb);
 	if (ret == NET_RX_DROP) {
-		printk(KERN_ERR "glte: rx - dropped\n");
 		nic->stats.rx_dropped++;
 	} else {
 		nic->stats.rx_packets++;
@@ -416,7 +417,7 @@ static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 
 	nic_type = gdm_lte_tx_nic_type(dev, skb);
 	if (nic_type == 0) {
-		printk(KERN_ERR "glte: tx - invalid nic_type\n");
+		netdev_err(dev, "tx - invalid nic_type\n");
 		return -1;
 	}
 
@@ -504,7 +505,7 @@ static void get_dev_endian(struct data_t *data, struct net_device *dev)
 
 	ret = copy_to_user(data->buf, gdm_dev_endian(nic), sizeof(struct dev_endian_t));
 	if (ret)
-		printk(KERN_INFO "glte: state - failed to copy\n");
+		netdev_info(dev, "state - failed to copy\n");
 }
 
 static int gdm_lte_ioctl_get_data(struct wm_req_t *req, struct net_device *dev)
@@ -517,7 +518,7 @@ static int gdm_lte_ioctl_get_data(struct wm_req_t *req, struct net_device *dev)
 		get_dev_endian(&req->data, dev);
 		break;
 	default:
-		printk(KERN_ERR "glte: ioctl - unknown type %d\n", id);
+		netdev_err(dev, "ioctl - unknown type %d\n", id);
 		break;
 	}
 	return 0;
@@ -562,7 +563,7 @@ int gdm_lte_event_init(void)
 		return 0;
 	}
 
-	printk(KERN_ERR "glte: event init failed\n");
+	pr_err("event init failed\n");
 	return -1;
 }
 
@@ -654,7 +655,7 @@ static void gdm_lte_netif_rx(struct net_device *dev, char *buf, int len, int fla
 			eth.h_proto = htons(ETH_P_IPV6);
 			vlan_eth.h_vlan_encapsulated_proto = htons(ETH_P_IPV6);
 		} else {
-			printk(KERN_ERR "glte: Unknown IP version %d\n", ip_version);
+			netdev_err(dev, "Unknown IP version %d\n", ip_version);
 			return;
 		}
 	}
@@ -700,11 +701,11 @@ static void gdm_lte_multi_sdu_pkt(struct phy_dev *phy_dev, char *buf, int len)
 		nic_type = gdm_dev32_to_cpu(phy_dev->get_endian(phy_dev->priv_dev), sdu->nic_type);
 
 		if (cmd_evt != LTE_RX_SDU) {
-			printk(KERN_ERR "glte: rx sdu wrong hci %04x\n", cmd_evt);
+			pr_err("rx sdu wrong hci %04x\n", cmd_evt);
 			return;
 		}
 		if (hci_len < 12) {
-			printk(KERN_ERR "glte: rx sdu invalid len %d\n", hci_len);
+			pr_err("rx sdu invalid len %d\n", hci_len);
 			return;
 		}
 
@@ -713,7 +714,7 @@ static void gdm_lte_multi_sdu_pkt(struct phy_dev *phy_dev, char *buf, int len)
 			dev = phy_dev->dev[index];
 			gdm_lte_netif_rx(dev, (char *)sdu->data, (int)(hci_len-12), nic_type);
 		} else {
-			printk(KERN_ERR "glte: rx sdu invalid nic_type : %x\n", nic_type);
+			pr_err("rx sdu invalid nic_type :%x\n", nic_type);
 		}
 
 		data += ((hci_len+3) & 0xfffc) + HCI_HEADER_SIZE;
@@ -730,12 +731,11 @@ static void gdm_lte_pdn_table(struct net_device *dev, char *buf, int len)
 		nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(gdm_dev_endian(nic), pdn_table->dft_eps_id);
 		nic->pdn_table.nic_type = gdm_dev32_to_cpu(gdm_dev_endian(nic), pdn_table->nic_type);
 
-		printk(KERN_INFO "glte: pdn %s activated, nic_type=0x%x\n",
-		       dev->name, nic->pdn_table.nic_type);
+		netdev_info(dev, "pdn activated, nic_type=0x%x\n",
+			    nic->pdn_table.nic_type);
 	} else {
 		memset(&nic->pdn_table, 0x00, sizeof(struct pdn_table));
-		printk(KERN_INFO "glte: pdn %s deactivated\n",
-		       dev->name);
+		netdev_info(dev, "pdn deactivated\n");
 	}
 }
 
@@ -771,11 +771,9 @@ static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
 		gdm_lte_multi_sdu_pkt(phy_dev, buf, len);
 		break;
 	case LTE_LINK_ON_OFF_INDICATION:
-		{
-			struct hci_connect_ind *connect_ind = (struct hci_connect_ind *)buf;
-			printk(KERN_INFO "glte: link %s\n",
-			       connect_ind->connect ? "on" : "off");
-		}
+		netdev_info(dev, "link %s\n",
+			    ((struct hci_connect_ind *)buf)->connect
+			    ? "on" : "off");
 		break;
 	case LTE_PDN_TABLE_IND:
 		pdn_table = (struct hci_pdn_table_ind *)buf;
@@ -841,7 +839,7 @@ static void validate_mac_address(u8 *mac_address)
 {
 	/* if zero address or multicast bit set, restore the default value */
 	if (is_zero_ether_addr(mac_address) || (mac_address[0] & 0x01)) {
-		printk(KERN_ERR "glte: MAC invalid, restoring default\n");
+		pr_err("MAC invalid, restoring default\n");
 		memcpy(mac_address, gdm_lte_macaddr, 6);
 	}
 }
@@ -863,7 +861,7 @@ int register_lte_device(struct phy_dev *phy_dev, struct device *dev, u8 *mac_add
 		/* Allocate netdev */
 		net = alloc_netdev(sizeof(struct nic), pdn_dev_name, ether_setup);
 		if (net == NULL) {
-			printk(KERN_ERR "glte: alloc_netdev failed\n");
+			pr_err("alloc_netdev failed\n");
 			ret = -ENOMEM;
 			goto err;
 		}

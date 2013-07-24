@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -172,8 +174,7 @@ static int up_to_host(struct mux_rx *r)
 		packet_type = __le16_to_cpu(mux_header->packet_type);
 
 		if (start_flag != START_FLAG) {
-			printk(KERN_ERR "glte: invalid START_FLAG %x\n",
-				start_flag);
+			pr_err("invalid START_FLAG %x\n", start_flag);
 			break;
 		}
 
@@ -182,16 +183,14 @@ static int up_to_host(struct mux_rx *r)
 
 		if (len - packet_size_sum <
 			MUX_HEADER_SIZE + payload_size + dummy_cnt) {
-			printk(KERN_ERR "glte: invalid payload : %d %d %04x\n",
-			       payload_size, len,
-			       packet_type
-			       );
+			pr_err("invalid payload : %d %d %04x\n",
+			       payload_size, len, packet_type);
 			break;
 		}
 
 		index = packet_type_to_index(packet_type);
 		if (index < 0) {
-			printk(KERN_ERR "glte: invalid index %d\n", index);
+			pr_err("invalid index %d\n", index);
 			break;
 		}
 
@@ -242,7 +241,7 @@ static void do_rx(struct work_struct *work)
 
 		ret = up_to_host(r);
 		if (ret == TO_HOST_BUFFER_REQUEST_FAIL)
-			printk(KERN_ERR "glte: failed to send mux data to host\n");
+			pr_err("failed to send mux data to host\n");
 		else
 			put_rx_struct(rx, r);
 	}
@@ -272,7 +271,8 @@ static void gdm_mux_rcv_complete(struct urb *urb)
 
 	if (urb->status) {
 		if (mux_dev->usb_state == PM_NORMAL)
-			printk(KERN_ERR "glte: gdm_mux_rcv_complete urb status error %d\n", urb->status);
+			pr_err("%s: urb status error %d\n",
+			       __func__, urb->status);
 		put_rx_struct(rx, r);
 	} else {
 		r->len = r->urb->actual_length;
@@ -295,13 +295,13 @@ static int gdm_mux_recv(void *priv_dev,
 	int ret;
 
 	if (!usbdev) {
-		printk(KERN_ERR "glte: device is disconnected\n");
+		pr_err("device is disconnected\n");
 		return -ENODEV;
 	}
 
 	r = get_rx_struct(rx);
 	if (!r) {
-		printk(KERN_ERR "glte: get_rx_struct fail\n");
+		pr_err("get_rx_struct fail\n");
 		return -ENOMEM;
 	}
 
@@ -331,7 +331,7 @@ static int gdm_mux_recv(void *priv_dev,
 
 		put_rx_struct(rx, r);
 
-		printk(KERN_ERR "glte: usb_submit_urb ret=%d\n", ret);
+		pr_err("usb_submit_urb ret=%d\n", ret);
 	}
 
 	usb_mark_last_busy(usbdev);
@@ -344,7 +344,7 @@ static void gdm_mux_send_complete(struct urb *urb)
 	struct mux_tx *t = urb->context;
 
 	if (urb->status == -ECONNRESET) {
-		printk(KERN_INFO "glte: CONNRESET\n");
+		pr_info("CONNRESET\n");
 		free_mux_tx(t);
 		return;
 	}
@@ -384,7 +384,7 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 
 	t = alloc_mux_tx(total_len);
 	if (!t) {
-		printk(KERN_ERR "glte: alloc_mux_tx fail\n");
+		pr_err("alloc_mux_tx fail\n");
 		spin_unlock_irqrestore(&mux_dev->write_lock, flags);
 		return -ENOMEM;
 	}
@@ -415,7 +415,7 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 	spin_unlock_irqrestore(&mux_dev->write_lock, flags);
 
 	if (ret)
-		printk(KERN_ERR "glte: usb_submit_urb Error : %d\n", ret);
+		pr_err("usb_submit_urb Error: %d\n", ret);
 
 	usb_mark_last_busy(usbdev);
 
@@ -440,7 +440,7 @@ static int gdm_mux_send_control(void *priv_dev, int request, int value, void *bu
 			     );
 
 	if (ret < 0)
-		printk(KERN_ERR "glte: usb_control_msg error : %d\n", ret);
+		pr_err("usb_control_msg error: %d\n", ret);
 
 	return ret < 0 ? ret : 0;
 }
@@ -523,8 +523,7 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 	idVendor = __le16_to_cpu(usbdev->descriptor.idVendor);
 	idProduct = __le16_to_cpu(usbdev->descriptor.idProduct);
 
-	printk(KERN_INFO "glte: mux vid = 0x%04x pid = 0x%04x\n",
-	       idVendor, idProduct);
+	pr_info("mux vid = 0x%04x pid = 0x%04x\n", idVendor, idProduct);
 
 	if (bInterfaceNumber != 2) {
 		ret = -ENODEV;
@@ -616,7 +615,7 @@ static int gdm_mux_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	rx = &mux_dev->rx;
 
 	if (mux_dev->usb_state != PM_NORMAL) {
-		printk(KERN_ERR "glte: usb suspend - invalid state\n");
+		pr_err("usb suspend - invalid state\n");
 		return -1;
 	}
 
@@ -644,7 +643,7 @@ static int gdm_mux_resume(struct usb_interface *intf)
 	mux_dev = tty_dev->priv_dev;
 
 	if (mux_dev->usb_state != PM_SUSPEND) {
-		printk(KERN_ERR "glte: usb resume - invalid state\n");
+		pr_err("usb resume - invalid state\n");
 		return -1;
 	}
 
@@ -672,7 +671,7 @@ static int __init gdm_usb_mux_init(void)
 
 	mux_rx_wq = create_workqueue("mux_rx_wq");
 	if (mux_rx_wq == NULL) {
-		printk(KERN_ERR "glte: work queue create fail");
+		pr_err("work queue create fail\n");
 		return -1;
 	}
 

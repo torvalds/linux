@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -390,7 +392,7 @@ static int set_mac_address(u8 *data, void *arg)
 		memcpy(mac_address, tlv->data, tlv->len);
 
 		if (register_lte_device(phy_dev, &udev->intf->dev, mac_address) < 0)
-			printk(KERN_ERR "glte: register lte device failed\n");
+			pr_err("register lte device failed\n");
 
 		udev->request_mac_addr = 0;
 
@@ -444,7 +446,7 @@ static void do_rx(struct work_struct *work)
 						  KERNEL_THREAD);
 
 				if (ret == -EAGAIN)
-					printk(KERN_ERR "glte: failed to send received data\n");
+					pr_err("failed to send received data\n");
 			}
 			break;
 		}
@@ -491,7 +493,8 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 	} else {
 		if (urb->status && udev->usb_state == PM_NORMAL)
-			printk(KERN_ERR "glte: gdm_usb_rcv_complete urb status error %d\n", urb->status);
+			pr_err("%s: urb status error %d\n",
+			       __func__, urb->status);
 
 		put_rx_struct(rx, r);
 	}
@@ -513,13 +516,13 @@ static int gdm_usb_recv(void *priv_dev,
 	unsigned long flags;
 
 	if (!udev->usbdev) {
-		printk(KERN_ERR "glte: invalid device\n");
+		pr_err("invalid device\n");
 		return -ENODEV;
 	}
 
 	r = get_rx_struct(rx, &no_spc);
 	if (!r) {
-		printk(KERN_ERR "glte: Out of Memory\n");
+		pr_err("Out of Memory\n");
 		return -ENOMEM;
 	}
 
@@ -551,7 +554,7 @@ static int gdm_usb_recv(void *priv_dev,
 		list_del(&r->rx_submit_list);
 		spin_unlock_irqrestore(&rx->submit_lock, flags);
 
-		printk(KERN_ERR "glte: usb_submit_urb fail (%p)\n", r);
+		pr_err("usb_submit_urb failed (%p)\n", r);
 		put_rx_struct(rx, r);
 	}
 
@@ -566,7 +569,7 @@ static void gdm_usb_send_complete(struct urb *urb)
 	unsigned long flags;
 
 	if (urb->status == -ECONNRESET) {
-		printk(KERN_INFO "glte: CONNRESET\n");
+		pr_info("CONNRESET\n");
 		return;
 	}
 
@@ -599,7 +602,7 @@ static int send_tx_packet(struct usb_device *usbdev, struct usb_tx *t, u32 len)
 	ret = usb_submit_urb(t->urb, GFP_ATOMIC);
 
 	if (ret)
-		printk(KERN_ERR "glte: usb_submit_urb fail %d\n", ret);
+		pr_err("usb_submit_urb failed: %d\n", ret);
 
 	usb_mark_last_busy(usbdev);
 
@@ -707,7 +710,7 @@ static void do_tx(struct work_struct *work)
 		len = packet_aggregation(udev, t->buf);
 
 	if (send_tx_packet(usbdev, t, len)) {
-		printk(KERN_ERR "glte: send_tx_packet fail\n");
+		pr_err("send_tx_packet failed\n");
 		t->callback = NULL;
 		gdm_usb_send_complete(t->urb);
 	}
@@ -728,7 +731,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	u16 send_len;
 
 	if (!udev->usbdev) {
-		printk(KERN_ERR "glte: sdu send - invalid device\n");
+		pr_err("sdu send - invalid device\n");
 		return TX_NO_DEV;
 	}
 
@@ -737,7 +740,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	if (t_sdu == NULL) {
-		printk(KERN_ERR "glte: sdu send - free list empty\n");
+		pr_err("sdu send - free list empty\n");
 		return TX_NO_SPC;
 	}
 
@@ -781,13 +784,13 @@ static int gdm_usb_hci_send(void *priv_dev, void *data, int len,
 	unsigned long flags;
 
 	if (!udev->usbdev) {
-		printk(KERN_ERR "glte: hci send - invalid device\n");
+		pr_err("hci send - invalid device\n");
 		return -ENODEV;
 	}
 
 	t = alloc_tx_struct(len);
 	if (t == NULL) {
-		printk(KERN_ERR "glte: hci_send - out of memory\n");
+		pr_err("hci_send - out of memory\n");
 		return -ENOMEM;
 	}
 
@@ -826,10 +829,10 @@ static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	idVendor = __le16_to_cpu(usbdev->descriptor.idVendor);
 	idProduct = __le16_to_cpu(usbdev->descriptor.idProduct);
 
-	printk(KERN_INFO "glte: net vid = 0x%04x pid = 0x%04x\n", idVendor, idProduct);
+	pr_info("net vid = 0x%04x pid = 0x%04x\n", idVendor, idProduct);
 
 	if (bInterfaceNumber > NETWORK_INTERFACE) {
-		printk(KERN_INFO "glte: not a network device");
+		pr_info("not a network device\n");
 		return -1;
 	}
 
@@ -857,7 +860,7 @@ static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	udev->usbdev = usbdev;
 	ret = init_usb(udev);
 	if (ret < 0) {
-		printk(KERN_ERR "glte: init_usb func fail\n");
+		pr_err("init_usb func failed\n");
 		goto out;
 	}
 	udev->intf = intf;
@@ -874,7 +877,7 @@ static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	ret = request_mac_address(udev);
 	if (ret < 0) {
-		printk(KERN_ERR "glte: request Mac address failed\n");
+		pr_err("request Mac address failed\n");
 		goto out;
 	}
 
@@ -935,7 +938,7 @@ static int gdm_usb_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	udev = phy_dev->priv_dev;
 	rx = &udev->rx;
 	if (udev->usb_state != PM_NORMAL) {
-		printk(KERN_ERR "glte: usb suspend - invalid state");
+		pr_err("usb suspend - invalid state\n");
 		return -1;
 	}
 
@@ -968,7 +971,7 @@ static int gdm_usb_resume(struct usb_interface *intf)
 	rx = &udev->rx;
 
 	if (udev->usb_state != PM_SUSPEND) {
-		printk(KERN_ERR "glte: usb resume - invalid state");
+		pr_err("usb resume - invalid state\n");
 		return -1;
 	}
 	udev->usb_state = PM_NORMAL;
@@ -1007,7 +1010,7 @@ static struct usb_driver gdm_usb_lte_driver = {
 static int __init gdm_usb_lte_init(void)
 {
 	if (gdm_lte_event_init() < 0) {
-		printk(KERN_ERR "glte: error creating event\n");
+		pr_err("error creating event\n");
 		return -1;
 	}
 
