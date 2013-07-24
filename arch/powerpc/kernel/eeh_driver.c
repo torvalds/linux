@@ -362,8 +362,10 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	 * devices are expected to be attached soon when calling
 	 * into pcibios_add_pci_devices().
 	 */
-	if (bus)
-		__pcibios_remove_pci_devices(bus, 0);
+	if (bus) {
+		eeh_pe_state_mark(pe, EEH_PE_KEEP);
+		pcibios_remove_pci_devices(bus);
+	}
 
 	/* Reset the pci controller. (Asserts RST#; resets config space).
 	 * Reconfigure bridges and devices. Don't try to bring the system
@@ -386,6 +388,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	if (bus) {
 		ssleep(5);
 		pcibios_add_pci_devices(bus);
+		eeh_pe_state_clear(pe, EEH_PE_KEEP);
 	}
 
 	pe->tstamp = tstamp;
