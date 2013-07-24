@@ -1488,17 +1488,8 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	loff_t offset, holelen;
 
-	if (!bdev->dev_mapping)
-		return;
-
-	if (drm_vma_node_has_offset(&bo->vma_node)) {
-		offset = (loff_t) drm_vma_node_offset_addr(&bo->vma_node);
-		holelen = ((loff_t) bo->mem.num_pages) << PAGE_SHIFT;
-
-		unmap_mapping_range(bdev->dev_mapping, offset, holelen, 1);
-	}
+	drm_vma_node_unmap(&bo->vma_node, bdev->dev_mapping);
 	ttm_mem_io_free_vm(bo);
 }
 
