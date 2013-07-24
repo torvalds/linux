@@ -132,6 +132,40 @@ options for PCI-20341M:
 #define PCI20341_MUX			0x04	/* Enable on-board MUX */
 #define PCI20341_SCANLIST		0x80	/* Channel/Gain Scan List */
 
+static const struct comedi_lrange range_bipolar0_5 = {
+	1, {
+		BIP_RANGE(0.5)
+	}
+};
+
+static const struct comedi_lrange range_bipolar0_05 = {
+	1, {
+		BIP_RANGE(0.05)
+	}
+};
+
+static const struct comedi_lrange range_bipolar0_025 = {
+	1, {
+		BIP_RANGE(0.025)
+	}
+};
+
+static const struct comedi_lrange *pci20006_range_list[] = {
+	&range_bipolar10,
+	&range_unipolar10,
+	&range_bipolar5,
+};
+
+static const struct comedi_lrange *const pci20341_ranges[] = {
+	&range_bipolar5,
+	&range_bipolar0_5,
+	&range_bipolar0_05,
+	&range_bipolar0_025,
+};
+
+static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
+static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
+
 union pci20xxx_subdev_private {
 	void __iomem *iobase;
 	struct {
@@ -155,12 +189,6 @@ struct pci20xxx_private {
 #define CHAN (CR_CHAN(it->chanlist[0]))
 
 /* pci20006m */
-
-static const struct comedi_lrange *pci20006_range_list[] = {
-	&range_bipolar10,
-	&range_unipolar10,
-	&range_bipolar5,
-};
 
 static int pci20006_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
@@ -232,31 +260,6 @@ static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /* PCI20341M */
-
-static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
-static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
-
-static const struct comedi_lrange range_bipolar0_5 = {
-	1,
-	{BIP_RANGE(0.5)}
-};
-
-static const struct comedi_lrange range_bipolar0_05 = {
-	1,
-	{BIP_RANGE(0.05)}
-};
-
-static const struct comedi_lrange range_bipolar0_025 = {
-	1,
-	{BIP_RANGE(0.025)}
-};
-
-static const struct comedi_lrange *const pci20341_ranges[] = {
-	&range_bipolar5,
-	&range_bipolar0_5,
-	&range_bipolar0_05,
-	&range_bipolar0_025,
-};
 
 static int pci20341_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
