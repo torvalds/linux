@@ -22,6 +22,17 @@
 #include <asm/eeh.h>
 
 /**
+ * pcibios_release_device - release PCI device
+ * @dev: PCI device
+ *
+ * The function is called before releasing the indicated PCI device.
+ */
+void pcibios_release_device(struct pci_dev *dev)
+{
+	eeh_remove_device(dev, 1);
+}
+
+/**
  * __pcibios_remove_pci_devices - remove all devices under this bus
  * @bus: the indicated PCI bus
  * @purge_pe: destroy the PE on removal of PCI devices
