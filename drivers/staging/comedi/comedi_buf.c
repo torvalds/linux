@@ -15,6 +15,8 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/vmalloc.h>
+
 #include "comedidev.h"
 #include "comedi_internal.h"
 
