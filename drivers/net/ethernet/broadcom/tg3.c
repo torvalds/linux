@@ -17773,7 +17773,8 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 
 	rtnl_lock();
 
-	if (!netif_running(netdev))
+	/* We probably don't have netdev yet */
+	if (!netdev || !netif_running(netdev))
 		goto done;
 
 	tg3_phy_stop(tp);
