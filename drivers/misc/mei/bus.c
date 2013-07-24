@@ -47,7 +47,7 @@ static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 	id = driver->id_table;
 
 	while (id->name[0]) {
-		if (!strcmp(dev_name(dev), id->name))
+		if (!strncmp(dev_name(dev), id->name, sizeof(id->name)))
 			return 1;
 
 		id++;
@@ -71,7 +71,7 @@ static int mei_cl_device_probe(struct device *dev)
 
 	dev_dbg(dev, "Device probe\n");
 
-	strncpy(id.name, dev_name(dev), MEI_CL_NAME_SIZE);
+	strncpy(id.name, dev_name(dev), sizeof(id.name));
 
 	return driver->probe(device, &id);
 }
