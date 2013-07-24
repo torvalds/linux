@@ -24,6 +24,7 @@
  */
 
 #include <drm/drm_mm.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
@@ -197,6 +198,27 @@ static inline bool drm_vma_node_has_offset(struct drm_vma_offset_node *node)
 static inline __u64 drm_vma_node_offset_addr(struct drm_vma_offset_node *node)
 {
 	return ((__u64)node->vm_node.start) << PAGE_SHIFT;
+}
+
+/**
+ * drm_vma_node_unmap() - Unmap offset node
+ * @node: Offset node
+ * @file_mapping: Address space to unmap @node from
+ *
+ * Unmap all userspace mappings for a given offset node. The mappings must be
+ * associated with the @file_mapping address-space. If no offset exists or
+ * the address-space is invalid, nothing is done.
+ *
+ * This call is unlocked. The caller must guarantee that drm_vma_offset_remove()
+ * is not called on this node concurrently.
+ */
+static inline void drm_vma_node_unmap(struct drm_vma_offset_node *node,
+				      struct address_space *file_mapping)
+{
+	if (file_mapping && drm_vma_node_has_offset(node))
+		unmap_mapping_range(file_mapping,
+				    drm_vma_node_offset_addr(node),
+				    drm_vma_node_size(node) << PAGE_SHIFT, 1);
 }
 
 #endif /* __DRM_VMA_MANAGER_H__ */
