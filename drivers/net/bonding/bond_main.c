@@ -1245,12 +1245,6 @@ static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni, g
 	}
 	return err;
 }
-
-static struct netpoll_info *bond_netpoll_info(struct bonding *bond)
-{
-	return bond->dev->npinfo;
-}
-
 #else
 static inline int slave_enable_netpoll(struct slave *slave)
 {
@@ -1795,7 +1789,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	bond_set_carrier(bond);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	slave_dev->npinfo = bond_netpoll_info(bond);
+	slave_dev->npinfo = bond->dev->npinfo;
 	if (slave_dev->npinfo) {
 		if (slave_enable_netpoll(new_slave)) {
 			read_unlock(&bond->lock);
