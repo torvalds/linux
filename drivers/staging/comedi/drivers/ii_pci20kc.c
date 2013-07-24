@@ -154,115 +154,6 @@ struct pci20xxx_private {
 
 #define CHAN (CR_CHAN(it->chanlist[0]))
 
-static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int opt0, int opt1);
-static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int opt0, int opt1);
-static int pci20xxx_dio_init(struct comedi_device *dev,
-			     struct comedi_subdevice *s);
-
-/*
-  options[0]	Board base address
-  options[1]	IRQ
-  options[2]	first option for module 1
-  options[3]	second option for module 1
-  options[4]	first option for module 2
-  options[5]	second option for module 2
-  options[6]	first option for module 3
-  options[7]	second option for module 3
-
-  options for PCI-20341M:
-  first		Analog input gain configuration
-		0 == 1
-		1 == 10
-		2 == 100
-		3 == 200
-
-  options for PCI-20006M:
-  first		Analog output channel 0 range configuration
-		0 == bipolar 10  (-10V -- +10V)
-		1 == unipolar 10V  (0V -- +10V)
-		2 == bipolar 5V  (-5V -- +5V)
-  second	Analog output channel 1 range configuration
-		0 == bipolar 10  (-10V -- +10V)
-		1 == unipolar 10V  (0V -- +10V)
-		2 == bipolar 5V  (-5V -- +5V)
-*/
-static int pci20xxx_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it)
-{
-	struct pci20xxx_private *devpriv;
-	unsigned char i;
-	int ret;
-	int id;
-	struct comedi_subdevice *s;
-	union pci20xxx_subdev_private *sdp;
-
-	ret = comedi_alloc_subdevices(dev, 1 + PCI20000_MODULES);
-	if (ret)
-		return ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
-
-	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
-
-	/* Check PCI-20001 C-2A Carrier Board ID */
-	if ((readb(devpriv->ioaddr) & PCI20000_ID) != PCI20000_ID) {
-		dev_warn(dev->class_dev,
-			 "PCI-20001 C-2A Carrier Board at base=0x%p not found !\n",
-			 devpriv->ioaddr);
-		return -EINVAL;
-	}
-	dev_info(dev->class_dev, "PCI-20001 C-2A at base=0x%p\n",
-		 devpriv->ioaddr);
-
-	for (i = 0; i < PCI20000_MODULES; i++) {
-		s = &dev->subdevices[i];
-		sdp = comedi_alloc_spriv(s, sizeof(*sdp));
-		if (!sdp)
-			return -ENOMEM;
-		id = readb(devpriv->ioaddr + (i + 1) * PCI20000_OFFSET);
-		switch (id) {
-		case PCI20006_ID:
-			sdp->pci20006.iobase =
-			    devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
-			pci20006_init(dev, s, it->options[2 * i + 2],
-				      it->options[2 * i + 3]);
-			dev_info(dev->class_dev,
-				 "PCI-20006 module in slot %d\n", i + 1);
-			break;
-		case PCI20341_ID:
-			sdp->pci20341.iobase =
-			    devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
-			pci20341_init(dev, s, it->options[2 * i + 2],
-				      it->options[2 * i + 3]);
-			dev_info(dev->class_dev,
-				 "PCI-20341 module in slot %d\n", i + 1);
-			break;
-		default:
-			dev_warn(dev->class_dev,
-				 "unknown module code 0x%02x in slot %d: module disabled\n",
-				 id, i); /* XXX this looks like a bug! i + 1 ?? */
-			/* fall through */
-		case PCI20xxx_EMPTY_ID:
-			s->type = COMEDI_SUBD_UNUSED;
-			break;
-		}
-	}
-
-	/* initialize struct pci20xxx_private */
-	pci20xxx_dio_init(dev, &dev->subdevices[PCI20000_MODULES]);
-
-	return 1;
-}
-
-static void pci20xxx_detach(struct comedi_device *dev)
-{
-	/* Nothing to cleanup */
-}
-
 /* pci20006m */
 
 static int pci20006_insn_read(struct comedi_device *dev,
@@ -648,6 +539,81 @@ static unsigned int pci20xxx_di(struct comedi_device *dev,
 	return bits;
 }
 #endif
+
+static int pci20xxx_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it)
+{
+	struct pci20xxx_private *devpriv;
+	unsigned char i;
+	int ret;
+	int id;
+	struct comedi_subdevice *s;
+	union pci20xxx_subdev_private *sdp;
+
+	ret = comedi_alloc_subdevices(dev, 1 + PCI20000_MODULES);
+	if (ret)
+		return ret;
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
+
+	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
+
+	/* Check PCI-20001 C-2A Carrier Board ID */
+	if ((readb(devpriv->ioaddr) & PCI20000_ID) != PCI20000_ID) {
+		dev_warn(dev->class_dev,
+			 "PCI-20001 C-2A Carrier Board at base=0x%p not found !\n",
+			 devpriv->ioaddr);
+		return -EINVAL;
+	}
+	dev_info(dev->class_dev, "PCI-20001 C-2A at base=0x%p\n",
+		 devpriv->ioaddr);
+
+	for (i = 0; i < PCI20000_MODULES; i++) {
+		s = &dev->subdevices[i];
+		sdp = comedi_alloc_spriv(s, sizeof(*sdp));
+		if (!sdp)
+			return -ENOMEM;
+		id = readb(devpriv->ioaddr + (i + 1) * PCI20000_OFFSET);
+		switch (id) {
+		case PCI20006_ID:
+			sdp->pci20006.iobase =
+			    devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
+			pci20006_init(dev, s, it->options[2 * i + 2],
+				      it->options[2 * i + 3]);
+			dev_info(dev->class_dev,
+				 "PCI-20006 module in slot %d\n", i + 1);
+			break;
+		case PCI20341_ID:
+			sdp->pci20341.iobase =
+			    devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
+			pci20341_init(dev, s, it->options[2 * i + 2],
+				      it->options[2 * i + 3]);
+			dev_info(dev->class_dev,
+				 "PCI-20341 module in slot %d\n", i + 1);
+			break;
+		default:
+			dev_warn(dev->class_dev,
+				 "unknown module code 0x%02x in slot %d: module disabled\n",
+				 id, i); /* XXX this looks like a bug! i + 1 ?? */
+			/* fall through */
+		case PCI20xxx_EMPTY_ID:
+			s->type = COMEDI_SUBD_UNUSED;
+			break;
+		}
+	}
+
+	/* initialize struct pci20xxx_private */
+	pci20xxx_dio_init(dev, &dev->subdevices[PCI20000_MODULES]);
+
+	return 1;
+}
+
+static void pci20xxx_detach(struct comedi_device *dev)
+{
+	/* Nothing to cleanup */
+}
 
 static struct comedi_driver pci20xxx_driver = {
 	.driver_name	= "ii_pci20kc",
