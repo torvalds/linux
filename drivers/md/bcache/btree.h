@@ -216,7 +216,7 @@ static inline struct bkey *bch_btree_iter_init(struct btree *b,
 	return __bch_btree_iter_init(b, iter, search, b->sets);
 }
 
-void __bkey_put(struct cache_set *c, struct bkey *k);
+void bkey_put(struct cache_set *c, struct bkey *k);
 
 /* Looping macros */
 

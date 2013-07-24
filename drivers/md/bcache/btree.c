@@ -180,19 +180,13 @@ static inline bool should_split(struct btree *b)
 
 /* Btree key manipulation */
 
-void __bkey_put(struct cache_set *c, struct bkey *k)
+void bkey_put(struct cache_set *c, struct bkey *k)
 {
 	unsigned i;
 
 	for (i = 0; i < KEY_PTRS(k); i++)
 		if (ptr_available(c, k, i))
 			atomic_dec_bug(&PTR_BUCKET(c, k, i)->pin);
-}
-
-static void bkey_put(struct cache_set *c, struct bkey *k, int level)
-{
-	if ((level && KEY_OFFSET(k)) || !level)
-		__bkey_put(c, k);
 }
 
 /* Btree IO */
@@ -1068,6 +1062,7 @@ retry:
 	if (__bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, true))
 		goto err;
 
+	bkey_put(c, &k.key);
 	SET_KEY_SIZE(&k.key, c->btree_pages * PAGE_SECTORS);
 
 	b = mca_alloc(c, &k.key, level);
@@ -1077,7 +1072,6 @@ retry:
 	if (!b) {
 		cache_bug(c,
 			"Tried to allocate bucket that was in btree cache");
-		__bkey_put(c, &k.key);
 		goto retry;
 	}
 
@@ -1090,7 +1084,6 @@ retry:
 	return b;
 err_free:
 	bch_bucket_free(c, &k.key);
-	__bkey_put(c, &k.key);
 err:
 	mutex_unlock(&c->bucket_lock);
 
@@ -1217,7 +1210,6 @@ static struct btree *btree_gc_alloc(struct btree *b, struct bkey *k)
 
 	if (!IS_ERR_OR_NULL(n)) {
 		swap(b, n);
-		__bkey_put(b->c, &b->key);
 
 		memcpy(k->ptr, b->key.ptr,
 		       sizeof(uint64_t) * KEY_PTRS(&b->key));
@@ -1932,19 +1924,12 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 			break;
 
 		if (bkey_cmp(k, &b->key) <= 0) {
-			bkey_put(b->c, k, b->level);
+			if (!b->level)
+				bkey_put(b->c, k);
 
 			ret |= btree_insert_key(b, op, k, replace_key);
 			bch_keylist_pop_front(insert_keys);
 		} else if (bkey_cmp(&START_KEY(k), &b->key) < 0) {
-#if 0
-			if (replace_key) {
-				bkey_put(b->c, k, b->level);
-				bch_keylist_pop_front(insert_keys);
-				op->insert_collision = true;
-				break;
-			}
-#endif
 			BKEY_PADDED(key) temp;
 			bkey_copy(&temp.key, insert_keys->keys);
 
@@ -2071,11 +2056,9 @@ static int btree_split(struct btree *b, struct btree_op *op,
 
 	return 0;
 err_free2:
-	__bkey_put(n2->c, &n2->key);
 	btree_node_free(n2);
 	rw_unlock(true, n2);
 err_free1:
-	__bkey_put(n1->c, &n1->key);
 	btree_node_free(n1);
 	rw_unlock(true, n1);
 err:
@@ -2225,7 +2208,7 @@ int bch_btree_insert(struct cache_set *c, struct keylist *keys,
 		pr_err("error %i", ret);
 
 		while ((k = bch_keylist_pop(keys)))
-			bkey_put(c, k, 0);
+			bkey_put(c, k);
 	} else if (op.op.insert_collision)
 		ret = -ESRCH;
 
@@ -2251,7 +2234,6 @@ void bch_btree_set_root(struct btree *b)
 	mutex_unlock(&b->c->bucket_lock);
 
 	b->c->root = b;
-	__bkey_put(b->c, &b->key);
 
 	bch_journal_meta(b->c, &cl);
 	closure_sync(&cl);

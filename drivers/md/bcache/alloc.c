@@ -472,7 +472,7 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
 	return 0;
 err:
 	bch_bucket_free(c, k);
-	__bkey_put(c, k);
+	bkey_put(c, k);
 	return -1;
 }
 
@@ -588,7 +588,7 @@ bool bch_alloc_sectors(struct cache_set *c, struct bkey *k, unsigned sectors,
 	 * didn't use it, drop the refcount bch_bucket_alloc_set() took:
 	 */
 	if (KEY_PTRS(&alloc.key))
-		__bkey_put(c, &alloc.key);
+		bkey_put(c, &alloc.key);
 
 	for (i = 0; i < KEY_PTRS(&b->key); i++)
 		EBUG_ON(ptr_stale(c, &b->key, i));

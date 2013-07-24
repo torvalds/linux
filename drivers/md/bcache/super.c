@@ -426,7 +426,7 @@ static int __uuid_write(struct cache_set *c)
 	closure_sync(&cl);
 
 	bkey_copy(&c->uuid_bucket, &k.key);
-	__bkey_put(c, &k.key);
+	bkey_put(c, &k.key);
 	return 0;
 }
 
