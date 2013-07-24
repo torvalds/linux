@@ -860,25 +860,24 @@ static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 			    &nsent, BULK_TIMEOUT);
 }
 
-static int receive_dux_commands(struct usbdux_private *this_usbduxsub, int command)
+static int receive_dux_commands(struct comedi_device *dev, int command)
 {
-	int result = (-EFAULT);
+	struct usbdux_private *devpriv = dev->private;
+	struct usb_device *usb = devpriv->usbdev;
+	int ret;
 	int nrec;
 	int i;
 
 	for (i = 0; i < RETRIES; i++) {
-		result = usb_bulk_msg(this_usbduxsub->usbdev,
-				      usb_rcvbulkpipe(this_usbduxsub->usbdev,
-						      COMMAND_IN_EP),
-				      this_usbduxsub->insn_buffer, SIZEINSNBUF,
+		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, COMMAND_IN_EP),
+				      devpriv->insn_buffer, SIZEINSNBUF,
 				      &nrec, BULK_TIMEOUT);
-		if (result < 0)
-			return result;
-		if (le16_to_cpu(this_usbduxsub->insn_buffer[0]) == command)
-			return result;
+		if (ret < 0)
+			return ret;
+		if (le16_to_cpu(devpriv->insn_buffer[0]) == command)
+			return ret;
 	}
-	/* this is only reached if the data has been requested a couple of
-	 * times */
+	/* command not received */
 	return -EFAULT;
 }
 
@@ -1037,7 +1036,7 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 	}
 
 	for (i = 0; i < insn->n; i++) {
-		err = receive_dux_commands(this_usbduxsub, SENDSINGLEAD);
+		err = receive_dux_commands(dev, SENDSINGLEAD);
 		if (err < 0) {
 			up(&this_usbduxsub->sem);
 			return 0;
@@ -1362,7 +1361,7 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 		up(&this_usbduxsub->sem);
 		return err;
 	}
-	err = receive_dux_commands(this_usbduxsub, SENDDIOBITSCOMMAND);
+	err = receive_dux_commands(dev, SENDDIOBITSCOMMAND);
 	if (err < 0) {
 		up(&this_usbduxsub->sem);
 		return err;
@@ -1392,7 +1391,7 @@ static int usbdux_counter_read(struct comedi_device *dev,
 		return err;
 	}
 
-	err = receive_dux_commands(this_usbduxsub, READCOUNTERCOMMAND);
+	err = receive_dux_commands(dev, READCOUNTERCOMMAND);
 	if (err < 0) {
 		up(&this_usbduxsub->sem);
 		return err;
