@@ -83,8 +83,6 @@
 
 /******************************************************************************/
 
-# define fprintf(a, format, b...) CDEBUG(D_OTHER, format , ## b)
-# define printf(format, b...) CDEBUG(D_OTHER, format , ## b)
 # define time(a) CURRENT_TIME
 
 /******************************************************************************/
