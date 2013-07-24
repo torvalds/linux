@@ -55,21 +55,6 @@ are:
 Options:
   0   Board base address
   1   IRQ
-  2   first option for module 1
-  3   second option for module 1
-  4   first option for module 2
-  5   second option for module 2
-  6   first option for module 3
-  7   second option for module 3
-
-options for PCI-20006M:
-
-options for PCI-20341M:
-  first:   Analog input gain configuration
-	     0  1
-	     1  10
-	     2  100
-	     3  200
 */
 
 #include <linux/module.h>
@@ -119,26 +104,44 @@ options for PCI-20341M:
 #define II20K_AO_MSB_REG(x)		(0x0e + ((x) * 0x08))
 #define II20K_AO_STRB_BOTH_REG		0x1b
 
-#define PCI20341_ID			0x77
-#define PCI20xxx_EMPTY_ID		0xff
-
-#define PCI20341_INIT			0x04
-#define PCI20341_REPMODE		0x00	/* single shot mode */
-#define PCI20341_PACER			0x00	/* Hardware Pacer disabled */
-#define PCI20341_CONFIG_REG		0x10
-#define PCI20341_MOD_STATUS		0x01
-#define PCI20341_OPT_REG		0x11
-#define PCI20341_SET_TIME_REG		0x15
-#define PCI20341_LCHAN_ADDR_REG		0x13
-#define PCI20341_CHAN_LIST		0x80
-#define PCI20341_CC_RESET		0x1b
-#define PCI20341_CHAN_RESET		0x19
-#define PCI20341_SOFT_PACER		0x04
-#define PCI20341_STATUS_REG		0x12
-#define PCI20341_LDATA			0x02
-#define PCI20341_DAISY_CHAIN		0x20	/* On-board inputs only */
-#define PCI20341_MUX			0x04	/* Enable on-board MUX */
-#define PCI20341_SCANLIST		0x80	/* Channel/Gain Scan List */
+#define II20K_ID_PCI200341M_1		0x77	/* 4 AI channels */
+#define II20K_AI_STATUS_CMD_REG		0x01
+#define II20K_AI_STATUS_CMD_BUSY	(1 << 7)
+#define II20K_AI_STATUS_CMD_HW_ENA	(1 << 1)
+#define II20K_AI_STATUS_CMD_EXT_START	(1 << 0)
+#define II20K_AI_LSB_REG		0x02
+#define II20K_AI_MSB_REG		0x03
+#define II20K_AI_PACER_RESET_REG	0x04
+#define II20K_AI_16BIT_DATA_REG		0x06
+#define II20K_AI_CONF_REG		0x10
+#define II20K_AI_CONF_ENA		(1 << 2)
+#define II20K_AI_OPT_REG		0x11
+#define II20K_AI_OPT_TRIG_ENA		(1 << 5)
+#define II20K_AI_OPT_TRIG_INV		(1 << 4)
+#define II20K_AI_OPT_TIMEBASE(x)	(((x) & 0x3) << 1)
+#define II20K_AI_OPT_BURST_MODE		(1 << 0)
+#define II20K_AI_STATUS_REG		0x12
+#define II20K_AI_STATUS_INT		(1 << 7)
+#define II20K_AI_STATUS_TRIG		(1 << 6)
+#define II20K_AI_STATUS_TRIG_ENA	(1 << 5)
+#define II20K_AI_STATUS_PACER_ERR	(1 << 2)
+#define II20K_AI_STATUS_DATA_ERR	(1 << 1)
+#define II20K_AI_STATUS_SET_TIME_ERR	(1 << 0)
+#define II20K_AI_LAST_CHAN_ADDR_REG	0x13
+#define II20K_AI_CUR_ADDR_REG		0x14
+#define II20K_AI_SET_TIME_REG		0x15
+#define II20K_AI_DELAY_LSB_REG		0x16
+#define II20K_AI_DELAY_MSB_REG		0x17
+#define II20K_AI_CHAN_ADV_REG		0x18
+#define II20K_AI_CHAN_RESET_REG		0x19
+#define II20K_AI_START_TRIG_REG		0x1a
+#define II20K_AI_COUNT_RESET_REG	0x1b
+#define II20K_AI_CHANLIST_REG		0x80
+#define II20K_AI_CHANLIST_ONBOARD_ONLY	(1 << 5)
+#define II20K_AI_CHANLIST_GAIN(x)	(((x) & 0x3) << 3)
+#define II20K_AI_CHANLIST_MUX_ENA	(1 << 2)
+#define II20K_AI_CHANLIST_CHAN(x)	(((x) & 0x3) << 0)
+#define II20K_AI_CHANLIST_LEN		0x80
 
 /* the AO range is set by jumpers on the 20006M module */
 static const struct comedi_lrange ii20k_ao_ranges = {
@@ -148,42 +151,18 @@ static const struct comedi_lrange ii20k_ao_ranges = {
 		BIP_RANGE(10)	/* Chan 0 - W1/W3 in   Chan 1 - W2/W4 out */
 	}
 };
-static const struct comedi_lrange range_bipolar0_5 = {
-	1, {
-		BIP_RANGE(0.5)
-	}
-};
 
-static const struct comedi_lrange range_bipolar0_05 = {
-	1, {
-		BIP_RANGE(0.05)
-	}
+static const struct comedi_lrange ii20k_ai_ranges = {
+	4, {
+		BIP_RANGE(5),		/* gain 1 */
+		BIP_RANGE(0.5),		/* gain 10 */
+		BIP_RANGE(0.05),	/* gain 100 */
+		BIP_RANGE(0.025)	/* gain 200 */
+	},
 };
-
-static const struct comedi_lrange range_bipolar0_025 = {
-	1, {
-		BIP_RANGE(0.025)
-	}
-};
-
-static const struct comedi_lrange *const ii20k_ai_ranges[] = {
-	&range_bipolar5,
-	&range_bipolar0_5,
-	&range_bipolar0_05,
-	&range_bipolar0_025,
-};
-
-static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
-static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
 
 struct ii20k_ao_private {
 	unsigned int last_data[2];
-};
-
-struct ii20k_ai_private {
-	int timebase;
-	int settling_time;
-	int ai_gain;
 };
 
 struct pci20xxx_private {
@@ -241,82 +220,94 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int ii20k_ai_wait_eoc(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     int timeout)
+{
+	void __iomem *iobase = ii20k_module_iobase(dev, s);
+	unsigned char status;
+
+	do {
+		status = readb(iobase + II20K_AI_STATUS_REG);
+		if ((status & II20K_AI_STATUS_INT) == 0)
+			return 0;
+	} while (timeout--);
+
+	return -ETIME;
+}
+
+static void ii20k_ai_setup(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   unsigned int chanspec)
+{
+	void __iomem *iobase = ii20k_module_iobase(dev, s);
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned char val;
+
+	/* initialize module */
+	writeb(II20K_AI_CONF_ENA, iobase + II20K_AI_CONF_REG);
+
+	/* software conversion */
+	writeb(0, iobase + II20K_AI_STATUS_CMD_REG);
+
+	/* set the time base for the settling time counter based on the gain */
+	val = (range < 3) ? II20K_AI_OPT_TIMEBASE(0) : II20K_AI_OPT_TIMEBASE(2);
+	writeb(val, iobase + II20K_AI_OPT_REG);
+
+	/* set the settling time counter based on the gain */
+	val = (range < 2) ? 0x58 : (range < 3) ? 0x93 : 0x99;
+	writeb(val, iobase + II20K_AI_SET_TIME_REG);
+
+	/* set number of input channels */
+	writeb(1, iobase + II20K_AI_LAST_CHAN_ADDR_REG);
+
+	/* set the channel list byte */
+	val = II20K_AI_CHANLIST_ONBOARD_ONLY |
+	      II20K_AI_CHANLIST_MUX_ENA |
+	      II20K_AI_CHANLIST_GAIN(range) |
+	      II20K_AI_CHANLIST_CHAN(chan);
+	writeb(val, iobase + II20K_AI_CHANLIST_REG);
+
+	/* reset settling time counter and trigger delay counter */
+	writeb(0, iobase + II20K_AI_COUNT_RESET_REG);
+
+	/* reset channel scanner */
+	writeb(0, iobase + II20K_AI_CHAN_RESET_REG);
+}
+
 static int ii20k_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct ii20k_ai_private *ai_spriv = s->private;
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
-	unsigned int i = 0, j = 0;
-	int lo, hi;
-	unsigned char eoc;	/* end of conversion */
-	unsigned int clb;	/* channel list byte */
-	unsigned int boarddata;
+	int ret;
+	int i;
 
-	/* write number of input channels */
-	writeb(1, iobase + PCI20341_LCHAN_ADDR_REG);
-	clb = PCI20341_DAISY_CHAIN | PCI20341_MUX | (ai_spriv->ai_gain << 3)
-	    | CR_CHAN(insn->chanspec);
-	writeb(clb, iobase + PCI20341_CHAN_LIST);
-
-	/* reset settling time counter and trigger delay counter */
-	writeb(0x00, iobase + PCI20341_CC_RESET);
-
-	writeb(0x00, iobase + PCI20341_CHAN_RESET);
-
-	/* generate Pacer */
+	ii20k_ai_setup(dev, s, insn->chanspec);
 
 	for (i = 0; i < insn->n; i++) {
-		/* data polling isn't the niciest way to get the data, I know,
-		 * but there are only 6 cycles (mean) and it is easier than
-		 * the whole interrupt stuff
-		 */
-		j = 0;
-		/* generate Pacer */
-		readb(iobase + PCI20341_SOFT_PACER);
+		unsigned int val;
 
-		eoc = readb(iobase + PCI20341_STATUS_REG);
-		/* poll Interrupt Flag */
-		while ((eoc < 0x80) && j < 100) {
-			j++;
-			eoc = readb(iobase + PCI20341_STATUS_REG);
-		}
-		if (j >= 100) {
-			dev_warn(dev->class_dev,
-				 "AI interrupt channel %i polling exit !\n", i);
-			return -EINVAL;
-		}
-		lo = readb(iobase + PCI20341_LDATA);
-		hi = readb(iobase + PCI20341_LDATA + 1);
-		boarddata = lo + 0x100 * hi;
+		/* generate a software start convert signal */
+		readb(iobase + II20K_AI_PACER_RESET_REG);
 
-		/* board-data -> comedi-data */
-		data[i] = (short)((boarddata + 0x8000) & 0xffff);
+		ret = ii20k_ai_wait_eoc(dev, s, 100);
+		if (ret)
+			return ret;
+
+		val = readb(iobase + II20K_AI_LSB_REG);
+		val |= (readb(iobase + II20K_AI_MSB_REG) << 8);
+
+		/* munge two's complement data */
+		val += ((s->maxdata + 1) >> 1);
+		val &= s->maxdata;
+
+		data[i] = val;
 	}
 
-	return i;
-}
-
-static void ii20k_ai_init(struct comedi_device *dev,
-			  struct comedi_subdevice *s)
-{
-	struct ii20k_ai_private *ai_spriv = s->private;
-	void __iomem *iobase = ii20k_module_iobase(dev, s);
-	unsigned char option;
-
-	/* depends on gain, trigger, repetition mode */
-	option = ai_spriv->timebase | PCI20341_REPMODE;
-
-	/* initialize Module */
-	writeb(PCI20341_INIT, iobase + PCI20341_CONFIG_REG);
-	/* set Pacer */
-	writeb(PCI20341_PACER, iobase + PCI20341_MOD_STATUS);
-	/* option register */
-	writeb(option, iobase + PCI20341_OPT_REG);
-	/* settling time counter */
-	writeb(ai_spriv->settling_time, iobase + PCI20341_SET_TIME_REG);
-	/* trigger not implemented */
+	return insn->n;
 }
 
 static void ii20k_dio_config(struct comedi_device *dev,
@@ -456,13 +447,10 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 }
 
 static int ii20k_init_module(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_devconfig *it)
+			     struct comedi_subdevice *s)
 {
 	struct ii20k_ao_private *ao_spriv;
-	struct ii20k_ai_private *ai_spriv;
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
-	unsigned int opt0 = it->options[(2 * s->index) + 2];
 	unsigned char id;
 
 	id = readb(iobase + II20K_ID_REG);
@@ -482,28 +470,15 @@ static int ii20k_init_module(struct comedi_device *dev,
 		s->insn_read	= ii20k_ao_insn_read;
 		s->insn_write	= ii20k_ao_insn_write;
 		break;
-	case PCI20341_ID:
-		if (opt0 < 0 || opt0 > 3)
-			opt0 = 0;
-
-		ai_spriv = comedi_alloc_spriv(s, sizeof(*ai_spriv));
-		if (!ai_spriv)
-			return -ENOMEM;
-
-		ai_spriv->timebase = pci20341_timebase[opt0];
-		ai_spriv->settling_time = pci20341_settling_time[opt0];
-
+	case II20K_ID_PCI200341M_1:
 		/* Analog Input subdevice */
 		s->type		= COMEDI_SUBD_AI;
-		s->subdev_flags	= SDF_READABLE;
+		s->subdev_flags	= SDF_READABLE | SDF_DIFF;
 		s->n_chan	= 4;
 		s->maxdata	= 0xffff;
-		s->range_table	= ii20k_ai_ranges[opt0];
+		s->range_table	= &ii20k_ai_ranges;
 		s->insn_read	= ii20k_ai_insn_read;
-
-		ii20k_ai_init(dev, s);
 		break;
-	case PCI20xxx_EMPTY_ID:
 	default:
 		s->type = COMEDI_SUBD_UNUSED;
 		break;
@@ -546,7 +521,7 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	if (id & II20K_ID_MOD1_EMPTY) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
-		ret = ii20k_init_module(dev, s, it);
+		ret = ii20k_init_module(dev, s);
 		if (ret)
 			return ret;
 	}
@@ -555,7 +530,7 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	if (id & II20K_ID_MOD2_EMPTY) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
-		ret = ii20k_init_module(dev, s, it);
+		ret = ii20k_init_module(dev, s);
 		if (ret)
 			return ret;
 	}
@@ -564,7 +539,7 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	if (id & II20K_ID_MOD3_EMPTY) {
 		s->type = COMEDI_SUBD_UNUSED;
 	} else {
-		ret = ii20k_init_module(dev, s, it);
+		ret = ii20k_init_module(dev, s);
 		if (ret)
 			return ret;
 	}
