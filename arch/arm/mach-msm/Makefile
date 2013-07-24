@@ -2,7 +2,6 @@ obj-y += io.o timer.o
 obj-y += clock.o
 
 obj-$(CONFIG_MSM_VIC) += irq-vic.o
-obj-$(CONFIG_MSM_IOMMU) += devices-iommu.o
 
 obj-$(CONFIG_ARCH_MSM7X00A) += irq.o
 obj-$(CONFIG_ARCH_QSD8X50) += sirc.o
