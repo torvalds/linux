@@ -2384,15 +2384,18 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 
 static void usbdux_detach(struct comedi_device *dev)
 {
-	struct usbdux_private *usb = dev->private;
+	struct usbdux_private *devpriv = dev->private;
 
-	if (usb) {
-		down(&usb->sem);
+	down(&start_stop_sem);
+	if (devpriv) {
+		down(&devpriv->sem);
+		tidy_up(devpriv);
 		dev->private = NULL;
-		usb->attached = 0;
-		usb->comedidev = NULL;
-		up(&usb->sem);
+		devpriv->attached = 0;
+		devpriv->comedidev = NULL;
+		up(&devpriv->sem);
 	}
+	up(&start_stop_sem);
 }
 
 static struct comedi_driver usbdux_driver = {
@@ -2471,29 +2474,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 	return comedi_usb_auto_config(uinterf, &usbdux_driver, 0);
 }
 
-static void usbdux_usb_disconnect(struct usb_interface *intf)
-{
-	struct usbdux_private *usbduxsub_tmp = usb_get_intfdata(intf);
-	struct usb_device *udev = interface_to_usbdev(intf);
-
-	if (!usbduxsub_tmp) {
-		dev_err(&intf->dev,
-			"comedi_: disconnect called with null pointer.\n");
-		return;
-	}
-	if (usbduxsub_tmp->usbdev != udev) {
-		dev_err(&intf->dev, "comedi_: BUG! called with wrong ptr!!!\n");
-		return;
-	}
-	comedi_usb_auto_unconfig(intf);
-	down(&start_stop_sem);
-	down(&usbduxsub_tmp->sem);
-	tidy_up(usbduxsub_tmp);
-	up(&usbduxsub_tmp->sem);
-	up(&start_stop_sem);
-	dev_dbg(&intf->dev, "comedi_: disconnected from the usb\n");
-}
-
 static const struct usb_device_id usbdux_usb_table[] = {
 	{ USB_DEVICE(0x13d8, 0x0001) },
 	{ USB_DEVICE(0x13d8, 0x0002) },
@@ -2505,7 +2485,7 @@ MODULE_DEVICE_TABLE(usb, usbdux_usb_table);
 static struct usb_driver usbdux_usb_driver = {
 	.name		= "usbdux",
 	.probe		= usbdux_usb_probe,
-	.disconnect	= usbdux_usb_disconnect,
+	.disconnect	= comedi_usb_auto_unconfig,
 	.id_table	= usbdux_usb_table,
 };
 module_comedi_usb_driver(usbdux_driver, usbdux_usb_driver);
