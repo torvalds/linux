@@ -496,10 +496,15 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_set_opt(info->mount_opt, NOBARRIER);
 			break;
 		case Opt_thread_pool:
-			intarg = 0;
-			match_int(&args[0], &intarg);
-			if (intarg)
+			ret = match_int(&args[0], &intarg);
+			if (ret) {
+				goto out;
+			} else if (intarg > 0) {
 				info->thread_pool_size = intarg;
+			} else {
+				ret = -EINVAL;
+				goto out;
+			}
 			break;
 		case Opt_max_inline:
 			num = match_strdup(&args[0]);
@@ -514,6 +519,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				}
 				printk(KERN_INFO "btrfs: max_inline at %llu\n",
 					(unsigned long long)info->max_inline);
+			} else {
+				ret = -ENOMEM;
+				goto out;
 			}
 			break;
 		case Opt_alloc_start:
@@ -526,6 +534,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				printk(KERN_INFO
 					"btrfs: allocations start at %llu\n",
 					(unsigned long long)info->alloc_start);
+			} else {
+				ret = -ENOMEM;
+				goto out;
 			}
 			break;
 		case Opt_noacl:
@@ -540,12 +551,16 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_set_opt(info->mount_opt, FLUSHONCOMMIT);
 			break;
 		case Opt_ratio:
-			intarg = 0;
-			match_int(&args[0], &intarg);
-			if (intarg) {
+			ret = match_int(&args[0], &intarg);
+			if (ret) {
+				goto out;
+			} else if (intarg >= 0) {
 				info->metadata_ratio = intarg;
 				printk(KERN_INFO "btrfs: metadata ratio %d\n",
 				       info->metadata_ratio);
+			} else {
+				ret = -EINVAL;
+				goto out;
 			}
 			break;
 		case Opt_discard:
@@ -596,13 +611,17 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_set_opt(info->mount_opt, CHECK_INTEGRITY);
 			break;
 		case Opt_check_integrity_print_mask:
-			intarg = 0;
-			match_int(&args[0], &intarg);
-			if (intarg) {
+			ret = match_int(&args[0], &intarg);
+			if (ret) {
+				goto out;
+			} else if (intarg >= 0) {
 				info->check_integrity_print_mask = intarg;
 				printk(KERN_INFO "btrfs:"
 				       " check_integrity_print_mask 0x%x\n",
 				       info->check_integrity_print_mask);
+			} else {
+				ret = -EINVAL;
+				goto out;
 			}
 			break;
 #else
@@ -679,17 +698,25 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		case Opt_subvol:
 			kfree(*subvol_name);
 			*subvol_name = match_strdup(&args[0]);
+			if (!*subvol_name) {
+				error = -ENOMEM;
+				goto out;
+			}
 			break;
 		case Opt_subvolid:
-			intarg = 0;
 			error = match_int(&args[0], &intarg);
 			if (!error) {
+				goto out;
+			} else if (intarg >= 0) {
 				/* we want the original fs_tree */
 				if (!intarg)
 					*subvol_objectid =
 						BTRFS_FS_TREE_OBJECTID;
 				else
 					*subvol_objectid = intarg;
+			} else {
+				error = -EINVAL;
+				goto out;
 			}
 			break;
 		case Opt_subvolrootid:
