@@ -264,7 +264,7 @@ static void n_tty_check_throttle(struct tty_struct *tty)
 	__tty_set_flow_change(tty, 0);
 }
 
-static inline void n_tty_check_unthrottle(struct tty_struct *tty)
+static void n_tty_check_unthrottle(struct tty_struct *tty)
 {
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->link->ldisc->ops->write_wakeup == n_tty_write_wakeup) {
@@ -1110,7 +1110,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
  *	Locking: ctrl_lock
  */
 
-static inline void isig(int sig, struct tty_struct *tty)
+static void isig(int sig, struct tty_struct *tty)
 {
 	struct pid *tty_pgrp = tty_get_pgrp(tty);
 	if (tty_pgrp) {
@@ -1133,7 +1133,7 @@ static inline void isig(int sig, struct tty_struct *tty)
  *	Note: may get exclusive termios_rwsem if flushing input buffer
  */
 
-static inline void n_tty_receive_break(struct tty_struct *tty)
+static void n_tty_receive_break(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -1171,7 +1171,7 @@ static inline void n_tty_receive_break(struct tty_struct *tty)
  *	private.
  */
 
-static inline void n_tty_receive_overrun(struct tty_struct *tty)
+static void n_tty_receive_overrun(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	char buf[64];
@@ -1199,8 +1199,7 @@ static inline void n_tty_receive_overrun(struct tty_struct *tty)
  *		caller holds non-exclusive termios_rwsem
  *		publishes read_head via put_tty_queue()
  */
-static inline void n_tty_receive_parity_error(struct tty_struct *tty,
-					      unsigned char c)
+static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
