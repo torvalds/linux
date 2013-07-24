@@ -63,11 +63,6 @@ Options:
   7   second option for module 3
 
 options for PCI-20006M:
-  first:   Analog output channel 0 range configuration
-	     0  bipolar 10  (-10V -- +10V)
-	     1  unipolar 10  (0V -- +10V)
-	     2  bipolar 5  (-5V -- 5V)
-  second:  Analog output channel 1 range configuration
 
 options for PCI-20341M:
   first:   Analog input gain configuration
@@ -117,14 +112,15 @@ options for PCI-20341M:
 #define II20K_CTRL23_DIO2_IN		(1 << 4)
 #define II20K_CTRL23_DIO3_IN		(1 << 1)
 
-#define PCI20341_ID			0x77
-#define PCI20006_ID			0xe3
-#define PCI20xxx_EMPTY_ID		0xff
+#define II20K_ID_PCI20006M_1		0xe2	/* 1 AO channels */
+#define II20K_ID_PCI20006M_2		0xe3	/* 2 AO channels */
+#define II20K_AO_STRB_REG(x)		(0x0b + ((x) * 0x08))
+#define II20K_AO_LSB_REG(x)		(0x0d + ((x) * 0x08))
+#define II20K_AO_MSB_REG(x)		(0x0e + ((x) * 0x08))
+#define II20K_AO_STRB_BOTH_REG		0x1b
 
-#define PCI20006_LCHAN0			0x0d
-#define PCI20006_STROBE0		0x0b
-#define PCI20006_LCHAN1			0x15
-#define PCI20006_STROBE1		0x13
+#define PCI20341_ID			0x77
+#define PCI20xxx_EMPTY_ID		0xff
 
 #define PCI20341_INIT			0x04
 #define PCI20341_REPMODE		0x00	/* single shot mode */
@@ -144,6 +140,14 @@ options for PCI-20341M:
 #define PCI20341_MUX			0x04	/* Enable on-board MUX */
 #define PCI20341_SCANLIST		0x80	/* Channel/Gain Scan List */
 
+/* the AO range is set by jumpers on the 20006M module */
+static const struct comedi_lrange ii20k_ao_ranges = {
+	3, {
+		BIP_RANGE(5),	/* Chan 0 - W1/W3 in   Chan 1 - W2/W4 in  */
+		UNI_RANGE(10),	/* Chan 0 - W1/W3 out  Chan 1 - W2/W4 in  */
+		BIP_RANGE(10)	/* Chan 0 - W1/W3 in   Chan 1 - W2/W4 out */
+	}
+};
 static const struct comedi_lrange range_bipolar0_5 = {
 	1, {
 		BIP_RANGE(0.5)
@@ -162,12 +166,6 @@ static const struct comedi_lrange range_bipolar0_025 = {
 	}
 };
 
-static const struct comedi_lrange *ii20k_ao_ranges[] = {
-	&range_bipolar10,
-	&range_unipolar10,
-	&range_bipolar5,
-};
-
 static const struct comedi_lrange *const ii20k_ai_ranges[] = {
 	&range_bipolar5,
 	&range_bipolar0_5,
@@ -179,7 +177,6 @@ static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
 
 struct ii20k_ao_private {
-	const struct comedi_lrange *ao_range_list[2];
 	unsigned int last_data[2];
 };
 
@@ -207,10 +204,13 @@ static int ii20k_ao_insn_read(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	struct ii20k_ao_private *ao_spriv = s->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	data[0] = ao_spriv->last_data[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[i] = ao_spriv->last_data[chan];
 
-	return 1;
+	return insn->n;
 }
 
 static int ii20k_ao_insn_write(struct comedi_device *dev,
@@ -220,32 +220,25 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 {
 	struct ii20k_ao_private *ao_spriv = s->private;
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
-	int hi, lo;
-	unsigned int boarddata;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = ao_spriv->last_data[chan];
+	int i;
 
-	ao_spriv->last_data[CR_CHAN(insn->chanspec)] = data[0];
-	boarddata = (((unsigned int)data[0] + 0x8000) & 0xffff);
-						/* comedi-data -> board-data */
-	lo = (boarddata & 0xff);
-	hi = ((boarddata >> 8) & 0xff);
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
 
-	switch (CR_CHAN(insn->chanspec)) {
-	case 0:
-		writeb(lo, iobase + PCI20006_LCHAN0);
-		writeb(hi, iobase + PCI20006_LCHAN0 + 1);
-		writeb(0x00, iobase + PCI20006_STROBE0);
-		break;
-	case 1:
-		writeb(lo, iobase + PCI20006_LCHAN1);
-		writeb(hi, iobase + PCI20006_LCHAN1 + 1);
-		writeb(0x00, iobase + PCI20006_STROBE1);
-		break;
-	default:
-		dev_warn(dev->class_dev, "ao channel Error!\n");
-		return -EINVAL;
+		/* munge data */
+		val += ((s->maxdata + 1) >> 1);
+		val &= s->maxdata;
+
+		writeb(val & 0xff, iobase + II20K_AO_LSB_REG(chan));
+		writeb((val >> 8) & 0xff, iobase + II20K_AO_MSB_REG(chan));
+		writeb(0x00, iobase + II20K_AO_STRB_REG(chan));
 	}
 
-	return 1;
+	ao_spriv->last_data[chan] = val;
+
+	return insn->n;
 }
 
 static int ii20k_ai_insn_read(struct comedi_device *dev,
@@ -470,30 +463,22 @@ static int ii20k_init_module(struct comedi_device *dev,
 	struct ii20k_ai_private *ai_spriv;
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned int opt0 = it->options[(2 * s->index) + 2];
-	unsigned int opt1 = it->options[(2 * s->index) + 3];
 	unsigned char id;
 
 	id = readb(iobase + II20K_ID_REG);
 	switch (id) {
-	case PCI20006_ID:
-		if (opt0 < 0 || opt0 > 2)
-			opt0 = 0;
-		if (opt1 < 0 || opt1 > 2)
-			opt1 = 0;
-
+	case II20K_ID_PCI20006M_1:
+	case II20K_ID_PCI20006M_2:
 		ao_spriv = comedi_alloc_spriv(s, sizeof(*ao_spriv));
 		if (!ao_spriv)
 			return -ENOMEM;
 
-		ao_spriv->ao_range_list[0] = ii20k_ao_ranges[opt0];
-		ao_spriv->ao_range_list[1] = ii20k_ao_ranges[opt1];
-
 		/* Analog Output subdevice */
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
-		s->n_chan	= 2;
+		s->n_chan	= (id == II20K_ID_PCI20006M_2) ? 2 : 1;
 		s->maxdata	= 0xffff;
-		s->range_table_list = ao_spriv->ao_range_list;
+		s->range_table	= &ii20k_ao_ranges;
 		s->insn_read	= ii20k_ao_insn_read;
 		s->insn_write	= ii20k_ao_insn_write;
 		break;
