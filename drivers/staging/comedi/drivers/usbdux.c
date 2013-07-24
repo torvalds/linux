@@ -185,26 +185,20 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 /* number of retries to get the right dux command */
 #define RETRIES 10
 
-/**************************************************/
-/* comedi constants */
-static const struct comedi_lrange range_usbdux_ai_range = { 4, {
-								BIP_RANGE
-								(4.096),
-								BIP_RANGE(4.096
-									  / 2),
-								UNI_RANGE
-								(4.096),
-								UNI_RANGE(4.096
-									  / 2)
-								}
+static const struct comedi_lrange range_usbdux_ai_range = {
+	4, {
+		BIP_RANGE(4.096),
+		BIP_RANGE(4.096 / 2),
+		UNI_RANGE(4.096),
+		UNI_RANGE(4.096 / 2)
+	}
 };
 
-static const struct comedi_lrange range_usbdux_ao_range = { 2, {
-								BIP_RANGE
-								(4.096),
-								UNI_RANGE
-								(4.096),
-								}
+static const struct comedi_lrange range_usbdux_ao_range = {
+	2, {
+		BIP_RANGE(4.096),
+		UNI_RANGE(4.096)
+	}
 };
 
 struct usbdux_private {
