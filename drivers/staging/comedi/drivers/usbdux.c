@@ -1960,76 +1960,6 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 /* end of PWM */
 /*****************************************************************/
 
-static void tidy_up(struct usbdux_private *usbduxsub_tmp)
-{
-	int i;
-
-	if (!usbduxsub_tmp)
-		return;
-	dev_dbg(&usbduxsub_tmp->interface->dev, "comedi_: tiding up\n");
-
-	/* shows the usb subsystem that the driver is down */
-	if (usbduxsub_tmp->interface)
-		usb_set_intfdata(usbduxsub_tmp->interface, NULL);
-
-	if (usbduxsub_tmp->urb_in) {
-		if (usbduxsub_tmp->ai_cmd_running) {
-			usbduxsub_tmp->ai_cmd_running = 0;
-			usbduxsub_unlink_inurbs(usbduxsub_tmp);
-		}
-		for (i = 0; i < usbduxsub_tmp->num_in_buffers; i++) {
-			kfree(usbduxsub_tmp->urb_in[i]->transfer_buffer);
-			usbduxsub_tmp->urb_in[i]->transfer_buffer = NULL;
-			usb_kill_urb(usbduxsub_tmp->urb_in[i]);
-			usb_free_urb(usbduxsub_tmp->urb_in[i]);
-			usbduxsub_tmp->urb_in[i] = NULL;
-		}
-		kfree(usbduxsub_tmp->urb_in);
-		usbduxsub_tmp->urb_in = NULL;
-	}
-	if (usbduxsub_tmp->urb_out) {
-		if (usbduxsub_tmp->ao_cmd_running) {
-			usbduxsub_tmp->ao_cmd_running = 0;
-			usbduxsub_unlink_outurbs(usbduxsub_tmp);
-		}
-		for (i = 0; i < usbduxsub_tmp->num_out_buffers; i++) {
-			kfree(usbduxsub_tmp->urb_out[i]->transfer_buffer);
-			usbduxsub_tmp->urb_out[i]->transfer_buffer = NULL;
-			if (usbduxsub_tmp->urb_out[i]) {
-				usb_kill_urb(usbduxsub_tmp->urb_out[i]);
-				usb_free_urb(usbduxsub_tmp->urb_out[i]);
-				usbduxsub_tmp->urb_out[i] = NULL;
-			}
-		}
-		kfree(usbduxsub_tmp->urb_out);
-		usbduxsub_tmp->urb_out = NULL;
-	}
-	if (usbduxsub_tmp->urb_pwm) {
-		if (usbduxsub_tmp->pwm_cmd_running) {
-			usbduxsub_tmp->pwm_cmd_running = 0;
-			usbduxsub_unlink_pwm_urbs(usbduxsub_tmp);
-		}
-		kfree(usbduxsub_tmp->urb_pwm->transfer_buffer);
-		usbduxsub_tmp->urb_pwm->transfer_buffer = NULL;
-		usb_kill_urb(usbduxsub_tmp->urb_pwm);
-		usb_free_urb(usbduxsub_tmp->urb_pwm);
-		usbduxsub_tmp->urb_pwm = NULL;
-	}
-	kfree(usbduxsub_tmp->in_buffer);
-	usbduxsub_tmp->in_buffer = NULL;
-	kfree(usbduxsub_tmp->insn_buffer);
-	usbduxsub_tmp->insn_buffer = NULL;
-	kfree(usbduxsub_tmp->out_buffer);
-	usbduxsub_tmp->out_buffer = NULL;
-	kfree(usbduxsub_tmp->dac_commands);
-	usbduxsub_tmp->dac_commands = NULL;
-	kfree(usbduxsub_tmp->dux_commands);
-	usbduxsub_tmp->dux_commands = NULL;
-	usbduxsub_tmp->ai_cmd_running = 0;
-	usbduxsub_tmp->ao_cmd_running = 0;
-	usbduxsub_tmp->pwm_cmd_running = 0;
-}
-
 static int usbdux_attach_common(struct comedi_device *dev)
 {
 	struct usbdux_private *udev = dev->private;
@@ -2264,6 +2194,46 @@ static int usbdux_alloc_usb_buffers(struct usbdux_private *devpriv)
 	return 0;
 }
 
+static void usbdux_free_usb_buffers(struct usbdux_private *devpriv)
+{
+	struct urb *urb;
+	int i;
+
+	urb = devpriv->urb_pwm;
+	if (urb) {
+		kfree(urb->transfer_buffer);
+		usb_kill_urb(urb);
+		usb_free_urb(urb);
+	}
+	if (devpriv->urb_out) {
+		for (i = 0; i < devpriv->num_out_buffers; i++) {
+			urb = devpriv->urb_out[i];
+			if (urb) {
+				kfree(urb->transfer_buffer);
+				usb_kill_urb(urb);
+				usb_free_urb(urb);
+			}
+		}
+		kfree(devpriv->urb_out);
+	}
+	if (devpriv->urb_in) {
+		for (i = 0; i < devpriv->num_in_buffers; i++) {
+			urb = devpriv->urb_in[i];
+			if (urb) {
+				kfree(urb->transfer_buffer);
+				usb_kill_urb(urb);
+				usb_free_urb(urb);
+			}
+		}
+		kfree(devpriv->urb_in);
+	}
+	kfree(devpriv->out_buffer);
+	kfree(devpriv->insn_buffer);
+	kfree(devpriv->in_buffer);
+	kfree(devpriv->dux_commands);
+	kfree(devpriv->dac_commands);
+}
+
 static int usbdux_auto_attach(struct comedi_device *dev,
 			      unsigned long context_unused)
 {
@@ -2319,8 +2289,20 @@ static void usbdux_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		down(&devpriv->sem);
-		tidy_up(devpriv);
+
+		usb_set_intfdata(devpriv->interface, NULL);
+
+		if (devpriv->pwm_cmd_running)
+			usbduxsub_unlink_pwm_urbs(devpriv);
+		if (devpriv->ao_cmd_running)
+			usbduxsub_unlink_outurbs(devpriv);
+		if (devpriv->ai_cmd_running)
+			usbduxsub_unlink_inurbs(devpriv);
+
+		usbdux_free_usb_buffers(devpriv);
+
 		devpriv->comedidev = NULL;
+
 		up(&devpriv->sem);
 	}
 }
