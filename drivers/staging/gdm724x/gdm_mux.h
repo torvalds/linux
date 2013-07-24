@@ -57,7 +57,8 @@ struct mux_rx {
 	void *mux_dev;
 	u32 offset;
 	u32 len;
-	int (*callback)(void *data, int len, int tty_index, int minor, int complete);
+	int (*callback)(void *data, int len, int tty_index, int minor,
+			int complete);
 };
 
 struct rx_cxt {
@@ -77,7 +78,8 @@ struct mux_dev {
 	struct delayed_work work_rx;
 	struct usb_interface *intf;
 	int usb_state;
-	int (*rx_cb)(void *data, int len, int tty_index, int minor, int complete);
+	int (*rx_cb)(void *data, int len, int tty_index, int minor,
+		     int complete);
 	spinlock_t write_lock;
 	u8 minor[2];
 };

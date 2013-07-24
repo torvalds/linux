@@ -38,8 +38,10 @@ struct tty_dev {
 	void *priv_dev;
 	int (*send_func)(void *priv_dev, void *data, int len, int tty_index,
 			void (*cb)(void *cb_data), void *cb_data);
-	int (*recv_func)(void *priv_dev, int (*cb)(void *data, int len, int tty_index, int minor, int complete));
-	int (*send_control)(void *priv_dev, int request, int value, void *data, int len);
+	int (*recv_func)(void *priv_dev, int (*cb)(void *data, int len,
+			 int tty_index, int minor, int complete));
+	int (*send_control)(void *priv_dev, int request, int value, void *data,
+			    int len);
 	u8 minor[2];
 };
 

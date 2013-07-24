@@ -54,7 +54,8 @@ struct phy_dev {
 			void (*cb)(void *cb_data), void *cb_data,
 			int dev_idx, int nic_type);
 	int	(*rcv_func)(void *priv_dev,
-			int (*cb)(void *cb_data, void *data, int len, int context),
+			int (*cb)(void *cb_data, void *data, int len,
+				  int context),
 			void *cb_data, int context);
 	struct gdm_endian *(*get_endian)(void *priv_dev);
 };
@@ -74,7 +75,8 @@ int gdm_lte_event_init(void);
 void gdm_lte_event_exit(void);
 
 void start_rx_proc(struct phy_dev *phy_dev);
-int register_lte_device(struct phy_dev *phy_dev, struct device *dev, u8 *mac_address);
+int register_lte_device(struct phy_dev *phy_dev, struct device *dev,
+			u8 *mac_address);
 void unregister_lte_device(struct phy_dev *phy_dev);
 
 #endif /* _GDM_LTE_H_ */
