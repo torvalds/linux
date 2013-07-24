@@ -270,24 +270,15 @@ static int usbduxsub_unlink_inurbs(struct usbdux_private *usbduxsub_tmp)
 	return err;
 }
 
-/*
- * This will stop a running acquisition operation
- * Is called from within this driver from both the
- * interrupt context and from comedi
- */
-static int usbdux_ai_stop(struct usbdux_private *this_usbduxsub, int do_unlink)
+static int usbdux_ai_stop(struct comedi_device *dev, int do_unlink)
 {
+	struct usbdux_private *devpriv = dev->private;
 	int ret = 0;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
+	if (do_unlink)
+		ret = usbduxsub_unlink_inurbs(devpriv);
 
-	if (do_unlink) {
-		/* stop aquistion */
-		ret = usbduxsub_unlink_inurbs(this_usbduxsub);
-	}
-
-	this_usbduxsub->ai_cmd_running = 0;
+	devpriv->ai_cmd_running = 0;
 
 	return ret;
 }
@@ -310,7 +301,7 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 	/* prevent other CPUs from submitting new commands just now */
 	down(&this_usbduxsub->sem);
 	/* unlink only if the urb really has been submitted */
-	res = usbdux_ai_stop(this_usbduxsub, this_usbduxsub->ai_cmd_running);
+	res = usbdux_ai_stop(dev, this_usbduxsub->ai_cmd_running);
 	up(&this_usbduxsub->sem);
 	return res;
 }
@@ -346,7 +337,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			/* stop the transfer w/o unlink */
-			usbdux_ai_stop(devpriv, 0);
+			usbdux_ai_stop(dev, 0);
 		}
 		return;
 
@@ -361,7 +352,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 			s->async->events |= COMEDI_CB_ERROR;
 			comedi_event(dev, s);
 			/* don't do an unlink here */
-			usbdux_ai_stop(devpriv, 0);
+			usbdux_ai_stop(dev, 0);
 		}
 		return;
 	}
@@ -392,7 +383,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 		s->async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		/* don't do an unlink here */
-		usbdux_ai_stop(devpriv, 0);
+		usbdux_ai_stop(dev, 0);
 		return;
 	}
 
@@ -410,7 +401,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 		/* all samples received? */
 		if (devpriv->ai_sample_count < 0) {
 			/* prevent a resubmit next time */
-			usbdux_ai_stop(devpriv, 0);
+			usbdux_ai_stop(dev, 0);
 			/* say comedi that the acquistion is over */
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(dev, s);
@@ -430,7 +421,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 		}
 		if (unlikely(err == 0)) {
 			/* buffer overflow */
-			usbdux_ai_stop(devpriv, 0);
+			usbdux_ai_stop(dev, 0);
 			return;
 		}
 	}
