@@ -79,15 +79,9 @@ static void __init bmips_smp_setup(void)
 	 * MIPS interrupts 0,1 (SW INT 0,1) cross over to the other thread
 	 * MIPS interrupt 2 (HW INT 0) is the CPU0 L1 controller output
 	 * MIPS interrupt 3 (HW INT 1) is the CPU1 L1 controller output
-	 *
-	 * If booting from TP1, leave the existing CMT interrupt routing
-	 * such that TP0 responds to SW1 and TP1 responds to SW0.
 	 */
-	if (boot_cpu == 0)
-		change_c0_brcm_cmt_intr(0xf8018000,
+	change_c0_brcm_cmt_intr(0xf8018000,
 					(0x02 << 27) | (0x03 << 15));
-	else
-		change_c0_brcm_cmt_intr(0xf8018000, (0x1d << 27));
 
 	/* single core, 2 threads (2 pipelines) */
 	max_cpus = 2;
