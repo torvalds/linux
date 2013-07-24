@@ -1,0 +1,36 @@
+synopsys DWC2 CORE
+
+DWC2 - USB2 CONTROLLER
+
+Required properties:
+- compatible: must be "snps,dwc-otg"
+- reg : Address and length of the register set for the device
+- interrupts: Interrupts used by the dwc2 controller.
+- dm-mask : DMA bit mask
+
+Optional properties:
+- host-rx-fifo-size : RX FIFO size for host
+- dev-rx-fifo-size : RX FIFO size for device
+- dev-nperio-tx-fifo-size : Number of 4-byte words in the non-periodic
+		Tx FIFO in device mode when dynamic FIFO sizing is enabled.
+		16 to 32768 (default 1024)
+- dev-perio-tx-fifo-size : Number of 4-byte words in each of the periodic Tx
+		FIFOs in device mode when dynamic FIFO sizing is enabled.
+		4 to 768 (default 256)
+
+This is usually a subnode to DWC3 glue to which it is connected.
+
+usb0: usb@ffb00000 {
+	compatible = "snps,dwc-otg";
+	reg = <0xffb00000 0xffff>;
+	interrupts = <0 125 4>;
+	dma-mask = <0xffffffff>;
+	host-rx-fifo-size = <512>;
+	dev-rx-fifo-size = <512>;
+	dev-nperio-tx-fifo-size = <4096>;
+	dev-perio-tx-fifo-size = <512 512 512 512 512 512
+		512 512 512 512 512 512 512 512 512>;
+	dev-tx-fifo-size = <512 512 512 512 512 512
+		512 512 512 512 512 512 512 512 512>;
+	status = "disabled";
+	};
