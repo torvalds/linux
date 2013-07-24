@@ -227,8 +227,6 @@ struct usbdux_private {
 	int16_t *out_buffer;
 	/* interface number */
 	int ifnum;
-	/* interface structure in 2.6 */
-	struct usb_interface *interface;
 	/* is it USB_SPEED_HIGH or not? */
 	short int high_speed;
 	/* asynchronous command is running */
@@ -634,7 +632,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 		return 0;
 
 	if (size > FIRMWARE_MAX_LEN) {
-		dev_err(&usbduxsub->interface->dev,
+		dev_err(dev->class_dev,
 			"usbdux firmware binary it too large for FX2.\n");
 		return -ENOMEM;
 	}
@@ -660,8 +658,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: can not stop firmware\n");
+		dev_err(dev->class_dev, "can not stop firmware\n");
 		goto done;
 	}
 
@@ -673,8 +670,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 			      buf, size,
 			      BULK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: firmware upload failed\n");
+		dev_err(dev->class_dev, "firmware upload failed\n");
 		goto done;
 	}
 
@@ -687,8 +683,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0)
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: can not start firmware\n");
+		dev_err(dev->class_dev, "can not start firmware\n");
 
 done:
 	kfree(tmp);
@@ -1902,7 +1897,6 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	sema_init(&devpriv->sem, 1);
 
 	devpriv->usbdev = usb;
-	devpriv->interface = intf;
 	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
 	usb_set_intfdata(intf, devpriv);
 
@@ -2005,12 +1999,13 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 
 static void usbdux_detach(struct comedi_device *dev)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usbdux_private *devpriv = dev->private;
 
 	if (devpriv) {
 		down(&devpriv->sem);
 
-		usb_set_intfdata(devpriv->interface, NULL);
+		usb_set_intfdata(intf, NULL);
 
 		if (devpriv->pwm_cmd_running)
 			usbduxsub_unlink_pwm_urbs(devpriv);
