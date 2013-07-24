@@ -84,6 +84,7 @@
  * @NFC_EVENT_SE_TRANSACTION: This event is sent when an application running on
  *	a specific SE notifies us about the end of a transaction. The parameter
  *	for this event is the application ID (AID).
+ * @NFC_CMD_GET_SE: Dump all discovered secure elements from an NFC controller.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -112,6 +113,7 @@ enum nfc_commands {
 	NFC_EVENT_SE_REMOVED,
 	NFC_EVENT_SE_CONNECTIVITY,
 	NFC_EVENT_SE_TRANSACTION,
+	NFC_CMD_GET_SE,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
