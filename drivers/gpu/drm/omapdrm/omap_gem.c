@@ -20,6 +20,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
+#include <drm/drm_vma_manager.h>
 
 #include "omap_drv.h"
 #include "omap_dmm_tiler.h"
@@ -308,21 +309,20 @@ uint32_t omap_gem_flags(struct drm_gem_object *obj)
 static uint64_t mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	int ret;
+	size_t size;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (!obj->map_list.map) {
-		/* Make it mmapable */
-		size_t size = omap_gem_mmap_size(obj);
-		int ret = _drm_gem_create_mmap_offset_size(obj, size);
-
-		if (ret) {
-			dev_err(dev->dev, "could not allocate mmap offset\n");
-			return 0;
-		}
+	/* Make it mmapable */
+	size = omap_gem_mmap_size(obj);
+	ret = _drm_gem_create_mmap_offset_size(obj, size);
+	if (ret) {
+		dev_err(dev->dev, "could not allocate mmap offset\n");
+		return 0;
 	}
 
-	return (uint64_t)obj->map_list.hash.key << PAGE_SHIFT;
+	return drm_vma_node_offset_addr(&obj->vma_node);
 }
 
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
@@ -997,12 +997,11 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
 	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	uint64_t off = 0;
+	uint64_t off;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (obj->map_list.map)
-		off = (uint64_t)obj->map_list.hash.key;
+	off = drm_vma_node_start(&obj->vma_node);
 
 	seq_printf(m, "%08x: %2d (%2d) %08llx %08Zx (%2d) %p %4d",
 			omap_obj->flags, obj->name, obj->refcount.refcount.counter,
@@ -1309,8 +1308,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	list_del(&omap_obj->mm_list);
 
-	if (obj->map_list.map)
-		drm_gem_free_mmap_offset(obj);
+	drm_gem_free_mmap_offset(obj);
 
 	/* this means the object is still pinned.. which really should
 	 * not happen.  I think..
