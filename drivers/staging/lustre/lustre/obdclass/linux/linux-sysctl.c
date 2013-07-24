@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/sysctl.h>
-#include <linux/version.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
