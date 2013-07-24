@@ -155,7 +155,7 @@ complete_routine:
 	if (complete == RECV_PACKET_PROCESS_COMPLETE)
 		gdm_tty_recv(tty_str, gdm_tty_recv_complete);
 
-	return TO_HOST_SUCCESS;
+	return 0;
 }
 
 static void gdm_tty_send_complete(void *arg)
