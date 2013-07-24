@@ -333,10 +333,11 @@ int oz_cdev_register(void)
 {
 	int err;
 	struct device *dev;
+
 	memset(&g_cdev, 0, sizeof(g_cdev));
 	err = alloc_chrdev_region(&g_cdev.devnum, 0, 1, "ozwpan");
 	if (err < 0)
-		goto out3;
+		return err;
 	oz_dbg(ON, "Alloc dev number %d:%d\n",
 	       MAJOR(g_cdev.devnum), MINOR(g_cdev.devnum));
 	cdev_init(&g_cdev.cdev, &oz_fops);
@@ -347,26 +348,26 @@ int oz_cdev_register(void)
 	err = cdev_add(&g_cdev.cdev, g_cdev.devnum, 1);
 	if (err < 0) {
 		oz_dbg(ON, "Failed to add cdev\n");
-		goto out2;
+		goto unregister;
 	}
 	g_oz_class = class_create(THIS_MODULE, "ozmo_wpan");
 	if (IS_ERR(g_oz_class)) {
 		oz_dbg(ON, "Failed to register ozmo_wpan class\n");
 		err = PTR_ERR(g_oz_class);
-		goto out1;
+		goto delete;
 	}
 	dev = device_create(g_oz_class, NULL, g_cdev.devnum, NULL, "ozwpan");
 	if (IS_ERR(dev)) {
 		oz_dbg(ON, "Failed to create sysfs entry for cdev\n");
 		err = PTR_ERR(dev);
-		goto out1;
+		goto delete;
 	}
 	return 0;
-out1:
+
+delete:
 	cdev_del(&g_cdev.cdev);
-out2:
+unregister:
 	unregister_chrdev_region(g_cdev.devnum, 1);
-out3:
 	return err;
 }
 /*------------------------------------------------------------------------------
