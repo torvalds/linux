@@ -50,7 +50,6 @@
 #include <lustre_fsfilt.h>
 #include <obd_class.h>
 #include <lustre/lustre_user.h>
-#include <linux/version.h>
 #include <lustre_log.h>
 #include <lustre_disk.h>
 #include <lustre_param.h>
