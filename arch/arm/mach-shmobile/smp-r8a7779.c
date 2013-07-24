@@ -99,6 +99,9 @@ static int __cpuinit r8a7779_boot_secondary(unsigned int cpu, struct task_struct
 
 static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
+
+	/* setup r8a7779 specific SCU base */
+	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
 	scu_enable(shmobile_scu_base);
 
 	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
@@ -115,14 +118,6 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 	r8a7779_platform_cpu_kill(1);
 	r8a7779_platform_cpu_kill(2);
 	r8a7779_platform_cpu_kill(3);
-}
-
-static void __init r8a7779_smp_init_cpus(void)
-{
-	/* setup r8a7779 specific SCU base */
-	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
-
-	shmobile_smp_init_cpus(scu_get_core_count(shmobile_scu_base));
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -175,7 +170,6 @@ static int r8a7779_cpu_disable(unsigned int cpu)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 struct smp_operations r8a7779_smp_ops  __initdata = {
-	.smp_init_cpus		= r8a7779_smp_init_cpus,
 	.smp_prepare_cpus	= r8a7779_smp_prepare_cpus,
 	.smp_boot_secondary	= r8a7779_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
