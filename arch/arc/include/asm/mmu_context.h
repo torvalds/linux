@@ -69,8 +69,8 @@ extern struct mm_struct *asid_mm_map[NUM_ASID + 1];
 extern int asid_cache;
 
 /*
- * Assign a new ASID to task. If the task already has an ASID, it is
- * relinquished.
+ * Get a new ASID if task doesn't have a valid one (unalloc or from prev cycle)
+ * Also set the MMU PID register to existing/updated ASID
  */
 static inline void get_new_mmu_context(struct mm_struct *mm)
 {
@@ -78,6 +78,17 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 	unsigned long flags;
 
 	local_irq_save(flags);
+
+	/*
+	 * Move to new ASID if it was not from current alloc-cycle/generation.
+	 *
+	 * Note: Callers needing new ASID unconditionally, independent of
+	 * 	 generation, e.g. local_flush_tlb_mm() for forking  parent,
+	 * 	 first need to destroy the context, setting it to invalid
+	 * 	 value.
+	 */
+	if (mm->context.asid <= asid_cache)
+		goto set_hw;
 
 	/*
 	 * Relinquish the currently owned ASID (if any).
@@ -99,9 +110,9 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 	 * task with ASID from prev allocation cycle (before ASID roll-over).
 	 *
 	 * This might look wrong - if we are re-using some other task's ASID,
-	 * won't we use it's stale TLB entries too. Actually switch_mm( ) takes
+	 * won't we use it's stale TLB entries too. Actually the algorithm takes
 	 * care of such a case: it ensures that task with ASID from prev alloc
-	 * cycle, when scheduled will refresh it's ASID: see switch_mm( ) below
+	 * cycle, when scheduled will refresh it's ASID
 	 * The stealing scenario described here will only happen if that task
 	 * didn't get a chance to refresh it's ASID - implying stale entries
 	 * won't exist.
@@ -114,7 +125,8 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 	asid_mm_map[asid_cache] = mm;
 	mm->context.asid = asid_cache;
 
-	write_aux_reg(ARC_REG_PID, asid_cache | MMU_ENABLE);
+set_hw:
+	write_aux_reg(ARC_REG_PID, mm->context.asid | MMU_ENABLE);
 
 	local_irq_restore(flags);
 }
@@ -141,28 +153,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, next->pgd);
 #endif
 
-	/*
-	 * Get a new ASID if task doesn't have a valid one. Possible when
-	 *  -task never had an ASID (fresh after fork)
-	 *  -it's ASID was stolen - past an ASID roll-over.
-	 *  -There's a third obscure scenario (if this task is running for the
-	 *   first time afer an ASID rollover), where despite having a valid
-	 *   ASID, we force a get for new ASID - see comments at top.
-	 *
-	 * Both the non-alloc scenario and first-use-after-rollover can be
-	 * detected using the single condition below:  NO_ASID = 256
-	 * while asid_cache is always a valid ASID value (0-255).
-	 */
-	if (next->context.asid > asid_cache) {
-		get_new_mmu_context(next);
-	} else {
-		/*
-		 * XXX: This will never happen given the chks above
-		 * BUG_ON(next->context.asid > MAX_ASID);
-		 */
-		write_aux_reg(ARC_REG_PID, next->context.asid | MMU_ENABLE);
-	}
-
+	get_new_mmu_context(next);
 }
 
 static inline void destroy_context(struct mm_struct *mm)

@@ -258,13 +258,14 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
 		return;
 
 	/*
-	 * Workaround for Android weirdism:
-	 * A binder VMA could end up in a task such that vma->mm != tsk->mm
-	 * old code would cause h/w - s/w ASID to get out of sync
+	 * - Move to a new ASID, but only if the mm is still wired in
+	 *   (Android Binder ended up calling this for vma->mm != tsk->mm,
+	 *    causing h/w - s/w ASID to get out of sync)
+	 * - Also get_new_mmu_context() new implementation allocates a new
+	 *   ASID only if it is not allocated already - so unallocate first
 	 */
-	if (current->mm != mm)
-		destroy_context(mm);
-	else
+	destroy_context(mm);
+	if (current->mm == mm)
 		get_new_mmu_context(mm);
 }
 
