@@ -765,9 +765,6 @@ struct omap_dss_device {
 	enum omap_display_type type;
 	enum omap_display_type output_type;
 
-	/* obsolete, to be removed */
-	enum omap_channel channel;
-
 	union {
 		struct {
 			u8 data_lines;
