@@ -186,8 +186,6 @@ struct pci20xxx_private {
 	void __iomem *ioaddr;
 };
 
-#define CHAN (CR_CHAN(it->chanlist[0]))
-
 /* pci20006m */
 
 static int pci20006_insn_read(struct comedi_device *dev,
