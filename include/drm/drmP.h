@@ -74,6 +74,7 @@
 #include <asm/pgalloc.h>
 #include <drm/drm.h>
 #include <drm/drm_sarea.h>
+#include <drm/drm_vma_manager.h>
 
 #include <linux/idr.h>
 
@@ -590,7 +591,6 @@ struct drm_map_list {
 	struct drm_local_map *map;	/**< mapping */
 	uint64_t user_token;
 	struct drm_master *master;
-	struct drm_mm_node *file_offset_node;	/**< fake offset */
 };
 
 /**
@@ -625,8 +625,7 @@ struct drm_ati_pcigart_info {
  * GEM specific mm private for tracking GEM objects
  */
 struct drm_gem_mm {
-	struct drm_mm offset_manager;	/**< Offset mgmt for buffer objects */
-	struct drm_open_hash offset_hash; /**< User token hash table for maps */
+	struct drm_vma_offset_manager vma_manager;
 };
 
 /**
@@ -647,7 +646,7 @@ struct drm_gem_object {
 	struct file *filp;
 
 	/* Mapping info for this object */
-	struct drm_map_list map_list;
+	struct drm_vma_offset_node vma_node;
 
 	/**
 	 * Size of the object, in bytes.  Immutable over the object's

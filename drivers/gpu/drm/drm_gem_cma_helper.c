@@ -27,11 +27,7 @@
 #include <drm/drmP.h>
 #include <drm/drm.h>
 #include <drm/drm_gem_cma_helper.h>
-
-static unsigned int get_gem_mmap_offset(struct drm_gem_object *obj)
-{
-	return (unsigned int)obj->map_list.hash.key << PAGE_SHIFT;
-}
+#include <drm/drm_vma_manager.h>
 
 /*
  * __drm_gem_cma_create - Create a GEM CMA object without allocating memory
@@ -172,8 +168,7 @@ void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
 	struct drm_gem_cma_object *cma_obj;
 
-	if (gem_obj->map_list.map)
-		drm_gem_free_mmap_offset(gem_obj);
+	drm_gem_free_mmap_offset(gem_obj);
 
 	cma_obj = to_drm_gem_cma_obj(gem_obj);
 
@@ -240,7 +235,7 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 		return -EINVAL;
 	}
 
-	*offset = get_gem_mmap_offset(gem_obj);
+	*offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 
 	drm_gem_object_unreference(gem_obj);
 
@@ -304,12 +299,11 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj, struct seq_file *m
 {
 	struct drm_gem_object *obj = &cma_obj->base;
 	struct drm_device *dev = obj->dev;
-	uint64_t off = 0;
+	uint64_t off;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (obj->map_list.map)
-		off = (uint64_t)obj->map_list.hash.key;
+	off = drm_vma_node_start(&obj->vma_node);
 
 	seq_printf(m, "%2d (%2d) %08llx %08Zx %p %d",
 			obj->name, obj->refcount.refcount.counter,

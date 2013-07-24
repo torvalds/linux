@@ -10,6 +10,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_vma_manager.h>
 
 #include <linux/shmem_fs.h>
 #include <drm/exynos_drm.h>
@@ -154,8 +155,7 @@ out:
 	exynos_drm_fini_buf(obj->dev, buf);
 	exynos_gem_obj->buffer = NULL;
 
-	if (obj->map_list.map)
-		drm_gem_free_mmap_offset(obj);
+	drm_gem_free_mmap_offset(obj);
 
 	/* release file pointer to gem object. */
 	drm_gem_object_release(obj);
@@ -721,13 +721,11 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 		goto unlock;
 	}
 
-	if (!obj->map_list.map) {
-		ret = drm_gem_create_mmap_offset(obj);
-		if (ret)
-			goto out;
-	}
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto out;
 
-	*offset = (u64)obj->map_list.hash.key << PAGE_SHIFT;
+	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
 
 out:

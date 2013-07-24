@@ -26,6 +26,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_vma_manager.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
@@ -1424,7 +1425,7 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 
 	if (obj->base.dev->dev_mapping)
 		unmap_mapping_range(obj->base.dev->dev_mapping,
-				    (loff_t)obj->base.map_list.hash.key<<PAGE_SHIFT,
+				    (loff_t)drm_vma_node_offset_addr(&obj->base.vma_node),
 				    obj->base.size, 1);
 
 	obj->fault_mappable = false;
@@ -1482,7 +1483,7 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	int ret;
 
-	if (obj->base.map_list.map)
+	if (drm_vma_node_has_offset(&obj->base.vma_node))
 		return 0;
 
 	dev_priv->mm.shrinker_no_lock_stealing = true;
@@ -1513,9 +1514,6 @@ out:
 
 static void i915_gem_object_free_mmap_offset(struct drm_i915_gem_object *obj)
 {
-	if (!obj->base.map_list.map)
-		return;
-
 	drm_gem_free_mmap_offset(&obj->base);
 }
 
@@ -1554,7 +1552,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	if (ret)
 		goto out;
 
-	*offset = (u64)obj->base.map_list.hash.key << PAGE_SHIFT;
+	*offset = drm_vma_node_offset_addr(&obj->base.vma_node);
 
 out:
 	drm_gem_object_unreference(&obj->base);

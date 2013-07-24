@@ -108,7 +108,7 @@ static void tegra_bo_destroy(struct drm_device *drm, struct tegra_bo *bo)
 
 unsigned int tegra_bo_get_mmap_offset(struct tegra_bo *bo)
 {
-	return (unsigned int)bo->gem.map_list.hash.key << PAGE_SHIFT;
+	return (unsigned int)drm_vma_node_offset_addr(&bo->gem.vma_node);
 }
 
 struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size)
@@ -182,8 +182,7 @@ void tegra_bo_free_object(struct drm_gem_object *gem)
 {
 	struct tegra_bo *bo = to_tegra_bo(gem);
 
-	if (gem->map_list.map)
-		drm_gem_free_mmap_offset(gem);
+	drm_gem_free_mmap_offset(gem);
 
 	drm_gem_object_release(gem);
 	tegra_bo_destroy(gem->dev, bo);
