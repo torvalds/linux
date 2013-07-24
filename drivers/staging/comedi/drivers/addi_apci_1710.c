@@ -19,7 +19,6 @@ static void fpu_end(void)
 	kernel_fpu_end();
 }
 
-#include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_APCI1710.c"
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
@@ -33,7 +32,6 @@ static int apci1710_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct addi_private *devpriv;
-	struct comedi_subdevice *s;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));

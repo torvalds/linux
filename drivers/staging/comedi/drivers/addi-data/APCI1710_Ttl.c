@@ -814,7 +814,7 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,struct comedi
 
   b_ModulNbr	   = CR_AREF(insn->chanspec);
 	b_OutputChannel= CR_CHAN(insn->chanspec);
-	ui_State	   = data[0]; /*  ON or OFF */
+	ui_State	   = data[0]; ON or OFF
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+

@@ -653,7 +653,7 @@ static int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
 					 * s_BoardInfos. ui_Address + (64 * b_ModulNbr),
 					 * dw_WriteValue);
 					 */
-*/
+
 					outl(dw_WriteValue,
 						devpriv->s_BoardInfos.
 						ui_Address + (64 * b_ModulNbr));

@@ -444,7 +444,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,struct come
 i_ReturnValue=insn->n;
 	b_ModulNbr        = (unsigned char) CR_AREF(insn->chanspec);
 	b_TimerNbr		  = (unsigned char) CR_CHAN(insn->chanspec);
-	b_ActionType      = (unsigned char) data[0]; /*  enable disable */
+	b_ActionType      = (unsigned char) data[0]; enable disable
 +----------------------------------------------------------------------------+
 | Output Parameters : -                                                      |
 +----------------------------------------------------------------------------+
