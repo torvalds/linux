@@ -195,10 +195,10 @@ static void handle_rx(struct uart_port *port)
 	tty_flip_buffer_push(tport);
 }
 
-static void reset_dm_count(struct uart_port *port)
+static void reset_dm_count(struct uart_port *port, int count)
 {
 	wait_for_xmitr(port);
-	msm_write(port, 1, UARTDM_NCF_TX);
+	msm_write(port, count, UARTDM_NCF_TX);
 	msm_read(port, UARTDM_NCF_TX);
 }
 
@@ -206,38 +206,51 @@ static void handle_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
 	struct msm_port *msm_port = UART_TO_MSM(port);
-	int sent_tx;
+	unsigned int tx_count, num_chars;
+	unsigned int tf_pointer = 0;
+
+	tx_count = uart_circ_chars_pending(xmit);
+	tx_count = min3(tx_count, (unsigned int)UART_XMIT_SIZE - xmit->tail,
+			port->fifosize);
 
 	if (port->x_char) {
 		if (msm_port->is_uartdm)
-			reset_dm_count(port);
+			reset_dm_count(port, tx_count + 1);
 
 		msm_write(port, port->x_char,
 			  msm_port->is_uartdm ? UARTDM_TF : UART_TF);
 		port->icount.tx++;
 		port->x_char = 0;
+	} else if (tx_count && msm_port->is_uartdm) {
+		reset_dm_count(port, tx_count);
 	}
 
-	if (msm_port->is_uartdm)
-		reset_dm_count(port);
+	while (tf_pointer < tx_count) {
+		int i;
+		char buf[4] = { 0 };
+		unsigned int *bf = (unsigned int *)&buf;
 
-	while (msm_read(port, UART_SR) & UART_SR_TX_READY) {
-		if (uart_circ_empty(xmit)) {
-			/* disable tx interrupts */
-			msm_port->imr &= ~UART_IMR_TXLEV;
-			msm_write(port, msm_port->imr, UART_IMR);
+		if (!(msm_read(port, UART_SR) & UART_SR_TX_READY))
 			break;
-		}
-		msm_write(port, xmit->buf[xmit->tail],
-			  msm_port->is_uartdm ? UARTDM_TF : UART_TF);
 
 		if (msm_port->is_uartdm)
-			reset_dm_count(port);
+			num_chars = min(tx_count - tf_pointer, sizeof(buf));
+		else
+			num_chars = 1;
 
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-		sent_tx = 1;
+		for (i = 0; i < num_chars; i++) {
+			buf[i] = xmit->buf[xmit->tail + i];
+			port->icount.tx++;
+		}
+
+		msm_write(port, *bf, msm_port->is_uartdm ? UARTDM_TF : UART_TF);
+		xmit->tail = (xmit->tail + num_chars) & (UART_XMIT_SIZE - 1);
+		tf_pointer += num_chars;
 	}
+
+	/* disable tx interrupts if nothing more to send */
+	if (uart_circ_empty(xmit))
+		msm_stop_tx(port);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
@@ -759,7 +772,7 @@ static void msm_console_putchar(struct uart_port *port, int c)
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
 	if (msm_port->is_uartdm)
-		reset_dm_count(port);
+		reset_dm_count(port, 1);
 
 	while (!(msm_read(port, UART_SR) & UART_SR_TX_READY))
 		;
