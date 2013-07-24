@@ -455,10 +455,6 @@ int	 cfs_match_nid(lnet_nid_t nid, struct list_head *list);
 /* logical equivalence */
 #define equi(a, b) (!!(a) == !!(b))
 
-#ifndef CFS_CURRENT_TIME
-# define CFS_CURRENT_TIME time(0)
-#endif
-
 /* --------------------------------------------------------------------
  * Light-weight trace
  * Support for temporary event tracing with minimal Heisenberg effect.

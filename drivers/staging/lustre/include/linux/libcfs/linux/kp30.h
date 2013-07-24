@@ -82,10 +82,6 @@
 #define CFS_SYSFS_MODULE_PARM  1 /* module parameters accessible via sysfs */
 
 /******************************************************************************/
-
-# define time(a) CURRENT_TIME
-
-/******************************************************************************/
 /* Light-weight trace
  * Support for temporary event tracing with minimal Heisenberg effect. */
 #define LWT_SUPPORT  0
