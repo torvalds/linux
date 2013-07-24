@@ -449,22 +449,19 @@ static int usbdux_ao_stop(struct comedi_device *dev, int do_unlink)
 	return ret;
 }
 
-/* force unlink, is called by comedi */
 static int usbdux_ao_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
-	int res = 0;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
+	struct usbdux_private *devpriv = dev->private;
+	int ret = 0;
 
 	/* prevent other CPUs from submitting a command just now */
-	down(&this_usbduxsub->sem);
+	down(&devpriv->sem);
 	/* unlink only if it is really running */
-	res = usbdux_ao_stop(dev, this_usbduxsub->ao_cmd_running);
-	up(&this_usbduxsub->sem);
-	return res;
+	ret = usbdux_ao_stop(dev, devpriv->ao_cmd_running);
+	up(&devpriv->sem);
+
+	return ret;
 }
 
 static void usbduxsub_ao_isoc_irq(struct urb *urb)
