@@ -354,18 +354,6 @@ config USB_FUSBH200_HCD
 	To compile this driver as a module, choose M here: the
 	module will be called fusbh200-hcd.
 
-config USB_FOTG210_HCD
-	tristate "FOTG210 HCD support"
-	depends on USB
-	default N
-	---help---
-	  Faraday FOTG210 is an OTG controller which can be configured as
-	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification
-	  with minor modification.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called fotg210-hcd.
-
 config USB_OHCI_HCD
 	tristate "OHCI HCD (USB 1.1) support"
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
