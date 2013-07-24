@@ -1771,6 +1771,9 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO(out, rc);
 	case LL_IOC_HSM_CT_START:
 		rc = mdc_ioc_hsm_ct_start(exp, karg);
+		/* ignore if it was already registered on this MDS. */
+		if (rc == -EEXIST)
+			rc = 0;
 		GOTO(out, rc);
 	case LL_IOC_HSM_PROGRESS:
 		rc = mdc_ioc_hsm_progress(exp, karg);
@@ -1988,19 +1991,10 @@ static int mdc_ioc_hsm_ct_start(struct obd_export *exp,
 	       lk->lk_uid, lk->lk_group, lk->lk_flags);
 
 	if (lk->lk_flags & LK_FLG_STOP) {
-		rc = libcfs_kkuc_group_rem(lk->lk_uid, lk->lk_group);
 		/* Unregister with the coordinator */
-		if (rc == 0)
-			rc = mdc_ioc_hsm_ct_unregister(imp);
+		rc = mdc_ioc_hsm_ct_unregister(imp);
 	} else {
-		struct file *fp = fget(lk->lk_wfd);
-
-		rc = libcfs_kkuc_group_add(fp, lk->lk_uid, lk->lk_group,
-					   lk->lk_data);
-		if (rc && fp)
-			fput(fp);
-		if (rc == 0)
-			rc = mdc_ioc_hsm_ct_register(imp, archive);
+		rc = mdc_ioc_hsm_ct_register(imp, archive);
 	}
 
 	return rc;
@@ -2325,7 +2319,7 @@ static int mdc_import_event(struct obd_device *obd, struct obd_import *imp,
 	}
 	case IMP_EVENT_ACTIVE:
 		rc = obd_notify_observer(obd, obd, OBD_NOTIFY_ACTIVE, NULL);
-		/* restore re-establish kuc registration after reconnecting */
+		/* redo the kuc registration after reconnecting */
 		if (rc == 0)
 			rc = mdc_kuc_reregister(imp);
 		break;
