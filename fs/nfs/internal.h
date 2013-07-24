@@ -267,7 +267,7 @@ extern struct rpc_procinfo nfs4_procedures[];
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
 extern struct nfs_client *nfs_init_client(struct nfs_client *clp,
 			   const struct rpc_timeout *timeparms,
-			   const char *ip_addr, rpc_authflavor_t authflavour);
+			   const char *ip_addr);
 
 /* dir.c */
 extern int nfs_access_cache_shrinker(struct shrinker *shrink,
@@ -451,8 +451,7 @@ extern ssize_t nfs_dreq_bytes_left(struct nfs_direct_req *dreq);
 extern void __nfs4_read_done_cb(struct nfs_read_data *);
 extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 			    const struct rpc_timeout *timeparms,
-			    const char *ip_addr,
-			    rpc_authflavor_t authflavour);
+			    const char *ip_addr);
 extern int nfs40_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
 				struct rpc_cred *cred);

@@ -187,8 +187,7 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
  */
 struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 				    const struct rpc_timeout *timeparms,
-				    const char *ip_addr,
-				    rpc_authflavor_t authflavour)
+				    const char *ip_addr)
 {
 	char buf[INET6_ADDRSTRLEN + 1];
 	struct nfs_client *old;

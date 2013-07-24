@@ -501,8 +501,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 					&nn->nfs_client_list);
 			spin_unlock(&nn->nfs_client_lock);
 			new->cl_flags = cl_init->init_flags;
-			return rpc_ops->init_client(new, timeparms, ip_addr,
-						    authflavour);
+			return rpc_ops->init_client(new, timeparms, ip_addr);
 		}
 
 		spin_unlock(&nn->nfs_client_lock);
@@ -694,13 +693,12 @@ EXPORT_SYMBOL_GPL(nfs_init_server_rpcclient);
  * @clp: nfs_client to initialise
  * @timeparms: timeout parameters for underlying RPC transport
  * @ip_addr: IP presentation address (not used)
- * @authflavor: authentication flavor for underlying RPC transport
  *
  * Returns pointer to an NFS client, or an ERR_PTR value.
  */
 struct nfs_client *nfs_init_client(struct nfs_client *clp,
 		    const struct rpc_timeout *timeparms,
-		    const char *ip_addr, rpc_authflavor_t authflavour)
+		    const char *ip_addr)
 {
 	int error;
 
