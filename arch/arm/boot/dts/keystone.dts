@@ -152,5 +152,32 @@
 			clocks = <&clki2c>;
 			interrupts = <GIC_SPI 289 IRQ_TYPE_EDGE_RISING>;
 		};
+
+		spi0: spi@21000400 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000400 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 292 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
+
+		spi1: spi@21000600 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000600 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 296 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
+
+		spi2: spi@21000800 {
+			compatible = "ti,dm6441-spi";
+			reg = <0x21000800 0x200>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <0>;
+			interrupts = <GIC_SPI 300 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&clkspi>;
+		};
 	};
 };
