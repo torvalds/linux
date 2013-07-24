@@ -46,8 +46,6 @@
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/topology.h>
-#include <linux/version.h>
-
 
 #ifdef CONFIG_SMP
 
