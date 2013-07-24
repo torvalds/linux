@@ -41,6 +41,26 @@
 			interrupt-parent = <&gpx3>;
 			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 
+			vinb1-supply = <&main_dc_reg>;
+			vinb2-supply = <&main_dc_reg>;
+			vinb3-supply = <&main_dc_reg>;
+			vinb4-supply = <&main_dc_reg>;
+			vinb5-supply = <&main_dc_reg>;
+			vinb6-supply = <&main_dc_reg>;
+			vinb7-supply = <&main_dc_reg>;
+			vinb8-supply = <&main_dc_reg>;
+			vinb9-supply = <&main_dc_reg>;
+
+			vinl1-supply = <&buck7_reg>;
+			vinl2-supply = <&buck7_reg>;
+			vinl3-supply = <&buck7_reg>;
+			vinl4-supply = <&main_dc_reg>;
+			vinl5-supply = <&main_dc_reg>;
+			vinl6-supply = <&main_dc_reg>;
+			vinl7-supply = <&main_dc_reg>;
+			vinl8-supply = <&buck8_reg>;
+			vinl9-supply = <&buck8_reg>;
+
 			s5m8767,pmic-buck2-dvs-voltage = <1300000>;
 			s5m8767,pmic-buck3-dvs-voltage = <1100000>;
 			s5m8767,pmic-buck4-dvs-voltage = <1200000>;
@@ -279,6 +299,16 @@
 					op_mode = <1>;
 				};
 
+				buck7_reg: BUCK7 {
+					regulator-name = "PVDD_BUCK7";
+					regulator-always-on;
+				};
+
+				buck8_reg: BUCK8 {
+					regulator-name = "PVDD_BUCK8";
+					regulator-always-on;
+				};
+
 				buck9_reg: BUCK9 {
 					regulator-name = "VDD_33_OFF_EXT1";
 					regulator-min-microvolt = <750000>;
@@ -436,6 +466,11 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		main_dc_reg: fixedregulator@1 {
+			compatible = "regulator-fixed";
+			regulator-name = "MAIN_DC";
+		};
 
 		mmc_reg: voltage-regulator {
 			compatible = "regulator-fixed";
