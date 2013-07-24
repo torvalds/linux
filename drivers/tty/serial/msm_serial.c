@@ -50,11 +50,14 @@ struct msm_port {
 	unsigned int		old_snap_state;
 };
 
-static inline void wait_for_xmitr(struct uart_port *port, int bits)
+static inline void wait_for_xmitr(struct uart_port *port)
 {
-	if (!(msm_read(port, UART_SR) & UART_SR_TX_EMPTY))
-		while ((msm_read(port, UART_ISR) & bits) != bits)
-			cpu_relax();
+	while (!(msm_read(port, UART_SR) & UART_SR_TX_EMPTY)) {
+		if (msm_read(port, UART_ISR) & UART_ISR_TX_READY)
+			break;
+		udelay(1);
+	}
+	msm_write(port, UART_CR_CMD_RESET_TX_READY, UART_CR);
 }
 
 static void msm_stop_tx(struct uart_port *port)
@@ -194,8 +197,9 @@ static void handle_rx(struct uart_port *port)
 
 static void reset_dm_count(struct uart_port *port)
 {
-	wait_for_xmitr(port, UART_ISR_TX_READY);
+	wait_for_xmitr(port);
 	msm_write(port, 1, UARTDM_NCF_TX);
+	msm_read(port, UARTDM_NCF_TX);
 }
 
 static void handle_tx(struct uart_port *port)
