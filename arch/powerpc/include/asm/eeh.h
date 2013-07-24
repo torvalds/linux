@@ -90,6 +90,8 @@ struct eeh_pe {
 #define EEH_DEV_IRQ_DISABLED	(1 << 3)	/* Interrupt disabled	*/
 #define EEH_DEV_DISCONNECTED	(1 << 4)	/* Removing from PE	*/
 
+#define EEH_DEV_SYSFS		(1 << 8)	/* Sysfs created        */
+
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
 	int class_code;			/* Class code of the device	*/

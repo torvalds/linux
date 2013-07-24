@@ -122,8 +122,8 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 		return 0;
 
 	/* Initialize eeh device */
-	edev->class_code	= dev->class;
-	edev->mode		= 0;
+	edev->class_code = dev->class;
+	edev->mode	&= 0xFFFFFF00;
 	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
 		edev->mode |= EEH_DEV_BRIDGE;
 	if (pci_is_pcie(dev)) {

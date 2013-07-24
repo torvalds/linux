@@ -218,7 +218,7 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 	 */
 	edev->class_code = *class_code;
 	edev->pcie_cap = pseries_eeh_find_cap(dn, PCI_CAP_ID_EXP);
-	edev->mode = 0;
+	edev->mode &= 0xFFFFFF00;
 	if ((edev->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		edev->mode |= EEH_DEV_BRIDGE;
 		if (edev->pcie_cap) {

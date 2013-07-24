@@ -911,6 +911,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 		eeh_rmv_from_parent_pe(edev);
 		eeh_addr_cache_rmv_dev(edev->pdev);
 		eeh_sysfs_remove_device(edev->pdev);
+		edev->mode &= ~EEH_DEV_SYSFS;
 
 		edev->pdev = NULL;
 		dev->dev.archdata.edev = NULL;
@@ -1016,6 +1017,7 @@ void eeh_remove_device(struct pci_dev *dev)
 
 	eeh_addr_cache_rmv_dev(dev);
 	eeh_sysfs_remove_device(dev);
+	edev->mode &= ~EEH_DEV_SYSFS;
 }
 
 static int proc_eeh_show(struct seq_file *m, void *v)
