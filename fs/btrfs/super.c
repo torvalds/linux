@@ -327,7 +327,7 @@ enum {
 static match_table_t tokens = {
 	{Opt_degraded, "degraded"},
 	{Opt_subvol, "subvol=%s"},
-	{Opt_subvolid, "subvolid=%d"},
+	{Opt_subvolid, "subvolid=%s"},
 	{Opt_device, "device=%s"},
 	{Opt_nodatasum, "nodatasum"},
 	{Opt_nodatacow, "nodatacow"},
@@ -673,8 +673,8 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *device_name, *opts, *orig, *p;
+	char *num = NULL;
 	int error = 0;
-	int intarg;
 
 	if (!options)
 		return 0;
@@ -704,16 +704,14 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			}
 			break;
 		case Opt_subvolid:
-			error = match_int(&args[0], &intarg);
-			if (!error) {
-				goto out;
-			} else if (intarg >= 0) {
+			num = match_strdup(&args[0]);
+			if (num) {
+				*subvol_objectid = memparse(num, NULL);
+				kfree(num);
 				/* we want the original fs_tree */
-				if (!intarg)
+				if (!*subvol_objectid)
 					*subvol_objectid =
 						BTRFS_FS_TREE_OBJECTID;
-				else
-					*subvol_objectid = intarg;
 			} else {
 				error = -EINVAL;
 				goto out;
