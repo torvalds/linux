@@ -793,7 +793,7 @@ struct omap_dss_device {
 	/* dynamic fields */
 	struct omap_overlay_manager *manager;
 
-	struct omap_dss_device *device;
+	struct omap_dss_device *dst;
 };
 
 struct omap_dss_hdmi_data
