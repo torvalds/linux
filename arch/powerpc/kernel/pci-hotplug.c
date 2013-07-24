@@ -71,7 +71,7 @@ EXPORT_SYMBOL_GPL(pcibios_remove_pci_devices);
  */
 void pcibios_add_pci_devices(struct pci_bus * bus)
 {
-	int slotno, num, mode, pass, max;
+	int slotno, mode, pass, max;
 	struct pci_dev *dev;
 	struct device_node *dn = pci_bus_to_OF_node(bus);
 
@@ -85,11 +85,15 @@ void pcibios_add_pci_devices(struct pci_bus * bus)
 		/* use ofdt-based probe */
 		of_rescan_bus(dn, bus);
 	} else if (mode == PCI_PROBE_NORMAL) {
-		/* use legacy probe */
+		/*
+		 * Use legacy probe. In the partial hotplug case, we
+		 * probably have grandchildren devices unplugged. So
+		 * we don't check the return value from pci_scan_slot() in
+		 * order for fully rescan all the way down to pick them up.
+		 * They can have been removed during partial hotplug.
+		 */
 		slotno = PCI_SLOT(PCI_DN(dn->child)->devfn);
-		num = pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
-		if (!num)
-			return;
+		pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
 		pcibios_setup_bus_devices(bus);
 		max = bus->busn_res.start;
 		for (pass = 0; pass < 2; pass++) {
