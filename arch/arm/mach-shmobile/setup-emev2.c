@@ -27,7 +27,6 @@
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
-#include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/emev2.h>
 #include <mach/irqs.h>
