@@ -114,32 +114,6 @@ void __init msm_map_qsd8x50_io(void)
 }
 #endif /* CONFIG_ARCH_QSD8X50 */
 
-#ifdef CONFIG_ARCH_MSM8X60
-static struct map_desc msm8x60_io_desc[] __initdata = {
-	MSM_CHIP_DEVICE(TMR, MSM8X60),
-	MSM_CHIP_DEVICE(TMR0, MSM8X60),
-};
-
-void __init msm_map_msm8x60_io(void)
-{
-	debug_ll_io_init();
-	iotable_init(msm8x60_io_desc, ARRAY_SIZE(msm8x60_io_desc));
-}
-#endif /* CONFIG_ARCH_MSM8X60 */
-
-#ifdef CONFIG_ARCH_MSM8960
-static struct map_desc msm8960_io_desc[] __initdata = {
-	MSM_CHIP_DEVICE(TMR, MSM8960),
-	MSM_CHIP_DEVICE(TMR0, MSM8960),
-};
-
-void __init msm_map_msm8960_io(void)
-{
-	debug_ll_io_init();
-	iotable_init(msm8960_io_desc, ARRAY_SIZE(msm8960_io_desc));
-}
-#endif /* CONFIG_ARCH_MSM8960 */
-
 #ifdef CONFIG_ARCH_MSM7X30
 static struct map_desc msm7x30_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
