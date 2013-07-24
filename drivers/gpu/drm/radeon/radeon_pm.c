@@ -624,7 +624,15 @@ static void radeon_dpm_thermal_work_handler(struct work_struct *work)
 			/* switch back the user state */
 			dpm_state = rdev->pm.dpm.user_state;
 	}
-	radeon_dpm_enable_power_state(rdev, dpm_state);
+	mutex_lock(&rdev->pm.mutex);
+	if (dpm_state == POWER_STATE_TYPE_INTERNAL_THERMAL)
+		rdev->pm.dpm.thermal_active = true;
+	else
+		rdev->pm.dpm.thermal_active = false;
+	rdev->pm.dpm.state = dpm_state;
+	mutex_unlock(&rdev->pm.mutex);
+
+	radeon_pm_compute_clocks(rdev);
 }
 
 static struct radeon_ps *radeon_dpm_pick_power_state(struct radeon_device *rdev,
@@ -852,38 +860,16 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 
 	radeon_dpm_post_set_power_state(rdev);
 
+	/* force low perf level for thermal */
+	if (rdev->pm.dpm.thermal_active &&
+	    rdev->asic->dpm.force_performance_level) {
+		radeon_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_LOW);
+	}
+
 done:
 	mutex_unlock(&rdev->ring_lock);
 	up_write(&rdev->pm.mclk_lock);
 	mutex_unlock(&rdev->ddev->struct_mutex);
-}
-
-void radeon_dpm_enable_power_state(struct radeon_device *rdev,
-				   enum radeon_pm_state_type dpm_state)
-{
-	if (!rdev->pm.dpm_enabled)
-		return;
-
-	mutex_lock(&rdev->pm.mutex);
-	switch (dpm_state) {
-	case POWER_STATE_TYPE_INTERNAL_THERMAL:
-		rdev->pm.dpm.thermal_active = true;
-		break;
-	case POWER_STATE_TYPE_INTERNAL_UVD:
-	case POWER_STATE_TYPE_INTERNAL_UVD_SD:
-	case POWER_STATE_TYPE_INTERNAL_UVD_HD:
-	case POWER_STATE_TYPE_INTERNAL_UVD_HD2:
-	case POWER_STATE_TYPE_INTERNAL_UVD_MVC:
-		rdev->pm.dpm.uvd_active = true;
-		break;
-	default:
-		rdev->pm.dpm.thermal_active = false;
-		rdev->pm.dpm.uvd_active = false;
-		break;
-	}
-	rdev->pm.dpm.state = dpm_state;
-	mutex_unlock(&rdev->pm.mutex);
-	radeon_pm_compute_clocks(rdev);
 }
 
 void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)

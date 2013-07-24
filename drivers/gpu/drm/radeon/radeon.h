@@ -1365,8 +1365,6 @@ struct radeon_dpm {
 	unsigned hd;
 };
 
-void radeon_dpm_enable_power_state(struct radeon_device *rdev,
-				    enum radeon_pm_state_type dpm_state);
 void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable);
 
 struct radeon_pm {
