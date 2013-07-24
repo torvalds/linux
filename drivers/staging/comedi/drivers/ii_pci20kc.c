@@ -83,6 +83,7 @@ options for PCI-20341M:
 /*
  * Register I/O map
  */
+#define II20K_MOD_OFFSET		0x100
 #define II20K_ID_REG			0x00
 #define II20K_ID_MOD1_EMPTY		(1 << 7)
 #define II20K_ID_MOD2_EMPTY		(1 << 6)
@@ -120,8 +121,6 @@ options for PCI-20341M:
 #define PCI20006_ID			0xe3
 #define PCI20xxx_EMPTY_ID		0xff
 
-#define PCI20000_OFFSET			0x100
-
 #define PCI20006_LCHAN0			0x0d
 #define PCI20006_STROBE0		0x0b
 #define PCI20006_LCHAN1			0x15
@@ -130,7 +129,6 @@ options for PCI-20341M:
 #define PCI20341_INIT			0x04
 #define PCI20341_REPMODE		0x00	/* single shot mode */
 #define PCI20341_PACER			0x00	/* Hardware Pacer disabled */
-#define PCI20341_CHAN_NR		0x04	/* number of input channels */
 #define PCI20341_CONFIG_REG		0x10
 #define PCI20341_MOD_STATUS		0x01
 #define PCI20341_OPT_REG		0x11
@@ -164,13 +162,13 @@ static const struct comedi_lrange range_bipolar0_025 = {
 	}
 };
 
-static const struct comedi_lrange *pci20006_range_list[] = {
+static const struct comedi_lrange *ii20k_ao_ranges[] = {
 	&range_bipolar10,
 	&range_unipolar10,
 	&range_bipolar5,
 };
 
-static const struct comedi_lrange *const pci20341_ranges[] = {
+static const struct comedi_lrange *const ii20k_ai_ranges[] = {
 	&range_bipolar5,
 	&range_bipolar0_5,
 	&range_bipolar0_05,
@@ -200,11 +198,10 @@ struct pci20xxx_private {
 	void __iomem *ioaddr;
 };
 
-/* pci20006m */
-
-static int pci20006_insn_read(struct comedi_device *dev,
+static int ii20k_ao_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
 
@@ -213,9 +210,10 @@ static int pci20006_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-static int pci20006_insn_write(struct comedi_device *dev,
+static int ii20k_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
 	int hi, lo;
@@ -246,36 +244,10 @@ static int pci20006_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int opt0, int opt1)
-{
-	union pci20xxx_subdev_private *sdp = s->private;
-
-	if (opt0 < 0 || opt0 > 2)
-		opt0 = 0;
-	if (opt1 < 0 || opt1 > 2)
-		opt1 = 0;
-
-	sdp->pci20006.ao_range_list[0] = pci20006_range_list[opt0];
-	sdp->pci20006.ao_range_list[1] = pci20006_range_list[opt1];
-
-	/* ao subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 2;
-	s->len_chanlist = 2;
-	s->insn_read = pci20006_insn_read;
-	s->insn_write = pci20006_insn_write;
-	s->maxdata = 0xffff;
-	s->range_table_list = sdp->pci20006.ao_range_list;
-	return 0;
-}
-
-/* PCI20341M */
-
-static int pci20341_insn_read(struct comedi_device *dev,
+static int ii20k_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
 	unsigned int i = 0, j = 0;
@@ -328,26 +300,11 @@ static int pci20341_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int opt0, int opt1)
+static void ii20k_ai_init(struct comedi_device *dev,
+			  struct comedi_subdevice *s)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
-	int option;
-
-	/* options handling */
-	if (opt0 < 0 || opt0 > 3)
-		opt0 = 0;
-	sdp->pci20341.timebase = pci20341_timebase[opt0];
-	sdp->pci20341.settling_time = pci20341_settling_time[opt0];
-
-	/* ai subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = PCI20341_CHAN_NR;
-	s->len_chanlist = PCI20341_SCANLIST;
-	s->insn_read = pci20341_insn_read;
-	s->maxdata = 0xffff;
-	s->range_table = pci20341_ranges[opt0];
+	unsigned char option;
 
 	/* depends on gain, trigger, repetition mode */
 	option = sdp->pci20341.timebase | PCI20341_REPMODE;
@@ -362,7 +319,6 @@ static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	writeb(sdp->pci20341.settling_time,
 		sdp->iobase + PCI20341_SET_TIME_REG);
 	/* trigger not implemented */
-	return 0;
 }
 
 static void ii20k_dio_config(struct comedi_device *dev,
@@ -501,16 +457,78 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int ii20k_init_module(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_devconfig *it)
+{
+	struct pci20xxx_private *devpriv = dev->private;
+	union pci20xxx_subdev_private *sdp;
+	unsigned int opt0 = it->options[(2 * s->index) + 2];
+	unsigned int opt1 = it->options[(2 * s->index) + 3];
+	void __iomem *iobase;
+	unsigned char id;
+
+	sdp = comedi_alloc_spriv(s, sizeof(*sdp));
+	if (!sdp)
+		return -ENOMEM;
+
+	iobase = devpriv->ioaddr + (s->index + 1) * II20K_MOD_OFFSET;
+	id = readb(iobase + II20K_ID_REG);
+	switch (id) {
+	case PCI20006_ID:
+		if (opt0 < 0 || opt0 > 2)
+			opt0 = 0;
+		if (opt1 < 0 || opt1 > 2)
+			opt1 = 0;
+
+		sdp->pci20006.iobase = iobase;
+		sdp->pci20006.ao_range_list[0] = ii20k_ao_ranges[opt0];
+		sdp->pci20006.ao_range_list[1] = ii20k_ao_ranges[opt1];
+
+		/* Analog Output subdevice */
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= 2;
+		s->maxdata	= 0xffff;
+		s->range_table_list = sdp->pci20006.ao_range_list;
+		s->insn_read	= ii20k_ao_insn_read;
+		s->insn_write	= ii20k_ao_insn_write;
+		break;
+	case PCI20341_ID:
+		if (opt0 < 0 || opt0 > 3)
+			opt0 = 0;
+
+		sdp->pci20341.iobase = iobase;
+		sdp->pci20341.timebase = pci20341_timebase[opt0];
+		sdp->pci20341.settling_time = pci20341_settling_time[opt0];
+
+		/* Analog Input subdevice */
+		s->type		= COMEDI_SUBD_AI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= 4;
+		s->maxdata	= 0xffff;
+		s->range_table	= ii20k_ai_ranges[opt0];
+		s->insn_read	= ii20k_ai_insn_read;
+
+		ii20k_ai_init(dev, s);
+		break;
+	case PCI20xxx_EMPTY_ID:
+	default:
+		s->type = COMEDI_SUBD_UNUSED;
+		break;
+	}
+
+	return 0;
+}
+
 static int pci20xxx_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
 	struct pci20xxx_private *devpriv;
-	union pci20xxx_subdev_private *sdp;
 	struct comedi_subdevice *s;
 	unsigned char id;
 	bool has_dio;
 	int ret;
-	int i;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -533,38 +551,31 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < 3; i++) {
-		s = &dev->subdevices[i];
-		sdp = comedi_alloc_spriv(s, sizeof(*sdp));
-		if (!sdp)
-			return -ENOMEM;
-		id = readb(devpriv->ioaddr + (i + 1) * PCI20000_OFFSET);
-		switch (id) {
-		case PCI20006_ID:
-			sdp->pci20006.iobase =
-			    devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
-			pci20006_init(dev, s, it->options[2 * i + 2],
-				      it->options[2 * i + 3]);
-			dev_info(dev->class_dev,
-				 "PCI-20006 module in slot %d\n", i + 1);
-			break;
-		case PCI20341_ID:
-			sdp->pci20341.iobase =
-			    devpriv->ioaddr + (i + 1) * PCI20000_OFFSET;
-			pci20341_init(dev, s, it->options[2 * i + 2],
-				      it->options[2 * i + 3]);
-			dev_info(dev->class_dev,
-				 "PCI-20341 module in slot %d\n", i + 1);
-			break;
-		default:
-			dev_warn(dev->class_dev,
-				 "unknown module code 0x%02x in slot %d: module disabled\n",
-				 id, i); /* XXX this looks like a bug! i + 1 ?? */
-			/* fall through */
-		case PCI20xxx_EMPTY_ID:
-			s->type = COMEDI_SUBD_UNUSED;
-			break;
-		}
+	s = &dev->subdevices[0];
+	if (id & II20K_ID_MOD1_EMPTY) {
+		s->type = COMEDI_SUBD_UNUSED;
+	} else {
+		ret = ii20k_init_module(dev, s, it);
+		if (ret)
+			return ret;
+	}
+
+	s = &dev->subdevices[1];
+	if (id & II20K_ID_MOD2_EMPTY) {
+		s->type = COMEDI_SUBD_UNUSED;
+	} else {
+		ret = ii20k_init_module(dev, s, it);
+		if (ret)
+			return ret;
+	}
+
+	s = &dev->subdevices[2];
+	if (id & II20K_ID_MOD3_EMPTY) {
+		s->type = COMEDI_SUBD_UNUSED;
+	} else {
+		ret = ii20k_init_module(dev, s, it);
+		if (ret)
+			return ret;
 	}
 
 	/* Digital I/O subdevice */
