@@ -361,37 +361,93 @@ static int pci20341_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-/* native DIO */
+#if 0
+static void pci20xxx_do(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	struct pci20xxx_private *devpriv = dev->private;
+
+	/* XXX if the channel is configured for input, does this
+	   do bad things? */
+	/* XXX it would be a good idea to only update the registers
+	   that _need_ to be updated.  This requires changes to
+	   comedi, however. */
+	writeb((s->state >> 0) & 0xff, devpriv->ioaddr + PCI20000_DIO_0);
+	writeb((s->state >> 8) & 0xff, devpriv->ioaddr + PCI20000_DIO_1);
+	writeb((s->state >> 16) & 0xff, devpriv->ioaddr + PCI20000_DIO_2);
+	writeb((s->state >> 24) & 0xff, devpriv->ioaddr + PCI20000_DIO_3);
+}
+
+static unsigned int pci20xxx_di(struct comedi_device *dev,
+				struct comedi_subdevice *s)
+{
+	struct pci20xxx_private *devpriv = dev->private;
+	unsigned int bits;
+
+	/* XXX same note as above */
+	bits = readb(devpriv->ioaddr + PCI20000_DIO_0);
+	bits |= readb(devpriv->ioaddr + PCI20000_DIO_1) << 8;
+	bits |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
+	bits |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
+
+	return bits;
+}
+#endif
 
 static void pci20xxx_dio_config(struct comedi_device *dev,
-				struct comedi_subdevice *s);
-static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data);
-static int pci20xxx_dio_insn_config(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data);
-
-/* initialize struct pci20xxx_private */
-static int pci20xxx_dio_init(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
+				struct comedi_subdevice *s)
 {
+	struct pci20xxx_private *devpriv = dev->private;
+	unsigned char control_01;
+	unsigned char control_23;
+	unsigned char buffer;
 
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 32;
-	s->insn_bits = pci20xxx_dio_insn_bits;
-	s->insn_config = pci20xxx_dio_insn_config;
-	s->maxdata = 1;
-	s->len_chanlist = 32;
-	s->range_table = &range_digital;
-	s->io_bits = 0;
+	control_01 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_01);
+	control_23 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_23);
+	buffer = readb(devpriv->ioaddr + PCI20000_DIO_BUFFER);
 
-	/* digital I/O lines default to input on board reset. */
-	pci20xxx_dio_config(dev, s);
-
-	return 0;
+	if (s->io_bits & 0x000000ff) {
+		/* output port 0 */
+		control_01 &= PCI20000_DIO_EOC;
+		buffer = (buffer & (~(DIO_BE << DIO_PS_0))) | (DIO_BO <<
+							       DIO_PS_0);
+	} else {
+		/* input port 0 */
+		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_EIC;
+		buffer = (buffer & (~(DIO_BI << DIO_PS_0)));
+	}
+	if (s->io_bits & 0x0000ff00) {
+		/* output port 1 */
+		control_01 &= PCI20000_DIO_OOC;
+		buffer = (buffer & (~(DIO_BE << DIO_PS_1))) | (DIO_BO <<
+							       DIO_PS_1);
+	} else {
+		/* input port 1 */
+		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_OIC;
+		buffer = (buffer & (~(DIO_BI << DIO_PS_1)));
+	}
+	if (s->io_bits & 0x00ff0000) {
+		/* output port 2 */
+		control_23 &= PCI20000_DIO_EOC;
+		buffer = (buffer & (~(DIO_BE << DIO_PS_2))) | (DIO_BO <<
+							       DIO_PS_2);
+	} else {
+		/* input port 2 */
+		control_23 = (control_23 & DIO_CAND) | PCI20000_DIO_EIC;
+		buffer = (buffer & (~(DIO_BI << DIO_PS_2)));
+	}
+	if (s->io_bits & 0xff000000) {
+		/* output port 3 */
+		control_23 &= PCI20000_DIO_OOC;
+		buffer = (buffer & (~(DIO_BE << DIO_PS_3))) | (DIO_BO <<
+							       DIO_PS_3);
+	} else {
+		/* input port 3 */
+		control_23 = (control_23 & DIO_CAND) | PCI20000_DIO_OIC;
+		buffer = (buffer & (~(DIO_BI << DIO_PS_3)));
+	}
+	writeb(control_01, devpriv->ioaddr + PCI20000_DIO_CONTROL_01);
+	writeb(control_23, devpriv->ioaddr + PCI20000_DIO_CONTROL_23);
+	writeb(buffer, devpriv->ioaddr + PCI20000_DIO_BUFFER);
 }
 
 static int pci20xxx_dio_insn_config(struct comedi_device *dev,
@@ -451,94 +507,24 @@ static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void pci20xxx_dio_config(struct comedi_device *dev,
-				struct comedi_subdevice *s)
+static int pci20xxx_dio_init(struct comedi_device *dev,
+			     struct comedi_subdevice *s)
 {
-	struct pci20xxx_private *devpriv = dev->private;
-	unsigned char control_01;
-	unsigned char control_23;
-	unsigned char buffer;
+	s->type = COMEDI_SUBD_DIO;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->n_chan = 32;
+	s->insn_bits = pci20xxx_dio_insn_bits;
+	s->insn_config = pci20xxx_dio_insn_config;
+	s->maxdata = 1;
+	s->len_chanlist = 32;
+	s->range_table = &range_digital;
+	s->io_bits = 0;
 
-	control_01 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_01);
-	control_23 = readb(devpriv->ioaddr + PCI20000_DIO_CONTROL_23);
-	buffer = readb(devpriv->ioaddr + PCI20000_DIO_BUFFER);
+	/* digital I/O lines default to input on board reset. */
+	pci20xxx_dio_config(dev, s);
 
-	if (s->io_bits & 0x000000ff) {
-		/* output port 0 */
-		control_01 &= PCI20000_DIO_EOC;
-		buffer = (buffer & (~(DIO_BE << DIO_PS_0))) | (DIO_BO <<
-							       DIO_PS_0);
-	} else {
-		/* input port 0 */
-		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_EIC;
-		buffer = (buffer & (~(DIO_BI << DIO_PS_0)));
-	}
-	if (s->io_bits & 0x0000ff00) {
-		/* output port 1 */
-		control_01 &= PCI20000_DIO_OOC;
-		buffer = (buffer & (~(DIO_BE << DIO_PS_1))) | (DIO_BO <<
-							       DIO_PS_1);
-	} else {
-		/* input port 1 */
-		control_01 = (control_01 & DIO_CAND) | PCI20000_DIO_OIC;
-		buffer = (buffer & (~(DIO_BI << DIO_PS_1)));
-	}
-	if (s->io_bits & 0x00ff0000) {
-		/* output port 2 */
-		control_23 &= PCI20000_DIO_EOC;
-		buffer = (buffer & (~(DIO_BE << DIO_PS_2))) | (DIO_BO <<
-							       DIO_PS_2);
-	} else {
-		/* input port 2 */
-		control_23 = (control_23 & DIO_CAND) | PCI20000_DIO_EIC;
-		buffer = (buffer & (~(DIO_BI << DIO_PS_2)));
-	}
-	if (s->io_bits & 0xff000000) {
-		/* output port 3 */
-		control_23 &= PCI20000_DIO_OOC;
-		buffer = (buffer & (~(DIO_BE << DIO_PS_3))) | (DIO_BO <<
-							       DIO_PS_3);
-	} else {
-		/* input port 3 */
-		control_23 = (control_23 & DIO_CAND) | PCI20000_DIO_OIC;
-		buffer = (buffer & (~(DIO_BI << DIO_PS_3)));
-	}
-	writeb(control_01, devpriv->ioaddr + PCI20000_DIO_CONTROL_01);
-	writeb(control_23, devpriv->ioaddr + PCI20000_DIO_CONTROL_23);
-	writeb(buffer, devpriv->ioaddr + PCI20000_DIO_BUFFER);
+	return 0;
 }
-
-#if 0
-static void pci20xxx_do(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	struct pci20xxx_private *devpriv = dev->private;
-
-	/* XXX if the channel is configured for input, does this
-	   do bad things? */
-	/* XXX it would be a good idea to only update the registers
-	   that _need_ to be updated.  This requires changes to
-	   comedi, however. */
-	writeb((s->state >> 0) & 0xff, devpriv->ioaddr + PCI20000_DIO_0);
-	writeb((s->state >> 8) & 0xff, devpriv->ioaddr + PCI20000_DIO_1);
-	writeb((s->state >> 16) & 0xff, devpriv->ioaddr + PCI20000_DIO_2);
-	writeb((s->state >> 24) & 0xff, devpriv->ioaddr + PCI20000_DIO_3);
-}
-
-static unsigned int pci20xxx_di(struct comedi_device *dev,
-				struct comedi_subdevice *s)
-{
-	struct pci20xxx_private *devpriv = dev->private;
-	unsigned int bits;
-
-	/* XXX same note as above */
-	bits = readb(devpriv->ioaddr + PCI20000_DIO_0);
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_1) << 8;
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
-	bits |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
-
-	return bits;
-}
-#endif
 
 static int pci20xxx_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
