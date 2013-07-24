@@ -55,7 +55,6 @@
 #include <linux/interrupt.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
 #include <linux/rwsem.h>
