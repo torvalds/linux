@@ -153,7 +153,7 @@ static void *pseries_eeh_of_probe(struct device_node *dn, void *flag)
 
 	/* Retrieve OF node and eeh device */
 	edev = of_node_to_eeh_dev(dn);
-	if (!of_device_is_available(dn))
+	if (edev->pe || !of_device_is_available(dn))
 		return NULL;
 
 	/* Retrieve class/vendor/device IDs */

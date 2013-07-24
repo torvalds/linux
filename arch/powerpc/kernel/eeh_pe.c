@@ -149,8 +149,8 @@ static struct eeh_pe *eeh_pe_next(struct eeh_pe *pe,
  * callback returns something other than NULL, or no more PEs
  * to be traversed.
  */
-static void *eeh_pe_traverse(struct eeh_pe *root,
-			eeh_traverse_func fn, void *flag)
+void *eeh_pe_traverse(struct eeh_pe *root,
+		      eeh_traverse_func fn, void *flag)
 {
 	struct eeh_pe *pe;
 	void *ret;
@@ -409,8 +409,8 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	int cnt;
 
 	if (!edev->pe) {
-		pr_warning("%s: No PE found for EEH device %s\n",
-			__func__, edev->dn->full_name);
+		pr_debug("%s: No PE found for EEH device %s\n",
+			 __func__, edev->dn->full_name);
 		return -EEXIST;
 	}
 
@@ -728,18 +728,12 @@ static void eeh_restore_device_bars(struct eeh_dev *edev,
  */
 static void *eeh_restore_one_device_bars(void *data, void *flag)
 {
-	struct pci_dev *pdev = NULL;
 	struct eeh_dev *edev = (struct eeh_dev *)data;
+	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct device_node *dn = eeh_dev_to_of_node(edev);
 
-	/* Trace the PCI bridge */
-	if (eeh_probe_mode_dev()) {
-		pdev = eeh_dev_to_pci_dev(edev);
-		if (pdev->hdr_type != PCI_HEADER_TYPE_BRIDGE)
-                        pdev = NULL;
-        }
-
-	if (pdev)
+	/* Do special restore for bridges */
+	if (pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
 		eeh_restore_bridge_bars(pdev, edev, dn);
 	else
 		eeh_restore_device_bars(edev, dn);

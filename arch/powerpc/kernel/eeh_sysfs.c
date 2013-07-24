@@ -68,6 +68,13 @@ void eeh_sysfs_add_device(struct pci_dev *pdev)
 
 void eeh_sysfs_remove_device(struct pci_dev *pdev)
 {
+	/*
+	 * The parent directory might have been removed. We needn't
+	 * continue for that case.
+	 */
+	if (!pdev->dev.kobj.sd)
+		return;
+
 	device_remove_file(&pdev->dev, &dev_attr_eeh_mode);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_config_addr);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);

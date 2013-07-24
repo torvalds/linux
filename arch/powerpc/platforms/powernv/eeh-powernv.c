@@ -114,7 +114,7 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	 * the root bridge. So it's not reasonable to continue
 	 * the probing.
 	 */
-	if (!dn || !edev)
+	if (!dn || !edev || edev->pe)
 		return 0;
 
 	/* Skip for PCI-ISA bridge */

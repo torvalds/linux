@@ -900,7 +900,21 @@ void eeh_add_device_late(struct pci_dev *dev)
 		pr_debug("EEH: Already referenced !\n");
 		return;
 	}
-	WARN_ON(edev->pdev);
+
+	/*
+	 * The EEH cache might not be removed correctly because of
+	 * unbalanced kref to the device during unplug time, which
+	 * relies on pcibios_release_device(). So we have to remove
+	 * that here explicitly.
+	 */
+	if (edev->pdev) {
+		eeh_rmv_from_parent_pe(edev);
+		eeh_addr_cache_rmv_dev(edev->pdev);
+		eeh_sysfs_remove_device(edev->pdev);
+
+		edev->pdev = NULL;
+		dev->dev.archdata.edev = NULL;
+	}
 
 	edev->pdev = dev;
 	dev->dev.archdata.edev = edev;
@@ -982,14 +996,24 @@ void eeh_remove_device(struct pci_dev *dev)
 	/* Unregister the device with the EEH/PCI address search system */
 	pr_debug("EEH: Removing device %s\n", pci_name(dev));
 
-	if (!edev || !edev->pdev) {
+	if (!edev || !edev->pdev || !edev->pe) {
 		pr_debug("EEH: Not referenced !\n");
 		return;
 	}
+
+	/*
+	 * During the hotplug for EEH error recovery, we need the EEH
+	 * device attached to the parent PE in order for BAR restore
+	 * a bit later. So we keep it for BAR restore and remove it
+	 * from the parent PE during the BAR resotre.
+	 */
 	edev->pdev = NULL;
 	dev->dev.archdata.edev = NULL;
+	if (!(edev->pe->state & EEH_PE_KEEP))
+		eeh_rmv_from_parent_pe(edev);
+	else
+		edev->mode |= EEH_DEV_DISCONNECTED;
 
-	eeh_rmv_from_parent_pe(edev);
 	eeh_addr_cache_rmv_dev(dev);
 	eeh_sysfs_remove_device(dev);
 }
