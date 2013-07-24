@@ -179,15 +179,12 @@ static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
 
 union pci20xxx_subdev_private {
-	void __iomem *iobase;
 	struct {
-		void __iomem *iobase;
 		const struct comedi_lrange *ao_range_list[2];
 					/* range of channels of ao module */
 		unsigned int last_data[2];
 	} pci20006;
 	struct {
-		void __iomem *iobase;
 		int timebase;
 		int settling_time;
 		int ai_gain;
@@ -197,6 +194,14 @@ union pci20xxx_subdev_private {
 struct pci20xxx_private {
 	void __iomem *ioaddr;
 };
+
+static void __iomem *ii20k_module_iobase(struct comedi_device *dev,
+					 struct comedi_subdevice *s)
+{
+	struct pci20xxx_private *devpriv = dev->private;
+
+	return devpriv->ioaddr + (s->index + 1) * II20K_MOD_OFFSET;
+}
 
 static int ii20k_ao_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
@@ -216,6 +221,7 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
+	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	int hi, lo;
 	unsigned int boarddata;
 
@@ -227,14 +233,14 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 
 	switch (CR_CHAN(insn->chanspec)) {
 	case 0:
-		writeb(lo, sdp->iobase + PCI20006_LCHAN0);
-		writeb(hi, sdp->iobase + PCI20006_LCHAN0 + 1);
-		writeb(0x00, sdp->iobase + PCI20006_STROBE0);
+		writeb(lo, iobase + PCI20006_LCHAN0);
+		writeb(hi, iobase + PCI20006_LCHAN0 + 1);
+		writeb(0x00, iobase + PCI20006_STROBE0);
 		break;
 	case 1:
-		writeb(lo, sdp->iobase + PCI20006_LCHAN1);
-		writeb(hi, sdp->iobase + PCI20006_LCHAN1 + 1);
-		writeb(0x00, sdp->iobase + PCI20006_STROBE1);
+		writeb(lo, iobase + PCI20006_LCHAN1);
+		writeb(hi, iobase + PCI20006_LCHAN1 + 1);
+		writeb(0x00, iobase + PCI20006_STROBE1);
 		break;
 	default:
 		dev_warn(dev->class_dev, "ao channel Error!\n");
@@ -250,6 +256,7 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
+	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned int i = 0, j = 0;
 	int lo, hi;
 	unsigned char eoc;	/* end of conversion */
@@ -257,15 +264,15 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 	unsigned int boarddata;
 
 	/* write number of input channels */
-	writeb(1, sdp->iobase + PCI20341_LCHAN_ADDR_REG);
+	writeb(1, iobase + PCI20341_LCHAN_ADDR_REG);
 	clb = PCI20341_DAISY_CHAIN | PCI20341_MUX | (sdp->pci20341.ai_gain << 3)
 	    | CR_CHAN(insn->chanspec);
-	writeb(clb, sdp->iobase + PCI20341_CHAN_LIST);
+	writeb(clb, iobase + PCI20341_CHAN_LIST);
 
 	/* reset settling time counter and trigger delay counter */
-	writeb(0x00, sdp->iobase + PCI20341_CC_RESET);
+	writeb(0x00, iobase + PCI20341_CC_RESET);
 
-	writeb(0x00, sdp->iobase + PCI20341_CHAN_RESET);
+	writeb(0x00, iobase + PCI20341_CHAN_RESET);
 
 	/* generate Pacer */
 
@@ -276,21 +283,21 @@ static int ii20k_ai_insn_read(struct comedi_device *dev,
 		 */
 		j = 0;
 		/* generate Pacer */
-		readb(sdp->iobase + PCI20341_SOFT_PACER);
+		readb(iobase + PCI20341_SOFT_PACER);
 
-		eoc = readb(sdp->iobase + PCI20341_STATUS_REG);
+		eoc = readb(iobase + PCI20341_STATUS_REG);
 		/* poll Interrupt Flag */
 		while ((eoc < 0x80) && j < 100) {
 			j++;
-			eoc = readb(sdp->iobase + PCI20341_STATUS_REG);
+			eoc = readb(iobase + PCI20341_STATUS_REG);
 		}
 		if (j >= 100) {
 			dev_warn(dev->class_dev,
 				 "AI interrupt channel %i polling exit !\n", i);
 			return -EINVAL;
 		}
-		lo = readb(sdp->iobase + PCI20341_LDATA);
-		hi = readb(sdp->iobase + PCI20341_LDATA + 1);
+		lo = readb(iobase + PCI20341_LDATA);
+		hi = readb(iobase + PCI20341_LDATA + 1);
 		boarddata = lo + 0x100 * hi;
 
 		/* board-data -> comedi-data */
@@ -304,20 +311,21 @@ static void ii20k_ai_init(struct comedi_device *dev,
 			  struct comedi_subdevice *s)
 {
 	union pci20xxx_subdev_private *sdp = s->private;
+	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned char option;
 
 	/* depends on gain, trigger, repetition mode */
 	option = sdp->pci20341.timebase | PCI20341_REPMODE;
 
 	/* initialize Module */
-	writeb(PCI20341_INIT, sdp->iobase + PCI20341_CONFIG_REG);
+	writeb(PCI20341_INIT, iobase + PCI20341_CONFIG_REG);
 	/* set Pacer */
-	writeb(PCI20341_PACER, sdp->iobase + PCI20341_MOD_STATUS);
+	writeb(PCI20341_PACER, iobase + PCI20341_MOD_STATUS);
 	/* option register */
-	writeb(option, sdp->iobase + PCI20341_OPT_REG);
+	writeb(option, iobase + PCI20341_OPT_REG);
 	/* settling time counter */
 	writeb(sdp->pci20341.settling_time,
-		sdp->iobase + PCI20341_SET_TIME_REG);
+		iobase + PCI20341_SET_TIME_REG);
 	/* trigger not implemented */
 }
 
@@ -461,18 +469,16 @@ static int ii20k_init_module(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_devconfig *it)
 {
-	struct pci20xxx_private *devpriv = dev->private;
 	union pci20xxx_subdev_private *sdp;
+	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned int opt0 = it->options[(2 * s->index) + 2];
 	unsigned int opt1 = it->options[(2 * s->index) + 3];
-	void __iomem *iobase;
 	unsigned char id;
 
 	sdp = comedi_alloc_spriv(s, sizeof(*sdp));
 	if (!sdp)
 		return -ENOMEM;
 
-	iobase = devpriv->ioaddr + (s->index + 1) * II20K_MOD_OFFSET;
 	id = readb(iobase + II20K_ID_REG);
 	switch (id) {
 	case PCI20006_ID:
@@ -481,7 +487,6 @@ static int ii20k_init_module(struct comedi_device *dev,
 		if (opt1 < 0 || opt1 > 2)
 			opt1 = 0;
 
-		sdp->pci20006.iobase = iobase;
 		sdp->pci20006.ao_range_list[0] = ii20k_ao_ranges[opt0];
 		sdp->pci20006.ao_range_list[1] = ii20k_ao_ranges[opt1];
 
@@ -498,7 +503,6 @@ static int ii20k_init_module(struct comedi_device *dev,
 		if (opt0 < 0 || opt0 > 3)
 			opt0 = 0;
 
-		sdp->pci20341.iobase = iobase;
 		sdp->pci20341.timebase = pci20341_timebase[opt0];
 		sdp->pci20341.settling_time = pci20341_settling_time[opt0];
 
