@@ -856,6 +856,9 @@ static ssize_t c2port_write_flash_data(struct file *filp, struct kobject *kobj,
 
 	return ret;
 }
+/* size is computed at run-time */
+static BIN_ATTR(flash_data, 0644, c2port_read_flash_data,
+		c2port_write_flash_data, 0);
 
 /*
  * Class attributes
@@ -873,19 +876,20 @@ static struct attribute *c2port_attrs[] = {
 	&dev_attr_flash_erase.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(c2port);
 
-static struct bin_attribute c2port_bin_attrs[] = {
-	{
-		.attr	= {
-			.name	= "flash_data",
-			.mode	= 0644
-		},
-		.read	= c2port_read_flash_data,
-		.write	= c2port_write_flash_data,
-		/* .size is computed at run-time */
-	},
-	__ATTR_NULL
+static struct bin_attribute *c2port_bin_attrs[] = {
+	&bin_attr_flash_data,
+	NULL,
+};
+
+static const struct attribute_group c2port_group = {
+	.attrs = c2port_attrs,
+	.bin_attrs = c2port_bin_attrs,
+};
+
+static const struct attribute_group *c2port_groups[] = {
+	&c2port_group,
+	NULL,
 };
 
 /*
@@ -918,7 +922,7 @@ struct c2port_device *c2port_device_register(char *name,
 		goto error_idr_alloc;
 	c2dev->id = ret;
 
-	c2port_bin_attrs[0].size = ops->blocks_num * ops->block_size;
+	bin_attr_flash_data.size = ops->blocks_num * ops->block_size;
 
 	c2dev->dev = device_create(c2port_class, NULL, 0, c2dev,
 				   "c2port%d", c2dev->id);
@@ -988,7 +992,6 @@ static int __init c2port_init(void)
 		return PTR_ERR(c2port_class);
 	}
 	c2port_class->dev_groups = c2port_groups;
-	c2port_class->dev_bin_attrs = c2port_bin_attrs;
 
 	return 0;
 }
