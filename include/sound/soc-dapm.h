@@ -391,10 +391,10 @@ void snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
 void snd_soc_dapm_shutdown(struct snd_soc_card *card);
 
 /* external DAPM widget events */
-int snd_soc_dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
+int snd_soc_dapm_mixer_update_power(struct snd_soc_dapm_context *dapm,
 		struct snd_kcontrol *kcontrol, int connect);
-int snd_soc_dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
-				 struct snd_kcontrol *kcontrol, int mux, struct soc_enum *e);
+int snd_soc_dapm_mux_update_power(struct snd_soc_dapm_context *dapm,
+		struct snd_kcontrol *kcontrol, int mux, struct soc_enum *e);
 
 /* dapm sys fs - used by the core */
 int snd_soc_dapm_sys_add(struct device *dev);
@@ -559,7 +559,6 @@ struct snd_soc_dapm_widget {
 };
 
 struct snd_soc_dapm_update {
-	struct snd_soc_dapm_widget *widget;
 	struct snd_kcontrol *kcontrol;
 	int reg;
 	int mask;
