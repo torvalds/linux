@@ -140,14 +140,12 @@ static int e4000_init(struct dvb_frontend *fe)
 	if (ret < 0)
 		goto err;
 
-	/*
-	 * TODO: Implement DC offset control correctly.
-	 * DC offsets has quite much effect for received signal quality in case
-	 * of direct conversion tuners (Zero-IF). Surely we will now lose few
-	 * decimals or even decibels from SNR...
-	 */
 	/* DC offset control */
-	ret = e4000_wr_reg(priv, 0x2d, 0x0c);
+	ret = e4000_wr_reg(priv, 0x2d, 0x1f);
+	if (ret < 0)
+		goto err;
+
+	ret = e4000_wr_regs(priv, 0x70, "\x01\x01", 2);
 	if (ret < 0)
 		goto err;
 
@@ -204,7 +202,7 @@ static int e4000_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i, sigma_delta;
 	unsigned int f_VCO;
-	u8 buf[5];
+	u8 buf[5], i_data[4], q_data[4];
 
 	dev_dbg(&priv->i2c->dev, "%s: delivery_system=%d frequency=%d " \
 			"bandwidth_hz=%d\n", __func__,
@@ -289,6 +287,48 @@ static int e4000_set_params(struct dvb_frontend *fe)
 		goto err;
 
 	ret = e4000_wr_reg(priv, 0x78, e4000_band_lut[i].reg78_val);
+	if (ret < 0)
+		goto err;
+
+	/* DC offset */
+	for (i = 0; i < 4; i++) {
+		if (i == 0)
+			ret = e4000_wr_regs(priv, 0x15, "\x00\x7e\x24", 3);
+		else if (i == 1)
+			ret = e4000_wr_regs(priv, 0x15, "\x00\x7f", 2);
+		else if (i == 2)
+			ret = e4000_wr_regs(priv, 0x15, "\x01", 1);
+		else
+			ret = e4000_wr_regs(priv, 0x16, "\x7e", 1);
+
+		if (ret < 0)
+			goto err;
+
+		ret = e4000_wr_reg(priv, 0x29, 0x01);
+		if (ret < 0)
+			goto err;
+
+		ret = e4000_rd_regs(priv, 0x2a, buf, 3);
+		if (ret < 0)
+			goto err;
+
+		i_data[i] = (((buf[2] >> 0) & 0x3) << 6) | (buf[0] & 0x3f);
+		q_data[i] = (((buf[2] >> 4) & 0x3) << 6) | (buf[1] & 0x3f);
+	}
+
+	buf[0] = q_data[0];
+	buf[1] = q_data[1];
+	buf[2] = q_data[3];
+	buf[3] = q_data[2];
+	ret = e4000_wr_regs(priv, 0x50, buf, 4);
+	if (ret < 0)
+		goto err;
+
+	buf[0] = i_data[0];
+	buf[1] = i_data[1];
+	buf[2] = i_data[3];
+	buf[3] = i_data[2];
+	ret = e4000_wr_regs(priv, 0x60, buf, 4);
 	if (ret < 0)
 		goto err;
 
