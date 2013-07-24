@@ -867,17 +867,14 @@ static struct device_attribute c2port_attrs[] = {
 	__ATTR_NULL,
 };
 
-static struct bin_attribute c2port_bin_attrs[] = {
-	{
-		.attr	= {
-			.name	= "flash_data",
-			.mode	= 0644
-		},
-		.read	= c2port_read_flash_data,
-		.write	= c2port_write_flash_data,
-		/* .size is computed at run-time */
+static struct bin_attribute c2port_bin_attrs = {
+	.attr	= {
+		.name	= "flash_data",
+		.mode	= 0644
 	},
-	__ATTR_NULL
+	.read	= c2port_read_flash_data,
+	.write	= c2port_write_flash_data,
+	/* .size is computed at run-time */
 };
 
 /*
@@ -910,8 +907,6 @@ struct c2port_device *c2port_device_register(char *name,
 		goto error_idr_alloc;
 	c2dev->id = ret;
 
-	c2port_bin_attrs[0].size = ops->blocks_num * ops->block_size;
-
 	c2dev->dev = device_create(c2port_class, NULL, 0, c2dev,
 				   "c2port%d", c2dev->id);
 	if (unlikely(IS_ERR(c2dev->dev))) {
@@ -924,6 +919,12 @@ struct c2port_device *c2port_device_register(char *name,
 	c2dev->ops = ops;
 	mutex_init(&c2dev->mutex);
 
+	/* Create binary file */
+	c2port_bin_attrs.size = ops->blocks_num * ops->block_size;
+	ret = device_create_bin_file(c2dev->dev, &c2port_bin_attrs);
+	if (unlikely(ret))
+		goto error_device_create_bin_file;
+
 	/* By default C2 port access is off */
 	c2dev->access = c2dev->flash_access = 0;
 	ops->access(c2dev, 0);
@@ -935,6 +936,9 @@ struct c2port_device *c2port_device_register(char *name,
 				ops->blocks_num * ops->block_size);
 
 	return c2dev;
+
+error_device_create_bin_file:
+	device_destroy(c2port_class, 0);
 
 error_device_create:
 	spin_lock_irq(&c2port_idr_lock);
@@ -955,6 +959,7 @@ void c2port_device_unregister(struct c2port_device *c2dev)
 
 	dev_info(c2dev->dev, "C2 port %s removed\n", c2dev->name);
 
+	device_remove_bin_file(c2dev->dev, &c2port_bin_attrs);
 	spin_lock_irq(&c2port_idr_lock);
 	idr_remove(&c2port_idr, c2dev->id);
 	spin_unlock_irq(&c2port_idr_lock);
@@ -980,7 +985,6 @@ static int __init c2port_init(void)
 		return PTR_ERR(c2port_class);
 	}
 	c2port_class->dev_attrs = c2port_attrs;
-	c2port_class->dev_bin_attrs = c2port_bin_attrs;
 
 	return 0;
 }
