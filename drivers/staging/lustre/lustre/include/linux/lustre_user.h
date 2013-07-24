@@ -41,7 +41,6 @@
 #ifndef _LINUX_LUSTRE_USER_H
 #define _LINUX_LUSTRE_USER_H
 
-# include <linux/version.h>
 # include <linux/quota.h>
 
 /*
