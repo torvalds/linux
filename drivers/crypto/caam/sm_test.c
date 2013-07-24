@@ -1,27 +1,20 @@
+
 /*
  * Secure Memory / Keystore Exemplification Module
- * Copyright (C) 2015 Freescale Semiconductor, Inc. All Rights Reserved
+ * Copyright (C) 2012-2015 Freescale Semiconductor, Inc. All Rights Reserved
  *
- * Serves as a functional example, and as a self-contained unit test for
- * the functionality contained in sm_store.c.
+ * This module has been overloaded as an example to show:
+ * - Secure memory subsystem initialization/shutdown
+ * - Allocation/deallocation of "slots" in a secure memory page
+ * - Loading and unloading of key material into slots
+ * - Covering of secure memory objects into "black keys" (ECB only at present)
+ * - Verification of key covering (by differentiation only)
+ * - Exportation of keys into secure memory blobs (with display of result)
+ * - Importation of keys from secure memory blobs (with display of result)
+ * - Verification of re-imported keys where possible.
  *
- * The example function, caam_sm_example_init(), runs a thread that:
- *
- * - initializes a set of fixed keys
- * - stores one copy in clear buffers
- * - stores them again in secure memory
- * - extracts stored keys back out for use
- * - intializes 3 data buffers for a test:
- *   (1) containing cleartext
- *   (2) to hold ciphertext encrypted with an extracted black key
- *   (3) to hold extracted cleartext decrypted with an equivalent clear key
- *
- * The function then builds simple job descriptors that reference the key
- * material and buffers as initialized, and executes an encryption job
- * with a black key, and a decryption job using a the same key held in the
- * clear. The output of the decryption job is compared to the original
- * cleartext; if they don't compare correctly, one can assume a key problem
- * exists, where the function will exit with an error.
+ * The module does not show the use of key objects as working key register
+ * source material at this time.
  *
  * This module can use a substantial amount of refactoring, which may occur
  * after the API gets some mileage. Furthermore, expect this module to
@@ -35,18 +28,14 @@
 #include "jr.h"
 #include "sm.h"
 
+/* Fixed known pattern for a key modifier */
 static u8 skeymod[] = {
 	0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
 	0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
 };
-static u8 symkey[] = {
-	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-	0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
-};
 
-static u8 symdata[] = {
+/* Fixed known pattern for a key */
+static u8 clrkey[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x0f, 0x06, 0x07,
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -81,84 +70,37 @@ static u8 symdata[] = {
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-static int mk_job_desc(u32 *desc, dma_addr_t key, u16 keysz, dma_addr_t indata,
-		       dma_addr_t outdata, u16 sz, u32 cipherdir, u32 keymode)
+static void key_display(struct device *dev, u8 *label, u16 size, u8 *key)
 {
-	desc[1] = CMD_KEY | CLASS_1 | (keysz & KEY_LENGTH_MASK) | keymode;
-	desc[2] = (u32)key;
-	desc[3] = CMD_OPERATION | OP_TYPE_CLASS1_ALG | OP_ALG_AAI_ECB |
-		  cipherdir;
-	desc[4] = CMD_FIFO_LOAD | FIFOLD_CLASS_CLASS1 |
-		  FIFOLD_TYPE_MSG | FIFOLD_TYPE_LAST1 | sz;
-	desc[5] = (u32)indata;
-	desc[6] = CMD_FIFO_STORE | FIFOST_TYPE_MESSAGE_DATA | sz;
-	desc[7] = (u32)outdata;
+	unsigned i;
 
-	desc[0] = CMD_DESC_HDR | HDR_ONE | (8 & HDR_DESCLEN_MASK);
-	return 8 * sizeof(u32);
+	dev_info(dev, label);
+	for (i = 0; i < size; i += 8)
+		dev_info(dev,
+			 "[%04d] %02x %02x %02x %02x %02x %02x %02x %02x\n",
+			 i, key[i], key[i + 1], key[i + 2], key[i + 3],
+			 key[i + 4], key[i + 5], key[i + 6], key[i + 7]);
 }
-
-struct exec_test_result {
-	int error;
-	struct completion completion;
-};
-
-void exec_test_done(struct device *dev, u32 *desc, u32 err, void *context)
-{
-	struct exec_test_result *res = context;
-
-	if (err) {
-		caam_jr_strstatus(dev, err);
-	}
-
-	res->error = err;
-	complete(&res->completion);
-}
-
-static int exec_test_job(struct device *ksdev, u32 *jobdesc)
-{
-	struct exec_test_result testres;
-	struct caam_drv_private_sm *kspriv;
-	int rtn = 0;
-
-	kspriv = dev_get_drvdata(ksdev);
-
-	init_completion(&testres.completion);
-
-	rtn = caam_jr_enqueue(kspriv->smringdev, jobdesc, exec_test_done,
-			      &testres);
-	if (!rtn) {
-		wait_for_completion_interruptible(&testres.completion);
-		rtn = testres.error;
-	}
-	return rtn;
-}
-
 
 int caam_sm_example_init(struct platform_device *pdev)
 {
 	struct device *ctrldev, *ksdev;
 	struct caam_drv_private *ctrlpriv;
 	struct caam_drv_private_sm *kspriv;
-	u32 unit, units, jdescsz;
-	int stat, jstat, rtnval = 0;
-	u8 __iomem *syminp, *symint, *symout = NULL;
-	dma_addr_t syminp_dma, symint_dma, symout_dma;
-	u8 __iomem *black_key_des, *black_key_aes128;
-	u8 __iomem  *black_key_aes256;
-	dma_addr_t black_key_des_dma, black_key_aes128_dma;
-	dma_addr_t black_key_aes256_dma;
-	u8 __iomem *clear_key_des, *clear_key_aes128, *clear_key_aes256;
-	dma_addr_t clear_key_des_dma, clear_key_aes128_dma;
-	dma_addr_t clear_key_aes256_dma;
-	u32 __iomem *jdesc;
-	u32 keyslot_des, keyslot_aes128, keyslot_aes256 = 0;
+	u32 unit, units;
+	int rtnval = 0;
+	u8 clrkey8[8], clrkey16[16], clrkey24[24], clrkey32[32];
+	u8 blkkey8[16], blkkey16[16], blkkey24[24], blkkey32[32];
+	u8 rstkey8[16], rstkey16[16], rstkey24[24], rstkey32[32];
+	u8 __iomem *blob8, *blob16, *blob24, *blob32;
+	u32 keyslot8, keyslot16, keyslot24, keyslot32 = 0;
 
-	jdesc = NULL;
-	black_key_des = black_key_aes128 = black_key_aes256 = NULL;
-	clear_key_des = clear_key_aes128 = clear_key_aes256 = NULL;
+	blob8 = blob16 = blob24 = blob32 = NULL;
 
-	/* We can lose this cruft once we can get a pdev by name */
+	/*
+	 * 3.5.x and later revs for MX6 should be able to ditch this
+	 * and detect via dts property
+	 */
 	ctrldev = &pdev->dev;
 	ctrlpriv = dev_get_drvdata(ctrldev);
 	ksdev = ctrlpriv->smdev;
@@ -166,611 +108,341 @@ int caam_sm_example_init(struct platform_device *pdev)
 	if (kspriv == NULL)
 		return -ENODEV;
 
-	/* Now that we have the dev for the single SM instance, connect */
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test_init() running\n");
-#endif
-	/* Probe to see what keystores are available to us */
+	/* What keystores are available ? */
 	units = sm_detect_keystore_units(ksdev);
 	if (!units)
-		dev_err(ksdev, "caam_sm_test: no keystore units available\n");
+		dev_err(ksdev, "blkkey_ex: no keystore units available\n");
 
 	/*
 	 * MX6 bootloader stores some stuff in unit 0, so let's
 	 * use 1 or above
 	 */
 	if (units < 2) {
-		dev_err(ksdev, "caam_sm_test: insufficient keystore units\n");
+		dev_err(ksdev, "blkkey_ex: insufficient keystore units\n");
 		return -ENODEV;
 	}
 	unit = 1;
 
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test: %d keystore units available\n", units);
-#endif
+	dev_info(ksdev, "blkkey_ex: %d keystore units available\n", units);
 
 	/* Initialize/Establish Keystore */
 	sm_establish_keystore(ksdev, unit);	/* Initalize store in #1 */
 
 	/*
-	 * Top of main test thread
+	 * Now let's set up buffers for blobs in DMA-able memory. All are
+	 * larger than need to be so that blob size can be seen.
 	 */
+	blob8 = kzalloc(128, GFP_KERNEL | GFP_DMA);
+	blob16 = kzalloc(128, GFP_KERNEL | GFP_DMA);
+	blob24 = kzalloc(128, GFP_KERNEL | GFP_DMA);
+	blob32 = kzalloc(128, GFP_KERNEL | GFP_DMA);
 
-	/* Allocate test data blocks (input, intermediate, output) */
-	syminp = kmalloc(256, GFP_KERNEL | GFP_DMA);
-	symint = kmalloc(256, GFP_KERNEL | GFP_DMA);
-	symout = kmalloc(256, GFP_KERNEL | GFP_DMA);
-	if ((syminp == NULL) || (symint == NULL) || (symout == NULL)) {
+	if ((blob8 == NULL) || (blob16 == NULL) || (blob24 == NULL) ||
+	    (blob32 == NULL)) {
 		rtnval = -ENOMEM;
-		dev_err(ksdev, "caam_sm_test: can't get test data buffers\n");
+		dev_err(ksdev, "blkkey_ex: can't get blob buffers\n");
 		goto freemem;
 	}
 
-	/* Allocate storage for 3 black keys: encapsulated 8, 16, 32 */
-	black_key_des = kmalloc(16, GFP_KERNEL | GFP_DMA); /* padded to 16... */
-	black_key_aes128 = kmalloc(16, GFP_KERNEL | GFP_DMA);
-	black_key_aes256 = kmalloc(16, GFP_KERNEL | GFP_DMA);
-	if ((black_key_des == NULL) || (black_key_aes128 == NULL) ||
-	    (black_key_aes256 == NULL)) {
-		rtnval = -ENOMEM;
-		dev_err(ksdev, "caam_sm_test: can't black key buffers\n");
-		goto freemem;
-	}
+	/* Initialize clear keys with a known and recognizable pattern */
+	memcpy(clrkey8, clrkey, 8);
+	memcpy(clrkey16, clrkey, 16);
+	memcpy(clrkey24, clrkey, 24);
+	memcpy(clrkey32, clrkey, 32);
 
-	clear_key_des = kmalloc(8, GFP_KERNEL | GFP_DMA);
-	clear_key_aes128 = kmalloc(16, GFP_KERNEL | GFP_DMA);
-	clear_key_aes256 = kmalloc(32, GFP_KERNEL | GFP_DMA);
-	if ((clear_key_des == NULL) || (clear_key_aes128 == NULL) ||
-	    (clear_key_aes256 == NULL)) {
-		rtnval = -ENOMEM;
-		dev_err(ksdev, "caam_sm_test: can't get clear key buffers\n");
-		goto freemem;
-	}
+	memset(blkkey8, 0, AES_BLOCK_PAD(8));
+	memset(blkkey16, 0, AES_BLOCK_PAD(16));
+	memset(blkkey24, 0, AES_BLOCK_PAD(24));
+	memset(blkkey32, 0, AES_BLOCK_PAD(32));
 
-	/* Allocate storage for job descriptor */
-	jdesc = kmalloc(8 * sizeof(u32), GFP_KERNEL | GFP_DMA);
-	if (jdesc == NULL) {
-		rtnval = -ENOMEM;
-		dev_err(ksdev, "caam_sm_test: can't get descriptor buffers\n");
-		goto freemem;
-	}
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test: all buffers allocated\n");
-#endif
-
-	/* Load up input data block, clear outputs */
-	memcpy(syminp, symdata, 256);
-	memset(symint, 0, 256);
-	memset(symout, 0, 256);
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 syminp[0], syminp[1], syminp[2], syminp[3],
-		 syminp[4], syminp[5], syminp[6], syminp[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[0], symint[1], symint[2], symint[3],
-		 symint[4], symint[5], symint[6], symint[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symout[0], symout[1], symout[2], symout[3],
-		 symout[4], symout[5], symout[6], symout[7]);
-
-	dev_info(ksdev, "caam_sm_test: data buffers initialized\n");
-#endif
-
-	/* Load up clear keys */
-	memcpy(clear_key_des, symkey, 8);
-	memcpy(clear_key_aes128, symkey, 16);
-	memcpy(clear_key_aes256, symkey, 32);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test: all clear keys loaded\n");
-#endif
+	memset(rstkey8, 0, AES_BLOCK_PAD(8));
+	memset(rstkey16, 0, AES_BLOCK_PAD(16));
+	memset(rstkey24, 0, AES_BLOCK_PAD(24));
+	memset(rstkey32, 0, AES_BLOCK_PAD(32));
 
 	/*
-	 * Place clear keys in keystore.
-	 * All the interesting stuff happens here.
+	 * Allocate keyslots. Since we're going to blacken keys in-place,
+	 * we want slots big enough to pad out to the next larger AES blocksize
+	 * so pad them out.
 	 */
-	/* 8 bit DES key */
-	stat = sm_keystore_slot_alloc(ksdev, unit, 8, &keyslot_des);
-	if (stat)
-		goto freemem;
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test: 8 byte key slot in %d\n", keyslot_des);
-#endif
-	stat = sm_keystore_slot_load(ksdev, unit, keyslot_des, clear_key_des,
-				     8);
-	if (stat) {
-#ifdef SM_TEST_DETAIL
-		dev_info(ksdev, "caam_sm_test: can't load 8 byte key in %d\n",
-			 keyslot_des);
-#endif
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_des);
-		goto freemem;
+	if (sm_keystore_slot_alloc(ksdev, unit, AES_BLOCK_PAD(8), &keyslot8))
+		goto dealloc;
+
+	if (sm_keystore_slot_alloc(ksdev, unit, AES_BLOCK_PAD(16), &keyslot16))
+		goto dealloc;
+
+	if (sm_keystore_slot_alloc(ksdev, unit, AES_BLOCK_PAD(24), &keyslot24))
+		goto dealloc;
+
+	if (sm_keystore_slot_alloc(ksdev, unit, AES_BLOCK_PAD(32), &keyslot32))
+		goto dealloc;
+
+
+	/* Now load clear key data into the newly allocated slots */
+	if (sm_keystore_slot_load(ksdev, unit, keyslot8, clrkey8, 8))
+		goto dealloc;
+
+	if (sm_keystore_slot_load(ksdev, unit, keyslot16, clrkey16, 16))
+		goto dealloc;
+
+	if (sm_keystore_slot_load(ksdev, unit, keyslot24, clrkey24, 24))
+		goto dealloc;
+
+	if (sm_keystore_slot_load(ksdev, unit, keyslot32, clrkey32, 32))
+		goto dealloc;
+
+	/*
+	 * All cleartext keys are loaded into slots (in an unprotected
+	 * partition at this time)
+	 *
+	 * Cover keys in-place
+	 */
+	if (sm_keystore_cover_key(ksdev, unit, keyslot8, 8, KEY_COVER_ECB)) {
+		dev_info(ksdev, "blkkey_ex: can't cover 64-bit key\n");
+		goto dealloc;
 	}
 
-	/* 16 bit AES key */
-	stat = sm_keystore_slot_alloc(ksdev, unit, 16, &keyslot_aes128);
-	if (stat) {
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_des);
-		goto freemem;
-	}
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test: 16 byte key slot in %d\n",
-		 keyslot_aes128);
-#endif
-	stat = sm_keystore_slot_load(ksdev, unit, keyslot_aes128,
-				     clear_key_aes128, 16);
-	if (stat) {
-#ifdef SM_TEST_DETAIL
-		dev_info(ksdev, "caam_sm_test: can't load 16 byte key in %d\n",
-			 keyslot_aes128);
-#endif
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_aes128);
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_des);
-		goto freemem;
+	if (sm_keystore_cover_key(ksdev, unit, keyslot16, 16, KEY_COVER_ECB)) {
+		dev_info(ksdev, "blkkey_ex: can't cover 128-bit key\n");
+		goto dealloc;
 	}
 
-	/* 32 bit AES key */
-	stat = sm_keystore_slot_alloc(ksdev, unit, 32, &keyslot_aes256);
-	if (stat) {
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_aes128);
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_des);
-		goto freemem;
-	}
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test: 32 byte key slot in %d\n",
-		 keyslot_aes256);
-#endif
-	stat = sm_keystore_slot_load(ksdev, unit, keyslot_aes256,
-				     clear_key_aes256, 32);
-	if (stat) {
-#ifdef SM_TEST_DETAIL
-		dev_info(ksdev, "caam_sm_test: can't load 32 byte key in %d\n",
-			 keyslot_aes128);
-#endif
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_aes256);
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_aes128);
-		sm_keystore_slot_dealloc(ksdev, unit, keyslot_des);
-		goto freemem;
+	if (sm_keystore_cover_key(ksdev, unit, keyslot24, 24, KEY_COVER_ECB)) {
+		dev_info(ksdev, "blkkey_ex: can't cover 192-bit key\n");
+		goto dealloc;
 	}
 
-	/* Encapsulate all keys as SM blobs */
-	stat = sm_keystore_slot_encapsulate(ksdev, unit, keyslot_des,
-					    keyslot_des, 8, skeymod, 8);
-	if (stat) {
-		dev_info(ksdev, "caam_sm_test: can't encapsulate DES key\n");
-		goto freekeys;
+	if (sm_keystore_cover_key(ksdev, unit, keyslot32, 32, KEY_COVER_ECB)) {
+		dev_info(ksdev, "blkkey_ex: can't cover 256-bit key\n");
+		goto dealloc;
 	}
 
-	stat = sm_keystore_slot_encapsulate(ksdev, unit, keyslot_aes128,
-					    keyslot_aes128, 16, skeymod, 8);
-	if (stat) {
-		dev_info(ksdev, "caam_sm_test: can't encapsulate AES128 key\n");
-		goto freekeys;
+	/*
+	 * Keys should be covered and appear sufficiently "random"
+	 * as a result of the covering (blackening) process. Assuming
+	 * non-secure mode, read them back out for examination; they should
+	 * appear as random data, completely differing from the clear
+	 * inputs. So, this will read them back from secure memory and
+	 * compare them. If they match the clear key, then the covering
+	 * operation didn't occur.
+	 */
+
+	if (sm_keystore_slot_read(ksdev, unit, keyslot8, AES_BLOCK_PAD(8),
+				  blkkey8)) {
+		dev_info(ksdev, "blkkey_ex: can't read 64-bit black key\n");
+		goto dealloc;
 	}
 
-	stat = sm_keystore_slot_encapsulate(ksdev, unit, keyslot_aes256,
-					    keyslot_aes256, 32, skeymod, 8);
-	if (stat) {
-		dev_info(ksdev, "caam_sm_test: can't encapsulate AES256 key\n");
-		goto freekeys;
+	if (sm_keystore_slot_read(ksdev, unit, keyslot16, AES_BLOCK_PAD(16),
+				  blkkey16)) {
+		dev_info(ksdev, "blkkey_ex: can't read 128-bit black key\n");
+		goto dealloc;
 	}
 
-	/* Now decapsulate as black key blobs */
-	stat = sm_keystore_slot_decapsulate(ksdev, unit, keyslot_des,
-					    keyslot_des, 8, skeymod, 8);
-	if (stat) {
-		dev_info(ksdev, "caam_sm_test: can't decapsulate DES key\n");
-		goto freekeys;
+	if (sm_keystore_slot_read(ksdev, unit, keyslot24, AES_BLOCK_PAD(24),
+				  blkkey24)) {
+		dev_info(ksdev, "blkkey_ex: can't read 192-bit black key\n");
+		goto dealloc;
 	}
 
-	stat = sm_keystore_slot_decapsulate(ksdev, unit, keyslot_aes128,
-					    keyslot_aes128, 16, skeymod, 8);
-	if (stat) {
-		dev_info(ksdev, "caam_sm_test: can't decapsulate AES128 key\n");
-		goto freekeys;
+	if (sm_keystore_slot_read(ksdev, unit, keyslot32, AES_BLOCK_PAD(32),
+				  blkkey32)) {
+		dev_info(ksdev, "blkkey_ex: can't read 256-bit black key\n");
+		goto dealloc;
 	}
 
-	stat = sm_keystore_slot_decapsulate(ksdev, unit, keyslot_aes256,
-					    keyslot_aes256, 32, skeymod, 8);
-	if (stat) {
-		dev_info(ksdev, "caam_sm_test: can't decapsulate AES128 key\n");
-		goto freekeys;
+
+	if (!memcmp(blkkey8, clrkey8, 8)) {
+		dev_info(ksdev, "blkkey_ex: 64-bit key cover failed\n");
+		goto dealloc;
 	}
 
-	/* Extract 8/16/32 byte black keys */
-	sm_keystore_slot_read(ksdev, unit, keyslot_des, 8, black_key_des);
-	sm_keystore_slot_read(ksdev, unit, keyslot_aes128, 16,
-			      black_key_aes128);
-	sm_keystore_slot_read(ksdev, unit, keyslot_aes256, 32,
-			      black_key_aes256);
+	if (!memcmp(blkkey16, clrkey16, 16)) {
+		dev_info(ksdev, "blkkey_ex: 128-bit key cover failed\n");
+		goto dealloc;
+	}
 
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test: all black keys extracted\n");
-#endif
+	if (!memcmp(blkkey24, clrkey24, 24)) {
+		dev_info(ksdev, "blkkey_ex: 192-bit key cover failed\n");
+		goto dealloc;
+	}
 
-	/* DES encrypt using 8 byte black key */
-	black_key_des_dma = dma_map_single(ksdev, black_key_des, 8,
-					   DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, black_key_des_dma, 8, DMA_TO_DEVICE);
-	syminp_dma = dma_map_single(ksdev, syminp, 256, DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, syminp_dma, 256, DMA_TO_DEVICE);
-	symint_dma = dma_map_single(ksdev, symint, 256, DMA_FROM_DEVICE);
-
-	jdescsz = mk_job_desc(jdesc, black_key_des_dma, 8, syminp_dma,
-			      symint_dma, 256,
-			      OP_ALG_ENCRYPT | OP_ALG_ALGSEL_DES, 0);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "jobdesc:\n");
-	dev_info(ksdev, "0x%08x\n", jdesc[0]);
-	dev_info(ksdev, "0x%08x\n", jdesc[1]);
-	dev_info(ksdev, "0x%08x\n", jdesc[2]);
-	dev_info(ksdev, "0x%08x\n", jdesc[3]);
-	dev_info(ksdev, "0x%08x\n", jdesc[4]);
-	dev_info(ksdev, "0x%08x\n", jdesc[5]);
-	dev_info(ksdev, "0x%08x\n", jdesc[6]);
-	dev_info(ksdev, "0x%08x\n", jdesc[7]);
-#endif
-
-	jstat = exec_test_job(ksdev, jdesc);
-
-	dma_sync_single_for_cpu(ksdev, symint_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symint_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, syminp_dma, 256, DMA_TO_DEVICE);
-	dma_unmap_single(ksdev, black_key_des_dma, 8, DMA_TO_DEVICE);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "input block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 syminp[0], syminp[1], syminp[2], syminp[3],
-		 syminp[4], syminp[5], syminp[6], syminp[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 syminp[8], syminp[9], syminp[10], syminp[11],
-		 syminp[12], syminp[13], syminp[14], syminp[15]);
-	dev_info(ksdev, "intermediate block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[0], symint[1], symint[2], symint[3],
-		 symint[4], symint[5], symint[6], symint[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[8], symint[9], symint[10], symint[11],
-		 symint[12], symint[13], symint[14], symint[15]);
-	dev_info(ksdev, "caam_sm_test: encrypt cycle with 8 byte key\n");
-#endif
-
-	/* DES decrypt using 8 byte clear key */
-	clear_key_des_dma = dma_map_single(ksdev, clear_key_des, 8,
-					   DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, clear_key_des_dma, 8, DMA_TO_DEVICE);
-	symint_dma = dma_map_single(ksdev, symint, 256, DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, symint_dma, 256, DMA_TO_DEVICE);
-	symout_dma = dma_map_single(ksdev, symout, 256, DMA_FROM_DEVICE);
-
-	jdescsz = mk_job_desc(jdesc, clear_key_des_dma, 8, symint_dma,
-			      symout_dma, 256,
-			      OP_ALG_DECRYPT | OP_ALG_ALGSEL_DES, 0);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "jobdesc:\n");
-	dev_info(ksdev, "0x%08x\n", jdesc[0]);
-	dev_info(ksdev, "0x%08x\n", jdesc[1]);
-	dev_info(ksdev, "0x%08x\n", jdesc[2]);
-	dev_info(ksdev, "0x%08x\n", jdesc[3]);
-	dev_info(ksdev, "0x%08x\n", jdesc[4]);
-	dev_info(ksdev, "0x%08x\n", jdesc[5]);
-	dev_info(ksdev, "0x%08x\n", jdesc[6]);
-	dev_info(ksdev, "0x%08x\n", jdesc[7]);
-#endif
-
-	jstat = exec_test_job(ksdev, jdesc);
-
-	dma_sync_single_for_cpu(ksdev, symout_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symout_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symint_dma, 256, DMA_TO_DEVICE);
-	dma_unmap_single(ksdev, clear_key_des_dma, 8, DMA_TO_DEVICE);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "intermediate block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[0], symint[1], symint[2], symint[3],
-		 symint[4], symint[5], symint[6], symint[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[8], symint[9], symint[10], symint[11],
-		 symint[12], symint[13], symint[14], symint[15]);
-	dev_info(ksdev, "decrypted block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symout[0], symout[1], symout[2], symout[3],
-		 symout[4], symout[5], symout[6], symout[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symout[8], symout[9], symout[10], symout[11],
-		 symout[12], symout[13], symout[14], symout[15]);
-	dev_info(ksdev, "caam_sm_test: decrypt cycle with 8 byte key\n");
-#endif
-
-	/* Check result */
-	if (memcmp(symout, syminp, 256)) {
-		dev_info(ksdev, "caam_sm_test: 8-byte key test mismatch\n");
-		rtnval = -1;
-		goto freekeys;
-	} else
-		dev_info(ksdev, "caam_sm_test: 8-byte key test match OK\n");
-
-	/* AES-128 encrypt using 16 byte black key */
-	black_key_aes128_dma = dma_map_single(ksdev, black_key_aes128, 16,
-					      DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, black_key_aes128_dma, 16,
-				   DMA_TO_DEVICE);
-	syminp_dma = dma_map_single(ksdev, syminp, 256, DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, syminp_dma, 256, DMA_TO_DEVICE);
-	symint_dma = dma_map_single(ksdev, symint, 256, DMA_FROM_DEVICE);
-
-	jdescsz = mk_job_desc(jdesc, black_key_aes128_dma, 16, syminp_dma,
-			      symint_dma, 256,
-			      OP_ALG_ENCRYPT | OP_ALG_ALGSEL_AES, 0);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "jobdesc:\n");
-	dev_info(ksdev, "0x%08x\n", jdesc[0]);
-	dev_info(ksdev, "0x%08x\n", jdesc[1]);
-	dev_info(ksdev, "0x%08x\n", jdesc[2]);
-	dev_info(ksdev, "0x%08x\n", jdesc[3]);
-	dev_info(ksdev, "0x%08x\n", jdesc[4]);
-	dev_info(ksdev, "0x%08x\n", jdesc[5]);
-	dev_info(ksdev, "0x%08x\n", jdesc[6]);
-	dev_info(ksdev, "0x%08x\n", jdesc[7]);
-#endif
-
-	jstat = exec_test_job(ksdev, jdesc);
-
-	dma_sync_single_for_cpu(ksdev, symint_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symint_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, syminp_dma, 256, DMA_TO_DEVICE);
-	dma_unmap_single(ksdev, black_key_aes128_dma, 16, DMA_TO_DEVICE);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "input block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 syminp[0], syminp[1], syminp[2], syminp[3],
-		 syminp[4], syminp[5], syminp[6], syminp[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 syminp[8], syminp[9], syminp[10], syminp[11],
-		 syminp[12], syminp[13], syminp[14], syminp[15]);
-	dev_info(ksdev, "intermediate block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[0], symint[1], symint[2], symint[3],
-		 symint[4], symint[5], symint[6], symint[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[8], symint[9], symint[10], symint[11],
-		 symint[12], symint[13], symint[14], symint[15]);
-	dev_info(ksdev, "caam_sm_test: encrypt cycle with 16 byte key\n");
-#endif
-
-	/* AES-128 decrypt using 16 byte clear key */
-	clear_key_aes128_dma = dma_map_single(ksdev, clear_key_aes128, 16,
-					      DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, clear_key_aes128_dma, 16,
-				   DMA_TO_DEVICE);
-	symint_dma = dma_map_single(ksdev, symint, 256, DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, symint_dma, 256, DMA_TO_DEVICE);
-	symout_dma = dma_map_single(ksdev, symout, 256, DMA_FROM_DEVICE);
-
-	jdescsz = mk_job_desc(jdesc, clear_key_aes128_dma, 16, symint_dma,
-			      symout_dma, 256,
-			      OP_ALG_DECRYPT | OP_ALG_ALGSEL_AES, 0);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "jobdesc:\n");
-	dev_info(ksdev, "0x%08x\n", jdesc[0]);
-	dev_info(ksdev, "0x%08x\n", jdesc[1]);
-	dev_info(ksdev, "0x%08x\n", jdesc[2]);
-	dev_info(ksdev, "0x%08x\n", jdesc[3]);
-	dev_info(ksdev, "0x%08x\n", jdesc[4]);
-	dev_info(ksdev, "0x%08x\n", jdesc[5]);
-	dev_info(ksdev, "0x%08x\n", jdesc[6]);
-	dev_info(ksdev, "0x%08x\n", jdesc[7]);
-#endif
-	jstat = exec_test_job(ksdev, jdesc);
-
-	dma_sync_single_for_cpu(ksdev, symout_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symout_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symint_dma, 256, DMA_TO_DEVICE);
-	dma_unmap_single(ksdev, clear_key_aes128_dma, 16, DMA_TO_DEVICE);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "intermediate block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[0], symint[1], symint[2], symint[3],
-		 symint[4], symint[5], symint[6], symint[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[8], symint[9], symint[10], symint[11],
-		 symint[12], symint[13], symint[14], symint[15]);
-	dev_info(ksdev, "decrypted block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symout[0], symout[1], symout[2], symout[3],
-		 symout[4], symout[5], symout[6], symout[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symout[8], symout[9], symout[10], symout[11],
-		 symout[12], symout[13], symout[14], symout[15]);
-	dev_info(ksdev, "caam_sm_test: decrypt cycle with 16 byte key\n");
-#endif
-
-	/* Check result */
-	if (memcmp(symout, syminp, 256)) {
-		dev_info(ksdev, "caam_sm_test: 16-byte key test mismatch\n");
-		rtnval = -1;
-		goto freekeys;
-	} else
-		dev_info(ksdev, "caam_sm_test: 16-byte key test match OK\n");
-
-	/* AES-256 encrypt using 32 byte black key */
-	black_key_aes256_dma = dma_map_single(ksdev, black_key_aes256, 32,
-					      DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, black_key_aes256_dma, 32,
-				   DMA_TO_DEVICE);
-	syminp_dma = dma_map_single(ksdev, syminp, 256, DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, syminp_dma, 256, DMA_TO_DEVICE);
-	symint_dma = dma_map_single(ksdev, symint, 256, DMA_FROM_DEVICE);
-
-	jdescsz = mk_job_desc(jdesc, black_key_aes256_dma, 32, syminp_dma,
-			      symint_dma, 256,
-			      OP_ALG_ENCRYPT | OP_ALG_ALGSEL_AES, 0);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "jobdesc:\n");
-	dev_info(ksdev, "0x%08x\n", jdesc[0]);
-	dev_info(ksdev, "0x%08x\n", jdesc[1]);
-	dev_info(ksdev, "0x%08x\n", jdesc[2]);
-	dev_info(ksdev, "0x%08x\n", jdesc[3]);
-	dev_info(ksdev, "0x%08x\n", jdesc[4]);
-	dev_info(ksdev, "0x%08x\n", jdesc[5]);
-	dev_info(ksdev, "0x%08x\n", jdesc[6]);
-	dev_info(ksdev, "0x%08x\n", jdesc[7]);
-#endif
-
-	jstat = exec_test_job(ksdev, jdesc);
-
-	dma_sync_single_for_cpu(ksdev, symint_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symint_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, syminp_dma, 256, DMA_TO_DEVICE);
-	dma_unmap_single(ksdev, black_key_aes256_dma, 32, DMA_TO_DEVICE);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "input block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 syminp[0], syminp[1], syminp[2], syminp[3],
-		 syminp[4], syminp[5], syminp[6], syminp[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 syminp[8], syminp[9], syminp[10], syminp[11],
-		 syminp[12], syminp[13], syminp[14], syminp[15]);
-	dev_info(ksdev, "intermediate block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[0], symint[1], symint[2], symint[3],
-		 symint[4], symint[5], symint[6], symint[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[8], symint[9], symint[10], symint[11],
-		 symint[12], symint[13], symint[14], symint[15]);
-	dev_info(ksdev, "caam_sm_test: encrypt cycle with 32 byte key\n");
-#endif
-
-	/* AES-256 decrypt using 32-byte black key */
-	clear_key_aes256_dma = dma_map_single(ksdev, clear_key_aes256, 32,
-					      DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, clear_key_aes256_dma, 32,
-				   DMA_TO_DEVICE);
-	symint_dma = dma_map_single(ksdev, symint, 256, DMA_TO_DEVICE);
-	dma_sync_single_for_device(ksdev, symint_dma, 256, DMA_TO_DEVICE);
-	symout_dma = dma_map_single(ksdev, symout, 256, DMA_FROM_DEVICE);
-
-	jdescsz = mk_job_desc(jdesc, clear_key_aes256_dma, 32, symint_dma,
-			      symout_dma, 256,
-			      OP_ALG_DECRYPT | OP_ALG_ALGSEL_AES, 0);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "jobdesc:\n");
-	dev_info(ksdev, "0x%08x\n", jdesc[0]);
-	dev_info(ksdev, "0x%08x\n", jdesc[1]);
-	dev_info(ksdev, "0x%08x\n", jdesc[2]);
-	dev_info(ksdev, "0x%08x\n", jdesc[3]);
-	dev_info(ksdev, "0x%08x\n", jdesc[4]);
-	dev_info(ksdev, "0x%08x\n", jdesc[5]);
-	dev_info(ksdev, "0x%08x\n", jdesc[6]);
-	dev_info(ksdev, "0x%08x\n", jdesc[7]);
-#endif
-
-	jstat = exec_test_job(ksdev, jdesc);
-
-	dma_sync_single_for_cpu(ksdev, symout_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symout_dma, 256, DMA_FROM_DEVICE);
-	dma_unmap_single(ksdev, symint_dma, 256, DMA_TO_DEVICE);
-	dma_unmap_single(ksdev, clear_key_aes256_dma, 32, DMA_TO_DEVICE);
-
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "intermediate block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[0], symint[1], symint[2], symint[3],
-		 symint[4], symint[5], symint[6], symint[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symint[8], symint[9], symint[10], symint[11],
-		 symint[12], symint[13], symint[14], symint[15]);
-	dev_info(ksdev, "decrypted block:\n");
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symout[0], symout[1], symout[2], symout[3],
-		 symout[4], symout[5], symout[6], symout[7]);
-	dev_info(ksdev, "0x%02x 0x%02x 0x%02x 0x%02x " \
-			"0x%02x 0x%02x 0x%02x 0x%02x\n",
-		 symout[8], symout[9], symout[10], symout[11],
-		 symout[12], symout[13], symout[14], symout[15]);
-	dev_info(ksdev, "caam_sm_test: decrypt cycle with 32 byte key\n");
-#endif
-
-	/* Check result */
-	if (memcmp(symout, syminp, 256)) {
-		dev_info(ksdev, "caam_sm_test: 32-byte key test mismatch\n");
-		rtnval = -1;
-		goto freekeys;
-	} else
-		dev_info(ksdev, "caam_sm_test: 32-byte key test match OK\n");
+	if (!memcmp(blkkey32, clrkey32, 32)) {
+		dev_info(ksdev, "blkkey_ex: 256-bit key cover failed\n");
+		goto dealloc;
+	}
 
 
-	/* Remove 8/16/32 byte keys from keystore */
-freekeys:
-	stat = sm_keystore_slot_dealloc(ksdev, unit, keyslot_des);
-	if (stat)
-		dev_info(ksdev, "caam_sm_test: can't release slot %d\n",
-			 keyslot_des);
+	key_display(ksdev, "64-bit clear key:", 8, clrkey8);
+	key_display(ksdev, "64-bit black key:", AES_BLOCK_PAD(8), blkkey8);
 
-	stat = sm_keystore_slot_dealloc(ksdev, unit, keyslot_aes128);
-	if (stat)
-		dev_info(ksdev, "caam_sm_test: can't release slot %d\n",
-			 keyslot_aes128);
+	key_display(ksdev, "128-bit clear key:", 16, clrkey16);
+	key_display(ksdev, "128-bit black key:", AES_BLOCK_PAD(16), blkkey16);
 
-	stat = sm_keystore_slot_dealloc(ksdev, unit, keyslot_aes256);
-	if (stat)
-		dev_info(ksdev, "caam_sm_test: can't release slot %d\n",
-			 keyslot_aes256);
+	key_display(ksdev, "192-bit clear key:", 24, clrkey24);
+	key_display(ksdev, "192-bit black key:", AES_BLOCK_PAD(24), blkkey24);
+
+	key_display(ksdev, "256-bit clear key:", 32, clrkey32);
+	key_display(ksdev, "256-bit black key:", AES_BLOCK_PAD(32), blkkey32);
+
+	/*
+	 * Now encapsulate all keys as SM blobs out to external memory
+	 * Blobs will appear as random-looking blocks of data different
+	 * from the original source key, and 48 bytes longer than the
+	 * original key, to account for the extra data encapsulated within.
+	 */
+	key_display(ksdev, "64-bit unwritten blob:", 96, blob8);
+	key_display(ksdev, "128-bit unwritten blob:", 96, blob16);
+	key_display(ksdev, "196-bit unwritten blob:", 96, blob24);
+	key_display(ksdev, "256-bit unwritten blob:", 96, blob32);
+
+	if (sm_keystore_slot_export(ksdev, unit, keyslot8, BLACK_KEY,
+				    KEY_COVER_ECB, blob8, 8, skeymod)) {
+		dev_info(ksdev, "blkkey_ex: can't encapsulate 64-bit key\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_export(ksdev, unit, keyslot16, BLACK_KEY,
+				    KEY_COVER_ECB, blob16, 16, skeymod)) {
+		dev_info(ksdev, "blkkey_ex: can't encapsulate 128-bit key\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_export(ksdev, unit, keyslot24, BLACK_KEY,
+				    KEY_COVER_ECB, blob24, 24, skeymod)) {
+		dev_info(ksdev, "blkkey_ex: can't encapsulate 192-bit key\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_export(ksdev, unit, keyslot32, BLACK_KEY,
+				    KEY_COVER_ECB, blob32, 32, skeymod)) {
+		dev_info(ksdev, "blkkey_ex: can't encapsulate 256-bit key\n");
+		goto dealloc;
+	}
+
+	key_display(ksdev, "64-bit black key in blob:", 96, blob8);
+	key_display(ksdev, "128-bit black key in blob:", 96, blob16);
+	key_display(ksdev, "192-bit black key in blob:", 96, blob24);
+	key_display(ksdev, "256-bit black key in blob:", 96, blob32);
+
+	/*
+	 * Now re-import black keys from secure-memory blobs stored
+	 * in general memory from the previous operation. Since we are
+	 * working with black keys, and since power has not cycled, the
+	 * restored black keys should match the original blackened keys
+	 * (this would not be true if the blobs were save in some non-volatile
+	 * store, and power was cycled between the save and restore)
+	 */
+	if (sm_keystore_slot_import(ksdev, unit, keyslot8, BLACK_KEY,
+				    KEY_COVER_ECB, blob8, 8, skeymod)) {
+		dev_info(ksdev, "blkkey_ex: can't decapsulate 64-bit blob\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_import(ksdev, unit, keyslot16, BLACK_KEY,
+				    KEY_COVER_ECB, blob16, 16, skeymod)) {
+		dev_info(ksdev, "blkkey_ex: can't decapsulate 128-bit blob\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_import(ksdev, unit, keyslot24, BLACK_KEY,
+				    KEY_COVER_ECB, blob24, 24, skeymod)) {
+		dev_info(ksdev, "blkkey_ex: can't decapsulate 196-bit blob\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_import(ksdev, unit, keyslot32, BLACK_KEY,
+				    KEY_COVER_ECB, blob32, 32, skeymod)) {
+		dev_info(ksdev, "blkkey_ex: can't decapsulate 256-bit blob\n");
+		goto dealloc;
+	}
+
+
+	/*
+	 * Blobs are now restored as black keys. Read those black keys back
+	 * for a comparison with the original black key, they should match
+	 */
+	if (sm_keystore_slot_read(ksdev, unit, keyslot8, AES_BLOCK_PAD(8),
+				  rstkey8)) {
+		dev_info(ksdev,
+			"blkkey_ex: can't read restored 64-bit black key\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_read(ksdev, unit, keyslot16, AES_BLOCK_PAD(16),
+				  rstkey16)) {
+		dev_info(ksdev,
+			 "blkkey_ex: can't read restored 128-bit black key\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_read(ksdev, unit, keyslot24, AES_BLOCK_PAD(24),
+				  rstkey24)) {
+		dev_info(ksdev,
+			 "blkkey_ex: can't read restored 196-bit black key\n");
+		goto dealloc;
+	}
+
+	if (sm_keystore_slot_read(ksdev, unit, keyslot32, AES_BLOCK_PAD(32),
+				  rstkey32)) {
+		dev_info(ksdev,
+			 "blkkey_ex: can't read restored 256-bit black key\n");
+		goto dealloc;
+	}
+
+	key_display(ksdev, "restored 64-bit black key:", AES_BLOCK_PAD(8),
+		    rstkey8);
+	key_display(ksdev, "restored 128-bit black key:", AES_BLOCK_PAD(16),
+		    rstkey16);
+	key_display(ksdev, "restored 192-bit black key:", AES_BLOCK_PAD(24),
+		    rstkey24);
+	key_display(ksdev, "restored 256-bit black key:", AES_BLOCK_PAD(32),
+		    rstkey32);
+
+	/*
+	 * Compare the restored black keys with the original blackened keys
+	 * As long as we're operating within the same power cycle, a black key
+	 * restored from a blob should match the original black key IF the
+	 * key happens to be of a size that matches a multiple of the AES
+	 * blocksize. Any key that is padded to fill the block size will not
+	 * match, excepting a key that exceeds a block; only the first full
+	 * blocks will match (assuming ECB).
+	 *
+	 * Therefore, compare the 16 and 32 bit keys, they should match.
+	 * The 24 bit key can only match within the first 16 byte block.
+	 */
+
+	if (memcmp(rstkey16, blkkey16, AES_BLOCK_PAD(16))) {
+		dev_info(ksdev, "blkkey_ex: 128-bit restored key mismatch\n");
+		rtnval--;
+	}
+
+	/* Only first AES block will match, remainder subject to padding */
+	if (memcmp(rstkey24, blkkey24, 16)) {
+		dev_info(ksdev, "blkkey_ex: 192-bit restored key mismatch\n");
+		rtnval--;
+	}
+
+	if (memcmp(rstkey32, blkkey32, AES_BLOCK_PAD(32))) {
+		dev_info(ksdev, "blkkey_ex: 256-bit restored key mismatch\n");
+		rtnval--;
+	}
+
+
+	/* Remove keys from keystore */
+dealloc:
+	sm_keystore_slot_dealloc(ksdev, unit, keyslot8);
+	sm_keystore_slot_dealloc(ksdev, unit, keyslot16);
+	sm_keystore_slot_dealloc(ksdev, unit, keyslot24);
+	sm_keystore_slot_dealloc(ksdev, unit, keyslot32);
 
 
 	/* Free resources */
 freemem:
-#ifdef SM_TEST_DETAIL
-	dev_info(ksdev, "caam_sm_test: cleaning up\n");
-#endif
-	kfree(syminp);
-	kfree(symint);
-	kfree(symout);
-	kfree(clear_key_des);
-	kfree(clear_key_aes128);
-	kfree(clear_key_aes256);
-	kfree(black_key_des);
-	kfree(black_key_aes128);
-	kfree(black_key_aes256);
-	kfree(jdesc);
+	kfree(blob8);
+	kfree(blob16);
+	kfree(blob24);
+	kfree(blob32);
 
 	/* Disconnect from keystore and leave */
 	sm_release_keystore(ksdev, unit);
@@ -838,6 +510,6 @@ module_init(caam_sm_test_init);
 module_exit(caam_sm_example_shutdown);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("FSL CAAM Keystore Usage Example");
+MODULE_DESCRIPTION("FSL CAAM Black Key Usage Example");
 MODULE_AUTHOR("Freescale Semiconductor - NMSG/MAD");
 #endif
