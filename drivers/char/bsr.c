@@ -95,6 +95,7 @@ bsr_size_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct bsr_dev *bsr_dev = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", bsr_dev->bsr_bytes);
 }
+static DEVICE_ATTR_RO(bsr_size);
 
 static ssize_t
 bsr_stride_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -102,20 +103,23 @@ bsr_stride_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct bsr_dev *bsr_dev = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", bsr_dev->bsr_stride);
 }
+static DEVICE_ATTR_RO(bsr_stride);
 
 static ssize_t
-bsr_len_show(struct device *dev, struct device_attribute *attr, char *buf)
+bsr_length_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct bsr_dev *bsr_dev = dev_get_drvdata(dev);
 	return sprintf(buf, "%llu\n", bsr_dev->bsr_len);
 }
+static DEVICE_ATTR_RO(bsr_length);
 
-static struct device_attribute bsr_dev_attrs[] = {
-	__ATTR(bsr_size, S_IRUGO, bsr_size_show, NULL),
-	__ATTR(bsr_stride, S_IRUGO, bsr_stride_show, NULL),
-	__ATTR(bsr_length, S_IRUGO, bsr_len_show, NULL),
-	__ATTR_NULL
+static struct attribute *bsr_dev_attrs[] = {
+	&dev_attr_bsr_size.attr,
+	&dev_attr_bsr_stride.attr,
+	&dev_attr_bsr_length.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(bsr_dev);
 
 static int bsr_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -308,7 +312,7 @@ static int __init bsr_init(void)
 		ret = PTR_ERR(bsr_class);
 		goto out_err_1;
 	}
-	bsr_class->dev_attrs = bsr_dev_attrs;
+	bsr_class->dev_groups = bsr_dev_groups;
 
 	ret = alloc_chrdev_region(&bsr_dev, 0, BSR_MAX_DEVS, "bsr");
 	bsr_major = MAJOR(bsr_dev);
