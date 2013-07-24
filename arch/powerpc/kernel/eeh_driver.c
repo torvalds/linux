@@ -143,10 +143,14 @@ static void eeh_disable_irq(struct pci_dev *dev)
 static void eeh_enable_irq(struct pci_dev *dev)
 {
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
+	struct irq_desc *desc;
 
 	if ((edev->mode) & EEH_DEV_IRQ_DISABLED) {
 		edev->mode &= ~EEH_DEV_IRQ_DISABLED;
-		enable_irq(dev->irq);
+
+		desc = irq_to_desc(dev->irq);
+		if (desc && desc->depth > 0)
+			enable_irq(dev->irq);
 	}
 }
 
