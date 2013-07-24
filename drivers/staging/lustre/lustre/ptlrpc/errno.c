@@ -25,7 +25,7 @@
  * Copyright (c) 2013, Intel Corporation.
  */
 
-#include <libcfs/libcfs.h>
+#include <linux/libcfs/libcfs.h>
 #include <lustre/lustre_errno.h>
 
 /*
@@ -184,7 +184,6 @@ static int lustre_errno_hton_mapping[] = {
 	[EBADTYPE]		= LUSTRE_EBADTYPE,
 	[EJUKEBOX]		= LUSTRE_EJUKEBOX,
 	[EIOCBQUEUED]		= LUSTRE_EIOCBQUEUED,
-	[EIOCBRETRY]		= LUSTRE_EIOCBRETRY
 };
 
 static int lustre_errno_ntoh_mapping[] = {
@@ -331,7 +330,6 @@ static int lustre_errno_ntoh_mapping[] = {
 	[LUSTRE_EBADTYPE]		= EBADTYPE,
 	[LUSTRE_EJUKEBOX]		= EJUKEBOX,
 	[LUSTRE_EIOCBQUEUED]		= EIOCBQUEUED,
-	[LUSTRE_EIOCBRETRY]		= EIOCBRETRY
 };
 
 unsigned int lustre_errno_hton(unsigned int h)
