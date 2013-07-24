@@ -50,6 +50,7 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/ratelimit.h>
+#include <linux/vmalloc.h>
 
 
 /* number of characters left in xmit buffer before select has we have room */
