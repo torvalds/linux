@@ -441,7 +441,7 @@ void nfs4_destroy_session(struct nfs4_session *session)
 	struct rpc_xprt *xprt;
 	struct rpc_cred *cred;
 
-	cred = nfs4_get_exchange_id_cred(session->clp);
+	cred = nfs4_get_clid_cred(session->clp);
 	nfs4_proc_destroy_session(session, cred);
 	if (cred)
 		put_rpccred(cred);
