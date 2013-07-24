@@ -20,32 +20,33 @@ static ssize_t wifi_chip_read(struct class *cls, char *_buf)
 #endif
 {
     int count = 0;
-#ifdef CONFIG_MACH_RK_CONFIG
-		if(wifi_type==WIFI_TYPE_RTL8188CU)
-		{
-			count = sprintf(_buf, "%s", "RTL8188CU");
-			printk("Current WiFi chip is RTL8188CU.\n");
-    }else	if(wifi_type==WIFI_TYPE_RTL8188EU){
-			count = sprintf(_buf, "%s", "RTL8188EU");
-			printk("Current WiFi chip is RTL8188EU.\n");
-    }else if(wifi_type==WIFI_TYPE_MT7601){
-			count = sprintf(_buf, "%s", "MT7601");
-			printk("Current WiFi chip is MT7601.\n");
-    }else if(wifi_type==WIFI_TYPE_RTL8188ETV)
-		{
-			 count = sprintf(_buf, "%s", "RTL8188ETV");
-    	 printk("Current WiFi chip is RTL8188ETV.\n");
-    }else if(wifi_type==WIFI_TYPE_MT5370)
-		{
-			 count = sprintf(_buf, "%s", "MT5370");
-    	 printk("Current WiFi chip is MT5370.\n");
-    }	
-		else    
-	  {
-	  	printk("NOT surpport type %d\n",wifi_type);
-	  }
 
-#else
+#ifdef CONFIG_MACH_RK_FAC
+    if(wifi_type==WIFI_TYPE_RTL8188CU) {
+        count = sprintf(_buf, "%s", "RTL8188CU");
+        printk("Current WiFi chip is RTL8188CU.\n");
+        return count;
+    } else if(wifi_type==WIFI_TYPE_RTL8188EU) {
+        count = sprintf(_buf, "%s", "RTL8188EU");
+        printk("Current WiFi chip is RTL8188EU.\n");
+        return count;
+    } else if(wifi_type==WIFI_TYPE_MT7601) {
+        count = sprintf(_buf, "%s", "MT7601");
+        printk("Current WiFi chip is MT7601.\n");
+        return count;
+    } else if(wifi_type==WIFI_TYPE_RTL8188ETV) {
+        count = sprintf(_buf, "%s", "RTL8188ETV");
+        printk("Current WiFi chip is RTL8188ETV.\n");
+        return count;
+    } else if(wifi_type==WIFI_TYPE_MT5370) {
+        count = sprintf(_buf, "%s", "MT5370");
+        printk("Current WiFi chip is MT5370.\n");
+        return count;
+    } else {
+        //printk("NOT surpport type %d\n",wifi_type);
+    }
+#endif
+
 #ifdef CONFIG_BCM4329
     count = sprintf(_buf, "%s", "BCM4329");
     printk("Current WiFi chip is BCM4329.\n");
@@ -192,9 +193,6 @@ static ssize_t wifi_chip_read(struct class *cls, char *_buf)
     printk("Current WiFi chip is ESP8089.\n");
 #endif
 	
-	
-
-#endif
     return count;
 }
 
