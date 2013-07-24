@@ -46,7 +46,6 @@
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
 #include <linux/libcfs/libcfs.h>
-#include <lustre_fsfilt.h>
 #include <obd.h>
 #include <linux/module.h>
 #include <linux/init.h>

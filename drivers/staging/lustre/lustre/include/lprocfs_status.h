@@ -370,18 +370,6 @@ static inline void s2dhms(struct dhms *ts, time_t secs)
 #define JOBSTATS_DISABLE		"disable"
 #define JOBSTATS_PROCNAME_UID		"procname_uid"
 
-typedef void (*cntr_init_callback)(struct lprocfs_stats *stats);
-
-struct obd_job_stats {
-	cfs_hash_t	*ojs_hash;
-	struct list_head	 ojs_list;
-	rwlock_t       ojs_lock; /* protect the obj_list */
-	cntr_init_callback ojs_cntr_init_fn;
-	int		ojs_cntr_num;
-	int		ojs_cleanup_interval;
-	time_t		   ojs_last_cleanup;
-};
-
 #ifdef LPROCFS
 
 extern int lprocfs_stats_alloc_one(struct lprocfs_stats *stats,
@@ -748,16 +736,6 @@ struct file_operations name##_fops = {				     \
 		.release = lprocfs_single_release,			\
 	};
 
-/* lprocfs_jobstats.c */
-int lprocfs_job_stats_log(struct obd_device *obd, char *jobid,
-			  int event, long amount);
-void lprocfs_job_stats_fini(struct obd_device *obd);
-int lprocfs_job_stats_init(struct obd_device *obd, int cntr_num,
-			   cntr_init_callback fn);
-int lprocfs_rd_job_interval(struct seq_file *m, void *data);
-int lprocfs_wr_job_interval(struct file *file, const char *buffer,
-			    unsigned long count, void *data);
-
 /* lproc_ptlrpc.c */
 struct ptlrpc_request;
 extern void target_print_req(void *seq_file, struct ptlrpc_request *req);
@@ -1017,20 +995,6 @@ __u64 lprocfs_stats_collector(struct lprocfs_stats *stats, int idx,
 #define LPROC_SEQ_FOPS_RO_TYPE(name, type)
 #define LPROC_SEQ_FOPS_RW_TYPE(name, type)
 #define LPROC_SEQ_FOPS_WR_ONLY(name, type)
-
-/* lprocfs_jobstats.c */
-static inline
-int lprocfs_job_stats_log(struct obd_device *obd, char *jobid, int event,
-			  long amount)
-{ return 0; }
-static inline
-void lprocfs_job_stats_fini(struct obd_device *obd)
-{ return; }
-static inline
-int lprocfs_job_stats_init(struct obd_device *obd, int cntr_num,
-			   cntr_init_callback fn)
-{ return 0; }
-
 
 /* lproc_ptlrpc.c */
 #define target_print_req NULL
