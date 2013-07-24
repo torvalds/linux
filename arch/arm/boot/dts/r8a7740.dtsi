@@ -32,6 +32,11 @@
 		      <0xc2000000 0x1000>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 83 4>;
+	};
+
 	/* irqpin0: IRQ0 - IRQ7 */
 	irqpin0: irqpin@e6900000 {
 		compatible = "renesas,intc-irqpin";
