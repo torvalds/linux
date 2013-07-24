@@ -156,43 +156,11 @@ struct pci20xxx_private {
 
 /* pci20006m */
 
-static int pci20006_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
-static int pci20006_insn_write(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-
 static const struct comedi_lrange *pci20006_range_list[] = {
 	&range_bipolar10,
 	&range_unipolar10,
 	&range_bipolar5,
 };
-
-static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int opt0, int opt1)
-{
-	union pci20xxx_subdev_private *sdp = s->private;
-
-	if (opt0 < 0 || opt0 > 2)
-		opt0 = 0;
-	if (opt1 < 0 || opt1 > 2)
-		opt1 = 0;
-
-	sdp->pci20006.ao_range_list[0] = pci20006_range_list[opt0];
-	sdp->pci20006.ao_range_list[1] = pci20006_range_list[opt1];
-
-	/* ao subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 2;
-	s->len_chanlist = 2;
-	s->insn_read = pci20006_insn_read;
-	s->insn_write = pci20006_insn_write;
-	s->maxdata = 0xffff;
-	s->range_table_list = sdp->pci20006.ao_range_list;
-	return 0;
-}
 
 static int pci20006_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
@@ -238,11 +206,32 @@ static int pci20006_insn_write(struct comedi_device *dev,
 	return 1;
 }
 
-/* PCI20341M */
+static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
+			 int opt0, int opt1)
+{
+	union pci20xxx_subdev_private *sdp = s->private;
 
-static int pci20341_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
+	if (opt0 < 0 || opt0 > 2)
+		opt0 = 0;
+	if (opt1 < 0 || opt1 > 2)
+		opt1 = 0;
+
+	sdp->pci20006.ao_range_list[0] = pci20006_range_list[opt0];
+	sdp->pci20006.ao_range_list[1] = pci20006_range_list[opt1];
+
+	/* ao subdevice */
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = 2;
+	s->len_chanlist = 2;
+	s->insn_read = pci20006_insn_read;
+	s->insn_write = pci20006_insn_write;
+	s->maxdata = 0xffff;
+	s->range_table_list = sdp->pci20006.ao_range_list;
+	return 0;
+}
+
+/* PCI20341M */
 
 static const int pci20341_timebase[] = { 0x00, 0x00, 0x00, 0x04 };
 static const int pci20341_settling_time[] = { 0x58, 0x58, 0x93, 0x99 };
@@ -268,43 +257,6 @@ static const struct comedi_lrange *const pci20341_ranges[] = {
 	&range_bipolar0_05,
 	&range_bipolar0_025,
 };
-
-static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int opt0, int opt1)
-{
-	union pci20xxx_subdev_private *sdp = s->private;
-	int option;
-
-	/* options handling */
-	if (opt0 < 0 || opt0 > 3)
-		opt0 = 0;
-	sdp->pci20341.timebase = pci20341_timebase[opt0];
-	sdp->pci20341.settling_time = pci20341_settling_time[opt0];
-
-	/* ai subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = PCI20341_CHAN_NR;
-	s->len_chanlist = PCI20341_SCANLIST;
-	s->insn_read = pci20341_insn_read;
-	s->maxdata = 0xffff;
-	s->range_table = pci20341_ranges[opt0];
-
-	/* depends on gain, trigger, repetition mode */
-	option = sdp->pci20341.timebase | PCI20341_REPMODE;
-
-	/* initialize Module */
-	writeb(PCI20341_INIT, sdp->iobase + PCI20341_CONFIG_REG);
-	/* set Pacer */
-	writeb(PCI20341_PACER, sdp->iobase + PCI20341_MOD_STATUS);
-	/* option register */
-	writeb(option, sdp->iobase + PCI20341_OPT_REG);
-	/* settling time counter */
-	writeb(sdp->pci20341.settling_time,
-		sdp->iobase + PCI20341_SET_TIME_REG);
-	/* trigger not implemented */
-	return 0;
-}
 
 static int pci20341_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
@@ -359,6 +311,43 @@ static int pci20341_insn_read(struct comedi_device *dev,
 	}
 
 	return i;
+}
+
+static int pci20341_init(struct comedi_device *dev, struct comedi_subdevice *s,
+			 int opt0, int opt1)
+{
+	union pci20xxx_subdev_private *sdp = s->private;
+	int option;
+
+	/* options handling */
+	if (opt0 < 0 || opt0 > 3)
+		opt0 = 0;
+	sdp->pci20341.timebase = pci20341_timebase[opt0];
+	sdp->pci20341.settling_time = pci20341_settling_time[opt0];
+
+	/* ai subdevice */
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = PCI20341_CHAN_NR;
+	s->len_chanlist = PCI20341_SCANLIST;
+	s->insn_read = pci20341_insn_read;
+	s->maxdata = 0xffff;
+	s->range_table = pci20341_ranges[opt0];
+
+	/* depends on gain, trigger, repetition mode */
+	option = sdp->pci20341.timebase | PCI20341_REPMODE;
+
+	/* initialize Module */
+	writeb(PCI20341_INIT, sdp->iobase + PCI20341_CONFIG_REG);
+	/* set Pacer */
+	writeb(PCI20341_PACER, sdp->iobase + PCI20341_MOD_STATUS);
+	/* option register */
+	writeb(option, sdp->iobase + PCI20341_OPT_REG);
+	/* settling time counter */
+	writeb(sdp->pci20341.settling_time,
+		sdp->iobase + PCI20341_SET_TIME_REG);
+	/* trigger not implemented */
+	return 0;
 }
 
 #if 0
