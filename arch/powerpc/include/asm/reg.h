@@ -1088,7 +1088,8 @@
 #define PVR_970MP	0x0044
 #define PVR_970GX	0x0045
 #define PVR_POWER7p	0x004A
-#define PVR_POWER8	0x004B
+#define PVR_POWER8E	0x004B
+#define PVR_POWER8	0x004D
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
 
