@@ -270,13 +270,6 @@ struct btree_op {
 	BKEY_PADDED(replace);
 };
 
-enum {
-	BTREE_INSERT_STATUS_INSERT,
-	BTREE_INSERT_STATUS_BACK_MERGE,
-	BTREE_INSERT_STATUS_OVERWROTE,
-	BTREE_INSERT_STATUS_FRONT_MERGE,
-};
-
 void bch_btree_op_init_stack(struct btree_op *);
 
 static inline void rw_lock(bool w, struct btree *b, int level)
@@ -302,82 +295,9 @@ static inline void rw_unlock(bool w, struct btree *b)
 	(w ? up_write : up_read)(&b->lock);
 }
 
-#define insert_lock(s, b)	((b)->level <= (s)->lock)
-
-/*
- * These macros are for recursing down the btree - they handle the details of
- * locking and looking up nodes in the cache for you. They're best treated as
- * mere syntax when reading code that uses them.
- *
- * op->lock determines whether we take a read or a write lock at a given depth.
- * If you've got a read lock and find that you need a write lock (i.e. you're
- * going to have to split), set op->lock and return -EINTR; btree_root() will
- * call you again and you'll have the correct lock.
- */
-
-/**
- * btree - recurse down the btree on a specified key
- * @fn:		function to call, which will be passed the child node
- * @key:	key to recurse on
- * @b:		parent btree node
- * @op:		pointer to struct btree_op
- */
-#define btree(fn, key, b, op, ...)					\
-({									\
-	int _r, l = (b)->level - 1;					\
-	bool _w = l <= (op)->lock;					\
-	struct btree *_child = bch_btree_node_get((b)->c, key, l, _w);	\
-	if (!IS_ERR(_child)) {						\
-		_child->parent = (b);					\
-		_r = bch_btree_ ## fn(_child, op, ##__VA_ARGS__);	\
-		rw_unlock(_w, _child);					\
-	} else								\
-		_r = PTR_ERR(_child);					\
-	_r;								\
-})
-
-/**
- * btree_root - call a function on the root of the btree
- * @fn:		function to call, which will be passed the child node
- * @c:		cache set
- * @op:		pointer to struct btree_op
- */
-#define btree_root(fn, c, op, ...)					\
-({									\
-	int _r = -EINTR;						\
-	do {								\
-		struct btree *_b = (c)->root;				\
-		bool _w = insert_lock(op, _b);				\
-		rw_lock(_w, _b, _b->level);				\
-		if (_b == (c)->root &&					\
-		    _w == insert_lock(op, _b)) {			\
-			_b->parent = NULL;				\
-			_r = bch_btree_ ## fn(_b, op, ##__VA_ARGS__);	\
-		}							\
-		rw_unlock(_w, _b);					\
-		bch_cannibalize_unlock(c);				\
-		if (_r == -ENOSPC) {					\
-			wait_event((c)->try_wait,			\
-				   !(c)->try_harder);			\
-			_r = -EINTR;					\
-		}							\
-	} while (_r == -EINTR);						\
-									\
-	_r;								\
-})
-
-static inline bool should_split(struct btree *b)
-{
-	struct bset *i = write_block(b);
-	return b->written >= btree_blocks(b) ||
-		(b->written + __set_blocks(i, i->keys + 15, b->c)
-		 > btree_blocks(b));
-}
-
 void bch_btree_node_read(struct btree *);
 void bch_btree_node_write(struct btree *, struct closure *);
 
-void bch_cannibalize_unlock(struct cache_set *);
 void bch_btree_set_root(struct btree *);
 struct btree *bch_btree_node_alloc(struct cache_set *, int);
 struct btree *bch_btree_node_get(struct cache_set *, struct bkey *, int, bool);
@@ -386,7 +306,7 @@ int bch_btree_insert_check_key(struct btree *, struct btree_op *,
 			       struct bkey *);
 int bch_btree_insert(struct btree_op *, struct cache_set *, struct keylist *);
 
-int bch_btree_search_recurse(struct btree *, struct btree_op *);
+void bch_btree_search_async(struct closure *);
 
 int bch_gc_thread_start(struct cache_set *);
 size_t bch_btree_gc_finish(struct cache_set *);
