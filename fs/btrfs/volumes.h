@@ -152,6 +152,8 @@ struct btrfs_fs_devices {
 	int rotating;
 };
 
+#define BTRFS_BIO_INLINE_CSUM_SIZE	64
+
 /*
  * we need the mirror number and stripe index to be passed around
  * the call chain while we are processing end_io (especially errors).
@@ -161,9 +163,14 @@ struct btrfs_fs_devices {
  * we allocate are actually btrfs_io_bios.  We'll cram as much of
  * struct btrfs_bio as we can into this over time.
  */
+typedef void (btrfs_io_bio_end_io_t) (struct btrfs_io_bio *bio, int err);
 struct btrfs_io_bio {
 	unsigned long mirror_num;
 	unsigned long stripe_index;
+	u8 *csum;
+	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
+	u8 *csum_allocated;
+	btrfs_io_bio_end_io_t *end_io;
 	struct bio bio;
 };
 

@@ -62,6 +62,7 @@
 
 struct extent_state;
 struct btrfs_root;
+struct btrfs_io_bio;
 
 typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       struct bio *bio, int mirror_num,
@@ -77,8 +78,9 @@ struct extent_io_ops {
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
-	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
-				    struct extent_state *state, int mirror);
+	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
+				    struct page *page, u64 start, u64 end,
+				    int mirror);
 	int (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state, int uptodate);
 	void (*set_bit_hook)(struct inode *inode, struct extent_state *state,
@@ -262,10 +264,6 @@ int extent_readpages(struct extent_io_tree *tree,
 int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len, get_extent_t *get_extent);
 int set_state_private(struct extent_io_tree *tree, u64 start, u64 private);
-void extent_cache_csums_dio(struct extent_io_tree *tree, u64 start, u32 csums[],
-			    int count);
-void extent_cache_csums(struct extent_io_tree *tree, struct bio *bio,
-			int bvec_index, u32 csums[], int count);
 int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
 void set_page_extent_mapped(struct page *page);
 
