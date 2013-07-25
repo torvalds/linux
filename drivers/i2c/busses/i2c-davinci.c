@@ -40,8 +40,6 @@
 #include <linux/gpio.h>
 #include <linux/of_i2c.h>
 #include <linux/of_device.h>
-
-#include <mach/hardware.h>
 #include <linux/platform_data/i2c-davinci.h>
 
 /* ----- global defines ----------------------------------------------- */
