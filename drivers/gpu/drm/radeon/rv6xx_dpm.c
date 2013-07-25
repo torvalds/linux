@@ -1182,10 +1182,10 @@ static void rv6xx_program_display_gap(struct radeon_device *rdev)
 	u32 tmp = RREG32(CG_DISPLAY_GAP_CNTL);
 
 	tmp &= ~(DISP1_GAP_MCHG_MASK | DISP2_GAP_MCHG_MASK);
-	if (RREG32(AVIVO_D1CRTC_CONTROL) & AVIVO_CRTC_EN) {
+	if (rdev->pm.dpm.new_active_crtcs & 1) {
 		tmp |= DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_VBLANK);
 		tmp |= DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE);
-	} else if (RREG32(AVIVO_D2CRTC_CONTROL) & AVIVO_CRTC_EN) {
+	} else if (rdev->pm.dpm.new_active_crtcs & 2) {
 		tmp |= DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE);
 		tmp |= DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_VBLANK);
 	} else {
