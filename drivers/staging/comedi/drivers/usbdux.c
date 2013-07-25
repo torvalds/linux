@@ -1188,72 +1188,74 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 
 static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct usbdux_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int chan, gain;
-	int i, ret;
-	struct usbdux_private *this_usbduxsub = dev->private;
+	int ret = -EBUSY;
+	int i;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
+	down(&devpriv->sem);
 
-	down(&this_usbduxsub->sem);
+	if (devpriv->ao_cmd_running)
+		goto ao_cmd_exit;
 
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
+
 	for (i = 0; i < cmd->chanlist_len; ++i) {
-		chan = CR_CHAN(cmd->chanlist[i]);
-		gain = CR_RANGE(cmd->chanlist[i]);
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
 		if (i >= NUMOUTCHANNELS)
 			break;
-		this_usbduxsub->dac_commands[i] = (chan << 6);
+
+		devpriv->dac_commands[i] = chan << 6;
 	}
 
 	/* we count in steps of 1ms (125us) */
 	/* 125us mode not used yet */
-	if (0) {		/* (this_usbduxsub->high_speed) */
+	if (0) {		/* (devpriv->high_speed) */
 		/* 125us */
 		/* timing of the conversion itself: every 125 us */
-		this_usbduxsub->ao_timer = cmd->convert_arg / 125000;
+		devpriv->ao_timer = cmd->convert_arg / 125000;
 	} else {
 		/* 1ms */
 		/* timing of the scan: we get all channels at once */
-		this_usbduxsub->ao_timer = cmd->scan_begin_arg / 1000000;
-		if (this_usbduxsub->ao_timer < 1) {
-			up(&this_usbduxsub->sem);
-			return -EINVAL;
+		devpriv->ao_timer = cmd->scan_begin_arg / 1000000;
+		if (devpriv->ao_timer < 1) {
+			ret = -EINVAL;
+			goto ao_cmd_exit;
 		}
 	}
-	this_usbduxsub->ao_counter = this_usbduxsub->ao_timer;
+
+	devpriv->ao_counter = devpriv->ao_timer;
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* not continuous */
 		/* counter */
 		/* high speed also scans everything at once */
-		if (0) {	/* (this_usbduxsub->high_speed) */
-			this_usbduxsub->ao_sample_count =
-			    (cmd->stop_arg) * (cmd->scan_end_arg);
+		if (0) {	/* (devpriv->high_speed) */
+			devpriv->ao_sample_count = cmd->stop_arg *
+						   cmd->scan_end_arg;
 		} else {
 			/* there's no scan as the scan has been */
 			/* perf inside the FX2 */
 			/* data arrives as one packet */
-			this_usbduxsub->ao_sample_count = cmd->stop_arg;
+			devpriv->ao_sample_count = cmd->stop_arg;
 		}
-		this_usbduxsub->ao_continous = 0;
+		devpriv->ao_continous = 0;
 	} else {
 		/* continous acquisition */
-		this_usbduxsub->ao_continous = 1;
-		this_usbduxsub->ao_sample_count = 0;
+		devpriv->ao_continous = 1;
+		devpriv->ao_sample_count = 0;
 	}
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
-		this_usbduxsub->ao_cmd_running = 1;
+		devpriv->ao_cmd_running = 1;
 		ret = usbduxsub_submit_outurbs(dev);
 		if (ret < 0) {
-			this_usbduxsub->ao_cmd_running = 0;
+			devpriv->ao_cmd_running = 0;
 			/* fixme: unlink here?? */
-			up(&this_usbduxsub->sem);
-			return ret;
+			goto ao_cmd_exit;
 		}
 		s->async->inttrig = NULL;
 	} else {
@@ -1263,8 +1265,10 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		s->async->inttrig = usbdux_ao_inttrig;
 	}
 
-	up(&this_usbduxsub->sem);
-	return 0;
+ao_cmd_exit:
+	up(&devpriv->sem);
+
+	return ret;
 }
 
 static int usbdux_dio_insn_config(struct comedi_device *dev,
