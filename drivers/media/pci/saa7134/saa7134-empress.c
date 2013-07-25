@@ -28,7 +28,6 @@
 
 #include <media/saa6752hs.h>
 #include <media/v4l2-common.h>
-#include <media/v4l2-chip-ident.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -213,7 +212,7 @@ static int empress_enum_fmt_vid_cap(struct file *file, void  *priv,
 
 	strlcpy(f->description, "MPEG TS", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
-
+	f->flags = V4L2_FMT_FLAG_COMPRESSED;
 	return 0;
 }
 
@@ -228,6 +227,8 @@ static int empress_g_fmt_vid_cap(struct file *file, void *priv,
 	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -244,6 +245,8 @@ static int empress_s_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -252,9 +255,16 @@ static int empress_try_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_dev *dev = file->private_data;
+	struct v4l2_mbus_framefmt mbus_fmt;
+
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	saa_call_all(dev, video, try_mbus_fmt, &mbus_fmt);
+	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
+	f->fmt.pix.bytesperline = 0;
+	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -413,21 +423,6 @@ static int empress_querymenu(struct file *file, void *priv,
 	return saa_call_empress(dev, core, querymenu, c);
 }
 
-static int empress_g_chip_ident(struct file *file, void *fh,
-	       struct v4l2_dbg_chip_ident *chip)
-{
-	struct saa7134_dev *dev = file->private_data;
-
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	if (chip->match.type == V4L2_CHIP_MATCH_I2C_DRIVER &&
-	    !strcmp(chip->match.name, "saa6752hs"))
-		return saa_call_empress(dev, core, g_chip_ident, chip);
-	if (chip->match.type == V4L2_CHIP_MATCH_I2C_ADDR)
-		return saa_call_empress(dev, core, g_chip_ident, chip);
-	return -EINVAL;
-}
-
 static int empress_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7134_dev *dev = file->private_data;
@@ -475,7 +470,6 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_querymenu		= empress_querymenu,
 	.vidioc_g_ctrl			= empress_g_ctrl,
 	.vidioc_s_ctrl			= empress_s_ctrl,
-	.vidioc_g_chip_ident 		= empress_g_chip_ident,
 	.vidioc_s_std			= empress_s_std,
 	.vidioc_g_std			= empress_g_std,
 };
@@ -488,7 +482,6 @@ static struct video_device saa7134_empress_template = {
 	.ioctl_ops     = &ts_ioctl_ops,
 
 	.tvnorms			= SAA7134_NORMS,
-	.current_norm			= V4L2_STD_PAL,
 };
 
 static void empress_signal_update(struct work_struct *work)
@@ -518,7 +511,7 @@ static int empress_init(struct saa7134_dev *dev)
 	if (NULL == dev->empress_dev)
 		return -ENOMEM;
 	*(dev->empress_dev) = saa7134_empress_template;
-	dev->empress_dev->parent  = &dev->pci->dev;
+	dev->empress_dev->v4l2_dev  = &dev->v4l2_dev;
 	dev->empress_dev->release = video_device_release;
 	snprintf(dev->empress_dev->name, sizeof(dev->empress_dev->name),
 		 "%s empress (%s)", dev->name,

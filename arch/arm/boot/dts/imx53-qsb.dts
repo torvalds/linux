@@ -21,6 +21,33 @@
 		reg = <0x70000000 0x40000000>;
 	};
 
+	display@di0 {
+		compatible = "fsl,imx-parallel-display";
+		crtcs = <&ipu 0>;
+		interface-pix-fmt = "rgb565";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu_disp0_1>;
+		status = "disabled";
+		display-timings {
+			claawvga {
+				native-mode;
+				clock-frequency = <27000000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <40>;
+				hfront-porch = <60>;
+				vback-porch = <10>;
+				vfront-porch = <10>;
+				hsync-len = <20>;
+				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -147,6 +174,7 @@
 		reg = <0x0a>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
+		clocks = <&clks 150>;
 	};
 };
 
@@ -267,4 +295,12 @@
 	phy-mode = "rmii";
 	phy-reset-gpios = <&gpio7 6 0>;
 	status = "okay";
+};
+
+&usbh1 {
+       status = "okay";
+};
+
+&usbotg {
+       status = "okay";
 };

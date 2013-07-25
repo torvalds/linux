@@ -98,8 +98,13 @@ Cleaning Overhead
 MOUNT OPTIONS
 ================================================================================
 
-background_gc_off      Turn off cleaning operations, namely garbage collection,
-		       triggered in background when I/O subsystem is idle.
+background_gc=%s       Turn on/off cleaning operations, namely garbage
+                       collection, triggered in background when I/O subsystem is
+                       idle. If background_gc=on, it will turn on the garbage
+                       collection and if background_gc=off, garbage collection
+                       will be truned off.
+                       Default value for this option is on. So garbage
+                       collection is on by default.
 disable_roll_forward   Disable the roll-forward recovery routine
 discard                Issue discard/TRIM commands when a segment is cleaned.
 no_heap                Disable heap-style segment allocation which finds free

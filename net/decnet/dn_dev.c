@@ -158,11 +158,11 @@ static int max_t3[] = { 8191 }; /* Must fit in 16 bits when multiplied by BCT3MU
 static int min_priority[1];
 static int max_priority[] = { 127 }; /* From DECnet spec */
 
-static int dn_forwarding_proc(ctl_table *, int,
+static int dn_forwarding_proc(struct ctl_table *, int,
 			void __user *, size_t *, loff_t *);
 static struct dn_dev_sysctl_table {
 	struct ctl_table_header *sysctl_header;
-	ctl_table dn_dev_vars[5];
+	struct ctl_table dn_dev_vars[5];
 } dn_dev_sysctl = {
 	NULL,
 	{
@@ -242,7 +242,7 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 	}
 }
 
-static int dn_forwarding_proc(ctl_table *table, int write,
+static int dn_forwarding_proc(struct ctl_table *table, int write,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {

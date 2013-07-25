@@ -2256,7 +2256,6 @@ failed_free_res:
 	release_mem_region(r->start, resource_size(r));
 failed_fbi:
 	clk_put(fbi->clk);
-	platform_set_drvdata(dev, NULL);
 	kfree(fbi);
 failed:
 	return ret;

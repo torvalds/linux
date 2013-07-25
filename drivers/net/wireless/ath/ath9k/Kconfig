@@ -28,7 +28,7 @@ config ATH9K
 	  Atheros IEEE 802.11n AR5008, AR9001 and AR9002 family
 	  of chipsets. For a specific list of supported external
 	  cards, laptops that already ship with these cards and
-	  APs that come with these cards refer to to ath9k wiki
+	  APs that come with these cards refer to ath9k wiki
 	  products page:
 
 	  http://wireless.kernel.org/en/users/Drivers/ath9k/products
@@ -83,14 +83,6 @@ config ATH9K_DFS_CERTIFIED
 	  as DFS support requires more components that still need to be
 	  developed. At this point enabling this option won't do anything
 	  except increase code size.
-
-config ATH9K_MAC_DEBUG
-	bool "Atheros MAC statistics"
-	depends on ATH9K_DEBUGFS
-	default y
-	---help---
-	  This option enables collection of statistics for Rx/Tx status
-	  data and some other MAC related statistics
 
 config ATH9K_LEGACY_RATE_CONTROL
 	bool "Atheros ath9k rate control"

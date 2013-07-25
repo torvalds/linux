@@ -1,0 +1,45 @@
+/*
+ * Reference Device Tree Source for the armadillo 800 eva board
+ *
+ * Copyright (C) 2012 Renesas Solutions Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "r8a7740.dtsi"
+
+/ {
+	model = "armadillo 800 eva reference";
+	compatible = "renesas,armadillo800eva-reference", "renesas,r8a7740";
+
+	chosen {
+		bootargs = "console=tty0 console=ttySC1,115200 earlyprintk=sh-sci.1,115200 ignore_loglevel root=/dev/nfs ip=dhcp nfsroot=,rsize=4096,wsize=4096 rw";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0x20000000>;
+	};
+
+	reg_3p3v: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+};
+
+&i2c0 {
+	touchscreen: st1232@55 {
+		compatible = "sitronix,st1232";
+		reg = <0x55>;
+		interrupt-parent = <&irqpin1>;
+		interrupts = <2 0>; /* IRQ10: hwirq 2 on irqpin1 */
+	};
+};

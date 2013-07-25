@@ -1165,22 +1165,8 @@ out:
 static loff_t
 lpfc_debugfs_lseek(struct file *file, loff_t off, int whence)
 {
-	struct lpfc_debug *debug;
-	loff_t pos = -1;
-
-	debug = file->private_data;
-
-	switch (whence) {
-	case 0:
-		pos = off;
-		break;
-	case 1:
-		pos = file->f_pos + off;
-		break;
-	case 2:
-		pos = debug->len + off;
-	}
-	return (pos < 0 || pos > debug->len) ? -EINVAL : (file->f_pos = pos);
+	struct lpfc_debug *debug = file->private_data;
+	return fixed_size_llseek(file, off, whence, debug->len);
 }
 
 /**

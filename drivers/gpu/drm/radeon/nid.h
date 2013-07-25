@@ -133,6 +133,22 @@
 #define VM_CONTEXT1_CNTL2				0x1434
 #define VM_INVALIDATE_REQUEST				0x1478
 #define VM_INVALIDATE_RESPONSE				0x147c
+#define	VM_CONTEXT1_PROTECTION_FAULT_ADDR		0x14FC
+#define	VM_CONTEXT1_PROTECTION_FAULT_STATUS		0x14DC
+#define		PROTECTIONS_MASK			(0xf << 0)
+#define		PROTECTIONS_SHIFT			0
+		/* bit 0: range
+		 * bit 2: pde0
+		 * bit 3: valid
+		 * bit 4: read
+		 * bit 5: write
+		 */
+#define		MEMORY_CLIENT_ID_MASK			(0xff << 12)
+#define		MEMORY_CLIENT_ID_SHIFT			12
+#define		MEMORY_CLIENT_RW_MASK			(1 << 24)
+#define		MEMORY_CLIENT_RW_SHIFT			24
+#define		FAULT_VMID_MASK				(0x7 << 25)
+#define		FAULT_VMID_SHIFT			25
 #define VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR	0x1518
 #define VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR	0x151c
 #define	VM_CONTEXT0_PAGE_TABLE_BASE_ADDR		0x153C
@@ -617,6 +633,10 @@
 #       define MRDCKC1_BYPASS                           (1 << 29)
 #       define MRDCKD0_BYPASS                           (1 << 30)
 #       define MRDCKD1_BYPASS                           (1 << 31)
+
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x66c
+#       define CURRENT_STATE_INDEX_MASK                   (0xf << 4)
+#       define CURRENT_STATE_INDEX_SHIFT                  4
 
 #define CG_AT                                           0x6d4
 #       define CG_R(x)					((x) << 0)

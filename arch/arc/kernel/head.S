@@ -27,6 +27,8 @@ stext:
 	; Don't clobber r0-r4 yet. It might have bootloader provided info
 	;-------------------------------------------------------------------
 
+	sr	@_int_vec_base_lds, [AUX_INTR_VEC_BASE]
+
 #ifdef CONFIG_SMP
 	; Only Boot (Master) proceeds. Others wait in platform dependent way
 	;	IDENTITY Reg [ 3  2  1  0 ]

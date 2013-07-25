@@ -27,8 +27,7 @@ increase the chances of your change being accepted.
   explicitly below the patch header.
 
 * If your patch (or the driver) is affected by configuration options such as
-  CONFIG_SMP or CONFIG_HOTPLUG, make sure it compiles for all configuration
-  variants.
+  CONFIG_SMP, make sure it compiles for all configuration variants.
 
 
 2. Adding functionality to existing drivers

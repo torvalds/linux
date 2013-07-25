@@ -26,7 +26,6 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/videobuf2-core.h>
 
 /* Zero out the end of the struct pointed to by p.  Everything after, but
@@ -617,20 +616,6 @@ static void v4l_print_decoder_cmd(const void *arg, bool write_only)
 				p->start.speed, p->start.format);
 	else if (p->cmd == V4L2_DEC_CMD_STOP)
 		pr_info("pts=%llu\n", p->stop.pts);
-}
-
-static void v4l_print_dbg_chip_ident(const void *arg, bool write_only)
-{
-	const struct v4l2_dbg_chip_ident *p = arg;
-
-	pr_cont("type=%u, ", p->match.type);
-	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER)
-		pr_cont("name=%.*s, ",
-				(int)sizeof(p->match.name), p->match.name);
-	else
-		pr_cont("addr=%u, ", p->match.addr);
-	pr_cont("chip_ident=%u, revision=0x%x\n",
-			p->ident, p->revision);
 }
 
 static void v4l_print_dbg_chip_info(const void *arg, bool write_only)
@@ -1359,40 +1344,18 @@ static int v4l_enumstd(const struct v4l2_ioctl_ops *ops,
 	return 0;
 }
 
-static int v4l_g_std(const struct v4l2_ioctl_ops *ops,
-				struct file *file, void *fh, void *arg)
-{
-	struct video_device *vfd = video_devdata(file);
-	v4l2_std_id *id = arg;
-
-	/* Calls the specific handler */
-	if (ops->vidioc_g_std)
-		return ops->vidioc_g_std(file, fh, arg);
-	if (vfd->current_norm) {
-		*id = vfd->current_norm;
-		return 0;
-	}
-	return -ENOTTY;
-}
-
 static int v4l_s_std(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
 	v4l2_std_id id = *(v4l2_std_id *)arg, norm;
-	int ret;
 
 	norm = id & vfd->tvnorms;
 	if (vfd->tvnorms && !norm)	/* Check if std is supported */
 		return -EINVAL;
 
 	/* Calls the specific handler */
-	ret = ops->vidioc_s_std(file, fh, norm);
-
-	/* Updates standard information */
-	if (ret >= 0)
-		vfd->current_norm = norm;
-	return ret;
+	return ops->vidioc_s_std(file, fh, norm);
 }
 
 static int v4l_querystd(const struct v4l2_ioctl_ops *ops,
@@ -1402,10 +1365,10 @@ static int v4l_querystd(const struct v4l2_ioctl_ops *ops,
 	v4l2_std_id *p = arg;
 
 	/*
-	 * If nothing detected, it should return all supported
-	 * standard.
-	 * Drivers just need to mask the std argument, in order
-	 * to remove the standards that don't apply from the mask.
+	 * If no signal is detected, then the driver should return
+	 * V4L2_STD_UNKNOWN. Otherwise it should return tvnorms with
+	 * any standards that do not apply removed.
+	 *
 	 * This means that tuners, audio and video decoders can join
 	 * their efforts to improve the standards detection.
 	 */
@@ -1495,7 +1458,6 @@ static int v4l_prepare_buf(const struct v4l2_ioctl_ops *ops,
 static int v4l_g_parm(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
-	struct video_device *vfd = video_devdata(file);
 	struct v4l2_streamparm *p = arg;
 	v4l2_std_id std;
 	int ret = check_fmt(file, p->type);
@@ -1504,16 +1466,13 @@ static int v4l_g_parm(const struct v4l2_ioctl_ops *ops,
 		return ret;
 	if (ops->vidioc_g_parm)
 		return ops->vidioc_g_parm(file, fh, p);
-	std = vfd->current_norm;
 	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
 	    p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		return -EINVAL;
 	p->parm.capture.readbuffers = 2;
-	if (is_valid_ioctl(vfd, VIDIOC_G_STD) && ops->vidioc_g_std)
-		ret = ops->vidioc_g_std(file, fh, &std);
+	ret = ops->vidioc_g_std(file, fh, &std);
 	if (ret == 0)
-		v4l2_video_std_frame_period(std,
-			    &p->parm.capture.timeperframe);
+		v4l2_video_std_frame_period(std, &p->parm.capture.timeperframe);
 	return ret;
 }
 
@@ -1802,7 +1761,8 @@ static int v4l_dbg_g_register(const struct v4l2_ioctl_ops *ops,
 				return v4l2_subdev_call(sd, core, g_register, p);
 		return -EINVAL;
 	}
-	if (ops->vidioc_g_register)
+	if (ops->vidioc_g_register && p->match.type == V4L2_CHIP_MATCH_BRIDGE &&
+	    (ops->vidioc_g_chip_info || p->match.addr == 0))
 		return ops->vidioc_g_register(file, fh, p);
 	return -EINVAL;
 #else
@@ -1829,24 +1789,13 @@ static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 				return v4l2_subdev_call(sd, core, s_register, p);
 		return -EINVAL;
 	}
-	if (ops->vidioc_s_register)
+	if (ops->vidioc_s_register && p->match.type == V4L2_CHIP_MATCH_BRIDGE &&
+	    (ops->vidioc_g_chip_info || p->match.addr == 0))
 		return ops->vidioc_s_register(file, fh, p);
 	return -EINVAL;
 #else
 	return -ENOTTY;
 #endif
-}
-
-static int v4l_dbg_g_chip_ident(const struct v4l2_ioctl_ops *ops,
-				struct file *file, void *fh, void *arg)
-{
-	struct v4l2_dbg_chip_ident *p = arg;
-
-	p->ident = V4L2_IDENT_NONE;
-	p->revision = 0;
-	if (p->match.type == V4L2_CHIP_MATCH_SUBDEV)
-		return -EINVAL;
-	return ops->vidioc_g_chip_ident(file, fh, p);
 }
 
 static int v4l_dbg_g_chip_info(const struct v4l2_ioctl_ops *ops,
@@ -1864,12 +1813,7 @@ static int v4l_dbg_g_chip_info(const struct v4l2_ioctl_ops *ops,
 			p->flags |= V4L2_CHIP_FL_WRITABLE;
 		if (ops->vidioc_g_register)
 			p->flags |= V4L2_CHIP_FL_READABLE;
-		if (vfd->v4l2_dev)
-			strlcpy(p->name, vfd->v4l2_dev->name, sizeof(p->name));
-		else if (vfd->parent)
-			strlcpy(p->name, vfd->parent->driver->name, sizeof(p->name));
-		else
-			strlcpy(p->name, "bridge", sizeof(p->name));
+		strlcpy(p->name, vfd->v4l2_dev->name, sizeof(p->name));
 		if (ops->vidioc_g_chip_info)
 			return ops->vidioc_g_chip_info(file, fh, arg);
 		if (p->match.addr)
@@ -2048,7 +1992,7 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_STREAMOFF, v4l_streamoff, v4l_print_buftype, INFO_FL_PRIO | INFO_FL_QUEUE),
 	IOCTL_INFO_FNC(VIDIOC_G_PARM, v4l_g_parm, v4l_print_streamparm, INFO_FL_CLEAR(v4l2_streamparm, type)),
 	IOCTL_INFO_FNC(VIDIOC_S_PARM, v4l_s_parm, v4l_print_streamparm, INFO_FL_PRIO),
-	IOCTL_INFO_FNC(VIDIOC_G_STD, v4l_g_std, v4l_print_std, 0),
+	IOCTL_INFO_STD(VIDIOC_G_STD, vidioc_g_std, v4l_print_std, 0),
 	IOCTL_INFO_FNC(VIDIOC_S_STD, v4l_s_std, v4l_print_std, INFO_FL_PRIO),
 	IOCTL_INFO_FNC(VIDIOC_ENUMSTD, v4l_enumstd, v4l_print_standard, INFO_FL_CLEAR(v4l2_standard, index)),
 	IOCTL_INFO_FNC(VIDIOC_ENUMINPUT, v4l_enuminput, v4l_print_enuminput, INFO_FL_CLEAR(v4l2_input, index)),
@@ -2098,7 +2042,6 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_STD(VIDIOC_TRY_DECODER_CMD, vidioc_try_decoder_cmd, v4l_print_decoder_cmd, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_S_REGISTER, v4l_dbg_s_register, v4l_print_dbg_register, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_G_REGISTER, v4l_dbg_g_register, v4l_print_dbg_register, 0),
-	IOCTL_INFO_FNC(VIDIOC_DBG_G_CHIP_IDENT, v4l_dbg_g_chip_ident, v4l_print_dbg_chip_ident, 0),
 	IOCTL_INFO_FNC(VIDIOC_S_HW_FREQ_SEEK, v4l_s_hw_freq_seek, v4l_print_hw_freq_seek, INFO_FL_PRIO),
 	IOCTL_INFO_STD(VIDIOC_S_DV_TIMINGS, vidioc_s_dv_timings, v4l_print_dv_timings, INFO_FL_PRIO),
 	IOCTL_INFO_STD(VIDIOC_G_DV_TIMINGS, vidioc_g_dv_timings, v4l_print_dv_timings, 0),

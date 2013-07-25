@@ -272,8 +272,8 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 	codec->debugfs_codec_root = debugfs_create_dir(codec->name,
 						       debugfs_card_root);
 	if (!codec->debugfs_codec_root) {
-		dev_warn(codec->dev, "ASoC: Failed to create codec debugfs"
-			" directory\n");
+		dev_warn(codec->dev,
+			"ASoC: Failed to create codec debugfs directory\n");
 		return;
 	}
 
@@ -286,8 +286,8 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 						 codec->debugfs_codec_root,
 						 codec, &codec_reg_fops);
 	if (!codec->debugfs_reg)
-		dev_warn(codec->dev, "ASoC: Failed to create codec register"
-			" debugfs file\n");
+		dev_warn(codec->dev,
+			"ASoC: Failed to create codec register debugfs file\n");
 
 	snd_soc_dapm_debugfs_init(&codec->dapm, codec->debugfs_codec_root);
 }
@@ -631,8 +631,7 @@ int snd_soc_suspend(struct device *dev)
 				 */
 				if (codec->dapm.idle_bias_off) {
 					dev_dbg(codec->dev,
-						"ASoC: idle_bias_off CODEC on"
-						" over suspend\n");
+						"ASoC: idle_bias_off CODEC on over suspend\n");
 					break;
 				}
 			case SND_SOC_BIAS_OFF:
@@ -643,8 +642,8 @@ int snd_soc_suspend(struct device *dev)
 					regcache_mark_dirty(codec->control_data);
 				break;
 			default:
-				dev_dbg(codec->dev, "ASoC: CODEC is on"
-					" over suspend\n");
+				dev_dbg(codec->dev,
+					"ASoC: CODEC is on over suspend\n");
 				break;
 			}
 		}
@@ -713,8 +712,8 @@ static void soc_resume_deferred(struct work_struct *work)
 				codec->suspended = 0;
 				break;
 			default:
-				dev_dbg(codec->dev, "ASoC: CODEC was on over"
-					" suspend\n");
+				dev_dbg(codec->dev,
+					"ASoC: CODEC was on over suspend\n");
 				break;
 			}
 		}
@@ -1110,8 +1109,8 @@ static int soc_probe_codec(struct snd_soc_card *card,
 		}
 		WARN(codec->dapm.idle_bias_off &&
 			codec->dapm.bias_level != SND_SOC_BIAS_OFF,
-			"codec %s can not start from non-off bias"
-			" with idle_bias_off==1\n", codec->name);
+			"codec %s can not start from non-off bias with idle_bias_off==1\n",
+			codec->name);
 	}
 
 	/* If the driver didn't set I/O up try regmap */
@@ -1582,8 +1581,9 @@ static int snd_soc_init_codec_cache(struct snd_soc_codec *codec,
 		codec->compress_type = compress_type;
 	ret = snd_soc_cache_init(codec);
 	if (ret < 0) {
-		dev_err(codec->dev, "ASoC: Failed to set cache compression"
-			" type: %d\n", ret);
+		dev_err(codec->dev,
+			"ASoC: Failed to set cache compression type: %d\n",
+			ret);
 		return ret;
 	}
 	codec->cache_init = 1;
@@ -1639,8 +1639,9 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	ret = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			card->owner, 0, &card->snd_card);
 	if (ret < 0) {
-		dev_err(card->dev, "ASoC: can't create sound card for"
-			" card %s: %d\n", card->name, ret);
+		dev_err(card->dev,
+			"ASoC: can't create sound card for card %s: %d\n",
+			card->name, ret);
 		goto base_error;
 	}
 	card->snd_card->dev = card->dev;
@@ -1815,8 +1816,8 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	for (i = 0; i < card->num_rtd; i++) {
 		ret = soc_register_ac97_dai_link(&card->rtd[i]);
 		if (ret < 0) {
-			dev_err(card->dev, "ASoC: failed to register AC97:"
-				" %d\n", ret);
+			dev_err(card->dev,
+				"ASoC: failed to register AC97: %d\n", ret);
 			while (--i >= 0)
 				soc_unregister_ac97_dai_link(card->rtd[i].codec);
 			goto probe_aux_dev_err;
@@ -2079,6 +2080,23 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_soc_new_ac97_codec);
 
+struct snd_ac97_bus_ops *soc_ac97_ops;
+EXPORT_SYMBOL_GPL(soc_ac97_ops);
+
+int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops)
+{
+	if (ops == soc_ac97_ops)
+		return 0;
+
+	if (soc_ac97_ops && ops)
+		return -EBUSY;
+
+	soc_ac97_ops = ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_set_ac97_ops);
+
 /**
  * snd_soc_free_ac97_codec - free AC97 codec device
  * @codec: audio codec
@@ -2219,29 +2237,6 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
 EXPORT_SYMBOL_GPL(snd_soc_test_bits);
 
 /**
- * snd_soc_set_runtime_hwparams - set the runtime hardware parameters
- * @substream: the pcm substream
- * @hw: the hardware parameters
- *
- * Sets the substream runtime hardware parameters.
- */
-int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
-	const struct snd_pcm_hardware *hw)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	runtime->hw.info = hw->info;
-	runtime->hw.formats = hw->formats;
-	runtime->hw.period_bytes_min = hw->period_bytes_min;
-	runtime->hw.period_bytes_max = hw->period_bytes_max;
-	runtime->hw.periods_min = hw->periods_min;
-	runtime->hw.periods_max = hw->periods_max;
-	runtime->hw.buffer_bytes_max = hw->buffer_bytes_max;
-	runtime->hw.fifo_size = hw->fifo_size;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_set_runtime_hwparams);
-
-/**
  * snd_soc_cnew - create new control
  * @_template: control template
  * @data: control private data
@@ -2259,7 +2254,6 @@ struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 	struct snd_kcontrol_new template;
 	struct snd_kcontrol *kcontrol;
 	char *name = NULL;
-	int name_len;
 
 	memcpy(&template, _template, sizeof(template));
 	template.index = 0;
@@ -2268,12 +2262,9 @@ struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 		long_name = template.name;
 
 	if (prefix) {
-		name_len = strlen(long_name) + strlen(prefix) + 2;
-		name = kmalloc(name_len, GFP_KERNEL);
+		name = kasprintf(GFP_KERNEL, "%s %s", prefix, long_name);
 		if (!name)
 			return NULL;
-
-		snprintf(name, name_len, "%s %s", prefix, long_name);
 
 		template.name = name;
 	} else {
@@ -3586,14 +3577,16 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 * not both or neither.
 		 */
 		if (!!link->codec_name == !!link->codec_of_node) {
-			dev_err(card->dev, "ASoC: Neither/both codec"
-				" name/of_node are set for %s\n", link->name);
+			dev_err(card->dev,
+				"ASoC: Neither/both codec name/of_node are set for %s\n",
+				link->name);
 			return -EINVAL;
 		}
 		/* Codec DAI name must be specified */
 		if (!link->codec_dai_name) {
-			dev_err(card->dev, "ASoC: codec_dai_name not"
-				" set for %s\n", link->name);
+			dev_err(card->dev,
+				"ASoC: codec_dai_name not set for %s\n",
+				link->name);
 			return -EINVAL;
 		}
 
@@ -3602,8 +3595,9 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 * can be left unspecified, and a dummy platform will be used.
 		 */
 		if (link->platform_name && link->platform_of_node) {
-			dev_err(card->dev, "ASoC: Both platform name/of_node"
-				" are set for %s\n", link->name);
+			dev_err(card->dev,
+				"ASoC: Both platform name/of_node are set for %s\n",
+				link->name);
 			return -EINVAL;
 		}
 
@@ -3613,8 +3607,9 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 * name alone..
 		 */
 		if (link->cpu_name && link->cpu_of_node) {
-			dev_err(card->dev, "ASoC: Neither/both "
-				"cpu name/of_node are set for %s\n",link->name);
+			dev_err(card->dev,
+				"ASoC: Neither/both cpu name/of_node are set for %s\n",
+				link->name);
 			return -EINVAL;
 		}
 		/*
@@ -3623,8 +3618,9 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 */
 		if (!link->cpu_dai_name &&
 		    !(link->cpu_name || link->cpu_of_node)) {
-			dev_err(card->dev, "ASoC: Neither cpu_dai_name nor "
-				"cpu_name/of_node are set for %s\n", link->name);
+			dev_err(card->dev,
+				"ASoC: Neither cpu_dai_name nor cpu_name/of_node are set for %s\n",
+				link->name);
 			return -EINVAL;
 		}
 	}
@@ -3728,8 +3724,9 @@ static inline char *fmt_multiple_name(struct device *dev,
 		struct snd_soc_dai_driver *dai_drv)
 {
 	if (dai_drv->name == NULL) {
-		dev_err(dev, "ASoC: error - multiple DAI %s registered with"
-				" no name\n", dev_name(dev));
+		dev_err(dev,
+			"ASoC: error - multiple DAI %s registered with no name\n",
+			dev_name(dev));
 		return NULL;
 	}
 
@@ -3859,8 +3856,9 @@ static int snd_soc_register_dais(struct device *dev,
 
 		list_for_each_entry(codec, &codec_list, list) {
 			if (codec->dev == dev) {
-				dev_dbg(dev, "ASoC: Mapped DAI %s to "
-					"CODEC %s\n", dai->name, codec->name);
+				dev_dbg(dev,
+					"ASoC: Mapped DAI %s to CODEC %s\n",
+					dai->name, codec->name);
 				dai->codec = codec;
 				break;
 			}
@@ -4296,8 +4294,9 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 
 	num_routes = of_property_count_strings(np, propname);
 	if (num_routes < 0 || num_routes & 1) {
-		dev_err(card->dev, "ASoC: Property '%s' does not exist or its"
-			" length is not even\n", propname);
+		dev_err(card->dev,
+			"ASoC: Property '%s' does not exist or its length is not even\n",
+			propname);
 		return -EINVAL;
 	}
 	num_routes /= 2;

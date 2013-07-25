@@ -881,7 +881,8 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 
 	if (!upriv->udev) {
 		dbg("Device disconnected");
-		return -ENODEV;
+		retval = -ENODEV;
+		goto exit;
 	}
 
 	if (upriv->read_urb->status != -EINPROGRESS)

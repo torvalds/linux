@@ -91,7 +91,6 @@ static int snd_cs5530_dev_free(struct snd_device *device)
 static void snd_cs5530_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static u8 snd_cs5530_mixer_read(unsigned long io, u8 reg)

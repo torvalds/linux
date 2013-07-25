@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 
 #define TW2804_REG_AUTOGAIN		0x02
@@ -368,8 +367,7 @@ static int tw2804_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	state = kzalloc(sizeof(struct tw2804), GFP_KERNEL);
-
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 	sd = &state->sd;
@@ -410,7 +408,6 @@ static int tw2804_probe(struct i2c_client *client,
 	err = state->hdl.error;
 	if (err) {
 		v4l2_ctrl_handler_free(&state->hdl);
-		kfree(state);
 		return err;
 	}
 
@@ -427,7 +424,6 @@ static int tw2804_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-	kfree(state);
 	return 0;
 }
 

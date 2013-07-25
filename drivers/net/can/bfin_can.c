@@ -580,7 +580,7 @@ static int bfin_can_probe(struct platform_device *pdev)
 	priv->pin_list = pdata;
 	priv->can.clock.freq = get_sclk();
 
-	dev_set_drvdata(&pdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	dev->flags |= IFF_ECHO;	/* we support local echo */
@@ -613,15 +613,13 @@ exit:
 
 static int bfin_can_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(&pdev->dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct bfin_can_priv *priv = netdev_priv(dev);
 	struct resource *res;
 
 	bfin_can_set_reset_mode(dev);
 
 	unregister_candev(dev);
-
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
@@ -635,7 +633,7 @@ static int bfin_can_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_can_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
-	struct net_device *dev = dev_get_drvdata(&pdev->dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct bfin_can_priv *priv = netdev_priv(dev);
 	struct bfin_can_regs __iomem *reg = priv->membase;
 	int timeout = BFIN_CAN_TIMEOUT;
@@ -658,7 +656,7 @@ static int bfin_can_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 static int bfin_can_resume(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(&pdev->dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct bfin_can_priv *priv = netdev_priv(dev);
 	struct bfin_can_regs __iomem *reg = priv->membase;
 

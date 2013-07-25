@@ -169,7 +169,7 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 	unsigned int error_addr_high, error_addr_low;
 	unsigned long long error_addr;
 	u32 error_attrib;
-	struct vme_bus_error *error;
+	struct vme_bus_error *error = NULL;
 	struct tsi148_driver *bridge;
 
 	bridge = tsi148_bridge->driver_priv;
@@ -186,16 +186,22 @@ static u32 tsi148_VERR_irqhandler(struct vme_bridge *tsi148_bridge)
 			"Occurred\n");
 	}
 
-	error = kmalloc(sizeof(struct vme_bus_error), GFP_ATOMIC);
-	if (error) {
-		error->address = error_addr;
-		error->attributes = error_attrib;
-		list_add_tail(&error->list, &tsi148_bridge->vme_errors);
-	} else {
-		dev_err(tsi148_bridge->parent, "Unable to alloc memory for "
-			"VMEbus Error reporting\n");
-		dev_err(tsi148_bridge->parent, "VME Bus Error at address: "
-			"0x%llx, attributes: %08x\n", error_addr, error_attrib);
+	if (err_chk) {
+		error = kmalloc(sizeof(struct vme_bus_error), GFP_ATOMIC);
+		if (error) {
+			error->address = error_addr;
+			error->attributes = error_attrib;
+			list_add_tail(&error->list, &tsi148_bridge->vme_errors);
+		} else {
+			dev_err(tsi148_bridge->parent,
+				"Unable to alloc memory for VMEbus Error reporting\n");
+		}
+	}
+
+	if (!error) {
+		dev_err(tsi148_bridge->parent,
+			"VME Bus Error at address: 0x%llx, attributes: %08x\n",
+			error_addr, error_attrib);
 	}
 
 	/* Clear Status */
@@ -2294,12 +2300,13 @@ static int tsi148_crcsr_init(struct vme_bridge *tsi148_bridge,
 	dev_info(tsi148_bridge->parent, "CR/CSR Offset: %d\n", cbar);
 
 	crat = ioread32be(bridge->base + TSI148_LCSR_CRAT);
-	if (crat & TSI148_LCSR_CRAT_EN) {
+	if (crat & TSI148_LCSR_CRAT_EN)
+		dev_info(tsi148_bridge->parent, "CR/CSR already enabled\n");
+	else {
 		dev_info(tsi148_bridge->parent, "Enabling CR/CSR space\n");
 		iowrite32be(crat | TSI148_LCSR_CRAT_EN,
 			bridge->base + TSI148_LCSR_CRAT);
-	} else
-		dev_info(tsi148_bridge->parent, "CR/CSR already enabled\n");
+	}
 
 	/* If we want flushed, error-checked writes, set up a window
 	 * over the CR/CSR registers. We read from here to safely flush
@@ -2441,13 +2448,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		spin_lock_init(&tsi148_device->flush_image->lock);
 		tsi148_device->flush_image->locked = 1;
 		tsi148_device->flush_image->number = master_num;
-		tsi148_device->flush_image->address_attr = VME_A16 | VME_A24 |
-			VME_A32 | VME_A64;
-		tsi148_device->flush_image->cycle_attr = VME_SCT | VME_BLT |
-			VME_MBLT | VME_2eVME | VME_2eSST | VME_2eSSTB |
-			VME_2eSST160 | VME_2eSST267 | VME_2eSST320 | VME_SUPER |
-			VME_USER | VME_PROG | VME_DATA;
-		tsi148_device->flush_image->width_attr = VME_D16 | VME_D32;
 		memset(&tsi148_device->flush_image->bus_resource, 0,
 			sizeof(struct resource));
 		tsi148_device->flush_image->kern_base  = NULL;
@@ -2582,7 +2582,8 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "VME Write and flush and error check is %s\n",
 		err_chk ? "enabled" : "disabled");
 
-	if (tsi148_crcsr_init(tsi148_bridge, pdev)) {
+	retval = tsi148_crcsr_init(tsi148_bridge, pdev);
+	if (retval) {
 		dev_err(&pdev->dev, "CR/CSR configuration failed.\n");
 		goto err_crcsr;
 	}

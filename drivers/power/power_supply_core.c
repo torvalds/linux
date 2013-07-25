@@ -109,8 +109,10 @@ static int __power_supply_populate_supplied_from(struct device *dev,
 				psy->name, epsy->name);
 			psy->supplied_from[i-1] = (char *)epsy->name;
 			psy->num_supplies++;
+			of_node_put(np);
 			break;
 		}
+		of_node_put(np);
 	} while (np);
 
 	return 0;
@@ -193,8 +195,10 @@ static int power_supply_check_supplies(struct power_supply *psy)
 		ret = power_supply_find_supply_from_node(np);
 		if (ret) {
 			dev_dbg(psy->dev, "Failed to find supply, defer!\n");
+			of_node_put(np);
 			return -EPROBE_DEFER;
 		}
+		of_node_put(np);
 	} while (np);
 
 	/* All supplies found, allocate char ** array for filling */

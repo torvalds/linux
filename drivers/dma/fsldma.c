@@ -1368,7 +1368,7 @@ static int fsldma_of_probe(struct platform_device *op)
 
 	dma_set_mask(&(op->dev), DMA_BIT_MASK(36));
 
-	dev_set_drvdata(&op->dev, fdev);
+	platform_set_drvdata(op, fdev);
 
 	/*
 	 * We cannot use of_platform_bus_probe() because there is no
@@ -1417,7 +1417,7 @@ static int fsldma_of_remove(struct platform_device *op)
 	struct fsldma_device *fdev;
 	unsigned int i;
 
-	fdev = dev_get_drvdata(&op->dev);
+	fdev = platform_get_drvdata(op);
 	dma_async_device_unregister(&fdev->common);
 
 	fsldma_free_irqs(fdev);
@@ -1428,7 +1428,6 @@ static int fsldma_of_remove(struct platform_device *op)
 	}
 
 	iounmap(fdev->regs);
-	dev_set_drvdata(&op->dev, NULL);
 	kfree(fdev);
 
 	return 0;

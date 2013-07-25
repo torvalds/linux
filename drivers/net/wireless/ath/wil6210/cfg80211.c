@@ -322,12 +322,16 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	 * FW don't support scan after connection attempt
 	 */
 	set_bit(wil_status_dontscan, &wil->status);
+	set_bit(wil_status_fwconnecting, &wil->status);
 
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, &conn, sizeof(conn));
 	if (rc == 0) {
 		/* Connect can take lots of time */
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));
+	} else {
+		clear_bit(wil_status_dontscan, &wil->status);
+		clear_bit(wil_status_fwconnecting, &wil->status);
 	}
 
  out:
@@ -398,6 +402,30 @@ static int wil_cfg80211_set_default_key(struct wiphy *wiphy,
 	return 0;
 }
 
+static int wil_fix_bcon(struct wil6210_priv *wil,
+			struct cfg80211_beacon_data *bcon)
+{
+	struct ieee80211_mgmt *f = (struct ieee80211_mgmt *)bcon->probe_resp;
+	size_t hlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+	int rc = 0;
+
+	if (bcon->probe_resp_len <= hlen)
+		return 0;
+
+	if (!bcon->proberesp_ies) {
+		bcon->proberesp_ies = f->u.probe_resp.variable;
+		bcon->proberesp_ies_len = bcon->probe_resp_len - hlen;
+		rc = 1;
+	}
+	if (!bcon->assocresp_ies) {
+		bcon->assocresp_ies = f->u.probe_resp.variable;
+		bcon->assocresp_ies_len = bcon->probe_resp_len - hlen;
+		rc = 1;
+	}
+
+	return rc;
+}
+
 static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 				 struct net_device *ndev,
 				 struct cfg80211_ap_settings *info)
@@ -419,7 +447,15 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
 			     info->ssid, info->ssid_len);
 
+	if (wil_fix_bcon(wil, bcon))
+		wil_dbg_misc(wil, "Fixed bcon\n");
+
 	rc = wil_reset(wil);
+	if (rc)
+		return rc;
+
+	/* Rx VRING. */
+	rc = wil_rx_init(wil);
 	if (rc)
 		return rc;
 
@@ -451,8 +487,6 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (rc)
 		return rc;
 
-	/* Rx VRING. After MAC and beacon */
-	rc = wil_rx_init(wil);
 
 	netif_carrier_on(ndev);
 

@@ -40,7 +40,6 @@ unsigned long mmu_context_cache_dat;
 #else
 unsigned long mmu_context_cache_dat[NR_CPUS];
 #endif
-static unsigned long hole_pages;
 
 /*
  * function prototype
@@ -57,7 +56,7 @@ void free_initrd_mem(unsigned long, unsigned long);
 #define MAX_LOW_PFN(nid)	(NODE_DATA(nid)->bdata->node_low_pfn)
 
 #ifndef CONFIG_DISCONTIGMEM
-unsigned long __init zone_sizes_init(void)
+void __init zone_sizes_init(void)
 {
 	unsigned long  zones_size[MAX_NR_ZONES] = {0, };
 	unsigned long  max_dma;
@@ -83,11 +82,9 @@ unsigned long __init zone_sizes_init(void)
 #endif /* CONFIG_MMU */
 
 	free_area_init_node(0, zones_size, start_pfn, 0);
-
-	return 0;
 }
 #else	/* CONFIG_DISCONTIGMEM */
-extern unsigned long zone_sizes_init(void);
+extern void zone_sizes_init(void);
 #endif	/* CONFIG_DISCONTIGMEM */
 
 /*======================================================================*
@@ -105,24 +102,7 @@ void __init paging_init(void)
 	for (i = 0 ; i < USER_PTRS_PER_PGD * 2 ; i++)
 		pgd_val(pg_dir[i]) = 0;
 #endif /* CONFIG_MMU */
-	hole_pages = zone_sizes_init();
-}
-
-int __init reservedpages_count(void)
-{
-	int reservedpages, nid, i;
-
-	reservedpages = 0;
-	for_each_online_node(nid) {
-		unsigned long flags;
-		pgdat_resize_lock(NODE_DATA(nid), &flags);
-		for (i = 0 ; i < MAX_LOW_PFN(nid) - START_PFN(nid) ; i++)
-			if (PageReserved(nid_page_nr(nid, i)))
-				reservedpages++;
-		pgdat_resize_unlock(NODE_DATA(nid), &flags);
-	}
-
-	return reservedpages;
+	zone_sizes_init();
 }
 
 /*======================================================================*
@@ -131,48 +111,20 @@ int __init reservedpages_count(void)
  *======================================================================*/
 void __init mem_init(void)
 {
-	int codesize, reservedpages, datasize, initsize;
-	int nid;
 #ifndef CONFIG_MMU
 	extern unsigned long memory_end;
-#endif
 
-	num_physpages = 0;
-	for_each_online_node(nid)
-		num_physpages += MAX_LOW_PFN(nid) - START_PFN(nid) + 1;
-
-	num_physpages -= hole_pages;
-
-#ifndef CONFIG_DISCONTIGMEM
-	max_mapnr = num_physpages;
-#endif	/* CONFIG_DISCONTIGMEM */
-
-#ifdef CONFIG_MMU
-	high_memory = (void *)__va(PFN_PHYS(MAX_LOW_PFN(0)));
-#else
 	high_memory = (void *)(memory_end & PAGE_MASK);
+#else
+	high_memory = (void *)__va(PFN_PHYS(MAX_LOW_PFN(0)));
 #endif /* CONFIG_MMU */
 
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
 
-	/* this will put all low memory onto the freelists */
-	for_each_online_node(nid)
-		totalram_pages += free_all_bootmem_node(NODE_DATA(nid));
-
-	reservedpages = reservedpages_count() - hole_pages;
-	codesize = (unsigned long) &_etext - (unsigned long)&_text;
-	datasize = (unsigned long) &_edata - (unsigned long)&_etext;
-	initsize = (unsigned long) &__init_end - (unsigned long)&__init_begin;
-
-	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
-		"%dk reserved, %dk data, %dk init)\n",
-		nr_free_pages() << (PAGE_SHIFT-10),
-		num_physpages << (PAGE_SHIFT-10),
-		codesize >> 10,
-		reservedpages << (PAGE_SHIFT-10),
-		datasize >> 10,
-		initsize >> 10);
+	set_max_mapnr(get_num_physpages());
+	free_all_bootmem();
+	mem_init_print_info(NULL);
 }
 
 /*======================================================================*
@@ -181,7 +133,7 @@ void __init mem_init(void)
  *======================================================================*/
 void free_initmem(void)
 {
-	free_initmem_default(0);
+	free_initmem_default(-1);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -191,6 +143,6 @@ void free_initmem(void)
  *======================================================================*/
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	free_reserved_area(start, end, 0, "initrd");
+	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 }
 #endif

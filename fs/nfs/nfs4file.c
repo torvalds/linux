@@ -69,7 +69,6 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 			goto out_drop;
 		}
 	}
-	iput(inode);
 	if (inode != dentry->d_inode)
 		goto out_drop;
 

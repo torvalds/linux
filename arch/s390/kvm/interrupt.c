@@ -438,7 +438,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 no_timer:
 	spin_lock(&vcpu->arch.local_int.float_int->lock);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
-	add_wait_queue(&vcpu->arch.local_int.wq, &wait);
+	add_wait_queue(&vcpu->wq, &wait);
 	while (list_empty(&vcpu->arch.local_int.list) &&
 		list_empty(&vcpu->arch.local_int.float_int->list) &&
 		(!vcpu->arch.local_int.timer_due) &&
@@ -452,7 +452,7 @@ no_timer:
 	}
 	__unset_cpu_idle(vcpu);
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&vcpu->arch.local_int.wq, &wait);
+	remove_wait_queue(&vcpu->wq, &wait);
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
 	spin_unlock(&vcpu->arch.local_int.float_int->lock);
 	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
@@ -465,8 +465,8 @@ void kvm_s390_tasklet(unsigned long parm)
 
 	spin_lock(&vcpu->arch.local_int.lock);
 	vcpu->arch.local_int.timer_due = 1;
-	if (waitqueue_active(&vcpu->arch.local_int.wq))
-		wake_up_interruptible(&vcpu->arch.local_int.wq);
+	if (waitqueue_active(&vcpu->wq))
+		wake_up_interruptible(&vcpu->wq);
 	spin_unlock(&vcpu->arch.local_int.lock);
 }
 
@@ -613,7 +613,7 @@ int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code)
 	spin_lock_bh(&li->lock);
 	list_add(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
-	BUG_ON(waitqueue_active(&li->wq));
+	BUG_ON(waitqueue_active(li->wq));
 	spin_unlock_bh(&li->lock);
 	return 0;
 }
@@ -746,8 +746,8 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	li = fi->local_int[sigcpu];
 	spin_lock_bh(&li->lock);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&li->wq);
+	if (waitqueue_active(li->wq))
+		wake_up_interruptible(li->wq);
 	spin_unlock_bh(&li->lock);
 	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
@@ -832,8 +832,8 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 	if (inti->type == KVM_S390_SIGP_STOP)
 		li->action_bits |= ACTION_STOP_ON_STOP;
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
-	if (waitqueue_active(&li->wq))
-		wake_up_interruptible(&vcpu->arch.local_int.wq);
+	if (waitqueue_active(&vcpu->wq))
+		wake_up_interruptible(&vcpu->wq);
 	spin_unlock_bh(&li->lock);
 	mutex_unlock(&vcpu->kvm->lock);
 	return 0;

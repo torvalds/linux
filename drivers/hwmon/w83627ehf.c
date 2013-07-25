@@ -2598,7 +2598,6 @@ static int w83627ehf_probe(struct platform_device *pdev)
 exit_remove:
 	w83627ehf_device_remove_files(dev);
 exit_release:
-	platform_set_drvdata(pdev, NULL);
 	release_region(res->start, IOREGION_LENGTH);
 exit:
 	return err;
@@ -2611,7 +2610,6 @@ static int w83627ehf_remove(struct platform_device *pdev)
 	hwmon_device_unregister(data->hwmon_dev);
 	w83627ehf_device_remove_files(&pdev->dev);
 	release_region(data->addr, IOREGION_LENGTH);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

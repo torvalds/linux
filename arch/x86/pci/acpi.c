@@ -324,14 +324,11 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->start = start;
 	res->end = end;
 	info->res_offset[info->res_num] = addr.translation_offset;
+	info->res_num++;
 
-	if (!pci_use_crs) {
+	if (!pci_use_crs)
 		dev_printk(KERN_DEBUG, &info->bridge->dev,
 			   "host bridge window %pR (ignored)\n", res);
-		return AE_OK;
-	}
-
-	info->res_num++;
 
 	return AE_OK;
 }

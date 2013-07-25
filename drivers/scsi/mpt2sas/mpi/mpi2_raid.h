@@ -6,7 +6,7 @@
  *          Title:  MPI Integrated RAID messages and structures
  *  Creation Date:  April 26, 2007
  *
- *    mpi2_raid.h Version:  02.00.08
+ *    mpi2_raid.h Version:  02.00.09
  *
  *  Version History
  *  ---------------
@@ -27,6 +27,8 @@
  *                      related structures and defines.
  *                      Added product-specific range to RAID Action values.
  *  02-06-12  02.00.08  Added MPI2_RAID_ACTION_PHYSDISK_HIDDEN.
+ *  07-26-12  02.00.09  Added ElapsedSeconds field to MPI2_RAID_VOL_INDICATOR.
+ *                      Added MPI2_RAID_VOL_FLAGS_ELAPSED_SECONDS_VALID define.
  *  --------------------------------------------------------------------------
  */
 
@@ -276,10 +278,13 @@ typedef struct _MPI2_RAID_VOL_INDICATOR
     U64                     TotalBlocks;                    /* 0x00 */
     U64                     BlocksRemaining;                /* 0x08 */
     U32                     Flags;                          /* 0x10 */
+	U32                     ElapsedSeconds;                 /* 0x14 */
 } MPI2_RAID_VOL_INDICATOR, MPI2_POINTER PTR_MPI2_RAID_VOL_INDICATOR,
   Mpi2RaidVolIndicator_t, MPI2_POINTER pMpi2RaidVolIndicator_t;
 
 /* defines for RAID Volume Indicator Flags field */
+#define MPI2_RAID_VOL_FLAGS_ELAPSED_SECONDS_VALID   (0x80000000)
+
 #define MPI2_RAID_VOL_FLAGS_OP_MASK                 (0x0000000F)
 #define MPI2_RAID_VOL_FLAGS_OP_BACKGROUND_INIT      (0x00000000)
 #define MPI2_RAID_VOL_FLAGS_OP_ONLINE_CAP_EXPANSION (0x00000001)
@@ -320,7 +325,7 @@ MPI2_POINTER pMpi2RaidCompatibilityResultStruct_t;
 /* RAID Action Reply ActionData union */
 typedef union _MPI2_RAID_ACTION_REPLY_DATA
 {
-	U32                                     Word[5];
+	U32                                     Word[6];
 	MPI2_RAID_VOL_INDICATOR                 RaidVolumeIndicator;
 	U16                                     VolDevHandle;
 	U8                                      VolumeState;

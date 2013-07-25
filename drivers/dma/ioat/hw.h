@@ -100,33 +100,6 @@ struct ioat_dma_descriptor {
 	uint64_t	user2;
 };
 
-struct ioat_fill_descriptor {
-	uint32_t	size;
-	union {
-		uint32_t ctl;
-		struct {
-			unsigned int int_en:1;
-			unsigned int rsvd:1;
-			unsigned int dest_snoop_dis:1;
-			unsigned int compl_write:1;
-			unsigned int fence:1;
-			unsigned int rsvd2:2;
-			unsigned int dest_brk:1;
-			unsigned int bundle:1;
-			unsigned int rsvd4:15;
-			#define IOAT_OP_FILL 0x01
-			unsigned int op:8;
-		} ctl_f;
-	};
-	uint64_t	src_data;
-	uint64_t	dst_addr;
-	uint64_t	next;
-	uint64_t	rsv1;
-	uint64_t	next_dst_addr;
-	uint64_t	user1;
-	uint64_t	user2;
-};
-
 struct ioat_xor_descriptor {
 	uint32_t	size;
 	union {

@@ -45,67 +45,77 @@
 #include <trace/events/sched.h>
 
 int core_uses_pid;
-char core_pattern[CORENAME_MAX_SIZE] = "core";
 unsigned int core_pipe_limit;
+char core_pattern[CORENAME_MAX_SIZE] = "core";
+static int core_name_size = CORENAME_MAX_SIZE;
 
 struct core_name {
 	char *corename;
 	int used, size;
 };
-static atomic_t call_count = ATOMIC_INIT(1);
 
 /* The maximal length of core_pattern is also specified in sysctl.c */
 
-static int expand_corename(struct core_name *cn)
+static int expand_corename(struct core_name *cn, int size)
 {
-	char *old_corename = cn->corename;
+	char *corename = krealloc(cn->corename, size, GFP_KERNEL);
 
-	cn->size = CORENAME_MAX_SIZE * atomic_inc_return(&call_count);
-	cn->corename = krealloc(old_corename, cn->size, GFP_KERNEL);
-
-	if (!cn->corename) {
-		kfree(old_corename);
+	if (!corename)
 		return -ENOMEM;
+
+	if (size > core_name_size) /* racy but harmless */
+		core_name_size = size;
+
+	cn->size = ksize(corename);
+	cn->corename = corename;
+	return 0;
+}
+
+static int cn_vprintf(struct core_name *cn, const char *fmt, va_list arg)
+{
+	int free, need;
+
+again:
+	free = cn->size - cn->used;
+	need = vsnprintf(cn->corename + cn->used, free, fmt, arg);
+	if (need < free) {
+		cn->used += need;
+		return 0;
 	}
 
-	return 0;
+	if (!expand_corename(cn, cn->size + need - free + 1))
+		goto again;
+
+	return -ENOMEM;
 }
 
 static int cn_printf(struct core_name *cn, const char *fmt, ...)
 {
-	char *cur;
-	int need;
-	int ret;
 	va_list arg;
+	int ret;
 
 	va_start(arg, fmt);
-	need = vsnprintf(NULL, 0, fmt, arg);
+	ret = cn_vprintf(cn, fmt, arg);
 	va_end(arg);
 
-	if (likely(need < cn->size - cn->used - 1))
-		goto out_printf;
-
-	ret = expand_corename(cn);
-	if (ret)
-		goto expand_fail;
-
-out_printf:
-	cur = cn->corename + cn->used;
-	va_start(arg, fmt);
-	vsnprintf(cur, need + 1, fmt, arg);
-	va_end(arg);
-	cn->used += need;
-	return 0;
-
-expand_fail:
 	return ret;
 }
 
-static void cn_escape(char *str)
+static int cn_esc_printf(struct core_name *cn, const char *fmt, ...)
 {
-	for (; *str; str++)
-		if (*str == '/')
-			*str = '!';
+	int cur = cn->used;
+	va_list arg;
+	int ret;
+
+	va_start(arg, fmt);
+	ret = cn_vprintf(cn, fmt, arg);
+	va_end(arg);
+
+	for (; cur < cn->used; ++cur) {
+		if (cn->corename[cur] == '/')
+			cn->corename[cur] = '!';
+	}
+	return ret;
 }
 
 static int cn_print_exe_file(struct core_name *cn)
@@ -115,12 +125,8 @@ static int cn_print_exe_file(struct core_name *cn)
 	int ret;
 
 	exe_file = get_mm_exe_file(current->mm);
-	if (!exe_file) {
-		char *commstart = cn->corename + cn->used;
-		ret = cn_printf(cn, "%s (path unknown)", current->comm);
-		cn_escape(commstart);
-		return ret;
-	}
+	if (!exe_file)
+		return cn_esc_printf(cn, "%s (path unknown)", current->comm);
 
 	pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY);
 	if (!pathbuf) {
@@ -134,9 +140,7 @@ static int cn_print_exe_file(struct core_name *cn)
 		goto free_buf;
 	}
 
-	cn_escape(path);
-
-	ret = cn_printf(cn, "%s", path);
+	ret = cn_esc_printf(cn, "%s", path);
 
 free_buf:
 	kfree(pathbuf);
@@ -157,19 +161,19 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 	int pid_in_pattern = 0;
 	int err = 0;
 
-	cn->size = CORENAME_MAX_SIZE * atomic_read(&call_count);
-	cn->corename = kmalloc(cn->size, GFP_KERNEL);
 	cn->used = 0;
-
-	if (!cn->corename)
+	cn->corename = NULL;
+	if (expand_corename(cn, core_name_size))
 		return -ENOMEM;
+	cn->corename[0] = '\0';
+
+	if (ispipe)
+		++pat_ptr;
 
 	/* Repeat as long as we have more pattern to process and more output
 	   space */
 	while (*pat_ptr) {
 		if (*pat_ptr != '%') {
-			if (*pat_ptr == 0)
-				goto out;
 			err = cn_printf(cn, "%c", *pat_ptr++);
 		} else {
 			switch (*++pat_ptr) {
@@ -210,22 +214,16 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 				break;
 			}
 			/* hostname */
-			case 'h': {
-				char *namestart = cn->corename + cn->used;
+			case 'h':
 				down_read(&uts_sem);
-				err = cn_printf(cn, "%s",
+				err = cn_esc_printf(cn, "%s",
 					      utsname()->nodename);
 				up_read(&uts_sem);
-				cn_escape(namestart);
 				break;
-			}
 			/* executable */
-			case 'e': {
-				char *commstart = cn->corename + cn->used;
-				err = cn_printf(cn, "%s", current->comm);
-				cn_escape(commstart);
+			case 'e':
+				err = cn_esc_printf(cn, "%s", current->comm);
 				break;
-			}
 			case 'E':
 				err = cn_print_exe_file(cn);
 				break;
@@ -244,6 +242,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 			return err;
 	}
 
+out:
 	/* Backward compatibility with core_uses_pid:
 	 *
 	 * If core_pattern does not include a %p (as is the default)
@@ -254,7 +253,6 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm)
 		if (err)
 			return err;
 	}
-out:
 	return ispipe;
 }
 
@@ -549,7 +547,7 @@ void do_coredump(siginfo_t *siginfo)
 		if (ispipe < 0) {
 			printk(KERN_WARNING "format_corename failed\n");
 			printk(KERN_WARNING "Aborting core\n");
-			goto fail_corename;
+			goto fail_unlock;
 		}
 
 		if (cprm.limit == 1) {
@@ -584,7 +582,7 @@ void do_coredump(siginfo_t *siginfo)
 			goto fail_dropcount;
 		}
 
-		helper_argv = argv_split(GFP_KERNEL, cn.corename+1, NULL);
+		helper_argv = argv_split(GFP_KERNEL, cn.corename, NULL);
 		if (!helper_argv) {
 			printk(KERN_WARNING "%s failed to allocate memory\n",
 			       __func__);
@@ -601,7 +599,7 @@ void do_coredump(siginfo_t *siginfo)
 
 		argv_free(helper_argv);
 		if (retval) {
-			printk(KERN_INFO "Core dump to %s pipe failed\n",
+			printk(KERN_INFO "Core dump to |%s pipe failed\n",
 			       cn.corename);
 			goto close_fail;
 		}
@@ -669,7 +667,6 @@ fail_dropcount:
 		atomic_dec(&core_dump_count);
 fail_unlock:
 	kfree(cn.corename);
-fail_corename:
 	coredump_finish(mm, core_dumped);
 	revert_creds(old_cred);
 fail_creds:

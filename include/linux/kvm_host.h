@@ -125,6 +125,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_MCLOCK_INPROGRESS 19
 #define KVM_REQ_EPR_EXIT          20
 #define KVM_REQ_SCAN_IOAPIC       21
+#define KVM_REQ_GLOBAL_CLOCK_UPDATE 22
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
@@ -145,7 +146,8 @@ struct kvm_io_range {
 #define NR_IOBUS_DEVS 1000
 
 struct kvm_io_bus {
-	int                   dev_count;
+	int dev_count;
+	int ioeventfd_count;
 	struct kvm_io_range range[];
 };
 

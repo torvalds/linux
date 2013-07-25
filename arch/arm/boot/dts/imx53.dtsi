@@ -27,6 +27,9 @@
 		gpio4 = &gpio5;
 		gpio5 = &gpio6;
 		gpio6 = &gpio7;
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
 	};
 
 	tzic: tz-interrupt-controller@0fffc000 {
@@ -163,10 +166,27 @@
 				};
 			};
 
+			usbphy0: usbphy@0 {
+				compatible = "usb-nop-xceiv";
+				clocks = <&clks 124>;
+				clock-names = "main_clk";
+				status = "okay";
+			};
+
+			usbphy1: usbphy@1 {
+				compatible = "usb-nop-xceiv";
+				clocks = <&clks 125>;
+				clock-names = "main_clk";
+				status = "okay";
+			};
+
 			usbotg: usb@53f80000 {
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80000 0x0200>;
 				interrupts = <18>;
+				clocks = <&clks 108>;
+				fsl,usbmisc = <&usbmisc 0>;
+				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
@@ -174,6 +194,9 @@
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80200 0x0200>;
 				interrupts = <14>;
+				clocks = <&clks 108>;
+				fsl,usbmisc = <&usbmisc 1>;
+				fsl,usbphy = <&usbphy1>;
 				status = "disabled";
 			};
 
@@ -181,6 +204,8 @@
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80400 0x0200>;
 				interrupts = <16>;
+				clocks = <&clks 108>;
+				fsl,usbmisc = <&usbmisc 2>;
 				status = "disabled";
 			};
 
@@ -188,7 +213,16 @@
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80600 0x0200>;
 				interrupts = <17>;
+				clocks = <&clks 108>;
+				fsl,usbmisc = <&usbmisc 3>;
 				status = "disabled";
+			};
+
+			usbmisc: usbmisc@53f80800 {
+				#index-cells = <1>;
+				compatible = "fsl,imx53-usbmisc";
+				reg = <0x53f80800 0x200>;
+				clocks = <&clks 108>;
 			};
 
 			gpio1: gpio@53f84000 {
@@ -267,6 +301,24 @@
 							MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD  0x80000000
 						>;
 					};
+
+					pinctrl_audmux_2: audmuxgrp-2 {
+						fsl,pins = <
+							MX53_PAD_SD2_DATA3__AUDMUX_AUD4_TXC	0x80000000
+							MX53_PAD_SD2_DATA2__AUDMUX_AUD4_TXD	0x80000000
+							MX53_PAD_SD2_DATA1__AUDMUX_AUD4_TXFS	0x80000000
+							MX53_PAD_SD2_DATA0__AUDMUX_AUD4_RXD	0x80000000
+						>;
+					};
+
+					pinctrl_audmux_3: audmuxgrp-3 {
+						fsl,pins = <
+							MX53_PAD_CSI0_DAT4__AUDMUX_AUD3_TXC	0x80000000
+							MX53_PAD_CSI0_DAT5__AUDMUX_AUD3_TXD	0x80000000
+							MX53_PAD_CSI0_DAT6__AUDMUX_AUD3_TXFS	0x80000000
+							MX53_PAD_CSI0_DAT7__AUDMUX_AUD3_RXD	0x80000000
+						>;
+					};
 				};
 
 				fec {
@@ -282,6 +334,29 @@
 							MX53_PAD_FEC_TX_EN__FEC_TX_EN    0x80000000
 							MX53_PAD_FEC_TXD1__FEC_TDATA_1   0x80000000
 							MX53_PAD_FEC_TXD0__FEC_TDATA_0   0x80000000
+						>;
+					};
+
+					pinctrl_fec_2: fecgrp-2 {
+						fsl,pins = <
+							MX53_PAD_FEC_MDC__FEC_MDC	 0x80000000
+							MX53_PAD_FEC_MDIO__FEC_MDIO	 0x80000000
+							MX53_PAD_FEC_REF_CLK__FEC_TX_CLK 0x80000000
+							MX53_PAD_FEC_RX_ER__FEC_RX_ER    0x80000000
+							MX53_PAD_FEC_CRS_DV__FEC_RX_DV   0x80000000
+							MX53_PAD_FEC_RXD1__FEC_RDATA_1   0x80000000
+							MX53_PAD_FEC_RXD0__FEC_RDATA_0   0x80000000
+							MX53_PAD_FEC_TX_EN__FEC_TX_EN    0x80000000
+							MX53_PAD_FEC_TXD1__FEC_TDATA_1   0x80000000
+							MX53_PAD_FEC_TXD0__FEC_TDATA_0   0x80000000
+							MX53_PAD_KEY_ROW1__FEC_COL	 0x80000000
+							MX53_PAD_KEY_COL3__FEC_CRS	 0x80000000
+							MX53_PAD_KEY_COL2__FEC_RDATA_2	 0x80000000
+							MX53_PAD_KEY_COL0__FEC_RDATA_3	 0x80000000
+							MX53_PAD_KEY_COL1__FEC_RX_CLK	 0x80000000
+							MX53_PAD_KEY_ROW2__FEC_TDATA_2	 0x80000000
+							MX53_PAD_GPIO_19__FEC_TDATA_3	 0x80000000
+							MX53_PAD_KEY_ROW0__FEC_TX_ER	 0x80000000
 						>;
 					};
 				};
@@ -312,6 +387,22 @@
 							MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK   0x1d5
 						>;
 					};
+
+					pinctrl_csi_2: csigrp-2 {
+						fsl,pins = <
+							MX53_PAD_CSI0_VSYNC__IPU_CSI0_VSYNC	0x1d5
+							MX53_PAD_CSI0_MCLK__IPU_CSI0_HSYNC	0x1d5
+							MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK	0x1d5
+							MX53_PAD_CSI0_DAT19__IPU_CSI0_D_19	0x1d5
+							MX53_PAD_CSI0_DAT18__IPU_CSI0_D_18	0x1d5
+							MX53_PAD_CSI0_DAT17__IPU_CSI0_D_17	0x1d5
+							MX53_PAD_CSI0_DAT16__IPU_CSI0_D_16	0x1d5
+							MX53_PAD_CSI0_DAT15__IPU_CSI0_D_15	0x1d5
+							MX53_PAD_CSI0_DAT14__IPU_CSI0_D_14	0x1d5
+							MX53_PAD_CSI0_DAT13__IPU_CSI0_D_13	0x1d5
+							MX53_PAD_CSI0_DAT12__IPU_CSI0_D_12	0x1d5
+						>;
+					};
 				};
 
 				cspi {
@@ -322,6 +413,14 @@
 							MX53_PAD_SD1_CLK__CSPI_SCLK   0x1d5
 						>;
 					};
+
+					pinctrl_cspi_2: cspigrp-2 {
+						fsl,pins = <
+							MX53_PAD_EIM_D22__CSPI_MISO 0x1d5
+							MX53_PAD_EIM_D28__CSPI_MOSI 0x1d5
+							MX53_PAD_EIM_D21__CSPI_SCLK 0x1d5
+						>;
+					};
 				};
 
 				ecspi1 {
@@ -330,6 +429,27 @@
 							MX53_PAD_EIM_D16__ECSPI1_SCLK 0x80000000
 							MX53_PAD_EIM_D17__ECSPI1_MISO 0x80000000
 							MX53_PAD_EIM_D18__ECSPI1_MOSI 0x80000000
+						>;
+					};
+
+					pinctrl_ecspi1_2: ecspi1grp-2 {
+						fsl,pins = <
+							MX53_PAD_GPIO_19__ECSPI1_RDY	0x80000000
+							MX53_PAD_EIM_EB2__ECSPI1_SS0	0x80000000
+							MX53_PAD_EIM_D16__ECSPI1_SCLK	0x80000000
+							MX53_PAD_EIM_D17__ECSPI1_MISO	0x80000000
+							MX53_PAD_EIM_D18__ECSPI1_MOSI	0x80000000
+							MX53_PAD_EIM_D19__ECSPI1_SS1	0x80000000
+						>;
+					};
+				};
+
+				ecspi2 {
+					pinctrl_ecspi2_1: ecspi2grp-1 {
+						fsl,pins = <
+							MX53_PAD_EIM_OE__ECSPI2_MISO  0x80000000
+							MX53_PAD_EIM_CS1__ECSPI2_MOSI 0x80000000
+							MX53_PAD_EIM_CS0__ECSPI2_SCLK 0x80000000
 						>;
 					};
 				};
@@ -406,6 +526,13 @@
 							MX53_PAD_KEY_ROW2__CAN1_RXCAN 0x80000000
 						>;
 					};
+
+					pinctrl_can1_3: can1grp-3 {
+						fsl,pins = <
+							MX53_PAD_GPIO_7__CAN1_TXCAN	0x80000000
+							MX53_PAD_GPIO_8__CAN1_RXCAN	0x80000000
+						>;
+					};
 				};
 
 				can2 {
@@ -424,6 +551,13 @@
 							MX53_PAD_CSI0_DAT9__I2C1_SCL 0xc0000000
 						>;
 					};
+
+					pinctrl_i2c1_2: i2c1grp-2 {
+						fsl,pins = <
+							MX53_PAD_EIM_D21__I2C1_SCL	0xc0000000
+							MX53_PAD_EIM_D28__I2C1_SDA	0xc0000000
+						>;
+					};
 				};
 
 				i2c2 {
@@ -431,6 +565,13 @@
 						fsl,pins = <
 							MX53_PAD_KEY_ROW3__I2C2_SDA 0xc0000000
 							MX53_PAD_KEY_COL3__I2C2_SCL 0xc0000000
+						>;
+					};
+
+					pinctrl_i2c2_2: i2c2grp-2 {
+						fsl,pins = <
+							MX53_PAD_EIM_D16__I2C2_SDA	0xc0000000
+							MX53_PAD_EIM_EB2__I2C2_SCL	0xc0000000
 						>;
 					};
 				};
@@ -444,10 +585,139 @@
 					};
 				};
 
+				ipu_disp0 {
+					pinctrl_ipu_disp0_1: ipudisp0grp-1 {
+						fsl,pins = <
+						MX53_PAD_DI0_DISP_CLK__IPU_DI0_DISP_CLK	0x5
+						MX53_PAD_DI0_PIN15__IPU_DI0_PIN15		0x5
+						MX53_PAD_DI0_PIN2__IPU_DI0_PIN2		0x5
+						MX53_PAD_DI0_PIN3__IPU_DI0_PIN3 		0x5
+						MX53_PAD_DISP0_DAT0__IPU_DISP0_DAT_0		0x5
+						MX53_PAD_DISP0_DAT1__IPU_DISP0_DAT_1		0x5
+						MX53_PAD_DISP0_DAT2__IPU_DISP0_DAT_2		0x5
+						MX53_PAD_DISP0_DAT3__IPU_DISP0_DAT_3		0x5
+						MX53_PAD_DISP0_DAT4__IPU_DISP0_DAT_4		0x5
+						MX53_PAD_DISP0_DAT5__IPU_DISP0_DAT_5		0x5
+						MX53_PAD_DISP0_DAT6__IPU_DISP0_DAT_6		0x5
+						MX53_PAD_DISP0_DAT7__IPU_DISP0_DAT_7		0x5
+						MX53_PAD_DISP0_DAT8__IPU_DISP0_DAT_8		0x5
+						MX53_PAD_DISP0_DAT9__IPU_DISP0_DAT_9		0x5
+						MX53_PAD_DISP0_DAT10__IPU_DISP0_DAT_10		0x5
+						MX53_PAD_DISP0_DAT11__IPU_DISP0_DAT_11		0x5
+						MX53_PAD_DISP0_DAT12__IPU_DISP0_DAT_12		0x5
+						MX53_PAD_DISP0_DAT13__IPU_DISP0_DAT_13		0x5
+						MX53_PAD_DISP0_DAT14__IPU_DISP0_DAT_14		0x5
+						MX53_PAD_DISP0_DAT15__IPU_DISP0_DAT_15		0x5
+						MX53_PAD_DISP0_DAT16__IPU_DISP0_DAT_16		0x5
+						MX53_PAD_DISP0_DAT17__IPU_DISP0_DAT_17		0x5
+						MX53_PAD_DISP0_DAT18__IPU_DISP0_DAT_18		0x5
+						MX53_PAD_DISP0_DAT19__IPU_DISP0_DAT_19		0x5
+						MX53_PAD_DISP0_DAT20__IPU_DISP0_DAT_20		0x5
+						MX53_PAD_DISP0_DAT21__IPU_DISP0_DAT_21		0x5
+						MX53_PAD_DISP0_DAT22__IPU_DISP0_DAT_22		0x5
+						MX53_PAD_DISP0_DAT23__IPU_DISP0_DAT_23		0x5
+						>;
+					};
+				};
+
+				ipu_disp1 {
+					pinctrl_ipu_disp1_1: ipudisp1grp-1 {
+						fsl,pins = <
+							MX53_PAD_EIM_DA9__IPU_DISP1_DAT_0	0x5
+							MX53_PAD_EIM_DA8__IPU_DISP1_DAT_1	0x5
+							MX53_PAD_EIM_DA7__IPU_DISP1_DAT_2	0x5
+							MX53_PAD_EIM_DA6__IPU_DISP1_DAT_3	0x5
+							MX53_PAD_EIM_DA5__IPU_DISP1_DAT_4	0x5
+							MX53_PAD_EIM_DA4__IPU_DISP1_DAT_5	0x5
+							MX53_PAD_EIM_DA3__IPU_DISP1_DAT_6	0x5
+							MX53_PAD_EIM_DA2__IPU_DISP1_DAT_7	0x5
+							MX53_PAD_EIM_DA1__IPU_DISP1_DAT_8	0x5
+							MX53_PAD_EIM_DA0__IPU_DISP1_DAT_9	0x5
+							MX53_PAD_EIM_EB1__IPU_DISP1_DAT_10	0x5
+							MX53_PAD_EIM_EB0__IPU_DISP1_DAT_11	0x5
+							MX53_PAD_EIM_A17__IPU_DISP1_DAT_12	0x5
+							MX53_PAD_EIM_A18__IPU_DISP1_DAT_13	0x5
+							MX53_PAD_EIM_A19__IPU_DISP1_DAT_14	0x5
+							MX53_PAD_EIM_A20__IPU_DISP1_DAT_15	0x5
+							MX53_PAD_EIM_A21__IPU_DISP1_DAT_16	0x5
+							MX53_PAD_EIM_A22__IPU_DISP1_DAT_17	0x5
+							MX53_PAD_EIM_A23__IPU_DISP1_DAT_18	0x5
+							MX53_PAD_EIM_A24__IPU_DISP1_DAT_19	0x5
+							MX53_PAD_EIM_D31__IPU_DISP1_DAT_20	0x5
+							MX53_PAD_EIM_D30__IPU_DISP1_DAT_21	0x5
+							MX53_PAD_EIM_D26__IPU_DISP1_DAT_22	0x5
+							MX53_PAD_EIM_D27__IPU_DISP1_DAT_23	0x5
+							MX53_PAD_EIM_A16__IPU_DI1_DISP_CLK	0x5
+							MX53_PAD_EIM_DA13__IPU_DI1_D0_CS	0x5
+							MX53_PAD_EIM_DA14__IPU_DI1_D1_CS	0x5
+							MX53_PAD_EIM_DA15__IPU_DI1_PIN1		0x5
+							MX53_PAD_EIM_DA11__IPU_DI1_PIN2		0x5
+							MX53_PAD_EIM_DA12__IPU_DI1_PIN3		0x5
+							MX53_PAD_EIM_A25__IPU_DI1_PIN12		0x5
+							MX53_PAD_EIM_DA10__IPU_DI1_PIN15	0x5
+						>;
+					};
+				};
+
+				ipu_disp2 {
+					pinctrl_ipu_disp2_1: ipudisp2grp-1 {
+						fsl,pins = <
+							MX53_PAD_LVDS0_TX0_P__LDB_LVDS0_TX0	0x80000000
+							MX53_PAD_LVDS0_TX1_P__LDB_LVDS0_TX1	0x80000000
+							MX53_PAD_LVDS0_TX2_P__LDB_LVDS0_TX2	0x80000000
+							MX53_PAD_LVDS0_TX3_P__LDB_LVDS0_TX3	0x80000000
+							MX53_PAD_LVDS0_CLK_P__LDB_LVDS0_CLK	0x80000000
+							MX53_PAD_LVDS1_TX0_P__LDB_LVDS1_TX0	0x80000000
+							MX53_PAD_LVDS1_TX1_P__LDB_LVDS1_TX1	0x80000000
+							MX53_PAD_LVDS1_TX2_P__LDB_LVDS1_TX2	0x80000000
+							MX53_PAD_LVDS1_TX3_P__LDB_LVDS1_TX3	0x80000000
+							MX53_PAD_LVDS1_CLK_P__LDB_LVDS1_CLK	0x80000000
+						>;
+					};
+				};
+
+				nand {
+					pinctrl_nand_1: nandgrp-1 {
+						fsl,pins = <
+							MX53_PAD_NANDF_WE_B__EMI_NANDF_WE_B	0x4
+							MX53_PAD_NANDF_RE_B__EMI_NANDF_RE_B	0x4
+							MX53_PAD_NANDF_CLE__EMI_NANDF_CLE	0x4
+							MX53_PAD_NANDF_ALE__EMI_NANDF_ALE	0x4
+							MX53_PAD_NANDF_WP_B__EMI_NANDF_WP_B	0xe0
+							MX53_PAD_NANDF_RB0__EMI_NANDF_RB_0	0xe0
+							MX53_PAD_NANDF_CS0__EMI_NANDF_CS_0	0x4
+							MX53_PAD_PATA_DATA0__EMI_NANDF_D_0	0xa4
+							MX53_PAD_PATA_DATA1__EMI_NANDF_D_1	0xa4
+							MX53_PAD_PATA_DATA2__EMI_NANDF_D_2	0xa4
+							MX53_PAD_PATA_DATA3__EMI_NANDF_D_3	0xa4
+							MX53_PAD_PATA_DATA4__EMI_NANDF_D_4	0xa4
+							MX53_PAD_PATA_DATA5__EMI_NANDF_D_5	0xa4
+							MX53_PAD_PATA_DATA6__EMI_NANDF_D_6	0xa4
+							MX53_PAD_PATA_DATA7__EMI_NANDF_D_7	0xa4
+						>;
+					};
+				};
+
 				owire {
 					pinctrl_owire_1: owiregrp-1 {
 						fsl,pins = <
 							MX53_PAD_GPIO_18__OWIRE_LINE 0x80000000
+						>;
+					};
+				};
+
+				pwm1 {
+					pinctrl_pwm1_1: pwm1grp-1 {
+						fsl,pins = <
+							MX53_PAD_DISP0_DAT8__PWM1_PWMO	0x5
+						>;
+					};
+				};
+
+				pwm2 {
+					pinctrl_pwm2_1: pwm2grp-1 {
+						fsl,pins = <
+							MX53_PAD_GPIO_1__PWM2_PWMO	0x80000000
 						>;
 					};
 				};
@@ -466,6 +736,13 @@
 							MX53_PAD_PATA_DMACK__UART1_RXD_MUX 0x1c5
 						>;
 					};
+
+					pinctrl_uart1_3: uart1grp-3 {
+						fsl,pins = <
+							MX53_PAD_PATA_RESET_B__UART1_CTS 0x1c5
+							MX53_PAD_PATA_IORDY__UART1_RTS	 0x1c5
+						>;
+					};
 				};
 
 				uart2 {
@@ -473,6 +750,15 @@
 						fsl,pins = <
 							MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX 0x1c5
 							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX     0x1c5
+						>;
+					};
+
+					pinctrl_uart2_2: uart2grp-2 {
+						fsl,pins = <
+							MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX	0x1c5
+							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX	0x1c5
+							MX53_PAD_PATA_DIOR__UART2_RTS		0x1c5
+							MX53_PAD_PATA_INTRQ__UART2_CTS		0x1c5
 						>;
 					};
 				};
@@ -513,7 +799,6 @@
 						>;
 					};
 				};
-
 			};
 
 			gpr: iomuxc-gpr@53fa8000 {
@@ -779,6 +1064,16 @@
 				interrupts = <87>;
 				clocks = <&clks 42>, <&clks 42>, <&clks 42>;
 				clock-names = "ipg", "ahb", "ptp";
+				status = "disabled";
+			};
+
+			tve: tve@63ff0000 {
+				compatible = "fsl,imx53-tve";
+				reg = <0x63ff0000 0x1000>;
+				interrupts = <92>;
+				clocks = <&clks 69>, <&clks 116>;
+				clock-names = "tve", "di_sel";
+				crtcs = <&ipu 1>;
 				status = "disabled";
 			};
 		};

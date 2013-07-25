@@ -143,7 +143,7 @@ static struct map_desc s5pv210_iodesc[] __initdata = {
 	}
 };
 
-void s5pv210_restart(char mode, const char *cmd)
+void s5pv210_restart(enum reboot_mode mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
 }

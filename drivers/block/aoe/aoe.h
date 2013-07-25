@@ -1,5 +1,5 @@
-/* Copyright (c) 2012 Coraid, Inc.  See COPYING for GPL terms. */
-#define VERSION "81"
+/* Copyright (c) 2013 Coraid, Inc.  See COPYING for GPL terms. */
+#define VERSION "83"
 #define AOE_MAJOR 152
 #define DEVICE_NAME "aoe"
 
@@ -196,9 +196,11 @@ struct ktstate {
 	struct completion rendez;
 	struct task_struct *task;
 	wait_queue_head_t *waitq;
-	int (*fn) (void);
-	char *name;
+	int (*fn) (int);
+	char name[12];
 	spinlock_t *lock;
+	int id;
+	int active;
 };
 
 int aoeblk_init(void);
@@ -222,6 +224,7 @@ int aoecmd_init(void);
 struct sk_buff *aoecmd_ata_id(struct aoedev *);
 void aoe_freetframe(struct frame *);
 void aoe_flush_iocq(void);
+void aoe_flush_iocq_by_index(int);
 void aoe_end_request(struct aoedev *, struct request *, int);
 int aoe_ktstart(struct ktstate *k);
 void aoe_ktstop(struct ktstate *k);

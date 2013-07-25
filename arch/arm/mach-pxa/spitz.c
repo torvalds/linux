@@ -31,6 +31,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/reboot.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -924,10 +925,10 @@ static inline void spitz_i2c_init(void) {}
  ******************************************************************************/
 static void spitz_poweroff(void)
 {
-	pxa_restart('g', NULL);
+	pxa_restart(REBOOT_GPIO, NULL);
 }
 
-static void spitz_restart(char mode, const char *cmd)
+static void spitz_restart(enum reboot_mode mode, const char *cmd)
 {
 	uint32_t msc0 = __raw_readl(MSC0);
 	/* Bootloader magic for a reboot */
@@ -979,7 +980,6 @@ static void __init spitz_fixup(struct tag *tags, char **cmdline,
 
 #ifdef CONFIG_MACH_SPITZ
 MACHINE_START(SPITZ, "SHARP Spitz")
-	.restart_mode	= 'g',
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.nr_irqs	= PXA_NR_IRQS,
@@ -993,7 +993,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_BORZOI
 MACHINE_START(BORZOI, "SHARP Borzoi")
-	.restart_mode	= 'g',
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.nr_irqs	= PXA_NR_IRQS,
@@ -1007,7 +1006,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_AKITA
 MACHINE_START(AKITA, "SHARP Akita")
-	.restart_mode	= 'g',
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.nr_irqs	= PXA_NR_IRQS,

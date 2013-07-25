@@ -992,7 +992,6 @@ static int pm860x_battery_remove(struct platform_device *pdev)
 	free_irq(info->irq_batt, info);
 	free_irq(info->irq_cc, info);
 	power_supply_unregister(&info->battery);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

@@ -138,8 +138,9 @@ static ssize_t cluster_cluster_name_read(struct dlm_cluster *cl, char *buf)
 static ssize_t cluster_cluster_name_write(struct dlm_cluster *cl,
 					  const char *buf, size_t len)
 {
-	strncpy(dlm_config.ci_cluster_name, buf, DLM_LOCKSPACE_LEN);
-	strncpy(cl->cl_cluster_name, buf, DLM_LOCKSPACE_LEN);
+	strlcpy(dlm_config.ci_cluster_name, buf,
+				sizeof(dlm_config.ci_cluster_name));
+	strlcpy(cl->cl_cluster_name, buf, sizeof(cl->cl_cluster_name));
 	return len;
 }
 

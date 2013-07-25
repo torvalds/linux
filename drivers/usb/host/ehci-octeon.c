@@ -182,8 +182,6 @@ static int ehci_octeon_drv_remove(struct platform_device *pdev)
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

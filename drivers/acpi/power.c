@@ -279,7 +279,7 @@ static int acpi_power_on_unlocked(struct acpi_power_resource *resource)
 
 	if (resource->ref_count++) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Power resource [%s] already on",
+				  "Power resource [%s] already on\n",
 				  resource->name));
 	} else {
 		result = __acpi_power_on(resource);
@@ -325,7 +325,7 @@ static int acpi_power_off_unlocked(struct acpi_power_resource *resource)
 
 	if (!resource->ref_count) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Power resource [%s] already off",
+				  "Power resource [%s] already off\n",
 				  resource->name));
 		return 0;
 	}

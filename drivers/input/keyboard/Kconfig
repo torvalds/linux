@@ -418,6 +418,16 @@ config KEYBOARD_NOMADIK
 	  To compile this driver as a module, choose M here: the
 	  module will be called nmk-ske-keypad.
 
+config KEYBOARD_NSPIRE
+	tristate "TI-NSPIRE built-in keyboard"
+	depends on ARCH_NSPIRE && OF
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use the built-in keypad on TI-NSPIRE.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nspire-keypad.
+
 config KEYBOARD_TEGRA
 	tristate "NVIDIA Tegra internal matrix keyboard controller support"
 	depends on ARCH_TEGRA && OF
@@ -442,6 +452,7 @@ config KEYBOARD_OPENCORES
 config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"
 	depends on PXA27x || PXA3xx || ARCH_MMP
+	select INPUT_MATRIXKMAP
 	help
 	  Enable support for PXA27x/PXA3xx keypad controller.
 

@@ -19,16 +19,6 @@
 #ifndef __MACH_TEGRA_FUSE_H
 #define __MACH_TEGRA_FUSE_H
 
-enum tegra_revision {
-	TEGRA_REVISION_UNKNOWN = 0,
-	TEGRA_REVISION_A01,
-	TEGRA_REVISION_A02,
-	TEGRA_REVISION_A03,
-	TEGRA_REVISION_A03p,
-	TEGRA_REVISION_A04,
-	TEGRA_REVISION_MAX,
-};
-
 #define SKU_ID_T20	8
 #define SKU_ID_T25SE	20
 #define SKU_ID_AP25	23
@@ -39,6 +29,17 @@ enum tegra_revision {
 #define TEGRA20		0x20
 #define TEGRA30		0x30
 #define TEGRA114	0x35
+
+#ifndef __ASSEMBLY__
+enum tegra_revision {
+	TEGRA_REVISION_UNKNOWN = 0,
+	TEGRA_REVISION_A01,
+	TEGRA_REVISION_A02,
+	TEGRA_REVISION_A03,
+	TEGRA_REVISION_A03p,
+	TEGRA_REVISION_A04,
+	TEGRA_REVISION_MAX,
+};
 
 extern int tegra_sku_id;
 extern int tegra_cpu_process_id;
@@ -72,5 +73,6 @@ void tegra114_init_speedo_data(void);
 #else
 static inline void tegra114_init_speedo_data(void) {}
 #endif
+#endif /* __ASSEMBLY__ */
 
 #endif

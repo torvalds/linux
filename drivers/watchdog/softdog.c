@@ -152,7 +152,6 @@ static struct watchdog_ops softdog_ops = {
 	.owner = THIS_MODULE,
 	.start = softdog_ping,
 	.stop = softdog_stop,
-	.ping = softdog_ping,
 	.set_timeout = softdog_set_timeout,
 };
 

@@ -2233,6 +2233,10 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 			  "HP Folio", STAC_92HD83XXX_HP_MIC_LED),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xff00, 0x1900,
 			  "HP", STAC_92HD83XXX_HP_MIC_LED),
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xff00, 0x2000,
+			  "HP", STAC_92HD83XXX_HP_MIC_LED),
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xff00, 0x2100,
+			  "HP", STAC_92HD83XXX_HP_MIC_LED),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3388,
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3389,
@@ -3707,14 +3711,6 @@ static void stac927x_proc_hook(struct snd_info_buffer *buffer,
 #endif
 
 #ifdef CONFIG_PM
-static int stac_resume(struct hda_codec *codec)
-{
-	codec->patch_ops.init(codec);
-	snd_hda_codec_resume_amp(codec);
-	snd_hda_codec_resume_cache(codec);
-	return 0;
-}
-
 static int stac_suspend(struct hda_codec *codec)
 {
 	stac_shutup(codec);
@@ -3743,7 +3739,6 @@ static void stac_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 }
 #else
 #define stac_suspend		NULL
-#define stac_resume		NULL
 #define stac_set_power_state	NULL
 #endif /* CONFIG_PM */
 
@@ -3755,7 +3750,6 @@ static const struct hda_codec_ops stac_patch_ops = {
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.suspend = stac_suspend,
-	.resume = stac_resume,
 #endif
 	.reboot_notify = stac_shutup,
 };

@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: 8255
@@ -81,7 +76,6 @@ I/O port base address can be found in the output of 'lspci -v'.
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
-#include <linux/slab.h>
 
 #include "comedi_fc.h"
 #include "8255.h"
@@ -290,14 +284,12 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	struct subdev_8255_private *spriv;
 
-	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
+	spriv = comedi_alloc_spriv(s, sizeof(*spriv));
 	if (!spriv)
 		return -ENOMEM;
 
 	spriv->iobase	= iobase;
 	spriv->io	= io ? io : subdev_8255_io;
-
-	s->private	= spriv;
 
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
@@ -391,7 +383,6 @@ static void dev_8255_detach(struct comedi_device *dev)
 			spriv = s->private;
 			release_region(spriv->iobase, _8255_SIZE);
 		}
-		comedi_spriv_free(dev, i);
 	}
 }
 

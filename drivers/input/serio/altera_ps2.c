@@ -163,7 +163,6 @@ static int altera_ps2_remove(struct platform_device *pdev)
 {
 	struct ps2if *ps2if = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	serio_unregister_port(ps2if->io);
 	free_irq(ps2if->irq, ps2if);
 	iounmap(ps2if->base);

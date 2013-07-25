@@ -267,13 +267,13 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 		goto error_snap;
 
 	ec->cond_met = 0;
-	ec->Pstates = 0;
-	ec->Ltxacc = ec->Lrxacc = ec->Lcleanacc = ec->Lclean_bgacc = 0;
-	ec->Ltx = ec->Lrx = ec->Lclean = ec->Lclean_bg = 0;
+	ec->pstates = 0;
+	ec->ltxacc = ec->lrxacc = ec->lcleanacc = ec->lclean_bgacc = 0;
+	ec->ltx = ec->lrx = ec->lclean = ec->lclean_bg = 0;
 	ec->tx_1 = ec->tx_2 = ec->rx_1 = ec->rx_2 = 0;
-	ec->Lbgn = ec->Lbgn_acc = 0;
-	ec->Lbgn_upper = 200;
-	ec->Lbgn_upper_acc = ec->Lbgn_upper << 13;
+	ec->lbgn = ec->lbgn_acc = 0;
+	ec->lbgn_upper = 200;
+	ec->lbgn_upper_acc = ec->lbgn_upper << 13;
 
 	return ec;
 
@@ -314,13 +314,13 @@ void oslec_flush(struct oslec_state *ec)
 {
 	int i;
 
-	ec->Ltxacc = ec->Lrxacc = ec->Lcleanacc = ec->Lclean_bgacc = 0;
-	ec->Ltx = ec->Lrx = ec->Lclean = ec->Lclean_bg = 0;
+	ec->ltxacc = ec->lrxacc = ec->lcleanacc = ec->lclean_bgacc = 0;
+	ec->ltx = ec->lrx = ec->lclean = ec->lclean_bg = 0;
 	ec->tx_1 = ec->tx_2 = ec->rx_1 = ec->rx_2 = 0;
 
-	ec->Lbgn = ec->Lbgn_acc = 0;
-	ec->Lbgn_upper = 200;
-	ec->Lbgn_upper_acc = ec->Lbgn_upper << 13;
+	ec->lbgn = ec->lbgn_acc = 0;
+	ec->lbgn_upper = 200;
+	ec->lbgn_upper_acc = ec->lbgn_upper << 13;
 
 	ec->nonupdate_dwell = 0;
 
@@ -332,7 +332,7 @@ void oslec_flush(struct oslec_state *ec)
 		memset(ec->fir_taps16[i], 0, ec->taps * sizeof(int16_t));
 
 	ec->curr_pos = ec->taps - 1;
-	ec->Pstates = 0;
+	ec->pstates = 0;
 }
 EXPORT_SYMBOL_GPL(oslec_flush);
 
@@ -418,33 +418,33 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		new = (int)tx * (int)tx;
 		old = (int)ec->fir_state.history[ec->fir_state.curr_pos] *
 		    (int)ec->fir_state.history[ec->fir_state.curr_pos];
-		ec->Pstates +=
+		ec->pstates +=
 		    ((new - old) + (1 << (ec->log2taps - 1))) >> ec->log2taps;
-		if (ec->Pstates < 0)
-			ec->Pstates = 0;
+		if (ec->pstates < 0)
+			ec->pstates = 0;
 	}
 
 	/* Calculate short term average levels using simple single pole IIRs */
 
-	ec->Ltxacc += abs(tx) - ec->Ltx;
-	ec->Ltx = (ec->Ltxacc + (1 << 4)) >> 5;
-	ec->Lrxacc += abs(rx) - ec->Lrx;
-	ec->Lrx = (ec->Lrxacc + (1 << 4)) >> 5;
+	ec->ltxacc += abs(tx) - ec->ltx;
+	ec->ltx = (ec->ltxacc + (1 << 4)) >> 5;
+	ec->lrxacc += abs(rx) - ec->lrx;
+	ec->lrx = (ec->lrxacc + (1 << 4)) >> 5;
 
 	/* Foreground filter */
 
 	ec->fir_state.coeffs = ec->fir_taps16[0];
 	echo_value = fir16(&ec->fir_state, tx);
 	ec->clean = rx - echo_value;
-	ec->Lcleanacc += abs(ec->clean) - ec->Lclean;
-	ec->Lclean = (ec->Lcleanacc + (1 << 4)) >> 5;
+	ec->lcleanacc += abs(ec->clean) - ec->lclean;
+	ec->lclean = (ec->lcleanacc + (1 << 4)) >> 5;
 
 	/* Background filter */
 
 	echo_value = fir16(&ec->fir_state_bg, tx);
 	clean_bg = rx - echo_value;
-	ec->Lclean_bgacc += abs(clean_bg) - ec->Lclean_bg;
-	ec->Lclean_bg = (ec->Lclean_bgacc + (1 << 4)) >> 5;
+	ec->lclean_bgacc += abs(clean_bg) - ec->lclean_bg;
+	ec->lclean_bg = (ec->lclean_bgacc + (1 << 4)) >> 5;
 
 	/* Background Filter adaption */
 
@@ -455,7 +455,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 	ec->factor = 0;
 	ec->shift = 0;
 	if ((ec->nonupdate_dwell == 0)) {
-		int P, logP, shift;
+		int p, logp, shift;
 
 		/* Determine:
 
@@ -490,9 +490,9 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		   for a divide versus a top_bit() implementation.
 		 */
 
-		P = MIN_TX_POWER_FOR_ADAPTION + ec->Pstates;
-		logP = top_bit(P) + ec->log2taps;
-		shift = 30 - 2 - logP;
+		p = MIN_TX_POWER_FOR_ADAPTION + ec->pstates;
+		logp = top_bit(p) + ec->log2taps;
+		shift = 30 - 2 - logp;
 		ec->shift = shift;
 
 		lms_adapt_bg(ec, clean_bg, shift);
@@ -502,7 +502,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 	   near end speech */
 
 	ec->adapt = 0;
-	if ((ec->Lrx > MIN_RX_POWER_FOR_ADAPTION) && (ec->Lrx > ec->Ltx))
+	if ((ec->lrx > MIN_RX_POWER_FOR_ADAPTION) && (ec->lrx > ec->ltx))
 		ec->nonupdate_dwell = DTD_HANGOVER;
 	if (ec->nonupdate_dwell)
 		ec->nonupdate_dwell--;
@@ -515,9 +515,9 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 	if ((ec->adaption_mode & ECHO_CAN_USE_ADAPTION) &&
 	    (ec->nonupdate_dwell == 0) &&
 	    /* (ec->Lclean_bg < 0.875*ec->Lclean) */
-	    (8 * ec->Lclean_bg < 7 * ec->Lclean) &&
+	    (8 * ec->lclean_bg < 7 * ec->lclean) &&
 	    /* (ec->Lclean_bg < 0.125*ec->Ltx) */
-	    (8 * ec->Lclean_bg < ec->Ltx)) {
+	    (8 * ec->lclean_bg < ec->ltx)) {
 		if (ec->cond_met == 6) {
 			/*
 			 * BG filter has had better results for 6 consecutive
@@ -541,14 +541,14 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		 * non-linearity in the channel.".
 		 */
 
-		if ((16 * ec->Lclean < ec->Ltx)) {
+		if ((16 * ec->lclean < ec->ltx)) {
 			/*
 			 * Our e/c has improved echo by at least 24 dB (each
 			 * factor of 2 is 6dB, so 2*2*2*2=16 is the same as
 			 * 6+6+6+6=24dB)
 			 */
 			if (ec->adaption_mode & ECHO_CAN_USE_CNG) {
-				ec->cng_level = ec->Lbgn;
+				ec->cng_level = ec->lbgn;
 
 				/*
 				 * Very elementary comfort noise generation.
@@ -571,10 +571,10 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 
 			} else if (ec->adaption_mode & ECHO_CAN_USE_CLIP) {
 				/* This sounds much better than CNG */
-				if (ec->clean_nlp > ec->Lbgn)
-					ec->clean_nlp = ec->Lbgn;
-				if (ec->clean_nlp < -ec->Lbgn)
-					ec->clean_nlp = -ec->Lbgn;
+				if (ec->clean_nlp > ec->lbgn)
+					ec->clean_nlp = ec->lbgn;
+				if (ec->clean_nlp < -ec->lbgn)
+					ec->clean_nlp = -ec->lbgn;
 			} else {
 				/*
 				 * just mute the residual, doesn't sound very
@@ -593,9 +593,9 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 			 * level signals like near end speech.  When combined
 			 * with CNG or especially CLIP seems to work OK.
 			 */
-			if (ec->Lclean < 40) {
-				ec->Lbgn_acc += abs(ec->clean) - ec->Lbgn;
-				ec->Lbgn = (ec->Lbgn_acc + (1 << 11)) >> 12;
+			if (ec->lclean < 40) {
+				ec->lbgn_acc += abs(ec->clean) - ec->lbgn;
+				ec->lbgn = (ec->lbgn_acc + (1 << 11)) >> 12;
 			}
 		}
 	}

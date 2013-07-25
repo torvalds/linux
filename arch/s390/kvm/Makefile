@@ -6,7 +6,8 @@
 # it under the terms of the GNU General Public License (version 2 only)
 # as published by the Free Software Foundation.
 
-common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o eventfd.o)
+KVM := ../../../virt/kvm
+common-objs = $(KVM)/kvm_main.o $(KVM)/eventfd.o
 
 ccflags-y := -Ivirt/kvm -Iarch/s390/kvm
 

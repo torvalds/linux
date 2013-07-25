@@ -37,6 +37,9 @@
 /* Offset for TOS field in the IP header */
 #define IPTOS_OFFSET 5
 
+static bool enable_tx_amsdu;
+module_param(enable_tx_amsdu, bool, 0644);
+
 /* WMM information IE */
 static const u8 wmm_info_ie[] = { WLAN_EID_VENDOR_SPECIFIC, 0x07,
 	0x00, 0x50, 0xf2, 0x02,
@@ -1233,7 +1236,7 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 				mwifiex_send_delba(priv, tid_del, ra, 1);
 			}
 		}
-		if (mwifiex_is_amsdu_allowed(priv, tid) &&
+		if (enable_tx_amsdu && mwifiex_is_amsdu_allowed(priv, tid) &&
 		    mwifiex_is_11n_aggragation_possible(priv, ptr,
 							adapter->tx_buf_size))
 			mwifiex_11n_aggregate_pkt(priv, ptr, INTF_HEADER_LEN,

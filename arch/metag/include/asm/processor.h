@@ -199,4 +199,6 @@ extern void (*soc_halt)(void);
 extern void show_trace(struct task_struct *tsk, unsigned long *sp,
 		       struct pt_regs *regs);
 
+extern const struct seq_operations cpuinfo_op;
+
 #endif

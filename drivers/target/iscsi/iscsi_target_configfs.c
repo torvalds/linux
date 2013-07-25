@@ -20,6 +20,7 @@
  ****************************************************************************/
 
 #include <linux/configfs.h>
+#include <linux/ctype.h>
 #include <linux/export.h>
 #include <linux/inet.h>
 #include <target/target_core_base.h>
@@ -78,11 +79,12 @@ static ssize_t lio_target_np_store_sctp(
 	struct iscsi_tpg_np *tpg_np = container_of(se_tpg_np,
 				struct iscsi_tpg_np, se_tpg_np);
 	struct iscsi_tpg_np *tpg_np_sctp = NULL;
-	char *endptr;
 	u32 op;
 	int ret;
 
-	op = simple_strtoul(page, &endptr, 0);
+	ret = kstrtou32(page, 0, &op);
+	if (ret)
+		return ret;
 	if ((op != 1) && (op != 0)) {
 		pr_err("Illegal value for tpg_enable: %u\n", op);
 		return -EINVAL;
@@ -382,11 +384,12 @@ static ssize_t iscsi_nacl_attrib_store_##name(				\
 {									\
 	struct iscsi_node_acl *nacl = container_of(se_nacl, struct iscsi_node_acl, \
 					se_node_acl);			\
-	char *endptr;							\
 	u32 val;							\
 	int ret;							\
 									\
-	val = simple_strtoul(page, &endptr, 0);				\
+	ret = kstrtou32(page, 0, &val);					\
+	if (ret)							\
+		return ret;						\
 	ret = iscsit_na_##name(nacl, val);				\
 	if (ret < 0)							\
 		return ret;						\
@@ -474,7 +477,7 @@ static ssize_t __iscsi_##prefix##_store_##name(				\
 	if (!capable(CAP_SYS_ADMIN))					\
 		return -EPERM;						\
 									\
-	snprintf(auth->name, PAGE_SIZE, "%s", page);			\
+	snprintf(auth->name, sizeof(auth->name), "%s", page);		\
 	if (!strncmp("NULL", auth->name, 4))				\
 		auth->naf_flags &= ~flags;				\
 	else								\
@@ -789,11 +792,12 @@ static ssize_t lio_target_nacl_store_cmdsn_depth(
 	struct iscsi_portal_group *tpg = container_of(se_tpg,
 			struct iscsi_portal_group, tpg_se_tpg);
 	struct config_item *acl_ci, *tpg_ci, *wwn_ci;
-	char *endptr;
 	u32 cmdsn_depth = 0;
 	int ret;
 
-	cmdsn_depth = simple_strtoul(page, &endptr, 0);
+	ret = kstrtou32(page, 0, &cmdsn_depth);
+	if (ret)
+		return ret;
 	if (cmdsn_depth > TA_DEFAULT_CMDSN_DEPTH_MAX) {
 		pr_err("Passed cmdsn_depth: %u exceeds"
 			" TA_DEFAULT_CMDSN_DEPTH_MAX: %u\n", cmdsn_depth,
@@ -977,14 +981,15 @@ static ssize_t iscsi_tpg_attrib_store_##name(				\
 {									\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,		\
 			struct iscsi_portal_group, tpg_se_tpg);	\
-	char *endptr;							\
 	u32 val;							\
 	int ret;							\
 									\
 	if (iscsit_get_tpg(tpg) < 0)					\
 		return -EINVAL;						\
 									\
-	val = simple_strtoul(page, &endptr, 0);				\
+	ret = kstrtou32(page, 0, &val);					\
+	if (ret)							\
+		goto out;						\
 	ret = iscsit_ta_##name(tpg, val);				\
 	if (ret < 0)							\
 		goto out;						\
@@ -1053,6 +1058,131 @@ static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 
 /* End items for lio_target_tpg_attrib_cit */
 
+/* Start items for lio_target_tpg_auth_cit */
+
+#define __DEF_TPG_AUTH_STR(prefix, name, flags)					\
+static ssize_t __iscsi_##prefix##_show_##name(					\
+	struct se_portal_group *se_tpg,						\
+	char *page)								\
+{										\
+	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
+				struct iscsi_portal_group, tpg_se_tpg);		\
+	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+										\
+	if (!capable(CAP_SYS_ADMIN))						\
+		return -EPERM;							\
+										\
+	return snprintf(page, PAGE_SIZE, "%s\n", auth->name);			\
+}										\
+										\
+static ssize_t __iscsi_##prefix##_store_##name(					\
+	struct se_portal_group *se_tpg,						\
+	const char *page,							\
+	size_t count)								\
+{										\
+	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
+				struct iscsi_portal_group, tpg_se_tpg);		\
+	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+										\
+	if (!capable(CAP_SYS_ADMIN))						\
+		return -EPERM;							\
+										\
+	snprintf(auth->name, sizeof(auth->name), "%s", page);			\
+	if (!(strncmp("NULL", auth->name, 4)))					\
+		auth->naf_flags &= ~flags;					\
+	else									\
+		auth->naf_flags |= flags;					\
+										\
+	if ((auth->naf_flags & NAF_USERID_IN_SET) &&				\
+	    (auth->naf_flags & NAF_PASSWORD_IN_SET))				\
+		auth->authenticate_target = 1;					\
+	else									\
+		auth->authenticate_target = 0;					\
+										\
+	return count;								\
+}
+
+#define __DEF_TPG_AUTH_INT(prefix, name)					\
+static ssize_t __iscsi_##prefix##_show_##name(					\
+	struct se_portal_group *se_tpg,						\
+	char *page)								\
+{										\
+	struct iscsi_portal_group *tpg = container_of(se_tpg,			\
+				struct iscsi_portal_group, tpg_se_tpg);		\
+	struct iscsi_node_auth *auth = &tpg->tpg_demo_auth;			\
+										\
+	if (!capable(CAP_SYS_ADMIN))						\
+		return -EPERM;							\
+										\
+	return snprintf(page, PAGE_SIZE, "%d\n", auth->name);			\
+}
+
+#define DEF_TPG_AUTH_STR(name, flags)						\
+	__DEF_TPG_AUTH_STR(tpg_auth, name, flags)				\
+static ssize_t iscsi_tpg_auth_show_##name(					\
+	struct se_portal_group *se_tpg,						\
+	char *page)								\
+{										\
+	return __iscsi_tpg_auth_show_##name(se_tpg, page);			\
+}										\
+										\
+static ssize_t iscsi_tpg_auth_store_##name(					\
+	struct se_portal_group *se_tpg,						\
+	const char *page,							\
+	size_t count)								\
+{										\
+	return __iscsi_tpg_auth_store_##name(se_tpg, page, count);		\
+}
+
+#define DEF_TPG_AUTH_INT(name)							\
+	__DEF_TPG_AUTH_INT(tpg_auth, name)					\
+static ssize_t iscsi_tpg_auth_show_##name(					\
+	struct se_portal_group *se_tpg,						\
+	char *page)								\
+{										\
+	return __iscsi_tpg_auth_show_##name(se_tpg, page);			\
+}
+
+#define TPG_AUTH_ATTR(_name, _mode) TF_TPG_AUTH_ATTR(iscsi, _name, _mode);
+#define TPG_AUTH_ATTR_RO(_name) TF_TPG_AUTH_ATTR_RO(iscsi, _name);
+
+/*
+ *  * One-way authentication userid
+ *   */
+DEF_TPG_AUTH_STR(userid, NAF_USERID_SET);
+TPG_AUTH_ATTR(userid, S_IRUGO | S_IWUSR);
+/*
+ *  * One-way authentication password
+ *   */
+DEF_TPG_AUTH_STR(password, NAF_PASSWORD_SET);
+TPG_AUTH_ATTR(password, S_IRUGO | S_IWUSR);
+/*
+ *  * Enforce mutual authentication
+ *   */
+DEF_TPG_AUTH_INT(authenticate_target);
+TPG_AUTH_ATTR_RO(authenticate_target);
+/*
+ *  * Mutual authentication userid
+ *   */
+DEF_TPG_AUTH_STR(userid_mutual, NAF_USERID_IN_SET);
+TPG_AUTH_ATTR(userid_mutual, S_IRUGO | S_IWUSR);
+/*
+ *  * Mutual authentication password
+ *   */
+DEF_TPG_AUTH_STR(password_mutual, NAF_PASSWORD_IN_SET);
+TPG_AUTH_ATTR(password_mutual, S_IRUGO | S_IWUSR);
+
+static struct configfs_attribute *lio_target_tpg_auth_attrs[] = {
+	&iscsi_tpg_auth_userid.attr,
+	&iscsi_tpg_auth_password.attr,
+	&iscsi_tpg_auth_authenticate_target.attr,
+	&iscsi_tpg_auth_userid_mutual.attr,
+	&iscsi_tpg_auth_password_mutual.attr,
+	NULL,
+};
+
+/* End items for lio_target_tpg_auth_cit */
+
 /* Start items for lio_target_tpg_param_cit */
 
 #define DEF_TPG_PARAM(name)						\
@@ -1087,13 +1217,14 @@ static ssize_t iscsi_tpg_param_store_##name(				\
 	struct iscsi_portal_group *tpg = container_of(se_tpg,		\
 			struct iscsi_portal_group, tpg_se_tpg);		\
 	char *buf;							\
-	int ret;							\
+	int ret, len;							\
 									\
 	buf = kzalloc(PAGE_SIZE, GFP_KERNEL);				\
 	if (!buf)							\
 		return -ENOMEM;						\
-	snprintf(buf, PAGE_SIZE, "%s=%s", __stringify(name), page);	\
-	buf[strlen(buf)-1] = '\0'; /* Kill newline */			\
+	len = snprintf(buf, PAGE_SIZE, "%s=%s", __stringify(name), page);	\
+	if (isspace(buf[len-1]))					\
+		buf[len-1] = '\0'; /* Kill newline */			\
 									\
 	if (iscsit_get_tpg(tpg) < 0) {					\
 		kfree(buf);						\
@@ -1230,11 +1361,12 @@ static ssize_t lio_target_tpg_store_enable(
 {
 	struct iscsi_portal_group *tpg = container_of(se_tpg,
 			struct iscsi_portal_group, tpg_se_tpg);
-	char *endptr;
 	u32 op;
-	int ret = 0;
+	int ret;
 
-	op = simple_strtoul(page, &endptr, 0);
+	ret = kstrtou32(page, 0, &op);
+	if (ret)
+		return ret;
 	if ((op != 1) && (op != 0)) {
 		pr_err("Illegal value for tpg_enable: %u\n", op);
 		return -EINVAL;
@@ -1282,15 +1414,15 @@ static struct se_portal_group *lio_target_tiqn_addtpg(
 {
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tiqn *tiqn;
-	char *tpgt_str, *end_ptr;
-	int ret = 0;
-	unsigned short int tpgt;
+	char *tpgt_str;
+	int ret;
+	u16 tpgt;
 
 	tiqn = container_of(wwn, struct iscsi_tiqn, tiqn_wwn);
 	/*
 	 * Only tpgt_# directory groups can be created below
 	 * target/iscsi/iqn.superturodiskarry/
-	*/
+	 */
 	tpgt_str = strstr(name, "tpgt_");
 	if (!tpgt_str) {
 		pr_err("Unable to locate \"tpgt_#\" directory"
@@ -1298,7 +1430,9 @@ static struct se_portal_group *lio_target_tiqn_addtpg(
 		return NULL;
 	}
 	tpgt_str += 5; /* Skip ahead of "tpgt_" */
-	tpgt = (unsigned short int) simple_strtoul(tpgt_str, &end_ptr, 0);
+	ret = kstrtou16(tpgt_str, 0, &tpgt);
+	if (ret)
+		return NULL;
 
 	tpg = iscsit_alloc_portal_group(tiqn, tpgt);
 	if (!tpg)
@@ -1506,10 +1640,12 @@ static ssize_t iscsi_disc_store_enforce_discovery_auth(
 {
 	struct iscsi_param *param;
 	struct iscsi_portal_group *discovery_tpg = iscsit_global->discovery_tpg;
-	char *endptr;
 	u32 op;
+	int err;
 
-	op = simple_strtoul(page, &endptr, 0);
+	err = kstrtou32(page, 0, &op);
+	if (err)
+		return -EINVAL;
 	if ((op != 1) && (op != 0)) {
 		pr_err("Illegal value for enforce_discovery_auth:"
 				" %u\n", op);
@@ -1655,13 +1791,12 @@ static int lio_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int lio_queue_tm_rsp(struct se_cmd *se_cmd)
+static void lio_queue_tm_rsp(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
 	cmd->i_state = ISTATE_SEND_TASKMGTRSP;
 	iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
-	return 0;
 }
 
 static char *lio_tpg_get_endpoint_wwn(struct se_portal_group *se_tpg)
@@ -1866,6 +2001,7 @@ int iscsi_target_register_configfs(void)
 	TF_CIT_TMPL(fabric)->tfc_wwn_cit.ct_attrs = lio_target_wwn_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_base_cit.ct_attrs = lio_target_tpg_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_attrib_cit.ct_attrs = lio_target_tpg_attrib_attrs;
+	TF_CIT_TMPL(fabric)->tfc_tpg_auth_cit.ct_attrs = lio_target_tpg_auth_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_param_cit.ct_attrs = lio_target_tpg_param_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_np_base_cit.ct_attrs = lio_target_portal_attrs;
 	TF_CIT_TMPL(fabric)->tfc_tpg_nacl_base_cit.ct_attrs = lio_target_initiator_attrs;

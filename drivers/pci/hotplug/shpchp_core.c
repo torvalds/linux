@@ -128,8 +128,7 @@ static int init_slots(struct controller *ctrl)
 		slot->hpc_ops = ctrl->hpc_ops;
 		slot->number = ctrl->first_slot + (ctrl->slot_num_inc * i);
 
-		snprintf(name, sizeof(name), "shpchp-%d", slot->number);
-		slot->wq = alloc_workqueue(name, 0, 0);
+		slot->wq = alloc_workqueue("shpchp-%d", 0, 0, slot->number);
 		if (!slot->wq) {
 			retval = -ENOMEM;
 			goto error_info;

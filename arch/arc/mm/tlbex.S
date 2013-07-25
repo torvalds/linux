@@ -39,7 +39,7 @@
 
 #include <linux/linkage.h>
 #include <asm/entry.h>
-#include <asm/tlb.h>
+#include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/arcregs.h>
 #include <asm/cache.h>
@@ -147,9 +147,9 @@ ex_saved_reg1:
 #ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
 	and.f 0, r0, _PAGE_PRESENT
 	bz   1f
-	ld   r2, [num_pte_not_present]
-	add  r2, r2, 1
-	st   r2, [num_pte_not_present]
+	ld   r3, [num_pte_not_present]
+	add  r3, r3, 1
+	st   r3, [num_pte_not_present]
 1:
 #endif
 
@@ -271,22 +271,22 @@ ARC_ENTRY EV_TLBMissI
 #endif
 
 	;----------------------------------------------------------------
-	; Get the PTE corresponding to V-addr accessed
+	; Get the PTE corresponding to V-addr accessed, r2 is setup with EFA
 	LOAD_FAULT_PTE
 
 	;----------------------------------------------------------------
 	; VERIFY_PTE: Check if PTE permissions approp for executing code
 	cmp_s   r2, VMALLOC_START
-	mov.lo  r2, (_PAGE_PRESENT | _PAGE_U_READ | _PAGE_U_EXECUTE)
-	mov.hs  r2, (_PAGE_PRESENT | _PAGE_K_READ | _PAGE_K_EXECUTE)
+	mov.lo  r2, (_PAGE_PRESENT | _PAGE_U_EXECUTE)
+	mov.hs  r2, (_PAGE_PRESENT | _PAGE_K_EXECUTE)
 
 	and     r3, r0, r2  ; Mask out NON Flag bits from PTE
 	xor.f   r3, r3, r2  ; check ( ( pte & flags_test ) == flags_test )
 	bnz     do_slow_path_pf
 
 	; Let Linux VM know that the page was accessed
-	or      r0, r0, (_PAGE_PRESENT | _PAGE_ACCESSED)  ; set Accessed Bit
-	st_s    r0, [r1]                                  ; Write back PTE
+	or      r0, r0, _PAGE_ACCESSED  ; set Accessed Bit
+	st_s    r0, [r1]                ; Write back PTE
 
 	CONV_PTE_TO_TLB
 	COMMIT_ENTRY_TO_MMU
@@ -311,7 +311,7 @@ ARC_ENTRY EV_TLBMissD
 
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed
-	; If PTE exists, it will setup, r0 = PTE, r1 = Ptr to PTE
+	; If PTE exists, it will setup, r0 = PTE, r1 = Ptr to PTE, r2 = EFA
 	LOAD_FAULT_PTE
 
 	;----------------------------------------------------------------
@@ -345,7 +345,7 @@ ARC_ENTRY EV_TLBMissD
 	;----------------------------------------------------------------
 	; UPDATE_PTE: Let Linux VM know that page was accessed/dirty
 	lr      r3, [ecr]
-	or      r0, r0, (_PAGE_PRESENT | _PAGE_ACCESSED) ; Accessed bit always
+	or      r0, r0, _PAGE_ACCESSED        ; Accessed bit always
 	btst_s  r3,  ECR_C_BIT_DTLB_ST_MISS   ; See if it was a Write Access ?
 	or.nz   r0, r0, _PAGE_MODIFIED        ; if Write, set Dirty bit as well
 	st_s    r0, [r1]                      ; Write back PTE
@@ -381,18 +381,7 @@ do_slow_path_pf:
 
 	; ------- setup args for Linux Page fault Hanlder ---------
 	mov_s r0, sp
-	lr  r2, [efa]
-	lr  r3, [ecr]
-
-	; Both st and ex imply WRITE access of some sort, hence do_page_fault( )
-	; invoked with write=1 for DTLB-st/ex Miss and write=0 for ITLB miss or
-	; DTLB-ld Miss
-	; DTLB Miss Cause code is ld = 0x01 , st = 0x02, ex = 0x03
-	; Following code uses that fact that st/ex have one bit in common
-
-	btst_s r3,  ECR_C_BIT_DTLB_ST_MISS
-	mov.z  r1, 0
-	mov.nz r1, 1
+	lr  r1, [efa]
 
 	; We don't want exceptions to be disabled while the fault is handled.
 	; Now that we have saved the context we return from exception hence

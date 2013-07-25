@@ -31,7 +31,7 @@ static inline void arch_kgdb_breakpoint(void)
 	__asm__ __volatile__ ("trap_s	0x4\n");
 }
 
-extern void kgdb_trap(struct pt_regs *regs, int param);
+extern void kgdb_trap(struct pt_regs *regs);
 
 enum arc700_linux_regnums {
 	_R0		= 0,
@@ -53,7 +53,7 @@ enum arc700_linux_regnums {
 };
 
 #else
-#define kgdb_trap(regs, param)
+#define kgdb_trap(regs)
 #endif
 
 #endif	/* __ARC_KGDB_H__ */

@@ -626,9 +626,9 @@ static u64 get_unit_base(struct fw_unit *unit)
 	return 0;
 }
 
-static int isight_probe(struct device *unit_dev)
+static int isight_probe(struct fw_unit *unit,
+			const struct ieee1394_device_id *id)
 {
-	struct fw_unit *unit = fw_unit(unit_dev);
 	struct fw_device *fw_dev = fw_parent_device(unit);
 	struct snd_card *card;
 	struct isight *isight;
@@ -637,7 +637,7 @@ static int isight_probe(struct device *unit_dev)
 	err = snd_card_create(-1, NULL, THIS_MODULE, sizeof(*isight), &card);
 	if (err < 0)
 		return err;
-	snd_card_set_dev(card, unit_dev);
+	snd_card_set_dev(card, &unit->device);
 
 	isight = card->private_data;
 	isight->card = card;
@@ -674,7 +674,7 @@ static int isight_probe(struct device *unit_dev)
 	if (err < 0)
 		goto error;
 
-	dev_set_drvdata(unit_dev, isight);
+	dev_set_drvdata(&unit->device, isight);
 
 	return 0;
 
@@ -684,23 +684,6 @@ err_unit:
 error:
 	snd_card_free(card);
 	return err;
-}
-
-static int isight_remove(struct device *dev)
-{
-	struct isight *isight = dev_get_drvdata(dev);
-
-	isight_pcm_abort(isight);
-
-	snd_card_disconnect(isight->card);
-
-	mutex_lock(&isight->mutex);
-	isight_stop_streaming(isight);
-	mutex_unlock(&isight->mutex);
-
-	snd_card_free_when_closed(isight->card);
-
-	return 0;
 }
 
 static void isight_bus_reset(struct fw_unit *unit)
@@ -714,6 +697,21 @@ static void isight_bus_reset(struct fw_unit *unit)
 		isight_stop_streaming(isight);
 		mutex_unlock(&isight->mutex);
 	}
+}
+
+static void isight_remove(struct fw_unit *unit)
+{
+	struct isight *isight = dev_get_drvdata(&unit->device);
+
+	isight_pcm_abort(isight);
+
+	snd_card_disconnect(isight->card);
+
+	mutex_lock(&isight->mutex);
+	isight_stop_streaming(isight);
+	mutex_unlock(&isight->mutex);
+
+	snd_card_free_when_closed(isight->card);
 }
 
 static const struct ieee1394_device_id isight_id_table[] = {
@@ -732,10 +730,10 @@ static struct fw_driver isight_driver = {
 		.owner	= THIS_MODULE,
 		.name	= KBUILD_MODNAME,
 		.bus	= &fw_bus_type,
-		.probe	= isight_probe,
-		.remove	= isight_remove,
 	},
+	.probe    = isight_probe,
 	.update   = isight_bus_reset,
+	.remove   = isight_remove,
 	.id_table = isight_id_table,
 };
 

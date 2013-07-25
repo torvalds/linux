@@ -304,7 +304,7 @@ kernel memory, we prevent new processes from being created when the kernel
 memory usage is too high.
 
 * slab pages: pages allocated by the SLAB or SLUB allocator are tracked. A copy
-of each kmem_cache is created everytime the cache is touched by the first time
+of each kmem_cache is created every time the cache is touched by the first time
 from inside the memcg. The creation is done lazily, so some objects can still be
 skipped while the cache is being created. All objects in a slab page should
 belong to the same memcg. This only fails to hold when a task is migrated to a
@@ -490,10 +490,10 @@ pgpgin		- # of charging events to the memory cgroup. The charging
 pgpgout		- # of uncharging events to the memory cgroup. The uncharging
 		event happens each time a page is unaccounted from the cgroup.
 swap		- # of bytes of swap usage
-inactive_anon	- # of bytes of anonymous memory and swap cache memory on
+inactive_anon	- # of bytes of anonymous and swap cache memory on inactive
 		LRU list.
 active_anon	- # of bytes of anonymous and swap cache memory on active
-		inactive LRU list.
+		LRU list.
 inactive_file	- # of bytes of file-backed memory on inactive LRU list.
 active_file	- # of bytes of file-backed memory on active LRU list.
 unevictable	- # of bytes of memory that cannot be reclaimed (mlocked etc).
@@ -834,10 +834,9 @@ Test:
 
 12. TODO
 
-1. Add support for accounting huge pages (as a separate controller)
-2. Make per-cgroup scanner reclaim not-shared pages first
-3. Teach controller to account for shared-pages
-4. Start reclamation in the background when the limit is
+1. Make per-cgroup scanner reclaim not-shared pages first
+2. Teach controller to account for shared-pages
+3. Start reclamation in the background when the limit is
    not yet hit but the usage is getting closer
 
 Summary

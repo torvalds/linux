@@ -298,12 +298,6 @@ static int omap1_spi100k_setup(struct spi_device *spi)
 	struct omap1_spi100k    *spi100k;
 	struct omap1_spi100k_cs *cs = spi->controller_state;
 
-	if (spi->bits_per_word < 4 || spi->bits_per_word > 32) {
-		 dev_dbg(&spi->dev, "setup: unsupported %d bit words\n",
-			spi->bits_per_word);
-		 return -EINVAL;
-	}
-
 	spi100k = spi_master_get_devdata(spi->master);
 
 	if (!cs) {
@@ -451,10 +445,7 @@ static int omap1_spi100k_transfer(struct spi_device *spi, struct spi_message *m)
 		unsigned        len = t->len;
 
 		if (t->speed_hz > OMAP1_SPI100K_MAX_FREQ
-				|| (len && !(rx_buf || tx_buf))
-				|| (t->bits_per_word &&
-					(  t->bits_per_word < 4
-					|| t->bits_per_word > 32))) {
+				|| (len && !(rx_buf || tx_buf))) {
 			dev_dbg(&spi->dev, "transfer: %d Hz, %d %s%s, %d bpw\n",
 					t->speed_hz,
 					len,
@@ -509,8 +500,9 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	master->cleanup = NULL;
 	master->num_chipselect = 2;
 	master->mode_bits = MODEBITS;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 
 	spi100k = spi_master_get_devdata(master);
 	spi100k->master = master;
@@ -569,7 +561,7 @@ static int omap1_spi100k_remove(struct platform_device *pdev)
 	unsigned long		flags;
 	int			status = 0;
 
-	master = dev_get_drvdata(&pdev->dev);
+	master = platform_get_drvdata(pdev);
 	spi100k = spi_master_get_devdata(master);
 
 	spin_lock_irqsave(&spi100k->lock, flags);

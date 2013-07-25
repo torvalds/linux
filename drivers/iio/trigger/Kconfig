@@ -1,0 +1,26 @@
+#
+# Industrial I/O standalone triggers
+#
+menu "Triggers - standalone"
+
+config IIO_INTERRUPT_TRIGGER
+	tristate "Generic interrupt trigger"
+	help
+	  Provides support for using an interrupt of any type as an IIO
+	  trigger.  This may be provided by a gpio driver for example.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iio-trig-interrupt.
+
+config IIO_SYSFS_TRIGGER
+	tristate "SYSFS trigger"
+	depends on SYSFS
+	select IRQ_WORK
+	help
+	  Provides support for using SYSFS entry as IIO triggers.
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iio-trig-sysfs.
+
+endmenu

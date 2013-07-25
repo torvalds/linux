@@ -45,6 +45,17 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				usb0_otg_cfa10036: otg-10036@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0142 /* MX28_PAD_GPMI_READY0__USB0_ID */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 			};
 
 			ssp0: ssp@80010000 {
@@ -58,12 +69,6 @@
 		};
 
 		apbx@80040000 {
-			pwm: pwm@80064000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pwm4_pins_a>;
-				status = "okay";
-			};
-
 			duart: serial@80074000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&duart_pins_b>;
@@ -73,15 +78,30 @@
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_b>;
+				clock-frequency = <400000>;
 				status = "okay";
 
-				ssd1307: oled@3c {
-					compatible = "solomon,ssd1307fb-i2c";
+				ssd1306: oled@3c {
+					compatible = "solomon,ssd1306fb-i2c";
 					reg = <0x3c>;
-					pwms = <&pwm 4 3000>;
 					reset-gpios = <&gpio2 7 0>;
+					solomon,height = <32>;
+					solomon,width = <128>;
+					solomon,page-offset = <0>;
 				};
 			};
+
+			usbphy0: usbphy@8007c000 {
+				status = "okay";
+			};
+		};
+	};
+
+	ahb@80080000 {
+		usb0: usb@80080000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb0_otg_cfa10036>;
+			status = "okay";
 		};
 	};
 

@@ -315,10 +315,8 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 	if (qeth_configure_cq(card, QETH_CQ_ENABLED))
 		return -EPERM;
 
-	for (i = 0; i < 8; i++)
-		card->options.hsuid[i] = ' ';
-	card->options.hsuid[8] = '\0';
-	strncpy(card->options.hsuid, tmp, strlen(tmp));
+	snprintf(card->options.hsuid, sizeof(card->options.hsuid),
+		 "%-8s", tmp);
 	ASCEBC(card->options.hsuid, 8);
 	if (card->dev)
 		memcpy(card->dev->perm_addr, card->options.hsuid, 9);

@@ -28,8 +28,6 @@
 
 #include "stac9766.h"
 
-#define STAC9766_VERSION "0.10"
-
 /*
  * STAC9766 register cache
  */
@@ -145,14 +143,14 @@ static int stac9766_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	if (reg > AC97_STAC_PAGE0) {
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 0);
-		soc_ac97_ops.write(codec->ac97, reg, val);
+		soc_ac97_ops->write(codec->ac97, reg, val);
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
 		return 0;
 	}
 	if (reg / 2 >= ARRAY_SIZE(stac9766_reg))
 		return -EIO;
 
-	soc_ac97_ops.write(codec->ac97, reg, val);
+	soc_ac97_ops->write(codec->ac97, reg, val);
 	cache[reg / 2] = val;
 	return 0;
 }
@@ -164,7 +162,7 @@ static unsigned int stac9766_ac97_read(struct snd_soc_codec *codec,
 
 	if (reg > AC97_STAC_PAGE0) {
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 0);
-		val = soc_ac97_ops.read(codec->ac97, reg - AC97_STAC_PAGE0);
+		val = soc_ac97_ops->read(codec->ac97, reg - AC97_STAC_PAGE0);
 		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
 		return val;
 	}
@@ -175,7 +173,7 @@ static unsigned int stac9766_ac97_read(struct snd_soc_codec *codec,
 		reg == AC97_INT_PAGING || reg == AC97_VENDOR_ID1 ||
 		reg == AC97_VENDOR_ID2) {
 
-		val = soc_ac97_ops.read(codec->ac97, reg);
+		val = soc_ac97_ops->read(codec->ac97, reg);
 		return val;
 	}
 	return cache[reg / 2];
@@ -242,15 +240,15 @@ static int stac9766_set_bias_level(struct snd_soc_codec *codec,
 
 static int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
 {
-	if (try_warm && soc_ac97_ops.warm_reset) {
-		soc_ac97_ops.warm_reset(codec->ac97);
+	if (try_warm && soc_ac97_ops->warm_reset) {
+		soc_ac97_ops->warm_reset(codec->ac97);
 		if (stac9766_ac97_read(codec, 0) == stac9766_reg[0])
 			return 1;
 	}
 
-	soc_ac97_ops.reset(codec->ac97);
-	if (soc_ac97_ops.warm_reset)
-		soc_ac97_ops.warm_reset(codec->ac97);
+	soc_ac97_ops->reset(codec->ac97);
+	if (soc_ac97_ops->warm_reset)
+		soc_ac97_ops->warm_reset(codec->ac97);
 	if (stac9766_ac97_read(codec, 0) != stac9766_reg[0])
 		return -EIO;
 	return 0;
@@ -274,7 +272,7 @@ reset:
 		return -EIO;
 	}
 	codec->ac97->bus->ops->warm_reset(codec->ac97);
-	id = soc_ac97_ops.read(codec->ac97, AC97_VENDOR_ID2);
+	id = soc_ac97_ops->read(codec->ac97, AC97_VENDOR_ID2);
 	if (id != 0x4c13) {
 		stac9766_reset(codec, 0);
 		reset++;
@@ -338,9 +336,7 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
 
-	printk(KERN_INFO "STAC9766 SoC Audio Codec %s\n", STAC9766_VERSION);
-
-	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
+	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0)
 		goto codec_err;
 

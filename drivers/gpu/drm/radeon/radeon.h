@@ -97,6 +97,7 @@ extern int radeon_msi;
 extern int radeon_lockup_timeout;
 extern int radeon_fastfb;
 extern int radeon_dpm;
+extern int radeon_aspm;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -455,6 +456,7 @@ struct radeon_sa_manager {
 	uint64_t		gpu_addr;
 	void			*cpu_ptr;
 	uint32_t		domain;
+	uint32_t		align;
 };
 
 struct radeon_sa_bo;
@@ -783,6 +785,11 @@ struct radeon_mec {
 /* number of entries in page table */
 #define RADEON_VM_PTE_COUNT (1 << RADEON_VM_BLOCK_SIZE)
 
+/* PTBs (Page Table Blocks) need to be aligned to 32K */
+#define RADEON_VM_PTB_ALIGN_SIZE   32768
+#define RADEON_VM_PTB_ALIGN_MASK (RADEON_VM_PTB_ALIGN_SIZE - 1)
+#define RADEON_VM_PTB_ALIGN(a) (((a) + RADEON_VM_PTB_ALIGN_MASK) & ~RADEON_VM_PTB_ALIGN_MASK)
+
 struct radeon_vm {
 	struct list_head		list;
 	struct list_head		va;
@@ -1100,6 +1107,7 @@ enum radeon_pm_state_type {
 	POWER_STATE_TYPE_INTERNAL_THERMAL,
 	POWER_STATE_TYPE_INTERNAL_ACPI,
 	POWER_STATE_TYPE_INTERNAL_ULV,
+	POWER_STATE_TYPE_INTERNAL_3DPERF,
 };
 
 enum radeon_pm_profile_type {
@@ -1334,6 +1342,12 @@ enum radeon_pcie_gen {
 	RADEON_PCIE_GEN_INVALID = 0xffff
 };
 
+enum radeon_dpm_forced_level {
+	RADEON_DPM_FORCED_LEVEL_AUTO = 0,
+	RADEON_DPM_FORCED_LEVEL_LOW = 1,
+	RADEON_DPM_FORCED_LEVEL_HIGH = 2,
+};
+
 struct radeon_dpm {
 	struct radeon_ps        *ps;
 	/* number of valid power states */
@@ -1373,6 +1387,8 @@ struct radeon_dpm {
 	bool                    uvd_active;
 	/* thermal handling */
 	struct radeon_dpm_thermal thermal;
+	/* forced levels */
+	enum radeon_dpm_forced_level forced_level;
 };
 
 void radeon_dpm_enable_power_state(struct radeon_device *rdev,
@@ -1451,6 +1467,8 @@ struct radeon_uvd {
 	struct radeon_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
+	void			*saved_bo;
+	unsigned		fw_size;
 	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
 	struct delayed_work	idle_work;
@@ -1667,6 +1685,9 @@ struct radeon_asic {
 		u32 (*get_sclk)(struct radeon_device *rdev, bool low);
 		u32 (*get_mclk)(struct radeon_device *rdev, bool low);
 		void (*print_power_state)(struct radeon_device *rdev, struct radeon_ps *ps);
+		void (*debugfs_print_current_performance_level)(struct radeon_device *rdev, struct seq_file *m);
+		int (*force_performance_level)(struct radeon_device *rdev, enum radeon_dpm_forced_level level);
+		bool (*vblank_too_short)(struct radeon_device *rdev);
 	} dpm;
 	/* pageflipping */
 	struct {
@@ -2042,7 +2063,6 @@ struct radeon_device {
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
 	const struct firmware *mc_fw;	/* NI MC firmware */
 	const struct firmware *ce_fw;	/* SI CE firmware */
-	const struct firmware *uvd_fw;	/* UVD firmware */
 	const struct firmware *mec_fw;	/* CIK MEC firmware */
 	const struct firmware *sdma_fw;	/* CIK SDMA firmware */
 	const struct firmware *smc_fw;	/* SMC firmware */
@@ -2433,6 +2453,9 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_dpm_get_sclk(rdev, l) rdev->asic->dpm.get_sclk((rdev), (l))
 #define radeon_dpm_get_mclk(rdev, l) rdev->asic->dpm.get_mclk((rdev), (l))
 #define radeon_dpm_print_power_state(rdev, ps) rdev->asic->dpm.print_power_state((rdev), (ps))
+#define radeon_dpm_debugfs_print_current_performance_level(rdev, m) rdev->asic->dpm.debugfs_print_current_performance_level((rdev), (m))
+#define radeon_dpm_force_performance_level(rdev, l) rdev->asic->dpm.force_performance_level((rdev), (l))
+#define radeon_dpm_vblank_too_short(rdev) rdev->asic->dpm.vblank_too_short((rdev))
 
 /* Common functions */
 /* AGP */

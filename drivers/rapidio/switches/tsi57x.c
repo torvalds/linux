@@ -19,6 +19,7 @@
 #include <linux/rio_drv.h>
 #include <linux/rio_ids.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include "../rio.h"
 
 /* Global (broadcast) route registers */
@@ -292,27 +293,79 @@ exit_es:
 	return 0;
 }
 
-static int tsi57x_switch_init(struct rio_dev *rdev, int do_enum)
+static struct rio_switch_ops tsi57x_switch_ops = {
+	.owner = THIS_MODULE,
+	.add_entry = tsi57x_route_add_entry,
+	.get_entry = tsi57x_route_get_entry,
+	.clr_table = tsi57x_route_clr_table,
+	.set_domain = tsi57x_set_domain,
+	.get_domain = tsi57x_get_domain,
+	.em_init = tsi57x_em_init,
+	.em_handle = tsi57x_em_handler,
+};
+
+static int tsi57x_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
 	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
-	rdev->rswitch->add_entry = tsi57x_route_add_entry;
-	rdev->rswitch->get_entry = tsi57x_route_get_entry;
-	rdev->rswitch->clr_table = tsi57x_route_clr_table;
-	rdev->rswitch->set_domain = tsi57x_set_domain;
-	rdev->rswitch->get_domain = tsi57x_get_domain;
-	rdev->rswitch->em_init = tsi57x_em_init;
-	rdev->rswitch->em_handle = tsi57x_em_handler;
 
-	if (do_enum) {
+	spin_lock(&rdev->rswitch->lock);
+
+	if (rdev->rswitch->ops) {
+		spin_unlock(&rdev->rswitch->lock);
+		return -EINVAL;
+	}
+	rdev->rswitch->ops = &tsi57x_switch_ops;
+
+	if (rdev->do_enum) {
 		/* Ensure that default routing is disabled on startup */
 		rio_write_config_32(rdev, RIO_STD_RTE_DEFAULT_PORT,
 				    RIO_INVALID_ROUTE);
 	}
 
+	spin_unlock(&rdev->rswitch->lock);
 	return 0;
 }
 
-DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI572, tsi57x_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI574, tsi57x_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI577, tsi57x_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI578, tsi57x_switch_init);
+static void tsi57x_remove(struct rio_dev *rdev)
+{
+	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	spin_lock(&rdev->rswitch->lock);
+	if (rdev->rswitch->ops != &tsi57x_switch_ops) {
+		spin_unlock(&rdev->rswitch->lock);
+		return;
+	}
+	rdev->rswitch->ops = NULL;
+	spin_unlock(&rdev->rswitch->lock);
+}
+
+static struct rio_device_id tsi57x_id_table[] = {
+	{RIO_DEVICE(RIO_DID_TSI572, RIO_VID_TUNDRA)},
+	{RIO_DEVICE(RIO_DID_TSI574, RIO_VID_TUNDRA)},
+	{RIO_DEVICE(RIO_DID_TSI577, RIO_VID_TUNDRA)},
+	{RIO_DEVICE(RIO_DID_TSI578, RIO_VID_TUNDRA)},
+	{ 0, }	/* terminate list */
+};
+
+static struct rio_driver tsi57x_driver = {
+	.name = "tsi57x",
+	.id_table = tsi57x_id_table,
+	.probe = tsi57x_probe,
+	.remove = tsi57x_remove,
+};
+
+static int __init tsi57x_init(void)
+{
+	return rio_register_driver(&tsi57x_driver);
+}
+
+static void __exit tsi57x_exit(void)
+{
+	rio_unregister_driver(&tsi57x_driver);
+}
+
+device_initcall(tsi57x_init);
+module_exit(tsi57x_exit);
+
+MODULE_DESCRIPTION("IDT Tsi57x Serial RapidIO switch family driver");
+MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_LICENSE("GPL");

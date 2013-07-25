@@ -24,8 +24,11 @@ The three cells in order are:
 1. A phandle pointing to the DMA controller.
 2. The memory interface (16 most significant bits), the peripheral interface
 (16 less significant bits).
-3. The peripheral identifier for the hardware handshaking interface. The
-identifier can be different for tx and rx.
+3. Parameters for the at91 DMA configuration register which are device
+dependant:
+  - bit 7-0: peripheral identifier for the hardware handshaking interface. The
+  identifier can be different for tx and rx.
+  - bit 11-8: FIFO configuration. 0 for half FIFO, 1 for ALAP, 1 for ASAP.
 
 Example:
 

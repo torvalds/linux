@@ -185,8 +185,6 @@ static int wm8994_ldo_remove(struct platform_device *pdev)
 {
 	struct wm8994_ldo *ldo = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	regulator_unregister(ldo->regulator);
 
 	return 0;

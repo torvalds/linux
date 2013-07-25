@@ -384,11 +384,33 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 	}
 }
 
+static unsigned int esdhc_pltfm_get_max_clock(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
+
+	u32 f_host = clk_get_rate(pltfm_host->clk);
+
+	if (boarddata->f_max && (boarddata->f_max < f_host))
+		return boarddata->f_max;
+	else
+		return f_host;
+}
+
 static unsigned int esdhc_pltfm_get_min_clock(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 
 	return clk_get_rate(pltfm_host->clk) / 256 / 16;
+}
+
+static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
+					 unsigned int clock)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+
+	esdhc_set_clock(host, clock, clk_get_rate(pltfm_host->clk));
 }
 
 static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)
@@ -438,8 +460,8 @@ static const struct sdhci_ops sdhci_esdhc_ops = {
 	.write_l = esdhc_writel_le,
 	.write_w = esdhc_writew_le,
 	.write_b = esdhc_writeb_le,
-	.set_clock = esdhc_set_clock,
-	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.set_clock = esdhc_pltfm_set_clock,
+	.get_max_clock = esdhc_pltfm_get_max_clock,
 	.get_min_clock = esdhc_pltfm_get_min_clock,
 	.get_ro = esdhc_pltfm_get_ro,
 	.platform_bus_width = esdhc_pltfm_bus_width,
@@ -482,6 +504,8 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	of_property_read_u32(np, "bus-width", &boarddata->max_bus_width);
 
+	of_property_read_u32(np, "max-frequency", &boarddata->f_max);
+
 	return 0;
 }
 #else
@@ -503,7 +527,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	int err;
 	struct pltfm_imx_data *imx_data;
 
-	host = sdhci_pltfm_init(pdev, &sdhci_esdhc_imx_pdata);
+	host = sdhci_pltfm_init(pdev, &sdhci_esdhc_imx_pdata, 0);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 

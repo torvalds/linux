@@ -89,7 +89,7 @@ void cns3xxx_pwr_soft_rst(unsigned int block)
 }
 EXPORT_SYMBOL(cns3xxx_pwr_soft_rst);
 
-void cns3xxx_restart(char mode, const char *cmd)
+void cns3xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * To reset, we hit the on-board reset register

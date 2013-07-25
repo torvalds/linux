@@ -22,6 +22,7 @@ menuconfig ARC_PLAT_TB10X
 	select PINCTRL
 	select PINMUX
 	select ARCH_REQUIRE_GPIOLIB
+	select TB10X_IRQC
 	help
 	  Support for platforms based on the TB10x home media gateway SOC by
 	  Abilis Systems. TB10x is based on the ARC700 CPU architecture.

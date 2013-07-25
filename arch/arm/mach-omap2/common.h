@@ -31,6 +31,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/twl.h>
 #include <linux/i2c-omap.h>
+#include <linux/reboot.h>
 
 #include <asm/proc-fns.h>
 
@@ -96,6 +97,7 @@ void am33xx_init_early(void);
 void am35xx_init_early(void);
 void ti81xx_init_early(void);
 void am33xx_init_early(void);
+void am43xx_init_early(void);
 void omap4430_init_early(void);
 void omap5_init_early(void);
 void omap3_init_late(void);	/* Do not use this one */
@@ -118,33 +120,33 @@ static inline void omap_soc_device_init(void)
 #endif
 
 #if defined(CONFIG_SOC_OMAP2420) || defined(CONFIG_SOC_OMAP2430)
-void omap2xxx_restart(char mode, const char *cmd);
+void omap2xxx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap2xxx_restart(char mode, const char *cmd)
+static inline void omap2xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif
 
 #ifdef CONFIG_SOC_AM33XX
-void am33xx_restart(char mode, const char *cmd);
+void am33xx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void am33xx_restart(char mode, const char *cmd)
+static inline void am33xx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
-void omap3xxx_restart(char mode, const char *cmd);
+void omap3xxx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap3xxx_restart(char mode, const char *cmd)
+static inline void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif
 
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
-void omap44xx_restart(char mode, const char *cmd);
+void omap44xx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap44xx_restart(char mode, const char *cmd)
+static inline void omap44xx_restart(enum reboot_mode mode, const char *cmd)
 {
 }
 #endif
@@ -237,8 +239,8 @@ extern void omap_do_wfi(void);
 
 #ifdef CONFIG_SMP
 /* Needed for secondary core boot */
-extern void omap_secondary_startup(void);
-extern void omap_secondary_startup_4460(void);
+extern void omap4_secondary_startup(void);
+extern void omap4460_secondary_startup(void);
 extern u32 omap_modify_auxcoreboot0(u32 set_mask, u32 clear_mask);
 extern void omap_auxcoreboot_addr(u32 cpu_addr);
 extern u32 omap_read_auxcoreboot0(void);

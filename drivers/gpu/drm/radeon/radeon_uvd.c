@@ -56,19 +56,12 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work);
 
 int radeon_uvd_init(struct radeon_device *rdev)
 {
-	struct platform_device *pdev;
+	const struct firmware *fw;
 	unsigned long bo_size;
 	const char *fw_name;
 	int i, r;
 
 	INIT_DELAYED_WORK(&rdev->uvd.idle_work, radeon_uvd_idle_work_handler);
-
-	pdev = platform_device_register_simple("radeon_uvd", 0, NULL, 0);
-	r = IS_ERR(pdev);
-	if (r) {
-		dev_err(rdev->dev, "radeon_uvd: Failed to register firmware\n");
-		return -EINVAL;
-	}
 
 	switch (rdev->family) {
 	case CHIP_RV710:
@@ -112,17 +105,14 @@ int radeon_uvd_init(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 
-	r = request_firmware(&rdev->uvd_fw, fw_name, &pdev->dev);
+	r = request_firmware(&fw, fw_name, rdev->dev);
 	if (r) {
 		dev_err(rdev->dev, "radeon_uvd: Can't load firmware \"%s\"\n",
 			fw_name);
-		platform_device_unregister(pdev);
 		return r;
 	}
 
-	platform_device_unregister(pdev);
-
-	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 8) +
+	bo_size = RADEON_GPU_PAGE_ALIGN(fw->size + 8) +
 		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE;
 	r = radeon_bo_create(rdev, bo_size, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->uvd.vcpu_bo);
@@ -131,74 +121,12 @@ int radeon_uvd_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_uvd_resume(rdev);
-	if (r)
-		return r;
-
-	memset(rdev->uvd.cpu_addr, 0, bo_size);
-	memcpy(rdev->uvd.cpu_addr, rdev->uvd_fw->data, rdev->uvd_fw->size);
-
-	r = radeon_uvd_suspend(rdev);
-	if (r)
-		return r;
-
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
-		atomic_set(&rdev->uvd.handles[i], 0);
-		rdev->uvd.filp[i] = NULL;
-	}
-
-	return 0;
-}
-
-void radeon_uvd_fini(struct radeon_device *rdev)
-{
-	radeon_uvd_suspend(rdev);
-	radeon_bo_unref(&rdev->uvd.vcpu_bo);
-}
-
-int radeon_uvd_suspend(struct radeon_device *rdev)
-{
-	int r;
-
-	if (rdev->uvd.vcpu_bo == NULL)
-		return 0;
-
-	r = radeon_bo_reserve(rdev->uvd.vcpu_bo, false);
-	if (!r) {
-		radeon_bo_kunmap(rdev->uvd.vcpu_bo);
-		radeon_bo_unpin(rdev->uvd.vcpu_bo);
-		rdev->uvd.cpu_addr = NULL;
-		if (!radeon_bo_pin(rdev->uvd.vcpu_bo, RADEON_GEM_DOMAIN_CPU, NULL)) {
-			radeon_bo_kmap(rdev->uvd.vcpu_bo, &rdev->uvd.cpu_addr);
-		}
-		radeon_bo_unreserve(rdev->uvd.vcpu_bo);
-
-		if (rdev->uvd.cpu_addr) {
-			radeon_fence_driver_start_ring(rdev, R600_RING_TYPE_UVD_INDEX);
-		} else {
-			rdev->fence_drv[R600_RING_TYPE_UVD_INDEX].cpu_addr = NULL;
-		}
-	}
-	return r;
-}
-
-int radeon_uvd_resume(struct radeon_device *rdev)
-{
-	int r;
-
-	if (rdev->uvd.vcpu_bo == NULL)
-		return -EINVAL;
-
 	r = radeon_bo_reserve(rdev->uvd.vcpu_bo, false);
 	if (r) {
 		radeon_bo_unref(&rdev->uvd.vcpu_bo);
 		dev_err(rdev->dev, "(%d) failed to reserve UVD bo\n", r);
 		return r;
 	}
-
-	/* Have been pin in cpu unmap unpin */
-	radeon_bo_kunmap(rdev->uvd.vcpu_bo);
-	radeon_bo_unpin(rdev->uvd.vcpu_bo);
 
 	r = radeon_bo_pin(rdev->uvd.vcpu_bo, RADEON_GEM_DOMAIN_VRAM,
 			  &rdev->uvd.gpu_addr);
@@ -216,6 +144,63 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 	}
 
 	radeon_bo_unreserve(rdev->uvd.vcpu_bo);
+
+	rdev->uvd.fw_size = fw->size;
+	memset(rdev->uvd.cpu_addr, 0, bo_size);
+	memcpy(rdev->uvd.cpu_addr, fw->data, fw->size);
+
+	release_firmware(fw);
+
+	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+		atomic_set(&rdev->uvd.handles[i], 0);
+		rdev->uvd.filp[i] = NULL;
+	}
+
+	return 0;
+}
+
+void radeon_uvd_fini(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->uvd.vcpu_bo == NULL)
+		return;
+
+	r = radeon_bo_reserve(rdev->uvd.vcpu_bo, false);
+	if (!r) {
+		radeon_bo_kunmap(rdev->uvd.vcpu_bo);
+		radeon_bo_unpin(rdev->uvd.vcpu_bo);
+		radeon_bo_unreserve(rdev->uvd.vcpu_bo);
+	}
+
+	radeon_bo_unref(&rdev->uvd.vcpu_bo);
+}
+
+int radeon_uvd_suspend(struct radeon_device *rdev)
+{
+	unsigned size;
+
+	if (rdev->uvd.vcpu_bo == NULL)
+		return 0;
+
+	size = radeon_bo_size(rdev->uvd.vcpu_bo);
+	rdev->uvd.saved_bo = kmalloc(size, GFP_KERNEL);
+	memcpy(rdev->uvd.saved_bo, rdev->uvd.cpu_addr, size);
+
+	return 0;
+}
+
+int radeon_uvd_resume(struct radeon_device *rdev)
+{
+	if (rdev->uvd.vcpu_bo == NULL)
+		return -EINVAL;
+
+	if (rdev->uvd.saved_bo != NULL) {
+		unsigned size = radeon_bo_size(rdev->uvd.vcpu_bo);
+		memcpy(rdev->uvd.cpu_addr, rdev->uvd.saved_bo, size);
+		kfree(rdev->uvd.saved_bo);
+		rdev->uvd.saved_bo = NULL;
+	}
 
 	return 0;
 }

@@ -22,7 +22,6 @@
 #include "ozhcd.h"
 #include "oztrace.h"
 #include "ozusbsvc.h"
-#include "ozevent.h"
 /*------------------------------------------------------------------------------
  */
 #define MAX_ISOC_FIXED_DATA	(253-sizeof(struct oz_isoc_fixed))
@@ -190,10 +189,6 @@ int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
 	unsigned windex = le16_to_cpu(setup->wIndex);
 	unsigned wlength = le16_to_cpu(setup->wLength);
 	int rc = 0;
-	oz_event_log(OZ_EVT_CTRL_REQ, setup->bRequest, req_id,
-		(void *)(((unsigned long)(setup->wValue))<<16 |
-			((unsigned long)setup->wIndex)),
-		setup->bRequestType);
 	if ((setup->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
 		switch (setup->bRequest) {
 		case USB_REQ_GET_DESCRIPTOR:

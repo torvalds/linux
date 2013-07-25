@@ -634,9 +634,9 @@ fixup_netwinder(struct tag *tags, char **cmdline, struct meminfo *mi)
 #endif
 }
 
-static void netwinder_restart(char mode, const char *cmd)
+static void netwinder_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's') {
+	if (mode == REBOOT_SOFT) {
 		/* Jump into the ROM */
 		soft_restart(0x41000000);
 	} else {

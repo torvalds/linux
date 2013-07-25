@@ -11,7 +11,12 @@
  * published by the Free Software Foundation.
 */
 
+#ifdef CONFIG_DEBUG_MVEBU_UART_ALTERNATE
+#define ARMADA_370_XP_REGS_PHYS_BASE	0xf1000000
+#else
 #define ARMADA_370_XP_REGS_PHYS_BASE	0xd0000000
+#endif
+
 #define ARMADA_370_XP_REGS_VIRT_BASE	0xfec00000
 
 	.macro	addruart, rp, rv, tmp

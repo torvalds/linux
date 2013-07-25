@@ -6,10 +6,12 @@ config XTENSA
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_IDE
 	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
 	select HAVE_GENERIC_HARDIRQS
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
+	select GENERIC_SCHED_CLOCK
 	select MODULES_USE_ELF_RELA
 	select GENERIC_PCI_IOMAP
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -17,6 +19,7 @@ config XTENSA
 	select CLONE_BACKWARDS
 	select IRQ_DOMAIN
 	select HAVE_OPROFILE
+	select HAVE_FUNCTION_TRACER
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both

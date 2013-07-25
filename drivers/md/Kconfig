@@ -412,4 +412,18 @@ config DM_VERITY
 
 	  If unsure, say N.
 
+config DM_SWITCH
+	tristate "Switch target support (EXPERIMENTAL)"
+	depends on BLK_DEV_DM
+	---help---
+	  This device-mapper target creates a device that supports an arbitrary
+	  mapping of fixed-size regions of I/O across a fixed set of paths.
+	  The path used for any specific region can be switched dynamically
+	  by sending the target a message.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-switch.
+
+	  If unsure, say N.
+
 endif # MD

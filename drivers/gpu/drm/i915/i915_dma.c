@@ -1490,6 +1490,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->dev = dev;
 	dev_priv->info = info;
 
+	spin_lock_init(&dev_priv->irq_lock);
+	spin_lock_init(&dev_priv->gpu_error.lock);
+	spin_lock_init(&dev_priv->backlight.lock);
+	spin_lock_init(&dev_priv->gt_lock);
+	mutex_init(&dev_priv->dpio_lock);
+	mutex_init(&dev_priv->rps.hw_lock);
+	mutex_init(&dev_priv->modeset_restore_lock);
+
 	i915_dump_device_info(dev_priv);
 
 	INIT_LIST_HEAD(&dev_priv->vm_list);
@@ -1594,6 +1602,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_detect_pch(dev);
 
 	intel_irq_init(dev);
+	intel_gt_sanitize(dev);
 	intel_gt_init(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
@@ -1618,14 +1627,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 */
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
-
-	spin_lock_init(&dev_priv->irq_lock);
-	spin_lock_init(&dev_priv->gpu_error.lock);
-	spin_lock_init(&dev_priv->backlight.lock);
-	mutex_init(&dev_priv->dpio_lock);
-
-	mutex_init(&dev_priv->rps.hw_lock);
-	mutex_init(&dev_priv->modeset_restore_lock);
 
 	dev_priv->num_plane = 1;
 	if (IS_VALLEYVIEW(dev))
@@ -1656,7 +1657,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (INTEL_INFO(dev)->num_pipes) {
 		/* Must be done after probing outputs */
 		intel_opregion_init(dev);
-		acpi_video_register();
+		acpi_video_register_with_quirks();
 	}
 
 	if (IS_GEN5(dev))

@@ -154,7 +154,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 						    0x00, 0x00};
 	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
-	short vid __maybe_unused = -1;
+	unsigned short vid __maybe_unused = BATADV_NO_FLAGS;
 	bool do_bcast = false;
 	uint32_t seqno;
 	unsigned long brd_delay = 1;
@@ -303,7 +303,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
 	struct batadv_header *batadv_header = (struct batadv_header *)skb->data;
-	short vid __maybe_unused = -1;
+	unsigned short vid __maybe_unused = BATADV_NO_FLAGS;
 	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
 	bool is_bcast;
 
@@ -316,7 +316,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	skb_pull_rcsum(skb, hdr_size);
 	skb_reset_mac_header(skb);
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_8021Q:

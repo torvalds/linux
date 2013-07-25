@@ -603,7 +603,12 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 
 		vsync_cnt = 3;
 		if (di->id == 1)
-			vsync_cnt = 6;
+			/*
+			 * TODO: change only for TVEv2, parallel display
+			 * uses pin 2 / 3
+			 */
+			if (!(sig->hsync_pin == 2 && sig->vsync_pin == 3))
+				vsync_cnt = 6;
 
 		if (sig->Hsync_pol) {
 			if (sig->hsync_pin == 2)
@@ -614,11 +619,11 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 				di_gen |= DI_GEN_POLARITY_7;
 		}
 		if (sig->Vsync_pol) {
-			if (sig->hsync_pin == 3)
+			if (sig->vsync_pin == 3)
 				di_gen |= DI_GEN_POLARITY_3;
-			else if (sig->hsync_pin == 6)
+			else if (sig->vsync_pin == 6)
 				di_gen |= DI_GEN_POLARITY_6;
-			else if (sig->hsync_pin == 8)
+			else if (sig->vsync_pin == 8)
 				di_gen |= DI_GEN_POLARITY_8;
 		}
 	}

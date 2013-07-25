@@ -224,8 +224,8 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	result = metrousb_send_unidirectional_cmd(UNI_CMD_OPEN, port);
 	if (result) {
 		dev_err(&port->dev,
-			"%s - failed to configure device for port number=%d, error code=%d\n",
-			__func__, port->number, result);
+			"%s - failed to configure device, error code=%d\n",
+			__func__, result);
 		goto exit;
 	}
 

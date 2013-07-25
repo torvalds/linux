@@ -101,12 +101,12 @@ union ich8_hws_flash_regacc {
 /* ICH Flash Protected Region */
 union ich8_flash_protected_range {
 	struct ich8_pr {
-		u32 base:13;     /* 0:12 Protected Range Base */
-		u32 reserved1:2; /* 13:14 Reserved */
-		u32 rpe:1;       /* 15 Read Protection Enable */
-		u32 limit:13;    /* 16:28 Protected Range Limit */
-		u32 reserved2:2; /* 29:30 Reserved */
-		u32 wpe:1;       /* 31 Write Protection Enable */
+		u32 base:13;	/* 0:12 Protected Range Base */
+		u32 reserved1:2;	/* 13:14 Reserved */
+		u32 rpe:1;	/* 15 Read Protection Enable */
+		u32 limit:13;	/* 16:28 Protected Range Limit */
+		u32 reserved2:2;	/* 29:30 Reserved */
+		u32 wpe:1;	/* 31 Write Protection Enable */
 	} range;
 	u32 regval;
 };
@@ -362,21 +362,21 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 
-	phy->addr                     = 1;
-	phy->reset_delay_us           = 100;
+	phy->addr = 1;
+	phy->reset_delay_us = 100;
 
-	phy->ops.set_page             = e1000_set_page_igp;
-	phy->ops.read_reg             = e1000_read_phy_reg_hv;
-	phy->ops.read_reg_locked      = e1000_read_phy_reg_hv_locked;
-	phy->ops.read_reg_page        = e1000_read_phy_reg_page_hv;
-	phy->ops.set_d0_lplu_state    = e1000_set_lplu_state_pchlan;
-	phy->ops.set_d3_lplu_state    = e1000_set_lplu_state_pchlan;
-	phy->ops.write_reg            = e1000_write_phy_reg_hv;
-	phy->ops.write_reg_locked     = e1000_write_phy_reg_hv_locked;
-	phy->ops.write_reg_page       = e1000_write_phy_reg_page_hv;
-	phy->ops.power_up             = e1000_power_up_phy_copper;
-	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
-	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
+	phy->ops.set_page = e1000_set_page_igp;
+	phy->ops.read_reg = e1000_read_phy_reg_hv;
+	phy->ops.read_reg_locked = e1000_read_phy_reg_hv_locked;
+	phy->ops.read_reg_page = e1000_read_phy_reg_page_hv;
+	phy->ops.set_d0_lplu_state = e1000_set_lplu_state_pchlan;
+	phy->ops.set_d3_lplu_state = e1000_set_lplu_state_pchlan;
+	phy->ops.write_reg = e1000_write_phy_reg_hv;
+	phy->ops.write_reg_locked = e1000_write_phy_reg_hv_locked;
+	phy->ops.write_reg_page = e1000_write_phy_reg_page_hv;
+	phy->ops.power_up = e1000_power_up_phy_copper;
+	phy->ops.power_down = e1000_power_down_phy_copper_ich8lan;
+	phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
 	phy->id = e1000_phy_unknown;
 
@@ -445,11 +445,11 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 i = 0;
 
-	phy->addr			= 1;
-	phy->reset_delay_us		= 100;
+	phy->addr = 1;
+	phy->reset_delay_us = 100;
 
-	phy->ops.power_up               = e1000_power_up_phy_copper;
-	phy->ops.power_down             = e1000_power_down_phy_copper_ich8lan;
+	phy->ops.power_up = e1000_power_up_phy_copper;
+	phy->ops.power_down = e1000_power_down_phy_copper_ich8lan;
 
 	/* We may need to do this twice - once for IGP and if that fails,
 	 * we'll set BM func pointers and try again
@@ -457,7 +457,7 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 	ret_val = e1000e_determine_phy_address(hw);
 	if (ret_val) {
 		phy->ops.write_reg = e1000e_write_phy_reg_bm;
-		phy->ops.read_reg  = e1000e_read_phy_reg_bm;
+		phy->ops.read_reg = e1000e_read_phy_reg_bm;
 		ret_val = e1000e_determine_phy_address(hw);
 		if (ret_val) {
 			e_dbg("Cannot determine PHY addr. Erroring out\n");
@@ -560,7 +560,7 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 	/* Clear shadow ram */
 	for (i = 0; i < nvm->word_size; i++) {
 		dev_spec->shadow_ram[i].modified = false;
-		dev_spec->shadow_ram[i].value    = 0xFFFF;
+		dev_spec->shadow_ram[i].value = 0xFFFF;
 	}
 
 	return 0;
@@ -1012,7 +1012,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	hw->dev_spec.ich8lan.eee_lp_ability = 0;
 
 	if (!link)
-		return 0; /* No link detected */
+		return 0;	/* No link detected */
 
 	mac->get_link_status = false;
 
@@ -2816,7 +2816,7 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 	s32 ret_val = -E1000_ERR_NVM;
 	u8 count = 0;
 
-	if (size < 1  || size > 2 || offset > ICH_FLASH_LINEAR_ADDR_MASK)
+	if (size < 1 || size > 2 || offset > ICH_FLASH_LINEAR_ADDR_MASK)
 		return -E1000_ERR_NVM;
 
 	flash_linear_addr = ((ICH_FLASH_LINEAR_ADDR_MASK & offset) +
@@ -2939,7 +2939,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 * write to bank 0 etc.  We also need to erase the segment that
 	 * is going to be written
 	 */
-	ret_val =  e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
+	ret_val = e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
 	if (ret_val) {
 		e_dbg("Could not detect valid bank, assuming bank 0\n");
 		bank = 0;
@@ -4073,7 +4073,7 @@ void e1000e_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw)
 {
 	u32 reg;
 	u16 data;
-	u8  retry = 0;
+	u8 retry = 0;
 
 	if (hw->phy.type != e1000_phy_igp_3)
 		return;

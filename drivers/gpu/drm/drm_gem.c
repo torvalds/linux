@@ -108,12 +108,8 @@ drm_gem_init(struct drm_device *dev)
 		return -ENOMEM;
 	}
 
-	if (drm_mm_init(&mm->offset_manager, DRM_FILE_PAGE_OFFSET_START,
-			DRM_FILE_PAGE_OFFSET_SIZE)) {
-		drm_ht_remove(&mm->offset_hash);
-		kfree(mm);
-		return -ENOMEM;
-	}
+	drm_mm_init(&mm->offset_manager, DRM_FILE_PAGE_OFFSET_START,
+		    DRM_FILE_PAGE_OFFSET_SIZE);
 
 	return 0;
 }

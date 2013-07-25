@@ -13,7 +13,7 @@
 
 /dts-v1/;
 
-/include/ "bcm11351.dtsi"
+#include "bcm11351.dtsi"
 
 / {
 	model = "BCM11351 BRT board";
@@ -26,5 +26,22 @@
 	uart@3e000000 {
 		status = "okay";
 	};
+
+	sdio0: sdio@0x3f180000 {
+		max-frequency = <48000000>;
+		status = "okay";
+	};
+
+	sdio1: sdio@0x3f190000 {
+		non-removable;
+		max-frequency = <48000000>;
+		status = "okay";
+	};
+
+	sdio3: sdio@0x3f1b0000 {
+		max-frequency = <48000000>;
+		status = "okay";
+	};
+
 
 };

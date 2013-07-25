@@ -28,8 +28,6 @@
 	.set	mips0
 	.endm
 
-	__CPUINIT
-
 /***********************************************************************
  * Alternate CPU1 startup vector for BMIPS4350
  *
@@ -215,8 +213,6 @@ END(bmips_smp_int_vec)
  * XKS01 support
  * Certain CPUs support extending kseg0 to 1024MB.
  ***********************************************************************/
-
-	__CPUINIT
 
 LEAF(bmips_enable_xks01)
 

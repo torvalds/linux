@@ -62,12 +62,12 @@ extern long sysctl_sctp_mem[3];
 extern int sysctl_sctp_rmem[3];
 extern int sysctl_sctp_wmem[3];
 
-static int proc_sctp_do_hmac_alg(ctl_table *ctl,
+static int proc_sctp_do_hmac_alg(struct ctl_table *ctl,
 				int write,
 				void __user *buffer, size_t *lenp,
 
 				loff_t *ppos);
-static ctl_table sctp_table[] = {
+static struct ctl_table sctp_table[] = {
 	{
 		.procname	= "sctp_mem",
 		.data		= &sysctl_sctp_mem,
@@ -93,7 +93,7 @@ static ctl_table sctp_table[] = {
 	{ /* sentinel */ }
 };
 
-static ctl_table sctp_net_table[] = {
+static struct ctl_table sctp_net_table[] = {
 	{
 		.procname	= "rto_initial",
 		.data		= &init_net.sctp.rto_initial,
@@ -300,14 +300,14 @@ static ctl_table sctp_net_table[] = {
 	{ /* sentinel */ }
 };
 
-static int proc_sctp_do_hmac_alg(ctl_table *ctl,
+static int proc_sctp_do_hmac_alg(struct ctl_table *ctl,
 				int write,
 				void __user *buffer, size_t *lenp,
 				loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
 	char tmp[8];
-	ctl_table tbl;
+	struct ctl_table tbl;
 	int ret;
 	int changed = 0;
 	char *none = "none";

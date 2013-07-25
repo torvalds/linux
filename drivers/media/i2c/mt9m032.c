@@ -554,10 +554,8 @@ static int mt9m032_g_register(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->subdev);
 	int val;
 
-	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
+	if (reg->reg > 0xff)
 		return -EINVAL;
-	if (reg->match.addr != client->addr)
-		return -ENODEV;
 
 	val = mt9m032_read(client, reg->reg);
 	if (val < 0)
@@ -575,11 +573,8 @@ static int mt9m032_s_register(struct v4l2_subdev *sd,
 	struct mt9m032 *sensor = to_mt9m032(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->subdev);
 
-	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
+	if (reg->reg > 0xff)
 		return -EINVAL;
-
-	if (reg->match.addr != client->addr)
-		return -ENODEV;
 
 	return mt9m032_write(client, reg->reg, reg->val);
 }
@@ -730,7 +725,7 @@ static int mt9m032_probe(struct i2c_client *client,
 	if (!client->dev.platform_data)
 		return -ENODEV;
 
-	sensor = kzalloc(sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (sensor == NULL)
 		return -ENOMEM;
 
@@ -860,7 +855,6 @@ error_ctrl:
 	v4l2_ctrl_handler_free(&sensor->ctrls);
 error_sensor:
 	mutex_destroy(&sensor->lock);
-	kfree(sensor);
 	return ret;
 }
 
@@ -873,7 +867,6 @@ static int mt9m032_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls);
 	media_entity_cleanup(&subdev->entity);
 	mutex_destroy(&sensor->lock);
-	kfree(sensor);
 	return 0;
 }
 

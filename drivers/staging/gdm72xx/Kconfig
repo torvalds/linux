@@ -4,7 +4,7 @@
 
 menuconfig WIMAX_GDM72XX
 	tristate "GCT GDM72xx WiMAX support"
-	depends on NET
+	depends on NET && (USB || MMC)
 	help
 	  Support for the GCT GDM72xx WiMAX chip
 
@@ -19,7 +19,7 @@ config WIMAX_GDM72XX_K_MODE
 	default n
 
 config WIMAX_GDM72XX_WIMAX2
-	bool "Enable WIMAX2 support"
+	bool "Enable WiMAX2 support"
 	default n
 
 choice
@@ -27,18 +27,18 @@ choice
 
 config WIMAX_GDM72XX_USB
 	bool "USB interface"
-	depends on USB
+	depends on (USB = y || USB = WIMAX_GDM72XX)
 
 config WIMAX_GDM72XX_SDIO
 	bool "SDIO interface"
-	depends on MMC
+	depends on (MMC = y || MMC = WIMAX_GDM72XX)
 
 endchoice
 
 if WIMAX_GDM72XX_USB
 
 config WIMAX_GDM72XX_USB_PM
-	bool "Enable power managerment support"
+	bool "Enable power management support"
 	depends on PM_RUNTIME
 
 endif # WIMAX_GDM72XX_USB

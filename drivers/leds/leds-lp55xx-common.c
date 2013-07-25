@@ -19,6 +19,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_data/leds-lp55xx.h>
+#include <linux/slab.h>
 
 #include "leds-lp55xx-common.h"
 
@@ -553,6 +554,50 @@ void lp55xx_unregister_sysfs(struct lp55xx_chip *chip)
 	sysfs_remove_group(&dev->kobj, &lp55xx_engine_attr_group);
 }
 EXPORT_SYMBOL_GPL(lp55xx_unregister_sysfs);
+
+int lp55xx_of_populate_pdata(struct device *dev, struct device_node *np)
+{
+	struct device_node *child;
+	struct lp55xx_platform_data *pdata;
+	struct lp55xx_led_config *cfg;
+	int num_channels;
+	int i = 0;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	num_channels = of_get_child_count(np);
+	if (num_channels == 0) {
+		dev_err(dev, "no LED channels\n");
+		return -EINVAL;
+	}
+
+	cfg = devm_kzalloc(dev, sizeof(*cfg) * num_channels, GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
+
+	pdata->led_config = &cfg[0];
+	pdata->num_channels = num_channels;
+
+	for_each_child_of_node(np, child) {
+		cfg[i].chan_nr = i;
+
+		of_property_read_string(child, "chan-name", &cfg[i].name);
+		of_property_read_u8(child, "led-cur", &cfg[i].led_current);
+		of_property_read_u8(child, "max-cur", &cfg[i].max_current);
+
+		i++;
+	}
+
+	of_property_read_string(np, "label", &pdata->label);
+	of_property_read_u8(np, "clock-mode", &pdata->clock_mode);
+
+	dev->platform_data = pdata;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lp55xx_of_populate_pdata);
 
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP55xx Common Driver");

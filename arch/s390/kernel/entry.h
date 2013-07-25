@@ -54,7 +54,7 @@ void handle_signal32(unsigned long sig, struct k_sigaction *ka,
 void do_notify_resume(struct pt_regs *regs);
 
 struct ext_code;
-void do_extint(struct pt_regs *regs, struct ext_code, unsigned int, unsigned long);
+void do_extint(struct pt_regs *regs);
 void do_restart(void);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);

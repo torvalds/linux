@@ -258,7 +258,7 @@ static const struct pn533_poll_modulations poll_mod[] = {
 				.opcode = PN533_FELICA_OPC_SENSF_REQ,
 				.sc = PN533_FELICA_SENSF_SC_ALL,
 				.rc = PN533_FELICA_SENSF_RC_NO_SYSTEM_CODE,
-				.tsn = 0,
+				.tsn = 0x03,
 			},
 		},
 		.len = 7,
@@ -271,7 +271,7 @@ static const struct pn533_poll_modulations poll_mod[] = {
 				.opcode = PN533_FELICA_OPC_SENSF_REQ,
 				.sc = PN533_FELICA_SENSF_SC_ALL,
 				.rc = PN533_FELICA_SENSF_RC_NO_SYSTEM_CODE,
-				.tsn = 0,
+				.tsn = 0x03,
 			},
 		 },
 		.len = 7,
@@ -1235,7 +1235,7 @@ static int pn533_target_found_type_a(struct nfc_target *nfc_tgt, u8 *tgt_data,
 struct pn533_target_felica {
 	u8 pol_res;
 	u8 opcode;
-	u8 nfcid2[8];
+	u8 nfcid2[NFC_NFCID2_MAXSIZE];
 	u8 pad[8];
 	/* optional */
 	u8 syst_code[];
@@ -1274,6 +1274,9 @@ static int pn533_target_found_felica(struct nfc_target *nfc_tgt, u8 *tgt_data,
 
 	memcpy(nfc_tgt->sensf_res, &tgt_felica->opcode, 9);
 	nfc_tgt->sensf_res_len = 9;
+
+	memcpy(nfc_tgt->nfcid2, tgt_felica->nfcid2, NFC_NFCID2_MAXSIZE);
+	nfc_tgt->nfcid2_len = NFC_NFCID2_MAXSIZE;
 
 	return 0;
 }
@@ -1697,7 +1700,7 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 		goto done;
 
 	if (!dev->poll_mod_count) {
-		nfc_dev_dbg(&dev->interface->dev, "Polling has been stoped.");
+		nfc_dev_dbg(&dev->interface->dev, "Polling has been stopped.");
 		goto done;
 	}
 
@@ -2084,6 +2087,9 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	if (comm_mode == NFC_COMM_PASSIVE)
 		skb_len += PASSIVE_DATA_LEN;
 
+	if (target && target->nfcid2_len)
+		skb_len += NFC_NFCID3_MAXSIZE;
+
 	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
 		return -ENOMEM;
@@ -2098,6 +2104,12 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 		memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data,
 		       PASSIVE_DATA_LEN);
 		*next |= 1;
+	}
+
+	if (target && target->nfcid2_len) {
+		memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), target->nfcid2,
+		       target->nfcid2_len);
+		*next |= 2;
 	}
 
 	if (gb != NULL && gb_len > 0) {
@@ -2489,7 +2501,7 @@ static void pn533_acr122_poweron_rdr_resp(struct urb *urb)
 
 	nfc_dev_dbg(&urb->dev->dev, "%s", __func__);
 
-	print_hex_dump(KERN_ERR, "ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
 		       urb->transfer_buffer, urb->transfer_buffer_length,
 		       false);
 
@@ -2520,7 +2532,7 @@ static int pn533_acr122_poweron_rdr(struct pn533 *dev)
 	dev->out_urb->transfer_buffer = cmd;
 	dev->out_urb->transfer_buffer_length = sizeof(cmd);
 
-	print_hex_dump(KERN_ERR, "ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
+	print_hex_dump_debug("ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
 		       cmd, sizeof(cmd), false);
 
 	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
@@ -2774,17 +2786,18 @@ static int pn533_probe(struct usb_interface *interface,
 		goto destroy_wq;
 
 	nfc_dev_info(&dev->interface->dev,
-		     "NXP PN533 firmware ver %d.%d now attached",
-		     fw_ver.ver, fw_ver.rev);
+		     "NXP PN5%02X firmware ver %d.%d now attached",
+		     fw_ver.ic, fw_ver.ver, fw_ver.rev);
 
 
 	dev->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols,
-					   NFC_SE_NONE,
 					   dev->ops->tx_header_len +
 					   PN533_CMD_DATAEXCH_HEAD_LEN,
 					   dev->ops->tx_tail_len);
-	if (!dev->nfc_dev)
+	if (!dev->nfc_dev) {
+		rc = -ENOMEM;
 		goto destroy_wq;
+	}
 
 	nfc_set_parent_dev(dev->nfc_dev, &interface->dev);
 	nfc_set_drvdata(dev->nfc_dev, dev);

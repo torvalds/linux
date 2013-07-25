@@ -270,16 +270,16 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	info = iio_priv(indio_dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->regs = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!info->regs) {
-		ret = -ENOMEM;
+	info->regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(info->regs)) {
+		ret = PTR_ERR(info->regs);
 		goto err_iio;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	info->enable_reg = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!info->enable_reg) {
-		ret = -ENOMEM;
+	info->enable_reg = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(info->enable_reg)) {
+		ret = PTR_ERR(info->enable_reg);
 		goto err_iio;
 	}
 

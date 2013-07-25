@@ -1171,7 +1171,11 @@ static void alloc_rbufs(struct net_device *dev)
 		rp->rx_skbuff_dma[i] =
 			pci_map_single(rp->pdev, skb->data, rp->rx_buf_sz,
 				       PCI_DMA_FROMDEVICE);
-
+		if (dma_mapping_error(&rp->pdev->dev, rp->rx_skbuff_dma[i])) {
+			rp->rx_skbuff_dma[i] = 0;
+			dev_kfree_skb(skb);
+			break;
+		}
 		rp->rx_ring[i].addr = cpu_to_le32(rp->rx_skbuff_dma[i]);
 		rp->rx_ring[i].rx_status = cpu_to_le32(DescOwn);
 	}
@@ -1687,6 +1691,12 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 		rp->tx_skbuff_dma[entry] =
 			pci_map_single(rp->pdev, skb->data, skb->len,
 				       PCI_DMA_TODEVICE);
+		if (dma_mapping_error(&rp->pdev->dev, rp->tx_skbuff_dma[entry])) {
+			dev_kfree_skb(skb);
+			rp->tx_skbuff_dma[entry] = 0;
+			dev->stats.tx_dropped++;
+			return NETDEV_TX_OK;
+		}
 		rp->tx_ring[entry].addr = cpu_to_le32(rp->tx_skbuff_dma[entry]);
 	}
 
@@ -1961,6 +1971,11 @@ static int rhine_rx(struct net_device *dev, int limit)
 				pci_map_single(rp->pdev, skb->data,
 					       rp->rx_buf_sz,
 					       PCI_DMA_FROMDEVICE);
+			if (dma_mapping_error(&rp->pdev->dev, rp->rx_skbuff_dma[entry])) {
+				dev_kfree_skb(skb);
+				rp->rx_skbuff_dma[entry] = 0;
+				break;
+			}
 			rp->rx_ring[entry].addr = cpu_to_le32(rp->rx_skbuff_dma[entry]);
 		}
 		rp->rx_ring[entry].rx_status = cpu_to_le32(DescOwn);

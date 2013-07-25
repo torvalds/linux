@@ -44,7 +44,7 @@ Example 1: In this example, the system uses only the first global timer
 	};
 
 Example 2: In this example, the MCT global and local timer interrupts are
-	   connected to two seperate interrupt controllers. Hence, an
+	   connected to two separate interrupt controllers. Hence, an
 	   interrupt-map is created to map the interrupts to the respective
 	   interrupt controllers.
 

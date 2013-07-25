@@ -362,9 +362,6 @@ do {						\
 #define kern_addr_valid(addr)	(1)
 #endif /* CONFIG_FLATMEM */
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 extern void vmalloc_sync_all(void);
 
 #endif /* !__ASSEMBLY__ */

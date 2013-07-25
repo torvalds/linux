@@ -49,6 +49,9 @@ struct gpio_rcar_priv {
 #define POSNEG 0x20
 #define EDGLEVEL 0x24
 #define FILONOFF 0x28
+#define BOTHEDGE 0x4c
+
+#define RCAR_MAX_GPIO_PER_BANK		32
 
 static inline u32 gpio_rcar_read(struct gpio_rcar_priv *p, int offs)
 {
@@ -91,7 +94,8 @@ static void gpio_rcar_irq_enable(struct irq_data *d)
 static void gpio_rcar_config_interrupt_input_mode(struct gpio_rcar_priv *p,
 						  unsigned int hwirq,
 						  bool active_high_rising_edge,
-						  bool level_trigger)
+						  bool level_trigger,
+						  bool both)
 {
 	unsigned long flags;
 
@@ -107,6 +111,10 @@ static void gpio_rcar_config_interrupt_input_mode(struct gpio_rcar_priv *p,
 
 	/* Configure edge or level trigger in EDGLEVEL */
 	gpio_rcar_modify_bit(p, EDGLEVEL, hwirq, !level_trigger);
+
+	/* Select one edge or both edges in BOTHEDGE */
+	if (p->config.has_both_edge_trigger)
+		gpio_rcar_modify_bit(p, BOTHEDGE, hwirq, both);
 
 	/* Select "Interrupt Input Mode" in IOINTSEL */
 	gpio_rcar_modify_bit(p, IOINTSEL, hwirq, true);
@@ -127,16 +135,26 @@ static int gpio_rcar_irq_set_type(struct irq_data *d, unsigned int type)
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_LEVEL_HIGH:
-		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, true);
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, true,
+						      false);
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		gpio_rcar_config_interrupt_input_mode(p, hwirq, false, true);
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, false, true,
+						      false);
 		break;
 	case IRQ_TYPE_EDGE_RISING:
-		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, false);
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, false,
+						      false);
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		gpio_rcar_config_interrupt_input_mode(p, hwirq, false, false);
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, false, false,
+						      false);
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		if (!p->config.has_both_edge_trigger)
+			return -EINVAL;
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, false,
+						      true);
 		break;
 	default:
 		return -EINVAL;
@@ -214,7 +232,14 @@ static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 {
-	return (int)(gpio_rcar_read(gpio_to_priv(chip), INDT) & BIT(offset));
+	u32 bit = BIT(offset);
+
+	/* testing on r8a7790 shows that INDT does not show correct pin state
+	 * when configured as output, so use OUTDT in case of output pins */
+	if (gpio_rcar_read(gpio_to_priv(chip), INOUTSEL) & bit)
+		return (int)(gpio_rcar_read(gpio_to_priv(chip), OUTDT) & bit);
+	else
+		return (int)(gpio_rcar_read(gpio_to_priv(chip), INDT) & bit);
 }
 
 static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -258,9 +283,35 @@ static struct irq_domain_ops gpio_rcar_irq_domain_ops = {
 	.map	= gpio_rcar_irq_domain_map,
 };
 
+static void gpio_rcar_parse_pdata(struct gpio_rcar_priv *p)
+{
+	struct gpio_rcar_config *pdata = p->pdev->dev.platform_data;
+	struct device_node *np = p->pdev->dev.of_node;
+	struct of_phandle_args args;
+	int ret;
+
+	if (pdata) {
+		p->config = *pdata;
+	} else if (IS_ENABLED(CONFIG_OF) && np) {
+		ret = of_parse_phandle_with_args(np, "gpio-ranges",
+				"#gpio-range-cells", 0, &args);
+		p->config.number_of_pins = ret == 0 && args.args_count == 3
+					 ? args.args[2]
+					 : RCAR_MAX_GPIO_PER_BANK;
+		p->config.gpio_base = -1;
+	}
+
+	if (p->config.number_of_pins == 0 ||
+	    p->config.number_of_pins > RCAR_MAX_GPIO_PER_BANK) {
+		dev_warn(&p->pdev->dev,
+			 "Invalid number of gpio lines %u, using %u\n",
+			 p->config.number_of_pins, RCAR_MAX_GPIO_PER_BANK);
+		p->config.number_of_pins = RCAR_MAX_GPIO_PER_BANK;
+	}
+}
+
 static int gpio_rcar_probe(struct platform_device *pdev)
 {
-	struct gpio_rcar_config *pdata = pdev->dev.platform_data;
 	struct gpio_rcar_priv *p;
 	struct resource *io, *irq;
 	struct gpio_chip *gpio_chip;
@@ -275,13 +326,13 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	/* deal with driver instance configuration */
-	if (pdata)
-		p->config = *pdata;
-
 	p->pdev = pdev;
-	platform_set_drvdata(pdev, p);
 	spin_lock_init(&p->lock);
+
+	/* Get device configuration from DT node or platform data. */
+	gpio_rcar_parse_pdata(p);
+
+	platform_set_drvdata(pdev, p);
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -309,6 +360,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	gpio_chip->set = gpio_rcar_set;
 	gpio_chip->to_irq = gpio_rcar_to_irq;
 	gpio_chip->label = name;
+	gpio_chip->dev = &pdev->dev;
 	gpio_chip->owner = THIS_MODULE;
 	gpio_chip->base = p->config.gpio_base;
 	gpio_chip->ngpio = p->config.number_of_pins;
@@ -333,7 +385,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	}
 
 	if (devm_request_irq(&pdev->dev, irq->start,
-			     gpio_rcar_irq_handler, 0, name, p)) {
+			     gpio_rcar_irq_handler, IRQF_SHARED, name, p)) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		ret = -ENOENT;
 		goto err1;
@@ -355,10 +407,12 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 				 p->config.irq_base, ret);
 	}
 
-	ret = gpiochip_add_pin_range(gpio_chip, p->config.pctl_name, 0,
-				     gpio_chip->base, gpio_chip->ngpio);
-	if (ret < 0)
-		dev_warn(&pdev->dev, "failed to add pin range\n");
+	if (p->config.pctl_name) {
+		ret = gpiochip_add_pin_range(gpio_chip, p->config.pctl_name, 0,
+					     gpio_chip->base, gpio_chip->ngpio);
+		if (ret < 0)
+			dev_warn(&pdev->dev, "failed to add pin range\n");
+	}
 
 	return 0;
 
@@ -381,11 +435,23 @@ static int gpio_rcar_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id gpio_rcar_of_table[] = {
+	{
+		.compatible = "renesas,gpio-rcar",
+	},
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, gpio_rcar_of_table);
+#endif
+
 static struct platform_driver gpio_rcar_device_driver = {
 	.probe		= gpio_rcar_probe,
 	.remove		= gpio_rcar_remove,
 	.driver		= {
 		.name	= "gpio_rcar",
+		.of_match_table = of_match_ptr(gpio_rcar_of_table),
 	}
 };
 

@@ -346,6 +346,12 @@ struct bfa_ioc_hwif_s {
 	void		(*ioc_sync_ack)		(struct bfa_ioc_s *ioc);
 	bfa_boolean_t	(*ioc_sync_complete)	(struct bfa_ioc_s *ioc);
 	bfa_boolean_t	(*ioc_lpu_read_stat)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_set_fwstate)	(struct bfa_ioc_s *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state	(*ioc_get_fwstate)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_set_alt_fwstate)	(struct bfa_ioc_s *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state	(*ioc_get_alt_fwstate)	(struct bfa_ioc_s *ioc);
 };
 
 /*
@@ -725,6 +731,7 @@ struct bfa_fru_s {
 	struct bfa_mbox_cmd_s mb;	/* mailbox */
 	struct bfa_ioc_notify_s ioc_notify; /* ioc event notify */
 	struct bfa_mem_dma_s	fru_dma;
+	u8		trfr_cmpl;
 };
 
 #define BFA_FRU(__bfa)	(&(__bfa)->modules.fru)
@@ -732,7 +739,7 @@ struct bfa_fru_s {
 
 bfa_status_t bfa_fruvpd_update(struct bfa_fru_s *fru,
 			void *buf, u32 len, u32 offset,
-			bfa_cb_fru_t cbfn, void *cbarg);
+			bfa_cb_fru_t cbfn, void *cbarg, u8 trfr_cmpl);
 bfa_status_t bfa_fruvpd_read(struct bfa_fru_s *fru,
 			void *buf, u32 len, u32 offset,
 			bfa_cb_fru_t cbfn, void *cbarg);

@@ -99,16 +99,6 @@
 
 #define WEP_IV_MASK         0x00FFFFFF
 
-//
-// 802_3 packet
-//
-typedef struct tagS802_3Header {
-    u8    abyDstAddr[ETH_ALEN];
-    u8    abySrcAddr[ETH_ALEN];
-    u16    wLen;
-} __attribute__ ((__packed__))
-S802_3Header, *PS802_3Header;
-
 //u8 ETHbyGetHashIndexByCrc(u8 * pbyMultiAddr);
 bool ETHbIsBufferCrc32Ok(u8 * pbyBuffer, unsigned int cbFrameLength);
 

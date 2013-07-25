@@ -39,7 +39,7 @@
 #ifndef _LINUX_RESERVATION_H
 #define _LINUX_RESERVATION_H
 
-#include <linux/mutex.h>
+#include <linux/ww_mutex.h>
 
 extern struct ww_class reservation_ww_class;
 

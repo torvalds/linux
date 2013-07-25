@@ -533,6 +533,11 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 	struct v4l2_ctrl *ctrl;
 	int ret;
 
+	strlcpy(fmdev->v4l2_dev.name, FM_DRV_NAME, sizeof(fmdev->v4l2_dev.name));
+	ret = v4l2_device_register(NULL, &fmdev->v4l2_dev);
+	if (ret < 0)
+		return ret;
+
 	/* Init mutex for core locking */
 	mutex_init(&fmdev->mutex);
 
@@ -549,6 +554,7 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 	video_set_drvdata(gradio_dev, fmdev);
 
 	gradio_dev->lock = &fmdev->mutex;
+	gradio_dev->v4l2_dev = &fmdev->v4l2_dev;
 
 	/* Register with V4L2 subsystem as RADIO device */
 	if (video_register_device(gradio_dev, VFL_TYPE_RADIO, radio_nr)) {
@@ -610,6 +616,8 @@ void *fm_v4l2_deinit_video_device(void)
 
 	/* Unregister RADIO device from V4L2 subsystem */
 	video_unregister_device(gradio_dev);
+
+	v4l2_device_unregister(&fmdev->v4l2_dev);
 
 	return fmdev;
 }

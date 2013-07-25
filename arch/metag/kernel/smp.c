@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/atomic.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -62,10 +63,12 @@ static DEFINE_PER_CPU(struct ipi_data, ipi_data) = {
 
 static DEFINE_SPINLOCK(boot_lock);
 
+static DECLARE_COMPLETION(cpu_running);
+
 /*
  * "thread" is assumed to be a valid Meta hardware thread ID.
  */
-int __cpuinit boot_secondary(unsigned int thread, struct task_struct *idle)
+int boot_secondary(unsigned int thread, struct task_struct *idle)
 {
 	u32 val;
 
@@ -115,11 +118,9 @@ int __cpuinit boot_secondary(unsigned int thread, struct task_struct *idle)
  * If the cache partition has changed, prints a message to the log describing
  * those changes.
  */
-static __cpuinit void describe_cachepart_change(unsigned int thread,
-						const char *label,
-						unsigned int sz,
-						unsigned int old,
-						unsigned int new)
+static void describe_cachepart_change(unsigned int thread, const char *label,
+				      unsigned int sz, unsigned int old,
+				      unsigned int new)
 {
 	unsigned int lor1, land1, gor1, gand1;
 	unsigned int lor2, land2, gor2, gand2;
@@ -167,7 +168,7 @@ static __cpuinit void describe_cachepart_change(unsigned int thread,
  * Ensures that coherency is enabled and that the threads share the same cache
  * partitions.
  */
-static __cpuinit void setup_smp_cache(unsigned int thread)
+static void setup_smp_cache(unsigned int thread)
 {
 	unsigned int this_thread, lflags;
 	unsigned int dcsz, dcpart_this, dcpart_old, dcpart_new;
@@ -212,7 +213,7 @@ static __cpuinit void setup_smp_cache(unsigned int thread)
 				  icpart_old, icpart_new);
 }
 
-int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
+int __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned int thread = cpu_2_hwthread_id[cpu];
 	int ret;
@@ -235,20 +236,12 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 */
 	ret = boot_secondary(thread, idle);
 	if (ret == 0) {
-		unsigned long timeout;
-
 		/*
 		 * CPU was successfully started, wait for it
 		 * to come online or time out.
 		 */
-		timeout = jiffies + HZ;
-		while (time_before(jiffies, timeout)) {
-			if (cpu_online(cpu))
-				break;
-
-			udelay(10);
-			barrier();
-		}
+		wait_for_completion_timeout(&cpu_running,
+					    msecs_to_jiffies(1000));
 
 		if (!cpu_online(cpu))
 			ret = -EIO;
@@ -273,10 +266,9 @@ static DECLARE_COMPLETION(cpu_killed);
 /*
  * __cpu_disable runs on the processor to be shutdown.
  */
-int __cpuexit __cpu_disable(void)
+int __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
-	struct task_struct *p;
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
@@ -296,12 +288,7 @@ int __cpuexit __cpu_disable(void)
 	flush_cache_all();
 	local_flush_tlb_all();
 
-	read_lock(&tasklist_lock);
-	for_each_process(p) {
-		if (p->mm)
-			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
-	}
-	read_unlock(&tasklist_lock);
+	clear_tasks_mm_cpumask(cpu);
 
 	return 0;
 }
@@ -310,7 +297,7 @@ int __cpuexit __cpu_disable(void)
  * called on the thread which is asking for a CPU to be shutdown -
  * waits until shutdown has completed, or it is timed out.
  */
-void __cpuexit __cpu_die(unsigned int cpu)
+void __cpu_die(unsigned int cpu)
 {
 	if (!wait_for_completion_timeout(&cpu_killed, msecs_to_jiffies(1)))
 		pr_err("CPU%u: unable to kill\n", cpu);
@@ -322,7 +309,7 @@ void __cpuexit __cpu_die(unsigned int cpu)
  * Note that we do not return from this function. If this cpu is
  * brought online again it will need to run secondary_startup().
  */
-void __cpuexit cpu_die(void)
+void cpu_die(void)
 {
 	local_irq_disable();
 	idle_task_exit();
@@ -337,7 +324,7 @@ void __cpuexit cpu_die(void)
  * Called by both boot and secondaries to move global data into
  * per-processor storage.
  */
-void __cpuinit smp_store_cpu_info(unsigned int cpuid)
+void smp_store_cpu_info(unsigned int cpuid)
 {
 	struct cpuinfo_metag *cpu_info = &per_cpu(cpu_data, cpuid);
 
@@ -385,12 +372,7 @@ asmlinkage void secondary_start_kernel(void)
 
 	setup_priv();
 
-	/*
-	 * Enable local interrupts.
-	 */
-	tbi_startup_interrupt(TBID_SIGNUM_TRT);
 	notify_cpu_starting(cpu);
-	local_irq_enable();
 
 	pr_info("CPU%u (thread %u): Booted secondary processor\n",
 		cpu, cpu_2_hwthread_id[cpu]);
@@ -402,12 +384,13 @@ asmlinkage void secondary_start_kernel(void)
 	 * OK, now it's safe to let the boot CPU continue
 	 */
 	set_cpu_online(cpu, true);
+	complete(&cpu_running);
 
 	/*
-	 * Check for cache aliasing.
-	 * Preemption is disabled
+	 * Enable local interrupts.
 	 */
-	check_for_cache_aliasing(cpu);
+	tbi_startup_interrupt(TBID_SIGNUM_TRT);
+	local_irq_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us

@@ -1,3 +1,25 @@
+Release Date    : Wed. May 15, 2013 17:00:00 PST 2013 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+			Kashyap Desai
+			Sumit Saxena
+Current Version : 06.600.18.00-rc1
+Old Version     : 06.506.00.00-rc1
+    1. Return DID_ERROR for scsi io, when controller is in critical h/w error.
+    2. Fix the interrupt mask for Gen2 controller.
+    3. Update balance count in driver to be in sync of firmware.
+    4. Free event detail memory without device ID check.
+    5. Set IO request timeout value provided by OS timeout for Tape devices.
+    6. Add support for MegaRAID Fury (device ID-0x005f) 12Gb/s controllers.
+    7. Add support to display Customer branding details in syslog.
+    8. Set IoFlags to enable Fast Path for JBODs for Invader/Fury(12 Gb/s)
+    controllers.
+    9. Add support for Extended MSI-x vectors for Invader and Fury(12Gb/s
+    HBA).
+    10.Add support for Uneven Span PRL11.
+    11.Add support to differentiate between iMR and MR Firmware.
+    12.Version and Changelog update.
+-------------------------------------------------------------------------------
 Release Date    : Sat. Feb 9, 2013 17:00:00 PST 2013 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

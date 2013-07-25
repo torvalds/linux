@@ -43,7 +43,7 @@ static ssize_t show_port_number(struct device *dev,
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 
-	return sprintf(buf, "%d\n", port->number - port->serial->minor);
+	return sprintf(buf, "%d\n", port->port_number);
 }
 
 static DEVICE_ATTR(port_number, S_IRUGO, show_port_number, NULL);
@@ -80,7 +80,7 @@ static int usb_serial_device_probe(struct device *dev)
 		goto exit_with_autopm;
 	}
 
-	minor = port->number;
+	minor = port->minor;
 	tty_register_device(usb_serial_tty_driver, minor, dev);
 	dev_info(&port->serial->dev->dev,
 		 "%s converter now attached to ttyUSB%d\n",
@@ -106,7 +106,7 @@ static int usb_serial_device_remove(struct device *dev)
 	/* make sure suspend/resume doesn't race against port_remove */
 	usb_autopm_get_interface(port->serial->interface);
 
-	minor = port->number;
+	minor = port->minor;
 	tty_unregister_device(usb_serial_tty_driver, minor);
 
 	device_remove_file(&port->dev, &dev_attr_port_number);

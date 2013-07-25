@@ -16,7 +16,7 @@
  *				- Use the generic rtc class
  *
  *  ??-???-2004: Someone at Compulab
- *  			- Initial driver creation.
+ *			- Initial driver creation.
  *
  */
 #include <linux/platform_device.h>
@@ -278,13 +278,13 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 	dev_dbg(dev, "tm_year: %i\n", dt->tm_year);
 
 	/* Write all the values to ram... */
-	v3020_set_reg(chip, V3020_SECONDS, 	bin2bcd(dt->tm_sec));
-	v3020_set_reg(chip, V3020_MINUTES, 	bin2bcd(dt->tm_min));
-	v3020_set_reg(chip, V3020_HOURS, 	bin2bcd(dt->tm_hour));
+	v3020_set_reg(chip, V3020_SECONDS,	bin2bcd(dt->tm_sec));
+	v3020_set_reg(chip, V3020_MINUTES,	bin2bcd(dt->tm_min));
+	v3020_set_reg(chip, V3020_HOURS,	bin2bcd(dt->tm_hour));
 	v3020_set_reg(chip, V3020_MONTH_DAY,	bin2bcd(dt->tm_mday));
-	v3020_set_reg(chip, V3020_MONTH,     bin2bcd(dt->tm_mon + 1));
-	v3020_set_reg(chip, V3020_WEEK_DAY, 	bin2bcd(dt->tm_wday));
-	v3020_set_reg(chip, V3020_YEAR, 	bin2bcd(dt->tm_year % 100));
+	v3020_set_reg(chip, V3020_MONTH,	bin2bcd(dt->tm_mon + 1));
+	v3020_set_reg(chip, V3020_WEEK_DAY,	bin2bcd(dt->tm_wday));
+	v3020_set_reg(chip, V3020_YEAR,		bin2bcd(dt->tm_year % 100));
 
 	/* ...and set the clock. */
 	v3020_set_reg(chip, V3020_CMD_RAM2CLOCK, 0);
@@ -320,7 +320,7 @@ static int rtc_probe(struct platform_device *pdev)
 
 	retval = chip->ops->map_io(chip, pdev, pdata);
 	if (retval)
-		goto err_chip;
+		return retval;
 
 	/* Make sure the v3020 expects a communication cycle
 	 * by reading 8 times */
@@ -364,7 +364,7 @@ static int rtc_probe(struct platform_device *pdev)
 
 err_io:
 	chip->ops->unmap_io(chip);
-err_chip:
+
 	return retval;
 }
 

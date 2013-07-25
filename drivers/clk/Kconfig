@@ -42,7 +42,7 @@ config COMMON_CLK_WM831X
 
 config COMMON_CLK_VERSATILE
 	bool "Clock driver for ARM Reference designs"
-	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || ARCH_VEXPRESS
+	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || ARCH_VEXPRESS || ARM64
 	---help---
           Supports clocking on ARM Reference designs:
 	  - Integrator/AP and Integrator/CP
@@ -58,7 +58,6 @@ config COMMON_CLK_MAX77686
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
-	depends on OF
 	select REGMAP_I2C
 	select RATIONAL
 	---help---
@@ -80,6 +79,13 @@ config COMMON_CLK_AXI_CLKGEN
 	---help---
 	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
 	  FPGAs. It is commonly used in Analog Devices' reference designs.
+
+config CLK_PPC_CORENET
+	bool "Clock driver for PowerPC corenet platforms"
+	depends on PPC_E500MC && OF
+	---help---
+	  This adds the clock driver support for Freescale PowerPC corenet
+	  platforms using common clock framework.
 
 endmenu
 

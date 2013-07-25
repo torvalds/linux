@@ -28,6 +28,7 @@
 #include "ni_dpm.h"
 #include "atom.h"
 #include <linux/math64.h>
+#include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -764,6 +765,19 @@ static void ni_calculate_leakage_for_v_and_t(struct radeon_device *rdev,
 	ni_calculate_leakage_for_v_and_t_formula(coeff, v, t, i_leakage, leakage);
 }
 
+bool ni_dpm_vblank_too_short(struct radeon_device *rdev)
+{
+	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+	u32 switch_limit = pi->mem_gddr5 ? 450 : 300;
+
+	if (vblank_time < switch_limit)
+		return true;
+	else
+		return false;
+
+}
+
 static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 					struct radeon_ps *rps)
 {
@@ -774,7 +788,8 @@ static void ni_apply_state_adjust_rules(struct radeon_device *rdev,
 	u16 vddc, vddci;
 	int i;
 
-	if (rdev->pm.dpm.new_active_crtc_count > 1)
+	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
+	    ni_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
 	else
 		disable_mclk_switching = false;
@@ -1036,16 +1051,38 @@ static int ni_restrict_performance_levels_before_switch(struct radeon_device *rd
 		0 : -EINVAL;
 }
 
-#if 0
-static int ni_unrestrict_performance_levels_after_switch(struct radeon_device *rdev)
+int ni_dpm_force_performance_level(struct radeon_device *rdev,
+				   enum radeon_dpm_forced_level level)
 {
-	if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
-		return -EINVAL;
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	u32 levels;
 
-	return (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) == PPSMC_Result_OK) ?
-		0 : -EINVAL;
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 1) != PPSMC_Result_OK)
+			return -EINVAL;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		levels = ps->performance_level_count - 1;
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
+			return -EINVAL;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+			return -EINVAL;
+	}
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
 }
-#endif
 
 static void ni_stop_smc(struct radeon_device *rdev)
 {
@@ -3832,14 +3869,11 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-#if 0
-	/* XXX */
-	ret = ni_unrestrict_performance_levels_after_switch(rdev);
+	ret = ni_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
-		DRM_ERROR("ni_unrestrict_performance_levels_after_switch failed\n");
+		DRM_ERROR("ni_dpm_force_performance_level failed\n");
 		return ret;
 	}
-#endif
 
 	return 0;
 }
@@ -4290,6 +4324,26 @@ void ni_dpm_print_power_state(struct radeon_device *rdev,
 			       i, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
 	}
 	r600_dpm_print_ps_status(rdev, rps);
+}
+
+void ni_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						    struct seq_file *m)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_STATE_INDEX_MASK) >>
+		CURRENT_STATE_INDEX_SHIFT;
+
+	if (current_index >= ps->performance_level_count) {
+		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	} else {
+		pl = &ps->performance_levels[current_index];
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+			   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+	}
 }
 
 u32 ni_dpm_get_sclk(struct radeon_device *rdev, bool low)

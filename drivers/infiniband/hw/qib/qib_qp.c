@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation.  * All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -35,6 +35,9 @@
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <linux/jhash.h>
+#ifdef CONFIG_DEBUG_FS
+#include <linux/seq_file.h>
+#endif
 
 #include "qib.h"
 
@@ -222,8 +225,8 @@ static void insert_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 	unsigned long flags;
 	unsigned n = qpn_hash(dev, qp->ibqp.qp_num);
 
-	spin_lock_irqsave(&dev->qpt_lock, flags);
 	atomic_inc(&qp->refcount);
+	spin_lock_irqsave(&dev->qpt_lock, flags);
 
 	if (qp->ibqp.qp_num == 0)
 		rcu_assign_pointer(ibp->qp0, qp);
@@ -235,7 +238,6 @@ static void insert_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 	}
 
 	spin_unlock_irqrestore(&dev->qpt_lock, flags);
-	synchronize_rcu();
 }
 
 /*
@@ -247,36 +249,39 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	unsigned n = qpn_hash(dev, qp->ibqp.qp_num);
 	unsigned long flags;
+	int removed = 1;
 
 	spin_lock_irqsave(&dev->qpt_lock, flags);
 
 	if (rcu_dereference_protected(ibp->qp0,
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		atomic_dec(&qp->refcount);
 		rcu_assign_pointer(ibp->qp0, NULL);
 	} else if (rcu_dereference_protected(ibp->qp1,
 			lockdep_is_held(&dev->qpt_lock)) == qp) {
-		atomic_dec(&qp->refcount);
 		rcu_assign_pointer(ibp->qp1, NULL);
 	} else {
 		struct qib_qp *q;
 		struct qib_qp __rcu **qpp;
 
+		removed = 0;
 		qpp = &dev->qp_table[n];
 		for (; (q = rcu_dereference_protected(*qpp,
 				lockdep_is_held(&dev->qpt_lock))) != NULL;
 				qpp = &q->next)
 			if (q == qp) {
-				atomic_dec(&qp->refcount);
 				rcu_assign_pointer(*qpp,
 					rcu_dereference_protected(qp->next,
 					 lockdep_is_held(&dev->qpt_lock)));
+				removed = 1;
 				break;
 			}
 	}
 
 	spin_unlock_irqrestore(&dev->qpt_lock, flags);
-	synchronize_rcu();
+	if (removed) {
+		synchronize_rcu();
+		atomic_dec(&qp->refcount);
+	}
 }
 
 /**
@@ -334,26 +339,25 @@ struct qib_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
 {
 	struct qib_qp *qp = NULL;
 
+	rcu_read_lock();
 	if (unlikely(qpn <= 1)) {
-		rcu_read_lock();
 		if (qpn == 0)
 			qp = rcu_dereference(ibp->qp0);
 		else
 			qp = rcu_dereference(ibp->qp1);
+		if (qp)
+			atomic_inc(&qp->refcount);
 	} else {
 		struct qib_ibdev *dev = &ppd_from_ibp(ibp)->dd->verbs_dev;
 		unsigned n = qpn_hash(dev, qpn);
 
-		rcu_read_lock();
 		for (qp = rcu_dereference(dev->qp_table[n]); qp;
 			qp = rcu_dereference(qp->next))
-			if (qp->ibqp.qp_num == qpn)
+			if (qp->ibqp.qp_num == qpn) {
+				atomic_inc(&qp->refcount);
 				break;
+			}
 	}
-	if (qp)
-		if (unlikely(!atomic_inc_not_zero(&qp->refcount)))
-			qp = NULL;
-
 	rcu_read_unlock();
 	return qp;
 }
@@ -1286,3 +1290,94 @@ void qib_get_credit(struct qib_qp *qp, u32 aeth)
 		}
 	}
 }
+
+#ifdef CONFIG_DEBUG_FS
+
+struct qib_qp_iter {
+	struct qib_ibdev *dev;
+	struct qib_qp *qp;
+	int n;
+};
+
+struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev)
+{
+	struct qib_qp_iter *iter;
+
+	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	if (!iter)
+		return NULL;
+
+	iter->dev = dev;
+	if (qib_qp_iter_next(iter)) {
+		kfree(iter);
+		return NULL;
+	}
+
+	return iter;
+}
+
+int qib_qp_iter_next(struct qib_qp_iter *iter)
+{
+	struct qib_ibdev *dev = iter->dev;
+	int n = iter->n;
+	int ret = 1;
+	struct qib_qp *pqp = iter->qp;
+	struct qib_qp *qp;
+
+	rcu_read_lock();
+	for (; n < dev->qp_table_size; n++) {
+		if (pqp)
+			qp = rcu_dereference(pqp->next);
+		else
+			qp = rcu_dereference(dev->qp_table[n]);
+		pqp = qp;
+		if (qp) {
+			if (iter->qp)
+				atomic_dec(&iter->qp->refcount);
+			atomic_inc(&qp->refcount);
+			rcu_read_unlock();
+			iter->qp = qp;
+			iter->n = n;
+			return 0;
+		}
+	}
+	rcu_read_unlock();
+	if (iter->qp)
+		atomic_dec(&iter->qp->refcount);
+	return ret;
+}
+
+static const char * const qp_type_str[] = {
+	"SMI", "GSI", "RC", "UC", "UD",
+};
+
+void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter)
+{
+	struct qib_swqe *wqe;
+	struct qib_qp *qp = iter->qp;
+
+	wqe = get_swqe_ptr(qp, qp->s_last);
+	seq_printf(s,
+		   "N %d QP%u %s %u %u %u f=%x %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u) QP%u LID %x\n",
+		   iter->n,
+		   qp->ibqp.qp_num,
+		   qp_type_str[qp->ibqp.qp_type],
+		   qp->state,
+		   wqe->wr.opcode,
+		   qp->s_hdrwords,
+		   qp->s_flags,
+		   atomic_read(&qp->s_dma_busy),
+		   !list_empty(&qp->iowait),
+		   qp->timeout,
+		   wqe->ssn,
+		   qp->s_lsn,
+		   qp->s_last_psn,
+		   qp->s_psn, qp->s_next_psn,
+		   qp->s_sending_psn, qp->s_sending_hpsn,
+		   qp->s_last, qp->s_acked, qp->s_cur,
+		   qp->s_tail, qp->s_head, qp->s_size,
+		   qp->remote_qpn,
+		   qp->remote_ah_attr.dlid);
+}
+
+#endif

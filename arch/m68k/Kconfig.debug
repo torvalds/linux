@@ -11,9 +11,8 @@ config BOOTPARAM_STRING
 	depends on BOOTPARAM
 
 config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED
+	bool "Early printk"
 	depends on MVME16x || MAC
-	default y
 	help
           Write kernel log output directly to a serial port.
 

@@ -418,7 +418,6 @@ static int snd_cmi8328_remove(struct device *pdev, unsigned int dev)
 	snd_cmi8328_cfg_write(cmi->port, CFG2, 0);
 	snd_cmi8328_cfg_write(cmi->port, CFG3, 0);
 	snd_card_free(card);
-	dev_set_drvdata(pdev, NULL);
 	return 0;
 }
 

@@ -11,7 +11,10 @@
  * GNU General Public License for more details.
  */
 
-/include/ "skeleton.dtsi"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#include "skeleton.dtsi"
 
 / {
 	model = "BCM11351 SoC";
@@ -33,7 +36,7 @@
 
 	smc@0x3404c000 {
 		compatible = "bcm,bcm11351-smc", "bcm,kona-smc";
-		reg = <0x3404c000 0x400>; //1 KiB in SRAM
+		reg = <0x3404c000 0x400>; /* 1 KiB in SRAM */
 	};
 
 	uart@3e000000 {
@@ -41,23 +44,51 @@
 		status = "disabled";
 		reg = <0x3e000000 0x1000>;
 		clock-frequency = <13000000>;
-		interrupts = <0x0 67 0x4>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
 	};
 
 	L2: l2-cache {
-		    compatible = "arm,pl310-cache";
-		    reg = <0x3ff20000 0x1000>;
-		    cache-unified;
-		    cache-level = <2>;
+		compatible = "bcm,bcm11351-a2-pl310-cache";
+		reg = <0x3ff20000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	timer@35006000 {
 		compatible = "bcm,kona-timer";
 		reg = <0x35006000 0x1000>;
-		interrupts = <0x0 7 0x4>;
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <32768>;
+	};
+
+	sdio0: sdio@0x3f180000 {
+		compatible = "bcm,kona-sdhci";
+		reg = <0x3f180000 0x10000>;
+		interrupts = <0x0 77 0x4>;
+		status = "disabled";
+	};
+
+	sdio1: sdio@0x3f190000 {
+		compatible = "bcm,kona-sdhci";
+		reg = <0x3f190000 0x10000>;
+		interrupts = <0x0 76 0x4>;
+		status = "disabled";
+	};
+
+	sdio2: sdio@0x3f1a0000 {
+		compatible = "bcm,kona-sdhci";
+		reg = <0x3f1a0000 0x10000>;
+		interrupts = <0x0 74 0x4>;
+		status = "disabled";
+	};
+
+	sdio3: sdio@0x3f1b0000 {
+		compatible = "bcm,kona-sdhci";
+		reg = <0x3f1b0000 0x10000>;
+		interrupts = <0x0 73 0x4>;
+		status = "disabled";
 	};
 
 };

@@ -128,9 +128,7 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 {
 	static uint32_t clntid;
 	char name[15];
-	struct qstr q = { .name = name };
 	struct dentry *dir, *dentry;
-	int error;
 
 	dir = rpc_d_lookup_sb(sb, dir_name);
 	if (dir == NULL) {
@@ -138,39 +136,32 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 		return dir;
 	}
 	for (;;) {
-		q.len = snprintf(name, sizeof(name), "clnt%x", (unsigned int)clntid++);
+		snprintf(name, sizeof(name), "clnt%x", (unsigned int)clntid++);
 		name[sizeof(name) - 1] = '\0';
-		q.hash = full_name_hash(q.name, q.len);
-		dentry = rpc_create_client_dir(dir, &q, clnt);
+		dentry = rpc_create_client_dir(dir, name, clnt);
 		if (!IS_ERR(dentry))
 			break;
-		error = PTR_ERR(dentry);
-		if (error != -EEXIST) {
-			printk(KERN_INFO "RPC: Couldn't create pipefs entry"
-					" %s/%s, error %d\n",
-					dir_name, name, error);
-			break;
-		}
+		if (dentry == ERR_PTR(-EEXIST))
+			continue;
+		printk(KERN_INFO "RPC: Couldn't create pipefs entry"
+				" %s/%s, error %ld\n",
+				dir_name, name, PTR_ERR(dentry));
+		break;
 	}
 	dput(dir);
 	return dentry;
 }
 
 static int
-rpc_setup_pipedir(struct rpc_clnt *clnt, const char *dir_name)
+rpc_setup_pipedir(struct rpc_clnt *clnt, const char *dir_name,
+		  struct super_block *pipefs_sb)
 {
-	struct net *net = rpc_net_ns(clnt);
-	struct super_block *pipefs_sb;
 	struct dentry *dentry;
 
 	clnt->cl_dentry = NULL;
 	if (dir_name == NULL)
 		return 0;
-	pipefs_sb = rpc_get_sb_net(net);
-	if (!pipefs_sb)
-		return 0;
 	dentry = rpc_setup_pipedir_sb(pipefs_sb, clnt, dir_name);
-	rpc_put_sb_net(net);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 	clnt->cl_dentry = dentry;
@@ -181,6 +172,8 @@ static inline int rpc_clnt_skip_event(struct rpc_clnt *clnt, unsigned long event
 {
 	if (((event == RPC_PIPEFS_MOUNT) && clnt->cl_dentry) ||
 	    ((event == RPC_PIPEFS_UMOUNT) && !clnt->cl_dentry))
+		return 1;
+	if ((event == RPC_PIPEFS_MOUNT) && atomic_read(&clnt->cl_count) == 0)
 		return 1;
 	return 0;
 }
@@ -241,8 +234,6 @@ static struct rpc_clnt *rpc_get_client_for_event(struct net *net, int event)
 			continue;
 		if (rpc_clnt_skip_event(clnt, event))
 			continue;
-		if (atomic_inc_not_zero(&clnt->cl_count) == 0)
-			continue;
 		spin_unlock(&sn->rpc_client_lock);
 		return clnt;
 	}
@@ -259,7 +250,6 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 
 	while ((clnt = rpc_get_client_for_event(sb->s_fs_info, event))) {
 		error = __rpc_pipefs_event(clnt, event, sb);
-		rpc_release_client(clnt);
 		if (error)
 			break;
 	}
@@ -289,12 +279,49 @@ static void rpc_clnt_set_nodename(struct rpc_clnt *clnt, const char *nodename)
 	memcpy(clnt->cl_nodename, nodename, clnt->cl_nodelen);
 }
 
+static int rpc_client_register(const struct rpc_create_args *args,
+			       struct rpc_clnt *clnt)
+{
+	const struct rpc_program *program = args->program;
+	struct rpc_auth *auth;
+	struct net *net = rpc_net_ns(clnt);
+	struct super_block *pipefs_sb;
+	int err;
+
+	pipefs_sb = rpc_get_sb_net(net);
+	if (pipefs_sb) {
+		err = rpc_setup_pipedir(clnt, program->pipe_dir_name, pipefs_sb);
+		if (err)
+			goto out;
+	}
+
+	rpc_register_client(clnt);
+	if (pipefs_sb)
+		rpc_put_sb_net(net);
+
+	auth = rpcauth_create(args->authflavor, clnt);
+	if (IS_ERR(auth)) {
+		dprintk("RPC:       Couldn't create auth handle (flavor %u)\n",
+				args->authflavor);
+		err = PTR_ERR(auth);
+		goto err_auth;
+	}
+	return 0;
+err_auth:
+	pipefs_sb = rpc_get_sb_net(net);
+	rpc_unregister_client(clnt);
+	__rpc_clnt_remove_pipedir(clnt);
+out:
+	if (pipefs_sb)
+		rpc_put_sb_net(net);
+	return err;
+}
+
 static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, struct rpc_xprt *xprt)
 {
 	const struct rpc_program *program = args->program;
 	const struct rpc_version *version;
 	struct rpc_clnt		*clnt = NULL;
-	struct rpc_auth		*auth;
 	int err;
 
 	/* sanity check the name before trying to print it */
@@ -354,25 +381,14 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 
 	atomic_set(&clnt->cl_count, 1);
 
-	err = rpc_setup_pipedir(clnt, program->pipe_dir_name);
-	if (err < 0)
-		goto out_no_path;
-
-	auth = rpcauth_create(args->authflavor, clnt);
-	if (IS_ERR(auth)) {
-		dprintk("RPC:       Couldn't create auth handle (flavor %u)\n",
-				args->authflavor);
-		err = PTR_ERR(auth);
-		goto out_no_auth;
-	}
-
 	/* save the nodename */
 	rpc_clnt_set_nodename(clnt, utsname()->nodename);
-	rpc_register_client(clnt);
+
+	err = rpc_client_register(args, clnt);
+	if (err)
+		goto out_no_path;
 	return clnt;
 
-out_no_auth:
-	rpc_clnt_remove_pipedir(clnt);
 out_no_path:
 	kfree(clnt->cl_principal);
 out_no_principal:
@@ -637,8 +653,8 @@ rpc_free_client(struct rpc_clnt *clnt)
 			rcu_dereference(clnt->cl_xprt)->servername);
 	if (clnt->cl_parent != clnt)
 		rpc_release_client(clnt->cl_parent);
-	rpc_unregister_client(clnt);
 	rpc_clnt_remove_pipedir(clnt);
+	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
 	kfree(clnt->cl_principal);
 	clnt->cl_metrics = NULL;

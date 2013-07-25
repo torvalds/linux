@@ -148,6 +148,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 
 	if (unlikely(nvbo->gem))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
+	WARN_ON(nvbo->pin_refcnt > 0);
 	nv10_bo_put_tile_region(dev, nvbo->tile, NULL);
 	kfree(nvbo);
 }
@@ -197,6 +198,12 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	size_t acc_size;
 	int ret;
 	int type = ttm_bo_type_device;
+	int max_size = INT_MAX & ~((1 << drm->client.base.vm->vmm->lpg_shift) - 1);
+
+	if (size <= 0 || size > max_size) {
+		nv_warn(drm, "skipped size %x\n", (u32)size);
+		return -EINVAL;
+	}
 
 	if (sg)
 		type = ttm_bo_type_sg;
@@ -255,7 +262,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
-	u32 vram_pages = pfb->ram.size >> PAGE_SHIFT;
+	u32 vram_pages = pfb->ram->size >> PAGE_SHIFT;
 
 	if (nv_device(drm->device)->card_type == NV_10 &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
@@ -340,13 +347,15 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	int ret;
+	int ret, ref;
 
 	ret = ttm_bo_reserve(bo, false, false, false, 0);
 	if (ret)
 		return ret;
 
-	if (--nvbo->pin_refcnt)
+	ref = --nvbo->pin_refcnt;
+	WARN_ON_ONCE(ref < 0);
+	if (ref)
 		goto out;
 
 	nouveau_bo_placement_set(nvbo, bo->mem.placement, 0);
@@ -578,7 +587,7 @@ nve0_bo_move_init(struct nouveau_channel *chan, u32 handle)
 	int ret = RING_SPACE(chan, 2);
 	if (ret == 0) {
 		BEGIN_NVC0(chan, NvSubCopy, 0x0000, 1);
-		OUT_RING  (chan, handle);
+		OUT_RING  (chan, handle & 0x0000ffff);
 		FIRE_RING (chan);
 	}
 	return ret;
@@ -968,12 +977,12 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 		     bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
-	struct nouveau_channel *chan = chan = drm->channel;
+	struct nouveau_channel *chan = chan = drm->ttm.chan;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 
-	mutex_lock(&chan->cli->mutex);
+	mutex_lock_nested(&chan->cli->mutex, SINGLE_DEPTH_NESTING);
 
 	/* create temporary vmas for the transfer and attach them to the
 	 * old nouveau_mem node, these will get cleaned up after ttm has
@@ -1014,7 +1023,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
-		{  "COPY", 0, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "COPY", 4, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xa0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{ "COPY1", 5, 0x90b8, nvc0_bo_move_copy, nvc0_bo_move_init },
 		{ "COPY0", 4, 0x90b5, nvc0_bo_move_copy, nvc0_bo_move_init },
@@ -1034,7 +1043,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 		struct nouveau_channel *chan;
 		u32 handle = (mthd->engine << 16) | mthd->oclass;
 
-		if (mthd->init == nve0_bo_move_init)
+		if (mthd->engine)
 			chan = drm->cechan;
 		else
 			chan = drm->channel;
@@ -1052,6 +1061,7 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			}
 
 			drm->ttm.move = mthd->exec;
+			drm->ttm.chan = chan;
 			name = mthd->name;
 			break;
 		}
@@ -1550,13 +1560,8 @@ void
 nouveau_bo_vma_del(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
 {
 	if (vma->node) {
-		if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM) {
-			spin_lock(&nvbo->bo.bdev->fence_lock);
-			ttm_bo_wait(&nvbo->bo, false, false, false);
-			spin_unlock(&nvbo->bo.bdev->fence_lock);
+		if (nvbo->bo.mem.mem_type != TTM_PL_SYSTEM)
 			nouveau_vm_unmap(vma);
-		}
-
 		nouveau_vm_put(vma);
 		list_del(&vma->head);
 	}

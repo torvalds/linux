@@ -1,0 +1,11 @@
+This driver is functional and has been tested on EdgeRouter Lite with
+USB mass storage.
+
+TODO:
+	- kernel coding style
+	- checkpatch warnings
+	- dead code elimination
+	- device tree bindings
+	- possibly eliminate the extra "hardware abstraction layer"
+
+Contact: Aaro Koskinen <aaro.koskinen@iki.fi>

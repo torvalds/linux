@@ -102,18 +102,6 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_PASSKEY_NOTIFY,
 };
 
-/*
- * These LE scan and inquiry parameters were chosen according to LE General
- * Discovery Procedure specification.
- */
-#define LE_SCAN_WIN			0x12
-#define LE_SCAN_INT			0x12
-#define LE_SCAN_TIMEOUT_LE_ONLY		msecs_to_jiffies(10240)
-#define LE_SCAN_TIMEOUT_BREDR_LE	msecs_to_jiffies(5120)
-
-#define INQUIRY_LEN_BREDR		0x08	/* TGAP(100) */
-#define INQUIRY_LEN_BREDR_LE		0x04	/* TGAP(100)/2 */
-
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
 
 #define hdev_is_powered(hdev) (test_bit(HCI_UP, &hdev->flags) && \
@@ -1748,8 +1736,6 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_link_keys_clear(hdev);
 
-	set_bit(HCI_LINK_KEYS, &hdev->dev_flags);
-
 	if (cp->debug_keys)
 		set_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
 	else
@@ -2633,21 +2619,59 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 	return err;
 }
 
-int mgmt_interleaved_discovery(struct hci_dev *hdev)
+static int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
 {
+	struct pending_cmd *cmd;
+	u8 type;
 	int err;
 
-	BT_DBG("%s", hdev->name);
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 
-	hci_dev_lock(hdev);
+	cmd = mgmt_pending_find(MGMT_OP_START_DISCOVERY, hdev);
+	if (!cmd)
+		return -ENOENT;
 
-	err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR_LE);
-	if (err < 0)
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+	type = hdev->discovery.type;
 
-	hci_dev_unlock(hdev);
+	err = cmd_complete(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status),
+			   &type, sizeof(type));
+	mgmt_pending_remove(cmd);
 
 	return err;
+}
+
+static void start_discovery_complete(struct hci_dev *hdev, u8 status)
+{
+	BT_DBG("status %d", status);
+
+	if (status) {
+		hci_dev_lock(hdev);
+		mgmt_start_discovery_failed(hdev, status);
+		hci_dev_unlock(hdev);
+		return;
+	}
+
+	hci_dev_lock(hdev);
+	hci_discovery_set_state(hdev, DISCOVERY_FINDING);
+	hci_dev_unlock(hdev);
+
+	switch (hdev->discovery.type) {
+	case DISCOV_TYPE_LE:
+		queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
+				   DISCOV_LE_TIMEOUT);
+		break;
+
+	case DISCOV_TYPE_INTERLEAVED:
+		queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
+				   DISCOV_INTERLEAVED_TIMEOUT);
+		break;
+
+	case DISCOV_TYPE_BREDR:
+		break;
+
+	default:
+		BT_ERR("Invalid discovery type %d", hdev->discovery.type);
+	}
 }
 
 static int start_discovery(struct sock *sk, struct hci_dev *hdev,
@@ -2655,6 +2679,12 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 {
 	struct mgmt_cp_start_discovery *cp = data;
 	struct pending_cmd *cmd;
+	struct hci_cp_le_set_scan_param param_cp;
+	struct hci_cp_le_set_scan_enable enable_cp;
+	struct hci_cp_inquiry inq_cp;
+	struct hci_request req;
+	/* General inquiry access code (GIAC) */
+	u8 lap[3] = { 0x33, 0x8b, 0x9e };
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -2687,6 +2717,8 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 
 	hdev->discovery.type = cp->type;
 
+	hci_req_init(&req, hdev);
+
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_BREDR:
 		if (!lmp_bredr_capable(hdev)) {
@@ -2696,10 +2728,23 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 			goto failed;
 		}
 
-		err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
+		if (test_bit(HCI_INQUIRY, &hdev->flags)) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+					 MGMT_STATUS_BUSY);
+			mgmt_pending_remove(cmd);
+			goto failed;
+		}
+
+		hci_inquiry_cache_flush(hdev);
+
+		memset(&inq_cp, 0, sizeof(inq_cp));
+		memcpy(&inq_cp.lap, lap, sizeof(inq_cp.lap));
+		inq_cp.length = DISCOV_BREDR_INQUIRY_LEN;
+		hci_req_add(&req, HCI_OP_INQUIRY, sizeof(inq_cp), &inq_cp);
 		break;
 
 	case DISCOV_TYPE_LE:
+	case DISCOV_TYPE_INTERLEAVED:
 		if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
 					 MGMT_STATUS_NOT_SUPPORTED);
@@ -2707,20 +2752,40 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 			goto failed;
 		}
 
-		err = hci_le_scan(hdev, LE_SCAN_ACTIVE, LE_SCAN_INT,
-				  LE_SCAN_WIN, LE_SCAN_TIMEOUT_LE_ONLY);
-		break;
-
-	case DISCOV_TYPE_INTERLEAVED:
-		if (!lmp_host_le_capable(hdev) || !lmp_bredr_capable(hdev)) {
+		if (hdev->discovery.type == DISCOV_TYPE_INTERLEAVED &&
+		    !lmp_bredr_capable(hdev)) {
 			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
 					 MGMT_STATUS_NOT_SUPPORTED);
 			mgmt_pending_remove(cmd);
 			goto failed;
 		}
 
-		err = hci_le_scan(hdev, LE_SCAN_ACTIVE, LE_SCAN_INT,
-				  LE_SCAN_WIN, LE_SCAN_TIMEOUT_BREDR_LE);
+		if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags)) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+					 MGMT_STATUS_REJECTED);
+			mgmt_pending_remove(cmd);
+			goto failed;
+		}
+
+		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags)) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+					 MGMT_STATUS_BUSY);
+			mgmt_pending_remove(cmd);
+			goto failed;
+		}
+
+		memset(&param_cp, 0, sizeof(param_cp));
+		param_cp.type = LE_SCAN_ACTIVE;
+		param_cp.interval = cpu_to_le16(DISCOV_LE_SCAN_INT);
+		param_cp.window = cpu_to_le16(DISCOV_LE_SCAN_WIN);
+		hci_req_add(&req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
+			    &param_cp);
+
+		memset(&enable_cp, 0, sizeof(enable_cp));
+		enable_cp.enable = LE_SCAN_ENABLE;
+		enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+		hci_req_add(&req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
+			    &enable_cp);
 		break;
 
 	default:
@@ -2730,6 +2795,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		goto failed;
 	}
 
+	err = hci_req_run(&req, start_discovery_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 	else
@@ -2740,6 +2806,39 @@ failed:
 	return err;
 }
 
+static int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
+	if (!cmd)
+		return -ENOENT;
+
+	err = cmd_complete(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status),
+			   &hdev->discovery.type, sizeof(hdev->discovery.type));
+	mgmt_pending_remove(cmd);
+
+	return err;
+}
+
+static void stop_discovery_complete(struct hci_dev *hdev, u8 status)
+{
+	BT_DBG("status %d", status);
+
+	hci_dev_lock(hdev);
+
+	if (status) {
+		mgmt_stop_discovery_failed(hdev, status);
+		goto unlock;
+	}
+
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
 static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 			  u16 len)
 {
@@ -2747,6 +2846,8 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct pending_cmd *cmd;
 	struct hci_cp_remote_name_req_cancel cp;
 	struct inquiry_entry *e;
+	struct hci_request req;
+	struct hci_cp_le_set_scan_enable enable_cp;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -2773,12 +2874,20 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
+	hci_req_init(&req, hdev);
+
 	switch (hdev->discovery.state) {
 	case DISCOVERY_FINDING:
-		if (test_bit(HCI_INQUIRY, &hdev->flags))
-			err = hci_cancel_inquiry(hdev);
-		else
-			err = hci_cancel_le_scan(hdev);
+		if (test_bit(HCI_INQUIRY, &hdev->flags)) {
+			hci_req_add(&req, HCI_OP_INQUIRY_CANCEL, 0, NULL);
+		} else {
+			cancel_delayed_work(&hdev->le_scan_disable);
+
+			memset(&enable_cp, 0, sizeof(enable_cp));
+			enable_cp.enable = LE_SCAN_DISABLE;
+			hci_req_add(&req, HCI_OP_LE_SET_SCAN_ENABLE,
+				    sizeof(enable_cp), &enable_cp);
+		}
 
 		break;
 
@@ -2796,16 +2905,22 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 		}
 
 		bacpy(&cp.bdaddr, &e->data.bdaddr);
-		err = hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ_CANCEL,
-				   sizeof(cp), &cp);
+		hci_req_add(&req, HCI_OP_REMOTE_NAME_REQ_CANCEL, sizeof(cp),
+			    &cp);
 
 		break;
 
 	default:
 		BT_DBG("unknown discovery state %u", hdev->discovery.state);
-		err = -EFAULT;
+
+		mgmt_pending_remove(cmd);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_STOP_DISCOVERY,
+				   MGMT_STATUS_FAILED, &mgmt_cp->type,
+				   sizeof(mgmt_cp->type));
+		goto unlock;
 	}
 
+	err = hci_req_run(&req, stop_discovery_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 	else
@@ -4063,6 +4178,9 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	struct mgmt_ev_device_found *ev = (void *) buf;
 	size_t ev_size;
 
+	if (!hci_discovery_active(hdev))
+		return -EPERM;
+
 	/* Leave 5 bytes for a potential CoD field */
 	if (sizeof(*ev) + eir_len + 5 > sizeof(buf))
 		return -EINVAL;
@@ -4112,43 +4230,6 @@ int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev,
 			  sizeof(*ev) + eir_len, NULL);
-}
-
-int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
-{
-	struct pending_cmd *cmd;
-	u8 type;
-	int err;
-
-	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-
-	cmd = mgmt_pending_find(MGMT_OP_START_DISCOVERY, hdev);
-	if (!cmd)
-		return -ENOENT;
-
-	type = hdev->discovery.type;
-
-	err = cmd_complete(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status),
-			   &type, sizeof(type));
-	mgmt_pending_remove(cmd);
-
-	return err;
-}
-
-int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status)
-{
-	struct pending_cmd *cmd;
-	int err;
-
-	cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
-	if (!cmd)
-		return -ENOENT;
-
-	err = cmd_complete(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status),
-			   &hdev->discovery.type, sizeof(hdev->discovery.type));
-	mgmt_pending_remove(cmd);
-
-	return err;
 }
 
 int mgmt_discovering(struct hci_dev *hdev, u8 discovering)

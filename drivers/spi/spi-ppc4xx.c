@@ -190,12 +190,6 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 			speed = min(t->speed_hz, spi->max_speed_hz);
 	}
 
-	if (bits_per_word != 8) {
-		dev_err(&spi->dev, "invalid bits-per-word (%d)\n",
-				bits_per_word);
-		return -EINVAL;
-	}
-
 	if (!speed || (speed > spi->max_speed_hz)) {
 		dev_err(&spi->dev, "invalid speed_hz (%d)\n", speed);
 		return -EINVAL;
@@ -228,12 +222,6 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 static int spi_ppc4xx_setup(struct spi_device *spi)
 {
 	struct spi_ppc4xx_cs *cs = spi->controller_state;
-
-	if (spi->bits_per_word != 8) {
-		dev_err(&spi->dev, "invalid bits-per-word (%d)\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
 
 	if (!spi->max_speed_hz) {
 		dev_err(&spi->dev, "invalid max_speed_hz (must be non-zero)\n");
@@ -406,7 +394,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	if (master == NULL)
 		return -ENOMEM;
 	master->dev.of_node = np;
-	dev_set_drvdata(dev, master);
+	platform_set_drvdata(op, master);
 	hw = spi_master_get_devdata(master);
 	hw->master = spi_master_get(master);
 	hw->dev = dev;
@@ -465,6 +453,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	bbp->use_dma = 0;
 	bbp->master->setup = spi_ppc4xx_setup;
 	bbp->master->cleanup = spi_ppc4xx_cleanup;
+	bbp->master->bits_per_word_mask = SPI_BPW_MASK(8);
 
 	/* the spi->mode bits understood by this driver: */
 	bbp->master->mode_bits =
@@ -553,7 +542,6 @@ request_mem_error:
 free_gpios:
 	free_gpios(hw);
 free_master:
-	dev_set_drvdata(dev, NULL);
 	spi_master_put(master);
 
 	dev_err(dev, "initialization failed\n");
@@ -562,11 +550,10 @@ free_master:
 
 static int spi_ppc4xx_of_remove(struct platform_device *op)
 {
-	struct spi_master *master = dev_get_drvdata(&op->dev);
+	struct spi_master *master = platform_get_drvdata(op);
 	struct ppc4xx_spi *hw = spi_master_get_devdata(master);
 
 	spi_bitbang_stop(&hw->bitbang);
-	dev_set_drvdata(&op->dev, NULL);
 	release_mem_region(hw->mapbase, hw->mapsize);
 	free_irq(hw->irqnum, hw);
 	iounmap(hw->regs);

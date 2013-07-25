@@ -3119,7 +3119,7 @@ il3945_store_debug_level(struct device *d, struct device_attribute *attr,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 0, &val);
+	ret = kstrtoul(buf, 0, &val);
 	if (ret)
 		IL_INFO("%s is not in hex or decimal form.\n", buf);
 	else
@@ -3727,7 +3727,8 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 5. Setup HW Constants
 	 * ********************/
 	/* Device-specific setup */
-	if (il3945_hw_set_hw_params(il)) {
+	err = il3945_hw_set_hw_params(il);
+	if (err) {
 		IL_ERR("failed to set hw settings\n");
 		goto out_eeprom_free;
 	}

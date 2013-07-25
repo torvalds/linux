@@ -186,10 +186,13 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 	switch (base) {
 	case ACPI_ANY_BASE:
 	case 16:
+
 		break;
 
 	default:
+
 		/* Invalid Base */
+
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -355,36 +358,44 @@ void acpi_ut_print_string(char *string, u8 max_length)
 
 		switch (string[i]) {
 		case 0x07:
+
 			acpi_os_printf("\\a");	/* BELL */
 			break;
 
 		case 0x08:
+
 			acpi_os_printf("\\b");	/* BACKSPACE */
 			break;
 
 		case 0x0C:
+
 			acpi_os_printf("\\f");	/* FORMFEED */
 			break;
 
 		case 0x0A:
+
 			acpi_os_printf("\\n");	/* LINEFEED */
 			break;
 
 		case 0x0D:
+
 			acpi_os_printf("\\r");	/* CARRIAGE RETURN */
 			break;
 
 		case 0x09:
+
 			acpi_os_printf("\\t");	/* HORIZONTAL TAB */
 			break;
 
 		case 0x0B:
+
 			acpi_os_printf("\\v");	/* VERTICAL TAB */
 			break;
 
 		case '\'':	/* Single Quote */
 		case '\"':	/* Double Quote */
 		case '\\':	/* Backslash */
+
 			acpi_os_printf("\\%c", (int)string[i]);
 			break;
 
@@ -451,7 +462,8 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position)
  *
  * FUNCTION:    acpi_ut_valid_acpi_name
  *
- * PARAMETERS:  name            - The name to be examined
+ * PARAMETERS:  name            - The name to be examined. Does not have to
+ *                                be NULL terminated string.
  *
  * RETURN:      TRUE if the name is valid, FALSE otherwise
  *
@@ -462,15 +474,14 @@ u8 acpi_ut_valid_acpi_char(char character, u32 position)
  *
  ******************************************************************************/
 
-u8 acpi_ut_valid_acpi_name(u32 name)
+u8 acpi_ut_valid_acpi_name(char *name)
 {
 	u32 i;
 
 	ACPI_FUNCTION_ENTRY();
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		if (!acpi_ut_valid_acpi_char
-		    ((ACPI_CAST_PTR(char, &name))[i], i)) {
+		if (!acpi_ut_valid_acpi_char(name[i], i)) {
 			return (FALSE);
 		}
 	}

@@ -50,28 +50,21 @@ static const struct of_device_id exynos_wkup_irq_ids[] = {
 	{ }
 };
 
-static void exynos_gpio_irq_unmask(struct irq_data *irqd)
-{
-	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
-	struct samsung_pinctrl_drv_data *d = bank->drvdata;
-	unsigned long reg_mask = d->ctrl->geint_mask + bank->eint_offset;
-	unsigned long mask;
-
-	mask = readl(d->virt_base + reg_mask);
-	mask &= ~(1 << irqd->hwirq);
-	writel(mask, d->virt_base + reg_mask);
-}
-
 static void exynos_gpio_irq_mask(struct irq_data *irqd)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
 	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	unsigned long reg_mask = d->ctrl->geint_mask + bank->eint_offset;
 	unsigned long mask;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bank->slock, flags);
 
 	mask = readl(d->virt_base + reg_mask);
 	mask |= 1 << irqd->hwirq;
 	writel(mask, d->virt_base + reg_mask);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
 }
 
 static void exynos_gpio_irq_ack(struct irq_data *irqd)
@@ -81,6 +74,34 @@ static void exynos_gpio_irq_ack(struct irq_data *irqd)
 	unsigned long reg_pend = d->ctrl->geint_pend + bank->eint_offset;
 
 	writel(1 << irqd->hwirq, d->virt_base + reg_pend);
+}
+
+static void exynos_gpio_irq_unmask(struct irq_data *irqd)
+{
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	unsigned long reg_mask = d->ctrl->geint_mask + bank->eint_offset;
+	unsigned long mask;
+	unsigned long flags;
+
+	/*
+	 * Ack level interrupts right before unmask
+	 *
+	 * If we don't do this we'll get a double-interrupt.  Level triggered
+	 * interrupts must not fire an interrupt if the level is not
+	 * _currently_ active, even if it was active while the interrupt was
+	 * masked.
+	 */
+	if (irqd_get_trigger_type(irqd) & IRQ_TYPE_LEVEL_MASK)
+		exynos_gpio_irq_ack(irqd);
+
+	spin_lock_irqsave(&bank->slock, flags);
+
+	mask = readl(d->virt_base + reg_mask);
+	mask &= ~(1 << irqd->hwirq);
+	writel(mask, d->virt_base + reg_mask);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
 }
 
 static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
@@ -258,28 +279,21 @@ err_domains:
 	return ret;
 }
 
-static void exynos_wkup_irq_unmask(struct irq_data *irqd)
-{
-	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
-	struct samsung_pinctrl_drv_data *d = b->drvdata;
-	unsigned long reg_mask = d->ctrl->weint_mask + b->eint_offset;
-	unsigned long mask;
-
-	mask = readl(d->virt_base + reg_mask);
-	mask &= ~(1 << irqd->hwirq);
-	writel(mask, d->virt_base + reg_mask);
-}
-
 static void exynos_wkup_irq_mask(struct irq_data *irqd)
 {
 	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
 	struct samsung_pinctrl_drv_data *d = b->drvdata;
 	unsigned long reg_mask = d->ctrl->weint_mask + b->eint_offset;
 	unsigned long mask;
+	unsigned long flags;
+
+	spin_lock_irqsave(&b->slock, flags);
 
 	mask = readl(d->virt_base + reg_mask);
 	mask |= 1 << irqd->hwirq;
 	writel(mask, d->virt_base + reg_mask);
+
+	spin_unlock_irqrestore(&b->slock, flags);
 }
 
 static void exynos_wkup_irq_ack(struct irq_data *irqd)
@@ -289,6 +303,34 @@ static void exynos_wkup_irq_ack(struct irq_data *irqd)
 	unsigned long pend = d->ctrl->weint_pend + b->eint_offset;
 
 	writel(1 << irqd->hwirq, d->virt_base + pend);
+}
+
+static void exynos_wkup_irq_unmask(struct irq_data *irqd)
+{
+	struct samsung_pin_bank *b = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = b->drvdata;
+	unsigned long reg_mask = d->ctrl->weint_mask + b->eint_offset;
+	unsigned long mask;
+	unsigned long flags;
+
+	/*
+	 * Ack level interrupts right before unmask
+	 *
+	 * If we don't do this we'll get a double-interrupt.  Level triggered
+	 * interrupts must not fire an interrupt if the level is not
+	 * _currently_ active, even if it was active while the interrupt was
+	 * masked.
+	 */
+	if (irqd_get_trigger_type(irqd) & IRQ_TYPE_LEVEL_MASK)
+		exynos_wkup_irq_ack(irqd);
+
+	spin_lock_irqsave(&b->slock, flags);
+
+	mask = readl(d->virt_base + reg_mask);
+	mask &= ~(1 << irqd->hwirq);
+	writel(mask, d->virt_base + reg_mask);
+
+	spin_unlock_irqrestore(&b->slock, flags);
 }
 
 static int exynos_wkup_irq_set_type(struct irq_data *irqd, unsigned int type)
@@ -939,5 +981,123 @@ struct samsung_pin_ctrl exynos5250_pin_ctrl[] = {
 		.suspend	= exynos_pinctrl_suspend,
 		.resume		= exynos_pinctrl_resume,
 		.label		= "exynos5250-gpio-ctrl3",
+	},
+};
+
+/* pin banks of exynos5420 pin-controller 0 */
+static struct samsung_pin_bank exynos5420_pin_banks0[] = {
+	EXYNOS_PIN_BANK_EINTG(8, 0x000, "gpy7", 0x00),
+	EXYNOS_PIN_BANK_EINTW(8, 0xC00, "gpx0", 0x00),
+	EXYNOS_PIN_BANK_EINTW(8, 0xC20, "gpx1", 0x04),
+	EXYNOS_PIN_BANK_EINTW(8, 0xC40, "gpx2", 0x08),
+	EXYNOS_PIN_BANK_EINTW(8, 0xC60, "gpx3", 0x0c),
+};
+
+/* pin banks of exynos5420 pin-controller 1 */
+static struct samsung_pin_bank exynos5420_pin_banks1[] = {
+	EXYNOS_PIN_BANK_EINTG(8, 0x000, "gpc0", 0x00),
+	EXYNOS_PIN_BANK_EINTG(8, 0x020, "gpc1", 0x04),
+	EXYNOS_PIN_BANK_EINTG(7, 0x040, "gpc2", 0x08),
+	EXYNOS_PIN_BANK_EINTG(4, 0x060, "gpc3", 0x0c),
+	EXYNOS_PIN_BANK_EINTG(2, 0x080, "gpc4", 0x10),
+	EXYNOS_PIN_BANK_EINTG(8, 0x0A0, "gpd1", 0x14),
+	EXYNOS_PIN_BANK_EINTN(6, 0x0C0, "gpy0"),
+	EXYNOS_PIN_BANK_EINTN(4, 0x0E0, "gpy1"),
+	EXYNOS_PIN_BANK_EINTN(6, 0x100, "gpy2"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x120, "gpy3"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x140, "gpy4"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x160, "gpy5"),
+	EXYNOS_PIN_BANK_EINTN(8, 0x180, "gpy6"),
+};
+
+/* pin banks of exynos5420 pin-controller 2 */
+static struct samsung_pin_bank exynos5420_pin_banks2[] = {
+	EXYNOS_PIN_BANK_EINTG(8, 0x000, "gpe0", 0x00),
+	EXYNOS_PIN_BANK_EINTG(2, 0x020, "gpe1", 0x04),
+	EXYNOS_PIN_BANK_EINTG(6, 0x040, "gpf0", 0x08),
+	EXYNOS_PIN_BANK_EINTG(8, 0x060, "gpf1", 0x0c),
+	EXYNOS_PIN_BANK_EINTG(8, 0x080, "gpg0", 0x10),
+	EXYNOS_PIN_BANK_EINTG(8, 0x0A0, "gpg1", 0x14),
+	EXYNOS_PIN_BANK_EINTG(2, 0x0C0, "gpg2", 0x18),
+	EXYNOS_PIN_BANK_EINTG(4, 0x0E0, "gpj4", 0x1c),
+};
+
+/* pin banks of exynos5420 pin-controller 3 */
+static struct samsung_pin_bank exynos5420_pin_banks3[] = {
+	EXYNOS_PIN_BANK_EINTG(8, 0x000, "gpa0", 0x00),
+	EXYNOS_PIN_BANK_EINTG(6, 0x020, "gpa1", 0x04),
+	EXYNOS_PIN_BANK_EINTG(8, 0x040, "gpa2", 0x08),
+	EXYNOS_PIN_BANK_EINTG(5, 0x060, "gpb0", 0x0c),
+	EXYNOS_PIN_BANK_EINTG(5, 0x080, "gpb1", 0x10),
+	EXYNOS_PIN_BANK_EINTG(4, 0x0A0, "gpb2", 0x14),
+	EXYNOS_PIN_BANK_EINTG(8, 0x0C0, "gpb3", 0x18),
+	EXYNOS_PIN_BANK_EINTG(2, 0x0E0, "gpb4", 0x1c),
+	EXYNOS_PIN_BANK_EINTG(8, 0x100, "gph0", 0x20),
+};
+
+/* pin banks of exynos5420 pin-controller 4 */
+static struct samsung_pin_bank exynos5420_pin_banks4[] = {
+	EXYNOS_PIN_BANK_EINTG(7, 0x000, "gpz", 0x00),
+};
+
+/*
+ * Samsung pinctrl driver data for Exynos5420 SoC. Exynos5420 SoC includes
+ * four gpio/pin-mux/pinconfig controllers.
+ */
+struct samsung_pin_ctrl exynos5420_pin_ctrl[] = {
+	{
+		/* pin-controller instance 0 data */
+		.pin_banks	= exynos5420_pin_banks0,
+		.nr_banks	= ARRAY_SIZE(exynos5420_pin_banks0),
+		.geint_con	= EXYNOS_GPIO_ECON_OFFSET,
+		.geint_mask	= EXYNOS_GPIO_EMASK_OFFSET,
+		.geint_pend	= EXYNOS_GPIO_EPEND_OFFSET,
+		.weint_con	= EXYNOS_WKUP_ECON_OFFSET,
+		.weint_mask	= EXYNOS_WKUP_EMASK_OFFSET,
+		.weint_pend	= EXYNOS_WKUP_EPEND_OFFSET,
+		.svc		= EXYNOS_SVC_OFFSET,
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.eint_wkup_init = exynos_eint_wkup_init,
+		.label		= "exynos5420-gpio-ctrl0",
+	}, {
+		/* pin-controller instance 1 data */
+		.pin_banks	= exynos5420_pin_banks1,
+		.nr_banks	= ARRAY_SIZE(exynos5420_pin_banks1),
+		.geint_con	= EXYNOS_GPIO_ECON_OFFSET,
+		.geint_mask	= EXYNOS_GPIO_EMASK_OFFSET,
+		.geint_pend	= EXYNOS_GPIO_EPEND_OFFSET,
+		.svc		= EXYNOS_SVC_OFFSET,
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.label		= "exynos5420-gpio-ctrl1",
+	}, {
+		/* pin-controller instance 2 data */
+		.pin_banks	= exynos5420_pin_banks2,
+		.nr_banks	= ARRAY_SIZE(exynos5420_pin_banks2),
+		.geint_con	= EXYNOS_GPIO_ECON_OFFSET,
+		.geint_mask	= EXYNOS_GPIO_EMASK_OFFSET,
+		.geint_pend	= EXYNOS_GPIO_EPEND_OFFSET,
+		.svc		= EXYNOS_SVC_OFFSET,
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.label		= "exynos5420-gpio-ctrl2",
+	}, {
+		/* pin-controller instance 3 data */
+		.pin_banks	= exynos5420_pin_banks3,
+		.nr_banks	= ARRAY_SIZE(exynos5420_pin_banks3),
+		.geint_con	= EXYNOS_GPIO_ECON_OFFSET,
+		.geint_mask	= EXYNOS_GPIO_EMASK_OFFSET,
+		.geint_pend	= EXYNOS_GPIO_EPEND_OFFSET,
+		.svc		= EXYNOS_SVC_OFFSET,
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.label		= "exynos5420-gpio-ctrl3",
+	}, {
+		/* pin-controller instance 4 data */
+		.pin_banks	= exynos5420_pin_banks4,
+		.nr_banks	= ARRAY_SIZE(exynos5420_pin_banks4),
+		.geint_con	= EXYNOS_GPIO_ECON_OFFSET,
+		.geint_mask	= EXYNOS_GPIO_EMASK_OFFSET,
+		.geint_pend	= EXYNOS_GPIO_EPEND_OFFSET,
+		.svc		= EXYNOS_SVC_OFFSET,
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.label		= "exynos5420-gpio-ctrl4",
 	},
 };

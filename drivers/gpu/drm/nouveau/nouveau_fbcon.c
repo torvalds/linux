@@ -385,6 +385,7 @@ out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	if (chan)
 		nouveau_bo_vma_del(nvbo, &fbcon->nouveau_fb.vma);
+	nouveau_bo_unmap(nvbo);
 out_unpin:
 	nouveau_bo_unpin(nvbo);
 out_unref:
@@ -472,10 +473,10 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	drm_fb_helper_single_add_all_connectors(&fbcon->helper);
 
-	if (pfb->ram.size <= 32 * 1024 * 1024)
+	if (pfb->ram->size <= 32 * 1024 * 1024)
 		preferred_bpp = 8;
 	else
-	if (pfb->ram.size <= 64 * 1024 * 1024)
+	if (pfb->ram->size <= 64 * 1024 * 1024)
 		preferred_bpp = 16;
 	else
 		preferred_bpp = 32;

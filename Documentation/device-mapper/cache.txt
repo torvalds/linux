@@ -87,7 +87,7 @@ Migration throttling
 
 Migrating data between the origin and cache device uses bandwidth.
 The user can set a throttle to prevent more than a certain amount of
-migration occuring at any one time.  Currently we're not taking any
+migration occurring at any one time.  Currently we're not taking any
 account of normal io traffic going to the devices.  More work needs
 doing here to avoid migrating during those peak io moments.
 

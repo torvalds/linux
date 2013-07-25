@@ -5,8 +5,19 @@ Required properties:
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: IRQ line for the timer.
+- either clocks+clock-names or clock-frequency properties
+
+Optional properties:
+- clocks	: list of clock specifiers, corresponding to entries in
+		  the clock-names property;
+- clock-names	: should contain "timer" and "pclk" entries, matching entries
+		  in the clocks property.
 - clock-frequency: The frequency in HZ of the timer.
 - clock-freq: For backwards compatibility with picoxcell
+
+If using the clock specifiers, the pclk clock is optional, as not all
+systems may use one.
+
 
 Example:
 
@@ -22,4 +33,12 @@ Example:
 				interrupts = <0 169 4>;
 				clock-frequency = <200000000>;
 				reg = <0xffd00000 0x1000>;
+			};
+
+		timer3: timer@ffe00000 {
+				compatible = "snps,dw-apb-timer-osc";
+				interrupts = <0 170 4>;
+				reg = <0xffe00000 0x1000>;
+				clocks = <&timer_clk>, <&timer_pclk>;
+				clock-names = "timer", "pclk";
 			};

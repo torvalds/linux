@@ -419,8 +419,6 @@ static int omap4_keypad_remove(struct platform_device *pdev)
 	kfree(keypad_data->keymap);
 	kfree(keypad_data);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

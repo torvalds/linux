@@ -208,7 +208,8 @@ static ssize_t backlight_show_actual_brightness(struct device *dev,
 
 static struct class *backlight_class;
 
-static int backlight_suspend(struct device *dev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int backlight_suspend(struct device *dev)
 {
 	struct backlight_device *bd = to_backlight_device(dev);
 
@@ -235,6 +236,10 @@ static int backlight_resume(struct device *dev)
 
 	return 0;
 }
+#endif
+
+static SIMPLE_DEV_PM_OPS(backlight_class_dev_pm_ops, backlight_suspend,
+			 backlight_resume);
 
 static void bl_device_release(struct device *dev)
 {
@@ -304,7 +309,7 @@ struct backlight_device *backlight_device_register(const char *name,
 	new_bd->dev.class = backlight_class;
 	new_bd->dev.parent = parent;
 	new_bd->dev.release = bl_device_release;
-	dev_set_name(&new_bd->dev, name);
+	dev_set_name(&new_bd->dev, "%s", name);
 	dev_set_drvdata(&new_bd->dev, devdata);
 
 	/* Set default properties */
@@ -370,6 +375,81 @@ void backlight_device_unregister(struct backlight_device *bd)
 }
 EXPORT_SYMBOL(backlight_device_unregister);
 
+static void devm_backlight_device_release(struct device *dev, void *res)
+{
+	struct backlight_device *backlight = *(struct backlight_device **)res;
+
+	backlight_device_unregister(backlight);
+}
+
+static int devm_backlight_device_match(struct device *dev, void *res,
+					void *data)
+{
+	struct backlight_device **r = res;
+
+	return *r == data;
+}
+
+/**
+ * devm_backlight_device_register - resource managed backlight_device_register()
+ * @dev: the device to register
+ * @name: the name of the device
+ * @parent: a pointer to the parent device
+ * @devdata: an optional pointer to be stored for private driver use
+ * @ops: the backlight operations structure
+ * @props: the backlight properties
+ *
+ * @return a struct backlight on success, or an ERR_PTR on error
+ *
+ * Managed backlight_device_register(). The backlight_device returned
+ * from this function are automatically freed on driver detach.
+ * See backlight_device_register() for more information.
+ */
+struct backlight_device *devm_backlight_device_register(struct device *dev,
+	const char *name, struct device *parent, void *devdata,
+	const struct backlight_ops *ops,
+	const struct backlight_properties *props)
+{
+	struct backlight_device **ptr, *backlight;
+
+	ptr = devres_alloc(devm_backlight_device_release, sizeof(*ptr),
+			GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	backlight = backlight_device_register(name, parent, devdata, ops,
+						props);
+	if (!IS_ERR(backlight)) {
+		*ptr = backlight;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return backlight;
+}
+EXPORT_SYMBOL(devm_backlight_device_register);
+
+/**
+ * devm_backlight_device_unregister - resource managed backlight_device_unregister()
+ * @dev: the device to unregister
+ * @bd: the backlight device to unregister
+ *
+ * Deallocated a backlight allocated with devm_backlight_device_register().
+ * Normally this function will not need to be called and the resource management
+ * code will ensure that the resource is freed.
+ */
+void devm_backlight_device_unregister(struct device *dev,
+				struct backlight_device *bd)
+{
+	int rc;
+
+	rc = devres_release(dev, devm_backlight_device_release,
+				devm_backlight_device_match, bd);
+	WARN_ON(rc);
+}
+EXPORT_SYMBOL(devm_backlight_device_unregister);
+
 #ifdef CONFIG_OF
 static int of_parent_match(struct device *dev, const void *data)
 {
@@ -414,8 +494,7 @@ static int __init backlight_class_init(void)
 	}
 
 	backlight_class->dev_attrs = bl_device_attributes;
-	backlight_class->suspend = backlight_suspend;
-	backlight_class->resume = backlight_resume;
+	backlight_class->pm = &backlight_class_dev_pm_ops;
 	return 0;
 }
 

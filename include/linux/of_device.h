@@ -4,12 +4,12 @@
 #include <linux/platform_device.h>
 #include <linux/of_platform.h> /* temporary until merge */
 
-#ifdef CONFIG_OF_DEVICE
 #include <linux/of.h>
 #include <linux/mod_devicetable.h>
 
 struct device;
 
+#ifdef CONFIG_OF
 extern const struct of_device_id *of_match_device(
 	const struct of_device_id *matches, const struct device *dev);
 extern void of_device_make_bus_id(struct device *dev);
@@ -43,7 +43,7 @@ static inline void of_device_node_put(struct device *dev)
 	of_node_put(dev->of_node);
 }
 
-#else /* CONFIG_OF_DEVICE */
+#else /* CONFIG_OF */
 
 static inline int of_driver_match_device(struct device *dev,
 					 struct device_driver *drv)
@@ -67,6 +67,6 @@ static inline const struct of_device_id *of_match_device(
 {
 	return NULL;
 }
-#endif /* CONFIG_OF_DEVICE */
+#endif /* CONFIG_OF */
 
 #endif /* _LINUX_OF_DEVICE_H */

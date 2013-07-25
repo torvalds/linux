@@ -786,7 +786,7 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
+static void tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 {
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
 	struct tcm_loop_tmr *tl_tmr = se_tmr->fabric_tmr_ptr;
@@ -796,7 +796,6 @@ static int tcm_loop_queue_tm_rsp(struct se_cmd *se_cmd)
 	 */
 	atomic_set(&tl_tmr->tmr_complete, 1);
 	wake_up(&tl_tmr->tl_tmr_wait);
-	return 0;
 }
 
 static char *tcm_loop_dump_proto_id(struct tcm_loop_hba *tl_hba)

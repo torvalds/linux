@@ -170,7 +170,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 
 	/* Check result */
 	if (status & FPGA_STATUS_DONE)
-		dev_info(&spi->dev, "FPGA succesfully configured!\n");
+		dev_info(&spi->dev, "FPGA successfully configured!\n");
 	else
 		dev_info(&spi->dev, "FPGA not configured (DONE not set)\n");
 

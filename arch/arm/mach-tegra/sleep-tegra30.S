@@ -19,6 +19,7 @@
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 
+#include "fuse.h"
 #include "sleep.h"
 #include "flowctrl.h"
 
@@ -43,14 +44,19 @@ ENDPROC(tegra30_hotplug_shutdown)
  *
  * Puts the current CPU in wait-for-event mode on the flow controller
  * and powergates it -- flags (in R0) indicate the request type.
- * Must never be called for CPU 0.
  *
- * corrupts r0-r4, r12
+ * r10 = SoC ID
+ * corrupts r0-r4, r10-r12
  */
 ENTRY(tegra30_cpu_shutdown)
 	cpu_id	r3
+	tegra_get_soc_id TEGRA_APB_MISC_VIRT, r10
+	cmp	r10, #TEGRA30
+	bne	_no_cpu0_chk	@ It's not Tegra30
+
 	cmp	r3, #0
 	moveq	pc, lr		@ Must never be called for CPU 0
+_no_cpu0_chk:
 
 	ldr	r12, =TEGRA_FLOW_CTRL_VIRT
 	cpu_to_csr_reg r1, r3
@@ -65,7 +71,9 @@ ENTRY(tegra30_cpu_shutdown)
 	movw	r12, \
 		FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG | \
 		FLOW_CTRL_CSR_ENABLE
-	mov	r4, #(1 << 4)
+	cmp	r10, #TEGRA30
+	moveq	r4, #(1 << 4)			@ wfe bitmap
+	movne	r4, #(1 << 8)			@ wfi bitmap
  ARM(	orr	r12, r12, r4, lsl r3	)
  THUMB(	lsl	r4, r4, r3		)
  THUMB(	orr	r12, r12, r4		)
@@ -79,9 +87,20 @@ delay_1:
 	cpsid	a				@ disable imprecise aborts.
 	ldr	r3, [r1]			@ read CSR
 	str	r3, [r1]			@ clear CSR
+
 	tst	r0, #TEGRA30_POWER_HOTPLUG_SHUTDOWN
+	beq	flow_ctrl_setting_for_lp2
+
+	/* flow controller set up for hotplug */
+	mov	r3, #FLOW_CTRL_WAITEVENT		@ For hotplug
+	b	flow_ctrl_done
+flow_ctrl_setting_for_lp2:
+	/* flow controller set up for LP2 */
+	cmp	r10, #TEGRA30
 	moveq   r3, #FLOW_CTRL_WAIT_FOR_INTERRUPT	@ For LP2
-	movne	r3, #FLOW_CTRL_WAITEVENT		@ For hotplug
+	movne	r3, #FLOW_CTRL_WAITEVENT
+flow_ctrl_done:
+	cmp	r10, #TEGRA30
 	str	r3, [r2]
 	ldr	r0, [r2]
 	b	wfe_war
@@ -89,7 +108,8 @@ delay_1:
 __cpu_reset_again:
 	dsb
 	.align 5
-	wfe					@ CPU should be power gated here
+	wfeeq					@ CPU should be power gated here
+	wfine
 wfe_war:
 	b	__cpu_reset_again
 

@@ -175,7 +175,7 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	if (!pxa)
 		return -ENOMEM;
 
-	host = sdhci_pltfm_init(pdev, NULL);
+	host = sdhci_pltfm_init(pdev, NULL, 0);
 	if (IS_ERR(host)) {
 		kfree(pxa);
 		return PTR_ERR(host);
@@ -252,8 +252,6 @@ static int sdhci_pxav2_remove(struct platform_device *pdev)
 	clk_put(pltfm_host->clk);
 	sdhci_pltfm_free(pdev);
 	kfree(pxa);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

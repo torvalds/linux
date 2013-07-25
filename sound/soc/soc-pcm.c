@@ -33,6 +33,29 @@
 
 #define DPCM_MAX_BE_USERS	8
 
+/**
+ * snd_soc_set_runtime_hwparams - set the runtime hardware parameters
+ * @substream: the pcm substream
+ * @hw: the hardware parameters
+ *
+ * Sets the substream runtime hardware parameters.
+ */
+int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
+	const struct snd_pcm_hardware *hw)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	runtime->hw.info = hw->info;
+	runtime->hw.formats = hw->formats;
+	runtime->hw.period_bytes_min = hw->period_bytes_min;
+	runtime->hw.period_bytes_max = hw->period_bytes_max;
+	runtime->hw.periods_min = hw->periods_min;
+	runtime->hw.periods_max = hw->periods_max;
+	runtime->hw.buffer_bytes_max = hw->buffer_bytes_max;
+	runtime->hw.fifo_size = hw->fifo_size;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_set_runtime_hwparams);
+
 /* DPCM stream event, send event to FE and all active BEs. */
 static int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
 	int event)
@@ -124,6 +147,26 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream,
 	}
 }
 
+static void soc_pcm_init_runtime_hw(struct snd_pcm_hardware *hw,
+	struct snd_soc_pcm_stream *codec_stream,
+	struct snd_soc_pcm_stream *cpu_stream)
+{
+	hw->rate_min = max(codec_stream->rate_min, cpu_stream->rate_min);
+	hw->rate_max = max(codec_stream->rate_max, cpu_stream->rate_max);
+	hw->channels_min = max(codec_stream->channels_min,
+		cpu_stream->channels_min);
+	hw->channels_max = min(codec_stream->channels_max,
+		cpu_stream->channels_max);
+	hw->formats = codec_stream->formats & cpu_stream->formats;
+	hw->rates = codec_stream->rates & cpu_stream->rates;
+	if (codec_stream->rates
+		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
+		hw->rates |= cpu_stream->rates;
+	if (cpu_stream->rates
+		& (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
+		hw->rates |= codec_stream->rates;
+}
+
 /*
  * Called by ALSA when a PCM substream is opened, the runtime->hw record is
  * then initialized and any private data can be allocated. This also calls
@@ -189,51 +232,11 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 
 	/* Check that the codec and cpu DAIs are compatible */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		runtime->hw.rate_min =
-			max(codec_dai_drv->playback.rate_min,
-			    cpu_dai_drv->playback.rate_min);
-		runtime->hw.rate_max =
-			min(codec_dai_drv->playback.rate_max,
-			    cpu_dai_drv->playback.rate_max);
-		runtime->hw.channels_min =
-			max(codec_dai_drv->playback.channels_min,
-				cpu_dai_drv->playback.channels_min);
-		runtime->hw.channels_max =
-			min(codec_dai_drv->playback.channels_max,
-				cpu_dai_drv->playback.channels_max);
-		runtime->hw.formats =
-			codec_dai_drv->playback.formats & cpu_dai_drv->playback.formats;
-		runtime->hw.rates =
-			codec_dai_drv->playback.rates & cpu_dai_drv->playback.rates;
-		if (codec_dai_drv->playback.rates
-			   & (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
-			runtime->hw.rates |= cpu_dai_drv->playback.rates;
-		if (cpu_dai_drv->playback.rates
-			   & (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
-			runtime->hw.rates |= codec_dai_drv->playback.rates;
+		soc_pcm_init_runtime_hw(&runtime->hw, &codec_dai_drv->playback,
+			&cpu_dai_drv->playback);
 	} else {
-		runtime->hw.rate_min =
-			max(codec_dai_drv->capture.rate_min,
-			    cpu_dai_drv->capture.rate_min);
-		runtime->hw.rate_max =
-			min(codec_dai_drv->capture.rate_max,
-			    cpu_dai_drv->capture.rate_max);
-		runtime->hw.channels_min =
-			max(codec_dai_drv->capture.channels_min,
-				cpu_dai_drv->capture.channels_min);
-		runtime->hw.channels_max =
-			min(codec_dai_drv->capture.channels_max,
-				cpu_dai_drv->capture.channels_max);
-		runtime->hw.formats =
-			codec_dai_drv->capture.formats & cpu_dai_drv->capture.formats;
-		runtime->hw.rates =
-			codec_dai_drv->capture.rates & cpu_dai_drv->capture.rates;
-		if (codec_dai_drv->capture.rates
-			   & (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
-			runtime->hw.rates |= cpu_dai_drv->capture.rates;
-		if (cpu_dai_drv->capture.rates
-			   & (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
-			runtime->hw.rates |= codec_dai_drv->capture.rates;
+		soc_pcm_init_runtime_hw(&runtime->hw, &codec_dai_drv->capture,
+			&cpu_dai_drv->capture);
 	}
 
 	ret = -EINVAL;

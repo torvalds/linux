@@ -547,10 +547,8 @@ fail_gpio:
 fail:
 	/* Clean up before returning failure */
 	for (i = 0; i < TOUCH_SUPPORTED; i++) {
-		if (ts->cp_input_info[i].input) {
+		if (ts->cp_input_info[i].input)
 			input_unregister_device(ts->cp_input_info[i].input);
-			input_free_device(ts->cp_input_info[i].input);
-		}
 	}
 	kfree(ts);
 	return retval;

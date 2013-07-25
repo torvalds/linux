@@ -932,7 +932,7 @@ static const struct file_operations proc_palinfo_fops = {
 	.release	= single_release,
 };
 
-static void __cpuinit
+static void
 create_palinfo_proc_entries(unsigned int cpu)
 {
 	pal_func_cpu_u_t f;
@@ -962,7 +962,7 @@ remove_palinfo_proc_entries(unsigned int hcpu)
 	remove_proc_subtree(cpustr, palinfo_dir);
 }
 
-static int __cpuinit palinfo_cpu_callback(struct notifier_block *nfb,
+static int palinfo_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
 	unsigned int hotcpu = (unsigned long)hcpu;

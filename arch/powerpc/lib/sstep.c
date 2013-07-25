@@ -580,7 +580,7 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (instr & 1)
 			regs->link = regs->nip;
 		if (branch_taken(instr, regs))
-			regs->nip = imm;
+			regs->nip = truncate_if_32bit(regs->msr, imm);
 		return 1;
 #ifdef CONFIG_PPC64
 	case 17:	/* sc */

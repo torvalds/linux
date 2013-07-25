@@ -1,0 +1,74 @@
+Device Tree Clock bindings for arch-rockchip
+
+This binding uses the common clock binding[1].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+== Gate clocks ==
+
+The gate registers form a continuos block which makes the dt node
+structure a matter of taste, as either all gates can be put into
+one gate clock spanning all registers or they can be divided into
+the 10 individual gates containing 16 clocks each.
+The code supports both approaches.
+
+Required properties:
+- compatible : "rockchip,rk2928-gate-clk"
+- reg : shall be the control register address(es) for the clock.
+- #clock-cells : from common clock binding; shall be set to 1
+- clock-output-names : the corresponding gate names that the clock controls
+- clocks : should contain the parent clock for each individual gate,
+  therefore the number of clocks elements should match the number of
+  clock-output-names
+
+Example using multiple gate clocks:
+
+		clk_gates0: gate-clk@200000d0 {
+			compatible = "rockchip,rk2928-gate-clk";
+			reg = <0x200000d0 0x4>;
+			clocks = <&dummy>, <&dummy>,
+				 <&dummy>, <&dummy>,
+				 <&dummy>, <&dummy>,
+				 <&dummy>, <&dummy>,
+				 <&dummy>, <&dummy>,
+				 <&dummy>, <&dummy>,
+				 <&dummy>, <&dummy>,
+				 <&dummy>, <&dummy>;
+
+			clock-output-names =
+				"gate_core_periph", "gate_cpu_gpll",
+				"gate_ddrphy", "gate_aclk_cpu",
+				"gate_hclk_cpu", "gate_pclk_cpu",
+				"gate_atclk_cpu", "gate_i2s0",
+				"gate_i2s0_frac", "gate_i2s1",
+				"gate_i2s1_frac", "gate_i2s2",
+				"gate_i2s2_frac", "gate_spdif",
+				"gate_spdif_frac", "gate_testclk";
+
+			#clock-cells = <1>;
+		};
+
+		clk_gates1: gate-clk@200000d4 {
+			compatible = "rockchip,rk2928-gate-clk";
+			reg = <0x200000d4 0x4>;
+			clocks = <&xin24m>, <&xin24m>,
+				 <&xin24m>, <&dummy>,
+				 <&dummy>, <&xin24m>,
+				 <&xin24m>, <&dummy>,
+				 <&xin24m>, <&dummy>,
+				 <&xin24m>, <&dummy>,
+				 <&xin24m>, <&dummy>,
+				 <&xin24m>, <&dummy>;
+
+			clock-output-names =
+				"gate_timer0", "gate_timer1",
+				"gate_timer2", "gate_jtag",
+				"gate_aclk_lcdc1_src", "gate_otgphy0",
+				"gate_otgphy1", "gate_ddr_gpll",
+				"gate_uart0", "gate_frac_uart0",
+				"gate_uart1", "gate_frac_uart1",
+				"gate_uart2", "gate_frac_uart2",
+				"gate_uart3", "gate_frac_uart3";
+
+			#clock-cells = <1>;
+		};

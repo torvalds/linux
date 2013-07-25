@@ -180,6 +180,10 @@ static const struct coproc_reg cp15_regs[] = {
 			NULL, reset_unknown, c6_DFAR },
 	{ CRn( 6), CRm( 0), Op1( 0), Op2( 2), is32,
 			NULL, reset_unknown, c6_IFAR },
+
+	/* PAR swapped by interrupt.S */
+	{ CRn( 7), Op1( 0), is64, NULL, reset_unknown64, c7_PAR },
+
 	/*
 	 * DC{C,I,CI}SW operations:
 	 */

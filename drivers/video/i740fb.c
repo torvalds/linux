@@ -1302,7 +1302,7 @@ static int  __init i740fb_setup(char *options)
 }
 #endif
 
-int __init i740fb_init(void)
+static int __init i740fb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;

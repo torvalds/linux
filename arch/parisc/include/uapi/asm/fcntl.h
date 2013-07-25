@@ -20,6 +20,7 @@
 #define O_INVISIBLE	004000000 /* invisible I/O, for DMAPI/XDSM */
 
 #define O_PATH		020000000
+#define __O_TMPFILE	040000000
 
 #define F_GETLK64	8
 #define F_SETLK64	9

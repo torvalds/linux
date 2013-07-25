@@ -144,7 +144,7 @@ static int r8192_wx_read_regs(struct net_device *dev,
 	down(&priv->wx_sem);
 
 
-	get_user(addr,(u8*)wrqu->data.pointer);
+	get_user(addr,(u8 *)wrqu->data.pointer);
 	data1 = read_rtl8225(dev, addr);
 	wrqu->data.length = data1;
 
@@ -162,7 +162,7 @@ static int r8192_wx_write_regs(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	get_user(addr, (u8*)wrqu->data.pointer);
+	get_user(addr, (u8 *)wrqu->data.pointer);
 	write_rtl8225(dev, addr, wrqu->data.length);
 
 	up(&priv->wx_sem);
@@ -199,7 +199,7 @@ static int r8192_wx_write_bb(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	get_user(databb, (u8*)wrqu->data.pointer);
+	get_user(databb, (u8 *)wrqu->data.pointer);
 	rtl8187_write_phy(dev, wrqu->data.length, databb);
 
 	up(&priv->wx_sem);
@@ -217,7 +217,7 @@ static int r8192_wx_write_nicb(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	get_user(addr, (u32*)wrqu->data.pointer);
+	get_user(addr, (u32 *)wrqu->data.pointer);
 	write_nic_byte(dev, addr, wrqu->data.length);
 
 	up(&priv->wx_sem);
@@ -234,8 +234,8 @@ static int r8192_wx_read_nicb(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	get_user(addr,(u32*)wrqu->data.pointer);
-	data1 = read_nic_byte(dev, addr);
+	get_user(addr,(u32 *)wrqu->data.pointer);
+	read_nic_byte(dev, addr, &data1);
 	wrqu->data.length = data1;
 
 	up(&priv->wx_sem);
@@ -254,12 +254,12 @@ static int r8192_wx_get_ap_status(struct net_device *dev,
 	down(&priv->wx_sem);
 
 	//count the length of input ssid
-	for(name_len=0 ; ((char*)wrqu->data.pointer)[name_len]!='\0' ; name_len++);
+	for(name_len=0 ; ((char *)wrqu->data.pointer)[name_len]!='\0' ; name_len++);
 
 	//search for the corresponding info which is received
 	list_for_each_entry(target, &ieee->network_list, list) {
 		if ( (target->ssid_len == name_len) &&
-		     (strncmp(target->ssid, (char*)wrqu->data.pointer, name_len)==0)){
+		     (strncmp(target->ssid, (char *)wrqu->data.pointer, name_len)==0)){
 			if(target->wpa_ie_len>0 || target->rsn_ie_len>0 )
 				//set flags=1 to indicate this ap is WPA
 				wrqu->data.flags = 1;
@@ -380,7 +380,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	struct iw_range *range = (struct iw_range *)extra;
-	struct iw_range_with_scan_capa* tmp = (struct iw_range_with_scan_capa*)range;
+	struct iw_range_with_scan_capa *tmp = (struct iw_range_with_scan_capa *)range;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 val;
 	int i;
@@ -483,7 +483,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
+	struct ieee80211_device *ieee = priv->ieee80211;
 	int ret = 0;
 
 	if(!priv->up) return -ENETDOWN;
@@ -492,7 +492,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		return -EAGAIN;
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID)
 	{
-		struct iw_scan_req* req = (struct iw_scan_req*)b;
+		struct iw_scan_req *req = (struct iw_scan_req *)b;
 		if (req->essid_len)
 		{
 			//printk("==**&*&*&**===>scan set ssid:%s\n", req->essid);
@@ -709,7 +709,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		#define CONF_WEP40  0x4
 		#define CONF_WEP104 0x14
 
-		switch(wrqu->encoding.flags & IW_ENCODE_INDEX){
+		switch (wrqu->encoding.flags & IW_ENCODE_INDEX){
 		case 0: key_idx = ieee->tx_keyidx; break;
 		case 1:	key_idx = 0; break;
 		case 2:	key_idx = 1; break;
@@ -757,7 +757,7 @@ static int r8192_wx_set_scan_type(struct net_device *dev, struct iw_request_info
  iwreq_data *wrqu, char *p){
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	int *parms=(int*)p;
+	int *parms=(int *)p;
 	int mode=parms[0];
 
 	priv->ieee80211->active_scan = mode;
@@ -891,7 +891,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 {
 	int ret=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
+	struct ieee80211_device *ieee = priv->ieee80211;
 	//printk("===>%s()\n", __FUNCTION__);
 
 
@@ -922,7 +922,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 			ieee->pairwise_key_type = alg;
 			EnableHWSecurityConfig8192(dev);
 		}
-		memcpy((u8*)key, ext->key, 16); //we only get 16 bytes key.why? WB 2008.7.1
+		memcpy((u8 *)key, ext->key, 16); //we only get 16 bytes key.why? WB 2008.7.1
 
 		if ((alg & KEY_TYPE_WEP40) && (ieee->auth_mode !=2) )
 		{
@@ -952,7 +952,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 					4,//EntryNo
 					idx, //KeyIndex
 					alg,  //KeyType
-					(u8*)ieee->ap_mac_addr, //MacAddr
+					(u8 *)ieee->ap_mac_addr, //MacAddr
 					0,              //DefaultKey
 					key);           //KeyContent
 		}
@@ -1180,8 +1180,8 @@ static iw_handler r8192_private_handler[] = {
 struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 {
        struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
-	struct iw_statistics* wstats = &priv->wstats;
+	struct ieee80211_device *ieee = priv->ieee80211;
+	struct iw_statistics *wstats = &priv->wstats;
 	int tmp_level = 0;
 	int tmp_qual = 0;
 	int tmp_noise = 0;

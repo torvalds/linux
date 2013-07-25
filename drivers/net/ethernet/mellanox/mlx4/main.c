@@ -98,7 +98,7 @@ MODULE_PARM_DESC(log_num_mgm_entry_size, "log mgm size, that defines the num"
 static bool enable_64b_cqe_eqe;
 module_param(enable_64b_cqe_eqe, bool, 0444);
 MODULE_PARM_DESC(enable_64b_cqe_eqe,
-		 "Enable 64 byte CQEs/EQEs when the the FW supports this");
+		 "Enable 64 byte CQEs/EQEs when the FW supports this");
 
 #define HCA_GLOBAL_CAP_MASK            0
 
@@ -632,6 +632,9 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		dev->caps.cqe_size   = 32;
 	}
 
+	dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
+	mlx4_warn(dev, "Timestamping is not supported in slave mode.\n");
+
 	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
 
 	return 0;
@@ -839,11 +842,11 @@ static ssize_t set_port_ib_mtu(struct device *dev,
 		return -EINVAL;
 	}
 
-	err = sscanf(buf, "%d", &mtu);
-	if (err > 0)
+	err = kstrtoint(buf, 0, &mtu);
+	if (!err)
 		ibta_mtu = int_to_ibta_mtu(mtu);
 
-	if (err <= 0 || ibta_mtu < 0) {
+	if (err || ibta_mtu < 0) {
 		mlx4_err(mdev, "%s is invalid IBTA mtu\n", buf);
 		return -EINVAL;
 	}
@@ -2075,6 +2078,11 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	if (num_vfs > MLX4_MAX_NUM_VF) {
 		printk(KERN_ERR "There are more VF's (%d) than allowed(%d)\n",
 		       num_vfs, MLX4_MAX_NUM_VF);
+		return -EINVAL;
+	}
+
+	if (num_vfs < 0) {
+		pr_err("num_vfs module parameter cannot be negative\n");
 		return -EINVAL;
 	}
 	/*

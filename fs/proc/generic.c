@@ -233,76 +233,52 @@ struct dentry *proc_lookup(struct inode *dir, struct dentry *dentry,
  * value of the readdir() call, as long as it's non-negative
  * for success..
  */
-int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
-		filldir_t filldir)
+int proc_readdir_de(struct proc_dir_entry *de, struct file *file,
+		    struct dir_context *ctx)
 {
-	unsigned int ino;
 	int i;
-	struct inode *inode = file_inode(filp);
-	int ret = 0;
 
-	ino = inode->i_ino;
-	i = filp->f_pos;
-	switch (i) {
-		case 0:
-			if (filldir(dirent, ".", 1, i, ino, DT_DIR) < 0)
-				goto out;
-			i++;
-			filp->f_pos++;
-			/* fall through */
-		case 1:
-			if (filldir(dirent, "..", 2, i,
-				    parent_ino(filp->f_path.dentry),
-				    DT_DIR) < 0)
-				goto out;
-			i++;
-			filp->f_pos++;
-			/* fall through */
-		default:
-			spin_lock(&proc_subdir_lock);
-			de = de->subdir;
-			i -= 2;
-			for (;;) {
-				if (!de) {
-					ret = 1;
-					spin_unlock(&proc_subdir_lock);
-					goto out;
-				}
-				if (!i)
-					break;
-				de = de->next;
-				i--;
-			}
+	if (!dir_emit_dots(file, ctx))
+		return 0;
 
-			do {
-				struct proc_dir_entry *next;
-
-				/* filldir passes info to user space */
-				pde_get(de);
-				spin_unlock(&proc_subdir_lock);
-				if (filldir(dirent, de->name, de->namelen, filp->f_pos,
-					    de->low_ino, de->mode >> 12) < 0) {
-					pde_put(de);
-					goto out;
-				}
-				spin_lock(&proc_subdir_lock);
-				filp->f_pos++;
-				next = de->next;
-				pde_put(de);
-				de = next;
-			} while (de);
+	spin_lock(&proc_subdir_lock);
+	de = de->subdir;
+	i = ctx->pos - 2;
+	for (;;) {
+		if (!de) {
 			spin_unlock(&proc_subdir_lock);
+			return 0;
+		}
+		if (!i)
+			break;
+		de = de->next;
+		i--;
 	}
-	ret = 1;
-out:
-	return ret;	
+
+	do {
+		struct proc_dir_entry *next;
+		pde_get(de);
+		spin_unlock(&proc_subdir_lock);
+		if (!dir_emit(ctx, de->name, de->namelen,
+			    de->low_ino, de->mode >> 12)) {
+			pde_put(de);
+			return 0;
+		}
+		spin_lock(&proc_subdir_lock);
+		ctx->pos++;
+		next = de->next;
+		pde_put(de);
+		de = next;
+	} while (de);
+	spin_unlock(&proc_subdir_lock);
+	return 0;
 }
 
-int proc_readdir(struct file *filp, void *dirent, filldir_t filldir)
+int proc_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = file_inode(file);
 
-	return proc_readdir_de(PDE(inode), filp, dirent, filldir);
+	return proc_readdir_de(PDE(inode), file, ctx);
 }
 
 /*
@@ -313,7 +289,7 @@ int proc_readdir(struct file *filp, void *dirent, filldir_t filldir)
 static const struct file_operations proc_dir_operations = {
 	.llseek			= generic_file_llseek,
 	.read			= generic_read_dir,
-	.readdir		= proc_readdir,
+	.iterate		= proc_readdir,
 };
 
 /*

@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <asm/div64.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-ctrls.h>
 #include <media/mt9v011.h>
 
@@ -407,13 +406,6 @@ static int mt9v011_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 static int mt9v011_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	reg->val = mt9v011_read(sd, reg->reg & 0xff);
 	reg->size = 2;
 
@@ -423,30 +415,11 @@ static int mt9v011_g_register(struct v4l2_subdev *sd,
 static int mt9v011_s_register(struct v4l2_subdev *sd,
 			      const struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	mt9v011_write(sd, reg->reg & 0xff, reg->val & 0xffff);
 
 	return 0;
 }
 #endif
-
-static int mt9v011_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	u16 version;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_MT9V011,
-					  version);
-}
 
 static int mt9v011_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -489,7 +462,6 @@ static struct v4l2_ctrl_ops mt9v011_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 	.reset = mt9v011_reset,
-	.g_chip_ident = mt9v011_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = mt9v011_g_register,
 	.s_register = mt9v011_s_register,
@@ -526,7 +498,7 @@ static int mt9v011_probe(struct i2c_client *c,
 	     I2C_FUNC_SMBUS_READ_BYTE | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -EIO;
 
-	core = kzalloc(sizeof(struct mt9v011), GFP_KERNEL);
+	core = devm_kzalloc(&c->dev, sizeof(struct mt9v011), GFP_KERNEL);
 	if (!core)
 		return -ENOMEM;
 
@@ -539,7 +511,6 @@ static int mt9v011_probe(struct i2c_client *c,
 	    (version != MT9V011_REV_B_VERSION)) {
 		v4l2_info(sd, "*** unknown micron chip detected (0x%04x).\n",
 			  version);
-		kfree(core);
 		return -EINVAL;
 	}
 
@@ -562,7 +533,6 @@ static int mt9v011_probe(struct i2c_client *c,
 
 		v4l2_err(sd, "control initialization error %d\n", ret);
 		v4l2_ctrl_handler_free(&core->ctrls);
-		kfree(core);
 		return ret;
 	}
 	core->sd.ctrl_handler = &core->ctrls;
@@ -598,7 +568,7 @@ static int mt9v011_remove(struct i2c_client *c)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&core->ctrls);
-	kfree(to_mt9v011(sd));
+
 	return 0;
 }
 

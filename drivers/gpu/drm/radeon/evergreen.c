@@ -139,6 +139,8 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 void evergreen_program_aspm(struct radeon_device *rdev);
 extern void cayman_cp_int_cntl_setup(struct radeon_device *rdev,
 				     int ring, u32 cp_int_cntl);
+extern void cayman_vm_decode_fault(struct radeon_device *rdev,
+				   u32 status, u32 addr);
 
 static const u32 evergreen_golden_registers[] =
 {
@@ -1504,8 +1506,8 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
 	if (voltage->type == VOLTAGE_SW) {
-		/* 0xff01 is a flag rather then an actual voltage */
-		if (voltage->voltage == 0xff01)
+		/* 0xff0x are flags rather then an actual voltage */
+		if ((voltage->voltage & 0xff00) == 0xff00)
 			return;
 		if (voltage->voltage && (voltage->voltage != rdev->pm.current_vddc)) {
 			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
@@ -1525,8 +1527,8 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 			voltage = &rdev->pm.power_state[req_ps_idx].
 				clock_info[rdev->pm.profiles[PM_PROFILE_HIGH_MH_IDX].dpms_on_cm_idx].voltage;
 
-		/* 0xff01 is a flag rather then an actual voltage */
-		if (voltage->vddci == 0xff01)
+		/* 0xff0x are flags rather then an actual voltage */
+		if ((voltage->vddci & 0xff00) == 0xff00)
 			return;
 		if (voltage->vddci && (voltage->vddci != rdev->pm.current_vddci)) {
 			radeon_atom_set_voltage(rdev, voltage->vddci, SET_VOLTAGE_TYPE_ASIC_VDDCI);
@@ -4043,8 +4045,6 @@ static void evergreen_rlc_start(struct radeon_device *rdev)
 
 	if (rdev->flags & RADEON_IS_IGP) {
 		mask |= GFX_POWER_GATING_ENABLE | GFX_POWER_GATING_SRC;
-		if (rdev->family == CHIP_ARUBA)
-			mask |= DYN_PER_SIMD_PG_ENABLE | LB_CNT_SPIM_ACTIVE | LOAD_BALANCE_ENABLE;
 	}
 
 	WREG32(RLC_CNTL, mask);
@@ -4588,6 +4588,7 @@ int evergreen_irq_process(struct radeon_device *rdev)
 	bool queue_hotplug = false;
 	bool queue_hdmi = false;
 	bool queue_thermal = false;
+	u32 status, addr;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -4874,11 +4875,14 @@ restart_ih:
 			break;
 		case 146:
 		case 147:
+			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
+			status = RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS);
 			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
-				RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
+				addr);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
-				RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+				status);
+			cayman_vm_decode_fault(rdev, status, addr);
 			/* reset addr and status */
 			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
 			break;
@@ -5510,6 +5514,9 @@ void evergreen_program_aspm(struct radeon_device *rdev)
 	 * todo: check if the system is a fusion platform.
 	 */
 	bool fusion_platform = false;
+
+	if (radeon_aspm == 0)
+		return;
 
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		return;

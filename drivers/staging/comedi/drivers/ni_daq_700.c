@@ -15,11 +15,6 @@
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program; if not, write to the Free Software
- *     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 /*
@@ -40,7 +35,7 @@ port, bit 0; channel 8 corresponds to the input port, bit 0.
 Digital direction configuration: channels 0-7 output, 8-15 input (8225 device
 emu as port A output, port B input, port C N/A).
 
-Analog: The input  range is 0 to 4095 for -10 to +10 volts 
+Analog: The input  range is 0 to 4095 for -10 to +10 volts
 IRQ is assigned but not used.
 
 Version 0.1	Original DIO only driver
@@ -183,7 +178,7 @@ static int daq700_ai_rinsn(struct comedi_device *dev,
  */
 static void daq700_ai_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
-{			
+{
 	unsigned long iobase = dev->iobase;
 
 	outb(0x80, iobase + CMD_R1);	/* disable scanning, ADC to chan 0 */

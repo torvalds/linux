@@ -698,7 +698,6 @@ static int snd_sc6000_remove(struct device *devptr, unsigned int dev)
 	release_region(port[dev], 0x10);
 	release_region(mss_port[dev], 4);
 
-	dev_set_drvdata(devptr, NULL);
 	snd_card_free(card);
 	return 0;
 }

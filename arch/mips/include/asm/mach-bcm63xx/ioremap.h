@@ -11,6 +11,10 @@ static inline phys_t fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 static inline int is_bcm63xx_internal_registers(phys_t offset)
 {
 	switch (bcm63xx_get_cpu_id()) {
+	case BCM3368_CPU_ID:
+		if (offset >= 0xfff80000)
+			return 1;
+		break;
 	case BCM6338_CPU_ID:
 	case BCM6345_CPU_ID:
 	case BCM6348_CPU_ID:

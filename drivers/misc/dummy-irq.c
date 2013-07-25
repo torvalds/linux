@@ -26,7 +26,7 @@ static irqreturn_t dummy_interrupt(int irq, void *dev_id)
 	static int count = 0;
 
 	if (count == 0) {
-		printk(KERN_INFO "dummy-irq: interrupt occured on IRQ %d\n",
+		printk(KERN_INFO "dummy-irq: interrupt occurred on IRQ %d\n",
 				irq);
 		count++;
 	}

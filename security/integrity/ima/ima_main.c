@@ -57,7 +57,7 @@ __setup("ima_hash=", hash_setup);
 static void ima_rdwr_violation_check(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	fmode_t mode = file->f_mode;
 	int must_measure;
 	bool send_tomtou = false, send_writers = false;

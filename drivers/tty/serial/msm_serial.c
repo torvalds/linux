@@ -408,9 +408,9 @@ static void msm_init_clock(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
-	clk_enable(msm_port->clk);
+	clk_prepare_enable(msm_port->clk);
 	if (!IS_ERR(msm_port->pclk))
-		clk_enable(msm_port->pclk);
+		clk_prepare_enable(msm_port->pclk);
 	msm_serial_set_mnd_regs(port);
 }
 
@@ -486,7 +486,7 @@ static void msm_shutdown(struct uart_port *port)
 	msm_port->imr = 0;
 	msm_write(port, 0, UART_IMR); /* disable interrupts */
 
-	clk_disable(msm_port->clk);
+	clk_disable_unprepare(msm_port->clk);
 
 	free_irq(port->irq, port);
 }
@@ -688,14 +688,14 @@ static void msm_power(struct uart_port *port, unsigned int state,
 
 	switch (state) {
 	case 0:
-		clk_enable(msm_port->clk);
+		clk_prepare_enable(msm_port->clk);
 		if (!IS_ERR(msm_port->pclk))
-			clk_enable(msm_port->pclk);
+			clk_prepare_enable(msm_port->pclk);
 		break;
 	case 3:
-		clk_disable(msm_port->clk);
+		clk_disable_unprepare(msm_port->clk);
 		if (!IS_ERR(msm_port->pclk))
-			clk_disable(msm_port->pclk);
+			clk_disable_unprepare(msm_port->pclk);
 		break;
 	default:
 		printk(KERN_ERR "msm_serial: Unknown PM state %d\n", state);
@@ -884,19 +884,22 @@ static int __init msm_serial_probe(struct platform_device *pdev)
 		msm_port->is_uartdm = 0;
 
 	if (msm_port->is_uartdm) {
-		msm_port->clk = clk_get(&pdev->dev, "gsbi_uart_clk");
-		msm_port->pclk = clk_get(&pdev->dev, "gsbi_pclk");
+		msm_port->clk = devm_clk_get(&pdev->dev, "gsbi_uart_clk");
+		msm_port->pclk = devm_clk_get(&pdev->dev, "gsbi_pclk");
 	} else {
-		msm_port->clk = clk_get(&pdev->dev, "uart_clk");
+		msm_port->clk = devm_clk_get(&pdev->dev, "uart_clk");
 		msm_port->pclk = ERR_PTR(-ENOENT);
 	}
 
-	if (unlikely(IS_ERR(msm_port->clk) || (IS_ERR(msm_port->pclk) &&
-					       msm_port->is_uartdm)))
-			return PTR_ERR(msm_port->clk);
+	if (IS_ERR(msm_port->clk))
+		return PTR_ERR(msm_port->clk);
 
-	if (msm_port->is_uartdm)
+	if (msm_port->is_uartdm) {
+		if (IS_ERR(msm_port->pclk))
+			return PTR_ERR(msm_port->pclk);
+
 		clk_set_rate(msm_port->clk, 1843200);
+	}
 
 	port->uartclk = clk_get_rate(msm_port->clk);
 	printk(KERN_INFO "uartclk = %d\n", port->uartclk);
@@ -919,9 +922,9 @@ static int __init msm_serial_probe(struct platform_device *pdev)
 
 static int msm_serial_remove(struct platform_device *pdev)
 {
-	struct msm_port *msm_port = platform_get_drvdata(pdev);
+	struct uart_port *port = platform_get_drvdata(pdev);
 
-	clk_put(msm_port->clk);
+	uart_remove_one_port(&msm_uart_driver, port);
 
 	return 0;
 }

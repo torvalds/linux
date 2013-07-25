@@ -262,7 +262,8 @@ void rv770_stop_dpm(struct radeon_device *rdev);
 void r7xx_stop_smc(struct radeon_device *rdev);
 void rv770_reset_smio_status(struct radeon_device *rdev);
 int rv770_restrict_performance_levels_before_switch(struct radeon_device *rdev);
-int rv770_unrestrict_performance_levels_after_switch(struct radeon_device *rdev);
+int rv770_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level);
 int rv770_halt_smc(struct radeon_device *rdev);
 int rv770_resume_smc(struct radeon_device *rdev);
 int rv770_set_sw_state(struct radeon_device *rdev);

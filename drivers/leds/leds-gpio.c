@@ -20,7 +20,6 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/module.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/err.h>
 
 struct gpio_led_data {
@@ -236,13 +235,8 @@ static int gpio_led_probe(struct platform_device *pdev)
 {
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_leds_priv *priv;
-	struct pinctrl *pinctrl;
 	int i, ret = 0;
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev,
-			"pins are not configured from the driver\n");
 
 	if (pdata && pdata->num_leds) {
 		priv = devm_kzalloc(&pdev->dev,
@@ -281,8 +275,6 @@ static int gpio_led_remove(struct platform_device *pdev)
 
 	for (i = 0; i < priv->num_leds; i++)
 		delete_gpio_led(&priv->leds[i]);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -335,23 +335,10 @@ bfad_im_reset_stats(struct Scsi_Host *shost)
 }
 
 /*
- * FC transport template entry, get rport loss timeout.
- */
-static void
-bfad_im_get_rport_loss_tmo(struct fc_rport *rport)
-{
-	struct bfad_itnim_data_s *itnim_data = rport->dd_data;
-	struct bfad_itnim_s   *itnim = itnim_data->itnim;
-	struct bfad_s         *bfad = itnim->im->bfad;
-	unsigned long   flags;
-
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rport->dev_loss_tmo = bfa_fcpim_path_tov_get(&bfad->bfa);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-}
-
-/*
  * FC transport template entry, set rport loss timeout.
+ * Update dev_loss_tmo based on the value pushed down by the stack
+ * In case it is lesser than path_tov of driver, set it to path_tov + 1
+ * to ensure that the driver times out before the application
  */
 static void
 bfad_im_set_rport_loss_tmo(struct fc_rport *rport, u32 timeout)
@@ -359,15 +346,11 @@ bfad_im_set_rport_loss_tmo(struct fc_rport *rport, u32 timeout)
 	struct bfad_itnim_data_s *itnim_data = rport->dd_data;
 	struct bfad_itnim_s   *itnim = itnim_data->itnim;
 	struct bfad_s         *bfad = itnim->im->bfad;
-	unsigned long   flags;
+	uint16_t path_tov = bfa_fcpim_path_tov_get(&bfad->bfa);
 
-	if (timeout > 0) {
-		spin_lock_irqsave(&bfad->bfad_lock, flags);
-		bfa_fcpim_path_tov_set(&bfad->bfa, timeout);
-		rport->dev_loss_tmo = bfa_fcpim_path_tov_get(&bfad->bfa);
-		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-	}
-
+	rport->dev_loss_tmo = timeout;
+	if (timeout < path_tov)
+		rport->dev_loss_tmo = path_tov + 1;
 }
 
 static int
@@ -665,7 +648,6 @@ struct fc_function_template bfad_im_fc_function_template = {
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 	.show_rport_dev_loss_tmo = 1,
-	.get_rport_dev_loss_tmo = bfad_im_get_rport_loss_tmo,
 	.set_rport_dev_loss_tmo = bfad_im_set_rport_loss_tmo,
 	.issue_fc_host_lip = bfad_im_issue_fc_host_lip,
 	.vport_create = bfad_im_vport_create,
@@ -723,7 +705,6 @@ struct fc_function_template bfad_im_vport_fc_function_template = {
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
 	.show_rport_dev_loss_tmo = 1,
-	.get_rport_dev_loss_tmo = bfad_im_get_rport_loss_tmo,
 	.set_rport_dev_loss_tmo = bfad_im_set_rport_loss_tmo,
 };
 

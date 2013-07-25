@@ -20,10 +20,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/pinctrl/pinconf-generic.h>
+
 #include <mach/irqs.h>
 #include <mach/sh7372.h>
 
+#include "core.h"
 #include "sh_pfc.h"
 
 #define CPU_ALL_PORT(fn, pfx, sfx) \
@@ -33,6 +37,35 @@
 	PORT_10(fn, pfx##14, sfx),	PORT_10(fn, pfx##15, sfx), \
 	PORT_10(fn, pfx##16, sfx),	PORT_10(fn, pfx##17, sfx), \
 	PORT_10(fn, pfx##18, sfx),	PORT_1(fn, pfx##190, sfx)
+
+#undef _GPIO_PORT
+#define _GPIO_PORT(gpio, sfx)						\
+	[gpio] = {							\
+		.name = __stringify(PORT##gpio),			\
+		.enum_id = PORT##gpio##_DATA,				\
+	}
+
+#define IRQC_PIN_MUX(irq, pin)						\
+static const unsigned int intc_irq##irq##_pins[] = {			\
+	pin,								\
+};									\
+static const unsigned int intc_irq##irq##_mux[] = {			\
+	IRQ##irq##_MARK,						\
+}
+
+#define IRQC_PINS_MUX(irq, pin0, pin1)					\
+static const unsigned int intc_irq##irq##_0_pins[] = {			\
+	pin0,								\
+};									\
+static const unsigned int intc_irq##irq##_0_mux[] = {			\
+	IRQ##irq##_##pin0##_MARK,					\
+};									\
+static const unsigned int intc_irq##irq##_1_pins[] = {			\
+	pin1,								\
+};									\
+static const unsigned int intc_irq##irq##_1_mux[] = {			\
+	IRQ##irq##_##pin1##_MARK,					\
+}
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -46,16 +79,6 @@ enum {
 	PINMUX_INPUT_BEGIN,
 	PORT_ALL(IN),
 	PINMUX_INPUT_END,
-
-	/* PORT0_IN_PU -> PORT190_IN_PU */
-	PINMUX_INPUT_PULLUP_BEGIN,
-	PORT_ALL(IN_PU),
-	PINMUX_INPUT_PULLUP_END,
-
-	/* PORT0_IN_PD -> PORT190_IN_PD */
-	PINMUX_INPUT_PULLDOWN_BEGIN,
-	PORT_ALL(IN_PD),
-	PINMUX_INPUT_PULLDOWN_END,
 
 	/* PORT0_OUT -> PORT190_OUT */
 	PINMUX_OUTPUT_BEGIN,
@@ -368,124 +391,11 @@ enum {
 	PINMUX_MARK_END,
 };
 
+#define _PORT_DATA(pfx, sfx)	PORT_DATA_IO(pfx)
+#define PINMUX_DATA_GP_ALL()	CPU_ALL_PORT(_PORT_DATA, , unused)
+
 static const pinmux_enum_t pinmux_data[] = {
-
-	/* specify valid pin states for each pin in GPIO mode */
-	PORT_DATA_IO_PD(0),		PORT_DATA_IO_PD(1),
-	PORT_DATA_O(2),			PORT_DATA_I_PD(3),
-	PORT_DATA_I_PD(4),		PORT_DATA_I_PD(5),
-	PORT_DATA_IO_PU_PD(6),		PORT_DATA_I_PD(7),
-	PORT_DATA_IO_PD(8),		PORT_DATA_O(9),
-
-	PORT_DATA_O(10),		PORT_DATA_O(11),
-	PORT_DATA_IO_PU_PD(12),		PORT_DATA_IO_PD(13),
-	PORT_DATA_IO_PD(14),		PORT_DATA_O(15),
-	PORT_DATA_IO_PD(16),		PORT_DATA_IO_PD(17),
-	PORT_DATA_I_PD(18),		PORT_DATA_IO(19),
-
-	PORT_DATA_IO(20),		PORT_DATA_IO(21),
-	PORT_DATA_IO(22),		PORT_DATA_IO(23),
-	PORT_DATA_IO(24),		PORT_DATA_IO(25),
-	PORT_DATA_IO(26),		PORT_DATA_IO(27),
-	PORT_DATA_IO(28),		PORT_DATA_IO(29),
-
-	PORT_DATA_IO(30),		PORT_DATA_IO(31),
-	PORT_DATA_IO(32),		PORT_DATA_IO(33),
-	PORT_DATA_IO(34),		PORT_DATA_IO(35),
-	PORT_DATA_IO(36),		PORT_DATA_IO(37),
-	PORT_DATA_IO(38),		PORT_DATA_IO(39),
-
-	PORT_DATA_IO(40),		PORT_DATA_IO(41),
-	PORT_DATA_IO(42),		PORT_DATA_IO(43),
-	PORT_DATA_IO(44),		PORT_DATA_IO(45),
-	PORT_DATA_IO_PU(46),		PORT_DATA_IO_PU(47),
-	PORT_DATA_IO_PU(48),		PORT_DATA_IO_PU(49),
-
-	PORT_DATA_IO_PU(50),		PORT_DATA_IO_PU(51),
-	PORT_DATA_IO_PU(52),		PORT_DATA_IO_PU(53),
-	PORT_DATA_IO_PU(54),		PORT_DATA_IO_PU(55),
-	PORT_DATA_IO_PU(56),		PORT_DATA_IO_PU(57),
-	PORT_DATA_IO_PU(58),		PORT_DATA_IO_PU(59),
-
-	PORT_DATA_IO_PU(60),		PORT_DATA_IO_PU(61),
-	PORT_DATA_IO(62),		PORT_DATA_O(63),
-	PORT_DATA_O(64),		PORT_DATA_IO_PU(65),
-	PORT_DATA_O(66),		PORT_DATA_IO_PU(67),  /*66?*/
-	PORT_DATA_O(68),		PORT_DATA_IO(69),
-
-	PORT_DATA_IO(70),		PORT_DATA_IO(71),
-	PORT_DATA_O(72),		PORT_DATA_I_PU(73),
-	PORT_DATA_I_PU_PD(74),		PORT_DATA_IO_PU_PD(75),
-	PORT_DATA_IO_PU_PD(76),		PORT_DATA_IO_PU_PD(77),
-	PORT_DATA_IO_PU_PD(78),		PORT_DATA_IO_PU_PD(79),
-
-	PORT_DATA_IO_PU_PD(80),		PORT_DATA_IO_PU_PD(81),
-	PORT_DATA_IO_PU_PD(82),		PORT_DATA_IO_PU_PD(83),
-	PORT_DATA_IO_PU_PD(84),		PORT_DATA_IO_PU_PD(85),
-	PORT_DATA_IO_PU_PD(86),		PORT_DATA_IO_PU_PD(87),
-	PORT_DATA_IO_PU_PD(88),		PORT_DATA_IO_PU_PD(89),
-
-	PORT_DATA_IO_PU_PD(90),		PORT_DATA_IO_PU_PD(91),
-	PORT_DATA_IO_PU_PD(92),		PORT_DATA_IO_PU_PD(93),
-	PORT_DATA_IO_PU_PD(94),		PORT_DATA_IO_PU_PD(95),
-	PORT_DATA_IO_PU(96),		PORT_DATA_IO_PU_PD(97),
-	PORT_DATA_IO_PU_PD(98),		PORT_DATA_O(99), /*99?*/
-
-	PORT_DATA_IO_PD(100),		PORT_DATA_IO_PD(101),
-	PORT_DATA_IO_PD(102),		PORT_DATA_IO_PD(103),
-	PORT_DATA_IO_PD(104),		PORT_DATA_IO_PD(105),
-	PORT_DATA_IO_PU(106),		PORT_DATA_IO_PU(107),
-	PORT_DATA_IO_PU(108),		PORT_DATA_IO_PU(109),
-
-	PORT_DATA_IO_PU(110),		PORT_DATA_IO_PU(111),
-	PORT_DATA_IO_PD(112),		PORT_DATA_IO_PD(113),
-	PORT_DATA_IO_PU(114),		PORT_DATA_IO_PU(115),
-	PORT_DATA_IO_PU(116),		PORT_DATA_IO_PU(117),
-	PORT_DATA_IO_PU(118),		PORT_DATA_IO_PU(119),
-
-	PORT_DATA_IO_PU(120),		PORT_DATA_IO_PD(121),
-	PORT_DATA_IO_PD(122),		PORT_DATA_IO_PD(123),
-	PORT_DATA_IO_PD(124),		PORT_DATA_IO_PD(125),
-	PORT_DATA_IO_PD(126),		PORT_DATA_IO_PD(127),
-	PORT_DATA_IO_PD(128),		PORT_DATA_IO_PU_PD(129),
-
-	PORT_DATA_IO_PU_PD(130),	PORT_DATA_IO_PU_PD(131),
-	PORT_DATA_IO_PU_PD(132),	PORT_DATA_IO_PU_PD(133),
-	PORT_DATA_IO_PU_PD(134),	PORT_DATA_IO_PU_PD(135),
-	PORT_DATA_IO_PD(136),		PORT_DATA_IO_PD(137),
-	PORT_DATA_IO_PD(138),		PORT_DATA_IO_PD(139),
-
-	PORT_DATA_IO_PD(140),		PORT_DATA_IO_PD(141),
-	PORT_DATA_IO_PD(142),		PORT_DATA_IO_PU_PD(143),
-	PORT_DATA_IO_PD(144),		PORT_DATA_IO_PD(145),
-	PORT_DATA_IO_PD(146),		PORT_DATA_IO_PD(147),
-	PORT_DATA_IO_PD(148),		PORT_DATA_IO_PD(149),
-
-	PORT_DATA_IO_PD(150),		PORT_DATA_IO_PD(151),
-	PORT_DATA_IO_PU_PD(152),	PORT_DATA_I_PD(153),
-	PORT_DATA_IO_PU_PD(154),	PORT_DATA_I_PD(155),
-	PORT_DATA_IO_PD(156),		PORT_DATA_IO_PD(157),
-	PORT_DATA_I_PD(158),		PORT_DATA_IO_PD(159),
-
-	PORT_DATA_O(160),		PORT_DATA_IO_PD(161),
-	PORT_DATA_IO_PD(162),		PORT_DATA_IO_PD(163),
-	PORT_DATA_I_PD(164),		PORT_DATA_IO_PD(165),
-	PORT_DATA_I_PD(166),		PORT_DATA_I_PD(167),
-	PORT_DATA_I_PD(168),		PORT_DATA_I_PD(169),
-
-	PORT_DATA_I_PD(170),		PORT_DATA_O(171),
-	PORT_DATA_IO_PU_PD(172),	PORT_DATA_IO_PU_PD(173),
-	PORT_DATA_IO_PU_PD(174),	PORT_DATA_IO_PU_PD(175),
-	PORT_DATA_IO_PU_PD(176),	PORT_DATA_IO_PU_PD(177),
-	PORT_DATA_IO_PU_PD(178),	PORT_DATA_O(179),
-
-	PORT_DATA_IO_PU_PD(180),	PORT_DATA_IO_PU_PD(181),
-	PORT_DATA_IO_PU_PD(182),	PORT_DATA_IO_PU_PD(183),
-	PORT_DATA_IO_PU_PD(184),	PORT_DATA_O(185),
-	PORT_DATA_IO_PU_PD(186),	PORT_DATA_IO_PU_PD(187),
-	PORT_DATA_IO_PU_PD(188),	PORT_DATA_IO_PU_PD(189),
-
-	PORT_DATA_IO_PU_PD(190),
+	PINMUX_DATA_GP_ALL(),
 
 	/* IRQ */
 	PINMUX_DATA(IRQ0_6_MARK,	PORT6_FN0, 	MSEL1CR_0_0),
@@ -929,10 +839,582 @@ static const pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(MFIv4_MARK,		MSEL4CR_6_1),
 };
 
+#define SH7372_PIN(pin, cfgs)						\
+	{								\
+		.name = __stringify(PORT##pin),				\
+		.enum_id = PORT##pin##_DATA,				\
+		.configs = cfgs,					\
+	}
+
+#define __I		(SH_PFC_PIN_CFG_INPUT)
+#define __O		(SH_PFC_PIN_CFG_OUTPUT)
+#define __IO		(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
+#define __PD		(SH_PFC_PIN_CFG_PULL_DOWN)
+#define __PU		(SH_PFC_PIN_CFG_PULL_UP)
+#define __PUD		(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
+
+#define SH7372_PIN_I_PD(pin)		SH7372_PIN(pin, __I | __PD)
+#define SH7372_PIN_I_PU(pin)		SH7372_PIN(pin, __I | __PU)
+#define SH7372_PIN_I_PU_PD(pin)		SH7372_PIN(pin, __I | __PUD)
+#define SH7372_PIN_IO(pin)		SH7372_PIN(pin, __IO)
+#define SH7372_PIN_IO_PD(pin)		SH7372_PIN(pin, __IO | __PD)
+#define SH7372_PIN_IO_PU(pin)		SH7372_PIN(pin, __IO | __PU)
+#define SH7372_PIN_IO_PU_PD(pin)	SH7372_PIN(pin, __IO | __PUD)
+#define SH7372_PIN_O(pin)		SH7372_PIN(pin, __O)
+#define SH7372_PIN_O_PU_PD(pin)		SH7372_PIN(pin, __O | __PUD)
+
 static struct sh_pfc_pin pinmux_pins[] = {
-	GPIO_PORT_ALL(),
+	/* Table 57-1 (I/O and Pull U/D) */
+	SH7372_PIN_IO_PD(0),		SH7372_PIN_IO_PD(1),
+	SH7372_PIN_O(2),		SH7372_PIN_I_PD(3),
+	SH7372_PIN_I_PD(4),		SH7372_PIN_I_PD(5),
+	SH7372_PIN_IO_PU_PD(6),		SH7372_PIN_I_PD(7),
+	SH7372_PIN_IO_PD(8),		SH7372_PIN_O(9),
+	SH7372_PIN_O(10),		SH7372_PIN_O(11),
+	SH7372_PIN_IO_PU_PD(12),	SH7372_PIN_IO_PD(13),
+	SH7372_PIN_IO_PD(14),		SH7372_PIN_O(15),
+	SH7372_PIN_IO_PD(16),		SH7372_PIN_IO_PD(17),
+	SH7372_PIN_I_PD(18),		SH7372_PIN_IO(19),
+	SH7372_PIN_IO(20),		SH7372_PIN_IO(21),
+	SH7372_PIN_IO(22),		SH7372_PIN_IO(23),
+	SH7372_PIN_IO(24),		SH7372_PIN_IO(25),
+	SH7372_PIN_IO(26),		SH7372_PIN_IO(27),
+	SH7372_PIN_IO(28),		SH7372_PIN_IO(29),
+	SH7372_PIN_IO(30),		SH7372_PIN_IO(31),
+	SH7372_PIN_IO(32),		SH7372_PIN_IO(33),
+	SH7372_PIN_IO(34),		SH7372_PIN_IO(35),
+	SH7372_PIN_IO(36),		SH7372_PIN_IO(37),
+	SH7372_PIN_IO(38),		SH7372_PIN_IO(39),
+	SH7372_PIN_IO(40),		SH7372_PIN_IO(41),
+	SH7372_PIN_IO(42),		SH7372_PIN_IO(43),
+	SH7372_PIN_IO(44),		SH7372_PIN_IO(45),
+	SH7372_PIN_IO_PU(46),		SH7372_PIN_IO_PU(47),
+	SH7372_PIN_IO_PU(48),		SH7372_PIN_IO_PU(49),
+	SH7372_PIN_IO_PU(50),		SH7372_PIN_IO_PU(51),
+	SH7372_PIN_IO_PU(52),		SH7372_PIN_IO_PU(53),
+	SH7372_PIN_IO_PU(54),		SH7372_PIN_IO_PU(55),
+	SH7372_PIN_IO_PU(56),		SH7372_PIN_IO_PU(57),
+	SH7372_PIN_IO_PU(58),		SH7372_PIN_IO_PU(59),
+	SH7372_PIN_IO_PU(60),		SH7372_PIN_IO_PU(61),
+	SH7372_PIN_IO(62),		SH7372_PIN_O(63),
+	SH7372_PIN_O(64),		SH7372_PIN_IO_PU(65),
+	SH7372_PIN_O_PU_PD(66),		SH7372_PIN_IO_PU(67),
+	SH7372_PIN_O(68),		SH7372_PIN_IO(69),
+	SH7372_PIN_IO(70),		SH7372_PIN_IO(71),
+	SH7372_PIN_O(72),		SH7372_PIN_I_PU(73),
+	SH7372_PIN_I_PU_PD(74),		SH7372_PIN_IO_PU_PD(75),
+	SH7372_PIN_IO_PU_PD(76),	SH7372_PIN_IO_PU_PD(77),
+	SH7372_PIN_IO_PU_PD(78),	SH7372_PIN_IO_PU_PD(79),
+	SH7372_PIN_IO_PU_PD(80),	SH7372_PIN_IO_PU_PD(81),
+	SH7372_PIN_IO_PU_PD(82),	SH7372_PIN_IO_PU_PD(83),
+	SH7372_PIN_IO_PU_PD(84),	SH7372_PIN_IO_PU_PD(85),
+	SH7372_PIN_IO_PU_PD(86),	SH7372_PIN_IO_PU_PD(87),
+	SH7372_PIN_IO_PU_PD(88),	SH7372_PIN_IO_PU_PD(89),
+	SH7372_PIN_IO_PU_PD(90),	SH7372_PIN_IO_PU_PD(91),
+	SH7372_PIN_IO_PU_PD(92),	SH7372_PIN_IO_PU_PD(93),
+	SH7372_PIN_IO_PU_PD(94),	SH7372_PIN_IO_PU_PD(95),
+	SH7372_PIN_IO_PU(96),		SH7372_PIN_IO_PU_PD(97),
+	SH7372_PIN_IO_PU_PD(98),	SH7372_PIN_O_PU_PD(99),
+	SH7372_PIN_IO_PD(100),		SH7372_PIN_IO_PD(101),
+	SH7372_PIN_IO_PD(102),		SH7372_PIN_IO_PD(103),
+	SH7372_PIN_IO_PD(104),		SH7372_PIN_IO_PD(105),
+	SH7372_PIN_IO_PU(106),		SH7372_PIN_IO_PU(107),
+	SH7372_PIN_IO_PU(108),		SH7372_PIN_IO_PU(109),
+	SH7372_PIN_IO_PU(110),		SH7372_PIN_IO_PU(111),
+	SH7372_PIN_IO_PD(112),		SH7372_PIN_IO_PD(113),
+	SH7372_PIN_IO_PU(114),		SH7372_PIN_IO_PU(115),
+	SH7372_PIN_IO_PU(116),		SH7372_PIN_IO_PU(117),
+	SH7372_PIN_IO_PU(118),		SH7372_PIN_IO_PU(119),
+	SH7372_PIN_IO_PU(120),		SH7372_PIN_IO_PD(121),
+	SH7372_PIN_IO_PD(122),		SH7372_PIN_IO_PD(123),
+	SH7372_PIN_IO_PD(124),		SH7372_PIN_IO_PD(125),
+	SH7372_PIN_IO_PD(126),		SH7372_PIN_IO_PD(127),
+	SH7372_PIN_IO_PD(128),		SH7372_PIN_IO_PU_PD(129),
+	SH7372_PIN_IO_PU_PD(130),	SH7372_PIN_IO_PU_PD(131),
+	SH7372_PIN_IO_PU_PD(132),	SH7372_PIN_IO_PU_PD(133),
+	SH7372_PIN_IO_PU_PD(134),	SH7372_PIN_IO_PU_PD(135),
+	SH7372_PIN_IO_PD(136),		SH7372_PIN_IO_PD(137),
+	SH7372_PIN_IO_PD(138),		SH7372_PIN_IO_PD(139),
+	SH7372_PIN_IO_PD(140),		SH7372_PIN_IO_PD(141),
+	SH7372_PIN_IO_PD(142),		SH7372_PIN_IO_PU_PD(143),
+	SH7372_PIN_IO_PD(144),		SH7372_PIN_IO_PD(145),
+	SH7372_PIN_IO_PD(146),		SH7372_PIN_IO_PD(147),
+	SH7372_PIN_IO_PD(148),		SH7372_PIN_IO_PD(149),
+	SH7372_PIN_IO_PD(150),		SH7372_PIN_IO_PD(151),
+	SH7372_PIN_IO_PU_PD(152),	SH7372_PIN_I_PD(153),
+	SH7372_PIN_IO_PU_PD(154),	SH7372_PIN_I_PD(155),
+	SH7372_PIN_IO_PD(156),		SH7372_PIN_IO_PD(157),
+	SH7372_PIN_I_PD(158),		SH7372_PIN_IO_PD(159),
+	SH7372_PIN_O(160),		SH7372_PIN_IO_PD(161),
+	SH7372_PIN_IO_PD(162),		SH7372_PIN_IO_PD(163),
+	SH7372_PIN_I_PD(164),		SH7372_PIN_IO_PD(165),
+	SH7372_PIN_I_PD(166),		SH7372_PIN_I_PD(167),
+	SH7372_PIN_I_PD(168),		SH7372_PIN_I_PD(169),
+	SH7372_PIN_I_PD(170),		SH7372_PIN_O(171),
+	SH7372_PIN_IO_PU_PD(172),	SH7372_PIN_IO_PU_PD(173),
+	SH7372_PIN_IO_PU_PD(174),	SH7372_PIN_IO_PU_PD(175),
+	SH7372_PIN_IO_PU_PD(176),	SH7372_PIN_IO_PU_PD(177),
+	SH7372_PIN_IO_PU_PD(178),	SH7372_PIN_O(179),
+	SH7372_PIN_IO_PU_PD(180),	SH7372_PIN_IO_PU_PD(181),
+	SH7372_PIN_IO_PU_PD(182),	SH7372_PIN_IO_PU_PD(183),
+	SH7372_PIN_IO_PU_PD(184),	SH7372_PIN_O(185),
+	SH7372_PIN_IO_PU_PD(186),	SH7372_PIN_IO_PU_PD(187),
+	SH7372_PIN_IO_PU_PD(188),	SH7372_PIN_IO_PU_PD(189),
+	SH7372_PIN_IO_PU_PD(190),
 };
 
+/* - BSC -------------------------------------------------------------------- */
+static const unsigned int bsc_data8_pins[] = {
+	/* D[0:7] */
+	46, 47, 48, 49, 50, 51, 52, 53,
+};
+static const unsigned int bsc_data8_mux[] = {
+	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
+	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
+};
+static const unsigned int bsc_data16_pins[] = {
+	/* D[0:15] */
+	46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
+};
+static const unsigned int bsc_data16_mux[] = {
+	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
+	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
+	D8_NAF8_MARK, D9_NAF9_MARK, D10_NAF10_MARK, D11_NAF11_MARK,
+	D12_NAF12_MARK, D13_NAF13_MARK, D14_NAF14_MARK, D15_NAF15_MARK,
+};
+static const unsigned int bsc_cs0_pins[] = {
+	/* CS */
+	62,
+};
+static const unsigned int bsc_cs0_mux[] = {
+	CS0_MARK,
+};
+static const unsigned int bsc_cs2_pins[] = {
+	/* CS */
+	63,
+};
+static const unsigned int bsc_cs2_mux[] = {
+	CS2_MARK,
+};
+static const unsigned int bsc_cs4_pins[] = {
+	/* CS */
+	64,
+};
+static const unsigned int bsc_cs4_mux[] = {
+	CS4_MARK,
+};
+static const unsigned int bsc_cs5a_pins[] = {
+	/* CS */
+	65,
+};
+static const unsigned int bsc_cs5a_mux[] = {
+	CS5A_MARK,
+};
+static const unsigned int bsc_cs5b_pins[] = {
+	/* CS */
+	66,
+};
+static const unsigned int bsc_cs5b_mux[] = {
+	CS5B_MARK,
+};
+static const unsigned int bsc_cs6a_pins[] = {
+	/* CS */
+	67,
+};
+static const unsigned int bsc_cs6a_mux[] = {
+	CS6A_MARK,
+};
+static const unsigned int bsc_rd_we8_pins[] = {
+	/* RD, WE[0] */
+	69, 70,
+};
+static const unsigned int bsc_rd_we8_mux[] = {
+	RD_FSC_MARK, WE0_FWE_MARK,
+};
+static const unsigned int bsc_rd_we16_pins[] = {
+	/* RD, WE[0:1] */
+	69, 70, 71,
+};
+static const unsigned int bsc_rd_we16_mux[] = {
+	RD_FSC_MARK, WE0_FWE_MARK, WE1_MARK,
+};
+static const unsigned int bsc_bs_pins[] = {
+	/* BS */
+	19,
+};
+static const unsigned int bsc_bs_mux[] = {
+	BS_MARK,
+};
+static const unsigned int bsc_rdwr_pins[] = {
+	/* RDWR */
+	75,
+};
+static const unsigned int bsc_rdwr_mux[] = {
+	RDWR_MARK,
+};
+static const unsigned int bsc_wait_pins[] = {
+	/* WAIT */
+	74,
+};
+static const unsigned int bsc_wait_mux[] = {
+	WAIT_MARK,
+};
+/* - CEU -------------------------------------------------------------------- */
+static const unsigned int ceu_data_0_7_pins[] = {
+	/* D[0:7] */
+	102, 103, 104, 105, 106, 107, 108, 109,
+};
+static const unsigned int ceu_data_0_7_mux[] = {
+	VIO_D0_MARK, VIO_D1_MARK, VIO_D2_MARK, VIO_D3_MARK,
+	VIO_D4_MARK, VIO_D5_MARK, VIO_D6_MARK, VIO_D7_MARK,
+};
+static const unsigned int ceu_data_8_15_pins[] = {
+	/* D[8:15] */
+	110, 111, 112, 113, 114, 115, 116, 117,
+};
+static const unsigned int ceu_data_8_15_mux[] = {
+	VIO_D8_MARK, VIO_D9_MARK, VIO_D10_MARK, VIO_D11_MARK,
+	VIO_D12_MARK, VIO_D13_MARK, VIO_D14_MARK, VIO_D15_MARK,
+};
+static const unsigned int ceu_clk_0_pins[] = {
+	/* CKO */
+	120,
+};
+static const unsigned int ceu_clk_0_mux[] = {
+	VIO_CKO_MARK,
+};
+static const unsigned int ceu_clk_1_pins[] = {
+	/* CKO */
+	16,
+};
+static const unsigned int ceu_clk_1_mux[] = {
+	VIO_CKO1_MARK,
+};
+static const unsigned int ceu_clk_2_pins[] = {
+	/* CKO */
+	17,
+};
+static const unsigned int ceu_clk_2_mux[] = {
+	VIO_CKO2_MARK,
+};
+static const unsigned int ceu_sync_pins[] = {
+	/* CLK, VD, HD */
+	118, 100, 101,
+};
+static const unsigned int ceu_sync_mux[] = {
+	VIO_CLK_MARK, VIO_VD_MARK, VIO_HD_MARK,
+};
+static const unsigned int ceu_field_pins[] = {
+	/* FIELD */
+	119,
+};
+static const unsigned int ceu_field_mux[] = {
+	VIO_FIELD_MARK,
+};
+/* - FLCTL ------------------------------------------------------------------ */
+static const unsigned int flctl_data_pins[] = {
+	/* NAF[0:15] */
+	46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
+};
+static const unsigned int flctl_data_mux[] = {
+	D0_NAF0_MARK, D1_NAF1_MARK, D2_NAF2_MARK, D3_NAF3_MARK,
+	D4_NAF4_MARK, D5_NAF5_MARK, D6_NAF6_MARK, D7_NAF7_MARK,
+	D8_NAF8_MARK, D9_NAF9_MARK, D10_NAF10_MARK, D11_NAF11_MARK,
+	D12_NAF12_MARK, D13_NAF13_MARK, D14_NAF14_MARK, D15_NAF15_MARK,
+};
+static const unsigned int flctl_ce0_pins[] = {
+	/* CE */
+	68,
+};
+static const unsigned int flctl_ce0_mux[] = {
+	FCE0_MARK,
+};
+static const unsigned int flctl_ce1_pins[] = {
+	/* CE */
+	66,
+};
+static const unsigned int flctl_ce1_mux[] = {
+	FCE1_MARK,
+};
+static const unsigned int flctl_ctrl_pins[] = {
+	/* FCDE, FOE, FSC, FWE, FRB */
+	24, 23, 69, 70, 73,
+};
+static const unsigned int flctl_ctrl_mux[] = {
+	A5_FCDE_MARK, A4_FOE_MARK, RD_FSC_MARK, WE0_FWE_MARK, FRB_MARK,
+};
+/* - FSIA ------------------------------------------------------------------- */
+static const unsigned int fsia_mclk_in_pins[] = {
+	/* CK */
+	4,
+};
+static const unsigned int fsia_mclk_in_mux[] = {
+	FSIACK_MARK,
+};
+static const unsigned int fsia_mclk_out_pins[] = {
+	/* OMC */
+	8,
+};
+static const unsigned int fsia_mclk_out_mux[] = {
+	FSIAOMC_MARK,
+};
+static const unsigned int fsia_sclk_in_pins[] = {
+	/* ILR, IBT */
+	5, 6,
+};
+static const unsigned int fsia_sclk_in_mux[] = {
+	FSIAILR_MARK, FSIAIBT_MARK,
+};
+static const unsigned int fsia_sclk_out_pins[] = {
+	/* OLR, OBT */
+	9, 10,
+};
+static const unsigned int fsia_sclk_out_mux[] = {
+	FSIAOLR_MARK, FSIAOBT_MARK,
+};
+static const unsigned int fsia_data_in_pins[] = {
+	/* ISLD */
+	7,
+};
+static const unsigned int fsia_data_in_mux[] = {
+	FSIAISLD_MARK,
+};
+static const unsigned int fsia_data_out_pins[] = {
+	/* OSLD */
+	11,
+};
+static const unsigned int fsia_data_out_mux[] = {
+	FSIAOSLD_MARK,
+};
+static const unsigned int fsia_spdif_0_pins[] = {
+	/* SPDIF */
+	11,
+};
+static const unsigned int fsia_spdif_0_mux[] = {
+	FSIASPDIF_11_MARK,
+};
+static const unsigned int fsia_spdif_1_pins[] = {
+	/* SPDIF */
+	15,
+};
+static const unsigned int fsia_spdif_1_mux[] = {
+	FSIASPDIF_15_MARK,
+};
+/* - FSIB ------------------------------------------------------------------- */
+static const unsigned int fsib_mclk_in_pins[] = {
+	/* CK */
+	4,
+};
+static const unsigned int fsib_mclk_in_mux[] = {
+	FSIBCK_MARK,
+};
+/* - HDMI ------------------------------------------------------------------- */
+static const unsigned int hdmi_pins[] = {
+	/* HPD, CEC */
+	169, 170,
+};
+static const unsigned int hdmi_mux[] = {
+	HDMI_HPD_MARK, HDMI_CEC_MARK,
+};
+/* - INTC ------------------------------------------------------------------- */
+IRQC_PINS_MUX(0, 6, 162);
+IRQC_PIN_MUX(1, 12);
+IRQC_PINS_MUX(2, 4, 5);
+IRQC_PINS_MUX(3, 8, 16);
+IRQC_PINS_MUX(4, 17, 163);
+IRQC_PIN_MUX(5, 18);
+IRQC_PINS_MUX(6, 39, 164);
+IRQC_PINS_MUX(7, 40, 167);
+IRQC_PINS_MUX(8, 41, 168);
+IRQC_PINS_MUX(9, 42, 169);
+IRQC_PIN_MUX(10, 65);
+IRQC_PIN_MUX(11, 67);
+IRQC_PINS_MUX(12, 80, 137);
+IRQC_PINS_MUX(13, 81, 145);
+IRQC_PINS_MUX(14, 82, 146);
+IRQC_PINS_MUX(15, 83, 147);
+IRQC_PINS_MUX(16, 84, 170);
+IRQC_PIN_MUX(17, 85);
+IRQC_PIN_MUX(18, 86);
+IRQC_PIN_MUX(19, 87);
+IRQC_PIN_MUX(20, 92);
+IRQC_PIN_MUX(21, 93);
+IRQC_PIN_MUX(22, 94);
+IRQC_PIN_MUX(23, 95);
+IRQC_PIN_MUX(24, 112);
+IRQC_PIN_MUX(25, 119);
+IRQC_PINS_MUX(26, 121, 172);
+IRQC_PINS_MUX(27, 122, 180);
+IRQC_PINS_MUX(28, 123, 181);
+IRQC_PINS_MUX(29, 129, 182);
+IRQC_PINS_MUX(30, 130, 183);
+IRQC_PINS_MUX(31, 138, 184);
+/* - KEYSC ------------------------------------------------------------------ */
+static const unsigned int keysc_in04_0_pins[] = {
+	/* KEYIN[0:4] */
+	136, 135, 134, 133, 132,
+};
+static const unsigned int keysc_in04_0_mux[] = {
+	KEYIN0_136_MARK, KEYIN1_135_MARK, KEYIN2_134_MARK, KEYIN3_133_MARK,
+	KEYIN4_MARK,
+};
+static const unsigned int keysc_in04_1_pins[] = {
+	/* KEYIN[0:4] */
+	121, 122, 123, 124, 132,
+};
+static const unsigned int keysc_in04_1_mux[] = {
+	KEYIN0_121_MARK, KEYIN1_122_MARK, KEYIN2_123_MARK, KEYIN3_124_MARK,
+	KEYIN4_MARK,
+};
+static const unsigned int keysc_in5_pins[] = {
+	/* KEYIN5 */
+	131,
+};
+static const unsigned int keysc_in5_mux[] = {
+	KEYIN5_MARK,
+};
+static const unsigned int keysc_in6_pins[] = {
+	/* KEYIN6 */
+	130,
+};
+static const unsigned int keysc_in6_mux[] = {
+	KEYIN6_MARK,
+};
+static const unsigned int keysc_in7_pins[] = {
+	/* KEYIN7 */
+	129,
+};
+static const unsigned int keysc_in7_mux[] = {
+	KEYIN7_MARK,
+};
+static const unsigned int keysc_out4_pins[] = {
+	/* KEYOUT[0:3] */
+	128, 127, 126, 125,
+};
+static const unsigned int keysc_out4_mux[] = {
+	KEYOUT0_MARK, KEYOUT1_MARK, KEYOUT2_MARK, KEYOUT3_MARK,
+};
+static const unsigned int keysc_out5_pins[] = {
+	/* KEYOUT[0:4] */
+	128, 127, 126, 125, 124,
+};
+static const unsigned int keysc_out5_mux[] = {
+	KEYOUT0_MARK, KEYOUT1_MARK, KEYOUT2_MARK, KEYOUT3_MARK,
+	KEYOUT4_MARK,
+};
+static const unsigned int keysc_out6_pins[] = {
+	/* KEYOUT[0:5] */
+	128, 127, 126, 125, 124, 123,
+};
+static const unsigned int keysc_out6_mux[] = {
+	KEYOUT0_MARK, KEYOUT1_MARK, KEYOUT2_MARK, KEYOUT3_MARK,
+	KEYOUT4_MARK, KEYOUT5_MARK,
+};
+static const unsigned int keysc_out8_pins[] = {
+	/* KEYOUT[0:7] */
+	128, 127, 126, 125, 124, 123, 122, 121,
+};
+static const unsigned int keysc_out8_mux[] = {
+	KEYOUT0_MARK, KEYOUT1_MARK, KEYOUT2_MARK, KEYOUT3_MARK,
+	KEYOUT4_MARK, KEYOUT5_MARK, KEYOUT6_MARK, KEYOUT7_MARK,
+};
+/* - LCD -------------------------------------------------------------------- */
+static const unsigned int lcd_data8_pins[] = {
+	/* D[0:7] */
+	121, 122, 123, 124, 125, 126, 127, 128,
+};
+static const unsigned int lcd_data8_mux[] = {
+	/* LCDC */
+	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
+	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
+};
+static const unsigned int lcd_data9_pins[] = {
+	/* D[0:8] */
+	121, 122, 123, 124, 125, 126, 127, 128,
+	129,
+	137, 138, 139, 140, 141, 142, 143, 144,
+};
+static const unsigned int lcd_data9_mux[] = {
+	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
+	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
+	LCDD8_MARK,
+};
+static const unsigned int lcd_data12_pins[] = {
+	/* D[0:11] */
+	121, 122, 123, 124, 125, 126, 127, 128,
+	129, 130, 131, 132,
+};
+static const unsigned int lcd_data12_mux[] = {
+	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
+	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
+	LCDD8_MARK, LCDD9_MARK,	LCDD10_MARK, LCDD11_MARK,
+};
+static const unsigned int lcd_data16_pins[] = {
+	/* D[0:15] */
+	121, 122, 123, 124, 125, 126, 127, 128,
+	129, 130, 131, 132, 133, 134, 135, 136,
+};
+static const unsigned int lcd_data16_mux[] = {
+	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
+	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
+	LCDD8_MARK, LCDD9_MARK,	LCDD10_MARK, LCDD11_MARK,
+	LCDD12_MARK, LCDD13_MARK, LCDD14_MARK, LCDD15_MARK,
+};
+static const unsigned int lcd_data18_pins[] = {
+	/* D[0:17] */
+	121, 122, 123, 124, 125, 126, 127, 128,
+	129, 130, 131, 132, 133, 134, 135, 136,
+	137, 138,
+};
+static const unsigned int lcd_data18_mux[] = {
+	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
+	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
+	LCDD8_MARK, LCDD9_MARK,	LCDD10_MARK, LCDD11_MARK,
+	LCDD12_MARK, LCDD13_MARK, LCDD14_MARK, LCDD15_MARK,
+	LCDD16_MARK, LCDD17_MARK,
+};
+static const unsigned int lcd_data24_pins[] = {
+	/* D[0:23] */
+	121, 122, 123, 124, 125, 126, 127, 128,
+	129, 130, 131, 132, 133, 134, 135, 136,
+	137, 138, 139, 140, 141, 142, 143, 144,
+};
+static const unsigned int lcd_data24_mux[] = {
+	LCDD0_MARK, LCDD1_MARK, LCDD2_MARK, LCDD3_MARK,
+	LCDD4_MARK, LCDD5_MARK, LCDD6_MARK, LCDD7_MARK,
+	LCDD8_MARK, LCDD9_MARK,	LCDD10_MARK, LCDD11_MARK,
+	LCDD12_MARK, LCDD13_MARK, LCDD14_MARK, LCDD15_MARK,
+	LCDD16_MARK, LCDD17_MARK, LCDD18_MARK, LCDD19_MARK,
+	LCDD20_MARK, LCDD21_MARK, LCDD22_MARK, LCDD23_MARK,
+};
+static const unsigned int lcd_display_pins[] = {
+	/* DON */
+	151,
+};
+static const unsigned int lcd_display_mux[] = {
+	LCDDON_MARK,
+};
+static const unsigned int lcd_lclk_pins[] = {
+	/* LCLK */
+	150,
+};
+static const unsigned int lcd_lclk_mux[] = {
+	LCDLCLK_MARK,
+};
+static const unsigned int lcd_sync_pins[] = {
+	/* VSYN, HSYN, DCK, DISP */
+	146, 145, 147, 149,
+};
+static const unsigned int lcd_sync_mux[] = {
+	LCDVSYN_MARK, LCDHSYN_MARK, LCDDCK_MARK, LCDDISP_MARK,
+};
+static const unsigned int lcd_sys_pins[] = {
+	/* CS, WR, RD, RS */
+	145, 147, 148, 149,
+};
+static const unsigned int lcd_sys_mux[] = {
+	LCDCS_MARK, LCDWR_MARK, LCDRD_MARK, LCDRS_MARK,
+};
 /* - MMCIF ------------------------------------------------------------------ */
 static const unsigned int mmc0_data1_0_pins[] = {
 	/* D[0] */
@@ -992,6 +1474,139 @@ static const unsigned int mmc0_ctrl_1_pins[] = {
 };
 static const unsigned int mmc0_ctrl_1_mux[] = {
 	MMCCMD1_MARK, MMCCLK1_MARK,
+};
+/* - SCIFA0 ----------------------------------------------------------------- */
+static const unsigned int scifa0_data_pins[] = {
+	/* RXD, TXD */
+	153, 152,
+};
+static const unsigned int scifa0_data_mux[] = {
+	SCIFA0_RXD_MARK, SCIFA0_TXD_MARK,
+};
+static const unsigned int scifa0_clk_pins[] = {
+	/* SCK */
+	156,
+};
+static const unsigned int scifa0_clk_mux[] = {
+	SCIFA0_SCK_MARK,
+};
+static const unsigned int scifa0_ctrl_pins[] = {
+	/* RTS, CTS */
+	157, 158,
+};
+static const unsigned int scifa0_ctrl_mux[] = {
+	SCIFA0_RTS_MARK, SCIFA0_CTS_MARK,
+};
+/* - SCIFA1 ----------------------------------------------------------------- */
+static const unsigned int scifa1_data_pins[] = {
+	/* RXD, TXD */
+	155, 154,
+};
+static const unsigned int scifa1_data_mux[] = {
+	SCIFA1_RXD_MARK, SCIFA1_TXD_MARK,
+};
+static const unsigned int scifa1_clk_pins[] = {
+	/* SCK */
+	159,
+};
+static const unsigned int scifa1_clk_mux[] = {
+	SCIFA1_SCK_MARK,
+};
+static const unsigned int scifa1_ctrl_pins[] = {
+	/* RTS, CTS */
+	160, 161,
+};
+static const unsigned int scifa1_ctrl_mux[] = {
+	SCIFA1_RTS_MARK, SCIFA1_CTS_MARK,
+};
+/* - SCIFA2 ----------------------------------------------------------------- */
+static const unsigned int scifa2_data_pins[] = {
+	/* RXD, TXD */
+	97, 96,
+};
+static const unsigned int scifa2_data_mux[] = {
+	SCIFA2_RXD1_MARK, SCIFA2_TXD1_MARK,
+};
+static const unsigned int scifa2_clk_pins[] = {
+	/* SCK */
+	98,
+};
+static const unsigned int scifa2_clk_mux[] = {
+	SCIFA2_SCK1_MARK,
+};
+static const unsigned int scifa2_ctrl_pins[] = {
+	/* RTS, CTS */
+	95, 94,
+};
+static const unsigned int scifa2_ctrl_mux[] = {
+	SCIFA2_RTS1_MARK, SCIFA2_CTS1_MARK,
+};
+/* - SCIFA3 ----------------------------------------------------------------- */
+static const unsigned int scifa3_data_pins[] = {
+	/* RXD, TXD */
+	144, 143,
+};
+static const unsigned int scifa3_data_mux[] = {
+	SCIFA3_RXD_MARK, SCIFA3_TXD_MARK,
+};
+static const unsigned int scifa3_clk_pins[] = {
+	/* SCK */
+	142,
+};
+static const unsigned int scifa3_clk_mux[] = {
+	SCIFA3_SCK_MARK,
+};
+static const unsigned int scifa3_ctrl_0_pins[] = {
+	/* RTS, CTS */
+	44, 43,
+};
+static const unsigned int scifa3_ctrl_0_mux[] = {
+	SCIFA3_RTS_44_MARK, SCIFA3_CTS_43_MARK,
+};
+static const unsigned int scifa3_ctrl_1_pins[] = {
+	/* RTS, CTS */
+	141, 140,
+};
+static const unsigned int scifa3_ctrl_1_mux[] = {
+	SCIFA3_RTS_141_MARK, SCIFA3_CTS_140_MARK,
+};
+/* - SCIFA4 ----------------------------------------------------------------- */
+static const unsigned int scifa4_data_pins[] = {
+	/* RXD, TXD */
+	5, 6,
+};
+static const unsigned int scifa4_data_mux[] = {
+	SCIFA4_RXD_MARK, SCIFA4_TXD_MARK,
+};
+/* - SCIFA5 ----------------------------------------------------------------- */
+static const unsigned int scifa5_data_pins[] = {
+	/* RXD, TXD */
+	8, 12,
+};
+static const unsigned int scifa5_data_mux[] = {
+	SCIFA5_RXD_MARK, SCIFA5_TXD_MARK,
+};
+/* - SCIFB ------------------------------------------------------------------ */
+static const unsigned int scifb_data_pins[] = {
+	/* RXD, TXD */
+	166, 165,
+};
+static const unsigned int scifb_data_mux[] = {
+	SCIFB_RXD_MARK, SCIFB_TXD_MARK,
+};
+static const unsigned int scifb_clk_pins[] = {
+	/* SCK */
+	162,
+};
+static const unsigned int scifb_clk_mux[] = {
+	SCIFB_SCK_MARK,
+};
+static const unsigned int scifb_ctrl_pins[] = {
+	/* RTS, CTS */
+	163, 164,
+};
+static const unsigned int scifb_ctrl_mux[] = {
+	SCIFB_RTS_MARK, SCIFB_CTS_MARK,
 };
 /* - SDHI0 ------------------------------------------------------------------ */
 static const unsigned int sdhi0_data1_pins[] = {
@@ -1073,8 +1688,169 @@ static const unsigned int sdhi2_ctrl_pins[] = {
 static const unsigned int sdhi2_ctrl_mux[] = {
 	SDHICMD2_MARK, SDHICLK2_MARK,
 };
+/* - USB0 ------------------------------------------------------------------- */
+static const unsigned int usb0_vbus_pins[] = {
+	/* VBUS */
+	167,
+};
+static const unsigned int usb0_vbus_mux[] = {
+	VBUS0_0_MARK,
+};
+static const unsigned int usb0_otg_id_pins[] = {
+	/* IDIN */
+	113,
+};
+static const unsigned int usb0_otg_id_mux[] = {
+	IDIN_0_MARK,
+};
+static const unsigned int usb0_otg_ctrl_pins[] = {
+	/* PWEN, EXTLP, OVCN, OVCN2 */
+	116, 114, 117, 115,
+};
+static const unsigned int usb0_otg_ctrl_mux[] = {
+	PWEN_0_MARK, EXTLP_0_MARK, OVCN_0_MARK, OVCN2_0_MARK,
+};
+/* - USB1 ------------------------------------------------------------------- */
+static const unsigned int usb1_vbus_pins[] = {
+	/* VBUS */
+	168,
+};
+static const unsigned int usb1_vbus_mux[] = {
+	VBUS0_1_MARK,
+};
+static const unsigned int usb1_otg_id_0_pins[] = {
+	/* IDIN */
+	113,
+};
+static const unsigned int usb1_otg_id_0_mux[] = {
+	IDIN_1_113_MARK,
+};
+static const unsigned int usb1_otg_id_1_pins[] = {
+	/* IDIN */
+	18,
+};
+static const unsigned int usb1_otg_id_1_mux[] = {
+	IDIN_1_18_MARK,
+};
+static const unsigned int usb1_otg_ctrl_0_pins[] = {
+	/* PWEN, EXTLP, OVCN, OVCN2 */
+	115, 116, 114, 117, 113,
+};
+static const unsigned int usb1_otg_ctrl_0_mux[] = {
+	PWEN_1_115_MARK, EXTLP_1_MARK, OVCN_1_114_MARK, OVCN2_1_MARK,
+};
+static const unsigned int usb1_otg_ctrl_1_pins[] = {
+	/* PWEN, EXTLP, OVCN, OVCN2 */
+	138, 116, 162, 117, 18,
+};
+static const unsigned int usb1_otg_ctrl_1_mux[] = {
+	PWEN_1_138_MARK, EXTLP_1_MARK, OVCN_1_162_MARK, OVCN2_1_MARK,
+};
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
+	SH_PFC_PIN_GROUP(bsc_data8),
+	SH_PFC_PIN_GROUP(bsc_data16),
+	SH_PFC_PIN_GROUP(bsc_cs0),
+	SH_PFC_PIN_GROUP(bsc_cs2),
+	SH_PFC_PIN_GROUP(bsc_cs4),
+	SH_PFC_PIN_GROUP(bsc_cs5a),
+	SH_PFC_PIN_GROUP(bsc_cs5b),
+	SH_PFC_PIN_GROUP(bsc_cs6a),
+	SH_PFC_PIN_GROUP(bsc_rd_we8),
+	SH_PFC_PIN_GROUP(bsc_rd_we16),
+	SH_PFC_PIN_GROUP(bsc_bs),
+	SH_PFC_PIN_GROUP(bsc_rdwr),
+	SH_PFC_PIN_GROUP(ceu_data_0_7),
+	SH_PFC_PIN_GROUP(ceu_data_8_15),
+	SH_PFC_PIN_GROUP(ceu_clk_0),
+	SH_PFC_PIN_GROUP(ceu_clk_1),
+	SH_PFC_PIN_GROUP(ceu_clk_2),
+	SH_PFC_PIN_GROUP(ceu_sync),
+	SH_PFC_PIN_GROUP(ceu_field),
+	SH_PFC_PIN_GROUP(flctl_data),
+	SH_PFC_PIN_GROUP(flctl_ce0),
+	SH_PFC_PIN_GROUP(flctl_ce1),
+	SH_PFC_PIN_GROUP(flctl_ctrl),
+	SH_PFC_PIN_GROUP(fsia_mclk_in),
+	SH_PFC_PIN_GROUP(fsia_mclk_out),
+	SH_PFC_PIN_GROUP(fsia_sclk_in),
+	SH_PFC_PIN_GROUP(fsia_sclk_out),
+	SH_PFC_PIN_GROUP(fsia_data_in),
+	SH_PFC_PIN_GROUP(fsia_data_out),
+	SH_PFC_PIN_GROUP(fsia_spdif_0),
+	SH_PFC_PIN_GROUP(fsia_spdif_1),
+	SH_PFC_PIN_GROUP(fsib_mclk_in),
+	SH_PFC_PIN_GROUP(hdmi),
+	SH_PFC_PIN_GROUP(intc_irq0_0),
+	SH_PFC_PIN_GROUP(intc_irq0_1),
+	SH_PFC_PIN_GROUP(intc_irq1),
+	SH_PFC_PIN_GROUP(intc_irq2_0),
+	SH_PFC_PIN_GROUP(intc_irq2_1),
+	SH_PFC_PIN_GROUP(intc_irq3_0),
+	SH_PFC_PIN_GROUP(intc_irq3_1),
+	SH_PFC_PIN_GROUP(intc_irq4_0),
+	SH_PFC_PIN_GROUP(intc_irq4_1),
+	SH_PFC_PIN_GROUP(intc_irq5),
+	SH_PFC_PIN_GROUP(intc_irq6_0),
+	SH_PFC_PIN_GROUP(intc_irq6_1),
+	SH_PFC_PIN_GROUP(intc_irq7_0),
+	SH_PFC_PIN_GROUP(intc_irq7_1),
+	SH_PFC_PIN_GROUP(intc_irq8_0),
+	SH_PFC_PIN_GROUP(intc_irq8_1),
+	SH_PFC_PIN_GROUP(intc_irq9_0),
+	SH_PFC_PIN_GROUP(intc_irq9_1),
+	SH_PFC_PIN_GROUP(intc_irq10),
+	SH_PFC_PIN_GROUP(intc_irq11),
+	SH_PFC_PIN_GROUP(intc_irq12_0),
+	SH_PFC_PIN_GROUP(intc_irq12_1),
+	SH_PFC_PIN_GROUP(intc_irq13_0),
+	SH_PFC_PIN_GROUP(intc_irq13_1),
+	SH_PFC_PIN_GROUP(intc_irq14_0),
+	SH_PFC_PIN_GROUP(intc_irq14_1),
+	SH_PFC_PIN_GROUP(intc_irq15_0),
+	SH_PFC_PIN_GROUP(intc_irq15_1),
+	SH_PFC_PIN_GROUP(intc_irq16_0),
+	SH_PFC_PIN_GROUP(intc_irq16_1),
+	SH_PFC_PIN_GROUP(intc_irq17),
+	SH_PFC_PIN_GROUP(intc_irq18),
+	SH_PFC_PIN_GROUP(intc_irq19),
+	SH_PFC_PIN_GROUP(intc_irq20),
+	SH_PFC_PIN_GROUP(intc_irq21),
+	SH_PFC_PIN_GROUP(intc_irq22),
+	SH_PFC_PIN_GROUP(intc_irq23),
+	SH_PFC_PIN_GROUP(intc_irq24),
+	SH_PFC_PIN_GROUP(intc_irq25),
+	SH_PFC_PIN_GROUP(intc_irq26_0),
+	SH_PFC_PIN_GROUP(intc_irq26_1),
+	SH_PFC_PIN_GROUP(intc_irq27_0),
+	SH_PFC_PIN_GROUP(intc_irq27_1),
+	SH_PFC_PIN_GROUP(intc_irq28_0),
+	SH_PFC_PIN_GROUP(intc_irq28_1),
+	SH_PFC_PIN_GROUP(intc_irq29_0),
+	SH_PFC_PIN_GROUP(intc_irq29_1),
+	SH_PFC_PIN_GROUP(intc_irq30_0),
+	SH_PFC_PIN_GROUP(intc_irq30_1),
+	SH_PFC_PIN_GROUP(intc_irq31_0),
+	SH_PFC_PIN_GROUP(intc_irq31_1),
+	SH_PFC_PIN_GROUP(keysc_in04_0),
+	SH_PFC_PIN_GROUP(keysc_in04_1),
+	SH_PFC_PIN_GROUP(keysc_in5),
+	SH_PFC_PIN_GROUP(keysc_in6),
+	SH_PFC_PIN_GROUP(keysc_in7),
+	SH_PFC_PIN_GROUP(keysc_out4),
+	SH_PFC_PIN_GROUP(keysc_out5),
+	SH_PFC_PIN_GROUP(keysc_out6),
+	SH_PFC_PIN_GROUP(keysc_out8),
+	SH_PFC_PIN_GROUP(lcd_data8),
+	SH_PFC_PIN_GROUP(lcd_data9),
+	SH_PFC_PIN_GROUP(lcd_data12),
+	SH_PFC_PIN_GROUP(lcd_data16),
+	SH_PFC_PIN_GROUP(lcd_data18),
+	SH_PFC_PIN_GROUP(lcd_data24),
+	SH_PFC_PIN_GROUP(lcd_display),
+	SH_PFC_PIN_GROUP(lcd_lclk),
+	SH_PFC_PIN_GROUP(lcd_sync),
+	SH_PFC_PIN_GROUP(lcd_sys),
 	SH_PFC_PIN_GROUP(mmc0_data1_0),
 	SH_PFC_PIN_GROUP(mmc0_data4_0),
 	SH_PFC_PIN_GROUP(mmc0_data8_0),
@@ -1083,6 +1859,24 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(mmc0_data4_1),
 	SH_PFC_PIN_GROUP(mmc0_data8_1),
 	SH_PFC_PIN_GROUP(mmc0_ctrl_1),
+	SH_PFC_PIN_GROUP(scifa0_data),
+	SH_PFC_PIN_GROUP(scifa0_clk),
+	SH_PFC_PIN_GROUP(scifa0_ctrl),
+	SH_PFC_PIN_GROUP(scifa1_data),
+	SH_PFC_PIN_GROUP(scifa1_clk),
+	SH_PFC_PIN_GROUP(scifa1_ctrl),
+	SH_PFC_PIN_GROUP(scifa2_data),
+	SH_PFC_PIN_GROUP(scifa2_clk),
+	SH_PFC_PIN_GROUP(scifa2_ctrl),
+	SH_PFC_PIN_GROUP(scifa3_data),
+	SH_PFC_PIN_GROUP(scifa3_clk),
+	SH_PFC_PIN_GROUP(scifa3_ctrl_0),
+	SH_PFC_PIN_GROUP(scifa3_ctrl_1),
+	SH_PFC_PIN_GROUP(scifa4_data),
+	SH_PFC_PIN_GROUP(scifa5_data),
+	SH_PFC_PIN_GROUP(scifb_data),
+	SH_PFC_PIN_GROUP(scifb_clk),
+	SH_PFC_PIN_GROUP(scifb_ctrl),
 	SH_PFC_PIN_GROUP(sdhi0_data1),
 	SH_PFC_PIN_GROUP(sdhi0_data4),
 	SH_PFC_PIN_GROUP(sdhi0_ctrl),
@@ -1094,6 +1888,144 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sdhi2_data1),
 	SH_PFC_PIN_GROUP(sdhi2_data4),
 	SH_PFC_PIN_GROUP(sdhi2_ctrl),
+	SH_PFC_PIN_GROUP(usb0_vbus),
+	SH_PFC_PIN_GROUP(usb0_otg_id),
+	SH_PFC_PIN_GROUP(usb0_otg_ctrl),
+	SH_PFC_PIN_GROUP(usb1_vbus),
+	SH_PFC_PIN_GROUP(usb1_otg_id_0),
+	SH_PFC_PIN_GROUP(usb1_otg_id_1),
+	SH_PFC_PIN_GROUP(usb1_otg_ctrl_0),
+	SH_PFC_PIN_GROUP(usb1_otg_ctrl_1),
+};
+
+static const char * const bsc_groups[] = {
+	"bsc_data8",
+	"bsc_data16",
+	"bsc_cs0",
+	"bsc_cs2",
+	"bsc_cs4",
+	"bsc_cs5a",
+	"bsc_cs5b",
+	"bsc_cs6a",
+	"bsc_rd_we8",
+	"bsc_rd_we16",
+	"bsc_bs",
+	"bsc_rdwr",
+};
+
+static const char * const ceu_groups[] = {
+	"ceu_data_0_7",
+	"ceu_data_8_15",
+	"ceu_clk_0",
+	"ceu_clk_1",
+	"ceu_clk_2",
+	"ceu_sync",
+	"ceu_field",
+};
+
+static const char * const flctl_groups[] = {
+	"flctl_data",
+	"flctl_ce0",
+	"flctl_ce1",
+	"flctl_ctrl",
+};
+
+static const char * const fsia_groups[] = {
+	"fsia_mclk_in",
+	"fsia_mclk_out",
+	"fsia_sclk_in",
+	"fsia_sclk_out",
+	"fsia_data_in",
+	"fsia_data_out",
+	"fsia_spdif_0",
+	"fsia_spdif_1",
+};
+
+static const char * const fsib_groups[] = {
+	"fsib_mclk_in",
+};
+
+static const char * const hdmi_groups[] = {
+	"hdmi",
+};
+
+static const char * const intc_groups[] = {
+	"intc_irq0_0",
+	"intc_irq0_1",
+	"intc_irq1",
+	"intc_irq2_0",
+	"intc_irq2_1",
+	"intc_irq3_0",
+	"intc_irq3_1",
+	"intc_irq4_0",
+	"intc_irq4_1",
+	"intc_irq5",
+	"intc_irq6_0",
+	"intc_irq6_1",
+	"intc_irq7_0",
+	"intc_irq7_1",
+	"intc_irq8_0",
+	"intc_irq8_1",
+	"intc_irq9_0",
+	"intc_irq9_1",
+	"intc_irq10",
+	"intc_irq11",
+	"intc_irq12_0",
+	"intc_irq12_1",
+	"intc_irq13_0",
+	"intc_irq13_1",
+	"intc_irq14_0",
+	"intc_irq14_1",
+	"intc_irq15_0",
+	"intc_irq15_1",
+	"intc_irq16_0",
+	"intc_irq16_1",
+	"intc_irq17",
+	"intc_irq18",
+	"intc_irq19",
+	"intc_irq20",
+	"intc_irq21",
+	"intc_irq22",
+	"intc_irq23",
+	"intc_irq24",
+	"intc_irq25",
+	"intc_irq26_0",
+	"intc_irq26_1",
+	"intc_irq27_0",
+	"intc_irq27_1",
+	"intc_irq28_0",
+	"intc_irq28_1",
+	"intc_irq29_0",
+	"intc_irq29_1",
+	"intc_irq30_0",
+	"intc_irq30_1",
+	"intc_irq31_0",
+	"intc_irq31_1",
+};
+
+static const char * const keysc_groups[] = {
+	"keysc_in04_0",
+	"keysc_in04_1",
+	"keysc_in5",
+	"keysc_in6",
+	"keysc_in7",
+	"keysc_out4",
+	"keysc_out5",
+	"keysc_out6",
+	"keysc_out8",
+};
+
+static const char * const lcd_groups[] = {
+	"lcd_data8",
+	"lcd_data9",
+	"lcd_data12",
+	"lcd_data16",
+	"lcd_data18",
+	"lcd_data24",
+	"lcd_display",
+	"lcd_lclk",
+	"lcd_sync",
+	"lcd_sys",
 };
 
 static const char * const mmc0_groups[] = {
@@ -1105,6 +2037,45 @@ static const char * const mmc0_groups[] = {
 	"mmc0_data4_1",
 	"mmc0_data8_1",
 	"mmc0_ctrl_1",
+};
+
+static const char * const scifa0_groups[] = {
+	"scifa0_data",
+	"scifa0_clk",
+	"scifa0_ctrl",
+};
+
+static const char * const scifa1_groups[] = {
+	"scifa1_data",
+	"scifa1_clk",
+	"scifa1_ctrl",
+};
+
+static const char * const scifa2_groups[] = {
+	"scifa2_data",
+	"scifa2_clk",
+	"scifa2_ctrl",
+};
+
+static const char * const scifa3_groups[] = {
+	"scifa3_data",
+	"scifa3_clk",
+	"scifa3_ctrl_0",
+	"scifa3_ctrl_1",
+};
+
+static const char * const scifa4_groups[] = {
+	"scifa4_data",
+};
+
+static const char * const scifa5_groups[] = {
+	"scifa5_data",
+};
+
+static const char * const scifb_groups[] = {
+	"scifb_data",
+	"scifb_clk",
+	"scifb_ctrl",
 };
 
 static const char * const sdhi0_groups[] = {
@@ -1127,256 +2098,55 @@ static const char * const sdhi2_groups[] = {
 	"sdhi2_ctrl",
 };
 
+static const char * const usb0_groups[] = {
+	"usb0_vbus",
+	"usb0_otg_id",
+	"usb0_otg_ctrl",
+};
+
+static const char * const usb1_groups[] = {
+	"usb1_vbus",
+	"usb1_otg_id_0",
+	"usb1_otg_id_1",
+	"usb1_otg_ctrl_0",
+	"usb1_otg_ctrl_1",
+};
+
 static const struct sh_pfc_function pinmux_functions[] = {
+	SH_PFC_FUNCTION(bsc),
+	SH_PFC_FUNCTION(ceu),
+	SH_PFC_FUNCTION(flctl),
+	SH_PFC_FUNCTION(fsia),
+	SH_PFC_FUNCTION(fsib),
+	SH_PFC_FUNCTION(hdmi),
+	SH_PFC_FUNCTION(intc),
+	SH_PFC_FUNCTION(keysc),
+	SH_PFC_FUNCTION(lcd),
 	SH_PFC_FUNCTION(mmc0),
+	SH_PFC_FUNCTION(scifa0),
+	SH_PFC_FUNCTION(scifa1),
+	SH_PFC_FUNCTION(scifa2),
+	SH_PFC_FUNCTION(scifa3),
+	SH_PFC_FUNCTION(scifa4),
+	SH_PFC_FUNCTION(scifa5),
+	SH_PFC_FUNCTION(scifb),
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
 	SH_PFC_FUNCTION(sdhi2),
+	SH_PFC_FUNCTION(usb0),
+	SH_PFC_FUNCTION(usb1),
 };
 
-#define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
-
-static const struct pinmux_func pinmux_func_gpios[] = {
-	/* IRQ */
-	GPIO_FN(IRQ0_6),	GPIO_FN(IRQ0_162),	GPIO_FN(IRQ1),
-	GPIO_FN(IRQ2_4),	GPIO_FN(IRQ2_5),	GPIO_FN(IRQ3_8),
-	GPIO_FN(IRQ3_16),	GPIO_FN(IRQ4_17),	GPIO_FN(IRQ4_163),
-	GPIO_FN(IRQ5),		GPIO_FN(IRQ6_39),	GPIO_FN(IRQ6_164),
-	GPIO_FN(IRQ7_40),	GPIO_FN(IRQ7_167),	GPIO_FN(IRQ8_41),
-	GPIO_FN(IRQ8_168),	GPIO_FN(IRQ9_42),	GPIO_FN(IRQ9_169),
-	GPIO_FN(IRQ10),		GPIO_FN(IRQ11),		GPIO_FN(IRQ12_80),
-	GPIO_FN(IRQ12_137),	GPIO_FN(IRQ13_81),	GPIO_FN(IRQ13_145),
-	GPIO_FN(IRQ14_82),	GPIO_FN(IRQ14_146),	GPIO_FN(IRQ15_83),
-	GPIO_FN(IRQ15_147),	GPIO_FN(IRQ16_84),	GPIO_FN(IRQ16_170),
-	GPIO_FN(IRQ17),		GPIO_FN(IRQ18),		GPIO_FN(IRQ19),
-	GPIO_FN(IRQ20),		GPIO_FN(IRQ21),		GPIO_FN(IRQ22),
-	GPIO_FN(IRQ23),		GPIO_FN(IRQ24),		GPIO_FN(IRQ25),
-	GPIO_FN(IRQ26_121),	GPIO_FN(IRQ26_172),	GPIO_FN(IRQ27_122),
-	GPIO_FN(IRQ27_180),	GPIO_FN(IRQ28_123),	GPIO_FN(IRQ28_181),
-	GPIO_FN(IRQ29_129),	GPIO_FN(IRQ29_182),	GPIO_FN(IRQ30_130),
-	GPIO_FN(IRQ30_183),	GPIO_FN(IRQ31_138),	GPIO_FN(IRQ31_184),
-
-	/* MSIOF0 */
-	GPIO_FN(MSIOF0_TSYNC),	GPIO_FN(MSIOF0_TSCK),	GPIO_FN(MSIOF0_RXD),
-	GPIO_FN(MSIOF0_RSCK),	GPIO_FN(MSIOF0_RSYNC),	GPIO_FN(MSIOF0_MCK0),
-	GPIO_FN(MSIOF0_MCK1),	GPIO_FN(MSIOF0_SS1),	GPIO_FN(MSIOF0_SS2),
-	GPIO_FN(MSIOF0_TXD),
-
-	/* MSIOF1 */
-	GPIO_FN(MSIOF1_TSCK_39),	GPIO_FN(MSIOF1_TSCK_88),
-	GPIO_FN(MSIOF1_TSYNC_40),	GPIO_FN(MSIOF1_TSYNC_89),
-	GPIO_FN(MSIOF1_TXD_41),		GPIO_FN(MSIOF1_TXD_90),
-	GPIO_FN(MSIOF1_RXD_42),		GPIO_FN(MSIOF1_RXD_91),
-	GPIO_FN(MSIOF1_SS1_43),		GPIO_FN(MSIOF1_SS1_92),
-	GPIO_FN(MSIOF1_SS2_44),		GPIO_FN(MSIOF1_SS2_93),
-	GPIO_FN(MSIOF1_RSCK),		GPIO_FN(MSIOF1_RSYNC),
-	GPIO_FN(MSIOF1_MCK0),		GPIO_FN(MSIOF1_MCK1),
-
-	/* MSIOF2 */
-	GPIO_FN(MSIOF2_RSCK),	GPIO_FN(MSIOF2_RSYNC),	GPIO_FN(MSIOF2_MCK0),
-	GPIO_FN(MSIOF2_MCK1),	GPIO_FN(MSIOF2_SS1),	GPIO_FN(MSIOF2_SS2),
-	GPIO_FN(MSIOF2_TSYNC),	GPIO_FN(MSIOF2_TSCK),	GPIO_FN(MSIOF2_RXD),
-	GPIO_FN(MSIOF2_TXD),
-
-	/* BBIF1 */
-	GPIO_FN(BBIF1_RXD),	GPIO_FN(BBIF1_TSYNC),	GPIO_FN(BBIF1_TSCK),
-	GPIO_FN(BBIF1_TXD),	GPIO_FN(BBIF1_RSCK),	GPIO_FN(BBIF1_RSYNC),
-	GPIO_FN(BBIF1_FLOW),	GPIO_FN(BB_RX_FLOW_N),
-
-	/* BBIF2 */
-	GPIO_FN(BBIF2_TSCK1),	GPIO_FN(BBIF2_TSYNC1),
-	GPIO_FN(BBIF2_TXD1),	GPIO_FN(BBIF2_RXD),
-
-	/* FSI */
-	GPIO_FN(FSIACK),	GPIO_FN(FSIBCK),	GPIO_FN(FSIAILR),
-	GPIO_FN(FSIAIBT),	GPIO_FN(FSIAISLD),	GPIO_FN(FSIAOMC),
-	GPIO_FN(FSIAOLR),	GPIO_FN(FSIAOBT),	GPIO_FN(FSIAOSLD),
-	GPIO_FN(FSIASPDIF_11),	GPIO_FN(FSIASPDIF_15),
-
-	/* FMSI */
-	GPIO_FN(FMSOCK),	GPIO_FN(FMSOOLR),	GPIO_FN(FMSIOLR),
-	GPIO_FN(FMSOOBT),	GPIO_FN(FMSIOBT),	GPIO_FN(FMSOSLD),
-	GPIO_FN(FMSOILR),	GPIO_FN(FMSIILR),	GPIO_FN(FMSOIBT),
-	GPIO_FN(FMSIIBT),	GPIO_FN(FMSISLD),	GPIO_FN(FMSICK),
-
-	/* SCIFA0 */
-	GPIO_FN(SCIFA0_TXD),	GPIO_FN(SCIFA0_RXD),	GPIO_FN(SCIFA0_SCK),
-	GPIO_FN(SCIFA0_RTS),	GPIO_FN(SCIFA0_CTS),
-
-	/* SCIFA1 */
-	GPIO_FN(SCIFA1_TXD),	GPIO_FN(SCIFA1_RXD),	GPIO_FN(SCIFA1_SCK),
-	GPIO_FN(SCIFA1_RTS),	GPIO_FN(SCIFA1_CTS),
-
-	/* SCIFA2 */
-	GPIO_FN(SCIFA2_CTS1),	GPIO_FN(SCIFA2_RTS1),	GPIO_FN(SCIFA2_TXD1),
-	GPIO_FN(SCIFA2_RXD1),	GPIO_FN(SCIFA2_SCK1),
-
-	/* SCIFA3 */
-	GPIO_FN(SCIFA3_CTS_43),		GPIO_FN(SCIFA3_CTS_140),
-	GPIO_FN(SCIFA3_RTS_44),		GPIO_FN(SCIFA3_RTS_141),
-	GPIO_FN(SCIFA3_SCK),		GPIO_FN(SCIFA3_TXD),
-	GPIO_FN(SCIFA3_RXD),
-
-	/* SCIFA4 */
-	GPIO_FN(SCIFA4_RXD),	GPIO_FN(SCIFA4_TXD),
-
-	/* SCIFA5 */
-	GPIO_FN(SCIFA5_RXD),	GPIO_FN(SCIFA5_TXD),
-
-	/* SCIFB */
-	GPIO_FN(SCIFB_SCK),	GPIO_FN(SCIFB_RTS),	GPIO_FN(SCIFB_CTS),
-	GPIO_FN(SCIFB_TXD),	GPIO_FN(SCIFB_RXD),
-
-	/* CEU */
-	GPIO_FN(VIO_HD),	GPIO_FN(VIO_CKO1),	GPIO_FN(VIO_CKO2),
-	GPIO_FN(VIO_VD),	GPIO_FN(VIO_CLK),	GPIO_FN(VIO_FIELD),
-	GPIO_FN(VIO_CKO),	GPIO_FN(VIO_D0),	GPIO_FN(VIO_D1),
-	GPIO_FN(VIO_D2),	GPIO_FN(VIO_D3),	GPIO_FN(VIO_D4),
-	GPIO_FN(VIO_D5),	GPIO_FN(VIO_D6),	GPIO_FN(VIO_D7),
-	GPIO_FN(VIO_D8),	GPIO_FN(VIO_D9),	GPIO_FN(VIO_D10),
-	GPIO_FN(VIO_D11),	GPIO_FN(VIO_D12),	GPIO_FN(VIO_D13),
-	GPIO_FN(VIO_D14),	GPIO_FN(VIO_D15),
-
-	/* USB0 */
-	GPIO_FN(IDIN_0),	GPIO_FN(EXTLP_0),	GPIO_FN(OVCN2_0),
-	GPIO_FN(PWEN_0),	GPIO_FN(OVCN_0),	GPIO_FN(VBUS0_0),
-
-	/* USB1 */
-	GPIO_FN(IDIN_1_18),	GPIO_FN(IDIN_1_113),
-	GPIO_FN(OVCN_1_114),	GPIO_FN(OVCN_1_162),
-	GPIO_FN(PWEN_1_115),	GPIO_FN(PWEN_1_138),
-	GPIO_FN(EXTLP_1),	GPIO_FN(OVCN2_1),
-	GPIO_FN(VBUS0_1),
-
-	/* GPIO */
-	GPIO_FN(GPI0),	GPIO_FN(GPI1),	GPIO_FN(GPO0),	GPIO_FN(GPO1),
-
-	/* BSC */
-	GPIO_FN(BS),	GPIO_FN(WE1),	GPIO_FN(CKO),
-	GPIO_FN(WAIT),	GPIO_FN(RDWR),
-
-	GPIO_FN(A0),	GPIO_FN(A1),	GPIO_FN(A2),
-	GPIO_FN(A3),	GPIO_FN(A6),	GPIO_FN(A7),
-	GPIO_FN(A8),	GPIO_FN(A9),	GPIO_FN(A10),
-	GPIO_FN(A11),	GPIO_FN(A12),	GPIO_FN(A13),
-	GPIO_FN(A14),	GPIO_FN(A15),	GPIO_FN(A16),
-	GPIO_FN(A17),	GPIO_FN(A18),	GPIO_FN(A19),
-	GPIO_FN(A20),	GPIO_FN(A21),	GPIO_FN(A22),
-	GPIO_FN(A23),	GPIO_FN(A24),	GPIO_FN(A25),
-	GPIO_FN(A26),
-
-	GPIO_FN(CS0),	GPIO_FN(CS2),	GPIO_FN(CS4),
-	GPIO_FN(CS5A),	GPIO_FN(CS5B),	GPIO_FN(CS6A),
-
-	/* BSC/FLCTL */
-	GPIO_FN(RD_FSC),	GPIO_FN(WE0_FWE),	GPIO_FN(A4_FOE),
-	GPIO_FN(A5_FCDE),	GPIO_FN(D0_NAF0),	GPIO_FN(D1_NAF1),
-	GPIO_FN(D2_NAF2),	GPIO_FN(D3_NAF3),	GPIO_FN(D4_NAF4),
-	GPIO_FN(D5_NAF5),	GPIO_FN(D6_NAF6),	GPIO_FN(D7_NAF7),
-	GPIO_FN(D8_NAF8),	GPIO_FN(D9_NAF9),	GPIO_FN(D10_NAF10),
-	GPIO_FN(D11_NAF11),	GPIO_FN(D12_NAF12),	GPIO_FN(D13_NAF13),
-	GPIO_FN(D14_NAF14),	GPIO_FN(D15_NAF15),
-
-	/* SPU2 */
-	GPIO_FN(VINT_I),
-
-	/* FLCTL */
-	GPIO_FN(FCE1),	GPIO_FN(FCE0),	GPIO_FN(FRB),
-
-	/* HSI */
-	GPIO_FN(GP_RX_FLAG),	GPIO_FN(GP_RX_DATA),	GPIO_FN(GP_TX_READY),
-	GPIO_FN(GP_RX_WAKE),	GPIO_FN(MP_TX_FLAG),	GPIO_FN(MP_TX_DATA),
-	GPIO_FN(MP_RX_READY),	GPIO_FN(MP_TX_WAKE),
-
-	/* MFI */
-	GPIO_FN(MFIv6),
-	GPIO_FN(MFIv4),
-
-	GPIO_FN(MEMC_BUSCLK_MEMC_A0),	GPIO_FN(MEMC_ADV_MEMC_DREQ0),
-	GPIO_FN(MEMC_WAIT_MEMC_DREQ1),	GPIO_FN(MEMC_CS1_MEMC_A1),
-	GPIO_FN(MEMC_CS0),	GPIO_FN(MEMC_NOE),
-	GPIO_FN(MEMC_NWE),	GPIO_FN(MEMC_INT),
-
-	GPIO_FN(MEMC_AD0),	GPIO_FN(MEMC_AD1),	GPIO_FN(MEMC_AD2),
-	GPIO_FN(MEMC_AD3),	GPIO_FN(MEMC_AD4),	GPIO_FN(MEMC_AD5),
-	GPIO_FN(MEMC_AD6),	GPIO_FN(MEMC_AD7),	GPIO_FN(MEMC_AD8),
-	GPIO_FN(MEMC_AD9),	GPIO_FN(MEMC_AD10),	GPIO_FN(MEMC_AD11),
-	GPIO_FN(MEMC_AD12),	GPIO_FN(MEMC_AD13),	GPIO_FN(MEMC_AD14),
-	GPIO_FN(MEMC_AD15),
-
-	/* SIM */
-	GPIO_FN(SIM_RST),	GPIO_FN(SIM_CLK),	GPIO_FN(SIM_D),
-
-	/* TPU */
-	GPIO_FN(TPU0TO0),	GPIO_FN(TPU0TO1),	GPIO_FN(TPU0TO2_93),
-	GPIO_FN(TPU0TO2_99),	GPIO_FN(TPU0TO3),
-
-	/* I2C2 */
-	GPIO_FN(I2C_SCL2),	GPIO_FN(I2C_SDA2),
-
-	/* I2C3(1) */
-	GPIO_FN(I2C_SCL3),	GPIO_FN(I2C_SDA3),
-
-	/* I2C3(2) */
-	GPIO_FN(I2C_SCL3S),	GPIO_FN(I2C_SDA3S),
-
-	/* I2C4(2) */
-	GPIO_FN(I2C_SCL4),	GPIO_FN(I2C_SDA4),
-
-	/* I2C4(2) */
-	GPIO_FN(I2C_SCL4S),	GPIO_FN(I2C_SDA4S),
-
-	/* KEYSC */
-	GPIO_FN(KEYOUT0),	GPIO_FN(KEYIN0_121),	GPIO_FN(KEYIN0_136),
-	GPIO_FN(KEYOUT1),	GPIO_FN(KEYIN1_122),	GPIO_FN(KEYIN1_135),
-	GPIO_FN(KEYOUT2),	GPIO_FN(KEYIN2_123),	GPIO_FN(KEYIN2_134),
-	GPIO_FN(KEYOUT3),	GPIO_FN(KEYIN3_124),	GPIO_FN(KEYIN3_133),
-	GPIO_FN(KEYOUT4),	GPIO_FN(KEYIN4),	GPIO_FN(KEYOUT5),
-	GPIO_FN(KEYIN5),	GPIO_FN(KEYOUT6),	GPIO_FN(KEYIN6),
-	GPIO_FN(KEYOUT7),	GPIO_FN(KEYIN7),
-
-	/* LCDC */
-	GPIO_FN(LCDHSYN),	GPIO_FN(LCDCS),	GPIO_FN(LCDVSYN),
-	GPIO_FN(LCDDCK),	GPIO_FN(LCDWR),	GPIO_FN(LCDRD),
-	GPIO_FN(LCDDISP),	GPIO_FN(LCDRS),	GPIO_FN(LCDLCLK),
-	GPIO_FN(LCDDON),
-
-	GPIO_FN(LCDD0),		GPIO_FN(LCDD1),		GPIO_FN(LCDD2),
-	GPIO_FN(LCDD3),		GPIO_FN(LCDD4),		GPIO_FN(LCDD5),
-	GPIO_FN(LCDD6),		GPIO_FN(LCDD7),		GPIO_FN(LCDD8),
-	GPIO_FN(LCDD9),		GPIO_FN(LCDD10),	GPIO_FN(LCDD11),
-	GPIO_FN(LCDD12),	GPIO_FN(LCDD13),	GPIO_FN(LCDD14),
-	GPIO_FN(LCDD15),	GPIO_FN(LCDD16),	GPIO_FN(LCDD17),
-	GPIO_FN(LCDD18),	GPIO_FN(LCDD19),	GPIO_FN(LCDD20),
-	GPIO_FN(LCDD21),	GPIO_FN(LCDD22),	GPIO_FN(LCDD23),
-
-	GPIO_FN(LCDC0_SELECT),
-	GPIO_FN(LCDC1_SELECT),
-
-	/* IRDA */
-	GPIO_FN(IRDA_OUT),	GPIO_FN(IRDA_IN),	GPIO_FN(IRDA_FIRSEL),
-	GPIO_FN(IROUT_139),	GPIO_FN(IROUT_140),
-
-	/* TSIF1 */
-	GPIO_FN(TS0_1SELECT),
-	GPIO_FN(TS0_2SELECT),
-	GPIO_FN(TS1_1SELECT),
-	GPIO_FN(TS1_2SELECT),
-
-	GPIO_FN(TS_SPSYNC1),	GPIO_FN(TS_SDAT1),
-	GPIO_FN(TS_SDEN1),	GPIO_FN(TS_SCK1),
-
-	/* TSIF2 */
-	GPIO_FN(TS_SPSYNC2),	GPIO_FN(TS_SDAT2),
-	GPIO_FN(TS_SDEN2),	GPIO_FN(TS_SCK2),
-
-	/* HDMI */
-	GPIO_FN(HDMI_HPD),	GPIO_FN(HDMI_CEC),
-
-	/* SDENC */
-	GPIO_FN(SDENC_CPG),
-	GPIO_FN(SDENC_DV_CLKI),
-};
+#undef PORTCR
+#define PORTCR(nr, reg)							\
+	{								\
+		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
+			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),     \
+				PORT##nr##_FN0, PORT##nr##_FN1,		\
+				PORT##nr##_FN2, PORT##nr##_FN3,		\
+				PORT##nr##_FN4, PORT##nr##_FN5,		\
+				PORT##nr##_FN6, PORT##nr##_FN7 }	\
+	}
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0,	0xE6051000), /* PORT0CR */
@@ -1776,45 +2546,114 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 #define EXT_IRQ16L(n) evt2irq(0x200 + ((n) << 5))
 #define EXT_IRQ16H(n) evt2irq(0x3200 + (((n) - 16) << 5))
 static const struct pinmux_irq pinmux_irqs[] = {
-	PINMUX_IRQ(EXT_IRQ16L(0), GPIO_PORT6, GPIO_PORT162),
-	PINMUX_IRQ(EXT_IRQ16L(1), GPIO_PORT12),
-	PINMUX_IRQ(EXT_IRQ16L(2), GPIO_PORT4, GPIO_PORT5),
-	PINMUX_IRQ(EXT_IRQ16L(3), GPIO_PORT8, GPIO_PORT16),
-	PINMUX_IRQ(EXT_IRQ16L(4), GPIO_PORT17, GPIO_PORT163),
-	PINMUX_IRQ(EXT_IRQ16L(5), GPIO_PORT18),
-	PINMUX_IRQ(EXT_IRQ16L(6), GPIO_PORT39, GPIO_PORT164),
-	PINMUX_IRQ(EXT_IRQ16L(7), GPIO_PORT40, GPIO_PORT167),
-	PINMUX_IRQ(EXT_IRQ16L(8), GPIO_PORT41, GPIO_PORT168),
-	PINMUX_IRQ(EXT_IRQ16L(9), GPIO_PORT42, GPIO_PORT169),
-	PINMUX_IRQ(EXT_IRQ16L(10), GPIO_PORT65),
-	PINMUX_IRQ(EXT_IRQ16L(11), GPIO_PORT67),
-	PINMUX_IRQ(EXT_IRQ16L(12), GPIO_PORT80, GPIO_PORT137),
-	PINMUX_IRQ(EXT_IRQ16L(13), GPIO_PORT81, GPIO_PORT145),
-	PINMUX_IRQ(EXT_IRQ16L(14), GPIO_PORT82, GPIO_PORT146),
-	PINMUX_IRQ(EXT_IRQ16L(15), GPIO_PORT83, GPIO_PORT147),
-	PINMUX_IRQ(EXT_IRQ16H(16), GPIO_PORT84, GPIO_PORT170),
-	PINMUX_IRQ(EXT_IRQ16H(17), GPIO_PORT85),
-	PINMUX_IRQ(EXT_IRQ16H(18), GPIO_PORT86),
-	PINMUX_IRQ(EXT_IRQ16H(19), GPIO_PORT87),
-	PINMUX_IRQ(EXT_IRQ16H(20), GPIO_PORT92),
-	PINMUX_IRQ(EXT_IRQ16H(21), GPIO_PORT93),
-	PINMUX_IRQ(EXT_IRQ16H(22), GPIO_PORT94),
-	PINMUX_IRQ(EXT_IRQ16H(23), GPIO_PORT95),
-	PINMUX_IRQ(EXT_IRQ16H(24), GPIO_PORT112),
-	PINMUX_IRQ(EXT_IRQ16H(25), GPIO_PORT119),
-	PINMUX_IRQ(EXT_IRQ16H(26), GPIO_PORT121, GPIO_PORT172),
-	PINMUX_IRQ(EXT_IRQ16H(27), GPIO_PORT122, GPIO_PORT180),
-	PINMUX_IRQ(EXT_IRQ16H(28), GPIO_PORT123, GPIO_PORT181),
-	PINMUX_IRQ(EXT_IRQ16H(29), GPIO_PORT129, GPIO_PORT182),
-	PINMUX_IRQ(EXT_IRQ16H(30), GPIO_PORT130, GPIO_PORT183),
-	PINMUX_IRQ(EXT_IRQ16H(31), GPIO_PORT138, GPIO_PORT184),
+	PINMUX_IRQ(EXT_IRQ16L(0), 6, 162),
+	PINMUX_IRQ(EXT_IRQ16L(1), 12),
+	PINMUX_IRQ(EXT_IRQ16L(2), 4, 5),
+	PINMUX_IRQ(EXT_IRQ16L(3), 8, 16),
+	PINMUX_IRQ(EXT_IRQ16L(4), 17, 163),
+	PINMUX_IRQ(EXT_IRQ16L(5), 18),
+	PINMUX_IRQ(EXT_IRQ16L(6), 39, 164),
+	PINMUX_IRQ(EXT_IRQ16L(7), 40, 167),
+	PINMUX_IRQ(EXT_IRQ16L(8), 41, 168),
+	PINMUX_IRQ(EXT_IRQ16L(9), 42, 169),
+	PINMUX_IRQ(EXT_IRQ16L(10), 65),
+	PINMUX_IRQ(EXT_IRQ16L(11), 67),
+	PINMUX_IRQ(EXT_IRQ16L(12), 80, 137),
+	PINMUX_IRQ(EXT_IRQ16L(13), 81, 145),
+	PINMUX_IRQ(EXT_IRQ16L(14), 82, 146),
+	PINMUX_IRQ(EXT_IRQ16L(15), 83, 147),
+	PINMUX_IRQ(EXT_IRQ16H(16), 84, 170),
+	PINMUX_IRQ(EXT_IRQ16H(17), 85),
+	PINMUX_IRQ(EXT_IRQ16H(18), 86),
+	PINMUX_IRQ(EXT_IRQ16H(19), 87),
+	PINMUX_IRQ(EXT_IRQ16H(20), 92),
+	PINMUX_IRQ(EXT_IRQ16H(21), 93),
+	PINMUX_IRQ(EXT_IRQ16H(22), 94),
+	PINMUX_IRQ(EXT_IRQ16H(23), 95),
+	PINMUX_IRQ(EXT_IRQ16H(24), 112),
+	PINMUX_IRQ(EXT_IRQ16H(25), 119),
+	PINMUX_IRQ(EXT_IRQ16H(26), 121, 172),
+	PINMUX_IRQ(EXT_IRQ16H(27), 122, 180),
+	PINMUX_IRQ(EXT_IRQ16H(28), 123, 181),
+	PINMUX_IRQ(EXT_IRQ16H(29), 129, 182),
+	PINMUX_IRQ(EXT_IRQ16H(30), 130, 183),
+	PINMUX_IRQ(EXT_IRQ16H(31), 138, 184),
+};
+
+#define PORTnCR_PULMD_OFF	(0 << 6)
+#define PORTnCR_PULMD_DOWN	(2 << 6)
+#define PORTnCR_PULMD_UP	(3 << 6)
+#define PORTnCR_PULMD_MASK	(3 << 6)
+
+struct sh7372_portcr_group {
+	unsigned int end_pin;
+	unsigned int offset;
+};
+
+static const struct sh7372_portcr_group sh7372_portcr_offsets[] = {
+	{ 45,  0x1000 }, { 75,  0x2000 }, { 99,  0x0000 }, { 120, 0x3000 },
+	{ 151, 0x0000 }, { 155, 0x3000 }, { 166, 0x0000 }, { 190, 0x2000 },
+};
+
+static void __iomem *sh7372_pinmux_portcr(struct sh_pfc *pfc, unsigned int pin)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(sh7372_portcr_offsets); ++i) {
+		const struct sh7372_portcr_group *group =
+			&sh7372_portcr_offsets[i];
+
+		if (i <= group->end_pin)
+			return pfc->window->virt + group->offset + pin;
+	}
+
+	return NULL;
+}
+
+static unsigned int sh7372_pinmux_get_bias(struct sh_pfc *pfc, unsigned int pin)
+{
+	void __iomem *addr = sh7372_pinmux_portcr(pfc, pin);
+	u32 value = ioread8(addr) & PORTnCR_PULMD_MASK;
+
+	switch (value) {
+	case PORTnCR_PULMD_UP:
+		return PIN_CONFIG_BIAS_PULL_UP;
+	case PORTnCR_PULMD_DOWN:
+		return PIN_CONFIG_BIAS_PULL_DOWN;
+	case PORTnCR_PULMD_OFF:
+	default:
+		return PIN_CONFIG_BIAS_DISABLE;
+	}
+}
+
+static void sh7372_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
+				   unsigned int bias)
+{
+	void __iomem *addr = sh7372_pinmux_portcr(pfc, pin);
+	u32 value = ioread8(addr) & ~PORTnCR_PULMD_MASK;
+
+	switch (bias) {
+	case PIN_CONFIG_BIAS_PULL_UP:
+		value |= PORTnCR_PULMD_UP;
+		break;
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		value |= PORTnCR_PULMD_DOWN;
+		break;
+	}
+
+	iowrite8(value, addr);
+}
+
+static const struct sh_pfc_soc_operations sh7372_pinmux_ops = {
+	.get_bias = sh7372_pinmux_get_bias,
+	.set_bias = sh7372_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info sh7372_pinmux_info = {
 	.name = "sh7372_pfc",
+	.ops = &sh7372_pinmux_ops,
+
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
-	.input_pu = { PINMUX_INPUT_PULLUP_BEGIN, PINMUX_INPUT_PULLUP_END },
-	.input_pd = { PINMUX_INPUT_PULLDOWN_BEGIN, PINMUX_INPUT_PULLDOWN_END },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
@@ -1824,9 +2663,6 @@ const struct sh_pfc_soc_info sh7372_pinmux_info = {
 	.nr_groups = ARRAY_SIZE(pinmux_groups),
 	.functions = pinmux_functions,
 	.nr_functions = ARRAY_SIZE(pinmux_functions),
-
-	.func_gpios = pinmux_func_gpios,
-	.nr_func_gpios = ARRAY_SIZE(pinmux_func_gpios),
 
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,

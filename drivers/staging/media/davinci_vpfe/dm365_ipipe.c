@@ -1751,10 +1751,10 @@ static const struct media_entity_operations ipipe_media_ops = {
  */
 void vpfe_ipipe_unregister_entities(struct vpfe_ipipe_device *vpfe_ipipe)
 {
-	/* cleanup entity */
-	media_entity_cleanup(&vpfe_ipipe->subdev.entity);
 	/* unregister subdev */
 	v4l2_device_unregister_subdev(&vpfe_ipipe->subdev);
+	/* cleanup entity */
+	media_entity_cleanup(&vpfe_ipipe->subdev.entity);
 }
 
 /*

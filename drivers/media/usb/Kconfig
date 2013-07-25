@@ -1,6 +1,7 @@
+if USB && MEDIA_SUPPORT
+
 menuconfig MEDIA_USB_SUPPORT
 	bool "Media USB Adapters"
-	depends on USB && MEDIA_SUPPORT
 	help
 	  Enable media drivers for USB bus.
 	  If you have such devices, say Y.
@@ -17,6 +18,7 @@ source "drivers/media/usb/zr364xx/Kconfig"
 source "drivers/media/usb/stkwebcam/Kconfig"
 source "drivers/media/usb/s2255/Kconfig"
 source "drivers/media/usb/sn9c102/Kconfig"
+source "drivers/media/usb/usbtv/Kconfig"
 endif
 
 if MEDIA_ANALOG_TV_SUPPORT
@@ -52,3 +54,4 @@ source "drivers/media/usb/em28xx/Kconfig"
 endif
 
 endif #MEDIA_USB_SUPPORT
+endif #USB

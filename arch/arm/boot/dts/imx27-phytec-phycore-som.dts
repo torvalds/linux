@@ -1,0 +1,179 @@
+/*
+ * Copyright 2012 Sascha Hauer, Pengutronix
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+#include "imx27.dtsi"
+
+/ {
+	model = "Phytec pcm038";
+	compatible = "phytec,imx27-pcm038", "fsl,imx27";
+
+	memory {
+		reg = <0x0 0x0>;
+	};
+
+	soc {
+		aipi@10000000 { /* aipi1 */
+			serial@1000a000 {
+				status = "okay";
+			};
+
+			i2c@1001d000 {
+				clock-frequency = <400000>;
+				status = "okay";
+				at24@52 {
+					compatible = "at,24c32";
+					pagesize = <32>;
+					reg = <0x52>;
+				};
+				pcf8563@51 {
+					compatible = "nxp,pcf8563";
+					reg = <0x51>;
+				};
+				lm75@4a {
+					compatible = "national,lm75";
+					reg = <0x4a>;
+				};
+			};
+		};
+
+		aipi@10020000 { /* aipi2 */
+			ethernet@1002b000 {
+				phy-reset-gpios = <&gpio3 30 0>;
+				status = "okay";
+			};
+		};
+	};
+
+	nor_flash@c0000000 {
+		compatible = "cfi-flash";
+		bank-width = <2>;
+		reg = <0xc0000000 0x02000000>;
+		linux,mtd-name = "physmap-flash.0";
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&cspi1 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 28 0>;
+	status = "okay";
+
+	pmic: mc13783@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mc13783";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <23 0x4>;
+		fsl,mc13xxx-uses-adc;
+		fsl,mc13xxx-uses-rtc;
+
+		regulators {
+			sw1a_reg: sw1a {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw1b_reg: sw1b {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw2a_reg: sw2a {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw2b_reg: sw2b {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw3_reg: sw3 {
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vaudio_reg: vaudio {
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			violo_reg: violo {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			viohi_reg: viohi {
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vgen_reg: vgen {
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vcam_reg: vcam {
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+			};
+
+			vrf1_reg: vrf1 {
+				regulator-min-microvolt = <2775000>;
+				regulator-max-microvolt = <2775000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vrf2_reg: vrf2 {
+				regulator-min-microvolt = <2775000>;
+				regulator-max-microvolt = <2775000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vmmc1_reg: vmmc1 {
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <3000000>;
+			};
+
+			gpo1_reg: gpo1 { };
+
+			pwgt1spi_reg: pwgt1spi {
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&nfc {
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	status = "okay";
+};

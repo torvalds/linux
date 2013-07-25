@@ -622,6 +622,7 @@ enum intel_sbi_destination {
 #define QUIRK_PIPEA_FORCE (1<<0)
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
+#define QUIRK_NO_PCH_PWM_ENABLE (1<<3)
 
 struct intel_fbdev;
 struct intel_fbc_work;
@@ -1670,7 +1671,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged);
 extern void intel_irq_init(struct drm_device *dev);
 extern void intel_hpd_init(struct drm_device *dev);
 extern void intel_gt_init(struct drm_device *dev);
-extern void intel_gt_reset(struct drm_device *dev);
+extern void intel_gt_sanitize(struct drm_device *dev);
 
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
@@ -1886,6 +1887,8 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
+
+void i915_gem_restore_fences(struct drm_device *dev);
 
 /* i915_gem_context.c */
 void i915_gem_context_init(struct drm_device *dev);

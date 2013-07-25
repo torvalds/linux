@@ -45,19 +45,19 @@
 		};
 
 		i2c0: i2c@FF120000 {
-			sda-hold-time = <432>;
+			i2c-sda-hold-time-ns = <432>;
 		};
 		i2c1: i2c@FF121000 {
-			sda-hold-time = <432>;
+			i2c-sda-hold-time-ns = <432>;
 		};
 		i2c2: i2c@FF122000 {
-			sda-hold-time = <432>;
+			i2c-sda-hold-time-ns = <432>;
 		};
 		i2c3: i2c@FF123000 {
-			sda-hold-time = <432>;
+			i2c-sda-hold-time-ns = <432>;
 		};
 		i2c4: i2c@FF124000 {
-			sda-hold-time = <432>;
+			i2c-sda-hold-time-ns = <432>;
 		};
 
 		leds {

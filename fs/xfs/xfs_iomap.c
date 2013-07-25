@@ -284,6 +284,15 @@ xfs_iomap_eof_want_preallocate(
 		return 0;
 
 	/*
+	 * If the file is smaller than the minimum prealloc and we are using
+	 * dynamic preallocation, don't do any preallocation at all as it is
+	 * likely this is the only write to the file that is going to be done.
+	 */
+	if (!(mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) &&
+	    XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, mp->m_writeio_blocks))
+		return 0;
+
+	/*
 	 * If there are any real blocks past eof, then don't
 	 * do any speculative allocation.
 	 */
@@ -343,6 +352,10 @@ xfs_iomap_eof_prealloc_initial_size(
 
 	/* if we are using a specific prealloc size, return now */
 	if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
+		return 0;
+
+	/* If the file is small, then use the minimum prealloc */
+	if (XFS_ISIZE(ip) < XFS_FSB_TO_B(mp, mp->m_dalign))
 		return 0;
 
 	/*

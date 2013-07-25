@@ -1280,7 +1280,7 @@ static struct stb0899_config tt3200_config = {
 	.demod_address 		= 0x68,
 
 	.xtal_freq		= 27000000,
-	.inversion		= IQ_SWAP_ON, /* 1 */
+	.inversion		= IQ_SWAP_ON,
 
 	.lo_clk			= 76500000,
 	.hi_clk			= 99000000,

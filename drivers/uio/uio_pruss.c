@@ -136,9 +136,9 @@ static int pruss_probe(struct platform_device *dev)
 	gdev->pruss_clk = clk_get(&dev->dev, "pruss");
 	if (IS_ERR(gdev->pruss_clk)) {
 		dev_err(&dev->dev, "Failed to get clock\n");
+		ret = PTR_ERR(gdev->pruss_clk);
 		kfree(gdev->info);
 		kfree(gdev);
-		ret = PTR_ERR(gdev->pruss_clk);
 		return ret;
 	} else {
 		clk_enable(gdev->pruss_clk);

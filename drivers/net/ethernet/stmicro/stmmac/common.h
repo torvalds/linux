@@ -38,16 +38,6 @@
 #include "descs.h"
 #include "mmc.h"
 
-#undef CHIP_DEBUG_PRINT
-/* Turn-on extra printk debug for MAC core, dma and descriptors */
-/* #define CHIP_DEBUG_PRINT */
-
-#ifdef CHIP_DEBUG_PRINT
-#define CHIP_DBG(fmt, args...)  printk(fmt, ## args)
-#else
-#define CHIP_DBG(fmt, args...)  do { } while (0)
-#endif
-
 /* Synopsys Core versions */
 #define	DWMAC_CORE_3_40	0x34
 #define	DWMAC_CORE_3_50	0x35
@@ -297,8 +287,8 @@ struct dma_features {
 #define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
 
 /* Default LPI timers */
-#define STMMAC_DEFAULT_LIT_LS_TIMER	0x3E8
-#define STMMAC_DEFAULT_TWT_LS_TIMER	0x0
+#define STMMAC_DEFAULT_LIT_LS	0x3E8
+#define STMMAC_DEFAULT_TWT_LS	0x0
 
 #define STMMAC_CHAIN_MODE	0x1
 #define STMMAC_RING_MODE	0x2

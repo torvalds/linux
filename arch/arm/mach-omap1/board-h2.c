@@ -41,7 +41,6 @@
 #include <mach/mux.h>
 #include <linux/omap-dma.h>
 #include <mach/tc.h>
-#include <mach/irda.h>
 #include <linux/platform_data/keypad-omap.h>
 #include <mach/flash.h>
 
@@ -50,7 +49,6 @@
 
 #include "common.h"
 #include "board-h2.h"
-#include "dma.h"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define OMAP1610_ETHR_START		0x04000300
@@ -276,39 +274,6 @@ static struct platform_device h2_kp_device = {
 	.resource	= h2_kp_resources,
 };
 
-#define H2_IRDA_FIRSEL_GPIO_PIN	17
-
-static struct omap_irda_config h2_irda_data = {
-	.transceiver_cap	= IR_SIRMODE | IR_MIRMODE | IR_FIRMODE,
-	.rx_channel		= OMAP_DMA_UART3_RX,
-	.tx_channel		= OMAP_DMA_UART3_TX,
-	.dest_start		= UART3_THR,
-	.src_start		= UART3_RHR,
-	.tx_trigger		= 0,
-	.rx_trigger		= 0,
-};
-
-static struct resource h2_irda_resources[] = {
-	[0] = {
-		.start	= INT_UART3,
-		.end	= INT_UART3,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static u64 irda_dmamask = 0xffffffff;
-
-static struct platform_device h2_irda_device = {
-	.name		= "omapirda",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &h2_irda_data,
-		.dma_mask	= &irda_dmamask,
-	},
-	.num_resources	= ARRAY_SIZE(h2_irda_resources),
-	.resource	= h2_irda_resources,
-};
-
 static struct gpio_led h2_gpio_led_pins[] = {
 	{
 		.name		= "h2:red",
@@ -339,7 +304,6 @@ static struct platform_device *h2_devices[] __initdata = {
 	&h2_nor_device,
 	&h2_nand_device,
 	&h2_smc91x_device,
-	&h2_irda_device,
 	&h2_kp_device,
 	&h2_gpio_leds,
 };

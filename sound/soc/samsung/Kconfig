@@ -39,7 +39,7 @@ config SND_SOC_SAMSUNG_NEO1973_WM8753
 	depends on SND_SOC_SAMSUNG && MACH_NEO1973_GTA02
 	select SND_S3C24XX_I2S
 	select SND_SOC_WM8753
-	select SND_SOC_DFBMCS320
+	select SND_SOC_BT_SCO
 	help
 	  Say Y here to enable audio support for the Openmoko Neo1973
 	  Smartphones.

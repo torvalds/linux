@@ -29,6 +29,7 @@
 #include "rv770_dpm.h"
 #include "cypress_dpm.h"
 #include "atom.h"
+#include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -1340,10 +1341,10 @@ static void rv770_program_display_gap(struct radeon_device *rdev)
 	u32 tmp = RREG32(CG_DISPLAY_GAP_CNTL);
 
 	tmp &= ~(DISP1_GAP_MCHG_MASK | DISP2_GAP_MCHG_MASK);
-	if (RREG32(AVIVO_D1CRTC_CONTROL) & AVIVO_CRTC_EN) {
+	if (rdev->pm.dpm.new_active_crtcs & 1) {
 		tmp |= DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_VBLANK);
 		tmp |= DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE);
-	} else if (RREG32(AVIVO_D2CRTC_CONTROL) & AVIVO_CRTC_EN) {
+	} else if (rdev->pm.dpm.new_active_crtcs & 2) {
 		tmp |= DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE);
 		tmp |= DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_VBLANK);
 	} else {
@@ -1470,13 +1471,29 @@ int rv770_restrict_performance_levels_before_switch(struct radeon_device *rdev)
 	return 0;
 }
 
-int rv770_unrestrict_performance_levels_after_switch(struct radeon_device *rdev)
+int rv770_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level)
 {
-	if (rv770_send_msg_to_smc(rdev, (PPSMC_Msg)(PPSMC_MSG_NoForcedLevel)) != PPSMC_Result_OK)
+	PPSMC_Msg msg;
+
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_ZeroLevelsDisabled) != PPSMC_Result_OK)
+			return -EINVAL;
+		msg = PPSMC_MSG_ForceHigh;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_NoForcedLevel) != PPSMC_Result_OK)
+			return -EINVAL;
+		msg = (PPSMC_Msg)(PPSMC_MSG_TwoLevelsDisabled);
+	} else {
+		if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_NoForcedLevel) != PPSMC_Result_OK)
+			return -EINVAL;
+		msg = (PPSMC_Msg)(PPSMC_MSG_ZeroLevelsDisabled);
+	}
+
+	if (rv770_send_msg_to_smc(rdev, msg) != PPSMC_Result_OK)
 		return -EINVAL;
 
-	if (rv770_send_msg_to_smc(rdev, (PPSMC_Msg)(PPSMC_MSG_ZeroLevelsDisabled)) != PPSMC_Result_OK)
-		return -EINVAL;
+	rdev->pm.dpm.forced_level = level;
 
 	return 0;
 }
@@ -2046,9 +2063,10 @@ int rv770_dpm_set_power_state(struct radeon_device *rdev)
 	if (pi->dcodt)
 		rv770_program_dcodt_after_state_switch(rdev, new_ps, old_ps);
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
-	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
+
+	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
-		DRM_ERROR("rv770_unrestrict_performance_levels_after_switch failed\n");
+		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
 		return ret;
 	}
 
@@ -2081,12 +2099,14 @@ void rv770_dpm_setup_asic(struct radeon_device *rdev)
 
 	rv770_enable_acpi_pm(rdev);
 
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L0s)
-		rv770_enable_l0s(rdev);
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L1)
-		rv770_enable_l1(rdev);
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1)
-		rv770_enable_pll_sleep_in_l1(rdev);
+	if (radeon_aspm != 0) {
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L0s)
+			rv770_enable_l0s(rdev);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L1)
+			rv770_enable_l1(rdev);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1)
+			rv770_enable_pll_sleep_in_l1(rdev);
+	}
 }
 
 void rv770_dpm_display_configuration_changed(struct radeon_device *rdev)
@@ -2430,6 +2450,36 @@ void rv770_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
+void rv770_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						       struct seq_file *m)
+{
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct rv7xx_ps *ps = rv770_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_PROFILE_INDEX_MASK) >>
+		CURRENT_PROFILE_INDEX_SHIFT;
+
+	if (current_index > 2) {
+		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	} else {
+		if (current_index == 0)
+			pl = &ps->low;
+		else if (current_index == 1)
+			pl = &ps->medium;
+		else /* current_index == 2 */
+			pl = &ps->high;
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		if (rdev->family >= CHIP_CEDAR) {
+			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+				   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+		} else {
+			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u\n",
+				   current_index, pl->sclk, pl->mclk, pl->vddc);
+		}
+	}
+}
+
 void rv770_dpm_fini(struct radeon_device *rdev)
 {
 	int i;
@@ -2459,4 +2509,15 @@ u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low)
 		return requested_state->low.mclk;
 	else
 		return requested_state->high.mclk;
+}
+
+bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
+{
+	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+
+	if (vblank_time < 300)
+		return true;
+	else
+		return false;
+
 }

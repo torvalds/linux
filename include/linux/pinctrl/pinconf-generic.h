@@ -29,12 +29,25 @@
  *	if for example some other pin is going to drive the signal connected
  *	to it for a while. Pins used for input are usually always high
  *	impedance.
+ * @PIN_CONFIG_BIAS_BUS_HOLD: the pin will be set to weakly latch so that it
+ *	weakly drives the last value on a tristate bus, also known as a "bus
+ *	holder", "bus keeper" or "repeater". This allows another device on the
+ *	bus to change the value by driving the bus high or low and switching to
+ *	tristate. The argument is ignored.
  * @PIN_CONFIG_BIAS_PULL_UP: the pin will be pulled up (usually with high
  *	impedance to VDD). If the argument is != 0 pull-up is enabled,
- *	if it is 0, pull-up is disabled.
+ *	if it is 0, pull-up is total, i.e. the pin is connected to VDD.
  * @PIN_CONFIG_BIAS_PULL_DOWN: the pin will be pulled down (usually with high
  *	impedance to GROUND). If the argument is != 0 pull-down is enabled,
- *	if it is 0, pull-down is disabled.
+ *	if it is 0, pull-down is total, i.e. the pin is connected to GROUND.
+ * @PIN_CONFIG_BIAS_PULL_PIN_DEFAULT: the pin will be pulled up or down based
+ *	on embedded knowledge of the controller hardware, like current mux
+ *	function. The pull direction and possibly strength too will normally
+ *	be decided completely inside the hardware block and not be readable
+ *	from the kernel side.
+ *	If the argument is != 0 pull up/down is enabled, if it is 0, the
+ *	configuration is ignored. The proper way to disable it is to use
+ *	@PIN_CONFIG_BIAS_DISABLE.
  * @PIN_CONFIG_DRIVE_PUSH_PULL: the pin will be driven actively high and
  *	low, this is the most typical case and is typically achieved with two
  *	active transistors on the output. Setting this config will enable
@@ -57,14 +70,14 @@
  *	setting pins to this mode.
  * @PIN_CONFIG_INPUT_DEBOUNCE: this will configure the pin to debounce mode,
  *	which means it will wait for signals to settle when reading inputs. The
- *	argument gives the debounce time on a custom format. Setting the
+ *	argument gives the debounce time in usecs. Setting the
  *	argument to zero turns debouncing off.
  * @PIN_CONFIG_POWER_SOURCE: if the pin can select between different power
  *	supplies, the argument to this parameter (on a custom format) tells
  *	the driver which alternative power source to use.
  * @PIN_CONFIG_SLEW_RATE: if the pin can select slew rate, the argument to
- * 	this parameter (on a custom format) tells the driver which alternative
- * 	slew rate to use.
+ *	this parameter (on a custom format) tells the driver which alternative
+ *	slew rate to use.
  * @PIN_CONFIG_LOW_POWER_MODE: this will configure the pin for low power
  *	operation, if several modes of operation are supported these can be
  *	passed in the argument on a custom form, else just use argument 1
@@ -78,8 +91,10 @@
 enum pin_config_param {
 	PIN_CONFIG_BIAS_DISABLE,
 	PIN_CONFIG_BIAS_HIGH_IMPEDANCE,
+	PIN_CONFIG_BIAS_BUS_HOLD,
 	PIN_CONFIG_BIAS_PULL_UP,
 	PIN_CONFIG_BIAS_PULL_DOWN,
+	PIN_CONFIG_BIAS_PULL_PIN_DEFAULT,
 	PIN_CONFIG_DRIVE_PUSH_PULL,
 	PIN_CONFIG_DRIVE_OPEN_DRAIN,
 	PIN_CONFIG_DRIVE_OPEN_SOURCE,

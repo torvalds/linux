@@ -109,8 +109,11 @@ config GPIO_MAX730X
 comment "Memory mapped GPIO drivers:"
 
 config GPIO_CLPS711X
-	def_bool y
+	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X
+	select GPIO_GENERIC
+	help
+	  Say yes here to support GPIO on CLPS711X SoCs.
 
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
@@ -165,7 +168,7 @@ config GPIO_MSM_V1
 
 config GPIO_MSM_V2
 	tristate "Qualcomm MSM GPIO v2"
-	depends on GPIOLIB && ARCH_MSM
+	depends on GPIOLIB && OF && ARCH_MSM
 	help
 	  Say yes here to support the GPIO interface on ARM v7 based
 	  Qualcomm MSM chips.  Most of the pins on the MSM can be
@@ -209,6 +212,13 @@ config GPIO_RCAR
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
 
+config GPIO_SAMSUNG
+	bool
+	depends on PLAT_SAMSUNG
+	help
+	  Legacy GPIO support. Use only for platforms without support for
+	  pinctrl.
+
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
@@ -234,7 +244,7 @@ config GPIO_TS5500
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
-	depends on PPC_OF || MICROBLAZE
+	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
@@ -330,7 +340,7 @@ config GPIO_MAX7300
 	depends on I2C
 	select GPIO_MAX730X
 	help
-	  GPIO driver for Maxim MAX7301 I2C-based GPIO expander.
+	  GPIO driver for Maxim MAX7300 I2C-based GPIO expander.
 
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"

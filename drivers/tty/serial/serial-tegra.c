@@ -1377,7 +1377,7 @@ static int __init tegra_uart_init(void)
 
 	ret = platform_driver_register(&tegra_uart_platform_driver);
 	if (ret < 0) {
-		pr_err("Uart platfrom driver register failed, e = %d\n", ret);
+		pr_err("Uart platform driver register failed, e = %d\n", ret);
 		uart_unregister_driver(&tegra_uart_driver);
 		return ret;
 	}

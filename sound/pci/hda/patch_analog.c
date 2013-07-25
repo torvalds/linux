@@ -2112,6 +2112,9 @@ static void ad_vmaster_eapd_hook(void *private_data, int enabled)
 {
 	struct hda_codec *codec = private_data;
 	struct ad198x_spec *spec = codec->spec;
+
+	if (!spec->eapd_nid)
+		return;
 	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
 				   AC_VERB_SET_EAPD_BTLENABLE,
 				   enabled ? 0x02 : 0x00);
@@ -3601,13 +3604,16 @@ static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
 {
 	struct ad198x_spec *spec = codec->spec;
 
-	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		break;
+	case HDA_FIXUP_ACT_PROBE:
 		if (spec->gen.autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
 			spec->eapd_nid = spec->gen.autocfg.line_out_pins[0];
 		else
 			spec->eapd_nid = spec->gen.autocfg.speaker_pins[0];
-		if (spec->eapd_nid)
-			spec->gen.vmaster_mute.hook = ad_vmaster_eapd_hook;
+		break;
 	}
 }
 

@@ -338,6 +338,14 @@ static int cpm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	tptr = 0;
 	rptr = 0;
 
+	/*
+	 * If there was a collision in the last i2c transaction,
+	 * Set I2COM_MASTER as it was cleared during collision.
+	 */
+	if (in_be16(&tbdf->cbd_sc) & BD_SC_CL) {
+		out_8(&cpm->i2c_reg->i2com, I2COM_MASTER);
+	}
+
 	while (tptr < num) {
 		pmsg = &msgs[tptr];
 		dev_dbg(&adap->dev, "R: %d T: %d\n", rptr, tptr);
@@ -646,7 +654,7 @@ static int cpm_i2c_probe(struct platform_device *ofdev)
 
 	cpm->ofdev = ofdev;
 
-	dev_set_drvdata(&ofdev->dev, cpm);
+	platform_set_drvdata(ofdev, cpm);
 
 	cpm->adap = cpm_ops;
 	i2c_set_adapdata(&cpm->adap, cpm);
@@ -689,7 +697,7 @@ out_free:
 
 static int cpm_i2c_remove(struct platform_device *ofdev)
 {
-	struct cpm_i2c *cpm = dev_get_drvdata(&ofdev->dev);
+	struct cpm_i2c *cpm = platform_get_drvdata(ofdev);
 
 	i2c_del_adapter(&cpm->adap);
 

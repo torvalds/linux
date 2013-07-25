@@ -680,6 +680,8 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	atomic_set(&sl->refcnt, 0);
 	init_completion(&sl->released);
 
+	request_module("w1-family-0x%0x", rn->family);
+
 	spin_lock(&w1_flock);
 	f = w1_family_registered(rn->family);
 	if (!f) {

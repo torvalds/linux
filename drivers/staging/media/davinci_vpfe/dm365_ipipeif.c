@@ -947,10 +947,10 @@ void vpfe_ipipeif_unregister_entities(struct vpfe_ipipeif_device *ipipeif)
 	/* unregister video device */
 	vpfe_video_unregister(&ipipeif->video_in);
 
-	/* cleanup entity */
-	media_entity_cleanup(&ipipeif->subdev.entity);
 	/* unregister subdev */
 	v4l2_device_unregister_subdev(&ipipeif->subdev);
+	/* cleanup entity */
+	media_entity_cleanup(&ipipeif->subdev.entity);
 }
 
 int

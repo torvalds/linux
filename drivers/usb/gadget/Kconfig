@@ -155,7 +155,7 @@ config USB_LPC32XX
 
 config USB_ATMEL_USBA
 	tristate "Atmel USBA"
-	depends on AVR32 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
+	depends on AVR32 || ARCH_AT91
 	help
 	  USBA is the integrated high-speed USB Device controller on
 	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
@@ -191,6 +191,16 @@ config USB_FUSB300
 	depends on !PHYS_ADDR_T_64BIT
 	help
 	   Faraday usb device controller FUSB300 driver
+
+config USB_FOTG210_UDC
+	tristate "Faraday FOTG210 USB Peripheral Controller"
+	help
+	   Faraday USB2.0 OTG controller which can be configured as
+	   high speed or full speed USB device. This driver supppors
+	   Bulk Transfer so far.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "fotg210_udc".
 
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
@@ -333,14 +343,6 @@ config USB_MV_U3D
 #
 # Controllers available in both integrated and discrete versions
 #
-
-# musb builds in ../musb along with host support
-config USB_GADGET_MUSB_HDRC
-	tristate "Inventra HDRC USB Peripheral (TI, ADI, ...)"
-	depends on USB_MUSB_HDRC
-	help
-	  This OTG-capable silicon IP is used in dual designs including
-	  the TI DaVinci, OMAP 243x, OMAP 343x, TUSB 6010, and ADI Blackfin
 
 config USB_M66592
 	tristate "Renesas M66592 USB Peripheral Controller"
@@ -507,10 +509,34 @@ config USB_F_SS_LB
 config USB_U_SERIAL
 	tristate
 
+config USB_U_ETHER
+	tristate
+
+config USB_U_RNDIS
+	tristate
+
 config USB_F_SERIAL
 	tristate
 
 config USB_F_OBEX
+	tristate
+
+config USB_F_NCM
+	tristate
+
+config USB_F_ECM
+	tristate
+
+config USB_F_PHONET
+	tristate
+
+config USB_F_EEM
+	tristate
+
+config USB_F_SUBSET
+	tristate
+
+config USB_F_RNDIS
 	tristate
 
 choice
@@ -533,6 +559,121 @@ choice
 	  a less common variant of a device class protocol.
 
 # this first set of drivers all depend on bulk-capable hardware.
+
+config USB_CONFIGFS
+	tristate "USB functions configurable through configfs"
+	select USB_LIBCOMPOSITE
+	help
+	  A Linux USB "gadget" can be set up through configfs.
+	  If this is the case, the USB functions (which from the host's
+	  perspective are seen as interfaces) and configurations are
+	  specified simply by creating appropriate directories in configfs.
+	  Associating functions with configurations is done by creating
+	  appropriate symbolic links.
+	  For more information see Documentation/usb/gadget-configfs.txt.
+
+config USB_CONFIGFS_SERIAL
+	boolean "Generic serial bulk in/out"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_SERIAL
+	help
+	  The function talks to the Linux-USB generic serial driver.
+
+config USB_CONFIGFS_ACM
+	boolean "Abstract Control Model (CDC ACM)"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_ACM
+	help
+	  ACM serial link.  This function can be used to interoperate with
+	  MS-Windows hosts or with the Linux-USB "cdc-acm" driver.
+
+config USB_CONFIGFS_OBEX
+	boolean "Object Exchange Model (CDC OBEX)"
+	depends on USB_CONFIGFS
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_OBEX
+	help
+	  You will need a user space OBEX server talking to /dev/ttyGS*,
+	  since the kernel itself doesn't implement the OBEX protocol.
+
+config USB_CONFIGFS_NCM
+	boolean "Network Control Model (CDC NCM)"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_NCM
+	help
+	  NCM is an advanced protocol for Ethernet encapsulation, allows
+	  grouping of several ethernet frames into one USB transfer and
+	  different alignment possibilities.
+
+config USB_CONFIGFS_ECM
+	boolean "Ethernet Control Model (CDC ECM)"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_ECM
+	help
+	  The "Communication Device Class" (CDC) Ethernet Control Model.
+	  That protocol is often avoided with pure Ethernet adapters, in
+	  favor of simpler vendor-specific hardware, but is widely
+	  supported by firmware for smart network devices.
+
+config USB_CONFIGFS_ECM_SUBSET
+	boolean "Ethernet Control Model (CDC ECM) subset"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_SUBSET
+	help
+	  On hardware that can't implement the full protocol,
+	  a simple CDC subset is used, placing fewer demands on USB.
+
+config USB_CONFIGFS_RNDIS
+	bool "RNDIS"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_RNDIS
+	help
+	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
+	   and Microsoft provides redistributable binary RNDIS drivers for
+	   older versions of Windows.
+
+	   To make MS-Windows work with this, use Documentation/usb/linux.inf
+	   as the "driver info file".  For versions of MS-Windows older than
+	   XP, you'll need to download drivers from Microsoft's website; a URL
+	   is given in comments found in that info file.
+
+config USB_CONFIGFS_EEM
+	bool "Ethernet Emulation Model (EEM)"
+	depends on USB_CONFIGFS
+	depends on NET
+	select USB_U_ETHER
+	select USB_F_EEM
+	help
+	  CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
+	  and therefore can be supported by more hardware.  Technically ECM and
+	  EEM are designed for different applications.  The ECM model extends
+	  the network interface to the target (e.g. a USB cable modem), and the
+	  EEM model is for mobile devices to communicate with hosts using
+	  ethernet over USB.  For Linux gadgets, however, the interface with
+	  the host is the same (a usbX device), so the differences are minimal.
+
+config USB_CONFIGFS_PHONET
+	boolean "Phonet protocol"
+	depends on USB_CONFIGFS
+	depends on NET
+	depends on PHONET
+	select USB_U_ETHER
+	select USB_F_PHONET
+	help
+	  The Phonet protocol implementation for USB device.
 
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
@@ -603,6 +744,10 @@ config USB_ETH
 	tristate "Ethernet Gadget (with CDC Ethernet support)"
 	depends on NET
 	select USB_LIBCOMPOSITE
+	select USB_U_ETHER
+	select USB_U_RNDIS
+	select USB_F_ECM
+	select USB_F_SUBSET
 	select CRC32
 	help
 	  This driver implements Ethernet style communication, in one of
@@ -639,6 +784,7 @@ config USB_ETH_RNDIS
 	bool "RNDIS support"
 	depends on USB_ETH
 	select USB_LIBCOMPOSITE
+	select USB_F_RNDIS
 	default y
 	help
 	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
@@ -658,6 +804,7 @@ config USB_ETH_EEM
        bool "Ethernet Emulation Model (EEM) support"
        depends on USB_ETH
 	select USB_LIBCOMPOSITE
+	select USB_F_EEM
        default n
        help
          CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
@@ -675,6 +822,8 @@ config USB_G_NCM
 	tristate "Network Control Model (NCM) support"
 	depends on NET
 	select USB_LIBCOMPOSITE
+	select USB_U_ETHER
+	select USB_F_NCM
 	select CRC32
 	help
 	  This driver implements USB CDC NCM subclass standard. NCM is
@@ -718,6 +867,7 @@ config USB_FUNCTIONFS
 config USB_FUNCTIONFS_ETH
 	bool "Include configuration with CDC ECM (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
+	select USB_U_ETHER
 	help
 	  Include a configuration with CDC ECM function (Ethernet) and the
 	  Function Filesystem.
@@ -725,6 +875,8 @@ config USB_FUNCTIONFS_ETH
 config USB_FUNCTIONFS_RNDIS
 	bool "Include configuration with RNDIS (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
+	select USB_U_ETHER
+	select USB_U_RNDIS
 	help
 	  Include a configuration with RNDIS function (Ethernet) and the Filesystem.
 
@@ -825,7 +977,9 @@ config USB_CDC_COMPOSITE
 	depends on NET
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
+	select USB_U_ETHER
 	select USB_F_ACM
+	select USB_F_ECM
 	help
 	  This driver provides two functions in one configuration:
 	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
@@ -842,7 +996,11 @@ config USB_G_NOKIA
 	depends on PHONET
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
+	select USB_U_ETHER
 	select USB_F_ACM
+	select USB_F_OBEX
+	select USB_F_PHONET
+	select USB_F_ECM
 	help
 	  The Nokia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.
@@ -869,6 +1027,8 @@ config USB_G_MULTI
 	select USB_G_MULTI_CDC if !USB_G_MULTI_RNDIS
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
+	select USB_U_ETHER
+	select USB_U_RNDIS
 	select USB_F_ACM
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS

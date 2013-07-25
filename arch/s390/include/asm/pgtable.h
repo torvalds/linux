@@ -58,9 +58,6 @@ extern unsigned long zero_page_mask;
 #define __HAVE_COLOR_ZERO_PAGE
 
 /* TODO: s390 cannot support io_remap_pfn_range... */
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot) 	       \
-	remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 #endif /* !__ASSEMBLY__ */
 
 /*
@@ -299,18 +296,16 @@ extern unsigned long MODULES_END;
 #define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INV)
 
 /* Page status table bits for virtualization */
-#define RCP_ACC_BITS	0xf0000000UL
-#define RCP_FP_BIT	0x08000000UL
-#define RCP_PCL_BIT	0x00800000UL
-#define RCP_HR_BIT	0x00400000UL
-#define RCP_HC_BIT	0x00200000UL
-#define RCP_GR_BIT	0x00040000UL
-#define RCP_GC_BIT	0x00020000UL
-#define RCP_IN_BIT	0x00002000UL	/* IPTE notify bit */
-
-/* User dirty / referenced bit for KVM's migration feature */
-#define KVM_UR_BIT	0x00008000UL
-#define KVM_UC_BIT	0x00004000UL
+#define PGSTE_ACC_BITS	0xf0000000UL
+#define PGSTE_FP_BIT	0x08000000UL
+#define PGSTE_PCL_BIT	0x00800000UL
+#define PGSTE_HR_BIT	0x00400000UL
+#define PGSTE_HC_BIT	0x00200000UL
+#define PGSTE_GR_BIT	0x00040000UL
+#define PGSTE_GC_BIT	0x00020000UL
+#define PGSTE_UR_BIT	0x00008000UL
+#define PGSTE_UC_BIT	0x00004000UL	/* user dirty (migration) */
+#define PGSTE_IN_BIT	0x00002000UL	/* IPTE notify bit */
 
 #else /* CONFIG_64BIT */
 
@@ -367,18 +362,16 @@ extern unsigned long MODULES_END;
 				 | _SEGMENT_ENTRY_SPLIT | _SEGMENT_ENTRY_CO)
 
 /* Page status table bits for virtualization */
-#define RCP_ACC_BITS	0xf000000000000000UL
-#define RCP_FP_BIT	0x0800000000000000UL
-#define RCP_PCL_BIT	0x0080000000000000UL
-#define RCP_HR_BIT	0x0040000000000000UL
-#define RCP_HC_BIT	0x0020000000000000UL
-#define RCP_GR_BIT	0x0004000000000000UL
-#define RCP_GC_BIT	0x0002000000000000UL
-#define RCP_IN_BIT	0x0000200000000000UL	/* IPTE notify bit */
-
-/* User dirty / referenced bit for KVM's migration feature */
-#define KVM_UR_BIT	0x0000800000000000UL
-#define KVM_UC_BIT	0x0000400000000000UL
+#define PGSTE_ACC_BITS	0xf000000000000000UL
+#define PGSTE_FP_BIT	0x0800000000000000UL
+#define PGSTE_PCL_BIT	0x0080000000000000UL
+#define PGSTE_HR_BIT	0x0040000000000000UL
+#define PGSTE_HC_BIT	0x0020000000000000UL
+#define PGSTE_GR_BIT	0x0004000000000000UL
+#define PGSTE_GC_BIT	0x0002000000000000UL
+#define PGSTE_UR_BIT	0x0000800000000000UL
+#define PGSTE_UC_BIT	0x0000400000000000UL	/* user dirty (migration) */
+#define PGSTE_IN_BIT	0x0000200000000000UL	/* IPTE notify bit */
 
 #endif /* CONFIG_64BIT */
 
@@ -618,8 +611,8 @@ static inline pgste_t pgste_get_lock(pte_t *ptep)
 	asm(
 		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
-		"	nihh	%0,0xff7f\n"	/* clear RCP_PCL_BIT in old */
-		"	oihh	%1,0x0080\n"	/* set RCP_PCL_BIT in new */
+		"	nihh	%0,0xff7f\n"	/* clear PCL bit in old */
+		"	oihh	%1,0x0080\n"	/* set PCL bit in new */
 		"	csg	%0,%1,%2\n"
 		"	jl	0b\n"
 		: "=&d" (old), "=&d" (new), "=Q" (ptep[PTRS_PER_PTE])
@@ -632,7 +625,7 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
 	asm(
-		"	nihh	%1,0xff7f\n"	/* clear RCP_PCL_BIT */
+		"	nihh	%1,0xff7f\n"	/* clear PCL bit */
 		"	stg	%1,%0\n"
 		: "=Q" (ptep[PTRS_PER_PTE])
 		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE])
@@ -665,14 +658,14 @@ static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
 	else if (bits)
 		page_reset_referenced(address);
 	/* Transfer page changed & referenced bit to guest bits in pgste */
-	pgste_val(pgste) |= bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
+	pgste_val(pgste) |= bits << 48;		/* GR bit & GC bit */
 	/* Get host changed & referenced bits from pgste */
-	bits |= (pgste_val(pgste) & (RCP_HR_BIT | RCP_HC_BIT)) >> 52;
+	bits |= (pgste_val(pgste) & (PGSTE_HR_BIT | PGSTE_HC_BIT)) >> 52;
 	/* Transfer page changed & referenced bit to kvm user bits */
-	pgste_val(pgste) |= bits << 45;		/* KVM_UR_BIT & KVM_UC_BIT */
+	pgste_val(pgste) |= bits << 45;		/* PGSTE_UR_BIT & PGSTE_UC_BIT */
 	/* Clear relevant host bits in pgste. */
-	pgste_val(pgste) &= ~(RCP_HR_BIT | RCP_HC_BIT);
-	pgste_val(pgste) &= ~(RCP_ACC_BITS | RCP_FP_BIT);
+	pgste_val(pgste) &= ~(PGSTE_HR_BIT | PGSTE_HC_BIT);
+	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT);
 	/* Copy page access key and fetch protection bit to pgste */
 	pgste_val(pgste) |=
 		(unsigned long) (skey & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
@@ -693,15 +686,15 @@ static inline pgste_t pgste_update_young(pte_t *ptep, pgste_t pgste)
 	/* Get referenced bit from storage key */
 	young = page_reset_referenced(pte_val(*ptep) & PAGE_MASK);
 	if (young)
-		pgste_val(pgste) |= RCP_GR_BIT;
+		pgste_val(pgste) |= PGSTE_GR_BIT;
 	/* Get host referenced bit from pgste */
-	if (pgste_val(pgste) & RCP_HR_BIT) {
-		pgste_val(pgste) &= ~RCP_HR_BIT;
+	if (pgste_val(pgste) & PGSTE_HR_BIT) {
+		pgste_val(pgste) &= ~PGSTE_HR_BIT;
 		young = 1;
 	}
 	/* Transfer referenced bit to kvm user bits and pte */
 	if (young) {
-		pgste_val(pgste) |= KVM_UR_BIT;
+		pgste_val(pgste) |= PGSTE_UR_BIT;
 		pte_val(*ptep) |= _PAGE_SWR;
 	}
 #endif
@@ -723,7 +716,7 @@ static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry)
 	 * The guest C/R information is still in the PGSTE, set real
 	 * key C/R to 0.
 	 */
-	nkey = (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
+	nkey = (pgste_val(pgste) & (PGSTE_ACC_BITS | PGSTE_FP_BIT)) >> 56;
 	page_set_storage_key(address, nkey, 0);
 #endif
 }
@@ -753,6 +746,7 @@ struct gmap {
 	struct mm_struct *mm;
 	unsigned long *table;
 	unsigned long asce;
+	void *private;
 	struct list_head crst_list;
 };
 
@@ -811,8 +805,8 @@ static inline pgste_t pgste_ipte_notify(struct mm_struct *mm,
 					pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	if (pgste_val(pgste) & RCP_IN_BIT) {
-		pgste_val(pgste) &= ~RCP_IN_BIT;
+	if (pgste_val(pgste) & PGSTE_IN_BIT) {
+		pgste_val(pgste) &= ~PGSTE_IN_BIT;
 		gmap_do_ipte_notify(mm, addr, ptep);
 	}
 #endif
@@ -980,8 +974,8 @@ static inline int ptep_test_and_clear_user_dirty(struct mm_struct *mm,
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
 		pgste = pgste_update_all(ptep, pgste);
-		dirty = !!(pgste_val(pgste) & KVM_UC_BIT);
-		pgste_val(pgste) &= ~KVM_UC_BIT;
+		dirty = !!(pgste_val(pgste) & PGSTE_UC_BIT);
+		pgste_val(pgste) &= ~PGSTE_UC_BIT;
 		pgste_set_unlock(ptep, pgste);
 		return dirty;
 	}
@@ -1000,8 +994,8 @@ static inline int ptep_test_and_clear_user_young(struct mm_struct *mm,
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
 		pgste = pgste_update_young(ptep, pgste);
-		young = !!(pgste_val(pgste) & KVM_UR_BIT);
-		pgste_val(pgste) &= ~KVM_UR_BIT;
+		young = !!(pgste_val(pgste) & PGSTE_UR_BIT);
+		pgste_val(pgste) &= ~PGSTE_UR_BIT;
 		pgste_set_unlock(ptep, pgste);
 	}
 	return young;
@@ -1370,10 +1364,11 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
-extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
+extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				       pgtable_t pgtable);
 
 #define __HAVE_ARCH_PGTABLE_WITHDRAW
-extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
+extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
 
 static inline int pmd_trans_splitting(pmd_t pmd)
 {

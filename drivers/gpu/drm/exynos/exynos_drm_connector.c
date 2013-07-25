@@ -34,7 +34,6 @@ convert_to_display_mode(struct drm_display_mode *mode,
 			struct exynos_drm_panel_info *panel)
 {
 	struct fb_videomode *timing = &panel->timing;
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	mode->clock = timing->pixclock / 1000;
 	mode->vrefresh = timing->refresh;
@@ -58,37 +57,6 @@ convert_to_display_mode(struct drm_display_mode *mode,
 		mode->flags |= DRM_MODE_FLAG_DBLSCAN;
 }
 
-/* convert drm_display_mode to exynos_video_timings */
-static inline void
-convert_to_video_timing(struct fb_videomode *timing,
-			struct drm_display_mode *mode)
-{
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	memset(timing, 0, sizeof(*timing));
-
-	timing->pixclock = mode->clock * 1000;
-	timing->refresh = drm_mode_vrefresh(mode);
-
-	timing->xres = mode->hdisplay;
-	timing->right_margin = mode->hsync_start - mode->hdisplay;
-	timing->hsync_len = mode->hsync_end - mode->hsync_start;
-	timing->left_margin = mode->htotal - mode->hsync_end;
-
-	timing->yres = mode->vdisplay;
-	timing->lower_margin = mode->vsync_start - mode->vdisplay;
-	timing->vsync_len = mode->vsync_end - mode->vsync_start;
-	timing->upper_margin = mode->vtotal - mode->vsync_end;
-
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		timing->vmode = FB_VMODE_INTERLACED;
-	else
-		timing->vmode = FB_VMODE_NONINTERLACED;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		timing->vmode |= FB_VMODE_DOUBLE;
-}
-
 static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 {
 	struct exynos_drm_connector *exynos_connector =
@@ -98,8 +66,6 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid = NULL;
 	unsigned int count = 0;
 	int ret;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (!display_ops) {
 		DRM_DEBUG_KMS("display_ops is null.\n");
@@ -168,15 +134,12 @@ static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 					to_exynos_connector(connector);
 	struct exynos_drm_manager *manager = exynos_connector->manager;
 	struct exynos_drm_display_ops *display_ops = manager->display_ops;
-	struct fb_videomode timing;
 	int ret = MODE_BAD;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	convert_to_video_timing(&timing, mode);
-
-	if (display_ops && display_ops->check_timing)
-		if (!display_ops->check_timing(manager->dev, (void *)&timing))
+	if (display_ops && display_ops->check_mode)
+		if (!display_ops->check_mode(manager->dev, mode))
 			ret = MODE_OK;
 
 	return ret;
@@ -189,8 +152,6 @@ struct drm_encoder *exynos_drm_best_encoder(struct drm_connector *connector)
 					to_exynos_connector(connector);
 	struct drm_mode_object *obj;
 	struct drm_encoder *encoder;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	obj = drm_mode_object_find(dev, exynos_connector->encoder_id,
 				   DRM_MODE_OBJECT_ENCODER);
@@ -234,8 +195,6 @@ void exynos_drm_display_power(struct drm_connector *connector, int mode)
 static void exynos_drm_connector_dpms(struct drm_connector *connector,
 					int mode)
 {
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	/*
 	 * in case that drm_crtc_helper_set_mode() is called,
 	 * encoder/crtc->funcs->dpms() will be just returned
@@ -282,8 +241,6 @@ exynos_drm_connector_detect(struct drm_connector *connector, bool force)
 					manager->display_ops;
 	enum drm_connector_status status = connector_status_disconnected;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	if (display_ops && display_ops->is_connected) {
 		if (display_ops->is_connected(manager->dev))
 			status = connector_status_connected;
@@ -298,8 +255,6 @@ static void exynos_drm_connector_destroy(struct drm_connector *connector)
 {
 	struct exynos_drm_connector *exynos_connector =
 		to_exynos_connector(connector);
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
@@ -321,8 +276,6 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 	struct drm_connector *connector;
 	int type;
 	int err;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_connector = kzalloc(sizeof(*exynos_connector), GFP_KERNEL);
 	if (!exynos_connector) {

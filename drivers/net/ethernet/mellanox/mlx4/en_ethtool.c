@@ -222,7 +222,12 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 	switch (sset) {
 	case ETH_SS_STATS:
 		return (priv->stats_bitmap ? bit_count : NUM_ALL_STATS) +
-			(priv->tx_ring_num + priv->rx_ring_num) * 2;
+			(priv->tx_ring_num * 2) +
+#ifdef CONFIG_NET_LL_RX_POLL
+			(priv->rx_ring_num * 5);
+#else
+			(priv->rx_ring_num * 2);
+#endif
 	case ETH_SS_TEST:
 		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.flags
 					& MLX4_DEV_CAP_FLAG_UC_LOOPBACK) * 2;
@@ -271,6 +276,11 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		data[index++] = priv->rx_ring[i].packets;
 		data[index++] = priv->rx_ring[i].bytes;
+#ifdef CONFIG_NET_LL_RX_POLL
+		data[index++] = priv->rx_ring[i].yields;
+		data[index++] = priv->rx_ring[i].misses;
+		data[index++] = priv->rx_ring[i].cleaned;
+#endif
 	}
 	spin_unlock_bh(&priv->stats_lock);
 
@@ -334,6 +344,14 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				"rx%d_packets", i);
 			sprintf(data + (index++) * ETH_GSTRING_LEN,
 				"rx%d_bytes", i);
+#ifdef CONFIG_NET_LL_RX_POLL
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"rx%d_napi_yield", i);
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"rx%d_misses", i);
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"rx%d_cleaned", i);
+#endif
 		}
 		break;
 	}

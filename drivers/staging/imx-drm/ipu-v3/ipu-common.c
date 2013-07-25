@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqdomain.h>
 #include <linux/of_device.h>
 
 #include "imx-ipu-v3.h"
@@ -799,16 +800,18 @@ err_di_0:
 static void ipu_irq_handle(struct ipu_soc *ipu, const int *regs, int num_regs)
 {
 	unsigned long status;
-	int i, bit, irq_base;
+	int i, bit, irq;
 
 	for (i = 0; i < num_regs; i++) {
 
 		status = ipu_cm_read(ipu, IPU_INT_STAT(regs[i]));
 		status &= ipu_cm_read(ipu, IPU_INT_CTRL(regs[i]));
 
-		irq_base = ipu->irq_start + regs[i] * 32;
-		for_each_set_bit(bit, &status, 32)
-			generic_handle_irq(irq_base + bit);
+		for_each_set_bit(bit, &status, 32) {
+			irq = irq_linear_revmap(ipu->domain, regs[i] * 32 + bit);
+			if (irq)
+				generic_handle_irq(irq);
+		}
 	}
 }
 
@@ -838,57 +841,15 @@ static void ipu_err_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void ipu_ack_irq(struct irq_data *d)
-{
-	struct ipu_soc *ipu = irq_data_get_irq_chip_data(d);
-	unsigned int irq = d->irq - ipu->irq_start;
-
-	ipu_cm_write(ipu, 1 << (irq % 32), IPU_INT_STAT(irq / 32));
-}
-
-static void ipu_unmask_irq(struct irq_data *d)
-{
-	struct ipu_soc *ipu = irq_data_get_irq_chip_data(d);
-	unsigned int irq = d->irq - ipu->irq_start;
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(&ipu->lock, flags);
-
-	reg = ipu_cm_read(ipu, IPU_INT_CTRL(irq / 32));
-	reg |= 1 << (irq % 32);
-	ipu_cm_write(ipu, reg, IPU_INT_CTRL(irq / 32));
-
-	spin_unlock_irqrestore(&ipu->lock, flags);
-}
-
-static void ipu_mask_irq(struct irq_data *d)
-{
-	struct ipu_soc *ipu = irq_data_get_irq_chip_data(d);
-	unsigned int irq = d->irq - ipu->irq_start;
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(&ipu->lock, flags);
-
-	reg = ipu_cm_read(ipu, IPU_INT_CTRL(irq / 32));
-	reg &= ~(1 << (irq % 32));
-	ipu_cm_write(ipu, reg, IPU_INT_CTRL(irq / 32));
-
-	spin_unlock_irqrestore(&ipu->lock, flags);
-}
-
-static struct irq_chip ipu_irq_chip = {
-	.name = "IPU",
-	.irq_ack = ipu_ack_irq,
-	.irq_mask = ipu_mask_irq,
-	.irq_unmask = ipu_unmask_irq,
-};
-
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 		enum ipu_channel_irq irq_type)
 {
-	return ipu->irq_start + irq_type + channel->num;
+	int irq = irq_linear_revmap(ipu->domain, irq_type + channel->num);
+
+	if (!irq)
+		irq = irq_create_mapping(ipu->domain, irq_type + channel->num);
+
+	return irq;
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_channel_irq);
 
@@ -975,18 +936,48 @@ err_register:
 	return ret;
 }
 
+
 static int ipu_irq_init(struct ipu_soc *ipu)
 {
-	int i;
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
+	unsigned long unused[IPU_NUM_IRQS / 32] = {
+		0x400100d0, 0xffe000fd,
+		0x400100d0, 0xffe000fd,
+		0x400100d0, 0xffe000fd,
+		0x4077ffff, 0xffe7e1fd,
+		0x23fffffe, 0x8880fff0,
+		0xf98fe7d0, 0xfff81fff,
+		0x400100d0, 0xffe000fd,
+		0x00000000,
+	};
+	int ret, i;
 
-	ipu->irq_start = irq_alloc_descs(-1, 0, IPU_NUM_IRQS, 0);
-	if (ipu->irq_start < 0)
-		return ipu->irq_start;
+	ipu->domain = irq_domain_add_linear(ipu->dev->of_node, IPU_NUM_IRQS,
+					    &irq_generic_chip_ops, ipu);
+	if (!ipu->domain) {
+		dev_err(ipu->dev, "failed to add irq domain\n");
+		return -ENODEV;
+	}
 
-	for (i = ipu->irq_start; i < ipu->irq_start + IPU_NUM_IRQS; i++) {
-		irq_set_chip_and_handler(i, &ipu_irq_chip, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
-		irq_set_chip_data(i, ipu);
+	ret = irq_alloc_domain_generic_chips(ipu->domain, 32, 1, "IPU",
+					     handle_level_irq, 0, IRQF_VALID, 0);
+	if (ret < 0) {
+		dev_err(ipu->dev, "failed to alloc generic irq chips\n");
+		irq_domain_remove(ipu->domain);
+		return ret;
+	}
+
+	for (i = 0; i < IPU_NUM_IRQS; i += 32) {
+		gc = irq_get_domain_generic_chip(ipu->domain, i);
+		gc->reg_base = ipu->cm_reg;
+		gc->unused = unused[i / 32];
+		ct = gc->chip_types;
+		ct->chip.irq_ack = irq_gc_ack_set_bit;
+		ct->chip.irq_mask = irq_gc_mask_clr_bit;
+		ct->chip.irq_unmask = irq_gc_mask_set_bit;
+		ct->regs.ack = IPU_INT_STAT(i / 32);
+		ct->regs.mask = IPU_INT_CTRL(i / 32);
 	}
 
 	irq_set_chained_handler(ipu->irq_sync, ipu_irq_handler);
@@ -999,20 +990,22 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 
 static void ipu_irq_exit(struct ipu_soc *ipu)
 {
-	int i;
+	int i, irq;
 
 	irq_set_chained_handler(ipu->irq_err, NULL);
 	irq_set_handler_data(ipu->irq_err, NULL);
 	irq_set_chained_handler(ipu->irq_sync, NULL);
 	irq_set_handler_data(ipu->irq_sync, NULL);
 
-	for (i = ipu->irq_start; i < ipu->irq_start + IPU_NUM_IRQS; i++) {
-		set_irq_flags(i, 0);
-		irq_set_chip(i, NULL);
-		irq_set_chip_data(i, NULL);
+	/* TODO: remove irq_domain_generic_chips */
+
+	for (i = 0; i < IPU_NUM_IRQS; i++) {
+		irq = irq_linear_revmap(ipu->domain, i);
+		if (irq)
+			irq_dispose_mapping(irq);
 	}
 
-	irq_free_descs(ipu->irq_start, IPU_NUM_IRQS);
+	irq_domain_remove(ipu->domain);
 }
 
 static int ipu_probe(struct platform_device *pdev)

@@ -26,22 +26,8 @@
 #define KEYS_PER_NODE (NODE_SIZE / sizeof(sector_t))
 #define CHILDREN_PER_NODE (KEYS_PER_NODE + 1)
 
-/*
- * The table has always exactly one reference from either mapped_device->map
- * or hash_cell->new_map. This reference is not counted in table->holders.
- * A pair of dm_create_table/dm_destroy_table functions is used for table
- * creation/destruction.
- *
- * Temporary references from the other code increase table->holders. A pair
- * of dm_table_get/dm_table_put functions is used to manipulate it.
- *
- * When the table is about to be destroyed, we wait for table->holders to
- * drop to zero.
- */
-
 struct dm_table {
 	struct mapped_device *md;
-	atomic_t holders;
 	unsigned type;
 
 	/* btree table */
@@ -208,7 +194,6 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 
 	INIT_LIST_HEAD(&t->devices);
 	INIT_LIST_HEAD(&t->target_callbacks);
-	atomic_set(&t->holders, 0);
 
 	if (!num_targets)
 		num_targets = KEYS_PER_NODE;
@@ -246,10 +231,6 @@ void dm_table_destroy(struct dm_table *t)
 	if (!t)
 		return;
 
-	while (atomic_read(&t->holders))
-		msleep(1);
-	smp_mb();
-
 	/* free the indexes */
 	if (t->depth >= 2)
 		vfree(t->index[t->depth - 2]);
@@ -273,22 +254,6 @@ void dm_table_destroy(struct dm_table *t)
 
 	kfree(t);
 }
-
-void dm_table_get(struct dm_table *t)
-{
-	atomic_inc(&t->holders);
-}
-EXPORT_SYMBOL(dm_table_get);
-
-void dm_table_put(struct dm_table *t)
-{
-	if (!t)
-		return;
-
-	smp_mb__before_atomic_dec();
-	atomic_dec(&t->holders);
-}
-EXPORT_SYMBOL(dm_table_put);
 
 /*
  * Checks to see if we need to extend highs or targets.

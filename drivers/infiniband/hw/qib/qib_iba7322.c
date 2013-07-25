@@ -44,6 +44,9 @@
 #include <linux/module.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_smi.h>
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+#include <linux/dca.h>
+#endif
 
 #include "qib.h"
 #include "qib_7322_regs.h"
@@ -80,6 +83,7 @@ static void ibsd_wr_allchans(struct qib_pportdata *, int, unsigned, unsigned);
 static void serdes_7322_los_enable(struct qib_pportdata *, int);
 static int serdes_7322_init_old(struct qib_pportdata *);
 static int serdes_7322_init_new(struct qib_pportdata *);
+static void dump_sdma_7322_state(struct qib_pportdata *);
 
 #define BMASK(msb, lsb) (((1 << ((msb) + 1 - (lsb))) - 1) << (lsb))
 
@@ -519,6 +523,14 @@ static const u8 qib_7322_physportstate[0x20] = {
 	[0x17] = IB_PHYSPORTSTATE_CFG_TRAIN
 };
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+struct qib_irq_notify {
+	int rcv;
+	void *arg;
+	struct irq_affinity_notify notify;
+};
+#endif
+
 struct qib_chip_specific {
 	u64 __iomem *cregbase;
 	u64 *cntrs;
@@ -546,6 +558,12 @@ struct qib_chip_specific {
 	u32 lastbuf_for_pio;
 	u32 stay_in_freeze;
 	u32 recovery_ports_initted;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	u32 dca_ctrl;
+	int rhdr_cpu[18];
+	int sdma_cpu[2];
+	u64 dca_rcvhdr_ctrl[5]; /* B, C, D, E, F */
+#endif
 	struct qib_msix_entry *msix_entries;
 	unsigned long *sendchkenable;
 	unsigned long *sendgrhchk;
@@ -573,7 +591,7 @@ struct vendor_txdds_ent {
 static void write_tx_serdes_param(struct qib_pportdata *, struct txdds_ent *);
 
 #define TXDDS_TABLE_SZ 16 /* number of entries per speed in onchip table */
-#define TXDDS_EXTRA_SZ 13 /* number of extra tx settings entries */
+#define TXDDS_EXTRA_SZ 18 /* number of extra tx settings entries */
 #define TXDDS_MFG_SZ 2    /* number of mfg tx settings entries */
 #define SERDES_CHANS 4 /* yes, it's obvious, but one less magic number */
 
@@ -635,6 +653,7 @@ struct qib_chippport_specific {
 	u8 ibmalfusesnap;
 	struct qib_qsfp_data qsfp_data;
 	char epmsgbuf[192]; /* for port error interrupt msg buffer */
+	char sdmamsgbuf[192]; /* for per-port sdma error messages */
 };
 
 static struct {
@@ -642,27 +661,75 @@ static struct {
 	irq_handler_t handler;
 	int lsb;
 	int port; /* 0 if not port-specific, else port # */
+	int dca;
 } irq_table[] = {
-	{ "", qib_7322intr, -1, 0 },
+	{ "", qib_7322intr, -1, 0, 0 },
 	{ " (buf avail)", qib_7322bufavail,
-		SYM_LSB(IntStatus, SendBufAvail), 0 },
+		SYM_LSB(IntStatus, SendBufAvail), 0, 0},
 	{ " (sdma 0)", sdma_intr,
-		SYM_LSB(IntStatus, SDmaInt_0), 1 },
+		SYM_LSB(IntStatus, SDmaInt_0), 1, 1 },
 	{ " (sdma 1)", sdma_intr,
-		SYM_LSB(IntStatus, SDmaInt_1), 2 },
+		SYM_LSB(IntStatus, SDmaInt_1), 2, 1 },
 	{ " (sdmaI 0)", sdma_idle_intr,
-		SYM_LSB(IntStatus, SDmaIdleInt_0), 1 },
+		SYM_LSB(IntStatus, SDmaIdleInt_0), 1, 1},
 	{ " (sdmaI 1)", sdma_idle_intr,
-		SYM_LSB(IntStatus, SDmaIdleInt_1), 2 },
+		SYM_LSB(IntStatus, SDmaIdleInt_1), 2, 1},
 	{ " (sdmaP 0)", sdma_progress_intr,
-		SYM_LSB(IntStatus, SDmaProgressInt_0), 1 },
+		SYM_LSB(IntStatus, SDmaProgressInt_0), 1, 1 },
 	{ " (sdmaP 1)", sdma_progress_intr,
-		SYM_LSB(IntStatus, SDmaProgressInt_1), 2 },
+		SYM_LSB(IntStatus, SDmaProgressInt_1), 2, 1 },
 	{ " (sdmaC 0)", sdma_cleanup_intr,
-		SYM_LSB(IntStatus, SDmaCleanupDone_0), 1 },
+		SYM_LSB(IntStatus, SDmaCleanupDone_0), 1, 0 },
 	{ " (sdmaC 1)", sdma_cleanup_intr,
-		SYM_LSB(IntStatus, SDmaCleanupDone_1), 2 },
+		SYM_LSB(IntStatus, SDmaCleanupDone_1), 2 , 0},
 };
+
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+
+static const struct dca_reg_map {
+	int     shadow_inx;
+	int     lsb;
+	u64     mask;
+	u16     regno;
+} dca_rcvhdr_reg_map[] = {
+	{ 0, SYM_LSB(DCACtrlB, RcvHdrq0DCAOPH),
+	   ~SYM_MASK(DCACtrlB, RcvHdrq0DCAOPH) , KREG_IDX(DCACtrlB) },
+	{ 0, SYM_LSB(DCACtrlB, RcvHdrq1DCAOPH),
+	   ~SYM_MASK(DCACtrlB, RcvHdrq1DCAOPH) , KREG_IDX(DCACtrlB) },
+	{ 0, SYM_LSB(DCACtrlB, RcvHdrq2DCAOPH),
+	   ~SYM_MASK(DCACtrlB, RcvHdrq2DCAOPH) , KREG_IDX(DCACtrlB) },
+	{ 0, SYM_LSB(DCACtrlB, RcvHdrq3DCAOPH),
+	   ~SYM_MASK(DCACtrlB, RcvHdrq3DCAOPH) , KREG_IDX(DCACtrlB) },
+	{ 1, SYM_LSB(DCACtrlC, RcvHdrq4DCAOPH),
+	   ~SYM_MASK(DCACtrlC, RcvHdrq4DCAOPH) , KREG_IDX(DCACtrlC) },
+	{ 1, SYM_LSB(DCACtrlC, RcvHdrq5DCAOPH),
+	   ~SYM_MASK(DCACtrlC, RcvHdrq5DCAOPH) , KREG_IDX(DCACtrlC) },
+	{ 1, SYM_LSB(DCACtrlC, RcvHdrq6DCAOPH),
+	   ~SYM_MASK(DCACtrlC, RcvHdrq6DCAOPH) , KREG_IDX(DCACtrlC) },
+	{ 1, SYM_LSB(DCACtrlC, RcvHdrq7DCAOPH),
+	   ~SYM_MASK(DCACtrlC, RcvHdrq7DCAOPH) , KREG_IDX(DCACtrlC) },
+	{ 2, SYM_LSB(DCACtrlD, RcvHdrq8DCAOPH),
+	   ~SYM_MASK(DCACtrlD, RcvHdrq8DCAOPH) , KREG_IDX(DCACtrlD) },
+	{ 2, SYM_LSB(DCACtrlD, RcvHdrq9DCAOPH),
+	   ~SYM_MASK(DCACtrlD, RcvHdrq9DCAOPH) , KREG_IDX(DCACtrlD) },
+	{ 2, SYM_LSB(DCACtrlD, RcvHdrq10DCAOPH),
+	   ~SYM_MASK(DCACtrlD, RcvHdrq10DCAOPH) , KREG_IDX(DCACtrlD) },
+	{ 2, SYM_LSB(DCACtrlD, RcvHdrq11DCAOPH),
+	   ~SYM_MASK(DCACtrlD, RcvHdrq11DCAOPH) , KREG_IDX(DCACtrlD) },
+	{ 3, SYM_LSB(DCACtrlE, RcvHdrq12DCAOPH),
+	   ~SYM_MASK(DCACtrlE, RcvHdrq12DCAOPH) , KREG_IDX(DCACtrlE) },
+	{ 3, SYM_LSB(DCACtrlE, RcvHdrq13DCAOPH),
+	   ~SYM_MASK(DCACtrlE, RcvHdrq13DCAOPH) , KREG_IDX(DCACtrlE) },
+	{ 3, SYM_LSB(DCACtrlE, RcvHdrq14DCAOPH),
+	   ~SYM_MASK(DCACtrlE, RcvHdrq14DCAOPH) , KREG_IDX(DCACtrlE) },
+	{ 3, SYM_LSB(DCACtrlE, RcvHdrq15DCAOPH),
+	   ~SYM_MASK(DCACtrlE, RcvHdrq15DCAOPH) , KREG_IDX(DCACtrlE) },
+	{ 4, SYM_LSB(DCACtrlF, RcvHdrq16DCAOPH),
+	   ~SYM_MASK(DCACtrlF, RcvHdrq16DCAOPH) , KREG_IDX(DCACtrlF) },
+	{ 4, SYM_LSB(DCACtrlF, RcvHdrq17DCAOPH),
+	   ~SYM_MASK(DCACtrlF, RcvHdrq17DCAOPH) , KREG_IDX(DCACtrlF) },
+};
+#endif
 
 /* ibcctrl bits */
 #define QLOGIC_IB_IBCC_LINKINITCMD_DISABLE 1
@@ -686,6 +753,13 @@ static void write_7322_init_portregs(struct qib_pportdata *);
 static void setup_7322_link_recovery(struct qib_pportdata *, u32);
 static void check_7322_rxe_status(struct qib_pportdata *);
 static u32 __iomem *qib_7322_getsendbuf(struct qib_pportdata *, u64, u32 *);
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+static void qib_setup_dca(struct qib_devdata *dd);
+static void setup_dca_notifier(struct qib_devdata *dd,
+			       struct qib_msix_entry *m);
+static void reset_dca_notifier(struct qib_devdata *dd,
+			       struct qib_msix_entry *m);
+#endif
 
 /**
  * qib_read_ureg32 - read 32-bit virtualized per-context register
@@ -1529,6 +1603,15 @@ static void sdma_7322_p_errors(struct qib_pportdata *ppd, u64 errs)
 
 	spin_lock_irqsave(&ppd->sdma_lock, flags);
 
+	if (errs != QIB_E_P_SDMAHALT) {
+		/* SDMA errors have QIB_E_P_SDMAHALT and another bit set */
+		qib_dev_porterr(dd, ppd->port,
+			"SDMA %s 0x%016llx %s\n",
+			qib_sdma_state_names[ppd->sdma_state.current_state],
+			errs, ppd->cpspec->sdmamsgbuf);
+		dump_sdma_7322_state(ppd);
+	}
+
 	switch (ppd->sdma_state.current_state) {
 	case qib_sdma_state_s00_hw_down:
 		break;
@@ -2084,6 +2167,29 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 
 	qib_dev_err(dd, "%s hardware error\n", msg);
 
+	if (hwerrs &
+		   (SYM_MASK(HwErrMask, SDmaMemReadErrMask_0) |
+		    SYM_MASK(HwErrMask, SDmaMemReadErrMask_1))) {
+		int pidx = 0;
+		int err;
+		unsigned long flags;
+		struct qib_pportdata *ppd = dd->pport;
+		for (; pidx < dd->num_pports; ++pidx, ppd++) {
+			err = 0;
+			if (pidx == 0 && (hwerrs &
+				SYM_MASK(HwErrMask, SDmaMemReadErrMask_0)))
+				err++;
+			if (pidx == 1 && (hwerrs &
+				SYM_MASK(HwErrMask, SDmaMemReadErrMask_1)))
+				err++;
+			if (err) {
+				spin_lock_irqsave(&ppd->sdma_lock, flags);
+				dump_sdma_7322_state(ppd);
+				spin_unlock_irqrestore(&ppd->sdma_lock, flags);
+			}
+		}
+	}
+
 	if (isfatal && !dd->diag_client) {
 		qib_dev_err(dd,
 			"Fatal Hardware Error, no longer usable, SN %.16s\n",
@@ -2558,6 +2664,162 @@ static void qib_setup_7322_setextled(struct qib_pportdata *ppd, u32 on)
 		qib_write_kreg_port(ppd, krp_rcvpktledcnt, ledblink);
 }
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+
+static int qib_7322_notify_dca(struct qib_devdata *dd, unsigned long event)
+{
+	switch (event) {
+	case DCA_PROVIDER_ADD:
+		if (dd->flags & QIB_DCA_ENABLED)
+			break;
+		if (!dca_add_requester(&dd->pcidev->dev)) {
+			qib_devinfo(dd->pcidev, "DCA enabled\n");
+			dd->flags |= QIB_DCA_ENABLED;
+			qib_setup_dca(dd);
+		}
+		break;
+	case DCA_PROVIDER_REMOVE:
+		if (dd->flags & QIB_DCA_ENABLED) {
+			dca_remove_requester(&dd->pcidev->dev);
+			dd->flags &= ~QIB_DCA_ENABLED;
+			dd->cspec->dca_ctrl = 0;
+			qib_write_kreg(dd, KREG_IDX(DCACtrlA),
+				dd->cspec->dca_ctrl);
+		}
+		break;
+	}
+	return 0;
+}
+
+static void qib_update_rhdrq_dca(struct qib_ctxtdata *rcd, int cpu)
+{
+	struct qib_devdata *dd = rcd->dd;
+	struct qib_chip_specific *cspec = dd->cspec;
+
+	if (!(dd->flags & QIB_DCA_ENABLED))
+		return;
+	if (cspec->rhdr_cpu[rcd->ctxt] != cpu) {
+		const struct dca_reg_map *rmp;
+
+		cspec->rhdr_cpu[rcd->ctxt] = cpu;
+		rmp = &dca_rcvhdr_reg_map[rcd->ctxt];
+		cspec->dca_rcvhdr_ctrl[rmp->shadow_inx] &= rmp->mask;
+		cspec->dca_rcvhdr_ctrl[rmp->shadow_inx] |=
+			(u64) dca3_get_tag(&dd->pcidev->dev, cpu) << rmp->lsb;
+		qib_devinfo(dd->pcidev,
+			"Ctxt %d cpu %d dca %llx\n", rcd->ctxt, cpu,
+			(long long) cspec->dca_rcvhdr_ctrl[rmp->shadow_inx]);
+		qib_write_kreg(dd, rmp->regno,
+			       cspec->dca_rcvhdr_ctrl[rmp->shadow_inx]);
+		cspec->dca_ctrl |= SYM_MASK(DCACtrlA, RcvHdrqDCAEnable);
+		qib_write_kreg(dd, KREG_IDX(DCACtrlA), cspec->dca_ctrl);
+	}
+}
+
+static void qib_update_sdma_dca(struct qib_pportdata *ppd, int cpu)
+{
+	struct qib_devdata *dd = ppd->dd;
+	struct qib_chip_specific *cspec = dd->cspec;
+	unsigned pidx = ppd->port - 1;
+
+	if (!(dd->flags & QIB_DCA_ENABLED))
+		return;
+	if (cspec->sdma_cpu[pidx] != cpu) {
+		cspec->sdma_cpu[pidx] = cpu;
+		cspec->dca_rcvhdr_ctrl[4] &= ~(ppd->hw_pidx ?
+			SYM_MASK(DCACtrlF, SendDma1DCAOPH) :
+			SYM_MASK(DCACtrlF, SendDma0DCAOPH));
+		cspec->dca_rcvhdr_ctrl[4] |=
+			(u64) dca3_get_tag(&dd->pcidev->dev, cpu) <<
+				(ppd->hw_pidx ?
+					SYM_LSB(DCACtrlF, SendDma1DCAOPH) :
+					SYM_LSB(DCACtrlF, SendDma0DCAOPH));
+		qib_devinfo(dd->pcidev,
+			"sdma %d cpu %d dca %llx\n", ppd->hw_pidx, cpu,
+			(long long) cspec->dca_rcvhdr_ctrl[4]);
+		qib_write_kreg(dd, KREG_IDX(DCACtrlF),
+			       cspec->dca_rcvhdr_ctrl[4]);
+		cspec->dca_ctrl |= ppd->hw_pidx ?
+			SYM_MASK(DCACtrlA, SendDMAHead1DCAEnable) :
+			SYM_MASK(DCACtrlA, SendDMAHead0DCAEnable);
+		qib_write_kreg(dd, KREG_IDX(DCACtrlA), cspec->dca_ctrl);
+	}
+}
+
+static void qib_setup_dca(struct qib_devdata *dd)
+{
+	struct qib_chip_specific *cspec = dd->cspec;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cspec->rhdr_cpu); i++)
+		cspec->rhdr_cpu[i] = -1;
+	for (i = 0; i < ARRAY_SIZE(cspec->sdma_cpu); i++)
+		cspec->sdma_cpu[i] = -1;
+	cspec->dca_rcvhdr_ctrl[0] =
+		(1ULL << SYM_LSB(DCACtrlB, RcvHdrq0DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlB, RcvHdrq1DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlB, RcvHdrq2DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlB, RcvHdrq3DCAXfrCnt));
+	cspec->dca_rcvhdr_ctrl[1] =
+		(1ULL << SYM_LSB(DCACtrlC, RcvHdrq4DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlC, RcvHdrq5DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlC, RcvHdrq6DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlC, RcvHdrq7DCAXfrCnt));
+	cspec->dca_rcvhdr_ctrl[2] =
+		(1ULL << SYM_LSB(DCACtrlD, RcvHdrq8DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlD, RcvHdrq9DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlD, RcvHdrq10DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlD, RcvHdrq11DCAXfrCnt));
+	cspec->dca_rcvhdr_ctrl[3] =
+		(1ULL << SYM_LSB(DCACtrlE, RcvHdrq12DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlE, RcvHdrq13DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlE, RcvHdrq14DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlE, RcvHdrq15DCAXfrCnt));
+	cspec->dca_rcvhdr_ctrl[4] =
+		(1ULL << SYM_LSB(DCACtrlF, RcvHdrq16DCAXfrCnt)) |
+		(1ULL << SYM_LSB(DCACtrlF, RcvHdrq17DCAXfrCnt));
+	for (i = 0; i < ARRAY_SIZE(cspec->sdma_cpu); i++)
+		qib_write_kreg(dd, KREG_IDX(DCACtrlB) + i,
+			       cspec->dca_rcvhdr_ctrl[i]);
+	for (i = 0; i < cspec->num_msix_entries; i++)
+		setup_dca_notifier(dd, &cspec->msix_entries[i]);
+}
+
+static void qib_irq_notifier_notify(struct irq_affinity_notify *notify,
+			     const cpumask_t *mask)
+{
+	struct qib_irq_notify *n =
+		container_of(notify, struct qib_irq_notify, notify);
+	int cpu = cpumask_first(mask);
+
+	if (n->rcv) {
+		struct qib_ctxtdata *rcd = (struct qib_ctxtdata *)n->arg;
+		qib_update_rhdrq_dca(rcd, cpu);
+	} else {
+		struct qib_pportdata *ppd = (struct qib_pportdata *)n->arg;
+		qib_update_sdma_dca(ppd, cpu);
+	}
+}
+
+static void qib_irq_notifier_release(struct kref *ref)
+{
+	struct qib_irq_notify *n =
+		container_of(ref, struct qib_irq_notify, notify.kref);
+	struct qib_devdata *dd;
+
+	if (n->rcv) {
+		struct qib_ctxtdata *rcd = (struct qib_ctxtdata *)n->arg;
+		dd = rcd->dd;
+	} else {
+		struct qib_pportdata *ppd = (struct qib_pportdata *)n->arg;
+		dd = ppd->dd;
+	}
+	qib_devinfo(dd->pcidev,
+		"release on HCA notify 0x%p n 0x%p\n", ref, n);
+	kfree(n);
+}
+#endif
+
 /*
  * Disable MSIx interrupt if enabled, call generic MSIx code
  * to cleanup, and clear pending MSIx interrupts.
@@ -2575,6 +2837,9 @@ static void qib_7322_nomsix(struct qib_devdata *dd)
 
 		dd->cspec->num_msix_entries = 0;
 		for (i = 0; i < n; i++) {
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+			reset_dca_notifier(dd, &dd->cspec->msix_entries[i]);
+#endif
 			irq_set_affinity_hint(
 			  dd->cspec->msix_entries[i].msix.vector, NULL);
 			free_cpumask_var(dd->cspec->msix_entries[i].mask);
@@ -2601,6 +2866,15 @@ static void qib_7322_free_irq(struct qib_devdata *dd)
 static void qib_setup_7322_cleanup(struct qib_devdata *dd)
 {
 	int i;
+
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	if (dd->flags & QIB_DCA_ENABLED) {
+		dca_remove_requester(&dd->pcidev->dev);
+		dd->flags &= ~QIB_DCA_ENABLED;
+		dd->cspec->dca_ctrl = 0;
+		qib_write_kreg(dd, KREG_IDX(DCACtrlA), dd->cspec->dca_ctrl);
+	}
+#endif
 
 	qib_7322_free_irq(dd);
 	kfree(dd->cspec->cntrs);
@@ -3068,6 +3342,53 @@ static irqreturn_t sdma_cleanup_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+
+static void reset_dca_notifier(struct qib_devdata *dd, struct qib_msix_entry *m)
+{
+	if (!m->dca)
+		return;
+	qib_devinfo(dd->pcidev,
+		"Disabling notifier on HCA %d irq %d\n",
+		dd->unit,
+		m->msix.vector);
+	irq_set_affinity_notifier(
+		m->msix.vector,
+		NULL);
+	m->notifier = NULL;
+}
+
+static void setup_dca_notifier(struct qib_devdata *dd, struct qib_msix_entry *m)
+{
+	struct qib_irq_notify *n;
+
+	if (!m->dca)
+		return;
+	n = kzalloc(sizeof(*n), GFP_KERNEL);
+	if (n) {
+		int ret;
+
+		m->notifier = n;
+		n->notify.irq = m->msix.vector;
+		n->notify.notify = qib_irq_notifier_notify;
+		n->notify.release = qib_irq_notifier_release;
+		n->arg = m->arg;
+		n->rcv = m->rcv;
+		qib_devinfo(dd->pcidev,
+			"set notifier irq %d rcv %d notify %p\n",
+			n->notify.irq, n->rcv, &n->notify);
+		ret = irq_set_affinity_notifier(
+				n->notify.irq,
+				&n->notify);
+		if (ret) {
+			m->notifier = NULL;
+			kfree(n);
+		}
+	}
+}
+
+#endif
+
 /*
  * Set up our chip-specific interrupt handler.
  * The interrupt type has already been setup, so
@@ -3149,6 +3470,9 @@ try_intx:
 		void *arg;
 		u64 val;
 		int lsb, reg, sh;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+		int dca = 0;
+#endif
 
 		dd->cspec->msix_entries[msixnum].
 			name[sizeof(dd->cspec->msix_entries[msixnum].name) - 1]
@@ -3161,6 +3485,9 @@ try_intx:
 				arg = dd->pport + irq_table[i].port - 1;
 			} else
 				arg = dd;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+			dca = irq_table[i].dca;
+#endif
 			lsb = irq_table[i].lsb;
 			handler = irq_table[i].handler;
 			snprintf(dd->cspec->msix_entries[msixnum].name,
@@ -3178,6 +3505,9 @@ try_intx:
 				continue;
 			if (qib_krcvq01_no_msi && ctxt < 2)
 				continue;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+			dca = 1;
+#endif
 			lsb = QIB_I_RCVAVAIL_LSB + ctxt;
 			handler = qib_7322pintr;
 			snprintf(dd->cspec->msix_entries[msixnum].name,
@@ -3203,6 +3533,11 @@ try_intx:
 			goto try_intx;
 		}
 		dd->cspec->msix_entries[msixnum].arg = arg;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+		dd->cspec->msix_entries[msixnum].dca = dca;
+		dd->cspec->msix_entries[msixnum].rcv =
+			handler == qib_7322pintr;
+#endif
 		if (lsb >= 0) {
 			reg = lsb / IBA7322_REDIRECT_VEC_PER_REG;
 			sh = (lsb % IBA7322_REDIRECT_VEC_PER_REG) *
@@ -6452,6 +6787,86 @@ static void qib_sdma_set_7322_desc_cnt(struct qib_pportdata *ppd, unsigned cnt)
 	qib_write_kreg_port(ppd, krp_senddmadesccnt, cnt);
 }
 
+/*
+ * sdma_lock should be acquired before calling this routine
+ */
+static void dump_sdma_7322_state(struct qib_pportdata *ppd)
+{
+	u64 reg, reg1, reg2;
+
+	reg = qib_read_kreg_port(ppd, krp_senddmastatus);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmastatus: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_sendctrl);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA sendctrl: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmabase);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmabase: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmabufmask0);
+	reg1 = qib_read_kreg_port(ppd, krp_senddmabufmask1);
+	reg2 = qib_read_kreg_port(ppd, krp_senddmabufmask2);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmabufmask 0:%llx  1:%llx  2:%llx\n",
+		 reg, reg1, reg2);
+
+	/* get bufuse bits, clear them, and print them again if non-zero */
+	reg = qib_read_kreg_port(ppd, krp_senddmabuf_use0);
+	qib_write_kreg_port(ppd, krp_senddmabuf_use0, reg);
+	reg1 = qib_read_kreg_port(ppd, krp_senddmabuf_use1);
+	qib_write_kreg_port(ppd, krp_senddmabuf_use0, reg1);
+	reg2 = qib_read_kreg_port(ppd, krp_senddmabuf_use2);
+	qib_write_kreg_port(ppd, krp_senddmabuf_use0, reg2);
+	/* 0 and 1 should always be zero, so print as short form */
+	qib_dev_porterr(ppd->dd, ppd->port,
+		 "SDMA current senddmabuf_use 0:%llx  1:%llx  2:%llx\n",
+		 reg, reg1, reg2);
+	reg = qib_read_kreg_port(ppd, krp_senddmabuf_use0);
+	reg1 = qib_read_kreg_port(ppd, krp_senddmabuf_use1);
+	reg2 = qib_read_kreg_port(ppd, krp_senddmabuf_use2);
+	/* 0 and 1 should always be zero, so print as short form */
+	qib_dev_porterr(ppd->dd, ppd->port,
+		 "SDMA cleared senddmabuf_use 0:%llx  1:%llx  2:%llx\n",
+		 reg, reg1, reg2);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmatail);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmatail: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmahead);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmahead: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmaheadaddr);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmaheadaddr: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmalengen);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmalengen: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmadesccnt);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmadesccnt: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmaidlecnt);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmaidlecnt: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmaprioritythld);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmapriorityhld: 0x%016llx\n", reg);
+
+	reg = qib_read_kreg_port(ppd, krp_senddmareloadcnt);
+	qib_dev_porterr(ppd->dd, ppd->port,
+		"SDMA senddmareloadcnt: 0x%016llx\n", reg);
+
+	dump_sdma_state(ppd);
+}
+
 static struct sdma_set_state_action sdma_7322_action_table[] = {
 	[qib_sdma_state_s00_hw_down] = {
 		.go_s99_running_tofalse = 1,
@@ -6885,6 +7300,9 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 	dd->f_sdma_init_early   = qib_7322_sdma_init_early;
 	dd->f_writescratch      = writescratch;
 	dd->f_tempsense_rd	= qib_7322_tempsense_rd;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dd->f_notify_dca	= qib_7322_notify_dca;
+#endif
 	/*
 	 * Do remaining PCIe setup and save PCIe values in dd.
 	 * Any error printing is already done by the init code.
@@ -6921,7 +7339,7 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 		actual_cnt -= dd->num_pports;
 
 	tabsize = actual_cnt;
-	dd->cspec->msix_entries = kmalloc(tabsize *
+	dd->cspec->msix_entries = kzalloc(tabsize *
 			sizeof(struct qib_msix_entry), GFP_KERNEL);
 	if (!dd->cspec->msix_entries) {
 		qib_dev_err(dd, "No memory for MSIx table\n");
@@ -6941,7 +7359,13 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 
 	/* clear diagctrl register, in case diags were running and crashed */
 	qib_write_kreg(dd, kr_hwdiagctrl, 0);
-
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	if (!dca_add_requester(&pdev->dev)) {
+		qib_devinfo(dd->pcidev, "DCA enabled\n");
+		dd->flags |= QIB_DCA_ENABLED;
+		qib_setup_dca(dd);
+	}
+#endif
 	goto bail;
 
 bail_cleanup:
@@ -7156,15 +7580,20 @@ static const struct txdds_ent txdds_extra_sdr[TXDDS_EXTRA_SZ] = {
 	{  0, 0, 0,  1 },	/* QMH7342 backplane settings */
 	{  0, 0, 0,  2 },	/* QMH7342 backplane settings */
 	{  0, 0, 0,  2 },	/* QMH7342 backplane settings */
-	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 11 },	/* QME7342 backplane settings */
 	{  0, 0, 0,  3 },	/* QMH7342 backplane settings */
 	{  0, 0, 0,  4 },	/* QMH7342 backplane settings */
+	{  0, 1, 4, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 3, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0, 12 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0, 11 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0,  9 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0, 14 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 2, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0, 11 },       /* QME7342 backplane settings 1.1 */
+	{  0, 1, 0,  7 },       /* QME7342 backplane settings 1.1 */
+	{  0, 1, 0,  9 },       /* QME7342 backplane settings 1.1 */
+	{  0, 1, 0,  6 },       /* QME7342 backplane settings 1.1 */
+	{  0, 1, 0,  8 },       /* QME7342 backplane settings 1.1 */
 };
 
 static const struct txdds_ent txdds_extra_ddr[TXDDS_EXTRA_SZ] = {
@@ -7173,15 +7602,20 @@ static const struct txdds_ent txdds_extra_ddr[TXDDS_EXTRA_SZ] = {
 	{  0, 0, 0,  7 },	/* QMH7342 backplane settings */
 	{  0, 0, 0,  8 },	/* QMH7342 backplane settings */
 	{  0, 0, 0,  8 },	/* QMH7342 backplane settings */
-	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
-	{  0, 0, 0, 13 },	/* QME7342 backplane settings */
 	{  0, 0, 0,  9 },	/* QMH7342 backplane settings */
 	{  0, 0, 0, 10 },	/* QMH7342 backplane settings */
+	{  0, 1, 4, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 3, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0, 12 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0, 11 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0,  9 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0, 14 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 2, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1, 0, 11 },       /* QME7342 backplane settings 1.1 */
+	{  0, 1, 0,  7 },       /* QME7342 backplane settings 1.1 */
+	{  0, 1, 0,  9 },       /* QME7342 backplane settings 1.1 */
+	{  0, 1, 0,  6 },       /* QME7342 backplane settings 1.1 */
+	{  0, 1, 0,  8 },       /* QME7342 backplane settings 1.1 */
 };
 
 static const struct txdds_ent txdds_extra_qdr[TXDDS_EXTRA_SZ] = {
@@ -7190,15 +7624,20 @@ static const struct txdds_ent txdds_extra_qdr[TXDDS_EXTRA_SZ] = {
 	{  0, 1,  0,  5 },	/* QMH7342 backplane settings */
 	{  0, 1,  0,  6 },	/* QMH7342 backplane settings */
 	{  0, 1,  0,  8 },	/* QMH7342 backplane settings */
-	{  0, 1, 12, 10 },	/* QME7342 backplane setting */
-	{  0, 1, 12, 11 },	/* QME7342 backplane setting */
-	{  0, 1, 12, 12 },	/* QME7342 backplane setting */
-	{  0, 1, 12, 14 },	/* QME7342 backplane setting */
-	{  0, 1, 12,  6 },	/* QME7342 backplane setting */
-	{  0, 1, 12,  7 },	/* QME7342 backplane setting */
-	{  0, 1, 12,  8 },	/* QME7342 backplane setting */
 	{  0, 1,  0, 10 },	/* QMH7342 backplane settings */
 	{  0, 1,  0, 12 },	/* QMH7342 backplane settings */
+	{  0, 1,  4, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1,  3, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1,  0, 12 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1,  0, 11 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1,  0,  9 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1,  0, 14 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1,  2, 15 },	/* QME7342 backplane settings 1.0 */
+	{  0, 1,  0, 11 },      /* QME7342 backplane settings 1.1 */
+	{  0, 1,  0,  7 },      /* QME7342 backplane settings 1.1 */
+	{  0, 1,  0,  9 },      /* QME7342 backplane settings 1.1 */
+	{  0, 1,  0,  6 },      /* QME7342 backplane settings 1.1 */
+	{  0, 1,  0,  8 },      /* QME7342 backplane settings 1.1 */
 };
 
 static const struct txdds_ent txdds_extra_mfg[TXDDS_MFG_SZ] = {

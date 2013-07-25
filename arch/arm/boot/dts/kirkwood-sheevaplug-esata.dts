@@ -1,0 +1,43 @@
+/*
+ * kirkwood-sheevaplug-esata.dts - Device tree file for eSATA Sheevaplug
+ *
+ * Copyright (C) 2013 Simon Baatz <gmbnomis@gmail.com>
+ *
+ * Licensed under GPLv2
+ */
+
+/dts-v1/;
+
+/include/ "kirkwood-sheevaplug-common.dtsi"
+
+/ {
+	model = "Globalscale Technologies eSATA SheevaPlug";
+	compatible = "globalscale,sheevaplug-esata-rev13", "globalscale,sheevaplug-esata", "globalscale,sheevaplug", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	ocp@f1000000 {
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+		mvsdio@90000 {
+			pinctrl-0 = <&pmx_sdio &pmx_sdio_cd &pmx_sdio_wp>;
+			pinctrl-names = "default";
+			status = "okay";
+			cd-gpios = <&gpio1 12 1>;
+			wp-gpios = <&gpio1 15 0>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_blue>;
+		pinctrl-names = "default";
+
+		health {
+			label = "sheevaplug:blue:health";
+			gpios = <&gpio1 17 1>;
+			linux,default-trigger = "default-on";
+		};
+	};
+};

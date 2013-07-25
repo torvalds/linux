@@ -359,7 +359,7 @@ static int ehrpwm_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	configure_polarity(pc, pwm->hwpwm);
 
 	/* Enable TBCLK before enabling PWM device */
-	ret = clk_prepare_enable(pc->tbclk);
+	ret = clk_enable(pc->tbclk);
 	if (ret) {
 		pr_err("Failed to enable TBCLK for %s\n",
 				dev_name(pc->chip.dev));
@@ -395,7 +395,7 @@ static void ehrpwm_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	ehrpwm_modify(pc->mmio_base, AQCSFRC, aqcsfrc_mask, aqcsfrc_val);
 
 	/* Disabling TBCLK on PWM disable */
-	clk_disable_unprepare(pc->tbclk);
+	clk_disable(pc->tbclk);
 
 	/* Stop Time base counter */
 	ehrpwm_modify(pc->mmio_base, TBCTL, TBCTL_RUN_MASK, TBCTL_STOP_NEXT);
@@ -482,6 +482,12 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(pc->tbclk);
 	}
 
+	ret = clk_prepare(pc->tbclk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "clk_prepare() failed: %d\n", ret);
+		return ret;
+	}
+
 	ret = pwmchip_add(&pc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
@@ -508,12 +514,15 @@ pwmss_clk_failure:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pwmchip_remove(&pc->chip);
+	clk_unprepare(pc->tbclk);
 	return ret;
 }
 
 static int ehrpwm_pwm_remove(struct platform_device *pdev)
 {
 	struct ehrpwm_pwm_chip *pc = platform_get_drvdata(pdev);
+
+	clk_unprepare(pc->tbclk);
 
 	pm_runtime_get_sync(&pdev->dev);
 	/*

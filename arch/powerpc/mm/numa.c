@@ -516,7 +516,7 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
  * Figure out to which domain a cpu belongs and stick it there.
  * Return the id of the domain used.
  */
-static int __cpuinit numa_setup_cpu(unsigned long lcpu)
+static int numa_setup_cpu(unsigned long lcpu)
 {
 	int nid = 0;
 	struct device_node *cpu = of_get_cpu_node(lcpu, NULL);
@@ -538,8 +538,7 @@ out:
 	return nid;
 }
 
-static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
-			     unsigned long action,
+static int cpu_numa_callback(struct notifier_block *nfb, unsigned long action,
 			     void *hcpu)
 {
 	unsigned long lcpu = (unsigned long)hcpu;
@@ -919,7 +918,7 @@ static void __init *careful_zallocation(int nid, unsigned long size,
 	return ret;
 }
 
-static struct notifier_block __cpuinitdata ppc64_numa_nb = {
+static struct notifier_block ppc64_numa_nb = {
 	.notifier_call = cpu_numa_callback,
 	.priority = 1 /* Must run before sched domains notifier. */
 };
@@ -1433,11 +1432,9 @@ static int update_cpu_topology(void *data)
 		if (cpu != update->cpu)
 			continue;
 
-		unregister_cpu_under_node(update->cpu, update->old_nid);
 		unmap_cpu_from_node(update->cpu);
 		map_cpu_to_node(update->cpu, update->new_nid);
 		vdso_getcpu_init();
-		register_cpu_under_node(update->cpu, update->new_nid);
 	}
 
 	return 0;
@@ -1485,6 +1482,9 @@ int arch_update_cpu_topology(void)
 	stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
 
 	for (ud = &updates[0]; ud; ud = ud->next) {
+		unregister_cpu_under_node(ud->cpu, ud->old_nid);
+		register_cpu_under_node(ud->cpu, ud->new_nid);
+
 		dev = get_cpu_device(ud->cpu);
 		if (dev)
 			kobject_uevent(&dev->kobj, KOBJ_CHANGE);

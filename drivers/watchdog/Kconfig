@@ -221,15 +221,6 @@ config DW_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called dw_wdt.
 
-config MPCORE_WATCHDOG
-	tristate "MPcore watchdog"
-	depends on HAVE_ARM_TWD
-	help
-	  Watchdog timer embedded into the MPcore system.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mpcore_wdt.
-
 config EP93XX_WATCHDOG
 	tristate "EP93xx Watchdog"
 	depends on ARCH_EP93XX
@@ -291,7 +282,7 @@ config DAVINCI_WATCHDOG
 
 config ORION_WATCHDOG
 	tristate "Orion watchdog"
-	depends on ARCH_ORION5X || ARCH_KIRKWOOD
+	depends on ARCH_ORION5X || ARCH_KIRKWOOD || ARCH_DOVE
 	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer
@@ -687,6 +678,17 @@ config HP_WATCHDOG
 	  To compile this driver as a module, choose M here: the module will be
 	  called hpwdt.
 
+config KEMPLD_WDT
+	tristate "Kontron COM Watchdog Timer"
+	depends on MFD_KEMPLD
+	select WATCHDOG_CORE
+	help
+	  Support for the PLD watchdog on some Kontron ETX and COMexpress
+	  (ETXexpress) modules
+
+	  This driver can also be built as a module. If so, the module will be
+	  called kempld_wdt.
+
 config HPWDT_NMI_DECODING
 	bool "NMI decoding support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
 	depends on HP_WATCHDOG
@@ -1072,7 +1074,7 @@ config TXX9_WDT
 
 config OCTEON_WDT
 	tristate "Cavium OCTEON SOC family Watchdog Timer"
-	depends on CPU_CAVIUM_OCTEON
+	depends on CAVIUM_OCTEON_SOC
 	default y
 	select EXPORT_UASM if OCTEON_WDT = m
 	help
@@ -1097,6 +1099,17 @@ config BCM63XX_WDT
 
 	  To compile this driver as a loadable module, choose M here.
 	  The module will be called bcm63xx_wdt.
+
+config BCM2835_WDT
+	tristate "Broadcom BCM2835 hardware watchdog"
+	depends on ARCH_BCM2835
+	select WATCHDOG_CORE
+	help
+	  Watchdog driver for the built in watchdog hardware in Broadcom
+	  BCM2835 SoC.
+
+	  To compile this driver as a loadable module, choose M here.
+	  The module will be called bcm2835_wdt.
 
 config LANTIQ_WDT
 	tristate "Lantiq SoC watchdog"
@@ -1171,6 +1184,18 @@ config BOOKE_WDT_DEFAULT_TIMEOUT
 	  For other Book-E processors, this is a number between 0 and 3.
 
 	  The value can be overridden by the wdt_period command-line parameter.
+
+config MEN_A21_WDT
+       tristate "MEN A21 VME CPU Carrier Board Watchdog Timer"
+       select WATCHDOG_CORE
+       depends on GPIOLIB
+       help
+        Watchdog driver for MEN A21 VMEbus CPU Carrier Boards.
+
+	The driver can also be built as a module. If so, the module will be
+	called mena21_wdt.
+
+	If unsure select N here.
 
 # PPC64 Architecture
 

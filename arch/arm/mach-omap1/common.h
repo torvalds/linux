@@ -28,6 +28,7 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/i2c-omap.h>
+#include <linux/reboot.h>
 
 #include <plat/i2c.h>
 
@@ -70,7 +71,7 @@ static inline int omap_serial_wakeup_init(void)
 void omap1_init_early(void);
 void omap1_init_irq(void);
 void omap1_init_late(void);
-void omap1_restart(char, const char *);
+void omap1_restart(enum reboot_mode, const char *);
 
 extern void __init omap_check_revision(void);
 

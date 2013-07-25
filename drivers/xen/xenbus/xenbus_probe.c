@@ -30,6 +30,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DPRINTK(fmt, args...)				\
 	pr_debug("xenbus_probe (%s:%d) " fmt ".\n",	\
 		 __func__, __LINE__, ##args)
@@ -280,15 +282,15 @@ void xenbus_dev_shutdown(struct device *_dev)
 
 	get_device(&dev->dev);
 	if (dev->state != XenbusStateConnected) {
-		printk(KERN_INFO "%s: %s: %s != Connected, skipping\n", __func__,
-		       dev->nodename, xenbus_strstate(dev->state));
+		pr_info("%s: %s: %s != Connected, skipping\n",
+			__func__, dev->nodename, xenbus_strstate(dev->state));
 		goto out;
 	}
 	xenbus_switch_state(dev, XenbusStateClosing);
 	timeout = wait_for_completion_timeout(&dev->down, timeout);
 	if (!timeout)
-		printk(KERN_INFO "%s: %s timeout closing device\n",
-		       __func__, dev->nodename);
+		pr_info("%s: %s timeout closing device\n",
+			__func__, dev->nodename);
  out:
 	put_device(&dev->dev);
 }
@@ -447,7 +449,7 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 	if (err)
 		goto fail;
 
-	dev_set_name(&xendev->dev, devname);
+	dev_set_name(&xendev->dev, "%s", devname);
 
 	/* Register with generic device framework. */
 	err = device_register(&xendev->dev);
@@ -579,8 +581,7 @@ int xenbus_dev_suspend(struct device *dev)
 	if (drv->suspend)
 		err = drv->suspend(xdev);
 	if (err)
-		printk(KERN_WARNING
-		       "xenbus: suspend %s failed: %i\n", dev_name(dev), err);
+		pr_warn("suspend %s failed: %i\n", dev_name(dev), err);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_suspend);
@@ -599,9 +600,8 @@ int xenbus_dev_resume(struct device *dev)
 	drv = to_xenbus_driver(dev->driver);
 	err = talk_to_otherend(xdev);
 	if (err) {
-		printk(KERN_WARNING
-		       "xenbus: resume (talk_to_otherend) %s failed: %i\n",
-		       dev_name(dev), err);
+		pr_warn("resume (talk_to_otherend) %s failed: %i\n",
+			dev_name(dev), err);
 		return err;
 	}
 
@@ -610,18 +610,15 @@ int xenbus_dev_resume(struct device *dev)
 	if (drv->resume) {
 		err = drv->resume(xdev);
 		if (err) {
-			printk(KERN_WARNING
-			       "xenbus: resume %s failed: %i\n",
-			       dev_name(dev), err);
+			pr_warn("resume %s failed: %i\n", dev_name(dev), err);
 			return err;
 		}
 	}
 
 	err = watch_otherend(xdev);
 	if (err) {
-		printk(KERN_WARNING
-		       "xenbus_probe: resume (watch_otherend) %s failed: "
-		       "%d.\n", dev_name(dev), err);
+		pr_warn("resume (watch_otherend) %s failed: %d.\n",
+			dev_name(dev), err);
 		return err;
 	}
 
@@ -776,8 +773,7 @@ static int __init xenbus_init(void)
 	/* Initialize the interface to xenstore. */
 	err = xs_init();
 	if (err) {
-		printk(KERN_WARNING
-		       "XENBUS: Error initializing xenstore comms: %i\n", err);
+		pr_warn("Error initializing xenstore comms: %i\n", err);
 		goto out_error;
 	}
 

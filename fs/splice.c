@@ -1098,27 +1098,13 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 {
 	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *,
 				loff_t *, size_t, unsigned int);
-	int ret;
-
-	if (unlikely(!(out->f_mode & FMODE_WRITE)))
-		return -EBADF;
-
-	if (unlikely(out->f_flags & O_APPEND))
-		return -EINVAL;
-
-	ret = rw_verify_area(WRITE, out, ppos, len);
-	if (unlikely(ret < 0))
-		return ret;
 
 	if (out->f_op && out->f_op->splice_write)
 		splice_write = out->f_op->splice_write;
 	else
 		splice_write = default_file_splice_write;
 
-	file_start_write(out);
-	ret = splice_write(pipe, out, ppos, len, flags);
-	file_end_write(out);
-	return ret;
+	return splice_write(pipe, out, ppos, len, flags);
 }
 
 /*
@@ -1307,6 +1293,16 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 	};
 	long ret;
 
+	if (unlikely(!(out->f_mode & FMODE_WRITE)))
+		return -EBADF;
+
+	if (unlikely(out->f_flags & O_APPEND))
+		return -EINVAL;
+
+	ret = rw_verify_area(WRITE, out, opos, len);
+	if (unlikely(ret < 0))
+		return ret;
+
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
 	if (ret > 0)
 		*ppos = sd.pos;
@@ -1362,7 +1358,19 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 			offset = out->f_pos;
 		}
 
+		if (unlikely(!(out->f_mode & FMODE_WRITE)))
+			return -EBADF;
+
+		if (unlikely(out->f_flags & O_APPEND))
+			return -EINVAL;
+
+		ret = rw_verify_area(WRITE, out, &offset, len);
+		if (unlikely(ret < 0))
+			return ret;
+
+		file_start_write(out);
 		ret = do_splice_from(ipipe, out, &offset, len, flags);
+		file_end_write(out);
 
 		if (!off_out)
 			out->f_pos = offset;

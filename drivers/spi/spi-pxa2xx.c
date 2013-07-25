@@ -881,21 +881,6 @@ static int setup(struct spi_device *spi)
 		rx_thres = RX_THRESH_DFLT;
 	}
 
-	if (!pxa25x_ssp_comp(drv_data)
-		&& (spi->bits_per_word < 4 || spi->bits_per_word > 32)) {
-		dev_err(&spi->dev, "failed setup: ssp_type=%d, bits/wrd=%d "
-				"b/w not 4-32 for type non-PXA25x_SSP\n",
-				drv_data->ssp_type, spi->bits_per_word);
-		return -EINVAL;
-	} else if (pxa25x_ssp_comp(drv_data)
-			&& (spi->bits_per_word < 4
-				|| spi->bits_per_word > 16)) {
-		dev_err(&spi->dev, "failed setup: ssp_type=%d, bits/wrd=%d "
-				"b/w not 4-16 for type PXA25x_SSP\n",
-				drv_data->ssp_type, spi->bits_per_word);
-		return -EINVAL;
-	}
-
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
 	if (!chip) {
@@ -1011,9 +996,6 @@ static int setup(struct spi_device *spi)
 		chip->n_bytes = 4;
 		chip->read = u32_reader;
 		chip->write = u32_writer;
-	} else {
-		dev_err(&spi->dev, "invalid wordsize\n");
-		return -ENODEV;
 	}
 	chip->bits_per_word = spi->bits_per_word;
 
@@ -1040,32 +1022,10 @@ static void cleanup(struct spi_device *spi)
 }
 
 #ifdef CONFIG_ACPI
-static int pxa2xx_spi_acpi_add_dma(struct acpi_resource *res, void *data)
-{
-	struct pxa2xx_spi_master *pdata = data;
-
-	if (res->type == ACPI_RESOURCE_TYPE_FIXED_DMA) {
-		const struct acpi_resource_fixed_dma *dma;
-
-		dma = &res->data.fixed_dma;
-		if (pdata->tx_slave_id < 0) {
-			pdata->tx_slave_id = dma->request_lines;
-			pdata->tx_chan_id = dma->channels;
-		} else if (pdata->rx_slave_id < 0) {
-			pdata->rx_slave_id = dma->request_lines;
-			pdata->rx_chan_id = dma->channels;
-		}
-	}
-
-	/* Tell the ACPI core to skip this resource */
-	return 1;
-}
-
 static struct pxa2xx_spi_master *
 pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 {
 	struct pxa2xx_spi_master *pdata;
-	struct list_head resource_list;
 	struct acpi_device *adev;
 	struct ssp_device *ssp;
 	struct resource *res;
@@ -1091,7 +1051,7 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	ssp->phys_base = res->start;
 	ssp->mmio_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ssp->mmio_base))
-		return PTR_ERR(ssp->mmio_base);
+		return NULL;
 
 	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	ssp->irq = platform_get_irq(pdev, 0);
@@ -1103,15 +1063,7 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 		ssp->port_id = devid;
 
 	pdata->num_chipselect = 1;
-	pdata->rx_slave_id = -1;
-	pdata->tx_slave_id = -1;
-
-	INIT_LIST_HEAD(&resource_list);
-	acpi_dev_get_resources(adev, &resource_list, pxa2xx_spi_acpi_add_dma,
-			       pdata);
-	acpi_dev_free_resource_list(&resource_list);
-
-	pdata->enable_dma = pdata->rx_slave_id >= 0 && pdata->tx_slave_id >= 0;
+	pdata->enable_dma = true;
 
 	return pdata;
 }
@@ -1119,6 +1071,7 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 static struct acpi_device_id pxa2xx_spi_acpi_match[] = {
 	{ "INT33C0", 0 },
 	{ "INT33C1", 0 },
+	{ "80860F0E", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pxa2xx_spi_acpi_match);
@@ -1190,11 +1143,13 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->ioaddr = ssp->mmio_base;
 	drv_data->ssdr_physical = ssp->phys_base + SSDR;
 	if (pxa25x_ssp_comp(drv_data)) {
+		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 		drv_data->int_cr1 = SSCR1_TIE | SSCR1_RIE;
 		drv_data->dma_cr1 = 0;
 		drv_data->clear_sr = SSSR_ROR;
 		drv_data->mask_sr = SSSR_RFS | SSSR_TFS | SSSR_ROR;
 	} else {
+		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 		drv_data->int_cr1 = SSCR1_TIE | SSCR1_RIE | SSCR1_TINTE;
 		drv_data->dma_cr1 = DEFAULT_DMA_CR1;
 		drv_data->clear_sr = SSSR_ROR | SSSR_TINT;
@@ -1214,7 +1169,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (platform_info->enable_dma) {
 		status = pxa2xx_spi_dma_setup(drv_data);
 		if (status) {
-			dev_warn(dev, "failed to setup DMA, using PIO\n");
+			dev_dbg(dev, "no DMA channels available, using PIO\n");
 			platform_info->enable_dma = false;
 		}
 	}
@@ -1298,9 +1253,6 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 
 	/* Disconnect from the SPI framework */
 	spi_unregister_master(drv_data->master);
-
-	/* Prevent double remove */
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

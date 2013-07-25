@@ -1790,7 +1790,6 @@ err_io:
 	free_netdev(ndev);
 err_alloc:
 	release_mem_region(res->start, resource_size(res));
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
@@ -1813,7 +1812,6 @@ static int xgmac_remove(struct platform_device *pdev)
 	free_irq(ndev->irq, ndev);
 	free_irq(priv->pmt_irq, ndev);
 
-	platform_set_drvdata(pdev, NULL);
 	unregister_netdev(ndev);
 	netif_napi_del(&priv->napi);
 

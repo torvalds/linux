@@ -14,11 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #include <linux/device.h>
@@ -38,6 +33,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
+#include <linux/firmware.h>
 
 #include "comedidev.h"
 #include "comedi_internal.h"
@@ -87,18 +83,6 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
 
-void comedi_spriv_free(struct comedi_device *dev, int subdev_num)
-{
-	struct comedi_subdevice *s;
-
-	if (dev->subdevices && subdev_num < dev->n_subdevices) {
-		s = &dev->subdevices[subdev_num];
-		kfree(s->private);
-		s->private = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(comedi_spriv_free);
-
 static void cleanup_device(struct comedi_device *dev)
 {
 	int i;
@@ -107,6 +91,8 @@ static void cleanup_device(struct comedi_device *dev)
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = &dev->subdevices[i];
+			if (s->runflags & SRF_FREE_SPRIV)
+				kfree(s->private);
 			comedi_free_subdevice_minor(s);
 			if (s->async) {
 				comedi_buf_alloc(dev, s, 0);
@@ -350,6 +336,38 @@ static void comedi_report_boards(struct comedi_driver *driv)
 	if (driv->num_names == 0)
 		pr_info(" %s\n", driv->driver_name);
 }
+
+/**
+ * comedi_load_firmware() - Request and load firmware for a device.
+ * @dev: comedi_device struct
+ * @hw_device: device struct for the comedi_device
+ * @name: the name of the firmware image
+ * @cb: callback to the upload the firmware image
+ * @context: private context from the driver
+ */
+int comedi_load_firmware(struct comedi_device *dev,
+			 struct device *device,
+			 const char *name,
+			 int (*cb)(struct comedi_device *dev,
+				   const u8 *data, size_t size,
+				   unsigned long context),
+			 unsigned long context)
+{
+	const struct firmware *fw;
+	int ret;
+
+	if (!cb)
+		return -EINVAL;
+
+	ret = request_firmware(&fw, name, device);
+	if (ret == 0) {
+		ret = cb(dev, fw->data, fw->size, context);
+		release_firmware(fw);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(comedi_load_firmware);
 
 /**
  * __comedi_request_region() - Request an I/O reqion for a legacy driver.

@@ -13,6 +13,7 @@
 #define S5P_FIMC_H_
 
 #include <media/media-entity.h>
+#include <media/v4l2-dev.h>
 #include <media/v4l2-mediabus.h>
 
 /*
@@ -115,6 +116,7 @@ struct s5p_platform_fimc {
  * @color: the driver's private color format id
  * @memplanes: number of physically non-contiguous data planes
  * @colplanes: number of physically contiguous data planes
+ * @colorspace: v4l2 colorspace (V4L2_COLORSPACE_*)
  * @depth: per plane driver's private 'number of bits per pixel'
  * @mdataplanes: bitmask indicating meta data plane(s), (1 << plane_no)
  * @flags: flags indicating which operation mode format applies to
@@ -126,6 +128,7 @@ struct fimc_fmt {
 	u32	color;
 	u16	memplanes;
 	u16	colplanes;
+	u8	colorspace;
 	u8	depth[FIMC_MAX_PLANES];
 	u16	mdataplanes;
 	u16	flags;
@@ -140,37 +143,40 @@ struct fimc_fmt {
 #define FMT_FLAGS_YUV		(1 << 7)
 };
 
-enum fimc_subdev_index {
-	IDX_SENSOR,
-	IDX_CSIS,
-	IDX_FLITE,
-	IDX_IS_ISP,
-	IDX_FIMC,
-	IDX_MAX,
-};
-
-struct media_pipeline;
-struct v4l2_subdev;
-
-struct fimc_pipeline {
-	struct v4l2_subdev *subdevs[IDX_MAX];
-	struct media_pipeline *m_pipeline;
-};
+struct exynos_media_pipeline;
 
 /*
- * Media pipeline operations to be called from within the fimc(-lite)
- * video node when it is the last entity of the pipeline. Implemented
- * by corresponding media device driver.
+ * Media pipeline operations to be called from within a video node,  i.e. the
+ * last entity within the pipeline. Implemented by related media device driver.
  */
-struct fimc_pipeline_ops {
-	int (*open)(struct fimc_pipeline *p, struct media_entity *me,
-			  bool resume);
-	int (*close)(struct fimc_pipeline *p);
-	int (*set_stream)(struct fimc_pipeline *p, bool state);
+struct exynos_media_pipeline_ops {
+	int (*prepare)(struct exynos_media_pipeline *p,
+						struct media_entity *me);
+	int (*unprepare)(struct exynos_media_pipeline *p);
+	int (*open)(struct exynos_media_pipeline *p, struct media_entity *me,
+							bool resume);
+	int (*close)(struct exynos_media_pipeline *p);
+	int (*set_stream)(struct exynos_media_pipeline *p, bool state);
 };
 
-#define fimc_pipeline_call(f, op, p, args...)				\
-	(!(f) ? -ENODEV : (((f)->pipeline_ops && (f)->pipeline_ops->op) ? \
-			    (f)->pipeline_ops->op((p), ##args) : -ENOIOCTLCMD))
+struct exynos_video_entity {
+	struct video_device vdev;
+	struct exynos_media_pipeline *pipe;
+};
+
+struct exynos_media_pipeline {
+	struct media_pipeline mp;
+	const struct exynos_media_pipeline_ops *ops;
+};
+
+static inline struct exynos_video_entity *vdev_to_exynos_video_entity(
+					struct video_device *vdev)
+{
+	return container_of(vdev, struct exynos_video_entity, vdev);
+}
+
+#define fimc_pipeline_call(ent, op, args...)				  \
+	(!(ent) ? -ENOENT : (((ent)->pipe->ops && (ent)->pipe->ops->op) ? \
+	(ent)->pipe->ops->op(((ent)->pipe), ##args) : -ENOIOCTLCMD))	  \
 
 #endif /* S5P_FIMC_H_ */

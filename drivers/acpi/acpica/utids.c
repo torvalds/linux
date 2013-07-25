@@ -341,14 +341,17 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 
 		switch (cid_objects[i]->common.type) {
 		case ACPI_TYPE_INTEGER:
+
 			string_area_size += ACPI_EISAID_STRING_SIZE;
 			break;
 
 		case ACPI_TYPE_STRING:
+
 			string_area_size += cid_objects[i]->string.length + 1;
 			break;
 
 		default:
+
 			status = AE_TYPE;
 			goto cleanup;
 		}

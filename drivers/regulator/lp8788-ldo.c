@@ -561,7 +561,6 @@ static int lp8788_dldo_remove(struct platform_device *pdev)
 {
 	struct lp8788_ldo *ldo = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(ldo->regulator);
 
 	return 0;
@@ -622,7 +621,6 @@ static int lp8788_aldo_remove(struct platform_device *pdev)
 {
 	struct lp8788_ldo *ldo = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(ldo->regulator);
 
 	return 0;

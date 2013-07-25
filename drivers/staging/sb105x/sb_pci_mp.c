@@ -18,11 +18,11 @@ static struct irq_info irq_lists[NR_IRQS];
 static _INLINE_ unsigned int serial_in(struct mp_port *mtpt, int offset);
 static _INLINE_ void serial_out(struct mp_port *mtpt, int offset, int value);
 static _INLINE_ unsigned int read_option_register(struct mp_port *mtpt, int offset);
-static int sb1054_get_register(struct sb_uart_port * port, int page, int reg);
-static int sb1054_set_register(struct sb_uart_port * port, int page, int reg, int value);
-static void SendATCommand(struct mp_port * mtpt);
-static int set_deep_fifo(struct sb_uart_port * port, int status);
-static int get_deep_fifo(struct sb_uart_port * port);
+static int sb1054_get_register(struct sb_uart_port *port, int page, int reg);
+static int sb1054_set_register(struct sb_uart_port *port, int page, int reg, int value);
+static void SendATCommand(struct mp_port *mtpt);
+static int set_deep_fifo(struct sb_uart_port *port, int status);
+static int get_deep_fifo(struct sb_uart_port *port);
 static int get_device_type(int arg);
 static int set_auto_rts(struct sb_uart_port *port, int status);
 static void mp_stop(struct tty_struct *tty);
@@ -38,7 +38,7 @@ static inline int __mp_put_char(struct sb_uart_port *port, struct circ_buf *circ
 static int mp_put_char(struct tty_struct *tty, unsigned char ch);
 
 static void mp_put_chars(struct tty_struct *tty);
-static int mp_write(struct tty_struct *tty, const unsigned char * buf, int count);
+static int mp_write(struct tty_struct *tty, const unsigned char *buf, int count);
 static int mp_write_room(struct tty_struct *tty);
 static int mp_chars_in_buffer(struct tty_struct *tty);
 static void mp_flush_buffer(struct tty_struct *tty);
@@ -102,7 +102,7 @@ static void multi_release_port(struct sb_uart_port *port);
 static int multi_request_port(struct sb_uart_port *port);
 static void multi_config_port(struct sb_uart_port *port, int flags);
 static int multi_verify_port(struct sb_uart_port *port, struct serial_struct *ser);
-static const char * multi_type(struct sb_uart_port *port);
+static const char *multi_type(struct sb_uart_port *port);
 static void __init multi_init_ports(void);
 static void __init multi_register_ports(struct uart_driver *drv);
 static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd);
@@ -173,7 +173,7 @@ static int sb1053a_get_interface(struct mp_port *mtpt, int port_num)
 	return (interface);
 }
 		
-static int sb1054_get_register(struct sb_uart_port * port, int page, int reg)
+static int sb1054_get_register(struct sb_uart_port *port, int page, int reg)
 {
 	int ret = 0;
 	unsigned int lcr = 0;
@@ -235,7 +235,7 @@ static int sb1054_get_register(struct sb_uart_port * port, int page, int reg)
 	return ret;
 }
 
-static int sb1054_set_register(struct sb_uart_port * port, int page, int reg, int value)
+static int sb1054_set_register(struct sb_uart_port *port, int page, int reg, int value)
 {  
 	int lcr = 0;
 	int mcr = 0;
@@ -332,7 +332,7 @@ static int set_multidrop_addr(struct sb_uart_port *port, unsigned int addr)
 	return 0;
 }
 
-static void SendATCommand(struct mp_port * mtpt)
+static void SendATCommand(struct mp_port *mtpt)
 {
 	//		      a    t	cr   lf
 	unsigned char ch[] = {0x61,0x74,0x0d,0x0a,0x0};
@@ -360,7 +360,7 @@ static void SendATCommand(struct mp_port * mtpt)
 
 }// end of SendATCommand()
 
-static int set_deep_fifo(struct sb_uart_port * port, int status)
+static int set_deep_fifo(struct sb_uart_port *port, int status)
 {
 	int afr_status = 0;
 	afr_status = sb1054_get_register(port, PAGE_4, SB105X_AFR);
@@ -416,7 +416,7 @@ static int get_device_type(int arg)
         }
 
 }
-static int get_deep_fifo(struct sb_uart_port * port)
+static int get_deep_fifo(struct sb_uart_port *port)
 {
 	int afr_status = 0;
 	afr_status = sb1054_get_register(port, PAGE_4, SB105X_AFR);
@@ -638,7 +638,7 @@ static void mp_put_chars(struct tty_struct *tty)
 	mp_start(tty);
 }
 
-static int mp_write(struct tty_struct *tty, const unsigned char * buf, int count)
+static int mp_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	struct sb_uart_state *state = tty->driver_data;
 	struct sb_uart_port *port;
@@ -2754,7 +2754,7 @@ static int multi_verify_port(struct sb_uart_port *port, struct serial_struct *se
 	return 0;
 }
 
-static const char * multi_type(struct sb_uart_port *port)
+static const char *multi_type(struct sb_uart_port *port)
 {
 	int type = port->type;
 
@@ -2800,7 +2800,7 @@ static void __init multi_init_ports(void)
 	int i,j,k;
 	unsigned char osc;
 	unsigned char b_ret = 0;
-	static struct mp_device_t * sbdev; 
+	static struct mp_device_t *sbdev; 
 
 	if (!first)
 		return;
@@ -2918,10 +2918,10 @@ static int pci_remap_base(struct pci_dev *pcidev, unsigned int offset,
 
 static int init_mp_dev(struct pci_dev *pcidev, mppcibrd_t brd)
 {
-	static struct mp_device_t * sbdev = mp_devs;
+	static struct mp_device_t *sbdev = mp_devs;
 	unsigned long addr = 0;
 	int j;
-	struct resource * ret = NULL;
+	struct resource *ret = NULL;
 
 	sbdev->device_id = brd.device_id;
 	pci_read_config_byte(pcidev, PCI_CLASS_REVISION, &(sbdev->revision));

@@ -134,11 +134,13 @@ config SVINTO_SIM
 
 config ETRAXFS
 	bool "ETRAX-FS-V32"
+	select CPU_FREQ_TABLE if CPU_FREQ
 	help
 	  Support CRIS V32.
 
 config CRIS_MACH_ARTPEC3
         bool "ARTPEC-3"
+	select CPU_FREQ_TABLE if CPU_FREQ
         help
           Support Axis ARTPEC-3.
 
@@ -637,39 +639,9 @@ endchoice
 
 endmenu
 
-source "drivers/base/Kconfig"
-
-# standard linux drivers
-source "drivers/mtd/Kconfig"
-
-source "drivers/parport/Kconfig"
-
-source "drivers/pnp/Kconfig"
-
-source "drivers/block/Kconfig"
-
-source "drivers/ide/Kconfig"
-
-source "drivers/net/Kconfig"
-
-source "drivers/i2c/Kconfig"
-
-source "drivers/rtc/Kconfig"
-
-#
-# input before char - char/joystick depends on it. As does USB.
-#
-source "drivers/input/Kconfig"
-
-source "drivers/char/Kconfig"
+source "drivers/Kconfig"
 
 source "fs/Kconfig"
-
-source "drivers/usb/Kconfig"
-
-source "drivers/uwb/Kconfig"
-
-source "drivers/staging/Kconfig"
 
 source "arch/cris/Kconfig.debug"
 

@@ -76,25 +76,19 @@ static void hidp_copy_session(struct hidp_session *session, struct hidp_conninfo
 	ci->flags = session->flags;
 	ci->state = BT_CONNECTED;
 
-	ci->vendor  = 0x0000;
-	ci->product = 0x0000;
-	ci->version = 0x0000;
-
 	if (session->input) {
 		ci->vendor  = session->input->id.vendor;
 		ci->product = session->input->id.product;
 		ci->version = session->input->id.version;
 		if (session->input->name)
-			strncpy(ci->name, session->input->name, 128);
+			strlcpy(ci->name, session->input->name, 128);
 		else
-			strncpy(ci->name, "HID Boot Device", 128);
-	}
-
-	if (session->hid) {
+			strlcpy(ci->name, "HID Boot Device", 128);
+	} else if (session->hid) {
 		ci->vendor  = session->hid->vendor;
 		ci->product = session->hid->product;
 		ci->version = session->hid->version;
-		strncpy(ci->name, session->hid->name, 128);
+		strlcpy(ci->name, session->hid->name, 128);
 	}
 }
 
@@ -851,6 +845,29 @@ static void hidp_session_dev_del(struct hidp_session *session)
 }
 
 /*
+ * Asynchronous device registration
+ * HID device drivers might want to perform I/O during initialization to
+ * detect device types. Therefore, call device registration in a separate
+ * worker so the HIDP thread can schedule I/O operations.
+ * Note that this must be called after the worker thread was initialized
+ * successfully. This will then add the devices and increase session state
+ * on success, otherwise it will terminate the session thread.
+ */
+static void hidp_session_dev_work(struct work_struct *work)
+{
+	struct hidp_session *session = container_of(work,
+						    struct hidp_session,
+						    dev_init);
+	int ret;
+
+	ret = hidp_session_dev_add(session);
+	if (!ret)
+		atomic_inc(&session->state);
+	else
+		hidp_session_terminate(session);
+}
+
+/*
  * Create new session object
  * Allocate session object, initialize static fields, copy input data into the
  * object and take a reference to all sub-objects.
@@ -897,6 +914,7 @@ static int hidp_session_new(struct hidp_session **out, const bdaddr_t *bdaddr,
 	session->idle_to = req->idle_to;
 
 	/* device management */
+	INIT_WORK(&session->dev_init, hidp_session_dev_work);
 	setup_timer(&session->timer, hidp_idle_timeout,
 		    (unsigned long)session);
 
@@ -1035,8 +1053,8 @@ static void hidp_session_terminate(struct hidp_session *session)
  * Probe HIDP session
  * This is called from the l2cap_conn core when our l2cap_user object is bound
  * to the hci-connection. We get the session via the \user object and can now
- * start the session thread, register the HID/input devices and link it into
- * the global session list.
+ * start the session thread, link it into the global session list and
+ * schedule HID/input device registration.
  * The global session-list owns its own reference to the session object so you
  * can drop your own reference after registering the l2cap_user object.
  */
@@ -1058,21 +1076,30 @@ static int hidp_session_probe(struct l2cap_conn *conn,
 		goto out_unlock;
 	}
 
+	if (session->input) {
+		ret = hidp_session_dev_add(session);
+		if (ret)
+			goto out_unlock;
+	}
+
 	ret = hidp_session_start_sync(session);
 	if (ret)
-		goto out_unlock;
+		goto out_del;
 
-	ret = hidp_session_dev_add(session);
-	if (ret)
-		goto out_stop;
+	/* HID device registration is async to allow I/O during probe */
+	if (session->input)
+		atomic_inc(&session->state);
+	else
+		schedule_work(&session->dev_init);
 
 	hidp_session_get(session);
 	list_add(&session->list, &hidp_session_list);
 	ret = 0;
 	goto out_unlock;
 
-out_stop:
-	hidp_session_terminate(session);
+out_del:
+	if (session->input)
+		hidp_session_dev_del(session);
 out_unlock:
 	up_write(&hidp_session_sem);
 	return ret;
@@ -1102,7 +1129,12 @@ static void hidp_session_remove(struct l2cap_conn *conn,
 	down_write(&hidp_session_sem);
 
 	hidp_session_terminate(session);
-	hidp_session_dev_del(session);
+
+	cancel_work_sync(&session->dev_init);
+	if (session->input ||
+	    atomic_read(&session->state) > HIDP_SESSION_PREPARING)
+		hidp_session_dev_del(session);
+
 	list_del(&session->list);
 
 	up_write(&hidp_session_sem);

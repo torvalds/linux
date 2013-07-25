@@ -3,7 +3,7 @@
  *
  * Module interface and handling of zfcp data structures.
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2013
  */
 
 /*
@@ -23,6 +23,7 @@
  *            Christof Schmitt
  *            Martin Petermann
  *            Sven Schuetz
+ *            Steffen Maier
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -140,13 +141,6 @@ static int __init zfcp_module_init(void)
 	scsi_transport_reserve_device(zfcp_scsi_transport_template,
 				      sizeof(struct zfcp_scsi_dev));
 
-
-	retval = misc_register(&zfcp_cfdc_misc);
-	if (retval) {
-		pr_err("Registering the misc device zfcp_cfdc failed\n");
-		goto out_misc;
-	}
-
 	retval = ccw_driver_register(&zfcp_ccw_driver);
 	if (retval) {
 		pr_err("The zfcp device driver could not register with "
@@ -159,8 +153,6 @@ static int __init zfcp_module_init(void)
 	return 0;
 
 out_ccw_register:
-	misc_deregister(&zfcp_cfdc_misc);
-out_misc:
 	fc_release_transport(zfcp_scsi_transport_template);
 out_transport:
 	kmem_cache_destroy(zfcp_fc_req_cache);
@@ -175,7 +167,6 @@ module_init(zfcp_module_init);
 static void __exit zfcp_module_exit(void)
 {
 	ccw_driver_unregister(&zfcp_ccw_driver);
-	misc_deregister(&zfcp_cfdc_misc);
 	fc_release_transport(zfcp_scsi_transport_template);
 	kmem_cache_destroy(zfcp_fc_req_cache);
 	kmem_cache_destroy(zfcp_fsf_qtcb_cache);
@@ -415,6 +406,8 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	adapter->dma_parms.max_segment_size = ZFCP_QDIO_SBALE_LEN;
 	adapter->ccw_device->dev.dma_parms = &adapter->dma_parms;
 
+	adapter->stat_read_buf_num = FSF_STATUS_READS_RECOM;
+
 	if (!zfcp_scsi_adapter_register(adapter))
 		return adapter;
 
@@ -462,20 +455,6 @@ void zfcp_adapter_release(struct kref *ref)
 	kfree(adapter->stats_reset_data);
 	kfree(adapter);
 	put_device(&cdev->dev);
-}
-
-/**
- * zfcp_device_unregister - remove port, unit from system
- * @dev: reference to device which is to be removed
- * @grp: related reference to attribute group
- *
- * Helper function to unregister port, unit from system
- */
-void zfcp_device_unregister(struct device *dev,
-			    const struct attribute_group *grp)
-{
-	sysfs_remove_group(&dev->kobj, grp);
-	device_unregister(dev);
 }
 
 static void zfcp_port_release(struct device *dev)
@@ -530,6 +509,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	port->wwpn = wwpn;
 	port->rport_task = RPORT_NONE;
 	port->dev.parent = &adapter->ccw_device->dev;
+	port->dev.groups = zfcp_port_attr_groups;
 	port->dev.release = zfcp_port_release;
 
 	if (dev_set_name(&port->dev, "0x%016llx", (unsigned long long)wwpn)) {
@@ -543,10 +523,6 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 		goto err_out;
 	}
 
-	if (sysfs_create_group(&port->dev.kobj,
-			       &zfcp_sysfs_port_attrs))
-		goto err_out_put;
-
 	write_lock_irq(&adapter->port_list_lock);
 	list_add_tail(&port->list, &adapter->port_list);
 	write_unlock_irq(&adapter->port_list_lock);
@@ -555,8 +531,6 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 
 	return port;
 
-err_out_put:
-	device_unregister(&port->dev);
 err_out:
 	zfcp_ccw_adapter_put(adapter);
 	return ERR_PTR(retval);

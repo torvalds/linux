@@ -86,13 +86,13 @@ static void jz4740_adc_irq_demux(unsigned int irq, struct irq_desc *desc)
 static inline void jz4740_adc_clk_enable(struct jz4740_adc *adc)
 {
 	if (atomic_inc_return(&adc->clk_ref) == 1)
-		clk_enable(adc->clk);
+		clk_prepare_enable(adc->clk);
 }
 
 static inline void jz4740_adc_clk_disable(struct jz4740_adc *adc)
 {
 	if (atomic_dec_return(&adc->clk_ref) == 0)
-		clk_disable(adc->clk);
+		clk_disable_unprepare(adc->clk);
 }
 
 static inline void jz4740_adc_set_enabled(struct jz4740_adc *adc, int engine,
@@ -294,7 +294,6 @@ static int jz4740_adc_probe(struct platform_device *pdev)
 err_clk_put:
 	clk_put(adc->clk);
 err_iounmap:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(adc->base);
 err_release_mem_region:
 	release_mem_region(adc->mem->start, resource_size(adc->mem));
@@ -316,8 +315,6 @@ static int jz4740_adc_remove(struct platform_device *pdev)
 	release_mem_region(adc->mem->start, resource_size(adc->mem));
 
 	clk_put(adc->clk);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

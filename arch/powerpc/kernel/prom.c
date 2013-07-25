@@ -559,6 +559,35 @@ void __init early_init_dt_setup_initrd_arch(unsigned long start,
 }
 #endif
 
+static void __init early_reserve_mem_dt(void)
+{
+	unsigned long i, len, dt_root;
+	const __be32 *prop;
+
+	dt_root = of_get_flat_dt_root();
+
+	prop = of_get_flat_dt_prop(dt_root, "reserved-ranges", &len);
+
+	if (!prop)
+		return;
+
+	DBG("Found new-style reserved-ranges\n");
+
+	/* Each reserved range is an (address,size) pair, 2 cells each,
+	 * totalling 4 cells per range. */
+	for (i = 0; i < len / (sizeof(*prop) * 4); i++) {
+		u64 base, size;
+
+		base = of_read_number(prop + (i * 4) + 0, 2);
+		size = of_read_number(prop + (i * 4) + 2, 2);
+
+		if (size) {
+			DBG("reserving: %llx -> %llx\n", base, size);
+			memblock_reserve(base, size);
+		}
+	}
+}
+
 static void __init early_reserve_mem(void)
 {
 	u64 base, size;
@@ -574,12 +603,16 @@ static void __init early_reserve_mem(void)
 	self_size = initial_boot_params->totalsize;
 	memblock_reserve(self_base, self_size);
 
+	/* Look for the new "reserved-regions" property in the DT */
+	early_reserve_mem_dt();
+
 #ifdef CONFIG_BLK_DEV_INITRD
-	/* then reserve the initrd, if any */
-	if (initrd_start && (initrd_end > initrd_start))
+	/* Then reserve the initrd, if any */
+	if (initrd_start && (initrd_end > initrd_start)) {
 		memblock_reserve(_ALIGN_DOWN(__pa(initrd_start), PAGE_SIZE),
 			_ALIGN_UP(initrd_end, PAGE_SIZE) -
 			_ALIGN_DOWN(initrd_start, PAGE_SIZE));
+	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 #ifdef CONFIG_PPC32
@@ -590,6 +623,8 @@ static void __init early_reserve_mem(void)
 	if (*reserve_map > 0xffffffffull) {
 		u32 base_32, size_32;
 		u32 *reserve_map_32 = (u32 *)reserve_map;
+
+		DBG("Found old 32-bit reserve map\n");
 
 		while (1) {
 			base_32 = *(reserve_map_32++);
@@ -605,6 +640,9 @@ static void __init early_reserve_mem(void)
 		return;
 	}
 #endif
+	DBG("Processing reserve map\n");
+
+	/* Handle the reserve map in the fdt blob if it exists */
 	while (1) {
 		base = *(reserve_map++);
 		size = *(reserve_map++);

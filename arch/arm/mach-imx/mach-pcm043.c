@@ -385,7 +385,7 @@ static void __init pcm043_init(void)
 	if (!otg_mode_host)
 		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
-	imx35_add_flexcan1(NULL);
+	imx35_add_flexcan1();
 	imx35_add_sdhci_esdhc_imx(0, &sd1_pdata);
 }
 

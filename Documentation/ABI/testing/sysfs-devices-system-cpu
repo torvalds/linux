@@ -144,6 +144,21 @@ Description:	Discover and change clock speed of CPUs
 		to learn how to control the knobs.
 
 
+What:		/sys/devices/system/cpu/cpu#/cpufreq/freqdomain_cpus
+Date:		June 2013
+Contact:	cpufreq@vger.kernel.org
+Description:	Discover CPUs in the same CPU frequency coordination domain
+
+		freqdomain_cpus is the list of CPUs (online+offline) that share
+		the same clock/freq domain (possibly at the hardware level).
+		That information may be hidden from the cpufreq core and the
+		value of related_cpus may be different from freqdomain_cpus. This
+		attribute is useful for user space DVFS controllers to get better
+		power/performance results for platforms using acpi-cpufreq.
+
+		This file is only present if the acpi-cpufreq driver is in use.
+
+
 What:		/sys/devices/system/cpu/cpu*/cache/index3/cache_disable_{0,1}
 Date:		August 2008
 KernelVersion:	2.6.27

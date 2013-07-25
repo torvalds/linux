@@ -29,6 +29,8 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 
+#include <asm/byteorder.h>
+
 #include "8250.h"
 
 /* Offsets for the DesignWare specific registers */
@@ -57,6 +59,7 @@ struct dw8250_data {
 	int		last_lcr;
 	int		line;
 	struct clk	*clk;
+	u8		usr_reg;
 };
 
 static void dw8250_serial_out(struct uart_port *p, int offset, int value)
@@ -75,6 +78,13 @@ static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
 	offset <<= p->regshift;
 
 	return readb(p->membase + offset);
+}
+
+/* Read Back (rb) version to ensure register access ording. */
+static void dw8250_serial_out_rb(struct uart_port *p, int offset, int value)
+{
+	dw8250_serial_out(p, offset, value);
+	dw8250_serial_in(p, UART_LCR);
 }
 
 static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
@@ -104,7 +114,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 		return 1;
 	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
 		/* Clear the USR and write the LCR again. */
-		(void)p->serial_in(p, DW_UART_USR);
+		(void)p->serial_in(p, d->usr_reg);
 		p->serial_out(p, UART_LCR, d->last_lcr);
 
 		return 1;
@@ -124,77 +134,6 @@ dw8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 	if (state)
 		pm_runtime_put_sync_suspend(port->dev);
 }
-
-static int dw8250_probe_of(struct uart_port *p)
-{
-	struct device_node	*np = p->dev->of_node;
-	u32			val;
-
-	if (!of_property_read_u32(np, "reg-io-width", &val)) {
-		switch (val) {
-		case 1:
-			break;
-		case 4:
-			p->iotype = UPIO_MEM32;
-			p->serial_in = dw8250_serial_in32;
-			p->serial_out = dw8250_serial_out32;
-			break;
-		default:
-			dev_err(p->dev, "unsupported reg-io-width (%u)\n", val);
-			return -EINVAL;
-		}
-	}
-
-	if (!of_property_read_u32(np, "reg-shift", &val))
-		p->regshift = val;
-
-	/* clock got configured through clk api, all done */
-	if (p->uartclk)
-		return 0;
-
-	/* try to find out clock frequency from DT as fallback */
-	if (of_property_read_u32(np, "clock-frequency", &val)) {
-		dev_err(p->dev, "clk or clock-frequency not defined\n");
-		return -EINVAL;
-	}
-	p->uartclk = val;
-
-	return 0;
-}
-
-#ifdef CONFIG_ACPI
-static int dw8250_probe_acpi(struct uart_8250_port *up)
-{
-	const struct acpi_device_id *id;
-	struct uart_port *p = &up->port;
-
-	id = acpi_match_device(p->dev->driver->acpi_match_table, p->dev);
-	if (!id)
-		return -ENODEV;
-
-	p->iotype = UPIO_MEM32;
-	p->serial_in = dw8250_serial_in32;
-	p->serial_out = dw8250_serial_out32;
-	p->regshift = 2;
-
-	if (!p->uartclk)
-		p->uartclk = (unsigned int)id->driver_data;
-
-	up->dma = devm_kzalloc(p->dev, sizeof(*up->dma), GFP_KERNEL);
-	if (!up->dma)
-		return -ENOMEM;
-
-	up->dma->rxconf.src_maxburst = p->fifosize / 4;
-	up->dma->txconf.dst_maxburst = p->fifosize / 4;
-
-	return 0;
-}
-#else
-static inline int dw8250_probe_acpi(struct uart_8250_port *up)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_ACPI */
 
 static void dw8250_setup_port(struct uart_8250_port *up)
 {
@@ -228,6 +167,97 @@ static void dw8250_setup_port(struct uart_8250_port *up)
 		up->capabilities |= UART_CAP_AFE;
 }
 
+static int dw8250_probe_of(struct uart_port *p,
+			   struct dw8250_data *data)
+{
+	struct device_node	*np = p->dev->of_node;
+	u32			val;
+	bool has_ucv = true;
+
+	if (of_device_is_compatible(np, "cavium,octeon-3860-uart")) {
+#ifdef __BIG_ENDIAN
+		/*
+		 * Low order bits of these 64-bit registers, when
+		 * accessed as a byte, are 7 bytes further down in the
+		 * address space in big endian mode.
+		 */
+		p->membase += 7;
+#endif
+		p->serial_out = dw8250_serial_out_rb;
+		p->flags = ASYNC_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
+		p->type = PORT_OCTEON;
+		data->usr_reg = 0x27;
+		has_ucv = false;
+	} else if (!of_property_read_u32(np, "reg-io-width", &val)) {
+		switch (val) {
+		case 1:
+			break;
+		case 4:
+			p->iotype = UPIO_MEM32;
+			p->serial_in = dw8250_serial_in32;
+			p->serial_out = dw8250_serial_out32;
+			break;
+		default:
+			dev_err(p->dev, "unsupported reg-io-width (%u)\n", val);
+			return -EINVAL;
+		}
+	}
+	if (has_ucv)
+		dw8250_setup_port(container_of(p, struct uart_8250_port, port));
+
+	if (!of_property_read_u32(np, "reg-shift", &val))
+		p->regshift = val;
+
+	/* clock got configured through clk api, all done */
+	if (p->uartclk)
+		return 0;
+
+	/* try to find out clock frequency from DT as fallback */
+	if (of_property_read_u32(np, "clock-frequency", &val)) {
+		dev_err(p->dev, "clk or clock-frequency not defined\n");
+		return -EINVAL;
+	}
+	p->uartclk = val;
+
+	return 0;
+}
+
+#ifdef CONFIG_ACPI
+static int dw8250_probe_acpi(struct uart_8250_port *up)
+{
+	const struct acpi_device_id *id;
+	struct uart_port *p = &up->port;
+
+	dw8250_setup_port(up);
+
+	id = acpi_match_device(p->dev->driver->acpi_match_table, p->dev);
+	if (!id)
+		return -ENODEV;
+
+	p->iotype = UPIO_MEM32;
+	p->serial_in = dw8250_serial_in32;
+	p->serial_out = dw8250_serial_out32;
+	p->regshift = 2;
+
+	if (!p->uartclk)
+		p->uartclk = (unsigned int)id->driver_data;
+
+	up->dma = devm_kzalloc(p->dev, sizeof(*up->dma), GFP_KERNEL);
+	if (!up->dma)
+		return -ENOMEM;
+
+	up->dma->rxconf.src_maxburst = p->fifosize / 4;
+	up->dma->txconf.dst_maxburst = p->fifosize / 4;
+
+	return 0;
+}
+#else
+static inline int dw8250_probe_acpi(struct uart_8250_port *up)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_ACPI */
+
 static int dw8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
@@ -259,6 +289,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
+	data->usr_reg = DW_UART_USR;
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(data->clk)) {
 		clk_prepare_enable(data->clk);
@@ -270,10 +301,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	uart.port.serial_out = dw8250_serial_out;
 	uart.port.private_data = data;
 
-	dw8250_setup_port(&uart);
-
 	if (pdev->dev.of_node) {
-		err = dw8250_probe_of(&uart.port);
+		err = dw8250_probe_of(&uart.port, data);
 		if (err)
 			return err;
 	} else if (ACPI_HANDLE(&pdev->dev)) {
@@ -362,6 +391,7 @@ static const struct dev_pm_ops dw8250_pm_ops = {
 
 static const struct of_device_id dw8250_of_match[] = {
 	{ .compatible = "snps,dw-apb-uart" },
+	{ .compatible = "cavium,octeon-3860-uart" },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, dw8250_of_match);

@@ -1,0 +1,8 @@
+What:		/config/usb-gadget/gadget/functions/acm.name
+Date:		Jun 2013
+KenelVersion:	3.11
+Description:
+
+		This item contains just one readonly attribute: port_num.
+		It contains the port number of the /dev/ttyGS<n> device
+		associated with acm function's instance "name".

@@ -130,8 +130,12 @@ static int set_eth_addr(struct sk_buff *skb,
 	if (unlikely(err))
 		return err;
 
+	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
+
 	memcpy(eth_hdr(skb)->h_source, eth_key->eth_src, ETH_ALEN);
 	memcpy(eth_hdr(skb)->h_dest, eth_key->eth_dst, ETH_ALEN);
+
+	ovs_skb_postpush_rcsum(skb, eth_hdr(skb), ETH_ALEN * 2);
 
 	return 0;
 }
@@ -430,6 +434,10 @@ static int execute_set_action(struct sk_buff *skb,
 
 	case OVS_KEY_ATTR_SKB_MARK:
 		skb->mark = nla_get_u32(nested_attr);
+		break;
+
+	case OVS_KEY_ATTR_IPV4_TUNNEL:
+		OVS_CB(skb)->tun_key = nla_data(nested_attr);
 		break;
 
 	case OVS_KEY_ATTR_ETHERNET:

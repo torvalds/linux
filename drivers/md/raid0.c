@@ -597,6 +597,7 @@ static void *raid0_takeover_raid45(struct mddev *mddev)
 			       mdname(mddev));
 			return ERR_PTR(-EINVAL);
 		}
+		rdev->sectors = mddev->dev_sectors;
 	}
 
 	/* Set new parameters */

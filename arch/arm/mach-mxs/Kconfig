@@ -3,7 +3,6 @@ config SOC_IMX23
 	select ARM_AMBA
 	select ARM_CPU_SUSPEND if PM
 	select CPU_ARM926T
-	select HAVE_PWM
 	select PINCTRL_IMX23
 
 config SOC_IMX28
@@ -11,8 +10,6 @@ config SOC_IMX28
 	select ARM_AMBA
 	select ARM_CPU_SUSPEND if PM
 	select CPU_ARM926T
-	select HAVE_CAN_FLEXCAN if CAN
-	select HAVE_PWM
 	select PINCTRL_IMX28
 
 config ARCH_MXS
@@ -25,6 +22,7 @@ config ARCH_MXS
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK_PREPARE
 	select PINCTRL
+	select SOC_BUS
 	select SOC_IMX23
 	select SOC_IMX28
 	select STMP_DEVICE

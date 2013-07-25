@@ -50,194 +50,177 @@
  *      Eff Addr for load = [reg2]
  */
 
-/*--------------------------------------------------------------
- * Save caller saved registers (scratch registers) ( r0 - r12 )
- * Registers are pushed / popped in the order defined in struct ptregs
- * in asm/ptrace.h
- *-------------------------------------------------------------*/
-.macro  SAVE_CALLER_SAVED
-	st.a    r0, [sp, -4]
-	st.a    r1, [sp, -4]
-	st.a    r2, [sp, -4]
-	st.a    r3, [sp, -4]
-	st.a    r4, [sp, -4]
-	st.a    r5, [sp, -4]
-	st.a    r6, [sp, -4]
-	st.a    r7, [sp, -4]
-	st.a    r8, [sp, -4]
-	st.a    r9, [sp, -4]
-	st.a    r10, [sp, -4]
-	st.a    r11, [sp, -4]
-	st.a    r12, [sp, -4]
+.macro PUSH reg
+	st.a	\reg, [sp, -4]
+.endm
+
+.macro PUSHAX aux
+	lr	r9, [\aux]
+	PUSH	r9
+.endm
+
+.macro POP reg
+	ld.ab	\reg, [sp, 4]
+.endm
+
+.macro POPAX aux
+	POP	r9
+	sr	r9, [\aux]
 .endm
 
 /*--------------------------------------------------------------
- * Restore caller saved registers (scratch registers)
+ * Helpers to save/restore Scratch Regs:
+ * used by Interrupt/Exception Prologue/Epilogue
  *-------------------------------------------------------------*/
-.macro RESTORE_CALLER_SAVED
-	ld.ab   r12, [sp, 4]
-	ld.ab   r11, [sp, 4]
-	ld.ab   r10, [sp, 4]
-	ld.ab   r9, [sp, 4]
-	ld.ab   r8, [sp, 4]
-	ld.ab   r7, [sp, 4]
-	ld.ab   r6, [sp, 4]
-	ld.ab   r5, [sp, 4]
-	ld.ab   r4, [sp, 4]
-	ld.ab   r3, [sp, 4]
-	ld.ab   r2, [sp, 4]
-	ld.ab   r1, [sp, 4]
-	ld.ab   r0, [sp, 4]
+.macro  SAVE_R0_TO_R12
+	PUSH	r0
+	PUSH	r1
+	PUSH	r2
+	PUSH	r3
+	PUSH	r4
+	PUSH	r5
+	PUSH	r6
+	PUSH	r7
+	PUSH	r8
+	PUSH	r9
+	PUSH	r10
+	PUSH	r11
+	PUSH	r12
 .endm
 
+.macro RESTORE_R12_TO_R0
+	POP	r12
+	POP	r11
+	POP	r10
+	POP	r9
+	POP	r8
+	POP	r7
+	POP	r6
+	POP	r5
+	POP	r4
+	POP	r3
+	POP	r2
+	POP	r1
+	POP	r0
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+	ld	r25, [sp, 12]
+#endif
+.endm
 
 /*--------------------------------------------------------------
- * Save callee saved registers (non scratch registers) ( r13 - r25 )
- *  on kernel stack.
- * User mode callee regs need to be saved in case of
- *    -fork and friends for replicating from parent to child
- *    -before going into do_signal( ) for ptrace/core-dump
- * Special case handling is required for r25 in case it is used by kernel
- *  for caching task ptr. Low level exception/ISR save user mode r25
- *  into task->thread.user_r25. So it needs to be retrieved from there and
- *  saved into kernel stack with rest of callee reg-file
+ * Helpers to save/restore callee-saved regs:
+ * used by several macros below
+ *-------------------------------------------------------------*/
+.macro SAVE_R13_TO_R24
+	PUSH	r13
+	PUSH	r14
+	PUSH	r15
+	PUSH	r16
+	PUSH	r17
+	PUSH	r18
+	PUSH	r19
+	PUSH	r20
+	PUSH	r21
+	PUSH	r22
+	PUSH	r23
+	PUSH	r24
+.endm
+
+.macro RESTORE_R24_TO_R13
+	POP	r24
+	POP	r23
+	POP	r22
+	POP	r21
+	POP	r20
+	POP	r19
+	POP	r18
+	POP	r17
+	POP	r16
+	POP	r15
+	POP	r14
+	POP	r13
+.endm
+
+#define OFF_USER_R25_FROM_R24	(SZ_CALLEE_REGS + SZ_PT_REGS - 8)/4
+
+/*--------------------------------------------------------------
+ * Collect User Mode callee regs as struct callee_regs - needed by
+ * fork/do_signal/unaligned-access-emulation.
+ * (By default only scratch regs are saved on entry to kernel)
+ *
+ * Special handling for r25 if used for caching Task Pointer.
+ * It would have been saved in task->thread.user_r25 already, but to keep
+ * the interface same it is copied into regular r25 placeholder in
+ * struct callee_regs.
  *-------------------------------------------------------------*/
 .macro SAVE_CALLEE_SAVED_USER
-	st.a    r13, [sp, -4]
-	st.a    r14, [sp, -4]
-	st.a    r15, [sp, -4]
-	st.a    r16, [sp, -4]
-	st.a    r17, [sp, -4]
-	st.a    r18, [sp, -4]
-	st.a    r19, [sp, -4]
-	st.a    r20, [sp, -4]
-	st.a    r21, [sp, -4]
-	st.a    r22, [sp, -4]
-	st.a    r23, [sp, -4]
-	st.a    r24, [sp, -4]
+
+	SAVE_R13_TO_R24
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 	; Retrieve orig r25 and save it on stack
-	ld      r12, [r25, TASK_THREAD + THREAD_USER_R25]
+	ld.as   r12, [sp, OFF_USER_R25_FROM_R24]
 	st.a    r12, [sp, -4]
 #else
-	st.a    r25, [sp, -4]
+	PUSH	r25
 #endif
 
-	/* move up by 1 word to "create" callee_regs->"stack_place_holder" */
-	sub sp, sp, 4
 .endm
 
 /*--------------------------------------------------------------
- * Save callee saved registers (non scratch registers) ( r13 - r25 )
- * kernel mode callee regs needed to be saved in case of context switch
- * If r25 is used for caching task pointer then that need not be saved
- * as it can be re-created from current task global
+ * Save kernel Mode callee regs at the time of Contect Switch.
+ *
+ * Special handling for r25 if used for caching Task Pointer.
+ * Kernel simply skips saving it since it will be loaded with
+ * incoming task pointer anyways
  *-------------------------------------------------------------*/
 .macro SAVE_CALLEE_SAVED_KERNEL
-	st.a    r13, [sp, -4]
-	st.a    r14, [sp, -4]
-	st.a    r15, [sp, -4]
-	st.a    r16, [sp, -4]
-	st.a    r17, [sp, -4]
-	st.a    r18, [sp, -4]
-	st.a    r19, [sp, -4]
-	st.a    r20, [sp, -4]
-	st.a    r21, [sp, -4]
-	st.a    r22, [sp, -4]
-	st.a    r23, [sp, -4]
-	st.a    r24, [sp, -4]
+
+	SAVE_R13_TO_R24
+
 #ifdef CONFIG_ARC_CURR_IN_REG
-	sub     sp, sp, 8
-#else
-	st.a    r25, [sp, -4]
 	sub     sp, sp, 4
+#else
+	PUSH	r25
 #endif
 .endm
 
 /*--------------------------------------------------------------
- * RESTORE_CALLEE_SAVED_KERNEL:
- * Loads callee (non scratch) Reg File by popping from Kernel mode stack.
- *  This is reverse of SAVE_CALLEE_SAVED,
- *
- * NOTE:
- * Ideally this shd only be called in switch_to for loading
- *  switched-IN task's CALLEE Reg File.
- *  For all other cases RESTORE_CALLEE_SAVED_FAST must be used
- *  which simply pops the stack w/o touching regs.
+ * Opposite of SAVE_CALLEE_SAVED_KERNEL
  *-------------------------------------------------------------*/
 .macro RESTORE_CALLEE_SAVED_KERNEL
 
-
 #ifdef CONFIG_ARC_CURR_IN_REG
-	add     sp, sp, 8  /* skip callee_reg gutter and user r25 placeholder */
+	add     sp, sp, 4  /* skip usual r25 placeholder */
 #else
-	add     sp, sp, 4   /* skip "callee_regs->stack_place_holder" */
-	ld.ab   r25, [sp, 4]
+	POP	r25
 #endif
-
-	ld.ab   r24, [sp, 4]
-	ld.ab   r23, [sp, 4]
-	ld.ab   r22, [sp, 4]
-	ld.ab   r21, [sp, 4]
-	ld.ab   r20, [sp, 4]
-	ld.ab   r19, [sp, 4]
-	ld.ab   r18, [sp, 4]
-	ld.ab   r17, [sp, 4]
-	ld.ab   r16, [sp, 4]
-	ld.ab   r15, [sp, 4]
-	ld.ab   r14, [sp, 4]
-	ld.ab   r13, [sp, 4]
-
+	RESTORE_R24_TO_R13
 .endm
 
 /*--------------------------------------------------------------
- * RESTORE_CALLEE_SAVED_USER:
- * This is called after do_signal where tracer might have changed callee regs
- * thus we need to restore the reg file.
- * Special case handling is required for r25 in case it is used by kernel
- *  for caching task ptr. Ptrace would have modified on-kernel-stack value of
- *  r25, which needs to be shoved back into task->thread.user_r25 where from
- *  Low level exception/ISR return code will retrieve to populate with rest of
- *  callee reg-file.
+ * Opposite of SAVE_CALLEE_SAVED_USER
+ *
+ * ptrace tracer or unaligned-access fixup might have changed a user mode
+ * callee reg which is saved back to usual r25 storage location
  *-------------------------------------------------------------*/
 .macro RESTORE_CALLEE_SAVED_USER
 
-	add     sp, sp, 4   /* skip "callee_regs->stack_place_holder" */
-
 #ifdef CONFIG_ARC_CURR_IN_REG
 	ld.ab   r12, [sp, 4]
-	st      r12, [r25, TASK_THREAD + THREAD_USER_R25]
+	st.as   r12, [sp, OFF_USER_R25_FROM_R24]
 #else
-	ld.ab   r25, [sp, 4]
+	POP	r25
 #endif
-
-	ld.ab   r24, [sp, 4]
-	ld.ab   r23, [sp, 4]
-	ld.ab   r22, [sp, 4]
-	ld.ab   r21, [sp, 4]
-	ld.ab   r20, [sp, 4]
-	ld.ab   r19, [sp, 4]
-	ld.ab   r18, [sp, 4]
-	ld.ab   r17, [sp, 4]
-	ld.ab   r16, [sp, 4]
-	ld.ab   r15, [sp, 4]
-	ld.ab   r14, [sp, 4]
-	ld.ab   r13, [sp, 4]
+	RESTORE_R24_TO_R13
 .endm
 
 /*--------------------------------------------------------------
  * Super FAST Restore callee saved regs by simply re-adjusting SP
  *-------------------------------------------------------------*/
 .macro DISCARD_CALLEE_SAVED_USER
-	add     sp, sp, 14 * 4
-.endm
-
-/*--------------------------------------------------------------
- * Restore User mode r25 saved in task_struct->thread.user_r25
- *-------------------------------------------------------------*/
-.macro RESTORE_USER_R25
-	ld  r25, [r25, TASK_THREAD + THREAD_USER_R25]
+	add     sp, sp, SZ_CALLEE_REGS
 .endm
 
 /*-------------------------------------------------------------
@@ -252,7 +235,7 @@
 	ld  \out, [\tsk, TASK_THREAD_INFO]
 
 	/* Go to end of page where stack begins (grows upwards) */
-	add2 \out, \out, (THREAD_SIZE - 4)/4   /* one word GUTTER */
+	add2 \out, \out, (THREAD_SIZE)/4
 
 .endm
 
@@ -305,33 +288,28 @@
 	 * safe-keeping not really needed, but it keeps the epilogue code
 	 * (SP restore) simpler/uniform.
 	 */
-	b.d	77f
-
-	st.a	sp, [sp, -12]	; Make room for orig_r0 and orig_r8
+	b.d	66f
+	mov	r9, sp
 
 88: /*------Intr/Ecxp happened in user mode, "switch" stack ------ */
 
 	GET_CURR_TASK_ON_CPU   r9
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-
-	/* If current task pointer cached in r25, time to
-	 *  -safekeep USER r25 in task->thread_struct->user_r25
-	 *  -load r25 with current task ptr
-	 */
-	st.as	r25, [r9, (TASK_THREAD + THREAD_USER_R25)/4]
-	mov	r25, r9
-#endif
-
 	/* With current tsk in r9, get it's kernel mode stack base */
 	GET_TSK_STACK_BASE  r9, r9
 
-#ifdef PT_REGS_CANARY
-	st	0xabcdabcd, [r9, 0]
+66:
+#ifdef CONFIG_ARC_CURR_IN_REG
+	/*
+	 * Treat r25 as scratch reg, save it on stack first
+	 * Load it with current task pointer
+	 */
+	st	r25, [r9, -4]
+	GET_CURR_TASK_ON_CPU   r25
 #endif
 
 	/* Save Pre Intr/Exception User SP on kernel stack */
-	st.a    sp, [r9, -12]	; Make room for orig_r0 and orig_r8
+	st.a    sp, [r9, -16]	; Make room for orig_r0, ECR, user_r25
 
 	/* CAUTION:
 	 * SP should be set at the very end when we are done with everything
@@ -342,7 +320,7 @@
 	/* set SP to point to kernel mode stack */
 	mov sp, r9
 
-77: /* ----- Stack Switched to kernel Mode, Now save REG FILE ----- */
+	/* ----- Stack Switched to kernel Mode, Now save REG FILE ----- */
 
 .endm
 
@@ -369,7 +347,7 @@
  * @reg [OUT] &thread_info of "current"
  */
 .macro GET_CURR_THR_INFO_FROM_SP  reg
-	and \reg, sp, ~(THREAD_SIZE - 1)
+	bic \reg, sp, (THREAD_SIZE - 1)
 .endm
 
 /*
@@ -413,62 +391,25 @@
  * Note that syscalls are implemented via TRAP which is also a exception
  * from CPU's point of view
  *-------------------------------------------------------------*/
-.macro SAVE_ALL_EXCEPTION   marker
+.macro SAVE_ALL_SYS
 
-	st      \marker, [sp, 8]	/* orig_r8 */
+	lr	r9, [ecr]
+	st      r9, [sp, 8]    /* ECR */
 	st      r0, [sp, 4]    /* orig_r0, needed only for sys calls */
 
 	/* Restore r9 used to code the early prologue */
 	EXCPN_PROLOG_RESTORE_REG  r9
 
-	SAVE_CALLER_SAVED
-	st.a    r26, [sp, -4]   /* gp */
-	st.a    fp, [sp, -4]
-	st.a    blink, [sp, -4]
-	lr	r9, [eret]
-	st.a    r9, [sp, -4]
-	lr	r9, [erstatus]
-	st.a    r9, [sp, -4]
-	st.a    lp_count, [sp, -4]
-	lr	r9, [lp_end]
-	st.a    r9, [sp, -4]
-	lr	r9, [lp_start]
-	st.a    r9, [sp, -4]
-	lr	r9, [erbta]
-	st.a    r9, [sp, -4]
-
-#ifdef PT_REGS_CANARY
-	mov   r9, 0xdeadbeef
-	st    r9, [sp, -4]
-#endif
-
-	/* move up by 1 word to "create" pt_regs->"stack_place_holder" */
-	sub sp, sp, 4
-.endm
-
-/*--------------------------------------------------------------
- * Save scratch regs for exceptions
- *-------------------------------------------------------------*/
-.macro SAVE_ALL_SYS
-	SAVE_ALL_EXCEPTION  orig_r8_IS_EXCPN
-.endm
-
-/*--------------------------------------------------------------
- * Save scratch regs for sys calls
- *-------------------------------------------------------------*/
-.macro SAVE_ALL_TRAP
-	/*
-	 * Setup pt_regs->orig_r8.
-	 * Encode syscall number (r8) in upper short word of event type (r9)
-	 * N.B. #1: This is already endian safe (see ptrace.h)
-	 *      #2: Only r9 can be used as scratch as it is already clobbered
-	 *          and it's contents are no longer needed by the latter part
-	 *          of exception prologue
-	 */
-	lsl  r9, r8, 16
-	or   r9, r9, orig_r8_IS_SCALL
-
-	SAVE_ALL_EXCEPTION  r9
+	SAVE_R0_TO_R12
+	PUSH	gp
+	PUSH	fp
+	PUSH	blink
+	PUSHAX	eret
+	PUSHAX	erstatus
+	PUSH	lp_count
+	PUSHAX	lp_end
+	PUSHAX	lp_start
+	PUSHAX	erbta
 .endm
 
 /*--------------------------------------------------------------
@@ -483,28 +424,22 @@
  * by hardware and that is not good.
  *-------------------------------------------------------------*/
 .macro RESTORE_ALL_SYS
+	POPAX	erbta
+	POPAX	lp_start
+	POPAX	lp_end
 
-	add sp, sp, 4       /* hop over unused "pt_regs->stack_place_holder" */
+	POP	r9
+	mov	lp_count, r9	;LD to lp_count is not allowed
 
-	ld.ab   r9, [sp, 4]
-	sr	r9, [erbta]
-	ld.ab   r9, [sp, 4]
-	sr	r9, [lp_start]
-	ld.ab   r9, [sp, 4]
-	sr	r9, [lp_end]
-	ld.ab   r9, [sp, 4]
-	mov	lp_count, r9
-	ld.ab   r9, [sp, 4]
-	sr	r9, [erstatus]
-	ld.ab   r9, [sp, 4]
-	sr	r9, [eret]
-	ld.ab   blink, [sp, 4]
-	ld.ab   fp, [sp, 4]
-	ld.ab   r26, [sp, 4]    /* gp */
-	RESTORE_CALLER_SAVED
+	POPAX	erstatus
+	POPAX	eret
+	POP	blink
+	POP	fp
+	POP	gp
+	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0 and orig_r8 skipped automatically */
+	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
 
 
@@ -513,9 +448,7 @@
  *-------------------------------------------------------------*/
 .macro SAVE_ALL_INT1
 
-	/* restore original r9 , saved in int1_saved_reg
-	* It will be saved on stack in macro: SAVE_CALLER_SAVED
-	*/
+	/* restore original r9 to be saved as part of reg-file */
 #ifdef CONFIG_SMP
 	lr  r9, [ARC_REG_SCRATCH_DATA0]
 #else
@@ -523,29 +456,19 @@
 #endif
 
 	/* now we are ready to save the remaining context :) */
-	st      orig_r8_IS_IRQ1, [sp, 8]    /* Event Type */
+	st      event_IRQ1, [sp, 8]    /* Dummy ECR */
 	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
-	SAVE_CALLER_SAVED
-	st.a    r26, [sp, -4]   /* gp */
-	st.a    fp, [sp, -4]
-	st.a    blink, [sp, -4]
-	st.a    ilink1, [sp, -4]
-	lr	r9, [status32_l1]
-	st.a    r9, [sp, -4]
-	st.a    lp_count, [sp, -4]
-	lr	r9, [lp_end]
-	st.a    r9, [sp, -4]
-	lr	r9, [lp_start]
-	st.a    r9, [sp, -4]
-	lr	r9, [bta_l1]
-	st.a    r9, [sp, -4]
 
-#ifdef PT_REGS_CANARY
-	mov   r9, 0xdeadbee1
-	st    r9, [sp, -4]
-#endif
-	/* move up by 1 word to "create" pt_regs->"stack_place_holder" */
-	sub sp, sp, 4
+	SAVE_R0_TO_R12
+	PUSH	gp
+	PUSH	fp
+	PUSH	blink
+	PUSH	ilink1
+	PUSHAX	status32_l1
+	PUSH	lp_count
+	PUSHAX	lp_end
+	PUSHAX	lp_start
+	PUSHAX	bta_l1
 .endm
 
 .macro SAVE_ALL_INT2
@@ -558,30 +481,19 @@
 	ld  r9, [@int2_saved_reg]
 
 	/* now we are ready to save the remaining context :) */
-	st      orig_r8_IS_IRQ2, [sp, 8]    /* Event Type */
+	st      event_IRQ2, [sp, 8]    /* Dummy ECR */
 	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
-	SAVE_CALLER_SAVED
-	st.a    r26, [sp, -4]   /* gp */
-	st.a    fp, [sp, -4]
-	st.a    blink, [sp, -4]
-	st.a    ilink2, [sp, -4]
-	lr	r9, [status32_l2]
-	st.a    r9, [sp, -4]
-	st.a    lp_count, [sp, -4]
-	lr	r9, [lp_end]
-	st.a    r9, [sp, -4]
-	lr	r9, [lp_start]
-	st.a    r9, [sp, -4]
-	lr	r9, [bta_l2]
-	st.a    r9, [sp, -4]
 
-#ifdef PT_REGS_CANARY
-	mov   r9, 0xdeadbee2
-	st    r9, [sp, -4]
-#endif
-
-	/* move up by 1 word to "create" pt_regs->"stack_place_holder" */
-	sub sp, sp, 4
+	SAVE_R0_TO_R12
+	PUSH	gp
+	PUSH	fp
+	PUSH	blink
+	PUSH	ilink2
+	PUSHAX	status32_l2
+	PUSH	lp_count
+	PUSHAX	lp_end
+	PUSHAX	lp_start
+	PUSHAX	bta_l2
 .endm
 
 /*--------------------------------------------------------------
@@ -595,52 +507,41 @@
  *-------------------------------------------------------------*/
 
 .macro RESTORE_ALL_INT1
-	add sp, sp, 4       /* hop over unused "pt_regs->stack_place_holder" */
+	POPAX	bta_l1
+	POPAX	lp_start
+	POPAX	lp_end
 
-	ld.ab   r9, [sp, 4] /* Actual reg file */
-	sr	r9, [bta_l1]
-	ld.ab   r9, [sp, 4]
-	sr	r9, [lp_start]
-	ld.ab   r9, [sp, 4]
-	sr	r9, [lp_end]
-	ld.ab   r9, [sp, 4]
-	mov	lp_count, r9
-	ld.ab   r9, [sp, 4]
-	sr	r9, [status32_l1]
-	ld.ab   r9, [sp, 4]
-	mov	ilink1, r9
-	ld.ab   blink, [sp, 4]
-	ld.ab   fp, [sp, 4]
-	ld.ab   r26, [sp, 4]    /* gp */
-	RESTORE_CALLER_SAVED
+	POP	r9
+	mov	lp_count, r9	;LD to lp_count is not allowed
+
+	POPAX	status32_l1
+	POP	ilink1
+	POP	blink
+	POP	fp
+	POP	gp
+	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0 and orig_r8 skipped automatically */
+	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
 
 .macro RESTORE_ALL_INT2
-	add sp, sp, 4       /* hop over unused "pt_regs->stack_place_holder" */
+	POPAX	bta_l2
+	POPAX	lp_start
+	POPAX	lp_end
 
-	ld.ab   r9, [sp, 4]
-	sr	r9, [bta_l2]
-	ld.ab   r9, [sp, 4]
-	sr	r9, [lp_start]
-	ld.ab   r9, [sp, 4]
-	sr	r9, [lp_end]
-	ld.ab   r9, [sp, 4]
-	mov	lp_count, r9
-	ld.ab   r9, [sp, 4]
-	sr	r9, [status32_l2]
-	ld.ab   r9, [sp, 4]
-	mov	ilink2, r9
-	ld.ab   blink, [sp, 4]
-	ld.ab   fp, [sp, 4]
-	ld.ab   r26, [sp, 4]    /* gp */
-	RESTORE_CALLER_SAVED
+	POP	r9
+	mov	lp_count, r9	;LD to lp_count is not allowed
+
+	POPAX	status32_l2
+	POP	ilink2
+	POP	blink
+	POP	fp
+	POP	gp
+	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0 and orig_r8 skipped automatically */
-
+	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
 
 

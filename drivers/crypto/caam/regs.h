@@ -117,6 +117,43 @@ struct jr_outentry {
 #define CHA_NUM_DECONUM_SHIFT	56
 #define CHA_NUM_DECONUM_MASK	(0xfull << CHA_NUM_DECONUM_SHIFT)
 
+/* CHA Version IDs */
+#define CHA_ID_AES_SHIFT	0
+#define CHA_ID_AES_MASK		(0xfull << CHA_ID_AES_SHIFT)
+
+#define CHA_ID_DES_SHIFT	4
+#define CHA_ID_DES_MASK		(0xfull << CHA_ID_DES_SHIFT)
+
+#define CHA_ID_ARC4_SHIFT	8
+#define CHA_ID_ARC4_MASK	(0xfull << CHA_ID_ARC4_SHIFT)
+
+#define CHA_ID_MD_SHIFT		12
+#define CHA_ID_MD_MASK		(0xfull << CHA_ID_MD_SHIFT)
+
+#define CHA_ID_RNG_SHIFT	16
+#define CHA_ID_RNG_MASK		(0xfull << CHA_ID_RNG_SHIFT)
+
+#define CHA_ID_SNW8_SHIFT	20
+#define CHA_ID_SNW8_MASK	(0xfull << CHA_ID_SNW8_SHIFT)
+
+#define CHA_ID_KAS_SHIFT	24
+#define CHA_ID_KAS_MASK		(0xfull << CHA_ID_KAS_SHIFT)
+
+#define CHA_ID_PK_SHIFT		28
+#define CHA_ID_PK_MASK		(0xfull << CHA_ID_PK_SHIFT)
+
+#define CHA_ID_CRC_SHIFT	32
+#define CHA_ID_CRC_MASK		(0xfull << CHA_ID_CRC_SHIFT)
+
+#define CHA_ID_SNW9_SHIFT	36
+#define CHA_ID_SNW9_MASK	(0xfull << CHA_ID_SNW9_SHIFT)
+
+#define CHA_ID_DECO_SHIFT	56
+#define CHA_ID_DECO_MASK	(0xfull << CHA_ID_DECO_SHIFT)
+
+#define CHA_ID_JR_SHIFT		60
+#define CHA_ID_JR_MASK		(0xfull << CHA_ID_JR_SHIFT)
+
 struct sec_vid {
 	u16 ip_id;
 	u8 maj_rev;
@@ -228,7 +265,10 @@ struct rng4tst {
 		u32 rtfrqmax;	/* PRGM=1: freq. count max. limit register */
 		u32 rtfrqcnt;	/* PRGM=0: freq. count register */
 	};
-	u32 rsvd1[56];
+	u32 rsvd1[40];
+#define RDSTA_IF0 0x00000001
+	u32 rdsta;
+	u32 rsvd2[15];
 };
 
 /*

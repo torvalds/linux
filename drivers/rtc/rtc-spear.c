@@ -417,7 +417,6 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 err_disable_clock:
-	platform_set_drvdata(pdev, NULL);
 	clk_disable_unprepare(config->clk);
 
 	return status;

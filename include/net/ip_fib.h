@@ -51,11 +51,13 @@ struct rtable;
 
 struct fib_nh_exception {
 	struct fib_nh_exception __rcu	*fnhe_next;
+	int				fnhe_genid;
 	__be32				fnhe_daddr;
 	u32				fnhe_pmtu;
 	__be32				fnhe_gw;
 	unsigned long			fnhe_expires;
-	struct rtable __rcu		*fnhe_rth;
+	struct rtable __rcu		*fnhe_rth_input;
+	struct rtable __rcu		*fnhe_rth_output;
 	unsigned long			fnhe_stamp;
 };
 
@@ -289,7 +291,6 @@ static inline int fib_num_tclassid_users(struct net *net)
 extern int ip_fib_check_default(__be32 gw, struct net_device *dev);
 extern int fib_sync_down_dev(struct net_device *dev, int force);
 extern int fib_sync_down_addr(struct net *net, __be32 local);
-extern void fib_update_nh_saddrs(struct net_device *dev);
 extern int fib_sync_up(struct net_device *dev);
 extern void fib_select_multipath(struct fib_result *res);
 

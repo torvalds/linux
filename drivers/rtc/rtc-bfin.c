@@ -391,7 +391,6 @@ static int bfin_rtc_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	bfin_rtc_reset(dev, 0);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

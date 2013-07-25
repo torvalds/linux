@@ -288,15 +288,14 @@ static int f81232_ioctl(struct tty_struct *tty,
 	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s (%d) cmd = 0x%04x\n", __func__,
-		port->number, cmd);
+	dev_dbg(&port->dev, "%s cmd = 0x%04x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCGSERIAL:
 		memset(&ser, 0, sizeof ser);
 		ser.type = PORT_16654;
-		ser.line = port->serial->minor;
-		ser.port = port->number;
+		ser.line = port->minor;
+		ser.port = port->port_number;
 		ser.baud_base = 460800;
 
 		if (copy_to_user((void __user *)arg, &ser, sizeof ser))

@@ -223,11 +223,12 @@ extern int iop3xx_get_init_atu(void);
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
+#include <linux/reboot.h>
 
 void iop3xx_map_io(void);
 void iop_init_cp6_handler(void);
 void iop_init_time(unsigned long tickrate);
-void iop3xx_restart(char, const char *);
+void iop3xx_restart(enum reboot_mode, const char *);
 
 static inline u32 read_tmr0(void)
 {

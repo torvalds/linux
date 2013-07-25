@@ -10,7 +10,6 @@
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/init.h>
 #include <subdev/devinit.h>
-#include <subdev/clock.h>
 #include <subdev/i2c.h>
 #include <subdev/vga.h>
 #include <subdev/gpio.h>
@@ -300,9 +299,9 @@ init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 static void
 init_prog_pll(struct nvbios_init *init, u32 id, u32 freq)
 {
-	struct nouveau_clock *clk = nouveau_clock(init->bios);
-	if (clk && clk->pll_set && init_exec(init)) {
-		int ret = clk->pll_set(clk, id, freq);
+	struct nouveau_devinit *devinit = nouveau_devinit(init->bios);
+	if (devinit->pll_set && init_exec(init)) {
+		int ret = devinit->pll_set(devinit, id, freq);
 		if (ret)
 			warn("failed to prog pll 0x%08x to %dkHz\n", id, freq);
 	}

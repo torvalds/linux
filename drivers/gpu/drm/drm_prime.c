@@ -119,12 +119,13 @@ static void drm_gem_map_detach(struct dma_buf *dma_buf,
 		return;
 
 	sgt = prime_attach->sgt;
+	if (sgt) {
+		if (prime_attach->dir != DMA_NONE)
+			dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
+					prime_attach->dir);
+		sg_free_table(sgt);
+	}
 
-	if (prime_attach->dir != DMA_NONE)
-		dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
-				prime_attach->dir);
-
-	sg_free_table(sgt);
 	kfree(sgt);
 	kfree(prime_attach);
 	attach->priv = NULL;
@@ -244,7 +245,13 @@ static void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf,
 static int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf,
 		struct vm_area_struct *vma)
 {
-	return -EINVAL;
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+
+	if (!dev->driver->gem_prime_mmap)
+		return -ENOSYS;
+
+	return dev->driver->gem_prime_mmap(obj, vma);
 }
 
 static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
@@ -347,10 +354,13 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 out_have_obj:
 	get_dma_buf(dmabuf);
 	ret = dma_buf_fd(dmabuf, flags);
-	if (ret < 0)
+	if (ret < 0) {
 		dma_buf_put(dmabuf);
-	else
+	} else {
 		*prime_fd = ret;
+		ret = 0;
+	}
+
 	goto out;
 
 fail_rm_handle:

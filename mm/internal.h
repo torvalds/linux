@@ -32,11 +32,6 @@ static inline void set_page_refcounted(struct page *page)
 	set_page_count(page, 1);
 }
 
-static inline void __put_page(struct page *page)
-{
-	atomic_dec(&page->_count);
-}
-
 static inline void __get_page_tail_foll(struct page *page,
 					bool get_page_head)
 {

@@ -1,4 +1,3 @@
-#include <asm/delay.h>
 #include <asm/timex.h>
 #include <asm/io.h>
 #include <variant/hardware.h>
@@ -17,11 +16,10 @@ void platform_calibrate_ccount(void)
 		"1:	l32i %0, %2, 0 ;"
 		"	beq %0, %1, 1b ;"
 		: "=&a"(u) : "a"(t), "a"(tstamp));
-		b = xtensa_get_ccount();
+		b = get_ccount();
 		if (i == LOOPS)
 			a = b;
 	} while (--i >= 0);
 	b -= a;
-	nsec_per_ccount = (LOOPS * 10000) / b;
-	ccount_per_jiffy = b * (100000UL / (LOOPS * HZ));
+	ccount_freq = b * (100000UL / LOOPS);
 }

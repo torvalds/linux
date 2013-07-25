@@ -968,6 +968,9 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 	u8 csum = 0;
 	struct edid *edid = (struct edid *)raw_edid;
 
+	if (WARN_ON(!raw_edid))
+		return false;
+
 	if (edid_fixup > 8 || edid_fixup < 0)
 		edid_fixup = 6;
 
@@ -1010,15 +1013,15 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 		break;
 	}
 
-	return 1;
+	return true;
 
 bad:
-	if (raw_edid && print_bad_edid) {
+	if (print_bad_edid) {
 		printk(KERN_ERR "Raw EDID:\n");
 		print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
 			       raw_edid, EDID_LENGTH, false);
 	}
-	return 0;
+	return false;
 }
 EXPORT_SYMBOL(drm_edid_block_valid);
 

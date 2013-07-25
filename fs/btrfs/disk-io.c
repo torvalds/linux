@@ -1013,7 +1013,8 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	return try_release_extent_buffer(page);
 }
 
-static void btree_invalidatepage(struct page *page, unsigned long offset)
+static void btree_invalidatepage(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
@@ -1191,6 +1192,8 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->objectid = objectid;
 	root->last_trans = 0;
 	root->highest_objectid = 0;
+	root->nr_delalloc_inodes = 0;
+	root->nr_ordered_extents = 0;
 	root->name = NULL;
 	root->inode_tree = RB_ROOT;
 	INIT_RADIX_TREE(&root->delayed_nodes_tree, GFP_ATOMIC);
@@ -1199,10 +1202,16 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 
 	INIT_LIST_HEAD(&root->dirty_list);
 	INIT_LIST_HEAD(&root->root_list);
+	INIT_LIST_HEAD(&root->delalloc_inodes);
+	INIT_LIST_HEAD(&root->delalloc_root);
+	INIT_LIST_HEAD(&root->ordered_extents);
+	INIT_LIST_HEAD(&root->ordered_root);
 	INIT_LIST_HEAD(&root->logged_list[0]);
 	INIT_LIST_HEAD(&root->logged_list[1]);
 	spin_lock_init(&root->orphan_lock);
 	spin_lock_init(&root->inode_lock);
+	spin_lock_init(&root->delalloc_lock);
+	spin_lock_init(&root->ordered_extent_lock);
 	spin_lock_init(&root->accounting_lock);
 	spin_lock_init(&root->log_extents_lock[0]);
 	spin_lock_init(&root->log_extents_lock[1]);
@@ -1216,6 +1225,7 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	atomic_set(&root->log_writers, 0);
 	atomic_set(&root->log_batch, 0);
 	atomic_set(&root->orphan_inodes, 0);
+	atomic_set(&root->refs, 1);
 	root->log_transid = 0;
 	root->last_log_commit = 0;
 	extent_io_tree_init(&root->dirty_log_pages,
@@ -1232,39 +1242,6 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->anon_dev = 0;
 
 	spin_lock_init(&root->root_item_lock);
-}
-
-static int __must_check find_and_setup_root(struct btrfs_root *tree_root,
-					    struct btrfs_fs_info *fs_info,
-					    u64 objectid,
-					    struct btrfs_root *root)
-{
-	int ret;
-	u32 blocksize;
-	u64 generation;
-
-	__setup_root(tree_root->nodesize, tree_root->leafsize,
-		     tree_root->sectorsize, tree_root->stripesize,
-		     root, fs_info, objectid);
-	ret = btrfs_find_last_root(tree_root, objectid,
-				   &root->root_item, &root->root_key);
-	if (ret > 0)
-		return -ENOENT;
-	else if (ret < 0)
-		return ret;
-
-	generation = btrfs_root_generation(&root->root_item);
-	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
-	root->commit_root = NULL;
-	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
-				     blocksize, generation);
-	if (!root->node || !btrfs_buffer_uptodate(root->node, generation, 0)) {
-		free_extent_buffer(root->node);
-		root->node = NULL;
-		return -EIO;
-	}
-	root->commit_root = btrfs_root_node(root);
-	return 0;
 }
 
 static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info)
@@ -1451,75 +1428,138 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
-					       struct btrfs_key *location)
+struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
+					struct btrfs_key *key)
 {
 	struct btrfs_root *root;
 	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_path *path;
-	struct extent_buffer *l;
 	u64 generation;
 	u32 blocksize;
-	int ret = 0;
-	int slot;
+	int ret;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return ERR_PTR(-ENOMEM);
 
 	root = btrfs_alloc_root(fs_info);
-	if (!root)
-		return ERR_PTR(-ENOMEM);
-	if (location->offset == (u64)-1) {
-		ret = find_and_setup_root(tree_root, fs_info,
-					  location->objectid, root);
-		if (ret) {
-			kfree(root);
-			return ERR_PTR(ret);
-		}
-		goto out;
+	if (!root) {
+		ret = -ENOMEM;
+		goto alloc_fail;
 	}
 
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
-		     root, fs_info, location->objectid);
+		     root, fs_info, key->objectid);
 
-	path = btrfs_alloc_path();
-	if (!path) {
-		kfree(root);
-		return ERR_PTR(-ENOMEM);
-	}
-	ret = btrfs_search_slot(NULL, tree_root, location, path, 0, 0);
-	if (ret == 0) {
-		l = path->nodes[0];
-		slot = path->slots[0];
-		btrfs_read_root_item(l, slot, &root->root_item);
-		memcpy(&root->root_key, location, sizeof(*location));
-	}
-	btrfs_free_path(path);
+	ret = btrfs_find_root(tree_root, key, path,
+			      &root->root_item, &root->root_key);
 	if (ret) {
-		kfree(root);
 		if (ret > 0)
 			ret = -ENOENT;
-		return ERR_PTR(ret);
+		goto find_fail;
 	}
 
 	generation = btrfs_root_generation(&root->root_item);
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
-	if (!root->node || !extent_buffer_uptodate(root->node)) {
-		ret = (!root->node) ? -ENOMEM : -EIO;
-
-		free_extent_buffer(root->node);
-		kfree(root);
-		return ERR_PTR(ret);
+	if (!root->node) {
+		ret = -ENOMEM;
+		goto find_fail;
+	} else if (!btrfs_buffer_uptodate(root->node, generation, 0)) {
+		ret = -EIO;
+		goto read_fail;
 	}
-
 	root->commit_root = btrfs_root_node(root);
 out:
-	if (location->objectid != BTRFS_TREE_LOG_OBJECTID) {
+	btrfs_free_path(path);
+	return root;
+
+read_fail:
+	free_extent_buffer(root->node);
+find_fail:
+	kfree(root);
+alloc_fail:
+	root = ERR_PTR(ret);
+	goto out;
+}
+
+struct btrfs_root *btrfs_read_fs_root(struct btrfs_root *tree_root,
+				      struct btrfs_key *location)
+{
+	struct btrfs_root *root;
+
+	root = btrfs_read_tree_root(tree_root, location);
+	if (IS_ERR(root))
+		return root;
+
+	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
 		root->ref_cows = 1;
 		btrfs_check_and_init_root_item(&root->root_item);
 	}
 
 	return root;
+}
+
+int btrfs_init_fs_root(struct btrfs_root *root)
+{
+	int ret;
+
+	root->free_ino_ctl = kzalloc(sizeof(*root->free_ino_ctl), GFP_NOFS);
+	root->free_ino_pinned = kzalloc(sizeof(*root->free_ino_pinned),
+					GFP_NOFS);
+	if (!root->free_ino_pinned || !root->free_ino_ctl) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	btrfs_init_free_ino_ctl(root);
+	mutex_init(&root->fs_commit_mutex);
+	spin_lock_init(&root->cache_lock);
+	init_waitqueue_head(&root->cache_wait);
+
+	ret = get_anon_bdev(&root->anon_dev);
+	if (ret)
+		goto fail;
+	return 0;
+fail:
+	kfree(root->free_ino_ctl);
+	kfree(root->free_ino_pinned);
+	return ret;
+}
+
+struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
+					u64 root_id)
+{
+	struct btrfs_root *root;
+
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	root = radix_tree_lookup(&fs_info->fs_roots_radix,
+				 (unsigned long)root_id);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
+	return root;
+}
+
+int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
+			 struct btrfs_root *root)
+{
+	int ret;
+
+	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	if (ret)
+		return ret;
+
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	ret = radix_tree_insert(&fs_info->fs_roots_radix,
+				(unsigned long)root->root_key.objectid,
+				root);
+	if (ret == 0)
+		root->in_radix = 1;
+	spin_unlock(&fs_info->fs_roots_radix_lock);
+	radix_tree_preload_end();
+
+	return ret;
 }
 
 struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
@@ -1542,38 +1582,22 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 		return fs_info->quota_root ? fs_info->quota_root :
 					     ERR_PTR(-ENOENT);
 again:
-	spin_lock(&fs_info->fs_roots_radix_lock);
-	root = radix_tree_lookup(&fs_info->fs_roots_radix,
-				 (unsigned long)location->objectid);
-	spin_unlock(&fs_info->fs_roots_radix_lock);
+	root = btrfs_lookup_fs_root(fs_info, location->objectid);
 	if (root)
 		return root;
 
-	root = btrfs_read_fs_root_no_radix(fs_info->tree_root, location);
+	root = btrfs_read_fs_root(fs_info->tree_root, location);
 	if (IS_ERR(root))
 		return root;
-
-	root->free_ino_ctl = kzalloc(sizeof(*root->free_ino_ctl), GFP_NOFS);
-	root->free_ino_pinned = kzalloc(sizeof(*root->free_ino_pinned),
-					GFP_NOFS);
-	if (!root->free_ino_pinned || !root->free_ino_ctl) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	btrfs_init_free_ino_ctl(root);
-	mutex_init(&root->fs_commit_mutex);
-	spin_lock_init(&root->cache_lock);
-	init_waitqueue_head(&root->cache_wait);
-
-	ret = get_anon_bdev(&root->anon_dev);
-	if (ret)
-		goto fail;
 
 	if (btrfs_root_refs(&root->root_item) == 0) {
 		ret = -ENOENT;
 		goto fail;
 	}
+
+	ret = btrfs_init_fs_root(root);
+	if (ret)
+		goto fail;
 
 	ret = btrfs_find_orphan_item(fs_info->tree_root, location->objectid);
 	if (ret < 0)
@@ -1581,19 +1605,7 @@ again:
 	if (ret == 0)
 		root->orphan_item_inserted = 1;
 
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
-	if (ret)
-		goto fail;
-
-	spin_lock(&fs_info->fs_roots_radix_lock);
-	ret = radix_tree_insert(&fs_info->fs_roots_radix,
-				(unsigned long)root->root_key.objectid,
-				root);
-	if (ret == 0)
-		root->in_radix = 1;
-
-	spin_unlock(&fs_info->fs_roots_radix_lock);
-	radix_tree_preload_end();
+	ret = btrfs_insert_fs_root(fs_info, root);
 	if (ret) {
 		if (ret == -EEXIST) {
 			free_fs_root(root);
@@ -1601,10 +1613,6 @@ again:
 		}
 		goto fail;
 	}
-
-	ret = btrfs_find_dead_roots(fs_info->tree_root,
-				    root->root_key.objectid);
-	WARN_ON(ret);
 	return root;
 fail:
 	free_fs_root(root);
@@ -1676,21 +1684,37 @@ static void end_workqueue_fn(struct btrfs_work *work)
 static int cleaner_kthread(void *arg)
 {
 	struct btrfs_root *root = arg;
+	int again;
 
 	do {
-		int again = 0;
+		again = 0;
 
-		if (!(root->fs_info->sb->s_flags & MS_RDONLY) &&
-		    down_read_trylock(&root->fs_info->sb->s_umount)) {
-			if (mutex_trylock(&root->fs_info->cleaner_mutex)) {
-				btrfs_run_delayed_iputs(root);
-				again = btrfs_clean_one_deleted_snapshot(root);
-				mutex_unlock(&root->fs_info->cleaner_mutex);
-			}
-			btrfs_run_defrag_inodes(root->fs_info);
-			up_read(&root->fs_info->sb->s_umount);
+		/* Make the cleaner go to sleep early. */
+		if (btrfs_need_cleaner_sleep(root))
+			goto sleep;
+
+		if (!mutex_trylock(&root->fs_info->cleaner_mutex))
+			goto sleep;
+
+		/*
+		 * Avoid the problem that we change the status of the fs
+		 * during the above check and trylock.
+		 */
+		if (btrfs_need_cleaner_sleep(root)) {
+			mutex_unlock(&root->fs_info->cleaner_mutex);
+			goto sleep;
 		}
 
+		btrfs_run_delayed_iputs(root);
+		again = btrfs_clean_one_deleted_snapshot(root);
+		mutex_unlock(&root->fs_info->cleaner_mutex);
+
+		/*
+		 * The defragger has dealt with the R/O remount and umount,
+		 * needn't do anything special here.
+		 */
+		btrfs_run_defrag_inodes(root->fs_info);
+sleep:
 		if (!try_to_freeze() && !again) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (!kthread_should_stop())
@@ -1724,7 +1748,7 @@ static int transaction_kthread(void *arg)
 		}
 
 		now = get_seconds();
-		if (!cur->blocked &&
+		if (cur->state < TRANS_STATE_BLOCKED &&
 		    (now < cur->start_time || now - cur->start_time < 30)) {
 			spin_unlock(&root->fs_info->trans_lock);
 			delay = HZ * 5;
@@ -2034,11 +2058,11 @@ static void del_fs_roots(struct btrfs_fs_info *fs_info)
 		list_del(&gang[0]->root_list);
 
 		if (gang[0]->in_radix) {
-			btrfs_free_fs_root(fs_info, gang[0]);
+			btrfs_drop_and_free_fs_root(fs_info, gang[0]);
 		} else {
 			free_extent_buffer(gang[0]->node);
 			free_extent_buffer(gang[0]->commit_root);
-			kfree(gang[0]);
+			btrfs_put_fs_root(gang[0]);
 		}
 	}
 
@@ -2049,7 +2073,7 @@ static void del_fs_roots(struct btrfs_fs_info *fs_info)
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++)
-			btrfs_free_fs_root(fs_info, gang[i]);
+			btrfs_drop_and_free_fs_root(fs_info, gang[i]);
 	}
 }
 
@@ -2081,14 +2105,8 @@ int open_ctree(struct super_block *sb,
 	int backup_index = 0;
 
 	tree_root = fs_info->tree_root = btrfs_alloc_root(fs_info);
-	extent_root = fs_info->extent_root = btrfs_alloc_root(fs_info);
-	csum_root = fs_info->csum_root = btrfs_alloc_root(fs_info);
 	chunk_root = fs_info->chunk_root = btrfs_alloc_root(fs_info);
-	dev_root = fs_info->dev_root = btrfs_alloc_root(fs_info);
-	quota_root = fs_info->quota_root = btrfs_alloc_root(fs_info);
-
-	if (!tree_root || !extent_root || !csum_root ||
-	    !chunk_root || !dev_root || !quota_root) {
+	if (!tree_root || !chunk_root) {
 		err = -ENOMEM;
 		goto fail;
 	}
@@ -2131,9 +2149,9 @@ int open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->delayed_iputs);
-	INIT_LIST_HEAD(&fs_info->delalloc_inodes);
+	INIT_LIST_HEAD(&fs_info->delalloc_roots);
 	INIT_LIST_HEAD(&fs_info->caching_block_groups);
-	spin_lock_init(&fs_info->delalloc_lock);
+	spin_lock_init(&fs_info->delalloc_root_lock);
 	spin_lock_init(&fs_info->trans_lock);
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
@@ -2169,7 +2187,6 @@ int open_ctree(struct super_block *sb,
 	fs_info->max_inline = 8192 * 1024;
 	fs_info->metadata_ratio = 0;
 	fs_info->defrag_inodes = RB_ROOT;
-	fs_info->trans_no_join = 0;
 	fs_info->free_chunk_space = 0;
 	fs_info->tree_mod_log = RB_ROOT;
 
@@ -2180,8 +2197,8 @@ int open_ctree(struct super_block *sb,
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);
 
-	INIT_LIST_HEAD(&fs_info->ordered_extents);
-	spin_lock_init(&fs_info->ordered_extent_lock);
+	INIT_LIST_HEAD(&fs_info->ordered_roots);
+	spin_lock_init(&fs_info->ordered_root_lock);
 	fs_info->delayed_root = kmalloc(sizeof(struct btrfs_delayed_root),
 					GFP_NOFS);
 	if (!fs_info->delayed_root) {
@@ -2274,6 +2291,7 @@ int open_ctree(struct super_block *sb,
 	fs_info->qgroup_seq = 1;
 	fs_info->quota_enabled = 0;
 	fs_info->pending_quota_state = 0;
+	fs_info->qgroup_ulist = NULL;
 	mutex_init(&fs_info->qgroup_rescan_lock);
 
 	btrfs_init_free_cluster(&fs_info->meta_alloc_cluster);
@@ -2638,33 +2656,44 @@ retry_root_backup:
 	btrfs_set_root_node(&tree_root->root_item, tree_root->node);
 	tree_root->commit_root = btrfs_root_node(tree_root);
 
-	ret = find_and_setup_root(tree_root, fs_info,
-				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
-	if (ret)
+	location.objectid = BTRFS_EXTENT_TREE_OBJECTID;
+	location.type = BTRFS_ROOT_ITEM_KEY;
+	location.offset = 0;
+
+	extent_root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(extent_root)) {
+		ret = PTR_ERR(extent_root);
 		goto recovery_tree_root;
+	}
 	extent_root->track_dirty = 1;
+	fs_info->extent_root = extent_root;
 
-	ret = find_and_setup_root(tree_root, fs_info,
-				  BTRFS_DEV_TREE_OBJECTID, dev_root);
-	if (ret)
+	location.objectid = BTRFS_DEV_TREE_OBJECTID;
+	dev_root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(dev_root)) {
+		ret = PTR_ERR(dev_root);
 		goto recovery_tree_root;
+	}
 	dev_root->track_dirty = 1;
+	fs_info->dev_root = dev_root;
+	btrfs_init_devices_late(fs_info);
 
-	ret = find_and_setup_root(tree_root, fs_info,
-				  BTRFS_CSUM_TREE_OBJECTID, csum_root);
-	if (ret)
+	location.objectid = BTRFS_CSUM_TREE_OBJECTID;
+	csum_root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(csum_root)) {
+		ret = PTR_ERR(csum_root);
 		goto recovery_tree_root;
+	}
 	csum_root->track_dirty = 1;
+	fs_info->csum_root = csum_root;
 
-	ret = find_and_setup_root(tree_root, fs_info,
-				  BTRFS_QUOTA_TREE_OBJECTID, quota_root);
-	if (ret) {
-		kfree(quota_root);
-		quota_root = fs_info->quota_root = NULL;
-	} else {
+	location.objectid = BTRFS_QUOTA_TREE_OBJECTID;
+	quota_root = btrfs_read_tree_root(tree_root, &location);
+	if (!IS_ERR(quota_root)) {
 		quota_root->track_dirty = 1;
 		fs_info->quota_enabled = 1;
 		fs_info->pending_quota_state = 1;
+		fs_info->quota_root = quota_root;
 	}
 
 	fs_info->generation = generation;
@@ -2817,11 +2846,9 @@ retry_root_backup:
 
 	location.objectid = BTRFS_FS_TREE_OBJECTID;
 	location.type = BTRFS_ROOT_ITEM_KEY;
-	location.offset = (u64)-1;
+	location.offset = 0;
 
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
-	if (!fs_info->fs_root)
-		goto fail_qgroup;
 	if (IS_ERR(fs_info->fs_root)) {
 		err = PTR_ERR(fs_info->fs_root);
 		goto fail_qgroup;
@@ -2852,6 +2879,8 @@ retry_root_backup:
 		close_ctree(tree_root);
 		return ret;
 	}
+
+	btrfs_qgroup_rescan_resume(fs_info);
 
 	return 0;
 
@@ -3258,7 +3287,7 @@ int btrfs_calc_num_tolerated_disk_barrier_failures(
 					    BTRFS_BLOCK_GROUP_RAID10)) {
 						num_tolerated_disk_barrier_failures = 1;
 					} else if (flags &
-						   BTRFS_BLOCK_GROUP_RAID5) {
+						   BTRFS_BLOCK_GROUP_RAID6) {
 						num_tolerated_disk_barrier_failures = 2;
 					}
 				}
@@ -3366,7 +3395,9 @@ int write_ctree_super(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-void btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
+/* Drop a fs root from the radix tree and free it. */
+void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
+				  struct btrfs_root *root)
 {
 	spin_lock(&fs_info->fs_roots_radix_lock);
 	radix_tree_delete(&fs_info->fs_roots_radix,
@@ -3397,7 +3428,12 @@ static void free_fs_root(struct btrfs_root *root)
 	kfree(root->free_ino_ctl);
 	kfree(root->free_ino_pinned);
 	kfree(root->name);
-	kfree(root);
+	btrfs_put_fs_root(root);
+}
+
+void btrfs_free_fs_root(struct btrfs_root *root)
+{
+	free_fs_root(root);
 }
 
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
@@ -3653,7 +3689,7 @@ static void btrfs_destroy_ordered_operations(struct btrfs_transaction *t,
 	INIT_LIST_HEAD(&splice);
 
 	mutex_lock(&root->fs_info->ordered_operations_mutex);
-	spin_lock(&root->fs_info->ordered_extent_lock);
+	spin_lock(&root->fs_info->ordered_root_lock);
 
 	list_splice_init(&t->ordered_operations, &splice);
 	while (!list_empty(&splice)) {
@@ -3661,14 +3697,14 @@ static void btrfs_destroy_ordered_operations(struct btrfs_transaction *t,
 					 ordered_operations);
 
 		list_del_init(&btrfs_inode->ordered_operations);
-		spin_unlock(&root->fs_info->ordered_extent_lock);
+		spin_unlock(&root->fs_info->ordered_root_lock);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
 
-		spin_lock(&root->fs_info->ordered_extent_lock);
+		spin_lock(&root->fs_info->ordered_root_lock);
 	}
 
-	spin_unlock(&root->fs_info->ordered_extent_lock);
+	spin_unlock(&root->fs_info->ordered_root_lock);
 	mutex_unlock(&root->fs_info->ordered_operations_mutex);
 }
 
@@ -3676,15 +3712,36 @@ static void btrfs_destroy_ordered_extents(struct btrfs_root *root)
 {
 	struct btrfs_ordered_extent *ordered;
 
-	spin_lock(&root->fs_info->ordered_extent_lock);
+	spin_lock(&root->ordered_extent_lock);
 	/*
 	 * This will just short circuit the ordered completion stuff which will
 	 * make sure the ordered extent gets properly cleaned up.
 	 */
-	list_for_each_entry(ordered, &root->fs_info->ordered_extents,
+	list_for_each_entry(ordered, &root->ordered_extents,
 			    root_extent_list)
 		set_bit(BTRFS_ORDERED_IOERR, &ordered->flags);
-	spin_unlock(&root->fs_info->ordered_extent_lock);
+	spin_unlock(&root->ordered_extent_lock);
+}
+
+static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_root *root;
+	struct list_head splice;
+
+	INIT_LIST_HEAD(&splice);
+
+	spin_lock(&fs_info->ordered_root_lock);
+	list_splice_init(&fs_info->ordered_roots, &splice);
+	while (!list_empty(&splice)) {
+		root = list_first_entry(&splice, struct btrfs_root,
+					ordered_root);
+		list_del_init(&root->ordered_root);
+
+		btrfs_destroy_ordered_extents(root);
+
+		cond_resched_lock(&fs_info->ordered_root_lock);
+	}
+	spin_unlock(&fs_info->ordered_root_lock);
 }
 
 int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
@@ -3706,6 +3763,7 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 
 	while ((node = rb_first(&delayed_refs->root)) != NULL) {
 		struct btrfs_delayed_ref_head *head = NULL;
+		bool pin_bytes = false;
 
 		ref = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
 		atomic_set(&ref->refs, 1);
@@ -3726,8 +3784,7 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 			}
 
 			if (head->must_insert_reserved)
-				btrfs_pin_extent(root, ref->bytenr,
-						 ref->num_bytes, 1);
+				pin_bytes = true;
 			btrfs_free_delayed_extent_op(head->extent_op);
 			delayed_refs->num_heads--;
 			if (list_empty(&head->cluster))
@@ -3738,9 +3795,13 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 		ref->in_tree = 0;
 		rb_erase(&ref->rb_node, &delayed_refs->root);
 		delayed_refs->num_entries--;
-		if (head)
-			mutex_unlock(&head->mutex);
 		spin_unlock(&delayed_refs->lock);
+		if (head) {
+			if (pin_bytes)
+				btrfs_pin_extent(root, ref->bytenr,
+						 ref->num_bytes, 1);
+			mutex_unlock(&head->mutex);
+		}
 		btrfs_put_delayed_ref(ref);
 
 		cond_resched();
@@ -3777,24 +3838,49 @@ static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 
 	INIT_LIST_HEAD(&splice);
 
-	spin_lock(&root->fs_info->delalloc_lock);
-	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
+	spin_lock(&root->delalloc_lock);
+	list_splice_init(&root->delalloc_inodes, &splice);
 
 	while (!list_empty(&splice)) {
-		btrfs_inode = list_entry(splice.next, struct btrfs_inode,
-				    delalloc_inodes);
+		btrfs_inode = list_first_entry(&splice, struct btrfs_inode,
+					       delalloc_inodes);
 
 		list_del_init(&btrfs_inode->delalloc_inodes);
 		clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
 			  &btrfs_inode->runtime_flags);
-		spin_unlock(&root->fs_info->delalloc_lock);
+		spin_unlock(&root->delalloc_lock);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
 
-		spin_lock(&root->fs_info->delalloc_lock);
+		spin_lock(&root->delalloc_lock);
 	}
 
-	spin_unlock(&root->fs_info->delalloc_lock);
+	spin_unlock(&root->delalloc_lock);
+}
+
+static void btrfs_destroy_all_delalloc_inodes(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_root *root;
+	struct list_head splice;
+
+	INIT_LIST_HEAD(&splice);
+
+	spin_lock(&fs_info->delalloc_root_lock);
+	list_splice_init(&fs_info->delalloc_roots, &splice);
+	while (!list_empty(&splice)) {
+		root = list_first_entry(&splice, struct btrfs_root,
+					 delalloc_root);
+		list_del_init(&root->delalloc_root);
+		root = btrfs_grab_fs_root(root);
+		BUG_ON(!root);
+		spin_unlock(&fs_info->delalloc_root_lock);
+
+		btrfs_destroy_delalloc_inodes(root);
+		btrfs_put_fs_root(root);
+
+		spin_lock(&fs_info->delalloc_root_lock);
+	}
+	spin_unlock(&fs_info->delalloc_root_lock);
 }
 
 static int btrfs_destroy_marked_extents(struct btrfs_root *root,
@@ -3878,18 +3964,13 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 	btrfs_block_rsv_release(root, &root->fs_info->trans_block_rsv,
 				cur_trans->dirty_pages.dirty_bytes);
 
-	/* FIXME: cleanup wait for commit */
-	cur_trans->in_commit = 1;
-	cur_trans->blocked = 1;
+	cur_trans->state = TRANS_STATE_COMMIT_START;
 	wake_up(&root->fs_info->transaction_blocked_wait);
 
 	btrfs_evict_pending_snapshots(cur_trans);
 
-	cur_trans->blocked = 0;
+	cur_trans->state = TRANS_STATE_UNBLOCKED;
 	wake_up(&root->fs_info->transaction_wait);
-
-	cur_trans->commit_done = 1;
-	wake_up(&cur_trans->commit_wait);
 
 	btrfs_destroy_delayed_inodes(root);
 	btrfs_assert_delayed_root_empty(root);
@@ -3898,6 +3979,9 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 				     EXTENT_DIRTY);
 	btrfs_destroy_pinned_extent(root,
 				    root->fs_info->pinned_extents);
+
+	cur_trans->state =TRANS_STATE_COMPLETED;
+	wake_up(&cur_trans->commit_wait);
 
 	/*
 	memset(cur_trans, 0, sizeof(*cur_trans));
@@ -3914,7 +3998,7 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 
 	spin_lock(&root->fs_info->trans_lock);
 	list_splice_init(&root->fs_info->trans_list, &list);
-	root->fs_info->trans_no_join = 1;
+	root->fs_info->running_transaction = NULL;
 	spin_unlock(&root->fs_info->trans_lock);
 
 	while (!list_empty(&list)) {
@@ -3922,37 +4006,31 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 
 		btrfs_destroy_ordered_operations(t, root);
 
-		btrfs_destroy_ordered_extents(root);
+		btrfs_destroy_all_ordered_extents(root->fs_info);
 
 		btrfs_destroy_delayed_refs(t, root);
 
-		/* FIXME: cleanup wait for commit */
-		t->in_commit = 1;
-		t->blocked = 1;
+		/*
+		 *  FIXME: cleanup wait for commit
+		 *  We needn't acquire the lock here, because we are during
+		 *  the umount, there is no other task which will change it.
+		 */
+		t->state = TRANS_STATE_COMMIT_START;
 		smp_mb();
 		if (waitqueue_active(&root->fs_info->transaction_blocked_wait))
 			wake_up(&root->fs_info->transaction_blocked_wait);
 
 		btrfs_evict_pending_snapshots(t);
 
-		t->blocked = 0;
+		t->state = TRANS_STATE_UNBLOCKED;
 		smp_mb();
 		if (waitqueue_active(&root->fs_info->transaction_wait))
 			wake_up(&root->fs_info->transaction_wait);
 
-		t->commit_done = 1;
-		smp_mb();
-		if (waitqueue_active(&t->commit_wait))
-			wake_up(&t->commit_wait);
-
 		btrfs_destroy_delayed_inodes(root);
 		btrfs_assert_delayed_root_empty(root);
 
-		btrfs_destroy_delalloc_inodes(root);
-
-		spin_lock(&root->fs_info->trans_lock);
-		root->fs_info->running_transaction = NULL;
-		spin_unlock(&root->fs_info->trans_lock);
+		btrfs_destroy_all_delalloc_inodes(root->fs_info);
 
 		btrfs_destroy_marked_extents(root, &t->dirty_pages,
 					     EXTENT_DIRTY);
@@ -3960,15 +4038,17 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 		btrfs_destroy_pinned_extent(root,
 					    root->fs_info->pinned_extents);
 
+		t->state = TRANS_STATE_COMPLETED;
+		smp_mb();
+		if (waitqueue_active(&t->commit_wait))
+			wake_up(&t->commit_wait);
+
 		atomic_set(&t->use_count, 0);
 		list_del_init(&t->list);
 		memset(t, 0, sizeof(*t));
 		kmem_cache_free(btrfs_transaction_cachep, t);
 	}
 
-	spin_lock(&root->fs_info->trans_lock);
-	root->fs_info->trans_no_join = 0;
-	spin_unlock(&root->fs_info->trans_lock);
 	mutex_unlock(&root->fs_info->transaction_kthread_mutex);
 
 	return 0;

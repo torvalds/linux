@@ -335,6 +335,7 @@ struct radeon_crtc {
 	u32 line_time;
 	u32 wm_low;
 	u32 wm_high;
+	struct drm_display_mode hw_mode;
 };
 
 struct radeon_encoder_primary_dac {

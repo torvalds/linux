@@ -994,7 +994,7 @@ void pcibios_setup_bus_self(struct pci_bus *bus)
 		ppc_md.pci_dma_bus_setup(bus);
 }
 
-void pcibios_setup_device(struct pci_dev *dev)
+static void pcibios_setup_device(struct pci_dev *dev)
 {
 	/* Fixup NUMA node as it may not be setup yet by the generic
 	 * code and is needed by the DMA init
@@ -1013,6 +1013,17 @@ void pcibios_setup_device(struct pci_dev *dev)
 	pci_read_irq_line(dev);
 	if (ppc_md.pci_irq_fixup)
 		ppc_md.pci_irq_fixup(dev);
+}
+
+int pcibios_add_device(struct pci_dev *dev)
+{
+	/*
+	 * We can only call pcibios_setup_device() after bus setup is complete,
+	 * since some of the platform specific DMA setup code depends on it.
+	 */
+	if (dev->bus->is_added)
+		pcibios_setup_device(dev);
+	return 0;
 }
 
 void pcibios_setup_bus_devices(struct pci_bus *bus)
@@ -1468,10 +1479,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	if (ppc_md.pcibios_enable_device_hook)
 		if (ppc_md.pcibios_enable_device_hook(dev))
 			return -EINVAL;
-
-	/* avoid pcie irq fix up impact on cardbus */
-	if (dev->hdr_type != PCI_HEADER_TYPE_CARDBUS)
-		pcibios_setup_device(dev);
 
 	return pci_enable_resources(dev, mask);
 }

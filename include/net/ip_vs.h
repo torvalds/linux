@@ -197,31 +197,6 @@ ip_vs_fill_iph_skb(int af, const struct sk_buff *skb, struct ip_vs_iphdr *iphdr)
 	}
 }
 
-/* This function is a faster version of ip_vs_fill_iph_skb().
- * Where we only populate {s,d}addr (and avoid calling ipv6_find_hdr()).
- * This is used by the some of the ip_vs_*_schedule() functions.
- * (Mostly done to avoid ABI breakage of external schedulers)
- */
-static inline void
-ip_vs_fill_iph_addr_only(int af, const struct sk_buff *skb,
-			 struct ip_vs_iphdr *iphdr)
-{
-#ifdef CONFIG_IP_VS_IPV6
-	if (af == AF_INET6) {
-		const struct ipv6hdr *iph =
-			(struct ipv6hdr *)skb_network_header(skb);
-		iphdr->saddr.in6 = iph->saddr;
-		iphdr->daddr.in6 = iph->daddr;
-	} else
-#endif
-	{
-		const struct iphdr *iph =
-			(struct iphdr *)skb_network_header(skb);
-		iphdr->saddr.ip = iph->saddr;
-		iphdr->daddr.ip = iph->daddr;
-	}
-}
-
 static inline void ip_vs_addr_copy(int af, union nf_inet_addr *dst,
 				   const union nf_inet_addr *src)
 {
@@ -405,17 +380,18 @@ enum {
  */
 enum ip_vs_sctp_states {
 	IP_VS_SCTP_S_NONE,
-	IP_VS_SCTP_S_INIT_CLI,
-	IP_VS_SCTP_S_INIT_SER,
-	IP_VS_SCTP_S_INIT_ACK_CLI,
-	IP_VS_SCTP_S_INIT_ACK_SER,
-	IP_VS_SCTP_S_ECHO_CLI,
-	IP_VS_SCTP_S_ECHO_SER,
+	IP_VS_SCTP_S_INIT1,
+	IP_VS_SCTP_S_INIT,
+	IP_VS_SCTP_S_COOKIE_SENT,
+	IP_VS_SCTP_S_COOKIE_REPLIED,
+	IP_VS_SCTP_S_COOKIE_WAIT,
+	IP_VS_SCTP_S_COOKIE,
+	IP_VS_SCTP_S_COOKIE_ECHOED,
 	IP_VS_SCTP_S_ESTABLISHED,
-	IP_VS_SCTP_S_SHUT_CLI,
-	IP_VS_SCTP_S_SHUT_SER,
-	IP_VS_SCTP_S_SHUT_ACK_CLI,
-	IP_VS_SCTP_S_SHUT_ACK_SER,
+	IP_VS_SCTP_S_SHUTDOWN_SENT,
+	IP_VS_SCTP_S_SHUTDOWN_RECEIVED,
+	IP_VS_SCTP_S_SHUTDOWN_ACK_SENT,
+	IP_VS_SCTP_S_REJECTED,
 	IP_VS_SCTP_S_CLOSED,
 	IP_VS_SCTP_S_LAST
 };
@@ -814,7 +790,8 @@ struct ip_vs_scheduler {
 
 	/* selecting a server from the given service */
 	struct ip_vs_dest* (*schedule)(struct ip_vs_service *svc,
-				       const struct sk_buff *skb);
+				       const struct sk_buff *skb,
+				       struct ip_vs_iphdr *iph);
 };
 
 /* The persistence engine object */
@@ -905,7 +882,7 @@ struct ip_vs_app {
 struct ipvs_master_sync_state {
 	struct list_head	sync_queue;
 	struct ip_vs_sync_buff	*sync_buff;
-	int			sync_queue_len;
+	unsigned long		sync_queue_len;
 	unsigned int		sync_queue_delay;
 	struct task_struct	*master_thread;
 	struct delayed_work	master_wakeup_work;
@@ -998,10 +975,13 @@ struct netns_ipvs {
 	int			sysctl_snat_reroute;
 	int			sysctl_sync_ver;
 	int			sysctl_sync_ports;
-	int			sysctl_sync_qlen_max;
+	int			sysctl_sync_persist_mode;
+	unsigned long		sysctl_sync_qlen_max;
 	int			sysctl_sync_sock_size;
 	int			sysctl_cache_bypass;
 	int			sysctl_expire_nodest_conn;
+	int			sysctl_sloppy_tcp;
+	int			sysctl_sloppy_sctp;
 	int			sysctl_expire_quiescent_template;
 	int			sysctl_sync_threshold[2];
 	unsigned int		sysctl_sync_refresh_period;
@@ -1044,6 +1024,8 @@ struct netns_ipvs {
 #define DEFAULT_SYNC_THRESHOLD	3
 #define DEFAULT_SYNC_PERIOD	50
 #define DEFAULT_SYNC_VER	1
+#define DEFAULT_SLOPPY_TCP	0
+#define DEFAULT_SLOPPY_SCTP	0
 #define DEFAULT_SYNC_REFRESH_PERIOD	(0U * HZ)
 #define DEFAULT_SYNC_RETRIES		0
 #define IPVS_SYNC_WAKEUP_RATE	8
@@ -1080,12 +1062,27 @@ static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_sync_ver;
 }
 
+static inline int sysctl_sloppy_tcp(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sloppy_tcp;
+}
+
+static inline int sysctl_sloppy_sctp(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sloppy_sctp;
+}
+
 static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
 {
 	return ACCESS_ONCE(ipvs->sysctl_sync_ports);
 }
 
-static inline int sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
+static inline int sysctl_sync_persist_mode(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_persist_mode;
+}
+
+static inline unsigned long sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
 {
 	return ipvs->sysctl_sync_qlen_max;
 }
@@ -1133,12 +1130,27 @@ static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
 	return DEFAULT_SYNC_VER;
 }
 
+static inline int sysctl_sloppy_tcp(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SLOPPY_TCP;
+}
+
+static inline int sysctl_sloppy_sctp(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SLOPPY_SCTP;
+}
+
 static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
 {
 	return 1;
 }
 
-static inline int sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
+static inline int sysctl_sync_persist_mode(struct netns_ipvs *ipvs)
+{
+	return 0;
+}
+
+static inline unsigned long sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
 {
 	return IPVS_SYNC_QLEN_MAX;
 }

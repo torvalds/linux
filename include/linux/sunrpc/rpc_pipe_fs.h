@@ -73,12 +73,12 @@ extern ssize_t rpc_pipe_generic_upcall(struct file *, struct rpc_pipe_msg *,
 extern int rpc_queue_upcall(struct rpc_pipe *, struct rpc_pipe_msg *);
 
 struct rpc_clnt;
-extern struct dentry *rpc_create_client_dir(struct dentry *, struct qstr *, struct rpc_clnt *);
+extern struct dentry *rpc_create_client_dir(struct dentry *, const char *, struct rpc_clnt *);
 extern int rpc_remove_client_dir(struct dentry *);
 
 struct cache_detail;
 extern struct dentry *rpc_create_cache_dir(struct dentry *,
-					   struct qstr *,
+					   const char *,
 					   umode_t umode,
 					   struct cache_detail *);
 extern void rpc_remove_cache_dir(struct dentry *);

@@ -396,7 +396,7 @@ static int __init rx51_soc_init(void)
 {
 	int err;
 
-	if (!machine_is_nokia_rx51())
+	if (!machine_is_nokia_rx51() && !of_machine_is_compatible("nokia,omap3-n900"))
 		return -ENODEV;
 
 	err = gpio_request_one(RX51_TVOUT_SEL_GPIO,

@@ -18,12 +18,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_spi
-				      &pmx_led_bluetooth &pmx_led_wifi
-				      &pmx_led_wifi_ap >;
-			pinctrl-names = "default";
-
 			pmx_led_bluetooth: pmx-led-bluetooth {
 				marvell,pins = "mpp47";
 				marvell,function = "gpio";
@@ -43,6 +37,8 @@
 
 		spi@10600 {
 			status = "okay";
+			pinctrl-0 = <&pmx_spi>;
+			pinctrl-names = "default";
 
 			m25p40@0 {
 				#address-cells = <1>;
@@ -79,11 +75,15 @@
 			pinctrl-names = "default";
 			status = "okay";
 			/* No CD or WP GPIOs */
+			broken-cd;
 		};
 	};
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_bluetooth &pmx_led_wifi
+			     &pmx_led_wifi_ap >;
+		pinctrl-names = "default";
 
 		bluetooth {
 			label = "dreamplug:blue:bluetooth";

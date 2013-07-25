@@ -1048,7 +1048,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	}
 
 	SET_NETDEV_DEV(ndev, &ofdev->dev);
-	dev_set_drvdata(&ofdev->dev, ndev);
+	platform_set_drvdata(ofdev, ndev);
 
 	fep = netdev_priv(ndev);
 	fep->dev = &ofdev->dev;
@@ -1106,7 +1106,6 @@ out_cleanup_data:
 	fep->ops->cleanup_data(ndev);
 out_free_dev:
 	free_netdev(ndev);
-	dev_set_drvdata(&ofdev->dev, NULL);
 out_put:
 	of_node_put(fpi->phy_node);
 out_free_fpi:
@@ -1116,7 +1115,7 @@ out_free_fpi:
 
 static int fs_enet_remove(struct platform_device *ofdev)
 {
-	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *ndev = platform_get_drvdata(ofdev);
 	struct fs_enet_private *fep = netdev_priv(ndev);
 
 	unregister_netdev(ndev);

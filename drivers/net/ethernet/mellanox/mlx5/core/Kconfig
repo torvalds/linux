@@ -1,0 +1,18 @@
+#
+# Mellanox driver configuration
+#
+
+config MLX5_CORE
+	tristate
+	depends on PCI && X86
+	default n
+
+config MLX5_DEBUG
+	bool "Verbose debugging output" if (MLX5_CORE && EXPERT)
+	depends on MLX5_CORE
+	default y
+	---help---
+	  This option causes debugging code to be compiled into the
+	  mlx5_core driver.  The output can be turned on via the
+	  debug_mask module parameter (which can also be set after
+	  the driver is loaded through sysfs).

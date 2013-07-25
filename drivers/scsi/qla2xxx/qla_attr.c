@@ -1691,6 +1691,9 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		goto done;
 
+	if (qla2x00_reset_active(vha))
+		goto done;
+
 	stats = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &stats_dma);
 	if (stats == NULL) {
 		ql_log(ql_log_warn, vha, 0x707d,
@@ -1703,7 +1706,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (IS_FWI2_CAPABLE(ha)) {
 		rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma);
 	} else if (atomic_read(&base_vha->loop_state) == LOOP_READY &&
-	    !qla2x00_reset_active(vha) && !ha->dpc_active) {
+	    !ha->dpc_active) {
 		/* Must be in a 'READY' state for statistics retrieval. */
 		rval = qla2x00_get_link_status(base_vha, base_vha->loop_id,
 						stats, stats_dma);

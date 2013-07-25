@@ -18,11 +18,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_led_health_r &pmx_led_health_g
-				      &pmx_led_wmode_r &pmx_led_wmode_g >;
-			pinctrl-names = "default";
-
 			pmx_led_health_r: pmx-led-health-r {
 				marvell,pins = "mpp46";
 				marvell,function = "gpio";
@@ -72,11 +67,16 @@
 
 		mvsdio@90000 {
 			status = "okay";
+			/* No CD or WP GPIOs */
+			broken-cd;
 		};
 	};
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_health_r &pmx_led_health_g
+			      &pmx_led_wmode_r &pmx_led_wmode_g >;
+		pinctrl-names = "default";
 
 		health-r {
 			label = "guruplug:red:health";

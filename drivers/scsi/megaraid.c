@@ -2026,7 +2026,7 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 static inline int
 make_local_pdev(adapter_t *adapter, struct pci_dev **pdev)
 {
-	*pdev = alloc_pci_dev();
+	*pdev = pci_alloc_dev(NULL);
 
 	if( *pdev == NULL ) return -1;
 

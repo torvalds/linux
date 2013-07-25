@@ -40,5 +40,6 @@ struct esdhc_platform_data {
 	enum wp_types wp_type;
 	enum cd_types cd_type;
 	int max_bus_width;
+	unsigned int f_max;
 };
 #endif /* __ASM_ARCH_IMX_ESDHC_H */

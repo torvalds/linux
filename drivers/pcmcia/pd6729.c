@@ -644,6 +644,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 	if (!pci_resource_start(dev, 0)) {
 		dev_warn(&dev->dev, "refusing to load the driver as the "
 			"io_base is NULL.\n");
+		ret = -ENOMEM;
 		goto err_out_disable;
 	}
 
@@ -673,6 +674,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 	mask = pd6729_isa_scan();
 	if (irq_mode == 0 && mask == 0) {
 		dev_warn(&dev->dev, "no ISA interrupt is available.\n");
+		ret = -ENODEV;
 		goto err_out_free_res;
 	}
 

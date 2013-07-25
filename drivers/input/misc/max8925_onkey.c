@@ -148,8 +148,6 @@ static int max8925_onkey_remove(struct platform_device *pdev)
 	input_unregister_device(info->idev);
 	kfree(info);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

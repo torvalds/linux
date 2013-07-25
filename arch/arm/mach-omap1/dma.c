@@ -30,8 +30,6 @@
 
 #include <mach/irqs.h>
 
-#include "dma.h"
-
 #define OMAP1_DMA_BASE			(0xfffed800)
 #define OMAP1_LOGICAL_DMA_CH_COUNT	17
 #define OMAP1_DMA_STRIDE		0x40

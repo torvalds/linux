@@ -155,9 +155,6 @@ static int ath79_spi_setup(struct spi_device *spi)
 {
 	int status = 0;
 
-	if (spi->bits_per_word > 32)
-		return -EINVAL;
-
 	if (!spi->controller_state) {
 		status = ath79_spi_setup_cs(spi);
 		if (status)
@@ -226,6 +223,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->setup = ath79_spi_setup;
 	master->cleanup = ath79_spi_cleanup;
 	if (pdata) {
@@ -287,7 +285,6 @@ err_clk_put:
 err_unmap:
 	iounmap(sp->base);
 err_put_master:
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(sp->bitbang.master);
 
 	return ret;
@@ -302,7 +299,6 @@ static int ath79_spi_remove(struct platform_device *pdev)
 	clk_disable(sp->clk);
 	clk_put(sp->clk);
 	iounmap(sp->base);
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(sp->bitbang.master);
 
 	return 0;

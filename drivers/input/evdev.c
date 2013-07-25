@@ -52,6 +52,82 @@ struct evdev_client {
 	struct input_event buffer[];
 };
 
+/* flush queued events of type @type, caller must hold client->buffer_lock */
+static void __evdev_flush_queue(struct evdev_client *client, unsigned int type)
+{
+	unsigned int i, head, num;
+	unsigned int mask = client->bufsize - 1;
+	bool is_report;
+	struct input_event *ev;
+
+	BUG_ON(type == EV_SYN);
+
+	head = client->tail;
+	client->packet_head = client->tail;
+
+	/* init to 1 so a leading SYN_REPORT will not be dropped */
+	num = 1;
+
+	for (i = client->tail; i != client->head; i = (i + 1) & mask) {
+		ev = &client->buffer[i];
+		is_report = ev->type == EV_SYN && ev->code == SYN_REPORT;
+
+		if (ev->type == type) {
+			/* drop matched entry */
+			continue;
+		} else if (is_report && !num) {
+			/* drop empty SYN_REPORT groups */
+			continue;
+		} else if (head != i) {
+			/* move entry to fill the gap */
+			client->buffer[head].time = ev->time;
+			client->buffer[head].type = ev->type;
+			client->buffer[head].code = ev->code;
+			client->buffer[head].value = ev->value;
+		}
+
+		num++;
+		head = (head + 1) & mask;
+
+		if (is_report) {
+			num = 0;
+			client->packet_head = head;
+		}
+	}
+
+	client->head = head;
+}
+
+/* queue SYN_DROPPED event */
+static void evdev_queue_syn_dropped(struct evdev_client *client)
+{
+	unsigned long flags;
+	struct input_event ev;
+	ktime_t time;
+
+	time = ktime_get();
+	if (client->clkid != CLOCK_MONOTONIC)
+		time = ktime_sub(time, ktime_get_monotonic_offset());
+
+	ev.time = ktime_to_timeval(time);
+	ev.type = EV_SYN;
+	ev.code = SYN_DROPPED;
+	ev.value = 0;
+
+	spin_lock_irqsave(&client->buffer_lock, flags);
+
+	client->buffer[client->head++] = ev;
+	client->head &= client->bufsize - 1;
+
+	if (unlikely(client->head == client->tail)) {
+		/* drop queue but keep our SYN_DROPPED event */
+		client->tail = (client->head - 1) & (client->bufsize - 1);
+		client->packet_head = client->tail;
+	}
+
+	spin_unlock_irqrestore(&client->buffer_lock, flags);
+}
+
 static void __pass_event(struct evdev_client *client,
 			 const struct input_event *event)
 {
@@ -650,6 +726,51 @@ static int evdev_handle_set_keycode_v2(struct input_dev *dev, void __user *p)
 	return input_set_keycode(dev, &ke);
 }
 
+/*
+ * If we transfer state to the user, we should flush all pending events
+ * of the same type from the client's queue. Otherwise, they might end up
+ * with duplicate events, which can screw up client's state tracking.
+ * If bits_to_user fails after flushing the queue, we queue a SYN_DROPPED
+ * event so user-space will notice missing events.
+ *
+ * LOCKING:
+ * We need to take event_lock before buffer_lock to avoid dead-locks. But we
+ * need the even_lock only to guarantee consistent state. We can safely release
+ * it while flushing the queue. This allows input-core to handle filters while
+ * we flush the queue.
+ */
+static int evdev_handle_get_val(struct evdev_client *client,
+				struct input_dev *dev, unsigned int type,
+				unsigned long *bits, unsigned int max,
+				unsigned int size, void __user *p, int compat)
+{
+	int ret;
+	unsigned long *mem;
+
+	mem = kmalloc(sizeof(unsigned long) * max, GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
+
+	spin_lock_irq(&dev->event_lock);
+	spin_lock(&client->buffer_lock);
+
+	memcpy(mem, bits, sizeof(unsigned long) * max);
+
+	spin_unlock(&dev->event_lock);
+
+	__evdev_flush_queue(client, type);
+
+	spin_unlock_irq(&client->buffer_lock);
+
+	ret = bits_to_user(mem, max, size, p, compat);
+	if (ret < 0)
+		evdev_queue_syn_dropped(client);
+
+	kfree(mem);
+
+	return ret;
+}
+
 static int evdev_handle_mt_request(struct input_dev *dev,
 				   unsigned int size,
 				   int __user *ip)
@@ -771,16 +892,20 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 		return evdev_handle_mt_request(dev, size, ip);
 
 	case EVIOCGKEY(0):
-		return bits_to_user(dev->key, KEY_MAX, size, p, compat_mode);
+		return evdev_handle_get_val(client, dev, EV_KEY, dev->key,
+					    KEY_MAX, size, p, compat_mode);
 
 	case EVIOCGLED(0):
-		return bits_to_user(dev->led, LED_MAX, size, p, compat_mode);
+		return evdev_handle_get_val(client, dev, EV_LED, dev->led,
+					    LED_MAX, size, p, compat_mode);
 
 	case EVIOCGSND(0):
-		return bits_to_user(dev->snd, SND_MAX, size, p, compat_mode);
+		return evdev_handle_get_val(client, dev, EV_SND, dev->snd,
+					    SND_MAX, size, p, compat_mode);
 
 	case EVIOCGSW(0):
-		return bits_to_user(dev->sw, SW_MAX, size, p, compat_mode);
+		return evdev_handle_get_val(client, dev, EV_SW, dev->sw,
+					    SW_MAX, size, p, compat_mode);
 
 	case EVIOCGNAME(0):
 		return str_to_user(dev->name, size, p);

@@ -30,6 +30,7 @@
 #include "dhd_bus.h"
 #include "fwsignal.h"
 #include "dhd_dbg.h"
+#include "tracepoint.h"
 
 struct brcmf_proto_cdc_dcmd {
 	__le32 cmd;	/* dongle command value */
@@ -292,6 +293,7 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx, u8 offset,
 	h->flags2 = 0;
 	h->data_offset = offset;
 	BDC_SET_IF_IDX(h, ifidx);
+	trace_brcmf_bdchdr(pktbuf->data);
 }
 
 int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
@@ -309,6 +311,7 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 		return -EBADE;
 	}
 
+	trace_brcmf_bdchdr(pktbuf->data);
 	h = (struct brcmf_proto_bdc_header *)(pktbuf->data);
 
 	*ifidx = BDC_GET_IF_IDX(h);

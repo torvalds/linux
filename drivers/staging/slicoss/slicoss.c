@@ -3651,17 +3651,20 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 
 	if (!pci_set_dma_mask(pcidev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
-		if (pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64))) {
+		err = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64));
+		if (err) {
 			dev_err(&pcidev->dev, "unable to obtain 64-bit DMA for "
 					"consistent allocations\n");
 			goto err_out_disable_pci;
 		}
-	} else if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(32))) {
+	} else {
+		err = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
+		if (err) {
+			dev_err(&pcidev->dev, "no usable DMA configuration\n");
+			goto err_out_disable_pci;
+		}
 		pci_using_dac = 0;
 		pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(32));
-	} else {
-		dev_err(&pcidev->dev, "no usable DMA configuration\n");
-		goto err_out_disable_pci;
 	}
 
 	err = pci_request_regions(pcidev, DRV_NAME);
@@ -3696,6 +3699,7 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 	if (!memmapped_ioaddr) {
 		dev_err(&pcidev->dev, "cannot remap MMIO region %lx @ %lx\n",
 			mmio_len, mmio_start);
+		err = -ENOMEM;
 		goto err_out_free_netdev;
 	}
 
@@ -3706,8 +3710,8 @@ static int slic_entry_probe(struct pci_dev *pcidev,
 	slic_init_adapter(netdev,
 			  pcidev, pci_tbl_entry, memmapped_ioaddr, cards_found);
 
-	status = slic_card_locate(adapter);
-	if (status) {
+	err = slic_card_locate(adapter);
+	if (err) {
 		dev_err(&pcidev->dev, "cannot locate card\n");
 		goto err_out_free_mmio_region;
 	}

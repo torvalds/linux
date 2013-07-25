@@ -40,6 +40,7 @@ device_rev - returns the device revision level
              (see 4.1 for switch specific details)
    lprev   - returns name of previous device (switch) on the path to the device
              that that owns this attribute
+  modalias - returns the device modalias
 
 In addition to the files listed above, each device has a binary attribute file
 that allows read/write access to the device configuration registers using

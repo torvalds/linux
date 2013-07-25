@@ -568,7 +568,7 @@ out:
  */
 void __irq_entry do_IRQ(struct pt_regs *regs)
 {
-	struct tpi_info *tpi_info;
+	struct tpi_info *tpi_info = (struct tpi_info *) &regs->int_code;
 	struct subchannel *sch;
 	struct irb *irb;
 	struct pt_regs *old_regs;
@@ -579,46 +579,34 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
 		/* Serve timer interrupts first. */
 		clock_comparator_work();
-	/*
-	 * Get interrupt information from lowcore
-	 */
-	tpi_info = (struct tpi_info *)&S390_lowcore.subchannel_id;
-	irb = (struct irb *)&S390_lowcore.irb;
-	do {
-		kstat_incr_irqs_this_cpu(IO_INTERRUPT, NULL);
-		if (tpi_info->adapter_IO) {
-			do_adapter_IO(tpi_info->isc);
-			continue;
-		}
-		sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
-		if (!sch) {
-			/* Clear pending interrupt condition. */
+
+	kstat_incr_irqs_this_cpu(IO_INTERRUPT, NULL);
+	irb = (struct irb *) &S390_lowcore.irb;
+	if (tpi_info->adapter_IO) {
+		do_adapter_IO(tpi_info->isc);
+		goto out;
+	}
+	sch = (struct subchannel *)(unsigned long) tpi_info->intparm;
+	if (!sch) {
+		/* Clear pending interrupt condition. */
+		inc_irq_stat(IRQIO_CIO);
+		tsch(tpi_info->schid, irb);
+		goto out;
+	}
+	spin_lock(sch->lock);
+	/* Store interrupt response block to lowcore. */
+	if (tsch(tpi_info->schid, irb) == 0) {
+		/* Keep subchannel information word up to date. */
+		memcpy (&sch->schib.scsw, &irb->scsw, sizeof (irb->scsw));
+		/* Call interrupt handler if there is one. */
+		if (sch->driver && sch->driver->irq)
+			sch->driver->irq(sch);
+		else
 			inc_irq_stat(IRQIO_CIO);
-			tsch(tpi_info->schid, irb);
-			continue;
-		}
-		spin_lock(sch->lock);
-		/* Store interrupt response block to lowcore. */
-		if (tsch(tpi_info->schid, irb) == 0) {
-			/* Keep subchannel information word up to date. */
-			memcpy (&sch->schib.scsw, &irb->scsw,
-				sizeof (irb->scsw));
-			/* Call interrupt handler if there is one. */
-			if (sch->driver && sch->driver->irq)
-				sch->driver->irq(sch);
-			else
-				inc_irq_stat(IRQIO_CIO);
-		} else
-			inc_irq_stat(IRQIO_CIO);
-		spin_unlock(sch->lock);
-		/*
-		 * Are more interrupts pending?
-		 * If so, the tpi instruction will update the lowcore
-		 * to hold the info for the next interrupt.
-		 * We don't do this for VM because a tpi drops the cpu
-		 * out of the sie which costs more cycles than it saves.
-		 */
-	} while (MACHINE_IS_LPAR && tpi(NULL) != 0);
+	} else
+		inc_irq_stat(IRQIO_CIO);
+	spin_unlock(sch->lock);
+out:
 	irq_exit();
 	set_irq_regs(old_regs);
 }

@@ -27,6 +27,7 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
+#include "common.h"
 #include "fimc-core.h"
 #include "fimc-reg.h"
 #include "media-dev.h"

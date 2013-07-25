@@ -8,7 +8,11 @@
  * kind, whether express or implied.
  */
 
-/include/ "skeleton.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/omap.h>
+
+#include "skeleton.dtsi"
 
 / {
 	compatible = "ti,omap3430", "ti,omap3";
@@ -21,8 +25,13 @@
 	};
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		cpu@0 {
 			compatible = "arm,cortex-a8";
+			device_type = "cpu";
+			reg = <0x0>;
 		};
 	};
 

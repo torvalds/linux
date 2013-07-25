@@ -75,12 +75,6 @@ ZFCP_DEFINE_ATTR(zfcp_unit, unit, in_recovery, "%d\n",
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_denied, "%d\n",
 		 (zfcp_unit_sdev_status(unit) &
 		  ZFCP_STATUS_COMMON_ACCESS_DENIED) != 0);
-ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_shared, "%d\n",
-		 (zfcp_unit_sdev_status(unit) &
-		  ZFCP_STATUS_LUN_SHARED) != 0);
-ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_readonly, "%d\n",
-		 (zfcp_unit_sdev_status(unit) &
-		  ZFCP_STATUS_LUN_READONLY) != 0);
 
 static ssize_t zfcp_sysfs_port_failed_show(struct device *dev,
 					   struct device_attribute *attr,
@@ -268,7 +262,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	put_device(&port->dev);
 
 	zfcp_erp_port_shutdown(port, 0, "syprs_1");
-	zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
+	device_unregister(&port->dev);
  out:
 	zfcp_ccw_adapter_put(adapter);
 	return retval ? retval : (ssize_t) count;
@@ -340,12 +334,12 @@ static struct attribute *zfcp_port_attrs[] = {
 	&dev_attr_port_access_denied.attr,
 	NULL
 };
-
-/**
- * zfcp_sysfs_port_attrs - sysfs attributes for all other ports
- */
-struct attribute_group zfcp_sysfs_port_attrs = {
+static struct attribute_group zfcp_port_attr_group = {
 	.attrs = zfcp_port_attrs,
+};
+const struct attribute_group *zfcp_port_attr_groups[] = {
+	&zfcp_port_attr_group,
+	NULL,
 };
 
 static struct attribute *zfcp_unit_attrs[] = {
@@ -353,13 +347,14 @@ static struct attribute *zfcp_unit_attrs[] = {
 	&dev_attr_unit_in_recovery.attr,
 	&dev_attr_unit_status.attr,
 	&dev_attr_unit_access_denied.attr,
-	&dev_attr_unit_access_shared.attr,
-	&dev_attr_unit_access_readonly.attr,
 	NULL
 };
-
-struct attribute_group zfcp_sysfs_unit_attrs = {
+static struct attribute_group zfcp_unit_attr_group = {
 	.attrs = zfcp_unit_attrs,
+};
+const struct attribute_group *zfcp_unit_attr_groups[] = {
+	&zfcp_unit_attr_group,
+	NULL,
 };
 
 #define ZFCP_DEFINE_LATENCY_ATTR(_name) 				\

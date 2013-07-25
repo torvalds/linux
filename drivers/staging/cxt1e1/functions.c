@@ -14,7 +14,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/byteorder.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
@@ -97,7 +97,7 @@ pci_write_32 (u_int32_t *p, u_int32_t v)
 
 
 void
-pci_flush_write (ci_t * ci)
+pci_flush_write (ci_t *ci)
 {
     volatile u_int32_t v;
 
@@ -202,7 +202,7 @@ sd_line_is_ok (void *user)
 {
     struct net_device *ndev = (struct net_device *) user;
 
-    return (netif_carrier_ok (ndev));
+    return netif_carrier_ok (ndev);
 }
 
 void
@@ -246,7 +246,7 @@ sd_queue_stopped (void *user)
 {
     struct net_device *ndev = (struct net_device *) user;
 
-    return (netif_queue_stopped (ndev));
+    return netif_queue_stopped (ndev);
 }
 
 void sd_recv_consume(void *token, size_t len, void *user)
@@ -279,7 +279,7 @@ VMETRO_TRACE (void *x)
 
 
 void
-VMETRO_TRIGGER (ci_t * ci, int x)
+VMETRO_TRIGGER (ci_t *ci, int x)
 {
     comet_t    *comet;
     volatile u_int32_t data;

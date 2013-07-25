@@ -282,7 +282,6 @@ static void snd_als300_remove(struct pci_dev *pci)
 {
 	snd_als300_dbgcallenter();
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 	snd_als300_dbgcallleave();
 }
 

@@ -27,7 +27,7 @@
 
 
 char       *
-sbeid_get_bdname (ci_t * ci)
+sbeid_get_bdname (ci_t *ci)
 {
     char       *np = 0;
 
@@ -73,7 +73,7 @@ sbeid_get_bdname (ci_t * ci)
 /* given the presetting of brd_id, set the corresponding hdw_id */
 
 void
-sbeid_set_hdwbid (ci_t * ci)
+sbeid_set_hdwbid (ci_t *ci)
 {
     /*
      * set SBE's unique hardware identification (for legacy boards might not
@@ -170,7 +170,7 @@ sbeid_set_hdwbid (ci_t * ci)
 /* given the presetting of hdw_bid, set the corresponding brd_id */
 
 void
-sbeid_set_bdtype (ci_t * ci)
+sbeid_set_bdtype (ci_t *ci)
 {
     /* set SBE's unique PCI VENDOR/DEVID */
     switch (ci->hdw_bid)

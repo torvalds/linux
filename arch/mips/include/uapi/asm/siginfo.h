@@ -25,10 +25,10 @@ struct siginfo;
 /*
  * Careful to keep union _sifields from shifting ...
  */
-#ifdef CONFIG_32BIT
+#if __SIZEOF_LONG__ == 4
 #define __ARCH_SI_PREAMBLE_SIZE (3 * sizeof(int))
 #endif
-#ifdef CONFIG_64BIT
+#if __SIZEOF_LONG__ == 8
 #define __ARCH_SI_PREAMBLE_SIZE (4 * sizeof(int))
 #endif
 

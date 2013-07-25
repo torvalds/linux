@@ -417,7 +417,7 @@ bfin_sport_spi_pump_transfers(unsigned long data)
 
 	/* Bits per word setup */
 	bits_per_word = transfer->bits_per_word;
-	if (bits_per_word % 16 == 0)
+	if (bits_per_word == 16)
 		drv_data->ops = &bfin_sport_transfer_ops_u16;
 	else
 		drv_data->ops = &bfin_sport_transfer_ops_u8;
@@ -600,13 +600,6 @@ bfin_sport_spi_setup(struct spi_device *spi)
 		}
 	}
 
-	if (spi->bits_per_word % 8) {
-		dev_err(&spi->dev, "%d bits_per_word is not supported\n",
-				spi->bits_per_word);
-		ret = -EINVAL;
-		goto error;
-	}
-
 	/* translate common spi framework into our register
 	 * following configure contents are same for tx and rx.
 	 */
@@ -778,6 +771,7 @@ static int bfin_sport_spi_probe(struct platform_device *pdev)
 	drv_data->pin_req = platform_info->pin_req;
 
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;
 	master->cleanup = bfin_sport_spi_cleanup;
@@ -881,9 +875,6 @@ static int bfin_sport_spi_remove(struct platform_device *pdev)
 	spi_unregister_master(drv_data->master);
 
 	peripheral_free_list(drv_data->pin_req);
-
-	/* Prevent double remove */
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

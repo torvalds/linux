@@ -68,7 +68,7 @@
 #define BIT30	0x40000000
 #define BIT31	0x80000000
 
-// 802.11 frame related, defined as 802.11 spec
+/* 802.11 frame related, defined as 802.11 spec */
 #define WLAN_ADDR_LEN               6
 #define WLAN_CRC_LEN                4
 #define WLAN_CRC32_LEN              4

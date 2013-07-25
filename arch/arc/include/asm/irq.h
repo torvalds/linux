@@ -21,6 +21,6 @@
 extern void __init arc_init_IRQ(void);
 extern int __init get_hw_config_num_irq(void);
 
-void __cpuinit arc_local_timer_setup(unsigned int cpu);
+void arc_local_timer_setup(unsigned int cpu);
 
 #endif

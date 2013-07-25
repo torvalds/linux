@@ -6,7 +6,7 @@
  * Licensed under GPLv2 only
  */
 /dts-v1/;
-/include/ "at91rm9200.dtsi"
+#include "at91rm9200.dtsi"
 
 / {
 	model = "Phontech MPA 1600";
@@ -62,7 +62,7 @@
 
 		monitor_mute {
 			label = "Monitor mute";
-			gpios = <&pioC 1 1>;
+			gpios = <&pioC 1 GPIO_ACTIVE_LOW>;
 			linux,code = <113>;
 		};
 	};

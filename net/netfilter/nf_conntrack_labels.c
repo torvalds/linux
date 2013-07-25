@@ -45,7 +45,7 @@ int nf_connlabel_set(struct nf_conn *ct, u16 bit)
 	if (test_bit(bit, labels->bits))
 		return 0;
 
-	if (test_and_set_bit(bit, labels->bits))
+	if (!test_and_set_bit(bit, labels->bits))
 		nf_conntrack_event_cache(IPCT_LABEL, ct);
 
 	return 0;

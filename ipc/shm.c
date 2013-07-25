@@ -141,7 +141,7 @@ static inline struct shmid_kernel *shm_lock(struct ipc_namespace *ns, int id)
 static inline void shm_lock_by_ptr(struct shmid_kernel *ipcp)
 {
 	rcu_read_lock();
-	spin_lock(&ipcp->shm_perm.lock);
+	ipc_lock_object(&ipcp->shm_perm);
 }
 
 static inline struct shmid_kernel *shm_lock_check(struct ipc_namespace *ns,
@@ -491,10 +491,10 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 
 	sprintf (name, "SYSV%08x", key);
 	if (shmflg & SHM_HUGETLB) {
-		struct hstate *hs = hstate_sizelog((shmflg >> SHM_HUGE_SHIFT)
-						& SHM_HUGE_MASK);
+		struct hstate *hs;
 		size_t hugesize;
 
+		hs = hstate_sizelog((shmflg >> SHM_HUGE_SHIFT) & SHM_HUGE_MASK);
 		if (!hs) {
 			error = -EINVAL;
 			goto no_file;
@@ -535,6 +535,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	shp->shm_nattch = 0;
 	shp->shm_file = file;
 	shp->shm_creator = current;
+
 	/*
 	 * shmid gets reported as "inode#" in /proc/pid/maps.
 	 * proc-ps tools use this. Changing this will break them.
@@ -543,7 +544,9 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 
 	ns->shm_tot += numpages;
 	error = shp->shm_perm.id;
-	shm_unlock(shp);
+
+	ipc_unlock_object(&shp->shm_perm);
+	rcu_read_unlock();
 	return error;
 
 no_id:
@@ -754,31 +757,42 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 			return -EFAULT;
 	}
 
+	down_write(&shm_ids(ns).rw_mutex);
+	rcu_read_lock();
+
 	ipcp = ipcctl_pre_down(ns, &shm_ids(ns), shmid, cmd,
 			       &shmid64.shm_perm, 0);
-	if (IS_ERR(ipcp))
-		return PTR_ERR(ipcp);
+	if (IS_ERR(ipcp)) {
+		err = PTR_ERR(ipcp);
+		/* the ipc lock is not held upon failure */
+		goto out_unlock1;
+	}
 
 	shp = container_of(ipcp, struct shmid_kernel, shm_perm);
 
 	err = security_shm_shmctl(shp, cmd);
 	if (err)
-		goto out_unlock;
+		goto out_unlock0;
+
 	switch (cmd) {
 	case IPC_RMID:
+		/* do_shm_rmid unlocks the ipc object and rcu */
 		do_shm_rmid(ns, ipcp);
 		goto out_up;
 	case IPC_SET:
 		err = ipc_update_perm(&shmid64.shm_perm, ipcp);
 		if (err)
-			goto out_unlock;
+			goto out_unlock0;
 		shp->shm_ctim = get_seconds();
 		break;
 	default:
 		err = -EINVAL;
 	}
-out_unlock:
-	shm_unlock(shp);
+
+out_unlock0:
+	ipc_unlock_object(&shp->shm_perm);
+out_unlock1:
+	rcu_read_unlock();
 out_up:
 	up_write(&shm_ids(ns).rw_mutex);
 	return err;

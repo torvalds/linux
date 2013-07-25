@@ -693,7 +693,7 @@ static bool mxs_dma_filter_fn(struct dma_chan *chan, void *fn_param)
 	return true;
 }
 
-struct dma_chan *mxs_dma_xlate(struct of_phandle_args *dma_spec,
+static struct dma_chan *mxs_dma_xlate(struct of_phandle_args *dma_spec,
 			       struct of_dma *ofdma)
 {
 	struct mxs_dma_engine *mxs_dma = ofdma->of_dma_data;

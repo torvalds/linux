@@ -46,17 +46,25 @@
 union mgmt_port_ring_entry {
 	u64 d64;
 	struct {
-		u64    reserved_62_63:2;
-		/* Length of the buffer/packet in bytes */
-		u64    len:14;
-		/* For TX, signals that the packet should be timestamped */
-		u64    tstamp:1;
-		/* The RX error code */
-		u64    code:7;
 #define RING_ENTRY_CODE_DONE 0xf
 #define RING_ENTRY_CODE_MORE 0x10
+#ifdef __BIG_ENDIAN_BITFIELD
+		u64 reserved_62_63:2;
+		/* Length of the buffer/packet in bytes */
+		u64 len:14;
+		/* For TX, signals that the packet should be timestamped */
+		u64 tstamp:1;
+		/* The RX error code */
+		u64 code:7;
 		/* Physical address of the buffer */
-		u64    addr:40;
+		u64 addr:40;
+#else
+		u64 addr:40;
+		u64 code:7;
+		u64 tstamp:1;
+		u64 len:14;
+		u64 reserved_62_63:2;
+#endif
 	} s;
 };
 
@@ -1141,10 +1149,13 @@ static int octeon_mgmt_open(struct net_device *netdev)
 		/* For compensation state to lock. */
 		ndelay(1040 * NS_PER_PHY_CLK);
 
-		/* Some Ethernet switches cannot handle standard
-		 * Interframe Gap, increase to 16 bytes.
+		/* Default Interframe Gaps are too small.  Recommended
+		 * workaround is.
+		 *
+		 * AGL_GMX_TX_IFG[IFG1]=14
+		 * AGL_GMX_TX_IFG[IFG2]=10
 		 */
-		cvmx_write_csr(CVMX_AGL_GMX_TX_IFG, 0x88);
+		cvmx_write_csr(CVMX_AGL_GMX_TX_IFG, 0xae);
 	}
 
 	octeon_mgmt_rx_fill_ring(netdev);
@@ -1437,7 +1448,7 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
-	dev_set_drvdata(&pdev->dev, netdev);
+	platform_set_drvdata(pdev, netdev);
 	p = netdev_priv(netdev);
 	netif_napi_add(netdev, &p->napi, octeon_mgmt_napi_poll,
 		       OCTEON_MGMT_NAPI_WEIGHT);
@@ -1559,7 +1570,7 @@ err:
 
 static int octeon_mgmt_remove(struct platform_device *pdev)
 {
-	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
+	struct net_device *netdev = platform_get_drvdata(pdev);
 
 	unregister_netdev(netdev);
 	free_netdev(netdev);

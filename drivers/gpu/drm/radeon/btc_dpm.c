@@ -2059,6 +2059,19 @@ static void btc_init_stutter_mode(struct radeon_device *rdev)
 	}
 }
 
+bool btc_dpm_vblank_too_short(struct radeon_device *rdev)
+{
+	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+	u32 switch_limit = pi->mem_gddr5 ? 450 : 100;
+
+	if (vblank_time < switch_limit)
+		return true;
+	else
+		return false;
+
+}
+
 static void btc_apply_state_adjust_rules(struct radeon_device *rdev,
 					 struct radeon_ps *rps)
 {
@@ -2068,7 +2081,8 @@ static void btc_apply_state_adjust_rules(struct radeon_device *rdev,
 	u32 mclk, sclk;
 	u16 vddc, vddci;
 
-	if (rdev->pm.dpm.new_active_crtc_count > 1)
+	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
+	    btc_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
 	else
 		disable_mclk_switching = false;
@@ -2326,14 +2340,11 @@ int btc_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-#if 0
-	/* XXX */
-	ret = rv770_unrestrict_performance_levels_after_switch(rdev);
+	ret = rv770_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
-		DRM_ERROR("rv770_unrestrict_performance_levels_after_switch failed\n");
+		DRM_ERROR("rv770_dpm_force_performance_level failed\n");
 		return ret;
 	}
-#endif
 
 	return 0;
 }

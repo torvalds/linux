@@ -22,11 +22,11 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include "flowctrl.h"
+#include "fuse.h"
 #include "iomap.h"
 #include "reset.h"
 #include "sleep.h"
 
-#define APB_MISC_GP_HIDREV	0x804
 #define PMC_SCRATCH41	0x140
 
 #define RESET_DATA(x)	((TEGRA_RESET_##x)*4)
@@ -38,34 +38,40 @@
  *	  CPU boot vector when restarting the a CPU following
  *	  an LP2 transition. Also branched to by LP0 and LP1 resume after
  *	  re-enabling sdram.
+ *
+ *	r6: SoC ID
  */
 ENTRY(tegra_resume)
 	bl	v7_invalidate_l1
 
 	cpu_id	r0
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
+	cmp	r6, #TEGRA114
+	beq	no_cpu0_chk
+
 	cmp	r0, #0				@ CPU0?
  THUMB(	it	ne )
 	bne	cpu_resume			@ no
+no_cpu0_chk:
 
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
 	/* Are we on Tegra20? */
-	mov32	r6, TEGRA_APB_MISC_BASE
-	ldr	r0, [r6, #APB_MISC_GP_HIDREV]
-	and	r0, r0, #0xff00
-	cmp	r0, #(0x20 << 8)
+	cmp	r6, #TEGRA20
 	beq	1f				@ Yes
 	/* Clear the flow controller flags for this CPU. */
-	mov32	r2, TEGRA_FLOW_CTRL_BASE + FLOW_CTRL_CPU0_CSR	@ CPU0 CSR
-	ldr	r1, [r2]
+	cpu_to_csr_reg r1, r0
+	mov32	r2, TEGRA_FLOW_CTRL_BASE
+	ldr	r1, [r2, r1]
 	/* Clear event & intr flag */
 	orr	r1, r1, \
 		#FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG
-	movw	r0, #0x0FFD	@ enable, cluster_switch, immed, & bitmaps
+	movw	r0, #0x3FFD	@ enable, cluster_switch, immed, bitmaps
+				@ & ext flags for CPU power mgnt
 	bic	r1, r1, r0
 	str	r1, [r2]
 1:
-#endif
 
+	check_cpu_part_num 0xc09, r8, r9
+	bne	not_ca9
 #ifdef CONFIG_HAVE_ARM_SCU
 	/* enable SCU */
 	mov32	r0, TEGRA_ARM_PERIF_BASE
@@ -76,6 +82,7 @@ ENTRY(tegra_resume)
 
 	/* L2 cache resume & re-enable */
 	l2_cache_resume r0, r1, r2, l2x0_saved_regs_addr
+not_ca9:
 
 	b	cpu_resume
 ENDPROC(tegra_resume)
@@ -98,7 +105,7 @@ ENTRY(__tegra_cpu_reset_handler_start)
  * Register usage within the reset handler:
  *
  *      Others: scratch
- *      R6  = SoC ID << 8
+ *      R6  = SoC ID
  *      R7  = CPU present (to the OS) mask
  *      R8  = CPU in LP1 state mask
  *      R9  = CPU in LP2 state mask
@@ -115,12 +122,10 @@ ENTRY(__tegra_cpu_reset_handler)
 
 	cpsid	aif, 0x13			@ SVC mode, interrupts disabled
 
-	mov32	r6, TEGRA_APB_MISC_BASE
-	ldr	r6, [r6, #APB_MISC_GP_HIDREV]
-	and	r6, r6, #0xff00
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 t20_check:
-	cmp	r6, #(0x20 << 8)
+	cmp	r6, #TEGRA20
 	bne	after_t20_check
 t20_errata:
 	# Tegra20 is a Cortex-A9 r1p1
@@ -136,7 +141,7 @@ after_t20_check:
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 t30_check:
-	cmp	r6, #(0x30 << 8)
+	cmp	r6, #TEGRA30
 	bne	after_t30_check
 t30_errata:
 	# Tegra30 is a Cortex-A9 r2p9
@@ -163,7 +168,7 @@ after_errata:
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	/* Are we on Tegra20? */
-	cmp	r6, #(0x20 << 8)
+	cmp	r6, #TEGRA20
 	bne	1f
 	/* If not CPU0, don't let CPU0 reset CPU1 now that CPU1 is coming up. */
 	mov32	r5, TEGRA_PMC_BASE
@@ -186,11 +191,14 @@ __is_not_lp2:
 
 #ifdef CONFIG_SMP
 	/*
-	 * Can only be secondary boot (initial or hotplug) but CPU 0
-	 * cannot be here.
+	 * Can only be secondary boot (initial or hotplug)
+	 * CPU0 can't be here for Tegra20/30
 	 */
+	cmp	r6, #TEGRA114
+	beq	__no_cpu0_chk
 	cmp	r10, #0
 	bleq	__die				@ CPU0 cannot be here
+__no_cpu0_chk:
 	ldr	lr, [r12, #RESET_DATA(STARTUP_SECONDARY)]
 	cmp	lr, #0
 	bleq	__die				@ no secondary startup handler
@@ -210,10 +218,7 @@ __die:
 	mov32	r7, TEGRA_CLK_RESET_BASE
 
 	/* Are we on Tegra20? */
-	mov32	r6, TEGRA_APB_MISC_BASE
-	ldr	r0, [r6, #APB_MISC_GP_HIDREV]
-	and	r0, r0, #0xff00
-	cmp	r0, #(0x20 << 8)
+	cmp	r6, #TEGRA20
 	bne	1f
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC

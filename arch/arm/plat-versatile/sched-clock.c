@@ -20,8 +20,8 @@
  */
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/sched_clock.h>
 
-#include <asm/sched_clock.h>
 #include <plat/sched_clock.h>
 
 static void __iomem *ctr;

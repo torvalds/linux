@@ -347,8 +347,9 @@ static void fec_time_keep(unsigned long _data)
  * cyclecounter init routine and exits.
  */
 
-void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev)
+void fec_ptp_init(struct platform_device *pdev)
 {
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
 	fep->ptp_caps.owner = THIS_MODULE;

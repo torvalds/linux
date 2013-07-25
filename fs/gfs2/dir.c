@@ -1125,13 +1125,14 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 	if (IS_ERR(hc))
 		return PTR_ERR(hc);
 
-	h = hc2 = kmalloc(hsize_bytes * 2, GFP_NOFS | __GFP_NOWARN);
+	hc2 = kmalloc(hsize_bytes * 2, GFP_NOFS | __GFP_NOWARN);
 	if (hc2 == NULL)
 		hc2 = __vmalloc(hsize_bytes * 2, GFP_NOFS, PAGE_KERNEL);
 
 	if (!hc2)
 		return -ENOMEM;
 
+	h = hc2;
 	error = gfs2_meta_inode_buffer(dip, &dibh);
 	if (error)
 		goto out_kfree;
@@ -1212,9 +1213,7 @@ static int compare_dents(const void *a, const void *b)
 /**
  * do_filldir_main - read out directory entries
  * @dip: The GFS2 inode
- * @offset: The offset in the file to read from
- * @opaque: opaque data to pass to filldir
- * @filldir: The function to pass entries to
+ * @ctx: what to feed the entries to
  * @darr: an array of struct gfs2_dirent pointers to read
  * @entries: the number of entries in darr
  * @copied: pointer to int that's non-zero if a entry has been copied out
@@ -1224,11 +1223,10 @@ static int compare_dents(const void *a, const void *b)
  * the possibility that they will fall into different readdir buffers or
  * that someone will want to seek to that location.
  *
- * Returns: errno, >0 on exception from filldir
+ * Returns: errno, >0 if the actor tells you to stop
  */
 
-static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
-			   void *opaque, filldir_t filldir,
+static int do_filldir_main(struct gfs2_inode *dip, struct dir_context *ctx,
 			   const struct gfs2_dirent **darr, u32 entries,
 			   int *copied)
 {
@@ -1236,7 +1234,6 @@ static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
 	u64 off, off_next;
 	unsigned int x, y;
 	int run = 0;
-	int error = 0;
 
 	sort(darr, entries, sizeof(struct gfs2_dirent *), compare_dents, NULL);
 
@@ -1253,9 +1250,9 @@ static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
 			off_next = be32_to_cpu(dent_next->de_hash);
 			off_next = gfs2_disk_hash2offset(off_next);
 
-			if (off < *offset)
+			if (off < ctx->pos)
 				continue;
-			*offset = off;
+			ctx->pos = off;
 
 			if (off_next == off) {
 				if (*copied && !run)
@@ -1264,26 +1261,25 @@ static int do_filldir_main(struct gfs2_inode *dip, u64 *offset,
 			} else
 				run = 0;
 		} else {
-			if (off < *offset)
+			if (off < ctx->pos)
 				continue;
-			*offset = off;
+			ctx->pos = off;
 		}
 
-		error = filldir(opaque, (const char *)(dent + 1),
+		if (!dir_emit(ctx, (const char *)(dent + 1),
 				be16_to_cpu(dent->de_name_len),
-				off, be64_to_cpu(dent->de_inum.no_addr),
-				be16_to_cpu(dent->de_type));
-		if (error)
+				be64_to_cpu(dent->de_inum.no_addr),
+				be16_to_cpu(dent->de_type)))
 			return 1;
 
 		*copied = 1;
 	}
 
-	/* Increment the *offset by one, so the next time we come into the
+	/* Increment the ctx->pos by one, so the next time we come into the
 	   do_filldir fxn, we get the next entry instead of the last one in the
 	   current leaf */
 
-	(*offset)++;
+	ctx->pos++;
 
 	return 0;
 }
@@ -1307,8 +1303,8 @@ static void gfs2_free_sort_buffer(void *ptr)
 		kfree(ptr);
 }
 
-static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
-			      filldir_t filldir, int *copied, unsigned *depth,
+static int gfs2_dir_read_leaf(struct inode *inode, struct dir_context *ctx,
+			      int *copied, unsigned *depth,
 			      u64 leaf_no)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -1386,8 +1382,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 	} while(lfn);
 
 	BUG_ON(entries2 != entries);
-	error = do_filldir_main(ip, offset, opaque, filldir, darr,
-				entries, copied);
+	error = do_filldir_main(ip, ctx, darr, entries, copied);
 out_free:
 	for(i = 0; i < leaf; i++)
 		brelse(larr[i]);
@@ -1446,15 +1441,13 @@ static void gfs2_dir_readahead(struct inode *inode, unsigned hsize, u32 index,
 /**
  * dir_e_read - Reads the entries from a directory into a filldir buffer
  * @dip: dinode pointer
- * @offset: the hash of the last entry read shifted to the right once
- * @opaque: buffer for the filldir function to fill
- * @filldir: points to the filldir function to use
+ * @ctx: actor to feed the entries to
  *
  * Returns: errno
  */
 
-static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
-		      filldir_t filldir, struct file_ra_state *f_ra)
+static int dir_e_read(struct inode *inode, struct dir_context *ctx,
+		      struct file_ra_state *f_ra)
 {
 	struct gfs2_inode *dip = GFS2_I(inode);
 	u32 hsize, len = 0;
@@ -1465,7 +1458,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	unsigned depth = 0;
 
 	hsize = 1 << dip->i_depth;
-	hash = gfs2_dir_offset2hash(*offset);
+	hash = gfs2_dir_offset2hash(ctx->pos);
 	index = hash >> (32 - dip->i_depth);
 
 	if (dip->i_hash_cache == NULL)
@@ -1477,7 +1470,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	gfs2_dir_readahead(inode, hsize, index, f_ra);
 
 	while (index < hsize) {
-		error = gfs2_dir_read_leaf(inode, offset, opaque, filldir,
+		error = gfs2_dir_read_leaf(inode, ctx,
 					   &copied, &depth,
 					   be64_to_cpu(lp[index]));
 		if (error)
@@ -1492,8 +1485,8 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	return error;
 }
 
-int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
-		  filldir_t filldir, struct file_ra_state *f_ra)
+int gfs2_dir_read(struct inode *inode, struct dir_context *ctx,
+		  struct file_ra_state *f_ra)
 {
 	struct gfs2_inode *dip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -1507,7 +1500,7 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 		return 0;
 
 	if (dip->i_diskflags & GFS2_DIF_EXHASH)
-		return dir_e_read(inode, offset, opaque, filldir, f_ra);
+		return dir_e_read(inode, ctx, f_ra);
 
 	if (!gfs2_is_stuffed(dip)) {
 		gfs2_consist_inode(dip);
@@ -1539,7 +1532,7 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 			error = -EIO;
 			goto out;
 		}
-		error = do_filldir_main(dip, offset, opaque, filldir, darr,
+		error = do_filldir_main(dip, ctx, darr,
 					dip->i_entries, &copied);
 out:
 		kfree(darr);
@@ -1555,9 +1548,9 @@ out:
 
 /**
  * gfs2_dir_search - Search a directory
- * @dip: The GFS2 inode
- * @filename:
- * @inode:
+ * @dip: The GFS2 dir inode
+ * @name: The name we are looking up
+ * @fail_on_exist: Fail if the name exists rather than looking it up
  *
  * This routine searches a directory for a file or another directory.
  * Assumes a glock is held on dip.
@@ -1565,22 +1558,25 @@ out:
  * Returns: errno
  */
 
-struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name)
+struct inode *gfs2_dir_search(struct inode *dir, const struct qstr *name,
+			      bool fail_on_exist)
 {
 	struct buffer_head *bh;
 	struct gfs2_dirent *dent;
-	struct inode *inode;
+	u64 addr, formal_ino;
+	u16 dtype;
 
 	dent = gfs2_dirent_search(dir, name, gfs2_dirent_find, &bh);
 	if (dent) {
 		if (IS_ERR(dent))
 			return ERR_CAST(dent);
-		inode = gfs2_inode_lookup(dir->i_sb, 
-				be16_to_cpu(dent->de_type),
-				be64_to_cpu(dent->de_inum.no_addr),
-				be64_to_cpu(dent->de_inum.no_formal_ino), 0);
+		dtype = be16_to_cpu(dent->de_type);
+		addr = be64_to_cpu(dent->de_inum.no_addr);
+		formal_ino = be64_to_cpu(dent->de_inum.no_formal_ino);
 		brelse(bh);
-		return inode;
+		if (fail_on_exist)
+			return ERR_PTR(-EEXIST);
+		return gfs2_inode_lookup(dir->i_sb, dtype, addr, formal_ino, 0);
 	}
 	return ERR_PTR(-ENOENT);
 }

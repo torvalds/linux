@@ -161,8 +161,8 @@ int sctp_tsnmap_mark(struct sctp_tsnmap *map, __u32 tsn,
 
 
 /* Initialize a Gap Ack Block iterator from memory being provided.  */
-SCTP_STATIC void sctp_tsnmap_iter_init(const struct sctp_tsnmap *map,
-				       struct sctp_tsnmap_iter *iter)
+static void sctp_tsnmap_iter_init(const struct sctp_tsnmap *map,
+				  struct sctp_tsnmap_iter *iter)
 {
 	/* Only start looking one past the Cumulative TSN Ack Point.  */
 	iter->start = map->cumulative_tsn_ack_point + 1;
@@ -171,9 +171,9 @@ SCTP_STATIC void sctp_tsnmap_iter_init(const struct sctp_tsnmap *map,
 /* Get the next Gap Ack Blocks. Returns 0 if there was not another block
  * to get.
  */
-SCTP_STATIC int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
-					 struct sctp_tsnmap_iter *iter,
-					 __u16 *start, __u16 *end)
+static int sctp_tsnmap_next_gap_ack(const struct sctp_tsnmap *map,
+				    struct sctp_tsnmap_iter *iter,
+				    __u16 *start, __u16 *end)
 {
 	int ended = 0;
 	__u16 start_ = 0, end_ = 0, offset;

@@ -30,6 +30,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/capability.h>
@@ -81,7 +83,7 @@ static int balloon_init_watcher(struct notifier_block *notifier,
 
 	err = register_xenbus_watch(&target_watch);
 	if (err)
-		printk(KERN_ERR "Failed to set balloon watcher\n");
+		pr_err("Failed to set balloon watcher\n");
 
 	return NOTIFY_DONE;
 }
@@ -95,7 +97,7 @@ static int __init balloon_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	pr_info("xen-balloon: Initialising balloon driver.\n");
+	pr_info("Initialising balloon driver\n");
 
 	register_balloon(&balloon_dev);
 

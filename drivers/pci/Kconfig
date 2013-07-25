@@ -55,7 +55,6 @@ config PCI_STUB
 config XEN_PCIDEV_FRONTEND
         tristate "Xen PCI Frontend"
         depends on PCI && X86 && XEN
-        select HOTPLUG
         select PCI_XEN
 	select XEN_XENBUS_FRONTEND
         default y
@@ -113,9 +112,10 @@ config PCI_IOAPIC
 	tristate "PCI IO-APIC hotplug support" if X86
 	depends on PCI
 	depends on ACPI
-	depends on HOTPLUG
 	default !X86
 
 config PCI_LABEL
 	def_bool y if (DMI || ACPI)
 	select NLS
+
+source "drivers/pci/host/Kconfig"

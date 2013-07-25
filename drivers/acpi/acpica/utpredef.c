@@ -147,6 +147,11 @@ void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes)
 	u32 i;
 	u32 j;
 
+	if (!expected_btypes) {
+		ACPI_STRCPY(buffer, "NONE");
+		return;
+	}
+
 	j = 1;
 	buffer[0] = 0;
 	this_rtype = ACPI_RTYPE_INTEGER;
@@ -328,9 +333,7 @@ static u32 acpi_ut_get_argument_types(char *buffer, u16 argument_types)
 
 	/* First field in the types list is the count of args to follow */
 
-	arg_count = (argument_types & METHOD_ARG_MASK);
-	argument_types >>= METHOD_ARG_BIT_WIDTH;
-
+	arg_count = METHOD_GET_ARG_COUNT(argument_types);
 	if (arg_count > METHOD_PREDEF_ARGS_MAX) {
 		printf("**** Invalid argument count (%u) "
 		       "in predefined info structure\n", arg_count);
@@ -340,7 +343,8 @@ static u32 acpi_ut_get_argument_types(char *buffer, u16 argument_types)
 	/* Get each argument from the list, convert to ascii, store to buffer */
 
 	for (i = 0; i < arg_count; i++) {
-		this_argument_type = (argument_types & METHOD_ARG_MASK);
+		this_argument_type = METHOD_GET_NEXT_TYPE(argument_types);
+
 		if (!this_argument_type
 		    || (this_argument_type > METHOD_MAX_ARG_TYPE)) {
 			printf("**** Invalid argument type (%u) "
@@ -351,10 +355,6 @@ static u32 acpi_ut_get_argument_types(char *buffer, u16 argument_types)
 
 		strcat(buffer,
 		       ut_external_type_names[this_argument_type] + sub_index);
-
-		/* Shift to next argument type field */
-
-		argument_types >>= METHOD_ARG_BIT_WIDTH;
 		sub_index = 0;
 	}
 

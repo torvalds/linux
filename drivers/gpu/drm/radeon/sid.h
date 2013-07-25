@@ -220,6 +220,10 @@
 #       define GFX_CLK_OFF_ACPI_D3                        (1 << 13)
 #       define DYN_LIGHT_SLEEP_EN                         (1 << 14)
 
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x798
+#       define CURRENT_STATE_INDEX_MASK                   (0xf << 4)
+#       define CURRENT_STATE_INDEX_SHIFT                  4
+
 #define CG_FTV                                            0x7bc
 
 #define CG_FFCT_0                                         0x7c0
@@ -363,6 +367,20 @@
 
 #define	VM_CONTEXT1_PROTECTION_FAULT_ADDR		0x14FC
 #define	VM_CONTEXT1_PROTECTION_FAULT_STATUS		0x14DC
+#define		PROTECTIONS_MASK			(0xf << 0)
+#define		PROTECTIONS_SHIFT			0
+		/* bit 0: range
+		 * bit 1: pde0
+		 * bit 2: valid
+		 * bit 3: read
+		 * bit 4: write
+		 */
+#define		MEMORY_CLIENT_ID_MASK			(0xff << 12)
+#define		MEMORY_CLIENT_ID_SHIFT			12
+#define		MEMORY_CLIENT_RW_MASK			(1 << 24)
+#define		MEMORY_CLIENT_RW_SHIFT			24
+#define		FAULT_VMID_MASK				(0xf << 25)
+#define		FAULT_VMID_SHIFT			25
 
 #define VM_INVALIDATE_REQUEST				0x1478
 #define VM_INVALIDATE_RESPONSE				0x147c

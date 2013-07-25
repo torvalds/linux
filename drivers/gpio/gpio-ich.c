@@ -41,12 +41,14 @@ enum GPIO_REG {
 	GPIO_USE_SEL = 0,
 	GPIO_IO_SEL,
 	GPIO_LVL,
+	GPO_BLINK
 };
 
-static const u8 ichx_regs[3][3] = {
+static const u8 ichx_regs[4][3] = {
 	{0x00, 0x30, 0x40},	/* USE_SEL[1-3] offsets */
 	{0x04, 0x34, 0x44},	/* IO_SEL[1-3] offsets */
 	{0x0c, 0x38, 0x48},	/* LVL[1-3] offsets */
+	{0x18, 0x18, 0x18},	/* BLINK offset */
 };
 
 static const u8 ichx_reglen[3] = {
@@ -148,6 +150,10 @@ static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 					int val)
 {
+	/* Disable blink hardware which is available for GPIOs from 0 to 31. */
+	if (nr < 32)
+		ichx_write_bit(GPO_BLINK, nr, 0, 0);
+
 	/* Set GPIO output value. */
 	ichx_write_bit(GPIO_LVL, nr, val, 0);
 

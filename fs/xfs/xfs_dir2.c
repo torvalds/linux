@@ -368,10 +368,8 @@ xfs_dir_removename(
 int
 xfs_readdir(
 	xfs_inode_t	*dp,
-	void		*dirent,
-	size_t		bufsize,
-	xfs_off_t	*offset,
-	filldir_t	filldir)
+	struct dir_context *ctx,
+	size_t		bufsize)
 {
 	int		rval;		/* return value */
 	int		v;		/* type-checking value */
@@ -385,14 +383,13 @@ xfs_readdir(
 	XFS_STATS_INC(xs_dir_getdents);
 
 	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
-		rval = xfs_dir2_sf_getdents(dp, dirent, offset, filldir);
+		rval = xfs_dir2_sf_getdents(dp, ctx);
 	else if ((rval = xfs_dir2_isblock(NULL, dp, &v)))
 		;
 	else if (v)
-		rval = xfs_dir2_block_getdents(dp, dirent, offset, filldir);
+		rval = xfs_dir2_block_getdents(dp, ctx);
 	else
-		rval = xfs_dir2_leaf_getdents(dp, dirent, bufsize, offset,
-					      filldir);
+		rval = xfs_dir2_leaf_getdents(dp, ctx, bufsize);
 	return rval;
 }
 

@@ -31,6 +31,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -508,8 +510,7 @@ static void gnttab_handle_deferred(unsigned long unused)
 			entry = NULL;
 		} else {
 			if (!--entry->warn_delay)
-				pr_info("g.e. %#x still pending\n",
-					entry->ref);
+				pr_info("g.e. %#x still pending\n", entry->ref);
 			if (!first)
 				first = entry;
 		}
@@ -838,7 +839,7 @@ gnttab_retry_eagain_gop(unsigned int cmd, void *gop, int16_t *status,
 	} while ((*status == GNTST_eagain) && (delay < MAX_DELAY));
 
 	if (delay >= MAX_DELAY) {
-		printk(KERN_ERR "%s: %s eagain grant\n", func, current->comm);
+		pr_err("%s: %s eagain grant\n", func, current->comm);
 		*status = GNTST_bad_page;
 	}
 }
@@ -1048,8 +1049,8 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 			xatp.gpfn = (xen_hvm_resume_frames >> PAGE_SHIFT) + i;
 			rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp);
 			if (rc != 0) {
-				printk(KERN_WARNING
-						"grant table add_to_physmap failed, err=%d\n", rc);
+				pr_warn("grant table add_to_physmap failed, err=%d\n",
+					rc);
 				break;
 			}
 		} while (i-- > start_idx);
@@ -1131,8 +1132,7 @@ static void gnttab_request_version(void)
 		grefs_per_grant_frame = PAGE_SIZE / sizeof(struct grant_entry_v1);
 		gnttab_interface = &gnttab_v1_ops;
 	}
-	printk(KERN_INFO "Grant tables using version %d layout.\n",
-		grant_table_version);
+	pr_info("Grant tables using version %d layout\n", grant_table_version);
 }
 
 static int gnttab_setup(void)
@@ -1150,8 +1150,7 @@ static int gnttab_setup(void)
 		gnttab_shared.addr = xen_remap(xen_hvm_resume_frames,
 						PAGE_SIZE * max_nr_gframes);
 		if (gnttab_shared.addr == NULL) {
-			printk(KERN_WARNING
-					"Failed to ioremap gnttab share frames!");
+			pr_warn("Failed to ioremap gnttab share frames!\n");
 			return -ENOMEM;
 		}
 	}

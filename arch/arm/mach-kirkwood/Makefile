@@ -1,7 +1,6 @@
 obj-y				+= common.o irq.o pcie.o mpp.o
 
 obj-$(CONFIG_MACH_D2NET_V2)		+= d2net_v2-setup.o lacie_v2-common.o
-obj-$(CONFIG_MACH_DB88F6281_BP)		+= db88f6281-bp-setup.o
 obj-$(CONFIG_MACH_DOCKSTAR)		+= dockstar-setup.o
 obj-$(CONFIG_MACH_ESATA_SHEEVAPLUG)	+= sheevaplug-setup.o
 obj-$(CONFIG_MACH_GURUPLUG)		+= guruplug-setup.o
@@ -21,6 +20,7 @@ obj-$(CONFIG_MACH_TS41X)		+= ts41x-setup.o tsx1x-common.o
 
 obj-$(CONFIG_ARCH_KIRKWOOD_DT)		+= board-dt.o
 obj-$(CONFIG_MACH_CLOUDBOX_DT)		+= board-ns2.o
+obj-$(CONFIG_MACH_DB88F628X_BP_DT)	+= board-db88f628x-bp.o
 obj-$(CONFIG_MACH_DLINK_KIRKWOOD_DT)	+= board-dnskw.o
 obj-$(CONFIG_MACH_DOCKSTAR_DT)		+= board-dockstar.o
 obj-$(CONFIG_MACH_DREAMPLUG_DT)		+= board-dreamplug.o
@@ -37,8 +37,8 @@ obj-$(CONFIG_MACH_NETSPACE_LITE_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_MAX_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_MINI_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_V2_DT)	+= board-ns2.o
-obj-$(CONFIG_MACH_NSA310_DT)		+= board-nsa310.o
 obj-$(CONFIG_MACH_OPENBLOCKS_A6_DT)	+= board-openblocks_a6.o
 obj-$(CONFIG_MACH_READYNAS_DT)		+= board-readynas.o
+obj-$(CONFIG_MACH_SHEEVAPLUG_DT)	+= board-sheevaplug.o
 obj-$(CONFIG_MACH_TOPKICK_DT)		+= board-usi_topkick.o
 obj-$(CONFIG_MACH_TS219_DT)		+= board-ts219.o tsx1x-common.o

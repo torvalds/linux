@@ -158,7 +158,7 @@ static const struct of_device_id psci_of_match[] __initconst = {
 	{},
 };
 
-static int __init psci_init(void)
+void __init psci_init(void)
 {
 	struct device_node *np;
 	const char *method;
@@ -166,7 +166,7 @@ static int __init psci_init(void)
 
 	np = of_find_matching_node(NULL, psci_of_match);
 	if (!np)
-		return 0;
+		return;
 
 	pr_info("probing function IDs from device-tree\n");
 
@@ -206,6 +206,5 @@ static int __init psci_init(void)
 
 out_put_node:
 	of_node_put(np);
-	return 0;
+	return;
 }
-early_initcall(psci_init);

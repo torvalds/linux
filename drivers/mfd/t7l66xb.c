@@ -422,7 +422,6 @@ static int t7l66xb_remove(struct platform_device *dev)
 	iounmap(t7l66xb->scr);
 	release_resource(&t7l66xb->rscr);
 	mfd_remove_devices(&dev->dev);
-	platform_set_drvdata(dev, NULL);
 	kfree(t7l66xb);
 
 	return ret;

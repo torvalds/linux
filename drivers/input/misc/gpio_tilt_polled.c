@@ -184,8 +184,6 @@ static int gpio_tilt_polled_remove(struct platform_device *pdev)
 	struct gpio_tilt_polled_dev *tdev = platform_get_drvdata(pdev);
 	const struct gpio_tilt_platform_data *pdata = tdev->pdata;
 
-	platform_set_drvdata(pdev, NULL);
-
 	input_unregister_polled_device(tdev->poll_dev);
 	input_free_polled_device(tdev->poll_dev);
 

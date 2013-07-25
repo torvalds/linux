@@ -689,7 +689,7 @@ int gmap_ipte_notify(struct gmap *gmap, unsigned long start, unsigned long len)
 		entry = *ptep;
 		if ((pte_val(entry) & (_PAGE_INVALID | _PAGE_RO)) == 0) {
 			pgste = pgste_get_lock(ptep);
-			pgste_val(pgste) |= RCP_IN_BIT;
+			pgste_val(pgste) |= PGSTE_IN_BIT;
 			pgste_set_unlock(ptep, pgste);
 			start += PAGE_SIZE;
 			len -= PAGE_SIZE;
@@ -770,6 +770,54 @@ static inline void page_table_free_pgste(unsigned long *table)
 	kfree(mp);
 	__free_page(page);
 }
+
+int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			  unsigned long key, bool nq)
+{
+	spinlock_t *ptl;
+	pgste_t old, new;
+	pte_t *ptep;
+
+	down_read(&mm->mmap_sem);
+	ptep = get_locked_pte(current->mm, addr, &ptl);
+	if (unlikely(!ptep)) {
+		up_read(&mm->mmap_sem);
+		return -EFAULT;
+	}
+
+	new = old = pgste_get_lock(ptep);
+	pgste_val(new) &= ~(PGSTE_GR_BIT | PGSTE_GC_BIT |
+			    PGSTE_ACC_BITS | PGSTE_FP_BIT);
+	pgste_val(new) |= (key & (_PAGE_CHANGED | _PAGE_REFERENCED)) << 48;
+	pgste_val(new) |= (key & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
+	if (!(pte_val(*ptep) & _PAGE_INVALID)) {
+		unsigned long address, bits;
+		unsigned char skey;
+
+		address = pte_val(*ptep) & PAGE_MASK;
+		skey = page_get_storage_key(address);
+		bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
+		/* Set storage key ACC and FP */
+		page_set_storage_key(address,
+				(key & (_PAGE_ACC_BITS | _PAGE_FP_BIT)),
+				!nq);
+
+		/* Merge host changed & referenced into pgste  */
+		pgste_val(new) |= bits << 52;
+		/* Transfer skey changed & referenced bit to kvm user bits */
+		pgste_val(new) |= bits << 45;	/* PGSTE_UR_BIT & PGSTE_UC_BIT */
+	}
+	/* changing the guest storage key is considered a change of the page */
+	if ((pgste_val(new) ^ pgste_val(old)) &
+	    (PGSTE_ACC_BITS | PGSTE_FP_BIT | PGSTE_GR_BIT | PGSTE_GC_BIT))
+		pgste_val(new) |= PGSTE_UC_BIT;
+
+	pgste_set_unlock(ptep, new);
+	pte_unmap_unlock(*ptep, ptl);
+	up_read(&mm->mmap_sem);
+	return 0;
+}
+EXPORT_SYMBOL(set_guest_storage_key);
 
 #else /* CONFIG_PGSTE */
 
@@ -1117,7 +1165,8 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
 	}
 }
 
-void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pgtable)
 {
 	struct list_head *lh = (struct list_head *) pgtable;
 
@@ -1131,7 +1180,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
 	mm->pmd_huge_pte = pgtable;
 }
 
-pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 {
 	struct list_head *lh;
 	pgtable_t pgtable;

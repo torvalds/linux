@@ -273,7 +273,7 @@ void dgrp_create_node_class_sysfs_files(struct nd_struct *nd)
 		sprintf(name, "node%ld", nd->nd_major);
 
 	nd->nd_class_dev = device_create(dgrp_class, dgrp_class_nodes_dev,
-		MKDEV(0, nd->nd_major), NULL, name);
+		MKDEV(0, nd->nd_major), NULL, "%s", name);
 
 	ret = sysfs_create_group(&nd->nd_class_dev->kobj,
 				 &dgrp_node_attribute_group);

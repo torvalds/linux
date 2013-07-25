@@ -77,6 +77,7 @@ MACHINE_START(FORTUNET, "ARM-FortuNet")
 	.nr_irqs	= CLPS711X_NR_IRQS,
 	.fixup		= fortunet_fixup,
 	.map_io		= clps711x_map_io,
+	.init_early	= clps711x_init_early,
 	.init_irq	= clps711x_init_irq,
 	.init_time	= clps711x_timer_init,
 	.handle_irq	= clps711x_handle_irq,

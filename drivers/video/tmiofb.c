@@ -794,7 +794,6 @@ err_hw_init:
 		cell->disable(dev);
 err_enable:
 err_find_mode:
-	platform_set_drvdata(dev, NULL);
 	free_irq(irq, info);
 err_request_irq:
 	iounmap(info->screen_base);
@@ -822,8 +821,6 @@ static int tmiofb_remove(struct platform_device *dev)
 
 		if (cell->disable)
 			cell->disable(dev);
-
-		platform_set_drvdata(dev, NULL);
 
 		free_irq(irq, info);
 

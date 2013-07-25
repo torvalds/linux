@@ -289,7 +289,7 @@ static snd_pcm_uframes_t kirkwood_dma_pointer(struct snd_pcm_substream
 	return count;
 }
 
-struct snd_pcm_ops kirkwood_dma_ops = {
+static struct snd_pcm_ops kirkwood_dma_ops = {
 	.open =		kirkwood_dma_open,
 	.close =        kirkwood_dma_close,
 	.ioctl =	snd_pcm_lib_ioctl,

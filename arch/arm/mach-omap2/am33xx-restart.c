@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
+#include <linux/reboot.h>
 
 #include "common.h"
 #include "prm-regbits-33xx.h"
@@ -19,7 +20,7 @@
  * Resets the SoC.  For @cmd, see the 'reboot' syscall in
  * kernel/sys.c.  No return value.
  */
-void am33xx_restart(char mode, const char *cmd)
+void am33xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/* TODO: Handle mode and cmd if necessary */
 

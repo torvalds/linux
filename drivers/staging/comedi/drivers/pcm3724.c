@@ -250,20 +250,11 @@ static int pcm3724_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void pcm3724_detach(struct comedi_device *dev)
-{
-	int i;
-
-	for (i = 0; i < dev->n_subdevices; i++)
-		comedi_spriv_free(dev, i);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver pcm3724_driver = {
 	.driver_name	= "pcm3724",
 	.module		= THIS_MODULE,
 	.attach		= pcm3724_attach,
-	.detach		= pcm3724_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(pcm3724_driver);
 

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -1011,17 +1011,6 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 	else
 		sglq = __lpfc_clear_active_sglq(phba, iocbq->sli4_lxritag);
 
-	/*
-	** This should have been removed from the txcmplq before calling
-	** iocbq_release. The normal completion
-	** path should have already done the list_del_init.
-	*/
-	if (unlikely(!list_empty(&iocbq->list))) {
-		if (iocbq->iocb_flag & LPFC_IO_ON_TXCMPLQ)
-			iocbq->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
-		list_del_init(&iocbq->list);
-	}
-
 
 	if (sglq)  {
 		if ((iocbq->iocb_flag & LPFC_EXCHANGE_BUSY) &&
@@ -1070,13 +1059,6 @@ __lpfc_sli_release_iocbq_s3(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 {
 	size_t start_clean = offsetof(struct lpfc_iocbq, iocb);
 
-	/*
-	** This should have been removed from the txcmplq before calling
-	** iocbq_release. The normal completion
-	** path should have already done the list_del_init.
-	*/
-	if (unlikely(!list_empty(&iocbq->list)))
-		list_del_init(&iocbq->list);
 
 	/*
 	 * Clean all volatile data fields, preserve iotag and node struct.
@@ -3279,7 +3261,7 @@ lpfc_sli_sp_handle_rspiocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		if (free_saveq) {
 			list_for_each_entry_safe(rspiocbp, next_iocb,
 						 &saveq->list, list) {
-				list_del(&rspiocbp->list);
+				list_del_init(&rspiocbp->list);
 				__lpfc_sli_release_iocbq(phba, rspiocbp);
 			}
 			__lpfc_sli_release_iocbq(phba, saveq);
@@ -4584,7 +4566,8 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		} else {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"2708 This device does not support "
-					"Advanced Error Reporting (AER)\n");
+					"Advanced Error Reporting (AER): %d\n",
+					rc);
 			phba->cfg_aer_support = 0;
 		}
 	}
@@ -8731,7 +8714,7 @@ lpfc_sli4_abts_err_handler(struct lpfc_hba *phba,
 	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 			"3116 Port generated FCP XRI ABORT event on "
 			"vpi %d rpi %d xri x%x status 0x%x parameter x%x\n",
-			ndlp->vport->vpi, ndlp->nlp_rpi,
+			ndlp->vport->vpi, phba->sli4_hba.rpi_ids[ndlp->nlp_rpi],
 			bf_get(lpfc_wcqe_xa_xri, axri),
 			bf_get(lpfc_wcqe_xa_status, axri),
 			axri->parameter);
@@ -9787,7 +9770,7 @@ lpfc_sli_abort_fcp_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			struct lpfc_iocbq *rspiocb)
 {
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"3096 ABORT_XRI_CN completing on xri x%x "
+			"3096 ABORT_XRI_CN completing on rpi x%x "
 			"original iotag x%x, abort cmd iotag x%x "
 			"status 0x%x, reason 0x%x\n",
 			cmdiocb->iocb.un.acxri.abortContextTag,
@@ -10109,12 +10092,13 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 			 uint32_t timeout)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(done_q);
+	MAILBOX_t *mb = NULL;
 	int retval;
 	unsigned long flag;
 
-	/* The caller must leave context1 empty. */
+	/* The caller might set context1 for extended buffer */
 	if (pmboxq->context1)
-		return MBX_NOT_FINISHED;
+		mb = (MAILBOX_t *)pmboxq->context1;
 
 	pmboxq->mbox_flag &= ~LPFC_MBX_WAKE;
 	/* setup wake call as IOCB callback */
@@ -10130,7 +10114,8 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 				msecs_to_jiffies(timeout * 1000));
 
 		spin_lock_irqsave(&phba->hbalock, flag);
-		pmboxq->context1 = NULL;
+		/* restore the possible extended buffer for free resource */
+		pmboxq->context1 = (uint8_t *)mb;
 		/*
 		 * if LPFC_MBX_WAKE flag is set the mailbox is completed
 		 * else do not free the resources.
@@ -10143,6 +10128,9 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
 		spin_unlock_irqrestore(&phba->hbalock, flag);
+	} else {
+		/* restore the possible extended buffer for free resource */
+		pmboxq->context1 = (uint8_t *)mb;
 	}
 
 	return retval;
@@ -16304,7 +16292,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	union lpfc_wqe wqe;
 	int txq_cnt = 0;
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
+	spin_lock_irqsave(&pring->ring_lock, iflags);
 	list_for_each_entry(piocbq, &pring->txq, list) {
 		txq_cnt++;
 	}
@@ -16312,14 +16300,14 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	if (txq_cnt > pring->txq_max)
 		pring->txq_max = txq_cnt;
 
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
 	while (!list_empty(&pring->txq)) {
-		spin_lock_irqsave(&phba->hbalock, iflags);
+		spin_lock_irqsave(&pring->ring_lock, iflags);
 
 		piocbq = lpfc_sli_ringtx_get(phba, pring);
 		if (!piocbq) {
-			spin_unlock_irqrestore(&phba->hbalock, iflags);
+			spin_unlock_irqrestore(&pring->ring_lock, iflags);
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"2823 txq empty and txq_cnt is %d\n ",
 				txq_cnt);
@@ -16328,7 +16316,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		sglq = __lpfc_sli_get_sglq(phba, piocbq);
 		if (!sglq) {
 			__lpfc_sli_ringtx_put(phba, pring, piocbq);
-			spin_unlock_irqrestore(&phba->hbalock, iflags);
+			spin_unlock_irqrestore(&pring->ring_lock, iflags);
 			break;
 		}
 		txq_cnt--;
@@ -16356,7 +16344,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 					piocbq->iotag, piocbq->sli4_xritag);
 			list_add_tail(&piocbq->list, &completions);
 		}
-		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 	}
 
 	/* Cancel all the IOCBs that cannot be issued */

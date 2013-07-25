@@ -16,27 +16,81 @@
 / {
 	model = "TQ MBa53 starter kit";
 	compatible = "tq,mba53", "tq,tqma53", "fsl,imx53";
+
+	reg_backlight: fixed@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd-supply";
+		gpio = <&gpio2 5 0>;
+		startup-delay-us = <5000>;
+		enable-active-low;
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm2 0 50000 0 0>;
+		brightness-levels = <0 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100>;
+		default-brightness-level = <10>;
+		enable-gpios = <&gpio7 7 0>;
+		power-supply = <&reg_backlight>;
+	};
+
+	disp1: display@disp1 {
+		compatible = "fsl,imx-parallel-display";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_disp1_1>;
+		crtcs = <&ipu 1>;
+		interface-pix-fmt = "rgb24";
+		status = "disabled";
+	};
+
+	reg_3p2v: 3p2v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P2V";
+		regulator-min-microvolt = <3200000>;
+		regulator-max-microvolt = <3200000>;
+		regulator-always-on;
+	};
+
+	sound {
+		compatible = "tq,imx53-mba53-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx53-mba53-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <5>;
+	};
+};
+
+&ldb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lvds1_1>;
+	status = "disabled";
 };
 
 &iomuxc {
 	lvds1 {
 		pinctrl_lvds1_1: lvds1-grp1 {
 			fsl,pins = <
-				MX53_PAD_LVDS0_TX3_P__LDB_LVDS0_TX3 0x10000
-				MX53_PAD_LVDS0_CLK_P__LDB_LVDS0_CLK 0x10000
-				MX53_PAD_LVDS0_TX2_P__LDB_LVDS0_TX2 0x10000
-				MX53_PAD_LVDS0_TX1_P__LDB_LVDS0_TX1 0x10000
-				MX53_PAD_LVDS0_TX0_P__LDB_LVDS0_TX0 0x10000
+				MX53_PAD_LVDS0_TX3_P__LDB_LVDS0_TX3 0x80000000
+				MX53_PAD_LVDS0_CLK_P__LDB_LVDS0_CLK 0x80000000
+				MX53_PAD_LVDS0_TX2_P__LDB_LVDS0_TX2 0x80000000
+				MX53_PAD_LVDS0_TX1_P__LDB_LVDS0_TX1 0x80000000
+				MX53_PAD_LVDS0_TX0_P__LDB_LVDS0_TX0 0x80000000
 			>;
 		};
 
 		pinctrl_lvds1_2: lvds1-grp2 {
 			fsl,pins = <
-				MX53_PAD_LVDS1_TX3_P__LDB_LVDS1_TX3 0x10000
-				MX53_PAD_LVDS1_TX2_P__LDB_LVDS1_TX2 0x10000
-				MX53_PAD_LVDS1_CLK_P__LDB_LVDS1_CLK 0x10000
-				MX53_PAD_LVDS1_TX1_P__LDB_LVDS1_TX1 0x10000
-				MX53_PAD_LVDS1_TX0_P__LDB_LVDS1_TX0 0x10000
+				MX53_PAD_LVDS1_TX3_P__LDB_LVDS1_TX3 0x80000000
+				MX53_PAD_LVDS1_TX2_P__LDB_LVDS1_TX2 0x80000000
+				MX53_PAD_LVDS1_CLK_P__LDB_LVDS1_CLK 0x80000000
+				MX53_PAD_LVDS1_TX1_P__LDB_LVDS1_TX1 0x80000000
+				MX53_PAD_LVDS1_TX0_P__LDB_LVDS1_TX0 0x80000000
 			>;
 		};
 	};
@@ -44,33 +98,44 @@
 	disp1 {
 		pinctrl_disp1_1: disp1-grp1 {
 			fsl,pins = <
-				MX53_PAD_EIM_DA10__IPU_DI1_PIN15   0x10000 /* DISP1_DRDY */
-				MX53_PAD_EIM_D23__IPU_DI1_PIN2     0x10000 /* DISP1_HSYNC */
-				MX53_PAD_EIM_EB3__IPU_DI1_PIN3     0x10000 /* DISP1_VSYNC */
-				MX53_PAD_EIM_D26__IPU_DISP1_DAT_22 0x10000
-				MX53_PAD_EIM_D27__IPU_DISP1_DAT_23 0x10000
-				MX53_PAD_EIM_D30__IPU_DISP1_DAT_21 0x10000
-				MX53_PAD_EIM_D31__IPU_DISP1_DAT_20 0x10000
-				MX53_PAD_EIM_A24__IPU_DISP1_DAT_19 0x10000
-				MX53_PAD_EIM_A23__IPU_DISP1_DAT_18 0x10000
-				MX53_PAD_EIM_A22__IPU_DISP1_DAT_17 0x10000
-				MX53_PAD_EIM_A21__IPU_DISP1_DAT_16 0x10000
-				MX53_PAD_EIM_A20__IPU_DISP1_DAT_15 0x10000
-				MX53_PAD_EIM_A19__IPU_DISP1_DAT_14 0x10000
-				MX53_PAD_EIM_A18__IPU_DISP1_DAT_13 0x10000
-				MX53_PAD_EIM_A17__IPU_DISP1_DAT_12 0x10000
-				MX53_PAD_EIM_EB0__IPU_DISP1_DAT_11 0x10000
-				MX53_PAD_EIM_EB1__IPU_DISP1_DAT_10 0x10000
-				MX53_PAD_EIM_DA0__IPU_DISP1_DAT_9  0x10000
-				MX53_PAD_EIM_DA1__IPU_DISP1_DAT_8  0x10000
-				MX53_PAD_EIM_DA2__IPU_DISP1_DAT_7  0x10000
-				MX53_PAD_EIM_DA3__IPU_DISP1_DAT_6  0x10000
-				MX53_PAD_EIM_DA4__IPU_DISP1_DAT_5  0x10000
-				MX53_PAD_EIM_DA5__IPU_DISP1_DAT_4  0x10000
-				MX53_PAD_EIM_DA6__IPU_DISP1_DAT_3  0x10000
-				MX53_PAD_EIM_DA7__IPU_DISP1_DAT_2  0x10000
-				MX53_PAD_EIM_DA8__IPU_DISP1_DAT_1  0x10000
-				MX53_PAD_EIM_DA9__IPU_DISP1_DAT_0  0x10000
+				MX53_PAD_EIM_A16__IPU_DI1_DISP_CLK 0x80000000 /* DISP1_CLK */
+				MX53_PAD_EIM_DA10__IPU_DI1_PIN15   0x80000000 /* DISP1_DRDY */
+				MX53_PAD_EIM_D23__IPU_DI1_PIN2     0x80000000 /* DISP1_HSYNC */
+				MX53_PAD_EIM_EB3__IPU_DI1_PIN3     0x80000000 /* DISP1_VSYNC */
+				MX53_PAD_EIM_D26__IPU_DISP1_DAT_22 0x80000000
+				MX53_PAD_EIM_D27__IPU_DISP1_DAT_23 0x80000000
+				MX53_PAD_EIM_D30__IPU_DISP1_DAT_21 0x80000000
+				MX53_PAD_EIM_D31__IPU_DISP1_DAT_20 0x80000000
+				MX53_PAD_EIM_A24__IPU_DISP1_DAT_19 0x80000000
+				MX53_PAD_EIM_A23__IPU_DISP1_DAT_18 0x80000000
+				MX53_PAD_EIM_A22__IPU_DISP1_DAT_17 0x80000000
+				MX53_PAD_EIM_A21__IPU_DISP1_DAT_16 0x80000000
+				MX53_PAD_EIM_A20__IPU_DISP1_DAT_15 0x80000000
+				MX53_PAD_EIM_A19__IPU_DISP1_DAT_14 0x80000000
+				MX53_PAD_EIM_A18__IPU_DISP1_DAT_13 0x80000000
+				MX53_PAD_EIM_A17__IPU_DISP1_DAT_12 0x80000000
+				MX53_PAD_EIM_EB0__IPU_DISP1_DAT_11 0x80000000
+				MX53_PAD_EIM_EB1__IPU_DISP1_DAT_10 0x80000000
+				MX53_PAD_EIM_DA0__IPU_DISP1_DAT_9  0x80000000
+				MX53_PAD_EIM_DA1__IPU_DISP1_DAT_8  0x80000000
+				MX53_PAD_EIM_DA2__IPU_DISP1_DAT_7  0x80000000
+				MX53_PAD_EIM_DA3__IPU_DISP1_DAT_6  0x80000000
+				MX53_PAD_EIM_DA4__IPU_DISP1_DAT_5  0x80000000
+				MX53_PAD_EIM_DA5__IPU_DISP1_DAT_4  0x80000000
+				MX53_PAD_EIM_DA6__IPU_DISP1_DAT_3  0x80000000
+				MX53_PAD_EIM_DA7__IPU_DISP1_DAT_2  0x80000000
+				MX53_PAD_EIM_DA8__IPU_DISP1_DAT_1  0x80000000
+				MX53_PAD_EIM_DA9__IPU_DISP1_DAT_0  0x80000000
+			>;
+		};
+	};
+
+	tve {
+		pinctrl_vga_sync_1: vgasync-grp1 {
+			fsl,pins = <
+				/* VGA_VSYNC, HSYNC with max drive strength */
+				MX53_PAD_EIM_CS1__IPU_DI1_PIN6	   0xe6
+				MX53_PAD_EIM_DA15__IPU_DI1_PIN4	   0xe6
 			>;
 		};
 	};
@@ -80,16 +145,27 @@
 	status = "okay";
 };
 
+&audmux {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux_1>;
+};
+
 &i2c2 {
 	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
+		clocks = <&clks 150>;
+		VDDA-supply = <&reg_3p2v>;
+		VDDIO-supply = <&reg_3p2v>;
 	};
 
 	expander: pca9554@20 {
 		compatible = "pca9554";
 		reg = <0x20>;
 		interrupts = <109>;
+		#gpio-cells = <2>;
+		gpio-controller;
 	};
 
 	sensor2: lm75@49 {
@@ -99,6 +175,7 @@
 };
 
 &fec {
+	phy-reset-gpios = <&gpio7 6 0>;
 	status = "okay";
 };
 
@@ -114,7 +191,21 @@
 	status = "okay";
 };
 
+&usbotg {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
 &uart1 {
+	status = "okay";
+};
+
+&ssi2 {
+	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
@@ -131,5 +222,15 @@
 };
 
 &i2c3 {
+	status = "okay";
+};
+
+&tve {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_vga_sync_1>;
+	ddc = <&i2c3>;
+	fsl,tve-mode = "vga";
+	fsl,hsync-pin = <4>;
+	fsl,vsync-pin = <6>;
 	status = "okay";
 };

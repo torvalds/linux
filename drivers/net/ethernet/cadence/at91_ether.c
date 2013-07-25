@@ -29,7 +29,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_net.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "macb.h"
 
@@ -309,7 +308,6 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	struct resource *regs;
 	struct net_device *dev;
 	struct phy_device *phydev;
-	struct pinctrl *pinctrl;
 	struct macb *lp;
 	int res;
 	u32 reg;
@@ -318,15 +316,6 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
 		return -ENOENT;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		res = PTR_ERR(pinctrl);
-		if (res == -EPROBE_DEFER)
-			return res;
-
-		dev_warn(&pdev->dev, "No pinctrl provided\n");
-	}
 
 	dev = alloc_etherdev(sizeof(struct macb));
 	if (!dev)
@@ -435,7 +424,6 @@ static int at91ether_remove(struct platform_device *pdev)
 	unregister_netdev(dev);
 	clk_disable(lp->pclk);
 	free_netdev(dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -32,6 +32,11 @@
 #include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <linux/dma-mapping.h>
+#include <linux/usb/otg.h>
+#include <linux/usb/hcd.h>
+#include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
+#include <linux/pm_runtime.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/r8a7779.h>
@@ -65,11 +70,7 @@ void __init r8a7779_map_io(void)
 }
 
 static struct resource r8a7779_pfc_resources[] = {
-	[0] = {
-		.start	= 0xfffc0000,
-		.end	= 0xfffc023b,
-		.flags	= IORESOURCE_MEM,
-	},
+	DEFINE_RES_MEM(0xfffc0000, 0x023c),
 };
 
 static struct platform_device r8a7779_pfc_device = {
@@ -81,15 +82,8 @@ static struct platform_device r8a7779_pfc_device = {
 
 #define R8A7779_GPIO(idx, npins) \
 static struct resource r8a7779_gpio##idx##_resources[] = {		\
-	[0] = {								\
-		.start	= 0xffc40000 + 0x1000 * (idx),			\
-		.end	= 0xffc4002b + 0x1000 * (idx),			\
-		.flags	= IORESOURCE_MEM,				\
-	},								\
-	[1] = {								\
-		.start	= gic_iid(0xad + (idx)),			\
-		.flags	= IORESOURCE_IRQ,				\
-	}								\
+	DEFINE_RES_MEM(0xffc40000 + (0x1000 * (idx)), 0x002c),		\
+	DEFINE_RES_IRQ(gic_iid(0xad + (idx))),				\
 };									\
 									\
 static struct gpio_rcar_config r8a7779_gpio##idx##_platform_data = {	\
@@ -394,6 +388,165 @@ static struct platform_device sata_device = {
 	},
 };
 
+/* USB PHY */
+static struct resource usb_phy_resources[] __initdata = {
+	[0] = {
+		.start		= 0xffe70800,
+		.end		= 0xffe70900 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+/* USB */
+static struct usb_phy *phy;
+
+static int usb_power_on(struct platform_device *pdev)
+{
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
+	usb_phy_init(phy);
+
+	return 0;
+}
+
+static void usb_power_off(struct platform_device *pdev)
+{
+	if (IS_ERR(phy))
+		return;
+
+	usb_phy_shutdown(phy);
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+}
+
+static int ehci_init_internal_buffer(struct usb_hcd *hcd)
+{
+	/*
+	 * Below are recommended values from the datasheet;
+	 * see [USB :: Setting of EHCI Internal Buffer].
+	 */
+	/* EHCI IP internal buffer setting */
+	iowrite32(0x00ff0040, hcd->regs + 0x0094);
+	/* EHCI IP internal buffer enable */
+	iowrite32(0x00000001, hcd->regs + 0x009C);
+
+	return 0;
+}
+
+static struct usb_ehci_pdata ehcix_pdata = {
+	.power_on	= usb_power_on,
+	.power_off	= usb_power_off,
+	.power_suspend	= usb_power_off,
+	.pre_setup	= ehci_init_internal_buffer,
+};
+
+static struct resource ehci0_resources[] = {
+	[0] = {
+		.start	= 0xffe70000,
+		.end	= 0xffe70400 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_iid(0x4c),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ehci0_device = {
+	.name	= "ehci-platform",
+	.id	= 0,
+	.dev	= {
+		.dma_mask		= &ehci0_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &ehcix_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(ehci0_resources),
+	.resource	= ehci0_resources,
+};
+
+static struct resource ehci1_resources[] = {
+	[0] = {
+		.start	= 0xfff70000,
+		.end	= 0xfff70400 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_iid(0x4d),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ehci1_device = {
+	.name	= "ehci-platform",
+	.id	= 1,
+	.dev	= {
+		.dma_mask		= &ehci1_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &ehcix_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(ehci1_resources),
+	.resource	= ehci1_resources,
+};
+
+static struct usb_ohci_pdata ohcix_pdata = {
+	.power_on	= usb_power_on,
+	.power_off	= usb_power_off,
+	.power_suspend	= usb_power_off,
+};
+
+static struct resource ohci0_resources[] = {
+	[0] = {
+		.start	= 0xffe70400,
+		.end	= 0xffe70800 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_iid(0x4c),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ohci0_device = {
+	.name	= "ohci-platform",
+	.id	= 0,
+	.dev	= {
+		.dma_mask		= &ohci0_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &ohcix_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(ohci0_resources),
+	.resource	= ohci0_resources,
+};
+
+static struct resource ohci1_resources[] = {
+	[0] = {
+		.start	= 0xfff70400,
+		.end	= 0xfff70800 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_iid(0x4d),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ohci1_device = {
+	.name	= "ohci-platform",
+	.id	= 1,
+	.dev	= {
+		.dma_mask		= &ohci1_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &ohcix_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(ohci1_resources),
+	.resource	= ohci1_resources,
+};
+
 /* Ether */
 static struct resource ether_resources[] = {
 	{
@@ -417,7 +570,7 @@ static struct platform_device *r8a7779_devices_dt[] __initdata = {
 	&tmu01_device,
 };
 
-static struct platform_device *r8a7779_late_devices[] __initdata = {
+static struct platform_device *r8a7779_standard_devices[] __initdata = {
 	&i2c0_device,
 	&i2c1_device,
 	&i2c2_device,
@@ -437,15 +590,23 @@ void __init r8a7779_add_standard_devices(void)
 
 	platform_add_devices(r8a7779_devices_dt,
 			    ARRAY_SIZE(r8a7779_devices_dt));
-	platform_add_devices(r8a7779_late_devices,
-			    ARRAY_SIZE(r8a7779_late_devices));
+	platform_add_devices(r8a7779_standard_devices,
+			    ARRAY_SIZE(r8a7779_standard_devices));
 }
 
 void __init r8a7779_add_ether_device(struct sh_eth_plat_data *pdata)
 {
-	platform_device_register_resndata(&platform_bus, "sh_eth", -1,
+	platform_device_register_resndata(&platform_bus, "r8a777x-ether", -1,
 					  ether_resources,
 					  ARRAY_SIZE(ether_resources),
+					  pdata, sizeof(*pdata));
+}
+
+void __init r8a7779_add_usb_phy_device(struct rcar_phy_platform_data *pdata)
+{
+	platform_device_register_resndata(&platform_bus, "rcar_usb_phy", -1,
+					  usb_phy_resources,
+					  ARRAY_SIZE(usb_phy_resources),
 					  pdata, sizeof(*pdata));
 }
 
@@ -481,6 +642,23 @@ void __init r8a7779_add_early_devices(void)
 	 */
 }
 
+static struct platform_device *r8a7779_late_devices[] __initdata = {
+	&ehci0_device,
+	&ehci1_device,
+	&ohci0_device,
+	&ohci1_device,
+};
+
+void __init r8a7779_init_late(void)
+{
+	/* get USB PHY */
+	phy = usb_get_phy(USB_PHY_TYPE_USB2);
+
+	shmobile_init_late();
+	platform_add_devices(r8a7779_late_devices,
+			     ARRAY_SIZE(r8a7779_late_devices));
+}
+
 #ifdef CONFIG_USE_OF
 void __init r8a7779_init_delay(void)
 {
@@ -514,6 +692,7 @@ DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.init_irq	= r8a7779_init_irq_dt,
 	.init_machine	= r8a7779_add_standard_devices_dt,
 	.init_time	= shmobile_timer_init,
+	.init_late	= r8a7779_init_late,
 	.dt_compat	= r8a7779_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

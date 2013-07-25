@@ -2646,7 +2646,6 @@ static int snd_via82xx_probe(struct pci_dev *pci,
 static void snd_via82xx_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver via82xx_driver = {

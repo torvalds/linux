@@ -338,7 +338,7 @@ struct ed {
 
 	/* read only parameters, should be cleared upon initialization */
 	u8 toggle_carry;	/* toggle carry from the last TD submitted */
-	u32 last_iso;		/* time stamp of last queued ISO transfer */
+	u16 next_iso;		/* time stamp of next queued ISO transfer */
 	struct td *td_head;	/* a pointer to the current TD handled */
 };
 

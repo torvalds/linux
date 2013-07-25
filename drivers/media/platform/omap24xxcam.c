@@ -1656,7 +1656,7 @@ static int omap24xxcam_device_register(struct v4l2_int_device *s)
 	}
 	vfd->release = video_device_release;
 
-	vfd->parent = cam->dev;
+	vfd->v4l2_dev = &cam->v4l2_dev;
 
 	strlcpy(vfd->name, CAM_NAME, sizeof(vfd->name));
 	vfd->fops		 = &omap24xxcam_fops;
@@ -1751,6 +1751,11 @@ static int omap24xxcam_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cam);
 
 	cam->dev = &pdev->dev;
+
+	if (v4l2_device_register(&pdev->dev, &cam->v4l2_dev)) {
+		dev_err(&pdev->dev, "v4l2_device_register failed\n");
+		goto err;
+	}
 
 	/*
 	 * Impose a lower limit on the amount of memory allocated for
@@ -1848,6 +1853,8 @@ static int omap24xxcam_remove(struct platform_device *pdev)
 		release_mem_region(cam->mmio_base_phys, cam->mmio_size);
 		cam->mmio_base_phys = 0;
 	}
+
+	v4l2_device_unregister(&cam->v4l2_dev);
 
 	kfree(cam);
 

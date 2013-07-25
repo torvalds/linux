@@ -187,6 +187,8 @@ firmware_class/
 	- request_firmware() hotplug interface info.
 flexible-arrays.txt
 	- how to make use of flexible sized arrays in linux
+fmc/
+	- information about the FMC bus abstraction
 frv/
 	- Fujitsu FR-V Linux documentation.
 futex-requeue-pi.txt

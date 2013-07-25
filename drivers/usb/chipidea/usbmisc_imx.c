@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 
-#include "ci13xxx_imx.h"
+#include "ci_hdrc_imx.h"
 
 #define USB_DEV_MAX 4
 
@@ -175,6 +175,7 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	},
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, usbmisc_imx_dt_ids);
 
 static int usbmisc_imx_probe(struct platform_device *pdev)
 {
@@ -243,17 +244,7 @@ static struct platform_driver usbmisc_imx_driver = {
 	 },
 };
 
-int usbmisc_imx_drv_init(void)
-{
-	return platform_driver_register(&usbmisc_imx_driver);
-}
-subsys_initcall(usbmisc_imx_drv_init);
-
-void usbmisc_imx_drv_exit(void)
-{
-	platform_driver_unregister(&usbmisc_imx_driver);
-}
-module_exit(usbmisc_imx_drv_exit);
+module_platform_driver(usbmisc_imx_driver);
 
 MODULE_ALIAS("platform:usbmisc-imx");
 MODULE_LICENSE("GPL v2");

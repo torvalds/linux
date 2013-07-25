@@ -2505,7 +2505,6 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	usb_put_phy(udc->transceiver);
 
 	udc->transceiver = NULL;
-	platform_set_drvdata(_dev, NULL);
 	the_controller = NULL;
 	clk_put(udc->clk);
 	iounmap(udc->regs);

@@ -320,6 +320,12 @@ static int am33xx_pwrdm_wait_transition(struct powerdomain *pwrdm)
 	return 0;
 }
 
+static int am33xx_check_vcvp(void)
+{
+	/* No VC/VP on am33xx devices */
+	return 0;
+}
+
 struct pwrdm_ops am33xx_pwrdm_operations = {
 	.pwrdm_set_next_pwrst		= am33xx_pwrdm_set_next_pwrst,
 	.pwrdm_read_next_pwrst		= am33xx_pwrdm_read_next_pwrst,
@@ -335,4 +341,5 @@ struct pwrdm_ops am33xx_pwrdm_operations = {
 	.pwrdm_set_mem_onst		= am33xx_pwrdm_set_mem_onst,
 	.pwrdm_set_mem_retst		= am33xx_pwrdm_set_mem_retst,
 	.pwrdm_wait_transition		= am33xx_pwrdm_wait_transition,
+	.pwrdm_has_voltdm		= am33xx_check_vcvp,
 };

@@ -1241,18 +1241,7 @@ static struct pci_driver dm1105_driver = {
 	.remove = dm1105_remove,
 };
 
-static int __init dm1105_init(void)
-{
-	return pci_register_driver(&dm1105_driver);
-}
-
-static void __exit dm1105_exit(void)
-{
-	pci_unregister_driver(&dm1105_driver);
-}
-
-module_init(dm1105_init);
-module_exit(dm1105_exit);
+module_pci_driver(dm1105_driver);
 
 MODULE_AUTHOR("Igor M. Liplianin <liplianin@me.by>");
 MODULE_DESCRIPTION("SDMC DM1105 DVB driver");

@@ -11,6 +11,8 @@
 #ifndef __ASM_ARCH_MXC_COMMON_H__
 #define __ASM_ARCH_MXC_COMMON_H__
 
+#include <linux/reboot.h>
+
 struct platform_device;
 struct pt_regs;
 struct clk;
@@ -68,12 +70,12 @@ extern int mx27_clocks_init_dt(void);
 extern int mx31_clocks_init_dt(void);
 extern int mx51_clocks_init_dt(void);
 extern int mx53_clocks_init_dt(void);
-extern int mx6q_clocks_init(void);
 extern struct platform_device *mxc_register_gpio(char *name, int id,
 	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high);
 extern void mxc_set_cpu_type(unsigned int type);
-extern void mxc_restart(char, const char *);
+extern void mxc_restart(enum reboot_mode, const char *);
 extern void mxc_arch_reset_init(void __iomem *);
+extern void mxc_arch_reset_init_dt(void);
 extern int mx53_revision(void);
 extern int imx6q_revision(void);
 extern int mx53_display_revision(void);

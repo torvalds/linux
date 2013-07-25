@@ -1985,7 +1985,7 @@ static int ide_tape_probe(ide_drive_t *drive)
 
 	tape->dev.parent = &drive->gendev;
 	tape->dev.release = ide_tape_release;
-	dev_set_name(&tape->dev, dev_name(&drive->gendev));
+	dev_set_name(&tape->dev, "%s", dev_name(&drive->gendev));
 
 	if (device_register(&tape->dev))
 		goto out_free_disk;

@@ -21,7 +21,6 @@ struct device_node;
 struct of_dma {
 	struct list_head	of_dma_controllers;
 	struct device_node	*of_node;
-	int			of_dma_nbcells;
 	struct dma_chan		*(*of_dma_xlate)
 				(struct of_phandle_args *, struct of_dma *);
 	void			*of_dma_data;

@@ -62,7 +62,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -75,7 +75,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvc0_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
@@ -91,7 +91,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -104,7 +104,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvc3_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
@@ -120,7 +120,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -133,7 +133,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvc3_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
@@ -148,7 +148,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -161,7 +161,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvc3_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
@@ -177,7 +177,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -190,7 +190,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvc3_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
@@ -206,7 +206,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -219,7 +219,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvc1_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
@@ -234,7 +234,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -247,7 +247,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvc0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvc8_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
@@ -263,7 +263,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nvd0_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -276,7 +276,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvd9_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
@@ -291,7 +291,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nvd0_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -304,7 +304,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] = &nvd0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] = &nvc0_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] = &nvc0_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nvc0_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] =  nvd7_graph_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nvc0_bsp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;

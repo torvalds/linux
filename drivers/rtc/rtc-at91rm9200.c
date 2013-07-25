@@ -31,8 +31,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "rtc-at91rm9200.h"
 
@@ -439,7 +438,6 @@ static int __exit at91_rtc_remove(struct platform_device *pdev)
 
 	rtc_device_unregister(rtc);
 	iounmap(at91_rtc_regs);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

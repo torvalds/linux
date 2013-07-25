@@ -1108,6 +1108,7 @@ xfs_dir2_leaf_readbuf(
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp = *bpp;
 	struct xfs_bmbt_irec	*map = mip->map;
+	struct blk_plug		plug;
 	int			error = 0;
 	int			length;
 	int			i;
@@ -1236,6 +1237,7 @@ xfs_dir2_leaf_readbuf(
 	/*
 	 * Do we need more readahead?
 	 */
+	blk_start_plug(&plug);
 	for (mip->ra_index = mip->ra_offset = i = 0;
 	     mip->ra_want > mip->ra_current && i < mip->map_blocks;
 	     i += mp->m_dirblkfsbs) {
@@ -1287,6 +1289,7 @@ xfs_dir2_leaf_readbuf(
 			}
 		}
 	}
+	blk_finish_plug(&plug);
 
 out:
 	*bpp = bp;
@@ -1300,10 +1303,8 @@ out:
 int						/* error */
 xfs_dir2_leaf_getdents(
 	xfs_inode_t		*dp,		/* incore directory inode */
-	void			*dirent,
-	size_t			bufsize,
-	xfs_off_t		*offset,
-	filldir_t		filldir)
+	struct dir_context	*ctx,
+	size_t			bufsize)
 {
 	struct xfs_buf		*bp = NULL;	/* data block buffer */
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
@@ -1322,7 +1323,7 @@ xfs_dir2_leaf_getdents(
 	 * If the offset is at or past the largest allowed value,
 	 * give up right away.
 	 */
-	if (*offset >= XFS_DIR2_MAX_DATAPTR)
+	if (ctx->pos >= XFS_DIR2_MAX_DATAPTR)
 		return 0;
 
 	mp = dp->i_mount;
@@ -1343,7 +1344,7 @@ xfs_dir2_leaf_getdents(
 	 * Inside the loop we keep the main offset value as a byte offset
 	 * in the directory file.
 	 */
-	curoff = xfs_dir2_dataptr_to_byte(mp, *offset);
+	curoff = xfs_dir2_dataptr_to_byte(mp, ctx->pos);
 
 	/*
 	 * Force this conversion through db so we truncate the offset
@@ -1444,8 +1445,8 @@ xfs_dir2_leaf_getdents(
 		dep = (xfs_dir2_data_entry_t *)ptr;
 		length = xfs_dir2_data_entsize(dep->namelen);
 
-		if (filldir(dirent, (char *)dep->name, dep->namelen,
-			    xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff,
+		ctx->pos = xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff;
+		if (!dir_emit(ctx, (char *)dep->name, dep->namelen,
 			    be64_to_cpu(dep->inumber), DT_UNKNOWN))
 			break;
 
@@ -1462,9 +1463,9 @@ xfs_dir2_leaf_getdents(
 	 * All done.  Set output offset value to current offset.
 	 */
 	if (curoff > xfs_dir2_dataptr_to_byte(mp, XFS_DIR2_MAX_DATAPTR))
-		*offset = XFS_DIR2_MAX_DATAPTR & 0x7fffffff;
+		ctx->pos = XFS_DIR2_MAX_DATAPTR & 0x7fffffff;
 	else
-		*offset = xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff;
+		ctx->pos = xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff;
 	kmem_free(map_info);
 	if (bp)
 		xfs_trans_brelse(NULL, bp);

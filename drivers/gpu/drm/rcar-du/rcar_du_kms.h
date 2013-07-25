@@ -56,4 +56,7 @@ void rcar_du_encoder_mode_commit(struct drm_encoder *encoder);
 
 int rcar_du_modeset_init(struct rcar_du_device *rcdu);
 
+int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
+			struct drm_mode_create_dumb *args);
+
 #endif /* __RCAR_DU_KMS_H__ */

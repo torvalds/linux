@@ -27,6 +27,7 @@
 #include "r600_dpm.h"
 #include "cypress_dpm.h"
 #include "sumo_dpm.h"
+#include <linux/seq_file.h>
 
 #define SUMO_MAX_DEEPSLEEP_DIVIDER_ID 5
 #define SUMO_MINIMUM_ENGINE_CLOCK 800
@@ -810,6 +811,25 @@ static void sumo_program_bootup_state(struct radeon_device *rdev)
 		sumo_power_level_enable(rdev, i, false);
 }
 
+static void sumo_setup_uvd_clocks(struct radeon_device *rdev,
+				  struct radeon_ps *new_rps,
+				  struct radeon_ps *old_rps)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+
+	if (pi->enable_gfx_power_gating) {
+		sumo_gfx_powergating_enable(rdev, false);
+	}
+
+	radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+
+	if (pi->enable_gfx_power_gating) {
+		if (!pi->disable_gfx_power_gating_in_uvd ||
+		    !r600_is_uvd_state(new_rps->class, new_rps->class2))
+			sumo_gfx_powergating_enable(rdev, true);
+	}
+}
+
 static void sumo_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
 						    struct radeon_ps *new_rps,
 						    struct radeon_ps *old_rps)
@@ -825,7 +845,7 @@ static void sumo_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
 	    current_ps->levels[current_ps->num_levels - 1].sclk)
 		return;
 
-	radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+	sumo_setup_uvd_clocks(rdev, new_rps, old_rps);
 }
 
 static void sumo_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
@@ -843,7 +863,7 @@ static void sumo_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
 	    current_ps->levels[current_ps->num_levels - 1].sclk)
 		return;
 
-	radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+	sumo_setup_uvd_clocks(rdev, new_rps, old_rps);
 }
 
 void sumo_take_smu_control(struct radeon_device *rdev, bool enable)
@@ -1133,22 +1153,6 @@ static void sumo_cleanup_asic(struct radeon_device *rdev)
 	sumo_take_smu_control(rdev, false);
 }
 
-static void sumo_uvd_init(struct radeon_device *rdev)
-{
-	u32 tmp;
-
-	tmp = RREG32(CG_VCLK_CNTL);
-	tmp &= ~VCLK_DIR_CNTL_EN;
-	WREG32(CG_VCLK_CNTL, tmp);
-
-	tmp = RREG32(CG_DCLK_CNTL);
-	tmp &= ~DCLK_DIR_CNTL_EN;
-	WREG32(CG_DCLK_CNTL, tmp);
-
-	/* 100 Mhz */
-	radeon_set_uvd_clocks(rdev, 10000, 10000);
-}
-
 static int sumo_set_thermal_temperature_range(struct radeon_device *rdev,
 					      int min_temp, int max_temp)
 {
@@ -1315,6 +1319,8 @@ int sumo_dpm_set_power_state(struct radeon_device *rdev)
 	if (pi->enable_dpm)
 		sumo_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
+	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
+
 	return 0;
 }
 
@@ -1348,7 +1354,6 @@ void sumo_dpm_setup_asic(struct radeon_device *rdev)
 	sumo_program_acpi_power_level(rdev);
 	sumo_enable_acpi_pm(rdev);
 	sumo_take_smu_control(rdev, true);
-	sumo_uvd_init(rdev);
 }
 
 void sumo_dpm_display_configuration_changed(struct radeon_device *rdev)
@@ -1727,7 +1732,13 @@ int sumo_dpm_init(struct radeon_device *rdev)
 	pi->enable_sclk_ds = true;
 	pi->enable_dynamic_m3_arbiter = false;
 	pi->enable_dynamic_patch_ps = true;
-	pi->enable_gfx_power_gating = true;
+	/* Some PALM chips don't seem to properly ungate gfx when UVD is in use;
+	 * for now just disable gfx PG.
+	 */
+	if (rdev->family == CHIP_PALM)
+		pi->enable_gfx_power_gating = false;
+	else
+		pi->enable_gfx_power_gating = true;
 	pi->enable_gfx_clock_gating = true;
 	pi->enable_mg_clock_gating = true;
 	pi->enable_auto_thermal_throttling = true;
@@ -1769,6 +1780,34 @@ void sumo_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
+void sumo_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						      struct seq_file *m)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct sumo_ps *ps = sumo_get_ps(rps);
+	struct sumo_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURR_INDEX_MASK) >>
+		CURR_INDEX_SHIFT;
+
+	if (current_index == BOOST_DPM_LEVEL) {
+		pl = &pi->boost_pl;
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		seq_printf(m, "power level %d    sclk: %u vddc: %u\n",
+			   current_index, pl->sclk,
+			   sumo_convert_voltage_index_to_value(rdev, pl->vddc_index));
+	} else if (current_index >= ps->num_levels) {
+		seq_printf(m, "invalid dpm profile %d\n", current_index);
+	} else {
+		pl = &ps->levels[current_index];
+		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		seq_printf(m, "power level %d    sclk: %u vddc: %u\n",
+			   current_index, pl->sclk,
+			   sumo_convert_voltage_index_to_value(rdev, pl->vddc_index));
+	}
+}
+
 void sumo_dpm_fini(struct radeon_device *rdev)
 {
 	int i;
@@ -1798,4 +1837,52 @@ u32 sumo_dpm_get_mclk(struct radeon_device *rdev, bool low)
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
 
 	return pi->sys_info.bootup_uma_clk;
+}
+
+int sumo_dpm_force_performance_level(struct radeon_device *rdev,
+				     enum radeon_dpm_forced_level level)
+{
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	struct radeon_ps *rps = &pi->current_rps;
+	struct sumo_ps *ps = sumo_get_ps(rps);
+	int i;
+
+	if (ps->num_levels <= 1)
+		return 0;
+
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (pi->enable_boost)
+			sumo_enable_boost(rdev, rps, false);
+		sumo_power_level_enable(rdev, ps->num_levels - 1, true);
+		sumo_set_forced_level(rdev, ps->num_levels - 1);
+		sumo_set_forced_mode_enabled(rdev);
+		for (i = 0; i < ps->num_levels - 1; i++) {
+			sumo_power_level_enable(rdev, i, false);
+		}
+		sumo_set_forced_mode(rdev, false);
+		sumo_set_forced_mode_enabled(rdev);
+		sumo_set_forced_mode(rdev, false);
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		if (pi->enable_boost)
+			sumo_enable_boost(rdev, rps, false);
+		sumo_power_level_enable(rdev, 0, true);
+		sumo_set_forced_level(rdev, 0);
+		sumo_set_forced_mode_enabled(rdev);
+		for (i = 1; i < ps->num_levels; i++) {
+			sumo_power_level_enable(rdev, i, false);
+		}
+		sumo_set_forced_mode(rdev, false);
+		sumo_set_forced_mode_enabled(rdev);
+		sumo_set_forced_mode(rdev, false);
+	} else {
+		for (i = 0; i < ps->num_levels; i++) {
+			sumo_power_level_enable(rdev, i, true);
+		}
+		if (pi->enable_boost)
+			sumo_enable_boost(rdev, rps, true);
+	}
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
 }

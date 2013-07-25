@@ -92,7 +92,6 @@ static void ufshcd_pci_remove(struct pci_dev *pdev)
 	struct ufs_hba *hba = pci_get_drvdata(pdev);
 
 	disable_irq(pdev->irq);
-	free_irq(pdev->irq, hba);
 	ufshcd_remove(hba);
 	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);

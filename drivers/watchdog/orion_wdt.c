@@ -38,6 +38,9 @@
 #define WDT_IN_USE		0
 #define WDT_OK_TO_CLOSE		1
 
+#define WDT_RESET_OUT_EN	BIT(1)
+#define WDT_INT_REQ		BIT(3)
+
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
 static unsigned int wdt_max_duration;	/* (seconds) */
@@ -67,9 +70,7 @@ static int orion_wdt_start(struct watchdog_device *wdt_dev)
 	writel(wdt_tclk * wdt_dev->timeout, wdt_reg + WDT_VAL);
 
 	/* Clear watchdog timer interrupt */
-	reg = readl(BRIDGE_CAUSE);
-	reg &= ~WDT_INT_REQ;
-	writel(reg, BRIDGE_CAUSE);
+	writel(~WDT_INT_REQ, BRIDGE_CAUSE);
 
 	/* Enable watchdog timer */
 	reg = readl(wdt_reg + TIMER_CTRL);

@@ -711,6 +711,21 @@ bna_bfi_rxf_cfg_rsp(struct bna_rxf *rxf, struct bfi_msgq_mhdr *msghdr)
 }
 
 void
+bna_bfi_rxf_ucast_set_rsp(struct bna_rxf *rxf,
+			struct bfi_msgq_mhdr *msghdr)
+{
+	struct bfi_enet_rsp *rsp =
+		(struct bfi_enet_rsp *)msghdr;
+
+	if (rsp->error) {
+		/* Clear ucast from cache */
+		rxf->ucast_active_set = 0;
+	}
+
+	bfa_fsm_send_event(rxf, RXF_E_FW_RESP);
+}
+
+void
 bna_bfi_rxf_mcast_add_rsp(struct bna_rxf *rxf,
 			struct bfi_msgq_mhdr *msghdr)
 {

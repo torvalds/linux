@@ -18,9 +18,7 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_nand &pmx_i2c_gpio_sda
-				&pmx_i2c_gpio_scl >;
+			pinctrl-0 = < &pmx_i2c_gpio_sda &pmx_i2c_gpio_scl >;
 			pinctrl-names = "default";
 
 			pmx_i2c_gpio_sda: pmx-gpio-sda {
@@ -38,8 +36,17 @@
 		};
 
 		nand@3000000 {
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 			status = "ok";
 			chip-delay = <25>;
 		};
+	};
+
+	i2c@0 {
+		compatible = "i2c-gpio";
+		gpios = < &gpio0 8 0		/* sda */
+			&gpio0 9 0 >;		/* scl */
+		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 	};
 };
