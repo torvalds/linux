@@ -48,9 +48,6 @@
 #include <asm/uaccess.h>
 
 #include <linux/fs.h>
-#include <linux/stat.h>
-#include <asm/uaccess.h>
-#include <linux/mm.h>
 #include <linux/pagemap.h>
 /* current_is_kswapd() */
 #include <linux/swap.h>
