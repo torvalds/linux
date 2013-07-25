@@ -90,7 +90,6 @@ static unsigned twl6030_irq_base;
 static int twl_irq;
 static bool twl_irq_wake_enabled;
 
-static struct completion irq_event;
 static atomic_t twl6030_wakeirqs = ATOMIC_INIT(0);
 
 static int twl6030_irq_pm_notifier(struct notifier_block *notifier,
@@ -131,95 +130,57 @@ static struct notifier_block twl6030_irq_pm_notifier_block = {
 };
 
 /*
- * This thread processes interrupts reported by the Primary Interrupt Handler.
- */
-static int twl6030_irq_thread(void *data)
+* Threaded irq handler for the twl6030 interrupt.
+* We query the interrupt controller in the twl6030 to determine
+* which module is generating the interrupt request and call
+* handle_nested_irq for that module.
+*/
+static irqreturn_t twl6030_irq_thread(int irq, void *data)
 {
-	long irq = (long)data;
-	static unsigned i2c_errors;
-	static const unsigned max_i2c_errors = 100;
-	int ret;
-
-	while (!kthread_should_stop()) {
-		int i;
-		union {
+	int i, ret;
+	union {
 		u8 bytes[4];
 		u32 int_sts;
-		} sts;
+	} sts;
 
-		/* Wait for IRQ, then read PIH irq status (also blocking) */
-		wait_for_completion_interruptible(&irq_event);
-
-		/* read INT_STS_A, B and C in one shot using a burst read */
-		ret = twl_i2c_read(TWL_MODULE_PIH, sts.bytes,
-				REG_INT_STS_A, 3);
-		if (ret) {
-			pr_warning("twl6030: I2C error %d reading PIH ISR\n",
-					ret);
-			if (++i2c_errors >= max_i2c_errors) {
-				printk(KERN_ERR "Maximum I2C error count"
-						" exceeded.  Terminating %s.\n",
-						__func__);
-				break;
-			}
-			complete(&irq_event);
-			continue;
-		}
-
-
-
-		sts.bytes[3] = 0; /* Only 24 bits are valid*/
-
-		/*
-		 * Since VBUS status bit is not reliable for VBUS disconnect
-		 * use CHARGER VBUS detection status bit instead.
-		 */
-		if (sts.bytes[2] & 0x10)
-			sts.bytes[2] |= 0x08;
-
-		for (i = 0; sts.int_sts; sts.int_sts >>= 1, i++) {
-			local_irq_disable();
-			if (sts.int_sts & 0x1) {
-				int module_irq = twl6030_irq_base +
-					twl6030_interrupt_mapping[i];
-				generic_handle_irq(module_irq);
-
-			}
-		local_irq_enable();
-		}
-
-		/*
-		 * NOTE:
-		 * Simulation confirms that documentation is wrong w.r.t the
-		 * interrupt status clear operation. A single *byte* write to
-		 * any one of STS_A to STS_C register results in all three
-		 * STS registers being reset. Since it does not matter which
-		 * value is written, all three registers are cleared on a
-		 * single byte write, so we just use 0x0 to clear.
-		 */
-		ret = twl_i2c_write_u8(TWL_MODULE_PIH, 0x00, REG_INT_STS_A);
-		if (ret)
-			pr_warning("twl6030: I2C error in clearing PIH ISR\n");
-
-		enable_irq(irq);
+	/* read INT_STS_A, B and C in one shot using a burst read */
+	ret = twl_i2c_read(TWL_MODULE_PIH, sts.bytes, REG_INT_STS_A, 3);
+	if (ret) {
+		pr_warn("twl6030_irq: I2C error %d reading PIH ISR\n", ret);
+		return IRQ_HANDLED;
 	}
 
-	return 0;
-}
+	sts.bytes[3] = 0; /* Only 24 bits are valid*/
 
-/*
- * handle_twl6030_int() is the desc->handle method for the twl6030 interrupt.
- * This is a chained interrupt, so there is no desc->action method for it.
- * Now we need to query the interrupt controller in the twl6030 to determine
- * which module is generating the interrupt request.  However, we can't do i2c
- * transactions in interrupt context, so we must defer that work to a kernel
- * thread.  All we do here is acknowledge and mask the interrupt and wakeup
- * the kernel thread.
- */
-static irqreturn_t handle_twl6030_pih(int irq, void *devid)
-{
-	disable_irq_nosync(irq);
-	complete(devid);
+	/*
+	 * Since VBUS status bit is not reliable for VBUS disconnect
+	 * use CHARGER VBUS detection status bit instead.
+	 */
+	if (sts.bytes[2] & 0x10)
+		sts.bytes[2] |= 0x08;
+
+	for (i = 0; sts.int_sts; sts.int_sts >>= 1, i++)
+		if (sts.int_sts & 0x1) {
+			int module_irq = twl6030_irq_base +
+					twl6030_interrupt_mapping[i];
+			handle_nested_irq(module_irq);
+			pr_debug("twl6030_irq: PIH ISR %u, virq%u\n",
+				 i, module_irq);
+		}
+
+	/*
+	 * NOTE:
+	 * Simulation confirms that documentation is wrong w.r.t the
+	 * interrupt status clear operation. A single *byte* write to
+	 * any one of STS_A to STS_C register results in all three
+	 * STS registers being reset. Since it does not matter which
+	 * value is written, all three registers are cleared on a
+	 * single byte write, so we just use 0x0 to clear.
+	 */
+	ret = twl_i2c_write_u8(TWL_MODULE_PIH, 0x00, REG_INT_STS_A);
+	if (ret)
+		pr_warn("twl6030_irq: I2C error in clearing PIH ISR\n");
+
 	return IRQ_HANDLED;
 }
 
@@ -351,7 +312,6 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 {
 	struct			device_node *node = dev->of_node;
 	int			nr_irqs, irq_base, irq_end;
-	struct task_struct	*task;
 	static struct irq_chip  twl6030_irq_chip;
 	int			status = 0;
 	int			i;
@@ -396,35 +356,25 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 		irq_set_chip_and_handler(i, &twl6030_irq_chip,
 					 handle_simple_irq);
 		irq_set_chip_data(i, (void *)irq_num);
+		irq_set_nested_thread(i, true);
+		irq_set_parent(i, irq_num);
 		activate_irq(i);
 	}
 
-	dev_info(dev, "PIH (irq %d) chaining IRQs %d..%d\n",
-			irq_num, irq_base, irq_end);
+	dev_info(dev, "PIH (irq %d) nested IRQs %d..%d\n",
+		 irq_num, irq_base, irq_end);
 
 	/* install an irq handler to demultiplex the TWL6030 interrupt */
-	init_completion(&irq_event);
-
-	status = request_irq(irq_num, handle_twl6030_pih, 0, "TWL6030-PIH",
-			     &irq_event);
+	status = request_threaded_irq(irq_num, NULL, twl6030_irq_thread,
+				      IRQF_ONESHOT, "TWL6030-PIH", NULL);
 	if (status < 0) {
 		dev_err(dev, "could not claim irq %d: %d\n", irq_num, status);
 		goto fail_irq;
 	}
 
-	task = kthread_run(twl6030_irq_thread, (void *)irq_num, "twl6030-irq");
-	if (IS_ERR(task)) {
-		dev_err(dev, "could not create irq %d thread!\n", irq_num);
-		status = PTR_ERR(task);
-		goto fail_kthread;
-	}
-
 	twl_irq = irq_num;
 	register_pm_notifier(&twl6030_irq_pm_notifier_block);
 	return irq_base;
-
-fail_kthread:
-	free_irq(irq_num, &irq_event);
 
 fail_irq:
 	for (i = irq_base; i < irq_end; i++)
@@ -435,12 +385,12 @@ fail_irq:
 
 int twl6030_exit_irq(void)
 {
-	unregister_pm_notifier(&twl6030_irq_pm_notifier_block);
 
-	if (twl6030_irq_base) {
-		pr_err("twl6030: can't yet clean up IRQs?\n");
-		return -ENOSYS;
+	if (twl_irq) {
+		unregister_pm_notifier(&twl6030_irq_pm_notifier_block);
+		free_irq(twl_irq, NULL);
 	}
+
 	return 0;
 }
 
