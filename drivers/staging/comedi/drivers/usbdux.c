@@ -1369,27 +1369,30 @@ counter_read_exit:
 
 static int usbdux_counter_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
-	int err;
+	struct usbdux_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int16_t *p = (int16_t *)&devpriv->dux_commands[2];
+	int ret = 0;
+	int i;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
+	down(&devpriv->sem);
 
-	down(&this_usbduxsub->sem);
-	this_usbduxsub->dux_commands[1] = insn->chanspec;
-	*((int16_t *) (this_usbduxsub->dux_commands + 2)) = cpu_to_le16(*data);
+	devpriv->dux_commands[1] = chan;
 
-	err = send_dux_commands(dev, WRITECOUNTERCOMMAND);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
+	for (i = 0; i < insn->n; i++) {
+		*p = cpu_to_le16(data[i]);
+
+		ret = send_dux_commands(dev, WRITECOUNTERCOMMAND);
+		if (ret < 0)
+			break;
 	}
 
-	up(&this_usbduxsub->sem);
+	up(&devpriv->sem);
 
-	return 1;
+	return ret ? ret : insn->n;
 }
 
 static int usbdux_counter_config(struct comedi_device *dev,
