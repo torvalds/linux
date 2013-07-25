@@ -35,6 +35,7 @@
 #define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RATE_REF*MHZ)
 #define LPJ_24M	(CLK_LOOPS_JIFFY_REF * 24) / CLK_LOOPS_RATE_REF
 
+static int flag_uboot_display = 0;
 
 struct apll_clk_set {
 	unsigned long rate;
@@ -2342,6 +2343,18 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_pclk_uart2);
 #endif
 
+	if (flag_uboot_display) {
+		clk_enable_nolock(&dclk_lcdc0);
+		clk_enable_nolock(&dclk_lcdc1);
+		clk_enable_nolock(&clk_hclk_lcdc0);
+		clk_enable_nolock(&clk_hclk_lcdc1);
+		clk_enable_nolock(&clk_aclk_lcdc0);
+		clk_enable_nolock(&clk_aclk_lcdc1);
+		clk_enable_nolock(&aclk_lcdc0_pre);
+		clk_enable_nolock(&aclk_lcdc1_pre);
+		clk_enable_nolock(&pd_lcdc0);
+		clk_enable_nolock(&pd_lcdc1);
+	}
 	/*************************aclk_cpu***********************/
 	clk_enable_nolock(&clk_aclk_intmem);
 	clk_enable_nolock(&clk_aclk_strc_sys);
@@ -2695,13 +2708,43 @@ void rk2928_clock_common_i2s_init(void)
 	}
 
 }
+static void inline clock_set_max_div(struct clk *clk)
+{
+	set_cru_bits_w_msk(clk->div_max - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
+}
+static void div_clk_for_pll_init(void)
+{
+	clock_set_max_div(&clk_cpu_div);
+	clock_set_max_div(&aclk_vdpu);
+	clock_set_max_div(&aclk_vepu);
+	clock_set_max_div(&clk_gpu_pre);
+	if (!flag_uboot_display) {
+		clock_set_max_div(&aclk_lcdc0_pre);
+		clock_set_max_div(&aclk_lcdc1_pre);
+		clock_set_max_div(&dclk_lcdc0);
+		clock_set_max_div(&dclk_lcdc1);
+	}
+	clock_set_max_div(&aclk_periph_pre);
+	clock_set_max_div(&clk_cif_out_div);
+	clock_set_max_div(&clk_i2s_div);
+	//clock_set_max_div(&clk_spdif_div);
+	clock_set_max_div(&clk_uart0_div);
+	clock_set_max_div(&clk_uart1_div);
+	clock_set_max_div(&clk_uart2_div);
+	//clock_set_max_div(&clk_uart3_div);
+	//clock_set_max_div(&clk_hsicphy_12m);
+	//clock_set_max_div(&clk_hsadc_pll_div);
+	clock_set_max_div(&clk_saradc);
+}
 static void __init rk2928_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
 
 	//general
-	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
+	if (!flag_uboot_display)
+		clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
-	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
+	if (!flag_uboot_display)
+		clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
 	cpu_axi_init();
 
@@ -2753,9 +2796,18 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate, unsigned lo
 	//clk_set_parent_nolock(&aclk_lcdc1, &general_pll_clk);
 	// FIXME
 
-	clk_set_rate_nolock(&aclk_lcdc0_pre, 300 * MHZ);
-	clk_set_rate_nolock(&aclk_lcdc1_pre, 300 * MHZ);
-	clk_set_rate_nolock(&hclk_disp_pre, 300 * MHZ);
+	if (!flag_uboot_display) {
+		//lcdc0 lcd auto sel pll
+		clk_set_parent_nolock(&dclk_lcdc0, &general_pll_clk);
+		clk_set_parent_nolock(&dclk_lcdc1, &general_pll_clk);
+
+		//axi lcdc auto sel
+		clk_set_parent_nolock(&aclk_lcdc0_pre, &general_pll_clk);
+		clk_set_parent_nolock(&aclk_lcdc1_pre, &general_pll_clk);
+		clk_set_rate_nolock(&aclk_lcdc0_pre, 300 * MHZ);
+		clk_set_rate_nolock(&aclk_lcdc1_pre, 300 * MHZ);
+		clk_set_rate_nolock(&hclk_disp_pre, 300 * MHZ);
+	}
 	//axi vepu auto sel
 	clk_set_parent_nolock(&aclk_vepu, &codec_pll_clk);
 	clk_set_parent_nolock(&aclk_vdpu, &codec_pll_clk);
@@ -2769,8 +2821,6 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate, unsigned lo
 	clk_set_parent_nolock(&clk_sdmmc0, &general_pll_clk);
 	clk_set_parent_nolock(&clk_sdio, &general_pll_clk);
 	clk_set_parent_nolock(&clk_emmc, &general_pll_clk);
-	clk_set_parent_nolock(&dclk_lcdc0, &general_pll_clk);
-	clk_set_parent_nolock(&dclk_lcdc1, &general_pll_clk);
 
 	clk_set_rate_nolock(&clk_sdmmc0, 24750000);
 	clk_set_rate_nolock(&clk_sdio, 24750000);
@@ -2794,6 +2844,7 @@ void __init _rk2928_clock_data_init(unsigned long gpll, unsigned long cpll, int 
 	}
 
 	CLKDATA_DBG("clk_recalculate_root_clocks_nolock\n");
+	div_clk_for_pll_init();
 	clk_recalculate_root_clocks_nolock();
 	// print loader config
 	//rk_dump_clock_info();
@@ -2824,3 +2875,18 @@ void __init rk2928_clock_data_init(unsigned long gpll, unsigned long cpll, u32 f
 	rk292x_dvfs_init();
 }
 
+#define STR_UBOOT_DISPLAY	"fastboot"
+static int __init bootloader_setup(char *str)
+{
+	if (0 == strncmp(str, STR_UBOOT_DISPLAY, strlen(STR_UBOOT_DISPLAY))) {
+		printk("CLKDATA_MSG: get uboot display\n");
+		flag_uboot_display = 1;
+	}
+	return 0;
+}
+early_param("androidboot.bootloader", bootloader_setup);
+
+int support_uboot_display(void)
+{
+	return flag_uboot_display;
+}
