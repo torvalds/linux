@@ -113,21 +113,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 /* max lenghth of the transfer-buffer for software upload */
 #define TB_LEN 0x2000
 
-/* Input endpoint number: ISO/IRQ */
-#define ISOINEP           6
-
-/* Output endpoint number: ISO/IRQ */
-#define ISOOUTEP          2
-
-/* This EP sends DUX commands to USBDUX */
-#define COMMAND_OUT_EP     1
-
-/* This EP receives the DUX commands from USBDUX */
-#define COMMAND_IN_EP        8
-
-/* Output endpoint for PWM */
-#define PWM_EP         4
-
 /* 300Hz max frequ under PWM */
 #define MIN_PWM_PERIOD  ((long)(1E9/300))
 
@@ -804,7 +789,7 @@ static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 
 	devpriv->dux_commands[0] = cmd_type;
 
-	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, COMMAND_OUT_EP),
+	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, 1),
 			    devpriv->dux_commands, SIZEOFDUXBUFFER,
 			    &nsent, BULK_TIMEOUT);
 }
@@ -818,7 +803,7 @@ static int receive_dux_commands(struct comedi_device *dev, int command)
 	int i;
 
 	for (i = 0; i < RETRIES; i++) {
-		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, COMMAND_IN_EP),
+		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, 8),
 				      devpriv->insn_buffer, SIZEINSNBUF,
 				      &nrec, BULK_TIMEOUT);
 		if (ret < 0)
@@ -1479,7 +1464,7 @@ static int usbduxsub_submit_pwm_urbs(struct comedi_device *dev)
 	struct urb *urb = devpriv->urb_pwm;
 
 	/* in case of a resubmission after an unlink... */
-	usb_fill_bulk_urb(urb, usb, usb_sndbulkpipe(usb, PWM_EP),
+	usb_fill_bulk_urb(urb, usb, usb_sndbulkpipe(usb, 4),
 			  urb->transfer_buffer,
 			  devpriv->size_pwm_buf,
 			  usbduxsub_pwm_irq,
@@ -1712,7 +1697,7 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		/* will be filled later with a pointer to the comedi-device */
 		/* and ONLY then the urb should be submitted */
 		urb->context = NULL;
-		urb->pipe = usb_rcvisocpipe(usb, ISOINEP);
+		urb->pipe = usb_rcvisocpipe(usb, 6);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
@@ -1742,7 +1727,7 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		/* will be filled later with a pointer to the comedi-device */
 		/* and ONLY then the urb should be submitted */
 		urb->context = NULL;
-		urb->pipe = usb_sndisocpipe(usb, ISOOUTEP);
+		urb->pipe = usb_sndisocpipe(usb, 2);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
