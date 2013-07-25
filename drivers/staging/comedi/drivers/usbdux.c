@@ -103,16 +103,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 /* internal addresses of the 8051 processor */
 #define USBDUXSUB_CPUCS 0xE600
 
-/*
- * the minor device number, major is 180 only for debugging purposes and to
- * upload special firmware (programming the eeprom etc) which is not compatible
- * with the comedi framwork
- */
-#define USBDUXSUB_MINOR 32
-
-/* max lenghth of the transfer-buffer for software upload */
-#define TB_LEN 0x2000
-
 /* 300Hz max frequ under PWM */
 #define MIN_PWM_PERIOD  ((long)(1E9/300))
 
