@@ -630,6 +630,12 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	int error = 0;
 
+	if (sbi->s_lvid_bh) {
+		int write_rev = le16_to_cpu(udf_sb_lvidiu(sbi)->minUDFWriteRev);
+		if (write_rev > UDF_MAX_WRITE_VERSION && !(*flags & MS_RDONLY))
+			return -EACCES;
+	}
+
 	uopt.flags = sbi->s_flags;
 	uopt.uid   = sbi->s_uid;
 	uopt.gid   = sbi->s_gid;
@@ -648,12 +654,6 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	sbi->s_fmode = uopt.fmode;
 	sbi->s_dmode = uopt.dmode;
 	write_unlock(&sbi->s_cred_lock);
-
-	if (sbi->s_lvid_bh) {
-		int write_rev = le16_to_cpu(udf_sb_lvidiu(sbi)->minUDFWriteRev);
-		if (write_rev > UDF_MAX_WRITE_VERSION)
-			*flags |= MS_RDONLY;
-	}
 
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		goto out_unlock;
@@ -1284,16 +1284,18 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 			goto out_bh;
 		}
 	} else {
+		/*
+		 * If we have a partition with virtual map, we don't handle
+		 * writing to it (we overwrite blocks instead of relocating
+		 * them).
+		 */
+		if (!(sb->s_flags & MS_RDONLY)) {
+			ret = -EACCES;
+			goto out_bh;
+		}
 		ret = udf_load_vat(sb, i, type1_idx);
 		if (ret < 0)
 			goto out_bh;
-		/*
-		 * Mark filesystem read-only if we have a partition with
-		 * virtual map since we don't handle writing to it (we
-		 * overwrite blocks instead of relocating them).
-		 */
-		sb->s_flags |= MS_RDONLY;
-		pr_notice("Filesystem marked read-only because writing to pseudooverwrite partition is not implemented\n");
 	}
 	ret = 0;
 out_bh:
@@ -2103,8 +2105,11 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 				UDF_MAX_READ_VERSION);
 			ret = -EINVAL;
 			goto error_out;
-		} else if (minUDFWriteRev > UDF_MAX_WRITE_VERSION)
-			sb->s_flags |= MS_RDONLY;
+		} else if (minUDFWriteRev > UDF_MAX_WRITE_VERSION &&
+			   !(sb->s_flags & MS_RDONLY)) {
+			ret = -EACCES;
+			goto error_out;
+		}
 
 		sbi->s_udfrev = minUDFWriteRev;
 
@@ -2121,9 +2126,10 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	}
 
 	if (sbi->s_partmaps[sbi->s_partition].s_partition_flags &
-			UDF_PART_FLAG_READ_ONLY) {
-		pr_notice("Partition marked readonly; forcing readonly mount\n");
-		sb->s_flags |= MS_RDONLY;
+			UDF_PART_FLAG_READ_ONLY &&
+	    !(sb->s_flags & MS_RDONLY)) {
+		ret = -EACCES;
+		goto error_out;
 	}
 
 	if (udf_find_fileset(sb, &fileset, &rootdir)) {
