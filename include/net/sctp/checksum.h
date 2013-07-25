@@ -85,4 +85,19 @@ static inline __le32 sctp_end_cksum(__u32 crc32)
 	return cpu_to_le32(~crc32);
 }
 
+/* Calculate the CRC32C checksum of an SCTP packet.  */
+static inline __le32 sctp_compute_cksum(const struct sk_buff *skb,
+					unsigned int offset)
+{
+	const struct sk_buff *iter;
+
+	__u32 crc32 = sctp_start_cksum(skb->data + offset,
+				       skb_headlen(skb) - offset);
+	skb_walk_frags(skb, iter)
+		crc32 = sctp_update_cksum((__u8 *) iter->data,
+					  skb_headlen(iter), crc32);
+
+	return sctp_end_cksum(crc32);
+}
+
 #endif /* __sctp_checksum_h__ */
