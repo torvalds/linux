@@ -509,7 +509,7 @@ struct cached_dev {
 
 	/* Limit number of writeback bios in flight */
 	struct semaphore	in_flight;
-	struct closure_with_timer writeback;
+	struct task_struct	*writeback_thread;
 
 	struct keybuf		writeback_keys;
 
@@ -1038,7 +1038,11 @@ static inline void bkey_init(struct bkey *k)
 
 #define KEY_START(k)		(KEY_OFFSET(k) - KEY_SIZE(k))
 #define START_KEY(k)		KEY(KEY_INODE(k), KEY_START(k), 0)
-#define MAX_KEY			KEY(~(~0 << 20), ((uint64_t) ~0) >> 1, 0)
+
+#define MAX_KEY_INODE		(~(~0 << 20))
+#define MAX_KEY_OFFSET		(((uint64_t) ~0) >> 1)
+#define MAX_KEY			KEY(MAX_KEY_INODE, MAX_KEY_OFFSET, 0)
+
 #define ZERO_KEY		KEY(0, 0, 0)
 
 /*
@@ -1214,8 +1218,6 @@ int bch_cache_allocator_init(struct cache *ca);
 
 void bch_debug_exit(void);
 int bch_debug_init(struct kobject *);
-void bch_writeback_exit(void);
-int bch_writeback_init(void);
 void bch_request_exit(void);
 int bch_request_init(void);
 void bch_btree_exit(void);

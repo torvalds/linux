@@ -56,11 +56,30 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 		in_use <= CUTOFF_WRITEBACK;
 }
 
+static inline void bch_writeback_queue(struct cached_dev *dc)
+{
+	wake_up_process(dc->writeback_thread);
+}
+
+static inline void bch_writeback_add(struct cached_dev *dc)
+{
+	if (!atomic_read(&dc->has_dirty) &&
+	    !atomic_xchg(&dc->has_dirty, 1)) {
+		atomic_inc(&dc->count);
+
+		if (BDEV_STATE(&dc->sb) != BDEV_STATE_DIRTY) {
+			SET_BDEV_STATE(&dc->sb, BDEV_STATE_DIRTY);
+			/* XXX: should do this synchronously */
+			bch_write_bdev_super(dc, NULL);
+		}
+
+		bch_writeback_queue(dc);
+	}
+}
+
 void bcache_dev_sectors_dirty_add(struct cache_set *, unsigned, uint64_t, int);
-void bch_writeback_queue(struct cached_dev *);
-void bch_writeback_add(struct cached_dev *);
 
 void bch_sectors_dirty_init(struct cached_dev *dc);
-void bch_cached_dev_writeback_init(struct cached_dev *);
+int bch_cached_dev_writeback_init(struct cached_dev *);
 
 #endif
