@@ -632,6 +632,9 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		dev->caps.cqe_size   = 32;
 	}
 
+	dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
+	mlx4_warn(dev, "Timestamping is not supported in slave mode.\n");
+
 	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
 
 	return 0;
@@ -839,11 +842,11 @@ static ssize_t set_port_ib_mtu(struct device *dev,
 		return -EINVAL;
 	}
 
-	err = sscanf(buf, "%d", &mtu);
-	if (err > 0)
+	err = kstrtoint(buf, 0, &mtu);
+	if (!err)
 		ibta_mtu = int_to_ibta_mtu(mtu);
 
-	if (err <= 0 || ibta_mtu < 0) {
+	if (err || ibta_mtu < 0) {
 		mlx4_err(mdev, "%s is invalid IBTA mtu\n", buf);
 		return -EINVAL;
 	}
@@ -1290,7 +1293,6 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	u64 dma = (u64) priv->mfunc.vhcr_dma;
-	int num_of_reset_retries = NUM_OF_RESET_RETRIES;
 	int ret_from_reset = 0;
 	u32 slave_read;
 	u32 cmd_channel_ver;
@@ -1304,18 +1306,10 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 	 * NUM_OF_RESET_RETRIES times before leaving.*/
 	if (ret_from_reset) {
 		if (MLX4_DELAY_RESET_SLAVE == ret_from_reset) {
-			msleep(SLEEP_TIME_IN_RESET);
-			while (ret_from_reset && num_of_reset_retries) {
-				mlx4_warn(dev, "slave is currently in the"
-					  "middle of FLR. retrying..."
-					  "(try num:%d)\n",
-					  (NUM_OF_RESET_RETRIES -
-					   num_of_reset_retries  + 1));
-				ret_from_reset =
-					mlx4_comm_cmd(dev, MLX4_COMM_CMD_RESET,
-						      0, MLX4_COMM_TIME);
-				num_of_reset_retries = num_of_reset_retries - 1;
-			}
+			mlx4_warn(dev, "slave is currently in the "
+				  "middle of FLR. Deferring probe.\n");
+			mutex_unlock(&priv->cmd.slave_cmd_mutex);
+			return -EPROBE_DEFER;
 		} else
 			goto err;
 	}
@@ -1526,7 +1520,8 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 	} else {
 		err = mlx4_init_slave(dev);
 		if (err) {
-			mlx4_err(dev, "Failed to initialize slave\n");
+			if (err != -EPROBE_DEFER)
+				mlx4_err(dev, "Failed to initialize slave\n");
 			return err;
 		}
 
@@ -2083,6 +2078,11 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	if (num_vfs > MLX4_MAX_NUM_VF) {
 		printk(KERN_ERR "There are more VF's (%d) than allowed(%d)\n",
 		       num_vfs, MLX4_MAX_NUM_VF);
+		return -EINVAL;
+	}
+
+	if (num_vfs < 0) {
+		pr_err("num_vfs module parameter cannot be negative\n");
 		return -EINVAL;
 	}
 	/*

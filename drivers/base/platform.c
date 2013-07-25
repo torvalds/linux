@@ -29,9 +29,6 @@
 /* For automatically allocated device IDs */
 static DEFINE_IDA(platform_devid_ida);
 
-#define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
-				 driver))
-
 struct device platform_bus = {
 	.init_name	= "platform",
 };
@@ -523,11 +520,14 @@ static void platform_drv_shutdown(struct device *_dev)
 }
 
 /**
- * platform_driver_register - register a driver for platform-level devices
+ * __platform_driver_register - register a driver for platform-level devices
  * @drv: platform driver structure
+ * @owner: owning module/driver
  */
-int platform_driver_register(struct platform_driver *drv)
+int __platform_driver_register(struct platform_driver *drv,
+				struct module *owner)
 {
+	drv->driver.owner = owner;
 	drv->driver.bus = &platform_bus_type;
 	if (drv->probe)
 		drv->driver.probe = platform_drv_probe;
@@ -538,7 +538,7 @@ int platform_driver_register(struct platform_driver *drv)
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(platform_driver_register);
+EXPORT_SYMBOL_GPL(__platform_driver_register);
 
 /**
  * platform_driver_unregister - unregister a driver for platform-level devices
@@ -888,7 +888,6 @@ int platform_pm_restore(struct device *dev)
 static const struct dev_pm_ops platform_dev_pm_ops = {
 	.runtime_suspend = pm_generic_runtime_suspend,
 	.runtime_resume = pm_generic_runtime_resume,
-	.runtime_idle = pm_generic_runtime_idle,
 	USE_PLATFORM_PM_SLEEP_OPS
 };
 

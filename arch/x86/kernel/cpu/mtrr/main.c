@@ -51,8 +51,12 @@
 #include <asm/e820.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
+#include <asm/pat.h>
 
 #include "mtrr.h"
+
+/* arch_phys_wc_add returns an MTRR register index plus this offset. */
+#define MTRR_TO_PHYS_WC_OFFSET 1000
 
 u32 num_var_ranges;
 
@@ -305,7 +309,8 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		return -EINVAL;
 	}
 
-	if (base & size_or_mask || size & size_or_mask) {
+	if ((base | (base + size - 1)) >>
+	    (boot_cpu_data.x86_phys_bits - PAGE_SHIFT)) {
 		pr_warning("mtrr: base or size exceeds the MTRR width\n");
 		return -EINVAL;
 	}
@@ -524,6 +529,73 @@ int mtrr_del(int reg, unsigned long base, unsigned long size)
 }
 EXPORT_SYMBOL(mtrr_del);
 
+/**
+ * arch_phys_wc_add - add a WC MTRR and handle errors if PAT is unavailable
+ * @base: Physical base address
+ * @size: Size of region
+ *
+ * If PAT is available, this does nothing.  If PAT is unavailable, it
+ * attempts to add a WC MTRR covering size bytes starting at base and
+ * logs an error if this fails.
+ *
+ * Drivers must store the return value to pass to mtrr_del_wc_if_needed,
+ * but drivers should not try to interpret that return value.
+ */
+int arch_phys_wc_add(unsigned long base, unsigned long size)
+{
+	int ret;
+
+	if (pat_enabled)
+		return 0;  /* Success!  (We don't need to do anything.) */
+
+	ret = mtrr_add(base, size, MTRR_TYPE_WRCOMB, true);
+	if (ret < 0) {
+		pr_warn("Failed to add WC MTRR for [%p-%p]; performance may suffer.",
+			(void *)base, (void *)(base + size - 1));
+		return ret;
+	}
+	return ret + MTRR_TO_PHYS_WC_OFFSET;
+}
+EXPORT_SYMBOL(arch_phys_wc_add);
+
+/*
+ * arch_phys_wc_del - undoes arch_phys_wc_add
+ * @handle: Return value from arch_phys_wc_add
+ *
+ * This cleans up after mtrr_add_wc_if_needed.
+ *
+ * The API guarantees that mtrr_del_wc_if_needed(error code) and
+ * mtrr_del_wc_if_needed(0) do nothing.
+ */
+void arch_phys_wc_del(int handle)
+{
+	if (handle >= 1) {
+		WARN_ON(handle < MTRR_TO_PHYS_WC_OFFSET);
+		mtrr_del(handle - MTRR_TO_PHYS_WC_OFFSET, 0, 0);
+	}
+}
+EXPORT_SYMBOL(arch_phys_wc_del);
+
+/*
+ * phys_wc_to_mtrr_index - translates arch_phys_wc_add's return value
+ * @handle: Return value from arch_phys_wc_add
+ *
+ * This will turn the return value from arch_phys_wc_add into an mtrr
+ * index suitable for debugging.
+ *
+ * Note: There is no legitimate use for this function, except possibly
+ * in printk line.  Alas there is an illegitimate use in some ancient
+ * drm ioctls.
+ */
+int phys_wc_to_mtrr_index(int handle)
+{
+	if (handle < MTRR_TO_PHYS_WC_OFFSET)
+		return -1;
+	else
+		return handle - MTRR_TO_PHYS_WC_OFFSET;
+}
+EXPORT_SYMBOL_GPL(phys_wc_to_mtrr_index);
+
 /*
  * HACK ALERT!
  * These should be called implicitly, but we can't yet until all the initcall
@@ -583,6 +655,7 @@ static struct syscore_ops mtrr_syscore_ops = {
 
 int __initdata changed_by_mtrr_cleanup;
 
+#define SIZE_OR_MASK_BITS(n)  (~((1ULL << ((n) - PAGE_SHIFT)) - 1))
 /**
  * mtrr_bp_init - initialize mtrrs on the boot CPU
  *
@@ -600,7 +673,7 @@ void __init mtrr_bp_init(void)
 
 	if (cpu_has_mtrr) {
 		mtrr_if = &generic_mtrr_ops;
-		size_or_mask = 0xff000000;			/* 36 bits */
+		size_or_mask = SIZE_OR_MASK_BITS(36);
 		size_and_mask = 0x00f00000;
 		phys_addr = 36;
 
@@ -619,7 +692,7 @@ void __init mtrr_bp_init(void)
 			     boot_cpu_data.x86_mask == 0x4))
 				phys_addr = 36;
 
-			size_or_mask = ~((1ULL << (phys_addr - PAGE_SHIFT)) - 1);
+			size_or_mask = SIZE_OR_MASK_BITS(phys_addr);
 			size_and_mask = ~size_or_mask & 0xfffff00000ULL;
 		} else if (boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR &&
 			   boot_cpu_data.x86 == 6) {
@@ -627,7 +700,7 @@ void __init mtrr_bp_init(void)
 			 * VIA C* family have Intel style MTRRs,
 			 * but don't support PAE
 			 */
-			size_or_mask = 0xfff00000;		/* 32 bits */
+			size_or_mask = SIZE_OR_MASK_BITS(32);
 			size_and_mask = 0;
 			phys_addr = 32;
 		}
@@ -637,21 +710,21 @@ void __init mtrr_bp_init(void)
 			if (cpu_has_k6_mtrr) {
 				/* Pre-Athlon (K6) AMD CPU MTRRs */
 				mtrr_if = mtrr_ops[X86_VENDOR_AMD];
-				size_or_mask = 0xfff00000;	/* 32 bits */
+				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
 			break;
 		case X86_VENDOR_CENTAUR:
 			if (cpu_has_centaur_mcr) {
 				mtrr_if = mtrr_ops[X86_VENDOR_CENTAUR];
-				size_or_mask = 0xfff00000;	/* 32 bits */
+				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
 			break;
 		case X86_VENDOR_CYRIX:
 			if (cpu_has_cyrix_arr) {
 				mtrr_if = mtrr_ops[X86_VENDOR_CYRIX];
-				size_or_mask = 0xfff00000;	/* 32 bits */
+				size_or_mask = SIZE_OR_MASK_BITS(32);
 				size_and_mask = 0;
 			}
 			break;

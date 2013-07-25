@@ -37,7 +37,6 @@ config 8139CP
 	tristate "RealTek RTL-8139 C+ PCI Fast Ethernet Adapter support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
@@ -52,7 +51,6 @@ config 8139TOO
 	tristate "RealTek RTL-8129/8130/8139 PCI Fast Ethernet Adapter support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
@@ -107,7 +105,6 @@ config R8169
 	depends on PCI
 	select FW_LOADER
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  Say Y here if you have a Realtek 8169 PCI Gigabit Ethernet adapter.

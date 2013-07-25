@@ -6,6 +6,7 @@ generic-y += cputime.h
 generic-y += div64.h
 generic-y += emergency-restart.h
 generic-y += exec.h
+generic-y += linkage.h
 generic-y += local64.h
 generic-y += mutex.h
 generic-y += irq_regs.h

@@ -623,12 +623,6 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	u32 bus_speed;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no mmio resources\n");
-		return -ENODEV;
-	}
-
 	priv = devm_kzalloc(dev, sizeof(struct rcar_i2c_priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(dev, "no mem for private data\n");
@@ -642,6 +636,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->io = devm_ioremap_resource(dev, res);
 	if (IS_ERR(priv->io))
 		return PTR_ERR(priv->io);

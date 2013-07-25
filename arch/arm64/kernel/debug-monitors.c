@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/stat.h>
+#include <linux/uaccess.h>
 
 #include <asm/debug-monitors.h>
 #include <asm/local.h>
@@ -140,7 +141,7 @@ static void clear_os_lock(void *unused)
 	isb();
 }
 
-static int __cpuinit os_lock_notify(struct notifier_block *self,
+static int os_lock_notify(struct notifier_block *self,
 				    unsigned long action, void *data)
 {
 	int cpu = (unsigned long)data;
@@ -149,11 +150,11 @@ static int __cpuinit os_lock_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata os_lock_nb = {
+static struct notifier_block os_lock_nb = {
 	.notifier_call = os_lock_notify,
 };
 
-static int __cpuinit debug_monitors_init(void)
+static int debug_monitors_init(void)
 {
 	/* Clear the OS lock. */
 	smp_call_function(clear_os_lock, NULL, 1);
@@ -226,13 +227,74 @@ static int single_step_handler(unsigned long addr, unsigned int esr,
 	return 0;
 }
 
-static int __init single_step_init(void)
+static int brk_handler(unsigned long addr, unsigned int esr,
+		       struct pt_regs *regs)
+{
+	siginfo_t info;
+
+	if (!user_mode(regs))
+		return -EFAULT;
+
+	info = (siginfo_t) {
+		.si_signo = SIGTRAP,
+		.si_errno = 0,
+		.si_code  = TRAP_BRKPT,
+		.si_addr  = (void __user *)instruction_pointer(regs),
+	};
+
+	force_sig_info(SIGTRAP, &info, current);
+	return 0;
+}
+
+int aarch32_break_handler(struct pt_regs *regs)
+{
+	siginfo_t info;
+	unsigned int instr;
+	bool bp = false;
+	void __user *pc = (void __user *)instruction_pointer(regs);
+
+	if (!compat_user_mode(regs))
+		return -EFAULT;
+
+	if (compat_thumb_mode(regs)) {
+		/* get 16-bit Thumb instruction */
+		get_user(instr, (u16 __user *)pc);
+		if (instr == AARCH32_BREAK_THUMB2_LO) {
+			/* get second half of 32-bit Thumb-2 instruction */
+			get_user(instr, (u16 __user *)(pc + 2));
+			bp = instr == AARCH32_BREAK_THUMB2_HI;
+		} else {
+			bp = instr == AARCH32_BREAK_THUMB;
+		}
+	} else {
+		/* 32-bit ARM instruction */
+		get_user(instr, (u32 __user *)pc);
+		bp = (instr & ~0xf0000000) == AARCH32_BREAK_ARM;
+	}
+
+	if (!bp)
+		return -EFAULT;
+
+	info = (siginfo_t) {
+		.si_signo = SIGTRAP,
+		.si_errno = 0,
+		.si_code  = TRAP_BRKPT,
+		.si_addr  = pc,
+	};
+
+	force_sig_info(SIGTRAP, &info, current);
+	return 0;
+}
+
+static int __init debug_traps_init(void)
 {
 	hook_debug_fault_code(DBG_ESR_EVT_HWSS, single_step_handler, SIGTRAP,
 			      TRAP_HWBKPT, "single-step handler");
+	hook_debug_fault_code(DBG_ESR_EVT_BRK, brk_handler, SIGTRAP,
+			      TRAP_BRKPT, "ptrace BRK handler");
 	return 0;
 }
-arch_initcall(single_step_init);
+arch_initcall(debug_traps_init);
 
 /* Re-enable single step for syscall restarting. */
 void user_rewind_single_step(struct task_struct *task)

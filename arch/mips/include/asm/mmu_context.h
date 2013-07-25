@@ -28,11 +28,7 @@
 
 #define TLBMISS_HANDLER_SETUP_PGD(pgd)					\
 do {									\
-	void (*tlbmiss_handler_setup_pgd)(unsigned long);		\
-	extern u32 tlbmiss_handler_setup_pgd_array[16];			\
-									\
-	tlbmiss_handler_setup_pgd =					\
-		(__typeof__(tlbmiss_handler_setup_pgd)) tlbmiss_handler_setup_pgd_array; \
+	extern void tlbmiss_handler_setup_pgd(unsigned long);		\
 	tlbmiss_handler_setup_pgd((unsigned long)(pgd));		\
 } while (0)
 
@@ -117,7 +113,7 @@ get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 	if (! ((asid += ASID_INC) & ASID_MASK) ) {
 		if (cpu_has_vtag_icache)
 			flush_icache_all();
-#ifdef CONFIG_VIRTUALIZATION
+#ifdef CONFIG_KVM
 		kvm_local_flush_tlb_all();      /* start new asid cycle */
 #else
 		local_flush_tlb_all();	/* start new asid cycle */

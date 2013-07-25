@@ -45,7 +45,7 @@ static ssize_t bad_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	return -EIO;
 }
 
-static int bad_file_readdir(struct file *filp, void *dirent, filldir_t filldir)
+static int bad_file_readdir(struct file *file, struct dir_context *ctx)
 {
 	return -EIO;
 }
@@ -152,7 +152,7 @@ static const struct file_operations bad_file_ops =
 	.write		= bad_file_write,
 	.aio_read	= bad_file_aio_read,
 	.aio_write	= bad_file_aio_write,
-	.readdir	= bad_file_readdir,
+	.iterate	= bad_file_readdir,
 	.poll		= bad_file_poll,
 	.unlocked_ioctl	= bad_file_unlocked_ioctl,
 	.compat_ioctl	= bad_file_compat_ioctl,

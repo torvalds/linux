@@ -786,7 +786,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 			obj->dirty = 1;
 			obj->last_write_seqno = intel_ring_get_seqno(ring);
 			if (obj->pin_count) /* check for potential scanout */
-				intel_mark_fb_busy(obj);
+				intel_mark_fb_busy(obj, ring);
 		}
 
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);
@@ -796,13 +796,14 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 static void
 i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct drm_file *file,
-				    struct intel_ring_buffer *ring)
+				    struct intel_ring_buffer *ring,
+				    struct drm_i915_gem_object *obj)
 {
 	/* Unconditionally force add_request to emit a full flush. */
 	ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
-	(void)i915_add_request(ring, file, NULL);
+	(void)__i915_add_request(ring, file, obj, NULL);
 }
 
 static int
@@ -885,6 +886,15 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			return -EPERM;
 		}
 		break;
+	case I915_EXEC_VEBOX:
+		ring = &dev_priv->ring[VECS];
+		if (ctx_id != 0) {
+			DRM_DEBUG("Ring %s doesn't support contexts\n",
+				  ring->name);
+			return -EPERM;
+		}
+		break;
+
 	default:
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
@@ -1074,7 +1084,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	trace_i915_gem_ring_dispatch(ring, intel_ring_get_seqno(ring), flags);
 
 	i915_gem_execbuffer_move_to_active(&eb->objects, ring);
-	i915_gem_execbuffer_retire_commands(dev, file, ring);
+	i915_gem_execbuffer_retire_commands(dev, file, ring, batch_obj);
 
 err:
 	eb_destroy(eb);

@@ -28,6 +28,7 @@
 #include <linux/pm.h>
 #include <linux/i2c/twl.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <asm/mach-types.h>
 
@@ -492,6 +493,39 @@ int twl4030_remove_script(u8 flags)
 	return err;
 }
 
+int twl4030_power_configure_scripts(struct twl4030_power_data *pdata)
+{
+	int err;
+	int i;
+	u8 address = twl4030_start_script_address;
+
+	for (i = 0; i < pdata->num; i++) {
+		err = load_twl4030_script(pdata->scripts[i], address);
+		if (err)
+			return err;
+		address += pdata->scripts[i]->size;
+	}
+
+	return 0;
+}
+
+int twl4030_power_configure_resources(struct twl4030_power_data *pdata)
+{
+	struct twl4030_resconfig *resconfig = pdata->resource_config;
+	int err;
+
+	if (resconfig) {
+		while (resconfig->resource) {
+			err = twl4030_configure_resource(resconfig);
+			if (err)
+				return err;
+			resconfig++;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * In master mode, start the power off sequence.
  * After a successful execution, TWL shuts down the power to the SoC
@@ -507,43 +541,58 @@ void twl4030_power_off(void)
 		pr_err("TWL4030 Unable to power off\n");
 }
 
-void twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
+static bool twl4030_power_use_poweroff(struct twl4030_power_data *pdata,
+					struct device_node *node)
 {
+	if (pdata && pdata->use_poweroff)
+		return true;
+
+	if (of_property_read_bool(node, "ti,use_poweroff"))
+		return true;
+
+	return false;
+}
+
+int twl4030_power_probe(struct platform_device *pdev)
+{
+	struct twl4030_power_data *pdata = pdev->dev.platform_data;
+	struct device_node *node = pdev->dev.of_node;
 	int err = 0;
-	int i;
-	struct twl4030_resconfig *resconfig;
-	u8 val, address = twl4030_start_script_address;
+	int err2 = 0;
+	u8 val;
+
+	if (!pdata && !node) {
+		dev_err(&pdev->dev, "Platform data is missing\n");
+		return -EINVAL;
+	}
 
 	err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, TWL4030_PM_MASTER_KEY_CFG1,
 			       TWL4030_PM_MASTER_PROTECT_KEY);
-	if (err)
-		goto unlock;
-
-	err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, TWL4030_PM_MASTER_KEY_CFG2,
+	err |= twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
+			       TWL4030_PM_MASTER_KEY_CFG2,
 			       TWL4030_PM_MASTER_PROTECT_KEY);
-	if (err)
-		goto unlock;
 
-	for (i = 0; i < twl4030_scripts->num; i++) {
-		err = load_twl4030_script(twl4030_scripts->scripts[i], address);
-		if (err)
-			goto load;
-		address += twl4030_scripts->scripts[i]->size;
+	if (err) {
+		pr_err("TWL4030 Unable to unlock registers\n");
+		return err;
 	}
 
-	resconfig = twl4030_scripts->resource_config;
-	if (resconfig) {
-		while (resconfig->resource) {
-			err = twl4030_configure_resource(resconfig);
-			if (err)
-				goto resource;
-			resconfig++;
-
+	if (pdata) {
+		/* TODO: convert to device tree */
+		err = twl4030_power_configure_scripts(pdata);
+		if (err) {
+			pr_err("TWL4030 failed to load scripts\n");
+			goto relock;
+		}
+		err = twl4030_power_configure_resources(pdata);
+		if (err) {
+			pr_err("TWL4030 failed to configure resource\n");
+			goto relock;
 		}
 	}
 
 	/* Board has to be wired properly to use this feature */
-	if (twl4030_scripts->use_poweroff && !pm_power_off) {
+	if (twl4030_power_use_poweroff(pdata, node) && !pm_power_off) {
 		/* Default for SEQ_OFFSYNC is set, lets ensure this */
 		err = twl_i2c_read_u8(TWL_MODULE_PM_MASTER, &val,
 				      TWL4030_PM_MASTER_CFG_P123_TRANSITION);
@@ -564,22 +613,43 @@ void twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 	}
 
 relock:
-	err = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, 0,
+	err2 = twl_i2c_write_u8(TWL_MODULE_PM_MASTER, 0,
 			       TWL4030_PM_MASTER_PROTECT_KEY);
-	if (err)
+	if (err2) {
 		pr_err("TWL4030 Unable to relock registers\n");
-	return;
+		return err2;
+	}
 
-unlock:
-	if (err)
-		pr_err("TWL4030 Unable to unlock registers\n");
-	return;
-load:
-	if (err)
-		pr_err("TWL4030 failed to load scripts\n");
-	return;
-resource:
-	if (err)
-		pr_err("TWL4030 failed to configure resource\n");
-	return;
+	return err;
 }
+
+static int twl4030_power_remove(struct platform_device *pdev)
+{
+	return 0;
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id twl4030_power_of_match[] = {
+	{.compatible = "ti,twl4030-power", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, twl4030_power_of_match);
+#endif
+
+static struct platform_driver twl4030_power_driver = {
+	.driver = {
+		.name	= "twl4030_power",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(twl4030_power_of_match),
+	},
+	.probe		= twl4030_power_probe,
+	.remove		= twl4030_power_remove,
+};
+
+module_platform_driver(twl4030_power_driver);
+
+MODULE_AUTHOR("Nokia Corporation");
+MODULE_AUTHOR("Texas Instruments, Inc.");
+MODULE_DESCRIPTION("Power management for TWL4030");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:twl4030_power");

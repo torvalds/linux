@@ -458,7 +458,7 @@ common_exception_return:
 
 	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
 	_bbsi.l	a4, TIF_NOTIFY_RESUME, 2f
-	_bbci.l	a4, TIF_SIGPENDING, 4f
+	_bbci.l	a4, TIF_SIGPENDING, 5f
 
 2:	l32i	a4, a1, PT_DEPC
 	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
@@ -476,6 +476,13 @@ common_exception_return:
 	callx4	a4
 	j	1b
 
+5:
+#ifdef CONFIG_DEBUG_TLB_SANITY
+	l32i	a4, a1, PT_DEPC
+	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
+	movi	a4, check_tlb_sanity
+	callx4	a4
+#endif
 4:	/* Restore optional registers. */
 
 	load_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
@@ -1792,10 +1799,15 @@ ENTRY(fast_store_prohibited)
 	l32i	a0, a0, 0
 	beqz	a0, 2f
 
-	/* Note that we assume _PAGE_WRITABLE_BIT is only set if pte is valid.*/
+	/*
+	 * Note that we test _PAGE_WRITABLE_BIT only if PTE is present
+	 * and is not PAGE_NONE. See pgtable.h for possible PTE layouts.
+	 */
 
 	_PTE_OFFSET(a0, a1, a4)
 	l32i	a4, a0, 0		# read pteval
+	movi	a1, _PAGE_CA_INVALID
+	ball	a4, a1, 2f
 	bbci.l	a4, _PAGE_WRITABLE_BIT, 2f
 
 	movi	a1, _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_HW_WRITE

@@ -18,6 +18,9 @@
 #include <linux/regulator/lp872x.h>
 #include <linux/regulator/driver.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/regulator/of_regulator.h>
 
 /* Registers : LP8720/8725 shared */
 #define LP872X_GENERAL_CFG		0x00
@@ -723,8 +726,8 @@ static int lp872x_init_dvs(struct lp872x *lp)
 
 	gpio = dvs->gpio;
 	if (!gpio_is_valid(gpio)) {
-		dev_err(lp->dev, "invalid gpio: %d\n", gpio);
-		return -EINVAL;
+		dev_warn(lp->dev, "invalid gpio: %d\n", gpio);
+		goto set_default_dvs_mode;
 	}
 
 	pinstate = dvs->init_state;
@@ -829,6 +832,103 @@ static const struct regmap_config lp872x_regmap_config = {
 	.max_register = MAX_REGISTERS,
 };
 
+#ifdef CONFIG_OF
+
+#define LP872X_VALID_OPMODE	(REGULATOR_MODE_FAST | REGULATOR_MODE_NORMAL)
+
+static struct of_regulator_match lp8720_matches[] = {
+	{ .name = "ldo1", .driver_data = (void *)LP8720_ID_LDO1, },
+	{ .name = "ldo2", .driver_data = (void *)LP8720_ID_LDO2, },
+	{ .name = "ldo3", .driver_data = (void *)LP8720_ID_LDO3, },
+	{ .name = "ldo4", .driver_data = (void *)LP8720_ID_LDO4, },
+	{ .name = "ldo5", .driver_data = (void *)LP8720_ID_LDO5, },
+	{ .name = "buck", .driver_data = (void *)LP8720_ID_BUCK, },
+};
+
+static struct of_regulator_match lp8725_matches[] = {
+	{ .name = "ldo1", .driver_data = (void *)LP8725_ID_LDO1, },
+	{ .name = "ldo2", .driver_data = (void *)LP8725_ID_LDO2, },
+	{ .name = "ldo3", .driver_data = (void *)LP8725_ID_LDO3, },
+	{ .name = "ldo4", .driver_data = (void *)LP8725_ID_LDO4, },
+	{ .name = "ldo5", .driver_data = (void *)LP8725_ID_LDO5, },
+	{ .name = "lilo1", .driver_data = (void *)LP8725_ID_LILO1, },
+	{ .name = "lilo2", .driver_data = (void *)LP8725_ID_LILO2, },
+	{ .name = "buck1", .driver_data = (void *)LP8725_ID_BUCK1, },
+	{ .name = "buck2", .driver_data = (void *)LP8725_ID_BUCK2, },
+};
+
+static struct lp872x_platform_data
+*lp872x_populate_pdata_from_dt(struct device *dev, enum lp872x_id which)
+{
+	struct device_node *np = dev->of_node;
+	struct lp872x_platform_data *pdata;
+	struct of_regulator_match *match;
+	struct regulator_init_data *d;
+	int num_matches;
+	int count;
+	int i;
+	u8 dvs_state;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		goto out;
+
+	of_property_read_u8(np, "ti,general-config", &pdata->general_config);
+	if (of_find_property(np, "ti,update-config", NULL))
+		pdata->update_config = true;
+
+	pdata->dvs = devm_kzalloc(dev, sizeof(struct lp872x_dvs), GFP_KERNEL);
+	if (!pdata->dvs)
+		goto out;
+
+	pdata->dvs->gpio = of_get_named_gpio(np, "ti,dvs-gpio", 0);
+	of_property_read_u8(np, "ti,dvs-vsel", (u8 *)&pdata->dvs->vsel);
+	of_property_read_u8(np, "ti,dvs-state", &dvs_state);
+	pdata->dvs->init_state = dvs_state ? DVS_HIGH : DVS_LOW;
+
+	if (of_get_child_count(np) == 0)
+		goto out;
+
+	switch (which) {
+	case LP8720:
+		match = lp8720_matches;
+		num_matches = ARRAY_SIZE(lp8720_matches);
+		break;
+	case LP8725:
+		match = lp8725_matches;
+		num_matches = ARRAY_SIZE(lp8725_matches);
+		break;
+	default:
+		goto out;
+	}
+
+	count = of_regulator_match(dev, np, match, num_matches);
+	if (count <= 0)
+		goto out;
+
+	for (i = 0; i < num_matches; i++) {
+		pdata->regulator_data[i].id = (int)match[i].driver_data;
+		pdata->regulator_data[i].init_data = match[i].init_data;
+
+		/* Operation mode configuration for buck/buck1/buck2 */
+		if (strncmp(match[i].name, "buck", 4))
+			continue;
+
+		d = pdata->regulator_data[i].init_data;
+		d->constraints.valid_modes_mask |= LP872X_VALID_OPMODE;
+		d->constraints.valid_ops_mask |= REGULATOR_CHANGE_MODE;
+	}
+out:
+	return pdata;
+}
+#else
+static struct lp872x_platform_data
+*lp872x_populate_pdata_from_dt(struct device *dev, enum lp872x_id which)
+{
+	return NULL;
+}
+#endif
+
 static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp872x *lp;
@@ -837,6 +937,10 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 		[LP8720] = LP8720_NUM_REGULATORS,
 		[LP8725] = LP8725_NUM_REGULATORS,
 	};
+
+	if (cl->dev.of_node)
+		cl->dev.platform_data = lp872x_populate_pdata_from_dt(&cl->dev,
+					      (enum lp872x_id)id->driver_data);
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp872x), GFP_KERNEL);
 	if (!lp)
@@ -882,6 +986,13 @@ static int lp872x_remove(struct i2c_client *cl)
 	return 0;
 }
 
+static const struct of_device_id lp872x_dt_ids[] = {
+	{ .compatible = "ti,lp8720", },
+	{ .compatible = "ti,lp8725", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, lp872x_dt_ids);
+
 static const struct i2c_device_id lp872x_ids[] = {
 	{"lp8720", LP8720},
 	{"lp8725", LP8725},
@@ -893,6 +1004,7 @@ static struct i2c_driver lp872x_driver = {
 	.driver = {
 		.name = "lp872x",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(lp872x_dt_ids),
 	},
 	.probe = lp872x_probe,
 	.remove = lp872x_remove,

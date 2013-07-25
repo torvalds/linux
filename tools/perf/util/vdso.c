@@ -91,7 +91,7 @@ void vdso__exit(void)
 
 struct dso *vdso__dso_findnew(struct list_head *head)
 {
-	struct dso *dso = dsos__find(head, VDSO__MAP_NAME);
+	struct dso *dso = dsos__find(head, VDSO__MAP_NAME, true);
 
 	if (!dso) {
 		char *file;

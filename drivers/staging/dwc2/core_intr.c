@@ -403,8 +403,7 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 #define GINTMSK_COMMON	(GINTSTS_WKUPINT | GINTSTS_SESSREQINT |		\
 			 GINTSTS_CONIDSTSCHNG | GINTSTS_OTGINT |	\
 			 GINTSTS_MODEMIS | GINTSTS_DISCONNINT |		\
-			 GINTSTS_USBSUSP | GINTSTS_RESTOREDONE |	\
-			 GINTSTS_PRTINT)
+			 GINTSTS_USBSUSP | GINTSTS_PRTINT)
 
 /*
  * This function returns the Core Interrupt register
@@ -450,7 +449,7 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 {
 	struct dwc2_hsotg *hsotg = dev;
 	u32 gintsts;
-	int retval = 0;
+	irqreturn_t retval = IRQ_NONE;
 
 	if (dwc2_check_core_status(hsotg) < 0) {
 		dev_warn(hsotg->dev, "Controller is disconnected\n");
@@ -461,7 +460,7 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 
 	gintsts = dwc2_read_common_intr(hsotg);
 	if (gintsts & ~GINTSTS_PRTINT)
-		retval = 1;
+		retval = IRQ_HANDLED;
 
 	if (gintsts & GINTSTS_MODEMIS)
 		dwc2_handle_mode_mismatch_intr(hsotg);
@@ -477,12 +476,6 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 		dwc2_handle_wakeup_detected_intr(hsotg);
 	if (gintsts & GINTSTS_USBSUSP)
 		dwc2_handle_usb_suspend_intr(hsotg);
-
-	if (gintsts & GINTSTS_RESTOREDONE) {
-		gintsts = GINTSTS_RESTOREDONE;
-		writel(gintsts, hsotg->regs + GINTSTS);
-		dev_dbg(hsotg->dev, " --Restore done interrupt received--\n");
-	}
 
 	if (gintsts & GINTSTS_PRTINT) {
 		/*
@@ -500,6 +493,6 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 
 	spin_unlock(&hsotg->lock);
 out:
-	return IRQ_RETVAL(retval);
+	return retval;
 }
 EXPORT_SYMBOL_GPL(dwc2_handle_common_intr);

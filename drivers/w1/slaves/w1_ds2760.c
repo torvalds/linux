@@ -203,3 +203,4 @@ module_exit(w1_ds2760_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Szabolcs Gyurko <szabolcs.gyurko@tlt.hu>");
 MODULE_DESCRIPTION("1-wire Driver Dallas 2760 battery monitor chip");
+MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2760));

@@ -53,31 +53,7 @@ struct nouveau_fb {
 
 	bool (*memtype_valid)(struct nouveau_fb *, u32 memtype);
 
-	struct {
-		enum {
-			NV_MEM_TYPE_UNKNOWN = 0,
-			NV_MEM_TYPE_STOLEN,
-			NV_MEM_TYPE_SGRAM,
-			NV_MEM_TYPE_SDRAM,
-			NV_MEM_TYPE_DDR1,
-			NV_MEM_TYPE_DDR2,
-			NV_MEM_TYPE_DDR3,
-			NV_MEM_TYPE_GDDR2,
-			NV_MEM_TYPE_GDDR3,
-			NV_MEM_TYPE_GDDR4,
-			NV_MEM_TYPE_GDDR5
-		} type;
-		u64 stolen;
-		u64 size;
-
-		int ranks;
-		int parts;
-
-		int  (*init)(struct nouveau_fb *);
-		int  (*get)(struct nouveau_fb *, u64 size, u32 align,
-			    u32 size_nc, u32 type, struct nouveau_mem **);
-		void (*put)(struct nouveau_fb *, struct nouveau_mem **);
-	} ram;
+	struct nouveau_ram *ram;
 
 	struct nouveau_mm vram;
 	struct nouveau_mm tags;
@@ -102,18 +78,6 @@ nouveau_fb(void *obj)
 	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_FB];
 }
 
-#define nouveau_fb_create(p,e,c,d)                                             \
-	nouveau_subdev_create((p), (e), (c), 0, "PFB", "fb", (d))
-int  nouveau_fb_preinit(struct nouveau_fb *);
-void nouveau_fb_destroy(struct nouveau_fb *);
-int  nouveau_fb_init(struct nouveau_fb *);
-#define nouveau_fb_fini(p,s)                                                   \
-	nouveau_subdev_fini(&(p)->base, (s))
-
-void _nouveau_fb_dtor(struct nouveau_object *);
-int  _nouveau_fb_init(struct nouveau_object *);
-#define _nouveau_fb_fini _nouveau_subdev_fini
-
 extern struct nouveau_oclass nv04_fb_oclass;
 extern struct nouveau_oclass nv10_fb_oclass;
 extern struct nouveau_oclass nv1a_fb_oclass;
@@ -132,40 +96,31 @@ extern struct nouveau_oclass nv4e_fb_oclass;
 extern struct nouveau_oclass nv50_fb_oclass;
 extern struct nouveau_oclass nvc0_fb_oclass;
 
-struct nouveau_bios;
-int  nouveau_fb_bios_memtype(struct nouveau_bios *);
+struct nouveau_ram {
+	struct nouveau_object base;
+	enum {
+		NV_MEM_TYPE_UNKNOWN = 0,
+		NV_MEM_TYPE_STOLEN,
+		NV_MEM_TYPE_SGRAM,
+		NV_MEM_TYPE_SDRAM,
+		NV_MEM_TYPE_DDR1,
+		NV_MEM_TYPE_DDR2,
+		NV_MEM_TYPE_DDR3,
+		NV_MEM_TYPE_GDDR2,
+		NV_MEM_TYPE_GDDR3,
+		NV_MEM_TYPE_GDDR4,
+		NV_MEM_TYPE_GDDR5
+	} type;
+	u64 stolen;
+	u64 size;
+	u32 tags;
 
-bool nv04_fb_memtype_valid(struct nouveau_fb *, u32 memtype);
+	int ranks;
+	int parts;
 
-void nv10_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
-		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
-void nv10_fb_tile_fini(struct nouveau_fb *, int i, struct nouveau_fb_tile *);
-void nv10_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
-
-int  nv20_fb_vram_init(struct nouveau_fb *);
-void nv20_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
-		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
-void nv20_fb_tile_fini(struct nouveau_fb *, int i, struct nouveau_fb_tile *);
-void nv20_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
-
-int  nv30_fb_init(struct nouveau_object *);
-void nv30_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
-		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
-
-void nv40_fb_tile_comp(struct nouveau_fb *, int i, u32 size, u32 flags,
-		       struct nouveau_fb_tile *);
-
-int  nv41_fb_vram_init(struct nouveau_fb *);
-int  nv41_fb_init(struct nouveau_object *);
-void nv41_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
-
-int  nv44_fb_vram_init(struct nouveau_fb *);
-int  nv44_fb_init(struct nouveau_object *);
-void nv44_fb_tile_prog(struct nouveau_fb *, int, struct nouveau_fb_tile *);
-
-void nv46_fb_tile_init(struct nouveau_fb *, int i, u32 addr, u32 size,
-		       u32 pitch, u32 flags, struct nouveau_fb_tile *);
-
-void nv50_fb_vram_del(struct nouveau_fb *, struct nouveau_mem **);
+	int  (*get)(struct nouveau_fb *, u64 size, u32 align,
+		    u32 size_nc, u32 type, struct nouveau_mem **);
+	void (*put)(struct nouveau_fb *, struct nouveau_mem **);
+};
 
 #endif

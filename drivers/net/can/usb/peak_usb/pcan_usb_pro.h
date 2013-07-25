@@ -29,6 +29,7 @@
 
 /* Vendor Request value for XXX_FCT */
 #define PCAN_USBPRO_FCT_DRVLD		5 /* tell device driver is loaded */
+#define PCAN_USBPRO_FCT_DRVLD_REQ_LEN	16
 
 /* PCAN_USBPRO_INFO_BL vendor request record type */
 struct __packed pcan_usb_pro_blinfo {

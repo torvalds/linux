@@ -938,6 +938,15 @@ int t4_check_fw_version(struct adapter *adapter)
 	memcpy(adapter->params.api_vers, api_vers,
 	       sizeof(adapter->params.api_vers));
 
+	if (major < exp_major || (major == exp_major && minor < exp_minor) ||
+	    (major == exp_major && minor == exp_minor && micro < exp_micro)) {
+		dev_err(adapter->pdev_dev,
+			"Card has firmware version %u.%u.%u, minimum "
+			"supported firmware is %u.%u.%u.\n", major, minor,
+			micro, exp_major, exp_minor, exp_micro);
+		return -EFAULT;
+	}
+
 	if (major != exp_major) {            /* major mismatch - fail */
 		dev_err(adapter->pdev_dev,
 			"card FW has major version %u, driver wants %u\n",
@@ -3773,7 +3782,6 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 		p->lport = j;
 		p->rss_size = rss_size;
 		memcpy(adap->port[i]->dev_addr, addr, ETH_ALEN);
-		adap->port[i]->dev_id = j;
 
 		ret = ntohl(c.u.info.lstatus_to_modtype);
 		p->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP) ?

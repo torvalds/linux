@@ -185,7 +185,7 @@ static struct mv_sata_platform_data lsmini_sata_data = {
 
 static void lsmini_power_off(void)
 {
-	orion5x_restart('h', NULL);
+	orion5x_restart(REBOOT_HARD, NULL);
 }
 
 

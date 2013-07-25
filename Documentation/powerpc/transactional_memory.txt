@@ -147,6 +147,25 @@ Example signal handler:
       fix_the_problem(ucp->dar);
     }
 
+When in an active transaction that takes a signal, we need to be careful with
+the stack.  It's possible that the stack has moved back up after the tbegin.
+The obvious case here is when the tbegin is called inside a function that
+returns before a tend.  In this case, the stack is part of the checkpointed
+transactional memory state.  If we write over this non transactionally or in
+suspend, we are in trouble because if we get a tm abort, the program counter and
+stack pointer will be back at the tbegin but our in memory stack won't be valid
+anymore.
+
+To avoid this, when taking a signal in an active transaction, we need to use
+the stack pointer from the checkpointed state, rather than the speculated
+state.  This ensures that the signal context (written tm suspended) will be
+written below the stack required for the rollback.  The transaction is aborted
+becuase of the treclaim, so any memory written between the tbegin and the
+signal will be rolled back anyway.
+
+For signals taken in non-TM or suspended mode, we use the
+normal/non-checkpointed stack pointer.
+
 
 Failure cause codes used by kernel
 ==================================
@@ -155,14 +174,18 @@ These are defined in <asm/reg.h>, and distinguish different reasons why the
 kernel aborted a transaction:
 
  TM_CAUSE_RESCHED       Thread was rescheduled.
+ TM_CAUSE_TLBI          Software TLB invalide.
  TM_CAUSE_FAC_UNAV      FP/VEC/VSX unavailable trap.
  TM_CAUSE_SYSCALL       Currently unused; future syscalls that must abort
                         transactions for consistency will use this.
  TM_CAUSE_SIGNAL        Signal delivered.
  TM_CAUSE_MISC          Currently unused.
+ TM_CAUSE_ALIGNMENT     Alignment fault.
+ TM_CAUSE_EMULATE       Emulation that touched memory.
 
-These can be checked by the user program's abort handler as TEXASR[0:7].
-
+These can be checked by the user program's abort handler as TEXASR[0:7].  If
+bit 7 is set, it indicates that the error is consider persistent.  For example
+a TM_CAUSE_ALIGNMENT will be persistent while a TM_CAUSE_RESCHED will not.q
 
 GDB
 ===

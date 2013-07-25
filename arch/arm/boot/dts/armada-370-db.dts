@@ -74,6 +74,7 @@
 				 */
 				status = "disabled";
 				/* No CD or WP GPIOs */
+				broken-cd;
 			};
 
 			usb@50000 {

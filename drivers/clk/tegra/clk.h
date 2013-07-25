@@ -128,6 +128,31 @@ struct pdiv_map {
 };
 
 /**
+ * struct div_nmp - offset and width of m,n and p fields
+ *
+ * @divn_shift:	shift to the feedback divider bit field
+ * @divn_width:	width of the feedback divider bit field
+ * @divm_shift:	shift to the input divider bit field
+ * @divm_width:	width of the input divider bit field
+ * @divp_shift:	shift to the post divider bit field
+ * @divp_width:	width of the post divider bit field
+ * @override_divn_shift: shift to the feedback divider bitfield in override reg
+ * @override_divm_shift: shift to the input divider bitfield in override reg
+ * @override_divp_shift: shift to the post divider bitfield in override reg
+ */
+struct div_nmp {
+	u8		divn_shift;
+	u8		divn_width;
+	u8		divm_shift;
+	u8		divm_width;
+	u8		divp_shift;
+	u8		divp_width;
+	u8		override_divn_shift;
+	u8		override_divm_shift;
+	u8		override_divp_shift;
+};
+
+/**
  * struct clk_pll_params - PLL parameters
  *
  * @input_min:			Minimum input frequency
@@ -161,11 +186,14 @@ struct tegra_clk_pll_params {
 	u32		aux_reg;
 	u32		dyn_ramp_reg;
 	u32		ext_misc_reg[3];
+	u32		pmc_divnm_reg;
+	u32		pmc_divp_reg;
 	int		stepa_shift;
 	int		stepb_shift;
 	int		lock_delay;
 	int		max_p;
 	struct pdiv_map *pdiv_tohw;
+	struct div_nmp	*div_nmp;
 };
 
 /**
@@ -179,12 +207,6 @@ struct tegra_clk_pll_params {
  * @flags:	PLL flags
  * @fixed_rate:	PLL rate if it is fixed
  * @lock:	register lock
- * @divn_shift:	shift to the feedback divider bit field
- * @divn_width:	width of the feedback divider bit field
- * @divm_shift:	shift to the input divider bit field
- * @divm_width:	width of the input divider bit field
- * @divp_shift:	shift to the post divider bit field
- * @divp_width:	width of the post divider bit field
  *
  * Flags:
  * TEGRA_PLL_USE_LOCK - This flag indicated to use lock bits for
@@ -214,12 +236,6 @@ struct tegra_clk_pll {
 	u32		flags;
 	unsigned long	fixed_rate;
 	spinlock_t	*lock;
-	u8		divn_shift;
-	u8		divn_width;
-	u8		divm_shift;
-	u8		divm_width;
-	u8		divp_shift;
-	u8		divp_width;
 	struct tegra_clk_pll_freq_table	*freq_table;
 	struct tegra_clk_pll_params	*params;
 };
@@ -571,23 +587,11 @@ void tegra_init_from_table(struct tegra_clk_init_table *tbl,
 void tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 		struct clk *clks[], int clk_max);
 
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-void tegra20_clock_init(struct device_node *np);
-#else
-static inline void tegra20_clock_init(struct device_node *np) {}
-#endif /* CONFIG_ARCH_TEGRA_2x_SOC */
-
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
-void tegra30_clock_init(struct device_node *np);
-#else
-static inline void tegra30_clock_init(struct device_node *np) {}
-#endif /* CONFIG_ARCH_TEGRA_3x_SOC */
-
-#ifdef CONFIG_ARCH_TEGRA_114_SOC
-void tegra114_clock_init(struct device_node *np);
-#else
-static inline void tegra114_clock_init(struct device_node *np) {}
-#endif /* CONFIG_ARCH_TEGRA114_SOC */
+void tegra114_clock_tune_cpu_trimmers_high(void);
+void tegra114_clock_tune_cpu_trimmers_low(void);
+void tegra114_clock_tune_cpu_trimmers_init(void);
+void tegra114_clock_assert_dfll_dvco_reset(void);
+void tegra114_clock_deassert_dfll_dvco_reset(void);
 
 typedef void (*tegra_clk_apply_init_table_func)(void);
 extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;

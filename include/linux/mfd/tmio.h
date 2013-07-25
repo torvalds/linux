@@ -81,10 +81,15 @@ int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
 void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);
 void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
 
+struct dma_chan;
+
 struct tmio_mmc_dma {
 	void *chan_priv_tx;
 	void *chan_priv_rx;
+	int slave_id_tx;
+	int slave_id_rx;
 	int alignment_shift;
+	bool (*filter)(struct dma_chan *chan, void *arg);
 };
 
 struct tmio_mmc_host;

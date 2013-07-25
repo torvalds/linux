@@ -388,7 +388,7 @@ static struct snd_soc_dai_ops mmp_sspa_dai_ops = {
 	.set_fmt	= mmp_sspa_set_dai_fmt,
 };
 
-struct snd_soc_dai_driver mmp_sspa_dai = {
+static struct snd_soc_dai_driver mmp_sspa_dai = {
 	.probe = mmp_sspa_probe,
 	.playback = {
 		.channels_min = 1,

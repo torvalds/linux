@@ -1963,6 +1963,10 @@ xlog_write_calc_vec_length(
 		headers++;
 
 	for (lv = log_vector; lv; lv = lv->lv_next) {
+		/* we don't write ordered log vectors */
+		if (lv->lv_buf_len == XFS_LOG_VEC_ORDERED)
+			continue;
+
 		headers += lv->lv_niovecs;
 
 		for (i = 0; i < lv->lv_niovecs; i++) {
@@ -2216,7 +2220,7 @@ xlog_write(
 	index = 0;
 	lv = log_vector;
 	vecp = lv->lv_iovecp;
-	while (lv && index < lv->lv_niovecs) {
+	while (lv && (!lv->lv_niovecs || index < lv->lv_niovecs)) {
 		void		*ptr;
 		int		log_offset;
 
@@ -2236,13 +2240,22 @@ xlog_write(
 		 * This loop writes out as many regions as can fit in the amount
 		 * of space which was allocated by xlog_state_get_iclog_space().
 		 */
-		while (lv && index < lv->lv_niovecs) {
-			struct xfs_log_iovec	*reg = &vecp[index];
+		while (lv && (!lv->lv_niovecs || index < lv->lv_niovecs)) {
+			struct xfs_log_iovec	*reg;
 			struct xlog_op_header	*ophdr;
 			int			start_rec_copy;
 			int			copy_len;
 			int			copy_off;
+			bool			ordered = false;
 
+			/* ordered log vectors have no regions to write */
+			if (lv->lv_buf_len == XFS_LOG_VEC_ORDERED) {
+				ASSERT(lv->lv_niovecs == 0);
+				ordered = true;
+				goto next_lv;
+			}
+
+			reg = &vecp[index];
 			ASSERT(reg->i_len % sizeof(__int32_t) == 0);
 			ASSERT((unsigned long)ptr % sizeof(__int32_t) == 0);
 
@@ -2302,12 +2315,13 @@ xlog_write(
 				break;
 
 			if (++index == lv->lv_niovecs) {
+next_lv:
 				lv = lv->lv_next;
 				index = 0;
 				if (lv)
 					vecp = lv->lv_iovecp;
 			}
-			if (record_cnt == 0) {
+			if (record_cnt == 0 && ordered == false) {
 				if (!lv)
 					return 0;
 				break;

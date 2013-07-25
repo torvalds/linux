@@ -296,7 +296,7 @@ void _sin_cos(s32 angle, s32 *sin, s32 *cos)
 	}
 }
 
-static unsigned char hal_get_dxx_reg(struct hw_data *pHwData, u16 number, u32 * pValue)
+static unsigned char hal_get_dxx_reg(struct hw_data *pHwData, u16 number, u32 *pValue)
 {
 	if (number < 0x1000)
 		number += 0x1000;

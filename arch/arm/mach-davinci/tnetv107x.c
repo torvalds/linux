@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 
 #include <asm/mach/map.h>
 
@@ -730,7 +731,7 @@ static void tnetv107x_watchdog_reset(struct platform_device *pdev)
 	__raw_writel(1, &regs->kick);
 }
 
-void tnetv107x_restart(char mode, const char *cmd)
+void tnetv107x_restart(enum reboot_mode mode, const char *cmd)
 {
 	tnetv107x_watchdog_reset(&tnetv107x_wdt_device);
 }

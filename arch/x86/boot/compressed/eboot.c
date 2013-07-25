@@ -251,51 +251,6 @@ static void find_bits(unsigned long mask, u8 *pos, u8 *size)
 	*size = len;
 }
 
-static efi_status_t setup_efi_vars(struct boot_params *params)
-{
-	struct setup_data *data;
-	struct efi_var_bootdata *efidata;
-	u64 store_size, remaining_size, var_size;
-	efi_status_t status;
-
-	if (sys_table->runtime->hdr.revision < EFI_2_00_SYSTEM_TABLE_REVISION)
-		return EFI_UNSUPPORTED;
-
-	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
-
-	while (data && data->next)
-		data = (struct setup_data *)(unsigned long)data->next;
-
-	status = efi_call_phys4((void *)sys_table->runtime->query_variable_info,
-				EFI_VARIABLE_NON_VOLATILE |
-				EFI_VARIABLE_BOOTSERVICE_ACCESS |
-				EFI_VARIABLE_RUNTIME_ACCESS, &store_size,
-				&remaining_size, &var_size);
-
-	if (status != EFI_SUCCESS)
-		return status;
-
-	status = efi_call_phys3(sys_table->boottime->allocate_pool,
-				EFI_LOADER_DATA, sizeof(*efidata), &efidata);
-
-	if (status != EFI_SUCCESS)
-		return status;
-
-	efidata->data.type = SETUP_EFI_VARS;
-	efidata->data.len = sizeof(struct efi_var_bootdata) -
-		sizeof(struct setup_data);
-	efidata->data.next = 0;
-	efidata->store_size = store_size;
-	efidata->remaining_size = remaining_size;
-	efidata->max_var_size = var_size;
-
-	if (data)
-		data->next = (unsigned long)efidata;
-	else
-		params->hdr.setup_data = (unsigned long)efidata;
-
-}
-
 static efi_status_t setup_efi_pci(struct boot_params *params)
 {
 	efi_pci_io_protocol *pci;
@@ -1037,18 +992,20 @@ static efi_status_t exit_boot(struct boot_params *boot_params,
 	efi_memory_desc_t *mem_map;
 	efi_status_t status;
 	__u32 desc_version;
+	bool called_exit = false;
 	u8 nr_entries;
 	int i;
 
 	size = sizeof(*mem_map) * 32;
 
 again:
-	size += sizeof(*mem_map);
+	size += sizeof(*mem_map) * 2;
 	_size = size;
 	status = low_alloc(size, 1, (unsigned long *)&mem_map);
 	if (status != EFI_SUCCESS)
 		return status;
 
+get_map:
 	status = efi_call_phys5(sys_table->boottime->get_memory_map, &size,
 				mem_map, &key, &desc_size, &desc_version);
 	if (status == EFI_BUFFER_TOO_SMALL) {
@@ -1074,8 +1031,20 @@ again:
 	/* Might as well exit boot services now */
 	status = efi_call_phys2(sys_table->boottime->exit_boot_services,
 				handle, key);
-	if (status != EFI_SUCCESS)
-		goto free_mem_map;
+	if (status != EFI_SUCCESS) {
+		/*
+		 * ExitBootServices() will fail if any of the event
+		 * handlers change the memory map. In which case, we
+		 * must be prepared to retry, but only once so that
+		 * we're guaranteed to exit on repeated failures instead
+		 * of spinning forever.
+		 */
+		if (called_exit)
+			goto free_mem_map;
+
+		called_exit = true;
+		goto get_map;
+	}
 
 	/* Historic? */
 	boot_params->alt_mem_k = 32 * 1024;
@@ -1201,8 +1170,6 @@ struct boot_params *efi_main(void *handle, efi_system_table_t *_table,
 		goto fail;
 
 	setup_graphics(boot_params);
-
-	setup_efi_vars(boot_params);
 
 	setup_efi_pci(boot_params);
 

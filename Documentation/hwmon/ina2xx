@@ -44,4 +44,6 @@ The INA226 monitors both a shunt voltage drop and bus supply voltage.
 The INA230 is a high or low side current shunt and power monitor with an I2C
 interface. The INA230 monitors both a shunt voltage drop and bus supply voltage.
 
-The shunt value in micro-ohms can be set via platform data.
+The shunt value in micro-ohms can be set via platform data or device tree.
+Please refer to the Documentation/devicetree/bindings/i2c/ina2xx.txt for bindings
+if the device tree is used.

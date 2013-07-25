@@ -7,6 +7,7 @@
  * Copyright (C) 2008, 2009 Wind River Systems
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
+#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/console.h>
@@ -39,12 +40,6 @@
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/pci-octeon.h>
 #include <asm/octeon/cvmx-mio-defs.h>
-
-#ifdef CONFIG_CAVIUM_DECODE_RSL
-extern void cvmx_interrupt_rsl_decode(void);
-extern int __cvmx_interrupt_ecc_report_single_bit_errors;
-extern void cvmx_interrupt_rsl_enable(void);
-#endif
 
 extern struct plat_smp_ops octeon_smp_ops;
 
@@ -428,13 +423,16 @@ static void octeon_restart(char *command)
  */
 static void octeon_kill_core(void *arg)
 {
-	mb();
-	if (octeon_is_simulation()) {
-		/* The simulator needs the watchdog to stop for dead cores */
-		cvmx_write_csr(CVMX_CIU_WDOGX(cvmx_get_core_num()), 0);
+	if (octeon_is_simulation())
 		/* A break instruction causes the simulator stop a core */
-		asm volatile ("sync\nbreak");
-	}
+		asm volatile ("break" ::: "memory");
+
+	local_irq_disable();
+	/* Disable watchdog on this core. */
+	cvmx_write_csr(CVMX_CIU_WDOGX(cvmx_get_core_num()), 0);
+	/* Spin in a low power mode. */
+	while (true)
+		asm volatile ("wait" ::: "memory");
 }
 
 
@@ -458,18 +456,6 @@ static void octeon_halt(void)
 
 	octeon_kill_core(NULL);
 }
-
-/**
- * Handle all the error condition interrupts that might occur.
- *
- */
-#ifdef CONFIG_CAVIUM_DECODE_RSL
-static irqreturn_t octeon_rlm_interrupt(int cpl, void *dev_id)
-{
-	cvmx_interrupt_rsl_decode();
-	return IRQ_HANDLED;
-}
-#endif
 
 /**
  * Return a string representing the system type
@@ -709,7 +695,7 @@ void __init prom_init(void)
 	if (cvmx_read_csr(CVMX_L2D_FUS3) & (3ull << 34)) {
 		pr_info("Skipping L2 locking due to reduced L2 cache size\n");
 	} else {
-		uint32_t ebase = read_c0_ebase() & 0x3ffff000;
+		uint32_t __maybe_unused ebase = read_c0_ebase() & 0x3ffff000;
 #ifdef CONFIG_CAVIUM_OCTEON_LOCK_L2_TLB
 		/* TLB refill */
 		cvmx_l2c_lock_mem_region(ebase, 0x100);
@@ -993,7 +979,7 @@ void __init plat_mem_setup(void)
 	cvmx_bootmem_unlock();
 	/* Add the memory region for the kernel. */
 	kernel_start = (unsigned long) _text;
-	kernel_size = ALIGN(_end - _text, 0x100000);
+	kernel_size = _end - _text;
 
 	/* Adjust for physical offset. */
 	kernel_start &= ~0xffffffff80000000ULL;
@@ -1061,15 +1047,6 @@ void prom_free_prom_memory(void)
 			panic("Core-14449 WAR not in place (%04x).\n"
 			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).", insn);
 	}
-#ifdef CONFIG_CAVIUM_DECODE_RSL
-	cvmx_interrupt_rsl_enable();
-
-	/* Add an interrupt handler for general failures. */
-	if (request_irq(OCTEON_IRQ_RML, octeon_rlm_interrupt, IRQF_SHARED,
-			"RML/RSL", octeon_rlm_interrupt)) {
-		panic("Unable to request_irq(OCTEON_IRQ_RML)");
-	}
-#endif
 }
 
 int octeon_prune_device_tree(void);

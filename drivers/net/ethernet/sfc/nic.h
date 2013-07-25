@@ -254,8 +254,8 @@ extern int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
 struct ethtool_ts_info;
 extern void efx_ptp_probe(struct efx_nic *efx);
 extern int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd);
-extern int efx_ptp_get_ts_info(struct net_device *net_dev,
-			       struct ethtool_ts_info *ts_info);
+extern void efx_ptp_get_ts_info(struct efx_nic *efx,
+				struct ethtool_ts_info *ts_info);
 extern bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 extern int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 extern void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);

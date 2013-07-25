@@ -32,7 +32,7 @@ extern const char default_sort_order[];
 extern int sort__need_collapse;
 extern int sort__has_parent;
 extern int sort__has_sym;
-extern int sort__branch_mode;
+extern enum sort_mode sort__mode;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
 extern struct sort_entry sort_sym;
@@ -117,11 +117,17 @@ static inline struct hist_entry *hist_entry__next_pair(struct hist_entry *he)
 	return NULL;
 }
 
-static inline void hist_entry__add_pair(struct hist_entry *he,
-					struct hist_entry *pair)
+static inline void hist_entry__add_pair(struct hist_entry *pair,
+					struct hist_entry *he)
 {
-	list_add_tail(&he->pairs.head, &pair->pairs.node);
+	list_add_tail(&pair->pairs.node, &he->pairs.head);
 }
+
+enum sort_mode {
+	SORT_MODE__NORMAL,
+	SORT_MODE__BRANCH,
+	SORT_MODE__MEMORY,
+};
 
 enum sort_type {
 	/* common sort keys */
@@ -132,14 +138,6 @@ enum sort_type {
 	SORT_PARENT,
 	SORT_CPU,
 	SORT_SRCLINE,
-	SORT_LOCAL_WEIGHT,
-	SORT_GLOBAL_WEIGHT,
-	SORT_MEM_DADDR_SYMBOL,
-	SORT_MEM_DADDR_DSO,
-	SORT_MEM_LOCKED,
-	SORT_MEM_TLB,
-	SORT_MEM_LVL,
-	SORT_MEM_SNOOP,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,
@@ -148,6 +146,17 @@ enum sort_type {
 	SORT_SYM_FROM,
 	SORT_SYM_TO,
 	SORT_MISPREDICT,
+
+	/* memory mode specific sort keys */
+	__SORT_MEMORY_MODE,
+	SORT_LOCAL_WEIGHT = __SORT_MEMORY_MODE,
+	SORT_GLOBAL_WEIGHT,
+	SORT_MEM_DADDR_SYMBOL,
+	SORT_MEM_DADDR_DSO,
+	SORT_MEM_LOCKED,
+	SORT_MEM_TLB,
+	SORT_MEM_LVL,
+	SORT_MEM_SNOOP,
 };
 
 /*
@@ -172,7 +181,6 @@ extern struct list_head hist_entry__sort_list;
 
 int setup_sorting(void);
 extern int sort_dimension__add(const char *);
-void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,
-			     const char *list_name, FILE *fp);
+void sort__setup_elide(FILE *fp);
 
 #endif	/* __PERF_SORT_H */

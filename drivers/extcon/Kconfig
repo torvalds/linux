@@ -53,4 +53,11 @@ config EXTCON_ARIZONA
 	  with Wolfson Arizona devices. These are audio CODECs with
 	  advanced audio accessory detection support.
 
+config EXTCON_PALMAS
+	tristate "Palmas USB EXTCON support"
+	depends on MFD_PALMAS
+	help
+	  Say Y here to enable support for USB peripheral and USB host
+	  detection by palmas usb.
+
 endif # MULTISTATE_SWITCH

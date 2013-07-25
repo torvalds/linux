@@ -27,7 +27,7 @@
 
 #include <media/soc_camera.h>
 #include <media/tw9910.h>
-#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-subdev.h>
 
 #define GET_ID(val)  ((val & 0xF8) >> 3)
@@ -228,6 +228,7 @@ struct tw9910_scale_ctrl {
 
 struct tw9910_priv {
 	struct v4l2_subdev		subdev;
+	struct v4l2_clk			*clk;
 	struct tw9910_video_info	*info;
 	const struct tw9910_scale_ctrl	*scale;
 	v4l2_std_id			norm;
@@ -518,18 +519,6 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	return 0;
 }
 
-static int tw9910_g_chip_ident(struct v4l2_subdev *sd,
-			       struct v4l2_dbg_chip_ident *id)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct tw9910_priv *priv = to_tw9910(client);
-
-	id->ident = V4L2_IDENT_TW9910;
-	id->revision = priv->revision;
-
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int tw9910_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
@@ -540,6 +529,7 @@ static int tw9910_g_register(struct v4l2_subdev *sd,
 	if (reg->reg > 0xff)
 		return -EINVAL;
 
+	reg->size = 1;
 	ret = i2c_smbus_read_byte_data(client, reg->reg);
 	if (ret < 0)
 		return ret;
@@ -570,8 +560,9 @@ static int tw9910_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
+	struct tw9910_priv *priv = to_tw9910(client);
 
-	return soc_camera_set_power(&client->dev, ssdd, on);
+	return soc_camera_set_power(&client->dev, ssdd, priv->clk, on);
 }
 
 static int tw9910_set_frame(struct v4l2_subdev *sd, u32 *width, u32 *height)
@@ -823,7 +814,6 @@ done:
 }
 
 static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
-	.g_chip_ident	= tw9910_g_chip_ident,
 	.s_std		= tw9910_s_std,
 	.g_std		= tw9910_g_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -912,6 +902,7 @@ static int tw9910_probe(struct i2c_client *client,
 	struct i2c_adapter		*adapter =
 		to_i2c_adapter(client->dev.parent);
 	struct soc_camera_subdev_desc	*ssdd = soc_camera_i2c_to_desc(client);
+	int ret;
 
 	if (!ssdd || !ssdd->drv_priv) {
 		dev_err(&client->dev, "TW9910: missing platform data!\n");
@@ -935,11 +926,21 @@ static int tw9910_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
 
-	return tw9910_video_probe(client);
+	priv->clk = v4l2_clk_get(&client->dev, "mclk");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
+	ret = tw9910_video_probe(client);
+	if (ret < 0)
+		v4l2_clk_put(priv->clk);
+
+	return ret;
 }
 
 static int tw9910_remove(struct i2c_client *client)
 {
+	struct tw9910_priv *priv = to_tw9910(client);
+	v4l2_clk_put(priv->clk);
 	return 0;
 }
 

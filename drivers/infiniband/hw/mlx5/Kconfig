@@ -1,0 +1,10 @@
+config MLX5_INFINIBAND
+	tristate "Mellanox Connect-IB HCA support"
+	depends on NETDEVICES && ETHERNET && PCI && X86
+	select NET_VENDOR_MELLANOX
+	select MLX5_CORE
+	---help---
+	  This driver provides low-level InfiniBand support for
+	  Mellanox Connect-IB PCI Express host channel adapters (HCAs).
+	  This is required to use InfiniBand protocols such as
+	  IP-over-IB or SRP with these devices.

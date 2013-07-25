@@ -21,6 +21,7 @@
 #include <asm/proc-fns.h>
 
 #include "db8500-regs.h"
+#include "id.h"
 
 static atomic_t master = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(master_lock);
@@ -114,6 +115,9 @@ static struct cpuidle_driver ux500_idle_driver = {
 
 int __init ux500_idle_init(void)
 {
+	if (!(cpu_is_u8500_family() || cpu_is_ux540_family()))
+		return -ENODEV;
+
 	/* Configure wake up reasons */
 	prcmu_enable_wakeups(PRCMU_WAKEUP(ARM) | PRCMU_WAKEUP(RTC) |
 			     PRCMU_WAKEUP(ABB));

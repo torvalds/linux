@@ -173,7 +173,7 @@ static ssize_t contrast_store(struct device *dev,
 	struct wm8505fb_info *fbi = to_wm8505fb_info(info);
 	unsigned long tmp;
 
-	if (strict_strtoul(buf, 10, &tmp) || (tmp > 0xff))
+	if (kstrtoul(buf, 10, &tmp) || (tmp > 0xff))
 		return -EINVAL;
 	fbi->contrast = tmp;
 

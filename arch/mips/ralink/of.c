@@ -88,7 +88,7 @@ void __init plat_mem_setup(void)
 	__dt_setup_arch(&__dtb_start);
 
 	if (soc_info.mem_size)
-		add_memory_region(soc_info.mem_base, soc_info.mem_size,
+		add_memory_region(soc_info.mem_base, soc_info.mem_size * SZ_1M,
 				  BOOT_MEM_RAM);
 	else
 		detect_memory_region(soc_info.mem_base,
@@ -104,7 +104,7 @@ static int __init plat_of_setup(void)
 	if (!of_have_populated_dt())
 		panic("device tree not present");
 
-	strncpy(of_ids[0].compatible, soc_info.compatible, len);
+	strlcpy(of_ids[0].compatible, soc_info.compatible, len);
 	strncpy(of_ids[1].compatible, "palmbus", len);
 
 	if (of_platform_populate(NULL, of_ids, NULL, NULL))

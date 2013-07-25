@@ -638,8 +638,10 @@ void gfs2_rs_deltree(struct gfs2_blkreserv *rs)
  */
 void gfs2_rs_delete(struct gfs2_inode *ip)
 {
+	struct inode *inode = &ip->i_inode;
+
 	down_write(&ip->i_rw_mutex);
-	if (ip->i_res) {
+	if (ip->i_res && atomic_read(&inode->i_writecount) <= 1) {
 		gfs2_rs_deltree(ip->i_res);
 		BUG_ON(ip->i_res->rs_free);
 		kmem_cache_free(gfs2_rsrv_cachep, ip->i_res);
@@ -1286,13 +1288,15 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	minlen = max_t(u64, r.minlen,
 		       q->limits.discard_granularity) >> bs_shift;
 
-	rgd = gfs2_blk2rgrpd(sdp, start, 0);
-	rgd_end = gfs2_blk2rgrpd(sdp, end - 1, 0);
-
-	if (end <= start ||
-	    minlen > sdp->sd_max_rg_data ||
-	    start > rgd_end->rd_data0 + rgd_end->rd_data)
+	if (end <= start || minlen > sdp->sd_max_rg_data)
 		return -EINVAL;
+
+	rgd = gfs2_blk2rgrpd(sdp, start, 0);
+	rgd_end = gfs2_blk2rgrpd(sdp, end, 0);
+
+	if ((gfs2_rgrpd_get_first(sdp) == gfs2_rgrpd_get_next(rgd_end))
+	    && (start > rgd_end->rd_data0 + rgd_end->rd_data))
+		return -EINVAL; /* start is beyond the end of the fs */
 
 	while (1) {
 
@@ -1334,7 +1338,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	}
 
 out:
-	r.len = trimmed << 9;
+	r.len = trimmed << bs_shift;
 	if (copy_to_user(argp, &r, sizeof(r)))
 		return -EFAULT;
 

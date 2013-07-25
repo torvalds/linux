@@ -38,7 +38,6 @@ extern struct dev_pm_domain omap_device_pm_domain;
 
 /* omap_device.flags values */
 #define OMAP_DEVICE_SUSPENDED		BIT(0)
-#define OMAP_DEVICE_NO_IDLE_ON_SUSPEND	BIT(1)
 
 /**
  * struct omap_device - omap_device wrapper for platform_devices
@@ -101,13 +100,4 @@ static inline struct omap_device *to_omap_device(struct platform_device *pdev)
 {
 	return pdev ? pdev->archdata.od : NULL;
 }
-
-static inline
-void omap_device_disable_idle_on_suspend(struct platform_device *pdev)
-{
-	struct omap_device *od = to_omap_device(pdev);
-
-	od->flags |= OMAP_DEVICE_NO_IDLE_ON_SUSPEND;
-}
-
 #endif

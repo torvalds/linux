@@ -32,7 +32,6 @@
 
 #define EM28XX_SNAPSHOT_KEY KEY_CAMERA
 #define EM28XX_SBUTTON_QUERY_INTERVAL 500
-#define EM28XX_R0C_USBSUSP_SNAPSHOT 0x20
 
 static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);

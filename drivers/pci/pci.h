@@ -202,6 +202,11 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		    struct resource *res, unsigned int reg);
 int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type);
 void pci_configure_ari(struct pci_dev *dev);
+void __ref __pci_bus_size_bridges(struct pci_bus *bus,
+			struct list_head *realloc_head);
+void __ref __pci_bus_assign_resources(const struct pci_bus *bus,
+				      struct list_head *realloc_head,
+				      struct list_head *fail_head);
 
 /**
  * pci_ari_enabled - query ARI forwarding status

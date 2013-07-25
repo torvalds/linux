@@ -85,6 +85,12 @@ struct pltfm_imx_data {
 	struct clk *clk_ipg;
 	struct clk *clk_ahb;
 	struct clk *clk_per;
+	enum {
+		NO_CMD_PENDING,      /* no multiblock command pending*/
+		MULTIBLK_IN_PROCESS, /* exact multiblock cmd in process */
+		WAIT_FOR_INT,        /* sent CMD12, waiting for response INT */
+	} multiblock_status;
+
 };
 
 static struct platform_device_id imx_esdhc_devtype[] = {
@@ -154,6 +160,8 @@ static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, i
 
 static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 	u32 val = readl(host->ioaddr + reg);
 
 	if (unlikely(reg == SDHCI_CAPABILITIES)) {
@@ -174,6 +182,18 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 		if (val & ESDHC_INT_VENDOR_SPEC_DMA_ERR) {
 			val &= ~ESDHC_INT_VENDOR_SPEC_DMA_ERR;
 			val |= SDHCI_INT_ADMA_ERROR;
+		}
+
+		/*
+		 * mask off the interrupt we get in response to the manually
+		 * sent CMD12
+		 */
+		if ((imx_data->multiblock_status == WAIT_FOR_INT) &&
+		    ((val & SDHCI_INT_RESPONSE) == SDHCI_INT_RESPONSE)) {
+			val &= ~SDHCI_INT_RESPONSE;
+			writel(SDHCI_INT_RESPONSE, host->ioaddr +
+						   SDHCI_INT_STATUS);
+			imx_data->multiblock_status = NO_CMD_PENDING;
 		}
 	}
 
@@ -211,6 +231,15 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 			v = readl(host->ioaddr + ESDHC_VENDOR_SPEC);
 			v &= ~ESDHC_VENDOR_SPEC_SDIO_QUIRK;
 			writel(v, host->ioaddr + ESDHC_VENDOR_SPEC);
+
+			if (imx_data->multiblock_status == MULTIBLK_IN_PROCESS)
+			{
+				/* send a manual CMD12 with RESPTYP=none */
+				data = MMC_STOP_TRANSMISSION << 24 |
+				       SDHCI_CMD_ABORTCMD << 16;
+				writel(data, host->ioaddr + SDHCI_TRANSFER_MODE);
+				imx_data->multiblock_status = WAIT_FOR_INT;
+			}
 	}
 
 	if (unlikely(reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)) {
@@ -277,10 +306,12 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		}
 		return;
 	case SDHCI_COMMAND:
-		if ((host->cmd->opcode == MMC_STOP_TRANSMISSION ||
-		     host->cmd->opcode == MMC_SET_BLOCK_COUNT) &&
-	            (imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
+		if (host->cmd->opcode == MMC_STOP_TRANSMISSION)
 			val |= SDHCI_CMD_ABORTCMD;
+
+		if ((host->cmd->opcode == MMC_SET_BLOCK_COUNT) &&
+		    (imx_data->flags & ESDHC_FLAG_MULTIBLK_NO_INT))
+			imx_data->multiblock_status = MULTIBLK_IN_PROCESS;
 
 		if (is_imx6q_usdhc(imx_data))
 			writel(val << 16,
@@ -324,8 +355,10 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		/*
 		 * Do not touch buswidth bits here. This is done in
 		 * esdhc_pltfm_bus_width.
+		 * Do not touch the D3CD bit either which is used for the
+		 * SDIO interrupt errata workaround.
 		 */
-		mask = 0xffff & ~ESDHC_CTRL_BUSWIDTH_MASK;
+		mask = 0xffff & ~(ESDHC_CTRL_BUSWIDTH_MASK | ESDHC_CTRL_D3CD);
 
 		esdhc_clrset_le(host, mask, new_val, reg);
 		return;
@@ -351,11 +384,33 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 	}
 }
 
+static unsigned int esdhc_pltfm_get_max_clock(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
+
+	u32 f_host = clk_get_rate(pltfm_host->clk);
+
+	if (boarddata->f_max && (boarddata->f_max < f_host))
+		return boarddata->f_max;
+	else
+		return f_host;
+}
+
 static unsigned int esdhc_pltfm_get_min_clock(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 
 	return clk_get_rate(pltfm_host->clk) / 256 / 16;
+}
+
+static inline void esdhc_pltfm_set_clock(struct sdhci_host *host,
+					 unsigned int clock)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+
+	esdhc_set_clock(host, clock, clk_get_rate(pltfm_host->clk));
 }
 
 static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)
@@ -405,8 +460,8 @@ static const struct sdhci_ops sdhci_esdhc_ops = {
 	.write_l = esdhc_writel_le,
 	.write_w = esdhc_writew_le,
 	.write_b = esdhc_writeb_le,
-	.set_clock = esdhc_set_clock,
-	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.set_clock = esdhc_pltfm_set_clock,
+	.get_max_clock = esdhc_pltfm_get_max_clock,
 	.get_min_clock = esdhc_pltfm_get_min_clock,
 	.get_ro = esdhc_pltfm_get_ro,
 	.platform_bus_width = esdhc_pltfm_bus_width,
@@ -449,6 +504,8 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	of_property_read_u32(np, "bus-width", &boarddata->max_bus_width);
 
+	of_property_read_u32(np, "max-frequency", &boarddata->f_max);
+
 	return 0;
 }
 #else
@@ -470,7 +527,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	int err;
 	struct pltfm_imx_data *imx_data;
 
-	host = sdhci_pltfm_init(pdev, &sdhci_esdhc_imx_pdata);
+	host = sdhci_pltfm_init(pdev, &sdhci_esdhc_imx_pdata, 0);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 

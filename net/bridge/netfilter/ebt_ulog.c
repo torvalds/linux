@@ -271,6 +271,12 @@ static int ebt_ulog_tg_check(const struct xt_tgchk_param *par)
 {
 	struct ebt_ulog_info *uloginfo = par->targinfo;
 
+	if (!par->net->xt.ebt_ulog_warn_deprecated) {
+		pr_info("ebt_ulog is deprecated and it will be removed soon, "
+			"use ebt_nflog instead\n");
+		par->net->xt.ebt_ulog_warn_deprecated = true;
+	}
+
 	if (uloginfo->nlgroup > 31)
 		return -EINVAL;
 

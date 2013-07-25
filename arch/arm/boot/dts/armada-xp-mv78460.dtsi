@@ -23,6 +23,7 @@
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
+		eth3 = &eth3;
 	};
 
 
@@ -105,9 +106,9 @@
 				interrupts = <91>;
 			};
 
-			ethernet@34000 {
+			eth3: ethernet@34000 {
 				compatible = "marvell,armada-370-neta";
-				reg = <0x34000 0x2500>;
+				reg = <0x34000 0x4000>;
 				interrupts = <14>;
 				clocks = <&gateclk 1>;
 				status = "disabled";

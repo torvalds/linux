@@ -298,11 +298,6 @@ static int tps80031_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tps80031_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int tps80031_rtc_suspend(struct device *dev)
 {
@@ -333,7 +328,6 @@ static struct platform_driver tps80031_rtc_driver = {
 		.pm	= &tps80031_pm_ops,
 	},
 	.probe	= tps80031_rtc_probe,
-	.remove	= tps80031_rtc_remove,
 };
 
 module_platform_driver(tps80031_rtc_driver);

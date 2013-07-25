@@ -3559,9 +3559,9 @@ err_out:
 
 static int check_enc_sas_cmd(struct sas_task *task)
 {
-	if ((task->ssp_task.cdb[0] == READ_10)
-		|| (task->ssp_task.cdb[0] == WRITE_10)
-		|| (task->ssp_task.cdb[0] == WRITE_VERIFY))
+	u8 cmd = task->ssp_task.cmd->cmnd[0];
+
+	if (cmd == READ_10 || cmd == WRITE_10 || cmd == WRITE_VERIFY)
 		return 1;
 	else
 		return 0;
@@ -3624,7 +3624,8 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 		ssp_cmd.ssp_iu.efb_prio_attr |= 0x80;
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_prio << 3);
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_attr & 7);
-	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cdb, 16);
+	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cmd->cmnd,
+		       task->ssp_task.cmd->cmd_len);
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 
 	/* Check if encryption is set */
@@ -3632,7 +3633,7 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 		!(pm8001_ha->encrypt_info.status) && check_enc_sas_cmd(task)) {
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk(
 			"Encryption enabled.Sending Encrypt SAS command 0x%x\n",
-			task->ssp_task.cdb[0]));
+			task->ssp_task.cmd->cmnd[0]));
 		opc = OPC_INB_SSP_INI_DIF_ENC_IO;
 		/* enable encryption. 0 for SAS 1.1 and SAS 2.0 compatible TLR*/
 		ssp_cmd.dad_dir_m_tlr =	cpu_to_le32
@@ -3666,14 +3667,14 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 		/* XTS mode. All other fields are 0 */
 		ssp_cmd.key_cmode = 0x6 << 4;
 		/* set tweak values. Should be the start lba */
-		ssp_cmd.twk_val0 = cpu_to_le32((task->ssp_task.cdb[2] << 24) |
-						(task->ssp_task.cdb[3] << 16) |
-						(task->ssp_task.cdb[4] << 8) |
-						(task->ssp_task.cdb[5]));
+		ssp_cmd.twk_val0 = cpu_to_le32((task->ssp_task.cmd->cmnd[2] << 24) |
+						(task->ssp_task.cmd->cmnd[3] << 16) |
+						(task->ssp_task.cmd->cmnd[4] << 8) |
+						(task->ssp_task.cmd->cmnd[5]));
 	} else {
 		PM8001_IO_DBG(pm8001_ha, pm8001_printk(
 			"Sending Normal SAS command 0x%x inb q %x\n",
-			task->ssp_task.cdb[0], inb));
+			task->ssp_task.cmd->cmnd[0], inb));
 		/* fill in PRD (scatter/gather) table, if any */
 		if (task->num_scatter > 1) {
 			pm8001_chip_make_sg(task->scatter, ccb->n_elem,

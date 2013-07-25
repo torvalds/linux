@@ -62,7 +62,8 @@ static int ksz9021rn_phy_fixup(struct phy_device *phy)
 
 static void __init sama5_dt_device_init(void)
 {
-	if (of_machine_is_compatible("atmel,sama5d3xcm"))
+	if (of_machine_is_compatible("atmel,sama5d3xcm") &&
+	    IS_ENABLED(CONFIG_PHYLIB))
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 			ksz9021rn_phy_fixup);
 

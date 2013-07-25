@@ -650,6 +650,23 @@ static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	return H_SUCCESS;
 }
 
+static int kvmppc_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
+{
+	union kvmppc_icp_state state;
+	struct kvmppc_icp *icp;
+
+	icp = vcpu->arch.icp;
+	if (icp->server_num != server) {
+		icp = kvmppc_xics_find_server(vcpu->kvm, server);
+		if (!icp)
+			return H_PARAMETER;
+	}
+	state = ACCESS_ONCE(icp->state);
+	kvmppc_set_gpr(vcpu, 4, ((u32)state.cppr << 24) | state.xisr);
+	kvmppc_set_gpr(vcpu, 5, state.mfrr);
+	return H_SUCCESS;
+}
+
 static noinline void kvmppc_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	union kvmppc_icp_state old_state, new_state;
@@ -786,6 +803,18 @@ int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 req)
 	/* Check if we have an ICP */
 	if (!xics || !vcpu->arch.icp)
 		return H_HARDWARE;
+
+	/* These requests don't have real-mode implementations at present */
+	switch (req) {
+	case H_XIRR_X:
+		res = kvmppc_h_xirr(vcpu);
+		kvmppc_set_gpr(vcpu, 4, res);
+		kvmppc_set_gpr(vcpu, 5, get_tb());
+		return rc;
+	case H_IPOLL:
+		rc = kvmppc_h_ipoll(vcpu, kvmppc_get_gpr(vcpu, 4));
+		return rc;
+	}
 
 	/* Check for real mode returning too hard */
 	if (xics->real_mode)

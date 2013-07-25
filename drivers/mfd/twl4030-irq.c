@@ -537,16 +537,13 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 		/* Modify only the bits we know must change */
 		while (edge_change) {
 			int		i = fls(edge_change) - 1;
-			struct irq_data	*idata;
 			int		byte = i >> 2;
 			int		off = (i & 0x3) * 2;
 			unsigned int	type;
 
-			idata = irq_get_irq_data(i + agent->irq_base);
-
 			bytes[byte] &= ~(0x03 << off);
 
-			type = irqd_get_trigger_type(idata);
+			type = irq_get_trigger_type(i + agent->irq_base);
 			if (type & IRQ_TYPE_EDGE_RISING)
 				bytes[byte] |= BIT(off + 1);
 			if (type & IRQ_TYPE_EDGE_FALLING)
@@ -573,6 +570,7 @@ static struct irq_chip twl4030_sih_irq_chip = {
 	.irq_set_type	= twl4030_sih_set_type,
 	.irq_bus_lock	= twl4030_sih_bus_lock,
 	.irq_bus_sync_unlock = twl4030_sih_bus_sync_unlock,
+	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 
 /*----------------------------------------------------------------------*/

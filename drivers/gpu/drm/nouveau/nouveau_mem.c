@@ -125,7 +125,7 @@ nv50_mem_timing_calc(struct drm_device *dev, u32 freq,
 		t->reg[7] = 0x4000202 | (e->tCL - 1) << 16;
 
 		/* XXX: P.version == 1 only has DDR2 and GDDR3? */
-		if (pfb->ram.type == NV_MEM_TYPE_DDR2) {
+		if (pfb->ram->type == NV_MEM_TYPE_DDR2) {
 			t->reg[5] |= (e->tCL + 3) << 8;
 			t->reg[6] |= (t->tCWL - 2) << 8;
 			t->reg[8] |= (e->tCL - 4);
@@ -428,7 +428,7 @@ nouveau_mem_timing_calc(struct drm_device *dev, u32 freq,
 		break;
 	}
 
-	switch (pfb->ram.type * !ret) {
+	switch (pfb->ram->type * !ret) {
 	case NV_MEM_TYPE_GDDR3:
 		ret = nouveau_mem_gddr3_mr(dev, freq, e, len, boot, t);
 		break;
@@ -455,7 +455,7 @@ nouveau_mem_timing_calc(struct drm_device *dev, u32 freq,
 		else
 			dll_off = !!(ramcfg[2] & 0x40);
 
-		switch (pfb->ram.type) {
+		switch (pfb->ram->type) {
 		case NV_MEM_TYPE_GDDR3:
 			t->mr[1] &= ~0x00000040;
 			t->mr[1] |=  0x00000040 * dll_off;
@@ -522,7 +522,7 @@ nouveau_mem_timing_read(struct drm_device *dev, struct nouveau_pm_memtiming *t)
 	t->odt = 0;
 	t->drive_strength = 0;
 
-	switch (pfb->ram.type) {
+	switch (pfb->ram->type) {
 	case NV_MEM_TYPE_DDR3:
 		t->odt |= (t->mr[1] & 0x200) >> 7;
 	case NV_MEM_TYPE_DDR2:
@@ -551,7 +551,7 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 	u32 mr[3] = { info->mr[0], info->mr[1], info->mr[2] };
 	u32 mr1_dlloff;
 
-	switch (pfb->ram.type) {
+	switch (pfb->ram->type) {
 	case NV_MEM_TYPE_DDR2:
 		tDLLK = 2000;
 		mr1_dlloff = 0x00000001;
@@ -572,7 +572,7 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 	}
 
 	/* fetch current MRs */
-	switch (pfb->ram.type) {
+	switch (pfb->ram->type) {
 	case NV_MEM_TYPE_GDDR3:
 	case NV_MEM_TYPE_DDR3:
 		mr[2] = exec->mrg(exec, 2);
@@ -639,7 +639,7 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 		exec->mrs (exec, 0, info->mr[0] | 0x00000000);
 		exec->wait(exec, tMRD);
 		exec->wait(exec, tDLLK);
-		if (pfb->ram.type == NV_MEM_TYPE_GDDR3)
+		if (pfb->ram->type == NV_MEM_TYPE_GDDR3)
 			exec->precharge(exec);
 	}
 

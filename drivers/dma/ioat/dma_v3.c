@@ -311,14 +311,6 @@ static void ioat3_dma_unmap(struct ioat2_dma_chan *ioat,
 		if (!desc->hw->ctl_f.null) /* skip 'interrupt' ops */
 			ioat_dma_unmap(chan, flags, len, desc->hw);
 		break;
-	case IOAT_OP_FILL: {
-		struct ioat_fill_descriptor *hw = desc->fill;
-
-		if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP))
-			ioat_unmap(pdev, hw->dst_addr - offset, len,
-				   PCI_DMA_FROMDEVICE, flags, 1);
-		break;
-	}
 	case IOAT_OP_XOR_VAL:
 	case IOAT_OP_XOR: {
 		struct ioat_xor_descriptor *xor = desc->xor;
@@ -821,51 +813,6 @@ ioat3_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 	ioat3_cleanup(ioat);
 
 	return dma_cookie_status(c, cookie, txstate);
-}
-
-static struct dma_async_tx_descriptor *
-ioat3_prep_memset_lock(struct dma_chan *c, dma_addr_t dest, int value,
-		       size_t len, unsigned long flags)
-{
-	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
-	struct ioat_ring_ent *desc;
-	size_t total_len = len;
-	struct ioat_fill_descriptor *fill;
-	u64 src_data = (0x0101010101010101ULL) * (value & 0xff);
-	int num_descs, idx, i;
-
-	num_descs = ioat2_xferlen_to_descs(ioat, len);
-	if (likely(num_descs) && ioat2_check_space_lock(ioat, num_descs) == 0)
-		idx = ioat->head;
-	else
-		return NULL;
-	i = 0;
-	do {
-		size_t xfer_size = min_t(size_t, len, 1 << ioat->xfercap_log);
-
-		desc = ioat2_get_ring_ent(ioat, idx + i);
-		fill = desc->fill;
-
-		fill->size = xfer_size;
-		fill->src_data = src_data;
-		fill->dst_addr = dest;
-		fill->ctl = 0;
-		fill->ctl_f.op = IOAT_OP_FILL;
-
-		len -= xfer_size;
-		dest += xfer_size;
-		dump_desc_dbg(ioat, desc);
-	} while (++i < num_descs);
-
-	desc->txd.flags = flags;
-	desc->len = total_len;
-	fill->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
-	fill->ctl_f.fence = !!(flags & DMA_PREP_FENCE);
-	fill->ctl_f.compl_write = 1;
-	dump_desc_dbg(ioat, desc);
-
-	/* we leave the channel locked to ensure in order submission */
-	return &desc->txd;
 }
 
 static struct dma_async_tx_descriptor *
@@ -1431,7 +1378,7 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 	struct page *xor_srcs[IOAT_NUM_SRC_TEST];
 	struct page *xor_val_srcs[IOAT_NUM_SRC_TEST + 1];
 	dma_addr_t dma_srcs[IOAT_NUM_SRC_TEST + 1];
-	dma_addr_t dma_addr, dest_dma;
+	dma_addr_t dest_dma;
 	struct dma_async_tx_descriptor *tx;
 	struct dma_chan *dma_chan;
 	dma_cookie_t cookie;
@@ -1598,56 +1545,6 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 		goto free_resources;
 	}
 
-	/* skip memset if the capability is not present */
-	if (!dma_has_cap(DMA_MEMSET, dma_chan->device->cap_mask))
-		goto free_resources;
-
-	/* test memset */
-	op = IOAT_OP_FILL;
-
-	dma_addr = dma_map_page(dev, dest, 0,
-			PAGE_SIZE, DMA_FROM_DEVICE);
-	tx = dma->device_prep_dma_memset(dma_chan, dma_addr, 0, PAGE_SIZE,
-					 DMA_PREP_INTERRUPT |
-					 DMA_COMPL_SKIP_SRC_UNMAP |
-					 DMA_COMPL_SKIP_DEST_UNMAP);
-	if (!tx) {
-		dev_err(dev, "Self-test memset prep failed\n");
-		err = -ENODEV;
-		goto dma_unmap;
-	}
-
-	async_tx_ack(tx);
-	init_completion(&cmp);
-	tx->callback = ioat3_dma_test_callback;
-	tx->callback_param = &cmp;
-	cookie = tx->tx_submit(tx);
-	if (cookie < 0) {
-		dev_err(dev, "Self-test memset setup failed\n");
-		err = -ENODEV;
-		goto dma_unmap;
-	}
-	dma->device_issue_pending(dma_chan);
-
-	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
-
-	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_SUCCESS) {
-		dev_err(dev, "Self-test memset timed out\n");
-		err = -ENODEV;
-		goto dma_unmap;
-	}
-
-	dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
-
-	for (i = 0; i < PAGE_SIZE/sizeof(u32); i++) {
-		u32 *ptr = page_address(dest);
-		if (ptr[i]) {
-			dev_err(dev, "Self-test memset failed compare\n");
-			err = -ENODEV;
-			goto free_resources;
-		}
-	}
-
 	/* test for non-zero parity sum */
 	op = IOAT_OP_XOR_VAL;
 
@@ -1706,8 +1603,7 @@ dma_unmap:
 		for (i = 0; i < IOAT_NUM_SRC_TEST + 1; i++)
 			dma_unmap_page(dev, dma_srcs[i], PAGE_SIZE,
 				       DMA_TO_DEVICE);
-	} else if (op == IOAT_OP_FILL)
-		dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
+	}
 free_resources:
 	dma->device_free_chan_resources(dma_chan);
 out:
@@ -1943,12 +1839,6 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 			}
 		}
 	}
-
-	if (is_raid_device && (device->cap & IOAT_CAP_FILL_BLOCK)) {
-		dma_cap_set(DMA_MEMSET, dma->cap_mask);
-		dma->device_prep_dma_memset = ioat3_prep_memset_lock;
-	}
-
 
 	dma->device_tx_status = ioat3_tx_status;
 	device->cleanup_fn = ioat3_cleanup_event;

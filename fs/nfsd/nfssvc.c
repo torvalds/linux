@@ -116,7 +116,10 @@ struct svc_program		nfsd_program = {
 
 };
 
-u32 nfsd_supported_minorversion;
+static bool nfsd_supported_minorversions[NFSD_SUPPORTED_MINOR_VERSION + 1] = {
+	[0] = 1,
+	[1] = 1,
+};
 
 int nfsd_vers(int vers, enum vers_op change)
 {
@@ -151,15 +154,13 @@ int nfsd_minorversion(u32 minorversion, enum vers_op change)
 		return -1;
 	switch(change) {
 	case NFSD_SET:
-		nfsd_supported_minorversion = minorversion;
+		nfsd_supported_minorversions[minorversion] = true;
 		break;
 	case NFSD_CLEAR:
-		if (minorversion == 0)
-			return -1;
-		nfsd_supported_minorversion = minorversion - 1;
+		nfsd_supported_minorversions[minorversion] = false;
 		break;
 	case NFSD_TEST:
-		return minorversion <= nfsd_supported_minorversion;
+		return nfsd_supported_minorversions[minorversion];
 	case NFSD_AVAIL:
 		return minorversion <= NFSD_SUPPORTED_MINOR_VERSION;
 	}

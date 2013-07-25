@@ -46,7 +46,6 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mxs-spi.h>
@@ -74,12 +73,6 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 	bits_per_word = dev->bits_per_word;
 	if (t && t->bits_per_word)
 		bits_per_word = t->bits_per_word;
-
-	if (bits_per_word != 8) {
-		dev_err(&dev->dev, "%s, unsupported bits_per_word=%d\n",
-					__func__, bits_per_word);
-		return -EINVAL;
-	}
 
 	hz = dev->max_speed_hz;
 	if (t && t->speed_hz)
@@ -506,7 +499,6 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	struct mxs_spi *spi;
 	struct mxs_ssp *ssp;
 	struct resource *iores;
-	struct pinctrl *pinctrl;
 	struct clk *clk;
 	void __iomem *base;
 	int devid, clk_freq;
@@ -528,10 +520,6 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		return PTR_ERR(pinctrl);
-
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
@@ -548,6 +536,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	master->transfer_one_message = mxs_spi_transfer_one;
 	master->setup = mxs_spi_setup;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 	master->num_chipselect = 3;
 	master->dev.of_node = np;

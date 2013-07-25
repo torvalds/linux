@@ -116,14 +116,57 @@ struct tbf_sched_data {
 	struct qdisc_watchdog watchdog;	/* Watchdog timer */
 };
 
+
+/* GSO packet is too big, segment it so that tbf can transmit
+ * each segment in time
+ */
+static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
+{
+	struct tbf_sched_data *q = qdisc_priv(sch);
+	struct sk_buff *segs, *nskb;
+	netdev_features_t features = netif_skb_features(skb);
+	int ret, nb;
+
+	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
+
+	if (IS_ERR_OR_NULL(segs))
+		return qdisc_reshape_fail(skb, sch);
+
+	nb = 0;
+	while (segs) {
+		nskb = segs->next;
+		segs->next = NULL;
+		if (likely(segs->len <= q->max_size)) {
+			qdisc_skb_cb(segs)->pkt_len = segs->len;
+			ret = qdisc_enqueue(segs, q->qdisc);
+		} else {
+			ret = qdisc_reshape_fail(skb, sch);
+		}
+		if (ret != NET_XMIT_SUCCESS) {
+			if (net_xmit_drop_count(ret))
+				sch->qstats.drops++;
+		} else {
+			nb++;
+		}
+		segs = nskb;
+	}
+	sch->q.qlen += nb;
+	if (nb > 1)
+		qdisc_tree_decrease_qlen(sch, 1 - nb);
+	consume_skb(skb);
+	return nb > 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
+}
+
 static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	int ret;
 
-	if (qdisc_pkt_len(skb) > q->max_size)
+	if (qdisc_pkt_len(skb) > q->max_size) {
+		if (skb_is_gso(skb))
+			return tbf_segment(skb, sch);
 		return qdisc_reshape_fail(skb, sch);
-
+	}
 	ret = qdisc_enqueue(skb, q->qdisc);
 	if (ret != NET_XMIT_SUCCESS) {
 		if (net_xmit_drop_count(ret))
@@ -298,9 +341,9 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
 
-	psched_ratecfg_precompute(&q->rate, rtab->rate.rate);
+	psched_ratecfg_precompute(&q->rate, &rtab->rate);
 	if (ptab) {
-		psched_ratecfg_precompute(&q->peak, ptab->rate.rate);
+		psched_ratecfg_precompute(&q->peak, &ptab->rate);
 		q->peak_present = true;
 	} else {
 		q->peak_present = false;
@@ -350,9 +393,9 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	opt.limit = q->limit;
-	opt.rate.rate = psched_ratecfg_getrate(&q->rate);
+	psched_ratecfg_getrate(&opt.rate, &q->rate);
 	if (q->peak_present)
-		opt.peakrate.rate = psched_ratecfg_getrate(&q->peak);
+		psched_ratecfg_getrate(&opt.peakrate, &q->peak);
 	else
 		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
 	opt.mtu = PSCHED_NS2TICKS(q->mtu);

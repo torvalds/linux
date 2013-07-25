@@ -50,7 +50,7 @@ void __init omap_rproc_reserve_cma(void);
 
 #else
 
-void __init omap_rproc_reserve_cma(void)
+static inline void __init omap_rproc_reserve_cma(void)
 {
 }
 

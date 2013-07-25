@@ -378,7 +378,7 @@ static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 	spin_lock_init(&dev->flush_q_lock);
 	return 0;
 alloc_err:
-	ocrdma_err("%s(%d) error.\n", __func__, dev->id);
+	pr_err("%s(%d) error.\n", __func__, dev->id);
 	return -ENOMEM;
 }
 
@@ -396,7 +396,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 
 	dev = (struct ocrdma_dev *)ib_alloc_device(sizeof(struct ocrdma_dev));
 	if (!dev) {
-		ocrdma_err("Unable to allocate ib device\n");
+		pr_err("Unable to allocate ib device\n");
 		return NULL;
 	}
 	dev->mbx_cmd = kzalloc(sizeof(struct ocrdma_mqe_emb_cmd), GFP_KERNEL);
@@ -437,7 +437,7 @@ init_err:
 idr_err:
 	kfree(dev->mbx_cmd);
 	ib_dealloc_device(&dev->ibdev);
-	ocrdma_err("%s() leaving. ret=%d\n", __func__, status);
+	pr_err("%s() leaving. ret=%d\n", __func__, status);
 	return NULL;
 }
 

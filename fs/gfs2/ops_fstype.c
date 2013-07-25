@@ -916,16 +916,16 @@ static int init_threads(struct gfs2_sbd *sdp, int undo)
 		goto fail_quotad;
 
 	p = kthread_run(gfs2_logd, sdp, "gfs2_logd");
-	error = IS_ERR(p);
-	if (error) {
+	if (IS_ERR(p)) {
+		error = PTR_ERR(p);
 		fs_err(sdp, "can't start logd thread: %d\n", error);
 		return error;
 	}
 	sdp->sd_logd_process = p;
 
 	p = kthread_run(gfs2_quotad, sdp, "gfs2_quotad");
-	error = IS_ERR(p);
-	if (error) {
+	if (IS_ERR(p)) {
+		error = PTR_ERR(p);
 		fs_err(sdp, "can't start quotad thread: %d\n", error);
 		goto fail;
 	}

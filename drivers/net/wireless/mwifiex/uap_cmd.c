@@ -689,6 +689,23 @@ mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd, u16 cmd_action,
 	return 0;
 }
 
+/* This function prepares AP specific deauth command with mac supplied in
+ * function parameter.
+ */
+static int mwifiex_cmd_uap_sta_deauth(struct mwifiex_private *priv,
+				      struct host_cmd_ds_command *cmd, u8 *mac)
+{
+	struct host_cmd_ds_sta_deauth *sta_deauth = &cmd->params.sta_deauth;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_UAP_STA_DEAUTH);
+	memcpy(sta_deauth->mac, mac, ETH_ALEN);
+	sta_deauth->reason = cpu_to_le16(WLAN_REASON_DEAUTH_LEAVING);
+
+	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_sta_deauth) +
+				S_DS_GEN);
+	return 0;
+}
+
 /* This function prepares the AP specific commands before sending them
  * to the firmware.
  * This is a generic function which calls specific command preparation
@@ -709,6 +726,10 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	case HostCmd_CMD_UAP_BSS_STOP:
 		cmd->command = cpu_to_le16(cmd_no);
 		cmd->size = cpu_to_le16(S_DS_GEN);
+		break;
+	case HostCmd_CMD_UAP_STA_DEAUTH:
+		if (mwifiex_cmd_uap_sta_deauth(priv, cmd, data_buf))
+			return -1;
 		break;
 	default:
 		dev_err(priv->adapter->dev,

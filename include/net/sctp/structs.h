@@ -54,7 +54,7 @@
 #ifndef __sctp_structs_h__
 #define __sctp_structs_h__
 
-#include <linux/time.h>		/* We get struct timespec.    */
+#include <linux/ktime.h>
 #include <linux/socket.h>	/* linux/in.h needs this!!    */
 #include <linux/in.h>		/* We get struct sockaddr_in. */
 #include <linux/in6.h>		/* We get struct in6_addr     */
@@ -284,7 +284,7 @@ struct sctp_cookie {
 	__u32 peer_ttag;
 
 	/* When does this cookie expire? */
-	struct timeval expiration;
+	ktime_t expiration;
 
 	/* Number of inbound/outbound streams which are set
 	 * and negotiated during the INIT process.
@@ -1537,7 +1537,7 @@ struct sctp_association {
 	sctp_state_t state;
 
 	/* The cookie life I award for any cookie.  */
-	struct timeval cookie_life;
+	ktime_t cookie_life;
 
 	/* Overall     : The overall association error count.
 	 * Error Count : [Clear this any time I get something.]

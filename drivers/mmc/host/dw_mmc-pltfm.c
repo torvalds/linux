@@ -24,8 +24,17 @@
 
 #include "dw_mmc.h"
 
+static void dw_mci_rockchip_prepare_command(struct dw_mci *host, u32 *cmdr)
+{
+	*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+}
+
+static const struct dw_mci_drv_data rockchip_drv_data = {
+	.prepare_command	= dw_mci_rockchip_prepare_command,
+};
+
 int dw_mci_pltfm_register(struct platform_device *pdev,
-				const struct dw_mci_drv_data *drv_data)
+			  const struct dw_mci_drv_data *drv_data)
 {
 	struct dw_mci *host;
 	struct resource	*regs;
@@ -35,10 +44,6 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	if (!host)
 		return -ENOMEM;
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs)
-		return -ENXIO;
-
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq < 0)
 		return host->irq;
@@ -47,6 +52,8 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	host->dev = &pdev->dev;
 	host->irq_flags = 0;
 	host->pdata = pdev->dev.platform_data;
+
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(host->regs))
 		return PTR_ERR(host->regs);
@@ -58,25 +65,9 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	}
 
 	platform_set_drvdata(pdev, host);
-	ret = dw_mci_probe(host);
-	return ret;
+	return dw_mci_probe(host);
 }
 EXPORT_SYMBOL_GPL(dw_mci_pltfm_register);
-
-static int dw_mci_pltfm_probe(struct platform_device *pdev)
-{
-	return dw_mci_pltfm_register(pdev, NULL);
-}
-
-static int dw_mci_pltfm_remove(struct platform_device *pdev)
-{
-	struct dw_mci *host = platform_get_drvdata(pdev);
-
-	platform_set_drvdata(pdev, NULL);
-	dw_mci_remove(host);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(dw_mci_pltfm_remove);
 
 #ifdef CONFIG_PM_SLEEP
 /*
@@ -84,26 +75,16 @@ EXPORT_SYMBOL_GPL(dw_mci_pltfm_remove);
  */
 static int dw_mci_pltfm_suspend(struct device *dev)
 {
-	int ret;
 	struct dw_mci *host = dev_get_drvdata(dev);
 
-	ret = dw_mci_suspend(host);
-	if (ret)
-		return ret;
-
-	return 0;
+	return dw_mci_suspend(host);
 }
 
 static int dw_mci_pltfm_resume(struct device *dev)
 {
-	int ret;
 	struct dw_mci *host = dev_get_drvdata(dev);
 
-	ret = dw_mci_resume(host);
-	if (ret)
-		return ret;
-
-	return 0;
+	return dw_mci_resume(host);
 }
 #else
 #define dw_mci_pltfm_suspend	NULL
@@ -115,9 +96,33 @@ EXPORT_SYMBOL_GPL(dw_mci_pltfm_pmops);
 
 static const struct of_device_id dw_mci_pltfm_match[] = {
 	{ .compatible = "snps,dw-mshc", },
+	{ .compatible = "rockchip,rk2928-dw-mshc",
+		.data = &rockchip_drv_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
+
+static int dw_mci_pltfm_probe(struct platform_device *pdev)
+{
+	const struct dw_mci_drv_data *drv_data = NULL;
+	const struct of_device_id *match;
+
+	if (pdev->dev.of_node) {
+		match = of_match_node(dw_mci_pltfm_match, pdev->dev.of_node);
+		drv_data = match->data;
+	}
+
+	return dw_mci_pltfm_register(pdev, drv_data);
+}
+
+int dw_mci_pltfm_remove(struct platform_device *pdev)
+{
+	struct dw_mci *host = platform_get_drvdata(pdev);
+
+	dw_mci_remove(host);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dw_mci_pltfm_remove);
 
 static struct platform_driver dw_mci_pltfm_driver = {
 	.probe		= dw_mci_pltfm_probe,

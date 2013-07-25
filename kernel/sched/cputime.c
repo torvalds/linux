@@ -515,9 +515,8 @@ static cputime_t scale_stime(u64 stime, u64 rtime, u64 total)
 
 	for (;;) {
 		/* Make sure "rtime" is the bigger of stime/rtime */
-		if (stime > rtime) {
-			u64 tmp = rtime; rtime = stime; stime = tmp;
-		}
+		if (stime > rtime)
+			swap(rtime, stime);
 
 		/* Make sure 'total' fits in 32 bits */
 		if (total >> 32)
@@ -747,17 +746,17 @@ void arch_vtime_task_switch(struct task_struct *prev)
 
 	write_seqlock(&current->vtime_seqlock);
 	current->vtime_snap_whence = VTIME_SYS;
-	current->vtime_snap = sched_clock();
+	current->vtime_snap = sched_clock_cpu(smp_processor_id());
 	write_sequnlock(&current->vtime_seqlock);
 }
 
-void vtime_init_idle(struct task_struct *t)
+void vtime_init_idle(struct task_struct *t, int cpu)
 {
 	unsigned long flags;
 
 	write_seqlock_irqsave(&t->vtime_seqlock, flags);
 	t->vtime_snap_whence = VTIME_SYS;
-	t->vtime_snap = sched_clock();
+	t->vtime_snap = sched_clock_cpu(cpu);
 	write_sequnlock_irqrestore(&t->vtime_seqlock, flags);
 }
 

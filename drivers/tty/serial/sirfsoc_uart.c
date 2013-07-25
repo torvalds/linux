@@ -687,9 +687,10 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 
 	if (sirfport->hw_flow_ctrl) {
 		sirfport->p = pinctrl_get_select_default(&pdev->dev);
-		ret = IS_ERR(sirfport->p);
-		if (ret)
+		if (IS_ERR(sirfport->p)) {
+			ret = PTR_ERR(sirfport->p);
 			goto err;
+		}
 	}
 
 	sirfport->clk = clk_get(&pdev->dev, NULL);

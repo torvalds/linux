@@ -11,6 +11,35 @@
 
 #include <linux/notifier.h>
 
+#if defined(CONFIG_CPU_CAVIUM_OCTEON)
+
+extern void octeon_cop2_save(struct octeon_cop2_state *);
+extern void octeon_cop2_restore(struct octeon_cop2_state *);
+
+#define cop2_save(r)		octeon_cop2_save(r)
+#define cop2_restore(r)		octeon_cop2_restore(r)
+
+#define cop2_present		1
+#define cop2_lazy_restore	1
+
+#elif defined(CONFIG_CPU_XLP)
+
+extern void nlm_cop2_save(struct nlm_cop2_state *);
+extern void nlm_cop2_restore(struct nlm_cop2_state *);
+#define cop2_save(r)		nlm_cop2_save(r)
+#define cop2_restore(r)		nlm_cop2_restore(r)
+
+#define cop2_present		1
+#define cop2_lazy_restore	0
+
+#else
+
+#define cop2_present		0
+#define cop2_lazy_restore	0
+#define cop2_save(r)
+#define cop2_restore(r)
+#endif
+
 enum cu2_ops {
 	CU2_EXCEPTION,
 	CU2_LWC2_OP,

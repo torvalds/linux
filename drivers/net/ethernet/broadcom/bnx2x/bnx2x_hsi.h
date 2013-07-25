@@ -1323,6 +1323,8 @@ struct drv_func_mb {
 	#define DRV_MSG_CODE_UNLOAD_SKIP_LINK_RESET     0x00000002
 
 	#define DRV_MSG_CODE_LOAD_REQ_WITH_LFA          0x0000100a
+	#define DRV_MSG_CODE_LOAD_REQ_FORCE_LFA         0x00002000
+
 	u32 fw_mb_header;
 	#define FW_MSG_CODE_MASK                        0xffff0000
 	#define FW_MSG_CODE_DRV_LOAD_COMMON             0x10100000
@@ -3816,7 +3818,8 @@ struct eth_fast_path_rx_cqe {
 	__le16 len_on_bd;
 	struct parsing_flags pars_flags;
 	union eth_sgl_or_raw_data sgl_or_raw_data;
-	__le32 reserved1[8];
+	__le32 reserved1[7];
+	u32 marker;
 };
 
 

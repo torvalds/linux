@@ -3,6 +3,9 @@
  *
  *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
@@ -144,7 +147,7 @@ int xen_pcibk_enable_msi(struct xen_pcibk_device *pdev,
 	status = pci_enable_msi(dev);
 
 	if (status) {
-		pr_warn_ratelimited(DRV_NAME ": %s: error enabling MSI for guest %u: err %d\n",
+		pr_warn_ratelimited("%s: error enabling MSI for guest %u: err %d\n",
 				    pci_name(dev), pdev->xdev->otherend_id,
 				    status);
 		op->value = 0;
@@ -225,7 +228,7 @@ int xen_pcibk_enable_msix(struct xen_pcibk_device *pdev,
 						op->msix_entries[i].vector);
 		}
 	} else
-		pr_warn_ratelimited(DRV_NAME ": %s: error enabling MSI-X for guest %u: err %d!\n",
+		pr_warn_ratelimited("%s: error enabling MSI-X for guest %u: err %d!\n",
 				    pci_name(dev), pdev->xdev->otherend_id,
 				    result);
 	kfree(entries);
@@ -372,7 +375,7 @@ static irqreturn_t xen_pcibk_guest_interrupt(int irq, void *dev_id)
 		dev_data->handled++;
 		if ((dev_data->handled % 1000) == 0) {
 			if (xen_test_irq_shared(irq)) {
-				printk(KERN_INFO "%s IRQ line is not shared "
+				pr_info("%s IRQ line is not shared "
 					"with other domains. Turning ISR off\n",
 					 dev_data->irq_name);
 				dev_data->ack_intr = 0;

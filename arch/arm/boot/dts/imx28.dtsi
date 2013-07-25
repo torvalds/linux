@@ -32,8 +32,12 @@
 	};
 
 	cpus {
-		cpu@0 {
-			compatible = "arm,arm926ejs";
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
 		};
 	};
 
@@ -330,6 +334,17 @@
 					fsl,pull-up = <0>;
 				};
 
+				auart2_2pins_b: auart2-2pins@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						0x3080 /* MX28_PAD_AUART2_RX__AUART2_RX */
+						0x3090 /* MX28_PAD_AUART2_TX__AUART2_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				auart3_pins_a: auart3@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
@@ -348,6 +363,28 @@
 					fsl,pinmux-ids = <
 						0x2121 /* MX28_PAD_SSP2_MISO__AUART3_RX */
 						0x2131 /* MX28_PAD_SSP2_SS0__AUART3_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart3_2pins_b: auart3-2pins@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						0x30c0 /* MX28_PAD_AUART3_RX__AUART3_RX */
+						0x30d0 /* MX28_PAD_AUART3_TX__AUART3_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart4_2pins_a: auart4@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2181 /* MX28_PAD_SSP3_SCK__AUART4_TX */
+						0x2191 /* MX28_PAD_SSP3_MOSI__AUART4_RX */
 					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
@@ -669,7 +706,7 @@
 			};
 
 			digctl@8001c000 {
-				compatible = "fsl,imx28-digctl";
+				compatible = "fsl,imx28-digctl", "fsl,imx23-digctl";
 				reg = <0x8001c000 0x2000>;
 				interrupts = <89>;
 				status = "disabled";
@@ -699,7 +736,7 @@
 			dcp@80028000 {
 				reg = <0x80028000 0x2000>;
 				interrupts = <52 53 54>;
-				status = "disabled";
+				compatible = "fsl-dcp";
 			};
 
 			pxp@8002a000 {

@@ -456,7 +456,8 @@ enum dmi_field {
 };
 
 struct dmi_strmatch {
-	unsigned char slot;
+	unsigned char slot:7;
+	unsigned char exact_match:1;
 	char substr[79];
 };
 
@@ -474,7 +475,8 @@ struct dmi_system_id {
  */
 #define dmi_device_id dmi_system_id
 
-#define DMI_MATCH(a, b)	{ a, b }
+#define DMI_MATCH(a, b)	{ .slot = a, .substr = b }
+#define DMI_EXACT_MATCH(a, b)	{ .slot = a, .substr = b, .exact_match = 1 }
 
 #define PLATFORM_NAME_SIZE	20
 #define PLATFORM_MODULE_PREFIX	"platform:"
@@ -575,6 +577,25 @@ struct ipack_device_id {
 struct mei_cl_device_id {
 	char name[MEI_CL_NAME_SIZE];
 	kernel_ulong_t driver_info;
+};
+
+/* RapidIO */
+
+#define RIO_ANY_ID	0xffff
+
+/**
+ * struct rio_device_id - RIO device identifier
+ * @did: RapidIO device ID
+ * @vid: RapidIO vendor ID
+ * @asm_did: RapidIO assembly device ID
+ * @asm_vid: RapidIO assembly vendor ID
+ *
+ * Identifies a RapidIO device based on both the device/vendor IDs and
+ * the assembly device/vendor IDs.
+ */
+struct rio_device_id {
+	__u16 did, vid;
+	__u16 asm_did, asm_vid;
 };
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

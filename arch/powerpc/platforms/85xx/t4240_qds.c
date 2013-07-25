@@ -75,12 +75,7 @@ define_machine(t4240_qds) {
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 #endif
-/* coreint doesn't play nice with lazy EE, use legacy mpic for now */
-#ifdef CONFIG_PPC64
-	.get_irq		= mpic_get_irq,
-#else
 	.get_irq		= mpic_get_coreint_irq,
-#endif
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,

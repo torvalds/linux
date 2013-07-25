@@ -785,7 +785,7 @@ static const struct super_operations fuse_super_operations = {
 static void sanitize_global_limit(unsigned *limit)
 {
 	if (*limit == 0)
-		*limit = ((num_physpages << PAGE_SHIFT) >> 13) /
+		*limit = ((totalram_pages << PAGE_SHIFT) >> 13) /
 			 sizeof(struct fuse_req);
 
 	if (*limit >= 1 << 16)
@@ -867,10 +867,11 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 				fc->dont_mask = 1;
 			if (arg->flags & FUSE_AUTO_INVAL_DATA)
 				fc->auto_inval_data = 1;
-			if (arg->flags & FUSE_DO_READDIRPLUS)
+			if (arg->flags & FUSE_DO_READDIRPLUS) {
 				fc->do_readdirplus = 1;
-			if (arg->flags & FUSE_READDIRPLUS_AUTO)
-				fc->readdirplus_auto = 1;
+				if (arg->flags & FUSE_READDIRPLUS_AUTO)
+					fc->readdirplus_auto = 1;
+			}
 			if (arg->flags & FUSE_ASYNC_DIO)
 				fc->async_dio = 1;
 		} else {

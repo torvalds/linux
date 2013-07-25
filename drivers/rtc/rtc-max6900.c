@@ -212,11 +212,6 @@ static int max6900_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return max6900_i2c_set_time(to_i2c_client(dev), tm);
 }
 
-static int max6900_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct rtc_class_ops max6900_rtc_ops = {
 	.read_time = max6900_rtc_read_time,
 	.set_time = max6900_rtc_set_time,
@@ -252,7 +247,6 @@ static struct i2c_driver max6900_driver = {
 		   .name = "rtc-max6900",
 		   },
 	.probe = max6900_probe,
-	.remove = max6900_remove,
 	.id_table = max6900_id,
 };
 

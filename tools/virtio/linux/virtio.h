@@ -45,9 +45,6 @@ struct virtqueue {
 	void *priv;
 };
 
-#define MODULE_LICENSE(__MODULE_LICENSE_value) \
-	const char *__MODULE_LICENSE_name = __MODULE_LICENSE_value
-
 /* Interfaces exported by virtio_ring. */
 int virtqueue_add_sgs(struct virtqueue *vq,
 		      struct scatterlist *sgs[],

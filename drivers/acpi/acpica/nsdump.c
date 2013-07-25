@@ -244,10 +244,12 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			case ACPI_TYPE_BUFFER:
 			case ACPI_TYPE_STRING:
 			case ACPI_TYPE_METHOD:
+
 				acpi_os_printf("<No attached object>");
 				break;
 
 			default:
+
 				break;
 			}
 
@@ -433,6 +435,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			break;
 
 		default:
+
 			break;
 		}
 		break;
@@ -567,32 +570,39 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			goto cleanup;
 
 		case ACPI_TYPE_BUFFER_FIELD:
+
 			obj_desc =
 			    (union acpi_operand_object *)obj_desc->buffer_field.
 			    buffer_obj;
 			break;
 
 		case ACPI_TYPE_PACKAGE:
+
 			obj_desc = (void *)obj_desc->package.elements;
 			break;
 
 		case ACPI_TYPE_METHOD:
+
 			obj_desc = (void *)obj_desc->method.aml_start;
 			break;
 
 		case ACPI_TYPE_LOCAL_REGION_FIELD:
+
 			obj_desc = (void *)obj_desc->field.region_obj;
 			break;
 
 		case ACPI_TYPE_LOCAL_BANK_FIELD:
+
 			obj_desc = (void *)obj_desc->bank_field.region_obj;
 			break;
 
 		case ACPI_TYPE_LOCAL_INDEX_FIELD:
+
 			obj_desc = (void *)obj_desc->index_field.index_obj;
 			break;
 
 		default:
+
 			goto cleanup;
 		}
 

@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
-#include <asm/sched_clock.h>
+#include <linux/sched_clock.h>
 #include <asm/localtimer.h>
 #include <asm/mach/time.h>
 
@@ -184,7 +184,7 @@ static struct irqaction sirfsoc_timer1_irq = {
 	.handler = sirfsoc_timer_interrupt,
 };
 
-static int __cpuinit sirfsoc_local_timer_setup(struct clock_event_device *ce)
+static int sirfsoc_local_timer_setup(struct clock_event_device *ce)
 {
 	/* Use existing clock_event for cpu 0 */
 	if (!smp_processor_id())
@@ -216,7 +216,7 @@ static void sirfsoc_local_timer_stop(struct clock_event_device *ce)
 	remove_irq(sirfsoc_timer1_irq.irq, &sirfsoc_timer1_irq);
 }
 
-static struct local_timer_ops sirfsoc_local_timer_ops __cpuinitdata = {
+static struct local_timer_ops sirfsoc_local_timer_ops = {
 	.setup	= sirfsoc_local_timer_setup,
 	.stop	= sirfsoc_local_timer_stop,
 };

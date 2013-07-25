@@ -23,23 +23,25 @@ prom_getbootargs(void)
 		return barg_buf;
 	}
 
-	switch(prom_vers) {
+	switch (prom_vers) {
 	case PROM_V0:
 		cp = barg_buf;
 		/* Start from 1 and go over fd(0,0,0)kernel */
-		for(iter = 1; iter < 8; iter++) {
+		for (iter = 1; iter < 8; iter++) {
 			arg = (*(romvec->pv_v0bootargs))->argv[iter];
 			if (arg == NULL)
 				break;
-			while(*arg != 0) {
+			while (*arg != 0) {
 				/* Leave place for space and null. */
-				if(cp >= barg_buf + BARG_LEN-2){
+				if (cp >= barg_buf + BARG_LEN - 2)
 					/* We might issue a warning here. */
 					break;
-				}
 				*cp++ = *arg++;
 			}
 			*cp++ = ' ';
+			if (cp >= barg_buf + BARG_LEN - 1)
+				/* We might issue a warning here. */
+				break;
 		}
 		*cp = 0;
 		break;

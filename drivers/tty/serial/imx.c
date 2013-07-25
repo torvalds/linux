@@ -201,6 +201,7 @@ struct imx_port {
 	unsigned int		old_status;
 	int			txirq, rxirq, rtsirq;
 	unsigned int		have_rtscts:1;
+	unsigned int		dte_mode:1;
 	unsigned int		use_irda:1;
 	unsigned int		irda_inv_rx:1;
 	unsigned int		irda_inv_tx:1;
@@ -271,6 +272,7 @@ static inline int is_imx21_uart(struct imx_port *sport)
 /*
  * Save and restore functions for UCR1, UCR2 and UCR3 registers
  */
+#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_IMX_CONSOLE)
 static void imx_port_ucrs_save(struct uart_port *port,
 			       struct imx_port_ucrs *ucr)
 {
@@ -288,6 +290,7 @@ static void imx_port_ucrs_restore(struct uart_port *port,
 	writel(ucr->ucr2, port->membase + UCR2);
 	writel(ucr->ucr3, port->membase + UCR3);
 }
+#endif
 
 /*
  * Handle any change of modem status signal since we were last called.
@@ -449,6 +452,13 @@ static void imx_start_tx(struct uart_port *port)
 		temp &= ~(UCR1_RRDYEN);
 		writel(temp, sport->port.membase + UCR1);
 	}
+	/* Clear any pending ORE flag before enabling interrupt */
+	temp = readl(sport->port.membase + USR2);
+	writel(temp | USR2_ORE, sport->port.membase + USR2);
+
+	temp = readl(sport->port.membase + UCR4);
+	temp |= UCR4_OREN;
+	writel(temp, sport->port.membase + UCR4);
 
 	temp = readl(sport->port.membase + UCR1);
 	writel(temp | UCR1_TXMPTYEN, sport->port.membase + UCR1);
@@ -582,6 +592,7 @@ static irqreturn_t imx_int(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int sts;
+	unsigned int sts2;
 
 	sts = readl(sport->port.membase + USR1);
 
@@ -597,6 +608,13 @@ static irqreturn_t imx_int(int irq, void *dev_id)
 
 	if (sts & USR1_AWAKE)
 		writel(USR1_AWAKE, sport->port.membase + USR1);
+
+	sts2 = readl(sport->port.membase + USR2);
+	if (sts2 & USR2_ORE) {
+		dev_err(sport->port.dev, "Rx FIFO overrun\n");
+		sport->port.icount.overrun++;
+		writel(sts2 | USR2_ORE, sport->port.membase + USR2);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -684,6 +702,17 @@ static int imx_startup(struct uart_port *port)
 	int retval;
 	unsigned long flags, temp;
 
+	if (!uart_console(port)) {
+		retval = clk_prepare_enable(sport->clk_per);
+		if (retval)
+			goto error_out1;
+		retval = clk_prepare_enable(sport->clk_ipg);
+		if (retval) {
+			clk_disable_unprepare(sport->clk_per);
+			goto error_out1;
+		}
+	}
+
 	imx_setup_ufcr(sport, 0);
 
 	/* disable the DREN bit (Data Ready interrupt enable) before
@@ -761,6 +790,8 @@ static int imx_startup(struct uart_port *port)
 
 	temp = readl(sport->port.membase + UCR2);
 	temp |= (UCR2_RXEN | UCR2_TXEN);
+	if (!sport->have_rtscts)
+		temp |= UCR2_IRTS;
 	writel(temp, sport->port.membase + UCR2);
 
 	if (USE_IRDA(sport)) {
@@ -869,6 +900,11 @@ static void imx_shutdown(struct uart_port *port)
 
 	writel(temp, sport->port.membase + UCR1);
 	spin_unlock_irqrestore(&sport->port.lock, flags);
+
+	if (!uart_console(&sport->port)) {
+		clk_disable_unprepare(sport->clk_per);
+		clk_disable_unprepare(sport->clk_ipg);
+	}
 }
 
 static void
@@ -1005,6 +1041,8 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	ufcr = readl(sport->port.membase + UFCR);
 	ufcr = (ufcr & (~UFCR_RFDIV)) | UFCR_RFDIV_REG(div);
+	if (sport->dte_mode)
+		ufcr |= UFCR_DCEDTE;
 	writel(ufcr, sport->port.membase + UFCR);
 
 	writel(num, sport->port.membase + UBIR);
@@ -1429,6 +1467,9 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	if (of_get_property(np, "fsl,irda-mode", NULL))
 		sport->use_irda = 1;
 
+	if (of_get_property(np, "fsl,dte-mode", NULL))
+		sport->dte_mode = 1;
+
 	sport->devdata = of_id->data;
 
 	return 0;
@@ -1542,6 +1583,11 @@ static int serial_imx_probe(struct platform_device *pdev)
 		goto deinit;
 	platform_set_drvdata(pdev, sport);
 
+	if (!uart_console(&sport->port)) {
+		clk_disable_unprepare(sport->clk_per);
+		clk_disable_unprepare(sport->clk_ipg);
+	}
+
 	return 0;
 deinit:
 	if (pdata && pdata->exit)
@@ -1562,9 +1608,6 @@ static int serial_imx_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	uart_remove_one_port(&imx_reg, &sport->port);
-
-	clk_disable_unprepare(sport->clk_per);
-	clk_disable_unprepare(sport->clk_ipg);
 
 	if (pdata && pdata->exit)
 		pdata->exit(pdev);

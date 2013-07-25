@@ -192,7 +192,7 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
 	/* struct user */
 	DUMP_WRITE(&dump, sizeof(dump));
 	/* Now dump all of the user data.  Include malloced stuff as well */
-	DUMP_SEEK(PAGE_SIZE);
+	DUMP_SEEK(PAGE_SIZE - sizeof(dump));
 	/* now we start writing out the user space info */
 	set_fs(USER_DS);
 	/* Dump the data area */
@@ -308,8 +308,6 @@ static int load_aout_binary(struct linux_binprm *bprm)
 		(current->mm->start_data = N_DATADDR(ex));
 	current->mm->brk = ex.a_bss +
 		(current->mm->start_brk = N_BSSADDR(ex));
-	current->mm->free_area_cache = TASK_UNMAPPED_BASE;
-	current->mm->cached_hole_size = 0;
 
 	retval = setup_arg_pages(bprm, IA32_STACK_TOP, EXSTACK_DEFAULT);
 	if (retval < 0) {

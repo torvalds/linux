@@ -116,8 +116,6 @@ static inline notrace int decrementer_check_overflow(void)
  	u64 now = get_tb_or_rtc();
  	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
  
-	if (now >= *next_tb)
-		set_dec(1);
 	return now >= *next_tb;
 }
 
@@ -162,7 +160,7 @@ notrace unsigned int __check_irq_replay(void)
 	 * in case we also had a rollover while hard disabled
 	 */
 	local_paca->irq_happened &= ~PACA_IRQ_DEC;
-	if (decrementer_check_overflow())
+	if ((happened & PACA_IRQ_DEC) || decrementer_check_overflow())
 		return 0x900;
 
 	/* Finally check if an external interrupt happened */

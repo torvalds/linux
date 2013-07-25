@@ -1440,9 +1440,9 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 	return 0;
 }
 
-static int fwnet_probe(struct device *_dev)
+static int fwnet_probe(struct fw_unit *unit,
+		       const struct ieee1394_device_id *id)
 {
-	struct fw_unit *unit = fw_unit(_dev);
 	struct fw_device *device = fw_parent_device(unit);
 	struct fw_card *card = device->card;
 	struct net_device *net;
@@ -1526,6 +1526,24 @@ static int fwnet_probe(struct device *_dev)
 	return ret;
 }
 
+/*
+ * FIXME abort partially sent fragmented datagrams,
+ * discard partially received fragmented datagrams
+ */
+static void fwnet_update(struct fw_unit *unit)
+{
+	struct fw_device *device = fw_parent_device(unit);
+	struct fwnet_peer *peer = dev_get_drvdata(&unit->device);
+	int generation;
+
+	generation = device->generation;
+
+	spin_lock_irq(&peer->dev->lock);
+	peer->node_id    = device->node_id;
+	peer->generation = generation;
+	spin_unlock_irq(&peer->dev->lock);
+}
+
 static void fwnet_remove_peer(struct fwnet_peer *peer, struct fwnet_device *dev)
 {
 	struct fwnet_partial_datagram *pd, *pd_next;
@@ -1542,9 +1560,9 @@ static void fwnet_remove_peer(struct fwnet_peer *peer, struct fwnet_device *dev)
 	kfree(peer);
 }
 
-static int fwnet_remove(struct device *_dev)
+static void fwnet_remove(struct fw_unit *unit)
 {
-	struct fwnet_peer *peer = dev_get_drvdata(_dev);
+	struct fwnet_peer *peer = dev_get_drvdata(&unit->device);
 	struct fwnet_device *dev = peer->dev;
 	struct net_device *net;
 	int i;
@@ -1569,26 +1587,6 @@ static int fwnet_remove(struct device *_dev)
 	}
 
 	mutex_unlock(&fwnet_device_mutex);
-
-	return 0;
-}
-
-/*
- * FIXME abort partially sent fragmented datagrams,
- * discard partially received fragmented datagrams
- */
-static void fwnet_update(struct fw_unit *unit)
-{
-	struct fw_device *device = fw_parent_device(unit);
-	struct fwnet_peer *peer = dev_get_drvdata(&unit->device);
-	int generation;
-
-	generation = device->generation;
-
-	spin_lock_irq(&peer->dev->lock);
-	peer->node_id    = device->node_id;
-	peer->generation = generation;
-	spin_unlock_irq(&peer->dev->lock);
 }
 
 static const struct ieee1394_device_id fwnet_id_table[] = {
@@ -1614,10 +1612,10 @@ static struct fw_driver fwnet_driver = {
 		.owner  = THIS_MODULE,
 		.name   = KBUILD_MODNAME,
 		.bus    = &fw_bus_type,
-		.probe  = fwnet_probe,
-		.remove = fwnet_remove,
 	},
+	.probe    = fwnet_probe,
 	.update   = fwnet_update,
+	.remove   = fwnet_remove,
 	.id_table = fwnet_id_table,
 };
 

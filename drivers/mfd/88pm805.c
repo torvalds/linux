@@ -29,10 +29,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
-#define PM805_CHIP_ID			(0x00)
-
 static const struct i2c_device_id pm80x_id_table[] = {
-	{"88PM805", CHIP_PM805},
+	{"88PM805", 0},
 	{} /* NULL terminated */
 };
 MODULE_DEVICE_TABLE(i2c, pm80x_id_table);
@@ -138,7 +136,7 @@ static struct regmap_irq pm805_irqs[] = {
 static int device_irq_init_805(struct pm80x_chip *chip)
 {
 	struct regmap *map = chip->regmap;
-	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
+	unsigned long flags = IRQF_ONESHOT;
 	int data, mask, ret = -EINVAL;
 
 	if (!map || !chip->irq) {
@@ -192,20 +190,12 @@ static struct regmap_irq_chip pm805_irq_chip = {
 static int device_805_init(struct pm80x_chip *chip)
 {
 	int ret = 0;
-	unsigned int val;
 	struct regmap *map = chip->regmap;
 
 	if (!map) {
 		dev_err(chip->dev, "regmap is invalid\n");
 		return -EINVAL;
 	}
-
-	ret = regmap_read(map, PM805_CHIP_ID, &val);
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
-		goto out_irq_init;
-	}
-	chip->version = val;
 
 	chip->regmap_irq_chip = &pm805_irq_chip;
 
@@ -239,7 +229,7 @@ static int pm805_probe(struct i2c_client *client,
 	struct pm80x_chip *chip;
 	struct pm80x_platform_data *pdata = client->dev.platform_data;
 
-	ret = pm80x_init(client, id);
+	ret = pm80x_init(client);
 	if (ret) {
 		dev_err(&client->dev, "pm805_init fail!\n");
 		goto out_init;
@@ -249,7 +239,7 @@ static int pm805_probe(struct i2c_client *client,
 
 	ret = device_805_init(chip);
 	if (ret) {
-		dev_err(chip->dev, "%s id 0x%x failed!\n", __func__, chip->id);
+		dev_err(chip->dev, "Failed to initialize 88pm805 devices\n");
 		goto err_805_init;
 	}
 
@@ -276,7 +266,7 @@ static int pm805_remove(struct i2c_client *client)
 
 static struct i2c_driver pm805_driver = {
 	.driver = {
-		.name = "88PM80X",
+		.name = "88PM805",
 		.owner = THIS_MODULE,
 		.pm = &pm80x_pm_ops,
 		},

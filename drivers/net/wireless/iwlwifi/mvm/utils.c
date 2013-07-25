@@ -76,6 +76,11 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
+#if defined(CONFIG_IWLWIFI_DEBUGFS) && defined(CONFIG_PM_SLEEP)
+	if (WARN_ON(mvm->d3_test_active))
+		return -EIO;
+#endif
+
 	/*
 	 * Synchronous commands from this op-mode must hold
 	 * the mutex, this ensures we don't try to send two
@@ -124,6 +129,11 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 	int ret, resp_len;
 
 	lockdep_assert_held(&mvm->mutex);
+
+#if defined(CONFIG_IWLWIFI_DEBUGFS) && defined(CONFIG_PM_SLEEP)
+	if (WARN_ON(mvm->d3_test_active))
+		return -EIO;
+#endif
 
 	/*
 	 * Only synchronous commands can wait for status,
@@ -470,4 +480,35 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
 		return -EINVAL;
 
 	return iwl_mvm_send_cmd(mvm, &cmd);
+}
+
+/**
+ * iwl_mvm_update_smps - Get a requst to change the SMPS mode
+ * @req_type: The part of the driver who call for a change.
+ * @smps_requests: The request to change the SMPS mode.
+ *
+ * Get a requst to change the SMPS mode,
+ * and change it according to all other requests in the driver.
+ */
+void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			 enum iwl_mvm_smps_type_request req_type,
+			 enum ieee80211_smps_mode smps_request)
+{
+	struct iwl_mvm_vif *mvmvif;
+	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
+	int i;
+
+	lockdep_assert_held(&mvm->mutex);
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	mvmvif->smps_requests[req_type] = smps_request;
+	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
+		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_STATIC) {
+			smps_mode = IEEE80211_SMPS_STATIC;
+			break;
+		}
+		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC)
+			smps_mode = IEEE80211_SMPS_DYNAMIC;
+	}
+
+	ieee80211_request_smps(vif, smps_mode);
 }

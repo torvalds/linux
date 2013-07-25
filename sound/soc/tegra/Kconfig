@@ -59,6 +59,16 @@ config SND_SOC_TEGRA30_I2S
 	  Tegra30 I2S interface. You will also need to select the individual
 	  machine drivers to support below.
 
+config SND_SOC_TEGRA_RT5640
+	tristate "SoC Audio support for Tegra boards using an RT5640 codec"
+	depends on SND_SOC_TEGRA && I2C
+	select SND_SOC_TEGRA20_I2S if ARCH_TEGRA_2x_SOC
+	select SND_SOC_TEGRA30_I2S if ARCH_TEGRA_3x_SOC
+	select SND_SOC_RT5640
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the RT5640 codec, such as Dalmore.
+
 config SND_SOC_TEGRA_WM8753
 	tristate "SoC Audio support for Tegra boards using a WM8753 codec"
 	depends on SND_SOC_TEGRA && I2C

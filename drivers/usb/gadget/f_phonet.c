@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/device.h>
 
 #include <linux/netdevice.h>
@@ -25,6 +26,7 @@
 #include <linux/usb/composite.h>
 
 #include "u_phonet.h"
+#include "u_ether.h"
 
 #define PN_MEDIA_USB	0x1B
 #define MAXPACKET	512
@@ -478,14 +480,34 @@ static void pn_disconnect(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static __init
-int pn_bind(struct usb_configuration *c, struct usb_function *f)
+static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct usb_gadget *gadget = cdev->gadget;
 	struct f_phonet *fp = func_to_pn(f);
 	struct usb_ep *ep;
 	int status, i;
+
+#ifndef USBF_PHONET_INCLUDED
+	struct f_phonet_opts *phonet_opts;
+
+	phonet_opts = container_of(f->fi, struct f_phonet_opts, func_inst);
+
+	/*
+	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
+	 * configurations are bound in sequence with list_for_each_entry,
+	 * in each configuration its functions are bound in sequence
+	 * with list_for_each_entry, so we assume no race condition
+	 * with regard to phonet_opts->bound access
+	 */
+	if (!phonet_opts->bound) {
+		gphonet_set_gadget(phonet_opts->net, gadget);
+		status = gphonet_register_netdev(phonet_opts->net);
+		if (status)
+			return status;
+		phonet_opts->bound = true;
+	}
+#endif
 
 	/* Reserve interface IDs */
 	status = usb_interface_id(c, f);
@@ -560,8 +582,98 @@ err:
 	return status;
 }
 
-static void
-pn_unbind(struct usb_configuration *c, struct usb_function *f)
+static inline struct f_phonet_opts *to_f_phonet_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_phonet_opts,
+			func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_phonet_opts);
+static ssize_t f_phonet_attr_show(struct config_item *item,
+				struct configfs_attribute *attr,
+				char *page)
+{
+	struct f_phonet_opts *opts = to_f_phonet_opts(item);
+	struct f_phonet_opts_attribute *f_phonet_opts_attr =
+		container_of(attr, struct f_phonet_opts_attribute, attr);
+	ssize_t ret = 0;
+
+	if (f_phonet_opts_attr->show)
+		ret = f_phonet_opts_attr->show(opts, page);
+	return ret;
+}
+
+static void phonet_attr_release(struct config_item *item)
+{
+	struct f_phonet_opts *opts = to_f_phonet_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations phonet_item_ops = {
+	.release		= phonet_attr_release,
+	.show_attribute		= f_phonet_attr_show,
+};
+
+static ssize_t f_phonet_ifname_show(struct f_phonet_opts *opts, char *page)
+{
+	return gether_get_ifname(opts->net, page, PAGE_SIZE);
+}
+
+static struct f_phonet_opts_attribute f_phonet_ifname =
+	__CONFIGFS_ATTR_RO(ifname, f_phonet_ifname_show);
+
+static struct configfs_attribute *phonet_attrs[] = {
+	&f_phonet_ifname.attr,
+	NULL,
+};
+
+static struct config_item_type phonet_func_type = {
+	.ct_item_ops	= &phonet_item_ops,
+	.ct_attrs	= phonet_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static void phonet_free_inst(struct usb_function_instance *f)
+{
+	struct f_phonet_opts *opts;
+
+	opts = container_of(f, struct f_phonet_opts, func_inst);
+	if (opts->bound)
+		gphonet_cleanup(opts->net);
+	else
+		free_netdev(opts->net);
+	kfree(opts);
+}
+
+static struct usb_function_instance *phonet_alloc_inst(void)
+{
+	struct f_phonet_opts *opts;
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts)
+		return ERR_PTR(-ENOMEM);
+
+	opts->func_inst.free_func_inst = phonet_free_inst;
+	opts->net = gphonet_setup_default();
+	if (IS_ERR(opts->net))
+		return ERR_PTR(PTR_ERR(opts->net));
+
+	config_group_init_type_name(&opts->func_inst.group, "",
+			&phonet_func_type);
+
+	return &opts->func_inst;
+}
+
+static void phonet_free(struct usb_function *f)
+{
+	struct f_phonet *phonet;
+
+	phonet = func_to_pn(f);
+	kfree(phonet);
+}
+
+static void pn_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_phonet *fp = func_to_pn(f);
 	int i;
@@ -574,61 +686,72 @@ pn_unbind(struct usb_configuration *c, struct usb_function *f)
 			usb_ep_free_request(fp->out_ep, fp->out_reqv[i]);
 
 	usb_free_all_descriptors(f);
-	kfree(fp);
 }
 
-/*-------------------------------------------------------------------------*/
-
-static struct net_device *dev;
-
-int __init phonet_bind_config(struct usb_configuration *c)
+struct usb_function *phonet_alloc(struct usb_function_instance *fi)
 {
 	struct f_phonet *fp;
-	int err, size;
+	struct f_phonet_opts *opts;
+	int size;
 
 	size = sizeof(*fp) + (phonet_rxq_size * sizeof(struct usb_request *));
 	fp = kzalloc(size, GFP_KERNEL);
 	if (!fp)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	fp->dev = dev;
+	opts = container_of(fi, struct f_phonet_opts, func_inst);
+
+	fp->dev = opts->net;
 	fp->function.name = "phonet";
 	fp->function.bind = pn_bind;
 	fp->function.unbind = pn_unbind;
 	fp->function.set_alt = pn_set_alt;
 	fp->function.get_alt = pn_get_alt;
 	fp->function.disable = pn_disconnect;
+	fp->function.free_func = phonet_free;
 	spin_lock_init(&fp->rx.lock);
 
-	err = usb_add_function(c, &fp->function);
-	if (err)
-		kfree(fp);
-	return err;
+	return &fp->function;
 }
 
-int __init gphonet_setup(struct usb_gadget *gadget)
+struct net_device *gphonet_setup_default(void)
 {
+	struct net_device *dev;
 	struct phonet_port *port;
-	int err;
 
 	/* Create net device */
-	BUG_ON(dev);
 	dev = alloc_netdev(sizeof(*port), "upnlink%d", pn_net_setup);
 	if (!dev)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	port = netdev_priv(dev);
 	spin_lock_init(&port->lock);
 	netif_carrier_off(dev);
-	SET_NETDEV_DEV(dev, &gadget->dev);
 
-	err = register_netdev(dev);
-	if (err)
-		free_netdev(dev);
-	return err;
+	return dev;
 }
 
-void gphonet_cleanup(void)
+void gphonet_set_gadget(struct net_device *net, struct usb_gadget *g)
+{
+	SET_NETDEV_DEV(net, &g->dev);
+}
+
+int gphonet_register_netdev(struct net_device *net)
+{
+	int status;
+
+	status = register_netdev(net);
+	if (status)
+		free_netdev(net);
+
+	return status;
+}
+
+void gphonet_cleanup(struct net_device *dev)
 {
 	unregister_netdev(dev);
 }
+
+DECLARE_USB_FUNCTION_INIT(phonet, phonet_alloc_inst, phonet_alloc);
+MODULE_AUTHOR("Rémi Denis-Courmont");
+MODULE_LICENSE("GPL");

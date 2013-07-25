@@ -60,6 +60,7 @@ struct power_pmu {
 #define PPMU_HAS_SSLOT		0x00000020 /* Has sampled slot in MMCRA */
 #define PPMU_HAS_SIER		0x00000040 /* Has SIER */
 #define PPMU_BHRB		0x00000080 /* has BHRB feature enabled */
+#define PPMU_EBB		0x00000100 /* supports event based branch */
 
 /*
  * Values for flags to get_alternatives()
@@ -67,6 +68,11 @@ struct power_pmu {
 #define PPMU_LIMITED_PMC_OK	1	/* can put this on a limited PMC */
 #define PPMU_LIMITED_PMC_REQD	2	/* have to put this on a limited PMC */
 #define PPMU_ONLY_COUNT_RUN	4	/* only counting in run state */
+
+/*
+ * We use the event config bit 63 as a flag to request EBB.
+ */
+#define EVENT_CONFIG_EBB_SHIFT	63
 
 extern int register_power_pmu(struct power_pmu *);
 

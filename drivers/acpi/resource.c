@@ -304,7 +304,8 @@ static void acpi_dev_irqresource_disabled(struct resource *res, u32 gsi)
 }
 
 static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
-				     u8 triggering, u8 polarity, u8 shareable)
+				     u8 triggering, u8 polarity, u8 shareable,
+				     bool legacy)
 {
 	int irq, p, t;
 
@@ -317,14 +318,19 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
 	 * In IO-APIC mode, use overrided attribute. Two reasons:
 	 * 1. BIOS bug in DSDT
 	 * 2. BIOS uses IO-APIC mode Interrupt Source Override
+	 *
+	 * We do this only if we are dealing with IRQ() or IRQNoFlags()
+	 * resource (the legacy ISA resources). With modern ACPI 5 devices
+	 * using extended IRQ descriptors we take the IRQ configuration
+	 * from _CRS directly.
 	 */
-	if (!acpi_get_override_irq(gsi, &t, &p)) {
+	if (legacy && !acpi_get_override_irq(gsi, &t, &p)) {
 		u8 trig = t ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE;
 		u8 pol = p ? ACPI_ACTIVE_LOW : ACPI_ACTIVE_HIGH;
 
 		if (triggering != trig || polarity != pol) {
 			pr_warning("ACPI: IRQ %d override to %s, %s\n", gsi,
-				   t ? "edge" : "level", p ? "low" : "high");
+				   t ? "level" : "edge", p ? "low" : "high");
 			triggering = trig;
 			polarity = pol;
 		}
@@ -373,7 +379,7 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 		}
 		acpi_dev_get_irqresource(res, irq->interrupts[index],
 					 irq->triggering, irq->polarity,
-					 irq->sharable);
+					 irq->sharable, true);
 		break;
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		ext_irq = &ares->data.extended_irq;
@@ -383,7 +389,7 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 		}
 		acpi_dev_get_irqresource(res, ext_irq->interrupts[index],
 					 ext_irq->triggering, ext_irq->polarity,
-					 ext_irq->sharable);
+					 ext_irq->sharable, false);
 		break;
 	default:
 		return false;

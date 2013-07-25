@@ -2,6 +2,7 @@
 #define _ASM_METAG_HUGETLB_H
 
 #include <asm/page.h>
+#include <asm-generic/hugetlb.h>
 
 
 static inline int is_hugepage_only_range(struct mm_struct *mm,

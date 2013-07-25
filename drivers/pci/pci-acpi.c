@@ -186,8 +186,8 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		[PCI_D0] = ACPI_STATE_D0,
 		[PCI_D1] = ACPI_STATE_D1,
 		[PCI_D2] = ACPI_STATE_D2,
-		[PCI_D3hot] = ACPI_STATE_D3,
-		[PCI_D3cold] = ACPI_STATE_D3
+		[PCI_D3hot] = ACPI_STATE_D3_COLD,
+		[PCI_D3cold] = ACPI_STATE_D3_COLD,
 	};
 	int error = -EINVAL;
 
@@ -211,7 +211,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 
 	if (!error)
 		dev_info(&dev->dev, "power state changed by ACPI to %s\n",
-			 pci_power_name(state));
+			 acpi_power_state_string(state_conv[state]));
 
 	return error;
 }
@@ -376,12 +376,12 @@ static int __init acpi_pci_init(void)
 	int ret;
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_MSI) {
-		printk(KERN_INFO"ACPI FADT declares the system doesn't support MSI, so disable it\n");
+		pr_info("ACPI FADT declares the system doesn't support MSI, so disable it\n");
 		pci_no_msi();
 	}
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
-		printk(KERN_INFO"ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
+		pr_info("ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
 		pcie_no_aspm();
 	}
 

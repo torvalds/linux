@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "dbx5x0.dtsi"
+#include "dbx5x0.dtsi"
 
 / {
 	model = "Calao Systems Snowball platform with device tree";
@@ -22,12 +22,13 @@
 
 	en_3v3_reg: en_3v3 {
 		compatible = "regulator-fixed";
-                regulator-name = "en-3v3-fixed-supply";
-                regulator-min-microvolt = <3300000>;
-                regulator-max-microvolt = <3300000>;
-                gpios = <&gpio0 26  0x4>; // 26
-                startup-delay-us = <5000>;
-                enable-active-high;
+		regulator-name = "en-3v3-fixed-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		/* AB8500 GPIOs start from 1 - offset 25 is GPIO26. */
+		gpio = <&ab8500_gpio 25 0x4>;
+		startup-delay-us = <5000>;
+		enable-active-high;
 	};
 
 	gpio_keys {
@@ -82,7 +83,7 @@
 		};
 	};
 
-	soc-u9500 {
+	soc {
 
 		sound {
 			compatible = "stericsson,snd-soc-mop500";
@@ -99,40 +100,13 @@
 			status = "okay";
 		};
 
-		prcmu@80157000 {
-			thermal@801573c0 {
-				num-trips = <4>;
-
-				trip0-temp = <70000>;
-				trip0-type = "active";
-				trip0-cdev-num = <1>;
-				trip0-cdev-name0 = "thermal-cpufreq-0";
-
-				trip1-temp = <75000>;
-				trip1-type = "active";
-				trip1-cdev-num = <1>;
-				trip1-cdev-name0 = "thermal-cpufreq-0";
-
-				trip2-temp = <80000>;
-				trip2-type = "active";
-				trip2-cdev-num = <1>;
-				trip2-cdev-name0 = "thermal-cpufreq-0";
-
-				trip3-temp = <85000>;
-				trip3-type = "critical";
-				trip3-cdev-num = <0>;
-
-				status = "okay";
-			 };
-		};
-
 		external-bus@50000000 {
 			status = "okay";
 
 			ethernet@0 {
 				compatible = "smsc,lan9115";
 				reg = <0 0x10000>;
-				interrupts = <12 0x1>;
+				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
 				interrupt-parent = <&gpio4>;
 				vdd33a-supply = <&en_3v3_reg>;
 				vddvario-supply = <&db8500_vape_reg>;
@@ -146,13 +120,21 @@
 			};
 		};
 
+		vmmci: regulator-gpio {
+			gpios = <&gpio6 25 0x4>;
+			enable-gpio = <&gpio7 4 0x4>;
+
+			status = "okay";
+		};
+
 		// External Micro SD slot
 		sdi0_per1@80126000 {
 			arm,primecell-periphid = <0x10480180>;
-			max-frequency = <50000000>;
+			max-frequency = <100000000>;
 			bus-width = <4>;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			vqmmc-supply = <&vmmci>;
 
 			cd-gpios  = <&gpio6 26 0x4>; // 218
 			cd-inverted;
@@ -163,7 +145,7 @@
 		// On-board eMMC
 		sdi4_per2@80114000 {
 			arm,primecell-periphid = <0x10480180>;
-		        max-frequency = <50000000>;
+		        max-frequency = <100000000>;
 			bus-width = <8>;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
@@ -197,15 +179,15 @@
 		};
 
 		i2c@80128000 {
-			lp5521@0x33 {
+			lp5521@33 {
 				// compatible = "lp5521";
 				reg = <0x33>;
 			};
-			lp5521@0x34 {
+			lp5521@34 {
 				// compatible = "lp5521";
 				reg = <0x34>;
 			};
-			bh1780@0x29 {
+			bh1780@29 {
 				// compatible = "rohm,bh1780gli";
 				reg = <0x33>;
 			};
@@ -298,6 +280,31 @@
 				};
 			};
 
+			thermal@801573c0 {
+				num-trips = <4>;
+
+				trip0-temp = <70000>;
+				trip0-type = "active";
+				trip0-cdev-num = <1>;
+				trip0-cdev-name0 = "thermal-cpufreq-0";
+
+				trip1-temp = <75000>;
+				trip1-type = "active";
+				trip1-cdev-num = <1>;
+				trip1-cdev-name0 = "thermal-cpufreq-0";
+
+				trip2-temp = <80000>;
+				trip2-type = "active";
+				trip2-cdev-num = <1>;
+				trip2-cdev-name0 = "thermal-cpufreq-0";
+
+				trip3-temp = <85000>;
+				trip3-type = "critical";
+				trip3-cdev-num = <0>;
+
+				status = "okay";
+			};
+
 			ab8500 {
 				ab8500-gpio {
 					compatible = "stericsson,ab8500-gpio";
@@ -316,7 +323,7 @@
 						regulator-name = "V-MMC-SD";
 					};
 
-					ab8500_ldo_initcore_reg: ab8500_ldo_initcore {
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
 						regulator-name = "V-INTCORE";
 					};
 
@@ -336,7 +343,7 @@
 						regulator-name = "V-AMIC1";
 					};
 
-					ab8500_ldo_amamic2_reg: ab8500_ldo_amamic2 {
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
 						regulator-name = "V-AMIC2";
 					};
 

@@ -10,7 +10,7 @@
  */
 /dts-v1/;
 
-/include/ "omap34xx.dtsi"
+#include "omap34xx.dtsi"
 
 / {
 	memory {
@@ -29,37 +29,43 @@
 &omap3_pmx_core {
 	uart1_pins: pinmux_uart1_pins {
 		pinctrl-single,pins = <
-			0x152 0x100	/* uart1_rx.uart1_rx INPUT | MODE0 */
-			0x14c 0		/* uart1_tx.uart1_tx OUTPUT | MODE0 */
+			0x152 (PIN_INPUT | MUX_MODE0)		/* uart1_rx.uart1_rx */
+			0x14c (PIN_OUTPUT |MUX_MODE0)		/* uart1_tx.uart1_tx */
 		>;
 	};
 
 	uart2_pins: pinmux_uart2_pins {
 		pinctrl-single,pins = <
-			0x14a 0x100	/* uart2_rx.uart2_rx INPUT | MODE0 */
-			0x148 0		/* uart2_tx.uart2_tx OUTPUT | MODE0 */
+			0x14a (PIN_INPUT | MUX_MODE0)		/* uart2_rx.uart2_rx */
+			0x148 (PIN_OUTPUT | MUX_MODE0)		/* uart2_tx.uart2_tx */
 		>;
 	};
 
 	uart3_pins: pinmux_uart3_pins {
 		pinctrl-single,pins = <
-			0x16e 0x100	/* uart3_rx.uart3_rx INPUT | MODE0 */
-			0x170 0		/* uart3_tx.uart3_tx OUTPUT | MODE0 */
+			0x16e (PIN_INPUT | MUX_MODE0)		/* uart3_rx.uart3_rx */
+			0x170 (PIN_OUTPUT | MUX_MODE0)		/* uart3_tx.uart3_tx */
 		>;
 	};
 
 	mmc1_pins: pinmux_mmc1_pins {
 		pinctrl-single,pins = <
-			0x114 0x0118    /* sdmmc1_clk.sdmmc1_clk INPUT PULLUP | MODE 0 */
-			0x116 0x0118    /* sdmmc1_cmd.sdmmc1_cmd INPUT PULLUP | MODE 0 */
-			0x118 0x0118 	/* sdmmc1_dat0.sdmmc1_dat0 INPUT PULLUP | MODE 0 */
-			0x11a 0x0118	/* sdmmc1_dat1.sdmmc1_dat1 INPUT PULLUP | MODE 0 */
-			0x11c 0x0118	/* sdmmc1_dat2.sdmmc1_dat2 INPUT PULLUP | MODE 0 */
-			0x11e 0x0118	/* sdmmc1_dat3.sdmmc1_dat3 INPUT PULLUP | MODE 0 */
-			0x120 0x0100	/* sdmmc1_dat4.sdmmc1_dat4 INPUT | MODE 0 */
-			0x122 0x0100	/* sdmmc1_dat5.sdmmc1_dat5 INPUT | MODE 0 */
-			0x124 0x0100	/* sdmmc1_dat6.sdmmc1_dat6 INPUT | MODE 0 */
-			0x126 0x0100	/* sdmmc1_dat7.sdmmc1_dat7 INPUT | MODE 0 */
+			0x114 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_clk.sdmmc1_clk */
+			0x116 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_cmd.sdmmc1_cmd */
+			0x118 (PIN_INPUT_PULLUP | MUX_MODE0) 	/* sdmmc1_dat0.sdmmc1_dat0 */
+			0x11a (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat1.sdmmc1_dat1 */
+			0x11c (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat2.sdmmc1_dat2 */
+			0x11e (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_dat3.sdmmc1_dat3 */
+			0x120 (PIN_INPUT | MUX_MODE0)		/* sdmmc1_dat4.sdmmc1_dat4 */
+			0x122 (PIN_INPUT | MUX_MODE0)		/* sdmmc1_dat5.sdmmc1_dat5 */
+			0x124 (PIN_INPUT | MUX_MODE0)		/* sdmmc1_dat6.sdmmc1_dat6 */
+			0x126 (PIN_INPUT | MUX_MODE0)		/* sdmmc1_dat7.sdmmc1_dat7 */
+		>;
+	};
+
+	smsc911x_pins: pinmux_smsc911x_pins {
+		pinctrl-single,pins = <
+			0x1a2 (PIN_INPUT | MUX_MODE4)		/* mcspi1_cs2.gpio_176 */
 		>;
 	};
 };
@@ -80,7 +86,8 @@
 	};
 };
 
-/include/ "twl4030.dtsi"
+#include "twl4030.dtsi"
+#include "twl4030_omap3.dtsi"
 
 &i2c2 {
 	clock-frequency = <400000>;

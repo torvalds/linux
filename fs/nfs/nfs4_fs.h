@@ -194,7 +194,7 @@ struct nfs4_state_recovery_ops {
 	int (*recover_lock)(struct nfs4_state *, struct file_lock *);
 	int (*establish_clid)(struct nfs_client *, struct rpc_cred *);
 	struct rpc_cred * (*get_clid_cred)(struct nfs_client *);
-	int (*reclaim_complete)(struct nfs_client *);
+	int (*reclaim_complete)(struct nfs_client *, struct rpc_cred *);
 	int (*detect_trunking)(struct nfs_client *, struct nfs_client **,
 		struct rpc_cred *);
 };
@@ -303,10 +303,10 @@ is_ds_client(struct nfs_client *clp)
 extern const struct nfs4_minor_version_ops *nfs_v4_minor_ops[];
 
 extern const u32 nfs4_fattr_bitmap[3];
-extern const u32 nfs4_statfs_bitmap[2];
-extern const u32 nfs4_pathconf_bitmap[2];
+extern const u32 nfs4_statfs_bitmap[3];
+extern const u32 nfs4_pathconf_bitmap[3];
 extern const u32 nfs4_fsinfo_bitmap[3];
-extern const u32 nfs4_fs_locations_bitmap[2];
+extern const u32 nfs4_fs_locations_bitmap[3];
 
 void nfs4_free_client(struct nfs_client *);
 

@@ -3425,8 +3425,6 @@ static int ab8500_charger_remove(struct platform_device *pdev)
 	if (di->ac_chg.enabled && !di->ac_chg.external)
 		power_supply_unregister(&di->ac_chg.psy);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

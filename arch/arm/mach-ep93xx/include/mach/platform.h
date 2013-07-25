@@ -4,6 +4,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/reboot.h>
+
 struct i2c_gpio_platform_data;
 struct i2c_board_info;
 struct spi_board_info;
@@ -55,7 +57,7 @@ void ep93xx_ide_release_gpio(struct platform_device *pdev);
 void ep93xx_init_devices(void);
 extern void ep93xx_timer_init(void);
 
-void ep93xx_restart(char, const char *);
+void ep93xx_restart(enum reboot_mode, const char *);
 void ep93xx_init_late(void);
 
 #ifdef CONFIG_CRUNCH

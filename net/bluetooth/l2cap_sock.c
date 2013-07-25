@@ -466,7 +466,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname,
 static bool l2cap_valid_mtu(struct l2cap_chan *chan, u16 mtu)
 {
 	switch (chan->scid) {
-	case L2CAP_CID_LE_DATA:
+	case L2CAP_CID_ATT:
 		if (mtu < L2CAP_LE_MIN_MTU)
 			return false;
 		break;
@@ -630,7 +630,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 		conn = chan->conn;
 
 		/*change security for LE channels */
-		if (chan->scid == L2CAP_CID_LE_DATA) {
+		if (chan->scid == L2CAP_CID_ATT) {
 			if (!conn->hcon->out) {
 				err = -EINVAL;
 				break;

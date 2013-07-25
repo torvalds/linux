@@ -38,6 +38,8 @@
 #include <linux/dmi.h>
 #include <linux/pci.h>
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 ACPI_MODULE_NAME("video");
@@ -234,6 +236,17 @@ static void acpi_video_caps_check(void)
 		acpi_video_get_capabilities(NULL);
 }
 
+bool acpi_video_backlight_quirks(void)
+{
+	if (acpi_gbl_osi_data >= ACPI_OSI_WIN_8) {
+		acpi_video_caps_check();
+		acpi_video_support |= ACPI_VIDEO_SKIP_BACKLIGHT;
+		return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL(acpi_video_backlight_quirks);
+
 /* Promote the vendor interface instead of the generic video module.
  * This function allow DMI blacklists to be implemented by externals
  * platform drivers instead of putting a big blacklist in video_detect.c
@@ -277,6 +290,14 @@ int acpi_video_backlight_support(void)
 	return acpi_video_support & ACPI_VIDEO_BACKLIGHT;
 }
 EXPORT_SYMBOL(acpi_video_backlight_support);
+
+/* For the ACPI video driver use only. */
+bool acpi_video_verify_backlight_support(void)
+{
+	return (acpi_video_support & ACPI_VIDEO_SKIP_BACKLIGHT) ?
+		false : acpi_video_backlight_support();
+}
+EXPORT_SYMBOL(acpi_video_verify_backlight_support);
 
 /*
  * Use acpi_backlight=vendor/video to force that backlight switching

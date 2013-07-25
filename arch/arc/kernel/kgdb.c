@@ -169,7 +169,7 @@ int kgdb_arch_init(void)
 	return 0;
 }
 
-void kgdb_trap(struct pt_regs *regs, int param)
+void kgdb_trap(struct pt_regs *regs)
 {
 	/* trap_s 3 is used for breakpoints that overwrite existing
 	 * instructions, while trap_s 4 is used for compiled breakpoints.
@@ -181,7 +181,7 @@ void kgdb_trap(struct pt_regs *regs, int param)
 	 * with trap_s 4 (compiled) breakpoints, continuation needs to
 	 * start after the breakpoint.
 	 */
-	if (param == 3)
+	if (regs->ecr_param == 3)
 		instruction_pointer(regs) -= BREAK_INSTR_SIZE;
 
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);

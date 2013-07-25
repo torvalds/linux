@@ -58,8 +58,10 @@ FLOATFUNC(fnabs);
 FLOATFUNC(fneg);
 
 /* Optional */
+FLOATFUNC(fre);
 FLOATFUNC(fres);
 FLOATFUNC(frsqrte);
+FLOATFUNC(frsqrtes);
 FLOATFUNC(fsel);
 FLOATFUNC(fsqrt);
 FLOATFUNC(fsqrts);
@@ -97,6 +99,7 @@ FLOATFUNC(fsqrts);
 #define FSQRTS		0x016		/*   22 */
 #define FRES		0x018		/*   24 */
 #define FMULS		0x019		/*   25 */
+#define FRSQRTES	0x01a		/*   26 */
 #define FMSUBS		0x01c		/*   28 */
 #define FMADDS		0x01d		/*   29 */
 #define FNMSUBS		0x01e		/*   30 */
@@ -109,6 +112,7 @@ FLOATFUNC(fsqrts);
 #define FADD		0x015		/*   21 */
 #define FSQRT		0x016		/*   22 */
 #define FSEL		0x017		/*   23 */
+#define FRE		0x018		/*   24 */
 #define FMUL		0x019		/*   25 */
 #define FRSQRTE		0x01a		/*   26 */
 #define FMSUB		0x01c		/*   28 */
@@ -299,9 +303,10 @@ do_mathemu(struct pt_regs *regs)
 		case FDIVS:	func = fdivs;	type = AB;	break;
 		case FSUBS:	func = fsubs;	type = AB;	break;
 		case FADDS:	func = fadds;	type = AB;	break;
-		case FSQRTS:	func = fsqrts;	type = AB;	break;
-		case FRES:	func = fres;	type = AB;	break;
+		case FSQRTS:	func = fsqrts;	type = XB;	break;
+		case FRES:	func = fres;	type = XB;	break;
 		case FMULS:	func = fmuls;	type = AC;	break;
+		case FRSQRTES:	func = frsqrtes;type = XB;	break;
 		case FMSUBS:	func = fmsubs;	type = ABC;	break;
 		case FMADDS:	func = fmadds;	type = ABC;	break;
 		case FNMSUBS:	func = fnmsubs;	type = ABC;	break;
@@ -317,10 +322,11 @@ do_mathemu(struct pt_regs *regs)
 			case FDIV:	func = fdiv;	type = AB;	break;
 			case FSUB:	func = fsub;	type = AB;	break;
 			case FADD:	func = fadd;	type = AB;	break;
-			case FSQRT:	func = fsqrt;	type = AB;	break;
+			case FSQRT:	func = fsqrt;	type = XB;	break;
+			case FRE:	func = fre;	type = XB;	break;
 			case FSEL:	func = fsel;	type = ABC;	break;
 			case FMUL:	func = fmul;	type = AC;	break;
-			case FRSQRTE:	func = frsqrte;	type = AB;	break;
+			case FRSQRTE:	func = frsqrte;	type = XB;	break;
 			case FMSUB:	func = fmsub;	type = ABC;	break;
 			case FMADD:	func = fmadd;	type = ABC;	break;
 			case FNMSUB:	func = fnmsub;	type = ABC;	break;

@@ -360,7 +360,7 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 }
 EXPORT_SYMBOL_GPL(pnfs_put_lseg);
 
-static inline u64
+static u64
 end_offset(u64 start, u64 len)
 {
 	u64 end;
@@ -376,9 +376,9 @@ end_offset(u64 start, u64 len)
  *           start2           end2
  *           [----------------)
  */
-static inline int
-lo_seg_contained(struct pnfs_layout_range *l1,
-		 struct pnfs_layout_range *l2)
+static bool
+pnfs_lseg_range_contained(const struct pnfs_layout_range *l1,
+		 const struct pnfs_layout_range *l2)
 {
 	u64 start1 = l1->offset;
 	u64 end1 = end_offset(start1, l1->length);
@@ -395,9 +395,9 @@ lo_seg_contained(struct pnfs_layout_range *l1,
  *                              start2           end2
  *                              [----------------)
  */
-static inline int
-lo_seg_intersecting(struct pnfs_layout_range *l1,
-		    struct pnfs_layout_range *l2)
+static bool
+pnfs_lseg_range_intersecting(const struct pnfs_layout_range *l1,
+		    const struct pnfs_layout_range *l2)
 {
 	u64 start1 = l1->offset;
 	u64 end1 = end_offset(start1, l1->length);
@@ -409,12 +409,12 @@ lo_seg_intersecting(struct pnfs_layout_range *l1,
 }
 
 static bool
-should_free_lseg(struct pnfs_layout_range *lseg_range,
-		 struct pnfs_layout_range *recall_range)
+should_free_lseg(const struct pnfs_layout_range *lseg_range,
+		 const struct pnfs_layout_range *recall_range)
 {
 	return (recall_range->iomode == IOMODE_ANY ||
 		lseg_range->iomode == recall_range->iomode) &&
-	       lo_seg_intersecting(lseg_range, recall_range);
+	       pnfs_lseg_range_intersecting(lseg_range, recall_range);
 }
 
 static bool pnfs_lseg_dec_and_remove_zero(struct pnfs_layout_segment *lseg,
@@ -766,6 +766,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	lgp->args.inode = ino;
 	lgp->args.ctx = get_nfs_open_context(ctx);
 	lgp->gfp_flags = gfp_flags;
+	lgp->cred = lo->plh_lc_cred;
 
 	/* Synchronously retrieve layout information from server and
 	 * store in lseg.
@@ -860,6 +861,7 @@ _pnfs_return_layout(struct inode *ino)
 	lrp->args.inode = ino;
 	lrp->args.layout = lo;
 	lrp->clp = NFS_SERVER(ino)->nfs_client;
+	lrp->cred = lo->plh_lc_cred;
 
 	status = nfs4_proc_layoutreturn(lrp);
 out:
@@ -984,8 +986,8 @@ out:
  * are seen first.
  */
 static s64
-cmp_layout(struct pnfs_layout_range *l1,
-	   struct pnfs_layout_range *l2)
+pnfs_lseg_range_cmp(const struct pnfs_layout_range *l1,
+	   const struct pnfs_layout_range *l2)
 {
 	s64 d;
 
@@ -1012,7 +1014,7 @@ pnfs_layout_insert_lseg(struct pnfs_layout_hdr *lo,
 	dprintk("%s:Begin\n", __func__);
 
 	list_for_each_entry(lp, &lo->plh_segs, pls_list) {
-		if (cmp_layout(&lseg->pls_range, &lp->pls_range) > 0)
+		if (pnfs_lseg_range_cmp(&lseg->pls_range, &lp->pls_range) > 0)
 			continue;
 		list_add_tail(&lseg->pls_list, &lp->pls_list);
 		dprintk("%s: inserted lseg %p "
@@ -1050,7 +1052,7 @@ alloc_init_layout_hdr(struct inode *ino,
 	INIT_LIST_HEAD(&lo->plh_segs);
 	INIT_LIST_HEAD(&lo->plh_bulk_destroy);
 	lo->plh_inode = ino;
-	lo->plh_lc_cred = get_rpccred(ctx->state->owner->so_cred);
+	lo->plh_lc_cred = get_rpccred(ctx->cred);
 	return lo;
 }
 
@@ -1091,21 +1093,21 @@ out_existing:
  * READ		READ	true
  * READ		RW	true
  */
-static int
-is_matching_lseg(struct pnfs_layout_range *ls_range,
-		 struct pnfs_layout_range *range)
+static bool
+pnfs_lseg_range_match(const struct pnfs_layout_range *ls_range,
+		 const struct pnfs_layout_range *range)
 {
 	struct pnfs_layout_range range1;
 
 	if ((range->iomode == IOMODE_RW &&
 	     ls_range->iomode != IOMODE_RW) ||
-	    !lo_seg_intersecting(ls_range, range))
+	    !pnfs_lseg_range_intersecting(ls_range, range))
 		return 0;
 
 	/* range1 covers only the first byte in the range */
 	range1 = *range;
 	range1.length = 1;
-	return lo_seg_contained(ls_range, &range1);
+	return pnfs_lseg_range_contained(ls_range, &range1);
 }
 
 /*
@@ -1121,7 +1123,7 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 
 	list_for_each_entry(lseg, &lo->plh_segs, pls_list) {
 		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags) &&
-		    is_matching_lseg(&lseg->pls_range, range)) {
+		    pnfs_lseg_range_match(&lseg->pls_range, range)) {
 			ret = pnfs_get_lseg(lseg);
 			break;
 		}

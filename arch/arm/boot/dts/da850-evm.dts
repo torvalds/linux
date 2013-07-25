@@ -8,7 +8,7 @@
  * Free Software Foundation, version 2.
  */
 /dts-v1/;
-/include/ "da850.dtsi"
+#include "da850.dtsi"
 
 / {
 	compatible = "ti,da850-evm", "ti,da850";

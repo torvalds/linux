@@ -31,8 +31,7 @@ int xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
 		struct xfs_inode *ip);
 int xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
 		struct xfs_name *target_name);
-int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
-		       xfs_off_t *offset, filldir_t filldir);
+int xfs_readdir(struct xfs_inode *dp, struct dir_context *ctx, size_t bufsize);
 int xfs_symlink(struct xfs_inode *dp, struct xfs_name *link_name,
 		const char *target_path, umode_t mode, struct xfs_inode **ipp);
 int xfs_set_dmattrs(struct xfs_inode *ip, u_int evmask, u_int16_t state);

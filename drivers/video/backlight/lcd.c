@@ -219,7 +219,7 @@ struct lcd_device *lcd_device_register(const char *name, struct device *parent,
 	new_ld->dev.class = lcd_class;
 	new_ld->dev.parent = parent;
 	new_ld->dev.release = lcd_device_release;
-	dev_set_name(&new_ld->dev, name);
+	dev_set_name(&new_ld->dev, "%s", name);
 	dev_set_drvdata(&new_ld->dev, devdata);
 
 	rc = device_register(&new_ld->dev);
@@ -259,6 +259,76 @@ void lcd_device_unregister(struct lcd_device *ld)
 	device_unregister(&ld->dev);
 }
 EXPORT_SYMBOL(lcd_device_unregister);
+
+static void devm_lcd_device_release(struct device *dev, void *res)
+{
+	struct lcd_device *lcd = *(struct lcd_device **)res;
+
+	lcd_device_unregister(lcd);
+}
+
+static int devm_lcd_device_match(struct device *dev, void *res, void *data)
+{
+	struct lcd_device **r = res;
+
+	return *r == data;
+}
+
+/**
+ * devm_lcd_device_register - resource managed lcd_device_register()
+ * @dev: the device to register
+ * @name: the name of the device
+ * @parent: a pointer to the parent device
+ * @devdata: an optional pointer to be stored for private driver use
+ * @ops: the lcd operations structure
+ *
+ * @return a struct lcd on success, or an ERR_PTR on error
+ *
+ * Managed lcd_device_register(). The lcd_device returned from this function
+ * are automatically freed on driver detach. See lcd_device_register()
+ * for more information.
+ */
+struct lcd_device *devm_lcd_device_register(struct device *dev,
+		const char *name, struct device *parent,
+		void *devdata, struct lcd_ops *ops)
+{
+	struct lcd_device **ptr, *lcd;
+
+	ptr = devres_alloc(devm_lcd_device_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	lcd = lcd_device_register(name, parent, devdata, ops);
+	if (!IS_ERR(lcd)) {
+		*ptr = lcd;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return lcd;
+}
+EXPORT_SYMBOL(devm_lcd_device_register);
+
+/**
+ * devm_lcd_device_unregister - resource managed lcd_device_unregister()
+ * @dev: the device to unregister
+ * @ld: the lcd device to unregister
+ *
+ * Deallocated a lcd allocated with devm_lcd_device_register(). Normally
+ * this function will not need to be called and the resource management
+ * code will ensure that the resource is freed.
+ */
+void devm_lcd_device_unregister(struct device *dev, struct lcd_device *ld)
+{
+	int rc;
+
+	rc = devres_release(dev, devm_lcd_device_release,
+				devm_lcd_device_match, ld);
+	WARN_ON(rc);
+}
+EXPORT_SYMBOL(devm_lcd_device_unregister);
+
 
 static void __exit lcd_class_exit(void)
 {

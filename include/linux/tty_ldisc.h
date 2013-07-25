@@ -100,6 +100,11 @@
  *	seek to perform this action quickly but should wait until
  *	any pending driver I/O is completed.
  *
+ * void (*fasync)(struct tty_struct *, int on)
+ *
+ *	Notify line discipline when signal-driven I/O is enabled or
+ *	disabled.
+ *
  * void (*dcd_change)(struct tty_struct *tty, unsigned int status)
  *
  *	Tells the discipline that the DCD pin has changed its status.
@@ -109,6 +114,52 @@
 #include <linux/fs.h>
 #include <linux/wait.h>
 #include <linux/wait.h>
+
+
+/*
+ * the semaphore definition
+ */
+struct ld_semaphore {
+	long			count;
+	raw_spinlock_t		wait_lock;
+	unsigned int		wait_readers;
+	struct list_head	read_wait;
+	struct list_head	write_wait;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
+};
+
+extern void __init_ldsem(struct ld_semaphore *sem, const char *name,
+			 struct lock_class_key *key);
+
+#define init_ldsem(sem)						\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	__init_ldsem((sem), #sem, &__key);			\
+} while (0)
+
+
+extern int ldsem_down_read(struct ld_semaphore *sem, long timeout);
+extern int ldsem_down_read_trylock(struct ld_semaphore *sem);
+extern int ldsem_down_write(struct ld_semaphore *sem, long timeout);
+extern int ldsem_down_write_trylock(struct ld_semaphore *sem);
+extern void ldsem_up_read(struct ld_semaphore *sem);
+extern void ldsem_up_write(struct ld_semaphore *sem);
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+extern int ldsem_down_read_nested(struct ld_semaphore *sem, int subclass,
+				  long timeout);
+extern int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
+				   long timeout);
+#else
+# define ldsem_down_read_nested(sem, subclass, timeout)		\
+		ldsem_down_read(sem, timeout)
+# define ldsem_down_write_nested(sem, subclass, timeout)	\
+		ldsem_down_write(sem, timeout)
+#endif
+
 
 struct tty_ldisc_ops {
 	int	magic;
@@ -143,6 +194,7 @@ struct tty_ldisc_ops {
 			       char *fp, int count);
 	void	(*write_wakeup)(struct tty_struct *);
 	void	(*dcd_change)(struct tty_struct *, unsigned int);
+	void	(*fasync)(struct tty_struct *tty, int on);
 
 	struct  module *owner;
 

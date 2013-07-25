@@ -113,17 +113,6 @@ static struct pci_driver ioapic_driver = {
 	.remove		= ioapic_remove,
 };
 
-static int __init ioapic_init(void)
-{
-	return pci_register_driver(&ioapic_driver);
-}
-
-static void __exit ioapic_exit(void)
-{
-	pci_unregister_driver(&ioapic_driver);
-}
-
-module_init(ioapic_init);
-module_exit(ioapic_exit);
+module_pci_driver(ioapic_driver);
 
 MODULE_LICENSE("GPL");

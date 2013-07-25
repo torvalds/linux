@@ -5,6 +5,7 @@
 #include <linux/cpu.h>
 #include <linux/tick.h>
 #include <linux/mm.h>
+#include <linux/stackprotector.h>
 
 #include <asm/tlb.h>
 
@@ -58,6 +59,7 @@ void __weak arch_cpu_idle_dead(void) { }
 void __weak arch_cpu_idle(void)
 {
 	cpu_idle_force_poll = 1;
+	local_irq_enable();
 }
 
 /*
@@ -112,6 +114,21 @@ static void cpu_idle_loop(void)
 
 void cpu_startup_entry(enum cpuhp_state state)
 {
+	/*
+	 * This #ifdef needs to die, but it's too late in the cycle to
+	 * make this generic (arm and sh have never invoked the canary
+	 * init for the non boot cpus!). Will be fixed in 3.11
+	 */
+#ifdef CONFIG_X86
+	/*
+	 * If we're the non-boot CPU, nothing set the stack canary up
+	 * for us. The boot CPU already has it initialized but no harm
+	 * in doing it again. This is a good place for updating it, as
+	 * we wont ever return from this function (so the invalid
+	 * canaries already on the stack wont ever trigger).
+	 */
+	boot_init_stack_canary();
+#endif
 	current_set_polling();
 	arch_cpu_idle_prepare();
 	cpu_idle_loop();

@@ -291,7 +291,7 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	lcd->virtbase = ioremap(lcd->phybase, lcd->physize);
 	if (!lcd->virtbase) {
 		ret = -ENOMEM;
-		goto out_no_remap;
+		goto out_no_memregion;
 	}
 
 	lcd->irq = platform_get_irq(pdev, 0);
@@ -320,8 +320,6 @@ static int __init charlcd_probe(struct platform_device *pdev)
 
 out_no_irq:
 	iounmap(lcd->virtbase);
-out_no_remap:
-	platform_set_drvdata(pdev, NULL);
 out_no_memregion:
 	release_mem_region(lcd->phybase, SZ_4K);
 out_no_resource:
@@ -337,7 +335,6 @@ static int __exit charlcd_remove(struct platform_device *pdev)
 		free_irq(lcd->irq, lcd);
 		iounmap(lcd->virtbase);
 		release_mem_region(lcd->phybase, lcd->physize);
-		platform_set_drvdata(pdev, NULL);
 		kfree(lcd);
 	}
 

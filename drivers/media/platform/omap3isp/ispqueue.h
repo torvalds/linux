@@ -28,6 +28,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/mm_types.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/wait.h>

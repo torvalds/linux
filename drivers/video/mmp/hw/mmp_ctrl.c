@@ -165,9 +165,9 @@ static void overlay_set_win(struct mmp_overlay *overlay, struct mmp_win *win)
 
 static void dmafetch_onoff(struct mmp_overlay *overlay, int on)
 {
-	u32 mask = overlay_is_vid(overlay) ? CFG_GRA_ENA_MASK :
-		   CFG_DMA_ENA_MASK;
-	u32 enable = overlay_is_vid(overlay) ? CFG_GRA_ENA(1) : CFG_DMA_ENA(1);
+	u32 mask = overlay_is_vid(overlay) ? CFG_DMA_ENA_MASK :
+		   CFG_GRA_ENA_MASK;
+	u32 enable = overlay_is_vid(overlay) ? CFG_DMA_ENA(1) : CFG_GRA_ENA(1);
 	u32 tmp;
 	struct mmp_path *path = overlay->path;
 
@@ -238,7 +238,7 @@ static int overlay_set_addr(struct mmp_overlay *overlay, struct mmp_addr *addr)
 	struct lcd_regs *regs = path_regs(overlay->path);
 
 	/* FIXME: assert addr supported */
-	memcpy(&overlay->addr, addr, sizeof(struct mmp_win));
+	memcpy(&overlay->addr, addr, sizeof(struct mmp_addr));
 	writel(addr->phys[0], &regs->g_0);
 
 	return overlay->addr.phys[0];
@@ -566,7 +566,6 @@ failed:
 		devm_kfree(ctrl->dev, ctrl);
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	dev_err(&pdev->dev, "device init failed\n");
 
 	return ret;

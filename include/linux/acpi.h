@@ -191,6 +191,7 @@ extern bool wmi_has_guid(const char *guid);
 #define ACPI_VIDEO_BACKLIGHT_DMI_VIDEO			0x0200
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VENDOR		0x0400
 #define ACPI_VIDEO_OUTPUT_SWITCHING_DMI_VIDEO		0x0800
+#define ACPI_VIDEO_SKIP_BACKLIGHT			0x1000
 
 #if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
 
@@ -352,8 +353,7 @@ extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 
 /* Enable _OST when all relevant hotplug operations are enabled */
 #if defined(CONFIG_ACPI_HOTPLUG_CPU) &&			\
-	(defined(CONFIG_ACPI_HOTPLUG_MEMORY) ||		\
-	 defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)) &&	\
+	defined(CONFIG_ACPI_HOTPLUG_MEMORY) &&		\
 	defined(CONFIG_ACPI_CONTAINER)
 #define ACPI_HOTPLUG_OST
 #endif

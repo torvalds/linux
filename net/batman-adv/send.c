@@ -61,7 +61,7 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 
 	skb_reset_mac_header(skb);
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 	memcpy(ethhdr->h_source, hard_iface->net_dev->dev_addr, ETH_ALEN);
 	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
 	ethhdr->h_proto = __constant_htons(ETH_P_BATMAN);
@@ -96,26 +96,37 @@ send_skb_err:
  * host, NULL can be passed as recv_if and no interface alternating is
  * attempted.
  *
- * Returns TRUE on success; FALSE otherwise.
+ * Returns NET_XMIT_SUCCESS on success, NET_XMIT_DROP on failure, or
+ * NET_XMIT_POLICED if the skb is buffered for later transmit.
  */
-bool batadv_send_skb_to_orig(struct sk_buff *skb,
-			     struct batadv_orig_node *orig_node,
-			     struct batadv_hard_iface *recv_if)
+int batadv_send_skb_to_orig(struct sk_buff *skb,
+			    struct batadv_orig_node *orig_node,
+			    struct batadv_hard_iface *recv_if)
 {
 	struct batadv_priv *bat_priv = orig_node->bat_priv;
 	struct batadv_neigh_node *neigh_node;
+	int ret = NET_XMIT_DROP;
 
 	/* batadv_find_router() increases neigh_nodes refcount if found. */
 	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
 	if (!neigh_node)
-		return false;
+		return ret;
 
-	/* route it */
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	/* try to network code the packet, if it is received on an interface
+	 * (i.e. being forwarded). If the packet originates from this node or if
+	 * network coding fails, then send the packet as usual.
+	 */
+	if (recv_if && batadv_nc_skb_forward(skb, neigh_node)) {
+		ret = NET_XMIT_POLICED;
+	} else {
+		batadv_send_skb_packet(skb, neigh_node->if_incoming,
+				       neigh_node->addr);
+		ret = NET_XMIT_SUCCESS;
+	}
 
 	batadv_neigh_node_free_ref(neigh_node);
 
-	return true;
+	return ret;
 }
 
 void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface)
@@ -152,8 +163,6 @@ _batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 				 struct batadv_forw_packet *forw_packet,
 				 unsigned long send_time)
 {
-	INIT_HLIST_NODE(&forw_packet->list);
-
 	/* add new packet to packet list */
 	spin_lock_bh(&bat_priv->forw_bcast_list_lock);
 	hlist_add_head(&forw_packet->list, &bat_priv->forw_bcast_list);
@@ -260,6 +269,9 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
+		if (forw_packet->num_packets >= hard_iface->num_bcasts)
+			continue;
+
 		/* send a copy of the saved skb */
 		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
@@ -271,7 +283,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	forw_packet->num_packets++;
 
 	/* if we still have some more bcasts to send */
-	if (forw_packet->num_packets < 3) {
+	if (forw_packet->num_packets < BATADV_NUM_BCASTS_MAX) {
 		_batadv_add_bcast_packet_to_list(bat_priv, forw_packet,
 						 msecs_to_jiffies(5));
 		return;

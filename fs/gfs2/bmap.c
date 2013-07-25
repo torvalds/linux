@@ -1232,7 +1232,9 @@ static int do_grow(struct inode *inode, u64 size)
 		unstuff = 1;
 	}
 
-	error = gfs2_trans_begin(sdp, RES_DINODE + RES_STATFS + RES_RG_BIT, 0);
+	error = gfs2_trans_begin(sdp, RES_DINODE + RES_STATFS + RES_RG_BIT +
+				 (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF ?
+				  0 : RES_QUOTA), 0);
 	if (error)
 		goto do_grow_release;
 
@@ -1286,17 +1288,26 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 	if (ret)
 		return ret;
 
+	ret = get_write_access(inode);
+	if (ret)
+		return ret;
+
 	inode_dio_wait(inode);
 
 	ret = gfs2_rs_alloc(GFS2_I(inode));
 	if (ret)
-		return ret;
+		goto out;
 
 	oldsize = inode->i_size;
-	if (newsize >= oldsize)
-		return do_grow(inode, newsize);
+	if (newsize >= oldsize) {
+		ret = do_grow(inode, newsize);
+		goto out;
+	}
 
-	return do_shrink(inode, oldsize, newsize);
+	ret = do_shrink(inode, oldsize, newsize);
+out:
+	put_write_access(inode);
+	return ret;
 }
 
 int gfs2_truncatei_resume(struct gfs2_inode *ip)

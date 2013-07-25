@@ -42,8 +42,6 @@
 #define OCRDMA_ROCE_DEV_VERSION "1.0.0"
 #define OCRDMA_NODE_DESC "Emulex OneConnect RoCE HCA"
 
-#define ocrdma_err(format, arg...) printk(KERN_ERR format, ##arg)
-
 #define OCRDMA_MAX_AH 512
 
 #define OCRDMA_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
@@ -97,7 +95,6 @@ struct ocrdma_queue_info {
 	u16 id;			/* qid, where to ring the doorbell. */
 	u16 head, tail;
 	bool created;
-	atomic_t used;		/* Number of valid elements in the queue */
 };
 
 struct ocrdma_eq {
@@ -198,7 +195,6 @@ struct ocrdma_cq {
 	struct ocrdma_ucontext *ucontext;
 	dma_addr_t pa;
 	u32 len;
-	atomic_t use_cnt;
 
 	/* head of all qp's sq and rq for which cqes need to be flushed
 	 * by the software.
@@ -210,7 +206,6 @@ struct ocrdma_pd {
 	struct ib_pd ibpd;
 	struct ocrdma_dev *dev;
 	struct ocrdma_ucontext *uctx;
-	atomic_t use_cnt;
 	u32 id;
 	int num_dpp_qp;
 	u32 dpp_page;
@@ -241,16 +236,16 @@ struct ocrdma_srq {
 	struct ib_srq ibsrq;
 	struct ocrdma_dev *dev;
 	u8 __iomem *db;
-	/* provide synchronization to multiple context(s) posting rqe */
-	spinlock_t q_lock ____cacheline_aligned;
-
 	struct ocrdma_qp_hwq_info rq;
-	struct ocrdma_pd *pd;
-	atomic_t use_cnt;
-	u32 id;
 	u64 *rqe_wr_id_tbl;
 	u32 *idx_bit_fields;
 	u32 bit_fields_len;
+
+	/* provide synchronization to multiple context(s) posting rqe */
+	spinlock_t q_lock ____cacheline_aligned;
+
+	struct ocrdma_pd *pd;
+	u32 id;
 };
 
 struct ocrdma_qp {
@@ -258,8 +253,6 @@ struct ocrdma_qp {
 	struct ocrdma_dev *dev;
 
 	u8 __iomem *sq_db;
-	/* provide synchronization to multiple context(s) posting wqe, rqe */
-	spinlock_t q_lock ____cacheline_aligned;
 	struct ocrdma_qp_hwq_info sq;
 	struct {
 		uint64_t wrid;
@@ -269,6 +262,9 @@ struct ocrdma_qp {
 		uint8_t  rsvd[3];
 	} *wqe_wr_id_tbl;
 	u32 max_inline_data;
+
+	/* provide synchronization to multiple context(s) posting wqe, rqe */
+	spinlock_t q_lock ____cacheline_aligned;
 	struct ocrdma_cq *sq_cq;
 	/* list maintained per CQ to flush SQ errors */
 	struct list_head sq_entry;
@@ -295,10 +291,6 @@ struct ocrdma_qp {
 	bool dpp_enabled;
 	u8 *ird_q_va;
 };
-
-#define OCRDMA_GET_NUM_POSTED_SHIFT_VAL(qp) \
-	(((qp->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) && \
-		(qp->id < 64)) ? 24 : 16)
 
 struct ocrdma_hw_mr {
 	struct ocrdma_dev *dev;
@@ -389,5 +381,44 @@ static inline struct ocrdma_srq *get_ocrdma_srq(struct ib_srq *ibsrq)
 {
 	return container_of(ibsrq, struct ocrdma_srq, ibsrq);
 }
+
+
+static inline int ocrdma_get_num_posted_shift(struct ocrdma_qp *qp)
+{
+	return ((qp->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY &&
+		 qp->id < 64) ? 24 : 16);
+}
+
+static inline int is_cqe_valid(struct ocrdma_cq *cq, struct ocrdma_cqe *cqe)
+{
+	int cqe_valid;
+	cqe_valid = le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_VALID;
+	return ((cqe_valid == cq->phase) ? 1 : 0);
+}
+
+static inline int is_cqe_for_sq(struct ocrdma_cqe *cqe)
+{
+	return (le32_to_cpu(cqe->flags_status_srcqpn) &
+		OCRDMA_CQE_QTYPE) ? 0 : 1;
+}
+
+static inline int is_cqe_invalidated(struct ocrdma_cqe *cqe)
+{
+	return (le32_to_cpu(cqe->flags_status_srcqpn) &
+		OCRDMA_CQE_INVALIDATE) ? 1 : 0;
+}
+
+static inline int is_cqe_imm(struct ocrdma_cqe *cqe)
+{
+	return (le32_to_cpu(cqe->flags_status_srcqpn) &
+		OCRDMA_CQE_IMM) ? 1 : 0;
+}
+
+static inline int is_cqe_wr_imm(struct ocrdma_cqe *cqe)
+{
+	return (le32_to_cpu(cqe->flags_status_srcqpn) &
+		OCRDMA_CQE_WRITE_IMM) ? 1 : 0;
+}
+
 
 #endif

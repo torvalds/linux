@@ -2038,8 +2038,8 @@ static void set_lvb_lock_pc(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	b = dlm_lvb_operations[lkb->lkb_grmode + 1][lkb->lkb_rqmode + 1];
 	if (b == 1) {
 		int len = receive_extralen(ms);
-		if (len > DLM_RESNAME_MAXLEN)
-			len = DLM_RESNAME_MAXLEN;
+		if (len > r->res_ls->ls_lvblen)
+			len = r->res_ls->ls_lvblen;
 		memcpy(lkb->lkb_lvbptr, ms->m_extra, len);
 		lkb->lkb_lvbseq = ms->m_lvbseq;
 	}
@@ -3893,8 +3893,8 @@ static int receive_lvb(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		if (!lkb->lkb_lvbptr)
 			return -ENOMEM;
 		len = receive_extralen(ms);
-		if (len > DLM_RESNAME_MAXLEN)
-			len = DLM_RESNAME_MAXLEN;
+		if (len > ls->ls_lvblen)
+			len = ls->ls_lvblen;
 		memcpy(lkb->lkb_lvbptr, ms->m_extra, len);
 	}
 	return 0;

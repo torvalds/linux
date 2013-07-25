@@ -231,14 +231,14 @@ override:
 	}
 	if (R_tab) {
 		police->rate_present = true;
-		psched_ratecfg_precompute(&police->rate, R_tab->rate.rate);
+		psched_ratecfg_precompute(&police->rate, &R_tab->rate);
 		qdisc_put_rtab(R_tab);
 	} else {
 		police->rate_present = false;
 	}
 	if (P_tab) {
 		police->peak_present = true;
-		psched_ratecfg_precompute(&police->peak, P_tab->rate.rate);
+		psched_ratecfg_precompute(&police->peak, &P_tab->rate);
 		qdisc_put_rtab(P_tab);
 	} else {
 		police->peak_present = false;
@@ -376,9 +376,9 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	};
 
 	if (police->rate_present)
-		opt.rate.rate = psched_ratecfg_getrate(&police->rate);
+		psched_ratecfg_getrate(&opt.rate, &police->rate);
 	if (police->peak_present)
-		opt.peakrate.rate = psched_ratecfg_getrate(&police->peak);
+		psched_ratecfg_getrate(&opt.peakrate, &police->peak);
 	if (nla_put(skb, TCA_POLICE_TBF, sizeof(opt), &opt))
 		goto nla_put_failure;
 	if (police->tcfp_result &&

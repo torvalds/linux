@@ -341,10 +341,17 @@ vsx_unavailable_pSeries_1:
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_pSeries
 
+facility_unavailable_trampoline:
 	. = 0xf60
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	tm_unavailable_pSeries
+	b	facility_unavailable_pSeries
+
+hv_facility_unavailable_trampoline:
+	. = 0xf80
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	facility_unavailable_hv
 
 #ifdef CONFIG_CBE_RAS
 	STD_EXCEPTION_HV(0x1200, 0x1202, cbe_system_error)
@@ -454,38 +461,14 @@ BEGIN_FTR_SECTION
 	xori	r10,r10,(MSR_FE0|MSR_FE1)
 	mtmsrd	r10
 	sync
-	fmr	0,0
-	fmr	1,1
-	fmr	2,2
-	fmr	3,3
-	fmr	4,4
-	fmr	5,5
-	fmr	6,6
-	fmr	7,7
-	fmr	8,8
-	fmr	9,9
-	fmr	10,10
-	fmr	11,11
-	fmr	12,12
-	fmr	13,13
-	fmr	14,14
-	fmr	15,15
-	fmr	16,16
-	fmr	17,17
-	fmr	18,18
-	fmr	19,19
-	fmr	20,20
-	fmr	21,21
-	fmr	22,22
-	fmr	23,23
-	fmr	24,24
-	fmr	25,25
-	fmr	26,26
-	fmr	27,27
-	fmr	28,28
-	fmr	29,29
-	fmr	30,30
-	fmr	31,31
+
+#define FMR2(n)  fmr (n), (n) ; fmr n+1, n+1
+#define FMR4(n)  FMR2(n) ; FMR2(n+2)
+#define FMR8(n)  FMR4(n) ; FMR4(n+4)
+#define FMR16(n) FMR8(n) ; FMR8(n+8)
+#define FMR32(n) FMR16(n) ; FMR16(n+16)
+	FMR32(0)
+
 FTR_SECTION_ELSE
 /*
  * To denormalise we need to move a copy of the register to itself.
@@ -495,39 +478,25 @@ FTR_SECTION_ELSE
 	oris	r10,r10,MSR_VSX@h
 	mtmsrd	r10
 	sync
-	XVCPSGNDP(0,0,0)
-	XVCPSGNDP(1,1,1)
-	XVCPSGNDP(2,2,2)
-	XVCPSGNDP(3,3,3)
-	XVCPSGNDP(4,4,4)
-	XVCPSGNDP(5,5,5)
-	XVCPSGNDP(6,6,6)
-	XVCPSGNDP(7,7,7)
-	XVCPSGNDP(8,8,8)
-	XVCPSGNDP(9,9,9)
-	XVCPSGNDP(10,10,10)
-	XVCPSGNDP(11,11,11)
-	XVCPSGNDP(12,12,12)
-	XVCPSGNDP(13,13,13)
-	XVCPSGNDP(14,14,14)
-	XVCPSGNDP(15,15,15)
-	XVCPSGNDP(16,16,16)
-	XVCPSGNDP(17,17,17)
-	XVCPSGNDP(18,18,18)
-	XVCPSGNDP(19,19,19)
-	XVCPSGNDP(20,20,20)
-	XVCPSGNDP(21,21,21)
-	XVCPSGNDP(22,22,22)
-	XVCPSGNDP(23,23,23)
-	XVCPSGNDP(24,24,24)
-	XVCPSGNDP(25,25,25)
-	XVCPSGNDP(26,26,26)
-	XVCPSGNDP(27,27,27)
-	XVCPSGNDP(28,28,28)
-	XVCPSGNDP(29,29,29)
-	XVCPSGNDP(30,30,30)
-	XVCPSGNDP(31,31,31)
+
+#define XVCPSGNDP2(n) XVCPSGNDP(n,n,n) ; XVCPSGNDP(n+1,n+1,n+1)
+#define XVCPSGNDP4(n) XVCPSGNDP2(n) ; XVCPSGNDP2(n+2)
+#define XVCPSGNDP8(n) XVCPSGNDP4(n) ; XVCPSGNDP4(n+4)
+#define XVCPSGNDP16(n) XVCPSGNDP8(n) ; XVCPSGNDP8(n+8)
+#define XVCPSGNDP32(n) XVCPSGNDP16(n) ; XVCPSGNDP16(n+16)
+	XVCPSGNDP32(0)
+
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
+
+BEGIN_FTR_SECTION
+	b	denorm_done
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
+/*
+ * To denormalise we need to move a copy of the register to itself.
+ * For POWER8 we need to do that for all 64 VSX registers
+ */
+	XVCPSGNDP32(32)
+denorm_done:
 	mtspr	SPRN_HSRR0,r11
 	mtcrf	0x80,r9
 	ld	r9,PACA_EXGEN+EX_R9(r13)
@@ -560,8 +529,10 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf20)
 	STD_EXCEPTION_PSERIES_OOL(0xf40, vsx_unavailable)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf40)
-	STD_EXCEPTION_PSERIES_OOL(0xf60, tm_unavailable)
+	STD_EXCEPTION_PSERIES_OOL(0xf60, facility_unavailable)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf60)
+	STD_EXCEPTION_HV_OOL(0xf82, facility_unavailable)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xf82)
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -721,7 +692,7 @@ machine_check_common:
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
-	STD_EXCEPTION_COMMON(0xe40, emulation_assist, .program_check_exception)
+	STD_EXCEPTION_COMMON(0xe40, emulation_assist, .emulation_assist_interrupt)
 	STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
 #ifdef CONFIG_PPC_DOORBELL
 	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, .doorbell_exception)
@@ -831,14 +802,10 @@ system_call_relon_pSeries:
 	STD_RELON_EXCEPTION_PSERIES(0x4d00, 0xd00, single_step)
 
 	. = 0x4e00
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	h_data_storage_relon_hv
+	b	.	/* Can't happen, see v2.07 Book III-S section 6.5 */
 
 	. = 0x4e20
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	h_instr_storage_relon_hv
+	b	.	/* Can't happen, see v2.07 Book III-S section 6.5 */
 
 	. = 0x4e40
 	SET_SCRATCH0(r13)
@@ -846,9 +813,7 @@ system_call_relon_pSeries:
 	b	emulation_assist_relon_hv
 
 	. = 0x4e60
-	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	hmi_exception_relon_hv
+	b	.	/* Can't happen, see v2.07 Book III-S section 6.5 */
 
 	. = 0x4e80
 	SET_SCRATCH0(r13)
@@ -873,11 +838,17 @@ vsx_unavailable_relon_pSeries_1:
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_relon_pSeries
 
-tm_unavailable_relon_pSeries_1:
+facility_unavailable_relon_trampoline:
 	. = 0x4f60
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
-	b	tm_unavailable_relon_pSeries
+	b	facility_unavailable_relon_pSeries
+
+hv_facility_unavailable_relon_trampoline:
+	. = 0x4f80
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	facility_unavailable_relon_hv
 
 	STD_RELON_EXCEPTION_PSERIES(0x5300, 0x1300, instruction_breakpoint)
 #ifdef CONFIG_PPC_DENORMALISATION
@@ -1203,36 +1174,21 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	bl	.vsx_unavailable_exception
 	b	.ret_from_except
 
-	.align	7
-	.globl tm_unavailable_common
-tm_unavailable_common:
-	EXCEPTION_PROLOG_COMMON(0xf60, PACA_EXGEN)
-	bl	.save_nvgprs
-	DISABLE_INTS
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.tm_unavailable_exception
-	b	.ret_from_except
+	STD_EXCEPTION_COMMON(0xf60, facility_unavailable, .facility_unavailable_exception)
 
 	.align	7
 	.globl	__end_handlers
 __end_handlers:
 
 	/* Equivalents to the above handlers for relocation-on interrupt vectors */
-	STD_RELON_EXCEPTION_HV_OOL(0xe00, h_data_storage)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe00)
-	STD_RELON_EXCEPTION_HV_OOL(0xe20, h_instr_storage)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe20)
 	STD_RELON_EXCEPTION_HV_OOL(0xe40, emulation_assist)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe40)
-	STD_RELON_EXCEPTION_HV_OOL(0xe60, hmi_exception)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe60)
 	MASKABLE_RELON_EXCEPTION_HV_OOL(0xe80, h_doorbell)
-	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe80)
 
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf00, performance_monitor)
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf20, altivec_unavailable)
 	STD_RELON_EXCEPTION_PSERIES_OOL(0xf40, vsx_unavailable)
-	STD_RELON_EXCEPTION_PSERIES_OOL(0xf60, tm_unavailable)
+	STD_RELON_EXCEPTION_PSERIES_OOL(0xf60, facility_unavailable)
+	STD_RELON_EXCEPTION_HV_OOL(0xf80, facility_unavailable)
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 /*

@@ -240,7 +240,7 @@ fold_64:
 	pand    %xmm3, %xmm1
 	PCLMULQDQ 0x00, CONSTANT, %xmm1
 	pxor    %xmm2, %xmm1
-	pextrd  $0x01, %xmm1, %eax
+	PEXTRD  0x01, %xmm1, %eax
 
 	ret
 ENDPROC(crc32_pclmul_le_16)

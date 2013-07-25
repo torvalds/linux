@@ -152,7 +152,7 @@ static void keyspan_set_termios(struct tty_struct *tty,
 	p_priv = usb_get_serial_port_data(port);
 	d_details = p_priv->device_details;
 	cflag = tty->termios.c_cflag;
-	device_port = port->number - port->serial->minor;
+	device_port = port->port_number;
 
 	/* Baud rate calculation takes baud rate as an integer
 	   so other rates can be generated if desired. */
@@ -234,8 +234,8 @@ static int keyspan_write(struct tty_struct *tty,
 		dataOffset = 1;
 	}
 
-	dev_dbg(&port->dev, "%s - for port %d (%d chars), flip=%d\n",
-		__func__, port->number, count, p_priv->out_flip);
+	dev_dbg(&port->dev, "%s - %d chars, flip=%d\n", __func__, count,
+		p_priv->out_flip);
 
 	for (left = count; left > 0; left -= todo) {
 		todo = left;
@@ -520,12 +520,7 @@ static void	usa28_instat_callback(struct urb *urb)
 		goto exit;
 	}
 
-	/*
-	dev_dbg(&urb->dev->dev,
-		"%s %x %x %x %x %x %x %x %x %x %x %x %x", __func__,
-		data[0], data[1], data[2], data[3], data[4], data[5],
-		data[6], data[7], data[8], data[9], data[10], data[11]);
-	*/
+	/*dev_dbg(&urb->dev->dev, "%s %12ph", __func__, data);*/
 
 	/* Now do something useful with the data */
 	msg = (struct keyspan_usa28_portStatusMessage *)data;
@@ -607,11 +602,7 @@ static void	usa49_instat_callback(struct urb *urb)
 		goto exit;
 	}
 
-	/*
-	dev_dbg(&urb->dev->dev, "%s: %x %x %x %x %x %x %x %x %x %x %x",
-		__func__, data[0], data[1], data[2], data[3], data[4],
-		data[5], data[6], data[7], data[8], data[9], data[10]);
-	*/
+	/*dev_dbg(&urb->dev->dev, "%s: %11ph", __func__, data);*/
 
 	/* Now do something useful with the data */
 	msg = (struct keyspan_usa49_portStatusMessage *)data;
@@ -1050,7 +1041,7 @@ static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* get the terminal config for the setup message now so we don't
 	 * need to send 2 of them */
 
-	device_port = port->number - port->serial->minor;
+	device_port = port->port_number;
 	if (tty) {
 		cflag = tty->termios.c_cflag;
 		/* Baud rate calculation takes baud rate as an integer
@@ -1548,7 +1539,6 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 	struct keyspan_serial_private 		*s_priv;
 	struct keyspan_port_private 		*p_priv;
 	const struct keyspan_device_details	*d_details;
-	int 					outcont_urb;
 	struct urb				*this_urb;
 	int 					device_port, err;
 
@@ -1557,9 +1547,8 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 	s_priv = usb_get_serial_data(serial);
 	p_priv = usb_get_serial_port_data(port);
 	d_details = s_priv->device_details;
-	device_port = port->number - port->serial->minor;
+	device_port = port->port_number;
 
-	outcont_urb = d_details->outcont_endpoints[port->number];
 	this_urb = p_priv->outcont_urb;
 
 	dev_dbg(&port->dev, "%s - endpoint %d\n", __func__, usb_pipeendpoint(this_urb->pipe));
@@ -1685,14 +1674,6 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
 		dev_dbg(&port->dev, "%s - usb_submit_urb(setup) failed (%d)\n", __func__, err);
-#if 0
-	else {
-		dev_dbg(&port->dev, "%s - usb_submit_urb(%d) OK %d bytes (end %d)\n", __func__
-			outcont_urb, this_urb->transfer_buffer_length,
-			usb_pipeendpoint(this_urb->pipe));
-	}
-#endif
-
 	return 0;
 }
 
@@ -1710,7 +1691,7 @@ static int keyspan_usa28_send_setup(struct usb_serial *serial,
 	s_priv = usb_get_serial_data(serial);
 	p_priv = usb_get_serial_port_data(port);
 	d_details = s_priv->device_details;
-	device_port = port->number - port->serial->minor;
+	device_port = port->port_number;
 
 	/* only do something if we have a bulk out endpoint */
 	this_urb = p_priv->outcont_urb;
@@ -1840,17 +1821,16 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 	this_urb = s_priv->glocont_urb;
 
 	/* Work out which port within the device is being setup */
-	device_port = port->number - port->serial->minor;
+	device_port = port->port_number;
 
 	/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
-		dev_dbg(&port->dev, "%s - oops no urb for port %d.\n", __func__, port->number);
+		dev_dbg(&port->dev, "%s - oops no urb for port.\n", __func__);
 		return -1;
 	}
 
-	dev_dbg(&port->dev, "%s - endpoint %d port %d (%d)\n",
-		__func__, usb_pipeendpoint(this_urb->pipe),
-		port->number, device_port);
+	dev_dbg(&port->dev, "%s - endpoint %d (%d)\n",
+		__func__, usb_pipeendpoint(this_urb->pipe), device_port);
 
 	/* Save reset port val for resend.
 	   Don't overwrite resend for open/close condition. */
@@ -1865,7 +1845,6 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 
 	memset(&msg, 0, sizeof(struct keyspan_usa49_portControlMessage));
 
-	/*msg.portNumber = port->number;*/
 	msg.portNumber = device_port;
 
 	/* Only set baud rate if it's changed */
@@ -2155,12 +2134,11 @@ static int keyspan_usa67_send_setup(struct usb_serial *serial,
 	this_urb = s_priv->glocont_urb;
 
 	/* Work out which port within the device is being setup */
-	device_port = port->number - port->serial->minor;
+	device_port = port->port_number;
 
 	/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
-		dev_dbg(&port->dev, "%s - oops no urb for port %d.\n", __func__,
-			port->number);
+		dev_dbg(&port->dev, "%s - oops no urb for port.\n", __func__);
 		return -1;
 	}
 
@@ -2401,7 +2379,7 @@ static int keyspan_port_probe(struct usb_serial_port *port)
 	/* Setup values for the various callback routines */
 	cback = &keyspan_callbacks[d_details->msg_format];
 
-	port_num = port->number - port->serial->minor;
+	port_num = port->port_number;
 
 	/* Do indat endpoints first, once for each flip */
 	endp = d_details->indat_endpoints[port_num];

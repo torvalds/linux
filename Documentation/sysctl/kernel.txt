@@ -70,12 +70,12 @@ show up in /proc/sys/kernel:
 - shmall
 - shmmax                      [ sysv ipc ]
 - shmmni
-- softlockup_thresh
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
 - tainted
 - threads-max
 - unknown_nmi_panic
+- watchdog_thresh
 - version
 
 ==============================================================
@@ -427,6 +427,32 @@ This file shows up if CONFIG_DEBUG_STACKOVERFLOW is enabled.
 
 ==============================================================
 
+perf_cpu_time_max_percent:
+
+Hints to the kernel how much CPU time it should be allowed to
+use to handle perf sampling events.  If the perf subsystem
+is informed that its samples are exceeding this limit, it
+will drop its sampling frequency to attempt to reduce its CPU
+usage.
+
+Some perf sampling happens in NMIs.  If these samples
+unexpectedly take too long to execute, the NMIs can become
+stacked up next to each other so much that nothing else is
+allowed to execute.
+
+0: disable the mechanism.  Do not monitor or correct perf's
+   sampling rate no matter how CPU time it takes.
+
+1-100: attempt to throttle perf's sample rate to this
+   percentage of CPU.  Note: the kernel calculates an
+   "expected" length of each sample event.  100 here means
+   100% of that expected length.  Even if this is set to
+   100, you may still see sample throttling if this
+   length is exceeded.  Set to 0 if you truly do not care
+   how much CPU is consumed.
+
+==============================================================
+
 
 pid_max:
 
@@ -604,15 +630,6 @@ without users and with a dead originative process will be destroyed.
 
 ==============================================================
 
-softlockup_thresh:
-
-This value can be used to lower the softlockup tolerance threshold.  The
-default threshold is 60 seconds.  If a cpu is locked up for 60 seconds,
-the kernel complains.  Valid values are 1-60 seconds.  Setting this
-tunable to zero will disable the softlockup detection altogether.
-
-==============================================================
-
 tainted:
 
 Non-zero if the kernel has been tainted.  Numeric values, which
@@ -648,3 +665,16 @@ that time, kernel debugging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
+
+==============================================================
+
+watchdog_thresh:
+
+This value can be used to control the frequency of hrtimer and NMI
+events and the soft and hard lockup thresholds. The default threshold
+is 10 seconds.
+
+The softlockup threshold is (2 * watchdog_thresh). Setting this
+tunable to zero will disable lockup detection altogether.
+
+==============================================================

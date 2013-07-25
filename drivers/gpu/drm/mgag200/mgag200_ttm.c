@@ -270,26 +270,20 @@ int mgag200_mm_init(struct mga_device *mdev)
 		return ret;
 	}
 
-	mdev->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 0),
-				    pci_resource_len(dev->pdev, 0),
-				    DRM_MTRR_WC);
+	mdev->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
+					 pci_resource_len(dev->pdev, 0));
 
 	return 0;
 }
 
 void mgag200_mm_fini(struct mga_device *mdev)
 {
-	struct drm_device *dev = mdev->dev;
 	ttm_bo_device_release(&mdev->ttm.bdev);
 
 	mgag200_ttm_global_release(mdev);
 
-	if (mdev->fb_mtrr >= 0) {
-		drm_mtrr_del(mdev->fb_mtrr,
-			     pci_resource_start(dev->pdev, 0),
-			     pci_resource_len(dev->pdev, 0), DRM_MTRR_WC);
-		mdev->fb_mtrr = -1;
-	}
+	arch_phys_wc_del(mdev->fb_mtrr);
+	mdev->fb_mtrr = 0;
 }
 
 void mgag200_ttm_placement(struct mgag200_bo *bo, int domain)
@@ -307,24 +301,6 @@ void mgag200_ttm_placement(struct mgag200_bo *bo, int domain)
 		bo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	bo->placement.num_placement = c;
 	bo->placement.num_busy_placement = c;
-}
-
-int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)
-{
-	int ret;
-
-	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
-	if (ret) {
-		if (ret != -ERESTARTSYS && ret != -EBUSY)
-			DRM_ERROR("reserve failed %p %d\n", bo, ret);
-		return ret;
-	}
-	return 0;
-}
-
-void mgag200_bo_unreserve(struct mgag200_bo *bo)
-{
-	ttm_bo_unreserve(&bo->bo);
 }
 
 int mgag200_bo_create(struct drm_device *dev, int size, int align,

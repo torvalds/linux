@@ -1047,7 +1047,8 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 	ret = sta2x11_vip_init_controls(vip);
 	if (ret)
 		goto free_mem;
-	if (v4l2_device_register(&pdev->dev, &vip->v4l2_dev))
+	ret = v4l2_device_register(&pdev->dev, &vip->v4l2_dev);
+	if (ret)
 		goto free_mem;
 
 	dev_dbg(&pdev->dev, "BAR #0 at 0x%lx 0x%lx irq %d\n",

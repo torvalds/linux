@@ -1539,7 +1539,10 @@ static void regulator_ena_gpio_free(struct regulator_dev *rdev)
 }
 
 /**
- * Balance enable_count of each GPIO and actual GPIO pin control.
+ * regulator_ena_gpio_ctrl - balance enable_count of each GPIO and actual GPIO pin control
+ * @rdev: regulator_dev structure
+ * @enable: enable GPIO at initial use?
+ *
  * GPIO is enabled in case of initial use. (enable_count is 0)
  * GPIO is disabled when it is not shared any more. (enable_count <= 1)
  */
@@ -2135,6 +2138,21 @@ int regulator_list_voltage(struct regulator *regulator, unsigned selector)
 EXPORT_SYMBOL_GPL(regulator_list_voltage);
 
 /**
+ * regulator_get_linear_step - return the voltage step size between VSEL values
+ * @regulator: regulator source
+ *
+ * Returns the voltage step size between VSEL values for linear
+ * regulators, or return 0 if the regulator isn't a linear regulator.
+ */
+unsigned int regulator_get_linear_step(struct regulator *regulator)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+
+	return rdev->desc->uV_step;
+}
+EXPORT_SYMBOL_GPL(regulator_get_linear_step);
+
+/**
  * regulator_is_supported_voltage - check if a voltage range can be supported
  *
  * @regulator: Regulator to check.
@@ -2702,7 +2720,7 @@ EXPORT_SYMBOL_GPL(regulator_get_voltage);
 /**
  * regulator_set_current_limit - set regulator output current limit
  * @regulator: regulator source
- * @min_uA: Minimuum supported current in uA
+ * @min_uA: Minimum supported current in uA
  * @max_uA: Maximum supported current in uA
  *
  * Sets current sink to the desired output current. This can be set during

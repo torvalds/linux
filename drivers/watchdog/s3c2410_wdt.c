@@ -42,12 +42,21 @@
 #include <linux/err.h>
 #include <linux/of.h>
 
-#include <mach/map.h>
+#define S3C2410_WTCON		0x00
+#define S3C2410_WTDAT		0x04
+#define S3C2410_WTCNT		0x08
 
-#undef S3C_VA_WATCHDOG
-#define S3C_VA_WATCHDOG (0)
+#define S3C2410_WTCON_RSTEN	(1 << 0)
+#define S3C2410_WTCON_INTEN	(1 << 2)
+#define S3C2410_WTCON_ENABLE	(1 << 5)
 
-#include <plat/regs-watchdog.h>
+#define S3C2410_WTCON_DIV16	(0 << 3)
+#define S3C2410_WTCON_DIV32	(1 << 3)
+#define S3C2410_WTCON_DIV64	(2 << 3)
+#define S3C2410_WTCON_DIV128	(3 << 3)
+
+#define S3C2410_WTCON_PRESCALE(x)	((x) << 8)
+#define S3C2410_WTCON_PRESCALE_MASK	(0xff << 8)
 
 #define CONFIG_S3C2410_WATCHDOG_ATBOOT		(0)
 #define CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME	(15)
@@ -349,7 +358,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	ret = s3c2410wdt_cpufreq_register();
 	if (ret < 0) {
-		pr_err("failed to register cpufreq\n");
+		dev_err(dev, "failed to register cpufreq\n");
 		goto err_clk;
 	}
 
@@ -439,12 +448,12 @@ static void s3c2410wdt_shutdown(struct platform_device *dev)
 	s3c2410wdt_stop(&s3c2410_wdd);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 static unsigned long wtcon_save;
 static unsigned long wtdat_save;
 
-static int s3c2410wdt_suspend(struct platform_device *dev, pm_message_t state)
+static int s3c2410wdt_suspend(struct device *dev)
 {
 	/* Save watchdog state, and turn it off. */
 	wtcon_save = readl(wdt_base + S3C2410_WTCON);
@@ -456,7 +465,7 @@ static int s3c2410wdt_suspend(struct platform_device *dev, pm_message_t state)
 	return 0;
 }
 
-static int s3c2410wdt_resume(struct platform_device *dev)
+static int s3c2410wdt_resume(struct device *dev)
 {
 	/* Restore watchdog state. */
 
@@ -464,16 +473,15 @@ static int s3c2410wdt_resume(struct platform_device *dev)
 	writel(wtdat_save, wdt_base + S3C2410_WTCNT); /* Reset count */
 	writel(wtcon_save, wdt_base + S3C2410_WTCON);
 
-	pr_info("watchdog %sabled\n",
+	dev_info(dev, "watchdog %sabled\n",
 		(wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
 
 	return 0;
 }
+#endif
 
-#else
-#define s3c2410wdt_suspend NULL
-#define s3c2410wdt_resume  NULL
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(s3c2410wdt_pm_ops, s3c2410wdt_suspend,
+			s3c2410wdt_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id s3c2410_wdt_match[] = {
@@ -487,11 +495,10 @@ static struct platform_driver s3c2410wdt_driver = {
 	.probe		= s3c2410wdt_probe,
 	.remove		= s3c2410wdt_remove,
 	.shutdown	= s3c2410wdt_shutdown,
-	.suspend	= s3c2410wdt_suspend,
-	.resume		= s3c2410wdt_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c2410-wdt",
+		.pm	= &s3c2410wdt_pm_ops,
 		.of_match_table	= of_match_ptr(s3c2410_wdt_match),
 	},
 };

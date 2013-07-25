@@ -83,7 +83,7 @@ static inline void
 host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 {
 	uint32_t *isrc = (uint32_t *) src;
-	uint32_t *odest = (uint32_t *) dst;
+	__le32 *odest = (__le32 *) dst;
 	uint32_t iter = bsize >> 2;
 
 	for (; iter ; iter--)
@@ -277,4 +277,15 @@ qla2x00_do_host_ramp_up(scsi_qla_host_t *vha)
 		return;
 
 	set_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags);
+}
+
+static inline void
+qla2x00_handle_mbx_completion(struct qla_hw_data *ha, int status)
+{
+	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
+	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
+		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+		clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
+		complete(&ha->mbx_intr_comp);
+	}
 }

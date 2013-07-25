@@ -111,7 +111,6 @@ static int ep93xxbl_remove(struct platform_device *dev)
 	struct backlight_device *bl = platform_get_drvdata(dev);
 
 	backlight_device_unregister(bl);
-	platform_set_drvdata(dev, NULL);
 	return 0;
 }
 

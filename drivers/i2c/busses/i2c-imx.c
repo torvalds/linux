@@ -51,7 +51,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_i2c.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/i2c-imx.h>
 
 /** Defines ********************************************************************
@@ -148,6 +147,7 @@ static const struct of_device_id i2c_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx21-i2c", .data = &imx_i2c_devtype[IMX21_I2C], },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, i2c_imx_dt_ids);
 
 static inline int is_imx1_i2c(struct imx_i2c_struct *i2c_imx)
 {
@@ -493,24 +493,19 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	struct imx_i2c_struct *i2c_imx;
 	struct resource *res;
 	struct imxi2c_platform_data *pdata = pdev->dev.platform_data;
-	struct pinctrl *pinctrl;
 	void __iomem *base;
 	int irq, ret;
 	u32 bitrate;
 
 	dev_dbg(&pdev->dev, "<%s>\n", __func__);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get device resources\n");
-		return -ENOENT;
-	}
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "can't get irq number\n");
 		return -ENOENT;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -534,12 +529,6 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	i2c_imx->adapter.nr 		= pdev->id;
 	i2c_imx->adapter.dev.of_node	= pdev->dev.of_node;
 	i2c_imx->base			= base;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "can't get/select pinctrl\n");
-		return PTR_ERR(pinctrl);
-	}
 
 	/* Get I2C clock */
 	i2c_imx->clk = devm_clk_get(&pdev->dev, NULL);

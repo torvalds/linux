@@ -23,6 +23,7 @@
 #include <linux/ratelimit.h>
 #include <linux/err.h>
 #include <linux/irqflags.h>
+#include <linux/context_tracking.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -124,6 +125,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_MCLOCK_INPROGRESS 19
 #define KVM_REQ_EPR_EXIT          20
 #define KVM_REQ_SCAN_IOAPIC       21
+#define KVM_REQ_GLOBAL_CLOCK_UPDATE 22
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
@@ -144,7 +146,8 @@ struct kvm_io_range {
 #define NR_IOBUS_DEVS 1000
 
 struct kvm_io_bus {
-	int                   dev_count;
+	int dev_count;
+	int ioeventfd_count;
 	struct kvm_io_range range[];
 };
 
@@ -759,42 +762,6 @@ static inline int kvm_iommu_unmap_guest(struct kvm *kvm)
 	return 0;
 }
 #endif
-
-static inline void __guest_enter(void)
-{
-	/*
-	 * This is running in ioctl context so we can avoid
-	 * the call to vtime_account() with its unnecessary idle check.
-	 */
-	vtime_account_system(current);
-	current->flags |= PF_VCPU;
-}
-
-static inline void __guest_exit(void)
-{
-	/*
-	 * This is running in ioctl context so we can avoid
-	 * the call to vtime_account() with its unnecessary idle check.
-	 */
-	vtime_account_system(current);
-	current->flags &= ~PF_VCPU;
-}
-
-#ifdef CONFIG_CONTEXT_TRACKING
-extern void guest_enter(void);
-extern void guest_exit(void);
-
-#else /* !CONFIG_CONTEXT_TRACKING */
-static inline void guest_enter(void)
-{
-	__guest_enter();
-}
-
-static inline void guest_exit(void)
-{
-	__guest_exit();
-}
-#endif /* !CONFIG_CONTEXT_TRACKING */
 
 static inline void kvm_guest_enter(void)
 {

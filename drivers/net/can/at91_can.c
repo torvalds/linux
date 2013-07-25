@@ -1220,7 +1220,7 @@ static ssize_t at91_sysfs_set_mb0_id(struct device *dev,
 		goto out;
 	}
 
-	err = strict_strtoul(buf, 0, &can_id);
+	err = kstrtoul(buf, 0, &can_id);
 	if (err) {
 		ret = err;
 		goto out;
@@ -1264,8 +1264,6 @@ static const struct of_device_id at91_can_dt_ids[] = {
 	}
 };
 MODULE_DEVICE_TABLE(of, at91_can_dt_ids);
-#else
-#define at91_can_dt_ids NULL
 #endif
 
 static const struct at91_devtype_data *at91_can_get_driver_data(struct platform_device *pdev)
@@ -1393,8 +1391,6 @@ static int at91_can_remove(struct platform_device *pdev)
 
 	unregister_netdev(dev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	iounmap(priv->reg_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1426,7 +1422,7 @@ static struct platform_driver at91_can_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,
-		.of_match_table = at91_can_dt_ids,
+		.of_match_table = of_match_ptr(at91_can_dt_ids),
 	},
 	.id_table = at91_can_id_table,
 };

@@ -562,6 +562,8 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	case H_CPPR:
 	case H_EOI:
 	case H_IPI:
+	case H_IPOLL:
+	case H_XIRR_X:
 		if (kvmppc_xics_enabled(vcpu)) {
 			ret = kvmppc_xics_hcall(vcpu, req);
 			break;
@@ -1862,7 +1864,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 
  up_out:
 	up_read(&current->mm->mmap_sem);
-	goto out;
+	goto out_srcu;
 }
 
 int kvmppc_core_init_vm(struct kvm *kvm)

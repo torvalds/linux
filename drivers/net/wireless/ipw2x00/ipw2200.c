@@ -3548,6 +3548,7 @@ static int ipw_load(struct ipw_priv *priv)
 		ipw_rx_queue_reset(priv, priv->rxq);
 	if (!priv->rxq) {
 		IPW_ERROR("Unable to initialize Rx queue\n");
+		rc = -ENOMEM;
 		goto error;
 	}
 
@@ -8256,7 +8257,7 @@ static  int is_duplicate_packet(struct ipw_priv *priv,
 			u8 *mac = header->addr2;
 			int index = mac[5] % IPW_IBSS_MAC_HASH_SIZE;
 
-			__list_for_each(p, &priv->ibss_mac_hash[index]) {
+			list_for_each(p, &priv->ibss_mac_hash[index]) {
 				entry =
 				    list_entry(p, struct ipw_ibss_seq, list);
 				if (!memcmp(entry->mac, mac, ETH_ALEN))

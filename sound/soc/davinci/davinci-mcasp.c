@@ -631,7 +631,8 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 				       int word_length)
 {
 	u32 fmt;
-	u32 rotate = (word_length / 4) & 0x7;
+	u32 tx_rotate = (word_length / 4) & 0x7;
+	u32 rx_rotate = (32 - word_length) / 4;
 	u32 mask = (1ULL << word_length) - 1;
 
 	/*
@@ -655,9 +656,9 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 		mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG,
 				TXSSZ(fmt), TXSSZ(0x0F));
 		mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG,
-				TXROT(rotate), TXROT(7));
+				TXROT(tx_rotate), TXROT(7));
 		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG,
-				RXROT(rotate), RXROT(7));
+				RXROT(rx_rotate), RXROT(7));
 		mcasp_set_reg(dev->base + DAVINCI_MCASP_RXMASK_REG,
 				mask);
 	}
@@ -1023,7 +1024,7 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 	struct device_node *np = pdev->dev.of_node;
 	struct snd_platform_data *pdata = NULL;
 	const struct of_device_id *match =
-			of_match_device(of_match_ptr(mcasp_dt_ids), &pdev->dev);
+			of_match_device(mcasp_dt_ids, &pdev->dev);
 
 	const u32 *of_serial_dir32;
 	u8 *of_serial_dir;
@@ -1256,7 +1257,7 @@ static struct platform_driver davinci_mcasp_driver = {
 	.driver		= {
 		.name	= "davinci-mcasp",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(mcasp_dt_ids),
+		.of_match_table = mcasp_dt_ids,
 	},
 };
 

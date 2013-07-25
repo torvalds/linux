@@ -25,8 +25,8 @@
  * Software defined PTE bits definition.
  */
 #define PTE_VALID		(_AT(pteval_t, 1) << 0)
-#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 1)	/* only when !PTE_VALID */
-#define PTE_FILE		(_AT(pteval_t, 1) << 2)	/* only when !pte_present() */
+#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 2)	/* only when !PTE_VALID */
+#define PTE_FILE		(_AT(pteval_t, 1) << 3)	/* only when !pte_present() */
 #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
 #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
 
@@ -66,7 +66,7 @@ extern pgprot_t pgprot_default;
 
 #define _MOD_PROT(p, b)		__pgprot_modify(p, 0, b)
 
-#define PAGE_NONE		__pgprot_modify(pgprot_default, PTE_TYPE_MASK, PTE_PROT_NONE)
+#define PAGE_NONE		__pgprot_modify(pgprot_default, PTE_TYPE_MASK, PTE_PROT_NONE | PTE_RDONLY | PTE_PXN | PTE_UXN)
 #define PAGE_SHARED		_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
 #define PAGE_SHARED_EXEC	_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN)
 #define PAGE_COPY		_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN | PTE_UXN | PTE_RDONLY)
@@ -76,7 +76,13 @@ extern pgprot_t pgprot_default;
 #define PAGE_KERNEL		_MOD_PROT(pgprot_default, PTE_PXN | PTE_UXN | PTE_DIRTY)
 #define PAGE_KERNEL_EXEC	_MOD_PROT(pgprot_default, PTE_UXN | PTE_DIRTY)
 
-#define __PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_TYPE_MASK) | PTE_PROT_NONE)
+#define PAGE_HYP		_MOD_PROT(pgprot_default, PTE_HYP)
+#define PAGE_HYP_DEVICE		__pgprot(PROT_DEVICE_nGnRE | PTE_HYP)
+
+#define PAGE_S2			__pgprot_modify(pgprot_default, PTE_S2_MEMATTR_MASK, PTE_S2_MEMATTR(MT_S2_NORMAL) | PTE_S2_RDONLY)
+#define PAGE_S2_DEVICE		__pgprot(PROT_DEFAULT | PTE_S2_MEMATTR(MT_S2_DEVICE_nGnRE) | PTE_S2_RDWR | PTE_UXN)
+
+#define __PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_TYPE_MASK) | PTE_PROT_NONE | PTE_RDONLY | PTE_PXN | PTE_UXN)
 #define __PAGE_SHARED		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
 #define __PAGE_SHARED_EXEC	__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN)
 #define __PAGE_COPY		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN | PTE_RDONLY)
@@ -119,7 +125,7 @@ extern struct page *empty_zero_page;
 #define pte_none(pte)		(!pte_val(pte))
 #define pte_clear(mm,addr,ptep)	set_pte(ptep, __pte(0))
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
-#define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
+#define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + pte_index(addr))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
 #define pte_offset_map_nested(dir,addr)	pte_offset_kernel((dir), (addr))
@@ -173,10 +179,74 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 /*
  * Huge pte definitions.
  */
-#define pte_huge(pte)		((pte_val(pte) & PTE_TYPE_MASK) == PTE_TYPE_HUGEPAGE)
-#define pte_mkhuge(pte)		(__pte((pte_val(pte) & ~PTE_TYPE_MASK) | PTE_TYPE_HUGEPAGE))
+#define pte_huge(pte)		(!(pte_val(pte) & PTE_TABLE_BIT))
+#define pte_mkhuge(pte)		(__pte(pte_val(pte) & ~PTE_TABLE_BIT))
+
+/*
+ * Hugetlb definitions.
+ */
+#define HUGE_MAX_HSTATE		2
+#define HPAGE_SHIFT		PMD_SHIFT
+#define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)
+#define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
 #define __HAVE_ARCH_PTE_SPECIAL
+
+/*
+ * Software PMD bits for THP
+ */
+
+#define PMD_SECT_DIRTY		(_AT(pmdval_t, 1) << 55)
+#define PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 57)
+
+/*
+ * THP definitions.
+ */
+#define pmd_young(pmd)		(pmd_val(pmd) & PMD_SECT_AF)
+
+#define __HAVE_ARCH_PMD_WRITE
+#define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
+#define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
+#endif
+
+#define PMD_BIT_FUNC(fn,op) \
+static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
+
+PMD_BIT_FUNC(wrprotect,	|= PMD_SECT_RDONLY);
+PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
+PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
+PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
+PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
+PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
+PMD_BIT_FUNC(mknotpresent, &= ~PMD_TYPE_MASK);
+
+#define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
+
+#define pmd_pfn(pmd)		(((pmd_val(pmd) & PMD_MASK) & PHYS_MASK) >> PAGE_SHIFT)
+#define pfn_pmd(pfn,prot)	(__pmd(((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
+#define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
+
+#define pmd_page(pmd)           pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
+
+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+{
+	const pmdval_t mask = PMD_SECT_USER | PMD_SECT_PXN | PMD_SECT_UXN |
+			      PMD_SECT_RDONLY | PMD_SECT_PROT_NONE |
+			      PMD_SECT_VALID;
+	pmd_val(pmd) = (pmd_val(pmd) & ~mask) | (pgprot_val(newprot) & mask);
+	return pmd;
+}
+
+#define set_pmd_at(mm, addr, pmdp, pmd)	set_pmd(pmdp, pmd)
+
+static inline int has_transparent_hugepage(void)
+{
+	return 1;
+}
 
 /*
  * Mark the prot value as uncacheable and unbufferable.
@@ -196,6 +266,12 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 #define pmd_present(pmd)	(pmd_val(pmd))
 
 #define pmd_bad(pmd)		(!(pmd_val(pmd) & 2))
+
+#define pmd_table(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
+				 PMD_TYPE_TABLE)
+#define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
+				 PMD_TYPE_SECT)
+
 
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
@@ -263,7 +339,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 #endif
 
 /* Find an entry in the third-level page table.. */
-#define __pte_index(addr)	(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -281,12 +357,12 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
 
 /*
  * Encode and decode a swap entry:
- *	bits 0-1:	present (must be zero)
- *	bit  2:		PTE_FILE
- *	bits 3-8:	swap type
+ *	bits 0, 2:	present (must both be zero)
+ *	bit  3:		PTE_FILE
+ *	bits 4-8:	swap type
  *	bits 9-63:	swap offset
  */
-#define __SWP_TYPE_SHIFT	3
+#define __SWP_TYPE_SHIFT	4
 #define __SWP_TYPE_BITS		6
 #define __SWP_TYPE_MASK		((1 << __SWP_TYPE_BITS) - 1)
 #define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)
@@ -306,26 +382,19 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
 
 /*
  * Encode and decode a file entry:
- *	bits 0-1:	present (must be zero)
- *	bit  2:		PTE_FILE
- *	bits 3-63:	file offset / PAGE_SIZE
+ *	bits 0, 2:	present (must both be zero)
+ *	bit  3:		PTE_FILE
+ *	bits 4-63:	file offset / PAGE_SIZE
  */
 #define pte_file(pte)		(pte_val(pte) & PTE_FILE)
-#define pte_to_pgoff(x)		(pte_val(x) >> 3)
-#define pgoff_to_pte(x)		__pte(((x) << 3) | PTE_FILE)
+#define pte_to_pgoff(x)		(pte_val(x) >> 4)
+#define pgoff_to_pte(x)		__pte(((x) << 4) | PTE_FILE)
 
-#define PTE_FILE_MAX_BITS	61
+#define PTE_FILE_MAX_BITS	60
 
 extern int kern_addr_valid(unsigned long addr);
 
 #include <asm-generic/pgtable.h>
-
-/*
- * remap a physical page `pfn' of size `size' with page protection `prot'
- * into virtual address `from'
- */
-#define io_remap_pfn_range(vma,from,pfn,size,prot) \
-		remap_pfn_range(vma, from, pfn, size, prot)
 
 #define pgtable_cache_init() do { } while (0)
 

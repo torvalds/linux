@@ -32,7 +32,6 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/pinctrl/consumer.h>
 
 #include <linux/can/dev.h>
 
@@ -114,7 +113,6 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	struct c_can_priv *priv;
 	const struct of_device_id *match;
 	const struct platform_device_id *id;
-	struct pinctrl *pinctrl;
 	struct resource *mem, *res;
 	int irq;
 	struct clk *clk;
@@ -130,11 +128,6 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	} else {
 		id = platform_get_device_id(pdev);
 	}
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&pdev->dev,
-			"failed to configure pins from driver\n");
 
 	/* get the appropriate clk */
 	clk = clk_get(&pdev->dev, NULL);
@@ -201,8 +194,8 @@ static int c_can_plat_probe(struct platform_device *pdev)
 			priv->instance = pdev->id;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		priv->raminit_ctrlreg =	devm_request_and_ioremap(&pdev->dev, res);
-		if (!priv->raminit_ctrlreg || priv->instance < 0)
+		priv->raminit_ctrlreg = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(priv->raminit_ctrlreg) || priv->instance < 0)
 			dev_info(&pdev->dev, "control memory is not used for raminit\n");
 		else
 			priv->raminit = c_can_hw_raminit;
@@ -234,7 +227,6 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	return 0;
 
 exit_free_device:
-	platform_set_drvdata(pdev, NULL);
 	free_c_can_dev(dev);
 exit_iounmap:
 	iounmap(addr);
@@ -255,7 +247,6 @@ static int c_can_plat_remove(struct platform_device *pdev)
 	struct resource *mem;
 
 	unregister_c_can_dev(dev);
-	platform_set_drvdata(pdev, NULL);
 
 	free_c_can_dev(dev);
 	iounmap(priv->base);

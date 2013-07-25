@@ -223,6 +223,29 @@ DEFINE_EVENT(regmap_async, regmap_async_complete_done,
 
 );
 
+TRACE_EVENT(regcache_drop_region,
+
+	TP_PROTO(struct device *dev, unsigned int from,
+		 unsigned int to),
+
+	TP_ARGS(dev, from, to),
+
+	TP_STRUCT__entry(
+		__string(       name,           dev_name(dev)   )
+		__field(	unsigned int,	from		)
+		__field(	unsigned int,	to		)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, dev_name(dev));
+		__entry->from = from;
+		__entry->to = to;
+	),
+
+	TP_printk("%s %u-%u", __get_str(name), (unsigned int)__entry->from,
+		  (unsigned int)__entry->to)
+);
+
 #endif /* _TRACE_REGMAP_H */
 
 /* This part must be outside protection */

@@ -1,0 +1,3 @@
+source "drivers/staging/lustre/lustre/Kconfig"
+
+source "drivers/staging/lustre/lnet/Kconfig"

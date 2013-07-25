@@ -36,6 +36,7 @@
 #include <linux/dmaengine.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_dma.h>
 
 #include <asm/irq.h>
 #include <linux/platform_data/dma-imx-sdma.h>
@@ -1296,6 +1297,35 @@ err_dma_alloc:
 	return ret;
 }
 
+static bool sdma_filter_fn(struct dma_chan *chan, void *fn_param)
+{
+	struct imx_dma_data *data = fn_param;
+
+	if (!imx_dma_is_general_purpose(chan))
+		return false;
+
+	chan->private = data;
+
+	return true;
+}
+
+static struct dma_chan *sdma_xlate(struct of_phandle_args *dma_spec,
+				   struct of_dma *ofdma)
+{
+	struct sdma_engine *sdma = ofdma->of_dma_data;
+	dma_cap_mask_t mask = sdma->dma_device.cap_mask;
+	struct imx_dma_data data;
+
+	if (dma_spec->args_count != 3)
+		return NULL;
+
+	data.dma_request = dma_spec->args[0];
+	data.peripheral_type = dma_spec->args[1];
+	data.priority = dma_spec->args[2];
+
+	return dma_request_channel(mask, sdma_filter_fn, &data);
+}
+
 static int __init sdma_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
@@ -1443,10 +1473,20 @@ static int __init sdma_probe(struct platform_device *pdev)
 		goto err_init;
 	}
 
+	if (np) {
+		ret = of_dma_controller_register(np, sdma_xlate, sdma);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to register controller\n");
+			goto err_register;
+		}
+	}
+
 	dev_info(sdma->dev, "initialized\n");
 
 	return 0;
 
+err_register:
+	dma_async_device_unregister(&sdma->dma_device);
 err_init:
 	kfree(sdma->script_addrs);
 err_alloc:

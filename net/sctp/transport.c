@@ -116,7 +116,7 @@ struct sctp_transport *sctp_transport_new(struct net *net,
 {
 	struct sctp_transport *transport;
 
-	transport = t_new(struct sctp_transport, gfp);
+	transport = kzalloc(sizeof(*transport), gfp);
 	if (!transport)
 		goto fail;
 
@@ -176,7 +176,10 @@ static void sctp_transport_destroy_rcu(struct rcu_head *head)
  */
 static void sctp_transport_destroy(struct sctp_transport *transport)
 {
-	SCTP_ASSERT(transport->dead, "Transport is not dead", return);
+	if (unlikely(!transport->dead)) {
+		WARN(1, "Attempt to destroy undead transport %p!\n", transport);
+		return;
+	}
 
 	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
 
@@ -317,11 +320,9 @@ void sctp_transport_put(struct sctp_transport *transport)
 /* Update transport's RTO based on the newly calculated RTT. */
 void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 {
-	/* Check for valid transport.  */
-	SCTP_ASSERT(tp, "NULL transport", return);
-
-	/* We should not be doing any RTO updates unless rto_pending is set.  */
-	SCTP_ASSERT(tp->rto_pending, "rto_pending not set", return);
+	if (unlikely(!tp->rto_pending))
+		/* We should not be doing any RTO updates unless rto_pending is set.  */
+		pr_debug("%s: rto_pending not set on transport %p!\n", __func__, tp);
 
 	if (tp->rttvar || tp->srtt) {
 		struct net *net = sock_net(tp->asoc->base.sk);
@@ -377,9 +378,8 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 	 */
 	tp->rto_pending = 0;
 
-	SCTP_DEBUG_PRINTK("%s: transport: %p, rtt: %d, srtt: %d "
-			  "rttvar: %d, rto: %ld\n", __func__,
-			  tp, rtt, tp->srtt, tp->rttvar, tp->rto);
+	pr_debug("%s: transport:%p, rtt:%d, srtt:%d rttvar:%d, rto:%ld\n",
+		 __func__, tp, rtt, tp->srtt, tp->rttvar, tp->rto);
 }
 
 /* This routine updates the transport's cwnd and partial_bytes_acked
@@ -433,12 +433,11 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 			cwnd += pmtu;
 		else
 			cwnd += bytes_acked;
-		SCTP_DEBUG_PRINTK("%s: SLOW START: transport: %p, "
-				  "bytes_acked: %d, cwnd: %d, ssthresh: %d, "
-				  "flight_size: %d, pba: %d\n",
-				  __func__,
-				  transport, bytes_acked, cwnd,
-				  ssthresh, flight_size, pba);
+
+		pr_debug("%s: slow start: transport:%p, bytes_acked:%d, "
+			 "cwnd:%d, ssthresh:%d, flight_size:%d, pba:%d\n",
+			 __func__, transport, bytes_acked, cwnd, ssthresh,
+			 flight_size, pba);
 	} else {
 		/* RFC 2960 7.2.2 Whenever cwnd is greater than ssthresh,
 		 * upon each SACK arrival that advances the Cumulative TSN Ack
@@ -459,12 +458,12 @@ void sctp_transport_raise_cwnd(struct sctp_transport *transport,
 			cwnd += pmtu;
 			pba = ((cwnd < pba) ? (pba - cwnd) : 0);
 		}
-		SCTP_DEBUG_PRINTK("%s: CONGESTION AVOIDANCE: "
-				  "transport: %p, bytes_acked: %d, cwnd: %d, "
-				  "ssthresh: %d, flight_size: %d, pba: %d\n",
-				  __func__,
-				  transport, bytes_acked, cwnd,
-				  ssthresh, flight_size, pba);
+
+		pr_debug("%s: congestion avoidance: transport:%p, "
+			 "bytes_acked:%d, cwnd:%d, ssthresh:%d, "
+			 "flight_size:%d, pba:%d\n", __func__,
+			 transport, bytes_acked, cwnd, ssthresh,
+			 flight_size, pba);
 	}
 
 	transport->cwnd = cwnd;
@@ -558,10 +557,10 @@ void sctp_transport_lower_cwnd(struct sctp_transport *transport,
 	}
 
 	transport->partial_bytes_acked = 0;
-	SCTP_DEBUG_PRINTK("%s: transport: %p reason: %d cwnd: "
-			  "%d ssthresh: %d\n", __func__,
-			  transport, reason,
-			  transport->cwnd, transport->ssthresh);
+
+	pr_debug("%s: transport:%p, reason:%d, cwnd:%d, ssthresh:%d\n",
+		 __func__, transport, reason, transport->cwnd,
+		 transport->ssthresh);
 }
 
 /* Apply Max.Burst limit to the congestion window:

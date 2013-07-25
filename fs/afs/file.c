@@ -19,7 +19,8 @@
 #include "internal.h"
 
 static int afs_readpage(struct file *file, struct page *page);
-static void afs_invalidatepage(struct page *page, unsigned long offset);
+static void afs_invalidatepage(struct page *page, unsigned int offset,
+			       unsigned int length);
 static int afs_releasepage(struct page *page, gfp_t gfp_flags);
 static int afs_launder_page(struct page *page);
 
@@ -310,16 +311,17 @@ static int afs_launder_page(struct page *page)
  * - release a page and clean up its private data if offset is 0 (indicating
  *   the entire page)
  */
-static void afs_invalidatepage(struct page *page, unsigned long offset)
+static void afs_invalidatepage(struct page *page, unsigned int offset,
+			       unsigned int length)
 {
 	struct afs_writeback *wb = (struct afs_writeback *) page_private(page);
 
-	_enter("{%lu},%lu", page->index, offset);
+	_enter("{%lu},%u,%u", page->index, offset, length);
 
 	BUG_ON(!PageLocked(page));
 
 	/* we clean up only if the entire page is being invalidated */
-	if (offset == 0) {
+	if (offset == 0 && length == PAGE_CACHE_SIZE) {
 #ifdef CONFIG_AFS_FSCACHE
 		if (PageFsCache(page)) {
 			struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);

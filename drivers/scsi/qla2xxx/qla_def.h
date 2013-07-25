@@ -323,7 +323,7 @@ struct srb_iocb {
 			uint32_t lun;
 			uint32_t data;
 			struct completion comp;
-			uint32_t comp_status;
+			__le16 comp_status;
 		} tmf;
 		struct {
 #define SRB_FXDISC_REQ_DMA_VALID	BIT_0
@@ -338,21 +338,21 @@ struct srb_iocb {
 			void *rsp_addr;
 			dma_addr_t req_dma_handle;
 			dma_addr_t rsp_dma_handle;
-			uint32_t adapter_id;
-			uint32_t adapter_id_hi;
-			uint32_t req_func_type;
-			uint32_t req_data;
-			uint32_t req_data_extra;
-			uint32_t result;
-			uint32_t seq_number;
-			uint32_t fw_flags;
+			__le32 adapter_id;
+			__le32 adapter_id_hi;
+			__le16 req_func_type;
+			__le32 req_data;
+			__le32 req_data_extra;
+			__le32 result;
+			__le32 seq_number;
+			__le16 fw_flags;
 			struct completion fxiocb_comp;
-			uint32_t reserved_0;
+			__le32 reserved_0;
 			uint8_t reserved_1;
 		} fxiocb;
 		struct {
 			uint32_t cmd_hndl;
-			uint32_t comp_status;
+			__le16 comp_status;
 			struct completion comp;
 		} abt;
 	} u;
@@ -1196,14 +1196,14 @@ typedef struct {
 struct init_cb_fx {
 	uint16_t	version;
 	uint16_t	reserved_1[13];
-	uint16_t	request_q_outpointer;
-	uint16_t	response_q_inpointer;
+	__le16		request_q_outpointer;
+	__le16		response_q_inpointer;
 	uint16_t	reserved_2[2];
-	uint16_t	response_q_length;
-	uint16_t	request_q_length;
+	__le16		response_q_length;
+	__le16		request_q_length;
 	uint16_t	reserved_3[2];
-	uint32_t	request_q_address[2];
-	uint32_t	response_q_address[2];
+	__le32		request_q_address[2];
+	__le32		response_q_address[2];
 	uint16_t	reserved_4[4];
 	uint8_t		response_q_msivec;
 	uint8_t		reserved_5[19];

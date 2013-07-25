@@ -167,26 +167,8 @@ exit:
 
 static loff_t lseek(struct file *file, loff_t off, int whence)
 {
-	struct ctrl_dbg *dbg;
-	loff_t new = -1;
-
-	mutex_lock(&cpqphp_mutex);
-	dbg = file->private_data;
-
-	switch (whence) {
-	case 0:
-		new = off;
-		break;
-	case 1:
-		new = file->f_pos + off;
-		break;
-	}
-	if (new < 0 || new > dbg->size) {
-		mutex_unlock(&cpqphp_mutex);
-		return -EINVAL;
-	}
-	mutex_unlock(&cpqphp_mutex);
-	return (file->f_pos = new);
+	struct ctrl_dbg *dbg = file->private_data;
+	return fixed_size_llseek(file, off, whence, dbg->size);
 }
 
 static ssize_t read(struct file *file, char __user *buf,

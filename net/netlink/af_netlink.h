@@ -73,6 +73,7 @@ struct netlink_table {
 	struct mutex		*cb_mutex;
 	struct module		*module;
 	void			(*bind)(int group);
+	bool			(*compare)(struct net *net, struct sock *sock);
 	int			registered;
 };
 

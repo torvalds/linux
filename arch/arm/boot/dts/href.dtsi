@@ -9,7 +9,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "dbx5x0.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "dbx5x0.dtsi"
 
 / {
 	memory {
@@ -27,7 +28,7 @@
 		};
 	};
 
-	soc-u9500 {
+	soc {
 		uart@80120000 {
 			status = "okay";
 		};
@@ -45,14 +46,14 @@
 				compatible = "tc3589x";
 				reg = <0x42>;
 				interrupt-parent = <&gpio6>;
-				interrupts = <25 0x1>;
+				interrupts = <25 IRQ_TYPE_EDGE_RISING>;
 
 				interrupt-controller;
 				#interrupt-cells = <2>;
 
 				tc3589x_gpio: tc3589x_gpio {
 					compatible = "tc3589x-gpio";
-					interrupts = <0 0x1>;
+					interrupts = <0 IRQ_TYPE_EDGE_RISING>;
 
 					interrupt-controller;
 					#interrupt-cells = <2>;
@@ -63,17 +64,43 @@
 		};
 
 		i2c@80128000 {
-			lp5521@0x33 {
-				compatible = "lp5521";
+			lp5521@33 {
+				compatible = "national,lp5521";
 				reg = <0x33>;
+				label = "lp5521_pri";
+				clock-mode = /bits/ 8 <2>;
+				chan0 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan1 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan2 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
 			};
-
-			lp5521@0x34 {
-				compatible = "lp5521";
+			lp5521@34 {
+				compatible = "national,lp5521";
 				reg = <0x34>;
+				label = "lp5521_sec";
+				clock-mode = /bits/ 8 <2>;
+				chan0 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan1 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan2 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
 			};
-
-			bh1780@0x29 {
+			bh1780@29 {
 				compatible = "rohm,bh1780gli";
 				reg = <0x33>;
 			};
@@ -82,7 +109,7 @@
 		// External Micro SD slot
 		sdi0_per1@80126000 {
 			arm,primecell-periphid = <0x10480180>;
-			max-frequency = <50000000>;
+			max-frequency = <100000000>;
 			bus-width = <4>;
 			mmc-cap-sd-highspeed;
 			mmc-cap-mmc-highspeed;
@@ -97,7 +124,7 @@
 		// WLAN SDIO channel
 		sdi1_per2@80118000 {
 			arm,primecell-periphid = <0x10480180>;
-			max-frequency = <50000000>;
+			max-frequency = <100000000>;
 			bus-width = <4>;
 
 			status = "okay";
@@ -106,7 +133,7 @@
 		// PoP:ed eMMC
 		sdi2_per3@80005000 {
 			arm,primecell-periphid = <0x10480180>;
-			max-frequency = <50000000>;
+			max-frequency = <100000000>;
 			bus-width = <8>;
 			mmc-cap-mmc-highspeed;
 
@@ -116,7 +143,7 @@
 		// On-board eMMC
 		sdi4_per2@80114000 {
 			arm,primecell-periphid = <0x10480180>;
-		        max-frequency = <50000000>;
+		        max-frequency = <100000000>;
 			bus-width = <8>;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
@@ -236,7 +263,7 @@
 						regulator-name = "V-MMC-SD";
 					};
 
-					ab8500_ldo_initcore_reg: ab8500_ldo_initcore {
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
 						regulator-name = "V-INTCORE";
 					};
 
@@ -256,7 +283,7 @@
 						regulator-name = "V-AMIC1";
 					};
 
-					ab8500_ldo_amamic2_reg: ab8500_ldo_amamic2 {
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
 						regulator-name = "V-AMIC2";
 					};
 

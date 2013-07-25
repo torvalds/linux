@@ -50,19 +50,6 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 		goto err_p_ip_clk;
 	}
 
-	pm->clock = clk_get(&dev->plat_dev->dev, dev->variant->mclk_name);
-	if (IS_ERR(pm->clock)) {
-		mfc_err("Failed to get MFC clock\n");
-		ret = PTR_ERR(pm->clock);
-		goto err_g_ip_clk_2;
-	}
-
-	ret = clk_prepare(pm->clock);
-	if (ret) {
-		mfc_err("Failed to prepare MFC clock\n");
-		goto err_p_ip_clk_2;
-	}
-
 	atomic_set(&pm->power, 0);
 #ifdef CONFIG_PM_RUNTIME
 	pm->device = &dev->plat_dev->dev;
@@ -72,10 +59,6 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 	atomic_set(&clk_ref, 0);
 #endif
 	return 0;
-err_p_ip_clk_2:
-	clk_put(pm->clock);
-err_g_ip_clk_2:
-	clk_unprepare(pm->clock_gate);
 err_p_ip_clk:
 	clk_put(pm->clock_gate);
 err_g_ip_clk:
@@ -86,8 +69,6 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 {
 	clk_unprepare(pm->clock_gate);
 	clk_put(pm->clock_gate);
-	clk_unprepare(pm->clock);
-	clk_put(pm->clock);
 #ifdef CONFIG_PM_RUNTIME
 	pm_runtime_disable(pm->device);
 #endif
@@ -98,7 +79,7 @@ int s5p_mfc_clock_on(void)
 	int ret;
 #ifdef CLK_DEBUG
 	atomic_inc(&clk_ref);
-	mfc_debug(3, "+ %d", atomic_read(&clk_ref));
+	mfc_debug(3, "+ %d\n", atomic_read(&clk_ref));
 #endif
 	ret = clk_enable(pm->clock_gate);
 	return ret;
@@ -108,7 +89,7 @@ void s5p_mfc_clock_off(void)
 {
 #ifdef CLK_DEBUG
 	atomic_dec(&clk_ref);
-	mfc_debug(3, "- %d", atomic_read(&clk_ref));
+	mfc_debug(3, "- %d\n", atomic_read(&clk_ref));
 #endif
 	clk_disable(pm->clock_gate);
 }

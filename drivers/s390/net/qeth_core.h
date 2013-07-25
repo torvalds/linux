@@ -738,7 +738,7 @@ struct qeth_rx {
 	int qdio_err;
 };
 
-#define QETH_NAPI_WEIGHT 128
+#define QETH_NAPI_WEIGHT NAPI_POLL_WEIGHT
 
 struct qeth_card {
 	struct list_head list;

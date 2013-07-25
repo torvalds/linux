@@ -76,16 +76,10 @@ asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
 {
 	u32 irqnr;
 
-	do {
-		irqnr = __raw_readl(icoll_base + HW_ICOLL_STAT_OFFSET);
-		if (irqnr != 0x7f) {
-			__raw_writel(irqnr, icoll_base + HW_ICOLL_VECTOR);
-			irqnr = irq_find_mapping(icoll_domain, irqnr);
-			handle_IRQ(irqnr, regs);
-			continue;
-		}
-		break;
-	} while (1);
+	irqnr = __raw_readl(icoll_base + HW_ICOLL_STAT_OFFSET);
+	__raw_writel(irqnr, icoll_base + HW_ICOLL_VECTOR);
+	irqnr = irq_find_mapping(icoll_domain, irqnr);
+	handle_IRQ(irqnr, regs);
 }
 
 static int icoll_irq_domain_map(struct irq_domain *d, unsigned int virq,

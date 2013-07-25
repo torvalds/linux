@@ -440,8 +440,8 @@ void __flush_tlb_range(unsigned long sid, unsigned long start,
 	else {
 		unsigned long flags;
 
-		mtsp(sid, 1);
 		purge_tlb_start(flags);
+		mtsp(sid, 1);
 		if (split_tlb) {
 			while (npages--) {
 				pdtlb(start);

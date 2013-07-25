@@ -96,9 +96,7 @@ static int set_max_cstate(const struct dmi_system_id *id)
 	return 0;
 }
 
-/* Actually this shouldn't be __cpuinitdata, would be better to fix the
-   callers to only run once -AK */
-static struct dmi_system_id __cpuinitdata processor_power_dmi_table[] = {
+static struct dmi_system_id processor_power_dmi_table[] = {
 	{ set_max_cstate, "Clevo 5600D", {
 	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Technologies LTD"),
 	  DMI_MATCH(DMI_BIOS_VERSION,"SHE845M0.86C.0013.D.0302131307")},
@@ -214,13 +212,13 @@ static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 #ifdef CONFIG_PM_SLEEP
 static u32 saved_bm_rld;
 
-int acpi_processor_suspend(void)
+static int acpi_processor_suspend(void)
 {
 	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &saved_bm_rld);
 	return 0;
 }
 
-void acpi_processor_resume(void)
+static void acpi_processor_resume(void)
 {
 	u32 resumed_bm_rld;
 
@@ -1165,7 +1163,7 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 
 static int acpi_processor_registered;
 
-int __cpuinit acpi_processor_power_init(struct acpi_processor *pr)
+int acpi_processor_power_init(struct acpi_processor *pr)
 {
 	acpi_status status = 0;
 	int retval;

@@ -140,7 +140,6 @@ config SND_HDA_CODEC_VIA
 
 config SND_HDA_CODEC_HDMI
 	bool "Build HDMI/DisplayPort HD-audio codec support"
-	select SND_DYNAMIC_MINORS
 	default y
 	help
 	  Say Y here to include HDMI and DisplayPort HD-audio codec
@@ -151,6 +150,16 @@ config SND_HDA_CODEC_HDMI
 	  support code is also built as another module,
 	  snd-hda-codec-hdmi.
 	  This module is automatically loaded at probing.
+
+config SND_HDA_I915
+	bool "Build Display HD-audio controller/codec power well support for i915 cards"
+	depends on DRM_I915
+	help
+	  Say Y here to include full HDMI and DisplayPort HD-audio controller/codec
+	  power-well support for Intel Haswell graphics cards based on the i915 driver.
+
+	  Note that this option must be enabled for Intel Haswell C+ stepping machines, otherwise
+	  the GPU audio controller/codecs will not be initialized or damaged when exit from S3 mode.
 
 config SND_HDA_CODEC_CIRRUS
 	bool "Build Cirrus Logic codec support"

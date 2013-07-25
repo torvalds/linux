@@ -202,6 +202,7 @@ static int caam_probe(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	struct caam_perfmon *perfmon;
 #endif
+	u64 cha_vid;
 
 	ctrlpriv = kzalloc(sizeof(struct caam_drv_private), GFP_KERNEL);
 	if (!ctrlpriv)
@@ -293,11 +294,14 @@ static int caam_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	cha_vid = rd_reg64(&topregs->ctrl.perfmon.cha_id);
+
 	/*
-	 * RNG4 based SECs (v5+) need special initialization prior
-	 * to executing any descriptors
+	 * If SEC has RNG version >= 4 and RNG state handle has not been
+	 * already instantiated ,do RNG instantiation
 	 */
-	if (of_device_is_compatible(nprop, "fsl,sec-v5.0")) {
+	if ((cha_vid & CHA_ID_RNG_MASK) >> CHA_ID_RNG_SHIFT >= 4 &&
+	    !(rd_reg32(&topregs->ctrl.r4tst[0].rdsta) & RDSTA_IF0)) {
 		kick_trng(pdev);
 		ret = instantiate_rng(ctrlpriv->jrdev[0]);
 		if (ret) {

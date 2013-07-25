@@ -53,7 +53,7 @@ static void bcm2835_setup_restart(void)
 	WARN(!wdt_regs, "failed to remap watchdog regs");
 }
 
-static void bcm2835_restart(char mode, const char *cmd)
+static void bcm2835_restart(enum reboot_mode mode, const char *cmd)
 {
 	u32 val;
 
@@ -91,7 +91,7 @@ static void bcm2835_power_off(void)
 	writel_relaxed(val, wdt_regs + PM_RSTS);
 
 	/* Continue with normal reset mechanism */
-	bcm2835_restart(0, "");
+	bcm2835_restart(REBOOT_HARD, "");
 }
 
 static struct map_desc io_map __initdata = {

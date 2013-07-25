@@ -89,6 +89,7 @@ struct msm_gpiomux_config msm_gpiomux_configs[GPIOMUX_NGPIOS] = {
 };
 
 static struct platform_device *devices[] __initdata = {
+	&msm_clock_7x30,
 	&msm_device_gpio_7x30,
 #if defined(CONFIG_SERIAL_MSM) || defined(CONFIG_MSM_SERIAL_DEBUGGER)
         &msm_device_uart2,
@@ -116,7 +117,6 @@ static void __init msm7x30_init(void)
 static void __init msm7x30_map_io(void)
 {
 	msm_map_msm7x30_io();
-	msm_clock_init(msm_clocks_7x30, msm_num_clocks_7x30);
 }
 
 static void __init msm7x30_init_late(void)

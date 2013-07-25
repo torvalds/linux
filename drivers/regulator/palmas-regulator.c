@@ -838,9 +838,12 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 				continue;
 			ramp_delay_support = true;
 			break;
+		case PALMAS_REG_SMPS10:
+			if (!PALMAS_PMIC_HAS(palmas, SMPS10_BOOST))
+				continue;
 		}
 
-		if ((id == PALMAS_REG_SMPS6) && (id == PALMAS_REG_SMPS8))
+		if ((id == PALMAS_REG_SMPS6) || (id == PALMAS_REG_SMPS8))
 			ramp_delay_support = true;
 
 		if (ramp_delay_support) {
@@ -878,7 +881,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			pmic->desc[id].vsel_mask = SMPS10_VSEL;
 			pmic->desc[id].enable_reg =
 					PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
-							PALMAS_SMPS10_STATUS);
+							PALMAS_SMPS10_CTRL);
 			pmic->desc[id].enable_mask = SMPS10_BOOST_EN;
 			pmic->desc[id].min_uV = 3750000;
 			pmic->desc[id].uV_step = 1250000;
@@ -1051,6 +1054,7 @@ static struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,tps65913-pmic", },
 	{ .compatible = "ti,tps65914-pmic", },
 	{ .compatible = "ti,tps80036-pmic", },
+	{ .compatible = "ti,tps659038-pmic", },
 	{ /* end */ }
 };
 

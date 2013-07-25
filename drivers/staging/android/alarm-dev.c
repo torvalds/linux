@@ -264,6 +264,8 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	rv = alarm_do_ioctl(file, cmd, &ts);
+	if (rv)
+		return rv;
 
 	switch (ANDROID_ALARM_BASE_CMD(cmd)) {
 	case ANDROID_ALARM_GET_TIME(0):
@@ -272,7 +274,7 @@ static long alarm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
-	return rv;
+	return 0;
 }
 #ifdef CONFIG_COMPAT
 static long alarm_compat_ioctl(struct file *file, unsigned int cmd,
@@ -295,6 +297,8 @@ static long alarm_compat_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	rv = alarm_do_ioctl(file, cmd, &ts);
+	if (rv)
+		return rv;
 
 	switch (ANDROID_ALARM_BASE_CMD(cmd)) {
 	case ANDROID_ALARM_GET_TIME(0): /* NOTE: we modified cmd above */
@@ -303,7 +307,7 @@ static long alarm_compat_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 
-	return rv;
+	return 0;
 }
 #endif
 

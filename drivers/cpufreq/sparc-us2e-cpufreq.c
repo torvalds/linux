@@ -308,17 +308,17 @@ static int __init us2e_freq_cpu_init(struct cpufreq_policy *policy)
 	struct cpufreq_frequency_table *table =
 		&us2e_freq_table[cpu].table[0];
 
-	table[0].index = 0;
+	table[0].driver_data = 0;
 	table[0].frequency = clock_tick / 1;
-	table[1].index = 1;
+	table[1].driver_data = 1;
 	table[1].frequency = clock_tick / 2;
-	table[2].index = 2;
+	table[2].driver_data = 2;
 	table[2].frequency = clock_tick / 4;
-	table[2].index = 3;
+	table[2].driver_data = 3;
 	table[2].frequency = clock_tick / 6;
-	table[2].index = 4;
+	table[2].driver_data = 4;
 	table[2].frequency = clock_tick / 8;
-	table[2].index = 5;
+	table[2].driver_data = 5;
 	table[3].frequency = CPUFREQ_TABLE_END;
 
 	policy->cpuinfo.transition_latency = 0;

@@ -10,29 +10,31 @@ Required properties:
 Available mpp pins/groups and functions:
 Note: brackets (x) are not part of the mpp name for marvell,function and given
 only for more detailed description in this document.
+Note: pmu* also allows for Power Management functions listed below
 
 name          pins     functions
 ================================================================================
-mpp0          0        gpio, pmu, uart2(rts), sdio0(cd), lcd0(pwm)
-mpp1          1        gpio, pmu, uart2(cts), sdio0(wp), lcd1(pwm)
+mpp0          0        gpio, pmu, uart2(rts), sdio0(cd), lcd0(pwm), pmu*
+mpp1          1        gpio, pmu, uart2(cts), sdio0(wp), lcd1(pwm), pmu*
 mpp2          2        gpio, pmu, uart2(txd), sdio0(buspwr), sata(prsnt),
-                       uart1(rts)
+                       uart1(rts), pmu*
 mpp3          3        gpio, pmu, uart2(rxd), sdio0(ledctrl), sata(act),
-                       uart1(cts), lcd-spi(cs1)
-mpp4          4        gpio, pmu, uart3(rts), sdio1(cd), spi1(miso)
-mpp5          5        gpio, pmu, uart3(cts), sdio1(wp), spi1(cs)
-mpp6          6        gpio, pmu, uart3(txd), sdio1(buspwr), spi1(mosi)
-mpp7          7        gpio, pmu, uart3(rxd), sdio1(ledctrl), spi1(sck)
-mpp8          8        gpio, pmu, watchdog(rstout)
-mpp9          9        gpio, pmu, pex1(clkreq)
-mpp10         10       gpio, pmu, ssp(sclk)
+                       uart1(cts), lcd-spi(cs1), pmu*
+mpp4          4        gpio, pmu, uart3(rts), sdio1(cd), spi1(miso), pmu*
+mpp5          5        gpio, pmu, uart3(cts), sdio1(wp), spi1(cs), pmu*
+mpp6          6        gpio, pmu, uart3(txd), sdio1(buspwr), spi1(mosi), pmu*
+mpp7          7        gpio, pmu, uart3(rxd), sdio1(ledctrl), spi1(sck), pmu*
+mpp8          8        gpio, pmu, watchdog(rstout), pmu*
+mpp9          9        gpio, pmu, pex1(clkreq), pmu*
+mpp10         10       gpio, pmu, ssp(sclk), pmu*
 mpp11         11       gpio, pmu, sata(prsnt), sata-1(act), sdio0(ledctrl),
-                       sdio1(ledctrl), pex0(clkreq)
-mpp12         12       gpio, pmu, uart2(rts), audio0(extclk), sdio1(cd), sata(act)
+                       sdio1(ledctrl), pex0(clkreq), pmu*
+mpp12         12       gpio, pmu, uart2(rts), audio0(extclk), sdio1(cd),
+                       sata(act), pmu*
 mpp13         13       gpio, pmu, uart2(cts), audio1(extclk), sdio1(wp),
-                       ssp(extclk)
-mpp14         14       gpio, pmu, uart2(txd), sdio1(buspwr), ssp(rxd)
-mpp15         15       gpio, pmu, uart2(rxd), sdio1(ledctrl), ssp(sfrm)
+                       ssp(extclk), pmu*
+mpp14         14       gpio, pmu, uart2(txd), sdio1(buspwr), ssp(rxd), pmu*
+mpp15         15       gpio, pmu, uart2(rxd), sdio1(ledctrl), ssp(sfrm), pmu*
 mpp16         16       gpio, uart3(rts), sdio0(cd), ac97(sdi1), lcd-spi(cs1)
 mpp17         17       gpio, uart3(cts), sdio0(wp), ac97(sdi2), twsi(sda),
                        ac97-1(sysclko)
@@ -56,6 +58,21 @@ mpp_uart1     62-63    gpio, uart1
 mpp_nand      64-71    gpo, nand
 audio0        -        i2s, ac97
 twsi          -        none, opt1, opt2, opt3
+
+Power Management functions (pmu*):
+pmu-nc               Pin not driven by any PM function
+pmu-low              Pin driven low (0)
+pmu-high             Pin driven high (1)
+pmic(sdi)            Pin is used for PMIC SDI
+cpu-pwr-down         Pin is used for CPU_PWRDWN
+standby-pwr-down     Pin is used for STBY_PWRDWN
+core-pwr-good        Pin is used for CORE_PWR_GOOD (Pins 0-7 only)
+cpu-pwr-good         Pin is used for CPU_PWR_GOOD (Pins 8-15 only)
+bat-fault            Pin is used for BATTERY_FAULT
+ext0-wakeup          Pin is used for EXT0_WU
+ext1-wakeup          Pin is used for EXT0_WU
+ext2-wakeup          Pin is used for EXT0_WU
+pmu-blink            Pin is used for blink function
 
 Notes:
 * group "mpp_audio1" allows the following functions and gpio pins:

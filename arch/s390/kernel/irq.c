@@ -234,9 +234,9 @@ int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
 }
 EXPORT_SYMBOL(unregister_external_interrupt);
 
-void __irq_entry do_extint(struct pt_regs *regs, struct ext_code ext_code,
-			   unsigned int param32, unsigned long param64)
+void __irq_entry do_extint(struct pt_regs *regs)
 {
+	struct ext_code ext_code;
 	struct pt_regs *old_regs;
 	struct ext_int_info *p;
 	int index;
@@ -248,6 +248,7 @@ void __irq_entry do_extint(struct pt_regs *regs, struct ext_code ext_code,
 		clock_comparator_work();
 	}
 	kstat_incr_irqs_this_cpu(EXTERNAL_INTERRUPT, NULL);
+	ext_code = *(struct ext_code *) &regs->int_code;
 	if (ext_code.code != 0x1004)
 		__get_cpu_var(s390_idle).nohz_delay = 1;
 
@@ -255,7 +256,8 @@ void __irq_entry do_extint(struct pt_regs *regs, struct ext_code ext_code,
 	rcu_read_lock();
 	list_for_each_entry_rcu(p, &ext_int_hash[index], entry)
 		if (likely(p->code == ext_code.code))
-			p->handler(ext_code, param32, param64);
+			p->handler(ext_code, regs->int_parm,
+				   regs->int_parm_long);
 	rcu_read_unlock();
 	irq_exit();
 	set_irq_regs(old_regs);
@@ -311,3 +313,69 @@ void measurement_alert_subclass_unregister(void)
 	spin_unlock(&ma_subclass_lock);
 }
 EXPORT_SYMBOL(measurement_alert_subclass_unregister);
+
+#ifdef CONFIG_SMP
+void synchronize_irq(unsigned int irq)
+{
+	/*
+	 * Not needed, the handler is protected by a lock and IRQs that occur
+	 * after the handler is deleted are just NOPs.
+	 */
+}
+EXPORT_SYMBOL_GPL(synchronize_irq);
+#endif
+
+#ifndef CONFIG_PCI
+
+/* Only PCI devices have dynamically-defined IRQ handlers */
+
+int request_irq(unsigned int irq, irq_handler_t handler,
+		unsigned long irqflags, const char *devname, void *dev_id)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(request_irq);
+
+void free_irq(unsigned int irq, void *dev_id)
+{
+	WARN_ON(1);
+}
+EXPORT_SYMBOL_GPL(free_irq);
+
+void enable_irq(unsigned int irq)
+{
+	WARN_ON(1);
+}
+EXPORT_SYMBOL_GPL(enable_irq);
+
+void disable_irq(unsigned int irq)
+{
+	WARN_ON(1);
+}
+EXPORT_SYMBOL_GPL(disable_irq);
+
+#endif /* !CONFIG_PCI */
+
+void disable_irq_nosync(unsigned int irq)
+{
+	disable_irq(irq);
+}
+EXPORT_SYMBOL_GPL(disable_irq_nosync);
+
+unsigned long probe_irq_on(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(probe_irq_on);
+
+int probe_irq_off(unsigned long val)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(probe_irq_off);
+
+unsigned int probe_irq_mask(unsigned long val)
+{
+	return val;
+}
+EXPORT_SYMBOL_GPL(probe_irq_mask);

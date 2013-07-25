@@ -392,7 +392,7 @@ static long dgrp_dpa_ioctl(struct file *file, unsigned int cmd,
 		getnode.nd_rx_byte = nd->nd_rx_byte;
 
 		memset(&getnode.nd_ps_desc, 0, MAX_DESC_LEN);
-		strncpy(getnode.nd_ps_desc, nd->nd_ps_desc, MAX_DESC_LEN);
+		strlcpy(getnode.nd_ps_desc, nd->nd_ps_desc, MAX_DESC_LEN);
 
 		if (copy_to_user(uarg, &getnode, sizeof(struct digi_node)))
 			return -EFAULT;

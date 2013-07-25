@@ -1,0 +1,72 @@
+* palmas regulator IP block devicetree bindings
+
+Required properties:
+- compatible : Should be from the list
+  ti,twl6035-pmic
+  ti,twl6036-pmic
+  ti,twl6037-pmic
+  ti,tps65913-pmic
+  ti,tps65914-pmic
+and also the generic series names
+  ti,palmas-pmic
+- interrupt-parent : The parent interrupt controller which is palmas.
+- interrupts : The interrupt number and the type which can be looked up here:
+	       arch/arm/boot/dts/include/dt-bindings/interrupt-controller/irq.h
+- interrupts-name: The names of the individual interrupts.
+
+Optional properties:
+- ti,ldo6-vibrator : ldo6 is in vibrator mode
+
+Optional nodes:
+- regulators : Must contain a sub-node per regulator from the list below.
+	       Each sub-node should contain the constraints and initialization
+	       information for that regulator. See regulator.txt for a
+	       description of standard properties for these sub-nodes.
+	       Additional custom properties  are listed below.
+
+	       For ti,palmas-pmic - smps12, smps123, smps3 depending on OTP,
+	       smps45, smps457, smps7 depending on variant, smps6, smps[8-10],
+	       ldo[1-9], ldoln, ldousb.
+
+	       Optional sub-node properties:
+	       ti,warm-reset - maintain voltage during warm reset(boolean)
+	       ti,roof-floor - control voltage selection by pin(boolean)
+	       ti,sleep-mode - mode to adopt in pmic sleep 0 - off, 1 - auto,
+	       2 - eco, 3 - forced pwm
+	       ti,tstep - slope control 0 - Jump, 1 10mV/us, 2 5mV/us, 3 2.5mV/us
+	       ti,smps-range - OTP has the wrong range set for the hardware so override
+	       0 - low range, 1 - high range.
+
+Example:
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+pmic {
+	compatible = "ti,twl6035-pmic", "ti,palmas-pmic";
+	interrupt-parent = <&palmas>;
+	interrupts = <14 IRQ_TYPE_NONE>;
+	interrupts-name = "short-irq";
+
+	ti,ldo6-vibrator;
+
+	regulators {
+		smps12_reg : smps12 {
+			regulator-name = "smps12";
+			regulator-min-microvolt = < 600000>;
+			regulator-max-microvolt = <1500000>;
+			regulator-always-on;
+			regulator-boot-on;
+			ti,warm-reset;
+			ti,roof-floor;
+			ti,mode-sleep = <0>;
+			ti,tstep = <0>;
+			ti,smps-range = <1>;
+		};
+
+		ldo1_reg: ldo1 {
+			regulator-name = "ldo1";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+		};
+	};
+};

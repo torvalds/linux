@@ -603,13 +603,8 @@ SOC_DOUBLE_R("Capture Switch", WM8904_ANALOGUE_LEFT_INPUT_0,
 
 SOC_SINGLE("High Pass Filter Switch", WM8904_ADC_DIGITAL_0, 4, 1, 0),
 SOC_ENUM("High Pass Filter Mode", hpf_mode),
-
-{       .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "ADC 128x OSR Switch",
-	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,
-	.put = wm8904_adc_osr_put,
-	.private_value = SOC_SINGLE_VALUE(WM8904_ANALOGUE_ADC_0, 0, 1, 0),
-},
+SOC_SINGLE_EXT("ADC 128x OSR Switch", WM8904_ANALOGUE_ADC_0, 0, 1, 0,
+	snd_soc_get_volsw, wm8904_adc_osr_put),
 };
 
 static const char *drc_path_text[] = {

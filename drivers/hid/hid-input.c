@@ -354,10 +354,10 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 					      dev->battery_report_type);
 
 		if (ret != 2) {
-			if (ret >= 0)
-				ret = -EINVAL;
+			ret = -ENODATA;
 			break;
 		}
+		ret = 0;
 
 		if (dev->battery_min < dev->battery_max &&
 		    buf[1] >= dev->battery_min &&
@@ -1042,9 +1042,14 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	/*
 	 * Ignore out-of-range values as per HID specification,
-	 * section 5.10 and 6.2.25
+	 * section 5.10 and 6.2.25.
+	 *
+	 * The logical_minimum < logical_maximum check is done so that we
+	 * don't unintentionally discard values sent by devices which
+	 * don't specify logical min and max.
 	 */
 	if ((field->flags & HID_MAIN_ITEM_VARIABLE) &&
+	    (field->logical_minimum < field->logical_maximum) &&
 	    (value < field->logical_minimum ||
 	     value > field->logical_maximum)) {
 		dbg_hid("Ignoring out-of-range value %x\n", value);

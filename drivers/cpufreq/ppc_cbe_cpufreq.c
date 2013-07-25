@@ -106,7 +106,7 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	/* initialize frequency table */
 	for (i=0; cbe_freqs[i].frequency!=CPUFREQ_TABLE_END; i++) {
-		cbe_freqs[i].frequency = max_freq / cbe_freqs[i].index;
+		cbe_freqs[i].frequency = max_freq / cbe_freqs[i].driver_data;
 		pr_debug("%d: %d\n", i, cbe_freqs[i].frequency);
 	}
 
@@ -165,7 +165,7 @@ static int cbe_cpufreq_target(struct cpufreq_policy *policy,
 		 "1/%d of max frequency\n",
 		 policy->cpu,
 		 cbe_freqs[cbe_pmode_new].frequency,
-		 cbe_freqs[cbe_pmode_new].index);
+		 cbe_freqs[cbe_pmode_new].driver_data);
 
 	rc = set_pmode(policy->cpu, cbe_pmode_new);
 

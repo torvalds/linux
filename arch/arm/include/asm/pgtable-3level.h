@@ -33,7 +33,7 @@
 #define PTRS_PER_PMD		512
 #define PTRS_PER_PGD		4
 
-#define PTE_HWTABLE_PTRS	(PTRS_PER_PTE)
+#define PTE_HWTABLE_PTRS	(0)
 #define PTE_HWTABLE_OFF		(0)
 #define PTE_HWTABLE_SIZE	(PTRS_PER_PTE * sizeof(u64))
 
@@ -48,18 +48,26 @@
 #define PMD_SHIFT		21
 
 #define PMD_SIZE		(1UL << PMD_SHIFT)
-#define PMD_MASK		(~(PMD_SIZE-1))
+#define PMD_MASK		(~((1 << PMD_SHIFT) - 1))
 #define PGDIR_SIZE		(1UL << PGDIR_SHIFT)
-#define PGDIR_MASK		(~(PGDIR_SIZE-1))
+#define PGDIR_MASK		(~((1 << PGDIR_SHIFT) - 1))
 
 /*
  * section address mask and size definitions.
  */
 #define SECTION_SHIFT		21
 #define SECTION_SIZE		(1UL << SECTION_SHIFT)
-#define SECTION_MASK		(~(SECTION_SIZE-1))
+#define SECTION_MASK		(~((1 << SECTION_SHIFT) - 1))
 
 #define USER_PTRS_PER_PGD	(PAGE_OFFSET / PGDIR_SIZE)
+
+/*
+ * Hugetlb definitions.
+ */
+#define HPAGE_SHIFT		PMD_SHIFT
+#define HPAGE_SIZE		(_AC(1, UL) << HPAGE_SHIFT)
+#define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
 /*
  * "Linux" PTE definitions for LPAE.
@@ -78,6 +86,11 @@
 #define L_PTE_DIRTY		(_AT(pteval_t, 1) << 55)	/* unused */
 #define L_PTE_SPECIAL		(_AT(pteval_t, 1) << 56)	/* unused */
 #define L_PTE_NONE		(_AT(pteval_t, 1) << 57)	/* PROT_NONE */
+
+#define PMD_SECT_VALID		(_AT(pmdval_t, 1) << 0)
+#define PMD_SECT_DIRTY		(_AT(pmdval_t, 1) << 55)
+#define PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 56)
+#define PMD_SECT_NONE		(_AT(pmdval_t, 1) << 57)
 
 /*
  * To be used in assembly code with the upper page attributes.
@@ -166,7 +179,82 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 		clean_pmd_entry(pmdp);	\
 	} while (0)
 
+/*
+ * For 3 levels of paging the PTE_EXT_NG bit will be set for user address ptes
+ * that are written to a page table but not for ptes created with mk_pte.
+ *
+ * In hugetlb_no_page, a new huge pte (new_pte) is generated and passed to
+ * hugetlb_cow, where it is compared with an entry in a page table.
+ * This comparison test fails erroneously leading ultimately to a memory leak.
+ *
+ * To correct this behaviour, we mask off PTE_EXT_NG for any pte that is
+ * present before running the comparison.
+ */
+#define __HAVE_ARCH_PTE_SAME
+#define pte_same(pte_a,pte_b)	((pte_present(pte_a) ? pte_val(pte_a) & ~PTE_EXT_NG	\
+					: pte_val(pte_a))				\
+				== (pte_present(pte_b) ? pte_val(pte_b) & ~PTE_EXT_NG	\
+					: pte_val(pte_b)))
+
 #define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,__pte(pte_val(pte)|(ext)))
+
+#define pte_huge(pte)		(pte_val(pte) && !(pte_val(pte) & PTE_TABLE_BIT))
+#define pte_mkhuge(pte)		(__pte(pte_val(pte) & ~PTE_TABLE_BIT))
+
+#define pmd_young(pmd)		(pmd_val(pmd) & PMD_SECT_AF)
+
+#define __HAVE_ARCH_PMD_WRITE
+#define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
+#define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
+#endif
+
+#define PMD_BIT_FUNC(fn,op) \
+static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
+
+PMD_BIT_FUNC(wrprotect,	|= PMD_SECT_RDONLY);
+PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
+PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
+PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
+PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
+PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
+
+#define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
+
+#define pmd_pfn(pmd)		(((pmd_val(pmd) & PMD_MASK) & PHYS_MASK) >> PAGE_SHIFT)
+#define pfn_pmd(pfn,prot)	(__pmd(((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
+#define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
+
+/* represent a notpresent pmd by zero, this is used by pmdp_invalidate */
+#define pmd_mknotpresent(pmd)	(__pmd(0))
+
+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+{
+	const pmdval_t mask = PMD_SECT_USER | PMD_SECT_XN | PMD_SECT_RDONLY |
+				PMD_SECT_VALID | PMD_SECT_NONE;
+	pmd_val(pmd) = (pmd_val(pmd) & ~mask) | (pgprot_val(newprot) & mask);
+	return pmd;
+}
+
+static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+			      pmd_t *pmdp, pmd_t pmd)
+{
+	BUG_ON(addr >= TASK_SIZE);
+
+	/* create a faulting entry if PROT_NONE protected */
+	if (pmd_val(pmd) & PMD_SECT_NONE)
+		pmd_val(pmd) &= ~PMD_SECT_VALID;
+
+	*pmdp = __pmd(pmd_val(pmd) | PMD_SECT_nG);
+	flush_pmd_entry(pmdp);
+}
+
+static inline int has_transparent_hugepage(void)
+{
+	return 1;
+}
 
 #endif /* __ASSEMBLY__ */
 

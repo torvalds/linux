@@ -111,17 +111,6 @@
 #define MSR_TM_TRANSACTIONAL(x)	(((x) & MSR_TS_MASK) == MSR_TS_T)
 #define MSR_TM_SUSPENDED(x)	(((x) & MSR_TS_MASK) == MSR_TS_S)
 
-/* Reason codes describing kernel causes for transaction aborts.  By
-   convention, bit0 is copied to TEXASR[56] (IBM bit 7) which is set if
-   the failure is persistent.
-*/
-#define TM_CAUSE_RESCHED	0xfe
-#define TM_CAUSE_TLBI		0xfc
-#define TM_CAUSE_FAC_UNAV	0xfa
-#define TM_CAUSE_SYSCALL	0xf9 /* Persistent */
-#define TM_CAUSE_MISC		0xf6
-#define TM_CAUSE_SIGNAL		0xf4
-
 #if defined(CONFIG_PPC_BOOK3S_64)
 #define MSR_64BIT	MSR_SF
 
@@ -632,11 +621,15 @@
 #define   MMCR0_PMXE	0x04000000UL /* performance monitor exception enable */
 #define   MMCR0_FCECE	0x02000000UL /* freeze ctrs on enabled cond or event */
 #define   MMCR0_TBEE	0x00400000UL /* time base exception enable */
+#define   MMCR0_EBE	0x00100000UL /* Event based branch enable */
+#define   MMCR0_PMCC	0x000c0000UL /* PMC control */
+#define   MMCR0_PMCC_U6	0x00080000UL /* PMC1-6 are R/W by user (PR) */
 #define   MMCR0_PMC1CE	0x00008000UL /* PMC1 count enable*/
 #define   MMCR0_PMCjCE	0x00004000UL /* PMCj count enable*/
 #define   MMCR0_TRIGGER	0x00002000UL /* TRIGGER enable */
 #define   MMCR0_PMAO	0x00000080UL /* performance monitor alert has occurred, set to 0 after handling exception */
 #define   MMCR0_SHRFC	0x00000040UL /* SHRre freeze conditions between threads */
+#define   MMCR0_FC56	0x00000010UL /* freeze counters 5 and 6 */
 #define   MMCR0_FCTI	0x00000008UL /* freeze counters in tags inactive mode */
 #define   MMCR0_FCTA	0x00000004UL /* freeze counters in tags active mode */
 #define   MMCR0_FCWAIT	0x00000002UL /* freeze counter in WAIT state */
@@ -683,6 +676,11 @@
 #define   SIER_SIHV		0x1000000	/* Sampled MSR_HV */
 #define   SIER_SIAR_VALID	0x0400000	/* SIAR contents valid */
 #define   SIER_SDAR_VALID	0x0200000	/* SDAR contents valid */
+
+/* When EBB is enabled, some of MMCR0/MMCR2/SIER are user accessible */
+#define MMCR0_USER_MASK	(MMCR0_FC | MMCR0_PMXE | MMCR0_PMAO)
+#define MMCR2_USER_MASK	0x4020100804020000UL /* (FC1P|FC2P|FC3P|FC4P|FC5P|FC6P) */
+#define SIER_USER_MASK	0x7fffffUL
 
 #define SPRN_PA6T_MMCR0 795
 #define   PA6T_MMCR0_EN0	0x0000000000000001UL
@@ -1090,7 +1088,8 @@
 #define PVR_970MP	0x0044
 #define PVR_970GX	0x0045
 #define PVR_POWER7p	0x004A
-#define PVR_POWER8	0x004B
+#define PVR_POWER8E	0x004B
+#define PVR_POWER8	0x004D
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
 

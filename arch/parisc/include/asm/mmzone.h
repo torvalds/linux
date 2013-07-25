@@ -27,7 +27,7 @@ extern struct node_map_data node_data[];
 
 #define PFNNID_SHIFT (30 - PAGE_SHIFT)
 #define PFNNID_MAP_MAX  512     /* support 512GB */
-extern unsigned char pfnnid_map[PFNNID_MAP_MAX];
+extern signed char pfnnid_map[PFNNID_MAP_MAX];
 
 #ifndef CONFIG_64BIT
 #define pfn_is_io(pfn) ((pfn & (0xf0000000UL >> PAGE_SHIFT)) == (0xf0000000UL >> PAGE_SHIFT))
@@ -39,17 +39,14 @@ extern unsigned char pfnnid_map[PFNNID_MAP_MAX];
 static inline int pfn_to_nid(unsigned long pfn)
 {
 	unsigned int i;
-	unsigned char r;
 
 	if (unlikely(pfn_is_io(pfn)))
 		return 0;
 
 	i = pfn >> PFNNID_SHIFT;
 	BUG_ON(i >= ARRAY_SIZE(pfnnid_map));
-	r = pfnnid_map[i];
-	BUG_ON(r == 0xff);
 
-	return (int)r;
+	return pfnnid_map[i];
 }
 
 static inline int pfn_valid(int pfn)

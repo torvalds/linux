@@ -94,6 +94,9 @@ int nfc_genl_tm_deactivated(struct nfc_dev *dev);
 
 int nfc_genl_llc_send_sdres(struct nfc_dev *dev, struct hlist_head *sdres_list);
 
+int nfc_genl_se_added(struct nfc_dev *dev, u32 se_idx, u16 type);
+int nfc_genl_se_removed(struct nfc_dev *dev, u32 se_idx);
+
 struct nfc_dev *nfc_get_device(unsigned int idx);
 
 static inline void nfc_put_device(struct nfc_dev *dev)
@@ -120,6 +123,11 @@ static inline void nfc_device_iter_exit(struct class_dev_iter *iter)
 	class_dev_iter_exit(iter);
 }
 
+int nfc_fw_upload(struct nfc_dev *dev, const char *firmware_name);
+int nfc_genl_fw_upload_done(struct nfc_dev *dev, const char *firmware_name);
+
+int nfc_fw_upload_done(struct nfc_dev *dev, const char *firmware_name);
+
 int nfc_dev_up(struct nfc_dev *dev);
 
 int nfc_dev_down(struct nfc_dev *dev);
@@ -138,5 +146,8 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx);
 
 int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 		      data_exchange_cb_t cb, void *cb_context);
+
+int nfc_enable_se(struct nfc_dev *dev, u32 se_idx);
+int nfc_disable_se(struct nfc_dev *dev, u32 se_idx);
 
 #endif /* __LOCAL_NFC_H */

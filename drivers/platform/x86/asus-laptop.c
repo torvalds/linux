@@ -1935,7 +1935,6 @@ fail_input:
 fail_backlight:
 	asus_platform_exit(asus);
 fail_platform:
-	kfree(asus->name);
 	kfree(asus);
 
 	return result;

@@ -783,7 +783,6 @@ static int ep93xx_eth_remove(struct platform_device *pdev)
 	dev = platform_get_drvdata(pdev);
 	if (dev == NULL)
 		return 0;
-	platform_set_drvdata(pdev, NULL);
 
 	ep = netdev_priv(dev);
 

@@ -8104,7 +8104,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	pci_set_master(pdev);
 
-	bp->pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
+	bp->pm_cap = pdev->pm_cap;
 	if (bp->pm_cap == 0) {
 		dev_err(&pdev->dev,
 			"Cannot find power management capability, aborting\n");
@@ -8764,18 +8764,4 @@ static struct pci_driver bnx2_pci_driver = {
 	.err_handler	= &bnx2_err_handler,
 };
 
-static int __init bnx2_init(void)
-{
-	return pci_register_driver(&bnx2_pci_driver);
-}
-
-static void __exit bnx2_cleanup(void)
-{
-	pci_unregister_driver(&bnx2_pci_driver);
-}
-
-module_init(bnx2_init);
-module_exit(bnx2_cleanup);
-
-
-
+module_pci_driver(bnx2_pci_driver);

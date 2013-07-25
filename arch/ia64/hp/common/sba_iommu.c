@@ -2042,7 +2042,8 @@ sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 #endif
 
 static int __init
-acpi_sba_ioc_add(struct acpi_device *device)
+acpi_sba_ioc_add(struct acpi_device *device,
+		 const struct acpi_device_id *not_used)
 {
 	struct ioc *ioc;
 	acpi_status status;
@@ -2090,13 +2091,17 @@ static const struct acpi_device_id hp_ioc_iommu_device_ids[] = {
 	{"HWP0004", 0},
 	{"", 0},
 };
-static struct acpi_driver acpi_sba_ioc_driver = {
-	.name		= "IOC IOMMU Driver",
-	.ids		= hp_ioc_iommu_device_ids,
-	.ops		= {
-		.add	= acpi_sba_ioc_add,
-	},
+static struct acpi_scan_handler acpi_sba_ioc_handler = {
+	.ids	= hp_ioc_iommu_device_ids,
+	.attach	= acpi_sba_ioc_add,
 };
+
+static int __init acpi_sba_ioc_init_acpi(void)
+{
+	return acpi_scan_add_handler(&acpi_sba_ioc_handler);
+}
+/* This has to run before acpi_scan_init(). */
+arch_initcall(acpi_sba_ioc_init_acpi);
 
 extern struct dma_map_ops swiotlb_dma_ops;
 
@@ -2122,7 +2127,10 @@ sba_init(void)
 	}
 #endif
 
-	acpi_bus_register_driver(&acpi_sba_ioc_driver);
+	/*
+	 * ioc_list should be populated by the acpi_sba_ioc_handler's .attach()
+	 * routine, but that only happens if acpi_scan_init() has already run.
+	 */
 	if (!ioc_list) {
 #ifdef CONFIG_IA64_GENERIC
 		/*

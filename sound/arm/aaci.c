@@ -1076,8 +1076,6 @@ static int aaci_remove(struct amba_device *dev)
 {
 	struct snd_card *card = amba_get_drvdata(dev);
 
-	amba_set_drvdata(dev, NULL);
-
 	if (card) {
 		struct aaci *aaci = card->private_data;
 		writel(0, aaci->base + AACI_MAINCR);

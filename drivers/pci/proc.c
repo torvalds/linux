@@ -20,27 +20,8 @@ static int proc_initialized;	/* = 0 */
 static loff_t
 proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 {
-	loff_t new = -1;
-	struct inode *inode = file_inode(file);
-
-	mutex_lock(&inode->i_mutex);
-	switch (whence) {
-	case 0:
-		new = off;
-		break;
-	case 1:
-		new = file->f_pos + off;
-		break;
-	case 2:
-		new = inode->i_size + off;
-		break;
-	}
-	if (new < 0 || new > inode->i_size)
-		new = -EINVAL;
-	else
-		file->f_pos = new;
-	mutex_unlock(&inode->i_mutex);
-	return new;
+	struct pci_dev *dev = PDE_DATA(file_inode(file));
+	return fixed_size_llseek(file, off, whence, dev->cfg_size);
 }
 
 static ssize_t

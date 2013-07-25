@@ -566,13 +566,6 @@ also have
      when it reaches the current sync_max (below) and possibly at
      other times.
 
-   sync_max
-     This is a number of sectors at which point a resync/recovery
-     process will pause.  When a resync is active, the value can
-     only ever be increased, never decreased.  The value of 'max'
-     effectively disables the limit.
-
-
    sync_speed
      This shows the current actual speed, in K/sec, of the current
      sync_action.  It is averaged over the last 30 seconds.
@@ -592,6 +585,12 @@ also have
      You can use 'select' or 'poll' on "sync_completed" to wait for
      that number to reach sync_max.  Then you can either increase
      "sync_max", or can write 'idle' to "sync_action".
+
+     The value of 'max' for "sync_max" effectively disables the limit.
+     When a resync is active, the value can only ever be increased,
+     never decreased.
+     The value of '0' is the minimum for "sync_min".
+
 
 
 Each active md device may also have attributes specific to the

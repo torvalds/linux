@@ -10,6 +10,7 @@ config CIFS
 	select CRYPTO_ECB
 	select CRYPTO_DES
 	select CRYPTO_SHA256
+	select CRYPTO_CMAC
 	help
 	  This is the client VFS module for the Common Internet File System
 	  (CIFS) protocol which is the successor to the Server Message Block

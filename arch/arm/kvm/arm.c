@@ -492,6 +492,11 @@ static void vcpu_pause(struct kvm_vcpu *vcpu)
 	wait_event_interruptible(*wq, !vcpu->arch.pause);
 }
 
+static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.target >= 0;
+}
+
 /**
  * kvm_arch_vcpu_ioctl_run - the main VCPU run function to execute guest code
  * @vcpu:	The VCPU pointer
@@ -508,8 +513,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	int ret;
 	sigset_t sigsaved;
 
-	/* Make sure they initialize the vcpu with KVM_ARM_VCPU_INIT */
-	if (unlikely(vcpu->arch.target < 0))
+	if (unlikely(!kvm_vcpu_initialized(vcpu)))
 		return -ENOEXEC;
 
 	ret = kvm_vcpu_first_run_init(vcpu);
@@ -710,6 +714,10 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_SET_ONE_REG:
 	case KVM_GET_ONE_REG: {
 		struct kvm_one_reg reg;
+
+		if (unlikely(!kvm_vcpu_initialized(vcpu)))
+			return -ENOEXEC;
+
 		if (copy_from_user(&reg, argp, sizeof(reg)))
 			return -EFAULT;
 		if (ioctl == KVM_SET_ONE_REG)
@@ -721,6 +729,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		struct kvm_reg_list __user *user_list = argp;
 		struct kvm_reg_list reg_list;
 		unsigned n;
+
+		if (unlikely(!kvm_vcpu_initialized(vcpu)))
+			return -ENOEXEC;
 
 		if (copy_from_user(&reg_list, user_list, sizeof(reg_list)))
 			return -EFAULT;
@@ -789,8 +800,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 static void cpu_init_hyp_mode(void *dummy)
 {
-	unsigned long long boot_pgd_ptr;
-	unsigned long long pgd_ptr;
+	phys_addr_t boot_pgd_ptr;
+	phys_addr_t pgd_ptr;
 	unsigned long hyp_stack_ptr;
 	unsigned long stack_page;
 	unsigned long vector_ptr;
@@ -798,8 +809,8 @@ static void cpu_init_hyp_mode(void *dummy)
 	/* Switch from the HYP stub to our own HYP init vector */
 	__hyp_set_vectors(kvm_get_idmap_vector());
 
-	boot_pgd_ptr = (unsigned long long)kvm_mmu_get_boot_httbr();
-	pgd_ptr = (unsigned long long)kvm_mmu_get_httbr();
+	boot_pgd_ptr = kvm_mmu_get_boot_httbr();
+	pgd_ptr = kvm_mmu_get_httbr();
 	stack_page = __get_cpu_var(kvm_arm_hyp_stack_page);
 	hyp_stack_ptr = stack_page + PAGE_SIZE;
 	vector_ptr = (unsigned long)__kvm_hyp_vector;

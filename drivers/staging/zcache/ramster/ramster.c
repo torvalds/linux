@@ -66,8 +66,6 @@ static int ramster_remote_target_nodenum __read_mostly = -1;
 
 /* Used by this code. */
 long ramster_flnodes;
-ssize_t ramster_foreign_eph_pages;
-ssize_t ramster_foreign_pers_pages;
 /* FIXME frontswap selfshrinking knobs in debugfs? */
 
 static LIST_HEAD(ramster_rem_op_list);
@@ -399,14 +397,18 @@ void ramster_count_foreign_pages(bool eph, int count)
 			inc_ramster_foreign_eph_pages();
 		} else {
 			dec_ramster_foreign_eph_pages();
+#ifdef CONFIG_RAMSTER_DEBUG
 			WARN_ON_ONCE(ramster_foreign_eph_pages < 0);
+#endif
 		}
 	} else {
 		if (count > 0) {
 			inc_ramster_foreign_pers_pages();
 		} else {
 			dec_ramster_foreign_pers_pages();
+#ifdef CONFIG_RAMSTER_DEBUG
 			WARN_ON_ONCE(ramster_foreign_pers_pages < 0);
+#endif
 		}
 	}
 }

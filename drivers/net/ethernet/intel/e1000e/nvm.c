@@ -117,7 +117,6 @@ static u16 e1000_shift_in_eec_bits(struct e1000_hw *hw, u16 count)
 	u16 data;
 
 	eecd = er32(EECD);
-
 	eecd &= ~(E1000_EECD_DO | E1000_EECD_DI);
 	data = 0;
 

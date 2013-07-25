@@ -132,8 +132,8 @@ int iwl_init_alive_start(struct iwl_priv *priv)
 {
 	int ret;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist) {
 		/*
 		 * Tell uCode we are ready to perform calibration
 		 * need to perform this before any calibration
@@ -155,8 +155,8 @@ int iwl_init_alive_start(struct iwl_priv *priv)
 	 * temperature offset calibration is only needed for runtime ucode,
 	 * so prepare the value now.
 	 */
-	if (priv->cfg->need_temp_offset_calib) {
-		if (priv->cfg->temp_offset_v2)
+	if (priv->lib->need_temp_offset_calib) {
+		if (priv->lib->temp_offset_v2)
 			return iwl_set_temperature_offset_calib_v2(priv);
 		else
 			return iwl_set_temperature_offset_calib(priv);
@@ -277,7 +277,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	if (ret)
 		return ret;
 
-	if (!priv->cfg->no_xtal_calib) {
+	if (!priv->lib->no_xtal_calib) {
 		ret = iwl_set_Xtal_calib(priv);
 		if (ret)
 			return ret;

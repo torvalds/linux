@@ -553,6 +553,13 @@
 			samsung,pin-pud = <0>;
 			samaung,pin-drv = <0>;
 		};
+
+		dp_hpd: dp_hpd {
+			samsung,pins = "gpx0-7";
+			samsung,pin-function = <3>;
+			samsung,pin-pud = <0>;
+			samaung,pin-drv = <0>;
+		};
 	};
 
 	pinctrl@13400000 {
@@ -763,7 +770,7 @@
 		};
 	};
 
-	pinctrl@03680000 {
+	pinctrl@03860000 {
 		gpz: gpz {
 			gpio-controller;
 			#gpio-cells = <2>;

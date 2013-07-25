@@ -35,8 +35,29 @@ static u8 rtl8411_get_ic_version(struct rtsx_pcr *pcr)
 	return val & 0x0F;
 }
 
+static int rtl8411b_is_qfn48(struct rtsx_pcr *pcr)
+{
+	u8 val = 0;
+
+	rtsx_pci_read_register(pcr, RTL8411B_PACKAGE_MODE, &val);
+
+	if (val & 0x2)
+		return 1;
+	else
+		return 0;
+}
+
 static int rtl8411_extra_init_hw(struct rtsx_pcr *pcr)
 {
+	return rtsx_pci_write_register(pcr, CD_PAD_CTL,
+			CD_DISABLE_MASK | CD_AUTO_DISABLE, CD_ENABLE);
+}
+
+static int rtl8411b_extra_init_hw(struct rtsx_pcr *pcr)
+{
+	if (rtl8411b_is_qfn48(pcr))
+		rtsx_pci_write_register(pcr, CARD_PULL_CTL3, 0xFF, 0xF5);
+
 	return rtsx_pci_write_register(pcr, CD_PAD_CTL,
 			CD_DISABLE_MASK | CD_AUTO_DISABLE, CD_ENABLE);
 }
@@ -214,6 +235,20 @@ static const struct pcr_ops rtl8411_pcr_ops = {
 	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
 };
 
+static const struct pcr_ops rtl8411b_pcr_ops = {
+	.extra_init_hw = rtl8411b_extra_init_hw,
+	.optimize_phy = NULL,
+	.turn_on_led = rtl8411_turn_on_led,
+	.turn_off_led = rtl8411_turn_off_led,
+	.enable_auto_blink = rtl8411_enable_auto_blink,
+	.disable_auto_blink = rtl8411_disable_auto_blink,
+	.card_power_on = rtl8411_card_power_on,
+	.card_power_off = rtl8411_card_power_off,
+	.switch_output_voltage = rtl8411_switch_output_voltage,
+	.cd_deglitch = rtl8411_cd_deglitch,
+	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
+};
+
 /* SD Pull Control Enable:
  *     SD_DAT[3:0] ==> pull up
  *     SD_CD       ==> pull up
@@ -276,6 +311,74 @@ static const u32 rtl8411_ms_pull_ctl_disable_tbl[] = {
 	0,
 };
 
+static const u32 rtl8411b_qfn64_sd_pull_ctl_enable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL1, 0xAA),
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0xAA),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x09 | 0xD0),
+	RTSX_REG_PAIR(CARD_PULL_CTL4, 0x09 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL5, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn48_sd_pull_ctl_enable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0xAA),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x69 | 0x90),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x08 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn64_sd_pull_ctl_disable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL1, 0x65),
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x05 | 0xD0),
+	RTSX_REG_PAIR(CARD_PULL_CTL4, 0x09 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL5, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn48_sd_pull_ctl_disable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x65 | 0x90),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn64_ms_pull_ctl_enable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL1, 0x65),
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x05 | 0xD0),
+	RTSX_REG_PAIR(CARD_PULL_CTL4, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL5, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn48_ms_pull_ctl_enable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x65 | 0x90),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn64_ms_pull_ctl_disable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL1, 0x65),
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x05 | 0xD0),
+	RTSX_REG_PAIR(CARD_PULL_CTL4, 0x09 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL5, 0x05 | 0x50),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
+static const u32 rtl8411b_qfn48_ms_pull_ctl_disable_tbl[] = {
+	RTSX_REG_PAIR(CARD_PULL_CTL2, 0x55),
+	RTSX_REG_PAIR(CARD_PULL_CTL3, 0x65 | 0x90),
+	RTSX_REG_PAIR(CARD_PULL_CTL6, 0x04 | 0x11),
+	0,
+};
+
 void rtl8411_init_params(struct rtsx_pcr *pcr)
 {
 	pcr->extra_caps = EXTRA_CAPS_SD_SDR50 | EXTRA_CAPS_SD_SDR104;
@@ -287,4 +390,33 @@ void rtl8411_init_params(struct rtsx_pcr *pcr)
 	pcr->sd_pull_ctl_disable_tbl = rtl8411_sd_pull_ctl_disable_tbl;
 	pcr->ms_pull_ctl_enable_tbl = rtl8411_ms_pull_ctl_enable_tbl;
 	pcr->ms_pull_ctl_disable_tbl = rtl8411_ms_pull_ctl_disable_tbl;
+}
+
+void rtl8411b_init_params(struct rtsx_pcr *pcr)
+{
+	pcr->extra_caps = EXTRA_CAPS_SD_SDR50 | EXTRA_CAPS_SD_SDR104;
+	pcr->num_slots = 2;
+	pcr->ops = &rtl8411b_pcr_ops;
+
+	pcr->ic_version = rtl8411_get_ic_version(pcr);
+
+	if (rtl8411b_is_qfn48(pcr)) {
+		pcr->sd_pull_ctl_enable_tbl =
+			rtl8411b_qfn48_sd_pull_ctl_enable_tbl;
+		pcr->sd_pull_ctl_disable_tbl =
+			rtl8411b_qfn48_sd_pull_ctl_disable_tbl;
+		pcr->ms_pull_ctl_enable_tbl =
+			rtl8411b_qfn48_ms_pull_ctl_enable_tbl;
+		pcr->ms_pull_ctl_disable_tbl =
+			rtl8411b_qfn48_ms_pull_ctl_disable_tbl;
+	} else {
+		pcr->sd_pull_ctl_enable_tbl =
+			rtl8411b_qfn64_sd_pull_ctl_enable_tbl;
+		pcr->sd_pull_ctl_disable_tbl =
+			rtl8411b_qfn64_sd_pull_ctl_disable_tbl;
+		pcr->ms_pull_ctl_enable_tbl =
+			rtl8411b_qfn64_ms_pull_ctl_enable_tbl;
+		pcr->ms_pull_ctl_disable_tbl =
+			rtl8411b_qfn64_ms_pull_ctl_disable_tbl;
+	}
 }

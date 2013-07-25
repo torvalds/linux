@@ -10,6 +10,7 @@
 
 #include <linux/clkdev.h>
 #include <linux/of.h>
+#include <linux/reboot.h>
 
  /* Map io */
 extern void __init at91_map_io(void);
@@ -60,8 +61,8 @@ extern void at91sam9_idle(void);
 
 /* reset */
 extern void at91_ioremap_rstc(u32 base_addr);
-extern void at91sam9_alt_restart(char, const char *);
-extern void at91sam9g45_restart(char, const char *);
+extern void at91sam9_alt_restart(enum reboot_mode, const char *);
+extern void at91sam9g45_restart(enum reboot_mode, const char *);
 
 /* shutdown */
 extern void at91_ioremap_shdwc(u32 base_addr);
@@ -85,4 +86,4 @@ extern void __init at91_gpio_irq_setup(void);
 extern int  __init at91_gpio_of_irq_setup(struct device_node *node,
 					  struct device_node *parent);
 
-extern int at91_extern_irq;
+extern u32 at91_get_extern_irq(void);

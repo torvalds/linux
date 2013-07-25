@@ -240,8 +240,25 @@ void cirrus_ttm_placement(struct cirrus_bo *bo, int domain);
 int cirrus_bo_create(struct drm_device *dev, int size, int align,
 		     uint32_t flags, struct cirrus_bo **pcirrusbo);
 int cirrus_mmap(struct file *filp, struct vm_area_struct *vma);
-int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait);
-void cirrus_bo_unreserve(struct cirrus_bo *bo);
+
+static inline int cirrus_bo_reserve(struct cirrus_bo *bo, bool no_wait)
+{
+	int ret;
+
+	ret = ttm_bo_reserve(&bo->bo, true, no_wait, false, 0);
+	if (ret) {
+		if (ret != -ERESTARTSYS && ret != -EBUSY)
+			DRM_ERROR("reserve failed %p\n", bo);
+		return ret;
+	}
+	return 0;
+}
+
+static inline void cirrus_bo_unreserve(struct cirrus_bo *bo)
+{
+	ttm_bo_unreserve(&bo->bo);
+}
+
 int cirrus_bo_push_sysram(struct cirrus_bo *bo);
 int cirrus_bo_pin(struct cirrus_bo *bo, u32 pl_flag, u64 *gpu_addr);
 #endif				/* __CIRRUS_DRV_H__ */

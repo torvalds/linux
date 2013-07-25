@@ -449,12 +449,24 @@ static void ghes_do_proc(struct ghes *ghes,
 			    pcie_err->validation_bits & CPER_PCIE_VALID_AER_INFO) {
 				unsigned int devfn;
 				int aer_severity;
+
 				devfn = PCI_DEVFN(pcie_err->device_id.device,
 						  pcie_err->device_id.function);
 				aer_severity = cper_severity_to_aer(sev);
+
+				/*
+				 * If firmware reset the component to contain
+				 * the error, we must reinitialize it before
+				 * use, so treat it as a fatal AER error.
+				 */
+				if (gdata->flags & CPER_SEC_RESET)
+					aer_severity = AER_FATAL;
+
 				aer_recover_queue(pcie_err->device_id.segment,
 						  pcie_err->device_id.bus,
-						  devfn, aer_severity);
+						  devfn, aer_severity,
+						  (struct aer_capability_regs *)
+						  pcie_err->aer_info);
 			}
 
 		}
@@ -917,13 +929,14 @@ static int ghes_probe(struct platform_device *ghes_dev)
 		break;
 	case ACPI_HEST_NOTIFY_EXTERNAL:
 		/* External interrupt vector is GSI */
-		if (acpi_gsi_to_irq(generic->notify.vector, &ghes->irq)) {
+		rc = acpi_gsi_to_irq(generic->notify.vector, &ghes->irq);
+		if (rc) {
 			pr_err(GHES_PFX "Failed to map GSI to IRQ for generic hardware error source: %d\n",
 			       generic->header.source_id);
 			goto err_edac_unreg;
 		}
-		if (request_irq(ghes->irq, ghes_irq_func,
-				0, "GHES IRQ", ghes)) {
+		rc = request_irq(ghes->irq, ghes_irq_func, 0, "GHES IRQ", ghes);
+		if (rc) {
 			pr_err(GHES_PFX "Failed to register IRQ for generic hardware error source: %d\n",
 			       generic->header.source_id);
 			goto err_edac_unreg;

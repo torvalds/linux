@@ -174,19 +174,7 @@ static struct pci_driver netx_pci_driver = {
 	.remove = netx_pci_remove,
 };
 
-static int __init netx_init_module(void)
-{
-	return pci_register_driver(&netx_pci_driver);
-}
-
-static void __exit netx_exit_module(void)
-{
-	pci_unregister_driver(&netx_pci_driver);
-}
-
-module_init(netx_init_module);
-module_exit(netx_exit_module);
-
+module_pci_driver(netx_pci_driver);
 MODULE_DEVICE_TABLE(pci, netx_pci_ids);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Hans J. Koch, Manuel Traut");

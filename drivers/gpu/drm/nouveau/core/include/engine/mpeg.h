@@ -54,7 +54,6 @@ extern struct nouveau_ofuncs nv50_mpeg_ofuncs;
 int  nv50_mpeg_context_ctor(struct nouveau_object *, struct nouveau_object *,
 			    struct nouveau_oclass *, void *, u32,
 			    struct nouveau_object **);
-int  nv50_mpeg_tlb_flush(struct nouveau_engine *);
 void nv50_mpeg_intr(struct nouveau_subdev *);
 int  nv50_mpeg_init(struct nouveau_object *);
 

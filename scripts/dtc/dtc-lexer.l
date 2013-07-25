@@ -71,7 +71,7 @@ static int pop_input_file(void);
 			push_input_file(name);
 		}
 
-<*>^"#"(line)?{WS}+[0-9]+{WS}+{STRING}({WS}+[0-9]+)? {
+<*>^"#"(line)?[ \t]+[0-9]+[ \t]+{STRING}([ \t]+[0-9]+)? {
 			char *line, *tmp, *fn;
 			/* skip text before line # */
 			line = yytext;

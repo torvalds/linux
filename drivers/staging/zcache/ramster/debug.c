@@ -1,6 +1,8 @@
 #include <linux/atomic.h>
 #include "debug.h"
 
+ssize_t ramster_foreign_eph_pages;
+ssize_t ramster_foreign_pers_pages;
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 

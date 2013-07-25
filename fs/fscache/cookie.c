@@ -95,6 +95,11 @@ struct fscache_cookie *__fscache_acquire_cookie(
 	atomic_set(&cookie->usage, 1);
 	atomic_set(&cookie->n_children, 0);
 
+	/* We keep the active count elevated until relinquishment to prevent an
+	 * attempt to wake up every time the object operations queue quiesces.
+	 */
+	atomic_set(&cookie->n_active, 1);
+
 	atomic_inc(&parent->usage);
 	atomic_inc(&parent->n_children);
 
@@ -177,7 +182,6 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
 
 	cookie->flags =
 		(1 << FSCACHE_COOKIE_LOOKING_UP) |
-		(1 << FSCACHE_COOKIE_CREATING) |
 		(1 << FSCACHE_COOKIE_NO_DATA_YET);
 
 	/* ask the cache to allocate objects for this cookie and its parent
@@ -205,7 +209,7 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
 
 	/* initiate the process of looking up all the objects in the chain
 	 * (done by fscache_initialise_object()) */
-	fscache_enqueue_object(object);
+	fscache_raise_event(object, FSCACHE_OBJECT_EV_NEW_CHILD);
 
 	spin_unlock(&cookie->lock);
 
@@ -285,7 +289,7 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 
 object_already_extant:
 	ret = -ENOBUFS;
-	if (object->state >= FSCACHE_OBJECT_DYING) {
+	if (fscache_object_is_dead(object)) {
 		spin_unlock(&cookie->lock);
 		goto error;
 	}
@@ -321,7 +325,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 	ret = -EEXIST;
 	hlist_for_each_entry(p, &cookie->backing_objects, cookie_link) {
 		if (p->cache == object->cache) {
-			if (p->state >= FSCACHE_OBJECT_DYING)
+			if (fscache_object_is_dying(p))
 				ret = -ENOBUFS;
 			goto cant_attach_object;
 		}
@@ -332,7 +336,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 	hlist_for_each_entry(p, &cookie->parent->backing_objects,
 			     cookie_link) {
 		if (p->cache == object->cache) {
-			if (p->state >= FSCACHE_OBJECT_DYING) {
+			if (fscache_object_is_dying(p)) {
 				ret = -ENOBUFS;
 				spin_unlock(&cookie->parent->lock);
 				goto cant_attach_object;
@@ -400,7 +404,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie)
 			object = hlist_entry(cookie->backing_objects.first,
 					     struct fscache_object,
 					     cookie_link);
-			if (object->state < FSCACHE_OBJECT_DYING)
+			if (fscache_object_is_live(object))
 				fscache_raise_event(
 					object, FSCACHE_OBJECT_EV_INVALIDATE);
 		}
@@ -467,9 +471,7 @@ EXPORT_SYMBOL(__fscache_update_cookie);
  */
 void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 {
-	struct fscache_cache *cache;
 	struct fscache_object *object;
-	unsigned long event;
 
 	fscache_stat(&fscache_n_relinquishes);
 	if (retire)
@@ -481,8 +483,11 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 		return;
 	}
 
-	_enter("%p{%s,%p},%d",
-	       cookie, cookie->def->name, cookie->netfs_data, retire);
+	_enter("%p{%s,%p,%d},%d",
+	       cookie, cookie->def->name, cookie->netfs_data,
+	       atomic_read(&cookie->n_active), retire);
+
+	ASSERTCMP(atomic_read(&cookie->n_active), >, 0);
 
 	if (atomic_read(&cookie->n_children) != 0) {
 		printk(KERN_ERR "FS-Cache: Cookie '%s' still has children\n",
@@ -490,62 +495,28 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 		BUG();
 	}
 
-	/* wait for the cookie to finish being instantiated (or to fail) */
-	if (test_bit(FSCACHE_COOKIE_CREATING, &cookie->flags)) {
-		fscache_stat(&fscache_n_relinquishes_waitcrt);
-		wait_on_bit(&cookie->flags, FSCACHE_COOKIE_CREATING,
-			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
-	}
+	/* No further netfs-accessing operations on this cookie permitted */
+	set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags);
+	if (retire)
+		set_bit(FSCACHE_COOKIE_RETIRED, &cookie->flags);
 
-	event = retire ? FSCACHE_OBJECT_EV_RETIRE : FSCACHE_OBJECT_EV_RELEASE;
-
-try_again:
 	spin_lock(&cookie->lock);
-
-	/* break links with all the active objects */
-	while (!hlist_empty(&cookie->backing_objects)) {
-		int n_reads;
-		object = hlist_entry(cookie->backing_objects.first,
-				     struct fscache_object,
-				     cookie_link);
-
-		_debug("RELEASE OBJ%x", object->debug_id);
-
-		set_bit(FSCACHE_COOKIE_WAITING_ON_READS, &cookie->flags);
-		n_reads = atomic_read(&object->n_reads);
-		if (n_reads) {
-			int n_ops = object->n_ops;
-			int n_in_progress = object->n_in_progress;
-			spin_unlock(&cookie->lock);
-			printk(KERN_ERR "FS-Cache:"
-			       " Cookie '%s' still has %d outstanding reads (%d,%d)\n",
-			       cookie->def->name,
-			       n_reads, n_ops, n_in_progress);
-			wait_on_bit(&cookie->flags, FSCACHE_COOKIE_WAITING_ON_READS,
-				    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
-			printk("Wait finished\n");
-			goto try_again;
-		}
-
-		/* detach each cache object from the object cookie */
-		spin_lock(&object->lock);
-		hlist_del_init(&object->cookie_link);
-
-		cache = object->cache;
-		object->cookie = NULL;
-		fscache_raise_event(object, event);
-		spin_unlock(&object->lock);
-
-		if (atomic_dec_and_test(&cookie->usage))
-			/* the cookie refcount shouldn't be reduced to 0 yet */
-			BUG();
+	hlist_for_each_entry(object, &cookie->backing_objects, cookie_link) {
+		fscache_raise_event(object, FSCACHE_OBJECT_EV_KILL);
 	}
+	spin_unlock(&cookie->lock);
 
-	/* detach pointers back to the netfs */
+	/* Wait for cessation of activity requiring access to the netfs (when
+	 * n_active reaches 0).
+	 */
+	if (!atomic_dec_and_test(&cookie->n_active))
+		wait_on_atomic_t(&cookie->n_active, fscache_wait_atomic_t,
+				 TASK_UNINTERRUPTIBLE);
+
+	/* Clear pointers back to the netfs */
 	cookie->netfs_data	= NULL;
 	cookie->def		= NULL;
-
-	spin_unlock(&cookie->lock);
+	BUG_ON(cookie->stores.rnode);
 
 	if (cookie->parent) {
 		ASSERTCMP(atomic_read(&cookie->parent->usage), >, 0);
@@ -553,7 +524,7 @@ try_again:
 		atomic_dec(&cookie->parent->n_children);
 	}
 
-	/* finally dispose of the cookie */
+	/* Dispose of the netfs's link to the cookie */
 	ASSERTCMP(atomic_read(&cookie->usage), >, 0);
 	fscache_cookie_put(cookie);
 

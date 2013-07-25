@@ -79,9 +79,9 @@ enum sock_type {
 #endif /* ARCH_HAS_SOCKET_TYPES */
 
 enum sock_shutdown_cmd {
-	SHUT_RD		= 0,
-	SHUT_WR		= 1,
-	SHUT_RDWR	= 2,
+	SHUT_RD,
+	SHUT_WR,
+	SHUT_RDWR,
 };
 
 struct socket_wq {

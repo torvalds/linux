@@ -1098,29 +1098,29 @@ static int __init msi_init(void)
 
 	ret = platform_device_add(msipf_device);
 	if (ret)
-		goto fail_platform_device1;
+		goto fail_device_add;
 
 	if (quirks->load_scm_model && (load_scm_model_init(msipf_device) < 0)) {
 		ret = -EINVAL;
-		goto fail_platform_device1;
+		goto fail_scm_model_init;
 	}
 
 	ret = sysfs_create_group(&msipf_device->dev.kobj,
 				 &msipf_attribute_group);
 	if (ret)
-		goto fail_platform_device2;
+		goto fail_create_group;
 
 	if (!quirks->old_ec_model) {
 		if (threeg_exists)
 			ret = device_create_file(&msipf_device->dev,
 						&dev_attr_threeg);
 		if (ret)
-			goto fail_platform_device2;
+			goto fail_create_attr;
 	} else {
 		ret = sysfs_create_group(&msipf_device->dev.kobj,
 					 &msipf_old_attribute_group);
 		if (ret)
-			goto fail_platform_device2;
+			goto fail_create_attr;
 
 		/* Disable automatic brightness control by default because
 		 * this module was probably loaded to do brightness control in
@@ -1134,26 +1134,22 @@ static int __init msi_init(void)
 
 	return 0;
 
-fail_platform_device2:
-
+fail_create_attr:
+	sysfs_remove_group(&msipf_device->dev.kobj, &msipf_attribute_group);
+fail_create_group:
 	if (quirks->load_scm_model) {
 		i8042_remove_filter(msi_laptop_i8042_filter);
 		cancel_delayed_work_sync(&msi_rfkill_dwork);
 		cancel_work_sync(&msi_rfkill_work);
 		rfkill_cleanup();
 	}
+fail_scm_model_init:
 	platform_device_del(msipf_device);
-
-fail_platform_device1:
-
+fail_device_add:
 	platform_device_put(msipf_device);
-
 fail_platform_driver:
-
 	platform_driver_unregister(&msipf_driver);
-
 fail_backlight:
-
 	backlight_device_unregister(msibl_device);
 
 	return ret;

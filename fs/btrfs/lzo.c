@@ -31,8 +31,8 @@
 
 struct workspace {
 	void *mem;
-	void *buf;	/* where compressed data goes */
-	void *cbuf;	/* where decompressed data goes */
+	void *buf;	/* where decompressed data goes */
+	void *cbuf;	/* where compressed data goes */
 	struct list_head list;
 };
 

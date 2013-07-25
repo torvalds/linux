@@ -3028,15 +3028,4 @@ static struct pci_driver gem_driver = {
 #endif /* CONFIG_PM */
 };
 
-static int __init gem_init(void)
-{
-	return pci_register_driver(&gem_driver);
-}
-
-static void __exit gem_cleanup(void)
-{
-	pci_unregister_driver(&gem_driver);
-}
-
-module_init(gem_init);
-module_exit(gem_cleanup);
+module_pci_driver(gem_driver);

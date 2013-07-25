@@ -471,6 +471,9 @@ int mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 	unsigned int fcr31;
 	unsigned int bit;
 
+	if (!cpu_has_mmips)
+		return 0;
+
 	switch (insn.mm_i_format.opcode) {
 	case mm_pool32a_op:
 		if ((insn.mm_i_format.simmediate & MM_POOL32A_MINOR_MASK) ==

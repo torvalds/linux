@@ -289,16 +289,13 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM);
 	if (ret) {
 		NV_ERROR(drm, "failed to pin fb: %d\n", ret);
-		nouveau_bo_ref(NULL, &nvbo);
-		goto out;
+		goto out_unref;
 	}
 
 	ret = nouveau_bo_map(nvbo);
 	if (ret) {
 		NV_ERROR(drm, "failed to map fb: %d\n", ret);
-		nouveau_bo_unpin(nvbo);
-		nouveau_bo_ref(NULL, &nvbo);
-		goto out;
+		goto out_unpin;
 	}
 
 	chan = nouveau_nofbaccel ? NULL : drm->channel;
@@ -316,13 +313,14 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	info = framebuffer_alloc(0, &pdev->dev);
 	if (!info) {
 		ret = -ENOMEM;
-		goto out_unref;
+		goto out_unlock;
 	}
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {
 		ret = -ENOMEM;
-		goto out_unref;
+		framebuffer_release(info);
+		goto out_unlock;
 	}
 
 	info->par = fbcon;
@@ -337,7 +335,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	fbcon->helper.fbdev = info;
 
 	strcpy(info->fix.id, "nouveaufb");
-	if (nouveau_nofbaccel)
+	if (!chan)
 		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_DISABLED;
 	else
 		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
@@ -383,8 +381,15 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
 
-out_unref:
+out_unlock:
 	mutex_unlock(&dev->struct_mutex);
+	if (chan)
+		nouveau_bo_vma_del(nvbo, &fbcon->nouveau_fb.vma);
+	nouveau_bo_unmap(nvbo);
+out_unpin:
+	nouveau_bo_unpin(nvbo);
+out_unref:
+	nouveau_bo_ref(NULL, &nvbo);
 out:
 	return ret;
 }
@@ -413,6 +418,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 	if (nouveau_fb->nvbo) {
 		nouveau_bo_unmap(nouveau_fb->nvbo);
 		nouveau_bo_vma_del(nouveau_fb->nvbo, &nouveau_fb->vma);
+		nouveau_bo_unpin(nouveau_fb->nvbo);
 		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
 		nouveau_fb->nvbo = NULL;
 	}
@@ -467,10 +473,10 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	drm_fb_helper_single_add_all_connectors(&fbcon->helper);
 
-	if (pfb->ram.size <= 32 * 1024 * 1024)
+	if (pfb->ram->size <= 32 * 1024 * 1024)
 		preferred_bpp = 8;
 	else
-	if (pfb->ram.size <= 64 * 1024 * 1024)
+	if (pfb->ram->size <= 64 * 1024 * 1024)
 		preferred_bpp = 16;
 	else
 		preferred_bpp = 32;

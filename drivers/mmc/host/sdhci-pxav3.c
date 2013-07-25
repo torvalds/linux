@@ -230,7 +230,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	if (!pxa)
 		return -ENOMEM;
 
-	host = sdhci_pltfm_init(pdev, &sdhci_pxav3_pdata);
+	host = sdhci_pltfm_init(pdev, &sdhci_pxav3_pdata, 0);
 	if (IS_ERR(host)) {
 		kfree(pxa);
 		return PTR_ERR(host);
@@ -252,7 +252,9 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	match = of_match_device(of_match_ptr(sdhci_pxav3_of_match), &pdev->dev);
 	if (match) {
-		mmc_of_parse(host->mmc);
+		ret = mmc_of_parse(host->mmc);
+		if (ret)
+			goto err_of_parse;
 		sdhci_get_of_property(pdev);
 		pdata = pxav3_get_mmc_pdata(dev);
 	} else if (pdata) {
@@ -285,18 +287,15 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 		}
 	}
 
-	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, PXAV3_RPM_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_suspend_ignore_children(&pdev->dev, 1);
-	pm_runtime_get_noresume(&pdev->dev);
 
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add host\n");
-		pm_runtime_forbid(&pdev->dev);
-		pm_runtime_disable(&pdev->dev);
 		goto err_add_host;
 	}
 
@@ -313,10 +312,13 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_of_parse:
+err_cd_req:
 err_add_host:
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(clk);
 	clk_put(clk);
-err_cd_req:
 err_clk_get:
 	sdhci_pltfm_free(pdev);
 	kfree(pxa);
@@ -338,8 +340,6 @@ static int sdhci_pxav3_remove(struct platform_device *pdev)
 
 	sdhci_pltfm_free(pdev);
 	kfree(pxa);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

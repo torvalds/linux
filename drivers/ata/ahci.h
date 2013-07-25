@@ -1,7 +1,7 @@
 /*
  *  ahci.h - Common AHCI SATA definitions and declarations
  *
- *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ *  Maintained by:  Tejun Heo <tj@kernel.org>
  *    		    Please ALWAYS copy linux-ide@vger.kernel.org
  *		    on emails.
  *
@@ -306,6 +306,7 @@ struct ahci_port_priv {
 	int			fbs_last_dev;	/* save FBS.DEV of last FIS */
 	/* enclosure management info per PM slot */
 	struct ahci_em_priv	em_priv[EM_MAX_SLOTS];
+	char			*irq_desc;	/* desc in /proc/interrupts */
 };
 
 struct ahci_host_priv {
@@ -321,6 +322,7 @@ struct ahci_host_priv {
 	u32			em_buf_sz;	/* EM buffer size in byte */
 	u32			em_msg_type;	/* EM message type */
 	struct clk		*clk;		/* Only for platforms supporting clk */
+	void			*plat_data;	/* Other platform data */
 };
 
 extern int ahci_ignore_sss;

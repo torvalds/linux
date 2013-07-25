@@ -13,6 +13,7 @@
 #include <linux/rio.h>
 #include <linux/rio_drv.h>
 #include <linux/rio_ids.h>
+#include <linux/module.h>
 #include "../rio.h"
 
 #define CPS_DEFAULT_ROUTE	0xde
@@ -118,18 +119,31 @@ idtcps_get_domain(struct rio_mport *mport, u16 destid, u8 hopcount,
 	return 0;
 }
 
-static int idtcps_switch_init(struct rio_dev *rdev, int do_enum)
+static struct rio_switch_ops idtcps_switch_ops = {
+	.owner = THIS_MODULE,
+	.add_entry = idtcps_route_add_entry,
+	.get_entry = idtcps_route_get_entry,
+	.clr_table = idtcps_route_clr_table,
+	.set_domain = idtcps_set_domain,
+	.get_domain = idtcps_get_domain,
+	.em_init = NULL,
+	.em_handle = NULL,
+};
+
+static int idtcps_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 {
 	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
-	rdev->rswitch->add_entry = idtcps_route_add_entry;
-	rdev->rswitch->get_entry = idtcps_route_get_entry;
-	rdev->rswitch->clr_table = idtcps_route_clr_table;
-	rdev->rswitch->set_domain = idtcps_set_domain;
-	rdev->rswitch->get_domain = idtcps_get_domain;
-	rdev->rswitch->em_init = NULL;
-	rdev->rswitch->em_handle = NULL;
 
-	if (do_enum) {
+	spin_lock(&rdev->rswitch->lock);
+
+	if (rdev->rswitch->ops) {
+		spin_unlock(&rdev->rswitch->lock);
+		return -EINVAL;
+	}
+
+	rdev->rswitch->ops = &idtcps_switch_ops;
+
+	if (rdev->do_enum) {
 		/* set TVAL = ~50us */
 		rio_write_config_32(rdev,
 			rdev->phys_efptr + RIO_PORT_LINKTO_CTL_CSR, 0x8e << 8);
@@ -138,12 +152,52 @@ static int idtcps_switch_init(struct rio_dev *rdev, int do_enum)
 				    RIO_STD_RTE_DEFAULT_PORT, CPS_NO_ROUTE);
 	}
 
+	spin_unlock(&rdev->rswitch->lock);
 	return 0;
 }
 
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS6Q, idtcps_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS8, idtcps_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS10Q, idtcps_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS12, idtcps_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS16, idtcps_switch_init);
-DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDT70K200, idtcps_switch_init);
+static void idtcps_remove(struct rio_dev *rdev)
+{
+	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	spin_lock(&rdev->rswitch->lock);
+	if (rdev->rswitch->ops != &idtcps_switch_ops) {
+		spin_unlock(&rdev->rswitch->lock);
+		return;
+	}
+	rdev->rswitch->ops = NULL;
+	spin_unlock(&rdev->rswitch->lock);
+}
+
+static struct rio_device_id idtcps_id_table[] = {
+	{RIO_DEVICE(RIO_DID_IDTCPS6Q, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDTCPS8, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDTCPS10Q, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDTCPS12, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDTCPS16, RIO_VID_IDT)},
+	{RIO_DEVICE(RIO_DID_IDT70K200, RIO_VID_IDT)},
+	{ 0, }	/* terminate list */
+};
+
+static struct rio_driver idtcps_driver = {
+	.name = "idtcps",
+	.id_table = idtcps_id_table,
+	.probe = idtcps_probe,
+	.remove = idtcps_remove,
+};
+
+static int __init idtcps_init(void)
+{
+	return rio_register_driver(&idtcps_driver);
+}
+
+static void __exit idtcps_exit(void)
+{
+	rio_unregister_driver(&idtcps_driver);
+}
+
+device_initcall(idtcps_init);
+module_exit(idtcps_exit);
+
+MODULE_DESCRIPTION("IDT CPS Gen.1 Serial RapidIO switch family driver");
+MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_LICENSE("GPL");

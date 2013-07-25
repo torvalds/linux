@@ -24,9 +24,7 @@
  *
  */
 
-#include <subdev/devinit.h>
-#include <subdev/vga.h>
-
+#include "priv.h"
 #include "fbmem.h"
 
 struct nv20_devinit_priv {
@@ -81,6 +79,7 @@ nv20_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	priv->base.meminit = nv20_devinit_meminit;
+	priv->base.pll_set = nv04_devinit_pll_set;
 	return 0;
 }
 

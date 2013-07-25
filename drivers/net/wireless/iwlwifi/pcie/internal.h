@@ -217,6 +217,7 @@ struct iwl_pcie_txq_scratch_buf {
  * @trans_pcie: pointer back to transport (for timer)
  * @need_update: indicates need to update read/write index
  * @active: stores if queue is active
+ * @ampdu: true if this queue is an ampdu queue for an specific RA/TID
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -232,6 +233,7 @@ struct iwl_txq {
 	struct iwl_trans_pcie *trans_pcie;
 	u8 need_update;
 	u8 active;
+	bool ampdu;
 };
 
 static inline dma_addr_t

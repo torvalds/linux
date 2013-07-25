@@ -1,0 +1,87 @@
+/*
+ * Copyright (C) 2013 STMicroelectronics (R&D) Limited.
+ * Author: Srinivas Kandagatla <srinivas.kandagatla@st.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * publishhed by the Free Software Foundation.
+ */
+#include "stih41x.dtsi"
+#include "stih415-clock.dtsi"
+#include "stih415-pinctrl.dtsi"
+/ {
+
+	L2: cache-controller {
+		compatible = "arm,pl310-cache";
+		reg = <0xfffe2000 0x1000>;
+		arm,data-latency = <3 2 2>;
+		arm,tag-latency = <1 1 1>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&intc>;
+		ranges;
+		compatible	= "simple-bus";
+
+		syscfg_sbc: sbc-syscfg@fe600000{
+			compatible      = "st,stih415-sbc-syscfg", "syscon";
+			reg		= <0xfe600000 0xb4>;
+		};
+
+		syscfg_front: front-syscfg@fee10000{
+			compatible      = "st,stih415-front-syscfg", "syscon";
+			reg		= <0xfee10000 0x194>;
+		};
+
+		syscfg_rear: rear-syscfg@fe830000{
+			compatible      = "st,stih415-rear-syscfg", "syscon";
+			reg		= <0xfe830000 0x190>;
+		};
+
+		/* MPE syscfgs */
+		syscfg_left: left-syscfg@fd690000{
+			compatible      = "st,stih415-left-syscfg", "syscon";
+			reg		= <0xfd690000 0x78>;
+		};
+
+		syscfg_right: right-syscfg@fd320000{
+			compatible      = "st,stih415-right-syscfg", "syscon";
+			reg		= <0xfd320000 0x180>;
+		};
+
+		syscfg_system: system-syscfg@fdde0000  {
+			compatible      = "st,stih415-system-syscfg", "syscon";
+			reg		= <0xfdde0000 0x15c>;
+		};
+
+		syscfg_lpm: lpm-syscfg@fe4b5100{
+			compatible      = "st,stih415-lpm-syscfg", "syscon";
+			reg		= <0xfe4b5100 0x08>;
+		};
+
+		serial2: serial@fed32000 {
+			compatible	= "st,asc";
+			status 		= "disabled";
+			reg		= <0xfed32000 0x2c>;
+			interrupts	= <0 197 0>;
+			pinctrl-names 	= "default";
+			pinctrl-0 	= <&pinctrl_serial2>;
+			clocks		= <&CLKS_ICN_REG_0>;
+		};
+
+		/* SBC comms block ASCs in SASG1 */
+		sbc_serial1: serial@fe531000 {
+			compatible	= "st,asc";
+			status 		= "disabled";
+			reg		= <0xfe531000 0x2c>;
+			interrupts	= <0 210 0>;
+			clocks		= <&CLK_SYSIN>;
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_sbc_serial1>;
+		};
+	};
+};

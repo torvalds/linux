@@ -43,8 +43,6 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	unsigned long vm_size;
 	int ret;
 
-	DRM_DEBUG_KMS("%s\n", __func__);
-
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
 	vm_size = vma->vm_end - vma->vm_start;
@@ -83,8 +81,6 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	struct exynos_drm_gem_buf *buffer;
 	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
 	unsigned long offset;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
@@ -148,8 +144,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	unsigned long size;
 	int ret;
 
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
 	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d\n",
 			sizes->surface_width, sizes->surface_height,
 			sizes->surface_bpp);
@@ -182,7 +176,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	helper->fb = exynos_drm_framebuffer_init(dev, &mode_cmd,
 			&exynos_gem_obj->base);
-	if (IS_ERR_OR_NULL(helper->fb)) {
+	if (IS_ERR(helper->fb)) {
 		DRM_ERROR("failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
 		goto err_destroy_gem;
@@ -237,8 +231,6 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 	struct drm_fb_helper *helper;
 	unsigned int num_crtc;
 	int ret;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (!dev->mode_config.num_crtc || !dev->mode_config.num_connector)
 		return 0;

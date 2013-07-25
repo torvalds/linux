@@ -63,6 +63,7 @@ static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 {
 	vcpu->arch.sie_block->prefix = prefix & 0x7fffe000u;
 	vcpu->arch.sie_block->ihcpu  = 0xffff;
+	kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 }
 
 static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu)
@@ -83,6 +84,12 @@ static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
 
 	*address1 = (base1 ? vcpu->run->s.regs.gprs[base1] : 0) + disp1;
 	*address2 = (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
+}
+
+static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2)
+{
+	*r1 = (vcpu->arch.sie_block->ipb & 0x00f00000) >> 20;
+	*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
 }
 
 static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)
@@ -125,7 +132,8 @@ int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_b9(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu);
-int kvm_s390_handle_priv_eb(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
@@ -133,6 +141,10 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 /* implemented in kvm-s390.c */
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu,
 				 unsigned long addr);
+void s390_vcpu_block(struct kvm_vcpu *vcpu);
+void s390_vcpu_unblock(struct kvm_vcpu *vcpu);
+void exit_sie(struct kvm_vcpu *vcpu);
+void exit_sie_sync(struct kvm_vcpu *vcpu);
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
 

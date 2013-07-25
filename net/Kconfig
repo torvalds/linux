@@ -5,6 +5,7 @@
 menuconfig NET
 	bool "Networking support"
 	select NLATTR
+	select GENERIC_NET_UTILS
 	---help---
 	  Unless you really know what you are doing, you should say Y here.
 	  The reason is that some programs need kernel networking support even
@@ -218,6 +219,7 @@ source "net/batman-adv/Kconfig"
 source "net/openvswitch/Kconfig"
 source "net/vmw_vsock/Kconfig"
 source "net/netlink/Kconfig"
+source "net/mpls/Kconfig"
 
 config RPS
 	boolean
@@ -242,6 +244,10 @@ config NETPRIO_CGROUP
 	  Cgroup subsystem for use in assigning processes to network priorities on
 	  a per-interface basis
 
+config NET_LL_RX_POLL
+	boolean
+	default y
+
 config BQL
 	boolean
 	depends on SYSFS
@@ -258,6 +264,18 @@ config BPF_JIT
 	  code when filter is loaded in memory. This should speedup
 	  packet sniffing (libpcap/tcpdump). Note : Admin should enable
 	  this feature changing /proc/sys/net/core/bpf_jit_enable
+
+config NET_FLOW_LIMIT
+	boolean
+	depends on RPS
+	default y
+	---help---
+	  The network stack has to drop packets when a receive processing CPU's
+	  backlog reaches netdev_max_backlog. If a few out of many active flows
+	  generate the vast majority of load, drop their traffic earlier to
+	  maintain capacity for the other flows. This feature provides servers
+	  with many clients some protection against DoS by a single (spoofed)
+	  flow that greatly exceeds average workload.
 
 menu "Network testing"
 

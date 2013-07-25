@@ -1618,6 +1618,8 @@ static void release_tty(struct tty_struct *tty, int idx)
 	tty_free_termios(tty);
 	tty_driver_remove_tty(tty->driver, tty);
 	tty->port->itty = NULL;
+	if (tty->link)
+		tty->link->port->itty = NULL;
 	cancel_work_sync(&tty->port->buf.work);
 
 	if (tty->link)
@@ -2138,6 +2140,7 @@ static unsigned int tty_poll(struct file *filp, poll_table *wait)
 static int __tty_fasync(int fd, struct file *filp, int on)
 {
 	struct tty_struct *tty = file_tty(filp);
+	struct tty_ldisc *ldisc;
 	unsigned long flags;
 	int retval = 0;
 
@@ -2148,11 +2151,17 @@ static int __tty_fasync(int fd, struct file *filp, int on)
 	if (retval <= 0)
 		goto out;
 
+	ldisc = tty_ldisc_ref(tty);
+	if (ldisc) {
+		if (ldisc->ops->fasync)
+			ldisc->ops->fasync(tty, on);
+		tty_ldisc_deref(ldisc);
+	}
+
 	if (on) {
 		enum pid_type type;
 		struct pid *pid;
-		if (!waitqueue_active(&tty->read_wait))
-			tty->minimum_to_wake = 1;
+
 		spin_lock_irqsave(&tty->ctrl_lock, flags);
 		if (tty->pgrp) {
 			pid = tty->pgrp;
@@ -2165,13 +2174,7 @@ static int __tty_fasync(int fd, struct file *filp, int on)
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		retval = __f_setown(filp, pid, type, 0);
 		put_pid(pid);
-		if (retval)
-			goto out;
-	} else {
-		if (!tty->fasync && !waitqueue_active(&tty->read_wait))
-			tty->minimum_to_wake = N_TTY_BUF_SIZE;
 	}
-	retval = 0;
 out:
 	return retval;
 }

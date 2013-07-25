@@ -98,14 +98,14 @@ static int nec_8048_panel_probe(struct omap_dss_device *dssdev)
 	dssdev->panel.timings = nec_8048_panel_timings;
 
 	if (gpio_is_valid(pd->qvga_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, pd->qvga_gpio,
+		r = devm_gpio_request_one(dssdev->dev, pd->qvga_gpio,
 				GPIOF_OUT_INIT_HIGH, "lcd QVGA");
 		if (r)
 			return r;
 	}
 
 	if (gpio_is_valid(pd->res_gpio)) {
-		r = devm_gpio_request_one(&dssdev->dev, pd->res_gpio,
+		r = devm_gpio_request_one(dssdev->dev, pd->res_gpio,
 				GPIOF_OUT_INIT_LOW, "lcd RES");
 		if (r)
 			return r;

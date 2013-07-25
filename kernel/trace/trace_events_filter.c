@@ -44,6 +44,7 @@ enum filter_op_ids
 	OP_LE,
 	OP_GT,
 	OP_GE,
+	OP_BAND,
 	OP_NONE,
 	OP_OPEN_PAREN,
 };
@@ -54,6 +55,7 @@ struct filter_op {
 	int precedence;
 };
 
+/* Order must be the same as enum filter_op_ids above */
 static struct filter_op filter_ops[] = {
 	{ OP_OR,	"||",		1 },
 	{ OP_AND,	"&&",		2 },
@@ -64,6 +66,7 @@ static struct filter_op filter_ops[] = {
 	{ OP_LE,	"<=",		5 },
 	{ OP_GT,	">",		5 },
 	{ OP_GE,	">=",		5 },
+	{ OP_BAND,	"&",		6 },
 	{ OP_NONE,	"OP_NONE",	0 },
 	{ OP_OPEN_PAREN, "(",		0 },
 };
@@ -155,6 +158,9 @@ static int filter_pred_##type(struct filter_pred *pred, void *event)	\
 		break;							\
 	case OP_GE:							\
 		match = (*addr >= val);					\
+		break;							\
+	case OP_BAND:							\
+		match = (*addr & val);					\
 		break;							\
 	default:							\
 		break;							\
@@ -640,7 +646,7 @@ void print_event_filter(struct ftrace_event_call *call, struct trace_seq *s)
 	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
-		trace_seq_printf(s, "none\n");
+		trace_seq_puts(s, "none\n");
 	mutex_unlock(&event_mutex);
 }
 
@@ -654,7 +660,7 @@ void print_subsystem_event_filter(struct event_subsystem *system,
 	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
-		trace_seq_printf(s, DEFAULT_SYS_FILTER_MESSAGE "\n");
+		trace_seq_puts(s, DEFAULT_SYS_FILTER_MESSAGE "\n");
 	mutex_unlock(&event_mutex);
 }
 

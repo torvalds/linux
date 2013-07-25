@@ -388,12 +388,9 @@ out:
 
 	sg_free_table(g2d_userptr->sgt);
 	kfree(g2d_userptr->sgt);
-	g2d_userptr->sgt = NULL;
 
-	kfree(g2d_userptr->pages);
-	g2d_userptr->pages = NULL;
+	drm_free_large(g2d_userptr->pages);
 	kfree(g2d_userptr);
-	g2d_userptr = NULL;
 }
 
 static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
@@ -463,11 +460,11 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 	npages = (end - start) >> PAGE_SHIFT;
 	g2d_userptr->npages = npages;
 
-	pages = kzalloc(npages * sizeof(struct page *), GFP_KERNEL);
+	pages = drm_calloc_large(npages, sizeof(struct page *));
 	if (!pages) {
 		DRM_ERROR("failed to allocate pages.\n");
-		kfree(g2d_userptr);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto err_free;
 	}
 
 	vma = find_vma(current->mm, userptr);
@@ -543,7 +540,6 @@ err_sg_free_table:
 
 err_free_sgt:
 	kfree(sgt);
-	sgt = NULL;
 
 err_free_userptr:
 	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
@@ -554,10 +550,10 @@ err_put_vma:
 	exynos_gem_put_vma(g2d_userptr->vma);
 
 err_free_pages:
-	kfree(pages);
+	drm_free_large(pages);
+
+err_free:
 	kfree(g2d_userptr);
-	pages = NULL;
-	g2d_userptr = NULL;
 
 	return ERR_PTR(ret);
 }
@@ -1379,7 +1375,7 @@ static int g2d_probe(struct platform_device *pdev)
 	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
-	g2d = devm_kzalloc(&pdev->dev, sizeof(*g2d), GFP_KERNEL);
+	g2d = devm_kzalloc(dev, sizeof(*g2d), GFP_KERNEL);
 	if (!g2d) {
 		dev_err(dev, "failed to allocate driver data\n");
 		return -ENOMEM;
@@ -1417,7 +1413,7 @@ static int g2d_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	g2d->regs = devm_ioremap_resource(&pdev->dev, res);
+	g2d->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(g2d->regs)) {
 		ret = PTR_ERR(g2d->regs);
 		goto err_put_clk;
@@ -1430,7 +1426,7 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	ret = devm_request_irq(&pdev->dev, g2d->irq, g2d_irq_handler, 0,
+	ret = devm_request_irq(dev, g2d->irq, g2d_irq_handler, 0,
 								"drm_g2d", g2d);
 	if (ret < 0) {
 		dev_err(dev, "irq request failed\n");

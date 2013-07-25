@@ -472,8 +472,8 @@ static enum BC_STATUS bc_cproc_hw_txdma(struct crystalhd_cmd *ctx,
 }
 
 /* Helper function to check on user buffers */
-static enum BC_STATUS bc_cproc_check_inbuffs(bool pin, void *ubuff, uint32_t ub_sz,
-					uint32_t uv_off, bool en_422)
+static enum BC_STATUS bc_cproc_check_inbuffs(bool pin, void *ubuff,
+				 uint32_t ub_sz, uint32_t uv_off, bool en_422)
 {
 	if (!ubuff || !ub_sz) {
 		BCMLOG_ERR("%s->Invalid Arg %p %x\n",
@@ -483,8 +483,9 @@ static enum BC_STATUS bc_cproc_check_inbuffs(bool pin, void *ubuff, uint32_t ub_
 
 	/* Check for alignment */
 	if (((uintptr_t)ubuff) & 0x03) {
-		BCMLOG_ERR("%s-->Un-aligned address not implemented yet.. %p\n",
-				((pin) ? "TX" : "RX"), ubuff);
+		BCMLOG_ERR(
+			"%s-->Un-aligned address not implemented yet.. %p\n",
+			 ((pin) ? "TX" : "RX"), ubuff);
 		return BC_STS_NOT_IMPL;
 	}
 	if (pin)
@@ -572,7 +573,8 @@ static enum BC_STATUS bc_cproc_add_cap_buff(struct crystalhd_cmd *ctx,
 	if (!dio_hnd)
 		return BC_STS_ERROR;
 
-	sts = crystalhd_hw_add_cap_buffer(&ctx->hw_ctx, dio_hnd, (ctx->state == BC_LINK_READY));
+	sts = crystalhd_hw_add_cap_buffer(&ctx->hw_ctx, dio_hnd,
+					 (ctx->state == BC_LINK_READY));
 	if ((sts != BC_STS_SUCCESS) && (sts != BC_STS_BUSY)) {
 		crystalhd_unmap_dio(ctx->adp, dio_hnd);
 		return sts;
@@ -618,7 +620,8 @@ static enum BC_STATUS bc_cproc_fetch_frame(struct crystalhd_cmd *ctx,
 
 	sts = crystalhd_hw_get_cap_buffer(&ctx->hw_ctx, &frame->PibInfo, &dio);
 	if (sts != BC_STS_SUCCESS)
-		return (ctx->state & BC_LINK_SUSPEND) ? BC_STS_IO_USER_ABORT : sts;
+		return (ctx->state & BC_LINK_SUSPEND) ?
+					 BC_STS_IO_USER_ABORT : sts;
 
 	frame->Flags = dio->uinfo.comp_flags;
 
@@ -673,7 +676,8 @@ static enum BC_STATUS bc_cproc_flush_cap_buffs(struct crystalhd_cmd *ctx,
 	frame = &idata->udata.u.DecOutData;
 	for (count = 0; count < BC_RX_LIST_CNT; count++) {
 
-		sts = crystalhd_hw_get_cap_buffer(&ctx->hw_ctx, &frame->PibInfo, &dio);
+		sts = crystalhd_hw_get_cap_buffer(&ctx->hw_ctx,
+					 &frame->PibInfo, &dio);
 		if (sts != BC_STS_SUCCESS)
 			break;
 
@@ -916,7 +920,8 @@ enum BC_STATUS crystalhd_user_open(struct crystalhd_cmd *ctx,
  * Closer application handle and release app specific
  * resources.
  */
-enum BC_STATUS crystalhd_user_close(struct crystalhd_cmd *ctx, struct crystalhd_user *uc)
+enum BC_STATUS crystalhd_user_close(struct crystalhd_cmd *ctx,
+					 struct crystalhd_user *uc)
 {
 	uint32_t mode = uc->mode;
 
@@ -1008,8 +1013,8 @@ enum BC_STATUS crystalhd_delete_cmd_context(struct crystalhd_cmd *ctx)
  * mode of operation and returns the function pointer
  * from the cproc table.
  */
-crystalhd_cmd_proc crystalhd_get_cmd_proc(struct crystalhd_cmd *ctx, uint32_t cmd,
-				      struct crystalhd_user *uc)
+crystalhd_cmd_proc crystalhd_get_cmd_proc(struct crystalhd_cmd *ctx,
+				 uint32_t cmd, struct crystalhd_user *uc)
 {
 	crystalhd_cmd_proc cproc = NULL;
 	unsigned int i, tbl_sz;
@@ -1024,7 +1029,8 @@ crystalhd_cmd_proc crystalhd_get_cmd_proc(struct crystalhd_cmd *ctx, uint32_t cm
 		return NULL;
 	}
 
-	tbl_sz = sizeof(g_crystalhd_cproc_tbl) / sizeof(struct crystalhd_cmd_tbl);
+	tbl_sz = sizeof(g_crystalhd_cproc_tbl) /
+				 sizeof(struct crystalhd_cmd_tbl);
 	for (i = 0; i < tbl_sz; i++) {
 		if (g_crystalhd_cproc_tbl[i].cmd_id == cmd) {
 			if ((uc->mode == DTS_MONITOR_MODE) &&

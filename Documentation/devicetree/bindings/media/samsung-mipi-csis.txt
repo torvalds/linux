@@ -5,8 +5,8 @@ Required properties:
 
 - compatible	  : "samsung,s5pv210-csis" for S5PV210 (S5PC110),
 		    "samsung,exynos4210-csis" for Exynos4210 (S5PC210),
-		    "samsung,exynos4212-csis" for Exynos4212/Exynos4412
-		    SoC series;
+		    "samsung,exynos4212-csis" for Exynos4212/Exynos4412,
+		    "samsung,exynos5250-csis" for Exynos5250;
 - reg		  : offset and length of the register set for the device;
 - interrupts      : should contain MIPI CSIS interrupt; the format of the
 		    interrupt specifier depends on the interrupt controller;

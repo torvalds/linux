@@ -249,8 +249,11 @@ xfs_qm_init_dquot_blk(
 		d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
 		d->dd_diskdq.d_id = cpu_to_be32(curid);
 		d->dd_diskdq.d_flags = type;
-		if (xfs_sb_version_hascrc(&mp->m_sb))
+		if (xfs_sb_version_hascrc(&mp->m_sb)) {
 			uuid_copy(&d->dd_uuid, &mp->m_sb.sb_uuid);
+			xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
+					 XFS_DQUOT_CRC_OFF);
+		}
 	}
 
 	xfs_trans_dquot_buf(tp, bp,
@@ -286,23 +289,6 @@ xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
 	dqp->q_low_space[XFS_QLOWSP_5_PCNT] = space * 5;
 }
 
-STATIC void
-xfs_dquot_buf_calc_crc(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
-	int			i;
-
-	if (!xfs_sb_version_hascrc(&mp->m_sb))
-		return;
-
-	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++, d++) {
-		xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
-				 offsetof(struct xfs_dqblk, dd_crc));
-	}
-}
-
 STATIC bool
 xfs_dquot_buf_verify_crc(
 	struct xfs_mount	*mp,
@@ -328,12 +314,11 @@ xfs_dquot_buf_verify_crc(
 
 	for (i = 0; i < ndquots; i++, d++) {
 		if (!xfs_verify_cksum((char *)d, sizeof(struct xfs_dqblk),
-				 offsetof(struct xfs_dqblk, dd_crc)))
+				 XFS_DQUOT_CRC_OFF))
 			return false;
 		if (!uuid_equal(&d->dd_uuid, &mp->m_sb.sb_uuid))
 			return false;
 	}
-
 	return true;
 }
 
@@ -393,6 +378,11 @@ xfs_dquot_buf_read_verify(
 	}
 }
 
+/*
+ * we don't calculate the CRC here as that is done when the dquot is flushed to
+ * the buffer after the update is done. This ensures that the dquot in the
+ * buffer always has an up-to-date CRC value.
+ */
 void
 xfs_dquot_buf_write_verify(
 	struct xfs_buf	*bp)
@@ -404,7 +394,6 @@ xfs_dquot_buf_write_verify(
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 		return;
 	}
-	xfs_dquot_buf_calc_crc(mp, bp);
 }
 
 const struct xfs_buf_ops xfs_dquot_buf_ops = {
@@ -581,13 +570,13 @@ xfs_qm_dqtobp(
 	xfs_buf_t		**O_bpp,
 	uint			flags)
 {
-	xfs_bmbt_irec_t map;
-	int		nmaps = 1, error;
-	xfs_buf_t	*bp;
-	xfs_inode_t	*quotip = XFS_DQ_TO_QIP(dqp);
-	xfs_mount_t	*mp = dqp->q_mount;
-	xfs_dqid_t	id = be32_to_cpu(dqp->q_core.d_id);
-	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
+	struct xfs_bmbt_irec	map;
+	int			nmaps = 1, error;
+	struct xfs_buf		*bp;
+	struct xfs_inode	*quotip = xfs_dq_to_quota_inode(dqp);
+	struct xfs_mount	*mp = dqp->q_mount;
+	xfs_dqid_t		id = be32_to_cpu(dqp->q_core.d_id);
+	struct xfs_trans	*tp = (tpp ? *tpp : NULL);
 
 	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 
@@ -815,7 +804,7 @@ xfs_qm_dqget(
 	xfs_dquot_t	**O_dqpp) /* OUT : locked incore dquot */
 {
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root *tree = XFS_DQUOT_TREE(qi, type);
+	struct radix_tree_root *tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	int			error;
 
@@ -947,6 +936,7 @@ xfs_qm_dqput_final(
 {
 	struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
 	struct xfs_dquot	*gdqp;
+	struct xfs_dquot	*pdqp;
 
 	trace_xfs_dqput_free(dqp);
 
@@ -960,21 +950,29 @@ xfs_qm_dqput_final(
 
 	/*
 	 * If we just added a udquot to the freelist, then we want to release
-	 * the gdquot reference that it (probably) has. Otherwise it'll keep
-	 * the gdquot from getting reclaimed.
+	 * the gdquot/pdquot reference that it (probably) has. Otherwise it'll
+	 * keep the gdquot/pdquot from getting reclaimed.
 	 */
 	gdqp = dqp->q_gdquot;
 	if (gdqp) {
 		xfs_dqlock(gdqp);
 		dqp->q_gdquot = NULL;
 	}
+
+	pdqp = dqp->q_pdquot;
+	if (pdqp) {
+		xfs_dqlock(pdqp);
+		dqp->q_pdquot = NULL;
+	}
 	xfs_dqunlock(dqp);
 
 	/*
-	 * If we had a group quota hint, release it now.
+	 * If we had a group/project quota hint, release it now.
 	 */
 	if (gdqp)
 		xfs_qm_dqput(gdqp);
+	if (pdqp)
+		xfs_qm_dqput(pdqp);
 }
 
 /*
@@ -1151,11 +1149,17 @@ xfs_qm_dqflush(
 	 * copy the lsn into the on-disk dquot now while we have the in memory
 	 * dquot here. This can't be done later in the write verifier as we
 	 * can't get access to the log item at that point in time.
+	 *
+	 * We also calculate the CRC here so that the on-disk dquot in the
+	 * buffer always has a valid CRC. This ensures there is no possibility
+	 * of a dquot without an up-to-date CRC getting to disk.
 	 */
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_dqblk *dqb = (struct xfs_dqblk *)ddqp;
 
 		dqb->dd_lsn = cpu_to_be64(dqp->q_logitem.qli_item.li_lsn);
+		xfs_update_cksum((char *)dqb, sizeof(struct xfs_dqblk),
+				 XFS_DQUOT_CRC_OFF);
 	}
 
 	/*

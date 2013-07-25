@@ -165,11 +165,12 @@ static void f81232_set_termios(struct tty_struct *tty,
 	/* FIXME - Stubbed out for now */
 
 	/* Don't change anything if nothing has changed */
-	if (!tty_termios_hw_change(&tty->termios, old_termios))
+	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
 	/* Do the real work here... */
-	tty_termios_copy_hw(&tty->termios, old_termios);
+	if (old_termios)
+		tty_termios_copy_hw(&tty->termios, old_termios);
 }
 
 static int f81232_tiocmget(struct tty_struct *tty)
@@ -187,12 +188,11 @@ static int f81232_tiocmset(struct tty_struct *tty,
 
 static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	struct ktermios tmp_termios;
 	int result;
 
 	/* Setup termios */
 	if (tty)
-		f81232_set_termios(tty, port, &tmp_termios);
+		f81232_set_termios(tty, port, NULL);
 
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result) {
@@ -288,15 +288,14 @@ static int f81232_ioctl(struct tty_struct *tty,
 	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
 
-	dev_dbg(&port->dev, "%s (%d) cmd = 0x%04x\n", __func__,
-		port->number, cmd);
+	dev_dbg(&port->dev, "%s cmd = 0x%04x\n", __func__, cmd);
 
 	switch (cmd) {
 	case TIOCGSERIAL:
 		memset(&ser, 0, sizeof ser);
 		ser.type = PORT_16654;
-		ser.line = port->serial->minor;
-		ser.port = port->number;
+		ser.line = port->minor;
+		ser.port = port->port_number;
 		ser.baud_base = 460800;
 
 		if (copy_to_user((void __user *)arg, &ser, sizeof ser))

@@ -542,8 +542,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 		ret = indio_dev->setup_ops->preenable(indio_dev);
 		if (ret) {
 			printk(KERN_ERR
-			       "Buffer not started:"
-			       "buffer preenable failed\n");
+			       "Buffer not started: buffer preenable failed (%d)\n", ret);
 			goto error_remove_inserted;
 		}
 	}
@@ -556,8 +555,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 			ret = buffer->access->request_update(buffer);
 			if (ret) {
 				printk(KERN_INFO
-				       "Buffer not started:"
-				       "buffer parameter update failed\n");
+				       "Buffer not started: buffer parameter update failed (%d)\n", ret);
 				goto error_run_postdisable;
 			}
 		}
@@ -566,7 +564,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 			->update_scan_mode(indio_dev,
 					   indio_dev->active_scan_mask);
 		if (ret < 0) {
-			printk(KERN_INFO "update scan mode failed\n");
+			printk(KERN_INFO "Buffer not started: update scan mode failed (%d)\n", ret);
 			goto error_run_postdisable;
 		}
 	}
@@ -590,7 +588,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 		ret = indio_dev->setup_ops->postenable(indio_dev);
 		if (ret) {
 			printk(KERN_INFO
-			       "Buffer not started: postenable failed\n");
+			       "Buffer not started: postenable failed (%d)\n", ret);
 			indio_dev->currentmode = INDIO_DIRECT_MODE;
 			if (indio_dev->setup_ops->postdisable)
 				indio_dev->setup_ops->postdisable(indio_dev);

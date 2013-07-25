@@ -93,24 +93,6 @@ static struct attribute *bch_stats_files[] = {
 };
 static KTYPE(bch_stats);
 
-static void scale_accounting(unsigned long data);
-
-void bch_cache_accounting_init(struct cache_accounting *acc,
-			       struct closure *parent)
-{
-	kobject_init(&acc->total.kobj,		&bch_stats_ktype);
-	kobject_init(&acc->five_minute.kobj,	&bch_stats_ktype);
-	kobject_init(&acc->hour.kobj,		&bch_stats_ktype);
-	kobject_init(&acc->day.kobj,		&bch_stats_ktype);
-
-	closure_init(&acc->cl, parent);
-	init_timer(&acc->timer);
-	acc->timer.expires	= jiffies + accounting_delay;
-	acc->timer.data		= (unsigned long) acc;
-	acc->timer.function	= scale_accounting;
-	add_timer(&acc->timer);
-}
-
 int bch_cache_accounting_add_kobjs(struct cache_accounting *acc,
 				   struct kobject *parent)
 {
@@ -243,4 +225,20 @@ void bch_mark_sectors_bypassed(struct search *s, int sectors)
 	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
 	atomic_add(sectors, &dc->accounting.collector.sectors_bypassed);
 	atomic_add(sectors, &s->op.c->accounting.collector.sectors_bypassed);
+}
+
+void bch_cache_accounting_init(struct cache_accounting *acc,
+			       struct closure *parent)
+{
+	kobject_init(&acc->total.kobj,		&bch_stats_ktype);
+	kobject_init(&acc->five_minute.kobj,	&bch_stats_ktype);
+	kobject_init(&acc->hour.kobj,		&bch_stats_ktype);
+	kobject_init(&acc->day.kobj,		&bch_stats_ktype);
+
+	closure_init(&acc->cl, parent);
+	init_timer(&acc->timer);
+	acc->timer.expires	= jiffies + accounting_delay;
+	acc->timer.data		= (unsigned long) acc;
+	acc->timer.function	= scale_accounting;
+	add_timer(&acc->timer);
 }

@@ -311,6 +311,8 @@ struct device;
 #define SND_SOC_DAPM_POST_PMD	0x8		/* after widget power down */
 #define SND_SOC_DAPM_PRE_REG	0x10	/* before audio path setup */
 #define SND_SOC_DAPM_POST_REG	0x20	/* after audio path setup */
+#define SND_SOC_DAPM_WILL_PMU   0x40    /* called at start of sequence */
+#define SND_SOC_DAPM_WILL_PMD   0x80    /* called at start of sequence */
 #define SND_SOC_DAPM_PRE_POST_PMD \
 				(SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD)
 
@@ -450,7 +452,8 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_aif_in,		/* audio interface input */
 	snd_soc_dapm_aif_out,		/* audio interface output */
 	snd_soc_dapm_siggen,		/* signal generator */
-	snd_soc_dapm_dai,		/* link to DAI structure */
+	snd_soc_dapm_dai_in,		/* link to DAI structure */
+	snd_soc_dapm_dai_out,
 	snd_soc_dapm_dai_link,		/* link between two DAI structures */
 };
 
@@ -478,7 +481,6 @@ struct snd_soc_dapm_route {
 /* dapm audio path between two widgets */
 struct snd_soc_dapm_path {
 	const char *name;
-	const char *long_name;
 
 	/* source (input) and sink (output) widgets */
 	struct snd_soc_dapm_widget *source;

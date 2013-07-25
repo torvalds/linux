@@ -173,18 +173,7 @@ static struct pci_driver delkin_cb_pci_driver = {
 	.resume		= delkin_cb_resume,
 };
 
-static int __init delkin_cb_init(void)
-{
-	return pci_register_driver(&delkin_cb_pci_driver);
-}
-
-static void __exit delkin_cb_exit(void)
-{
-	pci_unregister_driver(&delkin_cb_pci_driver);
-}
-
-module_init(delkin_cb_init);
-module_exit(delkin_cb_exit);
+module_pci_driver(delkin_cb_pci_driver);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("Basic support for Delkin/ASKA/Workbit Cardbus IDE");

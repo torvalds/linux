@@ -55,7 +55,7 @@ int omap_type(void)
 
 	if (cpu_is_omap24xx()) {
 		val = omap_ctrl_readl(OMAP24XX_CONTROL_STATUS);
-	} else if (soc_is_am33xx()) {
+	} else if (soc_is_am33xx() || soc_is_am43xx()) {
 		val = omap_ctrl_readl(AM33XX_CONTROL_STATUS);
 	} else if (cpu_is_omap34xx()) {
 		val = omap_ctrl_readl(OMAP343X_CONTROL_STATUS);
@@ -209,6 +209,8 @@ static void __init omap3_cpuinfo(void)
 		cpu_name = "TI816X";
 	} else if (soc_is_am335x()) {
 		cpu_name =  "AM335X";
+	} else if (soc_is_am437x()) {
+		cpu_name =  "AM437x";
 	} else if (cpu_is_ti814x()) {
 		cpu_name = "TI814X";
 	} else if (omap3_has_iva() && omap3_has_sgx()) {
@@ -299,6 +301,19 @@ void __init omap4xxx_check_features(void)
 void __init ti81xx_check_features(void)
 {
 	omap_features = OMAP3_HAS_NEON;
+	omap3_cpuinfo();
+}
+
+void __init am33xx_check_features(void)
+{
+	u32 status;
+
+	omap_features = OMAP3_HAS_NEON;
+
+	status = omap_ctrl_readl(AM33XX_DEV_FEATURE);
+	if (status & AM33XX_SGX_MASK)
+		omap_features |= OMAP3_HAS_SGX;
+
 	omap3_cpuinfo();
 }
 
@@ -405,11 +420,18 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "1.0";
 			break;
 		case 1:
-		/* FALLTHROUGH */
-		default:
 			omap_revision = TI8168_REV_ES1_1;
 			cpu_rev = "1.1";
 			break;
+		case 2:
+			omap_revision = TI8168_REV_ES2_0;
+			cpu_rev = "2.0";
+			break;
+		case 3:
+			/* FALLTHROUGH */
+		default:
+			omap_revision = TI8168_REV_ES2_1;
+			cpu_rev = "2.1";
 		}
 		break;
 	case 0xb944:
@@ -429,6 +451,10 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "2.1";
 			break;
 		}
+		break;
+	case 0xb98c:
+		omap_revision = AM437X_REV_ES1_0;
+		cpu_rev = "1.0";
 		break;
 	case 0xb8f2:
 		switch (rev) {
@@ -601,7 +627,7 @@ void __init omap2_set_globals_tap(u32 class, void __iomem *tap)
 
 #ifdef CONFIG_SOC_BUS
 
-static const char const *omap_types[] = {
+static const char * const omap_types[] = {
 	[OMAP2_DEVICE_TYPE_TEST]	= "TST",
 	[OMAP2_DEVICE_TYPE_EMU]		= "EMU",
 	[OMAP2_DEVICE_TYPE_SEC]		= "HS",

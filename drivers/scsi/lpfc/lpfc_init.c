@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -60,7 +60,8 @@ unsigned long _dump_buf_dif_order;
 spinlock_t _dump_buf_lock;
 
 /* Used when mapping IRQ vectors in a driver centric manner */
-uint16_t lpfc_used_cpu[LPFC_MAX_CPU];
+uint16_t *lpfc_used_cpu;
+uint32_t lpfc_present_cpu;
 
 static void lpfc_get_hba_model_desc(struct lpfc_hba *, uint8_t *, uint8_t *);
 static int lpfc_post_rcv_buf(struct lpfc_hba *);
@@ -4049,52 +4050,6 @@ lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_perform_inuse_fcf_recovery - Perform inuse fcf recovery
- * @vport: pointer to lpfc hba data structure.
- *
- * This routine is to perform FCF recovery when the in-use FCF either dead or
- * got modified.
- **/
-static void
-lpfc_sli4_perform_inuse_fcf_recovery(struct lpfc_hba *phba,
-				     struct lpfc_acqe_fip *acqe_fip)
-{
-	int rc;
-
-	spin_lock_irq(&phba->hbalock);
-	/* Mark the fast failover process in progress */
-	phba->fcf.fcf_flag |= FCF_DEAD_DISC;
-	spin_unlock_irq(&phba->hbalock);
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
-			"2771 Start FCF fast failover process due to in-use "
-			"FCF DEAD/MODIFIED event: evt_tag:x%x, index:x%x\n",
-			acqe_fip->event_tag, acqe_fip->index);
-	rc = lpfc_sli4_redisc_fcf_table(phba);
-	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
-				"2772 Issue FCF rediscover mabilbox command "
-				"failed, fail through to FCF dead event\n");
-		spin_lock_irq(&phba->hbalock);
-		phba->fcf.fcf_flag &= ~FCF_DEAD_DISC;
-		spin_unlock_irq(&phba->hbalock);
-		/*
-		 * Last resort will fail over by treating this as a link
-		 * down to FCF registration.
-		 */
-		lpfc_sli4_fcf_dead_failthrough(phba);
-	} else {
-		/* Reset FCF roundrobin bmask for new discovery */
-		lpfc_sli4_clear_fcf_rr_bmask(phba);
-		/*
-		 * Handling fast FCF failover to a DEAD FCF event is
-		 * considered equalivant to receiving CVL to all vports.
-		 */
-		lpfc_sli4_perform_all_vport_cvl(phba);
-	}
-}
-
-/**
  * lpfc_sli4_async_fip_evt - Process the asynchronous FCoE FIP event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async fcoe completion queue entry.
@@ -4159,22 +4114,9 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			break;
 		}
 
-		/* If FCF has been in discovered state, perform rediscovery
-		 * only if the FCF with the same index of the in-use FCF got
-		 * modified during normal operation. Otherwise, do nothing.
-		 */
-		if (phba->pport->port_state > LPFC_FLOGI) {
+		/* If the FCF has been in discovered state, do nothing. */
+		if (phba->fcf.fcf_flag & FCF_SCAN_DONE) {
 			spin_unlock_irq(&phba->hbalock);
-			if (phba->fcf.current_rec.fcf_indx ==
-			    acqe_fip->index) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
-						"3300 In-use FCF (%d) "
-						"modified, perform FCF "
-						"rediscovery\n",
-						acqe_fip->index);
-				lpfc_sli4_perform_inuse_fcf_recovery(phba,
-								     acqe_fip);
-			}
 			break;
 		}
 		spin_unlock_irq(&phba->hbalock);
@@ -4227,7 +4169,39 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		 * is no longer valid as we are not in the middle of FCF
 		 * failover process already.
 		 */
-		lpfc_sli4_perform_inuse_fcf_recovery(phba, acqe_fip);
+		spin_lock_irq(&phba->hbalock);
+		/* Mark the fast failover process in progress */
+		phba->fcf.fcf_flag |= FCF_DEAD_DISC;
+		spin_unlock_irq(&phba->hbalock);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
+				"2771 Start FCF fast failover process due to "
+				"FCF DEAD event: evt_tag:x%x, fcf_index:x%x "
+				"\n", acqe_fip->event_tag, acqe_fip->index);
+		rc = lpfc_sli4_redisc_fcf_table(phba);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
+					LOG_DISCOVERY,
+					"2772 Issue FCF rediscover mabilbox "
+					"command failed, fail through to FCF "
+					"dead event\n");
+			spin_lock_irq(&phba->hbalock);
+			phba->fcf.fcf_flag &= ~FCF_DEAD_DISC;
+			spin_unlock_irq(&phba->hbalock);
+			/*
+			 * Last resort will fail over by treating this
+			 * as a link down to FCF registration.
+			 */
+			lpfc_sli4_fcf_dead_failthrough(phba);
+		} else {
+			/* Reset FCF roundrobin bmask for new discovery */
+			lpfc_sli4_clear_fcf_rr_bmask(phba);
+			/*
+			 * Handling fast FCF failover to a DEAD FCF event is
+			 * considered equalivant to receiving CVL to all vports.
+			 */
+			lpfc_sli4_perform_all_vport_cvl(phba);
+		}
 		break;
 	case LPFC_FIP_EVENT_TYPE_CVL:
 		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
@@ -5213,6 +5187,21 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_free_msix;
 	}
+	if (lpfc_used_cpu == NULL) {
+		lpfc_used_cpu = kzalloc((sizeof(uint16_t) * lpfc_present_cpu),
+					 GFP_KERNEL);
+		if (!lpfc_used_cpu) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3335 Failed allocate memory for msi-x "
+					"interrupt vector mapping\n");
+			kfree(phba->sli4_hba.cpu_map);
+			rc = -ENOMEM;
+			goto out_free_msix;
+		}
+		for (i = 0; i < lpfc_present_cpu; i++)
+			lpfc_used_cpu[i] = LPFC_VECTOR_MAP_EMPTY;
+	}
+
 	/* Initialize io channels for round robin */
 	cpup = phba->sli4_hba.cpu_map;
 	rc = 0;
@@ -6824,8 +6813,6 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	int cfg_fcp_io_channel;
 	uint32_t cpu;
 	uint32_t i = 0;
-	uint32_t j = 0;
-
 
 	/*
 	 * Sanity check for configured queue parameters against the run-time
@@ -6839,10 +6826,9 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	for_each_present_cpu(cpu) {
 		if (cpu_online(cpu))
 			i++;
-		j++;
 	}
 	phba->sli4_hba.num_online_cpu = i;
-	phba->sli4_hba.num_present_cpu = j;
+	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
 
 	if (i < cfg_fcp_io_channel) {
 		lpfc_printf_log(phba,
@@ -10967,8 +10953,10 @@ lpfc_init(void)
 	}
 
 	/* Initialize in case vector mapping is needed */
-	for (cpu = 0; cpu < LPFC_MAX_CPU; cpu++)
-		lpfc_used_cpu[cpu] = LPFC_VECTOR_MAP_EMPTY;
+	lpfc_used_cpu = NULL;
+	lpfc_present_cpu = 0;
+	for_each_present_cpu(cpu)
+		lpfc_present_cpu++;
 
 	error = pci_register_driver(&lpfc_driver);
 	if (error) {
@@ -11008,6 +10996,7 @@ lpfc_exit(void)
 				(1L << _dump_buf_dif_order), _dump_buf_dif);
 		free_pages((unsigned long)_dump_buf_dif, _dump_buf_dif_order);
 	}
+	kfree(lpfc_used_cpu);
 }
 
 module_init(lpfc_init);

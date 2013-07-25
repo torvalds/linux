@@ -34,6 +34,8 @@ ppa_zero_params:
 ppa_por_params:
 	.word		1, 0
 
+#ifdef CONFIG_ARCH_OMAP4
+
 /*
  * =============================
  * == CPU suspend finisher ==
@@ -326,7 +328,9 @@ skip_l2en:
 
 	b	cpu_resume			@ Jump to generic resume
 ENDPROC(omap4_cpu_resume)
-#endif
+#endif	/* CONFIG_ARCH_OMAP4 */
+
+#endif	/* defined(CONFIG_SMP) && defined(CONFIG_PM) */
 
 #ifndef CONFIG_OMAP4_ERRATA_I688
 ENTRY(omap_bus_sync)

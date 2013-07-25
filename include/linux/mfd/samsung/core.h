@@ -14,8 +14,6 @@
 #ifndef __LINUX_MFD_SEC_CORE_H
 #define __LINUX_MFD_SEC_CORE_H
 
-#define NUM_IRQ_REGS	4
-
 enum sec_device_type {
 	S5M8751X,
 	S5M8763X,
@@ -44,8 +42,6 @@ struct sec_pmic_dev {
 	struct regmap *regmap;
 	struct i2c_client *i2c;
 	struct i2c_client *rtc;
-	struct mutex iolock;
-	struct mutex irqlock;
 
 	int device_type;
 	int irq_base;
@@ -53,8 +49,6 @@ struct sec_pmic_dev {
 	struct regmap_irq_chip_data *irq_data;
 
 	int ono;
-	u8 irq_masks_cur[NUM_IRQ_REGS];
-	u8 irq_masks_cache[NUM_IRQ_REGS];
 	int type;
 	bool wakeup;
 };

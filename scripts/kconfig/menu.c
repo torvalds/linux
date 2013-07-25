@@ -146,11 +146,24 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 			struct menu *menu = current_entry;
 
 			while ((menu = menu->parent) != NULL) {
+				struct expr *dup_expr;
+
 				if (!menu->visibility)
 					continue;
+				/*
+				 * Do not add a reference to the
+				 * menu's visibility expression but
+				 * use a copy of it.  Otherwise the
+				 * expression reduction functions
+				 * will modify expressions that have
+				 * multiple references which can
+				 * cause unwanted side effects.
+				 */
+				dup_expr = expr_copy(menu->visibility);
+
 				prop->visible.expr
 					= expr_alloc_and(prop->visible.expr,
-							 menu->visibility);
+							 dup_expr);
 			}
 		}
 
@@ -428,6 +441,22 @@ bool menu_has_prompt(struct menu *menu)
 	if (!menu->prompt)
 		return false;
 	return true;
+}
+
+/*
+ * Determine if a menu is empty.
+ * A menu is considered empty if it contains no or only
+ * invisible entries.
+ */
+bool menu_is_empty(struct menu *menu)
+{
+	struct menu *child;
+
+	for (child = menu->list; child; child = child->next) {
+		if (menu_is_visible(child))
+			return(false);
+	}
+	return(true);
 }
 
 bool menu_is_visible(struct menu *menu)

@@ -223,7 +223,7 @@ static struct nf_hook_ops ipv4_conntrack_ops[] __read_mostly = {
 static int log_invalid_proto_min = 0;
 static int log_invalid_proto_max = 255;
 
-static ctl_table ip_ct_sysctl_table[] = {
+static struct ctl_table ip_ct_sysctl_table[] = {
 	{
 		.procname	= "ip_conntrack_max",
 		.maxlen		= sizeof(int),

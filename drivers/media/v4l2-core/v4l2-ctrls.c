@@ -1835,6 +1835,8 @@ bool v4l2_ctrl_radio_filter(const struct v4l2_ctrl *ctrl)
 {
 	if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_FM_TX)
 		return true;
+	if (V4L2_CTRL_ID2CLASS(ctrl->id) == V4L2_CTRL_CLASS_FM_RX)
+		return true;
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 	case V4L2_CID_AUDIO_VOLUME:

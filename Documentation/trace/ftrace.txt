@@ -2430,6 +2430,19 @@ The following commands are supported:
    echo '!schedule:disable_event:sched:sched_switch' > \
    	 set_ftrace_filter
 
+- dump
+  When the function is hit, it will dump the contents of the ftrace
+  ring buffer to the console. This is useful if you need to debug
+  something, and want to dump the trace when a certain function
+  is hit. Perhaps its a function that is called before a tripple
+  fault happens and does not allow you to get a regular dump.
+
+- cpudump
+  When the function is hit, it will dump the contents of the ftrace
+  ring buffer for the current CPU to the console. Unlike the "dump"
+  command, it only prints out the contents of the ring buffer for the
+  CPU that executed the function that triggered the dump.
+
 trace_pipe
 ----------
 

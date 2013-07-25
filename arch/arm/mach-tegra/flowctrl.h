@@ -25,6 +25,7 @@
 #define FLOW_CTRL_WAITEVENT		(2 << 29)
 #define FLOW_CTRL_WAIT_FOR_INTERRUPT	(4 << 29)
 #define FLOW_CTRL_JTAG_RESUME		(1 << 28)
+#define FLOW_CTRL_SCLK_RESUME		(1 << 27)
 #define FLOW_CTRL_HALT_CPU_IRQ		(1 << 10)
 #define	FLOW_CTRL_HALT_CPU_FIQ		(1 << 8)
 #define FLOW_CTRL_CPU0_CSR		0x8

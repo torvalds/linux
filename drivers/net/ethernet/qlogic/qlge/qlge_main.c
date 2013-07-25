@@ -4717,6 +4717,7 @@ static int qlge_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "net device registration failed.\n");
 		ql_release_all(pdev);
 		pci_disable_device(pdev);
+		free_netdev(ndev);
 		return err;
 	}
 	/* Start up the timer to trigger EEH if
@@ -4945,15 +4946,4 @@ static struct pci_driver qlge_driver = {
 	.err_handler = &qlge_err_handler
 };
 
-static int __init qlge_init_module(void)
-{
-	return pci_register_driver(&qlge_driver);
-}
-
-static void __exit qlge_exit(void)
-{
-	pci_unregister_driver(&qlge_driver);
-}
-
-module_init(qlge_init_module);
-module_exit(qlge_exit);
+module_pci_driver(qlge_driver);

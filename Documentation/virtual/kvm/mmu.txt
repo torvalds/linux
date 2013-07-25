@@ -191,12 +191,12 @@ Shadow pages contain the following information:
     A counter keeping track of how many hardware registers (guest cr3 or
     pdptrs) are now pointing at the page.  While this counter is nonzero, the
     page cannot be destroyed.  See role.invalid.
-  multimapped:
-    Whether there exist multiple sptes pointing at this page.
-  parent_pte/parent_ptes:
-    If multimapped is zero, parent_pte points at the single spte that points at
-    this page's spt.  Otherwise, parent_ptes points at a data structure
-    with a list of parent_ptes.
+  parent_ptes:
+    The reverse mapping for the pte/ptes pointing at this page's spt. If
+    parent_ptes bit 0 is zero, only one spte points at this pages and
+    parent_ptes points at this single spte, otherwise, there exists multiple
+    sptes pointing at this page and (parent_ptes & ~0x1) points at a data
+    structure with a list of parent_ptes.
   unsync:
     If true, then the translations in this page may not match the guest's
     translation.  This is equivalent to the state of the tlb when a pte is
@@ -210,6 +210,24 @@ Shadow pages contain the following information:
     A bitmap indicating which sptes in spt point (directly or indirectly) at
     pages that may be unsynchronized.  Used to quickly locate all unsychronized
     pages reachable from a given page.
+  mmu_valid_gen:
+    Generation number of the page.  It is compared with kvm->arch.mmu_valid_gen
+    during hash table lookup, and used to skip invalidated shadow pages (see
+    "Zapping all pages" below.)
+  clear_spte_count:
+    Only present on 32-bit hosts, where a 64-bit spte cannot be written
+    atomically.  The reader uses this while running out of the MMU lock
+    to detect in-progress updates and retry them until the writer has
+    finished the write.
+  write_flooding_count:
+    A guest may write to a page table many times, causing a lot of
+    emulations if the page needs to be write-protected (see "Synchronized
+    and unsynchronized pages" below).  Leaf pages can be unsynchronized
+    so that they do not trigger frequent emulation, but this is not
+    possible for non-leafs.  This field counts the number of emulations
+    since the last time the page table was actually used; if emulation
+    is triggered too frequently on this page, KVM will unmap the page
+    to avoid emulation in the future.
 
 Reverse map
 ===========
@@ -258,14 +276,26 @@ This is the most complicated event.  The cause of a page fault can be:
 
 Handling a page fault is performed as follows:
 
+ - if the RSV bit of the error code is set, the page fault is caused by guest
+   accessing MMIO and cached MMIO information is available.
+   - walk shadow page table
+   - check for valid generation number in the spte (see "Fast invalidation of
+     MMIO sptes" below)
+   - cache the information to vcpu->arch.mmio_gva, vcpu->arch.access and
+     vcpu->arch.mmio_gfn, and call the emulator
+ - If both P bit and R/W bit of error code are set, this could possibly
+   be handled as a "fast page fault" (fixed without taking the MMU lock).  See
+   the description in Documentation/virtual/kvm/locking.txt.
  - if needed, walk the guest page tables to determine the guest translation
    (gva->gpa or ngpa->gpa)
    - if permissions are insufficient, reflect the fault back to the guest
  - determine the host page
-   - if this is an mmio request, there is no host page; call the emulator
-     to emulate the instruction instead
+   - if this is an mmio request, there is no host page; cache the info to
+     vcpu->arch.mmio_gva, vcpu->arch.access and vcpu->arch.mmio_gfn
  - walk the shadow page table to find the spte for the translation,
    instantiating missing intermediate page tables as necessary
+   - If this is an mmio request, cache the mmio info to the spte and set some
+     reserved bit on the spte (see callers of kvm_mmu_set_mmio_spte_mask)
  - try to unsynchronize the page
    - if successful, we can let the guest continue and modify the gpte
  - emulate the instruction
@@ -350,6 +380,51 @@ arrays for each memory slot and large page size.  Every write protected page
 causes its write_count to be incremented, thus preventing instantiation of
 a large spte.  The frames at the end of an unaligned memory slot have
 artificially inflated ->write_counts so they can never be instantiated.
+
+Zapping all pages (page generation count)
+=========================================
+
+For the large memory guests, walking and zapping all pages is really slow
+(because there are a lot of pages), and also blocks memory accesses of
+all VCPUs because it needs to hold the MMU lock.
+
+To make it be more scalable, kvm maintains a global generation number
+which is stored in kvm->arch.mmu_valid_gen.  Every shadow page stores
+the current global generation-number into sp->mmu_valid_gen when it
+is created.  Pages with a mismatching generation number are "obsolete".
+
+When KVM need zap all shadow pages sptes, it just simply increases the global
+generation-number then reload root shadow pages on all vcpus.  As the VCPUs
+create new shadow page tables, the old pages are not used because of the
+mismatching generation number.
+
+KVM then walks through all pages and zaps obsolete pages.  While the zap
+operation needs to take the MMU lock, the lock can be released periodically
+so that the VCPUs can make progress.
+
+Fast invalidation of MMIO sptes
+===============================
+
+As mentioned in "Reaction to events" above, kvm will cache MMIO
+information in leaf sptes.  When a new memslot is added or an existing
+memslot is changed, this information may become stale and needs to be
+invalidated.  This also needs to hold the MMU lock while walking all
+shadow pages, and is made more scalable with a similar technique.
+
+MMIO sptes have a few spare bits, which are used to store a
+generation number.  The global generation number is stored in
+kvm_memslots(kvm)->generation, and increased whenever guest memory info
+changes.  This generation number is distinct from the one described in
+the previous section.
+
+When KVM finds an MMIO spte, it checks the generation number of the spte.
+If the generation number of the spte does not equal the global generation
+number, it will ignore the cached MMIO information and handle the page
+fault through the slow path.
+
+Since only 19 bits are used to store generation-number on mmio spte, all
+pages are zapped when there is an overflow.
+
 
 Further reading
 ===============

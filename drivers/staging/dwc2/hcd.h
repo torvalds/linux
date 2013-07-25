@@ -448,10 +448,10 @@ static inline u8 dwc2_hcd_is_pipe_out(struct dwc2_hcd_pipe_info *pipe)
 }
 
 extern int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
-			 struct dwc2_core_params *params);
+			 const struct dwc2_core_params *params);
 extern void dwc2_hcd_remove(struct dwc2_hsotg *hsotg);
 extern int dwc2_set_parameters(struct dwc2_hsotg *hsotg,
-			       struct dwc2_core_params *params);
+			       const struct dwc2_core_params *params);
 extern void dwc2_set_all_params(struct dwc2_core_params *params, int value);
 
 /* Transaction Execution Functions */
@@ -646,14 +646,14 @@ extern void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
 /* HCD Core API */
 
 /**
- * dwc2_hcd_intr() - Called on every hardware interrupt
+ * dwc2_handle_hcd_intr() - Called on every hardware interrupt
  *
  * @hsotg: The DWC2 HCD
  *
- * Returns non zero if interrupt is handled
- * Return 0 if interrupt is not handled
+ * Returns IRQ_HANDLED if interrupt is handled
+ * Return IRQ_NONE if interrupt is not handled
  */
-extern int dwc2_hcd_intr(struct dwc2_hsotg *hsotg);
+extern irqreturn_t dwc2_handle_hcd_intr(struct dwc2_hsotg *hsotg);
 
 /**
  * dwc2_hcd_stop() - Halts the DWC_otg host mode operation

@@ -121,6 +121,38 @@ IPv6 addresses:
 	print a compressed IPv6 address as described by
 	http://tools.ietf.org/html/rfc5952
 
+IPv4/IPv6 addresses (generic, with port, flowinfo, scope):
+
+	%pIS	1.2.3.4		or 0001:0002:0003:0004:0005:0006:0007:0008
+	%piS	001.002.003.004	or 00010002000300040005000600070008
+	%pISc	1.2.3.4		or 1:2:3:4:5:6:7:8
+	%pISpc	1.2.3.4:12345	or [1:2:3:4:5:6:7:8]:12345
+	%p[Ii]S[pfschnbl]
+
+	For printing an IP address without the need to distinguish whether it's
+	of type AF_INET or AF_INET6, a pointer to a valid 'struct sockaddr',
+	specified through 'IS' or 'iS', can be passed to this format specifier.
+
+	The additional 'p', 'f', and 's' specifiers are used to specify port
+	(IPv4, IPv6), flowinfo (IPv6) and scope (IPv6). Ports have a ':' prefix,
+	flowinfo a '/' and scope a '%', each followed by the actual value.
+
+	In case of an IPv6 address the compressed IPv6 address as described by
+	http://tools.ietf.org/html/rfc5952 is being used if the additional
+	specifier 'c' is given. The IPv6 address is surrounded by '[', ']' in
+	case of additional specifiers 'p', 'f' or 's' as suggested by
+	https://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-07
+
+	In case of IPv4 addresses, the additional 'h', 'n', 'b', and 'l'
+	specifiers can be used as well and are ignored in case of an IPv6
+	address.
+
+	Further examples:
+
+	%pISfc		1.2.3.4		or [1:2:3:4:5:6:7:8]/123456789
+	%pISsc		1.2.3.4		or [1:2:3:4:5:6:7:8]%1234567890
+	%pISpfc		1.2.3.4:12345	or [1:2:3:4:5:6:7:8]:12345/123456789
+
 UUID/GUID addresses:
 
 	%pUb	00010203-0405-0607-0809-0a0b0c0d0e0f

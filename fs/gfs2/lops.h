@@ -23,7 +23,6 @@
 extern const struct gfs2_log_operations gfs2_glock_lops;
 extern const struct gfs2_log_operations gfs2_buf_lops;
 extern const struct gfs2_log_operations gfs2_revoke_lops;
-extern const struct gfs2_log_operations gfs2_rg_lops;
 extern const struct gfs2_log_operations gfs2_databuf_lops;
 
 extern const struct gfs2_log_operations *gfs2_log_ops[];

@@ -37,7 +37,6 @@
 #include <mach/flash.h>
 #include <mach/mux.h>
 #include <linux/omap-dma.h>
-#include <mach/irda.h>
 #include <mach/tc.h>
 #include <mach/board-sx1.h>
 
@@ -45,7 +44,6 @@
 #include <mach/usb.h>
 
 #include "common.h"
-#include "dma.h"
 
 /* Write to I2C device */
 int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
@@ -228,39 +226,6 @@ static struct platform_device sx1_kp_device = {
 	.resource	= sx1_kp_resources,
 };
 
-/*----------- IRDA -------------------------*/
-
-static struct omap_irda_config sx1_irda_data = {
-	.transceiver_cap	= IR_SIRMODE,
-	.rx_channel		= OMAP_DMA_UART3_RX,
-	.tx_channel		= OMAP_DMA_UART3_TX,
-	.dest_start		= UART3_THR,
-	.src_start		= UART3_RHR,
-	.tx_trigger		= 0,
-	.rx_trigger		= 0,
-};
-
-static struct resource sx1_irda_resources[] = {
-	[0] = {
-		.start	= INT_UART3,
-		.end	= INT_UART3,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static u64 irda_dmamask = 0xffffffff;
-
-static struct platform_device sx1_irda_device = {
-	.name		= "omapirda",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &sx1_irda_data,
-		.dma_mask	= &irda_dmamask,
-	},
-	.num_resources	= ARRAY_SIZE(sx1_irda_resources),
-	.resource	= sx1_irda_resources,
-};
-
 /*----------- MTD -------------------------*/
 
 static struct mtd_partition sx1_partitions[] = {
@@ -366,7 +331,6 @@ static struct omap_lcd_config sx1_lcd_config __initdata = {
 static struct platform_device *sx1_devices[] __initdata = {
 	&sx1_flash_device,
 	&sx1_kp_device,
-	&sx1_irda_device,
 };
 
 /*-----------------------------------------*/

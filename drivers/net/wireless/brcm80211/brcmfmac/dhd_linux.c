@@ -179,7 +179,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct ethhdr *eh;
 
-	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
+	brcmf_dbg(DATA, "Enter, idx=%d\n", ifp->bssidx);
 
 	/* Can the device send data? */
 	if (drvr->bus_if->state != BRCMF_BUS_DATA) {
@@ -240,11 +240,15 @@ done:
 void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			  enum brcmf_netif_stop_reason reason, bool state)
 {
+	unsigned long flags;
+
 	if (!ifp)
 		return;
 
 	brcmf_dbg(TRACE, "enter: idx=%d stop=0x%X reason=%d state=%d\n",
 		  ifp->bssidx, ifp->netif_stop, reason, state);
+
+	spin_lock_irqsave(&ifp->netif_stop_lock, flags);
 	if (state) {
 		if (!ifp->netif_stop)
 			netif_stop_queue(ifp->ndev);
@@ -254,6 +258,7 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 		if (!ifp->netif_stop)
 			netif_wake_queue(ifp->ndev);
 	}
+	spin_unlock_irqrestore(&ifp->netif_stop_lock, flags);
 }
 
 void brcmf_txflowblock(struct device *dev, bool state)
@@ -264,15 +269,18 @@ void brcmf_txflowblock(struct device *dev, bool state)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	for (i = 0; i < BRCMF_MAX_IFS; i++)
-		brcmf_txflowblock_if(drvr->iflist[i],
-				     BRCMF_NETIF_STOP_REASON_BLOCK_BUS, state);
+	if (brcmf_fws_fc_active(drvr->fws)) {
+		brcmf_fws_bus_blocked(drvr, state);
+	} else {
+		for (i = 0; i < BRCMF_MAX_IFS; i++)
+			brcmf_txflowblock_if(drvr->iflist[i],
+					     BRCMF_NETIF_STOP_REASON_BLOCK_BUS,
+					     state);
+	}
 }
 
 void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 {
-	unsigned char *eth;
-	uint len;
 	struct sk_buff *skb, *pnext;
 	struct brcmf_if *ifp;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
@@ -280,7 +288,7 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 	u8 ifidx;
 	int ret;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(DATA, "Enter\n");
 
 	skb_queue_walk_safe(skb_list, skb, pnext) {
 		skb_unlink(skb, skb_list);
@@ -296,32 +304,11 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 			continue;
 		}
 
-		/* Get the protocol, maintain skb around eth_type_trans()
-		 * The main reason for this hack is for the limitation of
-		 * Linux 2.4 where 'eth_type_trans' uses the
-		 * 'net->hard_header_len'
-		 * to perform skb_pull inside vs ETH_HLEN. Since to avoid
-		 * coping of the packet coming from the network stack to add
-		 * BDC, Hardware header etc, during network interface
-		 * registration
-		 * we set the 'net->hard_header_len' to ETH_HLEN + extra space
-		 * required
-		 * for BDC, Hardware header etc. and not just the ETH_HLEN
-		 */
-		eth = skb->data;
-		len = skb->len;
-
 		skb->dev = ifp->ndev;
 		skb->protocol = eth_type_trans(skb, skb->dev);
 
 		if (skb->pkt_type == PACKET_MULTICAST)
 			ifp->stats.multicast++;
-
-		skb->data = eth;
-		skb->len = len;
-
-		/* Strip header, count, deliver upward */
-		skb_pull(skb, ETH_HLEN);
 
 		/* Process special event packets */
 		brcmf_fweh_process_skb(drvr, skb);
@@ -338,10 +325,8 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 			netif_rx(skb);
 		else
 			/* If the receive is not processed inside an ISR,
-			 * the softirqd must be woken explicitly to service
-			 * the NET_RX_SOFTIRQ.  In 2.6 kernels, this is handled
-			 * by netif_rx_ni(), but in earlier kernels, we need
-			 * to do it manually.
+			 * the softirqd must be woken explicitly to service the
+			 * NET_RX_SOFTIRQ. This is handled by netif_rx_ni().
 			 */
 			netif_rx_ni(skb);
 	}
@@ -630,7 +615,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	/* set appropriate operations */
 	ndev->netdev_ops = &brcmf_netdev_ops_pri;
 
-	ndev->hard_header_len = ETH_HLEN + drvr->hdrlen;
+	ndev->hard_header_len += drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
 
 	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
@@ -653,10 +638,13 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 
 	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
 
+	ndev->destructor = free_netdev;
 	return 0;
 
 fail:
+	drvr->iflist[ifp->bssidx] = NULL;
 	ndev->netdev_ops = NULL;
+	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -720,6 +708,9 @@ static int brcmf_net_p2p_attach(struct brcmf_if *ifp)
 	return 0;
 
 fail:
+	ifp->drvr->iflist[ifp->bssidx] = NULL;
+	ndev->netdev_ops = NULL;
+	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -773,6 +764,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	ifp->bssidx = bssidx;
 
 	init_waitqueue_head(&ifp->pend_8021x_wait);
+	spin_lock_init(&ifp->netif_stop_lock);
 
 	if (mac_addr != NULL)
 		memcpy(ifp->mac_addr, mac_addr, ETH_ALEN);
@@ -788,6 +780,7 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 	struct brcmf_if *ifp;
 
 	ifp = drvr->iflist[bssidx];
+	drvr->iflist[bssidx] = NULL;
 	if (!ifp) {
 		brcmf_err("Null interface, idx=%d\n", bssidx);
 		return;
@@ -808,15 +801,13 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 			cancel_work_sync(&ifp->setmacaddr_work);
 			cancel_work_sync(&ifp->multicast_work);
 		}
-
+		/* unregister will take care of freeing it */
 		unregister_netdev(ifp->ndev);
 		if (bssidx == 0)
 			brcmf_cfg80211_detach(drvr->config);
-		free_netdev(ifp->ndev);
 	} else {
 		kfree(ifp);
 	}
-	drvr->iflist[bssidx] = NULL;
 }
 
 int brcmf_attach(uint bus_hdrlen, struct device *dev)
@@ -925,8 +916,10 @@ fail:
 			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
 		}
-		free_netdev(ifp->ndev);
-		drvr->iflist[0] = NULL;
+		if (drvr->iflist[0]) {
+			free_netdev(ifp->ndev);
+			drvr->iflist[0] = NULL;
+		}
 		if (p2p_ifp) {
 			free_netdev(p2p_ifp->ndev);
 			drvr->iflist[1] = NULL;
@@ -934,7 +927,8 @@ fail:
 		return ret;
 	}
 	if ((brcmf_p2p_enable) && (p2p_ifp))
-		brcmf_net_p2p_attach(p2p_ifp);
+		if (brcmf_net_p2p_attach(p2p_ifp) < 0)
+			brcmf_p2p_enable = 0;
 
 	return 0;
 }

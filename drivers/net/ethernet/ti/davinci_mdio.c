@@ -38,6 +38,7 @@
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 
 /*
  * This timeout definition is a worst-case ultra defensive measure against
@@ -291,6 +292,7 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_OF)
 static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			 struct platform_device *pdev)
 {
@@ -308,7 +310,7 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 
 	return 0;
 }
-
+#endif
 
 static int davinci_mdio_probe(struct platform_device *pdev)
 {
@@ -346,6 +348,9 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	data->bus->reset	= davinci_mdio_reset,
 	data->bus->parent	= dev;
 	data->bus->priv		= data;
+
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(&pdev->dev);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
@@ -449,10 +454,12 @@ static int davinci_mdio_suspend(struct device *dev)
 	__raw_writel(ctrl, &data->regs->control);
 	wait_for_idle(data);
 
-	pm_runtime_put_sync(data->dev);
-
 	data->suspended = true;
 	spin_unlock(&data->lock);
+	pm_runtime_put_sync(data->dev);
+
+	/* Select sleep pin state */
+	pinctrl_pm_select_sleep_state(dev);
 
 	return 0;
 }
@@ -460,15 +467,15 @@ static int davinci_mdio_suspend(struct device *dev)
 static int davinci_mdio_resume(struct device *dev)
 {
 	struct davinci_mdio_data *data = dev_get_drvdata(dev);
-	u32 ctrl;
 
-	spin_lock(&data->lock);
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(dev);
+
 	pm_runtime_get_sync(data->dev);
 
+	spin_lock(&data->lock);
 	/* restart the scan state machine */
-	ctrl = __raw_readl(&data->regs->control);
-	ctrl |= CONTROL_ENABLE;
-	__raw_writel(ctrl, &data->regs->control);
+	__davinci_mdio_reset(data);
 
 	data->suspended = false;
 	spin_unlock(&data->lock);
@@ -477,15 +484,17 @@ static int davinci_mdio_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops davinci_mdio_pm_ops = {
-	.suspend	= davinci_mdio_suspend,
-	.resume		= davinci_mdio_resume,
+	.suspend_late	= davinci_mdio_suspend,
+	.resume_early	= davinci_mdio_resume,
 };
 
+#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id davinci_mdio_of_mtable[] = {
 	{ .compatible = "ti,davinci_mdio", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, davinci_mdio_of_mtable);
+#endif
 
 static struct platform_driver davinci_mdio_driver = {
 	.driver = {

@@ -1822,7 +1822,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				network->rates_ex[i] = info_element->data[i];
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
-					      network->rates[i]);
+					      network->rates_ex[i]);
 				if (rtllib_is_ofdm_rate
 				    (info_element->data[i])) {
 					network->flags |= NETWORK_HAS_OFDM;

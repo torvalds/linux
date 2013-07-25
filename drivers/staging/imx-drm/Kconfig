@@ -30,6 +30,14 @@ config DRM_IMX_TVE
 	  Choose this to enable the internal Television Encoder (TVe)
 	  found on i.MX53 processors.
 
+config DRM_IMX_LDB
+	tristate "Support for LVDS displays"
+	depends on DRM_IMX
+	select OF_VIDEOMODE
+	help
+	  Choose this to enable the internal LVDS Display Bridge (LDB)
+	  found on i.MX53 and i.MX6 processors.
+
 config DRM_IMX_IPUV3_CORE
 	tristate "IPUv3 core support"
 	depends on DRM_IMX

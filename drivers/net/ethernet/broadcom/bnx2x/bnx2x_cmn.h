@@ -22,7 +22,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
-
 #include "bnx2x.h"
 #include "bnx2x_sriov.h"
 
@@ -50,13 +49,25 @@ extern int int_mode;
 		} \
 	} while (0)
 
-#define BNX2X_PCI_ALLOC(x, y, size)				\
-do {								\
-	x = dma_alloc_coherent(&bp->pdev->dev, size, y,		\
-			       GFP_KERNEL | __GFP_ZERO);	\
-	if (x == NULL)						\
-		goto alloc_mem_err;				\
-} while (0)
+#define BNX2X_PCI_ALLOC(x, y, size) \
+	do { \
+		x = dma_alloc_coherent(&bp->pdev->dev, size, y, \
+				       GFP_KERNEL | __GFP_ZERO); \
+		if (x == NULL) \
+			goto alloc_mem_err; \
+		DP(NETIF_MSG_HW, "BNX2X_PCI_ALLOC: Physical %Lx Virtual %p\n", \
+		   (unsigned long long)(*y), x); \
+	} while (0)
+
+#define BNX2X_PCI_FALLOC(x, y, size) \
+	do { \
+		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
+		if (x == NULL) \
+			goto alloc_mem_err; \
+		memset((void *)x, 0xFFFFFFFF, size); \
+		DP(NETIF_MSG_HW, "BNX2X_PCI_FALLOC: Physical %Lx Virtual %p\n",\
+		   (unsigned long long)(*y), x); \
+	} while (0)
 
 #define BNX2X_ALLOC(x, size) \
 	do { \
@@ -494,9 +505,6 @@ void bnx2x_update_max_mf_config(struct bnx2x *bp, u32 value);
 /* Error handling */
 void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl);
 
-/* validate currect fw is loaded */
-bool bnx2x_test_firmware_version(struct bnx2x *bp, bool is_err);
-
 /* dev_close main block */
 int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link);
 
@@ -605,6 +613,13 @@ int bnx2x_enable_msi(struct bnx2x *bp);
  *
  */
 int bnx2x_poll(struct napi_struct *napi, int budget);
+
+/**
+ * bnx2x_low_latency_recv - LL callback
+ *
+ * @napi:	napi structure
+ */
+int bnx2x_low_latency_recv(struct napi_struct *napi);
 
 /**
  * bnx2x_alloc_mem_bp - allocate memories outsize main driver structure
@@ -800,16 +815,18 @@ static inline bool bnx2x_has_tx_work(struct bnx2x_fastpath *fp)
 	return false;
 }
 
+#define BNX2X_IS_CQE_COMPLETED(cqe_fp) (cqe_fp->marker == 0x0)
+#define BNX2X_SEED_CQE(cqe_fp) (cqe_fp->marker = 0xFFFFFFFF)
 static inline int bnx2x_has_rx_work(struct bnx2x_fastpath *fp)
 {
-	u16 rx_cons_sb;
+	u16 cons;
+	union eth_rx_cqe *cqe;
+	struct eth_fast_path_rx_cqe *cqe_fp;
 
-	/* Tell compiler that status block fields can change */
-	barrier();
-	rx_cons_sb = le16_to_cpu(*fp->rx_cons_sb);
-	if ((rx_cons_sb & MAX_RCQ_DESC_CNT) == MAX_RCQ_DESC_CNT)
-		rx_cons_sb++;
-	return (fp->rx_comp_cons != rx_cons_sb);
+	cons = RCQ_BD(fp->rx_comp_cons);
+	cqe = &fp->rx_comp_ring[cons];
+	cqe_fp = &cqe->fast_path_cqe;
+	return BNX2X_IS_CQE_COMPLETED(cqe_fp);
 }
 
 /**
@@ -848,9 +865,11 @@ static inline void bnx2x_add_all_napi_cnic(struct bnx2x *bp)
 	int i;
 
 	/* Add NAPI objects */
-	for_each_rx_queue_cnic(bp, i)
+	for_each_rx_queue_cnic(bp, i) {
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, NAPI_POLL_WEIGHT);
+		napi_hash_add(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 static inline void bnx2x_add_all_napi(struct bnx2x *bp)
@@ -858,25 +877,31 @@ static inline void bnx2x_add_all_napi(struct bnx2x *bp)
 	int i;
 
 	/* Add NAPI objects */
-	for_each_eth_queue(bp, i)
+	for_each_eth_queue(bp, i) {
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, NAPI_POLL_WEIGHT);
+		napi_hash_add(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 static inline void bnx2x_del_all_napi_cnic(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_rx_queue_cnic(bp, i)
+	for_each_rx_queue_cnic(bp, i) {
+		napi_hash_del(&bnx2x_fp(bp, i, napi));
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_eth_queue(bp, i)
+	for_each_eth_queue(bp, i) {
+		napi_hash_del(&bnx2x_fp(bp, i, napi));
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
+	}
 }
 
 int bnx2x_set_int_mode(struct bnx2x *bp);
@@ -1171,7 +1196,6 @@ static inline u8 bnx2x_cnic_eth_cl_id(struct bnx2x *bp, u8 cl_idx)
 
 static inline u8 bnx2x_cnic_fw_sb_id(struct bnx2x *bp)
 {
-
 	/* the 'first' id is allocated for the cnic */
 	return bp->base_fw_ndsb;
 }
@@ -1180,7 +1204,6 @@ static inline u8 bnx2x_cnic_igu_sb_id(struct bnx2x *bp)
 {
 	return bp->igu_base_sb;
 }
-
 
 static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 {
@@ -1334,8 +1357,8 @@ static inline bool bnx2x_mtu_allows_gro(int mtu)
 	int fpp = SGE_PAGE_SIZE / (mtu - ETH_MAX_TPA_HEADER_SIZE);
 
 	/*
-	 * 1. number of frags should not grow above MAX_SKB_FRAGS
-	 * 2. frag must fit the page
+	 * 1. Number of frags should not grow above MAX_SKB_FRAGS
+	 * 2. Frag must fit the page
 	 */
 	return mtu <= SGE_PAGE_SIZE && (U_ETH_SGL_SIZE * fpp) <= MAX_SKB_FRAGS;
 }

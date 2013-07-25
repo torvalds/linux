@@ -2557,11 +2557,12 @@ static void __xfrm_garbage_collect(struct net *net)
 	}
 }
 
-static void xfrm_garbage_collect(struct net *net)
+void xfrm_garbage_collect(struct net *net)
 {
 	flow_cache_flush();
 	__xfrm_garbage_collect(net);
 }
+EXPORT_SYMBOL(xfrm_garbage_collect);
 
 static void xfrm_garbage_collect_deferred(struct net *net)
 {
@@ -2784,7 +2785,7 @@ static void __net_init xfrm_dst_ops_init(struct net *net)
 
 static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_DOWN:

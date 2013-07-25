@@ -69,8 +69,8 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"14.100.00.00"
-#define MPT2SAS_MAJOR_VERSION		14
+#define MPT2SAS_DRIVER_VERSION		"15.100.00.00"
+#define MPT2SAS_MAJOR_VERSION		15
 #define MPT2SAS_MINOR_VERSION		100
 #define MPT2SAS_BUILD_VERSION		00
 #define MPT2SAS_RELEASE_VERSION		00
@@ -1054,6 +1054,9 @@ int mpt2sas_base_scsi_enclosure_processor(struct MPT2SAS_ADAPTER *ioc,
 void mpt2sas_base_validate_event_type(struct MPT2SAS_ADAPTER *ioc, u32 *event_type);
 
 void mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc);
+
+void mpt2sas_base_update_missing_delay(struct MPT2SAS_ADAPTER *ioc,
+	u16 device_missing_delay, u8 io_missing_delay);
 
 int mpt2sas_port_enable(struct MPT2SAS_ADAPTER *ioc);
 

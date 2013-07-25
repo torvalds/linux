@@ -171,7 +171,7 @@ static void mei_me_hw_reset_release(struct mei_device *dev)
  * @dev: the device structure
  * @intr_enable: if interrupt should be enabled after reset.
  */
-static void mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
+static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 {
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 hcsr = mei_hcsr_read(hw);
@@ -191,6 +191,7 @@ static void mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 		mei_me_hw_reset_release(dev);
 
 	dev_dbg(&dev->pdev->dev, "current HCSR = 0x%08x.\n", mei_hcsr_read(hw));
+	return 0;
 }
 
 /**

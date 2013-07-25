@@ -192,14 +192,15 @@ EXPORT_SYMBOL(of_find_property);
 struct device_node *of_find_all_nodes(struct device_node *prev)
 {
 	struct device_node *np;
+	unsigned long flags;
 
-	raw_spin_lock(&devtree_lock);
+	raw_spin_lock_irqsave(&devtree_lock, flags);
 	np = prev ? prev->allnext : of_allnodes;
 	for (; np != NULL; np = np->allnext)
 		if (of_node_get(np))
 			break;
 	of_node_put(prev);
-	raw_spin_unlock(&devtree_lock);
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
 }
 EXPORT_SYMBOL(of_find_all_nodes);
@@ -421,8 +422,9 @@ struct device_node *of_get_next_available_child(const struct device_node *node,
 	struct device_node *prev)
 {
 	struct device_node *next;
+	unsigned long flags;
 
-	raw_spin_lock(&devtree_lock);
+	raw_spin_lock_irqsave(&devtree_lock, flags);
 	next = prev ? prev->sibling : node->child;
 	for (; next; next = next->sibling) {
 		if (!__of_device_is_available(next))
@@ -431,7 +433,7 @@ struct device_node *of_get_next_available_child(const struct device_node *node,
 			break;
 	}
 	of_node_put(prev);
-	raw_spin_unlock(&devtree_lock);
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return next;
 }
 EXPORT_SYMBOL(of_get_next_available_child);
@@ -735,13 +737,14 @@ EXPORT_SYMBOL_GPL(of_modalias_node);
 struct device_node *of_find_node_by_phandle(phandle handle)
 {
 	struct device_node *np;
+	unsigned long flags;
 
-	raw_spin_lock(&devtree_lock);
+	raw_spin_lock_irqsave(&devtree_lock, flags);
 	for (np = of_allnodes; np; np = np->allnext)
 		if (np->phandle == handle)
 			break;
 	of_node_get(np);
-	raw_spin_unlock(&devtree_lock);
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
 }
 EXPORT_SYMBOL(of_find_node_by_phandle);
@@ -809,7 +812,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u32_index);
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
- * @out_value:	pointer to return value, modified only if return value is 0.
+ * @out_values:	pointer to return value, modified only if return value is 0.
  * @sz:		number of array elements to read
  *
  * Search for a property in a device node and read 8-bit value(s) from
@@ -820,7 +823,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u32_index);
  * dts entry of array should be like:
  *	property = /bits/ 8 <0x50 0x60 0x70>;
  *
- * The out_value is modified only if a valid u8 value can be decoded.
+ * The out_values is modified only if a valid u8 value can be decoded.
  */
 int of_property_read_u8_array(const struct device_node *np,
 			const char *propname, u8 *out_values, size_t sz)
@@ -842,7 +845,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u8_array);
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
- * @out_value:	pointer to return value, modified only if return value is 0.
+ * @out_values:	pointer to return value, modified only if return value is 0.
  * @sz:		number of array elements to read
  *
  * Search for a property in a device node and read 16-bit value(s) from
@@ -853,7 +856,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u8_array);
  * dts entry of array should be like:
  *	property = /bits/ 16 <0x5000 0x6000 0x7000>;
  *
- * The out_value is modified only if a valid u16 value can be decoded.
+ * The out_values is modified only if a valid u16 value can be decoded.
  */
 int of_property_read_u16_array(const struct device_node *np,
 			const char *propname, u16 *out_values, size_t sz)
@@ -876,7 +879,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u16_array);
  *
  * @np:		device node from which the property value is to be read.
  * @propname:	name of the property to be searched.
- * @out_value:	pointer to return value, modified only if return value is 0.
+ * @out_values:	pointer to return value, modified only if return value is 0.
  * @sz:		number of array elements to read
  *
  * Search for a property in a device node and read 32-bit value(s) from
@@ -884,7 +887,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u16_array);
  * -ENODATA if property does not have a value, and -EOVERFLOW if the
  * property data isn't large enough.
  *
- * The out_value is modified only if a valid u32 value can be decoded.
+ * The out_values is modified only if a valid u32 value can be decoded.
  */
 int of_property_read_u32_array(const struct device_node *np,
 			       const char *propname, u32 *out_values,

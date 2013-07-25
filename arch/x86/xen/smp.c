@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/irq_work.h>
+#include <linux/tick.h>
 
 #include <asm/paravirt.h>
 #include <asm/desc.h>
@@ -39,11 +40,15 @@
 
 cpumask_var_t xen_cpu_initialized_map;
 
-static DEFINE_PER_CPU(int, xen_resched_irq);
-static DEFINE_PER_CPU(int, xen_callfunc_irq);
-static DEFINE_PER_CPU(int, xen_callfuncsingle_irq);
-static DEFINE_PER_CPU(int, xen_irq_work);
-static DEFINE_PER_CPU(int, xen_debug_irq) = -1;
+struct xen_common_irq {
+	int irq;
+	char *name;
+};
+static DEFINE_PER_CPU(struct xen_common_irq, xen_resched_irq) = { .irq = -1 };
+static DEFINE_PER_CPU(struct xen_common_irq, xen_callfunc_irq) = { .irq = -1 };
+static DEFINE_PER_CPU(struct xen_common_irq, xen_callfuncsingle_irq) = { .irq = -1 };
+static DEFINE_PER_CPU(struct xen_common_irq, xen_irq_work) = { .irq = -1 };
+static DEFINE_PER_CPU(struct xen_common_irq, xen_debug_irq) = { .irq = -1 };
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id);
 static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id);
@@ -60,7 +65,7 @@ static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __cpuinit cpu_bringup(void)
+static void cpu_bringup(void)
 {
 	int cpu;
 
@@ -92,16 +97,53 @@ static void __cpuinit cpu_bringup(void)
 	wmb();			/* make sure everything is out */
 }
 
-static void __cpuinit cpu_bringup_and_idle(void)
+static void cpu_bringup_and_idle(void)
 {
 	cpu_bringup();
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
+static void xen_smp_intr_free(unsigned int cpu)
+{
+	if (per_cpu(xen_resched_irq, cpu).irq >= 0) {
+		unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu).irq, NULL);
+		per_cpu(xen_resched_irq, cpu).irq = -1;
+		kfree(per_cpu(xen_resched_irq, cpu).name);
+		per_cpu(xen_resched_irq, cpu).name = NULL;
+	}
+	if (per_cpu(xen_callfunc_irq, cpu).irq >= 0) {
+		unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu).irq, NULL);
+		per_cpu(xen_callfunc_irq, cpu).irq = -1;
+		kfree(per_cpu(xen_callfunc_irq, cpu).name);
+		per_cpu(xen_callfunc_irq, cpu).name = NULL;
+	}
+	if (per_cpu(xen_debug_irq, cpu).irq >= 0) {
+		unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu).irq, NULL);
+		per_cpu(xen_debug_irq, cpu).irq = -1;
+		kfree(per_cpu(xen_debug_irq, cpu).name);
+		per_cpu(xen_debug_irq, cpu).name = NULL;
+	}
+	if (per_cpu(xen_callfuncsingle_irq, cpu).irq >= 0) {
+		unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu).irq,
+				       NULL);
+		per_cpu(xen_callfuncsingle_irq, cpu).irq = -1;
+		kfree(per_cpu(xen_callfuncsingle_irq, cpu).name);
+		per_cpu(xen_callfuncsingle_irq, cpu).name = NULL;
+	}
+	if (xen_hvm_domain())
+		return;
+
+	if (per_cpu(xen_irq_work, cpu).irq >= 0) {
+		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu).irq, NULL);
+		per_cpu(xen_irq_work, cpu).irq = -1;
+		kfree(per_cpu(xen_irq_work, cpu).name);
+		per_cpu(xen_irq_work, cpu).name = NULL;
+	}
+};
 static int xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
-	const char *resched_name, *callfunc_name, *debug_name;
+	char *resched_name, *callfunc_name, *debug_name;
 
 	resched_name = kasprintf(GFP_KERNEL, "resched%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_RESCHEDULE_VECTOR,
@@ -112,7 +154,8 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(xen_resched_irq, cpu) = rc;
+	per_cpu(xen_resched_irq, cpu).irq = rc;
+	per_cpu(xen_resched_irq, cpu).name = resched_name;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfunc%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_VECTOR,
@@ -123,7 +166,8 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(xen_callfunc_irq, cpu) = rc;
+	per_cpu(xen_callfunc_irq, cpu).irq = rc;
+	per_cpu(xen_callfunc_irq, cpu).name = callfunc_name;
 
 	debug_name = kasprintf(GFP_KERNEL, "debug%d", cpu);
 	rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu, xen_debug_interrupt,
@@ -131,7 +175,8 @@ static int xen_smp_intr_init(unsigned int cpu)
 				     debug_name, NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(xen_debug_irq, cpu) = rc;
+	per_cpu(xen_debug_irq, cpu).irq = rc;
+	per_cpu(xen_debug_irq, cpu).name = debug_name;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfuncsingle%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_SINGLE_VECTOR,
@@ -142,7 +187,8 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(xen_callfuncsingle_irq, cpu) = rc;
+	per_cpu(xen_callfuncsingle_irq, cpu).irq = rc;
+	per_cpu(xen_callfuncsingle_irq, cpu).name = callfunc_name;
 
 	/*
 	 * The IRQ worker on PVHVM goes through the native path and uses the
@@ -160,26 +206,13 @@ static int xen_smp_intr_init(unsigned int cpu)
 				    NULL);
 	if (rc < 0)
 		goto fail;
-	per_cpu(xen_irq_work, cpu) = rc;
+	per_cpu(xen_irq_work, cpu).irq = rc;
+	per_cpu(xen_irq_work, cpu).name = callfunc_name;
 
 	return 0;
 
  fail:
-	if (per_cpu(xen_resched_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
-	if (per_cpu(xen_callfunc_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
-	if (per_cpu(xen_debug_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
-	if (per_cpu(xen_callfuncsingle_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu),
-				       NULL);
-	if (xen_hvm_domain())
-		return rc;
-
-	if (per_cpu(xen_irq_work, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
-
+	xen_smp_intr_free(cpu);
 	return rc;
 }
 
@@ -293,7 +326,7 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 		set_cpu_present(cpu, true);
 }
 
-static int __cpuinit
+static int
 cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 {
 	struct vcpu_guest_context *ctxt;
@@ -364,7 +397,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static int __cpuinit xen_cpu_up(unsigned int cpu, struct task_struct *idle)
+static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int rc;
 
@@ -432,21 +465,23 @@ static void xen_cpu_die(unsigned int cpu)
 		current->state = TASK_UNINTERRUPTIBLE;
 		schedule_timeout(HZ/10);
 	}
-	unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
-	if (!xen_hvm_domain())
-		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
+	xen_smp_intr_free(cpu);
 	xen_uninit_lock_cpu(cpu);
 	xen_teardown_timer(cpu);
 }
 
-static void __cpuinit xen_play_dead(void) /* used only with HOTPLUG_CPU */
+static void xen_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
 	cpu_bringup();
+	/*
+	 * commit 4b0c0f294 (tick: Cleanup NOHZ per cpu data on cpu down)
+	 * clears certain data that the cpu_idle loop (which called us
+	 * and that we return from) expects. The only way to get that
+	 * data back is to call:
+	 */
+	tick_nohz_idle_enter();
 }
 
 #else /* !CONFIG_HOTPLUG_CPU */
@@ -576,24 +611,22 @@ void xen_send_IPI_mask_allbutself(const struct cpumask *mask,
 {
 	unsigned cpu;
 	unsigned int this_cpu = smp_processor_id();
+	int xen_vector = xen_map_vector(vector);
 
-	if (!(num_online_cpus() > 1))
+	if (!(num_online_cpus() > 1) || (xen_vector < 0))
 		return;
 
 	for_each_cpu_and(cpu, mask, cpu_online_mask) {
 		if (this_cpu == cpu)
 			continue;
 
-		xen_smp_send_call_function_single_ipi(cpu);
+		xen_send_IPI_one(cpu, xen_vector);
 	}
 }
 
 void xen_send_IPI_allbutself(int vector)
 {
-	int xen_vector = xen_map_vector(vector);
-
-	if (xen_vector >= 0)
-		xen_send_IPI_mask_allbutself(cpu_online_mask, xen_vector);
+	xen_send_IPI_mask_allbutself(cpu_online_mask, vector);
 }
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
@@ -658,7 +691,7 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	xen_init_lock_cpu(0);
 }
 
-static int __cpuinit xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
+static int xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc;
 	rc = native_cpu_up(cpu, tidle);

@@ -400,8 +400,8 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 #define HDSPM_wc_freq0 (1<<5)	/* input freq detected via autosync  */
 #define HDSPM_wc_freq1 (1<<6)	/* 001=32, 010==44.1, 011=48, */
-#define HDSPM_wc_freq2 (1<<7)	/* 100=64, 101=88.2, 110=96, */
-/* missing Bit   for               111=128, 1000=176.4, 1001=192 */
+#define HDSPM_wc_freq2 (1<<7)	/* 100=64, 101=88.2, 110=96, 111=128 */
+#define HDSPM_wc_freq3 0x800	/* 1000=176.4, 1001=192 */
 
 #define HDSPM_SyncRef0 0x10000  /* Sync Reference */
 #define HDSPM_SyncRef1 0x20000
@@ -412,13 +412,17 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 #define HDSPM_wc_valid (HDSPM_wcLock|HDSPM_wcSync)
 
-#define HDSPM_wcFreqMask  (HDSPM_wc_freq0|HDSPM_wc_freq1|HDSPM_wc_freq2)
+#define HDSPM_wcFreqMask  (HDSPM_wc_freq0|HDSPM_wc_freq1|HDSPM_wc_freq2|\
+			    HDSPM_wc_freq3)
 #define HDSPM_wcFreq32    (HDSPM_wc_freq0)
 #define HDSPM_wcFreq44_1  (HDSPM_wc_freq1)
 #define HDSPM_wcFreq48    (HDSPM_wc_freq0|HDSPM_wc_freq1)
 #define HDSPM_wcFreq64    (HDSPM_wc_freq2)
 #define HDSPM_wcFreq88_2  (HDSPM_wc_freq0|HDSPM_wc_freq2)
 #define HDSPM_wcFreq96    (HDSPM_wc_freq1|HDSPM_wc_freq2)
+#define HDSPM_wcFreq128   (HDSPM_wc_freq0|HDSPM_wc_freq1|HDSPM_wc_freq2)
+#define HDSPM_wcFreq176_4 (HDSPM_wc_freq3)
+#define HDSPM_wcFreq192   (HDSPM_wc_freq0|HDSPM_wc_freq3)
 
 #define HDSPM_status1_F_0 0x0400000
 #define HDSPM_status1_F_1 0x0800000
@@ -1087,6 +1091,26 @@ static int hdspm_round_frequency(int rate)
 		return 48000;
 }
 
+/* QS and DS rates normally can not be detected
+ * automatically by the card. Only exception is MADI
+ * in 96k frame mode.
+ *
+ * So if we read SS values (32 .. 48k), check for
+ * user-provided DS/QS bits in the control register
+ * and multiply the base frequency accordingly.
+ */
+static int hdspm_rate_multiplier(struct hdspm *hdspm, int rate)
+{
+	if (rate <= 48000) {
+		if (hdspm->control_register & HDSPM_QuadSpeed)
+			return rate * 4;
+		else if (hdspm->control_register &
+				HDSPM_DoubleSpeed)
+			return rate * 2;
+	};
+	return rate;
+}
+
 static int hdspm_tco_sync_check(struct hdspm *hdspm);
 static int hdspm_sync_in_sync_check(struct hdspm *hdspm);
 
@@ -1181,6 +1205,15 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 			case HDSPM_wcFreq96:
 				rate = 96000;
 				break;
+			case HDSPM_wcFreq128:
+				rate = 128000;
+				break;
+			case HDSPM_wcFreq176_4:
+				rate = 176400;
+				break;
+			case HDSPM_wcFreq192:
+				rate = 192000;
+				break;
 			default:
 				rate = 0;
 				break;
@@ -1192,7 +1225,7 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 		 */
 		if (rate != 0 &&
 		(status2 & HDSPM_SelSyncRefMask) == HDSPM_SelSyncRef_WORD)
-			return rate;
+			return hdspm_rate_multiplier(hdspm, rate);
 
 		/* maybe a madi input (which is taken if sel sync is madi) */
 		if (status & HDSPM_madiLock) {
@@ -1255,21 +1288,8 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 			}
 		}
 
-		/* QS and DS rates normally can not be detected
-		 * automatically by the card. Only exception is MADI
-		 * in 96k frame mode.
-		 *
-		 * So if we read SS values (32 .. 48k), check for
-		 * user-provided DS/QS bits in the control register
-		 * and multiply the base frequency accordingly.
-		 */
-		if (rate <= 48000) {
-			if (hdspm->control_register & HDSPM_QuadSpeed)
-				rate *= 4;
-			else if (hdspm->control_register &
-					HDSPM_DoubleSpeed)
-				rate *= 2;
-		}
+		rate = hdspm_rate_multiplier(hdspm, rate);
+
 		break;
 	}
 
@@ -6737,7 +6757,6 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 static void snd_hdspm_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver hdspm_driver = {

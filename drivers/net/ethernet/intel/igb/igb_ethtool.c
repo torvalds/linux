@@ -142,6 +142,8 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
+	struct e1000_sfp_flags *eth_flags = &dev_spec->eth_flags;
 	u32 status;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
@@ -162,55 +164,47 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			ecmd->advertising |= hw->phy.autoneg_advertised;
 		}
 
-		if (hw->mac.autoneg != 1)
-			ecmd->advertising &= ~(ADVERTISED_Pause |
-					       ADVERTISED_Asym_Pause);
-
-		if (hw->fc.requested_mode == e1000_fc_full)
-			ecmd->advertising |= ADVERTISED_Pause;
-		else if (hw->fc.requested_mode == e1000_fc_rx_pause)
-			ecmd->advertising |= (ADVERTISED_Pause |
-					      ADVERTISED_Asym_Pause);
-		else if (hw->fc.requested_mode == e1000_fc_tx_pause)
-			ecmd->advertising |=  ADVERTISED_Asym_Pause;
-		else
-			ecmd->advertising &= ~(ADVERTISED_Pause |
-					       ADVERTISED_Asym_Pause);
-
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy.addr;
 		ecmd->transceiver = XCVR_INTERNAL;
 	} else {
-		ecmd->supported = (SUPPORTED_1000baseT_Full |
-				   SUPPORTED_100baseT_Full |
-				   SUPPORTED_FIBRE |
+		ecmd->supported = (SUPPORTED_FIBRE |
 				   SUPPORTED_Autoneg |
 				   SUPPORTED_Pause);
-		if (hw->mac.type == e1000_i354)
-				ecmd->supported |= SUPPORTED_2500baseX_Full;
-
 		ecmd->advertising = ADVERTISED_FIBRE;
-
-		switch (adapter->link_speed) {
-		case SPEED_2500:
-			ecmd->advertising = ADVERTISED_2500baseX_Full;
-			break;
-		case SPEED_1000:
-			ecmd->advertising = ADVERTISED_1000baseT_Full;
-			break;
-		case SPEED_100:
-			ecmd->advertising = ADVERTISED_100baseT_Full;
-			break;
-		default:
-			break;
+		if (hw->mac.type == e1000_i354) {
+			ecmd->supported |= SUPPORTED_2500baseX_Full;
+			ecmd->advertising |= ADVERTISED_2500baseX_Full;
 		}
-
+		if ((eth_flags->e1000_base_lx) || (eth_flags->e1000_base_sx)) {
+			ecmd->supported |= SUPPORTED_1000baseT_Full;
+			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		}
+		if (eth_flags->e100_base_fx) {
+			ecmd->supported |= SUPPORTED_100baseT_Full;
+			ecmd->advertising |= ADVERTISED_100baseT_Full;
+		}
 		if (hw->mac.autoneg == 1)
 			ecmd->advertising |= ADVERTISED_Autoneg;
 
 		ecmd->port = PORT_FIBRE;
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
+
+	if (hw->mac.autoneg != 1)
+		ecmd->advertising &= ~(ADVERTISED_Pause |
+				       ADVERTISED_Asym_Pause);
+
+	if (hw->fc.requested_mode == e1000_fc_full)
+		ecmd->advertising |= ADVERTISED_Pause;
+	else if (hw->fc.requested_mode == e1000_fc_rx_pause)
+		ecmd->advertising |= (ADVERTISED_Pause |
+				      ADVERTISED_Asym_Pause);
+	else if (hw->fc.requested_mode == e1000_fc_tx_pause)
+		ecmd->advertising |=  ADVERTISED_Asym_Pause;
+	else
+		ecmd->advertising &= ~(ADVERTISED_Pause |
+				       ADVERTISED_Asym_Pause);
 
 	status = rd32(E1000_STATUS);
 
@@ -391,6 +385,10 @@ static int igb_set_pauseparam(struct net_device *netdev,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	int retval = 0;
+
+	/* 100basefx does not support setting link flow control */
+	if (hw->dev_spec._82575.eth_flags.e100_base_fx)
+		return -EINVAL;
 
 	adapter->fc_autoneg = pause->autoneg;
 
@@ -813,10 +811,8 @@ static int igb_set_eeprom(struct net_device *netdev,
 	ret_val = hw->nvm.ops.write(hw, first_word,
 				    last_word - first_word + 1, eeprom_buff);
 
-	/* Update the checksum over the first part of the EEPROM if needed
-	 * and flush shadow RAM for 82573 controllers
-	 */
-	if ((ret_val == 0) && ((first_word <= NVM_CHECKSUM_REG)))
+	/* Update the checksum if nvm write succeeded */
+	if (ret_val == 0)
 		hw->nvm.ops.update(hw);
 
 	igb_set_fw_version(adapter);

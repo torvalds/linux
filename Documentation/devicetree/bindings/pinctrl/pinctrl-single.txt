@@ -18,7 +18,8 @@ Optional properties:
   pin functions is ignored
 
 - pinctrl-single,bit-per-mux : boolean to indicate that one register controls
-  more than one pin
+  more than one pin, for which "pinctrl-single,function-mask" property specifies
+ position mask of pin.
 
 - pinctrl-single,drive-strength : array of value that are used to configure
   drive strength in the pinmux register. They're value of drive strength

@@ -45,10 +45,11 @@ int wusbhc_pal_register(struct wusbhc *wusbhc)
 }
 
 /**
- * wusbhc_pal_register - unregister the WUSB HC as a UWB PAL
+ * wusbhc_pal_unregister - unregister the WUSB HC as a UWB PAL
  * @wusbhc: the WUSB HC
  */
 void wusbhc_pal_unregister(struct wusbhc *wusbhc)
 {
-	uwb_pal_unregister(&wusbhc->pal);
+	if (wusbhc->uwb_rc)
+		uwb_pal_unregister(&wusbhc->pal);
 }

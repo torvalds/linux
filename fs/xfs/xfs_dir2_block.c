@@ -29,6 +29,7 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
+#include "xfs_bmap.h"
 #include "xfs_buf_item.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_format.h"
@@ -569,9 +570,7 @@ xfs_dir2_block_addname(
 int						/* error */
 xfs_dir2_block_getdents(
 	xfs_inode_t		*dp,		/* incore inode */
-	void			*dirent,
-	xfs_off_t		*offset,
-	filldir_t		filldir)
+	struct dir_context	*ctx)
 {
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	struct xfs_buf		*bp;		/* buffer for block */
@@ -589,7 +588,7 @@ xfs_dir2_block_getdents(
 	/*
 	 * If the block number in the offset is out of range, we're done.
 	 */
-	if (xfs_dir2_dataptr_to_db(mp, *offset) > mp->m_dirdatablk)
+	if (xfs_dir2_dataptr_to_db(mp, ctx->pos) > mp->m_dirdatablk)
 		return 0;
 
 	error = xfs_dir3_block_read(NULL, dp, &bp);
@@ -600,7 +599,7 @@ xfs_dir2_block_getdents(
 	 * Extract the byte offset we start at from the seek pointer.
 	 * We'll skip entries before this.
 	 */
-	wantoff = xfs_dir2_dataptr_to_off(mp, *offset);
+	wantoff = xfs_dir2_dataptr_to_off(mp, ctx->pos);
 	hdr = bp->b_addr;
 	xfs_dir3_data_check(dp, bp);
 	/*
@@ -639,13 +638,12 @@ xfs_dir2_block_getdents(
 		cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
 					    (char *)dep - (char *)hdr);
 
+		ctx->pos = cook & 0x7fffffff;
 		/*
 		 * If it didn't fit, set the final offset to here & return.
 		 */
-		if (filldir(dirent, (char *)dep->name, dep->namelen,
-			    cook & 0x7fffffff, be64_to_cpu(dep->inumber),
-			    DT_UNKNOWN)) {
-			*offset = cook & 0x7fffffff;
+		if (!dir_emit(ctx, (char *)dep->name, dep->namelen,
+			    be64_to_cpu(dep->inumber), DT_UNKNOWN)) {
 			xfs_trans_brelse(NULL, bp);
 			return 0;
 		}
@@ -655,7 +653,7 @@ xfs_dir2_block_getdents(
 	 * Reached the end of the block.
 	 * Set the offset to a non-existent block 1 and return.
 	 */
-	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
+	ctx->pos = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
 			0x7fffffff;
 	xfs_trans_brelse(NULL, bp);
 	return 0;
@@ -1167,13 +1165,15 @@ xfs_dir2_sf_to_block(
 	__be16			*tagp;		/* end of data entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
 	struct xfs_name		name;
+	struct xfs_ifork	*ifp;
 
 	trace_xfs_dir2_sf_to_block(args);
 
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
-	ASSERT(dp->i_df.if_flags & XFS_IFINLINE);
+	ifp = XFS_IFORK_PTR(dp, XFS_DATA_FORK);
+	ASSERT(ifp->if_flags & XFS_IFINLINE);
 	/*
 	 * Bomb out if the shortform directory is way too short.
 	 */
@@ -1182,22 +1182,23 @@ xfs_dir2_sf_to_block(
 		return XFS_ERROR(EIO);
 	}
 
-	oldsfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
+	oldsfp = (xfs_dir2_sf_hdr_t *)ifp->if_u1.if_data;
 
-	ASSERT(dp->i_df.if_bytes == dp->i_d.di_size);
-	ASSERT(dp->i_df.if_u1.if_data != NULL);
+	ASSERT(ifp->if_bytes == dp->i_d.di_size);
+	ASSERT(ifp->if_u1.if_data != NULL);
 	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(oldsfp->i8count));
+	ASSERT(dp->i_d.di_nextents == 0);
 
 	/*
 	 * Copy the directory into a temporary buffer.
 	 * Then pitch the incore inode data so we can make extents.
 	 */
-	sfp = kmem_alloc(dp->i_df.if_bytes, KM_SLEEP);
-	memcpy(sfp, oldsfp, dp->i_df.if_bytes);
+	sfp = kmem_alloc(ifp->if_bytes, KM_SLEEP);
+	memcpy(sfp, oldsfp, ifp->if_bytes);
 
-	xfs_idata_realloc(dp, -dp->i_df.if_bytes, XFS_DATA_FORK);
+	xfs_idata_realloc(dp, -ifp->if_bytes, XFS_DATA_FORK);
+	xfs_bmap_local_to_extents_empty(dp, XFS_DATA_FORK);
 	dp->i_d.di_size = 0;
-	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 
 	/*
 	 * Add block 0 to the inode.

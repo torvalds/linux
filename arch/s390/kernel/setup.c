@@ -719,10 +719,6 @@ static void reserve_oldmem(void)
 	}
 	create_mem_hole(memory_chunk, OLDMEM_BASE, OLDMEM_SIZE);
 	create_mem_hole(memory_chunk, OLDMEM_SIZE, real_size - OLDMEM_SIZE);
-	if (OLDMEM_BASE + OLDMEM_SIZE == real_size)
-		saved_max_pfn = PFN_DOWN(OLDMEM_BASE) - 1;
-	else
-		saved_max_pfn = PFN_DOWN(real_size) - 1;
 #endif
 }
 

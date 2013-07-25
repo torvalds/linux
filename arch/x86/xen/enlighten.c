@@ -1557,7 +1557,7 @@ asmlinkage void __init xen_start_kernel(void)
 #ifdef CONFIG_X86_32
 	/* set up basic CPUID stuff */
 	cpu_detect(&new_cpu_data);
-	new_cpu_data.hard_math = 1;
+	set_cpu_cap(&new_cpu_data, X86_FEATURE_FPU);
 	new_cpu_data.wp_works_ok = 1;
 	new_cpu_data.x86_capability[0] = cpuid_edx(1);
 #endif
@@ -1681,8 +1681,8 @@ static void __init init_hvm_pv_info(void)
 	xen_domain_type = XEN_HVM_DOMAIN;
 }
 
-static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
-				    unsigned long action, void *hcpu)
+static int xen_hvm_cpu_notify(struct notifier_block *self, unsigned long action,
+			      void *hcpu)
 {
 	int cpu = (long)hcpu;
 	switch (action) {
@@ -1700,7 +1700,7 @@ static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block xen_hvm_cpu_notifier __cpuinitdata = {
+static struct notifier_block xen_hvm_cpu_notifier = {
 	.notifier_call	= xen_hvm_cpu_notify,
 };
 

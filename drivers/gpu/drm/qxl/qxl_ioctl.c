@@ -151,7 +151,7 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 		struct qxl_bo *cmd_bo;
 		int release_type;
 		struct drm_qxl_command *commands =
-			(struct drm_qxl_command *)execbuffer->commands;
+			(struct drm_qxl_command *)(uintptr_t)execbuffer->commands;
 
 		if (DRM_COPY_FROM_USER(&user_cmd, &commands[cmd_num],
 				       sizeof(user_cmd)))
@@ -171,6 +171,11 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 		if (user_cmd.command_size > PAGE_SIZE - sizeof(union qxl_release_info))
 			return -EINVAL;
 
+		if (!access_ok(VERIFY_READ,
+			       (void *)(unsigned long)user_cmd.command,
+			       user_cmd.command_size))
+			return -EFAULT;
+
 		ret = qxl_alloc_release_reserved(qdev,
 						 sizeof(union qxl_release_info) +
 						 user_cmd.command_size,
@@ -183,6 +188,12 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 		/* TODO copy slow path code from i915 */
 		fb_cmd = qxl_bo_kmap_atomic_page(qdev, cmd_bo, (release->release_offset & PAGE_SIZE));
 		unwritten = __copy_from_user_inatomic_nocache(fb_cmd + sizeof(union qxl_release_info) + (release->release_offset & ~PAGE_SIZE), (void *)(unsigned long)user_cmd.command, user_cmd.command_size);
+
+		{
+			struct qxl_drawable *draw = fb_cmd;
+
+			draw->mm_time = qdev->rom->mm_clock;
+		}
 		qxl_bo_kunmap_atomic_page(qdev, cmd_bo, fb_cmd);
 		if (unwritten) {
 			DRM_ERROR("got unwritten %d\n", unwritten);
@@ -193,7 +204,7 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 
 		for (i = 0 ; i < user_cmd.relocs_num; ++i) {
 			if (DRM_COPY_FROM_USER(&reloc,
-					       &((struct drm_qxl_reloc *)user_cmd.relocs)[i],
+					       &((struct drm_qxl_reloc *)(uintptr_t)user_cmd.relocs)[i],
 					       sizeof(reloc))) {
 				qxl_bo_list_unreserve(&reloc_list, true);
 				qxl_release_unreserve(qdev, release);

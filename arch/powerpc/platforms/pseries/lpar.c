@@ -45,6 +45,13 @@
 #include "plpar_wrappers.h"
 #include "pseries.h"
 
+/* Flag bits for H_BULK_REMOVE */
+#define HBR_REQUEST	0x4000000000000000UL
+#define HBR_RESPONSE	0x8000000000000000UL
+#define HBR_END		0xc000000000000000UL
+#define HBR_AVPN	0x0200000000000000UL
+#define HBR_ANDCOND	0x0100000000000000UL
+
 
 /* in hvCall.S */
 EXPORT_SYMBOL(plpar_hcall);
@@ -63,6 +70,9 @@ void vpa_init(int cpu)
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		lppaca_of(cpu).vmxregs_in_use = 1;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		lppaca_of(cpu).ebb_regs_in_use = 1;
 
 	addr = __pa(&lppaca_of(cpu));
 	ret = register_vpa(hwcpu, addr);
@@ -136,7 +146,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	flags = 0;
 
 	/* Make pHyp happy */
-	if ((rflags & _PAGE_NO_CACHE) & !(rflags & _PAGE_WRITETHRU))
+	if ((rflags & _PAGE_NO_CACHE) && !(rflags & _PAGE_WRITETHRU))
 		hpte_r &= ~_PAGE_COHERENT;
 	if (firmware_has_feature(FW_FEATURE_XCMO) && !(hpte_r & HPTE_R_N))
 		flags |= H_COALESCE_CAND;
@@ -240,7 +250,8 @@ static void pSeries_lpar_hptab_clear(void)
 static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
 				       unsigned long vpn,
-				       int psize, int ssize, int local)
+				       int psize, int apsize,
+				       int ssize, int local)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;
@@ -328,7 +339,8 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 }
 
 static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
-					 int psize, int ssize, int local)
+					 int psize, int apsize,
+					 int ssize, int local)
 {
 	unsigned long want_v;
 	unsigned long lpar_rc;
@@ -345,6 +357,113 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
+/*
+ * Limit iterations holding pSeries_lpar_tlbie_lock to 3. We also need
+ * to make sure that we avoid bouncing the hypervisor tlbie lock.
+ */
+#define PPC64_HUGE_HPTE_BATCH 12
+
+static void __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
+					     unsigned long *vpn, int count,
+					     int psize, int ssize)
+{
+	unsigned long param[8];
+	int i = 0, pix = 0, rc;
+	unsigned long flags = 0;
+	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
+
+	if (lock_tlbie)
+		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
+
+	for (i = 0; i < count; i++) {
+
+		if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
+			pSeries_lpar_hpte_invalidate(slot[i], vpn[i], psize, 0,
+						     ssize, 0);
+		} else {
+			param[pix] = HBR_REQUEST | HBR_AVPN | slot[i];
+			param[pix+1] = hpte_encode_avpn(vpn[i], psize, ssize);
+			pix += 2;
+			if (pix == 8) {
+				rc = plpar_hcall9(H_BULK_REMOVE, param,
+						  param[0], param[1], param[2],
+						  param[3], param[4], param[5],
+						  param[6], param[7]);
+				BUG_ON(rc != H_SUCCESS);
+				pix = 0;
+			}
+		}
+	}
+	if (pix) {
+		param[pix] = HBR_END;
+		rc = plpar_hcall9(H_BULK_REMOVE, param, param[0], param[1],
+				  param[2], param[3], param[4], param[5],
+				  param[6], param[7]);
+		BUG_ON(rc != H_SUCCESS);
+	}
+
+	if (lock_tlbie)
+		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
+}
+
+static void pSeries_lpar_hugepage_invalidate(struct mm_struct *mm,
+				       unsigned char *hpte_slot_array,
+				       unsigned long addr, int psize)
+{
+	int ssize = 0, i, index = 0;
+	unsigned long s_addr = addr;
+	unsigned int max_hpte_count, valid;
+	unsigned long vpn_array[PPC64_HUGE_HPTE_BATCH];
+	unsigned long slot_array[PPC64_HUGE_HPTE_BATCH];
+	unsigned long shift, hidx, vpn = 0, vsid, hash, slot;
+
+	shift = mmu_psize_defs[psize].shift;
+	max_hpte_count = 1U << (PMD_SHIFT - shift);
+
+	for (i = 0; i < max_hpte_count; i++) {
+		valid = hpte_valid(hpte_slot_array, i);
+		if (!valid)
+			continue;
+		hidx =  hpte_hash_index(hpte_slot_array, i);
+
+		/* get the vpn */
+		addr = s_addr + (i * (1ul << shift));
+		if (!is_kernel_addr(addr)) {
+			ssize = user_segment_size(addr);
+			vsid = get_vsid(mm->context.id, addr, ssize);
+			WARN_ON(vsid == 0);
+		} else {
+			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
+			ssize = mmu_kernel_ssize;
+		}
+
+		vpn = hpt_vpn(addr, vsid, ssize);
+		hash = hpt_hash(vpn, shift, ssize);
+		if (hidx & _PTEIDX_SECONDARY)
+			hash = ~hash;
+
+		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot += hidx & _PTEIDX_GROUP_IX;
+
+		slot_array[index] = slot;
+		vpn_array[index] = vpn;
+		if (index == PPC64_HUGE_HPTE_BATCH - 1) {
+			/*
+			 * Now do a bluk invalidate
+			 */
+			__pSeries_lpar_hugepage_invalidate(slot_array,
+							   vpn_array,
+							   PPC64_HUGE_HPTE_BATCH,
+							   psize, ssize);
+			index = 0;
+		} else
+			index++;
+	}
+	if (index)
+		__pSeries_lpar_hugepage_invalidate(slot_array, vpn_array,
+						   index, psize, ssize);
+}
+
 static void pSeries_lpar_hpte_removebolted(unsigned long ea,
 					   int psize, int ssize)
 {
@@ -356,16 +475,11 @@ static void pSeries_lpar_hpte_removebolted(unsigned long ea,
 
 	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	BUG_ON(slot == -1);
-
-	pSeries_lpar_hpte_invalidate(slot, vpn, psize, ssize, 0);
+	/*
+	 * lpar doesn't use the passed actual page size
+	 */
+	pSeries_lpar_hpte_invalidate(slot, vpn, psize, 0, ssize, 0);
 }
-
-/* Flag bits for H_BULK_REMOVE */
-#define HBR_REQUEST	0x4000000000000000UL
-#define HBR_RESPONSE	0x8000000000000000UL
-#define HBR_END		0xc000000000000000UL
-#define HBR_AVPN	0x0200000000000000UL
-#define HBR_ANDCOND	0x0100000000000000UL
 
 /*
  * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
@@ -400,8 +514,11 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 			slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 			slot += hidx & _PTEIDX_GROUP_IX;
 			if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
+				/*
+				 * lpar doesn't use the passed actual page size
+				 */
 				pSeries_lpar_hpte_invalidate(slot, vpn, psize,
-							     ssize, local);
+							     0, ssize, local);
 			} else {
 				param[pix] = HBR_REQUEST | HBR_AVPN | slot;
 				param[pix+1] = hpte_encode_avpn(vpn, psize,
@@ -452,6 +569,7 @@ void __init hpte_init_lpar(void)
 	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
 	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
 	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
+	ppc_md.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
 }
 
 #ifdef CONFIG_PPC_SMLPAR

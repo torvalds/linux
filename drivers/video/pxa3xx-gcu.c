@@ -494,7 +494,6 @@ pxa3xx_gcu_misc_mmap(struct file *file, struct vm_area_struct *vma)
 		if (size != resource_size(priv->resource_mem))
 			return -EINVAL;
 
-		vma->vm_flags |= VM_IO;
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 		return io_remap_pfn_range(vma, vma->vm_start,
@@ -711,7 +710,6 @@ err_misc_deregister:
 	misc_deregister(&priv->misc_dev);
 
 err_free_priv:
-	platform_set_drvdata(dev, NULL);
 	free_buffers(dev, priv);
 	kfree(priv);
 	return ret;
@@ -729,7 +727,6 @@ static int pxa3xx_gcu_remove(struct platform_device *dev)
 			priv->shared, priv->shared_phys);
 	iounmap(priv->mmio_base);
 	release_mem_region(r->start, resource_size(r));
-	platform_set_drvdata(dev, NULL);
 	clk_disable(priv->clk);
 	free_buffers(dev, priv);
 	kfree(priv);

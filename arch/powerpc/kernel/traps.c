@@ -53,6 +53,7 @@
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #include <asm/processor.h>
+#include <asm/tm.h>
 #endif
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
@@ -865,6 +866,10 @@ static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 		u8 val;
 		u32 shift = 8 * (3 - (pos & 0x3));
 
+		/* if process is 32-bit, clear upper 32 bits of EA */
+		if ((regs->msr & MSR_64BIT) == 0)
+			EA &= 0xFFFFFFFF;
+
 		switch ((instword & PPC_INST_STRING_MASK)) {
 			case PPC_INST_LSWX:
 			case PPC_INST_LSWI:
@@ -932,6 +937,28 @@ static int emulate_isel(struct pt_regs *regs, u32 instword)
 	return 0;
 }
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline bool tm_abort_check(struct pt_regs *regs, int cause)
+{
+        /* If we're emulating a load/store in an active transaction, we cannot
+         * emulate it as the kernel operates in transaction suspended context.
+         * We need to abort the transaction.  This creates a persistent TM
+         * abort so tell the user what caused it with a new code.
+	 */
+	if (MSR_TM_TRANSACTIONAL(regs->msr)) {
+		tm_enable();
+		tm_abort(cause);
+		return true;
+	}
+	return false;
+}
+#else
+static inline bool tm_abort_check(struct pt_regs *regs, int reason)
+{
+	return false;
+}
+#endif
+
 static int emulate_instruction(struct pt_regs *regs)
 {
 	u32 instword;
@@ -971,6 +998,9 @@ static int emulate_instruction(struct pt_regs *regs)
 
 	/* Emulate load/store string insn. */
 	if ((instword & PPC_INST_STRING_GEN_MASK) == PPC_INST_STRING) {
+		if (tm_abort_check(regs,
+				   TM_CAUSE_EMULATE | TM_CAUSE_PERSISTENT))
+			return -EINVAL;
 		PPC_WARN_EMULATED(string, regs);
 		return emulate_string_inst(regs, instword);
 	}
@@ -1099,7 +1129,17 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 	 * ESR_DST (!?) or 0.  In the process of chasing this with the
 	 * hardware people - not sure if it can happen on any illegal
 	 * instruction or only on FP instructions, whether there is a
-	 * pattern to occurrences etc. -dgibson 31/Mar/2003 */
+	 * pattern to occurrences etc. -dgibson 31/Mar/2003
+	 */
+
+	/*
+	 * If we support a HW FPU, we need to ensure the FP state
+	 * if flushed into the thread_struct before attempting
+	 * emulation
+	 */
+#ifdef CONFIG_PPC_FPU
+	flush_fp_to_thread(current);
+#endif
 	switch (do_mathemu(regs)) {
 	case 0:
 		emulate_single_step(regs);
@@ -1139,6 +1179,16 @@ bail:
 	exception_exit(prev_state);
 }
 
+/*
+ * This occurs when running in hypervisor mode on POWER6 or later
+ * and an illegal instruction is encountered.
+ */
+void __kprobes emulation_assist_interrupt(struct pt_regs *regs)
+{
+	regs->msr |= REASON_ILLEGAL;
+	program_check_exception(regs);
+}
+
 void alignment_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
@@ -1147,6 +1197,9 @@ void alignment_exception(struct pt_regs *regs)
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
+
+	if (tm_abort_check(regs, TM_CAUSE_ALIGNMENT | TM_CAUSE_PERSISTENT))
+		goto bail;
 
 	/* we don't implement logging of alignment exceptions */
 	if (!(current->thread.align_ctl & PR_UNALIGN_SIGBUS))
@@ -1243,25 +1296,50 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
 }
 
-void tm_unavailable_exception(struct pt_regs *regs)
+void facility_unavailable_exception(struct pt_regs *regs)
 {
+	static char *facility_strings[] = {
+		"FPU",
+		"VMX/VSX",
+		"DSCR",
+		"PMU SPRs",
+		"BHRB",
+		"TM",
+		"AT",
+		"EBB",
+		"TAR",
+	};
+	char *facility, *prefix;
+	u64 value;
+
+	if (regs->trap == 0xf60) {
+		value = mfspr(SPRN_FSCR);
+		prefix = "";
+	} else {
+		value = mfspr(SPRN_HFSCR);
+		prefix = "Hypervisor ";
+	}
+
+	value = value >> 56;
+
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
 		local_irq_enable();
 
-	/* Currently we never expect a TMU exception.  Catch
-	 * this and kill the process!
-	 */
-	printk(KERN_EMERG "Unexpected TM unavailable exception at %lx "
-	       "(msr %lx)\n",
-	       regs->nip, regs->msr);
+	if (value < ARRAY_SIZE(facility_strings))
+		facility = facility_strings[value];
+	else
+		facility = "unknown";
+
+	pr_err("%sFacility '%s' unavailable, exception at 0x%lx, MSR=%lx\n",
+		prefix, facility, regs->nip, regs->msr);
 
 	if (user_mode(regs)) {
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 		return;
 	}
 
-	die("Unexpected TM unavailable exception", regs, SIGABRT);
+	die("Unexpected facility unavailable exception", regs, SIGABRT);
 }
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -1357,8 +1435,7 @@ void performance_monitor_exception(struct pt_regs *regs)
 void SoftwareEmulation(struct pt_regs *regs)
 {
 	extern int do_mathemu(struct pt_regs *);
-	extern int Soft_emulate_8xx(struct pt_regs *);
-#if defined(CONFIG_MATH_EMULATION) || defined(CONFIG_8XX_MINIMAL_FPEMU)
+#if defined(CONFIG_MATH_EMULATION)
 	int errcode;
 #endif
 
@@ -1389,23 +1466,6 @@ void SoftwareEmulation(struct pt_regs *regs)
 		return;
 	default:
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-		return;
-	}
-
-#elif defined(CONFIG_8XX_MINIMAL_FPEMU)
-	errcode = Soft_emulate_8xx(regs);
-	if (errcode >= 0)
-		PPC_WARN_EMULATED(8xx, regs);
-
-	switch (errcode) {
-	case 0:
-		emulate_single_step(regs);
-		return;
-	case 1:
-		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-		return;
-	case -EFAULT:
-		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
 		return;
 	}
 #else
@@ -1757,8 +1817,6 @@ struct ppc_emulated ppc_emulated = {
 	WARN_EMULATED_SETUP(unaligned),
 #ifdef CONFIG_MATH_EMULATION
 	WARN_EMULATED_SETUP(math),
-#elif defined(CONFIG_8XX_MINIMAL_FPEMU)
-	WARN_EMULATED_SETUP(8xx),
 #endif
 #ifdef CONFIG_VSX
 	WARN_EMULATED_SETUP(vsx),

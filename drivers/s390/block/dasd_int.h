@@ -224,6 +224,8 @@ struct dasd_ccw_req {
 /* default expiration time*/
 #define DASD_EXPIRES	  300
 #define DASD_EXPIRES_MAX  40000000
+#define DASD_RETRIES	  256
+#define DASD_RETRIES_MAX  32768
 
 /* per dasd_ccw_req flags */
 #define DASD_CQR_FLAGS_USE_ERP   0	/* use ERP for this request */
@@ -466,6 +468,9 @@ struct dasd_device {
 
 	/* default expiration time in s */
 	unsigned long default_expires;
+	unsigned long default_retries;
+
+	unsigned long blk_timeout;
 
 	struct dentry *debugfs_dentry;
 	struct dasd_profile profile;
@@ -519,7 +524,10 @@ struct dasd_block {
 #define DASD_FLAG_SUSPENDED	9	/* The device was suspended */
 #define DASD_FLAG_SAFE_OFFLINE	10	/* safe offline processing requested*/
 #define DASD_FLAG_SAFE_OFFLINE_RUNNING	11	/* safe offline running */
+#define DASD_FLAG_ABORTALL	12	/* Abort all noretry requests */
 
+#define DASD_SLEEPON_START_TAG	((void *) 1)
+#define DASD_SLEEPON_END_TAG	((void *) 2)
 
 void dasd_put_device_wake(struct dasd_device *);
 
@@ -659,6 +667,8 @@ void dasd_free_device(struct dasd_device *);
 
 struct dasd_block *dasd_alloc_block(void);
 void dasd_free_block(struct dasd_block *);
+
+enum blk_eh_timer_return dasd_times_out(struct request *req);
 
 void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);

@@ -422,7 +422,7 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 err3:
 	/* mask all events - we don't care about the result */
 	(void) twl4030_kpwrite_u8(kp, 0xff, KEYP_IMR1);
-	free_irq(kp->irq, NULL);
+	free_irq(kp->irq, kp);
 err2:
 	input_unregister_device(input);
 	input = NULL;
@@ -438,7 +438,6 @@ static int twl4030_kp_remove(struct platform_device *pdev)
 
 	free_irq(kp->irq, kp);
 	input_unregister_device(kp->input);
-	platform_set_drvdata(pdev, NULL);
 	kfree(kp);
 
 	return 0;

@@ -154,11 +154,12 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
  * As above, but Transactional Memory is in use, so deliver sigcontexts
  * containing checkpointed and transactional register states.
  *
- * To do this, we treclaim to gather both sets of registers and set up the
- * 'normal' sigcontext registers with rolled-back register values such that a
- * simple signal handler sees a correct checkpointed register state.
- * If interested, a TM-aware sighandler can examine the transactional registers
- * in the 2nd sigcontext to determine the real origin of the signal.
+ * To do this, we treclaim (done before entering here) to gather both sets of
+ * registers and set up the 'normal' sigcontext registers with rolled-back
+ * register values such that a simple signal handler sees a correct
+ * checkpointed register state.  If interested, a TM-aware sighandler can
+ * examine the transactional registers in the 2nd sigcontext to determine the
+ * real origin of the signal.
  */
 static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 				 struct sigcontext __user *tm_sc,
@@ -183,16 +184,6 @@ static long setup_tm_sigcontexts(struct sigcontext __user *sc,
 	long err = 0;
 
 	BUG_ON(!MSR_TM_ACTIVE(regs->msr));
-
-	/* tm_reclaim rolls back all reg states, saving checkpointed (older)
-	 * GPRs to thread.ckpt_regs and (if used) FPRs to (newer)
-	 * thread.transact_fp and/or VRs to (newer) thread.transact_vr.
-	 * THEN we save out FP/VRs, if necessary, to the checkpointed (older)
-	 * thread.fr[]/vr[]s.  The transactional (newer) GPRs are on the
-	 * stack, in *regs.
-	 */
-	tm_enable();
-	tm_reclaim(&current->thread, msr, TM_CAUSE_SIGNAL);
 
 	flush_fp_to_thread(current);
 
@@ -419,6 +410,10 @@ static long restore_tm_sigcontexts(struct pt_regs *regs,
 
 	/* get MSR separately, transfer the LE bit if doing signal return */
 	err |= __get_user(msr, &sc->gp_regs[PT_MSR]);
+	/* pull in MSR TM from user context */
+	regs->msr = (regs->msr & ~MSR_TS_MASK) | (msr & MSR_TS_MASK);
+
+	/* pull in MSR LE from user context */
 	regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
 
 	/* The following non-GPR non-FPR non-VR state is also checkpointed: */
@@ -514,8 +509,6 @@ static long restore_tm_sigcontexts(struct pt_regs *regs,
 	tm_enable();
 	/* This loads the checkpointed FP/VEC state, if used */
 	tm_recheckpoint(&current->thread, msr);
-	/* The task has moved into TM state S, so ensure MSR reflects this: */
-	regs->msr = (regs->msr & ~MSR_TS_MASK) | __MASK(33);
 
 	/* This loads the speculative FP/VEC state, if used */
 	if (msr & MSR_FP) {
@@ -663,7 +656,7 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
 		goto badframe;
-	if (MSR_TM_SUSPENDED(msr)) {
+	if (MSR_TM_ACTIVE(msr)) {
 		/* We recheckpoint on return. */
 		struct ucontext __user *uc_transact;
 		if (__get_user(uc_transact, &uc->uc_link))
@@ -711,7 +704,7 @@ int handle_rt_signal64(int signr, struct k_sigaction *ka, siginfo_t *info,
 	unsigned long newsp = 0;
 	long err = 0;
 
-	frame = get_sigframe(ka, regs, sizeof(*frame), 0);
+	frame = get_sigframe(ka, get_tm_stackpointer(regs), sizeof(*frame), 0);
 	if (unlikely(frame == NULL))
 		goto badframe;
 

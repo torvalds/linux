@@ -90,17 +90,11 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 		.name		= "HiFi Tx",
 		.stream_name	= "HiFi Playback",
 		.codec_dai_name	= "sgtl5000",
-		.codec_name	= "sgtl5000.0-000a",
-		.cpu_dai_name	= "mxs-saif.0",
-		.platform_name	= "mxs-saif.0",
 		.ops		= &mxs_sgtl5000_hifi_ops,
 	}, {
 		.name		= "HiFi Rx",
 		.stream_name	= "HiFi Capture",
 		.codec_dai_name	= "sgtl5000",
-		.codec_name	= "sgtl5000.0-000a",
-		.cpu_dai_name	= "mxs-saif.1",
-		.platform_name	= "mxs-saif.1",
 		.ops		= &mxs_sgtl5000_hifi_ops,
 	},
 };
@@ -116,7 +110,7 @@ static int mxs_sgtl5000_probe_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *saif_np[2], *codec_np;
-	int i, ret = 0;
+	int i;
 
 	if (!np)
 		return 1; /* no device tree */
@@ -142,7 +136,7 @@ static int mxs_sgtl5000_probe_dt(struct platform_device *pdev)
 	of_node_put(saif_np[0]);
 	of_node_put(saif_np[1]);
 
-	return ret;
+	return 0;
 }
 
 static int mxs_sgtl5000_probe(struct platform_device *pdev)

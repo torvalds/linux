@@ -22,8 +22,7 @@ config ARCH_CLEP7312
 
 config ARCH_EDB7211
 	bool "EDB7211"
-	select ARCH_SELECT_MEMORY_MODEL
-	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  Say Y here if you intend to run this kernel on a Cirrus Logic EDB-7211
 	  evaluation board.

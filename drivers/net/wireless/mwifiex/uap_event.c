@@ -107,18 +107,15 @@ mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
  */
 static void mwifiex_del_sta_entry(struct mwifiex_private *priv, u8 *mac)
 {
-	struct mwifiex_sta_node *node, *tmp;
+	struct mwifiex_sta_node *node;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 
 	node = mwifiex_get_sta_entry(priv, mac);
 	if (node) {
-		list_for_each_entry_safe(node, tmp, &priv->sta_list,
-					 list) {
-			list_del(&node->list);
-			kfree(node);
-		}
+		list_del(&node->list);
+		kfree(node);
 	}
 
 	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
@@ -294,4 +291,20 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 	}
 
 	return 0;
+}
+
+/* This function deletes station entry from associated station list.
+ * Also if both AP and STA are 11n enabled, RxReorder tables and TxBA stream
+ * tables created for this station are deleted.
+ */
+void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
+			      struct mwifiex_sta_node *node)
+{
+	if (priv->ap_11n_enabled && node->is_11n_enabled) {
+		mwifiex_11n_del_rx_reorder_tbl_by_ta(priv, node->mac_addr);
+		mwifiex_del_tx_ba_stream_tbl_by_ra(priv, node->mac_addr);
+	}
+	mwifiex_del_sta_entry(priv, node->mac_addr);
+
+	return;
 }

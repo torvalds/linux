@@ -41,6 +41,7 @@ finish_urb(struct ohci_hcd *ohci, struct urb *urb, int status)
 __releases(ohci->lock)
 __acquires(ohci->lock)
 {
+	 struct device *dev = ohci_to_hcd(ohci)->self.controller;
 	// ASSERT (urb->hcpriv != 0);
 
 	urb_free_priv (ohci, urb->hcpriv);
@@ -55,7 +56,7 @@ __acquires(ohci->lock)
 			if (quirk_amdiso(ohci))
 				usb_amd_quirk_pll_enable();
 			if (quirk_amdprefetch(ohci))
-				sb800_prefetch(ohci, 0);
+				sb800_prefetch(dev, 0);
 		}
 		break;
 	case PIPE_INTERRUPT:
@@ -580,6 +581,7 @@ static void td_submit_urb (
 	struct urb	*urb
 ) {
 	struct urb_priv	*urb_priv = urb->hcpriv;
+	struct device *dev = ohci_to_hcd(ohci)->self.controller;
 	dma_addr_t	data;
 	int		data_len = urb->transfer_buffer_length;
 	int		cnt = 0;
@@ -689,7 +691,7 @@ static void td_submit_urb (
 			if (quirk_amdiso(ohci))
 				usb_amd_quirk_pll_disable();
 			if (quirk_amdprefetch(ohci))
-				sb800_prefetch(ohci, 1);
+				sb800_prefetch(dev, 1);
 		}
 		periodic = ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs++ == 0
 			&& ohci_to_hcd(ohci)->self.bandwidth_int_reqs == 0;

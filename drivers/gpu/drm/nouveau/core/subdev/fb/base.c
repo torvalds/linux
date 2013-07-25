@@ -57,7 +57,57 @@ nouveau_fb_bios_memtype(struct nouveau_bios *bios)
 }
 
 int
-nouveau_fb_preinit(struct nouveau_fb *pfb)
+_nouveau_fb_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nouveau_fb *pfb = (void *)object;
+	int ret;
+
+	ret = nv_ofuncs(pfb->ram)->fini(nv_object(pfb->ram), suspend);
+	if (ret && suspend)
+		return ret;
+
+	return nouveau_subdev_fini(&pfb->base, suspend);
+}
+
+int
+_nouveau_fb_init(struct nouveau_object *object)
+{
+	struct nouveau_fb *pfb = (void *)object;
+	int ret, i;
+
+	ret = nouveau_subdev_init(&pfb->base);
+	if (ret)
+		return ret;
+
+	ret = nv_ofuncs(pfb->ram)->init(nv_object(pfb->ram));
+	if (ret)
+		return ret;
+
+	for (i = 0; i < pfb->tile.regions; i++)
+		pfb->tile.prog(pfb, i, &pfb->tile.region[i]);
+
+	return 0;
+}
+
+void
+_nouveau_fb_dtor(struct nouveau_object *object)
+{
+	struct nouveau_fb *pfb = (void *)object;
+	int i;
+
+	for (i = 0; i < pfb->tile.regions; i++)
+		pfb->tile.fini(pfb, i, &pfb->tile.region[i]);
+	nouveau_mm_fini(&pfb->tags);
+	nouveau_mm_fini(&pfb->vram);
+
+	nouveau_object_ref(NULL, (struct nouveau_object **)&pfb->ram);
+	nouveau_subdev_destroy(&pfb->base);
+}
+
+int
+nouveau_fb_create_(struct nouveau_object *parent, struct nouveau_object *engine,
+		   struct nouveau_oclass *oclass, struct nouveau_oclass *ramcls,
+		   int length, void **pobject)
 {
 	static const char *name[] = {
 		[NV_MEM_TYPE_UNKNOWN] = "unknown",
@@ -72,69 +122,42 @@ nouveau_fb_preinit(struct nouveau_fb *pfb)
 		[NV_MEM_TYPE_GDDR4  ] = "GDDR4",
 		[NV_MEM_TYPE_GDDR5  ] = "GDDR5",
 	};
-	int ret, tags;
+	struct nouveau_object *ram;
+	struct nouveau_fb *pfb;
+	int ret;
 
-	tags = pfb->ram.init(pfb);
-	if (tags < 0 || !pfb->ram.size) {
+	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "PFB", "fb",
+				     length, pobject);
+	pfb = *pobject;
+	if (ret)
+		return ret;
+
+	ret = nouveau_object_ctor(nv_object(pfb), nv_object(pfb),
+				  ramcls, NULL, 0, &ram);
+	if (ret) {
 		nv_fatal(pfb, "error detecting memory configuration!!\n");
-		return (tags < 0) ? tags : -ERANGE;
+		return ret;
 	}
 
+	atomic_dec(&ram->parent->refcount);
+	atomic_dec(&ram->engine->refcount);
+	pfb->ram = (void *)ram;
+
 	if (!nouveau_mm_initialised(&pfb->vram)) {
-		ret = nouveau_mm_init(&pfb->vram, 0, pfb->ram.size >> 12, 1);
+		ret = nouveau_mm_init(&pfb->vram, 0, pfb->ram->size >> 12, 1);
 		if (ret)
 			return ret;
 	}
 
 	if (!nouveau_mm_initialised(&pfb->tags)) {
-		ret = nouveau_mm_init(&pfb->tags, 0, tags ? ++tags : 0, 1);
+		ret = nouveau_mm_init(&pfb->tags, 0, pfb->ram->tags ?
+				     ++pfb->ram->tags : 0, 1);
 		if (ret)
 			return ret;
 	}
 
-	nv_info(pfb, "RAM type: %s\n", name[pfb->ram.type]);
-	nv_info(pfb, "RAM size: %d MiB\n", (int)(pfb->ram.size >> 20));
-	nv_info(pfb, "   ZCOMP: %d tags\n", tags);
+	nv_info(pfb, "RAM type: %s\n", name[pfb->ram->type]);
+	nv_info(pfb, "RAM size: %d MiB\n", (int)(pfb->ram->size >> 20));
+	nv_info(pfb, "   ZCOMP: %d tags\n", pfb->ram->tags);
 	return 0;
-}
-
-void
-nouveau_fb_destroy(struct nouveau_fb *pfb)
-{
-	int i;
-
-	for (i = 0; i < pfb->tile.regions; i++)
-		pfb->tile.fini(pfb, i, &pfb->tile.region[i]);
-	nouveau_mm_fini(&pfb->tags);
-	nouveau_mm_fini(&pfb->vram);
-
-	nouveau_subdev_destroy(&pfb->base);
-}
-
-void
-_nouveau_fb_dtor(struct nouveau_object *object)
-{
-	struct nouveau_fb *pfb = (void *)object;
-	nouveau_fb_destroy(pfb);
-}
-int
-nouveau_fb_init(struct nouveau_fb *pfb)
-{
-	int ret, i;
-
-	ret = nouveau_subdev_init(&pfb->base);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < pfb->tile.regions; i++)
-		pfb->tile.prog(pfb, i, &pfb->tile.region[i]);
-
-	return 0;
-}
-
-int
-_nouveau_fb_init(struct nouveau_object *object)
-{
-	struct nouveau_fb *pfb = (void *)object;
-	return nouveau_fb_init(pfb);
 }

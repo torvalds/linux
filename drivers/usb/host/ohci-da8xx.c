@@ -401,7 +401,6 @@ static int ohci_hcd_da8xx_drv_remove(struct platform_device *dev)
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 
 	usb_hcd_da8xx_remove(hcd, dev);
-	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }

@@ -316,11 +316,13 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info);
 int btrfs_pause_balance(struct btrfs_fs_info *fs_info);
 int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
-int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
+int find_free_dev_extent(struct btrfs_trans_handle *trans,
+			 struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
 int btrfs_get_dev_stats(struct btrfs_root *root,
 			struct btrfs_ioctl_get_dev_stats *stats);
+void btrfs_init_devices_late(struct btrfs_fs_info *fs_info);
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
@@ -336,6 +338,9 @@ int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
 unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
 				    struct btrfs_mapping_tree *map_tree,
 				    u64 logical);
+int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
+				struct btrfs_root *extent_root,
+				u64 chunk_offset, u64 chunk_size);
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
 				      int index)
 {

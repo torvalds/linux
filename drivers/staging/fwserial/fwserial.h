@@ -356,8 +356,6 @@ static const char loop_dev_name[] = "fwloop";
 
 extern struct tty_driver *fwtty_driver;
 
-#define driver_err(s, v...)	pr_err(KBUILD_MODNAME ": " s, ##v)
-
 struct fwtty_port *fwtty_port_get(unsigned index);
 void fwtty_port_put(struct fwtty_port *port);
 

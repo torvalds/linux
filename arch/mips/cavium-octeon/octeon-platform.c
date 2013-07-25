@@ -334,9 +334,10 @@ static void __init octeon_fdt_pip_iface(int pip, int idx, u64 *pmac)
 	char name_buffer[20];
 	int iface;
 	int p;
-	int count;
+	int count = 0;
 
-	count = cvmx_helper_interface_enumerate(idx);
+	if (cvmx_helper_interface_enumerate(idx) == 0)
+		count = cvmx_helper_ports_on_interface(idx);
 
 	snprintf(name_buffer, sizeof(name_buffer), "interface@%d", idx);
 	iface = fdt_subnode_offset(initial_boot_params, pip, name_buffer);
@@ -490,8 +491,15 @@ int __init octeon_prune_device_tree(void)
 
 		if (alias_prop) {
 			uart = fdt_path_offset(initial_boot_params, alias_prop);
-			if (uart_mask & (1 << i))
+			if (uart_mask & (1 << i)) {
+				__be32 f;
+
+				f = cpu_to_be32(octeon_get_io_clock_rate());
+				fdt_setprop_inplace(initial_boot_params,
+						    uart, "clock-frequency",
+						    &f, sizeof(f));
 				continue;
+			}
 			pr_debug("Deleting uart%d\n", i);
 			fdt_nop_node(initial_boot_params, uart);
 			fdt_nop_property(initial_boot_params, aliases,

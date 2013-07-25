@@ -178,7 +178,6 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 
 		switch (internal_object->reference.class) {
 		case ACPI_REFCLASS_NAME:
-
 			/*
 			 * For namepath, return the object handle ("reference")
 			 * We are referring to the namespace node
@@ -264,7 +263,6 @@ acpi_ut_copy_ielement_to_eelement(u8 object_type,
 
 	switch (object_type) {
 	case ACPI_COPY_TYPE_SIMPLE:
-
 		/*
 		 * This is a simple or null object
 		 */
@@ -278,7 +276,6 @@ acpi_ut_copy_ielement_to_eelement(u8 object_type,
 		break;
 
 	case ACPI_COPY_TYPE_PACKAGE:
-
 		/*
 		 * Build the package object
 		 */
@@ -304,6 +301,7 @@ acpi_ut_copy_ielement_to_eelement(u8 object_type,
 		break;
 
 	default:
+
 		return (AE_BAD_PARAMETER);
 	}
 
@@ -481,6 +479,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 		return_ACPI_STATUS(AE_OK);
 
 	default:
+
 		/* All other types are not supported */
 
 		ACPI_ERROR((AE_INFO,
@@ -544,7 +543,9 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 		break;
 
 	default:
+
 		/* Other types can't get here */
+
 		break;
 	}
 
@@ -800,7 +801,9 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		break;
 
 	default:
+
 		/* Nothing to do for other simple objects */
+
 		break;
 	}
 
@@ -868,7 +871,6 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 		break;
 
 	case ACPI_COPY_TYPE_PACKAGE:
-
 		/*
 		 * This object is a package - go down another nesting level
 		 * Create and build the package object
@@ -891,6 +893,7 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 		break;
 
 	default:
+
 		return (AE_BAD_PARAMETER);
 	}
 

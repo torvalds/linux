@@ -133,7 +133,6 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 		return -ENODEV;
 	}
 
-	pci_set_power_state(pci, PCI_D0);
 	pci_set_master(pci);
 
 	ret = dwc3_pci_register_phys(glue);
@@ -196,9 +195,9 @@ static void dwc3_pci_remove(struct pci_dev *pci)
 {
 	struct dwc3_pci	*glue = pci_get_drvdata(pci);
 
+	platform_device_unregister(glue->dwc3);
 	platform_device_unregister(glue->usb2_phy);
 	platform_device_unregister(glue->usb3_phy);
-	platform_device_unregister(glue->dwc3);
 	pci_set_drvdata(pci, NULL);
 	pci_disable_device(pci);
 }

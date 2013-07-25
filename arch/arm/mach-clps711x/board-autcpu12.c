@@ -26,6 +26,8 @@
 #include <linux/gpio.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/plat-ram.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand-gpio.h>
 #include <linux/platform_device.h>
@@ -40,36 +42,47 @@
 #include <asm/page.h>
 
 #include <asm/mach/map.h>
-#include <mach/autcpu12.h>
 
 #include "common.h"
+#include "devices.h"
 
-#define AUTCPU12_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
-#define AUTCPU12_CS8900_IRQ	(IRQ_EINT3)
+/* NOR flash */
+#define AUTCPU12_FLASH_BASE	(CS0_PHYS_BASE)
 
+/* Board specific hardware definitions */
+#define AUTCPU12_CHAR_LCD_BASE	(CS1_PHYS_BASE + 0x00000000)
+#define AUTCPU12_CSAUX1_BASE	(CS1_PHYS_BASE + 0x04000000)
+#define AUTCPU12_CAN_BASE	(CS1_PHYS_BASE + 0x08000000)
+#define AUTCPU12_TOUCH_BASE	(CS1_PHYS_BASE + 0x0a000000)
+#define AUTCPU12_IO_BASE	(CS1_PHYS_BASE + 0x0c000000)
+#define AUTCPU12_LPT_BASE	(CS1_PHYS_BASE + 0x0e000000)
+
+/* NVRAM */
+#define AUTCPU12_NVRAM_BASE	(CS1_PHYS_BASE + 0x02000000)
+
+/* SmartMedia flash */
 #define AUTCPU12_SMC_BASE	(CS1_PHYS_BASE + 0x06000000)
 #define AUTCPU12_SMC_SEL_BASE	(AUTCPU12_SMC_BASE + 0x10)
 
+/* Ethernet */
+#define AUTCPU12_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
+#define AUTCPU12_CS8900_IRQ	(IRQ_EINT3)
+
+/* NAND flash */
 #define AUTCPU12_MMGPIO_BASE	(CLPS711X_NR_GPIO)
 #define AUTCPU12_SMC_NCE	(AUTCPU12_MMGPIO_BASE + 0) /* Bit 0 */
 #define AUTCPU12_SMC_RDY	CLPS711X_GPIO(1, 2)
 #define AUTCPU12_SMC_ALE	CLPS711X_GPIO(1, 3)
 #define AUTCPU12_SMC_CLE	CLPS711X_GPIO(1, 3)
 
+/* LCD contrast digital potentiometer */
+#define AUTCPU12_DPOT_CS	CLPS711X_GPIO(4, 0)
+#define AUTCPU12_DPOT_CLK	CLPS711X_GPIO(4, 1)
+#define AUTCPU12_DPOT_UD	CLPS711X_GPIO(4, 2)
+
 static struct resource autcpu12_cs8900_resource[] __initdata = {
 	DEFINE_RES_MEM(AUTCPU12_CS8900_BASE, SZ_1K),
 	DEFINE_RES_IRQ(AUTCPU12_CS8900_IRQ),
-};
-
-static struct resource autcpu12_nvram_resource[] __initdata = {
-	DEFINE_RES_MEM_NAMED(AUTCPU12_PHYS_NVRAM, SZ_128K, "SRAM"),
-};
-
-static struct platform_device autcpu12_nvram_pdev __initdata = {
-	.name		= "autcpu12_nvram",
-	.id		= -1,
-	.resource	= autcpu12_nvram_resource,
-	.num_resources	= ARRAY_SIZE(autcpu12_nvram_resource),
 };
 
 static struct resource autcpu12_nand_resource[] __initdata = {
@@ -147,17 +160,106 @@ static struct platform_device autcpu12_mmgpio_pdev __initdata = {
 	},
 };
 
+static const struct gpio autcpu12_gpios[] __initconst = {
+	{ AUTCPU12_DPOT_CS,	GPIOF_OUT_INIT_HIGH,	"DPOT CS" },
+	{ AUTCPU12_DPOT_CLK,	GPIOF_OUT_INIT_LOW,	"DPOT CLK" },
+	{ AUTCPU12_DPOT_UD,	GPIOF_OUT_INIT_LOW,	"DPOT UD" },
+};
+
+static struct mtd_partition autcpu12_flash_partitions[] = {
+	{
+		.name	= "NOR.0",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data autcpu12_flash_pdata = {
+	.width		= 4,
+	.parts		= autcpu12_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(autcpu12_flash_partitions),
+};
+
+static struct resource autcpu12_flash_resources[] __initdata = {
+	DEFINE_RES_MEM(AUTCPU12_FLASH_BASE, SZ_8M),
+};
+
+static struct platform_device autcpu12_flash_pdev __initdata = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.resource	= autcpu12_flash_resources,
+	.num_resources	= ARRAY_SIZE(autcpu12_flash_resources),
+	.dev		= {
+		.platform_data	= &autcpu12_flash_pdata,
+	},
+};
+
+static struct resource autcpu12_nvram_resource[] __initdata = {
+	DEFINE_RES_MEM(AUTCPU12_NVRAM_BASE, 0),
+};
+
+static struct platdata_mtd_ram autcpu12_nvram_pdata = {
+	.bankwidth	= 4,
+};
+
+static struct platform_device autcpu12_nvram_pdev __initdata = {
+	.name		= "mtd-ram",
+	.id		= 0,
+	.resource	= autcpu12_nvram_resource,
+	.num_resources	= ARRAY_SIZE(autcpu12_nvram_resource),
+	.dev		= {
+		.platform_data	= &autcpu12_nvram_pdata,
+	},
+};
+
+static void __init autcpu12_nvram_init(void)
+{
+	void __iomem *nvram;
+	unsigned int save[2];
+	resource_size_t nvram_size = SZ_128K;
+
+	/*
+	 * Check for 32K/128K
+	 * Read ofs 0K
+	 * Read ofs 64K
+	 * Write complement to ofs 64K
+	 * Read and check result on ofs 0K
+	 * Restore contents
+	 */
+	nvram = ioremap(autcpu12_nvram_resource[0].start, SZ_128K);
+	if (nvram) {
+		save[0] = readl(nvram + 0);
+		save[1] = readl(nvram + SZ_64K);
+		writel(~save[0], nvram + SZ_64K);
+		if (readl(nvram + 0) != save[0]) {
+			writel(save[0], nvram + 0);
+			nvram_size = SZ_32K;
+		} else
+			writel(save[1], nvram + SZ_64K);
+		iounmap(nvram);
+
+		autcpu12_nvram_resource[0].end =
+			autcpu12_nvram_resource[0].start + nvram_size - 1;
+		platform_device_register(&autcpu12_nvram_pdev);
+	} else
+		pr_err("Failed to remap NVRAM resource\n");
+}
+
 static void __init autcpu12_init(void)
 {
+	clps711x_devices_init();
+	platform_device_register(&autcpu12_flash_pdev);
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, autcpu12_cs8900_resource,
 					ARRAY_SIZE(autcpu12_cs8900_resource));
 	platform_device_register(&autcpu12_mmgpio_pdev);
-	platform_device_register(&autcpu12_nvram_pdev);
+	autcpu12_nvram_init();
 }
 
 static void __init autcpu12_init_late(void)
 {
+	gpio_request_array(autcpu12_gpios, ARRAY_SIZE(autcpu12_gpios));
+
 	if (IS_ENABLED(MTD_NAND_GPIO) && IS_ENABLED(GPIO_GENERIC_PLATFORM)) {
 		/* We are need both drivers to handle NAND */
 		platform_device_register(&autcpu12_nand_pdev);
@@ -169,6 +271,7 @@ MACHINE_START(AUTCPU12, "autronix autcpu12")
 	.atag_offset	= 0x20000,
 	.nr_irqs	= CLPS711X_NR_IRQS,
 	.map_io		= clps711x_map_io,
+	.init_early	= clps711x_init_early,
 	.init_irq	= clps711x_init_irq,
 	.init_time	= clps711x_timer_init,
 	.init_machine	= autcpu12_init,

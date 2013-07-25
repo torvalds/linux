@@ -23,6 +23,11 @@
 #define CR_RR	(1 << 14)	/* Round Robin cache replacement	*/
 #define CR_L4	(1 << 15)	/* LDR pc can set T bit			*/
 #define CR_DT	(1 << 16)
+#ifdef CONFIG_MMU
+#define CR_HA	(1 << 17)	/* Hardware management of Access Flag   */
+#else
+#define CR_BR	(1 << 17)	/* MPU Background region enable (PMSA)  */
+#endif
 #define CR_IT	(1 << 18)
 #define CR_ST	(1 << 19)
 #define CR_FI	(1 << 21)	/* Fast interrupt (lower latency mode)	*/
@@ -58,6 +63,20 @@ static inline void set_cr(unsigned int val)
 {
 	asm volatile("mcr p15, 0, %0, c1, c0, 0	@ set CR"
 	  : : "r" (val) : "cc");
+	isb();
+}
+
+static inline unsigned int get_auxcr(void)
+{
+	unsigned int val;
+	asm("mrc p15, 0, %0, c1, c0, 1	@ get AUXCR" : "=r" (val));
+	return val;
+}
+
+static inline void set_auxcr(unsigned int val)
+{
+	asm volatile("mcr p15, 0, %0, c1, c0, 1	@ set AUXCR"
+	  : : "r" (val));
 	isb();
 }
 

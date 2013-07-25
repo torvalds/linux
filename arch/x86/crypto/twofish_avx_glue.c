@@ -50,26 +50,18 @@
 /* 8-way parallel cipher functions */
 asmlinkage void twofish_ecb_enc_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_ecb_enc_8way);
-
 asmlinkage void twofish_ecb_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_ecb_dec_8way);
 
 asmlinkage void twofish_cbc_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_cbc_dec_8way);
-
 asmlinkage void twofish_ctr_8way(struct twofish_ctx *ctx, u8 *dst,
 				 const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_ctr_8way);
 
 asmlinkage void twofish_xts_enc_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_xts_enc_8way);
 asmlinkage void twofish_xts_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_xts_dec_8way);
 
 static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 					const u8 *src)
@@ -77,19 +69,17 @@ static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 	__twofish_enc_blk_3way(ctx, dst, src, false);
 }
 
-void twofish_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+static void twofish_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
 	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
 				  GLUE_FUNC_CAST(twofish_enc_blk));
 }
-EXPORT_SYMBOL_GPL(twofish_xts_enc);
 
-void twofish_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+static void twofish_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
 	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
 				  GLUE_FUNC_CAST(twofish_dec_blk));
 }
-EXPORT_SYMBOL_GPL(twofish_xts_dec);
 
 
 static const struct common_glue_ctx twofish_enc = {

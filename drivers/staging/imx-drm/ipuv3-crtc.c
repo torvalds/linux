@@ -22,7 +22,6 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <drm/drmP.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/fb.h>
 #include <linux/clk.h>
@@ -42,9 +41,6 @@ struct ipu_framebuffer {
 };
 
 struct ipu_crtc {
-	struct drm_fb_helper	fb_helper;
-	struct ipu_framebuffer	ifb;
-	int			num_crtcs;
 	struct device		*dev;
 	struct drm_crtc		base;
 	struct imx_drm_crtc	*imx_crtc;
@@ -54,7 +50,6 @@ struct ipu_crtc {
 	struct dmfc_channel	*dmfc;
 	struct ipu_di		*di;
 	int			enabled;
-	struct ipu_priv		*ipu_priv;
 	struct drm_pending_vblank_event *page_flip_event;
 	struct drm_framebuffer	*newfb;
 	int			irq;
@@ -152,6 +147,7 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 
 	ipu_crtc->newfb = fb;
 	ipu_crtc->page_flip_event = event;
+	crtc->fb = fb;
 
 	return 0;
 }
@@ -316,31 +312,14 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 static void ipu_crtc_handle_pageflip(struct ipu_crtc *ipu_crtc)
 {
-	struct drm_pending_vblank_event *e;
-	struct timeval now;
 	unsigned long flags;
 	struct drm_device *drm = ipu_crtc->base.dev;
 
 	spin_lock_irqsave(&drm->event_lock, flags);
-
-	e = ipu_crtc->page_flip_event;
-	if (!e) {
-		spin_unlock_irqrestore(&drm->event_lock, flags);
-		return;
-	}
-
-	do_gettimeofday(&now);
-	e->event.sequence = 0;
-	e->event.tv_sec = now.tv_sec;
-	e->event.tv_usec = now.tv_usec;
+	if (ipu_crtc->page_flip_event)
+		drm_send_vblank_event(drm, -1, ipu_crtc->page_flip_event);
 	ipu_crtc->page_flip_event = NULL;
-
 	imx_drm_crtc_vblank_put(ipu_crtc->imx_crtc);
-
-	list_add_tail(&e->base.link, &e->base.file_priv->event_list);
-
-	wake_up_interruptible(&e->base.file_priv->event_wait);
-
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
@@ -351,7 +330,6 @@ static irqreturn_t ipu_irq_handler(int irq, void *dev_id)
 	imx_drm_handle_vblank(ipu_crtc->imx_crtc);
 
 	if (ipu_crtc->newfb) {
-		ipu_crtc->base.fb = ipu_crtc->newfb;
 		ipu_crtc->newfb = NULL;
 		ipu_drm_set_base(&ipu_crtc->base, 0, 0);
 		ipu_crtc_handle_pageflip(ipu_crtc);
@@ -381,17 +359,12 @@ static void ipu_crtc_commit(struct drm_crtc *crtc)
 	ipu_fb_enable(ipu_crtc);
 }
 
-static void ipu_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.dpms = ipu_crtc_dpms,
 	.mode_fixup = ipu_crtc_mode_fixup,
 	.mode_set = ipu_crtc_mode_set,
 	.prepare = ipu_crtc_prepare,
 	.commit = ipu_crtc_commit,
-	.load_lut = ipu_crtc_load_lut,
 };
 
 static int ipu_enable_vblank(struct drm_crtc *crtc)

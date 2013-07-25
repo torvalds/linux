@@ -7,10 +7,15 @@ on-chip controllers onto these pads.
 
 Required Properties:
 - compatible: should be one of the following.
+  - "samsung,s3c2412-pinctrl": for S3C2412-compatible pin-controller,
+  - "samsung,s3c2416-pinctrl": for S3C2416-compatible pin-controller,
+  - "samsung,s3c2440-pinctrl": for S3C2440-compatible pin-controller,
+  - "samsung,s3c2450-pinctrl": for S3C2450-compatible pin-controller,
   - "samsung,s3c64xx-pinctrl": for S3C64xx-compatible pin-controller,
   - "samsung,exynos4210-pinctrl": for Exynos4210 compatible pin-controller.
   - "samsung,exynos4x12-pinctrl": for Exynos4x12 compatible pin-controller.
   - "samsung,exynos5250-pinctrl": for Exynos5250 compatible pin-controller.
+  - "samsung,exynos5420-pinctrl": for Exynos5420 compatible pin-controller.
 
 - reg: Base address of the pin controller hardware module and length of
   the address space it occupies.
@@ -21,8 +26,18 @@ Required Properties:
 
   - gpio-controller: identifies the node as a gpio controller and pin bank.
   - #gpio-cells: number of cells in GPIO specifier. Since the generic GPIO
-    binding is used, the amount of cells must be specified as 2. See generic
-    GPIO binding documentation for description of particular cells.
+    binding is used, the amount of cells must be specified as 2. See the below
+    mentioned gpio binding representation for description of particular cells.
+
+	Eg: <&gpx2 6 0>
+	<[phandle of the gpio controller node]
+	[pin number within the gpio controller]
+	[flags]>
+
+	Values for gpio specifier:
+	- Pin number: is a value between 0 to 7.
+	- Flags: 0 - Active High
+		 1 - Active Low
 
 - Pin mux/config groups as child nodes: The pin mux (selecting pin function
   mode) and pin config (pull up/down, driver strength) settings are represented
@@ -106,6 +121,10 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
 
    - compatible: identifies the type of the external wakeup interrupt controller
      The possible values are:
+     - samsung,s3c2410-wakeup-eint: represents wakeup interrupt controller
+       found on Samsung S3C24xx SoCs except S3C2412 and S3C2413,
+     - samsung,s3c2412-wakeup-eint: represents wakeup interrupt controller
+       found on Samsung S3C2412 and S3C2413 SoCs,
      - samsung,s3c64xx-wakeup-eint: represents wakeup interrupt controller
        found on Samsung S3C64xx SoCs,
      - samsung,exynos4210-wakeup-eint: represents wakeup interrupt controller
@@ -265,4 +284,34 @@ Example 4: Set up the default pin state for uart controller.
 		/* ... */
 
 		pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	}
+
+Example 5: A display port client node that supports 'default' pinctrl state
+	   and gpio binding.
+
+	display-port-controller {
+		/* ... */
+
+		samsung,hpd-gpio = <&gpx2 6 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dp_hpd>;
+	};
+
+Example 6: Request the gpio for display port controller
+
+	static int exynos_dp_probe(struct platform_device *pdev)
+	{
+		int hpd_gpio, ret;
+		struct device *dev = &pdev->dev;
+		struct device_node *dp_node = dev->of_node;
+
+		/* ... */
+
+		hpd_gpio = of_get_named_gpio(dp_node, "samsung,hpd-gpio", 0);
+
+		/* ... */
+
+		ret = devm_gpio_request_one(&pdev->dev, hpd_gpio, GPIOF_IN,
+					    "hpd_gpio");
+		/* ... */
 	}

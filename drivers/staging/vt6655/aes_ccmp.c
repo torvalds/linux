@@ -205,7 +205,7 @@ void AESv128(unsigned char *key, unsigned char *data, unsigned char *ciphertext)
 			SubBytes(ciphertext, TmpdataA);
 			ShiftRows(TmpdataA, TmpdataB);
 			xor_128(TmpdataB, abyRoundKey, ciphertext);
-		} else // round 1 ~ 9
+		} else /* round 1 ~ 9 */
 		{
 			SubBytes(ciphertext, TmpdataA);
 			ShiftRows(TmpdataA, TmpdataB);
@@ -249,7 +249,7 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	unsigned char *pbyIV;
 	unsigned char *pbyPayload;
 	unsigned short wHLen = 22;
-	unsigned short wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;//8 is IV, 8 is MIC, 4 is CRC
+	unsigned short wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;/* 8 is IV, 8 is MIC, 4 is CRC */
 	bool bA4 = false;
 	unsigned char byTmp;
 	unsigned short wCnt;
@@ -259,13 +259,13 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	if (WLAN_GET_FC_TODS(*(unsigned short *)pbyFrame) &&
 	    WLAN_GET_FC_FROMDS(*(unsigned short *)pbyFrame)) {
 		bA4 = true;
-		pbyIV += 6;             // 6 is 802.11 address4
+		pbyIV += 6;             /* 6 is 802.11 address4 */
 		wHLen += 6;
 		wPayloadSize -= 6;
 	}
-	pbyPayload = pbyIV + 8; //IV-length
+	pbyPayload = pbyIV + 8; /* IV-length */
 
-	abyNonce[0]  = 0x00; //now is 0, if Qos here will be priority
+	abyNonce[0]  = 0x00; /* now is 0, if Qos here will be priority */
 	memcpy(&(abyNonce[1]), pMACHeader->abyAddr2, ETH_ALEN);
 	abyNonce[7]  = pbyIV[7];
 	abyNonce[8]  = pbyIV[6];
@@ -274,13 +274,13 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	abyNonce[11] = pbyIV[1];
 	abyNonce[12] = pbyIV[0];
 
-	//MIC_IV
+	/* MIC_IV */
 	MIC_IV[0] = 0x59;
 	memcpy(&(MIC_IV[1]), &(abyNonce[0]), 13);
 	MIC_IV[14] = (unsigned char)(wPayloadSize >> 8);
 	MIC_IV[15] = (unsigned char)(wPayloadSize & 0xff);
 
-	//MIC_HDR1
+	/* MIC_HDR1 */
 	MIC_HDR1[0] = (unsigned char)(wHLen >> 8);
 	MIC_HDR1[1] = (unsigned char)(wHLen & 0xff);
 	byTmp = (unsigned char)(pMACHeader->wFrameCtl & 0xff);
@@ -291,7 +291,7 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	memcpy(&(MIC_HDR1[4]), pMACHeader->abyAddr1, ETH_ALEN);
 	memcpy(&(MIC_HDR1[10]), pMACHeader->abyAddr2, ETH_ALEN);
 
-	//MIC_HDR2
+	/* MIC_HDR2 */
 	memcpy(&(MIC_HDR2[0]), pMACHeader->abyAddr3, ETH_ALEN);
 	byTmp = (unsigned char)(pMACHeader->wSeqCtl & 0xff);
 	MIC_HDR2[6] = byTmp & 0x0f;
@@ -309,7 +309,7 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	MIC_HDR2[14] = 0x00;
 	MIC_HDR2[15] = 0x00;
 
-	//CCMP
+	/* CCMP */
 	AESv128(pbyRxKey, MIC_IV, abyMIC);
 	for (kk = 0; kk < 16; kk++) {
 		abyTmp[kk] = MIC_HDR1[kk] ^ abyMIC[kk];
@@ -341,9 +341,9 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 		memcpy(pbyPayload, abyPlainText, 16);
 		wCnt++;
 		pbyPayload += 16;
-	} //for wPayloadSize
+	} /* for wPayloadSize */
 
-	//last payload
+	/* last payload */
 	memcpy(&(abyLastCipher[0]), pbyPayload, jj);
 	for (ii = jj; ii < 16; ii++) {
 		abyLastCipher[ii] = 0x00;
@@ -359,7 +359,7 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	memcpy(pbyPayload, abyPlainText, jj);
 	pbyPayload += jj;
 
-	//for MIC calculation
+	/* for MIC calculation */
 	for (ii = jj; ii < 16; ii++) {
 		abyPlainText[ii] = 0x00;
 	}
@@ -368,8 +368,8 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	}
 	AESv128(pbyRxKey, abyTmp, abyMIC);
 
-	//=>above is the calculate MIC
-	//--------------------------------------------
+	/* =>above is the calculate MIC */
+	/* -------------------------------------------- */
 
 	wCnt = 0;
 	abyCTRPLD[14] = (unsigned char)(wCnt >> 8);
@@ -378,12 +378,11 @@ bool AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned shor
 	for (kk = 0; kk < 8; kk++) {
 		abyTmp[kk] = abyTmp[kk] ^ pbyPayload[kk];
 	}
-	//=>above is the dec-MIC from packet
-	//--------------------------------------------
+	/* =>above is the dec-MIC from packet */
+	/* -------------------------------------------- */
 
-	if (!memcmp(abyMIC, abyTmp, 8)) {
+	if (!memcmp(abyMIC, abyTmp, 8))
 		return true;
-	} else {
+	else
 		return false;
-	}
 }

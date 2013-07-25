@@ -88,8 +88,6 @@ gianfar.txt
 	- Gianfar Ethernet Driver.
 ieee802154.txt
 	- Linux IEEE 802.15.4 implementation, API and drivers
-ifenslave.c
-	- Configure network interfaces for parallel routing (bonding).
 igb.txt
 	- README for the Intel Gigabit Ethernet Driver (igb).
 igbvf.txt

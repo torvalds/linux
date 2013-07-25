@@ -217,6 +217,13 @@ config HID_ELECOM
 	---help---
 	Support for the ELECOM BM084 (bluetooth mouse).
 
+config HID_ELO
+	tristate "ELO USB 4000/4500 touchscreen"
+	depends on USB_HID
+	---help---
+	Support for the ELO USB 4000/4500 touchscreens. Note that this is for
+	different devices than those handled by CONFIG_TOUCHSCREEN_USB_ELO.
+
 config HID_EZKEY
 	tristate "Ezkey BTC 8193 keyboard" if EXPERT
 	depends on HID
@@ -231,6 +238,9 @@ config HID_HOLTEK
 	Support for Holtek based devices:
 	  - Holtek On Line Grip based game controller
 	  - Trust GXT 18 Gaming Keyboard
+	  - Sharkoon Drakonia / Perixx MX-2000 gaming mice
+	  - Tracer Sniper TRM-503 / NOVA Gaming Slider X200 /
+	    Zalman ZM-GM1
 
 config HOLTEK_FF
 	bool "Holtek On Line Grip force feedback support"
@@ -239,6 +249,12 @@ config HOLTEK_FF
 	---help---
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
+
+config HID_HUION
+	tristate "Huion tablets"
+	depends on USB_HID
+	---help---
+	Support for Huion 580 tablet.
 
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
@@ -561,15 +577,6 @@ config HID_PRIMAX
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
 
-config HID_PS3REMOTE
-	tristate "Sony PS3 BD Remote Control"
-	depends on HID
-	---help---
-	Support for the Sony PS3 Blue-ray Disk Remote Control and Logitech
-	Harmony Adapter for PS3, which connect over Bluetooth.
-
-	Support for the 6-axis controllers is provided by HID_SONY.
-
 config HID_ROCCAT
 	tristate "Roccat device support"
 	depends on USB_HID
@@ -594,12 +601,17 @@ config HID_SAMSUNG
 	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
-	tristate "Sony PS3 controller"
+	tristate "Sony PS2/3 accessories"
 	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
 	---help---
-	Support for Sony PS3 6-axis controllers.
+	Support for
 
-	Support for the Sony PS3 BD Remote is provided by HID_PS3REMOTE.
+	  * Sony PS3 6-axis controllers
+	  * Buzz controllers
+	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
+	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
@@ -707,22 +719,29 @@ config HID_WACOM
 	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
 
 config HID_WIIMOTE
-	tristate "Nintendo Wii Remote support"
+	tristate "Nintendo Wii / Wii U peripherals"
 	depends on HID
 	depends on LEDS_CLASS
 	select POWER_SUPPLY
 	select INPUT_FF_MEMLESS
 	---help---
-	Support for the Nintendo Wii Remote bluetooth device.
+	Support for Nintendo Wii and Wii U Bluetooth peripherals. Supported
+	devices are the Wii Remote and its extension devices, but also devices
+	based on the Wii Remote like the Wii U Pro Controller or the
+	Wii Balance Board.
 
-config HID_WIIMOTE_EXT
-	bool "Nintendo Wii Remote Extension support"
-	depends on HID_WIIMOTE
-	default HID_WIIMOTE
-	---help---
-	Support for extension controllers of the Nintendo Wii Remote. Say yes
-	here if you want to use the Nintendo Motion+, Nunchuck or Classic
-	extension controllers with your Wii Remote.
+	Support for all official Nintendo extensions is available, however, 3rd
+	party extensions might not be supported. Please report these devices to:
+	  http://github.com/dvdhrm/xwiimote/issues
+
+	Other Nintendo Wii U peripherals that are IEEE 802.11 based (including
+	the Wii U Gamepad) might be supported in the future. But currently
+	support is limited to Bluetooth based devices.
+
+	If unsure, say N.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-wiimote.
 
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support"

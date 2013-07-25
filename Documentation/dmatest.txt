@@ -34,7 +34,7 @@ command:
 After a while you will start to get messages about current status or error like
 in the original code.
 
-Note that running a new test will stop any in progress test.
+Note that running a new test will not stop any in progress test.
 
 The following command should return actual state of the test.
 	% cat /sys/kernel/debug/dmatest/run
@@ -52,8 +52,8 @@ To wait for test done the user may perform a busy loop that checks the state.
 
 The module parameters that is supplied to the kernel command line will be used
 for the first performed test. After user gets a control, the test could be
-interrupted or re-run with same or different parameters. For the details see
-the above section "Part 2 - When dmatest is built as a module..."
+re-run with the same or different parameters. For the details see the above
+section "Part 2 - When dmatest is built as a module..."
 
 In both cases the module parameters are used as initial values for the test case.
 You always could check them at run-time by running

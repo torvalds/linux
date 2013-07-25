@@ -53,6 +53,20 @@ config CROSS_COMPILE
 	  need to set this unless you want the configured kernel build
 	  directory to select the cross-compiler automatically.
 
+config COMPILE_TEST
+	bool "Compile also drivers which will not load"
+	default n
+	help
+	  Some drivers can be compiled on a different platform than they are
+	  intended to be run on. Despite they cannot be loaded there (or even
+	  when they load they cannot be used due to missing HW support),
+	  developers still, opposing to distributors, might want to build such
+	  drivers to compile-test them.
+
+	  If you are a developer and want to build everything available, say Y
+	  here. If you are a user/distributor, say N here to exclude useless
+	  drivers to be distributed.
+
 config LOCALVERSION
 	string "Local version - append to kernel release"
 	help
@@ -98,10 +112,13 @@ config HAVE_KERNEL_XZ
 config HAVE_KERNEL_LZO
 	bool
 
+config HAVE_KERNEL_LZ4
+	bool
+
 choice
 	prompt "Kernel compression mode"
 	default KERNEL_GZIP
-	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_XZ || HAVE_KERNEL_LZO
+	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_XZ || HAVE_KERNEL_LZO || HAVE_KERNEL_LZ4
 	help
 	  The linux kernel is a kind of self-extracting executable.
 	  Several compression algorithms are available, which differ
@@ -167,6 +184,18 @@ config KERNEL_LZO
 	  Its compression ratio is the poorest among the choices. The kernel
 	  size is about 10% bigger than gzip; however its speed
 	  (both compression and decompression) is the fastest.
+
+config KERNEL_LZ4
+	bool "LZ4"
+	depends on HAVE_KERNEL_LZ4
+	help
+	  LZ4 is an LZ77-type compressor with a fixed, byte-oriented encoding.
+	  A preliminary version of LZ4 de/compression tool is available at
+	  <https://code.google.com/p/lz4/>.
+
+	  Its compression ratio is worse than LZO. The size of the kernel
+	  is about 8% bigger than LZO. But the decompression speed is
+	  faster than LZO.
 
 endchoice
 
@@ -431,6 +460,7 @@ choice
 config TREE_RCU
 	bool "Tree-based hierarchical RCU"
 	depends on !PREEMPT && SMP
+	select IRQ_WORK
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP system with hundreds or
@@ -458,18 +488,10 @@ config TINY_RCU
 	  is not required.  This option greatly reduces the
 	  memory footprint of RCU.
 
-config TINY_PREEMPT_RCU
-	bool "Preemptible UP-only small-memory-footprint RCU"
-	depends on PREEMPT && !SMP
-	help
-	  This option selects the RCU implementation that is designed
-	  for real-time UP systems.  This option greatly reduces the
-	  memory footprint of RCU.
-
 endchoice
 
 config PREEMPT_RCU
-	def_bool ( TREE_PREEMPT_RCU || TINY_PREEMPT_RCU )
+	def_bool TREE_PREEMPT_RCU
 	help
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
@@ -655,7 +677,7 @@ config RCU_BOOST_DELAY
 	  Accept the default if unsure.
 
 config RCU_NOCB_CPU
-	bool "Offload RCU callback processing from boot-selected CPUs (EXPERIMENTAL"
+	bool "Offload RCU callback processing from boot-selected CPUs"
 	depends on TREE_RCU || TREE_PREEMPT_RCU
 	default n
 	help
@@ -681,9 +703,10 @@ choice
 	prompt "Build-forced no-CBs CPUs"
 	default RCU_NOCB_CPU_NONE
 	help
-	  This option allows no-CBs CPUs to be specified at build time.
-	  Additional no-CBs CPUs may be specified by the rcu_nocbs=
-	  boot parameter.
+	  This option allows no-CBs CPUs (whose RCU callbacks are invoked
+	  from kthreads rather than from softirq context) to be specified
+	  at build time.  Additional no-CBs CPUs may be specified by
+	  the rcu_nocbs= boot parameter.
 
 config RCU_NOCB_CPU_NONE
 	bool "No build_forced no-CBs CPUs"
@@ -691,25 +714,40 @@ config RCU_NOCB_CPU_NONE
 	help
 	  This option does not force any of the CPUs to be no-CBs CPUs.
 	  Only CPUs designated by the rcu_nocbs= boot parameter will be
-	  no-CBs CPUs.
+	  no-CBs CPUs, whose RCU callbacks will be invoked by per-CPU
+	  kthreads whose names begin with "rcuo".  All other CPUs will
+	  invoke their own RCU callbacks in softirq context.
+
+	  Select this option if you want to choose no-CBs CPUs at
+	  boot time, for example, to allow testing of different no-CBs
+	  configurations without having to rebuild the kernel each time.
 
 config RCU_NOCB_CPU_ZERO
 	bool "CPU 0 is a build_forced no-CBs CPU"
 	depends on RCU_NOCB_CPU && !NO_HZ_FULL
 	help
-	  This option forces CPU 0 to be a no-CBs CPU.  Additional CPUs
-	  may be designated as no-CBs CPUs using the rcu_nocbs= boot
-	  parameter will be no-CBs CPUs.
+	  This option forces CPU 0 to be a no-CBs CPU, so that its RCU
+	  callbacks are invoked by a per-CPU kthread whose name begins
+	  with "rcuo".	Additional CPUs may be designated as no-CBs
+	  CPUs using the rcu_nocbs= boot parameter will be no-CBs CPUs.
+	  All other CPUs will invoke their own RCU callbacks in softirq
+	  context.
 
 	  Select this if CPU 0 needs to be a no-CBs CPU for real-time
-	  or energy-efficiency reasons.
+	  or energy-efficiency reasons, but the real reason it exists
+	  is to ensure that randconfig testing covers mixed systems.
 
 config RCU_NOCB_CPU_ALL
 	bool "All CPUs are build_forced no-CBs CPUs"
 	depends on RCU_NOCB_CPU
 	help
 	  This option forces all CPUs to be no-CBs CPUs.  The rcu_nocbs=
-	  boot parameter will be ignored.
+	  boot parameter will be ignored.  All CPUs' RCU callbacks will
+	  be executed in the context of per-CPU rcuo kthreads created for
+	  this purpose.  Assuming that the kthreads whose names start with
+	  "rcuo" are bound to "housekeeping" CPUs, this reduces OS jitter
+	  on the remaining CPUs, but might decrease memory locality during
+	  RCU-callback invocation, thus potentially degrading throughput.
 
 	  Select this if all CPUs need to be no-CBs CPUs for real-time
 	  or energy-efficiency reasons.
@@ -755,6 +793,9 @@ config LOG_BUF_SHIFT
 # Architectures with an unreliable sched_clock() should select this:
 #
 config HAVE_UNSTABLE_SCHED_CLOCK
+	bool
+
+config GENERIC_SCHED_CLOCK
 	bool
 
 #
@@ -876,7 +917,7 @@ config MEMCG
 
 	  Note that setting this option increases fixed memory overhead
 	  associated with each page of memory in the system. By this,
-	  20(40)bytes/PAGE_SIZE on 32(64)bit system will be occupied by memory
+	  8(16)bytes/PAGE_SIZE on 32(64)bit system will be occupied by memory
 	  usage tracking struct at boot. Total amount of this is printed out
 	  at boot.
 
@@ -1244,9 +1285,6 @@ config SYSCTL_ARCH_UNALIGN_ALLOW
 	  the unaligned access emulation.
 	  see arch/parisc/kernel/unaligned.c for reference
 
-config HOTPLUG
-	def_bool y
-
 config HAVE_PCSPKR_PLATFORM
 	bool
 
@@ -1557,6 +1595,17 @@ config SLOB
 	   does not perform as well on large systems.
 
 endchoice
+
+config SLUB_CPU_PARTIAL
+	default y
+	depends on SLUB
+	bool "SLUB per cpu partial cache"
+	help
+	  Per cpu partial caches accellerate objects allocation and freeing
+	  that is local to a processor at the price of more indeterminism
+	  in the latency of the free. On overflow these caches will be cleared
+	  which requires the taking of locks that may cause latency spikes.
+	  Typically one would choose no for a realtime system.
 
 config MMAP_ALLOW_UNINITIALIZED
 	bool "Allow mmapped anonymous memory to be uninitialized"

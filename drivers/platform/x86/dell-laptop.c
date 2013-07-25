@@ -551,9 +551,10 @@ static int __init dell_init(void)
 	 * is passed to SMI handler.
 	 */
 	bufferpage = alloc_page(GFP_KERNEL | GFP_DMA32);
-
-	if (!bufferpage)
+	if (!bufferpage) {
+		ret = -ENOMEM;
 		goto fail_buffer;
+	}
 	buffer = page_address(bufferpage);
 
 	if (quirks && quirks->touchpad_led)

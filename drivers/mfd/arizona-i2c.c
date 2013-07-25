@@ -27,9 +27,14 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 {
 	struct arizona *arizona;
 	const struct regmap_config *regmap_config;
-	int ret;
+	int ret, type;
 
-	switch (id->driver_data) {
+	if (i2c->dev.of_node)
+		type = arizona_of_get_type(&i2c->dev);
+	else
+		type = id->driver_data;
+
+	switch (type) {
 #ifdef CONFIG_MFD_WM5102
 	case WM5102:
 		regmap_config = &wm5102_i2c_regmap;
@@ -38,6 +43,11 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 #ifdef CONFIG_MFD_WM5110
 	case WM5110:
 		regmap_config = &wm5110_i2c_regmap;
+		break;
+#endif
+#ifdef CONFIG_MFD_WM8997
+	case WM8997:
+		regmap_config = &wm8997_i2c_regmap;
 		break;
 #endif
 	default:
@@ -75,6 +85,7 @@ static int arizona_i2c_remove(struct i2c_client *i2c)
 static const struct i2c_device_id arizona_i2c_id[] = {
 	{ "wm5102", WM5102 },
 	{ "wm5110", WM5110 },
+	{ "wm8997", WM8997 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, arizona_i2c_id);
@@ -84,6 +95,7 @@ static struct i2c_driver arizona_i2c_driver = {
 		.name	= "arizona",
 		.owner	= THIS_MODULE,
 		.pm	= &arizona_pm_ops,
+		.of_match_table	= of_match_ptr(arizona_of_match),
 	},
 	.probe		= arizona_i2c_probe,
 	.remove		= arizona_i2c_remove,

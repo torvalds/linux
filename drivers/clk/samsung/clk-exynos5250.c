@@ -87,6 +87,7 @@ enum exynos5250_clks {
 	sclk_mmc0, sclk_mmc1, sclk_mmc2, sclk_mmc3, sclk_sata, sclk_usb3,
 	sclk_jpeg, sclk_uart0, sclk_uart1, sclk_uart2, sclk_uart3, sclk_pwm,
 	sclk_audio1, sclk_audio2, sclk_spdif, sclk_spi0, sclk_spi1, sclk_spi2,
+	div_i2s1, div_i2s2,
 
 	/* gate clocks */
 	gscl0 = 256, gscl1, gscl2, gscl3, gscl_wa, gscl_wb, smmu_gscl0,
@@ -155,7 +156,7 @@ static __initdata unsigned long exynos5250_clk_regs[] = {
 
 /* list of all parent clock list */
 PNAME(mout_apll_p)	= { "fin_pll", "fout_apll", };
-PNAME(mout_cpu_p)	= { "mout_apll", "mout_mpll", };
+PNAME(mout_cpu_p)	= { "mout_apll", "sclk_mpll", };
 PNAME(mout_mpll_fout_p)	= { "fout_mplldiv2", "fout_mpll" };
 PNAME(mout_mpll_p)	= { "fin_pll", "mout_mpll_fout" };
 PNAME(mout_bpll_fout_p)	= { "fout_bplldiv2", "fout_bpll" };
@@ -208,10 +209,10 @@ struct samsung_fixed_factor_clock exynos5250_fixed_factor_clks[] __initdata = {
 };
 
 struct samsung_mux_clock exynos5250_mux_clks[] __initdata = {
-	MUX(none, "mout_apll", mout_apll_p, SRC_CPU, 0, 1),
-	MUX(none, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1),
+	MUX_A(none, "mout_apll", mout_apll_p, SRC_CPU, 0, 1, "mout_apll"),
+	MUX_A(none, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1, "mout_cpu"),
 	MUX(none, "mout_mpll_fout", mout_mpll_fout_p, PLL_DIV2_SEL, 4, 1),
-	MUX(none, "sclk_mpll", mout_mpll_p, SRC_CORE1, 8, 1),
+	MUX_A(none, "sclk_mpll", mout_mpll_p, SRC_CORE1, 8, 1, "mout_mpll"),
 	MUX(none, "mout_bpll_fout", mout_bpll_fout_p, PLL_DIV2_SEL, 0, 1),
 	MUX(none, "sclk_bpll", mout_bpll_p, SRC_CDREX, 0, 1),
 	MUX(none, "mout_vpllsrc", mout_vpllsrc_p, SRC_TOP2, 0, 1),
@@ -291,8 +292,8 @@ struct samsung_div_clock exynos5250_div_clks[] __initdata = {
 	DIV(none, "div_pcm1", "sclk_audio1", DIV_PERIC4, 4, 8),
 	DIV(none, "div_audio2", "mout_audio2", DIV_PERIC4, 16, 4),
 	DIV(none, "div_pcm2", "sclk_audio2", DIV_PERIC4, 20, 8),
-	DIV(none, "div_i2s1", "sclk_audio1", DIV_PERIC5, 0, 6),
-	DIV(none, "div_i2s2", "sclk_audio2", DIV_PERIC5, 8, 6),
+	DIV(div_i2s1, "div_i2s1", "sclk_audio1", DIV_PERIC5, 0, 6),
+	DIV(div_i2s2, "div_i2s2", "sclk_audio2", DIV_PERIC5, 8, 6),
 	DIV(sclk_pixel, "div_hdmi_pixel", "sclk_vpll", DIV_DISP1_0, 28, 4),
 	DIV_A(none, "armclk", "div_arm", DIV_CPU0, 28, 3, "armclk"),
 	DIV_F(none, "div_mipi1_pre", "div_mipi1",
@@ -378,7 +379,7 @@ struct samsung_gate_clock exynos5250_gate_clks[] __initdata = {
 	GATE(hsi2c3, "hsi2c3", "aclk66", GATE_IP_PERIC, 31, 0, 0),
 	GATE(chipid, "chipid", "aclk66", GATE_IP_PERIS, 0, 0, 0),
 	GATE(sysreg, "sysreg", "aclk66", GATE_IP_PERIS, 1, 0, 0),
-	GATE(pmu, "pmu", "aclk66", GATE_IP_PERIS, 2, 0, 0),
+	GATE(pmu, "pmu", "aclk66", GATE_IP_PERIS, 2, CLK_IGNORE_UNUSED, 0),
 	GATE(tzpc0, "tzpc0", "aclk66", GATE_IP_PERIS, 6, 0, 0),
 	GATE(tzpc1, "tzpc1", "aclk66", GATE_IP_PERIS, 7, 0, 0),
 	GATE(tzpc2, "tzpc2", "aclk66", GATE_IP_PERIS, 8, 0, 0),

@@ -271,6 +271,7 @@ void devfreq_monitor_suspend(struct devfreq *devfreq)
 		return;
 	}
 
+	devfreq_update_status(devfreq, devfreq->previous_freq);
 	devfreq->stop_polling = true;
 	mutex_unlock(&devfreq->lock);
 	cancel_delayed_work_sync(&devfreq->work);
@@ -287,6 +288,8 @@ EXPORT_SYMBOL(devfreq_monitor_suspend);
  */
 void devfreq_monitor_resume(struct devfreq *devfreq)
 {
+	unsigned long freq;
+
 	mutex_lock(&devfreq->lock);
 	if (!devfreq->stop_polling)
 		goto out;
@@ -295,7 +298,13 @@ void devfreq_monitor_resume(struct devfreq *devfreq)
 			devfreq->profile->polling_ms)
 		queue_delayed_work(devfreq_wq, &devfreq->work,
 			msecs_to_jiffies(devfreq->profile->polling_ms));
+
+	devfreq->last_stat_updated = jiffies;
 	devfreq->stop_polling = false;
+
+	if (devfreq->profile->get_cur_freq &&
+		!devfreq->profile->get_cur_freq(devfreq->dev.parent, &freq))
+		devfreq->previous_freq = freq;
 
 out:
 	mutex_unlock(&devfreq->lock);
@@ -477,7 +486,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 						GFP_KERNEL);
 	devfreq->last_stat_updated = jiffies;
 
-	dev_set_name(&devfreq->dev, dev_name(dev));
+	dev_set_name(&devfreq->dev, "%s", dev_name(dev));
 	err = device_register(&devfreq->dev);
 	if (err) {
 		put_device(&devfreq->dev);
@@ -518,6 +527,8 @@ EXPORT_SYMBOL(devfreq_add_device);
 /**
  * devfreq_remove_device() - Remove devfreq feature from a device.
  * @devfreq:	the devfreq instance to be removed
+ *
+ * The opposite of devfreq_add_device().
  */
 int devfreq_remove_device(struct devfreq *devfreq)
 {
@@ -533,6 +544,10 @@ EXPORT_SYMBOL(devfreq_remove_device);
 /**
  * devfreq_suspend_device() - Suspend devfreq of a device.
  * @devfreq: the devfreq instance to be suspended
+ *
+ * This function is intended to be called by the pm callbacks
+ * (e.g., runtime_suspend, suspend) of the device driver that
+ * holds the devfreq.
  */
 int devfreq_suspend_device(struct devfreq *devfreq)
 {
@@ -550,6 +565,10 @@ EXPORT_SYMBOL(devfreq_suspend_device);
 /**
  * devfreq_resume_device() - Resume devfreq of a device.
  * @devfreq: the devfreq instance to be resumed
+ *
+ * This function is intended to be called by the pm callbacks
+ * (e.g., runtime_resume, resume) of the device driver that
+ * holds the devfreq.
  */
 int devfreq_resume_device(struct devfreq *devfreq)
 {
@@ -905,11 +924,11 @@ static ssize_t show_trans_table(struct device *dev, struct device_attribute *att
 {
 	struct devfreq *devfreq = to_devfreq(dev);
 	ssize_t len;
-	int i, j, err;
+	int i, j;
 	unsigned int max_state = devfreq->profile->max_state;
 
-	err = devfreq_update_status(devfreq, devfreq->previous_freq);
-	if (err)
+	if (!devfreq->stop_polling &&
+			devfreq_update_status(devfreq, devfreq->previous_freq))
 		return 0;
 
 	len = sprintf(buf, "   From  :   To\n");

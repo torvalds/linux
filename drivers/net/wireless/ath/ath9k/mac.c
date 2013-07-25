@@ -410,7 +410,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 
 	REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
 
-	if (AR_SREV_9340(ah))
+	if (AR_SREV_9340(ah) && !AR_SREV_9340_13_OR_LATER(ah))
 		REG_WRITE(ah, AR_DMISC(q),
 			  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1);
 	else
@@ -547,6 +547,7 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	rs->rs_status = 0;
 	rs->rs_flags = 0;
+	rs->flag = 0;
 
 	rs->rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
 	rs->rs_tstamp = ads.AR_RcvTimestamp;
@@ -586,10 +587,17 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	rs->rs_moreaggr =
 		(ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
 	rs->rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
-	rs->rs_flags =
-		(ads.ds_rxstatus3 & AR_GI) ? ATH9K_RX_GI : 0;
-	rs->rs_flags |=
-		(ads.ds_rxstatus3 & AR_2040) ? ATH9K_RX_2040 : 0;
+
+	/* directly mapped flags for ieee80211_rx_status */
+	rs->flag |=
+		(ads.ds_rxstatus3 & AR_GI) ? RX_FLAG_SHORT_GI : 0;
+	rs->flag |=
+		(ads.ds_rxstatus3 & AR_2040) ? RX_FLAG_40MHZ : 0;
+	if (AR_SREV_9280_20_OR_LATER(ah))
+		rs->flag |=
+			(ads.ds_rxstatus3 & AR_STBC) ?
+				/* we can only Nss=1 STBC */
+				(1 << RX_FLAG_STBC_SHIFT) : 0;
 
 	if (ads.ds_rxstatus8 & AR_PreDelimCRCErr)
 		rs->rs_flags |= ATH9K_RX_DELIM_CRC_PRE;

@@ -47,8 +47,6 @@ int request_firmware_nowait(
 	void (*cont)(const struct firmware *fw, void *context));
 
 void release_firmware(const struct firmware *fw);
-int cache_firmware(const char *name);
-int uncache_firmware(const char *name);
 #else
 static inline int request_firmware(const struct firmware **fw,
 				   const char *name,
@@ -68,15 +66,6 @@ static inline void release_firmware(const struct firmware *fw)
 {
 }
 
-static inline int cache_firmware(const char *name)
-{
-	return -ENOENT;
-}
-
-static inline int uncache_firmware(const char *name)
-{
-	return -EINVAL;
-}
 #endif
 
 #endif

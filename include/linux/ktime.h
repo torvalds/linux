@@ -229,7 +229,8 @@ static inline ktime_t timespec_to_ktime(const struct timespec ts)
 static inline ktime_t timeval_to_ktime(const struct timeval tv)
 {
 	return (ktime_t) { .tv = { .sec = (s32)tv.tv_sec,
-				   .nsec = (s32)tv.tv_usec * 1000 } };
+				   .nsec = (s32)(tv.tv_usec *
+						 NSEC_PER_USEC) } };
 }
 
 /**
@@ -320,12 +321,17 @@ static inline s64 ktime_us_delta(const ktime_t later, const ktime_t earlier)
 
 static inline ktime_t ktime_add_us(const ktime_t kt, const u64 usec)
 {
-	return ktime_add_ns(kt, usec * 1000);
+	return ktime_add_ns(kt, usec * NSEC_PER_USEC);
+}
+
+static inline ktime_t ktime_add_ms(const ktime_t kt, const u64 msec)
+{
+	return ktime_add_ns(kt, msec * NSEC_PER_MSEC);
 }
 
 static inline ktime_t ktime_sub_us(const ktime_t kt, const u64 usec)
 {
-	return ktime_sub_ns(kt, usec * 1000);
+	return ktime_sub_ns(kt, usec * NSEC_PER_USEC);
 }
 
 extern ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs);
@@ -338,7 +344,8 @@ extern ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs);
  *
  * Returns true if there was a successful conversion, false if kt was 0.
  */
-static inline bool ktime_to_timespec_cond(const ktime_t kt, struct timespec *ts)
+static inline __must_check bool ktime_to_timespec_cond(const ktime_t kt,
+						       struct timespec *ts)
 {
 	if (kt.tv64) {
 		*ts = ktime_to_timespec(kt);
@@ -366,7 +373,15 @@ extern void ktime_get_ts(struct timespec *ts);
 static inline ktime_t ns_to_ktime(u64 ns)
 {
 	static const ktime_t ktime_zero = { .tv64 = 0 };
+
 	return ktime_add_ns(ktime_zero, ns);
+}
+
+static inline ktime_t ms_to_ktime(u64 ms)
+{
+	static const ktime_t ktime_zero = { .tv64 = 0 };
+
+	return ktime_add_ms(ktime_zero, ms);
 }
 
 #endif

@@ -3740,7 +3740,7 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 	mb();
 
-	if ((pm8001_dev->id & NCQ_ABORT_ALL_FLAG) && t)	{
+	if (pm8001_dev->id & NCQ_ABORT_ALL_FLAG) {
 		pm8001_tag_free(pm8001_ha, tag);
 		sas_free_task(t);
 		/* clear the flag */
@@ -4291,7 +4291,8 @@ static int pm8001_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 		ssp_cmd.ssp_iu.efb_prio_attr |= 0x80;
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_prio << 3);
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_attr & 7);
-	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cdb, 16);
+	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cmd->cmnd,
+	       task->ssp_task.cmd->cmd_len);
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 
 	/* fill in PRD (scatter/gather) table, if any */

@@ -22,18 +22,35 @@ struct inode;
 struct posix_acl;
 struct xfs_inode;
 
-#define XFS_ACL_MAX_ENTRIES 25
 #define XFS_ACL_NOT_PRESENT (-1)
 
 /* On-disk XFS access control list structure */
-struct xfs_acl {
-	__be32		acl_cnt;
-	struct xfs_acl_entry {
-		__be32	ae_tag;
-		__be32	ae_id;
-		__be16	ae_perm;
-	} acl_entry[XFS_ACL_MAX_ENTRIES];
+struct xfs_acl_entry {
+	__be32	ae_tag;
+	__be32	ae_id;
+	__be16	ae_perm;
+	__be16	ae_pad;		/* fill the implicit hole in the structure */
 };
+
+struct xfs_acl {
+	__be32			acl_cnt;
+	struct xfs_acl_entry	acl_entry[0];
+};
+
+/*
+ * The number of ACL entries allowed is defined by the on-disk format.
+ * For v4 superblocks, that is limited to 25 entries. For v5 superblocks, it is
+ * limited only by the maximum size of the xattr that stores the information.
+ */
+#define XFS_ACL_MAX_ENTRIES(mp)	\
+	(xfs_sb_version_hascrc(&mp->m_sb) \
+		?  (XATTR_SIZE_MAX - sizeof(struct xfs_acl)) / \
+						sizeof(struct xfs_acl_entry) \
+		: 25)
+
+#define XFS_ACL_MAX_SIZE(mp) \
+	(sizeof(struct xfs_acl) + \
+		sizeof(struct xfs_acl_entry) * XFS_ACL_MAX_ENTRIES((mp)))
 
 /* On-disk XFS extended attribute names */
 #define SGI_ACL_FILE		(unsigned char *)"SGI_ACL_FILE"

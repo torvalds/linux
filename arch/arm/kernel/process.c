@@ -32,6 +32,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/cpuidle.h>
 #include <linux/leds.h>
+#include <linux/reboot.h>
 
 #include <asm/cacheflush.h>
 #include <asm/idmap.h>
@@ -39,6 +40,7 @@
 #include <asm/thread_notify.h>
 #include <asm/stacktrace.h>
 #include <asm/mach/time.h>
+#include <asm/tls.h>
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 #include <linux/stackprotector.h>
@@ -112,7 +114,7 @@ void soft_restart(unsigned long addr)
 	BUG();
 }
 
-static void null_restart(char mode, const char *cmd)
+static void null_restart(enum reboot_mode reboot_mode, const char *cmd)
 {
 }
 
@@ -122,7 +124,7 @@ static void null_restart(char mode, const char *cmd)
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-void (*arm_pm_restart)(char str, const char *cmd) = null_restart;
+void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd) = null_restart;
 EXPORT_SYMBOL_GPL(arm_pm_restart);
 
 /*
@@ -174,40 +176,61 @@ void arch_cpu_idle(void)
 		default_idle();
 }
 
-static char reboot_mode = 'h';
-
-int __init reboot_setup(char *str)
-{
-	reboot_mode = str[0];
-	return 1;
-}
-
-__setup("reboot=", reboot_setup);
-
+/*
+ * Called by kexec, immediately prior to machine_kexec().
+ *
+ * This must completely disable all secondary CPUs; simply causing those CPUs
+ * to execute e.g. a RAM-based pin loop is not sufficient. This allows the
+ * kexec'd kernel to use any and all RAM as it sees fit, without having to
+ * avoid any code or data used by any SW CPU pin loop. The CPU hotplug
+ * functionality embodied in disable_nonboot_cpus() to achieve this.
+ */
 void machine_shutdown(void)
 {
-#ifdef CONFIG_SMP
-	smp_send_stop();
-#endif
+	disable_nonboot_cpus();
 }
 
+/*
+ * Halting simply requires that the secondary CPUs stop performing any
+ * activity (executing tasks, handling interrupts). smp_send_stop()
+ * achieves this.
+ */
 void machine_halt(void)
 {
-	machine_shutdown();
+	smp_send_stop();
+
 	local_irq_disable();
 	while (1);
 }
 
+/*
+ * Power-off simply requires that the secondary CPUs stop performing any
+ * activity (executing tasks, handling interrupts). smp_send_stop()
+ * achieves this. When the system power is turned off, it will take all CPUs
+ * with it.
+ */
 void machine_power_off(void)
 {
-	machine_shutdown();
+	smp_send_stop();
+
 	if (pm_power_off)
 		pm_power_off();
 }
 
+/*
+ * Restart requires that the secondary CPUs stop performing any activity
+ * while the primary CPU resets the system. Systems with a single CPU can
+ * use soft_restart() as their machine descriptor's .restart hook, since that
+ * will cause the only available CPU to reset. Systems with multiple CPUs must
+ * provide a HW restart implementation, to ensure that all CPUs reset at once.
+ * This is required so that any code running after reset on the primary CPU
+ * doesn't have to co-ordinate with other CPUs to ensure they aren't still
+ * executing pre-reset code, and using RAM that the primary CPU's code wishes
+ * to use. Implementing such co-ordination would be essentially impossible.
+ */
 void machine_restart(char *cmd)
 {
-	machine_shutdown();
+	smp_send_stop();
 
 	arm_pm_restart(reboot_mode, cmd);
 
@@ -343,7 +366,8 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	clear_ptrace_hw_breakpoint(p);
 
 	if (clone_flags & CLONE_SETTLS)
-		thread->tp_value = childregs->ARM_r3;
+		thread->tp_value[0] = childregs->ARM_r3;
+	thread->tp_value[1] = get_tpuser();
 
 	thread_notify(THREAD_NOTIFY_COPY, thread);
 

@@ -48,6 +48,8 @@
 #define FIMC_DEF_MIN_SIZE	16
 #define FIMC_DEF_HEIGHT_ALIGN	2
 #define FIMC_DEF_HOR_OFFS_ALIGN	1
+#define FIMC_DEFAULT_WIDTH	640
+#define FIMC_DEFAULT_HEIGHT	480
 
 /* indices to the clocks array */
 enum {
@@ -283,8 +285,8 @@ struct fimc_m2m_device {
 /**
  * struct fimc_vid_cap - camera capture device information
  * @ctx: hardware context data
- * @vfd: video device node for camera capture mode
  * @subdev: subdev exposing the FIMC processing block
+ * @ve: exynos video device entity structure
  * @vd_pad: fimc video capture node pad
  * @sd_pads: fimc video processing block pads
  * @ci_fmt: image format at the FIMC camera input (and the scaler output)
@@ -298,15 +300,16 @@ struct fimc_m2m_device {
  * @frame_count: the frame counter for statistics
  * @reqbufs_count: the number of buffers requested in REQBUFS ioctl
  * @input_index: input (camera sensor) index
- * @refcnt: driver's private reference counter
  * @input: capture input type, grp_id of the attached subdev
  * @user_subdev_api: true if subdevs are not configured by the host driver
+ * @inh_sensor_ctrls: a flag indicating v4l2 controls are inherited from
+ * 		      an image sensor subdev
  */
 struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct vb2_alloc_ctx		*alloc_ctx;
-	struct video_device		vfd;
 	struct v4l2_subdev		subdev;
+	struct exynos_video_entity	ve;
 	struct media_pad		vd_pad;
 	struct media_pad		sd_pads[FIMC_SD_PADS_NUM];
 	struct v4l2_mbus_framefmt	ci_fmt;
@@ -321,9 +324,9 @@ struct fimc_vid_cap {
 	unsigned int			reqbufs_count;
 	bool				streaming;
 	int				input_index;
-	int				refcnt;
 	u32				input;
 	bool				user_subdev_api;
+	bool				inh_sensor_ctrls;
 };
 
 /**
@@ -434,8 +437,6 @@ struct fimc_dev {
 	struct fimc_vid_cap		vid_cap;
 	unsigned long			state;
 	struct vb2_alloc_ctx		*alloc_ctx;
-	struct fimc_pipeline		pipeline;
-	const struct fimc_pipeline_ops	*pipeline_ops;
 };
 
 /**
@@ -620,8 +621,6 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 /* fimc-core.c */
 int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
 				struct v4l2_fmtdesc *f);
-void __fimc_vidioc_querycap(struct device *dev, struct v4l2_capability *cap,
-						unsigned int caps);
 int fimc_ctrls_create(struct fimc_ctx *ctx);
 void fimc_ctrls_delete(struct fimc_ctx *ctx);
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);

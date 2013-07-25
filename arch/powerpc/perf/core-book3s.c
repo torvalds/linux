@@ -75,6 +75,11 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
 
 #define MMCR0_FCHV		0
 #define MMCR0_PMCjCE		MMCR0_PMCnCE
+#define MMCR0_FC56		0
+#define MMCR0_PMAO		0
+#define MMCR0_EBE		0
+#define MMCR0_PMCC		0
+#define MMCR0_PMCC_U6		0
 
 #define SPRN_MMCRA		SPRN_MMCR2
 #define MMCRA_SAMPLE_ENABLE	0
@@ -102,6 +107,15 @@ static inline int siar_valid(struct pt_regs *regs)
 	return 1;
 }
 
+static bool is_ebb_event(struct perf_event *event) { return false; }
+static int ebb_event_check(struct perf_event *event) { return 0; }
+static void ebb_event_add(struct perf_event *event) { }
+static void ebb_switch_out(unsigned long mmcr0) { }
+static unsigned long ebb_switch_in(bool ebb, unsigned long mmcr0)
+{
+	return mmcr0;
+}
+
 static inline void power_pmu_bhrb_enable(struct perf_event *event) {}
 static inline void power_pmu_bhrb_disable(struct perf_event *event) {}
 void power_pmu_flush_branch_stack(void) {}
@@ -110,7 +124,7 @@ static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 
 static bool regs_use_siar(struct pt_regs *regs)
 {
-	return !!(regs->result & 1);
+	return !!regs->result;
 }
 
 /*
@@ -136,22 +150,30 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
  * If we're not doing instruction sampling, give them the SDAR
  * (sampled data address).  If we are doing instruction sampling, then
  * only give them the SDAR if it corresponds to the instruction
- * pointed to by SIAR; this is indicated by the [POWER6_]MMCRA_SDSYNC or
- * the [POWER7P_]MMCRA_SDAR_VALID bit in MMCRA.
+ * pointed to by SIAR; this is indicated by the [POWER6_]MMCRA_SDSYNC, the
+ * [POWER7P_]MMCRA_SDAR_VALID bit in MMCRA, or the SDAR_VALID bit in SIER.
  */
 static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
 {
 	unsigned long mmcra = regs->dsisr;
-	unsigned long sdsync;
+	bool sdar_valid;
 
-	if (ppmu->flags & PPMU_SIAR_VALID)
-		sdsync = POWER7P_MMCRA_SDAR_VALID;
-	else if (ppmu->flags & PPMU_ALT_SIPR)
-		sdsync = POWER6_MMCRA_SDSYNC;
-	else
-		sdsync = MMCRA_SDSYNC;
+	if (ppmu->flags & PPMU_HAS_SIER)
+		sdar_valid = regs->dar & SIER_SDAR_VALID;
+	else {
+		unsigned long sdsync;
 
-	if (!(mmcra & MMCRA_SAMPLE_ENABLE) || (mmcra & sdsync))
+		if (ppmu->flags & PPMU_SIAR_VALID)
+			sdsync = POWER7P_MMCRA_SDAR_VALID;
+		else if (ppmu->flags & PPMU_ALT_SIPR)
+			sdsync = POWER6_MMCRA_SDSYNC;
+		else
+			sdsync = MMCRA_SDSYNC;
+
+		sdar_valid = mmcra & sdsync;
+	}
+
+	if (!(mmcra & MMCRA_SAMPLE_ENABLE) || sdar_valid)
 		*addrp = mfspr(SPRN_SDAR);
 }
 
@@ -181,11 +203,6 @@ static bool regs_sipr(struct pt_regs *regs)
 	return !!(regs->dsisr & sipr);
 }
 
-static bool regs_no_sipr(struct pt_regs *regs)
-{
-	return !!(regs->result & 2);
-}
-
 static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 {
 	if (regs->msr & MSR_PR)
@@ -208,7 +225,7 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 	 * SIAR which should give slightly more reliable
 	 * results
 	 */
-	if (regs_no_sipr(regs)) {
+	if (ppmu->flags & PPMU_NO_SIPR) {
 		unsigned long siar = mfspr(SPRN_SIAR);
 		if (siar >= PAGE_OFFSET)
 			return PERF_RECORD_MISC_KERNEL;
@@ -239,22 +256,9 @@ static inline void perf_read_regs(struct pt_regs *regs)
 	int use_siar;
 
 	regs->dsisr = mmcra;
-	regs->result = 0;
 
-	if (ppmu->flags & PPMU_NO_SIPR)
-		regs->result |= 2;
-
-	/*
-	 * On power8 if we're in random sampling mode, the SIER is updated.
-	 * If we're in continuous sampling mode, we don't have SIPR.
-	 */
-	if (ppmu->flags & PPMU_HAS_SIER) {
-		if (marked)
-			regs->dar = mfspr(SPRN_SIER);
-		else
-			regs->result |= 2;
-	}
-
+	if (ppmu->flags & PPMU_HAS_SIER)
+		regs->dar = mfspr(SPRN_SIER);
 
 	/*
 	 * If this isn't a PMU exception (eg a software event) the SIAR is
@@ -279,12 +283,12 @@ static inline void perf_read_regs(struct pt_regs *regs)
 		use_siar = 1;
 	else if ((ppmu->flags & PPMU_NO_CONT_SAMPLING))
 		use_siar = 0;
-	else if (!regs_no_sipr(regs) && regs_sipr(regs))
+	else if (!(ppmu->flags & PPMU_NO_SIPR) && regs_sipr(regs))
 		use_siar = 0;
 	else
 		use_siar = 1;
 
-	regs->result |= use_siar;
+	regs->result = use_siar;
 }
 
 /*
@@ -308,8 +312,13 @@ static inline int siar_valid(struct pt_regs *regs)
 	unsigned long mmcra = regs->dsisr;
 	int marked = mmcra & MMCRA_SAMPLE_ENABLE;
 
-	if ((ppmu->flags & PPMU_SIAR_VALID) && marked)
-		return mmcra & POWER7P_MMCRA_SIAR_VALID;
+	if (marked) {
+		if (ppmu->flags & PPMU_HAS_SIER)
+			return regs->dar & SIER_SIAR_VALID;
+
+		if (ppmu->flags & PPMU_SIAR_VALID)
+			return mmcra & POWER7P_MMCRA_SIAR_VALID;
+	}
 
 	return 1;
 }
@@ -467,6 +476,89 @@ void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw)
 	return;
 }
 
+static bool is_ebb_event(struct perf_event *event)
+{
+	/*
+	 * This could be a per-PMU callback, but we'd rather avoid the cost. We
+	 * check that the PMU supports EBB, meaning those that don't can still
+	 * use bit 63 of the event code for something else if they wish.
+	 */
+	return (ppmu->flags & PPMU_EBB) &&
+	       ((event->attr.config >> EVENT_CONFIG_EBB_SHIFT) & 1);
+}
+
+static int ebb_event_check(struct perf_event *event)
+{
+	struct perf_event *leader = event->group_leader;
+
+	/* Event and group leader must agree on EBB */
+	if (is_ebb_event(leader) != is_ebb_event(event))
+		return -EINVAL;
+
+	if (is_ebb_event(event)) {
+		if (!(event->attach_state & PERF_ATTACH_TASK))
+			return -EINVAL;
+
+		if (!leader->attr.pinned || !leader->attr.exclusive)
+			return -EINVAL;
+
+		if (event->attr.inherit || event->attr.sample_period ||
+		    event->attr.enable_on_exec || event->attr.freq)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void ebb_event_add(struct perf_event *event)
+{
+	if (!is_ebb_event(event) || current->thread.used_ebb)
+		return;
+
+	/*
+	 * IFF this is the first time we've added an EBB event, set
+	 * PMXE in the user MMCR0 so we can detect when it's cleared by
+	 * userspace. We need this so that we can context switch while
+	 * userspace is in the EBB handler (where PMXE is 0).
+	 */
+	current->thread.used_ebb = 1;
+	current->thread.mmcr0 |= MMCR0_PMXE;
+}
+
+static void ebb_switch_out(unsigned long mmcr0)
+{
+	if (!(mmcr0 & MMCR0_EBE))
+		return;
+
+	current->thread.siar  = mfspr(SPRN_SIAR);
+	current->thread.sier  = mfspr(SPRN_SIER);
+	current->thread.sdar  = mfspr(SPRN_SDAR);
+	current->thread.mmcr0 = mmcr0 & MMCR0_USER_MASK;
+	current->thread.mmcr2 = mfspr(SPRN_MMCR2) & MMCR2_USER_MASK;
+}
+
+static unsigned long ebb_switch_in(bool ebb, unsigned long mmcr0)
+{
+	if (!ebb)
+		goto out;
+
+	/* Enable EBB and read/write to all 6 PMCs for userspace */
+	mmcr0 |= MMCR0_EBE | MMCR0_PMCC_U6;
+
+	/* Add any bits from the user reg, FC or PMAO */
+	mmcr0 |= current->thread.mmcr0;
+
+	/* Be careful not to set PMXE if userspace had it cleared */
+	if (!(current->thread.mmcr0 & MMCR0_PMXE))
+		mmcr0 &= ~MMCR0_PMXE;
+
+	mtspr(SPRN_SIAR, current->thread.siar);
+	mtspr(SPRN_SIER, current->thread.sier);
+	mtspr(SPRN_SDAR, current->thread.sdar);
+	mtspr(SPRN_MMCR2, current->thread.mmcr2);
+out:
+	return mmcr0;
+}
 #endif /* CONFIG_PPC64 */
 
 static void perf_event_interrupt(struct pt_regs *regs);
@@ -737,6 +829,13 @@ static void power_pmu_read(struct perf_event *event)
 
 	if (!event->hw.idx)
 		return;
+
+	if (is_ebb_event(event)) {
+		val = read_pmc(event->hw.idx);
+		local64_set(&event->hw.prev_count, val);
+		return;
+	}
+
 	/*
 	 * Performance monitor interrupts come even when interrupts
 	 * are soft-disabled, as long as interrupts are hard-enabled.
@@ -857,7 +956,7 @@ static void write_mmcr0(struct cpu_hw_events *cpuhw, unsigned long mmcr0)
 static void power_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw;
-	unsigned long flags;
+	unsigned long flags, mmcr0, val;
 
 	if (!ppmu)
 		return;
@@ -865,9 +964,6 @@ static void power_pmu_disable(struct pmu *pmu)
 	cpuhw = &__get_cpu_var(cpu_hw_events);
 
 	if (!cpuhw->disabled) {
-		cpuhw->disabled = 1;
-		cpuhw->n_added = 0;
-
 		/*
 		 * Check if we ever enabled the PMU on this cpu.
 		 */
@@ -875,6 +971,21 @@ static void power_pmu_disable(struct pmu *pmu)
 			ppc_enable_pmcs();
 			cpuhw->pmcs_enabled = 1;
 		}
+
+		/*
+		 * Set the 'freeze counters' bit, clear EBE/PMCC/PMAO/FC56.
+		 */
+		val  = mmcr0 = mfspr(SPRN_MMCR0);
+		val |= MMCR0_FC;
+		val &= ~(MMCR0_EBE | MMCR0_PMCC | MMCR0_PMAO | MMCR0_FC56);
+
+		/*
+		 * The barrier is to make sure the mtspr has been
+		 * executed and the PMU has frozen the events etc.
+		 * before we return.
+		 */
+		write_mmcr0(cpuhw, val);
+		mb();
 
 		/*
 		 * Disable instruction sampling if it was enabled
@@ -885,15 +996,12 @@ static void power_pmu_disable(struct pmu *pmu)
 			mb();
 		}
 
-		/*
-		 * Set the 'freeze counters' bit.
-		 * The barrier is to make sure the mtspr has been
-		 * executed and the PMU has frozen the events
-		 * before we return.
-		 */
-		write_mmcr0(cpuhw, mfspr(SPRN_MMCR0) | MMCR0_FC);
-		mb();
+		cpuhw->disabled = 1;
+		cpuhw->n_added = 0;
+
+		ebb_switch_out(mmcr0);
 	}
+
 	local_irq_restore(flags);
 }
 
@@ -908,21 +1016,34 @@ static void power_pmu_enable(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw;
 	unsigned long flags;
 	long i;
-	unsigned long val;
+	unsigned long val, mmcr0;
 	s64 left;
 	unsigned int hwc_index[MAX_HWEVENTS];
 	int n_lim;
 	int idx;
+	bool ebb;
 
 	if (!ppmu)
 		return;
 	local_irq_save(flags);
+
 	cpuhw = &__get_cpu_var(cpu_hw_events);
-	if (!cpuhw->disabled) {
-		local_irq_restore(flags);
-		return;
+	if (!cpuhw->disabled)
+		goto out;
+
+	if (cpuhw->n_events == 0) {
+		ppc_set_pmu_inuse(0);
+		goto out;
 	}
+
 	cpuhw->disabled = 0;
+
+	/*
+	 * EBB requires an exclusive group and all events must have the EBB
+	 * flag set, or not set, so we can just check a single event. Also we
+	 * know we have at least one event.
+	 */
+	ebb = is_ebb_event(cpuhw->event[0]);
 
 	/*
 	 * If we didn't change anything, or only removed events,
@@ -933,8 +1054,6 @@ static void power_pmu_enable(struct pmu *pmu)
 	if (!cpuhw->n_added) {
 		mtspr(SPRN_MMCRA, cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 		mtspr(SPRN_MMCR1, cpuhw->mmcr[1]);
-		if (cpuhw->n_events == 0)
-			ppc_set_pmu_inuse(0);
 		goto out_enable;
 	}
 
@@ -1001,25 +1120,34 @@ static void power_pmu_enable(struct pmu *pmu)
 			++n_lim;
 			continue;
 		}
-		val = 0;
-		if (event->hw.sample_period) {
-			left = local64_read(&event->hw.period_left);
-			if (left < 0x80000000L)
-				val = 0x80000000L - left;
+
+		if (ebb)
+			val = local64_read(&event->hw.prev_count);
+		else {
+			val = 0;
+			if (event->hw.sample_period) {
+				left = local64_read(&event->hw.period_left);
+				if (left < 0x80000000L)
+					val = 0x80000000L - left;
+			}
+			local64_set(&event->hw.prev_count, val);
 		}
-		local64_set(&event->hw.prev_count, val);
+
 		event->hw.idx = idx;
 		if (event->hw.state & PERF_HES_STOPPED)
 			val = 0;
 		write_pmc(idx, val);
+
 		perf_event_update_userpage(event);
 	}
 	cpuhw->n_limited = n_lim;
 	cpuhw->mmcr[0] |= MMCR0_PMXE | MMCR0_FCECE;
 
  out_enable:
+	mmcr0 = ebb_switch_in(ebb, cpuhw->mmcr[0]);
+
 	mb();
-	write_mmcr0(cpuhw, cpuhw->mmcr[0]);
+	write_mmcr0(cpuhw, mmcr0);
 
 	/*
 	 * Enable instruction sampling if necessary
@@ -1117,13 +1245,18 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 	event->hw.config = cpuhw->events[n0];
 
 nocheck:
+	ebb_event_add(event);
+
 	++cpuhw->n_events;
 	++cpuhw->n_added;
 
 	ret = 0;
  out:
-	if (has_branch_stack(event))
+	if (has_branch_stack(event)) {
 		power_pmu_bhrb_enable(event);
+		cpuhw->bhrb_filter = ppmu->bhrb_filter_map(
+					event->attr.branch_sample_type);
+	}
 
 	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
@@ -1477,6 +1610,11 @@ static int power_pmu_event_init(struct perf_event *event)
 		}
 	}
 
+	/* Extra checks for EBB */
+	err = ebb_event_check(event);
+	if (err)
+		return err;
+
 	/*
 	 * If this is in a group, check if it can go on with all the
 	 * other hardware events in the group.  We assume the event
@@ -1514,6 +1652,13 @@ static int power_pmu_event_init(struct perf_event *event)
 	event->hw.event_base = cflags[n];
 	event->hw.last_period = event->hw.sample_period;
 	local64_set(&event->hw.period_left, event->hw.last_period);
+
+	/*
+	 * For EBB events we just context switch the PMC value, we don't do any
+	 * of the sample_period logic. We use hw.prev_count for this.
+	 */
+	if (is_ebb_event(event))
+		local64_set(&event->hw.prev_count, 0);
 
 	/*
 	 * See if we need to reserve the PMU.
@@ -1763,7 +1908,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 			}
 		}
 	}
-	if ((!found) && printk_ratelimit())
+	if (!found && !nmi && printk_ratelimit())
 		printk(KERN_WARNING "Can't find PMC that caused IRQ\n");
 
 	/*
@@ -1791,7 +1936,7 @@ static void power_pmu_setup(int cpu)
 	cpuhw->mmcr[0] = MMCR0_FC;
 }
 
-static int __cpuinit
+static int
 power_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
@@ -1808,7 +1953,7 @@ power_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu
 	return NOTIFY_OK;
 }
 
-int __cpuinit register_power_pmu(struct power_pmu *pmu)
+int register_power_pmu(struct power_pmu *pmu)
 {
 	if (ppmu)
 		return -EBUSY;		/* something's already registered */

@@ -154,7 +154,6 @@ static int __exit tx4939_rng_remove(struct platform_device *dev)
 	struct tx4939_rng *rngdev = platform_get_drvdata(dev);
 
 	hwrng_unregister(&rngdev->rng);
-	platform_set_drvdata(dev, NULL);
 	return 0;
 }
 

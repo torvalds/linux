@@ -315,13 +315,6 @@ err_rtc:
 
 }
 
-static int da9055_rtc_remove(struct platform_device *pdev)
-{
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 /* Turn off the alarm if it should not be a wake source. */
 static int da9055_rtc_suspend(struct device *dev)
@@ -394,7 +387,6 @@ static const struct dev_pm_ops da9055_rtc_pm_ops = {
 
 static struct platform_driver da9055_rtc_driver = {
 	.probe  = da9055_rtc_probe,
-	.remove = da9055_rtc_remove,
 	.driver = {
 		.name   = "da9055-rtc",
 		.owner  = THIS_MODULE,

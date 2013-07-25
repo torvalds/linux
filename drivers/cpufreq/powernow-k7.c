@@ -186,7 +186,7 @@ static int get_ranges(unsigned char *pst)
 		fid = *pst++;
 
 		powernow_table[j].frequency = (fsb * fid_codes[fid]) / 10;
-		powernow_table[j].index = fid; /* lower 8 bits */
+		powernow_table[j].driver_data = fid; /* lower 8 bits */
 
 		speed = powernow_table[j].frequency;
 
@@ -203,7 +203,7 @@ static int get_ranges(unsigned char *pst)
 			maximum_speed = speed;
 
 		vid = *pst++;
-		powernow_table[j].index |= (vid << 8); /* upper 8 bits */
+		powernow_table[j].driver_data |= (vid << 8); /* upper 8 bits */
 
 		pr_debug("   FID: 0x%x (%d.%dx [%dMHz])  "
 			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
@@ -212,7 +212,7 @@ static int get_ranges(unsigned char *pst)
 			 mobile_vid_table[vid]%1000);
 	}
 	powernow_table[number_scales].frequency = CPUFREQ_TABLE_END;
-	powernow_table[number_scales].index = 0;
+	powernow_table[number_scales].driver_data = 0;
 
 	return 0;
 }
@@ -260,8 +260,8 @@ static void change_speed(struct cpufreq_policy *policy, unsigned int index)
 	 * vid are the upper 8 bits.
 	 */
 
-	fid = powernow_table[index].index & 0xFF;
-	vid = (powernow_table[index].index & 0xFF00) >> 8;
+	fid = powernow_table[index].driver_data & 0xFF;
+	vid = (powernow_table[index].driver_data & 0xFF00) >> 8;
 
 	rdmsrl(MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 	cfid = fidvidstatus.bits.CFID;
@@ -373,8 +373,8 @@ static int powernow_acpi_init(void)
 		fid = pc.bits.fid;
 
 		powernow_table[i].frequency = fsb * fid_codes[fid] / 10;
-		powernow_table[i].index = fid; /* lower 8 bits */
-		powernow_table[i].index |= (vid << 8); /* upper 8 bits */
+		powernow_table[i].driver_data = fid; /* lower 8 bits */
+		powernow_table[i].driver_data |= (vid << 8); /* upper 8 bits */
 
 		speed = powernow_table[i].frequency;
 		speed_mhz = speed / 1000;
@@ -417,7 +417,7 @@ static int powernow_acpi_init(void)
 	}
 
 	powernow_table[i].frequency = CPUFREQ_TABLE_END;
-	powernow_table[i].index = 0;
+	powernow_table[i].driver_data = 0;
 
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
@@ -563,7 +563,7 @@ static int powernow_verify(struct cpufreq_policy *policy)
  * We will then get the same kind of behaviour already tested under
  * the "well-known" other OS.
  */
-static int __cpuinit fixup_sgtc(void)
+static int fixup_sgtc(void)
 {
 	unsigned int sgtc;
 	unsigned int m;
@@ -597,7 +597,7 @@ static unsigned int powernow_get(unsigned int cpu)
 }
 
 
-static int __cpuinit acer_cpufreq_pst(const struct dmi_system_id *d)
+static int acer_cpufreq_pst(const struct dmi_system_id *d)
 {
 	printk(KERN_WARNING PFX
 		"%s laptop with broken PST tables in BIOS detected.\n",
@@ -615,7 +615,7 @@ static int __cpuinit acer_cpufreq_pst(const struct dmi_system_id *d)
  * A BIOS update is all that can save them.
  * Mention this, and disable cpufreq.
  */
-static struct dmi_system_id __cpuinitdata powernow_dmi_table[] = {
+static struct dmi_system_id powernow_dmi_table[] = {
 	{
 		.callback = acer_cpufreq_pst,
 		.ident = "Acer Aspire",
@@ -627,7 +627,7 @@ static struct dmi_system_id __cpuinitdata powernow_dmi_table[] = {
 	{ }
 };
 
-static int __cpuinit powernow_cpu_init(struct cpufreq_policy *policy)
+static int powernow_cpu_init(struct cpufreq_policy *policy)
 {
 	union msr_fidvidstatus fidvidstatus;
 	int result;

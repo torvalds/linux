@@ -13,6 +13,7 @@ config MN10300
 	select MODULES_USE_ELF_RELA
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
+	select HAVE_DEBUG_STACKOVERFLOW
 
 config AM33_2
 	def_bool n

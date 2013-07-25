@@ -139,6 +139,7 @@ config DRM_I915
 	select BACKLIGHT_CLASS_DEVICE if ACPI
 	select VIDEO_OUTPUT_CONTROL if ACPI
 	select INPUT if ACPI
+	select THERMAL if ACPI
 	select ACPI_VIDEO if ACPI
 	select ACPI_BUTTON if ACPI
 	help
@@ -212,6 +213,8 @@ source "drivers/gpu/drm/ast/Kconfig"
 source "drivers/gpu/drm/mgag200/Kconfig"
 
 source "drivers/gpu/drm/cirrus/Kconfig"
+
+source "drivers/gpu/drm/rcar-du/Kconfig"
 
 source "drivers/gpu/drm/shmobile/Kconfig"
 

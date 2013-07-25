@@ -480,6 +480,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		break;
 
 	default:
+
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 
@@ -588,7 +589,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	    (ACPI_GET_DESCRIPTOR_TYPE(ddb_handle) != ACPI_DESC_TYPE_OPERAND) ||
 	    (ddb_handle->common.type != ACPI_TYPE_LOCAL_REFERENCE) ||
 	    (!(ddb_handle->common.flags & AOPOBJ_DATA_VALID))) {
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 
 	/* Get the table index from the ddb_handle */

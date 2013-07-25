@@ -134,6 +134,7 @@ enum iwl_tx_flags {
 #define TX_CMD_SEC_WEP			0x01
 #define TX_CMD_SEC_CCM			0x02
 #define TX_CMD_SEC_TKIP			0x03
+#define TX_CMD_SEC_MSK			0x07
 #define TX_CMD_SEC_WEP_KEY_IDX_POS	6
 #define TX_CMD_SEC_WEP_KEY_IDX_MSK	0xc0
 #define TX_CMD_SEC_KEY128		0x08
@@ -227,10 +228,11 @@ struct iwl_tx_cmd {
 	__le16 len;
 	__le16 next_frame_len;
 	__le32 tx_flags;
-	/* DRAM_SCRATCH_API_U_VER_1 */
-	u8 try_cnt;
-	u8 btkill_cnt;
-	__le16 reserved;
+	struct {
+		u8 try_cnt;
+		u8 btkill_cnt;
+		__le16 reserved;
+	} scratch; /* DRAM_SCRATCH_API_U_VER_1 */
 	__le32 rate_n_flags;
 	u8 sta_id;
 	u8 sec_ctl;

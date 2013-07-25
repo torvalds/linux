@@ -121,7 +121,7 @@ unsigned hpfs_count_one_bitmap(struct super_block *s, secno secno)
 	unsigned long *bits;
 	unsigned count;
 
-	bits = hpfs_map_4sectors(s, secno, &qbh, 4);
+	bits = hpfs_map_4sectors(s, secno, &qbh, 0);
 	if (!bits)
 		return 0;
 	count = bitmap_weight(bits, 2048 * BITS_PER_BYTE);
@@ -134,8 +134,13 @@ static unsigned count_bitmaps(struct super_block *s)
 	unsigned n, count, n_bands;
 	n_bands = (hpfs_sb(s)->sb_fs_size + 0x3fff) >> 14;
 	count = 0;
-	for (n = 0; n < n_bands; n++)
+	for (n = 0; n < COUNT_RD_AHEAD; n++) {
+		hpfs_prefetch_bitmap(s, n);
+	}
+	for (n = 0; n < n_bands; n++) {
+		hpfs_prefetch_bitmap(s, n + COUNT_RD_AHEAD);
 		count += hpfs_count_one_bitmap(s, le32_to_cpu(hpfs_sb(s)->sb_bmp_dir[n]));
+	}
 	return count;
 }
 
@@ -558,7 +563,13 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	sbi->sb_cp_table = NULL;
 	sbi->sb_c_bitmap = -1;
 	sbi->sb_max_fwd_alloc = 0xffffff;
-	
+
+	if (sbi->sb_fs_size >= 0x80000000) {
+		hpfs_error(s, "invalid size in superblock: %08x",
+			(unsigned)sbi->sb_fs_size);
+		goto bail4;
+	}
+
 	/* Load bitmap directory */
 	if (!(sbi->sb_bmp_dir = hpfs_load_bitmap_directory(s, le32_to_cpu(superblock->bitmaps))))
 		goto bail4;

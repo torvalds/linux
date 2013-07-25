@@ -127,22 +127,22 @@ Example:
 				};
 			};
 		};
-	};
 
-	/* MIPI CSI-2 bus IF sensor */
-	s5c73m3: sensor@0x1a {
-		compatible = "samsung,s5c73m3";
-		reg = <0x1a>;
-		vddio-supply = <...>;
+		/* MIPI CSI-2 bus IF sensor */
+		s5c73m3: sensor@0x1a {
+			compatible = "samsung,s5c73m3";
+			reg = <0x1a>;
+			vddio-supply = <...>;
 
-		clock-frequency = <24000000>;
-		clocks = <...>;
-		clock-names = "mclk";
+			clock-frequency = <24000000>;
+			clocks = <...>;
+			clock-names = "mclk";
 
-		port {
-			s5c73m3_1: endpoint {
-				data-lanes = <1 2 3 4>;
-				remote-endpoint = <&csis0_ep>;
+			port {
+				s5c73m3_1: endpoint {
+					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&csis0_ep>;
+				};
 			};
 		};
 	};

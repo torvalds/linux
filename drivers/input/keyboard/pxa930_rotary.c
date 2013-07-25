@@ -181,7 +181,6 @@ static int pxa930_rotary_remove(struct platform_device *pdev)
 	free_irq(platform_get_irq(pdev, 0), r);
 	input_unregister_device(r->input_dev);
 	iounmap(r->mmio_base);
-	platform_set_drvdata(pdev, NULL);
 	kfree(r);
 
 	return 0;

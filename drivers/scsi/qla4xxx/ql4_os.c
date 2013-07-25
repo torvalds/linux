@@ -7060,8 +7060,8 @@ skip_retry_init:
 	}
 	INIT_WORK(&ha->dpc_work, qla4xxx_do_dpc);
 
-	sprintf(buf, "qla4xxx_%lu_task", ha->host_no);
-	ha->task_wq = alloc_workqueue(buf, WQ_MEM_RECLAIM, 1);
+	ha->task_wq = alloc_workqueue("qla4xxx_%lu_task", WQ_MEM_RECLAIM, 1,
+				      ha->host_no);
 	if (!ha->task_wq) {
 		ql4_printk(KERN_WARNING, ha, "Unable to start task thread!\n");
 		ret = -ENODEV;

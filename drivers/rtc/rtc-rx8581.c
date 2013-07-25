@@ -251,11 +251,6 @@ static int rx8581_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int rx8581_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id rx8581_id[] = {
 	{ "rx8581", 0 },
 	{ }
@@ -268,7 +263,6 @@ static struct i2c_driver rx8581_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= rx8581_probe,
-	.remove		= rx8581_remove,
 	.id_table	= rx8581_id,
 };
 

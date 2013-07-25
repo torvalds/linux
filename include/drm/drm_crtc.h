@@ -339,6 +339,9 @@ struct drm_crtc_funcs {
 	/* cursor controls */
 	int (*cursor_set)(struct drm_crtc *crtc, struct drm_file *file_priv,
 			  uint32_t handle, uint32_t width, uint32_t height);
+	int (*cursor_set2)(struct drm_crtc *crtc, struct drm_file *file_priv,
+			   uint32_t handle, uint32_t width, uint32_t height,
+			   int32_t hot_x, int32_t hot_y);
 	int (*cursor_move)(struct drm_crtc *crtc, int x, int y);
 
 	/* Set gamma on the CRTC */
@@ -408,6 +411,10 @@ struct drm_crtc {
 
 	/* framebuffer the connector is currently bound to */
 	struct drm_framebuffer *fb;
+
+	/* Temporary tracking of the old fb while a modeset is ongoing. Used
+	 * by drm_mode_set_config_internal to implement correct refcounting. */
+	struct drm_framebuffer *old_fb;
 
 	bool enabled;
 
@@ -654,11 +661,7 @@ struct drm_plane_funcs {
  * @format_count: number of formats supported
  * @crtc: currently bound CRTC
  * @fb: currently bound fb
- * @gamma_size: size of gamma table
- * @gamma_store: gamma correction table
- * @enabled: enabled flag
  * @funcs: helper functions
- * @helper_private: storage for drver layer
  * @properties: property tracking for this plane
  */
 struct drm_plane {
@@ -674,14 +677,7 @@ struct drm_plane {
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
 
-	/* CRTC gamma size for reporting to userspace */
-	uint32_t gamma_size;
-	uint16_t *gamma_store;
-
-	bool enabled;
-
 	const struct drm_plane_funcs *funcs;
-	void *helper_private;
 
 	struct drm_object_properties properties;
 };
@@ -894,15 +890,17 @@ extern int drm_plane_init(struct drm_device *dev,
 			  const uint32_t *formats, uint32_t format_count,
 			  bool priv);
 extern void drm_plane_cleanup(struct drm_plane *plane);
+extern void drm_plane_force_disable(struct drm_plane *plane);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
-extern char *drm_get_connector_name(struct drm_connector *connector);
-extern char *drm_get_dpms_name(int val);
-extern char *drm_get_dvi_i_subconnector_name(int val);
-extern char *drm_get_dvi_i_select_name(int val);
-extern char *drm_get_tv_subconnector_name(int val);
-extern char *drm_get_tv_select_name(int val);
+extern const char *drm_get_connector_name(const struct drm_connector *connector);
+extern const char *drm_get_connector_status_name(enum drm_connector_status status);
+extern const char *drm_get_dpms_name(int val);
+extern const char *drm_get_dvi_i_subconnector_name(int val);
+extern const char *drm_get_dvi_i_select_name(int val);
+extern const char *drm_get_tv_subconnector_name(int val);
+extern const char *drm_get_tv_select_name(int val);
 extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern bool drm_probe_ddc(struct i2c_adapter *adapter);
@@ -994,7 +992,7 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_dithering_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
-extern char *drm_get_encoder_name(struct drm_encoder *encoder);
+extern const char *drm_get_encoder_name(const struct drm_encoder *encoder);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
@@ -1021,6 +1019,8 @@ extern int drm_mode_getplane(struct drm_device *dev,
 extern int drm_mode_setplane(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
 extern int drm_mode_cursor_ioctl(struct drm_device *dev,
+				void *data, struct drm_file *file_priv);
+extern int drm_mode_cursor2_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv);
 extern int drm_mode_addfb(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
@@ -1094,5 +1094,6 @@ extern int drm_format_num_planes(uint32_t format);
 extern int drm_format_plane_cpp(uint32_t format, int plane);
 extern int drm_format_horz_chroma_subsampling(uint32_t format);
 extern int drm_format_vert_chroma_subsampling(uint32_t format);
+extern const char *drm_get_format_name(uint32_t format);
 
 #endif /* __DRM_CRTC_H__ */

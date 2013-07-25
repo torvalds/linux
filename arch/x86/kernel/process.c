@@ -277,18 +277,6 @@ void exit_idle(void)
 }
 #endif
 
-void arch_cpu_idle_prepare(void)
-{
-	/*
-	 * If we're the non-boot CPU, nothing set the stack canary up
-	 * for us.  CPU0 already has it initialized but no harm in
-	 * doing it again.  This is a good place for updating it, as
-	 * we wont ever return from this function (so the invalid
-	 * canaries already on the stack wont ever trigger).
-	 */
-	boot_init_stack_canary();
-}
-
 void arch_cpu_idle_enter(void)
 {
 	local_touch_nmi();
@@ -410,7 +398,7 @@ static void amd_e400_idle(void)
 		default_idle();
 }
 
-void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
+void select_idle_routine(const struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	if (boot_option_idle_override == IDLE_POLL && smp_num_siblings > 1)

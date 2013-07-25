@@ -78,7 +78,6 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 
 	switch (op->common.aml_opcode) {
 	case AML_WHILE_OP:
-
 		/*
 		 * If this is an additional iteration of a while loop, continue.
 		 * There is no need to allocate a new control state.
@@ -99,7 +98,6 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 		/*lint -fallthrough */
 
 	case AML_IF_OP:
-
 		/*
 		 * IF/WHILE: Create a new control state to manage these
 		 * constructs. We need to manage these as a stack, in order
@@ -142,6 +140,7 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 		break;
 
 	default:
+
 		break;
 	}
 
@@ -344,6 +343,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 	case AML_NOOP_OP:
 
 		/* Just do nothing! */
+
 		break;
 
 	case AML_BREAK_POINT_OP:

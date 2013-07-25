@@ -30,6 +30,8 @@ static DEFINE_MUTEX(afinfo_mutex);
 
 const struct nf_afinfo __rcu *nf_afinfo[NFPROTO_NUMPROTO] __read_mostly;
 EXPORT_SYMBOL(nf_afinfo);
+const struct nf_ipv6_ops __rcu *nf_ipv6_ops __read_mostly;
+EXPORT_SYMBOL_GPL(nf_ipv6_ops);
 
 int nf_register_afinfo(const struct nf_afinfo *afinfo)
 {
@@ -302,17 +304,26 @@ static struct pernet_operations netfilter_net_ops = {
 	.exit = netfilter_net_exit,
 };
 
-void __init netfilter_init(void)
+int __init netfilter_init(void)
 {
-	int i, h;
+	int i, h, ret;
+
 	for (i = 0; i < ARRAY_SIZE(nf_hooks); i++) {
 		for (h = 0; h < NF_MAX_HOOKS; h++)
 			INIT_LIST_HEAD(&nf_hooks[i][h]);
 	}
 
-	if (register_pernet_subsys(&netfilter_net_ops) < 0)
-		panic("cannot create netfilter proc entry");
+	ret = register_pernet_subsys(&netfilter_net_ops);
+	if (ret < 0)
+		goto err;
 
-	if (netfilter_log_init() < 0)
-		panic("cannot initialize nf_log");
+	ret = netfilter_log_init();
+	if (ret < 0)
+		goto err_pernet;
+
+	return 0;
+err_pernet:
+	unregister_pernet_subsys(&netfilter_net_ops);
+err:
+	return ret;
 }

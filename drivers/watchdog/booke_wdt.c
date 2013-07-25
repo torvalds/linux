@@ -138,6 +138,14 @@ static void __booke_wdt_enable(void *data)
 	val &= ~WDTP_MASK;
 	val |= (TCR_WIE|TCR_WRC(WRC_CHIP)|WDTP(booke_wdt_period));
 
+#ifdef CONFIG_PPC_BOOK3E_64
+	/*
+	 * Crit ints are currently broken on PPC64 Book-E, so
+	 * just disable them for now.
+	 */
+	val &= ~TCR_WIE;
+#endif
+
 	mtspr(SPRN_TCR, val);
 }
 

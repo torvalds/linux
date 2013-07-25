@@ -15,6 +15,7 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 {
 	struct net *net;
 	struct ip_vs_service *svc;
+	struct netns_ipvs *ipvs;
 	sctp_chunkhdr_t _schunkh, *sch;
 	sctp_sctphdr_t *sh, _sctph;
 
@@ -27,13 +28,14 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	if (sch == NULL)
 		return 0;
 	net = skb_net(skb);
+	ipvs = net_ipvs(net);
 	rcu_read_lock();
-	if ((sch->type == SCTP_CID_INIT) &&
+	if ((sch->type == SCTP_CID_INIT || sysctl_sloppy_sctp(ipvs)) &&
 	    (svc = ip_vs_service_find(net, af, skb->mark, iph->protocol,
 				      &iph->daddr, sh->dest))) {
 		int ignored;
 
-		if (ip_vs_todrop(net_ipvs(net))) {
+		if (ip_vs_todrop(ipvs)) {
 			/*
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(
@@ -183,710 +185,159 @@ sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 	return 1;
 }
 
-struct ipvs_sctp_nextstate {
-	int next_state;
-};
 enum ipvs_sctp_event_t {
-	IP_VS_SCTP_EVE_DATA_CLI,
-	IP_VS_SCTP_EVE_DATA_SER,
-	IP_VS_SCTP_EVE_INIT_CLI,
-	IP_VS_SCTP_EVE_INIT_SER,
-	IP_VS_SCTP_EVE_INIT_ACK_CLI,
-	IP_VS_SCTP_EVE_INIT_ACK_SER,
-	IP_VS_SCTP_EVE_COOKIE_ECHO_CLI,
-	IP_VS_SCTP_EVE_COOKIE_ECHO_SER,
-	IP_VS_SCTP_EVE_COOKIE_ACK_CLI,
-	IP_VS_SCTP_EVE_COOKIE_ACK_SER,
-	IP_VS_SCTP_EVE_ABORT_CLI,
-	IP_VS_SCTP_EVE__ABORT_SER,
-	IP_VS_SCTP_EVE_SHUT_CLI,
-	IP_VS_SCTP_EVE_SHUT_SER,
-	IP_VS_SCTP_EVE_SHUT_ACK_CLI,
-	IP_VS_SCTP_EVE_SHUT_ACK_SER,
-	IP_VS_SCTP_EVE_SHUT_COM_CLI,
-	IP_VS_SCTP_EVE_SHUT_COM_SER,
-	IP_VS_SCTP_EVE_LAST
+	IP_VS_SCTP_DATA = 0,		/* DATA, SACK, HEARTBEATs */
+	IP_VS_SCTP_INIT,
+	IP_VS_SCTP_INIT_ACK,
+	IP_VS_SCTP_COOKIE_ECHO,
+	IP_VS_SCTP_COOKIE_ACK,
+	IP_VS_SCTP_SHUTDOWN,
+	IP_VS_SCTP_SHUTDOWN_ACK,
+	IP_VS_SCTP_SHUTDOWN_COMPLETE,
+	IP_VS_SCTP_ERROR,
+	IP_VS_SCTP_ABORT,
+	IP_VS_SCTP_EVENT_LAST
 };
 
-static enum ipvs_sctp_event_t sctp_events[256] = {
-	IP_VS_SCTP_EVE_DATA_CLI,
-	IP_VS_SCTP_EVE_INIT_CLI,
-	IP_VS_SCTP_EVE_INIT_ACK_CLI,
-	IP_VS_SCTP_EVE_DATA_CLI,
-	IP_VS_SCTP_EVE_DATA_CLI,
-	IP_VS_SCTP_EVE_DATA_CLI,
-	IP_VS_SCTP_EVE_ABORT_CLI,
-	IP_VS_SCTP_EVE_SHUT_CLI,
-	IP_VS_SCTP_EVE_SHUT_ACK_CLI,
-	IP_VS_SCTP_EVE_DATA_CLI,
-	IP_VS_SCTP_EVE_COOKIE_ECHO_CLI,
-	IP_VS_SCTP_EVE_COOKIE_ACK_CLI,
-	IP_VS_SCTP_EVE_DATA_CLI,
-	IP_VS_SCTP_EVE_DATA_CLI,
-	IP_VS_SCTP_EVE_SHUT_COM_CLI,
+/* RFC 2960, 3.2 Chunk Field Descriptions */
+static __u8 sctp_events[] = {
+	[SCTP_CID_DATA]			= IP_VS_SCTP_DATA,
+	[SCTP_CID_INIT]			= IP_VS_SCTP_INIT,
+	[SCTP_CID_INIT_ACK]		= IP_VS_SCTP_INIT_ACK,
+	[SCTP_CID_SACK]			= IP_VS_SCTP_DATA,
+	[SCTP_CID_HEARTBEAT]		= IP_VS_SCTP_DATA,
+	[SCTP_CID_HEARTBEAT_ACK]	= IP_VS_SCTP_DATA,
+	[SCTP_CID_ABORT]		= IP_VS_SCTP_ABORT,
+	[SCTP_CID_SHUTDOWN]		= IP_VS_SCTP_SHUTDOWN,
+	[SCTP_CID_SHUTDOWN_ACK]		= IP_VS_SCTP_SHUTDOWN_ACK,
+	[SCTP_CID_ERROR]		= IP_VS_SCTP_ERROR,
+	[SCTP_CID_COOKIE_ECHO]		= IP_VS_SCTP_COOKIE_ECHO,
+	[SCTP_CID_COOKIE_ACK]		= IP_VS_SCTP_COOKIE_ACK,
+	[SCTP_CID_ECN_ECNE]		= IP_VS_SCTP_DATA,
+	[SCTP_CID_ECN_CWR]		= IP_VS_SCTP_DATA,
+	[SCTP_CID_SHUTDOWN_COMPLETE]	= IP_VS_SCTP_SHUTDOWN_COMPLETE,
 };
 
-static struct ipvs_sctp_nextstate
- sctp_states_table[IP_VS_SCTP_S_LAST][IP_VS_SCTP_EVE_LAST] = {
-	/*
-	 * STATE : IP_VS_SCTP_S_NONE
-	 */
-	/*next state *//*event */
-	{{IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ },
-	 },
-	/*
-	 * STATE : IP_VS_SCTP_S_INIT_CLI
-	 * Cient sent INIT and is waiting for reply from server(In ECHO_WAIT)
-	 */
-	{{IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_INIT_ACK_SER /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_ECHO_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_INIT_SER
-	 * Server sent INIT and waiting for INIT ACK from the client
-	 */
-	{{IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 {IP_VS_SCTP_S_INIT_ACK_CLI /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_INIT_ACK_CLI
-	 * Client sent INIT ACK and waiting for ECHO from the server
-	 */
-	{{IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * INIT_ACK has been resent by the client, let us stay is in
-	  * the same state
-	  */
-	 {IP_VS_SCTP_S_INIT_ACK_CLI /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 /*
-	  * INIT_ACK sent by the server, close the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * ECHO by client, it should not happen, close the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 /*
-	  * ECHO by server, this is what we are expecting, move to ECHO_SER
-	  */
-	 {IP_VS_SCTP_S_ECHO_SER /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, it should not happen, close the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 /*
-	  * Unexpected COOKIE ACK from server, staty in the same state
-	  */
-	 {IP_VS_SCTP_S_INIT_ACK_CLI /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_INIT_ACK_SER
-	 * Server sent INIT ACK and waiting for ECHO from the client
-	 */
-	{{IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * Unexpected INIT_ACK by the client, let us close the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 /*
-	  * INIT_ACK resent by the server, let us move to same state
-	  */
-	 {IP_VS_SCTP_S_INIT_ACK_SER /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * Client send the ECHO, this is what we are expecting,
-	  * move to ECHO_CLI
-	  */
-	 {IP_VS_SCTP_S_ECHO_CLI /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 /*
-	  * ECHO received from the server, Not sure what to do,
-	  * let us close it
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, let us stay in the same state
-	  */
-	 {IP_VS_SCTP_S_INIT_ACK_SER /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 /*
-	  * COOKIE ACK from server, hmm... this should not happen, lets close
-	  * the connection.
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_ECHO_CLI
-	 * Cient  sent ECHO and waiting COOKEI ACK from the Server
-	 */
-	{{IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * INIT_ACK has been by the client, let us close the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 /*
-	  * INIT_ACK sent by the server, Unexpected INIT ACK, spec says,
-	  * “If an INIT ACK is received by an endpoint in any state other
-	  * than the COOKIE-WAIT state, the endpoint should discard the
-	  * INIT ACK chunk”. Stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ECHO_CLI /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * Client resent the ECHO, let us stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ECHO_CLI /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 /*
-	  * ECHO received from the server, Not sure what to do,
-	  * let us close it
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, this shoud not happen, let's close the
-	  * connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 /*
-	  * COOKIE ACK from server, this is what we are awaiting,lets move to
-	  * ESTABLISHED.
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_ECHO_SER
-	 * Server sent ECHO and waiting COOKEI ACK from the client
-	 */
-	{{IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * INIT_ACK sent by the server, Unexpected INIT ACK, spec says,
-	  * “If an INIT ACK is received by an endpoint in any state other
-	  * than the COOKIE-WAIT state, the endpoint should discard the
-	  * INIT ACK chunk”. Stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ECHO_SER /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 /*
-	  * INIT_ACK has been by the server, let us close the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * Client sent the ECHO, not sure what to do, let's close the
-	  * connection.
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 /*
-	  * ECHO resent by the server, stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ECHO_SER /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, this is what we are expecting, let's move
-	  * to ESTABLISHED.
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 /*
-	  * COOKIE ACK from server, this should not happen, lets close the
-	  * connection.
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_ESTABLISHED
-	 * Association established
-	 */
-	{{IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * INIT_ACK sent by the server, Unexpected INIT ACK, spec says,
-	  * “If an INIT ACK is received by an endpoint in any state other
-	  * than the COOKIE-WAIT state, the endpoint should discard the
-	  * INIT ACK chunk”. Stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * Client sent ECHO, Spec(sec 5.2.4) says it may be handled by the
-	  * peer and peer shall move to the ESTABISHED. if it doesn't handle
-	  * it will send ERROR chunk. So, stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, not sure what to do stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 /*
-	  * SHUTDOWN from the client, move to SHUDDOWN_CLI
-	  */
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 /*
-	  * SHUTDOWN from the server, move to SHUTDOWN_SER
-	  */
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 /*
-	  * client sent SHUDTDOWN_ACK, this should not happen, let's close
-	  * the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_SHUT_CLI
-	 * SHUTDOWN sent from the client, waitinf for SHUT ACK from the server
-	 */
-	/*
-	 * We received the data chuck, keep the state unchanged. I assume
-	 * that still data chuncks  can be received by both the peers in
-	 * SHUDOWN state
-	 */
-
-	{{IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * INIT_ACK sent by the server, Unexpected INIT ACK, spec says,
-	  * “If an INIT ACK is received by an endpoint in any state other
-	  * than the COOKIE-WAIT state, the endpoint should discard the
-	  * INIT ACK chunk”. Stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * Client sent ECHO, Spec(sec 5.2.4) says it may be handled by the
-	  * peer and peer shall move to the ESTABISHED. if it doesn't handle
-	  * it will send ERROR chunk. So, stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, not sure what to do stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 /*
-	  * SHUTDOWN resent from the client, move to SHUDDOWN_CLI
-	  */
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 /*
-	  * SHUTDOWN from the server, move to SHUTDOWN_SER
-	  */
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 /*
-	  * client sent SHUDTDOWN_ACK, this should not happen, let's close
-	  * the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 /*
-	  * Server sent SHUTDOWN ACK, this is what we are expecting, let's move
-	  * to SHUDOWN_ACK_SER
-	  */
-	 {IP_VS_SCTP_S_SHUT_ACK_SER /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 /*
-	  * SHUTDOWN COM from client, this should not happen, let's close the
-	  * connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_SHUT_SER
-	 * SHUTDOWN sent from the server, waitinf for SHUTDOWN ACK from client
-	 */
-	/*
-	 * We received the data chuck, keep the state unchanged. I assume
-	 * that still data chuncks  can be received by both the peers in
-	 * SHUDOWN state
-	 */
-
-	{{IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * INIT_ACK sent by the server, Unexpected INIT ACK, spec says,
-	  * “If an INIT ACK is received by an endpoint in any state other
-	  * than the COOKIE-WAIT state, the endpoint should discard the
-	  * INIT ACK chunk”. Stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * Client sent ECHO, Spec(sec 5.2.4) says it may be handled by the
-	  * peer and peer shall move to the ESTABISHED. if it doesn't handle
-	  * it will send ERROR chunk. So, stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, not sure what to do stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 /*
-	  * SHUTDOWN resent from the client, move to SHUDDOWN_CLI
-	  */
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 /*
-	  * SHUTDOWN resent from the server, move to SHUTDOWN_SER
-	  */
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 /*
-	  * client sent SHUDTDOWN_ACK, this is what we are expecting, let's
-	  * move to SHUT_ACK_CLI
-	  */
-	 {IP_VS_SCTP_S_SHUT_ACK_CLI /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 /*
-	  * Server sent SHUTDOWN ACK, this should not happen, let's close the
-	  * connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 /*
-	  * SHUTDOWN COM from client, this should not happen, let's close the
-	  * connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-
-	/*
-	 * State : IP_VS_SCTP_S_SHUT_ACK_CLI
-	 * SHUTDOWN ACK from the client, awaiting for SHUTDOWN COM from server
-	 */
-	/*
-	 * We received the data chuck, keep the state unchanged. I assume
-	 * that still data chuncks  can be received by both the peers in
-	 * SHUDOWN state
-	 */
-
-	{{IP_VS_SCTP_S_SHUT_ACK_CLI /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_ACK_CLI /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * INIT_ACK sent by the server, Unexpected INIT ACK, spec says,
-	  * “If an INIT ACK is received by an endpoint in any state other
-	  * than the COOKIE-WAIT state, the endpoint should discard the
-	  * INIT ACK chunk”. Stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_ACK_CLI /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_ACK_CLI /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * Client sent ECHO, Spec(sec 5.2.4) says it may be handled by the
-	  * peer and peer shall move to the ESTABISHED. if it doesn't handle
-	  * it will send ERROR chunk. So, stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, not sure what to do stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_ACK_CLI /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_ACK_CLI /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 /*
-	  * SHUTDOWN sent from the client, move to SHUDDOWN_CLI
-	  */
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 /*
-	  * SHUTDOWN sent from the server, move to SHUTDOWN_SER
-	  */
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 /*
-	  * client resent SHUDTDOWN_ACK, let's stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_ACK_CLI /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 /*
-	  * Server sent SHUTDOWN ACK, this should not happen, let's close the
-	  * connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 /*
-	  * SHUTDOWN COM from client, this should not happen, let's close the
-	  * connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 /*
-	  * SHUTDOWN COMPLETE from server this is what we are expecting.
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-
-	/*
-	 * State : IP_VS_SCTP_S_SHUT_ACK_SER
-	 * SHUTDOWN ACK from the server, awaiting for SHUTDOWN COM from client
-	 */
-	/*
-	 * We received the data chuck, keep the state unchanged. I assume
-	 * that still data chuncks  can be received by both the peers in
-	 * SHUDOWN state
-	 */
-
-	{{IP_VS_SCTP_S_SHUT_ACK_SER /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_ACK_SER /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 /*
-	  * We have got an INIT from client. From the spec.“Upon receipt of
-	  * an INIT in the COOKIE-WAIT state, an endpoint MUST respond with
-	  * an INIT ACK using the same parameters it sent in its  original
-	  * INIT chunk (including its Initiate Tag, unchanged”).
-	  */
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 /*
-	  * INIT_ACK sent by the server, Unexpected INIT ACK, spec says,
-	  * “If an INIT ACK is received by an endpoint in any state other
-	  * than the COOKIE-WAIT state, the endpoint should discard the
-	  * INIT ACK chunk”. Stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_ACK_SER /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_ACK_SER /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 /*
-	  * Client sent ECHO, Spec(sec 5.2.4) says it may be handled by the
-	  * peer and peer shall move to the ESTABISHED. if it doesn't handle
-	  * it will send ERROR chunk. So, stay in the same state
-	  */
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_ESTABLISHED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 /*
-	  * COOKIE ACK from client, not sure what to do stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_ACK_SER /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_SHUT_ACK_SER /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 /*
-	  * SHUTDOWN sent from the client, move to SHUDDOWN_CLI
-	  */
-	 {IP_VS_SCTP_S_SHUT_CLI /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 /*
-	  * SHUTDOWN sent from the server, move to SHUTDOWN_SER
-	  */
-	 {IP_VS_SCTP_S_SHUT_SER /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 /*
-	  * client sent SHUDTDOWN_ACK, this should not happen let's close
-	  * the connection.
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 /*
-	  * Server resent SHUTDOWN ACK, stay in the same state
-	  */
-	 {IP_VS_SCTP_S_SHUT_ACK_SER /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 /*
-	  * SHUTDOWN COM from client, this what we are expecting, let's close
-	  * the connection
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 /*
-	  * SHUTDOWN COMPLETE from server this should not happen.
-	  */
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 },
-	/*
-	 * State : IP_VS_SCTP_S_CLOSED
-	 */
-	{{IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_DATA_SER */ },
-	 {IP_VS_SCTP_S_INIT_CLI /* IP_VS_SCTP_EVE_INIT_CLI */ },
-	 {IP_VS_SCTP_S_INIT_SER /* IP_VS_SCTP_EVE_INIT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_INIT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ECHO_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_COOKIE_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_ABORT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_ACK_SER */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_CLI */ },
-	 {IP_VS_SCTP_S_CLOSED /* IP_VS_SCTP_EVE_SHUT_COM_SER */ }
-	 }
-};
-
-/*
- *      Timeout table[state]
+/* SCTP States:
+ * See RFC 2960, 4. SCTP Association State Diagram
+ *
+ * New states (not in diagram):
+ * - INIT1 state: use shorter timeout for dropped INIT packets
+ * - REJECTED state: use shorter timeout if INIT is rejected with ABORT
+ * - INIT, COOKIE_SENT, COOKIE_REPLIED, COOKIE states: for better debugging
+ *
+ * The states are as seen in real server. In the diagram, INIT1, INIT,
+ * COOKIE_SENT and COOKIE_REPLIED processing happens in CLOSED state.
+ *
+ * States as per packets from client (C) and server (S):
+ *
+ * Setup of client connection:
+ * IP_VS_SCTP_S_INIT1: First C:INIT sent, wait for S:INIT-ACK
+ * IP_VS_SCTP_S_INIT: Next C:INIT sent, wait for S:INIT-ACK
+ * IP_VS_SCTP_S_COOKIE_SENT: S:INIT-ACK sent, wait for C:COOKIE-ECHO
+ * IP_VS_SCTP_S_COOKIE_REPLIED: C:COOKIE-ECHO sent, wait for S:COOKIE-ACK
+ *
+ * Setup of server connection:
+ * IP_VS_SCTP_S_COOKIE_WAIT: S:INIT sent, wait for C:INIT-ACK
+ * IP_VS_SCTP_S_COOKIE: C:INIT-ACK sent, wait for S:COOKIE-ECHO
+ * IP_VS_SCTP_S_COOKIE_ECHOED: S:COOKIE-ECHO sent, wait for C:COOKIE-ACK
  */
+
+#define sNO IP_VS_SCTP_S_NONE
+#define sI1 IP_VS_SCTP_S_INIT1
+#define sIN IP_VS_SCTP_S_INIT
+#define sCS IP_VS_SCTP_S_COOKIE_SENT
+#define sCR IP_VS_SCTP_S_COOKIE_REPLIED
+#define sCW IP_VS_SCTP_S_COOKIE_WAIT
+#define sCO IP_VS_SCTP_S_COOKIE
+#define sCE IP_VS_SCTP_S_COOKIE_ECHOED
+#define sES IP_VS_SCTP_S_ESTABLISHED
+#define sSS IP_VS_SCTP_S_SHUTDOWN_SENT
+#define sSR IP_VS_SCTP_S_SHUTDOWN_RECEIVED
+#define sSA IP_VS_SCTP_S_SHUTDOWN_ACK_SENT
+#define sRJ IP_VS_SCTP_S_REJECTED
+#define sCL IP_VS_SCTP_S_CLOSED
+
+static const __u8 sctp_states
+	[IP_VS_DIR_LAST][IP_VS_SCTP_EVENT_LAST][IP_VS_SCTP_S_LAST] = {
+	{ /* INPUT */
+/*        sNO, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
+/* d   */{sES, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* i   */{sI1, sIN, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sIN, sIN},
+/* i_a */{sCW, sCW, sCW, sCS, sCR, sCO, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* c_e */{sCR, sIN, sIN, sCR, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* c_a */{sES, sI1, sIN, sCS, sCR, sCW, sCO, sES, sES, sSS, sSR, sSA, sRJ, sCL},
+/* s   */{sSR, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sSR, sSS, sSR, sSA, sRJ, sCL},
+/* s_a */{sCL, sIN, sIN, sCS, sCR, sCW, sCO, sCE, sES, sCL, sSR, sCL, sRJ, sCL},
+/* s_c */{sCL, sCL, sCL, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sCL, sRJ, sCL},
+/* err */{sCL, sI1, sIN, sCS, sCR, sCW, sCO, sCL, sES, sSS, sSR, sSA, sRJ, sCL},
+/* ab  */{sCL, sCL, sCL, sCL, sCL, sRJ, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL},
+	},
+	{ /* OUTPUT */
+/*        sNO, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
+/* d   */{sES, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* i   */{sCW, sCW, sCW, sCW, sCW, sCW, sCW, sCW, sES, sCW, sCW, sCW, sCW, sCW},
+/* i_a */{sCS, sCS, sCS, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* c_e */{sCE, sCE, sCE, sCE, sCE, sCE, sCE, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* c_a */{sES, sES, sES, sES, sES, sES, sES, sES, sES, sSS, sSR, sSA, sRJ, sCL},
+/* s   */{sSS, sSS, sSS, sSS, sSS, sSS, sSS, sSS, sSS, sSS, sSR, sSA, sRJ, sCL},
+/* s_a */{sSA, sSA, sSA, sSA, sSA, sCW, sCO, sCE, sES, sSA, sSA, sSA, sRJ, sCL},
+/* s_c */{sCL, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* err */{sCL, sCL, sCL, sCL, sCL, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* ab  */{sCL, sRJ, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL},
+	},
+	{ /* INPUT-ONLY */
+/*        sNO, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL*/
+/* d   */{sES, sI1, sIN, sCS, sCR, sES, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* i   */{sI1, sIN, sIN, sIN, sIN, sIN, sCO, sCE, sES, sSS, sSR, sSA, sIN, sIN},
+/* i_a */{sCE, sCE, sCE, sCE, sCE, sCE, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* c_e */{sES, sES, sES, sES, sES, sES, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* c_a */{sES, sI1, sIN, sES, sES, sCW, sES, sES, sES, sSS, sSR, sSA, sRJ, sCL},
+/* s   */{sSR, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sSR, sSS, sSR, sSA, sRJ, sCL},
+/* s_a */{sCL, sIN, sIN, sCS, sCR, sCW, sCO, sCE, sCL, sCL, sSR, sCL, sRJ, sCL},
+/* s_c */{sCL, sCL, sCL, sCL, sCL, sCW, sCO, sCE, sES, sSS, sCL, sCL, sRJ, sCL},
+/* err */{sCL, sI1, sIN, sCS, sCR, sCW, sCO, sCE, sES, sSS, sSR, sSA, sRJ, sCL},
+/* ab  */{sCL, sCL, sCL, sCL, sCL, sRJ, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL},
+	},
+};
+
+#define IP_VS_SCTP_MAX_RTO	((60 + 1) * HZ)
+
+/* Timeout table[state] */
 static const int sctp_timeouts[IP_VS_SCTP_S_LAST + 1] = {
-	[IP_VS_SCTP_S_NONE]         =     2 * HZ,
-	[IP_VS_SCTP_S_INIT_CLI]     =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_INIT_SER]     =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_INIT_ACK_CLI] =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_INIT_ACK_SER] =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_ECHO_CLI]     =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_ECHO_SER]     =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_ESTABLISHED]  =    15 * 60 * HZ,
-	[IP_VS_SCTP_S_SHUT_CLI]     =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_SHUT_SER]     =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_SHUT_ACK_CLI] =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_SHUT_ACK_SER] =     1 * 60 * HZ,
-	[IP_VS_SCTP_S_CLOSED]       =    10 * HZ,
-	[IP_VS_SCTP_S_LAST]         =     2 * HZ,
+	[IP_VS_SCTP_S_NONE]			= 2 * HZ,
+	[IP_VS_SCTP_S_INIT1]			= (0 + 3 + 1) * HZ,
+	[IP_VS_SCTP_S_INIT]			= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_COOKIE_SENT]		= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_COOKIE_REPLIED]		= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_COOKIE_WAIT]		= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_COOKIE]			= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_COOKIE_ECHOED]		= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_ESTABLISHED]		= 15 * 60 * HZ,
+	[IP_VS_SCTP_S_SHUTDOWN_SENT]		= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_SHUTDOWN_RECEIVED]	= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_SHUTDOWN_ACK_SENT]	= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_REJECTED]			= (0 + 3 + 1) * HZ,
+	[IP_VS_SCTP_S_CLOSED]			= IP_VS_SCTP_MAX_RTO,
+	[IP_VS_SCTP_S_LAST]			= 2 * HZ,
 };
 
 static const char *sctp_state_name_table[IP_VS_SCTP_S_LAST + 1] = {
-	[IP_VS_SCTP_S_NONE]         =    "NONE",
-	[IP_VS_SCTP_S_INIT_CLI]     =    "INIT_CLI",
-	[IP_VS_SCTP_S_INIT_SER]     =    "INIT_SER",
-	[IP_VS_SCTP_S_INIT_ACK_CLI] =    "INIT_ACK_CLI",
-	[IP_VS_SCTP_S_INIT_ACK_SER] =    "INIT_ACK_SER",
-	[IP_VS_SCTP_S_ECHO_CLI]     =    "COOKIE_ECHO_CLI",
-	[IP_VS_SCTP_S_ECHO_SER]     =    "COOKIE_ECHO_SER",
-	[IP_VS_SCTP_S_ESTABLISHED]  =    "ESTABISHED",
-	[IP_VS_SCTP_S_SHUT_CLI]     =    "SHUTDOWN_CLI",
-	[IP_VS_SCTP_S_SHUT_SER]     =    "SHUTDOWN_SER",
-	[IP_VS_SCTP_S_SHUT_ACK_CLI] =    "SHUTDOWN_ACK_CLI",
-	[IP_VS_SCTP_S_SHUT_ACK_SER] =    "SHUTDOWN_ACK_SER",
-	[IP_VS_SCTP_S_CLOSED]       =    "CLOSED",
-	[IP_VS_SCTP_S_LAST]         =    "BUG!"
+	[IP_VS_SCTP_S_NONE]			= "NONE",
+	[IP_VS_SCTP_S_INIT1]			= "INIT1",
+	[IP_VS_SCTP_S_INIT]			= "INIT",
+	[IP_VS_SCTP_S_COOKIE_SENT]		= "C-SENT",
+	[IP_VS_SCTP_S_COOKIE_REPLIED]		= "C-REPLIED",
+	[IP_VS_SCTP_S_COOKIE_WAIT]		= "C-WAIT",
+	[IP_VS_SCTP_S_COOKIE]			= "COOKIE",
+	[IP_VS_SCTP_S_COOKIE_ECHOED]		= "C-ECHOED",
+	[IP_VS_SCTP_S_ESTABLISHED]		= "ESTABLISHED",
+	[IP_VS_SCTP_S_SHUTDOWN_SENT]		= "S-SENT",
+	[IP_VS_SCTP_S_SHUTDOWN_RECEIVED]	= "S-RECEIVED",
+	[IP_VS_SCTP_S_SHUTDOWN_ACK_SENT]	= "S-ACK-SENT",
+	[IP_VS_SCTP_S_REJECTED]			= "REJECTED",
+	[IP_VS_SCTP_S_CLOSED]			= "CLOSED",
+	[IP_VS_SCTP_S_LAST]			= "BUG!",
 };
 
 
@@ -943,17 +394,20 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 		}
 	}
 
-	event = sctp_events[chunk_type];
+	event = (chunk_type < sizeof(sctp_events)) ?
+		sctp_events[chunk_type] : IP_VS_SCTP_DATA;
 
-	/*
-	 *  If the direction is IP_VS_DIR_OUTPUT, this event is from server
+	/* Update direction to INPUT_ONLY if necessary
+	 * or delete NO_OUTPUT flag if output packet detected
 	 */
-	if (direction == IP_VS_DIR_OUTPUT)
-		event++;
-	/*
-	 * get next state
-	 */
-	next_state = sctp_states_table[cp->state][event].next_state;
+	if (cp->flags & IP_VS_CONN_F_NOOUTPUT) {
+		if (direction == IP_VS_DIR_OUTPUT)
+			cp->flags &= ~IP_VS_CONN_F_NOOUTPUT;
+		else
+			direction = IP_VS_DIR_INPUT_ONLY;
+	}
+
+	next_state = sctp_states[direction][event][cp->state];
 
 	if (next_state != cp->state) {
 		struct ip_vs_dest *dest = cp->dest;

@@ -33,11 +33,13 @@
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_memory.h>
 #include <ttm/ttm_module.h>
+#include <ttm/ttm_placement.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_global.h>
 #include <linux/workqueue.h>
 #include <linux/fs.h>
 #include <linux/spinlock.h>
+#include <linux/reservation.h>
 
 struct ttm_backend_func {
 	/**
@@ -771,6 +773,55 @@ extern int ttm_mem_io_lock(struct ttm_mem_type_manager *man,
 			   bool interruptible);
 extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
 
+extern void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo);
+extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
+
+/**
+ * ttm_bo_reserve_nolru:
+ *
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
+ * @use_ticket: If @bo is already reserved, Only sleep waiting for
+ * it to become unreserved if @ticket->stamp is older.
+ *
+ * Will not remove reserved buffers from the lru lists.
+ * Otherwise identical to ttm_bo_reserve.
+ *
+ * Returns:
+ * -EDEADLK: The reservation may cause a deadlock.
+ * Release all buffer reservations, wait for @bo to become unreserved and
+ * try again. (only if use_sequence == 1).
+ * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
+ * a signal. Release all buffer reservations and return to user-space.
+ * -EBUSY: The function needed to sleep, but @no_wait was true
+ * -EALREADY: Bo already reserved using @ticket. This error code will only
+ * be returned if @use_ticket is set to true.
+ */
+static inline int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
+				       bool interruptible,
+				       bool no_wait, bool use_ticket,
+				       struct ww_acquire_ctx *ticket)
+{
+	int ret = 0;
+
+	if (no_wait) {
+		bool success;
+		if (WARN_ON(ticket))
+			return -EBUSY;
+
+		success = ww_mutex_trylock(&bo->resv->lock);
+		return success ? 0 : -EBUSY;
+	}
+
+	if (interruptible)
+		ret = ww_mutex_lock_interruptible(&bo->resv->lock, ticket);
+	else
+		ret = ww_mutex_lock(&bo->resv->lock, ticket);
+	if (ret == -EINTR)
+		return -ERESTARTSYS;
+	return ret;
+}
 
 /**
  * ttm_bo_reserve:
@@ -778,8 +829,8 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
  * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
- * @use_sequence: If @bo is already reserved, Only sleep waiting for
- * it to become unreserved if @sequence < (@bo)->sequence.
+ * @use_ticket: If @bo is already reserved, Only sleep waiting for
+ * it to become unreserved if @ticket->stamp is older.
  *
  * Locks a buffer object for validation. (Or prevents other processes from
  * locking it for validation) and removes it from lru lists, while taking
@@ -793,7 +844,7 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
  * Processes attempting to reserve multiple buffers other than for eviction,
  * (typically execbuf), should first obtain a unique 32-bit
  * validation sequence number,
- * and call this function with @use_sequence == 1 and @sequence == the unique
+ * and call this function with @use_ticket == 1 and @ticket->stamp == the unique
  * sequence number. If upon call of this function, the buffer object is already
  * reserved, the validation sequence is checked against the validation
  * sequence of the process currently reserving the buffer,
@@ -808,36 +859,31 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
  * will eventually succeed, preventing both deadlocks and starvation.
  *
  * Returns:
- * -EAGAIN: The reservation may cause a deadlock.
+ * -EDEADLK: The reservation may cause a deadlock.
  * Release all buffer reservations, wait for @bo to become unreserved and
  * try again. (only if use_sequence == 1).
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
  * -EBUSY: The function needed to sleep, but @no_wait was true
- * -EDEADLK: Bo already reserved using @sequence. This error code will only
- * be returned if @use_sequence is set to true.
+ * -EALREADY: Bo already reserved using @ticket. This error code will only
+ * be returned if @use_ticket is set to true.
  */
-extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
-			  bool interruptible,
-			  bool no_wait, bool use_sequence, uint32_t sequence);
+static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
+				 bool interruptible,
+				 bool no_wait, bool use_ticket,
+				 struct ww_acquire_ctx *ticket)
+{
+	int ret;
 
-/**
- * ttm_bo_reserve_slowpath_nolru:
- * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Sleep interruptible if waiting.
- * @sequence: Set (@bo)->sequence to this value after lock
- *
- * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
- * from all our other reservations. Because there are no other reservations
- * held by us, this function cannot deadlock any more.
- *
- * Will not remove reserved buffers from the lru lists.
- * Otherwise identical to ttm_bo_reserve_slowpath.
- */
-extern int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
-					 bool interruptible,
-					 uint32_t sequence);
+	WARN_ON(!atomic_read(&bo->kref.refcount));
 
+	ret = ttm_bo_reserve_nolru(bo, interruptible, no_wait, use_ticket,
+				    ticket);
+	if (likely(ret == 0))
+		ttm_bo_del_sub_from_lru(bo);
+
+	return ret;
+}
 
 /**
  * ttm_bo_reserve_slowpath:
@@ -849,35 +895,45 @@ extern int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
  * from all our other reservations. Because there are no other reservations
  * held by us, this function cannot deadlock any more.
  */
-extern int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
-				   bool interruptible, uint32_t sequence);
+static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
+					  bool interruptible,
+					  struct ww_acquire_ctx *ticket)
+{
+	int ret = 0;
+
+	WARN_ON(!atomic_read(&bo->kref.refcount));
+
+	if (interruptible)
+		ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
+						       ticket);
+	else
+		ww_mutex_lock_slow(&bo->resv->lock, ticket);
+
+	if (likely(ret == 0))
+		ttm_bo_del_sub_from_lru(bo);
+	else if (ret == -EINTR)
+		ret = -ERESTARTSYS;
+
+	return ret;
+}
 
 /**
- * ttm_bo_reserve_nolru:
- *
+ * ttm_bo_unreserve_ticket
  * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Sleep interruptible if waiting.
- * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
- * @use_sequence: If @bo is already reserved, Only sleep waiting for
- * it to become unreserved if @sequence < (@bo)->sequence.
+ * @ticket: ww_acquire_ctx used for reserving
  *
- * Will not remove reserved buffers from the lru lists.
- * Otherwise identical to ttm_bo_reserve.
- *
- * Returns:
- * -EAGAIN: The reservation may cause a deadlock.
- * Release all buffer reservations, wait for @bo to become unreserved and
- * try again. (only if use_sequence == 1).
- * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
- * a signal. Release all buffer reservations and return to user-space.
- * -EBUSY: The function needed to sleep, but @no_wait was true
- * -EDEADLK: Bo already reserved using @sequence. This error code will only
- * be returned if @use_sequence is set to true.
+ * Unreserve a previous reservation of @bo made with @ticket.
  */
-extern int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
-				 bool interruptible,
-				 bool no_wait, bool use_sequence,
-				 uint32_t sequence);
+static inline void ttm_bo_unreserve_ticket(struct ttm_buffer_object *bo,
+					   struct ww_acquire_ctx *t)
+{
+	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
+		spin_lock(&bo->glob->lru_lock);
+		ttm_bo_add_to_lru(bo);
+		spin_unlock(&bo->glob->lru_lock);
+	}
+	ww_mutex_unlock(&bo->resv->lock);
+}
 
 /**
  * ttm_bo_unreserve
@@ -886,17 +942,10 @@ extern int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
  *
  * Unreserve a previous reservation of @bo.
  */
-extern void ttm_bo_unreserve(struct ttm_buffer_object *bo);
-
-/**
- * ttm_bo_unreserve_locked
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Unreserve a previous reservation of @bo.
- * Needs to be called with struct ttm_bo_global::lru_lock held.
- */
-extern void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo);
+static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
+{
+	ttm_bo_unreserve_ticket(bo, NULL);
+}
 
 /*
  * ttm_bo_util.c

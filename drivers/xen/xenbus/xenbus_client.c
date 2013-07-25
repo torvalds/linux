@@ -534,7 +534,7 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 
 	err = xenbus_map_ring(dev, gnt_ref, &node->handle, addr);
 	if (err)
-		goto out_err;
+		goto out_err_free_ballooned_pages;
 
 	spin_lock(&xenbus_valloc_lock);
 	list_add(&node->next, &xenbus_valloc_pages);
@@ -543,8 +543,9 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 	*vaddr = addr;
 	return 0;
 
- out_err:
+ out_err_free_ballooned_pages:
 	free_xenballooned_pages(1, &node->page);
+ out_err:
 	kfree(node);
 	return err;
 }

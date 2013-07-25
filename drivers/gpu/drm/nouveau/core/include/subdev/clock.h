@@ -10,8 +10,6 @@ struct nvbios_pll;
 struct nouveau_clock {
 	struct nouveau_subdev base;
 
-	int (*pll_set)(struct nouveau_clock *, u32 type, u32 freq);
-
 	/*XXX: die, these are here *only* to support the completely
 	 *     bat-shit insane what-was-nouveau_hw.c code
 	 */

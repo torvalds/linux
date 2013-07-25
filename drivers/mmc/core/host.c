@@ -306,7 +306,7 @@ static inline void mmc_host_clk_sysfs_init(struct mmc_host *host)
  * parse the properties and set respective generic mmc-host flags and
  * parameters.
  */
-void mmc_of_parse(struct mmc_host *host)
+int mmc_of_parse(struct mmc_host *host)
 {
 	struct device_node *np;
 	u32 bus_width;
@@ -315,7 +315,7 @@ void mmc_of_parse(struct mmc_host *host)
 	int len, ret, gpio;
 
 	if (!host->parent || !host->parent->of_node)
-		return;
+		return 0;
 
 	np = host->parent->of_node;
 
@@ -338,6 +338,7 @@ void mmc_of_parse(struct mmc_host *host)
 	default:
 		dev_err(host->parent,
 			"Invalid \"bus-width\" value %ud!\n", bus_width);
+		return -EINVAL;
 	}
 
 	/* f_max is obtained from the optional "max-frequency" property */
@@ -367,18 +368,22 @@ void mmc_of_parse(struct mmc_host *host)
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
 		gpio = of_get_named_gpio_flags(np, "cd-gpios", 0, &flags);
+		if (gpio == -EPROBE_DEFER)
+			return gpio;
 		if (gpio_is_valid(gpio)) {
 			if (!(flags & OF_GPIO_ACTIVE_LOW))
 				gpio_inv_cd = true;
 
 			ret = mmc_gpio_request_cd(host, gpio);
-			if (ret < 0)
+			if (ret < 0) {
 				dev_err(host->parent,
 					"Failed to request CD GPIO #%d: %d!\n",
 					gpio, ret);
-			else
+				return ret;
+			} else {
 				dev_info(host->parent, "Got CD GPIO #%d.\n",
 					 gpio);
+			}
 		}
 
 		if (explicit_inv_cd ^ gpio_inv_cd)
@@ -389,14 +394,23 @@ void mmc_of_parse(struct mmc_host *host)
 	explicit_inv_wp = of_property_read_bool(np, "wp-inverted");
 
 	gpio = of_get_named_gpio_flags(np, "wp-gpios", 0, &flags);
+	if (gpio == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto out;
+	}
 	if (gpio_is_valid(gpio)) {
 		if (!(flags & OF_GPIO_ACTIVE_LOW))
 			gpio_inv_wp = true;
 
 		ret = mmc_gpio_request_ro(host, gpio);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(host->parent,
 				"Failed to request WP GPIO: %d!\n", ret);
+			goto out;
+		} else {
+				dev_info(host->parent, "Got WP GPIO #%d.\n",
+					 gpio);
+		}
 	}
 	if (explicit_inv_wp ^ gpio_inv_wp)
 		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
@@ -409,10 +423,18 @@ void mmc_of_parse(struct mmc_host *host)
 		host->caps |= MMC_CAP_POWER_OFF_CARD;
 	if (of_find_property(np, "cap-sdio-irq", &len))
 		host->caps |= MMC_CAP_SDIO_IRQ;
+	if (of_find_property(np, "full-pwr-cycle", &len))
+		host->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
 	if (of_find_property(np, "keep-power-in-suspend", &len))
 		host->pm_caps |= MMC_PM_KEEP_POWER;
 	if (of_find_property(np, "enable-sdio-wakeup", &len))
 		host->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+
+	return 0;
+
+out:
+	mmc_gpio_free_cd(host);
+	return ret;
 }
 
 EXPORT_SYMBOL(mmc_of_parse);

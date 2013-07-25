@@ -506,8 +506,7 @@ static void dwc2_config_fifos(struct dwc2_hsotg *hsotg)
 	struct dwc2_core_params *params = hsotg->core_params;
 	u32 rxfsiz, nptxfsiz, ptxfsiz, hptxfsiz, dfifocfg;
 
-	if (!(hsotg->hwcfg2 & GHWCFG2_DYNAMIC_FIFO) ||
-	    !params->enable_dynamic_fifo)
+	if (!params->enable_dynamic_fifo)
 		return;
 
 	dev_dbg(hsotg->dev, "Total FIFO Size=%d\n", hsotg->total_fifo_size);
@@ -1146,16 +1145,10 @@ void dwc2_hc_cleanup(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 static void dwc2_hc_set_even_odd_frame(struct dwc2_hsotg *hsotg,
 				       struct dwc2_host_chan *chan, u32 *hcchar)
 {
-	u32 hfnum, frnum;
-
 	if (chan->ep_type == USB_ENDPOINT_XFER_INT ||
 	    chan->ep_type == USB_ENDPOINT_XFER_ISOC) {
-		hfnum = readl(hsotg->regs + HFNUM);
-		frnum = hfnum >> HFNUM_FRNUM_SHIFT &
-			HFNUM_FRNUM_MASK >> HFNUM_FRNUM_SHIFT;
-
 		/* 1 if _next_ frame is odd, 0 if it's even */
-		if (frnum & 0x1)
+		if (!(dwc2_hcd_get_frame_number(hsotg) & 0x1))
 			*hcchar |= HCCHAR_ODDFRM;
 	}
 }
@@ -1696,7 +1689,7 @@ u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg)
 	    GHWCFG2_FS_PHY_TYPE_DEDICATED)
 		clock = 48;
 
-	if ((hprt0 & HPRT0_SPD_MASK) == 0)
+	if ((hprt0 & HPRT0_SPD_MASK) == HPRT0_SPD_HIGH_SPEED)
 		/* High speed case */
 		return 125 * clock;
 	else
@@ -1815,8 +1808,6 @@ void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg)
 {
 #ifdef DEBUG
 	u32 __iomem *addr;
-	int i, ep_num;
-	char *txfsiz;
 
 	dev_dbg(hsotg->dev, "Core Global Registers\n");
 	addr = hsotg->regs + GOTGCTL;
@@ -1891,23 +1882,6 @@ void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg)
 	addr = hsotg->regs + HPTXFSIZ;
 	dev_dbg(hsotg->dev, "HPTXFSIZ	 @0x%08lX : 0x%08X\n",
 		(unsigned long)addr, readl(addr));
-
-	if (hsotg->core_params->en_multiple_tx_fifo <= 0) {
-		ep_num = hsotg->hwcfg4 >> GHWCFG4_NUM_DEV_PERIO_IN_EP_SHIFT &
-			 GHWCFG4_NUM_DEV_PERIO_IN_EP_MASK >>
-					 GHWCFG4_NUM_DEV_PERIO_IN_EP_SHIFT;
-		txfsiz = "DPTXFSIZ";
-	} else {
-		ep_num = hsotg->hwcfg4 >> GHWCFG4_NUM_IN_EPS_SHIFT &
-			 GHWCFG4_NUM_IN_EPS_MASK >> GHWCFG4_NUM_IN_EPS_SHIFT;
-		txfsiz = "DIENPTXF";
-	}
-
-	for (i = 0; i < ep_num; i++) {
-		addr = hsotg->regs + DPTXFSIZN(i + 1);
-		dev_dbg(hsotg->dev, "%s[%d] @0x%08lX : 0x%08X\n", txfsiz, i + 1,
-			(unsigned long)addr, readl(addr));
-	}
 
 	addr = hsotg->regs + PCGCTL;
 	dev_dbg(hsotg->dev, "PCGCTL	 @0x%08lX : 0x%08X\n",
@@ -2298,7 +2272,7 @@ int dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 #ifndef NO_FS_PHY_HW_CHECKS
 		valid = 0;
 #else
-		val = 0;
+		val = DWC2_PHY_TYPE_PARAM_FS;
 		dev_dbg(hsotg->dev, "Setting phy_type to %d\n", val);
 		retval = -EINVAL;
 #endif
@@ -2325,7 +2299,7 @@ int dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 			dev_err(hsotg->dev,
 				"%d invalid for phy_type. Check HW configuration.\n",
 				val);
-		val = 0;
+		val = DWC2_PHY_TYPE_PARAM_FS;
 		if (hs_phy_type != GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED) {
 			if (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI ||
 			    hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI)
@@ -2360,8 +2334,8 @@ int dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
 		valid = 0;
 	}
 
-	if (val == 0 && dwc2_get_param_phy_type(hsotg) ==
-					DWC2_PHY_TYPE_PARAM_FS)
+	if (val == DWC2_SPEED_PARAM_HIGH &&
+	    dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS)
 		valid = 0;
 
 	if (!valid) {
@@ -2370,7 +2344,7 @@ int dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
 				"%d invalid for speed parameter. Check HW configuration.\n",
 				val);
 		val = dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS ?
-				1 : 0;
+				DWC2_SPEED_PARAM_FULL : DWC2_SPEED_PARAM_HIGH;
 		dev_dbg(hsotg->dev, "Setting speed to %d\n", val);
 		retval = -EINVAL;
 	}
@@ -2668,7 +2642,7 @@ int dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val)
  * for the DWC_otg core. It returns non-0 if any parameters are invalid.
  */
 int dwc2_set_parameters(struct dwc2_hsotg *hsotg,
-			struct dwc2_core_params *params)
+			const struct dwc2_core_params *params)
 {
 	int retval = 0;
 

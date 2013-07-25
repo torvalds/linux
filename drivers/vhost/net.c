@@ -15,7 +15,6 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
-#include <linux/rcupdate.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 
@@ -150,28 +149,30 @@ static void vhost_net_ubuf_put_and_wait(struct vhost_net_ubuf_ref *ubufs)
 {
 	kref_put(&ubufs->kref, vhost_net_zerocopy_done_signal);
 	wait_event(ubufs->wait, !atomic_read(&ubufs->kref.refcount));
+}
+
+static void vhost_net_ubuf_put_wait_and_free(struct vhost_net_ubuf_ref *ubufs)
+{
+	vhost_net_ubuf_put_and_wait(ubufs);
 	kfree(ubufs);
 }
 
 static void vhost_net_clear_ubuf_info(struct vhost_net *n)
 {
-
-	bool zcopy;
 	int i;
 
-	for (i = 0; i < n->dev.nvqs; ++i) {
-		zcopy = vhost_net_zcopy_mask & (0x1 << i);
-		if (zcopy)
-			kfree(n->vqs[i].ubuf_info);
+	for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
+		kfree(n->vqs[i].ubuf_info);
+		n->vqs[i].ubuf_info = NULL;
 	}
 }
 
-int vhost_net_set_ubuf_info(struct vhost_net *n)
+static int vhost_net_set_ubuf_info(struct vhost_net *n)
 {
 	bool zcopy;
 	int i;
 
-	for (i = 0; i < n->dev.nvqs; ++i) {
+	for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
 		zcopy = vhost_net_zcopy_mask & (0x1 << i);
 		if (!zcopy)
 			continue;
@@ -183,25 +184,20 @@ int vhost_net_set_ubuf_info(struct vhost_net *n)
 	return 0;
 
 err:
-	while (i--) {
-		zcopy = vhost_net_zcopy_mask & (0x1 << i);
-		if (!zcopy)
-			continue;
-		kfree(n->vqs[i].ubuf_info);
-	}
+	vhost_net_clear_ubuf_info(n);
 	return -ENOMEM;
 }
 
-void vhost_net_vq_reset(struct vhost_net *n)
+static void vhost_net_vq_reset(struct vhost_net *n)
 {
 	int i;
+
+	vhost_net_clear_ubuf_info(n);
 
 	for (i = 0; i < VHOST_NET_VQ_MAX; i++) {
 		n->vqs[i].done_idx = 0;
 		n->vqs[i].upend_idx = 0;
 		n->vqs[i].ubufs = NULL;
-		kfree(n->vqs[i].ubuf_info);
-		n->vqs[i].ubuf_info = NULL;
 		n->vqs[i].vhost_hlen = 0;
 		n->vqs[i].sock_hlen = 0;
 	}
@@ -349,12 +345,11 @@ static void handle_tx(struct vhost_net *net)
 	struct vhost_net_ubuf_ref *uninitialized_var(ubufs);
 	bool zcopy, zcopy_used;
 
-	/* TODO: check that we are running from vhost_worker? */
-	sock = rcu_dereference_check(vq->private_data, 1);
-	if (!sock)
-		return;
-
 	mutex_lock(&vq->mutex);
+	sock = vq->private_data;
+	if (!sock)
+		goto out;
+
 	vhost_disable_notify(&net->dev, vq);
 
 	hdr_size = nvq->vhost_hlen;
@@ -436,7 +431,8 @@ static void handle_tx(struct vhost_net *net)
 				kref_get(&ubufs->kref);
 			}
 			nvq->upend_idx = (nvq->upend_idx + 1) % UIO_MAXIOV;
-		}
+		} else
+			msg.msg_control = NULL;
 		/* TODO: Check specific error and bomb out unless ENOBUFS? */
 		err = sock->ops->sendmsg(NULL, sock, &msg, len);
 		if (unlikely(err < 0)) {
@@ -463,7 +459,7 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		}
 	}
-
+out:
 	mutex_unlock(&vq->mutex);
 }
 
@@ -572,14 +568,14 @@ static void handle_rx(struct vhost_net *net)
 	s16 headcount;
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
-	/* TODO: check that we are running from vhost_worker? */
-	struct socket *sock = rcu_dereference_check(vq->private_data, 1);
-
-	if (!sock)
-		return;
+	struct socket *sock;
 
 	mutex_lock(&vq->mutex);
+	sock = vq->private_data;
+	if (!sock)
+		goto out;
 	vhost_disable_notify(&net->dev, vq);
+
 	vhost_hlen = nvq->vhost_hlen;
 	sock_hlen = nvq->sock_hlen;
 
@@ -654,7 +650,7 @@ static void handle_rx(struct vhost_net *net)
 			break;
 		}
 	}
-
+out:
 	mutex_unlock(&vq->mutex);
 }
 
@@ -752,8 +748,7 @@ static int vhost_net_enable_vq(struct vhost_net *n,
 	struct vhost_poll *poll = n->poll + (nvq - n->vqs);
 	struct socket *sock;
 
-	sock = rcu_dereference_protected(vq->private_data,
-					 lockdep_is_held(&vq->mutex));
+	sock = vq->private_data;
 	if (!sock)
 		return 0;
 
@@ -766,10 +761,9 @@ static struct socket *vhost_net_stop_vq(struct vhost_net *n,
 	struct socket *sock;
 
 	mutex_lock(&vq->mutex);
-	sock = rcu_dereference_protected(vq->private_data,
-					 lockdep_is_held(&vq->mutex));
+	sock = vq->private_data;
 	vhost_net_disable_vq(n, vq);
-	rcu_assign_pointer(vq->private_data, NULL);
+	vq->private_data = NULL;
 	mutex_unlock(&vq->mutex);
 	return sock;
 }
@@ -925,8 +919,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	}
 
 	/* start polling new socket */
-	oldsock = rcu_dereference_protected(vq->private_data,
-					    lockdep_is_held(&vq->mutex));
+	oldsock = vq->private_data;
 	if (sock != oldsock) {
 		ubufs = vhost_net_ubuf_alloc(vq,
 					     sock && vhost_sock_zcopy(sock));
@@ -936,7 +929,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		}
 
 		vhost_net_disable_vq(n, vq);
-		rcu_assign_pointer(vq->private_data, sock);
+		vq->private_data = sock;
 		r = vhost_init_used(vq);
 		if (r)
 			goto err_used;
@@ -955,7 +948,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	mutex_unlock(&vq->mutex);
 
 	if (oldubufs) {
-		vhost_net_ubuf_put_and_wait(oldubufs);
+		vhost_net_ubuf_put_wait_and_free(oldubufs);
 		mutex_lock(&vq->mutex);
 		vhost_zerocopy_signal_used(n, vq);
 		mutex_unlock(&vq->mutex);
@@ -970,10 +963,10 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	return 0;
 
 err_used:
-	rcu_assign_pointer(vq->private_data, oldsock);
+	vq->private_data = oldsock;
 	vhost_net_enable_vq(n, vq);
 	if (ubufs)
-		vhost_net_ubuf_put_and_wait(ubufs);
+		vhost_net_ubuf_put_wait_and_free(ubufs);
 err_ubufs:
 	fput(sock->file);
 err_vq:
@@ -1053,6 +1046,10 @@ static long vhost_net_set_owner(struct vhost_net *n)
 	int r;
 
 	mutex_lock(&n->dev.mutex);
+	if (vhost_dev_has_owner(&n->dev)) {
+		r = -EBUSY;
+		goto out;
+	}
 	r = vhost_net_set_ubuf_info(n);
 	if (r)
 		goto out;

@@ -136,6 +136,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 		spec->codec_type = VT1708S;
 	spec->no_pin_power_ctl = 1;
 	spec->gen.indep_hp = 1;
+	spec->gen.keep_eapd_on = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
 	return spec;
 }
@@ -231,9 +232,14 @@ static void vt1708_update_hp_work(struct hda_codec *codec)
 
 static void set_widgets_power_state(struct hda_codec *codec)
 {
+#if 0 /* FIXME: the assumed connections don't match always with the
+       * actual routes by the generic parser, so better to disable
+       * the control for safety.
+       */
 	struct via_spec *spec = codec->spec;
 	if (spec->set_widgets_power_state)
 		spec->set_widgets_power_state(codec);
+#endif
 }
 
 static void update_power_state(struct hda_codec *codec, hda_nid_t nid,
@@ -474,12 +480,9 @@ static int via_suspend(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	vt1708_stop_hp_work(codec);
 
-	if (spec->codec_type == VT1802) {
-		/* Fix pop noise on headphones */
-		int i;
-		for (i = 0; i < spec->gen.autocfg.hp_outs; i++)
-			snd_hda_set_pin_ctl(codec, spec->gen.autocfg.hp_pins[i], 0);
-	}
+	/* Fix pop noise on headphones */
+	if (spec->codec_type == VT1802)
+		snd_hda_shutup_pins(codec);
 
 	return 0;
 }
@@ -738,6 +741,8 @@ static int patch_vt1708(struct hda_codec *codec)
 	/* don't support the input jack switching due to lack of unsol event */
 	/* (it may work with polling, though, but it needs testing) */
 	spec->gen.suppress_auto_mic = 1;
+	/* Some machines show the broken speaker mute */
+	spec->gen.auto_mute_via_amp = 1;
 
 	/* Add HP and CD pin config connect bit re-config action */
 	vt1708_set_pinconfig_connect(codec, VT1708_HP_PIN_NID);
@@ -902,6 +907,8 @@ static const struct hda_verb vt1708S_init_verbs[] = {
 static void override_mic_boost(struct hda_codec *codec, hda_nid_t pin,
 			       int offset, int num_steps, int step_size)
 {
+	snd_hda_override_wcaps(codec, pin,
+			       get_wcaps(codec, pin) | AC_WCAP_IN_AMP);
 	snd_hda_override_amp_caps(codec, pin, HDA_INPUT,
 				  (offset << AC_AMPCAP_OFFSET_SHIFT) |
 				  (num_steps << AC_AMPCAP_NUM_STEPS_SHIFT) |

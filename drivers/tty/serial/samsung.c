@@ -1166,6 +1166,18 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		ourport->tx_irq = ret;
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
+	if (IS_ERR(ourport->clk)) {
+		pr_err("%s: Controller clock not found\n",
+				dev_name(&platdev->dev));
+		return PTR_ERR(ourport->clk);
+	}
+
+	ret = clk_prepare_enable(ourport->clk);
+	if (ret) {
+		pr_err("uart: clock failed to prepare+enable: %d\n", ret);
+		clk_put(ourport->clk);
+		return ret;
+	}
 
 	/* Keep all interrupts masked and cleared */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
@@ -1180,6 +1192,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	/* reset the fifos (and setup the uart) */
 	s3c24xx_serial_resetport(port, cfg);
+	clk_disable_unprepare(ourport->clk);
 	return 0;
 }
 
@@ -1700,9 +1713,7 @@ static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 #define S5PV210_SERIAL_DRV_DATA	(kernel_ulong_t)NULL
 #endif
 
-#if defined(CONFIG_CPU_EXYNOS4210) || defined(CONFIG_SOC_EXYNOS4212) || \
-	defined(CONFIG_SOC_EXYNOS4412) || defined(CONFIG_SOC_EXYNOS5250) || \
-	defined(CONFIG_SOC_EXYNOS5440)
+#if defined(CONFIG_ARCH_EXYNOS)
 static struct s3c24xx_serial_drv_data exynos4210_serial_drv_data = {
 	.info = &(struct s3c24xx_uart_info) {
 		.name		= "Samsung Exynos4 UART",
@@ -1798,7 +1809,13 @@ static int __init s3c24xx_serial_modinit(void)
 		return ret;
 	}
 
-	return platform_driver_register(&samsung_serial_driver);
+	ret = platform_driver_register(&samsung_serial_driver);
+	if (ret < 0) {
+		pr_err("Failed to register platform driver\n");
+		uart_unregister_driver(&s3c24xx_uart_drv);
+	}
+
+	return ret;
 }
 
 static void __exit s3c24xx_serial_modexit(void)

@@ -98,8 +98,7 @@ static struct ehea_fw_handle_array ehea_fw_handles;
 static struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 
-static int ehea_probe_adapter(struct platform_device *dev,
-			      const struct of_device_id *id);
+static int ehea_probe_adapter(struct platform_device *dev);
 
 static int ehea_remove(struct platform_device *dev);
 
@@ -112,7 +111,7 @@ static struct of_device_id ehea_device_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ehea_device_table);
 
-static struct of_platform_driver ehea_driver = {
+static struct platform_driver ehea_driver = {
 	.driver = {
 		.name = "ehea",
 		.owner = THIS_MODULE,
@@ -3251,8 +3250,7 @@ static void ehea_remove_device_sysfs(struct platform_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_remove_port);
 }
 
-static int ehea_probe_adapter(struct platform_device *dev,
-			      const struct of_device_id *id)
+static int ehea_probe_adapter(struct platform_device *dev)
 {
 	struct ehea_adapter *adapter;
 	const u64 *adapter_handle;
@@ -3289,7 +3287,7 @@ static int ehea_probe_adapter(struct platform_device *dev,
 
 	adapter->pd = EHEA_PD_ID;
 
-	dev_set_drvdata(&dev->dev, adapter);
+	platform_set_drvdata(dev, adapter);
 
 
 	/* initialize adapter and ports */
@@ -3360,7 +3358,7 @@ out:
 
 static int ehea_remove(struct platform_device *dev)
 {
-	struct ehea_adapter *adapter = dev_get_drvdata(&dev->dev);
+	struct ehea_adapter *adapter = platform_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < EHEA_MAX_PORTS; i++)

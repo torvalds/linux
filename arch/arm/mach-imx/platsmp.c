@@ -53,7 +53,7 @@ void imx_scu_standby_enable(void)
 	writel_relaxed(val, scu_base);
 }
 
-static int __cpuinit imx_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int imx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	imx_set_cpu_jump(cpu, v7_secondary_startup);
 	imx_enable_cpu(cpu, true);

@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/nmi.h>
 #include <linux/delay.h>
+#include <linux/mm.h>
 #include <acpi/acpi.h>
 
 #include "apei-internal.h"
@@ -41,6 +42,10 @@
 #define SPIN_UNIT		100			/* 100ns */
 /* Firmware should respond within 1 milliseconds */
 #define FIRMWARE_TIMEOUT	(1 * NSEC_PER_MSEC)
+#define ACPI5_VENDOR_BIT	BIT(31)
+#define MEM_ERROR_MASK		(ACPI_EINJ_MEMORY_CORRECTABLE | \
+				ACPI_EINJ_MEMORY_UNCORRECTABLE | \
+				ACPI_EINJ_MEMORY_FATAL)
 
 /*
  * ACPI version 5 provides a SET_ERROR_TYPE_WITH_ADDRESS action.
@@ -367,7 +372,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	 * This will cause resource conflict with regular memory.  So
 	 * remove it from trigger table resources.
 	 */
-	if ((param_extension || acpi5) && (type & 0x0038) && param2) {
+	if ((param_extension || acpi5) && (type & MEM_ERROR_MASK) && param2) {
 		struct apei_resources addr_resources;
 		apei_resources_init(&addr_resources);
 		trigger_param_region = einj_get_trigger_parameter_region(
@@ -427,7 +432,7 @@ static int __einj_error_inject(u32 type, u64 param1, u64 param2)
 		struct set_error_type_with_address *v5param = einj_param;
 
 		v5param->type = type;
-		if (type & 0x80000000) {
+		if (type & ACPI5_VENDOR_BIT) {
 			switch (vendor_flags) {
 			case SETWA_FLAGS_APICID:
 				v5param->apicid = param1;
@@ -512,7 +517,34 @@ static int __einj_error_inject(u32 type, u64 param1, u64 param2)
 static int einj_error_inject(u32 type, u64 param1, u64 param2)
 {
 	int rc;
+	unsigned long pfn;
 
+	/*
+	 * We need extra sanity checks for memory errors.
+	 * Other types leap directly to injection.
+	 */
+
+	/* ensure param1/param2 existed */
+	if (!(param_extension || acpi5))
+		goto inject;
+
+	/* ensure injection is memory related */
+	if (type & ACPI5_VENDOR_BIT) {
+		if (vendor_flags != SETWA_FLAGS_MEM)
+			goto inject;
+	} else if (!(type & MEM_ERROR_MASK))
+		goto inject;
+
+	/*
+	 * Disallow crazy address masks that give BIOS leeway to pick
+	 * injection address almost anywhere. Insist on page or
+	 * better granularity and that target address is normal RAM.
+	 */
+	pfn = PFN_DOWN(param1 & param2);
+	if (!page_is_ram(pfn) || ((param2 & PAGE_MASK) != PAGE_MASK))
+		return -EINVAL;
+
+inject:
 	mutex_lock(&einj_mutex);
 	rc = __einj_error_inject(type, param1, param2);
 	mutex_unlock(&einj_mutex);
@@ -590,7 +622,7 @@ static int error_type_set(void *data, u64 val)
 	 * Vendor defined types have 0x80000000 bit set, and
 	 * are not enumerated by ACPI_EINJ_GET_ERROR_TYPE
 	 */
-	vendor = val & 0x80000000;
+	vendor = val & ACPI5_VENDOR_BIT;
 	tval = val & 0x7fffffff;
 
 	/* Only one error type can be specified */
@@ -694,6 +726,7 @@ static int __init einj_init(void)
 	if (rc)
 		goto err_release;
 
+	rc = -ENOMEM;
 	einj_param = einj_get_parameter_address();
 	if ((param_extension || acpi5) && einj_param) {
 		fentry = debugfs_create_x64("param1", S_IRUSR | S_IWUSR,

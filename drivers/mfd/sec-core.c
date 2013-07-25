@@ -25,6 +25,9 @@
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/irq.h>
 #include <linux/mfd/samsung/rtc.h>
+#include <linux/mfd/samsung/s2mps11.h>
+#include <linux/mfd/samsung/s5m8763.h>
+#include <linux/mfd/samsung/s5m8767.h>
 #include <linux/regmap.h>
 
 static struct mfd_cell s5m8751_devs[] = {
@@ -105,6 +108,26 @@ static struct regmap_config sec_regmap_config = {
 	.val_bits = 8,
 };
 
+static struct regmap_config s2mps11_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPS11_REG_L38CTRL,
+};
+
+static struct regmap_config s5m8763_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S5M8763_REG_LBCNFG2,
+};
+
+static struct regmap_config s5m8767_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S5M8767_REG_LDO28CTRL,
+};
 
 #ifdef CONFIG_OF
 /*
@@ -160,6 +183,7 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct sec_platform_data *pdata = i2c->dev.platform_data;
+	const struct regmap_config *regmap;
 	struct sec_pmic_dev *sec_pmic;
 	int ret;
 
@@ -190,7 +214,22 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		sec_pmic->pdata = pdata;
 	}
 
-	sec_pmic->regmap = devm_regmap_init_i2c(i2c, &sec_regmap_config);
+	switch (sec_pmic->device_type) {
+	case S2MPS11X:
+		regmap = &s2mps11_regmap_config;
+		break;
+	case S5M8763X:
+		regmap = &s5m8763_regmap_config;
+		break;
+	case S5M8767X:
+		regmap = &s5m8767_regmap_config;
+		break;
+	default:
+		regmap = &sec_regmap_config;
+		break;
+	}
+
+	sec_pmic->regmap = devm_regmap_init_i2c(i2c, regmap);
 	if (IS_ERR(sec_pmic->regmap)) {
 		ret = PTR_ERR(sec_pmic->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
@@ -230,13 +269,12 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		BUG();
 	}
 
-	if (ret < 0)
+	if (ret)
 		goto err;
 
 	return ret;
 
 err:
-	mfd_remove_devices(sec_pmic->dev);
 	sec_irq_exit(sec_pmic);
 	i2c_unregister_device(sec_pmic->rtc);
 	return ret;

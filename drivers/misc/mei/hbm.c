@@ -536,6 +536,20 @@ static void mei_hbm_fw_disconnect_req(struct mei_device *dev,
 
 
 /**
+ * mei_hbm_version_is_supported - checks whether the driver can
+ *     support the hbm version of the device
+ *
+ * @dev: the device structure
+ * returns true if driver can support hbm version of the device
+ */
+bool mei_hbm_version_is_supported(struct mei_device *dev)
+{
+	return	(dev->version.major_version < HBM_MAJOR_VERSION) ||
+		(dev->version.major_version == HBM_MAJOR_VERSION &&
+		 dev->version.minor_version <= HBM_MINOR_VERSION);
+}
+
+/**
  * mei_hbm_dispatch - bottom half read routine after ISR to
  * handle the read bus message cmd processing.
  *
@@ -562,9 +576,24 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	switch (mei_msg->hbm_cmd) {
 	case HOST_START_RES_CMD:
 		version_res = (struct hbm_host_version_response *)mei_msg;
-		if (!version_res->host_version_supported) {
-			dev->version = version_res->me_max_version;
-			dev_dbg(&dev->pdev->dev, "version mismatch.\n");
+
+		dev_dbg(&dev->pdev->dev, "HBM VERSION: DRIVER=%02d:%02d DEVICE=%02d:%02d\n",
+				HBM_MAJOR_VERSION, HBM_MINOR_VERSION,
+				version_res->me_max_version.major_version,
+				version_res->me_max_version.minor_version);
+
+		if (version_res->host_version_supported) {
+			dev->version.major_version = HBM_MAJOR_VERSION;
+			dev->version.minor_version = HBM_MINOR_VERSION;
+		} else {
+			dev->version.major_version =
+				version_res->me_max_version.major_version;
+			dev->version.minor_version =
+				version_res->me_max_version.minor_version;
+		}
+
+		if (!mei_hbm_version_is_supported(dev)) {
+			dev_warn(&dev->pdev->dev, "hbm version mismatch: stopping the driver.\n");
 
 			dev->hbm_state = MEI_HBM_STOP;
 			mei_hbm_stop_req_prepare(dev, &dev->wr_msg.hdr,
@@ -575,8 +604,6 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			return;
 		}
 
-		dev->version.major_version = HBM_MAJOR_VERSION;
-		dev->version.minor_version = HBM_MINOR_VERSION;
 		if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 		    dev->hbm_state == MEI_HBM_START) {
 			dev->init_clients_timer = 0;

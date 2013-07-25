@@ -669,7 +669,7 @@ int drm_mm_clean(struct drm_mm * mm)
 }
 EXPORT_SYMBOL(drm_mm_clean);
 
-int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
+void drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 {
 	INIT_LIST_HEAD(&mm->hole_stack);
 	INIT_LIST_HEAD(&mm->unused_nodes);
@@ -690,8 +690,6 @@ int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 	list_add_tail(&mm->head_node.hole_stack, &mm->hole_stack);
 
 	mm->color_adjust = NULL;
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_mm_init);
 
@@ -699,8 +697,8 @@ void drm_mm_takedown(struct drm_mm * mm)
 {
 	struct drm_mm_node *entry, *next;
 
-	if (!list_empty(&mm->head_node.node_list)) {
-		DRM_ERROR("Memory manager not clean. Delaying takedown\n");
+	if (WARN(!list_empty(&mm->head_node.node_list),
+		 "Memory manager not clean. Delaying takedown\n")) {
 		return;
 	}
 
@@ -716,36 +714,37 @@ void drm_mm_takedown(struct drm_mm * mm)
 }
 EXPORT_SYMBOL(drm_mm_takedown);
 
+static unsigned long drm_mm_debug_hole(struct drm_mm_node *entry,
+				       const char *prefix)
+{
+	unsigned long hole_start, hole_end, hole_size;
+
+	if (entry->hole_follows) {
+		hole_start = drm_mm_hole_node_start(entry);
+		hole_end = drm_mm_hole_node_end(entry);
+		hole_size = hole_end - hole_start;
+		printk(KERN_DEBUG "%s 0x%08lx-0x%08lx: %8lu: free\n",
+			prefix, hole_start, hole_end,
+			hole_size);
+		return hole_size;
+	}
+
+	return 0;
+}
+
 void drm_mm_debug_table(struct drm_mm *mm, const char *prefix)
 {
 	struct drm_mm_node *entry;
 	unsigned long total_used = 0, total_free = 0, total = 0;
-	unsigned long hole_start, hole_end, hole_size;
 
-	hole_start = drm_mm_hole_node_start(&mm->head_node);
-	hole_end = drm_mm_hole_node_end(&mm->head_node);
-	hole_size = hole_end - hole_start;
-	if (hole_size)
-		printk(KERN_DEBUG "%s 0x%08lx-0x%08lx: %8lu: free\n",
-			prefix, hole_start, hole_end,
-			hole_size);
-	total_free += hole_size;
+	total_free += drm_mm_debug_hole(&mm->head_node, prefix);
 
 	drm_mm_for_each_node(entry, mm) {
 		printk(KERN_DEBUG "%s 0x%08lx-0x%08lx: %8lu: used\n",
 			prefix, entry->start, entry->start + entry->size,
 			entry->size);
 		total_used += entry->size;
-
-		if (entry->hole_follows) {
-			hole_start = drm_mm_hole_node_start(entry);
-			hole_end = drm_mm_hole_node_end(entry);
-			hole_size = hole_end - hole_start;
-			printk(KERN_DEBUG "%s 0x%08lx-0x%08lx: %8lu: free\n",
-				prefix, hole_start, hole_end,
-				hole_size);
-			total_free += hole_size;
-		}
+		total_free += drm_mm_debug_hole(entry, prefix);
 	}
 	total = total_free + total_used;
 

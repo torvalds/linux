@@ -35,6 +35,7 @@ static void qlcnic_sriov_vf_cancel_fw_work(struct qlcnic_adapter *);
 static void qlcnic_sriov_cleanup_transaction(struct qlcnic_bc_trans *);
 static int qlcnic_sriov_vf_mbx_op(struct qlcnic_adapter *,
 				  struct qlcnic_cmd_args *);
+static void qlcnic_sriov_process_bc_cmd(struct work_struct *);
 
 static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.read_crb			= qlcnic_83xx_read_crb,
@@ -75,6 +76,8 @@ static struct qlcnic_nic_template qlcnic_sriov_vf_ops = {
 	.cancel_idc_work        = qlcnic_sriov_vf_cancel_fw_work,
 	.napi_add		= qlcnic_83xx_napi_add,
 	.napi_del		= qlcnic_83xx_napi_del,
+	.shutdown		= qlcnic_sriov_vf_shutdown,
+	.resume			= qlcnic_sriov_vf_resume,
 	.config_ipaddr		= qlcnic_83xx_config_ipaddr,
 	.clear_legacy_intr	= qlcnic_83xx_clear_legacy_intr,
 };
@@ -179,6 +182,8 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 		spin_lock_init(&vf->rcv_pend.lock);
 		init_completion(&vf->ch_free_cmpl);
 
+		INIT_WORK(&vf->trans_work, qlcnic_sriov_process_bc_cmd);
+
 		if (qlcnic_sriov_pf_check(adapter)) {
 			vp = kzalloc(sizeof(struct qlcnic_vport), GFP_KERNEL);
 			if (!vp) {
@@ -187,6 +192,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 			}
 			sriov->vf_info[i].vp = vp;
 			vp->max_tx_bw = MAX_BW;
+			vp->spoofchk = true;
 			random_ether_addr(vp->mac);
 			dev_info(&adapter->pdev->dev,
 				 "MAC Address %pM is configured for VF %d\n",
@@ -652,6 +658,8 @@ int qlcnic_sriov_vf_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&adapter->pdev->dev, "failed to read mac addr\n");
 
+	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
+
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return 0;
 }
@@ -864,7 +872,6 @@ static void qlcnic_sriov_schedule_bc_cmd(struct qlcnic_sriov *sriov,
 	    vf->adapter->need_fw_reset)
 		return;
 
-	INIT_WORK(&vf->trans_work, func);
 	queue_work(sriov->bc.bc_trans_wq, &vf->trans_work);
 }
 
@@ -1948,4 +1955,55 @@ static void qlcnic_sriov_vf_free_mac_list(struct qlcnic_adapter *adapter)
 		list_del(&cur->list);
 		kfree(cur);
 	}
+}
+
+int qlcnic_sriov_vf_shutdown(struct pci_dev *pdev)
+{
+	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
+	int retval;
+
+	netif_device_detach(netdev);
+	qlcnic_cancel_idc_work(adapter);
+
+	if (netif_running(netdev))
+		qlcnic_down(adapter, netdev);
+
+	qlcnic_sriov_channel_cfg_cmd(adapter, QLCNIC_BC_CMD_CHANNEL_TERM);
+	qlcnic_sriov_cfg_bc_intr(adapter, 0);
+	qlcnic_83xx_disable_mbx_intr(adapter);
+	cancel_delayed_work_sync(&adapter->idc_aen_work);
+
+	retval = pci_save_state(pdev);
+	if (retval)
+		return retval;
+
+	return 0;
+}
+
+int qlcnic_sriov_vf_resume(struct qlcnic_adapter *adapter)
+{
+	struct qlc_83xx_idc *idc = &adapter->ahw->idc;
+	struct net_device *netdev = adapter->netdev;
+	int err;
+
+	set_bit(QLC_83XX_MODULE_LOADED, &idc->status);
+	qlcnic_83xx_enable_mbx_intrpt(adapter);
+	err = qlcnic_sriov_cfg_bc_intr(adapter, 1);
+	if (err)
+		return err;
+
+	err = qlcnic_sriov_channel_cfg_cmd(adapter, QLCNIC_BC_CMD_CHANNEL_INIT);
+	if (!err) {
+		if (netif_running(netdev)) {
+			err = qlcnic_up(adapter, netdev);
+			if (!err)
+				qlcnic_restore_indev_addr(netdev, NETDEV_UP);
+		}
+	}
+
+	netif_device_attach(netdev);
+	qlcnic_schedule_work(adapter, qlcnic_sriov_vf_poll_dev_state,
+			     idc->delay);
+	return err;
 }

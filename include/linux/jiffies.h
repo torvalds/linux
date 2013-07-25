@@ -139,6 +139,10 @@ static inline u64 get_jiffies_64(void)
 	 ((__s64)(a) - (__s64)(b) >= 0))
 #define time_before_eq64(a,b)	time_after_eq64(b,a)
 
+#define time_in_range64(a, b, c) \
+	(time_after_eq64(a, b) && \
+	 time_before_eq64(a, c))
+
 /*
  * These four macros compare jiffies and 'a' for convenience.
  */

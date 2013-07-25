@@ -19,13 +19,13 @@ int ENE_InitMedia(struct us_data *us)
 	int	result;
 	BYTE	MiscReg03 = 0;
 
-	printk(KERN_INFO "--- Init Media ---\n");
-	result = ENE_Read_BYTE(us, REG_CARD_STATUS, &MiscReg03);
+	dev_info(&us->pusb_dev->dev, "--- Init Media ---\n");
+	result = ene_read_byte(us, REG_CARD_STATUS, &MiscReg03);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "Read register fail !!\n");
+		dev_err(&us->pusb_dev->dev, "Failed to read register\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
-	printk(KERN_INFO "MiscReg03 = %x\n", MiscReg03);
+	dev_info(&us->pusb_dev->dev, "MiscReg03 = %x\n", MiscReg03);
 
 	if (MiscReg03 & 0x02) {
 		if (!us->SM_Status.Ready && !us->MS_Status.Ready) {
@@ -39,9 +39,9 @@ int ENE_InitMedia(struct us_data *us)
 }
 
 /*
- * ENE_Read_BYTE() :
+ * ene_read_byte() :
  */
-int ENE_Read_BYTE(struct us_data *us, WORD index, void *buf)
+int ene_read_byte(struct us_data *us, WORD index, void *buf)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int result;
@@ -67,11 +67,13 @@ int ENE_SMInit(struct us_data *us)
 	int	result;
 	BYTE	buf[0x200];
 
-	printk(KERN_INFO "transport --- ENE_SMInit\n");
+	dev_dbg(&us->pusb_dev->dev, "transport --- ENE_SMInit\n");
 
 	result = ENE_LoadBinCode(us, SM_INIT_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_INFO "Load SM Init Code Fail !!\n");
+		dev_info(&us->pusb_dev->dev,
+			 "Failed to load SmartMedia init code\n: result= %x\n",
+			 result);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -84,26 +86,33 @@ int ENE_SMInit(struct us_data *us)
 
 	result = ENE_SendScsiCmd(us, FDIR_READ, &buf, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR
-		       "Execution SM Init Code Fail !! result = %x\n", result);
+		dev_err(&us->pusb_dev->dev,
+			"Failed to load SmartMedia init code: result = %x\n",
+			result);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	us->SM_Status = *(PSM_STATUS)&buf[0];
+	us->SM_Status = *(struct keucr_sm_status *)&buf[0];
 
 	us->SM_DeviceID = buf[1];
 	us->SM_CardID   = buf[2];
 
 	if (us->SM_Status.Insert && us->SM_Status.Ready) {
-		printk(KERN_INFO "Insert     = %x\n", us->SM_Status.Insert);
-		printk(KERN_INFO "Ready      = %x\n", us->SM_Status.Ready);
-		printk(KERN_INFO "WtP        = %x\n", us->SM_Status.WtP);
-		printk(KERN_INFO "DeviceID   = %x\n", us->SM_DeviceID);
-		printk(KERN_INFO "CardID     = %x\n", us->SM_CardID);
+		dev_info(&us->pusb_dev->dev, "Insert     = %x\n",
+					     us->SM_Status.Insert);
+		dev_info(&us->pusb_dev->dev, "Ready      = %x\n",
+					     us->SM_Status.Ready);
+		dev_info(&us->pusb_dev->dev, "WtP        = %x\n",
+					     us->SM_Status.WtP);
+		dev_info(&us->pusb_dev->dev, "DeviceID   = %x\n",
+					     us->SM_DeviceID);
+		dev_info(&us->pusb_dev->dev, "CardID     = %x\n",
+					     us->SM_CardID);
 		MediaChange = 1;
 		Check_D_MediaFmt(us);
 	} else {
-		printk(KERN_ERR "SM Card Not Ready --- %x\n", buf[0]);
+		dev_err(&us->pusb_dev->dev,
+			"SmartMedia Card Not Ready --- %x\n", buf[0]);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -120,7 +129,7 @@ int ENE_LoadBinCode(struct us_data *us, BYTE flag)
 	/* void *buf; */
 	PBYTE buf;
 
-	/* printk(KERN_INFO "transport --- ENE_LoadBinCode\n"); */
+	/* dev_info(&us->pusb_dev->dev, "transport --- ENE_LoadBinCode\n"); */
 	if (us->BIN_FLAG == flag)
 		return USB_STOR_TRANSPORT_GOOD;
 
@@ -130,11 +139,11 @@ int ENE_LoadBinCode(struct us_data *us, BYTE flag)
 	switch (flag) {
 	/* For SS */
 	case SM_INIT_PATTERN:
-		printk(KERN_INFO "SM_INIT_PATTERN\n");
+		dev_dbg(&us->pusb_dev->dev, "SM_INIT_PATTERN\n");
 		memcpy(buf, SM_Init, 0x800);
 		break;
 	case SM_RW_PATTERN:
-		printk(KERN_INFO "SM_RW_PATTERN\n");
+		dev_dbg(&us->pusb_dev->dev, "SM_RW_PATTERN\n");
 		memcpy(buf, SM_Rdwr, 0x800);
 		break;
 	}
@@ -165,12 +174,13 @@ int ENE_SendScsiCmd(struct us_data *us, BYTE fDir, void *buf, int use_sg)
 		     cswlen = 0, partial = 0;
 	unsigned int residue;
 
-	/* printk(KERN_INFO "transport --- ENE_SendScsiCmd\n"); */
+	/* dev_dbg(&us->pusb_dev->dev, "transport --- ENE_SendScsiCmd\n"); */
 	/* send cmd to out endpoint */
 	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
 					    bcb, US_BULK_CB_WRAP_LEN, NULL);
 	if (result != USB_STOR_XFER_GOOD) {
-		printk(KERN_ERR "send cmd to out endpoint fail ---\n");
+		dev_err(&us->pusb_dev->dev,
+				"send cmd to out endpoint fail ---\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -189,7 +199,7 @@ int ENE_SendScsiCmd(struct us_data *us, BYTE fDir, void *buf, int use_sg)
 			result = usb_stor_bulk_transfer_sg(us, pipe, buf,
 						transfer_length, 0, &partial);
 		if (result != USB_STOR_XFER_GOOD) {
-			printk(KERN_ERR "data transfer fail ---\n");
+			dev_err(&us->pusb_dev->dev, "data transfer fail ---\n");
 			return USB_STOR_TRANSPORT_ERROR;
 		}
 	}
@@ -199,14 +209,16 @@ int ENE_SendScsiCmd(struct us_data *us, BYTE fDir, void *buf, int use_sg)
 						US_BULK_CS_WRAP_LEN, &cswlen);
 
 	if (result == USB_STOR_XFER_SHORT && cswlen == 0) {
-		printk(KERN_WARNING "Received 0-length CSW; retrying...\n");
+		dev_warn(&us->pusb_dev->dev,
+				"Received 0-length CSW; retrying...\n");
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 					bcs, US_BULK_CS_WRAP_LEN, &cswlen);
 	}
 
 	if (result == USB_STOR_XFER_STALLED) {
 		/* get the status again */
-		printk(KERN_WARNING "Attempting to get CSW (2nd try)...\n");
+		dev_warn(&us->pusb_dev->dev,
+				"Attempting to get CSW (2nd try)...\n");
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 						bcs, US_BULK_CS_WRAP_LEN, NULL);
 	}
@@ -243,7 +255,7 @@ int ENE_Read_Data(struct us_data *us, void *buf, unsigned int length)
 	struct bulk_cs_wrap *bcs = (struct bulk_cs_wrap *) us->iobuf;
 	int result;
 
-	/* printk(KERN_INFO "transport --- ENE_Read_Data\n"); */
+	/* dev_dbg(&us->pusb_dev->dev, "transport --- ENE_Read_Data\n"); */
 	/* set up the command wrapper */
 	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
@@ -316,57 +328,5 @@ int ENE_Write_Data(struct us_data *us, void *buf, unsigned int length)
 		return USB_STOR_TRANSPORT_ERROR;
 
 	return USB_STOR_TRANSPORT_GOOD;
-}
-
-/*
- * usb_stor_print_cmd():
- */
-void usb_stor_print_cmd(struct scsi_cmnd *srb)
-{
-	PBYTE	Cdb = srb->cmnd;
-	DWORD	cmd = Cdb[0];
-	DWORD	bn  =	((Cdb[2] << 24) & 0xff000000) |
-			((Cdb[3] << 16) & 0x00ff0000) |
-			((Cdb[4] << 8) & 0x0000ff00) |
-			((Cdb[5] << 0) & 0x000000ff);
-	WORD	blen = ((Cdb[7] << 8) & 0xff00) | ((Cdb[8] << 0) & 0x00ff);
-
-	switch (cmd) {
-	case TEST_UNIT_READY:
-		/* printk(KERN_INFO
-			 "scsi cmd %X --- SCSIOP_TEST_UNIT_READY\n", cmd); */
-		break;
-	case INQUIRY:
-		printk(KERN_INFO "scsi cmd %X --- SCSIOP_INQUIRY\n", cmd);
-		break;
-	case MODE_SENSE:
-		printk(KERN_INFO "scsi cmd %X --- SCSIOP_MODE_SENSE\n", cmd);
-		break;
-	case START_STOP:
-		printk(KERN_INFO "scsi cmd %X --- SCSIOP_START_STOP\n", cmd);
-		break;
-	case READ_CAPACITY:
-		printk(KERN_INFO "scsi cmd %X --- SCSIOP_READ_CAPACITY\n", cmd);
-		break;
-	case READ_10:
-		/*  printk(KERN_INFO
-			   "scsi cmd %X --- SCSIOP_READ,bn = %X, blen = %X\n"
-			   ,cmd, bn, blen); */
-		break;
-	case WRITE_10:
-		/* printk(KERN_INFO
-			  "scsi cmd %X --- SCSIOP_WRITE,
-			  bn = %X, blen = %X\n" , cmd, bn, blen); */
-		break;
-	case ALLOW_MEDIUM_REMOVAL:
-		printk(KERN_INFO
-			"scsi cmd %X --- SCSIOP_ALLOW_MEDIUM_REMOVAL\n", cmd);
-		break;
-	default:
-		printk(KERN_INFO "scsi cmd %X --- Other cmd\n", cmd);
-		break;
-	}
-	bn = 0;
-	blen = 0;
 }
 

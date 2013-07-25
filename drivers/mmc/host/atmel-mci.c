@@ -40,8 +40,6 @@
 #include <asm/io.h>
 #include <asm/unaligned.h>
 
-#include <mach/cpu.h>
-
 #include "atmel-mci-regs.h"
 
 #define ATMCI_DATA_ERROR_FLAGS	(ATMCI_DCRCE | ATMCI_DTOE | ATMCI_OVRE | ATMCI_UNRE)
@@ -2230,10 +2228,15 @@ static void __exit atmci_cleanup_slot(struct atmel_mci_slot *slot,
 	mmc_free_host(slot->mmc);
 }
 
-static bool atmci_filter(struct dma_chan *chan, void *slave)
+static bool atmci_filter(struct dma_chan *chan, void *pdata)
 {
-	struct mci_dma_data	*sl = slave;
+	struct mci_platform_data *sl_pdata = pdata;
+	struct mci_dma_data *sl;
 
+	if (!sl_pdata)
+		return false;
+
+	sl = sl_pdata->dma_slave;
 	if (sl && find_slave_dev(sl) == chan->device->dev) {
 		chan->private = slave_data_ptr(sl);
 		return true;
@@ -2245,24 +2248,18 @@ static bool atmci_filter(struct dma_chan *chan, void *slave)
 static bool atmci_configure_dma(struct atmel_mci *host)
 {
 	struct mci_platform_data	*pdata;
+	dma_cap_mask_t mask;
 
 	if (host == NULL)
 		return false;
 
 	pdata = host->pdev->dev.platform_data;
 
-	if (!pdata)
-		return false;
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
 
-	if (pdata->dma_slave && find_slave_dev(pdata->dma_slave)) {
-		dma_cap_mask_t mask;
-
-		/* Try to grab a DMA channel */
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		host->dma.chan =
-			dma_request_channel(mask, atmci_filter, pdata->dma_slave);
-	}
+	host->dma.chan = dma_request_slave_channel_compat(mask, atmci_filter, pdata,
+							  &host->pdev->dev, "rxtx");
 	if (!host->dma.chan) {
 		dev_warn(&host->pdev->dev, "no DMA channel available\n");
 		return false;
@@ -2476,8 +2473,6 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	struct atmel_mci	*host = platform_get_drvdata(pdev);
 	unsigned int		i;
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (host->buffer)
 		dma_free_coherent(&pdev->dev, host->buf_size,
 		                  host->buffer, host->buf_phys_addr);
@@ -2505,7 +2500,7 @@ static int __exit atmci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atmci_suspend(struct device *dev)
 {
 	struct atmel_mci *host = dev_get_drvdata(dev);
@@ -2560,17 +2555,15 @@ static int atmci_resume(struct device *dev)
 
 	return ret;
 }
-static SIMPLE_DEV_PM_OPS(atmci_pm, atmci_suspend, atmci_resume);
-#define ATMCI_PM_OPS	(&atmci_pm)
-#else
-#define ATMCI_PM_OPS	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(atmci_pm, atmci_suspend, atmci_resume);
 
 static struct platform_driver atmci_driver = {
 	.remove		= __exit_p(atmci_remove),
 	.driver		= {
 		.name		= "atmel_mci",
-		.pm		= ATMCI_PM_OPS,
+		.pm		= &atmci_pm,
 		.of_match_table	= of_match_ptr(atmci_dt_ids),
 	},
 };

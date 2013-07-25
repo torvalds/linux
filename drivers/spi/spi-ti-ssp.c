@@ -237,14 +237,6 @@ static void ti_ssp_spi_work(struct work_struct *work)
 	spin_unlock(&hw->lock);
 }
 
-static int ti_ssp_spi_setup(struct spi_device *spi)
-{
-	if (spi->bits_per_word > 32)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int ti_ssp_spi_transfer(struct spi_device *spi, struct spi_message *m)
 {
 	struct ti_ssp_spi	*hw;
@@ -267,12 +259,6 @@ static int ti_ssp_spi_transfer(struct spi_device *spi, struct spi_message *m)
 
 		if (t->len && t->rx_buf && t->tx_buf) {
 			dev_err(&spi->dev, "invalid xfer, full duplex\n");
-			return -EINVAL;
-		}
-
-		if (t->bits_per_word > 32) {
-			dev_err(&spi->dev, "invalid xfer width %d\n",
-				t->bits_per_word);
 			return -EINVAL;
 		}
 	}
@@ -337,8 +323,8 @@ static int ti_ssp_spi_probe(struct platform_device *pdev)
 	master->bus_num		= pdev->id;
 	master->num_chipselect	= pdata->num_cs;
 	master->mode_bits	= MODE_BITS;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->flags		= SPI_MASTER_HALF_DUPLEX;
-	master->setup		= ti_ssp_spi_setup;
 	master->transfer	= ti_ssp_spi_transfer;
 
 	error = spi_register_master(master);

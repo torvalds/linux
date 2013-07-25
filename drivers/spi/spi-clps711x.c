@@ -42,12 +42,6 @@ static int spi_clps711x_setup(struct spi_device *spi)
 {
 	struct spi_clps711x_data *hw = spi_master_get_devdata(spi->master);
 
-	if (spi->bits_per_word != 8) {
-		dev_err(&spi->dev, "Unsupported master bus width %i\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
-
 	/* We are expect that SPI-device is not selected */
 	gpio_direction_output(hw->chipselect[spi->chip_select],
 			      !(spi->mode & SPI_CS_HIGH));
@@ -190,6 +184,7 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPHA | SPI_CS_HIGH;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->num_chipselect = pdata->num_chipselect;
 	master->setup = spi_clps711x_setup;
 	master->transfer_one_message = spi_clps711x_transfer_one_message;
@@ -254,7 +249,6 @@ err_out:
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
 
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
 	kfree(master);
 
@@ -274,7 +268,6 @@ static int spi_clps711x_remove(struct platform_device *pdev)
 			gpio_free(hw->chipselect[i]);
 
 	devm_clk_put(&pdev->dev, hw->spi_clk);
-	platform_set_drvdata(pdev, NULL);
 	spi_unregister_master(master);
 	kfree(master);
 

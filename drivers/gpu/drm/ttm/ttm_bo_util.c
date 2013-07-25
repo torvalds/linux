@@ -433,6 +433,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	struct ttm_buffer_object *fbo;
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_bo_driver *driver = bdev->driver;
+	int ret;
 
 	fbo = kmalloc(sizeof(*fbo), GFP_KERNEL);
 	if (!fbo)
@@ -445,7 +446,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	 * TODO: Explicit member copy would probably be better here.
 	 */
 
-	init_waitqueue_head(&fbo->event_queue);
 	INIT_LIST_HEAD(&fbo->ddestroy);
 	INIT_LIST_HEAD(&fbo->lru);
 	INIT_LIST_HEAD(&fbo->swap);
@@ -463,6 +463,10 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	kref_init(&fbo->kref);
 	fbo->destroy = &ttm_transfered_destroy;
 	fbo->acc_size = 0;
+	fbo->resv = &fbo->ttm_resv;
+	reservation_object_init(fbo->resv);
+	ret = ww_mutex_trylock(&fbo->resv->lock);
+	WARN_ON(!ret);
 
 	*new_obj = fbo;
 	return 0;

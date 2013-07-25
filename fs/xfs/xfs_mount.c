@@ -314,7 +314,8 @@ STATIC int
 xfs_mount_validate_sb(
 	xfs_mount_t	*mp,
 	xfs_sb_t	*sbp,
-	bool		check_inprogress)
+	bool		check_inprogress,
+	bool		check_version)
 {
 
 	/*
@@ -335,11 +336,20 @@ xfs_mount_validate_sb(
 		return XFS_ERROR(EWRONGFS);
 	}
 
+	if ((sbp->sb_qflags & (XFS_OQUOTA_ENFD | XFS_OQUOTA_CHKD)) &&
+			(sbp->sb_qflags & (XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD |
+				XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD))) {
+		xfs_notice(mp,
+"Super block has XFS_OQUOTA bits along with XFS_PQUOTA and/or XFS_GQUOTA bits.\n");
+		return XFS_ERROR(EFSCORRUPTED);
+	}
+
 	/*
 	 * Version 5 superblock feature mask validation. Reject combinations the
-	 * kernel cannot support up front before checking anything else.
+	 * kernel cannot support up front before checking anything else. For
+	 * write validation, we don't need to check feature masks.
 	 */
-	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) {
+	if (check_version && XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) {
 		xfs_alert(mp,
 "Version 5 superblock detected. This kernel has EXPERIMENTAL support enabled!\n"
 "Use of these features in this kernel is at your own risk!");
@@ -559,6 +569,18 @@ out_unwind:
 	return error;
 }
 
+static void
+xfs_sb_quota_from_disk(struct xfs_sb *sbp)
+{
+	if (sbp->sb_qflags & XFS_OQUOTA_ENFD)
+		sbp->sb_qflags |= (sbp->sb_qflags & XFS_PQUOTA_ACCT) ?
+					XFS_PQUOTA_ENFD : XFS_GQUOTA_ENFD;
+	if (sbp->sb_qflags & XFS_OQUOTA_CHKD)
+		sbp->sb_qflags |= (sbp->sb_qflags & XFS_PQUOTA_ACCT) ?
+					XFS_PQUOTA_CHKD : XFS_GQUOTA_CHKD;
+	sbp->sb_qflags &= ~(XFS_OQUOTA_ENFD | XFS_OQUOTA_CHKD);
+}
+
 void
 xfs_sb_from_disk(
 	struct xfs_sb	*to,
@@ -620,6 +642,35 @@ xfs_sb_from_disk(
 	to->sb_lsn = be64_to_cpu(from->sb_lsn);
 }
 
+static inline void
+xfs_sb_quota_to_disk(
+	xfs_dsb_t	*to,
+	xfs_sb_t	*from,
+	__int64_t	*fields)
+{
+	__uint16_t	qflags = from->sb_qflags;
+
+	if (*fields & XFS_SB_QFLAGS) {
+		/*
+		 * The in-core version of sb_qflags do not have
+		 * XFS_OQUOTA_* flags, whereas the on-disk version
+		 * does.  So, convert incore XFS_{PG}QUOTA_* flags
+		 * to on-disk XFS_OQUOTA_* flags.
+		 */
+		qflags &= ~(XFS_PQUOTA_ENFD | XFS_PQUOTA_CHKD |
+				XFS_GQUOTA_ENFD | XFS_GQUOTA_CHKD);
+
+		if (from->sb_qflags &
+				(XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD))
+			qflags |= XFS_OQUOTA_ENFD;
+		if (from->sb_qflags &
+				(XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD))
+			qflags |= XFS_OQUOTA_CHKD;
+		to->sb_qflags = cpu_to_be16(qflags);
+		*fields &= ~XFS_SB_QFLAGS;
+	}
+}
+
 /*
  * Copy in core superblock to ondisk one.
  *
@@ -641,6 +692,7 @@ xfs_sb_to_disk(
 	if (!fields)
 		return;
 
+	xfs_sb_quota_to_disk(to, from, &fields);
 	while (fields) {
 		f = (xfs_sb_field_t)xfs_lowbit64((__uint64_t)fields);
 		first = xfs_sb_info[f].offset;
@@ -675,7 +727,8 @@ xfs_sb_to_disk(
 
 static int
 xfs_sb_verify(
-	struct xfs_buf	*bp)
+	struct xfs_buf	*bp,
+	bool		check_version)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	struct xfs_sb	sb;
@@ -686,7 +739,8 @@ xfs_sb_verify(
 	 * Only check the in progress field for the primary superblock as
 	 * mkfs.xfs doesn't clear it from secondary superblocks.
 	 */
-	return xfs_mount_validate_sb(mp, &sb, bp->b_bn == XFS_SB_DADDR);
+	return xfs_mount_validate_sb(mp, &sb, bp->b_bn == XFS_SB_DADDR,
+				     check_version);
 }
 
 /*
@@ -719,7 +773,7 @@ xfs_sb_read_verify(
 			goto out_error;
 		}
 	}
-	error = xfs_sb_verify(bp);
+	error = xfs_sb_verify(bp, true);
 
 out_error:
 	if (error) {
@@ -758,7 +812,7 @@ xfs_sb_write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 	int			error;
 
-	error = xfs_sb_verify(bp);
+	error = xfs_sb_verify(bp, false);
 	if (error) {
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 		xfs_buf_ioerror(bp, error);
@@ -831,6 +885,7 @@ reread:
 	 */
 	xfs_sb_from_disk(&mp->m_sb, XFS_BUF_TO_SBP(bp));
 
+	xfs_sb_quota_from_disk(&mp->m_sb);
 	/*
 	 * We must be able to do sector-sized and sector-aligned IO.
 	 */
@@ -983,42 +1038,27 @@ xfs_update_alignment(xfs_mount_t *mp)
 		 */
 		if ((BBTOB(mp->m_dalign) & mp->m_blockmask) ||
 		    (BBTOB(mp->m_swidth) & mp->m_blockmask)) {
-			if (mp->m_flags & XFS_MOUNT_RETERR) {
-				xfs_warn(mp, "alignment check failed: "
-					 "(sunit/swidth vs. blocksize)");
-				return XFS_ERROR(EINVAL);
-			}
-			mp->m_dalign = mp->m_swidth = 0;
+			xfs_warn(mp,
+		"alignment check failed: sunit/swidth vs. blocksize(%d)",
+				sbp->sb_blocksize);
+			return XFS_ERROR(EINVAL);
 		} else {
 			/*
 			 * Convert the stripe unit and width to FSBs.
 			 */
 			mp->m_dalign = XFS_BB_TO_FSBT(mp, mp->m_dalign);
 			if (mp->m_dalign && (sbp->sb_agblocks % mp->m_dalign)) {
-				if (mp->m_flags & XFS_MOUNT_RETERR) {
-					xfs_warn(mp, "alignment check failed: "
-						 "(sunit/swidth vs. ag size)");
-					return XFS_ERROR(EINVAL);
-				}
 				xfs_warn(mp,
-		"stripe alignment turned off: sunit(%d)/swidth(%d) "
-		"incompatible with agsize(%d)",
-					mp->m_dalign, mp->m_swidth,
-					sbp->sb_agblocks);
-
-				mp->m_dalign = 0;
-				mp->m_swidth = 0;
+			"alignment check failed: sunit/swidth vs. agsize(%d)",
+					 sbp->sb_agblocks);
+				return XFS_ERROR(EINVAL);
 			} else if (mp->m_dalign) {
 				mp->m_swidth = XFS_BB_TO_FSBT(mp, mp->m_swidth);
 			} else {
-				if (mp->m_flags & XFS_MOUNT_RETERR) {
-					xfs_warn(mp, "alignment check failed: "
-						"sunit(%d) less than bsize(%d)",
-						mp->m_dalign,
-						mp->m_blockmask +1);
-					return XFS_ERROR(EINVAL);
-				}
-				mp->m_swidth = 0;
+				xfs_warn(mp,
+			"alignment check failed: sunit(%d) less than bsize(%d)",
+					 mp->m_dalign, sbp->sb_blocksize);
+				return XFS_ERROR(EINVAL);
 			}
 		}
 
@@ -1035,6 +1075,10 @@ xfs_update_alignment(xfs_mount_t *mp)
 				sbp->sb_width = mp->m_swidth;
 				mp->m_update_flags |= XFS_SB_WIDTH;
 			}
+		} else {
+			xfs_warn(mp,
+	"cannot change alignment: superblock does not support data alignment");
+			return XFS_ERROR(EINVAL);
 		}
 	} else if ((mp->m_flags & XFS_MOUNT_NOALIGN) != XFS_MOUNT_NOALIGN &&
 		    xfs_sb_version_hasdalign(&mp->m_sb)) {

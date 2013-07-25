@@ -125,15 +125,16 @@ static void ulog_send(struct ulog_net *ulog, unsigned int nlgroupnum)
 /* timer function to flush queue in flushtimeout time */
 static void ulog_timer(unsigned long data)
 {
+	unsigned int groupnum = *((unsigned int *)data);
 	struct ulog_net *ulog = container_of((void *)data,
 					     struct ulog_net,
-					     nlgroup[*(unsigned int *)data]);
+					     nlgroup[groupnum]);
 	pr_debug("timer function called, calling ulog_send\n");
 
 	/* lock to protect against somebody modifying our structure
 	 * from ipt_ulog_target at the same time */
 	spin_lock_bh(&ulog->lock);
-	ulog_send(ulog, data);
+	ulog_send(ulog, groupnum);
 	spin_unlock_bh(&ulog->lock);
 }
 
@@ -231,8 +232,10 @@ static void ipt_ulog_packet(struct net *net,
 	put_unaligned(tv.tv_usec, &pm->timestamp_usec);
 	put_unaligned(skb->mark, &pm->mark);
 	pm->hook = hooknum;
-	if (prefix != NULL)
-		strncpy(pm->prefix, prefix, sizeof(pm->prefix));
+	if (prefix != NULL) {
+		strncpy(pm->prefix, prefix, sizeof(pm->prefix) - 1);
+		pm->prefix[sizeof(pm->prefix) - 1] = '\0';
+	}
 	else if (loginfo->prefix[0] != '\0')
 		strncpy(pm->prefix, loginfo->prefix, sizeof(pm->prefix));
 	else
@@ -328,6 +331,12 @@ static int ulog_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ipt_ulog_info *loginfo = par->targinfo;
 
+	if (!par->net->xt.ulog_warn_deprecated) {
+		pr_info("ULOG is deprecated and it will be removed soon, "
+			"use NFLOG instead\n");
+		par->net->xt.ulog_warn_deprecated = true;
+	}
+
 	if (loginfo->prefix[sizeof(loginfo->prefix) - 1] != '\0') {
 		pr_debug("prefix not null-terminated\n");
 		return -EINVAL;
@@ -405,8 +414,11 @@ static int __net_init ulog_tg_net_init(struct net *net)
 
 	spin_lock_init(&ulog->lock);
 	/* initialize ulog_buffers */
-	for (i = 0; i < ULOG_MAXNLGROUPS; i++)
-		setup_timer(&ulog->ulog_buffers[i].timer, ulog_timer, i);
+	for (i = 0; i < ULOG_MAXNLGROUPS; i++) {
+		ulog->nlgroup[i] = i;
+		setup_timer(&ulog->ulog_buffers[i].timer, ulog_timer,
+			    (unsigned long)&ulog->nlgroup[i]);
+	}
 
 	ulog->nflognl = netlink_kernel_create(net, NETLINK_NFLOG, &cfg);
 	if (!ulog->nflognl)

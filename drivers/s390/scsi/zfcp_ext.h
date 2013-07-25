@@ -21,27 +21,13 @@ extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
 extern int zfcp_sg_setup_table(struct scatterlist *, int);
-extern void zfcp_device_unregister(struct device *,
-				   const struct attribute_group *);
 extern void zfcp_adapter_release(struct kref *);
 extern void zfcp_adapter_unregister(struct zfcp_adapter *);
 
 /* zfcp_ccw.c */
-extern int zfcp_ccw_priv_sch(struct zfcp_adapter *);
 extern struct ccw_driver zfcp_ccw_driver;
 extern struct zfcp_adapter *zfcp_ccw_adapter_by_cdev(struct ccw_device *);
 extern void zfcp_ccw_adapter_put(struct zfcp_adapter *);
-
-/* zfcp_cfdc.c */
-extern struct miscdevice zfcp_cfdc_misc;
-extern void zfcp_cfdc_port_denied(struct zfcp_port *, union fsf_status_qual *);
-extern void zfcp_cfdc_lun_denied(struct scsi_device *, union fsf_status_qual *);
-extern void zfcp_cfdc_lun_shrng_vltn(struct scsi_device *,
-				     union fsf_status_qual *);
-extern int zfcp_cfdc_open_lun_eval(struct scsi_device *,
-				   struct fsf_qtcb_bottom_support *);
-extern void zfcp_cfdc_adapter_access_changed(struct zfcp_adapter *);
-
 
 /* zfcp_dbf.c */
 extern int zfcp_dbf_adapter_register(struct zfcp_adapter *);
@@ -117,8 +103,6 @@ extern int zfcp_fsf_exchange_config_data_sync(struct zfcp_qdio *,
 extern int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *);
 extern int zfcp_fsf_exchange_port_data_sync(struct zfcp_qdio *,
 					    struct fsf_qtcb_bottom_port *);
-extern struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *,
-						  struct zfcp_fsf_cfdc *);
 extern void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
 extern int zfcp_fsf_status_read(struct zfcp_qdio *);
 extern int zfcp_status_read_refill(struct zfcp_adapter *adapter);
@@ -158,9 +142,9 @@ extern void zfcp_scsi_set_prot(struct zfcp_adapter *);
 extern void zfcp_scsi_dif_sense_error(struct scsi_cmnd *, int);
 
 /* zfcp_sysfs.c */
-extern struct attribute_group zfcp_sysfs_unit_attrs;
+extern const struct attribute_group *zfcp_unit_attr_groups[];
 extern struct attribute_group zfcp_sysfs_adapter_attrs;
-extern struct attribute_group zfcp_sysfs_port_attrs;
+extern const struct attribute_group *zfcp_port_attr_groups[];
 extern struct mutex zfcp_sysfs_port_units_mutex;
 extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
 extern struct device_attribute *zfcp_sysfs_shost_attrs[];

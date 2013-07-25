@@ -27,7 +27,6 @@
 #include "include/match.h"
 #include "include/policy.h"
 #include "include/policy_unpack.h"
-#include "include/sid.h"
 
 /*
  * The AppArmor interface treats data as a type byte followed by the
@@ -289,6 +288,9 @@ static int unpack_strdup(struct aa_ext *e, char **string, const char *name)
 
 	return res;
 }
+
+#define DFA_VALID_PERM_MASK		0xffffffff
+#define DFA_VALID_PERM2_MASK		0xffffffff
 
 /**
  * verify_accept - verify the accept tables of a dfa

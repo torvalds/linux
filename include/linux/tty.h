@@ -272,7 +272,6 @@ struct tty_struct {
 #define N_TTY_BUF_SIZE 4096
 
 	unsigned char closing:1;
-	unsigned short minimum_to_wake;
 	unsigned char *write_buf;
 	int write_cnt;
 	/* If the tty has a pending do_SAK, queue it here - akpm */
@@ -309,8 +308,6 @@ struct tty_file_private {
 #define TTY_LDISC 		9	/* Line discipline attached */
 #define TTY_LDISC_CHANGING 	10	/* Line discipline changing */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
-#define TTY_HW_COOK_OUT 	14	/* Hardware can do output cooking */
-#define TTY_HW_COOK_IN 		15	/* Hardware can do input cooking */
 #define TTY_PTY_LOCK 		16	/* pty private */
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
 #define TTY_HUPPED 		18	/* Post driver->hangup() */

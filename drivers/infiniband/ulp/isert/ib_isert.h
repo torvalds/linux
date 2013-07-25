@@ -61,8 +61,8 @@ struct isert_cmd {
 	uint32_t		write_stag;
 	uint64_t		read_va;
 	uint64_t		write_va;
-	u64			sense_buf_dma;
-	u32			sense_buf_len;
+	u64			pdu_buf_dma;
+	u32			pdu_buf_len;
 	u32			read_va_off;
 	u32			write_va_off;
 	u32			rdma_wr_num;
@@ -102,6 +102,7 @@ struct isert_conn {
 	struct ib_qp		*conn_qp;
 	struct isert_device	*conn_device;
 	struct work_struct	conn_logout_work;
+	struct mutex		conn_mutex;
 	wait_queue_head_t	conn_wait;
 	wait_queue_head_t	conn_wait_comp_err;
 	struct kref		conn_kref;

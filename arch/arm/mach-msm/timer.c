@@ -23,10 +23,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/sched_clock.h>
 
 #include <asm/mach/time.h>
 #include <asm/localtimer.h>
-#include <asm/sched_clock.h>
 
 #include "common.h"
 
@@ -139,7 +139,7 @@ static struct clocksource msm_clocksource = {
 };
 
 #ifdef CONFIG_LOCAL_TIMERS
-static int __cpuinit msm_local_timer_setup(struct clock_event_device *evt)
+static int msm_local_timer_setup(struct clock_event_device *evt)
 {
 	/* Use existing clock_event for cpu 0 */
 	if (!smp_processor_id())
@@ -164,7 +164,7 @@ static void msm_local_timer_stop(struct clock_event_device *evt)
 	disable_percpu_irq(evt->irq);
 }
 
-static struct local_timer_ops msm_local_timer_ops __cpuinitdata = {
+static struct local_timer_ops msm_local_timer_ops = {
 	.setup	= msm_local_timer_setup,
 	.stop	= msm_local_timer_stop,
 };

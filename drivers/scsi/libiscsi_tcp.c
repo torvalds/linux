@@ -906,7 +906,6 @@ int iscsi_tcp_recv_skb(struct iscsi_conn *conn, struct sk_buff *skb,
 			ISCSI_DBG_TCP(conn, "no more data avail. Consumed %d\n",
 				      consumed);
 			*status = ISCSI_TCP_SKB_DONE;
-			skb_abort_seq_read(&seq);
 			goto skb_done;
 		}
 		BUG_ON(segment->copied >= segment->size);

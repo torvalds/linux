@@ -117,7 +117,9 @@ common_shutdown_1(void *generic_ptr)
 		if (in_interrupt())
 			irq_exit();
 		/* This has the effect of resetting the VGA video origin.  */
-		take_over_console(&dummy_con, 0, MAX_NR_CONSOLES-1, 1);
+		console_lock();
+		do_take_over_console(&dummy_con, 0, MAX_NR_CONSOLES-1, 1);
+		console_unlock();
 #endif
 		pci_restore_srm_config();
 		set_hae(srm_hae);

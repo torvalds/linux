@@ -3,8 +3,6 @@
 #
 
 avx_supported := $(call as-instr,vpxor %xmm0$(comma)%xmm0$(comma)%xmm0,yes,no)
-avx2_supported := $(call as-instr,vpgatherdd %ymm0$(comma)(%eax$(comma)%ymm1\
-					$(comma)4)$(comma)%ymm2,yes,no)
 
 obj-$(CONFIG_CRYPTO_ABLK_HELPER_X86) += ablk_helper.o
 obj-$(CONFIG_CRYPTO_GLUE_HELPER_X86) += glue_helper.o
@@ -42,10 +40,8 @@ endif
 
 # These modules require assembler to support AVX2.
 ifeq ($(avx2_supported),yes)
-	obj-$(CONFIG_CRYPTO_BLOWFISH_AVX2_X86_64) += blowfish-avx2.o
 	obj-$(CONFIG_CRYPTO_CAMELLIA_AESNI_AVX2_X86_64) += camellia-aesni-avx2.o
 	obj-$(CONFIG_CRYPTO_SERPENT_AVX2_X86_64) += serpent-avx2.o
-	obj-$(CONFIG_CRYPTO_TWOFISH_AVX2_X86_64) += twofish-avx2.o
 endif
 
 aes-i586-y := aes-i586-asm_32.o aes_glue.o
@@ -73,10 +69,8 @@ ifeq ($(avx_supported),yes)
 endif
 
 ifeq ($(avx2_supported),yes)
-	blowfish-avx2-y := blowfish-avx2-asm_64.o blowfish_avx2_glue.o
 	camellia-aesni-avx2-y := camellia-aesni-avx2-asm_64.o camellia_aesni_avx2_glue.o
 	serpent-avx2-y := serpent-avx2-asm_64.o serpent_avx2_glue.o
-	twofish-avx2-y := twofish-avx2-asm_64.o twofish_avx2_glue.o
 endif
 
 aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o

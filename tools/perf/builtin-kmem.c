@@ -708,7 +708,7 @@ static int parse_line_opt(const struct option *opt __maybe_unused,
 static int __cmd_record(int argc, const char **argv)
 {
 	const char * const record_args[] = {
-	"record", "-a", "-R", "-f", "-c", "1",
+	"record", "-a", "-R", "-c", "1",
 	"-e", "kmem:kmalloc",
 	"-e", "kmem:kmalloc_node",
 	"-e", "kmem:kfree",

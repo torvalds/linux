@@ -12,9 +12,10 @@
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
  * | Module Init and Probe        |       0x014f       | 0x4b,0xba,0xfa |
- * | Mailbox commands             |       0x1179       | 0x111a-0x111b  |
+ * | Mailbox commands             |       0x117a       | 0x111a-0x111b  |
  * |                              |                    | 0x1155-0x1158  |
  * | Device Discovery             |       0x2095       | 0x2020-0x2022, |
+ * |                              |                    | 0x2011-0x2012, |
  * |                              |                    | 0x2016         |
  * | Queue Command and IO tracing |       0x3058       | 0x3006-0x300b  |
  * |                              |                    | 0x3027-0x3028  |
@@ -35,7 +36,8 @@
  * |                              |                    | 0x70a5,0x70a6, |
  * |                              |                    | 0x70a8,0x70ab, |
  * |                              |                    | 0x70ad-0x70ae, |
- * |                              |                    | 0x70d1-0x70da  |
+ * |                              |                    | 0x70d1-0x70da, |
+ * |                              |                    | 0x7047,0x703b	|
  * | Task Management              |       0x803c       | 0x8025-0x8026  |
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x9011       |		|
@@ -1468,7 +1470,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	nxt = qla2xxx_copy_queues(ha, nxt);
 
-	nxt = qla24xx_copy_eft(ha, nxt);
+	qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
@@ -1787,7 +1789,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 	nxt = qla2xxx_copy_queues(ha, nxt);
 
-	nxt = qla24xx_copy_eft(ha, nxt);
+	qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
@@ -2289,7 +2291,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 copy_queue:
 	nxt = qla2xxx_copy_queues(ha, nxt);
 
-	nxt = qla24xx_copy_eft(ha, nxt);
+	qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
 	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
