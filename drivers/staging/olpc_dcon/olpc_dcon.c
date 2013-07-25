@@ -131,13 +131,13 @@ power_up:
 			pr_warn("unable to force dcon to power up: %d!\n", x);
 			return x;
 		}
-		msleep(10); /* we'll be conservative */
+		usleep_range(10000, 11000);  /* we'll be conservative */
 	}
 
 	pdata->bus_stabilize_wiggle();
 
 	for (x = -1, timeout = 50; timeout && x < 0; timeout--) {
-		msleep(1);
+		usleep_range(1000, 1100);
 		x = dcon_read(dcon, DCON_REG_ID);
 	}
 	if (x < 0) {
