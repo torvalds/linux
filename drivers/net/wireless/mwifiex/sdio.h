@@ -92,9 +92,6 @@
 /* Host Control Registers : Download host interrupt mask */
 #define DN_LD_HOST_INT_MASK		(0x2U)
 
-/* Disable Host interrupt mask */
-#define	HOST_INT_DISABLE		0xff
-
 /* Host Control Registers : Host interrupt status */
 #define HOST_INTSTATUS_REG		0x03
 /* Host Control Registers : Upload host interrupt status */
