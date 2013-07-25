@@ -120,8 +120,6 @@ extern void ata_acpi_on_disable(struct ata_device *dev);
 extern void ata_acpi_set_state(struct ata_port *ap, pm_message_t state);
 extern int ata_acpi_register(void);
 extern void ata_acpi_unregister(void);
-extern void ata_acpi_bind(struct ata_device *dev);
-extern void ata_acpi_unbind(struct ata_device *dev);
 extern void ata_acpi_hotplug_init(struct ata_host *host);
 #else
 static inline void ata_acpi_dissociate(struct ata_host *host) { }
@@ -133,8 +131,6 @@ static inline void ata_acpi_set_state(struct ata_port *ap,
 				      pm_message_t state) { }
 static inline int ata_acpi_register(void) { return 0; }
 static inline void ata_acpi_unregister(void) { }
-static inline void ata_acpi_bind(struct ata_device *dev) { }
-static inline void ata_acpi_unbind(struct ata_device *dev) { }
 static inline void ata_acpi_hotplug_init(struct ata_host *host) {}
 #endif
 
