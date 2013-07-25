@@ -852,31 +852,32 @@ static int receive_dux_commands(struct comedi_device *dev, int command)
 }
 
 static int usbdux_ai_inttrig(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int trignum)
+			     struct comedi_subdevice *s,
+			     unsigned int trignum)
 {
-	int ret;
-	struct usbdux_private *this_usbduxsub = dev->private;
-	if (!this_usbduxsub)
-		return -EFAULT;
+	struct usbdux_private *devpriv = dev->private;
+	int ret = -EINVAL;
 
-	down(&this_usbduxsub->sem);
+	down(&devpriv->sem);
 
-	if (trignum != 0) {
-		up(&this_usbduxsub->sem);
-		return -EINVAL;
-	}
-	if (!(this_usbduxsub->ai_cmd_running)) {
-		this_usbduxsub->ai_cmd_running = 1;
+	if (trignum != 0)
+		goto ai_trig_exit;
+
+	if (!devpriv->ai_cmd_running) {
+		devpriv->ai_cmd_running = 1;
 		ret = usbduxsub_submit_inurbs(dev);
 		if (ret < 0) {
-			this_usbduxsub->ai_cmd_running = 0;
-			up(&this_usbduxsub->sem);
-			return ret;
+			devpriv->ai_cmd_running = 0;
+			goto ai_trig_exit;
 		}
 		s->async->inttrig = NULL;
+	} else {
+		ret = -EBUSY;
 	}
-	up(&this_usbduxsub->sem);
-	return 1;
+
+ai_trig_exit:
+	up(&devpriv->sem);
+	return ret;
 }
 
 static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
