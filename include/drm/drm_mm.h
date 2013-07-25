@@ -36,7 +36,10 @@
 /*
  * Generic range manager structs
  */
+#include <linux/bug.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/spinlock.h>
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
 #endif
