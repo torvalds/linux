@@ -1,1 +1,0 @@
-../plat-sunxi/sys_config.c
