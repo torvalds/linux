@@ -52,7 +52,6 @@
 #include <lustre_lib.h>
 #include <linux/libcfs/bitmap.h>
 #include <lu_ref.h>
-#include <lustre_lib.h>
 #include <lustre_export.h>
 #include <lustre_fid.h>
 #include <lustre_fld.h>
