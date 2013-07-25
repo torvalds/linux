@@ -303,7 +303,7 @@ static ssize_t page_size_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(page_size);
 
-static struct attribute srom_dev_attrs[] = {
+static struct attribute *srom_dev_attrs[] = {
 	&dev_attr_total_size.attr,
 	&dev_attr_sector_size.attr,
 	&dev_attr_page_size.attr,
