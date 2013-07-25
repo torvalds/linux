@@ -45,7 +45,6 @@
 #define TTM_DEBUG(fmt, arg...)
 #define TTM_BO_HASH_ORDER 13
 
-static int ttm_bo_setup_vm(struct ttm_buffer_object *bo);
 static int ttm_bo_swapout(struct ttm_mem_shrink *shrink);
 static void ttm_bo_global_kobj_release(struct kobject *kobj);
 
@@ -1134,7 +1133,8 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	if (likely(!ret) &&
 	    (bo->type == ttm_bo_type_device ||
 	     bo->type == ttm_bo_type_sg))
-		ret = ttm_bo_setup_vm(bo);
+		ret = drm_vma_offset_add(&bdev->vma_manager, &bo->vma_node,
+					 bo->mem.num_pages);
 
 	locked = ww_mutex_trylock(&bo->resv->lock);
 	WARN_ON(!locked);
@@ -1506,24 +1506,6 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
-/**
- * ttm_bo_setup_vm:
- *
- * @bo: the buffer to allocate address space for
- *
- * Allocate address space in the drm device so that applications
- * can mmap the buffer and access the contents. This only
- * applies to ttm_bo_type_device objects as others are not
- * placed in the drm device address space.
- */
-
-static int ttm_bo_setup_vm(struct ttm_buffer_object *bo)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-
-	return drm_vma_offset_add(&bdev->vma_manager, &bo->vma_node,
-				  bo->mem.num_pages);
-}
 
 int ttm_bo_wait(struct ttm_buffer_object *bo,
 		bool lazy, bool interruptible, bool no_wait)
