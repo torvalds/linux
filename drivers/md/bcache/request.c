@@ -663,86 +663,70 @@ static void bch_cache_read_endio(struct bio *bio, int error)
 	bch_bbio_endio(s->op.c, bio, error, "reading from cache");
 }
 
-static int submit_partial_cache_miss(struct btree *b, struct search *s,
-				     struct bkey *k)
-{
-	struct bio *bio = &s->bio.bio;
-	int ret = MAP_CONTINUE;
-
-	do {
-		unsigned sectors = INT_MAX;
-
-		if (KEY_INODE(k) == s->op.inode) {
-			if (KEY_START(k) <= bio->bi_sector)
-				break;
-
-			sectors = min_t(uint64_t, sectors,
-					KEY_START(k) - bio->bi_sector);
-		}
-
-		ret = s->d->cache_miss(b, s, bio, sectors);
-	} while (ret == MAP_CONTINUE);
-
-	return ret;
-}
-
 /*
  * Read from a single key, handling the initial cache miss if the key starts in
  * the middle of the bio
  */
-static int submit_partial_cache_hit(struct btree_op *op, struct btree *b,
-				    struct bkey *k)
+static int cache_lookup_fn(struct btree_op *op, struct btree *b, struct bkey *k)
 {
 	struct search *s = container_of(op, struct search, op);
-	struct bio *bio = &s->bio.bio;
+	struct bio *n, *bio = &s->bio.bio;
+	struct bkey *bio_key;
 	unsigned ptr;
-	struct bio *n;
 
-	int ret = submit_partial_cache_miss(b, s, k);
-	if (ret != MAP_CONTINUE || !KEY_SIZE(k))
-		return ret;
+	if (bkey_cmp(k, &KEY(op->inode, bio->bi_sector, 0)) <= 0)
+		return MAP_CONTINUE;
+
+	if (KEY_INODE(k) != s->op.inode ||
+	    KEY_START(k) > bio->bi_sector) {
+		unsigned bio_sectors = bio_sectors(bio);
+		unsigned sectors = KEY_INODE(k) == s->op.inode
+			? min_t(uint64_t, INT_MAX,
+				KEY_START(k) - bio->bi_sector)
+			: INT_MAX;
+
+		int ret = s->d->cache_miss(b, s, bio, sectors);
+		if (ret != MAP_CONTINUE)
+			return ret;
+
+		/* if this was a complete miss we shouldn't get here */
+		BUG_ON(bio_sectors <= sectors);
+	}
+
+	if (!KEY_SIZE(k))
+		return MAP_CONTINUE;
 
 	/* XXX: figure out best pointer - for multiple cache devices */
 	ptr = 0;
 
 	PTR_BUCKET(b->c, k, ptr)->prio = INITIAL_PRIO;
 
-	while (ret == MAP_CONTINUE &&
-	       KEY_INODE(k) == op->inode &&
-	       bio->bi_sector < KEY_OFFSET(k)) {
-		struct bkey *bio_key;
-		sector_t sector = PTR_OFFSET(k, ptr) +
-			(bio->bi_sector - KEY_START(k));
-		unsigned sectors = min_t(uint64_t, INT_MAX,
-					 KEY_OFFSET(k) - bio->bi_sector);
+	n = bch_bio_split(bio, min_t(uint64_t, INT_MAX,
+				     KEY_OFFSET(k) - bio->bi_sector),
+			  GFP_NOIO, s->d->bio_split);
 
-		n = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
-		if (n == bio)
-			ret = MAP_DONE;
+	bio_key = &container_of(n, struct bbio, bio)->key;
+	bch_bkey_copy_single_ptr(bio_key, k, ptr);
 
-		bio_key = &container_of(n, struct bbio, bio)->key;
+	bch_cut_front(&KEY(s->op.inode, n->bi_sector, 0), bio_key);
+	bch_cut_back(&KEY(s->op.inode, bio_end_sector(n), 0), bio_key);
 
-		/*
-		 * The bucket we're reading from might be reused while our bio
-		 * is in flight, and we could then end up reading the wrong
-		 * data.
-		 *
-		 * We guard against this by checking (in cache_read_endio()) if
-		 * the pointer is stale again; if so, we treat it as an error
-		 * and reread from the backing device (but we don't pass that
-		 * error up anywhere).
-		 */
+	n->bi_end_io	= bch_cache_read_endio;
+	n->bi_private	= &s->cl;
 
-		bch_bkey_copy_single_ptr(bio_key, k, ptr);
-		SET_PTR_OFFSET(bio_key, 0, sector);
+	/*
+	 * The bucket we're reading from might be reused while our bio
+	 * is in flight, and we could then end up reading the wrong
+	 * data.
+	 *
+	 * We guard against this by checking (in cache_read_endio()) if
+	 * the pointer is stale again; if so, we treat it as an error
+	 * and reread from the backing device (but we don't pass that
+	 * error up anywhere).
+	 */
 
-		n->bi_end_io	= bch_cache_read_endio;
-		n->bi_private	= &s->cl;
-
-		__bch_submit_bbio(n, b->c);
-	}
-
-	return ret;
+	__bch_submit_bbio(n, b->c);
+	return n == bio ? MAP_DONE : MAP_CONTINUE;
 }
 
 static void cache_lookup(struct closure *cl)
@@ -753,7 +737,7 @@ static void cache_lookup(struct closure *cl)
 
 	int ret = bch_btree_map_keys(op, op->c,
 				     &KEY(op->inode, bio->bi_sector, 0),
-				     submit_partial_cache_hit, 1);
+				     cache_lookup_fn, MAP_END_KEY);
 	if (ret == -EAGAIN)
 		continue_at(cl, cache_lookup, bcache_wq);
 
