@@ -686,13 +686,14 @@ static int usbduxsigma_ai_inttrig(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	if (!devpriv->ai_cmd_running) {
+		devpriv->ai_cmd_running = 1;
 		ret = usbduxsigma_submit_urbs(dev, devpriv->ai_urbs,
 					      devpriv->n_ai_urbs, 1);
 		if (ret < 0) {
+			devpriv->ai_cmd_running = 0;
 			up(&devpriv->sem);
 			return ret;
 		}
-		devpriv->ai_cmd_running = 1;
 		s->async->inttrig = NULL;
 	}
 	up(&devpriv->sem);
@@ -740,14 +741,15 @@ static int usbduxsigma_ai_cmd(struct comedi_device *dev,
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
+		devpriv->ai_cmd_running = 1;
 		ret = usbduxsigma_submit_urbs(dev, devpriv->ai_urbs,
 					      devpriv->n_ai_urbs, 1);
 		if (ret < 0) {
+			devpriv->ai_cmd_running = 0;
 			up(&devpriv->sem);
 			return ret;
 		}
 		s->async->inttrig = NULL;
-		devpriv->ai_cmd_running = 1;
 	} else {	/* TRIG_INT */
 		/* wait for an internal signal and submit the urbs later */
 		s->async->inttrig = usbduxsigma_ai_inttrig;
@@ -876,13 +878,14 @@ static int usbduxsigma_ao_inttrig(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	if (!devpriv->ao_cmd_running) {
+		devpriv->ao_cmd_running = 1;
 		ret = usbduxsigma_submit_urbs(dev, devpriv->ao_urbs,
 					      devpriv->n_ao_urbs, 0);
 		if (ret < 0) {
+			devpriv->ao_cmd_running = 0;
 			up(&devpriv->sem);
 			return ret;
 		}
-		devpriv->ao_cmd_running = 1;
 		s->async->inttrig = NULL;
 	}
 	up(&devpriv->sem);
@@ -1026,14 +1029,15 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
+		devpriv->ao_cmd_running = 1;
 		ret = usbduxsigma_submit_urbs(dev, devpriv->ao_urbs,
 					      devpriv->n_ao_urbs, 0);
 		if (ret < 0) {
+			devpriv->ao_cmd_running = 0;
 			up(&devpriv->sem);
 			return ret;
 		}
 		s->async->inttrig = NULL;
-		devpriv->ao_cmd_running = 1;
 	} else {	/* TRIG_INT */
 		/* wait for an internal signal and submit the urbs later */
 		s->async->inttrig = usbduxsigma_ao_inttrig;
@@ -1237,10 +1241,12 @@ static int usbduxsigma_pwm_start(struct comedi_device *dev,
 
 	memset(devpriv->pwm_urb->transfer_buffer, 0, devpriv->pwm_buf_sz);
 
-	ret = usbduxsigma_submit_pwm_urb(dev);
-	if (ret < 0)
-		return ret;
 	devpriv->pwm_cmd_running = 1;
+	ret = usbduxsigma_submit_pwm_urb(dev);
+	if (ret < 0) {
+		devpriv->pwm_cmd_running = 0;
+		return ret;
+	}
 
 	return 0;
 }
