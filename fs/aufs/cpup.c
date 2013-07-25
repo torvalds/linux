@@ -764,6 +764,7 @@ out:
 	return err;
 }
 
+#if 0 /* unused */
 struct au_cpup_single_args {
 	int *errp;
 	struct au_cpup_basic *basic;
@@ -780,6 +781,7 @@ static void au_call_cpup_single(void *args)
 	*a->errp = au_cpup_single(a->basic, a->flags, a->dst_parent, a->pin);
 	au_pin_hdir_release(a->pin);
 }
+#endif
 
 /*
  * prevent SIGXFSZ in copy-up.
@@ -820,6 +822,7 @@ static int au_cpup_sio_test(struct au_pin *pin, umode_t mode)
 	return do_sio;
 }
 
+#if 0 /* unused */
 int au_sio_cpup_single(struct dentry *dentry, aufs_bindex_t bdst,
 		       aufs_bindex_t bsrc, loff_t len, unsigned int flags,
 		       struct dentry *dst_parent, struct au_pin *pin)
@@ -851,6 +854,7 @@ int au_sio_cpup_single(struct dentry *dentry, aufs_bindex_t bdst,
 
 	return err;
 }
+#endif
 
 /*
  * copyup the @dentry from the first active lower branch to @bdst,

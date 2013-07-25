@@ -52,9 +52,6 @@ void au_cpup_attr_all(struct inode *inode, int force);
 	do { (flags) &= ~AuCpup_##name; } while (0)
 
 int au_copy_file(struct file *dst, struct file *src, loff_t len);
-int au_sio_cpup_single(struct dentry *dentry, aufs_bindex_t bdst,
-		       aufs_bindex_t bsrc, loff_t len, unsigned int flags,
-		       struct dentry *dst_parent, struct au_pin *pin);
 int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 		       unsigned int flags, struct au_pin *pin);
 int au_sio_cpup_simple_h_open(struct dentry *dentry, aufs_bindex_t bdst,
