@@ -2174,61 +2174,56 @@ out:
 	return ret;
 }
 
-static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op,
-				    struct keylist *keys, atomic_t *journal_ref,
-				    struct bkey *replace_key)
+struct btree_insert_op {
+	struct btree_op	op;
+	struct keylist	*keys;
+	atomic_t	*journal_ref;
+	struct bkey	*replace_key;
+};
+
+int btree_insert_fn(struct btree_op *b_op, struct btree *b)
 {
-	if (bch_keylist_empty(keys))
-		return 0;
+	struct btree_insert_op *op = container_of(b_op,
+					struct btree_insert_op, op);
 
-	if (b->level) {
-		struct bkey *k;
-
-		k = bch_next_recurse_key(b, &START_KEY(keys->keys));
-		if (!k) {
-			btree_bug(b, "no key to recurse on at level %i/%i",
-				  b->level, b->c->root->level);
-
-			bch_keylist_reset(keys);
-			return -EIO;
-		}
-
-		return btree(insert_recurse, k, b, op, keys,
-			     journal_ref, replace_key);
-	} else {
-		return bch_btree_insert_node(b, op, keys,
-					     journal_ref, replace_key);
-	}
+	int ret = bch_btree_insert_node(b, &op->op, op->keys,
+					op->journal_ref, op->replace_key);
+	if (ret && !bch_keylist_empty(op->keys))
+		return ret;
+	else
+		return MAP_DONE;
 }
 
-int bch_btree_insert(struct btree_op *op, struct cache_set *c,
-		     struct keylist *keys, atomic_t *journal_ref,
-		     struct bkey *replace_key)
+int bch_btree_insert(struct cache_set *c, struct keylist *keys,
+		     atomic_t *journal_ref, struct bkey *replace_key)
 {
+	struct btree_insert_op op;
 	int ret = 0;
 
+	BUG_ON(current->bio_list);
 	BUG_ON(bch_keylist_empty(keys));
 
-	while (!bch_keylist_empty(keys)) {
-		op->lock = 0;
-		ret = btree_root(insert_recurse, c, op, keys,
-				 journal_ref, replace_key);
+	bch_btree_op_init(&op.op, 0);
+	op.keys		= keys;
+	op.journal_ref	= journal_ref;
+	op.replace_key	= replace_key;
 
-		if (ret == -EAGAIN) {
-			BUG();
-			ret = 0;
-		} else if (ret) {
-			struct bkey *k;
-
-			pr_err("error %i", ret);
-
-			while ((k = bch_keylist_pop(keys)))
-				bkey_put(c, k, 0);
-		}
+	while (!ret && !bch_keylist_empty(keys)) {
+		op.op.lock = 0;
+		ret = bch_btree_map_leaf_nodes(&op.op, c,
+					       &START_KEY(keys->keys),
+					       btree_insert_fn);
 	}
 
-	if (op->insert_collision)
-		return -ESRCH;
+	if (ret) {
+		struct bkey *k;
+
+		pr_err("error %i", ret);
+
+		while ((k = bch_keylist_pop(keys)))
+			bkey_put(c, k, 0);
+	} else if (op.op.insert_collision)
+		ret = -ESRCH;
 
 	return ret;
 }

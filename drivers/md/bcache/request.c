@@ -237,7 +237,7 @@ static void bch_data_insert_keys(struct closure *cl)
 					  s->flush_journal
 					  ? &s->cl : NULL);
 
-	ret = bch_btree_insert(&s->op, s->c, &s->insert_keys,
+	ret = bch_btree_insert(s->c, &s->insert_keys,
 			       journal_ref, replace_key);
 	if (ret == -ESRCH) {
 		s->insert_collision = true;

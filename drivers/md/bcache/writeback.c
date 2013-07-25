@@ -139,12 +139,10 @@ static void write_dirty_finish(struct closure *cl)
 
 	/* This is kind of a dumb way of signalling errors. */
 	if (KEY_DIRTY(&w->key)) {
-		unsigned i;
-		struct btree_op op;
-		struct keylist keys;
 		int ret;
+		unsigned i;
+		struct keylist keys;
 
-		bch_btree_op_init(&op, -1);
 		bch_keylist_init(&keys);
 
 		bkey_copy(keys.top, &w->key);
@@ -154,7 +152,7 @@ static void write_dirty_finish(struct closure *cl)
 		for (i = 0; i < KEY_PTRS(&w->key); i++)
 			atomic_inc(&PTR_BUCKET(dc->disk.c, &w->key, i)->pin);
 
-		ret = bch_btree_insert(&op, dc->disk.c, &keys, NULL, &w->key);
+		ret = bch_btree_insert(dc->disk.c, &keys, NULL, &w->key);
 
 		if (ret)
 			trace_bcache_writeback_collision(&w->key);
