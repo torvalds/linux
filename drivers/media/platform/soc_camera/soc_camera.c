@@ -1466,7 +1466,8 @@ static int scan_async_group(struct soc_camera_host *ici,
 	struct soc_camera_device *icd;
 	struct soc_camera_desc sdesc = {.host_desc.bus_id = ici->nr,};
 	char clk_name[V4L2_SUBDEV_NAME_SIZE];
-	int ret, i;
+	unsigned int i;
+	int ret;
 
 	/* First look for a sensor */
 	for (i = 0; i < size; i++) {
@@ -1475,7 +1476,7 @@ static int scan_async_group(struct soc_camera_host *ici,
 			break;
 	}
 
-	if (i == size || asd[i]->match_type != V4L2_ASYNC_MATCH_I2C) {
+	if (i >= size || asd[i]->match_type != V4L2_ASYNC_MATCH_I2C) {
 		/* All useless */
 		dev_err(ici->v4l2_dev.dev, "No I2C data source found!\n");
 		return -ENODEV;
