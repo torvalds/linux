@@ -27,9 +27,15 @@ enum pca9633_outdrv {
 	PCA9633_TOTEM_POLE, /* aka push-pull */
 };
 
+enum pca9633_blink_type {
+	PCA9633_SW_BLINK,
+	PCA9633_HW_BLINK,
+};
+
 struct pca9633_platform_data {
 	struct led_platform_data leds;
 	enum pca9633_outdrv outdrv;
+	enum pca9633_blink_type blink_type;
 };
 
 #endif /* __LINUX_PCA9633_H*/

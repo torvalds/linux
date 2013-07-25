@@ -5,6 +5,7 @@ Required properties:
 
 Optional properties:
 - nxp,totem-pole : use totem pole (push-pull) instead of default open-drain
+- nxp,hw-blink : use hardware blinking instead of software blinking
 
 Each led is represented as a sub-node of the nxp,pca9633 device.
 
