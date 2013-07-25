@@ -363,14 +363,15 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	/* get the data from the USB bus and hand it over to comedi */
 	n = s->async->cmd.chanlist_len;
 	for (i = 0; i < n; i++) {
+		unsigned int range = CR_RANGE(s->async->cmd.chanlist[i]);
+		int16_t val = le16_to_cpu(devpriv->in_buffer[i]);
+
+		/* bipolar data is two's-complement */
+		if (comedi_range_is_bipolar(s, range))
+			val ^= ((s->maxdata + 1) >> 1);
+
 		/* transfer data */
-		if (CR_RANGE(s->async->cmd.chanlist[i]) <= 1) {
-			err = comedi_buf_put(s->async,
-			     le16_to_cpu(devpriv->in_buffer[i]) ^ 0x800);
-		} else {
-			err = comedi_buf_put(s->async,
-			     le16_to_cpu(devpriv->in_buffer[i]));
-		}
+		err = comedi_buf_put(s->async, val);
 		if (unlikely(err == 0)) {
 			/* buffer overflow */
 			usbdux_ai_stop(dev, 0);
