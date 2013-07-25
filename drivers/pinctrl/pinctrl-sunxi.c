@@ -464,8 +464,14 @@ static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 	struct sunxi_pinctrl *pctl = dev_get_drvdata(chip->dev);
 	u32 reg = sunxi_data_reg(offset);
 	u8 index = sunxi_data_offset(offset);
+	u32 regval = readl(pctl->membase + reg);
 
-	writel((value & DATA_PINS_MASK) << index, pctl->membase + reg);
+	if (value)
+		regval |= BIT(index);
+	else
+		regval &= ~(BIT(index));
+
+	writel(regval, pctl->membase + reg);
 }
 
 static int sunxi_pinctrl_gpio_of_xlate(struct gpio_chip *gc,
