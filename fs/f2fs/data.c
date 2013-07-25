@@ -365,7 +365,6 @@ static void read_end_io(struct bio *bio, int err)
 		}
 		unlock_page(page);
 	} while (bvec >= bio->bi_io_vec);
-	kfree(bio->bi_private);
 	bio_put(bio);
 }
 
