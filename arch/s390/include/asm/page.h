@@ -32,16 +32,6 @@
 
 void storage_key_init_range(unsigned long start, unsigned long end);
 
-static inline unsigned long pfmf(unsigned long function, unsigned long address)
-{
-	asm volatile(
-		"	.insn	rre,0xb9af0000,%[function],%[address]"
-		: [address] "+a" (address)
-		: [function] "d" (function)
-		: "memory");
-	return address;
-}
-
 static inline void clear_page(void *page)
 {
 	register unsigned long reg1 asm ("1") = 0;
