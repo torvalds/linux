@@ -156,6 +156,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	get_new_mmu_context(next);
 }
 
+/*
+ * Called at the time of execve() to get a new ASID
+ * Note the subtlety here: get_new_mmu_context() behaves differently here
+ * vs. in switch_mm(). Here it always returns a new ASID, because mm has
+ * an unallocated "initial" value, while in latter, it moves to a new ASID,
+ * only if it was unallocated
+ */
+#define activate_mm(prev, next)		switch_mm(prev, next, NULL)
+
 static inline void destroy_context(struct mm_struct *mm)
 {
 	unsigned long flags;
@@ -176,17 +185,6 @@ static inline void destroy_context(struct mm_struct *mm)
  * again (this teased me for a whole day).
  */
 #define deactivate_mm(tsk, mm)   do { } while (0)
-
-static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
-{
-#ifndef CONFIG_SMP
-	write_aux_reg(ARC_REG_SCRATCH_DATA0, next->pgd);
-#endif
-
-	/* Unconditionally get a new ASID */
-	get_new_mmu_context(next);
-
-}
 
 #define enter_lazy_tlb(mm, tsk)
 
