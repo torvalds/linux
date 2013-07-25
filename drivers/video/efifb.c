@@ -288,6 +288,7 @@ static void efifb_destroy(struct fb_info *info)
 	if (request_mem_succeeded)
 		release_mem_region(info->apertures->ranges[0].base,
 				   info->apertures->ranges[0].size);
+	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }
 
