@@ -973,50 +973,45 @@ ai_cmd_exit:
 /* Mode 0 is used to get a single conversion on demand */
 static int usbdux_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
+	struct usbdux_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val;
+	int ret = -EBUSY;
 	int i;
-	unsigned int one = 0;
-	int chan, range;
-	int err;
-	struct usbdux_private *this_usbduxsub = dev->private;
 
-	if (!this_usbduxsub)
-		return 0;
+	down(&devpriv->sem);
 
-	down(&this_usbduxsub->sem);
-	if (this_usbduxsub->ai_cmd_running) {
-		up(&this_usbduxsub->sem);
-		return 0;
-	}
+	if (devpriv->ai_cmd_running)
+		goto ai_read_exit;
 
-	/* sample one channel */
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
 	/* set command for the first channel */
-	this_usbduxsub->dux_commands[1] = create_adc_command(chan, range);
+	devpriv->dux_commands[1] = create_adc_command(chan, range);
 
 	/* adc commands */
-	err = send_dux_commands(dev, SENDSINGLEAD);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
-	}
+	ret = send_dux_commands(dev, SENDSINGLEAD);
+	if (ret < 0)
+		goto ai_read_exit;
 
 	for (i = 0; i < insn->n; i++) {
-		err = receive_dux_commands(dev, SENDSINGLEAD);
-		if (err < 0) {
-			up(&this_usbduxsub->sem);
-			return 0;
-		}
-		one = le16_to_cpu(this_usbduxsub->insn_buffer[1]);
-		if (CR_RANGE(insn->chanspec) <= 1)
-			one = one ^ 0x800;
+		ret = receive_dux_commands(dev, SENDSINGLEAD);
+		if (ret < 0)
+			goto ai_read_exit;
 
-		data[i] = one;
+		val = le16_to_cpu(devpriv->insn_buffer[1]);
+		if (range <= 1)
+			val ^= 0x800;
+
+		data[i] = val;
 	}
-	up(&this_usbduxsub->sem);
-	return i;
+
+ai_read_exit:
+	up(&devpriv->sem);
+
+	return ret ? ret : insn->n;
 }
 
 /************************************/
