@@ -15,7 +15,6 @@
 #define _GDM_LTE_H_
 
 #include <linux/netdevice.h>
-#include <linux/version.h>
 #include <linux/types.h>
 
 #include "gdm_endian.h"
