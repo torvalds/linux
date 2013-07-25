@@ -127,6 +127,19 @@ done:
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
+int
+nouveau_therm_cstate(struct nouveau_therm *ptherm, int fan, int dir)
+{
+	struct nouveau_therm_priv *priv = (void *)ptherm;
+	if (!dir || (dir < 0 && fan < priv->cstate) ||
+		    (dir > 0 && fan > priv->cstate)) {
+		nv_debug(ptherm, "default fan speed -> %d%%\n", fan);
+		priv->cstate = fan;
+		nouveau_therm_update(ptherm, -1);
+	}
+	return 0;
+}
+
 static void
 nouveau_therm_alarm(struct nouveau_alarm *alarm)
 {
