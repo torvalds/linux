@@ -34,12 +34,6 @@ enum tegra_usb_phy_port_speed {
 	TEGRA_USB_PHY_PORT_SPEED_HIGH,
 };
 
-enum tegra_usb_phy_mode {
-	TEGRA_USB_PHY_MODE_DEVICE,
-	TEGRA_USB_PHY_MODE_HOST,
-	TEGRA_USB_PHY_MODE_OTG,
-};
-
 struct tegra_xtal_freq;
 
 struct tegra_usb_phy {
@@ -51,7 +45,7 @@ struct tegra_usb_phy {
 	struct clk *pll_u;
 	struct clk *pad_clk;
 	struct regulator *vbus;
-	enum tegra_usb_phy_mode mode;
+	enum usb_dr_mode mode;
 	void *config;
 	struct usb_phy *ulpi;
 	struct usb_phy u_phy;

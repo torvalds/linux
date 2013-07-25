@@ -377,7 +377,7 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 		UTMIP_PLLU_ENABLE_DLY_COUNT(phy->freq->enable_delay);
 	writel(val, base + UTMIP_PLL_CFG1);
 
-	if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
+	if (phy->mode == USB_DR_MODE_PERIPHERAL) {
 		val = readl(base + USB_SUSP_CTRL);
 		val &= ~(USB_WAKE_ON_CNNT_EN_DEV | USB_WAKE_ON_DISCON_EN_DEV);
 		writel(val, base + USB_SUSP_CTRL);
@@ -412,7 +412,7 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 	if (phy->is_legacy_phy) {
 		val = readl(base + UTMIP_SPARE_CFG0);
-		if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE)
+		if (phy->mode == USB_DR_MODE_PERIPHERAL)
 			val &= ~FUSE_SETUP_SEL;
 		else
 			val |= FUSE_SETUP_SEL;
@@ -453,7 +453,7 @@ static int utmi_phy_power_off(struct tegra_usb_phy *phy)
 
 	utmi_phy_clk_disable(phy);
 
-	if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
+	if (phy->mode == USB_DR_MODE_PERIPHERAL) {
 		val = readl(base + USB_SUSP_CTRL);
 		val &= ~USB_WAKEUP_DEBOUNCE_COUNT(~0);
 		val |= USB_WAKE_ON_CNNT_EN_DEV | USB_WAKEUP_DEBOUNCE_COUNT(5);
@@ -907,15 +907,15 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	err = of_property_match_string(np, "dr_mode", "otg");
-	if (err < 0) {
-		err = of_property_match_string(np, "dr_mode", "peripheral");
-		if (err < 0)
-			tegra_phy->mode = TEGRA_USB_PHY_MODE_HOST;
-		else
-			tegra_phy->mode = TEGRA_USB_PHY_MODE_DEVICE;
-	} else
-		tegra_phy->mode = TEGRA_USB_PHY_MODE_OTG;
+	if (of_find_property(np, "dr_mode", NULL))
+		tegra_phy->mode = of_usb_get_dr_mode(np);
+	else
+		tegra_phy->mode = USB_DR_MODE_HOST;
+
+	if (tegra_phy->mode == USB_DR_MODE_UNKNOWN) {
+		dev_err(&pdev->dev, "dr_mode is invalid\n");
+		return -EINVAL;
+	}
 
 	/* On some boards, the VBUS regulator doesn't need to be controlled */
 	if (of_find_property(np, "vbus-supply", NULL)) {
