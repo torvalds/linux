@@ -1302,40 +1302,40 @@ static int usbdux_dio_insn_config(struct comedi_device *dev,
 
 static int usbdux_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 
-	struct usbdux_private *this_usbduxsub = dev->private;
-	int err;
+	struct usbdux_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+	int ret;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
+	down(&devpriv->sem);
 
-	down(&this_usbduxsub->sem);
+	s->state &= ~mask;
+	s->state |= (bits & mask);
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	s->state &= ~data[0];
-	s->state |= data[0] & data[1];
-	this_usbduxsub->dux_commands[1] = s->io_bits;
-	this_usbduxsub->dux_commands[2] = s->state;
+	devpriv->dux_commands[1] = s->io_bits;
+	devpriv->dux_commands[2] = s->state;
 
-	/* This command also tells the firmware to return */
-	/* the digital input lines */
-	err = send_dux_commands(dev, SENDDIOBITSCOMMAND);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
-	}
-	err = receive_dux_commands(dev, SENDDIOBITSCOMMAND);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
-	}
+	/*
+	 * This command also tells the firmware to return
+	 * the digital input lines.
+	 */
+	ret = send_dux_commands(dev, SENDDIOBITSCOMMAND);
+	if (ret < 0)
+		goto dio_exit;
+	ret = receive_dux_commands(dev, SENDDIOBITSCOMMAND);
+	if (ret < 0)
+		goto dio_exit;
 
-	data[1] = le16_to_cpu(this_usbduxsub->insn_buffer[1]);
-	up(&this_usbduxsub->sem);
-	return insn->n;
+	data[1] = le16_to_cpu(devpriv->insn_buffer[1]);
+
+dio_exit:
+	up(&devpriv->sem);
+
+	return ret ? ret : insn->n;
 }
 
 /* reads the 4 counters, only two are used just now */
