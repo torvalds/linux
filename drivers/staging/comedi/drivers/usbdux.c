@@ -1002,8 +1002,10 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 			goto ai_read_exit;
 
 		val = le16_to_cpu(devpriv->insn_buffer[1]);
-		if (range <= 1)
-			val ^= 0x800;
+
+		/* bipolar data is two's-complement */
+		if (comedi_range_is_bipolar(s, range))
+			val ^= ((s->maxdata + 1) >> 1);
 
 		data[i] = val;
 	}
