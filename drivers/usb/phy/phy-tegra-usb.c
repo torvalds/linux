@@ -968,29 +968,5 @@ static struct platform_driver tegra_usb_phy_driver = {
 };
 module_platform_driver(tegra_usb_phy_driver);
 
-static int tegra_usb_phy_match(struct device *dev, void *data)
-{
-	struct tegra_usb_phy *tegra_phy = dev_get_drvdata(dev);
-	struct device_node *dn = data;
-
-	return (tegra_phy->u_phy.dev->of_node == dn) ? 1 : 0;
-}
-
-struct usb_phy *tegra_usb_get_phy(struct device_node *dn)
-{
-	struct device *dev;
-	struct tegra_usb_phy *tegra_phy;
-
-	dev = driver_find_device(&tegra_usb_phy_driver.driver, NULL, dn,
-				 tegra_usb_phy_match);
-	if (!dev)
-		return ERR_PTR(-EPROBE_DEFER);
-
-	tegra_phy = dev_get_drvdata(dev);
-
-	return &tegra_phy->u_phy;
-}
-EXPORT_SYMBOL_GPL(tegra_usb_get_phy);
-
 MODULE_DESCRIPTION("Tegra USB PHY driver");
 MODULE_LICENSE("GPL v2");

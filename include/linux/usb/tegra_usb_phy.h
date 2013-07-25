@@ -60,8 +60,6 @@ struct tegra_usb_phy {
 	int reset_gpio;
 };
 
-struct usb_phy *tegra_usb_get_phy(struct device_node *dn);
-
 void tegra_usb_phy_preresume(struct usb_phy *phy);
 
 void tegra_usb_phy_postresume(struct usb_phy *phy);
