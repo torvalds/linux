@@ -7471,10 +7471,9 @@ _firmware_event_work(struct work_struct *work)
  * This function merely adds a new work task into ioc->firmware_event_thread.
  * The tasks are worked from _firmware_event_work in user context.
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Returns void.
  */
-u8
+void
 mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	u32 reply)
 {
@@ -7485,14 +7484,14 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 
 	/* events turned off due to host reset or driver unloading */
 	if (ioc->remove_host || ioc->pci_error_recovery)
-		return 1;
+		return;
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
 
 	if (unlikely(!mpi_reply)) {
 		printk(MPT2SAS_ERR_FMT "mpi_reply not valid at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
-		return 1;
+		return;
 	}
 
 	event = le16_to_cpu(mpi_reply->Event);
@@ -7507,11 +7506,11 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 
 		if (baen_data->Primitive !=
 		    MPI2_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT)
-			return 1;
+			return;
 
 		if (ioc->broadcast_aen_busy) {
 			ioc->broadcast_aen_pending++;
-			return 1;
+			return;
 		} else
 			ioc->broadcast_aen_busy = 1;
 		break;
@@ -7587,14 +7586,14 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 		break;
 
 	default: /* ignore the rest */
-		return 1;
+		return;
 	}
 
 	fw_event = kzalloc(sizeof(struct fw_event_work), GFP_ATOMIC);
 	if (!fw_event) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
-		return 1;
+		return;
 	}
 	sz = le16_to_cpu(mpi_reply->EventDataLength) * 4;
 	fw_event->event_data = kzalloc(sz, GFP_ATOMIC);
@@ -7602,7 +7601,7 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
 		kfree(fw_event);
-		return 1;
+		return;
 	}
 
 	memcpy(fw_event->event_data, mpi_reply->EventData,
@@ -7612,7 +7611,7 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	fw_event->VP_ID = mpi_reply->VP_ID;
 	fw_event->event = event;
 	_scsih_fw_event_add(ioc, fw_event);
-	return 1;
+	return;
 }
 
 /* shost template */

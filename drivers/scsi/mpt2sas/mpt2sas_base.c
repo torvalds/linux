@@ -768,10 +768,9 @@ mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
  *
- * Return 1 meaning mf should be freed from _base_interrupt
- *        0 means the mf is freed from this function.
+ * Returns void.
  */
-static u8
+static void
 _base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 {
 	Mpi2EventNotificationReply_t *mpi_reply;
@@ -780,9 +779,9 @@ _base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	if (!mpi_reply)
-		return 1;
+		return;
 	if (mpi_reply->Function != MPI2_FUNCTION_EVENT_NOTIFICATION)
-		return 1;
+		return;
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	_base_display_event_data(ioc, mpi_reply);
 #endif
@@ -812,7 +811,7 @@ _base_async_event(struct MPT2SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 	/* ctl callback handler */
 	mpt2sas_ctl_event_callback(ioc, msix_index, reply);
 
-	return 1;
+	return;
 }
 
 /**
