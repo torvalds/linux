@@ -1080,9 +1080,6 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	for (i = 0; i < cmd->chanlist_len; ++i) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 
-		if (i >= NUMOUTCHANNELS)
-			break;
-
 		devpriv->dac_commands[i] = chan << 6;
 	}
 
