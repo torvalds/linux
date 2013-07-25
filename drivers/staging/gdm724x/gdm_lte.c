@@ -36,7 +36,6 @@
 #include "hci.h"
 #include "hci_packet.h"
 #include "gdm_endian.h"
-#include "lte_ioctl.h"
 
 /*
  * Netlink protocol number
@@ -498,42 +497,6 @@ static struct net_device_stats *gdm_lte_stats(struct net_device *dev)
 	return &nic->stats;
 }
 
-static void get_dev_endian(struct data_t *data, struct net_device *dev)
-{
-	struct nic *nic = netdev_priv(dev);
-	unsigned long ret;
-
-	ret = copy_to_user(data->buf, gdm_dev_endian(nic), sizeof(struct dev_endian_t));
-	if (ret)
-		netdev_info(dev, "state - failed to copy\n");
-}
-
-static int gdm_lte_ioctl_get_data(struct wm_req_t *req, struct net_device *dev)
-{
-	u16 id = req->data_id;
-
-	switch (id) {
-	case GET_ENDIAN_INFO:
-		/* required for the user space application to find out device endian */
-		get_dev_endian(&req->data, dev);
-		break;
-	default:
-		netdev_err(dev, "ioctl - unknown type %d\n", id);
-		break;
-	}
-	return 0;
-}
-
-static int gdm_lte_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	struct wm_req_t *req = (struct wm_req_t *)ifr;
-
-	if (cmd != SIOCLTEIOCTL || req->cmd != SIOCG_DATA || req->data_id >= 100)
-		return -EOPNOTSUPP;
-
-	return gdm_lte_ioctl_get_data(req, dev);
-}
-
 static int gdm_lte_event_send(struct net_device *dev, char *buf, int len)
 {
 	struct nic *nic = netdev_priv(dev);
@@ -811,7 +774,6 @@ static struct net_device_ops gdm_netdev_ops = {
 	.ndo_set_config			= gdm_lte_set_config,
 	.ndo_start_xmit			= gdm_lte_tx,
 	.ndo_get_stats			= gdm_lte_stats,
-	.ndo_do_ioctl			= gdm_lte_ioctl,
 };
 
 static u8 gdm_lte_macaddr[ETH_ALEN] = {0x00, 0x0a, 0x3b, 0x00, 0x00, 0x00};
