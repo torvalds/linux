@@ -249,53 +249,39 @@ struct usbdux_private {
 	struct semaphore sem;
 };
 
-/*
- * Stops the data acquision
- * It should be safe to call this function from any context
- */
-static int usbduxsub_unlink_inurbs(struct usbdux_private *usbduxsub_tmp)
-{
-	int i = 0;
-	int err = 0;
-
-	if (usbduxsub_tmp && usbduxsub_tmp->urb_in) {
-		for (i = 0; i < usbduxsub_tmp->num_in_buffers; i++) {
-			if (usbduxsub_tmp->urb_in[i]) {
-				/* We wait here until all transfers have been
-				 * cancelled. */
-				usb_kill_urb(usbduxsub_tmp->urb_in[i]);
-			}
-		}
-	}
-	return err;
-}
-
-static int usbdux_ai_stop(struct comedi_device *dev, int do_unlink)
+static void usbduxsub_unlink_inurbs(struct comedi_device *dev)
 {
 	struct usbdux_private *devpriv = dev->private;
-	int ret = 0;
+	int i;
+
+	if (devpriv->urb_in) {
+		for (i = 0; i < devpriv->num_in_buffers; i++)
+			usb_kill_urb(devpriv->urb_in[i]);
+	}
+}
+
+static void usbdux_ai_stop(struct comedi_device *dev, int do_unlink)
+{
+	struct usbdux_private *devpriv = dev->private;
 
 	if (do_unlink)
-		ret = usbduxsub_unlink_inurbs(devpriv);
+		usbduxsub_unlink_inurbs(dev);
 
 	devpriv->ai_cmd_running = 0;
-
-	return ret;
 }
 
 static int usbdux_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	struct usbdux_private *devpriv = dev->private;
-	int ret = 0;
 
 	/* prevent other CPUs from submitting new commands just now */
 	down(&devpriv->sem);
 	/* unlink only if the urb really has been submitted */
-	ret = usbdux_ai_stop(dev, devpriv->ai_cmd_running);
+	usbdux_ai_stop(dev, devpriv->ai_cmd_running);
 	up(&devpriv->sem);
 
-	return ret;
+	return 0;
 }
 
 /* analogue IN - interrupt service routine */
@@ -422,46 +408,39 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	comedi_event(dev, s);
 }
 
-static int usbduxsub_unlink_outurbs(struct usbdux_private *usbduxsub_tmp)
-{
-	int i = 0;
-	int err = 0;
-
-	if (usbduxsub_tmp && usbduxsub_tmp->urb_out) {
-		for (i = 0; i < usbduxsub_tmp->num_out_buffers; i++) {
-			if (usbduxsub_tmp->urb_out[i])
-				usb_kill_urb(usbduxsub_tmp->urb_out[i]);
-		}
-	}
-	return err;
-}
-
-static int usbdux_ao_stop(struct comedi_device *dev, int do_unlink)
+static void usbduxsub_unlink_outurbs(struct comedi_device *dev)
 {
 	struct usbdux_private *devpriv = dev->private;
-	int ret = 0;
+	int i;
+
+	if (devpriv->urb_out) {
+		for (i = 0; i < devpriv->num_out_buffers; i++)
+			usb_kill_urb(devpriv->urb_out[i]);
+	}
+}
+
+static void usbdux_ao_stop(struct comedi_device *dev, int do_unlink)
+{
+	struct usbdux_private *devpriv = dev->private;
 
 	if (do_unlink)
-		ret = usbduxsub_unlink_outurbs(devpriv);
+		usbduxsub_unlink_outurbs(dev);
 
 	devpriv->ao_cmd_running = 0;
-
-	return ret;
 }
 
 static int usbdux_ao_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	struct usbdux_private *devpriv = dev->private;
-	int ret = 0;
 
 	/* prevent other CPUs from submitting a command just now */
 	down(&devpriv->sem);
 	/* unlink only if it is really running */
-	ret = usbdux_ao_stop(dev, devpriv->ao_cmd_running);
+	usbdux_ao_stop(dev, devpriv->ao_cmd_running);
 	up(&devpriv->sem);
 
-	return ret;
+	return 0;
 }
 
 static void usbduxsub_ao_isoc_irq(struct urb *urb)
@@ -1403,31 +1382,21 @@ static int usbdux_counter_config(struct comedi_device *dev,
 	return 2;
 }
 
-/***********************************/
-/* PWM */
-
-static int usbduxsub_unlink_pwm_urbs(struct usbdux_private *usbduxsub_tmp)
-{
-	int err = 0;
-
-	if (usbduxsub_tmp && usbduxsub_tmp->urb_pwm) {
-		if (usbduxsub_tmp->urb_pwm)
-			usb_kill_urb(usbduxsub_tmp->urb_pwm);
-	}
-	return err;
-}
-
-static int usbdux_pwm_stop(struct comedi_device *dev, int do_unlink)
+static void usbduxsub_unlink_pwm_urbs(struct comedi_device *dev)
 {
 	struct usbdux_private *devpriv = dev->private;
-	int ret = 0;
+
+	usb_kill_urb(devpriv->urb_pwm);
+}
+
+static void usbdux_pwm_stop(struct comedi_device *dev, int do_unlink)
+{
+	struct usbdux_private *devpriv = dev->private;
 
 	if (do_unlink)
-		ret = usbduxsub_unlink_pwm_urbs(devpriv);
+		usbduxsub_unlink_pwm_urbs(dev);
 
 	devpriv->pwm_cmd_running = 0;
-
-	return ret;
 }
 
 static int usbdux_pwm_cancel(struct comedi_device *dev,
@@ -1437,15 +1406,9 @@ static int usbdux_pwm_cancel(struct comedi_device *dev,
 	int ret;
 
 	down(&devpriv->sem);
-
 	/* unlink only if it is really running */
-	ret = usbdux_pwm_stop(dev, devpriv->pwm_cmd_running);
-	if (ret)
-		goto pwm_cancel_exit;
-
+	usbdux_pwm_stop(dev, devpriv->pwm_cmd_running);
 	ret = send_dux_commands(dev, SENDPWMOFF);
-
-pwm_cancel_exit:
 	up(&devpriv->sem);
 
 	return ret;
@@ -1979,11 +1942,11 @@ static void usbdux_detach(struct comedi_device *dev)
 		usb_set_intfdata(intf, NULL);
 
 		if (devpriv->pwm_cmd_running)
-			usbduxsub_unlink_pwm_urbs(devpriv);
+			usbduxsub_unlink_pwm_urbs(dev);
 		if (devpriv->ao_cmd_running)
-			usbduxsub_unlink_outurbs(devpriv);
+			usbduxsub_unlink_outurbs(dev);
 		if (devpriv->ai_cmd_running)
-			usbduxsub_unlink_inurbs(devpriv);
+			usbduxsub_unlink_inurbs(dev);
 
 		usbdux_free_usb_buffers(devpriv);
 
