@@ -34,6 +34,7 @@ struct search {
 
 	unsigned		insert_data_done:1;
 	unsigned		replace:1;
+	unsigned		insert_collision:1;
 
 	uint16_t		write_prio;
 

@@ -142,6 +142,7 @@ static void write_dirty_finish(struct closure *cl)
 		unsigned i;
 		struct btree_op op;
 		struct keylist keys;
+		int ret;
 
 		bch_btree_op_init(&op, -1);
 		bch_keylist_init(&keys);
@@ -153,12 +154,12 @@ static void write_dirty_finish(struct closure *cl)
 		for (i = 0; i < KEY_PTRS(&w->key); i++)
 			atomic_inc(&PTR_BUCKET(dc->disk.c, &w->key, i)->pin);
 
-		bch_btree_insert(&op, dc->disk.c, &keys, NULL, &w->key);
+		ret = bch_btree_insert(&op, dc->disk.c, &keys, NULL, &w->key);
 
-		if (op.insert_collision)
+		if (ret)
 			trace_bcache_writeback_collision(&w->key);
 
-		atomic_long_inc(op.insert_collision
+		atomic_long_inc(ret
 				? &dc->disk.c->writeback_keys_failed
 				: &dc->disk.c->writeback_keys_done);
 	}

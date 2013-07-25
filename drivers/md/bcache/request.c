@@ -218,6 +218,7 @@ static void bch_data_insert_keys(struct closure *cl)
 	struct search *s = container_of(cl, struct search, btree);
 	atomic_t *journal_ref = NULL;
 	struct bkey *replace_key = s->replace ? &s->replace_key : NULL;
+	int ret;
 
 	/*
 	 * If we're looping, might already be waiting on
@@ -236,8 +237,11 @@ static void bch_data_insert_keys(struct closure *cl)
 					  s->flush_journal
 					  ? &s->cl : NULL);
 
-	if (bch_btree_insert(&s->op, s->c, &s->insert_keys,
-			     journal_ref, replace_key)) {
+	ret = bch_btree_insert(&s->op, s->c, &s->insert_keys,
+			       journal_ref, replace_key);
+	if (ret == -ESRCH) {
+		s->insert_collision = true;
+	} else if (ret) {
 		s->error		= -ENOMEM;
 		s->insert_data_done	= true;
 	}
@@ -977,7 +981,7 @@ static void cached_dev_cache_miss_done(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, cl);
 
-	if (s->op.insert_collision)
+	if (s->insert_collision)
 		bch_mark_cache_miss_collision(s);
 
 	if (s->cache_bio) {

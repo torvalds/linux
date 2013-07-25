@@ -52,7 +52,7 @@ static void write_moving_finish(struct closure *cl)
 	bio_for_each_segment_all(bv, bio, i)
 		__free_page(bv->bv_page);
 
-	if (io->s.op.insert_collision)
+	if (io->s.insert_collision)
 		trace_bcache_gc_copy_collision(&io->w->key);
 
 	bch_keybuf_del(&io->s.c->moving_gc_keys, io->w);
