@@ -1338,34 +1338,33 @@ dio_exit:
 	return ret ? ret : insn->n;
 }
 
-/* reads the 4 counters, only two are used just now */
 static int usbdux_counter_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
-	int chan = insn->chanspec;
-	int err;
+	struct usbdux_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int ret = 0;
+	int i;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
+	down(&devpriv->sem);
 
-	down(&this_usbduxsub->sem);
-	err = send_dux_commands(dev, READCOUNTERCOMMAND);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
+	for (i = 0; i < insn->n; i++) {
+		ret = send_dux_commands(dev, READCOUNTERCOMMAND);
+		if (ret < 0)
+			goto counter_read_exit;
+		ret = receive_dux_commands(dev, READCOUNTERCOMMAND);
+		if (ret < 0)
+			goto counter_read_exit;
+
+		data[i] = le16_to_cpu(devpriv->insn_buffer[chan + 1]);
 	}
 
-	err = receive_dux_commands(dev, READCOUNTERCOMMAND);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
-	}
+counter_read_exit:
+	up(&devpriv->sem);
 
-	data[0] = le16_to_cpu(this_usbduxsub->insn_buffer[chan + 1]);
-	up(&this_usbduxsub->sem);
-	return 1;
+	return ret ? ret : insn->n;
 }
 
 static int usbdux_counter_write(struct comedi_device *dev,
