@@ -260,7 +260,7 @@ struct btree_op {
 	} type:8;
 
 	unsigned		csum:1;
-	unsigned		skip:1;
+	unsigned		bypass:1;
 	unsigned		flush_journal:1;
 
 	unsigned		insert_data_done:1;

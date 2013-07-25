@@ -25,8 +25,6 @@
 
 struct kmem_cache *bch_search_cache;
 
-static void check_should_skip(struct cached_dev *, struct search *);
-
 /* Cgroup interface */
 
 #ifdef CONFIG_CGROUP_BCACHE
@@ -480,7 +478,7 @@ static void bch_insert_data_loop(struct closure *cl)
 	struct search *s = container_of(op, struct search, op);
 	struct bio *bio = op->cache_bio, *n;
 
-	if (op->skip)
+	if (op->bypass)
 		return bio_invalidate(cl);
 
 	if (atomic_sub_return(bio_sectors(bio), &op->c->sectors_to_gc) < 0) {
@@ -557,7 +555,7 @@ err:
 		 * we wait for buckets to be freed up, so just invalidate the
 		 * rest of the write.
 		 */
-		op->skip = true;
+		op->bypass = true;
 		return bio_invalidate(cl);
 	} else {
 		/*
@@ -590,8 +588,8 @@ err:
  * It inserts the data in op->cache_bio; bi_sector is used for the key offset,
  * and op->inode is used for the key inode.
  *
- * If op->skip is true, instead of inserting the data it invalidates the region
- * of the cache represented by op->cache_bio and op->inode.
+ * If op->bypass is true, instead of inserting the data it invalidates the
+ * region of the cache represented by op->cache_bio and op->inode.
  */
 void bch_insert_data(struct closure *cl)
 {
@@ -717,7 +715,6 @@ static struct search *search_alloc(struct bio *bio, struct bcache_device *d)
 	s->orig_bio		= bio;
 	s->write		= (bio->bi_rw & REQ_WRITE) != 0;
 	s->op.flush_journal	= (bio->bi_rw & (REQ_FLUSH|REQ_FUA)) != 0;
-	s->op.skip		= (bio->bi_rw & REQ_DISCARD) != 0;
 	s->recoverable		= 1;
 	s->start_time		= jiffies;
 	do_bio_hook(s);
@@ -755,6 +752,134 @@ static void cached_dev_bio_complete(struct closure *cl)
 
 	search_free(cl);
 	cached_dev_put(dc);
+}
+
+unsigned bch_get_congested(struct cache_set *c)
+{
+	int i;
+	long rand;
+
+	if (!c->congested_read_threshold_us &&
+	    !c->congested_write_threshold_us)
+		return 0;
+
+	i = (local_clock_us() - c->congested_last_us) / 1024;
+	if (i < 0)
+		return 0;
+
+	i += atomic_read(&c->congested);
+	if (i >= 0)
+		return 0;
+
+	i += CONGESTED_MAX;
+
+	if (i > 0)
+		i = fract_exp_two(i, 6);
+
+	rand = get_random_int();
+	i -= bitmap_weight(&rand, BITS_PER_LONG);
+
+	return i > 0 ? i : 1;
+}
+
+static void add_sequential(struct task_struct *t)
+{
+	ewma_add(t->sequential_io_avg,
+		 t->sequential_io, 8, 0);
+
+	t->sequential_io = 0;
+}
+
+static struct hlist_head *iohash(struct cached_dev *dc, uint64_t k)
+{
+	return &dc->io_hash[hash_64(k, RECENT_IO_BITS)];
+}
+
+static bool check_should_bypass(struct cached_dev *dc, struct search *s)
+{
+	struct cache_set *c = s->op.c;
+	struct bio *bio = &s->bio.bio;
+	unsigned mode = cache_mode(dc, bio);
+	unsigned sectors, congested = bch_get_congested(c);
+
+	if (atomic_read(&dc->disk.detaching) ||
+	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
+	    (bio->bi_rw & REQ_DISCARD))
+		goto skip;
+
+	if (mode == CACHE_MODE_NONE ||
+	    (mode == CACHE_MODE_WRITEAROUND &&
+	     (bio->bi_rw & REQ_WRITE)))
+		goto skip;
+
+	if (bio->bi_sector & (c->sb.block_size - 1) ||
+	    bio_sectors(bio) & (c->sb.block_size - 1)) {
+		pr_debug("skipping unaligned io");
+		goto skip;
+	}
+
+	if (!congested && !dc->sequential_cutoff)
+		goto rescale;
+
+	if (!congested &&
+	    mode == CACHE_MODE_WRITEBACK &&
+	    (bio->bi_rw & REQ_WRITE) &&
+	    (bio->bi_rw & REQ_SYNC))
+		goto rescale;
+
+	if (dc->sequential_merge) {
+		struct io *i;
+
+		spin_lock(&dc->io_lock);
+
+		hlist_for_each_entry(i, iohash(dc, bio->bi_sector), hash)
+			if (i->last == bio->bi_sector &&
+			    time_before(jiffies, i->jiffies))
+				goto found;
+
+		i = list_first_entry(&dc->io_lru, struct io, lru);
+
+		add_sequential(s->task);
+		i->sequential = 0;
+found:
+		if (i->sequential + bio->bi_size > i->sequential)
+			i->sequential	+= bio->bi_size;
+
+		i->last			 = bio_end_sector(bio);
+		i->jiffies		 = jiffies + msecs_to_jiffies(5000);
+		s->task->sequential_io	 = i->sequential;
+
+		hlist_del(&i->hash);
+		hlist_add_head(&i->hash, iohash(dc, i->last));
+		list_move_tail(&i->lru, &dc->io_lru);
+
+		spin_unlock(&dc->io_lock);
+	} else {
+		s->task->sequential_io = bio->bi_size;
+
+		add_sequential(s->task);
+	}
+
+	sectors = max(s->task->sequential_io,
+		      s->task->sequential_io_avg) >> 9;
+
+	if (dc->sequential_cutoff &&
+	    sectors >= dc->sequential_cutoff >> 9) {
+		trace_bcache_bypass_sequential(s->orig_bio);
+		goto skip;
+	}
+
+	if (congested && sectors >= congested) {
+		trace_bcache_bypass_congested(s->orig_bio);
+		goto skip;
+	}
+
+rescale:
+	bch_rescale_priorities(c, bio_sectors(bio));
+	return false;
+skip:
+	bch_mark_sectors_bypassed(s, bio_sectors(bio));
+	return true;
 }
 
 /* Process reads */
@@ -854,8 +979,8 @@ static void request_read_done_bh(struct closure *cl)
 	struct search *s = container_of(cl, struct search, cl);
 	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
 
-	bch_mark_cache_accounting(s, !s->cache_miss, s->op.skip);
-	trace_bcache_read(s->orig_bio, !s->cache_miss, s->op.skip);
+	bch_mark_cache_accounting(s, !s->cache_miss, s->op.bypass);
+	trace_bcache_read(s->orig_bio, !s->cache_miss, s->op.bypass);
 
 	if (s->error)
 		continue_at_nobarrier(cl, request_read_error, bcache_wq);
@@ -873,7 +998,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
 	struct bio *miss;
 
-	if (s->cache_miss || s->op.skip) {
+	if (s->cache_miss || s->op.bypass) {
 		miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
 		if (miss == bio)
 			s->op.lookup_done = true;
@@ -940,9 +1065,7 @@ static void request_read(struct cached_dev *dc, struct search *s)
 {
 	struct closure *cl = &s->cl;
 
-	check_should_skip(dc, s);
 	closure_call(&s->op.cl, btree_read_async, NULL, cl);
-
 	continue_at(cl, request_read_done_bh, NULL);
 }
 
@@ -961,41 +1084,48 @@ static void request_write(struct cached_dev *dc, struct search *s)
 {
 	struct closure *cl = &s->cl;
 	struct bio *bio = &s->bio.bio;
-	struct bkey start, end;
-	start = KEY(dc->disk.id, bio->bi_sector, 0);
-	end = KEY(dc->disk.id, bio_end_sector(bio), 0);
+	struct bkey start = KEY(dc->disk.id, bio->bi_sector, 0);
+	struct bkey end = KEY(dc->disk.id, bio_end_sector(bio), 0);
 
 	bch_keybuf_check_overlapping(&s->op.c->moving_gc_keys, &start, &end);
 
-	check_should_skip(dc, s);
 	down_read_non_owner(&dc->writeback_lock);
-
 	if (bch_keybuf_check_overlapping(&dc->writeback_keys, &start, &end)) {
-		s->op.skip	= false;
+		/*
+		 * We overlap with some dirty data undergoing background
+		 * writeback, force this write to writeback
+		 */
+		s->op.bypass	= false;
 		s->writeback	= true;
 	}
 
+	/*
+	 * Discards aren't _required_ to do anything, so skipping if
+	 * check_overlapping returned true is ok
+	 *
+	 * But check_overlapping drops dirty keys for which io hasn't started,
+	 * so we still want to call it.
+	 */
 	if (bio->bi_rw & REQ_DISCARD)
-		goto skip;
+		s->op.bypass = true;
 
 	if (should_writeback(dc, s->orig_bio,
 			     cache_mode(dc, bio),
-			     s->op.skip)) {
-		s->op.skip = false;
+			     s->op.bypass)) {
+		s->op.bypass = false;
 		s->writeback = true;
 	}
 
-	if (s->op.skip)
-		goto skip;
+	trace_bcache_write(s->orig_bio, s->writeback, s->op.bypass);
 
-	trace_bcache_write(s->orig_bio, s->writeback, s->op.skip);
+	if (s->op.bypass) {
+		s->op.cache_bio = s->orig_bio;
+		bio_get(s->op.cache_bio);
 
-	if (!s->writeback) {
-		s->op.cache_bio = bio_clone_bioset(bio, GFP_NOIO,
-						   dc->disk.bio_split);
-
-		closure_bio_submit(bio, cl, s->d);
-	} else {
+		if (!(bio->bi_rw & REQ_DISCARD) ||
+		    blk_queue_discard(bdev_get_queue(dc->bdev)))
+			closure_bio_submit(bio, cl, s->d);
+	} else if (s->writeback) {
 		bch_writeback_add(dc);
 		s->op.cache_bio = bio;
 
@@ -1011,21 +1141,15 @@ static void request_write(struct cached_dev *dc, struct search *s)
 
 			closure_bio_submit(flush, cl, s->d);
 		}
+	} else {
+		s->op.cache_bio = bio_clone_bioset(bio, GFP_NOIO,
+						   dc->disk.bio_split);
+
+		closure_bio_submit(bio, cl, s->d);
 	}
-out:
+
 	closure_call(&s->op.cl, bch_insert_data, NULL, cl);
 	continue_at(cl, cached_dev_write_complete, NULL);
-skip:
-	s->op.skip = true;
-	s->op.cache_bio = s->orig_bio;
-	bio_get(s->op.cache_bio);
-
-	if ((bio->bi_rw & REQ_DISCARD) &&
-	    !blk_queue_discard(bdev_get_queue(dc->bdev)))
-		goto out;
-
-	closure_bio_submit(bio, cl, s->d);
-	goto out;
 }
 
 static void request_nodata(struct cached_dev *dc, struct search *s)
@@ -1033,148 +1157,16 @@ static void request_nodata(struct cached_dev *dc, struct search *s)
 	struct closure *cl = &s->cl;
 	struct bio *bio = &s->bio.bio;
 
-	if (bio->bi_rw & REQ_DISCARD) {
-		request_write(dc, s);
-		return;
-	}
-
 	if (s->op.flush_journal)
 		bch_journal_meta(s->op.c, cl);
 
+	/* If it's a flush, we send the flush to the backing device too */
 	closure_bio_submit(bio, cl, s->d);
 
 	continue_at(cl, cached_dev_bio_complete, NULL);
 }
 
 /* Cached devices - read & write stuff */
-
-unsigned bch_get_congested(struct cache_set *c)
-{
-	int i;
-	long rand;
-
-	if (!c->congested_read_threshold_us &&
-	    !c->congested_write_threshold_us)
-		return 0;
-
-	i = (local_clock_us() - c->congested_last_us) / 1024;
-	if (i < 0)
-		return 0;
-
-	i += atomic_read(&c->congested);
-	if (i >= 0)
-		return 0;
-
-	i += CONGESTED_MAX;
-
-	if (i > 0)
-		i = fract_exp_two(i, 6);
-
-	rand = get_random_int();
-	i -= bitmap_weight(&rand, BITS_PER_LONG);
-
-	return i > 0 ? i : 1;
-}
-
-static void add_sequential(struct task_struct *t)
-{
-	ewma_add(t->sequential_io_avg,
-		 t->sequential_io, 8, 0);
-
-	t->sequential_io = 0;
-}
-
-static struct hlist_head *iohash(struct cached_dev *dc, uint64_t k)
-{
-	return &dc->io_hash[hash_64(k, RECENT_IO_BITS)];
-}
-
-static void check_should_skip(struct cached_dev *dc, struct search *s)
-{
-	struct cache_set *c = s->op.c;
-	struct bio *bio = &s->bio.bio;
-	unsigned mode = cache_mode(dc, bio);
-	unsigned sectors, congested = bch_get_congested(c);
-
-	if (atomic_read(&dc->disk.detaching) ||
-	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
-	    (bio->bi_rw & REQ_DISCARD))
-		goto skip;
-
-	if (mode == CACHE_MODE_NONE ||
-	    (mode == CACHE_MODE_WRITEAROUND &&
-	     (bio->bi_rw & REQ_WRITE)))
-		goto skip;
-
-	if (bio->bi_sector   & (c->sb.block_size - 1) ||
-	    bio_sectors(bio) & (c->sb.block_size - 1)) {
-		pr_debug("skipping unaligned io");
-		goto skip;
-	}
-
-	if (!congested && !dc->sequential_cutoff)
-		goto rescale;
-
-	if (!congested &&
-	    mode == CACHE_MODE_WRITEBACK &&
-	    (bio->bi_rw & REQ_WRITE) &&
-	    (bio->bi_rw & REQ_SYNC))
-		goto rescale;
-
-	if (dc->sequential_merge) {
-		struct io *i;
-
-		spin_lock(&dc->io_lock);
-
-		hlist_for_each_entry(i, iohash(dc, bio->bi_sector), hash)
-			if (i->last == bio->bi_sector &&
-			    time_before(jiffies, i->jiffies))
-				goto found;
-
-		i = list_first_entry(&dc->io_lru, struct io, lru);
-
-		add_sequential(s->task);
-		i->sequential = 0;
-found:
-		if (i->sequential + bio->bi_size > i->sequential)
-			i->sequential	+= bio->bi_size;
-
-		i->last			 = bio_end_sector(bio);
-		i->jiffies		 = jiffies + msecs_to_jiffies(5000);
-		s->task->sequential_io	 = i->sequential;
-
-		hlist_del(&i->hash);
-		hlist_add_head(&i->hash, iohash(dc, i->last));
-		list_move_tail(&i->lru, &dc->io_lru);
-
-		spin_unlock(&dc->io_lock);
-	} else {
-		s->task->sequential_io = bio->bi_size;
-
-		add_sequential(s->task);
-	}
-
-	sectors = max(s->task->sequential_io,
-		      s->task->sequential_io_avg) >> 9;
-
-	if (dc->sequential_cutoff &&
-	    sectors >= dc->sequential_cutoff >> 9) {
-		trace_bcache_bypass_sequential(s->orig_bio);
-		goto skip;
-	}
-
-	if (congested && sectors >= congested) {
-		trace_bcache_bypass_congested(s->orig_bio);
-		goto skip;
-	}
-
-rescale:
-	bch_rescale_priorities(c, bio_sectors(bio));
-	return;
-skip:
-	bch_mark_sectors_bypassed(s, bio_sectors(bio));
-	s->op.skip = true;
-}
 
 static void cached_dev_make_request(struct request_queue *q, struct bio *bio)
 {
@@ -1195,12 +1187,16 @@ static void cached_dev_make_request(struct request_queue *q, struct bio *bio)
 		s = search_alloc(bio, d);
 		trace_bcache_request_start(s, bio);
 
-		if (!bio_has_data(bio))
+		if (!bio->bi_size)
 			request_nodata(dc, s);
-		else if (rw)
-			request_write(dc, s);
-		else
-			request_read(dc, s);
+		else {
+			s->op.bypass = check_should_bypass(dc, s);
+
+			if (rw)
+				request_write(dc, s);
+			else
+				request_read(dc, s);
+		}
 	} else {
 		if ((bio->bi_rw & REQ_DISCARD) &&
 		    !blk_queue_discard(bdev_get_queue(dc->bdev)))
@@ -1298,21 +1294,21 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 
 	trace_bcache_request_start(s, bio);
 
-	if (bio_has_data(bio) && !rw) {
-		closure_call(&s->op.cl, btree_read_async, NULL, cl);
-	} else if (bio_has_data(bio) || s->op.skip) {
+	if (!bio->bi_size) {
+		if (s->op.flush_journal)
+			bch_journal_meta(s->op.c, cl);
+	} else if (rw) {
 		bch_keybuf_check_overlapping(&s->op.c->moving_gc_keys,
 					&KEY(d->id, bio->bi_sector, 0),
 					&KEY(d->id, bio_end_sector(bio), 0));
 
+		s->op.bypass	= (bio->bi_rw & REQ_DISCARD) != 0;
 		s->writeback	= true;
 		s->op.cache_bio	= bio;
 
 		closure_call(&s->op.cl, bch_insert_data, NULL, cl);
 	} else {
-		/* No data - probably a cache flush */
-		if (s->op.flush_journal)
-			bch_journal_meta(s->op.c, cl);
+		closure_call(&s->op.cl, btree_read_async, NULL, cl);
 	}
 
 	continue_at(cl, search_free, NULL);
