@@ -626,6 +626,7 @@
 #define   MMCR0_TRIGGER	0x00002000UL /* TRIGGER enable */
 #define   MMCR0_PMAO	0x00000080UL /* performance monitor alert has occurred, set to 0 after handling exception */
 #define   MMCR0_SHRFC	0x00000040UL /* SHRre freeze conditions between threads */
+#define   MMCR0_FC56	0x00000010UL /* freeze counters 5 and 6 */
 #define   MMCR0_FCTI	0x00000008UL /* freeze counters in tags inactive mode */
 #define   MMCR0_FCTA	0x00000004UL /* freeze counters in tags active mode */
 #define   MMCR0_FCWAIT	0x00000002UL /* freeze counter in WAIT state */

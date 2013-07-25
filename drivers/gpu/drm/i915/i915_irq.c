@@ -70,15 +70,6 @@ static const u32 hpd_status_gen4[] = {
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
 };
 
-static const u32 hpd_status_i965[] = {
-	 [HPD_CRT] = CRT_HOTPLUG_INT_STATUS,
-	 [HPD_SDVO_B] = SDVOB_HOTPLUG_INT_STATUS_I965,
-	 [HPD_SDVO_C] = SDVOC_HOTPLUG_INT_STATUS_I965,
-	 [HPD_PORT_B] = PORTB_HOTPLUG_INT_STATUS,
-	 [HPD_PORT_C] = PORTC_HOTPLUG_INT_STATUS,
-	 [HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
-};
-
 static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	[HPD_CRT] = CRT_HOTPLUG_INT_STATUS,
 	[HPD_SDVO_B] = SDVOB_HOTPLUG_INT_STATUS_I915,
@@ -2952,13 +2943,13 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
 			u32 hotplug_trigger = hotplug_status & (IS_G4X(dev) ?
 								  HOTPLUG_INT_STATUS_G4X :
-								  HOTPLUG_INT_STATUS_I965);
+								  HOTPLUG_INT_STATUS_I915);
 
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
 			if (hotplug_trigger) {
 				if (hotplug_irq_storm_detect(dev, hotplug_trigger,
-							    IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i965))
+							    IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i915))
 					i915_hpd_irq_setup(dev);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);

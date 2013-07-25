@@ -1535,14 +1535,13 @@
 					 GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
 					 GEN7_CXT_GT1_SIZE(ctx_reg) + \
 					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
-#define HSW_CXT_POWER_SIZE(ctx_reg)	((ctx_reg >> 26) & 0x3f)
-#define HSW_CXT_RING_SIZE(ctx_reg)	((ctx_reg >> 23) & 0x7)
-#define HSW_CXT_RENDER_SIZE(ctx_reg)	((ctx_reg >> 15) & 0xff)
-#define HSW_CXT_TOTAL_SIZE(ctx_reg)	(HSW_CXT_POWER_SIZE(ctx_reg) + \
-					 HSW_CXT_RING_SIZE(ctx_reg) + \
-					 HSW_CXT_RENDER_SIZE(ctx_reg) + \
-					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
-
+/* Haswell does have the CXT_SIZE register however it does not appear to be
+ * valid. Now, docs explain in dwords what is in the context object. The full
+ * size is 70720 bytes, however, the power context and execlist context will
+ * never be saved (power context is stored elsewhere, and execlists don't work
+ * on HSW) - so the final size is 66944 bytes, which rounds to 17 pages.
+ */
+#define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
 
 /*
  * Overlay regs
@@ -1691,6 +1690,12 @@
 /* SDVO is different across gen3/4 */
 #define   SDVOC_HOTPLUG_INT_STATUS_G4X		(1 << 3)
 #define   SDVOB_HOTPLUG_INT_STATUS_G4X		(1 << 2)
+/*
+ * Bspec seems to be seriously misleaded about the SDVO hpd bits on i965g/gm,
+ * since reality corrobates that they're the same as on gen3. But keep these
+ * bits here (and the comment!) to help any other lost wanderers back onto the
+ * right tracks.
+ */
 #define   SDVOC_HOTPLUG_INT_STATUS_I965		(3 << 4)
 #define   SDVOB_HOTPLUG_INT_STATUS_I965		(3 << 2)
 #define   SDVOC_HOTPLUG_INT_STATUS_I915		(1 << 7)
@@ -1698,13 +1703,6 @@
 #define   HOTPLUG_INT_STATUS_G4X		(CRT_HOTPLUG_INT_STATUS | \
 						 SDVOB_HOTPLUG_INT_STATUS_G4X | \
 						 SDVOC_HOTPLUG_INT_STATUS_G4X | \
-						 PORTB_HOTPLUG_INT_STATUS | \
-						 PORTC_HOTPLUG_INT_STATUS | \
-						 PORTD_HOTPLUG_INT_STATUS)
-
-#define HOTPLUG_INT_STATUS_I965			(CRT_HOTPLUG_INT_STATUS | \
-						 SDVOB_HOTPLUG_INT_STATUS_I965 | \
-						 SDVOC_HOTPLUG_INT_STATUS_I965 | \
 						 PORTB_HOTPLUG_INT_STATUS | \
 						 PORTC_HOTPLUG_INT_STATUS | \
 						 PORTD_HOTPLUG_INT_STATUS)
