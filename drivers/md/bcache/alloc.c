@@ -63,12 +63,11 @@
 #include "bcache.h"
 #include "btree.h"
 
+#include <linux/blkdev.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/random.h>
 #include <trace/events/bcache.h>
-
-#define MAX_IN_FLIGHT_DISCARDS		8U
 
 /* Bucket heap / gen */
 
@@ -119,75 +118,6 @@ void bch_rescale_priorities(struct cache_set *c, int sectors)
 			}
 
 	mutex_unlock(&c->bucket_lock);
-}
-
-/* Discard/TRIM */
-
-struct discard {
-	struct list_head	list;
-	struct work_struct	work;
-	struct cache		*ca;
-	long			bucket;
-
-	struct bio		bio;
-	struct bio_vec		bv;
-};
-
-static void discard_finish(struct work_struct *w)
-{
-	struct discard *d = container_of(w, struct discard, work);
-	struct cache *ca = d->ca;
-	char buf[BDEVNAME_SIZE];
-
-	if (!test_bit(BIO_UPTODATE, &d->bio.bi_flags)) {
-		pr_notice("discard error on %s, disabling",
-			 bdevname(ca->bdev, buf));
-		d->ca->discard = 0;
-	}
-
-	mutex_lock(&ca->set->bucket_lock);
-
-	fifo_push(&ca->free, d->bucket);
-	list_add(&d->list, &ca->discards);
-	atomic_dec(&ca->discards_in_flight);
-
-	mutex_unlock(&ca->set->bucket_lock);
-
-	closure_wake_up(&ca->set->bucket_wait);
-	wake_up_process(ca->alloc_thread);
-
-	closure_put(&ca->set->cl);
-}
-
-static void discard_endio(struct bio *bio, int error)
-{
-	struct discard *d = container_of(bio, struct discard, bio);
-	schedule_work(&d->work);
-}
-
-static void do_discard(struct cache *ca, long bucket)
-{
-	struct discard *d = list_first_entry(&ca->discards,
-					     struct discard, list);
-
-	list_del(&d->list);
-	d->bucket = bucket;
-
-	atomic_inc(&ca->discards_in_flight);
-	closure_get(&ca->set->cl);
-
-	bio_init(&d->bio);
-
-	d->bio.bi_sector	= bucket_to_sector(ca->set, d->bucket);
-	d->bio.bi_bdev		= ca->bdev;
-	d->bio.bi_rw		= REQ_WRITE|REQ_DISCARD;
-	d->bio.bi_max_vecs	= 1;
-	d->bio.bi_io_vec	= d->bio.bi_inline_vecs;
-	d->bio.bi_size		= bucket_bytes(ca);
-	d->bio.bi_end_io	= discard_endio;
-	bio_set_prio(&d->bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
-
-	submit_bio(0, &d->bio);
 }
 
 /* Allocation */
@@ -398,16 +328,18 @@ static int bch_allocator_thread(void *arg)
 			else
 				break;
 
-			allocator_wait(ca, (int) fifo_free(&ca->free) >
-				       atomic_read(&ca->discards_in_flight));
-
 			if (ca->discard) {
-				allocator_wait(ca, !list_empty(&ca->discards));
-				do_discard(ca, bucket);
-			} else {
-				fifo_push(&ca->free, bucket);
-				closure_wake_up(&ca->set->bucket_wait);
+				mutex_unlock(&ca->set->bucket_lock);
+				blkdev_issue_discard(ca->bdev,
+					bucket_to_sector(ca->set, bucket),
+					ca->sb.block_size, GFP_KERNEL, 0);
+				mutex_lock(&ca->set->bucket_lock);
 			}
+
+			allocator_wait(ca, !fifo_full(&ca->free));
+
+			fifo_push(&ca->free, bucket);
+			closure_wake_up(&ca->set->bucket_wait);
 		}
 
 		/*
@@ -556,22 +488,8 @@ int bch_cache_allocator_start(struct cache *ca)
 	return 0;
 }
 
-void bch_cache_allocator_exit(struct cache *ca)
-{
-	struct discard *d;
-
-	while (!list_empty(&ca->discards)) {
-		d = list_first_entry(&ca->discards, struct discard, list);
-		cancel_work_sync(&d->work);
-		list_del(&d->list);
-		kfree(d);
-	}
-}
-
 int bch_cache_allocator_init(struct cache *ca)
 {
-	unsigned i;
-
 	/*
 	 * Reserve:
 	 * Prio/gen writes first
@@ -588,16 +506,6 @@ int bch_cache_allocator_init(struct cache *ca)
 
 	ca->watermark[WATERMARK_NONE] = ca->free.size / 2 +
 		ca->watermark[WATERMARK_MOVINGGC];
-
-	for (i = 0; i < MAX_IN_FLIGHT_DISCARDS; i++) {
-		struct discard *d = kzalloc(sizeof(*d), GFP_KERNEL);
-		if (!d)
-			return -ENOMEM;
-
-		d->ca = ca;
-		INIT_WORK(&d->work, discard_finish);
-		list_add(&d->list, &ca->discards);
-	}
 
 	return 0;
 }

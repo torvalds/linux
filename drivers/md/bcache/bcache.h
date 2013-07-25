@@ -620,15 +620,6 @@ struct cache {
 
 	bool			discard; /* Get rid of? */
 
-	/*
-	 * We preallocate structs for issuing discards to buckets, and keep them
-	 * on this list when they're not in use; do_discard() issues discards
-	 * whenever there's work to do and is called by free_some_buckets() and
-	 * when a discard finishes.
-	 */
-	atomic_t		discards_in_flight;
-	struct list_head	discards;
-
 	struct journal_device	journal;
 
 	/* The rest of this all shows up in sysfs */
@@ -1222,7 +1213,6 @@ int bch_btree_cache_alloc(struct cache_set *);
 void bch_moving_init_cache_set(struct cache_set *);
 
 int bch_cache_allocator_start(struct cache *ca);
-void bch_cache_allocator_exit(struct cache *ca);
 int bch_cache_allocator_init(struct cache *ca);
 
 void bch_debug_exit(void);
