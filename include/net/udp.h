@@ -183,6 +183,7 @@ extern int udp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			    struct msghdr *msg, size_t len);
 extern int udp_push_pending_frames(struct sock *sk);
 extern void udp_flush_pending_frames(struct sock *sk);
+extern void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst);
 extern int udp_rcv(struct sk_buff *skb);
 extern int udp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int udp_disconnect(struct sock *sk, int flags);

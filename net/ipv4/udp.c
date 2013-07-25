@@ -704,7 +704,7 @@ EXPORT_SYMBOL(udp_flush_pending_frames);
  *	@src:	source IP address
  *	@dst:	destination IP address
  */
-static void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst)
+void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst)
 {
 	struct udphdr *uh = udp_hdr(skb);
 	struct sk_buff *frags = skb_shinfo(skb)->frag_list;
@@ -740,6 +740,7 @@ static void udp4_hwcsum(struct sk_buff *skb, __be32 src, __be32 dst)
 			uh->check = CSUM_MANGLED_0;
 	}
 }
+EXPORT_SYMBOL_GPL(udp4_hwcsum);
 
 static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4)
 {
