@@ -99,6 +99,17 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #define VENDOR_DIR_OUT		0x40
 #define USBDUX_CPU_CS		0xe600
 
+/* usbdux bulk transfer commands */
+#define USBDUX_CMD_MULT_AI	0
+#define USBDUX_CMD_AO		1
+#define USBDUX_CMD_DIO_CFG	2
+#define USBDUX_CMD_DIO_BITS	3
+#define USBDUX_CMD_SINGLE_AI	4
+#define USBDUX_CMD_TIMER_RD	5
+#define USBDUX_CMD_TIMER_WR	6
+#define USBDUX_CMD_PWM_ON	7
+#define USBDUX_CMD_PWM_OFF	8
+
 #define USBDUX_NUM_AO_CHAN	4
 
 /* timeout for the USB-transfer in ms */
@@ -680,18 +691,6 @@ static int8_t create_adc_command(unsigned int chan, int range)
 	return (chan << 4) | ((p == 1) << 2) | ((r == 1) << 3);
 }
 
-/* bulk transfers to usbdux */
-
-#define SENDADCOMMANDS            0
-#define SENDDACOMMANDS            1
-#define SENDDIOCONFIGCOMMAND      2
-#define SENDDIOBITSCOMMAND        3
-#define SENDSINGLEAD              4
-#define READCOUNTERCOMMAND        5
-#define WRITECOUNTERCOMMAND       6
-#define SENDPWMON                 7
-#define SENDPWMOFF                8
-
 static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
@@ -780,7 +779,7 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->dux_commands[i + 2] = create_adc_command(chan, range);
 	}
 
-	ret = send_dux_commands(dev, SENDADCOMMANDS);
+	ret = send_dux_commands(dev, USBDUX_CMD_MULT_AI);
 	if (ret < 0)
 		goto ai_cmd_exit;
 
@@ -864,12 +863,12 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 	devpriv->dux_commands[1] = create_adc_command(chan, range);
 
 	/* adc commands */
-	ret = send_dux_commands(dev, SENDSINGLEAD);
+	ret = send_dux_commands(dev, USBDUX_CMD_SINGLE_AI);
 	if (ret < 0)
 		goto ai_read_exit;
 
 	for (i = 0; i < insn->n; i++) {
-		ret = receive_dux_commands(dev, SENDSINGLEAD);
+		ret = receive_dux_commands(dev, USBDUX_CMD_SINGLE_AI);
 		if (ret < 0)
 			goto ai_read_exit;
 
@@ -933,7 +932,7 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 		/* one 16 bit value */
 		*p = cpu_to_le16(val);
 
-		ret = send_dux_commands(dev, SENDDACOMMANDS);
+		ret = send_dux_commands(dev, USBDUX_CMD_AO);
 		if (ret < 0)
 			goto ao_write_exit;
 	}
@@ -1192,10 +1191,10 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	 * This command also tells the firmware to return
 	 * the digital input lines.
 	 */
-	ret = send_dux_commands(dev, SENDDIOBITSCOMMAND);
+	ret = send_dux_commands(dev, USBDUX_CMD_DIO_BITS);
 	if (ret < 0)
 		goto dio_exit;
-	ret = receive_dux_commands(dev, SENDDIOBITSCOMMAND);
+	ret = receive_dux_commands(dev, USBDUX_CMD_DIO_BITS);
 	if (ret < 0)
 		goto dio_exit;
 
@@ -1220,10 +1219,10 @@ static int usbdux_counter_read(struct comedi_device *dev,
 	down(&devpriv->sem);
 
 	for (i = 0; i < insn->n; i++) {
-		ret = send_dux_commands(dev, READCOUNTERCOMMAND);
+		ret = send_dux_commands(dev, USBDUX_CMD_TIMER_RD);
 		if (ret < 0)
 			goto counter_read_exit;
-		ret = receive_dux_commands(dev, READCOUNTERCOMMAND);
+		ret = receive_dux_commands(dev, USBDUX_CMD_TIMER_RD);
 		if (ret < 0)
 			goto counter_read_exit;
 
@@ -1254,7 +1253,7 @@ static int usbdux_counter_write(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		*p = cpu_to_le16(data[i]);
 
-		ret = send_dux_commands(dev, WRITECOUNTERCOMMAND);
+		ret = send_dux_commands(dev, USBDUX_CMD_TIMER_WR);
 		if (ret < 0)
 			break;
 	}
@@ -1298,7 +1297,7 @@ static int usbdux_pwm_cancel(struct comedi_device *dev,
 	down(&devpriv->sem);
 	/* unlink only if it is really running */
 	usbdux_pwm_stop(dev, devpriv->pwm_cmd_running);
-	ret = send_dux_commands(dev, SENDPWMOFF);
+	ret = send_dux_commands(dev, USBDUX_CMD_PWM_OFF);
 	up(&devpriv->sem);
 
 	return ret;
@@ -1409,7 +1408,7 @@ static int usbdux_pwm_start(struct comedi_device *dev,
 		goto pwm_start_exit;
 
 	devpriv->dux_commands[1] = devpriv->pwm_delay;
-	ret = send_dux_commands(dev, SENDPWMON);
+	ret = send_dux_commands(dev, USBDUX_CMD_PWM_ON);
 	if (ret < 0)
 		goto pwm_start_exit;
 
