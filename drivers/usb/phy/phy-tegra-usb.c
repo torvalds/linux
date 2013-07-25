@@ -211,7 +211,7 @@ static void set_phcd(struct tegra_usb_phy *phy, bool enable)
 
 static int utmip_pad_open(struct tegra_usb_phy *phy)
 {
-	phy->pad_clk = devm_clk_get(phy->dev, "utmi-pads");
+	phy->pad_clk = devm_clk_get(phy->u_phy.dev, "utmi-pads");
 	if (IS_ERR(phy->pad_clk)) {
 		pr_err("%s: can't get utmip pad clock\n", __func__);
 		return PTR_ERR(phy->pad_clk);
@@ -540,13 +540,15 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 
 	ret = gpio_direction_output(phy->reset_gpio, 0);
 	if (ret < 0) {
-		dev_err(phy->dev, "gpio %d not set to 0\n", phy->reset_gpio);
+		dev_err(phy->u_phy.dev, "gpio %d not set to 0\n",
+			phy->reset_gpio);
 		return ret;
 	}
 	msleep(5);
 	ret = gpio_direction_output(phy->reset_gpio, 1);
 	if (ret < 0) {
-		dev_err(phy->dev, "gpio %d not set to 1\n", phy->reset_gpio);
+		dev_err(phy->u_phy.dev, "gpio %d not set to 1\n",
+			phy->reset_gpio);
 		return ret;
 	}
 
@@ -649,29 +651,30 @@ static int ulpi_open(struct tegra_usb_phy *phy)
 {
 	int err;
 
-	phy->clk = devm_clk_get(phy->dev, "ulpi-link");
+	phy->clk = devm_clk_get(phy->u_phy.dev, "ulpi-link");
 	if (IS_ERR(phy->clk)) {
 		pr_err("%s: can't get ulpi clock\n", __func__);
 		return PTR_ERR(phy->clk);
 	}
 
-	err = devm_gpio_request(phy->dev, phy->reset_gpio, "ulpi_phy_reset_b");
+	err = devm_gpio_request(phy->u_phy.dev, phy->reset_gpio,
+		"ulpi_phy_reset_b");
 	if (err < 0) {
-		dev_err(phy->dev, "request failed for gpio: %d\n",
+		dev_err(phy->u_phy.dev, "request failed for gpio: %d\n",
 		       phy->reset_gpio);
 		return err;
 	}
 
 	err = gpio_direction_output(phy->reset_gpio, 0);
 	if (err < 0) {
-		dev_err(phy->dev, "gpio %d direction not set to output\n",
+		dev_err(phy->u_phy.dev, "gpio %d direction not set to output\n",
 		       phy->reset_gpio);
 		return err;
 	}
 
 	phy->ulpi = otg_ulpi_create(&ulpi_viewport_access_ops, 0);
 	if (!phy->ulpi) {
-		dev_err(phy->dev, "otg_ulpi_create returned NULL\n");
+		dev_err(phy->u_phy.dev, "otg_ulpi_create returned NULL\n");
 		err = -ENOMEM;
 		return err;
 	}
@@ -686,7 +689,7 @@ static int tegra_usb_phy_init(struct tegra_usb_phy *phy)
 	int i;
 	int err;
 
-	phy->pll_u = devm_clk_get(phy->dev, "pll_u");
+	phy->pll_u = devm_clk_get(phy->u_phy.dev, "pll_u");
 	if (IS_ERR(phy->pll_u)) {
 		pr_err("Can't get pll_u clock\n");
 		return PTR_ERR(phy->pll_u);
@@ -712,7 +715,7 @@ static int tegra_usb_phy_init(struct tegra_usb_phy *phy)
 	if (!IS_ERR(phy->vbus)) {
 		err = regulator_enable(phy->vbus);
 		if (err) {
-			dev_err(phy->dev,
+			dev_err(phy->u_phy.dev,
 				"failed to enable usb vbus regulator: %d\n",
 				err);
 			goto fail;
@@ -920,7 +923,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 		tegra_phy->vbus = ERR_PTR(-ENODEV);
 	}
 
-	tegra_phy->dev = &pdev->dev;
+	tegra_phy->u_phy.dev = &pdev->dev;
 	err = tegra_usb_phy_init(tegra_phy);
 	if (err < 0)
 		return err;
@@ -953,7 +956,7 @@ static int tegra_usb_phy_match(struct device *dev, void *data)
 	struct tegra_usb_phy *tegra_phy = dev_get_drvdata(dev);
 	struct device_node *dn = data;
 
-	return (tegra_phy->dev->of_node == dn) ? 1 : 0;
+	return (tegra_phy->u_phy.dev->of_node == dn) ? 1 : 0;
 }
 
 struct usb_phy *tegra_usb_get_phy(struct device_node *dn)
