@@ -2984,9 +2984,11 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 	 */
 	for (i = 0; i < 1; i++) {
 		bytenr = btrfs_sb_offset(i);
-		if (bytenr + 4096 >= i_size_read(bdev->bd_inode))
+		if (bytenr + BTRFS_SUPER_INFO_SIZE >=
+					i_size_read(bdev->bd_inode))
 			break;
-		bh = __bread(bdev, bytenr / 4096, 4096);
+		bh = __bread(bdev, bytenr / 4096,
+					BTRFS_SUPER_INFO_SIZE);
 		if (!bh)
 			continue;
 
