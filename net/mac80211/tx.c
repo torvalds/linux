@@ -1300,7 +1300,6 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 				    txpending);
 
 	ieee80211_tpt_led_trig_tx(local, fc, led_len);
-	ieee80211_led_tx(local, 1);
 
 	WARN_ON_ONCE(!skb_queue_empty(skbs));
 
