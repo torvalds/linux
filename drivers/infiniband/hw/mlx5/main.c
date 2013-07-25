@@ -619,7 +619,8 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	resp.tot_uuars = req.total_num_uuars;
 	resp.num_ports = dev->mdev.caps.num_ports;
-	err = ib_copy_to_udata(udata, &resp, sizeof(resp));
+	err = ib_copy_to_udata(udata, &resp,
+			       sizeof(resp) - sizeof(resp.reserved));
 	if (err)
 		goto out_uars;
 
