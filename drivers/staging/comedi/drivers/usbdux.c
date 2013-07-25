@@ -177,24 +177,24 @@ static const struct comedi_lrange range_usbdux_ao_range = {
 
 struct usbdux_private {
 	/* actual number of in-buffers */
-	int num_in_buffers;
+	int n_ai_urbs;
 	/* actual number of out-buffers */
-	int num_out_buffers;
+	int n_ao_urbs;
 	/* ISO-transfer handling: buffers */
-	struct urb **urb_in;
-	struct urb **urb_out;
+	struct urb **ai_urbs;
+	struct urb **ao_urbs;
 	/* pwm-transfer handling */
-	struct urb *urb_pwm;
+	struct urb *pwm_urb;
 	/* PWM period */
 	unsigned int pwm_period;
 	/* PWM internal delay for the GPIF in the FX2 */
-	int8_t pwn_delay;
+	int8_t pwm_delay;
 	/* size of the PWM buffer which holds the bit pattern */
-	int size_pwm_buf;
+	int pwm_buf_sz;
 	/* input buffer for the ISO-transfer */
-	int16_t *in_buffer;
+	int16_t *in_buf;
 	/* input buffer for single insn */
-	int16_t *insn_buffer;
+	int16_t *insn_buf;
 	/* output buffer for single DA outputs */
 	int16_t *out_buffer;
 
@@ -228,9 +228,9 @@ static void usbduxsub_unlink_inurbs(struct comedi_device *dev)
 	struct usbdux_private *devpriv = dev->private;
 	int i;
 
-	if (devpriv->urb_in) {
-		for (i = 0; i < devpriv->num_in_buffers; i++)
-			usb_kill_urb(devpriv->urb_in[i]);
+	if (devpriv->ai_urbs) {
+		for (i = 0; i < devpriv->n_ai_urbs; i++)
+			usb_kill_urb(devpriv->ai_urbs[i]);
 	}
 }
 
@@ -270,7 +270,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		/* copy the result in the transfer buffer */
-		memcpy(devpriv->in_buffer, urb->transfer_buffer, SIZEINBUF);
+		memcpy(devpriv->in_buf, urb->transfer_buffer, SIZEINBUF);
 		break;
 	case -EILSEQ:
 		/* error in the ISOchronous data */
@@ -364,7 +364,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	n = s->async->cmd.chanlist_len;
 	for (i = 0; i < n; i++) {
 		unsigned int range = CR_RANGE(s->async->cmd.chanlist[i]);
-		int16_t val = le16_to_cpu(devpriv->in_buffer[i]);
+		int16_t val = le16_to_cpu(devpriv->in_buf[i]);
 
 		/* bipolar data is two's-complement */
 		if (comedi_range_is_bipolar(s, range))
@@ -388,9 +388,9 @@ static void usbduxsub_unlink_outurbs(struct comedi_device *dev)
 	struct usbdux_private *devpriv = dev->private;
 	int i;
 
-	if (devpriv->urb_out) {
-		for (i = 0; i < devpriv->num_out_buffers; i++)
-			usb_kill_urb(devpriv->urb_out[i]);
+	if (devpriv->ao_urbs) {
+		for (i = 0; i < devpriv->n_ao_urbs; i++)
+			usb_kill_urb(devpriv->ao_urbs[i]);
 	}
 }
 
@@ -548,8 +548,8 @@ static int usbduxsub_submit_inurbs(struct comedi_device *dev)
 	int i;
 
 	/* Submit all URBs and start the transfer on the bus */
-	for (i = 0; i < devpriv->num_in_buffers; i++) {
-		urb = devpriv->urb_in[i];
+	for (i = 0; i < devpriv->n_ai_urbs; i++) {
+		urb = devpriv->ai_urbs[i];
 
 		/* in case of a resubmission after an unlink... */
 		urb->interval = devpriv->ai_interval;
@@ -573,8 +573,8 @@ static int usbduxsub_submit_outurbs(struct comedi_device *dev)
 	int ret;
 	int i;
 
-	for (i = 0; i < devpriv->num_out_buffers; i++) {
-		urb = devpriv->urb_out[i];
+	for (i = 0; i < devpriv->n_ao_urbs; i++) {
+		urb = devpriv->ao_urbs[i];
 
 		/* in case of a resubmission after an unlink... */
 		urb->context = dev;
@@ -720,11 +720,11 @@ static int receive_dux_commands(struct comedi_device *dev, int command)
 
 	for (i = 0; i < RETRIES; i++) {
 		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, 8),
-				      devpriv->insn_buffer, SIZEINSNBUF,
+				      devpriv->insn_buf, SIZEINSNBUF,
 				      &nrec, BULK_TIMEOUT);
 		if (ret < 0)
 			return ret;
-		if (le16_to_cpu(devpriv->insn_buffer[0]) == command)
+		if (le16_to_cpu(devpriv->insn_buf[0]) == command)
 			return ret;
 	}
 	/* command not received */
@@ -881,7 +881,7 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 		if (ret < 0)
 			goto ai_read_exit;
 
-		val = le16_to_cpu(devpriv->insn_buffer[1]);
+		val = le16_to_cpu(devpriv->insn_buf[1]);
 
 		/* bipolar data is two's-complement */
 		if (comedi_range_is_bipolar(s, range))
@@ -1210,7 +1210,7 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	if (ret < 0)
 		goto dio_exit;
 
-	data[1] = le16_to_cpu(devpriv->insn_buffer[1]);
+	data[1] = le16_to_cpu(devpriv->insn_buf[1]);
 
 dio_exit:
 	up(&devpriv->sem);
@@ -1238,7 +1238,7 @@ static int usbdux_counter_read(struct comedi_device *dev,
 		if (ret < 0)
 			goto counter_read_exit;
 
-		data[i] = le16_to_cpu(devpriv->insn_buffer[chan + 1]);
+		data[i] = le16_to_cpu(devpriv->insn_buf[chan + 1]);
 	}
 
 counter_read_exit:
@@ -1287,7 +1287,7 @@ static void usbduxsub_unlink_pwm_urbs(struct comedi_device *dev)
 {
 	struct usbdux_private *devpriv = dev->private;
 
-	usb_kill_urb(devpriv->urb_pwm);
+	usb_kill_urb(devpriv->pwm_urb);
 }
 
 static void usbdux_pwm_stop(struct comedi_device *dev, int do_unlink)
@@ -1354,7 +1354,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	if (!devpriv->pwm_cmd_running)
 		return;
 
-	urb->transfer_buffer_length = devpriv->size_pwm_buf;
+	urb->transfer_buffer_length = devpriv->pwm_buf_sz;
 	urb->dev = comedi_to_usb_dev(dev);
 	urb->status = 0;
 	if (devpriv->pwm_cmd_running) {
@@ -1377,12 +1377,12 @@ static int usbduxsub_submit_pwm_urbs(struct comedi_device *dev)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv = dev->private;
-	struct urb *urb = devpriv->urb_pwm;
+	struct urb *urb = devpriv->pwm_urb;
 
 	/* in case of a resubmission after an unlink... */
 	usb_fill_bulk_urb(urb, usb, usb_sndbulkpipe(usb, 4),
 			  urb->transfer_buffer,
-			  devpriv->size_pwm_buf,
+			  devpriv->pwm_buf_sz,
 			  usbduxsub_pwm_irq,
 			  dev);
 
@@ -1402,7 +1402,7 @@ static int usbdux_pwm_period(struct comedi_device *dev,
 		if (fx2delay > 255)
 			return -EAGAIN;
 	}
-	this_usbduxsub->pwn_delay = fx2delay;
+	this_usbduxsub->pwm_delay = fx2delay;
 	this_usbduxsub->pwm_period = period;
 
 	return 0;
@@ -1419,13 +1419,13 @@ static int usbdux_pwm_start(struct comedi_device *dev,
 	if (devpriv->pwm_cmd_running)
 		goto pwm_start_exit;
 
-	devpriv->dux_commands[1] = devpriv->pwn_delay;
+	devpriv->dux_commands[1] = devpriv->pwm_delay;
 	ret = send_dux_commands(dev, SENDPWMON);
 	if (ret < 0)
 		goto pwm_start_exit;
 
 	/* initialise the buffer */
-	memset(devpriv->urb_pwm->transfer_buffer, 0, devpriv->size_pwm_buf);
+	memset(devpriv->pwm_urb->transfer_buffer, 0, devpriv->pwm_buf_sz);
 
 	devpriv->pwm_cmd_running = 1;
 	ret = usbduxsub_submit_pwm_urbs(dev);
@@ -1459,8 +1459,8 @@ static int usbdux_pwm_pattern(struct comedi_device *dev,
 	sgn_mask = (16 << channel);
 	/* this is the buffer which will be filled with the with bit */
 	/* pattern for one period */
-	szbuf = this_usbduxsub->size_pwm_buf;
-	p_buf = (char *)(this_usbduxsub->urb_pwm->transfer_buffer);
+	szbuf = this_usbduxsub->pwm_buf_sz;
+	p_buf = (char *)(this_usbduxsub->pwm_urb->transfer_buffer);
 	for (i = 0; i < szbuf; i++) {
 		c = *p_buf;
 		/* reset bits */
@@ -1651,13 +1651,13 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		return -ENOMEM;
 
 	/* create space for the in buffer and set it to zero */
-	devpriv->in_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
-	if (!devpriv->in_buffer)
+	devpriv->in_buf = kzalloc(SIZEINBUF, GFP_KERNEL);
+	if (!devpriv->in_buf)
 		return -ENOMEM;
 
 	/* create space of the instruction buffer */
-	devpriv->insn_buffer = kzalloc(SIZEINSNBUF, GFP_KERNEL);
-	if (!devpriv->insn_buffer)
+	devpriv->insn_buf = kzalloc(SIZEINSNBUF, GFP_KERNEL);
+	if (!devpriv->insn_buf)
 		return -ENOMEM;
 
 	/* create space for the outbuffer */
@@ -1666,17 +1666,17 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		return -ENOMEM;
 
 	/* in urbs */
-	devpriv->urb_in = kcalloc(devpriv->num_in_buffers, sizeof(*urb),
-				  GFP_KERNEL);
-	if (!devpriv->urb_in)
+	devpriv->ai_urbs = kcalloc(devpriv->n_ai_urbs, sizeof(*urb),
+				   GFP_KERNEL);
+	if (!devpriv->ai_urbs)
 		return -ENOMEM;
 
-	for (i = 0; i < devpriv->num_in_buffers; i++) {
+	for (i = 0; i < devpriv->n_ai_urbs; i++) {
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
-		devpriv->urb_in[i] = urb;
+		devpriv->ai_urbs[i] = urb;
 
 		urb->dev = usb;
 		/* will be filled later with a pointer to the comedi-device */
@@ -1696,17 +1696,17 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 	}
 
 	/* out urbs */
-	devpriv->urb_out = kcalloc(devpriv->num_out_buffers, sizeof(*urb),
+	devpriv->ao_urbs = kcalloc(devpriv->n_ao_urbs, sizeof(*urb),
 				   GFP_KERNEL);
-	if (!devpriv->urb_out)
+	if (!devpriv->ao_urbs)
 		return -ENOMEM;
 
-	for (i = 0; i < devpriv->num_out_buffers; i++) {
+	for (i = 0; i < devpriv->n_ao_urbs; i++) {
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
-		devpriv->urb_out[i] = urb;
+		devpriv->ao_urbs[i] = urb;
 
 		urb->dev = usb;
 		/* will be filled later with a pointer to the comedi-device */
@@ -1730,14 +1730,14 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 	}
 
 	/* pwm */
-	if (devpriv->size_pwm_buf) {
+	if (devpriv->pwm_buf_sz) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
-		devpriv->urb_pwm = urb;
+		devpriv->pwm_urb = urb;
 
 		/* max bulk ep size in high speed */
-		urb->transfer_buffer = kzalloc(devpriv->size_pwm_buf,
+		urb->transfer_buffer = kzalloc(devpriv->pwm_buf_sz,
 					       GFP_KERNEL);
 		if (!urb->transfer_buffer)
 			return -ENOMEM;
@@ -1751,37 +1751,37 @@ static void usbdux_free_usb_buffers(struct usbdux_private *devpriv)
 	struct urb *urb;
 	int i;
 
-	urb = devpriv->urb_pwm;
+	urb = devpriv->pwm_urb;
 	if (urb) {
 		kfree(urb->transfer_buffer);
 		usb_kill_urb(urb);
 		usb_free_urb(urb);
 	}
-	if (devpriv->urb_out) {
-		for (i = 0; i < devpriv->num_out_buffers; i++) {
-			urb = devpriv->urb_out[i];
+	if (devpriv->ao_urbs) {
+		for (i = 0; i < devpriv->n_ao_urbs; i++) {
+			urb = devpriv->ao_urbs[i];
 			if (urb) {
 				kfree(urb->transfer_buffer);
 				usb_kill_urb(urb);
 				usb_free_urb(urb);
 			}
 		}
-		kfree(devpriv->urb_out);
+		kfree(devpriv->ao_urbs);
 	}
-	if (devpriv->urb_in) {
-		for (i = 0; i < devpriv->num_in_buffers; i++) {
-			urb = devpriv->urb_in[i];
+	if (devpriv->ai_urbs) {
+		for (i = 0; i < devpriv->n_ai_urbs; i++) {
+			urb = devpriv->ai_urbs[i];
 			if (urb) {
 				kfree(urb->transfer_buffer);
 				usb_kill_urb(urb);
 				usb_free_urb(urb);
 			}
 		}
-		kfree(devpriv->urb_in);
+		kfree(devpriv->ai_urbs);
 	}
 	kfree(devpriv->out_buffer);
-	kfree(devpriv->insn_buffer);
-	kfree(devpriv->in_buffer);
+	kfree(devpriv->insn_buf);
+	kfree(devpriv->in_buf);
 	kfree(devpriv->dux_commands);
 	kfree(devpriv->dac_commands);
 }
@@ -1805,12 +1805,12 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 
 	devpriv->high_speed = (usb->speed == USB_SPEED_HIGH);
 	if (devpriv->high_speed) {
-		devpriv->num_in_buffers = NUMOFINBUFFERSHIGH;
-		devpriv->num_out_buffers = NUMOFOUTBUFFERSHIGH;
-		devpriv->size_pwm_buf = 512;
+		devpriv->n_ai_urbs = NUMOFINBUFFERSHIGH;
+		devpriv->n_ao_urbs = NUMOFOUTBUFFERSHIGH;
+		devpriv->pwm_buf_sz = 512;
 	} else {
-		devpriv->num_in_buffers = NUMOFINBUFFERSFULL;
-		devpriv->num_out_buffers = NUMOFOUTBUFFERSFULL;
+		devpriv->n_ai_urbs = NUMOFINBUFFERSFULL;
+		devpriv->n_ao_urbs = NUMOFOUTBUFFERSFULL;
 	}
 
 	ret = usbdux_alloc_usb_buffers(dev);
@@ -1890,7 +1890,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_PWM;
 		s->subdev_flags	= SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan	= 8;
-		s->maxdata	= devpriv->size_pwm_buf;
+		s->maxdata	= devpriv->pwm_buf_sz;
 		s->insn_write	= usbdux_pwm_write;
 		s->insn_read	= usbdux_pwm_read;
 		s->insn_config	= usbdux_pwm_config;
