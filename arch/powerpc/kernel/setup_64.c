@@ -10,7 +10,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#define DEBUG
 
 #include <linux/export.h>
 #include <linux/string.h>
@@ -240,6 +240,18 @@ void __init early_setup(unsigned long dt_ptr)
 	reserve_hugetlb_gpages();
 
 	DBG(" <- early_setup()\n");
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
+	/*
+	 * This needs to be done *last* (after the above DBG() even)
+	 *
+	 * Right after we return from this function, we turn on the MMU
+	 * which means the real-mode access trick that btext does will
+	 * no longer work, it needs to switch to using a real MMU
+	 * mapping. This call will ensure that it does
+	 */
+	btext_map();
+#endif /* CONFIG_PPC_EARLY_DEBUG_BOOTX */
 }
 
 #ifdef CONFIG_SMP
