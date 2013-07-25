@@ -1,0 +1,22 @@
+Altera hardware mutex
+Altera hardware mutex can provide hardware assistance for synchronization and
+mutual exclusion between processors in asymmetric/symmetric multiprocessing
+(AMP/SMP) system or multi processes/threads in uniprocessor system.
+
+Required properties:
+- compatible : "altr,mutex-1.0".
+- reg : physical base address of the mutex and length of memory mapped
+     region.
+
+Example:
+	mutex0: mutex0@0x100 {
+		compatible = "altr,hwmutex-1.0";
+		reg = <0x100 0x8>;
+	};
+
+Example of mutex's client node that includes mutex phandle.
+	mclient0: mclient0@0x200 {
+		compatible = "client-1.0";
+		reg = <0x200 0x10>;
+		mutex = <&mutex0>;
+	};

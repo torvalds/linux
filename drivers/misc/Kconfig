@@ -528,14 +528,11 @@ config LATTICE_ECP3_CONFIG
 
 	  If unsure, say N.
 
-config SRAM
-	bool "Generic on-chip SRAM driver"
-	depends on HAS_IOMEM
-	select GENERIC_ALLOCATOR
+config ALTERA_HWMUTEX
+	tristate "Altera Hardware Mutex"
 	help
-	  This driver allows you to declare a memory region to be managed by
-	  the genalloc API. It is supposed to be used for small on-chip SRAM
-	  areas found on many SoCs.
+	  This option enables device driver support for Altera Hardware Mutex.
+	  Say Y here if you want to use the Altera hardware mutex support.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
