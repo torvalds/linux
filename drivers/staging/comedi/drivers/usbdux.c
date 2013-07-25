@@ -882,85 +882,79 @@ ai_trig_exit:
 
 static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct usbdux_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int chan, range;
-	int i, ret;
-	struct usbdux_private *this_usbduxsub = dev->private;
-	int result;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
+	int len = cmd->chanlist_len;
+	int ret = -EBUSY;
+	int i;
 
 	/* block other CPUs from starting an ai_cmd */
-	down(&this_usbduxsub->sem);
-	if (this_usbduxsub->ai_cmd_running) {
-		up(&this_usbduxsub->sem);
-		return -EBUSY;
-	}
+	down(&devpriv->sem);
+
+	if (devpriv->ai_cmd_running)
+		goto ai_cmd_exit;
+
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
 
-	this_usbduxsub->dux_commands[1] = cmd->chanlist_len;
-	for (i = 0; i < cmd->chanlist_len; ++i) {
-		chan = CR_CHAN(cmd->chanlist[i]);
-		range = CR_RANGE(cmd->chanlist[i]);
+	devpriv->dux_commands[1] = len;
+	for (i = 0; i < len; ++i) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
 		if (i >= NUMCHANNELS)
 			break;
-		this_usbduxsub->dux_commands[i + 2] =
-		    create_adc_command(chan, range);
+
+		devpriv->dux_commands[i + 2] = create_adc_command(chan, range);
 	}
 
-	result = send_dux_commands(dev, SENDADCOMMANDS);
-	if (result < 0) {
-		up(&this_usbduxsub->sem);
-		return result;
-	}
+	ret = send_dux_commands(dev, SENDADCOMMANDS);
+	if (ret < 0)
+		goto ai_cmd_exit;
 
-	if (this_usbduxsub->high_speed) {
+	if (devpriv->high_speed) {
 		/*
 		 * every channel gets a time window of 125us. Thus, if we
 		 * sample all 8 channels we need 1ms. If we sample only one
 		 * channel we need only 125us
 		 */
-		this_usbduxsub->ai_interval = 1;
+		devpriv->ai_interval = 1;
 		/* find a power of 2 for the interval */
-		while ((this_usbduxsub->ai_interval) < (cmd->chanlist_len)) {
-			this_usbduxsub->ai_interval =
-			    (this_usbduxsub->ai_interval) * 2;
-		}
-		this_usbduxsub->ai_timer = cmd->scan_begin_arg / (125000 *
-							  (this_usbduxsub->
-							   ai_interval));
+		while (devpriv->ai_interval < len)
+			devpriv->ai_interval *= 2;
+
+		devpriv->ai_timer = cmd->scan_begin_arg /
+				    (125000 * devpriv->ai_interval);
 	} else {
 		/* interval always 1ms */
-		this_usbduxsub->ai_interval = 1;
-		this_usbduxsub->ai_timer = cmd->scan_begin_arg / 1000000;
+		devpriv->ai_interval = 1;
+		devpriv->ai_timer = cmd->scan_begin_arg / 1000000;
 	}
-	if (this_usbduxsub->ai_timer < 1) {
-		up(&this_usbduxsub->sem);
-		return -EINVAL;
+	if (devpriv->ai_timer < 1) {
+		ret = -EINVAL;
+		goto ai_cmd_exit;
 	}
-	this_usbduxsub->ai_counter = this_usbduxsub->ai_timer;
+
+	devpriv->ai_counter = devpriv->ai_timer;
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* data arrives as one packet */
-		this_usbduxsub->ai_sample_count = cmd->stop_arg;
-		this_usbduxsub->ai_continous = 0;
+		devpriv->ai_sample_count = cmd->stop_arg;
+		devpriv->ai_continous = 0;
 	} else {
 		/* continous acquisition */
-		this_usbduxsub->ai_continous = 1;
-		this_usbduxsub->ai_sample_count = 0;
+		devpriv->ai_continous = 1;
+		devpriv->ai_sample_count = 0;
 	}
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
-		this_usbduxsub->ai_cmd_running = 1;
+		devpriv->ai_cmd_running = 1;
 		ret = usbduxsub_submit_inurbs(dev);
 		if (ret < 0) {
-			this_usbduxsub->ai_cmd_running = 0;
+			devpriv->ai_cmd_running = 0;
 			/* fixme: unlink here?? */
-			up(&this_usbduxsub->sem);
-			return ret;
+			goto ai_cmd_exit;
 		}
 		s->async->inttrig = NULL;
 	} else {
@@ -969,8 +963,11 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* wait for an internal signal */
 		s->async->inttrig = usbdux_ai_inttrig;
 	}
-	up(&this_usbduxsub->sem);
-	return 0;
+
+ai_cmd_exit:
+	up(&devpriv->sem);
+
+	return ret;
 }
 
 /* Mode 0 is used to get a single conversion on demand */
