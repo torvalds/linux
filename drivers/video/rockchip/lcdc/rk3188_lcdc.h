@@ -292,7 +292,7 @@
 	RK3026/RK3028A max output  resolution 1920x1080
 	support IEP instead of  3d
 */
-#ifdef CONFIG_ARCH_RK3026
+//#ifdef CONFIG_ARCH_RK3026
 //SYS_CTRL 0x00
 #define m_DIRECT_PATCH_EN         (1<<11)
 #define m_DIRECT_PATH_LAY_SEL     (1<<12)
@@ -314,7 +314,7 @@
 #define v_WIN1_EMPTY_INTR_CLR(x)  (((x)&1)<<27)
 #define v_WIN0_EMPTY_INTR_STA(x)  (((x)&1)<<28)
 #define v_WIN1_EMPTY_INTR_STA(x)  (((x)&1)<<29)
-#endif
+//#endif
 
 
 #define CalScale(x, y)	             ((((u32)(x-1))*0x1000)/(y-1))
