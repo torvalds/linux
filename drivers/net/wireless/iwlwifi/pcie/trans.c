@@ -220,6 +220,9 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
+	/* Clear the interrupt in APMG if the NIC is in RFKILL */
+	iwl_write_prph(trans, APMG_RTC_INT_STT_REG, APMG_RTC_INT_STT_RFKILL);
+
 	set_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
 
 out:
