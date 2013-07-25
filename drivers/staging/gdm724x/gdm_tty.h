@@ -14,7 +14,6 @@
 #ifndef _GDM_TTY_H_
 #define _GDM_TTY_H_
 
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/tty.h>
 
