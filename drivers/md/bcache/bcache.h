@@ -750,7 +750,7 @@ struct cache_set {
 	 * written.
 	 */
 	atomic_t		prio_blocked;
-	struct closure_waitlist	bucket_wait;
+	wait_queue_head_t	bucket_wait;
 
 	/*
 	 * For any bio we don't skip we subtract the number of sectors from
@@ -1162,13 +1162,13 @@ uint8_t bch_inc_gen(struct cache *, struct bucket *);
 void bch_rescale_priorities(struct cache_set *, int);
 bool bch_bucket_add_unused(struct cache *, struct bucket *);
 
-long bch_bucket_alloc(struct cache *, unsigned, struct closure *);
+long bch_bucket_alloc(struct cache *, unsigned, bool);
 void bch_bucket_free(struct cache_set *, struct bkey *);
 
 int __bch_bucket_alloc_set(struct cache_set *, unsigned,
-			   struct bkey *, int, struct closure *);
+			   struct bkey *, int, bool);
 int bch_bucket_alloc_set(struct cache_set *, unsigned,
-			 struct bkey *, int, struct closure *);
+			 struct bkey *, int, bool);
 
 __printf(2, 3)
 bool bch_cache_set_error(struct cache_set *, const char *, ...);

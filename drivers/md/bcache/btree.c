@@ -813,7 +813,7 @@ static struct btree *mca_cannibalize(struct cache_set *c, struct bkey *k)
  * cannibalize_bucket() will take. This means every time we unlock the root of
  * the btree, we need to release this lock if we have it held.
  */
-void bch_cannibalize_unlock(struct cache_set *c, struct closure *cl)
+void bch_cannibalize_unlock(struct cache_set *c)
 {
 	if (c->try_harder == current) {
 		bch_time_stats_update(&c->try_harder_time, c->try_harder_start);
@@ -995,15 +995,14 @@ static void btree_node_free(struct btree *b)
 	mutex_unlock(&b->c->bucket_lock);
 }
 
-struct btree *bch_btree_node_alloc(struct cache_set *c, int level,
-				   struct closure *cl)
+struct btree *bch_btree_node_alloc(struct cache_set *c, int level)
 {
 	BKEY_PADDED(key) k;
 	struct btree *b = ERR_PTR(-EAGAIN);
 
 	mutex_lock(&c->bucket_lock);
 retry:
-	if (__bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, cl))
+	if (__bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, true))
 		goto err;
 
 	SET_KEY_SIZE(&k.key, c->btree_pages * PAGE_SECTORS);
@@ -1036,10 +1035,9 @@ err:
 	return b;
 }
 
-static struct btree *btree_node_alloc_replacement(struct btree *b,
-						  struct closure *cl)
+static struct btree *btree_node_alloc_replacement(struct btree *b)
 {
-	struct btree *n = bch_btree_node_alloc(b->c, b->level, cl);
+	struct btree *n = bch_btree_node_alloc(b->c, b->level);
 	if (!IS_ERR_OR_NULL(n))
 		bch_btree_sort_into(b, n);
 
@@ -1152,7 +1150,7 @@ static struct btree *btree_gc_alloc(struct btree *b, struct bkey *k)
 	 * bch_bucket_alloc_set(), or we'd risk deadlock - so we don't pass it
 	 * our closure.
 	 */
-	struct btree *n = btree_node_alloc_replacement(b, NULL);
+	struct btree *n = btree_node_alloc_replacement(b);
 
 	if (!IS_ERR_OR_NULL(n)) {
 		swap(b, n);
@@ -1359,7 +1357,7 @@ static int bch_btree_gc_root(struct btree *b, struct btree_op *op,
 	int ret = 0, stale = btree_gc_mark_node(b, &keys, gc);
 
 	if (b->level || stale > 10)
-		n = btree_node_alloc_replacement(b, NULL);
+		n = btree_node_alloc_replacement(b);
 
 	if (!IS_ERR_OR_NULL(n))
 		swap(b, n);
@@ -1882,10 +1880,7 @@ static int btree_split(struct btree *b, struct btree_op *op,
 	struct btree *n1, *n2 = NULL, *n3 = NULL;
 	uint64_t start_time = local_clock();
 
-	if (b->level)
-		set_closure_blocking(&op->cl);
-
-	n1 = btree_node_alloc_replacement(b, &op->cl);
+	n1 = btree_node_alloc_replacement(b);
 	if (IS_ERR(n1))
 		goto err;
 
@@ -1896,12 +1891,12 @@ static int btree_split(struct btree *b, struct btree_op *op,
 
 		trace_bcache_btree_node_split(b, n1->sets[0].data->keys);
 
-		n2 = bch_btree_node_alloc(b->c, b->level, &op->cl);
+		n2 = bch_btree_node_alloc(b->c, b->level);
 		if (IS_ERR(n2))
 			goto err_free1;
 
 		if (!b->parent) {
-			n3 = bch_btree_node_alloc(b->c, b->level + 1, &op->cl);
+			n3 = bch_btree_node_alloc(b->c, b->level + 1);
 			if (IS_ERR(n3))
 				goto err_free2;
 		}

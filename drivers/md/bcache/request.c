@@ -350,13 +350,7 @@ static bool bch_alloc_sectors(struct bkey *k, unsigned sectors,
 	struct cache_set *c = s->op.c;
 	struct open_bucket *b;
 	BKEY_PADDED(key) alloc;
-	struct closure cl, *w = NULL;
 	unsigned i;
-
-	if (s->writeback) {
-		closure_init_stack(&cl);
-		w = &cl;
-	}
 
 	/*
 	 * We might have to allocate a new bucket, which we can't do with a
@@ -375,7 +369,8 @@ static bool bch_alloc_sectors(struct bkey *k, unsigned sectors,
 
 		spin_unlock(&c->data_bucket_lock);
 
-		if (bch_bucket_alloc_set(c, watermark, &alloc.key, 1, w))
+		if (bch_bucket_alloc_set(c, watermark, &alloc.key,
+					 1, s->writeback))
 			return false;
 
 		spin_lock(&c->data_bucket_lock);

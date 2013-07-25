@@ -427,7 +427,7 @@ static int __uuid_write(struct cache_set *c)
 
 	lockdep_assert_held(&bch_register_lock);
 
-	if (bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, &cl))
+	if (bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, true))
 		return 1;
 
 	SET_KEY_SIZE(&k.key, c->sb.bucket_size);
@@ -565,7 +565,7 @@ void bch_prio_write(struct cache *ca)
 		p->magic	= pset_magic(ca);
 		p->csum		= bch_crc64(&p->magic, bucket_bytes(ca) - 8);
 
-		bucket = bch_bucket_alloc(ca, WATERMARK_PRIO, &cl);
+		bucket = bch_bucket_alloc(ca, WATERMARK_PRIO, true);
 		BUG_ON(bucket == -1);
 
 		mutex_unlock(&ca->set->bucket_lock);
@@ -1439,6 +1439,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	closure_init_unlocked(&c->sb_write);
 	mutex_init(&c->bucket_lock);
 	init_waitqueue_head(&c->try_wait);
+	init_waitqueue_head(&c->bucket_wait);
 	closure_init_unlocked(&c->uuid_write);
 	spin_lock_init(&c->sort_time_lock);
 	mutex_init(&c->sort_lock);
@@ -1608,7 +1609,7 @@ static void run_cache_set(struct cache_set *c)
 			goto err_unlock_gc;
 
 		err = "cannot allocate new btree root";
-		c->root = bch_btree_node_alloc(c, 0, &op.cl);
+		c->root = bch_btree_node_alloc(c, 0);
 		if (IS_ERR_OR_NULL(c->root))
 			goto err_unlock_gc;
 

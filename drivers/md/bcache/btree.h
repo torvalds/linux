@@ -355,7 +355,7 @@ static inline void rw_unlock(bool w, struct btree *b)
 			_r = bch_btree_ ## fn(_b, op, ##__VA_ARGS__);	\
 		}							\
 		rw_unlock(_w, _b);					\
-		bch_cannibalize_unlock(c, &(op)->cl);			\
+		bch_cannibalize_unlock(c);				\
 		if (_r == -ENOSPC) {					\
 			wait_event((c)->try_wait,			\
 				   !(c)->try_harder);			\
@@ -377,9 +377,9 @@ static inline bool should_split(struct btree *b)
 void bch_btree_node_read(struct btree *);
 void bch_btree_node_write(struct btree *, struct closure *);
 
-void bch_cannibalize_unlock(struct cache_set *, struct closure *);
+void bch_cannibalize_unlock(struct cache_set *);
 void bch_btree_set_root(struct btree *);
-struct btree *bch_btree_node_alloc(struct cache_set *, int, struct closure *);
+struct btree *bch_btree_node_alloc(struct cache_set *, int);
 struct btree *bch_btree_node_get(struct cache_set *, struct bkey *, int, bool);
 
 int bch_btree_insert_check_key(struct btree *, struct btree_op *,
