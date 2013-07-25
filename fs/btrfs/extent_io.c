@@ -2202,8 +2202,7 @@ out:
  */
 
 static int bio_readpage_error(struct bio *failed_bio, struct page *page,
-				u64 start, u64 end, int failed_mirror,
-				struct extent_state *state)
+				u64 start, u64 end, int failed_mirror)
 {
 	struct io_failure_record *failrec = NULL;
 	u64 private;
@@ -2212,6 +2211,7 @@ static int bio_readpage_error(struct bio *failed_bio, struct page *page,
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_state *state;
 	struct bio *bio;
 	int num_copies;
 	int ret;
@@ -2296,22 +2296,18 @@ static int bio_readpage_error(struct bio *failed_bio, struct page *page,
 		 * all the retry and error correction code that follows. no
 		 * matter what the error is, it is very likely to persist.
 		 */
-		pr_debug("bio_readpage_error: cannot repair, num_copies == 1. "
-			 "state=%p, num_copies=%d, next_mirror %d, "
-			 "failed_mirror %d\n", state, num_copies,
-			 failrec->this_mirror, failed_mirror);
+		pr_debug("bio_readpage_error: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d\n",
+			 num_copies, failrec->this_mirror, failed_mirror);
 		free_io_failure(inode, failrec, 0);
 		return -EIO;
 	}
 
-	if (!state) {
-		spin_lock(&tree->lock);
-		state = find_first_extent_bit_state(tree, failrec->start,
-						    EXTENT_LOCKED);
-		if (state && state->start != failrec->start)
-			state = NULL;
-		spin_unlock(&tree->lock);
-	}
+	spin_lock(&tree->lock);
+	state = find_first_extent_bit_state(tree, failrec->start,
+					    EXTENT_LOCKED);
+	if (state && state->start != failrec->start)
+		state = NULL;
+	spin_unlock(&tree->lock);
 
 	/*
 	 * there are two premises:
@@ -2541,7 +2537,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			 * can't handle the error it will return -EIO and we
 			 * remain responsible for that page.
 			 */
-			ret = bio_readpage_error(bio, page, start, end, mirror, NULL);
+			ret = bio_readpage_error(bio, page, start, end, mirror);
 			if (ret == 0) {
 				uptodate =
 					test_bit(BIO_UPTODATE, &bio->bi_flags);
