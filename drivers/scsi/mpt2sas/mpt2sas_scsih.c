@@ -7710,10 +7710,6 @@ _scsih_ir_shutdown(struct MPT2SAS_ADAPTER *ioc)
 	if (!ioc->ir_firmware)
 		return;
 
-	/* are there any volumes ? */
-	if (list_empty(&ioc->raid_device_list))
-		return;
-
 	mutex_lock(&ioc->scsih_cmds.mutex);
 
 	if (ioc->scsih_cmds.status != MPT2_CMD_NOT_USED) {
@@ -8280,6 +8276,7 @@ _scsih_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	mpt2sas_base_stop_watchdog(ioc);
 	scsi_block_requests(shost);
+	_scsih_ir_shutdown(ioc);
 	device_state = pci_choose_state(pdev, state);
 	printk(MPT2SAS_INFO_FMT "pdev=0x%p, slot=%s, entering "
 	    "operating state [D%d]\n", ioc->name, pdev,
