@@ -1074,31 +1074,32 @@ ao_write_exit:
 }
 
 static int usbdux_ao_inttrig(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int trignum)
+			     struct comedi_subdevice *s,
+			     unsigned int trignum)
 {
-	int ret;
-	struct usbdux_private *this_usbduxsub = dev->private;
+	struct usbdux_private *devpriv = dev->private;
+	int ret = -EINVAL;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
+	down(&devpriv->sem);
 
-	down(&this_usbduxsub->sem);
-	if (trignum != 0) {
-		up(&this_usbduxsub->sem);
-		return -EINVAL;
-	}
-	if (!(this_usbduxsub->ao_cmd_running)) {
-		this_usbduxsub->ao_cmd_running = 1;
+	if (trignum != 0)
+		goto ao_trig_exit;
+
+	if (!devpriv->ao_cmd_running) {
+		devpriv->ao_cmd_running = 1;
 		ret = usbduxsub_submit_outurbs(dev);
 		if (ret < 0) {
-			this_usbduxsub->ao_cmd_running = 0;
-			up(&this_usbduxsub->sem);
-			return ret;
+			devpriv->ao_cmd_running = 0;
+			goto ao_trig_exit;
 		}
 		s->async->inttrig = NULL;
+	} else {
+		ret = -EBUSY;
 	}
-	up(&this_usbduxsub->sem);
-	return 1;
+
+ao_trig_exit:
+	up(&devpriv->sem);
+	return ret;
 }
 
 static int usbdux_ao_cmdtest(struct comedi_device *dev,
