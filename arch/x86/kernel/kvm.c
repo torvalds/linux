@@ -498,11 +498,9 @@ void __init kvm_guest_init(void)
 #endif
 }
 
-static bool __init kvm_detect(void)
+static uint32_t __init kvm_detect(void)
 {
-	if (!kvm_para_available())
-		return false;
-	return true;
+	return kvm_cpuid_base();
 }
 
 const struct hypervisor_x86 x86_hyper_kvm __refconst = {

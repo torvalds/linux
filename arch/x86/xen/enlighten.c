@@ -1720,15 +1720,12 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_init_mmu_ops();
 }
 
-static bool __init xen_hvm_platform(void)
+static uint32_t __init xen_hvm_platform(void)
 {
 	if (xen_pv_domain())
-		return false;
+		return 0;
 
-	if (!xen_cpuid_base())
-		return false;
-
-	return true;
+	return xen_cpuid_base();
 }
 
 bool xen_hvm_need_lapic(void)
