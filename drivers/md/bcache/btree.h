@@ -353,7 +353,7 @@ static inline void rw_unlock(bool w, struct btree *b)
 		    _w == insert_lock(op, _b))				\
 			_r = bch_btree_ ## fn(_b, op, ##__VA_ARGS__);	\
 		rw_unlock(_w, _b);					\
-		bch_cannibalize_unlock(c, &(op)->cl);		\
+		bch_cannibalize_unlock(c, &(op)->cl);			\
 	} while (_r == -EINTR);						\
 									\
 	_r;								\
@@ -363,8 +363,7 @@ static inline bool should_split(struct btree *b)
 {
 	struct bset *i = write_block(b);
 	return b->written >= btree_blocks(b) ||
-		(i->seq == b->sets[0].data->seq &&
-		 b->written + __set_blocks(i, i->keys + 15, b->c)
+		(b->written + __set_blocks(i, i->keys + 15, b->c)
 		 > btree_blocks(b));
 }
 
