@@ -61,6 +61,7 @@ clock which they consume.
   sclk_spi2		156
   div_i2s1		157
   div_i2s2		158
+  sclk_hdmiphy		159
 
 
    [Peripheral Clock Gates]
