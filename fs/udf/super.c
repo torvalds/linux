@@ -843,27 +843,38 @@ static int udf_find_fileset(struct super_block *sb,
 	return 1;
 }
 
+/*
+ * Load primary Volume Descriptor Sequence
+ *
+ * Return <0 on error, 0 on success. -EAGAIN is special meaning next sequence
+ * should be tried.
+ */
 static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 {
 	struct primaryVolDesc *pvoldesc;
 	struct ustr *instr, *outstr;
 	struct buffer_head *bh;
 	uint16_t ident;
-	int ret = 1;
+	int ret = -ENOMEM;
 
 	instr = kmalloc(sizeof(struct ustr), GFP_NOFS);
 	if (!instr)
-		return 1;
+		return -ENOMEM;
 
 	outstr = kmalloc(sizeof(struct ustr), GFP_NOFS);
 	if (!outstr)
 		goto out1;
 
 	bh = udf_read_tagged(sb, block, block, &ident);
-	if (!bh)
+	if (!bh) {
+		ret = -EAGAIN;
 		goto out2;
+	}
 
-	BUG_ON(ident != TAG_IDENT_PVD);
+	if (ident != TAG_IDENT_PVD) {
+		ret = -EIO;
+		goto out_bh;
+	}
 
 	pvoldesc = (struct primaryVolDesc *)bh->b_data;
 
@@ -889,8 +900,9 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 		if (udf_CS0toUTF8(outstr, instr))
 			udf_debug("volSetIdent[] = '%s'\n", outstr->u_name);
 
-	brelse(bh);
 	ret = 0;
+out_bh:
+	brelse(bh);
 out2:
 	kfree(outstr);
 out1:
@@ -947,7 +959,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 
 		if (mdata->s_mirror_fe == NULL) {
 			udf_err(sb, "Both metadata and mirror metadata inode efe can not found\n");
-			goto error_exit;
+			return -EIO;
 		}
 	}
 
@@ -964,23 +976,18 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 			  addr.logicalBlockNum, addr.partitionReferenceNum);
 
 		mdata->s_bitmap_fe = udf_iget(sb, &addr);
-
 		if (mdata->s_bitmap_fe == NULL) {
 			if (sb->s_flags & MS_RDONLY)
 				udf_warn(sb, "bitmap inode efe not found but it's ok since the disc is mounted read-only\n");
 			else {
 				udf_err(sb, "bitmap inode efe not found and attempted read-write mount\n");
-				goto error_exit;
+				return -EIO;
 			}
 		}
 	}
 
 	udf_debug("udf_load_metadata_files Ok\n");
-
 	return 0;
-
-error_exit:
-	return 1;
 }
 
 static void udf_load_fileset(struct super_block *sb, struct buffer_head *bh,
@@ -1069,7 +1076,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		if (!map->s_uspace.s_table) {
 			udf_debug("cannot load unallocSpaceTable (part %d)\n",
 				  p_index);
-			return 1;
+			return -EIO;
 		}
 		map->s_partition_flags |= UDF_PART_FLAG_UNALLOC_TABLE;
 		udf_debug("unallocSpaceTable (part %d) @ %ld\n",
@@ -1079,7 +1086,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 	if (phd->unallocSpaceBitmap.extLength) {
 		struct udf_bitmap *bitmap = udf_sb_alloc_bitmap(sb, p_index);
 		if (!bitmap)
-			return 1;
+			return -ENOMEM;
 		map->s_uspace.s_bitmap = bitmap;
 		bitmap->s_extPosition = le32_to_cpu(
 				phd->unallocSpaceBitmap.extPosition);
@@ -1102,7 +1109,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		if (!map->s_fspace.s_table) {
 			udf_debug("cannot load freedSpaceTable (part %d)\n",
 				  p_index);
-			return 1;
+			return -EIO;
 		}
 
 		map->s_partition_flags |= UDF_PART_FLAG_FREED_TABLE;
@@ -1113,7 +1120,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 	if (phd->freedSpaceBitmap.extLength) {
 		struct udf_bitmap *bitmap = udf_sb_alloc_bitmap(sb, p_index);
 		if (!bitmap)
-			return 1;
+			return -ENOMEM;
 		map->s_fspace.s_bitmap = bitmap;
 		bitmap->s_extPosition = le32_to_cpu(
 				phd->freedSpaceBitmap.extPosition);
@@ -1165,7 +1172,7 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 		udf_find_vat_block(sb, p_index, type1_index, blocks - 1);
 	}
 	if (!sbi->s_vat_inode)
-		return 1;
+		return -EIO;
 
 	if (map->s_partition_type == UDF_VIRTUAL_MAP15) {
 		map->s_type_specific.s_virtual.s_start_offset = 0;
@@ -1177,7 +1184,7 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 			pos = udf_block_map(sbi->s_vat_inode, 0);
 			bh = sb_bread(sb, pos);
 			if (!bh)
-				return 1;
+				return -EIO;
 			vat20 = (struct virtualAllocationTable20 *)bh->b_data;
 		} else {
 			vat20 = (struct virtualAllocationTable20 *)
@@ -1195,6 +1202,12 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 	return 0;
 }
 
+/*
+ * Load partition descriptor block
+ *
+ * Returns <0 on error, 0 on success, -EAGAIN is special - try next descriptor
+ * sequence.
+ */
 static int udf_load_partdesc(struct super_block *sb, sector_t block)
 {
 	struct buffer_head *bh;
@@ -1204,13 +1217,15 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	int i, type1_idx;
 	uint16_t partitionNumber;
 	uint16_t ident;
-	int ret = 0;
+	int ret;
 
 	bh = udf_read_tagged(sb, block, block, &ident);
 	if (!bh)
-		return 1;
-	if (ident != TAG_IDENT_PD)
+		return -EAGAIN;
+	if (ident != TAG_IDENT_PD) {
+		ret = 0;
 		goto out_bh;
+	}
 
 	p = (struct partitionDesc *)bh->b_data;
 	partitionNumber = le16_to_cpu(p->partitionNumber);
@@ -1229,10 +1244,13 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	if (i >= sbi->s_partitions) {
 		udf_debug("Partition (%d) not found in partition map\n",
 			  partitionNumber);
+		ret = 0;
 		goto out_bh;
 	}
 
 	ret = udf_fill_partdesc_info(sb, p, i);
+	if (ret < 0)
+		goto out_bh;
 
 	/*
 	 * Now rescan for VIRTUAL or METADATA partitions when SPARABLE and
@@ -1249,23 +1267,25 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 			break;
 	}
 
-	if (i >= sbi->s_partitions)
+	if (i >= sbi->s_partitions) {
+		ret = 0;
 		goto out_bh;
+	}
 
 	ret = udf_fill_partdesc_info(sb, p, i);
-	if (ret)
+	if (ret < 0)
 		goto out_bh;
 
 	if (map->s_partition_type == UDF_METADATA_MAP25) {
 		ret = udf_load_metadata_files(sb, i);
-		if (ret) {
+		if (ret < 0) {
 			udf_err(sb, "error loading MetaData partition map %d\n",
 				i);
 			goto out_bh;
 		}
 	} else {
 		ret = udf_load_vat(sb, i, type1_idx);
-		if (ret)
+		if (ret < 0)
 			goto out_bh;
 		/*
 		 * Mark filesystem read-only if we have a partition with
@@ -1275,6 +1295,7 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 		sb->s_flags |= MS_RDONLY;
 		pr_notice("Filesystem marked read-only because writing to pseudooverwrite partition is not implemented\n");
 	}
+	ret = 0;
 out_bh:
 	/* In case loading failed, we handle cleanup in udf_fill_super */
 	brelse(bh);
@@ -1340,11 +1361,11 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 	uint16_t ident;
 	struct buffer_head *bh;
 	unsigned int table_len;
-	int ret = 0;
+	int ret;
 
 	bh = udf_read_tagged(sb, block, block, &ident);
 	if (!bh)
-		return 1;
+		return -EAGAIN;
 	BUG_ON(ident != TAG_IDENT_LVD);
 	lvd = (struct logicalVolDesc *)bh->b_data;
 	table_len = le32_to_cpu(lvd->mapTableLength);
@@ -1352,7 +1373,7 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 		udf_err(sb, "error loading logical volume descriptor: "
 			"Partition table too long (%u > %lu)\n", table_len,
 			sb->s_blocksize - sizeof(*lvd));
-		ret = 1;
+		ret = -EIO;
 		goto out_bh;
 	}
 
@@ -1396,11 +1417,10 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 			} else if (!strncmp(upm2->partIdent.ident,
 						UDF_ID_SPARABLE,
 						strlen(UDF_ID_SPARABLE))) {
-				if (udf_load_sparable_map(sb, map,
-				    (struct sparablePartitionMap *)gpm) < 0) {
-					ret = 1;
+				ret = udf_load_sparable_map(sb, map,
+					(struct sparablePartitionMap *)gpm);
+				if (ret < 0)
 					goto out_bh;
-				}
 			} else if (!strncmp(upm2->partIdent.ident,
 						UDF_ID_METADATA,
 						strlen(UDF_ID_METADATA))) {
@@ -1465,7 +1485,7 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 	}
 	if (lvd->integritySeqExt.extLength)
 		udf_load_logicalvolint(sb, leea_to_cpu(lvd->integritySeqExt));
-
+	ret = 0;
 out_bh:
 	brelse(bh);
 	return ret;
@@ -1503,22 +1523,18 @@ static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_
 }
 
 /*
- * udf_process_sequence
+ * Process a main/reserve volume descriptor sequence.
+ *   @block		First block of first extent of the sequence.
+ *   @lastblock		Lastblock of first extent of the sequence.
+ *   @fileset		There we store extent containing root fileset
  *
- * PURPOSE
- *	Process a main/reserve volume descriptor sequence.
- *
- * PRE-CONDITIONS
- *	sb			Pointer to _locked_ superblock.
- *	block			First block of first extent of the sequence.
- *	lastblock		Lastblock of first extent of the sequence.
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
+ * Returns <0 on error, 0 on success. -EAGAIN is special - try next descriptor
+ * sequence
  */
-static noinline int udf_process_sequence(struct super_block *sb, long block,
-				long lastblock, struct kernel_lb_addr *fileset)
+static noinline int udf_process_sequence(
+		struct super_block *sb,
+		sector_t block, sector_t lastblock,
+		struct kernel_lb_addr *fileset)
 {
 	struct buffer_head *bh = NULL;
 	struct udf_vds_record vds[VDS_POS_LENGTH];
@@ -1529,6 +1545,7 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
 	uint32_t vdsn;
 	uint16_t ident;
 	long next_s = 0, next_e = 0;
+	int ret;
 
 	memset(vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
 
@@ -1543,7 +1560,7 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
 			udf_err(sb,
 				"Block %llu of volume descriptor sequence is corrupted or we could not read it\n",
 				(unsigned long long)block);
-			return 1;
+			return -EAGAIN;
 		}
 
 		/* Process each descriptor (ISO 13346 3/8.3-8.4) */
@@ -1616,14 +1633,19 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
 	 */
 	if (!vds[VDS_POS_PRIMARY_VOL_DESC].block) {
 		udf_err(sb, "Primary Volume Descriptor not found!\n");
-		return 1;
+		return -EAGAIN;
 	}
-	if (udf_load_pvoldesc(sb, vds[VDS_POS_PRIMARY_VOL_DESC].block))
-		return 1;
+	ret = udf_load_pvoldesc(sb, vds[VDS_POS_PRIMARY_VOL_DESC].block);
+	if (ret < 0)
+		return ret;
 
-	if (vds[VDS_POS_LOGICAL_VOL_DESC].block && udf_load_logicalvol(sb,
-	    vds[VDS_POS_LOGICAL_VOL_DESC].block, fileset))
-		return 1;
+	if (vds[VDS_POS_LOGICAL_VOL_DESC].block) {
+		ret = udf_load_logicalvol(sb,
+					  vds[VDS_POS_LOGICAL_VOL_DESC].block,
+					  fileset);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (vds[VDS_POS_PARTITION_DESC].block) {
 		/*
@@ -1632,19 +1654,27 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
 		 */
 		for (block = vds[VDS_POS_PARTITION_DESC].block;
 		     block < vds[VDS_POS_TERMINATING_DESC].block;
-		     block++)
-			if (udf_load_partdesc(sb, block))
-				return 1;
+		     block++) {
+			ret = udf_load_partdesc(sb, block);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	return 0;
 }
 
+/*
+ * Load Volume Descriptor Sequence described by anchor in bh
+ *
+ * Returns <0 on error, 0 on success
+ */
 static int udf_load_sequence(struct super_block *sb, struct buffer_head *bh,
 			     struct kernel_lb_addr *fileset)
 {
 	struct anchorVolDescPtr *anchor;
-	long main_s, main_e, reserve_s, reserve_e;
+	sector_t main_s, main_e, reserve_s, reserve_e;
+	int ret;
 
 	anchor = (struct anchorVolDescPtr *)bh->b_data;
 
@@ -1662,18 +1692,26 @@ static int udf_load_sequence(struct super_block *sb, struct buffer_head *bh,
 
 	/* Process the main & reserve sequences */
 	/* responsible for finding the PartitionDesc(s) */
-	if (!udf_process_sequence(sb, main_s, main_e, fileset))
-		return 1;
+	ret = udf_process_sequence(sb, main_s, main_e, fileset);
+	if (ret != -EAGAIN)
+		return ret;
 	udf_sb_free_partitions(sb);
-	if (!udf_process_sequence(sb, reserve_s, reserve_e, fileset))
-		return 1;
-	udf_sb_free_partitions(sb);
-	return 0;
+	ret = udf_process_sequence(sb, reserve_s, reserve_e, fileset);
+	if (ret < 0) {
+		udf_sb_free_partitions(sb);
+		/* No sequence was OK, return -EIO */
+		if (ret == -EAGAIN)
+			ret = -EIO;
+	}
+	return ret;
 }
 
 /*
  * Check whether there is an anchor block in the given block and
  * load Volume Descriptor Sequence if so.
+ *
+ * Returns <0 on error, 0 on success, -EAGAIN is special - try next anchor
+ * block
  */
 static int udf_check_anchor_block(struct super_block *sb, sector_t block,
 				  struct kernel_lb_addr *fileset)
@@ -1685,33 +1723,40 @@ static int udf_check_anchor_block(struct super_block *sb, sector_t block,
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV) &&
 	    udf_fixed_to_variable(block) >=
 	    sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits)
-		return 0;
+		return -EAGAIN;
 
 	bh = udf_read_tagged(sb, block, block, &ident);
 	if (!bh)
-		return 0;
+		return -EAGAIN;
 	if (ident != TAG_IDENT_AVDP) {
 		brelse(bh);
-		return 0;
+		return -EAGAIN;
 	}
 	ret = udf_load_sequence(sb, bh, fileset);
 	brelse(bh);
 	return ret;
 }
 
-/* Search for an anchor volume descriptor pointer */
-static sector_t udf_scan_anchors(struct super_block *sb, sector_t lastblock,
-				 struct kernel_lb_addr *fileset)
+/*
+ * Search for an anchor volume descriptor pointer.
+ *
+ * Returns < 0 on error, 0 on success. -EAGAIN is special - try next set
+ * of anchors.
+ */
+static int udf_scan_anchors(struct super_block *sb, sector_t *lastblock,
+			    struct kernel_lb_addr *fileset)
 {
 	sector_t last[6];
 	int i;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	int last_count = 0;
+	int ret;
 
 	/* First try user provided anchor */
 	if (sbi->s_anchor) {
-		if (udf_check_anchor_block(sb, sbi->s_anchor, fileset))
-			return lastblock;
+		ret = udf_check_anchor_block(sb, sbi->s_anchor, fileset);
+		if (ret != -EAGAIN)
+			return ret;
 	}
 	/*
 	 * according to spec, anchor is in either:
@@ -1720,39 +1765,46 @@ static sector_t udf_scan_anchors(struct super_block *sb, sector_t lastblock,
 	 *     lastblock
 	 *  however, if the disc isn't closed, it could be 512.
 	 */
-	if (udf_check_anchor_block(sb, sbi->s_session + 256, fileset))
-		return lastblock;
+	ret = udf_check_anchor_block(sb, sbi->s_session + 256, fileset);
+	if (ret != -EAGAIN)
+		return ret;
 	/*
 	 * The trouble is which block is the last one. Drives often misreport
 	 * this so we try various possibilities.
 	 */
-	last[last_count++] = lastblock;
-	if (lastblock >= 1)
-		last[last_count++] = lastblock - 1;
-	last[last_count++] = lastblock + 1;
-	if (lastblock >= 2)
-		last[last_count++] = lastblock - 2;
-	if (lastblock >= 150)
-		last[last_count++] = lastblock - 150;
-	if (lastblock >= 152)
-		last[last_count++] = lastblock - 152;
+	last[last_count++] = *lastblock;
+	if (*lastblock >= 1)
+		last[last_count++] = *lastblock - 1;
+	last[last_count++] = *lastblock + 1;
+	if (*lastblock >= 2)
+		last[last_count++] = *lastblock - 2;
+	if (*lastblock >= 150)
+		last[last_count++] = *lastblock - 150;
+	if (*lastblock >= 152)
+		last[last_count++] = *lastblock - 152;
 
 	for (i = 0; i < last_count; i++) {
 		if (last[i] >= sb->s_bdev->bd_inode->i_size >>
 				sb->s_blocksize_bits)
 			continue;
-		if (udf_check_anchor_block(sb, last[i], fileset))
-			return last[i];
+		ret = udf_check_anchor_block(sb, last[i], fileset);
+		if (ret != -EAGAIN) {
+			if (!ret)
+				*lastblock = last[i];
+			return ret;
+		}
 		if (last[i] < 256)
 			continue;
-		if (udf_check_anchor_block(sb, last[i] - 256, fileset))
-			return last[i];
+		ret = udf_check_anchor_block(sb, last[i] - 256, fileset);
+		if (ret != -EAGAIN) {
+			if (!ret)
+				*lastblock = last[i];
+			return ret;
+		}
 	}
 
 	/* Finally try block 512 in case media is open */
-	if (udf_check_anchor_block(sb, sbi->s_session + 512, fileset))
-		return last[0];
-	return 0;
+	return udf_check_anchor_block(sb, sbi->s_session + 512, fileset);
 }
 
 /*
@@ -1760,54 +1812,59 @@ static sector_t udf_scan_anchors(struct super_block *sb, sector_t lastblock,
  * area specified by it. The function expects sbi->s_lastblock to be the last
  * block on the media.
  *
- * Return 1 if ok, 0 if not found.
- *
+ * Return <0 on error, 0 if anchor found. -EAGAIN is special meaning anchor
+ * was not found.
  */
 static int udf_find_anchor(struct super_block *sb,
 			   struct kernel_lb_addr *fileset)
 {
-	sector_t lastblock;
 	struct udf_sb_info *sbi = UDF_SB(sb);
+	sector_t lastblock = sbi->s_last_block;
+	int ret;
 
-	lastblock = udf_scan_anchors(sb, sbi->s_last_block, fileset);
-	if (lastblock)
+	ret = udf_scan_anchors(sb, &lastblock, fileset);
+	if (ret != -EAGAIN)
 		goto out;
 
 	/* No anchor found? Try VARCONV conversion of block numbers */
 	UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
+	lastblock = udf_variable_to_fixed(sbi->s_last_block);
 	/* Firstly, we try to not convert number of the last block */
-	lastblock = udf_scan_anchors(sb,
-				udf_variable_to_fixed(sbi->s_last_block),
-				fileset);
-	if (lastblock)
+	ret = udf_scan_anchors(sb, &lastblock, fileset);
+	if (ret != -EAGAIN)
 		goto out;
 
+	lastblock = sbi->s_last_block;
 	/* Secondly, we try with converted number of the last block */
-	lastblock = udf_scan_anchors(sb, sbi->s_last_block, fileset);
-	if (!lastblock) {
+	ret = udf_scan_anchors(sb, &lastblock, fileset);
+	if (ret < 0) {
 		/* VARCONV didn't help. Clear it. */
 		UDF_CLEAR_FLAG(sb, UDF_FLAG_VARCONV);
-		return 0;
 	}
 out:
-	sbi->s_last_block = lastblock;
-	return 1;
+	if (ret == 0)
+		sbi->s_last_block = lastblock;
+	return ret;
 }
 
 /*
  * Check Volume Structure Descriptor, find Anchor block and load Volume
- * Descriptor Sequence
+ * Descriptor Sequence.
+ *
+ * Returns < 0 on error, 0 on success. -EAGAIN is special meaning anchor
+ * block was not found.
  */
 static int udf_load_vrs(struct super_block *sb, struct udf_options *uopt,
 			int silent, struct kernel_lb_addr *fileset)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	loff_t nsr_off;
+	int ret;
 
 	if (!sb_set_blocksize(sb, uopt->blocksize)) {
 		if (!silent)
 			udf_warn(sb, "Bad block size\n");
-		return 0;
+		return -EINVAL;
 	}
 	sbi->s_last_block = uopt->lastblock;
 	if (!uopt->novrs) {
@@ -1828,12 +1885,13 @@ static int udf_load_vrs(struct super_block *sb, struct udf_options *uopt,
 
 	/* Look for anchor block and load Volume Descriptor Sequence */
 	sbi->s_anchor = uopt->anchor;
-	if (!udf_find_anchor(sb, fileset)) {
-		if (!silent)
+	ret = udf_find_anchor(sb, fileset);
+	if (ret < 0) {
+		if (!silent && ret == -EAGAIN)
 			udf_warn(sb, "No anchor found\n");
-		return 0;
+		return ret;
 	}
-	return 1;
+	return 0;
 }
 
 static void udf_open_lvid(struct super_block *sb)
@@ -1939,7 +1997,7 @@ u64 lvid_get_unique_id(struct super_block *sb)
 
 static int udf_fill_super(struct super_block *sb, void *options, int silent)
 {
-	int ret;
+	int ret = -EINVAL;
 	struct inode *inode = NULL;
 	struct udf_options uopt;
 	struct kernel_lb_addr rootdir, fileset;
@@ -2011,7 +2069,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	} else {
 		uopt.blocksize = bdev_logical_block_size(sb->s_bdev);
 		ret = udf_load_vrs(sb, &uopt, silent, &fileset);
-		if (!ret && uopt.blocksize != UDF_DEFAULT_BLOCKSIZE) {
+		if (ret == -EAGAIN && uopt.blocksize != UDF_DEFAULT_BLOCKSIZE) {
 			if (!silent)
 				pr_notice("Rescanning with blocksize %d\n",
 					  UDF_DEFAULT_BLOCKSIZE);
@@ -2021,8 +2079,11 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 			ret = udf_load_vrs(sb, &uopt, silent, &fileset);
 		}
 	}
-	if (!ret) {
-		udf_warn(sb, "No partition found (1)\n");
+	if (ret < 0) {
+		if (ret == -EAGAIN) {
+			udf_warn(sb, "No partition found (1)\n");
+			ret = -EINVAL;
+		}
 		goto error_out;
 	}
 
@@ -2040,6 +2101,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 			udf_err(sb, "minUDFReadRev=%x (max is %x)\n",
 				le16_to_cpu(lvidiu->minUDFReadRev),
 				UDF_MAX_READ_VERSION);
+			ret = -EINVAL;
 			goto error_out;
 		} else if (minUDFWriteRev > UDF_MAX_WRITE_VERSION)
 			sb->s_flags |= MS_RDONLY;
@@ -2054,6 +2116,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	if (!sbi->s_partitions) {
 		udf_warn(sb, "No partition found (2)\n");
+		ret = -EINVAL;
 		goto error_out;
 	}
 
@@ -2065,6 +2128,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 
 	if (udf_find_fileset(sb, &fileset, &rootdir)) {
 		udf_warn(sb, "No fileset found\n");
+		ret = -EINVAL;
 		goto error_out;
 	}
 
@@ -2086,6 +2150,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	if (!inode) {
 		udf_err(sb, "Error in udf_iget, block=%d, partition=%d\n",
 		       rootdir.logicalBlockNum, rootdir.partitionReferenceNum);
+		ret = -EIO;
 		goto error_out;
 	}
 
@@ -2093,6 +2158,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
 		udf_err(sb, "Couldn't allocate root dentry\n");
+		ret = -ENOMEM;
 		goto error_out;
 	}
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
@@ -2113,7 +2179,7 @@ error_out:
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 
-	return -EINVAL;
+	return ret;
 }
 
 void _udf_err(struct super_block *sb, const char *function,
