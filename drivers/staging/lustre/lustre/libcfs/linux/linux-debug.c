@@ -48,11 +48,8 @@
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
 #include <linux/completion.h>
-
 #include <linux/fs.h>
-#include <linux/stat.h>
 #include <asm/uaccess.h>
 #include <linux/miscdevice.h>
 
