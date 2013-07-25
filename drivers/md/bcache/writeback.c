@@ -300,18 +300,21 @@ static void write_dirty_finish(struct closure *cl)
 	if (KEY_DIRTY(&w->key)) {
 		unsigned i;
 		struct btree_op op;
+		struct keylist keys;
+
 		bch_btree_op_init_stack(&op);
+		bch_keylist_init(&keys);
 
 		op.type = BTREE_REPLACE;
 		bkey_copy(&op.replace, &w->key);
 
 		SET_KEY_DIRTY(&w->key, false);
-		bch_keylist_add(&op.keys, &w->key);
+		bch_keylist_add(&keys, &w->key);
 
 		for (i = 0; i < KEY_PTRS(&w->key); i++)
 			atomic_inc(&PTR_BUCKET(dc->disk.c, &w->key, i)->pin);
 
-		bch_btree_insert(&op, dc->disk.c, &op.keys);
+		bch_btree_insert(&op, dc->disk.c, &keys);
 		closure_sync(&op.cl);
 
 		if (op.insert_collision)

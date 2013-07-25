@@ -267,10 +267,6 @@ struct btree_op {
 	unsigned		lookup_done:1;
 	unsigned		insert_collision:1;
 
-	/* Anything after this point won't get zeroed in do_bio_hook() */
-
-	/* Keys to be inserted */
-	struct keylist		keys;
 	BKEY_PADDED(replace);
 };
 

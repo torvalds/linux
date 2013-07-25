@@ -113,7 +113,6 @@ void bch_btree_op_init_stack(struct btree_op *op)
 	memset(op, 0, sizeof(struct btree_op));
 	closure_init_stack(&op->cl);
 	op->lock = -1;
-	bch_keylist_init(&op->keys);
 }
 
 /* Btree key manipulation */

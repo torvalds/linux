@@ -25,8 +25,10 @@ struct search {
 	short			error;
 	unsigned long		start_time;
 
-	/* Anything past op->keys won't get zeroed in do_bio_hook */
 	struct btree_op		op;
+
+	/* Anything past this point won't get zeroed in search_alloc() */
+	struct keylist		insert_keys;
 };
 
 void bch_cache_read_endio(struct bio *, int);

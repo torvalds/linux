@@ -231,11 +231,11 @@ static void bch_data_insert_keys(struct closure *cl)
 #endif
 
 	if (s->write)
-		op->journal = bch_journal(op->c, &op->keys,
+		op->journal = bch_journal(op->c, &s->insert_keys,
 					  op->flush_journal
 					  ? &s->cl : NULL);
 
-	if (bch_btree_insert(op, op->c, &op->keys)) {
+	if (bch_btree_insert(op, op->c, &s->insert_keys)) {
 		s->error		= -ENOMEM;
 		op->insert_data_done	= true;
 	}
@@ -247,7 +247,7 @@ static void bch_data_insert_keys(struct closure *cl)
 	if (!op->insert_data_done)
 		continue_at(cl, bch_data_insert_start, bcache_wq);
 
-	bch_keylist_free(&op->keys);
+	bch_keylist_free(&s->insert_keys);
 	closure_return(cl);
 }
 
@@ -439,6 +439,7 @@ static bool bch_alloc_sectors(struct bkey *k, unsigned sectors,
 static void bch_data_invalidate(struct closure *cl)
 {
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
+	struct search *s = container_of(op, struct search, op);
 	struct bio *bio = op->cache_bio;
 
 	pr_debug("invalidating %i sectors from %llu",
@@ -447,14 +448,14 @@ static void bch_data_invalidate(struct closure *cl)
 	while (bio_sectors(bio)) {
 		unsigned len = min(bio_sectors(bio), 1U << 14);
 
-		if (bch_keylist_realloc(&op->keys, 0, op->c))
+		if (bch_keylist_realloc(&s->insert_keys, 0, op->c))
 			goto out;
 
 		bio->bi_sector	+= len;
 		bio->bi_size	-= len << 9;
 
-		bch_keylist_add(&op->keys, &KEY(op->inode,
-						bio->bi_sector, len));
+		bch_keylist_add(&s->insert_keys,
+				&KEY(op->inode, bio->bi_sector, len));
 	}
 
 	op->insert_data_done = true;
@@ -466,6 +467,7 @@ out:
 static void bch_data_insert_error(struct closure *cl)
 {
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
+	struct search *s = container_of(op, struct search, op);
 
 	/*
 	 * Our data write just errored, which means we've got a bunch of keys to
@@ -476,9 +478,9 @@ static void bch_data_insert_error(struct closure *cl)
 	 * from the keys we'll accomplish just that.
 	 */
 
-	struct bkey *src = op->keys.keys, *dst = op->keys.keys;
+	struct bkey *src = s->insert_keys.keys, *dst = s->insert_keys.keys;
 
-	while (src != op->keys.top) {
+	while (src != s->insert_keys.top) {
 		struct bkey *n = bkey_next(src);
 
 		SET_KEY_PTRS(src, 0);
@@ -488,7 +490,7 @@ static void bch_data_insert_error(struct closure *cl)
 		src = n;
 	}
 
-	op->keys.top = dst;
+	s->insert_keys.top = dst;
 
 	bch_data_insert_keys(cl);
 }
@@ -539,12 +541,12 @@ static void bch_data_insert_start(struct closure *cl)
 			? s->d->bio_split : op->c->bio_split;
 
 		/* 1 for the device pointer and 1 for the chksum */
-		if (bch_keylist_realloc(&op->keys,
+		if (bch_keylist_realloc(&s->insert_keys,
 					1 + (op->csum ? 1 : 0),
 					op->c))
 			continue_at(cl, bch_data_insert_keys, bcache_wq);
 
-		k = op->keys.top;
+		k = s->insert_keys.top;
 		bkey_init(k);
 		SET_KEY_INODE(k, op->inode);
 		SET_KEY_OFFSET(k, bio->bi_sector);
@@ -570,7 +572,7 @@ static void bch_data_insert_start(struct closure *cl)
 			bio_csum(n, k);
 
 		trace_bcache_cache_insert(k);
-		bch_keylist_push(&op->keys);
+		bch_keylist_push(&s->insert_keys);
 
 		n->bi_rw |= REQ_WRITE;
 		bch_submit_bbio(n, op->c, k, 0);
@@ -605,7 +607,7 @@ err:
 		op->insert_data_done = true;
 		bio_put(bio);
 
-		if (!bch_keylist_empty(&op->keys))
+		if (!bch_keylist_empty(&s->insert_keys))
 			continue_at(cl, bch_data_insert_keys, bcache_wq);
 		else
 			closure_return(cl);
@@ -634,8 +636,9 @@ err:
 void bch_data_insert(struct closure *cl)
 {
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
+	struct search *s = container_of(op, struct search, op);
 
-	bch_keylist_init(&op->keys);
+	bch_keylist_init(&s->insert_keys);
 	bio_get(op->cache_bio);
 	bch_data_insert_start(cl);
 }
@@ -724,9 +727,11 @@ static void search_free(struct closure *cl)
 
 static struct search *search_alloc(struct bio *bio, struct bcache_device *d)
 {
+	struct search *s;
 	struct bio_vec *bv;
-	struct search *s = mempool_alloc(d->c->search, GFP_NOIO);
-	memset(s, 0, offsetof(struct search, op.keys));
+
+	s = mempool_alloc(d->c->search, GFP_NOIO);
+	memset(s, 0, offsetof(struct search, insert_keys));
 
 	__closure_init(&s->cl, NULL);
 
