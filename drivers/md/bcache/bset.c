@@ -1197,7 +1197,6 @@ int bch_bset_print_stats(struct cache_set *c, char *buf)
 
 	memset(&t, 0, sizeof(struct bset_stats));
 	bch_btree_op_init_stack(&t.op);
-	t.op.c = c;
 
 	ret = bch_btree_map_nodes(&t.op, c, &ZERO_KEY, btree_bset_stats);
 	if (ret < 0)

@@ -238,17 +238,6 @@ void __bkey_put(struct cache_set *c, struct bkey *k);
 
 struct btree_op {
 	struct closure		cl;
-	struct cache_set	*c;
-
-	/* Journal entry we have a refcount on */
-	atomic_t		*journal;
-
-	/* Bio to be inserted into the cache */
-	struct bio		*cache_bio;
-
-	unsigned		inode;
-
-	uint16_t		write_prio;
 
 	/* Btree level at which we start taking write locks */
 	short			lock;
@@ -259,11 +248,6 @@ struct btree_op {
 		BTREE_REPLACE
 	} type:8;
 
-	unsigned		csum:1;
-	unsigned		bypass:1;
-	unsigned		flush_journal:1;
-
-	unsigned		insert_data_done:1;
 	unsigned		insert_collision:1;
 
 	BKEY_PADDED(replace);
@@ -303,12 +287,13 @@ struct btree *bch_btree_node_get(struct cache_set *, struct bkey *, int, bool);
 
 int bch_btree_insert_check_key(struct btree *, struct btree_op *,
 			       struct bkey *);
-int bch_btree_insert(struct btree_op *, struct cache_set *, struct keylist *);
+int bch_btree_insert(struct btree_op *, struct cache_set *,
+		     struct keylist *, atomic_t *);
 
 int bch_gc_thread_start(struct cache_set *);
 size_t bch_btree_gc_finish(struct cache_set *);
 void bch_moving_gc(struct cache_set *);
-int bch_btree_check(struct cache_set *, struct btree_op *);
+int bch_btree_check(struct cache_set *);
 uint8_t __bch_btree_mark_key(struct cache_set *, int, struct bkey *);
 
 static inline void wake_up_gc(struct cache_set *c)

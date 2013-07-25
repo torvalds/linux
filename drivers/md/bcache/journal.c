@@ -30,16 +30,19 @@ static void journal_read_endio(struct bio *bio, int error)
 }
 
 static int journal_read_bucket(struct cache *ca, struct list_head *list,
-			       struct btree_op *op, unsigned bucket_index)
+			       unsigned bucket_index)
 {
 	struct journal_device *ja = &ca->journal;
 	struct bio *bio = &ja->bio;
 
 	struct journal_replay *i;
 	struct jset *j, *data = ca->set->journal.w[0].data;
+	struct closure cl;
 	unsigned len, left, offset = 0;
 	int ret = 0;
 	sector_t bucket = bucket_to_sector(ca->set, ca->sb.d[bucket_index]);
+
+	closure_init_stack(&cl);
 
 	pr_debug("reading %llu", (uint64_t) bucket);
 
@@ -54,11 +57,11 @@ reread:		left = ca->sb.bucket_size - offset;
 		bio->bi_size	= len << 9;
 
 		bio->bi_end_io	= journal_read_endio;
-		bio->bi_private = &op->cl;
+		bio->bi_private = &cl;
 		bch_bio_map(bio, data);
 
-		closure_bio_submit(bio, &op->cl, ca);
-		closure_sync(&op->cl);
+		closure_bio_submit(bio, &cl, ca);
+		closure_sync(&cl);
 
 		/* This function could be simpler now since we no longer write
 		 * journal entries that overlap bucket boundaries; this means
@@ -128,12 +131,11 @@ next_set:
 	return ret;
 }
 
-int bch_journal_read(struct cache_set *c, struct list_head *list,
-			struct btree_op *op)
+int bch_journal_read(struct cache_set *c, struct list_head *list)
 {
 #define read_bucket(b)							\
 	({								\
-		int ret = journal_read_bucket(ca, list, op, b);		\
+		int ret = journal_read_bucket(ca, list, b);		\
 		__set_bit(b, bitmap);					\
 		if (ret < 0)						\
 			return ret;					\
@@ -291,8 +293,7 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 	}
 }
 
-int bch_journal_replay(struct cache_set *s, struct list_head *list,
-			  struct btree_op *op)
+int bch_journal_replay(struct cache_set *s, struct list_head *list)
 {
 	int ret = 0, keys = 0, entries = 0;
 	struct bkey *k;
@@ -301,8 +302,11 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list,
 
 	uint64_t start = i->j.last_seq, end = i->j.seq, n = start;
 	struct keylist keylist;
+	struct btree_op op;
 
 	bch_keylist_init(&keylist);
+	bch_btree_op_init_stack(&op);
+	op.lock = SHRT_MAX;
 
 	list_for_each_entry(i, list, list) {
 		BUG_ON(i->pin && atomic_read(i->pin) != 1);
@@ -319,9 +323,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list,
 			bkey_copy(keylist.top, k);
 			bch_keylist_push(&keylist);
 
-			op->journal = i->pin;
-
-			ret = bch_btree_insert(op, s, &keylist);
+			ret = bch_btree_insert(&op, s, &keylist, i->pin);
 			if (ret)
 				goto err;
 
@@ -346,7 +348,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list,
 		kfree(i);
 	}
 err:
-	closure_sync(&op->cl);
+	closure_sync(&op.cl);
 	return ret;
 }
 
@@ -368,8 +370,8 @@ retry:
 			if (!best)
 				best = b;
 			else if (journal_pin_cmp(c,
-						 btree_current_write(best),
-						 btree_current_write(b))) {
+					btree_current_write(best)->journal,
+					btree_current_write(b)->journal)) {
 				best = b;
 			}
 		}

@@ -503,7 +503,7 @@ static void btree_node_write_work(struct work_struct *w)
 	rw_unlock(true, b);
 }
 
-static void bch_btree_leaf_dirty(struct btree *b, struct btree_op *op)
+static void bch_btree_leaf_dirty(struct btree *b, atomic_t *journal_ref)
 {
 	struct bset *i = b->sets[b->nsets].data;
 	struct btree_write *w = btree_current_write(b);
@@ -516,15 +516,15 @@ static void bch_btree_leaf_dirty(struct btree *b, struct btree_op *op)
 
 	set_btree_node_dirty(b);
 
-	if (op->journal) {
+	if (journal_ref) {
 		if (w->journal &&
-		    journal_pin_cmp(b->c, w, op)) {
+		    journal_pin_cmp(b->c, w->journal, journal_ref)) {
 			atomic_dec_bug(w->journal);
 			w->journal = NULL;
 		}
 
 		if (!w->journal) {
-			w->journal = op->journal;
+			w->journal = journal_ref;
 			atomic_inc(w->journal);
 		}
 	}
@@ -1663,13 +1663,16 @@ static int bch_btree_check_recurse(struct btree *b, struct btree_op *op,
 	return 0;
 }
 
-int bch_btree_check(struct cache_set *c, struct btree_op *op)
+int bch_btree_check(struct cache_set *c)
 {
 	int ret = -ENOMEM;
 	unsigned i;
 	unsigned long *seen[MAX_CACHES_PER_SET];
+	struct btree_op op;
 
 	memset(seen, 0, sizeof(seen));
+	bch_btree_op_init_stack(&op);
+	op.lock = SHRT_MAX;
 
 	for (i = 0; c->cache[i]; i++) {
 		size_t n = DIV_ROUND_UP(c->cache[i]->sb.nbuckets, 8);
@@ -1681,7 +1684,7 @@ int bch_btree_check(struct cache_set *c, struct btree_op *op)
 		memset(seen[i], 0xFF, n);
 	}
 
-	ret = btree_root(check_recurse, c, op, seen);
+	ret = btree_root(check_recurse, c, &op, seen);
 err:
 	for (i = 0; i < MAX_CACHES_PER_SET; i++)
 		kfree(seen[i]);
@@ -2091,7 +2094,8 @@ err:
 }
 
 static int bch_btree_insert_node(struct btree *b, struct btree_op *op,
-				 struct keylist *insert_keys)
+				 struct keylist *insert_keys,
+				 atomic_t *journal_ref)
 {
 	int ret = 0;
 	struct keylist split_keys;
@@ -2123,7 +2127,7 @@ static int bch_btree_insert_node(struct btree *b, struct btree_op *op,
 
 			if (bch_btree_insert_keys(b, op, insert_keys)) {
 				if (!b->level)
-					bch_btree_leaf_dirty(b, op);
+					bch_btree_leaf_dirty(b, journal_ref);
 				else
 					bch_btree_node_write(b, &op->cl);
 			}
@@ -2162,7 +2166,7 @@ int bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
 
 	BUG_ON(op->type != BTREE_INSERT);
 
-	ret = bch_btree_insert_node(b, op, &insert);
+	ret = bch_btree_insert_node(b, op, &insert, NULL);
 
 	BUG_ON(!ret && !bch_keylist_empty(&insert));
 out:
@@ -2172,7 +2176,7 @@ out:
 }
 
 static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op,
-				    struct keylist *keys)
+				    struct keylist *keys, atomic_t *journal_ref)
 {
 	if (bch_keylist_empty(keys))
 		return 0;
@@ -2189,14 +2193,14 @@ static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op,
 			return -EIO;
 		}
 
-		return btree(insert_recurse, k, b, op, keys);
+		return btree(insert_recurse, k, b, op, keys, journal_ref);
 	} else {
-		return bch_btree_insert_node(b, op, keys);
+		return bch_btree_insert_node(b, op, keys, journal_ref);
 	}
 }
 
 int bch_btree_insert(struct btree_op *op, struct cache_set *c,
-		     struct keylist *keys)
+		     struct keylist *keys, atomic_t *journal_ref)
 {
 	int ret = 0;
 
@@ -2210,7 +2214,7 @@ int bch_btree_insert(struct btree_op *op, struct cache_set *c,
 
 	while (!bch_keylist_empty(keys)) {
 		op->lock = 0;
-		ret = btree_root(insert_recurse, c, op, keys);
+		ret = btree_root(insert_recurse, c, op, keys, journal_ref);
 
 		if (ret == -EAGAIN) {
 			ret = 0;

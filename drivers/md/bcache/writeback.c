@@ -155,7 +155,7 @@ static void write_dirty_finish(struct closure *cl)
 		for (i = 0; i < KEY_PTRS(&w->key); i++)
 			atomic_inc(&PTR_BUCKET(dc->disk.c, &w->key, i)->pin);
 
-		bch_btree_insert(&op, dc->disk.c, &keys);
+		bch_btree_insert(&op, dc->disk.c, &keys, NULL);
 		closure_sync(&op.cl);
 
 		if (op.insert_collision)
@@ -433,9 +433,16 @@ static int bch_writeback_thread(void *arg)
 
 /* Init */
 
-static int sectors_dirty_init_fn(struct btree_op *op, struct btree *b,
+struct sectors_dirty_init {
+	struct btree_op	op;
+	unsigned	inode;
+};
+
+static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
 				 struct bkey *k)
 {
+	struct sectors_dirty_init *op = container_of(_op,
+						struct sectors_dirty_init, op);
 	if (KEY_INODE(k) > op->inode)
 		return MAP_DONE;
 
@@ -448,12 +455,12 @@ static int sectors_dirty_init_fn(struct btree_op *op, struct btree *b,
 
 void bch_sectors_dirty_init(struct cached_dev *dc)
 {
-	struct btree_op op;
+	struct sectors_dirty_init op;
 
-	bch_btree_op_init_stack(&op);
+	bch_btree_op_init_stack(&op.op);
 	op.inode = dc->disk.id;
 
-	bch_btree_map_keys(&op, dc->disk.c, &KEY(op.inode, 0, 0),
+	bch_btree_map_keys(&op.op, dc->disk.c, &KEY(op.inode, 0, 0),
 			   sectors_dirty_init_fn, 0);
 }
 

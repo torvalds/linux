@@ -55,9 +55,9 @@ static void write_moving_finish(struct closure *cl)
 	if (io->s.op.insert_collision)
 		trace_bcache_gc_copy_collision(&io->w->key);
 
-	bch_keybuf_del(&io->s.op.c->moving_gc_keys, io->w);
+	bch_keybuf_del(&io->s.c->moving_gc_keys, io->w);
 
-	up(&io->s.op.c->moving_in_flight);
+	up(&io->s.c->moving_in_flight);
 
 	closure_return_with_destructor(cl, moving_io_destructor);
 }
@@ -70,7 +70,7 @@ static void read_moving_endio(struct bio *bio, int error)
 	if (error)
 		io->s.error = error;
 
-	bch_bbio_endio(io->s.op.c, bio, error, "reading data to move");
+	bch_bbio_endio(io->s.c, bio, error, "reading data to move");
 }
 
 static void moving_init(struct moving_io *io)
@@ -99,11 +99,11 @@ static void write_moving(struct closure *cl)
 
 		io->bio.bio.bi_sector	= KEY_START(&io->w->key);
 		s->op.lock		= -1;
-		s->op.write_prio	= 1;
-		s->op.cache_bio		= &io->bio.bio;
+		s->write_prio		= 1;
+		s->cache_bio		= &io->bio.bio;
 
 		s->writeback		= KEY_DIRTY(&io->w->key);
-		s->op.csum		= KEY_CSUM(&io->w->key);
+		s->csum			= KEY_CSUM(&io->w->key);
 
 		s->op.type = BTREE_REPLACE;
 		bkey_copy(&s->op.replace, &io->w->key);
@@ -121,7 +121,7 @@ static void read_moving_submit(struct closure *cl)
 	struct moving_io *io = container_of(s, struct moving_io, s);
 	struct bio *bio = &io->bio.bio;
 
-	bch_submit_bbio(bio, s->op.c, &io->w->key, 0);
+	bch_submit_bbio(bio, s->c, &io->w->key, 0);
 
 	continue_at(cl, write_moving, system_wq);
 }
@@ -151,8 +151,8 @@ static void read_moving(struct cache_set *c)
 
 		w->private	= io;
 		io->w		= w;
-		io->s.op.inode	= KEY_INODE(&w->key);
-		io->s.op.c	= c;
+		io->s.inode	= KEY_INODE(&w->key);
+		io->s.c		= c;
 
 		moving_init(io);
 		bio = &io->bio.bio;

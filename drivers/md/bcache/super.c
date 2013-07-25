@@ -1493,11 +1493,10 @@ static void run_cache_set(struct cache_set *c)
 	const char *err = "cannot allocate memory";
 	struct cached_dev *dc, *t;
 	struct cache *ca;
+	struct closure cl;
 	unsigned i;
 
-	struct btree_op op;
-	bch_btree_op_init_stack(&op);
-	op.lock = SHRT_MAX;
+	closure_init_stack(&cl);
 
 	for_each_cache(ca, c, i)
 		c->nbuckets += ca->sb.nbuckets;
@@ -1508,7 +1507,7 @@ static void run_cache_set(struct cache_set *c)
 		struct jset *j;
 
 		err = "cannot allocate memory for journal";
-		if (bch_journal_read(c, &journal, &op))
+		if (bch_journal_read(c, &journal))
 			goto err;
 
 		pr_debug("btree_journal_read() done");
@@ -1543,12 +1542,12 @@ static void run_cache_set(struct cache_set *c)
 		list_del_init(&c->root->list);
 		rw_unlock(true, c->root);
 
-		err = uuid_read(c, j, &op.cl);
+		err = uuid_read(c, j, &cl);
 		if (err)
 			goto err;
 
 		err = "error in recovery";
-		if (bch_btree_check(c, &op))
+		if (bch_btree_check(c))
 			goto err;
 
 		bch_journal_mark(c, &journal);
@@ -1580,7 +1579,7 @@ static void run_cache_set(struct cache_set *c)
 		if (j->version < BCACHE_JSET_VERSION_UUID)
 			__uuid_write(c);
 
-		bch_journal_replay(c, &journal, &op);
+		bch_journal_replay(c, &journal);
 	} else {
 		pr_notice("invalidating existing data");
 
@@ -1616,7 +1615,7 @@ static void run_cache_set(struct cache_set *c)
 			goto err;
 
 		bkey_copy_key(&c->root->key, &MAX_KEY);
-		bch_btree_node_write(c->root, &op.cl);
+		bch_btree_node_write(c->root, &cl);
 
 		bch_btree_set_root(c->root);
 		rw_unlock(true, c->root);
@@ -1629,14 +1628,14 @@ static void run_cache_set(struct cache_set *c)
 		SET_CACHE_SYNC(&c->sb, true);
 
 		bch_journal_next(&c->journal);
-		bch_journal_meta(c, &op.cl);
+		bch_journal_meta(c, &cl);
 	}
 
 	err = "error starting gc thread";
 	if (bch_gc_thread_start(c))
 		goto err;
 
-	closure_sync(&op.cl);
+	closure_sync(&cl);
 	c->sb.last_mount = get_seconds();
 	bcache_write_super(c);
 
@@ -1647,7 +1646,7 @@ static void run_cache_set(struct cache_set *c)
 
 	return;
 err:
-	closure_sync(&op.cl);
+	closure_sync(&cl);
 	/* XXX: test this, it's broken */
 	bch_cache_set_error(c, err);
 }
