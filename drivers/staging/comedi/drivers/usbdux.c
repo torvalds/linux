@@ -1016,26 +1016,21 @@ ai_read_exit:
 	return ret ? ret : insn->n;
 }
 
-/************************************/
-/* analog out */
-
 static int usbdux_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
+	struct usbdux_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
-	struct usbdux_private *this_usbduxsub = dev->private;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
-
-	down(&this_usbduxsub->sem);
+	down(&devpriv->sem);
 	for (i = 0; i < insn->n; i++)
-		data[i] = this_usbduxsub->out_buffer[chan];
+		data[i] = devpriv->out_buffer[chan];
+	up(&devpriv->sem);
 
-	up(&this_usbduxsub->sem);
-	return i;
+	return insn->n;
 }
 
 static int usbdux_ao_insn_write(struct comedi_device *dev,
