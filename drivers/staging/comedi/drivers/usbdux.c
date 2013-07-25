@@ -425,8 +425,10 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct usbdux_private *devpriv = dev->private;
-	int i, ret;
 	int8_t *datap;
+	int len;
+	int ret;
+	int i;
 
 	switch (urb->status) {
 	case 0:
@@ -484,9 +486,11 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 				return;
 			}
 		}
+
 		/* transmit data to the USB bus */
-		((uint8_t *) (urb->transfer_buffer))[0] =
-		    s->async->cmd.chanlist_len;
+		datap = urb->transfer_buffer;
+		len = s->async->cmd.chanlist_len;
+		*datap++ = len;
 		for (i = 0; i < s->async->cmd.chanlist_len; i++) {
 			unsigned int chan = devpriv->dac_commands[i];
 			short val;
@@ -498,12 +502,9 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 						     COMEDI_CB_OVERFLOW);
 			}
 			/* pointer to the DA */
-			datap =
-			    (&(((int8_t *) urb->transfer_buffer)[i * 3 + 1]));
-			/* get the data from comedi */
-			datap[0] = val;
-			datap[1] = val >> 8;
-			datap[2] = chan;
+			*datap++ = val & 0xff;
+			*datap++ = (val >> 8) & 0xff;
+			*datap++ = chan;
 			devpriv->ao_readback[chan] = val;
 
 			s->async->events |= COMEDI_CB_BLOCK;
