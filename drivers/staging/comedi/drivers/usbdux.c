@@ -195,6 +195,7 @@ struct usbdux_private {
 	/* input buffer for single insn */
 	int16_t *insn_buf;
 
+	int8_t ao_chanlist[USBDUX_NUM_AO_CHAN];
 	unsigned int ao_readback[USBDUX_NUM_AO_CHAN];
 
 	unsigned int high_speed:1;
@@ -215,8 +216,6 @@ struct usbdux_private {
 	unsigned int ao_counter;
 	/* interval in frames/uframes */
 	unsigned int ai_interval;
-	/* D/A commands */
-	int8_t *dac_commands;
 	/* commands */
 	int8_t *dux_commands;
 	struct semaphore sem;
@@ -489,7 +488,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 		len = s->async->cmd.chanlist_len;
 		*datap++ = len;
 		for (i = 0; i < s->async->cmd.chanlist_len; i++) {
-			unsigned int chan = devpriv->dac_commands[i];
+			unsigned int chan = devpriv->ao_chanlist[i];
 			short val;
 
 			ret = comedi_buf_get(s->async, &val);
@@ -1080,7 +1079,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	for (i = 0; i < cmd->chanlist_len; ++i) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 
-		devpriv->dac_commands[i] = chan << 6;
+		devpriv->ao_chanlist[i] = chan << 6;
 	}
 
 	/* we count in steps of 1ms (125us) */
@@ -1633,11 +1632,6 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 	struct urb *urb;
 	int i;
 
-	/* create space for the commands of the DA converter */
-	devpriv->dac_commands = kzalloc(NUMOUTCHANNELS, GFP_KERNEL);
-	if (!devpriv->dac_commands)
-		return -ENOMEM;
-
 	/* create space for the commands going to the usb device */
 	devpriv->dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
 	if (!devpriv->dux_commands)
@@ -1770,7 +1764,6 @@ static void usbdux_free_usb_buffers(struct usbdux_private *devpriv)
 	kfree(devpriv->insn_buf);
 	kfree(devpriv->in_buf);
 	kfree(devpriv->dux_commands);
-	kfree(devpriv->dac_commands);
 }
 
 static int usbdux_auto_attach(struct comedi_device *dev,
