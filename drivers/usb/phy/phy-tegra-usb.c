@@ -887,11 +887,14 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 		of_property_read_bool(np, "nvidia,has-legacy-mode");
 
 	phy_type = of_usb_get_phy_mode(np);
-	if (phy_type == USBPHY_INTERFACE_MODE_UTMI) {
+	switch (phy_type) {
+	case USBPHY_INTERFACE_MODE_UTMI:
 		err = utmi_phy_probe(tegra_phy, pdev);
 		if (err < 0)
 			return err;
-	} else if (phy_type == USBPHY_INTERFACE_MODE_ULPI) {
+		break;
+
+	case USBPHY_INTERFACE_MODE_ULPI:
 		tegra_phy->is_ulpi_phy = true;
 
 		tegra_phy->reset_gpio =
@@ -902,7 +905,9 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 			return tegra_phy->reset_gpio;
 		}
 		tegra_phy->config = NULL;
-	} else {
+		break;
+
+	default:
 		dev_err(&pdev->dev, "phy_type is invalid or unsupported\n");
 		return -EINVAL;
 	}
