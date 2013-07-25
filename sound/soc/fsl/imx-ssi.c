@@ -571,13 +571,13 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx0");
 	if (res) {
 		imx_pcm_dma_params_init_data(&ssi->filter_data_tx, res->start,
-			false);
+			IMX_DMATYPE_SSI);
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx0");
 	if (res) {
 		imx_pcm_dma_params_init_data(&ssi->filter_data_rx, res->start,
-			false);
+			IMX_DMATYPE_SSI);
 	}
 
 	platform_set_drvdata(pdev, ssi);

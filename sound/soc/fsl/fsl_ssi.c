@@ -775,9 +775,9 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 			    "fsl,spba-bus");
 
 		imx_pcm_dma_params_init_data(&ssi_private->filter_data_tx,
-			dma_events[0], shared);
+			dma_events[0], shared ? IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI);
 		imx_pcm_dma_params_init_data(&ssi_private->filter_data_rx,
-			dma_events[1], shared);
+			dma_events[1], shared ? IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI);
 	}
 
 	/* Initialize the the device_attribute structure */
