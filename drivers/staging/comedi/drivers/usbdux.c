@@ -1417,20 +1417,15 @@ static int usbduxsub_unlink_pwm_urbs(struct usbdux_private *usbduxsub_tmp)
 	return err;
 }
 
-/* This cancels a running acquisition operation
- * in any context.
- */
-static int usbdux_pwm_stop(struct usbdux_private *this_usbduxsub, int do_unlink)
+static int usbdux_pwm_stop(struct comedi_device *dev, int do_unlink)
 {
+	struct usbdux_private *devpriv = dev->private;
 	int ret = 0;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
-
 	if (do_unlink)
-		ret = usbduxsub_unlink_pwm_urbs(this_usbduxsub);
+		ret = usbduxsub_unlink_pwm_urbs(devpriv);
 
-	this_usbduxsub->pwm_cmd_running = 0;
+	devpriv->pwm_cmd_running = 0;
 
 	return ret;
 }
@@ -1443,7 +1438,7 @@ static int usbdux_pwm_cancel(struct comedi_device *dev,
 	int res = 0;
 
 	/* unlink only if it is really running */
-	res = usbdux_pwm_stop(this_usbduxsub, this_usbduxsub->pwm_cmd_running);
+	res = usbdux_pwm_stop(dev, this_usbduxsub->pwm_cmd_running);
 
 	return send_dux_commands(dev, SENDPWMOFF);
 }
@@ -1468,7 +1463,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 		 * no unlink needed here. Already shutting down.
 		 */
 		if (devpriv->pwm_cmd_running)
-			usbdux_pwm_stop(devpriv, 0);
+			usbdux_pwm_stop(dev, 0);
 
 		return;
 
@@ -1478,7 +1473,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 			dev_err(dev->class_dev,
 				"Non-zero urb status received in pwm intr context: %d\n",
 				urb->status);
-			usbdux_pwm_stop(devpriv, 0);
+			usbdux_pwm_stop(dev, 0);
 		}
 		return;
 	}
@@ -1501,7 +1496,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 					"buggy USB host controller or bug in IRQ handling!\n");
 
 			/* don't do an unlink here */
-			usbdux_pwm_stop(devpriv, 0);
+			usbdux_pwm_stop(dev, 0);
 		}
 	}
 }
