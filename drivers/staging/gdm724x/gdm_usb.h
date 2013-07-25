@@ -14,7 +14,6 @@
 #ifndef _GDM_USB_H_
 #define _GDM_USB_H_
 
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/usb.h>
 #include <linux/list.h>
