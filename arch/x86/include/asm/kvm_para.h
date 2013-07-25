@@ -85,26 +85,20 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 	return ret;
 }
 
+static inline uint32_t kvm_cpuid_base(void)
+{
+	if (boot_cpu_data.cpuid_level < 0)
+		return 0;	/* So we don't blow up on old processors */
+
+	if (cpu_has_hypervisor)
+		return hypervisor_cpuid_base("KVMKVMKVM\0\0\0", 0);
+
+	return 0;
+}
+
 static inline bool kvm_para_available(void)
 {
-	unsigned int eax, ebx, ecx, edx;
-	char signature[13];
-
-	if (boot_cpu_data.cpuid_level < 0)
-		return false;	/* So we don't blow up on old processors */
-
-	if (cpu_has_hypervisor) {
-		cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
-		memcpy(signature + 0, &ebx, 4);
-		memcpy(signature + 4, &ecx, 4);
-		memcpy(signature + 8, &edx, 4);
-		signature[12] = 0;
-
-		if (strcmp(signature, "KVMKVMKVM") == 0)
-			return true;
-	}
-
-	return false;
+	return kvm_cpuid_base() != 0;
 }
 
 static inline unsigned int kvm_arch_para_features(void)
