@@ -1866,7 +1866,7 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 
 	while (!bch_keylist_empty(insert_keys)) {
 		struct bset *i = write_block(b);
-		struct bkey *k = insert_keys->bottom;
+		struct bkey *k = insert_keys->keys;
 
 		if (b->written + __set_blocks(i, i->keys + bkey_u64s(k), b->c)
 		    > btree_blocks(b))
@@ -1887,10 +1887,10 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 			}
 #endif
 			BKEY_PADDED(key) temp;
-			bkey_copy(&temp.key, insert_keys->bottom);
+			bkey_copy(&temp.key, insert_keys->keys);
 
 			bch_cut_back(&b->key, &temp.key);
-			bch_cut_front(&b->key, insert_keys->bottom);
+			bch_cut_front(&b->key, insert_keys->keys);
 
 			ret |= btree_insert_key(b, op, &temp.key);
 			break;
@@ -1984,7 +1984,7 @@ static int btree_split(struct btree *b, struct btree_op *op,
 	} else if (!b->parent) {
 		/* Root filled up but didn't need to be split */
 
-		parent_keys->top = parent_keys->bottom;
+		bch_keylist_reset(parent_keys);
 		closure_sync(&op->cl);
 		bch_btree_set_root(n1);
 	} else {
@@ -2118,12 +2118,12 @@ static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op,
 	if (b->level) {
 		struct bkey *k;
 
-		k = bch_next_recurse_key(b, &START_KEY(keys->bottom));
+		k = bch_next_recurse_key(b, &START_KEY(keys->keys));
 		if (!k) {
 			btree_bug(b, "no key to recurse on at level %i/%i",
 				  b->level, b->c->root->level);
 
-			keys->top = keys->bottom;
+			bch_keylist_reset(keys);
 			return -EIO;
 		}
 

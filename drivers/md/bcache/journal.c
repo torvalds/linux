@@ -713,7 +713,7 @@ void bch_journal(struct closure *cl)
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
 	struct cache_set *c = op->c;
 	struct journal_write *w;
-	size_t b, n = ((uint64_t *) op->keys.top) - op->keys.list;
+	size_t sectors, nkeys;
 
 	if (op->type != BTREE_INSERT ||
 	    !CACHE_SYNC(&c->sb))
@@ -741,10 +741,12 @@ void bch_journal(struct closure *cl)
 	}
 
 	w = c->journal.cur;
-	b = __set_blocks(w->data, w->data->keys + n, c);
+	nkeys = w->data->keys + bch_keylist_nkeys(&op->keys);
+	sectors = __set_blocks(w->data, nkeys, c) * c->sb.block_size;
 
-	if (b * c->sb.block_size > PAGE_SECTORS << JSET_BITS ||
-	    b > c->journal.blocks_free) {
+	if (sectors > min_t(size_t,
+			    c->journal.blocks_free * c->sb.block_size,
+			    PAGE_SECTORS << JSET_BITS)) {
 		trace_bcache_journal_entry_full(c);
 
 		/*
@@ -760,8 +762,8 @@ void bch_journal(struct closure *cl)
 		continue_at(cl, bch_journal, bcache_wq);
 	}
 
-	memcpy(end(w->data), op->keys.list, n * sizeof(uint64_t));
-	w->data->keys += n;
+	memcpy(end(w->data), op->keys.keys, bch_keylist_bytes(&op->keys));
+	w->data->keys += bch_keylist_nkeys(&op->keys);
 
 	op->journal = &fifo_back(&c->journal.pin);
 	atomic_inc(op->journal);

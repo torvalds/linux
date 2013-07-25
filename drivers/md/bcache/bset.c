@@ -14,22 +14,12 @@
 
 /* Keylists */
 
-void bch_keylist_copy(struct keylist *dest, struct keylist *src)
-{
-	*dest = *src;
-
-	if (src->list == src->d) {
-		size_t n = (uint64_t *) src->top - src->d;
-		dest->top = (struct bkey *) &dest->d[n];
-		dest->list = dest->d;
-	}
-}
-
 int bch_keylist_realloc(struct keylist *l, int nptrs, struct cache_set *c)
 {
-	unsigned oldsize = (uint64_t *) l->top - l->list;
-	unsigned newsize = oldsize + 2 + nptrs;
-	uint64_t *new;
+	size_t oldsize = bch_keylist_nkeys(l);
+	size_t newsize = oldsize + 2 + nptrs;
+	uint64_t *old_keys = l->keys_p == l->inline_keys ? NULL : l->keys_p;
+	uint64_t *new_keys;
 
 	/* The journalling code doesn't handle the case where the keys to insert
 	 * is bigger than an empty write: If we just return -ENOMEM here,
@@ -45,24 +35,23 @@ int bch_keylist_realloc(struct keylist *l, int nptrs, struct cache_set *c)
 	    roundup_pow_of_two(oldsize) == newsize)
 		return 0;
 
-	new = krealloc(l->list == l->d ? NULL : l->list,
-		       sizeof(uint64_t) * newsize, GFP_NOIO);
+	new_keys = krealloc(old_keys, sizeof(uint64_t) * newsize, GFP_NOIO);
 
-	if (!new)
+	if (!new_keys)
 		return -ENOMEM;
 
-	if (l->list == l->d)
-		memcpy(new, l->list, sizeof(uint64_t) * KEYLIST_INLINE);
+	if (!old_keys)
+		memcpy(new_keys, l->inline_keys, sizeof(uint64_t) * oldsize);
 
-	l->list = new;
-	l->top = (struct bkey *) (&l->list[oldsize]);
+	l->keys_p = new_keys;
+	l->top_p = new_keys + oldsize;
 
 	return 0;
 }
 
 struct bkey *bch_keylist_pop(struct keylist *l)
 {
-	struct bkey *k = l->bottom;
+	struct bkey *k = l->keys;
 
 	if (k == l->top)
 		return NULL;
@@ -75,14 +64,11 @@ struct bkey *bch_keylist_pop(struct keylist *l)
 
 void bch_keylist_pop_front(struct keylist *l)
 {
-	struct bkey *next = bkey_next(l->bottom);
-	size_t bytes = ((void *) l->top) - ((void *) next);
+	l->top_p -= bkey_u64s(l->keys);
 
-	memmove(l->bottom,
-		next,
-		bytes);
-
-	l->top = ((void *) l->bottom) + bytes;
+	memmove(l->keys,
+		bkey_next(l->keys),
+		bch_keylist_bytes(l));
 }
 
 /* Pointer validation */

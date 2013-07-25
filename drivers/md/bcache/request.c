@@ -438,13 +438,13 @@ static void bch_insert_data_error(struct closure *cl)
 	 * from the keys we'll accomplish just that.
 	 */
 
-	struct bkey *src = op->keys.bottom, *dst = op->keys.bottom;
+	struct bkey *src = op->keys.keys, *dst = op->keys.keys;
 
 	while (src != op->keys.top) {
 		struct bkey *n = bkey_next(src);
 
 		SET_KEY_PTRS(src, 0);
-		bkey_copy(dst, src);
+		memmove(dst, src, bkey_bytes(src));
 
 		dst = bkey_next(dst);
 		src = n;
