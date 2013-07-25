@@ -159,6 +159,14 @@ clock which they consume.
   hdmi			344
   g2d			345
 
+
+   [Clock Muxes]
+
+  Clock			ID
+  ----------------------------
+  mout_hdmi		1024
+
+
 Example 1: An example of a clock controller node is listed below.
 
 	clock: clock-controller@0x10010000 {
