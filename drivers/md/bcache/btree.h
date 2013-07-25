@@ -326,7 +326,7 @@ static inline void rw_unlock(bool w, struct btree *b)
 ({									\
 	int _r, l = (b)->level - 1;					\
 	bool _w = l <= (op)->lock;					\
-	struct btree *_child = bch_btree_node_get((b)->c, key, l, op);	\
+	struct btree *_child = bch_btree_node_get((b)->c, key, l, _w);	\
 	if (!IS_ERR(_child)) {						\
 		_child->parent = (b);					\
 		_r = bch_btree_ ## fn(_child, op, ##__VA_ARGS__);	\
@@ -356,6 +356,11 @@ static inline void rw_unlock(bool w, struct btree *b)
 		}							\
 		rw_unlock(_w, _b);					\
 		bch_cannibalize_unlock(c, &(op)->cl);			\
+		if (_r == -ENOSPC) {					\
+			wait_event((c)->try_wait,			\
+				   !(c)->try_harder);			\
+			_r = -EINTR;					\
+		}							\
 	} while (_r == -EINTR);						\
 									\
 	_r;								\
@@ -375,8 +380,7 @@ void bch_btree_node_write(struct btree *, struct closure *);
 void bch_cannibalize_unlock(struct cache_set *, struct closure *);
 void bch_btree_set_root(struct btree *);
 struct btree *bch_btree_node_alloc(struct cache_set *, int, struct closure *);
-struct btree *bch_btree_node_get(struct cache_set *, struct bkey *,
-				int, struct btree_op *);
+struct btree *bch_btree_node_get(struct cache_set *, struct bkey *, int, bool);
 
 int bch_btree_insert_check_key(struct btree *, struct btree_op *,
 			       struct bkey *);

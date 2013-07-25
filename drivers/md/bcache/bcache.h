@@ -735,8 +735,8 @@ struct cache_set {
 	 * basically a lock for this that we can wait on asynchronously. The
 	 * btree_root() macro releases the lock when it returns.
 	 */
-	struct closure		*try_harder;
-	struct closure_waitlist	try_wait;
+	struct task_struct	*try_harder;
+	wait_queue_head_t	try_wait;
 	uint64_t		try_harder_start;
 
 	/*

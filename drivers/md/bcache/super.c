@@ -1436,12 +1436,14 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 
 	c->sort_crit_factor = int_sqrt(c->btree_pages);
 
-	mutex_init(&c->bucket_lock);
-	mutex_init(&c->sort_lock);
-	spin_lock_init(&c->sort_time_lock);
 	closure_init_unlocked(&c->sb_write);
+	mutex_init(&c->bucket_lock);
+	init_waitqueue_head(&c->try_wait);
 	closure_init_unlocked(&c->uuid_write);
+	spin_lock_init(&c->sort_time_lock);
+	mutex_init(&c->sort_lock);
 	spin_lock_init(&c->btree_read_time_lock);
+
 	bch_moving_init_cache_set(c);
 
 	INIT_LIST_HEAD(&c->list);
@@ -1529,7 +1531,7 @@ static void run_cache_set(struct cache_set *c)
 			goto err;
 
 		err = "error reading btree root";
-		c->root = bch_btree_node_get(c, k, j->btree_level, &op);
+		c->root = bch_btree_node_get(c, k, j->btree_level, true);
 		if (IS_ERR_OR_NULL(c->root))
 			goto err;
 

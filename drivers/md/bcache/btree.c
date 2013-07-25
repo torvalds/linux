@@ -437,7 +437,7 @@ static void bch_btree_leaf_dirty(struct btree *b, struct btree_op *op)
 
 	set_btree_node_dirty(b);
 
-	if (op && op->journal) {
+	if (op->journal) {
 		if (w->journal &&
 		    journal_pin_cmp(b->c, w, op)) {
 			atomic_dec_bug(w->journal);
@@ -574,33 +574,34 @@ static struct btree *mca_bucket_alloc(struct cache_set *c,
 	return b;
 }
 
-static int mca_reap(struct btree *b, struct closure *cl, unsigned min_order)
+static int mca_reap(struct btree *b, unsigned min_order, bool flush)
 {
+	struct closure cl;
+
+	closure_init_stack(&cl);
 	lockdep_assert_held(&b->c->bucket_lock);
 
 	if (!down_write_trylock(&b->lock))
 		return -ENOMEM;
 
-	if (b->page_order < min_order) {
+	BUG_ON(btree_node_dirty(b) && !b->sets[0].data);
+
+	if (b->page_order < min_order ||
+	    (!flush &&
+	     (btree_node_dirty(b) ||
+	      atomic_read(&b->io.cl.remaining) != -1))) {
 		rw_unlock(true, b);
 		return -ENOMEM;
 	}
 
-	BUG_ON(btree_node_dirty(b) && !b->sets[0].data);
-
-	if (cl && btree_node_dirty(b))
-		bch_btree_node_write(b, NULL);
-
-	if (cl)
-		closure_wait_event_async(&b->io.wait, cl,
-			 atomic_read(&b->io.cl.remaining) == -1);
-
-	if (btree_node_dirty(b) ||
-	    !closure_is_unlocked(&b->io.cl) ||
-	    work_pending(&b->work.work)) {
-		rw_unlock(true, b);
-		return -EAGAIN;
+	if (btree_node_dirty(b)) {
+		bch_btree_node_write(b, &cl);
+		closure_sync(&cl);
 	}
+
+	/* wait for any in flight btree write */
+	closure_wait_event_sync(&b->io.wait, &cl,
+		atomic_read(&b->io.cl.remaining) == -1);
 
 	return 0;
 }
@@ -641,7 +642,7 @@ static unsigned long bch_mca_scan(struct shrinker *shrink,
 			break;
 
 		if (++i > 3 &&
-		    !mca_reap(b, NULL, 0)) {
+		    !mca_reap(b, 0, false)) {
 			mca_data_free(b);
 			rw_unlock(true, b);
 			freed++;
@@ -660,7 +661,7 @@ static unsigned long bch_mca_scan(struct shrinker *shrink,
 		list_rotate_left(&c->btree_cache);
 
 		if (!b->accessed &&
-		    !mca_reap(b, NULL, 0)) {
+		    !mca_reap(b, 0, false)) {
 			mca_bucket_free(b);
 			mca_data_free(b);
 			rw_unlock(true, b);
@@ -783,52 +784,27 @@ out:
 	return b;
 }
 
-static struct btree *mca_cannibalize(struct cache_set *c, struct bkey *k,
-				     int level, struct closure *cl)
+static struct btree *mca_cannibalize(struct cache_set *c, struct bkey *k)
 {
-	int ret = -ENOMEM;
-	struct btree *i;
+	struct btree *b;
 
 	trace_bcache_btree_cache_cannibalize(c);
 
-	if (!cl)
-		return ERR_PTR(-ENOMEM);
+	if (!c->try_harder) {
+		c->try_harder = current;
+		c->try_harder_start = local_clock();
+	} else if (c->try_harder != current)
+		return ERR_PTR(-ENOSPC);
 
-	/*
-	 * Trying to free up some memory - i.e. reuse some btree nodes - may
-	 * require initiating IO to flush the dirty part of the node. If we're
-	 * running under generic_make_request(), that IO will never finish and
-	 * we would deadlock. Returning -EAGAIN causes the cache lookup code to
-	 * punt to workqueue and retry.
-	 */
-	if (current->bio_list)
-		return ERR_PTR(-EAGAIN);
+	list_for_each_entry_reverse(b, &c->btree_cache, list)
+		if (!mca_reap(b, btree_order(k), false))
+			return b;
 
-	if (c->try_harder && c->try_harder != cl) {
-		closure_wait_event_async(&c->try_wait, cl, !c->try_harder);
-		return ERR_PTR(-EAGAIN);
-	}
+	list_for_each_entry_reverse(b, &c->btree_cache, list)
+		if (!mca_reap(b, btree_order(k), true))
+			return b;
 
-	c->try_harder = cl;
-	c->try_harder_start = local_clock();
-retry:
-	list_for_each_entry_reverse(i, &c->btree_cache, list) {
-		int r = mca_reap(i, cl, btree_order(k));
-		if (!r)
-			return i;
-		if (r != -ENOMEM)
-			ret = r;
-	}
-
-	if (ret == -EAGAIN &&
-	    closure_blocking(cl)) {
-		mutex_unlock(&c->bucket_lock);
-		closure_sync(cl);
-		mutex_lock(&c->bucket_lock);
-		goto retry;
-	}
-
-	return ERR_PTR(ret);
+	return ERR_PTR(-ENOMEM);
 }
 
 /*
@@ -839,17 +815,18 @@ retry:
  */
 void bch_cannibalize_unlock(struct cache_set *c, struct closure *cl)
 {
-	if (c->try_harder == cl) {
+	if (c->try_harder == current) {
 		bch_time_stats_update(&c->try_harder_time, c->try_harder_start);
 		c->try_harder = NULL;
-		__closure_wake_up(&c->try_wait);
+		wake_up(&c->try_wait);
 	}
 }
 
-static struct btree *mca_alloc(struct cache_set *c, struct bkey *k,
-			       int level, struct closure *cl)
+static struct btree *mca_alloc(struct cache_set *c, struct bkey *k, int level)
 {
 	struct btree *b;
+
+	BUG_ON(current->bio_list);
 
 	lockdep_assert_held(&c->bucket_lock);
 
@@ -860,14 +837,14 @@ static struct btree *mca_alloc(struct cache_set *c, struct bkey *k,
 	 * the list. Check if there's any freed nodes there:
 	 */
 	list_for_each_entry(b, &c->btree_cache_freeable, list)
-		if (!mca_reap(b, NULL, btree_order(k)))
+		if (!mca_reap(b, btree_order(k), false))
 			goto out;
 
 	/* We never free struct btree itself, just the memory that holds the on
 	 * disk node. Check the freed list before allocating a new one:
 	 */
 	list_for_each_entry(b, &c->btree_cache_freed, list)
-		if (!mca_reap(b, NULL, 0)) {
+		if (!mca_reap(b, 0, false)) {
 			mca_data_alloc(b, k, __GFP_NOWARN|GFP_NOIO);
 			if (!b->sets[0].data)
 				goto err;
@@ -901,7 +878,7 @@ err:
 	if (b)
 		rw_unlock(true, b);
 
-	b = mca_cannibalize(c, k, level, cl);
+	b = mca_cannibalize(c, k);
 	if (!IS_ERR(b))
 		goto out;
 
@@ -919,10 +896,9 @@ err:
  * level and op->lock.
  */
 struct btree *bch_btree_node_get(struct cache_set *c, struct bkey *k,
-				 int level, struct btree_op *op)
+				 int level, bool write)
 {
 	int i = 0;
-	bool write = level <= op->lock;
 	struct btree *b;
 
 	BUG_ON(level < 0);
@@ -934,7 +910,7 @@ retry:
 			return ERR_PTR(-EAGAIN);
 
 		mutex_lock(&c->bucket_lock);
-		b = mca_alloc(c, k, level, &op->cl);
+		b = mca_alloc(c, k, level);
 		mutex_unlock(&c->bucket_lock);
 
 		if (!b)
@@ -980,7 +956,7 @@ static void btree_node_prefetch(struct cache_set *c, struct bkey *k, int level)
 	struct btree *b;
 
 	mutex_lock(&c->bucket_lock);
-	b = mca_alloc(c, k, level, NULL);
+	b = mca_alloc(c, k, level);
 	mutex_unlock(&c->bucket_lock);
 
 	if (!IS_ERR_OR_NULL(b)) {
@@ -991,17 +967,12 @@ static void btree_node_prefetch(struct cache_set *c, struct bkey *k, int level)
 
 /* Btree alloc */
 
-static void btree_node_free(struct btree *b, struct btree_op *op)
+static void btree_node_free(struct btree *b)
 {
 	unsigned i;
 
 	trace_bcache_btree_node_free(b);
 
-	/*
-	 * The BUG_ON() in btree_node_get() implies that we must have a write
-	 * lock on parent to free or even invalidate a node
-	 */
-	BUG_ON(op->lock <= b->level);
 	BUG_ON(b == b->c->root);
 
 	if (btree_node_dirty(b))
@@ -1037,7 +1008,7 @@ retry:
 
 	SET_KEY_SIZE(&k.key, c->btree_pages * PAGE_SECTORS);
 
-	b = mca_alloc(c, &k.key, level, cl);
+	b = mca_alloc(c, &k.key, level);
 	if (IS_ERR(b))
 		goto err_free;
 
@@ -1173,8 +1144,7 @@ static int btree_gc_mark_node(struct btree *b, unsigned *keys,
 	return stale;
 }
 
-static struct btree *btree_gc_alloc(struct btree *b, struct bkey *k,
-				    struct btree_op *op)
+static struct btree *btree_gc_alloc(struct btree *b, struct bkey *k)
 {
 	/*
 	 * We block priorities from being written for the duration of garbage
@@ -1191,7 +1161,7 @@ static struct btree *btree_gc_alloc(struct btree *b, struct bkey *k,
 		memcpy(k->ptr, b->key.ptr,
 		       sizeof(uint64_t) * KEY_PTRS(&b->key));
 
-		btree_node_free(n, op);
+		btree_node_free(n);
 		up_write(&n->lock);
 	}
 
@@ -1211,8 +1181,8 @@ struct gc_merge_info {
 	unsigned	keys;
 };
 
-static void btree_gc_coalesce(struct btree *b, struct btree_op *op,
-			      struct gc_stat *gc, struct gc_merge_info *r)
+static void btree_gc_coalesce(struct btree *b, struct gc_stat *gc,
+			      struct gc_merge_info *r)
 {
 	unsigned nodes = 0, keys = 0, blocks;
 	int i;
@@ -1228,7 +1198,7 @@ static void btree_gc_coalesce(struct btree *b, struct btree_op *op,
 
 	for (i = nodes - 1; i >= 0; --i) {
 		if (r[i].b->written)
-			r[i].b = btree_gc_alloc(r[i].b, r[i].k, op);
+			r[i].b = btree_gc_alloc(r[i].b, r[i].k);
 
 		if (r[i].b->written)
 			return;
@@ -1292,7 +1262,7 @@ static void btree_gc_coalesce(struct btree *b, struct btree_op *op,
 		r[i - 1].keys	= n2->keys;
 	}
 
-	btree_node_free(r->b, op);
+	btree_node_free(r->b);
 	up_write(&r->b->lock);
 
 	trace_bcache_btree_gc_coalesce(nodes);
@@ -1324,7 +1294,7 @@ static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 	memset(r, 0, sizeof(r));
 
 	while ((r->k = bch_next_recurse_key(b, &b->c->gc_done))) {
-		r->b = bch_btree_node_get(b->c, r->k, b->level - 1, op);
+		r->b = bch_btree_node_get(b->c, r->k, b->level - 1, true);
 
 		if (IS_ERR(r->b)) {
 			ret = PTR_ERR(r->b);
@@ -1337,7 +1307,7 @@ static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 		if (!b->written &&
 		    (r->b->level || stale > 10 ||
 		     b->c->gc_always_rewrite))
-			r->b = btree_gc_alloc(r->b, r->k, op);
+			r->b = btree_gc_alloc(r->b, r->k);
 
 		if (r->b->level)
 			ret = btree_gc_recurse(r->b, op, writes, gc);
@@ -1350,7 +1320,7 @@ static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 		bkey_copy_key(&b->c->gc_done, r->k);
 
 		if (!b->written)
-			btree_gc_coalesce(b, op, gc, r);
+			btree_gc_coalesce(b, gc, r);
 
 		if (r[GC_MERGE_NODES - 1].b)
 			write(r[GC_MERGE_NODES - 1].b);
@@ -1404,7 +1374,7 @@ static int bch_btree_gc_root(struct btree *b, struct btree_op *op,
 	if (!IS_ERR_OR_NULL(n)) {
 		closure_sync(&op->cl);
 		bch_btree_set_root(b);
-		btree_node_free(n, op);
+		btree_node_free(n);
 		rw_unlock(true, b);
 	}
 
@@ -2004,18 +1974,18 @@ static int btree_split(struct btree *b, struct btree_op *op,
 	}
 
 	rw_unlock(true, n1);
-	btree_node_free(b, op);
+	btree_node_free(b);
 
 	bch_time_stats_update(&b->c->btree_split_time, start_time);
 
 	return 0;
 err_free2:
 	__bkey_put(n2->c, &n2->key);
-	btree_node_free(n2, op);
+	btree_node_free(n2);
 	rw_unlock(true, n2);
 err_free1:
 	__bkey_put(n1->c, &n1->key);
-	btree_node_free(n1, op);
+	btree_node_free(n1);
 	rw_unlock(true, n1);
 err:
 	if (n3 == ERR_PTR(-EAGAIN) ||
