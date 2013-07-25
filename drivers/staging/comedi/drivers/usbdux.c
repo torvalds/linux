@@ -1430,17 +1430,25 @@ static int usbdux_pwm_stop(struct comedi_device *dev, int do_unlink)
 	return ret;
 }
 
-/* force unlink - is called by comedi */
 static int usbdux_pwm_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
-	int res = 0;
+	struct usbdux_private *devpriv = dev->private;
+	int ret;
+
+	down(&devpriv->sem);
 
 	/* unlink only if it is really running */
-	res = usbdux_pwm_stop(dev, this_usbduxsub->pwm_cmd_running);
+	ret = usbdux_pwm_stop(dev, devpriv->pwm_cmd_running);
+	if (ret)
+		goto pwm_cancel_exit;
 
-	return send_dux_commands(dev, SENDPWMOFF);
+	ret = send_dux_commands(dev, SENDPWMOFF);
+
+pwm_cancel_exit:
+	up(&devpriv->sem);
+
+	return ret;
 }
 
 static void usbduxsub_pwm_irq(struct urb *urb)
