@@ -116,47 +116,46 @@ bool bch_ptr_bad(struct btree *b, const struct bkey *k)
 	    bch_ptr_invalid(b, k))
 		return true;
 
-	if (KEY_PTRS(k) && PTR_DEV(k, 0) == PTR_CHECK_DEV)
-		return true;
+	for (i = 0; i < KEY_PTRS(k); i++) {
+		if (!ptr_available(b->c, k, i))
+			return true;
 
-	for (i = 0; i < KEY_PTRS(k); i++)
-		if (ptr_available(b->c, k, i)) {
-			g = PTR_BUCKET(b->c, k, i);
-			stale = ptr_stale(b->c, k, i);
+		g = PTR_BUCKET(b->c, k, i);
+		stale = ptr_stale(b->c, k, i);
 
-			btree_bug_on(stale > 96, b,
-				     "key too stale: %i, need_gc %u",
-				     stale, b->c->need_gc);
+		btree_bug_on(stale > 96, b,
+			     "key too stale: %i, need_gc %u",
+			     stale, b->c->need_gc);
 
-			btree_bug_on(stale && KEY_DIRTY(k) && KEY_SIZE(k),
-				     b, "stale dirty pointer");
+		btree_bug_on(stale && KEY_DIRTY(k) && KEY_SIZE(k),
+			     b, "stale dirty pointer");
 
-			if (stale)
-				return true;
+		if (stale)
+			return true;
 
 #ifdef CONFIG_BCACHE_EDEBUG
-			if (!mutex_trylock(&b->c->bucket_lock))
-				continue;
+		if (!mutex_trylock(&b->c->bucket_lock))
+			continue;
 
-			if (b->level) {
-				if (KEY_DIRTY(k) ||
-				    g->prio != BTREE_PRIO ||
-				    (b->c->gc_mark_valid &&
-				     GC_MARK(g) != GC_MARK_METADATA))
-					goto bug;
+		if (b->level) {
+			if (KEY_DIRTY(k) ||
+			    g->prio != BTREE_PRIO ||
+			    (b->c->gc_mark_valid &&
+			     GC_MARK(g) != GC_MARK_METADATA))
+				goto bug;
 
-			} else {
-				if (g->prio == BTREE_PRIO)
-					goto bug;
+		} else {
+			if (g->prio == BTREE_PRIO)
+				goto bug;
 
-				if (KEY_DIRTY(k) &&
-				    b->c->gc_mark_valid &&
-				    GC_MARK(g) != GC_MARK_DIRTY)
-					goto bug;
-			}
-			mutex_unlock(&b->c->bucket_lock);
-#endif
+			if (KEY_DIRTY(k) &&
+			    b->c->gc_mark_valid &&
+			    GC_MARK(g) != GC_MARK_DIRTY)
+				goto bug;
 		}
+		mutex_unlock(&b->c->bucket_lock);
+#endif
+	}
 
 	return false;
 #ifdef CONFIG_BCACHE_EDEBUG
