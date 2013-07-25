@@ -110,9 +110,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 /* Default PWM frequency */
 #define PWM_DEFAULT_PERIOD ((long)(1E9/100))
 
-/* Number of channels */
-#define NUMCHANNELS       8
-
 /* Size of one A/D value */
 #define SIZEADIN          ((sizeof(int16_t)))
 
@@ -783,9 +780,6 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	for (i = 0; i < len; ++i) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 		unsigned int range = CR_RANGE(cmd->chanlist[i]);
-
-		if (i >= NUMCHANNELS)
-			break;
 
 		devpriv->dux_commands[i + 2] = create_adc_command(chan, range);
 	}
