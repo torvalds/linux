@@ -2758,8 +2758,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	iph->frag_off = 0;
 	iplen = 20 + 8 + datalen;
 	iph->tot_len = htons(iplen);
-	iph->check = 0;
-	iph->check = ip_fast_csum((void *)iph, iph->ihl);
+	ip_send_check(iph);
 	skb->protocol = protocol;
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
