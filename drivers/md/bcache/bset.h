@@ -277,7 +277,9 @@ static inline bool bch_cut_back(const struct bkey *where, struct bkey *k)
 }
 
 const char *bch_ptr_status(struct cache_set *, const struct bkey *);
-bool __bch_ptr_invalid(struct cache_set *, int level, const struct bkey *);
+bool bch_btree_ptr_invalid(struct cache_set *, const struct bkey *);
+bool bch_extent_ptr_invalid(struct cache_set *, const struct bkey *);
+
 bool bch_ptr_bad(struct btree *, const struct bkey *);
 
 static inline uint8_t gen_after(uint8_t a, uint8_t b)

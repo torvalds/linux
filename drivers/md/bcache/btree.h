@@ -204,16 +204,19 @@ static inline void set_gc_sectors(struct cache_set *c)
 	atomic_set(&c->sectors_to_gc, c->sb.bucket_size * c->nbuckets / 8);
 }
 
-static inline bool bch_ptr_invalid(struct btree *b, const struct bkey *k)
-{
-	return __bch_ptr_invalid(b->c, b->level, k);
-}
-
 static inline struct bkey *bch_btree_iter_init(struct btree *b,
 					       struct btree_iter *iter,
 					       struct bkey *search)
 {
 	return __bch_btree_iter_init(b, iter, search, b->sets);
+}
+
+static inline bool bch_ptr_invalid(struct btree *b, const struct bkey *k)
+{
+	if (b->level)
+		return bch_btree_ptr_invalid(b->c, k);
+	else
+		return bch_extent_ptr_invalid(b->c, k);
 }
 
 void bkey_put(struct cache_set *c, struct bkey *k);

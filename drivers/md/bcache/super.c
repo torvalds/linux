@@ -373,7 +373,7 @@ static char *uuid_read(struct cache_set *c, struct jset *j, struct closure *cl)
 {
 	struct bkey *k = &j->uuid_bucket;
 
-	if (__bch_ptr_invalid(c, 1, k))
+	if (bch_btree_ptr_invalid(c, k))
 		return "bad uuid pointer";
 
 	bkey_copy(&c->uuid_bucket, k);
@@ -1522,7 +1522,7 @@ static void run_cache_set(struct cache_set *c)
 		k = &j->btree_root;
 
 		err = "bad btree root";
-		if (__bch_ptr_invalid(c, j->btree_level + 1, k))
+		if (bch_btree_ptr_invalid(c, k))
 			goto err;
 
 		err = "error reading btree root";

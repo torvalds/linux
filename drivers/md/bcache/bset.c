@@ -73,19 +73,9 @@ void bch_keylist_pop_front(struct keylist *l)
 
 /* Pointer validation */
 
-bool __bch_ptr_invalid(struct cache_set *c, int level, const struct bkey *k)
+static bool __ptr_invalid(struct cache_set *c, const struct bkey *k)
 {
 	unsigned i;
-	char buf[80];
-
-	if (level && (!KEY_PTRS(k) || !KEY_SIZE(k) || KEY_DIRTY(k)))
-		goto bad;
-
-	if (!level && KEY_SIZE(k) > KEY_OFFSET(k))
-		goto bad;
-
-	if (!KEY_SIZE(k))
-		return true;
 
 	for (i = 0; i < KEY_PTRS(k); i++)
 		if (ptr_available(c, k, i)) {
@@ -96,13 +86,46 @@ bool __bch_ptr_invalid(struct cache_set *c, int level, const struct bkey *k)
 			if (KEY_SIZE(k) + r > c->sb.bucket_size ||
 			    bucket <  ca->sb.first_bucket ||
 			    bucket >= ca->sb.nbuckets)
-				goto bad;
+				return true;
 		}
+
+	return false;
+}
+
+bool bch_btree_ptr_invalid(struct cache_set *c, const struct bkey *k)
+{
+	char buf[80];
+
+	if (!KEY_PTRS(k) || !KEY_SIZE(k) || KEY_DIRTY(k))
+		goto bad;
+
+	if (__ptr_invalid(c, k))
+		goto bad;
 
 	return false;
 bad:
 	bch_bkey_to_text(buf, sizeof(buf), k);
-	cache_bug(c, "spotted bad key %s: %s", buf, bch_ptr_status(c, k));
+	cache_bug(c, "spotted btree ptr %s: %s", buf, bch_ptr_status(c, k));
+	return true;
+}
+
+bool bch_extent_ptr_invalid(struct cache_set *c, const struct bkey *k)
+{
+	char buf[80];
+
+	if (!KEY_SIZE(k))
+		return true;
+
+	if (KEY_SIZE(k) > KEY_OFFSET(k))
+		goto bad;
+
+	if (__ptr_invalid(c, k))
+		goto bad;
+
+	return false;
+bad:
+	bch_bkey_to_text(buf, sizeof(buf), k);
+	cache_bug(c, "spotted extent %s: %s", buf, bch_ptr_status(c, k));
 	return true;
 }
 
