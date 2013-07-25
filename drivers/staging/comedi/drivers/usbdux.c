@@ -1544,34 +1544,34 @@ static int usbdux_pwm_period(struct comedi_device *dev,
 	return 0;
 }
 
-/* is called from insn so there's no need to do all the sanity checks */
 static int usbdux_pwm_start(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	int ret, i;
-	struct usbdux_private *this_usbduxsub = dev->private;
+	struct usbdux_private *devpriv = dev->private;
+	int ret = 0;
 
-	if (this_usbduxsub->pwm_cmd_running) {
-		/* already running */
-		return 0;
-	}
+	down(&devpriv->sem);
 
-	this_usbduxsub->dux_commands[1] = ((int8_t) this_usbduxsub->pwn_delay);
+	if (devpriv->pwm_cmd_running)
+		goto pwm_start_exit;
+
+	devpriv->dux_commands[1] = devpriv->pwn_delay;
 	ret = send_dux_commands(dev, SENDPWMON);
 	if (ret < 0)
-		return ret;
+		goto pwm_start_exit;
 
 	/* initialise the buffer */
-	for (i = 0; i < this_usbduxsub->size_pwm_buf; i++)
-		((char *)(this_usbduxsub->urb_pwm->transfer_buffer))[i] = 0;
+	memset(devpriv->urb_pwm->transfer_buffer, 0, devpriv->size_pwm_buf);
 
-	this_usbduxsub->pwm_cmd_running = 1;
+	devpriv->pwm_cmd_running = 1;
 	ret = usbduxsub_submit_pwm_urbs(dev);
-	if (ret < 0) {
-		this_usbduxsub->pwm_cmd_running = 0;
-		return ret;
-	}
-	return 0;
+	if (ret < 0)
+		devpriv->pwm_cmd_running = 0;
+
+pwm_start_exit:
+	up(&devpriv->sem);
+
+	return ret;
 }
 
 /* generates the bit pattern for PWM with the optional sign bit */
