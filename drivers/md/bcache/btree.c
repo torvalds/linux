@@ -1107,6 +1107,22 @@ static struct btree *btree_node_alloc_replacement(struct btree *b)
 	return n;
 }
 
+static void make_btree_freeing_key(struct btree *b, struct bkey *k)
+{
+	unsigned i;
+
+	bkey_copy(k, &b->key);
+	bkey_copy_key(k, &ZERO_KEY);
+
+	for (i = 0; i < KEY_PTRS(k); i++) {
+		uint8_t g = PTR_BUCKET(b->c, k, i)->gen + 1;
+
+		SET_PTR_GEN(k, i, g);
+	}
+
+	atomic_inc(&b->c->prio_blocked);
+}
+
 /* Garbage collection */
 
 uint8_t __bch_btree_mark_key(struct cache_set *c, int level, struct bkey *k)
@@ -2030,20 +2046,9 @@ static int btree_split(struct btree *b, struct btree_op *op,
 		closure_sync(&cl);
 		bch_btree_set_root(n1);
 	} else {
-		unsigned i;
-
-		bkey_copy(parent_keys->top, &b->key);
-		bkey_copy_key(parent_keys->top, &ZERO_KEY);
-
-		for (i = 0; i < KEY_PTRS(&b->key); i++) {
-			uint8_t g = PTR_BUCKET(b->c, &b->key, i)->gen + 1;
-
-			SET_PTR_GEN(parent_keys->top, i, g);
-		}
-
-		bch_keylist_push(parent_keys);
 		closure_sync(&cl);
-		atomic_inc(&b->c->prio_blocked);
+		make_btree_freeing_key(b, parent_keys->top);
+		bch_keylist_push(parent_keys);
 	}
 
 	rw_unlock(true, n1);
