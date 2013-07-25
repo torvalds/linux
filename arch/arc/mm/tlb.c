@@ -100,13 +100,7 @@
 
 
 /* A copy of the ASID from the PID reg is kept in asid_cache */
-int asid_cache = FIRST_ASID;
-
-/* ASID to mm struct mapping. We have one extra entry corresponding to
- * NO_ASID to save us a compare when clearing the mm entry for old asid
- * see get_new_mmu_context (asm-arc/mmu_context.h)
- */
-struct mm_struct *asid_mm_map[NUM_ASID + 1];
+unsigned int asid_cache = MM_CTXT_FIRST_CYCLE;
 
 /*
  * Utility Routine to erase a J-TLB entry
@@ -281,7 +275,6 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			   unsigned long end)
 {
 	unsigned long flags;
-	unsigned int asid;
 
 	/* If range @start to @end is more than 32 TLB entries deep,
 	 * its better to move to a new ASID rather than searching for
@@ -303,11 +296,10 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	start &= PAGE_MASK;
 
 	local_irq_save(flags);
-	asid = vma->vm_mm->context.asid;
 
-	if (asid != NO_ASID) {
+	if (vma->vm_mm->context.asid != MM_CTXT_NO_ASID) {
 		while (start < end) {
-			tlb_entry_erase(start | (asid & 0xff));
+			tlb_entry_erase(start | hw_pid(vma->vm_mm));
 			start += PAGE_SIZE;
 		}
 	}
@@ -361,9 +353,8 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	 */
 	local_irq_save(flags);
 
-	if (vma->vm_mm->context.asid != NO_ASID) {
-		tlb_entry_erase((page & PAGE_MASK) |
-				(vma->vm_mm->context.asid & 0xff));
+	if (vma->vm_mm->context.asid != MM_CTXT_NO_ASID) {
+		tlb_entry_erase((page & PAGE_MASK) | hw_pid(vma->vm_mm));
 		utlb_invalidate();
 	}
 
@@ -709,7 +700,8 @@ void tlb_paranoid_check(unsigned int mm_asid, unsigned long addr)
 	 *   - SW needs to have a valid ASID
 	 */
 	if (addr < 0x70000000 &&
-	    ((mmu_asid != mm_asid) || (mm_asid == NO_ASID)))
+	    ((mm_asid == MM_CTXT_NO_ASID) ||
+	      (mmu_asid != (mm_asid & MM_CTXT_ASID_MASK))))
 		print_asid_mismatch(mm_asid, mmu_asid, 0);
 }
 #endif

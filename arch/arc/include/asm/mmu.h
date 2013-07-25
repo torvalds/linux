@@ -48,7 +48,7 @@
 #ifndef __ASSEMBLY__
 
 typedef struct {
-	unsigned long asid;	/* Pvt Addr-Space ID for mm */
+	unsigned long asid;	/* 8 bit MMU PID + Generation cycle */
 } mm_context_t;
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA
