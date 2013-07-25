@@ -48,7 +48,6 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <lustre/lustre_idl.h>
 #include <obd_support.h>
 #include <obd_class.h>
 #include <lustre_lib.h>
