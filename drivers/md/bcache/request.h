@@ -31,10 +31,8 @@ struct search {
 	struct keylist		insert_keys;
 };
 
-void bch_cache_read_endio(struct bio *, int);
 unsigned bch_get_congested(struct cache_set *);
 void bch_data_insert(struct closure *cl);
-void bch_cache_read_endio(struct bio *, int);
 
 void bch_open_buckets_free(struct cache_set *);
 int bch_open_buckets_alloc(struct cache_set *);

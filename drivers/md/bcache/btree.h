@@ -264,7 +264,6 @@ struct btree_op {
 	unsigned		flush_journal:1;
 
 	unsigned		insert_data_done:1;
-	unsigned		lookup_done:1;
 	unsigned		insert_collision:1;
 
 	BKEY_PADDED(replace);
@@ -305,8 +304,6 @@ struct btree *bch_btree_node_get(struct cache_set *, struct bkey *, int, bool);
 int bch_btree_insert_check_key(struct btree *, struct btree_op *,
 			       struct bkey *);
 int bch_btree_insert(struct btree_op *, struct cache_set *, struct keylist *);
-
-void bch_btree_search_async(struct closure *);
 
 int bch_gc_thread_start(struct cache_set *);
 size_t bch_btree_gc_finish(struct cache_set *);
