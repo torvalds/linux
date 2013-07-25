@@ -84,6 +84,13 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl);
 /*
  *  MEI input output function prototype
  */
+static inline bool mei_cl_is_connected(struct mei_cl *cl)
+{
+	return (cl->dev &&
+		cl->dev->dev_state == MEI_DEV_ENABLED &&
+		cl->state == MEI_FILE_CONNECTED);
+}
+
 bool mei_cl_is_other_connecting(struct mei_cl *cl);
 int mei_cl_disconnect(struct mei_cl *cl);
 int mei_cl_connect(struct mei_cl *cl, struct file *file);

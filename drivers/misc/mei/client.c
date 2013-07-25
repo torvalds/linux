@@ -635,10 +635,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 
 	dev = cl->dev;
 
-	if (cl->state != MEI_FILE_CONNECTED)
-		return -ENODEV;
-
-	if (dev->dev_state != MEI_DEV_ENABLED)
+	if (!mei_cl_is_connected(cl))
 		return -ENODEV;
 
 	if (cl->read_cb) {
