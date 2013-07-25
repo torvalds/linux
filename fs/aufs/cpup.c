@@ -971,55 +971,54 @@ int au_sio_cpup_simple_h_open(struct dentry *dentry, aufs_bindex_t bdst,
 /*
  * copyup the deleted file for writing.
  */
-static int au_do_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst,
-			 struct dentry *wh_dentry, struct file *file,
-			 loff_t len, struct au_pin *pin)
+static int au_do_cpup_wh(struct au_cpup_basic *basic, struct dentry *wh_dentry,
+			 struct file *file, struct au_pin *pin)
 {
 	int err;
-	struct au_cpup_basic basic = {
-		.dentry	= dentry,
-		.bdst	= bdst,
-		.bsrc	= -1,
-		.len	= len
-	};
-	struct au_dinfo *dinfo;
+	aufs_bindex_t bsrc_orig;
 	struct dentry *h_d_dst, *h_d_start;
+	struct au_dinfo *dinfo;
 	struct au_hdentry *hdp;
 
-	dinfo = au_di(dentry);
+	dinfo = au_di(basic->dentry);
 	AuRwMustWriteLock(&dinfo->di_rwsem);
 
-	basic.bsrc = dinfo->di_bstart;
+	bsrc_orig = basic->bsrc;
+	basic->bsrc = dinfo->di_bstart;
 	hdp = dinfo->di_hdentry;
-	h_d_dst = hdp[0 + bdst].hd_dentry;
-	dinfo->di_bstart = bdst;
-	hdp[0 + bdst].hd_dentry = wh_dentry;
+	h_d_dst = hdp[0 + basic->bdst].hd_dentry;
+	dinfo->di_bstart = basic->bdst;
+	hdp[0 + basic->bdst].hd_dentry = wh_dentry;
 	h_d_start = NULL;
 	if (file) {
-		h_d_start = hdp[0 + basic.bsrc].hd_dentry;
-		hdp[0 + basic.bsrc].hd_dentry = au_hf_top(file)->f_dentry;
+		h_d_start = hdp[0 + basic->bsrc].hd_dentry;
+		hdp[0 + basic->bsrc].hd_dentry = au_hf_top(file)->f_dentry;
 	}
-	err = au_cpup_single(&basic, !AuCpup_DTIME, /*h_parent*/NULL, pin);
+	err = au_cpup_single(basic, !AuCpup_DTIME, /*h_parent*/NULL, pin);
 	if (file) {
 		if (!err)
 			err = au_reopen_nondir(file);
-		hdp[0 + basic.bsrc].hd_dentry = h_d_start;
+		hdp[0 + basic->bsrc].hd_dentry = h_d_start;
 	}
-	hdp[0 + bdst].hd_dentry = h_d_dst;
-	dinfo->di_bstart = basic.bsrc;
+	hdp[0 + basic->bdst].hd_dentry = h_d_dst;
+	dinfo->di_bstart = basic->bsrc;
+	basic->bsrc = bsrc_orig;
 
 	return err;
 }
 
-static int au_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		      struct file *file, struct au_pin *pin)
+static int au_cpup_wh(struct au_cpup_basic *basic, struct file *file,
+		      struct au_pin *pin)
 {
 	int err;
+	aufs_bindex_t bdst;
 	struct au_dtime dt;
-	struct dentry *parent, *h_parent, *wh_dentry;
+	struct dentry *dentry, *parent, *h_parent, *wh_dentry;
 	struct au_branch *br;
 	struct path h_path;
 
+	dentry = basic->dentry;
+	bdst = basic->bdst;
 	br = au_sbr(dentry->d_sb, bdst);
 	parent = dget_parent(dentry);
 	h_parent = au_h_dptr(parent, bdst);
@@ -1031,7 +1030,7 @@ static int au_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 	h_path.dentry = h_parent;
 	h_path.mnt = au_br_mnt(br);
 	au_dtime_store(&dt, parent, &h_path);
-	err = au_do_cpup_wh(dentry, bdst, wh_dentry, file, len, pin);
+	err = au_do_cpup_wh(basic, wh_dentry, file, pin);
 	if (unlikely(err))
 		goto out_wh;
 
@@ -1058,9 +1057,7 @@ out:
 
 struct au_cpup_wh_args {
 	int *errp;
-	struct dentry *dentry;
-	aufs_bindex_t bdst;
-	loff_t len;
+	struct au_cpup_basic *basic;
 	struct file *file;
 	struct au_pin *pin;
 };
@@ -1070,7 +1067,7 @@ static void au_call_cpup_wh(void *args)
 	struct au_cpup_wh_args *a = args;
 
 	au_pin_hdir_acquire_nest(a->pin);
-	*a->errp = au_cpup_wh(a->dentry, a->bdst, a->len, a->file, a->pin);
+	*a->errp = au_cpup_wh(a->basic, a->file, a->pin);
 	au_pin_hdir_release(a->pin);
 }
 
@@ -1082,6 +1079,12 @@ int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 	struct inode *dir, *h_dir, *h_tmpdir;
 	struct au_wbr *wbr;
 	struct au_pin wh_pin;
+	struct au_cpup_basic basic = {
+		.dentry	= dentry,
+		.bdst	= bdst,
+		.bsrc	= -1,
+		.len	= len
+	};
 
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
@@ -1112,13 +1115,11 @@ int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 
 	if (!au_test_h_perm_sio(h_tmpdir, MAY_EXEC | MAY_WRITE)
 	    && !au_cpup_sio_test(pin, dentry->d_inode->i_mode))
-		err = au_cpup_wh(dentry, bdst, len, file, pin);
+		err = au_cpup_wh(&basic, file, pin);
 	else {
 		struct au_cpup_wh_args args = {
 			.errp	= &err,
-			.dentry	= dentry,
-			.bdst	= bdst,
-			.len	= len,
+			.basic	= &basic,
 			.file	= file,
 			.pin	= pin
 		};
