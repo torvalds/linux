@@ -25,7 +25,7 @@
 #include <asm/sched_clock.h>
 #include <mach/includes.h>
 
-#define TIMER0_VALUE   (AW_CLOCK_SRC / (AW_CLOCK_DIV * 100))
+#define TIMER0_VALUE   (SYS_TIMER_CLKSRC / (SYS_TIMER_SCAL * 100))
 
 static void __iomem *timer_cpu_base = 0;
 static spinlock_t timer0_spin_lock;
@@ -249,7 +249,7 @@ void __init aw_clkevt_init(void)
 	writel(0x1, timer_cpu_base + TMR_IRQ_EN_REG_OFF);
 
 	/* register clock event */
-	sun7i_timer0_clockevent.mult = div_sc(AW_CLOCK_SRC/AW_CLOCK_DIV, NSEC_PER_SEC, sun7i_timer0_clockevent.shift);
+	sun7i_timer0_clockevent.mult = div_sc(SYS_TIMER_CLKSRC/SYS_TIMER_SCAL, NSEC_PER_SEC, sun7i_timer0_clockevent.shift);
 	sun7i_timer0_clockevent.max_delta_ns = clockevent_delta2ns(0xff, &sun7i_timer0_clockevent);
 	//sun7i_timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &sun7i_timer0_clockevent)+100000;
 	sun7i_timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &sun7i_timer0_clockevent); /* liugang */

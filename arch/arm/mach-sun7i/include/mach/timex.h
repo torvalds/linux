@@ -19,13 +19,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef __ASM_ARCH_TIMERX_H
-#define __ASM_ARCH_TIMERX_H
-
-#define AW_CLOCK_SRC		(24000000)	/* 32000 */
-#define AW_CLOCK_DIV		(16)		/* (1) */
-
-#define CLOCK_TICK_RATE		(AW_CLOCK_SRC/AW_CLOCK_DIV)
-
+#ifndef __MACH_TIMEX_H
+#define __MACH_TIMEX_H
+#include <plat/timex.h>
 #endif
 

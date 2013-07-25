@@ -53,6 +53,39 @@
 #define SW_G2D_MEM_SIZE                   0x1000000
 #endif
 
-#endif
+#else
+
+#ifdef CONFIG_ARCH_SUN7I
+#define PLAT_MEM_SIZE                   (SZ_512M*2)
+
+#define SYS_CONFIG_MEMBASE             (PLAT_PHYS_OFFSET + SZ_32M + SZ_16M) /* +48M */
+#define SYS_CONFIG_MEMSIZE             (SZ_64K) /* 64K */
+
+#define SW_VE_MEM_SIZE                 (SZ_64M + SZ_16M)
+#define SW_G2D_MEM_SIZE                0x01000000 /* SZ_16M */
+#define SW_FB_MEM_SIZE                 0x02000000 /* SZ_32M */
+#define SW_GPU_MEM_SIZE                0x04000000 /* SZ_64M */
+
+/*
+ * memory reserved areas.
+ */
+#define SW_VE_MEM_BASE                 (PLAT_PHYS_OFFSET + SZ_64M)
+#define SW_G2D_MEM_BASE                (SW_VE_MEM_BASE + SW_VE_MEM_SIZE)
+#define SW_FB_MEM_BASE                 (SW_G2D_MEM_BASE + SW_G2D_MEM_SIZE)
+#define SW_GPU_MEM_BASE                (SW_FB_MEM_BASE + SW_FB_MEM_SIZE)
+
+#define HW_RESERVED_MEM_BASE    (SW_VE_MEM_BASE)
+#define HW_RESERVED_MEM_SIZE    (SW_VE_MEM_SIZE + SW_G2D_MEM_SIZE + SW_FB_MEM_SIZE + SW_GPU_MEM_SIZE)   /* 232M(DE+VE(CSI)+MP) */
+
+#else
+
+#define SW_FB_MEM_BASE 0UL
+#define SW_FB_MEM_SIZE SZ_32M
+
+#endif /* sun7i */
+#endif /* sun5i */
 
 #endif
+
+
+
