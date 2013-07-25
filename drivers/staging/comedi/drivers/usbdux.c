@@ -99,6 +99,8 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #define VENDOR_DIR_OUT		0x40
 #define USBDUX_CPU_CS		0xe600
 
+#define USBDUX_NUM_AO_CHAN	4
+
 /* timeout for the USB-transfer in ms */
 #define BULK_TIMEOUT		1000
 
@@ -195,8 +197,8 @@ struct usbdux_private {
 	int16_t *in_buf;
 	/* input buffer for single insn */
 	int16_t *insn_buf;
-	/* output buffer for single DA outputs */
-	int16_t *out_buffer;
+
+	unsigned int ao_readback[USBDUX_NUM_AO_CHAN];
 
 	unsigned int high_speed:1;
 	unsigned int ai_cmd_running:1;
@@ -486,25 +488,24 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 		((uint8_t *) (urb->transfer_buffer))[0] =
 		    s->async->cmd.chanlist_len;
 		for (i = 0; i < s->async->cmd.chanlist_len; i++) {
-			short temp;
-			if (i >= NUMOUTCHANNELS)
-				break;
+			unsigned int chan = devpriv->dac_commands[i];
+			short val;
 
+			ret = comedi_buf_get(s->async, &val);
+			if (ret < 0) {
+				dev_err(dev->class_dev, "buffer underflow\n");
+				s->async->events |= (COMEDI_CB_EOA |
+						     COMEDI_CB_OVERFLOW);
+			}
 			/* pointer to the DA */
 			datap =
 			    (&(((int8_t *) urb->transfer_buffer)[i * 3 + 1]));
 			/* get the data from comedi */
-			ret = comedi_buf_get(s->async, &temp);
-			datap[0] = temp;
-			datap[1] = temp >> 8;
-			datap[2] = devpriv->dac_commands[i];
-			if (ret < 0) {
-				dev_err(&urb->dev->dev,
-					"comedi: buffer underflow\n");
-				s->async->events |= COMEDI_CB_EOA;
-				s->async->events |= COMEDI_CB_OVERFLOW;
-			}
-			/* transmit data to comedi */
+			datap[0] = val;
+			datap[1] = val >> 8;
+			datap[2] = chan;
+			devpriv->ao_readback[chan] = val;
+
 			s->async->events |= COMEDI_CB_BLOCK;
 			comedi_event(dev, s);
 		}
@@ -907,7 +908,7 @@ static int usbdux_ao_insn_read(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->out_buffer[chan];
+		data[i] = devpriv->ao_readback[chan];
 	up(&devpriv->sem);
 
 	return insn->n;
@@ -920,7 +921,7 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 {
 	struct usbdux_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->out_buffer[chan];
+	unsigned int val = devpriv->ao_readback[chan];
 	int16_t *p = (int16_t *)&devpriv->dux_commands[2];
 	int ret = -EBUSY;
 	int i;
@@ -945,7 +946,7 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 		if (ret < 0)
 			goto ao_write_exit;
 	}
-	devpriv->out_buffer[chan] = val;
+	devpriv->ao_readback[chan] = val;
 
 ao_write_exit:
 	up(&devpriv->sem);
@@ -1660,11 +1661,6 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 	if (!devpriv->insn_buf)
 		return -ENOMEM;
 
-	/* create space for the outbuffer */
-	devpriv->out_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
-	if (!devpriv->out_buffer)
-		return -ENOMEM;
-
 	/* in urbs */
 	devpriv->ai_urbs = kcalloc(devpriv->n_ai_urbs, sizeof(*urb),
 				   GFP_KERNEL);
@@ -1779,7 +1775,6 @@ static void usbdux_free_usb_buffers(struct usbdux_private *devpriv)
 		}
 		kfree(devpriv->ai_urbs);
 	}
-	kfree(devpriv->out_buffer);
 	kfree(devpriv->insn_buf);
 	kfree(devpriv->in_buf);
 	kfree(devpriv->dux_commands);
@@ -1854,9 +1849,9 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	dev->write_subdev = s;
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
-	s->n_chan	= 4;
+	s->n_chan	= USBDUX_NUM_AO_CHAN;
 	s->maxdata	= 0x0fff;
-	s->len_chanlist	= 4;
+	s->len_chanlist	= s->n_chan;
 	s->range_table	= &range_usbdux_ao_range;
 	s->do_cmdtest	= usbdux_ao_cmdtest;
 	s->do_cmd	= usbdux_ao_cmd;
