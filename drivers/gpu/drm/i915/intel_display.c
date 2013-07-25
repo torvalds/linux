@@ -4087,7 +4087,7 @@ static void hsw_compute_ips_config(struct intel_crtc *crtc,
 {
 	pipe_config->ips_enabled = i915_enable_ips &&
 				   hsw_crtc_supports_ips(crtc) &&
-				   pipe_config->pipe_bpp == 24;
+				   pipe_config->pipe_bpp <= 24;
 }
 
 static int intel_crtc_compute_config(struct intel_crtc *crtc,
