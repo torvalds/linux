@@ -199,7 +199,7 @@ static const s8 NCT6775_ALARM_BITS[] = {
 	0, 1, 2, 3, 8, 21, 20, 16,	/* in0.. in7 */
 	17, -1, -1, -1, -1, -1, -1,	/* in8..in14 */
 	-1,				/* unused */
-	6, 7, 11, 10, 23,		/* fan1..fan5 */
+	6, 7, 11, -1, -1,		/* fan1..fan5 */
 	-1, -1, -1,			/* unused */
 	4, 5, 13, -1, -1, -1,		/* temp1..temp6 */
 	12, -1 };			/* intrusion0, intrusion1 */
@@ -625,6 +625,7 @@ struct nct6775_data {
 	u8 has_fan_min;		/* some fans don't have min register */
 	bool has_fan_div;
 
+	u8 num_temp_alarms;	/* 2 or 3 */
 	u8 temp_fixed_num;	/* 3 or 6 */
 	u8 temp_type[NUM_TEMP_FIXED];
 	s8 temp_offset[NUM_TEMP_FIXED];
@@ -1191,6 +1192,42 @@ show_alarm(struct device *dev, struct device_attribute *attr, char *buf)
 	int nr = data->ALARM_BITS[sattr->index];
 	return sprintf(buf, "%u\n",
 		       (unsigned int)((data->alarms >> nr) & 0x01));
+}
+
+static int find_temp_source(struct nct6775_data *data, int index, int count)
+{
+	int source = data->temp_src[index];
+	int nr;
+
+	for (nr = 0; nr < count; nr++) {
+		int src;
+
+		src = nct6775_read_value(data,
+					 data->REG_TEMP_SOURCE[nr]) & 0x1f;
+		if (src == source)
+			return nr;
+	}
+	return -1;
+}
+
+static ssize_t
+show_temp_alarm(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct sensor_device_attribute *sattr = to_sensor_dev_attr(attr);
+	struct nct6775_data *data = nct6775_update_device(dev);
+	unsigned int alarm = 0;
+	int nr;
+
+	/*
+	 * For temperatures, there is no fixed mapping from registers to alarm
+	 * bits. Alarm bits are determined by the temperature source mapping.
+	 */
+	nr = find_temp_source(data, sattr->index, data->num_temp_alarms);
+	if (nr >= 0) {
+		int bit = data->ALARM_BITS[nr + TEMP_ALARM_BASE];
+		alarm = (data->alarms >> bit) & 0x01;
+	}
+	return sprintf(buf, "%u\n", alarm);
 }
 
 static SENSOR_DEVICE_ATTR_2(in0_input, S_IRUGO, show_in_reg, NULL, 0, 0);
@@ -1874,21 +1911,17 @@ static struct sensor_device_attribute sda_temp_type[] = {
 };
 
 static struct sensor_device_attribute sda_temp_alarm[] = {
-	SENSOR_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL,
-		    TEMP_ALARM_BASE),
-	SENSOR_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL,
-		    TEMP_ALARM_BASE + 1),
-	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL,
-		    TEMP_ALARM_BASE + 2),
-	SENSOR_ATTR(temp4_alarm, S_IRUGO, show_alarm, NULL,
-		    TEMP_ALARM_BASE + 3),
-	SENSOR_ATTR(temp5_alarm, S_IRUGO, show_alarm, NULL,
-		    TEMP_ALARM_BASE + 4),
-	SENSOR_ATTR(temp6_alarm, S_IRUGO, show_alarm, NULL,
-		    TEMP_ALARM_BASE + 5),
+	SENSOR_ATTR(temp1_alarm, S_IRUGO, show_temp_alarm, NULL, 0),
+	SENSOR_ATTR(temp2_alarm, S_IRUGO, show_temp_alarm, NULL, 1),
+	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_temp_alarm, NULL, 2),
+	SENSOR_ATTR(temp4_alarm, S_IRUGO, show_temp_alarm, NULL, 3),
+	SENSOR_ATTR(temp5_alarm, S_IRUGO, show_temp_alarm, NULL, 4),
+	SENSOR_ATTR(temp6_alarm, S_IRUGO, show_temp_alarm, NULL, 5),
+	SENSOR_ATTR(temp7_alarm, S_IRUGO, show_temp_alarm, NULL, 6),
+	SENSOR_ATTR(temp8_alarm, S_IRUGO, show_temp_alarm, NULL, 7),
+	SENSOR_ATTR(temp9_alarm, S_IRUGO, show_temp_alarm, NULL, 8),
+	SENSOR_ATTR(temp10_alarm, S_IRUGO, show_temp_alarm, NULL, 9),
 };
-
-#define NUM_TEMP_ALARM	ARRAY_SIZE(sda_temp_alarm)
 
 static ssize_t
 show_pwm_mode(struct device *dev, struct device_attribute *attr, char *buf)
@@ -3215,13 +3248,11 @@ static void nct6775_device_remove_files(struct device *dev)
 		device_remove_file(dev, &sda_temp_max[i].dev_attr);
 		device_remove_file(dev, &sda_temp_max_hyst[i].dev_attr);
 		device_remove_file(dev, &sda_temp_crit[i].dev_attr);
+		device_remove_file(dev, &sda_temp_alarm[i].dev_attr);
 		if (!(data->have_temp_fixed & (1 << i)))
 			continue;
 		device_remove_file(dev, &sda_temp_type[i].dev_attr);
 		device_remove_file(dev, &sda_temp_offset[i].dev_attr);
-		if (i >= NUM_TEMP_ALARM)
-			continue;
-		device_remove_file(dev, &sda_temp_alarm[i].dev_attr);
 	}
 
 	device_remove_file(dev, &sda_caseopen[0].dev_attr);
@@ -3419,6 +3450,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->auto_pwm_num = 6;
 		data->has_fan_div = true;
 		data->temp_fixed_num = 3;
+		data->num_temp_alarms = 3;
 
 		data->ALARM_BITS = NCT6775_ALARM_BITS;
 
@@ -3483,6 +3515,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->auto_pwm_num = 4;
 		data->has_fan_div = false;
 		data->temp_fixed_num = 3;
+		data->num_temp_alarms = 3;
 
 		data->ALARM_BITS = NCT6776_ALARM_BITS;
 
@@ -3547,6 +3580,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->auto_pwm_num = 4;
 		data->has_fan_div = false;
 		data->temp_fixed_num = 6;
+		data->num_temp_alarms = 2;
 
 		data->ALARM_BITS = NCT6779_ALARM_BITS;
 
@@ -3843,10 +3877,12 @@ static int nct6775_probe(struct platform_device *pdev)
 						 &sda_fan_input[i].dev_attr);
 			if (err)
 				goto exit_remove;
-			err = device_create_file(dev,
-						 &sda_fan_alarm[i].dev_attr);
-			if (err)
-				goto exit_remove;
+			if (data->ALARM_BITS[FAN_ALARM_BASE + i] >= 0) {
+				err = device_create_file(dev,
+						&sda_fan_alarm[i].dev_attr);
+				if (err)
+					goto exit_remove;
+			}
 			if (data->kind != nct6776 &&
 			    data->kind != nct6779) {
 				err = device_create_file(dev,
@@ -3897,18 +3933,18 @@ static int nct6775_probe(struct platform_device *pdev)
 			if (err)
 				goto exit_remove;
 		}
+		if (find_temp_source(data, i, data->num_temp_alarms) >= 0) {
+			err = device_create_file(dev,
+						 &sda_temp_alarm[i].dev_attr);
+			if (err)
+				goto exit_remove;
+		}
 		if (!(data->have_temp_fixed & (1 << i)))
 			continue;
 		err = device_create_file(dev, &sda_temp_type[i].dev_attr);
 		if (err)
 			goto exit_remove;
 		err = device_create_file(dev, &sda_temp_offset[i].dev_attr);
-		if (err)
-			goto exit_remove;
-		if (i >= NUM_TEMP_ALARM ||
-		    data->ALARM_BITS[TEMP_ALARM_BASE + i] < 0)
-			continue;
-		err = device_create_file(dev, &sda_temp_alarm[i].dev_attr);
 		if (err)
 			goto exit_remove;
 	}
