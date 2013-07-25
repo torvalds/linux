@@ -61,7 +61,7 @@ config RK3066B_LCDC1_IO_18V
 
 config LCDC_RK3188
         bool "rk3188 lcdc support"
-        depends on FB_ROCKCHIP && ARCH_RK3188
+        depends on FB_ROCKCHIP && (ARCH_RK3188 || ARCH_RK3026)
         help
           Driver for rk3188 lcdc.There are two lcd controllers on rk3188
 config LCDC0_RK3188

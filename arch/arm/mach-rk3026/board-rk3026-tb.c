@@ -265,22 +265,37 @@ static int rk_fb_io_enable(void)
 
 #if defined(CONFIG_LCDC0_RK3066B) || defined(CONFIG_LCDC0_RK3188)
 struct rk29fb_info lcdc0_screen_info = {
-	#if defined(CONFIG_RK_HDMI)
-	.prop		= EXTEND,	//extend display device
-	.lcd_info  = NULL,
+#if defined(CONFIG_RK_HDMI) && defined(CONFIG_HDMI_SOURCE_LCDC0) && defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+	.prop	   = EXTEND,	//extend display device
+	.io_init    = NULL,
+	.io_disable = NULL,
+	.io_enable = NULL,
 	.set_screen_info = hdmi_init_lcdc,
-	#endif
-};
-#endif
-
-#if defined(CONFIG_LCDC1_RK3066B) || defined(CONFIG_LCDC1_RK3188)
-struct rk29fb_info lcdc1_screen_info = {
+#else
 	.prop	   = PRMRY,		//primary display device
 	.io_init   = rk_fb_io_init,
 	.io_disable = rk_fb_io_disable,
 	.io_enable = rk_fb_io_enable,
 	.set_screen_info = set_lcd_info,
-	
+#endif
+};
+#endif
+
+#if defined(CONFIG_LCDC1_RK3066B) || defined(CONFIG_LCDC1_RK3188)
+struct rk29fb_info lcdc1_screen_info = {
+#if defined(CONFIG_RK_HDMI) && defined(CONFIG_HDMI_SOURCE_LCDC1) && defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+	.prop	   = EXTEND,	//extend display device
+	.io_init    = NULL,
+	.io_disable = NULL,
+	.io_enable = NULL,
+	.set_screen_info = hdmi_init_lcdc,
+#else
+	.prop	   = PRMRY,		//primary display device
+	.io_init   = rk_fb_io_init,
+	.io_disable = rk_fb_io_disable,
+	.io_enable = rk_fb_io_enable,
+	.set_screen_info = set_lcd_info,
+#endif
 };
 #endif
 
@@ -317,15 +332,15 @@ static struct platform_device device_fb = {
 static struct resource resource_lcdc0[] = {
 	[0] = {
 		.name  = "lcdc0 reg",
-		.start = RK30_LCDC0_PHYS,
-		.end   = RK30_LCDC0_PHYS + RK30_LCDC0_SIZE - 1,
+		.start = RK3026_LCDC0_PHYS,
+		.end   = RK3026_LCDC0_PHYS + RK3026_LCDC0_PHYS - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	
 	[1] = {
 		.name  = "lcdc0 irq",
-		.start = IRQ_LCDC0,
-		.end   = IRQ_LCDC0,
+		.start = IRQ_LCDC,
+		.end   = IRQ_LCDC,
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -345,8 +360,8 @@ static struct platform_device device_lcdc0 = {
 static struct resource resource_lcdc1[] = {
 	[0] = {
 		.name  = "lcdc1 reg",
-		.start = RK30_LCDC1_PHYS,
-		.end   = RK30_LCDC1_PHYS + RK30_LCDC1_SIZE - 1,
+		.start = RK3026_LCDC1_PHYS,
+		.end   = RK3026_LCDC1_PHYS + RK3026_LCDC1_PHYS - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {

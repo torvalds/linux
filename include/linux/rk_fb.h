@@ -281,6 +281,9 @@ struct rk_lcdc_device_driver{
 	int (*read_dsp_lut)(struct rk_lcdc_device_driver *dev_drv,int *lut);
 	int (*lcdc_hdmi_process)(struct rk_lcdc_device_driver *dev_drv,int mode); //some lcdc need to some process in hdmi mode
 	int (*lcdc_rst)(struct rk_lcdc_device_driver *dev_drv);
+	int (*dpi_open)(struct rk_lcdc_device_driver *dev_drv,bool open);
+	int (*dpi_layer_sel)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
+	int (*dpi_status)(struct rk_lcdc_device_driver *dev_drv);
 	
 };
 
@@ -303,6 +306,10 @@ extern int get_fb_layer_id(struct fb_fix_screeninfo *fix);
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern rk_screen * rk_fb_get_prmry_screen(void);
 u32 rk_fb_get_prmry_screen_pixclock(void);
+
+extern int rk_fb_dpi_open(bool open);
+extern int rk_fb_dpi_layer_sel(int layer_id);
+extern int rk_fb_dpi_status(void);
 
 extern int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id);
 extern int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id);

@@ -983,6 +983,31 @@ static int set_xact_yact_for_hdmi(struct fb_var_screeninfo *pmy_var,
 	return 0;
 		
 }
+int rk_fb_dpi_open(bool open)
+{
+	struct rk_lcdc_device_driver * dev_drv = NULL;
+	dev_drv = rk_get_prmry_lcdc_drv();
+	dev_drv->dpi_open(dev_drv,open);
+
+	return 0;
+}
+int rk_fb_dpi_layer_sel(int layer_id)
+{
+	struct rk_lcdc_device_driver * dev_drv = NULL;
+	dev_drv = rk_get_prmry_lcdc_drv();
+	dev_drv->dpi_layer_sel(dev_drv,layer_id);
+
+	return 0;
+}
+int rk_fb_dpi_status(void)
+{
+	int ret;
+	struct rk_lcdc_device_driver * dev_drv = NULL;
+	dev_drv = rk_get_prmry_lcdc_drv();
+	ret = dev_drv->dpi_status(dev_drv);
+
+	return ret;
+}
 
 /******************************************
 function:this function will be called by hdmi,when 
@@ -1384,6 +1409,12 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 		dev_drv->lcdc_hdmi_process = def_drv->lcdc_hdmi_process;
 	if(def_drv->lcdc_reg_update)
 		dev_drv->lcdc_reg_update = def_drv->lcdc_reg_update;
+	if(def_drv->dpi_open)
+		dev_drv->dpi_open = def_drv->dpi_open;
+	if(def_drv->dpi_layer_sel)
+		dev_drv->dpi_layer_sel = def_drv->dpi_layer_sel;
+	if(def_drv->dpi_status)
+		dev_drv->dpi_status = def_drv->dpi_status;
 	init_layer_par(dev_drv);
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);

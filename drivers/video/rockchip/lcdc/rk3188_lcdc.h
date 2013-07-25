@@ -16,7 +16,7 @@
 #define m_WIN1_FORMAT		(7<<6)
 #define m_HWC_COLOR_MODE	(1<<9)
 #define m_HWC_SIZE		(1<<10)
-#define m_WIN0_3D_EN		(1<11)
+#define m_WIN0_3D_EN		(1<<11)
 #define m_WIN0_3D_MODE		(7<<12)
 #define m_WIN0_RB_SWAP		(1<<15)
 #define m_WIN0_ALPHA_SWAP	(1<<16)
@@ -41,7 +41,7 @@
 #define v_WIN1_FORMAT(x)	(((x)&7)<<6)
 #define v_HWC_COLOR_MODE(x)	(((x)&1)<<9)
 #define v_HWC_SIZE(x)		(((x)&1)<<10)
-#define v_WIN0_3D_EN(x)		(((x)&1)<11)
+#define v_WIN0_3D_EN(x)		(((x)&1)<<11)
 #define v_WIN0_3D_MODE(x)	(((x)&7)<<12)
 #define v_WIN0_RB_SWAP(x)	(((x)&1)<<15)
 #define v_WIN0_ALPHA_SWAP(x)	(((x)&1)<<16)
@@ -287,6 +287,34 @@
 #define MCU_BYPASS_RPORT	(0x200)
 #define WIN1_LUT_ADDR		(0x400)
 #define DSP_LUT_ADDR		(0x800)
+
+/*
+	RK3026/RK3028A max output  resolution 1920x1080
+	support IEP instead of  3d
+*/
+#ifdef CONFIG_ARCH_RK3026
+//SYS_CTRL 0x00
+#define m_DIRECT_PATCH_EN         (1<<11)
+#define m_DIRECT_PATH_LAY_SEL     (1<<12)
+
+#define v_DIRECT_PATCH_EN(x)      (((x)&1)<<11)
+#define v_DIRECT_PATH_LAY_SEL(x)  (((x)&1)<<12)
+
+//INT_STATUS 0x10
+#define m_WIN0_EMPTY_INTR_EN      (1<<24)
+#define m_WIN1_EMPTY_INTR_EN      (1<<25)
+#define m_WIN0_EMPTY_INTR_CLR     (1<<26)
+#define m_WIN1_EMPTY_INTR_CLR     (1<<27)
+#define m_WIN0_EMPTY_INTR_STA     (1<<28)
+#define m_WIN1_EMPTY_INTR_STA     (1<<29)
+
+#define v_WIN0_EMPTY_INTR_EN(x)   (((x)&1)<<24)
+#define v_WIN1_EMPTY_INTR_EN(x)   (((x)&1)<<25)
+#define v_WIN0_EMPTY_INTR_CLR(x)  (((x)&1)<<26)
+#define v_WIN1_EMPTY_INTR_CLR(x)  (((x)&1)<<27)
+#define v_WIN0_EMPTY_INTR_STA(x)  (((x)&1)<<28)
+#define v_WIN1_EMPTY_INTR_STA(x)  (((x)&1)<<29)
+#endif
 
 
 #define CalScale(x, y)	             ((((u32)(x-1))*0x1000)/(y-1))

@@ -448,17 +448,17 @@ static int rk3188_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
 	}
 
 	rk3188_lcdc_read_reg_defalut_cfg(lcdc_dev);
+	#ifdef CONFIG_ARCH_RK3188
 	if(lcdc_dev->id == 0)
 	{
 		#if defined(CONFIG_LCDC0_IO_18V)
-		v = 0x40004000;               //bit14: 1,1.8v;0,3.3v
-		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
+			v = 0x40004000;               //bit14: 1,1.8v;0,3.3v
+			writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
 		#else
-		v = 0x40000000;              
-		writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
+			v = 0x40000000;
+			writel_relaxed(v,RK30_GRF_BASE + GRF_IO_CON4);
 		#endif
 	}
-
 	if(lcdc_dev->id == 1) //iomux for lcdc1
 	{
 		#if defined(CONFIG_LCDC1_IO_18V)
@@ -496,8 +496,8 @@ static int rk3188_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
 		iomux_set(LCDC1_D21);
 		iomux_set(LCDC1_D22);
 		iomux_set(LCDC1_D23);
-		
 	}
+	#endif
 	lcdc_set_bit(lcdc_dev,SYS_CTRL,m_AUTO_GATING_EN);//eanble axi-clk auto gating for low power
 	//lcdc_set_bit(lcdc_dev,DSP_CTRL0,m_WIN0_TOP);
         if(dev_drv->cur_screen->dsp_lut)
@@ -632,7 +632,27 @@ static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 			    v_VASP(screen->vsync_len + screen->upper_margin));
 	}
  	spin_unlock(&lcdc_dev->reg_lock);
-
+	if(dev_drv->screen0->type == SCREEN_RGB) //iomux for RGB screen
+	{
+		iomux_set(LCDC0_DCLK);
+		iomux_set(LCDC0_HSYNC);
+		iomux_set(LCDC0_VSYNC);
+		iomux_set(LCDC0_DEN);
+		iomux_set(LCDC0_D10);
+		iomux_set(LCDC0_D11);
+		iomux_set(LCDC0_D12);
+		iomux_set(LCDC0_D13);
+		iomux_set(LCDC0_D14);
+		iomux_set(LCDC0_D15);
+		iomux_set(LCDC0_D16);
+		iomux_set(LCDC0_D17);
+		iomux_set(LCDC0_D18);
+		iomux_set(LCDC0_D19);
+		iomux_set(LCDC0_D20);
+		iomux_set(LCDC0_D21);
+		iomux_set(LCDC0_D22);
+		iomux_set(LCDC0_D23);
+	}
 	ret = clk_set_rate(lcdc_dev->dclk, screen->pixclock);
 	if(ret)
 	{
@@ -1374,6 +1394,31 @@ static int rk3188_set_dsp_lut(struct rk_lcdc_device_driver *dev_drv,int *lut)
 	return ret;
 }
 
+static int rk3188_lcdc_dpi_open(struct rk_lcdc_device_driver *dev_drv,bool open)
+{
+	struct rk3188_lcdc_device *lcdc_dev =
+			container_of(dev_drv,struct rk3188_lcdc_device,driver);
+	lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_DIRECT_PATCH_EN,v_DIRECT_PATCH_EN(open));
+	lcdc_cfg_done(lcdc_dev);
+	return 0;
+}
+
+static int rk3188_lcdc_dpi_layer_sel(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+{
+	struct rk3188_lcdc_device *lcdc_dev =
+			container_of(dev_drv,struct rk3188_lcdc_device,driver);
+	lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_DIRECT_PATH_LAY_SEL,v_DIRECT_PATH_LAY_SEL(layer_id));
+	lcdc_cfg_done(lcdc_dev);
+	return 0;
+
+}
+static int rk3188_lcdc_dpi_status(struct rk_lcdc_device_driver *dev_drv)
+{
+	struct rk3188_lcdc_device *lcdc_dev =
+			container_of(dev_drv,struct rk3188_lcdc_device,driver);
+	int ovl = lcdc_read_bit(lcdc_dev,SYS_CTRL,m_DIRECT_PATCH_EN);
+	return ovl;
+}
 
 static struct layer_par lcdc_layer[] = {
 	[0] = {
@@ -1409,6 +1454,9 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.fb_get_layer           = rk3188_fb_get_layer,
 	.fb_layer_remap         = rk3188_fb_layer_remap,
 	.set_dsp_lut            = rk3188_set_dsp_lut,
+	.dpi_open               = rk3188_lcdc_dpi_open,
+	.dpi_layer_sel          = rk3188_lcdc_dpi_layer_sel,
+	.dpi_status          	= rk3188_lcdc_dpi_status,
 };
 
 static irqreturn_t rk3188_lcdc_isr(int irq, void *dev_id)
