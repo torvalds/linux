@@ -229,23 +229,20 @@ struct usbdux_private {
 	struct semaphore sem;
 };
 
-static void usbduxsub_unlink_inurbs(struct comedi_device *dev)
+static void usbdux_unlink_urbs(struct urb **urbs, int num_urbs)
 {
-	struct usbdux_private *devpriv = dev->private;
 	int i;
 
-	if (devpriv->ai_urbs) {
-		for (i = 0; i < devpriv->n_ai_urbs; i++)
-			usb_kill_urb(devpriv->ai_urbs[i]);
-	}
+	for (i = 0; i < num_urbs; i++)
+		usb_kill_urb(urbs[i]);
 }
 
 static void usbdux_ai_stop(struct comedi_device *dev, int do_unlink)
 {
 	struct usbdux_private *devpriv = dev->private;
 
-	if (do_unlink)
-		usbduxsub_unlink_inurbs(dev);
+	if (do_unlink && devpriv->ai_urbs)
+		usbdux_unlink_urbs(devpriv->ai_urbs, devpriv->n_ai_urbs);
 
 	devpriv->ai_cmd_running = 0;
 }
@@ -389,23 +386,12 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	comedi_event(dev, s);
 }
 
-static void usbduxsub_unlink_outurbs(struct comedi_device *dev)
-{
-	struct usbdux_private *devpriv = dev->private;
-	int i;
-
-	if (devpriv->ao_urbs) {
-		for (i = 0; i < devpriv->n_ao_urbs; i++)
-			usb_kill_urb(devpriv->ao_urbs[i]);
-	}
-}
-
 static void usbdux_ao_stop(struct comedi_device *dev, int do_unlink)
 {
 	struct usbdux_private *devpriv = dev->private;
 
-	if (do_unlink)
-		usbduxsub_unlink_outurbs(dev);
+	if (do_unlink && devpriv->ao_urbs)
+		usbdux_unlink_urbs(devpriv->ao_urbs, devpriv->n_ao_urbs);
 
 	devpriv->ao_cmd_running = 0;
 }
