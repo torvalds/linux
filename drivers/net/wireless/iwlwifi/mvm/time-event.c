@@ -73,7 +73,6 @@
 #include "iwl-prph.h"
 
 /* A TimeUnit is 1024 microsecond */
-#define TU_TO_JIFFIES(_tu)	(usecs_to_jiffies((_tu) * 1024))
 #define MSEC_TO_TU(_msec)	(_msec*1000/1024)
 
 /*
@@ -191,8 +190,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		iwl_mvm_te_clear_data(mvm, te_data);
 	} else if (le32_to_cpu(notif->action) & TE_NOTIF_HOST_EVENT_START) {
 		te_data->running = true;
-		te_data->end_jiffies = jiffies +
-			TU_TO_JIFFIES(te_data->duration);
+		te_data->end_jiffies = TU_TO_EXP_TIME(te_data->duration);
 
 		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
@@ -329,8 +327,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (te_data->running &&
-	    time_after(te_data->end_jiffies,
-		       jiffies + TU_TO_JIFFIES(min_duration))) {
+	    time_after(te_data->end_jiffies, TU_TO_EXP_TIME(min_duration))) {
 		IWL_DEBUG_TE(mvm, "We have enough time in the current TE: %u\n",
 			     jiffies_to_msecs(te_data->end_jiffies - jiffies));
 		return;
