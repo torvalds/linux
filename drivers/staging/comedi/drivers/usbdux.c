@@ -122,9 +122,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 /* 16 bytes. */
 #define SIZEINSNBUF       16
 
-/* Number of DA channels */
-#define NUMOUTCHANNELS    8
-
 /* size of one value for the D/A converter: channel and value */
 #define SIZEDAOUT          ((sizeof(int8_t)+sizeof(int16_t)))
 
