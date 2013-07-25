@@ -1941,12 +1941,10 @@ static void usbdux_detach(struct comedi_device *dev)
 
 		usb_set_intfdata(intf, NULL);
 
-		if (devpriv->pwm_cmd_running)
-			usbduxsub_unlink_pwm_urbs(dev);
-		if (devpriv->ao_cmd_running)
-			usbduxsub_unlink_outurbs(dev);
-		if (devpriv->ai_cmd_running)
-			usbduxsub_unlink_inurbs(dev);
+		/* stop and unlink any submitted urbs */
+		usbdux_pwm_stop(dev, devpriv->pwm_cmd_running);
+		usbdux_ao_stop(dev, devpriv->ao_cmd_running);
+		usbdux_ai_stop(dev, devpriv->ai_cmd_running);
 
 		usbdux_free_usb_buffers(devpriv);
 
