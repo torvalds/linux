@@ -307,7 +307,7 @@ static void ch7xxx_mode_set(struct intel_dvo_device *dvo,
 		idf |= CH7xxx_IDF_HSP;
 
 	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		idf |= CH7xxx_IDF_HSP;
+		idf |= CH7xxx_IDF_VSP;
 
 	ch7xxx_writeb(dvo, CH7xxx_IDF, idf);
 }
