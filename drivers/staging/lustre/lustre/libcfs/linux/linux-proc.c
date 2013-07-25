@@ -54,9 +54,7 @@
 
 #include <linux/fs.h>
 #include <linux/file.h>
-#include <linux/stat.h>
 #include <linux/list.h>
-#include <asm/uaccess.h>
 
 #include <linux/proc_fs.h>
 #include <linux/sysctl.h>
