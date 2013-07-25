@@ -28,11 +28,6 @@ struct tegra_utmip_config {
 	u8 xcvr_lsrslew;
 };
 
-struct tegra_ulpi_config {
-	int reset_gpio;
-	const char *clk;
-};
-
 enum tegra_usb_phy_port_speed {
 	TEGRA_USB_PHY_PORT_SPEED_FULL = 0,
 	TEGRA_USB_PHY_PORT_SPEED_LOW,
