@@ -27,7 +27,7 @@ struct i2c_driver ct36x_ts_driver  = {
 	.id_table	= ct36x_ts_id,
 	.probe      = ct36x_ts_probe,
 	.shutdown	= ct36x_ts_shutdown,
-#ifdef CONFIG_MACH_RK3188M_F304
+#if defined(CONFIG_MACH_RK3188M_F304) || defined(CONFIG_MACH_RK3168M_F304)
 	.suspend	= ct36x_suspend,
 	.resume	    = ct36x_resume,
 #endif

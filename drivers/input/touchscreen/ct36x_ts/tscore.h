@@ -69,7 +69,7 @@ struct ct36x_ts_info {
 int ct36x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id);
 void ct36x_ts_shutdown(struct i2c_client *client);
 int ct36x_ts_suspend(struct i2c_client *client, pm_message_t mesg);
-#ifdef CONFIG_MACH_RK3188M_F304
+#if defined(CONFIG_MACH_RK3188M_F304) || defined(CONFIG_MACH_RK3168M_F304)
 int ct36x_suspend(struct i2c_client *client, pm_message_t mesg);
 int ct36x_resume(struct i2c_client *client);
 #endif

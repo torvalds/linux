@@ -65,3 +65,4 @@ board-$(CONFIG_MACH_RK_FAC) += board-rk3168-fac.o
 
 obj-$(CONFIG_SOC_RK3168M) += board.o
 board-$(CONFIG_MACH_RK3168M_TB) += board-rk3168m-tb.o
+board-$(CONFIG_MACH_RK3168M_F304) += board-rk3168m-f304.o

@@ -163,4 +163,7 @@ choice
 config MACH_RK3168M_TB
 	bool "RK3168M Top Board"
 
+config MACH_RK3168M_F304
+	bool "RK3168M F304 Board"
+
 endchoice

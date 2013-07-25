@@ -470,7 +470,7 @@ void ct36x_ts_shutdown(struct i2c_client *client)
 
 	ct36x_chip_go_sleep(client, ts->data.buf);
 }
-#ifdef  CONFIG_MACH_RK3188M_F304
+#if defined(CONFIG_MACH_RK3188M_F304) || defined(CONFIG_MACH_RK3168M_F304)
 int ct36x_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct regulator *vcc_tp=NULL;
@@ -508,7 +508,7 @@ int ct36x_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 
 	return 0;
 }
-#ifdef CONFIG_MACH_RK3188M_F304
+#if defined(CONFIG_MACH_RK3188M_F304) || defined(CONFIG_MACH_RK3168M_F304)
 int ct36x_resume(struct i2c_client *client)
 {
        struct regulator *vcc_tp=NULL;
