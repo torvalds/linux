@@ -125,6 +125,7 @@ struct btree {
 	unsigned long		seq;
 	struct rw_semaphore	lock;
 	struct cache_set	*c;
+	struct btree		*parent;
 
 	unsigned long		flags;
 	uint16_t		written;	/* would be nice to kill */
@@ -327,12 +328,13 @@ static inline void rw_unlock(bool w, struct btree *b)
 ({									\
 	int _r, l = (b)->level - 1;					\
 	bool _w = l <= (op)->lock;					\
-	struct btree *_b = bch_btree_node_get((b)->c, key, l, op);	\
-	if (!IS_ERR(_b)) {						\
-		_r = bch_btree_ ## fn(_b, op, ##__VA_ARGS__);		\
-		rw_unlock(_w, _b);					\
+	struct btree *_child = bch_btree_node_get((b)->c, key, l, op);	\
+	if (!IS_ERR(_child)) {						\
+		_child->parent = (b);					\
+		_r = bch_btree_ ## fn(_child, op, ##__VA_ARGS__);	\
+		rw_unlock(_w, _child);					\
 	} else								\
-		_r = PTR_ERR(_b);					\
+		_r = PTR_ERR(_child);					\
 	_r;								\
 })
 
@@ -350,8 +352,10 @@ static inline void rw_unlock(bool w, struct btree *b)
 		bool _w = insert_lock(op, _b);				\
 		rw_lock(_w, _b, _b->level);				\
 		if (_b == (c)->root &&					\
-		    _w == insert_lock(op, _b))				\
+		    _w == insert_lock(op, _b)) {			\
+			_b->parent = NULL;				\
 			_r = bch_btree_ ## fn(_b, op, ##__VA_ARGS__);	\
+		}							\
 		rw_unlock(_w, _b);					\
 		bch_cannibalize_unlock(c, &(op)->cl);			\
 	} while (_r == -EINTR);						\
