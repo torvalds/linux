@@ -85,7 +85,7 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 	err |= __copy_from_user(regs->iaoq, sc->sc_iaoq, sizeof(regs->iaoq));
 	err |= __copy_from_user(regs->iasq, sc->sc_iasq, sizeof(regs->iasq));
 	err |= __get_user(regs->sar, &sc->sc_sar);
-	DBG(2,"restore_sigcontext: iaoq is 0x%#lx / 0x%#lx\n", 
+	DBG(2,"restore_sigcontext: iaoq is %#lx / %#lx\n",
 			regs->iaoq[0],regs->iaoq[1]);
 	DBG(2,"restore_sigcontext: r28 is %ld\n", regs->gr[28]);
 	return err;
