@@ -43,9 +43,6 @@
 #include <asm/uaccess.h>
 
 #include <linux/fs.h>
-#include <linux/stat.h>
-#include <asm/uaccess.h>
-#include <linux/mm.h>
 #include <linux/pagemap.h>
 
 #define DEBUG_SUBSYSTEM S_LLITE
