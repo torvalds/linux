@@ -819,7 +819,7 @@ static void rv6xx_program_memory_timing_parameters(struct radeon_device *rdev)
 		 POWERMODE1(calculate_memory_refresh_rate(rdev,
 							  pi->hw.sclks[R600_POWER_LEVEL_MEDIUM])) |
 		 POWERMODE2(calculate_memory_refresh_rate(rdev,
-							  pi->hw.sclks[R600_POWER_LEVEL_MEDIUM])) |
+							  pi->hw.sclks[R600_POWER_LEVEL_HIGH])) |
 		 POWERMODE3(calculate_memory_refresh_rate(rdev,
 							  pi->hw.sclks[R600_POWER_LEVEL_HIGH])));
 	WREG32(ARB_RFSH_RATE, arb_refresh_rate);
