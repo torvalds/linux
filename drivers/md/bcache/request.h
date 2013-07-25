@@ -6,10 +6,10 @@
 struct data_insert_op {
 	struct closure		cl;
 	struct cache_set	*c;
-	struct task_struct	*task;
 	struct bio		*bio;
 
 	unsigned		inode;
+	uint16_t		write_point;
 	uint16_t		write_prio;
 	short			error;
 
@@ -30,9 +30,6 @@ struct data_insert_op {
 
 unsigned bch_get_congested(struct cache_set *);
 void bch_data_insert(struct closure *cl);
-
-void bch_open_buckets_free(struct cache_set *);
-int bch_open_buckets_alloc(struct cache_set *);
 
 void bch_cached_dev_request_init(struct cached_dev *dc);
 void bch_flash_dev_request_init(struct bcache_device *d);

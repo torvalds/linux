@@ -1170,6 +1170,8 @@ int __bch_bucket_alloc_set(struct cache_set *, unsigned,
 			   struct bkey *, int, bool);
 int bch_bucket_alloc_set(struct cache_set *, unsigned,
 			 struct bkey *, int, bool);
+bool bch_alloc_sectors(struct cache_set *, struct bkey *, unsigned,
+		       unsigned, unsigned, bool);
 
 __printf(2, 3)
 bool bch_cache_set_error(struct cache_set *, const char *, ...);
@@ -1210,6 +1212,8 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *);
 void bch_btree_cache_free(struct cache_set *);
 int bch_btree_cache_alloc(struct cache_set *);
 void bch_moving_init_cache_set(struct cache_set *);
+int bch_open_buckets_alloc(struct cache_set *);
+void bch_open_buckets_free(struct cache_set *);
 
 int bch_cache_allocator_start(struct cache *ca);
 int bch_cache_allocator_init(struct cache *ca);

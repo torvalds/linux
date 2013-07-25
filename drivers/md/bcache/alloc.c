@@ -487,7 +487,187 @@ int bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
 	return ret;
 }
 
+/* Sector allocator */
+
+struct open_bucket {
+	struct list_head	list;
+	unsigned		last_write_point;
+	unsigned		sectors_free;
+	BKEY_PADDED(key);
+};
+
+/*
+ * We keep multiple buckets open for writes, and try to segregate different
+ * write streams for better cache utilization: first we look for a bucket where
+ * the last write to it was sequential with the current write, and failing that
+ * we look for a bucket that was last used by the same task.
+ *
+ * The ideas is if you've got multiple tasks pulling data into the cache at the
+ * same time, you'll get better cache utilization if you try to segregate their
+ * data and preserve locality.
+ *
+ * For example, say you've starting Firefox at the same time you're copying a
+ * bunch of files. Firefox will likely end up being fairly hot and stay in the
+ * cache awhile, but the data you copied might not be; if you wrote all that
+ * data to the same buckets it'd get invalidated at the same time.
+ *
+ * Both of those tasks will be doing fairly random IO so we can't rely on
+ * detecting sequential IO to segregate their data, but going off of the task
+ * should be a sane heuristic.
+ */
+static struct open_bucket *pick_data_bucket(struct cache_set *c,
+					    const struct bkey *search,
+					    unsigned write_point,
+					    struct bkey *alloc)
+{
+	struct open_bucket *ret, *ret_task = NULL;
+
+	list_for_each_entry_reverse(ret, &c->data_buckets, list)
+		if (!bkey_cmp(&ret->key, search))
+			goto found;
+		else if (ret->last_write_point == write_point)
+			ret_task = ret;
+
+	ret = ret_task ?: list_first_entry(&c->data_buckets,
+					   struct open_bucket, list);
+found:
+	if (!ret->sectors_free && KEY_PTRS(alloc)) {
+		ret->sectors_free = c->sb.bucket_size;
+		bkey_copy(&ret->key, alloc);
+		bkey_init(alloc);
+	}
+
+	if (!ret->sectors_free)
+		ret = NULL;
+
+	return ret;
+}
+
+/*
+ * Allocates some space in the cache to write to, and k to point to the newly
+ * allocated space, and updates KEY_SIZE(k) and KEY_OFFSET(k) (to point to the
+ * end of the newly allocated space).
+ *
+ * May allocate fewer sectors than @sectors, KEY_SIZE(k) indicates how many
+ * sectors were actually allocated.
+ *
+ * If s->writeback is true, will not fail.
+ */
+bool bch_alloc_sectors(struct cache_set *c, struct bkey *k, unsigned sectors,
+		       unsigned write_point, unsigned write_prio, bool wait)
+{
+	struct open_bucket *b;
+	BKEY_PADDED(key) alloc;
+	unsigned i;
+
+	/*
+	 * We might have to allocate a new bucket, which we can't do with a
+	 * spinlock held. So if we have to allocate, we drop the lock, allocate
+	 * and then retry. KEY_PTRS() indicates whether alloc points to
+	 * allocated bucket(s).
+	 */
+
+	bkey_init(&alloc.key);
+	spin_lock(&c->data_bucket_lock);
+
+	while (!(b = pick_data_bucket(c, k, write_point, &alloc.key))) {
+		unsigned watermark = write_prio
+			? WATERMARK_MOVINGGC
+			: WATERMARK_NONE;
+
+		spin_unlock(&c->data_bucket_lock);
+
+		if (bch_bucket_alloc_set(c, watermark, &alloc.key, 1, wait))
+			return false;
+
+		spin_lock(&c->data_bucket_lock);
+	}
+
+	/*
+	 * If we had to allocate, we might race and not need to allocate the
+	 * second time we call find_data_bucket(). If we allocated a bucket but
+	 * didn't use it, drop the refcount bch_bucket_alloc_set() took:
+	 */
+	if (KEY_PTRS(&alloc.key))
+		__bkey_put(c, &alloc.key);
+
+	for (i = 0; i < KEY_PTRS(&b->key); i++)
+		EBUG_ON(ptr_stale(c, &b->key, i));
+
+	/* Set up the pointer to the space we're allocating: */
+
+	for (i = 0; i < KEY_PTRS(&b->key); i++)
+		k->ptr[i] = b->key.ptr[i];
+
+	sectors = min(sectors, b->sectors_free);
+
+	SET_KEY_OFFSET(k, KEY_OFFSET(k) + sectors);
+	SET_KEY_SIZE(k, sectors);
+	SET_KEY_PTRS(k, KEY_PTRS(&b->key));
+
+	/*
+	 * Move b to the end of the lru, and keep track of what this bucket was
+	 * last used for:
+	 */
+	list_move_tail(&b->list, &c->data_buckets);
+	bkey_copy_key(&b->key, k);
+	b->last_write_point = write_point;
+
+	b->sectors_free	-= sectors;
+
+	for (i = 0; i < KEY_PTRS(&b->key); i++) {
+		SET_PTR_OFFSET(&b->key, i, PTR_OFFSET(&b->key, i) + sectors);
+
+		atomic_long_add(sectors,
+				&PTR_CACHE(c, &b->key, i)->sectors_written);
+	}
+
+	if (b->sectors_free < c->sb.block_size)
+		b->sectors_free = 0;
+
+	/*
+	 * k takes refcounts on the buckets it points to until it's inserted
+	 * into the btree, but if we're done with this bucket we just transfer
+	 * get_data_bucket()'s refcount.
+	 */
+	if (b->sectors_free)
+		for (i = 0; i < KEY_PTRS(&b->key); i++)
+			atomic_inc(&PTR_BUCKET(c, &b->key, i)->pin);
+
+	spin_unlock(&c->data_bucket_lock);
+	return true;
+}
+
 /* Init */
+
+void bch_open_buckets_free(struct cache_set *c)
+{
+	struct open_bucket *b;
+
+	while (!list_empty(&c->data_buckets)) {
+		b = list_first_entry(&c->data_buckets,
+				     struct open_bucket, list);
+		list_del(&b->list);
+		kfree(b);
+	}
+}
+
+int bch_open_buckets_alloc(struct cache_set *c)
+{
+	int i;
+
+	spin_lock_init(&c->data_bucket_lock);
+
+	for (i = 0; i < 6; i++) {
+		struct open_bucket *b = kzalloc(sizeof(*b), GFP_KERNEL);
+		if (!b)
+			return -ENOMEM;
+
+		list_add(&b->list, &c->data_buckets);
+	}
+
+	return 0;
+}
 
 int bch_cache_allocator_start(struct cache *ca)
 {
