@@ -19,7 +19,7 @@
 
 struct device;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_SAMSUNG_PM
 
 extern __init int s3c_pm_init(void);
 extern __init int s3c64xx_pm_init(void);
@@ -57,8 +57,6 @@ extern unsigned long s3c_pm_flags;
 extern unsigned char pm_uart_udivslot;  /* true to save UART UDIVSLOT */
 
 /* from sleep.S */
-
-extern void s3c_cpu_resume(void);
 
 extern int s3c2410_cpu_suspend(unsigned long);
 
@@ -106,12 +104,14 @@ extern void s3c_pm_do_save(struct sleep_save *ptr, int count);
 extern void s3c_pm_do_restore(struct sleep_save *ptr, int count);
 extern void s3c_pm_do_restore_core(struct sleep_save *ptr, int count);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_SAMSUNG_PM
 extern int s3c_irq_wake(struct irq_data *data, unsigned int state);
 extern int s3c_irqext_wake(struct irq_data *data, unsigned int state);
+extern void s3c_cpu_resume(void);
 #else
 #define s3c_irq_wake NULL
 #define s3c_irqext_wake NULL
+#define s3c_cpu_resume NULL
 #endif
 
 /* PM debug functions */
