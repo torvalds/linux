@@ -27,6 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <asm/cputhreads.h>
 #include <asm/sparsemem.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
@@ -1319,7 +1320,8 @@ static int update_cpu_associativity_changes_mask(void)
 			}
 		}
 		if (changed) {
-			cpumask_set_cpu(cpu, changes);
+			cpumask_or(changes, changes, cpu_sibling_mask(cpu));
+			cpu = cpu_last_thread_sibling(cpu);
 		}
 	}
 
@@ -1427,7 +1429,7 @@ static int update_cpu_topology(void *data)
 	if (!data)
 		return -EINVAL;
 
-	cpu = get_cpu();
+	cpu = smp_processor_id();
 
 	for (update = data; update; update = update->next) {
 		if (cpu != update->cpu)
@@ -1447,12 +1449,12 @@ static int update_cpu_topology(void *data)
  */
 int arch_update_cpu_topology(void)
 {
-	unsigned int cpu, changed = 0;
+	unsigned int cpu, sibling, changed = 0;
 	struct topology_update_data *updates, *ud;
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
 	cpumask_t updated_cpus;
 	struct device *dev;
-	int weight, i = 0;
+	int weight, new_nid, i = 0;
 
 	weight = cpumask_weight(&cpu_associativity_changes_mask);
 	if (!weight)
@@ -1465,19 +1467,46 @@ int arch_update_cpu_topology(void)
 	cpumask_clear(&updated_cpus);
 
 	for_each_cpu(cpu, &cpu_associativity_changes_mask) {
-		ud = &updates[i++];
-		ud->cpu = cpu;
+		/*
+		 * If siblings aren't flagged for changes, updates list
+		 * will be too short. Skip on this update and set for next
+		 * update.
+		 */
+		if (!cpumask_subset(cpu_sibling_mask(cpu),
+					&cpu_associativity_changes_mask)) {
+			pr_info("Sibling bits not set for associativity "
+					"change, cpu%d\n", cpu);
+			cpumask_or(&cpu_associativity_changes_mask,
+					&cpu_associativity_changes_mask,
+					cpu_sibling_mask(cpu));
+			cpu = cpu_last_thread_sibling(cpu);
+			continue;
+		}
+
+		/* Use associativity from first thread for all siblings */
 		vphn_get_associativity(cpu, associativity);
-		ud->new_nid = associativity_to_nid(associativity);
+		new_nid = associativity_to_nid(associativity);
+		if (new_nid < 0 || !node_online(new_nid))
+			new_nid = first_online_node;
 
-		if (ud->new_nid < 0 || !node_online(ud->new_nid))
-			ud->new_nid = first_online_node;
+		if (new_nid == numa_cpu_lookup_table[cpu]) {
+			cpumask_andnot(&cpu_associativity_changes_mask,
+					&cpu_associativity_changes_mask,
+					cpu_sibling_mask(cpu));
+			cpu = cpu_last_thread_sibling(cpu);
+			continue;
+		}
 
-		ud->old_nid = numa_cpu_lookup_table[cpu];
-		cpumask_set_cpu(cpu, &updated_cpus);
-
-		if (i < weight)
-			ud->next = &updates[i];
+		for_each_cpu(sibling, cpu_sibling_mask(cpu)) {
+			ud = &updates[i++];
+			ud->cpu = sibling;
+			ud->new_nid = new_nid;
+			ud->old_nid = numa_cpu_lookup_table[sibling];
+			cpumask_set_cpu(sibling, &updated_cpus);
+			if (i < weight)
+				ud->next = &updates[i];
+		}
+		cpu = cpu_last_thread_sibling(cpu);
 	}
 
 	stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
