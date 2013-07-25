@@ -6,6 +6,7 @@
 struct search {
 	/* Stack frame for bio_complete */
 	struct closure		cl;
+	struct closure		btree;
 
 	struct bcache_device	*d;
 	struct cache_set	*c;

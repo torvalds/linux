@@ -108,8 +108,8 @@ static void write_moving(struct closure *cl)
 		s->op.type = BTREE_REPLACE;
 		bkey_copy(&s->op.replace, &io->w->key);
 
-		closure_init(&s->op.cl, cl);
-		bch_data_insert(&s->op.cl);
+		closure_init(&s->btree, cl);
+		bch_data_insert(&s->btree);
 	}
 
 	continue_at(cl, write_moving_finish, system_wq);

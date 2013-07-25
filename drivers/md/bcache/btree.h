@@ -237,8 +237,6 @@ void __bkey_put(struct cache_set *c, struct bkey *k);
 /* Recursing down the btree */
 
 struct btree_op {
-	struct closure		cl;
-
 	/* Btree level at which we start taking write locks */
 	short			lock;
 
@@ -253,7 +251,11 @@ struct btree_op {
 	BKEY_PADDED(replace);
 };
 
-void bch_btree_op_init_stack(struct btree_op *);
+static inline void bch_btree_op_init(struct btree_op *op, int write_lock_level)
+{
+	memset(op, 0, sizeof(struct btree_op));
+	op->lock = write_lock_level;
+}
 
 static inline void rw_lock(bool w, struct btree *b, int level)
 {

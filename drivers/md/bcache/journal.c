@@ -305,8 +305,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 	struct btree_op op;
 
 	bch_keylist_init(&keylist);
-	bch_btree_op_init_stack(&op);
-	op.lock = SHRT_MAX;
+	bch_btree_op_init(&op, SHRT_MAX);
 
 	list_for_each_entry(i, list, list) {
 		BUG_ON(i->pin && atomic_read(i->pin) != 1);
@@ -341,14 +340,13 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 
 	pr_info("journal replay done, %i keys in %i entries, seq %llu",
 		keys, entries, end);
-
+err:
 	while (!list_empty(list)) {
 		i = list_first_entry(list, struct journal_replay, list);
 		list_del(&i->list);
 		kfree(i);
 	}
-err:
-	closure_sync(&op.cl);
+
 	return ret;
 }
 

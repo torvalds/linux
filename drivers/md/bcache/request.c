@@ -215,8 +215,7 @@ static void bio_csum(struct bio *bio, struct bkey *k)
 
 static void bch_data_insert_keys(struct closure *cl)
 {
-	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct search *s = container_of(op, struct search, op);
+	struct search *s = container_of(cl, struct search, btree);
 	atomic_t *journal_ref = NULL;
 
 	/*
@@ -236,7 +235,7 @@ static void bch_data_insert_keys(struct closure *cl)
 					  s->flush_journal
 					  ? &s->cl : NULL);
 
-	if (bch_btree_insert(op, s->c, &s->insert_keys, journal_ref)) {
+	if (bch_btree_insert(&s->op, s->c, &s->insert_keys, journal_ref)) {
 		s->error		= -ENOMEM;
 		s->insert_data_done	= true;
 	}
@@ -433,8 +432,7 @@ static bool bch_alloc_sectors(struct bkey *k, unsigned sectors,
 
 static void bch_data_invalidate(struct closure *cl)
 {
-	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct search *s = container_of(op, struct search, op);
+	struct search *s = container_of(cl, struct search, btree);
 	struct bio *bio = s->cache_bio;
 
 	pr_debug("invalidating %i sectors from %llu",
@@ -461,8 +459,7 @@ out:
 
 static void bch_data_insert_error(struct closure *cl)
 {
-	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct search *s = container_of(op, struct search, op);
+	struct search *s = container_of(cl, struct search, btree);
 
 	/*
 	 * Our data write just errored, which means we've got a bunch of keys to
@@ -493,8 +490,7 @@ static void bch_data_insert_error(struct closure *cl)
 static void bch_data_insert_endio(struct bio *bio, int error)
 {
 	struct closure *cl = bio->bi_private;
-	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct search *s = container_of(op, struct search, op);
+	struct search *s = container_of(cl, struct search, btree);
 
 	if (error) {
 		/* TODO: We could try to recover from this. */
@@ -511,8 +507,7 @@ static void bch_data_insert_endio(struct bio *bio, int error)
 
 static void bch_data_insert_start(struct closure *cl)
 {
-	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct search *s = container_of(op, struct search, op);
+	struct search *s = container_of(cl, struct search, btree);
 	struct bio *bio = s->cache_bio, *n;
 
 	if (s->bypass)
@@ -630,8 +625,7 @@ err:
  */
 void bch_data_insert(struct closure *cl)
 {
-	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct search *s = container_of(op, struct search, op);
+	struct search *s = container_of(cl, struct search, btree);
 
 	bch_keylist_init(&s->insert_keys);
 	bio_get(s->cache_bio);
@@ -731,11 +725,10 @@ static int cache_lookup_fn(struct btree_op *op, struct btree *b, struct bkey *k)
 
 static void cache_lookup(struct closure *cl)
 {
-	struct btree_op *op = container_of(cl, struct btree_op, cl);
-	struct search *s = container_of(op, struct search, op);
+	struct search *s = container_of(cl, struct search, btree);
 	struct bio *bio = &s->bio.bio;
 
-	int ret = bch_btree_map_keys(op, s->c,
+	int ret = bch_btree_map_keys(&s->op, s->c,
 				     &KEY(s->inode, bio->bi_sector, 0),
 				     cache_lookup_fn, MAP_END_KEY);
 	if (ret == -EAGAIN)
@@ -1064,7 +1057,7 @@ static void cached_dev_read_done(struct closure *cl)
 	if (s->cache_bio &&
 	    !test_bit(CACHE_SET_STOPPING, &s->c->flags)) {
 		s->op.type = BTREE_REPLACE;
-		closure_call(&s->op.cl, bch_data_insert, NULL, cl);
+		closure_call(&s->btree, bch_data_insert, NULL, cl);
 	}
 
 	continue_at(cl, cached_dev_cache_miss_done, NULL);
@@ -1156,7 +1149,7 @@ static void cached_dev_read(struct cached_dev *dc, struct search *s)
 {
 	struct closure *cl = &s->cl;
 
-	closure_call(&s->op.cl, cache_lookup, NULL, cl);
+	closure_call(&s->btree, cache_lookup, NULL, cl);
 	continue_at(cl, cached_dev_read_done_bh, NULL);
 }
 
@@ -1239,7 +1232,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 		closure_bio_submit(bio, cl, s->d);
 	}
 
-	closure_call(&s->op.cl, bch_data_insert, NULL, cl);
+	closure_call(&s->btree, bch_data_insert, NULL, cl);
 	continue_at(cl, cached_dev_write_complete, NULL);
 }
 
@@ -1418,9 +1411,9 @@ static void flash_dev_make_request(struct request_queue *q, struct bio *bio)
 		s->writeback	= true;
 		s->cache_bio	= bio;
 
-		closure_call(&s->op.cl, bch_data_insert, NULL, cl);
+		closure_call(&s->btree, bch_data_insert, NULL, cl);
 	} else {
-		closure_call(&s->op.cl, cache_lookup, NULL, cl);
+		closure_call(&s->btree, cache_lookup, NULL, cl);
 	}
 
 	continue_at(cl, search_free, NULL);
