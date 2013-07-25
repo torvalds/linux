@@ -1035,39 +1035,42 @@ static int usbdux_ao_insn_read(struct comedi_device *dev,
 
 static int usbdux_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	int i, err;
-	int chan = CR_CHAN(insn->chanspec);
-	struct usbdux_private *this_usbduxsub = dev->private;
+	struct usbdux_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = devpriv->out_buffer[chan];
+	int16_t *p = (int16_t *)&devpriv->dux_commands[2];
+	int ret = -EBUSY;
+	int i;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
+	down(&devpriv->sem);
 
-	down(&this_usbduxsub->sem);
-	if (this_usbduxsub->ao_cmd_running) {
-		up(&this_usbduxsub->sem);
-		return 0;
-	}
+	if (devpriv->ao_cmd_running)
+		goto ao_write_exit;
+
+	/* number of channels: 1 */
+	devpriv->dux_commands[1] = 1;
+	/* channel number */
+	devpriv->dux_commands[4] = chan << 6;
 
 	for (i = 0; i < insn->n; i++) {
-		/* number of channels: 1 */
-		this_usbduxsub->dux_commands[1] = 1;
-		/* one 16 bit value */
-		*((int16_t *) (this_usbduxsub->dux_commands + 2)) =
-		    cpu_to_le16(data[i]);
-		this_usbduxsub->out_buffer[chan] = data[i];
-		/* channel number */
-		this_usbduxsub->dux_commands[4] = (chan << 6);
-		err = send_dux_commands(dev, SENDDACOMMANDS);
-		if (err < 0) {
-			up(&this_usbduxsub->sem);
-			return err;
-		}
-	}
-	up(&this_usbduxsub->sem);
+		val = data[i];
 
-	return i;
+		/* one 16 bit value */
+		*p = cpu_to_le16(val);
+
+		ret = send_dux_commands(dev, SENDDACOMMANDS);
+		if (ret < 0)
+			goto ao_write_exit;
+	}
+	devpriv->out_buffer[chan] = val;
+
+ao_write_exit:
+	up(&devpriv->sem);
+
+	return ret ? ret : insn->n;
 }
 
 static int usbdux_ao_inttrig(struct comedi_device *dev,
