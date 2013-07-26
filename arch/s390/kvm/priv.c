@@ -227,7 +227,6 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 
 static int handle_stfl(struct kvm_vcpu *vcpu)
 {
-	unsigned int facility_list;
 	int rc;
 
 	vcpu->stat.instruction_stfl++;
@@ -235,15 +234,13 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	/* only pass the facility bits, which we can handle */
-	facility_list = S390_lowcore.stfl_fac_list & 0xff82fff3;
-
 	rc = copy_to_guest(vcpu, offsetof(struct _lowcore, stfl_fac_list),
-			   &facility_list, sizeof(facility_list));
+			   vfacilities, 4);
 	if (rc)
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-	VCPU_EVENT(vcpu, 5, "store facility list value %x", facility_list);
-	trace_kvm_s390_handle_stfl(vcpu, facility_list);
+	VCPU_EVENT(vcpu, 5, "store facility list value %x",
+		   *(unsigned int *) vfacilities);
+	trace_kvm_s390_handle_stfl(vcpu, *(unsigned int *) vfacilities);
 	return 0;
 }
 
