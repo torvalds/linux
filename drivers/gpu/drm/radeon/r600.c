@@ -3166,7 +3166,7 @@ int r600_copy_cpdma(struct radeon_device *rdev,
 
 	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
 	num_loops = DIV_ROUND_UP(size_in_bytes, 0x1fffff);
-	r = radeon_ring_lock(rdev, ring, num_loops * 6 + 21);
+	r = radeon_ring_lock(rdev, ring, num_loops * 6 + 24);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
 		radeon_semaphore_free(rdev, &sem, NULL);
@@ -3181,6 +3181,9 @@ int r600_copy_cpdma(struct radeon_device *rdev,
 		radeon_semaphore_free(rdev, &sem, NULL);
 	}
 
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	radeon_ring_write(ring, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+	radeon_ring_write(ring, WAIT_3D_IDLE_bit);
 	for (i = 0; i < num_loops; i++) {
 		cur_size_in_bytes = size_in_bytes;
 		if (cur_size_in_bytes > 0x1fffff)
