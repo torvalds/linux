@@ -335,7 +335,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 
 	if ((from | to | len) & (PMD_SIZE - 1))
 		return -EINVAL;
-	if (len == 0 || from + len > PGDIR_SIZE ||
+	if (len == 0 || from + len > TASK_MAX_SIZE ||
 	    from + len < from || to + len < to)
 		return -EINVAL;
 
