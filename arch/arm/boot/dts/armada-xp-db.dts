@@ -30,9 +30,7 @@
 	};
 
 	soc {
-		ranges = <0          0 0xd0000000 0x100000	/* Internal registers 1MiB */
-			  0xe0000000 0 0xe0000000 0x8100000     /* PCIe */
-			  0xf0000000 0 0xf0000000 0x1000000>;	/* Device Bus, NOR 16MiB   */
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xd0000000 0x100000>;
 
 		internal-regs {
 			serial@12000 {
