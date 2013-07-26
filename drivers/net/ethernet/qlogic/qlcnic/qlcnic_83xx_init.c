@@ -2123,6 +2123,8 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	set_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status);
 	qlcnic_83xx_clear_function_resources(adapter);
 
+	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
+
 	/* register for NIC IDC AEN Events */
 	qlcnic_83xx_register_nic_idc_func(adapter, 1);
 
@@ -2139,8 +2141,6 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	/* Perform operating mode specific initialization */
 	if (adapter->nic_ops->init_driver(adapter))
 		return -EIO;
-
-	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
 
 	/* Periodically monitor device status */
 	qlcnic_83xx_idc_poll_dev_state(&adapter->fw_work.work);
