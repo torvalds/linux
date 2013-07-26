@@ -147,12 +147,10 @@ extern int imx_cpu_kill(unsigned int cpu);
 
 #ifdef CONFIG_PM
 extern void imx6q_pm_init(void);
-extern void imx51_pm_init(void);
-extern void imx53_pm_init(void);
+extern void imx5_pm_init(void);
 #else
 static inline void imx6q_pm_init(void) {}
-static inline void imx51_pm_init(void) {}
-static inline void imx53_pm_init(void) {}
+static inline void imx5_pm_init(void) {}
 #endif
 
 #ifdef CONFIG_NEON
