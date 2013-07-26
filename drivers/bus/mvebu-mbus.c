@@ -902,6 +902,127 @@ int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 }
 
 #ifdef CONFIG_OF
+/*
+ * The window IDs in the ranges DT property have the following format:
+ *  - bits 28 to 31: MBus custom field
+ *  - bits 24 to 27: window target ID
+ *  - bits 16 to 23: window attribute ID
+ *  - bits  0 to 15: unused
+ */
+#define CUSTOM(id) (((id) & 0xF0000000) >> 24)
+#define TARGET(id) (((id) & 0x0F000000) >> 24)
+#define ATTR(id)   (((id) & 0x00FF0000) >> 16)
+
+static int __init mbus_dt_setup_win(struct mvebu_mbus_state *mbus,
+				    u32 base, u32 size,
+				    u8 target, u8 attr)
+{
+	const struct mvebu_mbus_mapping *map = mbus->soc->map;
+	const char *name;
+	int i;
+
+	/* Search for a suitable window in the existing mappings */
+	for (i = 0; map[i].name; i++)
+		if (map[i].target == target &&
+		    map[i].attr == (attr & map[i].attrmask))
+			break;
+
+	name = map[i].name;
+	if (!name) {
+		pr_err("window 0x%x:0x%x is unknown, skipping\n",
+		       target, attr);
+		return -EINVAL;
+	}
+
+	if (!mvebu_mbus_window_conflicts(mbus, base, size, target, attr)) {
+		pr_err("cannot add window '%s', conflicts with another window\n",
+		       name);
+		return -EBUSY;
+	}
+
+	if (mvebu_mbus_alloc_window(mbus, base, size, MVEBU_MBUS_NO_REMAP,
+				    target, attr)) {
+		pr_err("cannot add window '%s', too many windows\n",
+		       name);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static int __init
+mbus_parse_ranges(struct device_node *node,
+		  int *addr_cells, int *c_addr_cells, int *c_size_cells,
+		  int *cell_count, const __be32 **ranges_start,
+		  const __be32 **ranges_end)
+{
+	const __be32 *prop;
+	int ranges_len, tuple_len;
+
+	/* Allow a node with no 'ranges' property */
+	*ranges_start = of_get_property(node, "ranges", &ranges_len);
+	if (*ranges_start == NULL) {
+		*addr_cells = *c_addr_cells = *c_size_cells = *cell_count = 0;
+		*ranges_start = *ranges_end = NULL;
+		return 0;
+	}
+	*ranges_end = *ranges_start + ranges_len / sizeof(__be32);
+
+	*addr_cells = of_n_addr_cells(node);
+
+	prop = of_get_property(node, "#address-cells", NULL);
+	*c_addr_cells = be32_to_cpup(prop);
+
+	prop = of_get_property(node, "#size-cells", NULL);
+	*c_size_cells = be32_to_cpup(prop);
+
+	*cell_count = *addr_cells + *c_addr_cells + *c_size_cells;
+	tuple_len = (*cell_count) * sizeof(__be32);
+
+	if (ranges_len % tuple_len) {
+		pr_warn("malformed ranges entry '%s'\n", node->name);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int __init mbus_dt_setup(struct mvebu_mbus_state *mbus,
+				struct device_node *np)
+{
+	int addr_cells, c_addr_cells, c_size_cells;
+	int i, ret, cell_count;
+	const __be32 *r, *ranges_start, *ranges_end;
+
+	ret = mbus_parse_ranges(np, &addr_cells, &c_addr_cells,
+				&c_size_cells, &cell_count,
+				&ranges_start, &ranges_end);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0, r = ranges_start; r < ranges_end; r += cell_count, i++) {
+		u32 windowid, base, size;
+		u8 target, attr;
+
+		/*
+		 * An entry with a non-zero custom field do not
+		 * correspond to a static window, so skip it.
+		 */
+		windowid = of_read_number(r, 1);
+		if (CUSTOM(windowid))
+			continue;
+
+		target = TARGET(windowid);
+		attr = ATTR(windowid);
+
+		base = of_read_number(r + c_addr_cells, addr_cells);
+		size = of_read_number(r + c_addr_cells + addr_cells,
+				      c_size_cells);
+		ret = mbus_dt_setup_win(mbus, base, size, target, attr);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
 int __init mvebu_mbus_dt_init(void)
 {
 	struct resource mbuswins_res, sdramwins_res;
@@ -946,6 +1067,10 @@ int __init mvebu_mbus_dt_init(void)
 				     resource_size(&mbuswins_res),
 				     sdramwins_res.start,
 				     resource_size(&sdramwins_res));
-	return ret;
+	if (ret)
+		return ret;
+
+	/* Setup statically declared windows in the DT */
+	return mbus_dt_setup(&mbus_state, np);
 }
 #endif
