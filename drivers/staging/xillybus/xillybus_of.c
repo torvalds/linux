@@ -27,6 +27,8 @@ MODULE_VERSION("1.06");
 MODULE_ALIAS("xillybus_of");
 MODULE_LICENSE("GPL v2");
 
+static const char xillyname[] = "xillybus_of";
+
 /* Match table for of_platform binding */
 static struct of_device_id xillybus_of_match[] = {
 	{ .compatible = "xlnx,xillybus-1.00.a", },

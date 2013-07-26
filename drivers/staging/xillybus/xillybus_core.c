@@ -61,6 +61,8 @@ MODULE_LICENSE("GPL v2");
 #define XILLYMSG_OPCODE_FATAL_ERROR 4
 #define XILLYMSG_OPCODE_NONEMPTY 5
 
+static const char xillyname[] = "xillybus";
+
 static struct class *xillybus_class;
 
 /*

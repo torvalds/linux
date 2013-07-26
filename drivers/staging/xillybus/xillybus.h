@@ -24,8 +24,6 @@
 #include <linux/list.h>
 #include <linux/workqueue.h>
 
-char xillyname[] = "xillybus";
-
 struct xilly_endpoint_hardware;
 
 struct xilly_page {
