@@ -178,11 +178,11 @@ static void __init squash_mem_tags(struct tag *tag)
 			tag->hdr.tag = ATAG_NONE;
 }
 
-struct machine_desc * __init setup_machine_tags(phys_addr_t __atags_pointer,
-						unsigned int machine_nr)
+const struct machine_desc * __init
+setup_machine_tags(phys_addr_t __atags_pointer, unsigned int machine_nr)
 {
 	struct tag *tags = (struct tag *)&default_tags;
-	struct machine_desc *mdesc = NULL, *p;
+	const struct machine_desc *mdesc = NULL, *p;
 	char *from = default_command_line;
 
 	default_tags.mem.start = PHYS_OFFSET;
