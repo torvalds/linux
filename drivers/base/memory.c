@@ -469,7 +469,7 @@ store_soft_offline_page(struct device *dev,
 	u64 pfn;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (strict_strtoull(buf, 0, &pfn) < 0)
+	if (kstrtoull(buf, 0, &pfn) < 0)
 		return -EINVAL;
 	pfn >>= PAGE_SHIFT;
 	if (!pfn_valid(pfn))
@@ -488,7 +488,7 @@ store_hard_offline_page(struct device *dev,
 	u64 pfn;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (strict_strtoull(buf, 0, &pfn) < 0)
+	if (kstrtoull(buf, 0, &pfn) < 0)
 		return -EINVAL;
 	pfn >>= PAGE_SHIFT;
 	ret = memory_failure(pfn, 0, 0);
