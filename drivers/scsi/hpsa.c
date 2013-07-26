@@ -583,7 +583,7 @@ static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
 		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
 		if (likely(h->msix_vector))
 			c->Header.ReplyQueue =
-				smp_processor_id() % h->nreply_queues;
+				raw_smp_processor_id() % h->nreply_queues;
 	}
 }
 
