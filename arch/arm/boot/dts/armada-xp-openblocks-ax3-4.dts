@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-/include/ "armada-xp-mv78260.dtsi"
+#include "armada-xp-mv78260.dtsi"
 
 / {
 	model = "PlatHome OpenBlocks AX3-4 board";

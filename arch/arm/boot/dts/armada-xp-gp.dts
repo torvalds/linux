@@ -14,7 +14,7 @@
  */
 
 /dts-v1/;
-/include/ "armada-xp-mv78460.dtsi"
+#include "armada-xp-mv78460.dtsi"
 
 / {
 	model = "Marvell Armada XP Development Board DB-MV784MP-GP";

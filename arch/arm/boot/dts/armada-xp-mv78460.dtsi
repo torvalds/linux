@@ -13,7 +13,7 @@
  * common to all Armada XP SoCs.
  */
 
-/include/ "armada-xp.dtsi"
+#include "armada-xp.dtsi"
 
 / {
 	model = "Marvell Armada XP MV78460 SoC";
