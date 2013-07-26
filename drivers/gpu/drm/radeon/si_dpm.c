@@ -37,8 +37,6 @@
 
 #define SMC_RAM_END                 0x20000
 
-#define DDR3_DRAM_ROWS              0x2000
-
 #define SCLK_MIN_DEEPSLEEP_FREQ     1350
 
 static const struct si_cac_config_reg cac_weights_tahiti[] =
@@ -4040,16 +4038,15 @@ static int si_force_switch_to_arb_f0(struct radeon_device *rdev)
 static u32 si_calculate_memory_refresh_rate(struct radeon_device *rdev,
 					    u32 engine_clock)
 {
-	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	u32 dram_rows;
 	u32 dram_refresh_rate;
 	u32 mc_arb_rfsh_rate;
 	u32 tmp = (RREG32(MC_ARB_RAMCFG) & NOOFROWS_MASK) >> NOOFROWS_SHIFT;
 
-	if (pi->mem_gddr5)
-		dram_rows = 1 << (tmp + 10);
+	if (tmp >= 4)
+		dram_rows = 16384;
 	else
-		dram_rows = DDR3_DRAM_ROWS;
+		dram_rows = 1 << (tmp + 10);
 
 	dram_refresh_rate = 1 << ((RREG32(MC_SEQ_MISC0) & 0x3) + 3);
 	mc_arb_rfsh_rate = ((engine_clock * 10) * dram_refresh_rate / dram_rows - 32) / 64;
