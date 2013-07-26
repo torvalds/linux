@@ -29,6 +29,11 @@
 	soc {
 		compatible = "marvell,armadaxp-mbus", "simple-bus";
 
+		bootrom {
+			compatible = "marvell,bootrom";
+			reg = <MBUS_ID(0x01, 0x1d) 0 0x100000>;
+		};
+
 		internal-regs {
 			L2: l2-cache {
 				compatible = "marvell,aurora-system-cache";

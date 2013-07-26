@@ -31,6 +31,11 @@
 	soc {
 		compatible = "marvell,armada370-mbus", "simple-bus";
 
+		bootrom {
+			compatible = "marvell,bootrom";
+			reg = <MBUS_ID(0x01, 0xe0) 0 0x100000>;
+		};
+
 		internal-regs {
 			system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
