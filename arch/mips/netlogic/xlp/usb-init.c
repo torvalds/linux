@@ -75,8 +75,7 @@ static void nlm_usb_intr_en(int node, int port)
 	port_addr = nlm_get_usb_regbase(node, port);
 	val = nlm_read_usb_reg(port_addr, USB_INT_EN);
 	val = USB_CTRL_INTERRUPT_EN  | USB_OHCI_INTERRUPT_EN |
-		USB_OHCI_INTERRUPT1_EN | USB_CTRL_INTERRUPT_EN	|
-		USB_OHCI_INTERRUPT_EN | USB_OHCI_INTERRUPT2_EN;
+		USB_OHCI_INTERRUPT1_EN | USB_OHCI_INTERRUPT2_EN;
 	nlm_write_usb_reg(port_addr, USB_INT_EN, val);
 }
 
