@@ -20,12 +20,10 @@
 
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/sh_eth.h>
-#include <linux/platform_data/usb-rcar-phy.h>
 
 extern void r8a7778_add_standard_devices(void);
 extern void r8a7778_add_standard_devices_dt(void);
 extern void r8a7778_add_ether_device(struct sh_eth_plat_data *pdata);
-extern void r8a7778_add_usb_phy_device(struct rcar_phy_platform_data *pdata);
 extern void r8a7778_add_i2c_device(int id);
 extern void r8a7778_add_hspi_device(int id);
 extern void r8a7778_add_dt_devices(void);
