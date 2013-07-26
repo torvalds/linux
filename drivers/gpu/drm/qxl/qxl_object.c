@@ -51,20 +51,21 @@ bool qxl_ttm_bo_is_qxl_bo(struct ttm_buffer_object *bo)
 	return false;
 }
 
-void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain)
+void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 {
 	u32 c = 0;
+	u32 pflag = pinned ? TTM_PL_FLAG_NO_EVICT : 0;
 
 	qbo->placement.fpfn = 0;
 	qbo->placement.lpfn = 0;
 	qbo->placement.placement = qbo->placements;
 	qbo->placement.busy_placement = qbo->placements;
 	if (domain == QXL_GEM_DOMAIN_VRAM)
-		qbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM;
+		qbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
 	if (domain == QXL_GEM_DOMAIN_SURFACE)
-		qbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_PRIV0;
+		qbo->placements[c++] = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_PRIV0 | pflag;
 	if (domain == QXL_GEM_DOMAIN_CPU)
-		qbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+		qbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM | pflag;
 	if (!c)
 		qbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	qbo->placement.num_placement = c;
@@ -73,7 +74,7 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain)
 
 
 int qxl_bo_create(struct qxl_device *qdev,
-		  unsigned long size, bool kernel, u32 domain,
+		  unsigned long size, bool kernel, bool pinned, u32 domain,
 		  struct qxl_surface *surf,
 		  struct qxl_bo **bo_ptr)
 {
@@ -99,15 +100,15 @@ int qxl_bo_create(struct qxl_device *qdev,
 	}
 	bo->gem_base.driver_private = NULL;
 	bo->type = domain;
-	bo->pin_count = 0;
+	bo->pin_count = pinned ? 1 : 0;
 	bo->surface_id = 0;
 	qxl_fence_init(qdev, &bo->fence);
 	INIT_LIST_HEAD(&bo->list);
-	atomic_set(&bo->reserve_count, 0);
+
 	if (surf)
 		bo->surf = *surf;
 
-	qxl_ttm_placement_from_domain(bo, domain);
+	qxl_ttm_placement_from_domain(bo, domain, pinned);
 
 	r = ttm_bo_init(&qdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, 0, !kernel, NULL, size,
@@ -228,7 +229,7 @@ struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo)
 int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 {
 	struct qxl_device *qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
-	int r, i;
+	int r;
 
 	if (bo->pin_count) {
 		bo->pin_count++;
@@ -236,9 +237,7 @@ int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr)
 			*gpu_addr = qxl_bo_gpu_offset(bo);
 		return 0;
 	}
-	qxl_ttm_placement_from_domain(bo, domain);
-	for (i = 0; i < bo->placement.num_placement; i++)
-		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
+	qxl_ttm_placement_from_domain(bo, domain, true);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (likely(r == 0)) {
 		bo->pin_count = 1;
@@ -314,53 +313,6 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 		if (ret)
 			return ret;
 	}
-	return 0;
-}
-
-void qxl_bo_list_unreserve(struct qxl_reloc_list *reloc_list, bool failed)
-{
-	struct qxl_bo_list *entry, *sf;
-
-	list_for_each_entry_safe(entry, sf, &reloc_list->bos, lhead) {
-		qxl_bo_unreserve(entry->bo);
-		list_del(&entry->lhead);
-		kfree(entry);
-	}
-}
-
-int qxl_bo_list_add(struct qxl_reloc_list *reloc_list, struct qxl_bo *bo)
-{
-	struct qxl_bo_list *entry;
-	int ret;
-
-	list_for_each_entry(entry, &reloc_list->bos, lhead) {
-		if (entry->bo == bo)
-			return 0;
-	}
-
-	entry = kmalloc(sizeof(struct qxl_bo_list), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
-
-	entry->bo = bo;
-	list_add(&entry->lhead, &reloc_list->bos);
-
-	ret = qxl_bo_reserve(bo, false);
-	if (ret)
-		return ret;
-
-	if (!bo->pin_count) {
-		qxl_ttm_placement_from_domain(bo, bo->type);
-		ret = ttm_bo_validate(&bo->tbo, &bo->placement,
-				      true, false);
-		if (ret)
-			return ret;
-	}
-
-	/* allocate a surface for reserved + validated buffers */
-	ret = qxl_bo_check_id(bo->gem_base.dev->dev_private, bo);
-	if (ret)
-		return ret;
 	return 0;
 }
 
