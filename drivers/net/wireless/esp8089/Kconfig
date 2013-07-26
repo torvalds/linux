@@ -3,7 +3,8 @@
       select WIRELESS_EXT
       select WEXT_PRIV
       select CFG80211
-      select NL80211_TESTMODE
+      select MAC80211
+	  select NL80211_TESTMODE
       bool "Espressif 8089 sdio Wi-Fi"
       ---help---
         Espressif 8089 sdio Wi-Fi support
