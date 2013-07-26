@@ -1738,6 +1738,7 @@ static void intel_pre_enable_dp(struct intel_encoder *encoder)
 		int pipe = intel_crtc->pipe;
 		u32 val;
 
+		mutex_lock(&dev_priv->dpio_lock);
 		val = vlv_dpio_read(dev_priv, DPIO_DATA_LANE_A(port));
 		val = 0;
 		if (pipe)
@@ -1751,6 +1752,7 @@ static void intel_pre_enable_dp(struct intel_encoder *encoder)
 				 0x00760018);
 		vlv_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF8(port),
 				 0x00400888);
+		mutex_unlock(&dev_priv->dpio_lock);
 	}
 }
 
@@ -1765,6 +1767,7 @@ static void intel_dp_pre_pll_enable(struct intel_encoder *encoder)
 		return;
 
 	/* Program Tx lane resets to default */
+	mutex_lock(&dev_priv->dpio_lock);
 	vlv_dpio_write(dev_priv, DPIO_PCS_TX(port),
 			 DPIO_PCS_TX_LANE2_RESET |
 			 DPIO_PCS_TX_LANE1_RESET);
@@ -1778,6 +1781,7 @@ static void intel_dp_pre_pll_enable(struct intel_encoder *encoder)
 	vlv_dpio_write(dev_priv, DPIO_PCS_STAGGER1(port), 0x00750f00);
 	vlv_dpio_write(dev_priv, DPIO_TX_CTL(port), 0x00001500);
 	vlv_dpio_write(dev_priv, DPIO_TX_LANE(port), 0x40400000);
+	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 /*
@@ -1989,6 +1993,7 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 		return 0;
 	}
 
+	mutex_lock(&dev_priv->dpio_lock);
 	vlv_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x00000000);
 	vlv_dpio_write(dev_priv, DPIO_TX_SWING_CTL4(port), demph_reg_value);
 	vlv_dpio_write(dev_priv, DPIO_TX_SWING_CTL2(port),
@@ -1997,6 +2002,7 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 	vlv_dpio_write(dev_priv, DPIO_PCS_STAGGER0(port), 0x00030000);
 	vlv_dpio_write(dev_priv, DPIO_PCS_CTL_OVER1(port), preemph_reg_value);
 	vlv_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x80000000);
+	mutex_unlock(&dev_priv->dpio_lock);
 
 	return 0;
 }

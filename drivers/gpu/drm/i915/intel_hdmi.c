@@ -1032,6 +1032,7 @@ static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
 		return;
 
 	/* Enable clock channels for this port */
+	mutex_lock(&dev_priv->dpio_lock);
 	val = vlv_dpio_read(dev_priv, DPIO_DATA_LANE_A(port));
 	val = 0;
 	if (pipe)
@@ -1062,6 +1063,7 @@ static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
 			 0x00760018);
 	vlv_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF8(port),
 			 0x00400888);
+	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 static void intel_hdmi_pre_pll_enable(struct intel_encoder *encoder)
@@ -1075,6 +1077,7 @@ static void intel_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 		return;
 
 	/* Program Tx lane resets to default */
+	mutex_lock(&dev_priv->dpio_lock);
 	vlv_dpio_write(dev_priv, DPIO_PCS_TX(port),
 			 DPIO_PCS_TX_LANE2_RESET |
 			 DPIO_PCS_TX_LANE1_RESET);
@@ -1093,6 +1096,7 @@ static void intel_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 			 0x00002000);
 	vlv_dpio_write(dev_priv, DPIO_TX_OCALINIT(port),
 			 DPIO_TX_OCALINIT_EN);
+	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 static void intel_hdmi_post_disable(struct intel_encoder *encoder)
