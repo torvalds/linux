@@ -1749,6 +1749,7 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 
 	switch (vlan) {
 	case 4095:
+		vp->vlan = 0;
 		vp->vlan_mode = QLC_GUEST_VLAN_MODE;
 		break;
 	case 0:
@@ -1767,6 +1768,29 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 	return 0;
 }
 
+static inline __u32 qlcnic_sriov_get_vf_vlan(struct qlcnic_adapter *adapter,
+					     struct qlcnic_vport *vp, int vf)
+{
+	__u32 vlan = 0;
+
+	switch (vp->vlan_mode) {
+	case QLC_PVID_MODE:
+		vlan = vp->vlan;
+		break;
+	case QLC_GUEST_VLAN_MODE:
+		vlan = MAX_VLAN_ID;
+		break;
+	case QLC_NO_VLAN_MODE:
+		vlan = 0;
+		break;
+	default:
+		netdev_info(adapter->netdev, "Invalid VLAN mode = %d for VF %d\n",
+			    vp->vlan_mode, vf);
+	}
+
+	return vlan;
+}
+
 int qlcnic_sriov_get_vf_config(struct net_device *netdev,
 			       int vf, struct ifla_vf_info *ivi)
 {
@@ -1782,7 +1806,7 @@ int qlcnic_sriov_get_vf_config(struct net_device *netdev,
 
 	vp = sriov->vf_info[vf].vp;
 	memcpy(&ivi->mac, vp->mac, ETH_ALEN);
-	ivi->vlan = vp->vlan;
+	ivi->vlan = qlcnic_sriov_get_vf_vlan(adapter, vp, vf);
 	ivi->qos = vp->qos;
 	ivi->spoofchk = vp->spoofchk;
 	if (vp->max_tx_bw == MAX_BW)
