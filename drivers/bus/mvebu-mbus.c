@@ -766,44 +766,6 @@ int mvebu_mbus_add_window_remap_by_id(unsigned int target,
 	return mvebu_mbus_alloc_window(s, base, size, remap, target, attribute);
 }
 
-int mvebu_mbus_add_window_remap_flags(const char *devname, phys_addr_t base,
-				      size_t size, phys_addr_t remap,
-				      unsigned int flags)
-{
-	struct mvebu_mbus_state *s = &mbus_state;
-	u8 target, attr;
-	int i;
-
-	if (!s->soc->map)
-		return -ENODEV;
-
-	for (i = 0; s->soc->map[i].name; i++)
-		if (!strcmp(s->soc->map[i].name, devname))
-			break;
-
-	if (!s->soc->map[i].name) {
-		pr_err("unknown device '%s'\n", devname);
-		return -ENODEV;
-	}
-
-	target = s->soc->map[i].target;
-	attr   = s->soc->map[i].attr;
-
-	if (flags == MVEBU_MBUS_PCI_MEM)
-		attr |= 0x8;
-	else if (flags == MVEBU_MBUS_PCI_WA)
-		attr |= 0x28;
-
-	return mvebu_mbus_add_window_remap_by_id(target, attr, base,
-						 size, remap);
-}
-
-int mvebu_mbus_add_window(const char *devname, phys_addr_t base, size_t size)
-{
-	return mvebu_mbus_add_window_remap_flags(devname, base, size,
-						 MVEBU_MBUS_NO_REMAP, 0);
-}
-
 int mvebu_mbus_add_window_by_id(unsigned int target, unsigned int attribute,
 				phys_addr_t base, size_t size)
 {
