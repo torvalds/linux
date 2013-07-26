@@ -3,6 +3,8 @@ PFUZE100 family of regulators
 Required properties:
 - compatible: "fsl,pfuze100"
 - reg: I2C slave address
+
+Required child node:
 - regulators: This is the list of child nodes that specify the regulator
   initialization data for defined regulators. Please refer to below doc
   Documentation/devicetree/bindings/regulator/regulator.txt.

@@ -295,7 +295,7 @@ static inline struct device_node *match_of_node(int index)
 #else
 static int pfuze_parse_regulators_dt(struct pfuze_chip *chip)
 {
-	return NULL;
+	return 0;
 }
 
 static inline struct regulator_init_data *match_init_data(int index)
