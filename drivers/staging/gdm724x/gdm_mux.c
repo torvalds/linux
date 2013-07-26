@@ -409,7 +409,7 @@ static int gdm_mux_send(void *priv_dev, void *data, int len, int tty_index,
 			  gdm_mux_send_complete,
 			  t);
 
-	ret = usb_submit_urb(t->urb, GFP_KERNEL);
+	ret = usb_submit_urb(t->urb, GFP_ATOMIC);
 
 	spin_unlock_irqrestore(&mux_dev->write_lock, flags);
 
