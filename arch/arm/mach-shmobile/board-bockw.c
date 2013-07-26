@@ -20,6 +20,7 @@
 
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/machine.h>
@@ -91,6 +92,11 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
 	.tmio_ocr_mask	= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
+
+static struct resource sdhi0_resources[] __initdata = {
+	DEFINE_RES_MEM(0xFFE4C000, 0x100),
+	DEFINE_RES_IRQ(gic_iid(0x77)),
 };
 
 static struct sh_eth_plat_data ether_platform_data __initdata = {
@@ -259,7 +265,10 @@ static void __init bockw_init(void)
 		iowrite32(ioread32(base + PUPR4) | (3 << 26), base + PUPR4);
 		iounmap(base);
 
-		r8a7778_sdhi_init(0, &sdhi0_info);
+		platform_device_register_resndata(
+			&platform_bus, "sh_mobile_sdhi", 0,
+			sdhi0_resources, ARRAY_SIZE(sdhi0_resources),
+			&sdhi0_info, sizeof(struct sh_mobile_sdhi_info));
 	}
 }
 
