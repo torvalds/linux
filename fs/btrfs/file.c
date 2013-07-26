@@ -310,6 +310,11 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 		goto cleanup;
 	}
 
+	if (btrfs_root_refs(&inode_root->root_item) == 0) {
+		ret = -ENOENT;
+		goto cleanup;
+	}
+
 	key.objectid = defrag->ino;
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
 	key.offset = 0;
