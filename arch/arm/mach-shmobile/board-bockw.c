@@ -20,6 +20,7 @@
 
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/sh_mmcif.h>
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
@@ -134,6 +135,11 @@ static struct spi_board_info spi_board_info[] __initdata = {
 };
 
 /* MMC */
+static struct resource mmc_resources[] __initdata = {
+	DEFINE_RES_MEM(0xffe4e000, 0x100),
+	DEFINE_RES_IRQ(gic_iid(0x5d)),
+};
+
 static struct sh_mmcif_plat_data sh_mmcif_plat = {
 	.sup_pclk	= 0,
 	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
@@ -189,7 +195,6 @@ static void __init bockw_init(void)
 	r8a7778_add_ether_device(&ether_platform_data);
 	r8a7778_add_i2c_device(0);
 	r8a7778_add_hspi_device(0);
-	r8a7778_add_mmc_device(&sh_mmcif_plat);
 
 	i2c_register_board_info(0, i2c0_devices,
 				ARRAY_SIZE(i2c0_devices));
@@ -198,6 +203,11 @@ static void __init bockw_init(void)
 	pinctrl_register_mappings(bockw_pinctrl_map,
 				  ARRAY_SIZE(bockw_pinctrl_map));
 	r8a7778_pinmux_init();
+
+	platform_device_register_resndata(
+		&platform_bus, "sh_mmcif", -1,
+		mmc_resources, ARRAY_SIZE(mmc_resources),
+		&sh_mmcif_plat, sizeof(struct sh_mmcif_plat_data));
 
 	/* for SMSC */
 	base = ioremap_nocache(FPGA, SZ_1M);
