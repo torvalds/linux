@@ -29,6 +29,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/gpio-rcar.h>
+#include <linux/platform_data/usb-rcar-phy.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
@@ -56,7 +57,26 @@ static struct regulator_consumer_supply dummy_supplies[] = {
 	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
 };
 
-static struct rcar_phy_platform_data usb_phy_platform_data __initdata;
+/* USB PHY */
+static struct resource usb_phy_resources[] = {
+	[0] = {
+		.start		= 0xffe70800,
+		.end		= 0xffe70900 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct rcar_phy_platform_data usb_phy_platform_data;
+
+static struct platform_device usb_phy = {
+	.name		= "rcar_usb_phy",
+	.id		= -1,
+	.dev  = {
+		.platform_data = &usb_phy_platform_data,
+	},
+	.resource	= usb_phy_resources,
+	.num_resources	= ARRAY_SIZE(usb_phy_resources),
+};
 
 /* SMSC LAN89218 */
 static struct resource smsc911x_resources[] = {
@@ -183,6 +203,7 @@ static struct platform_device *marzen_devices[] __initdata = {
 	&thermal_device,
 	&hspi_device,
 	&leds_device,
+	&usb_phy,
 };
 
 static const struct pinctrl_map marzen_pinctrl_map[] = {
@@ -233,7 +254,6 @@ static void __init marzen_init(void)
 	r8a7779_init_irq_extpin(1); /* IRQ1 as individual interrupt */
 
 	r8a7779_add_standard_devices();
-	r8a7779_add_usb_phy_device(&usb_phy_platform_data);
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
 }
 
