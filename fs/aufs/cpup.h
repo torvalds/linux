@@ -51,6 +51,8 @@ struct au_cpup_basic {
 #define AuCpup_KEEPLINO	(1 << 1)	/* do not clear the lower xino,
 					   for link(2) */
 #define AuCpup_RENAME	(1 << 2)	/* rename after cpup */
+#define AuCpup_HOPEN	(1 << 3)	/* call h_open_pre/post() in cpup */
+
 #define au_ftest_cpup(flags, name)	((flags) & AuCpup_##name)
 #define au_fset_cpup(flags, name) \
 	do { (flags) |= AuCpup_##name; } while (0)
@@ -60,8 +62,6 @@ struct au_cpup_basic {
 int au_copy_file(struct file *dst, struct file *src, loff_t len);
 int au_sio_cpup_simple(struct au_cpup_basic *basic, unsigned int flags,
 		       struct au_pin *pin);
-int au_sio_cpup_simple_h_open(struct au_cpup_basic *basic, unsigned int flags,
-			      struct au_pin *pin);
 int au_sio_cpup_wh(struct au_cpup_basic *basic, struct file *file,
 		   struct au_pin *pin);
 

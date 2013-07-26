@@ -904,9 +904,19 @@ int au_sio_cpup_simple(struct au_cpup_basic *basic, unsigned int flags,
 {
 	int err, wkq_err;
 	struct dentry *dentry, *parent;
+	struct file *h_file;
 	struct inode *h_dir;
 
 	dentry = basic->dentry;
+	h_file = NULL;
+	if (au_ftest_cpup(flags, HOPEN)) {
+		AuDebugOn(basic->bsrc < 0);
+		h_file = au_h_open_pre(dentry, basic->bsrc);
+		err = PTR_ERR(h_file);
+		if (IS_ERR(h_file))
+			goto out;
+	}
+
 	parent = dget_parent(dentry);
 	h_dir = au_h_iptr(parent->d_inode, basic->bdst);
 	if (!au_test_h_perm_sio(h_dir, MAY_EXEC | MAY_WRITE)
@@ -925,26 +935,10 @@ int au_sio_cpup_simple(struct au_cpup_basic *basic, unsigned int flags,
 	}
 
 	dput(parent);
-	return err;
-}
-
-/* generalized cpup_simple() with h_open_pre/post() calls */
-int au_sio_cpup_simple_h_open(struct au_cpup_basic *basic, unsigned int flags,
-			      struct au_pin *pin)
-{
-	int err;
-	struct dentry *dentry;
-	struct file *h_file;
-
-	dentry = basic->dentry;
-	h_file = au_h_open_pre(dentry, basic->bsrc);
-	if (IS_ERR(h_file))
-		err = PTR_ERR(h_file);
-	else {
-		err = au_sio_cpup_simple(basic, flags, pin);
+	if (h_file)
 		au_h_open_post(dentry, basic->bsrc, h_file);
-	}
 
+out:
 	return err;
 }
 

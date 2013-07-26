@@ -376,9 +376,9 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 	if (unlikely(err))
 		goto out;
 
-	err = au_sio_cpup_simple_h_open(&basic,
-					AuCpup_DTIME /* | AuCpup_KEEPLINO */,
-					&a->pin);
+	err = au_sio_cpup_simple(&basic, AuCpup_DTIME | AuCpup_HOPEN,
+				 /* AuCpup_KEEPLINO */
+				 &a->pin);
 	au_unpin(&a->pin);
 
 out:

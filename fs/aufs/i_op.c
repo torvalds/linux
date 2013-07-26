@@ -702,7 +702,8 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 			.bsrc	= bstart,
 			.len	= sz
 		};
-		err = au_sio_cpup_simple_h_open(&basic, AuCpup_DTIME, &a->pin);
+		err = au_sio_cpup_simple(&basic, AuCpup_DTIME | AuCpup_HOPEN,
+					 &a->pin);
 		if (!err)
 			a->h_path.dentry = au_h_dptr(dentry, a->btgt);
 	} else if (!hi_wh)
