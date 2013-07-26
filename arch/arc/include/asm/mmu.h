@@ -49,9 +49,6 @@
 
 typedef struct {
 	unsigned long asid;	/* Pvt Addr-Space ID for mm */
-#ifdef CONFIG_ARC_TLB_DBG
-	struct task_struct *tsk;
-#endif
 } mm_context_t;
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA

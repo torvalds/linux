@@ -114,14 +114,6 @@ static inline void get_new_mmu_context(struct mm_struct *mm)
 	asid_mm_map[asid_cache] = mm;
 	mm->context.asid = asid_cache;
 
-#ifdef CONFIG_ARC_TLB_DBG
-	pr_info("ARC_TLB_DBG: NewMM=0x%x OldMM=0x%x task_struct=0x%x Task: %s,"
-	       " pid:%u, assigned asid:%lu\n",
-	       (unsigned int)mm, (unsigned int)prev_owner,
-	       (unsigned int)(mm->context.tsk), (mm->context.tsk)->comm,
-	       (mm->context.tsk)->pid, mm->context.asid);
-#endif
-
 	write_aux_reg(ARC_REG_PID, asid_cache | MMU_ENABLE);
 
 	local_irq_restore(flags);
@@ -135,9 +127,6 @@ static inline int
 init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	mm->context.asid = NO_ASID;
-#ifdef CONFIG_ARC_TLB_DBG
-	mm->context.tsk = tsk;
-#endif
 	return 0;
 }
 
