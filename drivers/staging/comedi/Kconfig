@@ -480,11 +480,10 @@ config COMEDI_NI_ATMIO
 	  called ni_atmio.
 
 config COMEDI_NI_ATMIO16D
-	tristate "NI AT-MIO16/AT-MIO16D series ISA-PNP card support"
-	depends on ISAPNP
+	tristate "NI AT-MIO-16/AT-MIO-16D series ISA card support"
 	select COMEDI_8255
 	---help---
-	  Enable support for National Instruments AT-MIO16/AT-MIO16D cards.
+	  Enable support for National Instruments AT-MIO-16/AT-MIO-16D cards.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_atmio16d.
