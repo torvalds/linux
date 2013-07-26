@@ -174,8 +174,10 @@ void __init orion5x_xor_init(void)
  ****************************************************************************/
 static void __init orion5x_crypto_init(void)
 {
-	mvebu_mbus_add_window("sram", ORION5X_SRAM_PHYS_BASE,
-			      ORION5X_SRAM_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_SRAM_TARGET,
+				    ORION_MBUS_SRAM_ATTR,
+				    ORION5X_SRAM_PHYS_BASE,
+				    ORION5X_SRAM_SIZE);
 	orion_crypto_init(ORION5X_CRYPTO_PHYS_BASE, ORION5X_SRAM_PHYS_BASE,
 			  SZ_8K, IRQ_ORION5X_CESA);
 }
@@ -222,22 +224,24 @@ void orion5x_setup_wins(void)
 	 * The PCIe windows will no longer be statically allocated
 	 * here once Orion5x is migrated to the pci-mvebu driver.
 	 */
-	mvebu_mbus_add_window_remap_flags("pcie0.0", ORION5X_PCIE_IO_PHYS_BASE,
+	mvebu_mbus_add_window_remap_by_id(ORION_MBUS_PCIE_IO_TARGET,
+					  ORION_MBUS_PCIE_IO_ATTR,
+					  ORION5X_PCIE_IO_PHYS_BASE,
 					  ORION5X_PCIE_IO_SIZE,
-					  ORION5X_PCIE_IO_BUS_BASE,
-					  MVEBU_MBUS_PCI_IO);
-	mvebu_mbus_add_window_remap_flags("pcie0.0", ORION5X_PCIE_MEM_PHYS_BASE,
-					  ORION5X_PCIE_MEM_SIZE,
-					  MVEBU_MBUS_NO_REMAP,
-					  MVEBU_MBUS_PCI_MEM);
-	mvebu_mbus_add_window_remap_flags("pci0.0", ORION5X_PCI_IO_PHYS_BASE,
+					  ORION5X_PCIE_IO_BUS_BASE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_PCIE_MEM_TARGET,
+				    ORION_MBUS_PCIE_MEM_ATTR,
+				    ORION5X_PCIE_MEM_PHYS_BASE,
+				    ORION5X_PCIE_MEM_SIZE);
+	mvebu_mbus_add_window_remap_by_id(ORION_MBUS_PCI_IO_TARGET,
+					  ORION_MBUS_PCI_IO_ATTR,
+					  ORION5X_PCI_IO_PHYS_BASE,
 					  ORION5X_PCI_IO_SIZE,
-					  ORION5X_PCI_IO_BUS_BASE,
-					  MVEBU_MBUS_PCI_IO);
-	mvebu_mbus_add_window_remap_flags("pci0.0", ORION5X_PCI_MEM_PHYS_BASE,
-					  ORION5X_PCI_MEM_SIZE,
-					  MVEBU_MBUS_NO_REMAP,
-					  MVEBU_MBUS_PCI_MEM);
+					  ORION5X_PCI_IO_BUS_BASE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_PCI_MEM_TARGET,
+				    ORION_MBUS_PCI_MEM_ATTR,
+				    ORION5X_PCI_MEM_PHYS_BASE,
+				    ORION5X_PCI_MEM_SIZE);
 }
 
 int orion5x_tclk;

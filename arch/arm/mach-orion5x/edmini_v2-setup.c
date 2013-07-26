@@ -154,8 +154,10 @@ void __init edmini_v2_init(void)
 	orion5x_ehci0_init();
 	orion5x_eth_init(&edmini_v2_eth_data);
 
-	mvebu_mbus_add_window("devbus-boot", EDMINI_V2_NOR_BOOT_BASE,
-			      EDMINI_V2_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,
+				    ORION_MBUS_DEVBUS_BOOT_ATTR,
+				    EDMINI_V2_NOR_BOOT_BASE,
+				    EDMINI_V2_NOR_BOOT_SIZE);
 	platform_device_register(&edmini_v2_nor_flash);
 
 	pr_notice("edmini_v2: USB device port, flash write and power-off "
