@@ -59,6 +59,15 @@
 			};
 		};
 
+		pcie-controller {
+			status = "okay";
+			/* Internal mini-PCIe connector */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+		};
+
 		internal-regs {
 			serial@12000 {
 				clock-frequency = <250000000>;
@@ -175,15 +184,6 @@
 			/* Front side USB 1 */
 			usb@51000 {
 				status = "okay";
-			};
-
-			pcie-controller {
-				status = "okay";
-				/* Internal mini-PCIe connector */
-				pcie@1,0 {
-					/* Port 0, Lane 0 */
-					status = "okay";
-				};
 			};
 		};
 	};
