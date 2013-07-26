@@ -20,6 +20,7 @@
 #include <linux/of_irq.h>
 #include <linux/io.h>
 #include <linux/clocksource.h>
+#include <linux/bitops.h>
 
 #define TIMER1_BASE		0x00
 #define TIMER2_BASE		0x10
