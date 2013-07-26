@@ -142,6 +142,8 @@ struct mvebu_mbus_state {
 	struct dentry *debugfs_root;
 	struct dentry *debugfs_sdram;
 	struct dentry *debugfs_devs;
+	struct resource pcie_mem_aperture;
+	struct resource pcie_io_aperture;
 	const struct mvebu_mbus_soc_data *soc;
 	int hw_io_coherency;
 };
@@ -821,6 +823,20 @@ int mvebu_mbus_del_window(phys_addr_t base, size_t size)
 	return 0;
 }
 
+void mvebu_mbus_get_pcie_mem_aperture(struct resource *res)
+{
+	if (!res)
+		return;
+	*res = mbus_state.pcie_mem_aperture;
+}
+
+void mvebu_mbus_get_pcie_io_aperture(struct resource *res)
+{
+	if (!res)
+		return;
+	*res = mbus_state.pcie_io_aperture;
+}
+
 static __init int mvebu_mbus_debugfs_init(void)
 {
 	struct mvebu_mbus_state *s = &mbus_state;
@@ -1023,6 +1039,35 @@ static int __init mbus_dt_setup(struct mvebu_mbus_state *mbus,
 	return 0;
 }
 
+static void __init mvebu_mbus_get_pcie_resources(struct device_node *np,
+						 struct resource *mem,
+						 struct resource *io)
+{
+	u32 reg[2];
+	int ret;
+
+	/*
+	 * These are optional, so we clear them and they'll
+	 * be zero if they are missing from the DT.
+	 */
+	memset(mem, 0, sizeof(struct resource));
+	memset(io, 0, sizeof(struct resource));
+
+	ret = of_property_read_u32_array(np, "pcie-mem-aperture", reg, ARRAY_SIZE(reg));
+	if (!ret) {
+		mem->start = reg[0];
+		mem->end = mem->start + reg[1];
+		mem->flags = IORESOURCE_MEM;
+	}
+
+	ret = of_property_read_u32_array(np, "pcie-io-aperture", reg, ARRAY_SIZE(reg));
+	if (!ret) {
+		io->start = reg[0];
+		io->end = io->start + reg[1];
+		io->flags = IORESOURCE_IO;
+	}
+}
+
 int __init mvebu_mbus_dt_init(void)
 {
 	struct resource mbuswins_res, sdramwins_res;
@@ -1061,6 +1106,10 @@ int __init mvebu_mbus_dt_init(void)
 		pr_err("cannot get SDRAM register address\n");
 		return -EINVAL;
 	}
+
+	/* Get optional pcie-{mem,io}-aperture properties */
+	mvebu_mbus_get_pcie_resources(np, &mbus_state.pcie_mem_aperture,
+					  &mbus_state.pcie_io_aperture);
 
 	ret = mvebu_mbus_common_init(&mbus_state,
 				     mbuswins_res.start,
