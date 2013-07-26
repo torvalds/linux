@@ -18,7 +18,7 @@
 #define MIPI_DSI_REGISTER_IO	1
 #define CONFIG_MIPI_DSI_LINUX   1
 //#define CONFIG_MIPI_DSI_FT 		1
-#define CONFIG_MFD_RK616   1
+#define CONFIG_MFD_RK616   		1
 
 #ifdef CONFIG_MIPI_DSI_LINUX
 #include <linux/kernel.h>
@@ -912,8 +912,6 @@ static int rk_mipi_dsi_probe(void *array, int n) {
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 
-static struct proc_dir_entry *reg_proc_entry;
-
 int reg_proc_write(struct file *file, const char __user *buff, size_t count, loff_t *offp)
 {
 	int ret = -1, i = 0;
@@ -966,7 +964,7 @@ int reg_proc_write(struct file *file, const char __user *buff, size_t count, lof
 		case 's':
 				while(*(++data) == ' ');
 				sscanf(data, "%d", &read_val);
-				rk_mipi_dsi_init_lite(g_screen, read_val * MHz);
+				rk_mipi_dsi_init(g_screen, read_val * MHz);
 			break;
 		case 'd':
 		case 'g':
@@ -1109,6 +1107,7 @@ static int reg_proc_init(char *name)
 	debugfs_create_file("mipi", S_IRUSR, dsi_rk616->debugfs_dir, dsi_rk616, &reg_proc_fops);
 #endif	
 #else
+	static struct proc_dir_entry *reg_proc_entry;
   	reg_proc_entry = create_proc_entry(name, 0666, NULL);
 	if(reg_proc_entry == NULL) {
 		MIPI_TRACE("Couldn't create proc entry : %s!\n", name);
