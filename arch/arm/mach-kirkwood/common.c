@@ -534,10 +534,6 @@ void __init kirkwood_cpuidle_init(void)
 void __init kirkwood_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
-
-	mvebu_mbus_init("marvell,kirkwood-mbus",
-			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
-			DDR_WINDOW_CPU_BASE, DDR_WINDOW_CPU_SZ);
 }
 
 int kirkwood_tclk;
@@ -712,6 +708,10 @@ void __init kirkwood_init(void)
 	 * up to deal with.
 	 */
 	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
+
+	BUG_ON(mvebu_mbus_init("marvell,kirkwood-mbus",
+			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
+			DDR_WINDOW_CPU_BASE, DDR_WINDOW_CPU_SZ));
 
 	kirkwood_setup_wins();
 
