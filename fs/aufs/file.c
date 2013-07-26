@@ -219,28 +219,34 @@ static int au_ready_to_write_wh(struct file *file, loff_t len,
 {
 	int err;
 	struct inode *inode, *h_inode;
-	struct dentry *dentry, *h_dentry, *hi_wh;
+	struct dentry *h_dentry, *hi_wh;
+	struct au_cpup_basic basic = {
+		.dentry	= file->f_dentry,
+		.bdst	= bcpup,
+		.bsrc	= -1,
+		.len	= len
+	};
 
-	dentry = file->f_dentry;
-	au_update_dbstart(dentry);
-	inode = dentry->d_inode;
+	au_update_dbstart(basic.dentry);
+	inode = basic.dentry->d_inode;
 	h_inode = NULL;
-	if (au_dbstart(dentry) <= bcpup && au_dbend(dentry) >= bcpup) {
-		h_dentry = au_h_dptr(dentry, bcpup);
+	if (au_dbstart(basic.dentry) <= bcpup
+	    && au_dbend(basic.dentry) >= bcpup) {
+		h_dentry = au_h_dptr(basic.dentry, bcpup);
 		if (h_dentry)
 			h_inode = h_dentry->d_inode;
 	}
 	hi_wh = au_hi_wh(inode, bcpup);
 	if (!hi_wh && !h_inode)
-		err = au_sio_cpup_wh(dentry, bcpup, len, file, pin);
+		err = au_sio_cpup_wh(&basic, file, pin);
 	else
 		/* already copied-up after unlink */
 		err = au_reopen_wh(file, bcpup, hi_wh);
 
 	if (!err
 	    && inode->i_nlink > 1
-	    && au_opt_test(au_mntflags(dentry->d_sb), PLINK))
-		au_plink_append(inode, bcpup, au_h_dptr(dentry, bcpup));
+	    && au_opt_test(au_mntflags(basic.dentry->d_sb), PLINK))
+		au_plink_append(inode, bcpup, au_h_dptr(basic.dentry, bcpup));
 
 	return err;
 }

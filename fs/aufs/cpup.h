@@ -40,6 +40,12 @@ void au_cpup_attr_all(struct inode *inode, int force);
 
 /* ---------------------------------------------------------------------- */
 
+struct au_cpup_basic {
+	struct dentry	*dentry;
+	aufs_bindex_t	bdst, bsrc;
+	loff_t		len;
+};
+
 /* cpup flags */
 #define AuCpup_DTIME	1		/* do dtime_store/revert */
 #define AuCpup_KEEPLINO	(1 << 1)	/* do not clear the lower xino,
@@ -57,8 +63,8 @@ int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 int au_sio_cpup_simple_h_open(struct dentry *dentry, aufs_bindex_t bdst,
 			      loff_t len, unsigned int flags,
 			      struct au_pin *pin, aufs_bindex_t bsrc);
-int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		   struct file *file, struct au_pin *pin);
+int au_sio_cpup_wh(struct au_cpup_basic *basic, struct file *file,
+		   struct au_pin *pin);
 
 int au_cp_dirs(struct dentry *dentry, aufs_bindex_t bdst,
 	       int (*cp)(struct dentry *dentry, aufs_bindex_t bdst,

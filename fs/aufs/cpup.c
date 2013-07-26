@@ -340,13 +340,6 @@ out:
 	return err;
 }
 
-/* internal use only */
-struct au_cpup_basic {
-	struct dentry *dentry;
-	aufs_bindex_t bdst, bsrc;
-	loff_t len;
-};
-
 /*
  * to support a sparse file which is opened with O_APPEND,
  * we need to close the file.
@@ -1071,21 +1064,18 @@ static void au_call_cpup_wh(void *args)
 	au_pin_hdir_release(a->pin);
 }
 
-int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		   struct file *file, struct au_pin *pin)
+int au_sio_cpup_wh(struct au_cpup_basic *basic, struct file *file,
+		   struct au_pin *pin)
 {
 	int err, wkq_err;
-	struct dentry *parent, *h_orph, *h_parent, *h_dentry;
+	aufs_bindex_t bdst;
+	struct dentry *dentry, *parent, *h_orph, *h_parent, *h_dentry;
 	struct inode *dir, *h_dir, *h_tmpdir;
 	struct au_wbr *wbr;
 	struct au_pin wh_pin;
-	struct au_cpup_basic basic = {
-		.dentry	= dentry,
-		.bdst	= bdst,
-		.bsrc	= -1,
-		.len	= len
-	};
 
+	dentry = basic->dentry;
+	bdst = basic->bdst;
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
 	h_orph = NULL;
@@ -1115,11 +1105,11 @@ int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 
 	if (!au_test_h_perm_sio(h_tmpdir, MAY_EXEC | MAY_WRITE)
 	    && !au_cpup_sio_test(pin, dentry->d_inode->i_mode))
-		err = au_cpup_wh(&basic, file, pin);
+		err = au_cpup_wh(basic, file, pin);
 	else {
 		struct au_cpup_wh_args args = {
 			.errp	= &err,
-			.basic	= &basic,
+			.basic	= basic,
 			.file	= file,
 			.pin	= pin
 		};
