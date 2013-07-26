@@ -2,10 +2,10 @@ MOXA ART timer
 
 Required properties:
 
-- compatible : Should be "moxa,moxart-timer"
+- compatible : Must be "moxa,moxart-timer"
 - reg : Should contain registers location and length
 - interrupts : Should contain the timer interrupt number
-- clocks : Should contain phandle for the MOXA ART core clock "coreclk"
+- clocks : Should contain phandle for the clock that drives the counter
 
 Example:
 
