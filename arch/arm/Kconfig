@@ -1793,6 +1793,9 @@ config HAVE_ARCH_TRANSPARENT_HUGEPAGE
        def_bool y
        depends on ARM_LPAE
 
+config ARCH_WANT_GENERAL_HUGETLB
+	def_bool y
+
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
