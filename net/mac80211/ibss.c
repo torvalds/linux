@@ -30,6 +30,7 @@
 
 #define IEEE80211_IBSS_MERGE_INTERVAL (30 * HZ)
 #define IEEE80211_IBSS_INACTIVITY_LIMIT (60 * HZ)
+#define IEEE80211_IBSS_RSN_INACTIVITY_LIMIT (10 * HZ)
 
 #define IEEE80211_IBSS_MAX_STA_ENTRIES 128
 
@@ -740,6 +741,33 @@ static int ieee80211_sta_active_ibss(struct ieee80211_sub_if_data *sdata)
 	return active;
 }
 
+static void ieee80211_ibss_sta_expire(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta, *tmp;
+	unsigned long exp_time = IEEE80211_IBSS_INACTIVITY_LIMIT;
+	unsigned long exp_rsn_time = IEEE80211_IBSS_RSN_INACTIVITY_LIMIT;
+
+	mutex_lock(&local->sta_mtx);
+
+	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
+		if (sdata != sta->sdata)
+			continue;
+
+		if (time_after(jiffies, sta->last_rx + exp_time) ||
+		    (time_after(jiffies, sta->last_rx + exp_rsn_time) &&
+		     sta->sta_state != IEEE80211_STA_AUTHORIZED)) {
+			sta_dbg(sta->sdata, "expiring inactive %sSTA %pM\n",
+				sta->sta_state != IEEE80211_STA_AUTHORIZED ?
+				"not authorized " : "", sta->sta.addr);
+
+			WARN_ON(__sta_info_destroy(sta));
+		}
+	}
+
+	mutex_unlock(&local->sta_mtx);
+}
+
 /*
  * This function is called with state == IEEE80211_IBSS_MLME_JOINED
  */
@@ -754,7 +782,7 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	mod_timer(&ifibss->timer,
 		  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
 
-	ieee80211_sta_expire(sdata, IEEE80211_IBSS_INACTIVITY_LIMIT);
+	ieee80211_ibss_sta_expire(sdata);
 
 	if (time_before(jiffies, ifibss->last_scan_completed +
 		       IEEE80211_IBSS_MERGE_INTERVAL))
