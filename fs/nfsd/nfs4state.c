@@ -3028,7 +3028,7 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 	if (status) {
 		list_del_init(&dp->dl_perclnt);
 		locks_free_lock(fl);
-		return -ENOMEM;
+		return status;
 	}
 	fp->fi_lease = fl;
 	fp->fi_deleg_file = get_file(fl->fl_file);
