@@ -467,7 +467,6 @@ config COMEDI_NI_AT_AO
 
 config COMEDI_NI_ATMIO
 	tristate "NI AT-MIO E series ISA-PNP card support"
-	depends on ISAPNP
 	select COMEDI_8255
 	select COMEDI_NI_TIO
 	---help---
