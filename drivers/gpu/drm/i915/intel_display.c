@@ -3652,8 +3652,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
-	mutex_lock(&dev_priv->dpio_lock);
-
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
@@ -3678,8 +3676,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_update_cursor(crtc, true);
 
 	intel_update_fbc(dev);
-
-	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 static void i9xx_crtc_enable(struct drm_crtc *crtc)
