@@ -73,7 +73,6 @@ struct dsps_musb_wrapper {
 	u16	revision;
 	u16	control;
 	u16	status;
-	u16	eoi;
 	u16	epintr_set;
 	u16	epintr_clear;
 	u16	epintr_status;
@@ -203,7 +202,6 @@ static void dsps_musb_disable(struct musb *musb)
 	dsps_writel(reg_base, wrp->epintr_clear,
 			 wrp->txep_bitmap | wrp->rxep_bitmap);
 	dsps_writeb(musb->mregs, MUSB_DEVCTL, 0);
-	dsps_writel(reg_base, wrp->eoi, 0);
 }
 
 static void otg_timer(unsigned long _musb)
@@ -317,7 +315,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	/* Get usb core interrupts */
 	usbintr = dsps_readl(reg_base, wrp->coreintr_status);
 	if (!usbintr && !epintr)
-		goto eoi;
+		goto out;
 
 	musb->int_usb =	(usbintr & wrp->usb_bitmap) >> wrp->usb_shift;
 	if (usbintr)
@@ -385,16 +383,11 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	if (musb->int_tx || musb->int_rx || musb->int_usb)
 		ret |= musb_interrupt(musb);
 
- eoi:
-	/* EOI needs to be written for the IRQ to be re-asserted. */
-	if (ret == IRQ_HANDLED || epintr || usbintr)
-		dsps_writel(reg_base, wrp->eoi, 1);
-
 	/* Poll for ID change */
 	if (musb->xceiv->state == OTG_STATE_B_IDLE)
 		mod_timer(&glue->timer[pdev->id],
 			 jiffies + wrp->poll_seconds * HZ);
-
+out:
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	return ret;
@@ -442,9 +435,6 @@ static int dsps_musb_init(struct musb *musb)
 	val = dsps_readl(reg_base, wrp->phy_utmi);
 	val &= ~(1 << wrp->otg_disable);
 	dsps_writel(musb->ctrl_base, wrp->phy_utmi, val);
-
-	/* clear level interrupt */
-	dsps_writel(reg_base, wrp->eoi, 0);
 
 	return 0;
 err0:
@@ -724,7 +714,6 @@ static const struct dsps_musb_wrapper am33xx_driver_data = {
 	.revision		= 0x00,
 	.control		= 0x14,
 	.status			= 0x18,
-	.eoi			= 0x24,
 	.epintr_set		= 0x38,
 	.epintr_clear		= 0x40,
 	.epintr_status		= 0x30,
