@@ -847,25 +847,13 @@ static __init int mvebu_mbus_debugfs_init(void)
 }
 fs_initcall(mvebu_mbus_debugfs_init);
 
-int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
-			   size_t mbuswins_size,
-			   phys_addr_t sdramwins_phys_base,
-			   size_t sdramwins_size)
+static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
+					 phys_addr_t mbuswins_phys_base,
+					 size_t mbuswins_size,
+					 phys_addr_t sdramwins_phys_base,
+					 size_t sdramwins_size)
 {
-	struct mvebu_mbus_state *mbus = &mbus_state;
-	const struct of_device_id *of_id;
 	int win;
-
-	for (of_id = of_mvebu_mbus_ids; of_id->compatible; of_id++)
-		if (!strcmp(of_id->compatible, soc))
-			break;
-
-	if (!of_id->compatible) {
-		pr_err("could not find a matching SoC family\n");
-		return -ENODEV;
-	}
-
-	mbus->soc = of_id->data;
 
 	mbus->mbuswins_base = ioremap(mbuswins_phys_base, mbuswins_size);
 	if (!mbus->mbuswins_base)
@@ -886,4 +874,29 @@ int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 	mbus->soc->setup_cpu_target(mbus);
 
 	return 0;
+}
+
+int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
+			   size_t mbuswins_size,
+			   phys_addr_t sdramwins_phys_base,
+			   size_t sdramwins_size)
+{
+	const struct of_device_id *of_id;
+
+	for (of_id = of_mvebu_mbus_ids; of_id->compatible; of_id++)
+		if (!strcmp(of_id->compatible, soc))
+			break;
+
+	if (!of_id->compatible) {
+		pr_err("could not find a matching SoC family\n");
+		return -ENODEV;
+	}
+
+	mbus_state.soc = of_id->data;
+
+	return mvebu_mbus_common_init(&mbus_state,
+			mbuswins_phys_base,
+			mbuswins_size,
+			sdramwins_phys_base,
+			sdramwins_size);
 }
