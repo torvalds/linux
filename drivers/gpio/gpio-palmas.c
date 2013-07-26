@@ -43,9 +43,22 @@ static int palmas_gpio_get(struct gpio_chip *gc, unsigned offset)
 	unsigned int val;
 	int ret;
 
-	ret = palmas_read(palmas, PALMAS_GPIO_BASE, PALMAS_GPIO_DATA_IN, &val);
+	ret = palmas_read(palmas, PALMAS_GPIO_BASE, PALMAS_GPIO_DATA_DIR, &val);
 	if (ret < 0) {
-		dev_err(gc->dev, "GPIO_DATA_IN read failed, err = %d\n", ret);
+		dev_err(gc->dev, "GPIO_DATA_DIR read failed, err = %d\n", ret);
+		return ret;
+	}
+
+	if (val & (1 << offset)) {
+		ret = palmas_read(palmas, PALMAS_GPIO_BASE,
+				  PALMAS_GPIO_DATA_OUT, &val);
+	} else {
+		ret = palmas_read(palmas, PALMAS_GPIO_BASE,
+				  PALMAS_GPIO_DATA_IN, &val);
+	}
+	if (ret < 0) {
+		dev_err(gc->dev, "GPIO_DATA_IN/OUT read failed, err = %d\n",
+			ret);
 		return ret;
 	}
 	return !!(val & BIT(offset));
