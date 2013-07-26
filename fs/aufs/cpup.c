@@ -816,26 +816,19 @@ static int au_cpup_sio_test(struct au_pin *pin, umode_t mode)
 }
 
 #if 0 /* unused */
-int au_sio_cpup_single(struct dentry *dentry, aufs_bindex_t bdst,
-		       aufs_bindex_t bsrc, loff_t len, unsigned int flags,
+int au_sio_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 		       struct dentry *dst_parent, struct au_pin *pin)
 {
 	int err, wkq_err;
 	struct dentry *h_dentry;
-	struct au_cpup_basic basic = {
-		.dentry	= dentry,
-		.bdst	= bdst,
-		.bsrc	= bsrc,
-		.len	= len
-	};
 
-	h_dentry = au_h_dptr(dentry, bsrc);
+	h_dentry = au_h_dptr(basic->dentry, basic->bsrc);
 	if (!au_cpup_sio_test(pin, h_dentry->d_inode->i_mode))
-		err = au_cpup_single(&basic, flags, dst_parent, pin);
+		err = au_cpup_single(basic, flags, dst_parent, pin);
 	else {
 		struct au_cpup_single_args args = {
 			.errp		= &err,
-			.basic		= &basic,
+			.basic		= basic,
 			.flags		= flags,
 			.dst_parent	= dst_parent,
 			.pin		= pin
@@ -906,28 +899,23 @@ static void au_call_cpup_simple(void *args)
 	au_pin_hdir_release(a->pin);
 }
 
-int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		       unsigned int flags, struct au_pin *pin)
+int au_sio_cpup_simple(struct au_cpup_basic *basic, unsigned int flags,
+		       struct au_pin *pin)
 {
 	int err, wkq_err;
-	struct dentry *parent;
+	struct dentry *dentry, *parent;
 	struct inode *h_dir;
-	struct au_cpup_basic basic = {
-		.dentry	= dentry,
-		.bdst	= bdst,
-		.bsrc	= -1,
-		.len	= len
-	};
 
+	dentry = basic->dentry;
 	parent = dget_parent(dentry);
-	h_dir = au_h_iptr(parent->d_inode, bdst);
+	h_dir = au_h_iptr(parent->d_inode, basic->bdst);
 	if (!au_test_h_perm_sio(h_dir, MAY_EXEC | MAY_WRITE)
 	    && !au_cpup_sio_test(pin, dentry->d_inode->i_mode))
-		err = au_cpup_simple(&basic, flags, pin);
+		err = au_cpup_simple(basic, flags, pin);
 	else {
 		struct au_cpup_simple_args args = {
 			.errp		= &err,
-			.basic		= &basic,
+			.basic		= basic,
 			.flags		= flags,
 			.pin		= pin
 		};
@@ -941,19 +929,20 @@ int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 }
 
 /* generalized cpup_simple() with h_open_pre/post() calls */
-int au_sio_cpup_simple_h_open(struct dentry *dentry, aufs_bindex_t bdst,
-			      loff_t len, unsigned int flags,
-			      struct au_pin *pin, aufs_bindex_t bsrc)
+int au_sio_cpup_simple_h_open(struct au_cpup_basic *basic, unsigned int flags,
+			      struct au_pin *pin)
 {
 	int err;
+	struct dentry *dentry;
 	struct file *h_file;
 
-	h_file = au_h_open_pre(dentry, bsrc);
+	dentry = basic->dentry;
+	h_file = au_h_open_pre(dentry, basic->bsrc);
 	if (IS_ERR(h_file))
 		err = PTR_ERR(h_file);
 	else {
-		err = au_sio_cpup_simple(dentry, bdst, len, flags, pin);
-		au_h_open_post(dentry, bsrc, h_file);
+		err = au_sio_cpup_simple(basic, flags, pin);
+		au_h_open_post(dentry, basic->bsrc, h_file);
 	}
 
 	return err;
@@ -1205,7 +1194,13 @@ static int au_cpup_dir(struct dentry *dentry, aufs_bindex_t bdst,
 		       struct dentry *h_parent __maybe_unused ,
 		       void *arg __maybe_unused)
 {
-	return au_sio_cpup_simple(dentry, bdst, -1, AuCpup_DTIME, pin);
+	struct au_cpup_basic basic = {
+		.dentry	= dentry,
+		.bdst	= bdst,
+		.bsrc	= -1,
+		.len	= 0
+	};
+	return au_sio_cpup_simple(&basic, AuCpup_DTIME, pin);
 }
 
 int au_cpup_dirs(struct dentry *dentry, aufs_bindex_t bdst)

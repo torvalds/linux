@@ -58,11 +58,10 @@ struct au_cpup_basic {
 	do { (flags) &= ~AuCpup_##name; } while (0)
 
 int au_copy_file(struct file *dst, struct file *src, loff_t len);
-int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		       unsigned int flags, struct au_pin *pin);
-int au_sio_cpup_simple_h_open(struct dentry *dentry, aufs_bindex_t bdst,
-			      loff_t len, unsigned int flags,
-			      struct au_pin *pin, aufs_bindex_t bsrc);
+int au_sio_cpup_simple(struct au_cpup_basic *basic, unsigned int flags,
+		       struct au_pin *pin);
+int au_sio_cpup_simple_h_open(struct au_cpup_basic *basic, unsigned int flags,
+			      struct au_pin *pin);
 int au_sio_cpup_wh(struct au_cpup_basic *basic, struct file *file,
 		   struct au_pin *pin);
 

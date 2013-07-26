@@ -696,8 +696,13 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 		goto out; /* success */
 
 	if (!d_unhashed(dentry)) {
-		err = au_sio_cpup_simple_h_open(dentry, a->btgt, sz,
-						AuCpup_DTIME, &a->pin, bstart);
+		struct au_cpup_basic basic = {
+			.dentry	= dentry,
+			.bdst	= a->btgt,
+			.bsrc	= bstart,
+			.len	= sz
+		};
+		err = au_sio_cpup_simple_h_open(&basic, AuCpup_DTIME, &a->pin);
 		if (!err)
 			a->h_path.dentry = au_h_dptr(dentry, a->btgt);
 	} else if (!hi_wh)
