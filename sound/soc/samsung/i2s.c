@@ -198,7 +198,8 @@ static inline bool is_manager(struct i2s_dai *i2s)
 /* Read RCLK of I2S (in multiples of LRCLK) */
 static inline unsigned get_rfs(struct i2s_dai *i2s)
 {
-	u32 rfs = (readl(i2s->addr + I2SMOD) >> 3) & 0x3;
+	u32 rfs = (readl(i2s->addr + I2SMOD) >> MOD_RCLK_SHIFT);
+	rfs &= MOD_RCLK_MASK;
 
 	switch (rfs) {
 	case 3:	return 768;
@@ -212,21 +213,22 @@ static inline unsigned get_rfs(struct i2s_dai *i2s)
 static inline void set_rfs(struct i2s_dai *i2s, unsigned rfs)
 {
 	u32 mod = readl(i2s->addr + I2SMOD);
+	int rfs_shift =  MOD_RCLK_SHIFT;
 
-	mod &= ~MOD_RCLK_MASK;
+	mod &= ~(MOD_RCLK_MASK << rfs_shift);
 
 	switch (rfs) {
 	case 768:
-		mod |= MOD_RCLK_768FS;
+		mod |= (MOD_RCLK_768FS << rfs_shift);
 		break;
 	case 512:
-		mod |= MOD_RCLK_512FS;
+		mod |= (MOD_RCLK_512FS << rfs_shift);
 		break;
 	case 384:
-		mod |= MOD_RCLK_384FS;
+		mod |= (MOD_RCLK_384FS << rfs_shift);
 		break;
 	default:
-		mod |= MOD_RCLK_256FS;
+		mod |= (MOD_RCLK_256FS << rfs_shift);
 		break;
 	}
 
@@ -236,7 +238,8 @@ static inline void set_rfs(struct i2s_dai *i2s, unsigned rfs)
 /* Read Bit-Clock of I2S (in multiples of LRCLK) */
 static inline unsigned get_bfs(struct i2s_dai *i2s)
 {
-	u32 bfs = (readl(i2s->addr + I2SMOD) >> 1) & 0x3;
+	u32 bfs =  readl(i2s->addr + I2SMOD) >> MOD_BCLK_SHIFT;
+	bfs &= MOD_BCLK_MASK;
 
 	switch (bfs) {
 	case 3: return 24;
@@ -250,21 +253,22 @@ static inline unsigned get_bfs(struct i2s_dai *i2s)
 static inline void set_bfs(struct i2s_dai *i2s, unsigned bfs)
 {
 	u32 mod = readl(i2s->addr + I2SMOD);
+	int bfs_shift = MOD_BCLK_SHIFT;
 
-	mod &= ~MOD_BCLK_MASK;
+	mod &= ~(MOD_BCLK_MASK << bfs_shift);
 
 	switch (bfs) {
 	case 48:
-		mod |= MOD_BCLK_48FS;
+		mod |= (MOD_BCLK_48FS << bfs_shift);
 		break;
 	case 32:
-		mod |= MOD_BCLK_32FS;
+		mod |= (MOD_BCLK_32FS << bfs_shift);
 		break;
 	case 24:
-		mod |= MOD_BCLK_24FS;
+		mod |= (MOD_BCLK_24FS << bfs_shift);
 		break;
 	case 16:
-		mod |= MOD_BCLK_16FS;
+		mod |= (MOD_BCLK_16FS << bfs_shift);
 		break;
 	default:
 		dev_err(&i2s->pdev->dev, "Wrong BCLK Divider!\n");
@@ -491,20 +495,25 @@ static int i2s_set_fmt(struct snd_soc_dai *dai,
 {
 	struct i2s_dai *i2s = to_info(dai);
 	u32 mod = readl(i2s->addr + I2SMOD);
+	int lrp_shift = MOD_LRP_SHIFT, sdf_shift = MOD_SDF_SHIFT;
+	int sdf_mask, lrp_rlow;
 	u32 tmp = 0;
+
+	sdf_mask = MOD_SDF_MASK << sdf_shift;
+	lrp_rlow = MOD_LR_RLOW << lrp_shift;
 
 	/* Format is priority */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_RIGHT_J:
-		tmp |= MOD_LR_RLOW;
-		tmp |= MOD_SDF_MSB;
+		tmp |= lrp_rlow;
+		tmp |= (MOD_SDF_MSB << sdf_shift);
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		tmp |= MOD_LR_RLOW;
-		tmp |= MOD_SDF_LSB;
+		tmp |= lrp_rlow;
+		tmp |= (MOD_SDF_LSB << sdf_shift);
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		tmp |= MOD_SDF_IIS;
+		tmp |= (MOD_SDF_IIS << sdf_shift);
 		break;
 	default:
 		dev_err(&i2s->pdev->dev, "Format not supported\n");
@@ -519,10 +528,10 @@ static int i2s_set_fmt(struct snd_soc_dai *dai,
 	case SND_SOC_DAIFMT_NB_NF:
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		if (tmp & MOD_LR_RLOW)
-			tmp &= ~MOD_LR_RLOW;
+		if (tmp & lrp_rlow)
+			tmp &= ~lrp_rlow;
 		else
-			tmp |= MOD_LR_RLOW;
+			tmp |= lrp_rlow;
 		break;
 	default:
 		dev_err(&i2s->pdev->dev, "Polarity not supported\n");
@@ -544,15 +553,18 @@ static int i2s_set_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
+	/*
+	 * Don't change the I2S mode if any controller is active on this
+	 * channel.
+	 */
 	if (any_active(i2s) &&
-			((mod & (MOD_SDF_MASK | MOD_LR_RLOW
-				| MOD_SLAVE)) != tmp)) {
+		((mod & (sdf_mask | lrp_rlow | MOD_SLAVE)) != tmp)) {
 		dev_err(&i2s->pdev->dev,
 				"%s:%d Other DAI busy\n", __func__, __LINE__);
 		return -EAGAIN;
 	}
 
-	mod &= ~(MOD_SDF_MASK | MOD_LR_RLOW | MOD_SLAVE);
+	mod &= ~(sdf_mask | lrp_rlow | MOD_SLAVE);
 	mod |= tmp;
 	writel(mod, i2s->addr + I2SMOD);
 
