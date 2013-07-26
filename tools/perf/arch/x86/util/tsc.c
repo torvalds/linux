@@ -10,11 +10,11 @@
 
 u64 perf_time_to_tsc(u64 ns, struct perf_tsc_conversion *tc)
 {
-	u64 time, quot, rem;
+	u64 t, quot, rem;
 
-	time = ns - tc->time_zero;
-	quot = time / tc->time_mult;
-	rem  = time % tc->time_mult;
+	t = ns - tc->time_zero;
+	quot = t / tc->time_mult;
+	rem  = t % tc->time_mult;
 	return (quot << tc->time_shift) +
 	       (rem << tc->time_shift) / tc->time_mult;
 }
