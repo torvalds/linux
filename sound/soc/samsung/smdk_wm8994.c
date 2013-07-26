@@ -11,6 +11,7 @@
 #include <sound/pcm_params.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 
  /*
   * Default CFG switch settings to use this driver:
@@ -36,6 +37,15 @@
 
 /* SMDK has a 16.934MHZ crystal attached to WM8994 */
 #define SMDK_WM8994_FREQ 16934000
+
+struct smdk_wm8994_data {
+	int mclk1_rate;
+};
+
+/* Default SMDKs */
+static struct smdk_wm8994_data smdk_board_data = {
+	.mclk1_rate = SMDK_WM8994_FREQ,
+};
 
 static int smdk_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -141,14 +151,27 @@ static struct snd_soc_card smdk = {
 	.num_links = ARRAY_SIZE(smdk_dai),
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id samsung_wm8994_of_match[] = {
+	{ .compatible = "samsung,smdk-wm8994", .data = &smdk_board_data },
+	{},
+};
+MODULE_DEVICE_TABLE(of, samsung_wm8994_of_match);
+#endif /* CONFIG_OF */
 
 static int smdk_audio_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_card *card = &smdk;
+	struct smdk_wm8994_data *board;
+	const struct of_device_id *id;
 
 	card->dev = &pdev->dev;
+
+	board = devm_kzalloc(&pdev->dev, sizeof(*board), GFP_KERNEL);
+	if (!board)
+		return -ENOMEM;
 
 	if (np) {
 		smdk_dai[0].cpu_dai_name = NULL;
@@ -163,6 +186,12 @@ static int smdk_audio_probe(struct platform_device *pdev)
 		smdk_dai[0].platform_name = NULL;
 		smdk_dai[0].platform_of_node = smdk_dai[0].cpu_of_node;
 	}
+
+	id = of_match_device(samsung_wm8994_of_match, &pdev->dev);
+	if (id)
+		*board = *((struct smdk_wm8994_data *)id->data);
+
+	platform_set_drvdata(pdev, board);
 
 	ret = snd_soc_register_card(card);
 
@@ -180,14 +209,6 @@ static int smdk_audio_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-#ifdef CONFIG_OF
-static const struct of_device_id samsung_wm8994_of_match[] = {
-	{ .compatible = "samsung,smdk-wm8994", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, samsung_wm8994_of_match);
-#endif /* CONFIG_OF */
 
 static struct platform_driver smdk_audio_driver = {
 	.driver		= {
