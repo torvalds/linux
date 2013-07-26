@@ -95,20 +95,6 @@ static struct sh_timer_config sh_tmu1_platform_data __initdata = {
 		&sh_tmu##idx##_platform_data,		\
 		sizeof(sh_tmu##idx##_platform_data))
 
-/* USB PHY */
-static struct resource usb_phy_resources[] __initdata = {
-	DEFINE_RES_MEM(0xffe70800, 0x100),
-	DEFINE_RES_MEM(0xffe76000, 0x100),
-};
-
-void __init r8a7778_add_usb_phy_device(struct rcar_phy_platform_data *pdata)
-{
-	platform_device_register_resndata(&platform_bus, "rcar_usb_phy", -1,
-					  usb_phy_resources,
-					  ARRAY_SIZE(usb_phy_resources),
-					  pdata, sizeof(*pdata));
-}
-
 /* USB */
 static struct usb_phy *phy;
 

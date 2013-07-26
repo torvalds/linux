@@ -23,6 +23,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/usb-rcar-phy.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -75,6 +76,12 @@ static struct smsc911x_platform_config smsc911x_data = {
 static struct resource smsc911x_resources[] = {
 	DEFINE_RES_MEM(0x18300000, 0x1000),
 	DEFINE_RES_IRQ(irq_pin(0)), /* IRQ 0 */
+};
+
+/* USB */
+static struct resource usb_phy_resources[] __initdata = {
+	DEFINE_RES_MEM(0xffe70800, 0x100),
+	DEFINE_RES_MEM(0xffe76000, 0x100),
 };
 
 static struct rcar_phy_platform_data usb_phy_platform_data __initdata;
@@ -165,6 +172,7 @@ static const struct pinctrl_map bockw_pinctrl_map[] = {
 				  "scif0_data_a", "scif0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.0", "pfc-r8a7778",
 				  "scif0_ctrl", "scif0"),
+	/* USB */
 	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform", "pfc-r8a7778",
 				  "usb0", "usb0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform", "pfc-r8a7778",
@@ -191,7 +199,6 @@ static void __init bockw_init(void)
 	r8a7778_clock_init();
 	r8a7778_init_irq_extpin(1);
 	r8a7778_add_standard_devices();
-	r8a7778_add_usb_phy_device(&usb_phy_platform_data);
 	r8a7778_add_ether_device(&ether_platform_data);
 	r8a7778_add_i2c_device(0);
 	r8a7778_add_hspi_device(0);
@@ -208,6 +215,14 @@ static void __init bockw_init(void)
 		&platform_bus, "sh_mmcif", -1,
 		mmc_resources, ARRAY_SIZE(mmc_resources),
 		&sh_mmcif_plat, sizeof(struct sh_mmcif_plat_data));
+
+	platform_device_register_resndata(
+		&platform_bus, "rcar_usb_phy", -1,
+		usb_phy_resources,
+		ARRAY_SIZE(usb_phy_resources),
+		&usb_phy_platform_data,
+		sizeof(struct rcar_phy_platform_data));
+
 
 	/* for SMSC */
 	base = ioremap_nocache(FPGA, SZ_1M);
