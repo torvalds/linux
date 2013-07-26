@@ -16,6 +16,17 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
+	mbus {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+	};
+
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
 			pinctrl-0 = <&pmx_unknown>;
@@ -160,14 +171,6 @@
 			partition@5040000 {
 				label = "rootfs2";
 				reg = <0x5040000 0x2fc0000>;
-			};
-		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
 			};
 		};
 	};

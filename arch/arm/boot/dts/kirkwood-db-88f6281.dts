@@ -18,7 +18,8 @@
 	model = "Marvell DB-88F6281-BP Development Board";
 	compatible = "marvell,db-88f6281-bp", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
-	ocp@f1000000 {
+	mbus {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
 		pcie-controller {
 			status = "okay";
 

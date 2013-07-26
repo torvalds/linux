@@ -18,6 +18,17 @@
 		linux,initrd-end   = <0x4800000>;
 	};
 
+	mbus {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+	};
+
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
 			pmx_button_reset: pmx-button-reset {
@@ -99,14 +110,6 @@
 			partition@980000 {
 				label = "boot";
 				reg = <0x980000 0x1f400000>;
-			};
-		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
 			};
 		};
 	};

@@ -77,13 +77,5 @@
 			cd-gpios = <&gpio1 6 0>;
 			status = "okay";
 		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
 	};
 };
