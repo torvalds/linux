@@ -27,7 +27,8 @@ extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
 extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
 
-int rk30_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
+struct hdmi* rk30_hdmi_register_hdcp_callbacks( 
+					 void (*hdcp_cb)(void),
 					 void (*hdcp_irq_cb)(int status),
 					 int (*hdcp_power_on_cb)(void),
 					 void (*hdcp_power_off_cb)(void))
@@ -40,7 +41,7 @@ int rk30_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 	hdmi->hdcp_power_on_cb = hdcp_power_on_cb;
 	hdmi->hdcp_power_off_cb = hdcp_power_off_cb;
 	
-	return HDMI_ERROR_SUCESS;
+	return hdmi;
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
