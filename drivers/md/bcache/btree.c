@@ -2025,15 +2025,16 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 
 static int btree_split(struct btree *b, struct btree_op *op,
 		       struct keylist *insert_keys,
-		       struct keylist *parent_keys,
 		       struct bkey *replace_key)
 {
 	bool split;
 	struct btree *n1, *n2 = NULL, *n3 = NULL;
 	uint64_t start_time = local_clock();
 	struct closure cl;
+	struct keylist parent_keys;
 
 	closure_init_stack(&cl);
+	bch_keylist_init(&parent_keys);
 
 	n1 = btree_node_alloc_replacement(b, true);
 	if (IS_ERR(n1))
@@ -2078,7 +2079,7 @@ static int btree_split(struct btree *b, struct btree_op *op,
 
 		bkey_copy_key(&n2->key, &b->key);
 
-		bch_keylist_add(parent_keys, &n2->key);
+		bch_keylist_add(&parent_keys, &n2->key);
 		bch_btree_node_write(n2, &cl);
 		rw_unlock(true, n2);
 	} else {
@@ -2087,33 +2088,39 @@ static int btree_split(struct btree *b, struct btree_op *op,
 		bch_btree_insert_keys(n1, op, insert_keys, replace_key);
 	}
 
-	bch_keylist_add(parent_keys, &n1->key);
+	bch_keylist_add(&parent_keys, &n1->key);
 	bch_btree_node_write(n1, &cl);
 
 	if (n3) {
 		/* Depth increases, make a new root */
-
 		bkey_copy_key(&n3->key, &MAX_KEY);
-		bch_btree_insert_keys(n3, op, parent_keys, NULL);
+		bch_btree_insert_keys(n3, op, &parent_keys, NULL);
 		bch_btree_node_write(n3, &cl);
 
 		closure_sync(&cl);
 		bch_btree_set_root(n3);
 		rw_unlock(true, n3);
+
+		btree_node_free(b);
 	} else if (!b->parent) {
 		/* Root filled up but didn't need to be split */
-
-		bch_keylist_reset(parent_keys);
 		closure_sync(&cl);
 		bch_btree_set_root(n1);
+
+		btree_node_free(b);
 	} else {
+		/* Split a non root node */
 		closure_sync(&cl);
-		make_btree_freeing_key(b, parent_keys->top);
-		bch_keylist_push(parent_keys);
+		make_btree_freeing_key(b, parent_keys.top);
+		bch_keylist_push(&parent_keys);
+
+		btree_node_free(b);
+
+		bch_btree_insert_node(b->parent, op, &parent_keys, NULL, NULL);
+		BUG_ON(!bch_keylist_empty(&parent_keys));
 	}
 
 	rw_unlock(true, n1);
-	btree_node_free(b);
 
 	bch_time_stats_update(&b->c->btree_split_time, start_time);
 
@@ -2139,46 +2146,32 @@ static int bch_btree_insert_node(struct btree *b, struct btree_op *op,
 				 atomic_t *journal_ref,
 				 struct bkey *replace_key)
 {
-	int ret = 0;
-	struct keylist split_keys;
+	BUG_ON(b->level && replace_key);
 
-	bch_keylist_init(&split_keys);
-
-	do {
-		BUG_ON(b->level && replace_key);
-
-		if (should_split(b)) {
-			if (current->bio_list) {
-				op->lock = b->c->root->level + 1;
-				ret = -EAGAIN;
-			} else if (op->lock <= b->c->root->level) {
-				op->lock = b->c->root->level + 1;
-				ret = -EINTR;
-			} else {
-				struct btree *parent = b->parent;
-
-				ret = btree_split(b, op, insert_keys,
-						  &split_keys, replace_key);
-				insert_keys = &split_keys;
-				replace_key = NULL;
-				b = parent;
-				if (!ret)
-					ret = -EINTR;
-			}
+	if (should_split(b)) {
+		if (current->bio_list) {
+			op->lock = b->c->root->level + 1;
+			return -EAGAIN;
+		} else if (op->lock <= b->c->root->level) {
+			op->lock = b->c->root->level + 1;
+			return -EINTR;
 		} else {
-			BUG_ON(write_block(b) != b->sets[b->nsets].data);
-
-			if (bch_btree_insert_keys(b, op, insert_keys,
-						  replace_key)) {
-				if (!b->level)
-					bch_btree_leaf_dirty(b, journal_ref);
-				else
-					bch_btree_node_write_sync(b);
-			}
+			/* Invalidated all iterators */
+			return btree_split(b, op, insert_keys, replace_key) ?:
+				-EINTR;
 		}
-	} while (!bch_keylist_empty(&split_keys));
+	} else {
+		BUG_ON(write_block(b) != b->sets[b->nsets].data);
 
-	return ret;
+		if (bch_btree_insert_keys(b, op, insert_keys, replace_key)) {
+			if (!b->level)
+				bch_btree_leaf_dirty(b, journal_ref);
+			else
+				bch_btree_node_write_sync(b);
+		}
+
+		return 0;
+	}
 }
 
 int bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
