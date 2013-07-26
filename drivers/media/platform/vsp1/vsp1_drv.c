@@ -101,6 +101,9 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 						       entity, pad, flags);
 			if (ret < 0)
 				return ret;
+
+			if (flags & MEDIA_LNK_FL_ENABLED)
+				source->sink = entity;
 		}
 	}
 
