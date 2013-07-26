@@ -98,8 +98,8 @@ sys_clone:
 	ba,pt	%xcc, sparc_do_fork
 	 add	%sp, PTREGS_OFF, %o2
 
-	.globl	ret_from_syscall
-ret_from_syscall:
+	.globl	ret_from_fork
+ret_from_fork:
 	/* Clear current_thread_info()->new_child. */
 	stb	%g0, [%g6 + TI_NEW_CHILD]
 	call	schedule_tail
