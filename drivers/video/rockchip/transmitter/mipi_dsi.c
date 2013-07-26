@@ -13,10 +13,17 @@
  * GNU General Public License for more details.
  */
  
-#include "mipi_dsi.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <asm/system.h>
+#include <linux/fb.h>
+#include <linux/delay.h>
+#include <linux/rk_fb.h>
+#include <linux/rk_screen.h>
+#include <linux/ktime.h>
+
+#include "mipi_dsi.h"
 
 #define MAX_DSI_CHIPS 5
 
@@ -24,8 +31,9 @@
 *			 Driver Version Note
 *
 *v1.0 : this driver is a top level architecture of mipi dsi driver;
+*v1.1 : add struct mipi_dsi_screen
 */
-#define MIPI_DSI_VERSION_AND_TIME  "mipi_dsi v1.0 2013-07-18"
+#define MIPI_DSI_VERSION_AND_TIME  "mipi_dsi v1.1 2013-07-23"
 
 
 static struct mipi_dsi_ops *dsi_ops[MAX_DSI_CHIPS] = {NULL};

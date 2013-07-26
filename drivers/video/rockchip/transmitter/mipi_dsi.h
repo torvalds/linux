@@ -4,12 +4,9 @@ drivers/video/rockchip/transmitter/mipi_dsi.h
 #ifndef MIPI_DSI_H_
 #define MIPI_DSI_H_
 
-#include <linux/fb.h>
-#include <linux/delay.h>
-#include <linux/rk_fb.h>
-#include <linux/rk_screen.h>
-#include <linux/ktime.h>
-
+#ifdef CONFIG_MIPI_DSI_FT
+#include "..\..\common\config.h"
+#endif
 
 //DSI DATA TYPE
 #define DTYPE_DCS_SWRITE_0P		0x05 
@@ -77,12 +74,26 @@ drivers/video/rockchip/transmitter/mipi_dsi.h
 #define dcs_write_memory_continue  	0x3c
 #define dcs_write_memory_start 		0x2c
 
+#if 0
+typedef signed char s8;
+typedef unsigned char u8;
+
+typedef signed short s16;
+typedef unsigned short u16;
+
+typedef signed int s32;
+typedef unsigned int u32;
+
+typedef signed long s64;
+typedef unsigned long u64;
+#endif
+
 
 //iomux
 #define OLD_RK_IOMUX 0
 
 struct spi_t {
-	int cs;
+	u32 cs;
 #if OLD_RK_IOMUX	
 	char* cs_mux_name;
 #endif	
@@ -172,6 +183,47 @@ struct mipi_dsi_ops {
 	int (*power_up)(void);
 	int (*power_down)(void);	
 };
+
+
+/* Screen description */
+struct mipi_dsi_screen {
+	
+	u16 type;
+	u16 face;
+	u8 lcdc_id;    
+	u8 screen_id; 
+
+	/* Timing */
+	u32 pixclock;
+	u16 left_margin;
+	u16 right_margin;
+	u16 hsync_len;
+	u16 upper_margin;
+	u16 lower_margin;
+	u16 vsync_len;
+	
+	/* Screen size */
+	u16 x_res;
+	u16 y_res;
+	u16 width;
+	u16 height;
+	/* Pin polarity */
+	u8 pin_hsync;
+	u8 pin_vsync;
+	u8 pin_den;
+	u8 pin_dclk;
+
+	/* MIPI DSI */
+	u8 dsi_lane;
+	u8 dsi_video_mode;
+	u32 hs_tx_clk;
+
+	/* Operation function*/
+	int (*init)(void);
+	int (*standby)(u8 enable);
+};
+
+
 
 
 int register_dsi_ops(struct mipi_dsi_ops *ops);

@@ -298,19 +298,18 @@ struct dsi {
 	u8 vid;
 	struct dsi_phy phy;
 	struct dsi_host host;
+#ifdef CONFIG_MIPI_DSI_LINUX
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
-
+#endif
 };
 
 
 
-//config
-#define MIPI_DSI_REGISTER_IO	0
-
 #ifndef MHz
 #define MHz   1000000
 #endif
+extern int rk616_mipi_dsi_ft_init(void);
 
 #endif /* end of RK616_MIPI_DSI_H */
