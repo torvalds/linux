@@ -1718,6 +1718,46 @@ static const struct omap_sham_pdata omap_sham_pdata_omap4 = {
 	.minor_shift	= 0,
 };
 
+static struct omap_sham_algs_info omap_sham_algs_info_omap5[] = {
+	{
+		.algs_list	= algs_sha1_md5,
+		.size		= ARRAY_SIZE(algs_sha1_md5),
+	},
+	{
+		.algs_list	= algs_sha224_sha256,
+		.size		= ARRAY_SIZE(algs_sha224_sha256),
+	},
+	{
+		.algs_list	= algs_sha384_sha512,
+		.size		= ARRAY_SIZE(algs_sha384_sha512),
+	},
+};
+
+static const struct omap_sham_pdata omap_sham_pdata_omap5 = {
+	.algs_info	= omap_sham_algs_info_omap5,
+	.algs_info_size	= ARRAY_SIZE(omap_sham_algs_info_omap5),
+	.flags		= BIT(FLAGS_AUTO_XOR),
+	.digest_size	= SHA512_DIGEST_SIZE,
+	.copy_hash	= omap_sham_copy_hash_omap4,
+	.write_ctrl	= omap_sham_write_ctrl_omap4,
+	.trigger	= omap_sham_trigger_omap4,
+	.poll_irq	= omap_sham_poll_irq_omap4,
+	.intr_hdlr	= omap_sham_irq_omap4,
+	.idigest_ofs	= 0x240,
+	.odigest_ofs	= 0x200,
+	.din_ofs	= 0x080,
+	.digcnt_ofs	= 0x280,
+	.rev_ofs	= 0x100,
+	.mask_ofs	= 0x110,
+	.sysstatus_ofs	= 0x114,
+	.mode_ofs	= 0x284,
+	.length_ofs	= 0x288,
+	.major_mask	= 0x0700,
+	.major_shift	= 8,
+	.minor_mask	= 0x003f,
+	.minor_shift	= 0,
+};
+
 static const struct of_device_id omap_sham_of_match[] = {
 	{
 		.compatible	= "ti,omap2-sham",
@@ -1726,6 +1766,10 @@ static const struct of_device_id omap_sham_of_match[] = {
 	{
 		.compatible	= "ti,omap4-sham",
 		.data		= &omap_sham_pdata_omap4,
+	},
+	{
+		.compatible	= "ti,omap5-sham",
+		.data		= &omap_sham_pdata_omap5,
 	},
 	{},
 };
