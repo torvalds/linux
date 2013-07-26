@@ -85,6 +85,12 @@ static inline bool is_noslot_pfn(pfn_t pfn)
 	return pfn == KVM_PFN_NOSLOT;
 }
 
+/*
+ * architectures with KVM_HVA_ERR_BAD other than PAGE_OFFSET (e.g. s390)
+ * provide own defines and kvm_is_error_hva
+ */
+#ifndef KVM_HVA_ERR_BAD
+
 #define KVM_HVA_ERR_BAD		(PAGE_OFFSET)
 #define KVM_HVA_ERR_RO_BAD	(PAGE_OFFSET + PAGE_SIZE)
 
@@ -92,6 +98,8 @@ static inline bool kvm_is_error_hva(unsigned long addr)
 {
 	return addr >= PAGE_OFFSET;
 }
+
+#endif
 
 #define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-ENOENT))
 
