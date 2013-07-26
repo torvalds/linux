@@ -641,8 +641,6 @@ static int qlcnic_sriov_pf_channel_cfg_cmd(struct qlcnic_bc_trans *trans,
 	int err;
 
 	adapter = vf->adapter;
-	cmd->rsp.arg[0] = trans->req_hdr->cmd_op;
-	cmd->rsp.arg[0] |= (1 << 16);
 
 	if (trans->req_hdr->cmd_op == QLCNIC_BC_CMD_CHANNEL_INIT) {
 		err = qlcnic_sriov_pf_config_vport(adapter, 1, func);
@@ -1187,7 +1185,7 @@ static int qlcnic_sriov_pf_get_acl_cmd(struct qlcnic_bc_trans *trans,
 	u8 cmd_op, mode = vp->vlan_mode;
 
 	cmd_op = trans->req_hdr->cmd_op;
-	cmd->rsp.arg[0] = (cmd_op & 0xffff) | 14 << 16 | 1 << 25;
+	cmd->rsp.arg[0] |= 1 << 25;
 
 	switch (mode) {
 	case QLC_GUEST_VLAN_MODE:
