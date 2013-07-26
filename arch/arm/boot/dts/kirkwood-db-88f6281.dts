@@ -11,8 +11,8 @@
 
 /dts-v1/;
 
-/include/ "kirkwood-db.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood-db.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "Marvell DB-88F6281-BP Development Board";

@@ -12,7 +12,7 @@
  * and 6282 variants of the Marvell Kirkwood Development Board.
  */
 
-/include/ "kirkwood.dtsi"
+#include "kirkwood.dtsi"
 
 / {
 	memory {
