@@ -163,8 +163,7 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	kfree(inti);
 no_interrupt:
 	/* Set condition code and we're done. */
-	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-	vcpu->arch.sie_block->gpsw.mask |= (cc & 3ul) << 44;
+	kvm_s390_set_psw_cc(vcpu, cc);
 	return 0;
 }
 
@@ -219,8 +218,7 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 		 * Set condition code 3 to stop the guest from issueing channel
 		 * I/O instructions.
 		 */
-		vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
-		vcpu->arch.sie_block->gpsw.mask |= (3 & 3ul) << 44;
+		kvm_s390_set_psw_cc(vcpu, 3);
 		return 0;
 	}
 }
@@ -383,7 +381,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	if (fc > 3) {
-		vcpu->arch.sie_block->gpsw.mask |= 3ul << 44;	  /* cc 3 */
+		kvm_s390_set_psw_cc(vcpu, 3);
 		return 0;
 	}
 
@@ -393,7 +391,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 
 	if (fc == 0) {
 		vcpu->run->s.regs.gprs[0] = 3 << 28;
-		vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);  /* cc 0 */
+		kvm_s390_set_psw_cc(vcpu, 0);
 		return 0;
 	}
 
@@ -427,12 +425,11 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	}
 	trace_kvm_s390_handle_stsi(vcpu, fc, sel1, sel2, operand2);
 	free_page(mem);
-	vcpu->arch.sie_block->gpsw.mask &= ~(3ul << 44);
+	kvm_s390_set_psw_cc(vcpu, 0);
 	vcpu->run->s.regs.gprs[0] = 0;
 	return 0;
 out_no_data:
-	/* condition code 3 */
-	vcpu->arch.sie_block->gpsw.mask |= 3ul << 44;
+	kvm_s390_set_psw_cc(vcpu, 3);
 out_exception:
 	free_page(mem);
 	return rc;

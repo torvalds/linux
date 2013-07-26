@@ -115,6 +115,13 @@ static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu)
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
 }
 
+/* Set the condition code in the guest program status word */
+static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
+{
+	vcpu->arch.sie_block->gpsw.mask &= ~(3UL << 44);
+	vcpu->arch.sie_block->gpsw.mask |= cc << 44;
+}
+
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
 void kvm_s390_tasklet(unsigned long parm);
