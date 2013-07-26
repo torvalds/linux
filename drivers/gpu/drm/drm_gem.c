@@ -662,7 +662,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	obj = container_of(node, struct drm_gem_object, vma_node);
-	ret = drm_gem_mmap_obj(obj, drm_vma_node_size(node), vma);
+	ret = drm_gem_mmap_obj(obj, drm_vma_node_size(node) << PAGE_SHIFT, vma);
 
 	mutex_unlock(&dev->struct_mutex);
 
