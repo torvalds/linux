@@ -1939,6 +1939,7 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 		case 0x683B:
 		case 0x683F:
 		case 0x6829:
+		case 0x6835:
 			si_pi->cac_weights = cac_weights_cape_verde_pro;
 			si_pi->dte_data = dte_data_cape_verde;
 			break;
