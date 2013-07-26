@@ -748,6 +748,22 @@ static const struct of_device_id of_mvebu_mbus_ids[] = {
 /*
  * Public API of the driver
  */
+int mvebu_mbus_add_window_remap_by_id(unsigned int target,
+				      unsigned int attribute,
+				      phys_addr_t base, size_t size,
+				      phys_addr_t remap)
+{
+	struct mvebu_mbus_state *s = &mbus_state;
+
+	if (!mvebu_mbus_window_conflicts(s, base, size, target, attribute)) {
+		pr_err("cannot add window '%x:%x', conflicts with another window\n",
+		       target, attribute);
+		return -EINVAL;
+	}
+
+	return mvebu_mbus_alloc_window(s, base, size, remap, target, attribute);
+}
+
 int mvebu_mbus_add_window_remap_flags(const char *devname, phys_addr_t base,
 				      size_t size, phys_addr_t remap,
 				      unsigned int flags)
@@ -776,20 +792,21 @@ int mvebu_mbus_add_window_remap_flags(const char *devname, phys_addr_t base,
 	else if (flags == MVEBU_MBUS_PCI_WA)
 		attr |= 0x28;
 
-	if (!mvebu_mbus_window_conflicts(s, base, size, target, attr)) {
-		pr_err("cannot add window '%s', conflicts with another window\n",
-		       devname);
-		return -EINVAL;
-	}
-
-	return mvebu_mbus_alloc_window(s, base, size, remap, target, attr);
-
+	return mvebu_mbus_add_window_remap_by_id(target, attr, base,
+						 size, remap);
 }
 
 int mvebu_mbus_add_window(const char *devname, phys_addr_t base, size_t size)
 {
 	return mvebu_mbus_add_window_remap_flags(devname, base, size,
 						 MVEBU_MBUS_NO_REMAP, 0);
+}
+
+int mvebu_mbus_add_window_by_id(unsigned int target, unsigned int attribute,
+				phys_addr_t base, size_t size)
+{
+	return mvebu_mbus_add_window_remap_by_id(target, attribute, base,
+						 size, MVEBU_MBUS_NO_REMAP);
 }
 
 int mvebu_mbus_del_window(phys_addr_t base, size_t size)
