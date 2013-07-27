@@ -171,9 +171,9 @@ static long libcfs_ioctl(struct file *file,
 }
 
 static struct file_operations libcfs_fops = {
-	unlocked_ioctl: libcfs_ioctl,
-	open :	  libcfs_psdev_open,
-	release :       libcfs_psdev_release
+	.unlocked_ioctl	= libcfs_ioctl,
+	.open		= libcfs_psdev_open,
+	.release	= libcfs_psdev_release,
 };
 
 struct miscdevice libcfs_dev = {

@@ -194,9 +194,9 @@ static int panic_notifier(struct notifier_block *self, unsigned long unused1,
 }
 
 static struct notifier_block libcfs_panic_notifier = {
-	notifier_call :     panic_notifier,
-	next :	      NULL,
-	priority :	  10000
+	.notifier_call	= panic_notifier,
+	.next		= NULL,
+	.priority	= 10000,
 };
 
 void libcfs_register_panic_notifier(void)

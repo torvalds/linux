@@ -2378,7 +2378,7 @@ static int mdc_resource_inode_free(struct ldlm_resource *res)
 }
 
 struct ldlm_valblock_ops inode_lvbo = {
-	lvbo_free: mdc_resource_inode_free
+	.lvbo_free = mdc_resource_inode_free,
 };
 
 static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)

@@ -2068,7 +2068,10 @@ void ldlm_namespace_foreach(struct ldlm_namespace *ns,
 			    ldlm_iterator_t iter, void *closure)
 
 {
-	struct iter_helper_data helper = { iter: iter, closure: closure };
+	struct iter_helper_data helper = {
+		.iter		= iter,
+		.closure	= closure,
+	};
 
 	cfs_hash_for_each_nolock(ns->ns_rs_hash,
 				 ldlm_res_iter_helper, &helper);

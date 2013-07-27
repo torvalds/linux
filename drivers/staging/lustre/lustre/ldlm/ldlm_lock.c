@@ -49,45 +49,45 @@
 
 /* lock types */
 char *ldlm_lockname[] = {
-	[0] "--",
-	[LCK_EX] "EX",
-	[LCK_PW] "PW",
-	[LCK_PR] "PR",
-	[LCK_CW] "CW",
-	[LCK_CR] "CR",
-	[LCK_NL] "NL",
-	[LCK_GROUP] "GROUP",
-	[LCK_COS] "COS"
+	[0]		= "--",
+	[LCK_EX]	= "EX",
+	[LCK_PW]	= "PW",
+	[LCK_PR]	= "PR",
+	[LCK_CW]	= "CW",
+	[LCK_CR]	= "CR",
+	[LCK_NL]	= "NL",
+	[LCK_GROUP]	= "GROUP",
+	[LCK_COS]	= "COS",
 };
 EXPORT_SYMBOL(ldlm_lockname);
 
 char *ldlm_typename[] = {
-	[LDLM_PLAIN] "PLN",
-	[LDLM_EXTENT] "EXT",
-	[LDLM_FLOCK] "FLK",
-	[LDLM_IBITS] "IBT",
+	[LDLM_PLAIN]	= "PLN",
+	[LDLM_EXTENT]	= "EXT",
+	[LDLM_FLOCK]	= "FLK",
+	[LDLM_IBITS]	= "IBT",
 };
 EXPORT_SYMBOL(ldlm_typename);
 
 static ldlm_policy_wire_to_local_t ldlm_policy_wire18_to_local[] = {
-	[LDLM_PLAIN - LDLM_MIN_TYPE] ldlm_plain_policy_wire_to_local,
-	[LDLM_EXTENT - LDLM_MIN_TYPE] ldlm_extent_policy_wire_to_local,
-	[LDLM_FLOCK - LDLM_MIN_TYPE] ldlm_flock_policy_wire18_to_local,
-	[LDLM_IBITS - LDLM_MIN_TYPE] ldlm_ibits_policy_wire_to_local,
+	[LDLM_PLAIN - LDLM_MIN_TYPE]	= ldlm_plain_policy_wire_to_local,
+	[LDLM_EXTENT - LDLM_MIN_TYPE]	= ldlm_extent_policy_wire_to_local,
+	[LDLM_FLOCK - LDLM_MIN_TYPE]	= ldlm_flock_policy_wire18_to_local,
+	[LDLM_IBITS - LDLM_MIN_TYPE]	= ldlm_ibits_policy_wire_to_local,
 };
 
 static ldlm_policy_wire_to_local_t ldlm_policy_wire21_to_local[] = {
-	[LDLM_PLAIN - LDLM_MIN_TYPE] ldlm_plain_policy_wire_to_local,
-	[LDLM_EXTENT - LDLM_MIN_TYPE] ldlm_extent_policy_wire_to_local,
-	[LDLM_FLOCK - LDLM_MIN_TYPE] ldlm_flock_policy_wire21_to_local,
-	[LDLM_IBITS - LDLM_MIN_TYPE] ldlm_ibits_policy_wire_to_local,
+	[LDLM_PLAIN - LDLM_MIN_TYPE]	= ldlm_plain_policy_wire_to_local,
+	[LDLM_EXTENT - LDLM_MIN_TYPE]	= ldlm_extent_policy_wire_to_local,
+	[LDLM_FLOCK - LDLM_MIN_TYPE]	= ldlm_flock_policy_wire21_to_local,
+	[LDLM_IBITS - LDLM_MIN_TYPE]	= ldlm_ibits_policy_wire_to_local,
 };
 
 static ldlm_policy_local_to_wire_t ldlm_policy_local_to_wire[] = {
-	[LDLM_PLAIN - LDLM_MIN_TYPE] ldlm_plain_policy_local_to_wire,
-	[LDLM_EXTENT - LDLM_MIN_TYPE] ldlm_extent_policy_local_to_wire,
-	[LDLM_FLOCK - LDLM_MIN_TYPE] ldlm_flock_policy_local_to_wire,
-	[LDLM_IBITS - LDLM_MIN_TYPE] ldlm_ibits_policy_local_to_wire,
+	[LDLM_PLAIN - LDLM_MIN_TYPE]	= ldlm_plain_policy_local_to_wire,
+	[LDLM_EXTENT - LDLM_MIN_TYPE]	= ldlm_extent_policy_local_to_wire,
+	[LDLM_FLOCK - LDLM_MIN_TYPE]	= ldlm_flock_policy_local_to_wire,
+	[LDLM_IBITS - LDLM_MIN_TYPE]	= ldlm_ibits_policy_local_to_wire,
 };
 
 /**
