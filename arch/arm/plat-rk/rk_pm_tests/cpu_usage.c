@@ -28,14 +28,8 @@
 #include "rk_pm_tests.h"
 #include "cpu_usage.h"
 /***************************************************************************/
-#define cru_readl(offset)	readl_relaxed(RK2928_CRU_BASE + offset)
-#define cru_writel(v, offset)	do { writel_relaxed(v, RK2928_CRU_BASE + offset); dsb(); } while (0)
-
-struct workqueue_struct	*workqueue_cpu_usage0;
-struct work_struct 	work_cpu_usage0;
-struct workqueue_struct	*workqueue_cpu_usage1;
-struct work_struct 	work_cpu_usage1;
-
+static DEFINE_PER_CPU(struct work_struct, work_cpu_usage);
+static DEFINE_PER_CPU(struct workqueue_struct *, workqueue_cpu_usage);
 
 int cpu_usage_run = 0;
 int cpu_usage_percent = 0;
@@ -83,8 +77,12 @@ ssize_t cpu_usage_show(struct kobject *kobj, struct kobj_attribute *attr,
 ssize_t cpu_usage_store(struct kobject *kobj, struct kobj_attribute *attr,
 		const char *buf, size_t n)
 {
+	struct workqueue_struct	*workqueue;
+	struct work_struct *work;
 	char cmd[20];
 	int usage = 0;
+	int cpu;
+
 	sscanf(buf, "%s %d", cmd, &usage);
 
 	if((strncmp(cmd, "start", strlen("start")) == 0)) {
@@ -92,17 +90,17 @@ ssize_t cpu_usage_store(struct kobject *kobj, struct kobj_attribute *attr,
 		cpu_usage_run = 1;
 		
 		cpu_usage_percent = (ARM_MODE_TIMER_MSEC * usage) / 100;
-		if (workqueue_cpu_usage0 == NULL) {
-			PM_ERR("workqueue NULL\n");
-			return n;
-		}
-		if (workqueue_cpu_usage1 == NULL) {
-			PM_ERR("workqueue NULL\n");
-			return n;
-		}
 
-		queue_work_on(0, workqueue_cpu_usage0, &work_cpu_usage0);
-		queue_work_on(1, workqueue_cpu_usage1, &work_cpu_usage1);
+
+		for_each_online_cpu(cpu){
+			work = &per_cpu(work_cpu_usage, cpu);
+			workqueue = per_cpu(workqueue_cpu_usage, cpu);
+			if (!work || !workqueue){
+				PM_ERR("work or workqueue NULL\n");
+				return n;
+			}	
+			queue_work_on(cpu, workqueue, work);
+		}
 #if 0
 		del_timer(&arm_mode_timer);
 		arm_mode_timer.expires	= jiffies + msecs_to_jiffies(ARM_MODE_TIMER_MSEC);
@@ -119,10 +117,22 @@ ssize_t cpu_usage_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 static int __init cpu_usage_init(void)
 {
-	workqueue_cpu_usage0 = create_singlethread_workqueue("workqueue_cpu_usage0");
-	INIT_WORK(&work_cpu_usage0, handler_cpu_usage);
-	workqueue_cpu_usage1 = create_singlethread_workqueue("workqueue_cpu_usage1");
-	INIT_WORK(&work_cpu_usage1, handler_cpu_usage);
+	struct workqueue_struct	**workqueue;
+	struct work_struct 	*work;
+	int cpu;
+	
+	for_each_online_cpu(cpu){	
+		work = &per_cpu(work_cpu_usage, cpu);
+		workqueue = &per_cpu(workqueue_cpu_usage, cpu);
+		if (!work || !workqueue){
+			PM_ERR("work or workqueue NULL\n");
+			return -1;
+		}
+			
+		*workqueue = create_singlethread_workqueue("workqueue_cpu_usage");
+		INIT_WORK(work, handler_cpu_usage);
+	}
+
 	setup_timer(&arm_mode_timer, arm_mode_timer_handler, (unsigned int)NULL);
 	return 0;
 }
