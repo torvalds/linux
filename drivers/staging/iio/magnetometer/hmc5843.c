@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/delay.h>
 
 #define HMC5843_CONFIG_REG_A			0x00
 #define HMC5843_CONFIG_REG_B			0x01
@@ -210,11 +211,22 @@ static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	struct hmc5843_data *data = iio_priv(indio_dev);
 	s32 result;
+	int tries = 150;
 
 	mutex_lock(&data->lock);
-	result = i2c_smbus_read_byte_data(client, HMC5843_STATUS_REG);
-	while (!(result & HMC5843_DATA_READY))
-		result = i2c_smbus_read_byte_data(client, HMC5843_STATUS_REG);
+	while (tries-- > 0) {
+		result = i2c_smbus_read_byte_data(client,
+			HMC5843_STATUS_REG);
+		if (result & HMC5843_DATA_READY)
+			break;
+		msleep(20);
+	}
+
+	if (tries < 0) {
+		dev_err(&client->dev, "data not ready\n");
+		mutex_unlock(&data->lock);
+		return -EIO;
+	}
 
 	result = i2c_smbus_read_word_data(client, address);
 	mutex_unlock(&data->lock);
