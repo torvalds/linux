@@ -2020,6 +2020,12 @@ out_unlock:
 	return 0;
 }
 
+/*
+ * If the cpuset being removed has its flag 'sched_load_balance'
+ * enabled, then simulate turning sched_load_balance off, which
+ * will call rebuild_sched_domains_locked().
+ */
+
 static void cpuset_css_offline(struct cgroup *cgrp)
 {
 	struct cpuset *cs = cgroup_cs(cgrp);
@@ -2034,12 +2040,6 @@ static void cpuset_css_offline(struct cgroup *cgrp)
 
 	mutex_unlock(&cpuset_mutex);
 }
-
-/*
- * If the cpuset being removed has its flag 'sched_load_balance'
- * enabled, then simulate turning sched_load_balance off, which
- * will call rebuild_sched_domains_locked().
- */
 
 static void cpuset_css_free(struct cgroup *cgrp)
 {
