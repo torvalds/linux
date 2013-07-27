@@ -178,7 +178,6 @@ static const char * const hmc5883_regval_to_sample_freq[] = {
 /* Describe chip variants */
 struct hmc5843_chip_info {
 	const struct iio_chan_spec *channels;
-	int num_channels;
 	const char * const *regval_to_sample_freq;
 	const int *regval_to_input_field_mga;
 	const int *regval_to_nanoscale;
@@ -594,7 +593,6 @@ static const struct attribute_group hmc5843_group = {
 static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 	[HMC5843_ID] = {
 		.channels = hmc5843_channels,
-		.num_channels = ARRAY_SIZE(hmc5843_channels),
 		.regval_to_sample_freq = hmc5843_regval_to_sample_freq,
 		.regval_to_input_field_mga =
 			hmc5843_regval_to_input_field_mga,
@@ -602,7 +600,6 @@ static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 	},
 	[HMC5883_ID] = {
 		.channels = hmc5883_channels,
-		.num_channels = ARRAY_SIZE(hmc5883_channels),
 		.regval_to_sample_freq = hmc5883_regval_to_sample_freq,
 		.regval_to_input_field_mga =
 			hmc5883_regval_to_input_field_mga,
@@ -610,7 +607,6 @@ static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 	},
 	[HMC5883L_ID] = {
 		.channels = hmc5883_channels,
-		.num_channels = ARRAY_SIZE(hmc5883_channels),
 		.regval_to_sample_freq = hmc5883_regval_to_sample_freq,
 		.regval_to_input_field_mga =
 			hmc5883l_regval_to_input_field_mga,
@@ -627,7 +623,7 @@ static void hmc5843_init_client(struct i2c_client *client,
 
 	data->variant = &hmc5843_chip_info_tbl[id->driver_data];
 	indio_dev->channels = data->variant->channels;
-	indio_dev->num_channels = data->variant->num_channels;
+	indio_dev->num_channels = 3;
 	hmc5843_set_meas_conf(client, data->meas_conf);
 	hmc5843_set_rate(client, data->rate);
 	hmc5843_configure(client, data->operating_mode);
