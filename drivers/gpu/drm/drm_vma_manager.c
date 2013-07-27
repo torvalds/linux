@@ -241,8 +241,8 @@ int drm_vma_offset_add(struct drm_vma_offset_manager *mgr,
 		goto out_unlock;
 	}
 
-	ret = drm_mm_insert_node_generic(&mgr->vm_addr_space_mm,
-					 &node->vm_node, pages, 0, 0);
+	ret = drm_mm_insert_node(&mgr->vm_addr_space_mm, &node->vm_node,
+				 pages, 0, DRM_MM_SEARCH_DEFAULT);
 	if (ret)
 		goto out_unlock;
 
