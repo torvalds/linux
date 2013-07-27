@@ -42,9 +42,6 @@
 #define HMC5883_DATA_OUT_Y_MSB_REG		0x07
 #define HMC5883_DATA_OUT_Y_LSB_REG		0x08
 #define HMC5843_STATUS_REG			0x09
-#define HMC5843_ID_REG_A			0x0A
-#define HMC5843_ID_REG_B			0x0B
-#define HMC5843_ID_REG_C			0x0C
 
 enum hmc5843_ids {
 	HMC5843_ID,
