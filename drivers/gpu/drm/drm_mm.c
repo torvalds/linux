@@ -49,58 +49,18 @@
 
 #define MM_UNUSED_TARGET 4
 
-static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
-{
-	struct drm_mm_node *child;
-
-	if (atomic)
-		child = kzalloc(sizeof(*child), GFP_ATOMIC);
-	else
-		child = kzalloc(sizeof(*child), GFP_KERNEL);
-
-	if (unlikely(child == NULL)) {
-		spin_lock(&mm->unused_lock);
-		if (list_empty(&mm->unused_nodes))
-			child = NULL;
-		else {
-			child =
-			    list_entry(mm->unused_nodes.next,
-				       struct drm_mm_node, node_list);
-			list_del(&child->node_list);
-			--mm->num_unused;
-		}
-		spin_unlock(&mm->unused_lock);
-	}
-	return child;
-}
-
-/* drm_mm_pre_get() - pre allocate drm_mm_node structure
- * drm_mm:	memory manager struct we are pre-allocating for
- *
- * Returns 0 on success or -ENOMEM if allocation fails.
- */
-int drm_mm_pre_get(struct drm_mm *mm)
-{
-	struct drm_mm_node *node;
-
-	spin_lock(&mm->unused_lock);
-	while (mm->num_unused < MM_UNUSED_TARGET) {
-		spin_unlock(&mm->unused_lock);
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		spin_lock(&mm->unused_lock);
-
-		if (unlikely(node == NULL)) {
-			int ret = (mm->num_unused < 2) ? -ENOMEM : 0;
-			spin_unlock(&mm->unused_lock);
-			return ret;
-		}
-		++mm->num_unused;
-		list_add_tail(&node->node_list, &mm->unused_nodes);
-	}
-	spin_unlock(&mm->unused_lock);
-	return 0;
-}
-EXPORT_SYMBOL(drm_mm_pre_get);
+static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long color,
+						enum drm_mm_search_flags flags);
+static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_mm *mm,
+						unsigned long size,
+						unsigned alignment,
+						unsigned long color,
+						unsigned long start,
+						unsigned long end,
+						enum drm_mm_search_flags flags);
 
 static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 				 struct drm_mm_node *node,
@@ -187,24 +147,6 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 }
 EXPORT_SYMBOL(drm_mm_reserve_node);
 
-struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *hole_node,
-					     unsigned long size,
-					     unsigned alignment,
-					     unsigned long color,
-					     int atomic)
-{
-	struct drm_mm_node *node;
-
-	node = drm_mm_kmalloc(hole_node->mm, atomic);
-	if (unlikely(node == NULL))
-		return NULL;
-
-	drm_mm_insert_helper(hole_node, node, size, alignment, color);
-
-	return node;
-}
-EXPORT_SYMBOL(drm_mm_get_block_generic);
-
 /**
  * Search for free space and insert a preallocated memory node. Returns
  * -ENOSPC if no suitable free area is available. The preallocated memory node
@@ -279,27 +221,6 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	}
 }
 
-struct drm_mm_node *drm_mm_get_block_range_generic(struct drm_mm_node *hole_node,
-						unsigned long size,
-						unsigned alignment,
-						unsigned long color,
-						unsigned long start,
-						unsigned long end,
-						int atomic)
-{
-	struct drm_mm_node *node;
-
-	node = drm_mm_kmalloc(hole_node->mm, atomic);
-	if (unlikely(node == NULL))
-		return NULL;
-
-	drm_mm_insert_helper_range(hole_node, node, size, alignment, color,
-				   start, end);
-
-	return node;
-}
-EXPORT_SYMBOL(drm_mm_get_block_range_generic);
-
 /**
  * Search for free space and insert a preallocated memory node. Returns
  * -ENOSPC if no suitable free area is available. This is for range
@@ -359,28 +280,6 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 }
 EXPORT_SYMBOL(drm_mm_remove_node);
 
-/*
- * Remove a memory node from the allocator and free the allocated struct
- * drm_mm_node. Only to be used on a struct drm_mm_node obtained by one of the
- * drm_mm_get_block functions.
- */
-void drm_mm_put_block(struct drm_mm_node *node)
-{
-
-	struct drm_mm *mm = node->mm;
-
-	drm_mm_remove_node(node);
-
-	spin_lock(&mm->unused_lock);
-	if (mm->num_unused < MM_UNUSED_TARGET) {
-		list_add(&node->node_list, &mm->unused_nodes);
-		++mm->num_unused;
-	} else
-		kfree(node);
-	spin_unlock(&mm->unused_lock);
-}
-EXPORT_SYMBOL(drm_mm_put_block);
-
 static int check_free_hole(unsigned long start, unsigned long end,
 			   unsigned long size, unsigned alignment)
 {
@@ -396,11 +295,11 @@ static int check_free_hole(unsigned long start, unsigned long end,
 	return end >= start + size;
 }
 
-struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
-					       unsigned long size,
-					       unsigned alignment,
-					       unsigned long color,
-					       enum drm_mm_search_flags flags)
+static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
+						      unsigned long size,
+						      unsigned alignment,
+						      unsigned long color,
+						      enum drm_mm_search_flags flags)
 {
 	struct drm_mm_node *entry;
 	struct drm_mm_node *best;
@@ -434,9 +333,8 @@ struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 
 	return best;
 }
-EXPORT_SYMBOL(drm_mm_search_free_generic);
 
-struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_mm *mm,
+static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_mm *mm,
 							unsigned long size,
 							unsigned alignment,
 							unsigned long color,
@@ -481,7 +379,6 @@ struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_mm *mm,
 
 	return best;
 }
-EXPORT_SYMBOL(drm_mm_search_free_in_range_generic);
 
 /**
  * Moves an allocation. To be used with embedded struct drm_mm_node.
@@ -654,10 +551,7 @@ EXPORT_SYMBOL(drm_mm_clean);
 void drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 {
 	INIT_LIST_HEAD(&mm->hole_stack);
-	INIT_LIST_HEAD(&mm->unused_nodes);
-	mm->num_unused = 0;
 	mm->scanned_blocks = 0;
-	spin_lock_init(&mm->unused_lock);
 
 	/* Clever trick to avoid a special case in the free hole tracking. */
 	INIT_LIST_HEAD(&mm->head_node.node_list);
@@ -677,22 +571,8 @@ EXPORT_SYMBOL(drm_mm_init);
 
 void drm_mm_takedown(struct drm_mm * mm)
 {
-	struct drm_mm_node *entry, *next;
-
-	if (WARN(!list_empty(&mm->head_node.node_list),
-		 "Memory manager not clean. Delaying takedown\n")) {
-		return;
-	}
-
-	spin_lock(&mm->unused_lock);
-	list_for_each_entry_safe(entry, next, &mm->unused_nodes, node_list) {
-		list_del(&entry->node_list);
-		kfree(entry);
-		--mm->num_unused;
-	}
-	spin_unlock(&mm->unused_lock);
-
-	BUG_ON(mm->num_unused != 0);
+	WARN(!list_empty(&mm->head_node.node_list),
+	     "Memory manager not clean during takedown.\n");
 }
 EXPORT_SYMBOL(drm_mm_takedown);
 
