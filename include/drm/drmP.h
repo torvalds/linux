@@ -739,6 +739,7 @@ struct drm_bus {
 	int (*irq_by_busid)(struct drm_device *dev, struct drm_irq_busid *p);
 	/* hooks that are for PCI */
 	int (*agp_init)(struct drm_device *dev);
+	void (*agp_destroy)(struct drm_device *dev);
 
 };
 
@@ -1482,6 +1483,8 @@ extern int drm_modeset_ctl(struct drm_device *dev, void *data,
 
 				/* AGP/GART support (drm_agpsupport.h) */
 extern struct drm_agp_head *drm_agp_init(struct drm_device *dev);
+extern void drm_agp_destroy(struct drm_agp_head *agp);
+extern void drm_agp_clear(struct drm_device *dev);
 extern int drm_agp_acquire(struct drm_device *dev);
 extern int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv);

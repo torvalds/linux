@@ -287,6 +287,17 @@ static int drm_pci_agp_init(struct drm_device *dev)
 	return 0;
 }
 
+static void drm_pci_agp_destroy(struct drm_device *dev)
+{
+	if (drm_core_has_AGP(dev) && dev->agp) {
+		if (drm_core_has_MTRR(dev))
+			arch_phys_wc_del(dev->agp->agp_mtrr);
+		drm_agp_clear(dev);
+		drm_agp_destroy(dev->agp);
+		dev->agp = NULL;
+	}
+}
+
 static struct drm_bus drm_pci_bus = {
 	.bus_type = DRIVER_BUS_PCI,
 	.get_irq = drm_pci_get_irq,
@@ -295,6 +306,7 @@ static struct drm_bus drm_pci_bus = {
 	.set_unique = drm_pci_set_unique,
 	.irq_by_busid = drm_pci_irq_by_busid,
 	.agp_init = drm_pci_agp_init,
+	.agp_destroy = drm_pci_agp_destroy,
 };
 
 /**
