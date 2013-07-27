@@ -40,7 +40,7 @@ struct gdm_endian {
 	u8 host_ed;
 };
 
-void set_endian(struct gdm_endian *ed, u8 dev_endian);
+void gdm_set_endian(struct gdm_endian *ed, u8 dev_endian);
 u16 gdm_cpu_to_dev16(struct gdm_endian *ed, u16 x);
 u16 gdm_dev16_to_cpu(struct gdm_endian *ed, u16 x);
 u32 gdm_cpu_to_dev32(struct gdm_endian *ed, u32 x);

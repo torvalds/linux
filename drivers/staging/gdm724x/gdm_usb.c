@@ -870,9 +870,9 @@ static int gdm_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	/* List up hosts with big endians, otherwise, defaults to little endian */
 	if (idProduct == PID_GDM7243)
-		set_endian(&udev->gdm_ed, ENDIANNESS_BIG);
+		gdm_set_endian(&udev->gdm_ed, ENDIANNESS_BIG);
 	else
-		set_endian(&udev->gdm_ed, ENDIANNESS_LITTLE);
+		gdm_set_endian(&udev->gdm_ed, ENDIANNESS_LITTLE);
 
 	ret = request_mac_address(udev);
 	if (ret < 0) {

@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include "gdm_endian.h"
 
-void set_endian(struct gdm_endian *ed, u8 dev_endian)
+void gdm_set_endian(struct gdm_endian *ed, u8 dev_endian)
 {
 	u8 a[2] = {0x12, 0x34};
 	u8 b[2] = {0, };
