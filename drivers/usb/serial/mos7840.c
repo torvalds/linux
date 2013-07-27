@@ -2221,14 +2221,14 @@ static int mos7840_probe(struct usb_serial *serial,
 
 	kfree(buf);
 out:
-	usb_set_serial_data(serial, (void *)device_type);
+	usb_set_serial_data(serial, (void *)(unsigned long)device_type);
 
 	return 0;
 }
 
 static int mos7840_calc_num_ports(struct usb_serial *serial)
 {
-	int device_type = (int)usb_get_serial_data(serial);
+	int device_type = (unsigned long)usb_get_serial_data(serial);
 	int mos7840_num_ports;
 
 	mos7840_num_ports = (device_type >> 4) & 0x000F;
@@ -2239,7 +2239,7 @@ static int mos7840_calc_num_ports(struct usb_serial *serial)
 static int mos7840_port_probe(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
-	int device_type = (int)usb_get_serial_data(serial);
+	int device_type = (unsigned long)usb_get_serial_data(serial);
 	struct moschip_port *mos7840_port;
 	int status;
 	int pnum;
