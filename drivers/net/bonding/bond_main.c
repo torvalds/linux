@@ -739,7 +739,6 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 		queue_delayed_work(bond->wq, &bond->mcast_work, HZ/5);
 	}
 	write_unlock_bh(&bond->curr_slave_lock);
-	read_unlock(&bond->lock);
 }
 
 static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
