@@ -421,6 +421,16 @@ void intel_disable_fbc(struct drm_device *dev)
 	dev_priv->fbc.plane = -1;
 }
 
+static bool set_no_fbc_reason(struct drm_i915_private *dev_priv,
+			      enum no_fbc_reason reason)
+{
+	if (dev_priv->fbc.no_fbc_reason == reason)
+		return false;
+
+	dev_priv->fbc.no_fbc_reason = reason;
+	return true;
+}
+
 /**
  * intel_update_fbc - enable/disable FBC as needed
  * @dev: the drm_device
@@ -450,11 +460,16 @@ void intel_update_fbc(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 	unsigned int max_hdisplay, max_vdisplay;
 
-	if (!i915_powersave)
+	if (!I915_HAS_FBC(dev)) {
+		set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED);
 		return;
+	}
 
-	if (!I915_HAS_FBC(dev))
+	if (!i915_powersave) {
+		if (set_no_fbc_reason(dev_priv, FBC_MODULE_PARAM))
+			DRM_DEBUG_KMS("fbc disabled per module param\n");
 		return;
+	}
 
 	/*
 	 * If FBC is already on, we just have to verify that we can
@@ -469,9 +484,8 @@ void intel_update_fbc(struct drm_device *dev)
 		if (intel_crtc_active(tmp_crtc) &&
 		    !to_intel_crtc(tmp_crtc)->primary_disabled) {
 			if (crtc) {
-				DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
-				dev_priv->fbc.no_fbc_reason =
-					FBC_MULTIPLE_PIPES;
+				if (set_no_fbc_reason(dev_priv, FBC_MULTIPLE_PIPES))
+					DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
 				goto out_disable;
 			}
 			crtc = tmp_crtc;
@@ -479,8 +493,8 @@ void intel_update_fbc(struct drm_device *dev)
 	}
 
 	if (!crtc || crtc->fb == NULL) {
-		DRM_DEBUG_KMS("no output, disabling\n");
-		dev_priv->fbc.no_fbc_reason = FBC_NO_OUTPUT;
+		if (set_no_fbc_reason(dev_priv, FBC_NO_OUTPUT))
+			DRM_DEBUG_KMS("no output, disabling\n");
 		goto out_disable;
 	}
 
@@ -491,20 +505,20 @@ void intel_update_fbc(struct drm_device *dev)
 
 	if (i915_enable_fbc < 0 &&
 	    INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev)) {
-		DRM_DEBUG_KMS("disabled per chip default\n");
-		dev_priv->fbc.no_fbc_reason = FBC_CHIP_DEFAULT;
+		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))
+			DRM_DEBUG_KMS("disabled per chip default\n");
 		goto out_disable;
 	}
 	if (!i915_enable_fbc) {
-		DRM_DEBUG_KMS("fbc disabled per module param\n");
-		dev_priv->fbc.no_fbc_reason = FBC_MODULE_PARAM;
+		if (set_no_fbc_reason(dev_priv, FBC_MODULE_PARAM))
+			DRM_DEBUG_KMS("fbc disabled per module param\n");
 		goto out_disable;
 	}
 	if ((crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)) {
-		DRM_DEBUG_KMS("mode incompatible with compression, "
-			      "disabling\n");
-		dev_priv->fbc.no_fbc_reason = FBC_UNSUPPORTED_MODE;
+		if (set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED_MODE))
+			DRM_DEBUG_KMS("mode incompatible with compression, "
+				      "disabling\n");
 		goto out_disable;
 	}
 
@@ -517,14 +531,14 @@ void intel_update_fbc(struct drm_device *dev)
 	}
 	if ((crtc->mode.hdisplay > max_hdisplay) ||
 	    (crtc->mode.vdisplay > max_vdisplay)) {
-		DRM_DEBUG_KMS("mode too large for compression, disabling\n");
-		dev_priv->fbc.no_fbc_reason = FBC_MODE_TOO_LARGE;
+		if (set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE))
+			DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
 	}
 	if ((IS_I915GM(dev) || IS_I945GM(dev) || IS_HASWELL(dev)) &&
 	    intel_crtc->plane != 0) {
-		DRM_DEBUG_KMS("plane not 0, disabling compression\n");
-		dev_priv->fbc.no_fbc_reason = FBC_BAD_PLANE;
+		if (set_no_fbc_reason(dev_priv, FBC_BAD_PLANE))
+			DRM_DEBUG_KMS("plane not 0, disabling compression\n");
 		goto out_disable;
 	}
 
@@ -533,8 +547,8 @@ void intel_update_fbc(struct drm_device *dev)
 	 */
 	if (obj->tiling_mode != I915_TILING_X ||
 	    obj->fence_reg == I915_FENCE_REG_NONE) {
-		DRM_DEBUG_KMS("framebuffer not tiled or fenced, disabling compression\n");
-		dev_priv->fbc.no_fbc_reason = FBC_NOT_TILED;
+		if (set_no_fbc_reason(dev_priv, FBC_NOT_TILED))
+			DRM_DEBUG_KMS("framebuffer not tiled or fenced, disabling compression\n");
 		goto out_disable;
 	}
 
@@ -543,8 +557,8 @@ void intel_update_fbc(struct drm_device *dev)
 		goto out_disable;
 
 	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size)) {
-		DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
-		dev_priv->fbc.no_fbc_reason = FBC_STOLEN_TOO_SMALL;
+		if (set_no_fbc_reason(dev_priv, FBC_STOLEN_TOO_SMALL))
+			DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
 		goto out_disable;
 	}
 
@@ -587,6 +601,7 @@ void intel_update_fbc(struct drm_device *dev)
 	}
 
 	intel_enable_fbc(crtc, 500);
+	dev_priv->fbc.no_fbc_reason = FBC_OK;
 	return;
 
 out_disable:

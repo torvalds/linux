@@ -1099,6 +1099,12 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	} else {
 		seq_puts(m, "FBC disabled: ");
 		switch (dev_priv->fbc.no_fbc_reason) {
+		case FBC_OK:
+			seq_puts(m, "FBC actived, but currently disabled in hardware");
+			break;
+		case FBC_UNSUPPORTED:
+			seq_puts(m, "unsupported by this chipset");
+			break;
 		case FBC_NO_OUTPUT:
 			seq_puts(m, "no outputs");
 			break;
