@@ -750,8 +750,6 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 	writel(0, nvec->base + I2C_SL_ADDR2);
 
 	enable_irq(nvec->irq);
-
-	clk_disable_unprepare(nvec->i2c_clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -871,9 +869,6 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	disable_irq(nvec->irq);
 
 	tegra_init_i2c_slave(nvec);
-
-	clk_prepare_enable(i2c_clk);
-
 
 	/* enable event reporting */
 	nvec_toggle_global_events(nvec, true);
