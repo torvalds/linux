@@ -51,7 +51,7 @@ struct mutex pinger_mutex;
 static LIST_HEAD(pinger_imports);
 static struct list_head timeout_list = LIST_HEAD_INIT(timeout_list);
 
-int ptlrpc_pinger_suppress_pings()
+int ptlrpc_pinger_suppress_pings(void)
 {
 	return suppress_pings;
 }
@@ -608,7 +608,7 @@ int ptlrpc_pinger_remove_timeouts(void)
 	return 0;
 }
 
-void ptlrpc_pinger_wake_up()
+void ptlrpc_pinger_wake_up(void)
 {
 	thread_add_flags(&pinger_thread, SVC_EVENT);
 	wake_up(&pinger_thread.t_ctl_waitq);

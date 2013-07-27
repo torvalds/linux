@@ -115,7 +115,7 @@ int lustre_msg_check_version(struct lustre_msg *msg, __u32 version)
 EXPORT_SYMBOL(lustre_msg_check_version);
 
 /* early reply size */
-int lustre_msg_early_size()
+int lustre_msg_early_size(void)
 {
 	static int size = 0;
 	if (!size) {

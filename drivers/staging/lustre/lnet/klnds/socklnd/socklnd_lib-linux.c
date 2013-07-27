@@ -325,20 +325,20 @@ ksocknal_lib_tunables_init ()
 }
 
 void
-ksocknal_lib_tunables_fini ()
+ksocknal_lib_tunables_fini(void)
 {
 	if (ksocknal_tunables.ksnd_sysctl != NULL)
 		unregister_sysctl_table(ksocknal_tunables.ksnd_sysctl);
 }
 #else
 int
-ksocknal_lib_tunables_init ()
+ksocknal_lib_tunables_init(void)
 {
 	return 0;
 }
 
 void
-ksocknal_lib_tunables_fini ()
+ksocknal_lib_tunables_fini(void)
 {
 }
 #endif /* # if CONFIG_SYSCTL && !CFS_SYSFS_MODULE_PARM */
