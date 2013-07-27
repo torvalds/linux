@@ -70,7 +70,6 @@ int number_of_cpusets __read_mostly;
 
 /* Forward declare cgroup structures */
 struct cgroup_subsys cpuset_subsys;
-struct cpuset;
 
 /* See "Frequency meter" comments, below. */
 
