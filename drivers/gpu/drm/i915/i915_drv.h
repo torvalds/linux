@@ -589,7 +589,9 @@ struct i915_fbc {
 		int interval;
 	} *fbc_work;
 
-	enum {
+	enum no_fbc_reason {
+		FBC_OK, /* FBC is enabled */
+		FBC_UNSUPPORTED, /* FBC is not supported by this chipset */
 		FBC_NO_OUTPUT, /* no outputs enabled to compress */
 		FBC_STOLEN_TOO_SMALL, /* not enough space for buffers */
 		FBC_UNSUPPORTED_MODE, /* interlace or doublescanned mode */
