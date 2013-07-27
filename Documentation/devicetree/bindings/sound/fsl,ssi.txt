@@ -47,6 +47,10 @@ Optional properties:
 - codec-handle:     Phandle to a 'codec' node that defines an audio
                     codec connected to this SSI.  This node is typically
                     a child of an I2C or other control node.
+- fsl,fiq-stream-filter: Bool property. Disabled DMA and use FIQ instead to
+		    filter the codec stream. This is necessary for some boards
+		    where an incompatible codec is connected to this SSI, e.g.
+		    on pca100 and pcm043.
 
 Child 'codec' node required properties:
 - compatible:       Compatible list, contains the name of the codec
