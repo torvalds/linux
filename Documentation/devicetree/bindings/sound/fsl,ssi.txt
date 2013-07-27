@@ -51,6 +51,10 @@ Optional properties:
 		    filter the codec stream. This is necessary for some boards
 		    where an incompatible codec is connected to this SSI, e.g.
 		    on pca100 and pcm043.
+- dmas:		    Generic dma devicetree binding as described in
+		    Documentation/devicetree/bindings/dma/dma.txt.
+- dma-names:	    Two dmas have to be defined, "tx" and "rx", if fsl,imx-fiq
+		    is not defined.
 
 Child 'codec' node required properties:
 - compatible:       Compatible list, contains the name of the codec
