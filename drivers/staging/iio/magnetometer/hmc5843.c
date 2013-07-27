@@ -224,12 +224,12 @@ static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 		return -EIO;
 	}
 
-	result = i2c_smbus_read_word_data(client, address);
+	result = i2c_smbus_read_word_swapped(client, address);
 	mutex_unlock(&data->lock);
 	if (result < 0)
 		return -EINVAL;
 
-	*val = (s16)swab16((u16)result);
+	*val = result;
 	return IIO_VAL_INT;
 }
 
