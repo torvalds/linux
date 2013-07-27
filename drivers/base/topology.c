@@ -62,25 +62,6 @@ static ssize_t show_cpumap(int type, const struct cpumask *mask, char *buf)
 }
 #endif
 
-#ifdef arch_provides_topology_pointers
-#define define_siblings_show_map(name)					\
-static ssize_t show_##name(struct device *dev,				\
-			   struct device_attribute *attr, char *buf)	\
-{									\
-	unsigned int cpu = dev->id;					\
-	return show_cpumap(0, topology_##name(cpu), buf);		\
-}
-
-#define define_siblings_show_list(name)					\
-static ssize_t show_##name##_list(struct device *dev,			\
-				  struct device_attribute *attr,	\
-				  char *buf)				\
-{									\
-	unsigned int cpu = dev->id;					\
-	return show_cpumap(1, topology_##name(cpu), buf);		\
-}
-
-#else
 #define define_siblings_show_map(name)					\
 static ssize_t show_##name(struct device *dev,				\
 			   struct device_attribute *attr, char *buf)	\
@@ -95,7 +76,6 @@ static ssize_t show_##name##_list(struct device *dev,			\
 {									\
 	return show_cpumap(1, topology_##name(dev->id), buf);		\
 }
-#endif
 
 #define define_siblings_show_func(name)		\
 	define_siblings_show_map(name); define_siblings_show_list(name)
