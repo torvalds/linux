@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y=core.o printk.o devices.o timer.o sunxi_dump_reg.o
+obj-y=printk.o devices.o timer.o sunxi_dump_reg.o
 obj-y += clock/
 obj-y += dma/
 obj-$(CONFIG_CPU_FREQ)			+= cpu-freq/

@@ -283,7 +283,7 @@ static irqreturn_t aw_clkevt_irq(int irq, void *handle)
 *
 *********************************************************************************************************
 */
-static int __init aw_clksrc_init(void)
+int __init aw_clksrc_init(void)
 {
     CLKSRC_DBG("all-winners clock source init!\n");
     /* we use 64bits counter as HPET(High Precision Event Timer) */
@@ -325,7 +325,7 @@ static int __init aw_clksrc_init(void)
 *********************************************************************************************************
 */
 #ifdef CONFIG_HIGH_RES_TIMERS
-static int __init aw_clkevt_init(void)
+int __init aw_clkevt_init(void)
 {
     /* register clock event irq     */
     CLKSRC_DBG("set up all-winners clock event irq!\n");
