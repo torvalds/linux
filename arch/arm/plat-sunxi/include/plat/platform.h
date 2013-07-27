@@ -315,11 +315,6 @@
 #define VA_VIC_BASE                       IO_ADDRESS(PA_VIC_BASE)
 #define PIO_BASE                          SW_PA_PORTC_IO_BASE
 
-#ifdef CONFIG_ARCH_SUN4I
-#define SW_G2D_MEM_BASE                   0x58000000
-#define SW_G2D_MEM_MAX                    0x1000000
-#endif
-
 /**
 *@name DRAM controller register address
 *@{

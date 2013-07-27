@@ -169,8 +169,8 @@ static void __init sun7i_map_io(void)
  * for platform-specific drivers, so we don't have to worry about them.
  */
 
-unsigned long fb_start = SW_FB_MEM_BASE;
-unsigned long fb_size = SW_FB_MEM_SIZE;
+unsigned long fb_start;
+unsigned long fb_size = SZ_32M;
 EXPORT_SYMBOL(fb_start);
 EXPORT_SYMBOL(fb_size);
 
