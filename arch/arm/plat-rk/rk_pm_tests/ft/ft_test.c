@@ -64,9 +64,31 @@ REVISION 0.01
 #define ft_printk_info(fmt, arg...) \
 	printk(KERN_WARNING fmt, ##arg)
 
+#define ENABLE_FT_TEST_GPIO   // for ft seting 1.6G volt
 
+
+#if defined(CONFIG_ARCH_RK3188)
 
 static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
+
+#define STEP1_L1_CNT  (5*10)
+#define STEP1_L2_CPY_CNT (5*1+2)
+
+#define STEP2_L1_CNT (5*10)
+#define STEP2_L2_CPY_CNT (5*2+4)  //(5*6)
+
+#else
+//for RK3168 && RK3066B
+
+static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
+
+#define STEP1_L1_CNT  (5*10)
+#define STEP1_L2_CPY_CNT (5*3)
+
+#define STEP2_L1_CNT (5*10)
+#define STEP2_L2_CPY_CNT (5*4)  //(5*6)
+
+#endif
 static int setup2_flag=0;
 
 //0-15 :test setup1
@@ -121,12 +143,15 @@ static struct semaphore sem_step2 = __SEMAPHORE_INITIALIZER(sem_step2, 0);
 
 int test_cpus_l2(char *data_s,char *data_e,u32 data);
 
+int test_cpus_mem_set(char *data_s,char *data_e,u32 data);
+int test_cpus_mem_check(char *data_s,char *data_e,u32 data);
 #define l1_DCACHE_SIZE (32*1024)
 #define l1_DCACHE_SIZE_M (l1_DCACHE_SIZE*32)
 
-#define BUF_SIZE (l1_DCACHE_SIZE_M*4)// tst buf size
+#define l2_DCACHE_SIZE (512*1024)
+#define BUF_SIZE (l2_DCACHE_SIZE*8)// tst buf size
 
-#define BUF_SIZE_M (l1_DCACHE_SIZE_M*4)// tst buf size
+#define BUF_SIZE_M (BUF_SIZE)// tst buf size
 
 
 static char memtest_buf0[BUF_SIZE] __attribute__((aligned(4096)));
@@ -168,6 +193,7 @@ static char *l2_test_mbuf[NR_CPUS]=
 NULL,
 };
 
+#if 0
 int ft_test_cpus_l2(char *data_s,u32 buf_size,u32 cnt)
 {
 	int i,j;
@@ -267,6 +293,118 @@ int ft_test_cpus_l2_m(char *data_s,char *data_d,u32 buf_size,u32 cnt)
 
 	return 0;
 }
+#endif
+
+int ft_test_cpus_l2_memcpy(char *data_d,char *data_s,u32 buf_size,u32 cnt)
+{
+	int i,j;
+	int ret=0;
+	int test_size;
+	char *mem_start;
+	char *mem_end;
+	
+	char *cpy_start;
+	char *cpy_end;
+	
+	test_size=(buf_size/(2*l2_DCACHE_SIZE))*(2*l2_DCACHE_SIZE);
+	
+	for(j=0;j<cnt;j++)	
+	{	
+		mem_start=data_s;
+		mem_end=data_s+test_size;
+
+		
+		cpy_start=data_d;
+		cpy_end=data_d+test_size;
+
+		for(;mem_start<=(mem_end-2*l2_DCACHE_SIZE);)
+		{
+			
+
+			test_cpus_mem_set(mem_start,mem_start+l2_DCACHE_SIZE,0xaaaaaaaa);
+			test_cpus_mem_set(mem_start+l2_DCACHE_SIZE,mem_start+l2_DCACHE_SIZE*2,0x55555555);
+
+			
+			//ret=test_cpus_mem_check(mem_start,mem_start+l2_DCACHE_SIZE,0xaaaaaaaa);
+			//ft_printk("mem_start end=%x,%x\n",mem_start+l2_DCACHE_SIZE,ret);
+
+
+			if(test_cpus_mem_check(mem_start,mem_start+l2_DCACHE_SIZE,0xaaaaaaaa))
+			{	
+				ret=0xaa;
+				return ret;
+			}
+						
+			if(test_cpus_mem_check(mem_start+l2_DCACHE_SIZE,mem_start+l2_DCACHE_SIZE*2,0x55555555))
+			{	
+				ret=0x55;
+				return ret;
+			}
+#if 1
+			if(cpy_start)
+			{	
+				memcpy(cpy_start,mem_start,l2_DCACHE_SIZE);
+				memcpy(cpy_start+l2_DCACHE_SIZE,mem_start+l2_DCACHE_SIZE,l2_DCACHE_SIZE);
+
+				if(test_cpus_mem_check(cpy_start,cpy_start+l2_DCACHE_SIZE,0xaaaaaaaa))
+				{	
+					ret=0x1aa;
+					return ret;
+				}
+				
+				if(test_cpus_mem_check(cpy_start+l2_DCACHE_SIZE,cpy_start+l2_DCACHE_SIZE*2,0x55555555))
+				{	
+					ret=0x155;
+					return ret;
+				}
+			}
+
+			
+			test_cpus_mem_set(mem_start+l2_DCACHE_SIZE,mem_start+l2_DCACHE_SIZE*2,0xaaaaaaaa);
+			test_cpus_mem_set(mem_start,mem_start+l2_DCACHE_SIZE,0x55555555);
+
+
+			if(test_cpus_mem_check(mem_start+l2_DCACHE_SIZE,mem_start+l2_DCACHE_SIZE*2,0xaaaaaaaa))
+			{	
+				ret=0x2aa;
+				return ret;
+			}
+						
+			if(test_cpus_mem_check(mem_start,mem_start+l2_DCACHE_SIZE,0x55555555))
+			{	
+				ret=0x255;
+				return ret;
+			}
+
+			//cpy_start is aa  mem_start is  55
+			
+			if(cpy_start)
+			{				
+				memcpy(cpy_start+l2_DCACHE_SIZE,mem_start+l2_DCACHE_SIZE,l2_DCACHE_SIZE);//aa
+				memcpy(cpy_start,mem_start,l2_DCACHE_SIZE);//55
+
+				if(test_cpus_mem_check(cpy_start+l2_DCACHE_SIZE,cpy_start+l2_DCACHE_SIZE*2,0xaaaaaaaa))
+				{	
+					ret=0x3aa;
+					return ret;
+				}
+				
+				if(test_cpus_mem_check(cpy_start,cpy_start+l2_DCACHE_SIZE,0x55555555))
+				{	
+					ret=0x355;
+					return ret;
+				}
+			}
+#endif
+			mem_start+=2*l2_DCACHE_SIZE;
+			
+		}
+		if(j%15==0)
+		ft_printk(".");
+	}
+
+	return 0;
+}
 
 /*************************************816 tst case**************************************/
 
@@ -278,10 +416,11 @@ void ft_cpu_test_step1(void)
 	
 	ft_printk_dbg("test step1 cpu=%d start\n",cpu);	
 	//arm rate init
-	ft_cpu_l1_test(15);
+	ft_cpu_l1_test(STEP1_L1_CNT);
 	per_cpu(cpu_tst_flags, cpu)&=~CPU_TST_L1;
 
-	temp=ft_test_cpus_l2(l2_test_buf[cpu],sizeof(char)*BUF_SIZE,20);
+	//temp=ft_test_cpus_l2(l2_test_buf[cpu],sizeof(char)*BUF_SIZE,20);
+	temp=ft_test_cpus_l2_memcpy(NULL,l2_test_buf[cpu],sizeof(char)*BUF_SIZE,STEP1_L2_CPY_CNT);
 	
 	if(!temp)
 	per_cpu(cpu_tst_flags, cpu)&=~CPU_TST_L2;
@@ -304,14 +443,15 @@ void ft_cpu_test_step2(void)
 	ft_printk_dbg("test step2 cpu=%d start\n",cpu);	
 
 	//arm rate init
-	ft_cpu_l1_test(10*1);
+	ft_cpu_l1_test(STEP2_L1_CNT);
 	per_cpu(cpu_tst_flags, cpu)&=~CPU_TST_L1_STP2;
 
 	ft_printk_dbg("ft test cpus l2 begin\n");
 	
 	ft_printk(".");
-	temp=ft_test_cpus_l2(l2_test_buf[cpu],sizeof(char)*BUF_SIZE,10*1);
+	temp=ft_test_cpus_l2_memcpy(l2_test_mbuf[cpu],l2_test_buf[cpu],sizeof(char)*BUF_SIZE_M,STEP2_L2_CPY_CNT);
 	
+	#if 0
 	if(temp)
 		ft_printk_info("******cpu=%d,l2,ret=%x\n",cpu,temp);
 	
@@ -321,12 +461,12 @@ void ft_cpu_test_step2(void)
 		if(temp)		
 			ft_printk_info("******cpu=%d,l2m,ret=%x\n",cpu,temp);
 	}
-		
+	#endif
 	if(!temp)
 	per_cpu(cpu_tst_flags, cpu)&=~CPU_TST_L2_STP2;
 
 	ft_printk(".");
-	for(i=0;i<1500;i++)
+	for(i=0;i<1200;i++)
 	{	
 		usleep_range(200, 200);//200
 		if( i%500 == 0)
@@ -424,7 +564,7 @@ static int rk_ft_tests_over(void)
 			setup2_flag=1;
 			ft_printk("#SHSPEED*\n");
 
-			#if 1
+			#ifdef ENABLE_FT_TEST_GPIO
 			// send msg to ctr board to up the volt
 			gpio_direction_output(FT_CLIENT_READY_PIN, GPIO_HIGH);
 			gpio_direction_input(FT_CLIENT_IDLE_PIN);
@@ -468,7 +608,7 @@ static int rk_ft_tests_over(void)
 		
 	
 	
-	ft_printk("#END1F*\n");
+	ft_printk("#END1E*\n");
 
 	while(1);
 

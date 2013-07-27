@@ -85,6 +85,64 @@ l2_test_error:
 	ldmfd	sp!, { r3 - r12, pc }
 ENDPROC(test_cpus_l2)
 
+//r0 adr base,r1 end adr,r2 tst date
+ENTRY(test_cpus_mem_set)
+
+	stmfd	sp!, { r3 - r12, lr }
+1: 	mov r0,r0
+	//b 1b
+	
+	mov r4,r0
+	sub r5,r1,#4
+	
+mem_set:	
+	str r2,[r4],#4
+		
+	cmp r4,r5
+	bls	mem_set
+	
+1: mov r0,#1
+	//b 1b
+	ldmfd	sp!, { r3 - r12, pc }
+ENDPROC(test_cpus_mem_set)
+
+
+
+//r0 adr base,r1 end adr,r2 tst date
+ENTRY(test_cpus_mem_check)
+
+	stmfd	sp!, { r3 - r12, lr }
+1:	mov r0,r0
+	//b 1b
+	mov r4,r0
+	sub r5,r1,#4
+	
+mem_check:		
+	ldr 	r6,[r4],#4
+	cmp r6,r2
+	bne mem_check_error
+	mov r6,#0
+	cmp r4,r5
+	bhi mem_check_end
+	
+	ldr r7,[r4],#4
+	cmp r7,r2
+	bne mem_check_error
+	mov r7,#0
+	
+	cmp r4,r5
+	bls mem_check
+	
+mem_check_end: 
+3: mov r0,#0
+	//b 3b
+	ldmfd	sp!, { r3 - r12, pc }
+mem_check_error:
+1: mov r0,#1
+	//b 1b
+	ldmfd	sp!, { r3 - r12, pc }
+
+ENDPROC(test_cpus_mem_check)
 /***************while for dbg***************/
 ENTRY(rk30_cpu_while_tst)
 stmfd	sp!, { r3 - r12, lr }

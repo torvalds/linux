@@ -1061,6 +1061,7 @@ static const struct apll_clk_set apll_clks[] = {
 	_APLL_SET_CLKS(792 , 1, 66, 2, 8, 	41, 31, 21, 41, 21),
 	_APLL_SET_CLKS(696 , 1, 58, 2, 8, 	41, 31, 21, 41, 21),
 	_APLL_SET_CLKS(600 , 1, 50, 2, 4, 	41, 31, 21, 41, 21),
+	_APLL_SET_CLKS(552 , 1, 92, 4, 4,        41, 21, 21, 41, 21),
 	_APLL_SET_CLKS(504 , 1, 84, 4, 4, 	41, 21, 21, 41, 21),
 	_APLL_SET_CLKS(408 , 1, 68, 4, 4, 	21, 21, 21, 41, 21),
 	_APLL_SET_CLKS(312 , 1, 52, 4, 2, 	21, 21, 21, 21, 11),

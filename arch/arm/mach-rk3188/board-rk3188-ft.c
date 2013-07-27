@@ -29,7 +29,7 @@
 
 #ifdef FT
 #define CONSOLE_LOGLEVEL 2
-#define ARM_PLL_MHZ (816)
+#define ARM_PLL_MHZ (552)
 #else
 #define CONSOLE_LOGLEVEL 9
 #define ARM_PLL_MHZ (816)
