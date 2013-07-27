@@ -265,8 +265,8 @@ nv31_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 int
 nv31_mpeg_init(struct nouveau_object *object)
 {
-	struct nouveau_engine *engine = nv_engine(object->engine);
-	struct nv31_mpeg_priv *priv = (void *)engine;
+	struct nouveau_engine *engine = nv_engine(object);
+	struct nv31_mpeg_priv *priv = (void *)object;
 	struct nouveau_fb *pfb = nouveau_fb(object);
 	int ret, i;
 
