@@ -1331,7 +1331,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 
 static struct ixgbe_phy_operations phy_ops_82598 = {
 	.identify		= &ixgbe_identify_phy_generic,
-	.identify_sfp		= &ixgbe_identify_sfp_module_generic,
+	.identify_sfp		= &ixgbe_identify_module_generic,
 	.init			= &ixgbe_init_phy_ops_82598,
 	.reset			= &ixgbe_reset_phy_generic,
 	.read_reg		= &ixgbe_read_phy_reg_generic,
