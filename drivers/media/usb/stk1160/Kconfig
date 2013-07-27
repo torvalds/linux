@@ -1,8 +1,6 @@
-config VIDEO_STK1160
+config VIDEO_STK1160_COMMON
 	tristate "STK1160 USB video capture support"
 	depends on VIDEO_DEV && I2C
-	select VIDEOBUF2_VMALLOC
-	select VIDEO_SAA711X
 
 	---help---
 	  This is a video4linux driver for STK1160 based video capture devices.
@@ -12,9 +10,15 @@ config VIDEO_STK1160
 
 config VIDEO_STK1160_AC97
 	bool "STK1160 AC97 codec support"
-	depends on VIDEO_STK1160 && SND
-	select SND_AC97_CODEC
+	depends on VIDEO_STK1160_COMMON && SND
 
 	---help---
 	  Enables AC97 codec support for stk1160 driver.
-.
+
+config VIDEO_STK1160
+	tristate
+	depends on (!VIDEO_STK1160_AC97 || (SND='n') || SND) && VIDEO_STK1160_COMMON
+	default y
+	select VIDEOBUF2_VMALLOC
+	select VIDEO_SAA711X
+	select SND_AC97_CODEC if SND
