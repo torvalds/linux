@@ -24,32 +24,19 @@
 #ifndef __AW_CLOCKSRC_H__
 #define __AW_CLOCKSRC_H__
 
-#ifndef __tmr_reg
-    #define __tmr_reg(x)    (*(volatile __u32 *)(x))
-#endif  /*#ifndef __tmr_reg */
+#define __tmr_reg(off)    (*(volatile __u32 *)((SW_VA_TIMERC_IO_BASE) + (off)))
 
+#define __tmr_x_reg(x, off) __tmr_reg(0x10 + (x) * 0x10 + (off))
 
-/* define timer io base on aw chips */
-#define AW_TMR_IO_BASE          SW_VA_TIMERC_IO_BASE
-/* define timer io register address */
-#define TMR_REG_o_IRQ_EN        (AW_TMR_IO_BASE + 0x0000)
-#define TMR_REG_o_IRQ_STAT      (AW_TMR_IO_BASE + 0x0004)
-#define TMR_REG_o_TMR1_CTL      (AW_TMR_IO_BASE + 0x0020)
-#define TMR_REG_o_TMR1_INTV     (AW_TMR_IO_BASE + 0x0024)
-#define TMR_REG_o_TMR1_CUR      (AW_TMR_IO_BASE + 0x0028)
-#define TMR_REG_o_CNT64_CTL     (AW_TMR_IO_BASE + 0x00A0)
-#define TMR_REG_o_CNT64_LO      (AW_TMR_IO_BASE + 0x00A4)
-#define TMR_REG_o_CNT64_HI      (AW_TMR_IO_BASE + 0x00A8)
 /* define timer io register value */
-#define TMR_REG_IRQ_EN          __tmr_reg(TMR_REG_o_IRQ_EN   )
-#define TMR_REG_IRQ_STAT        __tmr_reg(TMR_REG_o_IRQ_STAT )
-#define TMR_REG_TMR1_CTL        __tmr_reg(TMR_REG_o_TMR1_CTL )
-#define TMR_REG_TMR1_INTV       __tmr_reg(TMR_REG_o_TMR1_INTV)
-#define TMR_REG_TMR1_CUR        __tmr_reg(TMR_REG_o_TMR1_CUR )
-#define TMR_REG_CNT64_CTL       __tmr_reg(TMR_REG_o_CNT64_CTL)
-#define TMR_REG_CNT64_LO        __tmr_reg(TMR_REG_o_CNT64_LO )
-#define TMR_REG_CNT64_HI        __tmr_reg(TMR_REG_o_CNT64_HI )
-
+#define TMR_REG_IRQ_EN		__tmr_reg(0x00)
+#define TMR_REG_IRQ_STAT	__tmr_reg(0x04)
+#define TMR_REG_TMR_CTL(x)	__tmr_x_reg((x), 0x00)
+#define TMR_REG_TMR_INTV(x)	__tmr_x_reg((x), 0x04)
+#define TMR_REG_TMR_CUR(x)	__tmr_x_reg((x), 0x08)
+#define TMR_REG_CNT64_CTL       __tmr_reg(0xa0)
+#define TMR_REG_CNT64_LO        __tmr_reg(0xa4)
+#define TMR_REG_CNT64_HI        __tmr_reg(0xa8)
 
 /* define timer clock source */
 #define TMR_CLK_SRC_32KLOSC     (0)
