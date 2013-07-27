@@ -28,7 +28,6 @@
 #include <core/ramht.h>
 #include <core/event.h>
 #include <core/class.h>
-#include <core/math.h>
 
 #include <subdev/timer.h>
 #include <subdev/bar.h>
@@ -258,7 +257,7 @@ nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
 	nv_parent(chan)->object_detach = nv50_fifo_object_detach;
 
 	ioffset = args->ioffset;
-	ilength = log2i(args->ilength / 8);
+	ilength = order_base_2(args->ilength / 8);
 
 	nv_wo32(base->ramfc, 0x3c, 0x403f6078);
 	nv_wo32(base->ramfc, 0x44, 0x01003fff);
