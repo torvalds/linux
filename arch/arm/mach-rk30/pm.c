@@ -25,6 +25,9 @@
 #include <mach/debug_uart.h>
 #include <plat/efuse.h>
 #include <plat/cpu.h>
+#include <linux/regulator/machine.h>
+
+
 
 #define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
@@ -1000,7 +1003,7 @@ struct rk_soc_pm_info_st rk_soc_pm_helps[]={
 	RK_SOC_PM_HELP_(WAKE_UP_KEY,"send a power key to wake up lcd"),
 };
 
-ssize_t rk_soc_pm_helps_print(char *buf)
+ssize_t rk_soc_pm_helps_sprintf(char *buf)
 {
 	char *s = buf;
 	int i;
@@ -1013,6 +1016,17 @@ ssize_t rk_soc_pm_helps_print(char *buf)
 	return (s-buf);
 }	
 
+void rk_soc_pm_helps_printk(void)
+{
+	int i;
+	printk("**************rk_suspend_ctr_bits bits help***********:\n");
+	for(i=0;i<ARRAY_SIZE(rk_soc_pm_helps);i++)
+	{
+		printk("bit(%d): %s\n", rk_soc_pm_helps[i].offset,rk_soc_pm_helps[i].name);
+	}
+}	
+
+
 // pm enter return directly
 #define RK_SUSPEND_RET_DIRT_BITS ((1<<RK_PM_CTR_RET_DIRT))
 // not enter rk30_suspend
@@ -1024,14 +1038,25 @@ ssize_t rk_soc_pm_helps_print(char *buf)
 static u32  __sramdata rk_soc_pm_ctr_flags_sram=0;
 static u32   rk_soc_pm_ctr_flags=0;
 
+static int arm_suspend_volt = 0;
+static int logic_suspend_volt = 0;
+
 static int __init early_param_rk_soc_pm_ctr(char *str)
 {
 	get_option(&str, &rk_soc_pm_ctr_flags);
-	printk("early_param_rk_soc_pm_ctr=%x\n",rk_soc_pm_ctr_flags);
+	
+	printk("********rk_suspend_ctr_bits information is following:*********\n");
+	printk("rk_suspend_ctr_bits=%x\n",rk_soc_pm_ctr_flags);
+	if(rk_soc_pm_ctr_flags)
+	{
+		rk_soc_pm_helps_printk();
+	}
+	printk("********rk_suspend_ctr_bits information end*********\n");
 	return 0;
 }
 
-early_param("rk_soc_pm_ctr", early_param_rk_soc_pm_ctr);
+early_param("rk_suspend_ctr_bits", early_param_rk_soc_pm_ctr);
+
 
 void  rk_soc_pm_ctr_bits_set(u32 flags)
 {	
@@ -1071,6 +1096,57 @@ void rk_soc_pm_ctr_bits_prepare(void)
 	}
 		
 }	
+
+
+static int __init set_arm_suspend_volt(char *str)
+{
+	get_option(&str, &arm_suspend_volt);
+	printk("rk_suspend_arm_volt=%dmV\n", arm_suspend_volt);
+	return 0;
+}
+early_param("rk_suspend_arm_volt", set_arm_suspend_volt);
+
+static int __init set_logic_suspend_volt(char *str)
+{
+	get_option(&str, &logic_suspend_volt);
+	printk("rk_suspend_logic_volt=%dmV\n", logic_suspend_volt);
+	return 0;
+}
+early_param("rk_suspend_logic_volt", set_logic_suspend_volt);
+
+
+
+static int __init pm_suspend_volt_seting(void)
+{
+	struct regulator *regulator;	
+
+	printk("pmic set pm_suspend_volt:\n");
+	if (arm_suspend_volt){
+		regulator = regulator_get(NULL, "vdd_cpu");
+		if (IS_ERR(regulator)){
+			printk("%s:get vdd_cpu regulator err\n", __func__);
+			return 0;
+		}
+		regulator_set_suspend_voltage(regulator, arm_suspend_volt);
+		regulator_put(regulator);
+	}
+
+	if (logic_suspend_volt){
+		regulator = regulator_get(NULL, "vdd_core");
+		if (IS_ERR(regulator)){
+			printk("%s:get vdd_core regulator err\n", __func__);
+			return 0;
+		}
+		regulator_set_suspend_voltage(regulator, logic_suspend_volt);	
+		regulator_put(regulator);
+	}
+	return 0;
+}
+
+device_initcall_sync(pm_suspend_volt_seting);
+
+
+/*********************************pm main function******************************************/
 
 static void __sramfunc rk30_sram_suspend(void)
 {
@@ -1206,7 +1282,6 @@ static struct platform_suspend_ops rk30_pm_ops = {
 static int __init rk30_pm_init(void)
 {
 	suspend_set_ops(&rk30_pm_ops);
-
 #ifdef CONFIG_EARLYSUSPEND
 	pm_set_vt_switch(0); /* disable vt switch while suspend */
 #endif
@@ -1214,3 +1289,4 @@ static int __init rk30_pm_init(void)
 	return 0;
 }
 __initcall(rk30_pm_init);
+

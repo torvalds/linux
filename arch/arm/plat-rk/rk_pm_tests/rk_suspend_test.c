@@ -96,14 +96,14 @@ ssize_t auto_wakeup_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 void  rk_soc_pm_ctr_bits_set(u32 flags);
 u32  rk_soc_pm_ctr_bits_get(void);
-ssize_t rk_soc_pm_helps_print(char *buf);
+ssize_t rk_soc_pm_helps_sprintf(char *buf);
 ssize_t suspend_test_show(struct kobject *kobj, struct kobj_attribute *attr,
 		char *buf)
 {
 	char *s = buf;
 
 	s += sprintf(s, "control bits is 0X%x,if bit is 1,information is following\n", rk_soc_pm_ctr_bits_get());
-	s += rk_soc_pm_helps_print(s);
+	s += rk_soc_pm_helps_sprintf(s);
 
 	return (s - buf);
 
