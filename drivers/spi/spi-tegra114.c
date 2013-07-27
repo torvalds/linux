@@ -803,6 +803,20 @@ static int tegra_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
+static int tegra_spi_prepare_transfer(struct spi_master *spi)
+{
+	struct tegra_spi_data *tspi = spi_master_get_devdata(spi);
+	int ret;
+
+	ret = pm_runtime_get_sync(tspi->dev);
+	if (ret < 0) {
+		dev_err(tspi->dev, "runtime PM get failed: %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
 static int tegra_spi_transfer_one_message(struct spi_master *master,
 			struct spi_message *msg)
 {
@@ -815,14 +829,6 @@ static int tegra_spi_transfer_one_message(struct spi_master *master,
 
 	msg->status = 0;
 	msg->actual_length = 0;
-
-	ret = pm_runtime_get_sync(tspi->dev);
-	if (ret < 0) {
-		dev_err(tspi->dev, "runtime PM get failed: %d\n", ret);
-		msg->status = ret;
-		spi_finalize_current_message(master);
-		return ret;
-	}
 
 	single_xfer = list_is_singular(&msg->transfers);
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
@@ -859,10 +865,18 @@ static int tegra_spi_transfer_one_message(struct spi_master *master,
 	ret = 0;
 exit:
 	tegra_spi_writel(tspi, tspi->def_command1_reg, SPI_COMMAND1);
-	pm_runtime_put(tspi->dev);
 	msg->status = ret;
 	spi_finalize_current_message(master);
 	return ret;
+}
+
+static int tegra_spi_unprepare_transfer(struct spi_master *spi)
+{
+	struct tegra_spi_data *tspi = spi_master_get_devdata(spi);
+
+	pm_runtime_put(tspi->dev);
+
+	return 0;
 }
 
 static irqreturn_t handle_cpu_based_xfer(struct tegra_spi_data *tspi)
@@ -1050,7 +1064,9 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->setup = tegra_spi_setup;
+	master->prepare_transfer_hardware = tegra_spi_prepare_transfer;
 	master->transfer_one_message = tegra_spi_transfer_one_message;
+	master->unprepare_transfer_hardware = tegra_spi_unprepare_transfer;
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->bus_num = -1;
 
