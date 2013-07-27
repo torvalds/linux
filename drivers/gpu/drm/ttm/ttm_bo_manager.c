@@ -69,7 +69,8 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 		spin_lock(&rman->lock);
 		node = drm_mm_search_free_in_range(mm,
 					mem->num_pages, mem->page_alignment,
-					placement->fpfn, lpfn, 1);
+					placement->fpfn, lpfn,
+					DRM_MM_SEARCH_BEST);
 		if (unlikely(node == NULL)) {
 			spin_unlock(&rman->lock);
 			return 0;

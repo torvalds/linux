@@ -41,6 +41,11 @@
 #include <linux/seq_file.h>
 #endif
 
+enum drm_mm_search_flags {
+	DRM_MM_SEARCH_DEFAULT =		0,
+	DRM_MM_SEARCH_BEST =		1 << 0,
+};
+
 struct drm_mm_node {
 	struct list_head node_list;
 	struct list_head hole_stack;
@@ -197,28 +202,41 @@ static inline struct drm_mm_node *drm_mm_get_block_atomic_range(
 						start, end, 1);
 }
 
-extern int drm_mm_insert_node(struct drm_mm *mm,
-			      struct drm_mm_node *node,
-			      unsigned long size,
-			      unsigned alignment);
-extern int drm_mm_insert_node_in_range(struct drm_mm *mm,
-				       struct drm_mm_node *node,
-				       unsigned long size,
-				       unsigned alignment,
-				       unsigned long start,
-				       unsigned long end);
 extern int drm_mm_insert_node_generic(struct drm_mm *mm,
 				      struct drm_mm_node *node,
 				      unsigned long size,
 				      unsigned alignment,
-				      unsigned long color);
+				      unsigned long color,
+				      enum drm_mm_search_flags flags);
+static inline int drm_mm_insert_node(struct drm_mm *mm,
+				     struct drm_mm_node *node,
+				     unsigned long size,
+				     unsigned alignment,
+				     enum drm_mm_search_flags flags)
+{
+	return drm_mm_insert_node_generic(mm, node, size, alignment, 0, flags);
+}
+
 extern int drm_mm_insert_node_in_range_generic(struct drm_mm *mm,
 				       struct drm_mm_node *node,
 				       unsigned long size,
 				       unsigned alignment,
 				       unsigned long color,
 				       unsigned long start,
-				       unsigned long end);
+				       unsigned long end,
+				       enum drm_mm_search_flags flags);
+static inline int drm_mm_insert_node_in_range(struct drm_mm *mm,
+					      struct drm_mm_node *node,
+					      unsigned long size,
+					      unsigned alignment,
+					      unsigned long start,
+					      unsigned long end,
+					      enum drm_mm_search_flags flags)
+{
+	return drm_mm_insert_node_in_range_generic(mm, node, size, alignment,
+						   0, start, end, flags);
+}
+
 extern void drm_mm_put_block(struct drm_mm_node *cur);
 extern void drm_mm_remove_node(struct drm_mm_node *node);
 extern void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new);
@@ -226,7 +244,7 @@ extern struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 						      unsigned long size,
 						      unsigned alignment,
 						      unsigned long color,
-						      bool best_match);
+						      enum drm_mm_search_flags flags);
 extern struct drm_mm_node *drm_mm_search_free_in_range_generic(
 						const struct drm_mm *mm,
 						unsigned long size,
@@ -234,13 +252,13 @@ extern struct drm_mm_node *drm_mm_search_free_in_range_generic(
 						unsigned long color,
 						unsigned long start,
 						unsigned long end,
-						bool best_match);
+						enum drm_mm_search_flags flags);
 static inline struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 						     unsigned long size,
 						     unsigned alignment,
-						     bool best_match)
+						     enum drm_mm_search_flags flags)
 {
-	return drm_mm_search_free_generic(mm,size, alignment, 0, best_match);
+	return drm_mm_search_free_generic(mm,size, alignment, 0, flags);
 }
 static inline  struct drm_mm_node *drm_mm_search_free_in_range(
 						const struct drm_mm *mm,
@@ -248,10 +266,10 @@ static inline  struct drm_mm_node *drm_mm_search_free_in_range(
 						unsigned alignment,
 						unsigned long start,
 						unsigned long end,
-						bool best_match)
+						enum drm_mm_search_flags flags)
 {
 	return drm_mm_search_free_in_range_generic(mm, size, alignment, 0,
-						   start, end, best_match);
+						   start, end, flags);
 }
 static inline struct drm_mm_node *drm_mm_search_free_color(const struct drm_mm *mm,
 							   unsigned long size,
