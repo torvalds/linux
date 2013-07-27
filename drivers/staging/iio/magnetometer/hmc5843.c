@@ -556,14 +556,14 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-#define HMC5843_CHANNEL(axis, add)					\
+#define HMC5843_CHANNEL(axis, addr)					\
 	{								\
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
-		.address = add						\
+		.address = addr						\
 	}
 
 static const struct iio_chan_spec hmc5843_channels[] = {
