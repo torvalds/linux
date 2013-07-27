@@ -3442,8 +3442,16 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status)
 	 */
 	if (hdev->sent_cmd) {
 		req_complete = bt_cb(hdev->sent_cmd)->req.complete;
-		if (req_complete)
+
+		if (req_complete) {
+			/* We must set the complete callback to NULL to
+			 * avoid calling the callback more than once if
+			 * this function gets called again.
+			 */
+			bt_cb(hdev->sent_cmd)->req.complete = NULL;
+
 			goto call_complete;
+		}
 	}
 
 	/* Remove all pending commands belonging to this request */
