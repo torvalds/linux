@@ -117,7 +117,7 @@ static INT SendPacketFromQueue(struct bcm_mini_adapter *Adapter,/**<Logical Adap
 
 	if (psSF->liDrainCalculated == 0)
 		psSF->liDrainCalculated = jiffies;
-	///send the packet to the fifo..
+	/* send the packet to the fifo.. */
 	PktLen = Packet->len;
 	Status = SetupNextSend(Adapter, Packet, psSF->usVCID_Value);
 	if (Status == 0) {
@@ -151,7 +151,7 @@ static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter, struct
 
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "%zd ====>", (psSF-Adapter->PackInfo));
-	if ((psSF != &Adapter->PackInfo[HiPriority]) && Adapter->LinkUpStatus && atomic_read(&psSF->uiPerSFTxResourceCount)) { //Get data packet
+	if ((psSF != &Adapter->PackInfo[HiPriority]) && Adapter->LinkUpStatus && atomic_read(&psSF->uiPerSFTxResourceCount)) { /* Get data packet */
 		if (!psSF->ucDirection)
 			return;
 
@@ -159,7 +159,7 @@ static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter, struct
 		if (Adapter->IdleMode || Adapter->bPreparingForLowPowerMode)
 			return;	/* in idle mode */
 
-		// Check for Free Descriptors
+		/* Check for Free Descriptors */
 		if (atomic_read(&Adapter->CurrNumFreeTxDesc) <= MINIMUM_PENDING_DESCRIPTORS) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, " No Free Tx Descriptor(%d) is available for Data pkt..", atomic_read(&Adapter->CurrNumFreeTxDesc));
 			return;
@@ -193,9 +193,11 @@ static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter, struct
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "For Queue: %zd\n", psSF-Adapter->PackInfo);
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "\nAvailable Tokens = %d required = %d\n",
 					psSF->uiCurrentTokenCount, iPacketLen);
-				//this part indicates that because of non-availability of the tokens
-				//pkt has not been send out hence setting the pending flag indicating the host to send it out
-				//first next iteration  .
+				/*
+				this part indicates that because of non-availability of the tokens
+				pkt has not been send out hence setting the pending flag indicating the host to send it out
+				first next iteration.
+				*/
 				psSF->uiPendedLast = TRUE;
 				spin_unlock_bh(&psSF->SFQueueLock);
 			}
@@ -286,7 +288,7 @@ VOID transmit_packets(struct bcm_mini_adapter *Adapter)
 
 	while (uiPrevTotalCount > 0 && !Adapter->device_removed) {
 		exit_flag = TRUE;
-			//second iteration to parse non-pending queues
+		/* second iteration to parse non-pending queues */
 		for (iIndex = HiPriority; iIndex >= 0; iIndex--) {
 			if (!uiPrevTotalCount || (TRUE == Adapter->device_removed))
 				break;
