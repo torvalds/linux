@@ -451,16 +451,11 @@ void drm_put_dev(struct drm_device *dev)
 
 	drm_lastclose(dev);
 
-	if (drm_core_has_MTRR(dev) && drm_core_has_AGP(dev) && dev->agp)
-		arch_phys_wc_del(dev->agp->agp_mtrr);
-
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 
-	if (drm_core_has_AGP(dev) && dev->agp) {
-		kfree(dev->agp);
-		dev->agp = NULL;
-	}
+	if (dev->driver->bus->agp_destroy)
+		dev->driver->bus->agp_destroy(dev);
 
 	drm_vblank_cleanup(dev);
 
