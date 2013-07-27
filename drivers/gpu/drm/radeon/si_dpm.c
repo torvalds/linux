@@ -3238,10 +3238,10 @@ int si_dpm_force_performance_level(struct radeon_device *rdev,
 {
 	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
 	struct ni_ps *ps = ni_get_ps(rps);
-	u32 levels;
+	u32 levels = ps->performance_level_count;
 
 	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
-		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
 			return -EINVAL;
 
 		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 1) != PPSMC_Result_OK)
@@ -3250,14 +3250,13 @@ int si_dpm_force_performance_level(struct radeon_device *rdev,
 		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
 			return -EINVAL;
 
-		levels = ps->performance_level_count - 1;
-		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 1) != PPSMC_Result_OK)
 			return -EINVAL;
 	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
 		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
 			return -EINVAL;
 
-		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
 			return -EINVAL;
 	}
 
@@ -6017,16 +6016,11 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-#if 0
-	/* XXX */
 	ret = si_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
 		DRM_ERROR("si_dpm_force_performance_level failed\n");
 		return ret;
 	}
-#else
-	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
-#endif
 
 	return 0;
 }
