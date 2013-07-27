@@ -187,7 +187,7 @@ static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter, struct
 				atomic_dec(&Adapter->TotalPacketCount);
 				spin_unlock_bh(&psSF->SFQueueLock);
 
-			   	Status = SendPacketFromQueue(Adapter, psSF, QueuePacket);
+				Status = SendPacketFromQueue(Adapter, psSF, QueuePacket);
 				psSF->uiPendedLast = FALSE;
 			} else {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "For Queue: %zd\n", psSF-Adapter->PackInfo);
@@ -230,7 +230,7 @@ static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter, struct
 			} else {
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, " Control Pkt is not available, Indexing is wrong....");
 			}
-	   	}
+		}
 	}
 }
 
@@ -308,7 +308,7 @@ VOID transmit_packets(struct bcm_mini_adapter *Adapter)
 			break;
 		}
 		if (exit_flag == TRUE)
-		    break;
+			break;
 	} /* end of inner while loop */
 
 	update_per_cid_rx(Adapter);
