@@ -63,6 +63,10 @@
 	};
 
 	clocks {
+		ckih1 {
+			clock-frequency = <22579200>;
+		};
+
 		clk_26M: codec_clock {
 			compatible = "fixed-clock";
 			reg=<0>;

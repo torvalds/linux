@@ -47,7 +47,7 @@
 
 		ckih1 {
 			compatible = "fsl,imx-ckih1", "fixed-clock";
-			clock-frequency = <22579200>;
+			clock-frequency = <0>;
 		};
 
 		ckih2 {

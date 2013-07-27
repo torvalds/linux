@@ -26,10 +26,6 @@
 	};
 
 	clocks {
-		ckih1 {
-			clock-frequency = <0>;
-		};
-
 		osc {
 			clock-frequency = <33554432>;
 		};
