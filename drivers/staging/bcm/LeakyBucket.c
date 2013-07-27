@@ -104,7 +104,7 @@ This function despatches packet from the specified queue.
 */
 static INT SendPacketFromQueue(struct bcm_mini_adapter *Adapter,/**<Logical Adapter*/
 			struct bcm_packet_info *psSF, /**<Queue identifier*/
-			       struct sk_buff*  Packet)	/**<Pointer to the packet to be sent*/
+			       struct sk_buff *Packet)	/**<Pointer to the packet to be sent*/
 {
 	INT Status = STATUS_FAILURE;
 	UINT uiIndex = 0, PktLen = 0;
