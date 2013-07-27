@@ -247,18 +247,6 @@
 #define SW_BROM_SIZE                      0x00008000 /* 32k */
 
 /**
- * Timer registers addr
- *
- */
-
-#define SW_TIMER_INT_CTL_REG              (SW_VA_TIMERC_IO_BASE + 0x00)
-#define SW_TIMER_INT_STA_REG              (SW_VA_TIMERC_IO_BASE + 0x04)
-#define SW_TIMER0_CTL_REG                 (SW_VA_TIMERC_IO_BASE + 0x10)
-#define SW_TIMER0_INTVAL_REG              (SW_VA_TIMERC_IO_BASE + 0x14)
-#define SW_TIMER0_CNTVAL_REG              (SW_VA_TIMERC_IO_BASE + 0x18)
-
-
-/**
  * Interrupt controller registers
  *
  */

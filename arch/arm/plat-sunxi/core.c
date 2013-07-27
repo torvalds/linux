@@ -423,134 +423,16 @@ static void sun4i_restart(char mode, const char *cmd)
 	while(1);
 }
 
-/* sun4i / sun5i timer handling */
-static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device *clk)
-{
-	volatile u32 ctrl;
-
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		pr_info("timer0: Periodic Mode\n");
-		writel(TMR_INTER_VAL, SW_TIMER0_INTVAL_REG); /* interval (999+1) */
-		ctrl = readl(SW_TIMER0_CTL_REG);
-		ctrl &= ~(1<<7);    /* Continuous mode */
-		ctrl |= 1;  /* Enable this timer */
-		break;
-
-	case CLOCK_EVT_MODE_ONESHOT:
-		pr_info("timer0: Oneshot Mode\n");
-		ctrl = readl(SW_TIMER0_CTL_REG);
-		ctrl |= (1<<7);     /* Single mode */
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	default:
-		ctrl = readl(SW_TIMER0_CTL_REG);
-		ctrl &= ~(1<<0);    /* Disable timer0 */
-		break;
-	}
-
-	writel(ctrl, SW_TIMER0_CTL_REG);
-}
-
-/* Useless when periodic mode */
-static int timer_set_next_event(unsigned long evt, struct clock_event_device *unused)
-{
-	volatile u32 ctrl;
-
-	/* clear any pending before continue */
-	ctrl = readl(SW_TIMER0_CTL_REG);
-	writel(evt, SW_TIMER0_CNTVAL_REG);
-	ctrl |= (1<<1);
-	writel(ctrl, SW_TIMER0_CTL_REG);
-	writel(ctrl | 0x1, SW_TIMER0_CTL_REG);
-
-	return 0;
-}
-
-static struct clock_event_device timer0_clockevent = {
-	.name = "timer0",
-	.shift = 32,
-	.rating = 100,
-	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode = timer_set_mode,
-	.set_next_event = timer_set_next_event,
-};
-
-
-static irqreturn_t sw_timer_interrupt(int irq, void *dev_id)
-{
-	struct clock_event_device *evt = (struct clock_event_device *)dev_id;
-
-	writel(0x1, SW_TIMER_INT_STA_REG);
-
-	/*
- 	 * timer_set_next_event will be called only in ONESHOT mode
- 	 */
-	evt->event_handler(evt);
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction sw_timer_irq = {
-	.name = "timer0",
-	.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler = sw_timer_interrupt,
-	.dev_id = &timer0_clockevent,
-	.irq = SW_INT_IRQNO_TIMER0,
-};
-
-
 static void __init sw_timer_init(void)
 {
-	int ret;
-	volatile u32  val = 0;
-
-	writel(TMR_INTER_VAL, SW_TIMER0_INTVAL_REG);
-	/* set clock sourch to HOSC, 16 pre-division */
-	val = readl(SW_TIMER0_CTL_REG);
-	val &= ~(0x07<<4);
-	val &= ~(0x03<<2);
-	val |= (4<<4) | (1<<2);
-	writel(val, SW_TIMER0_CTL_REG);
-	/* set mode to auto reload */
-	val = readl(SW_TIMER0_CTL_REG);
-	val |= (1<<1);
-	writel(val, SW_TIMER0_CTL_REG);
-
-	ret = setup_irq(SW_INT_IRQNO_TIMER0, &sw_timer_irq);
-	if (ret) {
-		pr_warning("failed to setup irq %d\n", SW_INT_IRQNO_TIMER0);
-	}
-
-	/* Enable time0 interrupt */
-	val = readl(SW_TIMER_INT_CTL_REG);
-	val |= (1<<0);
-	writel(val, SW_TIMER_INT_CTL_REG);
-
-	timer0_clockevent.mult = div_sc(SYS_TIMER_CLKSRC/SYS_TIMER_SCAL, NSEC_PER_SEC, timer0_clockevent.shift);
-	timer0_clockevent.max_delta_ns = clockevent_delta2ns(0xff, &timer0_clockevent);
-	timer0_clockevent.min_delta_ns = clockevent_delta2ns(0x1, &timer0_clockevent);
-	timer0_clockevent.cpumask = cpumask_of(0);
-	timer0_clockevent.irq = sw_timer_irq.irq;
-	clockevents_register_device(&timer0_clockevent);
+	aw_clkevt_init();
+	aw_clksrc_init();
+	if (sunxi_is_sun7i())
+		arch_timer_common_register();
 }
 
 struct sys_timer sw_sys_timer = {
 	.init = sw_timer_init,
-};
-
-
-/* sun7i timer handling */
-static void __init sun7i_timer_init(void)
-{
-	aw_clkevt_init();
-	aw_clksrc_init();
-	arch_timer_common_register();
-}
-
-static struct sys_timer sun7i_timer = {
-	.init		= sun7i_timer_init,
 };
 
 void __init sw_core_init(void)
@@ -588,7 +470,7 @@ MACHINE_END
 
 MACHINE_START(SUN7I, "sun7i")
 	.atag_offset	= 0x100,
-	.timer		= &sun7i_timer,
+	.timer          = &sw_sys_timer,
 #ifdef CONFIG_SUNXI_MALI_RESERVED_MEM
 	.fixup          = sunxi_mali_core_fixup,
 #endif
