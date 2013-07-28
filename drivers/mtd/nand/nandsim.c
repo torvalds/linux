@@ -760,12 +760,6 @@ static int init_nandsim(struct mtd_info *mtd)
 		ns->nbparts += 1;
 	}
 
-	/* Detect how many ID bytes the NAND chip outputs */
-	for (i = 0; nand_flash_ids[i].name != NULL; i++) {
-		if (second_id_byte != nand_flash_ids[i].dev_id)
-			continue;
-	}
-
 	if (ns->busw == 16)
 		NS_WARN("16-bit flashes support wasn't tested\n");
 
