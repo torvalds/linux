@@ -427,8 +427,10 @@ static void __init sw_timer_init(void)
 {
 	aw_clkevt_init();
 	aw_clksrc_init();
+#ifdef CONFIG_ARM_ARCH_TIMER
 	if (sunxi_is_sun7i())
 		arch_timer_common_register();
+#endif
 }
 
 struct sys_timer sw_sys_timer = {
