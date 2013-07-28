@@ -2979,17 +2979,10 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	u32 pages = 0;
 
 	/* Workaround Si errata on PCHx - configure jumbo frame flow */
-	if (hw->mac.type >= e1000_pch2lan) {
-		s32 ret_val;
-
-		if (adapter->netdev->mtu > ETH_DATA_LEN)
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, true);
-		else
-			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, false);
-
-		if (ret_val)
-			e_dbg("failed to enable jumbo frame workaround mode\n");
-	}
+	if ((hw->mac.type >= e1000_pch2lan) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN) &&
+	    e1000_lv_jumbo_workaround_ich8lan(hw, true))
+		e_dbg("failed to enable jumbo frame workaround mode\n");
 
 	/* Program MC offset vector base */
 	rctl = er32(RCTL);
@@ -3826,6 +3819,8 @@ void e1000e_reset(struct e1000_adapter *adapter)
 			break;
 		}
 
+		pba = 14;
+		ew32(PBA, pba);
 		fc->high_water = ((pba << 10) * 9 / 10) & E1000_FCRTH_RTH;
 		fc->low_water = ((pba << 10) * 8 / 10) & E1000_FCRTL_RTL;
 		break;
@@ -4033,6 +4028,12 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
+
+	/* Disable Si errata workaround on PCHx for jumbo frame flow */
+	if ((hw->mac.type >= e1000_pch2lan) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN) &&
+	    e1000_lv_jumbo_workaround_ich8lan(hw, false))
+		e_dbg("failed to disable jumbo frame workaround mode\n");
 
 	if (!pci_channel_offline(adapter->pdev))
 		e1000e_reset(adapter);
@@ -4683,11 +4684,11 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_phy_regs *phy = &adapter->phy_regs;
 
-	if ((er32(STATUS) & E1000_STATUS_LU) &&
+	if (!pm_runtime_suspended((&adapter->pdev->dev)->parent) &&
+	    (er32(STATUS) & E1000_STATUS_LU) &&
 	    (adapter->hw.phy.media_type == e1000_media_type_copper)) {
 		int ret_val;
 
-		pm_runtime_get_sync(&adapter->pdev->dev);
 		ret_val = e1e_rphy(hw, MII_BMCR, &phy->bmcr);
 		ret_val |= e1e_rphy(hw, MII_BMSR, &phy->bmsr);
 		ret_val |= e1e_rphy(hw, MII_ADVERTISE, &phy->advertise);
@@ -4698,7 +4699,6 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 		ret_val |= e1e_rphy(hw, MII_ESTATUS, &phy->estatus);
 		if (ret_val)
 			e_warn("Error reading PHY register\n");
-		pm_runtime_put_sync(&adapter->pdev->dev);
 	} else {
 		/* Do not read PHY registers if link is not up
 		 * Set values to typical power-on defaults
@@ -5995,6 +5995,8 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 	 */
 	e1000e_release_hw_control(adapter);
 
+	pci_clear_master(pdev);
+
 	/* The pci-e switch on some quad port adapters will report a
 	 * correctable error when the MAC transitions from D0 to D3.  To
 	 * prevent this we need to mask off the correctable errors on the
@@ -6723,10 +6725,6 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.fc.current_mode = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;
 
-	/* ring size defaults */
-	adapter->rx_ring->count = E1000_DEFAULT_RXD;
-	adapter->tx_ring->count = E1000_DEFAULT_TXD;
-
 	/* Initial Wake on LAN setting - If APM wake is enabled in
 	 * the EEPROM, enable the ACPI Magic Packet filter
 	 */
@@ -6976,6 +6974,10 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPT_I217_V), board_pch_lpt },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_LM), board_pch_lpt },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_LPTLP_I218_V), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM2), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V2), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_LM3), board_pch_lpt },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_I218_V3), board_pch_lpt },
 
 	{ 0, 0, 0, 0, 0, 0, 0 }	/* terminate list */
 };
