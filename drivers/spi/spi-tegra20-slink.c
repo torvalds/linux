@@ -824,20 +824,6 @@ static int tegra_slink_setup(struct spi_device *spi)
 	return 0;
 }
 
-static int tegra_slink_prepare_transfer(struct spi_master *spi)
-{
-	struct tegra_slink_data *tspi = spi_master_get_devdata(spi);
-	int ret;
-
-	ret = pm_runtime_get_sync(tspi->dev);
-	if (ret < 0) {
-		dev_err(tspi->dev, "runtime PM get failed: %d\n", ret);
-		return ret;
-	}
-
-	return ret;
-}
-
 static int tegra_slink_transfer_one_message(struct spi_master *master,
 			struct spi_message *msg)
 {
@@ -890,15 +876,6 @@ exit:
 	msg->status = ret;
 	spi_finalize_current_message(master);
 	return ret;
-}
-
-static int tegra_slink_unprepare_transfer(struct spi_master *spi)
-{
-	struct tegra_slink_data *tspi = spi_master_get_devdata(spi);
-
-	pm_runtime_put(tspi->dev);
-
-	return 0;
 }
 
 static irqreturn_t handle_cpu_based_xfer(struct tegra_slink_data *tspi)
@@ -1101,9 +1078,8 @@ static int tegra_slink_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->setup = tegra_slink_setup;
-	master->prepare_transfer_hardware = tegra_slink_prepare_transfer;
 	master->transfer_one_message = tegra_slink_transfer_one_message;
-	master->unprepare_transfer_hardware = tegra_slink_unprepare_transfer;
+	master->auto_runtime_pm = true;
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->bus_num = -1;
 
