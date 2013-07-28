@@ -252,6 +252,9 @@ struct iser_rx_desc {
 
 #define ISER_MAX_CQ 4
 
+struct iser_conn;
+struct iscsi_iser_task;
+
 struct iser_device {
 	struct ib_device             *ib_device;
 	struct ib_pd	             *pd;
@@ -265,6 +268,13 @@ struct iser_device {
 	int                          cq_active_qps[ISER_MAX_CQ];
 	int			     cqs_used;
 	struct iser_cq_desc	     *cq_desc;
+	int                          (*iser_alloc_rdma_reg_res)(struct iser_conn *ib_conn,
+								unsigned cmds_max);
+	void                         (*iser_free_rdma_reg_res)(struct iser_conn *ib_conn);
+	int                          (*iser_reg_rdma_mem)(struct iscsi_iser_task *iser_task,
+							  enum iser_data_dir cmd_dir);
+	void                         (*iser_unreg_rdma_mem)(struct iscsi_iser_task *iser_task,
+							    enum iser_data_dir cmd_dir);
 };
 
 struct iser_conn {
@@ -389,7 +399,8 @@ int  iser_reg_page_vec(struct iser_conn     *ib_conn,
 		       struct iser_page_vec *page_vec,
 		       struct iser_mem_reg  *mem_reg);
 
-void iser_unreg_mem(struct iser_mem_reg *mem_reg);
+void iser_unreg_mem(struct iscsi_iser_task *iser_task,
+		    enum iser_data_dir cmd_dir);
 
 int  iser_post_recvl(struct iser_conn *ib_conn);
 int  iser_post_recvm(struct iser_conn *ib_conn, int count);

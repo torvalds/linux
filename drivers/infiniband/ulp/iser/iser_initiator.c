@@ -49,6 +49,7 @@ static int iser_prepare_read_cmd(struct iscsi_task *task,
 
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
+	struct iser_device  *device = iser_task->iser_conn->ib_conn->device;
 	struct iser_regd_buf *regd_buf;
 	int err;
 	struct iser_hdr *hdr = &iser_task->desc.iser_header;
@@ -69,7 +70,7 @@ static int iser_prepare_read_cmd(struct iscsi_task *task,
 		return -EINVAL;
 	}
 
-	err = iser_reg_rdma_mem(iser_task,ISER_DIR_IN);
+	err = device->iser_reg_rdma_mem(iser_task, ISER_DIR_IN);
 	if (err) {
 		iser_err("Failed to set up Data-IN RDMA\n");
 		return err;
@@ -98,6 +99,7 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 		       unsigned int edtl)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
+	struct iser_device  *device = iser_task->iser_conn->ib_conn->device;
 	struct iser_regd_buf *regd_buf;
 	int err;
 	struct iser_hdr *hdr = &iser_task->desc.iser_header;
@@ -119,7 +121,7 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 		return -EINVAL;
 	}
 
-	err = iser_reg_rdma_mem(iser_task,ISER_DIR_OUT);
+	err = device->iser_reg_rdma_mem(iser_task, ISER_DIR_OUT);
 	if (err != 0) {
 		iser_err("Failed to register write cmd RDMA mem\n");
 		return err;
@@ -253,8 +255,8 @@ int iser_alloc_rx_descriptors(struct iser_conn *ib_conn, struct iscsi_session *s
 	ib_conn->qp_max_recv_dtos_mask = session->cmds_max - 1; /* cmds_max is 2^N */
 	ib_conn->min_posted_rx = ib_conn->qp_max_recv_dtos >> 2;
 
-	if (iser_create_fmr_pool(ib_conn, session->scsi_cmds_max))
-		goto create_fmr_pool_failed;
+	if (device->iser_alloc_rdma_reg_res(ib_conn, session->scsi_cmds_max))
+		goto create_rdma_reg_res_failed;
 
 	if (iser_alloc_login_buf(ib_conn))
 		goto alloc_login_buf_fail;
@@ -293,8 +295,8 @@ rx_desc_dma_map_failed:
 rx_desc_alloc_fail:
 	iser_free_login_buf(ib_conn);
 alloc_login_buf_fail:
-	iser_free_fmr_pool(ib_conn);
-create_fmr_pool_failed:
+	device->iser_free_rdma_reg_res(ib_conn);
+create_rdma_reg_res_failed:
 	iser_err("failed allocating rx descriptors / data buffers\n");
 	return -ENOMEM;
 }
@@ -308,6 +310,9 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn)
 	if (!ib_conn->rx_descs)
 		goto free_login_buf;
 
+	if (device && device->iser_free_rdma_reg_res)
+		device->iser_free_rdma_reg_res(ib_conn);
+
 	rx_desc = ib_conn->rx_descs;
 	for (i = 0; i < ib_conn->qp_max_recv_dtos; i++, rx_desc++)
 		ib_dma_unmap_single(device->ib_device, rx_desc->dma_addr,
@@ -318,7 +323,6 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn)
 
 free_login_buf:
 	iser_free_login_buf(ib_conn);
-	iser_free_fmr_pool(ib_conn);
 }
 
 static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)
@@ -629,8 +633,8 @@ void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 
 void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 {
+	struct iser_device *device = iser_task->iser_conn->ib_conn->device;
 	int is_rdma_aligned = 1;
-	struct iser_regd_buf *regd;
 
 	/* if we were reading, copy back to unaligned sglist,
 	 * anyway dma_unmap and free the copy
@@ -644,17 +648,11 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 		iser_finalize_rdma_unaligned_sg(iser_task, ISER_DIR_OUT);
 	}
 
-	if (iser_task->dir[ISER_DIR_IN]) {
-		regd = &iser_task->rdma_regd[ISER_DIR_IN];
-		if (regd->reg.is_fmr)
-			iser_unreg_mem(&regd->reg);
-	}
+	if (iser_task->dir[ISER_DIR_IN])
+		device->iser_unreg_rdma_mem(iser_task, ISER_DIR_IN);
 
-	if (iser_task->dir[ISER_DIR_OUT]) {
-		regd = &iser_task->rdma_regd[ISER_DIR_OUT];
-		if (regd->reg.is_fmr)
-			iser_unreg_mem(&regd->reg);
-	}
+	if (iser_task->dir[ISER_DIR_OUT])
+		device->iser_unreg_rdma_mem(iser_task, ISER_DIR_OUT);
 
        /* if the data was unaligned, it was already unmapped and then copied */
        if (is_rdma_aligned)

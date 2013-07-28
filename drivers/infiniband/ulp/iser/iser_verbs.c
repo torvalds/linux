@@ -74,6 +74,12 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	int i, j;
 	struct iser_cq_desc *cq_desc;
 
+	/* Assign function handles */
+	device->iser_alloc_rdma_reg_res = iser_create_fmr_pool;
+	device->iser_free_rdma_reg_res = iser_free_fmr_pool;
+	device->iser_reg_rdma_mem = iser_reg_rdma_mem;
+	device->iser_unreg_rdma_mem = iser_unreg_mem;
+
 	device->cqs_used = min(ISER_MAX_CQ, device->ib_device->num_comp_vectors);
 	iser_info("using %d CQs, device %s supports %d vectors\n",
 		  device->cqs_used, device->ib_device->name,
@@ -721,9 +727,14 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 /**
  * Unregister (previosuly registered) memory.
  */
-void iser_unreg_mem(struct iser_mem_reg *reg)
+void iser_unreg_mem(struct iscsi_iser_task *iser_task,
+		    enum iser_data_dir cmd_dir)
 {
+	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
 	int ret;
+
+	if (!reg->is_fmr)
+		return;
 
 	iser_dbg("PHYSICAL Mem.Unregister mem_h %p\n",reg->mem_h);
 
