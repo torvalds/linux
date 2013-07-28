@@ -654,9 +654,7 @@ static void free_device(struct nandsim *ns)
 
 static char *get_partition_name(int i)
 {
-	char buf[64];
-	sprintf(buf, "NAND simulator partition %d", i);
-	return kstrdup(buf, GFP_KERNEL);
+	return kasprintf(GFP_KERNEL, "NAND simulator partition %d", i);
 }
 
 /*
