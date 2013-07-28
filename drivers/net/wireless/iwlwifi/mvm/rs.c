@@ -260,82 +260,6 @@ static inline u8 rs_is_valid_ant(u8 valid_antenna, u8 ant_type)
 	return (ant_type & valid_antenna) == ant_type;
 }
 
-/*
- *	removes the old data from the statistics. All data that is older than
- *	TID_MAX_TIME_DIFF, will be deleted.
- */
-static void rs_tl_rm_old_stats(struct iwl_traffic_load *tl, u32 curr_time)
-{
-	/* The oldest age we want to keep */
-	u32 oldest_time = curr_time - TID_MAX_TIME_DIFF;
-
-	while (tl->queue_count &&
-	       (tl->time_stamp < oldest_time)) {
-		tl->total -= tl->packet_count[tl->head];
-		tl->packet_count[tl->head] = 0;
-		tl->time_stamp += TID_QUEUE_CELL_SPACING;
-		tl->queue_count--;
-		tl->head++;
-		if (tl->head >= TID_QUEUE_MAX_SIZE)
-			tl->head = 0;
-	}
-}
-
-/*
- *	increment traffic load value for tid and also remove
- *	any old values if passed the certain time period
- */
-static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
-			   struct ieee80211_hdr *hdr)
-{
-	u32 curr_time = jiffies_to_msecs(jiffies);
-	u32 time_diff;
-	s32 index;
-	struct iwl_traffic_load *tl = NULL;
-	u8 tid;
-
-	if (ieee80211_is_data_qos(hdr->frame_control)) {
-		u8 *qc = ieee80211_get_qos_ctl(hdr);
-		tid = qc[0] & 0xf;
-	} else {
-		return IWL_MAX_TID_COUNT;
-	}
-
-	if (unlikely(tid >= IWL_MAX_TID_COUNT))
-		return IWL_MAX_TID_COUNT;
-
-	tl = &lq_data->load[tid];
-
-	curr_time -= curr_time % TID_ROUND_VALUE;
-
-	/* Happens only for the first packet. Initialize the data */
-	if (!(tl->queue_count)) {
-		tl->total = 1;
-		tl->time_stamp = curr_time;
-		tl->queue_count = 1;
-		tl->head = 0;
-		tl->packet_count[0] = 1;
-		return IWL_MAX_TID_COUNT;
-	}
-
-	time_diff = TIME_WRAP_AROUND(tl->time_stamp, curr_time);
-	index = time_diff / TID_QUEUE_CELL_SPACING;
-
-	/* The history is too long: remove data that is older than */
-	/* TID_MAX_TIME_DIFF */
-	if (index >= TID_QUEUE_MAX_SIZE)
-		rs_tl_rm_old_stats(tl, curr_time);
-
-	index = (tl->head + index) % TID_QUEUE_MAX_SIZE;
-	tl->packet_count[index] = tl->packet_count[index] + 1;
-	tl->total = tl->total + 1;
-
-	if ((index + 1) > tl->queue_count)
-		tl->queue_count = index + 1;
-
-	return tid;
-}
-
 #ifdef CONFIG_MAC80211_DEBUGFS
 /**
  * Program the device to use fixed rate for frame transmit
@@ -361,45 +285,11 @@ static void rs_program_fix_rate(struct iwl_mvm *mvm,
 }
 #endif
 
-/*
-	get the traffic load value for tid
-*/
-static u32 rs_tl_get_load(struct iwl_lq_sta *lq_data, u8 tid)
-{
-	u32 curr_time = jiffies_to_msecs(jiffies);
-	u32 time_diff;
-	s32 index;
-	struct iwl_traffic_load *tl = NULL;
-
-	if (tid >= IWL_MAX_TID_COUNT)
-		return 0;
-
-	tl = &(lq_data->load[tid]);
-
-	curr_time -= curr_time % TID_ROUND_VALUE;
-
-	if (!(tl->queue_count))
-		return 0;
-
-	time_diff = TIME_WRAP_AROUND(tl->time_stamp, curr_time);
-	index = time_diff / TID_QUEUE_CELL_SPACING;
-
-	/* The history is too long: remove data that is older than */
-	/* TID_MAX_TIME_DIFF */
-	if (index >= TID_QUEUE_MAX_SIZE)
-		rs_tl_rm_old_stats(tl, curr_time);
-
-	return tl->total;
-}
-
 static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
 				      struct iwl_lq_sta *lq_data, u8 tid,
 				      struct ieee80211_sta *sta)
 {
 	int ret = -EAGAIN;
-	u32 load;
-
-	load = rs_tl_get_load(lq_data, tid);
 
 	/*
 	 * Don't create TX aggregation sessions when in high
@@ -2086,6 +1976,22 @@ static void rs_update_rate_tbl(struct iwl_mvm *mvm,
 	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_ASYNC, false);
 }
 
+static u8 rs_get_tid(struct iwl_lq_sta *lq_data,
+		     struct ieee80211_hdr *hdr)
+{
+	u8 tid = IWL_MAX_TID_COUNT;
+
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		u8 *qc = ieee80211_get_qos_ctl(hdr);
+		tid = qc[0] & 0xf;
+	}
+
+	if (unlikely(tid > IWL_MAX_TID_COUNT))
+		tid = IWL_MAX_TID_COUNT;
+
+	return tid;
+}
+
 /*
  * Do rate scaling and search for new modulation mode.
  */
@@ -2129,7 +2035,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 
 	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
 
-	tid = rs_tl_add_packet(lq_sta, hdr);
+	tid = rs_get_tid(lq_sta, hdr);
 	if ((tid != IWL_MAX_TID_COUNT) &&
 	    (lq_sta->tx_agg_tid_en & (1 << tid))) {
 		tid_data = &sta_priv->tid_data[tid];

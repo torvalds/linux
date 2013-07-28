@@ -290,17 +290,6 @@ struct iwl_scale_tbl_info {
 	struct iwl_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
 };
 
-struct iwl_traffic_load {
-	unsigned long time_stamp;	/* age of the oldest statistics */
-	u32 packet_count[TID_QUEUE_MAX_SIZE];   /* packet count in this time
-						 * slice */
-	u32 total;			/* total num of packets during the
-					 * last TID_MAX_TIME_DIFF */
-	u8 queue_count;			/* number of queues that has
-					 * been used since the last cleanup */
-	u8 head;			/* start of the circular buffer */
-};
-
 /**
  * struct iwl_lq_sta -- driver's rate scaling private structure
  *
@@ -337,7 +326,6 @@ struct iwl_lq_sta {
 
 	struct iwl_lq_cmd lq;
 	struct iwl_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
-	struct iwl_traffic_load load[IWL_MAX_TID_COUNT];
 	u8 tx_agg_tid_en;
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
