@@ -354,24 +354,6 @@ static int mcfqspi_transfer_one_message(struct spi_master *master,
 
 }
 
-static int mcfqspi_prepare_transfer_hw(struct spi_master *master)
-{
-	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(mcfqspi->dev);
-
-	return 0;
-}
-
-static int mcfqspi_unprepare_transfer_hw(struct spi_master *master)
-{
-	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-
-	pm_runtime_put_sync(mcfqspi->dev);
-
-	return 0;
-}
-
 static int mcfqspi_setup(struct spi_device *spi)
 {
 	if (spi->chip_select >= spi->master->num_chipselect) {
@@ -473,8 +455,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
 	master->setup = mcfqspi_setup;
 	master->transfer_one_message = mcfqspi_transfer_one_message;
-	master->prepare_transfer_hardware = mcfqspi_prepare_transfer_hw;
-	master->unprepare_transfer_hardware = mcfqspi_unprepare_transfer_hw;
+	master->auto_runtime_pm = true;
 
 	platform_set_drvdata(pdev, master);
 
