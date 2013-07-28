@@ -336,7 +336,6 @@ struct nandsim {
 		uint pgsec;         /* number of pages per sector */
 		uint secshift;      /* bits number in sector size */
 		uint pgshift;       /* bits number in page size */
-		uint oobshift;      /* bits number in OOB size */
 		uint pgaddrbytes;   /* bytes per page address */
 		uint secaddrbytes;  /* bytes per sector address */
 		uint idbytes;       /* the number ID bytes that this chip outputs */
@@ -689,7 +688,6 @@ static int init_nandsim(struct mtd_info *mtd)
 	ns->geom.totszoob = ns->geom.totsz + (uint64_t)ns->geom.pgnum * ns->geom.oobsz;
 	ns->geom.secshift = ffs(ns->geom.secsz) - 1;
 	ns->geom.pgshift  = chip->page_shift;
-	ns->geom.oobshift = ffs(ns->geom.oobsz) - 1;
 	ns->geom.pgsec    = ns->geom.secsz / ns->geom.pgsz;
 	ns->geom.secszoob = ns->geom.secsz + ns->geom.oobsz * ns->geom.pgsec;
 	ns->options = 0;
@@ -773,7 +771,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	printk("bus width: %u\n",               ns->busw);
 	printk("bits in sector size: %u\n",     ns->geom.secshift);
 	printk("bits in page size: %u\n",       ns->geom.pgshift);
-	printk("bits in OOB size: %u\n",	ns->geom.oobshift);
+	printk("bits in OOB size: %u\n",	ffs(ns->geom.oobsz) - 1);
 	printk("flash size with OOB: %llu KiB\n",
 			(unsigned long long)ns->geom.totszoob >> 10);
 	printk("page address bytes: %u\n",      ns->geom.pgaddrbytes);
