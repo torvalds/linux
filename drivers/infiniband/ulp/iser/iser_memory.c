@@ -374,13 +374,13 @@ static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
 }
 
 /**
- * iser_reg_rdma_mem - Registers memory intended for RDMA,
- * obtaining rkey and va
+ * iser_reg_rdma_mem_fmr - Registers memory intended for RDMA,
+ * using FMR (if possible) obtaining rkey and va
  *
  * returns 0 on success, errno code on failure
  */
-int iser_reg_rdma_mem(struct iscsi_iser_task *iser_task,
-		      enum   iser_data_dir        cmd_dir)
+int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
+			  enum iser_data_dir cmd_dir)
 {
 	struct iser_conn     *ib_conn = iser_task->iser_conn->ib_conn;
 	struct iser_device   *device = ib_conn->device;
@@ -396,7 +396,7 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *iser_task,
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
 	if (aligned_len != mem->dma_nents ||
-	    (!ib_conn->fmr_pool && mem->dma_nents > 1)) {
+	    (!ib_conn->fastreg.fmr.pool && mem->dma_nents > 1)) {
 		err = fall_to_bounce_buf(iser_task, ibdev,
 					 cmd_dir, aligned_len);
 		if (err) {
@@ -423,19 +423,21 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *iser_task,
 			 (unsigned long)regd_buf->reg.va,
 			 (unsigned long)regd_buf->reg.len);
 	} else { /* use FMR for multiple dma entries */
-		iser_page_vec_build(mem, ib_conn->page_vec, ibdev);
-		err = iser_reg_page_vec(ib_conn, ib_conn->page_vec, &regd_buf->reg);
+		iser_page_vec_build(mem, ib_conn->fastreg.fmr.page_vec, ibdev);
+		err = iser_reg_page_vec(ib_conn, ib_conn->fastreg.fmr.page_vec,
+					&regd_buf->reg);
 		if (err && err != -EAGAIN) {
 			iser_data_buf_dump(mem, ibdev);
 			iser_err("mem->dma_nents = %d (dlength = 0x%x)\n",
 				 mem->dma_nents,
 				 ntoh24(iser_task->desc.iscsi_header.dlength));
 			iser_err("page_vec: data_size = 0x%x, length = %d, offset = 0x%x\n",
-				 ib_conn->page_vec->data_size, ib_conn->page_vec->length,
-				 ib_conn->page_vec->offset);
-			for (i=0 ; i<ib_conn->page_vec->length ; i++)
+				 ib_conn->fastreg.fmr.page_vec->data_size,
+				 ib_conn->fastreg.fmr.page_vec->length,
+				 ib_conn->fastreg.fmr.page_vec->offset);
+			for (i = 0; i < ib_conn->fastreg.fmr.page_vec->length; i++)
 				iser_err("page_vec[%d] = 0x%llx\n", i,
-					 (unsigned long long) ib_conn->page_vec->pages[i]);
+					 (unsigned long long) ib_conn->fastreg.fmr.page_vec->pages[i]);
 		}
 		if (err)
 			return err;

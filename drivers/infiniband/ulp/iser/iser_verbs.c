@@ -77,8 +77,8 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	/* Assign function handles */
 	device->iser_alloc_rdma_reg_res = iser_create_fmr_pool;
 	device->iser_free_rdma_reg_res = iser_free_fmr_pool;
-	device->iser_reg_rdma_mem = iser_reg_rdma_mem;
-	device->iser_unreg_rdma_mem = iser_unreg_mem;
+	device->iser_reg_rdma_mem = iser_reg_rdma_mem_fmr;
+	device->iser_unreg_rdma_mem = iser_unreg_mem_fmr;
 
 	device->cqs_used = min(ISER_MAX_CQ, device->ib_device->num_comp_vectors);
 	iser_info("using %d CQs, device %s supports %d vectors\n",
@@ -194,13 +194,13 @@ int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 	struct ib_fmr_pool_param params;
 	int ret = -ENOMEM;
 
-	ib_conn->page_vec = kmalloc(sizeof(struct iser_page_vec) +
-				    (sizeof(u64)*(ISCSI_ISER_SG_TABLESIZE+1)),
-				    GFP_KERNEL);
-	if (!ib_conn->page_vec)
+	ib_conn->fastreg.fmr.page_vec = kmalloc(sizeof(struct iser_page_vec) +
+						(sizeof(u64)*(ISCSI_ISER_SG_TABLESIZE + 1)),
+						GFP_KERNEL);
+	if (!ib_conn->fastreg.fmr.page_vec)
 		return ret;
 
-	ib_conn->page_vec->pages = (u64 *)(ib_conn->page_vec + 1);
+	ib_conn->fastreg.fmr.page_vec->pages = (u64 *)(ib_conn->fastreg.fmr.page_vec + 1);
 
 	params.page_shift        = SHIFT_4K;
 	/* when the first/last SG element are not start/end *
@@ -216,16 +216,16 @@ int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 				    IB_ACCESS_REMOTE_WRITE |
 				    IB_ACCESS_REMOTE_READ);
 
-	ib_conn->fmr_pool = ib_create_fmr_pool(device->pd, &params);
-	if (!IS_ERR(ib_conn->fmr_pool))
+	ib_conn->fastreg.fmr.pool = ib_create_fmr_pool(device->pd, &params);
+	if (!IS_ERR(ib_conn->fastreg.fmr.pool))
 		return 0;
 
 	/* no FMR => no need for page_vec */
-	kfree(ib_conn->page_vec);
-	ib_conn->page_vec = NULL;
+	kfree(ib_conn->fastreg.fmr.page_vec);
+	ib_conn->fastreg.fmr.page_vec = NULL;
 
-	ret = PTR_ERR(ib_conn->fmr_pool);
-	ib_conn->fmr_pool = NULL;
+	ret = PTR_ERR(ib_conn->fastreg.fmr.pool);
+	ib_conn->fastreg.fmr.pool = NULL;
 	if (ret != -ENOSYS) {
 		iser_err("FMR allocation failed, err %d\n", ret);
 		return ret;
@@ -241,15 +241,15 @@ int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 void iser_free_fmr_pool(struct iser_conn *ib_conn)
 {
 	iser_info("freeing conn %p fmr pool %p\n",
-		  ib_conn, ib_conn->fmr_pool);
+		  ib_conn, ib_conn->fastreg.fmr.pool);
 
-	if (ib_conn->fmr_pool != NULL)
-		ib_destroy_fmr_pool(ib_conn->fmr_pool);
+	if (ib_conn->fastreg.fmr.pool != NULL)
+		ib_destroy_fmr_pool(ib_conn->fastreg.fmr.pool);
 
-	ib_conn->fmr_pool = NULL;
+	ib_conn->fastreg.fmr.pool = NULL;
 
-	kfree(ib_conn->page_vec);
-	ib_conn->page_vec = NULL;
+	kfree(ib_conn->fastreg.fmr.page_vec);
+	ib_conn->fastreg.fmr.page_vec = NULL;
 }
 
 /**
@@ -692,7 +692,7 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 	page_list = page_vec->pages;
 	io_addr	  = page_list[0];
 
-	mem  = ib_fmr_pool_map_phys(ib_conn->fmr_pool,
+	mem  = ib_fmr_pool_map_phys(ib_conn->fastreg.fmr.pool,
 				    page_list,
 				    page_vec->length,
 				    io_addr);
@@ -725,10 +725,11 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 }
 
 /**
- * Unregister (previosuly registered) memory.
+ * Unregister (previosuly registered using FMR) memory.
+ * If memory is non-FMR does nothing.
  */
-void iser_unreg_mem(struct iscsi_iser_task *iser_task,
-		    enum iser_data_dir cmd_dir)
+void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
+			enum iser_data_dir cmd_dir)
 {
 	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
 	int ret;

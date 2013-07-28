@@ -286,7 +286,6 @@ struct iser_conn {
 	struct iser_device           *device;       /* device context          */
 	struct rdma_cm_id            *cma_id;       /* CMA ID		       */
 	struct ib_qp	             *qp;           /* QP 		       */
-	struct ib_fmr_pool           *fmr_pool;     /* pool of IB FMRs         */
 	wait_queue_head_t	     wait;          /* waitq for conn/disconn  */
 	unsigned		     qp_max_recv_dtos; /* num of rx buffers */
 	unsigned		     qp_max_recv_dtos_mask; /* above minus 1 */
@@ -294,8 +293,6 @@ struct iser_conn {
 	int                          post_recv_buf_count; /* posted rx count  */
 	atomic_t                     post_send_buf_count; /* posted tx count   */
 	char 			     name[ISER_OBJECT_NAME_SIZE];
-	struct iser_page_vec         *page_vec;     /* represents SG to fmr maps*
-						     * maps serialized as tx is*/
 	struct list_head	     conn_list;       /* entry in ig conn list */
 
 	char  			     *login_buf;
@@ -304,6 +301,13 @@ struct iser_conn {
 	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
 	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
+	union {
+		struct {
+			struct ib_fmr_pool      *pool;	   /* pool of IB FMRs         */
+			struct iser_page_vec	*page_vec; /* represents SG to fmr maps*
+							    * maps serialized as tx is*/
+		} fmr;
+	} fastreg;
 };
 
 struct iscsi_iser_conn {
@@ -387,8 +391,8 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn);
 void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *task,
 				     enum iser_data_dir         cmd_dir);
 
-int  iser_reg_rdma_mem(struct iscsi_iser_task *task,
-		       enum   iser_data_dir        cmd_dir);
+int  iser_reg_rdma_mem_fmr(struct iscsi_iser_task *task,
+			   enum iser_data_dir cmd_dir);
 
 int  iser_connect(struct iser_conn   *ib_conn,
 		  struct sockaddr_in *src_addr,
@@ -399,8 +403,8 @@ int  iser_reg_page_vec(struct iser_conn     *ib_conn,
 		       struct iser_page_vec *page_vec,
 		       struct iser_mem_reg  *mem_reg);
 
-void iser_unreg_mem(struct iscsi_iser_task *iser_task,
-		    enum iser_data_dir cmd_dir);
+void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
+			enum iser_data_dir cmd_dir);
 
 int  iser_post_recvl(struct iser_conn *ib_conn);
 int  iser_post_recvm(struct iser_conn *ib_conn, int count);
