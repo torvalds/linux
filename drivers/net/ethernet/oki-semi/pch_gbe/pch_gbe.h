@@ -582,6 +582,19 @@ struct pch_gbe_hw_stats {
 };
 
 /**
+ * struct pch_gbe_privdata - PCI Device ID driver data
+ * @phy_tx_clk_delay:		Bool, configure the PHY TX delay in software
+ * @phy_disable_hibernate:	Bool, disable PHY hibernation
+ * @platform_init:		Platform initialization callback, called from
+ *				probe, prior to PHY initialization.
+ */
+struct pch_gbe_privdata {
+	bool phy_tx_clk_delay;
+	bool phy_disable_hibernate;
+	int (*platform_init)(struct pci_dev *pdev);
+};
+
+/**
  * struct pch_gbe_adapter - board specific private data structure
  * @stats_lock:	Spinlock structure for status
  * @ethtool_lock:	Spinlock structure for ethtool
@@ -604,6 +617,7 @@ struct pch_gbe_hw_stats {
  * @rx_buffer_len:	Receive buffer length
  * @tx_queue_len:	Transmit queue length
  * @have_msi:		PCI MSI mode flag
+ * @pch_gbe_privdata:	PCI Device ID driver_data
  */
 
 struct pch_gbe_adapter {
@@ -631,6 +645,7 @@ struct pch_gbe_adapter {
 	int hwts_tx_en;
 	int hwts_rx_en;
 	struct pci_dev *ptp_pdev;
+	struct pch_gbe_privdata *pdata;
 };
 
 #define pch_gbe_hw_to_adapter(hw)	container_of(hw, struct pch_gbe_adapter, hw)
