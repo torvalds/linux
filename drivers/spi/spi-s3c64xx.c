@@ -356,8 +356,6 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	while (!is_polling(sdd) && !acquire_dma(sdd))
 		usleep_range(10000, 11000);
 
-	pm_runtime_get_sync(&sdd->pdev->dev);
-
 	return 0;
 }
 
@@ -372,7 +370,6 @@ static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
 		sdd->ops->release((enum dma_ch)sdd->tx_dma.ch,
 					&s3c64xx_spi_dma_client);
 	}
-	pm_runtime_put(&sdd->pdev->dev);
 
 	return 0;
 }
@@ -1395,6 +1392,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 					SPI_BPW_MASK(8);
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	master->auto_runtime_pm = true;
 
 	sdd->regs = devm_ioremap_resource(&pdev->dev, mem_res);
 	if (IS_ERR(sdd->regs)) {
