@@ -1695,7 +1695,7 @@ err_stat:
 	return ret;
 }
 
-s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
+s32 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 			enum ip_conntrack_dir dir,
 			u32 seq);
 EXPORT_SYMBOL_GPL(nf_ct_nat_offset);

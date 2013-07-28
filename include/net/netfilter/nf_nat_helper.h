@@ -41,7 +41,7 @@ extern int nf_nat_mangle_udp_packet(struct sk_buff *skb,
 
 extern void nf_nat_set_seq_adjust(struct nf_conn *ct,
 				  enum ip_conntrack_info ctinfo,
-				  __be32 seq, s16 off);
+				  __be32 seq, s32 off);
 extern int nf_nat_seq_adjust(struct sk_buff *skb,
 			     struct nf_conn *ct,
 			     enum ip_conntrack_info ctinfo,
@@ -56,11 +56,11 @@ extern int (*nf_nat_seq_adjust_hook)(struct sk_buff *skb,
 extern void nf_nat_follow_master(struct nf_conn *ct,
 				 struct nf_conntrack_expect *this);
 
-extern s16 nf_nat_get_offset(const struct nf_conn *ct,
+extern s32 nf_nat_get_offset(const struct nf_conn *ct,
 			     enum ip_conntrack_dir dir,
 			     u32 seq);
 
 extern void nf_nat_tcp_seq_adjust(struct sk_buff *skb, struct nf_conn *ct,
-				  u32 dir, int off);
+				  u32 dir, s32 off);
 
 #endif

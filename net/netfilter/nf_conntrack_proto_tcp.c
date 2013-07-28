@@ -496,7 +496,7 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 }
 
 #ifdef CONFIG_NF_NAT_NEEDED
-static inline s16 nat_offset(const struct nf_conn *ct,
+static inline s32 nat_offset(const struct nf_conn *ct,
 			     enum ip_conntrack_dir dir,
 			     u32 seq)
 {
@@ -525,7 +525,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
 	__u32 seq, ack, sack, end, win, swin;
-	s16 receiver_offset;
+	s32 receiver_offset;
 	bool res;
 
 	/*

@@ -19,7 +19,7 @@ struct nf_nat_seq {
 	u_int32_t correction_pos;
 
 	/* sequence number offset before and after last modification */
-	int16_t offset_before, offset_after;
+	int32_t offset_before, offset_after;
 };
 
 #include <linux/list.h>

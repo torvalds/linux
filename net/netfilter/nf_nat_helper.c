@@ -68,13 +68,13 @@ adjust_tcp_sequence(u32 seq,
 }
 
 /* Get the offset value, for conntrack */
-s16 nf_nat_get_offset(const struct nf_conn *ct,
+s32 nf_nat_get_offset(const struct nf_conn *ct,
 		      enum ip_conntrack_dir dir,
 		      u32 seq)
 {
 	struct nf_conn_nat *nat = nfct_nat(ct);
 	struct nf_nat_seq *this_way;
-	s16 offset;
+	s32 offset;
 
 	if (!nat)
 		return 0;
@@ -143,7 +143,7 @@ static int enlarge_skb(struct sk_buff *skb, unsigned int extra)
 }
 
 void nf_nat_set_seq_adjust(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			   __be32 seq, s16 off)
+			   __be32 seq, s32 off)
 {
 	if (!off)
 		return;
@@ -370,7 +370,7 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	struct tcphdr *tcph;
 	int dir;
 	__be32 newseq, newack;
-	s16 seqoff, ackoff;
+	s32 seqoff, ackoff;
 	struct nf_conn_nat *nat = nfct_nat(ct);
 	struct nf_nat_seq *this_way, *other_way;
 	int res;
