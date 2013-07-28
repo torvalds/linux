@@ -254,6 +254,9 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @busy: message pump is busy
  * @running: message pump is running
  * @rt: whether this queue is set to run as a realtime task
+ * @auto_runtime_pm: the core should ensure a runtime PM reference is held
+ *                   while the hardware is prepared, using the parent
+ *                   device for the spidev
  * @prepare_transfer_hardware: a message will soon arrive from the queue
  *	so the subsystem requests the driver to prepare the transfer hardware
  *	by issuing this call
@@ -374,11 +377,13 @@ struct spi_master {
 	bool				busy;
 	bool				running;
 	bool				rt;
+	bool				auto_runtime_pm;
 
 	int (*prepare_transfer_hardware)(struct spi_master *master);
 	int (*transfer_one_message)(struct spi_master *master,
 				    struct spi_message *mesg);
 	int (*unprepare_transfer_hardware)(struct spi_master *master);
+
 	/* gpio chip select */
 	int			*cs_gpios;
 };
