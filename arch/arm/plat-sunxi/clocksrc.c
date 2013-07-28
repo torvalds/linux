@@ -24,6 +24,7 @@
 #include <mach/clock.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
+#include <plat/system.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/clocksource.h>
@@ -33,6 +34,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <asm/sched_clock.h>
 #include "clocksrc.h"
 
 #undef CLKSRC_DBG
@@ -45,6 +47,7 @@
     #define CLKSRC_ERR(...)
 #endif
 
+static DEFINE_SPINLOCK(clksrc_lock);
 static spinlock_t tmr_spin_lock[2];
 static const int tmr_div[2] = { SYS_TIMER_SCAL, 1 };
 
@@ -132,8 +135,7 @@ cycle_t aw_clksrc_read(struct clocksource *cs)
     unsigned long   flags;
     __u32           lower, upper;
 
-    /* disable interrupt response */
-    raw_local_irq_save(flags);
+	spin_lock_irqsave(&clksrc_lock, flags);
 
     /* latch 64bit counter and wait ready for read */
     TMR_REG_CNT64_CTL |= (1<<1);
@@ -143,12 +145,29 @@ cycle_t aw_clksrc_read(struct clocksource *cs)
     lower = TMR_REG_CNT64_LO;
     upper = TMR_REG_CNT64_HI;
 
-    /* restore interrupt response */
-    raw_local_irq_restore(flags);
+	spin_unlock_irqrestore(&clksrc_lock, flags);
 
     return (((__u64)upper)<<32) | lower;
 }
 EXPORT_SYMBOL(aw_clksrc_read);
+
+static u32 sched_clock_read(void)
+{
+	u32 lower;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clksrc_lock, flags);
+
+	/* latch 64bit counter and wait ready for read */
+	TMR_REG_CNT64_CTL |= (1 << 1);
+	while (TMR_REG_CNT64_CTL & (1 << 1)) {}
+
+	/* read the low 32bits counter */
+	lower = TMR_REG_CNT64_LO;
+	spin_unlock_irqrestore(&clksrc_lock, flags);
+
+	return lower;
+}
 
 /*
 *********************************************************************************************************
@@ -168,8 +187,11 @@ EXPORT_SYMBOL(aw_clksrc_read);
 static void aw_set_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 {
 	int nr = dev->irq - SW_INT_IRQNO_TIMER0;
+	unsigned long flags;
 
 	CLKSRC_DBG("aw_set_clkevt_mode(%d): %u\n", nr, mode);
+
+	spin_lock_irqsave(&tmr_spin_lock[nr], flags);
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
@@ -194,6 +216,7 @@ static void aw_set_clkevt_mode(enum clock_event_mode mode, struct clock_event_de
 		/* wait hardware synchronization, 2 clock cycles at least */
 		__delay(50 * tmr_div[nr]);
 	}
+	spin_unlock_irqrestore(&tmr_spin_lock[nr], flags);
 }
 
 
@@ -294,27 +317,42 @@ static irqreturn_t aw_clkevt_irq(int irq, void *handle)
 */
 int __init aw_clksrc_init(void)
 {
-    CLKSRC_DBG("all-winners clock source init!\n");
-    /* we use 64bits counter as HPET(High Precision Event Timer) */
-    TMR_REG_CNT64_CTL  = 0;
-    __delay(50);
-    /* config clock source for 64bits counter */
-    #if(AW_HPET_CLK_SRC == TMR_CLK_SRC_24MHOSC)
-        TMR_REG_CNT64_CTL |= (0<<2);
-    #else
-        TMR_REG_CNT64_CTL |= (1<<2);
-    #endif
-    __delay(50);
-    /* clear 64bits counter */
-    TMR_REG_CNT64_CTL |= (1<<0);
-    __delay(50);
-    CLKSRC_DBG("register all-winners clock source!\n");
-    /* calculate the mult by shift  */
-    aw_clocksrc.mult = clocksource_hz2mult(AW_HPET_CLOCK_SOURCE_HZ, aw_clocksrc.shift);
-    /* register clock source */
-    clocksource_register(&aw_clocksrc);
+	CLKSRC_DBG("all-winners clock source init!\n");
 
-    return 0;
+	/*
+	 * The sun7i has separate 64 bits counters per osc, see clocksrc.h, so
+	 * there is no need to set the clock source for the counter on sun7i.
+	 * Moreover these counters share some logic with the arch_timer.c
+	 * counters and mucking with them makes arch_timer.c unhappy.
+	 */
+	if (!sunxi_is_sun7i()) {
+		TMR_REG_CNT64_CTL = 0;
+		__delay(50);
+
+		/* config clock source for 64bits counter */
+#if(AW_HPET_CLK_SRC == TMR_CLK_SRC_24MHOSC)
+		TMR_REG_CNT64_CTL |= (0 << 2);
+#else	
+		TMR_REG_CNT64_CTL |= (1 << 2);
+#endif
+		__delay(50);
+
+		/* clear 64bits counter */
+		TMR_REG_CNT64_CTL |= (1 << 0);
+		while (TMR_REG_CNT64_CTL & (1 << 0)) {}
+	}
+
+	CLKSRC_DBG("register all-winners clock source!\n");
+	/* calculate the mult by shift  */
+	aw_clocksrc.mult = clocksource_hz2mult(AW_HPET_CLOCK_SOURCE_HZ,
+					       aw_clocksrc.shift);
+	/* register clock source */
+	clocksource_register(&aw_clocksrc);
+
+	/* set sched clock */
+	setup_sched_clock(sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
+
+	return 0;
 }
 
 /*
@@ -340,7 +378,7 @@ static void register_clk_dev(struct clock_event_device *clk_dev, int freq)
 	   suggested by david 2011-5-25 11:41 */
 	clk_dev->min_delta_ns = clockevent_delta2ns(0x1, clk_dev) + 100000;
 	clk_dev->max_delta_ns = clockevent_delta2ns(0x80000000, clk_dev);
-	clk_dev->cpumask = cpumask_of(0);
+	clk_dev->cpumask = cpu_all_mask;
 	clockevents_register_device(clk_dev);
 }
 
