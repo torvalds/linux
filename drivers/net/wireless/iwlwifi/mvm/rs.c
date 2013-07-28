@@ -1324,17 +1324,18 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 		/* nothing */
 		break;
 	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
-		/* avoid antenna B unless MIMO */
-		if (tbl->action == IWL_SISO_SWITCH_ANTENNA)
+		/* avoid switching to antenna B but allow MIMO */
+		if (tbl->action == IWL_SISO_SWITCH_ANTENNA &&
+		    tbl->ant_type == ANT_A)
 			tbl->action = IWL_SISO_SWITCH_MIMO2;
 		break;
 	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
 	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
-		/* avoid antenna B and MIMO */
-		valid_tx_ant =
-			first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
-		if (tbl->action != IWL_SISO_SWITCH_ANTENNA)
-			tbl->action = IWL_SISO_SWITCH_ANTENNA;
+		/* A - avoid antenna B and MIMO. B - switch to A */
+		if (tbl->ant_type == ANT_A)
+			valid_tx_ant =
+				first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
+		tbl->action = IWL_SISO_SWITCH_ANTENNA;
 		break;
 	default:
 		IWL_ERR(mvm, "Invalid BT load %d",
