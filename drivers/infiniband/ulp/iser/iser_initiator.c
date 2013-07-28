@@ -241,7 +241,7 @@ out_err:
 	return -ENOMEM;
 }
 
-int iser_alloc_rx_descriptors(struct iser_conn *ib_conn)
+int iser_alloc_rx_descriptors(struct iser_conn *ib_conn, struct iscsi_session *session)
 {
 	int i, j;
 	u64 dma_addr;
@@ -249,20 +249,24 @@ int iser_alloc_rx_descriptors(struct iser_conn *ib_conn)
 	struct ib_sge       *rx_sg;
 	struct iser_device  *device = ib_conn->device;
 
-	if (iser_create_fmr_pool(ib_conn))
+	ib_conn->qp_max_recv_dtos = session->cmds_max;
+	ib_conn->qp_max_recv_dtos_mask = session->cmds_max - 1; /* cmds_max is 2^N */
+	ib_conn->min_posted_rx = ib_conn->qp_max_recv_dtos >> 2;
+
+	if (iser_create_fmr_pool(ib_conn, session->scsi_cmds_max))
 		goto create_fmr_pool_failed;
 
 	if (iser_alloc_login_buf(ib_conn))
 		goto alloc_login_buf_fail;
 
-	ib_conn->rx_descs = kmalloc(ISER_QP_MAX_RECV_DTOS *
+	ib_conn->rx_descs = kmalloc(session->cmds_max *
 				sizeof(struct iser_rx_desc), GFP_KERNEL);
 	if (!ib_conn->rx_descs)
 		goto rx_desc_alloc_fail;
 
 	rx_desc = ib_conn->rx_descs;
 
-	for (i = 0; i < ISER_QP_MAX_RECV_DTOS; i++, rx_desc++)  {
+	for (i = 0; i < ib_conn->qp_max_recv_dtos; i++, rx_desc++)  {
 		dma_addr = ib_dma_map_single(device->ib_device, (void *)rx_desc,
 					ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
 		if (ib_dma_mapping_error(device->ib_device, dma_addr))
@@ -305,7 +309,7 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn)
 		goto free_login_buf;
 
 	rx_desc = ib_conn->rx_descs;
-	for (i = 0; i < ISER_QP_MAX_RECV_DTOS; i++, rx_desc++)
+	for (i = 0; i < ib_conn->qp_max_recv_dtos; i++, rx_desc++)
 		ib_dma_unmap_single(device->ib_device, rx_desc->dma_addr,
 				    ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
 	kfree(ib_conn->rx_descs);
@@ -334,9 +338,10 @@ static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)
 	WARN_ON(iser_conn->ib_conn->post_recv_buf_count != 1);
 	WARN_ON(atomic_read(&iser_conn->ib_conn->post_send_buf_count) != 0);
 
-	iser_dbg("Initially post: %d\n", ISER_MIN_POSTED_RX);
+	iser_dbg("Initially post: %d\n", iser_conn->ib_conn->min_posted_rx);
 	/* Initial post receive buffers */
-	if (iser_post_recvm(iser_conn->ib_conn, ISER_MIN_POSTED_RX))
+	if (iser_post_recvm(iser_conn->ib_conn,
+			    iser_conn->ib_conn->min_posted_rx))
 		return -ENOMEM;
 
 	return 0;
@@ -573,9 +578,9 @@ void iser_rcv_completion(struct iser_rx_desc *rx_desc,
 		return;
 
 	outstanding = ib_conn->post_recv_buf_count;
-	if (outstanding + ISER_MIN_POSTED_RX <= ISER_QP_MAX_RECV_DTOS) {
-		count = min(ISER_QP_MAX_RECV_DTOS - outstanding,
-						ISER_MIN_POSTED_RX);
+	if (outstanding + ib_conn->min_posted_rx <= ib_conn->qp_max_recv_dtos) {
+		count = min(ib_conn->qp_max_recv_dtos - outstanding,
+						ib_conn->min_posted_rx);
 		err = iser_post_recvm(ib_conn, count);
 		if (err)
 			iser_err("posting %d rx bufs err %d\n", count, err);

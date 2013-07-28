@@ -182,7 +182,7 @@ static void iser_free_device_ib_res(struct iser_device *device)
  *
  * returns 0 on success, or errno code on failure
  */
-int iser_create_fmr_pool(struct iser_conn *ib_conn)
+int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 {
 	struct iser_device *device = ib_conn->device;
 	struct ib_fmr_pool_param params;
@@ -202,8 +202,8 @@ int iser_create_fmr_pool(struct iser_conn *ib_conn)
 	params.max_pages_per_fmr = ISCSI_ISER_SG_TABLESIZE + 1;
 	/* make the pool size twice the max number of SCSI commands *
 	 * the ML is expected to queue, watermark for unmap at 50%  */
-	params.pool_size	 = ISCSI_DEF_XMIT_CMDS_MAX * 2;
-	params.dirty_watermark	 = ISCSI_DEF_XMIT_CMDS_MAX;
+	params.pool_size	 = cmds_max * 2;
+	params.dirty_watermark	 = cmds_max;
 	params.cache		 = 0;
 	params.flush_function	 = NULL;
 	params.access		 = (IB_ACCESS_LOCAL_WRITE  |
@@ -771,7 +771,7 @@ int iser_post_recvm(struct iser_conn *ib_conn, int count)
 		rx_wr->sg_list	= &rx_desc->rx_sg;
 		rx_wr->num_sge	= 1;
 		rx_wr->next	= rx_wr + 1;
-		my_rx_head = (my_rx_head + 1) & (ISER_QP_MAX_RECV_DTOS - 1);
+		my_rx_head = (my_rx_head + 1) & ib_conn->qp_max_recv_dtos_mask;
 	}
 
 	rx_wr--;

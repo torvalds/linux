@@ -102,7 +102,13 @@
 
 					/* support up to 512KB in one RDMA */
 #define ISCSI_ISER_SG_TABLESIZE         (0x80000 >> SHIFT_4K)
-#define ISER_DEF_CMD_PER_LUN		ISCSI_DEF_XMIT_CMDS_MAX
+#define ISER_DEF_XMIT_CMDS_DEFAULT		512
+#if ISCSI_DEF_XMIT_CMDS_MAX > ISER_DEF_XMIT_CMDS_DEFAULT
+	#define ISER_DEF_XMIT_CMDS_MAX		ISCSI_DEF_XMIT_CMDS_MAX
+#else
+	#define ISER_DEF_XMIT_CMDS_MAX		ISER_DEF_XMIT_CMDS_DEFAULT
+#endif
+#define ISER_DEF_CMD_PER_LUN		ISER_DEF_XMIT_CMDS_MAX
 
 /* QP settings */
 /* Maximal bounds on received asynchronous PDUs */
@@ -111,9 +117,9 @@
 #define ISER_MAX_TX_MISC_PDUS		6 /* NOOP_OUT(2), TEXT(1),         *
 					   * SCSI_TMFUNC(2), LOGOUT(1) */
 
-#define ISER_QP_MAX_RECV_DTOS		(ISCSI_DEF_XMIT_CMDS_MAX)
+#define ISER_QP_MAX_RECV_DTOS		(ISER_DEF_XMIT_CMDS_MAX)
 
-#define ISER_MIN_POSTED_RX		(ISCSI_DEF_XMIT_CMDS_MAX >> 2)
+#define ISER_MIN_POSTED_RX		(ISER_DEF_XMIT_CMDS_MAX >> 2)
 
 /* the max TX (send) WR supported by the iSER QP is defined by                 *
  * max_send_wr = T * (1 + D) + C ; D is how many inflight dataouts we expect   *
@@ -123,7 +129,7 @@
 
 #define ISER_INFLIGHT_DATAOUTS		8
 
-#define ISER_QP_MAX_REQ_DTOS		(ISCSI_DEF_XMIT_CMDS_MAX *    \
+#define ISER_QP_MAX_REQ_DTOS		(ISER_DEF_XMIT_CMDS_MAX *    \
 					(1 + ISER_INFLIGHT_DATAOUTS) + \
 					ISER_MAX_TX_MISC_PDUS        + \
 					ISER_MAX_RX_MISC_PDUS)
@@ -272,6 +278,9 @@ struct iser_conn {
 	struct ib_qp	             *qp;           /* QP 		       */
 	struct ib_fmr_pool           *fmr_pool;     /* pool of IB FMRs         */
 	wait_queue_head_t	     wait;          /* waitq for conn/disconn  */
+	unsigned		     qp_max_recv_dtos; /* num of rx buffers */
+	unsigned		     qp_max_recv_dtos_mask; /* above minus 1 */
+	unsigned		     min_posted_rx; /* qp_max_recv_dtos >> 2 */
 	int                          post_recv_buf_count; /* posted rx count  */
 	atomic_t                     post_send_buf_count; /* posted tx count   */
 	char 			     name[ISER_OBJECT_NAME_SIZE];
@@ -394,7 +403,7 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task);
 int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
-int iser_alloc_rx_descriptors(struct iser_conn *ib_conn);
-int iser_create_fmr_pool(struct iser_conn *ib_conn);
+int iser_alloc_rx_descriptors(struct iser_conn *ib_conn, struct iscsi_session *session);
+int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max);
 void iser_free_fmr_pool(struct iser_conn *ib_conn);
 #endif
