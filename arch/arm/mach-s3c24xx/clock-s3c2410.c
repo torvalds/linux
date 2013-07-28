@@ -119,66 +119,101 @@ static struct clk init_clocks_off[] = {
 	}
 };
 
-static struct clk init_clocks[] = {
-	{
-		.name		= "lcd",
-		.parent		= &clk_h,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_LCDC,
-	}, {
-		.name		= "gpio",
-		.parent		= &clk_p,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_GPIO,
-	}, {
-		.name		= "usb-host",
-		.parent		= &clk_h,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_USBH,
-	}, {
-		.name		= "usb-device",
-		.parent		= &clk_h,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_USBD,
-	}, {
-		.name		= "timers",
-		.parent		= &clk_p,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_PWMT,
-	}, {
-		.name		= "uart",
-		.devname	= "s3c2410-uart.0",
-		.parent		= &clk_p,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_UART0,
-	}, {
-		.name		= "uart",
-		.devname	= "s3c2410-uart.1",
-		.parent		= &clk_p,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_UART1,
-	}, {
-		.name		= "uart",
-		.devname	= "s3c2410-uart.2",
-		.parent		= &clk_p,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_UART2,
-	}, {
-		.name		= "rtc",
-		.parent		= &clk_p,
-		.enable		= s3c2410_clkcon_enable,
-		.ctrlbit	= S3C2410_CLKCON_RTC,
-	}, {
-		.name		= "watchdog",
-		.parent		= &clk_p,
-		.ctrlbit	= 0,
-	}, {
-		.name		= "usb-bus-host",
-		.parent		= &clk_usb_bus,
-	}, {
-		.name		= "usb-bus-gadget",
-		.parent		= &clk_usb_bus,
-	},
+static struct clk clk_lcd = {
+	.name		= "lcd",
+	.parent		= &clk_h,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_LCDC,
+};
+
+static struct clk clk_gpio = {
+	.name		= "gpio",
+	.parent		= &clk_p,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_GPIO,
+};
+
+static struct clk clk_usb_host = {
+	.name		= "usb-host",
+	.parent		= &clk_h,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_USBH,
+};
+
+static struct clk clk_usb_device = {
+	.name		= "usb-device",
+	.parent		= &clk_h,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_USBD,
+};
+
+static struct clk clk_timers = {
+	.name		= "timers",
+	.parent		= &clk_p,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_PWMT,
+};
+
+struct clk s3c24xx_clk_uart0 = {
+	.name		= "uart",
+	.devname	= "s3c2410-uart.0",
+	.parent		= &clk_p,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_UART0,
+};
+
+struct clk s3c24xx_clk_uart1 = {
+	.name		= "uart",
+	.devname	= "s3c2410-uart.1",
+	.parent		= &clk_p,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_UART1,
+};
+
+struct clk s3c24xx_clk_uart2 = {
+	.name		= "uart",
+	.devname	= "s3c2410-uart.2",
+	.parent		= &clk_p,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_UART2,
+};
+
+static struct clk clk_rtc = {
+	.name		= "rtc",
+	.parent		= &clk_p,
+	.enable		= s3c2410_clkcon_enable,
+	.ctrlbit	= S3C2410_CLKCON_RTC,
+};
+
+static struct clk clk_watchdog = {
+	.name		= "watchdog",
+	.parent		= &clk_p,
+	.ctrlbit	= 0,
+};
+
+static struct clk clk_usb_bus_host = {
+	.name		= "usb-bus-host",
+	.parent		= &clk_usb_bus,
+};
+
+static struct clk clk_usb_bus_gadget = {
+	.name		= "usb-bus-gadget",
+	.parent		= &clk_usb_bus,
+};
+
+static struct clk *init_clocks[] = {
+	&clk_lcd,
+	&clk_gpio,
+	&clk_usb_host,
+	&clk_usb_device,
+	&clk_timers,
+	&s3c24xx_clk_uart0,
+	&s3c24xx_clk_uart1,
+	&s3c24xx_clk_uart2,
+	&clk_rtc,
+	&clk_watchdog,
+	&clk_usb_bus_host,
+	&clk_usb_bus_gadget,
 };
 
 /* s3c2410_baseclk_add()
@@ -195,7 +230,6 @@ int __init s3c2410_baseclk_add(void)
 {
 	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
 	unsigned long clkcon  = __raw_readl(S3C2410_CLKCON);
-	struct clk *clkp;
 	struct clk *xtal;
 	int ret;
 	int ptr;
@@ -207,8 +241,9 @@ int __init s3c2410_baseclk_add(void)
 
 	/* register clocks from clock array */
 
-	clkp = init_clocks;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks); ptr++, clkp++) {
+	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks); ptr++) {
+		struct clk *clkp = init_clocks[ptr];
+
 		/* ensure that we note the clock state */
 
 		clkp->usage = clkcon & clkp->ctrlbit ? 1 : 0;

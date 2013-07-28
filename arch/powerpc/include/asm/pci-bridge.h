@@ -209,7 +209,6 @@ static inline struct eeh_dev *of_node_to_eeh_dev(struct device_node *dn)
 extern struct pci_bus *pcibios_find_pci_bus(struct device_node *dn);
 
 /** Remove all of the PCI devices under this bus */
-extern void __pcibios_remove_pci_devices(struct pci_bus *bus, int purge_pe);
 extern void pcibios_remove_pci_devices(struct pci_bus *bus);
 
 /** Discover new pci devices under this bus, and add them */

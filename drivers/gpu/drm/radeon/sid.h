@@ -367,6 +367,20 @@
 
 #define	VM_CONTEXT1_PROTECTION_FAULT_ADDR		0x14FC
 #define	VM_CONTEXT1_PROTECTION_FAULT_STATUS		0x14DC
+#define		PROTECTIONS_MASK			(0xf << 0)
+#define		PROTECTIONS_SHIFT			0
+		/* bit 0: range
+		 * bit 1: pde0
+		 * bit 2: valid
+		 * bit 3: read
+		 * bit 4: write
+		 */
+#define		MEMORY_CLIENT_ID_MASK			(0xff << 12)
+#define		MEMORY_CLIENT_ID_SHIFT			12
+#define		MEMORY_CLIENT_RW_MASK			(1 << 24)
+#define		MEMORY_CLIENT_RW_SHIFT			24
+#define		FAULT_VMID_MASK				(0xf << 25)
+#define		FAULT_VMID_SHIFT			25
 
 #define VM_INVALIDATE_REQUEST				0x1478
 #define VM_INVALIDATE_RESPONSE				0x147c

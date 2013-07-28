@@ -48,7 +48,7 @@ void __init sh73a0_register_twd(void)
 }
 #endif
 
-static int __cpuinit sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	cpu = cpu_logical_map(cpu);
 

@@ -1776,7 +1776,7 @@ static int mv_u3d_remove(struct platform_device *dev)
 	kfree(u3d->eps);
 
 	if (u3d->irq)
-		free_irq(u3d->irq, &dev->dev);
+		free_irq(u3d->irq, u3d);
 
 	if (u3d->cap_regs)
 		iounmap(u3d->cap_regs);
@@ -1974,7 +1974,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	return 0;
 
 err_unregister:
-	free_irq(u3d->irq, &dev->dev);
+	free_irq(u3d->irq, u3d);
 err_request_irq:
 err_get_irq:
 	kfree(u3d->status_req);

@@ -32,7 +32,7 @@
 
 static int opDEC_fix;
 
-static void __cpuinit
+static void
 opDEC_check(void)
 {
 	__asm__ __volatile__ (
@@ -66,8 +66,8 @@ dik_show_regs(struct pt_regs *regs, unsigned long *r9_15)
 {
 	printk("pc = [<%016lx>]  ra = [<%016lx>]  ps = %04lx    %s\n",
 	       regs->pc, regs->r26, regs->ps, print_tainted());
-	print_symbol("pc is at %s\n", regs->pc);
-	print_symbol("ra is at %s\n", regs->r26 );
+	printk("pc is at %pSR\n", (void *)regs->pc);
+	printk("ra is at %pSR\n", (void *)regs->r26);
 	printk("v0 = %016lx  t0 = %016lx  t1 = %016lx\n",
 	       regs->r0, regs->r1, regs->r2);
 	printk("t2 = %016lx  t3 = %016lx  t4 = %016lx\n",
@@ -132,9 +132,7 @@ dik_show_trace(unsigned long *sp)
 			continue;
 		if (tmp >= (unsigned long) &_etext)
 			continue;
-		printk("[<%lx>]", tmp);
-		print_symbol(" %s", tmp);
-		printk("\n");
+		printk("[<%lx>] %pSR\n", tmp, (void *)tmp);
 		if (i > 40) {
 			printk(" ...");
 			break;
@@ -1059,7 +1057,7 @@ give_sigbus:
 	return;
 }
 
-void __cpuinit
+void
 trap_init(void)
 {
 	/* Tell PAL-code what global pointer we want in the kernel.  */
