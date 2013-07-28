@@ -363,7 +363,7 @@ struct nandsim {
 
 	/* Fields needed when using a cache file */
 	struct file *cfile; /* Open file */
-	unsigned char *pages_written; /* Which pages have been written */
+	unsigned long *pages_written; /* Which pages have been written */
 	void *file_buf;
 	struct page *held_pages[NS_MAX_HELD_PAGES];
 	int held_cnt;
@@ -586,7 +586,8 @@ static int alloc_device(struct nandsim *ns)
 			err = -EINVAL;
 			goto err_close;
 		}
-		ns->pages_written = vzalloc(ns->geom.pgnum);
+		ns->pages_written = vzalloc(BITS_TO_LONGS(ns->geom.pgnum) *
+					    sizeof(unsigned long));
 		if (!ns->pages_written) {
 			NS_ERR("alloc_device: unable to allocate pages written array\n");
 			err = -ENOMEM;
@@ -1479,7 +1480,7 @@ static void read_page(struct nandsim *ns, int num)
 	union ns_mem *mypage;
 
 	if (ns->cfile) {
-		if (!ns->pages_written[ns->regs.row]) {
+		if (!test_bit(ns->regs.row, ns->pages_written)) {
 			NS_DBG("read_page: page %d not written\n", ns->regs.row);
 			memset(ns->buf.byte, 0xFF, num);
 		} else {
@@ -1525,9 +1526,9 @@ static void erase_sector(struct nandsim *ns)
 
 	if (ns->cfile) {
 		for (i = 0; i < ns->geom.pgsec; i++)
-			if (ns->pages_written[ns->regs.row + i]) {
+			if (__test_and_clear_bit(ns->regs.row + i,
+						 ns->pages_written)) {
 				NS_DBG("erase_sector: freeing page %d\n", ns->regs.row + i);
-				ns->pages_written[ns->regs.row + i] = 0;
 			}
 		return;
 	}
@@ -1560,7 +1561,7 @@ static int prog_page(struct nandsim *ns, int num)
 		NS_DBG("prog_page: writing page %d\n", ns->regs.row);
 		pg_off = ns->file_buf + ns->regs.column + ns->regs.off;
 		off = (loff_t)ns->regs.row * ns->geom.pgszoob + ns->regs.column + ns->regs.off;
-		if (!ns->pages_written[ns->regs.row]) {
+		if (!test_bit(ns->regs.row, ns->pages_written)) {
 			all = 1;
 			memset(ns->file_buf, 0xff, ns->geom.pgszoob);
 		} else {
@@ -1580,7 +1581,7 @@ static int prog_page(struct nandsim *ns, int num)
 				NS_ERR("prog_page: write error for page %d ret %ld\n", ns->regs.row, (long)tx);
 				return -1;
 			}
-			ns->pages_written[ns->regs.row] = 1;
+			__set_bit(ns->regs.row, ns->pages_written);
 		} else {
 			tx = write_file(ns, ns->cfile, pg_off, num, off);
 			if (tx != num) {
