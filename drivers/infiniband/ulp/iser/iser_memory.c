@@ -395,8 +395,7 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 	regd_buf = &iser_task->rdma_regd[cmd_dir];
 
 	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
-	if (aligned_len != mem->dma_nents ||
-	    (!ib_conn->fastreg.fmr.pool && mem->dma_nents > 1)) {
+	if (aligned_len != mem->dma_nents) {
 		err = fall_to_bounce_buf(iser_task, ibdev,
 					 cmd_dir, aligned_len);
 		if (err) {
@@ -414,7 +413,7 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 		regd_buf->reg.rkey = device->mr->rkey;
 		regd_buf->reg.len  = ib_sg_dma_len(ibdev, &sg[0]);
 		regd_buf->reg.va   = ib_sg_dma_address(ibdev, &sg[0]);
-		regd_buf->reg.is_fmr = 0;
+		regd_buf->reg.is_mr = 0;
 
 		iser_dbg("PHYSICAL Mem.register: lkey: 0x%08X rkey: 0x%08X  "
 			 "va: 0x%08lX sz: %ld]\n",
@@ -443,4 +442,139 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 			return err;
 	}
 	return 0;
+}
+
+static int iser_fast_reg_mr(struct fast_reg_descriptor *desc,
+			    struct iser_conn *ib_conn,
+			    struct iser_regd_buf *regd_buf,
+			    u32 offset, unsigned int data_size,
+			    unsigned int page_list_len)
+{
+	struct ib_send_wr fastreg_wr, inv_wr;
+	struct ib_send_wr *bad_wr, *wr = NULL;
+	u8 key;
+	int ret;
+
+	if (!desc->valid) {
+		memset(&inv_wr, 0, sizeof(inv_wr));
+		inv_wr.opcode = IB_WR_LOCAL_INV;
+		inv_wr.send_flags = IB_SEND_SIGNALED;
+		inv_wr.ex.invalidate_rkey = desc->data_mr->rkey;
+		wr = &inv_wr;
+		/* Bump the key */
+		key = (u8)(desc->data_mr->rkey & 0x000000FF);
+		ib_update_fast_reg_key(desc->data_mr, ++key);
+	}
+
+	/* Prepare FASTREG WR */
+	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
+	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
+	fastreg_wr.send_flags = IB_SEND_SIGNALED;
+	fastreg_wr.wr.fast_reg.iova_start = desc->data_frpl->page_list[0] + offset;
+	fastreg_wr.wr.fast_reg.page_list = desc->data_frpl;
+	fastreg_wr.wr.fast_reg.page_list_len = page_list_len;
+	fastreg_wr.wr.fast_reg.page_shift = SHIFT_4K;
+	fastreg_wr.wr.fast_reg.length = data_size;
+	fastreg_wr.wr.fast_reg.rkey = desc->data_mr->rkey;
+	fastreg_wr.wr.fast_reg.access_flags = (IB_ACCESS_LOCAL_WRITE  |
+					       IB_ACCESS_REMOTE_WRITE |
+					       IB_ACCESS_REMOTE_READ);
+
+	if (!wr) {
+		wr = &fastreg_wr;
+		atomic_inc(&ib_conn->post_send_buf_count);
+	} else {
+		wr->next = &fastreg_wr;
+		atomic_add(2, &ib_conn->post_send_buf_count);
+	}
+
+	ret = ib_post_send(ib_conn->qp, wr, &bad_wr);
+	if (ret) {
+		if (bad_wr->next)
+			atomic_sub(2, &ib_conn->post_send_buf_count);
+		else
+			atomic_dec(&ib_conn->post_send_buf_count);
+		iser_err("fast registration failed, ret:%d\n", ret);
+		return ret;
+	}
+	desc->valid = false;
+
+	regd_buf->reg.mem_h = desc;
+	regd_buf->reg.lkey = desc->data_mr->lkey;
+	regd_buf->reg.rkey = desc->data_mr->rkey;
+	regd_buf->reg.va = desc->data_frpl->page_list[0] + offset;
+	regd_buf->reg.len = data_size;
+	regd_buf->reg.is_mr = 1;
+
+	return ret;
+}
+
+/**
+ * iser_reg_rdma_mem_frwr - Registers memory intended for RDMA,
+ * using Fast Registration WR (if possible) obtaining rkey and va
+ *
+ * returns 0 on success, errno code on failure
+ */
+int iser_reg_rdma_mem_frwr(struct iscsi_iser_task *iser_task,
+			   enum iser_data_dir cmd_dir)
+{
+	struct iser_conn *ib_conn = iser_task->iser_conn->ib_conn;
+	struct iser_device *device = ib_conn->device;
+	struct ib_device *ibdev = device->ib_device;
+	struct iser_data_buf *mem = &iser_task->data[cmd_dir];
+	struct iser_regd_buf *regd_buf = &iser_task->rdma_regd[cmd_dir];
+	struct fast_reg_descriptor *desc;
+	unsigned int data_size, page_list_len;
+	int err, aligned_len;
+	unsigned long flags;
+	u32 offset;
+
+	aligned_len = iser_data_buf_aligned_len(mem, ibdev);
+	if (aligned_len != mem->dma_nents) {
+		err = fall_to_bounce_buf(iser_task, ibdev,
+					 cmd_dir, aligned_len);
+		if (err) {
+			iser_err("failed to allocate bounce buffer\n");
+			return err;
+		}
+		mem = &iser_task->data_copy[cmd_dir];
+	}
+
+	/* if there a single dma entry, dma mr suffices */
+	if (mem->dma_nents == 1) {
+		struct scatterlist *sg = (struct scatterlist *)mem->buf;
+
+		regd_buf->reg.lkey = device->mr->lkey;
+		regd_buf->reg.rkey = device->mr->rkey;
+		regd_buf->reg.len  = ib_sg_dma_len(ibdev, &sg[0]);
+		regd_buf->reg.va   = ib_sg_dma_address(ibdev, &sg[0]);
+		regd_buf->reg.is_mr = 0;
+	} else {
+		spin_lock_irqsave(&ib_conn->lock, flags);
+		desc = list_first_entry(&ib_conn->fastreg.frwr.pool,
+					struct fast_reg_descriptor, list);
+		list_del(&desc->list);
+		spin_unlock_irqrestore(&ib_conn->lock, flags);
+		page_list_len = iser_sg_to_page_vec(mem, device->ib_device,
+						    desc->data_frpl->page_list,
+						    &offset, &data_size);
+
+		if (page_list_len * SIZE_4K < data_size) {
+			iser_err("fast reg page_list too short to hold this SG\n");
+			err = -EINVAL;
+			goto err_reg;
+		}
+
+		err = iser_fast_reg_mr(desc, ib_conn, regd_buf,
+				       offset, data_size, page_list_len);
+		if (err)
+			goto err_reg;
+	}
+
+	return 0;
+err_reg:
+	spin_lock_irqsave(&ib_conn->lock, flags);
+	list_add_tail(&desc->list, &ib_conn->fastreg.frwr.pool);
+	spin_unlock_irqrestore(&ib_conn->lock, flags);
+	return err;
 }

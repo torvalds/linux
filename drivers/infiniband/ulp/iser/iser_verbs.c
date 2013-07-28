@@ -73,12 +73,36 @@ static int iser_create_device_ib_res(struct iser_device *device)
 {
 	int i, j;
 	struct iser_cq_desc *cq_desc;
+	struct ib_device_attr *dev_attr;
 
-	/* Assign function handles */
-	device->iser_alloc_rdma_reg_res = iser_create_fmr_pool;
-	device->iser_free_rdma_reg_res = iser_free_fmr_pool;
-	device->iser_reg_rdma_mem = iser_reg_rdma_mem_fmr;
-	device->iser_unreg_rdma_mem = iser_unreg_mem_fmr;
+	dev_attr = kmalloc(sizeof(*dev_attr), GFP_KERNEL);
+	if (!dev_attr)
+		return -ENOMEM;
+
+	if (ib_query_device(device->ib_device, dev_attr)) {
+		pr_warn("Query device failed for %s\n", device->ib_device->name);
+		goto dev_attr_err;
+	}
+
+	/* Assign function handles  - based on FMR support */
+	if (device->ib_device->alloc_fmr && device->ib_device->dealloc_fmr &&
+	    device->ib_device->map_phys_fmr && device->ib_device->unmap_fmr) {
+		iser_info("FMR supported, using FMR for registration\n");
+		device->iser_alloc_rdma_reg_res = iser_create_fmr_pool;
+		device->iser_free_rdma_reg_res = iser_free_fmr_pool;
+		device->iser_reg_rdma_mem = iser_reg_rdma_mem_fmr;
+		device->iser_unreg_rdma_mem = iser_unreg_mem_fmr;
+	} else
+	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
+		iser_info("FRWR supported, using FRWR for registration\n");
+		device->iser_alloc_rdma_reg_res = iser_create_frwr_pool;
+		device->iser_free_rdma_reg_res = iser_free_frwr_pool;
+		device->iser_reg_rdma_mem = iser_reg_rdma_mem_frwr;
+		device->iser_unreg_rdma_mem = iser_unreg_mem_frwr;
+	} else {
+		iser_err("IB device does not support FMRs nor FRWRs, can't register memory\n");
+		goto dev_attr_err;
+	}
 
 	device->cqs_used = min(ISER_MAX_CQ, device->ib_device->num_comp_vectors);
 	iser_info("using %d CQs, device %s supports %d vectors\n",
@@ -134,6 +158,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	if (ib_register_event_handler(&device->event_handler))
 		goto handler_err;
 
+	kfree(dev_attr);
 	return 0;
 
 handler_err:
@@ -153,6 +178,8 @@ pd_err:
 	kfree(device->cq_desc);
 cq_desc_err:
 	iser_err("failed to allocate an IB resource\n");
+dev_attr_err:
+	kfree(dev_attr);
 	return -1;
 }
 
@@ -250,6 +277,80 @@ void iser_free_fmr_pool(struct iser_conn *ib_conn)
 
 	kfree(ib_conn->fastreg.fmr.page_vec);
 	ib_conn->fastreg.fmr.page_vec = NULL;
+}
+
+/**
+ * iser_create_frwr_pool - Creates pool of fast_reg descriptors
+ * for fast registration work requests.
+ * returns 0 on success, or errno code on failure
+ */
+int iser_create_frwr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
+{
+	struct iser_device	*device = ib_conn->device;
+	struct fast_reg_descriptor	*desc;
+	int i, ret;
+
+	INIT_LIST_HEAD(&ib_conn->fastreg.frwr.pool);
+	ib_conn->fastreg.frwr.pool_size = 0;
+	for (i = 0; i < cmds_max; i++) {
+		desc = kmalloc(sizeof(*desc), GFP_KERNEL);
+		if (!desc) {
+			iser_err("Failed to allocate a new fast_reg descriptor\n");
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		desc->data_frpl = ib_alloc_fast_reg_page_list(device->ib_device,
+							 ISCSI_ISER_SG_TABLESIZE + 1);
+		if (IS_ERR(desc->data_frpl)) {
+			ret = PTR_ERR(desc->data_frpl);
+			iser_err("Failed to allocate ib_fast_reg_page_list err=%d\n", ret);
+			goto err;
+		}
+
+		desc->data_mr = ib_alloc_fast_reg_mr(device->pd,
+						     ISCSI_ISER_SG_TABLESIZE + 1);
+		if (IS_ERR(desc->data_mr)) {
+			ret = PTR_ERR(desc->data_mr);
+			iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
+			ib_free_fast_reg_page_list(desc->data_frpl);
+			goto err;
+		}
+		desc->valid = true;
+		list_add_tail(&desc->list, &ib_conn->fastreg.frwr.pool);
+		ib_conn->fastreg.frwr.pool_size++;
+	}
+
+	return 0;
+err:
+	iser_free_frwr_pool(ib_conn);
+	return ret;
+}
+
+/**
+ * iser_free_frwr_pool - releases the pool of fast_reg descriptors
+ */
+void iser_free_frwr_pool(struct iser_conn *ib_conn)
+{
+	struct fast_reg_descriptor *desc, *tmp;
+	int i = 0;
+
+	if (list_empty(&ib_conn->fastreg.frwr.pool))
+		return;
+
+	iser_info("freeing conn %p frwr pool\n", ib_conn);
+
+	list_for_each_entry_safe(desc, tmp, &ib_conn->fastreg.frwr.pool, list) {
+		list_del(&desc->list);
+		ib_free_fast_reg_page_list(desc->data_frpl);
+		ib_dereg_mr(desc->data_mr);
+		kfree(desc);
+		++i;
+	}
+
+	if (i < ib_conn->fastreg.frwr.pool_size)
+		iser_warn("pool still has %d regions registered\n",
+			  ib_conn->fastreg.frwr.pool_size - i);
 }
 
 /**
@@ -707,7 +808,7 @@ int iser_reg_page_vec(struct iser_conn     *ib_conn,
 	mem_reg->rkey  = mem->fmr->rkey;
 	mem_reg->len   = page_vec->length * SIZE_4K;
 	mem_reg->va    = io_addr;
-	mem_reg->is_fmr = 1;
+	mem_reg->is_mr = 1;
 	mem_reg->mem_h = (void *)mem;
 
 	mem_reg->va   += page_vec->offset;
@@ -734,7 +835,7 @@ void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
 	int ret;
 
-	if (!reg->is_fmr)
+	if (!reg->is_mr)
 		return;
 
 	iser_dbg("PHYSICAL Mem.Unregister mem_h %p\n",reg->mem_h);
@@ -744,6 +845,23 @@ void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 		iser_err("ib_fmr_pool_unmap failed %d\n", ret);
 
 	reg->mem_h = NULL;
+}
+
+void iser_unreg_mem_frwr(struct iscsi_iser_task *iser_task,
+			 enum iser_data_dir cmd_dir)
+{
+	struct iser_mem_reg *reg = &iser_task->rdma_regd[cmd_dir].reg;
+	struct iser_conn *ib_conn = iser_task->iser_conn->ib_conn;
+	struct fast_reg_descriptor *desc = reg->mem_h;
+
+	if (!reg->is_mr)
+		return;
+
+	reg->mem_h = NULL;
+	reg->is_mr = 0;
+	spin_lock_bh(&ib_conn->lock);
+	list_add_tail(&desc->list, &ib_conn->fastreg.frwr.pool);
+	spin_unlock_bh(&ib_conn->lock);
 }
 
 int iser_post_recvl(struct iser_conn *ib_conn)
@@ -867,7 +985,11 @@ static int iser_drain_tx_cq(struct iser_device  *device, int cq_index)
 		if (wc.status == IB_WC_SUCCESS) {
 			if (wc.opcode == IB_WC_SEND)
 				iser_snd_completion(tx_desc, ib_conn);
-			else
+			else if (wc.opcode == IB_WC_LOCAL_INV ||
+				 wc.opcode == IB_WC_FAST_REG_MR) {
+				atomic_dec(&ib_conn->post_send_buf_count);
+				continue;
+			} else
 				iser_err("expected opcode %d got %d\n",
 					IB_WC_SEND, wc.opcode);
 		} else {

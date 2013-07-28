@@ -211,7 +211,7 @@ struct iser_mem_reg {
 	u64  va;
 	u64  len;
 	void *mem_h;
-	int  is_fmr;
+	int  is_mr;
 };
 
 struct iser_regd_buf {
@@ -277,6 +277,15 @@ struct iser_device {
 							    enum iser_data_dir cmd_dir);
 };
 
+struct fast_reg_descriptor {
+	struct list_head		  list;
+	/* For fast registration - FRWR */
+	struct ib_mr			 *data_mr;
+	struct ib_fast_reg_page_list     *data_frpl;
+	/* Valid for fast registration flag */
+	bool				  valid;
+};
+
 struct iser_conn {
 	struct iscsi_iser_conn       *iser_conn; /* iser conn for upcalls  */
 	struct iscsi_endpoint	     *ep;
@@ -307,6 +316,10 @@ struct iser_conn {
 			struct iser_page_vec	*page_vec; /* represents SG to fmr maps*
 							    * maps serialized as tx is*/
 		} fmr;
+		struct {
+			struct list_head	pool;
+			int			pool_size;
+		} frwr;
 	} fastreg;
 };
 
@@ -393,6 +406,8 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *task,
 
 int  iser_reg_rdma_mem_fmr(struct iscsi_iser_task *task,
 			   enum iser_data_dir cmd_dir);
+int  iser_reg_rdma_mem_frwr(struct iscsi_iser_task *task,
+			    enum iser_data_dir cmd_dir);
 
 int  iser_connect(struct iser_conn   *ib_conn,
 		  struct sockaddr_in *src_addr,
@@ -405,6 +420,8 @@ int  iser_reg_page_vec(struct iser_conn     *ib_conn,
 
 void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 			enum iser_data_dir cmd_dir);
+void iser_unreg_mem_frwr(struct iscsi_iser_task *iser_task,
+			 enum iser_data_dir cmd_dir);
 
 int  iser_post_recvl(struct iser_conn *ib_conn);
 int  iser_post_recvm(struct iser_conn *ib_conn, int count);
@@ -421,4 +438,6 @@ int  iser_initialize_task_headers(struct iscsi_task *task,
 int iser_alloc_rx_descriptors(struct iser_conn *ib_conn, struct iscsi_session *session);
 int iser_create_fmr_pool(struct iser_conn *ib_conn, unsigned cmds_max);
 void iser_free_fmr_pool(struct iser_conn *ib_conn);
+int iser_create_frwr_pool(struct iser_conn *ib_conn, unsigned cmds_max);
+void iser_free_frwr_pool(struct iser_conn *ib_conn);
 #endif
