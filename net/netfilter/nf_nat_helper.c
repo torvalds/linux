@@ -373,6 +373,7 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	s16 seqoff, ackoff;
 	struct nf_conn_nat *nat = nfct_nat(ct);
 	struct nf_nat_seq *this_way, *other_way;
+	int res;
 
 	dir = CTINFO2DIR(ctinfo);
 
@@ -383,6 +384,7 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 		return 0;
 
 	tcph = (void *)skb->data + protoff;
+	spin_lock_bh(&nf_nat_seqofs_lock);
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
 		seqoff = this_way->offset_after;
 	else
@@ -407,7 +409,10 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	tcph->seq = newseq;
 	tcph->ack_seq = newack;
 
-	return nf_nat_sack_adjust(skb, protoff, tcph, ct, ctinfo);
+	res = nf_nat_sack_adjust(skb, protoff, tcph, ct, ctinfo);
+	spin_unlock_bh(&nf_nat_seqofs_lock);
+
+	return res;
 }
 
 /* Setup NAT on this expected conntrack so it follows master. */
