@@ -1519,8 +1519,13 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 			printf("\t%16" PRIx64, node->ip);
 			if (print_sym) {
 				printf(" ");
-				symbol__fprintf_symname(node->sym, stdout);
+				if (print_symoffset) {
+					al.addr = node->ip;
+					symbol__fprintf_symname_offs(node->sym, &al, stdout);
+				} else
+					symbol__fprintf_symname(node->sym, stdout);
 			}
+
 			if (print_dso) {
 				printf(" (");
 				map__fprintf_dsoname(node->map, stdout);
