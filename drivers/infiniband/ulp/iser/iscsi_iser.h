@@ -78,14 +78,14 @@
 
 #define iser_warn(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 1)		\
+		if (iser_debug_level > 0)		\
 			pr_warn(PFX "%s:" fmt,          \
 				__func__ , ## arg);	\
 	} while (0)
 
 #define iser_info(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 0)		\
+		if (iser_debug_level > 1)		\
 			pr_info(PFX "%s:" fmt,          \
 				__func__ , ## arg);	\
 	} while (0)

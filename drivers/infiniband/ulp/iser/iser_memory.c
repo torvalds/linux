@@ -267,11 +267,8 @@ static void iser_data_buf_dump(struct iser_data_buf *data,
 	struct scatterlist *sg;
 	int i;
 
-	if (iser_debug_level == 0)
-		return;
-
 	for_each_sg(sgl, sg, data->dma_nents, i)
-		iser_warn("sg[%d] dma_addr:0x%lX page:0x%p "
+		iser_dbg("sg[%d] dma_addr:0x%lX page:0x%p "
 			 "off:0x%x sz:0x%x dma_len:0x%x\n",
 			 i, (unsigned long)ib_sg_dma_address(ibdev, sg),
 			 sg_page(sg), sg->offset,
@@ -373,9 +370,11 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *iser_task,
 	if (aligned_len != mem->dma_nents ||
 	    (!ib_conn->fmr_pool && mem->dma_nents > 1)) {
 		iscsi_conn->fmr_unalign_cnt++;
-		iser_warn("rdma alignment violation (%d/%d aligned) or FMR not supported\n",
-			  aligned_len, mem->size);
-		iser_data_buf_dump(mem, ibdev);
+		iser_dbg("rdma alignment violation (%d/%d aligned) or FMR not supported\n",
+			 aligned_len, mem->size);
+
+		if (iser_debug_level > 0)
+			iser_data_buf_dump(mem, ibdev);
 
 		/* unmap the command data before accessing it */
 		iser_dma_unmap_task_data(iser_task);
