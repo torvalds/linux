@@ -1929,6 +1929,7 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 			si_pi->cac_override = cac_override_pitcairn;
 			si_pi->powertune_data = &powertune_data_pitcairn;
 			si_pi->dte_data = dte_data_pitcairn;
+			break;
 		}
 	} else if (rdev->family == CHIP_VERDE) {
 		si_pi->lcac_config = lcac_cape_verde;
@@ -2041,7 +2042,8 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 	ni_pi->enable_sq_ramping = false;
 	si_pi->enable_dte = false;
 
-	if (si_pi->powertune_data->enable_powertune_by_default) {
+	/* XXX: fix me */
+	if (0/*si_pi->powertune_data->enable_powertune_by_default*/) {
 		ni_pi->enable_power_containment= true;
 		ni_pi->enable_cac = true;
 		if (si_pi->dte_data.enable_dte_by_default) {
