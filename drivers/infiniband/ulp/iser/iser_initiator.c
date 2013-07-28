@@ -170,6 +170,76 @@ static void iser_create_send_desc(struct iser_conn	*ib_conn,
 	}
 }
 
+static void iser_free_login_buf(struct iser_conn *ib_conn)
+{
+	if (!ib_conn->login_buf)
+		return;
+
+	if (ib_conn->login_req_dma)
+		ib_dma_unmap_single(ib_conn->device->ib_device,
+				    ib_conn->login_req_dma,
+				    ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_TO_DEVICE);
+
+	if (ib_conn->login_resp_dma)
+		ib_dma_unmap_single(ib_conn->device->ib_device,
+				    ib_conn->login_resp_dma,
+				    ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
+
+	kfree(ib_conn->login_buf);
+
+	/* make sure we never redo any unmapping */
+	ib_conn->login_req_dma = 0;
+	ib_conn->login_resp_dma = 0;
+	ib_conn->login_buf = NULL;
+}
+
+static int iser_alloc_login_buf(struct iser_conn *ib_conn)
+{
+	struct iser_device	*device;
+	int			req_err, resp_err;
+
+	BUG_ON(ib_conn->device == NULL);
+
+	device = ib_conn->device;
+
+	ib_conn->login_buf = kmalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
+				     ISER_RX_LOGIN_SIZE, GFP_KERNEL);
+	if (!ib_conn->login_buf)
+		goto out_err;
+
+	ib_conn->login_req_buf  = ib_conn->login_buf;
+	ib_conn->login_resp_buf = ib_conn->login_buf +
+						ISCSI_DEF_MAX_RECV_SEG_LEN;
+
+	ib_conn->login_req_dma = ib_dma_map_single(ib_conn->device->ib_device,
+				(void *)ib_conn->login_req_buf,
+				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_TO_DEVICE);
+
+	ib_conn->login_resp_dma = ib_dma_map_single(ib_conn->device->ib_device,
+				(void *)ib_conn->login_resp_buf,
+				ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
+
+	req_err  = ib_dma_mapping_error(device->ib_device,
+					ib_conn->login_req_dma);
+	resp_err = ib_dma_mapping_error(device->ib_device,
+					ib_conn->login_resp_dma);
+
+	if (req_err || resp_err) {
+		if (req_err)
+			ib_conn->login_req_dma = 0;
+		if (resp_err)
+			ib_conn->login_resp_dma = 0;
+		goto free_login_buf;
+	}
+	return 0;
+
+free_login_buf:
+	iser_free_login_buf(ib_conn);
+
+out_err:
+	iser_err("unable to alloc or map login buf\n");
+	return -ENOMEM;
+}
 
 int iser_alloc_rx_descriptors(struct iser_conn *ib_conn)
 {
@@ -178,6 +248,12 @@ int iser_alloc_rx_descriptors(struct iser_conn *ib_conn)
 	struct iser_rx_desc *rx_desc;
 	struct ib_sge       *rx_sg;
 	struct iser_device  *device = ib_conn->device;
+
+	if (iser_create_fmr_pool(ib_conn))
+		goto create_fmr_pool_failed;
+
+	if (iser_alloc_login_buf(ib_conn))
+		goto alloc_login_buf_fail;
 
 	ib_conn->rx_descs = kmalloc(ISER_QP_MAX_RECV_DTOS *
 				sizeof(struct iser_rx_desc), GFP_KERNEL);
@@ -207,10 +283,14 @@ rx_desc_dma_map_failed:
 	rx_desc = ib_conn->rx_descs;
 	for (j = 0; j < i; j++, rx_desc++)
 		ib_dma_unmap_single(device->ib_device, rx_desc->dma_addr,
-			ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
+				    ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
 	kfree(ib_conn->rx_descs);
 	ib_conn->rx_descs = NULL;
 rx_desc_alloc_fail:
+	iser_free_login_buf(ib_conn);
+alloc_login_buf_fail:
+	iser_free_fmr_pool(ib_conn);
+create_fmr_pool_failed:
 	iser_err("failed allocating rx descriptors / data buffers\n");
 	return -ENOMEM;
 }
@@ -222,13 +302,19 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn)
 	struct iser_device *device = ib_conn->device;
 
 	if (!ib_conn->rx_descs)
-		return;
+		goto free_login_buf;
 
 	rx_desc = ib_conn->rx_descs;
 	for (i = 0; i < ISER_QP_MAX_RECV_DTOS; i++, rx_desc++)
 		ib_dma_unmap_single(device->ib_device, rx_desc->dma_addr,
-			ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
+				    ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
 	kfree(ib_conn->rx_descs);
+	/* make sure we never redo any unmapping */
+	ib_conn->rx_descs = NULL;
+
+free_login_buf:
+	iser_free_login_buf(ib_conn);
+	iser_free_fmr_pool(ib_conn);
 }
 
 static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)

@@ -395,4 +395,6 @@ void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task);
 int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
 int iser_alloc_rx_descriptors(struct iser_conn *ib_conn);
+int iser_create_fmr_pool(struct iser_conn *ib_conn);
+void iser_free_fmr_pool(struct iser_conn *ib_conn);
 #endif

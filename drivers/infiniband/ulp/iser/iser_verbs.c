@@ -178,56 +178,23 @@ static void iser_free_device_ib_res(struct iser_device *device)
 }
 
 /**
- * iser_create_ib_conn_res - Creates FMR pool and Queue-Pair (QP)
+ * iser_create_fmr_pool - Creates FMR pool and page_vector
  *
- * returns 0 on success, -1 on failure
+ * returns 0 on success, or errno code on failure
  */
-static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
+int iser_create_fmr_pool(struct iser_conn *ib_conn)
 {
-	struct iser_device	*device;
-	struct ib_qp_init_attr	init_attr;
-	int			req_err, resp_err, ret = -ENOMEM;
+	struct iser_device *device = ib_conn->device;
 	struct ib_fmr_pool_param params;
-	int index, min_index = 0;
-
-	BUG_ON(ib_conn->device == NULL);
-
-	device = ib_conn->device;
-
-	ib_conn->login_buf = kmalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
-					ISER_RX_LOGIN_SIZE, GFP_KERNEL);
-	if (!ib_conn->login_buf)
-		goto out_err;
-
-	ib_conn->login_req_buf  = ib_conn->login_buf;
-	ib_conn->login_resp_buf = ib_conn->login_buf + ISCSI_DEF_MAX_RECV_SEG_LEN;
-
-	ib_conn->login_req_dma = ib_dma_map_single(ib_conn->device->ib_device,
-				(void *)ib_conn->login_req_buf,
-				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_TO_DEVICE);
-
-	ib_conn->login_resp_dma = ib_dma_map_single(ib_conn->device->ib_device,
-				(void *)ib_conn->login_resp_buf,
-				ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
-
-	req_err  = ib_dma_mapping_error(device->ib_device, ib_conn->login_req_dma);
-	resp_err = ib_dma_mapping_error(device->ib_device, ib_conn->login_resp_dma);
-
-	if (req_err || resp_err) {
-		if (req_err)
-			ib_conn->login_req_dma = 0;
-		if (resp_err)
-			ib_conn->login_resp_dma = 0;
-		goto out_err;
-	}
+	int ret = -ENOMEM;
 
 	ib_conn->page_vec = kmalloc(sizeof(struct iser_page_vec) +
-				    (sizeof(u64) * (ISCSI_ISER_SG_TABLESIZE +1)),
+				    (sizeof(u64)*(ISCSI_ISER_SG_TABLESIZE+1)),
 				    GFP_KERNEL);
 	if (!ib_conn->page_vec)
-		goto out_err;
+		return ret;
 
-	ib_conn->page_vec->pages = (u64 *) (ib_conn->page_vec + 1);
+	ib_conn->page_vec->pages = (u64 *)(ib_conn->page_vec + 1);
 
 	params.page_shift        = SHIFT_4K;
 	/* when the first/last SG element are not start/end *
@@ -244,15 +211,56 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 				    IB_ACCESS_REMOTE_READ);
 
 	ib_conn->fmr_pool = ib_create_fmr_pool(device->pd, &params);
+	if (!IS_ERR(ib_conn->fmr_pool))
+		return 0;
+
+	/* no FMR => no need for page_vec */
+	kfree(ib_conn->page_vec);
+	ib_conn->page_vec = NULL;
+
 	ret = PTR_ERR(ib_conn->fmr_pool);
-	if (IS_ERR(ib_conn->fmr_pool) && ret != -ENOSYS) {
-		ib_conn->fmr_pool = NULL;
-		goto out_err;
-	} else if (ret == -ENOSYS) {
-		ib_conn->fmr_pool = NULL;
+	ib_conn->fmr_pool = NULL;
+	if (ret != -ENOSYS) {
+		iser_err("FMR allocation failed, err %d\n", ret);
+		return ret;
+	} else {
 		iser_warn("FMRs are not supported, using unaligned mode\n");
-		ret = 0;
+		return 0;
 	}
+}
+
+/**
+ * iser_free_fmr_pool - releases the FMR pool and page vec
+ */
+void iser_free_fmr_pool(struct iser_conn *ib_conn)
+{
+	iser_info("freeing conn %p fmr pool %p\n",
+		  ib_conn, ib_conn->fmr_pool);
+
+	if (ib_conn->fmr_pool != NULL)
+		ib_destroy_fmr_pool(ib_conn->fmr_pool);
+
+	ib_conn->fmr_pool = NULL;
+
+	kfree(ib_conn->page_vec);
+	ib_conn->page_vec = NULL;
+}
+
+/**
+ * iser_create_ib_conn_res - Queue-Pair (QP)
+ *
+ * returns 0 on success, -1 on failure
+ */
+static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
+{
+	struct iser_device	*device;
+	struct ib_qp_init_attr	init_attr;
+	int			ret = -ENOMEM;
+	int index, min_index = 0;
+
+	BUG_ON(ib_conn->device == NULL);
+
+	device = ib_conn->device;
 
 	memset(&init_attr, 0, sizeof init_attr);
 
@@ -282,9 +290,9 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 		goto out_err;
 
 	ib_conn->qp = ib_conn->cma_id->qp;
-	iser_info("setting conn %p cma_id %p: fmr_pool %p qp %p\n",
+	iser_info("setting conn %p cma_id %p qp %p\n",
 		  ib_conn, ib_conn->cma_id,
-		  ib_conn->fmr_pool, ib_conn->cma_id->qp);
+		  ib_conn->cma_id->qp);
 	return ret;
 
 out_err:
@@ -293,7 +301,7 @@ out_err:
 }
 
 /**
- * releases the FMR pool and QP objects, returns 0 on success,
+ * releases the QP objects, returns 0 on success,
  * -1 on failure
  */
 static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
@@ -301,13 +309,11 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
 	int cq_index;
 	BUG_ON(ib_conn == NULL);
 
-	iser_info("freeing conn %p cma_id %p fmr pool %p qp %p\n",
+	iser_info("freeing conn %p cma_id %p qp %p\n",
 		  ib_conn, ib_conn->cma_id,
-		  ib_conn->fmr_pool, ib_conn->qp);
+		  ib_conn->qp);
 
 	/* qp is created only once both addr & route are resolved */
-	if (ib_conn->fmr_pool != NULL)
-		ib_destroy_fmr_pool(ib_conn->fmr_pool);
 
 	if (ib_conn->qp != NULL) {
 		cq_index = ((struct iser_cq_desc *)ib_conn->qp->recv_cq->cq_context)->cq_index;
@@ -316,21 +322,7 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
 		rdma_destroy_qp(ib_conn->cma_id);
 	}
 
-	ib_conn->fmr_pool = NULL;
 	ib_conn->qp	  = NULL;
-	kfree(ib_conn->page_vec);
-
-	if (ib_conn->login_buf) {
-		if (ib_conn->login_req_dma)
-			ib_dma_unmap_single(ib_conn->device->ib_device,
-				ib_conn->login_req_dma,
-				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_TO_DEVICE);
-		if (ib_conn->login_resp_dma)
-			ib_dma_unmap_single(ib_conn->device->ib_device,
-				ib_conn->login_resp_dma,
-				ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
-		kfree(ib_conn->login_buf);
-	}
 
 	return 0;
 }
