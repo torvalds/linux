@@ -714,7 +714,7 @@ config ARCH_SUN3I
 	  This enables support for Allwinner Technology Co., Ltd F20 SoC based systems
 
 config ARCH_SUN4I
-	bool "AllWinner SUN4I Platform"
+	bool "AllWinner SUN4I (A10 SoC) Platform"
 	select PLAT_SUNXI
 	select CPU_V7
 	select ARM_AMBA
@@ -728,7 +728,7 @@ config ARCH_SUN4I
 	  This enables support for Allwinner Technology Co., Ltd A10 SoC based systems
 
 config ARCH_SUN5I
-        bool "AllWinner SUN5I Platform"
+	bool "AllWinner SUN5I (A10s/A13 SoC) Platform"
 	select PLAT_SUNXI
         select CPU_V7
         select ARM_AMBA
@@ -739,10 +739,10 @@ config ARCH_SUN5I
 	select NEED_MACH_IO_H
 	select ARCH_WANT_OPTIONAL_GPIOLIB
         help
-          This enables support for Allwinner Technology Co., Ltd A12/A13 SoC based systems
+	  This enables support for Allwinner Technology Co., Ltd A10s/A13 SoC based systems
 
 config ARCH_SUN7I
-	bool "Allwinner Ltd. AW165x family"
+	bool "AllWinner SUN7I (A20 SoC) Platform"
 	select PLAT_SUNXI
 	select CPU_V7
 	select ARM_AMBA
@@ -758,7 +758,7 @@ config ARCH_SUN7I
 	select NEED_MACH_MEMORY_H
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
-	  This enables support for AllWinner Ltd develop boards.
+	  This enables support for Allwinner Technology Co., Ltd A20 SoC based systems
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
