@@ -1489,7 +1489,7 @@ static void read_page(struct nandsim *ns, int num)
 				ns->regs.row, ns->regs.column + ns->regs.off);
 			if (do_read_error(ns, num))
 				return;
-			pos = (loff_t)ns->regs.row * ns->geom.pgszoob + ns->regs.column + ns->regs.off;
+			pos = (loff_t)NS_RAW_OFFSET(ns) + ns->regs.off;
 			tx = read_file(ns, ns->cfile, ns->buf.byte, num, pos);
 			if (tx != num) {
 				NS_ERR("read_page: read error for page %d ret %ld\n", ns->regs.row, (long)tx);
@@ -1558,7 +1558,7 @@ static int prog_page(struct nandsim *ns, int num)
 
 		NS_DBG("prog_page: writing page %d\n", ns->regs.row);
 		pg_off = ns->file_buf + ns->regs.column + ns->regs.off;
-		off = (loff_t)ns->regs.row * ns->geom.pgszoob + ns->regs.column + ns->regs.off;
+		off = (loff_t)NS_RAW_OFFSET(ns) + ns->regs.off;
 		if (!test_bit(ns->regs.row, ns->pages_written)) {
 			all = 1;
 			memset(ns->file_buf, 0xff, ns->geom.pgszoob);
