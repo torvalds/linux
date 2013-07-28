@@ -809,6 +809,15 @@ int MLX4_CMD_UPDATE_QP_wrapper(struct mlx4_dev *dev, int slave,
 	return -EPERM;
 }
 
+int MLX4_CMD_GET_OP_REQ_wrapper(struct mlx4_dev *dev, int slave,
+		     struct mlx4_vhcr *vhcr,
+		     struct mlx4_cmd_mailbox *inbox,
+		     struct mlx4_cmd_mailbox *outbox,
+		     struct mlx4_cmd_info *cmd)
+{
+	return -EPERM;
+}
+
 int mlx4_DMA_wrapper(struct mlx4_dev *dev, int slave,
 		     struct mlx4_vhcr *vhcr,
 		     struct mlx4_cmd_mailbox *inbox,
@@ -1250,6 +1259,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.encode_slave_id = false,
 		.verify = NULL,
 		.wrapper = MLX4_CMD_UPDATE_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_GET_OP_REQ,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = MLX4_CMD_GET_OP_REQ_wrapper,
 	},
 	{
 		.opcode = MLX4_CMD_CONF_SPECIAL_QP,
