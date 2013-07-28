@@ -360,12 +360,12 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 		gpio_set_value(asd->npcs_pin, !active);
 }
 
-static void atmel_spi_lock(struct atmel_spi *as)
+static void atmel_spi_lock(struct atmel_spi *as) __acquires(&as->lock)
 {
 	spin_lock_irqsave(&as->lock, as->flags);
 }
 
-static void atmel_spi_unlock(struct atmel_spi *as)
+static void atmel_spi_unlock(struct atmel_spi *as) __releases(&as->lock)
 {
 	spin_unlock_irqrestore(&as->lock, as->flags);
 }
