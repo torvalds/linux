@@ -174,27 +174,8 @@ static const struct snd_soc_dapm_route lm4857_routes[] = {
 static int lm4857_probe(struct snd_soc_codec *codec)
 {
 	struct lm4857 *lm4857 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
 
 	codec->control_data = lm4857->i2c;
-
-	ret = snd_soc_add_codec_controls(codec, lm4857_controls,
-			ARRAY_SIZE(lm4857_controls));
-	if (ret)
-		return ret;
-
-	ret = snd_soc_dapm_new_controls(dapm, lm4857_dapm_widgets,
-			ARRAY_SIZE(lm4857_dapm_widgets));
-	if (ret)
-		return ret;
-
-	ret = snd_soc_dapm_add_routes(dapm, lm4857_routes,
-			ARRAY_SIZE(lm4857_routes));
-	if (ret)
-		return ret;
-
-	snd_soc_dapm_new_widgets(dapm);
 
 	return 0;
 }
@@ -207,6 +188,13 @@ static struct snd_soc_codec_driver soc_codec_dev_lm4857 = {
 	.reg_word_size = sizeof(uint8_t),
 	.reg_cache_default = lm4857_default_regs,
 	.set_bias_level = lm4857_set_bias_level,
+
+	.controls = lm4857_controls,
+	.num_controls = ARRAY_SIZE(lm4857_controls),
+	.dapm_widgets = lm4857_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(lm4857_dapm_widgets),
+	.dapm_routes = lm4857_routes,
+	.num_dapm_routes = ARRAY_SIZE(lm4857_routes),
 };
 
 static int lm4857_i2c_probe(struct i2c_client *i2c,
