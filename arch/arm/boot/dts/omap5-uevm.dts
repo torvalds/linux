@@ -331,8 +331,6 @@
 					regulator-name = "smps9";
 					regulator-min-microvolt = <2100000>;
 					regulator-max-microvolt = <2100000>;
-					regulator-always-on;
-					regulator-boot-on;
 					ti,smps-range = <0x80>;
 				};
 
@@ -355,10 +353,10 @@
 				ldo2_reg: ldo2 {
 					/* VCC_2V8_DISP: Does not go anywhere */
 					regulator-name = "ldo2";
-					regulator-min-microvolt = <2900000>;
-					regulator-max-microvolt = <2900000>;
-					regulator-always-on;
-					regulator-boot-on;
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+					/* Unused */
+					status = "disabled";
 				};
 
 				ldo3_reg: ldo3 {
@@ -408,10 +406,11 @@
 				ldo8_reg: ldo8 {
 					/* VDD_3v0: Does not go anywhere */
 					regulator-name = "ldo8";
-					regulator-min-microvolt = <1500000>;
-					regulator-max-microvolt = <1500000>;
-					regulator-always-on;
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
 					regulator-boot-on;
+					/* Unused */
+					status = "disabled";
 				};
 
 				ldo9_reg: ldo9 {
