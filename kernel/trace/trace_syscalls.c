@@ -357,6 +357,9 @@ void ftrace_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 	if (!sys_data)
 		return;
 
+	local_save_flags(irq_flags);
+	pc = preempt_count();
+
 	event = trace_current_buffer_lock_reserve(&buffer,
 			sys_data->exit_event->event.type, sizeof(*entry),
 			irq_flags, pc);
