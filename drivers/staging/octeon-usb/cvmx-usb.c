@@ -324,34 +324,6 @@ static inline void __cvmx_usb_write_csr64(cvmx_usb_internal_state_t *usb,
     cvmx_write64_uint64(address, value);
 }
 
-
-/**
- * @INTERNAL
- * Utility function to convert complete codes into strings
- *
- * @param complete_code
- *               Code to convert
- *
- * @return Human readable string
- */
-static const char *__cvmx_usb_complete_to_string(cvmx_usb_complete_t complete_code)
-{
-    switch (complete_code)
-    {
-        case CVMX_USB_COMPLETE_SUCCESS: return "SUCCESS";
-        case CVMX_USB_COMPLETE_SHORT:   return "SHORT";
-        case CVMX_USB_COMPLETE_CANCEL:  return "CANCEL";
-        case CVMX_USB_COMPLETE_ERROR:   return "ERROR";
-        case CVMX_USB_COMPLETE_STALL:   return "STALL";
-        case CVMX_USB_COMPLETE_XACTERR: return "XACTERR";
-        case CVMX_USB_COMPLETE_DATATGLERR: return "DATATGLERR";
-        case CVMX_USB_COMPLETE_BABBLEERR: return "BABBLEERR";
-        case CVMX_USB_COMPLETE_FRAMEERR: return "FRAMEERR";
-    }
-    return "Update __cvmx_usb_complete_to_string";
-}
-
-
 /**
  * @INTERNAL
  * Return non zero if this pipe connects to a non HIGH speed
