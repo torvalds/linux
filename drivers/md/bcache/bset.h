@@ -305,8 +305,8 @@ struct bkey *bch_btree_iter_next_filter(struct btree_iter *,
 					struct btree *, ptr_filter_fn);
 
 void bch_btree_iter_push(struct btree_iter *, struct bkey *, struct bkey *);
-struct bkey *__bch_btree_iter_init(struct btree *, struct btree_iter *,
-				   struct bkey *, struct bset_tree *);
+struct bkey *bch_btree_iter_init(struct btree *, struct btree_iter *,
+				 struct bkey *);
 
 /* 32 bits total: */
 #define BKEY_MID_BITS		3

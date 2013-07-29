@@ -1854,9 +1854,15 @@ static bool fix_overlapping_extents(struct btree *b, struct bkey *insert,
 
 	while (1) {
 		struct bkey *k = bch_btree_iter_next(iter);
-		if (!k ||
-		    bkey_cmp(&START_KEY(k), insert) >= 0)
+		if (!k)
 			break;
+
+		if (bkey_cmp(&START_KEY(k), insert) >= 0) {
+			if (KEY_SIZE(k))
+				break;
+			else
+				continue;
+		}
 
 		if (bkey_cmp(k, &START_KEY(insert)) <= 0)
 			continue;

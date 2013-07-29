@@ -855,19 +855,13 @@ struct bkey *__bch_bset_search(struct btree *b, struct bset_tree *t,
 
 /* Btree iterator */
 
-/*
- * Returns true if l > r - unless l == r, in which case returns true if l is
- * older than r.
- *
- * Necessary for btree_sort_fixup() - if there are multiple keys that compare
- * equal in different sets, we have to process them newest to oldest.
- */
+typedef bool (btree_iter_cmp_fn)(struct btree_iter_set,
+				 struct btree_iter_set);
+
 static inline bool btree_iter_cmp(struct btree_iter_set l,
 				  struct btree_iter_set r)
 {
-	int64_t c = bkey_cmp(&START_KEY(l.k), &START_KEY(r.k));
-
-	return c ? c > 0 : l.k < r.k;
+	return bkey_cmp(l.k, r.k) > 0;
 }
 
 static inline bool btree_iter_end(struct btree_iter *iter)
@@ -884,8 +878,10 @@ void bch_btree_iter_push(struct btree_iter *iter, struct bkey *k,
 				 btree_iter_cmp));
 }
 
-struct bkey *__bch_btree_iter_init(struct btree *b, struct btree_iter *iter,
-				   struct bkey *search, struct bset_tree *start)
+static struct bkey *__bch_btree_iter_init(struct btree *b,
+					  struct btree_iter *iter,
+					  struct bkey *search,
+					  struct bset_tree *start)
 {
 	struct bkey *ret = NULL;
 	iter->size = ARRAY_SIZE(iter->data);
@@ -903,7 +899,15 @@ struct bkey *__bch_btree_iter_init(struct btree *b, struct btree_iter *iter,
 	return ret;
 }
 
-struct bkey *bch_btree_iter_next(struct btree_iter *iter)
+struct bkey *bch_btree_iter_init(struct btree *b,
+				 struct btree_iter *iter,
+				 struct bkey *search)
+{
+	return __bch_btree_iter_init(b, iter, search, b->sets);
+}
+
+static inline struct bkey *__bch_btree_iter_next(struct btree_iter *iter,
+						 btree_iter_cmp_fn *cmp)
 {
 	struct btree_iter_set unused;
 	struct bkey *ret = NULL;
@@ -920,12 +924,18 @@ struct bkey *bch_btree_iter_next(struct btree_iter *iter)
 		}
 
 		if (iter->data->k == iter->data->end)
-			heap_pop(iter, unused, btree_iter_cmp);
+			heap_pop(iter, unused, cmp);
 		else
-			heap_sift(iter, 0, btree_iter_cmp);
+			heap_sift(iter, 0, cmp);
 	}
 
 	return ret;
+}
+
+struct bkey *bch_btree_iter_next(struct btree_iter *iter)
+{
+	return __bch_btree_iter_next(iter, btree_iter_cmp);
+
 }
 
 struct bkey *bch_btree_iter_next_filter(struct btree_iter *iter,
@@ -951,13 +961,37 @@ static void sort_key_next(struct btree_iter *iter,
 		*i = iter->data[--iter->used];
 }
 
-static struct bkey *btree_sort_fixup(struct btree_iter *iter, struct bkey *tmp)
+/*
+ * Returns true if l > r - unless l == r, in which case returns true if l is
+ * older than r.
+ *
+ * Necessary for btree_sort_fixup() - if there are multiple keys that compare
+ * equal in different sets, we have to process them newest to oldest.
+ */
+static inline bool sort_extent_cmp(struct btree_iter_set l,
+				   struct btree_iter_set r)
+{
+	int64_t c = bkey_cmp(&START_KEY(l.k), &START_KEY(r.k));
+
+	return c ? c > 0 : l.k < r.k;
+}
+
+static inline bool sort_cmp(struct btree_iter_set l,
+			    struct btree_iter_set r)
+{
+	int64_t c = bkey_cmp(l.k, r.k);
+
+	return c ? c > 0 : l.k < r.k;
+}
+
+static struct bkey *btree_sort_fixup_extents(struct btree_iter *iter,
+					     struct bkey *tmp)
 {
 	while (iter->used > 1) {
 		struct btree_iter_set *top = iter->data, *i = top + 1;
 
 		if (iter->used > 2 &&
-		    btree_iter_cmp(i[0], i[1]))
+		    sort_extent_cmp(i[0], i[1]))
 			i++;
 
 		if (bkey_cmp(top->k, &START_KEY(i->k)) <= 0)
@@ -965,7 +999,7 @@ static struct bkey *btree_sort_fixup(struct btree_iter *iter, struct bkey *tmp)
 
 		if (!KEY_SIZE(i->k)) {
 			sort_key_next(iter, i);
-			heap_sift(iter, i - top, btree_iter_cmp);
+			heap_sift(iter, i - top, sort_extent_cmp);
 			continue;
 		}
 
@@ -975,7 +1009,7 @@ static struct bkey *btree_sort_fixup(struct btree_iter *iter, struct bkey *tmp)
 			else
 				bch_cut_front(top->k, i->k);
 
-			heap_sift(iter, i - top, btree_iter_cmp);
+			heap_sift(iter, i - top, sort_extent_cmp);
 		} else {
 			/* can't happen because of comparison func */
 			BUG_ON(!bkey_cmp(&START_KEY(top->k), &START_KEY(i->k)));
@@ -1001,20 +1035,28 @@ static void btree_mergesort(struct btree *b, struct bset *out,
 			    struct btree_iter *iter,
 			    bool fixup, bool remove_stale)
 {
+	int i;
 	struct bkey *k, *last = NULL;
 	BKEY_PADDED(k) tmp;
+	btree_iter_cmp_fn *cmp = b->level
+		? sort_cmp
+		: sort_extent_cmp;
 	bool (*bad)(struct btree *, const struct bkey *) = remove_stale
 		? bch_ptr_bad
 		: bch_ptr_invalid;
 
+	/* Heapify the iterator, using our comparison function */
+	for (i = iter->used / 2 - 1; i >= 0; --i)
+		heap_sift(iter, i, cmp);
+
 	while (!btree_iter_end(iter)) {
 		if (fixup && !b->level)
-			k = btree_sort_fixup(iter, &tmp.k);
+			k = btree_sort_fixup_extents(iter, &tmp.k);
 		else
 			k = NULL;
 
 		if (!k)
-			k = bch_btree_iter_next(iter);
+			k = __bch_btree_iter_next(iter, cmp);
 
 		if (bad(b, k))
 			continue;
