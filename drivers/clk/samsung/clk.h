@@ -130,7 +130,7 @@ struct samsung_mux_clock {
 		.name		= cname,			\
 		.parent_names	= pnames,			\
 		.num_parents	= ARRAY_SIZE(pnames),		\
-		.flags		= f,				\
+		.flags		= (f) | CLK_SET_RATE_NO_REPARENT, \
 		.offset		= o,				\
 		.shift		= s,				\
 		.width		= w,				\

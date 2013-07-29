@@ -1558,7 +1558,8 @@ static void __init tegra114_audio_clk_init(void __iomem *clk_base)
 
 	/* audio0 */
 	clk = clk_register_mux(NULL, "audio0_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk), 0,
+			       ARRAY_SIZE(mux_audio_sync_clk),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + AUDIO_SYNC_CLK_I2S0, 0, 3, 0,
 			       NULL);
 	clks[audio0_mux] = clk;
@@ -1570,7 +1571,8 @@ static void __init tegra114_audio_clk_init(void __iomem *clk_base)
 
 	/* audio1 */
 	clk = clk_register_mux(NULL, "audio1_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk), 0,
+			       ARRAY_SIZE(mux_audio_sync_clk),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + AUDIO_SYNC_CLK_I2S1, 0, 3, 0,
 			       NULL);
 	clks[audio1_mux] = clk;
@@ -1582,7 +1584,8 @@ static void __init tegra114_audio_clk_init(void __iomem *clk_base)
 
 	/* audio2 */
 	clk = clk_register_mux(NULL, "audio2_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk), 0,
+			       ARRAY_SIZE(mux_audio_sync_clk),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + AUDIO_SYNC_CLK_I2S2, 0, 3, 0,
 			       NULL);
 	clks[audio2_mux] = clk;
@@ -1594,7 +1597,8 @@ static void __init tegra114_audio_clk_init(void __iomem *clk_base)
 
 	/* audio3 */
 	clk = clk_register_mux(NULL, "audio3_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk), 0,
+			       ARRAY_SIZE(mux_audio_sync_clk),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + AUDIO_SYNC_CLK_I2S3, 0, 3, 0,
 			       NULL);
 	clks[audio3_mux] = clk;
@@ -1606,7 +1610,8 @@ static void __init tegra114_audio_clk_init(void __iomem *clk_base)
 
 	/* audio4 */
 	clk = clk_register_mux(NULL, "audio4_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk), 0,
+			       ARRAY_SIZE(mux_audio_sync_clk),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + AUDIO_SYNC_CLK_I2S4, 0, 3, 0,
 			       NULL);
 	clks[audio4_mux] = clk;
@@ -1618,7 +1623,8 @@ static void __init tegra114_audio_clk_init(void __iomem *clk_base)
 
 	/* spdif */
 	clk = clk_register_mux(NULL, "spdif_mux", mux_audio_sync_clk,
-			       ARRAY_SIZE(mux_audio_sync_clk), 0,
+			       ARRAY_SIZE(mux_audio_sync_clk),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + AUDIO_SYNC_CLK_SPDIF, 0, 3, 0,
 			       NULL);
 	clks[spdif_mux] = clk;
@@ -1713,7 +1719,8 @@ static void __init tegra114_pmc_clk_init(void __iomem *pmc_base)
 
 	/* clk_out_1 */
 	clk = clk_register_mux(NULL, "clk_out_1_mux", clk_out1_parents,
-			       ARRAY_SIZE(clk_out1_parents), 0,
+			       ARRAY_SIZE(clk_out1_parents),
+			       CLK_SET_RATE_NO_REPARENT,
 			       pmc_base + PMC_CLK_OUT_CNTRL, 6, 3, 0,
 			       &clk_out_lock);
 	clks[clk_out_1_mux] = clk;
@@ -1725,7 +1732,8 @@ static void __init tegra114_pmc_clk_init(void __iomem *pmc_base)
 
 	/* clk_out_2 */
 	clk = clk_register_mux(NULL, "clk_out_2_mux", clk_out2_parents,
-			       ARRAY_SIZE(clk_out2_parents), 0,
+			       ARRAY_SIZE(clk_out2_parents),
+			       CLK_SET_RATE_NO_REPARENT,
 			       pmc_base + PMC_CLK_OUT_CNTRL, 14, 3, 0,
 			       &clk_out_lock);
 	clks[clk_out_2_mux] = clk;
@@ -1737,7 +1745,8 @@ static void __init tegra114_pmc_clk_init(void __iomem *pmc_base)
 
 	/* clk_out_3 */
 	clk = clk_register_mux(NULL, "clk_out_3_mux", clk_out3_parents,
-			       ARRAY_SIZE(clk_out3_parents), 0,
+			       ARRAY_SIZE(clk_out3_parents),
+			       CLK_SET_RATE_NO_REPARENT,
 			       pmc_base + PMC_CLK_OUT_CNTRL, 22, 3, 0,
 			       &clk_out_lock);
 	clks[clk_out_3_mux] = clk;
@@ -2055,7 +2064,8 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base)
 
 	/* dsia */
 	clk = clk_register_mux(NULL, "dsia_mux", mux_plld_out0_plld2_out0,
-			       ARRAY_SIZE(mux_plld_out0_plld2_out0), 0,
+			       ARRAY_SIZE(mux_plld_out0_plld2_out0),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + PLLD_BASE, 25, 1, 0, &pll_d_lock);
 	clks[dsia_mux] = clk;
 	clk = tegra_clk_register_periph_gate("dsia", "dsia_mux", 0, clk_base,
@@ -2065,7 +2075,8 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base)
 
 	/* dsib */
 	clk = clk_register_mux(NULL, "dsib_mux", mux_plld_out0_plld2_out0,
-			       ARRAY_SIZE(mux_plld_out0_plld2_out0), 0,
+			       ARRAY_SIZE(mux_plld_out0_plld2_out0),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + PLLD2_BASE, 25, 1, 0, &pll_d2_lock);
 	clks[dsib_mux] = clk;
 	clk = tegra_clk_register_periph_gate("dsib", "dsib_mux", 0, clk_base,
@@ -2102,7 +2113,8 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base)
 
 	/* emc */
 	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,
-			       ARRAY_SIZE(mux_pllmcp_clkm), 0,
+			       ARRAY_SIZE(mux_pllmcp_clkm),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + CLK_SOURCE_EMC,
 			       29, 3, 0, NULL);
 	clk = tegra_clk_register_periph_gate("emc", "emc_mux", 0, clk_base,

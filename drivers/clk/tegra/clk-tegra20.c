@@ -778,7 +778,8 @@ static void __init tegra20_audio_clk_init(void)
 
 	/* audio */
 	clk = clk_register_mux(NULL, "audio_mux", audio_parents,
-				ARRAY_SIZE(audio_parents), 0,
+				ARRAY_SIZE(audio_parents),
+				CLK_SET_RATE_NO_REPARENT,
 				clk_base + AUDIO_SYNC_CLK, 0, 3, 0, NULL);
 	clk = clk_register_gate(NULL, "audio", "audio_mux", 0,
 				clk_base + AUDIO_SYNC_CLK, 4,
@@ -941,7 +942,8 @@ static void __init tegra20_periph_clk_init(void)
 
 	/* emc */
 	clk = clk_register_mux(NULL, "emc_mux", mux_pllmcp_clkm,
-			       ARRAY_SIZE(mux_pllmcp_clkm), 0,
+			       ARRAY_SIZE(mux_pllmcp_clkm),
+			       CLK_SET_RATE_NO_REPARENT,
 			       clk_base + CLK_SOURCE_EMC,
 			       30, 2, 0, NULL);
 	clk = tegra_clk_register_periph_gate("emc", "emc_mux", 0, clk_base, 0,
