@@ -161,6 +161,7 @@
 #include <net/checksum.h>
 #include <net/ipv6.h>
 #include <net/udp.h>
+#include <net/ip6_checksum.h>
 #include <net/addrconf.h>
 #ifdef CONFIG_XFRM
 #include <net/xfrm.h>
