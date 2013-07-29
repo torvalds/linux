@@ -146,30 +146,6 @@ static int rsnd_scu_set_hpbif(struct rsnd_priv *priv,
 	return 0;
 }
 
-static int rsnd_scu_init(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai,
-			 struct rsnd_dai_stream *io)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	dev_dbg(dev, "%s.%d init\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-	return 0;
-}
-
-static int rsnd_scu_quit(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai,
-			 struct rsnd_dai_stream *io)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	dev_dbg(dev, "%s.%d quit\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-	return 0;
-}
-
 static int rsnd_scu_start(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai,
 			  struct rsnd_dai_stream *io)
@@ -209,24 +185,9 @@ static int rsnd_scu_start(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int rsnd_scu_stop(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai,
-			 struct rsnd_dai_stream *io)
-{
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	dev_dbg(dev, "%s.%d stop\n", rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-	return 0;
-}
-
 static struct rsnd_mod_ops rsnd_scu_ops = {
 	.name	= "scu",
-	.init	= rsnd_scu_init,
-	.quit	= rsnd_scu_quit,
 	.start	= rsnd_scu_start,
-	.stop	= rsnd_scu_stop,
 };
 
 struct rsnd_mod *rsnd_scu_mod_get(struct rsnd_priv *priv, int id)
