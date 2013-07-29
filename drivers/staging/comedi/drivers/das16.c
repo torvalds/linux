@@ -174,9 +174,6 @@ www.measurementcomputing.com
 
 */
 
-/*  size in bytes of a sample from board */
-static const int sample_size = 2;
-
 #define DAS16_TRIG		0
 #define DAS16_AI_LSB		0
 #define DAS16_AI_MSB		1
