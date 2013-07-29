@@ -29,6 +29,21 @@
 		marvell,tauros2-cache-features = <0>;
 	};
 
+	mbus {
+		compatible = "marvell,dove-mbus", "marvell,mbus", "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		controller = <&mbusc>;
+		pcie-mem-aperture = <0xe0000000 0x10000000>; /* 256M MEM space */
+		pcie-io-aperture  = <0xf2000000 0x00200000>; /*   2M I/O space */
+
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x0100000   /* MBUS regs  1M */
+			  MBUS_ID(0xf0, 0x02) 0 0xf1800000 0x1000000   /* AXI  regs 16M */
+			  MBUS_ID(0x01, 0xfd) 0 0xf8000000 0x8000000   /* BootROM  128M */
+			  MBUS_ID(0x03, 0x01) 0 0xc8000000 0x0100000   /* CESA SRAM  1M */
+			  MBUS_ID(0x0d, 0x00) 0 0xf0000000 0x0100000>; /* PMU  SRAM  1M */
+	};
+
 	soc@f1000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -43,6 +58,11 @@
 		          0xf2000000 0xf2000000 0x0100000   /* PCIe0 I/O   1M */
 		          0xf2100000 0xf2100000 0x0100000   /* PCIe0 I/O   1M */
 		          0xf8000000 0xf8000000 0x8000000>; /* BootROM   128M */
+
+		mbusc: mbus-ctrl@20000 {
+			compatible = "marvell,mbus-controller";
+			reg = <0x20000 0x80>, <0x800100 0x8>;
+		};
 
 		timer: timer@20300 {
 			compatible = "marvell,orion-timer";
