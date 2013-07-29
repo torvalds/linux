@@ -117,6 +117,15 @@ tproxy_handle_time_wait4(struct sk_buff *skb, __be32 laddr, __be16 lport,
 	return sk;
 }
 
+/* assign a socket to the skb -- consumes sk */
+static void
+nf_tproxy_assign_sock(struct sk_buff *skb, struct sock *sk)
+{
+	skb_orphan(skb);
+	skb->sk = sk;
+	skb->destructor = sock_edemux;
+}
+
 static unsigned int
 tproxy_tg4(struct sk_buff *skb, __be32 laddr, __be16 lport,
 	   u_int32_t mark_mask, u_int32_t mark_value)

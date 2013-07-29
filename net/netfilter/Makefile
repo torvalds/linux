@@ -61,9 +61,6 @@ obj-$(CONFIG_NF_NAT_IRC) += nf_nat_irc.o
 obj-$(CONFIG_NF_NAT_SIP) += nf_nat_sip.o
 obj-$(CONFIG_NF_NAT_TFTP) += nf_nat_tftp.o
 
-# transparent proxy support
-obj-$(CONFIG_NETFILTER_TPROXY) += nf_tproxy_core.o
-
 # generic X tables 
 obj-$(CONFIG_NETFILTER_XTABLES) += x_tables.o xt_tcpudp.o
 

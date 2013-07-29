@@ -203,8 +203,4 @@ nf_tproxy_get_sock_v6(struct net *net, const u8 protocol,
 }
 #endif
 
-/* assign a socket to the skb -- consumes sk */
-void
-nf_tproxy_assign_sock(struct sk_buff *skb, struct sock *sk);
-
 #endif
