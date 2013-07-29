@@ -145,7 +145,6 @@ static int ufshcd_pltfrm_probe(struct platform_device *pdev)
 
 	mmio_base = devm_ioremap_resource(dev, mem_res);
 	if (IS_ERR(mmio_base)) {
-		dev_err(dev, "memory map failed\n");
 		err = PTR_ERR(mmio_base);
 		goto out;
 	}
