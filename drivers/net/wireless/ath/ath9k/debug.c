@@ -321,6 +321,68 @@ static const struct file_operations fops_ant_diversity = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_antenna_diversity(struct file *file,
+					   char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
+	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
+	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
+	unsigned int len = 0, size = 1024;
+	ssize_t retval = 0;
+	char *buf;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	if (!(pCap->hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)) {
+		len += snprintf(buf + len, size - len, "%s\n",
+				"Antenna Diversity Combining is disabled");
+		goto exit;
+	}
+
+	len += snprintf(buf + len, size - len, "%30s%15s\n",
+			"MAIN", "ALT");
+	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+			"RECV CNT",
+			as_main->recv_cnt,
+			as_alt->recv_cnt);
+	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+			"LNA1",
+			as_main->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1],
+			as_alt->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1]);
+	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+			"LNA2",
+			as_main->lna_config_cnt[ATH_ANT_DIV_COMB_LNA2],
+			as_alt->lna_config_cnt[ATH_ANT_DIV_COMB_LNA2]);
+	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+			"LNA1 + LNA2",
+			as_main->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2],
+			as_alt->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2]);
+	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+			"LNA1 - LNA2",
+			as_main->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2],
+			as_alt->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2]);
+exit:
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static const struct file_operations fops_antenna_diversity = {
+	.read = read_file_antenna_diversity,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -1816,6 +1878,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
 	debugfs_create_file("diversity", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_ant_diversity);
+	debugfs_create_file("antenna_diversity", S_IRUSR,
+			    sc->debug.debugfs_phy, sc, &fops_antenna_diversity);
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
