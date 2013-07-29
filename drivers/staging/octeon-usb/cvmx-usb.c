@@ -280,14 +280,9 @@ static int octeon_usb_get_clock_type(void)
 	case CVMX_BOARD_TYPE_LANAI2_A:
 	case CVMX_BOARD_TYPE_LANAI2_U:
 	case CVMX_BOARD_TYPE_LANAI2_G:
+	case CVMX_BOARD_TYPE_UBNT_E100:
 		return USB_CLOCK_TYPE_CRYSTAL_12;
 	}
-
-	/* FIXME: This should use CVMX_BOARD_TYPE_UBNT_E100 */
-	if (OCTEON_IS_MODEL(OCTEON_CN50XX) &&
-	    cvmx_sysinfo_get()->board_type == 20002)
-		return USB_CLOCK_TYPE_CRYSTAL_12;
-
 	return USB_CLOCK_TYPE_REF_48;
 }
 
