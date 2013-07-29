@@ -224,6 +224,20 @@ static void probe_octeon(void)
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
 
+	case CPU_CAVIUM_OCTEON3:
+		c->icache.linesz = 128;
+		c->icache.sets = 16;
+		c->icache.ways = 39;
+		c->icache.flags |= MIPS_CACHE_VTAG;
+		icache_size = c->icache.sets * c->icache.ways * c->icache.linesz;
+
+		c->dcache.linesz = 128;
+		c->dcache.ways = 32;
+		c->dcache.sets = 8;
+		dcache_size = c->dcache.sets * c->dcache.ways * c->dcache.linesz;
+		c->options |= MIPS_CPU_PREFETCH;
+		break;
+
 	default:
 		panic("Unsupported Cavium Networks CPU type");
 		break;
