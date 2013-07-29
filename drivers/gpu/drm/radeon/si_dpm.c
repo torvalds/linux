@@ -37,8 +37,6 @@
 
 #define SMC_RAM_END                 0x20000
 
-#define DDR3_DRAM_ROWS              0x2000
-
 #define SCLK_MIN_DEEPSLEEP_FREQ     1350
 
 static const struct si_cac_config_reg cac_weights_tahiti[] =
@@ -1931,6 +1929,7 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 			si_pi->cac_override = cac_override_pitcairn;
 			si_pi->powertune_data = &powertune_data_pitcairn;
 			si_pi->dte_data = dte_data_pitcairn;
+			break;
 		}
 	} else if (rdev->family == CHIP_VERDE) {
 		si_pi->lcac_config = lcac_cape_verde;
@@ -1941,6 +1940,7 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 		case 0x683B:
 		case 0x683F:
 		case 0x6829:
+		case 0x6835:
 			si_pi->cac_weights = cac_weights_cape_verde_pro;
 			si_pi->dte_data = dte_data_cape_verde;
 			break;
@@ -2042,7 +2042,8 @@ static void si_initialize_powertune_defaults(struct radeon_device *rdev)
 	ni_pi->enable_sq_ramping = false;
 	si_pi->enable_dte = false;
 
-	if (si_pi->powertune_data->enable_powertune_by_default) {
+	/* XXX: fix me */
+	if (0/*si_pi->powertune_data->enable_powertune_by_default*/) {
 		ni_pi->enable_power_containment= true;
 		ni_pi->enable_cac = true;
 		if (si_pi->dte_data.enable_dte_by_default) {
@@ -3237,10 +3238,10 @@ int si_dpm_force_performance_level(struct radeon_device *rdev,
 {
 	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
 	struct ni_ps *ps = ni_get_ps(rps);
-	u32 levels;
+	u32 levels = ps->performance_level_count;
 
 	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
-		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
 			return -EINVAL;
 
 		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 1) != PPSMC_Result_OK)
@@ -3249,14 +3250,13 @@ int si_dpm_force_performance_level(struct radeon_device *rdev,
 		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
 			return -EINVAL;
 
-		levels = ps->performance_level_count - 1;
-		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 1) != PPSMC_Result_OK)
 			return -EINVAL;
 	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
 		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
 			return -EINVAL;
 
-		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
+		if (si_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
 			return -EINVAL;
 	}
 
@@ -3620,8 +3620,12 @@ static void si_enable_display_gap(struct radeon_device *rdev)
 {
 	u32 tmp = RREG32(CG_DISPLAY_GAP_CNTL);
 
+	tmp &= ~(DISP1_GAP_MASK | DISP2_GAP_MASK);
+	tmp |= (DISP1_GAP(R600_PM_DISPLAY_GAP_IGNORE) |
+		DISP2_GAP(R600_PM_DISPLAY_GAP_IGNORE));
+
 	tmp &= ~(DISP1_GAP_MCHG_MASK | DISP2_GAP_MCHG_MASK);
-	tmp |= (DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE) |
+	tmp |= (DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_VBLANK) |
 		DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE));
 	WREG32(CG_DISPLAY_GAP_CNTL, tmp);
 }
@@ -4036,16 +4040,15 @@ static int si_force_switch_to_arb_f0(struct radeon_device *rdev)
 static u32 si_calculate_memory_refresh_rate(struct radeon_device *rdev,
 					    u32 engine_clock)
 {
-	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	u32 dram_rows;
 	u32 dram_refresh_rate;
 	u32 mc_arb_rfsh_rate;
 	u32 tmp = (RREG32(MC_ARB_RAMCFG) & NOOFROWS_MASK) >> NOOFROWS_SHIFT;
 
-	if (pi->mem_gddr5)
-		dram_rows = 1 << (tmp + 10);
+	if (tmp >= 4)
+		dram_rows = 16384;
 	else
-		dram_rows = DDR3_DRAM_ROWS;
+		dram_rows = 1 << (tmp + 10);
 
 	dram_refresh_rate = 1 << ((RREG32(MC_SEQ_MISC0) & 0x3) + 3);
 	mc_arb_rfsh_rate = ((engine_clock * 10) * dram_refresh_rate / dram_rows - 32) / 64;
@@ -6013,16 +6016,11 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 
-#if 0
-	/* XXX */
 	ret = si_dpm_force_performance_level(rdev, RADEON_DPM_FORCED_LEVEL_AUTO);
 	if (ret) {
 		DRM_ERROR("si_dpm_force_performance_level failed\n");
 		return ret;
 	}
-#else
-	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
-#endif
 
 	return 0;
 }
