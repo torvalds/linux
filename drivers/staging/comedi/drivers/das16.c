@@ -974,11 +974,11 @@ static int das16_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* diobits indicates boards */
 	diobits = inb(dev->iobase + DAS16_DIO_REG) & 0xf0;
-
-	printk(KERN_INFO " id bits are 0x%02x\n", diobits);
 	if (board->id != diobits) {
-		printk(KERN_INFO " requested board's id bits are 0x%x (ignore)\n",
-		       board->id);
+		dev_err(dev->class_dev,
+			"requested board's id bits are incorrect (0x%x != 0x%x)\n",
+			board->id, diobits);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1054,10 +1054,8 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/*  probe id bits to make sure they are consistent */
-	if (das16_probe(dev, it)) {
-		printk(KERN_ERR " id bits do not match selected board, aborting\n");
+	if (das16_probe(dev, it))
 		return -EINVAL;
-	}
 
 	/*  get master clock speed */
 	if (devpriv->can_burst) {
