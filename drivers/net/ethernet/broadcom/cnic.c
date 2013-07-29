@@ -3603,6 +3603,7 @@ static int cnic_cm_create(struct cnic_dev *dev, int ulp_type, u32 cid,
 	csk1->rcv_buf = DEF_RCV_BUF;
 	csk1->snd_buf = DEF_SND_BUF;
 	csk1->seed = DEF_SEED;
+	csk1->tcp_flags = 0;
 
 	*csk = csk1;
 	return 0;
