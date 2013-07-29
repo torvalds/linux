@@ -144,6 +144,7 @@ static struct regulator_ops pfuze100_sw_regulator_ops = {
 
 static struct regulator_ops pfuze100_swb_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 
