@@ -536,6 +536,14 @@ ENTRY(fixup_smp)
 	ldmfd	sp!, {r4 - r6, pc}
 ENDPROC(fixup_smp)
 
+#ifdef __ARMEB_
+#define LOW_OFFSET	0x4
+#define HIGH_OFFSET	0x0
+#else
+#define LOW_OFFSET	0x0
+#define HIGH_OFFSET	0x4
+#endif
+
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
 
 /* __fixup_pv_table - patch the stub instructions with the delta between
@@ -546,17 +554,20 @@ ENDPROC(fixup_smp)
 	__HEAD
 __fixup_pv_table:
 	adr	r0, 1f
-	ldmia	r0, {r3-r5, r7}
-	sub	r3, r0, r3	@ PHYS_OFFSET - PAGE_OFFSET
+	ldmia	r0, {r3-r7}
+	mvn	ip, #0
+	subs	r3, r0, r3	@ PHYS_OFFSET - PAGE_OFFSET
 	add	r4, r4, r3	@ adjust table start address
 	add	r5, r5, r3	@ adjust table end address
-	add	r7, r7, r3	@ adjust __pv_phys_offset address
-	str	r8, [r7]	@ save computed PHYS_OFFSET to __pv_phys_offset
+	add	r6, r6, r3	@ adjust __pv_phys_offset address
+	add	r7, r7, r3	@ adjust __pv_offset address
+	str	r8, [r6, #LOW_OFFSET]	@ save computed PHYS_OFFSET to __pv_phys_offset
+	strcc	ip, [r7, #HIGH_OFFSET]	@ save to __pv_offset high bits
 	mov	r6, r3, lsr #24	@ constant for add/sub instructions
 	teq	r3, r6, lsl #24 @ must be 16MiB aligned
 THUMB(	it	ne		@ cross section branch )
 	bne	__error
-	str	r6, [r7, #4]	@ save to __pv_offset
+	str	r3, [r7, #LOW_OFFSET]	@ save to __pv_offset low bits
 	b	__fixup_a_pv_table
 ENDPROC(__fixup_pv_table)
 
@@ -565,10 +576,19 @@ ENDPROC(__fixup_pv_table)
 	.long	__pv_table_begin
 	.long	__pv_table_end
 2:	.long	__pv_phys_offset
+	.long	__pv_offset
 
 	.text
 __fixup_a_pv_table:
+	adr	r0, 3f
+	ldr	r6, [r0]
+	add	r6, r6, r3
+	ldr	r0, [r6, #HIGH_OFFSET]	@ pv_offset high word
+	ldr	r6, [r6, #LOW_OFFSET]	@ pv_offset low word
+	mov	r6, r6, lsr #24
+	cmn	r0, #1
 #ifdef CONFIG_THUMB2_KERNEL
+	moveq	r0, #0x200000	@ set bit 21, mov to mvn instruction
 	lsls	r6, #24
 	beq	2f
 	clz	r7, r6
@@ -582,18 +602,28 @@ __fixup_a_pv_table:
 	b	2f
 1:	add     r7, r3
 	ldrh	ip, [r7, #2]
-	and	ip, 0x8f00
-	orr	ip, r6	@ mask in offset bits 31-24
+	tst	ip, #0x4000
+	and	ip, #0x8f00
+	orrne	ip, r6	@ mask in offset bits 31-24
+	orreq	ip, r0	@ mask in offset bits 7-0
 	strh	ip, [r7, #2]
+	ldrheq	ip, [r7]
+	biceq	ip, #0x20
+	orreq	ip, ip, r0, lsr #16
+	strheq	ip, [r7]
 2:	cmp	r4, r5
 	ldrcc	r7, [r4], #4	@ use branch for delay slot
 	bcc	1b
 	bx	lr
 #else
+	moveq	r0, #0x400000	@ set bit 22, mov to mvn instruction
 	b	2f
 1:	ldr	ip, [r7, r3]
 	bic	ip, ip, #0x000000ff
-	orr	ip, ip, r6	@ mask in offset bits 31-24
+	tst	ip, #0xf00	@ check the rotation field
+	orrne	ip, ip, r6	@ mask in offset bits 31-24
+	biceq	ip, ip, #0x400000	@ clear bit 22
+	orreq	ip, ip, r0	@ mask in offset bits 7-0
 	str	ip, [r7, r3]
 2:	cmp	r4, r5
 	ldrcc	r7, [r4], #4	@ use branch for delay slot
@@ -602,28 +632,29 @@ __fixup_a_pv_table:
 #endif
 ENDPROC(__fixup_a_pv_table)
 
+3:	.long __pv_offset
+
 ENTRY(fixup_pv_table)
 	stmfd	sp!, {r4 - r7, lr}
-	ldr	r2, 2f			@ get address of __pv_phys_offset
 	mov	r3, #0			@ no offset
 	mov	r4, r0			@ r0 = table start
 	add	r5, r0, r1		@ r1 = table size
-	ldr	r6, [r2, #4]		@ get __pv_offset
 	bl	__fixup_a_pv_table
 	ldmfd	sp!, {r4 - r7, pc}
 ENDPROC(fixup_pv_table)
-
-	.align
-2:	.long	__pv_phys_offset
 
 	.data
 	.globl	__pv_phys_offset
 	.type	__pv_phys_offset, %object
 __pv_phys_offset:
-	.long	0
-	.size	__pv_phys_offset, . - __pv_phys_offset
+	.quad	0
+	.size	__pv_phys_offset, . -__pv_phys_offset
+
+	.globl	__pv_offset
+	.type	__pv_offset, %object
 __pv_offset:
-	.long	0
+	.quad	0
+	.size	__pv_offset, . -__pv_offset
 #endif
 
 #include "head-common.S"
