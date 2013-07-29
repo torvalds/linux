@@ -2040,22 +2040,26 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	struct device *dev;
+	bool frozen = false;
 
 	dev = get_cpu_device(cpu);
 	if (dev) {
-		switch (action) {
+
+		if (action & CPU_TASKS_FROZEN)
+			frozen = true;
+
+		switch (action & ~CPU_TASKS_FROZEN) {
 		case CPU_ONLINE:
-		case CPU_ONLINE_FROZEN:
-			cpufreq_add_dev(dev, NULL);
+			__cpufreq_add_dev(dev, NULL, frozen);
 			cpufreq_update_policy(cpu);
 			break;
+
 		case CPU_DOWN_PREPARE:
-		case CPU_DOWN_PREPARE_FROZEN:
-			__cpufreq_remove_dev(dev, NULL, false);
+			__cpufreq_remove_dev(dev, NULL, frozen);
 			break;
+
 		case CPU_DOWN_FAILED:
-		case CPU_DOWN_FAILED_FROZEN:
-			cpufreq_add_dev(dev, NULL);
+			__cpufreq_add_dev(dev, NULL, frozen);
 			break;
 		}
 	}
