@@ -552,9 +552,9 @@ struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv);
  * @dev:		Device this iio_dev belongs to
  * @indio_dev: 		the iio_dev associated with the device
  *
- * Free indio_dev allocated with devm_iio_device_alloc().
+ * Free iio_dev allocated with devm_iio_device_alloc().
  */
-void devm_iio_device_free(struct device *dev, struct iio_dev *iio_dev);
+void devm_iio_device_free(struct device *dev, struct iio_dev *indio_dev);
 
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled
