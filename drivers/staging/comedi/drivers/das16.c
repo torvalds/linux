@@ -527,8 +527,8 @@ static int disable_dma_on_even(struct comedi_device *dev)
 		residue = get_dma_residue(devpriv->dma_chan);
 	}
 	if (i == disable_limit) {
-		comedi_error(dev, "failed to get an even dma transfer, "
-							"could be trouble.");
+		dev_err(dev->class_dev,
+			"failed to get an even dma transfer, could be trouble\n");
 	}
 	return residue;
 }
@@ -556,7 +556,7 @@ static void das16_interrupt(struct comedi_device *dev)
 
 	/*  figure out how many points to read */
 	if (residue > devpriv->dma_transfer_size) {
-		comedi_error(dev, "residue > transfer size!\n");
+		dev_err(dev->class_dev, "residue > transfer size!\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		num_bytes = 0;
 	} else
@@ -702,16 +702,13 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 		for (i = 1; i < cmd->chanlist_len; i++) {
 			if (CR_CHAN(cmd->chanlist[i]) !=
 			    (start_chan + i) % s->n_chan) {
-				comedi_error(dev,
-						"entries in chanlist must be "
-						"consecutive channels, "
-						"counting upwards\n");
+				dev_err(dev->class_dev,
+					"entries in chanlist must be consecutive channels, counting upwards\n");
 				err++;
 			}
 			if (CR_RANGE(cmd->chanlist[i]) != gain) {
-				comedi_error(dev,
-						"entries in chanlist must all "
-						"have the same gain\n");
+				dev_err(dev->class_dev,
+					"entries in chanlist must all have the same gain\n");
 				err++;
 			}
 		}
@@ -750,8 +747,8 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	int range;
 
 	if (cmd->flags & TRIG_RT) {
-		comedi_error(dev, "isa dma transfers cannot be performed with "
-							"TRIG_RT, aborting");
+		dev_err(dev->class_dev,
+			 "isa dma transfers cannot be performed with TRIG_RT, aborting\n");
 		return -1;
 	}
 
