@@ -1406,7 +1406,7 @@ ATHEROS ATH6KL WIRELESS DRIVER
 M:	Kalle Valo <kvalo@qca.qualcomm.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath6kl
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath6kl.git
+T:	git git://github.com/kvalo/ath.git
 S:	Supported
 F:	drivers/net/wireless/ath/ath6kl/
 
@@ -6718,6 +6718,14 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/qt1010*
+
+QUALCOMM ATHEROS ATH10K WIRELESS DRIVER
+M:	Kalle Valo <kvalo@qca.qualcomm.com>
+L:	ath10k@lists.infradead.org
+W:	http://wireless.kernel.org/en/users/Drivers/ath10k
+T:	git git://github.com/kvalo/ath.git
+S:	Supported
+F:	drivers/net/wireless/ath/ath10k/
 
 QUALCOMM HEXAGON ARCHITECTURE
 M:	Richard Kuo <rkuo@codeaurora.org>
