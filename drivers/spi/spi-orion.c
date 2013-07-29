@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/clk.h>
+#include <linux/sizes.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
