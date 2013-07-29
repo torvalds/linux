@@ -36,10 +36,13 @@
 #ifndef _UFS_H
 #define _UFS_H
 
+#include <linux/mutex.h>
+#include <linux/types.h>
+
 #define MAX_CDB_SIZE	16
 
 #define UPIU_HEADER_DWORD(byte3, byte2, byte1, byte0)\
-			((byte3 << 24) | (byte2 << 16) |\
+			cpu_to_be32((byte3 << 24) | (byte2 << 16) |\
 			 (byte1 << 8) | (byte0))
 
 /*
@@ -73,6 +76,7 @@ enum {
 	UPIU_TRANSACTION_TASK_RSP	= 0x24,
 	UPIU_TRANSACTION_READY_XFER	= 0x31,
 	UPIU_TRANSACTION_QUERY_RSP	= 0x36,
+	UPIU_TRANSACTION_REJECT_UPIU	= 0x3F,
 };
 
 /* UPIU Read/Write flags */
@@ -110,6 +114,12 @@ enum {
 	UPIU_COMMAND_SET_TYPE_QUERY	= 0x2,
 };
 
+/* UTP Transfer Request Command Offset */
+#define UPIU_COMMAND_TYPE_OFFSET	28
+
+/* Offset of the response code in the UPIU header */
+#define UPIU_RSP_CODE_OFFSET		8
+
 enum {
 	MASK_SCSI_STATUS	= 0xFF,
 	MASK_TASK_RESPONSE	= 0xFF00,
@@ -138,30 +148,46 @@ struct utp_upiu_header {
 
 /**
  * struct utp_upiu_cmd - Command UPIU structure
- * @header: UPIU header structure DW-0 to DW-2
  * @data_transfer_len: Data Transfer Length DW-3
  * @cdb: Command Descriptor Block CDB DW-4 to DW-7
  */
 struct utp_upiu_cmd {
-	struct utp_upiu_header header;
 	u32 exp_data_transfer_len;
 	u8 cdb[MAX_CDB_SIZE];
 };
 
 /**
- * struct utp_upiu_rsp - Response UPIU structure
- * @header: UPIU header DW-0 to DW-2
+ * struct utp_upiu_req - general upiu request structure
+ * @header:UPIU header structure DW-0 to DW-2
+ * @sc: fields structure for scsi command DW-3 to DW-7
+ */
+struct utp_upiu_req {
+	struct utp_upiu_header header;
+	struct utp_upiu_cmd sc;
+};
+
+/**
+ * struct utp_cmd_rsp - Response UPIU structure
  * @residual_transfer_count: Residual transfer count DW-3
  * @reserved: Reserved double words DW-4 to DW-7
  * @sense_data_len: Sense data length DW-8 U16
  * @sense_data: Sense data field DW-8 to DW-12
  */
-struct utp_upiu_rsp {
-	struct utp_upiu_header header;
+struct utp_cmd_rsp {
 	u32 residual_transfer_count;
 	u32 reserved[4];
 	u16 sense_data_len;
 	u8 sense_data[18];
+};
+
+/**
+ * struct utp_upiu_rsp - general upiu response structure
+ * @header: UPIU header structure DW-0 to DW-2
+ * @sr: fields structure for scsi command DW-3 to DW-12
+ */
+struct utp_upiu_rsp {
+	struct utp_upiu_header header;
+	struct utp_cmd_rsp sr;
 };
 
 /**
