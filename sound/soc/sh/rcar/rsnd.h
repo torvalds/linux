@@ -157,6 +157,7 @@ int rsnd_dai_disconnect(struct rsnd_mod *mod);
 int rsnd_dai_connect(struct rsnd_dai *rdai, struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io);
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
+int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
 #define rsnd_io_to_runtime(io) ((io)->substream->runtime)
 
@@ -254,5 +255,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 void rsnd_ssi_remove(struct platform_device *pdev,
 		   struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
+struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,
+					  int dai_id, int is_play);
 
 #endif

@@ -28,26 +28,30 @@
 /*
  * flags
  *
- * 0xA0000000
+ * 0xAB000000
  *
  * A : clock sharing settings
+ * B : SSI direction
  */
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
 #define RSND_SSI_CLK_FROM_ADG		(1 << 30) /* clock parent is master */
 #define RSND_SSI_SYNC			(1 << 29) /* SSI34_sync etc */
 
+#define RSND_SSI_PLAY			(1 << 24)
+
+#define RSND_SSI_SET(_dai_id, _pio_irq, _flags) \
+{ .dai_id = _dai_id, .pio_irq = _pio_irq, .flags = _flags }
+#define RSND_SSI_UNUSED \
+{ .dai_id = -1, .pio_irq = -1, .flags = 0 }
+
 struct rsnd_ssi_platform_info {
+	int dai_id;
 	int pio_irq;
 	u32 flags;
 };
 
 struct rsnd_scu_platform_info {
 	u32 flags;
-};
-
-struct rsnd_dai_platform_info {
-	int ssi_id_playback;
-	int ssi_id_capture;
 };
 
 /*
@@ -66,8 +70,6 @@ struct rcar_snd_info {
 	int ssi_info_nr;
 	struct rsnd_scu_platform_info *scu_info;
 	int scu_info_nr;
-	struct rsnd_dai_platform_info *dai_info;
-	int dai_info_nr;
 	int (*start)(int id);
 	int (*stop)(int id);
 };
