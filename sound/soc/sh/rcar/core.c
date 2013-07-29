@@ -174,6 +174,138 @@ void rsnd_mod_init(struct rsnd_priv *priv,
 }
 
 /*
+ *	rsnd_dma functions
+ */
+static void rsnd_dma_continue(struct rsnd_dma *dma)
+{
+	/* push next A or B plane */
+	dma->submit_loop = 1;
+	schedule_work(&dma->work);
+}
+
+void rsnd_dma_start(struct rsnd_dma *dma)
+{
+	/* push both A and B plane*/
+	dma->submit_loop = 2;
+	schedule_work(&dma->work);
+}
+
+void rsnd_dma_stop(struct rsnd_dma *dma)
+{
+	dma->submit_loop = 0;
+	cancel_work_sync(&dma->work);
+	dmaengine_terminate_all(dma->chan);
+}
+
+static void rsnd_dma_complete(void *data)
+{
+	struct rsnd_dma *dma = (struct rsnd_dma *)data;
+	struct rsnd_priv *priv = dma->priv;
+	unsigned long flags;
+
+	rsnd_lock(priv, flags);
+
+	dma->complete(dma);
+
+	if (dma->submit_loop)
+		rsnd_dma_continue(dma);
+
+	rsnd_unlock(priv, flags);
+}
+
+static void rsnd_dma_do_work(struct work_struct *work)
+{
+	struct rsnd_dma *dma = container_of(work, struct rsnd_dma, work);
+	struct rsnd_priv *priv = dma->priv;
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct dma_async_tx_descriptor *desc;
+	dma_addr_t buf;
+	size_t len;
+	int i;
+
+	for (i = 0; i < dma->submit_loop; i++) {
+
+		if (dma->inquiry(dma, &buf, &len) < 0)
+			return;
+
+		desc = dmaengine_prep_slave_single(
+			dma->chan, buf, len, dma->dir,
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(dev, "dmaengine_prep_slave_sg() fail\n");
+			return;
+		}
+
+		desc->callback		= rsnd_dma_complete;
+		desc->callback_param	= dma;
+
+		if (dmaengine_submit(desc) < 0) {
+			dev_err(dev, "dmaengine_submit() fail\n");
+			return;
+		}
+
+	}
+
+	dma_async_issue_pending(dma->chan);
+}
+
+int rsnd_dma_available(struct rsnd_dma *dma)
+{
+	return !!dma->chan;
+}
+
+static bool rsnd_dma_filter(struct dma_chan *chan, void *param)
+{
+	chan->private = param;
+
+	return true;
+}
+
+int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
+		  int is_play, int id,
+		  int (*inquiry)(struct rsnd_dma *dma,
+				  dma_addr_t *buf, int *len),
+		  int (*complete)(struct rsnd_dma *dma))
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	dma_cap_mask_t mask;
+
+	if (dma->chan) {
+		dev_err(dev, "it already has dma channel\n");
+		return -EIO;
+	}
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	dma->slave.shdma_slave.slave_id = id;
+
+	dma->chan = dma_request_channel(mask, rsnd_dma_filter,
+					&dma->slave.shdma_slave);
+	if (!dma->chan) {
+		dev_err(dev, "can't get dma channel\n");
+		return -EIO;
+	}
+
+	dma->dir = is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	dma->priv = priv;
+	dma->inquiry = inquiry;
+	dma->complete = complete;
+	INIT_WORK(&dma->work, rsnd_dma_do_work);
+
+	return 0;
+}
+
+void  rsnd_dma_quit(struct rsnd_priv *priv,
+		    struct rsnd_dma *dma)
+{
+	if (dma->chan)
+		dma_release_channel(dma->chan);
+
+	dma->chan = NULL;
+}
+
+/*
  *	rsnd_dai functions
  */
 #define rsnd_dai_call(rdai, io, fn)			\

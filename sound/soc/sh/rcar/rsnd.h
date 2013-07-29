@@ -13,9 +13,12 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/sh_dma.h>
+#include <linux/workqueue.h>
 #include <sound/rcar_snd.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -79,6 +82,32 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod, enum rsnd_reg reg,
 		    u32 mask, u32 data);
 
 /*
+ *	R-Car DMA
+ */
+struct rsnd_dma {
+	struct rsnd_priv	*priv;
+	struct sh_dmae_slave	slave;
+	struct work_struct	work;
+	struct dma_chan		*chan;
+	enum dma_data_direction dir;
+	int (*inquiry)(struct rsnd_dma *dma, dma_addr_t *buf, int *len);
+	int (*complete)(struct rsnd_dma *dma);
+
+	int submit_loop;
+};
+
+void rsnd_dma_start(struct rsnd_dma *dma);
+void rsnd_dma_stop(struct rsnd_dma *dma);
+int rsnd_dma_available(struct rsnd_dma *dma);
+int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
+	int is_play, int id,
+	int (*inquiry)(struct rsnd_dma *dma, dma_addr_t *buf, int *len),
+	int (*complete)(struct rsnd_dma *dma));
+void  rsnd_dma_quit(struct rsnd_priv *priv,
+		    struct rsnd_dma *dma);
+
+
+/*
  *	R-Car sound mod
  */
 
@@ -103,9 +132,12 @@ struct rsnd_mod {
 	struct rsnd_priv *priv;
 	struct rsnd_mod_ops *ops;
 	struct list_head list; /* connect to rsnd_dai playback/capture */
+	struct rsnd_dma dma;
 };
 
 #define rsnd_mod_to_priv(mod) ((mod)->priv)
+#define rsnd_mod_to_dma(mod) (&(mod)->dma)
+#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 #define rsnd_mod_id(mod) ((mod)->id)
 #define for_each_rsnd_mod(pos, n, io)	\
 	list_for_each_entry_safe(pos, n, &(io)->head, list)
