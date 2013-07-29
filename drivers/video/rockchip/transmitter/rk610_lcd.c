@@ -81,7 +81,7 @@ static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *s
 		c = LVDS_OUT_CLK_PIN(0) |LVDS_OUT_CLK_PWR_PIN(1) |LVDS_PLL_PWR_PIN(0) \
 		    |LVDS_LANE_IN_FORMAT(DATA_D0_MSB) \
 		    |LVDS_OUTPUT_FORMAT(screen->lvds_format) | LVDS_BIASE_PWR(1); 
-#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL) && defined(CONFIG_HDMI_RK610)
 		c |=  LVDS_INPUT_SOURCE(FROM_LCD1);
 #else
 		c |=  LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL);
@@ -96,7 +96,7 @@ static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *s
 		    c = LVDS_OUT_CLK_PIN(0) |LVDS_OUT_CLK_PWR_PIN(0) |LVDS_PLL_PWR_PIN(1) \
 			|LVDS_LANE_IN_FORMAT(DATA_D0_MSB)  \
 			|LVDS_OUTPUT_FORMAT(screen->lvds_format) | LVDS_BIASE_PWR(0); 
-#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL) && defined(CONFIG_HDMI_RK610)
 		    c |=  LVDS_INPUT_SOURCE(FROM_LCD1);
 #else
 		    c |=  LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL);
