@@ -633,8 +633,7 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* disable interrupts, dma and pacer clocked conversions */
 	devpriv->control_state &= ~DAS16_INTE & ~PACING_MASK & ~DMA_ENABLE;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
-	if (devpriv->dma_chan)
-		disable_dma(devpriv->dma_chan);
+	disable_dma(devpriv->dma_chan);
 
 	/*  disable SW timer */
 	if (devpriv->timer_running) {
@@ -821,11 +820,6 @@ static void das16_interrupt(struct comedi_device *dev)
 	async = s->async;
 	cmd = &async->cmd;
 
-	if (devpriv->dma_chan == 0) {
-		comedi_error(dev, "interrupt with no dma channel?");
-		return;
-	}
-
 	spin_lock_irqsave(&dev->spinlock, spin_flags);
 	if ((devpriv->control_state & DMA_ENABLE) == 0) {
 		spin_unlock_irqrestore(&dev->spinlock, spin_flags);
@@ -987,10 +981,10 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct das16_board *board = comedi_board(dev);
 	struct das16_private_struct *devpriv;
 	struct comedi_subdevice *s;
+	struct comedi_krange *user_ai_range;
+	struct comedi_krange *user_ao_range;
+	unsigned int dma_chan = it->options[2];
 	int ret;
-	unsigned int dma_chan;
-	unsigned long flags;
-	struct comedi_krange *user_ai_range, *user_ao_range;
 
 	/*  check that clock setting is valid */
 	if (it->options[3]) {
@@ -1039,35 +1033,38 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		das1600_mode_detect(dev);
 	}
 
-	/*  initialize dma */
-	dma_chan = it->options[2];
+	/* initialize dma */
 	if (dma_chan == 1 || dma_chan == 3) {
-		/*  allocate dma buffers */
+		unsigned long flags;
 		int i;
-		for (i = 0; i < 2; i++) {
-			devpriv->dma_buffer[i] = pci_alloc_consistent(
-						NULL, DAS16_DMA_SIZE,
-						&devpriv->dma_buffer_addr[i]);
 
-			if (devpriv->dma_buffer[i] == NULL)
-				return -ENOMEM;
-		}
 		if (request_dma(dma_chan, dev->board_name)) {
-			printk(KERN_ERR " failed to allocate dma channel %i\n",
-			       dma_chan);
+			dev_err(dev->class_dev,
+				"failed to request dma channel %i\n",
+				dma_chan);
 			return -EINVAL;
 		}
 		devpriv->dma_chan = dma_chan;
+
+		/* allocate dma buffers */
+		for (i = 0; i < 2; i++) {
+			void *p;
+
+			p = pci_alloc_consistent(NULL, DAS16_DMA_SIZE,
+						 &devpriv->dma_buffer_addr[i]);
+			if (!p)
+				return -ENOMEM;
+			devpriv->dma_buffer[i] = p;
+		}
+
 		flags = claim_dma_lock();
 		disable_dma(devpriv->dma_chan);
 		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
 		release_dma_lock(flags);
-		printk(KERN_INFO " ( dma = %u)\n", dma_chan);
-	} else if (dma_chan == 0) {
-		printk(KERN_INFO " ( no dma )\n");
-	} else {
-		printk(KERN_ERR " invalid dma channel\n");
-		return -EINVAL;
+
+		init_timer(&(devpriv->timer));
+		devpriv->timer.function = das16_timer_interrupt;
+		devpriv->timer.data = (unsigned long)dev;
 	}
 
 	/*  get any user-defined input range */
@@ -1098,20 +1095,15 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		user_ao_range->flags = UNIT_volt;
 	}
 
-	init_timer(&(devpriv->timer));
-	devpriv->timer.function = das16_timer_interrupt;
-	devpriv->timer.data = (unsigned long)dev;
-
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* ai */
 	if (board->ai) {
 		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
+		s->subdev_flags = SDF_READABLE;
 		if (devpriv->ai_singleended) {
 			s->n_chan = 16;
 			s->len_chanlist = 16;
@@ -1130,10 +1122,14 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->range_table = das16_ai_bip_lranges[board->ai_pg];
 		}
 		s->insn_read = board->ai;
-		s->do_cmdtest = das16_cmd_test;
-		s->do_cmd = das16_cmd_exec;
-		s->cancel = das16_cancel;
-		s->munge = das16_ai_munge;
+		if (devpriv->dma_chan) {
+			dev->read_subdev = s;
+			s->subdev_flags |= SDF_CMD_READ;
+			s->do_cmdtest = das16_cmd_test;
+			s->do_cmd = das16_cmd_exec;
+			s->cancel = das16_cancel;
+			s->munge = das16_ai_munge;
+		}
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
