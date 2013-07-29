@@ -104,6 +104,7 @@ struct rsnd_ssiu {
 static void rsnd_ssi_mode_init(struct rsnd_priv *priv,
 			       struct rsnd_ssiu *ssiu)
 {
+	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_ssi *ssi;
 	u32 flags;
 	u32 val;
@@ -113,8 +114,17 @@ static void rsnd_ssi_mode_init(struct rsnd_priv *priv,
 	 * SSI_MODE0
 	 */
 	ssiu->ssi_mode0 = 0;
-	for_each_rsnd_ssi(ssi, priv, i)
-		ssiu->ssi_mode0 |= (1 << i);
+	for_each_rsnd_ssi(ssi, priv, i) {
+		flags = rsnd_ssi_mode_flags(ssi);
+
+		/* see also BUSIF_MODE */
+		if (!(flags & RSND_SSI_DEPENDENT)) {
+			ssiu->ssi_mode0 |= (1 << i);
+			dev_dbg(dev, "SSI%d uses INDEPENDENT mode\n", i);
+		} else {
+			dev_dbg(dev, "SSI%d uses DEPENDENT mode\n", i);
+		}
+	}
 
 	/*
 	 * SSI_MODE1
@@ -670,6 +680,8 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 				dev_info(dev, "SSI DMA failed. try PIO transter\n");
 			else
 				ops	= &rsnd_ssi_dma_ops;
+
+			dev_dbg(dev, "SSI%d use DMA transfer\n", i);
 		}
 
 		/*
@@ -687,6 +699,8 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 			}
 
 			ops	= &rsnd_ssi_pio_ops;
+
+			dev_dbg(dev, "SSI%d use PIO transfer\n", i);
 		}
 
 		rsnd_mod_init(priv, &ssi->mod, ops, i);
