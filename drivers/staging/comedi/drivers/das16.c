@@ -387,7 +387,6 @@ struct das16_private_struct {
 
 	struct timer_list timer;	/*  for timed interrupt */
 	volatile short timer_running;
-	volatile short timer_mode;	/*  true if using timer mode */
 
 	unsigned long extra_iobase;
 };
@@ -516,49 +515,6 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 0;
 }
 
-/* utility function that suggests a dma transfer size in bytes */
-static unsigned int das16_suggest_transfer_size(struct comedi_device *dev,
-						const struct comedi_cmd *cmd)
-{
-	struct das16_private_struct *devpriv = dev->private;
-	unsigned int size;
-	unsigned int freq;
-
-	/* if we are using timer interrupt, we don't care how long it
-	 * will take to complete transfer since it will be interrupted
-	 * by timer interrupt */
-	if (devpriv->timer_mode)
-		return DAS16_DMA_SIZE;
-
-	/* otherwise, we are relying on dma terminal count interrupt,
-	 * so pick a reasonable size */
-	if (cmd->convert_src == TRIG_TIMER)
-		freq = 1000000000 / cmd->convert_arg;
-	else if (cmd->scan_begin_src == TRIG_TIMER)
-		freq = (1000000000 / cmd->scan_begin_arg) * cmd->chanlist_len;
-	/*  return some default value */
-	else
-		freq = 0xffffffff;
-
-	if (cmd->flags & TRIG_WAKE_EOS) {
-		size = sample_size * cmd->chanlist_len;
-	} else {
-		/*  make buffer fill in no more than 1/3 second */
-		size = (freq / 3) * sample_size;
-	}
-
-	/*  set a minimum and maximum size allowed */
-	if (size > DAS16_DMA_SIZE)
-		size = DAS16_DMA_SIZE - DAS16_DMA_SIZE % sample_size;
-	else if (size < sample_size)
-		size = sample_size;
-
-	if (cmd->stop_src == TRIG_COUNT && size > devpriv->adc_byte_count)
-		size = devpriv->adc_byte_count;
-
-	return size;
-}
-
 static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 				    int rounding_flags)
 {
@@ -585,13 +541,6 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned long flags;
 	int range;
 
-	if (devpriv->dma_chan == 0 || (dev->irq == 0
-				       && devpriv->timer_mode == 0)) {
-		comedi_error(dev,
-				"irq (or use of 'timer mode') dma required to "
-							"execute comedi_cmd");
-		return -1;
-	}
 	if (cmd->flags & TRIG_RT) {
 		comedi_error(dev, "isa dma transfers cannot be performed with "
 							"TRIG_RT, aborting");
@@ -648,24 +597,16 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->current_buffer = 0;
 	set_dma_addr(devpriv->dma_chan,
 		     devpriv->dma_buffer_addr[devpriv->current_buffer]);
-	/*  set appropriate size of transfer */
-	devpriv->dma_transfer_size = das16_suggest_transfer_size(dev, cmd);
+	devpriv->dma_transfer_size = DAS16_DMA_SIZE;
 	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
 	/*  set up interrupt */
-	if (devpriv->timer_mode) {
-		devpriv->timer_running = 1;
-		devpriv->timer.expires = jiffies + timer_period();
-		add_timer(&devpriv->timer);
-		devpriv->control_state &= ~DAS16_INTE;
-	} else {
-		/* clear interrupt bit */
-		outb(0x00, dev->iobase + DAS16_STATUS);
-		/* enable interrupts */
-		devpriv->control_state |= DAS16_INTE;
-	}
+	devpriv->timer_running = 1;
+	devpriv->timer.expires = jiffies + timer_period();
+	add_timer(&devpriv->timer);
+	devpriv->control_state &= ~DAS16_INTE;
 	devpriv->control_state |= DMA_ENABLE;
 	devpriv->control_state &= ~PACING_MASK;
 	if (cmd->convert_src == TRIG_EXT)
@@ -696,7 +637,7 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 		disable_dma(devpriv->dma_chan);
 
 	/*  disable SW timer */
-	if (devpriv->timer_mode && devpriv->timer_running) {
+	if (devpriv->timer_running) {
 		devpriv->timer_running = 0;
 		del_timer(&devpriv->timer);
 	}
@@ -864,7 +805,6 @@ static int disable_dma_on_even(struct comedi_device *dev)
 
 static void das16_interrupt(struct comedi_device *dev)
 {
-	const struct das16_board *board = comedi_board(dev);
 	struct das16_private_struct *devpriv = dev->private;
 	unsigned long dma_flags, spin_flags;
 	struct comedi_subdevice *s = dev->read_subdev;
@@ -915,21 +855,12 @@ static void das16_interrupt(struct comedi_device *dev)
 	devpriv->current_buffer = (devpriv->current_buffer + 1) % 2;
 	devpriv->adc_byte_count -= num_bytes;
 
-	/*  figure out how many bytes for next transfer */
-	if (cmd->stop_src == TRIG_COUNT && devpriv->timer_mode == 0 &&
-	    devpriv->dma_transfer_size > devpriv->adc_byte_count)
-		devpriv->dma_transfer_size = devpriv->adc_byte_count;
-
 	/*  re-enable  dma */
 	if ((async->events & COMEDI_CB_EOA) == 0) {
 		set_dma_addr(devpriv->dma_chan,
 			     devpriv->dma_buffer_addr[devpriv->current_buffer]);
 		set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
 		enable_dma(devpriv->dma_chan);
-		/* reenable conversions for das1600 mode, (stupid hardware) */
-		if (board->size > 0x400 && devpriv->timer_mode == 0)
-			outb(0x00, dev->iobase + DAS1600_CONV);
-
 	}
 	release_dma_lock(dma_flags);
 
@@ -1077,20 +1008,15 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	unsigned int irq;
 	unsigned int dma_chan;
-	int timer_mode;
 	unsigned long flags;
 	struct comedi_krange *user_ai_range, *user_ao_range;
 
 #if 0
 	irq = it->options[1];
-	timer_mode = it->options[8];
 #endif
 	/* always use time_mode since using irq can drop samples while
 	 * waiting for dma done interrupt (due to hardware limitations) */
 	irq = 0;
-	timer_mode = 1;
-	if (timer_mode)
-		irq = 0;
 
 	/*  check that clock setting is valid */
 	if (it->options[3]) {
@@ -1214,12 +1140,9 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		user_ao_range->flags = UNIT_volt;
 	}
 
-	if (timer_mode) {
-		init_timer(&(devpriv->timer));
-		devpriv->timer.function = das16_timer_interrupt;
-		devpriv->timer.data = (unsigned long)dev;
-	}
-	devpriv->timer_mode = timer_mode ? 1 : 0;
+	init_timer(&(devpriv->timer));
+	devpriv->timer.function = das16_timer_interrupt;
+	devpriv->timer.data = (unsigned long)dev;
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
