@@ -1257,14 +1257,6 @@ static void remove_port(struct kref *kref)
 
 	port = container_of(kref, struct port, kref);
 
-	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
-	device_destroy(pdrvdata.class, port->dev->devt);
-	cdev_del(port->cdev);
-
-	kfree(port->name);
-
-	debugfs_remove(port->debugfs_file);
-
 	kfree(port);
 }
 
@@ -1317,6 +1309,14 @@ static void unplug_port(struct port *port)
 	 * control message.
 	 */
 	port->portdev = NULL;
+
+	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
+	device_destroy(pdrvdata.class, port->dev->devt);
+	cdev_del(port->cdev);
+
+	kfree(port->name);
+
+	debugfs_remove(port->debugfs_file);
 
 	/*
 	 * Locks around here are not necessary - a port can't be
