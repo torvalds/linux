@@ -784,7 +784,8 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	byte = 0;
 	if (devpriv->can_burst) {
 		if (cmd->convert_src == TRIG_NOW) {
-			outb(DAS1600_BURST_VAL, dev->iobase + DAS1600_BURST_REG);
+			outb(DAS1600_BURST_VAL,
+			     dev->iobase + DAS1600_BURST_REG);
 			/*  set burst length */
 			byte |= DAS16_PACER_BURST_LEN(cmd->chanlist_len - 1);
 		} else {
