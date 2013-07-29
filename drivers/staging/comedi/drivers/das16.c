@@ -443,30 +443,22 @@ static inline int timer_period(void)
 }
 
 struct das16_private_struct {
-	unsigned int clockbase;	/*  master clock speed in ns */
-	unsigned int ctrl_reg;
-	unsigned long adc_byte_count;	/*  number of bytes remaining */
-	/*  divisor dividing master clock to get conversion frequency */
-	unsigned int divisor1;
-	/*  divisor dividing master clock to get conversion frequency */
-	unsigned int divisor2;
-	unsigned int dma_chan;	/*  dma channel */
-	uint16_t *dma_buffer[2];
-	dma_addr_t dma_buffer_addr[2];
-	unsigned int current_buffer;
-	unsigned int dma_transfer_size;	/*  target number of bytes to transfer per dma shot */
-	/**
-	 * user-defined analog input and output ranges
-	 * defined from config options
-	 */
-	struct comedi_lrange *user_ai_range_table;
-	struct comedi_lrange *user_ao_range_table;
-
-	struct timer_list timer;	/*  for timed interrupt */
-	short timer_running;
-
-	unsigned long extra_iobase;
-	unsigned int can_burst:1;
+	unsigned int		clockbase;
+	unsigned int		ctrl_reg;
+	unsigned long		adc_byte_count;
+	unsigned int		divisor1;
+	unsigned int		divisor2;
+	unsigned int		dma_chan;
+	uint16_t		*dma_buffer[2];
+	dma_addr_t		dma_buffer_addr[2];
+	unsigned int		current_buffer;
+	unsigned int		dma_transfer_size;
+	struct comedi_lrange	*user_ai_range_table;
+	struct comedi_lrange	*user_ao_range_table;
+	struct timer_list	timer;
+	short			timer_running;
+	unsigned long		extra_iobase;
+	unsigned int		can_burst:1;
 };
 
 static void das16_ai_enable(struct comedi_device *dev,
