@@ -57,7 +57,7 @@ static int aw_set_next_clkevt(unsigned long delta, struct clock_event_device *de
 
 static struct clocksource aw_clocksrc =
 {
-    .name = "aw 64bits couter",
+    .name = "aw_64bits_counter",
     .list = {NULL, NULL},
     .rating = 300,                  /* perfect clock source             */
     .read = aw_clksrc_read,         /* read clock counter               */
@@ -91,7 +91,7 @@ static struct irqaction sw_timer_irq = {
 #ifdef CONFIG_HIGH_RES_TIMERS
 static struct clock_event_device aw_clock_event =
 {
-    .name = "aw clock event device",
+    .name = "aw_clock_event",
     .features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
     .max_delta_ns = 100000000000ULL,
     .min_delta_ns = (1000000000 + AW_HPET_CLOCK_EVENT_HZ - 1) / AW_HPET_CLOCK_EVENT_HZ,
@@ -109,7 +109,7 @@ static struct irqaction aw_clkevt_irqact =
 {
     .handler = aw_clkevt_irq,
     .flags = IRQF_TIMER | IRQF_DISABLED,
-    .name = "aw clock event irq",
+    .name = "aw_clock_event",
     .dev_id = &aw_clock_event,
     .irq = SW_INT_IRQNO_TIMER1,
 };
