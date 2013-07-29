@@ -178,9 +178,12 @@ struct ufs_dev_cmd {
  * @tm_condition: condition variable for task management
  * @ufshcd_state: UFSHCD states
  * @intr_mask: Interrupt Mask Bits
+ * @ee_ctrl_mask: Exception event control mask
  * @feh_workq: Work queue for fatal controller error handling
+ * @eeh_work: Worker to handle exception events
  * @errors: HBA errors
  * @dev_cmd: ufs device management command information
+ * @auto_bkops_enabled: to track whether bkops is enabled in device
  */
 struct ufs_hba {
 	void __iomem *mmio_base;
@@ -218,15 +221,19 @@ struct ufs_hba {
 
 	u32 ufshcd_state;
 	u32 intr_mask;
+	u16 ee_ctrl_mask;
 
 	/* Work Queues */
 	struct work_struct feh_workq;
+	struct work_struct eeh_work;
 
 	/* HBA Errors */
 	u32 errors;
 
 	/* Device management request data */
 	struct ufs_dev_cmd dev_cmd;
+
+	bool auto_bkops_enabled;
 };
 
 #define ufshcd_writel(hba, val, reg)	\
@@ -253,4 +260,7 @@ static inline void check_upiu_size(void)
 		GENERAL_UPIU_REQUEST_SIZE + QUERY_DESC_MAX_SIZE);
 }
 
+extern int ufshcd_runtime_suspend(struct ufs_hba *hba);
+extern int ufshcd_runtime_resume(struct ufs_hba *hba);
+extern int ufshcd_runtime_idle(struct ufs_hba *hba);
 #endif /* End of Header */

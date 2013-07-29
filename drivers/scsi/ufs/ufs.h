@@ -107,6 +107,28 @@ enum {
 /* Flag idn for Query Requests*/
 enum flag_idn {
 	QUERY_FLAG_IDN_FDEVICEINIT      = 0x01,
+	QUERY_FLAG_IDN_BKOPS_EN         = 0x04,
+};
+
+/* Attribute idn for Query requests */
+enum attr_idn {
+	QUERY_ATTR_IDN_BKOPS_STATUS	= 0x05,
+	QUERY_ATTR_IDN_EE_CONTROL	= 0x0D,
+	QUERY_ATTR_IDN_EE_STATUS	= 0x0E,
+};
+
+/* Exception event mask values */
+enum {
+	MASK_EE_STATUS		= 0xFFFF,
+	MASK_EE_URGENT_BKOPS	= (1 << 2),
+};
+
+/* Background operation status */
+enum {
+	BKOPS_STATUS_NO_OP               = 0x0,
+	BKOPS_STATUS_NON_CRITICAL        = 0x1,
+	BKOPS_STATUS_PERF_IMPACT         = 0x2,
+	BKOPS_STATUS_CRITICAL            = 0x3,
 };
 
 /* UTP QUERY Transaction Specific Fields OpCode */
@@ -155,6 +177,7 @@ enum {
 	MASK_TASK_RESPONSE              = 0xFF00,
 	MASK_RSP_UPIU_RESULT            = 0xFFFF,
 	MASK_QUERY_DATA_SEG_LEN         = 0xFFFF,
+	MASK_RSP_EXCEPTION_EVENT        = 0x10000,
 };
 
 /* Task management service response */
