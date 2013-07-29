@@ -489,13 +489,13 @@ cont:
 			 * we don't need to create any more async work items.
 			 * Unlock and free up our temp pages.
 			 */
-			extent_clear_unlock_delalloc(inode,
-			     &BTRFS_I(inode)->io_tree,
-			     start, end, NULL,
-			     EXTENT_CLEAR_UNLOCK_PAGE | EXTENT_CLEAR_DIRTY |
-			     EXTENT_CLEAR_DELALLOC |
-			     EXTENT_SET_WRITEBACK | EXTENT_END_WRITEBACK);
-
+			extent_clear_unlock_delalloc(inode, start, end, NULL,
+						     EXTENT_DIRTY |
+						     EXTENT_DELALLOC,
+						     PAGE_UNLOCK |
+						     PAGE_CLEAR_DIRTY |
+						     PAGE_SET_WRITEBACK |
+						     PAGE_END_WRITEBACK);
 			btrfs_end_transaction(trans, root);
 			goto free_pages_out;
 		}
@@ -592,13 +592,10 @@ free_pages_out:
 	goto out;
 
 cleanup_and_out:
-	extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
-				     start, end, NULL,
-				     EXTENT_CLEAR_UNLOCK_PAGE |
-				     EXTENT_CLEAR_DIRTY |
-				     EXTENT_CLEAR_DELALLOC |
-				     EXTENT_SET_WRITEBACK |
-				     EXTENT_END_WRITEBACK);
+	extent_clear_unlock_delalloc(inode, start, end, NULL,
+				     EXTENT_DIRTY | EXTENT_DELALLOC,
+				     PAGE_UNLOCK | PAGE_CLEAR_DIRTY |
+				     PAGE_SET_WRITEBACK | PAGE_END_WRITEBACK);
 	if (!trans || IS_ERR(trans))
 		btrfs_error(root->fs_info, ret, "Failed to join transaction");
 	else
@@ -770,16 +767,12 @@ retry:
 		/*
 		 * clear dirty, set writeback and unlock the pages.
 		 */
-		extent_clear_unlock_delalloc(inode,
-				&BTRFS_I(inode)->io_tree,
-				async_extent->start,
+		extent_clear_unlock_delalloc(inode, async_extent->start,
 				async_extent->start +
 				async_extent->ram_size - 1,
-				NULL, EXTENT_CLEAR_UNLOCK_PAGE |
-				EXTENT_CLEAR_UNLOCK |
-				EXTENT_CLEAR_DELALLOC |
-				EXTENT_CLEAR_DIRTY | EXTENT_SET_WRITEBACK);
-
+				NULL, EXTENT_LOCKED | EXTENT_DELALLOC |
+				EXTENT_DIRTY, PAGE_UNLOCK | PAGE_CLEAR_DIRTY |
+				PAGE_SET_WRITEBACK);
 		ret = btrfs_submit_compressed_write(inode,
 				    async_extent->start,
 				    async_extent->ram_size,
@@ -798,16 +791,13 @@ out:
 out_free_reserve:
 	btrfs_free_reserved_extent(root, ins.objectid, ins.offset);
 out_free:
-	extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
-				     async_extent->start,
+	extent_clear_unlock_delalloc(inode, async_extent->start,
 				     async_extent->start +
 				     async_extent->ram_size - 1,
-				     NULL, EXTENT_CLEAR_UNLOCK_PAGE |
-				     EXTENT_CLEAR_UNLOCK |
-				     EXTENT_CLEAR_DELALLOC |
-				     EXTENT_CLEAR_DIRTY |
-				     EXTENT_SET_WRITEBACK |
-				     EXTENT_END_WRITEBACK);
+				     NULL, EXTENT_LOCKED | EXTENT_DELALLOC |
+				     EXTENT_DIRTY, PAGE_UNLOCK |
+				     PAGE_CLEAR_DIRTY | PAGE_SET_WRITEBACK |
+				     PAGE_END_WRITEBACK);
 	kfree(async_extent);
 	goto again;
 }
@@ -892,15 +882,11 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 		ret = cow_file_range_inline(trans, root, inode,
 					    start, end, 0, 0, NULL);
 		if (ret == 0) {
-			extent_clear_unlock_delalloc(inode,
-				     &BTRFS_I(inode)->io_tree,
-				     start, end, NULL,
-				     EXTENT_CLEAR_UNLOCK_PAGE |
-				     EXTENT_CLEAR_UNLOCK |
-				     EXTENT_CLEAR_DELALLOC |
-				     EXTENT_CLEAR_DIRTY |
-				     EXTENT_SET_WRITEBACK |
-				     EXTENT_END_WRITEBACK);
+			extent_clear_unlock_delalloc(inode, start, end, NULL,
+				     EXTENT_LOCKED | EXTENT_DELALLOC |
+				     EXTENT_DIRTY, PAGE_UNLOCK |
+				     PAGE_CLEAR_DIRTY | PAGE_SET_WRITEBACK |
+				     PAGE_END_WRITEBACK);
 
 			*nr_written = *nr_written +
 			     (end - start + PAGE_CACHE_SIZE) / PAGE_CACHE_SIZE;
@@ -990,13 +976,13 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 		 * Do set the Private2 bit so we know this page was properly
 		 * setup for writepage
 		 */
-		op = unlock ? EXTENT_CLEAR_UNLOCK_PAGE : 0;
-		op |= EXTENT_CLEAR_UNLOCK | EXTENT_CLEAR_DELALLOC |
-			EXTENT_SET_PRIVATE2;
+		op = unlock ? PAGE_UNLOCK : 0;
+		op |= PAGE_SET_PRIVATE2;
 
-		extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
-					     start, start + ram_size - 1,
-					     locked_page, op);
+		extent_clear_unlock_delalloc(inode, start,
+					     start + ram_size - 1, locked_page,
+					     EXTENT_LOCKED | EXTENT_DELALLOC,
+					     op);
 		disk_num_bytes -= cur_alloc_size;
 		num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
@@ -1008,16 +994,11 @@ out:
 out_reserve:
 	btrfs_free_reserved_extent(root, ins.objectid, ins.offset);
 out_unlock:
-	extent_clear_unlock_delalloc(inode,
-		     &BTRFS_I(inode)->io_tree,
-		     start, end, locked_page,
-		     EXTENT_CLEAR_UNLOCK_PAGE |
-		     EXTENT_CLEAR_UNLOCK |
-		     EXTENT_CLEAR_DELALLOC |
-		     EXTENT_CLEAR_DIRTY |
-		     EXTENT_SET_WRITEBACK |
-		     EXTENT_END_WRITEBACK);
-
+	extent_clear_unlock_delalloc(inode, start, end, locked_page,
+				     EXTENT_LOCKED | EXTENT_DIRTY |
+				     EXTENT_DELALLOC, PAGE_UNLOCK |
+				     PAGE_CLEAR_DIRTY | PAGE_SET_WRITEBACK |
+				     PAGE_END_WRITEBACK);
 	goto out;
 }
 
@@ -1033,15 +1014,12 @@ static noinline int cow_file_range(struct inode *inode,
 
 	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans)) {
-		extent_clear_unlock_delalloc(inode,
-			     &BTRFS_I(inode)->io_tree,
-			     start, end, locked_page,
-			     EXTENT_CLEAR_UNLOCK_PAGE |
-			     EXTENT_CLEAR_UNLOCK |
-			     EXTENT_CLEAR_DELALLOC |
-			     EXTENT_CLEAR_DIRTY |
-			     EXTENT_SET_WRITEBACK |
-			     EXTENT_END_WRITEBACK);
+		extent_clear_unlock_delalloc(inode, start, end, locked_page,
+					     EXTENT_LOCKED | EXTENT_DELALLOC |
+					     EXTENT_DIRTY, PAGE_UNLOCK |
+					     PAGE_CLEAR_DIRTY |
+					     PAGE_SET_WRITEBACK |
+					     PAGE_END_WRITEBACK);
 		return PTR_ERR(trans);
 	}
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
@@ -1221,15 +1199,12 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		extent_clear_unlock_delalloc(inode,
-			     &BTRFS_I(inode)->io_tree,
-			     start, end, locked_page,
-			     EXTENT_CLEAR_UNLOCK_PAGE |
-			     EXTENT_CLEAR_UNLOCK |
-			     EXTENT_CLEAR_DELALLOC |
-			     EXTENT_CLEAR_DIRTY |
-			     EXTENT_SET_WRITEBACK |
-			     EXTENT_END_WRITEBACK);
+		extent_clear_unlock_delalloc(inode, start, end, locked_page,
+					     EXTENT_LOCKED | EXTENT_DELALLOC |
+					     EXTENT_DIRTY, PAGE_UNLOCK |
+					     PAGE_CLEAR_DIRTY |
+					     PAGE_SET_WRITEBACK |
+					     PAGE_END_WRITEBACK);
 		return -ENOMEM;
 	}
 
@@ -1241,15 +1216,12 @@ static noinline int run_delalloc_nocow(struct inode *inode,
 		trans = btrfs_join_transaction(root);
 
 	if (IS_ERR(trans)) {
-		extent_clear_unlock_delalloc(inode,
-			     &BTRFS_I(inode)->io_tree,
-			     start, end, locked_page,
-			     EXTENT_CLEAR_UNLOCK_PAGE |
-			     EXTENT_CLEAR_UNLOCK |
-			     EXTENT_CLEAR_DELALLOC |
-			     EXTENT_CLEAR_DIRTY |
-			     EXTENT_SET_WRITEBACK |
-			     EXTENT_END_WRITEBACK);
+		extent_clear_unlock_delalloc(inode, start, end, locked_page,
+					     EXTENT_LOCKED | EXTENT_DELALLOC |
+					     EXTENT_DIRTY, PAGE_UNLOCK |
+					     PAGE_CLEAR_DIRTY |
+					     PAGE_SET_WRITEBACK |
+					     PAGE_END_WRITEBACK);
 		btrfs_free_path(path);
 		return PTR_ERR(trans);
 	}
@@ -1428,11 +1400,11 @@ out_check:
 			}
 		}
 
-		extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
-				cur_offset, cur_offset + num_bytes - 1,
-				locked_page, EXTENT_CLEAR_UNLOCK_PAGE |
-				EXTENT_CLEAR_UNLOCK | EXTENT_CLEAR_DELALLOC |
-				EXTENT_SET_PRIVATE2);
+		extent_clear_unlock_delalloc(inode, cur_offset,
+					     cur_offset + num_bytes - 1,
+					     locked_page, EXTENT_LOCKED |
+					     EXTENT_DELALLOC, PAGE_UNLOCK |
+					     PAGE_SET_PRIVATE2);
 		cur_offset = extent_end;
 		if (cur_offset > end)
 			break;
@@ -1460,16 +1432,12 @@ error:
 		ret = err;
 
 	if (ret && cur_offset < end)
-		extent_clear_unlock_delalloc(inode,
-			     &BTRFS_I(inode)->io_tree,
-			     cur_offset, end, locked_page,
-			     EXTENT_CLEAR_UNLOCK_PAGE |
-			     EXTENT_CLEAR_UNLOCK |
-			     EXTENT_CLEAR_DELALLOC |
-			     EXTENT_CLEAR_DIRTY |
-			     EXTENT_SET_WRITEBACK |
-			     EXTENT_END_WRITEBACK);
-
+		extent_clear_unlock_delalloc(inode, cur_offset, end,
+					     locked_page, EXTENT_LOCKED |
+					     EXTENT_DELALLOC | EXTENT_DIRTY,
+					     PAGE_UNLOCK | PAGE_CLEAR_DIRTY |
+					     PAGE_SET_WRITEBACK |
+					     PAGE_END_WRITEBACK);
 	btrfs_free_path(path);
 	return ret;
 }

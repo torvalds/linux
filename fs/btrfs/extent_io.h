@@ -44,14 +44,11 @@
 #define EXTENT_BUFFER_DUMMY 9
 
 /* these are flags for extent_clear_unlock_delalloc */
-#define EXTENT_CLEAR_UNLOCK_PAGE 0x1
-#define EXTENT_CLEAR_UNLOCK	 0x2
-#define EXTENT_CLEAR_DELALLOC	 0x4
-#define EXTENT_CLEAR_DIRTY	 0x8
-#define EXTENT_SET_WRITEBACK	 0x10
-#define EXTENT_END_WRITEBACK	 0x20
-#define EXTENT_SET_PRIVATE2	 0x40
-#define EXTENT_CLEAR_ACCOUNTING  0x80
+#define PAGE_UNLOCK		(1 << 0)
+#define PAGE_CLEAR_DIRTY	(1 << 1)
+#define PAGE_SET_WRITEBACK	(1 << 2)
+#define PAGE_END_WRITEBACK	(1 << 3)
+#define PAGE_SET_PRIVATE2	(1 << 4)
 
 /*
  * page->private values.  Every page that is controlled by the extent
@@ -328,10 +325,10 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long *map_len);
 int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
 int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
-int extent_clear_unlock_delalloc(struct inode *inode,
-				struct extent_io_tree *tree,
-				u64 start, u64 end, struct page *locked_page,
-				unsigned long op);
+int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
+				 struct page *locked_page,
+				 unsigned long bits_to_clear,
+				 unsigned long page_ops);
 struct bio *
 btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 		gfp_t gfp_flags);
