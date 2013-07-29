@@ -2169,6 +2169,7 @@ static void ufshcd_exception_event_handler(struct work_struct *work)
 	u32 status = 0;
 	hba = container_of(work, struct ufs_hba, eeh_work);
 
+	pm_runtime_get_sync(hba->dev);
 	err = ufshcd_get_ee_status(hba, &status);
 	if (err) {
 		dev_err(hba->dev, "%s: failed to get exception status %d\n",
@@ -2184,6 +2185,7 @@ static void ufshcd_exception_event_handler(struct work_struct *work)
 					__func__, err);
 	}
 out:
+	pm_runtime_put_sync(hba->dev);
 	return;
 }
 
@@ -2196,9 +2198,11 @@ static void ufshcd_fatal_err_handler(struct work_struct *work)
 	struct ufs_hba *hba;
 	hba = container_of(work, struct ufs_hba, feh_workq);
 
+	pm_runtime_get_sync(hba->dev);
 	/* check if reset is already in progress */
 	if (hba->ufshcd_state != UFSHCD_STATE_RESET)
 		ufshcd_do_reset(hba);
+	pm_runtime_put_sync(hba->dev);
 }
 
 /**
@@ -2500,6 +2504,7 @@ static void ufshcd_async_scan(void *data, async_cookie_t cookie)
 
 	ufshcd_force_reset_auto_bkops(hba);
 	scsi_scan_host(hba->host);
+	pm_runtime_put_sync(hba->dev);
 out:
 	return;
 }
@@ -2720,6 +2725,9 @@ int ufshcd_init(struct device *dev, struct ufs_hba **hba_handle,
 	}
 
 	*hba_handle = hba;
+
+	/* Hold auto suspend until async scan completes */
+	pm_runtime_get_sync(dev);
 
 	async_schedule(ufshcd_async_scan, hba);
 
