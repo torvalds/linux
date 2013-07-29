@@ -17547,11 +17547,6 @@ static int tg3_init_one(struct pci_dev *pdev,
 	    tg3_asic_rev(tp) == ASIC_REV_5762)
 		tg3_flag_set(tp, PTP_CAPABLE);
 
-	if (tg3_flag(tp, 5717_PLUS)) {
-		/* Resume a low-power mode */
-		tg3_frob_aux_power(tp, false);
-	}
-
 	tg3_timer_init(tp);
 
 	tg3_carrier_off(tp);
