@@ -991,10 +991,9 @@ static const struct uart_ops max310x_ops = {
 	.verify_port	= max310x_verify_port,
 };
 
-static int __maybe_unused max310x_suspend(struct spi_device *spi,
-					  pm_message_t state)
+static int __maybe_unused max310x_suspend(struct device *dev)
 {
-	struct max310x_port *s = dev_get_drvdata(&spi->dev);
+	struct max310x_port *s = dev_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < s->uart.nr; i++) {
@@ -1005,9 +1004,9 @@ static int __maybe_unused max310x_suspend(struct spi_device *spi,
 	return 0;
 }
 
-static int __maybe_unused max310x_resume(struct spi_device *spi)
+static int __maybe_unused max310x_resume(struct device *dev)
 {
-	struct max310x_port *s = dev_get_drvdata(&spi->dev);
+	struct max310x_port *s = dev_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < s->uart.nr; i++) {
