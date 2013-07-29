@@ -302,6 +302,7 @@ static int altera_mbox_probe(struct platform_device *pdev)
 	struct resource	*regs;
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
+	const char *mbox_name = NULL;
 
 	mbox = devm_kzalloc(&pdev->dev, sizeof(struct altera_mbox),
 		GFP_KERNEL);
@@ -336,8 +337,14 @@ static int altera_mbox_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Length of mailbox controller name is greater than %d\n",
 		sizeof(mbox->ipc_con.controller_name));
 
+	ret = of_property_read_string(np, "linux,mailbox-name", &mbox_name);
+	if (ret) {
+		dev_err(&pdev->dev, "Missing linux,mailbox-name property in device tree\n");
+		goto err;
+	}
+
 	snprintf(mbox->ipc_con.controller_name,
-		sizeof(mbox->ipc_con.controller_name), "%s", np->name);
+		sizeof(mbox->ipc_con.controller_name), "%s", mbox_name);
 
 	dev_info(&pdev->dev, "Mailbox controller name is %s\n",
 		mbox->ipc_con.controller_name);
