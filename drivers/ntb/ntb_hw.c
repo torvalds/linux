@@ -145,6 +145,7 @@ void ntb_unregister_event_callback(struct ntb_device *ndev)
  * ntb_register_db_callback() - register a callback for doorbell interrupt
  * @ndev: pointer to ntb_device instance
  * @idx: doorbell index to register callback, zero based
+ * @data: pointer to be returned to caller with every callback
  * @func: callback function to register
  *
  * This function registers a callback function for the doorbell interrupt
@@ -1235,9 +1236,9 @@ static int ntb_create_callbacks(struct ntb_device *ndev)
 {
 	int i;
 
-	/* Checken-egg issue.  We won't know how many callbacks are necessary
+	/* Chicken-egg issue.  We won't know how many callbacks are necessary
 	 * until we see how many MSI-X vectors we get, but these pointers need
-	 * to be passed into the MSI-X register fucntion.  So, we allocate the
+	 * to be passed into the MSI-X register function.  So, we allocate the
 	 * max, knowing that they might not all be used, to work around this.
 	 */
 	ndev->db_cb = kcalloc(ndev->limits.max_db_bits,

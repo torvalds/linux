@@ -1583,7 +1583,7 @@ EXPORT_SYMBOL_GPL(ntb_transport_rx_enqueue);
  * @len: length of the data buffer
  *
  * Enqueue a new transmit buffer onto the transport queue from which a NTB
- * payload will be transmitted.  This assumes that a lock is behing held to
+ * payload will be transmitted.  This assumes that a lock is being held to
  * serialize access to the qp.
  *
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
@@ -1641,7 +1641,7 @@ EXPORT_SYMBOL_GPL(ntb_transport_link_up);
  *
  * Notify NTB transport layer of client's desire to no longer receive data on
  * transport queue specified.  It is the client's responsibility to ensure all
- * entries on queue are purged or otherwise handled appropraitely.
+ * entries on queue are purged or otherwise handled appropriately.
  */
 void ntb_transport_link_down(struct ntb_transport_qp *qp)
 {
