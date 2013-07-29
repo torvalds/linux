@@ -70,6 +70,7 @@
 
 enum dev_cmd_type {
 	DEV_CMD_TYPE_NOP		= 0x0,
+	DEV_CMD_TYPE_QUERY		= 0x1,
 };
 
 /**
@@ -125,6 +126,18 @@ struct ufshcd_lrb {
 };
 
 /**
+ * struct ufs_query - holds relevent data structures for query request
+ * @request: request upiu and function
+ * @descriptor: buffer for sending/receiving descriptor
+ * @response: response upiu and response
+ */
+struct ufs_query {
+	struct ufs_query_req request;
+	u8 *descriptor;
+	struct ufs_query_res response;
+};
+
+/**
  * struct ufs_dev_cmd - all assosiated fields with device management commands
  * @type: device management command type - Query, NOP OUT
  * @lock: lock to allow one command at a time
@@ -136,6 +149,7 @@ struct ufs_dev_cmd {
 	struct mutex lock;
 	struct completion *complete;
 	wait_queue_head_t tag_wq;
+	struct ufs_query query;
 };
 
 /**
@@ -231,6 +245,12 @@ void ufshcd_remove(struct ufs_hba *);
 static inline void ufshcd_hba_stop(struct ufs_hba *hba)
 {
 	ufshcd_writel(hba, CONTROLLER_DISABLE,  REG_CONTROLLER_ENABLE);
+}
+
+static inline void check_upiu_size(void)
+{
+	BUILD_BUG_ON(ALIGNED_UPIU_SIZE <
+		GENERAL_UPIU_REQUEST_SIZE + QUERY_DESC_MAX_SIZE);
 }
 
 #endif /* End of Header */
