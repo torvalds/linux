@@ -68,8 +68,6 @@
 #define CVMX_PREFETCH_PREF0(address, offset) CVMX_PREFETCH_PREFX(0, address, offset)
 #define CVMX_CLZ(result, input) asm ("clz %[rd],%[rs]" : [rd] "=d" (result) : [rs] "d" (input))
 
-#define cvmx_le16_to_cpu le16_to_cpu
-
 #define MAX_RETRIES         3   /* Maximum number of times to retry failed transactions */
 #define MAX_PIPES           32  /* Maximum number of pipes that can be open at once */
 #define MAX_TRANSACTIONS    256 /* Maximum number of outstanding transactions across all pipes */
@@ -2200,7 +2198,7 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
     if (unlikely(!buffer && (buffer_length != 0)))
         return -EINVAL;
     if ((header->s.request_type & 0x80) == 0)
-        buffer_length = cvmx_le16_to_cpu(header->s.length);
+        buffer_length = le16_to_cpu(header->s.length);
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
                                          CVMX_USB_TRANSFER_CONTROL,
