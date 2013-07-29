@@ -336,11 +336,6 @@ static const struct comedi_lrange *const das16_ai_bip_lranges[] = {
 	&range_das1x02_bip,
 };
 
-struct munge_info {
-	uint8_t byte;
-	unsigned have_byte:1;
-};
-
 struct das16_board {
 	const char *name;
 	unsigned int ai_maxdata;
