@@ -65,7 +65,7 @@ config REGULATOR_USERSPACE_CONSUMER
 	  If unsure, say no.
 
 config REGULATOR_88PM8607
-	bool "Marvell 88PM8607 Power regulators"
+	tristate "Marvell 88PM8607 Power regulators"
 	depends on MFD_88PM860X=y
 	help
 	  This driver supports 88PM8607 voltage regulator chips.
@@ -200,7 +200,7 @@ config REGULATOR_LP3972
 	 on National Semiconductors LP3972 PMIC
 
 config REGULATOR_LP872X
-	bool "TI/National Semiconductor LP8720/LP8725 voltage regulators"
+	tristate "TI/National Semiconductor LP8720/LP8725 voltage regulators"
 	depends on I2C=y
 	select REGMAP_I2C
 	help
@@ -216,7 +216,7 @@ config REGULATOR_LP8755
 	  9 mode multiphase configuration.
 
 config REGULATOR_LP8788
-	bool "TI LP8788 Power Regulators"
+	tristate "TI LP8788 Power Regulators"
 	depends on MFD_LP8788
 	help
 	  This driver supports LP8788 voltage regulator chip.
@@ -382,7 +382,7 @@ config REGULATOR_S5M8767
 	 supports DVS mode with 8bits of output voltage control.
 
 config REGULATOR_TI_ABB
-	bool "TI Adaptive Body Bias on-chip LDO"
+	tristate "TI Adaptive Body Bias on-chip LDO"
 	depends on ARCH_OMAP
 	help
 	  Select this option to support Texas Instruments' on-chip Adaptive Body
@@ -492,7 +492,7 @@ config REGULATOR_TPS80031
 	  output to control regulators.
 
 config REGULATOR_TWL4030
-	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 PMIC"
+	tristate "TI TWL4030/TWL5030/TWL6030/TPS659x0 PMIC"
 	depends on TWL4030_CORE
 	help
 	  This driver supports the voltage regulators provided by
