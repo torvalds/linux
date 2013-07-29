@@ -188,8 +188,6 @@ static int ufshcd_pltfrm_remove(struct platform_device *pdev)
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(&(pdev)->dev);
-
-	disable_irq(hba->irq);
 	ufshcd_remove(hba);
 	return 0;
 }
