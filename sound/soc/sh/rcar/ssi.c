@@ -19,6 +19,7 @@
  * SSICR
  */
 #define	FORCE		(1 << 31)	/* Fixed */
+#define	DMEN		(1 << 28)	/* DMA Enable */
 #define	UIEN		(1 << 27)	/* Underflow Interrupt Enable */
 #define	OIEN		(1 << 26)	/* Overflow Interrupt Enable */
 #define	IIEN		(1 << 25)	/* Idle Mode Interrupt Enable */
@@ -51,6 +52,11 @@
 #define	IIRQ		(1 << 25)	/* Idle Mode Interrupt Status */
 #define	DIRQ		(1 << 24)	/* Data Interrupt Status Flag */
 
+/*
+ * SSIWSR
+ */
+#define CONT		(1 << 8)	/* WS Continue Function */
+
 struct rsnd_ssi {
 	struct clk *clk;
 	struct rsnd_ssi_platform_info *info; /* rcar_snd.h */
@@ -63,6 +69,7 @@ struct rsnd_ssi {
 	u32 cr_clk;
 	u32 cr_etc;
 	int err;
+	int dma_offset;
 	unsigned int usrcnt;
 	unsigned int rate;
 };
@@ -83,7 +90,10 @@ struct rsnd_ssiu {
 
 #define rsnd_ssi_nr(priv) (((struct rsnd_ssiu *)((priv)->ssiu))->ssi_nr)
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
-#define rsnd_ssi_is_pio(ssi) ((ssi)->info->pio_irq > 0)
+#define rsnd_dma_to_ssi(dma)  rsnd_mod_to_ssi(rsnd_dma_to_mod(dma))
+#define rsnd_ssi_pio_available(ssi) ((ssi)->info->pio_irq > 0)
+#define rsnd_ssi_dma_available(ssi) \
+	rsnd_dma_available(rsnd_mod_to_dma(&(ssi)->mod))
 #define rsnd_ssi_clk_from_parent(ssi) ((ssi)->parent)
 #define rsnd_rdai_is_clk_master(rdai) ((rdai)->clk_master)
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
@@ -477,6 +487,79 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.stop	= rsnd_ssi_pio_stop,
 };
 
+static int rsnd_ssi_dma_inquiry(struct rsnd_dma *dma, dma_addr_t *buf, int *len)
+{
+	struct rsnd_ssi *ssi = rsnd_dma_to_ssi(dma);
+	struct rsnd_dai_stream *io = ssi->io;
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+
+	*len = io->byte_per_period;
+	*buf = runtime->dma_addr +
+		rsnd_dai_pointer_offset(io, ssi->dma_offset + *len);
+	ssi->dma_offset = *len; /* it cares A/B plane */
+
+	return 0;
+}
+
+static int rsnd_ssi_dma_complete(struct rsnd_dma *dma)
+{
+	struct rsnd_ssi *ssi = rsnd_dma_to_ssi(dma);
+	struct rsnd_dai_stream *io = ssi->io;
+	u32 status = rsnd_mod_read(&ssi->mod, SSISR);
+
+	rsnd_ssi_record_error(ssi, status);
+
+	rsnd_dai_pointer_update(ssi->io, io->byte_per_period);
+
+	return 0;
+}
+
+static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
+			      struct rsnd_dai *rdai,
+			      struct rsnd_dai_stream *io)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
+
+	/* enable DMA transfer */
+	ssi->cr_etc = DMEN;
+	ssi->dma_offset = 0;
+
+	rsnd_dma_start(dma);
+
+	rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+
+	/* enable WS continue */
+	if (rsnd_rdai_is_clk_master(rdai))
+		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
+
+	return 0;
+}
+
+static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
+			     struct rsnd_dai *rdai,
+			     struct rsnd_dai_stream *io)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	struct rsnd_dma *dma = rsnd_mod_to_dma(&ssi->mod);
+
+	ssi->cr_etc = 0;
+
+	rsnd_ssi_hw_stop(ssi, rdai);
+
+	rsnd_dma_stop(dma);
+
+	return 0;
+}
+
+static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
+	.name	= "ssi (dma)",
+	.init	= rsnd_ssi_init,
+	.quit	= rsnd_ssi_quit,
+	.start	= rsnd_ssi_dma_start,
+	.stop	= rsnd_ssi_dma_stop,
+};
+
 /*
  *		Non SSI
  */
@@ -574,9 +657,26 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		ops = &rsnd_ssi_non_ops;
 
 		/*
+		 * SSI DMA case
+		 */
+		if (pinfo->dma_id > 0) {
+			ret = rsnd_dma_init(
+				priv, rsnd_mod_to_dma(&ssi->mod),
+				(rsnd_ssi_mode_flags(ssi) & RSND_SSI_PLAY),
+				pinfo->dma_id,
+				rsnd_ssi_dma_inquiry,
+				rsnd_ssi_dma_complete);
+			if (ret < 0)
+				dev_info(dev, "SSI DMA failed. try PIO transter\n");
+			else
+				ops	= &rsnd_ssi_dma_ops;
+		}
+
+		/*
 		 * SSI PIO case
 		 */
-		if (rsnd_ssi_is_pio(ssi)) {
+		if (!rsnd_ssi_dma_available(ssi) &&
+		     rsnd_ssi_pio_available(ssi)) {
 			ret = devm_request_irq(dev, pinfo->pio_irq,
 					       &rsnd_ssi_pio_interrupt,
 					       IRQF_SHARED,
@@ -605,6 +705,10 @@ void rsnd_ssi_remove(struct platform_device *pdev,
 	struct rsnd_ssi *ssi;
 	int i;
 
-	for_each_rsnd_ssi(ssi, priv, i)
+	for_each_rsnd_ssi(ssi, priv, i) {
 		clk_put(ssi->clk);
+		if (rsnd_ssi_dma_available(ssi))
+			rsnd_dma_quit(priv, rsnd_mod_to_dma(&ssi->mod));
+	}
+
 }

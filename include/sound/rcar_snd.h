@@ -39,13 +39,14 @@
 
 #define RSND_SSI_PLAY			(1 << 24)
 
-#define RSND_SSI_SET(_dai_id, _pio_irq, _flags) \
-{ .dai_id = _dai_id, .pio_irq = _pio_irq, .flags = _flags }
+#define RSND_SSI_SET(_dai_id, _dma_id, _pio_irq, _flags)	\
+{ .dai_id = _dai_id, .dma_id = _dma_id, .pio_irq = _pio_irq, .flags = _flags }
 #define RSND_SSI_UNUSED \
-{ .dai_id = -1, .pio_irq = -1, .flags = 0 }
+{ .dai_id = -1, .dma_id = -1, .pio_irq = -1, .flags = 0 }
 
 struct rsnd_ssi_platform_info {
 	int dai_id;
+	int dma_id;
 	int pio_irq;
 	u32 flags;
 };
