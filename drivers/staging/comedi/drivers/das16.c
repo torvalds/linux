@@ -86,7 +86,6 @@ www.measurementcomputing.com
 #include "8255.h"
 #include "comedi_fc.h"
 
-#define DAS16_SIZE 20		/*  number of ioports */
 #define DAS16_DMA_SIZE 0xff00	/*  size in bytes of allocated dma buffer */
 
 /*
