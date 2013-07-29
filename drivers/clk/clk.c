@@ -692,6 +692,55 @@ struct clk *__clk_lookup(const char *name)
 	return NULL;
 }
 
+/*
+ * Helper for finding best parent to provide a given frequency. This can be used
+ * directly as a determine_rate callback (e.g. for a mux), or from a more
+ * complex clock that may combine a mux with other operations.
+ */
+long __clk_mux_determine_rate(struct clk_hw *hw, unsigned long rate,
+			      unsigned long *best_parent_rate,
+			      struct clk **best_parent_p)
+{
+	struct clk *clk = hw->clk, *parent, *best_parent = NULL;
+	int i, num_parents;
+	unsigned long parent_rate, best = 0;
+
+	/* if NO_REPARENT flag set, pass through to current parent */
+	if (clk->flags & CLK_SET_RATE_NO_REPARENT) {
+		parent = clk->parent;
+		if (clk->flags & CLK_SET_RATE_PARENT)
+			best = __clk_round_rate(parent, rate);
+		else if (parent)
+			best = __clk_get_rate(parent);
+		else
+			best = __clk_get_rate(clk);
+		goto out;
+	}
+
+	/* find the parent that can provide the fastest rate <= rate */
+	num_parents = clk->num_parents;
+	for (i = 0; i < num_parents; i++) {
+		parent = clk_get_parent_by_index(clk, i);
+		if (!parent)
+			continue;
+		if (clk->flags & CLK_SET_RATE_PARENT)
+			parent_rate = __clk_round_rate(parent, rate);
+		else
+			parent_rate = __clk_get_rate(parent);
+		if (parent_rate <= rate && parent_rate > best) {
+			best_parent = parent;
+			best = parent_rate;
+		}
+	}
+
+out:
+	if (best_parent)
+		*best_parent_p = best_parent;
+	*best_parent_rate = best;
+
+	return best;
+}
+
 /***        clk api        ***/
 
 void __clk_unprepare(struct clk *clk)
