@@ -103,7 +103,6 @@ typedef struct sunxi_emac_board_info {
 
 	u16		tx_fifo_stat;
 
-	unsigned int	in_suspend:1;
 	int		debug_level;
 	unsigned long	bit_flags;
 
@@ -1361,23 +1360,12 @@ static int sunxi_emac_open(struct net_device *dev)
 }
 
 /*
- * Sleep, either by using msleep() or if we are suspending, then
- * use mdelay() to sleep.
- */
-static void sunxi_emac_msleep(sunxi_emac_board_info_t *db, unsigned int ms)
-{
-	if (db->in_suspend)
-		mdelay(ms);
-	else
-		msleep(ms);
-}
-
-/*
  *   Read a word from phyxcer
  */
 static int sunxi_emac_phy_read(struct net_device *dev, int phyaddr_unused, int reg)
 {
 	sunxi_emac_board_info_t *db = netdev_priv(dev);
+	unsigned long timeout;
 	unsigned long flags;
 	int ret;
 
@@ -1390,7 +1378,15 @@ static int sunxi_emac_phy_read(struct net_device *dev, int phyaddr_unused, int r
 	writel(0x1, db->emac_vbase + SUNXI_EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	sunxi_emac_msleep(db, 1); /* Wait read complete */
+	/* time out is 10 ms */
+	timeout = jiffies + HZ / 100;
+	while (readl(db->emac_vbase + SUNXI_EMAC_MAC_MIND_REG) & 0x01) {
+		if (time_after(jiffies, timeout)) {
+			pr_warn("%s phy_read EMAC_MAC_MCMD_REG timeout\n",
+				CARDNAME);
+			break;
+		}
+	}
 
 	/* push down the phy io line and read data */
 	spin_lock_irqsave(&db->lock, flags);
@@ -1412,6 +1408,7 @@ static void sunxi_emac_phy_write(struct net_device *dev,
 		int phyaddr_unused, int reg, int value)
 {
 	sunxi_emac_board_info_t *db = netdev_priv(dev);
+	unsigned long timeout;
 	unsigned long flags;
 
 	mutex_lock(&db->addr_lock);
@@ -1423,7 +1420,15 @@ static void sunxi_emac_phy_write(struct net_device *dev,
 	writel(0x1, db->emac_vbase + SUNXI_EMAC_MAC_MCMD_REG);
 	spin_unlock_irqrestore(&db->lock, flags);
 
-	sunxi_emac_msleep(db, 1);		/* Wait write complete */
+	/* time out is 10 ms */
+	timeout = jiffies + HZ / 100;
+	while (readl(db->emac_vbase + SUNXI_EMAC_MAC_MIND_REG) & 0x01) {
+		if (time_after(jiffies, timeout)) {
+			pr_warn("%s phy_read EMAC_MAC_MCMD_REG timeout\n",
+				CARDNAME);
+			break;
+		}
+	}
 
 	spin_lock_irqsave(&db->lock, flags);
 	/* push down the phy io line */
@@ -1713,7 +1718,6 @@ static int sunxi_emac_drv_suspend(struct platform_device *dev, pm_message_t stat
 
 	if (ndev) {
 		db = netdev_priv(ndev);
-		db->in_suspend = 1;
 
 		/* if (netif_running(ndev)) todo: shutdown the device before open it. bingge */
 		if (mii_link_ok(&db->mii))
@@ -1738,7 +1742,6 @@ static int sunxi_emac_drv_resume(struct platform_device *dev)
 		if (mii_link_ok(&db->mii))
 			netif_carrier_on(ndev);
 		/* endif */
-		db->in_suspend = 0;
 	}
 	return 0;
 }
