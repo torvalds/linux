@@ -137,12 +137,6 @@ static int ufshcd_pltfrm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(dev, "Memory resource not available\n");
-		err = -ENODEV;
-		goto out;
-	}
-
 	mmio_base = devm_ioremap_resource(dev, mem_res);
 	if (IS_ERR(mmio_base)) {
 		err = PTR_ERR(mmio_base);
