@@ -87,6 +87,7 @@ struct rsnd_ssiu {
 #define rsnd_ssi_clk_from_parent(ssi) ((ssi)->parent)
 #define rsnd_rdai_is_clk_master(rdai) ((rdai)->clk_master)
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
+#define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 #define rsnd_ssi_to_ssiu(ssi)\
 	(((struct rsnd_ssiu *)((ssi) - rsnd_mod_id(&(ssi)->mod))) - 1)
 
@@ -502,6 +503,27 @@ static struct rsnd_mod_ops rsnd_ssi_non_ops = {
 /*
  *		ssi mod function
  */
+struct rsnd_mod *rsnd_ssi_mod_get_frm_dai(struct rsnd_priv *priv,
+					  int dai_id, int is_play)
+{
+	struct rsnd_ssi *ssi;
+	int i, has_play;
+
+	is_play = !!is_play;
+
+	for_each_rsnd_ssi(ssi, priv, i) {
+		if (rsnd_ssi_dai_id(ssi) != dai_id)
+			continue;
+
+		has_play = !!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_PLAY);
+
+		if (is_play == has_play)
+			return &ssi->mod;
+	}
+
+	return NULL;
+}
+
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id)
 {
 	BUG_ON(id < 0 || id >= rsnd_ssi_nr(priv));

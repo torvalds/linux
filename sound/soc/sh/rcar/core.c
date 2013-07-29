@@ -219,6 +219,16 @@ int rsnd_dai_disconnect(struct rsnd_mod *mod)
 	return 0;
 }
 
+int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
+{
+	int id = rdai - priv->rdai;
+
+	if ((id < 0) || (id >= rsnd_dai_nr(priv)))
+		return -EINVAL;
+
+	return id;
+}
+
 struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id)
 {
 	return priv->rdai + id;
@@ -315,9 +325,10 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct rsnd_priv *priv = snd_soc_dai_get_drvdata(dai);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	struct rsnd_dai_platform_info *info = rsnd_dai_get_platform_info(rdai);
-	int ssi_id = rsnd_dai_is_play(rdai, io) ?	info->ssi_id_playback :
-							info->ssi_id_capture;
+	struct rsnd_mod *mod = rsnd_ssi_mod_get_frm_dai(priv,
+						rsnd_dai_id(priv, rdai),
+						rsnd_dai_is_play(rdai, io));
+	int ssi_id = rsnd_mod_id(mod);
 	int ret;
 	unsigned long flags;
 
@@ -439,10 +450,24 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 {
 	struct snd_soc_dai_driver *drv;
 	struct rsnd_dai *rdai;
+	struct rsnd_mod *pmod, *cmod;
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct rsnd_dai_platform_info *dai_info;
-	int dai_nr = info->dai_info_nr;
-	int i, pid, cid;
+	int dai_nr;
+	int i;
+
+	/* get max dai nr */
+	for (dai_nr = 0; dai_nr < 32; dai_nr++) {
+		pmod = rsnd_ssi_mod_get_frm_dai(priv, dai_nr, 1);
+		cmod = rsnd_ssi_mod_get_frm_dai(priv, dai_nr, 0);
+
+		if (!pmod && !cmod)
+			break;
+	}
+
+	if (!dai_nr) {
+		dev_err(dev, "no dai\n");
+		return -EIO;
+	}
 
 	drv  = devm_kzalloc(dev, sizeof(*drv)  * dai_nr, GFP_KERNEL);
 	rdai = devm_kzalloc(dev, sizeof(*rdai) * dai_nr, GFP_KERNEL);
@@ -452,18 +477,15 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	}
 
 	for (i = 0; i < dai_nr; i++) {
-		dai_info = &info->dai_info[i];
 
-		pid = dai_info->ssi_id_playback;
-		cid = dai_info->ssi_id_capture;
+		pmod = rsnd_ssi_mod_get_frm_dai(priv, i, 1);
+		cmod = rsnd_ssi_mod_get_frm_dai(priv, i, 0);
 
 		/*
 		 *	init rsnd_dai
 		 */
 		INIT_LIST_HEAD(&rdai[i].playback.head);
 		INIT_LIST_HEAD(&rdai[i].capture.head);
-
-		rdai[i].info = dai_info;
 
 		snprintf(rdai[i].name, RSND_DAI_NAME_SIZE, "rsnd-dai.%d", i);
 
@@ -472,20 +494,22 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 		 */
 		drv[i].name	= rdai[i].name;
 		drv[i].ops	= &rsnd_soc_dai_ops;
-		if (pid >= 0) {
+		if (pmod) {
 			drv[i].playback.rates		= RSND_RATES;
 			drv[i].playback.formats		= RSND_FMTS;
 			drv[i].playback.channels_min	= 2;
 			drv[i].playback.channels_max	= 2;
 		}
-		if (cid >= 0) {
+		if (cmod) {
 			drv[i].capture.rates		= RSND_RATES;
 			drv[i].capture.formats		= RSND_FMTS;
 			drv[i].capture.channels_min	= 2;
 			drv[i].capture.channels_max	= 2;
 		}
 
-		dev_dbg(dev, "%s (%d, %d) probed", rdai[i].name, pid, cid);
+		dev_dbg(dev, "%s (%s/%s)\n", rdai[i].name,
+			pmod ? "play"    : " -- ",
+			cmod ? "capture" : "  --   ");
 	}
 
 	priv->dai_nr	= dai_nr;
@@ -627,10 +651,6 @@ static int rsnd_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_dai_probe(pdev, info, priv);
-	if (ret < 0)
-		return ret;
-
 	ret = rsnd_scu_probe(pdev, info, priv);
 	if (ret < 0)
 		return ret;
@@ -640,6 +660,10 @@ static int rsnd_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = rsnd_ssi_probe(pdev, info, priv);
+	if (ret < 0)
+		return ret;
+
+	ret = rsnd_dai_probe(pdev, info, priv);
 	if (ret < 0)
 		return ret;
 

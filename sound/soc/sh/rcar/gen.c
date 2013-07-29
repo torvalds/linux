@@ -49,7 +49,6 @@ static int rsnd_gen1_path_init(struct rsnd_priv *priv,
 			       struct rsnd_dai *rdai,
 			       struct rsnd_dai_stream *io)
 {
-	struct rsnd_dai_platform_info *info = rsnd_dai_get_platform_info(rdai);
 	struct rsnd_mod *mod;
 	int ret;
 	int id;
@@ -67,10 +66,11 @@ static int rsnd_gen1_path_init(struct rsnd_priv *priv,
 	 * Then, SSI id = SCU id here
 	 */
 
-	if (rsnd_dai_is_play(rdai, io))
-		id = info->ssi_id_playback;
-	else
-		id = info->ssi_id_capture;
+	/* get SSI's ID */
+	mod = rsnd_ssi_mod_get_frm_dai(priv,
+				       rsnd_dai_id(priv, rdai),
+				       rsnd_dai_is_play(rdai, io));
+	id = rsnd_mod_id(mod);
 
 	/* SSI */
 	mod = rsnd_ssi_mod_get(priv, id);
