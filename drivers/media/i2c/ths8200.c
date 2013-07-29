@@ -44,18 +44,16 @@ struct ths8200_state {
 	struct v4l2_dv_timings dv_timings;
 };
 
-static const struct v4l2_dv_timings ths8200_timings[] = {
-	V4L2_DV_BT_CEA_720X480P59_94,
-	V4L2_DV_BT_CEA_1280X720P24,
-	V4L2_DV_BT_CEA_1280X720P25,
-	V4L2_DV_BT_CEA_1280X720P30,
-	V4L2_DV_BT_CEA_1280X720P50,
-	V4L2_DV_BT_CEA_1280X720P60,
-	V4L2_DV_BT_CEA_1920X1080P24,
-	V4L2_DV_BT_CEA_1920X1080P25,
-	V4L2_DV_BT_CEA_1920X1080P30,
-	V4L2_DV_BT_CEA_1920X1080P50,
-	V4L2_DV_BT_CEA_1920X1080P60,
+static const struct v4l2_dv_timings_cap ths8200_timings_cap = {
+	.type = V4L2_DV_BT_656_1120,
+	.bt = {
+		.max_width = 1920,
+		.max_height = 1080,
+		.min_pixelclock = 27000000,
+		.max_pixelclock = 148500000,
+		.standards = V4L2_DV_BT_STD_CEA861,
+		.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE,
+	},
 };
 
 static inline struct ths8200_state *to_state(struct v4l2_subdev *sd)
@@ -411,25 +409,13 @@ static int ths8200_s_dv_timings(struct v4l2_subdev *sd,
 				struct v4l2_dv_timings *timings)
 {
 	struct ths8200_state *state = to_state(sd);
-	int i;
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
-	if (timings->type != V4L2_DV_BT_656_1120)
+	if (!v4l2_dv_valid_timings(timings, &ths8200_timings_cap))
 		return -EINVAL;
 
-	/* TODO Support interlaced formats */
-	if (timings->bt.interlaced) {
-		v4l2_dbg(1, debug, sd, "TODO Support interlaced formats\n");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(ths8200_timings); i++) {
-		if (v4l_match_dv_timings(&ths8200_timings[i], timings, 10))
-			break;
-	}
-
-	if (i == ARRAY_SIZE(ths8200_timings)) {
+	if (!v4l2_find_dv_timings_cap(timings, &ths8200_timings_cap, 10)) {
 		v4l2_dbg(1, debug, sd, "Unsupported format\n");
 		return -EINVAL;
 	}
@@ -459,26 +445,13 @@ static int ths8200_g_dv_timings(struct v4l2_subdev *sd,
 static int ths8200_enum_dv_timings(struct v4l2_subdev *sd,
 				   struct v4l2_enum_dv_timings *timings)
 {
-	/* Check requested format index is within range */
-	if (timings->index >= ARRAY_SIZE(ths8200_timings))
-		return -EINVAL;
-
-	timings->timings = ths8200_timings[timings->index];
-
-	return 0;
+	return v4l2_enum_dv_timings_cap(timings, &ths8200_timings_cap);
 }
 
 static int ths8200_dv_timings_cap(struct v4l2_subdev *sd,
 				  struct v4l2_dv_timings_cap *cap)
 {
-	cap->type = V4L2_DV_BT_656_1120;
-	cap->bt.max_width = 1920;
-	cap->bt.max_height = 1080;
-	cap->bt.min_pixelclock = 27000000;
-	cap->bt.max_pixelclock = 148500000;
-	cap->bt.standards = V4L2_DV_BT_STD_CEA861;
-	cap->bt.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE;
-
+	*cap = ths8200_timings_cap;
 	return 0;
 }
 

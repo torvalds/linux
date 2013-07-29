@@ -635,95 +635,34 @@ static int ad9389b_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static const struct v4l2_dv_timings ad9389b_timings[] = {
-	V4L2_DV_BT_CEA_720X480P59_94,
-	V4L2_DV_BT_CEA_720X576P50,
-	V4L2_DV_BT_CEA_1280X720P24,
-	V4L2_DV_BT_CEA_1280X720P25,
-	V4L2_DV_BT_CEA_1280X720P30,
-	V4L2_DV_BT_CEA_1280X720P50,
-	V4L2_DV_BT_CEA_1280X720P60,
-	V4L2_DV_BT_CEA_1920X1080P24,
-	V4L2_DV_BT_CEA_1920X1080P25,
-	V4L2_DV_BT_CEA_1920X1080P30,
-	V4L2_DV_BT_CEA_1920X1080P50,
-	V4L2_DV_BT_CEA_1920X1080P60,
-
-	V4L2_DV_BT_DMT_640X350P85,
-	V4L2_DV_BT_DMT_640X400P85,
-	V4L2_DV_BT_DMT_720X400P85,
-	V4L2_DV_BT_DMT_640X480P60,
-	V4L2_DV_BT_DMT_640X480P72,
-	V4L2_DV_BT_DMT_640X480P75,
-	V4L2_DV_BT_DMT_640X480P85,
-	V4L2_DV_BT_DMT_800X600P56,
-	V4L2_DV_BT_DMT_800X600P60,
-	V4L2_DV_BT_DMT_800X600P72,
-	V4L2_DV_BT_DMT_800X600P75,
-	V4L2_DV_BT_DMT_800X600P85,
-	V4L2_DV_BT_DMT_848X480P60,
-	V4L2_DV_BT_DMT_1024X768P60,
-	V4L2_DV_BT_DMT_1024X768P70,
-	V4L2_DV_BT_DMT_1024X768P75,
-	V4L2_DV_BT_DMT_1024X768P85,
-	V4L2_DV_BT_DMT_1152X864P75,
-	V4L2_DV_BT_DMT_1280X768P60_RB,
-	V4L2_DV_BT_DMT_1280X768P60,
-	V4L2_DV_BT_DMT_1280X768P75,
-	V4L2_DV_BT_DMT_1280X768P85,
-	V4L2_DV_BT_DMT_1280X800P60_RB,
-	V4L2_DV_BT_DMT_1280X800P60,
-	V4L2_DV_BT_DMT_1280X800P75,
-	V4L2_DV_BT_DMT_1280X800P85,
-	V4L2_DV_BT_DMT_1280X960P60,
-	V4L2_DV_BT_DMT_1280X960P85,
-	V4L2_DV_BT_DMT_1280X1024P60,
-	V4L2_DV_BT_DMT_1280X1024P75,
-	V4L2_DV_BT_DMT_1280X1024P85,
-	V4L2_DV_BT_DMT_1360X768P60,
-	V4L2_DV_BT_DMT_1400X1050P60_RB,
-	V4L2_DV_BT_DMT_1400X1050P60,
-	V4L2_DV_BT_DMT_1400X1050P75,
-	V4L2_DV_BT_DMT_1400X1050P85,
-	V4L2_DV_BT_DMT_1440X900P60_RB,
-	V4L2_DV_BT_DMT_1440X900P60,
-	V4L2_DV_BT_DMT_1600X1200P60,
-	V4L2_DV_BT_DMT_1680X1050P60_RB,
-	V4L2_DV_BT_DMT_1680X1050P60,
-	V4L2_DV_BT_DMT_1792X1344P60,
-	V4L2_DV_BT_DMT_1856X1392P60,
-	V4L2_DV_BT_DMT_1920X1200P60_RB,
-	V4L2_DV_BT_DMT_1366X768P60,
-	V4L2_DV_BT_DMT_1920X1080P60,
-	{},
+static const struct v4l2_dv_timings_cap ad9389b_timings_cap = {
+	.type = V4L2_DV_BT_656_1120,
+	.bt = {
+		.max_width = 1920,
+		.max_height = 1200,
+		.min_pixelclock = 27000000,
+		.max_pixelclock = 170000000,
+		.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
+			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
+		.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |
+			V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM,
+	},
 };
 
 static int ad9389b_s_dv_timings(struct v4l2_subdev *sd,
 				struct v4l2_dv_timings *timings)
 {
 	struct ad9389b_state *state = get_ad9389b_state(sd);
-	int i;
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
 	/* quick sanity check */
-	if (timings->type != V4L2_DV_BT_656_1120)
-		return -EINVAL;
-
-	if (timings->bt.interlaced)
-		return -EINVAL;
-	if (timings->bt.pixelclock < 27000000 ||
-	    timings->bt.pixelclock > 170000000)
+	if (!v4l2_dv_valid_timings(timings, &ad9389b_timings_cap))
 		return -EINVAL;
 
 	/* Fill the optional fields .standards and .flags in struct v4l2_dv_timings
-	   if the format is listed in ad9389b_timings[] */
-	for (i = 0; ad9389b_timings[i].bt.width; i++) {
-		if (v4l_match_dv_timings(timings, &ad9389b_timings[i], 0)) {
-			*timings = ad9389b_timings[i];
-			break;
-		}
-	}
+	   if the format is one of the CEA or DMT timings. */
+	v4l2_find_dv_timings_cap(timings, &ad9389b_timings_cap, 0);
 
 	timings->bt.flags &= ~V4L2_DV_FL_REDUCED_FPS;
 
@@ -761,26 +700,13 @@ static int ad9389b_g_dv_timings(struct v4l2_subdev *sd,
 static int ad9389b_enum_dv_timings(struct v4l2_subdev *sd,
 			struct v4l2_enum_dv_timings *timings)
 {
-	if (timings->index >= ARRAY_SIZE(ad9389b_timings))
-		return -EINVAL;
-
-	memset(timings->reserved, 0, sizeof(timings->reserved));
-	timings->timings = ad9389b_timings[timings->index];
-	return 0;
+	return v4l2_enum_dv_timings_cap(timings, &ad9389b_timings_cap);
 }
 
 static int ad9389b_dv_timings_cap(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings_cap *cap)
 {
-	cap->type = V4L2_DV_BT_656_1120;
-	cap->bt.max_width = 1920;
-	cap->bt.max_height = 1200;
-	cap->bt.min_pixelclock = 27000000;
-	cap->bt.max_pixelclock = 170000000;
-	cap->bt.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
-			 V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT;
-	cap->bt.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |
-		V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM;
+	*cap = ad9389b_timings_cap;
 	return 0;
 }
 
