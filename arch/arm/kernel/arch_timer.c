@@ -190,20 +190,20 @@ static int arch_timer_available(void)
 
 static inline cycle_t arch_counter_get_cntpct(void)
 {
-	u32 cvall, cvalh;
+	u64 cval;
 
-	asm volatile("mrrc p15, 0, %0, %1, c14" : "=r" (cvall), "=r" (cvalh));
+	asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (cval));
 
-	return ((cycle_t) cvalh << 32) | cvall;
+	return cval;
 }
 
 static inline cycle_t arch_counter_get_cntvct(void)
 {
-	u32 cvall, cvalh;
+	u64 cval;
 
-	asm volatile("mrrc p15, 1, %0, %1, c14" : "=r" (cvall), "=r" (cvalh));
+	asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (cval));
 
-	return ((cycle_t) cvalh << 32) | cvall;
+	return cval;
 }
 
 static u32 notrace arch_counter_get_cntvct32(void)
