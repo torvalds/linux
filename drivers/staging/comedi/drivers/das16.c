@@ -668,9 +668,9 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 		unsigned int tmp = cmd->scan_begin_arg;
 		/*  set divisors, correct timing arguments */
 		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
-					       &(devpriv->divisor1),
-					       &(devpriv->divisor2),
-					       &(cmd->scan_begin_arg),
+					       &devpriv->divisor1,
+					       &devpriv->divisor2,
+					       &cmd->scan_begin_arg,
 					       cmd->flags & TRIG_ROUND_MASK);
 		err += (tmp != cmd->scan_begin_arg);
 	}
@@ -678,9 +678,9 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 		unsigned int tmp = cmd->convert_arg;
 		/*  set divisors, correct timing arguments */
 		i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
-					       &(devpriv->divisor1),
-					       &(devpriv->divisor2),
-					       &(cmd->convert_arg),
+					       &devpriv->divisor1,
+					       &devpriv->divisor2,
+					       &cmd->convert_arg,
 					       cmd->flags & TRIG_ROUND_MASK);
 		err += (tmp != cmd->convert_arg);
 	}
@@ -717,8 +717,10 @@ static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 	struct das16_private_struct *devpriv = dev->private;
 	unsigned long timer_base = dev->iobase + DAS16_TIMER_BASE_REG;
 
-	i8253_cascade_ns_to_timer_2div(devpriv->clockbase, &(devpriv->divisor1),
-				       &(devpriv->divisor2), &ns,
+	i8253_cascade_ns_to_timer_2div(devpriv->clockbase,
+				       &devpriv->divisor1,
+				       &devpriv->divisor2,
+				       &ns,
 				       rounding_flags & TRIG_ROUND_MASK);
 
 	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
@@ -1072,7 +1074,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
 		release_dma_lock(flags);
 
-		init_timer(&(devpriv->timer));
+		init_timer(&devpriv->timer);
 		devpriv->timer.function = das16_timer_interrupt;
 		devpriv->timer.data = (unsigned long)dev;
 	}
