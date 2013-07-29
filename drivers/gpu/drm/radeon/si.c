@@ -5216,7 +5216,7 @@ static void si_enable_mc_ls(struct radeon_device *rdev,
 static void si_init_cg(struct radeon_device *rdev)
 {
 	si_enable_mgcg(rdev, true);
-	si_enable_cgcg(rdev, true);
+	si_enable_cgcg(rdev, false);
 	/* disable MC LS on Tahiti */
 	if (rdev->family == CHIP_TAHITI)
 		si_enable_mc_ls(rdev, false);
@@ -5237,11 +5237,11 @@ static void si_fini_cg(struct radeon_device *rdev)
 static void si_init_pg(struct radeon_device *rdev)
 {
 	bool has_pg = false;
-
+#if 0
 	/* only cape verde supports PG */
 	if (rdev->family == CHIP_VERDE)
 		has_pg = true;
-
+#endif
 	if (has_pg) {
 		si_init_ao_cu_mask(rdev);
 		si_init_dma_pg(rdev);
