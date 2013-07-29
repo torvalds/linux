@@ -1246,7 +1246,7 @@ found:
 
 void nf_ct_iterate_cleanup(struct net *net,
 			   int (*iter)(struct nf_conn *i, void *data),
-			   void *data)
+			   void *data, u32 portid, int report)
 {
 	struct nf_conn *ct;
 	unsigned int bucket = 0;
@@ -1254,7 +1254,7 @@ void nf_ct_iterate_cleanup(struct net *net,
 	while ((ct = get_next_corpse(net, iter, data, &bucket)) != NULL) {
 		/* Time to push up daises... */
 		if (del_timer(&ct->timeout))
-			death_by_timeout((unsigned long)ct);
+			nf_ct_delete(ct, portid, report);
 
 		/* ... else the timer will get him soon. */
 
@@ -1262,30 +1262,6 @@ void nf_ct_iterate_cleanup(struct net *net,
 	}
 }
 EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup);
-
-struct __nf_ct_flush_report {
-	u32 portid;
-	int report;
-};
-
-static int kill_report(struct nf_conn *i, void *data)
-{
-	struct __nf_ct_flush_report *fr = (struct __nf_ct_flush_report *)data;
-	struct nf_conn_tstamp *tstamp;
-
-	tstamp = nf_conn_tstamp_find(i);
-	if (tstamp && tstamp->stop == 0)
-		tstamp->stop = ktime_to_ns(ktime_get_real());
-
-	/* If we fail to deliver the event, death_by_timeout() will retry */
-	if (nf_conntrack_event_report(IPCT_DESTROY, i,
-				      fr->portid, fr->report) < 0)
-		return 1;
-
-	/* Avoid the delivery of the destroy event in death_by_timeout(). */
-	set_bit(IPS_DYING_BIT, &i->status);
-	return 1;
-}
 
 static int kill_all(struct nf_conn *i, void *data)
 {
@@ -1304,11 +1280,7 @@ EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
 void nf_conntrack_flush_report(struct net *net, u32 portid, int report)
 {
-	struct __nf_ct_flush_report fr = {
-		.portid	= portid,
-		.report = report,
-	};
-	nf_ct_iterate_cleanup(net, kill_report, &fr);
+	nf_ct_iterate_cleanup(net, kill_all, NULL, portid, report);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_flush_report);
 
@@ -1389,7 +1361,7 @@ void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
 i_see_dead_people:
 	busy = 0;
 	list_for_each_entry(net, net_exit_list, exit_list) {
-		nf_ct_iterate_cleanup(net, kill_all, NULL);
+		nf_ct_iterate_cleanup(net, kill_all, NULL, 0, 0);
 		nf_ct_release_dying_list(net);
 		if (atomic_read(&net->ct.count) != 0)
 			busy = 1;
