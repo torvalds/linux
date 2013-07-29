@@ -872,24 +872,6 @@ static void das16_interrupt(struct comedi_device *dev)
 	cfc_handle_events(dev, s);
 }
 
-static irqreturn_t das16_dma_interrupt(int irq, void *d)
-{
-	int status;
-	struct comedi_device *dev = d;
-
-	status = inb(dev->iobase + DAS16_STATUS);
-
-	if ((status & DAS16_INT) == 0) {
-		DEBUG_PRINT("spurious interrupt\n");
-		return IRQ_NONE;
-	}
-
-	/* clear interrupt */
-	outb(0x00, dev->iobase + DAS16_STATUS);
-	das16_interrupt(dev);
-	return IRQ_HANDLED;
-}
-
 static void das16_timer_interrupt(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
@@ -1006,17 +988,9 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct das16_private_struct *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-	unsigned int irq;
 	unsigned int dma_chan;
 	unsigned long flags;
 	struct comedi_krange *user_ai_range, *user_ao_range;
-
-#if 0
-	irq = it->options[1];
-#endif
-	/* always use time_mode since using irq can drop samples while
-	 * waiting for dma done interrupt (due to hardware limitations) */
-	irq = 0;
 
 	/*  check that clock setting is valid */
 	if (it->options[3]) {
@@ -1063,22 +1037,6 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			devpriv->clockbase = 1000;	/*  1 MHz default */
 	} else {
 		das1600_mode_detect(dev);
-	}
-
-	/* now for the irq */
-	if (irq > 1 && irq < 8) {
-		ret = request_irq(irq, das16_dma_interrupt, 0,
-				  dev->board_name, dev);
-
-		if (ret < 0)
-			return ret;
-		dev->irq = irq;
-		printk(KERN_INFO " ( irq = %u )", irq);
-	} else if (irq == 0) {
-		printk(" ( no irq )");
-	} else {
-		printk(" invalid irq\n");
-		return -EINVAL;
 	}
 
 	/*  initialize dma */
