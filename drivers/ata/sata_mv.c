@@ -4428,9 +4428,6 @@ static int mv_pci_device_resume(struct pci_dev *pdev)
 #endif
 #endif
 
-static int mv_platform_probe(struct platform_device *pdev);
-static int mv_platform_remove(struct platform_device *pdev);
-
 static int __init mv_init(void)
 {
 	int rc = -ENODEV;
