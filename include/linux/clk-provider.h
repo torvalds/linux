@@ -79,6 +79,10 @@ struct clk_hw;
  * @round_rate:	Given a target rate as input, returns the closest rate actually
  * 		supported by the clock.
  *
+ * @determine_rate: Given a target rate as input, returns the closest rate
+ *		actually supported by the clock, and optionally the parent clock
+ *		that should be used to provide the clock rate.
+ *
  * @get_parent:	Queries the hardware to determine the parent of a clock.  The
  * 		return value is a u8 which specifies the index corresponding to
  * 		the parent clock.  This index can be applied to either the
@@ -126,6 +130,9 @@ struct clk_ops {
 					unsigned long parent_rate);
 	long		(*round_rate)(struct clk_hw *hw, unsigned long,
 					unsigned long *);
+	long		(*determine_rate)(struct clk_hw *hw, unsigned long rate,
+					unsigned long *best_parent_rate,
+					struct clk **best_parent_clk);
 	int		(*set_parent)(struct clk_hw *hw, u8 index);
 	u8		(*get_parent)(struct clk_hw *hw);
 	int		(*set_rate)(struct clk_hw *hw, unsigned long,

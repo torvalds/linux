@@ -889,21 +889,24 @@ EXPORT_SYMBOL_GPL(clk_enable);
 unsigned long __clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long parent_rate = 0;
+	struct clk *parent;
 
 	if (!clk)
 		return 0;
 
-	if (!clk->ops->round_rate) {
-		if (clk->flags & CLK_SET_RATE_PARENT)
-			return __clk_round_rate(clk->parent, rate);
-		else
-			return clk->rate;
-	}
+	parent = clk->parent;
+	if (parent)
+		parent_rate = parent->rate;
 
-	if (clk->parent)
-		parent_rate = clk->parent->rate;
-
-	return clk->ops->round_rate(clk->hw, rate, &parent_rate);
+	if (clk->ops->determine_rate)
+		return clk->ops->determine_rate(clk->hw, rate, &parent_rate,
+						&parent);
+	else if (clk->ops->round_rate)
+		return clk->ops->round_rate(clk->hw, rate, &parent_rate);
+	else if (clk->flags & CLK_SET_RATE_PARENT)
+		return __clk_round_rate(clk->parent, rate);
+	else
+		return clk->rate;
 }
 
 /**
@@ -1056,6 +1059,10 @@ static u8 clk_fetch_parent_index(struct clk *clk, struct clk *parent)
 
 static void clk_reparent(struct clk *clk, struct clk *new_parent)
 {
+	/* avoid duplicate POST_RATE_CHANGE notifications */
+	if (new_parent->new_child == clk)
+		new_parent->new_child = NULL;
+
 	hlist_del(&clk->child_node);
 
 	if (new_parent)
@@ -1176,18 +1183,25 @@ out:
 	return ret;
 }
 
-static void clk_calc_subtree(struct clk *clk, unsigned long new_rate)
+static void clk_calc_subtree(struct clk *clk, unsigned long new_rate,
+			     struct clk *new_parent, u8 p_index)
 {
 	struct clk *child;
 
 	clk->new_rate = new_rate;
+	clk->new_parent = new_parent;
+	clk->new_parent_index = p_index;
+	/* include clk in new parent's PRE_RATE_CHANGE notifications */
+	clk->new_child = NULL;
+	if (new_parent && new_parent != clk->parent)
+		new_parent->new_child = clk;
 
 	hlist_for_each_entry(child, &clk->children, child_node) {
 		if (child->ops->recalc_rate)
 			child->new_rate = child->ops->recalc_rate(child->hw, new_rate);
 		else
 			child->new_rate = new_rate;
-		clk_calc_subtree(child, child->new_rate);
+		clk_calc_subtree(child, child->new_rate, NULL, 0);
 	}
 }
 
@@ -1198,50 +1212,63 @@ static void clk_calc_subtree(struct clk *clk, unsigned long new_rate)
 static struct clk *clk_calc_new_rates(struct clk *clk, unsigned long rate)
 {
 	struct clk *top = clk;
+	struct clk *old_parent, *parent;
 	unsigned long best_parent_rate = 0;
 	unsigned long new_rate;
+	u8 p_index = 0;
 
 	/* sanity */
 	if (IS_ERR_OR_NULL(clk))
 		return NULL;
 
 	/* save parent rate, if it exists */
-	if (clk->parent)
-		best_parent_rate = clk->parent->rate;
+	parent = old_parent = clk->parent;
+	if (parent)
+		best_parent_rate = parent->rate;
 
-	/* never propagate up to the parent */
-	if (!(clk->flags & CLK_SET_RATE_PARENT)) {
-		if (!clk->ops->round_rate) {
-			clk->new_rate = clk->rate;
-			return NULL;
-		}
-		new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
+	/* find the closest rate and parent clk/rate */
+	if (clk->ops->determine_rate) {
+		new_rate = clk->ops->determine_rate(clk->hw, rate,
+						    &best_parent_rate,
+						    &parent);
+	} else if (clk->ops->round_rate) {
+		new_rate = clk->ops->round_rate(clk->hw, rate,
+						&best_parent_rate);
+	} else if (!parent || !(clk->flags & CLK_SET_RATE_PARENT)) {
+		/* pass-through clock without adjustable parent */
+		clk->new_rate = clk->rate;
+		return NULL;
+	} else {
+		/* pass-through clock with adjustable parent */
+		top = clk_calc_new_rates(parent, rate);
+		new_rate = parent->new_rate;
 		goto out;
 	}
 
-	/* need clk->parent from here on out */
-	if (!clk->parent) {
-		pr_debug("%s: %s has NULL parent\n", __func__, clk->name);
+	/* some clocks must be gated to change parent */
+	if (parent != old_parent &&
+	    (clk->flags & CLK_SET_PARENT_GATE) && clk->prepare_count) {
+		pr_debug("%s: %s not gated but wants to reparent\n",
+			 __func__, clk->name);
 		return NULL;
 	}
 
-	if (!clk->ops->round_rate) {
-		top = clk_calc_new_rates(clk->parent, rate);
-		new_rate = clk->parent->new_rate;
-
-		goto out;
+	/* try finding the new parent index */
+	if (parent) {
+		p_index = clk_fetch_parent_index(clk, parent);
+		if (p_index == clk->num_parents) {
+			pr_debug("%s: clk %s can not be parent of clk %s\n",
+				 __func__, parent->name, clk->name);
+			return NULL;
+		}
 	}
 
-	new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
-
-	if (best_parent_rate != clk->parent->rate) {
-		top = clk_calc_new_rates(clk->parent, best_parent_rate);
-
-		goto out;
-	}
+	if ((clk->flags & CLK_SET_RATE_PARENT) && parent &&
+	    best_parent_rate != parent->rate)
+		top = clk_calc_new_rates(parent, best_parent_rate);
 
 out:
-	clk_calc_subtree(clk, new_rate);
+	clk_calc_subtree(clk, new_rate, parent, p_index);
 
 	return top;
 }
@@ -1253,7 +1280,7 @@ out:
  */
 static struct clk *clk_propagate_rate_change(struct clk *clk, unsigned long event)
 {
-	struct clk *child, *fail_clk = NULL;
+	struct clk *child, *tmp_clk, *fail_clk = NULL;
 	int ret = NOTIFY_DONE;
 
 	if (clk->rate == clk->new_rate)
@@ -1266,9 +1293,19 @@ static struct clk *clk_propagate_rate_change(struct clk *clk, unsigned long even
 	}
 
 	hlist_for_each_entry(child, &clk->children, child_node) {
-		clk = clk_propagate_rate_change(child, event);
-		if (clk)
-			fail_clk = clk;
+		/* Skip children who will be reparented to another clock */
+		if (child->new_parent && child->new_parent != clk)
+			continue;
+		tmp_clk = clk_propagate_rate_change(child, event);
+		if (tmp_clk)
+			fail_clk = tmp_clk;
+	}
+
+	/* handle the new child who might not be in clk->children yet */
+	if (clk->new_child) {
+		tmp_clk = clk_propagate_rate_change(clk->new_child, event);
+		if (tmp_clk)
+			fail_clk = tmp_clk;
 	}
 
 	return fail_clk;
@@ -1286,6 +1323,10 @@ static void clk_change_rate(struct clk *clk)
 
 	old_rate = clk->rate;
 
+	/* set parent */
+	if (clk->new_parent && clk->new_parent != clk->parent)
+		__clk_set_parent(clk, clk->new_parent, clk->new_parent_index);
+
 	if (clk->parent)
 		best_parent_rate = clk->parent->rate;
 
@@ -1300,8 +1341,16 @@ static void clk_change_rate(struct clk *clk)
 	if (clk->notifier_count && old_rate != clk->rate)
 		__clk_notify(clk, POST_RATE_CHANGE, old_rate, clk->rate);
 
-	hlist_for_each_entry(child, &clk->children, child_node)
+	hlist_for_each_entry(child, &clk->children, child_node) {
+		/* Skip children who will be reparented to another clock */
+		if (child->new_parent && child->new_parent != clk)
+			continue;
 		clk_change_rate(child);
+	}
+
+	/* handle the new child who might not be in clk->children yet */
+	if (clk->new_child)
+		clk_change_rate(clk->new_child);
 }
 
 /**
@@ -1552,8 +1601,9 @@ int __clk_init(struct device *dev, struct clk *clk)
 
 	/* check that clk_ops are sane.  See Documentation/clk.txt */
 	if (clk->ops->set_rate &&
-			!(clk->ops->round_rate && clk->ops->recalc_rate)) {
-		pr_warning("%s: %s must implement .round_rate & .recalc_rate\n",
+	    !((clk->ops->round_rate || clk->ops->determine_rate) &&
+	      clk->ops->recalc_rate)) {
+		pr_warning("%s: %s must implement .round_rate or .determine_rate in addition to .recalc_rate\n",
 				__func__, clk->name);
 		ret = -EINVAL;
 		goto out;
