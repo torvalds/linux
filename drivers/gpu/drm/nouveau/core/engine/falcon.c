@@ -23,6 +23,25 @@
 #include <engine/falcon.h>
 #include <subdev/timer.h>
 
+void
+nouveau_falcon_intr(struct nouveau_subdev *subdev)
+{
+	struct nouveau_falcon *falcon = (void *)subdev;
+	u32 dispatch = nv_ro32(falcon, 0x01c);
+	u32 intr = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
+
+	if (intr & 0x00000010) {
+		nv_debug(falcon, "ucode halted\n");
+		nv_wo32(falcon, 0x004, 0x00000010);
+		intr &= ~0x00000010;
+	}
+
+	if (intr)  {
+		nv_error(falcon, "unhandled intr 0x%08x\n", intr);
+		nv_wo32(falcon, 0x004, intr);
+	}
+}
+
 u32
 _nouveau_falcon_rd32(struct nouveau_object *object, u64 addr)
 {

@@ -333,7 +333,8 @@ int __wait_on_atomic_t(wait_queue_head_t *wq, struct wait_bit_queue *q,
 		prepare_to_wait(wq, &q->wait, mode);
 		val = q->key.flags;
 		if (atomic_read(val) == 0)
-			ret = (*action)(val);
+			break;
+		ret = (*action)(val);
 	} while (!ret && atomic_read(val) != 0);
 	finish_wait(wq, &q->wait);
 	return ret;

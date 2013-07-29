@@ -258,7 +258,7 @@ err_free_2:
 	return err;
 }
 
-static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
+static int poodle_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
@@ -270,6 +270,8 @@ static void poodle_mci_setpower(struct device *dev, unsigned int vdd)
 		gpio_set_value(POODLE_GPIO_SD_PWR1, 0);
 		gpio_set_value(POODLE_GPIO_SD_PWR, 0);
 	}
+
+	return 0;
 }
 
 static void poodle_mci_exit(struct device *dev, void *data)

@@ -29,6 +29,13 @@ config PLAT_S5P
 	help
 	  Base platform code for Samsung's S5P series SoC.
 
+config SAMSUNG_PM
+	bool
+	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX || ARCH_S5P64X0 || S5P_PM)
+	default y
+	help
+	  Base platform power management code for samsung code
+
 if PLAT_SAMSUNG
 
 # boot configurations
