@@ -85,6 +85,7 @@ static int use_bbit_insns(void)
 	case CPU_CAVIUM_OCTEON:
 	case CPU_CAVIUM_OCTEON_PLUS:
 	case CPU_CAVIUM_OCTEON2:
+	case CPU_CAVIUM_OCTEON3:
 		return 1;
 	default:
 		return 0;
@@ -95,6 +96,7 @@ static int use_lwx_insns(void)
 {
 	switch (current_cpu_type()) {
 	case CPU_CAVIUM_OCTEON2:
+	case CPU_CAVIUM_OCTEON3:
 		return 1;
 	default:
 		return 0;
