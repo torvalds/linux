@@ -134,10 +134,7 @@ static void ufshcd_pci_remove(struct pci_dev *pdev)
 
 	disable_irq(pdev->irq);
 	ufshcd_remove(hba);
-	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
-	pci_clear_master(pdev);
-	pci_disable_device(pdev);
 }
 
 /**
@@ -174,38 +171,32 @@ ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	void __iomem *mmio_base;
 	int err;
 
-	err = pci_enable_device(pdev);
+	err = pcim_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "pci_enable_device failed\n");
-		goto out_error;
+		dev_err(&pdev->dev, "pcim_enable_device failed\n");
+		return err;
 	}
 
 	pci_set_master(pdev);
 
-
-	err = pci_request_regions(pdev, UFSHCD);
+	err = pcim_iomap_regions(pdev, 1 << 0, UFSHCD);
 	if (err < 0) {
-		dev_err(&pdev->dev, "request regions failed\n");
-		goto out_disable;
+		dev_err(&pdev->dev, "request and iomap failed\n");
+		return err;
 	}
 
-	mmio_base = pci_ioremap_bar(pdev, 0);
-	if (!mmio_base) {
-		dev_err(&pdev->dev, "memory map failed\n");
-		err = -ENOMEM;
-		goto out_release_regions;
-	}
+	mmio_base = pcim_iomap_table(pdev)[0];
 
 	err = ufshcd_set_dma_mask(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "set dma mask failed\n");
-		goto out_iounmap;
+		return err;
 	}
 
 	err = ufshcd_init(&pdev->dev, &hba, mmio_base, pdev->irq);
 	if (err) {
 		dev_err(&pdev->dev, "Initialization failed\n");
-		goto out_iounmap;
+		return err;
 	}
 
 	pci_set_drvdata(pdev, hba);
@@ -213,16 +204,6 @@ ufshcd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
-
-out_iounmap:
-	iounmap(mmio_base);
-out_release_regions:
-	pci_release_regions(pdev);
-out_disable:
-	pci_clear_master(pdev);
-	pci_disable_device(pdev);
-out_error:
-	return err;
 }
 
 static const struct dev_pm_ops ufshcd_pci_pm_ops = {
