@@ -230,11 +230,14 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 		return;
 	}
 
-	bus = pci_add_new_bus(dev->bus, dev, busrange[0]);
+	bus = pci_find_bus(pci_domain_nr(dev->bus), busrange[0]);
 	if (!bus) {
-		printk(KERN_ERR "Failed to create pci bus for %s\n",
-		       node->full_name);
-		return;
+		bus = pci_add_new_bus(dev->bus, dev, busrange[0]);
+		if (!bus) {
+			printk(KERN_ERR "Failed to create pci bus for %s\n",
+			       node->full_name);
+			return;
+		}
 	}
 
 	bus->primary = dev->bus->number;
@@ -292,6 +295,38 @@ void of_scan_pci_bridge(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(of_scan_pci_bridge);
 
+static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
+			    struct device_node *dn)
+{
+	struct pci_dev *dev = NULL;
+	const u32 *reg;
+	int reglen, devfn;
+
+	pr_debug("  * %s\n", dn->full_name);
+	if (!of_device_is_available(dn))
+		return NULL;
+
+	reg = of_get_property(dn, "reg", &reglen);
+	if (reg == NULL || reglen < 20)
+		return NULL;
+	devfn = (reg[0] >> 8) & 0xff;
+
+	/* Check if the PCI device is already there */
+	dev = pci_get_slot(bus, devfn);
+	if (dev) {
+		pci_dev_put(dev);
+		return dev;
+	}
+
+	/* create a new pci_dev for this device */
+	dev = of_create_pci_dev(dn, bus, devfn);
+	if (!dev)
+		return NULL;
+
+	pr_debug("  dev header type: %x\n", dev->hdr_type);
+	return dev;
+}
+
 /**
  * __of_scan_bus - given a PCI bus node, setup bus and scan for child devices
  * @node: device tree node for the PCI bus
@@ -302,8 +337,6 @@ static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
 			  int rescan_existing)
 {
 	struct device_node *child;
-	const u32 *reg;
-	int reglen, devfn;
 	struct pci_dev *dev;
 
 	pr_debug("of_scan_bus(%s) bus no %d...\n",
@@ -311,16 +344,7 @@ static void __of_scan_bus(struct device_node *node, struct pci_bus *bus,
 
 	/* Scan direct children */
 	for_each_child_of_node(node, child) {
-		pr_debug("  * %s\n", child->full_name);
-		if (!of_device_is_available(child))
-			continue;
-		reg = of_get_property(child, "reg", &reglen);
-		if (reg == NULL || reglen < 20)
-			continue;
-		devfn = (reg[0] >> 8) & 0xff;
-
-		/* create a new pci_dev for this device */
-		dev = of_create_pci_dev(child, bus, devfn);
+		dev = of_scan_pci_dev(bus, child);
 		if (!dev)
 			continue;
 		pr_debug("    dev header type: %x\n", dev->hdr_type);

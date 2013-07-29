@@ -656,8 +656,11 @@ static struct usb_function_instance *phonet_alloc_inst(void)
 
 	opts->func_inst.free_func_inst = phonet_free_inst;
 	opts->net = gphonet_setup_default();
-	if (IS_ERR(opts->net))
-		return ERR_PTR(PTR_ERR(opts->net));
+	if (IS_ERR(opts->net)) {
+		struct net_device *net = opts->net;
+		kfree(opts);
+		return ERR_CAST(net);
+	}
 
 	config_group_init_type_name(&opts->func_inst.group, "",
 			&phonet_func_type);
