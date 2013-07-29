@@ -293,11 +293,10 @@ static int adjd_s311_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int err;
 
-	indio_dev = iio_device_alloc(sizeof(*data));
-	if (indio_dev == NULL) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	if (indio_dev == NULL)
+		return -ENOMEM;
+
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
@@ -312,7 +311,7 @@ static int adjd_s311_probe(struct i2c_client *client,
 	err = iio_triggered_buffer_setup(indio_dev, NULL,
 		adjd_s311_trigger_handler, NULL);
 	if (err < 0)
-		goto exit_free_device;
+		return err;
 
 	err = iio_device_register(indio_dev);
 	if (err)
@@ -324,9 +323,6 @@ static int adjd_s311_probe(struct i2c_client *client,
 
 exit_unreg_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
-exit_free_device:
-	iio_device_free(indio_dev);
-exit:
 	return err;
 }
 
@@ -338,7 +334,6 @@ static int adjd_s311_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	kfree(data->buffer);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
