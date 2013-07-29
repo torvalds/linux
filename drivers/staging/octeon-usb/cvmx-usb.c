@@ -258,7 +258,6 @@ static int octeon_usb_get_clock_type(void)
 }
 
 /**
- * @INTERNAL
  * Read a USB 32bit CSR. It performs the necessary address swizzle
  * for 32bit CSRs and logs the value in a readable format if
  * debugging is on.
@@ -277,7 +276,6 @@ static inline uint32_t __cvmx_usb_read_csr32(cvmx_usb_internal_state_t *usb,
 
 
 /**
- * @INTERNAL
  * Write a USB 32bit CSR. It performs the necessary address
  * swizzle for 32bit CSRs and logs the value in a readable format
  * if debugging is on.
@@ -295,7 +293,6 @@ static inline void __cvmx_usb_write_csr32(cvmx_usb_internal_state_t *usb,
 
 
 /**
- * @INTERNAL
  * Read a USB 64bit CSR. It logs the value in a readable format if
  * debugging is on.
  *
@@ -313,7 +310,6 @@ static inline uint64_t __cvmx_usb_read_csr64(cvmx_usb_internal_state_t *usb,
 
 
 /**
- * @INTERNAL
  * Write a USB 64bit CSR. It logs the value in a readable format
  * if debugging is on.
  *
@@ -328,7 +324,6 @@ static inline void __cvmx_usb_write_csr64(cvmx_usb_internal_state_t *usb,
 }
 
 /**
- * @INTERNAL
  * Return non zero if this pipe connects to a non HIGH speed
  * device through a high speed hub.
  *
@@ -344,7 +339,6 @@ static inline int __cvmx_usb_pipe_needs_split(cvmx_usb_internal_state_t *usb, cv
 
 
 /**
- * @INTERNAL
  * Trivial utility function to return the correct PID for a pipe
  *
  * @param pipe   pipe to check
@@ -392,7 +386,6 @@ int cvmx_usb_get_num_ports(void)
 
 
 /**
- * @INTERNAL
  * Allocate a usb transaction for use
  *
  * @param usb	 USB device state populated by
@@ -418,7 +411,6 @@ static inline cvmx_usb_transaction_t *__cvmx_usb_alloc_transaction(cvmx_usb_inte
 
 
 /**
- * @INTERNAL
  * Free a usb transaction
  *
  * @param usb	 USB device state populated by
@@ -441,7 +433,6 @@ static inline void __cvmx_usb_free_transaction(cvmx_usb_internal_state_t *usb,
 
 
 /**
- * @INTERNAL
  * Add a pipe to the tail of a list
  * @param list   List to add pipe to
  * @param pipe   Pipe to add
@@ -459,7 +450,6 @@ static inline void __cvmx_usb_append_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_p
 
 
 /**
- * @INTERNAL
  * Remove a pipe from a list
  * @param list   List to remove pipe from
  * @param pipe   Pipe to remove
@@ -1024,7 +1014,6 @@ void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t port_st
 
 
 /**
- * @INTERNAL
  * Convert a USB transaction into a handle
  *
  * @param usb    USB device state populated by
@@ -1043,7 +1032,6 @@ static inline int __cvmx_usb_get_submit_handle(cvmx_usb_internal_state_t *usb,
 
 
 /**
- * @INTERNAL
  * Convert a USB pipe into a handle
  *
  * @param usb    USB device state populated by
@@ -1199,7 +1187,6 @@ int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
 
 
 /**
- * @INTERNAL
  * Poll the RX FIFOs and remove data as needed. This function is only used
  * in non DMA mode. It is very important that this function be called quickly
  * enough to prevent FIFO overflow.
@@ -1335,7 +1322,6 @@ static void __cvmx_usb_poll_tx_fifo(cvmx_usb_internal_state_t *usb)
 
 
 /**
- * @INTERNAL
  * Fill the TX FIFO with an outgoing packet
  *
  * @param usb	  USB device state populated by
@@ -1383,7 +1369,6 @@ static void __cvmx_usb_fill_tx_fifo(cvmx_usb_internal_state_t *usb, int channel)
 }
 
 /**
- * @INTERNAL
  * Perform channel specific setup for Control transactions. All
  * the generic stuff will already have been done in
  * __cvmx_usb_start_channel()
@@ -1515,7 +1500,6 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
 
 
 /**
- * @INTERNAL
  * Start a channel to perform the pipe's head transaction
  *
  * @param usb	  USB device state populated by
@@ -1803,7 +1787,6 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 
 
 /**
- * @INTERNAL
  * Find a pipe that is ready to be scheduled to hardware.
  * @param usb	 USB device state populated by
  *		 cvmx_usb_initialize().
@@ -1832,7 +1815,6 @@ static cvmx_usb_pipe_t *__cvmx_usb_find_ready_pipe(cvmx_usb_internal_state_t *us
 
 
 /**
- * @INTERNAL
  * Called whenever a pipe might need to be scheduled to the
  * hardware.
  *
@@ -1907,7 +1889,6 @@ done:
 
 
 /**
- * @INTERNAL
  * Call a user's callback for a specific reason.
  *
  * @param usb	 USB device state populated by
@@ -1953,7 +1934,6 @@ static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
 
 
 /**
- * @INTERNAL
  * Signal the completion of a transaction and free it. The
  * transaction will be removed from the pipe transaction list.
  *
@@ -2020,7 +2000,6 @@ done:
 
 
 /**
- * @INTERNAL
  * Submit a usb transaction to a pipe. Called for all types
  * of transactions.
  *
@@ -2571,7 +2550,6 @@ int cvmx_usb_get_frame_number(cvmx_usb_state_t *state)
 
 
 /**
- * @INTERNAL
  * Poll a channel for status
  *
  * @param usb	  USB device
