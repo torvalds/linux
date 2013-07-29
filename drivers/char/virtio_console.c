@@ -1513,18 +1513,22 @@ static void remove_port_data(struct port *port)
 {
 	struct port_buffer *buf;
 
+	spin_lock_irq(&port->inbuf_lock);
 	/* Remove unused data this port might have received. */
 	discard_port_data(port);
-
-	reclaim_consumed_buffers(port);
 
 	/* Remove buffers we queued up for the Host to send us data in. */
 	while ((buf = virtqueue_detach_unused_buf(port->in_vq)))
 		free_buf(buf, true);
+	spin_unlock_irq(&port->inbuf_lock);
+
+	spin_lock_irq(&port->outvq_lock);
+	reclaim_consumed_buffers(port);
 
 	/* Free pending buffers from the out-queue. */
 	while ((buf = virtqueue_detach_unused_buf(port->out_vq)))
 		free_buf(buf, true);
+	spin_unlock_irq(&port->outvq_lock);
 }
 
 /*
