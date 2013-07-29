@@ -373,6 +373,7 @@ struct das16_private_struct {
 	short timer_running;
 
 	unsigned long extra_iobase;
+	unsigned int can_burst:1;
 };
 
 static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -389,15 +390,13 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
 
 	mask = TRIG_FOLLOW;
-	/*  if board supports burst mode */
-	if (board->size > 0x400)
+	if (devpriv->can_burst)
 		mask |= TRIG_TIMER | TRIG_EXT;
 	err |= cfc_check_trigger_src(&cmd->scan_begin_src, mask);
 
 	tmp = cmd->convert_src;
 	mask = TRIG_TIMER | TRIG_EXT;
-	/*  if board supports burst mode */
-	if (board->size > 0x400)
+	if (devpriv->can_burst)
 		mask |= TRIG_NOW;
 	err |= cfc_check_trigger_src(&cmd->convert_src, mask);
 
@@ -534,8 +533,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->adc_byte_count =
 	    cmd->stop_arg * cmd->chanlist_len * sizeof(uint16_t);
 
-	/*  disable conversions for das1600 mode */
-	if (board->size > 0x400)
+	if (devpriv->can_burst)
 		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV);
 
 	/*  set scan limits */
@@ -559,8 +557,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* enable counters */
 	byte = 0;
-	/* Enable burst mode if appropriate. */
-	if (board->size > 0x400) {
+	if (devpriv->can_burst) {
 		if (cmd->convert_src == TRIG_NOW) {
 			outb(DAS1600_BURST_VAL, dev->iobase + DAS1600_BURST);
 			/*  set burst length */
@@ -598,8 +595,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->control_state |= INT_PACER;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
-	/* Enable conversions if using das1600 mode */
-	if (board->size > 0x400)
+	if (devpriv->can_burst)
 		outb(0, dev->iobase + DAS1600_CONV);
 
 
@@ -608,7 +604,6 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct das16_board *board = comedi_board(dev);
 	struct das16_private_struct *devpriv = dev->private;
 	unsigned long flags;
 
@@ -624,10 +619,8 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 		del_timer(&devpriv->timer);
 	}
 
-	/* disable burst mode */
-	if (board->size > 0x400)
+	if (devpriv->can_burst)
 		outb(0, dev->iobase + DAS1600_BURST);
-
 
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
@@ -955,6 +948,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (ret)
 			return ret;
 		devpriv->extra_iobase = dev->iobase + 0x400;
+		devpriv->can_burst = 1;
 	}
 
 	/*  probe id bits to make sure they are consistent */
@@ -964,13 +958,13 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/*  get master clock speed */
-	if (board->size < 0x400) {
+	if (devpriv->can_burst) {
+		das1600_mode_detect(dev);
+	} else {
 		if (it->options[3])
 			devpriv->clockbase = 1000 / it->options[3];
 		else
 			devpriv->clockbase = 1000;	/*  1 MHz default */
-	} else {
-		das1600_mode_detect(dev);
 	}
 
 	/* initialize dma */
@@ -1123,8 +1117,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->control_state = DAS16_IRQ(dev->irq);
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
 
-	/*  turn on das1600 mode if available */
-	if (board->size > 0x400) {
+	if (devpriv->can_burst) {
 		outb(DAS1600_ENABLE_VAL, dev->iobase + DAS1600_ENABLE);
 		outb(0, dev->iobase + DAS1600_CONV);
 		outb(0, dev->iobase + DAS1600_BURST);
