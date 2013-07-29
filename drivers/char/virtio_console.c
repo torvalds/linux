@@ -1286,12 +1286,14 @@ static void unplug_port(struct port *port)
 	spin_unlock_irq(&port->portdev->ports_lock);
 
 	if (port->guest_connected) {
-		port->guest_connected = false;
-		port->host_connected = false;
-		wake_up_interruptible(&port->waitqueue);
-
 		/* Let the app know the port is going down. */
 		send_sigio_to_port(port);
+
+		/* Do this after sigio is actually sent */
+		port->guest_connected = false;
+		port->host_connected = false;
+
+		wake_up_interruptible(&port->waitqueue);
 	}
 
 	if (is_console_port(port)) {
