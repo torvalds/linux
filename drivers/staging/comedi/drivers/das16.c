@@ -253,8 +253,6 @@ struct das16_board {
 	unsigned int id;
 };
 
-#define DAS16_TIMEOUT 1000
-
 /* Period for timer interrupt in jiffies.  It's a function
  * to deal with possibility of dynamic HZ patches  */
 static inline int timer_period(void)
@@ -564,55 +562,61 @@ static void das16_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + DAS16_CNTR_CONTROL);
 }
 
+static int das16_ai_wait_for_conv(struct comedi_device *dev,
+				  unsigned int timeout)
+{
+	unsigned int status;
+	int i;
+
+	for (i = 0; i < timeout; i++) {
+		status = inb(dev->iobase + DAS16_STATUS);
+		if (!(status & BUSY))
+			return 0;
+	}
+	return -ETIME;
+}
+
 static int das16_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
 	const struct das16_board *board = comedi_board(dev);
-	int i, n;
-	int range;
-	int chan;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val;
+	int ret;
+	int i;
 
 	das16_ai_disable(dev);
 
 	/* set multiplexer */
-	chan = CR_CHAN(insn->chanspec);
-	chan |= CR_CHAN(insn->chanspec) << 4;
-	outb(chan, dev->iobase + DAS16_MUX);
+	outb(chan | (chan << 4), dev->iobase + DAS16_MUX);
 
 	/* set gain */
 	if (board->ai_pg != das16_pg_none) {
-		range = CR_RANGE(insn->chanspec);
 		outb((das16_gainlists[board->ai_pg])[range],
 		     dev->iobase + DAS16_GAIN);
 	}
 
-	for (n = 0; n < insn->n; n++) {
-		unsigned int val;
-
+	for (i = 0; i < insn->n; i++) {
 		/* trigger conversion */
 		outb_p(0, dev->iobase + DAS16_TRIG);
 
-		for (i = 0; i < DAS16_TIMEOUT; i++) {
-			if (!(inb(dev->iobase + DAS16_STATUS) & BUSY))
-				break;
-		}
-		if (i == DAS16_TIMEOUT) {
-			printk("das16: timeout\n");
-			return -ETIME;
-		}
+		ret = das16_ai_wait_for_conv(dev, 1000);
+		if (ret)
+			return ret;
 
 		val = inb(dev->iobase + DAS16_AI_MSB) << 8;
 		val |= inb(dev->iobase + DAS16_AI_LSB);
 		if (s->maxdata == 0x0fff)
-			data[n] >>= 4;
+			val >>= 4;
 		val &= s->maxdata;
 
-		data[n] = val;
+		data[i] = val;
 	}
 
-	return n;
+	return insn->n;
 }
 
 static int das16_di_insn_bits(struct comedi_device *dev,
