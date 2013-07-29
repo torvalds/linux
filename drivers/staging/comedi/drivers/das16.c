@@ -311,6 +311,116 @@ static void das16_ai_disable(struct comedi_device *dev)
 	outb(devpriv->ctrl_reg, dev->iobase + DAS16_CONTROL);
 }
 
+/* the pc104-das16jr (at least) has problems if the dma
+	transfer is interrupted in the middle of transferring
+	a 16 bit sample, so this function takes care to get
+	an even transfer count after disabling dma
+	channel.
+*/
+static int disable_dma_on_even(struct comedi_device *dev)
+{
+	struct das16_private_struct *devpriv = dev->private;
+	int residue;
+	int i;
+	static const int disable_limit = 100;
+	static const int enable_timeout = 100;
+
+	disable_dma(devpriv->dma_chan);
+	residue = get_dma_residue(devpriv->dma_chan);
+	for (i = 0; i < disable_limit && (residue % 2); ++i) {
+		int j;
+		enable_dma(devpriv->dma_chan);
+		for (j = 0; j < enable_timeout; ++j) {
+			int new_residue;
+			udelay(2);
+			new_residue = get_dma_residue(devpriv->dma_chan);
+			if (new_residue != residue)
+				break;
+		}
+		disable_dma(devpriv->dma_chan);
+		residue = get_dma_residue(devpriv->dma_chan);
+	}
+	if (i == disable_limit) {
+		comedi_error(dev, "failed to get an even dma transfer, "
+							"could be trouble.");
+	}
+	return residue;
+}
+
+static void das16_interrupt(struct comedi_device *dev)
+{
+	struct das16_private_struct *devpriv = dev->private;
+	unsigned long dma_flags, spin_flags;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async;
+	struct comedi_cmd *cmd;
+	int num_bytes, residue;
+	int buffer_index;
+
+	if (!dev->attached) {
+		comedi_error(dev, "premature interrupt");
+		return;
+	}
+	/*  initialize async here to make sure it is not NULL */
+	async = s->async;
+	cmd = &async->cmd;
+
+	spin_lock_irqsave(&dev->spinlock, spin_flags);
+	if ((devpriv->ctrl_reg & DMA_ENABLE) == 0) {
+		spin_unlock_irqrestore(&dev->spinlock, spin_flags);
+		return;
+	}
+
+	dma_flags = claim_dma_lock();
+	clear_dma_ff(devpriv->dma_chan);
+	residue = disable_dma_on_even(dev);
+
+	/*  figure out how many points to read */
+	if (residue > devpriv->dma_transfer_size) {
+		comedi_error(dev, "residue > transfer size!\n");
+		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		num_bytes = 0;
+	} else
+		num_bytes = devpriv->dma_transfer_size - residue;
+
+	if (cmd->stop_src == TRIG_COUNT &&
+					num_bytes >= devpriv->adc_byte_count) {
+		num_bytes = devpriv->adc_byte_count;
+		async->events |= COMEDI_CB_EOA;
+	}
+
+	buffer_index = devpriv->current_buffer;
+	devpriv->current_buffer = (devpriv->current_buffer + 1) % 2;
+	devpriv->adc_byte_count -= num_bytes;
+
+	/*  re-enable  dma */
+	if ((async->events & COMEDI_CB_EOA) == 0) {
+		set_dma_addr(devpriv->dma_chan,
+			     devpriv->dma_buffer_addr[devpriv->current_buffer]);
+		set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+		enable_dma(devpriv->dma_chan);
+	}
+	release_dma_lock(dma_flags);
+
+	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
+
+	cfc_write_array_to_buffer(s,
+				  devpriv->dma_buffer[buffer_index], num_bytes);
+
+	cfc_handle_events(dev, s);
+}
+
+static void das16_timer_interrupt(unsigned long arg)
+{
+	struct comedi_device *dev = (struct comedi_device *)arg;
+	struct das16_private_struct *devpriv = dev->private;
+
+	das16_interrupt(dev);
+
+	if (devpriv->timer_running)
+		mod_timer(&devpriv->timer, jiffies + timer_period());
+}
+
 static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_cmd *cmd)
 {
@@ -554,12 +664,20 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static void das16_reset(struct comedi_device *dev)
+static void das16_ai_munge(struct comedi_device *dev,
+			   struct comedi_subdevice *s, void *array,
+			   unsigned int num_bytes,
+			   unsigned int start_chan_index)
 {
-	outb(0, dev->iobase + DAS16_STATUS);
-	outb(0, dev->iobase + DAS16_CONTROL);
-	outb(0, dev->iobase + DAS16_PACER);
-	outb(0, dev->iobase + DAS16_CNTR_CONTROL);
+	unsigned int i, num_samples = num_bytes / sizeof(short);
+	short *data = array;
+
+	for (i = 0; i < num_samples; i++) {
+		data[i] = le16_to_cpu(data[i]);
+		if (s->maxdata == 0x0fff)
+			data[i] >>= 4;
+		data[i] &= s->maxdata;
+	}
 }
 
 static int das16_ai_wait_for_conv(struct comedi_device *dev,
@@ -619,6 +737,26 @@ static int das16_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int das16_ao_insn_write(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		val <<= 4;
+
+		outb(val & 0xff, dev->iobase + DAS16_AO_LSB(chan));
+		outb((val >> 8) & 0xff, dev->iobase + DAS16_AO_MSB(chan));
+	}
+
+	return insn->n;
+}
+
 static int das16_di_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -647,136 +785,6 @@ static int das16_do_insn_bits(struct comedi_device *dev,
 	data[1] = s->state;
 
 	return insn->n;
-}
-
-static int das16_ao_insn_write(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val;
-	int i;
-
-	for (i = 0; i < insn->n; i++) {
-		val = data[i];
-		val <<= 4;
-
-		outb(val & 0xff, dev->iobase + DAS16_AO_LSB(chan));
-		outb((val >> 8) & 0xff, dev->iobase + DAS16_AO_MSB(chan));
-	}
-
-	return insn->n;
-}
-
-/* the pc104-das16jr (at least) has problems if the dma
-	transfer is interrupted in the middle of transferring
-	a 16 bit sample, so this function takes care to get
-	an even transfer count after disabling dma
-	channel.
-*/
-static int disable_dma_on_even(struct comedi_device *dev)
-{
-	struct das16_private_struct *devpriv = dev->private;
-	int residue;
-	int i;
-	static const int disable_limit = 100;
-	static const int enable_timeout = 100;
-
-	disable_dma(devpriv->dma_chan);
-	residue = get_dma_residue(devpriv->dma_chan);
-	for (i = 0; i < disable_limit && (residue % 2); ++i) {
-		int j;
-		enable_dma(devpriv->dma_chan);
-		for (j = 0; j < enable_timeout; ++j) {
-			int new_residue;
-			udelay(2);
-			new_residue = get_dma_residue(devpriv->dma_chan);
-			if (new_residue != residue)
-				break;
-		}
-		disable_dma(devpriv->dma_chan);
-		residue = get_dma_residue(devpriv->dma_chan);
-	}
-	if (i == disable_limit) {
-		comedi_error(dev, "failed to get an even dma transfer, "
-							"could be trouble.");
-	}
-	return residue;
-}
-
-static void das16_interrupt(struct comedi_device *dev)
-{
-	struct das16_private_struct *devpriv = dev->private;
-	unsigned long dma_flags, spin_flags;
-	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async;
-	struct comedi_cmd *cmd;
-	int num_bytes, residue;
-	int buffer_index;
-
-	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
-		return;
-	}
-	/*  initialize async here to make sure it is not NULL */
-	async = s->async;
-	cmd = &async->cmd;
-
-	spin_lock_irqsave(&dev->spinlock, spin_flags);
-	if ((devpriv->ctrl_reg & DMA_ENABLE) == 0) {
-		spin_unlock_irqrestore(&dev->spinlock, spin_flags);
-		return;
-	}
-
-	dma_flags = claim_dma_lock();
-	clear_dma_ff(devpriv->dma_chan);
-	residue = disable_dma_on_even(dev);
-
-	/*  figure out how many points to read */
-	if (residue > devpriv->dma_transfer_size) {
-		comedi_error(dev, "residue > transfer size!\n");
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		num_bytes = 0;
-	} else
-		num_bytes = devpriv->dma_transfer_size - residue;
-
-	if (cmd->stop_src == TRIG_COUNT &&
-					num_bytes >= devpriv->adc_byte_count) {
-		num_bytes = devpriv->adc_byte_count;
-		async->events |= COMEDI_CB_EOA;
-	}
-
-	buffer_index = devpriv->current_buffer;
-	devpriv->current_buffer = (devpriv->current_buffer + 1) % 2;
-	devpriv->adc_byte_count -= num_bytes;
-
-	/*  re-enable  dma */
-	if ((async->events & COMEDI_CB_EOA) == 0) {
-		set_dma_addr(devpriv->dma_chan,
-			     devpriv->dma_buffer_addr[devpriv->current_buffer]);
-		set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
-		enable_dma(devpriv->dma_chan);
-	}
-	release_dma_lock(dma_flags);
-
-	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
-
-	cfc_write_array_to_buffer(s,
-				  devpriv->dma_buffer[buffer_index], num_bytes);
-
-	cfc_handle_events(dev, s);
-}
-
-static void das16_timer_interrupt(unsigned long arg)
-{
-	struct comedi_device *dev = (struct comedi_device *)arg;
-	struct das16_private_struct *devpriv = dev->private;
-
-	das16_interrupt(dev);
-
-	if (devpriv->timer_running)
-		mod_timer(&devpriv->timer, jiffies + timer_period());
 }
 
 static int das16_probe(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -814,30 +822,14 @@ static int das1600_mode_detect(struct comedi_device *dev)
 	return 0;
 }
 
-static void das16_ai_munge(struct comedi_device *dev,
-			   struct comedi_subdevice *s, void *array,
-			   unsigned int num_bytes,
-			   unsigned int start_chan_index)
+static void das16_reset(struct comedi_device *dev)
 {
-	unsigned int i, num_samples = num_bytes / sizeof(short);
-	short *data = array;
-
-	for (i = 0; i < num_samples; i++) {
-		data[i] = le16_to_cpu(data[i]);
-		if (s->maxdata == 0x0fff)
-			data[i] >>= 4;
-		data[i] &= s->maxdata;
-	}
+	outb(0, dev->iobase + DAS16_STATUS);
+	outb(0, dev->iobase + DAS16_CONTROL);
+	outb(0, dev->iobase + DAS16_PACER);
+	outb(0, dev->iobase + DAS16_CNTR_CONTROL);
 }
 
-/*
- *
- * Options list:
- *   0  I/O base
- *   1  IRQ
- *   2  DMA
- *   3  Clock speed (in MHz)
- */
 static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct das16_board *board = comedi_board(dev);
