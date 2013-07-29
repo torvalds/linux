@@ -86,16 +86,6 @@ www.measurementcomputing.com
 #include "8255.h"
 #include "comedi_fc.h"
 
-#undef DEBUG
-/* #define DEBUG */
-
-#ifdef DEBUG
-#define DEBUG_PRINT(format, args...)	\
-	printk(KERN_DEBUG "das16: " format, ## args)
-#else
-#define DEBUG_PRINT(format, args...)
-#endif
-
 #define DAS16_SIZE 20		/*  number of ioports */
 #define DAS16_DMA_SIZE 0xff00	/*  size in bytes of allocated dma buffer */
 
@@ -566,7 +556,6 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	cmd->convert_arg =
 	    das16_set_pacer(dev, cmd->convert_arg,
 			    cmd->flags & TRIG_ROUND_MASK);
-	DEBUG_PRINT("pacer period: %d ns\n", cmd->convert_arg);
 
 	/* enable counters */
 	byte = 0;
@@ -814,7 +803,6 @@ static void das16_interrupt(struct comedi_device *dev)
 	spin_lock_irqsave(&dev->spinlock, spin_flags);
 	if ((devpriv->control_state & DMA_ENABLE) == 0) {
 		spin_unlock_irqrestore(&dev->spinlock, spin_flags);
-		DEBUG_PRINT("interrupt while dma disabled?\n");
 		return;
 	}
 
