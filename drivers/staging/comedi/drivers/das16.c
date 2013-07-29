@@ -245,6 +245,7 @@ struct das16_board {
 	unsigned int ai_speed;	/*  max conversion speed in nanosec */
 	unsigned int ai_pg;
 	unsigned int has_ao:1;
+	unsigned int has_8255:1;
 
 	unsigned int i8255_offset;
 
@@ -259,6 +260,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 15000,
 		.ai_pg		= das16_pg_none,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x10,
 		.size		= 0x14,
 		.id		= 0x00,
@@ -268,6 +270,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 15000,
 		.ai_pg		= das16_pg_none,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x10,
 		.size		= 0x14,
 		.id		= 0x00,
@@ -277,6 +280,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 8500,
 		.ai_pg		= das16_pg_none,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x10,
 		.size		= 0x14,
 		.id		= 0x00,
@@ -286,6 +290,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 20000,
 		.ai_pg		= das16_pg_none,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x10,
 		.size		= 0x14,
 		.id		= 0x80,
@@ -295,6 +300,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_none,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x10,
 		.size		= 0x14,
 		.id		= 0x80,
@@ -303,7 +309,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 7692,
 		.ai_pg		= das16_pg_16jr,
-		.i8255_offset	= 0,
 		.size		= 0x10,
 		.id		= 0x00,
 	}, {
@@ -311,7 +316,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 3300,
 		.ai_pg		= das16_pg_16jr,
-		.i8255_offset	= 0,
 		.size		= 0x10,
 		.id		= 0x00,
 	}, {
@@ -319,7 +323,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0xffff,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_16jr_16,
-		.i8255_offset	= 0,
 		.size		= 0x10,
 		.id		= 0x00,
 	}, {
@@ -327,7 +330,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0xffff,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_16jr_16,
-		.i8255_offset	= 0,
 		.size		= 0x10,
 		.id		= 0x00,
 	}, {
@@ -335,6 +337,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 20000,
 		.ai_pg		= das16_pg_none,
+		.has_8255	= 1,
 		.i8255_offset	= 0x400,
 		.size		= 0x408,
 		.id		= 0x20,
@@ -343,6 +346,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_none,
+		.has_8255	= 1,
 		.i8255_offset	= 0x400,
 		.size		= 0x408,
 		.id		= 0x20,
@@ -351,7 +355,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1601,
-		.i8255_offset	= 0x0,
 		.size		= 0x408,
 		.id		= 0xc0,
 	}, {
@@ -359,7 +362,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
-		.i8255_offset	= 0x0,
 		.size		= 0x408,
 		.id		= 0xc0,
 	}, {
@@ -368,6 +370,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1601,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x400,
 		.size		= 0x408,
 		.id		= 0xc0,
@@ -377,6 +380,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x400,
 		.size		= 0x408,
 		.id		= 0xc0,
@@ -385,7 +389,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 6250,
 		.ai_pg		= das16_pg_1601,
-		.i8255_offset	= 0,
 		.size		= 0x408,
 		.id		= 0xc0,
 	}, {
@@ -393,7 +396,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 6250,
 		.ai_pg		= das16_pg_1602,
-		.i8255_offset	= 0,
 		.size		= 0x408,
 		.id		= 0xc0,
 	}, {
@@ -401,7 +403,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0xffff,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
-		.i8255_offset	= 0,
 		.size		= 0x408,
 		.id		= 0xc0,
 	}, {
@@ -410,6 +411,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 6250,
 		.ai_pg		= das16_pg_1601,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x400,
 		.size		= 0x408,
 		.id		= 0xc0,
@@ -419,6 +421,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x400,
 		.size		= 0x408,
 		.id		= 0xc0,
@@ -428,6 +431,7 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
 		.has_ao		= 1,
+		.has_8255	= 1,
 		.i8255_offset	= 0x400,
 		.size		= 0x408,
 		.id		= 0xc0,
@@ -436,7 +440,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_maxdata	= 0x0fff,
 		.ai_speed	= 3030,
 		.ai_pg		= das16_pg_16jr,
-		.i8255_offset	= 0,
 		.size		= 0x14,
 		.id		= 0xf0,
 	},
@@ -1133,7 +1136,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		user_ao_range->flags = UNIT_volt;
 	}
 
-	ret = comedi_alloc_subdevices(dev, 5);
+	ret = comedi_alloc_subdevices(dev, 4 + board->has_8255);
 	if (ret)
 		return ret;
 
@@ -1207,13 +1210,13 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* initialize digital output lines */
 	outb(s->state, dev->iobase + DAS16_DIO);
 
-	s = &dev->subdevices[4];
-	/* 8255 */
-	if (board->i8255_offset != 0) {
-		subdev_8255_init(dev, s, NULL, (dev->iobase +
-						board->i8255_offset));
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+	/* 8255 Digital I/O subdevice */
+	if (board->has_8255) {
+		s = &dev->subdevices[4];
+		ret = subdev_8255_init(dev, s, NULL,
+				       dev->iobase + board->i8255_offset);
+		if (ret)
+			return ret;
 	}
 
 	das16_reset(dev);
