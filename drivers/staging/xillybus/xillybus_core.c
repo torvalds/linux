@@ -27,11 +27,9 @@
 #include <linux/cdev.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
-#include <linux/list.h>
 #include <linux/crc32.h>
 #include <linux/poll.h>
 #include <linux/delay.h>
-#include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include "xillybus.h"
