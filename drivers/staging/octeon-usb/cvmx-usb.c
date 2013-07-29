@@ -68,9 +68,7 @@
 #define CVMX_PREFETCH_PREF0(address, offset) CVMX_PREFETCH_PREFX(0, address, offset)
 #define CVMX_CLZ(result, input) asm ("clz %[rd],%[rs]" : [rd] "=d" (result) : [rs] "d" (input))
 
-#define cvmx_likely likely
 #define cvmx_wait_usec udelay
-#define cvmx_unlikely unlikely
 #define cvmx_le16_to_cpu le16_to_cpu
 
 #define MAX_RETRIES         3   /* Maximum number of times to retry failed transactions */
@@ -1108,31 +1106,31 @@ int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
     cvmx_usb_pipe_t *pipe;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    if (cvmx_unlikely((device_addr < 0) || (device_addr > MAX_USB_ADDRESS)))
+    if (unlikely((device_addr < 0) || (device_addr > MAX_USB_ADDRESS)))
         return -EINVAL;
-    if (cvmx_unlikely((endpoint_num < 0) || (endpoint_num > MAX_USB_ENDPOINT)))
+    if (unlikely((endpoint_num < 0) || (endpoint_num > MAX_USB_ENDPOINT)))
         return -EINVAL;
-    if (cvmx_unlikely(device_speed > CVMX_USB_SPEED_LOW))
+    if (unlikely(device_speed > CVMX_USB_SPEED_LOW))
         return -EINVAL;
-    if (cvmx_unlikely((max_packet <= 0) || (max_packet > 1024)))
+    if (unlikely((max_packet <= 0) || (max_packet > 1024)))
         return -EINVAL;
-    if (cvmx_unlikely(transfer_type > CVMX_USB_TRANSFER_INTERRUPT))
+    if (unlikely(transfer_type > CVMX_USB_TRANSFER_INTERRUPT))
         return -EINVAL;
-    if (cvmx_unlikely((transfer_dir != CVMX_USB_DIRECTION_OUT) &&
+    if (unlikely((transfer_dir != CVMX_USB_DIRECTION_OUT) &&
         (transfer_dir != CVMX_USB_DIRECTION_IN)))
         return -EINVAL;
-    if (cvmx_unlikely(interval < 0))
+    if (unlikely(interval < 0))
         return -EINVAL;
-    if (cvmx_unlikely((transfer_type == CVMX_USB_TRANSFER_CONTROL) && interval))
+    if (unlikely((transfer_type == CVMX_USB_TRANSFER_CONTROL) && interval))
         return -EINVAL;
-    if (cvmx_unlikely(multi_count < 0))
+    if (unlikely(multi_count < 0))
         return -EINVAL;
-    if (cvmx_unlikely((device_speed != CVMX_USB_SPEED_HIGH) &&
+    if (unlikely((device_speed != CVMX_USB_SPEED_HIGH) &&
         (multi_count != 0)))
         return -EINVAL;
-    if (cvmx_unlikely((hub_device_addr < 0) || (hub_device_addr > MAX_USB_ADDRESS)))
+    if (unlikely((hub_device_addr < 0) || (hub_device_addr > MAX_USB_ADDRESS)))
         return -EINVAL;
-    if (cvmx_unlikely((hub_port < 0) || (hub_port > MAX_USB_HUB_PORT)))
+    if (unlikely((hub_port < 0) || (hub_port > MAX_USB_HUB_PORT)))
         return -EINVAL;
 
     /* Find a free pipe */
@@ -1783,7 +1781,7 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
         /* Find an idle channel */
         CVMX_CLZ(channel, usb->idle_hardware_channels);
         channel = 31 - channel;
-        if (cvmx_unlikely(channel > 7))
+        if (unlikely(channel > 7))
             break;
 
         /* Find a pipe needing service */
@@ -1793,12 +1791,12 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
                 sure that the periodic data is sent in the beginning of the
                 frame */
             pipe = __cvmx_usb_find_ready_pipe(usb, usb->active_pipes + CVMX_USB_TRANSFER_ISOCHRONOUS, usb->frame_number);
-            if (cvmx_likely(!pipe))
+            if (likely(!pipe))
                 pipe = __cvmx_usb_find_ready_pipe(usb, usb->active_pipes + CVMX_USB_TRANSFER_INTERRUPT, usb->frame_number);
         }
-        if (cvmx_likely(!pipe)) {
+        if (likely(!pipe)) {
             pipe = __cvmx_usb_find_ready_pipe(usb, usb->active_pipes + CVMX_USB_TRANSFER_CONTROL, usb->frame_number);
-            if (cvmx_likely(!pipe))
+            if (likely(!pipe))
                 pipe = __cvmx_usb_find_ready_pipe(usb, usb->active_pipes + CVMX_USB_TRANSFER_BULK, usb->frame_number);
         }
         if (!pipe)
@@ -1896,7 +1894,7 @@ static void __cvmx_usb_perform_complete(cvmx_usb_internal_state_t * usb,
 
     /* Isochronous transactions need extra processing as they might not be done
         after a single data transfer */
-    if (cvmx_unlikely(transaction->type == CVMX_USB_TRANSFER_ISOCHRONOUS)) {
+    if (unlikely(transaction->type == CVMX_USB_TRANSFER_ISOCHRONOUS)) {
         /* Update the number of bytes transferred in this ISO packet */
         transaction->iso_packets[0].length = transaction->actual_bytes;
         transaction->iso_packets[0].status = complete_code;
@@ -1979,16 +1977,16 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
     cvmx_usb_transaction_t *transaction;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
-    if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
+    if (unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
         return -EINVAL;
     /* Fail if the pipe isn't open */
-    if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
+    if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
         return -EINVAL;
-    if (cvmx_unlikely(pipe->transfer_type != type))
+    if (unlikely(pipe->transfer_type != type))
         return -EINVAL;
 
     transaction = __cvmx_usb_alloc_transaction(usb);
-    if (cvmx_unlikely(!transaction))
+    if (unlikely(!transaction))
         return -ENOMEM;
 
     transaction->type = type;
@@ -2071,9 +2069,9 @@ int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
     /* Pipe handle checking is done later in a common place */
-    if (cvmx_unlikely(!buffer))
+    if (unlikely(!buffer))
         return -EINVAL;
-    if (cvmx_unlikely(buffer_length < 0))
+    if (unlikely(buffer_length < 0))
         return -EINVAL;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
@@ -2130,9 +2128,9 @@ int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
     /* Pipe handle checking is done later in a common place */
-    if (cvmx_unlikely(!buffer))
+    if (unlikely(!buffer))
         return -EINVAL;
-    if (cvmx_unlikely(buffer_length < 0))
+    if (unlikely(buffer_length < 0))
         return -EINVAL;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
@@ -2195,12 +2193,12 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
     cvmx_usb_control_header_t *header = cvmx_phys_to_ptr(control_header);
 
     /* Pipe handle checking is done later in a common place */
-    if (cvmx_unlikely(!control_header))
+    if (unlikely(!control_header))
         return -EINVAL;
     /* Some drivers send a buffer with a zero length. God only knows why */
-    if (cvmx_unlikely(buffer && (buffer_length < 0)))
+    if (unlikely(buffer && (buffer_length < 0)))
         return -EINVAL;
-    if (cvmx_unlikely(!buffer && (buffer_length != 0)))
+    if (unlikely(!buffer && (buffer_length != 0)))
         return -EINVAL;
     if ((header->s.request_type & 0x80) == 0)
         buffer_length = cvmx_le16_to_cpu(header->s.length);
@@ -2276,17 +2274,17 @@ int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
     /* Pipe handle checking is done later in a common place */
-    if (cvmx_unlikely(start_frame < 0))
+    if (unlikely(start_frame < 0))
         return -EINVAL;
-    if (cvmx_unlikely(flags & ~(CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT | CVMX_USB_ISOCHRONOUS_FLAGS_ASAP)))
+    if (unlikely(flags & ~(CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT | CVMX_USB_ISOCHRONOUS_FLAGS_ASAP)))
         return -EINVAL;
-    if (cvmx_unlikely(number_packets < 1))
+    if (unlikely(number_packets < 1))
         return -EINVAL;
-    if (cvmx_unlikely(!packets))
+    if (unlikely(!packets))
         return -EINVAL;
-    if (cvmx_unlikely(!buffer))
+    if (unlikely(!buffer))
         return -EINVAL;
-    if (cvmx_unlikely(buffer_length < 0))
+    if (unlikely(buffer_length < 0))
         return -EINVAL;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
@@ -2326,19 +2324,19 @@ int cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle, int submit_handle)
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
-    if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
+    if (unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
         return -EINVAL;
-    if (cvmx_unlikely((submit_handle < 0) || (submit_handle >= MAX_TRANSACTIONS)))
+    if (unlikely((submit_handle < 0) || (submit_handle >= MAX_TRANSACTIONS)))
         return -EINVAL;
 
     /* Fail if the pipe isn't open */
-    if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
+    if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
         return -EINVAL;
 
     transaction = usb->transaction + submit_handle;
 
     /* Fail if this transaction already completed */
-    if (cvmx_unlikely((transaction->flags & __CVMX_USB_TRANSACTION_FLAGS_IN_USE) == 0))
+    if (unlikely((transaction->flags & __CVMX_USB_TRANSACTION_FLAGS_IN_USE) == 0))
         return -EINVAL;
 
     /* If the transaction is the HEAD of the queue and scheduled. We need to
@@ -2380,18 +2378,18 @@ int cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
-    if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
+    if (unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
         return -EINVAL;
 
     /* Fail if the pipe isn't open */
-    if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
+    if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
         return -EINVAL;
 
     /* Simply loop through and attempt to cancel each transaction */
     while (pipe->head) {
         int result = cvmx_usb_cancel(state, pipe_handle,
             __cvmx_usb_get_submit_handle(usb, pipe->head));
-        if (cvmx_unlikely(result != 0))
+        if (unlikely(result != 0))
             return result;
     }
     return 0;
@@ -2414,15 +2412,15 @@ int cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
-    if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
+    if (unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
         return -EINVAL;
 
     /* Fail if the pipe isn't open */
-    if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
+    if (unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
         return -EINVAL;
 
     /* Fail if the pipe has pending transactions */
-    if (cvmx_unlikely(pipe->head))
+    if (unlikely(pipe->head))
         return -EBUSY;
 
     pipe->flags = 0;
@@ -2451,9 +2449,9 @@ int cvmx_usb_register_callback(cvmx_usb_state_t *state,
 {
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    if (cvmx_unlikely(reason >= __CVMX_USB_CALLBACK_END))
+    if (unlikely(reason >= __CVMX_USB_CALLBACK_END))
         return -EINVAL;
-    if (cvmx_unlikely(!callback))
+    if (unlikely(!callback))
         return -EINVAL;
 
     usb->callback[reason] = callback;
