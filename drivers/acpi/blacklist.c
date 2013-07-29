@@ -192,6 +192,12 @@ static int __init dmi_disable_osi_win7(const struct dmi_system_id *d)
 	acpi_osi_setup("!Windows 2009");
 	return 0;
 }
+static int __init dmi_disable_osi_win8(const struct dmi_system_id *d)
+{
+	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
+	acpi_osi_setup("!Windows 2012");
+	return 0;
+}
 
 static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	{
@@ -265,6 +271,14 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "Satellite P305D"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
+	.ident = "ASUS Zenbook Prime UX31A",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "UX31A"),
 		},
 	},
 
