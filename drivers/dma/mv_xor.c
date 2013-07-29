@@ -64,7 +64,7 @@ static u32 mv_desc_get_src_addr(struct mv_xor_desc_slot *desc,
 				int src_idx)
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
-	return hw_desc->phy_src_addr[src_idx];
+	return hw_desc->phy_src_addr[mv_phy_src_idx(src_idx)];
 }
 
 
@@ -107,7 +107,7 @@ static void mv_desc_set_src_addr(struct mv_xor_desc_slot *desc,
 				 int index, dma_addr_t addr)
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
-	hw_desc->phy_src_addr[index] = addr;
+	hw_desc->phy_src_addr[mv_phy_src_idx(index)] = addr;
 	if (desc->type == DMA_XOR)
 		hw_desc->desc_command |= (1 << index);
 }
@@ -192,6 +192,13 @@ static void mv_set_mode(struct mv_xor_chan *chan,
 
 	config &= ~0x7;
 	config |= op_mode;
+
+#if defined(__BIG_ENDIAN)
+	config |= XOR_DESCRIPTOR_SWAP;
+#else
+	config &= ~XOR_DESCRIPTOR_SWAP;
+#endif
+
 	writel_relaxed(config, XOR_CONFIG(chan));
 	chan->current_type = type;
 }
