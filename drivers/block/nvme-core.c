@@ -1664,7 +1664,7 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 	status = nvme_set_features(dev, NVME_FEAT_NUM_QUEUES, q_count, 0,
 								&result);
 	if (status)
-		return -EIO;
+		return status < 0 ? -EIO : -EBUSY;
 	return min(result & 0xffff, result >> 16) + 1;
 }
 
@@ -2018,7 +2018,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_unlock(&dev_list_lock);
 
 	result = nvme_dev_add(dev);
-	if (result)
+	if (result && result != -EBUSY)
 		goto delete;
 
 	scnprintf(dev->name, sizeof(dev->name), "nvme%d", dev->instance);
