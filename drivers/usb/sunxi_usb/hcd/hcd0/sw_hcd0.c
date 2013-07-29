@@ -1578,6 +1578,7 @@ fail:
 	return status;
 }
 
+#ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 /*
 *******************************************************************************
 *                     sw_usb_host0_enable
@@ -1829,6 +1830,7 @@ static int sw_hcd_remove_otg(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 /*
 *******************************************************************************
