@@ -736,7 +736,7 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 		create_mapping(io_desc + i);
 }
 
-#if defined(CONFIG_RK29_MEM_SIZE_M) && CONFIG_RK29_MEM_SIZE_M >= 1024
+#if defined(CONFIG_PLAT_RK)
 static void * __initdata vmalloc_min = (void *)(VMALLOC_END - SZ_512M);
 #else
 static void * __initdata vmalloc_min = (void *)(VMALLOC_END - SZ_128M);
