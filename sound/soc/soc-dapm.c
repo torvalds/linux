@@ -1122,7 +1122,7 @@ int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 	int ret;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
+		if (w->on_val & SND_SOC_DAPM_REGULATOR_BYPASS) {
 			ret = regulator_allow_bypass(w->regulator, false);
 			if (ret != 0)
 				dev_warn(w->dapm->dev,
@@ -1132,7 +1132,7 @@ int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 
 		return regulator_enable(w->regulator);
 	} else {
-		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
+		if (w->on_val & SND_SOC_DAPM_REGULATOR_BYPASS) {
 			ret = regulator_allow_bypass(w->regulator, true);
 			if (ret != 0)
 				dev_warn(w->dapm->dev,
@@ -1360,26 +1360,21 @@ static void dapm_seq_run_coalesced(struct snd_soc_card *card,
 				   struct list_head *pending)
 {
 	struct snd_soc_dapm_widget *w;
-	int reg, power;
+	int reg;
 	unsigned int value = 0;
 	unsigned int mask = 0;
-	unsigned int cur_mask;
 
 	reg = list_first_entry(pending, struct snd_soc_dapm_widget,
 			       power_list)->reg;
 
 	list_for_each_entry(w, pending, power_list) {
-		cur_mask = 1 << w->shift;
 		BUG_ON(reg != w->reg);
 
-		if (w->invert)
-			power = !w->power;
+		mask |= w->mask << w->shift;
+		if (w->power)
+			value |= w->on_val << w->shift;
 		else
-			power = w->power;
-
-		mask |= cur_mask;
-		if (power)
-			value |= cur_mask;
+			value |= w->off_val << w->shift;
 
 		pop_dbg(w->dapm->dev, card->pop_time,
 			"pop test : Queue %s: reg=0x%x, 0x%x/0x%x\n",
@@ -1867,8 +1862,8 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 
 	if (w->reg >= 0)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
-				" - R%d(0x%x) bit %d",
-				w->reg, w->reg, w->shift);
+				" - R%d(0x%x) mask 0x%x",
+				w->reg, w->reg, w->mask << w->shift);
 
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
 
@@ -2669,12 +2664,9 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 
 		/* Read the initial power state from the device */
 		if (w->reg >= 0) {
-			val = soc_widget_read(w, w->reg);
-			val &= 1 << w->shift;
-			if (w->invert)
-				val = !val;
-
-			if (val)
+			val = soc_widget_read(w, w->reg) >> w->shift;
+			val &= w->mask;
+			if (val == w->on_val)
 				w->power = 1;
 		}
 
@@ -3093,7 +3085,7 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 			return NULL;
 		}
 
-		if (w->invert & SND_SOC_DAPM_REGULATOR_BYPASS) {
+		if (w->on_val & SND_SOC_DAPM_REGULATOR_BYPASS) {
 			ret = regulator_allow_bypass(w->regulator, true);
 			if (ret != 0)
 				dev_warn(w->dapm->dev,
