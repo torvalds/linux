@@ -360,7 +360,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 	if (!pfuze_chip)
 		return -ENOMEM;
 
-	dev_set_drvdata(&client->dev, pfuze_chip);
+	i2c_set_clientdata(client, pfuze_chip);
 
 	memcpy(pfuze_chip->regulator_descs, pfuze100_regulators,
 		sizeof(pfuze_chip->regulator_descs));
@@ -429,7 +429,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 static int pfuze100_regulator_remove(struct i2c_client *client)
 {
 	int i;
-	struct pfuze_chip *pfuze_chip = dev_get_drvdata(&client->dev);
+	struct pfuze_chip *pfuze_chip = i2c_get_clientdata(client);
 
 	for (i = 0; i < PFUZE100_MAX_REGULATOR; i++)
 		regulator_unregister(pfuze_chip->regulators[i]);
