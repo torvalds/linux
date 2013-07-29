@@ -1,77 +1,84 @@
 /*
-    comedi/drivers/das16.c
-    DAS16 driver
+ * das16.c
+ * DAS16 driver
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ * Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
+ * Copyright (C) 2001,2002 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-    Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
-    Copyright (C) 2001,2002 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: das16
-Description: DAS16 compatible boards
-Author: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess, Roman Fietze
-Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
-  DAS-16F (das-16f), DAS-1201 (das-1201), DAS-1202 (das-1202),
-  DAS-1401 (das-1401), DAS-1402 (das-1402), DAS-1601 (das-1601),
-  DAS-1602 (das-1602),
-  [ComputerBoards] PC104-DAS16/JR (pc104-das16jr),
-  PC104-DAS16JR/16 (pc104-das16jr/16),
-  CIO-DAS16JR/16 (cio-das16jr/16),
-  CIO-DAS16/JR (cio-das16/jr), CIO-DAS1401/12 (cio-das1401/12),
-  CIO-DAS1402/12 (cio-das1402/12), CIO-DAS1402/16 (cio-das1402/16),
-  CIO-DAS1601/12 (cio-das1601/12), CIO-DAS1602/12 (cio-das1602/12),
-  CIO-DAS1602/16 (cio-das1602/16), CIO-DAS16/330 (cio-das16/330)
-Status: works
-Updated: 2003-10-12
+ * Driver: das16
+ * Description: DAS16 compatible boards
+ * Author: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess, Roman Fietze
+ * Devices: (Keithley Metrabyte) DAS-16 [das-16]
+ *	    (Keithley Metrabyte) DAS-16G [das-16g]
+ *	    (Keithley Metrabyte) DAS-16F [das-16f]
+ *	    (Keithley Metrabyte) DAS-1201 [das-1201]
+ *	    (Keithley Metrabyte) DAS-1202 [das-1202]
+ *	    (Keithley Metrabyte) DAS-1401 [das-1401]
+ *	    (Keithley Metrabyte) DAS-1402 [das-1402]
+ *	    (Keithley Metrabyte) DAS-1601 [das-1601]
+ *	    (Keithley Metrabyte) DAS-1602 [das-1602]
+ *	    (ComputerBoards) PC104-DAS16/JR [pc104-das16jr]
+ *	    (ComputerBoards) PC104-DAS16JR/16 [pc104-das16jr/16]
+ *	    (ComputerBoards) CIO-DAS16 [cio-das16]
+ *	    (ComputerBoards) CIO-DAS16F [cio-das16/f]
+ *	    (ComputerBoards) CIO-DAS16/JR [cio-das16/jr]
+ *	    (ComputerBoards) CIO-DAS16JR/16 [cio-das16jr/16]
+ *	    (ComputerBoards) CIO-DAS1401/12 [cio-das1401/12]
+ *	    (ComputerBoards) CIO-DAS1402/12 [cio-das1402/12]
+ *	    (ComputerBoards) CIO-DAS1402/16 [cio-das1402/16]
+ *	    (ComputerBoards) CIO-DAS1601/12 [cio-das1601/12]
+ *	    (ComputerBoards) CIO-DAS1602/12 [cio-das1602/12]
+ *	    (ComputerBoards) CIO-DAS1602/16 [cio-das1602/16]
+ *	    (ComputerBoards) CIO-DAS16/330 [cio-das16/330]
+ * Status: works
+ * Updated: 2003-10-12
+ *
+ * A rewrite of the das16 and das1600 drivers.
+ *
+ * Options:
+ *	[0] - base io address
+ *	[1] - irq (does nothing, irq is not used anymore)
+ *	[2] - dma channel (optional, required for comedi_command support)
+ *	[3] - master clock speed in MHz (optional, 1 or 10, ignored if
+ *		board can probe clock, defaults to 1)
+ *	[4] - analog input range lowest voltage in microvolts (optional,
+ *		only useful if your board does not have software
+ *		programmable gain)
+ *	[5] - analog input range highest voltage in microvolts (optional,
+ *		only useful if board does not have software programmable
+ *		gain)
+ *	[6] - analog output range lowest voltage in microvolts (optional)
+ *	[7] - analog output range highest voltage in microvolts (optional)
+ *
+ * Passing a zero for an option is the same as leaving it unspecified.
+ */
 
-A rewrite of the das16 and das1600 drivers.
-Options:
-	[0] - base io address
-	[1] - irq (does nothing, irq is not used anymore)
-	[2] - dma (optional, required for comedi_command support)
-	[3] - master clock speed in MHz (optional, 1 or 10, ignored if
-		board can probe clock, defaults to 1)
-	[4] - analog input range lowest voltage in microvolts (optional,
-		only useful if your board does not have software
-		programmable gain)
-	[5] - analog input range highest voltage in microvolts (optional,
-		only useful if board does not have software programmable
-		gain)
-	[6] - analog output range lowest voltage in microvolts (optional)
-	[7] - analog output range highest voltage in microvolts (optional)
-	[8] - use timer mode for DMA.  Timer mode is needed e.g. for
-		buggy DMA controllers in NS CS5530A (Geode Companion), and for
-		'jr' cards that lack a hardware fifo.  This option is no
-		longer needed, since timer mode is _always_ used.
-
-Passing a zero for an option is the same as leaving it unspecified.
-
-*/
 /*
-
-Testing and debugging help provided by Daniel Koch.
-
-Keithley Manuals:
-	2309.PDF (das16)
-	4919.PDF (das1400, 1600)
-	4922.PDF (das-1400)
-	4923.PDF (das1200, 1400, 1600)
-
-Computer boards manuals also available from their website
-www.measurementcomputing.com
-
-*/
+ * Testing and debugging help provided by Daniel Koch.
+ *
+ * Keithley Manuals:
+ *	2309.PDF (das16)
+ *	4919.PDF (das1400, 1600)
+ *	4922.PDF (das-1400)
+ *	4923.PDF (das1200, 1400, 1600)
+ *
+ * Computer boards manuals also available from their website
+ * www.measurementcomputing.com
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
