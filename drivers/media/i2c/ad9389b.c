@@ -445,10 +445,8 @@ static int ad9389b_log_status(struct v4l2_subdev *sd)
 	}
 	if (state->dv_timings.type == V4L2_DV_BT_656_1120) {
 		struct v4l2_bt_timings *bt = bt = &state->dv_timings.bt;
-		u32 frame_width = bt->width + bt->hfrontporch +
-			bt->hsync + bt->hbackporch;
-		u32 frame_height = bt->height + bt->vfrontporch +
-			bt->vsync + bt->vbackporch;
+		u32 frame_width = V4L2_DV_BT_FRAME_WIDTH(bt);
+		u32 frame_height = V4L2_DV_BT_FRAME_HEIGHT(bt);
 		u32 frame_size = frame_width * frame_height;
 
 		v4l2_info(sd, "timings: %ux%u%s%u (%ux%u). Pix freq. = %u Hz. Polarities = 0x%x\n",

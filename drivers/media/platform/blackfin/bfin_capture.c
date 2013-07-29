@@ -388,13 +388,8 @@ static int bcap_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 		params.hdelay = bt->hsync + bt->hbackporch;
 		params.vdelay = bt->vsync + bt->vbackporch;
-		params.line = bt->hfrontporch + bt->hsync
-				+ bt->hbackporch + bt->width;
-		params.frame = bt->vfrontporch + bt->vsync
-				+ bt->vbackporch + bt->height;
-		if (bt->interlaced)
-			params.frame += bt->il_vfrontporch + bt->il_vsync
-					+ bt->il_vbackporch;
+		params.line = V4L2_DV_BT_FRAME_WIDTH(bt);
+		params.frame = V4L2_DV_BT_FRAME_HEIGHT(bt);
 	} else if (bcap_dev->cfg->inputs[bcap_dev->cur_input].capabilities
 			& V4L2_IN_CAP_STD) {
 		params.hdelay = 0;

@@ -291,10 +291,8 @@ static int ths7303_log_status(struct v4l2_subdev *sd)
 		struct v4l2_bt_timings *bt = bt = &state->bt;
 		u32 frame_width, frame_height;
 
-		frame_width = bt->width + bt->hfrontporch +
-			      bt->hsync + bt->hbackporch;
-		frame_height = bt->height + bt->vfrontporch +
-			       bt->vsync + bt->vbackporch;
+		frame_width = V4L2_DV_BT_FRAME_WIDTH(bt);
+		frame_height = V4L2_DV_BT_FRAME_HEIGHT(bt);
 		v4l2_info(sd,
 			  "timings: %dx%d%s%d (%dx%d). Pix freq. = %d Hz. Polarities = 0x%x\n",
 			  bt->width, bt->height, bt->interlaced ? "i" : "p",

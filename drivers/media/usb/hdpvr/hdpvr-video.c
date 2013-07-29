@@ -690,10 +690,8 @@ static int vidioc_query_dv_timings(struct file *file, void *_fh,
 		unsigned vsize;
 		unsigned fps;
 
-		hsize = bt->hfrontporch + bt->hsync + bt->hbackporch + bt->width;
-		vsize = bt->vfrontporch + bt->vsync + bt->vbackporch +
-			bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch +
-			bt->height;
+		hsize = V4L2_DV_BT_FRAME_WIDTH(bt);
+		vsize = V4L2_DV_BT_FRAME_HEIGHT(bt);
 		fps = (unsigned)bt->pixelclock / (hsize * vsize);
 		if (bt->width != vid_info.width ||
 		    bt->height != vid_info.height ||

@@ -261,22 +261,22 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 
 static inline unsigned hblanking(const struct v4l2_bt_timings *t)
 {
-	return t->hfrontporch + t->hsync + t->hbackporch;
+	return V4L2_DV_BT_BLANKING_WIDTH(t);
 }
 
 static inline unsigned htotal(const struct v4l2_bt_timings *t)
 {
-	return t->width + t->hfrontporch + t->hsync + t->hbackporch;
+	return V4L2_DV_BT_FRAME_WIDTH(t);
 }
 
 static inline unsigned vblanking(const struct v4l2_bt_timings *t)
 {
-	return t->vfrontporch + t->vsync + t->vbackporch;
+	return V4L2_DV_BT_BLANKING_HEIGHT(t);
 }
 
 static inline unsigned vtotal(const struct v4l2_bt_timings *t)
 {
-	return t->height + t->vfrontporch + t->vsync + t->vbackporch;
+	return V4L2_DV_BT_FRAME_HEIGHT(t);
 }
 
 /* ----------------------------------------------------------------------- */
