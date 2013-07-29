@@ -868,24 +868,6 @@ static void das16_timer_interrupt(unsigned long arg)
 		mod_timer(&devpriv->timer, jiffies + timer_period());
 }
 
-static void reg_dump(struct comedi_device *dev)
-{
-	DEBUG_PRINT("********DAS1600 REGISTER DUMP********\n");
-	DEBUG_PRINT("DAS16_MUX: %x\n", inb(dev->iobase + DAS16_MUX));
-	DEBUG_PRINT("DAS16_DIO: %x\n", inb(dev->iobase + DAS16_DIO));
-	DEBUG_PRINT("DAS16_STATUS: %x\n", inb(dev->iobase + DAS16_STATUS));
-	DEBUG_PRINT("DAS16_CONTROL: %x\n", inb(dev->iobase + DAS16_CONTROL));
-	DEBUG_PRINT("DAS16_PACER: %x\n", inb(dev->iobase + DAS16_PACER));
-	DEBUG_PRINT("DAS16_GAIN: %x\n", inb(dev->iobase + DAS16_GAIN));
-	DEBUG_PRINT("DAS16_CNTR_CONTROL: %x\n",
-		    inb(dev->iobase + DAS16_CNTR_CONTROL));
-	DEBUG_PRINT("DAS1600_CONV: %x\n", inb(dev->iobase + DAS1600_CONV));
-	DEBUG_PRINT("DAS1600_BURST: %x\n", inb(dev->iobase + DAS1600_BURST));
-	DEBUG_PRINT("DAS1600_ENABLE: %x\n", inb(dev->iobase + DAS1600_ENABLE));
-	DEBUG_PRINT("DAS1600_STATUS_B: %x\n",
-		    inb(dev->iobase + DAS1600_STATUS_B));
-}
-
 static int das16_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct das16_board *board = comedi_board(dev);
@@ -917,8 +899,6 @@ static int das1600_mode_detect(struct comedi_device *dev)
 		devpriv->clockbase = 1000;
 		printk(KERN_INFO " 1MHz pacer clock\n");
 	}
-
-	reg_dump(dev);
 
 	return 0;
 }
