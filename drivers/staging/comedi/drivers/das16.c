@@ -360,8 +360,6 @@ static inline int timer_period(void)
 }
 
 struct das16_private_struct {
-	unsigned int ai_unipolar;	/*  unipolar flag */
-	unsigned int ai_singleended;	/*  single ended flag */
 	unsigned int clockbase;	/*  master clock speed in ns */
 	volatile unsigned int control_state;	/*  dma, interrupt and trigger control bits */
 	volatile unsigned long adc_byte_count;	/*  number of bytes remaining */
@@ -891,28 +889,9 @@ static void reg_dump(struct comedi_device *dev)
 static int das16_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct das16_board *board = comedi_board(dev);
-	struct das16_private_struct *devpriv = dev->private;
-	int status;
 	int diobits;
 
-	/* status is available on all boards */
-
-	status = inb(dev->iobase + DAS16_STATUS);
-
-	if ((status & UNIPOLAR))
-		devpriv->ai_unipolar = 1;
-	else
-		devpriv->ai_unipolar = 0;
-
-
-	if ((status & DAS16_MUXBIT))
-		devpriv->ai_singleended = 1;
-	else
-		devpriv->ai_singleended = 0;
-
-
 	/* diobits indicates boards */
-
 	diobits = inb(dev->iobase + DAS16_DIO) & 0xf0;
 
 	printk(KERN_INFO " id bits are 0x%02x\n", diobits);
@@ -976,6 +955,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_krange *user_ai_range;
 	struct comedi_krange *user_ao_range;
 	unsigned int dma_chan = it->options[2];
+	unsigned int status;
 	int ret;
 
 	/*  check that clock setting is valid */
@@ -1091,11 +1071,13 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	status = inb(dev->iobase + DAS16_STATUS);
+
 	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE;
-	if (devpriv->ai_singleended) {
+	if (status & DAS16_MUXBIT) {
 		s->subdev_flags	|= SDF_GROUND;
 		s->n_chan	= 16;
 	} else {
@@ -1106,7 +1088,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= board->ai_maxdata;
 	if (devpriv->user_ai_range_table) { /*  user defined ai range */
 		s->range_table	= devpriv->user_ai_range_table;
-	} else if (devpriv->ai_unipolar) {
+	} else if (status & UNIPOLAR) {
 		s->range_table	= das16_ai_uni_lranges[board->ai_pg];
 	} else {
 		s->range_table	= das16_ai_bip_lranges[board->ai_pg];
