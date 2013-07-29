@@ -211,33 +211,6 @@ typedef struct {
     cvmx_usb_tx_fifo_t nonperiodic;
 } cvmx_usb_internal_state_t;
 
-/* This macro logs out whenever a function is called if debugging is on */
-#define CVMX_USB_LOG_CALLED() \
-    if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLS)) \
-        cvmx_dprintf("%*s%s: called\n", 2*usb->indent++, "", __FUNCTION__);
-
-/* This macro logs out each function parameter if debugging is on */
-#define CVMX_USB_LOG_PARAM(format, param) \
-    if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLS)) \
-        cvmx_dprintf("%*s%s: param %s = " format "\n", 2*usb->indent, "", __FUNCTION__, #param, param);
-
-/* This macro logs out when a function returns a value */
-#define CVMX_USB_RETURN(v)                                              \
-    do {                                                                \
-        typeof(v) r = v;                                                \
-        if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLS))    \
-            cvmx_dprintf("%*s%s: returned %s(%d)\n", 2*--usb->indent, "", __FUNCTION__, #v, r); \
-        return r;                                                       \
-    } while (0);
-
-/* This macro logs out when a function doesn't return a value */
-#define CVMX_USB_RETURN_NOTHING()                                       \
-    do {                                                                \
-        if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLS))    \
-            cvmx_dprintf("%*s%s: returned\n", 2*--usb->indent, "", __FUNCTION__); \
-        return;                                                         \
-    } while (0);
-
 /* This macro spins on a field waiting for it to reach a value */
 #define CVMX_WAIT_FOR_FIELD32(address, type, field, op, value, timeout_usec)\
     ({int result;                                                       \
@@ -574,20 +547,16 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
     usb->init_flags = flags;
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", usb_port_number);
-    CVMX_USB_LOG_PARAM("0x%x", flags);
 
     /* Make sure that state is large enough to store the internal state */
     if (sizeof(*state) < sizeof(*usb))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     /* At first allow 0-1 for the usb port number */
     if ((usb_port_number < 0) || (usb_port_number > 1))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     /* For all chips except 52XX there is only one port */
     if (!OCTEON_IS_MODEL(OCTEON_CN52XX) && (usb_port_number > 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     /* Try to determine clock type automatically */
     if ((flags & (CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI |
                   CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND)) == 0) {
@@ -611,7 +580,7 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
                     flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ;
                     break;
                 default:
-                    CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+                    return CVMX_USB_INVALID_PARAM;
                     break;
             }
     }
@@ -847,7 +816,7 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
         /* Steps 4-15 from the manual are done later in the port enable */
     }
 
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
 
 
@@ -867,16 +836,13 @@ cvmx_usb_status_t cvmx_usb_shutdown(cvmx_usb_state_t *state)
     cvmx_usbnx_clk_ctl_t usbn_clk_ctl;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-
     /* Make sure all pipes are closed */
     if (usb->idle_pipes.head ||
         usb->active_pipes[CVMX_USB_TRANSFER_ISOCHRONOUS].head ||
         usb->active_pipes[CVMX_USB_TRANSFER_INTERRUPT].head ||
         usb->active_pipes[CVMX_USB_TRANSFER_CONTROL].head ||
         usb->active_pipes[CVMX_USB_TRANSFER_BULK].head)
-        CVMX_USB_RETURN(CVMX_USB_BUSY);
+        return CVMX_USB_BUSY;
 
     /* Disable the clocks and put them in power on reset */
     usbn_clk_ctl.u64 = __cvmx_usb_read_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index));
@@ -887,7 +853,7 @@ cvmx_usb_status_t cvmx_usb_shutdown(cvmx_usb_state_t *state)
     usbn_clk_ctl.s.hrst = 0;
     __cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
                            usbn_clk_ctl.u64);
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
 
 
@@ -906,21 +872,18 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
     cvmx_usbcx_ghwcfg3_t usbcx_ghwcfg3;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-
     usb->usbcx_hprt.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HPRT(usb->index));
 
     /* If the port is already enabled the just return. We don't need to do
         anything */
     if (usb->usbcx_hprt.s.prtena)
-        CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+        return CVMX_USB_SUCCESS;
 
     /* If there is nothing plugged into the port then fail immediately */
     if (!usb->usbcx_hprt.s.prtconnsts) {
         if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
             cvmx_dprintf("%s: USB%d Nothing plugged into the port\n", __FUNCTION__, usb->index);
-        CVMX_USB_RETURN(CVMX_USB_TIMEOUT);
+        return CVMX_USB_TIMEOUT;
     }
 
     /* Program the port reset bit to start the reset process */
@@ -939,7 +902,7 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
         if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
             cvmx_dprintf("%s: Timeout waiting for the port to finish reset\n",
                          __FUNCTION__);
-        CVMX_USB_RETURN(CVMX_USB_TIMEOUT);
+        return CVMX_USB_TIMEOUT;
     }
 
     /* Read the port speed field to get the enumerated speed, USBC_HPRT[PRTSPD]. */
@@ -984,7 +947,7 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
     CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index), cvmx_usbcx_grstctl_t,
                           rxfflsh, ==, 0, 100);
 
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
 
 
@@ -1004,12 +967,9 @@ cvmx_usb_status_t cvmx_usb_disable(cvmx_usb_state_t *state)
 {
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-
     /* Disable the port */
     USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt_t, prtena, 1);
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
 
 
@@ -1034,9 +994,6 @@ cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state)
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
     memset(&result, 0, sizeof(result));
-
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
 
     usbc_hprt.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HPRT(usb->index));
     result.port_enabled = usbc_hprt.s.prtena;
@@ -1074,10 +1031,8 @@ cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state)
 void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t port_status)
 {
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
     usb->port_status = port_status;
-    CVMX_USB_RETURN_NOTHING();
+    return;
 }
 
 
@@ -1183,51 +1138,37 @@ int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
     cvmx_usb_pipe_t *pipe;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("0x%x", flags);
-    CVMX_USB_LOG_PARAM("%d", device_addr);
-    CVMX_USB_LOG_PARAM("%d", endpoint_num);
-    CVMX_USB_LOG_PARAM("%d", device_speed);
-    CVMX_USB_LOG_PARAM("%d", max_packet);
-    CVMX_USB_LOG_PARAM("%d", transfer_type);
-    CVMX_USB_LOG_PARAM("%d", transfer_dir);
-    CVMX_USB_LOG_PARAM("%d", interval);
-    CVMX_USB_LOG_PARAM("%d", multi_count);
-    CVMX_USB_LOG_PARAM("%d", hub_device_addr);
-    CVMX_USB_LOG_PARAM("%d", hub_port);
-
     if (cvmx_unlikely((device_addr < 0) || (device_addr > MAX_USB_ADDRESS)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely((endpoint_num < 0) || (endpoint_num > MAX_USB_ENDPOINT)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(device_speed > CVMX_USB_SPEED_LOW))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely((max_packet <= 0) || (max_packet > 1024)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(transfer_type > CVMX_USB_TRANSFER_INTERRUPT))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely((transfer_dir != CVMX_USB_DIRECTION_OUT) &&
         (transfer_dir != CVMX_USB_DIRECTION_IN)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(interval < 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely((transfer_type == CVMX_USB_TRANSFER_CONTROL) && interval))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(multi_count < 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely((device_speed != CVMX_USB_SPEED_HIGH) &&
         (multi_count != 0)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely((hub_device_addr < 0) || (hub_device_addr > MAX_USB_ADDRESS)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely((hub_port < 0) || (hub_port > MAX_USB_HUB_PORT)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     /* Find a free pipe */
     pipe = usb->free_pipes.head;
     if (!pipe)
-        CVMX_USB_RETURN(CVMX_USB_NO_MEMORY);
+        return CVMX_USB_NO_MEMORY;
     __cvmx_usb_remove_pipe(&usb->free_pipes, pipe);
     pipe->flags = flags | __CVMX_USB_PIPE_FLAGS_OPEN;
     if ((device_speed == CVMX_USB_SPEED_HIGH) &&
@@ -1263,7 +1204,7 @@ int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
     /* We don't need to tell the hardware about this pipe yet since
         it doesn't have any submitted requests */
 
-    CVMX_USB_RETURN(__cvmx_usb_get_pipe_handle(usb, pipe));
+    return __cvmx_usb_get_pipe_handle(usb, pipe);
 }
 
 
@@ -1284,21 +1225,18 @@ static void __cvmx_usb_poll_rx_fifo(cvmx_usb_internal_state_t *usb)
     uint64_t address;
     uint32_t *ptr;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-
     rx_status.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_GRXSTSPH(usb->index));
     /* Only read data if IN data is there */
     if (rx_status.s.pktsts != 2)
-        CVMX_USB_RETURN_NOTHING();
+        return;
     /* Check if no data is available */
     if (!rx_status.s.bcnt)
-        CVMX_USB_RETURN_NOTHING();
+        return;
 
     channel = rx_status.s.chnum;
     bytes = rx_status.s.bcnt;
     if (!bytes)
-        CVMX_USB_RETURN_NOTHING();
+        return;
 
     /* Get where the DMA engine would have written this data */
     address = __cvmx_usb_read_csr64(usb, CVMX_USBNX_DMA0_INB_CHN0(usb->index) + channel*8);
@@ -1312,7 +1250,7 @@ static void __cvmx_usb_poll_rx_fifo(cvmx_usb_internal_state_t *usb)
     }
     CVMX_SYNCW;
 
-    CVMX_USB_RETURN_NOTHING();
+    return;
 }
 
 
@@ -1330,11 +1268,6 @@ static void __cvmx_usb_poll_rx_fifo(cvmx_usb_internal_state_t *usb)
  */
 static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fifo_t *fifo, int available)
 {
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-    CVMX_USB_LOG_PARAM("%p", fifo);
-    CVMX_USB_LOG_PARAM("%d", available);
-
     /* We're done either when there isn't anymore space or the software FIFO
         is empty */
     while (available && (fifo->head != fifo->tail)) {
@@ -1373,7 +1306,7 @@ static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fif
         }
         cvmx_read64_uint64(CVMX_USBNX_DMA0_INB_CHN0(usb->index));
     }
-    CVMX_USB_RETURN(fifo->head != fifo->tail);
+    return fifo->head != fifo->tail;
 }
 
 
@@ -1385,9 +1318,6 @@ static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fif
  */
 static void __cvmx_usb_poll_tx_fifo(cvmx_usb_internal_state_t *usb)
 {
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-
     if (usb->periodic.head != usb->periodic.tail) {
         cvmx_usbcx_hptxsts_t tx_status;
         tx_status.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HPTXSTS(usb->index));
@@ -1406,7 +1336,7 @@ static void __cvmx_usb_poll_tx_fifo(cvmx_usb_internal_state_t *usb)
             USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index), cvmx_usbcx_gintmsk_t, nptxfempmsk, 0);
     }
 
-    CVMX_USB_RETURN_NOTHING();
+    return;
 }
 
 
@@ -1425,24 +1355,20 @@ static void __cvmx_usb_fill_tx_fifo(cvmx_usb_internal_state_t *usb, int channel)
     cvmx_usbcx_hctsizx_t usbc_hctsiz;
     cvmx_usb_tx_fifo_t *fifo;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-    CVMX_USB_LOG_PARAM("%d", channel);
-
     /* We only need to fill data on outbound channels */
     hcchar.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCCHARX(channel, usb->index));
     if (hcchar.s.epdir != CVMX_USB_DIRECTION_OUT)
-        CVMX_USB_RETURN_NOTHING();
+        return;
 
     /* OUT Splits only have data on the start and not the complete */
     usbc_hcsplt.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCSPLTX(channel, usb->index));
     if (usbc_hcsplt.s.spltena && usbc_hcsplt.s.compsplt)
-        CVMX_USB_RETURN_NOTHING();
+        return;
 
     /* Find out how many bytes we need to fill and convert it into 32bit words */
     usbc_hctsiz.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCTSIZX(channel, usb->index));
     if (!usbc_hctsiz.s.xfersize)
-        CVMX_USB_RETURN_NOTHING();
+        return;
 
     if ((hcchar.s.eptype == CVMX_USB_TRANSFER_INTERRUPT) ||
         (hcchar.s.eptype == CVMX_USB_TRANSFER_ISOCHRONOUS))
@@ -1459,7 +1385,7 @@ static void __cvmx_usb_fill_tx_fifo(cvmx_usb_internal_state_t *usb, int channel)
 
     __cvmx_usb_poll_tx_fifo(usb);
 
-    CVMX_USB_RETURN_NOTHING();
+    return;
 }
 
 /**
@@ -1482,11 +1408,6 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
     int bytes_to_transfer = transaction->buffer_length - transaction->actual_bytes;
     int packets_to_transfer;
     cvmx_usbcx_hctsizx_t usbc_hctsiz;
-
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-    CVMX_USB_LOG_PARAM("%d", channel);
-    CVMX_USB_LOG_PARAM("%p", pipe);
 
     usbc_hctsiz.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCTSIZX(channel, usb->index));
 
@@ -1586,7 +1507,7 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
     usbc_hctsiz.s.pktcnt = packets_to_transfer;
 
     __cvmx_usb_write_csr32(usb, CVMX_USBCX_HCTSIZX(channel, usb->index), usbc_hctsiz.u32);
-    CVMX_USB_RETURN_NOTHING();
+    return;
 }
 
 
@@ -1604,11 +1525,6 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
                                      cvmx_usb_pipe_t *pipe)
 {
     cvmx_usb_transaction_t *transaction = pipe->head;
-
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-    CVMX_USB_LOG_PARAM("%d", channel);
-    CVMX_USB_LOG_PARAM("%p", pipe);
 
     if (cvmx_unlikely((usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS) ||
         (pipe->flags & CVMX_USB_PIPE_FLAGS_DEBUG_TRANSFERS)))
@@ -1843,7 +1759,7 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
     USB_SET_FIELD32(CVMX_USBCX_HCCHARX(channel, usb->index), cvmx_usbcx_hccharx_t, chena, 1);
     if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
         __cvmx_usb_fill_tx_fifo(usb, channel);
-    CVMX_USB_RETURN_NOTHING();
+    return;
 }
 
 
@@ -1892,9 +1808,6 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
     int need_sof;
     cvmx_usb_transfer_t ttype;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-
     if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA) {
         /* Without DMA we need to be careful to not schedule something at the end of a frame and cause an overrun */
         cvmx_usbcx_hfnum_t hfnum = {.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index))};
@@ -1930,9 +1843,6 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
         }
         if (!pipe)
             break;
-
-        CVMX_USB_LOG_PARAM("%d", channel);
-        CVMX_USB_LOG_PARAM("%p", pipe);
 
         if (cvmx_unlikely((usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS) ||
             (pipe->flags & CVMX_USB_PIPE_FLAGS_DEBUG_TRANSFERS))) {
@@ -1980,7 +1890,7 @@ done:
         }
     }
     USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index), cvmx_usbcx_gintmsk_t, sofmsk, need_sof);
-    CVMX_USB_RETURN_NOTHING();
+    return;
 }
 
 
@@ -2059,12 +1969,6 @@ static void __cvmx_usb_perform_complete(cvmx_usb_internal_state_t * usb,
                                         cvmx_usb_transaction_t *transaction,
                                         cvmx_usb_complete_t complete_code)
 {
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-    CVMX_USB_LOG_PARAM("%p", pipe);
-    CVMX_USB_LOG_PARAM("%p", transaction);
-    CVMX_USB_LOG_PARAM("%d", complete_code);
-
     /* If this was a split then clear our split in progress marker */
     if (usb->active_split == transaction)
         usb->active_split = NULL;
@@ -2106,7 +2010,7 @@ static void __cvmx_usb_perform_complete(cvmx_usb_internal_state_t * usb,
                                 complete_code);
     __cvmx_usb_free_transaction(usb, transaction);
 done:
-    CVMX_USB_RETURN_NOTHING();
+    return;
 }
 
 
@@ -2154,18 +2058,17 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
     cvmx_usb_transaction_t *transaction;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
-    CVMX_USB_LOG_CALLED();
     if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     /* Fail if the pipe isn't open */
     if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(pipe->transfer_type != type))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     transaction = __cvmx_usb_alloc_transaction(usb);
     if (cvmx_unlikely(!transaction))
-        CVMX_USB_RETURN(CVMX_USB_NO_MEMORY);
+        return CVMX_USB_NO_MEMORY;
 
     transaction->type = type;
     transaction->flags |= flags;
@@ -2204,7 +2107,7 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
     if (!transaction->prev)
         __cvmx_usb_schedule(usb, 0);
 
-    CVMX_USB_RETURN(submit_handle);
+    return submit_handle;
 }
 
 
@@ -2247,17 +2150,11 @@ int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
     int submit_handle;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", pipe_handle);
-    CVMX_USB_LOG_PARAM("0x%llx", (unsigned long long)buffer);
-    CVMX_USB_LOG_PARAM("%d", buffer_length);
-
     /* Pipe handle checking is done later in a common place */
     if (cvmx_unlikely(!buffer))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(buffer_length < 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
                                          CVMX_USB_TRANSFER_BULK,
@@ -2270,7 +2167,7 @@ int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
                                          NULL, /* iso_packets */
                                          callback,
                                          user_data);
-    CVMX_USB_RETURN(submit_handle);
+    return submit_handle;
 }
 
 
@@ -2313,17 +2210,11 @@ int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
     int submit_handle;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", pipe_handle);
-    CVMX_USB_LOG_PARAM("0x%llx", (unsigned long long)buffer);
-    CVMX_USB_LOG_PARAM("%d", buffer_length);
-
     /* Pipe handle checking is done later in a common place */
     if (cvmx_unlikely(!buffer))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(buffer_length < 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
                                          CVMX_USB_TRANSFER_INTERRUPT,
@@ -2336,7 +2227,7 @@ int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
                                          NULL, /* iso_packets */
                                          callback,
                                          user_data);
-    CVMX_USB_RETURN(submit_handle);
+    return submit_handle;
 }
 
 
@@ -2385,21 +2276,14 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_control_header_t *header = cvmx_phys_to_ptr(control_header);
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", pipe_handle);
-    CVMX_USB_LOG_PARAM("0x%llx", (unsigned long long)control_header);
-    CVMX_USB_LOG_PARAM("0x%llx", (unsigned long long)buffer);
-    CVMX_USB_LOG_PARAM("%d", buffer_length);
-
     /* Pipe handle checking is done later in a common place */
     if (cvmx_unlikely(!control_header))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     /* Some drivers send a buffer with a zero length. God only knows why */
     if (cvmx_unlikely(buffer && (buffer_length < 0)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(!buffer && (buffer_length != 0)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if ((header->s.request_type & 0x80) == 0)
         buffer_length = cvmx_le16_to_cpu(header->s.length);
 
@@ -2414,7 +2298,7 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
                                          NULL, /* iso_packets */
                                          callback,
                                          user_data);
-    CVMX_USB_RETURN(submit_handle);
+    return submit_handle;
 }
 
 
@@ -2474,29 +2358,19 @@ int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
     int submit_handle;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", pipe_handle);
-    CVMX_USB_LOG_PARAM("%d", start_frame);
-    CVMX_USB_LOG_PARAM("0x%x", flags);
-    CVMX_USB_LOG_PARAM("%d", number_packets);
-    CVMX_USB_LOG_PARAM("%p", packets);
-    CVMX_USB_LOG_PARAM("0x%llx", (unsigned long long)buffer);
-    CVMX_USB_LOG_PARAM("%d", buffer_length);
-
     /* Pipe handle checking is done later in a common place */
     if (cvmx_unlikely(start_frame < 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(flags & ~(CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT | CVMX_USB_ISOCHRONOUS_FLAGS_ASAP)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(number_packets < 1))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(!packets))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(!buffer))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(buffer_length < 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
                                          CVMX_USB_TRANSFER_ISOCHRONOUS,
@@ -2509,7 +2383,7 @@ int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
                                          packets,
                                          callback,
                                          user_data);
-    CVMX_USB_RETURN(submit_handle);
+    return submit_handle;
 }
 
 
@@ -2537,25 +2411,20 @@ cvmx_usb_status_t cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", pipe_handle);
-    CVMX_USB_LOG_PARAM("%d", submit_handle);
-
     if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely((submit_handle < 0) || (submit_handle >= MAX_TRANSACTIONS)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     /* Fail if the pipe isn't open */
     if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     transaction = usb->transaction + submit_handle;
 
     /* Fail if this transaction already completed */
     if (cvmx_unlikely((transaction->flags & __CVMX_USB_TRANSACTION_FLAGS_IN_USE) == 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     /* If the transaction is the HEAD of the queue and scheduled. We need to
         treat it special */
@@ -2576,7 +2445,7 @@ cvmx_usb_status_t cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
         }
     }
     __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_CANCEL);
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
 
 
@@ -2597,24 +2466,21 @@ cvmx_usb_status_t cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", pipe_handle);
     if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     /* Fail if the pipe isn't open */
     if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     /* Simply loop through and attempt to cancel each transaction */
     while (pipe->head) {
         cvmx_usb_status_t result = cvmx_usb_cancel(state, pipe_handle,
             __cvmx_usb_get_submit_handle(usb, pipe->head));
         if (cvmx_unlikely(result != CVMX_USB_SUCCESS))
-            CVMX_USB_RETURN(result);
+            return result;
     }
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
 
 
@@ -2635,25 +2501,22 @@ cvmx_usb_status_t cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", pipe_handle);
     if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     /* Fail if the pipe isn't open */
     if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     /* Fail if the pipe has pending transactions */
     if (cvmx_unlikely(pipe->head))
-        CVMX_USB_RETURN(CVMX_USB_BUSY);
+        return CVMX_USB_BUSY;
 
     pipe->flags = 0;
     __cvmx_usb_remove_pipe(&usb->idle_pipes, pipe);
     __cvmx_usb_append_pipe(&usb->free_pipes, pipe);
 
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
 
 
@@ -2676,20 +2539,15 @@ cvmx_usb_status_t cvmx_usb_register_callback(cvmx_usb_state_t *state,
 {
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-    CVMX_USB_LOG_PARAM("%d", reason);
-    CVMX_USB_LOG_PARAM("%p", callback);
-    CVMX_USB_LOG_PARAM("%p", user_data);
     if (cvmx_unlikely(reason >= __CVMX_USB_CALLBACK_END))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
     if (cvmx_unlikely(!callback))
-        CVMX_USB_RETURN(CVMX_USB_INVALID_PARAM);
+        return CVMX_USB_INVALID_PARAM;
 
     usb->callback[reason] = callback;
     usb->callback_data[reason] = user_data;
 
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
 
 
@@ -2708,13 +2566,10 @@ int cvmx_usb_get_frame_number(cvmx_usb_state_t *state)
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usbcx_hfnum_t usbc_hfnum;
 
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
-
     usbc_hfnum.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index));
     frame_number = usbc_hfnum.s.frnum;
 
-    CVMX_USB_RETURN(frame_number);
+    return frame_number;
 }
 
 
@@ -2738,9 +2593,6 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
     int bytes_in_last_packet;
     int packets_processed;
     int buffer_space_left;
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", usb);
-    CVMX_USB_LOG_PARAM("%d", channel);
 
     /* Read the interrupt status bits for the channel */
     usbc_hcint.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCINTX(channel, usb->index));
@@ -2753,7 +2605,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
                 IN transfers to get stuck until we do a write of HCCHARX
                 without changing things */
             __cvmx_usb_write_csr32(usb, CVMX_USBCX_HCCHARX(channel, usb->index), usbc_hcchar.u32);
-            CVMX_USB_RETURN(0);
+            return 0;
         }
 
         /* In non DMA mode the channels don't halt themselves. We need to
@@ -2767,14 +2619,14 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
                 __cvmx_usb_write_csr32(usb, CVMX_USBCX_HCINTMSKX(channel, usb->index), hcintmsk.u32);
                 usbc_hcchar.s.chdis = 1;
                 __cvmx_usb_write_csr32(usb, CVMX_USBCX_HCCHARX(channel, usb->index), usbc_hcchar.u32);
-                CVMX_USB_RETURN(0);
+                return 0;
             }
             else if (usbc_hcint.s.xfercompl) {
                 /* Successful IN/OUT with transfer complete. Channel halt isn't needed */
             }
             else {
                 cvmx_dprintf("USB%d: Channel %d interrupt without halt\n", usb->index, channel);
-                CVMX_USB_RETURN(0);
+                return 0;
             }
         }
     }
@@ -2782,7 +2634,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
         /* There is are no interrupts that we need to process when the channel is
             still running */
         if (!usbc_hcint.s.chhltd)
-            CVMX_USB_RETURN(0);
+            return 0;
     }
 
     /* Disable the channel interrupts now that it is done */
@@ -2794,7 +2646,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
     CVMX_PREFETCH(pipe, 0);
     CVMX_PREFETCH(pipe, 128);
     if (!pipe)
-        CVMX_USB_RETURN(0);
+        return 0;
     transaction = pipe->head;
     CVMX_PREFETCH0(transaction);
 
@@ -3118,7 +2970,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
             __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_ERROR);
         }
     }
-    CVMX_USB_RETURN(0);
+    return 0;
 }
 
 
@@ -3145,9 +2997,6 @@ cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state)
     CVMX_PREFETCH(usb, 2*128);
     CVMX_PREFETCH(usb, 3*128);
     CVMX_PREFETCH(usb, 4*128);
-
-    CVMX_USB_LOG_CALLED();
-    CVMX_USB_LOG_PARAM("%p", state);
 
     /* Update the frame counter */
     usbc_hfnum.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index));
@@ -3220,5 +3069,5 @@ cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state)
 
     __cvmx_usb_schedule(usb, usbc_gintsts.s.sof);
 
-    CVMX_USB_RETURN(CVMX_USB_SUCCESS);
+    return CVMX_USB_SUCCESS;
 }
