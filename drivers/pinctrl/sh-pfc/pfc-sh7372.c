@@ -23,9 +23,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
-
-#include <mach/irqs.h>
-#include <mach/sh7372.h>
+#include <linux/sh_intc.h>
 
 #include "core.h"
 #include "sh_pfc.h"
