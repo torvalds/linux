@@ -1148,11 +1148,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= 2;
 		s->maxdata	= 0x0fff;
-		if (devpriv->user_ao_range_table)
-			s->range_table	= devpriv->user_ao_range_table;
-		else
-			s->range_table	= &range_unknown;
-
+		s->range_table	= devpriv->user_ao_range_table;
 		s->insn_write	= das16_ao_insn_write;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
