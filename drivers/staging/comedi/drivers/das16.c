@@ -1239,5 +1239,5 @@ static struct comedi_driver das16_driver = {
 module_comedi_driver(das16_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for DAS16 compatible boards");
 MODULE_LICENSE("GPL");
