@@ -38,6 +38,8 @@
 #include <linux/export.h>
 #include <linux/clkdev.h>
 
+#include <asm/arch_timer.h>
+#include <asm/sched_clock.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/mach-types.h>
@@ -64,9 +66,9 @@
 #include <plat/system.h>
 #include <plat/sys_config.h>
 
+#include "clocksrc.h"
+
 int arch_timer_common_register(void);
-int aw_clksrc_init(void);
-void aw_clkevt_init(void);
 void sw_pdev_init(void);
 
 /*
@@ -428,9 +430,12 @@ static void __init sw_timer_init(void)
 	aw_clkevt_init();
 	aw_clksrc_init();
 #ifdef CONFIG_ARM_ARCH_TIMER
-	if (sunxi_is_sun7i())
+	if (sunxi_is_sun7i()) {
 		arch_timer_common_register();
+		arch_timer_sched_clock_init();
+	} else
 #endif
+	setup_sched_clock(aw_sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
 }
 
 struct sys_timer sw_sys_timer = {

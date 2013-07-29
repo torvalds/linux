@@ -34,7 +34,6 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/delay.h>
-#include <asm/sched_clock.h>
 #include "clocksrc.h"
 
 #undef CLKSRC_DBG
@@ -151,7 +150,7 @@ cycle_t aw_clksrc_read(struct clocksource *cs)
 }
 EXPORT_SYMBOL(aw_clksrc_read);
 
-static u32 sched_clock_read(void)
+u32 aw_sched_clock_read(void)
 {
 	u32 lower;
 	unsigned long flags;
@@ -348,9 +347,6 @@ int __init aw_clksrc_init(void)
 					       aw_clocksrc.shift);
 	/* register clock source */
 	clocksource_register(&aw_clocksrc);
-
-	/* set sched clock */
-	setup_sched_clock(sched_clock_read, 32, AW_HPET_CLOCK_SOURCE_HZ);
 
 	return 0;
 }

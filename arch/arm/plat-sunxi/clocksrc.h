@@ -87,4 +87,8 @@
 #error "AW_HPET_CLK_EVT config is invalid!!"
 #endif
 
+u32 aw_sched_clock_read(void);
+int aw_clksrc_init(void);
+int aw_clkevt_init(void);
+
 #endif  /* #ifndef __AW_CLOCKSRC_H__ */
