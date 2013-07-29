@@ -338,7 +338,6 @@ struct munge_info {
 
 struct das16_board {
 	const char *name;
-	void *ai;
 	unsigned int ai_nbits;
 	unsigned int ai_speed;	/*  max conversion speed in nanosec */
 	unsigned int ai_pg;
@@ -659,8 +658,10 @@ static void das16_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + DAS16_CNTR_CONTROL);
 }
 
-static int das16_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int das16_ai_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
 	const struct das16_board *board = comedi_board(dev);
 	struct das16_private_struct *devpriv = dev->private;
@@ -1099,39 +1100,34 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-	/* ai */
-	if (board->ai) {
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE;
-		if (devpriv->ai_singleended) {
-			s->n_chan = 16;
-			s->len_chanlist = 16;
-			s->subdev_flags |= SDF_GROUND;
-		} else {
-			s->n_chan = 8;
-			s->len_chanlist = 8;
-			s->subdev_flags |= SDF_DIFF;
-		}
-		s->maxdata = (1 << board->ai_nbits) - 1;
-		if (devpriv->user_ai_range_table) { /*  user defined ai range */
-			s->range_table = devpriv->user_ai_range_table;
-		} else if (devpriv->ai_unipolar) {
-			s->range_table = das16_ai_uni_lranges[board->ai_pg];
-		} else {
-			s->range_table = das16_ai_bip_lranges[board->ai_pg];
-		}
-		s->insn_read = board->ai;
-		if (devpriv->dma_chan) {
-			dev->read_subdev = s;
-			s->subdev_flags |= SDF_CMD_READ;
-			s->do_cmdtest = das16_cmd_test;
-			s->do_cmd = das16_cmd_exec;
-			s->cancel = das16_cancel;
-			s->munge = das16_ai_munge;
-		}
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE;
+	if (devpriv->ai_singleended) {
+		s->subdev_flags	|= SDF_GROUND;
+		s->n_chan	= 16;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->subdev_flags	|= SDF_DIFF;
+		s->n_chan	= 8;
+	}
+	s->len_chanlist	= s->n_chan;
+	s->maxdata	= (1 << board->ai_nbits) - 1;
+	if (devpriv->user_ai_range_table) { /*  user defined ai range */
+		s->range_table	= devpriv->user_ai_range_table;
+	} else if (devpriv->ai_unipolar) {
+		s->range_table	= das16_ai_uni_lranges[board->ai_pg];
+	} else {
+		s->range_table	= das16_ai_bip_lranges[board->ai_pg];
+	}
+	s->insn_read	= das16_ai_insn_read;
+	if (devpriv->dma_chan) {
+		dev->read_subdev = s;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->do_cmdtest	= das16_cmd_test;
+		s->do_cmd	= das16_cmd_exec;
+		s->cancel	= das16_cancel;
+		s->munge	= das16_ai_munge;
 	}
 
 	s = &dev->subdevices[1];
@@ -1232,7 +1228,6 @@ static void das16_detach(struct comedi_device *dev)
 static const struct das16_board das16_boards[] = {
 	{
 		.name		= "das-16",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 15000,
 		.ai_pg		= das16_pg_none,
@@ -1246,7 +1241,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x00,
 	}, {
 		.name		= "das-16g",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 15000,
 		.ai_pg		= das16_pg_none,
@@ -1260,7 +1254,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x00,
 	}, {
 		.name		= "das-16f",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 8500,
 		.ai_pg		= das16_pg_none,
@@ -1274,7 +1267,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x00,
 	}, {
 		.name		= "cio-das16",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 20000,
 		.ai_pg		= das16_pg_none,
@@ -1288,7 +1280,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x80,
 	}, {
 		.name		= "cio-das16/f",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_none,
@@ -1302,7 +1293,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x80,
 	}, {
 		.name		= "cio-das16/jr",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 7692,
 		.ai_pg		= das16_pg_16jr,
@@ -1315,7 +1305,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x00,
 	}, {
 		.name		= "pc104-das16jr",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 3300,
 		.ai_pg		= das16_pg_16jr,
@@ -1328,7 +1317,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x00,
 	}, {
 		.name		= "cio-das16jr/16",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 16,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_16jr_16,
@@ -1341,7 +1329,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x00,
 	}, {
 		.name		= "pc104-das16jr/16",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 16,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_16jr_16,
@@ -1354,7 +1341,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x00,
 	}, {
 		.name		= "das-1201",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 20000,
 		.ai_pg		= das16_pg_none,
@@ -1367,7 +1353,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x20,
 	}, {
 		.name		= "das-1202",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_none,
@@ -1380,7 +1365,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0x20,
 	}, {
 		.name		= "das-1401",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1601,
@@ -1393,7 +1377,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "das-1402",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
@@ -1406,7 +1389,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "das-1601",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1601,
@@ -1420,7 +1402,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "das-1602",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
@@ -1434,7 +1415,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "cio-das1401/12",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 6250,
 		.ai_pg		= das16_pg_1601,
@@ -1447,7 +1427,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "cio-das1402/12",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 6250,
 		.ai_pg		= das16_pg_1602,
@@ -1460,7 +1439,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "cio-das1402/16",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 16,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
@@ -1473,7 +1451,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "cio-das1601/12",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 6250,
 		.ai_pg		= das16_pg_1601,
@@ -1487,7 +1464,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "cio-das1602/12",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
@@ -1501,7 +1477,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "cio-das1602/16",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 16,
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
@@ -1515,7 +1490,6 @@ static const struct das16_board das16_boards[] = {
 		.id		= 0xc0,
 	}, {
 		.name		= "cio-das16/330",
-		.ai		= das16_ai_rinsn,
 		.ai_nbits	= 12,
 		.ai_speed	= 3030,
 		.ai_pg		= das16_pg_16jr,
