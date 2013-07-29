@@ -571,7 +571,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	    !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+	if ((nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP) {
 		struct netlink_dump_control c = {
 			.dump = ops->dumpit,
 			.done = ops->done,
