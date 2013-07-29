@@ -39,8 +39,6 @@
 
 
 /**
- * @file
- *
  * "cvmx-usb.h" defines a set of low level USB functions to help
  * developers create Octeon USB drivers for various operating
  * systems. These functions provide a generic API to the Octeon
@@ -49,24 +47,24 @@
  *
  * At a high level the device driver needs to:
  *
- * -# Call cvmx_usb_get_num_ports() to get the number of
- *  supported ports.
- * -# Call cvmx_usb_initialize() for each Octeon USB port.
- * -# Enable the port using cvmx_usb_enable().
- * -# Either periodically, or in an interrupt handler, call
- *  cvmx_usb_poll() to service USB events.
- * -# Manage pipes using cvmx_usb_open_pipe() and
- *  cvmx_usb_close_pipe().
- * -# Manage transfers using cvmx_usb_submit_*() and
- *  cvmx_usb_cancel*().
- * -# Shutdown USB on unload using cvmx_usb_shutdown().
+ * - Call cvmx_usb_get_num_ports() to get the number of
+ *   supported ports.
+ * - Call cvmx_usb_initialize() for each Octeon USB port.
+ * - Enable the port using cvmx_usb_enable().
+ * - Either periodically, or in an interrupt handler, call
+ *   cvmx_usb_poll() to service USB events.
+ * - Manage pipes using cvmx_usb_open_pipe() and
+ *   cvmx_usb_close_pipe().
+ * - Manage transfers using cvmx_usb_submit_*() and
+ *   cvmx_usb_cancel*().
+ * - Shutdown USB on unload using cvmx_usb_shutdown().
  *
  * To monitor USB status changes, the device driver must use
  * cvmx_usb_register_callback() to register for events that it
  * is interested in. Below are a few hints on successfully
  * implementing a driver on top of this API.
  *
- * <h2>Initialization</h2>
+ * == Initialization ==
  *
  * When a driver is first loaded, it is normally not necessary
  * to bring up the USB port completely. Most operating systems
@@ -75,24 +73,24 @@
  * initialize anything found, and then enable the hardware.
  *
  * In the probe phase you should:
- * -# Use cvmx_usb_get_num_ports() to determine the number of
- *  USB port to be supported.
- * -# Allocate space for a cvmx_usb_state_t structure for each
- *  port.
- * -# Tell the operating system about each port
+ * - Use cvmx_usb_get_num_ports() to determine the number of
+ *   USB port to be supported.
+ * - Allocate space for a cvmx_usb_state_t structure for each
+ *   port.
+ * - Tell the operating system about each port
  *
  * In the initialization phase you should:
- * -# Use cvmx_usb_initialize() on each port.
- * -# Do not call cvmx_usb_enable(). This leaves the USB port in
- *  the disabled state until the operating system is ready.
+ * - Use cvmx_usb_initialize() on each port.
+ * - Do not call cvmx_usb_enable(). This leaves the USB port in
+ *   the disabled state until the operating system is ready.
  *
  * Finally, in the enable phase you should:
- * -# Call cvmx_usb_enable() on the appropriate port.
- * -# Note that some operating system use a RESET instead of an
- *  enable call. To implement RESET, you should call
- *  cvmx_usb_disable() followed by cvmx_usb_enable().
+ * - Call cvmx_usb_enable() on the appropriate port.
+ * - Note that some operating system use a RESET instead of an
+ *   enable call. To implement RESET, you should call
+ *   cvmx_usb_disable() followed by cvmx_usb_enable().
  *
- * <h2>Locking</h2>
+ * == Locking ==
  *
  * All of the functions in the cvmx-usb API assume exclusive
  * access to the USB hardware and internal data structures. This
@@ -112,7 +110,7 @@
  * take a lock to make sure that another core cannot call
  * cvmx-usb.
  *
- * <h2>Port callback</h2>
+ * == Port callback ==
  *
  * The port callback prototype needs to look as follows:
  *
@@ -123,14 +121,13 @@
  *                    int submit_handle,
  *                    int bytes_transferred,
  *                    void *user_data);
- * - @b usb is the cvmx_usb_state_t for the port.
- * - @b reason will always be
- *   CVMX_USB_CALLBACK_PORT_CHANGED.
- * - @b status will always be CVMX_USB_COMPLETE_SUCCESS.
- * - @b pipe_handle will always be -1.
- * - @b submit_handle will always be -1.
- * - @b bytes_transferred will always be 0.
- * - @b user_data is the void pointer originally passed along
+ * - "usb" is the cvmx_usb_state_t for the port.
+ * - "reason" will always be CVMX_USB_CALLBACK_PORT_CHANGED.
+ * - "status" will always be CVMX_USB_COMPLETE_SUCCESS.
+ * - "pipe_handle" will always be -1.
+ * - "submit_handle" will always be -1.
+ * - "bytes_transferred" will always be 0.
+ * - "user_data" is the void pointer originally passed along
  *   with the callback. Use this for any state information you
  *   need.
  *
@@ -140,12 +137,12 @@
  * root port. Normally all the callback needs to do is tell the
  * operating system to poll the root hub for status. Under
  * Linux, this is performed by calling usb_hcd_poll_rh_status().
- * In the Linux driver we use @b user_data. to pass around the
+ * In the Linux driver we use "user_data". to pass around the
  * Linux "hcd" structure. Once the port callback completes,
  * Linux automatically calls octeon_usb_hub_status_data() which
  * uses cvmx_usb_get_status() to determine the root port status.
  *
- * <h2>Complete callback</h2>
+ * == Complete callback ==
  *
  * The completion callback prototype needs to look as follows:
  *
@@ -156,29 +153,27 @@
  *                        int submit_handle,
  *                        int bytes_transferred,
  *                        void *user_data);
- * - @b usb is the cvmx_usb_state_t for the port.
- * - @b reason will always be
- *   CVMX_USB_CALLBACK_TRANSFER_COMPLETE.
- * - @b status will be one of the cvmx_usb_complete_t
- *   enumerations.
- * - @b pipe_handle is the handle to the pipe the transaction
+ * - "usb" is the cvmx_usb_state_t for the port.
+ * - "reason" will always be CVMX_USB_CALLBACK_TRANSFER_COMPLETE.
+ * - "status" will be one of the cvmx_usb_complete_t enumerations.
+ * - "pipe_handle" is the handle to the pipe the transaction
  *   was originally submitted on.
- * - @b submit_handle is the handle returned by the original
+ * - "submit_handle" is the handle returned by the original
  *   cvmx_usb_submit_* call.
- * - @b bytes_transferred is the number of bytes successfully
+ * - "bytes_transferred" is the number of bytes successfully
  *   transferred in the transaction. This will be zero on most
  *   error conditions.
- * - @b user_data is the void pointer originally passed along
+ * - "user_data" is the void pointer originally passed along
  *   with the callback. Use this for any state information you
  *   need. For example, the Linux "urb" is stored in here in the
  *   Linux driver.
  *
- * In general your callback handler should use @b status and @b
- * bytes_transferred to tell the operating system the how the
+ * In general your callback handler should use "status" and
+ * "bytes_transferred" to tell the operating system the how the
  * transaction completed. Normally the pipe is not changed in
  * this callback.
  *
- * <h2>Canceling transactions</h2>
+ * == Canceling transactions ==
  *
  * When a transaction is cancelled using cvmx_usb_cancel*(), the
  * actual length of time until the complete callback is called
@@ -188,7 +183,7 @@
  * these cases, the complete handler will receive
  * CVMX_USB_COMPLETE_CANCEL.
  *
- * <h2>Handling pipes</h2>
+ * == Handling pipes ==
  *
  * USB "pipes" is a software construct created by this API to
  * enable the ordering of usb transactions to a device endpoint.
@@ -210,7 +205,7 @@
  * destroy a pipe for every transaction. A sequence of
  * transaction to the same endpoint must use the same pipe.
  *
- * <h2>Root Hub</h2>
+ * == Root Hub ==
  *
  * Some operating systems view the usb root port as a normal usb
  * hub. These systems attempt to control the root hub with
@@ -219,7 +214,7 @@
  * function to decode standard usb control messages into
  * equivalent cvmx-usb API calls.
  *
- * <h2>Interrupts</h2>
+ * == Interrupts ==
  *
  * If you plan on using usb interrupts, cvmx_usb_poll() must be
  * called on every usb interrupt. It will read the usb state,
