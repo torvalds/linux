@@ -1222,11 +1222,9 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	if (of_address_to_resource(np, 0, &res))
 		return -ENODEV;
 
-	bank->base = devm_request_and_ioremap(dev, &res);
-	if (!bank->base) {
-		dev_err(dev, "Can't get IO memory mapping!\n");
-		return -ENODEV;
-	}
+	bank->base = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(bank->base))
+		return PTR_ERR(bank->base);
 
 	bank->gpio_chip = st_gpio_template;
 	bank->gpio_chip.base = bank_num * ST_GPIO_PINS_PER_BANK;
