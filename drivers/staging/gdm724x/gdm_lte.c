@@ -21,9 +21,7 @@
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
-#include <linux/in.h>
 #include <linux/in6.h>
-#include <linux/udp.h>
 #include <linux/tcp.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
