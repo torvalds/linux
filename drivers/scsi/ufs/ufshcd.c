@@ -2603,11 +2603,11 @@ EXPORT_SYMBOL(ufshcd_runtime_idle);
  */
 void ufshcd_remove(struct ufs_hba *hba)
 {
+	scsi_remove_host(hba->host);
 	/* disable interrupts */
 	ufshcd_disable_intr(hba, hba->intr_mask);
 	ufshcd_hba_stop(hba);
 
-	scsi_remove_host(hba->host);
 	scsi_host_put(hba->host);
 }
 EXPORT_SYMBOL_GPL(ufshcd_remove);
