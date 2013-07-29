@@ -915,6 +915,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	u16 txq_id;
+	enum iwl_mvm_agg_state old_state;
 
 	/*
 	 * First set the agg state to OFF to avoid calling
@@ -924,13 +925,17 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	txq_id = tid_data->txq_id;
 	IWL_DEBUG_TX_QUEUES(mvm, "Flush AGG: sta %d tid %d q %d state %d\n",
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
+	old_state = tid_data->state;
 	tid_data->state = IWL_AGG_OFF;
 	spin_unlock_bh(&mvmsta->lock);
 
-	if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
-		IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
+	if (old_state >= IWL_AGG_ON) {
+		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
+			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
 
-	iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+	}
+
 	mvm->queue_to_mac80211[tid_data->txq_id] =
 				IWL_INVALID_MAC80211_QUEUE;
 
