@@ -262,8 +262,8 @@ static int octeon_usb_get_clock_type(void)
  * for 32bit CSRs and logs the value in a readable format if
  * debugging is on.
  *
- * @param usb     USB block this access is for
- * @param address 64bit address to read
+ * @usb:     USB block this access is for
+ * @address: 64bit address to read
  *
  * @return Result of the read
  */
@@ -280,9 +280,9 @@ static inline uint32_t __cvmx_usb_read_csr32(cvmx_usb_internal_state_t *usb,
  * swizzle for 32bit CSRs and logs the value in a readable format
  * if debugging is on.
  *
- * @param usb     USB block this access is for
- * @param address 64bit address to write
- * @param value   Value to write
+ * @usb:     USB block this access is for
+ * @address: 64bit address to write
+ * @value:   Value to write
  */
 static inline void __cvmx_usb_write_csr32(cvmx_usb_internal_state_t *usb,
 					  uint64_t address, uint32_t value)
@@ -296,8 +296,8 @@ static inline void __cvmx_usb_write_csr32(cvmx_usb_internal_state_t *usb,
  * Read a USB 64bit CSR. It logs the value in a readable format if
  * debugging is on.
  *
- * @param usb     USB block this access is for
- * @param address 64bit address to read
+ * @usb:     USB block this access is for
+ * @address: 64bit address to read
  *
  * @return Result of the read
  */
@@ -313,9 +313,9 @@ static inline uint64_t __cvmx_usb_read_csr64(cvmx_usb_internal_state_t *usb,
  * Write a USB 64bit CSR. It logs the value in a readable format
  * if debugging is on.
  *
- * @param usb     USB block this access is for
- * @param address 64bit address to write
- * @param value   Value to write
+ * @usb:     USB block this access is for
+ * @address: 64bit address to write
+ * @value:   Value to write
  */
 static inline void __cvmx_usb_write_csr64(cvmx_usb_internal_state_t *usb,
 					  uint64_t address, uint64_t value)
@@ -327,8 +327,8 @@ static inline void __cvmx_usb_write_csr64(cvmx_usb_internal_state_t *usb,
  * Return non zero if this pipe connects to a non HIGH speed
  * device through a high speed hub.
  *
- * @param usb    USB block this access is for
- * @param pipe   Pipe to check
+ * @usb:    USB block this access is for
+ * @pipe:   Pipe to check
  *
  * @return Non zero if we need to do split transactions
  */
@@ -341,7 +341,7 @@ static inline int __cvmx_usb_pipe_needs_split(cvmx_usb_internal_state_t *usb, cv
 /**
  * Trivial utility function to return the correct PID for a pipe
  *
- * @param pipe   pipe to check
+ * @pipe:   pipe to check
  *
  * @return PID for pipe
  */
@@ -388,7 +388,7 @@ int cvmx_usb_get_num_ports(void)
 /**
  * Allocate a usb transaction for use
  *
- * @param usb	 USB device state populated by
+ * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
  *
  * @return Transaction or NULL
@@ -413,9 +413,9 @@ static inline cvmx_usb_transaction_t *__cvmx_usb_alloc_transaction(cvmx_usb_inte
 /**
  * Free a usb transaction
  *
- * @param usb	 USB device state populated by
+ * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param transaction
+ * @transaction:
  *		 Transaction to free
  */
 static inline void __cvmx_usb_free_transaction(cvmx_usb_internal_state_t *usb,
@@ -434,8 +434,8 @@ static inline void __cvmx_usb_free_transaction(cvmx_usb_internal_state_t *usb,
 
 /**
  * Add a pipe to the tail of a list
- * @param list   List to add pipe to
- * @param pipe   Pipe to add
+ * @list:   List to add pipe to
+ * @pipe:   Pipe to add
  */
 static inline void __cvmx_usb_append_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_pipe_t *pipe)
 {
@@ -451,8 +451,8 @@ static inline void __cvmx_usb_append_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_p
 
 /**
  * Remove a pipe from a list
- * @param list   List to remove pipe from
- * @param pipe   Pipe to remove
+ * @list:   List to remove pipe from
+ * @pipe:   Pipe to remove
  */
 static inline void __cvmx_usb_remove_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_pipe_t *pipe)
 {
@@ -481,13 +481,13 @@ static inline void __cvmx_usb_remove_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_p
  * other access to the Octeon USB port is made. The port starts
  * off in the disabled state.
  *
- * @param state  Pointer to an empty cvmx_usb_state_t structure
+ * @state:	 Pointer to an empty cvmx_usb_state_t structure
  *		 that will be populated by the initialize call.
  *		 This structure is then passed to all other USB
  *		 functions.
- * @param usb_port_number
+ * @usb_port_number:
  *		 Which Octeon USB port to initialize.
- * @param flags  Flags to control hardware initialization. See
+ * @flags:	 Flags to control hardware initialization. See
  *		 cvmx_usb_initialize_flags_t for the flag
  *		 definitions. Some flags are mandatory.
  *
@@ -815,8 +815,8 @@ int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
  * The port should be disabled with all pipes closed when this
  * function is called.
  *
- * @param state  USB device state populated by
- *		 cvmx_usb_initialize().
+ * @state: USB device state populated by
+ *	   cvmx_usb_initialize().
  *
  * @return 0 or a negative error code.
  */
@@ -850,8 +850,8 @@ int cvmx_usb_shutdown(cvmx_usb_state_t *state)
  * Enable a USB port. After this call succeeds, the USB port is
  * online and servicing requests.
  *
- * @param state  USB device state populated by
- *		 cvmx_usb_initialize().
+ * @state: USB device state populated by
+ *	   cvmx_usb_initialize().
  *
  * @return 0 or a negative error code.
  */
@@ -944,8 +944,8 @@ int cvmx_usb_enable(cvmx_usb_state_t *state)
  * Transactions in process will fail and call their
  * associated callbacks.
  *
- * @param state  USB device state populated by
- *		 cvmx_usb_initialize().
+ * @state: USB device state populated by
+ *	   cvmx_usb_initialize().
  *
  * @return 0 or a negative error code.
  */
@@ -968,8 +968,8 @@ int cvmx_usb_disable(cvmx_usb_state_t *state)
  * on the last call to cvmx_usb_set_status(). In order to clear
  * them, you must update the status through cvmx_usb_set_status().
  *
- * @param state  USB device state populated by
- *		 cvmx_usb_initialize().
+ * @state: USB device state populated by
+ *	   cvmx_usb_initialize().
  *
  * @return Port status information
  */
@@ -1000,9 +1000,9 @@ cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state)
  * status passed to this function is not used. No fields can be
  * changed through this call.
  *
- * @param state  USB device state populated by
+ * @state:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param port_status
+ * @port_status:
  *		 Port status to set, most like returned by cvmx_usb_get_status()
  */
 void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t port_status)
@@ -1016,9 +1016,9 @@ void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t port_st
 /**
  * Convert a USB transaction into a handle
  *
- * @param usb    USB device state populated by
+ * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param transaction
+ * @transaction:
  *		 Transaction to get handle for
  *
  * @return Handle
@@ -1034,9 +1034,9 @@ static inline int __cvmx_usb_get_submit_handle(cvmx_usb_internal_state_t *usb,
 /**
  * Convert a USB pipe into a handle
  *
- * @param usb    USB device state populated by
+ * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param pipe   Pipe to get handle for
+ * @pipe:	 Pipe to get handle for
  *
  * @return Handle
  */
@@ -1052,49 +1052,49 @@ static inline int __cvmx_usb_get_pipe_handle(cvmx_usb_internal_state_t *usb,
  * must be opened before data can be transferred between a device
  * and Octeon.
  *
- * @param state	     USB device state populated by
+ * @state:	     USB device state populated by
  *		     cvmx_usb_initialize().
- * @param flags	     Optional pipe flags defined in
+ * @flags:	     Optional pipe flags defined in
  *		     cvmx_usb_pipe_flags_t.
- * @param device_addr
+ * @device_addr:
  *		     USB device address to open the pipe to
  *		     (0-127).
- * @param endpoint_num
+ * @endpoint_num:
  *		     USB endpoint number to open the pipe to
  *		     (0-15).
- * @param device_speed
+ * @device_speed:
  *		     The speed of the device the pipe is going
  *		     to. This must match the device's speed,
  *		     which may be different than the port speed.
- * @param max_packet The maximum packet length the device can
+ * @max_packet:	     The maximum packet length the device can
  *		     transmit/receive (low speed=0-8, full
  *		     speed=0-1023, high speed=0-1024). This value
  *		     comes from the standard endpoint descriptor
  *		     field wMaxPacketSize bits <10:0>.
- * @param transfer_type
+ * @transfer_type:
  *		     The type of transfer this pipe is for.
- * @param transfer_dir
+ * @transfer_dir:
  *		     The direction the pipe is in. This is not
  *		     used for control pipes.
- * @param interval   For ISOCHRONOUS and INTERRUPT transfers,
+ * @interval:	     For ISOCHRONOUS and INTERRUPT transfers,
  *		     this is how often the transfer is scheduled
  *		     for. All other transfers should specify
  *		     zero. The units are in frames (8000/sec at
  *		     high speed, 1000/sec for full speed).
- * @param multi_count
+ * @multi_count:
  *		     For high speed devices, this is the maximum
  *		     allowed number of packet per microframe.
  *		     Specify zero for non high speed devices. This
  *		     value comes from the standard endpoint descriptor
  *		     field wMaxPacketSize bits <12:11>.
- * @param hub_device_addr
+ * @hub_device_addr:
  *		     Hub device address this device is connected
  *		     to. Devices connected directly to Octeon
  *		     use zero. This is only used when the device
  *		     is full/low speed behind a high speed hub.
  *		     The address will be of the high speed hub,
  *		     not and full speed hubs after it.
- * @param hub_port   Which port on the hub the device is
+ * @hub_port:	     Which port on the hub the device is
  *		     connected. Use zero for devices connected
  *		     directly to Octeon. Like hub_device_addr,
  *		     this is only used for full/low speed
@@ -1191,7 +1191,7 @@ int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
  * in non DMA mode. It is very important that this function be called quickly
  * enough to prevent FIFO overflow.
  *
- * @param usb	USB device state populated by
+ * @usb:	USB device state populated by
  *		cvmx_usb_initialize().
  */
 static void __cvmx_usb_poll_rx_fifo(cvmx_usb_internal_state_t *usb)
@@ -1235,10 +1235,10 @@ static void __cvmx_usb_poll_rx_fifo(cvmx_usb_internal_state_t *usb)
  * Fill the TX hardware fifo with data out of the software
  * fifos
  *
- * @param usb	    USB device state populated by
+ * @usb:	    USB device state populated by
  *		    cvmx_usb_initialize().
- * @param fifo	    Software fifo to use
- * @param available Amount of space in the hardware fifo
+ * @fifo:	    Software fifo to use
+ * @available:	    Amount of space in the hardware fifo
  *
  * @return Non zero if the hardware fifo was too small and needs
  *	   to be serviced again.
@@ -1294,7 +1294,7 @@ static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fif
 /**
  * Check the hardware FIFOs and fill them as needed
  *
- * @param usb	USB device state populated by
+ * @usb:	USB device state populated by
  *		cvmx_usb_initialize().
  */
 static void __cvmx_usb_poll_tx_fifo(cvmx_usb_internal_state_t *usb)
@@ -1324,9 +1324,9 @@ static void __cvmx_usb_poll_tx_fifo(cvmx_usb_internal_state_t *usb)
 /**
  * Fill the TX FIFO with an outgoing packet
  *
- * @param usb	  USB device state populated by
+ * @usb:	  USB device state populated by
  *		  cvmx_usb_initialize().
- * @param channel Channel number to get packet from
+ * @channel:	  Channel number to get packet from
  */
 static void __cvmx_usb_fill_tx_fifo(cvmx_usb_internal_state_t *usb, int channel)
 {
@@ -1373,10 +1373,10 @@ static void __cvmx_usb_fill_tx_fifo(cvmx_usb_internal_state_t *usb, int channel)
  * the generic stuff will already have been done in
  * __cvmx_usb_start_channel()
  *
- * @param usb	  USB device state populated by
+ * @usb:	  USB device state populated by
  *		  cvmx_usb_initialize().
- * @param channel Channel to setup
- * @param pipe	  Pipe for control transaction
+ * @channel:	  Channel to setup
+ * @pipe:	  Pipe for control transaction
  */
 static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
 					     int channel,
@@ -1502,10 +1502,10 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
 /**
  * Start a channel to perform the pipe's head transaction
  *
- * @param usb	  USB device state populated by
+ * @usb:	  USB device state populated by
  *		  cvmx_usb_initialize().
- * @param channel Channel to setup
- * @param pipe	  Pipe to start
+ * @channel:	  Channel to setup
+ * @pipe:	  Pipe to start
  */
 static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 				     int channel,
@@ -1788,10 +1788,10 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 
 /**
  * Find a pipe that is ready to be scheduled to hardware.
- * @param usb	 USB device state populated by
+ * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param list	 Pipe list to search
- * @param current_frame
+ * @list:	 Pipe list to search
+ * @current_frame:
  *		 Frame counter to use as a time reference.
  *
  * @return Pipe or NULL if none are ready
@@ -1818,9 +1818,9 @@ static cvmx_usb_pipe_t *__cvmx_usb_find_ready_pipe(cvmx_usb_internal_state_t *us
  * Called whenever a pipe might need to be scheduled to the
  * hardware.
  *
- * @param usb	 USB device state populated by
+ * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param is_sof True if this schedule was called on a SOF interrupt.
+ * @is_sof:	 True if this schedule was called on a SOF interrupt.
  */
 static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
 {
@@ -1891,13 +1891,13 @@ done:
 /**
  * Call a user's callback for a specific reason.
  *
- * @param usb	 USB device state populated by
+ * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param pipe	 Pipe the callback is for or NULL
- * @param transaction
+ * @pipe:	 Pipe the callback is for or NULL
+ * @transaction:
  *		 Transaction the callback is for or NULL
- * @param reason Reason this callback is being called
- * @param complete_code
+ * @reason:	 Reason this callback is being called
+ * @complete_code:
  *		 Completion code for the transaction, if any
  */
 static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
@@ -1937,12 +1937,12 @@ static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
  * Signal the completion of a transaction and free it. The
  * transaction will be removed from the pipe transaction list.
  *
- * @param usb	 USB device state populated by
+ * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param pipe	 Pipe the transaction is on
- * @param transaction
+ * @pipe:	 Pipe the transaction is on
+ * @transaction:
  *		 Transaction that completed
- * @param complete_code
+ * @complete_code:
  *		 Completion code
  */
 static void __cvmx_usb_perform_complete(cvmx_usb_internal_state_t *usb,
@@ -2003,24 +2003,24 @@ done:
  * Submit a usb transaction to a pipe. Called for all types
  * of transactions.
  *
- * @param usb
- * @param pipe_handle
+ * @usb:
+ * @pipe_handle:
  *		    Which pipe to submit to. Will be validated in this function.
- * @param type	    Transaction type
- * @param flags	    Flags for the transaction
- * @param buffer    User buffer for the transaction
- * @param buffer_length
+ * @type:	    Transaction type
+ * @flags:	    Flags for the transaction
+ * @buffer:	    User buffer for the transaction
+ * @buffer_length:
  *		    User buffer's length in bytes
- * @param control_header
+ * @control_header:
  *		    For control transactions, the 8 byte standard header
- * @param iso_start_frame
+ * @iso_start_frame:
  *		    For ISO transactions, the start frame
- * @param iso_number_packets
+ * @iso_number_packets:
  *		    For ISO, the number of packet in the transaction.
- * @param iso_packets
+ * @iso_packets:
  *		    A description of each ISO packet
- * @param callback  User callback to call when the transaction completes
- * @param user_data User's data for the callback
+ * @callback:	    User callback to call when the transaction completes
+ * @user_data:	    User's data for the callback
  *
  * @return Submit handle or negative on failure. Matches the result
  *	   in the external API.
@@ -2097,18 +2097,18 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
 /**
  * Call to submit a USB Bulk transfer to a pipe.
  *
- * @param state	    USB device state populated by
+ * @state:	    USB device state populated by
  *		    cvmx_usb_initialize().
- * @param pipe_handle
+ * @pipe_handle:
  *		    Handle to the pipe for the transfer.
- * @param buffer    Physical address of the data buffer in
+ * @buffer:	    Physical address of the data buffer in
  *		    memory. Note that this is NOT A POINTER, but
  *		    the full 64bit physical address of the
  *		    buffer. This may be zero if buffer_length is
  *		    zero.
- * @param buffer_length
+ * @buffer_length:
  *		    Length of buffer in bytes.
- * @param callback  Function to call when this transaction
+ * @callback:	    Function to call when this transaction
  *		    completes. If the return value of this
  *		    function isn't an error, then this function
  *		    is guaranteed to be called when the
@@ -2117,7 +2117,7 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
  *		    through cvmx_usb_register_callback is
  *		    called. If both are NULL, then there is no
  *		    way to know when a transaction completes.
- * @param user_data User supplied data returned when the
+ * @user_data:	    User supplied data returned when the
  *		    callback is called. This is only used if
  *		    callback in not NULL.
  *
@@ -2156,18 +2156,18 @@ int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
 /**
  * Call to submit a USB Interrupt transfer to a pipe.
  *
- * @param state	    USB device state populated by
+ * @state:	    USB device state populated by
  *		    cvmx_usb_initialize().
- * @param pipe_handle
+ * @pipe_handle:
  *		    Handle to the pipe for the transfer.
- * @param buffer    Physical address of the data buffer in
+ * @buffer:	    Physical address of the data buffer in
  *		    memory. Note that this is NOT A POINTER, but
  *		    the full 64bit physical address of the
  *		    buffer. This may be zero if buffer_length is
  *		    zero.
- * @param buffer_length
+ * @buffer_length:
  *		    Length of buffer in bytes.
- * @param callback  Function to call when this transaction
+ * @callback:	    Function to call when this transaction
  *		    completes. If the return value of this
  *		    function isn't an error, then this function
  *		    is guaranteed to be called when the
@@ -2176,7 +2176,7 @@ int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
  *		    through cvmx_usb_register_callback is
  *		    called. If both are NULL, then there is no
  *		    way to know when a transaction completes.
- * @param user_data User supplied data returned when the
+ * @user_data:	    User supplied data returned when the
  *		    callback is called. This is only used if
  *		    callback in not NULL.
  *
@@ -2215,22 +2215,22 @@ int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
 /**
  * Call to submit a USB Control transfer to a pipe.
  *
- * @param state	    USB device state populated by
+ * @state:	    USB device state populated by
  *		    cvmx_usb_initialize().
- * @param pipe_handle
+ * @pipe_handle:
  *		    Handle to the pipe for the transfer.
- * @param control_header
+ * @control_header:
  *		    USB 8 byte control header physical address.
  *		    Note that this is NOT A POINTER, but the
  *		    full 64bit physical address of the buffer.
- * @param buffer    Physical address of the data buffer in
+ * @buffer:	    Physical address of the data buffer in
  *		    memory. Note that this is NOT A POINTER, but
  *		    the full 64bit physical address of the
  *		    buffer. This may be zero if buffer_length is
  *		    zero.
- * @param buffer_length
+ * @buffer_length:
  *		    Length of buffer in bytes.
- * @param callback  Function to call when this transaction
+ * @callback:	    Function to call when this transaction
  *		    completes. If the return value of this
  *		    function isn't an error, then this function
  *		    is guaranteed to be called when the
@@ -2239,7 +2239,7 @@ int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
  *		    through cvmx_usb_register_callback is
  *		    called. If both are NULL, then there is no
  *		    way to know when a transaction completes.
- * @param user_data User supplied data returned when the
+ * @user_data:	    User supplied data returned when the
  *		    callback is called. This is only used if
  *		    callback in not NULL.
  *
@@ -2285,32 +2285,32 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
 /**
  * Call to submit a USB Isochronous transfer to a pipe.
  *
- * @param state	    USB device state populated by
+ * @state:	    USB device state populated by
  *		    cvmx_usb_initialize().
- * @param pipe_handle
+ * @pipe_handle:
  *		    Handle to the pipe for the transfer.
- * @param start_frame
+ * @start_frame:
  *		    Number of frames into the future to schedule
  *		    this transaction.
- * @param flags	    Flags to control the transfer. See
+ * @flags:	    Flags to control the transfer. See
  *		    cvmx_usb_isochronous_flags_t for the flag
  *		    definitions.
- * @param number_packets
+ * @number_packets:
  *		    Number of sequential packets to transfer.
  *		    "packets" is a pointer to an array of this
  *		    many packet structures.
- * @param packets   Description of each transfer packet as
+ * @packets:	    Description of each transfer packet as
  *		    defined by cvmx_usb_iso_packet_t. The array
  *		    pointed to here must stay valid until the
  *		    complete callback is called.
- * @param buffer    Physical address of the data buffer in
+ * @buffer:	    Physical address of the data buffer in
  *		    memory. Note that this is NOT A POINTER, but
  *		    the full 64bit physical address of the
  *		    buffer. This may be zero if buffer_length is
  *		    zero.
- * @param buffer_length
+ * @buffer_length:
  *		    Length of buffer in bytes.
- * @param callback  Function to call when this transaction
+ * @callback:	    Function to call when this transaction
  *		    completes. If the return value of this
  *		    function isn't an error, then this function
  *		    is guaranteed to be called when the
@@ -2319,7 +2319,7 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
  *		    through cvmx_usb_register_callback is
  *		    called. If both are NULL, then there is no
  *		    way to know when a transaction completes.
- * @param user_data User supplied data returned when the
+ * @user_data:	    User supplied data returned when the
  *		    callback is called. This is only used if
  *		    callback in not NULL.
  *
@@ -2373,11 +2373,11 @@ int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
  * a frame or two for the cvmx_usb_poll() function to call the
  * associated callback.
  *
- * @param state  USB device state populated by
+ * @state:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param pipe_handle
+ * @pipe_handle:
  *		 Pipe handle to cancel requests in.
- * @param submit_handle
+ * @submit_handle:
  *		 Handle to transaction to cancel, returned by the submit function.
  *
  * @return 0 or a negative error code.
@@ -2432,9 +2432,9 @@ int cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle, int submit_handle)
  * Cancel all outstanding requests in a pipe. Logically all this
  * does is call cvmx_usb_cancel() in a loop.
  *
- * @param state  USB device state populated by
+ * @state:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param pipe_handle
+ * @pipe_handle:
  *		 Pipe handle to cancel requests in.
  *
  * @return 0 or a negative error code.
@@ -2465,9 +2465,9 @@ int cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
 /**
  * Close a pipe created with cvmx_usb_open_pipe().
  *
- * @param state  USB device state populated by
+ * @state:	 USB device state populated by
  *		 cvmx_usb_initialize().
- * @param pipe_handle
+ * @pipe_handle:
  *		 Pipe handle to close.
  *
  * @return 0 or a negative error code. EBUSY is returned if the pipe has
@@ -2500,11 +2500,11 @@ int cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
 /**
  * Register a function to be called when various USB events occur.
  *
- * @param state	    USB device state populated by
- *		    cvmx_usb_initialize().
- * @param reason    Which event to register for.
- * @param callback  Function to call when the event occurs.
- * @param user_data User data parameter to the function.
+ * @state:     USB device state populated by
+ *	       cvmx_usb_initialize().
+ * @reason:    Which event to register for.
+ * @callback:  Function to call when the event occurs.
+ * @user_data: User data parameter to the function.
  *
  * @return 0 or a negative error code.
  */
@@ -2531,8 +2531,8 @@ int cvmx_usb_register_callback(cvmx_usb_state_t *state,
  * Get the current USB protocol level frame number. The frame
  * number is always in the range of 0-0x7ff.
  *
- * @param state  USB device state populated by
- *		 cvmx_usb_initialize().
+ * @state: USB device state populated by
+ *	   cvmx_usb_initialize().
  *
  * @return USB frame number
  */
@@ -2552,8 +2552,8 @@ int cvmx_usb_get_frame_number(cvmx_usb_state_t *state)
 /**
  * Poll a channel for status
  *
- * @param usb	  USB device
- * @param channel Channel to poll
+ * @usb:     USB device
+ * @channel: Channel to poll
  *
  * @return Zero on success
  */
@@ -2989,7 +2989,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
  * handler for the USB controller. It can also be called
  * periodically in a loop for non-interrupt based operation.
  *
- * @param state	USB device state populated by
+ * @state:	USB device state populated by
  *		cvmx_usb_initialize().
  *
  * @return 0 or a negative error code.
