@@ -42,7 +42,6 @@ for my needs.
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 
