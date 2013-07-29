@@ -10420,6 +10420,9 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	if (tg3_flag(tp, 5755_PLUS))
 		tp->rx_mode |= RX_MODE_IPV6_CSUM_ENABLE;
 
+	if (tg3_asic_rev(tp) == ASIC_REV_5762)
+		tp->rx_mode |= RX_MODE_IPV4_FRAG_FIX;
+
 	if (tg3_flag(tp, ENABLE_RSS))
 		tp->rx_mode |= RX_MODE_RSS_ENABLE |
 			       RX_MODE_RSS_ITBL_HASH_BITS_7 |
