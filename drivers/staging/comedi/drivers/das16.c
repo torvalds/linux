@@ -343,7 +343,6 @@ struct das16_board {
 	unsigned int ai_pg;
 	void *ao;
 	unsigned int ao_nbits;
-	void *do_;
 
 	unsigned int i8255_offset;
 	unsigned int i8254_offset;
@@ -721,22 +720,22 @@ static int das16_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das16_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int das16_do_insn_bits(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	unsigned int wbits;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	/*  only set bits that have been masked */
-	data[0] &= 0xf;
-	wbits = s->state;
-	/*  zero bits that have been masked */
-	wbits &= ~data[0];
-	/*  set masked bits */
-	wbits |= data[0] & data[1];
-	s->state = wbits;
-	data[1] = wbits;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-	outb(s->state, dev->iobase + DAS16_DIO);
+		outb(s->state, dev->iobase + DAS16_DIO);
+	}
+
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -1155,20 +1154,17 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table	= &range_digital;
 	s->insn_bits	= das16_di_insn_bits;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
-	/* do */
-	if (board->do_) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-		s->n_chan = 4;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = board->do_;
-		/*  initialize digital output lines */
-		outb(s->state, dev->iobase + DAS16_DIO);
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= das16_do_insn_bits;
+
+	/* initialize digital output lines */
+	outb(s->state, dev->iobase + DAS16_DIO);
 
 	s = &dev->subdevices[4];
 	/* 8255 */
@@ -1227,7 +1223,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_none,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x10,
 		.i8254_offset	= 0x0c,
 		.size		= 0x14,
@@ -1239,7 +1234,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_none,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x10,
 		.i8254_offset	= 0x0c,
 		.size		= 0x14,
@@ -1251,7 +1245,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_none,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x10,
 		.i8254_offset	= 0x0c,
 		.size		= 0x14,
@@ -1263,7 +1256,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_none,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x10,
 		.i8254_offset	= 0x0c,
 		.size		= 0x14,
@@ -1275,7 +1267,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_none,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x10,
 		.i8254_offset	= 0x0c,
 		.size		= 0x14,
@@ -1286,7 +1277,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 7692,
 		.ai_pg		= das16_pg_16jr,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x10,
@@ -1297,7 +1287,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 3300,
 		.ai_pg		= das16_pg_16jr,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x10,
@@ -1308,7 +1297,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_16jr_16,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x10,
@@ -1319,7 +1307,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_16jr_16,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x10,
@@ -1330,7 +1317,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 20000,
 		.ai_pg		= das16_pg_none,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x400,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1341,7 +1327,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_none,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x400,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1352,7 +1337,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1601,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1363,7 +1347,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1375,7 +1358,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_1601,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x400,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1387,7 +1369,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_1602,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x400,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1398,7 +1379,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 6250,
 		.ai_pg		= das16_pg_1601,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1409,7 +1389,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 6250,
 		.ai_pg		= das16_pg_1602,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1420,7 +1399,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 10000,
 		.ai_pg		= das16_pg_1602,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1432,7 +1410,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_1601,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x400,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1444,7 +1421,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_1602,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x400,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1456,7 +1432,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_pg		= das16_pg_1602,
 		.ao		= das16_ao_winsn,
 		.ao_nbits	= 12,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0x400,
 		.i8254_offset	= 0x0c,
 		.size		= 0x408,
@@ -1467,7 +1442,6 @@ static const struct das16_board das16_boards[] = {
 		.ai_speed	= 3030,
 		.ai_pg		= das16_pg_16jr,
 		.ao		= NULL,
-		.do_		= das16_do_wbits,
 		.i8255_offset	= 0,
 		.i8254_offset	= 0x0c,
 		.size		= 0x14,
