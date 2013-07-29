@@ -4,7 +4,7 @@
 
 config LTE_GDM724X
 	tristate "GCT GDM724x LTE support"
-	depends on NET && USB && m
+	depends on NET && USB && TTY && m
 	help
 	  This driver supports GCT GDM724x LTE chip based USB modem devices.
 	  It exposes 4 network devices to be used per PDN and 2 tty devices to be
