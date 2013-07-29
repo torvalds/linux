@@ -451,4 +451,5 @@ module_i2c_driver(pfuze_driver);
 
 MODULE_AUTHOR("Robin Gong <b38343@freescale.com>");
 MODULE_DESCRIPTION("Regulator Driver for Freescale PFUZE100 PMIC");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("pfuze100-regulator");
