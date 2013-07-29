@@ -1206,10 +1206,12 @@ static void das16_detach(struct comedi_device *dev)
 {
 	const struct das16_board *board = comedi_board(dev);
 	struct das16_private_struct *devpriv = dev->private;
+	int i;
 
-	das16_reset(dev);
 	if (devpriv) {
-		int i;
+		if (dev->iobase)
+			das16_reset(dev);
+
 		for (i = 0; i < 2; i++) {
 			if (devpriv->dma_buffer[i])
 				pci_free_consistent(NULL, DAS16_DMA_SIZE,
@@ -1221,9 +1223,12 @@ static void das16_detach(struct comedi_device *dev)
 			free_dma(devpriv->dma_chan);
 		kfree(devpriv->user_ai_range_table);
 		kfree(devpriv->user_ao_range_table);
+
+		if (devpriv->extra_iobase)
+			release_region(devpriv->extra_iobase,
+				       board->size & 0x3ff);
 	}
-	if (devpriv->extra_iobase)
-		release_region(devpriv->extra_iobase, board->size & 0x3ff);
+
 	comedi_legacy_detach(dev);
 }
 
