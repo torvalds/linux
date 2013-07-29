@@ -32,8 +32,15 @@
  */
 enum rsnd_reg {
 	/* SRU/SCU */
+	RSND_REG_SRC_ROUTE_SEL,
+	RSND_REG_SRC_TMG_SEL0,
+	RSND_REG_SRC_TMG_SEL1,
+	RSND_REG_SRC_TMG_SEL2,
+	RSND_REG_SRC_CTRL,
 	RSND_REG_SSI_MODE0,
 	RSND_REG_SSI_MODE1,
+	RSND_REG_BUSIF_MODE,
+	RSND_REG_BUSIF_ADINR,
 
 	/* ADG */
 	RSND_REG_BRRA,
@@ -213,6 +220,8 @@ int rsnd_gen_path_exit(struct rsnd_priv *priv,
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);
+#define rsnd_is_gen1(s)		((s)->info->flags & RSND_GEN1)
+#define rsnd_is_gen2(s)		((s)->info->flags & RSND_GEN2)
 
 /*
  *	R-Car ADG

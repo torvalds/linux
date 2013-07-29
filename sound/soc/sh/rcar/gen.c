@@ -34,9 +34,6 @@ struct rsnd_gen {
 
 #define rsnd_priv_to_gen(p)	((struct rsnd_gen *)(p)->gen)
 
-#define rsnd_is_gen1(s)		((s)->info->flags & RSND_GEN1)
-#define rsnd_is_gen2(s)		((s)->info->flags & RSND_GEN2)
-
 /*
  *		Gen2
  *		will be filled in the future
@@ -115,8 +112,15 @@ static struct rsnd_gen_ops rsnd_gen1_ops = {
 
 static void rsnd_gen1_reg_map_init(struct rsnd_gen *gen)
 {
+	RSND_GEN1_REG_MAP(gen, SRU,	SRC_ROUTE_SEL,	0x0,	0x00);
+	RSND_GEN1_REG_MAP(gen, SRU,	SRC_TMG_SEL0,	0x0,	0x08);
+	RSND_GEN1_REG_MAP(gen, SRU,	SRC_TMG_SEL1,	0x0,	0x0c);
+	RSND_GEN1_REG_MAP(gen, SRU,	SRC_TMG_SEL2,	0x0,	0x10);
+	RSND_GEN1_REG_MAP(gen, SRU,	SRC_CTRL,	0x0,	0xc0);
 	RSND_GEN1_REG_MAP(gen, SRU,	SSI_MODE0,	0x0,	0xD0);
 	RSND_GEN1_REG_MAP(gen, SRU,	SSI_MODE1,	0x0,	0xD4);
+	RSND_GEN1_REG_MAP(gen, SRU,	BUSIF_MODE,	0x4,	0x20);
+	RSND_GEN1_REG_MAP(gen, SRU,	BUSIF_ADINR,	0x40,	0x214);
 
 	RSND_GEN1_REG_MAP(gen, ADG,	BRRA,		0x0,	0x00);
 	RSND_GEN1_REG_MAP(gen, ADG,	BRRB,		0x0,	0x04);
