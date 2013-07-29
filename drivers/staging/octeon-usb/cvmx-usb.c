@@ -46,8 +46,6 @@
  * systems. These functions provide a generic API to the Octeon
  * USB blocks, hiding the internal hardware specific
  * operations.
- *
- * <hr>$Revision: 32636 $<hr>
  */
 #include <linux/delay.h>
 #include <asm/octeon/cvmx.h>

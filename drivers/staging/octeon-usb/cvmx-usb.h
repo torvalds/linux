@@ -234,8 +234,6 @@
  *
  * If you aren't using interrupts, simple call cvmx_usb_poll()
  * in your main processing loop.
- *
- * <hr>$Revision: 32636 $<hr>
  */
 
 #ifndef __CVMX_USB_H__
