@@ -34,9 +34,52 @@
 #include <linux/uaccess.h>
 
 
+static struct resource da9063_regulators_resources[] = {
+	{
+		.name	= "LDO_LIM",
+		.start	= DA9063_IRQ_LDO_LIM,
+		.end	= DA9063_IRQ_LDO_LIM,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource da9063_rtc_resources[] = {
+	{
+		.name	= "ALARM",
+		.start	= DA9063_IRQ_ALARM,
+		.end	= DA9063_IRQ_ALARM,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "TICK",
+		.start	= DA9063_IRQ_TICK,
+		.end	= DA9063_IRQ_TICK,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct resource da9063_onkey_resources[] = {
+	{
+		.start	= DA9063_IRQ_ONKEY,
+		.end	= DA9063_IRQ_ONKEY,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource da9063_hwmon_resources[] = {
+	{
+		.start	= DA9063_IRQ_ADC_RDY,
+		.end	= DA9063_IRQ_ADC_RDY,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
 static struct mfd_cell da9063_devs[] = {
 	{
 		.name		= DA9063_DRVNAME_REGULATORS,
+		.num_resources	= ARRAY_SIZE(da9063_regulators_resources),
+		.resources	= da9063_regulators_resources,
 	},
 	{
 		.name		= DA9063_DRVNAME_LEDS,
@@ -46,12 +89,18 @@ static struct mfd_cell da9063_devs[] = {
 	},
 	{
 		.name		= DA9063_DRVNAME_HWMON,
+		.num_resources	= ARRAY_SIZE(da9063_hwmon_resources),
+		.resources	= da9063_hwmon_resources,
 	},
 	{
 		.name		= DA9063_DRVNAME_ONKEY,
+		.num_resources	= ARRAY_SIZE(da9063_onkey_resources),
+		.resources	= da9063_onkey_resources,
 	},
 	{
 		.name		= DA9063_DRVNAME_RTC,
+		.num_resources	= ARRAY_SIZE(da9063_rtc_resources),
+		.resources	= da9063_rtc_resources,
 	},
 	{
 		.name		= DA9063_DRVNAME_VIBRATION,
@@ -110,6 +159,12 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 		 "Device detected (model-ID: 0x%02X  rev-ID: 0x%02X)\n",
 		 model, revision);
 
+	ret = da9063_irq_init(da9063);
+	if (ret) {
+		dev_err(da9063->dev, "Cannot initialize interrupts.\n");
+		return ret;
+	}
+
 	ret = mfd_add_devices(da9063->dev, -1, da9063_devs,
 			      ARRAY_SIZE(da9063_devs), NULL, da9063->irq_base,
 			      NULL);
@@ -122,6 +177,7 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 void da9063_device_exit(struct da9063 *da9063)
 {
 	mfd_remove_devices(da9063->dev);
+	da9063_irq_exit(da9063);
 }
 
 MODULE_DESCRIPTION("PMIC driver for Dialog DA9063");
