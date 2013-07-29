@@ -62,6 +62,9 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
 #define RK29SDK_SD_CARD_DETECT_N                RK30_PIN3_PB0  //According to your own project to set the value of card-detect-pin.
 #define RK29SDK_SD_CARD_INSERT_LEVEL            GPIO_LOW       // set the voltage of insert-card. Please pay attention to the default setting.
 
+#define RK30SDK_WIFI_GPIO_WIFI_INT_B                RK30_PIN3_PD2
+#define RK30SDK_WIFI_GPIO_WIFI_INT_B_ENABLE_VALUE   GPIO_HIGH
+
 /*
 * Define wifi module's power and reset gpio, and gpio sensitive level.
 * Please set the value according to your own project.
@@ -82,9 +85,6 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
 
     #define RK30SDK_WIFI_GPIO_RESET_N               RK30_PIN2_PA7
     #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE    GPIO_HIGH 
-
-	#define RK30SDK_WIFI_GPIO_WIFI_INT_B                RK30_PIN3_PD2
-    #define RK30SDK_WIFI_GPIO_WIFI_INT_B_ENABLE_VALUE   GPIO_HIGH
 
 #elif defined(CONFIG_MT5931_MT6622) || defined(CONFIG_MT5931)
 
