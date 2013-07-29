@@ -350,20 +350,13 @@ static int disable_dma_on_even(struct comedi_device *dev)
 static void das16_interrupt(struct comedi_device *dev)
 {
 	struct das16_private_struct *devpriv = dev->private;
-	unsigned long dma_flags, spin_flags;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async;
-	struct comedi_cmd *cmd;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned long spin_flags;
+	unsigned long dma_flags;
 	int num_bytes, residue;
 	int buffer_index;
-
-	if (!dev->attached) {
-		comedi_error(dev, "premature interrupt");
-		return;
-	}
-	/*  initialize async here to make sure it is not NULL */
-	async = s->async;
-	cmd = &async->cmd;
 
 	spin_lock_irqsave(&dev->spinlock, spin_flags);
 	if ((devpriv->ctrl_reg & DMA_ENABLE) == 0) {
