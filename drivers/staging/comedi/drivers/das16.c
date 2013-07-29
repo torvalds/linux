@@ -1025,9 +1025,8 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (it->options[3]) {
 		if (it->options[3] != 0 &&
 		    it->options[3] != 1 && it->options[3] != 10) {
-			printk
-			    ("\n Invalid option.  Master clock must be set "
-							"to 1 or 10 (MHz)\n");
+			dev_err(dev->class_dev,
+				"Invalid option. Master clock must be set to 1 or 10 (MHz)\n");
 			return -EINVAL;
 		}
 	}
