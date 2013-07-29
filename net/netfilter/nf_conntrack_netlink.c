@@ -1038,21 +1038,9 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		}
 	}
 
-	if (del_timer(&ct->timeout)) {
-		if (nf_conntrack_event_report(IPCT_DESTROY, ct,
-					      NETLINK_CB(skb).portid,
-					      nlmsg_report(nlh)) < 0) {
-			nf_ct_delete_from_lists(ct);
-			/* we failed to report the event, try later */
-			nf_ct_dying_timeout(ct);
-			nf_ct_put(ct);
-			return 0;
-		}
-		/* death_by_timeout would report the event again */
-		set_bit(IPS_DYING_BIT, &ct->status);
-		nf_ct_delete_from_lists(ct);
-		nf_ct_put(ct);
-	}
+	if (del_timer(&ct->timeout))
+		nf_ct_delete(ct, NETLINK_CB(skb).portid, nlmsg_report(nlh));
+
 	nf_ct_put(ct);
 
 	return 0;

@@ -238,7 +238,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	nf_conntrack_free(ct);
 }
 
-void nf_ct_delete_from_lists(struct nf_conn *ct)
+static void nf_ct_delete_from_lists(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 
@@ -253,7 +253,6 @@ void nf_ct_delete_from_lists(struct nf_conn *ct)
 			     &net->ct.dying);
 	spin_unlock_bh(&nf_conntrack_lock);
 }
-EXPORT_SYMBOL_GPL(nf_ct_delete_from_lists);
 
 static void death_by_event(unsigned long ul_conntrack)
 {
@@ -275,7 +274,7 @@ static void death_by_event(unsigned long ul_conntrack)
 	nf_ct_put(ct);
 }
 
-void nf_ct_dying_timeout(struct nf_conn *ct)
+static void nf_ct_dying_timeout(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *ecache = nf_ct_ecache_find(ct);
@@ -288,27 +287,33 @@ void nf_ct_dying_timeout(struct nf_conn *ct)
 		(prandom_u32() % net->ct.sysctl_events_retry_timeout);
 	add_timer(&ecache->timeout);
 }
-EXPORT_SYMBOL_GPL(nf_ct_dying_timeout);
 
-static void death_by_timeout(unsigned long ul_conntrack)
+bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 {
-	struct nf_conn *ct = (void *)ul_conntrack;
 	struct nf_conn_tstamp *tstamp;
 
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp && tstamp->stop == 0)
 		tstamp->stop = ktime_to_ns(ktime_get_real());
 
-	if (!test_bit(IPS_DYING_BIT, &ct->status) &&
-	    unlikely(nf_conntrack_event(IPCT_DESTROY, ct) < 0)) {
+	if (!nf_ct_is_dying(ct) &&
+	    unlikely(nf_conntrack_event_report(IPCT_DESTROY, ct,
+	    portid, report) < 0)) {
 		/* destroy event was not delivered */
 		nf_ct_delete_from_lists(ct);
 		nf_ct_dying_timeout(ct);
-		return;
+		return false;
 	}
 	set_bit(IPS_DYING_BIT, &ct->status);
 	nf_ct_delete_from_lists(ct);
 	nf_ct_put(ct);
+	return true;
+}
+EXPORT_SYMBOL_GPL(nf_ct_delete);
+
+static void death_by_timeout(unsigned long ul_conntrack)
+{
+	nf_ct_delete((struct nf_conn *)ul_conntrack, 0, 0);
 }
 
 /*
@@ -643,10 +648,7 @@ static noinline int early_drop(struct net *net, unsigned int hash)
 		return dropped;
 
 	if (del_timer(&ct->timeout)) {
-		death_by_timeout((unsigned long)ct);
-		/* Check if we indeed killed this entry. Reliable event
-		   delivery may have inserted it into the dying list. */
-		if (test_bit(IPS_DYING_BIT, &ct->status)) {
+		if (nf_ct_delete(ct, 0, 0)) {
 			dropped = 1;
 			NF_CT_STAT_INC_ATOMIC(net, early_drop);
 		}
@@ -1253,6 +1255,7 @@ void nf_ct_iterate_cleanup(struct net *net,
 		/* Time to push up daises... */
 		if (del_timer(&ct->timeout))
 			death_by_timeout((unsigned long)ct);
+
 		/* ... else the timer will get him soon. */
 
 		nf_ct_put(ct);

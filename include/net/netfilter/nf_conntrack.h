@@ -181,8 +181,7 @@ __nf_conntrack_find(struct net *net, u16 zone,
 		    const struct nf_conntrack_tuple *tuple);
 
 extern int nf_conntrack_hash_check_insert(struct nf_conn *ct);
-extern void nf_ct_delete_from_lists(struct nf_conn *ct);
-extern void nf_ct_dying_timeout(struct nf_conn *ct);
+bool nf_ct_delete(struct nf_conn *ct, u32 pid, int report);
 
 extern void nf_conntrack_flush_report(struct net *net, u32 portid, int report);
 
