@@ -232,7 +232,7 @@ struct eg20t_port {
 	unsigned int iobase;
 	struct pci_dev *pdev;
 	int fifo_size;
-	int uartclk;
+	unsigned int uartclk;
 	int start_tx;
 	int start_rx;
 	int tx_empty;
@@ -419,7 +419,7 @@ static struct dmi_system_id pch_uart_dmi_table[] = {
 };
 
 /* Return UART clock, checking for board specific clocks. */
-static int pch_uart_get_uartclk(void)
+static unsigned int pch_uart_get_uartclk(void)
 {
 	const struct dmi_system_id *d;
 
@@ -428,7 +428,7 @@ static int pch_uart_get_uartclk(void)
 
 	d = dmi_first_match(pch_uart_dmi_table);
 	if (d)
-		return (int)d->driver_data;
+		return (unsigned long)d->driver_data;
 
 	return DEFAULT_UARTCLK;
 }
@@ -449,7 +449,7 @@ static void pch_uart_hal_disable_interrupt(struct eg20t_port *priv,
 	iowrite8(ier, priv->membase + UART_IER);
 }
 
-static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
+static int pch_uart_hal_set_line(struct eg20t_port *priv, unsigned int baud,
 				 unsigned int parity, unsigned int bits,
 				 unsigned int stb)
 {
@@ -484,7 +484,7 @@ static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
 	lcr |= bits;
 	lcr |= stb;
 
-	dev_dbg(priv->port.dev, "%s:baud = %d, div = %04x, lcr = %02x (%lu)\n",
+	dev_dbg(priv->port.dev, "%s:baud = %u, div = %04x, lcr = %02x (%lu)\n",
 		 __func__, baud, div, lcr, jiffies);
 	iowrite8(PCH_UART_LCR_DLAB, priv->membase + UART_LCR);
 	iowrite8(dll, priv->membase + PCH_UART_DLL);
@@ -1393,9 +1393,8 @@ static void pch_uart_shutdown(struct uart_port *port)
 static void pch_uart_set_termios(struct uart_port *port,
 				 struct ktermios *termios, struct ktermios *old)
 {
-	int baud;
 	int rtn;
-	unsigned int parity, bits, stb;
+	unsigned int baud, parity, bits, stb;
 	struct eg20t_port *priv;
 	unsigned long flags;
 
