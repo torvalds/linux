@@ -775,7 +775,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_unicast_packet *unicast_packet;
 	struct ethhdr *ethhdr = eth_hdr(skb);
-	int res, ret = NET_RX_DROP;
+	int res, hdr_len, ret = NET_RX_DROP;
 	struct sk_buff *new_skb;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
@@ -834,6 +834,22 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 
 	/* decrement ttl */
 	unicast_packet->header.ttl--;
+
+	switch (unicast_packet->header.packet_type) {
+	case BATADV_UNICAST_4ADDR:
+		hdr_len = sizeof(struct batadv_unicast_4addr_packet);
+		break;
+	case BATADV_UNICAST:
+		hdr_len = sizeof(struct batadv_unicast_packet);
+		break;
+	default:
+		/* other packet types not supported - yet */
+		hdr_len = -1;
+		break;
+	}
+
+	if (hdr_len > 0)
+		batadv_skb_set_priority(skb, hdr_len);
 
 	res = batadv_send_skb_to_orig(skb, orig_node, recv_if);
 
@@ -1192,6 +1208,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	/* check whether this has been sent by another originator before */
 	if (batadv_bla_check_bcast_duplist(bat_priv, skb))
 		goto out;
+
+	batadv_skb_set_priority(skb, sizeof(struct batadv_bcast_packet));
 
 	/* rebroadcast packet */
 	batadv_add_bcast_packet_to_list(bat_priv, skb, 1);

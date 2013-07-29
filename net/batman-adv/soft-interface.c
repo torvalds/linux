@@ -229,6 +229,8 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		 */
 	}
 
+	batadv_skb_set_priority(skb, 0);
+
 	/* ethernet packet should be broadcasted */
 	if (do_bcast) {
 		primary_if = batadv_primary_if_get_selected(bat_priv);
