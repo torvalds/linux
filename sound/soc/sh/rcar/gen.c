@@ -150,25 +150,16 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 	sru_res	= platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN1_SRU);
 	adg_res = platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN1_ADG);
 	ssi_res	= platform_get_resource(pdev, IORESOURCE_MEM, RSND_GEN1_SSI);
-	if (!sru_res ||
-	    !adg_res ||
-	    !ssi_res) {
-		dev_err(dev, "Not enough SRU/SSI/ADG platform resources.\n");
-		return -ENODEV;
-	}
-
-	gen->ops = &rsnd_gen1_ops;
 
 	gen->base[RSND_GEN1_SRU] = devm_ioremap_resource(dev, sru_res);
 	gen->base[RSND_GEN1_ADG] = devm_ioremap_resource(dev, adg_res);
 	gen->base[RSND_GEN1_SSI] = devm_ioremap_resource(dev, ssi_res);
-	if (!gen->base[RSND_GEN1_SRU] ||
-	    !gen->base[RSND_GEN1_ADG] ||
-	    !gen->base[RSND_GEN1_SSI]) {
-		dev_err(dev, "SRU/SSI/ADG ioremap failed\n");
+	if (IS_ERR(gen->base[RSND_GEN1_SRU]) ||
+	    IS_ERR(gen->base[RSND_GEN1_ADG]) ||
+	    IS_ERR(gen->base[RSND_GEN1_SSI]))
 		return -ENODEV;
-	}
 
+	gen->ops = &rsnd_gen1_ops;
 	rsnd_gen1_reg_map_init(gen);
 
 	dev_dbg(dev, "Gen1 device probed\n");
