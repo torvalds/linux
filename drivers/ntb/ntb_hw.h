@@ -45,6 +45,7 @@
  * Contact Information:
  * Jon Mason <jon.mason@intel.com>
  */
+#include <linux/ntb.h>
 
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_JSF		0x3725
 #define PCI_DEVICE_ID_INTEL_NTB_PS_JSF		0x3726
@@ -82,9 +83,6 @@ static inline void writeq(u64 val, void __iomem *addr)
 #define NTB_BAR_45		4
 #define NTB_BAR_MASK		((1 << NTB_BAR_MMIO) | (1 << NTB_BAR_23) |\
 				 (1 << NTB_BAR_45))
-
-#define NTB_LINK_DOWN		0
-#define NTB_LINK_UP		1
 
 #define NTB_HB_TIMEOUT		msecs_to_jiffies(1000)
 

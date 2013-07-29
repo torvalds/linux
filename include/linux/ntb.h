@@ -54,6 +54,11 @@ struct ntb_client {
 	void (*remove) (struct pci_dev *pdev);
 };
 
+enum {
+	NTB_LINK_DOWN = 0,
+	NTB_LINK_UP,
+};
+
 int ntb_register_client(struct ntb_client *drvr);
 void ntb_unregister_client(struct ntb_client *drvr);
 int ntb_register_client_dev(char *device_name);

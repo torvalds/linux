@@ -56,7 +56,6 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/ntb.h>
 #include "ntb_hw.h"
 
 #define NTB_TRANSPORT_VERSION	3

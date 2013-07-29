@@ -78,11 +78,19 @@ static void ntb_netdev_event_handler(void *data, int status)
 	netdev_dbg(ndev, "Event %x, Link %x\n", status,
 		   ntb_transport_link_query(dev->qp));
 
-	/* Currently, only link status event is supported */
-	if (status)
-		netif_carrier_on(ndev);
-	else
+	switch (status) {
+	case NTB_LINK_DOWN:
 		netif_carrier_off(ndev);
+		break;
+	case NTB_LINK_UP:
+		if (!ntb_transport_link_query(dev->qp))
+			return;
+
+		netif_carrier_on(ndev);
+		break;
+	default:
+		netdev_warn(ndev, "Unsupported event type %d\n", status);
+	}
 }
 
 static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
