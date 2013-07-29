@@ -141,6 +141,9 @@ ipv6:
 	case IPPROTO_IPIP:
 		proto = htons(ETH_P_IP);
 		goto ip;
+	case IPPROTO_IPV6:
+		proto = htons(ETH_P_IPV6);
+		goto ipv6;
 	default:
 		break;
 	}
