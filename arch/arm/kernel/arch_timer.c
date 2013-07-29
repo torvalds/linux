@@ -206,16 +206,14 @@ static inline cycle_t arch_counter_get_cntvct(void)
 	return cval;
 }
 
-static u32 notrace arch_counter_get_cntvct32(void)
+static u32 notrace arch_counter_get_cntpct32(void)
 {
-	cycle_t cntvct = arch_counter_get_cntvct();
-
 	/*
 	 * The sched_clock infrastructure only knows about counters
 	 * with at most 32bits. Forget about the upper 24 bits for the
 	 * time being...
 	 */
-	return (u32)(cntvct & (u32)~0);
+	return arch_counter_get_cntpct();
 }
 
 static cycle_t arch_counter_read(struct clocksource *cs)
@@ -361,7 +359,7 @@ int __init arch_timer_sched_clock_init(void)
 		return err;
 
 	local_irq_disable();
-	setup_sched_clock(arch_counter_get_cntvct32, 32, arch_timer_rate);
+	setup_sched_clock(arch_counter_get_cntpct32, 32, arch_timer_rate);
 	local_irq_enable();
 
 	return 0;
