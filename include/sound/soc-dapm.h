@@ -490,7 +490,6 @@ struct snd_soc_dapm_path {
 	/* source (input) and sink (output) widgets */
 	struct snd_soc_dapm_widget *source;
 	struct snd_soc_dapm_widget *sink;
-	struct snd_kcontrol *kcontrol;
 
 	/* status */
 	u32 connect:1;	/* source and sink widgets are connected */
@@ -503,6 +502,7 @@ struct snd_soc_dapm_path {
 
 	struct list_head list_source;
 	struct list_head list_sink;
+	struct list_head list_kcontrol;
 	struct list_head list;
 };
 

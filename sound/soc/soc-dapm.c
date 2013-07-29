@@ -176,6 +176,7 @@ static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 
 struct dapm_kcontrol_data {
 	unsigned int value;
+	struct list_head paths;
 	struct snd_soc_dapm_widget_list wlist;
 };
 
@@ -194,6 +195,7 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 
 	data->wlist.widgets[0] = widget;
 	data->wlist.num_widgets = 1;
+	INIT_LIST_HEAD(&data->paths);
 
 	kcontrol->private_data = data;
 
@@ -233,6 +235,26 @@ static int dapm_kcontrol_add_widget(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+
+static void dapm_kcontrol_add_path(const struct snd_kcontrol *kcontrol,
+	struct snd_soc_dapm_path *path)
+{
+	struct dapm_kcontrol_data *data = snd_kcontrol_chip(kcontrol);
+
+	list_add_tail(&path->list_kcontrol, &data->paths);
+}
+
+static struct list_head *dapm_kcontrol_get_path_list(
+	const struct snd_kcontrol *kcontrol)
+{
+	struct dapm_kcontrol_data *data = snd_kcontrol_chip(kcontrol);
+
+	return &data->paths;
+}
+
+#define dapm_kcontrol_for_each_path(path, kcontrol) \
+	list_for_each_entry(path, dapm_kcontrol_get_path_list(kcontrol), \
+		list_kcontrol)
 
 static unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol)
 {
@@ -671,7 +693,7 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 	}
 
 	w->kcontrols[kci] = kcontrol;
-	path->kcontrol = kcontrol;
+	dapm_kcontrol_add_path(kcontrol, path);
 
 	return 0;
 }
@@ -691,7 +713,7 @@ static int dapm_new_mixer(struct snd_soc_dapm_widget *w)
 				continue;
 
 			if (w->kcontrols[i]) {
-				path->kcontrol = w->kcontrols[i];
+				dapm_kcontrol_add_path(w->kcontrols[i], path);
 				continue;
 			}
 
@@ -730,7 +752,7 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 		return ret;
 
 	list_for_each_entry(path, &w->sources, list_sink)
-		path->kcontrol = w->kcontrols[0];
+		dapm_kcontrol_add_path(w->kcontrols[0], path);
 
 	return 0;
 }
@@ -1990,10 +2012,7 @@ static int soc_dapm_mux_update_power(struct snd_soc_card *card,
 	int found = 0;
 
 	/* find dapm widget path assoc with kcontrol */
-	list_for_each_entry(path, &card->paths, list) {
-		if (path->kcontrol != kcontrol)
-			continue;
-
+	dapm_kcontrol_for_each_path(path, kcontrol) {
 		if (!path->name || !e->texts[mux])
 			continue;
 
@@ -2043,11 +2062,7 @@ static int soc_dapm_mixer_update_power(struct snd_soc_card *card,
 	int found = 0;
 
 	/* find dapm widget path assoc with kcontrol */
-	list_for_each_entry(path, &card->paths, list) {
-		if (path->kcontrol != kcontrol)
-			continue;
-
-		/* found, now check type */
+	dapm_kcontrol_for_each_path(path, kcontrol) {
 		found = 1;
 		path->connect = connect;
 		dapm_mark_dirty(path->source, "mixer connection");
@@ -2152,6 +2167,7 @@ static void dapm_free_path(struct snd_soc_dapm_path *path)
 {
 	list_del(&path->list_sink);
 	list_del(&path->list_source);
+	list_del(&path->list_kcontrol);
 	list_del(&path->list);
 	kfree(path);
 }
