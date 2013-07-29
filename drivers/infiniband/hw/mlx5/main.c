@@ -1426,7 +1426,8 @@ static int init_one(struct pci_dev *pdev,
 	if (err)
 		goto err_eqs;
 
-	if (ib_register_device(&dev->ib_dev, NULL))
+	err = ib_register_device(&dev->ib_dev, NULL);
+	if (err)
 		goto err_rsrc;
 
 	err = create_umr_res(dev);
@@ -1434,8 +1435,9 @@ static int init_one(struct pci_dev *pdev,
 		goto err_dev;
 
 	for (i = 0; i < ARRAY_SIZE(mlx5_class_attributes); i++) {
-		if (device_create_file(&dev->ib_dev.dev,
-				       mlx5_class_attributes[i]))
+		err = device_create_file(&dev->ib_dev.dev,
+					 mlx5_class_attributes[i]);
+		if (err)
 			goto err_umrc;
 	}
 
