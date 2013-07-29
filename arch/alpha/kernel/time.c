@@ -105,9 +105,7 @@ void arch_irq_work_raise(void)
 
 static inline __u32 rpcc(void)
 {
-    __u32 result;
-    asm volatile ("rpcc %0" : "=r"(result));
-    return result;
+	return __builtin_alpha_rpcc();
 }
 
 int update_persistent_clock(struct timespec now)

@@ -818,8 +818,6 @@ static void uprobe_perf_print(struct trace_uprobe *tu,
 
 	size = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 	size = ALIGN(size + tu->size + sizeof(u32), sizeof(u64)) - sizeof(u32);
-	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer not large enough"))
-		return;
 
 	preempt_disable();
 	head = this_cpu_ptr(call->perf_events);
