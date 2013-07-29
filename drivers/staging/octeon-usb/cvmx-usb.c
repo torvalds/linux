@@ -265,7 +265,7 @@ static int octeon_usb_get_clock_type(void)
  * @usb:     USB block this access is for
  * @address: 64bit address to read
  *
- * @return Result of the read
+ * Returns: Result of the read
  */
 static inline uint32_t __cvmx_usb_read_csr32(cvmx_usb_internal_state_t *usb,
 					     uint64_t address)
@@ -299,7 +299,7 @@ static inline void __cvmx_usb_write_csr32(cvmx_usb_internal_state_t *usb,
  * @usb:     USB block this access is for
  * @address: 64bit address to read
  *
- * @return Result of the read
+ * Returns: Result of the read
  */
 static inline uint64_t __cvmx_usb_read_csr64(cvmx_usb_internal_state_t *usb,
 					     uint64_t address)
@@ -330,7 +330,7 @@ static inline void __cvmx_usb_write_csr64(cvmx_usb_internal_state_t *usb,
  * @usb:    USB block this access is for
  * @pipe:   Pipe to check
  *
- * @return Non zero if we need to do split transactions
+ * Returns: Non zero if we need to do split transactions
  */
 static inline int __cvmx_usb_pipe_needs_split(cvmx_usb_internal_state_t *usb, cvmx_usb_pipe_t *pipe)
 {
@@ -343,7 +343,7 @@ static inline int __cvmx_usb_pipe_needs_split(cvmx_usb_internal_state_t *usb, cv
  *
  * @pipe:   pipe to check
  *
- * @return PID for pipe
+ * Returns: PID for pipe
  */
 static inline int __cvmx_usb_get_data_pid(cvmx_usb_pipe_t *pipe)
 {
@@ -362,7 +362,7 @@ static inline int __cvmx_usb_get_data_pid(cvmx_usb_pipe_t *pipe)
  * cvmx_usb_initialize() must be called on independent
  * cvmx_usb_state_t structures.
  *
- * @return Number of port, zero if usb isn't supported
+ * Returns: Number of port, zero if usb isn't supported
  */
 int cvmx_usb_get_num_ports(void)
 {
@@ -391,7 +391,7 @@ int cvmx_usb_get_num_ports(void)
  * @usb:	 USB device state populated by
  *		 cvmx_usb_initialize().
  *
- * @return Transaction or NULL
+ * Returns: Transaction or NULL
  */
 static inline cvmx_usb_transaction_t *__cvmx_usb_alloc_transaction(cvmx_usb_internal_state_t *usb)
 {
@@ -491,7 +491,7 @@ static inline void __cvmx_usb_remove_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_p
  *		 cvmx_usb_initialize_flags_t for the flag
  *		 definitions. Some flags are mandatory.
  *
- * @return 0 or a negative error code.
+ * Returns: 0 or a negative error code.
  */
 int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
 			cvmx_usb_initialize_flags_t flags)
@@ -818,7 +818,7 @@ int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
  * @state: USB device state populated by
  *	   cvmx_usb_initialize().
  *
- * @return 0 or a negative error code.
+ * Returns: 0 or a negative error code.
  */
 int cvmx_usb_shutdown(cvmx_usb_state_t *state)
 {
@@ -853,7 +853,7 @@ int cvmx_usb_shutdown(cvmx_usb_state_t *state)
  * @state: USB device state populated by
  *	   cvmx_usb_initialize().
  *
- * @return 0 or a negative error code.
+ * Returns: 0 or a negative error code.
  */
 int cvmx_usb_enable(cvmx_usb_state_t *state)
 {
@@ -947,7 +947,7 @@ int cvmx_usb_enable(cvmx_usb_state_t *state)
  * @state: USB device state populated by
  *	   cvmx_usb_initialize().
  *
- * @return 0 or a negative error code.
+ * Returns: 0 or a negative error code.
  */
 int cvmx_usb_disable(cvmx_usb_state_t *state)
 {
@@ -971,7 +971,7 @@ int cvmx_usb_disable(cvmx_usb_state_t *state)
  * @state: USB device state populated by
  *	   cvmx_usb_initialize().
  *
- * @return Port status information
+ * Returns: Port status information
  */
 cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state)
 {
@@ -1021,7 +1021,7 @@ void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t port_st
  * @transaction:
  *		 Transaction to get handle for
  *
- * @return Handle
+ * Returns: Handle
  */
 static inline int __cvmx_usb_get_submit_handle(cvmx_usb_internal_state_t *usb,
 					       cvmx_usb_transaction_t *transaction)
@@ -1038,7 +1038,7 @@ static inline int __cvmx_usb_get_submit_handle(cvmx_usb_internal_state_t *usb,
  *		 cvmx_usb_initialize().
  * @pipe:	 Pipe to get handle for
  *
- * @return Handle
+ * Returns: Handle
  */
 static inline int __cvmx_usb_get_pipe_handle(cvmx_usb_internal_state_t *usb,
 					     cvmx_usb_pipe_t *pipe)
@@ -1100,8 +1100,8 @@ static inline int __cvmx_usb_get_pipe_handle(cvmx_usb_internal_state_t *usb,
  *		     this is only used for full/low speed
  *		     devices behind a high speed hub.
  *
- * @return A non negative value is a pipe handle. Negative
- *	   values are error codes.
+ * Returns: A non negative value is a pipe handle. Negative
+ *	    values are error codes.
  */
 int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
 		       int device_addr, int endpoint_num,
@@ -1240,8 +1240,8 @@ static void __cvmx_usb_poll_rx_fifo(cvmx_usb_internal_state_t *usb)
  * @fifo:	    Software fifo to use
  * @available:	    Amount of space in the hardware fifo
  *
- * @return Non zero if the hardware fifo was too small and needs
- *	   to be serviced again.
+ * Returns: Non zero if the hardware fifo was too small and needs
+ *	    to be serviced again.
  */
 static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fifo_t *fifo, int available)
 {
@@ -1794,7 +1794,7 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
  * @current_frame:
  *		 Frame counter to use as a time reference.
  *
- * @return Pipe or NULL if none are ready
+ * Returns: Pipe or NULL if none are ready
  */
 static cvmx_usb_pipe_t *__cvmx_usb_find_ready_pipe(cvmx_usb_internal_state_t *usb, cvmx_usb_pipe_list_t *list, uint64_t current_frame)
 {
@@ -2022,8 +2022,8 @@ done:
  * @callback:	    User callback to call when the transaction completes
  * @user_data:	    User's data for the callback
  *
- * @return Submit handle or negative on failure. Matches the result
- *	   in the external API.
+ * Returns: Submit handle or negative on failure. Matches the result
+ *	    in the external API.
  */
 static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
 					 int pipe_handle,
@@ -2121,8 +2121,8 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
  *		    callback is called. This is only used if
  *		    callback in not NULL.
  *
- * @return A submitted transaction handle or negative on
- *	   failure. Negative values are error codes.
+ * Returns: A submitted transaction handle or negative on
+ *	    failure. Negative values are error codes.
  */
 int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
 			 uint64_t buffer, int buffer_length,
@@ -2180,8 +2180,8 @@ int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
  *		    callback is called. This is only used if
  *		    callback in not NULL.
  *
- * @return A submitted transaction handle or negative on
- *	   failure. Negative values are error codes.
+ * Returns: A submitted transaction handle or negative on
+ *	    failure. Negative values are error codes.
  */
 int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
 			      uint64_t buffer, int buffer_length,
@@ -2243,8 +2243,8 @@ int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
  *		    callback is called. This is only used if
  *		    callback in not NULL.
  *
- * @return A submitted transaction handle or negative on
- *	   failure. Negative values are error codes.
+ * Returns: A submitted transaction handle or negative on
+ *	    failure. Negative values are error codes.
  */
 int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
 			    uint64_t control_header,
@@ -2323,8 +2323,8 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
  *		    callback is called. This is only used if
  *		    callback in not NULL.
  *
- * @return A submitted transaction handle or negative on
- *	   failure. Negative values are error codes.
+ * Returns: A submitted transaction handle or negative on
+ *	    failure. Negative values are error codes.
  */
 int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
 				int start_frame, int flags,
@@ -2380,7 +2380,7 @@ int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
  * @submit_handle:
  *		 Handle to transaction to cancel, returned by the submit function.
  *
- * @return 0 or a negative error code.
+ * Returns: 0 or a negative error code.
  */
 int cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle, int submit_handle)
 {
@@ -2437,7 +2437,7 @@ int cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle, int submit_handle)
  * @pipe_handle:
  *		 Pipe handle to cancel requests in.
  *
- * @return 0 or a negative error code.
+ * Returns: 0 or a negative error code.
  */
 int cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
 {
@@ -2470,8 +2470,8 @@ int cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
  * @pipe_handle:
  *		 Pipe handle to close.
  *
- * @return 0 or a negative error code. EBUSY is returned if the pipe has
- *	   outstanding transfers.
+ * Returns: 0 or a negative error code. EBUSY is returned if the pipe has
+ *	    outstanding transfers.
  */
 int cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
 {
@@ -2506,7 +2506,7 @@ int cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
  * @callback:  Function to call when the event occurs.
  * @user_data: User data parameter to the function.
  *
- * @return 0 or a negative error code.
+ * Returns: 0 or a negative error code.
  */
 int cvmx_usb_register_callback(cvmx_usb_state_t *state,
 			       cvmx_usb_callback_t reason,
@@ -2534,7 +2534,7 @@ int cvmx_usb_register_callback(cvmx_usb_state_t *state,
  * @state: USB device state populated by
  *	   cvmx_usb_initialize().
  *
- * @return USB frame number
+ * Returns: USB frame number
  */
 int cvmx_usb_get_frame_number(cvmx_usb_state_t *state)
 {
@@ -2555,7 +2555,7 @@ int cvmx_usb_get_frame_number(cvmx_usb_state_t *state)
  * @usb:     USB device
  * @channel: Channel to poll
  *
- * @return Zero on success
+ * Returns: Zero on success
  */
 static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
 {
@@ -2992,7 +2992,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
  * @state:	USB device state populated by
  *		cvmx_usb_initialize().
  *
- * @return 0 or a negative error code.
+ * Returns: 0 or a negative error code.
  */
 int cvmx_usb_poll(cvmx_usb_state_t *state)
 {
