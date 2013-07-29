@@ -672,7 +672,7 @@ int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
     __cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
                            usbn_clk_ctl.u64);
     /* 4. Wait 1 ms for PHY clock to start */
-    cvmx_wait_usec(1000);
+    mdelay(1);
     /* 5. Program the Reset input from automatic test equipment field in the
         USBP control and status register: USBN_USBP_CTL_STATUS[ATE_RESET] = 1 */
     usbn_usbp_ctl_status.u64 = __cvmx_usb_read_csr64(usb, CVMX_USBNX_USBP_CTL_STATUS(usb->index));
@@ -879,7 +879,7 @@ int cvmx_usb_enable(cvmx_usb_state_t *state)
 
     /* Wait at least 50ms (high speed), or 10ms (full speed) for the reset
         process to complete. */
-    cvmx_wait_usec(50000);
+    mdelay(50);
 
     /* Program the port reset bit to 0, USBC_HPRT[PRTRST] = 0 */
     USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt_t, prtrst, 0);
