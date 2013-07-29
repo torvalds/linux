@@ -16,7 +16,7 @@
 	compatible = "renesas,lager", "renesas,r8a7790";
 
 	chosen {
-		bootargs = "console=ttySC6,115200 ignore_loglevel";
+		bootargs = "console=ttySC6,115200 ignore_loglevel rw";
 	};
 
 	memory@40000000 {

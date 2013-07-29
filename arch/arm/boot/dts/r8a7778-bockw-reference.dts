@@ -22,7 +22,7 @@
 	compatible = "renesas,bockw-reference", "renesas,r8a7778";
 
 	chosen {
-		bootargs = "console=ttySC0,115200 ignore_loglevel";
+		bootargs = "console=ttySC0,115200 ignore_loglevel rw";
 	};
 
 	memory {

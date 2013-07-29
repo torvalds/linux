@@ -16,7 +16,7 @@
 	compatible = "renesas,ape6evm-reference", "renesas,r8a73a4";
 
 	chosen {
-		bootargs = "console=ttySC0,115200 ignore_loglevel";
+		bootargs = "console=ttySC0,115200 ignore_loglevel rw";
 	};
 
 	memory@40000000 {

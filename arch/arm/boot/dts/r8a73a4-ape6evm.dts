@@ -16,7 +16,7 @@
 	compatible = "renesas,ape6evm", "renesas,r8a73a4";
 
 	chosen {
-		bootargs = "console=ttySC0,115200 ignore_loglevel root=/dev/nfs ip=dhcp";
+		bootargs = "console=ttySC0,115200 ignore_loglevel root=/dev/nfs ip=dhcp rw";
 	};
 
 	memory@40000000 {
