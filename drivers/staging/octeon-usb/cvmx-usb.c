@@ -439,8 +439,6 @@ static inline cvmx_usb_transaction_t *__cvmx_usb_alloc_transaction(cvmx_usb_inte
         if (!usb->free_transaction_head)
             usb->free_transaction_tail = NULL;
     }
-    else if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
-        cvmx_dprintf("%s: Failed to allocate a transaction\n", __FUNCTION__);
     if (t) {
         memset(t, 0, sizeof(*t));
         t->flags = __CVMX_USB_TRANSACTION_FLAGS_IN_USE;
@@ -791,8 +789,6 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
 
     {
         /* Host Port Initialization */
-        if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
-            cvmx_dprintf("%s: USB%d is in host mode\n", __FUNCTION__, usb->index);
 
         /* 1. Program the host-port interrupt-mask field to unmask,
             USBC_GINTMSK[PRTINT] = 1 */
@@ -881,8 +877,6 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
 
     /* If there is nothing plugged into the port then fail immediately */
     if (!usb->usbcx_hprt.s.prtconnsts) {
-        if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
-            cvmx_dprintf("%s: USB%d Nothing plugged into the port\n", __FUNCTION__, usb->index);
         return CVMX_USB_TIMEOUT;
     }
 
@@ -898,21 +892,11 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
 
     /* Wait for the USBC_HPRT[PRTENA]. */
     if (CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt_t,
-                              prtena, ==, 1, 100000)) {
-        if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
-            cvmx_dprintf("%s: Timeout waiting for the port to finish reset\n",
-                         __FUNCTION__);
+                              prtena, ==, 1, 100000))
         return CVMX_USB_TIMEOUT;
-    }
 
     /* Read the port speed field to get the enumerated speed, USBC_HPRT[PRTSPD]. */
     usb->usbcx_hprt.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HPRT(usb->index));
-    if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
-        cvmx_dprintf("%s: USB%d is in %s speed mode\n", __FUNCTION__, usb->index,
-                     (usb->usbcx_hprt.s.prtspd == CVMX_USB_SPEED_HIGH) ? "high" :
-                     (usb->usbcx_hprt.s.prtspd == CVMX_USB_SPEED_FULL) ? "full" :
-                     "low");
-
     usbcx_ghwcfg3.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_GHWCFG3(usb->index));
 
     /* 13. Program the USBC_GRXFSIZ register to select the size of the receive
@@ -1003,15 +987,6 @@ cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state)
     result.connected = usbc_hprt.s.prtconnsts;
     result.connect_change = (result.connected != usb->port_status.connected);
 
-    if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLS))
-        cvmx_dprintf("%*s%s: returned port enabled=%d, over_current=%d, powered=%d, speed=%d, connected=%d, connect_change=%d\n",
-                     2*(--usb->indent), "", __FUNCTION__,
-                     result.port_enabled,
-                     result.port_over_current,
-                     result.port_powered,
-                     result.port_speed,
-                     result.connected,
-                     result.connect_change);
     return result;
 }
 
@@ -1526,13 +1501,6 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 {
     cvmx_usb_transaction_t *transaction = pipe->head;
 
-    if (cvmx_unlikely((usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS) ||
-        (pipe->flags & CVMX_USB_PIPE_FLAGS_DEBUG_TRANSFERS)))
-        cvmx_dprintf("%s: Channel %d started. Pipe %d transaction %d stage %d\n",
-                     __FUNCTION__, channel, __cvmx_usb_get_pipe_handle(usb, pipe),
-                     __cvmx_usb_get_submit_handle(usb, transaction),
-                     transaction->stage);
-
     /* Make sure all writes to the DMA region get flushed */
     CVMX_SYNCW;
 
@@ -1820,11 +1788,8 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
         /* Find an idle channel */
         CVMX_CLZ(channel, usb->idle_hardware_channels);
         channel = 31 - channel;
-        if (cvmx_unlikely(channel > 7)) {
-            if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO))
-                cvmx_dprintf("%s: Idle hardware channels has a channel higher than 7. This is wrong\n", __FUNCTION__);
+        if (cvmx_unlikely(channel > 7))
             break;
-        }
 
         /* Find a pipe needing service */
         pipe = NULL;
@@ -1844,34 +1809,6 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
         if (!pipe)
             break;
 
-        if (cvmx_unlikely((usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS) ||
-            (pipe->flags & CVMX_USB_PIPE_FLAGS_DEBUG_TRANSFERS))) {
-            cvmx_usb_transaction_t *transaction = pipe->head;
-            const cvmx_usb_control_header_t *header = (transaction->control_header) ? cvmx_phys_to_ptr(transaction->control_header) : NULL;
-            const char *dir = (pipe->transfer_dir == CVMX_USB_DIRECTION_IN) ? "IN" : "OUT";
-            const char *type;
-            switch (pipe->transfer_type) {
-                case CVMX_USB_TRANSFER_CONTROL:
-                    type = "SETUP";
-                    dir = (header->s.request_type & 0x80) ? "IN" : "OUT";
-                    break;
-                case CVMX_USB_TRANSFER_ISOCHRONOUS:
-                    type = "ISOCHRONOUS";
-                    break;
-                case CVMX_USB_TRANSFER_BULK:
-                    type = "BULK";
-                    break;
-                default: /* CVMX_USB_TRANSFER_INTERRUPT */
-                    type = "INTERRUPT";
-                    break;
-            }
-            cvmx_dprintf("%s: Starting pipe %d, transaction %d on channel %d. %s %s len=%d header=0x%llx\n",
-                         __FUNCTION__, __cvmx_usb_get_pipe_handle(usb, pipe),
-                         __cvmx_usb_get_submit_handle(usb, transaction),
-                         channel, type, dir,
-                         transaction->buffer_length,
-                         (header) ? (unsigned long long)header->u64 : 0ull);
-        }
         __cvmx_usb_start_channel(usb, channel, pipe);
     }
 
@@ -1935,19 +1872,8 @@ static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
     if (!callback)
         return;
 
-    if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLBACKS))
-        cvmx_dprintf("%*s%s: calling callback %p(usb=%p, complete_code=%s, "
-                     "pipe_handle=%d, submit_handle=%d, bytes_transferred=%d, user_data=%p);\n",
-                     2*usb->indent, "", __FUNCTION__, callback, usb,
-                     __cvmx_usb_complete_to_string(complete_code),
-                     pipe_handle, submit_handle, bytes_transferred, user_data);
-
     callback((cvmx_usb_state_t *)usb, reason, complete_code, pipe_handle, submit_handle,
              bytes_transferred, user_data);
-
-    if (cvmx_unlikely(usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLBACKS))
-        cvmx_dprintf("%*s%s: callback %p complete\n", 2*usb->indent, "",
-                      __FUNCTION__, callback);
 }
 
 
@@ -2693,15 +2619,6 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
     if ((transaction->stage == CVMX_USB_STAGE_SETUP) ||
         (transaction->stage == CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE))
         bytes_this_transfer = 0;
-
-    /* Optional debug output */
-    if (cvmx_unlikely((usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS) ||
-        (pipe->flags & CVMX_USB_PIPE_FLAGS_DEBUG_TRANSFERS)))
-        cvmx_dprintf("%s: Channel %d halted. Pipe %d transaction %d stage %d bytes=%d\n",
-                     __FUNCTION__, channel,
-                     __cvmx_usb_get_pipe_handle(usb, pipe),
-                     __cvmx_usb_get_submit_handle(usb, transaction),
-                     transaction->stage, bytes_this_transfer);
 
     /* Add the bytes transferred to the running total. It is important that
         bytes_this_transfer doesn't count any data that needs to be

@@ -622,12 +622,6 @@ typedef enum
     CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ = 3<<3,       /**< Speed of reference clock */
     /* Bits 3-4 used to encode the clock frequency */
     CVMX_USB_INITIALIZE_FLAGS_NO_DMA = 1<<5,            /**< Disable DMA and used polled IO for data transfer use for the USB  */
-    CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS = 1<<16,  /**< Enable extra console output for debugging USB transfers */
-    CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLBACKS = 1<<17,  /**< Enable extra console output for debugging USB callbacks */
-    CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO = 1<<18,       /**< Enable extra console output for USB informational data */
-    CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLS = 1<<19,      /**< Enable extra console output for every function call */
-    CVMX_USB_INITIALIZE_FLAGS_DEBUG_CSRS = 1<<20,       /**< Enable extra console output for every CSR access */
-    CVMX_USB_INITIALIZE_FLAGS_DEBUG_ALL = ((CVMX_USB_INITIALIZE_FLAGS_DEBUG_CSRS<<1)-1) - (CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS-1),
 } cvmx_usb_initialize_flags_t;
 
 /**
@@ -636,7 +630,6 @@ typedef enum
  */
 typedef enum
 {
-    CVMX_USB_PIPE_FLAGS_DEBUG_TRANSFERS = 1<<15,/**< Used to display CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS for a specific pipe only */
     __CVMX_USB_PIPE_FLAGS_OPEN = 1<<16,         /**< Used internally to determine if a pipe is open. Do not use */
     __CVMX_USB_PIPE_FLAGS_SCHEDULED = 1<<17,    /**< Used internally to determine if a pipe is actively using hardware. Do not use */
     __CVMX_USB_PIPE_FLAGS_NEED_PING = 1<<18,    /**< Used internally to determine if a high speed pipe is in the ping state. Do not use */
