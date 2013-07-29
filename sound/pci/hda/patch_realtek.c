@@ -1845,8 +1845,10 @@ static void alc882_fixup_no_primary_hp(struct hda_codec *codec,
 				       const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
-	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->gen.no_primary_hp = 1;
+		spec->gen.no_multi_io = 1;
+	}
 }
 
 static const struct hda_fixup alc882_fixups[] = {

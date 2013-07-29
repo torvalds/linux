@@ -142,6 +142,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "primary_hp");
 	if (val >= 0)
 		spec->no_primary_hp = !val;
+	val = snd_hda_get_bool_hint(codec, "multi_io");
+	if (val >= 0)
+		spec->no_multi_io = !val;
 	val = snd_hda_get_bool_hint(codec, "multi_cap_vol");
 	if (val >= 0)
 		spec->multi_cap_vol = !!val;
@@ -1541,7 +1544,8 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 					      cfg->speaker_pins,
 					      spec->multiout.extra_out_nid,
 					      spec->speaker_paths);
-			if (fill_mio_first && cfg->line_outs == 1 &&
+			if (!spec->no_multi_io &&
+			    fill_mio_first && cfg->line_outs == 1 &&
 			    cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
 				err = fill_multi_ios(codec, cfg->line_out_pins[0], true);
 				if (!err)
@@ -1554,7 +1558,7 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 				   spec->private_dac_nids, spec->out_paths,
 				   spec->main_out_badness);
 
-	if (fill_mio_first &&
+	if (!spec->no_multi_io && fill_mio_first &&
 	    cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
 		/* try to fill multi-io first */
 		err = fill_multi_ios(codec, cfg->line_out_pins[0], false);
@@ -1582,7 +1586,8 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 			return err;
 		badness += err;
 	}
-	if (cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
+	if (!spec->no_multi_io &&
+	    cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
 		err = fill_multi_ios(codec, cfg->line_out_pins[0], false);
 		if (err < 0)
 			return err;
@@ -1600,7 +1605,8 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 				check_aamix_out_path(codec, spec->speaker_paths[0]);
 	}
 
-	if (cfg->hp_outs && cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+	if (!spec->no_multi_io &&
+	    cfg->hp_outs && cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
 		if (count_multiio_pins(codec, cfg->hp_pins[0]) >= 2)
 			spec->multi_ios = 1; /* give badness */
 
