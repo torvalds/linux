@@ -5693,21 +5693,8 @@ static struct notifier_block cnic_netdev_notifier = {
 
 static void cnic_release(void)
 {
-	struct cnic_dev *dev;
 	struct cnic_uio_dev *udev;
 
-	while (!list_empty(&cnic_dev_list)) {
-		dev = list_entry(cnic_dev_list.next, struct cnic_dev, list);
-		if (test_bit(CNIC_F_CNIC_UP, &dev->flags)) {
-			cnic_ulp_stop(dev);
-			cnic_stop_hw(dev);
-		}
-
-		cnic_ulp_exit(dev);
-		cnic_unregister_netdev(dev);
-		list_del_init(&dev->list);
-		cnic_free_dev(dev);
-	}
 	while (!list_empty(&cnic_udev_list)) {
 		udev = list_entry(cnic_udev_list.next, struct cnic_uio_dev,
 				  list);
