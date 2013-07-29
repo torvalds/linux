@@ -351,8 +351,8 @@ static inline int timer_period(void)
 
 struct das16_private_struct {
 	unsigned int clockbase;	/*  master clock speed in ns */
-	volatile unsigned int control_state;	/*  dma, interrupt and trigger control bits */
-	volatile unsigned long adc_byte_count;	/*  number of bytes remaining */
+	unsigned int control_state;	/*  dma, interrupt and trigger control bits */
+	unsigned long adc_byte_count;	/*  number of bytes remaining */
 	/*  divisor dividing master clock to get conversion frequency */
 	unsigned int divisor1;
 	/*  divisor dividing master clock to get conversion frequency */
@@ -361,7 +361,7 @@ struct das16_private_struct {
 	uint16_t *dma_buffer[2];
 	dma_addr_t dma_buffer_addr[2];
 	unsigned int current_buffer;
-	volatile unsigned int dma_transfer_size;	/*  target number of bytes to transfer per dma shot */
+	unsigned int dma_transfer_size;	/*  target number of bytes to transfer per dma shot */
 	/**
 	 * user-defined analog input and output ranges
 	 * defined from config options
@@ -370,7 +370,7 @@ struct das16_private_struct {
 	struct comedi_lrange *user_ao_range_table;
 
 	struct timer_list timer;	/*  for timed interrupt */
-	volatile short timer_running;
+	short timer_running;
 
 	unsigned long extra_iobase;
 };
