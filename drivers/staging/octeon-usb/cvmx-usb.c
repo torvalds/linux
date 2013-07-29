@@ -533,12 +533,10 @@ static inline void __cvmx_usb_remove_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_p
  *               cvmx_usb_initialize_flags_t for the flag
  *               definitions. Some flags are mandatory.
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
+ * @return 0 or a negative error code.
  */
-cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
-                                      int usb_port_number,
-                                      cvmx_usb_initialize_flags_t flags)
+int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
+			cvmx_usb_initialize_flags_t flags)
 {
     cvmx_usbnx_clk_ctl_t usbn_clk_ctl;
     cvmx_usbnx_usbp_ctl_status_t usbn_usbp_ctl_status;
@@ -548,13 +546,13 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
 
     /* Make sure that state is large enough to store the internal state */
     if (sizeof(*state) < sizeof(*usb))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     /* At first allow 0-1 for the usb port number */
     if ((usb_port_number < 0) || (usb_port_number > 1))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     /* For all chips except 52XX there is only one port */
     if (!OCTEON_IS_MODEL(OCTEON_CN52XX) && (usb_port_number > 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     /* Try to determine clock type automatically */
     if ((flags & (CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI |
                   CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND)) == 0) {
@@ -578,7 +576,7 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
                     flags |= CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ;
                     break;
                 default:
-                    return CVMX_USB_INVALID_PARAM;
+                    return -EINVAL;
                     break;
             }
     }
@@ -812,7 +810,7 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
         /* Steps 4-15 from the manual are done later in the port enable */
     }
 
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
 
 
@@ -824,10 +822,9 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
  * @param state  USB device state populated by
  *               cvmx_usb_initialize().
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
+ * @return 0 or a negative error code.
  */
-cvmx_usb_status_t cvmx_usb_shutdown(cvmx_usb_state_t *state)
+int cvmx_usb_shutdown(cvmx_usb_state_t *state)
 {
     cvmx_usbnx_clk_ctl_t usbn_clk_ctl;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
@@ -838,7 +835,7 @@ cvmx_usb_status_t cvmx_usb_shutdown(cvmx_usb_state_t *state)
         usb->active_pipes[CVMX_USB_TRANSFER_INTERRUPT].head ||
         usb->active_pipes[CVMX_USB_TRANSFER_CONTROL].head ||
         usb->active_pipes[CVMX_USB_TRANSFER_BULK].head)
-        return CVMX_USB_BUSY;
+        return -EBUSY;
 
     /* Disable the clocks and put them in power on reset */
     usbn_clk_ctl.u64 = __cvmx_usb_read_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index));
@@ -849,7 +846,7 @@ cvmx_usb_status_t cvmx_usb_shutdown(cvmx_usb_state_t *state)
     usbn_clk_ctl.s.hrst = 0;
     __cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
                            usbn_clk_ctl.u64);
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
 
 
@@ -860,10 +857,9 @@ cvmx_usb_status_t cvmx_usb_shutdown(cvmx_usb_state_t *state)
  * @param state  USB device state populated by
  *               cvmx_usb_initialize().
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
+ * @return 0 or a negative error code.
  */
-cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
+int cvmx_usb_enable(cvmx_usb_state_t *state)
 {
     cvmx_usbcx_ghwcfg3_t usbcx_ghwcfg3;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
@@ -873,11 +869,11 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
     /* If the port is already enabled the just return. We don't need to do
         anything */
     if (usb->usbcx_hprt.s.prtena)
-        return CVMX_USB_SUCCESS;
+        return 0;
 
     /* If there is nothing plugged into the port then fail immediately */
     if (!usb->usbcx_hprt.s.prtconnsts) {
-        return CVMX_USB_TIMEOUT;
+        return -ETIMEDOUT;
     }
 
     /* Program the port reset bit to start the reset process */
@@ -893,7 +889,7 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
     /* Wait for the USBC_HPRT[PRTENA]. */
     if (CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt_t,
                               prtena, ==, 1, 100000))
-        return CVMX_USB_TIMEOUT;
+        return -ETIMEDOUT;
 
     /* Read the port speed field to get the enumerated speed, USBC_HPRT[PRTSPD]. */
     usb->usbcx_hprt.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HPRT(usb->index));
@@ -931,7 +927,7 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
     CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index), cvmx_usbcx_grstctl_t,
                           rxfflsh, ==, 0, 100);
 
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
 
 
@@ -944,16 +940,15 @@ cvmx_usb_status_t cvmx_usb_enable(cvmx_usb_state_t *state)
  * @param state  USB device state populated by
  *               cvmx_usb_initialize().
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
+ * @return 0 or a negative error code.
  */
-cvmx_usb_status_t cvmx_usb_disable(cvmx_usb_state_t *state)
+int cvmx_usb_disable(cvmx_usb_state_t *state)
 {
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
     /* Disable the port */
     USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), cvmx_usbcx_hprt_t, prtena, 1);
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
 
 
@@ -1101,7 +1096,7 @@ static inline int __cvmx_usb_get_pipe_handle(cvmx_usb_internal_state_t *usb,
  *                   devices behind a high speed hub.
  *
  * @return A non negative value is a pipe handle. Negative
- *         values are failure codes from cvmx_usb_status_t.
+ *         values are error codes.
  */
 int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
                        int device_addr, int endpoint_num,
@@ -1114,36 +1109,36 @@ int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
     if (cvmx_unlikely((device_addr < 0) || (device_addr > MAX_USB_ADDRESS)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely((endpoint_num < 0) || (endpoint_num > MAX_USB_ENDPOINT)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(device_speed > CVMX_USB_SPEED_LOW))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely((max_packet <= 0) || (max_packet > 1024)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(transfer_type > CVMX_USB_TRANSFER_INTERRUPT))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely((transfer_dir != CVMX_USB_DIRECTION_OUT) &&
         (transfer_dir != CVMX_USB_DIRECTION_IN)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(interval < 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely((transfer_type == CVMX_USB_TRANSFER_CONTROL) && interval))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(multi_count < 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely((device_speed != CVMX_USB_SPEED_HIGH) &&
         (multi_count != 0)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely((hub_device_addr < 0) || (hub_device_addr > MAX_USB_ADDRESS)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely((hub_port < 0) || (hub_port > MAX_USB_HUB_PORT)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     /* Find a free pipe */
     pipe = usb->free_pipes.head;
     if (!pipe)
-        return CVMX_USB_NO_MEMORY;
+        return -ENOMEM;
     __cvmx_usb_remove_pipe(&usb->free_pipes, pipe);
     pipe->flags = flags | __CVMX_USB_PIPE_FLAGS_OPEN;
     if ((device_speed == CVMX_USB_SPEED_HIGH) &&
@@ -1985,16 +1980,16 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
     if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     /* Fail if the pipe isn't open */
     if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(pipe->transfer_type != type))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     transaction = __cvmx_usb_alloc_transaction(usb);
     if (cvmx_unlikely(!transaction))
-        return CVMX_USB_NO_MEMORY;
+        return -ENOMEM;
 
     transaction->type = type;
     transaction->flags |= flags;
@@ -2065,8 +2060,7 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
  *                  callback in not NULL.
  *
  * @return A submitted transaction handle or negative on
- *         failure. Negative values are failure codes from
- *         cvmx_usb_status_t.
+ *         failure. Negative values are error codes.
  */
 int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
                                 uint64_t buffer, int buffer_length,
@@ -2078,9 +2072,9 @@ int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
 
     /* Pipe handle checking is done later in a common place */
     if (cvmx_unlikely(!buffer))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(buffer_length < 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
                                          CVMX_USB_TRANSFER_BULK,
@@ -2125,8 +2119,7 @@ int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
  *                  callback in not NULL.
  *
  * @return A submitted transaction handle or negative on
- *         failure. Negative values are failure codes from
- *         cvmx_usb_status_t.
+ *         failure. Negative values are error codes.
  */
 int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
                               uint64_t buffer, int buffer_length,
@@ -2138,9 +2131,9 @@ int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
 
     /* Pipe handle checking is done later in a common place */
     if (cvmx_unlikely(!buffer))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(buffer_length < 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
                                          CVMX_USB_TRANSFER_INTERRUPT,
@@ -2189,8 +2182,7 @@ int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
  *                  callback in not NULL.
  *
  * @return A submitted transaction handle or negative on
- *         failure. Negative values are failure codes from
- *         cvmx_usb_status_t.
+ *         failure. Negative values are error codes.
  */
 int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
                             uint64_t control_header,
@@ -2204,12 +2196,12 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
 
     /* Pipe handle checking is done later in a common place */
     if (cvmx_unlikely(!control_header))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     /* Some drivers send a buffer with a zero length. God only knows why */
     if (cvmx_unlikely(buffer && (buffer_length < 0)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(!buffer && (buffer_length != 0)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if ((header->s.request_type & 0x80) == 0)
         buffer_length = cvmx_le16_to_cpu(header->s.length);
 
@@ -2270,8 +2262,7 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
  *                  callback in not NULL.
  *
  * @return A submitted transaction handle or negative on
- *         failure. Negative values are failure codes from
- *         cvmx_usb_status_t.
+ *         failure. Negative values are error codes.
  */
 int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
                                 int start_frame, int flags,
@@ -2286,17 +2277,17 @@ int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
 
     /* Pipe handle checking is done later in a common place */
     if (cvmx_unlikely(start_frame < 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(flags & ~(CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT | CVMX_USB_ISOCHRONOUS_FLAGS_ASAP)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(number_packets < 1))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(!packets))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(!buffer))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(buffer_length < 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     submit_handle = __cvmx_usb_submit_transaction(usb, pipe_handle,
                                          CVMX_USB_TRANSFER_ISOCHRONOUS,
@@ -2327,30 +2318,28 @@ int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
  * @param submit_handle
  *               Handle to transaction to cancel, returned by the submit function.
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
+ * @return 0 or a negative error code.
  */
-cvmx_usb_status_t cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
-                                  int submit_handle)
+int cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle, int submit_handle)
 {
     cvmx_usb_transaction_t *transaction;
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
     if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely((submit_handle < 0) || (submit_handle >= MAX_TRANSACTIONS)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     /* Fail if the pipe isn't open */
     if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     transaction = usb->transaction + submit_handle;
 
     /* Fail if this transaction already completed */
     if (cvmx_unlikely((transaction->flags & __CVMX_USB_TRANSACTION_FLAGS_IN_USE) == 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     /* If the transaction is the HEAD of the queue and scheduled. We need to
         treat it special */
@@ -2371,7 +2360,7 @@ cvmx_usb_status_t cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
         }
     }
     __cvmx_usb_perform_complete(usb, pipe, transaction, CVMX_USB_COMPLETE_CANCEL);
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
 
 
@@ -2384,29 +2373,28 @@ cvmx_usb_status_t cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
  * @param pipe_handle
  *               Pipe handle to cancel requests in.
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
+ * @return 0 or a negative error code.
  */
-cvmx_usb_status_t cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
+int cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
 {
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
     if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     /* Fail if the pipe isn't open */
     if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     /* Simply loop through and attempt to cancel each transaction */
     while (pipe->head) {
-        cvmx_usb_status_t result = cvmx_usb_cancel(state, pipe_handle,
+        int result = cvmx_usb_cancel(state, pipe_handle,
             __cvmx_usb_get_submit_handle(usb, pipe->head));
-        if (cvmx_unlikely(result != CVMX_USB_SUCCESS))
+        if (cvmx_unlikely(result != 0))
             return result;
     }
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
 
 
@@ -2418,31 +2406,30 @@ cvmx_usb_status_t cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle)
  * @param pipe_handle
  *               Pipe handle to close.
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t. CVMX_USB_BUSY is returned if the
- *         pipe has outstanding transfers.
+ * @return 0 or a negative error code. EBUSY is returned if the pipe has
+ *	   outstanding transfers.
  */
-cvmx_usb_status_t cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
+int cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
 {
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
     cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
     if (cvmx_unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     /* Fail if the pipe isn't open */
     if (cvmx_unlikely((pipe->flags & __CVMX_USB_PIPE_FLAGS_OPEN) == 0))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     /* Fail if the pipe has pending transactions */
     if (cvmx_unlikely(pipe->head))
-        return CVMX_USB_BUSY;
+        return -EBUSY;
 
     pipe->flags = 0;
     __cvmx_usb_remove_pipe(&usb->idle_pipes, pipe);
     __cvmx_usb_append_pipe(&usb->free_pipes, pipe);
 
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
 
 
@@ -2455,25 +2442,24 @@ cvmx_usb_status_t cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
  * @param callback  Function to call when the event occurs.
  * @param user_data User data parameter to the function.
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
+ * @return 0 or a negative error code.
  */
-cvmx_usb_status_t cvmx_usb_register_callback(cvmx_usb_state_t *state,
-                                             cvmx_usb_callback_t reason,
-                                             cvmx_usb_callback_func_t callback,
-                                             void *user_data)
+int cvmx_usb_register_callback(cvmx_usb_state_t *state,
+			       cvmx_usb_callback_t reason,
+			       cvmx_usb_callback_func_t callback,
+			       void *user_data)
 {
     cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t*)state;
 
     if (cvmx_unlikely(reason >= __CVMX_USB_CALLBACK_END))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
     if (cvmx_unlikely(!callback))
-        return CVMX_USB_INVALID_PARAM;
+        return -EINVAL;
 
     usb->callback[reason] = callback;
     usb->callback_data[reason] = user_data;
 
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
 
 
@@ -2900,10 +2886,9 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
  * @param state  USB device state populated by
  *               cvmx_usb_initialize().
  *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
+ * @return 0 or a negative error code.
  */
-cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state)
+int cvmx_usb_poll(cvmx_usb_state_t *state)
 {
     cvmx_usbcx_hfnum_t usbc_hfnum;
     cvmx_usbcx_gintsts_t usbc_gintsts;
@@ -2986,5 +2971,5 @@ cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state)
 
     __cvmx_usb_schedule(usb, usbc_gintsts.s.sof);
 
-    return CVMX_USB_SUCCESS;
+    return 0;
 }
