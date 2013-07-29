@@ -984,24 +984,6 @@ static int das16_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int das1600_mode_detect(struct comedi_device *dev)
-{
-	struct das16_private_struct *devpriv = dev->private;
-	int status = 0;
-
-	status = inb(dev->iobase + DAS1600_STATUS_REG);
-
-	if (status & DAS1600_STATUS_CLK_10MHZ) {
-		devpriv->clockbase = 100;
-		printk(KERN_INFO " 10MHz pacer clock\n");
-	} else {
-		devpriv->clockbase = 1000;
-		printk(KERN_INFO " 1MHz pacer clock\n");
-	}
-
-	return 0;
-}
-
 static void das16_reset(struct comedi_device *dev)
 {
 	outb(0, dev->iobase + DAS16_STATUS_REG);
@@ -1058,7 +1040,12 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/*  get master clock speed */
 	if (devpriv->can_burst) {
-		das1600_mode_detect(dev);
+		status = inb(dev->iobase + DAS1600_STATUS_REG);
+
+		if (status & DAS1600_STATUS_CLK_10MHZ)
+			devpriv->clockbase = 100;
+		else
+			devpriv->clockbase = 1000;
 	} else {
 		if (it->options[3])
 			devpriv->clockbase = 1000 / it->options[3];
