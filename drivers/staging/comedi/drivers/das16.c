@@ -238,62 +238,67 @@ static const int sample_size = 2;
 #define   DAS1600_WS			0x02
 #define   DAS1600_CLK_10MHZ		0x01
 
-static const struct comedi_lrange range_das1x01_bip = { 4, {
-							    BIP_RANGE(10),
-							    BIP_RANGE(1),
-							    BIP_RANGE(0.1),
-							    BIP_RANGE(0.01),
-							    }
+static const struct comedi_lrange range_das1x01_bip = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(1),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.01)
+	}
 };
 
-static const struct comedi_lrange range_das1x01_unip = { 4, {
-							     UNI_RANGE(10),
-							     UNI_RANGE(1),
-							     UNI_RANGE(0.1),
-							     UNI_RANGE(0.01),
-							     }
+static const struct comedi_lrange range_das1x01_unip = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(1),
+		UNI_RANGE(0.1),
+		UNI_RANGE(0.01)
+	}
 };
 
-static const struct comedi_lrange range_das1x02_bip = { 4, {
-							    BIP_RANGE(10),
-							    BIP_RANGE(5),
-							    BIP_RANGE(2.5),
-							    BIP_RANGE(1.25),
-							    }
+static const struct comedi_lrange range_das1x02_bip = {
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25)
+	}
 };
 
-static const struct comedi_lrange range_das1x02_unip = { 4, {
-							     UNI_RANGE(10),
-							     UNI_RANGE(5),
-							     UNI_RANGE(2.5),
-							     UNI_RANGE(1.25),
-							     }
+static const struct comedi_lrange range_das1x02_unip = {
+	4, {
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
-static const struct comedi_lrange range_das16jr = { 9, {
-						/*  also used by 16/330 */
-							BIP_RANGE(10),
-							BIP_RANGE(5),
-							BIP_RANGE(2.5),
-							BIP_RANGE(1.25),
-							BIP_RANGE(0.625),
-							UNI_RANGE(10),
-							UNI_RANGE(5),
-							UNI_RANGE(2.5),
-							UNI_RANGE(1.25),
-							}
+static const struct comedi_lrange range_das16jr = {
+	9, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		BIP_RANGE(0.625),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
-static const struct comedi_lrange range_das16jr_16 = { 8, {
-							   BIP_RANGE(10),
-							   BIP_RANGE(5),
-							   BIP_RANGE(2.5),
-							   BIP_RANGE(1.25),
-							   UNI_RANGE(10),
-							   UNI_RANGE(5),
-							   UNI_RANGE(2.5),
-							   UNI_RANGE(1.25),
-							   }
+static const struct comedi_lrange range_das16jr_16 = {
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 static const int das16jr_gainlist[] = { 8, 0, 1, 2, 3, 4, 5, 6, 7 };
