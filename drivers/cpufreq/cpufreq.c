@@ -44,6 +44,7 @@
  */
 static struct cpufreq_driver *cpufreq_driver;
 static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data);
+static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data_fallback);
 static DEFINE_RWLOCK(cpufreq_driver_lock);
 static DEFINE_MUTEX(cpufreq_governor_lock);
 
@@ -946,6 +947,20 @@ static int cpufreq_add_policy_cpu(unsigned int cpu, unsigned int sibling,
 }
 #endif
 
+static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
+{
+	struct cpufreq_policy *policy;
+	unsigned long flags;
+
+	write_lock_irqsave(&cpufreq_driver_lock, flags);
+
+	policy = per_cpu(cpufreq_cpu_data_fallback, cpu);
+
+	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+	return policy;
+}
+
 static struct cpufreq_policy *cpufreq_policy_alloc(void)
 {
 	struct cpufreq_policy *policy;
@@ -1023,7 +1038,12 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 		goto module_out;
 	}
 
-	policy = cpufreq_policy_alloc();
+	if (frozen)
+		/* Restore the saved policy when doing light-weight init */
+		policy = cpufreq_policy_restore(cpu);
+	else
+		policy = cpufreq_policy_alloc();
+
 	if (!policy)
 		goto nomem_out;
 
@@ -1204,6 +1224,10 @@ static int __cpufreq_remove_dev(struct device *dev,
 	data = per_cpu(cpufreq_cpu_data, cpu);
 	per_cpu(cpufreq_cpu_data, cpu) = NULL;
 
+	/* Save the policy somewhere when doing a light-weight tear-down */
+	if (frozen)
+		per_cpu(cpufreq_cpu_data_fallback, cpu) = data;
+
 	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
 	if (!data) {
@@ -1249,27 +1273,40 @@ static int __cpufreq_remove_dev(struct device *dev,
 		if (cpufreq_driver->target)
 			__cpufreq_governor(data, CPUFREQ_GOV_POLICY_EXIT);
 
-		lock_policy_rwsem_read(cpu);
-		kobj = &data->kobj;
-		cmp = &data->kobj_unregister;
-		unlock_policy_rwsem_read(cpu);
-		kobject_put(kobj);
+		if (!frozen) {
+			lock_policy_rwsem_read(cpu);
+			kobj = &data->kobj;
+			cmp = &data->kobj_unregister;
+			unlock_policy_rwsem_read(cpu);
+			kobject_put(kobj);
 
-		/* we need to make sure that the underlying kobj is actually
-		 * not referenced anymore by anybody before we proceed with
-		 * unloading.
+			/*
+			 * We need to make sure that the underlying kobj is
+			 * actually not referenced anymore by anybody before we
+			 * proceed with unloading.
+			 */
+			pr_debug("waiting for dropping of refcount\n");
+			wait_for_completion(cmp);
+			pr_debug("wait complete\n");
+		}
+
+		/*
+		 * Perform the ->exit() even during light-weight tear-down,
+		 * since this is a core component, and is essential for the
+		 * subsequent light-weight ->init() to succeed.
 		 */
-		pr_debug("waiting for dropping of refcount\n");
-		wait_for_completion(cmp);
-		pr_debug("wait complete\n");
-
 		if (cpufreq_driver->exit)
 			cpufreq_driver->exit(data);
 
-		cpufreq_policy_free(data);
+		if (!frozen)
+			cpufreq_policy_free(data);
 	} else {
-		pr_debug("%s: removing link, cpu: %d\n", __func__, cpu);
-		cpufreq_cpu_put(data);
+
+		if (!frozen) {
+			pr_debug("%s: removing link, cpu: %d\n", __func__, cpu);
+			cpufreq_cpu_put(data);
+		}
+
 		if (cpufreq_driver->target) {
 			__cpufreq_governor(data, CPUFREQ_GOV_START);
 			__cpufreq_governor(data, CPUFREQ_GOV_LIMITS);
