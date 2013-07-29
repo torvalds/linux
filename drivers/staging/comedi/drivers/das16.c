@@ -264,7 +264,7 @@ static inline int timer_period(void)
 
 struct das16_private_struct {
 	unsigned int clockbase;	/*  master clock speed in ns */
-	unsigned int control_state;	/*  dma, interrupt and trigger control bits */
+	unsigned int ctrl_reg;
 	unsigned long adc_byte_count;	/*  number of bytes remaining */
 	/*  divisor dividing master clock to get conversion frequency */
 	unsigned int divisor1;
@@ -288,6 +288,30 @@ struct das16_private_struct {
 	unsigned long extra_iobase;
 	unsigned int can_burst:1;
 };
+
+static void das16_ai_enable(struct comedi_device *dev,
+			    unsigned int mode, unsigned int src)
+{
+	struct das16_private_struct *devpriv = dev->private;
+
+	devpriv->ctrl_reg &= ~(DAS16_INTE | DMA_ENABLE | PACING_MASK);
+	devpriv->ctrl_reg |= mode;
+
+	if (src == TRIG_EXT)
+		devpriv->ctrl_reg |= EXT_PACER;
+	else
+		devpriv->ctrl_reg |= INT_PACER;
+	outb(devpriv->ctrl_reg, dev->iobase + DAS16_CONTROL);
+}
+
+static void das16_ai_disable(struct comedi_device *dev)
+{
+	struct das16_private_struct *devpriv = dev->private;
+
+	/* disable interrupts, dma and pacer clocked conversions */
+	devpriv->ctrl_reg &= ~(DAS16_INTE | DMA_ENABLE | PACING_MASK);
+	outb(devpriv->ctrl_reg, dev->iobase + DAS16_CONTROL);
+}
 
 static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_cmd *cmd)
@@ -499,18 +523,11 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->timer_running = 1;
 	devpriv->timer.expires = jiffies + timer_period();
 	add_timer(&devpriv->timer);
-	devpriv->control_state &= ~DAS16_INTE;
-	devpriv->control_state |= DMA_ENABLE;
-	devpriv->control_state &= ~PACING_MASK;
-	if (cmd->convert_src == TRIG_EXT)
-		devpriv->control_state |= EXT_PACER;
-	else
-		devpriv->control_state |= INT_PACER;
-	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
+
+	das16_ai_enable(dev, DMA_ENABLE, cmd->convert_src);
 
 	if (devpriv->can_burst)
 		outb(0, dev->iobase + DAS1600_CONV);
-
 
 	return 0;
 }
@@ -521,9 +538,8 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
-	/* disable interrupts, dma and pacer clocked conversions */
-	devpriv->control_state &= ~DAS16_INTE & ~PACING_MASK & ~DMA_ENABLE;
-	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
+
+	das16_ai_disable(dev);
 	disable_dma(devpriv->dma_chan);
 
 	/*  disable SW timer */
@@ -554,14 +570,11 @@ static int das16_ai_insn_read(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	const struct das16_board *board = comedi_board(dev);
-	struct das16_private_struct *devpriv = dev->private;
 	int i, n;
 	int range;
 	int chan;
 
-	/*  disable interrupts and pacing */
-	devpriv->control_state &= ~DAS16_INTE & ~DMA_ENABLE & ~PACING_MASK;
-	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
+	das16_ai_disable(dev);
 
 	/* set multiplexer */
 	chan = CR_CHAN(insn->chanspec);
@@ -707,7 +720,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	cmd = &async->cmd;
 
 	spin_lock_irqsave(&dev->spinlock, spin_flags);
-	if ((devpriv->control_state & DMA_ENABLE) == 0) {
+	if ((devpriv->ctrl_reg & DMA_ENABLE) == 0) {
 		spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 		return;
 	}
@@ -1027,8 +1040,8 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	das16_reset(dev);
 	/* set the interrupt level */
-	devpriv->control_state = DAS16_IRQ(dev->irq);
-	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
+	devpriv->ctrl_reg = DAS16_IRQ(dev->irq);
+	outb(devpriv->ctrl_reg, dev->iobase + DAS16_CONTROL);
 
 	if (devpriv->can_burst) {
 		outb(DAS1600_ENABLE_VAL, dev->iobase + DAS1600_ENABLE);
