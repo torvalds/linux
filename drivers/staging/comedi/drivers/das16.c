@@ -987,8 +987,8 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct das16_board *board = comedi_board(dev);
 	struct das16_private_struct *devpriv;
 	struct comedi_subdevice *s;
-	struct comedi_krange *user_ai_range;
-	struct comedi_krange *user_ao_range;
+	struct comedi_lrange *lrange;
+	struct comedi_krange *krange;
 	unsigned int dma_chan = it->options[2];
 	unsigned int status;
 	int ret;
@@ -1077,32 +1077,37 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->timer.data = (unsigned long)dev;
 	}
 
-	/*  get any user-defined input range */
+	/* get any user-defined input range */
 	if (board->ai_pg == das16_pg_none &&
 	    (it->options[4] || it->options[5])) {
-		/*  allocate single-range range table */
-		devpriv->user_ai_range_table =
-		    kmalloc(sizeof(struct comedi_lrange) +
-			    sizeof(struct comedi_krange), GFP_KERNEL);
-		/*  initialize ai range */
-		devpriv->user_ai_range_table->length = 1;
-		user_ai_range = devpriv->user_ai_range_table->range;
-		user_ai_range->min = it->options[4];
-		user_ai_range->max = it->options[5];
-		user_ai_range->flags = UNIT_volt;
+		/* allocate single-range range table */
+		lrange = kzalloc(sizeof(*lrange) + sizeof(*krange), GFP_KERNEL);
+		if (!lrange)
+			return -ENOMEM;
+
+		/* initialize ai range */
+		devpriv->user_ai_range_table = lrange;
+		lrange->length = 1;
+		krange = devpriv->user_ai_range_table->range;
+		krange->min = it->options[4];
+		krange->max = it->options[5];
+		krange->flags = UNIT_volt;
 	}
-	/*  get any user-defined output range */
+
+	/* get any user-defined output range */
 	if (it->options[6] || it->options[7]) {
-		/*  allocate single-range range table */
-		devpriv->user_ao_range_table =
-		    kmalloc(sizeof(struct comedi_lrange) +
-			    sizeof(struct comedi_krange), GFP_KERNEL);
-		/*  initialize ao range */
-		devpriv->user_ao_range_table->length = 1;
-		user_ao_range = devpriv->user_ao_range_table->range;
-		user_ao_range->min = it->options[6];
-		user_ao_range->max = it->options[7];
-		user_ao_range->flags = UNIT_volt;
+		/* allocate single-range range table */
+		lrange = kzalloc(sizeof(*lrange) + sizeof(*krange), GFP_KERNEL);
+		if (!lrange)
+			return -ENOMEM;
+
+		/* initialize ao range */
+		devpriv->user_ao_range_table = lrange;
+		lrange->length = 1;
+		krange = devpriv->user_ao_range_table->range;
+		krange->min = it->options[6];
+		krange->max = it->options[7];
+		krange->flags = UNIT_volt;
 	}
 
 	ret = comedi_alloc_subdevices(dev, 4 + board->has_8255);
