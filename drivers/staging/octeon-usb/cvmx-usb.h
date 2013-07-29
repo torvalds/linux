@@ -241,10 +241,6 @@
 #ifndef __CVMX_USB_H__
 #define __CVMX_USB_H__
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 /**
  * Enumerations representing the status of function calls.
  */
@@ -863,9 +859,5 @@ extern int cvmx_usb_get_frame_number(cvmx_usb_state_t *state);
  *         cvmx_usb_status_t.
  */
 extern cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state);
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif  /* __CVMX_USB_H__ */
