@@ -51,13 +51,6 @@ static void __init dove_dt_time_init(void)
 	clocksource_of_init();
 }
 
-static void __init dove_dt_init_early(void)
-{
-	mvebu_mbus_init("marvell,dove-mbus",
-			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
-			DOVE_MC_WINS_BASE, DOVE_MC_WINS_SZ);
-}
-
 static void __init dove_dt_init(void)
 {
 	pr_info("Dove 88AP510 SoC\n");
@@ -65,7 +58,7 @@ static void __init dove_dt_init(void)
 #ifdef CONFIG_CACHE_TAUROS2
 	tauros2_init(0);
 #endif
-	dove_setup_cpu_wins();
+	BUG_ON(mvebu_mbus_dt_init());
 
 	/* Setup clocks for legacy devices */
 	dove_legacy_clk_init();
@@ -83,7 +76,6 @@ static const char * const dove_dt_board_compat[] = {
 
 DT_MACHINE_START(DOVE_DT, "Marvell Dove (Flattened Device Tree)")
 	.map_io		= dove_map_io,
-	.init_early	= dove_dt_init_early,
 	.init_time	= dove_dt_time_init,
 	.init_machine	= dove_dt_init,
 	.restart	= dove_restart,
