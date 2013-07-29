@@ -68,7 +68,6 @@
 #define CVMX_PREFETCH_PREF0(address, offset) CVMX_PREFETCH_PREFX(0, address, offset)
 #define CVMX_CLZ(result, input) asm ("clz %[rd],%[rs]" : [rd] "=d" (result) : [rs] "d" (input))
 
-#define cvmx_wait_usec udelay
 #define cvmx_le16_to_cpu le16_to_cpu
 
 #define MAX_RETRIES         3   /* Maximum number of times to retry failed transactions */
@@ -698,7 +697,7 @@ int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
     __cvmx_usb_write_csr64(usb, CVMX_USBNX_USBP_CTL_STATUS(usb->index),
                            usbn_usbp_ctl_status.u64);
     /* 10. Wait 1 us */
-    cvmx_wait_usec(1);
+    udelay(1);
     /* 11. Program the hreset_n field in the USBN clock-control register:
         USBN_CLK_CTL[HRST] = 1 */
     usbn_clk_ctl.s.hrst = 1;
@@ -708,7 +707,7 @@ int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
     usbn_clk_ctl.s.enable = 1;
     __cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
                            usbn_clk_ctl.u64);
-    cvmx_wait_usec(1);
+    udelay(1);
 
     /* USB Core Initialization */
 
