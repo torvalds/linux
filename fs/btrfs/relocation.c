@@ -641,6 +641,11 @@ int find_inline_backref(struct extent_buffer *leaf, int slot,
 		WARN_ON(item_size < sizeof(*ei) + sizeof(*bi));
 		return 1;
 	}
+	if (key.type == BTRFS_METADATA_ITEM_KEY &&
+	    item_size <= sizeof(*ei)) {
+		WARN_ON(item_size < sizeof(*ei));
+		return 1;
+	}
 
 	if (key.type == BTRFS_EXTENT_ITEM_KEY) {
 		bi = (struct btrfs_tree_block_info *)(ei + 1);
