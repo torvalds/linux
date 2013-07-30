@@ -1566,25 +1566,15 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 	struct urb *urb;
 	int i;
 
-	/* create space for the commands going to the usb device */
 	devpriv->dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
-	if (!devpriv->dux_commands)
-		return -ENOMEM;
-
-	/* create space for the in buffer and set it to zero */
 	devpriv->in_buf = kzalloc(SIZEINBUF, GFP_KERNEL);
-	if (!devpriv->in_buf)
-		return -ENOMEM;
-
-	/* create space of the instruction buffer */
 	devpriv->insn_buf = kzalloc(SIZEINSNBUF, GFP_KERNEL);
-	if (!devpriv->insn_buf)
-		return -ENOMEM;
-
-	/* in urbs */
 	devpriv->ai_urbs = kcalloc(devpriv->n_ai_urbs, sizeof(*urb),
 				   GFP_KERNEL);
-	if (!devpriv->ai_urbs)
+	devpriv->ao_urbs = kcalloc(devpriv->n_ao_urbs, sizeof(*urb),
+				   GFP_KERNEL);
+	if (!devpriv->dux_commands || !devpriv->in_buf || !devpriv->insn_buf ||
+	    !devpriv->ai_urbs || !devpriv->ao_urbs)
 		return -ENOMEM;
 
 	for (i = 0; i < devpriv->n_ai_urbs; i++) {
@@ -1595,9 +1585,7 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		devpriv->ai_urbs[i] = urb;
 
 		urb->dev = usb;
-		/* will be filled later with a pointer to the comedi-device */
-		/* and ONLY then the urb should be submitted */
-		urb->context = NULL;
+		urb->context = dev;
 		urb->pipe = usb_rcvisocpipe(usb, 6);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
@@ -1611,12 +1599,6 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		urb->iso_frame_desc[0].length = SIZEINBUF;
 	}
 
-	/* out urbs */
-	devpriv->ao_urbs = kcalloc(devpriv->n_ao_urbs, sizeof(*urb),
-				   GFP_KERNEL);
-	if (!devpriv->ao_urbs)
-		return -ENOMEM;
-
 	for (i = 0; i < devpriv->n_ao_urbs; i++) {
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
@@ -1625,9 +1607,7 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 		devpriv->ao_urbs[i] = urb;
 
 		urb->dev = usb;
-		/* will be filled later with a pointer to the comedi-device */
-		/* and ONLY then the urb should be submitted */
-		urb->context = NULL;
+		urb->context = dev;
 		urb->pipe = usb_sndisocpipe(usb, 2);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
