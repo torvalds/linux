@@ -84,9 +84,9 @@
 #define cvmx_read_csr use_cvmx_usb_read_csr64_instead_of_cvmx_read_csr
 #define cvmx_write_csr use_cvmx_usb_write_csr64_instead_of_cvmx_write_csr
 
-typedef enum {
+enum cvmx_usb_transaction_flags {
 	__CVMX_USB_TRANSACTION_FLAGS_IN_USE = 1<<16,
-} cvmx_usb_transaction_flags_t;
+};
 
 enum {
 	USB_CLOCK_TYPE_REF_12,
@@ -123,7 +123,7 @@ typedef struct cvmx_usb_transaction {
 	struct cvmx_usb_transaction *prev;	/**< Transaction before this one in the pipe */
 	struct cvmx_usb_transaction *next;	/**< Transaction after this one in the pipe */
 	enum cvmx_usb_transfer type;		/**< Type of transaction, duplicated of the pipe */
-	cvmx_usb_transaction_flags_t flags;	/**< State flags for this transaction */
+	enum cvmx_usb_transaction_flags flags;	/**< State flags for this transaction */
 	uint64_t buffer;			/**< User's physical buffer address to read/write */
 	int buffer_length;			/**< Size of the user's buffer in bytes */
 	uint64_t control_header;		/**< For control transactions, physical address of the 8 byte standard header */
