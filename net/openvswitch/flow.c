@@ -302,7 +302,7 @@ void ovs_flow_tbl_destroy(struct flow_table *table)
 		int ver = table->node_ver;
 
 		hlist_for_each_entry_safe(flow, n, head, hash_node[ver]) {
-			hlist_del_rcu(&flow->hash_node[ver]);
+			hlist_del(&flow->hash_node[ver]);
 			ovs_flow_free(flow);
 		}
 	}
