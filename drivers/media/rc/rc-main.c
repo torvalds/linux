@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -31,6 +32,7 @@
 /* Used to keep track of known keymaps */
 static LIST_HEAD(rc_map_list);
 static DEFINE_SPINLOCK(rc_map_lock);
+static struct led_trigger *led_feedback;
 
 static struct rc_map_list *seek_rc_map(const char *name)
 {
@@ -535,6 +537,7 @@ static void ir_do_keyup(struct rc_dev *dev, bool sync)
 
 	IR_dprintk(1, "keyup key 0x%04x\n", dev->last_keycode);
 	input_report_key(dev->input_dev, dev->last_keycode, 0);
+	led_trigger_event(led_feedback, LED_OFF);
 	if (sync)
 		input_sync(dev->input_dev);
 	dev->keypressed = false;
@@ -648,6 +651,7 @@ static void ir_do_keydown(struct rc_dev *dev, int scancode,
 		input_report_key(dev->input_dev, keycode, 1);
 	}
 
+	led_trigger_event(led_feedback, LED_FULL);
 	input_sync(dev->input_dev);
 }
 
@@ -1222,6 +1226,7 @@ static int __init rc_core_init(void)
 		return rc;
 	}
 
+	led_trigger_register_simple("rc-feedback", &led_feedback);
 	rc_map_register(&empty_map);
 
 	return 0;
@@ -1230,6 +1235,7 @@ static int __init rc_core_init(void)
 static void __exit rc_core_exit(void)
 {
 	class_unregister(&rc_class);
+	led_trigger_unregister_simple(led_feedback);
 	rc_map_unregister(&empty_map);
 }
 
