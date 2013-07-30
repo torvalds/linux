@@ -641,7 +641,7 @@ static long compass_dev_ioctl(struct file *file,
 		break;
 	case ECS_IOCTL_GET_OUTBIT:
 		DBG("%s:ECS_IOCTL_GET_OUTBIT start\n",__func__);
-		outbit = sensor->pdata->outbit;
+		outbit = 1; //sensor->pdata->outbit;
 		break;
 	case ECS_IOCTL_RESET:
 		DBG("%s:ECS_IOCTL_RESET start\n",__func__);
