@@ -379,7 +379,7 @@ static struct regmap_irq_chip da9055_regmap_irq_chip = {
 
 int da9055_device_init(struct da9055 *da9055)
 {
-	struct da9055_pdata *pdata = da9055->dev->platform_data;
+	struct da9055_pdata *pdata = dev_get_platdata(da9055->dev);
 	int ret;
 	uint8_t clear_events[3] = {0xFF, 0xFF, 0xFF};
 

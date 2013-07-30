@@ -110,7 +110,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct max77693_dev *max77693;
-	struct max77693_platform_data *pdata = i2c->dev.platform_data;
+	struct max77693_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	u8 reg_data;
 	int ret = 0;
 

@@ -261,7 +261,7 @@ static void egpio_write_cache(struct egpio_info *ei)
 
 static int __init egpio_probe(struct platform_device *pdev)
 {
-	struct htc_egpio_platform_data *pdata = pdev->dev.platform_data;
+	struct htc_egpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource   *res;
 	struct egpio_info *ei;
 	struct gpio_chip  *chip;

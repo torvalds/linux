@@ -184,7 +184,7 @@ static inline int max8998_i2c_get_driver_data(struct i2c_client *i2c,
 static int max8998_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
-	struct max8998_platform_data *pdata = i2c->dev.platform_data;
+	struct max8998_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct max8998_dev *max8998;
 	int ret = 0;
 

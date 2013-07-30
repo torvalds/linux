@@ -126,7 +126,7 @@ static struct mfd_cell ds1wm_cell __initdata = {
 
 static int __init pasic3_probe(struct platform_device *pdev)
 {
-	struct pasic3_platform_data *pdata = pdev->dev.platform_data;
+	struct pasic3_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct pasic3_data *asic;
 	struct resource *r;

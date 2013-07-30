@@ -177,7 +177,7 @@ static void pcap_msr_work(struct work_struct *work)
 static void pcap_isr_work(struct work_struct *work)
 {
 	struct pcap_chip *pcap = container_of(work, struct pcap_chip, isr_work);
-	struct pcap_platform_data *pdata = pcap->spi->dev.platform_data;
+	struct pcap_platform_data *pdata = dev_get_platdata(&pcap->spi->dev);
 	u32 msr, isr, int_sel, service;
 	int irq;
 
@@ -394,7 +394,7 @@ static int pcap_add_subdev(struct pcap_chip *pcap,
 static int ezx_pcap_remove(struct spi_device *spi)
 {
 	struct pcap_chip *pcap = spi_get_drvdata(spi);
-	struct pcap_platform_data *pdata = spi->dev.platform_data;
+	struct pcap_platform_data *pdata = dev_get_platdata(&spi->dev);
 	int i, adc_irq;
 
 	/* remove all registered subdevs */
@@ -420,7 +420,7 @@ static int ezx_pcap_remove(struct spi_device *spi)
 
 static int ezx_pcap_probe(struct spi_device *spi)
 {
-	struct pcap_platform_data *pdata = spi->dev.platform_data;
+	struct pcap_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct pcap_chip *pcap;
 	int i, adc_irq;
 	int ret = -ENODEV;

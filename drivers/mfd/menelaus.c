@@ -1189,7 +1189,7 @@ static int menelaus_probe(struct i2c_client *client,
 	int			rev = 0, val;
 	int			err = 0;
 	struct menelaus_platform_data *menelaus_pdata =
-					client->dev.platform_data;
+					dev_get_platdata(&client->dev);
 
 	if (the_menelaus) {
 		dev_dbg(&client->dev, "only one %s for now\n",

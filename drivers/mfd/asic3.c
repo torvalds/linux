@@ -952,7 +952,7 @@ static void asic3_mfd_remove(struct platform_device *pdev)
 /* Core */
 static int __init asic3_probe(struct platform_device *pdev)
 {
-	struct asic3_platform_data *pdata = pdev->dev.platform_data;
+	struct asic3_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct asic3 *asic;
 	struct resource *mem;
 	unsigned long clksel;

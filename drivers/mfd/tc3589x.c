@@ -325,7 +325,7 @@ static int tc3589x_of_probe(struct device_node *np,
 static int tc3589x_probe(struct i2c_client *i2c,
 				   const struct i2c_device_id *id)
 {
-	struct tc3589x_platform_data *pdata = i2c->dev.platform_data;
+	struct tc3589x_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct device_node *np = i2c->dev.of_node;
 	struct tc3589x *tc3589x;
 	int ret;

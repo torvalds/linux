@@ -106,7 +106,7 @@ static int pm8921_add_subdevices(const struct pm8921_platform_data
 
 static int pm8921_probe(struct platform_device *pdev)
 {
-	const struct pm8921_platform_data *pdata = pdev->dev.platform_data;
+	const struct pm8921_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct pm8921 *pmic;
 	int rc;
 	u8 val;

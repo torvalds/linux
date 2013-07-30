@@ -555,7 +555,7 @@ static bool twl4030_power_use_poweroff(struct twl4030_power_data *pdata,
 
 int twl4030_power_probe(struct platform_device *pdev)
 {
-	struct twl4030_power_data *pdata = pdev->dev.platform_data;
+	struct twl4030_power_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
 	int err = 0;
 	int err2 = 0;

@@ -671,7 +671,7 @@ void ucb1x00_unregister_driver(struct ucb1x00_driver *drv)
 
 static int ucb1x00_suspend(struct device *dev)
 {
-	struct ucb1x00_plat_data *pdata = dev->platform_data;
+	struct ucb1x00_plat_data *pdata = dev_get_platdata(dev);
 	struct ucb1x00 *ucb = dev_get_drvdata(dev);
 	struct ucb1x00_dev *udev;
 
@@ -703,7 +703,7 @@ static int ucb1x00_suspend(struct device *dev)
 
 static int ucb1x00_resume(struct device *dev)
 {
-	struct ucb1x00_plat_data *pdata = dev->platform_data;
+	struct ucb1x00_plat_data *pdata = dev_get_platdata(dev);
 	struct ucb1x00 *ucb = dev_get_drvdata(dev);
 	struct ucb1x00_dev *udev;
 

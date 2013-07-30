@@ -310,7 +310,7 @@ EXPORT_SYMBOL_GPL(intel_msic_irq_read);
 static int intel_msic_init_devices(struct intel_msic *msic)
 {
 	struct platform_device *pdev = msic->pdev;
-	struct intel_msic_platform_data *pdata = pdev->dev.platform_data;
+	struct intel_msic_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int ret, i;
 
 	if (pdata->gpio) {
@@ -372,7 +372,7 @@ static void intel_msic_remove_devices(struct intel_msic *msic)
 
 static int intel_msic_probe(struct platform_device *pdev)
 {
-	struct intel_msic_platform_data *pdata = pdev->dev.platform_data;
+	struct intel_msic_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct intel_msic *msic;
 	struct resource *res;
 	u8 id0, id1;
