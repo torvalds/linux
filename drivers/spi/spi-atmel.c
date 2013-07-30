@@ -629,9 +629,9 @@ static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 		goto err_dma;
 
 	dev_dbg(master->dev.parent,
-		"  start dma xfer %p: len %u tx %p/%08x rx %p/%08x\n",
-		xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
-		xfer->rx_buf, xfer->rx_dma);
+		"  start dma xfer %p: len %u tx %p/%08llx rx %p/%08llx\n",
+		xfer, xfer->len, xfer->tx_buf, (unsigned long long)xfer->tx_dma,
+		xfer->rx_buf, (unsigned long long)xfer->rx_dma);
 
 	/* Enable relevant interrupts */
 	spi_writel(as, IER, SPI_BIT(OVRES));
@@ -732,9 +732,10 @@ static void atmel_spi_pdc_next_xfer(struct spi_master *master,
 		spi_writel(as, TCR, len);
 
 		dev_dbg(&msg->spi->dev,
-			"  start xfer %p: len %u tx %p/%08x rx %p/%08x\n",
-			xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
-			xfer->rx_buf, xfer->rx_dma);
+			"  start xfer %p: len %u tx %p/%08llx rx %p/%08llx\n",
+			xfer, xfer->len, xfer->tx_buf,
+			(unsigned long long)xfer->tx_dma, xfer->rx_buf,
+			(unsigned long long)xfer->rx_dma);
 	} else {
 		xfer = as->next_transfer;
 		remaining = as->next_remaining_bytes;
@@ -771,9 +772,10 @@ static void atmel_spi_pdc_next_xfer(struct spi_master *master,
 		spi_writel(as, TNCR, len);
 
 		dev_dbg(&msg->spi->dev,
-			"  next xfer %p: len %u tx %p/%08x rx %p/%08x\n",
-			xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
-			xfer->rx_buf, xfer->rx_dma);
+			"  next xfer %p: len %u tx %p/%08llx rx %p/%08llx\n",
+			xfer, xfer->len, xfer->tx_buf,
+			(unsigned long long)xfer->tx_dma, xfer->rx_buf,
+			(unsigned long long)xfer->rx_dma);
 		ieval = SPI_BIT(ENDRX) | SPI_BIT(OVRES);
 	} else {
 		spi_writel(as, RNCR, 0);
