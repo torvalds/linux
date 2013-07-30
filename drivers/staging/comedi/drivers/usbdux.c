@@ -531,7 +531,9 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	}
 }
 
-static int usbduxsub_submit_inurbs(struct comedi_device *dev)
+static int usbdux_submit_urbs(struct comedi_device *dev,
+			      struct urb **urbs, int num_urbs,
+			      int input_urb)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbdux_private *devpriv = dev->private;
@@ -540,35 +542,12 @@ static int usbduxsub_submit_inurbs(struct comedi_device *dev)
 	int i;
 
 	/* Submit all URBs and start the transfer on the bus */
-	for (i = 0; i < devpriv->n_ai_urbs; i++) {
-		urb = devpriv->ai_urbs[i];
+	for (i = 0; i < num_urbs; i++) {
+		urb = urbs[i];
 
 		/* in case of a resubmission after an unlink... */
-		urb->interval = devpriv->ai_interval;
-		urb->context = dev;
-		urb->dev = usb;
-		urb->status = 0;
-		urb->transfer_flags = URB_ISO_ASAP;
-
-		ret = usb_submit_urb(urb, GFP_ATOMIC);
-		if (ret)
-			return ret;
-	}
-	return 0;
-}
-
-static int usbduxsub_submit_outurbs(struct comedi_device *dev)
-{
-	struct usb_device *usb = comedi_to_usb_dev(dev);
-	struct usbdux_private *devpriv = dev->private;
-	struct urb *urb;
-	int ret;
-	int i;
-
-	for (i = 0; i < devpriv->n_ao_urbs; i++) {
-		urb = devpriv->ao_urbs[i];
-
-		/* in case of a resubmission after an unlink... */
+		if (input_urb)
+			urb->interval = devpriv->ai_interval;
 		urb->context = dev;
 		urb->dev = usb;
 		urb->status = 0;
@@ -725,7 +704,8 @@ static int usbdux_ai_inttrig(struct comedi_device *dev,
 
 	if (!devpriv->ai_cmd_running) {
 		devpriv->ai_cmd_running = 1;
-		ret = usbduxsub_submit_inurbs(dev);
+		ret = usbdux_submit_urbs(dev, devpriv->ai_urbs,
+					 devpriv->n_ai_urbs, 1);
 		if (ret < 0) {
 			devpriv->ai_cmd_running = 0;
 			goto ai_trig_exit;
@@ -807,7 +787,8 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
 		devpriv->ai_cmd_running = 1;
-		ret = usbduxsub_submit_inurbs(dev);
+		ret = usbdux_submit_urbs(dev, devpriv->ai_urbs,
+					 devpriv->n_ai_urbs, 1);
 		if (ret < 0) {
 			devpriv->ai_cmd_running = 0;
 			/* fixme: unlink here?? */
@@ -944,7 +925,8 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 
 	if (!devpriv->ao_cmd_running) {
 		devpriv->ao_cmd_running = 1;
-		ret = usbduxsub_submit_outurbs(dev);
+		ret = usbdux_submit_urbs(dev, devpriv->ao_urbs,
+					 devpriv->n_ao_urbs, 0);
 		if (ret < 0) {
 			devpriv->ao_cmd_running = 0;
 			goto ao_trig_exit;
@@ -1105,7 +1087,8 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
 		devpriv->ao_cmd_running = 1;
-		ret = usbduxsub_submit_outurbs(dev);
+		ret = usbdux_submit_urbs(dev, devpriv->ao_urbs,
+					 devpriv->n_ao_urbs, 0);
 		if (ret < 0) {
 			devpriv->ao_cmd_running = 0;
 			/* fixme: unlink here?? */
