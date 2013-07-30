@@ -351,14 +351,18 @@ typedef union
 } cvmx_usb_control_header_t;
 
 /**
- * Descriptor for Isochronous packets
+ * struct cvmx_usb_iso_packet - descriptor for Isochronous packets
+ *
+ * @offset:	This is the offset in bytes into the main buffer where this data
+ *		is stored.
+ * @length:	This is the length in bytes of the data.
+ * @status:	This is the status of this individual packet transfer.
  */
-typedef struct
-{
-    int offset;                     /**< This is the offset in bytes into the main buffer where this data is stored */
-    int length;                     /**< This is the length in bytes of the data */
-    enum cvmx_usb_complete status;  /**< This is the status of this individual packet transfer */
-} cvmx_usb_iso_packet_t;
+struct cvmx_usb_iso_packet {
+	int offset;
+	int length;
+	enum cvmx_usb_complete status;
+};
 
 /**
  * enum cvmx_usb_callback - possible callback reasons for the USB API
@@ -516,7 +520,7 @@ enum cvmx_usb_isochronous_flags {
 extern int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
                                        int start_frame, int flags,
                                        int number_packets,
-                                       cvmx_usb_iso_packet_t packets[],
+                                       struct cvmx_usb_iso_packet packets[],
                                        uint64_t buffer, int buffer_length,
                                        cvmx_usb_callback_func_t callback,
                                        void *user_data);

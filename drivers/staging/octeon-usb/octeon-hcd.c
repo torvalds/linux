@@ -141,7 +141,8 @@ static void octeon_usb_urb_complete_callback(cvmx_usb_state_t *usb,
 		 * The pointer to the private list is stored in the setup_packet
 		 * field.
 		 */
-		cvmx_usb_iso_packet_t *iso_packet = (cvmx_usb_iso_packet_t *) urb->setup_packet;
+		struct cvmx_usb_iso_packet *iso_packet =
+			(struct cvmx_usb_iso_packet *) urb->setup_packet;
 		/* Recalculate the transfer size by adding up each packet */
 		urb->actual_length = 0;
 		for (i = 0; i < urb->number_of_packets; i++) {
@@ -208,7 +209,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	int submit_handle = -1;
 	int pipe_handle;
 	unsigned long flags;
-	cvmx_usb_iso_packet_t *iso_packet;
+	struct cvmx_usb_iso_packet *iso_packet;
 	struct usb_host_endpoint *ep = urb->ep;
 
 	urb->status = 0;
@@ -305,7 +306,9 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		 * Allocate a structure to use for our private list of
 		 * isochronous packets.
 		 */
-		iso_packet = kmalloc(urb->number_of_packets * sizeof(cvmx_usb_iso_packet_t), GFP_ATOMIC);
+		iso_packet = kmalloc(urb->number_of_packets *
+				     sizeof(struct cvmx_usb_iso_packet),
+				     GFP_ATOMIC);
 		if (iso_packet) {
 			int i;
 			/* Fill the list with the data from the URB */

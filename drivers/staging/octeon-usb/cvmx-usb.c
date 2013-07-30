@@ -129,7 +129,7 @@ typedef struct cvmx_usb_transaction {
 	uint64_t control_header;		/**< For control transactions, physical address of the 8 byte standard header */
 	int iso_start_frame;			/**< For ISO transactions, the starting frame number */
 	int iso_number_packets;			/**< For ISO transactions, the number of packets in the request */
-	cvmx_usb_iso_packet_t *iso_packets;	/**< For ISO transactions, the sub packets in the request */
+	struct cvmx_usb_iso_packet *iso_packets;/**< For ISO transactions, the sub packets in the request */
 	int xfersize;
 	int pktcnt;
 	int retries;
@@ -2032,7 +2032,7 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
 					 uint64_t control_header,
 					 int iso_start_frame,
 					 int iso_number_packets,
-					 cvmx_usb_iso_packet_t *iso_packets,
+					 struct cvmx_usb_iso_packet *iso_packets,
 					 cvmx_usb_callback_func_t callback,
 					 void *user_data)
 {
@@ -2298,7 +2298,7 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
  *		    "packets" is a pointer to an array of this
  *		    many packet structures.
  * @packets:	    Description of each transfer packet as
- *		    defined by cvmx_usb_iso_packet_t. The array
+ *		    defined by struct cvmx_usb_iso_packet. The array
  *		    pointed to here must stay valid until the
  *		    complete callback is called.
  * @buffer:	    Physical address of the data buffer in
@@ -2327,7 +2327,7 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
 int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
 				int start_frame, int flags,
 				int number_packets,
-				cvmx_usb_iso_packet_t packets[],
+				struct cvmx_usb_iso_packet packets[],
 				uint64_t buffer, int buffer_length,
 				cvmx_usb_callback_func_t callback,
 				void *user_data)
