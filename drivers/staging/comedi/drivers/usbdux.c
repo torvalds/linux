@@ -1445,15 +1445,16 @@ static int usbdux_pwm_write(struct comedi_device *dev,
 	return usbdux_pwm_pattern(dev, s, chan, data[0], 0);
 }
 
-/* switches on/off PWM */
 static int usbdux_pwm_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+			     struct comedi_insn *insn,
+			     unsigned int *data)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
+	struct usbdux_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
-		/* switch it on */
 		/*
 		 * if not zero the PWM is limited to a certain time which is
 		 * not supported here
@@ -1464,27 +1465,20 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 	case INSN_CONFIG_DISARM:
 		return usbdux_pwm_cancel(dev, s);
 	case INSN_CONFIG_GET_PWM_STATUS:
-		/*
-		 * to check if the USB transmission has failed or in case PWM
-		 * was limited to n cycles to check if it has terminated
-		 */
-		data[1] = this_usbduxsub->pwm_cmd_running;
+		data[1] = devpriv->pwm_cmd_running;
 		return 0;
 	case INSN_CONFIG_PWM_SET_PERIOD:
 		return usbdux_pwm_period(dev, s, data[1]);
 	case INSN_CONFIG_PWM_GET_PERIOD:
-		data[1] = this_usbduxsub->pwm_period;
+		data[1] = devpriv->pwm_period;
 		return 0;
 	case INSN_CONFIG_PWM_SET_H_BRIDGE:
-		/* value in the first byte and the sign in the second for a
-		   relay */
-		return usbdux_pwm_pattern(dev, s,
-					  /* the channel number */
-					  CR_CHAN(insn->chanspec),
-					  /* actual PWM data */
-					  data[1],
-					  /* just a sign */
-					  (data[2] != 0));
+		/*
+		 * data[1] = value
+		 * data[2] = sign (for a relay)
+		 */
+		return usbdux_pwm_pattern(dev, s, chan,
+					  data[1], (data[2] != 0));
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
 		/* values are not kept in this driver, nothing to return here */
 		return -EINVAL;
