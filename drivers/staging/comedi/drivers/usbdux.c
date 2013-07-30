@@ -1445,14 +1445,6 @@ static int usbdux_pwm_write(struct comedi_device *dev,
 	return usbdux_pwm_pattern(dev, s, chan, data[0], 0);
 }
 
-static int usbdux_pwm_read(struct comedi_device *x1,
-			   struct comedi_subdevice *x2, struct comedi_insn *x3,
-			   unsigned int *x4)
-{
-	/* not needed */
-	return -EINVAL;
-};
-
 /* switches on/off PWM */
 static int usbdux_pwm_config(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
@@ -1819,7 +1811,6 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 		s->n_chan	= 8;
 		s->maxdata	= devpriv->pwm_buf_sz;
 		s->insn_write	= usbdux_pwm_write;
-		s->insn_read	= usbdux_pwm_read;
 		s->insn_config	= usbdux_pwm_config;
 
 		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
