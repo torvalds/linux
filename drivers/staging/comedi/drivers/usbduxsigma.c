@@ -1621,11 +1621,6 @@ static void usbduxsigma_free_usb_buffers(struct comedi_device *dev)
 	struct urb *urb;
 	int i;
 
-	/* force unlink all urbs */
-	usbduxsigma_ai_stop(dev, 1);
-	usbduxsigma_ao_stop(dev, 1);
-	usbduxsigma_pwm_stop(dev, 1);
-
 	urb = devpriv->pwm_urb;
 	if (urb) {
 		kfree(urb->transfer_buffer);
@@ -1714,7 +1709,14 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 	usb_set_intfdata(intf, NULL);
 
 	down(&devpriv->sem);
+
+	/* force unlink all urbs */
+	usbduxsigma_ai_stop(dev, 1);
+	usbduxsigma_ao_stop(dev, 1);
+	usbduxsigma_pwm_stop(dev, 1);
+
 	usbduxsigma_free_usb_buffers(dev);
+
 	up(&devpriv->sem);
 }
 
