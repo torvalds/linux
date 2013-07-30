@@ -594,9 +594,12 @@ static int mt9t031_s_power(struct v4l2_subdev *sd, int on)
 		ret = soc_camera_power_on(&client->dev, ssdd, mt9t031->clk);
 		if (ret < 0)
 			return ret;
-		vdev->dev.type = &mt9t031_dev_type;
+		if (vdev)
+			/* Not needed during probing, when vdev isn't available yet */
+			vdev->dev.type = &mt9t031_dev_type;
 	} else {
-		vdev->dev.type = NULL;
+		if (vdev)
+			vdev->dev.type = NULL;
 		soc_camera_power_off(&client->dev, ssdd, mt9t031->clk);
 	}
 
