@@ -50,8 +50,13 @@ int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall);
 
 static inline void selinux_xfrm_notify_policyload(void)
 {
+	struct net *net;
+
 	atomic_inc(&flow_cache_genid);
-	rt_genid_bump(&init_net);
+	rtnl_lock();
+	for_each_net(net)
+		rt_genid_bump_all(net);
+	rtnl_unlock();
 }
 #else
 static inline int selinux_xfrm_enabled(void)
