@@ -4673,6 +4673,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	}
 	bbio = kzalloc(btrfs_bio_size(num_alloc_stripes), GFP_NOFS);
 	if (!bbio) {
+		kfree(raid_map);
 		ret = -ENOMEM;
 		goto out;
 	}
