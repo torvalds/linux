@@ -1396,45 +1396,30 @@ pwm_start_exit:
 	return ret;
 }
 
-/* generates the bit pattern for PWM with the optional sign bit */
 static int usbdux_pwm_pattern(struct comedi_device *dev,
-			      struct comedi_subdevice *s, int channel,
-			      unsigned int value, unsigned int sign)
+			      struct comedi_subdevice *s,
+			      unsigned int chan,
+			      unsigned int value,
+			      unsigned int sign)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
-	int i, szbuf;
-	char *p_buf;
-	char pwm_mask;
-	char sgn_mask;
-	char c;
+	struct usbdux_private *devpriv = dev->private;
+	char pwm_mask = (1 << chan);	/* DIO bit for the PWM data */
+	char sgn_mask = (16 << chan);	/* DIO bit for the sign */
+	char *buf = (char *)(devpriv->pwm_urb->transfer_buffer);
+	int szbuf = devpriv->pwm_buf_sz;
+	int i;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
-
-	/* this is the DIO bit which carries the PWM data */
-	pwm_mask = (1 << channel);
-	/* this is the DIO bit which carries the optional direction bit */
-	sgn_mask = (16 << channel);
-	/* this is the buffer which will be filled with the with bit */
-	/* pattern for one period */
-	szbuf = this_usbduxsub->pwm_buf_sz;
-	p_buf = (char *)(this_usbduxsub->pwm_urb->transfer_buffer);
 	for (i = 0; i < szbuf; i++) {
-		c = *p_buf;
-		/* reset bits */
-		c = c & (~pwm_mask);
-		/* set the bit as long as the index is lower than the value */
+		char c = *buf;
+
+		c &= ~pwm_mask;
 		if (i < value)
-			c = c | pwm_mask;
-		/* set the optional sign bit for a relay */
-		if (!sign) {
-			/* positive value */
-			c = c & (~sgn_mask);
-		} else {
-			/* negative value */
-			c = c | sgn_mask;
-		}
-		*(p_buf++) = c;
+			c |= pwm_mask;
+		if (!sign)
+			c &= ~sgn_mask;
+		else
+			c |= sgn_mask;
+		*buf++ = c;
 	}
 	return 1;
 }
