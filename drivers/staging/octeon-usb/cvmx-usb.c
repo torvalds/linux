@@ -2291,7 +2291,7 @@ int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
  *		    Number of frames into the future to schedule
  *		    this transaction.
  * @flags:	    Flags to control the transfer. See
- *		    cvmx_usb_isochronous_flags_t for the flag
+ *		    enum cvmx_usb_isochronous_flags for the flag
  *		    definitions.
  * @number_packets:
  *		    Number of sequential packets to transfer.
