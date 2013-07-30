@@ -1238,11 +1238,11 @@ static int usbduxsigma_pwm_start(struct comedi_device *dev,
 	return 0;
 }
 
-static int usbduxsigma_pwm_pattern(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   unsigned int chan,
-				   unsigned int value,
-				   unsigned int sign)
+static void usbduxsigma_pwm_pattern(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    unsigned int chan,
+				    unsigned int value,
+				    unsigned int sign)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
 	char pwm_mask = (1 << chan);	/* DIO bit for the PWM data */
@@ -1263,7 +1263,6 @@ static int usbduxsigma_pwm_pattern(struct comedi_device *dev,
 			c |= sgn_mask;
 		*buf++ = c;
 	}
-	return 1;
 }
 
 static int usbduxsigma_pwm_write(struct comedi_device *dev,
@@ -1284,7 +1283,9 @@ static int usbduxsigma_pwm_write(struct comedi_device *dev,
 	 * The sign is set via a special INSN only, this gives us 8 bits
 	 * for normal operation, sign is 0 by default.
 	 */
-	return usbduxsigma_pwm_pattern(dev, s, chan, data[0], 0);
+	usbduxsigma_pwm_pattern(dev, s, chan, data[0], 0);
+
+	return insn->n;
 }
 
 static int usbduxsigma_pwm_config(struct comedi_device *dev,
@@ -1319,8 +1320,8 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 		 * data[1] = value
 		 * data[2] = sign (for a relay)
 		 */
-		return usbduxsigma_pwm_pattern(dev, s, chan,
-					       data[1], (data[2] != 0));
+		usbduxsigma_pwm_pattern(dev, s, chan, data[1], (data[2] != 0));
+		return 0;
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
 		/* values are not kept in this driver, nothing to return */
 		return -EINVAL;
