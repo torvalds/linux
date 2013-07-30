@@ -171,7 +171,7 @@ static struct bf5xx_nand_info *to_nand_info(struct platform_device *pdev)
 
 static struct bf5xx_nand_platform *to_nand_plat(struct platform_device *pdev)
 {
-	return pdev->dev.platform_data;
+	return dev_get_platdata(&pdev->dev);
 }
 
 /*

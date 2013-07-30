@@ -2023,7 +2023,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		if (res)
 			goto err_nand_ioremap;
 	} else {
-		memcpy(&host->board, pdev->dev.platform_data,
+		memcpy(&host->board, dev_get_platdata(&pdev->dev),
 		       sizeof(struct atmel_nand_data));
 	}
 

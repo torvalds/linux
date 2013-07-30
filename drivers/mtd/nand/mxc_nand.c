@@ -1432,7 +1432,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	err = mxcnd_probe_dt(host);
 	if (err > 0) {
-		struct mxc_nand_platform_data *pdata = pdev->dev.platform_data;
+		struct mxc_nand_platform_data *pdata =
+					dev_get_platdata(&pdev->dev);
 		if (pdata) {
 			host->pdata = *pdata;
 			host->devtype_data = (struct mxc_nand_devtype_data *)

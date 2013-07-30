@@ -167,8 +167,8 @@ static inline int gpio_nand_get_config(const struct device *dev,
 	if (!ret)
 		return ret;
 
-	if (dev->platform_data) {
-		memcpy(plat, dev->platform_data, sizeof(*plat));
+	if (dev_get_platdata(dev)) {
+		memcpy(plat, dev_get_platdata(dev), sizeof(*plat));
 		return 0;
 	}
 
@@ -207,7 +207,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	struct mtd_part_parser_data ppdata = {};
 	int ret = 0;
 
-	if (!pdev->dev.of_node && !pdev->dev.platform_data)
+	if (!pdev->dev.of_node && !dev_get_platdata(&pdev->dev))
 		return -EINVAL;
 
 	gpiomtd = devm_kzalloc(&pdev->dev, sizeof(*gpiomtd), GFP_KERNEL);

@@ -696,7 +696,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	}
 	lpc32xx_wp_disable(host);
 
-	host->pdata = pdev->dev.platform_data;
+	host->pdata = dev_get_platdata(&pdev->dev);
 
 	nand_chip->priv = host;		/* link the private data structures */
 	mtd->priv = nand_chip;

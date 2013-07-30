@@ -130,8 +130,9 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		if (!of_property_read_u32(pdev->dev.of_node,
 						"chip-delay", &val))
 			board->chip_delay = (u8)val;
-	} else
-		board = pdev->dev.platform_data;
+	} else {
+		board = dev_get_platdata(&pdev->dev);
+	}
 
 	mtd->priv = nc;
 	mtd->owner = THIS_MODULE;

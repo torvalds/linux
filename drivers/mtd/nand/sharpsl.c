@@ -112,7 +112,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	struct resource *r;
 	int err = 0;
 	struct sharpsl_nand *sharpsl;
-	struct sharpsl_nand_platform_data *data = pdev->dev.platform_data;
+	struct sharpsl_nand_platform_data *data = dev_get_platdata(&pdev->dev);
 
 	if (!data) {
 		dev_err(&pdev->dev, "no platform data!\n");

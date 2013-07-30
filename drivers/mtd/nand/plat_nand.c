@@ -30,7 +30,7 @@ static const char *part_probe_types[] = { "cmdlinepart", NULL };
  */
 static int plat_nand_probe(struct platform_device *pdev)
 {
-	struct platform_nand_data *pdata = pdev->dev.platform_data;
+	struct platform_nand_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mtd_part_parser_data ppdata;
 	struct plat_nand_data *data;
 	struct resource *res;
@@ -136,7 +136,7 @@ out_free:
 static int plat_nand_remove(struct platform_device *pdev)
 {
 	struct plat_nand_data *data = platform_get_drvdata(pdev);
-	struct platform_nand_data *pdata = pdev->dev.platform_data;
+	struct platform_nand_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

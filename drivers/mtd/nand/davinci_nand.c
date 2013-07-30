@@ -530,7 +530,7 @@ MODULE_DEVICE_TABLE(of, davinci_nand_of_match);
 static struct davinci_nand_pdata
 	*nand_davinci_get_pdata(struct platform_device *pdev)
 {
-	if (!pdev->dev.platform_data && pdev->dev.of_node) {
+	if (!dev_get_platdata(&pdev->dev) && pdev->dev.of_node) {
 		struct davinci_nand_pdata *pdata;
 		const char *mode;
 		u32 prop;
@@ -575,13 +575,13 @@ static struct davinci_nand_pdata
 			pdata->bbt_options = NAND_BBT_USE_FLASH;
 	}
 
-	return pdev->dev.platform_data;
+	return dev_get_platdata(&pdev->dev);
 }
 #else
 static struct davinci_nand_pdata
 	*nand_davinci_get_pdata(struct platform_device *pdev)
 {
-	return pdev->dev.platform_data;
+	return dev_get_platdata(&pdev->dev);
 }
 #endif
 

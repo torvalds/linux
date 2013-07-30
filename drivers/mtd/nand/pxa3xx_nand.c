@@ -815,7 +815,7 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 				    const struct pxa3xx_nand_flash *f)
 {
 	struct platform_device *pdev = info->pdev;
-	struct pxa3xx_nand_platform_data *pdata = pdev->dev.platform_data;
+	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct pxa3xx_nand_host *host = info->host[info->cs];
 	uint32_t ndcr = 0x0; /* enable all interrupts */
 
@@ -958,7 +958,7 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
 	struct platform_device *pdev = info->pdev;
-	struct pxa3xx_nand_platform_data *pdata = pdev->dev.platform_data;
+	struct pxa3xx_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct nand_flash_dev pxa3xx_flash_ids[2], *def = NULL;
 	const struct pxa3xx_nand_flash *f = NULL;
 	struct nand_chip *chip = mtd->priv;
@@ -1058,7 +1058,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	struct resource *r;
 	int ret, irq, cs;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	info = devm_kzalloc(&pdev->dev, sizeof(*info) + (sizeof(*mtd) +
 			    sizeof(*host)) * pdata->num_cs, GFP_KERNEL);
 	if (!info)
@@ -1176,7 +1176,7 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 	if (!info)
 		return 0;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0)
@@ -1239,7 +1239,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data defined\n");
 		return -ENODEV;
@@ -1286,7 +1286,7 @@ static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
 	struct mtd_info *mtd;
 	int cs;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (info->state) {
 		dev_err(&pdev->dev, "driver busy, state = %d\n", info->state);
 		return -EAGAIN;
@@ -1307,7 +1307,7 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 	struct mtd_info *mtd;
 	int cs;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	/* We don't want to handle interrupt without calling mtd routine */
 	disable_int(info, NDCR_INT_MASK);
 
