@@ -175,11 +175,6 @@ static struct sw_dma_map __initdata sw_dma_mappings[DMACH_MAX] = {
 		.channels = {0,0,0,0,0,0,0,0,
 			     DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
 	},
-	[DMACH_DSPI1] = {
-		.name		= "dspi1",
-		.channels = {0,0,0,0,0,0,0,0,
-			     DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
-	},
 	[DMACH_DSSR] = {
 		.name		= "dssr",
 		.channels = {0,0,0,0,0,0,0,0,
@@ -210,21 +205,46 @@ static struct sw_dma_map __initdata sw_dma_mappings[DMACH_MAX] = {
 		.channels = {0,0,0,0,0,0,0,0,
 			     DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
 	},
-	[DMACH_DSPI0] = {
-		.name		= "dspi0",
+	[DMACH_DSPI0_TX] = {
+		.name		= "dspi0_tx",
 		.channels = {0,0,0,0,0,0,0,0,
-			     DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
+			DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
 	},
-	[DMACH_DSPI2] = {
-		.name		= "dspi2",
+	[DMACH_DSPI0_RX] = {
+		.name		= "dspi0_rx",
 		.channels = {0,0,0,0,0,0,0,0,
-			     DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
+			DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
 	},
-	[DMACH_DSPI3] = {
-		.name		= "dspi3",
+	[DMACH_DSPI1_TX] = {
+		.name		= "dspi1_tx",
 		.channels = {0,0,0,0,0,0,0,0,
-			     DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
+			DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
 	},
+	[DMACH_DSPI1_RX] = {
+		.name		= "dspi1_rx",
+		.channels = {0,0,0,0,0,0,0,0,
+			DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
+	},
+	[DMACH_DSPI2_TX] = {
+		.name		= "dspi2_tx",
+		.channels = {0,0,0,0,0,0,0,0,
+			DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
+	},
+	[DMACH_DSPI2_RX] = {
+		.name		= "dspi2_rx",
+ 		.channels = {0,0,0,0,0,0,0,0,
+ 			DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
+ 	},
+	[DMACH_DSPI3_TX] = {
+		.name		= "dspi3_tx",
+ 		.channels = {0,0,0,0,0,0,0,0,
+ 			DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
+ 	},
+	[DMACH_DSPI3_RX] = {
+		.name		= "dspi3_rx",
+ 		.channels = {0,0,0,0,0,0,0,0,
+ 			DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID, DMA_CH_VALID},
+ 	},
 };
 
 
