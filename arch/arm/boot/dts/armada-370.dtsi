@@ -78,7 +78,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
-				#interrupts-cells = <2>;
+				#interrupt-cells = <2>;
 				interrupts = <82>, <83>, <84>, <85>;
 			};
 
@@ -89,7 +89,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
-				#interrupts-cells = <2>;
+				#interrupt-cells = <2>;
 				interrupts = <87>, <88>, <89>, <90>;
 			};
 
@@ -100,7 +100,7 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
-				#interrupts-cells = <2>;
+				#interrupt-cells = <2>;
 				interrupts = <91>;
 			};
 
