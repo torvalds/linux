@@ -122,7 +122,7 @@ typedef enum {
 typedef struct cvmx_usb_transaction {
 	struct cvmx_usb_transaction *prev;	/**< Transaction before this one in the pipe */
 	struct cvmx_usb_transaction *next;	/**< Transaction after this one in the pipe */
-	cvmx_usb_transfer_t type;		/**< Type of transaction, duplicated of the pipe */
+	enum cvmx_usb_transfer type;		/**< Type of transaction, duplicated of the pipe */
 	cvmx_usb_transaction_flags_t flags;	/**< State flags for this transaction */
 	uint64_t buffer;			/**< User's physical buffer address to read/write */
 	int buffer_length;			/**< Size of the user's buffer in bytes */
@@ -152,7 +152,7 @@ typedef struct cvmx_usb_pipe {
 	uint64_t next_tx_frame;			/**< The next frame this pipe is allowed to transmit on */
 	cvmx_usb_pipe_flags_t flags;		/**< State flags for this pipe */
 	enum cvmx_usb_speed device_speed;	/**< Speed of device connected to this pipe */
-	cvmx_usb_transfer_t transfer_type;	/**< Type of transaction supported by this pipe */
+	enum cvmx_usb_transfer transfer_type;	/**< Type of transaction supported by this pipe */
 	cvmx_usb_direction_t transfer_dir;	/**< IN or OUT. Ignored for Control */
 	int multi_count;			/**< Max packet in a row for the device */
 	uint16_t max_packet;			/**< The device's maximum packet size in bytes */
@@ -1104,7 +1104,7 @@ static inline int __cvmx_usb_get_pipe_handle(cvmx_usb_internal_state_t *usb,
 int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
 		       int device_addr, int endpoint_num,
 		       enum cvmx_usb_speed device_speed, int max_packet,
-		       cvmx_usb_transfer_t transfer_type,
+		       enum cvmx_usb_transfer transfer_type,
 		       cvmx_usb_direction_t transfer_dir, int interval,
 		       int multi_count, int hub_device_addr, int hub_port)
 {
@@ -1825,7 +1825,7 @@ static void __cvmx_usb_schedule(cvmx_usb_internal_state_t *usb, int is_sof)
 	int channel;
 	cvmx_usb_pipe_t *pipe;
 	int need_sof;
-	cvmx_usb_transfer_t ttype;
+	enum cvmx_usb_transfer ttype;
 
 	if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA) {
 		/* Without DMA we need to be careful to not schedule something at the end of a frame and cause an overrun */
@@ -2025,7 +2025,7 @@ done:
  */
 static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
 					 int pipe_handle,
-					 cvmx_usb_transfer_t type,
+					 enum cvmx_usb_transfer type,
 					 int flags,
 					 uint64_t buffer,
 					 int buffer_length,

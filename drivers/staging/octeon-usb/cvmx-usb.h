@@ -248,15 +248,23 @@ enum cvmx_usb_speed {
 };
 
 /**
- * Enumeration representing the possible USB transfer types.
+ * enum cvmx_usb_transfer - the possible USB transfer types
+ *
+ * @CVMX_USB_TRANSFER_CONTROL:	   USB transfer type control for hub and status
+ *				   transfers
+ * @CVMX_USB_TRANSFER_ISOCHRONOUS: USB transfer type isochronous for low
+ *				   priority periodic transfers
+ * @CVMX_USB_TRANSFER_BULK:	   USB transfer type bulk for large low priority
+ *				   transfers
+ * @CVMX_USB_TRANSFER_INTERRUPT:   USB transfer type interrupt for high priority
+ *				   periodic transfers
  */
-typedef enum
-{
-    CVMX_USB_TRANSFER_CONTROL = 0,      /**< USB transfer type control for hub and status transfers */
-    CVMX_USB_TRANSFER_ISOCHRONOUS = 1,  /**< USB transfer type isochronous for low priority periodic transfers */
-    CVMX_USB_TRANSFER_BULK = 2,         /**< USB transfer type bulk for large low priority transfers */
-    CVMX_USB_TRANSFER_INTERRUPT = 3,    /**< USB transfer type interrupt for high priority periodic transfers */
-} cvmx_usb_transfer_t;
+enum cvmx_usb_transfer {
+	CVMX_USB_TRANSFER_CONTROL = 0,
+	CVMX_USB_TRANSFER_ISOCHRONOUS = 1,
+	CVMX_USB_TRANSFER_BULK = 2,
+	CVMX_USB_TRANSFER_INTERRUPT = 3,
+};
 
 /**
  * Enumeration of the transfer directions
@@ -417,7 +425,7 @@ extern int cvmx_usb_open_pipe(cvmx_usb_state_t *state,
                               cvmx_usb_pipe_flags_t flags,
                               int device_addr, int endpoint_num,
                               enum cvmx_usb_speed device_speed, int max_packet,
-                              cvmx_usb_transfer_t transfer_type,
+                              enum cvmx_usb_transfer transfer_type,
                               cvmx_usb_direction_t transfer_dir, int interval,
                               int multi_count, int hub_device_addr,
                               int hub_port);
