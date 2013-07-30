@@ -1347,20 +1347,21 @@ static int usbduxsub_submit_pwm_urbs(struct comedi_device *dev)
 }
 
 static int usbdux_pwm_period(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int period)
+			     struct comedi_subdevice *s,
+			     unsigned int period)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
+	struct usbdux_private *devpriv = dev->private;
 	int fx2delay = 255;
 
 	if (period < MIN_PWM_PERIOD) {
 		return -EAGAIN;
 	} else {
-		fx2delay = period / ((int)(6 * 512 * (1.0 / 0.033))) - 6;
+		fx2delay = (period / (6 * 512 * 1000 / 33)) - 6;
 		if (fx2delay > 255)
 			return -EAGAIN;
 	}
-	this_usbduxsub->pwm_delay = fx2delay;
-	this_usbduxsub->pwm_period = period;
+	devpriv->pwm_delay = fx2delay;
+	devpriv->pwm_period = period;
 
 	return 0;
 }
