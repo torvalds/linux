@@ -217,7 +217,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 
 	if (!ep->hcpriv) {
 		cvmx_usb_transfer_t transfer_type;
-		cvmx_usb_speed_t speed;
+		enum cvmx_usb_speed speed;
 		int split_device = 0;
 		int split_port = 0;
 		switch (usb_pipetype(urb->pipe)) {

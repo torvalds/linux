@@ -151,7 +151,7 @@ typedef struct cvmx_usb_pipe {
 	uint64_t interval;			/**< For periodic pipes, the interval between packets in frames */
 	uint64_t next_tx_frame;			/**< The next frame this pipe is allowed to transmit on */
 	cvmx_usb_pipe_flags_t flags;		/**< State flags for this pipe */
-	cvmx_usb_speed_t device_speed;		/**< Speed of device connected to this pipe */
+	enum cvmx_usb_speed device_speed;	/**< Speed of device connected to this pipe */
 	cvmx_usb_transfer_t transfer_type;	/**< Type of transaction supported by this pipe */
 	cvmx_usb_direction_t transfer_dir;	/**< IN or OUT. Ignored for Control */
 	int multi_count;			/**< Max packet in a row for the device */
@@ -1103,7 +1103,7 @@ static inline int __cvmx_usb_get_pipe_handle(cvmx_usb_internal_state_t *usb,
  */
 int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
 		       int device_addr, int endpoint_num,
-		       cvmx_usb_speed_t device_speed, int max_packet,
+		       enum cvmx_usb_speed device_speed, int max_packet,
 		       cvmx_usb_transfer_t transfer_type,
 		       cvmx_usb_direction_t transfer_dir, int interval,
 		       int multi_count, int hub_device_addr, int hub_port)

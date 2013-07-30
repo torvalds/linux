@@ -235,14 +235,17 @@
 #define __CVMX_USB_H__
 
 /**
- * Enumerations representing the possible USB device speeds
+ * enum cvmx_usb_speed - the possible USB device speeds
+ *
+ * @CVMX_USB_SPEED_HIGH: Device is operation at 480Mbps
+ * @CVMX_USB_SPEED_FULL: Device is operation at 12Mbps
+ * @CVMX_USB_SPEED_LOW:  Device is operation at 1.5Mbps
  */
-typedef enum
-{
-    CVMX_USB_SPEED_HIGH = 0,        /**< Device is operation at 480Mbps */
-    CVMX_USB_SPEED_FULL = 1,        /**< Device is operation at 12Mbps */
-    CVMX_USB_SPEED_LOW = 2,         /**< Device is operation at 1.5Mbps */
-} cvmx_usb_speed_t;
+enum cvmx_usb_speed {
+	CVMX_USB_SPEED_HIGH = 0,
+	CVMX_USB_SPEED_FULL = 1,
+	CVMX_USB_SPEED_LOW = 2,
+};
 
 /**
  * Enumeration representing the possible USB transfer types.
@@ -290,7 +293,7 @@ typedef struct
     uint32_t port_enabled       : 1; /**< 1 = Usb port is enabled, 0 = disabled */
     uint32_t port_over_current  : 1; /**< 1 = Over current detected, 0 = Over current not detected. Octeon doesn't support over current detection */
     uint32_t port_powered       : 1; /**< 1 = Port power is being supplied to the device, 0 = power is off. Octeon doesn't support turning port power off */
-    cvmx_usb_speed_t port_speed : 2; /**< Current port speed */
+    enum cvmx_usb_speed port_speed : 2; /**< Current port speed */
     uint32_t connected          : 1; /**< 1 = A device is connected to the port, 0 = No device is connected */
     uint32_t connect_change     : 1; /**< 1 = Device connected state changed since the last set status call */
 } cvmx_usb_port_status_t;
@@ -413,7 +416,7 @@ extern void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t 
 extern int cvmx_usb_open_pipe(cvmx_usb_state_t *state,
                               cvmx_usb_pipe_flags_t flags,
                               int device_addr, int endpoint_num,
-                              cvmx_usb_speed_t device_speed, int max_packet,
+                              enum cvmx_usb_speed device_speed, int max_packet,
                               cvmx_usb_transfer_t transfer_type,
                               cvmx_usb_direction_t transfer_dir, int interval,
                               int multi_count, int hub_device_addr,
