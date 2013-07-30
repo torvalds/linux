@@ -161,6 +161,7 @@ struct usbduxsigma_private {
 	/* input buffer for single insn */
 	int8_t *insn_buf;
 
+	int8_t ao_chanlist[USBDUXSIGMA_NUM_AO_CHAN];
 	unsigned int ao_readback[USBDUXSIGMA_NUM_AO_CHAN];
 
 	unsigned high_speed:1;
@@ -181,8 +182,6 @@ struct usbduxsigma_private {
 	unsigned int ao_counter;
 	/* interval in frames/uframes */
 	unsigned int ai_interval;
-	/* D/A commands */
-	uint8_t *dac_commands;
 	/* commands */
 	uint8_t *dux_commands;
 	struct semaphore sem;
@@ -421,7 +420,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 		len = s->async->cmd.chanlist_len;
 		*datap++ = len;
 		for (i = 0; i < len; i++) {
-			unsigned int chan = devpriv->dac_commands[i];
+			unsigned int chan = devpriv->ao_chanlist[i];
 			short val;
 
 			ret = comedi_buf_get(s->async, &val);
@@ -1011,7 +1010,7 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
 	for (i = 0; i < cmd->chanlist_len; ++i)
-		devpriv->dac_commands[i] = CR_CHAN(cmd->chanlist[i]);
+		devpriv->ao_chanlist[i] = CR_CHAN(cmd->chanlist[i]);
 
 	devpriv->ao_counter = devpriv->ao_timer;
 
@@ -1542,7 +1541,6 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 	struct urb *urb;
 	int i;
 
-	devpriv->dac_commands = kzalloc(NUMOUTCHANNELS, GFP_KERNEL);
 	devpriv->dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
 	devpriv->in_buf = kzalloc(SIZEINBUF, GFP_KERNEL);
 	devpriv->insn_buf = kzalloc(SIZEINSNBUF, GFP_KERNEL);
@@ -1550,8 +1548,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 				   GFP_KERNEL);
 	devpriv->ao_urbs = kcalloc(devpriv->n_ao_urbs, sizeof(*urb),
 				   GFP_KERNEL);
-	if (!devpriv->dac_commands || !devpriv->dux_commands ||
-	    !devpriv->in_buf || !devpriv->insn_buf ||
+	if (!devpriv->dux_commands || !devpriv->in_buf || !devpriv->insn_buf ||
 	    !devpriv->ai_urbs || !devpriv->ao_urbs)
 		return -ENOMEM;
 
@@ -1660,7 +1657,6 @@ static void usbduxsigma_free_usb_buffers(struct comedi_device *dev)
 	kfree(devpriv->insn_buf);
 	kfree(devpriv->in_buf);
 	kfree(devpriv->dux_commands);
-	kfree(devpriv->dac_commands);
 }
 
 static int usbduxsigma_auto_attach(struct comedi_device *dev,
