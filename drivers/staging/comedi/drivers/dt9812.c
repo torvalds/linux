@@ -187,8 +187,8 @@ enum {
 };
 
 struct dt9812_flash_data {
-	u16 numbytes;
-	u16 address;
+	__le16 numbytes;
+	__le16 address;
 };
 
 #define DT9812_MAX_NUM_MULTI_BYTE_RDS  \
@@ -229,7 +229,7 @@ struct dt9812_rmw_multi {
 };
 
 struct dt9812_usb_cmd {
-	u32 cmd;
+	__le32 cmd;
 	union {
 		struct dt9812_flash_data flash_data_info;
 		struct dt9812_read_multi read_multi_info;
