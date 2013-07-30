@@ -1901,7 +1901,7 @@ done:
 static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
 					cvmx_usb_pipe_t *pipe,
 					cvmx_usb_transaction_t *transaction,
-					cvmx_usb_callback_t reason,
+					enum cvmx_usb_callback reason,
 					enum cvmx_usb_complete complete_code)
 {
 	cvmx_usb_callback_func_t callback = usb->callback[reason];
@@ -2507,7 +2507,7 @@ int cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle)
  * Returns: 0 or a negative error code.
  */
 int cvmx_usb_register_callback(cvmx_usb_state_t *state,
-			       cvmx_usb_callback_t reason,
+			       enum cvmx_usb_callback reason,
 			       cvmx_usb_callback_func_t callback,
 			       void *user_data)
 {

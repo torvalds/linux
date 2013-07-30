@@ -115,7 +115,7 @@
  * The port callback prototype needs to look as follows:
  *
  * void port_callback(cvmx_usb_state_t *usb,
- *                    cvmx_usb_callback_t reason,
+ *                    enum cvmx_usb_callback reason,
  *                    enum cvmx_usb_complete status,
  *                    int pipe_handle,
  *                    int submit_handle,
@@ -147,7 +147,7 @@
  * The completion callback prototype needs to look as follows:
  *
  * void complete_callback(cvmx_usb_state_t *usb,
- *                        cvmx_usb_callback_t reason,
+ *                        enum cvmx_usb_callback reason,
  *                        enum cvmx_usb_complete status,
  *                        int pipe_handle,
  *                        int submit_handle,
@@ -350,21 +350,28 @@ typedef struct
 } cvmx_usb_iso_packet_t;
 
 /**
- * Possible callback reasons for the USB API.
+ * enum cvmx_usb_callback - possible callback reasons for the USB API
+ *
+ * @CVMX_USB_CALLBACK_TRANSFER_COMPLETE: A callback of this type is called when
+ *					 a submitted transfer completes. The
+ *					 completion callback will be called even
+ *					 if the transfer fails or is canceled.
+ *					 The status parameter will contain
+ *					 details of why he callback was called.
+ * @CVMX_USB_CALLBACK_PORT_CHANGED:	 The status of the port changed. For
+ *					 example, someone may have plugged a
+ *					 device in. The status parameter
+ *					 contains CVMX_USB_COMPLETE_SUCCESS. Use
+ *					 cvmx_usb_get_status() to get the new
+ *					 port status.
+ * @__CVMX_USB_CALLBACK_END:		 Do not use. Used internally for array
+ *					 bounds.
  */
-typedef enum
-{
-    CVMX_USB_CALLBACK_TRANSFER_COMPLETE,
-                                    /**< A callback of this type is called when a submitted transfer
-                                        completes. The completion callback will be called even if the
-                                        transfer fails or is canceled. The status parameter will
-                                        contain details of why he callback was called. */
-    CVMX_USB_CALLBACK_PORT_CHANGED, /**< The status of the port changed. For example, someone may have
-                                        plugged a device in. The status parameter contains
-                                        CVMX_USB_COMPLETE_SUCCESS. Use cvmx_usb_get_status() to get
-                                        the new port status. */
-    __CVMX_USB_CALLBACK_END         /**< Do not use. Used internally for array bounds */
-} cvmx_usb_callback_t;
+enum cvmx_usb_callback {
+	CVMX_USB_CALLBACK_TRANSFER_COMPLETE,
+	CVMX_USB_CALLBACK_PORT_CHANGED,
+	__CVMX_USB_CALLBACK_END
+};
 
 /**
  * USB state internal data. The contents of this structure
@@ -381,7 +388,7 @@ typedef struct
  * The parameters are as follows:
  *      - state = USB device state populated by
  *        cvmx_usb_initialize().
- *      - reason = The cvmx_usb_callback_t used to register
+ *      - reason = The enum cvmx_usb_callback used to register
  *        the callback.
  *      - status = The enum cvmx_usb_complete representing the
  *        status code of a transaction.
@@ -395,7 +402,7 @@ typedef struct
  *        function cvmx_usb_submit() or
  *        cvmx_usb_register_callback() */
 typedef void (*cvmx_usb_callback_func_t)(cvmx_usb_state_t *state,
-                                         cvmx_usb_callback_t reason,
+                                         enum cvmx_usb_callback reason,
                                          enum cvmx_usb_complete status,
                                          int pipe_handle, int submit_handle,
                                          int bytes_transferred, void *user_data);
@@ -481,7 +488,7 @@ extern int cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
 extern int cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle);
 extern int cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle);
 extern int cvmx_usb_register_callback(cvmx_usb_state_t *state,
-				      cvmx_usb_callback_t reason,
+				      enum cvmx_usb_callback reason,
 				      cvmx_usb_callback_func_t callback,
 				      void *user_data);
 extern int cvmx_usb_get_frame_number(cvmx_usb_state_t *state);
