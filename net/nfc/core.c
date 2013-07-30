@@ -589,6 +589,8 @@ int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 	}
 
 	rc = dev->ops->enable_se(dev, se_idx);
+	if (rc >= 0)
+		se->state = NFC_SE_ENABLED;
 
 error:
 	device_unlock(&dev->dev);
@@ -632,6 +634,8 @@ int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 	}
 
 	rc = dev->ops->disable_se(dev, se_idx);
+	if (rc >= 0)
+		se->state = NFC_SE_DISABLED;
 
 error:
 	device_unlock(&dev->dev);
