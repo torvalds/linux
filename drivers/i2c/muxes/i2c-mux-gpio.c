@@ -148,12 +148,14 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mux);
 
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		ret = i2c_mux_gpio_probe_dt(mux, pdev);
 		if (ret < 0)
 			return ret;
-	} else
-		memcpy(&mux->data, pdev->dev.platform_data, sizeof(mux->data));
+	} else {
+		memcpy(&mux->data, dev_get_platdata(&pdev->dev),
+			sizeof(mux->data));
+	}
 
 	/*
 	 * If a GPIO chip name is provided, the GPIO pin numbers provided are

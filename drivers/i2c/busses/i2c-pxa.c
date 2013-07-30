@@ -1072,7 +1072,7 @@ static int i2c_pxa_probe_pdata(struct platform_device *pdev,
 			       struct pxa_i2c *i2c,
 			       enum pxa_i2c_types *i2c_types)
 {
-	struct i2c_pxa_platform_data *plat = pdev->dev.platform_data;
+	struct i2c_pxa_platform_data *plat = dev_get_platdata(&pdev->dev);
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 
 	*i2c_types = id->driver_data;
@@ -1085,7 +1085,7 @@ static int i2c_pxa_probe_pdata(struct platform_device *pdev,
 
 static int i2c_pxa_probe(struct platform_device *dev)
 {
-	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
+	struct i2c_pxa_platform_data *plat = dev_get_platdata(&dev->dev);
 	enum pxa_i2c_types i2c_type;
 	struct pxa_i2c *i2c;
 	struct resource *res = NULL;

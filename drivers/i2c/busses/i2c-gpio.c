@@ -137,9 +137,9 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	} else {
-		if (!pdev->dev.platform_data)
+		if (!dev_get_platdata(&pdev->dev))
 			return -ENXIO;
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		sda_pin = pdata->sda_pin;
 		scl_pin = pdata->scl_pin;
 	}
@@ -171,7 +171,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 		pdata->scl_pin = scl_pin;
 		of_i2c_gpio_get_props(pdev->dev.of_node, pdata);
 	} else {
-		memcpy(pdata, pdev->dev.platform_data, sizeof(*pdata));
+		memcpy(pdata, dev_get_platdata(&pdev->dev), sizeof(*pdata));
 	}
 
 	if (pdata->sda_is_open_drain) {

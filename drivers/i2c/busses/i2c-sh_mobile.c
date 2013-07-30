@@ -658,7 +658,7 @@ static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, int hook)
 
 static int sh_mobile_i2c_probe(struct platform_device *dev)
 {
-	struct i2c_sh_mobile_platform_data *pdata = dev->dev.platform_data;
+	struct i2c_sh_mobile_platform_data *pdata = dev_get_platdata(&dev->dev);
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
 	struct resource *res;

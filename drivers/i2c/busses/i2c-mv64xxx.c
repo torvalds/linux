@@ -618,7 +618,7 @@ static int
 mv64xxx_i2c_probe(struct platform_device *pd)
 {
 	struct mv64xxx_i2c_data		*drv_data;
-	struct mv64xxx_i2c_pdata	*pdata = pd->dev.platform_data;
+	struct mv64xxx_i2c_pdata	*pdata = dev_get_platdata(&pd->dev);
 	struct resource	*r;
 	int	rc;
 

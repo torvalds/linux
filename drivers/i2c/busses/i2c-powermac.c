@@ -398,7 +398,7 @@ static void i2c_powermac_register_devices(struct i2c_adapter *adap,
 
 static int i2c_powermac_probe(struct platform_device *dev)
 {
-	struct pmac_i2c_bus *bus = dev->dev.platform_data;
+	struct pmac_i2c_bus *bus = dev_get_platdata(&dev->dev);
 	struct device_node *parent = NULL;
 	struct i2c_adapter *adapter;
 	const char *basename;

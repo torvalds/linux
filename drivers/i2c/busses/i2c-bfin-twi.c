@@ -662,8 +662,9 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	p_adap->timeout = 5 * HZ;
 	p_adap->retries = 3;
 
-	rc = peripheral_request_list((unsigned short *)pdev->dev.platform_data,
-					"i2c-bfin-twi");
+	rc = peripheral_request_list(
+			(unsigned short *)dev_get_platdata(&pdev->dev),
+			"i2c-bfin-twi");
 	if (rc) {
 		dev_err(&pdev->dev, "Can't setup pin mux!\n");
 		goto out_error_pin_mux;
@@ -710,7 +711,7 @@ out_error_add_adapter:
 	free_irq(iface->irq, iface);
 out_error_req_irq:
 out_error_no_irq:
-	peripheral_free_list((unsigned short *)pdev->dev.platform_data);
+	peripheral_free_list((unsigned short *)dev_get_platdata(&pdev->dev));
 out_error_pin_mux:
 	iounmap(iface->regs_base);
 out_error_ioremap:
@@ -726,7 +727,7 @@ static int i2c_bfin_twi_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&(iface->adap));
 	free_irq(iface->irq, iface);
-	peripheral_free_list((unsigned short *)pdev->dev.platform_data);
+	peripheral_free_list((unsigned short *)dev_get_platdata(&pdev->dev));
 	iounmap(iface->regs_base);
 	kfree(iface);
 
