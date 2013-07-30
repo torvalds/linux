@@ -115,29 +115,46 @@ enum cvmx_usb_stage {
 };
 
 /**
- * This structure describes each pending USB transaction
- * regardless of type. These are linked together to form a list
- * of pending requests for a pipe.
+ * struct cvmx_usb_transaction - describes each pending USB transaction
+ *				 regardless of type. These are linked together
+ *				 to form a list of pending requests for a pipe.
+ *
+ * @prev:		Transaction before this one in the pipe.
+ * @next:		Transaction after this one in the pipe.
+ * @type:		Type of transaction, duplicated of the pipe.
+ * @flags:		State flags for this transaction.
+ * @buffer:		User's physical buffer address to read/write.
+ * @buffer_length:	Size of the user's buffer in bytes.
+ * @control_header:	For control transactions, physical address of the 8
+ *			byte standard header.
+ * @iso_start_frame:	For ISO transactions, the starting frame number.
+ * @iso_number_packets:	For ISO transactions, the number of packets in the
+ *			request.
+ * @iso_packets:	For ISO transactions, the sub packets in the request.
+ * @actual_bytes:	Actual bytes transfer for this transaction.
+ * @stage:		For control transactions, the current stage.
+ * @callback:		User's callback function when complete.
+ * @callback_data:	User's data.
  */
-typedef struct cvmx_usb_transaction {
-	struct cvmx_usb_transaction *prev;	/**< Transaction before this one in the pipe */
-	struct cvmx_usb_transaction *next;	/**< Transaction after this one in the pipe */
-	enum cvmx_usb_transfer type;		/**< Type of transaction, duplicated of the pipe */
-	enum cvmx_usb_transaction_flags flags;	/**< State flags for this transaction */
-	uint64_t buffer;			/**< User's physical buffer address to read/write */
-	int buffer_length;			/**< Size of the user's buffer in bytes */
-	uint64_t control_header;		/**< For control transactions, physical address of the 8 byte standard header */
-	int iso_start_frame;			/**< For ISO transactions, the starting frame number */
-	int iso_number_packets;			/**< For ISO transactions, the number of packets in the request */
-	struct cvmx_usb_iso_packet *iso_packets;/**< For ISO transactions, the sub packets in the request */
+struct cvmx_usb_transaction {
+	struct cvmx_usb_transaction *prev;
+	struct cvmx_usb_transaction *next;
+	enum cvmx_usb_transfer type;
+	enum cvmx_usb_transaction_flags flags;
+	uint64_t buffer;
+	int buffer_length;
+	uint64_t control_header;
+	int iso_start_frame;
+	int iso_number_packets;
+	struct cvmx_usb_iso_packet *iso_packets;
 	int xfersize;
 	int pktcnt;
 	int retries;
-	int actual_bytes;			/**< Actual bytes transfer for this transaction */
-	enum cvmx_usb_stage stage;		/**< For control transactions, the current stage */
-	cvmx_usb_callback_func_t callback;	/**< User's callback function when complete */
-	void *callback_data;			/**< User's data */
-} cvmx_usb_transaction_t;
+	int actual_bytes;
+	enum cvmx_usb_stage stage;
+	cvmx_usb_callback_func_t callback;
+	void *callback_data;
+};
 
 /**
  * A pipe represents a virtual connection between Octeon and some
@@ -146,8 +163,8 @@ typedef struct cvmx_usb_transaction {
 typedef struct cvmx_usb_pipe {
 	struct cvmx_usb_pipe *prev;		/**< Pipe before this one in the list */
 	struct cvmx_usb_pipe *next;		/**< Pipe after this one in the list */
-	cvmx_usb_transaction_t *head;		/**< The first pending transaction */
-	cvmx_usb_transaction_t *tail;		/**< The last pending transaction */
+	struct cvmx_usb_transaction *head;	/**< The first pending transaction */
+	struct cvmx_usb_transaction *tail;	/**< The last pending transaction */
 	uint64_t interval;			/**< For periodic pipes, the interval between packets in frames */
 	uint64_t next_tx_frame;			/**< The next frame this pipe is allowed to transmit on */
 	enum cvmx_usb_pipe_flags flags;		/**< State flags for this pipe */
@@ -189,10 +206,10 @@ typedef struct {
 	int idle_hardware_channels;					/**< Bit set for every idle hardware channel */
 	cvmx_usbcx_hprt_t usbcx_hprt;					/**< Stored port status so we don't need to read a CSR to determine splits */
 	cvmx_usb_pipe_t *pipe_for_channel[MAX_CHANNELS];		/**< Map channels to pipes */
-	cvmx_usb_transaction_t *free_transaction_head;			/**< List of free transactions head */
-	cvmx_usb_transaction_t *free_transaction_tail;			/**< List of free transactions tail */
+	struct cvmx_usb_transaction *free_transaction_head;		/**< List of free transactions head */
+	struct cvmx_usb_transaction *free_transaction_tail;		/**< List of free transactions tail */
 	cvmx_usb_pipe_t pipe[MAX_PIPES];				/**< Storage for pipes */
-	cvmx_usb_transaction_t transaction[MAX_TRANSACTIONS];		/**< Storage for transactions */
+	struct cvmx_usb_transaction transaction[MAX_TRANSACTIONS];	/**< Storage for transactions */
 	cvmx_usb_callback_func_t callback[__CVMX_USB_CALLBACK_END];	/**< User global callbacks */
 	void *callback_data[__CVMX_USB_CALLBACK_END];			/**< User data for each callback */
 	int indent;							/**< Used by debug output to indent functions */
@@ -201,7 +218,7 @@ typedef struct {
 	cvmx_usb_pipe_list_t idle_pipes;				/**< List of open pipes that have no transactions */
 	cvmx_usb_pipe_list_t active_pipes[4];				/**< Active pipes indexed by transfer type */
 	uint64_t frame_number;						/**< Increments every SOF interrupt for time keeping */
-	cvmx_usb_transaction_t *active_split;				/**< Points to the current active split, or NULL */
+	struct cvmx_usb_transaction *active_split;			/**< Points to the current active split, or NULL */
 	cvmx_usb_tx_fifo_t periodic;
 	cvmx_usb_tx_fifo_t nonperiodic;
 } cvmx_usb_internal_state_t;
@@ -391,9 +408,9 @@ int cvmx_usb_get_num_ports(void)
  *
  * Returns: Transaction or NULL
  */
-static inline cvmx_usb_transaction_t *__cvmx_usb_alloc_transaction(cvmx_usb_internal_state_t *usb)
+static inline struct cvmx_usb_transaction *__cvmx_usb_alloc_transaction(cvmx_usb_internal_state_t *usb)
 {
-	cvmx_usb_transaction_t *t;
+	struct cvmx_usb_transaction *t;
 	t = usb->free_transaction_head;
 	if (t) {
 		usb->free_transaction_head = t->next;
@@ -417,7 +434,7 @@ static inline cvmx_usb_transaction_t *__cvmx_usb_alloc_transaction(cvmx_usb_inte
  *		 Transaction to free
  */
 static inline void __cvmx_usb_free_transaction(cvmx_usb_internal_state_t *usb,
-					       cvmx_usb_transaction_t *transaction)
+					       struct cvmx_usb_transaction *transaction)
 {
 	transaction->flags = 0;
 	transaction->prev = NULL;
@@ -1022,7 +1039,7 @@ void cvmx_usb_set_status(struct cvmx_usb_state *state, struct cvmx_usb_port_stat
  * Returns: Handle
  */
 static inline int __cvmx_usb_get_submit_handle(cvmx_usb_internal_state_t *usb,
-					       cvmx_usb_transaction_t *transaction)
+					       struct cvmx_usb_transaction *transaction)
 {
 	return ((unsigned long)transaction - (unsigned long)usb->transaction) /
 			sizeof(*transaction);
@@ -1380,7 +1397,7 @@ static void __cvmx_usb_start_channel_control(cvmx_usb_internal_state_t *usb,
 					     int channel,
 					     cvmx_usb_pipe_t *pipe)
 {
-	cvmx_usb_transaction_t *transaction = pipe->head;
+	struct cvmx_usb_transaction *transaction = pipe->head;
 	cvmx_usb_control_header_t *header = cvmx_phys_to_ptr(transaction->control_header);
 	int bytes_to_transfer = transaction->buffer_length - transaction->actual_bytes;
 	int packets_to_transfer;
@@ -1509,7 +1526,7 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
 				     int channel,
 				     cvmx_usb_pipe_t *pipe)
 {
-	cvmx_usb_transaction_t *transaction = pipe->head;
+	struct cvmx_usb_transaction *transaction = pipe->head;
 
 	/* Make sure all writes to the DMA region get flushed */
 	CVMX_SYNCW;
@@ -1900,7 +1917,7 @@ done:
  */
 static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
 					cvmx_usb_pipe_t *pipe,
-					cvmx_usb_transaction_t *transaction,
+					struct cvmx_usb_transaction *transaction,
 					enum cvmx_usb_callback reason,
 					enum cvmx_usb_complete complete_code)
 {
@@ -1945,7 +1962,7 @@ static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
  */
 static void __cvmx_usb_perform_complete(cvmx_usb_internal_state_t *usb,
 					cvmx_usb_pipe_t *pipe,
-					cvmx_usb_transaction_t *transaction,
+					struct cvmx_usb_transaction *transaction,
 					enum cvmx_usb_complete complete_code)
 {
 	/* If this was a split then clear our split in progress marker */
@@ -2037,7 +2054,7 @@ static int __cvmx_usb_submit_transaction(cvmx_usb_internal_state_t *usb,
 					 void *user_data)
 {
 	int submit_handle;
-	cvmx_usb_transaction_t *transaction;
+	struct cvmx_usb_transaction *transaction;
 	cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
 	if (unlikely((pipe_handle < 0) || (pipe_handle >= MAX_PIPES)))
@@ -2382,7 +2399,7 @@ int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state, int pipe_handle,
  */
 int cvmx_usb_cancel(struct cvmx_usb_state *state, int pipe_handle, int submit_handle)
 {
-	cvmx_usb_transaction_t *transaction;
+	struct cvmx_usb_transaction *transaction;
 	cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t *)state;
 	cvmx_usb_pipe_t *pipe = usb->pipe + pipe_handle;
 
@@ -2561,7 +2578,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
 	cvmx_usbcx_hctsizx_t usbc_hctsiz;
 	cvmx_usbcx_hccharx_t usbc_hcchar;
 	cvmx_usb_pipe_t *pipe;
-	cvmx_usb_transaction_t *transaction;
+	struct cvmx_usb_transaction *transaction;
 	int bytes_this_transfer;
 	int bytes_in_last_packet;
 	int packets_processed;
