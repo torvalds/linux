@@ -267,7 +267,6 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->bUpdateBBVGA = true;
     pDevice->byFOETuning = 0;
     pDevice->byAutoPwrTunning = 0;
-    pDevice->wCTSDuration = 0;
     pDevice->byPreambleType = 0;
     pDevice->bExistSWNetAddr = false;
     /* pDevice->bDiversityRegCtlON = true; */

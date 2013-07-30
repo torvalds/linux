@@ -1005,15 +1005,12 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
             pBuf->wDuration_ba = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption); //3:CTSDuration_ba, 1:2.4G, 2,3:2.4G OFDM Data
-            pBuf->wDuration_ba += pDevice->wCTSDuration;
             pBuf->wDuration_ba = cpu_to_le16(pBuf->wDuration_ba);
             //Get CTSDuration_ba_f0
             pBuf->wCTSDuration_ba_f0 = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F0, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption); //8:CTSDuration_ba_f0, 1:2.4G, 2,3:2.4G OFDM Data
-            pBuf->wCTSDuration_ba_f0 += pDevice->wCTSDuration;
             pBuf->wCTSDuration_ba_f0 = cpu_to_le16(pBuf->wCTSDuration_ba_f0);
             //Get CTSDuration_ba_f1
             pBuf->wCTSDuration_ba_f1 = (u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA_F1, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption); //9:CTSDuration_ba_f1, 1:2.4G, 2,3:2.4G OFDM Data
-            pBuf->wCTSDuration_ba_f1 += pDevice->wCTSDuration;
             pBuf->wCTSDuration_ba_f1 = cpu_to_le16(pBuf->wCTSDuration_ba_f1);
             //Get CTS Frame body
             pBuf->Data.wDurationID = pBuf->wDuration_ba;
@@ -1031,7 +1028,6 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
             //Get CTSDuration_ba
             pBuf->wDuration_ba = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, CTSDUR_BA, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //3:CTSDuration_ba, 1:2.4G, 2,3:2.4G OFDM Data
-            pBuf->wDuration_ba += pDevice->wCTSDuration;
             pBuf->wDuration_ba = cpu_to_le16(pBuf->wDuration_ba);
 
             //Get CTS Frame body

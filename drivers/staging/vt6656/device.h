@@ -591,7 +591,6 @@ struct vnt_private {
 	u8 abyBSSID[ETH_ALEN];
 	u8 abyDesireBSSID[ETH_ALEN];
 
-	u16 wCTSDuration;       /* update while speed change */
 	u16 wACKDuration;
 	u16 wRTSTransmitLen;
 	u8 byRTSServiceField;
