@@ -100,8 +100,8 @@ Subsystems and drivers can create and queue work items through special
 workqueue API functions as they see fit. They can influence some
 aspects of the way the work items are executed by setting flags on the
 workqueue they are putting the work item on. These flags include
-things like CPU locality, reentrancy, concurrency limits, priority and
-more.  To get a detailed overview refer to the API description of
+things like CPU locality, concurrency limits, priority and more.  To
+get a detailed overview refer to the API description of
 alloc_workqueue() below.
 
 When a work item is queued to a workqueue, the target gcwq and
@@ -166,16 +166,6 @@ resources, scheduled and executed.
 
 @flags:
 
-  WQ_NON_REENTRANT
-
-	By default, a wq guarantees non-reentrance only on the same
-	CPU.  A work item may not be executed concurrently on the same
-	CPU by multiple workers but is allowed to be executed
-	concurrently on multiple CPUs.  This flag makes sure
-	non-reentrance is enforced across all CPUs.  Work items queued
-	to a non-reentrant wq are guaranteed to be executed by at most
-	one worker system-wide at any given time.
-
   WQ_UNBOUND
 
 	Work items queued to an unbound wq are served by a special
@@ -232,6 +222,10 @@ resources, scheduled and executed.
 	intensive work items.
 
 	This flag is meaningless for unbound wq.
+
+Note that the flag WQ_NON_REENTRANT no longer exists as all workqueues
+are now non-reentrant - any work item is guaranteed to be executed by
+at most one worker system-wide at any given time.
 
 @max_active:
 
