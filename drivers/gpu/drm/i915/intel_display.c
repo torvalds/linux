@@ -3662,10 +3662,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
 
-	/* VLV wants encoder enabling _before_ the pipe is up. */
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		encoder->enable(encoder);
-
 	i9xx_pfit_enable(intel_crtc);
 
 	intel_crtc_load_lut(crtc);
@@ -3676,6 +3672,9 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_update_cursor(crtc, true);
 
 	intel_update_fbc(dev);
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->enable(encoder);
 }
 
 static void i9xx_crtc_enable(struct drm_crtc *crtc)
