@@ -672,7 +672,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
 		dev_warn(icd->parent,
-			 "Unsupported format code #%u: %d\n", idx, code);
+			 "Unsupported format code #%u: 0x%x\n", idx, code);
 		return 0;
 	}
 
@@ -688,7 +688,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 			xlate->host_fmt	= &mx3_camera_formats[0];
 			xlate->code	= code;
 			xlate++;
-			dev_dbg(dev, "Providing format %s using code %d\n",
+			dev_dbg(dev, "Providing format %s using code 0x%x\n",
 				mx3_camera_formats[0].name, code);
 		}
 		break;
@@ -698,7 +698,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int id
 			xlate->host_fmt	= &mx3_camera_formats[1];
 			xlate->code	= code;
 			xlate++;
-			dev_dbg(dev, "Providing format %s using code %d\n",
+			dev_dbg(dev, "Providing format %s using code 0x%x\n",
 				mx3_camera_formats[1].name, code);
 		}
 		break;
