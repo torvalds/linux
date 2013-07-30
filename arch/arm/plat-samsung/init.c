@@ -55,12 +55,13 @@ void __init s3c_init_cpu(unsigned long idcode,
 
 	printk("CPU %s (id 0x%08lx)\n", cpu->name, idcode);
 
-	if (cpu->map_io == NULL || cpu->init == NULL) {
+	if (cpu->init == NULL) {
 		printk(KERN_ERR "CPU %s support not enabled\n", cpu->name);
 		panic("Unsupported Samsung CPU");
 	}
 
-	cpu->map_io();
+	if (cpu->map_io)
+		cpu->map_io();
 }
 
 /* s3c24xx_init_clocks
