@@ -88,12 +88,6 @@ static const struct platform_suspend_ops sirfsoc_pm_ops = {
 	.valid = suspend_valid_only_mem,
 };
 
-int __init sirfsoc_pm_init(void)
-{
-	suspend_set_ops(&sirfsoc_pm_ops);
-	return 0;
-}
-
 static const struct of_device_id pwrc_ids[] = {
 	{ .compatible = "sirf,prima2-pwrc" },
 	{}
@@ -121,7 +115,6 @@ static int __init sirfsoc_of_pwrc_init(void)
 
 	return 0;
 }
-postcore_initcall(sirfsoc_of_pwrc_init);
 
 static const struct of_device_id memc_ids[] = {
 	{ .compatible = "sirf,prima2-memc" },
@@ -152,4 +145,11 @@ static int __init sirfsoc_memc_init(void)
 {
 	return platform_driver_register(&sirfsoc_memc_driver);
 }
-postcore_initcall(sirfsoc_memc_init);
+
+int __init sirfsoc_pm_init(void)
+{
+	sirfsoc_of_pwrc_init();
+	sirfsoc_memc_init();
+	suspend_set_ops(&sirfsoc_pm_ops);
+	return 0;
+}
