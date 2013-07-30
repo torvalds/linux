@@ -206,10 +206,16 @@ struct cvmx_usb_pipe {
 	int8_t split_sc_frame;
 };
 
-typedef struct {
-	struct cvmx_usb_pipe *head; /**< Head of the list, or NULL if empty */
-	struct cvmx_usb_pipe *tail; /**< Tail if the list, or NULL if empty */
-} cvmx_usb_pipe_list_t;
+/**
+ * struct cvmx_usb_pipe_list
+ *
+ * @head: Head of the list, or NULL if empty.
+ * @tail: Tail if the list, or NULL if empty.
+ */
+struct cvmx_usb_pipe_list {
+	struct cvmx_usb_pipe *head;
+	struct cvmx_usb_pipe *tail;
+};
 
 typedef struct {
 	struct {
@@ -238,9 +244,9 @@ typedef struct {
 	void *callback_data[__CVMX_USB_CALLBACK_END];			/**< User data for each callback */
 	int indent;							/**< Used by debug output to indent functions */
 	struct cvmx_usb_port_status port_status;			/**< Last port status used for change notification */
-	cvmx_usb_pipe_list_t free_pipes;				/**< List of all pipes that are currently closed */
-	cvmx_usb_pipe_list_t idle_pipes;				/**< List of open pipes that have no transactions */
-	cvmx_usb_pipe_list_t active_pipes[4];				/**< Active pipes indexed by transfer type */
+	struct cvmx_usb_pipe_list free_pipes;				/**< List of all pipes that are currently closed */
+	struct cvmx_usb_pipe_list idle_pipes;				/**< List of open pipes that have no transactions */
+	struct cvmx_usb_pipe_list active_pipes[4];			/**< Active pipes indexed by transfer type */
 	uint64_t frame_number;						/**< Increments every SOF interrupt for time keeping */
 	struct cvmx_usb_transaction *active_split;			/**< Points to the current active split, or NULL */
 	cvmx_usb_tx_fifo_t periodic;
@@ -476,7 +482,7 @@ static inline void __cvmx_usb_free_transaction(cvmx_usb_internal_state_t *usb,
  * @list:   List to add pipe to
  * @pipe:   Pipe to add
  */
-static inline void __cvmx_usb_append_pipe(cvmx_usb_pipe_list_t *list, struct cvmx_usb_pipe *pipe)
+static inline void __cvmx_usb_append_pipe(struct cvmx_usb_pipe_list *list, struct cvmx_usb_pipe *pipe)
 {
 	pipe->next = NULL;
 	pipe->prev = list->tail;
@@ -493,7 +499,7 @@ static inline void __cvmx_usb_append_pipe(cvmx_usb_pipe_list_t *list, struct cvm
  * @list:   List to remove pipe from
  * @pipe:   Pipe to remove
  */
-static inline void __cvmx_usb_remove_pipe(cvmx_usb_pipe_list_t *list, struct cvmx_usb_pipe *pipe)
+static inline void __cvmx_usb_remove_pipe(struct cvmx_usb_pipe_list *list, struct cvmx_usb_pipe *pipe)
 {
 	if (list->head == pipe) {
 		list->head = pipe->next;
@@ -1835,7 +1841,7 @@ static void __cvmx_usb_start_channel(cvmx_usb_internal_state_t *usb,
  *
  * Returns: Pipe or NULL if none are ready
  */
-static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(cvmx_usb_internal_state_t *usb, cvmx_usb_pipe_list_t *list, uint64_t current_frame)
+static struct cvmx_usb_pipe *__cvmx_usb_find_ready_pipe(cvmx_usb_internal_state_t *usb, struct cvmx_usb_pipe_list *list, uint64_t current_frame)
 {
 	struct cvmx_usb_pipe *pipe = list->head;
 	while (pipe) {
