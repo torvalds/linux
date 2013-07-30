@@ -1600,19 +1600,16 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 			urb->interval = 1;	/* frames */
 	}
 
-	if (devpriv->high_speed) {
-		/* max bulk ep size in high speed */
-		devpriv->pwm_buf_sz = 512;
+	if (devpriv->pwm_buf_sz) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
 		devpriv->pwm_urb = urb;
-		urb->transfer_buffer = kzalloc(devpriv->pwm_buf_sz, GFP_KERNEL);
+
+		urb->transfer_buffer = kzalloc(devpriv->pwm_buf_sz,
+					       GFP_KERNEL);
 		if (!urb->transfer_buffer)
 			return -ENOMEM;
-	} else {
-		devpriv->pwm_urb = NULL;
-		devpriv->pwm_buf_sz = 0;
 	}
 
 	return 0;
@@ -1687,9 +1684,11 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	if (devpriv->high_speed) {
 		devpriv->n_ai_urbs = NUMOFINBUFFERSHIGH;
 		devpriv->n_ao_urbs = NUMOFOUTBUFFERSHIGH;
+		devpriv->pwm_buf_sz = 512;
 	} else {
 		devpriv->n_ai_urbs = NUMOFINBUFFERSFULL;
 		devpriv->n_ao_urbs = NUMOFOUTBUFFERSFULL;
+		devpriv->pwm_buf_sz = 0;
 	}
 
 	ret = usbduxsigma_alloc_usb_buffers(dev);
