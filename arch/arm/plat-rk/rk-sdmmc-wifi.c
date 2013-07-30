@@ -505,7 +505,9 @@ EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
 static struct resource resources[] = {
 	{
+#ifdef RK30SDK_WIFI_GPIO_WIFI_INT_B
 		.start = RK30SDK_WIFI_GPIO_WIFI_INT_B,
+#endif
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE,
 		.name = "bcmdhd_wlan_irq",
 	},
