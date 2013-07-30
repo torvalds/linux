@@ -66,6 +66,12 @@ struct aio_ring {
 
 #define AIO_RING_PAGES	8
 
+struct kioctx_table {
+	struct rcu_head	rcu;
+	unsigned	nr;
+	struct kioctx	*table[];
+};
+
 struct kioctx_cpu {
 	unsigned		reqs_available;
 };
@@ -74,9 +80,7 @@ struct kioctx {
 	struct percpu_ref	users;
 	atomic_t		dead;
 
-	/* This needs improving */
 	unsigned long		user_id;
-	struct hlist_node	list;
 
 	struct __percpu kioctx_cpu *cpu;
 
@@ -135,6 +139,8 @@ struct kioctx {
 
 	struct page		*internal_pages[AIO_RING_PAGES];
 	struct file		*aio_ring_file;
+
+	unsigned		id;
 };
 
 /*------ sysctl variables----*/
@@ -326,7 +332,7 @@ static int aio_setup_ring(struct kioctx *ctx)
 
 	ring = kmap_atomic(ctx->ring_pages[0]);
 	ring->nr = nr_events;	/* user copy */
-	ring->id = ctx->user_id;
+	ring->id = ~0U;
 	ring->head = ring->tail = 0;
 	ring->magic = AIO_RING_MAGIC;
 	ring->compat_features = AIO_RING_COMPAT_FEATURES;
@@ -462,6 +468,58 @@ static void free_ioctx_ref(struct percpu_ref *ref)
 	schedule_work(&ctx->free_work);
 }
 
+static int ioctx_add_table(struct kioctx *ctx, struct mm_struct *mm)
+{
+	unsigned i, new_nr;
+	struct kioctx_table *table, *old;
+	struct aio_ring *ring;
+
+	spin_lock(&mm->ioctx_lock);
+	table = rcu_dereference(mm->ioctx_table);
+
+	while (1) {
+		if (table)
+			for (i = 0; i < table->nr; i++)
+				if (!table->table[i]) {
+					ctx->id = i;
+					table->table[i] = ctx;
+					spin_unlock(&mm->ioctx_lock);
+
+					ring = kmap_atomic(ctx->ring_pages[0]);
+					ring->id = ctx->id;
+					kunmap_atomic(ring);
+					return 0;
+				}
+
+		new_nr = (table ? table->nr : 1) * 4;
+
+		spin_unlock(&mm->ioctx_lock);
+
+		table = kzalloc(sizeof(*table) + sizeof(struct kioctx *) *
+				new_nr, GFP_KERNEL);
+		if (!table)
+			return -ENOMEM;
+
+		table->nr = new_nr;
+
+		spin_lock(&mm->ioctx_lock);
+		old = rcu_dereference(mm->ioctx_table);
+
+		if (!old) {
+			rcu_assign_pointer(mm->ioctx_table, table);
+		} else if (table->nr > old->nr) {
+			memcpy(table->table, old->table,
+			       old->nr * sizeof(struct kioctx *));
+
+			rcu_assign_pointer(mm->ioctx_table, table);
+			kfree_rcu(old, rcu);
+		} else {
+			kfree(table);
+			table = old;
+		}
+	}
+}
+
 /* ioctx_alloc
  *	Allocates and initializes an ioctx.  Returns an ERR_PTR if it failed.
  */
@@ -520,6 +578,10 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	ctx->req_batch = (ctx->nr_events - 1) / (num_possible_cpus() * 4);
 	BUG_ON(!ctx->req_batch);
 
+	err = ioctx_add_table(ctx, mm);
+	if (err)
+		goto out_cleanup_noerr;
+
 	/* limit the number of system wide aios */
 	spin_lock(&aio_nr_lock);
 	if (aio_nr + nr_events > (aio_max_nr * 2UL) ||
@@ -532,17 +594,13 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	percpu_ref_get(&ctx->users); /* io_setup() will drop this ref */
 
-	/* now link into global list. */
-	spin_lock(&mm->ioctx_lock);
-	hlist_add_head_rcu(&ctx->list, &mm->ioctx_list);
-	spin_unlock(&mm->ioctx_lock);
-
 	pr_debug("allocated ioctx %p[%ld]: mm=%p mask=0x%x\n",
 		 ctx, ctx->user_id, mm, ctx->nr_events);
 	return ctx;
 
 out_cleanup:
 	err = -EAGAIN;
+out_cleanup_noerr:
 	aio_free_ring(ctx);
 out_freepcpu:
 	free_percpu(ctx->cpu);
@@ -561,10 +619,18 @@ out_freectx:
  *	when the processes owning a context have all exited to encourage
  *	the rapid destruction of the kioctx.
  */
-static void kill_ioctx(struct kioctx *ctx)
+static void kill_ioctx(struct mm_struct *mm, struct kioctx *ctx)
 {
 	if (!atomic_xchg(&ctx->dead, 1)) {
-		hlist_del_rcu(&ctx->list);
+		struct kioctx_table *table;
+
+		spin_lock(&mm->ioctx_lock);
+		table = rcu_dereference(mm->ioctx_table);
+
+		WARN_ON(ctx != table->table[ctx->id]);
+		table->table[ctx->id] = NULL;
+		spin_unlock(&mm->ioctx_lock);
+
 		/* percpu_ref_kill() will do the necessary call_rcu() */
 		wake_up_all(&ctx->wait);
 
@@ -613,10 +679,28 @@ EXPORT_SYMBOL(wait_on_sync_kiocb);
  */
 void exit_aio(struct mm_struct *mm)
 {
+	struct kioctx_table *table;
 	struct kioctx *ctx;
-	struct hlist_node *n;
+	unsigned i = 0;
 
-	hlist_for_each_entry_safe(ctx, n, &mm->ioctx_list, list) {
+	while (1) {
+		rcu_read_lock();
+		table = rcu_dereference(mm->ioctx_table);
+
+		do {
+			if (!table || i >= table->nr) {
+				rcu_read_unlock();
+				rcu_assign_pointer(mm->ioctx_table, NULL);
+				if (table)
+					kfree(table);
+				return;
+			}
+
+			ctx = table->table[i++];
+		} while (!ctx);
+
+		rcu_read_unlock();
+
 		/*
 		 * We don't need to bother with munmap() here -
 		 * exit_mmap(mm) is coming and it'll unmap everything.
@@ -627,7 +711,7 @@ void exit_aio(struct mm_struct *mm)
 		 */
 		ctx->mmap_size = 0;
 
-		kill_ioctx(ctx);
+		kill_ioctx(mm, ctx);
 	}
 }
 
@@ -710,19 +794,27 @@ static void kiocb_free(struct kiocb *req)
 
 static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 {
+	struct aio_ring __user *ring  = (void __user *)ctx_id;
 	struct mm_struct *mm = current->mm;
 	struct kioctx *ctx, *ret = NULL;
+	struct kioctx_table *table;
+	unsigned id;
+
+	if (get_user(id, &ring->id))
+		return NULL;
 
 	rcu_read_lock();
+	table = rcu_dereference(mm->ioctx_table);
 
-	hlist_for_each_entry_rcu(ctx, &mm->ioctx_list, list) {
-		if (ctx->user_id == ctx_id) {
-			percpu_ref_get(&ctx->users);
-			ret = ctx;
-			break;
-		}
+	if (!table || id >= table->nr)
+		goto out;
+
+	ctx = table->table[id];
+	if (ctx->user_id == ctx_id) {
+		percpu_ref_get(&ctx->users);
+		ret = ctx;
 	}
-
+out:
 	rcu_read_unlock();
 	return ret;
 }
@@ -998,7 +1090,7 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 	if (!IS_ERR(ioctx)) {
 		ret = put_user(ioctx->user_id, ctxp);
 		if (ret)
-			kill_ioctx(ioctx);
+			kill_ioctx(current->mm, ioctx);
 		percpu_ref_put(&ioctx->users);
 	}
 
@@ -1016,7 +1108,7 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 {
 	struct kioctx *ioctx = lookup_ioctx(ctx);
 	if (likely(NULL != ioctx)) {
-		kill_ioctx(ioctx);
+		kill_ioctx(current->mm, ioctx);
 		percpu_ref_put(&ioctx->users);
 		return 0;
 	}
