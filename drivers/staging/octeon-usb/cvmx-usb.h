@@ -335,20 +335,25 @@ struct cvmx_usb_port_status {
 };
 
 /**
- * This is the structure of a Control packet header
+ * union cvmx_usb_control_header - the structure of a Control packet header
+ *
+ * @s.request_type:	Bit 7 tells the direction: 1=IN, 0=OUT
+ * @s.request		The standard usb request to make
+ * @s.value		Value parameter for the request in little endian format
+ * @s.index		Index for the request in little endian format
+ * @s.length		Length of the data associated with this request in
+ *			little endian format
  */
-typedef union
-{
-    uint64_t u64;
-    struct
-    {
-        uint64_t request_type   : 8;  /**< Bit 7 tells the direction: 1=IN, 0=OUT */
-        uint64_t request        : 8;  /**< The standard usb request to make */
-        uint64_t value          : 16; /**< Value parameter for the request in little endian format */
-        uint64_t index          : 16; /**< Index for the request in little endian format */
-        uint64_t length         : 16; /**< Length of the data associated with this request in little endian format */
-    } s;
-} cvmx_usb_control_header_t;
+union cvmx_usb_control_header {
+	uint64_t u64;
+	struct {
+		uint64_t request_type   : 8;
+		uint64_t request        : 8;
+		uint64_t value          : 16;
+		uint64_t index          : 16;
+		uint64_t length         : 16;
+	} s;
+};
 
 /**
  * struct cvmx_usb_iso_packet - descriptor for Isochronous packets

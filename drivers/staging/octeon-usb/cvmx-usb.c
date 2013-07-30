@@ -1448,7 +1448,8 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_internal_state *usb
 					     struct cvmx_usb_pipe *pipe)
 {
 	struct cvmx_usb_transaction *transaction = pipe->head;
-	cvmx_usb_control_header_t *header = cvmx_phys_to_ptr(transaction->control_header);
+	union cvmx_usb_control_header *header =
+		cvmx_phys_to_ptr(transaction->control_header);
 	int bytes_to_transfer = transaction->buffer_length - transaction->actual_bytes;
 	int packets_to_transfer;
 	cvmx_usbcx_hctsizx_t usbc_hctsiz;
@@ -2319,7 +2320,8 @@ int cvmx_usb_submit_control(struct cvmx_usb_state *state, int pipe_handle,
 {
 	int submit_handle;
 	struct cvmx_usb_internal_state *usb = (struct cvmx_usb_internal_state *)state;
-	cvmx_usb_control_header_t *header = cvmx_phys_to_ptr(control_header);
+	union cvmx_usb_control_header *header =
+		cvmx_phys_to_ptr(control_header);
 
 	/* Pipe handle checking is done later in a common place */
 	if (unlikely(!control_header))
@@ -2884,7 +2886,8 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_internal_state *usb, int chan
 				if (__cvmx_usb_pipe_needs_split(usb, pipe))
 					transaction->stage = CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE;
 				else {
-					cvmx_usb_control_header_t *header = cvmx_phys_to_ptr(transaction->control_header);
+					union cvmx_usb_control_header *header =
+						cvmx_phys_to_ptr(transaction->control_header);
 					if (header->s.length)
 						transaction->stage = CVMX_USB_STAGE_DATA;
 					else
@@ -2893,7 +2896,8 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_internal_state *usb, int chan
 				break;
 			case CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE:
 				{
-					cvmx_usb_control_header_t *header = cvmx_phys_to_ptr(transaction->control_header);
+					union cvmx_usb_control_header *header =
+						cvmx_phys_to_ptr(transaction->control_header);
 					if (header->s.length)
 						transaction->stage = CVMX_USB_STAGE_DATA;
 					else
