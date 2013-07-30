@@ -378,6 +378,18 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	return 0;
 }
 
+static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
+					 struct iwl_notif_statistics *stats)
+{
+	/*
+	 * NOTE FW aggregates the statistics - BUT the statistics are cleared
+	 * when the driver issues REPLY_STATISTICS_CMD 0x9c with CLEAR_STATS
+	 * bit set.
+	 */
+	lockdep_assert_held(&mvm->mutex);
+	memcpy(&mvm->rx_stats, &stats->rx, sizeof(struct mvm_statistics_rx));
+}
+
 /*
  * iwl_mvm_rx_statistics - STATISTICS_NOTIFICATION handler
  *
@@ -396,6 +408,7 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 		mvm->temperature = le32_to_cpu(common->temperature);
 		iwl_mvm_tt_handler(mvm);
 	}
+	iwl_mvm_update_rx_statistics(mvm, stats);
 
 	return 0;
 }

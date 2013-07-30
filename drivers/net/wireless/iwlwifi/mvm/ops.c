@@ -440,6 +440,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	else
 		mvm->pm_ops = &pm_legacy_ops;
 
+	memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
+
 	return op_mode;
 
  out_unregister:
