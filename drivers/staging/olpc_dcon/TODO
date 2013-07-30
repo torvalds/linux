@@ -1,5 +1,4 @@
 TODO:
-	- checkpatch.pl cleanups
 	- see if vx855 gpio API can be made similar enough to cs5535 so we can
 	  share more code
 	- allow simultaneous XO-1 and XO-1.5 support
