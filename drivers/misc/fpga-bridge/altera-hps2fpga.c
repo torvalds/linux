@@ -33,6 +33,7 @@
 #define ALT_RSTMGR_BRGMODRST_F2H_MSK		0x00000004
 
 #define ALT_L3_REMAP_OFST			0x0
+#define ALT_L3_REMAP_MPUZERO_MSK		0x00000001
 #define ALT_L3_REMAP_H2F_MSK			0x00000008
 #define ALT_L3_REMAP_LWH2F_MSK			0x00000010
 
@@ -63,6 +64,7 @@ static void alt_hps2fpga_enable_set(struct fpga_bridge *bridge, bool enable)
 	struct altera_hps2fpga_data *priv = bridge->priv;
 	int value;
 
+	/* bring bridge out of reset */
 	if (enable)
 		value = 0;
 	else
@@ -73,13 +75,12 @@ static void alt_hps2fpga_enable_set(struct fpga_bridge *bridge, bool enable)
 
 	/* Allow bridge to be visible to L3 masters or not */
 	if (priv->remap_mask) {
-		if (enable)
-			value = 0;
-		else
-			value = priv->remap_mask;
+		value = ALT_L3_REMAP_MPUZERO_MSK;
 
-		regmap_update_bits(priv->l3reg, ALT_L3_REMAP_OFST,
-				priv->remap_mask, value);
+		if (enable)
+			value |= priv->remap_mask;
+
+		regmap_write(priv->l3reg, ALT_L3_REMAP_OFST, value);
 	}
 }
 
