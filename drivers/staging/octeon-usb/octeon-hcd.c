@@ -440,7 +440,7 @@ static void octeon_usb_endpoint_disable(struct usb_hcd *hcd, struct usb_host_end
 static int octeon_usb_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
-	cvmx_usb_port_status_t port_status;
+	struct cvmx_usb_port_status port_status;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -456,7 +456,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, 
 {
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
 	struct device *dev = hcd->self.controller;
-	cvmx_usb_port_status_t usb_port_status;
+	struct cvmx_usb_port_status usb_port_status;
 	int port_status;
 	struct usb_hub_descriptor *desc;
 	unsigned long flags;

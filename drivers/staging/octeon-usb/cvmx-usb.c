@@ -196,7 +196,7 @@ typedef struct {
 	cvmx_usb_callback_func_t callback[__CVMX_USB_CALLBACK_END];	/**< User global callbacks */
 	void *callback_data[__CVMX_USB_CALLBACK_END];			/**< User data for each callback */
 	int indent;							/**< Used by debug output to indent functions */
-	cvmx_usb_port_status_t port_status;				/**< Last port status used for change notification */
+	struct cvmx_usb_port_status port_status;			/**< Last port status used for change notification */
 	cvmx_usb_pipe_list_t free_pipes;				/**< List of all pipes that are currently closed */
 	cvmx_usb_pipe_list_t idle_pipes;				/**< List of open pipes that have no transactions */
 	cvmx_usb_pipe_list_t active_pipes[4];				/**< Active pipes indexed by transfer type */
@@ -971,10 +971,10 @@ int cvmx_usb_disable(cvmx_usb_state_t *state)
  *
  * Returns: Port status information
  */
-cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state)
+struct cvmx_usb_port_status cvmx_usb_get_status(cvmx_usb_state_t *state)
 {
 	cvmx_usbcx_hprt_t usbc_hprt;
-	cvmx_usb_port_status_t result;
+	struct cvmx_usb_port_status result;
 	cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t *)state;
 
 	memset(&result, 0, sizeof(result));
@@ -1003,7 +1003,7 @@ cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state)
  * @port_status:
  *		 Port status to set, most like returned by cvmx_usb_get_status()
  */
-void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t port_status)
+void cvmx_usb_set_status(cvmx_usb_state_t *state, struct cvmx_usb_port_status port_status)
 {
 	cvmx_usb_internal_state_t *usb = (cvmx_usb_internal_state_t *)state;
 	usb->port_status = port_status;
@@ -2964,7 +2964,7 @@ static int __cvmx_usb_poll_channel(cvmx_usb_internal_state_t *usb, int channel)
 			pipe->next_tx_frame = usb->frame_number + pipe->interval -
 				(usb->frame_number - pipe->next_tx_frame) % pipe->interval;
 	} else {
-		cvmx_usb_port_status_t port;
+		struct cvmx_usb_port_status port;
 		port = cvmx_usb_get_status((cvmx_usb_state_t *)usb);
 		if (port.port_enabled) {
 			/* We'll retry the exact same transaction again */

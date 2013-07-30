@@ -310,18 +310,29 @@ enum cvmx_usb_complete {
 };
 
 /**
- * Structure returned containing the USB port status information.
+ * struct cvmx_usb_port_status - the USB port status information
+ *
+ * @port_enabled:	1 = Usb port is enabled, 0 = disabled
+ * @port_over_current:	1 = Over current detected, 0 = Over current not
+ *			detected. Octeon doesn't support over current detection.
+ * @port_powered:	1 = Port power is being supplied to the device, 0 =
+ *			power is off. Octeon doesn't support turning port power
+ *			off.
+ * @port_speed:		Current port speed.
+ * @connected:		1 = A device is connected to the port, 0 = No device is
+ *			connected.
+ * @connect_change:	1 = Device connected state changed since the last set
+ *			status call.
  */
-typedef struct
-{
-    uint32_t reserved           : 25;
-    uint32_t port_enabled       : 1; /**< 1 = Usb port is enabled, 0 = disabled */
-    uint32_t port_over_current  : 1; /**< 1 = Over current detected, 0 = Over current not detected. Octeon doesn't support over current detection */
-    uint32_t port_powered       : 1; /**< 1 = Port power is being supplied to the device, 0 = power is off. Octeon doesn't support turning port power off */
-    enum cvmx_usb_speed port_speed : 2; /**< Current port speed */
-    uint32_t connected          : 1; /**< 1 = A device is connected to the port, 0 = No device is connected */
-    uint32_t connect_change     : 1; /**< 1 = Device connected state changed since the last set status call */
-} cvmx_usb_port_status_t;
+struct cvmx_usb_port_status {
+	uint32_t reserved		: 25;
+	uint32_t port_enabled		: 1;
+	uint32_t port_over_current	: 1;
+	uint32_t port_powered		: 1;
+	enum cvmx_usb_speed port_speed	: 2;
+	uint32_t connected		: 1;
+	uint32_t connect_change		: 1;
+};
 
 /**
  * This is the structure of a Control packet header
@@ -463,8 +474,8 @@ extern int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
 extern int cvmx_usb_shutdown(cvmx_usb_state_t *state);
 extern int cvmx_usb_enable(cvmx_usb_state_t *state);
 extern int cvmx_usb_disable(cvmx_usb_state_t *state);
-extern cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state);
-extern void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t port_status);
+extern struct cvmx_usb_port_status cvmx_usb_get_status(cvmx_usb_state_t *state);
+extern void cvmx_usb_set_status(cvmx_usb_state_t *state, struct cvmx_usb_port_status port_status);
 extern int cvmx_usb_open_pipe(cvmx_usb_state_t *state,
                               enum cvmx_usb_pipe_flags flags,
                               int device_addr, int endpoint_num,
