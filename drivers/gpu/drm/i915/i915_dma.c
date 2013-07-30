@@ -1608,6 +1608,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_detect_pch(dev);
 
 	intel_irq_init(dev);
+	intel_pm_init(dev);
 	intel_gt_sanitize(dev);
 	intel_gt_init(dev);
 
