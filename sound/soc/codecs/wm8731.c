@@ -45,6 +45,7 @@ static const char *wm8731_supply_names[WM8731_NUM_SUPPLIES] = {
 struct wm8731_priv {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8731_NUM_SUPPLIES];
+	const struct snd_pcm_hw_constraint_list *constraints;
 	unsigned int sysclk;
 	int sysclk_type;
 	int playback_fs;
@@ -290,6 +291,36 @@ static const struct _coeff_div coeff_div[] = {
 	{12000000, 88200, 136, 0xf, 0x1, 0x1},
 };
 
+/* rates constraints */
+static const unsigned int wm8731_rates_12000000[] = {
+	8000, 32000, 44100, 48000, 96000, 88200,
+};
+
+static const unsigned int wm8731_rates_12288000_18432000[] = {
+	8000, 32000, 48000, 96000,
+};
+
+static const unsigned int wm8731_rates_11289600_16934400[] = {
+	8000, 44100, 88200,
+};
+
+static const struct snd_pcm_hw_constraint_list wm8731_constraints_12000000 = {
+	.list = wm8731_rates_12000000,
+	.count = ARRAY_SIZE(wm8731_rates_12000000),
+};
+
+static const
+struct snd_pcm_hw_constraint_list wm8731_constraints_12288000_18432000 = {
+	.list = wm8731_rates_12288000_18432000,
+	.count = ARRAY_SIZE(wm8731_rates_12288000_18432000),
+};
+
+static const
+struct snd_pcm_hw_constraint_list wm8731_constraints_11289600_16934400 = {
+	.list = wm8731_rates_11289600_16934400,
+	.count = ARRAY_SIZE(wm8731_rates_11289600_16934400),
+};
+
 static inline int get_coeff(int mclk, int rate)
 {
 	int i;
@@ -362,16 +393,25 @@ static int wm8731_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	}
 
 	switch (freq) {
-	case 11289600:
+	case 0:
+		wm8731->constraints = NULL;
+		break;
 	case 12000000:
+		wm8731->constraints = &wm8731_constraints_12000000;
+		break;
 	case 12288000:
-	case 16934400:
 	case 18432000:
-		wm8731->sysclk = freq;
+		wm8731->constraints = &wm8731_constraints_12288000_18432000;
+		break;
+	case 16934400:
+	case 11289600:
+		wm8731->constraints = &wm8731_constraints_11289600_16934400;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	wm8731->sysclk = freq;
 
 	snd_soc_dapm_sync(&codec->dapm);
 
@@ -475,12 +515,26 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static int wm8731_startup(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
+{
+	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(dai->codec);
+
+	if (wm8731->constraints)
+		snd_pcm_hw_constraint_list(substream->runtime, 0,
+					   SNDRV_PCM_HW_PARAM_RATE,
+					   wm8731->constraints);
+
+	return 0;
+}
+
 #define WM8731_RATES SNDRV_PCM_RATE_8000_96000
 
 #define WM8731_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
 static const struct snd_soc_dai_ops wm8731_dai_ops = {
+	.startup	= wm8731_startup,
 	.hw_params	= wm8731_hw_params,
 	.digital_mute	= wm8731_mute,
 	.set_sysclk	= wm8731_set_dai_sysclk,
