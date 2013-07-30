@@ -203,7 +203,7 @@ struct bp_operate bp_a85xx_ops = {
 	.bp_assert		= BP_UNKNOW_DATA,
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
-	.trig				= IRQF_TRIGGER_FALLING,
+	.trig				= IRQF_TRIGGER_RISING,
 
 	.active			= bp_active,
 	.init				= bp_init,
@@ -233,7 +233,7 @@ struct bp_operate bp_a85xx_ops = {
 	.bp_assert		= BP_UNKNOW_DATA,
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
-	.trig				= IRQF_TRIGGER_FALLING,
+	.trig				= IRQF_TRIGGER_RISING,
 
 	.active			= bp_active,
 	.init				= bp_init,
