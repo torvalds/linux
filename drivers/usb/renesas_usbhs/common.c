@@ -416,7 +416,7 @@ static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
  */
 static int usbhs_probe(struct platform_device *pdev)
 {
-	struct renesas_usbhs_platform_info *info = pdev->dev.platform_data;
+	struct renesas_usbhs_platform_info *info = dev_get_platdata(&pdev->dev);
 	struct renesas_usbhs_driver_callback *dfunc;
 	struct usbhs_priv *priv;
 	struct resource *res, *irq_res;
@@ -558,7 +558,7 @@ probe_end_pipe_exit:
 static int usbhs_remove(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
-	struct renesas_usbhs_platform_info *info = pdev->dev.platform_data;
+	struct renesas_usbhs_platform_info *info = dev_get_platdata(&pdev->dev);
 	struct renesas_usbhs_driver_callback *dfunc = &info->driver_callback;
 
 	dev_dbg(&pdev->dev, "usb remove\n");
