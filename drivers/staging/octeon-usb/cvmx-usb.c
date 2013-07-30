@@ -217,7 +217,7 @@ struct cvmx_usb_pipe_list {
 	struct cvmx_usb_pipe *tail;
 };
 
-typedef struct {
+struct cvmx_usb_tx_fifo {
 	struct {
 		int channel;
 		int size;
@@ -225,7 +225,7 @@ typedef struct {
 	} entry[MAX_CHANNELS+1];
 	int head;
 	int tail;
-} cvmx_usb_tx_fifo_t;
+};
 
 /**
  * The state of the USB block is stored in this structure
@@ -249,8 +249,8 @@ typedef struct {
 	struct cvmx_usb_pipe_list active_pipes[4];			/**< Active pipes indexed by transfer type */
 	uint64_t frame_number;						/**< Increments every SOF interrupt for time keeping */
 	struct cvmx_usb_transaction *active_split;			/**< Points to the current active split, or NULL */
-	cvmx_usb_tx_fifo_t periodic;
-	cvmx_usb_tx_fifo_t nonperiodic;
+	struct cvmx_usb_tx_fifo periodic;
+	struct cvmx_usb_tx_fifo nonperiodic;
 } cvmx_usb_internal_state_t;
 
 /* This macro spins on a field waiting for it to reach a value */
@@ -1288,7 +1288,7 @@ static void __cvmx_usb_poll_rx_fifo(cvmx_usb_internal_state_t *usb)
  * Returns: Non zero if the hardware fifo was too small and needs
  *	    to be serviced again.
  */
-static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, cvmx_usb_tx_fifo_t *fifo, int available)
+static int __cvmx_usb_fill_tx_hw(cvmx_usb_internal_state_t *usb, struct cvmx_usb_tx_fifo *fifo, int available)
 {
 	/*
 	 * We're done either when there isn't anymore space or the software FIFO
@@ -1378,7 +1378,7 @@ static void __cvmx_usb_fill_tx_fifo(cvmx_usb_internal_state_t *usb, int channel)
 	cvmx_usbcx_hccharx_t hcchar;
 	cvmx_usbcx_hcspltx_t usbc_hcsplt;
 	cvmx_usbcx_hctsizx_t usbc_hctsiz;
-	cvmx_usb_tx_fifo_t *fifo;
+	struct cvmx_usb_tx_fifo *fifo;
 
 	/* We only need to fill data on outbound channels */
 	hcchar.u32 = __cvmx_usb_read_csr32(usb, CVMX_USBCX_HCCHARX(channel, usb->index));
