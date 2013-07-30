@@ -275,7 +275,7 @@ static int tps51632_probe(struct i2c_client *client,
 		}
 	}
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata && client->dev.of_node)
 		pdata = of_get_tps51632_platform_data(&client->dev);
 	if (!pdata) {

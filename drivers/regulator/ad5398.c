@@ -214,7 +214,7 @@ MODULE_DEVICE_TABLE(i2c, ad5398_id);
 static int ad5398_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	struct regulator_init_data *init_data = client->dev.platform_data;
+	struct regulator_init_data *init_data = dev_get_platdata(&client->dev);
 	struct regulator_config config = { };
 	struct ad5398_chip_info *chip;
 	const struct ad5398_current_data_format *df =

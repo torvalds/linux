@@ -163,7 +163,7 @@ static int max1586_pmic_probe(struct i2c_client *client,
 					const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;
-	struct max1586_platform_data *pdata = client->dev.platform_data;
+	struct max1586_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct regulator_config config = { };
 	struct max1586_data *max1586;
 	int i, id, ret = -ENOMEM;

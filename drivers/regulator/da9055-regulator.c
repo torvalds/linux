@@ -535,7 +535,7 @@ static int da9055_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	struct da9055_regulator *regulator;
 	struct da9055 *da9055 = dev_get_drvdata(pdev->dev.parent);
-	struct da9055_pdata *pdata = da9055->dev->platform_data;
+	struct da9055_pdata *pdata = dev_get_platdata(da9055->dev);
 	int ret, irq;
 
 	if (pdata == NULL || pdata->regulators[pdev->id] == NULL)

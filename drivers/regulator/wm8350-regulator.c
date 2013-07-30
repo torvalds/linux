@@ -1201,7 +1201,7 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	}
 
 	config.dev = &pdev->dev;
-	config.init_data = pdev->dev.platform_data;
+	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = dev_get_drvdata(&pdev->dev);
 	config.regmap = wm8350->regmap;
 

@@ -765,7 +765,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 static int palmas_regulators_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
-	struct palmas_pmic_platform_data *pdata = pdev->dev.platform_data;
+	struct palmas_pmic_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };

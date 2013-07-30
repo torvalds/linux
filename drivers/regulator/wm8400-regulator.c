@@ -215,7 +215,7 @@ static int wm8400_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 
 	config.dev = &pdev->dev;
-	config.init_data = pdev->dev.platform_data;
+	config.init_data = dev_get_platdata(&pdev->dev);
 	config.driver_data = wm8400;
 	config.regmap = wm8400->regmap;
 

@@ -237,7 +237,7 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	unsigned int val;
 	int ret;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata || !pdata->regulator) {
 		dev_err(&client->dev, "Platform data not found!\n");
 		return -ENODEV;
