@@ -179,7 +179,7 @@ err_hubmode:
 
 static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
-	struct usb3503_platform_data *pdata = i2c->dev.platform_data;
+	struct usb3503_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct device_node *np = i2c->dev.of_node;
 	struct usb3503 *hub;
 	int err = -ENOMEM;
