@@ -139,17 +139,17 @@ static int ad8366_probe(struct spi_device *spi)
 	struct ad8366_state *st;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vcc");
+	st->reg = devm_regulator_get(&spi->dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 	}
 
 	spi_set_drvdata(spi, indio_dev);
@@ -173,11 +173,6 @@ static int ad8366_probe(struct spi_device *spi)
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -194,8 +189,6 @@ static int ad8366_remove(struct spi_device *spi)
 		regulator_disable(reg);
 		regulator_put(reg);
 	}
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }
