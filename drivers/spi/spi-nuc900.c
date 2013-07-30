@@ -350,7 +350,7 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 
 	hw = spi_master_get_devdata(master);
 	hw->master = spi_master_get(master);
-	hw->pdata  = pdev->dev.platform_data;
+	hw->pdata  = dev_get_platdata(&pdev->dev);
 	hw->dev = &pdev->dev;
 
 	if (hw->pdata == NULL) {

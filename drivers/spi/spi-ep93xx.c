@@ -1022,7 +1022,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	int irq;
 	int error;
 
-	info = pdev->dev.platform_data;
+	info = dev_get_platdata(&pdev->dev);
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*espi));
 	if (!master) {

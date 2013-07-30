@@ -247,7 +247,7 @@ static int tle62x0_probe(struct spi_device *spi)
 	int ptr;
 	int ret;
 
-	pdata = spi->dev.platform_data;
+	pdata = dev_get_platdata(&spi->dev);
 	if (pdata == NULL) {
 		dev_err(&spi->dev, "no device data specified\n");
 		return -EINVAL;

@@ -525,7 +525,7 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	memset(hw, 0, sizeof(struct s3c24xx_spi));
 
 	hw->master = spi_master_get(master);
-	hw->pdata = pdata = pdev->dev.platform_data;
+	hw->pdata = pdata = dev_get_platdata(&pdev->dev);
 	hw->dev = &pdev->dev;
 
 	if (pdata == NULL) {

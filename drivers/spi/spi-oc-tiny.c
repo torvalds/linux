@@ -285,7 +285,7 @@ static int tiny_spi_of_probe(struct platform_device *pdev)
 
 static int tiny_spi_probe(struct platform_device *pdev)
 {
-	struct tiny_spi_platform_data *platp = pdev->dev.platform_data;
+	struct tiny_spi_platform_data *platp = dev_get_platdata(&pdev->dev);
 	struct tiny_spi *hw;
 	struct spi_master *master;
 	struct resource *res;

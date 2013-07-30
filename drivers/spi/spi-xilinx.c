@@ -349,7 +349,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	u32 tmp;
 	u8 i;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata) {
 		num_cs = pdata->num_chipselect;
 		bits_per_word = pdata->bits_per_word;

@@ -400,7 +400,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	struct mcfqspi_platform_data *pdata;
 	int status;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "platform data is missing\n");
 		return -ENOENT;

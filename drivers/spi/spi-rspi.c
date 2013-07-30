@@ -664,7 +664,7 @@ static irqreturn_t rspi_irq(int irq, void *_sr)
 static int rspi_request_dma(struct rspi_data *rspi,
 				      struct platform_device *pdev)
 {
-	struct rspi_plat_data *rspi_pd = pdev->dev.platform_data;
+	struct rspi_plat_data *rspi_pd = dev_get_platdata(&pdev->dev);
 	dma_cap_mask_t mask;
 	struct dma_slave_config cfg;
 	int ret;

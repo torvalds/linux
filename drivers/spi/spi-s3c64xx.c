@@ -1272,7 +1272,7 @@ static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 #else
 static struct s3c64xx_spi_info *s3c64xx_spi_parse_dt(struct device *dev)
 {
-	return dev->platform_data;
+	return dev_get_platdata(dev);
 }
 #endif
 
@@ -1297,7 +1297,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	struct resource	*mem_res;
 	struct resource	*res;
 	struct s3c64xx_spi_driver_data *sdd;
-	struct s3c64xx_spi_info *sci = pdev->dev.platform_data;
+	struct s3c64xx_spi_info *sci = dev_get_platdata(&pdev->dev);
 	struct spi_master *master;
 	int ret, irq;
 	char clk_name[16];

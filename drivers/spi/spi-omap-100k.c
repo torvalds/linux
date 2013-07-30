@@ -512,7 +512,7 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	 * You should allocate this with ioremap() before initializing
 	 * the SPI.
 	 */
-	spi100k->base = (void __iomem *) pdev->dev.platform_data;
+	spi100k->base = (void __iomem *)dev_get_platdata(&pdev->dev);
 
 	INIT_WORK(&spi100k->work, omap1_spi100k_work);
 

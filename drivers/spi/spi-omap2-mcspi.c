@@ -1340,7 +1340,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 		if (of_get_property(node, "ti,pindir-d0-out-d1-in", NULL))
 			mcspi->pin_dir = MCSPI_PINDIR_D0_OUT_D1_IN;
 	} else {
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		master->num_chipselect = pdata->num_cs;
 		if (pdev->id != -1)
 			master->bus_num = pdev->id;
