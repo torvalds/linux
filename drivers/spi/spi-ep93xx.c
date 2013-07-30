@@ -509,7 +509,7 @@ ep93xx_spi_dma_prepare(struct ep93xx_spi *espi, enum dma_transfer_direction dir)
 	}
 
 	if (WARN_ON(len)) {
-		dev_warn(&espi->pdev->dev, "len = %d expected 0!", len);
+		dev_warn(&espi->pdev->dev, "len = %zu expected 0!", len);
 		return ERR_PTR(-EINVAL);
 	}
 
