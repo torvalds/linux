@@ -1703,10 +1703,10 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usbduxsigma_private *devpriv = dev->private;
 
+	usb_set_intfdata(intf, NULL);
+
 	if (!devpriv)
 		return;
-
-	usb_set_intfdata(intf, NULL);
 
 	down(&devpriv->sem);
 
