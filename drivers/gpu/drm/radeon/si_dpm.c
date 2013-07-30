@@ -1765,8 +1765,9 @@ static void si_calculate_leakage_for_v_and_t_formula(const struct ni_leakage_coe
 {
 	s64 kt, kv, leakage_w, i_leakage, vddc;
 	s64 temperature, t_slope, t_intercept, av, bv, t_ref;
+	s64 tmp;
 
-	i_leakage = drm_int2fixp(ileakage / 100);
+	i_leakage = drm_int2fixp(ileakage) / 100;
 	vddc = div64_s64(drm_int2fixp(v), 1000);
 	temperature = div64_s64(drm_int2fixp(t), 1000);
 
@@ -1776,8 +1777,9 @@ static void si_calculate_leakage_for_v_and_t_formula(const struct ni_leakage_coe
 	bv = div64_s64(drm_int2fixp(coeff->bv), 100000000);
 	t_ref = drm_int2fixp(coeff->t_ref);
 
-	kt = drm_fixp_div(drm_fixp_exp(drm_fixp_mul(drm_fixp_mul(t_slope, vddc) + t_intercept, temperature)),
-			  drm_fixp_exp(drm_fixp_mul(drm_fixp_mul(t_slope, vddc) + t_intercept, t_ref)));
+	tmp = drm_fixp_mul(t_slope, vddc) + t_intercept;
+	kt = drm_fixp_exp(drm_fixp_mul(tmp, temperature));
+	kt = drm_fixp_div(kt, drm_fixp_exp(drm_fixp_mul(tmp, t_ref)));
 	kv = drm_fixp_mul(av, drm_fixp_exp(drm_fixp_mul(bv, vddc)));
 
 	leakage_w = drm_fixp_mul(drm_fixp_mul(drm_fixp_mul(i_leakage, kt), kv), vddc);
