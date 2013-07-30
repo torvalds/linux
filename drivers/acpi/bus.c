@@ -89,27 +89,6 @@ static struct dmi_system_id dsdt_dmi_table[] __initdata = {
                                 Device Management
    -------------------------------------------------------------------------- */
 
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
-{
-	acpi_status status;
-
-	if (!device)
-		return -EINVAL;
-
-	/* TBD: Support fixed-feature devices */
-
-	status = acpi_get_data(handle, acpi_bus_data_handler, (void **)device);
-	if (ACPI_FAILURE(status) || !*device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
-				  handle));
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-EXPORT_SYMBOL(acpi_bus_get_device);
-
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta)
 {
