@@ -8065,6 +8065,19 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
+	/*
+	 * Sanitize sync polarity flags based on requested ones. If neither
+	 * positive or negative polarity is requested, treat this as meaning
+	 * negative polarity.
+	 */
+	if (!(pipe_config->adjusted_mode.flags &
+	      (DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NHSYNC)))
+		pipe_config->adjusted_mode.flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (!(pipe_config->adjusted_mode.flags &
+	      (DRM_MODE_FLAG_PVSYNC | DRM_MODE_FLAG_NVSYNC)))
+		pipe_config->adjusted_mode.flags |= DRM_MODE_FLAG_NVSYNC;
+
 	/* Compute a starting value for pipe_config->pipe_bpp taking the source
 	 * plane pixel format and any sink constraints into account. Returns the
 	 * source plane bpp so that dithering can be selected on mismatches
