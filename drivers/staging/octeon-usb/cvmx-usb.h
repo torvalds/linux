@@ -408,23 +408,36 @@ typedef void (*cvmx_usb_callback_func_t)(cvmx_usb_state_t *state,
                                          int bytes_transferred, void *user_data);
 
 /**
- * Flags to pass the initialization function.
+ * enum cvmx_usb_initialize_flags - flags to pass the initialization function
+ *
+ * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI:    The USB port uses a 12MHz crystal
+ *					      as clock source at USB_XO and
+ *					      USB_XI.
+ * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND:   The USB port uses 12/24/48MHz 2.5V
+ *					      board clock source at USB_XO.
+ *					      USB_XI should be tied to GND.
+ * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO:     Automatically determine clock type
+ *					      based on function in
+ *					      cvmx-helper-board.c.
+ * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK: Mask for clock speed field
+ * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ:    Speed of reference clock or
+ *					      crystal
+ * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_24MHZ:    Speed of reference clock
+ * @CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ:    Speed of reference clock
+ * @CVMX_USB_INITIALIZE_FLAGS_NO_DMA:	      Disable DMA and used polled IO for
+ *					      data transfer use for the USB
  */
-typedef enum
-{
-    CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI = 1<<0,       /**< The USB port uses a 12MHz crystal as clock source
-                                                            at USB_XO and USB_XI. */
-    CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND = 1<<1,      /**< The USB port uses 12/24/48MHz 2.5V board clock
-                                                            source at USB_XO. USB_XI should be tied to GND.*/
-    CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO = 0,           /**< Automatically determine clock type based on function
-                                                             in cvmx-helper-board.c. */
-    CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK  = 3<<3,       /**< Mask for clock speed field */
-    CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ = 1<<3,       /**< Speed of reference clock or crystal */
-    CVMX_USB_INITIALIZE_FLAGS_CLOCK_24MHZ = 2<<3,       /**< Speed of reference clock */
-    CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ = 3<<3,       /**< Speed of reference clock */
-    /* Bits 3-4 used to encode the clock frequency */
-    CVMX_USB_INITIALIZE_FLAGS_NO_DMA = 1<<5,            /**< Disable DMA and used polled IO for data transfer use for the USB  */
-} cvmx_usb_initialize_flags_t;
+enum cvmx_usb_initialize_flags {
+	CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_XI		= 1 << 0,
+	CVMX_USB_INITIALIZE_FLAGS_CLOCK_XO_GND		= 1 << 1,
+	CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO		= 0,
+	CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK	= 3 << 3,
+	CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ		= 1 << 3,
+	CVMX_USB_INITIALIZE_FLAGS_CLOCK_24MHZ		= 2 << 3,
+	CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ		= 3 << 3,
+	/* Bits 3-4 used to encode the clock frequency */
+	CVMX_USB_INITIALIZE_FLAGS_NO_DMA		= 1 << 5,
+};
 
 /**
  * Flags for passing when a pipe is created. Currently no flags
@@ -439,7 +452,7 @@ typedef enum
 
 extern int cvmx_usb_get_num_ports(void);
 extern int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
-			       cvmx_usb_initialize_flags_t flags);
+			       enum cvmx_usb_initialize_flags flags);
 extern int cvmx_usb_shutdown(cvmx_usb_state_t *state);
 extern int cvmx_usb_enable(cvmx_usb_state_t *state);
 extern int cvmx_usb_disable(cvmx_usb_state_t *state);

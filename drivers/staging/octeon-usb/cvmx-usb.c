@@ -486,13 +486,13 @@ static inline void __cvmx_usb_remove_pipe(cvmx_usb_pipe_list_t *list, cvmx_usb_p
  * @usb_port_number:
  *		 Which Octeon USB port to initialize.
  * @flags:	 Flags to control hardware initialization. See
- *		 cvmx_usb_initialize_flags_t for the flag
+ *		 enum cvmx_usb_initialize_flags for the flag
  *		 definitions. Some flags are mandatory.
  *
  * Returns: 0 or a negative error code.
  */
 int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
-			cvmx_usb_initialize_flags_t flags)
+			enum cvmx_usb_initialize_flags flags)
 {
 	cvmx_usbnx_clk_ctl_t usbn_clk_ctl;
 	cvmx_usbnx_usbp_ctl_status_t usbn_usbp_ctl_status;
