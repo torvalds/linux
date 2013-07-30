@@ -1464,11 +1464,10 @@ static int hub_configure(struct usb_hub *hub,
 	 * and battery-powered root hubs (may provide just 8 mA).
 	 */
 	ret = usb_get_status(hdev, USB_RECIP_DEVICE, 0, &hubstatus);
-	if (ret < 2) {
+	if (ret) {
 		message = "can't get hub status";
 		goto fail;
 	}
-	le16_to_cpus(&hubstatus);
 	hcd = bus_to_hcd(hdev->bus);
 	if (hdev == hdev->bus->root_hub) {
 		if (hcd->power_budget > 0)
@@ -3101,8 +3100,6 @@ static int finish_port_resume(struct usb_device *udev)
 	if (status == 0) {
 		devstatus = 0;
 		status = usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
-		if (status >= 0)
-			status = (status > 0 ? 0 : -ENODEV);
 
 		/* If a normal resume failed, try doing a reset-resume */
 		if (status && !udev->reset_resume && udev->persist_enabled) {
@@ -3123,7 +3120,6 @@ static int finish_port_resume(struct usb_device *udev)
 	 */
 	} else if (udev->actconfig && !udev->reset_resume) {
 		if (!hub_is_superspeed(udev->parent)) {
-			le16_to_cpus(&devstatus);
 			if (devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP))
 				status = usb_control_msg(udev,
 						usb_sndctrlpipe(udev, 0),
@@ -3135,7 +3131,6 @@ static int finish_port_resume(struct usb_device *udev)
 		} else {
 			status = usb_get_status(udev, USB_RECIP_INTERFACE, 0,
 					&devstatus);
-			le16_to_cpus(&devstatus);
 			if (!status && devstatus & (USB_INTRF_STAT_FUNC_RW_CAP
 					| USB_INTRF_STAT_FUNC_RW))
 				status =
@@ -4481,11 +4476,10 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 
 			status = usb_get_status(udev, USB_RECIP_DEVICE, 0,
 					&devstat);
-			if (status < 2) {
+			if (status) {
 				dev_dbg(&udev->dev, "get status %d ?\n", status);
 				goto loop_disable;
 			}
-			le16_to_cpus(&devstat);
 			if ((devstat & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
 				dev_err(&udev->dev,
 					"can't connect bus-powered hub "
