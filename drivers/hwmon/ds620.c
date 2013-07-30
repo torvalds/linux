@@ -77,7 +77,7 @@ struct ds620_data {
 
 static void ds620_init_client(struct i2c_client *client)
 {
-	struct ds620_platform_data *ds620_info = client->dev.platform_data;
+	struct ds620_platform_data *ds620_info = dev_get_platdata(&client->dev);
 	u16 conf, new_conf;
 
 	new_conf = conf =

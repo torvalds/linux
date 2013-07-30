@@ -1726,7 +1726,7 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		   struct pmbus_driver_info *info)
 {
 	struct device *dev = &client->dev;
-	const struct pmbus_platform_data *pdata = dev->platform_data;
+	const struct pmbus_platform_data *pdata = dev_get_platdata(dev);
 	struct pmbus_data *data;
 	int ret;
 

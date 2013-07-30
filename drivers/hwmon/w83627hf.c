@@ -1415,7 +1415,7 @@ static const struct attribute_group w83627hf_group_opt = {
 static int w83627hf_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct w83627hf_sio_data *sio_data = dev->platform_data;
+	struct w83627hf_sio_data *sio_data = dev_get_platdata(dev);
 	struct w83627hf_data *data;
 	struct resource *res;
 	int err, i;
@@ -1636,7 +1636,7 @@ static int w83627hf_read_value(struct w83627hf_data *data, u16 reg)
 
 static int w83627thf_read_gpio5(struct platform_device *pdev)
 {
-	struct w83627hf_sio_data *sio_data = pdev->dev.platform_data;
+	struct w83627hf_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	int res = 0xff, sel;
 
 	superio_enter(sio_data);
@@ -1669,7 +1669,7 @@ exit:
 
 static int w83687thf_read_vid(struct platform_device *pdev)
 {
-	struct w83627hf_sio_data *sio_data = pdev->dev.platform_data;
+	struct w83627hf_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	int res = 0xff;
 
 	superio_enter(sio_data);

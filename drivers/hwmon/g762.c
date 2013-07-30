@@ -717,7 +717,7 @@ static void g762_of_clock_disable(struct i2c_client *client) { }
 
 static int g762_pdata_prop_import(struct i2c_client *client)
 {
-	struct g762_platform_data *pdata = client->dev.platform_data;
+	struct g762_platform_data *pdata = dev_get_platdata(&client->dev);
 	int ret;
 
 	if (!pdata)

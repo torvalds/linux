@@ -3285,7 +3285,7 @@ static void add_temp_sensors(struct nct6775_data *data, const u16 *regp,
 static int nct6775_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct nct6775_sio_data *sio_data = dev->platform_data;
+	struct nct6775_sio_data *sio_data = dev_get_platdata(dev);
 	struct nct6775_data *data;
 	struct resource *res;
 	int i, s, err = 0;
