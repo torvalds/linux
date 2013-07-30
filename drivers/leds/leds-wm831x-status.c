@@ -246,8 +246,8 @@ static int wm831x_status_probe(struct platform_device *pdev)
 	drvdata->wm831x = wm831x;
 	drvdata->reg = res->start;
 
-	if (wm831x->dev->platform_data)
-		chip_pdata = wm831x->dev->platform_data;
+	if (dev_get_platdata(wm831x->dev))
+		chip_pdata = dev_get_platdata(wm831x->dev);
 	else
 		chip_pdata = NULL;
 

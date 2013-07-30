@@ -287,7 +287,7 @@ static int pca9633_probe(struct i2c_client *client,
 	struct pca9633_platform_data *pdata;
 	int i, err;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 
 	if (!pdata) {
 		pdata = pca9633_dt_init(client);

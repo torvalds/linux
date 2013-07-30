@@ -432,7 +432,7 @@ static int lp5523_probe(struct i2c_client *client,
 	struct lp55xx_platform_data *pdata;
 	struct device_node *np = client->dev.of_node;
 
-	if (!client->dev.platform_data) {
+	if (!dev_get_platdata(&client->dev)) {
 		if (np) {
 			ret = lp55xx_of_populate_pdata(&client->dev, np);
 			if (ret < 0)
@@ -442,7 +442,7 @@ static int lp5523_probe(struct i2c_client *client,
 			return -EINVAL;
 		}
 	}
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)

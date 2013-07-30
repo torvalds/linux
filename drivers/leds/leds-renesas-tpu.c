@@ -65,7 +65,7 @@ static DEFINE_SPINLOCK(r_tpu_lock);
 
 static inline u16 r_tpu_read(struct r_tpu_priv *p, int reg_nr)
 {
-	struct led_renesas_tpu_config *cfg = p->pdev->dev.platform_data;
+	struct led_renesas_tpu_config *cfg = dev_get_platdata(&p->pdev->dev);
 	void __iomem *base = p->mapbase;
 	unsigned long offs = reg_nr << 2;
 
@@ -77,7 +77,7 @@ static inline u16 r_tpu_read(struct r_tpu_priv *p, int reg_nr)
 
 static inline void r_tpu_write(struct r_tpu_priv *p, int reg_nr, u16 value)
 {
-	struct led_renesas_tpu_config *cfg = p->pdev->dev.platform_data;
+	struct led_renesas_tpu_config *cfg = dev_get_platdata(&p->pdev->dev);
 	void __iomem *base = p->mapbase;
 	unsigned long offs = reg_nr << 2;
 
@@ -91,7 +91,7 @@ static inline void r_tpu_write(struct r_tpu_priv *p, int reg_nr, u16 value)
 
 static void r_tpu_start_stop_ch(struct r_tpu_priv *p, int start)
 {
-	struct led_renesas_tpu_config *cfg = p->pdev->dev.platform_data;
+	struct led_renesas_tpu_config *cfg = dev_get_platdata(&p->pdev->dev);
 	unsigned long flags;
 	u16 value;
 
@@ -110,7 +110,7 @@ static void r_tpu_start_stop_ch(struct r_tpu_priv *p, int start)
 
 static int r_tpu_enable(struct r_tpu_priv *p, enum led_brightness brightness)
 {
-	struct led_renesas_tpu_config *cfg = p->pdev->dev.platform_data;
+	struct led_renesas_tpu_config *cfg = dev_get_platdata(&p->pdev->dev);
 	int prescaler[] = { 1, 4, 16, 64 };
 	int k, ret;
 	unsigned long rate, tmp;
@@ -190,7 +190,7 @@ static void r_tpu_disable(struct r_tpu_priv *p)
 static void r_tpu_set_pin(struct r_tpu_priv *p, enum r_tpu_pin new_state,
 			  enum led_brightness brightness)
 {
-	struct led_renesas_tpu_config *cfg = p->pdev->dev.platform_data;
+	struct led_renesas_tpu_config *cfg = dev_get_platdata(&p->pdev->dev);
 
 	if (p->pin_state == new_state) {
 		if (p->pin_state == R_TPU_PIN_GPIO)
@@ -241,7 +241,7 @@ static void r_tpu_set_brightness(struct led_classdev *ldev,
 
 static int r_tpu_probe(struct platform_device *pdev)
 {
-	struct led_renesas_tpu_config *cfg = pdev->dev.platform_data;
+	struct led_renesas_tpu_config *cfg = dev_get_platdata(&pdev->dev);
 	struct r_tpu_priv *p;
 	struct resource *res;
 	int ret;

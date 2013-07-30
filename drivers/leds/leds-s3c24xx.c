@@ -71,7 +71,7 @@ static int s3c24xx_led_remove(struct platform_device *dev)
 
 static int s3c24xx_led_probe(struct platform_device *dev)
 {
-	struct s3c24xx_led_platdata *pdata = dev->dev.platform_data;
+	struct s3c24xx_led_platdata *pdata = dev_get_platdata(&dev->dev);
 	struct s3c24xx_gpio_led *led;
 	int ret;
 
