@@ -324,7 +324,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	int			status, err;
 	struct device_node	*np = pdev->dev.of_node;
 	struct device		*dev = &pdev->dev;
-	struct twl4030_usb_data	*pdata = dev->platform_data;
+	struct twl4030_usb_data	*pdata = dev_get_platdata(dev);
 
 	twl = devm_kzalloc(dev, sizeof *twl, GFP_KERNEL);
 	if (!twl)

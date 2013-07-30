@@ -83,7 +83,7 @@ static int rcar_usb_phy_init(struct usb_phy *phy)
 {
 	struct rcar_usb_phy_priv *priv = usb_phy_to_priv(phy);
 	struct device *dev = phy->dev;
-	struct rcar_phy_platform_data *pdata = dev->platform_data;
+	struct rcar_phy_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *reg0 = priv->reg0;
 	void __iomem *reg1 = priv->reg1;
 	static const u8 ovcn_act[] = { OVC0_ACT, OVC1_ACT, OVC2_ACT };
@@ -184,7 +184,7 @@ static int rcar_usb_phy_probe(struct platform_device *pdev)
 	void __iomem *reg0, *reg1 = NULL;
 	int ret;
 
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		dev_err(dev, "No platform data\n");
 		return -EINVAL;
 	}

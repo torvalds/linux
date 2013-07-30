@@ -673,7 +673,7 @@ int mv_otg_remove(struct platform_device *pdev)
 
 static int mv_otg_probe(struct platform_device *pdev)
 {
-	struct mv_usb_platform_data *pdata = pdev->dev.platform_data;
+	struct mv_usb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mv_otg *mvotg;
 	struct usb_otg *otg;
 	struct resource *r;
