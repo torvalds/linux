@@ -8272,7 +8272,7 @@ S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
 TI WILINK WIRELESS DRIVERS
-M:	Luciano Coelho <coelho@ti.com>
+M:	Luciano Coelho <luca@coelho.fi>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/wl12xx
 W:	http://wireless.kernel.org/en/users/Drivers/wl1251
