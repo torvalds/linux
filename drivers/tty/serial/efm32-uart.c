@@ -751,7 +751,8 @@ static int efm32_uart_probe(struct platform_device *pdev)
 
 		if (pdata)
 			efm_port->pdata = *pdata;
-	}
+	} else if (ret < 0)
+		goto err_probe_dt;
 
 	line = efm_port->port.line;
 
@@ -764,6 +765,7 @@ static int efm32_uart_probe(struct platform_device *pdev)
 
 		if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
 			efm32_uart_ports[line] = NULL;
+err_probe_dt:
 err_get_rxirq:
 err_too_small:
 err_get_base:
