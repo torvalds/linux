@@ -131,7 +131,7 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 	/* acpi_unregister_gsi(pnp_irq(dev, 0)); */
 	ret = 0;
 	if (acpi_bus_power_manageable(handle))
-		acpi_bus_set_power(handle, ACPI_STATE_D3);
+		acpi_bus_set_power(handle, ACPI_STATE_D3_COLD);
 		/* continue even if acpi_bus_set_power() fails */
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_DIS", NULL, NULL)))
 		ret = -ENODEV;
@@ -174,10 +174,10 @@ static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 
 	if (acpi_bus_power_manageable(handle)) {
 		int power_state = acpi_pm_device_sleep_state(&dev->dev, NULL,
-							     ACPI_STATE_D3);
+							ACPI_STATE_D3_COLD);
 		if (power_state < 0)
 			power_state = (state.event == PM_EVENT_ON) ?
-					ACPI_STATE_D0 : ACPI_STATE_D3;
+					ACPI_STATE_D0 : ACPI_STATE_D3_COLD;
 
 		/*
 		 * acpi_bus_set_power() often fails (keyboard port can't be

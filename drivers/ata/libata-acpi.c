@@ -947,11 +947,11 @@ static void pata_acpi_set_state(struct ata_port *ap, pm_message_t state)
 			continue;
 
 		acpi_bus_set_power(dev_handle, state.event & PM_EVENT_RESUME ?
-						ACPI_STATE_D0 : ACPI_STATE_D3);
+					ACPI_STATE_D0 : ACPI_STATE_D3_COLD);
 	}
 
 	if (!(state.event & PM_EVENT_RESUME))
-		acpi_bus_set_power(port_handle, ACPI_STATE_D3);
+		acpi_bus_set_power(port_handle, ACPI_STATE_D3_COLD);
 }
 
 /**
