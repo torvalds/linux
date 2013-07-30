@@ -116,7 +116,7 @@
  *
  * void port_callback(cvmx_usb_state_t *usb,
  *                    cvmx_usb_callback_t reason,
- *                    cvmx_usb_complete_t status,
+ *                    enum cvmx_usb_complete status,
  *                    int pipe_handle,
  *                    int submit_handle,
  *                    int bytes_transferred,
@@ -148,14 +148,14 @@
  *
  * void complete_callback(cvmx_usb_state_t *usb,
  *                        cvmx_usb_callback_t reason,
- *                        cvmx_usb_complete_t status,
+ *                        enum cvmx_usb_complete status,
  *                        int pipe_handle,
  *                        int submit_handle,
  *                        int bytes_transferred,
  *                        void *user_data);
  * - "usb" is the cvmx_usb_state_t for the port.
  * - "reason" will always be CVMX_USB_CALLBACK_TRANSFER_COMPLETE.
- * - "status" will be one of the cvmx_usb_complete_t enumerations.
+ * - "status" will be one of the cvmx_usb_complete enumerations.
  * - "pipe_handle" is the handle to the pipe the transaction
  *   was originally submitted on.
  * - "submit_handle" is the handle returned by the original
@@ -278,21 +278,36 @@ enum cvmx_usb_direction {
 };
 
 /**
- * Enumeration of all possible status codes passed to callback
- * functions.
+ * enum cvmx_usb_complete - possible callback function status codes
+ *
+ * @CVMX_USB_COMPLETE_SUCCESS:	  The transaction / operation finished without
+ *				  any errors
+ * @CVMX_USB_COMPLETE_SHORT:	  FIXME: This is currently not implemented
+ * @CVMX_USB_COMPLETE_CANCEL:	  The transaction was canceled while in flight by
+ *				  a user call to cvmx_usb_cancel
+ * @CVMX_USB_COMPLETE_ERROR:	  The transaction aborted with an unexpected
+ *				  error status
+ * @CVMX_USB_COMPLETE_STALL:	  The transaction received a USB STALL response
+ *				  from the device
+ * @CVMX_USB_COMPLETE_XACTERR:	  The transaction failed with an error from the
+ *				  device even after a number of retries
+ * @CVMX_USB_COMPLETE_DATATGLERR: The transaction failed with a data toggle
+ *				  error even after a number of retries
+ * @CVMX_USB_COMPLETE_BABBLEERR:  The transaction failed with a babble error
+ * @CVMX_USB_COMPLETE_FRAMEERR:	  The transaction failed with a frame error
+ *				  even after a number of retries
  */
-typedef enum
-{
-    CVMX_USB_COMPLETE_SUCCESS,      /**< The transaction / operation finished without any errors */
-    CVMX_USB_COMPLETE_SHORT,        /**< FIXME: This is currently not implemented */
-    CVMX_USB_COMPLETE_CANCEL,       /**< The transaction was canceled while in flight by a user call to cvmx_usb_cancel* */
-    CVMX_USB_COMPLETE_ERROR,        /**< The transaction aborted with an unexpected error status */
-    CVMX_USB_COMPLETE_STALL,        /**< The transaction received a USB STALL response from the device */
-    CVMX_USB_COMPLETE_XACTERR,      /**< The transaction failed with an error from the device even after a number of retries */
-    CVMX_USB_COMPLETE_DATATGLERR,   /**< The transaction failed with a data toggle error even after a number of retries */
-    CVMX_USB_COMPLETE_BABBLEERR,    /**< The transaction failed with a babble error */
-    CVMX_USB_COMPLETE_FRAMEERR,     /**< The transaction failed with a frame error even after a number of retries */
-} cvmx_usb_complete_t;
+enum cvmx_usb_complete {
+	CVMX_USB_COMPLETE_SUCCESS,
+	CVMX_USB_COMPLETE_SHORT,
+	CVMX_USB_COMPLETE_CANCEL,
+	CVMX_USB_COMPLETE_ERROR,
+	CVMX_USB_COMPLETE_STALL,
+	CVMX_USB_COMPLETE_XACTERR,
+	CVMX_USB_COMPLETE_DATATGLERR,
+	CVMX_USB_COMPLETE_BABBLEERR,
+	CVMX_USB_COMPLETE_FRAMEERR,
+};
 
 /**
  * Structure returned containing the USB port status information.
@@ -331,7 +346,7 @@ typedef struct
 {
     int offset;                     /**< This is the offset in bytes into the main buffer where this data is stored */
     int length;                     /**< This is the length in bytes of the data */
-    cvmx_usb_complete_t status;     /**< This is the status of this individual packet transfer */
+    enum cvmx_usb_complete status;  /**< This is the status of this individual packet transfer */
 } cvmx_usb_iso_packet_t;
 
 /**
@@ -368,7 +383,7 @@ typedef struct
  *        cvmx_usb_initialize().
  *      - reason = The cvmx_usb_callback_t used to register
  *        the callback.
- *      - status = The cvmx_usb_complete_t representing the
+ *      - status = The enum cvmx_usb_complete representing the
  *        status code of a transaction.
  *      - pipe_handle = The Pipe that caused this callback, or
  *        -1 if this callback wasn't associated with a pipe.
@@ -381,7 +396,7 @@ typedef struct
  *        cvmx_usb_register_callback() */
 typedef void (*cvmx_usb_callback_func_t)(cvmx_usb_state_t *state,
                                          cvmx_usb_callback_t reason,
-                                         cvmx_usb_complete_t status,
+                                         enum cvmx_usb_complete status,
                                          int pipe_handle, int submit_handle,
                                          int bytes_transferred, void *user_data);
 

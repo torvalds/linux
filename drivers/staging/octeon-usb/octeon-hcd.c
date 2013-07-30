@@ -60,7 +60,7 @@ static irqreturn_t octeon_usb_irq(struct usb_hcd *hcd)
 
 static void octeon_usb_port_callback(cvmx_usb_state_t *usb,
 				     cvmx_usb_callback_t reason,
-				     cvmx_usb_complete_t status,
+				     enum cvmx_usb_complete status,
 				     int pipe_handle,
 				     int submit_handle,
 				     int bytes_transferred,
@@ -107,7 +107,7 @@ static int octeon_usb_get_frame_number(struct usb_hcd *hcd)
 
 static void octeon_usb_urb_complete_callback(cvmx_usb_state_t *usb,
 					     cvmx_usb_callback_t reason,
-					     cvmx_usb_complete_t status,
+					     enum cvmx_usb_complete status,
 					     int pipe_handle,
 					     int submit_handle,
 					     int bytes_transferred,

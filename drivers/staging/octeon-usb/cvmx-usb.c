@@ -1902,7 +1902,7 @@ static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
 					cvmx_usb_pipe_t *pipe,
 					cvmx_usb_transaction_t *transaction,
 					cvmx_usb_callback_t reason,
-					cvmx_usb_complete_t complete_code)
+					enum cvmx_usb_complete complete_code)
 {
 	cvmx_usb_callback_func_t callback = usb->callback[reason];
 	void *user_data = usb->callback_data[reason];
@@ -1946,7 +1946,7 @@ static void __cvmx_usb_perform_callback(cvmx_usb_internal_state_t *usb,
 static void __cvmx_usb_perform_complete(cvmx_usb_internal_state_t *usb,
 					cvmx_usb_pipe_t *pipe,
 					cvmx_usb_transaction_t *transaction,
-					cvmx_usb_complete_t complete_code)
+					enum cvmx_usb_complete complete_code)
 {
 	/* If this was a split then clear our split in progress marker */
 	if (usb->active_split == transaction)
