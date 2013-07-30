@@ -1379,90 +1379,6 @@ static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 	return (int)val;
 }
 
-static int usbduxsigma_attach_common(struct comedi_device *dev)
-{
-	struct usbduxsigma_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
-	int n_subdevs;
-	int offset;
-	int ret;
-
-	down(&devpriv->sem);
-
-	if (devpriv->high_speed)
-		n_subdevs = 4;	/* with pwm */
-	else
-		n_subdevs = 3;	/* without pwm */
-	ret = comedi_alloc_subdevices(dev, n_subdevs);
-	if (ret) {
-		up(&devpriv->sem);
-		return ret;
-	}
-
-	/* Analog Input subdevice */
-	s = &dev->subdevices[0];
-	dev->read_subdev = s;
-	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ | SDF_LSAMPL;
-	s->n_chan	= NUMCHANNELS;
-	s->len_chanlist	= NUMCHANNELS;
-	s->maxdata	= 0x00ffffff;
-	s->range_table	= &usbduxsigma_ai_range;
-	s->insn_read	= usbduxsigma_ai_insn_read;
-	s->do_cmdtest	= usbduxsigma_ai_cmdtest;
-	s->do_cmd	= usbduxsigma_ai_cmd;
-	s->cancel	= usbduxsigma_ai_cancel;
-
-	/* Analog Output subdevice */
-	s = &dev->subdevices[1];
-	dev->write_subdev = s;
-	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
-	s->n_chan	= USBDUXSIGMA_NUM_AO_CHAN;
-	s->len_chanlist	= s->n_chan;
-	s->maxdata	= 0x00ff;
-	s->range_table	= &range_unipolar2_5;
-	s->insn_write	= usbduxsigma_ao_insn_write;
-	s->insn_read	= usbduxsigma_ao_insn_read;
-	s->do_cmdtest	= usbduxsigma_ao_cmdtest;
-	s->do_cmd	= usbduxsigma_ao_cmd;
-	s->cancel	= usbduxsigma_ao_cancel;
-
-	/* Digital I/O subdevice */
-	s = &dev->subdevices[2];
-	s->type		= COMEDI_SUBD_DIO;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	s->n_chan	= 24;
-	s->maxdata	= 1;
-	s->range_table	= &range_digital;
-	s->insn_bits	= usbduxsigma_dio_insn_bits;
-	s->insn_config	= usbduxsigma_dio_insn_config;
-
-	if (devpriv->high_speed) {
-		/* Timer / pwm subdevice */
-		s = &dev->subdevices[3];
-		s->type		= COMEDI_SUBD_PWM;
-		s->subdev_flags	= SDF_WRITABLE | SDF_PWM_HBRIDGE;
-		s->n_chan	= 8;
-		s->maxdata	= devpriv->pwm_buf_sz;
-		s->insn_write	= usbduxsigma_pwm_write;
-		s->insn_config	= usbduxsigma_pwm_config;
-
-		usbduxsigma_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
-	}
-
-	up(&devpriv->sem);
-
-	offset = usbduxsigma_getstatusinfo(dev, 0);
-	if (offset < 0)
-		dev_err(dev->class_dev,
-			"Communication to USBDUXSIGMA failed! Check firmware and cabling\n");
-
-	dev_info(dev->class_dev, "attached, ADC_zero = %x\n", offset);
-
-	return 0;
-}
-
 static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 				       const u8 *data, size_t size,
 				       unsigned long context)
@@ -1657,6 +1573,8 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxsigma_private *devpriv;
+	struct comedi_subdevice *s;
+	int offset;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -1664,17 +1582,9 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 
 	sema_init(&devpriv->sem, 1);
+
 	usb_set_intfdata(intf, devpriv);
 
-	ret = usb_set_interface(usb,
-				intf->altsetting->desc.bInterfaceNumber, 3);
-	if (ret < 0) {
-		dev_err(dev->class_dev,
-			"could not set alternate setting 3 in high speed\n");
-		return -ENODEV;
-	}
-
-	/* test if it is high speed (USB 2.0) */
 	devpriv->high_speed = (usb->speed == USB_SPEED_HIGH);
 	if (devpriv->high_speed) {
 		devpriv->n_ai_urbs = NUMOFINBUFFERSHIGH;
@@ -1683,19 +1593,90 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	} else {
 		devpriv->n_ai_urbs = NUMOFINBUFFERSFULL;
 		devpriv->n_ao_urbs = NUMOFOUTBUFFERSFULL;
-		devpriv->pwm_buf_sz = 0;
 	}
 
 	ret = usbduxsigma_alloc_usb_buffers(dev);
 	if (ret)
 		return ret;
 
+	/* setting to alternate setting 3: enabling iso ep and bulk ep. */
+	ret = usb_set_interface(usb, intf->altsetting->desc.bInterfaceNumber,
+				3);
+	if (ret < 0) {
+		dev_err(dev->class_dev,
+			"could not set alternate setting 3 in high speed\n");
+		return ret;
+	}
+
 	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
 				   usbduxsigma_firmware_upload, 0);
 	if (ret)
 		return ret;
 
-	return usbduxsigma_attach_common(dev);
+	ret = comedi_alloc_subdevices(dev, (devpriv->high_speed) ? 4 : 3);
+	if (ret)
+		return ret;
+
+	/* Analog Input subdevice */
+	s = &dev->subdevices[0];
+	dev->read_subdev = s;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ | SDF_LSAMPL;
+	s->n_chan	= NUMCHANNELS;
+	s->len_chanlist	= NUMCHANNELS;
+	s->maxdata	= 0x00ffffff;
+	s->range_table	= &usbduxsigma_ai_range;
+	s->insn_read	= usbduxsigma_ai_insn_read;
+	s->do_cmdtest	= usbduxsigma_ai_cmdtest;
+	s->do_cmd	= usbduxsigma_ai_cmd;
+	s->cancel	= usbduxsigma_ai_cancel;
+
+	/* Analog Output subdevice */
+	s = &dev->subdevices[1];
+	dev->write_subdev = s;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
+	s->n_chan	= USBDUXSIGMA_NUM_AO_CHAN;
+	s->len_chanlist	= s->n_chan;
+	s->maxdata	= 0x00ff;
+	s->range_table	= &range_unipolar2_5;
+	s->insn_write	= usbduxsigma_ao_insn_write;
+	s->insn_read	= usbduxsigma_ao_insn_read;
+	s->do_cmdtest	= usbduxsigma_ao_cmdtest;
+	s->do_cmd	= usbduxsigma_ao_cmd;
+	s->cancel	= usbduxsigma_ao_cancel;
+
+	/* Digital I/O subdevice */
+	s = &dev->subdevices[2];
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 24;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= usbduxsigma_dio_insn_bits;
+	s->insn_config	= usbduxsigma_dio_insn_config;
+
+	if (devpriv->high_speed) {
+		/* Timer / pwm subdevice */
+		s = &dev->subdevices[3];
+		s->type		= COMEDI_SUBD_PWM;
+		s->subdev_flags	= SDF_WRITABLE | SDF_PWM_HBRIDGE;
+		s->n_chan	= 8;
+		s->maxdata	= devpriv->pwm_buf_sz;
+		s->insn_write	= usbduxsigma_pwm_write;
+		s->insn_config	= usbduxsigma_pwm_config;
+
+		usbduxsigma_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
+	}
+
+	offset = usbduxsigma_getstatusinfo(dev, 0);
+	if (offset < 0)
+		dev_err(dev->class_dev,
+			"Communication to USBDUXSIGMA failed! Check firmware and cabling\n");
+
+	dev_info(dev->class_dev, "attached, ADC_zero = %x\n", offset);
+
+	return 0;
 }
 
 static void usbduxsigma_detach(struct comedi_device *dev)
