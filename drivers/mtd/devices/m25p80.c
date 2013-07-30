@@ -367,10 +367,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
 
-	/* NOTE:
-	 * OPCODE_FAST_READ (if available) is faster.
-	 * Should add 1 byte DUMMY_BYTE.
-	 */
 	t[0].tx_buf = flash->command;
 	t[0].len = m25p_cmdsz(flash) + (flash->fast_read ? 1 : 0);
 	spi_message_add_tail(&t[0], &m);
@@ -387,11 +383,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 		mutex_unlock(&flash->lock);
 		return 1;
 	}
-
-	/* FIXME switch to OPCODE_FAST_READ.  It's required for higher
-	 * clocks; and at this writing, every chip this driver handles
-	 * supports that opcode.
-	 */
 
 	/* Set up the write data buffer. */
 	opcode = flash->read_opcode;
