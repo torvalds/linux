@@ -195,18 +195,20 @@ struct usbduxsigma_private {
 	struct semaphore sem;
 };
 
+static void usbduxsigma_unlink_urbs(struct urb **urbs, int num_urbs)
+{
+	int i;
+
+	for (i = 0; i < num_urbs; i++)
+		usb_kill_urb(urbs[i]);
+}
+
 static void usbduxsigma_ai_stop(struct comedi_device *dev, int do_unlink)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
 
-	if (do_unlink) {
-		int i;
-
-		for (i = 0; i < devpriv->n_ai_urbs; i++) {
-			if (devpriv->ai_urbs[i])
-				usb_kill_urb(devpriv->ai_urbs[i]);
-		}
-	}
+	if (do_unlink && devpriv->ai_urbs)
+		usbduxsigma_unlink_urbs(devpriv->ai_urbs, devpriv->n_ai_urbs);
 
 	devpriv->ai_cmd_running = 0;
 }
@@ -342,14 +344,8 @@ static void usbduxsigma_ao_stop(struct comedi_device *dev, int do_unlink)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
 
-	if (do_unlink) {
-		int i;
-
-		for (i = 0; i < devpriv->n_ao_urbs; i++) {
-			if (devpriv->ao_urbs[i])
-				usb_kill_urb(devpriv->ao_urbs[i]);
-		}
-	}
+	if (do_unlink && devpriv->ao_urbs)
+		usbduxsigma_unlink_urbs(devpriv->ao_urbs, devpriv->n_ao_urbs);
 
 	devpriv->ao_cmd_running = 0;
 }
