@@ -572,6 +572,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 
 		if (inode->i_nlink == 0)
 			add_orphan_inode(sbi, inode->i_ino);
+		else
+			release_orphan_inode(sbi);
 	}
 
 	if (bit_pos == NR_DENTRY_IN_BLOCK) {

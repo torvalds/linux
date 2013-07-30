@@ -182,7 +182,7 @@ const struct address_space_operations f2fs_meta_aops = {
 	.set_page_dirty	= f2fs_set_meta_page_dirty,
 };
 
-int check_orphan_space(struct f2fs_sb_info *sbi)
+int acquire_orphan_inode(struct f2fs_sb_info *sbi)
 {
 	unsigned int max_orphans;
 	int err = 0;
@@ -197,8 +197,17 @@ int check_orphan_space(struct f2fs_sb_info *sbi)
 	mutex_lock(&sbi->orphan_inode_mutex);
 	if (sbi->n_orphans >= max_orphans)
 		err = -ENOSPC;
+	else
+		sbi->n_orphans++;
 	mutex_unlock(&sbi->orphan_inode_mutex);
 	return err;
+}
+
+void release_orphan_inode(struct f2fs_sb_info *sbi)
+{
+	mutex_lock(&sbi->orphan_inode_mutex);
+	sbi->n_orphans--;
+	mutex_unlock(&sbi->orphan_inode_mutex);
 }
 
 void add_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
@@ -229,8 +238,6 @@ retry:
 		list_add(&new->list, this->prev);
 	else
 		list_add_tail(&new->list, head);
-
-	sbi->n_orphans++;
 out:
 	mutex_unlock(&sbi->orphan_inode_mutex);
 }
