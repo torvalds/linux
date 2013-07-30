@@ -935,8 +935,10 @@ again:
 				}
 				ret = find_extent_in_eb(eb, bytenr,
 							*extent_item_pos, &eie);
-				ref->inode_list = eie;
 				free_extent_buffer(eb);
+				if (ret < 0)
+					goto out;
+				ref->inode_list = eie;
 			}
 			ret = ulist_add_merge(refs, ref->parent,
 					      (uintptr_t)ref->inode_list,
