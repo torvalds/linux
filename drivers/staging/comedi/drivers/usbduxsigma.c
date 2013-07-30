@@ -66,13 +66,6 @@
 /* internal addresses of the 8051 processor */
 #define USBDUXSUB_CPUCS 0xE600
 
-/* USB endpoints */
-#define USBDUXSIGMA_CMD_OUT_EP		1	/* command output */
-#define USBDUXSIGMA_ISO_OUT_EP		2	/* analog output ISO/IRQ */
-#define USBDUXSIGMA_PWM_OUT_EP		4	/* pwm output */
-#define USBDUXSIGMA_ISO_IN_EP		6	/* analog input ISO/IRQ */
-#define USBDUXSIGMA_CMD_IN_EP		8	/* command input */
-
 /* 300Hz max frequ under PWM */
 #define MIN_PWM_PERIOD  ((long)(1E9/300))
 
@@ -639,7 +632,7 @@ static int usbbuxsigma_send_cmd(struct comedi_device *dev, int cmd_type)
 
 	devpriv->dux_commands[0] = cmd_type;
 
-	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, USBDUXSIGMA_CMD_OUT_EP),
+	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, 1),
 			    devpriv->dux_commands, SIZEOFDUXBUFFER,
 			    &nsent, BULK_TIMEOUT);
 }
@@ -653,8 +646,7 @@ static int usbduxsigma_receive_cmd(struct comedi_device *dev, int command)
 	int i;
 
 	for (i = 0; i < RETRIES; i++) {
-		ret = usb_bulk_msg(usb,
-				   usb_rcvbulkpipe(usb, USBDUXSIGMA_CMD_IN_EP),
+		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, 8),
 				   devpriv->insn_buf, SIZEINSNBUF,
 				   &nrec, BULK_TIMEOUT);
 		if (ret < 0)
@@ -1194,8 +1186,7 @@ static int usbduxsigma_submit_pwm_urb(struct comedi_device *dev)
 	struct urb *urb = devpriv->pwm_urb;
 
 	/* in case of a resubmission after an unlink... */
-	usb_fill_bulk_urb(urb,
-			  usb, usb_sndbulkpipe(usb, USBDUXSIGMA_PWM_OUT_EP),
+	usb_fill_bulk_urb(urb, usb, usb_sndbulkpipe(usb, 4),
 			  urb->transfer_buffer, devpriv->pwm_buf_sz,
 			  usbduxsigma_pwm_urb_complete, dev);
 
@@ -1573,7 +1564,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		/* will be filled later with a pointer to the comedi-device */
 		/* and ONLY then the urb should be submitted */
 		urb->context = NULL;
-		urb->pipe = usb_rcvisocpipe(usb, USBDUXSIGMA_ISO_IN_EP);
+		urb->pipe = usb_rcvisocpipe(usb, 6);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
@@ -1595,7 +1586,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		/* will be filled later with a pointer to the comedi-device */
 		/* and ONLY then the urb should be submitted */
 		urb->context = NULL;
-		urb->pipe = usb_sndisocpipe(usb, USBDUXSIGMA_ISO_OUT_EP);
+		urb->pipe = usb_sndisocpipe(usb, 2);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
