@@ -93,26 +93,15 @@ static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 {
 	struct pfuze_chip *pfuze100 = rdev_get_drvdata(rdev);
 	int id = rdev->desc->id;
-	unsigned int val, ramp_bits, reg;
+	unsigned int ramp_bits;
 	int ret;
 
 	if (id < PFUZE100_SWBST) {
-		if (id == PFUZE100_SW1AB)
-			reg = PFUZE100_SW1ABVOL;
-		else
-			reg = PFUZE100_SW1CVOL + (id - PFUZE100_SW1C) * 7;
-		regmap_read(pfuze100->regmap, reg, &val);
-
-		if (id <= PFUZE100_SW1C)
-			ramp_delay = 25000 / (2 * ramp_delay);
-		else if (val & 0x40)
-			ramp_delay = 50000 / (4 * ramp_delay);
-		else
-			ramp_delay = 25000 / (2 * ramp_delay);
-
+		ramp_delay = 12500 / ramp_delay;
 		ramp_bits = (ramp_delay >> 1) - (ramp_delay >> 3);
-		ret = regmap_update_bits(pfuze100->regmap, reg + 4 , 0xc0,
-				ramp_bits << 6);
+		ret = regmap_update_bits(pfuze100->regmap,
+					 rdev->desc->vsel_reg + 4,
+					 0xc0, ramp_bits << 6);
 		if (ret < 0)
 			dev_err(pfuze100->dev, "ramp failed, err %d\n", ret);
 	} else
