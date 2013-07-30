@@ -272,7 +272,7 @@ static struct resource hspi_resources[] __initdata = {
 	DEFINE_RES_IRQ(gic_iid(0x75)),
 };
 
-void __init r8a7778_add_hspi_device(int id)
+void __init r8a7778_register_hspi(int id)
 {
 	BUG_ON(id < 0 || id > 2);
 
@@ -312,6 +312,9 @@ void __init r8a7778_add_standard_devices(void)
 	r8a7778_register_i2c(1);
 	r8a7778_register_i2c(2);
 	r8a7778_register_i2c(3);
+	r8a7778_register_hspi(0);
+	r8a7778_register_hspi(1);
+	r8a7778_register_hspi(2);
 }
 
 void __init r8a7778_init_late(void)
