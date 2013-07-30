@@ -372,7 +372,7 @@ static int sst25l_probe(struct spi_device *spi)
 	mutex_init(&flash->lock);
 	spi_set_drvdata(spi, flash);
 
-	data = spi->dev.platform_data;
+	data = dev_get_platdata(&spi->dev);
 	if (data && data->name)
 		flash->mtd.name = data->name;
 	else

@@ -622,7 +622,7 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 	struct dataflash		*priv;
 	struct mtd_info			*device;
 	struct mtd_part_parser_data	ppdata;
-	struct flash_platform_data	*pdata = spi->dev.platform_data;
+	struct flash_platform_data	*pdata = dev_get_platdata(&spi->dev);
 	char				*otp_tag = "";
 	int				err = 0;
 
