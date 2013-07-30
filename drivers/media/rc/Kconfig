@@ -223,6 +223,8 @@ config IR_REDRAT3
 	tristate "RedRat3 IR Transceiver"
 	depends on USB_ARCH_HAS_HCD
 	depends on RC_CORE
+	select NEW_LEDS
+	select LEDS_CLASS
 	select USB
 	---help---
 	   Say Y here if you want to use a RedRat3 Infrared Transceiver.
