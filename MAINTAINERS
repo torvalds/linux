@@ -5843,6 +5843,8 @@ F:	drivers/scsi/nsp32*
 NTB DRIVER
 M:	Jon Mason <jon.mason@intel.com>
 S:	Supported
+W:	https://github.com/jonmason/ntb/wiki
+T:	git git://github.com/jonmason/ntb.git
 F:	drivers/ntb/
 F:	drivers/net/ntb_netdev.c
 F:	include/linux/ntb.h
