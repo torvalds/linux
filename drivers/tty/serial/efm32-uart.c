@@ -698,6 +698,7 @@ static int efm32_uart_probe(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port;
 	struct resource *res;
+	unsigned int line;
 	int ret;
 
 	efm_port = kzalloc(sizeof(*efm_port), GFP_KERNEL);
@@ -752,16 +753,17 @@ static int efm32_uart_probe(struct platform_device *pdev)
 			efm_port->pdata = *pdata;
 	}
 
-	if (efm_port->port.line >= 0 &&
-			efm_port->port.line < ARRAY_SIZE(efm32_uart_ports))
-		efm32_uart_ports[efm_port->port.line] = efm_port;
+	line = efm_port->port.line;
+
+	if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+		efm32_uart_ports[line] = efm_port;
 
 	ret = uart_add_one_port(&efm32_uart_reg, &efm_port->port);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to add port: %d\n", ret);
 
-		if (pdev->id >= 0 && pdev->id < ARRAY_SIZE(efm32_uart_ports))
-			efm32_uart_ports[pdev->id] = NULL;
+		if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+			efm32_uart_ports[line] = NULL;
 err_get_rxirq:
 err_too_small:
 err_get_base:
@@ -777,11 +779,12 @@ err_get_base:
 static int efm32_uart_remove(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port = platform_get_drvdata(pdev);
+	unsigned int line = efm_port->port.line;
 
 	uart_remove_one_port(&efm32_uart_reg, &efm_port->port);
 
-	if (pdev->id >= 0 && pdev->id < ARRAY_SIZE(efm32_uart_ports))
-		efm32_uart_ports[pdev->id] = NULL;
+	if (line >= 0 && line < ARRAY_SIZE(efm32_uart_ports))
+		efm32_uart_ports[line] = NULL;
 
 	kfree(efm_port);
 
