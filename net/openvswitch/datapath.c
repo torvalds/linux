@@ -1104,7 +1104,6 @@ static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 				  u32 seq, u32 flags, u8 cmd)
 {
 	const int skb_orig_len = skb->len;
-	const struct sw_flow_actions *sf_acts;
 	struct nlattr *start;
 	struct ovs_flow_stats stats;
 	struct ovs_header *ovs_header;
@@ -1112,8 +1111,6 @@ static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 	unsigned long used;
 	u8 tcp_flags;
 	int err;
-
-	sf_acts = ovsl_dereference(flow->sf_acts);
 
 	ovs_header = genlmsg_put(skb, portid, seq, &dp_flow_genl_family, flags, cmd);
 	if (!ovs_header)
@@ -1161,6 +1158,11 @@ static int ovs_flow_cmd_fill_info(struct sw_flow *flow, struct datapath *dp,
 	 */
 	start = nla_nest_start(skb, OVS_FLOW_ATTR_ACTIONS);
 	if (start) {
+		const struct sw_flow_actions *sf_acts;
+
+		sf_acts = rcu_dereference_check(flow->sf_acts,
+						lockdep_ovsl_is_held());
+
 		err = actions_to_attr(sf_acts->actions, sf_acts->actions_len, skb);
 		if (!err)
 			nla_nest_end(skb, start);
@@ -1440,15 +1442,14 @@ static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct datapath *dp;
 	struct flow_table *table;
 
-	ovs_lock();
+	rcu_read_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	if (!dp) {
-		ovs_unlock();
+		rcu_read_unlock();
 		return -ENODEV;
 	}
 
-	table = ovsl_dereference(dp->table);
-
+	table = rcu_dereference(dp->table);
 	for (;;) {
 		struct sw_flow *flow;
 		u32 bucket, obj;
@@ -1468,7 +1469,7 @@ static int ovs_flow_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		cb->args[0] = bucket;
 		cb->args[1] = obj;
 	}
-	ovs_unlock();
+	rcu_read_unlock();
 	return skb->len;
 }
 
