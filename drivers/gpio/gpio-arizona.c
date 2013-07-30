@@ -97,7 +97,7 @@ static struct gpio_chip template_chip = {
 static int arizona_gpio_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
-	struct arizona_pdata *pdata = arizona->dev->platform_data;
+	struct arizona_pdata *pdata = dev_get_platdata(arizona->dev);
 	struct arizona_gpio *arizona_gpio;
 	int ret;
 

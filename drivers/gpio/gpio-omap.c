@@ -1100,7 +1100,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 
 	match = of_match_device(of_match_ptr(omap_gpio_match), dev);
 
-	pdata = match ? match->data : dev->platform_data;
+	pdata = match ? match->data : dev_get_platdata(dev);
 	if (!pdata)
 		return -EINVAL;
 

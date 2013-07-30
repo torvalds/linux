@@ -262,7 +262,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	struct pcf857x			*gpio;
 	int				status;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
 		dev_dbg(&client->dev, "no platform data\n");
 	}
@@ -396,7 +396,7 @@ fail:
 
 static int pcf857x_remove(struct i2c_client *client)
 {
-	struct pcf857x_platform_data	*pdata = client->dev.platform_data;
+	struct pcf857x_platform_data	*pdata = dev_get_platdata(&client->dev);
 	struct pcf857x			*gpio = i2c_get_clientdata(client);
 	int				status = 0;
 

@@ -150,7 +150,7 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct kempld_device_data *pld = dev_get_drvdata(dev->parent);
-	struct kempld_platform_data *pdata = pld->dev->platform_data;
+	struct kempld_platform_data *pdata = dev_get_platdata(pld->dev);
 	struct kempld_gpio_data *gpio;
 	struct gpio_chip *chip;
 	int ret;

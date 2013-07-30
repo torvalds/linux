@@ -520,7 +520,7 @@ static int mcp230xx_probe(struct i2c_client *client,
 
 	match = of_match_device(of_match_ptr(mcp23s08_i2c_of_match),
 					&client->dev);
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	if (match || !pdata) {
 		base = -1;
 		pullups = 0;
@@ -634,7 +634,7 @@ static int mcp23s08_probe(struct spi_device *spi)
 			pullups[addr] = 0;
 	} else {
 		type = spi_get_device_id(spi)->driver_data;
-		pdata = spi->dev.platform_data;
+		pdata = dev_get_platdata(&spi->dev);
 		if (!pdata || !gpio_is_valid(pdata->base)) {
 			dev_dbg(&spi->dev,
 					"invalid or missing platform data\n");
