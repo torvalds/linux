@@ -52,6 +52,12 @@ config GS_DMT10
 	To have support for your sepcific gsensor you will have to
 	select het proper drivers which depend on this option.
 
+config GS_LSM303D
+	bool "gsensor lsm303d"
+	help
+	To have support for your sepcific gsensor you will have to
+	select het proper drivers which depend on this option.
+
 config GS_BMA023
   bool "gsensor bma023"
   help

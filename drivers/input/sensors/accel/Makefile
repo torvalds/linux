@@ -5,3 +5,4 @@ obj-$(CONFIG_GS_LIS3DH) 	+= lis3dh.o
 obj-$(CONFIG_GS_MMA7660) 	+= mma7660.o
 obj-$(CONFIG_GS_MXC6225)    += mxc622x.o
 obj-$(CONFIG_GS_DMT10)      += dmard10.o
+obj-$(CONFIG_GS_LSM303D)    += lsm303d.o
