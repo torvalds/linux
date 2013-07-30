@@ -388,7 +388,10 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 
 	for (i = 0; i < PFUZE100_MAX_REGULATOR; i++) {
 		struct regulator_init_data *init_data;
+		struct regulator_desc *desc;
 		int val;
+
+		desc = &pfuze_chip->regulator_descs[i].desc;
 
 		if (pdata)
 			init_data = pdata->init_data[i];
@@ -397,13 +400,11 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 
 		/* SW2~SW4 high bit check and modify the voltage value table */
 		if (i > PFUZE100_SW1C && i < PFUZE100_SWBST) {
-			regmap_read(pfuze_chip->regmap, PFUZE100_SW2VOL +
-					(i - PFUZE100_SW2) * 7, &val);
+			regmap_read(pfuze_chip->regmap, desc->vsel_reg, &val);
 			if (val & 0x40) {
-				pfuze_chip->regulator_descs[i].desc.min_uV
-				= 800000;
-				pfuze_chip->regulator_descs[i].desc.uV_step
-				= 50000;
+				desc->min_uV = 800000;
+				desc->uV_step = 50000;
+				desc->n_voltages = 51;
 			}
 		}
 
@@ -412,8 +413,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client,
 		config.driver_data = pfuze_chip;
 		config.of_node = match_of_node(i);
 
-		pfuze_chip->regulators[i] = regulator_register(&pfuze_chip
-			->regulator_descs[i].desc, &config);
+		pfuze_chip->regulators[i] = regulator_register(desc, &config);
 		if (IS_ERR(pfuze_chip->regulators[i])) {
 			dev_err(&client->dev, "register regulator%s failed\n",
 				pfuze100_regulators[i].desc.name);
