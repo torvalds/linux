@@ -34,7 +34,10 @@ static void sirfsoc_set_wakeup_source(void)
 	pwr_trigger_en_reg = sirfsoc_rtc_iobrg_readl(sirfsoc_pwrc_base +
 		SIRFSOC_PWRC_TRIGGER_EN);
 #define X_ON_KEY_B (1 << 0)
-	sirfsoc_rtc_iobrg_writel(pwr_trigger_en_reg | X_ON_KEY_B,
+#define RTC_ALARM0_B (1 << 2)
+#define RTC_ALARM1_B (1 << 3)
+	sirfsoc_rtc_iobrg_writel(pwr_trigger_en_reg | X_ON_KEY_B |
+		RTC_ALARM0_B | RTC_ALARM1_B,
 		sirfsoc_pwrc_base + SIRFSOC_PWRC_TRIGGER_EN);
 }
 
