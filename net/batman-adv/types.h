@@ -128,6 +128,10 @@ struct batadv_frag_list_entry {
  * @tt_size: number of global TT entries announced by the orig node
  * @tt_initialised: bool keeping track of whether or not this node have received
  *  any translation table information from the orig node yet
+ * @tt_lock: prevents from updating the table while reading it. Table update is
+ *  made up by two operations (data structure update and metdata -CRC/TTVN-
+ *  recalculation) and they have to be executed atomically in order to avoid
+ *  another thread to read the table/metadata between those.
  * @last_real_seqno: last and best known sequence number
  * @last_ttl: ttl of last received packet
  * @bcast_bits: bitfield containing the info which payload broadcast originated
@@ -171,6 +175,8 @@ struct batadv_orig_node {
 	spinlock_t tt_buff_lock; /* protects tt_buff & tt_buff_len */
 	atomic_t tt_size;
 	bool tt_initialised;
+	/* prevents from changing the table while reading it */
+	spinlock_t tt_lock;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
@@ -388,6 +394,11 @@ enum batadv_counters {
  * @last_changeset: last tt changeset this host has generated
  * @last_changeset_len: length of last tt changeset this host has generated
  * @last_changeset_lock: lock protecting last_changeset & last_changeset_len
+ * @commit_lock: prevents from executing a local TT commit while reading the
+ *  local table. The local TT commit is made up by two operations (data
+ *  structure update and metdata -CRC/TTVN- recalculation) and they have to be
+ *  executed atomically in order to avoid another thread to read the
+ *  table/metadata between those.
  * @work: work queue callback item for translation table purging
  */
 struct batadv_priv_tt {
@@ -408,6 +419,8 @@ struct batadv_priv_tt {
 	int16_t last_changeset_len;
 	/* protects last_changeset & last_changeset_len */
 	spinlock_t last_changeset_lock;
+	/* prevents from executing a commit while reading the table */
+	spinlock_t commit_lock;
 	struct delayed_work work;
 };
 

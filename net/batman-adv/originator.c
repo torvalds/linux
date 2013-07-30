@@ -239,6 +239,7 @@ struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
 	spin_lock_init(&orig_node->bcast_seqno_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
 	spin_lock_init(&orig_node->tt_buff_lock);
+	spin_lock_init(&orig_node->tt_lock);
 
 	batadv_nc_init_orig(orig_node);
 

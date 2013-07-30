@@ -2019,6 +2019,7 @@ static bool batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 		   req_src, tt_data->ttvn,
 		   (tt_data->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
 
+	spin_lock_bh(&bat_priv->tt.commit_lock);
 
 	my_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
 	req_ttvn = tt_data->ttvn;
@@ -2091,6 +2092,7 @@ static bool batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 unlock:
 	spin_unlock_bh(&bat_priv->tt.last_changeset_lock);
 out:
+	spin_unlock_bh(&bat_priv->tt.commit_lock);
 	if (orig_node)
 		batadv_orig_node_free_ref(orig_node);
 	if (primary_if)
@@ -2259,6 +2261,8 @@ static void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 	if (!orig_node)
 		goto out;
 
+	spin_lock_bh(&orig_node->tt_lock);
+
 	if (tt_data->flags & BATADV_TT_FULL_TABLE) {
 		batadv_tt_fill_gtable(bat_priv, tt_data, resp_src, num_entries);
 	} else {
@@ -2266,6 +2270,11 @@ static void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 		batadv_tt_update_changes(bat_priv, orig_node, num_entries,
 					 tt_data->ttvn, tt_change);
 	}
+
+	/* Recalculate the CRC for this orig_node and store it */
+	orig_node->tt_crc = batadv_tt_global_crc(bat_priv, orig_node);
+
+	spin_unlock_bh(&orig_node->tt_lock);
 
 	/* Delete the tt_req_node from pending tt_requests list */
 	spin_lock_bh(&bat_priv->tt.req_list_lock);
@@ -2276,9 +2285,6 @@ static void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 		kfree(node);
 	}
 	spin_unlock_bh(&bat_priv->tt.req_list_lock);
-
-	/* Recalculate the CRC for this orig_node and store it */
-	orig_node->tt_crc = batadv_tt_global_crc(bat_priv, orig_node);
 out:
 	if (orig_node)
 		batadv_orig_node_free_ref(orig_node);
@@ -2532,10 +2538,12 @@ void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv)
 {
 	uint16_t changed_num = 0;
 
+	spin_lock_bh(&bat_priv->tt.commit_lock);
+
 	if (atomic_read(&bat_priv->tt.local_changes) < 1) {
 		if (!batadv_atomic_dec_not_zero(&bat_priv->tt.ogm_append_cnt))
 			batadv_tt_tvlv_container_update(bat_priv);
-		return;
+		goto out;
 	}
 
 	changed_num = batadv_tt_set_flags(bat_priv->tt.local_hash,
@@ -2555,6 +2563,9 @@ void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv)
 	/* reset the sending counter */
 	atomic_set(&bat_priv->tt.ogm_append_cnt, BATADV_TT_OGM_APPEND_MAX);
 	batadv_tt_tvlv_container_update(bat_priv);
+
+out:
+	spin_unlock_bh(&bat_priv->tt.commit_lock);
 }
 
 bool batadv_is_ap_isolated(struct batadv_priv *bat_priv, uint8_t *src,
@@ -2631,6 +2642,8 @@ static void batadv_tt_update_orig(struct batadv_priv *bat_priv,
 			goto request_table;
 		}
 
+		spin_lock_bh(&orig_node->tt_lock);
+
 		tt_change = (struct batadv_tvlv_tt_change *)tt_buff;
 		batadv_tt_update_changes(bat_priv, orig_node, tt_num_changes,
 					 ttvn, tt_change);
@@ -2640,6 +2653,8 @@ static void batadv_tt_update_orig(struct batadv_priv *bat_priv,
 		 * in the global table
 		 */
 		orig_node->tt_crc = batadv_tt_global_crc(bat_priv, orig_node);
+
+		spin_unlock_bh(&orig_node->tt_lock);
 
 		/* The ttvn alone is not enough to guarantee consistency
 		 * because a single value could represent different states
