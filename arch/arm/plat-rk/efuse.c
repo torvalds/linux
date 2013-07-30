@@ -71,7 +71,7 @@ int rk_leakage_val(void)
 {
 	/*
 	 * efuse_buf[22]
-	 * bit[3]:
+	 * bit[2]:
 	 * 	0:enable leakage level auto voltage scale
 	 * 	1:disalbe leakage level avs
 	 */
