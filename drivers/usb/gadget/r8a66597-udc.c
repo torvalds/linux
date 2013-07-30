@@ -1910,7 +1910,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 
 	spin_lock_init(&r8a66597->lock);
 	platform_set_drvdata(pdev, r8a66597);
-	r8a66597->pdata = pdev->dev.platform_data;
+	r8a66597->pdata = dev_get_platdata(&pdev->dev);
 	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 
 	r8a66597->gadget.ops = &r8a66597_gadget_ops;

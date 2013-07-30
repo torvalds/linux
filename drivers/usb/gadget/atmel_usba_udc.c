@@ -1931,7 +1931,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 static struct usba_ep * usba_udc_pdata(struct platform_device *pdev,
 						 struct usba_udc *udc)
 {
-	struct usba_platform_data *pdata = pdev->dev.platform_data;
+	struct usba_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usba_ep *eps;
 	int i;
 

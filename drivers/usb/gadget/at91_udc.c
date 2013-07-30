@@ -1697,7 +1697,7 @@ static int at91udc_probe(struct platform_device *pdev)
 	int		retval;
 	struct resource	*res;
 
-	if (!dev->platform_data && !pdev->dev.of_node) {
+	if (!dev_get_platdata(dev) && !pdev->dev.of_node) {
 		/* small (so we copy it) but critical! */
 		DBG("missing platform_data\n");
 		return -ENODEV;
@@ -1728,7 +1728,7 @@ static int at91udc_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node)
 		at91udc_of_init(udc, pdev->dev.of_node);
 	else
-		memcpy(&udc->board, dev->platform_data,
+		memcpy(&udc->board, dev_get_platdata(dev),
 		       sizeof(struct at91_udc_data));
 	udc->pdev = pdev;
 	udc->enabled = 0;

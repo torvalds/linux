@@ -3451,7 +3451,7 @@ static void s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 
 static int s3c_hsotg_probe(struct platform_device *pdev)
 {
-	struct s3c_hsotg_plat *plat = pdev->dev.platform_data;
+	struct s3c_hsotg_plat *plat = dev_get_platdata(&pdev->dev);
 	struct usb_phy *phy;
 	struct device *dev = &pdev->dev;
 	struct s3c_hsotg_ep *eps;
@@ -3470,7 +3470,7 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 	if (IS_ERR(phy)) {
 		/* Fallback for pdata */
-		plat = pdev->dev.platform_data;
+		plat = dev_get_platdata(&pdev->dev);
 		if (!plat) {
 			dev_err(&pdev->dev, "no platform data or transceiver defined\n");
 			return -EPROBE_DEFER;
