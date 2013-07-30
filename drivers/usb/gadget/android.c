@@ -216,29 +216,13 @@ static void android_disable(struct android_dev *dev)
 		usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
 		usb_remove_config(cdev, &android_config_driver);
 	}
+}
 
 /*-------------------------------------------------------------------------*/
 
-struct g_android_usb_config{
-    /* usb feature */
-    u32 vendor_id;
-    u32 mass_storage_id;
-    u32 adb_id;
+#include <plat/sys_config.h>
 
-    char usb_manufacturer_name[64];
-    char usb_product_name[64];
-    char usb_serial_number[64];
-
-    /* usb_mass_storage feature */
-    char msc_vendor_name[64];
-    char msc_product_name[64];
-    u32 msc_release;
-    u32 luns;
-};
-
-#include <mach/sys_config.h>
-
-static s32 get_msc_config(struct g_android_usb_config *config)
+static s32 get_msc_config(struct android_usb_config *config)
 {
     s32 ret = 0;
 
@@ -313,7 +297,7 @@ static s32 get_msc_config(struct g_android_usb_config *config)
     return 0;
 }
 
-static void print_msc_config(struct g_android_usb_config *config)
+static void print_msc_config(struct android_usb_config *config)
 {
     printk("------print_msc_config-----\n");
     printk("vendor_id             = 0x%x\n", config->vendor_id);
@@ -331,13 +315,13 @@ static void print_msc_config(struct g_android_usb_config *config)
     printk("---------------------------\n");
 }
 
-static struct g_android_usb_config g_android_usb_config;
+static struct android_usb_config g_android_usb_config;
 
 static s32 modify_device_data(void)
 {
-    struct g_android_usb_config *config = &g_android_usb_config;
+    struct android_usb_config *config = &g_android_usb_config;
 
-    memset(config, 0, sizeof(struct g_android_usb_config));
+    memset(config, 0, sizeof(struct android_usb_config));
 
     get_msc_config(config);
 
