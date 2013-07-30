@@ -267,13 +267,15 @@ enum cvmx_usb_transfer {
 };
 
 /**
- * Enumeration of the transfer directions
+ * enum cvmx_usb_direction - the transfer directions
+ *
+ * @CVMX_USB_DIRECTION_OUT: Data is transferring from Octeon to the device/host
+ * @CVMX_USB_DIRECTION_IN:  Data is transferring from the device/host to Octeon
  */
-typedef enum
-{
-    CVMX_USB_DIRECTION_OUT,         /**< Data is transferring from Octeon to the device/host */
-    CVMX_USB_DIRECTION_IN,          /**< Data is transferring from the device/host to Octeon */
-} cvmx_usb_direction_t;
+enum cvmx_usb_direction {
+	CVMX_USB_DIRECTION_OUT,
+	CVMX_USB_DIRECTION_IN,
+};
 
 /**
  * Enumeration of all possible status codes passed to callback
@@ -426,7 +428,7 @@ extern int cvmx_usb_open_pipe(cvmx_usb_state_t *state,
                               int device_addr, int endpoint_num,
                               enum cvmx_usb_speed device_speed, int max_packet,
                               enum cvmx_usb_transfer transfer_type,
-                              cvmx_usb_direction_t transfer_dir, int interval,
+                              enum cvmx_usb_direction transfer_dir, int interval,
                               int multi_count, int hub_device_addr,
                               int hub_port);
 extern int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,

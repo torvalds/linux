@@ -153,7 +153,7 @@ typedef struct cvmx_usb_pipe {
 	cvmx_usb_pipe_flags_t flags;		/**< State flags for this pipe */
 	enum cvmx_usb_speed device_speed;	/**< Speed of device connected to this pipe */
 	enum cvmx_usb_transfer transfer_type;	/**< Type of transaction supported by this pipe */
-	cvmx_usb_direction_t transfer_dir;	/**< IN or OUT. Ignored for Control */
+	enum cvmx_usb_direction transfer_dir;	/**< IN or OUT. Ignored for Control */
 	int multi_count;			/**< Max packet in a row for the device */
 	uint16_t max_packet;			/**< The device's maximum packet size in bytes */
 	uint8_t device_addr;			/**< USB device address at other end of pipe */
@@ -1105,7 +1105,7 @@ int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
 		       int device_addr, int endpoint_num,
 		       enum cvmx_usb_speed device_speed, int max_packet,
 		       enum cvmx_usb_transfer transfer_type,
-		       cvmx_usb_direction_t transfer_dir, int interval,
+		       enum cvmx_usb_direction transfer_dir, int interval,
 		       int multi_count, int hub_device_addr, int hub_port)
 {
 	cvmx_usb_pipe_t *pipe;
