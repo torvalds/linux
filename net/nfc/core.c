@@ -583,7 +583,7 @@ int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	if (se->type == NFC_SE_ENABLED) {
+	if (se->state == NFC_SE_ENABLED) {
 		rc = -EALREADY;
 		goto error;
 	}
@@ -626,7 +626,7 @@ int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	if (se->type == NFC_SE_DISABLED) {
+	if (se->state == NFC_SE_DISABLED) {
 		rc = -EALREADY;
 		goto error;
 	}
