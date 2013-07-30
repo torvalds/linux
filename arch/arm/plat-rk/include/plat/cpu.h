@@ -72,10 +72,10 @@ static inline bool soc_is_rk3188plus(void)
 
 static inline bool cpu_is_rk3026(void)
 {
-	return readl_relaxed(RK30_ROM_BASE + 0x27f0) == 0x32393243
-	    && readl_relaxed(RK30_ROM_BASE + 0x27f4) == 0x32303133
-	    && readl_relaxed(RK30_ROM_BASE + 0x27f8) == 0x30353239
-	    && readl_relaxed(RK30_ROM_BASE + 0x27fc) == 0x56313031;
+	return readl_relaxed(RK30_ROM_BASE + 0x3ff0) == 0x32393243
+	    && readl_relaxed(RK30_ROM_BASE + 0x3ff4) == 0x32303133
+	    && readl_relaxed(RK30_ROM_BASE + 0x3ff8) == 0x30353239
+	    && readl_relaxed(RK30_ROM_BASE + 0x3ffc) == 0x56313031;
 }
 #else
 static inline bool cpu_is_rk30xx(void) { return false; }
