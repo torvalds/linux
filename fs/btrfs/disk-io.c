@@ -1149,6 +1149,10 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 		return NULL;
 
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
+	if (ret) {
+		free_extent_buffer(buf);
+		return NULL;
+	}
 	return buf;
 
 }
