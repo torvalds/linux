@@ -294,11 +294,6 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned short	status;
 	unsigned int index;
 
-	if (!fep->link) {
-		/* Link is down or auto-negotiation is in progress. */
-		return NETDEV_TX_BUSY;
-	}
-
 	/* Fill in a Tx ring entry */
 	bdp = fep->cur_tx;
 
