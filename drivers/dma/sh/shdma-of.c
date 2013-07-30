@@ -42,7 +42,7 @@ static struct dma_chan *shdma_of_xlate(struct of_phandle_args *dma_spec,
 
 static int shdma_of_probe(struct platform_device *pdev)
 {
-	const struct of_dev_auxdata *lookup = pdev->dev.platform_data;
+	const struct of_dev_auxdata *lookup = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	if (!lookup)
