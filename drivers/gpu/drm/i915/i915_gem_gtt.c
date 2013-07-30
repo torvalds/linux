@@ -298,13 +298,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	 * now. */
 	first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
 
-	if (IS_HASWELL(dev)) {
-		ppgtt->base.pte_encode = hsw_pte_encode;
-	} else if (IS_VALLEYVIEW(dev)) {
-		ppgtt->base.pte_encode = byt_pte_encode;
-	} else {
-		ppgtt->base.pte_encode = gen6_pte_encode;
-	}
+	ppgtt->base.pte_encode = dev_priv->gtt.base.pte_encode;
 	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
 	ppgtt->enable = gen6_ppgtt_enable;
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
