@@ -237,7 +237,7 @@ static struct irq_domain_ops em_gio_irq_domain_ops = {
 static int em_gio_probe(struct platform_device *pdev)
 {
 	struct gpio_em_config pdata_dt;
-	struct gpio_em_config *pdata = pdev->dev.platform_data;
+	struct gpio_em_config *pdata = dev_get_platdata(&pdev->dev);
 	struct em_gio_priv *p;
 	struct resource *io[2], *irq[2];
 	struct gpio_chip *gpio_chip;
