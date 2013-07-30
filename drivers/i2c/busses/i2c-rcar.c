@@ -615,7 +615,7 @@ static const struct i2c_algorithm rcar_i2c_algo = {
 
 static int rcar_i2c_probe(struct platform_device *pdev)
 {
-	struct i2c_rcar_platform_data *pdata = pdev->dev.platform_data;
+	struct i2c_rcar_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct rcar_i2c_priv *priv;
 	struct i2c_adapter *adap;
 	struct resource *res;

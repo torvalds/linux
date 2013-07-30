@@ -596,7 +596,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 							   &pdev->dev);
 	struct imx_i2c_struct *i2c_imx;
 	struct resource *res;
-	struct imxi2c_platform_data *pdata = pdev->dev.platform_data;
+	struct imxi2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	void __iomem *base;
 	int irq, ret;
 	u32 bitrate;

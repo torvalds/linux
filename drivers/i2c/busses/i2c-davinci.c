@@ -663,7 +663,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 #endif
 	dev->dev = &pdev->dev;
 	dev->irq = irq->start;
-	dev->pdata = dev->dev->platform_data;
+	dev->pdata = dev_get_platdata(&dev->dev);
 	platform_set_drvdata(pdev, dev);
 
 	if (!dev->pdata && pdev->dev.of_node) {

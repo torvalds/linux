@@ -943,7 +943,7 @@ static void nmk_i2c_of_probe(struct device_node *np,
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
-	struct nmk_i2c_controller *pdata = adev->dev.platform_data;
+	struct nmk_i2c_controller *pdata = dev_get_platdata(&adev->dev);
 	struct device_node *np = adev->dev.of_node;
 	struct nmk_i2c_dev	*dev;
 	struct i2c_adapter *adap;

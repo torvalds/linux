@@ -290,8 +290,9 @@ static int s6i2c_probe(struct platform_device *dev)
 
 	clock = 0;
 	bus_num = -1;
-	if (dev->dev.platform_data) {
-		struct s6_i2c_platform_data *pdata = dev->dev.platform_data;
+	if (dev_get_platdata(&dev->dev)) {
+		struct s6_i2c_platform_data *pdata =
+			dev_get_platdata(&dev->dev);
 		bus_num = pdata->bus_num;
 		clock = pdata->clock;
 	}
