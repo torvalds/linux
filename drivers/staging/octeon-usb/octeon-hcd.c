@@ -26,7 +26,7 @@
 
 struct octeon_hcd {
 	spinlock_t lock;
-	cvmx_usb_state_t usb;
+	struct cvmx_usb_state usb;
 	struct tasklet_struct dequeue_tasklet;
 	struct list_head dequeue_list;
 };
@@ -42,7 +42,7 @@ static inline struct usb_hcd *octeon_to_hcd(struct octeon_hcd *p)
 	return container_of((void *)p, struct usb_hcd, hcd_priv);
 }
 
-static inline struct octeon_hcd *cvmx_usb_to_octeon(cvmx_usb_state_t *p)
+static inline struct octeon_hcd *cvmx_usb_to_octeon(struct cvmx_usb_state *p)
 {
 	return container_of(p, struct octeon_hcd, usb);
 }
@@ -58,7 +58,7 @@ static irqreturn_t octeon_usb_irq(struct usb_hcd *hcd)
 	return IRQ_HANDLED;
 }
 
-static void octeon_usb_port_callback(cvmx_usb_state_t *usb,
+static void octeon_usb_port_callback(struct cvmx_usb_state *usb,
 				     enum cvmx_usb_callback reason,
 				     enum cvmx_usb_complete status,
 				     int pipe_handle,
@@ -105,7 +105,7 @@ static int octeon_usb_get_frame_number(struct usb_hcd *hcd)
 	return cvmx_usb_get_frame_number(&priv->usb);
 }
 
-static void octeon_usb_urb_complete_callback(cvmx_usb_state_t *usb,
+static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 					     enum cvmx_usb_callback reason,
 					     enum cvmx_usb_complete status,
 					     int pipe_handle,

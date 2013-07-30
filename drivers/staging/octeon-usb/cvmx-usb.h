@@ -75,7 +75,7 @@
  * In the probe phase you should:
  * - Use cvmx_usb_get_num_ports() to determine the number of
  *   USB port to be supported.
- * - Allocate space for a cvmx_usb_state_t structure for each
+ * - Allocate space for a struct cvmx_usb_state for each
  *   port.
  * - Tell the operating system about each port
  *
@@ -114,14 +114,14 @@
  *
  * The port callback prototype needs to look as follows:
  *
- * void port_callback(cvmx_usb_state_t *usb,
+ * void port_callback(struct cvmx_usb_state *usb,
  *                    enum cvmx_usb_callback reason,
  *                    enum cvmx_usb_complete status,
  *                    int pipe_handle,
  *                    int submit_handle,
  *                    int bytes_transferred,
  *                    void *user_data);
- * - "usb" is the cvmx_usb_state_t for the port.
+ * - "usb" is the struct cvmx_usb_state for the port.
  * - "reason" will always be CVMX_USB_CALLBACK_PORT_CHANGED.
  * - "status" will always be CVMX_USB_COMPLETE_SUCCESS.
  * - "pipe_handle" will always be -1.
@@ -146,14 +146,14 @@
  *
  * The completion callback prototype needs to look as follows:
  *
- * void complete_callback(cvmx_usb_state_t *usb,
+ * void complete_callback(struct cvmx_usb_state *usb,
  *                        enum cvmx_usb_callback reason,
  *                        enum cvmx_usb_complete status,
  *                        int pipe_handle,
  *                        int submit_handle,
  *                        int bytes_transferred,
  *                        void *user_data);
- * - "usb" is the cvmx_usb_state_t for the port.
+ * - "usb" is the struct cvmx_usb_state for the port.
  * - "reason" will always be CVMX_USB_CALLBACK_TRANSFER_COMPLETE.
  * - "status" will be one of the cvmx_usb_complete enumerations.
  * - "pipe_handle" is the handle to the pipe the transaction
@@ -393,10 +393,9 @@ enum cvmx_usb_callback {
  * may change in future SDKs. No data in it should be referenced
  * by user's of this API.
  */
-typedef struct
-{
-    char data[65536];
-} cvmx_usb_state_t;
+struct cvmx_usb_state {
+	char data[65536];
+};
 
 /**
  * USB callback functions are always of the following type.
@@ -416,7 +415,7 @@ typedef struct
  *      - user_data = The user pointer supplied to the
  *        function cvmx_usb_submit() or
  *        cvmx_usb_register_callback() */
-typedef void (*cvmx_usb_callback_func_t)(cvmx_usb_state_t *state,
+typedef void (*cvmx_usb_callback_func_t)(struct cvmx_usb_state *state,
                                          enum cvmx_usb_callback reason,
                                          enum cvmx_usb_complete status,
                                          int pipe_handle, int submit_handle,
@@ -473,14 +472,14 @@ enum cvmx_usb_pipe_flags {
 };
 
 extern int cvmx_usb_get_num_ports(void);
-extern int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
+extern int cvmx_usb_initialize(struct cvmx_usb_state *state, int usb_port_number,
 			       enum cvmx_usb_initialize_flags flags);
-extern int cvmx_usb_shutdown(cvmx_usb_state_t *state);
-extern int cvmx_usb_enable(cvmx_usb_state_t *state);
-extern int cvmx_usb_disable(cvmx_usb_state_t *state);
-extern struct cvmx_usb_port_status cvmx_usb_get_status(cvmx_usb_state_t *state);
-extern void cvmx_usb_set_status(cvmx_usb_state_t *state, struct cvmx_usb_port_status port_status);
-extern int cvmx_usb_open_pipe(cvmx_usb_state_t *state,
+extern int cvmx_usb_shutdown(struct cvmx_usb_state *state);
+extern int cvmx_usb_enable(struct cvmx_usb_state *state);
+extern int cvmx_usb_disable(struct cvmx_usb_state *state);
+extern struct cvmx_usb_port_status cvmx_usb_get_status(struct cvmx_usb_state *state);
+extern void cvmx_usb_set_status(struct cvmx_usb_state *state, struct cvmx_usb_port_status port_status);
+extern int cvmx_usb_open_pipe(struct cvmx_usb_state *state,
                               enum cvmx_usb_pipe_flags flags,
                               int device_addr, int endpoint_num,
                               enum cvmx_usb_speed device_speed, int max_packet,
@@ -488,15 +487,15 @@ extern int cvmx_usb_open_pipe(cvmx_usb_state_t *state,
                               enum cvmx_usb_direction transfer_dir, int interval,
                               int multi_count, int hub_device_addr,
                               int hub_port);
-extern int cvmx_usb_submit_bulk(cvmx_usb_state_t *state, int pipe_handle,
+extern int cvmx_usb_submit_bulk(struct cvmx_usb_state *state, int pipe_handle,
                                 uint64_t buffer, int buffer_length,
                                 cvmx_usb_callback_func_t callback,
                                 void *user_data);
-extern int cvmx_usb_submit_interrupt(cvmx_usb_state_t *state, int pipe_handle,
+extern int cvmx_usb_submit_interrupt(struct cvmx_usb_state *state, int pipe_handle,
                                      uint64_t buffer, int buffer_length,
                                      cvmx_usb_callback_func_t callback,
                                      void *user_data);
-extern int cvmx_usb_submit_control(cvmx_usb_state_t *state, int pipe_handle,
+extern int cvmx_usb_submit_control(struct cvmx_usb_state *state, int pipe_handle,
                                    uint64_t control_header,
                                    uint64_t buffer, int buffer_length,
                                    cvmx_usb_callback_func_t callback,
@@ -517,22 +516,22 @@ enum cvmx_usb_isochronous_flags {
 	CVMX_USB_ISOCHRONOUS_FLAGS_ASAP		= 1 << 1,
 };
 
-extern int cvmx_usb_submit_isochronous(cvmx_usb_state_t *state, int pipe_handle,
+extern int cvmx_usb_submit_isochronous(struct cvmx_usb_state *state, int pipe_handle,
                                        int start_frame, int flags,
                                        int number_packets,
                                        struct cvmx_usb_iso_packet packets[],
                                        uint64_t buffer, int buffer_length,
                                        cvmx_usb_callback_func_t callback,
                                        void *user_data);
-extern int cvmx_usb_cancel(cvmx_usb_state_t *state, int pipe_handle,
+extern int cvmx_usb_cancel(struct cvmx_usb_state *state, int pipe_handle,
 			   int submit_handle);
-extern int cvmx_usb_cancel_all(cvmx_usb_state_t *state, int pipe_handle);
-extern int cvmx_usb_close_pipe(cvmx_usb_state_t *state, int pipe_handle);
-extern int cvmx_usb_register_callback(cvmx_usb_state_t *state,
+extern int cvmx_usb_cancel_all(struct cvmx_usb_state *state, int pipe_handle);
+extern int cvmx_usb_close_pipe(struct cvmx_usb_state *state, int pipe_handle);
+extern int cvmx_usb_register_callback(struct cvmx_usb_state *state,
 				      enum cvmx_usb_callback reason,
 				      cvmx_usb_callback_func_t callback,
 				      void *user_data);
-extern int cvmx_usb_get_frame_number(cvmx_usb_state_t *state);
-extern int cvmx_usb_poll(cvmx_usb_state_t *state);
+extern int cvmx_usb_get_frame_number(struct cvmx_usb_state *state);
+extern int cvmx_usb_poll(struct cvmx_usb_state *state);
 
 #endif  /* __CVMX_USB_H__ */
