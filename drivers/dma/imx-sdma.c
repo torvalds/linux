@@ -1332,7 +1332,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 	struct resource *iores;
-	struct sdma_platform_data *pdata = pdev->dev.platform_data;
+	struct sdma_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int i;
 	struct sdma_engine *sdma;
 	s32 *saddr_arr;

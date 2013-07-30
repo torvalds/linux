@@ -335,7 +335,7 @@ static const struct shdma_ops sudmac_shdma_ops = {
 
 static int sudmac_probe(struct platform_device *pdev)
 {
-	struct sudmac_pdata *pdata = pdev->dev.platform_data;
+	struct sudmac_pdata *pdata = dev_get_platdata(&pdev->dev);
 	int err, i;
 	struct sudmac_device *su_dev;
 	struct dma_device *dma_dev;
@@ -373,7 +373,7 @@ static int sudmac_probe(struct platform_device *pdev)
 		return err;
 
 	/* platform data */
-	su_dev->pdata = pdev->dev.platform_data;
+	su_dev->pdata = dev_get_platdata(&pdev->dev);
 
 	platform_set_drvdata(pdev, su_dev);
 
