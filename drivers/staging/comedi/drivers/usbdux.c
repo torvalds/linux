@@ -1426,27 +1426,23 @@ static int usbdux_pwm_pattern(struct comedi_device *dev,
 
 static int usbdux_pwm_write(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
-	struct usbdux_private *this_usbduxsub = dev->private;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
-
-	if ((insn->n) != 1) {
-		/*
-		 * doesn't make sense to have more than one value here because
-		 * it would just overwrite the PWM buffer a couple of times
-		 */
-		return -EINVAL;
-	}
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
 	/*
-	 * the sign is set via a special INSN only, this gives us 8 bits for
-	 * normal operation
-	 * relay sign 0 by default
+	 * It doesn't make sense to support more than one value here
+	 * because it would just overwrite the PWM buffer.
 	 */
-	return usbdux_pwm_pattern(dev, s, CR_CHAN(insn->chanspec), data[0], 0);
+	if (insn->n != 1)
+		return -EINVAL;
+
+	/*
+	 * The sign is set via a special INSN only, this gives us 8 bits
+	 * for normal operation, sign is 0 by default.
+	 */
+	return usbdux_pwm_pattern(dev, s, chan, data[0], 0);
 }
 
 static int usbdux_pwm_read(struct comedi_device *x1,
