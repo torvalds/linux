@@ -286,7 +286,7 @@ static int ux500_dma_controller_start(struct ux500_dma_controller *controller)
 	struct ux500_dma_channel *ux500_channel = NULL;
 	struct musb *musb = controller->private_data;
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 	struct ux500_musb_board_data *data;
 	struct dma_channel *dma_channel = NULL;
 	char **chan_names;

@@ -478,7 +478,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 {
 	struct device *dev = glue->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct musb_hdrc_platform_data  *pdata = dev->platform_data;
+	struct musb_hdrc_platform_data  *pdata = dev_get_platdata(dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct musb_hdrc_config	*config;
 	struct platform_device	*musb;

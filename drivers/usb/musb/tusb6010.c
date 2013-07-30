@@ -1157,7 +1157,7 @@ static u64 tusb_dmamask = DMA_BIT_MASK(32);
 static int tusb_probe(struct platform_device *pdev)
 {
 	struct resource musb_resources[2];
-	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct platform_device		*musb;
 	struct tusb6010_glue		*glue;
 

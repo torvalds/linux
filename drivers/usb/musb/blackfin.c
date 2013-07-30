@@ -451,7 +451,7 @@ static u64 bfin_dmamask = DMA_BIT_MASK(32);
 static int bfin_probe(struct platform_device *pdev)
 {
 	struct resource musb_resources[2];
-	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
+	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct platform_device		*musb;
 	struct bfin_glue		*glue;
 
