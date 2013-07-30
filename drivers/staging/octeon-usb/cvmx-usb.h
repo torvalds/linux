@@ -440,15 +440,22 @@ enum cvmx_usb_initialize_flags {
 };
 
 /**
- * Flags for passing when a pipe is created. Currently no flags
- * need to be passed.
+ * enum cvmx_usb_pipe_flags - flags for passing when a pipe is created.
+ *			      Currently no flags need to be passed.
+ *
+ * @__CVMX_USB_PIPE_FLAGS_OPEN:	     Used internally to determine if a pipe is
+ *				     open. Do not use.
+ * @__CVMX_USB_PIPE_FLAGS_SCHEDULED: Used internally to determine if a pipe is
+ *				     actively using hardware. Do not use.
+ * @__CVMX_USB_PIPE_FLAGS_NEED_PING: Used internally to determine if a high
+ *				     speed pipe is in the ping state. Do not
+ *				     use.
  */
-typedef enum
-{
-    __CVMX_USB_PIPE_FLAGS_OPEN = 1<<16,         /**< Used internally to determine if a pipe is open. Do not use */
-    __CVMX_USB_PIPE_FLAGS_SCHEDULED = 1<<17,    /**< Used internally to determine if a pipe is actively using hardware. Do not use */
-    __CVMX_USB_PIPE_FLAGS_NEED_PING = 1<<18,    /**< Used internally to determine if a high speed pipe is in the ping state. Do not use */
-} cvmx_usb_pipe_flags_t;
+enum cvmx_usb_pipe_flags {
+	__CVMX_USB_PIPE_FLAGS_OPEN	= 1 << 16,
+	__CVMX_USB_PIPE_FLAGS_SCHEDULED	= 1 << 17,
+	__CVMX_USB_PIPE_FLAGS_NEED_PING	= 1 << 18,
+};
 
 extern int cvmx_usb_get_num_ports(void);
 extern int cvmx_usb_initialize(cvmx_usb_state_t *state, int usb_port_number,
@@ -459,7 +466,7 @@ extern int cvmx_usb_disable(cvmx_usb_state_t *state);
 extern cvmx_usb_port_status_t cvmx_usb_get_status(cvmx_usb_state_t *state);
 extern void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t port_status);
 extern int cvmx_usb_open_pipe(cvmx_usb_state_t *state,
-                              cvmx_usb_pipe_flags_t flags,
+                              enum cvmx_usb_pipe_flags flags,
                               int device_addr, int endpoint_num,
                               enum cvmx_usb_speed device_speed, int max_packet,
                               enum cvmx_usb_transfer transfer_type,

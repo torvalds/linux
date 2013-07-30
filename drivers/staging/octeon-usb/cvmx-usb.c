@@ -150,7 +150,7 @@ typedef struct cvmx_usb_pipe {
 	cvmx_usb_transaction_t *tail;		/**< The last pending transaction */
 	uint64_t interval;			/**< For periodic pipes, the interval between packets in frames */
 	uint64_t next_tx_frame;			/**< The next frame this pipe is allowed to transmit on */
-	cvmx_usb_pipe_flags_t flags;		/**< State flags for this pipe */
+	enum cvmx_usb_pipe_flags flags;		/**< State flags for this pipe */
 	enum cvmx_usb_speed device_speed;	/**< Speed of device connected to this pipe */
 	enum cvmx_usb_transfer transfer_type;	/**< Type of transaction supported by this pipe */
 	enum cvmx_usb_direction transfer_dir;	/**< IN or OUT. Ignored for Control */
@@ -1053,7 +1053,7 @@ static inline int __cvmx_usb_get_pipe_handle(cvmx_usb_internal_state_t *usb,
  * @state:	     USB device state populated by
  *		     cvmx_usb_initialize().
  * @flags:	     Optional pipe flags defined in
- *		     cvmx_usb_pipe_flags_t.
+ *		     enum cvmx_usb_pipe_flags.
  * @device_addr:
  *		     USB device address to open the pipe to
  *		     (0-127).
@@ -1101,7 +1101,7 @@ static inline int __cvmx_usb_get_pipe_handle(cvmx_usb_internal_state_t *usb,
  * Returns: A non negative value is a pipe handle. Negative
  *	    values are error codes.
  */
-int cvmx_usb_open_pipe(cvmx_usb_state_t *state, cvmx_usb_pipe_flags_t flags,
+int cvmx_usb_open_pipe(cvmx_usb_state_t *state, enum cvmx_usb_pipe_flags flags,
 		       int device_addr, int endpoint_num,
 		       enum cvmx_usb_speed device_speed, int max_packet,
 		       enum cvmx_usb_transfer transfer_type,
