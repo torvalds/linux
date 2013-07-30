@@ -1884,7 +1884,7 @@ static int mpsc_shared_drv_probe(struct platform_device *dev)
 	if (dev->id == 0) {
 		if (!(rc = mpsc_shared_map_regs(dev))) {
 			pdata = (struct mpsc_shared_pdata *)
-				dev->dev.platform_data;
+				dev_get_platdata(&dev->dev);
 
 			mpsc_shared_regs.MPSC_MRR_m = pdata->mrr_val;
 			mpsc_shared_regs.MPSC_RCRR_m= pdata->rcrr_val;
@@ -2025,7 +2025,7 @@ static void mpsc_drv_get_platform_data(struct mpsc_port_info *pi,
 {
 	struct mpsc_pdata	*pdata;
 
-	pdata = (struct mpsc_pdata *)pd->dev.platform_data;
+	pdata = (struct mpsc_pdata *)dev_get_platdata(&pd->dev);
 
 	pi->port.uartclk = pdata->brg_clk_freq;
 	pi->port.iotype = UPIO_MEM;

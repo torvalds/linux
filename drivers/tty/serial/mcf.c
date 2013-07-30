@@ -24,6 +24,7 @@
 #include <linux/serial_core.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/platform_device.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
@@ -644,7 +645,7 @@ static struct uart_driver mcf_driver = {
 
 static int mcf_probe(struct platform_device *pdev)
 {
-	struct mcf_platform_uart *platp = pdev->dev.platform_data;
+	struct mcf_platform_uart *platp = dev_get_platdata(&pdev->dev);
 	struct uart_port *port;
 	int i;
 

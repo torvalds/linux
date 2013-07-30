@@ -1240,7 +1240,8 @@ static int bfin_serial_probe(struct platform_device *pdev)
 			 */
 #endif
 		ret = peripheral_request_list(
-			(unsigned short *)pdev->dev.platform_data, DRIVER_NAME);
+			(unsigned short *)dev_get_platdata(&pdev->dev),
+			DRIVER_NAME);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"fail to request bfin serial peripherals\n");
@@ -1358,7 +1359,7 @@ out_error_unmap:
 		iounmap(uart->port.membase);
 out_error_free_peripherals:
 		peripheral_free_list(
-			(unsigned short *)pdev->dev.platform_data);
+			(unsigned short *)dev_get_platdata(&pdev->dev));
 out_error_free_mem:
 		kfree(uart);
 		bfin_serial_ports[pdev->id] = NULL;
@@ -1377,7 +1378,7 @@ static int bfin_serial_remove(struct platform_device *pdev)
 		uart_remove_one_port(&bfin_serial_reg, &uart->port);
 		iounmap(uart->port.membase);
 		peripheral_free_list(
-			(unsigned short *)pdev->dev.platform_data);
+			(unsigned short *)dev_get_platdata(&pdev->dev));
 		kfree(uart);
 		bfin_serial_ports[pdev->id] = NULL;
 	}
@@ -1432,7 +1433,7 @@ static int bfin_earlyprintk_probe(struct platform_device *pdev)
 	}
 
 	ret = peripheral_request_list(
-		(unsigned short *)pdev->dev.platform_data, DRIVER_NAME);
+		(unsigned short *)dev_get_platdata(&pdev->dev), DRIVER_NAME);
 	if (ret) {
 		dev_err(&pdev->dev,
 				"fail to request bfin serial peripherals\n");
@@ -1463,7 +1464,7 @@ static int bfin_earlyprintk_probe(struct platform_device *pdev)
 
 out_error_free_peripherals:
 	peripheral_free_list(
-		(unsigned short *)pdev->dev.platform_data);
+		(unsigned short *)dev_get_platdata(&pdev->dev));
 
 	return ret;
 }

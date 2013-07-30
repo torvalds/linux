@@ -629,7 +629,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	int id;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata)
 		return -EINVAL;
 

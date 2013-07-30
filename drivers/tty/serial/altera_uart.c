@@ -534,7 +534,7 @@ static int altera_uart_get_of_uartclk(struct platform_device *pdev,
 
 static int altera_uart_probe(struct platform_device *pdev)
 {
-	struct altera_uart_platform_uart *platp = pdev->dev.platform_data;
+	struct altera_uart_platform_uart *platp = dev_get_platdata(&pdev->dev);
 	struct uart_port *port;
 	struct resource *res_mem;
 	struct resource *res_irq;

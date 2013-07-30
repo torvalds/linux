@@ -1393,7 +1393,7 @@ static int atmel_init_property(struct atmel_uart_port *atmel_port,
 				struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct atmel_uart_data *pdata = pdev->dev.platform_data;
+	struct atmel_uart_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (np) {
 		/* DMA/PDC usage specification */
@@ -1437,7 +1437,7 @@ static void atmel_init_rs485(struct atmel_uart_port *atmel_port,
 				struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct atmel_uart_data *pdata = pdev->dev.platform_data;
+	struct atmel_uart_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (np) {
 		u32 rs485_delay[2];
@@ -2028,7 +2028,7 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 {
 	int ret;
 	struct uart_port *port = &atmel_port->uart;
-	struct atmel_uart_data *pdata = pdev->dev.platform_data;
+	struct atmel_uart_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (!atmel_init_property(atmel_port, pdev))
 		atmel_set_ops(port);
@@ -2226,7 +2226,7 @@ static int __init atmel_console_init(void)
 	int ret;
 	if (atmel_default_console_device) {
 		struct atmel_uart_data *pdata =
-			atmel_default_console_device->dev.platform_data;
+			dev_get_platdata(&atmel_default_console_device->dev);
 		int id = pdata->num;
 		struct atmel_uart_port *port = &atmel_ports[id];
 
@@ -2334,7 +2334,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 {
 	struct atmel_uart_port *port;
 	struct device_node *np = pdev->dev.of_node;
-	struct atmel_uart_data *pdata = pdev->dev.platform_data;
+	struct atmel_uart_data *pdata = dev_get_platdata(&pdev->dev);
 	void *data;
 	int ret = -ENODEV;
 

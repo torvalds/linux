@@ -200,7 +200,7 @@ static inline void serial_omap_clear_fifos(struct uart_omap_port *up)
 
 static int serial_omap_get_context_loss_count(struct uart_omap_port *up)
 {
-	struct omap_uart_port_info *pdata = up->dev->platform_data;
+	struct omap_uart_port_info *pdata = dev_get_platdata(up->dev);
 
 	if (!pdata || !pdata->get_context_loss_count)
 		return -EINVAL;
@@ -210,7 +210,7 @@ static int serial_omap_get_context_loss_count(struct uart_omap_port *up)
 
 static void serial_omap_enable_wakeup(struct uart_omap_port *up, bool enable)
 {
-	struct omap_uart_port_info *pdata = up->dev->platform_data;
+	struct omap_uart_port_info *pdata = dev_get_platdata(up->dev);
 
 	if (!pdata || !pdata->enable_wakeup)
 		return;
@@ -1409,7 +1409,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 {
 	struct uart_omap_port	*up;
 	struct resource		*mem, *irq;
-	struct omap_uart_port_info *omap_up_info = pdev->dev.platform_data;
+	struct omap_uart_port_info *omap_up_info = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	if (pdev->dev.of_node) {

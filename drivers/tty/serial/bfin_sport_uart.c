@@ -766,7 +766,8 @@ static int sport_uart_probe(struct platform_device *pdev)
 		}
 
 		ret = peripheral_request_list(
-			(unsigned short *)pdev->dev.platform_data, DRV_NAME);
+			(unsigned short *)dev_get_platdata(&pdev->dev),
+			DRV_NAME);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Fail to request SPORT peripherals\n");
@@ -843,7 +844,7 @@ out_error_unmap:
 		iounmap(sport->port.membase);
 out_error_free_peripherals:
 		peripheral_free_list(
-			(unsigned short *)pdev->dev.platform_data);
+			(unsigned short *)dev_get_platdata(&pdev->dev));
 out_error_free_mem:
 		kfree(sport);
 		bfin_sport_uart_ports[pdev->id] = NULL;
@@ -863,7 +864,7 @@ static int sport_uart_remove(struct platform_device *pdev)
 		uart_remove_one_port(&sport_uart_reg, &sport->port);
 		iounmap(sport->port.membase);
 		peripheral_free_list(
-			(unsigned short *)pdev->dev.platform_data);
+			(unsigned short *)dev_get_platdata(&pdev->dev));
 		kfree(sport);
 		bfin_sport_uart_ports[pdev->id] = NULL;
 	}

@@ -408,7 +408,8 @@ static struct uart_driver altera_jtaguart_driver = {
 
 static int altera_jtaguart_probe(struct platform_device *pdev)
 {
-	struct altera_jtaguart_platform_uart *platp = pdev->dev.platform_data;
+	struct altera_jtaguart_platform_uart *platp =
+			dev_get_platdata(&pdev->dev);
 	struct uart_port *port;
 	struct resource *res_irq, *res_mem;
 	int i = pdev->id;

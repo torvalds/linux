@@ -1222,7 +1222,7 @@ static int imx_startup(struct uart_port *port)
 
 	if (USE_IRDA(sport)) {
 		struct imxuart_platform_data *pdata;
-		pdata = sport->port.dev->platform_data;
+		pdata = dev_get_platdata(sport->port.dev);
 		sport->irda_inv_rx = pdata->irda_inv_rx;
 		sport->irda_inv_tx = pdata->irda_inv_tx;
 		sport->trcv_delay = pdata->transceiver_delay;
@@ -1265,7 +1265,7 @@ static void imx_shutdown(struct uart_port *port)
 
 	if (USE_IRDA(sport)) {
 		struct imxuart_platform_data *pdata;
-		pdata = sport->port.dev->platform_data;
+		pdata = dev_get_platdata(sport->port.dev);
 		if (pdata->irda_enable)
 			pdata->irda_enable(0);
 	}
@@ -1925,7 +1925,7 @@ static inline int serial_imx_probe_dt(struct imx_port *sport,
 static void serial_imx_probe_pdata(struct imx_port *sport,
 		struct platform_device *pdev)
 {
-	struct imxuart_platform_data *pdata = pdev->dev.platform_data;
+	struct imxuart_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	sport->port.line = pdev->id;
 	sport->devdata = (struct imx_uart_data	*) pdev->id_entry->driver_data;
@@ -2000,7 +2000,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 
 	imx_ports[sport->port.line] = sport;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata && pdata->init) {
 		ret = pdata->init(pdev);
 		if (ret)
@@ -2024,7 +2024,7 @@ static int serial_imx_remove(struct platform_device *pdev)
 	struct imxuart_platform_data *pdata;
 	struct imx_port *sport = platform_get_drvdata(pdev);
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	uart_remove_one_port(&imx_reg, &sport->port);
 

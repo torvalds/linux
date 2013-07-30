@@ -1250,8 +1250,8 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 
 	ourport->baudclk = ERR_PTR(-EINVAL);
 	ourport->info = ourport->drv_data->info;
-	ourport->cfg = (pdev->dev.platform_data) ?
-			(struct s3c2410_uartcfg *)pdev->dev.platform_data :
+	ourport->cfg = (dev_get_platdata(&pdev->dev)) ?
+			(struct s3c2410_uartcfg *)dev_get_platdata(&pdev->dev) :
 			ourport->drv_data->def_cfg;
 
 	ourport->port.fifosize = (ourport->info->fifosize) ?
