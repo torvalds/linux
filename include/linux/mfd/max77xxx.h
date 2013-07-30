@@ -118,15 +118,14 @@ struct max77xxx_platform_data {
 	struct max77xxx_opmode_data *opmode_data;
 
 	/*
-	 * GPIO-DVS feature is not enabled with the current version of
-	 * MAX77XXX driver. Buck2/3/4_voltages[0] is used as the default
-	 * voltage at probe. DVS/SELB gpios are set as OUTPUT-LOW.
+	 * GPIO-DVS feature is not fully enabled with the current version of
+	 * MAX77XXX driver, but the driver does support using a DVS index other
+	 * than the default of 0.
 	 */
-	int buck234_gpio_dvs[3]; /* GPIO of [0]DVS1, [1]DVS2, [2]DVS3 */
-	int buck234_gpio_selb[3]; /* [0]SELB2, [1]SELB3, [2]SELB4 */
-	unsigned int buck2_voltage[8]; /* buckx_voltage in uV */
-	unsigned int buck3_voltage[8];
-	unsigned int buck4_voltage[8];
+	int buck_gpio_dvs[3]; /* GPIO of [0]DVS1, [1]DVS2, [2]DVS3 */
+	int buck_default_idx; /* Default value of DVS1, 2, 3 */
+
+	int buck_gpio_selb[5]; /* 77686: 2, 3, 4; 77802: 1, 2, 3, 4, 6 */
 };
 
 #endif /* __LINUX_MFD_MAX77XXX_H */

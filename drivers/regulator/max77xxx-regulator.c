@@ -810,6 +810,73 @@ static int max77xxx_pmic_dt_parse_pdata(struct platform_device *pdev,
 }
 #endif /* CONFIG_OF */
 
+/**
+ * max77xxx_setup_gpios - init DVS-related GPIOs
+ *
+ * This function claims / initalizations GPIOs related to DVS if they are
+ * defined.  This may have the effect of switching voltages if the
+ * pdata->buck_default_idx does not match the boot time state of pins.
+ */
+static int max77xxx_setup_gpios(struct device *dev,
+				struct max77xxx_platform_data *pdata)
+{
+	int buck_default_idx = pdata->buck_default_idx;
+	int ret;
+	int i;
+
+	/* Set all SELB high to avoid glitching while DVS is changing */
+	for (i = 0; i < ARRAY_SIZE(pdata->buck_gpio_selb); i++) {
+		int gpio = pdata->buck_gpio_selb[i];
+
+		/* OK if some GPIOs aren't defined */
+		if (!gpio_is_valid(gpio))
+			continue;
+
+		/* If a GPIO is valid, we'd better be able to claim it */
+		ret = devm_gpio_request_one(dev, gpio, GPIOF_OUT_INIT_HIGH,
+					    "max77xxx selb");
+		if (ret) {
+			dev_err(dev, "can't claim gpio[%d]: %d\n", i, ret);
+			return ret;
+		}
+	}
+
+	/* Set our initial setting */
+	for (i = 0; i < ARRAY_SIZE(pdata->buck_gpio_dvs); i++) {
+		int gpio = pdata->buck_gpio_dvs[i];
+
+		/* OK if some GPIOs aren't defined */
+		if (!gpio_is_valid(gpio))
+			continue;
+
+		/* If a GPIO is valid, we'd better be able to claim it */
+		ret = devm_gpio_request(dev, gpio, "max77xxx dvs");
+		if (ret) {
+			dev_err(dev, "can't claim gpio[%d]: %d\n", i, ret);
+			return ret;
+		}
+		gpio_direction_output(gpio, (buck_default_idx >> i) & 1);
+	}
+
+	/* Now set SELB low to take effect */
+	for (i = 0; i < ARRAY_SIZE(pdata->buck_gpio_selb); i++) {
+		int gpio = pdata->buck_gpio_selb[i];
+
+		if (gpio_is_valid(gpio))
+			gpio_set_value(gpio, 0);
+	}
+
+	return 0;
+}
+
+static inline bool max77xxx_is_dvs_buck(int id, int type)
+{
+	/* On 77686 bucks 2-4 are DVS; on 77802 bucks 1-4, 6 are */
+	return (id >= MAX77XXX_BUCK2 && id <= MAX77XXX_BUCK4) ||
+	       (type == TYPE_MAX77802 && (id == MAX77XXX_BUCK1 ||
+					  id == MAX77XXX_BUCK6));
+}
+
 static int max77xxx_pmic_probe(struct platform_device *pdev)
 {
 	struct max77xxx_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -869,6 +936,10 @@ static int max77xxx_pmic_probe(struct platform_device *pdev)
 			max77xxx->opmode[id] = pdata->regulators[i].opmode;
 		else
 			max77xxx->opmode[id] = MAX77XXX_OPMODE_NORMAL;
+
+		if (max77xxx_is_dvs_buck(id, max77xxx->type))
+			info->regulators[i].vsel_reg += pdata->buck_default_idx;
+
 		max77xxx->rdev[i] = regulator_register(&info->regulators[i],
 						       &config);
 		if (IS_ERR(max77xxx->rdev[i])) {
@@ -892,6 +963,10 @@ static int max77xxx_pmic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to enable low-jitter mode\n");
 		goto err;
 	}
+
+	ret = max77xxx_setup_gpios(&pdev->dev, pdata);
+	if (ret)
+		goto err;
 
 	return 0;
 err:

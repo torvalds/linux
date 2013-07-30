@@ -33,6 +33,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/max77xxx.h>
 #include <linux/mfd/max77xxx-private.h>
+#include <linux/of_gpio.h>
 #include <linux/err.h>
 
 static struct mfd_cell max77xxx_devs[TYPE_COUNT][2] = {
@@ -58,9 +59,31 @@ static struct of_device_id max77xxx_pmic_dt_match[] = {
 	{},
 };
 
+static void max77xxx_dt_parse_dvs_gpio(struct device *dev,
+				struct max77xxx_platform_data *pd,
+				struct device_node *np)
+{
+	int i;
+
+	/*
+	 * NOTE: we don't consder GPIO errors fatal; board may have some lines
+	 * directly pulled high or low and thus doesn't specify them.
+	 */
+	for (i = 0; i < ARRAY_SIZE(pd->buck_gpio_dvs); i++)
+		pd->buck_gpio_dvs[i] =
+			of_get_named_gpio(np,
+					  "max77xxx,pmic-buck-dvs-gpios", i);
+
+	for (i = 0; i < ARRAY_SIZE(pd->buck_gpio_selb); i++)
+		pd->buck_gpio_selb[i] =
+			of_get_named_gpio(np,
+					  "max77xxx,pmic-buck-selb-gpios", i);
+}
+
 static struct max77xxx_platform_data *max77xxx_i2c_parse_dt_pdata(struct device
 								  *dev)
 {
+	struct device_node *np = dev->of_node;
 	struct max77xxx_platform_data *pd;
 
 	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
@@ -68,6 +91,12 @@ static struct max77xxx_platform_data *max77xxx_i2c_parse_dt_pdata(struct device
 		dev_err(dev, "could not allocate memory for pdata\n");
 		return NULL;
 	}
+
+	/* Read default index and ignore errors, since default is 0 */
+	of_property_read_u32(np, "max77xxx,pmic-buck-default-dvs-idx",
+			     &pd->buck_default_idx);
+
+	max77xxx_dt_parse_dvs_gpio(dev, pd, np);
 
 	dev->platform_data = pd;
 	return pd;

@@ -13,6 +13,24 @@ Required properties:
 - interrupts : This i2c device has an IRQ line connected to the main SoC.
 - interrupt-parent : The parent interrupt controller.
 
+Optional properties:
+- max77xxx,pmic-buck-default-dvs-idx: We'll always write this DVS index in the
+  PMIC for BUCKs with DVS (on 77686 this is bucks 2-4; on 77802 it is 1-4, 6).
+  NOTE: at the moment these bindings don't include enough details for actual
+  GPIO-DVS--this just lets you choose which single slot to use.
+
+- max77xxx,pmic-buck-dvs-gpios: The DVS GPIOs.  We'll try to set these GPIOs
+  to match pmic-buck-default-dvs-idx at probe time if they are defined.  If
+  some or all of these GPIOs are not defined it's assumed that the board has
+  any missing GPIOs hardwired to match pmic-buck-default-dvs-idx.
+
+- max77xxx,pmic-buck-selb-gpios: GPIOs to enable DVS-GPIO for BUCKs.
+  On 77686 should be three values: 2, 3, and 4.  On 77802 should be five
+  values: 1, 2, 3, 4, 6.  It is strongly suggested to include these GPIOs
+  if there's any chance that changing DVS GPIOs one line at a time might
+  glitch your DVS values.
+
+
 Optional node:
 - voltage-regulators : The regulators of max77686 have to be instantiated
   under subnode named "voltage-regulators" using the following format.
@@ -55,6 +73,16 @@ Example:
 		reg = <0x09>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		max77xxx,pmic-buck-default-dvs-idx = <1>;
+		max77xxx,pmic-buck-dvs-gpios = <&gpy7 6 0>,
+					       <&gpj4 2 0>,
+					       <&gpj4 3 0>;
+		max77xxx,pmic-buck-selb-gpios = <&gph0 2 0>,
+						<&gph0 3 0>,
+						<&gph0 4 0>,
+						<&gph0 5 0>,
+						<&gph0 6 0>;
 
 		voltage-regulators {
 			LDO11 {
