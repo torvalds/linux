@@ -88,7 +88,7 @@ static struct watchdog_device ux500_wdt = {
 static int ux500_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct ux500_wdt_data *pdata = pdev->dev.platform_data;
+	struct ux500_wdt_data *pdata = dev_get_platdata(&pdev->dev);
 
 	if (pdata) {
 		if (pdata->timeout > 0)

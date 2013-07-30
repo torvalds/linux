@@ -205,7 +205,7 @@ static const struct watchdog_ops omap_wdt_ops = {
 
 static int omap_wdt_probe(struct platform_device *pdev)
 {
-	struct omap_wd_timer_platform_data *pdata = pdev->dev.platform_data;
+	struct omap_wd_timer_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct watchdog_device *omap_wdt;
 	struct resource *res, *mem;
 	struct omap_wdt_dev *wdev;

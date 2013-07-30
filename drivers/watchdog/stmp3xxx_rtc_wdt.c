@@ -30,7 +30,7 @@ MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat period in seconds from 1 to "
 static int wdt_start(struct watchdog_device *wdd)
 {
 	struct device *dev = watchdog_get_drvdata(wdd);
-	struct stmp3xxx_wdt_pdata *pdata = dev->platform_data;
+	struct stmp3xxx_wdt_pdata *pdata = dev_get_platdata(dev);
 
 	pdata->wdt_set_timeout(dev->parent, wdd->timeout * WDOG_TICK_RATE);
 	return 0;
@@ -39,7 +39,7 @@ static int wdt_start(struct watchdog_device *wdd)
 static int wdt_stop(struct watchdog_device *wdd)
 {
 	struct device *dev = watchdog_get_drvdata(wdd);
-	struct stmp3xxx_wdt_pdata *pdata = dev->platform_data;
+	struct stmp3xxx_wdt_pdata *pdata = dev_get_platdata(dev);
 
 	pdata->wdt_set_timeout(dev->parent, 0);
 	return 0;
