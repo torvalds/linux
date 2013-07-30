@@ -1799,20 +1799,21 @@ static void usbdux_detach(struct comedi_device *dev)
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usbdux_private *devpriv = dev->private;
 
-	if (devpriv) {
-		down(&devpriv->sem);
+	usb_set_intfdata(intf, NULL);
 
-		usb_set_intfdata(intf, NULL);
+	if (!devpriv)
+		return;
 
-		/* stop and unlink any submitted urbs */
-		usbdux_pwm_stop(dev, devpriv->pwm_cmd_running);
-		usbdux_ao_stop(dev, devpriv->ao_cmd_running);
-		usbdux_ai_stop(dev, devpriv->ai_cmd_running);
+	down(&devpriv->sem);
 
-		usbdux_free_usb_buffers(devpriv);
+	/* force unlink all urbs */
+	usbdux_pwm_stop(dev, 1);
+	usbdux_ao_stop(dev, 1);
+	usbdux_ai_stop(dev, 1);
 
-		up(&devpriv->sem);
-	}
+	usbdux_free_usb_buffers(devpriv);
+
+	up(&devpriv->sem);
 }
 
 static struct comedi_driver usbdux_driver = {
