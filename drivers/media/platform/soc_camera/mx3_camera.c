@@ -1144,6 +1144,7 @@ static struct soc_camera_host_ops mx3_soc_camera_host_ops = {
 
 static int mx3_camera_probe(struct platform_device *pdev)
 {
+	struct mx3_camera_pdata	*pdata = pdev->dev.platform_data;
 	struct mx3_camera_dev *mx3_cam;
 	struct resource *res;
 	void __iomem *base;
@@ -1155,6 +1156,9 @@ static int mx3_camera_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
+	if (!pdata)
+		return -EINVAL;
+
 	mx3_cam = devm_kzalloc(&pdev->dev, sizeof(*mx3_cam), GFP_KERNEL);
 	if (!mx3_cam) {
 		dev_err(&pdev->dev, "Could not allocate mx3 camera object\n");
@@ -1165,8 +1169,8 @@ static int mx3_camera_probe(struct platform_device *pdev)
 	if (IS_ERR(mx3_cam->clk))
 		return PTR_ERR(mx3_cam->clk);
 
-	mx3_cam->pdata = pdev->dev.platform_data;
-	mx3_cam->platform_flags = mx3_cam->pdata->flags;
+	mx3_cam->pdata = pdata;
+	mx3_cam->platform_flags = pdata->flags;
 	if (!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_MASK)) {
 		/*
 		 * Platform hasn't set available data widths. This is bad.
@@ -1185,7 +1189,7 @@ static int mx3_camera_probe(struct platform_device *pdev)
 	if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_15)
 		mx3_cam->width_flags |= 1 << 14;
 
-	mx3_cam->mclk = mx3_cam->pdata->mclk_10khz * 10000;
+	mx3_cam->mclk = pdata->mclk_10khz * 10000;
 	if (!mx3_cam->mclk) {
 		dev_warn(&pdev->dev,
 			 "mclk_10khz == 0! Please, fix your platform data. "
@@ -1209,6 +1213,11 @@ static int mx3_camera_probe(struct platform_device *pdev)
 	mx3_cam->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
 	if (IS_ERR(mx3_cam->alloc_ctx))
 		return PTR_ERR(mx3_cam->alloc_ctx);
+
+	if (pdata->asd_sizes) {
+		soc_host->asd = pdata->asd;
+		soc_host->asd_sizes = pdata->asd_sizes;
+	}
 
 	err = soc_camera_host_register(soc_host);
 	if (err)
@@ -1249,6 +1258,7 @@ static int mx3_camera_remove(struct platform_device *pdev)
 static struct platform_driver mx3_camera_driver = {
 	.driver		= {
 		.name	= MX3_CAM_DRV_NAME,
+		.owner	= THIS_MODULE,
 	},
 	.probe		= mx3_camera_probe,
 	.remove		= mx3_camera_remove,
