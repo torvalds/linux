@@ -103,7 +103,7 @@ enum {
  * the NAK handler can backup to the previous low level
  * transaction with a simple clearing of bit 0.
  */
-typedef enum {
+enum cvmx_usb_stage {
 	CVMX_USB_STAGE_NON_CONTROL,
 	CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE,
 	CVMX_USB_STAGE_SETUP,
@@ -112,7 +112,7 @@ typedef enum {
 	CVMX_USB_STAGE_DATA_SPLIT_COMPLETE,
 	CVMX_USB_STAGE_STATUS,
 	CVMX_USB_STAGE_STATUS_SPLIT_COMPLETE,
-} cvmx_usb_stage_t;
+};
 
 /**
  * This structure describes each pending USB transaction
@@ -134,7 +134,7 @@ typedef struct cvmx_usb_transaction {
 	int pktcnt;
 	int retries;
 	int actual_bytes;			/**< Actual bytes transfer for this transaction */
-	cvmx_usb_stage_t stage;			/**< For control transactions, the current stage */
+	enum cvmx_usb_stage stage;		/**< For control transactions, the current stage */
 	cvmx_usb_callback_func_t callback;	/**< User's callback function when complete */
 	void *callback_data;			/**< User's data */
 } cvmx_usb_transaction_t;
