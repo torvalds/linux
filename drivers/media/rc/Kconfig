@@ -250,7 +250,6 @@ config IR_WINBOND_CIR
 	depends on RC_CORE
 	select NEW_LEDS
 	select LEDS_CLASS
-	select LEDS_TRIGGERS
 	select BITREVERSE
 	---help---
 	   Say Y here if you want to use the IR remote functionality found
