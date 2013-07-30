@@ -475,7 +475,7 @@ static void pata_s3c_hwinit(struct s3c_ide_info *info,
 
 static int __init pata_s3c_probe(struct platform_device *pdev)
 {
-	struct s3c_ide_platdata *pdata = pdev->dev.platform_data;
+	struct s3c_ide_platdata *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct s3c_ide_info *info;
 	struct resource *res;
@@ -617,7 +617,7 @@ static int pata_s3c_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ata_host *host = platform_get_drvdata(pdev);
-	struct s3c_ide_platdata *pdata = pdev->dev.platform_data;
+	struct s3c_ide_platdata *pdata = dev_get_platdata(&pdev->dev);
 	struct s3c_ide_info *info = host->private_data;
 
 	pata_s3c_hwinit(info, pdata);

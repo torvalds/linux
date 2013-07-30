@@ -238,7 +238,7 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	struct resource *ctl_res;
 	struct resource *dma_res;
 	struct resource *irq_res;
-	struct pata_pxa_pdata *pdata = pdev->dev.platform_data;
+	struct pata_pxa_pdata *pdata = dev_get_platdata(&pdev->dev);
 	int ret = 0;
 
 	/*

@@ -4058,7 +4058,7 @@ static int mv_platform_probe(struct platform_device *pdev)
 		of_property_read_u32(pdev->dev.of_node, "nr-ports", &n_ports);
 		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	} else {
-		mv_platform_data = pdev->dev.platform_data;
+		mv_platform_data = dev_get_platdata(&pdev->dev);
 		n_ports = mv_platform_data->n_ports;
 		irq = platform_get_irq(pdev, 0);
 	}

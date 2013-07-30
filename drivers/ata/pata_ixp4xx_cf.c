@@ -48,7 +48,7 @@ static unsigned int ixp4xx_mmio_data_xfer(struct ata_device *dev,
 	u16 *buf16 = (u16 *) buf;
 	struct ata_port *ap = dev->link->ap;
 	void __iomem *mmio = ap->ioaddr.data_addr;
-	struct ixp4xx_pata_data *data = ap->host->dev->platform_data;
+	struct ixp4xx_pata_data *data = dev_get_platdata(ap->host->dev);
 
 	/* set the expansion bus in 16bit mode and restore
 	 * 8 bit mode after the transaction.
@@ -143,7 +143,7 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 	struct resource *cs0, *cs1;
 	struct ata_host *host;
 	struct ata_port *ap;
-	struct ixp4xx_pata_data *data = pdev->dev.platform_data;
+	struct ixp4xx_pata_data *data = dev_get_platdata(&pdev->dev);
 
 	cs0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	cs1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
