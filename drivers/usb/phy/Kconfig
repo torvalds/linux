@@ -86,6 +86,18 @@ config OMAP_USB3
 	  This driver interacts with the "OMAP Control USB Driver" to power
 	  on/off the PHY.
 
+config AM335X_CONTROL_USB
+	tristate
+
+config AM335X_PHY_USB
+	tristate "AM335x USB PHY Driver"
+	select USB_PHY
+	select AM335X_CONTROL_USB
+	select NOP_USB_XCEIV
+	help
+	  This driver provides PHY support for that phy which part for the
+	  AM335x SoC.
+
 config SAMSUNG_USBPHY
 	tristate
 	help
