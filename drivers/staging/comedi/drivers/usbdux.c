@@ -1642,15 +1642,15 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 	return 0;
 }
 
-static void usbdux_free_usb_buffers(struct usbdux_private *devpriv)
+static void usbdux_free_usb_buffers(struct comedi_device *dev)
 {
+	struct usbdux_private *devpriv = dev->private;
 	struct urb *urb;
 	int i;
 
 	urb = devpriv->pwm_urb;
 	if (urb) {
 		kfree(urb->transfer_buffer);
-		usb_kill_urb(urb);
 		usb_free_urb(urb);
 	}
 	if (devpriv->ao_urbs) {
@@ -1658,7 +1658,6 @@ static void usbdux_free_usb_buffers(struct usbdux_private *devpriv)
 			urb = devpriv->ao_urbs[i];
 			if (urb) {
 				kfree(urb->transfer_buffer);
-				usb_kill_urb(urb);
 				usb_free_urb(urb);
 			}
 		}
@@ -1669,7 +1668,6 @@ static void usbdux_free_usb_buffers(struct usbdux_private *devpriv)
 			urb = devpriv->ai_urbs[i];
 			if (urb) {
 				kfree(urb->transfer_buffer);
-				usb_kill_urb(urb);
 				usb_free_urb(urb);
 			}
 		}
@@ -1811,7 +1809,7 @@ static void usbdux_detach(struct comedi_device *dev)
 	usbdux_ao_stop(dev, 1);
 	usbdux_ai_stop(dev, 1);
 
-	usbdux_free_usb_buffers(devpriv);
+	usbdux_free_usb_buffers(dev);
 
 	up(&devpriv->sem);
 }
