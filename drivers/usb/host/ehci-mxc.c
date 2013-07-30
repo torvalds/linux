@@ -49,7 +49,7 @@ static const struct ehci_driver_overrides ehci_mxc_overrides __initconst = {
 
 static int ehci_mxc_drv_probe(struct platform_device *pdev)
 {
-	struct mxc_usbh_platform_data *pdata = pdev->dev.platform_data;
+	struct mxc_usbh_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usb_hcd *hcd;
 	struct resource *res;
 	int irq, ret;
@@ -174,7 +174,7 @@ err_alloc:
 
 static int ehci_mxc_drv_remove(struct platform_device *pdev)
 {
-	struct mxc_usbh_platform_data *pdata = pdev->dev.platform_data;
+	struct mxc_usbh_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct ehci_mxc_priv *priv = (struct ehci_mxc_priv *) ehci->priv;

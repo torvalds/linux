@@ -225,7 +225,7 @@ static void usb_hcd_at91_remove(struct usb_hcd *hcd,
 static int
 ohci_at91_reset (struct usb_hcd *hcd)
 {
-	struct at91_usbh_data	*board = hcd->self.controller->platform_data;
+	struct at91_usbh_data	*board = dev_get_platdata(hcd->self.controller);
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	int			ret;
 
@@ -280,7 +280,7 @@ static int ohci_at91_usb_get_power(struct at91_usbh_data *pdata, int port)
  */
 static int ohci_at91_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
-	struct at91_usbh_data *pdata = hcd->self.controller->platform_data;
+	struct at91_usbh_data *pdata = dev_get_platdata(hcd->self.controller);
 	int length = ohci_hub_status_data(hcd, buf);
 	int port;
 
@@ -301,7 +301,7 @@ static int ohci_at91_hub_status_data(struct usb_hcd *hcd, char *buf)
 static int ohci_at91_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				 u16 wIndex, char *buf, u16 wLength)
 {
-	struct at91_usbh_data *pdata = hcd->self.controller->platform_data;
+	struct at91_usbh_data *pdata = dev_get_platdata(hcd->self.controller);
 	struct usb_hub_descriptor *desc;
 	int ret = -EINVAL;
 	u32 *data = (u32 *)buf;
@@ -461,7 +461,7 @@ static const struct hc_driver ohci_at91_hc_driver = {
 static irqreturn_t ohci_hcd_at91_overcurrent_irq(int irq, void *data)
 {
 	struct platform_device *pdev = data;
-	struct at91_usbh_data *pdata = pdev->dev.platform_data;
+	struct at91_usbh_data *pdata = dev_get_platdata(&pdev->dev);
 	int val, gpio, port;
 
 	/* From the GPIO notifying the over-current situation, find
@@ -567,7 +567,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	if (pdata) {
 		at91_for_each_port(i) {
@@ -643,7 +643,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 
 static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 {
-	struct at91_usbh_data	*pdata = pdev->dev.platform_data;
+	struct at91_usbh_data	*pdata = dev_get_platdata(&pdev->dev);
 	int			i;
 
 	if (pdata) {

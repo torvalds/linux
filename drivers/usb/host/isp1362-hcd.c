@@ -2725,7 +2725,7 @@ static int isp1362_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&isp1362_hcd->periodic);
 	INIT_LIST_HEAD(&isp1362_hcd->isoc);
 	INIT_LIST_HEAD(&isp1362_hcd->remove_list);
-	isp1362_hcd->board = pdev->dev.platform_data;
+	isp1362_hcd->board = dev_get_platdata(&pdev->dev);
 #if USE_PLATFORM_DELAY
 	if (!isp1362_hcd->board->delay) {
 		dev_err(hcd->self.controller, "No platform delay function given\n");

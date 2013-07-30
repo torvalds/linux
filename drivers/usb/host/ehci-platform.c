@@ -39,7 +39,7 @@ static const char hcd_name[] = "ehci-platform";
 static int ehci_platform_reset(struct usb_hcd *hcd)
 {
 	struct platform_device *pdev = to_platform_device(hcd->self.controller);
-	struct usb_ehci_pdata *pdata = pdev->dev.platform_data;
+	struct usb_ehci_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
@@ -87,14 +87,14 @@ static int ehci_platform_probe(struct platform_device *dev)
 	 * use reasonable defaults so platforms don't have to provide these.
 	 * with DT probing on ARM, none of these are set.
 	 */
-	if (!dev->dev.platform_data)
+	if (!dev_get_platdata(&dev->dev))
 		dev->dev.platform_data = &ehci_platform_defaults;
 	if (!dev->dev.dma_mask)
 		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 	if (!dev->dev.coherent_dma_mask)
 		dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
-	pdata = dev->dev.platform_data;
+	pdata = dev_get_platdata(&dev->dev);
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0) {
@@ -148,7 +148,7 @@ err_power:
 static int ehci_platform_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
-	struct usb_ehci_pdata *pdata = dev->dev.platform_data;
+	struct usb_ehci_pdata *pdata = dev_get_platdata(&dev->dev);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
@@ -167,7 +167,7 @@ static int ehci_platform_remove(struct platform_device *dev)
 static int ehci_platform_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct usb_ehci_pdata *pdata = dev->platform_data;
+	struct usb_ehci_pdata *pdata = dev_get_platdata(dev);
 	struct platform_device *pdev =
 		container_of(dev, struct platform_device, dev);
 	bool do_wakeup = device_may_wakeup(dev);
@@ -184,7 +184,7 @@ static int ehci_platform_suspend(struct device *dev)
 static int ehci_platform_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct usb_ehci_pdata *pdata = dev->platform_data;
+	struct usb_ehci_pdata *pdata = dev_get_platdata(dev);
 	struct platform_device *pdev =
 		container_of(dev, struct platform_device, dev);
 

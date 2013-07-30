@@ -361,7 +361,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	struct device_node *np_phy;
 	struct usb_phy *u_phy;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev, "Platform data missing\n");
 		return -EINVAL;

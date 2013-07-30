@@ -100,7 +100,7 @@ static const struct ehci_driver_overrides ehci_omap_overrides __initdata = {
 static int ehci_hcd_omap_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct usbhs_omap_platform_data *pdata = dev->platform_data;
+	struct usbhs_omap_platform_data *pdata = dev_get_platdata(dev);
 	struct resource	*res;
 	struct usb_hcd	*hcd;
 	void __iomem *regs;
@@ -119,7 +119,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 
 	/* For DT boot, get platform data from parent. i.e. usbhshost */
 	if (dev->of_node) {
-		pdata = dev->parent->platform_data;
+		pdata = dev_get_platdata(dev->parent);
 		dev->platform_data = pdata;
 	}
 

@@ -1691,7 +1691,7 @@ sl811h_probe(struct platform_device *dev)
 
 	spin_lock_init(&sl811->lock);
 	INIT_LIST_HEAD(&sl811->async);
-	sl811->board = dev->dev.platform_data;
+	sl811->board = dev_get_platdata(&dev->dev);
 	init_timer(&sl811->timer);
 	sl811->timer.function = sl811h_timer;
 	sl811->timer.data = (unsigned long) sl811;

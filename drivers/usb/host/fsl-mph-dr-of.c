@@ -258,7 +258,7 @@ static int fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
 
 int fsl_usb2_mpc5121_init(struct platform_device *pdev)
 {
-	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct clk *clk;
 	char clk_name[10];
 	int base, clk_num;
@@ -298,7 +298,7 @@ int fsl_usb2_mpc5121_init(struct platform_device *pdev)
 
 static void fsl_usb2_mpc5121_exit(struct platform_device *pdev)
 {
-	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	pdata->regs = NULL;
 
