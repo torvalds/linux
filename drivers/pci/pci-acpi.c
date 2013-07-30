@@ -210,7 +210,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	}
 
 	if (!error)
-		dev_info(&dev->dev, "power state changed by ACPI to %s\n",
+		dev_dbg(&dev->dev, "power state changed by ACPI to %s\n",
 			 acpi_power_state_string(state_conv[state]));
 
 	return error;
