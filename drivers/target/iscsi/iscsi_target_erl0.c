@@ -746,13 +746,12 @@ int iscsit_check_post_dataout(
 		if (!conn->sess->sess_ops->ErrorRecoveryLevel) {
 			pr_err("Unable to recover from DataOUT CRC"
 				" failure while ERL=0, closing session.\n");
-			iscsit_add_reject_from_cmd(ISCSI_REASON_DATA_DIGEST_ERROR,
-					1, 0, buf, cmd);
+			iscsit_reject_cmd(cmd, ISCSI_REASON_DATA_DIGEST_ERROR,
+					  buf);
 			return DATAOUT_CANNOT_RECOVER;
 		}
 
-		iscsit_add_reject_from_cmd(ISCSI_REASON_DATA_DIGEST_ERROR,
-				0, 0, buf, cmd);
+		iscsit_reject_cmd(cmd, ISCSI_REASON_DATA_DIGEST_ERROR, buf);
 		return iscsit_dataout_post_crc_failed(cmd, buf);
 	}
 }
