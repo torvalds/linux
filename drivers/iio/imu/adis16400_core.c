@@ -871,7 +871,7 @@ static int adis16400_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -893,12 +893,12 @@ static int adis16400_probe(struct spi_device *spi)
 
 	ret = adis_init(&st->adis, indio_dev, spi, &adis16400_data);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	ret = adis_setup_buffer_and_trigger(&st->adis, indio_dev,
 			adis16400_trigger_handler);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	/* Get the device into a sane initial state */
 	ret = adis16400_initial_setup(indio_dev);
@@ -913,8 +913,6 @@ static int adis16400_probe(struct spi_device *spi)
 
 error_cleanup_buffer:
 	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
 	return ret;
 }
 
@@ -927,8 +925,6 @@ static int adis16400_remove(struct spi_device *spi)
 	adis16400_stop_device(indio_dev);
 
 	adis_cleanup_buffer_and_trigger(&st->adis, indio_dev);
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }
