@@ -38,7 +38,7 @@ struct onenand_info {
 static int generic_onenand_probe(struct platform_device *pdev)
 {
 	struct onenand_info *info;
-	struct onenand_platform_data *pdata = pdev->dev.platform_data;
+	struct onenand_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res = pdev->resource;
 	unsigned long size = resource_size(res);
 	int err;

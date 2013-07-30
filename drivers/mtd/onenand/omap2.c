@@ -639,7 +639,7 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct mtd_part_parser_data ppdata = {};
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "platform data missing\n");
 		return -ENODEV;

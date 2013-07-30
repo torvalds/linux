@@ -867,7 +867,7 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 	struct resource *r;
 	int size, err;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	/* No need to check pdata. the platform data is optional */
 
 	size = sizeof(struct mtd_info) + sizeof(struct onenand_chip);
