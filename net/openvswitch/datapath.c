@@ -951,9 +951,10 @@ static struct genl_ops dp_packet_genl_ops[] = {
 
 static void get_dp_stats(struct datapath *dp, struct ovs_dp_stats *stats)
 {
+	struct flow_table *table;
 	int i;
-	struct flow_table *table = ovsl_dereference(dp->table);
 
+	table = rcu_dereference_check(dp->table, lockdep_ovsl_is_held());
 	stats->n_flows = ovs_flow_tbl_count(table);
 
 	stats->n_hit = stats->n_missed = stats->n_lost = 0;
@@ -1665,7 +1666,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		goto err_destroy_local_port;
 
 	ovs_net = net_generic(ovs_dp_get_net(dp), ovs_net_id);
-	list_add_tail(&dp->list_node, &ovs_net->dps);
+	list_add_tail_rcu(&dp->list_node, &ovs_net->dps);
 
 	ovs_unlock();
 
@@ -1703,7 +1704,7 @@ static void __dp_destroy(struct datapath *dp)
 				ovs_dp_detach_port(vport);
 	}
 
-	list_del(&dp->list_node);
+	list_del_rcu(&dp->list_node);
 
 	/* OVSP_LOCAL is datapath internal port. We need to make sure that
 	 * all port in datapath are destroyed first before freeing datapath.
@@ -1808,8 +1809,8 @@ static int ovs_dp_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int skip = cb->args[0];
 	int i = 0;
 
-	ovs_lock();
-	list_for_each_entry(dp, &ovs_net->dps, list_node) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(dp, &ovs_net->dps, list_node) {
 		if (i >= skip &&
 		    ovs_dp_cmd_fill_info(dp, skb, NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
@@ -1817,7 +1818,7 @@ static int ovs_dp_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			break;
 		i++;
 	}
-	ovs_unlock();
+	rcu_read_unlock();
 
 	cb->args[0] = i;
 
