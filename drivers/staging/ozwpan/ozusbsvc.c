@@ -123,7 +123,8 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 	pd->app_ctx[OZ_APPID_USB-1] = NULL;
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	if (usb_ctx) {
-		unsigned long tout = jiffies + HZ;
+		struct timespec ts, now;
+		getnstimeofday(&ts);
 		oz_dbg(ON, "USB service stopping...\n");
 		usb_ctx->stopped = 1;
 		/* At this point the reference count on the usb context should
@@ -132,9 +133,12 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 		 * should get in but someone may already be in. So wait
 		 * until they leave but timeout after 1 second.
 		 */
-		while ((atomic_read(&usb_ctx->ref_count) > 2) &&
-			time_before(jiffies, tout))
-			;
+		while ((atomic_read(&usb_ctx->ref_count) > 2)) {
+			getnstimeofday(&now);
+			/*Approx 1 Sec. this is not perfect calculation*/
+			if (now.tv_sec != ts.tv_sec)
+				break;
+		}
 		oz_dbg(ON, "USB service stopped\n");
 		oz_hcd_pd_departed(usb_ctx->hport);
 		/* Release the reference taken in oz_usb_start.
@@ -155,7 +159,7 @@ void oz_usb_get(void *hpd)
 /*------------------------------------------------------------------------------
  * This decrements the reference count of the context area for a specific PD
  * and destroys the context area if the reference count becomes zero.
- * Context: softirq or process
+ * Context: irq or process
  */
 void oz_usb_put(void *hpd)
 {

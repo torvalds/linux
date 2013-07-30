@@ -176,6 +176,14 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 		pd->last_sent_frame = &pd->tx_queue;
 		spin_lock_init(&pd->stream_lock);
 		INIT_LIST_HEAD(&pd->stream_list);
+		tasklet_init(&pd->heartbeat_tasklet, oz_pd_heartbeat_handler,
+							(unsigned long)pd);
+		tasklet_init(&pd->timeout_tasklet, oz_pd_timeout_handler,
+							(unsigned long)pd);
+		hrtimer_init(&pd->heartbeat, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_init(&pd->timeout, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		pd->heartbeat.function = oz_pd_heartbeat_event;
+		pd->timeout.function = oz_pd_timeout_event;
 	}
 	return pd;
 }
@@ -189,6 +197,13 @@ void oz_pd_destroy(struct oz_pd *pd)
 	struct oz_isoc_stream *st;
 	struct oz_farewell *fwell;
 	oz_pd_dbg(pd, ON, "Destroying PD\n");
+	if (hrtimer_active(&pd->timeout))
+		hrtimer_cancel(&pd->timeout);
+	if (hrtimer_active(&pd->heartbeat))
+		hrtimer_cancel(&pd->heartbeat);
+	/*Disable timer tasklets*/
+	tasklet_kill(&pd->heartbeat_tasklet);
+	tasklet_kill(&pd->timeout_tasklet);
 	/* Delete any streams.
 	 */
 	e = pd->stream_list.next;
@@ -287,8 +302,8 @@ void oz_pd_heartbeat(struct oz_pd *pd, u16 apps)
 				more = 1;
 		}
 	}
-	if (more)
-		oz_pd_request_heartbeat(pd);
+	if ((!more) && (hrtimer_active(&pd->heartbeat)))
+		hrtimer_cancel(&pd->heartbeat);
 	if (pd->mode & OZ_F_ISOC_ANYTIME) {
 		int count = 8;
 		while (count-- && (oz_send_isoc_frame(pd) >= 0))
@@ -315,7 +330,6 @@ void oz_pd_stop(struct oz_pd *pd)
 	list_del(&pd->link);
 	oz_polling_unlock_bh();
 	oz_dbg(ON, "pd ref count = %d\n", atomic_read(&pd->ref_count));
-	oz_timer_delete(pd, 0);
 	oz_pd_put(pd);
 }
 /*------------------------------------------------------------------------------
@@ -330,21 +344,18 @@ int oz_pd_sleep(struct oz_pd *pd)
 		oz_polling_unlock_bh();
 		return 0;
 	}
-	if (pd->keep_alive_j && pd->session_id) {
+	if (pd->keep_alive && pd->session_id)
 		oz_pd_set_state(pd, OZ_PD_S_SLEEP);
-		pd->pulse_time_j = jiffies + pd->keep_alive_j;
-		oz_dbg(ON, "Sleep Now %lu until %lu\n",
-		       jiffies, pd->pulse_time_j);
-	} else {
+	else
 		do_stop = 1;
-	}
+
 	stop_apps = pd->total_apps;
 	oz_polling_unlock_bh();
 	if (do_stop) {
 		oz_pd_stop(pd);
 	} else {
 		oz_services_stop(pd, stop_apps, 1);
-		oz_timer_add(pd, OZ_TIMER_STOP, jiffies + pd->keep_alive_j, 1);
+		oz_timer_add(pd, OZ_TIMER_STOP, pd->keep_alive);
 	}
 	return do_stop;
 }
