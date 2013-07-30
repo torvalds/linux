@@ -36,13 +36,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
 
-struct usb_phy_gen_xceiv {
-	struct usb_phy phy;
-	struct device *dev;
-	struct clk *clk;
-	struct regulator *vcc;
-	struct regulator *reset;
-};
+#include "phy-generic.h"
 
 static struct platform_device *pd;
 
@@ -70,7 +64,7 @@ static int nop_set_suspend(struct usb_phy *x, int suspend)
 	return 0;
 }
 
-static int nop_init(struct usb_phy *phy)
+int usb_gen_phy_init(struct usb_phy *phy)
 {
 	struct usb_phy_gen_xceiv *nop = dev_get_drvdata(phy->dev);
 
@@ -90,8 +84,9 @@ static int nop_init(struct usb_phy *phy)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_gen_phy_init);
 
-static void nop_shutdown(struct usb_phy *phy)
+void usb_gen_phy_shutdown(struct usb_phy *phy)
 {
 	struct usb_phy_gen_xceiv *nop = dev_get_drvdata(phy->dev);
 
@@ -109,6 +104,7 @@ static void nop_shutdown(struct usb_phy *phy)
 			dev_err(phy->dev, "Failed to disable power\n");
 	}
 }
+EXPORT_SYMBOL_GPL(usb_gen_phy_shutdown);
 
 static int nop_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 {
@@ -139,6 +135,78 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
+int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_gen_xceiv *nop,
+		enum usb_phy_type type, u32 clk_rate, bool needs_vcc,
+		bool needs_reset)
+{
+	int err;
+
+	nop->phy.otg = devm_kzalloc(dev, sizeof(*nop->phy.otg),
+			GFP_KERNEL);
+	if (!nop->phy.otg)
+		return -ENOMEM;
+
+	nop->clk = devm_clk_get(dev, "main_clk");
+	if (IS_ERR(nop->clk)) {
+		dev_dbg(dev, "Can't get phy clock: %ld\n",
+					PTR_ERR(nop->clk));
+	}
+
+	if (!IS_ERR(nop->clk) && clk_rate) {
+		err = clk_set_rate(nop->clk, clk_rate);
+		if (err) {
+			dev_err(dev, "Error setting clock rate\n");
+			return err;
+		}
+	}
+
+	if (!IS_ERR(nop->clk)) {
+		err = clk_prepare(nop->clk);
+		if (err) {
+			dev_err(dev, "Error preparing clock\n");
+			return err;
+		}
+	}
+
+	nop->vcc = devm_regulator_get(dev, "vcc");
+	if (IS_ERR(nop->vcc)) {
+		dev_dbg(dev, "Error getting vcc regulator: %ld\n",
+					PTR_ERR(nop->vcc));
+		if (needs_vcc)
+			return -EPROBE_DEFER;
+	}
+
+	nop->reset = devm_regulator_get(dev, "reset");
+	if (IS_ERR(nop->reset)) {
+		dev_dbg(dev, "Error getting reset regulator: %ld\n",
+					PTR_ERR(nop->reset));
+		if (needs_reset)
+			return -EPROBE_DEFER;
+	}
+
+	nop->dev		= dev;
+	nop->phy.dev		= nop->dev;
+	nop->phy.label		= "nop-xceiv";
+	nop->phy.set_suspend	= nop_set_suspend;
+	nop->phy.state		= OTG_STATE_UNDEFINED;
+	nop->phy.type		= type;
+
+	nop->phy.otg->phy		= &nop->phy;
+	nop->phy.otg->set_host		= nop_set_host;
+	nop->phy.otg->set_peripheral	= nop_set_peripheral;
+
+	ATOMIC_INIT_NOTIFIER_HEAD(&nop->phy.notifier);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_phy_gen_create_phy);
+
+void usb_phy_gen_cleanup_phy(struct usb_phy_gen_xceiv *nop)
+{
+	if (!IS_ERR(nop->clk))
+		clk_unprepare(nop->clk);
+}
+EXPORT_SYMBOL_GPL(usb_phy_gen_cleanup_phy);
+
 static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -150,15 +218,6 @@ static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 	u32 clk_rate = 0;
 	bool needs_vcc = false;
 	bool needs_reset = false;
-
-	nop = devm_kzalloc(&pdev->dev, sizeof(*nop), GFP_KERNEL);
-	if (!nop)
-		return -ENOMEM;
-
-	nop->phy.otg = devm_kzalloc(&pdev->dev, sizeof(*nop->phy.otg),
-							GFP_KERNEL);
-	if (!nop->phy.otg)
-		return -ENOMEM;
 
 	if (dev->of_node) {
 		struct device_node *node = dev->of_node;
@@ -176,56 +235,18 @@ static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 		needs_reset = pdata->needs_reset;
 	}
 
-	nop->clk = devm_clk_get(&pdev->dev, "main_clk");
-	if (IS_ERR(nop->clk)) {
-		dev_dbg(&pdev->dev, "Can't get phy clock: %ld\n",
-					PTR_ERR(nop->clk));
-	}
+	nop = devm_kzalloc(dev, sizeof(*nop), GFP_KERNEL);
+	if (!nop)
+		return -ENOMEM;
 
-	if (!IS_ERR(nop->clk) && clk_rate) {
-		err = clk_set_rate(nop->clk, clk_rate);
-		if (err) {
-			dev_err(&pdev->dev, "Error setting clock rate\n");
-			return err;
-		}
-	}
 
-	if (!IS_ERR(nop->clk)) {
-		err = clk_prepare(nop->clk);
-		if (err) {
-			dev_err(&pdev->dev, "Error preparing clock\n");
-			return err;
-		}
-	}
+	err = usb_phy_gen_create_phy(dev, nop, type, clk_rate, needs_vcc,
+			needs_reset);
+	if (err)
+		return err;
 
-	nop->vcc = devm_regulator_get(&pdev->dev, "vcc");
-	if (IS_ERR(nop->vcc)) {
-		dev_dbg(&pdev->dev, "Error getting vcc regulator: %ld\n",
-					PTR_ERR(nop->vcc));
-		if (needs_vcc)
-			return -EPROBE_DEFER;
-	}
-
-	nop->reset = devm_regulator_get(&pdev->dev, "reset");
-	if (IS_ERR(nop->reset)) {
-		dev_dbg(&pdev->dev, "Error getting reset regulator: %ld\n",
-					PTR_ERR(nop->reset));
-		if (needs_reset)
-			return -EPROBE_DEFER;
-	}
-
-	nop->dev		= &pdev->dev;
-	nop->phy.dev		= nop->dev;
-	nop->phy.label		= "nop-xceiv";
-	nop->phy.set_suspend	= nop_set_suspend;
-	nop->phy.init		= nop_init;
-	nop->phy.shutdown	= nop_shutdown;
-	nop->phy.state		= OTG_STATE_UNDEFINED;
-	nop->phy.type		= type;
-
-	nop->phy.otg->phy		= &nop->phy;
-	nop->phy.otg->set_host		= nop_set_host;
-	nop->phy.otg->set_peripheral	= nop_set_peripheral;
+	nop->phy.init		= usb_gen_phy_init;
+	nop->phy.shutdown	= usb_gen_phy_shutdown;
 
 	err = usb_add_phy_dev(&nop->phy);
 	if (err) {
@@ -236,13 +257,10 @@ static int usb_phy_gen_xceiv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, nop);
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&nop->phy.notifier);
-
 	return 0;
 
 err_add:
-	if (!IS_ERR(nop->clk))
-		clk_unprepare(nop->clk);
+	usb_phy_gen_cleanup_phy(nop);
 	return err;
 }
 
@@ -250,9 +268,7 @@ static int usb_phy_gen_xceiv_remove(struct platform_device *pdev)
 {
 	struct usb_phy_gen_xceiv *nop = platform_get_drvdata(pdev);
 
-	if (!IS_ERR(nop->clk))
-		clk_unprepare(nop->clk);
-
+	usb_phy_gen_cleanup_phy(nop);
 	usb_remove_phy(&nop->phy);
 
 	return 0;
