@@ -100,7 +100,6 @@ endif # COMEDI_MISC_DRIVERS
 
 menuconfig COMEDI_ISA_DRIVERS
 	bool "Comedi ISA and PC/104 drivers"
-	depends on ISA
 	---help---
 	  Enable comedi ISA and PC/104 drivers to be built
 
