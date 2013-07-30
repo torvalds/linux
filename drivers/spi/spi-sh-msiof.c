@@ -645,7 +645,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		p->info = sh_msiof_spi_parse_dt(&pdev->dev);
 	else
-		p->info = pdev->dev.platform_data;
+		p->info = dev_get_platdata(&pdev->dev);
 
 	if (!p->info) {
 		dev_err(&pdev->dev, "failed to obtain device info\n");
