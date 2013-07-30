@@ -663,7 +663,8 @@ static int redrat3_get_ir_data(struct redrat3_dev *rr3, unsigned len)
 		goto out;
 	}
 
-	if (rr3->bytes_read < be16_to_cpu(rr3->irdata.header.length))
+	if (rr3->bytes_read < be16_to_cpu(rr3->irdata.header.length) +
+						sizeof(struct redrat3_header))
 		/* we're still accumulating data */
 		return 0;
 
