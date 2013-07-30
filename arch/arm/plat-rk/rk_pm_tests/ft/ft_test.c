@@ -64,8 +64,8 @@ REVISION 0.01
 #define ft_printk_info(fmt, arg...) \
 	printk(KERN_WARNING fmt, ##arg)
 
-#define ENABLE_FT_TEST_GPIO   // for ft seting 1.6G volt
 
+#define ENABLE_FT_TEST_GPIO   // for ft seting 1.6G volt
 
 #if defined(CONFIG_ARCH_RK3188)
 
@@ -77,8 +77,10 @@ static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
 #define STEP2_L1_CNT (5*10)
 #define STEP2_L2_CPY_CNT (5*2+4)  //(5*6)
 
-#else
-//for RK3168 && RK3066B
+#define FT_CLIENT_READY_PIN    RK30_PIN3_PB3
+#define FT_CLIENT_IDLE_PIN     RK30_PIN0_PA3
+
+#elif defined(CONFIG_SOC_RK3168)
 
 static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
 
@@ -88,7 +90,39 @@ static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
 #define STEP2_L1_CNT (5*10)
 #define STEP2_L2_CPY_CNT (5*4)  //(5*6)
 
+#define FT_CLIENT_READY_PIN    RK30_PIN3_PB3
+#define FT_CLIENT_IDLE_PIN     RK30_PIN0_PA3
+
+
+#elif defined(CONFIG_SOC_RK3028)
+
+static unsigned long arm_setup2_rate=1200*1000*1000;//1608*1000*1000;
+
+#define STEP1_L1_CNT  (5*10)
+#define STEP1_L2_CPY_CNT (5*3)
+
+#define STEP2_L1_CNT (5*10)
+#define STEP2_L2_CPY_CNT (5*4)  //(5*6)
+
+#define FT_CLIENT_READY_PIN    RK30_PIN1_PA2
+#define FT_CLIENT_IDLE_PIN     RK30_PIN3_PD4
+
+#else
+static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
+
+#define STEP1_L1_CNT  (5*10)
+#define STEP1_L2_CPY_CNT (5*1+2)
+
+#define STEP2_L1_CNT (5*10)
+#define STEP2_L2_CPY_CNT (5*2+4)  //(5*6)
+
+#define FT_CLIENT_READY_PIN    RK30_PIN3_PB3
+#define FT_CLIENT_IDLE_PIN     RK30_PIN0_PA3
+
 #endif
+
+
+
 static int setup2_flag=0;
 
 //0-15 :test setup1
@@ -103,11 +137,6 @@ static int setup2_flag=0;
 static DEFINE_PER_CPU(int, cpu_tst_flags)=(CPU_TST_L1|CPU_TST_L2|CPU_TST_L1_STP2|CPU_TST_L2_STP2);
 
 static struct clk *arm_clk;
-
-
-#define FT_CLIENT_READY_PIN    RK30_PIN3_PB3
-#define FT_CLIENT_IDLE_PIN     RK30_PIN0_PA3
-
 
 static DEFINE_PER_CPU(wait_queue_head_t, wait_rate);
 
@@ -608,7 +637,7 @@ static int rk_ft_tests_over(void)
 		
 	
 	
-	ft_printk("#END1E*\n");
+	ft_printk("#END20*\n");
 
 	while(1);
 

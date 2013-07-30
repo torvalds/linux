@@ -102,6 +102,9 @@ choice
 config MACH_RK3028_TB
 	bool "RK3028 Top Board"
 
+config MACH_RK3028_FT
+	bool "RK3028 FT Board"
+
 config MACH_RK3028_86V
         bool "RK3028 86V Board"
 endchoice
