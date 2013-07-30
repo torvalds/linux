@@ -49,7 +49,7 @@ static const char * const probes[] = { "RedBoot", "cmdlinepart", NULL };
 
 static int pxa2xx_flash_probe(struct platform_device *pdev)
 {
-	struct flash_platform_data *flash = pdev->dev.platform_data;
+	struct flash_platform_data *flash = dev_get_platdata(&pdev->dev);
 	struct pxa2xx_flash_info *info;
 	struct resource *res;
 
