@@ -1370,8 +1370,7 @@ int nand_default_bbt(struct mtd_info *mtd)
 int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
 {
 	struct nand_chip *this = mtd->priv;
-	int block;
-	uint8_t res;
+	int block, res;
 
 	block = (int)(offs >> this->bbt_erase_shift);
 	res = bbt_get_entry(this, block);
@@ -1380,7 +1379,7 @@ int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
 			"(block %d) 0x%02x\n",
 			(unsigned int)offs, block, res);
 
-	switch ((int)res) {
+	switch (res) {
 	case BBT_BLOCK_GOOD:
 		return 0;
 	case BBT_BLOCK_WORN:
