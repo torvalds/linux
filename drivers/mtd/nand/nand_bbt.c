@@ -79,6 +79,8 @@
 #define BBT_ENTRY_MASK		0x03
 #define BBT_ENTRY_SHIFT		2
 
+static int nand_update_bbt(struct mtd_info *mtd, loff_t offs);
+
 static inline uint8_t bbt_get_entry(struct nand_chip *chip, int block)
 {
 	uint8_t entry = chip->bbt[block >> BBT_ENTRY_SHIFT];
@@ -1194,13 +1196,13 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 }
 
 /**
- * nand_update_bbt - [NAND Interface] update bad block table(s)
+ * nand_update_bbt - update bad block table(s)
  * @mtd: MTD device structure
  * @offs: the offset of the newly marked block
  *
  * The function updates the bad block table(s).
  */
-int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
+static int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
 {
 	struct nand_chip *this = mtd->priv;
 	int len, res = 0;
@@ -1388,6 +1390,28 @@ int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
 		return allowbbt ? 0 : 1;
 	}
 	return 1;
+}
+
+/**
+ * nand_markbad_bbt - [NAND Interface] Mark a block bad in the BBT
+ * @mtd: MTD device structure
+ * @offs: offset of the bad block
+ */
+int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs)
+{
+	struct nand_chip *this = mtd->priv;
+	int block, ret = 0;
+
+	block = (int)(offs >> this->bbt_erase_shift);
+
+	/* Mark bad block in memory */
+	bbt_mark_entry(this, block, BBT_BLOCK_WORN);
+
+	/* Update flash-based bad block table */
+	if (this->bbt_options & NAND_BBT_USE_FLASH)
+		ret = nand_update_bbt(mtd, offs);
+
+	return ret;
 }
 
 EXPORT_SYMBOL(nand_scan_bbt);

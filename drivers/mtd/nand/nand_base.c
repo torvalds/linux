@@ -374,22 +374,20 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
  * block table(s) and/or marker(s)). We only allow the hardware driver to
  * specify how to write bad block markers to OOB (chip->block_markbad).
  *
- * We try operations in the following order, according to our bbt_options
- * (NAND_BBT_NO_OOB_BBM and NAND_BBT_USE_FLASH):
+ * We try operations in the following order:
  *  (1) erase the affected block, to allow OOB marker to be written cleanly
- *  (2) update in-memory BBT
- *  (3) write bad block marker to OOB area of affected block
- *  (4) update flash-based BBT
- * Note that we retain the first error encountered in (3) or (4), finish the
+ *  (2) write bad block marker to OOB area of affected block (unless flag
+ *      NAND_BBT_NO_OOB_BBM is present)
+ *  (3) update the BBT
+ * Note that we retain the first error encountered in (2) or (3), finish the
  * procedures, and dump the error in the end.
 */
 static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd->priv;
-	int block, res, ret = 0;
-	int write_oob = !(chip->bbt_options & NAND_BBT_NO_OOB_BBM);
+	int res, ret = 0;
 
-	if (write_oob) {
+	if (!(chip->bbt_options & NAND_BBT_NO_OOB_BBM)) {
 		struct erase_info einfo;
 
 		/* Attempt erase before marking OOB */
@@ -398,24 +396,16 @@ static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 		einfo.addr = ofs;
 		einfo.len = 1 << chip->phys_erase_shift;
 		nand_erase_nand(mtd, &einfo, 0);
-	}
 
-	/* Get block number */
-	block = (int)(ofs >> chip->bbt_erase_shift);
-	/* Mark block bad in memory-based BBT */
-	if (chip->bbt)
-		chip->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
-
-	/* Write bad block marker to OOB */
-	if (write_oob) {
+		/* Write bad block marker to OOB */
 		nand_get_device(mtd, FL_WRITING);
 		ret = chip->block_markbad(mtd, ofs);
 		nand_release_device(mtd);
 	}
 
-	/* Update flash-based bad block table */
-	if (chip->bbt_options & NAND_BBT_USE_FLASH) {
-		res = nand_update_bbt(mtd, ofs);
+	/* Mark block bad in BBT */
+	if (chip->bbt) {
+		res = nand_markbad_bbt(mtd, ofs);
 		if (!ret)
 			ret = res;
 	}
