@@ -609,10 +609,6 @@ int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat)
 	char *full_alg_name;
 	int rc = -EINVAL;
 
-	if (!crypt_stat->cipher) {
-		ecryptfs_printk(KERN_ERR, "No cipher specified\n");
-		goto out;
-	}
 	ecryptfs_printk(KERN_DEBUG,
 			"Initializing cipher [%s]; strlen = [%d]; "
 			"key_size_bits = [%zd]\n",
