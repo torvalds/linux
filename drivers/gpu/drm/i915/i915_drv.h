@@ -1711,6 +1711,7 @@ struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
+				     struct i915_address_space *vm,
 				     uint32_t alignment,
 				     bool map_and_fenceable,
 				     bool nonblocking);
@@ -1895,6 +1896,16 @@ static inline unsigned long
 i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj)
 {
 	return i915_gem_obj_size(obj, obj_to_ggtt(obj));
+}
+
+static inline int __must_check
+i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
+		      uint32_t alignment,
+		      bool map_and_fenceable,
+		      bool nonblocking)
+{
+	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment,
+				   map_and_fenceable, nonblocking);
 }
 #undef obj_to_ggtt
 
