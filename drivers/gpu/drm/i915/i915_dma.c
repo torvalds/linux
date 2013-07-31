@@ -1493,10 +1493,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	i915_dump_device_info(dev_priv);
 
-	INIT_LIST_HEAD(&dev_priv->vm_list);
-	INIT_LIST_HEAD(&dev_priv->gtt.base.global_link);
-	list_add(&dev_priv->gtt.base.global_link, &dev_priv->vm_list);
-
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;
 		goto free_priv;
