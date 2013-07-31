@@ -1055,8 +1055,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	 * bases. This is -not- called when generating the PCI tree from
 	 * the OF device-tree.
 	 */
-	if (bus->self != NULL)
-		pci_read_bridge_bases(bus);
+	pci_read_bridge_bases(bus);
 
 	/* Now fixup the bus bus */
 	pcibios_setup_bus_self(bus);
