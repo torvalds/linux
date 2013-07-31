@@ -2143,7 +2143,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "ddrphy", &clk_ddrphy),
 
 	CLK(NULL, "cpu", &clk_core_pre),
-	CLK(NULL, "core_periph", &clk_core_periph),
+	CLK(NULL, "smp_twd", &clk_core_periph),
 	CLK(NULL, "l2c", &clk_l2c),
 	CLK(NULL, "aclk_core_pre", &aclk_core_pre),
 	CLK(NULL, "coredll", &clk_dll_core),
@@ -2825,7 +2825,7 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate, unsigned lo
 	clk_set_rate_nolock(&clk_sdmmc0, 24750000);
 	clk_set_rate_nolock(&clk_sdio, 24750000);
 
-	rk_dump_clock_info();
+	//rk_dump_clock_info();
 }
 void __init _rk2928_clock_data_init(unsigned long gpll, unsigned long cpll, int flags)
 {
