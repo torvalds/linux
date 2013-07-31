@@ -313,9 +313,6 @@ static int caam_probe(struct platform_device *pdev)
 
 	/* NOTE: RTIC detection ought to go here, around Si time */
 
-	/* Initialize queue allocator lock */
-	spin_lock_init(&ctrlpriv->jr_alloc_lock);
-
 	caam_id = rd_reg64(&topregs->ctrl.perfmon.caam_id);
 
 	/* Report "alive" for developer to see */
