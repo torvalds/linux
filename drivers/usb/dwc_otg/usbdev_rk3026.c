@@ -221,13 +221,13 @@ void dwc_otg_uart_mode(void* pdata, int enter_usb_uart_mode)
     if(1 == enter_usb_uart_mode)   //uart mode
     {
         *otg_phy_con0 = (0x03 << 12 | (0x03<<(16+12)));//bypass dm
-        printk("otg-phy enter uart mode USBGRF_UOC1_CON0 = %08x\n",*otg_phy_con1);
+        //printk("otg-phy enter uart mode USBGRF_UOC1_CON0 = %08x\n",*otg_phy_con1);
         
     }
     if(0 == enter_usb_uart_mode)   //usb mode
     {   
         *otg_phy_con0 = (0x03<<(12+16)); //bypass dm disable 
-        printk("otg-phy enter usb mode USBGRF_UOC1_CON0 = %8x\n",*otg_phy_con1);
+        //printk("otg-phy enter usb mode USBGRF_UOC1_CON0 = %8x\n",*otg_phy_con1);
     }
 #endif
 }

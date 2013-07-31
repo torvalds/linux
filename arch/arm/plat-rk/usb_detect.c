@@ -171,8 +171,8 @@ static irqreturn_t otg_id_irq_handler(int irq, void *dev_id)
         writel_relaxed(0x04000000, RK2928_GRF_BASE + GRF_UOC1_CON0);   //enter usb phy    
     }
 #endif
-        writel_relaxed((0x3 << 16) | 0x3, RK2928_GRF_BASE + GRF_UOC_CON);//clear id fall irq pandding
-    }
+    writel_relaxed((0x3 << 16) | 0x3, RK2928_GRF_BASE + GRF_UOC_CON);//clear id fall irq pandding
+   
 	rk28_send_wakeup_key();
 	return IRQ_HANDLED;
 }
