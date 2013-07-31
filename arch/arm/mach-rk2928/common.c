@@ -105,6 +105,12 @@ static void __init rk2928_l2_cache_init(void)
 			(0x1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT) |
 			(0x1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT) );
 
+#ifdef CONFIG_ARCH_RK3026
+	/* force 16-way, 16KB way-size on RK3026 */
+	aux_ctrl |= (1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT) | (0x1 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT);
+	aux_ctrl_mask &= ~((1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT) | (0x7 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT));
+#endif
+
 	l2x0_init(RK2928_L2C_BASE, aux_ctrl, aux_ctrl_mask);
 #endif
 }
