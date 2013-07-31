@@ -18,8 +18,9 @@
 
 void __init shmobile_smp_scu_prepare_cpus(unsigned int max_cpus)
 {
-	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
-	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
+	/* install boot code shared by all CPUs */
+	shmobile_boot_fn = virt_to_phys(shmobile_smp_boot);
+	shmobile_boot_arg = MPIDR_HWID_BITMASK;
 
 	/* enable SCU and cache coherency on booting CPU */
 	scu_enable(shmobile_scu_base);
@@ -28,22 +29,26 @@ void __init shmobile_smp_scu_prepare_cpus(unsigned int max_cpus)
 
 int shmobile_smp_scu_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	/* do nothing for now */
+	/* For this particular CPU register SCU boot vector */
+	shmobile_smp_hook(cpu, virt_to_phys(shmobile_boot_scu),
+			  (unsigned long)shmobile_scu_base);
 	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
 void shmobile_smp_scu_cpu_die(unsigned int cpu)
 {
+	/* For this particular CPU deregister boot vector */
+	shmobile_smp_hook(cpu, 0, 0);
+
 	dsb();
 	flush_cache_all();
 
 	/* disable cache coherency */
 	scu_power_mode(shmobile_scu_base, SCU_PM_POWEROFF);
 
-	/* Endless loop until reset */
-	while (1)
-		cpu_do_idle();
+	/* jump to shared mach-shmobile sleep / reset code */
+	shmobile_smp_sleep();
 }
 
 static int shmobile_smp_scu_psr_core_disabled(int cpu)
