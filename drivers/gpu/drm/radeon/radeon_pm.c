@@ -886,28 +886,35 @@ void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)
 {
 	enum radeon_pm_state_type dpm_state;
 
-	if (enable) {
+	if (rdev->asic->dpm.powergate_uvd) {
 		mutex_lock(&rdev->pm.mutex);
-		rdev->pm.dpm.uvd_active = true;
-		if ((rdev->pm.dpm.sd == 1) && (rdev->pm.dpm.hd == 0))
-			dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_SD;
-		else if ((rdev->pm.dpm.sd == 2) && (rdev->pm.dpm.hd == 0))
-			dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_HD;
-		else if ((rdev->pm.dpm.sd == 0) && (rdev->pm.dpm.hd == 1))
-			dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_HD;
-		else if ((rdev->pm.dpm.sd == 0) && (rdev->pm.dpm.hd == 2))
-			dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_HD2;
-		else
-			dpm_state = POWER_STATE_TYPE_INTERNAL_UVD;
-		rdev->pm.dpm.state = dpm_state;
+		/* enable/disable UVD */
+		radeon_dpm_powergate_uvd(rdev, !enable);
 		mutex_unlock(&rdev->pm.mutex);
 	} else {
-		mutex_lock(&rdev->pm.mutex);
-		rdev->pm.dpm.uvd_active = false;
-		mutex_unlock(&rdev->pm.mutex);
-	}
+		if (enable) {
+			mutex_lock(&rdev->pm.mutex);
+			rdev->pm.dpm.uvd_active = true;
+			if ((rdev->pm.dpm.sd == 1) && (rdev->pm.dpm.hd == 0))
+				dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_SD;
+			else if ((rdev->pm.dpm.sd == 2) && (rdev->pm.dpm.hd == 0))
+				dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_HD;
+			else if ((rdev->pm.dpm.sd == 0) && (rdev->pm.dpm.hd == 1))
+				dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_HD;
+			else if ((rdev->pm.dpm.sd == 0) && (rdev->pm.dpm.hd == 2))
+				dpm_state = POWER_STATE_TYPE_INTERNAL_UVD_HD2;
+			else
+				dpm_state = POWER_STATE_TYPE_INTERNAL_UVD;
+			rdev->pm.dpm.state = dpm_state;
+			mutex_unlock(&rdev->pm.mutex);
+		} else {
+			mutex_lock(&rdev->pm.mutex);
+			rdev->pm.dpm.uvd_active = false;
+			mutex_unlock(&rdev->pm.mutex);
+		}
 
-	radeon_pm_compute_clocks(rdev);
+		radeon_pm_compute_clocks(rdev);
+	}
 }
 
 static void radeon_pm_suspend_old(struct radeon_device *rdev)
