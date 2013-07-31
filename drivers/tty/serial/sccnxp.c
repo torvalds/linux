@@ -787,10 +787,9 @@ static int sccnxp_probe(struct platform_device *pdev)
 	struct sccnxp_port *s;
 	void __iomem *membase;
 
-	if (!res) {
-		dev_err(&pdev->dev, "Missing memory resource data\n");
-		return -EADDRNOTAVAIL;
-	}
+	membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(membase))
+		return PTR_ERR(membase);
 
 	s = devm_kzalloc(&pdev->dev, sizeof(struct sccnxp_port), GFP_KERNEL);
 	if (!s) {
@@ -885,9 +884,19 @@ static int sccnxp_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported chip type %i\n", chiptype);
-		ret = -ENOTSUPP;
-		goto err_out;
+		return -ENOTSUPP;
 	}
+
+	s->regulator = devm_regulator_get(&pdev->dev, "vcc");
+	if (!IS_ERR(s->regulator)) {
+		ret = regulator_enable(s->regulator);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to enable regulator: %i\n", ret);
+			return ret;
+		}
+	} else if (PTR_ERR(s->regulator) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	if (!pdata) {
 		dev_warn(&pdev->dev,
@@ -916,22 +925,6 @@ static int sccnxp_probe(struct platform_device *pdev)
 	    (s->pdata.frequency > freq_max)) {
 		dev_err(&pdev->dev, "Frequency out of bounds\n");
 		ret = -EINVAL;
-		goto err_out;
-	}
-
-	s->regulator = devm_regulator_get(&pdev->dev, "VCC");
-	if (!IS_ERR(s->regulator)) {
-		ret = regulator_enable(s->regulator);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"Failed to enable regulator: %i\n", ret);
-			return ret;
-		}
-	}
-
-	membase = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(membase)) {
-		ret = PTR_ERR(membase);
 		goto err_out;
 	}
 
@@ -997,6 +990,9 @@ static int sccnxp_probe(struct platform_device *pdev)
 	}
 
 err_out:
+	if (!IS_ERR(s->regulator))
+		return regulator_disable(s->regulator);
+
 	return ret;
 }
 
