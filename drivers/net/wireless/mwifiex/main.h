@@ -902,6 +902,8 @@ int mwifiex_cmd_append_vsie_tlv(struct mwifiex_private *priv, u16 vsie_mask,
 u32 mwifiex_get_active_data_rates(struct mwifiex_private *priv,
 				    u8 *rates);
 u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates);
+u32 mwifiex_get_rates_from_cfg80211(struct mwifiex_private *priv,
+				    u8 *rates, u8 radio_type);
 u8 mwifiex_is_rate_auto(struct mwifiex_private *priv);
 extern u16 region_code_index[MWIFIEX_MAX_REGION_CODE];
 void mwifiex_save_curr_bcn(struct mwifiex_private *priv);
