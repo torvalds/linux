@@ -305,7 +305,7 @@
 #define FSR_IGN				(FSR_AFF | FSR_ASF | FSR_TLBMCF |	\
 					 FSR_TLBLKF)
 #define FSR_FAULT			(FSR_MULTI | FSR_SS | FSR_UUT |		\
-					 FSR_EF | FSR_PF | FSR_TF)
+					 FSR_EF | FSR_PF | FSR_TF | FSR_IGN)
 
 #define FSYNR0_WNR			(1 << 4)
 
@@ -590,6 +590,9 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 
 	gfsr = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSR);
+	if (!gfsr)
+		return IRQ_NONE;
+
 	gfsynr0 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR0);
 	gfsynr1 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR1);
 	gfsynr2 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR2);
@@ -601,7 +604,7 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 		gfsr, gfsynr0, gfsynr1, gfsynr2);
 
 	writel(gfsr, gr0_base + ARM_SMMU_GR0_sGFSR);
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
