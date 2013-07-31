@@ -153,6 +153,8 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 static int power_vag_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
+	const u32 mask = SGTL5000_DAC_POWERUP | SGTL5000_ADC_POWERUP;
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(w->codec, SGTL5000_CHIP_ANA_POWER,
@@ -160,9 +162,17 @@ static int power_vag_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(w->codec, SGTL5000_CHIP_ANA_POWER,
-			SGTL5000_VAG_POWERUP, 0);
-		msleep(400);
+		/*
+		 * Don't clear VAG_POWERUP, when both DAC and ADC are
+		 * operational to prevent inadvertently starving the
+		 * other one of them.
+		 */
+		if ((snd_soc_read(w->codec, SGTL5000_CHIP_ANA_POWER) &
+				mask) != mask) {
+			snd_soc_update_bits(w->codec, SGTL5000_CHIP_ANA_POWER,
+				SGTL5000_VAG_POWERUP, 0);
+			msleep(400);
+		}
 		break;
 	default:
 		break;
