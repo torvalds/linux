@@ -1113,7 +1113,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	void *aux;
 	long rc;
 
-	pr_info(" Initializing IODA%d OPAL PHB %s\n", ioda_type, np->full_name);
+	pr_info("Initializing IODA%d OPAL PHB %s\n", ioda_type, np->full_name);
 
 	prop64 = of_get_property(np, "ibm,opal-phbid", NULL);
 	if (!prop64) {
@@ -1124,13 +1124,18 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	pr_debug("  PHB-ID  : 0x%016llx\n", phb_id);
 
 	phb = alloc_bootmem(sizeof(struct pnv_phb));
-	if (phb) {
-		memset(phb, 0, sizeof(struct pnv_phb));
-		phb->hose = hose = pcibios_alloc_controller(np);
+	if (!phb) {
+		pr_err("  Out of memory !\n");
+		return;
 	}
-	if (!phb || !phb->hose) {
-		pr_err("PCI: Failed to allocate PCI controller for %s\n",
+
+	/* Allocate PCI controller */
+	memset(phb, 0, sizeof(struct pnv_phb));
+	phb->hose = hose = pcibios_alloc_controller(np);
+	if (!phb->hose) {
+		pr_err("  Can't allocate PCI controller for %s\n",
 		       np->full_name);
+		free_bootmem((unsigned long)phb, sizeof(struct pnv_phb));
 		return;
 	}
 
