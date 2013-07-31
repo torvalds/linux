@@ -3126,7 +3126,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 mrqc, rxcsum;
-	u32 j, num_rx_queues, shift = 0;
+	u32 j, num_rx_queues;
 	static const u32 rsskey[10] = { 0xDA565A6D, 0xC20E5B25, 0x3D256741,
 					0xB08FA343, 0xCB2BCAD0, 0xB4307BAE,
 					0xA32DCB77, 0x0CF23080, 0x3BB7426A,
@@ -3139,35 +3139,21 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 	num_rx_queues = adapter->rss_queues;
 
 	switch (hw->mac.type) {
-	case e1000_82575:
-		shift = 6;
-		break;
 	case e1000_82576:
 		/* 82576 supports 2 RSS queues for SR-IOV */
-		if (adapter->vfs_allocated_count) {
-			shift = 3;
+		if (adapter->vfs_allocated_count)
 			num_rx_queues = 2;
-		}
 		break;
 	default:
 		break;
 	}
 
-	/* Populate the indirection table 4 entries at a time.  To do this
-	 * we are generating the results for n and n+2 and then interleaving
-	 * those with the results with n+1 and n+3.
-	 */
-	for (j = 0; j < IGB_RETA_SIZE / 4; j++) {
-		/* first pass generates n and n+2 */
-		u32 base = ((j * 0x00040004) + 0x00020000) * num_rx_queues;
-		u32 reta = (base & 0x07800780) >> (7 - shift);
-
-		/* second pass generates n+1 and n+3 */
-		base += 0x00010001 * num_rx_queues;
-		reta |= (base & 0x07800780) << (1 + shift);
-
-		wr32(E1000_RETA(j), reta);
+	if (adapter->rss_indir_tbl_init != num_rx_queues) {
+		for (j = 0; j < IGB_RETA_SIZE; j++)
+			adapter->rss_indir_tbl[j] = (j * num_rx_queues) / IGB_RETA_SIZE;
+		adapter->rss_indir_tbl_init = num_rx_queues;
 	}
+	igb_write_rss_indir_tbl(adapter);
 
 	/* Disable raw packet checksumming so that RSS hash is placed in
 	 * descriptor on writeback.  No need to enable TCP/UDP/IP checksum
