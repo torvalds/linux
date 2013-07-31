@@ -432,7 +432,7 @@ leave:
 
 /*
  * +===========================================================================
- * |   00-1024 | USB packet
+ * |   00-1023 | USB packet
  * +===========================================================================
  * |   00-  03 | sequence number of first sample in that USB packet
  * +---------------------------------------------------------------------------
@@ -462,7 +462,7 @@ leave:
  * +---------------------------------------------------------------------------
  * |  996- 999 | control bits for previous samples
  * +---------------------------------------------------------------------------
- * | 1000-1024 | garbage
+ * | 1000-1023 | garbage
  * +---------------------------------------------------------------------------
  *
  * Bytes 4 - 7 could have some meaning?
@@ -522,7 +522,7 @@ static u32 msi3101_convert_sample(struct msi3101_state *s, u16 x, int shift)
 #define MSI3101_CONVERT_IN_URB_HANDLER
 #define MSI3101_EXTENSIVE_DEBUG
 static int msi3101_convert_stream(struct msi3101_state *s, u32 *dst,
-		const u8 *src, unsigned int src_len)
+		u8 *src, unsigned int src_len)
 {
 	int i, j, k, l, i_max, dst_len = 0;
 	u16 sample[4];
@@ -541,6 +541,15 @@ static int msi3101_convert_stream(struct msi3101_state *s, u32 *dst,
 					sample_num[0] - s->next_sample,
 					src_len, s->next_sample, sample_num[0]);
 		}
+
+		/*
+		 * Dump all unknown 'garbage' data - maybe we will discover
+		 * someday if there is something rational...
+		 */
+		dev_dbg_ratelimited(&s->udev->dev,
+				"%*ph  %*ph\n", 12, &src[4], 24, &src[1000]);
+		memset(&src[4], 0, 12);
+		memset(&src[1000], 0, 24);
 #endif
 		src += 16;
 		for (j = 0; j < 6; j++) {
