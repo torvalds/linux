@@ -52,6 +52,5 @@ DT_MACHINE_START(KZM9G_DT, "kzm9g-reference")
 	.init_early	= sh73a0_init_delay,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_machine	= kzm_init,
-	.init_time	= shmobile_timer_init,
 	.dt_compat	= kzm9g_boards_compat_dt,
 MACHINE_END
