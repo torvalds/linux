@@ -148,7 +148,7 @@ static int __init bvalid_init(void)
 late_initcall(bvalid_init);
 #endif
 
-#if defined(IRQ_OTG0_ID) && defined(CONFIG_ARCH_RK3026)
+#if 0
 #include <linux/io.h>
 #include <mach/iomux.h>
 
