@@ -514,37 +514,31 @@ int usb_ocp_write(struct r8152 *tp, u16 index, u16 byteen, u16 size, void *data)
 
 static u32 ocp_read_dword(struct r8152 *tp, u16 type, u16 index)
 {
-	u32 data;
+	__le32 data;
 
-	if (type == MCU_TYPE_PLA)
-		pla_ocp_read(tp, index, sizeof(data), &data);
-	else
-		usb_ocp_read(tp, index, sizeof(data), &data);
+	generic_ocp_read(tp, index, sizeof(data), &data, type);
 
 	return __le32_to_cpu(data);
 }
 
 static void ocp_write_dword(struct r8152 *tp, u16 type, u16 index, u32 data)
 {
-	if (type == MCU_TYPE_PLA)
-		pla_ocp_write(tp, index, BYTE_EN_DWORD, sizeof(data), &data);
-	else
-		usb_ocp_write(tp, index, BYTE_EN_DWORD, sizeof(data), &data);
+	__le32 tmp = __cpu_to_le32(data);
+
+	generic_ocp_write(tp, index, BYTE_EN_DWORD, sizeof(tmp), &tmp, type);
 }
 
 static u16 ocp_read_word(struct r8152 *tp, u16 type, u16 index)
 {
 	u32 data;
+	__le32 tmp;
 	u8 shift = index & 2;
 
 	index &= ~3;
 
-	if (type == MCU_TYPE_PLA)
-		pla_ocp_read(tp, index, sizeof(data), &data);
-	else
-		usb_ocp_read(tp, index, sizeof(data), &data);
+	generic_ocp_read(tp, index, sizeof(tmp), &tmp, type);
 
-	data = __le32_to_cpu(data);
+	data = __le32_to_cpu(tmp);
 	data >>= (shift * 8);
 	data &= 0xffff;
 
@@ -553,7 +547,8 @@ static u16 ocp_read_word(struct r8152 *tp, u16 type, u16 index)
 
 static void ocp_write_word(struct r8152 *tp, u16 type, u16 index, u32 data)
 {
-	u32 tmp, mask = 0xffff;
+	u32 mask = 0xffff;
+	__le32 tmp;
 	u16 byen = BYTE_EN_WORD;
 	u8 shift = index & 2;
 
@@ -566,34 +561,25 @@ static void ocp_write_word(struct r8152 *tp, u16 type, u16 index, u32 data)
 		index &= ~3;
 	}
 
-	if (type == MCU_TYPE_PLA)
-		pla_ocp_read(tp, index, sizeof(tmp), &tmp);
-	else
-		usb_ocp_read(tp, index, sizeof(tmp), &tmp);
+	generic_ocp_read(tp, index, sizeof(tmp), &tmp, type);
 
-	tmp = __le32_to_cpu(tmp) & ~mask;
-	tmp |= data;
-	tmp = __cpu_to_le32(tmp);
+	data |= __le32_to_cpu(tmp) & ~mask;
+	tmp = __cpu_to_le32(data);
 
-	if (type == MCU_TYPE_PLA)
-		pla_ocp_write(tp, index, byen, sizeof(tmp), &tmp);
-	else
-		usb_ocp_write(tp, index, byen, sizeof(tmp), &tmp);
+	generic_ocp_write(tp, index, byen, sizeof(tmp), &tmp, type);
 }
 
 static u8 ocp_read_byte(struct r8152 *tp, u16 type, u16 index)
 {
 	u32 data;
+	__le32 tmp;
 	u8 shift = index & 3;
 
 	index &= ~3;
 
-	if (type == MCU_TYPE_PLA)
-		pla_ocp_read(tp, index, sizeof(data), &data);
-	else
-		usb_ocp_read(tp, index, sizeof(data), &data);
+	generic_ocp_read(tp, index, sizeof(tmp), &tmp, type);
 
-	data = __le32_to_cpu(data);
+	data = __le32_to_cpu(tmp);
 	data >>= (shift * 8);
 	data &= 0xff;
 
@@ -602,7 +588,8 @@ static u8 ocp_read_byte(struct r8152 *tp, u16 type, u16 index)
 
 static void ocp_write_byte(struct r8152 *tp, u16 type, u16 index, u32 data)
 {
-	u32 tmp, mask = 0xff;
+	u32 mask = 0xff;
+	__le32 tmp;
 	u16 byen = BYTE_EN_BYTE;
 	u8 shift = index & 3;
 
@@ -615,19 +602,12 @@ static void ocp_write_byte(struct r8152 *tp, u16 type, u16 index, u32 data)
 		index &= ~3;
 	}
 
-	if (type == MCU_TYPE_PLA)
-		pla_ocp_read(tp, index, sizeof(tmp), &tmp);
-	else
-		usb_ocp_read(tp, index, sizeof(tmp), &tmp);
+	generic_ocp_read(tp, index, sizeof(tmp), &tmp, type);
 
-	tmp = __le32_to_cpu(tmp) & ~mask;
-	tmp |= data;
-	tmp = __cpu_to_le32(tmp);
+	data |= __le32_to_cpu(tmp) & ~mask;
+	tmp = __cpu_to_le32(data);
 
-	if (type == MCU_TYPE_PLA)
-		pla_ocp_write(tp, index, byen, sizeof(tmp), &tmp);
-	else
-		usb_ocp_write(tp, index, byen, sizeof(tmp), &tmp);
+	generic_ocp_write(tp, index, byen, sizeof(tmp), &tmp, type);
 }
 
 static void r8152_mdio_write(struct r8152 *tp, u32 reg_addr, u32 value)
