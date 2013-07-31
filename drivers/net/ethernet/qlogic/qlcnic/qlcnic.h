@@ -1869,7 +1869,8 @@ static inline void qlcnic_free_mac_list(struct qlcnic_adapter *adapter)
 
 static inline void qlcnic_set_mac_filter_count(struct qlcnic_adapter *adapter)
 {
-	adapter->ahw->hw_ops->set_mac_filter_count(adapter);
+	if (adapter->ahw->hw_ops->set_mac_filter_count)
+		adapter->ahw->hw_ops->set_mac_filter_count(adapter);
 }
 
 static inline void qlcnic_dev_request_reset(struct qlcnic_adapter *adapter,

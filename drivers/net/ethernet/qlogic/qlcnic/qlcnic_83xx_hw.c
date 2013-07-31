@@ -3014,8 +3014,8 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
 	}
 
 	if (ahw->port_type == QLCNIC_XGBE) {
-		ecmd->supported = SUPPORTED_1000baseT_Full;
-		ecmd->advertising = ADVERTISED_1000baseT_Full;
+		ecmd->supported = SUPPORTED_10000baseT_Full;
+		ecmd->advertising = ADVERTISED_10000baseT_Full;
 	} else {
 		ecmd->supported = (SUPPORTED_10baseT_Half |
 				   SUPPORTED_10baseT_Full |
