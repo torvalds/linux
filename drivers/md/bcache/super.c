@@ -16,6 +16,7 @@
 #include <linux/buffer_head.h>
 #include <linux/debugfs.h>
 #include <linux/genhd.h>
+#include <linux/idr.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/random.h>
@@ -50,7 +51,8 @@ struct mutex bch_register_lock;
 LIST_HEAD(bch_cache_sets);
 static LIST_HEAD(uncached_devices);
 
-static int bcache_major, bcache_minor;
+static int bcache_major;
+static DEFINE_IDA(bcache_minor);
 static wait_queue_head_t unregister_wait;
 struct workqueue_struct *bcache_wq;
 
@@ -731,8 +733,10 @@ static void bcache_device_free(struct bcache_device *d)
 		del_gendisk(d->disk);
 	if (d->disk && d->disk->queue)
 		blk_cleanup_queue(d->disk->queue);
-	if (d->disk)
+	if (d->disk) {
+		ida_simple_remove(&bcache_minor, d->disk->first_minor);
 		put_disk(d->disk);
+	}
 
 	bio_split_pool_free(&d->bio_split_hook);
 	if (d->unaligned_bvec)
@@ -756,6 +760,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 {
 	struct request_queue *q;
 	size_t n;
+	int minor;
 
 	if (!d->stripe_size)
 		d->stripe_size = 1 << 31;
@@ -783,21 +788,30 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	if (!d->full_dirty_stripes)
 		return -ENOMEM;
 
+	minor = ida_simple_get(&bcache_minor, 0, MINORMASK + 1, GFP_KERNEL);
+	if (minor < 0)
+		return minor;
+
 	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
 	    !(d->unaligned_bvec = mempool_create_kmalloc_pool(1,
 				sizeof(struct bio_vec) * BIO_MAX_PAGES)) ||
 	    bio_split_pool_init(&d->bio_split_hook) ||
-	    !(d->disk = alloc_disk(1)) ||
-	    !(q = blk_alloc_queue(GFP_KERNEL)))
+	    !(d->disk = alloc_disk(1))) {
+		ida_simple_remove(&bcache_minor, minor);
 		return -ENOMEM;
+	}
 
 	set_capacity(d->disk, sectors);
-	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", bcache_minor);
+	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", minor);
 
 	d->disk->major		= bcache_major;
-	d->disk->first_minor	= bcache_minor++;
+	d->disk->first_minor	= minor;
 	d->disk->fops		= &bcache_ops;
 	d->disk->private_data	= d;
+
+	q = blk_alloc_queue(GFP_KERNEL);
+	if (!q)
+		return -ENOMEM;
 
 	blk_queue_make_request(q, NULL);
 	d->disk->queue			= q;
