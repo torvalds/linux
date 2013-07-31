@@ -34,7 +34,9 @@
 static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 {
-	struct i915_vma *vma = __i915_gem_obj_to_vma(obj);
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_vma *vma = i915_gem_obj_to_vma(obj, &dev_priv->gtt.base);
 
 	if (obj->pin_count)
 		return false;
@@ -109,7 +111,7 @@ none:
 		obj = list_first_entry(&unwind_list,
 				       struct drm_i915_gem_object,
 				       exec_list);
-		vma = __i915_gem_obj_to_vma(obj);
+		vma = i915_gem_obj_to_vma(obj, &dev_priv->gtt.base);
 		ret = drm_mm_scan_remove_block(&vma->node);
 		BUG_ON(ret);
 
@@ -130,7 +132,7 @@ found:
 		obj = list_first_entry(&unwind_list,
 				       struct drm_i915_gem_object,
 				       exec_list);
-		vma = __i915_gem_obj_to_vma(obj);
+		vma = i915_gem_obj_to_vma(obj, &dev_priv->gtt.base);
 		if (drm_mm_scan_remove_block(&vma->node)) {
 			list_move(&obj->exec_list, &eviction_list);
 			drm_gem_object_reference(&obj->base);
