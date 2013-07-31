@@ -4214,7 +4214,7 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 	INIT_WORK(&css->dput_work, css_dput_fn);
 }
 
-/* invoke ->post_create() on a new CSS and mark it online if successful */
+/* invoke ->css_online() on a new CSS and mark it online if successful */
 static int online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
 	int ret = 0;
@@ -4228,9 +4228,8 @@ static int online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 	return ret;
 }
 
-/* if the CSS is online, invoke ->pre_destory() on it and mark it offline */
+/* if the CSS is online, invoke ->css_offline() on it and mark it offline */
 static void offline_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
-	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
 {
 	struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
 
