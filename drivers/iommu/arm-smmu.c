@@ -687,15 +687,9 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
 
 	/* TTBR0 */
 	reg = __pa(root_cfg->pgd);
-#ifndef __BIG_ENDIAN
 	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0_LO);
 	reg = (phys_addr_t)__pa(root_cfg->pgd) >> 32;
 	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0_HI);
-#else
-	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0_HI);
-	reg = (phys_addr_t)__pa(root_cfg->pgd) >> 32;
-	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0_LO);
-#endif
 
 	/*
 	 * TTBCR
