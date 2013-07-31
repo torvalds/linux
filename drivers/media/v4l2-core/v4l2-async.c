@@ -199,7 +199,7 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 
 	list_del(&notifier->list);
 
-	list_for_each_entry_safe(sd, tmp, &notifier->done, list) {
+	list_for_each_entry_safe(sd, tmp, &notifier->done, async_list) {
 		dev[i] = get_device(sd->dev);
 
 		v4l2_async_cleanup(sd);
