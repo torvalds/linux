@@ -126,11 +126,18 @@ out1:
 static int r815x_mdio_read(struct net_device *netdev, int phy_id, int reg)
 {
 	struct usbnet *dev = netdev_priv(netdev);
+	int ret;
 
 	if (phy_id != R815x_PHY_ID)
 		return -EINVAL;
 
-	return ocp_reg_read(dev, BASE_MII + reg * 2);
+	if (usb_autopm_get_interface(dev->intf) < 0)
+		return -ENODEV;
+
+	ret = ocp_reg_read(dev, BASE_MII + reg * 2);
+
+	usb_autopm_put_interface(dev->intf);
+	return ret;
 }
 
 static
@@ -141,7 +148,12 @@ void r815x_mdio_write(struct net_device *netdev, int phy_id, int reg, int val)
 	if (phy_id != R815x_PHY_ID)
 		return;
 
+	if (usb_autopm_get_interface(dev->intf) < 0)
+		return;
+
 	ocp_reg_write(dev, BASE_MII + reg * 2, val);
+
+	usb_autopm_put_interface(dev->intf);
 }
 
 static int r8153_bind(struct usbnet *dev, struct usb_interface *intf)
