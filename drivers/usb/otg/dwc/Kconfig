@@ -8,6 +8,7 @@ comment "Enable Host or Gadget support for DesignWare OTG controller"
 
 config USB_DWC_OTG
 	depends on (USB || USB_GADGET)
+	select USB_PHY
 	select NOP_USB_XCEIV
 	select USB_OTG_UTILS
 	tristate "Synopsys DWC OTG Controller"

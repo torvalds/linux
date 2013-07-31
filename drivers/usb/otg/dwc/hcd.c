@@ -209,7 +209,7 @@ static void dwc_otg_core_host_init(struct core_if *core_if)
 
 	/* Turn on the vbus power. */
 	pr_info("Init: Port Power? op_state=%s\n",
-		otg_state_string(core_if->xceiv->state));
+		usb_otg_state_string(core_if->xceiv->state));
 
 	if (core_if->xceiv->state == OTG_STATE_A_HOST) {
 		hprt0 = dwc_otg_read_hprt0(core_if);

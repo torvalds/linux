@@ -1,5 +1,6 @@
 /*
- * Altera SoCFPGA Specific Extensions for Synopsys DW Multimedia Card Interface driver
+ * Altera SoCFPGA Specific Extensions for Synopsys DW Multimedia Card Interface
+ * driver
  *
  *  Copyright (C) 2012, Samsung Electronics Co., Ltd.
  *  Copyright (C) 2013 Altera Corporation
@@ -25,14 +26,14 @@
 
 #define SYSMGR_SDMMCGRP_CTRL_OFFSET		0x108
 #define DRV_CLK_PHASE_SHIFT_SEL_MASK	0x7
-#define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel)		\
-	((((drvsel) << 0) & 0x7) | (((smplsel) << 3) & 0x38))
+#define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel)		\ 
+	((((smplsel) & 0x7) << 3) | (((drvsel) & 0x7) << 0))
 
 /* SOCFPGA implementation specific driver private data */
 struct dw_mci_socfpga_priv_data {
-	u8	ciu_div;
-	u32	hs_timing;
-	struct regmap   *sysreg;
+	u8      ciu_div; /* card interface unit divisor */
+	u32     hs_timing; /* bitmask for CIU clock phase shift */
+	struct regmap   *sysreg; /* regmap for system manager register */
 };
 
 static int dw_mci_socfpga_priv_init(struct dw_mci *host)
@@ -47,13 +48,12 @@ static int dw_mci_socfpga_priv_init(struct dw_mci *host)
 		return -ENOMEM;
 	}
 
-	host->priv = priv;
-
 	priv->sysreg = syscon_regmap_lookup_by_compatible("altr,sys-mgr");
 	if (IS_ERR(priv->sysreg)) {
 		dev_err(host->dev, "regmap for altr,sys-mgr lookup failed.\n");
 		return PTR_ERR(priv->sysreg);
 	}
+	host->priv = priv;
 
 	if (of_property_read_u32(dev->of_node, "pwr-en", &pwr_en)) {
 		dev_info(dev, "couldn't determine pwr-en, assuming pwr-en = 0\n");
@@ -71,7 +71,8 @@ static int dw_mci_socfpga_setup_clock(struct dw_mci *host)
 	struct dw_mci_socfpga_priv_data *priv = host->priv;
 
 	clk_disable_unprepare(host->ciu_clk);
-	regmap_write(priv->sysreg, SYSMGR_SDMMCGRP_CTRL_OFFSET, priv->hs_timing);
+	regmap_write(priv->sysreg, SYSMGR_SDMMCGRP_CTRL_OFFSET,
+		priv->hs_timing);
 	clk_prepare_enable(host->ciu_clk);
 
 	host->bus_hz /= (priv->ciu_div + 1);

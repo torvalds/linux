@@ -29,16 +29,6 @@
 
 #include "core.h"
 
-static void __cpuinit socfpga_secondary_init(unsigned int cpu)
-{
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-}
-
 static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
@@ -47,7 +37,7 @@ static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct
 		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
 		__raw_writel(virt_to_phys(socfpga_secondary_startup),
-			(sys_manager_base_addr+(cpu1start_addr & 0x000000ff)));
+			(sys_manager_base_addr + (cpu1start_addr & 0x000000ff)));
 
 		flush_cache_all();
 		smp_wmb();

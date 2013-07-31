@@ -11,6 +11,7 @@ config ARCH_SOCFPGA
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PL061 if GPIOLIB
 	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD
 	select HAVE_SMP
 	select MFD_SYSCON
 	select MIGHT_HAVE_CACHE_L2X0
@@ -24,9 +25,3 @@ config ARCH_SOCFPGA
 	select PL310_ERRATA_727915
 	select PL310_ERRATA_753970
 	select PL310_ERRATA_769419
-
-config FPGA_SDRAM
-	bool "Enables FPGA SDRAM"
-	depends on ARCH_SOCFPGA
-	help
-		This enables the SDRAM controller that is connected to the FGPA.

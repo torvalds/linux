@@ -30,7 +30,6 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/smp_twd.h>
 #include <asm/pmu.h>
 
 #include "core.h"
@@ -43,7 +42,7 @@ void __iomem *sdr_ctl_base_addr;
 void __iomem *l3regs_base_addr;
 
 void __iomem *clk_mgr_base_addr;
-unsigned long	cpu1start_addr;
+unsigned long cpu1start_addr;
 
 static int stmmac_plat_init(struct platform_device *pdev);
 
@@ -78,6 +77,13 @@ static struct map_desc scu_io_desc __initdata = {
 	.pfn		= 0, /* run-time */
 	.length		= SZ_8K,
 	.type		= MT_DEVICE,
+};
+
+static struct map_desc uart_io_desc __initdata = {
+	.virtual        = 0xfec02000,
+	.pfn            = __phys_to_pfn(0xffc02000),
+	.length         = SZ_8K,
+	.type           = MT_DEVICE,
 };
 
 static void __init socfpga_soc_device_init(void)
@@ -148,7 +154,7 @@ static void __init socfpga_scu_map_io(void)
 static void __init enable_periphs(void)
 {
 	/* Release all peripherals from reset.*/
-	__raw_writel(0, rst_manager_base_addr + SOCFPGA_RSTMGR_MODPERRST);
+	writel(0, rst_manager_base_addr + SOCFPGA_RSTMGR_MODPERRST);
 }
 
 #define MICREL_KSZ9021_EXTREG_CTRL 11
@@ -206,15 +212,11 @@ static int stmmac_plat_init(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ctrl =  __raw_readl(sys_manager_base_addr +
-		SYSMGR_EMACGRP_CTRL_OFFSET);
-
+	ctrl = readl(sys_manager_base_addr + SYSMGR_EMACGRP_CTRL_OFFSET);
 	ctrl &= ~(SYSMGR_EMACGRP_CTRL_PHYSEL_MASK << shift);
-
 	ctrl |= (val << shift);
 
-	__raw_writel(ctrl, (sys_manager_base_addr +
-		SYSMGR_EMACGRP_CTRL_OFFSET));
+	writel(ctrl, (sys_manager_base_addr + SYSMGR_EMACGRP_CTRL_OFFSET));
 
 	return 0;
 }
@@ -222,7 +224,7 @@ static int stmmac_plat_init(struct platform_device *pdev)
 static void __init socfpga_map_io(void)
 {
 	socfpga_scu_map_io();
-	debug_ll_io_init();
+	iotable_init(&uart_io_desc, 1);
 	early_printk("Early printk initialized\n");
 }
 
@@ -285,21 +287,22 @@ static void __init socfpga_init_irq(void)
 	irqchip_init();
 	socfpga_sysmgr_init();
 
+	of_clk_init(NULL);
 	socfpga_init_clocks();
-	twd_local_timer_of_register();
+	clocksource_of_init();
 }
 
 static void socfpga_cyclone5_restart(char mode, const char *cmd)
 {
 	u32 temp;
 
-	temp = __raw_readl(rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
+	temp = readl(rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
 
 	if (mode == 'h')
 		temp |= RSTMGR_CTRL_SWCOLDRSTREQ;
 	else
 		temp |= RSTMGR_CTRL_SWWARMRSTREQ;
-	__raw_writel(temp, rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
+	writel(temp, rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
 }
 
 static void __init socfpga_cyclone5_init(void)
@@ -313,13 +316,13 @@ static void __init socfpga_cyclone5_init(void)
 #endif
 	of_platform_populate(NULL, of_default_bus_match_table,
 		socfpga_auxdata_lookup, NULL);
-
+	
 	enable_periphs();
 
 	socfpga_soc_device_init();
 	if (IS_BUILTIN(CONFIG_PHYLIB))
-		phy_register_fixup_for_uid(PHY_ID_KSZ9021RLRN, MICREL_PHY_ID_MASK,
-			ksz9021rlrn_phy_fixup);
+		phy_register_fixup_for_uid(PHY_ID_KSZ9021RLRN,
+			MICREL_PHY_ID_MASK, ksz9021rlrn_phy_fixup);
 }
 
 static const char *altera_dt_match[] = {
