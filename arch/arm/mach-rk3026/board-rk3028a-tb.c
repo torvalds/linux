@@ -64,27 +64,27 @@
 #define POWER_ON_PIN		RK30_PIN1_PA1  //PWR_HOLD
 
 //touchscreen
-#define TOUCH_RST_PIN		RK2928_PIN0_PC1
+#define TOUCH_RST_PIN		RK30_PIN3_PC3
 #define TOUCH_RST_VALUE		GPIO_HIGH
-#define TOUCH_PWR_PIN		RK2928_PIN2_PC6
+#define TOUCH_PWR_PIN		RK30_PIN2_PD0
 #define TOUCH_PWR_VALUE		GPIO_LOW
-#define TOUCH_INT_PIN		RK2928_PIN0_PB4
+#define TOUCH_INT_PIN		RK30_PIN3_PC7
 
 //backlight
 #define LCD_DISP_ON_PIN
 #define BL_PWM			0  // (0 ~ 2)
 #define PWM_EFFECT_VALUE  	1
-#define BL_EN_PIN		RK2928_PIN3_PC5
+#define BL_EN_PIN		RK30_PIN3_PC5
 #define BL_EN_VALUE		GPIO_HIGH
 
 //fb
-#define LCD_EN_PIN		RK2928_PIN3_PD2
+#define LCD_EN_PIN		RK30_PIN3_PD2
 #define LCD_EN_VALUE		GPIO_HIGH
 #define LCD_CS_PIN		INVALID_GPIO
 #define LCD_CS_VALUE		GPIO_HIGH
 
 //gsensor
-#define GS_INT_PIN		RK2928_PIN0_PB1
+#define GS_INT_PIN		RK30_PIN3_PD1
 
 //sdmmc
 //Reference to board-rk3028a-tb-sdmmc-config.c
@@ -694,7 +694,7 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
 	.type               = RFKILL_TYPE_BLUETOOTH,
 
 	.poweron_gpio       = { // BT_REG_ON
-		.io             = INVALID_GPIO, //RK2928_PIN3_PC7,
+		.io             = INVALID_GPIO, //RK30_PIN3_PC7,
 		.enable         = GPIO_HIGH,
 		.iomux          = {
 			.name       = "bt_poweron",
@@ -703,7 +703,7 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
 	},
 
 	.reset_gpio         = { // BT_RST
-		.io             = RK2928_PIN1_PB3, // set io to INVALID_GPIO for disable it
+		.io             = RK30_PIN1_PB3, // set io to INVALID_GPIO for disable it
 		.enable         = GPIO_LOW,
 		.iomux          = {
 			.name       = "bt_reset",
@@ -712,7 +712,7 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
 	}, 
 
 	.wake_gpio          = { // BT_WAKE, use to control bt's sleep and wakeup
-		.io             = RK2928_PIN1_PB2, // set io to INVALID_GPIO for disable it
+		.io             = RK30_PIN1_PB2, // set io to INVALID_GPIO for disable it
 		.enable         = GPIO_HIGH,
 		.iomux          = {
 			.name       = "bt_wake",
@@ -722,7 +722,7 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
 
 	.wake_host_irq      = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
 		.gpio           = {
-			.io         = RK2928_PIN0_PA4, // set io to INVALID_GPIO for disable it
+			.io         = RK30_PIN0_PA4, // set io to INVALID_GPIO for disable it
 			.enable     = GPIO_LOW,      // set GPIO_LOW for falling, set 0 for rising
 			.iomux      = {
 				.name   = "bt_wake_host",
@@ -732,7 +732,7 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
 	},
 
 	.rts_gpio           = { // UART_RTS, enable or disable BT's data coming
-		.io             = RK2928_PIN1_PA3, // set io to INVALID_GPIO for disable it
+		.io             = RK30_PIN1_PA3, // set io to INVALID_GPIO for disable it
 		.enable         = GPIO_LOW,
 		.iomux          = {
 			.name       = "bt_rts",
@@ -1033,8 +1033,8 @@ static struct i2c_board_info __initdata i2c3_info[] = {
 #endif
 
 #ifdef CONFIG_I2C_GPIO_RK30
-#define I2C_SDA_PIN     INVALID_GPIO// RK2928_PIN2_PD6   //set sda_pin here
-#define I2C_SCL_PIN     INVALID_GPIO//RK2928_PIN2_PD7   //set scl_pin here
+#define I2C_SDA_PIN     INVALID_GPIO// RK30_PIN2_PD6   //set sda_pin here
+#define I2C_SCL_PIN     INVALID_GPIO//RK30_PIN2_PD7   //set scl_pin here
 static int rk30_i2c_io_init(void)
 {
         return 0;
