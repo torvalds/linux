@@ -9,6 +9,10 @@ extern void shmobile_setup_console(void);
 extern void shmobile_boot_vector(void);
 extern unsigned long shmobile_boot_fn;
 extern unsigned long shmobile_boot_arg;
+extern void shmobile_smp_boot(void);
+extern void shmobile_smp_sleep(void);
+extern void shmobile_smp_hook(unsigned int cpu, unsigned long fn,
+			      unsigned long arg);
 extern void shmobile_boot_scu(void);
 extern void shmobile_smp_scu_prepare_cpus(unsigned int max_cpus);
 extern int shmobile_smp_scu_boot_secondary(unsigned int cpu,
