@@ -813,19 +813,18 @@ static int cpufreq_add_dev_symlink(unsigned int cpu,
 	int ret = 0;
 
 	for_each_cpu(j, policy->cpus) {
-		struct cpufreq_policy *managed_policy;
 		struct device *cpu_dev;
 
 		if (j == cpu)
 			continue;
 
-		pr_debug("CPU %u already managed, adding link\n", j);
-		managed_policy = cpufreq_cpu_get(cpu);
+		pr_debug("Adding link for CPU: %u\n", j);
+		cpufreq_cpu_get(cpu);
 		cpu_dev = get_cpu_device(j);
 		ret = sysfs_create_link(&cpu_dev->kobj, &policy->kobj,
 					"cpufreq");
 		if (ret) {
-			cpufreq_cpu_put(managed_policy);
+			cpufreq_cpu_put(policy);
 			return ret;
 		}
 	}
