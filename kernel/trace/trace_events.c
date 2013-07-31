@@ -1820,12 +1820,10 @@ static int trace_module_notify(struct notifier_block *self,
 	return 0;
 }
 
-#else
-static inline int trace_module_notify(struct notifier_block *self,
-				      unsigned long val, void *data)
-{
-	return 0;
-}
+static struct notifier_block trace_module_nb = {
+	.notifier_call = trace_module_notify,
+	.priority = 0,
+};
 #endif /* CONFIG_MODULES */
 
 /* Create a new event directory structure for a trace directory. */
@@ -2193,11 +2191,6 @@ static void __add_event_to_tracers(struct ftrace_event_call *call)
 		__trace_add_new_event(call, tr);
 }
 
-static struct notifier_block trace_module_nb = {
-	.notifier_call = trace_module_notify,
-	.priority = 0,
-};
-
 extern struct ftrace_event_call *__start_ftrace_events[];
 extern struct ftrace_event_call *__stop_ftrace_events[];
 
@@ -2402,10 +2395,11 @@ static __init int event_trace_init(void)
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_MODULES
 	ret = register_module_notifier(&trace_module_nb);
 	if (ret)
 		pr_warning("Failed to register trace events module notifier\n");
-
+#endif
 	return 0;
 }
 early_initcall(event_trace_memsetup);
