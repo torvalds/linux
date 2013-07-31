@@ -1079,7 +1079,6 @@ static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
 	spin_lock_init(&dc->io_lock);
 	bch_cache_accounting_init(&dc->accounting, &dc->disk.cl);
 
-	dc->sequential_merge		= true;
 	dc->sequential_cutoff		= 4 << 20;
 
 	for (io = dc->io; io < dc->io + RECENT_IO; io++) {

@@ -510,6 +510,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	unsigned mode = cache_mode(dc, bio);
 	unsigned sectors, congested = bch_get_congested(c);
 	struct task_struct *task = current;
+	struct io *i;
 
 	if (atomic_read(&dc->disk.detaching) ||
 	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
@@ -536,38 +537,30 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	    (bio->bi_rw & REQ_SYNC))
 		goto rescale;
 
-	if (dc->sequential_merge) {
-		struct io *i;
+	spin_lock(&dc->io_lock);
 
-		spin_lock(&dc->io_lock);
+	hlist_for_each_entry(i, iohash(dc, bio->bi_sector), hash)
+		if (i->last == bio->bi_sector &&
+		    time_before(jiffies, i->jiffies))
+			goto found;
 
-		hlist_for_each_entry(i, iohash(dc, bio->bi_sector), hash)
-			if (i->last == bio->bi_sector &&
-			    time_before(jiffies, i->jiffies))
-				goto found;
+	i = list_first_entry(&dc->io_lru, struct io, lru);
 
-		i = list_first_entry(&dc->io_lru, struct io, lru);
-
-		add_sequential(task);
-		i->sequential = 0;
+	add_sequential(task);
+	i->sequential = 0;
 found:
-		if (i->sequential + bio->bi_size > i->sequential)
-			i->sequential	+= bio->bi_size;
+	if (i->sequential + bio->bi_size > i->sequential)
+		i->sequential	+= bio->bi_size;
 
-		i->last			 = bio_end_sector(bio);
-		i->jiffies		 = jiffies + msecs_to_jiffies(5000);
-		task->sequential_io	 = i->sequential;
+	i->last			 = bio_end_sector(bio);
+	i->jiffies		 = jiffies + msecs_to_jiffies(5000);
+	task->sequential_io	 = i->sequential;
 
-		hlist_del(&i->hash);
-		hlist_add_head(&i->hash, iohash(dc, i->last));
-		list_move_tail(&i->lru, &dc->io_lru);
+	hlist_del(&i->hash);
+	hlist_add_head(&i->hash, iohash(dc, i->last));
+	list_move_tail(&i->lru, &dc->io_lru);
 
-		spin_unlock(&dc->io_lock);
-	} else {
-		task->sequential_io = bio->bi_size;
-
-		add_sequential(task);
-	}
+	spin_unlock(&dc->io_lock);
 
 	sectors = max(task->sequential_io,
 		      task->sequential_io_avg) >> 9;

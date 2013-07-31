@@ -72,7 +72,6 @@ rw_attribute(congested_read_threshold_us);
 rw_attribute(congested_write_threshold_us);
 
 rw_attribute(sequential_cutoff);
-rw_attribute(sequential_merge);
 rw_attribute(data_csum);
 rw_attribute(cache_mode);
 rw_attribute(writeback_metadata);
@@ -161,7 +160,6 @@ SHOW(__bch_cached_dev)
 	sysfs_hprint(stripe_size,	dc->disk.stripe_size << 9);
 	var_printf(partial_stripes_expensive,	"%u");
 
-	var_printf(sequential_merge,	"%i");
 	var_hprint(sequential_cutoff);
 	var_hprint(readahead);
 
@@ -207,7 +205,6 @@ STORE(__cached_dev)
 			    dc->writeback_rate_p_term_inverse, 1, INT_MAX);
 	d_strtoul(writeback_rate_d_smooth);
 
-	d_strtoul(sequential_merge);
 	d_strtoi_h(sequential_cutoff);
 	d_strtoi_h(readahead);
 
@@ -319,7 +316,6 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_stripe_size,
 	&sysfs_partial_stripes_expensive,
 	&sysfs_sequential_cutoff,
-	&sysfs_sequential_merge,
 	&sysfs_clear_stats,
 	&sysfs_running,
 	&sysfs_state,

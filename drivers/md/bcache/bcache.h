@@ -364,7 +364,6 @@ struct cached_dev {
 	unsigned		sequential_cutoff;
 	unsigned		readahead;
 
-	unsigned		sequential_merge:1;
 	unsigned		verify:1;
 
 	unsigned		partial_stripes_expensive:1;
