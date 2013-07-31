@@ -1576,6 +1576,25 @@ void sock_wfree(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_wfree);
 
+void skb_orphan_partial(struct sk_buff *skb)
+{
+	/* TCP stack sets skb->ooo_okay based on sk_wmem_alloc,
+	 * so we do not completely orphan skb, but transfert all
+	 * accounted bytes but one, to avoid unexpected reorders.
+	 */
+	if (skb->destructor == sock_wfree
+#ifdef CONFIG_INET
+	    || skb->destructor == tcp_wfree
+#endif
+		) {
+		atomic_sub(skb->truesize - 1, &skb->sk->sk_wmem_alloc);
+		skb->truesize = 1;
+	} else {
+		skb_orphan(skb);
+	}
+}
+EXPORT_SYMBOL(skb_orphan_partial);
+
 /*
  * Read buffer destructor automatically called from kfree_skb.
  */
