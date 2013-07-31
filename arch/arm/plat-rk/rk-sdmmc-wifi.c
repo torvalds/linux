@@ -501,6 +501,30 @@ int rk29sdk_wifi_set_carddetect(int val)
 }
 EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
+#include <linux/etherdevice.h>
+u8 wifi_custom_mac_addr[6] = {0,0,0,0,0,0};
+extern char GetSNSectorInfo(char * pbuf);
+static int rk29sdk_wifi_mac_addr(unsigned char *buf)
+{
+    printk("rk29sdk_wifi_mac_addr.\n");
+    
+	// from vflash
+    if(is_zero_ether_addr(wifi_custom_mac_addr)) {
+    	int i;
+    	char *tempBuf = kmalloc(512, GFP_KERNEL);
+    	if(tempBuf) {
+    		GetSNSectorInfo(tempBuf);
+			for (i = 506; i <= 511; i++)
+				wifi_custom_mac_addr[i-506] = tempBuf[i];
+			kfree(tempBuf);
+    	}
+	}
+	
+	memcpy(buf, wifi_custom_mac_addr, 6);
+	return 0;
+}
+EXPORT_SYMBOL(rk29sdk_wifi_mac_addr);
+
 //#define WIFI_HOST_WAKE RK30_PIN3_PD2
 
 static struct resource resources[] = {
@@ -797,6 +821,7 @@ static struct wifi_platform_data rk29sdk_wifi_control = {
         .set_reset = rk29sdk_wifi_reset,
         .set_carddetect = rk29sdk_wifi_set_carddetect,
         .mem_prealloc   = rk29sdk_mem_prealloc,
+//        .get_mac_addr   = rk29sdk_wifi_mac_addr,
 };
 
 static struct platform_device rk29sdk_wifi_device = {
