@@ -4,7 +4,7 @@
 
 config XILLYBUS
 	tristate "Xillybus generic FPGA interface"
-	depends on PCI || (OF_ADDRESS && OF_DEVICE && OF_IRQ) && m
+	depends on PCI || (OF_ADDRESS && OF_IRQ) && m
 	help
 	  Xillybus is a generic interface for peripherals designed on
 	  programmable logic (FPGA). The driver probes the hardware for
@@ -23,7 +23,7 @@ config XILLYBUS_PCIE
 
 config XILLYBUS_OF
 	tristate "Xillybus over Device Tree"
-	depends on XILLYBUS && OF_ADDRESS && OF_DEVICE && OF_IRQ
+	depends on XILLYBUS && OF_ADDRESS && OF_IRQ
 	help
 	  Set to M if you want Xillybus to find its resources from the
 	  Open Firmware Flattened Device Tree. If the target is an embedded
