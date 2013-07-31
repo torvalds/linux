@@ -172,7 +172,7 @@ static int r8153_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.phy_id = R815x_PHY_ID;
 	dev->mii.supports_gmii = 1;
 
-	return 0;
+	return status;
 }
 
 static int r8152_bind(struct usbnet *dev, struct usb_interface *intf)
@@ -191,7 +191,7 @@ static int r8152_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->mii.phy_id = R815x_PHY_ID;
 	dev->mii.supports_gmii = 0;
 
-	return 0;
+	return status;
 }
 
 static const struct driver_info r8152_info = {
