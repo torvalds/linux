@@ -11,28 +11,8 @@ Required properties:
 - nvidia,audio-routing : A list of the connections between audio components.
   Each entry is a pair of strings, the first being the connection's sink,
   the second being the connection's source. Valid names for sources and
-  sinks are the WM8903's pins, and the jacks on the board:
-
-  WM8903 pins:
-
-  * IN1L
-  * IN1R
-  * IN2L
-  * IN2R
-  * IN3L
-  * IN3R
-  * DMICDAT
-  * HPOUTL
-  * HPOUTR
-  * LINEOUTL
-  * LINEOUTR
-  * LOP
-  * LON
-  * ROP
-  * RON
-  * MICBIAS
-
-  Board connectors:
+  sinks are the WM8903's pins (documented in the WM8903 binding document),
+  and the jacks on the board:
 
   * Headphone Jack
   * Int Spk
