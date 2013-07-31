@@ -34,6 +34,12 @@
 
 static int __cpuinit emev2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
+	int ret;
+
+	ret = shmobile_smp_scu_boot_secondary(cpu, idle);
+	if (ret)
+		return ret;
+
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu_logical_map(cpu)));
 	return 0;
 }
@@ -42,21 +48,16 @@ static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 {
 	void __iomem *smu;
 
-	/* setup EMEV2 specific SCU base, enable */
-	shmobile_scu_base = ioremap(EMEV2_SCU_BASE, PAGE_SIZE);
-	scu_enable(shmobile_scu_base);
-
-	/* Tell ROM loader about our vector (in headsmp-scu.S, headsmp.S) */
+	/* Tell ROM loader about our vector (in headsmp.S) */
 	smu = ioremap(EMEV2_SMU_BASE, PAGE_SIZE);
 	if (smu) {
 		iowrite32(__pa(shmobile_boot_vector), smu + SMU_GENERAL_REG0);
 		iounmap(smu);
 	}
-	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
-	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
 
-	/* enable cache coherency on booting CPU */
-	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
+	/* setup EMEV2 specific SCU bits */
+	shmobile_scu_base = ioremap(EMEV2_SCU_BASE, PAGE_SIZE);
+	shmobile_smp_scu_prepare_cpus(max_cpus);
 }
 
 struct smp_operations emev2_smp_ops __initdata = {
