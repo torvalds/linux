@@ -24,33 +24,42 @@
 
 static int pla_read_word(struct usb_device *udev, u16 index)
 {
-	int data, ret;
+	int ret;
 	u8 shift = index & 2;
-	__le32 ocp_data;
+	__le32 *tmp;
+
+	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
 
 	index &= ~3;
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			      RTL815x_REQ_GET_REGS, RTL815x_REQT_READ,
-			      index, MCU_TYPE_PLA, &ocp_data, sizeof(ocp_data),
-			      500);
+			      index, MCU_TYPE_PLA, tmp, sizeof(*tmp), 500);
 	if (ret < 0)
-		return ret;
+		goto out2;
 
-	data = __le32_to_cpu(ocp_data);
-	data >>= (shift * 8);
-	data &= 0xffff;
+	ret = __le32_to_cpu(*tmp);
+	ret >>= (shift * 8);
+	ret &= 0xffff;
 
-	return data;
+out2:
+	kfree(tmp);
+	return ret;
 }
 
 static int pla_write_word(struct usb_device *udev, u16 index, u32 data)
 {
-	__le32 ocp_data;
+	__le32 *tmp;
 	u32 mask = 0xffff;
 	u16 byen = BYTE_EN_WORD;
 	u8 shift = index & 2;
 	int ret;
+
+	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
 
 	data &= mask;
 
@@ -63,19 +72,20 @@ static int pla_write_word(struct usb_device *udev, u16 index, u32 data)
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			      RTL815x_REQ_GET_REGS, RTL815x_REQT_READ,
-			      index, MCU_TYPE_PLA, &ocp_data, sizeof(ocp_data),
-			      500);
+			      index, MCU_TYPE_PLA, tmp, sizeof(*tmp), 500);
 	if (ret < 0)
-		return ret;
+		goto out3;
 
-	data |= __le32_to_cpu(ocp_data) & ~mask;
-	ocp_data = __cpu_to_le32(data);
+	data |= __le32_to_cpu(*tmp) & ~mask;
+	*tmp = __cpu_to_le32(data);
 
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			      RTL815x_REQ_SET_REGS, RTL815x_REQT_WRITE,
-			      index, MCU_TYPE_PLA | byen, &ocp_data,
-			      sizeof(ocp_data), 500);
+			      index, MCU_TYPE_PLA | byen, tmp, sizeof(*tmp),
+			      500);
 
+out3:
+	kfree(tmp);
 	return ret;
 }
 
