@@ -344,17 +344,41 @@ static const int multicast_filter_limit = 32;
 static
 int get_registers(struct r8152 *tp, u16 value, u16 index, u16 size, void *data)
 {
-	return usb_control_msg(tp->udev, usb_rcvctrlpipe(tp->udev, 0),
+	int ret;
+	void *tmp;
+
+	tmp = kmalloc(size, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	ret = usb_control_msg(tp->udev, usb_rcvctrlpipe(tp->udev, 0),
 			       RTL8152_REQ_GET_REGS, RTL8152_REQT_READ,
-			       value, index, data, size, 500);
+			       value, index, tmp, size, 500);
+
+	memcpy(data, tmp, size);
+	kfree(tmp);
+
+	return ret;
 }
 
 static
 int set_registers(struct r8152 *tp, u16 value, u16 index, u16 size, void *data)
 {
-	return usb_control_msg(tp->udev, usb_sndctrlpipe(tp->udev, 0),
+	int ret;
+	void *tmp;
+
+	tmp = kmalloc(size, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	memcpy(tmp, data, size);
+
+	ret = usb_control_msg(tp->udev, usb_sndctrlpipe(tp->udev, 0),
 			       RTL8152_REQ_SET_REGS, RTL8152_REQT_WRITE,
-			       value, index, data, size, 500);
+			       value, index, tmp, size, 500);
+
+	kfree(tmp);
+	return ret;
 }
 
 static int generic_ocp_read(struct r8152 *tp, u16 index, u16 size,
@@ -685,21 +709,14 @@ static void ocp_reg_write(struct r8152 *tp, u16 addr, u16 data)
 static inline void set_ethernet_addr(struct r8152 *tp)
 {
 	struct net_device *dev = tp->netdev;
-	u8 *node_id;
+	u8 node_id[8] = {0};
 
-	node_id = kmalloc(sizeof(u8) * 8, GFP_KERNEL);
-	if (!node_id) {
-		netif_err(tp, probe, dev, "out of memory");
-		return;
-	}
-
-	if (pla_ocp_read(tp, PLA_IDR, sizeof(u8) * 8, node_id) < 0)
+	if (pla_ocp_read(tp, PLA_IDR, sizeof(node_id), node_id) < 0)
 		netif_notice(tp, probe, dev, "inet addr fail\n");
 	else {
 		memcpy(dev->dev_addr, node_id, dev->addr_len);
 		memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	}
-	kfree(node_id);
 }
 
 static int rtl8152_set_mac_address(struct net_device *netdev, void *p)
@@ -882,14 +899,9 @@ static void rtl8152_set_rx_mode(struct net_device *netdev)
 static void _rtl8152_set_rx_mode(struct net_device *netdev)
 {
 	struct r8152 *tp = netdev_priv(netdev);
-	u32 tmp, *mc_filter;	/* Multicast hash filter */
+	u32 mc_filter[2];	/* Multicast hash filter */
+	__le32 tmp[2];
 	u32 ocp_data;
-
-	mc_filter = kmalloc(sizeof(u32) * 2, GFP_KERNEL);
-	if (!mc_filter) {
-		netif_err(tp, link, netdev, "out of memory");
-		return;
-	}
 
 	clear_bit(RTL8152_SET_RX_MODE, &tp->flags);
 	netif_stop_queue(netdev);
@@ -918,14 +930,12 @@ static void _rtl8152_set_rx_mode(struct net_device *netdev)
 		}
 	}
 
-	tmp = mc_filter[0];
-	mc_filter[0] = __cpu_to_le32(swab32(mc_filter[1]));
-	mc_filter[1] = __cpu_to_le32(swab32(tmp));
+	tmp[0] = __cpu_to_le32(swab32(mc_filter[1]));
+	tmp[1] = __cpu_to_le32(swab32(mc_filter[0]));
 
-	pla_ocp_write(tp, PLA_MAR, BYTE_EN_DWORD, sizeof(u32) * 2, mc_filter);
+	pla_ocp_write(tp, PLA_MAR, BYTE_EN_DWORD, sizeof(tmp), tmp);
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, ocp_data);
 	netif_wake_queue(netdev);
-	kfree(mc_filter);
 }
 
 static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
