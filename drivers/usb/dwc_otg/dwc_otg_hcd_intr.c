@@ -1588,7 +1588,7 @@ static int32_t handle_hc_xacterr_intr(dwc_otg_hcd_t *_hcd,
         DWC_PRINT("%s qtd %p\n", __func__, _qtd);
         goto out;
     }
-    if(((uint32_t) _qtd & 0x80000000)==0){
+    if(((uint32_t) _qtd & 0xf0000000)==0xf0000000){
         DWC_PRINT("%s qtd %p 1\n", __func__, _qtd);
         goto out;
     }
