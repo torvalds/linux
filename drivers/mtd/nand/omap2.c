@@ -154,7 +154,7 @@ static struct nand_ecclayout omap_oobinfo;
  */
 static uint8_t scan_ff_pattern[] = { 0xff };
 static struct nand_bbt_descr bb_descrip_flashbased = {
-	.options = NAND_BBT_SCANEMPTY | NAND_BBT_SCANALLPAGES,
+	.options = NAND_BBT_SCANALLPAGES,
 	.offs = 0,
 	.len = 1,
 	.pattern = scan_ff_pattern,

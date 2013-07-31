@@ -110,33 +110,17 @@ static int check_pattern_no_oob(uint8_t *buf, struct nand_bbt_descr *td)
  * @td: search pattern descriptor
  *
  * Check for a pattern at the given place. Used to search bad block tables and
- * good / bad block identifiers. If the SCAN_EMPTY option is set then check, if
- * all bytes except the pattern area contain 0xff.
+ * good / bad block identifiers.
  */
 static int check_pattern(uint8_t *buf, int len, int paglen, struct nand_bbt_descr *td)
 {
-	int end = 0;
-	uint8_t *p = buf;
-
 	if (td->options & NAND_BBT_NO_OOB)
 		return check_pattern_no_oob(buf, td);
 
-	end = paglen + td->offs;
-	if (td->options & NAND_BBT_SCANEMPTY)
-		if (memchr_inv(p, 0xff, end))
-			return -1;
-	p += end;
-
 	/* Compare the pattern */
-	if (memcmp(p, td->pattern, td->len))
+	if (memcmp(buf + paglen + td->offs, td->pattern, td->len))
 		return -1;
 
-	if (td->options & NAND_BBT_SCANEMPTY) {
-		p += td->len;
-		end += td->len;
-		if (memchr_inv(p, 0xff, len - end))
-			return -1;
-	}
 	return 0;
 }
 
@@ -507,15 +491,9 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 	else
 		numpages = 1;
 
-	if (!(bd->options & NAND_BBT_SCANEMPTY)) {
-		/* We need only read few bytes from the OOB area */
-		scanlen = 0;
-		readlen = bd->len;
-	} else {
-		/* Full page content should be read */
-		scanlen = mtd->writesize + mtd->oobsize;
-		readlen = numpages * mtd->writesize;
-	}
+	/* We need only read few bytes from the OOB area */
+	scanlen = 0;
+	readlen = bd->len;
 
 	if (chip == -1) {
 		numblocks = mtd->size >> this->bbt_erase_shift;
@@ -882,7 +860,6 @@ static inline int nand_memory_bbt(struct mtd_info *mtd, struct nand_bbt_descr *b
 {
 	struct nand_chip *this = mtd->priv;
 
-	bd->options &= ~NAND_BBT_SCANEMPTY;
 	return create_bbt(mtd, this->buffers->databuf, bd, -1);
 }
 
