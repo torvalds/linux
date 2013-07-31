@@ -3114,9 +3114,15 @@ static const struct ieee80211_iface_limit ath10k_if_limits[] = {
 	.max	= 8,
 	.types	= BIT(NL80211_IFTYPE_STATION)
 		| BIT(NL80211_IFTYPE_P2P_CLIENT)
-		| BIT(NL80211_IFTYPE_P2P_GO)
-		| BIT(NL80211_IFTYPE_AP)
-	}
+	},
+	{
+	.max	= 3,
+	.types	= BIT(NL80211_IFTYPE_P2P_GO)
+	},
+	{
+	.max	= 7,
+	.types	= BIT(NL80211_IFTYPE_AP)
+	},
 };
 
 static const struct ieee80211_iface_combination ath10k_if_comb = {
