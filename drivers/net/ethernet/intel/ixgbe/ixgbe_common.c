@@ -65,17 +65,41 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
  *  function check the device id to see if the associated phy supports
  *  autoneg flow control.
  **/
-s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
+bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 {
+	bool supported = false;
+	ixgbe_link_speed speed;
+	bool link_up;
 
-	switch (hw->device_id) {
-	case IXGBE_DEV_ID_X540T:
-	case IXGBE_DEV_ID_X540T1:
-	case IXGBE_DEV_ID_82599_T3_LOM:
-		return 0;
+	switch (hw->phy.media_type) {
+	case ixgbe_media_type_fiber:
+		hw->mac.ops.check_link(hw, &speed, &link_up, false);
+		/* if link is down, assume supported */
+		if (link_up)
+			supported = speed == IXGBE_LINK_SPEED_1GB_FULL ?
+				true : false;
+		else
+			supported = true;
+		break;
+	case ixgbe_media_type_backplane:
+		supported = true;
+		break;
+	case ixgbe_media_type_copper:
+		/* only some copper devices support flow control autoneg */
+		switch (hw->device_id) {
+		case IXGBE_DEV_ID_82599_T3_LOM:
+		case IXGBE_DEV_ID_X540T:
+		case IXGBE_DEV_ID_X540T1:
+			supported = true;
+			break;
+		default:
+			break;
+		}
 	default:
-		return IXGBE_ERR_FC_NOT_SUPPORTED;
+		break;
 	}
+
+	return supported;
 }
 
 /**
@@ -234,7 +258,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 						      IXGBE_GSSR_MAC_CSR_SM);
 
 	} else if ((hw->phy.media_type == ixgbe_media_type_copper) &&
-		    (ixgbe_device_supports_autoneg_fc(hw) == 0)) {
+		    ixgbe_device_supports_autoneg_fc(hw)) {
 		hw->phy.ops.write_reg(hw, MDIO_AN_ADVERTISE,
 				      MDIO_MMD_AN, reg_cu);
 	}
@@ -2392,7 +2416,7 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 
 	/* Autoneg flow control on copper adapters */
 	case ixgbe_media_type_copper:
-		if (ixgbe_device_supports_autoneg_fc(hw) == 0)
+		if (ixgbe_device_supports_autoneg_fc(hw))
 			ret_val = ixgbe_fc_autoneg_copper(hw);
 		break;
 
