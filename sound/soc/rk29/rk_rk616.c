@@ -67,6 +67,11 @@ static int rk616_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
+	// if is for mid that using tiny alsa, 
+	// it don't need this controls and route, so return.
+	if (rk616_get_for_mid())
+		return 0;
+
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
 	snd_soc_add_controls(codec, rk_controls,
@@ -94,7 +99,7 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned int pll_out = 0;
+	unsigned int pll_out = 0, div = 4;
 	int ret;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
@@ -126,7 +131,6 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	switch(params_rate(params)) {
-		case 8000:
 		case 16000:
 		case 24000:
 		case 32000:
@@ -138,21 +142,25 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 		case 44100:
 			pll_out = 11289600;
 			break;
+		case 8000:
+			pll_out = 12000000;
+			div = 6;
+			break;
 		default:
 			DBG("Enter:%s, %d, Error rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
 			return -EINVAL;
 			break;
 	}
 
+	DBG("Enter:%s, %d, rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
+
 	#if defined(CONFIG_RK616_USE_MCLK_12M)
-	/* MCLK must be 12M when HDMI is in */
+	/* MCLK must be 12M when RK616 HDMI is in */
 	if (get_hdmi_state() && pll_out != 12000000) {
-		DBG("%s : HDMI is in, don't set sys clk\n",__FUNCTION__);
-		return 0;
+		DBG("%s : HDMI is in, don't set sys clk %u\n",__FUNCTION__, pll_out);
+		goto __setdiv;
 	}
 	#endif
-
-	DBG("Enter:%s, %d, rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
 
 	/*Set the system clk for codec*/
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, SND_SOC_CLOCK_IN);
@@ -161,11 +169,12 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+__setdiv:
 	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out / div)/params_rate(params)-1);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div - 1);
 
-	DBG("Enter:%s, %d, pll_out/4/params_rate(params) = %d \n", __FUNCTION__, __LINE__, (pll_out/4)/params_rate(params));
+	DBG("Enter:%s, %d, pll_out/div/params_rate(params) = %d \n", __FUNCTION__, __LINE__, (pll_out/div)/params_rate(params));
 
 	return 0;
 }
@@ -204,11 +213,11 @@ static int rk_voice_hw_params(struct snd_pcm_substream *substream,
 			break;
 	}
 
-	/* MCLK must be 12M when HDMI is in */
+	/* MCLK must be 12M when RK616 HDMI is in */
 	#if defined(CONFIG_RK616_USE_MCLK_12M)
 	if (get_hdmi_state() && pll_out != 12000000) {
-		DBG("%s : HDMI is in, don't set sys clk\n",__FUNCTION__);
-		return 0;
+		DBG("%s : HDMI is in, set mclk to 12Mn",__FUNCTION__);
+		pll_out = 12000000;
 	}
 	#endif
 

@@ -89,7 +89,7 @@ static struct rk29_i2s_info rk29_i2s[MAX_I2S];
 
 struct snd_soc_dai_driver rk29_i2s_dai[MAX_I2S];
 EXPORT_SYMBOL_GPL(rk29_i2s_dai);
-#ifdef CONFIG_RK_HDMI		
+#if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
 extern int hdmi_get_hotplug(void);
 #endif
 /* 
@@ -125,7 +125,7 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 		opr  &= ~I2S_TRAN_DMA_ENABLE;        
 		writel(opr, &(pheadi2s->I2S_DMACR));  
 		if(!i2s->i2s_tx_status && !i2s->i2s_rx_status//sync stop i2s rx tx lcrk
-#ifdef CONFIG_RK_HDMI	
+#if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
 			&& 	hdmi_get_hotplug() == 0	//HDMI_HPD_REMOVED
 #endif			
 		)
@@ -175,7 +175,7 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 		opr  &= ~I2S_RECE_DMA_ENABLE;
 		writel(opr, &(pheadi2s->I2S_DMACR));		
 		if(!i2s->i2s_tx_status && !i2s->i2s_rx_status	//sync stop i2s rx tx lcrk
-#ifdef CONFIG_RK_HDMI	
+#if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
 			&& 	hdmi_get_hotplug() == 0	//HDMI_HPD_REMOVED
 #endif			
 		)
@@ -418,7 +418,7 @@ int rockchip_i2s_resume(struct snd_soc_dai *cpu_dai)
 #endif
 
 #ifdef ANDROID_REC
-#define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
+#define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 #else
 #define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
 		            SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\

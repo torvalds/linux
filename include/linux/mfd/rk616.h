@@ -245,6 +245,7 @@ struct rk616_platform_data {
 	int hdmi_irq;
 	int spk_ctl_gpio;
 	int hp_ctl_gpio;
+	int mic_sel_gpio;
 };
 
 struct rk616_route {
