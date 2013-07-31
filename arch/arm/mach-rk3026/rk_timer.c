@@ -7,7 +7,7 @@
 #include <mach/irqs.h>
 
 #define TIMER_NAME	"rk_timer"
-#define BASE		RK2928_TIMER0_PHYS
+#define BASE		RK2928_TIMER0_BASE
 #define OFFSET		0x20
 
 static struct resource rk_timer_resources[] __initdata = {
