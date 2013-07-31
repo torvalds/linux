@@ -1784,12 +1784,14 @@ i915_drop_caches_set(void *data, u64 val)
 
 	if (val & DROP_BOUND) {
 		list_for_each_entry_safe(obj, next, &vm->inactive_list,
-					 mm_list)
-			if (obj->pin_count == 0) {
-				ret = i915_gem_object_unbind(obj);
-				if (ret)
-					goto unlock;
-			}
+					 mm_list) {
+			if (obj->pin_count)
+				continue;
+
+			ret = i915_gem_object_unbind(obj);
+			if (ret)
+				goto unlock;
+		}
 	}
 
 	if (val & DROP_UNBOUND) {
