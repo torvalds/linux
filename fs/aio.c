@@ -576,7 +576,8 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	atomic_set(&ctx->reqs_available, ctx->nr_events - 1);
 	ctx->req_batch = (ctx->nr_events - 1) / (num_possible_cpus() * 4);
-	BUG_ON(!ctx->req_batch);
+	if (ctx->req_batch < 1)
+		ctx->req_batch = 1;
 
 	err = ioctx_add_table(ctx, mm);
 	if (err)
