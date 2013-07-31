@@ -1018,7 +1018,16 @@ static s32 ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
 	u16 sfp_addr = 0;
 	u16 sfp_data = 0;
 	u16 sfp_stat = 0;
+	u16 gssr;
 	u32 i;
+
+	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
+		gssr = IXGBE_GSSR_PHY1_SM;
+	else
+		gssr = IXGBE_GSSR_PHY0_SM;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, gssr) != 0)
+		return IXGBE_ERR_SWFW_SYNC;
 
 	if (hw->phy.type == ixgbe_phy_nl) {
 		/*
@@ -1028,17 +1037,17 @@ static s32 ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
 		 */
 		sfp_addr = (dev_addr << 8) + byte_offset;
 		sfp_addr = (sfp_addr | IXGBE_I2C_EEPROM_READ_MASK);
-		hw->phy.ops.write_reg(hw,
-		                      IXGBE_MDIO_PMA_PMD_SDA_SCL_ADDR,
-		                      MDIO_MMD_PMAPMD,
-		                      sfp_addr);
+		hw->phy.ops.write_reg_mdi(hw,
+					  IXGBE_MDIO_PMA_PMD_SDA_SCL_ADDR,
+					  MDIO_MMD_PMAPMD,
+					  sfp_addr);
 
 		/* Poll status */
 		for (i = 0; i < 100; i++) {
-			hw->phy.ops.read_reg(hw,
-			                     IXGBE_MDIO_PMA_PMD_SDA_SCL_STAT,
-			                     MDIO_MMD_PMAPMD,
-			                     &sfp_stat);
+			hw->phy.ops.read_reg_mdi(hw,
+						IXGBE_MDIO_PMA_PMD_SDA_SCL_STAT,
+						MDIO_MMD_PMAPMD,
+						&sfp_stat);
 			sfp_stat = sfp_stat & IXGBE_I2C_EEPROM_STATUS_MASK;
 			if (sfp_stat != IXGBE_I2C_EEPROM_STATUS_IN_PROGRESS)
 				break;
@@ -1052,8 +1061,8 @@ static s32 ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
 		}
 
 		/* Read data */
-		hw->phy.ops.read_reg(hw, IXGBE_MDIO_PMA_PMD_SDA_SCL_DATA,
-		                     MDIO_MMD_PMAPMD, &sfp_data);
+		hw->phy.ops.read_reg_mdi(hw, IXGBE_MDIO_PMA_PMD_SDA_SCL_DATA,
+					MDIO_MMD_PMAPMD, &sfp_data);
 
 		*eeprom_data = (u8)(sfp_data >> 8);
 	} else {
@@ -1061,6 +1070,7 @@ static s32 ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
 	}
 
 out:
+	hw->mac.ops.release_swfw_sync(hw, gssr);
 	return status;
 }
 
@@ -1321,11 +1331,13 @@ static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 
 static struct ixgbe_phy_operations phy_ops_82598 = {
 	.identify		= &ixgbe_identify_phy_generic,
-	.identify_sfp		= &ixgbe_identify_sfp_module_generic,
+	.identify_sfp		= &ixgbe_identify_module_generic,
 	.init			= &ixgbe_init_phy_ops_82598,
 	.reset			= &ixgbe_reset_phy_generic,
 	.read_reg		= &ixgbe_read_phy_reg_generic,
 	.write_reg		= &ixgbe_write_phy_reg_generic,
+	.read_reg_mdi		= &ixgbe_read_phy_reg_mdi,
+	.write_reg_mdi		= &ixgbe_write_phy_reg_mdi,
 	.setup_link		= &ixgbe_setup_phy_link_generic,
 	.setup_link_speed	= &ixgbe_setup_phy_link_speed_generic,
 	.read_i2c_sff8472	= &ixgbe_read_i2c_sff8472_82598,

@@ -65,17 +65,42 @@ static s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
  *  function check the device id to see if the associated phy supports
  *  autoneg flow control.
  **/
-s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
+bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 {
+	bool supported = false;
+	ixgbe_link_speed speed;
+	bool link_up;
 
-	switch (hw->device_id) {
-	case IXGBE_DEV_ID_X540T:
-	case IXGBE_DEV_ID_X540T1:
-	case IXGBE_DEV_ID_82599_T3_LOM:
-		return 0;
+	switch (hw->phy.media_type) {
+	case ixgbe_media_type_fiber_fixed:
+	case ixgbe_media_type_fiber:
+		hw->mac.ops.check_link(hw, &speed, &link_up, false);
+		/* if link is down, assume supported */
+		if (link_up)
+			supported = speed == IXGBE_LINK_SPEED_1GB_FULL ?
+				true : false;
+		else
+			supported = true;
+		break;
+	case ixgbe_media_type_backplane:
+		supported = true;
+		break;
+	case ixgbe_media_type_copper:
+		/* only some copper devices support flow control autoneg */
+		switch (hw->device_id) {
+		case IXGBE_DEV_ID_82599_T3_LOM:
+		case IXGBE_DEV_ID_X540T:
+		case IXGBE_DEV_ID_X540T1:
+			supported = true;
+			break;
+		default:
+			break;
+		}
 	default:
-		return IXGBE_ERR_FC_NOT_SUPPORTED;
+		break;
 	}
+
+	return supported;
 }
 
 /**
@@ -114,6 +139,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	 * we link at 10G, the 1G advertisement is harmless and vice versa.
 	 */
 	switch (hw->phy.media_type) {
+	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 	case ixgbe_media_type_backplane:
 		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
@@ -234,7 +260,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 						      IXGBE_GSSR_MAC_CSR_SM);
 
 	} else if ((hw->phy.media_type == ixgbe_media_type_copper) &&
-		    (ixgbe_device_supports_autoneg_fc(hw) == 0)) {
+		    ixgbe_device_supports_autoneg_fc(hw)) {
 		hw->phy.ops.write_reg(hw, MDIO_AN_ADVERTISE,
 				      MDIO_MMD_AN, reg_cu);
 	}
@@ -2380,6 +2406,7 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 
 	switch (hw->phy.media_type) {
 	/* Autoneg flow control on fiber adapters */
+	case ixgbe_media_type_fiber_fixed:
 	case ixgbe_media_type_fiber:
 		if (speed == IXGBE_LINK_SPEED_1GB_FULL)
 			ret_val = ixgbe_fc_autoneg_fiber(hw);
@@ -2392,7 +2419,7 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 
 	/* Autoneg flow control on copper adapters */
 	case ixgbe_media_type_copper:
-		if (ixgbe_device_supports_autoneg_fc(hw) == 0)
+		if (ixgbe_device_supports_autoneg_fc(hw))
 			ret_val = ixgbe_fc_autoneg_copper(hw);
 		break;
 
@@ -2479,42 +2506,39 @@ out:
  **/
 s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 {
-	u32 gssr;
+	u32 gssr = 0;
 	u32 swmask = mask;
 	u32 fwmask = mask << 5;
-	s32 timeout = 200;
+	u32 timeout = 200;
+	u32 i;
 
-	while (timeout) {
+	for (i = 0; i < timeout; i++) {
 		/*
-		 * SW EEPROM semaphore bit is used for access to all
-		 * SW_FW_SYNC/GSSR bits (not just EEPROM)
+		 * SW NVM semaphore bit is used for access to all
+		 * SW_FW_SYNC bits (not just NVM)
 		 */
 		if (ixgbe_get_eeprom_semaphore(hw))
 			return IXGBE_ERR_SWFW_SYNC;
 
 		gssr = IXGBE_READ_REG(hw, IXGBE_GSSR);
-		if (!(gssr & (fwmask | swmask)))
-			break;
-
-		/*
-		 * Firmware currently using resource (fwmask) or other software
-		 * thread currently using resource (swmask)
-		 */
-		ixgbe_release_eeprom_semaphore(hw);
-		usleep_range(5000, 10000);
-		timeout--;
+		if (!(gssr & (fwmask | swmask))) {
+			gssr |= swmask;
+			IXGBE_WRITE_REG(hw, IXGBE_GSSR, gssr);
+			ixgbe_release_eeprom_semaphore(hw);
+			return 0;
+		} else {
+			/* Resource is currently in use by FW or SW */
+			ixgbe_release_eeprom_semaphore(hw);
+			usleep_range(5000, 10000);
+		}
 	}
 
-	if (!timeout) {
-		hw_dbg(hw, "Driver can't access resource, SW_FW_SYNC timeout.\n");
-		return IXGBE_ERR_SWFW_SYNC;
-	}
+	/* If time expired clear the bits holding the lock and retry */
+	if (gssr & (fwmask | swmask))
+		ixgbe_release_swfw_sync(hw, gssr & (fwmask | swmask));
 
-	gssr |= swmask;
-	IXGBE_WRITE_REG(hw, IXGBE_GSSR, gssr);
-
-	ixgbe_release_eeprom_semaphore(hw);
-	return 0;
+	usleep_range(5000, 10000);
+	return IXGBE_ERR_SWFW_SYNC;
 }
 
 /**
