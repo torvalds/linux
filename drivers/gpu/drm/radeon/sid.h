@@ -635,6 +635,54 @@
 
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 
+/* DCE6 ELD audio interface */
+#define AZ_F0_CODEC_ENDPOINT_INDEX                       0x5E00
+#       define AZ_ENDPOINT_REG_INDEX(x)                  (((x) & 0xff) << 0)
+#       define AZ_ENDPOINT_REG_WRITE_EN                  (1 << 8)
+#define AZ_F0_CODEC_ENDPOINT_DATA                        0x5E04
+
+#define AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER          0x25
+#define		SPEAKER_ALLOCATION(x)			(((x) & 0x7f) << 0)
+#define		SPEAKER_ALLOCATION_MASK			(0x7f << 0)
+#define		SPEAKER_ALLOCATION_SHIFT		0
+#define		HDMI_CONNECTION				(1 << 16)
+#define		DP_CONNECTION				(1 << 17)
+
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0        0x28 /* LPCM */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR1        0x29 /* AC3 */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR2        0x2A /* MPEG1 */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR3        0x2B /* MP3 */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR4        0x2C /* MPEG2 */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR5        0x2D /* AAC */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR6        0x2E /* DTS */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR7        0x2F /* ATRAC */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR8        0x30 /* one bit audio - leave at 0 (default) */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR9        0x31 /* Dolby Digital */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR10       0x32 /* DTS-HD */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR11       0x33 /* MAT-MLP */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR12       0x34 /* DTS */
+#define AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR13       0x35 /* WMA Pro */
+#       define MAX_CHANNELS(x)                            (((x) & 0x7) << 0)
+/* max channels minus one.  7 = 8 channels */
+#       define SUPPORTED_FREQUENCIES(x)                   (((x) & 0xff) << 8)
+#       define DESCRIPTOR_BYTE_2(x)                       (((x) & 0xff) << 16)
+#       define SUPPORTED_FREQUENCIES_STEREO(x)            (((x) & 0xff) << 24) /* LPCM only */
+/* SUPPORTED_FREQUENCIES, SUPPORTED_FREQUENCIES_STEREO
+ * bit0 = 32 kHz
+ * bit1 = 44.1 kHz
+ * bit2 = 48 kHz
+ * bit3 = 88.2 kHz
+ * bit4 = 96 kHz
+ * bit5 = 176.4 kHz
+ * bit6 = 192 kHz
+ */
+#define AZ_F0_CODEC_PIN_CONTROL_HOTPLUG_CONTROL          0x54
+#       define AUDIO_ENABLED                             (1 << 31)
+
+#define AZ_F0_CODEC_PIN_CONTROL_RESPONSE_CONFIGURATION_DEFAULT  0x56
+#define		PORT_CONNECTIVITY_MASK				(3 << 30)
+#define		PORT_CONNECTIVITY_SHIFT				30
+
 #define	DC_LB_MEMORY_SPLIT					0x6b0c
 #define		DC_LB_MEMORY_CONFIG(x)				((x) << 20)
 
@@ -754,6 +802,17 @@
 
 /* 0x6e98, 0x7a98, 0x10698, 0x11298, 0x11e98, 0x12a98 */
 #define CRTC_STATUS_FRAME_COUNT                         0x6e98
+
+#define AFMT_AUDIO_SRC_CONTROL                          0x713c
+#define		AFMT_AUDIO_SRC_SELECT(x)		(((x) & 7) << 0)
+/* AFMT_AUDIO_SRC_SELECT
+ * 0 = stream0
+ * 1 = stream1
+ * 2 = stream2
+ * 3 = stream3
+ * 4 = stream4
+ * 5 = stream5
+ */
 
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)

@@ -382,7 +382,7 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	struct r600_audio audio = r600_audio_status(rdev);
+	struct r600_audio_pin audio = r600_audio_status(rdev);
 	uint8_t buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AUDIO_INFOFRAME_SIZE];
 	struct hdmi_audio_infoframe frame;
 	uint32_t offset;
@@ -490,6 +490,11 @@ void r600_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 	if (!enable && !dig->afmt->enabled)
 		return;
+
+	if (enable)
+		dig->afmt->pin = r600_audio_get_pin(rdev);
+	else
+		dig->afmt->pin = NULL;
 
 	/* Older chipsets require setting HDMI and routing manually */
 	if (!ASIC_IS_DCE3(rdev)) {

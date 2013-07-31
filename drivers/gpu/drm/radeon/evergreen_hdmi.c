@@ -32,6 +32,9 @@
 #include "evergreend.h"
 #include "atom.h"
 
+extern void dce6_afmt_write_sad_regs(struct drm_encoder *encoder);
+extern void dce6_afmt_select_pin(struct drm_encoder *encoder);
+
 /*
  * update the N and CTS parameters for a given pixel clock rate
  */
@@ -157,22 +160,26 @@ static void evergreen_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	if (!dig || !dig->afmt)
 		return;
 
-	if (max_ratio >= 8) {
-		dto_phase = 192 * 1000;
-		wallclock_ratio = 3;
-	} else if (max_ratio >= 4) {
-		dto_phase = 96 * 1000;
-		wallclock_ratio = 2;
-	} else if (max_ratio >= 2) {
-		dto_phase = 48 * 1000;
-		wallclock_ratio = 1;
-	} else {
+	if (ASIC_IS_DCE6(rdev)) {
 		dto_phase = 24 * 1000;
-		wallclock_ratio = 0;
+	} else {
+		if (max_ratio >= 8) {
+			dto_phase = 192 * 1000;
+			wallclock_ratio = 3;
+		} else if (max_ratio >= 4) {
+			dto_phase = 96 * 1000;
+			wallclock_ratio = 2;
+		} else if (max_ratio >= 2) {
+			dto_phase = 48 * 1000;
+			wallclock_ratio = 1;
+		} else {
+			dto_phase = 24 * 1000;
+			wallclock_ratio = 0;
+		}
+		dto_cntl = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
+		dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
+		WREG32(DCCG_AUDIO_DTO0_CNTL, dto_cntl);
 	}
-	dto_cntl = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
-	dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
-	WREG32(DCCG_AUDIO_DTO0_CNTL, dto_cntl);
 
 	/* XXX two dtos; generally use dto0 for hdmi */
 	/* Express [24MHz / target pixel clock] as an exact rational
@@ -266,7 +273,13 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	       AFMT_AUDIO_CHANNEL_ENABLE(0xff));
 
 	/* fglrx sets 0x40 in 0x5f80 here */
-	evergreen_hdmi_write_sad_regs(encoder);
+
+	if (ASIC_IS_DCE6(rdev)) {
+		dce6_afmt_select_pin(encoder);
+		dce6_afmt_write_sad_regs(encoder);
+	} else {
+		evergreen_hdmi_write_sad_regs(encoder);
+	}
 
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 	if (err < 0) {
@@ -302,6 +315,8 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 {
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 
@@ -313,6 +328,15 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		return;
 	if (!enable && !dig->afmt->enabled)
 		return;
+
+	if (enable) {
+		if (ASIC_IS_DCE6(rdev))
+			dig->afmt->pin = dce6_audio_get_pin(rdev);
+		else
+			dig->afmt->pin = r600_audio_get_pin(rdev);
+	} else {
+		dig->afmt->pin = NULL;
+	}
 
 	dig->afmt->enabled = enable;
 

@@ -696,7 +696,7 @@ union radeon_irq_stat_regs {
 
 #define RADEON_MAX_HPD_PINS 6
 #define RADEON_MAX_CRTCS 6
-#define RADEON_MAX_AFMT_BLOCKS 6
+#define RADEON_MAX_AFMT_BLOCKS 7
 
 struct radeon_irq {
 	bool				installed;
@@ -1537,12 +1537,21 @@ int radeon_uvd_calc_upll_dividers(struct radeon_device *rdev,
 int radeon_uvd_send_upll_ctlreq(struct radeon_device *rdev,
                                 unsigned cg_upll_func_cntl);
 
-struct r600_audio {
+struct r600_audio_pin {
 	int			channels;
 	int			rate;
 	int			bits_per_sample;
 	u8			status_bits;
 	u8			category_code;
+	u32			offset;
+	bool			connected;
+	u32			id;
+};
+
+struct r600_audio {
+	bool enabled;
+	struct r600_audio_pin pin[RADEON_MAX_AFMT_BLOCKS];
+	int num_pins;
 };
 
 /*
@@ -2128,9 +2137,8 @@ struct radeon_device {
 	struct work_struct reset_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
-	bool audio_enabled;
 	bool has_uvd;
-	struct r600_audio audio_status; /* audio stuff */
+	struct r600_audio audio; /* audio stuff */
 	struct notifier_block acpi_nb;
 	/* only one userspace can use Hyperz features or CMASK at a time */
 	struct drm_file *hyperz_filp;
@@ -2594,6 +2602,8 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 
 /* audio */
 void r600_audio_update_hdmi(struct work_struct *work);
+struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev);
+struct r600_audio_pin *dce6_audio_get_pin(struct radeon_device *rdev);
 
 /*
  * R600 vram scratch functions

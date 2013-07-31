@@ -7004,6 +7004,10 @@ static int cik_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = dce6_audio_init(rdev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
@@ -7049,6 +7053,7 @@ int cik_resume(struct radeon_device *rdev)
  */
 int cik_suspend(struct radeon_device *rdev)
 {
+	dce6_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	cik_cp_enable(rdev, false);
 	cik_sdma_enable(rdev, false);

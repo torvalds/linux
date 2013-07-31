@@ -1254,8 +1254,8 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 	for (i = 0; i < RADEON_MAX_AFMT_BLOCKS; i++)
 		rdev->mode_info.afmt[i] = NULL;
 
-	if (ASIC_IS_DCE6(rdev)) {
-		/* todo */
+	if (ASIC_IS_NODCE(rdev)) {
+		/* nothing to do */
 	} else if (ASIC_IS_DCE4(rdev)) {
 		static uint32_t eg_offsets[] = {
 			EVERGREEN_CRTC0_REGISTER_OFFSET,
@@ -1264,12 +1264,19 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 			EVERGREEN_CRTC3_REGISTER_OFFSET,
 			EVERGREEN_CRTC4_REGISTER_OFFSET,
 			EVERGREEN_CRTC5_REGISTER_OFFSET,
+			0x13830 - 0x7030,
 		};
 		int num_afmt;
 
+		/* DCE8 has 7 audio blocks tied to DIG encoders */
+		/* DCE6 has 6 audio blocks tied to DIG encoders */
 		/* DCE4/5 has 6 audio blocks tied to DIG encoders */
 		/* DCE4.1 has 2 audio blocks tied to DIG encoders */
-		if (ASIC_IS_DCE5(rdev))
+		if (ASIC_IS_DCE8(rdev))
+			num_afmt = 7;
+		else if (ASIC_IS_DCE6(rdev))
+			num_afmt = 6;
+		else if (ASIC_IS_DCE5(rdev))
 			num_afmt = 6;
 		else if (ASIC_IS_DCE41(rdev))
 			num_afmt = 2;

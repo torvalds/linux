@@ -1739,6 +1739,8 @@ static struct radeon_asic trinity_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &evergreen_hdmi_enable,
+		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1867,6 +1869,8 @@ static struct radeon_asic si_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &evergreen_hdmi_enable,
+		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = NULL,
@@ -2009,6 +2013,8 @@ static struct radeon_asic ci_asic = {
 		.bandwidth_update = &dce8_bandwidth_update,
 		.get_vblank_counter = &evergreen_get_vblank_counter,
 		.wait_for_vblank = &dce4_wait_for_vblank,
+		.hdmi_enable = &evergreen_hdmi_enable,
+		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = NULL,
@@ -2107,6 +2113,8 @@ static struct radeon_asic kv_asic = {
 		.bandwidth_update = &dce8_bandwidth_update,
 		.get_vblank_counter = &evergreen_get_vblank_counter,
 		.wait_for_vblank = &dce4_wait_for_vblank,
+		.hdmi_enable = &evergreen_hdmi_enable,
+		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = NULL,

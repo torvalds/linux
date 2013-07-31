@@ -379,7 +379,7 @@ void r600_disable_interrupts(struct radeon_device *rdev);
 void r600_rlc_stop(struct radeon_device *rdev);
 /* r600 audio */
 int r600_audio_init(struct radeon_device *rdev);
-struct r600_audio r600_audio_status(struct radeon_device *rdev);
+struct r600_audio_pin r600_audio_status(struct radeon_device *rdev);
 void r600_audio_fini(struct radeon_device *rdev);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
@@ -628,6 +628,8 @@ int trinity_dpm_force_performance_level(struct radeon_device *rdev,
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);
+int dce6_audio_init(struct radeon_device *rdev);
+void dce6_audio_fini(struct radeon_device *rdev);
 
 /*
  * si

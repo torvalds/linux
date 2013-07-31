@@ -2027,9 +2027,15 @@ static int cayman_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
-	if (r)
-		return r;
+	if (ASIC_IS_DCE6(rdev)) {
+		r = dce6_audio_init(rdev);
+		if (r)
+			return r;
+	} else {
+		r = r600_audio_init(rdev);
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
@@ -2060,7 +2066,10 @@ int cayman_resume(struct radeon_device *rdev)
 
 int cayman_suspend(struct radeon_device *rdev)
 {
-	r600_audio_fini(rdev);
+	if (ASIC_IS_DCE6(rdev))
+		dce6_audio_fini(rdev);
+	else
+		r600_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	cayman_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
