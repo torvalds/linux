@@ -390,7 +390,6 @@ int f2fs_readpage(struct f2fs_sb_info *sbi, struct page *page,
 	bio->bi_end_io = read_end_io;
 
 	if (bio_add_page(bio, page, PAGE_CACHE_SIZE, 0) < PAGE_CACHE_SIZE) {
-		kfree(bio->bi_private);
 		bio_put(bio);
 		up_read(&sbi->bio_sem);
 		f2fs_put_page(page, 1);
