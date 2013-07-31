@@ -163,6 +163,14 @@
 		clock-names = "watchdog";
 	};
 
+	g2d@10850000 {
+		compatible = "samsung,exynos5250-g2d";
+		reg = <0x10850000 0x1000>;
+		interrupts = <0 91 0>;
+		clocks = <&clock 345>;
+		clock-names = "fimg2d";
+	};
+
 	codec@11000000 {
 		compatible = "samsung,mfc-v6";
 		reg = <0x11000000 0x10000>;
