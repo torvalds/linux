@@ -328,7 +328,6 @@ void gssp_free_upcall_data(struct gssp_upcall_data *data)
 	kfree(data->in_handle.data);
 	kfree(data->out_handle.data);
 	kfree(data->out_token.data);
-	kfree(data->mech_oid.data);
 	free_svc_cred(&data->creds);
 }
 
