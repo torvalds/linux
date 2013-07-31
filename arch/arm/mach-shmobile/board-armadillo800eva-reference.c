@@ -206,7 +206,6 @@ DT_MACHINE_START(ARMADILLO800EVA_DT, "armadillo800eva-reference")
 	.init_early	= r8a7740_init_delay,
 	.init_irq	= r8a7740_init_irq_of,
 	.init_machine	= eva_init,
-	.init_time	= shmobile_timer_init,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= eva_boards_compat_dt,
 	.restart	= eva_restart,
