@@ -2143,7 +2143,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "ddrphy", &clk_ddrphy),
 
 	CLK(NULL, "cpu", &clk_core_pre),
-	CLK(NULL, "smp_twd", &clk_core_periph),
+	CLK("smp_twd", NULL, &clk_core_periph),
 	CLK(NULL, "l2c", &clk_l2c),
 	CLK(NULL, "aclk_core_pre", &aclk_core_pre),
 	CLK(NULL, "coredll", &clk_dll_core),
