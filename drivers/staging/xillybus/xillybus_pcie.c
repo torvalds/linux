@@ -112,7 +112,7 @@ static dma_addr_t xilly_map_single_pci(struct xilly_cleanup *mem,
 	return addr;
 }
 
-void xilly_unmap_single_pci(struct xilly_dma *entry)
+static void xilly_unmap_single_pci(struct xilly_dma *entry)
 {
 	pci_unmap_single(entry->pdev,
 			 entry->dma_addr,
@@ -122,8 +122,8 @@ void xilly_unmap_single_pci(struct xilly_dma *entry)
 
 static struct xilly_endpoint_hardware pci_hw = {
 	.owner = THIS_MODULE,
-	.sync_single_for_cpu = xilly_dma_sync_single_for_cpu_pci,
-	.sync_single_for_device = xilly_dma_sync_single_for_device_pci,
+	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_for_cpu_pci,
+	.hw_sync_sgl_for_device = xilly_dma_sync_single_for_device_pci,
 	.map_single = xilly_map_single_pci,
 	.unmap_single = xilly_unmap_single_pci
 };

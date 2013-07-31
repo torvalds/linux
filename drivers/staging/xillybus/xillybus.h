@@ -122,7 +122,7 @@ struct xilly_endpoint {
 
 	struct list_head ep_list;
 	int dma_using_dac; /* =1 if 64-bit DMA is used, =0 otherwise. */
-	u32 *registers;
+	__iomem u32 *registers;
 	int fatal_error;
 
 	struct mutex register_mutex;
@@ -150,11 +150,11 @@ struct xilly_endpoint {
 
 struct xilly_endpoint_hardware {
 	struct module *owner;
-	void (*sync_single_for_cpu)(struct xilly_endpoint *,
+	void (*hw_sync_sgl_for_cpu)(struct xilly_endpoint *,
 				    dma_addr_t,
 				    size_t,
 				    int);
-	void (*sync_single_for_device)(struct xilly_endpoint *,
+	void (*hw_sync_sgl_for_device)(struct xilly_endpoint *,
 				       dma_addr_t,
 				       size_t,
 				       int);

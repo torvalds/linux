@@ -71,7 +71,7 @@ static struct class *xillybus_class;
 
 static LIST_HEAD(list_of_endpoints);
 static struct mutex ep_list_lock;
-struct workqueue_struct *xillybus_wq;
+static struct workqueue_struct *xillybus_wq;
 
 /*
  * Locking scheme: Mutexes protect invocations of character device methods.
@@ -145,7 +145,7 @@ irqreturn_t xillybus_isr(int irq, void *data)
 	buf_size = ep->msg_buf_size/sizeof(u32);
 
 
-	ep->ephw->sync_single_for_cpu(ep,
+	ep->ephw->hw_sync_sgl_for_cpu(ep,
 				      ep->msgbuf_dma_addr,
 				      ep->msg_buf_size,
 				      DMA_FROM_DEVICE);
@@ -163,7 +163,7 @@ irqreturn_t xillybus_isr(int irq, void *data)
 				pr_err("xillybus: Lost sync with "
 				       "interrupt messages. Stopping.\n");
 			else {
-				ep->ephw->sync_single_for_device(
+				ep->ephw->hw_sync_sgl_for_device(
 					ep,
 					ep->msgbuf_dma_addr,
 					ep->msg_buf_size,
@@ -297,7 +297,7 @@ irqreturn_t xillybus_isr(int irq, void *data)
 		}
 	}
 
-	ep->ephw->sync_single_for_device(ep,
+	ep->ephw->hw_sync_sgl_for_device(ep,
 					 ep->msgbuf_dma_addr,
 					 ep->msg_buf_size,
 					 DMA_FROM_DEVICE);
@@ -796,7 +796,7 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 		return rc;
 	}
 
-	endpoint->ephw->sync_single_for_cpu(
+	endpoint->ephw->hw_sync_sgl_for_cpu(
 		channel->endpoint,
 		channel->wr_buffers[0]->dma_addr,
 		channel->wr_buf_size,
@@ -832,8 +832,8 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 	return 0; /* Success */
 }
 
-static ssize_t xillybus_read(struct file *filp, char *userbuf, size_t count,
-			     loff_t *f_pos)
+static ssize_t xillybus_read(struct file *filp, char __user *userbuf,
+			     size_t count, loff_t *f_pos)
 {
 	ssize_t rc;
 	unsigned long flags;
@@ -917,7 +917,7 @@ static ssize_t xillybus_read(struct file *filp, char *userbuf, size_t count,
 		if (!empty) { /* Go on, now without the spinlock */
 
 			if (bufpos == 0) /* Position zero means it's virgin */
-				channel->endpoint->ephw->sync_single_for_cpu(
+				channel->endpoint->ephw->hw_sync_sgl_for_cpu(
 					channel->endpoint,
 					channel->wr_buffers[bufidx]->dma_addr,
 					channel->wr_buf_size,
@@ -934,7 +934,7 @@ static ssize_t xillybus_read(struct file *filp, char *userbuf, size_t count,
 
 			if (bufferdone) {
 				channel->endpoint->ephw->
-					sync_single_for_device
+					hw_sync_sgl_for_device
 					(
 						channel->endpoint,
 						channel->wr_buffers[bufidx]->
@@ -1243,7 +1243,7 @@ static int xillybus_myflush(struct xilly_channel *channel, long timeout)
 		else
 			channel->rd_host_buf_idx++;
 
-		channel->endpoint->ephw->sync_single_for_device(
+		channel->endpoint->ephw->hw_sync_sgl_for_device(
 			channel->endpoint,
 			channel->rd_buffers[bufidx]->dma_addr,
 			channel->rd_buf_size,
@@ -1362,7 +1362,7 @@ static void xillybus_autoflush(struct work_struct *work)
 
 }
 
-static ssize_t xillybus_write(struct file *filp, const char *userbuf,
+static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 			      size_t count, loff_t *f_pos)
 {
 	ssize_t rc;
@@ -1471,7 +1471,7 @@ static ssize_t xillybus_write(struct file *filp, const char *userbuf,
 
 			if ((bufpos == 0) || /* Zero means it's virgin */
 			    (channel->rd_leftovers[3] != 0)) {
-				channel->endpoint->ephw->sync_single_for_cpu(
+				channel->endpoint->ephw->hw_sync_sgl_for_cpu(
 					channel->endpoint,
 					channel->rd_buffers[bufidx]->dma_addr,
 					channel->rd_buf_size,
@@ -1494,7 +1494,7 @@ static ssize_t xillybus_write(struct file *filp, const char *userbuf,
 
 			if (bufferdone) {
 				channel->endpoint->ephw->
-					sync_single_for_device(
+					hw_sync_sgl_for_device(
 						channel->endpoint,
 						channel->rd_buffers[bufidx]->
 						dma_addr,
@@ -1867,7 +1867,7 @@ static int xillybus_release(struct inode *inode, struct file *filp)
 
 	return 0;
 }
-loff_t xillybus_llseek(struct file *filp, loff_t offset, int whence)
+static loff_t xillybus_llseek(struct file *filp, loff_t offset, int whence)
 {
 	struct xilly_channel *channel = filp->private_data;
 	loff_t pos = filp->f_pos;

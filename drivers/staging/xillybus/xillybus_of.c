@@ -85,7 +85,7 @@ static dma_addr_t xilly_map_single_of(struct xilly_cleanup *mem,
 	return addr;
 }
 
-void xilly_unmap_single_of(struct xilly_dma *entry)
+static void xilly_unmap_single_of(struct xilly_dma *entry)
 {
 	dma_unmap_single(entry->dev,
 			 entry->dma_addr,
@@ -95,8 +95,8 @@ void xilly_unmap_single_of(struct xilly_dma *entry)
 
 static struct xilly_endpoint_hardware of_hw = {
 	.owner = THIS_MODULE,
-	.sync_single_for_cpu = xilly_dma_sync_single_for_cpu_of,
-	.sync_single_for_device = xilly_dma_sync_single_for_device_of,
+	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_for_cpu_of,
+	.hw_sync_sgl_for_device = xilly_dma_sync_single_for_device_of,
 	.map_single = xilly_map_single_of,
 	.unmap_single = xilly_unmap_single_of
 };
