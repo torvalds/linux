@@ -394,8 +394,8 @@ struct cgroup_map_cb {
 
 /* cftype->flags */
 enum {
-	CFTYPE_ONLY_ON_ROOT	= (1 << 0),	/* only create on root cg */
-	CFTYPE_NOT_ON_ROOT	= (1 << 1),	/* don't create on root cg */
+	CFTYPE_ONLY_ON_ROOT	= (1 << 0),	/* only create on root cgrp */
+	CFTYPE_NOT_ON_ROOT	= (1 << 1),	/* don't create on root cgrp */
 	CFTYPE_INSANE		= (1 << 2),	/* don't create if sane_behavior */
 };
 
@@ -513,7 +513,7 @@ struct cftype_set {
 };
 
 struct cgroup_scanner {
-	struct cgroup *cg;
+	struct cgroup *cgrp;
 	int (*test_task)(struct task_struct *p, struct cgroup_scanner *scan);
 	void (*process_task)(struct task_struct *p,
 			struct cgroup_scanner *scan);
