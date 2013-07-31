@@ -591,7 +591,7 @@ static int logi_dj_ll_input_event(struct input_dev *dev, unsigned int type,
 	}
 	hid_set_field(field, offset, value);
 
-	data = hid_alloc_report_buf(field->report, GFP_KERNEL);
+	data = hid_alloc_report_buf(field->report, GFP_ATOMIC);
 	if (!data) {
 		dev_warn(&dev->dev, "failed to allocate report buf memory\n");
 		return -1;
