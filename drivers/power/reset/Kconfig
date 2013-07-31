@@ -14,6 +14,12 @@ config POWER_RESET_GPIO
 	  If your board needs a GPIO high/low to power down, say Y and
 	  create a binding in your devicetree.
 
+config POWER_RESET_MSM
+	bool "Qualcomm MSM power-off driver"
+	depends on POWER_RESET && ARCH_MSM
+	help
+	  Power off and restart support for Qualcomm boards.
+
 config POWER_RESET_QNAP
 	bool "QNAP power-off driver"
 	depends on OF_GPIO && POWER_RESET && PLAT_ORION
