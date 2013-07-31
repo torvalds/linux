@@ -343,6 +343,8 @@ struct hwmon_buff {
 	};
 #endif
 
+#define IGB_RETA_SIZE	128
+
 /* board specific private data structure */
 struct igb_adapter {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];

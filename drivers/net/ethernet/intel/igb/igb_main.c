@@ -3157,7 +3157,7 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 	 * we are generating the results for n and n+2 and then interleaving
 	 * those with the results with n+1 and n+3.
 	 */
-	for (j = 0; j < 32; j++) {
+	for (j = 0; j < IGB_RETA_SIZE / 4; j++) {
 		/* first pass generates n and n+2 */
 		u32 base = ((j * 0x00040004) + 0x00020000) * num_rx_queues;
 		u32 reta = (base & 0x07800780) >> (7 - shift);
