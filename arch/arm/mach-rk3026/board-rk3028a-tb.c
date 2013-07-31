@@ -333,7 +333,7 @@ static struct resource resource_lcdc0[] = {
 	[0] = {
 		.name  = "lcdc0 reg",
 		.start = RK3026_LCDC0_PHYS,
-		.end   = RK3026_LCDC0_PHYS + RK3026_LCDC0_PHYS - 1,
+		.end   = RK3026_LCDC0_PHYS + RK3026_LCDC0_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	
@@ -361,7 +361,7 @@ static struct resource resource_lcdc1[] = {
 	[0] = {
 		.name  = "lcdc1 reg",
 		.start = RK3026_LCDC1_PHYS,
-		.end   = RK3026_LCDC1_PHYS + RK3026_LCDC1_PHYS - 1,
+		.end   = RK3026_LCDC1_PHYS + RK3026_LCDC1_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
