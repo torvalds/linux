@@ -243,13 +243,6 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	if (result)
 		return result;
 
-	if (!device->flags.power_manageable) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				"Device [%s] is not power manageable\n",
-				dev_name(&device->dev)));
-		return -ENODEV;
-	}
-
 	return acpi_device_set_power(device, state);
 }
 EXPORT_SYMBOL(acpi_bus_set_power);
