@@ -1187,22 +1187,23 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb->ioda.io_segsize = phb->ioda.io_size / phb->ioda.total_pe;
 	phb->ioda.io_pci_base = 0; /* XXX calculate this ? */
 
-	/* Allocate aux data & arrays
-	 *
-	 * XXX TODO: Don't allocate io segmap on PHB3
-	 */
+	/* Allocate aux data & arrays. We don't have IO ports on PHB3 */
 	size = _ALIGN_UP(phb->ioda.total_pe / 8, sizeof(unsigned long));
 	m32map_off = size;
 	size += phb->ioda.total_pe * sizeof(phb->ioda.m32_segmap[0]);
 	iomap_off = size;
-	size += phb->ioda.total_pe * sizeof(phb->ioda.io_segmap[0]);
+	if (phb->type == PNV_PHB_IODA1) {
+		iomap_off = size;
+		size += phb->ioda.total_pe * sizeof(phb->ioda.io_segmap[0]);
+	}
 	pemap_off = size;
 	size += phb->ioda.total_pe * sizeof(struct pnv_ioda_pe);
 	aux = alloc_bootmem(size);
 	memset(aux, 0, size);
 	phb->ioda.pe_alloc = aux;
 	phb->ioda.m32_segmap = aux + m32map_off;
-	phb->ioda.io_segmap = aux + iomap_off;
+	if (phb->type == PNV_PHB_IODA1)
+		phb->ioda.io_segmap = aux + iomap_off;
 	phb->ioda.pe_array = aux + pemap_off;
 	set_bit(0, phb->ioda.pe_alloc);
 
