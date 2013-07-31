@@ -606,12 +606,6 @@ config IR_SUN3I
 	tristate "sun3i IR support"
 	depends on ARCH_SUN3I
 
-config IR_SUN4I
-        tristate "sun4i IR  support"
-	depends on ARCH_SUN4I
-
-config IR_SUN5I
-       tristate "sun5i IR  support"
-       depends on ARCH_SUN5I
-       
+config IR_SUNXI
+	tristate "sunxi IR support"
 endif

@@ -60,12 +60,5 @@ ifdef CONFIG_ARCH_SUN3I
 obj-$(CONFIG_IR_SUN3I)			+= sun3i-ir.o
 endif
 
-ifdef CONFIG_ARCH_SUN4I
-obj-$(CONFIG_IR_SUN4I)		        += sun4i-ir.o
-endif
-
-ifdef CONFIG_ARCH_SUN5I
-obj-$(CONFIG_IR_SUN5I)                  += sun5i-ir.o
-endif
-
+obj-$(CONFIG_IR_SUNXI)			+= sunxi-ir.o
 obj-$(CONFIG_KEYBOARD_HV2605_KEYBOARD)  += hv2605.o

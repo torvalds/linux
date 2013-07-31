@@ -1,5 +1,5 @@
 /*
- * drivers/input/keyboard/sun5i-ir.c
+ * drivers/input/keyboard/sunxi-ir.c
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
