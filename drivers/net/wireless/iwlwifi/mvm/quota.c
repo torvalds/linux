@@ -110,7 +110,8 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_AP:
-		if (mvmvif->ap_active)
+	case NL80211_IFTYPE_ADHOC:
+		if (mvmvif->ap_ibss_active)
 			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_MONITOR:
@@ -118,10 +119,6 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
-		break;
-	case NL80211_IFTYPE_ADHOC:
-		if (vif->bss_conf.ibss_joined)
-			data->n_interfaces[id]++;
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -140,7 +137,7 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(mvm->noa_vif);
-	if (!mvmvif->ap_active)
+	if (!mvmvif->ap_ibss_active)
 		return;
 
 	phy_id = mvmvif->phy_ctxt->id;

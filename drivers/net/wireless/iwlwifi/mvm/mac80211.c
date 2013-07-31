@@ -190,6 +190,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		BIT(NL80211_IFTYPE_P2P_GO) |
 		BIT(NL80211_IFTYPE_P2P_DEVICE);
 
+	/* IBSS has bugs in older versions */
+	if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 8)
+		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_ADHOC);
+
 	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
 			    WIPHY_FLAG_IBSS_RSN;
@@ -565,7 +569,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 * In short: there's not much we can do at this point, other than
 	 * allocating resources :)
 	 */
-	if (vif->type == NL80211_IFTYPE_AP) {
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_ADHOC) {
 		u32 qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
 		ret = iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta,
 					       qmask);
@@ -715,7 +720,8 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	 * For AP/GO interface, the tear down of the resources allocated to the
 	 * interface is be handled as part of the stop_ap flow.
 	 */
-	if (vif->type == NL80211_IFTYPE_AP) {
+	if (vif->type == NL80211_IFTYPE_AP ||
+	    vif->type == NL80211_IFTYPE_ADHOC) {
 #ifdef CONFIG_NL80211_TESTMODE
 		if (vif == mvm->noa_vif) {
 			mvm->noa_vif = NULL;
@@ -892,7 +898,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	}
 }
 
-static int iwl_mvm_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -915,7 +922,7 @@ static int iwl_mvm_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (ret)
 		goto out_remove;
 
-	mvmvif->ap_active = true;
+	mvmvif->ap_ibss_active = true;
 
 	/* Send the bcast station. At this stage the TBTT and DTIM time events
 	 * are added and applied to the scheduler */
@@ -927,7 +934,7 @@ static int iwl_mvm_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (ret)
 		goto out_rm_bcast;
 
-	/* Need to update the P2P Device MAC */
+	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif);
 
@@ -947,7 +954,8 @@ out_unlock:
 	return ret;
 }
 
-static void iwl_mvm_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -956,11 +964,11 @@ static void iwl_mvm_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	mutex_lock(&mvm->mutex);
 
-	mvmvif->ap_active = false;
+	mvmvif->ap_ibss_active = false;
 
 	iwl_mvm_bt_coex_vif_change(mvm);
 
-	/* Need to update the P2P Device MAC */
+	/* Need to update the P2P Device MAC (only GO, IBSS is single vif) */
 	if (vif->p2p && mvm->p2p_device_vif)
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif);
 
@@ -972,10 +980,11 @@ static void iwl_mvm_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mutex_unlock(&mvm->mutex);
 }
 
-static void iwl_mvm_bss_info_changed_ap(struct iwl_mvm *mvm,
-					struct ieee80211_vif *vif,
-					struct ieee80211_bss_conf *bss_conf,
-					u32 changes)
+static void
+iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *bss_conf,
+				 u32 changes)
 {
 	/* Need to send a new beacon template to the FW */
 	if (changes & BSS_CHANGED_BEACON) {
@@ -998,7 +1007,8 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 		iwl_mvm_bss_info_changed_station(mvm, vif, bss_conf, changes);
 		break;
 	case NL80211_IFTYPE_AP:
-		iwl_mvm_bss_info_changed_ap(mvm, vif, bss_conf, changes);
+	case NL80211_IFTYPE_ADHOC:
+		iwl_mvm_bss_info_changed_ap_ibss(mvm, vif, bss_conf, changes);
 		break;
 	default:
 		/* shouldn't happen */
@@ -1302,8 +1312,13 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
-		if (vif->type == NL80211_IFTYPE_AP && !sta) {
-			/* GTK on AP interface is a TX-only key, return 0 */
+		if ((vif->type == NL80211_IFTYPE_ADHOC ||
+		     vif->type == NL80211_IFTYPE_AP) && !sta) {
+			/*
+			 * GTK on AP interface is a TX-only key, return 0;
+			 * on IBSS they're per-station and because we're lazy
+			 * we don't support them for RX, so do the same.
+			 */
 			ret = 0;
 			key->hw_key_idx = STA_KEY_IDX_INVALID;
 			break;
@@ -1346,6 +1361,9 @@ static void iwl_mvm_mac_update_tkip_key(struct ieee80211_hw *hw,
 					u32 iv32, u16 *phase1key)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (keyconf->hw_key_idx == STA_KEY_IDX_INVALID)
+		return;
 
 	iwl_mvm_update_tkip_key(mvm, vif, keyconf, sta, iv32, phase1key);
 }
@@ -1560,14 +1578,14 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
 		/*
 		 * The AP binding flow is handled as part of the start_ap flow
-		 * (in bss_info_changed).
+		 * (in bss_info_changed), similarly for IBSS.
 		 */
 		ret = 0;
 		goto out_unlock;
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MONITOR:
 		break;
 	default:
@@ -1613,10 +1631,10 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	iwl_mvm_remove_time_event(mvm, mvmvif, &mvmvif->time_event_data);
 
-	if (vif->type == NL80211_IFTYPE_AP)
-		goto out_unlock;
-
 	switch (vif->type) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+		goto out_unlock;
 	case NL80211_IFTYPE_MONITOR:
 		mvmvif->monitor_active = false;
 		iwl_mvm_update_quotas(mvm, NULL);
@@ -1744,8 +1762,10 @@ struct ieee80211_ops iwl_mvm_hw_ops = {
 	.assign_vif_chanctx = iwl_mvm_assign_vif_chanctx,
 	.unassign_vif_chanctx = iwl_mvm_unassign_vif_chanctx,
 
-	.start_ap = iwl_mvm_start_ap,
-	.stop_ap = iwl_mvm_stop_ap,
+	.start_ap = iwl_mvm_start_ap_ibss,
+	.stop_ap = iwl_mvm_stop_ap_ibss,
+	.join_ibss = iwl_mvm_start_ap_ibss,
+	.leave_ibss = iwl_mvm_stop_ap_ibss,
 
 	.set_tim = iwl_mvm_set_tim,
 

@@ -262,8 +262,8 @@ struct iwl_mvm_vif_bf_data {
  * @color: to solve races upon MAC addition and removal
  * @ap_sta_id: the sta_id of the AP - valid only if VIF type is STA
  * @uploaded: indicates the MAC context has been added to the device
- * @ap_active: indicates that ap context is configured, and that the interface
- *  should get quota etc.
+ * @ap_ibss_active: indicates that AP/IBSS is configured and that the interface
+ *	should get quota etc.
  * @monitor_active: indicates that monitor context is configured, and that the
  * interface should get quota etc.
  * @queue_params: QoS params for this MAC
@@ -279,7 +279,7 @@ struct iwl_mvm_vif {
 	u8 ap_sta_id;
 
 	bool uploaded;
-	bool ap_active;
+	bool ap_ibss_active;
 	bool monitor_active;
 	struct iwl_mvm_vif_bf_data bf_data;
 

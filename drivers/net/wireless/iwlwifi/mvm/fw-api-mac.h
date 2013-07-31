@@ -170,12 +170,14 @@ struct iwl_mac_data_ap {
  * @beacon_tsf: beacon transmit time in TSF
  * @bi: beacon interval in TU
  * @bi_reciprocal: 2^32 / bi
+ * @beacon_template: beacon template ID
  */
 struct iwl_mac_data_ibss {
 	__le32 beacon_time;
 	__le64 beacon_tsf;
 	__le32 bi;
 	__le32 bi_reciprocal;
+	__le32 beacon_template;
 } __packed; /* IBSS_MAC_DATA_API_S_VER_1 */
 
 /**

@@ -644,9 +644,13 @@ int iwl_mvm_send_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct iwl_mvm_int_sta *bsta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	static const u8 baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+	static const u8 *baddr = _baddr;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (vif->type == NL80211_IFTYPE_ADHOC)
+		baddr = vif->bss_conf.bssid;
 
 	if (WARN_ON_ONCE(bsta->sta_id == IWL_MVM_STATION_COUNT))
 		return -ENOSPC;

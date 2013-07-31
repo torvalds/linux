@@ -594,7 +594,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	/* SoftAP / GO will always be primary */
 	if (vif->type == NL80211_IFTYPE_AP) {
-		if (!mvmvif->ap_active)
+		if (!mvmvif->ap_ibss_active)
 			return;
 
 		/* the Ack / Cts kill mask must be default if AP / GO */
