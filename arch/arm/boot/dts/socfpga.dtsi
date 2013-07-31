@@ -534,16 +534,19 @@
 		hps_fpgabridge0: fpgabridge@0 {
 			compatible = "altr,socfpga-hps2fpga-bridge";
 			label = "hps2fpga";
+			clocks = <&l4_main_clk>;
 		};
 
 		hps_fpgabridge1: fpgabridge@1 {
 			compatible = "altr,socfpga-lwhps2fpga-bridge";
 			label = "lwhps2fpga";
+			clocks = <&l4_main_clk>;
 		};
 
 		hps_fpgabridge2: fpgabridge@2 {
 			compatible = "altr,socfpga-fpga2hps-bridge";
 			label = "fpga2hps";
+			clocks = <&l4_main_clk>;
 		};
 
 		i2c0: i2c@ffc04000 {

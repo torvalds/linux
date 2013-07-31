@@ -15,30 +15,30 @@ Required for fpga2sdram bridge only:
                     index 0 is first port # (0-5)
 		    index 1 is number of ports used (1-2)
 
+Required for hps2fpga, lwhps2fpga, and fpga2hps:
+  - clocks     : clocks used by this module
+
 Optional properties:
   - label      : name that you want this bridge to show up as under /sys
                  Default is br<device#> if this is not specified
-
-  - enable     : If 'enable' is specified, the bridge will be enabled or
-                 disabled upon load, depending on the value of this parameter.
-		 if 'enable' is not specified, the driver will not enable
-		 or disable the bridge by default.
 
 Example:
 	hps_fpgabridge0: fpgabridge@0 {
 		compatible = "altr,socfpga-hps2fpga-bridge";
 		label = "hps2fpga";
-		enable = <1>;
+		clocks = <&l4_main_clk>;
 	};
 
 	hps_fpgabridge1: fpgabridge@1 {
 		compatible = "altr,socfpga-lwhps2fpga-bridge";
 		label = "lwhps2fpga";
+		clocks = <&l4_main_clk>;
 	};
 
 	hps_fpgabridge2: fpgabridge@2 {
 		compatible = "altr,socfpga-fpga2hps-bridge";
 		label = "fpga2hps";
+		clocks = <&l4_main_clk>;
 	};
 
 	hps_fpgabridge3: fpgabridge@3 {
@@ -47,7 +47,6 @@ Example:
 		read-port = <0>;
 		write-port = <0>;
 		control-ports = <0 2>; /* ports 0 and 1 */
-		enable = <1>;
 	};
 
 	hps_fpgabridge4: fpgabridge@4 {

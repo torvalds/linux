@@ -119,7 +119,7 @@ int register_fpga_bridge(struct platform_device *pdev,
 {
 	struct fpga_bridge *bridge;
 	const char *dt_label;
-	int enable, ret;
+	int ret;
 
 	if (!br_ops || !br_ops->enable_set || !br_ops->enable_show) {
 		dev_err(&pdev->dev,
@@ -160,9 +160,6 @@ int register_fpga_bridge(struct platform_device *pdev,
 		ret = PTR_ERR(bridge->dev);
 		goto error_device;
 	}
-
-	if (!of_property_read_u32(bridge->np, "enable", &enable))
-		br_ops->enable_set(bridge, enable);
 
 	dev_info(bridge->parent, "fpga bridge [%s] registered as device %s\n",
 		 bridge->name, bridge->label);
