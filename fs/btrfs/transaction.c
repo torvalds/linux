@@ -1942,6 +1942,5 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	 * If we encounter a transaction abort during snapshot cleaning, we
 	 * don't want to crash here
 	 */
-	BUG_ON(ret < 0 && ret != -EAGAIN && ret != -EROFS);
-	return 1;
+	return (ret < 0) ? 0 : 1;
 }
