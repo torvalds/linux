@@ -77,6 +77,7 @@
 #include "iwl-eeprom-parse.h"
 #include "fw-api-scan.h"
 #include "iwl-phy-db.h"
+#include "testmode.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
@@ -699,6 +700,12 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	 * interface is be handled as part of the stop_ap flow.
 	 */
 	if (vif->type == NL80211_IFTYPE_AP) {
+#ifdef CONFIG_NL80211_TESTMODE
+		if (vif == mvm->noa_vif) {
+			mvm->noa_vif = NULL;
+			mvm->noa_duration = 0;
+		}
+#endif
 		iwl_mvm_dealloc_int_sta(mvm, &mvmvif->bcast_sta);
 		goto out_release;
 	}
@@ -1559,6 +1566,62 @@ static void iwl_mvm_mac_rssi_callback(struct ieee80211_hw *hw,
 	iwl_mvm_bt_rssi_event(mvm, vif, rssi_event);
 }
 
+#ifdef CONFIG_NL80211_TESTMODE
+static const struct nla_policy iwl_mvm_tm_policy[IWL_MVM_TM_ATTR_MAX + 1] = {
+	[IWL_MVM_TM_ATTR_CMD] = { .type = NLA_U32 },
+	[IWL_MVM_TM_ATTR_NOA_DURATION] = { .type = NLA_U32 },
+};
+
+static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      void *data, int len)
+{
+	struct nlattr *tb[IWL_MVM_TM_ATTR_MAX + 1];
+	int err;
+	u32 noa_duration;
+
+	err = nla_parse(tb, IWL_MVM_TM_ATTR_MAX, data, len, iwl_mvm_tm_policy);
+	if (err)
+		return err;
+
+	if (!tb[IWL_MVM_TM_ATTR_CMD])
+		return -EINVAL;
+
+	switch (nla_get_u32(tb[IWL_MVM_TM_ATTR_CMD])) {
+	case IWL_MVM_TM_CMD_SET_NOA:
+		if (!vif || vif->type != NL80211_IFTYPE_AP || !vif->p2p ||
+		    !vif->bss_conf.enable_beacon ||
+		    !tb[IWL_MVM_TM_ATTR_NOA_DURATION])
+			return -EINVAL;
+
+		noa_duration = nla_get_u32(tb[IWL_MVM_TM_ATTR_NOA_DURATION]);
+		if (noa_duration >= vif->bss_conf.beacon_int)
+			return -EINVAL;
+
+		mvm->noa_duration = noa_duration;
+		mvm->noa_vif = vif;
+
+		return iwl_mvm_update_quotas(mvm, NULL);
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int iwl_mvm_mac_testmode_cmd(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    void *data, int len)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int err;
+
+	mutex_lock(&mvm->mutex);
+	err = __iwl_mvm_mac_testmode_cmd(mvm, vif, data, len);
+	mutex_unlock(&mvm->mutex);
+
+	return err;
+}
+#endif
+
 struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -1594,6 +1657,8 @@ struct ieee80211_ops iwl_mvm_hw_ops = {
 	.stop_ap = iwl_mvm_stop_ap,
 
 	.set_tim = iwl_mvm_set_tim,
+
+	CFG80211_TESTMODE_CMD(iwl_mvm_mac_testmode_cmd)
 
 #ifdef CONFIG_PM_SLEEP
 	/* look at d3.c */

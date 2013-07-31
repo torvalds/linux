@@ -529,6 +529,11 @@ struct iwl_mvm {
 	s32 temperature;	/* Celsius */
 
 	const struct iwl_mvm_power_ops *pm_ops;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	u32 noa_duration;
+	struct ieee80211_vif *noa_vif;
+#endif
 };
 
 /* Extract MVM priv from op_mode and _hw */
