@@ -15,6 +15,7 @@
 #define SUPPORT_SYSRQ
 #endif
 
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -783,9 +784,10 @@ static int sccnxp_probe(struct platform_device *pdev)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int chiptype = pdev->id_entry->driver_data;
 	struct sccnxp_pdata *pdata = dev_get_platdata(&pdev->dev);
-	int i, ret, fifosize, freq_min, freq_max;
+	int i, ret, fifosize, freq_min, freq_max, uartclk;
 	struct sccnxp_port *s;
 	void __iomem *membase;
+	struct clk *clk;
 
 	membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(membase))
@@ -898,11 +900,25 @@ static int sccnxp_probe(struct platform_device *pdev)
 	} else if (PTR_ERR(s->regulator) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	if (!pdata) {
-		dev_warn(&pdev->dev,
-			 "No platform data supplied, using defaults\n");
-		s->pdata.frequency = s->freq_std;
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		if (PTR_ERR(clk) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto err_out;
+		}
+		dev_notice(&pdev->dev, "Using default clock frequency\n");
+		uartclk = s->freq_std;
 	} else
+		uartclk = clk_get_rate(clk);
+
+	/* Check input frequency */
+	if ((uartclk < freq_min) || (uartclk > freq_max)) {
+		dev_err(&pdev->dev, "Frequency out of bounds\n");
+		ret = -EINVAL;
+		goto err_out;
+	}
+
+	if (pdata)
 		memcpy(&s->pdata, pdata, sizeof(struct sccnxp_pdata));
 
 	if (s->pdata.poll_time_us) {
@@ -918,14 +934,6 @@ static int sccnxp_probe(struct platform_device *pdev)
 			ret = -ENXIO;
 			goto err_out;
 		}
-	}
-
-	/* Check input frequency */
-	if ((s->pdata.frequency < freq_min) ||
-	    (s->pdata.frequency > freq_max)) {
-		dev_err(&pdev->dev, "Frequency out of bounds\n");
-		ret = -EINVAL;
-		goto err_out;
 	}
 
 	s->uart.owner		= THIS_MODULE;
@@ -959,7 +967,7 @@ static int sccnxp_probe(struct platform_device *pdev)
 		s->port[i].mapbase	= res->start;
 		s->port[i].membase	= membase;
 		s->port[i].regshift	= s->pdata.reg_shift;
-		s->port[i].uartclk	= s->pdata.frequency;
+		s->port[i].uartclk	= uartclk;
 		s->port[i].ops		= &sccnxp_ops;
 		uart_add_one_port(&s->uart, &s->port[i]);
 		/* Set direction to input */
