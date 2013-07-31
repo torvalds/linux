@@ -3379,6 +3379,8 @@ static inline void hci_le_ltk_request_evt(struct hci_dev *hdev,
 	else
 		conn->pending_sec_level = BT_SECURITY_MEDIUM;
 
+	conn->enc_key_size = ltk->enc_size;
+
 	hci_send_cmd(hdev, HCI_OP_LE_LTK_REPLY, sizeof(cp), &cp);
 
 	if (ltk->type & HCI_SMP_STK) {
