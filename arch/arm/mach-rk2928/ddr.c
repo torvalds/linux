@@ -26,12 +26,12 @@
 typedef uint32_t uint32 ;
 
 
-#define DDR3_DDR2_DLL_DISABLE_FREQ    (300)
-#define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
+#define DDR3_DDR2_DLL_DISABLE_FREQ    (300)  // 颗粒dll disable的频率
+#define DDR3_DDR2_ODT_DISABLE_FREQ    (333)  //颗粒odt disable的频率
 #define SR_IDLE                       (0x1)   //unit:32*DDR clk cycle, and 0 for disable auto self-refresh
 #define PD_IDLE                       (0x40)  //unit:DDR clk cycle, and 0 for disable auto power-down
-#define PHY_ODT_DISABLE_FREQ          (333)  //定义odt disable的频率
-#define PHY_DLL_DISABLE_FREQ          (266)  //定义dll bypass的频率
+#define PHY_ODT_DISABLE_FREQ          (333)  //定义主控端odt disable的频率
+#define PHY_DLL_DISABLE_FREQ          (266)  //定义主控端dll bypass的频率
 
 //#define PMU_BASE_ADDR           RK30_PMU_BASE //??RK 2928 PMU在哪里
 #define SDRAMC_BASE_ADDR        RK2928_DDR_PCTL_BASE
@@ -151,6 +151,50 @@ GRF_SOC_CON2寄存器中控制c_sysreq信号向pctl发送进入low power 请求
 GRF_DDRC_STAT 可查询pctl是否接受请求 进入low power 
 ********************************/
 //REG FILE registers    
+#if defined (CONFIG_ARCH_RK3026)
+typedef volatile struct tagREG_FILE
+{
+    uint32 reserved0[(0xa8-0x0)/4];
+    GPIO_IOMUX_T GRF_GPIO_IOMUX[4]; // 0x00a8
+    uint32 reserved1[(0x100-0xe8)/4];
+    uint32 GRF_GPIO_DS;             //0x110
+    uint32 reserved2[(0x118-0x104)/4];
+    GPIO_LH_T GRF_GPIO_PULL[4];     // 0x118
+    uint32 reserved3[(0x140-0x138)/4];
+    uint32 GRF_SOC_CON[3];          // 0x140
+    uint32 GRF_SOC_STATUS0;
+    uint32 GRF_LVDS_CON0;
+    uint32 reserved4[(0x15c-0x154)/4];
+    uint32 GRF_DMAC1_CON[3];        //0x15c
+    uint32 reserved5[(0x17c-0x168)/4];
+    uint32 GRF_UOC0_CON0;         //0x17c
+    uint32 reserved6[(0x190-0x180)/4];
+    uint32 GRF_UOC1_CON0;         //0x190
+    uint32 GRF_UOC1_COM1;
+    uint32 reserved7;
+    uint32 GRF_DDRC_STAT;
+    uint32 GRF_UOC_CON;
+    uint32 reserved8;
+    uint32 GRF_CPU_CON[6];
+    uint32 GRF_CPU_STATUS[2];
+    uint32 GRF_OS_REG[8];
+    uint32 reserved9[(0x200-0x1e8)/4];
+    uint32 GRF_DLL_CON[4];          //0X200
+    uint32 GRF_DLL_STATUS;
+    uint32 reserved10[(0x220-0x214)/4];
+    uint32 GRF_DFI_WRNUM;           //0X220
+    uint32 GRF_DFI_RDNUM;
+    uint32 GRF_DFI_ACTNUM;
+    uint32 GRF_DFI_TIMERVAL;
+    uint32 GRF_NIF_FIFO[4];
+    uint32 reserved11[(0x280-0x240)/4];
+    uint32 GRF_USBPHY0_CON[8];
+    uint32 GRF_USBPHY1_CON[8];
+    uint32 reserved12[(0x300-0x2c0)/4];
+    uint32 GRF_CHIP_TAG;
+} REG_FILE, *pREG_FILE;
+
+#else
 typedef volatile struct tagREG_FILE
 {
     uint32 reserved1[(0xa8-0x0)/4];     //42
@@ -171,6 +215,7 @@ typedef volatile struct tagREG_FILE
     uint32 reserved7[(0x1c8-0x1a0)/4];  //10
     uint32 GRF_OS_REG[4];
 } REG_FILE, *pREG_FILE;
+#endif
 
 #define pGRF_Reg ((pREG_FILE)REG_FILE_BASE_ADDR)
 
@@ -445,6 +490,42 @@ typedef volatile struct DDR_REG_Tag
 #define PHY_MEM_TYPE         (6)
 
 //PHY_REG22,25,26,27,28
+#if defined (CONFIG_ARCH_RK3026)            //RK3028A /rk3026
+#define PHY_RON_DISABLE     (0)
+#define PHY_RON_309ohm      (1)
+#define PHY_RON_155ohm      (2)
+#define PHY_RON_103ohm      (3)
+#define PHY_RON_77ohm       (4)
+#define PHY_RON_63ohm       (5)
+#define PHY_RON_52ohm       (6)
+#define PHY_RON_45ohm       (7)
+//#define PHY_RON_77ohm       (8)
+#define PHY_RON_62ohm       (9)
+//#define PHY_RON_52ohm       (10)
+#define PHY_RON_44ohm       (11)
+#define PHY_RON_39ohm       (12)
+#define PHY_RON_34ohm       (13)
+#define PHY_RON_31ohm       (14)
+#define PHY_RON_28ohm       (15)
+
+#define PHY_RTT_DISABLE     (0)
+#define PHY_RTT_816ohm      (1)
+#define PHY_RTT_431ohm      (2)
+#define PHY_RTT_287ohm      (3)
+#define PHY_RTT_216ohm      (4)
+#define PHY_RTT_172ohm      (5)
+#define PHY_RTT_145ohm      (6)
+#define PHY_RTT_124ohm      (7)
+#define PHY_RTT_215ohm      (8)
+//#define PHY_RTT_172ohm      (9)
+#define PHY_RTT_144ohm      (10)
+#define PHY_RTT_123ohm      (11)
+#define PHY_RTT_108ohm      (12)
+#define PHY_RTT_96ohm       (13)
+#define PHY_RTT_86ohm       (14)
+#define PHY_RTT_78ohm       (15)
+
+#else                   //RK292x
 #define PHY_RON_DISABLE     (0)
 #define PHY_RON_138O        (1)
 //#define PHY_RON_69O         (2)
@@ -460,8 +541,7 @@ typedef volatile struct DDR_REG_Tag
 #define PHY_RTT_71O         (5)
 #define PHY_RTT_53O         (6)
 #define PHY_RTT_42O         (7)
-
-
+#endif
 
 /* DDR PHY register struct */
 typedef volatile struct DDRPHY_REG_Tag
@@ -1067,7 +1147,34 @@ uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set)
         ret = 24;
         goto out;
     }
-    
+#if defined (CONFIG_ARCH_RK3026)   //RK3028A  RK3026
+    if(!set)
+    {
+        if(nMHz <= 150) //实际输出频率<300
+        {
+            clkPostDiv1 = 6;
+        }
+        else if(nMHz <=200)
+        {
+            clkPostDiv1 = 4;
+        }
+        else if(nMHz <= 300)
+        {
+            clkPostDiv1 = 3;
+        }
+        else if(nMHz <=450)
+        {
+            clkPostDiv1 = 2;
+        }
+        else
+        {
+            clkPostDiv1 = 1;
+        }
+        clkPostDiv2 = 1;
+        clkFbDiv = (nMHz * 2 * DDR_PLL_REFDIV * clkPostDiv1 * clkPostDiv2)/24;//最后送入ddr的是再经过2分频
+        ret = (24 * clkFbDiv)/(2 * DDR_PLL_REFDIV * clkPostDiv1 * clkPostDiv2);
+    }
+#else   //RK2928  2926
     if(!set)
     {
         if(nMHz <= 150)
@@ -1086,6 +1193,7 @@ uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set)
         clkFbDiv = (nMHz * 2 * DDR_PLL_REFDIV * clkPostDiv1 * clkPostDiv2)/24;//最后送入ddr的是再经过2分频
         ret = (24 * clkFbDiv)/(2 * DDR_PLL_REFDIV * clkPostDiv1 * clkPostDiv2);
     }
+#endif
     else
     {
         pCRU_Reg->CRU_MODE_CON = (0x1<<((pll_id*4) +  16)) | (0x0<<(pll_id*4));            //PLL slow-mode
@@ -1765,15 +1873,26 @@ void __sramlocalfunc ddr_update_odt(void)
         pPHY_Reg->PHY_REG0e4 = (0x0E & 0xc)|0x1;//off DQS ODT  bit[1:0]=2'b01 
         pPHY_Reg->PHY_REG124 = (0x0E & 0xc)|0x1;//off DQS ODT  bit[1:0]=2'b01 
     }
+#if defined (CONFIG_ARCH_RK3026)    //RK3028A   RK3026
     else
     {
-        pPHY_Reg->PHY_REG27 = ((PHY_RTT_212O<<3) | PHY_RTT_212O);       //0x5 ODT =  71ohm
-        pPHY_Reg->PHY_REG28 = ((PHY_RTT_212O<<3) | PHY_RTT_212O);    
+        pPHY_Reg->PHY_REG27 = ((PHY_RTT_215ohm<<3) | PHY_RTT_215ohm);       
+        pPHY_Reg->PHY_REG28 = ((PHY_RTT_215ohm<<3) | PHY_RTT_215ohm);    
         pPHY_Reg->PHY_REG0e4 = 0x0E;           //on DQS ODT default:0x0E
         pPHY_Reg->PHY_REG124 = 0x0E;           //on DQS ODT default:0x0E
     }
-    
-    tmp = ((PHY_RON_46O<<3) | PHY_RON_46O);     //0x5 = 46ohm
+    tmp = ((PHY_RON_45ohm<<3) | PHY_RON_45ohm);    
+#else                   //RK2928  R2926
+    else
+    {
+        pPHY_Reg->PHY_REG27 = ((PHY_RTT_212O<<3) | PHY_RTT_212O);       
+        pPHY_Reg->PHY_REG28 = ((PHY_RTT_212O<<3) | PHY_RTT_212O);    
+        pPHY_Reg->PHY_REG0e4 = 0x0E;           //on DQS ODT default:0x0E
+        pPHY_Reg->PHY_REG124 = 0x0E;           //on DQS ODT default:0x0E
+    }    
+    tmp = ((PHY_RON_46O<<3) | PHY_RON_46O);     
+#endif
+  
     pPHY_Reg->PHY_REG16 = tmp;  //CMD driver strength
     pPHY_Reg->PHY_REG22 = tmp;  //CK driver strength    
     pPHY_Reg->PHY_REG25 = tmp;  //Left 8bit DQ driver strength
@@ -1818,7 +1937,7 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     
     //enter config state
     ddr_move_to_Config_state();
-    pDDR_Reg->DFIODTCFG = ((1<<3) | (1<<11));  //loader中漏了初始化
+//    pDDR_Reg->DFIODTCFG = ((1<<3) | (1<<11));  //loader中漏了初始化
     //set auto power down idle
     pDDR_Reg->MCFG=(pDDR_Reg->MCFG&0xffff00ff)|(PD_IDLE<<8);
 
@@ -2218,7 +2337,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t cs,die=1;
     uint32_t calStatusLeft, calStatusRight;
 
-    ddr_print("version 1.00 20130124 \n");
+    ddr_print("version 1.00 20130731 \n");
     cs = (1 << (((pGRF_Reg->GRF_OS_REG[1]) >> DDR_RANK_COUNT)&0x1));    //case 0:1rank ; case 1:2rank ;                            
     mem_type = ((pGRF_Reg->GRF_OS_REG[1] >> 13) &0x7);
     ddr_speed_bin = dram_speed_bin;
@@ -2249,14 +2368,13 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
                                                                     ddr_get_col(), \
                                                                     (ddr_get_cap()>>20));
     ddr_adjust_config(mem_type);
-
     if(freq != 0)
         value=ddr_change_freq(freq);
     else
-        value=ddr_change_freq(clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000);
+        value=ddr_change_freq(clk_get_rate(clk_get(NULL, "ddr"))/1000000);
 
-    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
-    ddr_print("init success!!! freq=%dMHz\n", clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000);
+    clk_set_rate(clk_get(NULL, "ddr"), 0);
+    ddr_print("init success!!! freq=%dMHz\n", clk_get_rate(clk_get(NULL, "ddr"))/1000000);
 
     calStatusLeft = pPHY_Reg->PHY_REG60;
     calStatusRight = pPHY_Reg->PHY_REG61;
