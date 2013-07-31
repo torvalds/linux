@@ -1925,6 +1925,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&ar->conf_mutex);
 
+	memset(arvif, 0, sizeof(*arvif));
+
 	arvif->ar = ar;
 	arvif->vif = vif;
 
