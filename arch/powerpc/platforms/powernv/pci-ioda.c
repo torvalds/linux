@@ -1104,7 +1104,6 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 				  u64 hub_id, int ioda_type)
 {
 	struct pci_controller *hose;
-	static int primary = 1;
 	struct pnv_phb *phb;
 	unsigned long size, m32map_off, iomap_off, pemap_off;
 	const u64 *prop64;
@@ -1164,8 +1163,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		phb->model = PNV_PHB_MODEL_UNKNOWN;
 
 	/* Parse 32-bit and IO ranges (if any) */
-	pci_process_bridge_OF_ranges(phb->hose, np, primary);
-	primary = 0;
+	pci_process_bridge_OF_ranges(hose, np, !hose->global_number);
 
 	/* Get registers */
 	phb->regs = of_iomap(np, 0);
