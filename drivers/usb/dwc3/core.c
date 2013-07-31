@@ -350,11 +350,11 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 
 static int dwc3_probe(struct platform_device *pdev)
 {
-	struct dwc3_platform_data *pdata = pdev->dev.platform_data;
-	struct device_node	*node = pdev->dev.of_node;
+	struct device		*dev = &pdev->dev;
+	struct dwc3_platform_data *pdata = dev_get_platdata(dev);
+	struct device_node	*node = dev->of_node;
 	struct resource		*res;
 	struct dwc3		*dwc;
-	struct device		*dev = &pdev->dev;
 
 	int			ret = -ENOMEM;
 
