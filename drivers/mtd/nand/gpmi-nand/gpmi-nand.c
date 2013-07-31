@@ -1148,43 +1148,31 @@ static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd->priv;
 	struct gpmi_nand_data *this = chip->priv;
-	int block, ret = 0;
+	int ret = 0;
 	uint8_t *block_mark;
 	int column, page, status, chipnr;
 
-	/* Get block number */
-	block = (int)(ofs >> chip->bbt_erase_shift);
-	if (chip->bbt)
-		chip->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
+	chipnr = (int)(ofs >> chip->chip_shift);
+	chip->select_chip(mtd, chipnr);
 
-	/* Do we have a flash based bad block table ? */
-	if (chip->bbt_options & NAND_BBT_USE_FLASH)
-		ret = nand_update_bbt(mtd, ofs);
-	else {
-		chipnr = (int)(ofs >> chip->chip_shift);
-		chip->select_chip(mtd, chipnr);
+	column = this->swap_block_mark ? mtd->writesize : 0;
 
-		column = this->swap_block_mark ? mtd->writesize : 0;
+	/* Write the block mark. */
+	block_mark = this->data_buffer_dma;
+	block_mark[0] = 0; /* bad block marker */
 
-		/* Write the block mark. */
-		block_mark = this->data_buffer_dma;
-		block_mark[0] = 0; /* bad block marker */
+	/* Shift to get page */
+	page = (int)(ofs >> chip->page_shift);
 
-		/* Shift to get page */
-		page = (int)(ofs >> chip->page_shift);
+	chip->cmdfunc(mtd, NAND_CMD_SEQIN, column, page);
+	chip->write_buf(mtd, block_mark, 1);
+	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
 
-		chip->cmdfunc(mtd, NAND_CMD_SEQIN, column, page);
-		chip->write_buf(mtd, block_mark, 1);
-		chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
+	status = chip->waitfunc(mtd, chip);
+	if (status & NAND_STATUS_FAIL)
+		ret = -EIO;
 
-		status = chip->waitfunc(mtd, chip);
-		if (status & NAND_STATUS_FAIL)
-			ret = -EIO;
-
-		chip->select_chip(mtd, -1);
-	}
-	if (!ret)
-		mtd->ecc_stats.badblocks++;
+	chip->select_chip(mtd, -1);
 
 	return ret;
 }
