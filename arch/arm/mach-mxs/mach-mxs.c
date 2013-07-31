@@ -14,6 +14,7 @@
 #include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
@@ -487,6 +488,7 @@ static void __init mxs_timer_init(void)
 		mx23_clocks_init();
 	else
 		mx28_clocks_init();
+	of_clk_init(NULL);
 	clocksource_of_init();
 }
 
