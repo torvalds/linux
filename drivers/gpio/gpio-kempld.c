@@ -46,9 +46,9 @@ static void kempld_gpio_bitop(struct kempld_device_data *pld,
 
 	status = kempld_read8(pld, reg);
 	if (val)
-		status |= (1 << bit);
+		status |= KEMPLD_GPIO_MASK(bit);
 	else
-		status &= ~(1 << bit);
+		status &= ~KEMPLD_GPIO_MASK(bit);
 	kempld_write8(pld, reg, status);
 }
 
@@ -60,7 +60,7 @@ static int kempld_gpio_get_bit(struct kempld_device_data *pld, u8 reg, u8 bit)
 	status = kempld_read8(pld, reg);
 	kempld_release_mutex(pld);
 
-	return !!(status & (1 << bit));
+	return !!(status & KEMPLD_GPIO_MASK(bit));
 }
 
 static int kempld_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -69,8 +69,7 @@ static int kempld_gpio_get(struct gpio_chip *chip, unsigned offset)
 		= container_of(chip, struct kempld_gpio_data, chip);
 	struct kempld_device_data *pld = gpio->pld;
 
-	return kempld_gpio_get_bit(pld, KEMPLD_GPIO_LVL_NUM(offset),
-				   KEMPLD_GPIO_MASK(offset));
+	return kempld_gpio_get_bit(pld, KEMPLD_GPIO_LVL_NUM(offset), offset);
 }
 
 static void kempld_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -80,8 +79,7 @@ static void kempld_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	struct kempld_device_data *pld = gpio->pld;
 
 	kempld_get_mutex(pld);
-	kempld_gpio_bitop(pld, KEMPLD_GPIO_LVL_NUM(offset),
-			  KEMPLD_GPIO_MASK(offset), value);
+	kempld_gpio_bitop(pld, KEMPLD_GPIO_LVL_NUM(offset), offset, value);
 	kempld_release_mutex(pld);
 }
 
@@ -92,8 +90,7 @@ static int kempld_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	struct kempld_device_data *pld = gpio->pld;
 
 	kempld_get_mutex(pld);
-	kempld_gpio_bitop(pld, KEMPLD_GPIO_DIR_NUM(offset),
-			  KEMPLD_GPIO_MASK(offset), 0);
+	kempld_gpio_bitop(pld, KEMPLD_GPIO_DIR_NUM(offset), offset, 0);
 	kempld_release_mutex(pld);
 
 	return 0;
@@ -107,10 +104,8 @@ static int kempld_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	struct kempld_device_data *pld = gpio->pld;
 
 	kempld_get_mutex(pld);
-	kempld_gpio_bitop(pld, KEMPLD_GPIO_LVL_NUM(offset),
-			  KEMPLD_GPIO_MASK(offset), value);
-	kempld_gpio_bitop(pld, KEMPLD_GPIO_DIR_NUM(offset),
-			  KEMPLD_GPIO_MASK(offset), 1);
+	kempld_gpio_bitop(pld, KEMPLD_GPIO_LVL_NUM(offset), offset, value);
+	kempld_gpio_bitop(pld, KEMPLD_GPIO_DIR_NUM(offset), offset, 1);
 	kempld_release_mutex(pld);
 
 	return 0;
@@ -122,8 +117,7 @@ static int kempld_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 		= container_of(chip, struct kempld_gpio_data, chip);
 	struct kempld_device_data *pld = gpio->pld;
 
-	return kempld_gpio_get_bit(pld, KEMPLD_GPIO_DIR_NUM(offset),
-				   KEMPLD_GPIO_MASK(offset));
+	return kempld_gpio_get_bit(pld, KEMPLD_GPIO_DIR_NUM(offset), offset);
 }
 
 static int kempld_gpio_pincount(struct kempld_device_data *pld)
