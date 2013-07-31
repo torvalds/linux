@@ -2338,6 +2338,8 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 			arg.ssids[i].len  = req->ssids[i].ssid_len;
 			arg.ssids[i].ssid = req->ssids[i].ssid;
 		}
+	} else {
+		arg.scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
 	}
 
 	if (req->n_channels) {
