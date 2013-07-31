@@ -154,6 +154,11 @@
 			};
 		};
 
+		devcfg: devcfg@f8007000 {
+			compatible = "xlnx,zynq-devcfg-1.0";
+			reg = <0xf8007000 0x100>;
+		} ;
+
 		global_timer: timer@f8f00200 {
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0xf8f00200 0x20>;
