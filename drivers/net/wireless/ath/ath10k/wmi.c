@@ -390,9 +390,82 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
+static int freq_to_idx(struct ath10k *ar, int freq)
+{
+	struct ieee80211_supported_band *sband;
+	int band, ch, idx = 0;
+
+	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
+		sband = ar->hw->wiphy->bands[band];
+		if (!sband)
+			continue;
+
+		for (ch = 0; ch < sband->n_channels; ch++, idx++)
+			if (sband->channels[ch].center_freq == freq)
+				goto exit;
+	}
+
+exit:
+	return idx;
+}
+
 static void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_CHAN_INFO_EVENTID\n");
+	struct wmi_chan_info_event *ev;
+	struct survey_info *survey;
+	u32 err_code, freq, cmd_flags, noise_floor, rx_clear_count, cycle_count;
+	int idx;
+
+	ev = (struct wmi_chan_info_event *)skb->data;
+
+	err_code = __le32_to_cpu(ev->err_code);
+	freq = __le32_to_cpu(ev->freq);
+	cmd_flags = __le32_to_cpu(ev->cmd_flags);
+	noise_floor = __le32_to_cpu(ev->noise_floor);
+	rx_clear_count = __le32_to_cpu(ev->rx_clear_count);
+	cycle_count = __le32_to_cpu(ev->cycle_count);
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "chan info err_code %d freq %d cmd_flags %d noise_floor %d rx_clear_count %d cycle_count %d\n",
+		   err_code, freq, cmd_flags, noise_floor, rx_clear_count,
+		   cycle_count);
+
+	spin_lock_bh(&ar->data_lock);
+
+	if (!ar->scan.in_progress) {
+		ath10k_warn("chan info event without a scan request?\n");
+		goto exit;
+	}
+
+	idx = freq_to_idx(ar, freq);
+	if (idx >= ARRAY_SIZE(ar->survey)) {
+		ath10k_warn("chan info: invalid frequency %d (idx %d out of bounds)\n",
+			    freq, idx);
+		goto exit;
+	}
+
+	if (cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
+		/* During scanning chan info is reported twice for each
+		 * visited channel. The reported cycle count is global
+		 * and per-channel cycle count must be calculated */
+
+		cycle_count -= ar->survey_last_cycle_count;
+		rx_clear_count -= ar->survey_last_rx_clear_count;
+
+		survey = &ar->survey[idx];
+		survey->channel_time = WMI_CHAN_INFO_MSEC(cycle_count);
+		survey->channel_time_rx = WMI_CHAN_INFO_MSEC(rx_clear_count);
+		survey->noise = noise_floor;
+		survey->filled = SURVEY_INFO_CHANNEL_TIME |
+				 SURVEY_INFO_CHANNEL_TIME_RX |
+				 SURVEY_INFO_NOISE_DBM;
+	}
+
+	ar->survey_last_rx_clear_count = rx_clear_count;
+	ar->survey_last_cycle_count = cycle_count;
+
+exit:
+	spin_unlock_bh(&ar->data_lock);
 }
 
 static void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb)

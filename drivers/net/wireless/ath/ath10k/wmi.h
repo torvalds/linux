@@ -2931,6 +2931,11 @@ struct wmi_chan_info_event {
 	__le32 cycle_count;
 } __packed;
 
+#define WMI_CHAN_INFO_FLAG_COMPLETE BIT(0)
+
+/* FIXME: empirically extrapolated */
+#define WMI_CHAN_INFO_MSEC(x) ((x) / 76595)
+
 /* Beacon filter wmi command info */
 #define BCN_FLT_MAX_SUPPORTED_IES	256
 #define BCN_FLT_MAX_ELEMS_IE_LIST	(BCN_FLT_MAX_SUPPORTED_IES / 32)
