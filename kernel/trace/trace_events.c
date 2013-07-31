@@ -1732,6 +1732,12 @@ static int probe_remove_event_call(struct ftrace_event_call *call)
 		 */
 		if (file->flags & FTRACE_EVENT_FL_ENABLED)
 			return -EBUSY;
+		/*
+		 * The do_for_each_event_file_safe() is
+		 * a double loop. After finding the call for this
+		 * trace_array, we use break to jump to the next
+		 * trace_array.
+		 */
 		break;
 	} while_for_each_event_file();
 
