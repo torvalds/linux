@@ -1109,6 +1109,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	unsigned long size, m32map_off, iomap_off, pemap_off;
 	const u64 *prop64;
 	const u32 *prop32;
+	int len;
 	u64 phb_id;
 	void *aux;
 	long rc;
@@ -1140,9 +1141,15 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	}
 
 	spin_lock_init(&phb->lock);
-	/* XXX Use device-tree */
-	hose->first_busno = 0;
-	hose->last_busno = 0xff;
+	prop32 = of_get_property(np, "bus-range", &len);
+	if (prop32 && len == 8) {
+		hose->first_busno = prop32[0];
+		hose->last_busno = prop32[1];
+	} else {
+		pr_warn("  Broken <bus-range> on %s\n", np->full_name);
+		hose->first_busno = 0;
+		hose->last_busno = 0xff;
+	}
 	hose->private_data = phb;
 	phb->hub_id = hub_id;
 	phb->opal_id = phb_id;
