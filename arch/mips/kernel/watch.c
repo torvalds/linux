@@ -100,7 +100,7 @@ void mips_clear_watch_registers(void)
 	}
 }
 
-__cpuinit void mips_probe_watch_registers(struct cpuinfo_mips *c)
+void mips_probe_watch_registers(struct cpuinfo_mips *c)
 {
 	unsigned int t;
 

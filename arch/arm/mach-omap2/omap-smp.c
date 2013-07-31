@@ -51,7 +51,7 @@ void __iomem *omap4_get_scu_base(void)
 	return scu_base;
 }
 
-static void __cpuinit omap4_secondary_init(unsigned int cpu)
+static void omap4_secondary_init(unsigned int cpu)
 {
 	/*
 	 * Configure ACTRL and enable NS SMP bit access on CPU1 on HS device.
@@ -72,7 +72,7 @@ static void __cpuinit omap4_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int omap4_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	static struct clockdomain *cpu1_clkdm;
 	static bool booted;

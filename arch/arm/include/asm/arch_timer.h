@@ -89,7 +89,7 @@ static inline u64 arch_counter_get_cntvct(void)
 	return cval;
 }
 
-static inline void __cpuinit arch_counter_set_user_access(void)
+static inline void arch_counter_set_user_access(void)
 {
 	u32 cntkctl;
 

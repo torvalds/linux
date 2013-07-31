@@ -182,7 +182,7 @@ const char *get_system_type(void)
 	return ath79_sys_type;
 }
 
-unsigned int __cpuinit get_c0_compare_int(void)
+unsigned int get_c0_compare_int(void)
 {
 	return CP0_LEGACY_COMPARE_IRQ;
 }

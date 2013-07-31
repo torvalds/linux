@@ -211,8 +211,8 @@ struct iio_chan_spec {
 static inline bool iio_channel_has_info(const struct iio_chan_spec *chan,
 	enum iio_chan_info_enum type)
 {
-	return (chan->info_mask_separate & type) |
-	       (chan->info_mask_shared_by_type & type);
+	return (chan->info_mask_separate & BIT(type)) |
+	       (chan->info_mask_shared_by_type & BIT(type));
 }
 
 #define IIO_ST(si, rb, sb, sh)						\

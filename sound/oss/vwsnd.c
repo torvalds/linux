@@ -149,17 +149,19 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include <asm/visws/cobalt.h>
 
 #include "sound_config.h"
+
+static DEFINE_MUTEX(vwsnd_mutex);
 
 /*****************************************************************************/
 /* debug stuff */
 
 #ifdef VWSND_DEBUG
 
-static DEFINE_MUTEX(vwsnd_mutex);
 static int shut_up = 1;
 
 /*

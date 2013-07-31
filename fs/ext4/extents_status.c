@@ -148,6 +148,8 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 			      ext4_lblk_t end);
 static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
 				       int nr_to_scan);
+static int __ext4_es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
+			    struct ext4_inode_info *locked_ei);
 
 int __init ext4_init_es(void)
 {
@@ -439,7 +441,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		 */
 		if (!ext4_es_is_written(es) && !ext4_es_is_unwritten(es)) {
 			if (in_range(es->es_lblk, ee_block, ee_len)) {
-				pr_warn("ES insert assertation failed for "
+				pr_warn("ES insert assertion failed for "
 					"inode: %lu we can find an extent "
 					"at block [%d/%d/%llu/%c], but we "
 					"want to add an delayed/hole extent "
@@ -458,7 +460,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		 */
 		if (es->es_lblk < ee_block ||
 		    ext4_es_pblock(es) != ee_start + es->es_lblk - ee_block) {
-			pr_warn("ES insert assertation failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %lu "
 				"ex_status [%d/%d/%llu/%c] != "
 				"es_status [%d/%d/%llu/%c]\n", inode->i_ino,
 				ee_block, ee_len, ee_start,
@@ -468,7 +470,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		}
 
 		if (ee_status ^ es_status) {
-			pr_warn("ES insert assertation failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %lu "
 				"ex_status [%d/%d/%llu/%c] != "
 				"es_status [%d/%d/%llu/%c]\n", inode->i_ino,
 				ee_block, ee_len, ee_start,
@@ -481,7 +483,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		 * that we don't want to add an written/unwritten extent.
 		 */
 		if (!ext4_es_is_delayed(es) && !ext4_es_is_hole(es)) {
-			pr_warn("ES insert assertation failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %lu "
 				"can't find an extent at block %d but we want "
 				"to add an written/unwritten extent "
 				"[%d/%d/%llu/%llx]\n", inode->i_ino,
@@ -519,7 +521,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 			 * We want to add a delayed/hole extent but this
 			 * block has been allocated.
 			 */
-			pr_warn("ES insert assertation failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %lu "
 				"We can find blocks but we want to add a "
 				"delayed/hole extent [%d/%d/%llu/%llx]\n",
 				inode->i_ino, es->es_lblk, es->es_len,
@@ -527,13 +529,13 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 			return;
 		} else if (ext4_es_is_written(es)) {
 			if (retval != es->es_len) {
-				pr_warn("ES insert assertation failed for "
+				pr_warn("ES insert assertion failed for "
 					"inode: %lu retval %d != es_len %d\n",
 					inode->i_ino, retval, es->es_len);
 				return;
 			}
 			if (map.m_pblk != ext4_es_pblock(es)) {
-				pr_warn("ES insert assertation failed for "
+				pr_warn("ES insert assertion failed for "
 					"inode: %lu m_pblk %llu != "
 					"es_pblk %llu\n",
 					inode->i_ino, map.m_pblk,
@@ -549,7 +551,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 		}
 	} else if (retval == 0) {
 		if (ext4_es_is_written(es)) {
-			pr_warn("ES insert assertation failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %lu "
 				"We can't find the block but we want to add "
 				"an written extent [%d/%d/%llu/%llx]\n",
 				inode->i_ino, es->es_lblk, es->es_len,
@@ -632,10 +634,8 @@ out:
 }
 
 /*
- * ext4_es_insert_extent() adds a space to a extent status tree.
- *
- * ext4_es_insert_extent is called by ext4_da_write_begin and
- * ext4_es_remove_extent.
+ * ext4_es_insert_extent() adds information to an inode's extent
+ * status tree.
  *
  * Return 0 on success, error code on failure.
  */
@@ -667,7 +667,13 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	err = __es_remove_extent(inode, lblk, end);
 	if (err != 0)
 		goto error;
+retry:
 	err = __es_insert_extent(inode, &newes);
+	if (err == -ENOMEM && __ext4_es_shrink(EXT4_SB(inode->i_sb), 1,
+					       EXT4_I(inode)))
+		goto retry;
+	if (err == -ENOMEM && !ext4_es_is_delayed(&newes))
+		err = 0;
 
 error:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
@@ -746,8 +752,10 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	struct extent_status orig_es;
 	ext4_lblk_t len1, len2;
 	ext4_fsblk_t block;
-	int err = 0;
+	int err;
 
+retry:
+	err = 0;
 	es = __es_tree_search(&tree->root, lblk);
 	if (!es)
 		goto out;
@@ -782,6 +790,10 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 			if (err) {
 				es->es_lblk = orig_es.es_lblk;
 				es->es_len = orig_es.es_len;
+				if ((err == -ENOMEM) &&
+				    __ext4_es_shrink(EXT4_SB(inode->i_sb), 1,
+						     EXT4_I(inode)))
+					goto retry;
 				goto out;
 			}
 		} else {
@@ -891,21 +903,13 @@ static int ext4_inode_touch_time_cmp(void *priv, struct list_head *a,
 		return -1;
 }
 
-static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
+static int __ext4_es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
+			    struct ext4_inode_info *locked_ei)
 {
-	struct ext4_sb_info *sbi = container_of(shrink,
-					struct ext4_sb_info, s_es_shrinker);
 	struct ext4_inode_info *ei;
 	struct list_head *cur, *tmp;
 	LIST_HEAD(skiped);
-	int nr_to_scan = sc->nr_to_scan;
 	int ret, nr_shrunk = 0;
-
-	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
-	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan, ret);
-
-	if (!nr_to_scan)
-		return ret;
 
 	spin_lock(&sbi->s_es_lru_lock);
 
@@ -935,7 +939,7 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 			continue;
 		}
 
-		if (ei->i_es_lru_nr == 0)
+		if (ei->i_es_lru_nr == 0 || ei == locked_ei)
 			continue;
 
 		write_lock(&ei->i_es_lock);
@@ -953,6 +957,27 @@ static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	/* Move the newer inodes into the tail of the LRU list. */
 	list_splice_tail(&skiped, &sbi->s_es_lru);
 	spin_unlock(&sbi->s_es_lru_lock);
+
+	if (locked_ei && nr_shrunk == 0)
+		nr_shrunk = __es_try_to_reclaim_extents(ei, nr_to_scan);
+
+	return nr_shrunk;
+}
+
+static int ext4_es_shrink(struct shrinker *shrink, struct shrink_control *sc)
+{
+	struct ext4_sb_info *sbi = container_of(shrink,
+					struct ext4_sb_info, s_es_shrinker);
+	int nr_to_scan = sc->nr_to_scan;
+	int ret, nr_shrunk;
+
+	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
+	trace_ext4_es_shrink_enter(sbi->s_sb, nr_to_scan, ret);
+
+	if (!nr_to_scan)
+		return ret;
+
+	nr_shrunk = __ext4_es_shrink(sbi, nr_to_scan, NULL);
 
 	ret = percpu_counter_read_positive(&sbi->s_extent_cache_cnt);
 	trace_ext4_es_shrink_exit(sbi->s_sb, nr_shrunk, ret);

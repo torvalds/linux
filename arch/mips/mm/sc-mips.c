@@ -132,7 +132,7 @@ static inline int __init mips_sc_probe(void)
 	return 1;
 }
 
-int __cpuinit mips_sc_init(void)
+int mips_sc_init(void)
 {
 	int found = mips_sc_probe();
 	if (found) {

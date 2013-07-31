@@ -25,7 +25,6 @@
 
 #include "prcm-common.h"
 #include "prcm44xx.h"
-#include "prm-regbits-54xx.h"
 #include "prm54xx.h"
 #include "prcm_mpu54xx.h"
 
