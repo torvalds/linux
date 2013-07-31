@@ -1435,9 +1435,13 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	init_waitqueue_head(&c->try_wait);
 	init_waitqueue_head(&c->bucket_wait);
 	closure_init_unlocked(&c->uuid_write);
-	spin_lock_init(&c->sort_time_lock);
 	mutex_init(&c->sort_lock);
-	spin_lock_init(&c->btree_read_time_lock);
+
+	spin_lock_init(&c->sort_time.lock);
+	spin_lock_init(&c->btree_gc_time.lock);
+	spin_lock_init(&c->btree_split_time.lock);
+	spin_lock_init(&c->btree_read_time.lock);
+	spin_lock_init(&c->try_harder_time.lock);
 
 	bch_moving_init_cache_set(c);
 

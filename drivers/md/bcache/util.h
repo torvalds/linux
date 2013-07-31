@@ -378,6 +378,7 @@ ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[
 ssize_t bch_read_string_list(const char *buf, const char * const list[]);
 
 struct time_stats {
+	spinlock_t	lock;
 	/*
 	 * all fields are in nanoseconds, averages are ewmas stored left shifted
 	 * by 8

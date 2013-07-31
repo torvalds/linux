@@ -317,10 +317,7 @@ void bch_btree_node_read(struct btree *b)
 		goto err;
 
 	bch_btree_node_read_done(b);
-
-	spin_lock(&b->c->btree_read_time_lock);
 	bch_time_stats_update(&b->c->btree_read_time, start_time);
-	spin_unlock(&b->c->btree_read_time_lock);
 
 	return;
 err:
