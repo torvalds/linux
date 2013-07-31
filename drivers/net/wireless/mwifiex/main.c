@@ -414,6 +414,8 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	struct mwifiex_private *priv;
 	struct mwifiex_adapter *adapter = context;
 	struct mwifiex_fw_image fw;
+	struct semaphore *sem = adapter->card_sem;
+	bool init_failed = false;
 
 	if (!firmware) {
 		dev_err(adapter->dev,
@@ -528,15 +530,20 @@ err_dnld_fw:
 	}
 	adapter->surprise_removed = true;
 	mwifiex_terminate_workqueue(adapter);
-	mwifiex_free_adapter(adapter);
+	init_failed = true;
 done:
 	if (adapter->cal_data) {
 		release_firmware(adapter->cal_data);
 		adapter->cal_data = NULL;
 	}
-	release_firmware(adapter->firmware);
+	if (adapter->firmware) {
+		release_firmware(adapter->firmware);
+		adapter->firmware = NULL;
+	}
 	complete(&adapter->fw_load);
-	up(adapter->card_sem);
+	if (init_failed)
+		mwifiex_free_adapter(adapter);
+	up(sem);
 	return;
 }
 
