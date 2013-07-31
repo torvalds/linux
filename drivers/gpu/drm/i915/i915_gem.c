@@ -2625,7 +2625,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	/* Avoid an unnecessary call to unbind on rebind. */
 	obj->map_and_fenceable = true;
 
-	vma = __i915_gem_obj_to_vma(obj);
+	vma = i915_gem_obj_to_vma(obj, &dev_priv->gtt.base);
 	list_del(&vma->vma_link);
 	drm_mm_remove_node(&vma->node);
 	i915_gem_vma_destroy(vma);
@@ -3313,7 +3313,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct i915_vma *vma = __i915_gem_obj_to_vma(obj);
+	struct i915_vma *vma = i915_gem_obj_to_vma(obj, &dev_priv->gtt.base);
 	int ret;
 
 	if (obj->cache_level == cache_level)
@@ -3353,7 +3353,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 			i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
 					       obj, cache_level);
 
-		i915_gem_obj_ggtt_set_color(obj, cache_level);
+		i915_gem_obj_to_vma(obj, &dev_priv->gtt.base)->node.color = cache_level;
 	}
 
 	if (cache_level == I915_CACHE_NONE) {
@@ -4665,4 +4665,76 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 	if (unlock)
 		mutex_unlock(&dev->struct_mutex);
 	return cnt;
+}
+
+/* All the new VM stuff */
+unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
+				  struct i915_address_space *vm)
+{
+	struct drm_i915_private *dev_priv = o->base.dev->dev_private;
+	struct i915_vma *vma;
+
+	if (vm == &dev_priv->mm.aliasing_ppgtt->base)
+		vm = &dev_priv->gtt.base;
+
+	BUG_ON(list_empty(&o->vma_list));
+	list_for_each_entry(vma, &o->vma_list, vma_link) {
+		if (vma->vm == vm)
+			return vma->node.start;
+
+	}
+	return -1;
+}
+
+bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
+			struct i915_address_space *vm)
+{
+	struct i915_vma *vma;
+
+	list_for_each_entry(vma, &o->vma_list, vma_link)
+		if (vma->vm == vm)
+			return true;
+
+	return false;
+}
+
+bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o)
+{
+	struct drm_i915_private *dev_priv = o->base.dev->dev_private;
+	struct i915_address_space *vm;
+
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
+		if (i915_gem_obj_bound(o, vm))
+			return true;
+
+	return false;
+}
+
+unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
+				struct i915_address_space *vm)
+{
+	struct drm_i915_private *dev_priv = o->base.dev->dev_private;
+	struct i915_vma *vma;
+
+	if (vm == &dev_priv->mm.aliasing_ppgtt->base)
+		vm = &dev_priv->gtt.base;
+
+	BUG_ON(list_empty(&o->vma_list));
+
+	list_for_each_entry(vma, &o->vma_list, vma_link)
+		if (vma->vm == vm)
+			return vma->node.size;
+
+	return 0;
+}
+
+struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
+				     struct i915_address_space *vm)
+{
+	struct i915_vma *vma;
+	list_for_each_entry(vma, &obj->vma_list, vma_link)
+		if (vma->vm == vm)
+			return vma;
+
+	return NULL;
 }

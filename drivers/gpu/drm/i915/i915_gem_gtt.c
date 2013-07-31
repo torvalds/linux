@@ -657,7 +657,7 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		struct i915_vma *vma = __i915_gem_obj_to_vma(obj);
+		struct i915_vma *vma = i915_gem_obj_to_vma(obj, &dev_priv->gtt.base);
 		int ret;
 		DRM_DEBUG_KMS("reserving preallocated space: %lx + %zx\n",
 			      i915_gem_obj_ggtt_offset(obj), obj->base.size);

@@ -1393,52 +1393,6 @@ struct drm_i915_gem_object {
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
-/* This is a temporary define to help transition us to real VMAs. If you see
- * this, you're either reviewing code, or bisecting it. */
-static inline struct i915_vma *
-__i915_gem_obj_to_vma(struct drm_i915_gem_object *obj)
-{
-	if (list_empty(&obj->vma_list))
-		return NULL;
-	return list_first_entry(&obj->vma_list, struct i915_vma, vma_link);
-}
-
-/* Whether or not this object is currently mapped by the translation tables */
-static inline bool
-i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *o)
-{
-	struct i915_vma *vma = __i915_gem_obj_to_vma(o);
-	if (vma == NULL)
-		return false;
-	return drm_mm_node_allocated(&vma->node);
-}
-
-/* Offset of the first PTE pointing to this object */
-static inline unsigned long
-i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
-{
-	BUG_ON(list_empty(&o->vma_list));
-	return __i915_gem_obj_to_vma(o)->node.start;
-}
-
-/* The size used in the translation tables may be larger than the actual size of
- * the object on GEN2/GEN3 because of the way tiling is handled. See
- * i915_gem_get_gtt_size() for more details.
- */
-static inline unsigned long
-i915_gem_obj_ggtt_size(struct drm_i915_gem_object *o)
-{
-	BUG_ON(list_empty(&o->vma_list));
-	return __i915_gem_obj_to_vma(o)->node.size;
-}
-
-static inline void
-i915_gem_obj_ggtt_set_color(struct drm_i915_gem_object *o,
-			    enum i915_cache_level color)
-{
-	__i915_gem_obj_to_vma(o)->node.color = color;
-}
-
 /**
  * Request queue structure.
  *
@@ -1906,6 +1860,43 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
 void i915_gem_restore_fences(struct drm_device *dev);
+
+unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
+				  struct i915_address_space *vm);
+bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o);
+bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
+			struct i915_address_space *vm);
+unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
+				struct i915_address_space *vm);
+struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
+				     struct i915_address_space *vm);
+/* Some GGTT VM helpers */
+#define obj_to_ggtt(obj) \
+	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->gtt.base)
+static inline bool i915_is_ggtt(struct i915_address_space *vm)
+{
+	struct i915_address_space *ggtt =
+		&((struct drm_i915_private *)(vm)->dev->dev_private)->gtt.base;
+	return vm == ggtt;
+}
+
+static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_obj_bound(obj, obj_to_ggtt(obj));
+}
+
+static inline unsigned long
+i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_obj_offset(obj, obj_to_ggtt(obj));
+}
+
+static inline unsigned long
+i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_obj_size(obj, obj_to_ggtt(obj));
+}
+#undef obj_to_ggtt
 
 /* i915_gem_context.c */
 void i915_gem_context_init(struct drm_device *dev);
