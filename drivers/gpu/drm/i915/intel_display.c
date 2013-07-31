@@ -59,7 +59,6 @@ typedef struct {
 	int	p2_slow, p2_fast;
 } intel_p2_t;
 
-#define INTEL_P2_NUM		      2
 typedef struct intel_limit intel_limit_t;
 struct intel_limit {
 	intel_range_t   dot, vco, n, m, m1, m2, p, p1;
