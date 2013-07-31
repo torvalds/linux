@@ -84,33 +84,34 @@ static int r8a7779_platform_cpu_kill(unsigned int cpu)
 static int __cpuinit r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	struct r8a7779_pm_ch *ch = NULL;
-	int ret = -EIO;
+	unsigned int lcpu = cpu_logical_map(cpu);
+	int ret;
 
-	cpu = cpu_logical_map(cpu);
+	ret = shmobile_smp_scu_boot_secondary(cpu, idle);
+	if (ret)
+		return ret;
 
-	if (cpu < ARRAY_SIZE(r8a7779_ch_cpu))
-		ch = r8a7779_ch_cpu[cpu];
+	if (lcpu < ARRAY_SIZE(r8a7779_ch_cpu))
+		ch = r8a7779_ch_cpu[lcpu];
 
 	if (ch)
 		ret = r8a7779_sysc_power_up(ch);
+	else
+		ret = -EIO;
 
 	return ret;
 }
 
 static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
-
-	/* setup r8a7779 specific SCU base */
-	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
-	scu_enable(shmobile_scu_base);
-
 	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
 	__raw_writel(__pa(shmobile_boot_vector), AVECR);
 	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
 	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
 
-	/* enable cache coherency on booting CPU */
-	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
+	/* setup r8a7779 specific SCU bits */
+	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
+	shmobile_smp_scu_prepare_cpus(max_cpus);
 
 	r8a7779_pm_init();
 
