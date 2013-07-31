@@ -4340,6 +4340,16 @@ init_ring_lists(struct intel_ring_buffer *ring)
 	INIT_LIST_HEAD(&ring->request_list);
 }
 
+static void i915_init_vm(struct drm_i915_private *dev_priv,
+			 struct i915_address_space *vm)
+{
+	vm->dev = dev_priv->dev;
+	INIT_LIST_HEAD(&vm->active_list);
+	INIT_LIST_HEAD(&vm->inactive_list);
+	INIT_LIST_HEAD(&vm->global_link);
+	list_add(&vm->global_link, &dev_priv->vm_list);
+}
+
 void
 i915_gem_load(struct drm_device *dev)
 {
@@ -4352,8 +4362,9 @@ i915_gem_load(struct drm_device *dev)
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
 
-	INIT_LIST_HEAD(&dev_priv->gtt.base.active_list);
-	INIT_LIST_HEAD(&dev_priv->gtt.base.inactive_list);
+	INIT_LIST_HEAD(&dev_priv->vm_list);
+	i915_init_vm(dev_priv, &dev_priv->gtt.base);
+
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
