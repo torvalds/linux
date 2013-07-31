@@ -67,6 +67,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include "xhci.h"
+#include "xhci-trace.h"
 
 static int handle_cmd_in_cmd_wait_list(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
@@ -1454,7 +1455,8 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 			break;
 		}
 bandwidth_change:
-		xhci_dbg(xhci, "Completed config ep cmd\n");
+		xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
+				"Completed config ep cmd");
 		xhci->devs[slot_id]->cmd_status =
 			GET_COMP_CODE(le32_to_cpu(event->status));
 		complete(&xhci->devs[slot_id]->cmd_completion);

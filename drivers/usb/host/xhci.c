@@ -1153,12 +1153,16 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 	hw_max_packet_size = MAX_PACKET_DECODED(le32_to_cpu(ep_ctx->ep_info2));
 	max_packet_size = usb_endpoint_maxp(&urb->dev->ep0.desc);
 	if (hw_max_packet_size != max_packet_size) {
-		xhci_dbg(xhci, "Max Packet Size for ep 0 changed.\n");
-		xhci_dbg(xhci, "Max packet size in usb_device = %d\n",
+		xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
+				"Max Packet Size for ep 0 changed.");
+		xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
+				"Max packet size in usb_device = %d",
 				max_packet_size);
-		xhci_dbg(xhci, "Max packet size in xHCI HW = %d\n",
+		xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
+				"Max packet size in xHCI HW = %d",
 				hw_max_packet_size);
-		xhci_dbg(xhci, "Issuing evaluate context command.\n");
+		xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
+				"Issuing evaluate context command.");
 
 		/* Set up the input context flags for the command */
 		/* FIXME: This won't work if a non-default control endpoint
@@ -1776,7 +1780,8 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		ret = -ENODEV;
 		break;
 	case COMP_SUCCESS:
-		dev_dbg(&udev->dev, "Successful Endpoint Configure command\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_context_change,
+				"Successful Endpoint Configure command");
 		ret = 0;
 		break;
 	default:
@@ -1822,7 +1827,8 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 		ret = -EINVAL;
 		break;
 	case COMP_SUCCESS:
-		dev_dbg(&udev->dev, "Successful evaluate context command\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_context_change,
+				"Successful evaluate context command");
 		ret = 0;
 		break;
 	default:
@@ -2583,7 +2589,8 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		if ((xhci->quirks & XHCI_EP_LIMIT_QUIRK))
 			xhci_free_host_resources(xhci, ctrl_ctx);
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
+		xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
+				"FIXME allocate a new ring segment");
 		return -ENOMEM;
 	}
 	xhci_ring_cmd_db(xhci);
@@ -3865,7 +3872,8 @@ static int __maybe_unused xhci_change_max_exit_latency(struct xhci_hcd *xhci,
 	slot_ctx->dev_info2 &= cpu_to_le32(~((u32) MAX_EXIT));
 	slot_ctx->dev_info2 |= cpu_to_le32(max_exit_latency);
 
-	xhci_dbg(xhci, "Set up evaluate context for LPM MEL change.\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_context_change,
+			"Set up evaluate context for LPM MEL change.");
 	xhci_dbg(xhci, "Slot %u Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, command->in_ctx, 0);
 
