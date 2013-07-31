@@ -28,6 +28,7 @@
 	}
 
 static struct map_desc rk2928_io_desc[] __initdata = {
+	RK2928_DEVICE(ROM),
 	RK2928_DEVICE(CORE),
 	RK2928_DEVICE(CPU_AXI_BUS),
 #if CONFIG_RK_DEBUG_UART == 0
