@@ -2903,7 +2903,8 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 {
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
-	bool disable_mclk_switching;
+	bool disable_mclk_switching = false;
+	bool disable_sclk_switching = false;
 	u32 mclk, sclk;
 	u16 vddc, vddci;
 	int i;
@@ -2911,8 +2912,11 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
 	    ni_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
-	else
-		disable_mclk_switching = false;
+
+	if (rps->vclk || rps->dclk) {
+		disable_mclk_switching = true;
+		disable_sclk_switching = true;
+	}
 
 	if (rdev->pm.dpm.ac_power)
 		max_limits = &rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
@@ -2940,14 +2944,18 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 
 	if (disable_mclk_switching) {
 		mclk  = ps->performance_levels[ps->performance_level_count - 1].mclk;
-		sclk = ps->performance_levels[0].sclk;
-		vddc = ps->performance_levels[0].vddc;
 		vddci = ps->performance_levels[ps->performance_level_count - 1].vddci;
 	} else {
-		sclk = ps->performance_levels[0].sclk;
 		mclk = ps->performance_levels[0].mclk;
-		vddc = ps->performance_levels[0].vddc;
 		vddci = ps->performance_levels[0].vddci;
+	}
+
+	if (disable_sclk_switching) {
+		sclk = ps->performance_levels[ps->performance_level_count - 1].sclk;
+		vddc = ps->performance_levels[ps->performance_level_count - 1].vddc;
+	} else {
+		sclk = ps->performance_levels[0].sclk;
+		vddc = ps->performance_levels[0].vddc;
 	}
 
 	/* adjusted low state */
@@ -2956,11 +2964,23 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	ps->performance_levels[0].vddc = vddc;
 	ps->performance_levels[0].vddci = vddci;
 
-	for (i = 1; i < ps->performance_level_count; i++) {
-		if (ps->performance_levels[i].sclk < ps->performance_levels[i - 1].sclk)
-			ps->performance_levels[i].sclk = ps->performance_levels[i - 1].sclk;
-		if (ps->performance_levels[i].vddc < ps->performance_levels[i - 1].vddc)
-			ps->performance_levels[i].vddc = ps->performance_levels[i - 1].vddc;
+	if (disable_sclk_switching) {
+		sclk = ps->performance_levels[0].sclk;
+		for (i = 1; i < ps->performance_level_count; i++) {
+			if (sclk < ps->performance_levels[i].sclk)
+				sclk = ps->performance_levels[i].sclk;
+		}
+		for (i = 0; i < ps->performance_level_count; i++) {
+			ps->performance_levels[i].sclk = sclk;
+			ps->performance_levels[i].vddc = vddc;
+		}
+	} else {
+		for (i = 1; i < ps->performance_level_count; i++) {
+			if (ps->performance_levels[i].sclk < ps->performance_levels[i - 1].sclk)
+				ps->performance_levels[i].sclk = ps->performance_levels[i - 1].sclk;
+			if (ps->performance_levels[i].vddc < ps->performance_levels[i - 1].vddc)
+				ps->performance_levels[i].vddc = ps->performance_levels[i - 1].vddc;
+		}
 	}
 
 	if (disable_mclk_switching) {
