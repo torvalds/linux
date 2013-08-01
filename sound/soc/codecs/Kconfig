@@ -469,4 +469,4 @@ config SND_SOC_RK2928
 
 config SND_SOC_RK3028
 	tristate
-	depends on ARCH_RK3028
+	depends on ARCH_RK3026
