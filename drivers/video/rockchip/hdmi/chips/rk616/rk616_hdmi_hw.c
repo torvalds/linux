@@ -100,8 +100,14 @@ static void rk616_hdmi_set_pwr_mode(int mode)
      case NORMAL:
 	     hdmi_dbg(hdmi->dev,"%s change pwr_mode NORMALpwr_mode = %d, mode = %d\n",__FUNCTION__,hdmi->pwr_mode,mode);
 	   	rk616_hdmi_sys_power_down();
-		hdmi_writel(PHY_DRIVER,0xaa);
-		hdmi_writel(PHY_PRE_EMPHASIS,0x0f);
+                if (hdmi->set_vif) {
+        		hdmi_writel(PHY_DRIVER,0xaa);
+	        	hdmi_writel(PHY_PRE_EMPHASIS,0x0f);
+                } else {
+                        /* 3026 */
+        		hdmi_writel(PHY_DRIVER,0xbb);
+	        	hdmi_writel(PHY_PRE_EMPHASIS,0x4f);
+                }
 		hdmi_writel(PHY_SYS_CTL,0x2d);
 		hdmi_writel(PHY_SYS_CTL,0x2c);
 		hdmi_writel(PHY_SYS_CTL,0x28);
