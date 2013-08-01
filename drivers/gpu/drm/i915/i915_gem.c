@@ -3166,7 +3166,7 @@ search_free:
 						  size, alignment,
 						  obj->cache_level, 0, gtt_max);
 	if (ret) {
-		ret = i915_gem_evict_something(dev, size, alignment,
+		ret = i915_gem_evict_something(dev, vm, size, alignment,
 					       obj->cache_level,
 					       map_and_fenceable,
 					       nonblocking);
