@@ -51,6 +51,10 @@
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
 
+#ifdef CONFIG_SND_SOC_RK3028
+#include "../../../sound/soc/codecs/rk3028_codec.h"
+#endif
+
 #if defined(CONFIG_RK_HDMI)
         #include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -932,6 +936,29 @@ void __sramfunc board_pmu_resume(void)
 	#endif
 }
 
+#ifdef CONFIG_SND_SOC_RK3028
+struct rk3028_codec_pdata rk3028_codec_pdata_info={
+    .spk_ctl_gpio = INVALID_GPIO,
+    .hp_ctl_gpio = RK2928_PIN1_PA0,
+};
+
+static struct resource resources_acodec[] = {
+	{
+		.start 	= RK2928_ACODEC_PHYS,
+		.end 	= RK2928_ACODEC_PHYS + RK2928_ACODEC_SIZE - 1,
+		.flags 	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device rk3028_codec = {
+	.name	= "rk3028-codec",
+	.id		= -1,
+	.resource = resources_acodec,
+    	.dev = {
+        	.platform_data = &rk3028_codec_pdata_info,
+    }
+};
+#endif
 /***********************************************************
 *	i2c
 ************************************************************/
@@ -1031,6 +1058,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	&rk29sdk_wifi_device,
+#endif
+#ifdef CONFIG_SND_SOC_RK3028
+ 	&rk3028_codec,
 #endif
 };
 

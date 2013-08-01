@@ -100,6 +100,7 @@ snd-soc-rt5640-objs := rt5640.o rt5640-dsp.o rt5640_ioctl.o rt56xx_ioctl.o
 snd-soc-rt3261-objs := rt3261.o rt3261-dsp.o rt3261_ioctl.o rt_codec_ioctl.o
 snd-soc-rt3224-objs := rt3261.o rt3261_ioctl.o rt_codec_ioctl.o
 snd-soc-rk2928-objs := rk2928_codec.o
+snd-soc-rk3028-objs := rk3028_codec.o
 snd-soc-rt5639-objs := rt5639.o rt5639_ioctl.o rt56xx_ioctl.o 
 
 # Amp
@@ -211,6 +212,7 @@ obj-$(CONFIG_SND_SOC_RK1000)	+= snd-soc-rk1000.o
 obj-$(CONFIG_SND_SOC_RK610)	+= snd-soc-rk610.o
 obj-$(CONFIG_SND_SOC_RK616)	+= snd-soc-rk616.o
 obj-$(CONFIG_SND_SOC_RK2928)	+= snd-soc-rk2928.o
+obj-$(CONFIG_SND_SOC_RK3028)	+= snd-soc-rk3028.o
 
 # Amp
 obj-$(CONFIG_SND_SOC_LM4857)	+= snd-soc-lm4857.o

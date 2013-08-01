@@ -295,6 +295,16 @@ config SND_RK_SOC_RK2928
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK2928 internal codec.
 
+config SND_RK_SOC_RK3028
+	tristate "SoC I2S Audio support for rockchip - RK3026&R3028A"
+	depends on SND_RK29_SOC && ARCH_RK3026
+	select SND_RK29_SOC_I2S
+	select SND_SOC_RK3028
+	select SND_RK29_CODEC_SOC_SLAVE
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the RK3028 internal codec.
+
 if SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH  
 choice
   bool "Set i2s type"
