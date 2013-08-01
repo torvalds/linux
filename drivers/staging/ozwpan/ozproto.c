@@ -296,6 +296,7 @@ static void oz_add_farewell(struct oz_pd *pd, u8 ep_num, u8 index,
 		return;
 	f->ep_num = ep_num;
 	f->index = index;
+	f->len = len;
 	memcpy(f->report, report, len);
 	oz_dbg(ON, "RX: Adding farewell report\n");
 	spin_lock(&g_polling_lock);
