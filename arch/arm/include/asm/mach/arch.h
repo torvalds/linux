@@ -35,7 +35,7 @@ struct machine_desc {
 	unsigned int		nr_irqs;	/* number of IRQs */
 
 #ifdef CONFIG_ZONE_DMA
-	unsigned long		dma_zone_size;	/* size of DMA-able area */
+	phys_addr_t		dma_zone_size;	/* size of DMA-able area */
 #endif
 
 	unsigned int		video_start;	/* start of video RAM	*/
