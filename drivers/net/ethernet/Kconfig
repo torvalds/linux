@@ -169,15 +169,6 @@ source "drivers/net/ethernet/smsc/Kconfig"
 source "drivers/net/ethernet/stmicro/Kconfig"
 source "drivers/net/ethernet/sun/Kconfig"
 
-config WEMAC_SUN3I
-	tristate "wemac support(sun3i)"
-	depends on ARCH_SUN3I
-	---help---
-	  Support for softwinner chipset.
-
-	  To compile this driver as a module, choose M here.  The module
-	  will be called wemac.
-
 config SUNXI_EMAC
         tristate "Allwinner Ethernet MAC support"
         depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I

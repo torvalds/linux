@@ -699,20 +699,6 @@ config ARCH_PICOXCELL
 	  family of Femtocell devices.  The picoxcell support requires device tree
 	  for all boards.
 
-config ARCH_SUN3I
-	bool "Allwinner SUN3I Platform"
-	select PLAT_SUNXI
-	select CPU_ARM926T
-	select ARM_AMBA
-	select HAVE_CLK
-	select ARM_VIC
-	# select COMMON_CLKDEV
-	select ICST
-	select GENERIC_CLOCKEVENTS
-	select NEED_MACH_IO_H
-	help
-	  This enables support for Allwinner Technology Co., Ltd F20 SoC based systems
-
 config ARCH_SUN4I
 	bool "AllWinner SUN4I (A10 SoC) Platform"
 	select PLAT_SUNXI
@@ -1172,7 +1158,6 @@ source "arch/arm/mach-s5pv210/Kconfig"
 
 if PLAT_SUNXI
 source "arch/arm/plat-sunxi/Kconfig"
-source "arch/arm/mach-sun3i/Kconfig"
 endif
 
 source "arch/arm/mach-exynos/Kconfig"

@@ -46,7 +46,6 @@ enum sunxi_chip_id {
 };
 
 enum {
-	SUNXI_BIT_SUN3I = BIT(31),
 	SUNXI_BIT_SUN4I = BIT(30),
 	SUNXI_BIT_SUN5I = BIT(29),
 	SUNXI_BIT_SUN6I = BIT(28),

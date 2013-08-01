@@ -272,18 +272,6 @@ config FB_GRVGA
 	---help---
 	This enables support for the SVGACTRL framebuffer in the GRLIB IP library from Aeroflex Gaisler.
 
-config SUN3I_FB
-	tristate "FB Controller Driver Support(sun3i)"
-	depends on FB && ARCH_SUN3I
-	---help---
-	default m
-
-config SUN3I_HDMI
-	tristate "HDMI Driver Support(sun3i)"
-	depends on SUN3I_FB
-	---help---
-	default m
-
 config FB_SUNXI
         tristate "DISP Driver Support(sunxi)"
         depends on FB && (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)

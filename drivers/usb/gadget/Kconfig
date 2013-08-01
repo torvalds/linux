@@ -494,18 +494,6 @@ config USB_CI13XXX_MSM
 	  dynamically linked module called "ci13xxx_msm" and force all
 	  gadget drivers to also be dynamically linked.
 
-config USB_SW_SUN3I_UDC0
-	tristate "SoftWinner SUN3I USB Peripheral Controller"
-	depends on USB_SW_SUN3I_USB_MANAGER && (USB_SW_SUN3I_USB0_DEVICE_ONLY || USB_SW_SUN3I_USB0_OTG)
-	select USB_GADGET_DUALSPEED
-	select USB_GADGET_SELECTED
-	select USB_SW_SUN3I_UDC0_BUILTIN
-	help
-	   USB device only
-
-	   Note: Even if selected to build as module, this driver will be
-	   built in to kernel image.
-
 config USB_SW_SUNXI_UDC0_SELECT
 	tristate "SoftWinner SUNXI USB Peripheral Controller"
 	depends on USB_SW_SUNXI_USB_MANAGER
@@ -556,11 +544,6 @@ endchoice
 #
 # Workaround current module building limitation of sunxi USB
 #
-config USB_SW_SUN3I_UDC0_BUILTIN
-	bool
-	prompt "SoftWinner SUN3I USB Peripheral Controller (as built-in driver)" if USB_SW_SUN3I_UDC0
-	depends on USB_SW_SUN3I_USB_MANAGER
-
 config USB_SW_SUNXI_UDC0
 	bool
 	depends on USB_SW_SUNXI_USB_MANAGER
