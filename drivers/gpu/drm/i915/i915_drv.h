@@ -1982,7 +1982,9 @@ static inline void i915_gem_chipset_flush(struct drm_device *dev)
 
 
 /* i915_gem_evict.c */
-int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,
+int __must_check i915_gem_evict_something(struct drm_device *dev,
+					  struct i915_address_space *vm,
+					  int min_size,
 					  unsigned alignment,
 					  unsigned cache_level,
 					  bool mappable,

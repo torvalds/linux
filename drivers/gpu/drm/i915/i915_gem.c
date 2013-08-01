@@ -3154,7 +3154,7 @@ search_free:
 						  obj->cache_level, 0, gtt_max,
 						  DRM_MM_SEARCH_DEFAULT);
 	if (ret) {
-		ret = i915_gem_evict_something(dev, size, alignment,
+		ret = i915_gem_evict_something(dev, vm, size, alignment,
 					       obj->cache_level,
 					       map_and_fenceable,
 					       nonblocking);
