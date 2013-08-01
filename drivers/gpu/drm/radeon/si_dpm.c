@@ -1767,7 +1767,7 @@ static void si_calculate_leakage_for_v_and_t_formula(const struct ni_leakage_coe
 	s64 temperature, t_slope, t_intercept, av, bv, t_ref;
 	s64 tmp;
 
-	i_leakage = drm_int2fixp(ileakage) / 100;
+	i_leakage = div64_s64(drm_int2fixp(ileakage), 100);
 	vddc = div64_s64(drm_int2fixp(v), 1000);
 	temperature = div64_s64(drm_int2fixp(t), 1000);
 
