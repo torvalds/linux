@@ -2123,6 +2123,7 @@ static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
 	return pixel_rate;
 }
 
+/* latency must be in 0.1us units. */
 static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 			       uint32_t latency)
 {
@@ -2137,6 +2138,7 @@ static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 	return ret;
 }
 
+/* latency must be in 0.1us units. */
 static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
 			       uint32_t latency)
@@ -2200,7 +2202,10 @@ enum hsw_data_buf_partitioning {
 	HSW_DATA_BUF_PART_5_6,
 };
 
-/* For both WM_PIPE and WM_LP. */
+/*
+ * For both WM_PIPE and WM_LP.
+ * mem_value must be in 0.1us units.
+ */
 static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value,
 				   bool is_lp)
@@ -2227,7 +2232,10 @@ static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
 	return min(method1, method2);
 }
 
-/* For both WM_PIPE and WM_LP. */
+/*
+ * For both WM_PIPE and WM_LP.
+ * mem_value must be in 0.1us units.
+ */
 static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
@@ -2247,7 +2255,10 @@ static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
 	return min(method1, method2);
 }
 
-/* For both WM_PIPE and WM_LP. */
+/*
+ * For both WM_PIPE and WM_LP.
+ * mem_value must be in 0.1us units.
+ */
 static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
