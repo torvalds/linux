@@ -1809,6 +1809,8 @@ static inline void skb_orphan(struct sk_buff *skb)
 		skb->destructor(skb);
 		skb->destructor = NULL;
 		skb->sk		= NULL;
+	} else {
+		BUG_ON(skb->sk);
 	}
 }
 
