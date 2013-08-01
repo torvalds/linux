@@ -863,6 +863,18 @@ static int macvlan_changelink(struct net_device *dev,
 		struct nlattr *tb[], struct nlattr *data[])
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
+	enum macvlan_mode mode;
+	bool set_mode = false;
+
+	/* Validate mode, but don't set yet: setting flags may fail. */
+	if (data && data[IFLA_MACVLAN_MODE]) {
+		set_mode = true;
+		mode = nla_get_u32(data[IFLA_MACVLAN_MODE]);
+		/* Passthrough mode can't be set or cleared dynamically */
+		if ((mode == MACVLAN_MODE_PASSTHRU) !=
+		    (vlan->mode == MACVLAN_MODE_PASSTHRU))
+			return -EINVAL;
+	}
 
 	if (data && data[IFLA_MACVLAN_FLAGS]) {
 		__u16 flags = nla_get_u16(data[IFLA_MACVLAN_FLAGS]);
@@ -879,8 +891,8 @@ static int macvlan_changelink(struct net_device *dev,
 		}
 		vlan->flags = flags;
 	}
-	if (data && data[IFLA_MACVLAN_MODE])
-		vlan->mode = nla_get_u32(data[IFLA_MACVLAN_MODE]);
+	if (set_mode)
+		vlan->mode = mode;
 	return 0;
 }
 
