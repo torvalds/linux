@@ -2815,6 +2815,7 @@ static const struct hda_pintbl ecs202_pin_configs[] = {
 
 /* codec SSIDs for Intel Mac sharing the same PCI SSID 8384:7680 */
 static const struct snd_pci_quirk stac922x_intel_mac_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x0000, 0x0100, "Mac Mini", STAC_INTEL_MAC_V3),
 	SND_PCI_QUIRK(0x106b, 0x0800, "Mac", STAC_INTEL_MAC_V1),
 	SND_PCI_QUIRK(0x106b, 0x0600, "Mac", STAC_INTEL_MAC_V2),
 	SND_PCI_QUIRK(0x106b, 0x0700, "Mac", STAC_INTEL_MAC_V2),
