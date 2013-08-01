@@ -801,6 +801,8 @@ static int ehci_hub_control (
 			ehci_writel(ehci, temp | PORT_RESUME, status_reg);
 			ehci->reset_done[wIndex] = jiffies
 					+ msecs_to_jiffies(20);
+			set_bit(wIndex, &ehci->resuming_ports);
+			usb_hcd_start_port_resume(&hcd->self, wIndex);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			clear_bit(wIndex, &ehci->port_c_suspend);
@@ -911,7 +913,6 @@ static int ehci_hub_control (
 					ehci->reset_done[wIndex])) {
 			status |= USB_PORT_STAT_C_RESET << 16;
 			ehci->reset_done [wIndex] = 0;
-			clear_bit(wIndex, &ehci->resuming_ports);
 
 			/* force reset to complete */
 			ehci_writel(ehci, temp & ~(PORT_RWC_BITS | PORT_RESET),
