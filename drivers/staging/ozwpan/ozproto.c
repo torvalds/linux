@@ -636,7 +636,7 @@ static int oz_pkt_recv(struct sk_buff *skb, struct net_device *dev,
 /*------------------------------------------------------------------------------
  * Context: process
  */
-void oz_binding_add(char *net_dev)
+void oz_binding_add(const char *net_dev)
 {
 	struct oz_binding *binding;
 
@@ -669,7 +669,7 @@ void oz_binding_add(char *net_dev)
 /*------------------------------------------------------------------------------
  * Context: process
  */
-static int compare_binding_name(char *s1, char *s2)
+static int compare_binding_name(const char *s1, const char *s2)
 {
 	int i;
 	for (i = 0; i < OZ_MAX_BINDING_LEN; i++) {
@@ -707,7 +707,7 @@ static void pd_stop_all_for_device(struct net_device *net_dev)
 /*------------------------------------------------------------------------------
  * Context: process
  */
-void oz_binding_remove(char *net_dev)
+void oz_binding_remove(const char *net_dev)
 {
 	struct oz_binding *binding;
 	int found = 0;
