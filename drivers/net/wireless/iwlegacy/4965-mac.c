@@ -5285,6 +5285,9 @@ il4965_alive_start(struct il_priv *il)
 
 	il->active_rate = RATES_MASK;
 
+	il_power_update_mode(il, true);
+	D_INFO("Updated power mode\n");
+
 	if (il_is_associated(il)) {
 		struct il_rxon_cmd *active_rxon =
 		    (struct il_rxon_cmd *)&il->active;
@@ -5314,9 +5317,6 @@ il4965_alive_start(struct il_priv *il)
 
 	D_INFO("ALIVE processing complete.\n");
 	wake_up(&il->wait_command_queue);
-
-	il_power_update_mode(il, true);
-	D_INFO("Updated power mode\n");
 
 	return;
 
