@@ -220,6 +220,13 @@ typedef MPIPE_PDESC_t gxio_mpipe_idesc_t;
  */
 typedef MPIPE_EDMA_DESC_t gxio_mpipe_edesc_t;
 
+/*
+ * Max # of mpipe instances. 2 currently.
+ */
+#define GXIO_MPIPE_INSTANCE_MAX  HV_MPIPE_INSTANCE_MAX
+
+#define NR_MPIPE_MAX   GXIO_MPIPE_INSTANCE_MAX
+
 /* Get the "va" field from an "idesc".
  *
  * This is the address at which the ingress hardware copied the first
@@ -310,6 +317,9 @@ typedef struct {
 
 	/* File descriptor for calling up to Linux (and thus the HV). */
 	int fd;
+
+	/* Corresponding mpipe instance #. */
+	int instance;
 
 	/* The VA at which configuration registers are mapped. */
 	char *mmio_cfg_base;
@@ -1715,6 +1725,24 @@ typedef struct {
 	/* The MAC index used by this link. */
 	uint8_t mac;
 } gxio_mpipe_link_t;
+
+/* Translate a link name to the instance number of the mPIPE shim which is
+ *  connected to that link.  This call does not verify whether the link is
+ *  currently available, and does not reserve any link resources;
+ *  gxio_mpipe_link_open() must be called to perform those functions.
+ *
+ *  Typically applications will call this function to translate a link name
+ *  to an mPIPE instance number; call gxio_mpipe_init(), passing it that
+ *  instance number, to initialize the mPIPE shim; and then call
+ *  gxio_mpipe_link_open(), passing it the same link name plus the mPIPE
+ *  context, to configure the link.
+ *
+ * @param link_name Name of the link; see @ref gxio_mpipe_link_names.
+ * @return The mPIPE instance number which is associated with the named
+ *  link, or a negative error code (::GXIO_ERR_NO_DEVICE) if the link does
+ *  not exist.
+ */
+extern int gxio_mpipe_link_instance(const char *link_name);
 
 /* Retrieve one of this system's legal link names, and its MAC address.
  *

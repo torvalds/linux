@@ -36,16 +36,20 @@ int gxio_mpipe_init(gxio_mpipe_context_t *context, unsigned int mpipe_index)
 	int fd;
 	int i;
 
+	if (mpipe_index >= GXIO_MPIPE_INSTANCE_MAX)
+		return -EINVAL;
+
 	snprintf(file, sizeof(file), "mpipe/%d/iorpc", mpipe_index);
 	fd = hv_dev_open((HV_VirtAddr) file, 0);
+
+	context->fd = fd;
+
 	if (fd < 0) {
 		if (fd >= GXIO_ERR_MIN && fd <= GXIO_ERR_MAX)
 			return fd;
 		else
 			return -ENODEV;
 	}
-
-	context->fd = fd;
 
 	/* Map in the MMIO space. */
 	context->mmio_cfg_base = (void __force *)
@@ -64,12 +68,15 @@ int gxio_mpipe_init(gxio_mpipe_context_t *context, unsigned int mpipe_index)
 	for (i = 0; i < 8; i++)
 		context->__stacks.stacks[i] = 255;
 
+	context->instance = mpipe_index;
+
 	return 0;
 
       fast_failed:
 	iounmap((void __force __iomem *)(context->mmio_cfg_base));
       cfg_failed:
 	hv_dev_close(context->fd);
+	context->fd = -1;
 	return -ENODEV;
 }
 
@@ -494,6 +501,20 @@ static gxio_mpipe_context_t *_gxio_get_link_context(void)
 	mutex_unlock(&mutex);
 
 	return contextp;
+}
+
+int gxio_mpipe_link_instance(const char *link_name)
+{
+	_gxio_mpipe_link_name_t name;
+	gxio_mpipe_context_t *context = _gxio_get_link_context();
+
+	if (!context)
+		return GXIO_ERR_NO_DEVICE;
+
+	strncpy(name.name, link_name, sizeof(name.name));
+	name.name[GXIO_MPIPE_LINK_NAME_LEN - 1] = '\0';
+
+	return gxio_mpipe_info_instance_aux(context, name);
 }
 
 int gxio_mpipe_link_enumerate_mac(int idx, char *link_name, uint8_t *link_mac)

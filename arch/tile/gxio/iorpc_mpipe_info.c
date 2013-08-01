@@ -16,6 +16,24 @@
 #include "gxio/iorpc_mpipe_info.h"
 
 
+struct instance_aux_param {
+	_gxio_mpipe_link_name_t name;
+};
+
+int gxio_mpipe_info_instance_aux(gxio_mpipe_info_context_t * context,
+				 _gxio_mpipe_link_name_t name)
+{
+	struct instance_aux_param temp;
+	struct instance_aux_param *params = &temp;
+
+	params->name = name;
+
+	return hv_dev_pwrite(context->fd, 0, (HV_VirtAddr) params,
+			     sizeof(*params), GXIO_MPIPE_INFO_OP_INSTANCE_AUX);
+}
+
+EXPORT_SYMBOL(gxio_mpipe_info_instance_aux);
+
 struct enumerate_aux_param {
 	_gxio_mpipe_link_name_t name;
 	_gxio_mpipe_link_mac_t mac;
