@@ -491,11 +491,19 @@ static inline void bnx2x_vfop_credit(struct bnx2x *bp,
 	 * and a valid credit counter
 	 */
 	if (!vfop->rc && args->credit) {
-		int cnt = 0;
 		struct list_head *pos;
+		int read_lock;
+		int cnt = 0;
+
+		read_lock = bnx2x_vlan_mac_h_read_lock(bp, obj);
+		if (read_lock)
+			DP(BNX2X_MSG_SP, "Failed to take vlan mac read head; continuing anyway\n");
 
 		list_for_each(pos, &obj->head)
 			cnt++;
+
+		if (!read_lock)
+			bnx2x_vlan_mac_h_read_unlock(bp, obj);
 
 		atomic_set(args->credit, cnt);
 	}

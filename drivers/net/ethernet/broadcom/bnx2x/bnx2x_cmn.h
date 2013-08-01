@@ -418,6 +418,7 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set);
  * netif_addr_lock_bh()
  */
 void bnx2x_set_rx_mode(struct net_device *dev);
+void bnx2x_set_rx_mode_inner(struct bnx2x *bp);
 
 /**
  * bnx2x_set_storm_rx_mode - configure MAC filtering rules in a FW.

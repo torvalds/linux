@@ -9628,11 +9628,9 @@ sp_rtnl_not_reset:
 		}
 	}
 
-	if (test_and_clear_bit(BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
-			       &bp->sp_rtnl_state)) {
-		DP(BNX2X_MSG_SP,
-		   "sending set storm rx mode vf pf channel message from rtnl sp-task\n");
-		bnx2x_vfpf_storm_rx_mode(bp);
+	if (test_and_clear_bit(BNX2X_SP_RTNL_RX_MODE, &bp->sp_rtnl_state)) {
+		DP(BNX2X_MSG_SP, "Handling Rx Mode setting\n");
+		bnx2x_set_rx_mode_inner(bp);
 	}
 
 	if (test_and_clear_bit(BNX2X_SP_RTNL_HYPERVISOR_VLAN,
@@ -11849,34 +11847,48 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 void bnx2x_set_rx_mode(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	u32 rx_mode = BNX2X_RX_MODE_NORMAL;
 
 	if (bp->state != BNX2X_STATE_OPEN) {
 		DP(NETIF_MSG_IFUP, "state is %x, returning\n", bp->state);
 		return;
+	} else {
+		/* Schedule an SP task to handle rest of change */
+		DP(NETIF_MSG_IFUP, "Scheduling an Rx mode change\n");
+		smp_mb__before_clear_bit();
+		set_bit(BNX2X_SP_RTNL_RX_MODE, &bp->sp_rtnl_state);
+		smp_mb__after_clear_bit();
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
 	}
+}
+
+void bnx2x_set_rx_mode_inner(struct bnx2x *bp)
+{
+	u32 rx_mode = BNX2X_RX_MODE_NORMAL;
 
 	DP(NETIF_MSG_IFUP, "dev->flags = %x\n", bp->dev->flags);
 
-	if (dev->flags & IFF_PROMISC)
+	netif_addr_lock_bh(bp->dev);
+
+	if (bp->dev->flags & IFF_PROMISC) {
 		rx_mode = BNX2X_RX_MODE_PROMISC;
-	else if ((dev->flags & IFF_ALLMULTI) ||
-		 ((netdev_mc_count(dev) > BNX2X_MAX_MULTICAST) &&
-		  CHIP_IS_E1(bp)))
+	} else if ((bp->dev->flags & IFF_ALLMULTI) ||
+		   ((netdev_mc_count(bp->dev) > BNX2X_MAX_MULTICAST) &&
+		    CHIP_IS_E1(bp))) {
 		rx_mode = BNX2X_RX_MODE_ALLMULTI;
-	else {
+	} else {
 		if (IS_PF(bp)) {
 			/* some multicasts */
 			if (bnx2x_set_mc_list(bp) < 0)
 				rx_mode = BNX2X_RX_MODE_ALLMULTI;
 
+			/* release bh lock, as bnx2x_set_uc_list might sleep */
+			netif_addr_unlock_bh(bp->dev);
 			if (bnx2x_set_uc_list(bp) < 0)
 				rx_mode = BNX2X_RX_MODE_PROMISC;
+			netif_addr_lock_bh(bp->dev);
 		} else {
 			/* configuring mcast to a vf involves sleeping (when we
-			 * wait for the pf's response). Since this function is
-			 * called from non sleepable context we must schedule
-			 * a work item for this purpose
+			 * wait for the pf's response).
 			 */
 			smp_mb__before_clear_bit();
 			set_bit(BNX2X_SP_RTNL_VFPF_MCAST,
@@ -11894,22 +11906,20 @@ void bnx2x_set_rx_mode(struct net_device *dev)
 	/* Schedule the rx_mode command */
 	if (test_bit(BNX2X_FILTER_RX_MODE_PENDING, &bp->sp_state)) {
 		set_bit(BNX2X_FILTER_RX_MODE_SCHED, &bp->sp_state);
+		netif_addr_unlock_bh(bp->dev);
 		return;
 	}
 
 	if (IS_PF(bp)) {
 		bnx2x_set_storm_rx_mode(bp);
+		netif_addr_unlock_bh(bp->dev);
 	} else {
-		/* configuring rx mode to storms in a vf involves sleeping (when
-		 * we wait for the pf's response). Since this function is
-		 * called from non sleepable context we must schedule
-		 * a work item for this purpose
+		/* VF will need to request the PF to make this change, and so
+		 * the VF needs to release the bottom-half lock prior to the
+		 * request (as it will likely require sleep on the VF side)
 		 */
-		smp_mb__before_clear_bit();
-		set_bit(BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
-			&bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
-		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+		netif_addr_unlock_bh(bp->dev);
+		bnx2x_vfpf_storm_rx_mode(bp);
 	}
 }
 
