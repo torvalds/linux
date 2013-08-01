@@ -11,6 +11,7 @@
 #define LVDS_INPUT_FORMAT	(1<<3)
 #define LVDS_OUTPUT_FORMAT(x)	(((x)&3)<<1)
 #define LVDS_DATA_SEL		(1<<0)
+#define LVDS_OUT_CONFIG         0xffff088a
 
 enum{
 	OUT_DISABLE=0,

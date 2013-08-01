@@ -22,6 +22,7 @@
 
 static void rk3026_output_lvds(rk_screen *screen)
 {
+
 	u32 val =0;
 	
 	/*
@@ -49,7 +50,7 @@ static void rk3026_output_lvds(rk_screen *screen)
 
 	val |= (LVDS_DATA_SEL | LVDS_OUTPUT_FORMAT(3) | LVDS_CBG_PWR_EN | LVDS_PLL_PWR_EN |
 			LVDS_OUTPUT_EN | LVDS_CBS_COL_SEL(3) | LVDS_SWING_SEL) << 16;	
-
+	val = LVDS_OUT_CONFIG;
 	lvds_writel(val,CRU_LVDS_CON0);
 	
 	return;
@@ -103,6 +104,7 @@ static void rk3026_output_disable(void)
 
 static int rk3026_lvds_set_param(rk_screen *screen,bool enable)
 {
+
 	if(OUT_ENABLE == enable){
 		switch(screen->type){
 			case SCREEN_LVDS:
@@ -112,7 +114,7 @@ static int rk3026_lvds_set_param(rk_screen *screen,bool enable)
 				rk3026_output_lvttl(screen);
 				break;
 			default:
-				printk("%s>>>>LVDS not support this screen type %d,power down LVDS\n",__func__,screen->type);
+			        printk("%s>>>>LVDS not support this screen type %d,power down LVDS\n",__func__,screen->type);
 				rk3026_output_disable();
 				break;
 		}
@@ -126,7 +128,6 @@ static int rk3026_lvds_set_param(rk_screen *screen,bool enable)
 static int rk3026_lvds_probe(struct platform_device *pdev)
 {
 	rk_screen *screen = NULL;
-
 	screen = rk_fb_get_prmry_screen();
 	if(!screen)
 	{

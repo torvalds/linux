@@ -5,7 +5,7 @@
 #include "../transmitter/rk610_lcd.h"
 #endif
 
-#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS)
+#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS) || defined(CONFIG_RK3026_LVDS)
 #define SCREEN_TYPE	    	SCREEN_LVDS
 #else
 #define SCREEN_TYPE	    	SCREEN_RGB
@@ -31,7 +31,7 @@
 #define LCD_WIDTH          	216
 #define LCD_HEIGHT         	135
 /* Other */
-#if defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS)  
+#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS) || defined(CONFIG_RK3026_LVDS)
 #define DCLK_POL	1
 #else
 #define DCLK_POL	0

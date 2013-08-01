@@ -448,7 +448,7 @@ static int rk3188_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
 	}
 
 	rk3188_lcdc_read_reg_defalut_cfg(lcdc_dev);
-	#ifdef CONFIG_ARCH_RK3188
+	#if defined(CONFIG_ARCH_RK3188)
 	if(lcdc_dev->id == 0)
 	{
 		#if defined(CONFIG_LCDC0_IO_18V)
@@ -632,7 +632,7 @@ static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 			    v_VASP(screen->vsync_len + screen->upper_margin));
 	}
  	spin_unlock(&lcdc_dev->reg_lock);
-	#ifdef CONFIG_ARCH_RK3026
+	#if defined(CONFIG_ARCH_RK3026)
 	if(dev_drv->screen0->type == SCREEN_RGB) //iomux for RGB screen
 	{
 		iomux_set(LCDC0_DCLK);

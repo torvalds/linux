@@ -213,7 +213,7 @@ static int rk29_backlight_pwm_resume(void)
 
 static struct rk29_bl_info rk29_bl_info = {
 	.pwm_id = BL_PWM,
-	.min_brightness=20,
+	.min_brightness=200,
 	.max_brightness=255,
 	.brightness_mode = BRIGHTNESS_MODE_CONIC,
 	.bl_ref = PWM_EFFECT_VALUE,
