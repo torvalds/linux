@@ -161,7 +161,9 @@ static void dbg(const char *fmt, ...)
 	vsprintf(buff, fmt, va);
 	va_end(va);
 
+#if defined(CONFIG_DEBUG_LL) || defined(CONFIG_RK_EARLY_PRINTK)
 	printascii(buff);
+#endif
 }
 
 //enable log output
