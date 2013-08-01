@@ -1439,7 +1439,8 @@ int main(void)
 	char *kvp_recv_buffer;
 	size_t kvp_recv_buffer_len;
 
-	daemon(1, 0);
+	if (daemon(1, 0))
+		return 1;
 	openlog("KVP", 0, LOG_USER);
 	syslog(LOG_INFO, "KVP starting; pid is:%d", getpid());
 
