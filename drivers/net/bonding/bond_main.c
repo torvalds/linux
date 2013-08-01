@@ -3910,52 +3910,32 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 	return NETDEV_TX_OK;
 }
 
-/*
- * in broadcast mode, we send everything to all usable interfaces.
- */
+/* in broadcast mode, we send everything to all usable interfaces. */
 static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave, *start_at;
-	struct net_device *tx_dev = NULL;
-	int i;
-	int res = 1;
+	struct slave *slave = NULL;
 
-	start_at = bond->curr_active_slave;
-	if (!start_at)
-		goto out;
+	bond_for_each_slave(bond, slave) {
+		if (bond_is_last_slave(bond, slave))
+			break;
+		if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
+			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 
-	bond_for_each_slave_from(bond, slave, i, start_at) {
-		if (IS_UP(slave->dev) &&
-		    (slave->link == BOND_LINK_UP) &&
-		    bond_is_active_slave(slave)) {
-			if (tx_dev) {
-				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
-				if (!skb2) {
-					pr_err("%s: Error: bond_xmit_broadcast(): skb_clone() failed\n",
-					       bond_dev->name);
-					continue;
-				}
-
-				res = bond_dev_queue_xmit(bond, skb2, tx_dev);
-				if (res) {
-					kfree_skb(skb2);
-					continue;
-				}
+			if (!skb2) {
+				pr_err("%s: Error: bond_xmit_broadcast(): skb_clone() failed\n",
+				       bond_dev->name);
+				continue;
 			}
-			tx_dev = slave->dev;
+			/* bond_dev_queue_xmit always returns 0 */
+			bond_dev_queue_xmit(bond, skb2, slave->dev);
 		}
 	}
-
-	if (tx_dev)
-		res = bond_dev_queue_xmit(bond, skb, tx_dev);
-
-out:
-	if (res)
-		/* no suitable interface, frame not sent */
+	if (slave && IS_UP(slave->dev) && slave->link == BOND_LINK_UP)
+		bond_dev_queue_xmit(bond, skb, slave->dev);
+	else
 		kfree_skb(skb);
 
-	/* frame sent to all suitable interfaces */
 	return NETDEV_TX_OK;
 }
 
