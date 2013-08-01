@@ -89,10 +89,6 @@
 /* ISSUE: This has not been thoroughly tested (except at 1500). */
 #define TILE_NET_MTU 1500
 
-/* HACK: Define to support GSO. */
-/* ISSUE: This may actually hurt performance of the TCP blaster. */
-/* #define TILE_NET_GSO */
-
 /* Define this to collapse "duplicate" acks. */
 /* #define IGNORE_DUP_ACKS */
 
@@ -2336,39 +2332,28 @@ static const struct net_device_ops tile_net_ops = {
  */
 static void tile_net_setup(struct net_device *dev)
 {
-	PDEBUG("tile_net_setup()\n");
+	netdev_features_t features = 0;
 
 	ether_setup(dev);
-
 	dev->netdev_ops = &tile_net_ops;
-
 	dev->watchdog_timeo = TILE_NET_TIMEOUT;
-
-	/* We want lockless xmit. */
-	dev->features |= NETIF_F_LLTX;
-
-	/* We support hardware tx checksums. */
-	dev->features |= NETIF_F_HW_CSUM;
-
-	/* We support scatter/gather. */
-	dev->features |= NETIF_F_SG;
-
-	/* We support TSO. */
-	dev->features |= NETIF_F_TSO;
-
-#ifdef TILE_NET_GSO
-	/* We support GSO. */
-	dev->features |= NETIF_F_GSO;
-#endif
-
-	if (hash_default)
-		dev->features |= NETIF_F_HIGHDMA;
-
-	/* ISSUE: We should support NETIF_F_UFO. */
-
 	dev->tx_queue_len = TILE_NET_TX_QUEUE_LEN;
-
 	dev->mtu = TILE_NET_MTU;
+
+	features |= NETIF_F_LLTX;
+	features |= NETIF_F_HW_CSUM;
+	features |= NETIF_F_SG;
+	features |= NETIF_F_TSO;
+
+	/* We can't support HIGHDMA without hash_default, since we need
+	 * to be able to finv() with a VA if we don't have hash_default.
+	 */
+	if (hash_default)
+		features |= NETIF_F_HIGHDMA;
+
+	dev->hw_features   |= features;
+	dev->vlan_features |= features;
+	dev->features      |= features;
 }
 
 

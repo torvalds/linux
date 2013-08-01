@@ -1800,14 +1800,21 @@ static const struct net_device_ops tile_net_ops = {
  */
 static void tile_net_setup(struct net_device *dev)
 {
+	netdev_features_t features = 0;
+
 	ether_setup(dev);
 	dev->netdev_ops = &tile_net_ops;
 	dev->watchdog_timeo = TILE_NET_TIMEOUT;
-	dev->features |= NETIF_F_LLTX;
-	dev->features |= NETIF_F_HW_CSUM;
-	dev->features |= NETIF_F_SG;
-	dev->features |= NETIF_F_TSO;
 	dev->mtu = 1500;
+
+	features |= NETIF_F_LLTX;
+	features |= NETIF_F_HW_CSUM;
+	features |= NETIF_F_SG;
+	features |= NETIF_F_TSO;
+
+	dev->hw_features   |= features;
+	dev->vlan_features |= features;
+	dev->features      |= features;
 }
 
 /* Allocate the device structure, register the device, and obtain the
