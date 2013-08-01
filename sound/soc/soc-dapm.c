@@ -177,7 +177,7 @@ static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 struct dapm_kcontrol_data {
 	unsigned int value;
 	struct list_head paths;
-	struct snd_soc_dapm_widget_list wlist;
+	struct snd_soc_dapm_widget_list *wlist;
 };
 
 static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
@@ -185,7 +185,7 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 {
 	struct dapm_kcontrol_data *data;
 
-	data = kzalloc(sizeof(*data) + sizeof(widget), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		dev_err(widget->dapm->dev,
 				"ASoC: can't allocate kcontrol data for %s\n",
@@ -193,8 +193,6 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 		return -ENOMEM;
 	}
 
-	data->wlist.widgets[0] = widget;
-	data->wlist.num_widgets = 1;
 	INIT_LIST_HEAD(&data->paths);
 
 	kcontrol->private_data = data;
@@ -205,6 +203,7 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 static void dapm_kcontrol_free(struct snd_kcontrol *kctl)
 {
 	struct dapm_kcontrol_data *data = snd_kcontrol_chip(kctl);
+	kfree(data->wlist);
 	kfree(data);
 }
 
@@ -213,25 +212,30 @@ static struct snd_soc_dapm_widget_list *dapm_kcontrol_get_wlist(
 {
 	struct dapm_kcontrol_data *data = snd_kcontrol_chip(kcontrol);
 
-	return &data->wlist;
+	return data->wlist;
 }
 
 static int dapm_kcontrol_add_widget(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_widget *widget)
 {
 	struct dapm_kcontrol_data *data = snd_kcontrol_chip(kcontrol);
-	struct dapm_kcontrol_data *new_data;
-	unsigned int n = data->wlist.num_widgets + 1;
+	struct snd_soc_dapm_widget_list *new_wlist;
+	unsigned int n;
 
-	new_data = krealloc(data, sizeof(*data) + sizeof(widget) * n,
-		GFP_KERNEL);
-	if (!new_data)
+	if (data->wlist)
+		n = data->wlist->num_widgets + 1;
+	else
+		n = 1;
+
+	new_wlist = krealloc(data->wlist,
+			sizeof(*new_wlist) + sizeof(widget) * n, GFP_KERNEL);
+	if (!new_wlist)
 		return -ENOMEM;
 
-	new_data->wlist.widgets[n - 1] = widget;
-	new_data->wlist.num_widgets = n;
+	new_wlist->widgets[n - 1] = widget;
+	new_wlist->num_widgets = n;
 
-	kcontrol->private_data = new_data;
+	data->wlist = new_wlist;
 
 	return 0;
 }
@@ -689,11 +693,11 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 				w->name, name, ret);
 			return ret;
 		}
-	} else {
-		ret = dapm_kcontrol_add_widget(kcontrol, w);
-		if (ret)
-			return ret;
 	}
+
+	ret = dapm_kcontrol_add_widget(kcontrol, w);
+	if (ret)
+		return ret;
 
 	w->kcontrols[kci] = kcontrol;
 	dapm_kcontrol_add_path(kcontrol, path);
