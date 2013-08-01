@@ -67,7 +67,7 @@ enum {
 	PRESCALER_12,
 };
 
-const u32 kempld_prescaler[] = {
+static const u32 kempld_prescaler[] = {
 	[PRESCALER_21] = (1 << 21) - 1,
 	[PRESCALER_17] = (1 << 17) - 1,
 	[PRESCALER_12] = (1 << 12) - 1,
@@ -361,7 +361,7 @@ static long kempld_wdt_ioctl(struct watchdog_device *wdd, unsigned int cmd,
 		ret = kempld_wdt_keepalive(wdd);
 		break;
 	case WDIOC_GETPRETIMEOUT:
-		ret = put_user(wdt_data->pretimeout, (int *)arg);
+		ret = put_user(wdt_data->pretimeout, (int __user *)arg);
 		break;
 	}
 
