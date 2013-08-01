@@ -569,7 +569,7 @@ config MMC_DW_EXYNOS
 
 config MMC_DW_SOCFPGA
 	tristate "SOCFPGA specific extensions for Synopsys DW Memory Card Interface"
-	depends on MMC_DW
+	depends on MMC_DW && MFD_SYSCON
 	select MMC_DW_PLTFM
 	help
 	  This selects support for Altera SoCFPGA specific extensions to the
