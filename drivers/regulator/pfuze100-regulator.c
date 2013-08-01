@@ -332,7 +332,7 @@ static int pfuze_identify(struct pfuze_chip *pfuze_chip)
 static const struct regmap_config pfuze_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = PFUZE_NUMREGS,
+	.max_register = PFUZE_NUMREGS - 1,
 	.cache_type = REGCACHE_RBTREE,
 };
 
