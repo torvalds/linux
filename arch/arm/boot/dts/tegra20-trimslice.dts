@@ -411,7 +411,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio 170 0>; /* PV2 */
+			gpio = <&gpio TEGRA_GPIO(V, 2) 0>;
 		};
 	};
 
