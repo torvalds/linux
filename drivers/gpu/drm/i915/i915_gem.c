@@ -1873,7 +1873,6 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
 	u32 seqno = intel_ring_get_seqno(ring);
 
 	BUG_ON(ring == NULL);
@@ -1889,8 +1888,6 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 		obj->active = 1;
 	}
 
-	/* Move from whatever list we were on to the tail of execution. */
-	list_move_tail(&obj->mm_list, &vm->active_list);
 	list_move_tail(&obj->ring_list, &ring->active_list);
 
 	obj->last_read_seqno = seqno;
@@ -1912,14 +1909,14 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 static void
 i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct i915_address_space *ggtt_vm = &dev_priv->gtt.base;
+	struct i915_vma *vma = i915_gem_obj_to_vma(obj, ggtt_vm);
 
 	BUG_ON(obj->base.write_domain & ~I915_GEM_GPU_DOMAINS);
 	BUG_ON(!obj->active);
 
-	list_move_tail(&obj->mm_list, &vm->inactive_list);
+	list_move_tail(&vma->mm_list, &ggtt_vm->inactive_list);
 
 	list_del_init(&obj->ring_list);
 	obj->ring = NULL;
@@ -2627,7 +2624,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	i915_gem_gtt_finish_object(obj);
 	i915_gem_object_unpin_pages(obj);
 
-	list_del(&obj->mm_list);
+	list_del(&vma->mm_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
 	if (i915_is_ggtt(vma->vm))
 		obj->map_and_fenceable = true;
@@ -3175,7 +3172,7 @@ search_free:
 		goto err_remove_node;
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	list_add_tail(&obj->mm_list, &vm->inactive_list);
+	list_add_tail(&vma->mm_list, &vm->inactive_list);
 
 	/* Keep GGTT vmas first to make debug easier */
 	if (i915_is_ggtt(vm))
@@ -3340,9 +3337,14 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 					    old_write_domain);
 
 	/* And bump the LRU for this access */
-	if (i915_gem_object_is_inactive(obj))
-		list_move_tail(&obj->mm_list,
-			       &dev_priv->gtt.base.inactive_list);
+	if (i915_gem_object_is_inactive(obj)) {
+		struct i915_vma *vma = i915_gem_obj_to_vma(obj,
+							   &dev_priv->gtt.base);
+		if (vma)
+			list_move_tail(&vma->mm_list,
+				       &dev_priv->gtt.base.inactive_list);
+
+	}
 
 	return 0;
 }
@@ -3915,7 +3917,6 @@ unlock:
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops)
 {
-	INIT_LIST_HEAD(&obj->mm_list);
 	INIT_LIST_HEAD(&obj->global_list);
 	INIT_LIST_HEAD(&obj->ring_list);
 	INIT_LIST_HEAD(&obj->exec_list);
@@ -4057,6 +4058,7 @@ struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&vma->vma_link);
+	INIT_LIST_HEAD(&vma->mm_list);
 	vma->vm = vm;
 	vma->obj = obj;
 

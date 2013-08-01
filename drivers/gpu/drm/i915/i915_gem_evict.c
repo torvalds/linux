@@ -87,8 +87,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 
 	/* First see if there is a large enough contiguous idle region... */
-	list_for_each_entry(obj, &vm->inactive_list, mm_list) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(obj, vm);
+	list_for_each_entry(vma, &vm->inactive_list, mm_list) {
 		if (mark_free(vma, &unwind_list))
 			goto found;
 	}
@@ -97,8 +96,7 @@ i915_gem_evict_something(struct drm_device *dev, struct i915_address_space *vm,
 		goto none;
 
 	/* Now merge in the soon-to-be-expired objects... */
-	list_for_each_entry(obj, &vm->active_list, mm_list) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(obj, vm);
+	list_for_each_entry(vma, &vm->active_list, mm_list) {
 		if (mark_free(vma, &unwind_list))
 			goto found;
 	}
@@ -159,7 +157,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct i915_address_space *vm;
-	struct drm_i915_gem_object *obj, *next;
+	struct i915_vma *vma, *next;
 	bool lists_empty = true;
 	int ret;
 
@@ -187,9 +185,9 @@ i915_gem_evict_everything(struct drm_device *dev)
 
 	/* Having flushed everything, unbind() should never raise an error */
 	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
-		list_for_each_entry_safe(obj, next, &vm->inactive_list, mm_list)
-			if (obj->pin_count == 0)
-				WARN_ON(i915_vma_unbind(i915_gem_obj_to_vma(obj, vm)));
+		list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)
+			if (vma->obj->pin_count == 0)
+				WARN_ON(i915_vma_unbind(vma));
 	}
 
 	return 0;

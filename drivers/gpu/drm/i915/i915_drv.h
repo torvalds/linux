@@ -558,6 +558,9 @@ struct i915_vma {
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
 
+	/** This object's place on the active/inactive lists */
+	struct list_head mm_list;
+
 	struct list_head vma_link; /* Link in the object's VMA list */
 };
 
@@ -1299,9 +1302,7 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
 
-	/** This object's place on the active/inactive lists */
 	struct list_head ring_list;
-	struct list_head mm_list;
 	/** This object's place in the batchbuffer or on the eviction list */
 	struct list_head exec_list;
 

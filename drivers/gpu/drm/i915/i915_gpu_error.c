@@ -556,11 +556,11 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 			     int count, struct list_head *head)
 {
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	int i = 0;
 
-	list_for_each_entry(obj, head, mm_list) {
-		capture_bo(err++, obj);
+	list_for_each_entry(vma, head, mm_list) {
+		capture_bo(err++, vma->obj);
 		if (++i == count)
 			break;
 	}
@@ -622,7 +622,8 @@ static struct drm_i915_error_object *
 i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			     struct intel_ring_buffer *ring)
 {
-	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct i915_address_space *vm;
+	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
 	u32 seqno;
 
@@ -642,20 +643,23 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	}
 
 	seqno = ring->get_seqno(ring, false);
-	list_for_each_entry(obj, &vm->active_list, mm_list) {
-		if (obj->ring != ring)
-			continue;
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+		list_for_each_entry(vma, &vm->active_list, mm_list) {
+			obj = vma->obj;
+			if (obj->ring != ring)
+				continue;
 
-		if (i915_seqno_passed(seqno, obj->last_read_seqno))
-			continue;
+			if (i915_seqno_passed(seqno, obj->last_read_seqno))
+				continue;
 
-		if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
-			continue;
+			if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
+				continue;
 
-		/* We need to copy these to an anonymous buffer as the simplest
-		 * method to avoid being overwritten by userspace.
-		 */
-		return i915_error_object_create(dev_priv, obj);
+			/* We need to copy these to an anonymous buffer as the simplest
+			 * method to avoid being overwritten by userspace.
+			 */
+			return i915_error_object_create(dev_priv, obj);
+		}
 	}
 
 	return NULL;
@@ -775,11 +779,12 @@ static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
 				     struct drm_i915_error_state *error)
 {
 	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
 	int i;
 
 	i = 0;
-	list_for_each_entry(obj, &vm->active_list, mm_list)
+	list_for_each_entry(vma, &vm->active_list, mm_list)
 		i++;
 	error->active_bo_count = i;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
