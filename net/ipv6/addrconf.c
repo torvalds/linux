@@ -4653,6 +4653,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		break;
 	}
 	atomic_inc(&net->ipv6.dev_addr_genid);
+	rt_genid_bump_ipv6(net);
 }
 
 static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
