@@ -167,6 +167,9 @@ static void iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
 
 /*
  * iwl_mvm_get_signal_strength - use new rx PHY INFO API
+ * values are reported by the fw as positive values - need to negate
+ * to obtain their dBM.  Account for missing antennas by replacing 0
+ * values by -256dBm: practically 0 power and a non-feasible 8 bit value.
  */
 static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 					struct iwl_rx_phy_info *phy_info,
@@ -177,12 +180,15 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 
 	val =
 	    le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_ENERGY_ANT_ABC_IDX]);
-	energy_a = -((val & IWL_RX_INFO_ENERGY_ANT_A_MSK) >>
-						IWL_RX_INFO_ENERGY_ANT_A_POS);
-	energy_b = -((val & IWL_RX_INFO_ENERGY_ANT_B_MSK) >>
-						IWL_RX_INFO_ENERGY_ANT_B_POS);
-	energy_c = -((val & IWL_RX_INFO_ENERGY_ANT_C_MSK) >>
-						IWL_RX_INFO_ENERGY_ANT_C_POS);
+	energy_a = (val & IWL_RX_INFO_ENERGY_ANT_A_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_A_POS;
+	energy_a = energy_a ? -energy_a : -256;
+	energy_b = (val & IWL_RX_INFO_ENERGY_ANT_B_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_B_POS;
+	energy_b = energy_b ? -energy_b : -256;
+	energy_c = (val & IWL_RX_INFO_ENERGY_ANT_C_MSK) >>
+						IWL_RX_INFO_ENERGY_ANT_C_POS;
+	energy_c = energy_c ? -energy_c : -256;
 	max_energy = max(energy_a, energy_b);
 	max_energy = max(max_energy, energy_c);
 
