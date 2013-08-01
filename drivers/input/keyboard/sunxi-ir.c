@@ -1,5 +1,5 @@
 /*
- * drivers/input/keyboard/sun5i-ir.c
+ * drivers/input/keyboard/sunxi-ir.c
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -72,6 +72,7 @@ static u32 ir_gpio_hdle;
 /* Registers */
 #define IR_REG(x)	(x)
 #define IR0_BASE	(0xf1c21800)
+#define IR1_BASE	(0xf1c21c00)
 #define IR_BASE		IR0_BASE
 #define IR_IRQNO	(SW_INT_IRQNO_IR0)
 
@@ -92,7 +93,11 @@ static u32 ir_gpio_hdle;
 #define IR_RXINTS_RXPE	(0x1 << 1)	/* Rx Packet End */
 #define IR_RXINTS_RXDA	(0x1 << 4)	/* Rx FIFO Data Available */
 
+#ifdef CONFIG_ARCH_SUN5I
 #define IR_FIFO_SIZE	(64)	/* 64Bytes */
+#else
+#define IR_FIFO_SIZE	(16)	/* 16Bytes */
+#endif
 /* Frequency of Sample Clock = 23437.5Hz, Cycle is 42.7us */
 /* Pulse of NEC Remote >560us */
 #define IR_RXFILT_VAL	(8)	/* Filter Threshold = 8*42.7 = ~341us	< 500us */
@@ -111,7 +116,7 @@ static u32 ir_gpio_hdle;
 
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-struct sun4i_ir_data {
+struct sunxi_ir_data {
 	struct early_suspend early_suspend;
 };
 #endif
@@ -133,7 +138,7 @@ static int timer_used;
 static struct ir_raw_buffer ir_rawbuf;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static struct sun4i_ir_data *ir_data;
+static struct sunxi_ir_data *ir_data;
 #endif
 
 
@@ -280,7 +285,10 @@ static void ir_reg_cfg(void)
 
 	/* Set Rx Interrupt Enable */
 	tmp = (0x1 << 4) | 0x3;
+#ifdef CONFIG_ARCH_SUN5I
 	tmp |= ((IR_FIFO_SIZE >> 2) - 1) << 8; /* Rx FIFO Threshold = FIFOsz/4 */
+#else
+	tmp |= ((IR_FIFO_SIZE >> 1) - 1) << 8; /* Rx FIFO Threshold = FIFOsz/2 */
 #endif
 	writel(tmp, IR_BASE + IR_RXINTE_REG);
 
@@ -444,7 +452,11 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 	ir_clr_intsta(intsta);
 
 	/* Read Data Every Time Enter this Routine*/
+#ifdef CONFIG_ARCH_SUN5I
 	dcnt = (ir_get_intsta() >> 8) & 0x3f;
+#else
+	dcnt = (ir_get_intsta() >> 8) & 0x1f;
+#endif
 
 	/* Read FIFO */
 	for (i = 0; i < dcnt; i++) {
@@ -468,8 +480,10 @@ static irqreturn_t ir_irq_service(int irqno, void *dev_id)
 
 		if (timer_used) {
 			if (code_valid) { /* the pre-key is released */
+#ifdef CONFIG_ARCH_SUN5I
 				input_report_key(ir_dev, ir_keycodes[(ir_code >> 16) & 0xff], 0);
 				input_sync(ir_dev);
+#endif
 #ifdef DEBUG_IR_LEVEL1
 				printk("IR KEY UP\n");
 #endif
@@ -535,20 +549,20 @@ static void ir_timer_handle(unsigned long arg)
 
 /* 停用设备 */
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static void sun4i_ir_suspend(struct early_suspend *h)
+static void sunxi_ir_suspend(struct early_suspend *h)
 {
 #ifdef PRINT_SUSPEND_INFO
-	printk("enter earlysuspend: sun4i_ir_suspend\n");
+	printk("enter earlysuspend: sunxi_ir_suspend\n");
 #endif
 	clk_disable(ir_clk);
 	clk_disable(apb_ir_clk);
 }
 
 /* 重新唤醒 */
-static void sun4i_ir_resume(struct early_suspend *h)
+static void sunxi_ir_resume(struct early_suspend *h)
 {
 #ifdef PRINT_SUSPEND_INFO
-	printk("enter laterresume: sun4i_ir_resume\n");
+	printk("enter laterresume: sunxi_ir_resume\n");
 #endif
 
 	ir_code = 0;
@@ -571,7 +585,7 @@ static int __init ir_init(void)
 		goto fail1;
 	}
 
-	ir_dev->name = "sun4i-ir";
+	ir_dev->name = "sunxi-ir";
 	ir_dev->phys = "RemoteIR/input1";
 	ir_dev->id.bustype = BUS_HOST;
 	ir_dev->id.vendor = 0x0001;
@@ -618,8 +632,8 @@ static int __init ir_init(void)
 	}
 
 	ir_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ir_data->early_suspend.suspend = sun4i_ir_suspend;
-	ir_data->early_suspend.resume = sun4i_ir_resume;
+	ir_data->early_suspend.suspend = sunxi_ir_suspend;
+	ir_data->early_suspend.resume = sunxi_ir_resume;
 	register_early_suspend(&ir_data->early_suspend);
 #endif
 
