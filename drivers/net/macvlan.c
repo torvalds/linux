@@ -337,8 +337,11 @@ static int macvlan_open(struct net_device *dev)
 	int err;
 
 	if (vlan->port->passthru) {
-		if (!(vlan->flags & MACVLAN_FLAG_NOPROMISC))
-			dev_set_promiscuity(lowerdev, 1);
+		if (!(vlan->flags & MACVLAN_FLAG_NOPROMISC)) {
+			err = dev_set_promiscuity(lowerdev, 1);
+			if (err < 0)
+				goto out;
+		}
 		goto hash_add;
 	}
 
