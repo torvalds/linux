@@ -181,5 +181,10 @@ static inline bool busy_loop_timeout(unsigned long end_time)
 	return true;
 }
 
+static inline bool sk_busy_loop(struct sock *sk, int nonblock)
+{
+	return false;
+}
+
 #endif /* CONFIG_NET_LL_RX_POLL */
 #endif /* _LINUX_NET_BUSY_POLL_H */
