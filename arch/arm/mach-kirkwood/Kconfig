@@ -12,13 +12,6 @@ config MACH_D2NET_V2
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie d2 Network v2 NAS.
 
-config MACH_DOCKSTAR
-	bool "Seagate FreeAgent DockStar"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Seagate FreeAgent DockStar.
-
 config MACH_ESATA_SHEEVAPLUG
 	bool "Marvell eSATA SheevaPlug Reference Board"
 	select KIRKWOOD_LEGACY
