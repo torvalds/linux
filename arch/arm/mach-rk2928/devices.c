@@ -772,7 +772,7 @@ static struct resource resource_arm_pmu[] = {
 #endif
 };
 
-struct platform_device device_arm_pmu = {
+static struct platform_device device_arm_pmu = {
 	.name		= "arm-pmu",
 	.id		= ARM_PMU_DEVICE_CPU,
 	.num_resources	= ARRAY_SIZE(resource_arm_pmu),
@@ -789,13 +789,40 @@ static struct resource resource_lvds[] = {
 	},
 };
 
-struct platform_device device_lvds = {
+static struct platform_device device_lvds = {
 	.name		= "rk3026-lvds",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(resource_lvds),
 	.resource	= resource_lvds,
 };
 #endif
+
+static struct resource resource_vpu_service[] = {
+	{
+		.start	= IRQ_VDPU,
+		.end	= IRQ_VDPU,
+		.name	= "irq_vdpu",
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_VEPU,
+		.end	= IRQ_VEPU,
+		.name	= "irq_vepu",
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2928_VCODEC_PHYS,
+		.end	= RK2928_VCODEC_PHYS + RK2928_VCODEC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_vpu_service = {
+	.name		= "vpu_service",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resource_vpu_service),
+	.resource	= resource_vpu_service,
+};
 
 static int __init rk2928_init_devices(void)
 {
@@ -828,6 +855,7 @@ static int __init rk2928_init_devices(void)
 #ifdef CONFIG_RK3026_LVDS
 	platform_device_register(&device_lvds);
 #endif
+	platform_device_register(&device_vpu_service);
 
 	return 0;
 }
