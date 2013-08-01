@@ -434,6 +434,19 @@ static struct sensor_platform_data mma8452_info = {
 #include <plat/key.h>
 
 static struct rk29_keys_button key_button[] = {
+        {
+                .desc   = "play",
+                .code   = KEY_POWER,
+                .gpio   = PLAY_ON_PIN,
+                .active_low = PRESS_LEV_LOW,
+                .wakeup = 1,
+        },
+/* disable adc keyboard,
+ * because rk280a adc reference voltage is 3.3V, but
+ * rk30xx mainbord key's supply voltage is 2.5V and
+ * rk31xx mainbord key's supply voltage is 1.8V.
+ */
+#if 0 
 #ifdef RK31XX_MAINBOARD_V1
         {
                 .desc   = "vol-",
@@ -527,6 +540,7 @@ static struct rk29_keys_button key_button[] = {
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
+#endif
 #endif
 };
 
