@@ -32,6 +32,7 @@
 #include <asm/div64.h>
 
 #include "cx23885.h"
+#include "cx23885-video.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include "cx23885-ioctl.h"
