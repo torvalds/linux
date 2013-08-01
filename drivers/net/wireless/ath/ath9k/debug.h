@@ -28,9 +28,13 @@ struct fft_sample_tlv;
 #ifdef CONFIG_ATH9K_DEBUGFS
 #define TX_STAT_INC(q, c) sc->debug.stats.txstats[q].c++
 #define RESET_STAT_INC(sc, type) sc->debug.stats.reset[type]++
+#define ANT_STAT_INC(i, c) sc->debug.stats.ant_stats[i].c++
+#define ANT_LNA_INC(i, c) sc->debug.stats.ant_stats[i].lna_config_cnt[c]++;
 #else
 #define TX_STAT_INC(q, c) do { } while (0)
 #define RESET_STAT_INC(sc, type) do { } while (0)
+#define ANT_STAT_INC(i, c) do { } while (0)
+#define ANT_LNA_INC(i, c) do { } while (0)
 #endif
 
 enum ath_reset_type {
@@ -243,11 +247,20 @@ struct ath_rx_stats {
 	u32 rx_spectral;
 };
 
+#define ANT_MAIN 0
+#define ANT_ALT  1
+
+struct ath_antenna_stats {
+	u32 recv_cnt;
+	u32 lna_config_cnt[4];
+};
+
 struct ath_stats {
 	struct ath_interrupt_stats istats;
 	struct ath_tx_stats txstats[ATH9K_NUM_TX_QUEUES];
 	struct ath_rx_stats rxstats;
 	struct ath_dfs_stats dfs_stats;
+	struct ath_antenna_stats ant_stats[2];
 	u32 reset[__RESET_TYPE_MAX];
 };
 

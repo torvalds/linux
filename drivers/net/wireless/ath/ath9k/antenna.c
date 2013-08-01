@@ -561,10 +561,16 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 		antcomb->total_pkt_count++;
 		antcomb->main_total_rssi += main_rssi;
 		antcomb->alt_total_rssi  += alt_rssi;
-		if (main_ant_conf == rx_ant_conf)
+
+		if (main_ant_conf == rx_ant_conf) {
 			antcomb->main_recv_cnt++;
-		else
+			ANT_STAT_INC(ANT_MAIN, recv_cnt);
+			ANT_LNA_INC(ANT_MAIN, rx_ant_conf);
+		} else {
 			antcomb->alt_recv_cnt++;
+			ANT_STAT_INC(ANT_ALT, recv_cnt);
+			ANT_LNA_INC(ANT_ALT, rx_ant_conf);
+		}
 	}
 
 	/* Short scan check */
@@ -753,13 +759,11 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 			}
 			goto div_comb_done;
 		}
+		ath_select_ant_div_from_quick_scan(antcomb, &div_ant_conf,
+						   main_rssi_avg, alt_rssi_avg,
+						   alt_ratio);
+		antcomb->quick_scan_cnt++;
 	}
-
-	ath_select_ant_div_from_quick_scan(antcomb, &div_ant_conf,
-					   main_rssi_avg, alt_rssi_avg,
-					   alt_ratio);
-
-	antcomb->quick_scan_cnt++;
 
 div_comb_done:
 	ath_ant_div_conf_fast_divbias(&div_ant_conf, antcomb, alt_ratio);
