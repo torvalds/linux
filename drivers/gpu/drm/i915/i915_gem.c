@@ -1662,10 +1662,10 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	if (obj->pages == NULL)
 		return 0;
 
-	BUG_ON(i915_gem_obj_ggtt_bound(obj));
-
 	if (obj->pages_pin_count)
 		return -EBUSY;
+
+	BUG_ON(i915_gem_obj_ggtt_bound(obj));
 
 	/* ->put_pages might need to allocate memory for the bit17 swizzle
 	 * array, hence protect them from being reaped by removing them from gtt
