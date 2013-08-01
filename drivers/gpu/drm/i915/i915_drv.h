@@ -323,8 +323,8 @@ struct drm_i915_error_state {
 		u32 purgeable:1;
 		s32 ring:4;
 		u32 cache_level:2;
-	} *active_bo, *pinned_bo;
-	u32 active_bo_count, pinned_bo_count;
+	} **active_bo, **pinned_bo;
+	u32 *active_bo_count, *pinned_bo_count;
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
 };
