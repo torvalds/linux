@@ -142,7 +142,7 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 static inline bool
 i915_gem_object_is_inactive(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_ggtt_bound(obj) && !obj->active;
+	return i915_gem_obj_bound_any(obj) && !obj->active;
 }
 
 int
@@ -416,7 +416,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		 * anyway again before the next pread happens. */
 		if (obj->cache_level == I915_CACHE_NONE)
 			needs_clflush = 1;
-		if (i915_gem_obj_ggtt_bound(obj)) {
+		if (i915_gem_obj_bound_any(obj)) {
 			ret = i915_gem_object_set_to_gtt_domain(obj, false);
 			if (ret)
 				return ret;
@@ -733,7 +733,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		 * right away and we therefore have to clflush anyway. */
 		if (obj->cache_level == I915_CACHE_NONE)
 			needs_clflush_after = 1;
-		if (i915_gem_obj_ggtt_bound(obj)) {
+		if (i915_gem_obj_bound_any(obj)) {
 			ret = i915_gem_object_set_to_gtt_domain(obj, true);
 			if (ret)
 				return ret;
@@ -1660,7 +1660,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	if (obj->pages_pin_count)
 		return -EBUSY;
 
-	BUG_ON(i915_gem_obj_ggtt_bound(obj));
+	BUG_ON(i915_gem_obj_bound_any(obj));
 
 	/* ->put_pages might need to allocate memory for the bit17 swizzle
 	 * array, hence protect them from being reaped by removing them from gtt
@@ -3299,7 +3299,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	int ret;
 
 	/* Not valid to be called on unbound objects. */
-	if (!i915_gem_obj_ggtt_bound(obj))
+	if (!i915_gem_obj_bound_any(obj))
 		return -EINVAL;
 
 	if (obj->base.write_domain == I915_GEM_DOMAIN_GTT)
@@ -3723,7 +3723,7 @@ void
 i915_gem_object_unpin(struct drm_i915_gem_object *obj)
 {
 	BUG_ON(obj->pin_count == 0);
-	BUG_ON(!i915_gem_obj_ggtt_bound(obj));
+	BUG_ON(!i915_gem_obj_bound_any(obj));
 
 	if (--obj->pin_count == 0)
 		obj->pin_mappable = false;

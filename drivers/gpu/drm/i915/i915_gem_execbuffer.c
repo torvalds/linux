@@ -466,7 +466,7 @@ i915_gem_execbuffer_unreserve_object(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_gem_exec_object2 *entry;
 
-	if (!i915_gem_obj_ggtt_bound(obj))
+	if (!i915_gem_obj_bound_any(obj))
 		return;
 
 	entry = obj->exec_entry;
