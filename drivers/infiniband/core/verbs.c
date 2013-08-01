@@ -346,10 +346,13 @@ EXPORT_SYMBOL(ib_destroy_srq);
 static void __ib_shared_qp_event_handler(struct ib_event *event, void *context)
 {
 	struct ib_qp *qp = context;
+	unsigned long flags;
 
+	spin_lock_irqsave(&qp->device->event_handler_lock, flags);
 	list_for_each_entry(event->element.qp, &qp->open_list, open_list)
 		if (event->element.qp->event_handler)
 			event->element.qp->event_handler(event, event->element.qp->qp_context);
+	spin_unlock_irqrestore(&qp->device->event_handler_lock, flags);
 }
 
 static void __ib_insert_xrcd_qp(struct ib_xrcd *xrcd, struct ib_qp *qp)

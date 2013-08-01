@@ -635,6 +635,12 @@ enum ib_qp_create_flags {
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
 };
 
+
+/*
+ * Note: users may not call ib_close_qp or ib_destroy_qp from the event_handler
+ * callback to destroy the passed in QP.
+ */
+
 struct ib_qp_init_attr {
 	void                  (*event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
