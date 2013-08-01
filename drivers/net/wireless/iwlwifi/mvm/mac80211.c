@@ -1570,6 +1570,7 @@ static void iwl_mvm_mac_rssi_callback(struct ieee80211_hw *hw,
 static const struct nla_policy iwl_mvm_tm_policy[IWL_MVM_TM_ATTR_MAX + 1] = {
 	[IWL_MVM_TM_ATTR_CMD] = { .type = NLA_U32 },
 	[IWL_MVM_TM_ATTR_NOA_DURATION] = { .type = NLA_U32 },
+	[IWL_MVM_TM_ATTR_BEACON_FILTER_STATE] = { .type = NLA_U32 },
 };
 
 static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
@@ -1602,6 +1603,16 @@ static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
 		mvm->noa_vif = vif;
 
 		return iwl_mvm_update_quotas(mvm, NULL);
+	case IWL_MVM_TM_CMD_SET_BEACON_FILTER:
+		/* must be associated client vif - ignore authorized */
+		if (!vif || vif->type != NL80211_IFTYPE_STATION ||
+		    !vif->bss_conf.assoc || !vif->bss_conf.dtim_period ||
+		    !tb[IWL_MVM_TM_ATTR_BEACON_FILTER_STATE])
+			return -EINVAL;
+
+		if (nla_get_u32(tb[IWL_MVM_TM_ATTR_BEACON_FILTER_STATE]))
+			return iwl_mvm_enable_beacon_filter(mvm, vif);
+		return iwl_mvm_disable_beacon_filter(mvm, vif);
 	}
 
 	return -EOPNOTSUPP;
