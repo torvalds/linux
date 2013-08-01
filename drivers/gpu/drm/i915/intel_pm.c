@@ -2270,7 +2270,8 @@ static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
 			  params->pri_bytes_per_pixel);
 }
 
-static bool hsw_compute_lp_wm(uint32_t mem_value, struct hsw_wm_maximums *max,
+static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
+			      int level, struct hsw_wm_maximums *max,
 			      struct hsw_pipe_wm_parameters *params,
 			      struct hsw_lp_wm_result *result)
 {
@@ -2279,10 +2280,14 @@ static bool hsw_compute_lp_wm(uint32_t mem_value, struct hsw_wm_maximums *max,
 
 	for (pipe = PIPE_A; pipe <= PIPE_C; pipe++) {
 		struct hsw_pipe_wm_parameters *p = &params[pipe];
+		/* WM1+ latency values stored in 0.5us units */
+		uint16_t pri_latency = dev_priv->wm.pri_latency[level] * 5;
+		uint16_t spr_latency = dev_priv->wm.spr_latency[level] * 5;
+		uint16_t cur_latency = dev_priv->wm.cur_latency[level] * 5;
 
-		pri_val[pipe] = ilk_compute_pri_wm(p, mem_value, true);
-		spr_val[pipe] = ilk_compute_spr_wm(p, mem_value);
-		cur_val[pipe] = ilk_compute_cur_wm(p, mem_value);
+		pri_val[pipe] = ilk_compute_pri_wm(p, pri_latency, true);
+		spr_val[pipe] = ilk_compute_spr_wm(p, spr_latency);
+		cur_val[pipe] = ilk_compute_cur_wm(p, cur_latency);
 		fbc_val[pipe] = ilk_compute_fbc_wm(p, pri_val[pipe]);
 	}
 
@@ -2305,14 +2310,18 @@ static bool hsw_compute_lp_wm(uint32_t mem_value, struct hsw_wm_maximums *max,
 }
 
 static uint32_t hsw_compute_wm_pipe(struct drm_i915_private *dev_priv,
-				    uint32_t mem_value, enum pipe pipe,
+				    enum pipe pipe,
 				    struct hsw_pipe_wm_parameters *params)
 {
 	uint32_t pri_val, cur_val, spr_val;
+	/* WM0 latency values stored in 0.1us units */
+	uint16_t pri_latency = dev_priv->wm.pri_latency[0];
+	uint16_t spr_latency = dev_priv->wm.spr_latency[0];
+	uint16_t cur_latency = dev_priv->wm.cur_latency[0];
 
-	pri_val = ilk_compute_pri_wm(params, mem_value, false);
-	spr_val = ilk_compute_spr_wm(params, mem_value);
-	cur_val = ilk_compute_cur_wm(params, mem_value);
+	pri_val = ilk_compute_pri_wm(params, pri_latency, false);
+	spr_val = ilk_compute_spr_wm(params, spr_latency);
+	cur_val = ilk_compute_cur_wm(params, cur_latency);
 
 	WARN(pri_val > 127,
 	     "Primary WM error, mode not supported for pipe %c\n",
@@ -2478,7 +2487,6 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 
 static void hsw_compute_wm_results(struct drm_device *dev,
 				   struct hsw_pipe_wm_parameters *params,
-				   uint16_t *wm,
 				   struct hsw_wm_maximums *lp_maximums,
 				   struct hsw_wm_values *results)
 {
@@ -2489,7 +2497,8 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	int level, max_level, wm_lp;
 
 	for (level = 1; level <= 4; level++)
-		if (!hsw_compute_lp_wm(wm[level] * 5, lp_maximums, params,
+		if (!hsw_compute_lp_wm(dev_priv, level,
+				       lp_maximums, params,
 				       &lp_results[level - 1]))
 			break;
 	max_level = level - 1;
@@ -2521,8 +2530,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	}
 
 	for_each_pipe(pipe)
-		results->wm_pipe[pipe] = hsw_compute_wm_pipe(dev_priv, wm[0],
-							     pipe,
+		results->wm_pipe[pipe] = hsw_compute_wm_pipe(dev_priv, pipe,
 							     &params[pipe]);
 
 	for_each_pipe(pipe) {
@@ -2665,11 +2673,9 @@ static void haswell_update_wm(struct drm_device *dev)
 	hsw_compute_wm_parameters(dev, params, &lp_max_1_2, &lp_max_5_6);
 
 	hsw_compute_wm_results(dev, params,
-			       dev_priv->wm.pri_latency,
 			       &lp_max_1_2, &results_1_2);
 	if (lp_max_1_2.pri != lp_max_5_6.pri) {
 		hsw_compute_wm_results(dev, params,
-				       dev_priv->wm.pri_latency,
 				       &lp_max_5_6, &results_5_6);
 		best_results = hsw_find_best_result(&results_1_2, &results_5_6);
 	} else {
