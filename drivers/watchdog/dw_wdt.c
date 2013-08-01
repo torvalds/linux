@@ -203,12 +203,12 @@ static long dw_wdt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		return copy_to_user((struct watchdog_info *)arg, &dw_wdt_ident,
+		return copy_to_user((void __user *)arg, &dw_wdt_ident,
 				    sizeof(dw_wdt_ident)) ? -EFAULT : 0;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		return put_user(0, (int *)arg);
+		return put_user(0, (int __user *)arg);
 
 	case WDIOC_KEEPALIVE:
 		dw_wdt_set_next_heartbeat();
