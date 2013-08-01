@@ -1019,6 +1019,8 @@ static struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 		if (IS_ERR(i2s->pdev))
 			return NULL;
 
+		i2s->pdev->dev.parent = &pdev->dev;
+
 		platform_set_drvdata(i2s->pdev, i2s);
 		ret = platform_device_add(i2s->pdev);
 		if (ret < 0)
