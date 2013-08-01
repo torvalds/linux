@@ -357,6 +357,15 @@
 		non-removable;
 	};
 
+	usb@7d008000 {
+		status = "okay";
+	};
+
+	usb-phy@7d008000 {
+		vbus-supply = <&usb3_vbus_reg>;
+		status = "okay";
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;

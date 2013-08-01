@@ -110,6 +110,11 @@
 				nvidia,pull = <0>;
 				nvidia,tristate = <0>;
 			};
+			pex_l1_prsnt_n_pdd4 {
+				nvidia,pins =	"pex_l1_prsnt_n_pdd4",
+						"pex_l1_clkreq_n_pdd6";
+				nvidia,pull = <2>;
+			};
 			sdio3 {
 				nvidia,pins = "drive_sdio3";
 				nvidia,high-speed-mode = <0>;
@@ -118,6 +123,10 @@
 				nvidia,pull-up-strength = <42>;
 				nvidia,slew-rate-rising = <1>;
 				nvidia,slew-rate-falling = <1>;
+			};
+			gpv {
+				nvidia,pins = "drive_gpv";
+				nvidia,pull-up-strength = <16>;
 			};
 		};
 	};
@@ -319,6 +328,15 @@
 		non-removable;
 	};
 
+	usb@7d008000 {
+		status = "okay";
+	};
+
+	usb-phy@7d008000 {
+		vbus-supply = <&usb3_vbus_reg>;
+		status = "okay";
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -391,7 +409,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(I, 4) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA_GPIO(DD, 6) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
@@ -403,7 +421,7 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
-			gpio = <&gpio TEGRA_GPIO(H, 7) GPIO_ACTIVE_HIGH>;
+			gpio = <&gpio TEGRA_GPIO(DD, 4) GPIO_ACTIVE_HIGH>;
 			gpio-open-drain;
 			vin-supply = <&vdd_5v_in_reg>;
 		};
