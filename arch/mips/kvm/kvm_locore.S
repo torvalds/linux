@@ -55,12 +55,10 @@
  * a0: run
  * a1: vcpu
  */
-
-FEXPORT(__kvm_mips_vcpu_run)
-	.set	push
 	.set	noreorder
 	.set	noat
 
+FEXPORT(__kvm_mips_vcpu_run)
 	/* k0/k1 not being used in host kernel context */
 	addiu	k1, sp, -PT_SIZE
 	LONG_S	$0, PT_R0(k1)
@@ -229,15 +227,11 @@ FEXPORT(__kvm_mips_load_k0k1)
 
 	/* Jump to guest */
 	eret
-	.set	pop
 
 VECTOR(MIPSX(exception), unknown)
 /*
  * Find out what mode we came from and jump to the proper handler.
  */
-	.set	push
-	.set	noat
-	.set	noreorder
 	mtc0	k0, CP0_ERROREPC	#01: Save guest k0
 	ehb				#02:
 
@@ -248,7 +242,6 @@ VECTOR(MIPSX(exception), unknown)
 	addiu	k0, k0, 0x2000		#06: Exception handler is installed @ offset 0x2000
 	j	k0			#07: jump to the function
 	 nop				#08: branch delay slot
-	.set	push
 VECTOR_END(MIPSX(exceptionEnd))
 .end MIPSX(exception)
 
@@ -258,10 +251,6 @@ VECTOR_END(MIPSX(exceptionEnd))
  *
  */
 NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
-	.set	push
-	.set	noat
-	.set	noreorder
-
 	/* Get the VCPU pointer from DDTATA_LO */
 	mfc0	k1, CP0_DDATA_LO
 	addiu	k1, k1, VCPU_HOST_ARCH
@@ -583,7 +572,6 @@ __kvm_mips_return_to_host:
 	j       ra
 	 nop
 
-	.set    pop
 VECTOR_END(MIPSX(GuestExceptionEnd))
 .end MIPSX(GuestException)
 
