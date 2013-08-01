@@ -10,6 +10,7 @@ typedef struct {
 	int		switch_pending;
 #endif
 	unsigned int	vmalloc_seq;
+	unsigned long	sigpage;
 } mm_context_t;
 
 #ifdef CONFIG_CPU_HAS_ASID
