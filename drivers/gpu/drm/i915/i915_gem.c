@@ -3313,7 +3313,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct i915_vma *vma = i915_gem_obj_to_vma(obj, &dev_priv->gtt.base);
+	struct i915_vma *vma;
 	int ret;
 
 	if (obj->cache_level == cache_level)
@@ -3324,13 +3324,17 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		return -EBUSY;
 	}
 
-	if (vma && !i915_gem_valid_gtt_space(dev, &vma->node, cache_level)) {
-		ret = i915_gem_object_unbind(obj);
-		if (ret)
-			return ret;
+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		if (!i915_gem_valid_gtt_space(dev, &vma->node, cache_level)) {
+			ret = i915_gem_object_unbind(obj);
+			if (ret)
+				return ret;
+
+			break;
+		}
 	}
 
-	if (i915_gem_obj_ggtt_bound(obj)) {
+	if (i915_gem_obj_bound_any(obj)) {
 		ret = i915_gem_object_finish_gpu(obj);
 		if (ret)
 			return ret;
@@ -3352,8 +3356,6 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		if (obj->has_aliasing_ppgtt_mapping)
 			i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
 					       obj, cache_level);
-
-		i915_gem_obj_to_vma(obj, &dev_priv->gtt.base)->node.color = cache_level;
 	}
 
 	if (cache_level == I915_CACHE_NONE) {
@@ -3379,6 +3381,8 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 						    old_write_domain);
 	}
 
+	list_for_each_entry(vma, &obj->vma_list, vma_link)
+		vma->node.color = cache_level;
 	obj->cache_level = cache_level;
 	i915_gem_verify_gtt(dev);
 	return 0;
