@@ -2469,7 +2469,7 @@ static int sci_probe_single(struct platform_device *dev,
 
 static int sci_probe(struct platform_device *dev)
 {
-	struct plat_sci_port *p = dev->dev.platform_data;
+	struct plat_sci_port *p = dev_get_platdata(&dev->dev);
 	struct sci_port *sp = &sci_ports[dev->id];
 	int ret;
 
