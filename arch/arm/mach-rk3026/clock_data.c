@@ -1006,10 +1006,30 @@ static long ddr_clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	return ddr_set_pll(rate / MHZ, 0) * MHZ;
 }
+static void ddr_update_rate(struct clk *clk, struct clk *clk_ignore)
+{
+	struct clk *clkp;
+	if (!clk->pll) {
+		ddr_update_rate(clk->parent, NULL);
+	} else {
+		clk->rate = clk->recalc(clk);
+	}
+
+	list_for_each_entry(clkp, &clk->children, sibling) {
+		if (clkp == clk_ignore)
+			continue;
+
+		if (clkp->recalc)
+			clkp->rate = clkp->recalc(clk);
+		else if (clkp->parent)
+			clkp->rate = clkp->parent->rate;
+	}
+}
 static unsigned long ddr_clk_recalc_rate(struct clk *clk)
 {
-	unsigned long rate = clk->parent->recalc(clk->parent) >> 1;
-	return rate;
+	ddr_update_rate(clk->parent, clk);
+	clk->rate = clk->parent->rate >> 1;
+	return clk->rate;
 }
 
 static struct clk *clk_ddr_pllsel_parents[] = {&clk_ddrphy_src, &clk_ddrphy_gpll_src};
@@ -1048,7 +1068,6 @@ static struct clk clk_ddrc = {
 	.set_rate	= ddr_clk_set_rate,
 	.recalc		= ddr_clk_recalc_rate,
 	.round_rate	= ddr_clk_round_rate,
-	.recalc		= clksel_recalc_fixed_div2,
 };
 
 static struct clk clk_ddrphy = {
