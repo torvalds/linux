@@ -1526,7 +1526,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 		   (unsigned long) cmd.response + sizeof resp,
 		   in_len - sizeof cmd, out_len - sizeof resp);
 
-	obj = kmalloc(sizeof *obj, GFP_KERNEL);
+	obj = kzalloc(sizeof *obj, GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
@@ -1642,8 +1642,13 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 		goto err_copy;
 	}
 
-	if (xrcd)
+	if (xrcd) {
+		obj->uxrcd = container_of(xrcd_uobj, struct ib_uxrcd_object,
+					  uobject);
+		atomic_inc(&obj->uxrcd->refcnt);
 		put_xrcd_read(xrcd_uobj);
+	}
+
 	if (pd)
 		put_pd_read(pd);
 	if (scq)
@@ -1753,6 +1758,8 @@ ssize_t ib_uverbs_open_qp(struct ib_uverbs_file *file,
 		goto err_remove;
 	}
 
+	obj->uxrcd = container_of(xrcd_uobj, struct ib_uxrcd_object, uobject);
+	atomic_inc(&obj->uxrcd->refcnt);
 	put_xrcd_read(xrcd_uobj);
 
 	mutex_lock(&file->mutex);
@@ -2018,6 +2025,9 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 
 	if (ret)
 		return ret;
+
+	if (obj->uxrcd)
+		atomic_dec(&obj->uxrcd->refcnt);
 
 	idr_remove_uobj(&ib_uverbs_qp_idr, uobj);
 
@@ -2860,6 +2870,8 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 	struct ib_srq               	 *srq;
 	struct ib_uevent_object        	 *obj;
 	int                         	  ret = -EINVAL;
+	struct ib_usrq_object		 *us;
+	enum ib_srq_type		  srq_type;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
@@ -2869,6 +2881,7 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 		return -EINVAL;
 	srq = uobj->object;
 	obj = container_of(uobj, struct ib_uevent_object, uobject);
+	srq_type = srq->srq_type;
 
 	ret = ib_destroy_srq(srq);
 	if (!ret)
@@ -2878,6 +2891,11 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 
 	if (ret)
 		return ret;
+
+	if (srq_type == IB_SRQT_XRC) {
+		us = container_of(obj, struct ib_usrq_object, uevent);
+		atomic_dec(&us->uxrcd->refcnt);
+	}
 
 	idr_remove_uobj(&ib_uverbs_srq_idr, uobj);
 
