@@ -1243,16 +1243,16 @@ static ssize_t bonding_show_active_slave(struct device *d,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct slave *curr;
 	struct bonding *bond = to_bond(d);
+	struct slave *curr;
 	int count = 0;
 
-	read_lock(&bond->curr_slave_lock);
-	curr = bond->curr_active_slave;
-	read_unlock(&bond->curr_slave_lock);
-
+	rcu_read_lock();
+	curr = rcu_dereference(bond->curr_active_slave);
 	if (USES_PRIMARY(bond->params.mode) && curr)
 		count = sprintf(buf, "%s\n", curr->dev->name);
+	rcu_read_unlock();
+
 	return count;
 }
 
@@ -1284,7 +1284,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 	if (!strlen(ifname) || buf[0] == '\n') {
 		pr_info("%s: Clearing current active slave.\n",
 			bond->dev->name);
-		bond->curr_active_slave = NULL;
+		rcu_assign_pointer(bond->curr_active_slave, NULL);
 		bond_select_active_slave(bond);
 		goto out;
 	}
@@ -1347,14 +1347,9 @@ static ssize_t bonding_show_mii_status(struct device *d,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct slave *curr;
 	struct bonding *bond = to_bond(d);
 
-	read_lock(&bond->curr_slave_lock);
-	curr = bond->curr_active_slave;
-	read_unlock(&bond->curr_slave_lock);
-
-	return sprintf(buf, "%s\n", curr ? "up" : "down");
+	return sprintf(buf, "%s\n", bond->curr_active_slave ? "up" : "down");
 }
 static DEVICE_ATTR(mii_status, S_IRUGO, bonding_show_mii_status, NULL);
 

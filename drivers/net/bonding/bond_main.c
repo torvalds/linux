@@ -77,6 +77,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/pkt_sched.h>
+#include <linux/rculist.h>
 #include "bonding.h"
 #include "bond_3ad.h"
 #include "bond_alb.h"
@@ -1037,7 +1038,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 		if (new_active)
 			bond_set_slave_active_flags(new_active);
 	} else {
-		bond->curr_active_slave = new_active;
+		rcu_assign_pointer(bond->curr_active_slave, new_active);
 	}
 
 	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP) {
@@ -1127,7 +1128,7 @@ void bond_select_active_slave(struct bonding *bond)
  */
 static void bond_attach_slave(struct bonding *bond, struct slave *new_slave)
 {
-	list_add_tail(&new_slave->list, &bond->slave_list);
+	list_add_tail_rcu(&new_slave->list, &bond->slave_list);
 	bond->slave_cnt++;
 }
 
@@ -1143,7 +1144,7 @@ static void bond_attach_slave(struct bonding *bond, struct slave *new_slave)
  */
 static void bond_detach_slave(struct bonding *bond, struct slave *slave)
 {
-	list_del(&slave->list);
+	list_del_rcu(&slave->list);
 	bond->slave_cnt--;
 }
 
@@ -1751,7 +1752,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		 * so we can change it without calling change_active_interface()
 		 */
 		if (!bond->curr_active_slave && new_slave->link == BOND_LINK_UP)
-			bond->curr_active_slave = new_slave;
+			rcu_assign_pointer(bond->curr_active_slave, new_slave);
 
 		break;
 	} /* switch(bond_mode) */
@@ -1951,7 +1952,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 	}
 
 	if (all) {
-		bond->curr_active_slave = NULL;
+		rcu_assign_pointer(bond->curr_active_slave, NULL);
 	} else if (oldcurrent == slave) {
 		/*
 		 * Note that we hold RTNL over this sequence, so there
@@ -1983,6 +1984,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 
 	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
+	synchronize_rcu();
 
 	if (list_empty(&bond->slave_list)) {
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
@@ -3811,7 +3813,7 @@ void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int slave_id)
 	int i = slave_id;
 
 	/* Here we start from the slave with slave_id */
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave_rcu(bond, slave) {
 		if (--i < 0) {
 			if (slave_can_tx(slave)) {
 				bond_dev_queue_xmit(bond, skb, slave->dev);
@@ -3822,7 +3824,7 @@ void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int slave_id)
 
 	/* Here we start from the first slave up to slave_id */
 	i = slave_id;
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave_rcu(bond, slave) {
 		if (--i < 0)
 			break;
 		if (slave_can_tx(slave)) {
@@ -3848,7 +3850,7 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 	 * will send all of this type of traffic.
 	 */
 	if (iph->protocol == IPPROTO_IGMP && skb->protocol == htons(ETH_P_IP)) {
-		slave = bond->curr_active_slave;
+		slave = rcu_dereference(bond->curr_active_slave);
 		if (slave && slave_can_tx(slave))
 			bond_dev_queue_xmit(bond, skb, slave->dev);
 		else
@@ -3870,7 +3872,7 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
 
-	slave = bond->curr_active_slave;
+	slave = rcu_dereference(bond->curr_active_slave);
 	if (slave)
 		bond_dev_queue_xmit(bond, skb, slave->dev);
 	else
@@ -3900,7 +3902,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave = NULL;
 
-	bond_for_each_slave(bond, slave) {
+	bond_for_each_slave_rcu(bond, slave) {
 		if (bond_is_last_slave(bond, slave))
 			break;
 		if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
@@ -3955,7 +3957,7 @@ static inline int bond_slave_override(struct bonding *bond,
 		return 1;
 
 	/* Find out if any slaves have the same mapping as this skb. */
-	bond_for_each_slave(bond, check_slave) {
+	bond_for_each_slave_rcu(bond, check_slave) {
 		if (check_slave->queue_id == skb->queue_mapping) {
 			slave = check_slave;
 			break;
@@ -4040,14 +4042,12 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (is_netpoll_tx_blocked(dev))
 		return NETDEV_TX_BUSY;
 
-	read_lock(&bond->lock);
-
+	rcu_read_lock();
 	if (!list_empty(&bond->slave_list))
 		ret = __bond_start_xmit(skb, dev);
 	else
 		kfree_skb(skb);
-
-	read_unlock(&bond->lock);
+	rcu_read_unlock();
 
 	return ret;
 }

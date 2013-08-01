@@ -116,6 +116,10 @@
 #define bond_for_each_slave(bond, pos) \
 	list_for_each_entry(pos, &(bond)->slave_list, list)
 
+/* Caller must have rcu_read_lock */
+#define bond_for_each_slave_rcu(bond, pos) \
+	list_for_each_entry_rcu(pos, &(bond)->slave_list, list)
+
 /**
  * bond_for_each_slave_reverse - iterate in reverse from a given position
  * @bond:	the bond holding this list

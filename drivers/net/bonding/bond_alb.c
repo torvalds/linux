@@ -1337,6 +1337,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 
 	/* make sure that the curr_active_slave do not change during tx
 	 */
+	read_lock(&bond->lock);
 	read_lock(&bond->curr_slave_lock);
 
 	switch (ntohs(skb->protocol)) {
@@ -1441,11 +1442,12 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	}
 
 	read_unlock(&bond->curr_slave_lock);
-
+	read_unlock(&bond->lock);
 	if (res) {
 		/* no suitable interface, frame not sent */
 		kfree_skb(skb);
 	}
+
 	return NETDEV_TX_OK;
 }
 
@@ -1663,7 +1665,7 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	}
 
 	swap_slave = bond->curr_active_slave;
-	bond->curr_active_slave = new_slave;
+	rcu_assign_pointer(bond->curr_active_slave, new_slave);
 
 	if (!new_slave || list_empty(&bond->slave_list))
 		return;
