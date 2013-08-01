@@ -60,7 +60,7 @@
 
 struct virtio_net_config {
 	/* The config defining mac address (if VIRTIO_NET_F_MAC) */
-	__u8 mac[6];
+	__u8 mac[ETH_ALEN];
 	/* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
 	__u16 status;
 	/* Maximum number of each of transmit and receive queues;
