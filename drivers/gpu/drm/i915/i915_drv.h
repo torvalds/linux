@@ -545,7 +545,12 @@ struct i915_hw_ppgtt {
 	int (*enable)(struct drm_device *dev);
 };
 
-/* To make things as simple as possible (ie. no refcounting), a VMA's lifetime
+/**
+ * A VMA represents a GEM BO that is bound into an address space. Therefore, a
+ * VMA's presence cannot be guaranteed before binding, or after unbinding the
+ * object into/from the address space.
+ *
+ * To make things as simple as possible (ie. no refcounting), a VMA's lifetime
  * will always be <= an objects lifetime. So object refcounting should cover us.
  */
 struct i915_vma {
