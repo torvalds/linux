@@ -97,6 +97,11 @@ extern const struct gtype##_id __mod_##gtype##_table		\
 /* For userspace: you can also call me... */
 #define MODULE_ALIAS(_alias) MODULE_INFO(alias, _alias)
 
+/* Soft module dependencies. See man modprobe.d for details.
+ * Example: MODULE_SOFTDEP("pre: module-foo module-bar post: module-baz")
+ */
+#define MODULE_SOFTDEP(_softdep) MODULE_INFO(softdep, _softdep)
+
 /*
  * The following license idents are currently accepted as indicating free
  * software modules
