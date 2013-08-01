@@ -723,7 +723,7 @@ static int bond_set_allmulti(struct bonding *bond, int inc)
 static void bond_resend_igmp_join_requests(struct bonding *bond)
 {
 	if (!rtnl_trylock()) {
-		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
+		queue_delayed_work(bond->wq, &bond->mcast_work, 1);
 		return;
 	}
 	call_netdevice_notifiers(NETDEV_RESEND_IGMP, bond->dev);
@@ -1084,7 +1084,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	    ((USES_PRIMARY(bond->params.mode) && new_active) ||
 	     bond->params.mode == BOND_MODE_ROUNDROBIN)) {
 		bond->igmp_retrans = bond->params.resend_igmp;
-		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
+		queue_delayed_work(bond->wq, &bond->mcast_work, 1);
 	}
 }
 
