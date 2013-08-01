@@ -1223,6 +1223,11 @@ typedef struct drm_i915_private {
 	struct i915_ums_state ums;
 } drm_i915_private_t;
 
+static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
+{
+	return dev->dev_private;
+}
+
 /* Iterate over initialised rings */
 #define for_each_ring(ring__, dev_priv__, i__) \
 	for ((i__) = 0; (i__) < I915_NUM_RINGS; (i__)++) \
@@ -1484,7 +1489,7 @@ struct drm_i915_file_private {
 	struct i915_ctx_hang_stats hang_stats;
 };
 
-#define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
+#define INTEL_INFO(dev)	(to_i915(dev)->info)
 
 #define IS_I830(dev)		((dev)->pci_device == 0x3577)
 #define IS_845G(dev)		((dev)->pci_device == 0x2562)
@@ -1578,7 +1583,7 @@ struct drm_i915_file_private {
 #define INTEL_PCH_LPT_DEVICE_ID_TYPE		0x8c00
 #define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE		0x9c00
 
-#define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
+#define INTEL_PCH_TYPE(dev) (to_i915(dev)->pch_type)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
@@ -1976,7 +1981,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 void i915_gem_object_release_stolen(struct drm_i915_gem_object *obj);
 
 /* i915_gem_tiling.c */
-inline static bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
+static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
 {
 	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
 
