@@ -1992,6 +1992,9 @@ int rv6xx_dpm_init(struct radeon_device *rdev)
 	pi->mclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
 						       ASIC_INTERNAL_MEMORY_SS, 0);
 
+	/* Disable sclk ss, causes hangs on a lot of systems */
+	pi->sclk_ss = false;
+
 	if (pi->sclk_ss || pi->mclk_ss)
 		pi->dynamic_ss = true;
 	else
