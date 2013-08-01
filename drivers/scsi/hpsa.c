@@ -2721,7 +2721,6 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 	} while (test_and_set_bit
 		 (i & (BITS_PER_LONG - 1),
 		  h->cmd_pool_bits + (i / BITS_PER_LONG)) != 0);
-	h->nr_allocs++;
 	spin_unlock_irqrestore(&h->lock, flags);
 
 	c = h->cmd_pool + i;
@@ -2793,7 +2792,6 @@ static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 	spin_lock_irqsave(&h->lock, flags);
 	clear_bit(i & (BITS_PER_LONG - 1),
 		  h->cmd_pool_bits + (i / BITS_PER_LONG));
-	h->nr_frees++;
 	spin_unlock_irqrestore(&h->lock, flags);
 }
 
