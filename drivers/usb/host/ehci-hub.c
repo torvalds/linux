@@ -867,11 +867,11 @@ static int ehci_hub_control (
 			}
 		}
 
-		/* whoever resumes must GetPortStatus to complete it!! */
-		if (temp & PORT_RESUME) {
+		/* no reset or resume pending */
+		if (!ehci->reset_done[wIndex]) {
 
 			/* Remote Wakeup received? */
-			if (!ehci->reset_done[wIndex]) {
+			if (temp & PORT_RESUME) {
 				/* resume signaling for 20 msec */
 				ehci->reset_done[wIndex] = jiffies
 						+ msecs_to_jiffies(20);
@@ -882,35 +882,32 @@ static int ehci_hub_control (
 						ehci->reset_done[wIndex]);
 			}
 
-			/* resume completed? */
-			else if (time_after_eq(jiffies,
-					ehci->reset_done[wIndex])) {
-				clear_bit(wIndex, &ehci->suspended_ports);
-				set_bit(wIndex, &ehci->port_c_suspend);
-				ehci->reset_done[wIndex] = 0;
-				usb_hcd_end_port_resume(&hcd->self, wIndex);
+		/* reset or resume not yet complete */
+		} else if (!time_after_eq(jiffies, ehci->reset_done[wIndex])) {
+			;	/* wait until it is complete */
 
-				/* stop resume signaling */
-				temp &= ~(PORT_RWC_BITS |
-						PORT_SUSPEND | PORT_RESUME);
-				ehci_writel(ehci, temp, status_reg);
-				clear_bit(wIndex, &ehci->resuming_ports);
-				retval = ehci_handshake(ehci, status_reg,
-					   PORT_RESUME, 0, 2000 /* 2msec */);
-				if (retval != 0) {
-					ehci_err(ehci,
-						"port %d resume error %d\n",
+		/* resume completed */
+		} else if (test_bit(wIndex, &ehci->resuming_ports)) {
+			clear_bit(wIndex, &ehci->suspended_ports);
+			set_bit(wIndex, &ehci->port_c_suspend);
+			ehci->reset_done[wIndex] = 0;
+			usb_hcd_end_port_resume(&hcd->self, wIndex);
+
+			/* stop resume signaling */
+			temp &= ~(PORT_RWC_BITS | PORT_SUSPEND | PORT_RESUME);
+			ehci_writel(ehci, temp, status_reg);
+			clear_bit(wIndex, &ehci->resuming_ports);
+			retval = ehci_handshake(ehci, status_reg,
+					PORT_RESUME, 0, 2000 /* 2msec */);
+			if (retval != 0) {
+				ehci_err(ehci, "port %d resume error %d\n",
 						wIndex + 1, retval);
-					goto error;
-				}
-				temp = ehci_readl(ehci, status_reg);
+				goto error;
 			}
-		}
+			temp = ehci_readl(ehci, status_reg);
 
 		/* whoever resets must GetPortStatus to complete it!! */
-		if ((temp & PORT_RESET)
-				&& time_after_eq(jiffies,
-					ehci->reset_done[wIndex])) {
+		} else {
 			status |= USB_PORT_STAT_C_RESET << 16;
 			ehci->reset_done [wIndex] = 0;
 
@@ -931,11 +928,6 @@ static int ehci_hub_control (
 			/* see what we found out */
 			temp = check_reset_complete (ehci, wIndex, status_reg,
 					ehci_readl(ehci, status_reg));
-		}
-
-		if (!(temp & (PORT_RESUME|PORT_RESET))) {
-			ehci->reset_done[wIndex] = 0;
-			clear_bit(wIndex, &ehci->resuming_ports);
 		}
 
 		/* transfer dedicated ports to the companion hc */
@@ -1058,7 +1050,7 @@ static int ehci_hub_control (
 						status_reg);
 			break;
 		case USB_PORT_FEAT_RESET:
-			if (temp & PORT_RESUME)
+			if (temp & (PORT_SUSPEND|PORT_RESUME))
 				goto error;
 			/* line status bits may report this as low speed,
 			 * which can be fine if this root hub has a
