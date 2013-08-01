@@ -55,12 +55,6 @@ enum imx_thermal_trip {
  */
 #define IMX_TEMP_PASSIVE		85000
 
-/*
- * The maximum die temperature on imx parts is 105C, let's give some cushion
- * for noise and possible temperature rise between measurements.
- */
-#define IMX_TEMP_CRITICAL		100000
-
 #define IMX_POLLING_DELAY		2000 /* millisecond */
 #define IMX_PASSIVE_DELAY		1000
 
@@ -70,6 +64,8 @@ struct imx_thermal_data {
 	enum thermal_device_mode mode;
 	struct regmap *tempmon;
 	int c1, c2; /* See formula in imx_get_sensor_data() */
+	unsigned long temp_passive;
+	unsigned long temp_critical;
 };
 
 static int imx_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
@@ -156,15 +152,35 @@ static int imx_get_trip_type(struct thermal_zone_device *tz, int trip,
 static int imx_get_crit_temp(struct thermal_zone_device *tz,
 			     unsigned long *temp)
 {
-	*temp = IMX_TEMP_CRITICAL;
+	struct imx_thermal_data *data = tz->devdata;
+
+	*temp = data->temp_critical;
 	return 0;
 }
 
 static int imx_get_trip_temp(struct thermal_zone_device *tz, int trip,
 			     unsigned long *temp)
 {
-	*temp = (trip == IMX_TRIP_PASSIVE) ? IMX_TEMP_PASSIVE :
-					     IMX_TEMP_CRITICAL;
+	struct imx_thermal_data *data = tz->devdata;
+
+	*temp = (trip == IMX_TRIP_PASSIVE) ? data->temp_passive :
+					     data->temp_critical;
+	return 0;
+}
+
+static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip,
+			     unsigned long temp)
+{
+	struct imx_thermal_data *data = tz->devdata;
+
+	if (trip == IMX_TRIP_CRITICAL)
+		return -EPERM;
+
+	if (temp > IMX_TEMP_PASSIVE)
+		return -EINVAL;
+
+	data->temp_passive = temp;
+
 	return 0;
 }
 
@@ -211,6 +227,7 @@ static const struct thermal_zone_device_ops imx_tz_ops = {
 	.get_trip_type = imx_get_trip_type,
 	.get_trip_temp = imx_get_trip_temp,
 	.get_crit_temp = imx_get_crit_temp,
+	.set_trip_temp = imx_set_trip_temp,
 };
 
 static int imx_get_sensor_data(struct platform_device *pdev)
@@ -267,6 +284,18 @@ static int imx_get_sensor_data(struct platform_device *pdev)
 	data->c1 = 1000 * (t1 - t2) / (n1 - n2);
 	data->c2 = 1000 * t2 - data->c1 * n2;
 
+	/*
+	 * Set the default passive cooling trip point to 20 °C below the
+	 * maximum die temperature. Can be changed from userspace.
+	 */
+	data->temp_passive = 1000 * (t2 - 20);
+
+	/*
+	 * The maximum die temperature is t2, let's give 5 °C cushion
+	 * for noise and possible temperature rise between measurements.
+	 */
+	data->temp_critical = 1000 * (t2 - 5);
+
 	return 0;
 }
 
@@ -314,7 +343,8 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	}
 
 	data->tz = thermal_zone_device_register("imx_thermal_zone",
-						IMX_TRIP_NUM, 0, data,
+						IMX_TRIP_NUM,
+						BIT(IMX_TRIP_PASSIVE), data,
 						&imx_tz_ops, NULL,
 						IMX_PASSIVE_DELAY,
 						IMX_POLLING_DELAY);
