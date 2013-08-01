@@ -16,8 +16,6 @@
 #include <linux/string.h>
 #include <linux/module.h>
 
-#undef strlen
-
 size_t strlen(const char *s)
 {
 	/* Get an aligned pointer. */

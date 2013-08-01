@@ -12,13 +12,10 @@
  *   more details.
  */
 
-#include <arch/chip.h>
-
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/module.h>
-
-#undef memset
+#include <arch/chip.h>
 
 void *memset(void *s, int c, size_t n)
 {
