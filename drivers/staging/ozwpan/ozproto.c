@@ -669,21 +669,6 @@ void oz_binding_add(const char *net_dev)
 /*------------------------------------------------------------------------------
  * Context: process
  */
-static int compare_binding_name(const char *s1, const char *s2)
-{
-	int i;
-	for (i = 0; i < OZ_MAX_BINDING_LEN; i++) {
-		if (*s1 != *s2)
-			return 0;
-		if (!*s1++)
-			return 1;
-		s2++;
-	}
-	return 1;
-}
-/*------------------------------------------------------------------------------
- * Context: process
- */
 static void pd_stop_all_for_device(struct net_device *net_dev)
 {
 	struct list_head h;
@@ -715,7 +700,7 @@ void oz_binding_remove(const char *net_dev)
 	oz_dbg(ON, "Removing binding: %s\n", net_dev);
 	spin_lock_bh(&g_binding_lock);
 	list_for_each_entry(binding, &g_binding, link) {
-		if (compare_binding_name(binding->name, net_dev)) {
+		if (strncmp(binding->name, net_dev, OZ_MAX_BINDING_LEN) == 0) {
 			oz_dbg(ON, "Binding '%s' found\n", net_dev);
 			found = 1;
 			break;
