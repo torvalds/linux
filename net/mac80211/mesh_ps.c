@@ -229,6 +229,10 @@ void ieee80211_mps_sta_status_update(struct sta_info *sta)
 	enum nl80211_mesh_power_mode pm;
 	bool do_buffer;
 
+	/* For non-assoc STA, prevent buffering or frame transmission */
+	if (sta->sta_state < IEEE80211_STA_ASSOC)
+		return;
+
 	/*
 	 * use peer-specific power mode if peering is established and the
 	 * peer's power mode is known
