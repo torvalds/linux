@@ -2113,10 +2113,11 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 	spin_unlock(&file_priv->mm.lock);
 }
 
-static bool i915_head_inside_object(u32 acthd, struct drm_i915_gem_object *obj)
+static bool i915_head_inside_object(u32 acthd, struct drm_i915_gem_object *obj,
+				    struct i915_address_space *vm)
 {
-	if (acthd >= i915_gem_obj_ggtt_offset(obj) &&
-	    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
+	if (acthd >= i915_gem_obj_offset(obj, vm) &&
+	    acthd < i915_gem_obj_offset(obj, vm) + obj->base.size)
 		return true;
 
 	return false;
@@ -2139,6 +2140,17 @@ static bool i915_head_inside_request(const u32 acthd_unmasked,
 	return false;
 }
 
+static struct i915_address_space *
+request_to_vm(struct drm_i915_gem_request *request)
+{
+	struct drm_i915_private *dev_priv = request->ring->dev->dev_private;
+	struct i915_address_space *vm;
+
+	vm = &dev_priv->gtt.base;
+
+	return vm;
+}
+
 static bool i915_request_guilty(struct drm_i915_gem_request *request,
 				const u32 acthd, bool *inside)
 {
@@ -2146,9 +2158,9 @@ static bool i915_request_guilty(struct drm_i915_gem_request *request,
 	 * pointing inside the ring, matches the batch_obj address range.
 	 * However this is extremely unlikely.
 	 */
-
 	if (request->batch_obj) {
-		if (i915_head_inside_object(acthd, request->batch_obj)) {
+		if (i915_head_inside_object(acthd, request->batch_obj,
+					    request_to_vm(request))) {
 			*inside = true;
 			return true;
 		}
@@ -2168,17 +2180,21 @@ static void i915_set_reset_status(struct intel_ring_buffer *ring,
 {
 	struct i915_ctx_hang_stats *hs = NULL;
 	bool inside, guilty;
+	unsigned long offset = 0;
 
 	/* Innocent until proven guilty */
 	guilty = false;
+
+	if (request->batch_obj)
+		offset = i915_gem_obj_offset(request->batch_obj,
+					     request_to_vm(request));
 
 	if (ring->hangcheck.action != wait &&
 	    i915_request_guilty(request, acthd, &inside)) {
 		DRM_ERROR("%s hung %s bo (0x%lx ctx %d) at 0x%x\n",
 			  ring->name,
 			  inside ? "inside" : "flushing",
-			  request->batch_obj ?
-			  i915_gem_obj_ggtt_offset(request->batch_obj) : 0,
+			  offset,
 			  request->ctx ? request->ctx->id : 0,
 			  acthd);
 
