@@ -48,7 +48,7 @@ struct oz_farewell {
 	struct list_head link;
 	u8 ep_num;
 	u8 index;
-	u8 report[1];
+	u8 report[32];
 	u8 len;
 };
 
