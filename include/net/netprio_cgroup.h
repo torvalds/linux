@@ -29,7 +29,7 @@ struct cgroup_netprio_state {
 	struct cgroup_subsys_state css;
 };
 
-extern void sock_update_netprioidx(struct sock *sk);
+void sock_update_netprioidx(struct sock *sk);
 
 #if IS_BUILTIN(CONFIG_NETPRIO_CGROUP)
 
