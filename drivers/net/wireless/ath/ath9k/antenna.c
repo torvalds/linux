@@ -164,11 +164,11 @@ static void ath_select_ant_div_from_quick_scan(struct ath_ant_comb *antcomb,
 			else
 				antcomb->first_ratio = false;
 		} else {
-			if ((((alt_ratio >= ATH_ANT_DIV_COMB_ALT_ANT_RATIO2) &&
-			      (alt_rssi_avg > main_rssi_avg +
-			       ATH_ANT_DIV_COMB_LNA1_DELTA_HI)) ||
-			     (alt_rssi_avg > main_rssi_avg)) &&
-			    (antcomb->total_pkt_count > 50))
+			if (ath_is_alt_ant_ratio_better(alt_ratio,
+						ATH_ANT_DIV_COMB_LNA1_DELTA_HI,
+						0,
+						main_rssi_avg, alt_rssi_avg,
+						antcomb->total_pkt_count))
 				antcomb->first_ratio = true;
 			else
 				antcomb->first_ratio = false;
@@ -219,11 +219,11 @@ static void ath_select_ant_div_from_quick_scan(struct ath_ant_comb *antcomb,
 			else
 				antcomb->second_ratio = false;
 		} else {
-			if ((((alt_ratio >= ATH_ANT_DIV_COMB_ALT_ANT_RATIO2) &&
-			      (alt_rssi_avg > main_rssi_avg +
-			       ATH_ANT_DIV_COMB_LNA1_DELTA_HI)) ||
-			     (alt_rssi_avg > main_rssi_avg)) &&
-			    (antcomb->total_pkt_count > 50))
+			if (ath_is_alt_ant_ratio_better(alt_ratio,
+						ATH_ANT_DIV_COMB_LNA1_DELTA_HI,
+						0,
+						main_rssi_avg, alt_rssi_avg,
+						antcomb->total_pkt_count))
 				antcomb->second_ratio = true;
 			else
 				antcomb->second_ratio = false;
