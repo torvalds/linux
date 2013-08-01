@@ -556,7 +556,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			if ((entry->alignment &&
 			     obj_offset & (entry->alignment - 1)) ||
 			    (need_mappable && !obj->map_and_fenceable))
-				ret = i915_gem_object_unbind(obj);
+				ret = i915_vma_unbind(i915_gem_obj_to_vma(obj, vm));
 			else
 				ret = i915_gem_execbuffer_reserve_object(obj, ring, vm, need_relocs);
 			if (ret)
