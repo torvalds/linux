@@ -1169,31 +1169,18 @@ ax88179_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	int frame_size = dev->maxpacket;
 	int mss = skb_shinfo(skb)->gso_size;
 	int headroom;
-	int tailroom;
 
 	tx_hdr1 = skb->len;
 	tx_hdr2 = mss;
 	if (((skb->len + 8) % frame_size) == 0)
 		tx_hdr2 |= 0x80008000;	/* Enable padding */
 
-	headroom = skb_headroom(skb);
-	tailroom = skb_tailroom(skb);
+	headroom = skb_headroom(skb) - 8;
 
-	if (!skb_header_cloned(skb) &&
-	    !skb_cloned(skb) &&
-	    (headroom + tailroom) >= 8) {
-		if (headroom < 8) {
-			skb->data = memmove(skb->head + 8, skb->data, skb->len);
-			skb_set_tail_pointer(skb, skb->len);
-		}
-	} else {
-		struct sk_buff *skb2;
-
-		skb2 = skb_copy_expand(skb, 8, 0, flags);
+	if ((skb_header_cloned(skb) || headroom < 0) &&
+	    pskb_expand_head(skb, headroom < 0 ? 8 : 0, 0, GFP_ATOMIC)) {
 		dev_kfree_skb_any(skb);
-		skb = skb2;
-		if (!skb)
-			return NULL;
+		return NULL;
 	}
 
 	skb_push(skb, 4);
