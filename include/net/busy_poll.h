@@ -27,7 +27,7 @@
 #include <linux/netdevice.h>
 #include <net/ip.h>
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 
 struct napi_struct;
 extern unsigned int sysctl_net_busy_read __read_mostly;
@@ -146,7 +146,7 @@ static inline void sk_mark_napi_id(struct sock *sk, struct sk_buff *skb)
 	sk->sk_napi_id = skb->napi_id;
 }
 
-#else /* CONFIG_NET_LL_RX_POLL */
+#else /* CONFIG_NET_RX_BUSY_POLL */
 static inline unsigned long net_busy_loop_on(void)
 {
 	return 0;
@@ -186,5 +186,5 @@ static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 	return false;
 }
 
-#endif /* CONFIG_NET_LL_RX_POLL */
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 #endif /* _LINUX_NET_BUSY_POLL_H */

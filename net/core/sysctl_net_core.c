@@ -298,7 +298,7 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= flow_limit_table_len_sysctl
 	},
 #endif /* CONFIG_NET_FLOW_LIMIT */
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	{
 		.procname	= "busy_poll",
 		.data		= &sysctl_net_busy_poll,
