@@ -1876,12 +1876,12 @@ void __sramlocalfunc ddr_update_odt(void)
 #if defined (CONFIG_ARCH_RK3026)    //RK3028A   RK3026
     else
     {
-        pPHY_Reg->PHY_REG27 = ((PHY_RTT_215ohm<<3) | PHY_RTT_215ohm);       
-        pPHY_Reg->PHY_REG28 = ((PHY_RTT_215ohm<<3) | PHY_RTT_215ohm);    
+        pPHY_Reg->PHY_REG27 = ((PHY_RTT_215ohm<<4) | PHY_RTT_215ohm);       
+        pPHY_Reg->PHY_REG28 = ((PHY_RTT_215ohm<<4) | PHY_RTT_215ohm);    
         pPHY_Reg->PHY_REG0e4 = 0x0E;           //on DQS ODT default:0x0E
         pPHY_Reg->PHY_REG124 = 0x0E;           //on DQS ODT default:0x0E
     }
-    tmp = ((PHY_RON_45ohm<<3) | PHY_RON_45ohm);    
+    tmp = ((PHY_RON_45ohm<<4) | PHY_RON_45ohm);    
 #else                   //RK2928  R2926
     else
     {
