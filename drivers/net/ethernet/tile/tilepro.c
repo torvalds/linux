@@ -2253,7 +2253,6 @@ static void tile_net_setup(struct net_device *dev)
 	dev->tx_queue_len = TILE_NET_TX_QUEUE_LEN;
 	dev->mtu = TILE_NET_MTU;
 
-	features |= NETIF_F_LLTX;
 	features |= NETIF_F_HW_CSUM;
 	features |= NETIF_F_SG;
 

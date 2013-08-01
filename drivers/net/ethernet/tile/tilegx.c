@@ -1963,7 +1963,6 @@ static void tile_net_setup(struct net_device *dev)
 	dev->watchdog_timeo = TILE_NET_TIMEOUT;
 	dev->mtu = 1500;
 
-	features |= NETIF_F_LLTX;
 	features |= NETIF_F_HW_CSUM;
 	features |= NETIF_F_SG;
 	features |= NETIF_F_TSO;
