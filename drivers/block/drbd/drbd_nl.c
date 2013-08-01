@@ -1273,6 +1273,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	if (err && err != -ENOMSG) {
 		retcode = ERR_MANDATORY_TAG;
 		drbd_msg_put_info(from_attrs_err_to_txt(err));
+		goto fail_unlock;
 	}
 
 	if (!expect(new_disk_conf->resync_rate >= 1))
