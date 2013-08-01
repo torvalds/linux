@@ -321,6 +321,20 @@ static const struct file_operations fops_ant_diversity = {
 	.llseek = default_llseek,
 };
 
+void ath9k_debug_stat_ant(struct ath_softc *sc,
+			  struct ath_hw_antcomb_conf *div_ant_conf,
+			  int main_rssi_avg, int alt_rssi_avg)
+{
+	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
+	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
+
+	as_main->lna_attempt_cnt[div_ant_conf->main_lna_conf]++;
+	as_alt->lna_attempt_cnt[div_ant_conf->alt_lna_conf]++;
+
+	as_main->rssi_avg = main_rssi_avg;
+	as_alt->rssi_avg = alt_rssi_avg;
+}
+
 static ssize_t read_file_antenna_diversity(struct file *file,
 					   char __user *user_buf,
 					   size_t count, loff_t *ppos)
@@ -330,9 +344,14 @@ static ssize_t read_file_antenna_diversity(struct file *file,
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
 	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
+	struct ath_hw_antcomb_conf div_ant_conf;
 	unsigned int len = 0, size = 1024;
 	ssize_t retval = 0;
 	char *buf;
+	char *lna_conf_str[4] = {"LNA1_MINUS_LNA2",
+				 "LNA2",
+				 "LNA1",
+				 "LNA1_PLUS_LNA2"};
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
@@ -344,28 +363,66 @@ static ssize_t read_file_antenna_diversity(struct file *file,
 		goto exit;
 	}
 
+	ath9k_ps_wakeup(sc);
+	ath9k_hw_antdiv_comb_conf_get(ah, &div_ant_conf);
+	len += snprintf(buf + len, size - len, "Current MAIN config : %s\n",
+			lna_conf_str[div_ant_conf.main_lna_conf]);
+	len += snprintf(buf + len, size - len, "Current ALT config  : %s\n",
+			lna_conf_str[div_ant_conf.alt_lna_conf]);
+	len += snprintf(buf + len, size - len, "Average MAIN RSSI   : %d\n",
+			as_main->rssi_avg);
+	len += snprintf(buf + len, size - len, "Average ALT RSSI    : %d\n\n",
+			as_alt->rssi_avg);
+	ath9k_ps_restore(sc);
+
+	len += snprintf(buf + len, size - len, "Packet Receive Cnt:\n");
+	len += snprintf(buf + len, size - len, "-------------------\n");
+
 	len += snprintf(buf + len, size - len, "%30s%15s\n",
 			"MAIN", "ALT");
-	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
-			"RECV CNT",
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"TOTAL COUNT",
 			as_main->recv_cnt,
 			as_alt->recv_cnt);
-	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
 			"LNA1",
-			as_main->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1],
-			as_alt->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1]);
-	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+			as_main->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1],
+			as_alt->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
 			"LNA2",
-			as_main->lna_config_cnt[ATH_ANT_DIV_COMB_LNA2],
-			as_alt->lna_config_cnt[ATH_ANT_DIV_COMB_LNA2]);
-	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+			as_main->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA2],
+			as_alt->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA2]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
 			"LNA1 + LNA2",
-			as_main->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2],
-			as_alt->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2]);
-	len += snprintf(buf + len, size - len, "%-15s%15d%15d\n",
+			as_main->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2],
+			as_alt->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
 			"LNA1 - LNA2",
-			as_main->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2],
-			as_alt->lna_config_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2]);
+			as_main->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2],
+			as_alt->lna_recv_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2]);
+
+	len += snprintf(buf + len, size - len, "\nLNA Config Attempts:\n");
+	len += snprintf(buf + len, size - len, "--------------------\n");
+
+	len += snprintf(buf + len, size - len, "%30s%15s\n",
+			"MAIN", "ALT");
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1",
+			as_main->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1],
+			as_alt->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA2",
+			as_main->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA2],
+			as_alt->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA2]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1 + LNA2",
+			as_main->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2],
+			as_alt->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1_PLUS_LNA2]);
+	len += snprintf(buf + len, size - len, "%-14s:%15d%15d\n",
+			"LNA1 - LNA2",
+			as_main->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2],
+			as_alt->lna_attempt_cnt[ATH_ANT_DIV_COMB_LNA1_MINUS_LNA2]);
+
 exit:
 	if (len > size)
 		len = size;

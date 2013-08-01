@@ -29,7 +29,7 @@ struct fft_sample_tlv;
 #define TX_STAT_INC(q, c) sc->debug.stats.txstats[q].c++
 #define RESET_STAT_INC(sc, type) sc->debug.stats.reset[type]++
 #define ANT_STAT_INC(i, c) sc->debug.stats.ant_stats[i].c++
-#define ANT_LNA_INC(i, c) sc->debug.stats.ant_stats[i].lna_config_cnt[c]++;
+#define ANT_LNA_INC(i, c) sc->debug.stats.ant_stats[i].lna_recv_cnt[c]++;
 #else
 #define TX_STAT_INC(q, c) do { } while (0)
 #define RESET_STAT_INC(sc, type) do { } while (0)
@@ -252,7 +252,9 @@ struct ath_rx_stats {
 
 struct ath_antenna_stats {
 	u32 recv_cnt;
-	u32 lna_config_cnt[4];
+	u32 rssi_avg;
+	u32 lna_recv_cnt[4];
+	u32 lna_attempt_cnt[4];
 };
 
 struct ath_stats {
@@ -294,10 +296,11 @@ void ath9k_sta_remove_debugfs(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta,
 			      struct dentry *dir);
-
 void ath_debug_send_fft_sample(struct ath_softc *sc,
 			       struct fft_sample_tlv *fft_sample);
-
+void ath9k_debug_stat_ant(struct ath_softc *sc,
+			  struct ath_hw_antcomb_conf *div_ant_conf,
+			  int main_rssi_avg, int alt_rssi_avg);
 #else
 
 #define RX_STAT_INC(c) /* NOP */
@@ -310,12 +313,10 @@ static inline int ath9k_init_debug(struct ath_hw *ah)
 static inline void ath9k_deinit_debug(struct ath_softc *sc)
 {
 }
-
 static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 					    enum ath9k_int status)
 {
 }
-
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_buf *bf,
 				     struct ath_tx_status *ts,
@@ -323,10 +324,15 @@ static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     unsigned int flags)
 {
 }
-
 static inline void ath_debug_stat_rx(struct ath_softc *sc,
 				     struct ath_rx_status *rs)
 {
+}
+static inline void ath9k_debug_stat_ant(struct ath_softc *sc,
+					struct ath_hw_antcomb_conf *div_ant_conf,
+					int main_rssi_avg, int alt_rssi_avg)
+{
+
 }
 
 #endif /* CONFIG_ATH9K_DEBUGFS */
