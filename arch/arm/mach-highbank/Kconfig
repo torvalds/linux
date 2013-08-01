@@ -18,3 +18,4 @@ config ARCH_HIGHBANK
 	select PL320_MBOX
 	select SPARSE_IRQ
 	select USE_OF
+	select ZONE_DMA if ARM_LPAE
