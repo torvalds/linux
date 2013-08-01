@@ -540,6 +540,27 @@ static void ath_ant_div_conf_fast_divbias(struct ath_hw_antcomb_conf *ant_conf,
 	}
 }
 
+static bool ath_ant_short_scan_check(struct ath_ant_comb *antcomb)
+{
+	int alt_ratio;
+
+	if (!antcomb->scan || !antcomb->alt_good)
+		return false;
+
+	if (time_after(jiffies, antcomb->scan_start_time +
+		       msecs_to_jiffies(ATH_ANT_DIV_COMB_SHORT_SCAN_INTR)))
+		return true;
+
+	if (antcomb->total_pkt_count == ATH_ANT_DIV_COMB_SHORT_SCAN_PKTCOUNT) {
+		alt_ratio = ((antcomb->alt_recv_cnt * 100) /
+			     antcomb->total_pkt_count);
+		if (alt_ratio < ATH_ANT_DIV_COMB_ALT_ANT_RATIO)
+			return true;
+	}
+
+	return false;
+}
+
 void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 {
 	struct ath_hw_antcomb_conf div_ant_conf;
@@ -574,22 +595,10 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs)
 	}
 
 	/* Short scan check */
-	if (antcomb->scan && antcomb->alt_good) {
-		if (time_after(jiffies, antcomb->scan_start_time +
-		    msecs_to_jiffies(ATH_ANT_DIV_COMB_SHORT_SCAN_INTR)))
-			short_scan = true;
-		else
-			if (antcomb->total_pkt_count ==
-			    ATH_ANT_DIV_COMB_SHORT_SCAN_PKTCOUNT) {
-				alt_ratio = ((antcomb->alt_recv_cnt * 100) /
-					    antcomb->total_pkt_count);
-				if (alt_ratio < ATH_ANT_DIV_COMB_ALT_ANT_RATIO)
-					short_scan = true;
-			}
-	}
+	short_scan = ath_ant_short_scan_check(antcomb);
 
 	if (((antcomb->total_pkt_count < ATH_ANT_DIV_COMB_MAX_PKTCOUNT) ||
-	    rs->rs_moreaggr) && !short_scan)
+	     rs->rs_moreaggr) && !short_scan)
 		return;
 
 	if (antcomb->total_pkt_count) {
