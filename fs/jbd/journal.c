@@ -90,6 +90,24 @@ static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
 static const char *journal_dev_name(journal_t *journal, char *buffer);
 
+#ifdef CONFIG_JBD_DEBUG
+void __jbd_debug(int level, const char *file, const char *func,
+		 unsigned int line, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (level > journal_enable_debug)
+		return;
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk(KERN_DEBUG "%s: (%s, %u): %pV\n", file, func, line, &vaf);
+	va_end(args);
+}
+EXPORT_SYMBOL(__jbd_debug);
+#endif
+
 /*
  * Helper function used to manage commit timeouts
  */
