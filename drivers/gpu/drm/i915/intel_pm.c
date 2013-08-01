@@ -1680,9 +1680,6 @@ static void i830_update_wm(struct drm_device *dev)
 	I915_WRITE(FW_BLC, fwater_lo);
 }
 
-#define ILK_LP0_PLANE_LATENCY		700
-#define ILK_LP0_CURSOR_LATENCY		1300
-
 /*
  * Check the wm result.
  *
@@ -1797,9 +1794,9 @@ static void ironlake_update_wm(struct drm_device *dev)
 	enabled = 0;
 	if (g4x_compute_wm0(dev, PIPE_A,
 			    &ironlake_display_wm_info,
-			    ILK_LP0_PLANE_LATENCY,
+			    dev_priv->wm.pri_latency[0] * 100,
 			    &ironlake_cursor_wm_info,
-			    ILK_LP0_CURSOR_LATENCY,
+			    dev_priv->wm.cur_latency[0] * 100,
 			    &plane_wm, &cursor_wm)) {
 		I915_WRITE(WM0_PIPEA_ILK,
 			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
@@ -1811,9 +1808,9 @@ static void ironlake_update_wm(struct drm_device *dev)
 
 	if (g4x_compute_wm0(dev, PIPE_B,
 			    &ironlake_display_wm_info,
-			    ILK_LP0_PLANE_LATENCY,
+			    dev_priv->wm.pri_latency[0] * 100,
 			    &ironlake_cursor_wm_info,
-			    ILK_LP0_CURSOR_LATENCY,
+			    dev_priv->wm.cur_latency[0] * 100,
 			    &plane_wm, &cursor_wm)) {
 		I915_WRITE(WM0_PIPEB_ILK,
 			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
@@ -1837,7 +1834,7 @@ static void ironlake_update_wm(struct drm_device *dev)
 
 	/* WM1 */
 	if (!ironlake_compute_srwm(dev, 1, enabled,
-				   ILK_READ_WM1_LATENCY() * 500,
+				   dev_priv->wm.pri_latency[1] * 500,
 				   &ironlake_display_srwm_info,
 				   &ironlake_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -1845,14 +1842,14 @@ static void ironlake_update_wm(struct drm_device *dev)
 
 	I915_WRITE(WM1_LP_ILK,
 		   WM1_LP_SR_EN |
-		   (ILK_READ_WM1_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (dev_priv->wm.pri_latency[1] << WM1_LP_LATENCY_SHIFT) |
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
 
 	/* WM2 */
 	if (!ironlake_compute_srwm(dev, 2, enabled,
-				   ILK_READ_WM2_LATENCY() * 500,
+				   dev_priv->wm.pri_latency[2] * 500,
 				   &ironlake_display_srwm_info,
 				   &ironlake_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -1860,7 +1857,7 @@ static void ironlake_update_wm(struct drm_device *dev)
 
 	I915_WRITE(WM2_LP_ILK,
 		   WM2_LP_EN |
-		   (ILK_READ_WM2_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (dev_priv->wm.pri_latency[2] << WM1_LP_LATENCY_SHIFT) |
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
@@ -1874,7 +1871,7 @@ static void ironlake_update_wm(struct drm_device *dev)
 static void sandybridge_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	int latency = dev_priv->wm.pri_latency[0] * 100;	/* In unit 0.1us */
 	u32 val;
 	int fbc_wm, plane_wm, cursor_wm;
 	unsigned int enabled;
@@ -1929,7 +1926,7 @@ static void sandybridge_update_wm(struct drm_device *dev)
 
 	/* WM1 */
 	if (!ironlake_compute_srwm(dev, 1, enabled,
-				   SNB_READ_WM1_LATENCY() * 500,
+				   dev_priv->wm.pri_latency[1] * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -1937,14 +1934,14 @@ static void sandybridge_update_wm(struct drm_device *dev)
 
 	I915_WRITE(WM1_LP_ILK,
 		   WM1_LP_SR_EN |
-		   (SNB_READ_WM1_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (dev_priv->wm.pri_latency[1] << WM1_LP_LATENCY_SHIFT) |
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
 
 	/* WM2 */
 	if (!ironlake_compute_srwm(dev, 2, enabled,
-				   SNB_READ_WM2_LATENCY() * 500,
+				   dev_priv->wm.pri_latency[2] * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -1952,14 +1949,14 @@ static void sandybridge_update_wm(struct drm_device *dev)
 
 	I915_WRITE(WM2_LP_ILK,
 		   WM2_LP_EN |
-		   (SNB_READ_WM2_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (dev_priv->wm.pri_latency[2] << WM1_LP_LATENCY_SHIFT) |
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
 
 	/* WM3 */
 	if (!ironlake_compute_srwm(dev, 3, enabled,
-				   SNB_READ_WM3_LATENCY() * 500,
+				   dev_priv->wm.pri_latency[3] * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -1967,7 +1964,7 @@ static void sandybridge_update_wm(struct drm_device *dev)
 
 	I915_WRITE(WM3_LP_ILK,
 		   WM3_LP_EN |
-		   (SNB_READ_WM3_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (dev_priv->wm.pri_latency[3] << WM1_LP_LATENCY_SHIFT) |
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
@@ -1976,7 +1973,7 @@ static void sandybridge_update_wm(struct drm_device *dev)
 static void ivybridge_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	int latency = dev_priv->wm.pri_latency[0] * 100;	/* In unit 0.1us */
 	u32 val;
 	int fbc_wm, plane_wm, cursor_wm;
 	int ignore_fbc_wm, ignore_plane_wm, ignore_cursor_wm;
@@ -2046,7 +2043,7 @@ static void ivybridge_update_wm(struct drm_device *dev)
 
 	/* WM1 */
 	if (!ironlake_compute_srwm(dev, 1, enabled,
-				   SNB_READ_WM1_LATENCY() * 500,
+				   dev_priv->wm.pri_latency[1] * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -2054,14 +2051,14 @@ static void ivybridge_update_wm(struct drm_device *dev)
 
 	I915_WRITE(WM1_LP_ILK,
 		   WM1_LP_SR_EN |
-		   (SNB_READ_WM1_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (dev_priv->wm.pri_latency[1] << WM1_LP_LATENCY_SHIFT) |
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
 
 	/* WM2 */
 	if (!ironlake_compute_srwm(dev, 2, enabled,
-				   SNB_READ_WM2_LATENCY() * 500,
+				   dev_priv->wm.pri_latency[2] * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &cursor_wm))
@@ -2069,19 +2066,19 @@ static void ivybridge_update_wm(struct drm_device *dev)
 
 	I915_WRITE(WM2_LP_ILK,
 		   WM2_LP_EN |
-		   (SNB_READ_WM2_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (dev_priv->wm.pri_latency[2] << WM1_LP_LATENCY_SHIFT) |
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
 
 	/* WM3, note we have to correct the cursor latency */
 	if (!ironlake_compute_srwm(dev, 3, enabled,
-				   SNB_READ_WM3_LATENCY() * 500,
+				   dev_priv->wm.pri_latency[3] * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &fbc_wm, &plane_wm, &ignore_cursor_wm) ||
 	    !ironlake_compute_srwm(dev, 3, enabled,
-				   2 * SNB_READ_WM3_LATENCY() * 500,
+				   dev_priv->wm.cur_latency[3] * 500,
 				   &sandybridge_display_srwm_info,
 				   &sandybridge_cursor_srwm_info,
 				   &ignore_fbc_wm, &ignore_plane_wm, &cursor_wm))
@@ -2089,7 +2086,7 @@ static void ivybridge_update_wm(struct drm_device *dev)
 
 	I915_WRITE(WM3_LP_ILK,
 		   WM3_LP_EN |
-		   (SNB_READ_WM3_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (dev_priv->wm.pri_latency[3] << WM1_LP_LATENCY_SHIFT) |
 		   (fbc_wm << WM1_LP_FBC_SHIFT) |
 		   (plane_wm << WM1_LP_SR_SHIFT) |
 		   cursor_wm);
@@ -2833,7 +2830,7 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 					 bool enable, bool scaled)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	int latency = dev_priv->wm.spr_latency[0] * 100;	/* In unit 0.1us */
 	u32 val;
 	int sprite_wm, reg;
 	int ret;
@@ -2873,7 +2870,7 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
 					      pixel_size,
 					      &sandybridge_display_srwm_info,
-					      SNB_READ_WM1_LATENCY() * 500,
+					      dev_priv->wm.spr_latency[1] * 500,
 					      &sprite_wm);
 	if (!ret) {
 		DRM_DEBUG_KMS("failed to compute sprite lp1 wm on pipe %c\n",
@@ -2889,7 +2886,7 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
 					      pixel_size,
 					      &sandybridge_display_srwm_info,
-					      SNB_READ_WM2_LATENCY() * 500,
+					      dev_priv->wm.spr_latency[2] * 500,
 					      &sprite_wm);
 	if (!ret) {
 		DRM_DEBUG_KMS("failed to compute sprite lp2 wm on pipe %c\n",
@@ -2901,7 +2898,7 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
 					      pixel_size,
 					      &sandybridge_display_srwm_info,
-					      SNB_READ_WM3_LATENCY() * 500,
+					      dev_priv->wm.spr_latency[3] * 500,
 					      &sprite_wm);
 	if (!ret) {
 		DRM_DEBUG_KMS("failed to compute sprite lp3 wm on pipe %c\n",
