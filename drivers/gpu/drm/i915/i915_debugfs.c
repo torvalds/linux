@@ -149,7 +149,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_address_space *vm = &dev_priv->gtt.base;
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	size_t total_obj_size, total_gtt_size;
 	int count, ret;
 
@@ -157,6 +157,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
+	/* FIXME: the user of this interface might want more than just GGTT */
 	switch (list) {
 	case ACTIVE_LIST:
 		seq_puts(m, "Active:\n");
@@ -172,12 +173,12 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	}
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj, head, mm_list) {
-		seq_puts(m, "   ");
-		describe_obj(m, obj);
-		seq_putc(m, '\n');
-		total_obj_size += obj->base.size;
-		total_gtt_size += i915_gem_obj_ggtt_size(obj);
+	list_for_each_entry(vma, head, mm_list) {
+		seq_printf(m, "   ");
+		describe_obj(m, vma->obj);
+		seq_printf(m, "\n");
+		total_obj_size += vma->obj->base.size;
+		total_gtt_size += vma->node.size;
 		count++;
 	}
 	mutex_unlock(&dev->struct_mutex);
@@ -224,7 +225,18 @@ static int per_file_stats(int id, void *ptr, void *data)
 	return 0;
 }
 
-static int i915_gem_object_info(struct seq_file *m, void *data)
+#define count_vmas(list, member) do { \
+	list_for_each_entry(vma, list, member) { \
+		size += i915_gem_obj_ggtt_size(vma->obj); \
+		++count; \
+		if (vma->obj->map_and_fenceable) { \
+			mappable_size += i915_gem_obj_ggtt_size(vma->obj); \
+			++mappable_count; \
+		} \
+	} \
+} while (0)
+
+static int i915_gem_object_info(struct seq_file *m, void* data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -234,6 +246,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_file *file;
+	struct i915_vma *vma;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -250,12 +263,12 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&vm->active_list, mm_list);
+	count_vmas(&vm->active_list, mm_list);
 	seq_printf(m, "  %u [%u] active objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&vm->inactive_list, mm_list);
+	count_vmas(&vm->inactive_list, mm_list);
 	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -1774,7 +1787,8 @@ i915_drop_caches_set(void *data, u64 val)
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj, *next;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct i915_address_space *vm;
+	struct i915_vma *vma, *x;
 	int ret;
 
 	DRM_DEBUG_DRIVER("Dropping caches: 0x%08llx\n", val);
@@ -1795,14 +1809,16 @@ i915_drop_caches_set(void *data, u64 val)
 		i915_gem_retire_requests(dev);
 
 	if (val & DROP_BOUND) {
-		list_for_each_entry_safe(obj, next, &vm->inactive_list,
-					 mm_list) {
-			if (obj->pin_count)
-				continue;
+		list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+			list_for_each_entry_safe(vma, x, &vm->inactive_list,
+						 mm_list) {
+				if (vma->obj->pin_count)
+					continue;
 
-			ret = i915_gem_object_ggtt_unbind(obj);
-			if (ret)
-				goto unlock;
+				ret = i915_vma_unbind(vma);
+				if (ret)
+					goto unlock;
+			}
 		}
 	}
 

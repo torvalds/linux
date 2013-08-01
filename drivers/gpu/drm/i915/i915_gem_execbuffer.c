@@ -801,6 +801,8 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 		obj->base.read_domains = obj->base.pending_read_domains;
 		obj->fenced_gpu_access = obj->pending_fenced_gpu_access;
 
+		/* FIXME: This lookup gets fixed later <-- danvet */
+		list_move_tail(&i915_gem_obj_to_vma(obj, vm)->mm_list, &vm->active_list);
 		i915_gem_object_move_to_active(obj, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
