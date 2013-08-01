@@ -355,8 +355,12 @@ static int tipc_open_listening_sock(struct tipc_server *s)
 		return PTR_ERR(con);
 
 	sock = tipc_create_listen_sock(con);
-	if (!sock)
+	if (!sock) {
+		idr_remove(&s->conn_idr, con->conid);
+		s->idr_in_use--;
+		kfree(con);
 		return -EINVAL;
+	}
 
 	tipc_register_callbacks(sock, con);
 	return 0;
@@ -563,9 +567,14 @@ int tipc_server_start(struct tipc_server *s)
 		kmem_cache_destroy(s->rcvbuf_cache);
 		return ret;
 	}
+	ret = tipc_open_listening_sock(s);
+	if (ret < 0) {
+		tipc_work_stop(s);
+		kmem_cache_destroy(s->rcvbuf_cache);
+		return ret;
+	}
 	s->enabled = 1;
-
-	return tipc_open_listening_sock(s);
+	return ret;
 }
 
 void tipc_server_stop(struct tipc_server *s)
