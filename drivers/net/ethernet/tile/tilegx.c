@@ -650,37 +650,13 @@ static enum hrtimer_restart tile_net_handle_egress_timer(struct hrtimer *t)
 	return HRTIMER_NORESTART;
 }
 
-/* Helper function for "tile_net_update()".
- * "dev" (i.e. arg) is the device being brought up or down,
- * or NULL if all devices are now down.
- */
-static void tile_net_update_cpu(void *arg)
+/* Helper function for "tile_net_update()". */
+static void manage_ingress_irq(void *enable)
 {
-	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
-	struct net_device *dev = arg;
-
-	if (!info->has_iqueue)
-		return;
-
-	if (dev != NULL) {
-		if (!info->napi_added) {
-			netif_napi_add(dev, &info->napi,
-				       tile_net_poll, TILE_NET_WEIGHT);
-			info->napi_added = true;
-		}
-		if (!info->napi_enabled) {
-			napi_enable(&info->napi);
-			info->napi_enabled = true;
-		}
+	if (enable)
 		enable_percpu_irq(ingress_irq, 0);
-	} else {
+	else
 		disable_percpu_irq(ingress_irq);
-		if (info->napi_enabled) {
-			napi_disable(&info->napi);
-			info->napi_enabled = false;
-		}
-		/* FIXME: Drain the iqueue. */
-	}
 }
 
 /* Helper function for tile_net_open() and tile_net_stop().
@@ -717,10 +693,35 @@ static int tile_net_update(struct net_device *dev)
 		return -EIO;
 	}
 
-	/* Update all cpus, sequentially (to protect "netif_napi_add()"). */
-	for_each_online_cpu(cpu)
-		smp_call_function_single(cpu, tile_net_update_cpu,
-					 (saw_channel ? dev : NULL), 1);
+	/* Update all cpus, sequentially (to protect "netif_napi_add()").
+	 * We use on_each_cpu to handle the IPI mask or unmask.
+	 */
+	if (!saw_channel)
+		on_each_cpu(manage_ingress_irq, (void *)0, 1);
+	for_each_online_cpu(cpu) {
+		struct tile_net_info *info = &per_cpu(per_cpu_info, cpu);
+		if (!info->has_iqueue)
+			continue;
+		if (saw_channel) {
+			if (!info->napi_added) {
+				netif_napi_add(dev, &info->napi,
+					       tile_net_poll, TILE_NET_WEIGHT);
+				info->napi_added = true;
+			}
+			if (!info->napi_enabled) {
+				napi_enable(&info->napi);
+				info->napi_enabled = true;
+			}
+		} else {
+			if (info->napi_enabled) {
+				napi_disable(&info->napi);
+				info->napi_enabled = false;
+			}
+			/* FIXME: Drain the iqueue. */
+		}
+	}
+	if (saw_channel)
+		on_each_cpu(manage_ingress_irq, (void *)1, 1);
 
 	/* HACK: Allow packets to flow in the simulator. */
 	if (saw_channel)
