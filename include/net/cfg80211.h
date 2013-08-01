@@ -2841,7 +2841,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv);
  *
  * Return: A non-negative wiphy index or a negative error code.
  */
-extern int wiphy_register(struct wiphy *wiphy);
+int wiphy_register(struct wiphy *wiphy);
 
 /**
  * wiphy_unregister - deregister a wiphy from cfg80211
@@ -2852,14 +2852,14 @@ extern int wiphy_register(struct wiphy *wiphy);
  * pointer, but the call may sleep to wait for an outstanding
  * request that is being handled.
  */
-extern void wiphy_unregister(struct wiphy *wiphy);
+void wiphy_unregister(struct wiphy *wiphy);
 
 /**
  * wiphy_free - free wiphy
  *
  * @wiphy: The wiphy to free
  */
-extern void wiphy_free(struct wiphy *wiphy);
+void wiphy_free(struct wiphy *wiphy);
 
 /* internal structs */
 struct cfg80211_conn;
@@ -3014,14 +3014,14 @@ static inline void *wdev_priv(struct wireless_dev *wdev)
  * @band: band, necessary due to channel number overlap
  * Return: The corresponding frequency (in MHz), or 0 if the conversion failed.
  */
-extern int ieee80211_channel_to_frequency(int chan, enum ieee80211_band band);
+int ieee80211_channel_to_frequency(int chan, enum ieee80211_band band);
 
 /**
  * ieee80211_frequency_to_channel - convert frequency to channel number
  * @freq: center frequency
  * Return: The corresponding channel, or 0 if the conversion failed.
  */
-extern int ieee80211_frequency_to_channel(int freq);
+int ieee80211_frequency_to_channel(int freq);
 
 /*
  * Name indirection necessary because the ieee80211 code also has
@@ -3030,8 +3030,8 @@ extern int ieee80211_frequency_to_channel(int freq);
  * to include both header files you'll (rightfully!) get a symbol
  * clash.
  */
-extern struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
-							 int freq);
+struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
+						  int freq);
 /**
  * ieee80211_get_channel - get channel struct from wiphy for specified frequency
  * @wiphy: the struct wiphy to get the channel for
@@ -3141,13 +3141,14 @@ struct ieee80211_radiotap_iterator {
 	int _reset_on_ext;
 };
 
-extern int ieee80211_radiotap_iterator_init(
-	struct ieee80211_radiotap_iterator *iterator,
-	struct ieee80211_radiotap_header *radiotap_header,
-	int max_length, const struct ieee80211_radiotap_vendor_namespaces *vns);
+int
+ieee80211_radiotap_iterator_init(struct ieee80211_radiotap_iterator *iterator,
+				 struct ieee80211_radiotap_header *radiotap_header,
+				 int max_length,
+				 const struct ieee80211_radiotap_vendor_namespaces *vns);
 
-extern int ieee80211_radiotap_iterator_next(
-	struct ieee80211_radiotap_iterator *iterator);
+int
+ieee80211_radiotap_iterator_next(struct ieee80211_radiotap_iterator *iterator);
 
 
 extern const unsigned char rfc1042_header[6];
@@ -3307,7 +3308,7 @@ const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
  *
  * Return: 0 on success. -ENOMEM.
  */
-extern int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
+int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
 
 /**
  * wiphy_apply_custom_regulatory - apply a custom driver regulatory domain
@@ -3321,9 +3322,8 @@ extern int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
  * default channel settings will be disregarded. If no rule is found for a
  * channel on the regulatory domain the channel will be disabled.
  */
-extern void wiphy_apply_custom_regulatory(
-	struct wiphy *wiphy,
-	const struct ieee80211_regdomain *regd);
+void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
+				   const struct ieee80211_regdomain *regd);
 
 /**
  * freq_reg_info - get regulatory information for the given frequency

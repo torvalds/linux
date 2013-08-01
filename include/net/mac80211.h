@@ -2877,14 +2877,14 @@ enum ieee80211_tpt_led_trigger_flags {
 };
 
 #ifdef CONFIG_MAC80211_LEDS
-extern char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
-extern char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
-extern char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
-extern char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
-extern char *__ieee80211_create_tpt_led_trigger(
-				struct ieee80211_hw *hw, unsigned int flags,
-				const struct ieee80211_tpt_blink *blink_table,
-				unsigned int blink_table_len);
+char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
+char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
+char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
+char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
+char *__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
+					 unsigned int flags,
+					 const struct ieee80211_tpt_blink *blink_table,
+					 unsigned int blink_table_len);
 #endif
 /**
  * ieee80211_get_tx_led_name - get name of TX LED
