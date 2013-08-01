@@ -118,7 +118,13 @@ _nouveau_xtensa_init(struct nouveau_object *object)
 			return ret;
 		}
 
-		ret = nouveau_gpuobj_new(object, NULL, fw->size, 0x1000, 0,
+		if (fw->size > 0x40000) {
+			nv_warn(xtensa, "firmware %s too large\n", name);
+			release_firmware(fw);
+			return -EINVAL;
+		}
+
+		ret = nouveau_gpuobj_new(object, NULL, 0x40000, 0x1000, 0,
 					 &xtensa->gpu_fw);
 		if (ret) {
 			release_firmware(fw);

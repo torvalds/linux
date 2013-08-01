@@ -309,7 +309,8 @@ EXPORT_SYMBOL(__alloc_skb);
  * @frag_size: size of fragment, or 0 if head was kmalloced
  *
  * Allocate a new &sk_buff. Caller provides space holding head and
- * skb_shared_info. @data must have been allocated by kmalloc()
+ * skb_shared_info. @data must have been allocated by kmalloc() only if
+ * @frag_size is 0, otherwise data should come from the page allocator.
  * The return is the new skb buffer.
  * On a failure the return is %NULL, and @data is not freed.
  * Notes :

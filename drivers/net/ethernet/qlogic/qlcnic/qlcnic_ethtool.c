@@ -1540,7 +1540,7 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 		return 0;
 	case QLCNIC_SET_QUIESCENT:
 	case QLCNIC_RESET_QUIESCENT:
-		state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+		state = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_STATE);
 		if (state == QLCNIC_DEV_FAILED || (state == QLCNIC_DEV_BADBAD))
 			netdev_info(netdev, "Device in FAILED state\n");
 		return 0;

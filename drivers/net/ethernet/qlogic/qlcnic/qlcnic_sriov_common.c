@@ -762,6 +762,7 @@ static int qlcnic_sriov_alloc_bc_mbx_args(struct qlcnic_cmd_args *mbx, u32 type)
 			memset(mbx->rsp.arg, 0, sizeof(u32) * mbx->rsp.num);
 			mbx->req.arg[0] = (type | (mbx->req.num << 16) |
 					   (3 << 29));
+			mbx->rsp.arg[0] = (type & 0xffff) | mbx->rsp.num << 16;
 			return 0;
 		}
 	}
@@ -813,6 +814,7 @@ static int qlcnic_sriov_prepare_bc_hdr(struct qlcnic_bc_trans *trans,
 		cmd->req.num = trans->req_pay_size / 4;
 		cmd->rsp.num = trans->rsp_pay_size / 4;
 		hdr = trans->rsp_hdr;
+		cmd->op_type = trans->req_hdr->op_type;
 	}
 
 	trans->trans_id = seq;

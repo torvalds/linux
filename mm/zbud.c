@@ -257,7 +257,7 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
 
 	if (size <= 0 || gfp & __GFP_HIGHMEM)
 		return -EINVAL;
-	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED)
+	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
 		return -ENOSPC;
 	chunks = size_to_chunks(size);
 	spin_lock(&pool->lock);
