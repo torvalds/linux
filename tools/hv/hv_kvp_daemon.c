@@ -79,8 +79,6 @@ enum {
 	DNS
 };
 
-static char kvp_send_buffer[4096];
-static char kvp_recv_buffer[4096 * 2];
 static struct sockaddr_nl addr;
 static int in_hand_shake = 1;
 
@@ -1437,10 +1435,21 @@ int main(void)
 	int	pool;
 	char	*if_name;
 	struct hv_kvp_ipaddr_value *kvp_ip_val;
+	char *kvp_send_buffer;
+	char *kvp_recv_buffer;
+	size_t kvp_recv_buffer_len;
 
 	daemon(1, 0);
 	openlog("KVP", 0, LOG_USER);
 	syslog(LOG_INFO, "KVP starting; pid is:%d", getpid());
+
+	kvp_recv_buffer_len = NLMSG_HDRLEN + sizeof(struct cn_msg) + sizeof(struct hv_kvp_msg);
+	kvp_send_buffer = calloc(1, kvp_recv_buffer_len);
+	kvp_recv_buffer = calloc(1, kvp_recv_buffer_len);
+	if (!(kvp_send_buffer && kvp_recv_buffer)) {
+		syslog(LOG_ERR, "Failed to allocate netlink buffers");
+		exit(EXIT_FAILURE);
+	}
 	/*
 	 * Retrieve OS release information.
 	 */
@@ -1514,7 +1523,7 @@ int main(void)
 				continue;
 		}
 
-		len = recvfrom(fd, kvp_recv_buffer, sizeof(kvp_recv_buffer), 0,
+		len = recvfrom(fd, kvp_recv_buffer, kvp_recv_buffer_len, 0,
 				addr_p, &addr_l);
 
 		if (len < 0) {
