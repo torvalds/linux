@@ -23,11 +23,11 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
+#include <linux/acpi.h>
+#include <linux/io.h>
+#include <linux/smp.h>
 
-#include <asm/acpi.h>
 #include <asm/segment.h>
-#include <asm/io.h>
-#include <asm/smp.h>
 #include <asm/pci_x86.h>
 #include <asm/hw_irq.h>
 #include <asm/io_apic.h>
@@ -43,7 +43,7 @@
 #define PCI_FIXED_BAR_4_SIZE	0x14
 #define PCI_FIXED_BAR_5_SIZE	0x1c
 
-static int pci_soc_mode = 0;
+static int pci_soc_mode;
 
 /**
  * fixed_bar_cap - return the offset of the fixed BAR cap if found
@@ -141,7 +141,8 @@ static int pci_device_update_fixed(struct pci_bus *bus, unsigned int devfn,
  */
 static bool type1_access_ok(unsigned int bus, unsigned int devfn, int reg)
 {
-	/* This is a workaround for A0 LNC bug where PCI status register does
+	/*
+	 * This is a workaround for A0 LNC bug where PCI status register does
 	 * not have new CAP bit set. can not be written by SW either.
 	 *
 	 * PCI header type in real LNC indicates a single function device, this
@@ -154,7 +155,7 @@ static bool type1_access_ok(unsigned int bus, unsigned int devfn, int reg)
 				|| devfn == PCI_DEVFN(0, 0)
 				|| devfn == PCI_DEVFN(3, 0)))
 		return 1;
-	return 0; /* langwell on others */
+	return 0; /* Langwell on others */
 }
 
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where,
@@ -172,7 +173,8 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 {
 	int offset;
 
-	/* On MRST, there is no PCI ROM BAR, this will cause a subsequent read
+	/*
+	 * On MRST, there is no PCI ROM BAR, this will cause a subsequent read
 	 * to ROM BAR return 0 then being ignored.
 	 */
 	if (where == PCI_ROM_ADDRESS)
@@ -210,7 +212,8 @@ static int mrst_pci_irq_enable(struct pci_dev *dev)
 
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 
-	/* MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to
+	/*
+	 * MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to
 	 * IOAPIC RTE entries, so we just enable RTE for the device.
 	 */
 	irq_attr.ioapic = mp_find_ioapic(dev->irq);
@@ -235,7 +238,7 @@ struct pci_ops pci_mrst_ops = {
  */
 int __init pci_mrst_init(void)
 {
-	printk(KERN_INFO "Intel MID platform detected, using MID PCI ops\n");
+	pr_info("Intel MID platform detected, using MID PCI ops\n");
 	pci_mmcfg_late_init();
 	pcibios_enable_irq = mrst_pci_irq_enable;
 	pci_root_ops = pci_mrst_ops;
@@ -244,17 +247,21 @@ int __init pci_mrst_init(void)
 	return 1;
 }
 
-/* Langwell devices are not true pci devices, they are not subject to 10 ms
- * d3 to d0 delay required by pci spec.
+/*
+ * Langwell devices are not true PCI devices; they are not subject to 10 ms
+ * d3 to d0 delay required by PCI spec.
  */
 static void pci_d3delay_fixup(struct pci_dev *dev)
 {
-	/* PCI fixups are effectively decided compile time. If we have a dual
-	   SoC/non-SoC kernel we don't want to mangle d3 on non SoC devices */
-        if (!pci_soc_mode)
-            return;
-	/* true pci devices in lincroft should allow type 1 access, the rest
-	 * are langwell fake pci devices.
+	/*
+	 * PCI fixups are effectively decided compile time. If we have a dual
+	 * SoC/non-SoC kernel we don't want to mangle d3 on non-SoC devices.
+	 */
+	if (!pci_soc_mode)
+		return;
+	/*
+	 * True PCI devices in Lincroft should allow type 1 access, the rest
+	 * are Langwell fake PCI devices.
 	 */
 	if (type1_access_ok(dev->bus->number, dev->devfn, PCI_DEVICE_ID))
 		return;
