@@ -1694,9 +1694,14 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 	}
 
 	list_for_each_entry_safe(obj, next, &vm->inactive_list, mm_list) {
-		if ((i915_gem_object_is_purgeable(obj) || !purgeable_only) &&
-		    i915_gem_object_unbind(obj) == 0 &&
-		    i915_gem_object_put_pages(obj) == 0) {
+
+		if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
+			continue;
+
+		if (i915_gem_object_unbind(obj))
+			continue;
+
+		if (!i915_gem_object_put_pages(obj)) {
 			count += obj->base.size >> PAGE_SHIFT;
 			if (count >= target)
 				return count;
