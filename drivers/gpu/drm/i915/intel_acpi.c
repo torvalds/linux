@@ -28,7 +28,7 @@ static const u8 intel_dsm_guid[] = {
 	0x0f, 0x13, 0x17, 0xb0, 0x1c, 0x2c
 };
 
-static int intel_dsm(acpi_handle handle, int func, int arg)
+static int intel_dsm(acpi_handle handle, int func)
 {
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_object_list input;
@@ -46,8 +46,9 @@ static int intel_dsm(acpi_handle handle, int func, int arg)
 	params[1].integer.value = INTEL_DSM_REVISION_ID;
 	params[2].type = ACPI_TYPE_INTEGER;
 	params[2].integer.value = func;
-	params[3].type = ACPI_TYPE_INTEGER;
-	params[3].integer.value = arg;
+	params[3].type = ACPI_TYPE_PACKAGE;
+	params[3].package.count = 0;
+	params[3].package.elements = NULL;
 
 	ret = acpi_evaluate_object(handle, "_DSM", &input, &output);
 	if (ret) {
@@ -151,8 +152,9 @@ static void intel_dsm_platform_mux_info(void)
 	params[1].integer.value = INTEL_DSM_REVISION_ID;
 	params[2].type = ACPI_TYPE_INTEGER;
 	params[2].integer.value = INTEL_DSM_FN_PLATFORM_MUX_INFO;
-	params[3].type = ACPI_TYPE_INTEGER;
-	params[3].integer.value = 0;
+	params[3].type = ACPI_TYPE_PACKAGE;
+	params[3].package.count = 0;
+	params[3].package.elements = NULL;
 
 	ret = acpi_evaluate_object(intel_dsm_priv.dhandle, "_DSM", &input,
 				   &output);
@@ -205,7 +207,7 @@ static bool intel_dsm_pci_probe(struct pci_dev *pdev)
 		return false;
 	}
 
-	ret = intel_dsm(dhandle, INTEL_DSM_FN_SUPPORTED_FUNCTIONS, 0);
+	ret = intel_dsm(dhandle, INTEL_DSM_FN_SUPPORTED_FUNCTIONS);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("failed to get supported _DSM functions\n");
 		return false;
