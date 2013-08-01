@@ -321,6 +321,7 @@ enum {
 	Opt_no_space_cache, Opt_recovery, Opt_skip_balance,
 	Opt_check_integrity, Opt_check_integrity_including_extent_data,
 	Opt_check_integrity_print_mask, Opt_fatal_errors,
+	Opt_commit_interval,
 	Opt_err,
 };
 
@@ -361,6 +362,7 @@ static match_table_t tokens = {
 	{Opt_check_integrity_including_extent_data, "check_int_data"},
 	{Opt_check_integrity_print_mask, "check_int_print_mask=%d"},
 	{Opt_fatal_errors, "fatal_errors=%s"},
+	{Opt_commit_interval, "commit=%d"},
 	{Opt_err, NULL},
 };
 
@@ -643,6 +645,29 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			else {
 				ret = -EINVAL;
 				goto out;
+			}
+			break;
+		case Opt_commit_interval:
+			intarg = 0;
+			ret = match_int(&args[0], &intarg);
+			if (ret < 0) {
+				printk(KERN_ERR
+					"btrfs: invalid commit interval\n");
+				ret = -EINVAL;
+				goto out;
+			}
+			if (intarg > 0) {
+				if (intarg > 300) {
+					printk(KERN_WARNING
+					    "btrfs: excessive commit interval %d\n",
+							intarg);
+				}
+				info->commit_interval = intarg;
+			} else {
+				printk(KERN_INFO
+				    "btrfs: using default commit interval %ds\n",
+				    BTRFS_DEFAULT_COMMIT_INTERVAL);
+				info->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
 			}
 			break;
 		case Opt_err:
@@ -981,6 +1006,8 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 				info->metadata_ratio);
 	if (btrfs_test_opt(root, PANIC_ON_FATAL_ERROR))
 		seq_puts(seq, ",fatal_errors=panic");
+	if (info->commit_interval != BTRFS_DEFAULT_COMMIT_INTERVAL)
+		seq_printf(seq, ",commit=%d", info->commit_interval);
 	return 0;
 }
 

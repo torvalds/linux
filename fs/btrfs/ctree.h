@@ -1351,6 +1351,7 @@ struct btrfs_fs_info {
 	u64 last_trans_log_full_commit;
 	unsigned long mount_opt;
 	unsigned long compress_type:4;
+	int commit_interval;
 	/*
 	 * It is a suggestive number, the read side is safe even it gets a
 	 * wrong number because we will write out the data into a regular
@@ -1968,6 +1969,8 @@ struct btrfs_ioctl_defrag_range_args {
 #define BTRFS_MOUNT_CHECK_INTEGRITY	(1 << 20)
 #define BTRFS_MOUNT_CHECK_INTEGRITY_INCLUDING_EXTENT_DATA (1 << 21)
 #define BTRFS_MOUNT_PANIC_ON_FATAL_ERROR	(1 << 22)
+
+#define BTRFS_DEFAULT_COMMIT_INTERVAL	(30)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)

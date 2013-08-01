@@ -1742,7 +1742,7 @@ static int transaction_kthread(void *arg)
 
 	do {
 		cannot_commit = false;
-		delay = HZ * 30;
+		delay = HZ * root->fs_info->commit_interval;
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
 		spin_lock(&root->fs_info->trans_lock);
@@ -1754,7 +1754,8 @@ static int transaction_kthread(void *arg)
 
 		now = get_seconds();
 		if (cur->state < TRANS_STATE_BLOCKED &&
-		    (now < cur->start_time || now - cur->start_time < 30)) {
+		    (now < cur->start_time ||
+		     now - cur->start_time < root->fs_info->commit_interval)) {
 			spin_unlock(&root->fs_info->trans_lock);
 			delay = HZ * 5;
 			goto sleep;
@@ -2194,6 +2195,7 @@ int open_ctree(struct super_block *sb,
 	fs_info->defrag_inodes = RB_ROOT;
 	fs_info->free_chunk_space = 0;
 	fs_info->tree_mod_log = RB_ROOT;
+	fs_info->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
 
 	/* readahead state */
 	INIT_RADIX_TREE(&fs_info->reada_tree, GFP_NOFS & ~__GFP_WAIT);
