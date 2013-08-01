@@ -2372,6 +2372,13 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[5])
 		wm[1] = (sskpd >> SSKPD_WM1_SHIFT) & SSKPD_WM_MASK;
 		wm[2] = (sskpd >> SSKPD_WM2_SHIFT) & SSKPD_WM_MASK;
 		wm[3] = (sskpd >> SSKPD_WM3_SHIFT) & SSKPD_WM_MASK;
+	} else if (INTEL_INFO(dev)->gen >= 5) {
+		uint32_t mltr = I915_READ(MLTR_ILK);
+
+		/* ILK primary LP0 latency is 700 ns */
+		wm[0] = 7;
+		wm[1] = (mltr >> MLTR_WM1_SHIFT) & ILK_SRLT_MASK;
+		wm[2] = (mltr >> MLTR_WM2_SHIFT) & ILK_SRLT_MASK;
 	}
 }
 
