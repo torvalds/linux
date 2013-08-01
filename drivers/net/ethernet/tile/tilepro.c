@@ -1929,7 +1929,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 
 	unsigned int csum_start = skb_checksum_start_offset(skb);
 
-	lepp_frag_t frags[LEPP_MAX_FRAGS];
+	lepp_frag_t frags[1 + MAX_SKB_FRAGS];
 
 	unsigned int num_frags;
 
@@ -1944,7 +1944,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned int cmd_head, cmd_tail, cmd_next;
 	unsigned int comp_tail;
 
-	lepp_cmd_t cmds[LEPP_MAX_FRAGS];
+	lepp_cmd_t cmds[1 + MAX_SKB_FRAGS];
 
 
 	/*
@@ -2332,7 +2332,10 @@ static void tile_net_setup(struct net_device *dev)
 	features |= NETIF_F_LLTX;
 	features |= NETIF_F_HW_CSUM;
 	features |= NETIF_F_SG;
-	features |= NETIF_F_TSO;
+
+	/* We support TSO iff the HV supports sufficient frags. */
+	if (LEPP_MAX_FRAGS >= 1 + MAX_SKB_FRAGS)
+		features |= NETIF_F_TSO;
 
 	/* We can't support HIGHDMA without hash_default, since we need
 	 * to be able to finv() with a VA if we don't have hash_default.
