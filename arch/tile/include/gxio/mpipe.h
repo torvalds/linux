@@ -1854,4 +1854,18 @@ extern int gxio_mpipe_set_timestamp(gxio_mpipe_context_t *context,
 extern int gxio_mpipe_adjust_timestamp(gxio_mpipe_context_t *context,
 				       int64_t delta);
 
+/** Adjust the mPIPE timestamp clock frequency.
+ *
+ * @param context An initialized mPIPE context.
+ * @param ppb A 32-bit signed PPB (Parts Per Billion) value to adjust.
+ * The absolute value of ppb must be less than or equal to 1000000000.
+ * Values less than about 30000 will generally cause a GXIO_ERR_INVAL
+ * return due to the granularity of the hardware that converts reference
+ * clock cycles into seconds and nanoseconds.
+ * @return If the call was successful, zero; otherwise, a negative error
+ *  code.
+ */
+extern int gxio_mpipe_adjust_timestamp_freq(gxio_mpipe_context_t* context,
+                                            int32_t ppb);
+
 #endif /* !_GXIO_MPIPE_H_ */

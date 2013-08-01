@@ -475,6 +475,25 @@ int gxio_mpipe_adjust_timestamp_aux(gxio_mpipe_context_t * context,
 
 EXPORT_SYMBOL(gxio_mpipe_adjust_timestamp_aux);
 
+struct adjust_timestamp_freq_param {
+	int32_t ppb;
+};
+
+int gxio_mpipe_adjust_timestamp_freq(gxio_mpipe_context_t * context,
+				     int32_t ppb)
+{
+	struct adjust_timestamp_freq_param temp;
+	struct adjust_timestamp_freq_param *params = &temp;
+
+	params->ppb = ppb;
+
+	return hv_dev_pwrite(context->fd, 0, (HV_VirtAddr) params,
+			     sizeof(*params),
+			     GXIO_MPIPE_OP_ADJUST_TIMESTAMP_FREQ);
+}
+
+EXPORT_SYMBOL(gxio_mpipe_adjust_timestamp_freq);
+
 struct config_edma_ring_blks_param {
 	unsigned int ering;
 	unsigned int max_blks;
