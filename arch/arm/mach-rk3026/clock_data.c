@@ -2008,15 +2008,15 @@ GATE_CLK(gpio2, pclk_periph_pre, PCLK_GPIO2);
 GATE_CLK(gpio3, pclk_periph_pre, PCLK_GPIO3);
 
 /*************************aclk_lcdc0***********************/
-GATE_CLK(aclk_lcdc0, aclk_lcdc0_pre, ACLK_LCDC0);
-GATE_CLK(aclk_cif0, aclk_lcdc0_pre, ACLK_CIF);
-GATE_CLK(aclk_rga,  aclk_lcdc0_pre, ACLK_RGA);
-GATE_CLK(aclk_vio0, aclk_lcdc0_pre, ACLK_VIO0);
+GATE_CLK(aclk_vio0_niu, aclk_lcdc0_pre, ACLK_VIO0);
+GATE_CLK(aclk_lcdc0, clk_aclk_vio0_niu, ACLK_LCDC0);
+GATE_CLK(aclk_cif0, clk_aclk_vio0_niu, ACLK_CIF);
+GATE_CLK(aclk_rga,  clk_aclk_vio0_niu, ACLK_RGA);
 
 /*************************aclk_lcdc1***********************/
-GATE_CLK(aclk_lcdc1, aclk_lcdc1_pre, ACLK_LCDC1);
-GATE_CLK(aclk_iep, aclk_lcdc1_pre, ACLK_IEP);
 GATE_CLK(aclk_vio1_niu, aclk_lcdc1_pre, ACLK_VIO1);
+GATE_CLK(aclk_lcdc1, clk_aclk_vio1_niu, ACLK_LCDC1);
+GATE_CLK(aclk_iep, clk_aclk_vio1_niu, ACLK_IEP);
 
 /*************************hclk_disp***********************/
 GATE_CLK(hclk_rga,  hclk_disp_pre, HCLK_RGA);
@@ -2287,14 +2287,14 @@ static struct clk_lookup clks[] = {
 	CLK_GATE_NODEV(gpio2),
 	CLK_GATE_NODEV(gpio3),
 
+	CLK_GATE_NODEV(aclk_vio0_niu),
 	CLK_GATE_NODEV(aclk_lcdc0),
 	CLK_GATE_NODEV(aclk_cif0),
 	CLK_GATE_NODEV(aclk_rga),
-	CLK_GATE_NODEV(aclk_vio0),
 
+	CLK_GATE_NODEV(aclk_vio1_niu),
 	CLK_GATE_NODEV(aclk_lcdc1),
 	CLK_GATE_NODEV(aclk_iep),
-	CLK_GATE_NODEV(aclk_vio1_niu),
 
 	CLK_GATE_NODEV(hclk_rga),
 	CLK_GATE_NODEV(hclk_lcdc0),
@@ -2344,7 +2344,7 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&hclk_periph_pre);
 
 	// others
-	clk_enable_nolock(&clk_aclk_vio0);
+	//clk_enable_nolock(&clk_aclk_vio0_niu);
 	clk_enable_nolock(&clk_pclk_pwm01);
 	clk_enable_nolock(&clk_hclk_otg0);
 	clk_enable_nolock(&clk_hclk_otg1);
