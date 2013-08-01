@@ -71,6 +71,28 @@
 	set_fs(fs);			\
 	res; })
 
+/* slave list primitives */
+#define bond_to_slave(ptr) list_entry(ptr, struct slave, list)
+
+/* IMPORTANT: bond_first/last_slave can return NULL in case of an empty list */
+#define bond_first_slave(bond) \
+	list_first_entry_or_null(&(bond)->slave_list, struct slave, list)
+#define bond_last_slave(bond) \
+	(list_empty(&(bond)->slave_list) ? NULL : \
+					   bond_to_slave((bond)->slave_list.prev))
+
+#define bond_is_first_slave(bond, pos) ((pos)->list.prev == &(bond)->slave_list)
+#define bond_is_last_slave(bond, pos) ((pos)->list.next == &(bond)->slave_list)
+
+/* Since bond_first/last_slave can return NULL, these can return NULL too */
+#define bond_next_slave(bond, pos) \
+	(bond_is_last_slave(bond, pos) ? bond_first_slave(bond) : \
+					 bond_to_slave((pos)->list.next))
+
+#define bond_prev_slave(bond, pos) \
+	(bond_is_first_slave(bond, pos) ? bond_last_slave(bond) : \
+					  bond_to_slave((pos)->list.prev))
+
 /**
  * bond_for_each_slave_from - iterate the slaves list from a starting point
  * @bond:	the bond holding this list.
@@ -80,37 +102,29 @@
  *
  * Caller must hold bond->lock
  */
-#define bond_for_each_slave_from(bond, pos, cnt, start)	\
-	for (cnt = 0, pos = start;				\
-	     cnt < (bond)->slave_cnt;				\
-             cnt++, pos = (pos)->next)
+#define bond_for_each_slave_from(bond, pos, cnt, start) \
+	for (cnt = 0, pos = start; pos && cnt < (bond)->slave_cnt; \
+	     cnt++, pos = bond_next_slave(bond, pos))
 
 /**
- * bond_for_each_slave_from_to - iterate the slaves list from start point to stop point
- * @bond:	the bond holding this list.
- * @pos:	current slave.
- * @cnt:	counter for number max of moves
- * @start:	start point.
- * @stop:	stop point.
+ * bond_for_each_slave - iterate over all slaves
+ * @bond:	the bond holding this list
+ * @pos:	current slave
  *
  * Caller must hold bond->lock
  */
-#define bond_for_each_slave_from_to(bond, pos, cnt, start, stop)	\
-	for (cnt = 0, pos = start;					\
-	     ((cnt < (bond)->slave_cnt) && (pos != (stop)->next));	\
-             cnt++, pos = (pos)->next)
+#define bond_for_each_slave(bond, pos) \
+	list_for_each_entry(pos, &(bond)->slave_list, list)
 
 /**
- * bond_for_each_slave - iterate the slaves list from head
- * @bond:	the bond holding this list.
- * @pos:	current slave.
- * @cnt:	counter for max number of moves
+ * bond_for_each_slave_reverse - iterate in reverse from a given position
+ * @bond:	the bond holding this list
+ * @pos:	slave to continue from
  *
  * Caller must hold bond->lock
  */
-#define bond_for_each_slave(bond, pos, cnt)	\
-		bond_for_each_slave_from(bond, pos, cnt, (bond)->first_slave)
-
+#define bond_for_each_slave_continue_reverse(bond, pos) \
+	list_for_each_entry_continue_reverse(pos, &(bond)->slave_list, list)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 extern atomic_t netpoll_block_tx;
@@ -174,8 +188,7 @@ struct vlan_entry {
 
 struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
-	struct slave *next;
-	struct slave *prev;
+	struct list_head list;
 	struct bonding *bond; /* our master */
 	int    delay;
 	unsigned long jiffies;
@@ -215,7 +228,7 @@ struct slave {
  */
 struct bonding {
 	struct   net_device *dev; /* first - useful for panic debug */
-	struct   slave *first_slave;
+	struct   list_head slave_list;
 	struct   slave *curr_active_slave;
 	struct   slave *current_arp_slave;
 	struct   slave *primary_slave;
@@ -270,13 +283,10 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond,
 						  struct net_device *slave_dev)
 {
 	struct slave *slave = NULL;
-	int i;
 
-	bond_for_each_slave(bond, slave, i) {
-		if (slave->dev == slave_dev) {
+	bond_for_each_slave(bond, slave)
+		if (slave->dev == slave_dev)
 			return slave;
-		}
-	}
 
 	return NULL;
 }
@@ -477,10 +487,9 @@ static inline void bond_destroy_proc_dir(struct bond_net *bn)
 static inline struct slave *bond_slave_has_mac(struct bonding *bond,
 					       const u8 *mac)
 {
-	int i = 0;
 	struct slave *tmp;
 
-	bond_for_each_slave(bond, tmp, i)
+	bond_for_each_slave(bond, tmp)
 		if (ether_addr_equal_64bits(mac, tmp->dev->dev_addr))
 			return tmp;
 

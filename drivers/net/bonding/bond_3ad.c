@@ -143,10 +143,9 @@ static inline struct bonding *__get_bond_by_port(struct port *port)
  */
 static inline struct port *__get_first_port(struct bonding *bond)
 {
-	if (bond->slave_cnt == 0)
-		return NULL;
+	struct slave *first_slave = bond_first_slave(bond);
 
-	return &(SLAVE_AD_INFO(bond->first_slave).port);
+	return first_slave ? &(SLAVE_AD_INFO(first_slave).port) : NULL;
 }
 
 /**
@@ -159,13 +158,16 @@ static inline struct port *__get_first_port(struct bonding *bond)
 static inline struct port *__get_next_port(struct port *port)
 {
 	struct bonding *bond = __get_bond_by_port(port);
-	struct slave *slave = port->slave;
+	struct slave *slave = port->slave, *slave_next;
 
 	// If there's no bond for this port, or this is the last slave
-	if ((bond == NULL) || (slave->next == bond->first_slave))
+	if (bond == NULL)
+		return NULL;
+	slave_next = bond_next_slave(bond, slave);
+	if (!slave_next || bond_is_first_slave(bond, slave_next))
 		return NULL;
 
-	return &(SLAVE_AD_INFO(slave->next).port);
+	return &(SLAVE_AD_INFO(slave_next).port);
 }
 
 /**
@@ -178,12 +180,14 @@ static inline struct port *__get_next_port(struct port *port)
 static inline struct aggregator *__get_first_agg(struct port *port)
 {
 	struct bonding *bond = __get_bond_by_port(port);
+	struct slave *first_slave;
 
 	// If there's no bond for this port, or bond has no slaves
-	if ((bond == NULL) || (bond->slave_cnt == 0))
+	if (bond == NULL)
 		return NULL;
+	first_slave = bond_first_slave(bond);
 
-	return &(SLAVE_AD_INFO(bond->first_slave).aggregator);
+	return first_slave ? &(SLAVE_AD_INFO(first_slave).aggregator) : NULL;
 }
 
 /**
@@ -195,14 +199,17 @@ static inline struct aggregator *__get_first_agg(struct port *port)
  */
 static inline struct aggregator *__get_next_agg(struct aggregator *aggregator)
 {
-	struct slave *slave = aggregator->slave;
+	struct slave *slave = aggregator->slave, *slave_next;
 	struct bonding *bond = bond_get_bond_by_slave(slave);
 
 	// If there's no bond for this aggregator, or this is the last slave
-	if ((bond == NULL) || (slave->next == bond->first_slave))
+	if (bond == NULL)
+		return NULL;
+	slave_next = bond_next_slave(bond, slave);
+	if (!slave_next || bond_is_first_slave(bond, slave_next))
 		return NULL;
 
-	return &(SLAVE_AD_INFO(slave->next).aggregator);
+	return &(SLAVE_AD_INFO(slave_next).aggregator);
 }
 
 /*
@@ -2110,7 +2117,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 	read_lock(&bond->lock);
 
 	//check if there are any slaves
-	if (bond->slave_cnt == 0)
+	if (list_empty(&bond->slave_list))
 		goto re_arm;
 
 	// check if agg_select_timer timer after initialize is timed out
@@ -2336,8 +2343,12 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 int bond_3ad_set_carrier(struct bonding *bond)
 {
 	struct aggregator *active;
+	struct slave *first_slave;
 
-	active = __get_active_agg(&(SLAVE_AD_INFO(bond->first_slave).aggregator));
+	first_slave = bond_first_slave(bond);
+	if (!first_slave)
+		return 0;
+	active = __get_active_agg(&(SLAVE_AD_INFO(first_slave).aggregator));
 	if (active) {
 		/* are enough slaves available to consider link up? */
 		if (active->num_of_ports < bond->params.min_links) {
@@ -2432,7 +2443,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 
 	slave_agg_no = bond->xmit_hash_policy(skb, slaves_in_agg);
 
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		struct aggregator *agg = SLAVE_AD_INFO(slave).port.aggregator;
 
 		if (agg && (agg->aggregator_identifier == agg_id)) {
@@ -2501,7 +2512,6 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
  */
 void bond_3ad_update_lacp_rate(struct bonding *bond)
 {
-	int i;
 	struct slave *slave;
 	struct port *port = NULL;
 	int lacp_fast;
@@ -2509,7 +2519,7 @@ void bond_3ad_update_lacp_rate(struct bonding *bond)
 	write_lock_bh(&bond->lock);
 	lacp_fast = bond->params.lacp_fast;
 
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		port = &(SLAVE_AD_INFO(slave).port);
 		if (port->slave == NULL)
 			continue;

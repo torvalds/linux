@@ -224,13 +224,12 @@ static struct slave *tlb_get_least_loaded_slave(struct bonding *bond)
 {
 	struct slave *slave, *least_loaded;
 	long long max_gap;
-	int i;
 
 	least_loaded = NULL;
 	max_gap = LLONG_MIN;
 
 	/* Find the slave with the largest gap */
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		if (SLAVE_IS_OK(slave)) {
 			long long gap = compute_gap(slave);
 
@@ -386,11 +385,10 @@ static struct slave *rlb_next_rx_slave(struct bonding *bond)
 	struct slave *rx_slave, *slave, *start_at;
 	int i = 0;
 
-	if (bond_info->next_rx_slave) {
+	if (bond_info->next_rx_slave)
 		start_at = bond_info->next_rx_slave;
-	} else {
-		start_at = bond->first_slave;
-	}
+	else
+		start_at = bond_first_slave(bond);
 
 	rx_slave = NULL;
 
@@ -405,7 +403,8 @@ static struct slave *rlb_next_rx_slave(struct bonding *bond)
 	}
 
 	if (rx_slave) {
-		bond_info->next_rx_slave = rx_slave->next;
+		slave = bond_next_slave(bond, rx_slave);
+		bond_info->next_rx_slave = slave;
 	}
 
 	return rx_slave;
@@ -1173,9 +1172,8 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 {
 	struct slave *tmp_slave1, *free_mac_slave = NULL;
 	struct slave *has_bond_addr = bond->curr_active_slave;
-	int i;
 
-	if (bond->slave_cnt == 0) {
+	if (list_empty(&bond->slave_list)) {
 		/* this is the first slave */
 		return 0;
 	}
@@ -1196,7 +1194,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 	/* The slave's address is equal to the address of the bond.
 	 * Search for a spare address in the bond for this slave.
 	 */
-	bond_for_each_slave(bond, tmp_slave1, i) {
+	bond_for_each_slave(bond, tmp_slave1) {
 		if (!bond_slave_has_mac(bond, tmp_slave1->perm_hwaddr)) {
 			/* no slave has tmp_slave1's perm addr
 			 * as its curr addr
@@ -1246,17 +1244,15 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
  */
 static int alb_set_mac_address(struct bonding *bond, void *addr)
 {
-	struct sockaddr sa;
-	struct slave *slave, *stop_at;
 	char tmp_addr[ETH_ALEN];
+	struct slave *slave;
+	struct sockaddr sa;
 	int res;
-	int i;
 
-	if (bond->alb_info.rlb_enabled) {
+	if (bond->alb_info.rlb_enabled)
 		return 0;
-	}
 
-	bond_for_each_slave(bond, slave, i) {
+	bond_for_each_slave(bond, slave) {
 		/* save net_device's current hw address */
 		memcpy(tmp_addr, slave->dev->dev_addr, ETH_ALEN);
 
@@ -1276,8 +1272,7 @@ unwind:
 	sa.sa_family = bond->dev->type;
 
 	/* unwind from head to the slave that failed */
-	stop_at = slave;
-	bond_for_each_slave_from_to(bond, slave, i, bond->first_slave, stop_at) {
+	bond_for_each_slave_continue_reverse(bond, slave) {
 		memcpy(tmp_addr, slave->dev->dev_addr, ETH_ALEN);
 		dev_set_mac_address(slave->dev, &sa);
 		memcpy(slave->dev->dev_addr, tmp_addr, ETH_ALEN);
@@ -1460,11 +1455,10 @@ void bond_alb_monitor(struct work_struct *work)
 					    alb_work.work);
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	struct slave *slave;
-	int i;
 
 	read_lock(&bond->lock);
 
-	if (bond->slave_cnt == 0) {
+	if (list_empty(&bond->slave_list)) {
 		bond_info->tx_rebalance_counter = 0;
 		bond_info->lp_counter = 0;
 		goto re_arm;
@@ -1482,9 +1476,8 @@ void bond_alb_monitor(struct work_struct *work)
 		 */
 		read_lock(&bond->curr_slave_lock);
 
-		bond_for_each_slave(bond, slave, i) {
+		bond_for_each_slave(bond, slave)
 			alb_send_learning_packets(slave, slave->dev->dev_addr);
-		}
 
 		read_unlock(&bond->curr_slave_lock);
 
@@ -1496,7 +1489,7 @@ void bond_alb_monitor(struct work_struct *work)
 
 		read_lock(&bond->curr_slave_lock);
 
-		bond_for_each_slave(bond, slave, i) {
+		bond_for_each_slave(bond, slave) {
 			tlb_clear_slave(bond, slave, 1);
 			if (slave == bond->curr_active_slave) {
 				SLAVE_TLB_INFO(slave).load =
@@ -1602,9 +1595,8 @@ int bond_alb_init_slave(struct bonding *bond, struct slave *slave)
  */
 void bond_alb_deinit_slave(struct bonding *bond, struct slave *slave)
 {
-	if (bond->slave_cnt > 1) {
+	if (!list_empty(&bond->slave_list))
 		alb_change_hw_addr_on_detach(bond, slave);
-	}
 
 	tlb_clear_slave(bond, slave, 0);
 
@@ -1661,9 +1653,8 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 {
 	struct slave *swap_slave;
 
-	if (bond->curr_active_slave == new_slave) {
+	if (bond->curr_active_slave == new_slave)
 		return;
-	}
 
 	if (bond->curr_active_slave && bond->alb_info.primary_is_promisc) {
 		dev_set_promiscuity(bond->curr_active_slave->dev, -1);
@@ -1674,9 +1665,8 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	swap_slave = bond->curr_active_slave;
 	bond->curr_active_slave = new_slave;
 
-	if (!new_slave || (bond->slave_cnt == 0)) {
+	if (!new_slave || list_empty(&bond->slave_list))
 		return;
-	}
 
 	/* set the new curr_active_slave to the bonds mac address
 	 * i.e. swap mac addresses of old curr_active_slave and new curr_active_slave
@@ -1689,9 +1679,8 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	 * ignored so we can mess with their MAC addresses without
 	 * fear of interference from transmit activity.
 	 */
-	if (swap_slave) {
+	if (swap_slave)
 		tlb_clear_slave(bond, swap_slave, 1);
-	}
 	tlb_clear_slave(bond, new_slave, 1);
 
 	write_unlock_bh(&bond->curr_slave_lock);
