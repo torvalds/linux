@@ -2409,6 +2409,39 @@ static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
 		wm[3] *= 2;
 }
 
+static void intel_print_wm_latency(struct drm_device *dev,
+				   const char *name,
+				   const uint16_t wm[5])
+{
+	int level, max_level;
+
+	/* how many WM levels are we expecting */
+	if (IS_HASWELL(dev))
+		max_level = 4;
+	else if (INTEL_INFO(dev)->gen >= 6)
+		max_level = 3;
+	else
+		max_level = 2;
+
+	for (level = 0; level <= max_level; level++) {
+		unsigned int latency = wm[level];
+
+		if (latency == 0) {
+			DRM_ERROR("%s WM%d latency not provided\n",
+				  name, level);
+			continue;
+		}
+
+		/* WM1+ latency values in 0.5us units */
+		if (level > 0)
+			latency *= 5;
+
+		DRM_DEBUG_KMS("%s WM%d latency %u (%u.%u usec)\n",
+			      name, level, wm[level],
+			      latency / 10, latency % 10);
+	}
+}
+
 static void intel_setup_wm_latency(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2422,6 +2455,10 @@ static void intel_setup_wm_latency(struct drm_device *dev)
 
 	intel_fixup_spr_wm_latency(dev, dev_priv->wm.spr_latency);
 	intel_fixup_cur_wm_latency(dev, dev_priv->wm.cur_latency);
+
+	intel_print_wm_latency(dev, "Primary", dev_priv->wm.pri_latency);
+	intel_print_wm_latency(dev, "Sprite", dev_priv->wm.spr_latency);
+	intel_print_wm_latency(dev, "Cursor", dev_priv->wm.cur_latency);
 }
 
 static void hsw_compute_wm_parameters(struct drm_device *dev,
