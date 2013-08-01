@@ -2131,6 +2131,9 @@ static uint32_t ilk_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
 {
 	uint64_t ret;
 
+	if (WARN(latency == 0, "Latency value missing\n"))
+		return UINT_MAX;
+
 	ret = (uint64_t) pixel_rate * bytes_per_pixel * latency;
 	ret = DIV_ROUND_UP_ULL(ret, 64 * 10000) + 2;
 
@@ -2142,6 +2145,9 @@ static uint32_t ilk_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
 			       uint32_t latency)
 {
 	uint32_t ret;
+
+	if (WARN(latency == 0, "Latency value missing\n"))
+		return UINT_MAX;
 
 	ret = (latency * pixel_rate) / (pipe_htotal * 10000);
 	ret = (ret + 1) * horiz_pixels * bytes_per_pixel;
