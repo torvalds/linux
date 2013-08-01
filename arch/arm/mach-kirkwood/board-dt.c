@@ -109,6 +109,9 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("dlink,dns-kirkwood"))
 		dnskw_init();
 
+	if (of_machine_is_compatible("marvell,mv88f6281gtw-ge"))
+		mv88f6281gtw_ge_init();
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 

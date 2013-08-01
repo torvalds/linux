@@ -83,6 +83,7 @@ dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-cloudbox.dtb \
 	kirkwood-lschlv2.dtb \
 	kirkwood-lsxhl.dtb \
 	kirkwood-mplcec4.dtb \
+	kirkwood-mv88f6281gtw-ge.dtb \
 	kirkwood-netgear_readynas_duo_v2.dtb \
 	kirkwood-ns2.dtb \
 	kirkwood-ns2lite.dtb \
