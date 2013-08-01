@@ -238,8 +238,8 @@ struct cnic_sock {
 	u16	src_port;
 	u16	dst_port;
 	u16	vlan_id;
-	unsigned char old_ha[6];
-	unsigned char ha[6];
+	unsigned char old_ha[ETH_ALEN];
+	unsigned char ha[ETH_ALEN];
 	u32	mtu;
 	u32	cid;
 	u32	l5_cid;
@@ -308,7 +308,7 @@ struct cnic_dev {
 #define CNIC_F_BNX2_CLASS	3
 #define CNIC_F_BNX2X_CLASS	4
 	atomic_t	ref_count;
-	u8		mac_addr[6];
+	u8		mac_addr[ETH_ALEN];
 
 	int		max_iscsi_conn;
 	int		max_fcoe_conn;
