@@ -383,7 +383,7 @@ EXPORT_SYMBOL_GPL(gxio_mpipe_iqueue_init);
 
 int gxio_mpipe_equeue_init(gxio_mpipe_equeue_t *equeue,
 			   gxio_mpipe_context_t *context,
-			   unsigned int edma_ring_id,
+			   unsigned int ering,
 			   unsigned int channel,
 			   void *mem, unsigned int mem_size,
 			   unsigned int mem_flags)
@@ -394,7 +394,7 @@ int gxio_mpipe_equeue_init(gxio_mpipe_equeue_t *equeue,
 	/* Offset used to read number of completed commands. */
 	MPIPE_EDMA_POST_REGION_ADDR_t offset;
 
-	int result = gxio_mpipe_init_edma_ring(context, edma_ring_id, channel,
+	int result = gxio_mpipe_init_edma_ring(context, ering, channel,
 					       mem, mem_size, mem_flags);
 	if (result < 0)
 		return result;
@@ -405,7 +405,7 @@ int gxio_mpipe_equeue_init(gxio_mpipe_equeue_t *equeue,
 	offset.region =
 		MPIPE_MMIO_ADDR__REGION_VAL_EDMA -
 		MPIPE_MMIO_ADDR__REGION_VAL_IDMA;
-	offset.ring = edma_ring_id;
+	offset.ring = ering;
 
 	__gxio_dma_queue_init(&equeue->dma_queue,
 			      context->mmio_fast_base + offset.word,
@@ -413,6 +413,9 @@ int gxio_mpipe_equeue_init(gxio_mpipe_equeue_t *equeue,
 	equeue->edescs = mem;
 	equeue->mask_num_entries = num_entries - 1;
 	equeue->log2_num_entries = __builtin_ctz(num_entries);
+	equeue->context = context;
+	equeue->ering = ering;
+	equeue->channel = channel;
 
 	return 0;
 }
@@ -543,3 +546,12 @@ int gxio_mpipe_link_close(gxio_mpipe_link_t *link)
 }
 
 EXPORT_SYMBOL_GPL(gxio_mpipe_link_close);
+
+int gxio_mpipe_link_set_attr(gxio_mpipe_link_t *link, uint32_t attr,
+			     int64_t val)
+{
+	return gxio_mpipe_link_set_attr_aux(link->context, link->mac, attr,
+					    val);
+}
+
+EXPORT_SYMBOL_GPL(gxio_mpipe_link_set_attr);

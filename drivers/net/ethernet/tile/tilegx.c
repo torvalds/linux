@@ -76,6 +76,9 @@
 
 #define MAX_FRAGS (MAX_SKB_FRAGS + 1)
 
+/* The "kinds" of buffer stacks (small/large/jumbo). */
+#define MAX_KINDS 3
+
 /* Size of completions data to allocate.
  * ISSUE: Probably more than needed since we don't use all the channels.
  */
@@ -141,10 +144,8 @@ struct tile_net_info {
 	/* NAPI flags. */
 	bool napi_added;
 	bool napi_enabled;
-	/* Number of small sk_buffs which must still be provided. */
-	unsigned int num_needed_small_buffers;
-	/* Number of large sk_buffs which must still be provided. */
-	unsigned int num_needed_large_buffers;
+	/* Number of buffers (by kind) which must still be provided. */
+	unsigned int num_needed_buffers[MAX_KINDS];
 	/* A timer for handling egress completions. */
 	struct hrtimer egress_timer;
 	/* True if "egress_timer" is scheduled. */
@@ -200,24 +201,25 @@ static DEFINE_PER_CPU(struct tile_net_info, per_cpu_info);
 /* The "context" for all devices. */
 static gxio_mpipe_context_t context;
 
-/* Buffer sizes and mpipe enum codes for buffer stacks.
+/* The buffer size enums for each buffer stack.
  * See arch/tile/include/gxio/mpipe.h for the set of possible values.
+ * We avoid the "10384" size because it can induce "false chaining"
+ * on "cut-through" jumbo packets.
  */
-#define BUFFER_SIZE_SMALL_ENUM GXIO_MPIPE_BUFFER_SIZE_128
-#define BUFFER_SIZE_SMALL 128
-#define BUFFER_SIZE_LARGE_ENUM GXIO_MPIPE_BUFFER_SIZE_1664
-#define BUFFER_SIZE_LARGE 1664
-
-/* The small/large "buffer stacks". */
-static int small_buffer_stack = -1;
-static int large_buffer_stack = -1;
-
-/* Amount of memory allocated for each buffer stack. */
-static size_t buffer_stack_size;
+static gxio_mpipe_buffer_size_enum_t buffer_size_enums[MAX_KINDS] = {
+	GXIO_MPIPE_BUFFER_SIZE_128,
+	GXIO_MPIPE_BUFFER_SIZE_1664,
+	GXIO_MPIPE_BUFFER_SIZE_16384
+};
 
 /* The actual memory allocated for the buffer stacks. */
-static void *small_buffer_stack_va;
-static void *large_buffer_stack_va;
+static void *buffer_stack_vas[MAX_KINDS];
+
+/* The amount of memory allocated for each buffer stack. */
+static size_t buffer_stack_bytes[MAX_KINDS];
+
+/* The first buffer stack index (small = +0, large = +1, jumbo = +2). */
+static int first_buffer_stack = -1;
 
 /* The buckets. */
 static int first_bucket = -1;
@@ -237,6 +239,9 @@ static char *loopify_link_name;
 
 /* If "tile_net.custom" was specified, this is non-NULL. */
 static char *custom_str;
+
+/* If "tile_net.jumbo=NUM" was specified, this is "NUM". */
+static uint jumbo_num;
 
 /* The "tile_net.cpus" argument specifies the cpus that are dedicated
  * to handle ingress packets.
@@ -292,6 +297,12 @@ MODULE_PARM_DESC(loopify, "name the device to use loop0/1 for ingress/egress");
 module_param_named(custom, custom_str, charp, 0444);
 MODULE_PARM_DESC(custom, "indicates a (heavily) customized classifier");
 
+/* The "tile_net.jumbo" argument causes us to support "jumbo" packets,
+ * and to allocate the given number of "jumbo" buffers.
+ */
+module_param_named(jumbo, jumbo_num, uint, 0444);
+MODULE_PARM_DESC(jumbo, "the number of buffers to support jumbo packets");
+
 /* Atomically update a statistics field.
  * Note that on TILE-Gx, this operation is fire-and-forget on the
  * issuing core (single-cycle dispatch) and takes only a few cycles
@@ -305,15 +316,15 @@ static void tile_net_stats_add(unsigned long value, unsigned long *field)
 }
 
 /* Allocate and push a buffer. */
-static bool tile_net_provide_buffer(bool small)
+static bool tile_net_provide_buffer(int kind)
 {
-	int stack = small ? small_buffer_stack : large_buffer_stack;
+	gxio_mpipe_buffer_size_enum_t bse = buffer_size_enums[kind];
+	size_t bs = gxio_mpipe_buffer_size_enum_to_buffer_size(bse);
 	const unsigned long buffer_alignment = 128;
 	struct sk_buff *skb;
 	int len;
 
-	len = sizeof(struct sk_buff **) + buffer_alignment;
-	len += (small ? BUFFER_SIZE_SMALL : BUFFER_SIZE_LARGE);
+	len = sizeof(struct sk_buff **) + buffer_alignment + bs;
 	skb = dev_alloc_skb(len);
 	if (skb == NULL)
 		return false;
@@ -328,7 +339,7 @@ static bool tile_net_provide_buffer(bool small)
 	/* Make sure "skb" and the back-pointer have been flushed. */
 	wmb();
 
-	gxio_mpipe_push_buffer(&context, stack,
+	gxio_mpipe_push_buffer(&context, first_buffer_stack + kind,
 			       (void *)va_to_tile_io_addr(skb->data));
 
 	return true;
@@ -369,24 +380,19 @@ static void tile_net_pop_all_buffers(int stack)
 static void tile_net_provide_needed_buffers(void)
 {
 	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
+	int kind;
 
-	while (info->num_needed_small_buffers != 0) {
-		if (!tile_net_provide_buffer(true))
-			goto oops;
-		info->num_needed_small_buffers--;
+	for (kind = 0; kind < MAX_KINDS; kind++) {
+		while (info->num_needed_buffers[kind] != 0) {
+			if (!tile_net_provide_buffer(kind)) {
+				/* Add info to the allocation failure dump. */
+				pr_notice("Tile %d still needs some buffers\n",
+					  info->my_cpu);
+				return;
+			}
+			info->num_needed_buffers[kind]--;
+		}
 	}
-
-	while (info->num_needed_large_buffers != 0) {
-		if (!tile_net_provide_buffer(false))
-			goto oops;
-		info->num_needed_large_buffers--;
-	}
-
-	return;
-
-oops:
-	/* Add a description to the page allocation failure dump. */
-	pr_notice("Tile %d still needs some buffers\n", info->my_cpu);
 }
 
 static inline bool filter_packet(struct net_device *dev, void *buf)
@@ -426,10 +432,12 @@ static void tile_net_receive_skb(struct net_device *dev, struct sk_buff *skb,
 	tile_net_stats_add(len, &priv->stats.rx_bytes);
 
 	/* Need a new buffer. */
-	if (idesc->size == BUFFER_SIZE_SMALL_ENUM)
-		info->num_needed_small_buffers++;
+	if (idesc->size == buffer_size_enums[0])
+		info->num_needed_buffers[0]++;
+	else if (idesc->size == buffer_size_enums[1])
+		info->num_needed_buffers[1]++;
 	else
-		info->num_needed_large_buffers++;
+		info->num_needed_buffers[2]++;
 }
 
 /* Handle a packet.  Return true if "processed", false if "filtered". */
@@ -437,29 +445,29 @@ static bool tile_net_handle_packet(gxio_mpipe_idesc_t *idesc)
 {
 	struct tile_net_info *info = &__get_cpu_var(per_cpu_info);
 	struct net_device *dev = tile_net_devs_for_channel[idesc->channel];
+	struct tile_net_priv *priv = netdev_priv(dev);
 	uint8_t l2_offset;
 	void *va;
 	void *buf;
 	unsigned long len;
 	bool filter;
 
-	/* Drop packets for which no buffer was available.
-	 * NOTE: This happens under heavy load.
+	/* Drop packets for which no buffer was available (which can
+	 * happen under heavy load), or for which the me/tr/ce flags
+	 * are set (which can happen for jumbo cut-through packets,
+	 * or with a customized classifier).
 	 */
-	if (idesc->be) {
-		struct tile_net_priv *priv = netdev_priv(dev);
-		tile_net_stats_add(1, &priv->stats.rx_dropped);
-		gxio_mpipe_iqueue_consume(&info->iqueue, idesc);
-		if (net_ratelimit())
-			pr_info("Dropping packet (insufficient buffers).\n");
-		return false;
+	if (idesc->be || idesc->me || idesc->tr || idesc->ce) {
+		if (dev)
+			tile_net_stats_add(1, &priv->stats.rx_errors);
+		goto drop;
 	}
 
 	/* Get the "l2_offset", if allowed. */
 	l2_offset = custom_str ? 0 : gxio_mpipe_idesc_get_l2_offset(idesc);
 
-	/* Get the raw buffer VA (includes "headroom"). */
-	va = tile_io_addr_to_va((unsigned long)(long)idesc->va);
+	/* Get the VA (including NET_IP_ALIGN bytes of "headroom"). */
+	va = tile_io_addr_to_va((unsigned long)idesc->va);
 
 	/* Get the actual packet start/length. */
 	buf = va + l2_offset;
@@ -470,6 +478,9 @@ static bool tile_net_handle_packet(gxio_mpipe_idesc_t *idesc)
 
 	filter = filter_packet(dev, buf);
 	if (filter) {
+		if (dev)
+			tile_net_stats_add(1, &priv->stats.rx_dropped);
+drop:
 		gxio_mpipe_iqueue_drop(&info->iqueue, idesc);
 	} else {
 		struct sk_buff *skb = mpipe_buf_to_skb(va);
@@ -722,86 +733,95 @@ static int tile_net_update(struct net_device *dev)
 	return 0;
 }
 
-/* Allocate and initialize mpipe buffer stacks, and register them in
- * the mPIPE TLBs, for both small and large packet sizes.
- * This routine supports tile_net_init_mpipe(), below.
- */
-static int init_buffer_stacks(struct net_device *dev, int num_buffers)
+/* Initialize a buffer stack. */
+static int create_buffer_stack(struct net_device *dev,
+			       int kind, size_t num_buffers)
 {
 	pte_t hash_pte = pte_set_home((pte_t) { 0 }, PAGE_HOME_HASH);
-	int rc;
+	size_t needed = gxio_mpipe_calc_buffer_stack_bytes(num_buffers);
+	int stack_idx = first_buffer_stack + kind;
+	void *va;
+	int i, rc;
 
-	/* Compute stack bytes; we round up to 64KB and then use
-	 * alloc_pages() so we get the required 64KB alignment as well.
+	/* Round up to 64KB and then use alloc_pages() so we get the
+	 * required 64KB alignment.
 	 */
-	buffer_stack_size =
-		ALIGN(gxio_mpipe_calc_buffer_stack_bytes(num_buffers),
-		      64 * 1024);
+	buffer_stack_bytes[kind] = ALIGN(needed, 64 * 1024);
 
-	/* Allocate two buffer stack indices. */
-	rc = gxio_mpipe_alloc_buffer_stacks(&context, 2, 0, 0);
-	if (rc < 0) {
-		netdev_err(dev, "gxio_mpipe_alloc_buffer_stacks failed: %d\n",
-			   rc);
-		return rc;
-	}
-	small_buffer_stack = rc;
-	large_buffer_stack = rc + 1;
-
-	/* Allocate the small memory stack. */
-	small_buffer_stack_va =
-		alloc_pages_exact(buffer_stack_size, GFP_KERNEL);
-	if (small_buffer_stack_va == NULL) {
+	va = alloc_pages_exact(buffer_stack_bytes[kind], GFP_KERNEL);
+	if (va == NULL) {
 		netdev_err(dev,
-			   "Could not alloc %zd bytes for buffer stacks\n",
-			   buffer_stack_size);
+			   "Could not alloc %zd bytes for buffer stack %d\n",
+			   buffer_stack_bytes[kind], kind);
 		return -ENOMEM;
 	}
-	rc = gxio_mpipe_init_buffer_stack(&context, small_buffer_stack,
-					  BUFFER_SIZE_SMALL_ENUM,
-					  small_buffer_stack_va,
-					  buffer_stack_size, 0);
+
+	/* Initialize the buffer stack. */
+	rc = gxio_mpipe_init_buffer_stack(&context, stack_idx,
+					  buffer_size_enums[kind],
+					  va, buffer_stack_bytes[kind], 0);
 	if (rc != 0) {
 		netdev_err(dev, "gxio_mpipe_init_buffer_stack: %d\n", rc);
-		return rc;
-	}
-	rc = gxio_mpipe_register_client_memory(&context, small_buffer_stack,
-					       hash_pte, 0);
-	if (rc != 0) {
-		netdev_err(dev,
-			   "gxio_mpipe_register_buffer_memory failed: %d\n",
-			   rc);
+		free_pages_exact(va, buffer_stack_bytes[kind]);
 		return rc;
 	}
 
-	/* Allocate the large buffer stack. */
-	large_buffer_stack_va =
-		alloc_pages_exact(buffer_stack_size, GFP_KERNEL);
-	if (large_buffer_stack_va == NULL) {
-		netdev_err(dev,
-			   "Could not alloc %zd bytes for buffer stacks\n",
-			   buffer_stack_size);
-		return -ENOMEM;
-	}
-	rc = gxio_mpipe_init_buffer_stack(&context, large_buffer_stack,
-					  BUFFER_SIZE_LARGE_ENUM,
-					  large_buffer_stack_va,
-					  buffer_stack_size, 0);
-	if (rc != 0) {
-		netdev_err(dev, "gxio_mpipe_init_buffer_stack failed: %d\n",
-			   rc);
-		return rc;
-	}
-	rc = gxio_mpipe_register_client_memory(&context, large_buffer_stack,
+	buffer_stack_vas[kind] = va;
+
+	rc = gxio_mpipe_register_client_memory(&context, stack_idx,
 					       hash_pte, 0);
 	if (rc != 0) {
-		netdev_err(dev,
-			   "gxio_mpipe_register_buffer_memory failed: %d\n",
-			   rc);
+		netdev_err(dev, "gxio_mpipe_register_client_memory: %d\n", rc);
 		return rc;
+	}
+
+	/* Provide initial buffers. */
+	for (i = 0; i < num_buffers; i++) {
+		if (!tile_net_provide_buffer(kind)) {
+			netdev_err(dev, "Cannot allocate initial sk_bufs!\n");
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
+}
+
+/* Allocate and initialize mpipe buffer stacks, and register them in
+ * the mPIPE TLBs, for small, large, and (possibly) jumbo packet sizes.
+ * This routine supports tile_net_init_mpipe(), below.
+ */
+static int init_buffer_stacks(struct net_device *dev,
+			      int network_cpus_count)
+{
+	int num_kinds = MAX_KINDS - (jumbo_num == 0);
+	size_t num_buffers;
+	int rc;
+
+	/* Allocate the buffer stacks. */
+	rc = gxio_mpipe_alloc_buffer_stacks(&context, num_kinds, 0, 0);
+	if (rc < 0) {
+		netdev_err(dev, "gxio_mpipe_alloc_buffer_stacks: %d\n", rc);
+		return rc;
+	}
+	first_buffer_stack = rc;
+
+	/* Enough small/large buffers to (normally) avoid buffer errors. */
+	num_buffers =
+		network_cpus_count * (IQUEUE_ENTRIES + TILE_NET_BATCH);
+
+	/* Allocate the small memory stack. */
+	if (rc >= 0)
+		rc = create_buffer_stack(dev, 0, num_buffers);
+
+	/* Allocate the large buffer stack. */
+	if (rc >= 0)
+		rc = create_buffer_stack(dev, 1, num_buffers);
+
+	/* Allocate the jumbo buffer stack if needed. */
+	if (rc >= 0 && jumbo_num != 0)
+		rc = create_buffer_stack(dev, 2, jumbo_num);
+
+	return rc;
 }
 
 /* Allocate per-cpu resources (memory for completions and idescs).
@@ -940,13 +960,14 @@ static int tile_net_setup_interrupts(struct net_device *dev)
 /* Undo any state set up partially by a failed call to tile_net_init_mpipe. */
 static void tile_net_init_mpipe_fail(void)
 {
-	int cpu;
+	int kind, cpu;
 
 	/* Do cleanups that require the mpipe context first. */
-	if (small_buffer_stack >= 0)
-		tile_net_pop_all_buffers(small_buffer_stack);
-	if (large_buffer_stack >= 0)
-		tile_net_pop_all_buffers(large_buffer_stack);
+	for (kind = 0; kind < MAX_KINDS; kind++) {
+		if (buffer_stack_vas[kind] != NULL) {
+			tile_net_pop_all_buffers(first_buffer_stack + kind);
+		}
+	}
 
 	/* Destroy mpipe context so the hardware no longer owns any memory. */
 	gxio_mpipe_destroy(&context);
@@ -961,15 +982,15 @@ static void tile_net_init_mpipe_fail(void)
 		info->iqueue.idescs = NULL;
 	}
 
-	if (small_buffer_stack_va)
-		free_pages_exact(small_buffer_stack_va, buffer_stack_size);
-	if (large_buffer_stack_va)
-		free_pages_exact(large_buffer_stack_va, buffer_stack_size);
+	for (kind = 0; kind < MAX_KINDS; kind++) {
+		if (buffer_stack_vas[kind] != NULL) {
+			free_pages_exact(buffer_stack_vas[kind],
+					 buffer_stack_bytes[kind]);
+			buffer_stack_vas[kind] = NULL;
+		}
+	}
 
-	small_buffer_stack_va = NULL;
-	large_buffer_stack_va = NULL;
-	large_buffer_stack = -1;
-	small_buffer_stack = -1;
+	first_buffer_stack = -1;
 	first_bucket = -1;
 }
 
@@ -984,7 +1005,7 @@ static void tile_net_init_mpipe_fail(void)
  */
 static int tile_net_init_mpipe(struct net_device *dev)
 {
-	int i, num_buffers, rc;
+	int rc;
 	int cpu;
 	int first_ring, ring;
 	int network_cpus_count = cpus_weight(network_cpus_map);
@@ -1001,26 +1022,9 @@ static int tile_net_init_mpipe(struct net_device *dev)
 	}
 
 	/* Set up the buffer stacks. */
-	num_buffers =
-		network_cpus_count * (IQUEUE_ENTRIES + TILE_NET_BATCH);
-	rc = init_buffer_stacks(dev, num_buffers);
+	rc = init_buffer_stacks(dev, network_cpus_count);
 	if (rc != 0)
 		goto fail;
-
-	/* Provide initial buffers. */
-	rc = -ENOMEM;
-	for (i = 0; i < num_buffers; i++) {
-		if (!tile_net_provide_buffer(true)) {
-			netdev_err(dev, "Cannot allocate initial sk_bufs!\n");
-			goto fail;
-		}
-	}
-	for (i = 0; i < num_buffers; i++) {
-		if (!tile_net_provide_buffer(false)) {
-			netdev_err(dev, "Cannot allocate initial sk_bufs!\n");
-			goto fail;
-		}
-	}
 
 	/* Allocate one NotifRing for each network cpu. */
 	rc = gxio_mpipe_alloc_notif_rings(&context, network_cpus_count, 0, 0);
@@ -1063,13 +1067,13 @@ fail:
  */
 static int tile_net_init_egress(struct net_device *dev, int echannel)
 {
+	static int ering = -1;
 	struct page *headers_page, *edescs_page, *equeue_page;
 	gxio_mpipe_edesc_t *edescs;
 	gxio_mpipe_equeue_t *equeue;
 	unsigned char *headers;
 	int headers_order, edescs_order, equeue_order;
 	size_t edescs_size;
-	int edma;
 	int rc = -ENOMEM;
 
 	/* Only initialize once. */
@@ -1110,23 +1114,35 @@ static int tile_net_init_egress(struct net_device *dev, int echannel)
 	}
 	equeue = pfn_to_kaddr(page_to_pfn(equeue_page));
 
-	/* Allocate an edma ring.  Note that in practice this can't
-	 * fail, which is good, because we will leak an edma ring if so.
-	 */
-	rc = gxio_mpipe_alloc_edma_rings(&context, 1, 0, 0);
-	if (rc < 0) {
-		netdev_warn(dev, "gxio_mpipe_alloc_edma_rings failed: %d\n",
-			    rc);
-		goto fail_equeue;
+	/* Allocate an edma ring (using a one entry "free list"). */
+	if (ering < 0) {
+		rc = gxio_mpipe_alloc_edma_rings(&context, 1, 0, 0);
+		if (rc < 0) {
+			netdev_warn(dev, "gxio_mpipe_alloc_edma_rings: %d\n",
+				    rc);
+			goto fail_equeue;
+		}
+		ering = rc;
 	}
-	edma = rc;
 
 	/* Initialize the equeue. */
-	rc = gxio_mpipe_equeue_init(equeue, &context, edma, echannel,
+	rc = gxio_mpipe_equeue_init(equeue, &context, ering, echannel,
 				    edescs, edescs_size, 0);
 	if (rc != 0) {
 		netdev_err(dev, "gxio_mpipe_equeue_init failed: %d\n", rc);
 		goto fail_equeue;
+	}
+
+	/* Don't reuse the ering later. */
+	ering = -1;
+
+	if (jumbo_num != 0) {
+		/* Make sure "jumbo" packets can be egressed safely. */
+		if (gxio_mpipe_equeue_set_snf_size(equeue, 10368) < 0) {
+			/* ISSUE: There is no "gxio_mpipe_equeue_destroy()". */
+			netdev_warn(dev, "Jumbo packets may not be egressed"
+				    " properly on channel %d\n", echannel);
+		}
 	}
 
 	/* Done. */
@@ -1155,6 +1171,17 @@ static int tile_net_link_open(struct net_device *dev, gxio_mpipe_link_t *link,
 	if (rc < 0) {
 		netdev_err(dev, "Failed to open '%s'\n", link_name);
 		return rc;
+	}
+	if (jumbo_num != 0) {
+		u32 attr = GXIO_MPIPE_LINK_RECEIVE_JUMBO;
+		rc = gxio_mpipe_link_set_attr(link, attr, 1);
+		if (rc != 0) {
+			netdev_err(dev,
+				   "Cannot receive jumbo packets on '%s'\n",
+				   link_name);
+			gxio_mpipe_link_close(link);
+			return rc;
+		}
 	}
 	rc = gxio_mpipe_link_channel(link);
 	if (rc < 0 || rc >= TILE_NET_CHANNELS) {
@@ -1499,8 +1526,8 @@ static void tso_egress(struct net_device *dev, gxio_mpipe_equeue_t *equeue,
 	edesc_head.xfer_size = sh_len;
 
 	/* This is only used to specify the TLB. */
-	edesc_head.stack_idx = large_buffer_stack;
-	edesc_body.stack_idx = large_buffer_stack;
+	edesc_head.stack_idx = first_buffer_stack;
+	edesc_body.stack_idx = first_buffer_stack;
 
 	/* Egress all the edescs. */
 	for (segment = 0; segment < sh->gso_segs; segment++) {
@@ -1660,7 +1687,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 	num_edescs = tile_net_tx_frags(frags, skb, data, skb_headlen(skb));
 
 	/* This is only used to specify the TLB. */
-	edesc.stack_idx = large_buffer_stack;
+	edesc.stack_idx = first_buffer_stack;
 
 	/* Prepare the edescs. */
 	for (i = 0; i < num_edescs; i++) {
@@ -1740,7 +1767,9 @@ static struct net_device_stats *tile_net_get_stats(struct net_device *dev)
 /* Change the MTU. */
 static int tile_net_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if ((new_mtu < 68) || (new_mtu > 1500))
+	if (new_mtu < 68)
+		return -EINVAL;
+	if (new_mtu > ((jumbo_num != 0) ? 9000 : 1500))
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
