@@ -14,7 +14,7 @@ phys_addr_t __init board_mem_reserve_add(char *name, size_t size)
     size_t align_size = ALIGN_SZ(size, SZ_1M);
 
     if(reserved_base_end == 0)
-        reserved_base_end = meminfo.bank[meminfo.nr_banks - 1].start + meminfo.bank[meminfo.nr_banks - 1].size;
+        reserved_base_end  = meminfo.bank[0].start + meminfo.bank[0].size;
 
     reserved_size += align_size;
     base  = reserved_base_end - reserved_size;
