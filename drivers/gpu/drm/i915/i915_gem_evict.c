@@ -147,7 +147,7 @@ found:
 				       struct drm_i915_gem_object,
 				       exec_list);
 		if (ret == 0)
-			ret = i915_gem_object_unbind(obj);
+			ret = i915_gem_object_ggtt_unbind(obj);
 
 		list_del_init(&obj->exec_list);
 		drm_gem_object_unreference(&obj->base);
@@ -185,7 +185,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 	/* Having flushed everything, unbind() should never raise an error */
 	list_for_each_entry_safe(obj, next, &vm->inactive_list, mm_list)
 		if (obj->pin_count == 0)
-			WARN_ON(i915_gem_object_unbind(obj));
+			WARN_ON(i915_gem_object_ggtt_unbind(obj));
 
 	return 0;
 }

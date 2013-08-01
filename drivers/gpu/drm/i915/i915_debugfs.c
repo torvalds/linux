@@ -1800,7 +1800,7 @@ i915_drop_caches_set(void *data, u64 val)
 			if (obj->pin_count)
 				continue;
 
-			ret = i915_gem_object_unbind(obj);
+			ret = i915_gem_object_ggtt_unbind(obj);
 			if (ret)
 				goto unlock;
 		}

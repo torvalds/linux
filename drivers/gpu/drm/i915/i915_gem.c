@@ -39,10 +39,12 @@
 
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
-static __must_check int i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
-						    unsigned alignment,
-						    bool map_and_fenceable,
-						    bool nonblocking);
+static __must_check int
+i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
+			   struct i915_address_space *vm,
+			   unsigned alignment,
+			   bool map_and_fenceable,
+			   bool nonblocking);
 static int i915_gem_phys_pwrite(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
@@ -1679,7 +1681,6 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 		  bool purgeable_only)
 {
 	struct drm_i915_gem_object *obj, *next;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
 	long count = 0;
 
 	list_for_each_entry_safe(obj, next,
@@ -1693,13 +1694,16 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 		}
 	}
 
-	list_for_each_entry_safe(obj, next, &vm->inactive_list, mm_list) {
+	list_for_each_entry_safe(obj, next, &dev_priv->mm.bound_list,
+				 global_list) {
+		struct i915_vma *vma, *v;
 
 		if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
 			continue;
 
-		if (i915_gem_object_unbind(obj))
-			continue;
+		list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link)
+			if (i915_vma_unbind(vma))
+				break;
 
 		if (!i915_gem_object_put_pages(obj)) {
 			count += obj->base.size >> PAGE_SHIFT;
@@ -2583,17 +2587,13 @@ static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
 					    old_write_domain);
 }
 
-/**
- * Unbinds an object from the GTT aperture.
- */
-int
-i915_gem_object_unbind(struct drm_i915_gem_object *obj)
+int i915_vma_unbind(struct i915_vma *vma)
 {
+	struct drm_i915_gem_object *obj = vma->obj;
 	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
-	struct i915_vma *vma;
 	int ret;
 
-	if (!i915_gem_obj_ggtt_bound(obj))
+	if (list_empty(&vma->vma_link))
 		return 0;
 
 	if (obj->pin_count)
@@ -2616,7 +2616,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	if (ret)
 		return ret;
 
-	trace_i915_gem_object_unbind(obj);
+	trace_i915_vma_unbind(vma);
 
 	if (obj->has_global_gtt_mapping)
 		i915_gem_gtt_unbind_object(obj);
@@ -2631,7 +2631,6 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	/* Avoid an unnecessary call to unbind on rebind. */
 	obj->map_and_fenceable = true;
 
-	vma = i915_gem_obj_to_vma(obj, &dev_priv->gtt.base);
 	list_del(&vma->vma_link);
 	drm_mm_remove_node(&vma->node);
 	i915_gem_vma_destroy(vma);
@@ -2644,6 +2643,26 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 
 	return 0;
+}
+
+/**
+ * Unbinds an object from the global GTT aperture.
+ */
+int
+i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct i915_address_space *ggtt = &dev_priv->gtt.base;
+
+	if (!i915_gem_obj_ggtt_bound(obj));
+		return 0;
+
+	if (obj->pin_count)
+		return -EBUSY;
+
+	BUG_ON(obj->pages == NULL);
+
+	return i915_vma_unbind(i915_gem_obj_to_vma(obj, ggtt));
 }
 
 int i915_gpu_idle(struct drm_device *dev)
@@ -3063,18 +3082,18 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
  * Finds free space in the GTT aperture and binds the object there.
  */
 static int
-i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
-			    unsigned alignment,
-			    bool map_and_fenceable,
-			    bool nonblocking)
+i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
+			   struct i915_address_space *vm,
+			   unsigned alignment,
+			   bool map_and_fenceable,
+			   bool nonblocking)
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
 	u32 size, fence_size, fence_alignment, unfenced_alignment;
 	bool mappable, fenceable;
-	size_t gtt_max = map_and_fenceable ?
-		dev_priv->gtt.mappable_end : dev_priv->gtt.base.total;
+	size_t gtt_max =
+		map_and_fenceable ? dev_priv->gtt.mappable_end : vm->total;
 	struct i915_vma *vma;
 	int ret;
 
@@ -3119,15 +3138,18 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	vma = i915_gem_vma_create(obj, &dev_priv->gtt.base);
+	/* FIXME: For now we only ever use 1 VMA per object */
+	BUG_ON(!i915_is_ggtt(vm));
+	WARN_ON(!list_empty(&obj->vma_list));
+
+	vma = i915_gem_vma_create(obj, vm);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_unpin;
 	}
 
 search_free:
-	ret = drm_mm_insert_node_in_range_generic(&dev_priv->gtt.base.mm,
-						  &vma->node,
+	ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
 						  size, alignment,
 						  obj->cache_level, 0, gtt_max,
 						  DRM_MM_SEARCH_DEFAULT);
@@ -3153,18 +3175,25 @@ search_free:
 
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &vm->inactive_list);
-	list_add(&vma->vma_link, &obj->vma_list);
+
+	/* Keep GGTT vmas first to make debug easier */
+	if (i915_is_ggtt(vm))
+		list_add(&vma->vma_link, &obj->vma_list);
+	else
+		list_add_tail(&vma->vma_link, &obj->vma_list);
 
 	fenceable =
+		i915_is_ggtt(vm) &&
 		i915_gem_obj_ggtt_size(obj) == fence_size &&
 		(i915_gem_obj_ggtt_offset(obj) & (fence_alignment - 1)) == 0;
 
-	mappable = i915_gem_obj_ggtt_offset(obj) + obj->base.size <=
-		dev_priv->gtt.mappable_end;
+	mappable =
+		i915_is_ggtt(vm) &&
+		vma->node.start + obj->base.size <= dev_priv->gtt.mappable_end;
 
 	obj->map_and_fenceable = mappable && fenceable;
 
-	trace_i915_gem_object_bind(obj, map_and_fenceable);
+	trace_i915_vma_bind(vma, map_and_fenceable);
 	i915_gem_verify_gtt(dev);
 	return 0;
 
@@ -3333,7 +3362,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 
 	list_for_each_entry(vma, &obj->vma_list, vma_link) {
 		if (!i915_gem_valid_gtt_space(dev, &vma->node, cache_level)) {
-			ret = i915_gem_object_unbind(obj);
+			ret = i915_vma_unbind(vma);
 			if (ret)
 				return ret;
 
@@ -3641,33 +3670,39 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		    bool map_and_fenceable,
 		    bool nonblocking)
 {
+	struct i915_vma *vma;
 	int ret;
 
 	if (WARN_ON(obj->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
 		return -EBUSY;
 
-	if (i915_gem_obj_ggtt_bound(obj)) {
-		if ((alignment && i915_gem_obj_ggtt_offset(obj) & (alignment - 1)) ||
+	WARN_ON(map_and_fenceable && !i915_is_ggtt(vm));
+
+	vma = i915_gem_obj_to_vma(obj, vm);
+
+	if (vma) {
+		if ((alignment &&
+		     vma->node.start & (alignment - 1)) ||
 		    (map_and_fenceable && !obj->map_and_fenceable)) {
 			WARN(obj->pin_count,
 			     "bo is already pinned with incorrect alignment:"
 			     " offset=%lx, req.alignment=%x, req.map_and_fenceable=%d,"
 			     " obj->map_and_fenceable=%d\n",
-			     i915_gem_obj_ggtt_offset(obj), alignment,
+			     i915_gem_obj_offset(obj, vm), alignment,
 			     map_and_fenceable,
 			     obj->map_and_fenceable);
-			ret = i915_gem_object_unbind(obj);
+			ret = i915_vma_unbind(vma);
 			if (ret)
 				return ret;
 		}
 	}
 
-	if (!i915_gem_obj_ggtt_bound(obj)) {
+	if (!i915_gem_obj_bound(obj, vm)) {
 		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 
-		ret = i915_gem_object_bind_to_gtt(obj, alignment,
-						  map_and_fenceable,
-						  nonblocking);
+		ret = i915_gem_object_bind_to_vm(obj, vm, alignment,
+						 map_and_fenceable,
+						 nonblocking);
 		if (ret)
 			return ret;
 
@@ -3963,6 +3998,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct i915_vma *vma, *next;
 
 	trace_i915_gem_object_destroy(obj);
 
@@ -3970,15 +4006,21 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
 	obj->pin_count = 0;
-	if (WARN_ON(i915_gem_object_unbind(obj) == -ERESTARTSYS)) {
-		bool was_interruptible;
+	/* NB: 0 or 1 elements */
+	WARN_ON(!list_empty(&obj->vma_list) &&
+		!list_is_singular(&obj->vma_list));
+	list_for_each_entry_safe(vma, next, &obj->vma_list, vma_link) {
+		int ret = i915_vma_unbind(vma);
+		if (WARN_ON(ret == -ERESTARTSYS)) {
+			bool was_interruptible;
 
-		was_interruptible = dev_priv->mm.interruptible;
-		dev_priv->mm.interruptible = false;
+			was_interruptible = dev_priv->mm.interruptible;
+			dev_priv->mm.interruptible = false;
 
-		WARN_ON(i915_gem_object_unbind(obj));
+			WARN_ON(i915_vma_unbind(vma));
 
-		dev_priv->mm.interruptible = was_interruptible;
+			dev_priv->mm.interruptible = was_interruptible;
+		}
 	}
 
 	/* Stolen objects don't hold a ref, but do hold pin count. Fix that up
