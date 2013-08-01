@@ -2694,6 +2694,8 @@ static int w83627ehf_resume(struct device *dev)
 static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
 	.suspend = w83627ehf_suspend,
 	.resume = w83627ehf_resume,
+	.freeze = w83627ehf_suspend,
+	.restore = w83627ehf_resume,
 };
 
 #define W83627EHF_DEV_PM_OPS	(&w83627ehf_dev_pm_ops)
