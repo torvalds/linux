@@ -964,6 +964,7 @@ xlog_find_tail(
 	}
 	if (!found) {
 		xfs_warn(log->l_mp, "%s: couldn't find sync record", __func__);
+		xlog_put_bp(bp);
 		ASSERT(0);
 		return XFS_ERROR(EIO);
 	}
