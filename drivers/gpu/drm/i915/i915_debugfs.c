@@ -89,13 +89,20 @@ static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
 	}
 }
 
+static inline const char *get_global_flag(struct drm_i915_gem_object *obj)
+{
+	return obj->has_global_gtt_mapping ? "g" : " ";
+}
+
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	seq_printf(m, "%pK: %s%s %8zdKiB %02x %02x %d %d %d%s%s%s",
+	struct i915_vma *vma;
+	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %d %d %d%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
+		   get_global_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain,
@@ -111,9 +118,14 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (pinned x %d)", obj->pin_count);
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
-	if (i915_gem_obj_ggtt_bound(obj))
-		seq_printf(m, " (gtt offset: %08lx, size: %08x)",
-			   i915_gem_obj_ggtt_offset(obj), (unsigned int)i915_gem_obj_ggtt_size(obj));
+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		if (!i915_is_ggtt(vma->vm))
+			seq_puts(m, " (pp");
+		else
+			seq_puts(m, " (g");
+		seq_printf(m, "gtt offset: %08lx, size: %08lx)",
+			   vma->node.start, vma->node.size);
+	}
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08lx)", obj->stolen->start);
 	if (obj->pin_mappable || obj->fault_mappable) {
