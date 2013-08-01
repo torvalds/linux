@@ -111,6 +111,18 @@ out:
 	return rt == NULL ? -EAGAIN : 0;
 }
 
+static bool fib6_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg)
+{
+	struct rt6_info *rt = (struct rt6_info *) arg->result;
+	/* do not accept result if the route does
+	 * not meet the required prefix length
+	 */
+	if (rt->rt6i_dst.plen < rule->table_prefixlen_min) {
+		ip6_rt_put(rt);
+		return true;
+	}
+	return false;
+}
 
 static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
@@ -244,6 +256,7 @@ static const struct fib_rules_ops __net_initconst fib6_rules_ops_template = {
 	.addr_size		= sizeof(struct in6_addr),
 	.action			= fib6_rule_action,
 	.match			= fib6_rule_match,
+	.suppress		= fib6_rule_suppress,
 	.configure		= fib6_rule_configure,
 	.compare		= fib6_rule_compare,
 	.fill			= fib6_rule_fill,

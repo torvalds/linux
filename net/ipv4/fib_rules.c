@@ -101,6 +101,19 @@ errout:
 	return err;
 }
 
+static bool fib4_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg)
+{
+	/* do not accept result if the route does
+	 * not meet the required prefix length
+	 */
+	struct fib_result *result = (struct fib_result *) arg->result;
+	if (result->prefixlen < rule->table_prefixlen_min) {
+		if (!(arg->flags & FIB_LOOKUP_NOREF))
+			fib_info_put(result->fi);
+		return true;
+	}
+	return false;
+}
 
 static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
@@ -267,6 +280,7 @@ static const struct fib_rules_ops __net_initconst fib4_rules_ops_template = {
 	.rule_size	= sizeof(struct fib4_rule),
 	.addr_size	= sizeof(u32),
 	.action		= fib4_rule_action,
+	.suppress	= fib4_rule_suppress,
 	.match		= fib4_rule_match,
 	.configure	= fib4_rule_configure,
 	.delete		= fib4_rule_delete,
