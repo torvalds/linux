@@ -757,6 +757,28 @@ static void __init rk2928_init_sdmmc(void)
 #endif
 }
 
+#ifdef CONFIG_RK29_WATCHDOG
+static struct resource resources_wdt[] = {
+	{
+		.start	= IRQ_WDT,
+		.end	= IRQ_WDT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2928_WDT_PHYS,
+		.end	= RK2928_WDT_PHYS + RK2928_WDT_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device device_wdt = {
+	.name	= "rk29-wdt",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(resources_wdt),
+	.resource	= resources_wdt,
+};
+#endif
+
 static struct resource resource_arm_pmu[] = {
 	{
 		.start	= IRQ_ARM_PMU,
@@ -849,6 +871,9 @@ static int __init rk2928_init_devices(void)
 	rk2928_init_i2s();
 #if defined(CONFIG_HDMI_RK2928) || defined(CONFIG_HDMI_RK616)
 	platform_device_register(&device_hdmi);
+#endif
+#ifdef CONFIG_RK29_WATCHDOG
+	platform_device_register(&device_wdt);
 #endif
 	platform_device_register(&device_arm_pmu);
 
