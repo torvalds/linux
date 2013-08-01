@@ -844,9 +844,20 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len)
 			struct oz_tx_frame *isoc_unit = NULL;
 			int nb = pd->nb_queued_isoc_frames;
 			if (nb >= pd->isoc_latency) {
+				struct list_head *e;
+				struct oz_tx_frame *f;
 				oz_dbg(TX_FRAMES, "Dropping ISOC Unit nb= %d\n",
 				       nb);
-				goto out;
+				spin_lock(&pd->tx_frame_lock);
+				list_for_each(e, &pd->tx_queue) {
+					f = container_of(e, struct oz_tx_frame,
+									link);
+					if (f->skb != NULL) {
+						oz_tx_isoc_free(pd, f);
+						break;
+					}
+				}
+				spin_unlock(&pd->tx_frame_lock);
 			}
 			isoc_unit = oz_tx_frame_alloc(pd);
 			if (isoc_unit == NULL)
