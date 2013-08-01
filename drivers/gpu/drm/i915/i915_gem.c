@@ -2629,7 +2629,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	list_del(&obj->mm_list);
 	/* Avoid an unnecessary call to unbind on rebind. */
-	obj->map_and_fenceable = true;
+	if (i915_is_ggtt(vma->vm))
+		obj->map_and_fenceable = true;
 
 	list_del(&vma->vma_link);
 	drm_mm_remove_node(&vma->node);
@@ -3191,7 +3192,9 @@ search_free:
 		i915_is_ggtt(vm) &&
 		vma->node.start + obj->base.size <= dev_priv->gtt.mappable_end;
 
-	obj->map_and_fenceable = mappable && fenceable;
+	/* Map and fenceable only changes if the VM is the global GGTT */
+	if (i915_is_ggtt(vm))
+		obj->map_and_fenceable = mappable && fenceable;
 
 	trace_i915_vma_bind(vma, map_and_fenceable);
 	i915_gem_verify_gtt(dev);
