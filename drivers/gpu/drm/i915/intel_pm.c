@@ -2382,6 +2382,39 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[5])
 	}
 }
 
+static void intel_fixup_spr_wm_latency(struct drm_device *dev, uint16_t wm[5])
+{
+	/* ILK sprite LP0 latency is 1300 ns */
+	if (INTEL_INFO(dev)->gen == 5)
+		wm[0] = 13;
+}
+
+static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
+{
+	/* ILK cursor LP0 latency is 1300 ns */
+	if (INTEL_INFO(dev)->gen == 5)
+		wm[0] = 13;
+
+	/* WaDoubleCursorLP3Latency:ivb */
+	if (IS_IVYBRIDGE(dev))
+		wm[3] *= 2;
+}
+
+static void intel_setup_wm_latency(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_read_wm_latency(dev, dev_priv->wm.pri_latency);
+
+	memcpy(dev_priv->wm.spr_latency, dev_priv->wm.pri_latency,
+	       sizeof(dev_priv->wm.pri_latency));
+	memcpy(dev_priv->wm.cur_latency, dev_priv->wm.pri_latency,
+	       sizeof(dev_priv->wm.pri_latency));
+
+	intel_fixup_spr_wm_latency(dev, dev_priv->wm.spr_latency);
+	intel_fixup_cur_wm_latency(dev, dev_priv->wm.cur_latency);
+}
+
 static void hsw_compute_wm_parameters(struct drm_device *dev,
 				      struct hsw_pipe_wm_parameters *params,
 				      struct hsw_wm_maximums *lp_max_1_2,
@@ -2627,16 +2660,17 @@ static void haswell_update_wm(struct drm_device *dev)
 	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
 	struct hsw_pipe_wm_parameters params[3];
 	struct hsw_wm_values results_1_2, results_5_6, *best_results;
-	uint16_t wm[5] = {};
 	enum hsw_data_buf_partitioning partitioning;
 
-	intel_read_wm_latency(dev, wm);
 	hsw_compute_wm_parameters(dev, params, &lp_max_1_2, &lp_max_5_6);
 
-	hsw_compute_wm_results(dev, params, wm, &lp_max_1_2, &results_1_2);
+	hsw_compute_wm_results(dev, params,
+			       dev_priv->wm.pri_latency,
+			       &lp_max_1_2, &results_1_2);
 	if (lp_max_1_2.pri != lp_max_5_6.pri) {
-		hsw_compute_wm_results(dev, params, wm, &lp_max_5_6,
-				       &results_5_6);
+		hsw_compute_wm_results(dev, params,
+				       dev_priv->wm.pri_latency,
+				       &lp_max_5_6, &results_5_6);
 		best_results = hsw_find_best_result(&results_1_2, &results_5_6);
 	} else {
 		best_results = &results_1_2;
@@ -5247,8 +5281,12 @@ void intel_init_pm(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
+		intel_setup_wm_latency(dev);
+
 		if (IS_GEN5(dev)) {
-			if (I915_READ(MLTR_ILK) & ILK_SRLT_MASK)
+			if (dev_priv->wm.pri_latency[1] &&
+			    dev_priv->wm.spr_latency[1] &&
+			    dev_priv->wm.cur_latency[1])
 				dev_priv->display.update_wm = ironlake_update_wm;
 			else {
 				DRM_DEBUG_KMS("Failed to get proper latency. "
@@ -5257,7 +5295,9 @@ void intel_init_pm(struct drm_device *dev)
 			}
 			dev_priv->display.init_clock_gating = ironlake_init_clock_gating;
 		} else if (IS_GEN6(dev)) {
-			if (SNB_READ_WM0_LATENCY()) {
+			if (dev_priv->wm.pri_latency[0] &&
+			    dev_priv->wm.spr_latency[0] &&
+			    dev_priv->wm.cur_latency[0]) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
 				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
 			} else {
@@ -5267,7 +5307,9 @@ void intel_init_pm(struct drm_device *dev)
 			}
 			dev_priv->display.init_clock_gating = gen6_init_clock_gating;
 		} else if (IS_IVYBRIDGE(dev)) {
-			if (SNB_READ_WM0_LATENCY()) {
+			if (dev_priv->wm.pri_latency[0] &&
+			    dev_priv->wm.spr_latency[0] &&
+			    dev_priv->wm.cur_latency[0]) {
 				dev_priv->display.update_wm = ivybridge_update_wm;
 				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
 			} else {
@@ -5277,7 +5319,9 @@ void intel_init_pm(struct drm_device *dev)
 			}
 			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
 		} else if (IS_HASWELL(dev)) {
-			if (I915_READ64(MCH_SSKPD)) {
+			if (dev_priv->wm.pri_latency[0] &&
+			    dev_priv->wm.spr_latency[0] &&
+			    dev_priv->wm.cur_latency[0]) {
 				dev_priv->display.update_wm = haswell_update_wm;
 				dev_priv->display.update_sprite_wm =
 					haswell_update_sprite_wm;

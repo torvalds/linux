@@ -1216,6 +1216,20 @@ typedef struct drm_i915_private {
 
 	struct i915_suspend_saved_registers regfile;
 
+	struct {
+		/*
+		 * Raw watermark latency values:
+		 * in 0.1us units for WM0,
+		 * in 0.5us units for WM1+.
+		 */
+		/* primary */
+		uint16_t pri_latency[5];
+		/* sprite */
+		uint16_t spr_latency[5];
+		/* cursor */
+		uint16_t cur_latency[5];
+	} wm;
+
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
 	struct i915_dri1_state dri1;
