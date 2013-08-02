@@ -174,11 +174,13 @@ static const struct apll_clk_set apll_clks[] = {
 }
 static const struct pll_clk_set cpll_clks[] = {
 	_PLL_SET_CLKS(798000, 4, 133, 1, 1, 1, 0),
+	_PLL_SET_CLKS(594000, 2, 99, 2, 1, 1, 0),
 	_PLL_SET_CLKS(1064000, 3, 133, 1, 1, 1, 0),
 };
 
 static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(297000, 2, 99, 4, 1, 1, 0),
+	_PLL_SET_CLKS(768000, 1, 32, 1, 1, 1, 0),
 };
 
 static u32 clk_gcd(u32 numerator, u32 denominator)
@@ -347,7 +349,7 @@ static int clksel_set_rate_freediv(struct clk *clk, unsigned long rate)
 {
 	u32 div = 0;
 
-	for (div = 0; div < clk->div_max; div++) {
+	for (div = 0; div <= clk->div_max; div++) {
 		u32 new_rate = clk->parent->rate / (div + 1);
 		if (new_rate <= rate) {
 			set_cru_bits_w_msk(div, clk->div_mask, clk->div_shift, clk->clksel_con);
@@ -370,7 +372,7 @@ static int clksel_set_rate_freediv(struct clk *clk, unsigned long rate)
 static int clksel_set_rate_shift(struct clk *clk, unsigned long rate)
 {
 	u32 shift;
-	for (shift = 0; (1 << shift) < clk->div_max; shift++) {
+	for (shift = 0; (1 << shift) <= clk->div_max; shift++) {
 		u32 new_rate = clk->parent->rate >> shift;
 		if (new_rate <= rate) {
 			set_cru_bits_w_msk(shift, clk->div_mask, clk->div_shift, clk->clksel_con);
@@ -405,7 +407,7 @@ static int clksel_set_rate_shift_2(struct clk *clk, unsigned long rate)
 static int clksel_set_rate_even(struct clk *clk, unsigned long rate)
 {
 	u32 div = 0, new_rate = 0;
-	for (div = 1; div < clk->div_max; div++) {
+	for (div = 1; div <= clk->div_max; div++) {
 		if (div >= 3 && div % 2 != 0)
 			continue;
 		new_rate = clk->parent->rate / div;
@@ -2655,9 +2657,16 @@ static void periph_clk_set_init(void)
 			pclk_p = aclk_p >> 2;
 			break;
 		case 1188*MHZ:
-			aclk_p = aclk_p >> 3; // 0
+			aclk_p = gpll_rate >> 3; // 0
 			hclk_p = aclk_p >> 1;
 			pclk_p = aclk_p >> 2;
+			break;
+
+		case 768 * MHZ:
+			aclk_p = gpll_rate >> 2;
+			hclk_p = aclk_p >> 1;
+			pclk_p = aclk_p >> 2;
+			break;
 
 		case 297 * MHZ:
 			aclk_p = gpll_rate >> 0;
@@ -2693,6 +2702,12 @@ static void cpu_axi_init(void)
 			pclk_cpu_rate = aclk_cpu_rate >> 2;
 			break;
 
+		case 768 * MHZ:
+			aclk_cpu_rate = gpll_rate >> 2;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
+			break;
+
 		default:
 			aclk_cpu_rate = 150 * MHZ;
 			hclk_cpu_rate = 150 * MHZ;
@@ -2701,8 +2716,8 @@ static void cpu_axi_init(void)
 	}
 
 	clk_set_parent_nolock(&clk_cpu_div, &clk_cpu_gpll);
-	clk_set_rate_nolock(&clk_cpu_div, gpll_rate);
-	clk_set_rate_nolock(&aclk_cpu_pre, aclk_cpu_rate);
+	clk_set_rate_nolock(&clk_cpu_div, aclk_cpu_rate);
+	//clk_set_rate_nolock(&aclk_cpu_pre, aclk_cpu_rate);
 	clk_set_rate_nolock(&hclk_cpu_pre, hclk_cpu_rate);
 	clk_set_rate_nolock(&pclk_cpu_pre, pclk_cpu_rate);
 }
