@@ -819,7 +819,7 @@ static struct platform_device device_lvds = {
 };
 #endif
 
-static struct resource resource_vpu_service[] = {
+static struct resource resource_vpu[] = {
 	{
 		.start	= IRQ_VDPU,
 		.end	= IRQ_VDPU,
@@ -839,11 +839,11 @@ static struct resource resource_vpu_service[] = {
 	},
 };
 
-static struct platform_device device_vpu_service = {
-	.name		= "vpu_service",
+static struct platform_device device_vpu = {
+	.name		= "vpu",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(resource_vpu_service),
-	.resource	= resource_vpu_service,
+	.num_resources	= ARRAY_SIZE(resource_vpu),
+	.resource	= resource_vpu,
 };
 
 static int __init rk2928_init_devices(void)
@@ -880,7 +880,7 @@ static int __init rk2928_init_devices(void)
 #ifdef CONFIG_RK3026_LVDS
 	platform_device_register(&device_lvds);
 #endif
-	platform_device_register(&device_vpu_service);
+	platform_device_register(&device_vpu);
 
 	return 0;
 }
