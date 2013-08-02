@@ -132,7 +132,7 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 {
 	struct iwl_time_quota_cmd cmd;
-	int i, idx, ret, num_active_bindings, quota, quota_rem;
+	int i, idx, ret, num_active_macs, quota, quota_rem;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
@@ -162,18 +162,17 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 	 * IWL_MVM_MAX_QUOTA fragments. Divide these fragments
 	 * equally between all the bindings that require quota
 	 */
-	num_active_bindings = 0;
+	num_active_macs = 0;
 	for (i = 0; i < MAX_BINDINGS; i++) {
 		cmd.quotas[i].id_and_color = cpu_to_le32(FW_CTXT_INVALID);
-		if (data.n_interfaces[i] > 0)
-			num_active_bindings++;
+		num_active_macs += data.n_interfaces[i];
 	}
 
 	quota = 0;
 	quota_rem = 0;
-	if (num_active_bindings) {
-		quota = IWL_MVM_MAX_QUOTA / num_active_bindings;
-		quota_rem = IWL_MVM_MAX_QUOTA % num_active_bindings;
+	if (num_active_macs) {
+		quota = IWL_MVM_MAX_QUOTA / num_active_macs;
+		quota_rem = IWL_MVM_MAX_QUOTA % num_active_macs;
 	}
 
 	for (idx = 0, i = 0; i < MAX_BINDINGS; i++) {
@@ -187,7 +186,8 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *newvif)
 			cmd.quotas[idx].quota = cpu_to_le32(0);
 			cmd.quotas[idx].max_duration = cpu_to_le32(0);
 		} else {
-			cmd.quotas[idx].quota = cpu_to_le32(quota);
+			cmd.quotas[idx].quota =
+				cpu_to_le32(quota * data.n_interfaces[i]);
 			cmd.quotas[idx].max_duration =
 				cpu_to_le32(IWL_MVM_MAX_QUOTA);
 		}

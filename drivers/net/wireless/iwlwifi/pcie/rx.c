@@ -793,7 +793,7 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	}
 
 	iwl_pcie_dump_csr(trans);
-	iwl_pcie_dump_fh(trans, NULL);
+	iwl_dump_fh(trans, NULL);
 
 	set_bit(STATUS_FW_ERROR, &trans_pcie->status);
 	clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);

@@ -424,40 +424,11 @@ static ssize_t iwl_dbgfs_pm_params_read(struct file *file,
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->dbgfs_data;
-	struct iwl_powertable_cmd cmd = {};
 	char buf[256];
 	int bufsz = sizeof(buf);
-	int pos = 0;
+	int pos;
 
-	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
-
-	pos += scnprintf(buf+pos, bufsz-pos, "disable_power_off = %d\n",
-			 (cmd.flags &
-			 cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK)) ?
-			 0 : 1);
-	pos += scnprintf(buf+pos, bufsz-pos, "skip_dtim_periods = %d\n",
-			 le32_to_cpu(cmd.skip_dtim_periods));
-	pos += scnprintf(buf+pos, bufsz-pos, "power_scheme = %d\n",
-			 iwlmvm_mod_params.power_scheme);
-	pos += scnprintf(buf+pos, bufsz-pos, "flags = 0x%x\n",
-			 le16_to_cpu(cmd.flags));
-	pos += scnprintf(buf+pos, bufsz-pos, "keep_alive = %d\n",
-			 cmd.keep_alive_seconds);
-
-	if (cmd.flags & cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK)) {
-		pos += scnprintf(buf+pos, bufsz-pos, "skip_over_dtim = %d\n",
-				 (cmd.flags &
-				 cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK)) ?
-				 1 : 0);
-		pos += scnprintf(buf+pos, bufsz-pos, "rx_data_timeout = %d\n",
-				 le32_to_cpu(cmd.rx_data_timeout));
-		pos += scnprintf(buf+pos, bufsz-pos, "tx_data_timeout = %d\n",
-				 le32_to_cpu(cmd.tx_data_timeout));
-		if (cmd.flags & cpu_to_le16(POWER_FLAGS_LPRX_ENA_MSK))
-			pos += scnprintf(buf+pos, bufsz-pos,
-					 "lprx_rssi_threshold = %d\n",
-					 le32_to_cpu(cmd.lprx_rssi_threshold));
-	}
+	pos = iwl_mvm_power_dbgfs_read(mvm, vif, buf, bufsz);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -626,19 +597,18 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	bool restart_fw = iwlwifi_mod_params.restart_fw;
 	int ret;
 
-	iwlwifi_mod_params.restart_fw = true;
-
 	mutex_lock(&mvm->mutex);
+
+	/* allow one more restart that we're provoking here */
+	if (mvm->restart_fw >= 0)
+		mvm->restart_fw++;
 
 	/* take the return value to make compiler happy - it will fail anyway */
 	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_ERROR, CMD_SYNC, 0, NULL);
 
 	mutex_unlock(&mvm->mutex);
-
-	iwlwifi_mod_params.restart_fw = restart_fw;
 
 	return count;
 }
@@ -661,8 +631,14 @@ static void iwl_dbgfs_update_bf(struct ieee80211_vif *vif,
 	case MVM_DEBUGFS_BF_ROAMING_STATE:
 		dbgfs_bf->bf_roaming_state = value;
 		break;
-	case MVM_DEBUGFS_BF_TEMPERATURE_DELTA:
-		dbgfs_bf->bf_temperature_delta = value;
+	case MVM_DEBUGFS_BF_TEMP_THRESHOLD:
+		dbgfs_bf->bf_temp_threshold = value;
+		break;
+	case MVM_DEBUGFS_BF_TEMP_FAST_FILTER:
+		dbgfs_bf->bf_temp_fast_filter = value;
+		break;
+	case MVM_DEBUGFS_BF_TEMP_SLOW_FILTER:
+		dbgfs_bf->bf_temp_slow_filter = value;
 		break;
 	case MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER:
 		dbgfs_bf->bf_enable_beacon_filter = value;
@@ -721,13 +697,27 @@ static ssize_t iwl_dbgfs_bf_params_write(struct file *file,
 		    value > IWL_BF_ROAMING_STATE_MAX)
 			return -EINVAL;
 		param = MVM_DEBUGFS_BF_ROAMING_STATE;
-	} else if (!strncmp("bf_temperature_delta=", buf, 21)) {
-		if (sscanf(buf+21, "%d", &value) != 1)
+	} else if (!strncmp("bf_temp_threshold=", buf, 18)) {
+		if (sscanf(buf+18, "%d", &value) != 1)
 			return -EINVAL;
-		if (value < IWL_BF_TEMPERATURE_DELTA_MIN ||
-		    value > IWL_BF_TEMPERATURE_DELTA_MAX)
+		if (value < IWL_BF_TEMP_THRESHOLD_MIN ||
+		    value > IWL_BF_TEMP_THRESHOLD_MAX)
 			return -EINVAL;
-		param = MVM_DEBUGFS_BF_TEMPERATURE_DELTA;
+		param = MVM_DEBUGFS_BF_TEMP_THRESHOLD;
+	} else if (!strncmp("bf_temp_fast_filter=", buf, 20)) {
+		if (sscanf(buf+20, "%d", &value) != 1)
+			return -EINVAL;
+		if (value < IWL_BF_TEMP_FAST_FILTER_MIN ||
+		    value > IWL_BF_TEMP_FAST_FILTER_MAX)
+			return -EINVAL;
+		param = MVM_DEBUGFS_BF_TEMP_FAST_FILTER;
+	} else if (!strncmp("bf_temp_slow_filter=", buf, 20)) {
+		if (sscanf(buf+20, "%d", &value) != 1)
+			return -EINVAL;
+		if (value < IWL_BF_TEMP_SLOW_FILTER_MIN ||
+		    value > IWL_BF_TEMP_SLOW_FILTER_MAX)
+			return -EINVAL;
+		param = MVM_DEBUGFS_BF_TEMP_SLOW_FILTER;
 	} else if (!strncmp("bf_enable_beacon_filter=", buf, 24)) {
 		if (sscanf(buf+24, "%d", &value) != 1)
 			return -EINVAL;
@@ -789,41 +779,41 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
 	struct iwl_beacon_filter_cmd cmd = {
-		.bf_energy_delta = IWL_BF_ENERGY_DELTA_DEFAULT,
-		.bf_roaming_energy_delta = IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT,
-		.bf_roaming_state = IWL_BF_ROAMING_STATE_DEFAULT,
-		.bf_temperature_delta = IWL_BF_TEMPERATURE_DELTA_DEFAULT,
-		.bf_enable_beacon_filter = IWL_BF_ENABLE_BEACON_FILTER_DEFAULT,
-		.bf_debug_flag = IWL_BF_DEBUG_FLAG_DEFAULT,
-		.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER_DEFAULT),
-		.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_DEFAULT),
-		.ba_enable_beacon_abort = IWL_BA_ENABLE_BEACON_ABORT_DEFAULT,
+		IWL_BF_CMD_CONFIG_DEFAULTS,
+		.bf_enable_beacon_filter =
+			cpu_to_le32(IWL_BF_ENABLE_BEACON_FILTER_DEFAULT),
+		.ba_enable_beacon_abort =
+			cpu_to_le32(IWL_BA_ENABLE_BEACON_ABORT_DEFAULT),
 	};
 
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
 	if (mvmvif->bf_enabled)
-		cmd.bf_enable_beacon_filter = 1;
+		cmd.bf_enable_beacon_filter = cpu_to_le32(1);
 	else
 		cmd.bf_enable_beacon_filter = 0;
 
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_energy_delta = %d\n",
-			 cmd.bf_energy_delta);
+			 le32_to_cpu(cmd.bf_energy_delta));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_roaming_energy_delta = %d\n",
-			 cmd.bf_roaming_energy_delta);
+			 le32_to_cpu(cmd.bf_roaming_energy_delta));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_roaming_state = %d\n",
-			 cmd.bf_roaming_state);
-	pos += scnprintf(buf+pos, bufsz-pos, "bf_temperature_delta = %d\n",
-			 cmd.bf_temperature_delta);
+			 le32_to_cpu(cmd.bf_roaming_state));
+	pos += scnprintf(buf+pos, bufsz-pos, "bf_temp_threshold = %d\n",
+			 le32_to_cpu(cmd.bf_temp_threshold));
+	pos += scnprintf(buf+pos, bufsz-pos, "bf_temp_fast_filter = %d\n",
+			 le32_to_cpu(cmd.bf_temp_fast_filter));
+	pos += scnprintf(buf+pos, bufsz-pos, "bf_temp_slow_filter = %d\n",
+			 le32_to_cpu(cmd.bf_temp_slow_filter));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_enable_beacon_filter = %d\n",
-			 cmd.bf_enable_beacon_filter);
+			 le32_to_cpu(cmd.bf_enable_beacon_filter));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_debug_flag = %d\n",
-			 cmd.bf_debug_flag);
+			 le32_to_cpu(cmd.bf_debug_flag));
 	pos += scnprintf(buf+pos, bufsz-pos, "bf_escape_timer = %d\n",
-			 cmd.bf_escape_timer);
+			 le32_to_cpu(cmd.bf_escape_timer));
 	pos += scnprintf(buf+pos, bufsz-pos, "ba_escape_timer = %d\n",
-			 cmd.ba_escape_timer);
+			 le32_to_cpu(cmd.ba_escape_timer));
 	pos += scnprintf(buf+pos, bufsz-pos, "ba_enable_beacon_abort = %d\n",
-			 cmd.ba_enable_beacon_abort);
+			 le32_to_cpu(cmd.ba_enable_beacon_abort));
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }

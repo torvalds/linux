@@ -136,7 +136,7 @@ enum {
 	CALIB_RES_NOTIF_PHY_DB = 0x6b,
 	/* PHY_DB_CMD = 0x6c, */
 
-	/* Power */
+	/* Power - legacy power table command */
 	POWER_TABLE_CMD = 0x77,
 
 	/* Thermal Throttling*/
@@ -159,12 +159,16 @@ enum {
 	TX_ANT_CONFIGURATION_CMD = 0x98,
 	BT_CONFIG = 0x9b,
 	STATISTICS_NOTIFICATION = 0x9d,
+	REDUCE_TX_POWER_CMD = 0x9f,
 
 	/* RF-KILL commands and notifications */
 	CARD_STATE_CMD = 0xa0,
 	CARD_STATE_NOTIFICATION = 0xa1,
 
 	MISSED_BEACONS_NOTIFICATION = 0xa2,
+
+	/* Power - new power table command */
+	MAC_PM_POWER_TABLE = 0xa9,
 
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
@@ -222,6 +226,19 @@ struct iwl_cmd_response {
 struct iwl_tx_ant_cfg_cmd {
 	__le32 valid;
 } __packed;
+
+/**
+ * struct iwl_reduce_tx_power_cmd - TX power reduction command
+ * REDUCE_TX_POWER_CMD = 0x9f
+ * @flags: (reserved for future implementation)
+ * @mac_context_id: id of the mac ctx for which we are reducing TX power.
+ * @pwr_restriction: TX power restriction in dBms.
+ */
+struct iwl_reduce_tx_power_cmd {
+	u8 flags;
+	u8 mac_context_id;
+	__le16 pwr_restriction;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_1 */
 
 /*
  * Calibration control struct.
@@ -765,6 +782,14 @@ struct iwl_phy_context_cmd {
 } __packed; /* PHY_CONTEXT_CMD_API_VER_1 */
 
 #define IWL_RX_INFO_PHY_CNT 8
+#define IWL_RX_INFO_ENERGY_ANT_ABC_IDX 1
+#define IWL_RX_INFO_ENERGY_ANT_A_MSK 0x000000ff
+#define IWL_RX_INFO_ENERGY_ANT_B_MSK 0x0000ff00
+#define IWL_RX_INFO_ENERGY_ANT_C_MSK 0x00ff0000
+#define IWL_RX_INFO_ENERGY_ANT_A_POS 0
+#define IWL_RX_INFO_ENERGY_ANT_B_POS 8
+#define IWL_RX_INFO_ENERGY_ANT_C_POS 16
+
 #define IWL_RX_INFO_AGC_IDX 1
 #define IWL_RX_INFO_RSSI_AB_IDX 2
 #define IWL_OFDM_AGC_A_MSK 0x0000007f

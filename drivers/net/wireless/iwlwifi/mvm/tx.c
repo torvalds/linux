@@ -123,6 +123,8 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		 * it
 		 */
 		WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_AMPDU);
+	} else if (skb->protocol == cpu_to_be16(ETH_P_PAE)) {
+		tx_cmd->pm_frame_timeout = cpu_to_le16(2);
 	} else {
 		tx_cmd->pm_frame_timeout = 0;
 	}

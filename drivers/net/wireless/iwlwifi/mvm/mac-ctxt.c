@@ -264,7 +264,8 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		return 0;
 
 	/* Therefore, in recovery, we can't get here */
-	WARN_ON_ONCE(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status));
+	if (WARN_ON_ONCE(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
+		return -EBUSY;
 
 	mvmvif->id = find_first_bit(data.available_mac_ids,
 				    NUM_MAC_INDEX_DRIVER);

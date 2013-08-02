@@ -1619,10 +1619,9 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
 
-	if (unlikely(!test_bit(txq_id, trans_pcie->queue_used))) {
-		WARN_ON_ONCE(1);
+	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->queue_used),
+		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
-	}
 
 	spin_lock(&txq->lock);
 
