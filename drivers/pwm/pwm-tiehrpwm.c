@@ -139,17 +139,17 @@ static inline struct ehrpwm_pwm_chip *to_ehrpwm_pwm_chip(struct pwm_chip *chip)
 	return container_of(chip, struct ehrpwm_pwm_chip, chip);
 }
 
-static u16 ehrpwm_read(void *base, int offset)
+static u16 ehrpwm_read(void __iomem *base, int offset)
 {
 	return readw(base + offset);
 }
 
-static void ehrpwm_write(void *base, int offset, unsigned int val)
+static void ehrpwm_write(void __iomem *base, int offset, unsigned int val)
 {
 	writew(val & 0xFFFF, base + offset);
 }
 
-static void ehrpwm_modify(void *base, int offset,
+static void ehrpwm_modify(void __iomem *base, int offset,
 		unsigned short mask, unsigned short val)
 {
 	unsigned short regval;
