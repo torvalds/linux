@@ -287,7 +287,7 @@ void __is_set_sensor(struct fimc_is *is, int fps)
 	fimc_is_set_param_bit(is, PARAM_ISP_OTF_INPUT);
 }
 
-void __is_set_init_isp_aa(struct fimc_is *is)
+static void __maybe_unused __is_set_init_isp_aa(struct fimc_is *is)
 {
 	struct isp_param *isp;
 

@@ -96,7 +96,7 @@ int fimc_is_hw_set_param(struct fimc_is *is)
 	return 0;
 }
 
-int fimc_is_hw_set_tune(struct fimc_is *is)
+static int __maybe_unused fimc_is_hw_set_tune(struct fimc_is *is)
 {
 	fimc_is_hw_wait_intmsr0_intmsd0(is);
 
