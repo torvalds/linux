@@ -233,7 +233,8 @@ union e1000_rx_desc_extended {
 #define MAX_PS_BUFFERS 4
 
 /* Number of packet split data buffers (not including the header buffer) */
-#define PS_PAGE_BUFFERS			(MAX_PS_BUFFERS - 1)
+#define PS_PAGE_BUFFERS	(MAX_PS_BUFFERS - 1)
+
 /* Receive Descriptor - Packet Split */
 union e1000_rx_desc_packet_split {
 	struct {
