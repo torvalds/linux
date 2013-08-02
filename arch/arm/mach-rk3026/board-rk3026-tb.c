@@ -51,8 +51,8 @@
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
 
-#ifdef CONFIG_SND_SOC_RK3028
-#include "../../../sound/soc/codecs/rk3028_codec.h"
+#ifdef CONFIG_SND_SOC_RK3026
+#include "../../../sound/soc/codecs/rk3026_codec.h"
 #endif
 
 #if defined(CONFIG_RK_HDMI)
@@ -936,8 +936,8 @@ void __sramfunc board_pmu_resume(void)
 	#endif
 }
 
-#ifdef CONFIG_SND_SOC_RK3028
-struct rk3028_codec_pdata rk3028_codec_pdata_info={
+#ifdef CONFIG_SND_SOC_RK3026
+struct rk3026_codec_pdata rk3026_codec_pdata_info={
     .spk_ctl_gpio = INVALID_GPIO,
     .hp_ctl_gpio = RK2928_PIN1_PA0,
 };
@@ -950,12 +950,12 @@ static struct resource resources_acodec[] = {
 	},
 };
 
-static struct platform_device rk3028_codec = {
-	.name	= "rk3028-codec",
+static struct platform_device rk3026_codec = {
+	.name	= "rk3026-codec",
 	.id		= -1,
 	.resource = resources_acodec,
     	.dev = {
-        	.platform_data = &rk3028_codec_pdata_info,
+        	.platform_data = &rk3026_codec_pdata_info,
     }
 };
 #endif
@@ -1059,8 +1059,8 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	&rk29sdk_wifi_device,
 #endif
-#ifdef CONFIG_SND_SOC_RK3028
- 	&rk3028_codec,
+#ifdef CONFIG_SND_SOC_RK3026
+ 	&rk3026_codec,
 #endif
 };
 
