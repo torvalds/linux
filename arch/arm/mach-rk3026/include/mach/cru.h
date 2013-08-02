@@ -509,7 +509,7 @@ enum cru_soft_reset {
 	SOFT_RST_VCODEC_AXI = SOFT_RST_ID(7),
 	SOFT_RST_VCODEC_AHB,
 	SOFT_RST_VIO1_AXI,
-	SOFT_RST_7RES3,
+	SOFT_RST_CPU_VCODEC,	//Actually not exist, Compatible with rk2928
 	
 	SOFT_RST_VCODEC_NIU_AXI,
 	SOFT_RST_LCDC1_AXI,
