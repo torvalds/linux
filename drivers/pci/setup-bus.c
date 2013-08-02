@@ -747,7 +747,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 {
 	struct pci_dev *dev;
 	struct resource *b_res = find_free_bus_resource(bus, IORESOURCE_IO);
-	unsigned long size = 0, size0 = 0, size1 = 0;
+	resource_size_t size = 0, size0 = 0, size1 = 0;
 	resource_size_t children_add_size = 0;
 	resource_size_t min_align, io_align, align;
 
@@ -807,8 +807,9 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 		add_to_list(realloc_head, bus->self, b_res, size1-size0,
 			    min_align);
 		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
-				 "%pR to %pR add_size %lx\n", b_res,
-				 &bus->busn_res, size1-size0);
+				 "%pR to %pR add_size %llx\n", b_res,
+				 &bus->busn_res,
+				 (unsigned long long)size1-size0);
 	}
 }
 
