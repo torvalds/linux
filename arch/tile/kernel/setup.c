@@ -614,11 +614,12 @@ static void __init setup_bootmem_allocator_node(int i)
 	/*
 	 * Throw away any memory aliased by the PCI region.
 	 */
-	if (pci_reserve_start_pfn < end && pci_reserve_end_pfn > start)
-		reserve_bootmem(PFN_PHYS(pci_reserve_start_pfn),
-				PFN_PHYS(pci_reserve_end_pfn -
-					 pci_reserve_start_pfn),
+	if (pci_reserve_start_pfn < end && pci_reserve_end_pfn > start) {
+		start = max(pci_reserve_start_pfn, start);
+		end = min(pci_reserve_end_pfn, end);
+		reserve_bootmem(PFN_PHYS(start), PFN_PHYS(end - start),
 				BOOTMEM_EXCLUSIVE);
+	}
 #endif
 }
 
