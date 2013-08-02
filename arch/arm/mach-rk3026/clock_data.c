@@ -1617,11 +1617,9 @@ static struct clk clk_cif_out = {
 	CRU_SRC_SET(0x1, 7),
 	CRU_PARENTS_SET(clk_cif_out_parents),
 };
-#if 0
 /*External clock*/
 static struct clk pclkin_cif0 = {
 	.name		= "pclkin_cif0",
-	.mode		= gate_mode,
 	.mode		= gate_mode,
 	.gate_idx	= CLK_GATE_PCLKIN_CIF,
 };
@@ -1636,10 +1634,9 @@ static struct clk cif0_in = {
 	.name		= "cif0_in",
 	.parent		= &pclkin_cif0,
 	.clksel_con	= CRU_CLKSELS_CON(30),
-	CRU_SRC_SET(0x1, 8),
+	CRU_SRC_SET(0x1, 7),
 	CRU_PARENTS_SET(cif0_in_parents),
 };
-#endif
 /****************i2s*******************/
 #define I2S_SRC_DIV  (0x0)
 #define I2S_SRC_FRAC  (0x1)
@@ -2232,11 +2229,10 @@ static struct clk_lookup clks[] = {
 
 	CLK(NULL, "cif_out_div", &clk_cif_out_div),
 	CLK(NULL, "cif0_out", &clk_cif_out),
-#if 0
 	CLK(NULL, "pclkin_cif0", &pclkin_cif0),
 	CLK(NULL, "inv_cif0", &inv_cif0),
 	CLK(NULL, "cif0_in", &cif0_in),
-#endif
+
 	CLK(NULL, "i2s_pll", &clk_i2s_pll),
 	CLK("rk29_i2s.0", "i2s_div", &clk_i2s_div),
 	CLK("rk29_i2s.0", "i2s_frac_div", &clk_i2s_frac_div),
