@@ -317,6 +317,7 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
 	return _register_divider(dev, name, parent_name, flags, reg, shift,
 			width, clk_divider_flags, NULL, lock);
 }
+EXPORT_SYMBOL_GPL(clk_register_divider);
 
 /**
  * clk_register_divider_table - register a table based divider clock with
@@ -341,3 +342,4 @@ struct clk *clk_register_divider_table(struct device *dev, const char *name,
 	return _register_divider(dev, name, parent_name, flags, reg, shift,
 			width, clk_divider_flags, table, lock);
 }
+EXPORT_SYMBOL_GPL(clk_register_divider_table);
