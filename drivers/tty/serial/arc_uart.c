@@ -248,12 +248,9 @@ static void arc_serial_rx_chars(struct arc_uart_port *uart, unsigned int status)
 		ch = UART_GET_DATA(uart);
 		uart->port.icount.rx++;
 
-		if (unlikely(uart_handle_sysrq_char(&uart->port, ch)))
-			goto done;
+		if (!(uart_handle_sysrq_char(&uart->port, ch)))
+			uart_insert_char(&uart->port, status, RXOERR, ch, flg);
 
-		uart_insert_char(&uart->port, status, RXOERR, ch, flg);
-
-done:
 		tty_flip_buffer_push(&uart->port.state->port);
 	} while (!((status = UART_GET_STATUS(uart)) & RXEMPTY));
 }
