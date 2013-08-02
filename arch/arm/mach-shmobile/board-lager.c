@@ -82,11 +82,11 @@ static struct regulator_consumer_supply fixed3v3_power_consumers[] =
 };
 
 /* MMCIF */
-static struct sh_mmcif_plat_data mmcif1_pdata = {
+static struct sh_mmcif_plat_data mmcif1_pdata __initdata = {
 	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
 };
 
-static struct resource mmcif1_resources[] = {
+static struct resource mmcif1_resources[] __initdata = {
 	DEFINE_RES_MEM_NAMED(0xee220000, 0x80, "MMCIF1"),
 	DEFINE_RES_IRQ(gic_spi(170)),
 };
