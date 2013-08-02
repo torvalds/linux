@@ -1406,11 +1406,8 @@ static void cw1200_do_unjoin(struct cw1200_common *priv)
 	if (!priv->join_status)
 		goto done;
 
-	if (priv->join_status > CW1200_JOIN_STATUS_IBSS) {
-		wiphy_err(priv->hw->wiphy, "Unexpected: join status: %d\n",
-			  priv->join_status);
-		BUG_ON(1);
-	}
+	if (priv->join_status == CW1200_JOIN_STATUS_AP)
+		goto done;
 
 	cancel_work_sync(&priv->update_filtering_work);
 	cancel_work_sync(&priv->set_beacon_wakeup_period_work);
