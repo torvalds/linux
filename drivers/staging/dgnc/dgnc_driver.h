@@ -27,7 +27,6 @@
 #ifndef __DGNC_DRIVER_H
 #define __DGNC_DRIVER_H
 
-#include <linux/version.h>	/* To get the current Linux version */
 #include <linux/types.h>	/* To pick up the varions Linux types */
 #include <linux/tty.h>          /* To pick up the various tty structs/defines */
 #include <linux/interrupt.h>	/* For irqreturn_t type */
