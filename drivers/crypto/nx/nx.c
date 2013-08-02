@@ -114,12 +114,28 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 	 * have been described (or @sgmax elements have been written), the
 	 * loop ends. min_t is used to ensure @end_addr falls on the same page
 	 * as sg_addr, if not, we need to create another nx_sg element for the
-	 * data on the next page */
+	 * data on the next page.
+	 *
+	 * Also when using vmalloc'ed data, every time that a system page
+	 * boundary is crossed the physical address needs to be re-calculated.
+	 */
 	for (sg = sg_head; sg_len < len; sg++) {
+		u64 next_page;
+
 		sg->addr = sg_addr;
-		sg_addr = min_t(u64, NX_PAGE_NUM(sg_addr + NX_PAGE_SIZE), end_addr);
-		sg->len = sg_addr - sg->addr;
+		sg_addr = min_t(u64, NX_PAGE_NUM(sg_addr + NX_PAGE_SIZE),
+				end_addr);
+
+		next_page = (sg->addr & PAGE_MASK) + PAGE_SIZE;
+		sg->len = min_t(u64, sg_addr, next_page) - sg->addr;
 		sg_len += sg->len;
+
+		if (sg_addr >= next_page &&
+				is_vmalloc_addr(start_addr + sg_len)) {
+			sg_addr = page_to_phys(vmalloc_to_page(
+						start_addr + sg_len));
+			end_addr = sg_addr + len - sg_len;
+		}
 
 		if ((sg - sg_head) == sgmax) {
 			pr_err("nx: scatter/gather list overflow, pid: %d\n",
