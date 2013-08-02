@@ -78,11 +78,11 @@
 /* SCCNXP platform data structure */
 struct sccnxp_pdata {
 	/* Shift for A0 line */
-	u32	reg_shift;
+	const u8		reg_shift;
 	/* Modem control lines configuration */
-	u32	mctrl_cfg[SCCNXP_MAX_UARTS];
+	const u32		mctrl_cfg[SCCNXP_MAX_UARTS];
 	/* Timer value for polling mode (usecs) */
-	u32	poll_time_us;
+	const unsigned int	poll_time_us;
 };
 
 #endif
