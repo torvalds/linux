@@ -1043,7 +1043,7 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 	/* Do not pay attention on 1sec or smaller renewals. */
 	new_time = cfs_time_current_sec() + extra_delay;
 	if (exp->exp_last_request_time + 1 /*second */ >= new_time)
-		RETURN_EXIT;
+		return;
 
 	exp->exp_last_request_time = new_time;
 	CDEBUG(D_HA, "updating export %s at "CFS_TIME_T" exp %p\n",
@@ -1058,7 +1058,7 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 	if (list_empty(&exp->exp_obd_chain_timed)) {
 		/* this one is not timed */
 		spin_unlock(&exp->exp_obd->obd_dev_lock);
-		RETURN_EXIT;
+		return;
 	}
 
 	list_move_tail(&exp->exp_obd_chain_timed,

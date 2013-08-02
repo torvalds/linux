@@ -561,7 +561,7 @@ static void mgc_requeue_add(struct config_llog_data *cld)
 	mutex_lock(&cld->cld_lock);
 	if (cld->cld_stopping || cld->cld_lostlock) {
 		mutex_unlock(&cld->cld_lock);
-		RETURN_EXIT;
+		return;
 	}
 	/* this refcount will be released in mgc_requeue_thread. */
 	config_log_get(cld);

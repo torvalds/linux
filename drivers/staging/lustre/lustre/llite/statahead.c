@@ -516,7 +516,7 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 			/* It is race case, the interpret callback just hold
 			 * a reference count */
 			spin_unlock(&lli->lli_sa_lock);
-			RETURN_EXIT;
+			return;
 		}
 
 		LASSERT(lli->lli_opendir_key == NULL);
@@ -564,7 +564,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	if (is_omitted_entry(sai, index + 1)) {
 		lli->lli_agl_index = 0;
 		iput(inode);
-		RETURN_EXIT;
+		return;
 	}
 
 	/* Someone is in glimpse (sync or async), do nothing. */
@@ -572,7 +572,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	if (rc == 0) {
 		lli->lli_agl_index = 0;
 		iput(inode);
-		RETURN_EXIT;
+		return;
 	}
 
 	/*
@@ -593,7 +593,7 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 		up_write(&lli->lli_glimpse_sem);
 		lli->lli_agl_index = 0;
 		iput(inode);
-		RETURN_EXIT;
+		return;
 	}
 
 	CDEBUG(D_READA, "Handling (init) async glimpse: inode = "
@@ -628,7 +628,7 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 	spin_lock(&lli->lli_sa_lock);
 	if (unlikely(sa_received_empty(sai))) {
 		spin_unlock(&lli->lli_sa_lock);
-		RETURN_EXIT;
+		return;
 	}
 	entry = sa_first_received_entry(sai);
 	atomic_inc(&entry->se_refcount);
@@ -930,7 +930,7 @@ static void ll_statahead_one(struct dentry *parent, const char* entry_name,
 	entry = ll_sa_entry_alloc(sai, sai->sai_index, entry_name,
 				  entry_name_len);
 	if (IS_ERR(entry))
-		RETURN_EXIT;
+		return;
 
 	dentry = d_lookup(parent, &entry->se_qstr);
 	if (!dentry) {
@@ -1038,7 +1038,7 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 	if (IS_ERR(task)) {
 		CERROR("can't start ll_agl thread, rc: %ld\n", PTR_ERR(task));
 		thread_set_flags(thread, SVC_STOPPED);
-		RETURN_EXIT;
+		return;
 	}
 
 	l_wait_event(thread->t_ctl_waitq,

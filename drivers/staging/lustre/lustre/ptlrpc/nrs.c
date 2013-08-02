@@ -158,11 +158,6 @@ static void nrs_policy_stop_primary(struct ptlrpc_nrs *nrs)
 	struct ptlrpc_nrs_policy *tmp = nrs->nrs_policy_primary;
 
 	if (tmp == NULL) {
-		/**
-		 * XXX: This should really be RETURN_EXIT, but the latter does
-		 * not currently print anything out, and possibly should be
-		 * fixed to do so.
-		 */
 		EXIT;
 		return;
 	}

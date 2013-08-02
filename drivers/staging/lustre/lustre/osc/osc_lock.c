@@ -344,7 +344,7 @@ static void osc_lock_lvb_update(const struct lu_env *env, struct osc_lock *olck,
 	unsigned	   valid;
 
 	if (!(olck->ols_flags & LDLM_FL_LVB_READY))
-		RETURN_EXIT;
+		return;
 
 	lvb   = &olck->ols_lvb;
 	obj   = olck->ols_cl.cls_obj;

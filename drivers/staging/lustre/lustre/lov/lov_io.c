@@ -742,7 +742,6 @@ static void lov_io_fsync_end(const struct lu_env *env,
 		if (subio->ci_result == 0)
 			*written += subio->u.ci_fsync.fi_nr_written;
 	}
-	RETURN_EXIT;
 }
 
 static const struct cl_io_operations lov_io_ops = {
