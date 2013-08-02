@@ -22,3 +22,7 @@ config SUDMAC
 	depends on SH_DMAE_BASE
 	help
 	  Enable support for the Renesas SUDMAC controllers.
+
+config SHDMA_R8A73A4
+	def_bool y
+	depends on ARCH_R8A73A4 && SH_DMAE != n
