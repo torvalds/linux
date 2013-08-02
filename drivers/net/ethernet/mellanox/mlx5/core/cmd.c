@@ -46,7 +46,7 @@
 #include "mlx5_core.h"
 
 enum {
-	CMD_IF_REV = 3,
+	CMD_IF_REV = 4,
 };
 
 enum {
@@ -281,6 +281,12 @@ const char *mlx5_command_str(int command)
 
 	case MLX5_CMD_OP_TEARDOWN_HCA:
 		return "TEARDOWN_HCA";
+
+	case MLX5_CMD_OP_ENABLE_HCA:
+		return "MLX5_CMD_OP_ENABLE_HCA";
+
+	case MLX5_CMD_OP_DISABLE_HCA:
+		return "MLX5_CMD_OP_DISABLE_HCA";
 
 	case MLX5_CMD_OP_QUERY_PAGES:
 		return "QUERY_PAGES";

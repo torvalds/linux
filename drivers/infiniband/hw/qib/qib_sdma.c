@@ -717,7 +717,7 @@ void dump_sdma_state(struct qib_pportdata *ppd)
 	struct qib_sdma_txreq *txp, *txpnext;
 	__le64 *descqp;
 	u64 desc[2];
-	dma_addr_t addr;
+	u64 addr;
 	u16 gen, dwlen, dwoffset;
 	u16 head, tail, cnt;
 
