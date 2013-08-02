@@ -218,9 +218,9 @@ static int blob_encap_jobdesc(u32 **desc, dma_addr_t keymod,
 
 	/*
 	 * Encapsulation output must include space for blob key encryption
-	 * key and MAC tag (32 + 16)
+	 * key and MAC tag
 	 */
-	tmpdesc[idx++] = CMD_SEQ_OUT_PTR | (secretsz + (32 + 16));
+	tmpdesc[idx++] = CMD_SEQ_OUT_PTR | (secretsz + BLOB_OVERHEAD);
 	tmpdesc[idx++] = (u32)outbuf;
 
 	/* Input data, should be somewhere in secure memory */
@@ -338,7 +338,7 @@ static int blob_decap_jobdesc(u32 **desc, dma_addr_t keymod, dma_addr_t blobbuf,
 	tmpdesc[idx++] = (u32)keymod;
 
 	/* Compensate BKEK + MAC tag over size of encapsulated secret */
-	tmpdesc[idx++] = CMD_SEQ_IN_PTR | (secretsz + 32 + 16);
+	tmpdesc[idx++] = CMD_SEQ_IN_PTR | (secretsz + BLOB_OVERHEAD);
 	tmpdesc[idx++] = (u32)blobbuf;
 	tmpdesc[idx++] = CMD_SEQ_OUT_PTR | secretsz;
 	tmpdesc[idx++] = (u32)outbuf;
@@ -846,8 +846,7 @@ int sm_keystore_slot_export(struct device *dev, u32 unit, u32 slot, u8 keycolor,
 	dma_sync_single_for_device(dev, keymod_dma, SECMEM_KEYMOD_LEN,
 				   DMA_TO_DEVICE);
 
-	outbuf_dma = dma_map_single(dev, outbuf,
-				    AES_BLOCK_PAD(keylen) + BLOB_OVERHEAD,
+	outbuf_dma = dma_map_single(dev, outbuf, keylen + BLOB_OVERHEAD,
 				    DMA_FROM_DEVICE);
 
 	/* Build the encapsulation job descriptor */
@@ -859,13 +858,13 @@ int sm_keystore_slot_export(struct device *dev, u32 unit, u32 slot, u8 keycolor,
 		goto out;
 	}
 	jstat = sm_key_job(dev, encapdesc);
-	dma_sync_single_for_cpu(dev, outbuf_dma, keylen, DMA_FROM_DEVICE);
-
+	dma_sync_single_for_cpu(dev, outbuf_dma, keylen + BLOB_OVERHEAD,
+				DMA_FROM_DEVICE);
 	if (jstat)
 		retval = -EIO;
 
 out:
-	dma_unmap_single(dev, outbuf_dma, AES_BLOCK_PAD(keylen) + BLOB_OVERHEAD,
+	dma_unmap_single(dev, outbuf_dma, keylen + BLOB_OVERHEAD,
 			 DMA_FROM_DEVICE);
 	dma_unmap_single(dev, keymod_dma, SECMEM_KEYMOD_LEN, DMA_TO_DEVICE);
 	kfree(encapdesc);
@@ -898,11 +897,9 @@ int sm_keystore_slot_import(struct device *dev, u32 unit, u32 slot, u8 keycolor,
 	dma_sync_single_for_device(dev, keymod_dma, SECMEM_KEYMOD_LEN,
 				   DMA_TO_DEVICE);
 
-	inbuf_dma = dma_map_single(dev, inbuf,
-				   AES_BLOCK_PAD(keylen) + BLOB_OVERHEAD,
+	inbuf_dma = dma_map_single(dev, inbuf, keylen + BLOB_OVERHEAD,
 				   DMA_TO_DEVICE);
-	dma_sync_single_for_device(dev, inbuf_dma,
-				   AES_BLOCK_PAD(keylen) + BLOB_OVERHEAD,
+	dma_sync_single_for_device(dev, inbuf_dma, keylen + BLOB_OVERHEAD,
 				   DMA_TO_DEVICE);
 
 	/* Build the encapsulation job descriptor */
@@ -926,7 +923,7 @@ int sm_keystore_slot_import(struct device *dev, u32 unit, u32 slot, u8 keycolor,
 		retval = -EIO;
 
 out:
-	dma_unmap_single(dev, inbuf_dma, AES_BLOCK_PAD(keylen) + BLOB_OVERHEAD,
+	dma_unmap_single(dev, inbuf_dma, keylen + BLOB_OVERHEAD,
 			 DMA_TO_DEVICE);
 	dma_unmap_single(dev, keymod_dma, SECMEM_KEYMOD_LEN, DMA_TO_DEVICE);
 	kfree(decapdesc);
