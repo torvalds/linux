@@ -824,8 +824,8 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 	 * bytes 2-3 -> bcdVersion (has to be 1.00) */
 	ret = i2c_hid_command(client, &hid_descr_cmd, ihid->hdesc_buffer, 4);
 
-	i2c_hid_dbg(ihid, "%s, ihid->hdesc_buffer: %*ph\n",
-			__func__, 4, ihid->hdesc_buffer);
+	i2c_hid_dbg(ihid, "%s, ihid->hdesc_buffer: %4ph\n", __func__,
+			ihid->hdesc_buffer);
 
 	if (ret) {
 		dev_err(&client->dev,
