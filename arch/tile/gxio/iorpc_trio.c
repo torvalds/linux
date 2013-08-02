@@ -61,6 +61,29 @@ int gxio_trio_alloc_memory_maps(gxio_trio_context_t * context,
 
 EXPORT_SYMBOL(gxio_trio_alloc_memory_maps);
 
+struct alloc_scatter_queues_param {
+	unsigned int count;
+	unsigned int first;
+	unsigned int flags;
+};
+
+int gxio_trio_alloc_scatter_queues(gxio_trio_context_t * context,
+				   unsigned int count, unsigned int first,
+				   unsigned int flags)
+{
+	struct alloc_scatter_queues_param temp;
+	struct alloc_scatter_queues_param *params = &temp;
+
+	params->count = count;
+	params->first = first;
+	params->flags = flags;
+
+	return hv_dev_pwrite(context->fd, 0, (HV_VirtAddr) params,
+			     sizeof(*params),
+			     GXIO_TRIO_OP_ALLOC_SCATTER_QUEUES);
+}
+
+EXPORT_SYMBOL(gxio_trio_alloc_scatter_queues);
 
 struct alloc_pio_regions_param {
 	unsigned int count;

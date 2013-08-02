@@ -1474,32 +1474,55 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	trio_context = controller->trio;
 
 	/*
-	 * Allocate the Mem-Map that will accept the MSI write and
-	 * trigger the TILE-side interrupts.
+	 * Allocate a scatter-queue that will accept the MSI write and
+	 * trigger the TILE-side interrupts. We use the scatter-queue regions
+	 * before the mem map regions, because the latter are needed by more
+	 * applications.
 	 */
-	mem_map = gxio_trio_alloc_memory_maps(trio_context, 1, 0, 0);
-	if (mem_map < 0) {
-		dev_printk(KERN_INFO, &pdev->dev,
-			"%s Mem-Map alloc failure. "
-			"Failed to initialize MSI interrupts. "
-			"Falling back to legacy interrupts.\n",
-			desc->msi_attrib.is_msix ? "MSI-X" : "MSI");
+	mem_map = gxio_trio_alloc_scatter_queues(trio_context, 1, 0, 0);
+	if (mem_map >= 0) {
+		TRIO_MAP_SQ_DOORBELL_FMT_t doorbell_template = {{
+			.pop = 0,
+			.doorbell = 1,
+		}};
 
-		ret = -ENOMEM;
-		goto msi_mem_map_alloc_failure;
+		mem_map += TRIO_NUM_MAP_MEM_REGIONS;
+		mem_map_base = MEM_MAP_INTR_REGIONS_BASE +
+			mem_map * MEM_MAP_INTR_REGION_SIZE;
+		mem_map_limit = mem_map_base + MEM_MAP_INTR_REGION_SIZE - 1;
+
+		msi_addr = mem_map_base + MEM_MAP_INTR_REGION_SIZE - 8;
+		msg.data = (unsigned int)doorbell_template.word;
+	} else {
+		/* SQ regions are out, allocate from map mem regions. */
+		mem_map = gxio_trio_alloc_memory_maps(trio_context, 1, 0, 0);
+		if (mem_map < 0) {
+			dev_printk(KERN_INFO, &pdev->dev,
+				"%s Mem-Map alloc failure. "
+				"Failed to initialize MSI interrupts. "
+				"Falling back to legacy interrupts.\n",
+				desc->msi_attrib.is_msix ? "MSI-X" : "MSI");
+			ret = -ENOMEM;
+			goto msi_mem_map_alloc_failure;
+		}
+
+		mem_map_base = MEM_MAP_INTR_REGIONS_BASE +
+			mem_map * MEM_MAP_INTR_REGION_SIZE;
+		mem_map_limit = mem_map_base + MEM_MAP_INTR_REGION_SIZE - 1;
+
+		msi_addr = mem_map_base + TRIO_MAP_MEM_REG_INT3 -
+			TRIO_MAP_MEM_REG_INT0;
+
+		msg.data = mem_map;
 	}
 
 	/* We try to distribute different IRQs to different tiles. */
 	cpu = tile_irq_cpu(irq);
 
 	/*
-	 * Now call up to the HV to configure the Mem-Map interrupt and
+	 * Now call up to the HV to configure the MSI interrupt and
 	 * set up the IPI binding.
 	 */
-	mem_map_base = MEM_MAP_INTR_REGIONS_BASE +
-		mem_map * MEM_MAP_INTR_REGION_SIZE;
-	mem_map_limit = mem_map_base + MEM_MAP_INTR_REGION_SIZE - 1;
-
 	ret = gxio_trio_config_msi_intr(trio_context, cpu_x(cpu), cpu_y(cpu),
 					KERNEL_PL, irq, controller->mac,
 					mem_map, mem_map_base, mem_map_limit,
@@ -1512,12 +1535,8 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 
 	irq_set_msi_desc(irq, desc);
 
-	msi_addr = mem_map_base + TRIO_MAP_MEM_REG_INT3 - TRIO_MAP_MEM_REG_INT0;
-
 	msg.address_hi = msi_addr >> 32;
 	msg.address_lo = msi_addr & 0xffffffff;
-
-	msg.data = mem_map;
 
 	write_msi_msg(irq, &msg);
 	irq_set_chip_and_handler(irq, &tilegx_msi_chip, handle_level_irq);
