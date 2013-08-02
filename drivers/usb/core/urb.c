@@ -55,12 +55,12 @@ EXPORT_SYMBOL_GPL(usb_init_urb);
  * Creates an urb for the USB driver to use, initializes a few internal
  * structures, incrementes the usage counter, and returns a pointer to it.
  *
- * If no memory is available, NULL is returned.
- *
  * If the driver want to use this urb for interrupt, control, or bulk
  * endpoints, pass '0' as the number of iso packets.
  *
  * The driver must call usb_free_urb() when it is finished with the urb.
+ *
+ * Return: A pointer to the new urb, or %NULL if no memory is available.
  */
 struct urb *usb_alloc_urb(int iso_packets, gfp_t mem_flags)
 {
@@ -103,7 +103,7 @@ EXPORT_SYMBOL_GPL(usb_free_urb);
  * host controller driver.  This allows proper reference counting to happen
  * for urbs.
  *
- * A pointer to the urb with the incremented reference counter is returned.
+ * Return: A pointer to the urb with the incremented reference counter.
  */
 struct urb *usb_get_urb(struct urb *urb)
 {
@@ -200,13 +200,12 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  * the particular kind of transfer, although they will not initialize
  * any transfer flags.
  *
- * Successful submissions return 0; otherwise this routine returns a
- * negative error number.  If the submission is successful, the complete()
- * callback from the URB will be called exactly once, when the USB core and
- * Host Controller Driver (HCD) are finished with the URB.  When the completion
- * function is called, control of the URB is returned to the device
- * driver which issued the request.  The completion handler may then
- * immediately free or reuse that URB.
+ * If the submission is successful, the complete() callback from the URB
+ * will be called exactly once, when the USB core and Host Controller Driver
+ * (HCD) are finished with the URB.  When the completion function is called,
+ * control of the URB is returned to the device driver which issued the
+ * request.  The completion handler may then immediately free or reuse that
+ * URB.
  *
  * With few exceptions, USB device drivers should never access URB fields
  * provided by usbcore or the HCD until its complete() is called.
@@ -240,6 +239,9 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  * That is often used through convenience wrappers, for the requests
  * that are standardized in the USB 2.0 specification.  For bulk
  * endpoints, a synchronous usb_bulk_msg() call is available.
+ *
+ * Return:
+ * 0 on successful submissions. A negative error number otherwise.
  *
  * Request Queuing:
  *
@@ -572,6 +574,9 @@ EXPORT_SYMBOL_GPL(usb_submit_urb);
  * particular, when a driver calls this routine, it must insure that the
  * completion handler cannot deallocate the URB.
  *
+ * Return: -EINPROGRESS on success. See description for other values on
+ * failure.
+ *
  * Unlinking and Endpoint Queues:
  *
  * [The behaviors and guarantees described below do not apply to virtual
@@ -846,6 +851,8 @@ EXPORT_SYMBOL_GPL(usb_unlink_anchored_urbs);
  *
  * Call this is you want to be sure all an anchor's
  * URBs have finished
+ *
+ * Return: Non-zero if the anchor became unused. Zero on timeout.
  */
 int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
 				  unsigned int timeout)
@@ -859,8 +866,11 @@ EXPORT_SYMBOL_GPL(usb_wait_anchor_empty_timeout);
  * usb_get_from_anchor - get an anchor's oldest urb
  * @anchor: the anchor whose urb you want
  *
- * this will take the oldest urb from an anchor,
+ * This will take the oldest urb from an anchor,
  * unanchor and return it
+ *
+ * Return: The oldest urb from @anchor, or %NULL if @anchor has no
+ * urbs associated with it.
  */
 struct urb *usb_get_from_anchor(struct usb_anchor *anchor)
 {
@@ -909,7 +919,7 @@ EXPORT_SYMBOL_GPL(usb_scuttle_anchored_urbs);
  * usb_anchor_empty - is an anchor empty
  * @anchor: the anchor you want to query
  *
- * returns 1 if the anchor has no urbs associated with it
+ * Return: 1 if the anchor has no urbs associated with it.
  */
 int usb_anchor_empty(struct usb_anchor *anchor)
 {

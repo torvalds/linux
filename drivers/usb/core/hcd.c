@@ -378,9 +378,10 @@ MODULE_PARM_DESC(authorized_default,
  * @buf: Buffer for USB string descriptor (header + UTF-16LE)
  * @len: Length (in bytes; may be odd) of descriptor buffer.
  *
- * The return value is the number of bytes filled in: 2 + 2*strlen(s) or
- * buflen, whichever is less.
+ * Return: The number of bytes filled in: 2 + 2*strlen(s) or @len,
+ * whichever is less.
  *
+ * Note:
  * USB String descriptors can contain at most 126 characters; input
  * strings longer than that are truncated.
  */
@@ -416,7 +417,8 @@ ascii2desc(char const *s, u8 *buf, unsigned len)
  *
  * Produces either a manufacturer, product or serial number string for the
  * virtual root hub device.
- * Returns the number of bytes filled in: the length of the descriptor or
+ *
+ * Return: The number of bytes filled in: the length of the descriptor or
  * of the provided buffer, whichever is less.
  */
 static unsigned
@@ -938,6 +940,8 @@ static void usb_bus_init (struct usb_bus *bus)
  *
  * Assigns a bus number, and links the controller into usbcore data
  * structures so that it can be seen by scanning the bus list.
+ *
+ * Return: 0 if successful. A negative error code otherwise.
  */
 static int usb_register_bus(struct usb_bus *bus)
 {
@@ -1002,6 +1006,8 @@ static void usb_deregister_bus (struct usb_bus *bus)
  * the device properly in the device tree and then calls usb_new_device()
  * to register the usb device.  It also assigns the root hub's USB address
  * (always 1).
+ *
+ * Return: 0 if successful. A negative error code otherwise.
  */
 static int register_root_hub(struct usb_hcd *hcd)
 {
@@ -1108,7 +1114,9 @@ EXPORT_SYMBOL_GPL(usb_hcd_end_port_resume);
  * @isoc: true for isochronous transactions, false for interrupt ones
  * @bytecount: how many bytes in the transaction.
  *
- * Returns approximate bus time in nanoseconds for a periodic transaction.
+ * Return: Approximate bus time in nanoseconds for a periodic transaction.
+ *
+ * Note:
  * See USB 2.0 spec section 5.11.3; only periodic transfers need to be
  * scheduled in software, this function is only used for such scheduling.
  */
@@ -1166,7 +1174,7 @@ EXPORT_SYMBOL_GPL(usb_calc_bus_time);
  * be disabled.  The actions carried out here are required for URB
  * submission, as well as for endpoint shutdown and for usb_kill_urb.
  *
- * Returns 0 for no error, otherwise a negative error code (in which case
+ * Return: 0 for no error, otherwise a negative error code (in which case
  * the enqueue() method must fail).  If no error occurs but enqueue() fails
  * anyway, it must call usb_hcd_unlink_urb_from_ep() before releasing
  * the private spinlock and returning.
@@ -1221,7 +1229,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_link_urb_to_ep);
  * be disabled.  The actions carried out here are required for making
  * sure than an unlink is valid.
  *
- * Returns 0 for no error, otherwise a negative error code (in which case
+ * Return: 0 for no error, otherwise a negative error code (in which case
  * the dequeue() method must fail).  The possible error codes are:
  *
  *	-EIDRM: @urb was not submitted or has already completed.
@@ -1784,7 +1792,7 @@ rescan:
  * pass in the current alternate interface setting in cur_alt,
  * and pass in the new alternate interface setting in new_alt.
  *
- * Returns an error if the requested bandwidth change exceeds the
+ * Return: An error if the requested bandwidth change exceeds the
  * bus bandwidth or host controller internal resources.
  */
 int usb_hcd_alloc_bandwidth(struct usb_device *udev,
@@ -1954,9 +1962,12 @@ void usb_hcd_reset_endpoint(struct usb_device *udev,
  * @num_streams:	number of streams to allocate.
  * @mem_flags:		flags hcd should use to allocate memory.
  *
- * Sets up a group of bulk endpoints to have num_streams stream IDs available.
+ * Sets up a group of bulk endpoints to have @num_streams stream IDs available.
  * Drivers may queue multiple transfers to different stream IDs, which may
  * complete in a different order than they were queued.
+ *
+ * Return: On success, the number of allocated streams. On failure, a negative
+ * error code.
  */
 int usb_alloc_streams(struct usb_interface *interface,
 		struct usb_host_endpoint **eps, unsigned int num_eps,
@@ -2201,6 +2212,8 @@ EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
  * khubd identifying and possibly configuring the device.
  * This is needed by OTG controller drivers, where it helps meet
  * HNP protocol timing requirements for starting a port reset.
+ *
+ * Return: 0 if successful.
  */
 int usb_bus_start_enum(struct usb_bus *bus, unsigned port_num)
 {
@@ -2235,6 +2248,8 @@ EXPORT_SYMBOL_GPL(usb_bus_start_enum);
  *
  * If the controller isn't HALTed, calls the driver's irq handler.
  * Checks whether the controller is now dead.
+ *
+ * Return: %IRQ_HANDLED if the IRQ was handled. %IRQ_NONE otherwise.
  */
 irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 {
@@ -2320,7 +2335,8 @@ EXPORT_SYMBOL_GPL (usb_hc_died);
  * HC driver's private data.  Initialize the generic members of the
  * hcd structure.
  *
- * If memory is unavailable, returns NULL.
+ * Return: On success, a pointer to the created and initialized HCD structure.
+ * On failure (e.g. if memory is unavailable), %NULL.
  */
 struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 		struct device *dev, const char *bus_name,
@@ -2384,7 +2400,8 @@ EXPORT_SYMBOL_GPL(usb_create_shared_hcd);
  * HC driver's private data.  Initialize the generic members of the
  * hcd structure.
  *
- * If memory is unavailable, returns NULL.
+ * Return: On success, a pointer to the created and initialized HCD
+ * structure. On failure (e.g. if memory is unavailable), %NULL.
  */
 struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
 		struct device *dev, const char *bus_name)
