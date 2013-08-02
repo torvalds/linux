@@ -40,11 +40,19 @@ void au_cpup_attr_all(struct inode *inode, int force);
 
 /* ---------------------------------------------------------------------- */
 
+struct au_cpup_basic {
+	struct dentry	*dentry;
+	aufs_bindex_t	bdst, bsrc;
+	loff_t		len;
+};
+
 /* cpup flags */
 #define AuCpup_DTIME	1		/* do dtime_store/revert */
 #define AuCpup_KEEPLINO	(1 << 1)	/* do not clear the lower xino,
 					   for link(2) */
 #define AuCpup_RENAME	(1 << 2)	/* rename after cpup */
+#define AuCpup_HOPEN	(1 << 3)	/* call h_open_pre/post() in cpup */
+
 #define au_ftest_cpup(flags, name)	((flags) & AuCpup_##name)
 #define au_fset_cpup(flags, name) \
 	do { (flags) |= AuCpup_##name; } while (0)
@@ -52,16 +60,10 @@ void au_cpup_attr_all(struct inode *inode, int force);
 	do { (flags) &= ~AuCpup_##name; } while (0)
 
 int au_copy_file(struct file *dst, struct file *src, loff_t len);
-int au_sio_cpup_single(struct dentry *dentry, aufs_bindex_t bdst,
-		       aufs_bindex_t bsrc, loff_t len, unsigned int flags,
-		       struct dentry *dst_parent, struct au_pin *pin);
-int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		       unsigned int flags, struct au_pin *pin);
-int au_sio_cpup_simple_h_open(struct dentry *dentry, aufs_bindex_t bdst,
-			      loff_t len, unsigned int flags,
-			      struct au_pin *pin, aufs_bindex_t bsrc);
-int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		   struct file *file, struct au_pin *pin);
+int au_sio_cpup_simple(struct au_cpup_basic *basic, unsigned int flags,
+		       struct au_pin *pin);
+int au_sio_cpup_wh(struct au_cpup_basic *basic, struct file *file,
+		   struct au_pin *pin);
 
 int au_cp_dirs(struct dentry *dentry, aufs_bindex_t bdst,
 	       int (*cp)(struct dentry *dentry, aufs_bindex_t bdst,
