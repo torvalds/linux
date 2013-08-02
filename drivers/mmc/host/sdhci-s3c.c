@@ -611,6 +611,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	host->hw_name = "samsung-hsmmc";
 	host->ops = &sdhci_s3c_ops;
 	host->quirks = 0;
+	host->quirks2 = 0;
 	host->irq = irq;
 
 	/* Setup quirks for the controller */
