@@ -96,7 +96,7 @@ void vga_set_default_device(struct pci_dev *pdev)
 	default_vga = pdev;
 }
 
-static int __init efifb_setup(char *options)
+static int efifb_setup(char *options)
 {
 	char *this_opt;
 	int i;
@@ -153,13 +153,28 @@ static int __init efifb_setup(char *options)
 	return 0;
 }
 
-static int __init efifb_probe(struct platform_device *dev)
+static int efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int err;
 	unsigned int size_vmode;
 	unsigned int size_remap;
 	unsigned int size_total;
+	char *option = NULL;
+
+	if (screen_info.orig_video_isVGA != VIDEO_TYPE_EFI)
+		return -ENODEV;
+
+	if (fb_get_options("efifb", &option))
+		return -ENODEV;
+	efifb_setup(option);
+
+	/* We don't get linelength from UGA Draw Protocol, only from
+	 * EFI Graphics Protocol.  So if it's not in DMI, and it's not
+	 * passed in from the user, we really can't use the framebuffer.
+	 */
+	if (!screen_info.lfb_linelength)
+		return -ENODEV;
 
 	if (!screen_info.lfb_depth)
 		screen_info.lfb_depth = 32;
@@ -323,51 +338,12 @@ err_release_mem:
 }
 
 static struct platform_driver efifb_driver = {
-	.driver	= {
-		.name	= "efifb",
+	.driver = {
+		.name = "efi-framebuffer",
+		.owner = THIS_MODULE,
 	},
+	.probe = efifb_probe,
 };
 
-static struct platform_device efifb_device = {
-	.name	= "efifb",
-};
-
-static int __init efifb_init(void)
-{
-	int ret;
-	char *option = NULL;
-
-	if (screen_info.orig_video_isVGA != VIDEO_TYPE_EFI)
-		return -ENODEV;
-
-	if (fb_get_options("efifb", &option))
-		return -ENODEV;
-	efifb_setup(option);
-
-	/* We don't get linelength from UGA Draw Protocol, only from
-	 * EFI Graphics Protocol.  So if it's not in DMI, and it's not
-	 * passed in from the user, we really can't use the framebuffer.
-	 */
-	if (!screen_info.lfb_linelength)
-		return -ENODEV;
-
-	ret = platform_device_register(&efifb_device);
-	if (ret)
-		return ret;
-
-	/*
-	 * This is not just an optimization.  We will interfere
-	 * with a real driver if we get reprobed, so don't allow
-	 * it.
-	 */
-	ret = platform_driver_probe(&efifb_driver, efifb_probe);
-	if (ret) {
-		platform_device_unregister(&efifb_device);
-		return ret;
-	}
-
-	return ret;
-}
-module_init(efifb_init);
-
+module_platform_driver(efifb_driver);
 MODULE_LICENSE("GPL");
