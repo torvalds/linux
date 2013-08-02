@@ -16,7 +16,6 @@
 
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <linux/sh_dma.h>
 
 /*
  * MMCIF : CE_CLK_CTRL [19:16]
