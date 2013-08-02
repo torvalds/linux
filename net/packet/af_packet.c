@@ -1924,7 +1924,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		__be16 proto, unsigned char *addr, int hlen)
 {
 	union tpacket_uhdr ph;
-	int to_write, offset, len, tp_len, nr_frags, len_max;
+	int to_write, offset, len, tp_len, nr_frags, len_max, max_frame_len;
 	struct socket *sock = po->sk.sk_socket;
 	struct page *page;
 	void *data;
@@ -1946,10 +1946,6 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	default:
 		tp_len = ph.h1->tp_len;
 		break;
-	}
-	if (unlikely(tp_len > size_max)) {
-		pr_err("packet size is too long (%d > %d)\n", tp_len, size_max);
-		return -EMSGSIZE;
 	}
 
 	skb_reserve(skb, hlen);
@@ -2013,6 +2009,18 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		to_write -= dev->hard_header_len;
 	}
 
+	max_frame_len = dev->mtu + dev->hard_header_len;
+	if (skb->protocol == htons(ETH_P_8021Q))
+		max_frame_len += VLAN_HLEN;
+
+	if (size_max > max_frame_len)
+		size_max = max_frame_len;
+
+	if (unlikely(tp_len > size_max)) {
+		pr_err("packet size is too long (%d > %d)\n", tp_len, size_max);
+		return -EMSGSIZE;
+	}
+
 	offset = offset_in_page(data);
 	len_max = PAGE_SIZE - offset;
 	len = ((to_write > len_max) ? len_max : to_write);
@@ -2051,7 +2059,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	struct net_device *dev;
 	__be16 proto;
 	bool need_rls_dev = false;
-	int err, reserve = 0;
+	int err;
 	void *ph;
 	struct sockaddr_ll *saddr = (struct sockaddr_ll *)msg->msg_name;
 	int tp_len, size_max;
@@ -2084,17 +2092,12 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	if (unlikely(dev == NULL))
 		goto out;
 
-	reserve = dev->hard_header_len;
-
 	err = -ENETDOWN;
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_put;
 
 	size_max = po->tx_ring.frame_size
 		- (po->tp_hdrlen - sizeof(struct sockaddr_ll));
-
-	if (size_max > dev->mtu + reserve)
-		size_max = dev->mtu + reserve;
 
 	do {
 		ph = packet_current_frame(po, &po->tx_ring,
