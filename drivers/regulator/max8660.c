@@ -314,18 +314,19 @@ static int max8660_probe(struct i2c_client *client,
 				   const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;
-	struct max8660_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct device *dev = &client->dev;
+	struct max8660_platform_data *pdata = dev_get_platdata(dev);
 	struct regulator_config config = { };
 	struct max8660 *max8660;
 	int boot_on, i, id, ret = -EINVAL;
 	unsigned int type;
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
-		dev_err(&client->dev, "Too many regulators found!\n");
+		dev_err(dev, "Too many regulators found!\n");
 		return -EINVAL;
 	}
 
-	max8660 = devm_kzalloc(&client->dev, sizeof(struct max8660) +
+	max8660 = devm_kzalloc(dev, sizeof(struct max8660) +
 			sizeof(struct regulator_dev *) * MAX8660_V_END,
 			GFP_KERNEL);
 	if (!max8660)
@@ -384,7 +385,7 @@ static int max8660_probe(struct i2c_client *client,
 
 		case MAX8660_V7:
 			if (type == MAX8661) {
-				dev_err(&client->dev, "Regulator not on this chip!\n");
+				dev_err(dev, "Regulator not on this chip!\n");
 				goto err_out;
 			}
 
@@ -393,7 +394,7 @@ static int max8660_probe(struct i2c_client *client,
 			break;
 
 		default:
-			dev_err(&client->dev, "invalid regulator %s\n",
+			dev_err(dev, "invalid regulator %s\n",
 				 pdata->subdevs[i].name);
 			goto err_out;
 		}
@@ -404,14 +405,14 @@ static int max8660_probe(struct i2c_client *client,
 
 		id = pdata->subdevs[i].id;
 
-		config.dev = &client->dev;
+		config.dev = dev;
 		config.init_data = pdata->subdevs[i].platform_data;
 		config.driver_data = max8660;
 
 		rdev[i] = regulator_register(&max8660_reg[id], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
-			dev_err(&client->dev, "failed to register %s\n",
+			dev_err(dev, "failed to register %s\n",
 				max8660_reg[id].name);
 			goto err_unregister;
 		}
