@@ -1756,8 +1756,8 @@ static int ll_swap_layouts(struct file *file1, struct file *file2,
 	if (!S_ISREG(llss->inode2->i_mode))
 		GOTO(free, rc = -EINVAL);
 
-	if (ll_permission(llss->inode1, MAY_WRITE, NULL) ||
-	    ll_permission(llss->inode2, MAY_WRITE, NULL))
+	if (inode_permission(llss->inode1, MAY_WRITE) ||
+	    inode_permission(llss->inode2, MAY_WRITE))
 		GOTO(free, rc = -EPERM);
 
 	if (llss->inode2->i_sb != llss->inode1->i_sb)
