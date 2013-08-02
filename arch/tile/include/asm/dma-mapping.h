@@ -23,6 +23,7 @@
 extern struct dma_map_ops *tile_dma_map_ops;
 extern struct dma_map_ops *gx_pci_dma_map_ops;
 extern struct dma_map_ops *gx_legacy_pci_dma_map_ops;
+extern struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
@@ -44,12 +45,12 @@ static inline void set_dma_offset(struct device *dev, dma_addr_t off)
 
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
-	return paddr + get_dma_offset(dev);
+	return paddr;
 }
 
 static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
-	return daddr - get_dma_offset(dev);
+	return daddr;
 }
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
@@ -88,7 +89,10 @@ dma_set_mask(struct device *dev, u64 mask)
 	struct dma_map_ops *dma_ops = get_dma_ops(dev);
 
 	/* Handle legacy PCI devices with limited memory addressability. */
-	if ((dma_ops == gx_pci_dma_map_ops) && (mask <= DMA_BIT_MASK(32))) {
+	if ((dma_ops == gx_pci_dma_map_ops ||
+	     dma_ops == gx_hybrid_pci_dma_map_ops ||
+	     dma_ops == gx_legacy_pci_dma_map_ops) &&
+	    (mask <= DMA_BIT_MASK(32))) {
 		set_dma_ops(dev, gx_legacy_pci_dma_map_ops);
 		set_dma_offset(dev, 0);
 		if (mask > dev->archdata.max_direct_dma_addr)
