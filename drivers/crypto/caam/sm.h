@@ -31,7 +31,8 @@
  */
 #define AES_BLOCK_PAD(x) ((x % 16) ? ((x >> 4) + 1) << 4 : x)
 
-#define BLOB_OVERHEAD (16 + 8) /* BKEK + MAC tag storage in any blob */
+/* Define space required for BKEK + MAC tag storage in any blob */
+#define BLOB_OVERHEAD (32 + 16)
 
 /* Keystore maintenance functions */
 void sm_init_keystore(struct device *dev);
