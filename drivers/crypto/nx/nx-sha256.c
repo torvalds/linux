@@ -55,70 +55,86 @@ static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *in_sg;
-	u64 to_process, leftover;
+	u64 to_process, leftover, total;
+	u32 max_sg_len;
 	int rc = 0;
 
-	if (NX_CPB_FDM(csbcpb) & NX_FDM_CONTINUATION) {
-		/* we've hit the nx chip previously and we're updating again,
-		 * so copy over the partial digest */
-		memcpy(csbcpb->cpb.sha256.input_partial_digest,
-		       csbcpb->cpb.sha256.message_digest, SHA256_DIGEST_SIZE);
-	}
-
 	/* 2 cases for total data len:
-	 *  1: <= SHA256_BLOCK_SIZE: copy into state, return 0
-	 *  2: > SHA256_BLOCK_SIZE: process X blocks, copy in leftover
+	 *  1: < SHA256_BLOCK_SIZE: copy into state, return 0
+	 *  2: >= SHA256_BLOCK_SIZE: process X blocks, copy in leftover
 	 */
-	if (len + sctx->count < SHA256_BLOCK_SIZE) {
+	total = sctx->count + len;
+	if (total < SHA256_BLOCK_SIZE) {
 		memcpy(sctx->buf + sctx->count, data, len);
 		sctx->count += len;
 		goto out;
 	}
 
-	/* to_process: the SHA256_BLOCK_SIZE data chunk to process in this
-	 * update */
-	to_process = (sctx->count + len) & ~(SHA256_BLOCK_SIZE - 1);
-	leftover = (sctx->count + len) & (SHA256_BLOCK_SIZE - 1);
+	in_sg = nx_ctx->in_sg;
+	max_sg_len = min_t(u32, nx_driver.of.max_sg_len/sizeof(struct nx_sg),
+			   nx_ctx->ap->sglen);
 
-	if (sctx->count) {
-		in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *)sctx->buf,
-					 sctx->count, nx_ctx->ap->sglen);
-		in_sg = nx_build_sg_list(in_sg, (u8 *)data,
+	do {
+		/*
+		 * to_process: the SHA256_BLOCK_SIZE data chunk to process in
+		 * this update. This value is also restricted by the sg list
+		 * limits.
+		 */
+		to_process = min_t(u64, total, nx_ctx->ap->databytelen);
+		to_process = min_t(u64, to_process,
+				   NX_PAGE_SIZE * (max_sg_len - 1));
+		to_process = to_process & ~(SHA256_BLOCK_SIZE - 1);
+		leftover = total - to_process;
+
+		if (sctx->count) {
+			in_sg = nx_build_sg_list(nx_ctx->in_sg,
+						 (u8 *) sctx->buf,
+						 sctx->count, max_sg_len);
+		}
+		in_sg = nx_build_sg_list(in_sg, (u8 *) data,
 					 to_process - sctx->count,
-					 nx_ctx->ap->sglen);
+					 max_sg_len);
 		nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) *
 					sizeof(struct nx_sg);
-	} else {
-		in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *)data,
-					 to_process, nx_ctx->ap->sglen);
-		nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) *
-					sizeof(struct nx_sg);
-	}
 
-	NX_CPB_FDM(csbcpb) |= NX_FDM_INTERMEDIATE;
+		if (NX_CPB_FDM(csbcpb) & NX_FDM_CONTINUATION) {
+			/*
+			 * we've hit the nx chip previously and we're updating
+			 * again, so copy over the partial digest.
+			 */
+			memcpy(csbcpb->cpb.sha256.input_partial_digest,
+			       csbcpb->cpb.sha256.message_digest,
+			       SHA256_DIGEST_SIZE);
+		}
 
-	if (!nx_ctx->op.inlen || !nx_ctx->op.outlen) {
-		rc = -EINVAL;
-		goto out;
-	}
+		NX_CPB_FDM(csbcpb) |= NX_FDM_INTERMEDIATE;
+		if (!nx_ctx->op.inlen || !nx_ctx->op.outlen) {
+			rc = -EINVAL;
+			goto out;
+		}
 
-	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
-	if (rc)
-		goto out;
+		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
+				   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+		if (rc)
+			goto out;
 
-	atomic_inc(&(nx_ctx->stats->sha256_ops));
+		atomic_inc(&(nx_ctx->stats->sha256_ops));
+		csbcpb->cpb.sha256.message_bit_length += (u64)
+			(csbcpb->cpb.sha256.spbc * 8);
+
+		/* everything after the first update is continuation */
+		NX_CPB_FDM(csbcpb) |= NX_FDM_CONTINUATION;
+
+		total -= to_process;
+		data += to_process;
+		sctx->count = 0;
+		in_sg = nx_ctx->in_sg;
+	} while (leftover >= SHA256_BLOCK_SIZE);
 
 	/* copy the leftover back into the state struct */
 	if (leftover)
-		memcpy(sctx->buf, data + len - leftover, leftover);
+		memcpy(sctx->buf, data, leftover);
 	sctx->count = leftover;
-
-	csbcpb->cpb.sha256.message_bit_length += (u64)
-		(csbcpb->cpb.sha256.spbc * 8);
-
-	/* everything after the first update is continuation */
-	NX_CPB_FDM(csbcpb) |= NX_FDM_CONTINUATION;
 out:
 	return rc;
 }
@@ -129,8 +145,10 @@ static int nx_sha256_final(struct shash_desc *desc, u8 *out)
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *in_sg, *out_sg;
+	u32 max_sg_len;
 	int rc;
 
+	max_sg_len = min_t(u32, nx_driver.of.max_sg_len, nx_ctx->ap->sglen);
 
 	if (NX_CPB_FDM(csbcpb) & NX_FDM_CONTINUATION) {
 		/* we've hit the nx chip previously, now we're finalizing,
@@ -146,9 +164,9 @@ static int nx_sha256_final(struct shash_desc *desc, u8 *out)
 	csbcpb->cpb.sha256.message_bit_length += (u64)(sctx->count * 8);
 
 	in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *)sctx->buf,
-				 sctx->count, nx_ctx->ap->sglen);
+				 sctx->count, max_sg_len);
 	out_sg = nx_build_sg_list(nx_ctx->out_sg, out, SHA256_DIGEST_SIZE,
-				  nx_ctx->ap->sglen);
+				  max_sg_len);
 	nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) * sizeof(struct nx_sg);
 	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
 
