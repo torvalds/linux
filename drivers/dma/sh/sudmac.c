@@ -150,7 +150,8 @@ static const struct sudmac_slave_config *sudmac_find_slave(
 	return NULL;
 }
 
-static int sudmac_set_slave(struct shdma_chan *schan, int slave_id, bool try)
+static int sudmac_set_slave(struct shdma_chan *schan, int slave_id,
+			    dma_addr_t slave_addr, bool try)
 {
 	struct sudmac_chan *sc = to_chan(schan);
 	const struct sudmac_slave_config *cfg = sudmac_find_slave(sc, slave_id);

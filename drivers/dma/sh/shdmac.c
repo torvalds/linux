@@ -20,6 +20,8 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
@@ -333,7 +335,7 @@ static const struct sh_dmae_slave_config *dmae_find_slave(
 	} else {
 		for (i = 0, cfg = pdata->slave; i < pdata->slave_num; i++, cfg++)
 			if (cfg->mid_rid == match) {
-				sh_chan->shdma_chan.slave_id = cfg->slave_id;
+				sh_chan->shdma_chan.slave_id = i;
 				return cfg;
 			}
 	}
@@ -342,7 +344,7 @@ static const struct sh_dmae_slave_config *dmae_find_slave(
 }
 
 static int sh_dmae_set_slave(struct shdma_chan *schan,
-			     int slave_id, bool try)
+			     int slave_id, dma_addr_t slave_addr, bool try)
 {
 	struct sh_dmae_chan *sh_chan = container_of(schan, struct sh_dmae_chan,
 						    shdma_chan);
@@ -350,8 +352,10 @@ static int sh_dmae_set_slave(struct shdma_chan *schan,
 	if (!cfg)
 		return -ENXIO;
 
-	if (!try)
+	if (!try) {
 		sh_chan->config = cfg;
+		sh_chan->slave_addr = slave_addr ? : cfg->addr;
+	}
 
 	return 0;
 }
@@ -641,7 +645,7 @@ static dma_addr_t sh_dmae_slave_addr(struct shdma_chan *schan)
 	 * This is an exclusive slave DMA operation, may only be called after a
 	 * successful slave configuration.
 	 */
-	return sh_chan->config->addr;
+	return sh_chan->slave_addr;
 }
 
 static struct shdma_desc *sh_dmae_embedded_desc(void *buf, int i)
@@ -663,9 +667,14 @@ static const struct shdma_ops sh_dmae_shdma_ops = {
 	.get_partial = sh_dmae_get_partial,
 };
 
+static const struct of_device_id sh_dmae_of_match[] = {
+	{}
+};
+MODULE_DEVICE_TABLE(of, sh_dmae_of_match);
+
 static int sh_dmae_probe(struct platform_device *pdev)
 {
-	const struct sh_dmae_pdata *pdata = dev_get_platdata(&pdev->dev);
+	const struct sh_dmae_pdata *pdata;
 	unsigned long irqflags = IRQF_DISABLED,
 		chan_flag[SH_DMAE_MAX_CHANNELS] = {};
 	int errirq, chan_irq[SH_DMAE_MAX_CHANNELS];
@@ -673,6 +682,11 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	struct sh_dmae_device *shdev;
 	struct dma_device *dma_dev;
 	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
+
+	if (pdev->dev.of_node)
+		pdata = of_match_device(sh_dmae_of_match, &pdev->dev)->data;
+	else
+		pdata = pdev->dev.platform_data;
 
 	/* get platform data */
 	if (!pdata || !pdata->channel_num)
@@ -901,12 +915,6 @@ static int sh_dmae_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id sh_dmae_of_match[] = {
-	{ .compatible = "renesas,shdma", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, sh_dmae_of_match);
 
 static struct platform_driver sh_dmae_driver = {
 	.driver 	= {

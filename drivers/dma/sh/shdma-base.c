@@ -171,7 +171,8 @@ static struct shdma_desc *shdma_get_desc(struct shdma_chan *schan)
 	return NULL;
 }
 
-static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
+static int shdma_setup_slave(struct shdma_chan *schan, int slave_id,
+			     dma_addr_t slave_addr)
 {
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
@@ -179,7 +180,7 @@ static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
 
 	if (schan->dev->of_node) {
 		match = schan->hw_req;
-		ret = ops->set_slave(schan, match, true);
+		ret = ops->set_slave(schan, match, slave_addr, true);
 		if (ret < 0)
 			return ret;
 
@@ -194,7 +195,7 @@ static int shdma_setup_slave(struct shdma_chan *schan, int slave_id)
 	if (test_and_set_bit(slave_id, shdma_slave_used))
 		return -EBUSY;
 
-	ret = ops->set_slave(schan, match, false);
+	ret = ops->set_slave(schan, match, slave_addr, false);
 	if (ret < 0) {
 		clear_bit(slave_id, shdma_slave_used);
 		return ret;
@@ -236,7 +237,7 @@ bool shdma_chan_filter(struct dma_chan *chan, void *arg)
 	if (!schan->dev->of_node && match >= slave_num)
 		return false;
 
-	ret = ops->set_slave(schan, match, true);
+	ret = ops->set_slave(schan, match, 0, true);
 	if (ret < 0)
 		return false;
 
@@ -259,7 +260,7 @@ static int shdma_alloc_chan_resources(struct dma_chan *chan)
 	 */
 	if (slave) {
 		/* Legacy mode: .private is set in filter */
-		ret = shdma_setup_slave(schan, slave->slave_id);
+		ret = shdma_setup_slave(schan, slave->slave_id, 0);
 		if (ret < 0)
 			goto esetslave;
 	} else {
@@ -680,7 +681,9 @@ static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		 * channel, while using it...
 		 */
 		config = (struct dma_slave_config *)arg;
-		ret = shdma_setup_slave(schan, config->slave_id);
+		ret = shdma_setup_slave(schan, config->slave_id,
+					config->direction == DMA_DEV_TO_MEM ?
+					config->src_addr : config->dst_addr);
 		if (ret < 0)
 			return ret;
 		break;
