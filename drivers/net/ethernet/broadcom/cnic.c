@@ -5276,6 +5276,13 @@ static int cnic_register_netdev(struct cnic_dev *dev)
 	if (err)
 		netdev_err(dev->netdev, "register_cnic failed\n");
 
+	/* Read iSCSI config again.  On some bnx2x device, iSCSI config
+	 * can change after firmware is downloaded.
+	 */
+	dev->max_iscsi_conn = ethdev->max_iscsi_conn;
+	if (ethdev->drv_state & CNIC_DRV_STATE_NO_ISCSI)
+		dev->max_iscsi_conn = 0;
+
 	return err;
 }
 
