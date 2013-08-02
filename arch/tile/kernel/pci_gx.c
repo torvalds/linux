@@ -729,8 +729,14 @@ int __init pcibios_init(void)
 			__gxio_mmio_read(trio_context->mmio_base_mac +
 					 reg_offset);
 		if (!port_status.dl_up) {
-			pr_err("PCI: link is down, MAC %d on TRIO %d\n",
-				mac, trio_index);
+			if (pcie_ports[trio_index][mac].removable) {
+				pr_info("PCI: link is down, MAC %d on TRIO %d\n",
+					mac, trio_index);
+				pr_info("This is expected if no PCIe card"
+					" is connected to this link\n");
+			} else
+				pr_err("PCI: link is down, MAC %d on TRIO %d\n",
+					mac, trio_index);
 			continue;
 		}
 
