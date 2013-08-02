@@ -4121,25 +4121,6 @@ LPFC_ATTR_R(use_msi, 2, 0, 2, "Use Message Signaled Interrupts (1) or "
 	    "MSI-X (2), if possible");
 
 /*
-# lpfc_fcp_wq_count: Set the number of fast-path FCP work queues
-# This parameter is ignored and will eventually be depricated
-#
-# Value range is [1,7]. Default value is 4.
-*/
-LPFC_ATTR_R(fcp_wq_count, LPFC_FCP_IO_CHAN_DEF, LPFC_FCP_IO_CHAN_MIN,
-	    LPFC_FCP_IO_CHAN_MAX,
-	    "Set the number of fast-path FCP work queues, if possible");
-
-/*
-# lpfc_fcp_eq_count: Set the number of FCP EQ/CQ/WQ IO channels
-#
-# Value range is [1,7]. Default value is 4.
-*/
-LPFC_ATTR_R(fcp_eq_count, LPFC_FCP_IO_CHAN_DEF, LPFC_FCP_IO_CHAN_MIN,
-	    LPFC_FCP_IO_CHAN_MAX,
-	    "Set the number of fast-path FCP event queues, if possible");
-
-/*
 # lpfc_fcp_io_channel: Set the number of FCP EQ/CQ/WQ IO channels
 #
 # Value range is [1,7]. Default value is 4.
@@ -4317,8 +4298,6 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_use_msi,
 	&dev_attr_lpfc_fcp_imax,
 	&dev_attr_lpfc_fcp_cpu_map,
-	&dev_attr_lpfc_fcp_wq_count,
-	&dev_attr_lpfc_fcp_eq_count,
 	&dev_attr_lpfc_fcp_io_channel,
 	&dev_attr_lpfc_enable_bg,
 	&dev_attr_lpfc_soft_wwnn,
@@ -5301,8 +5280,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_use_msi_init(phba, lpfc_use_msi);
 	lpfc_fcp_imax_init(phba, lpfc_fcp_imax);
 	lpfc_fcp_cpu_map_init(phba, lpfc_fcp_cpu_map);
-	lpfc_fcp_wq_count_init(phba, lpfc_fcp_wq_count);
-	lpfc_fcp_eq_count_init(phba, lpfc_fcp_eq_count);
 	lpfc_fcp_io_channel_init(phba, lpfc_fcp_io_channel);
 	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
