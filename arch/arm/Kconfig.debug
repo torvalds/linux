@@ -1039,7 +1039,7 @@ config DEBUG_UNCOMPRESS
 	bool
 	depends on ARCH_MULTIPLATFORM
 	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
-		     !DEBUG_TEGRA_UART
+		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM)
 	help
 	  This option influences the normal decompressor output for
 	  multiplatform kernels.  Normally, multiplatform kernels disable
