@@ -317,12 +317,7 @@ static struct platform_device sw_uart_dev[] = {
 
 static int sw_serial_get_max_ports(void)
 {
-	if (sunxi_is_a13())
-		return 2;
-	else if (sunxi_is_a10s())
-		return 4;
-	else /* a10 / a20 */
-		return 8;
+	return sunxi_is_sun5i() ? 4 : 8;
 }
 
 static unsigned uart_used;
@@ -335,6 +330,8 @@ static int __init sw_serial_init(void)
 
 	uart_used = 0;
 	for (i = 0; i < max; i++, used = 0) {
+		if (sunxi_is_a13() && i == 2) /* No uart2 on a13 */
+			continue;
 		sprintf(uart_para, "uart_para%d", i);
 		ret = script_parser_fetch(uart_para, "uart_used", &used, sizeof(int));
 		if (ret)
