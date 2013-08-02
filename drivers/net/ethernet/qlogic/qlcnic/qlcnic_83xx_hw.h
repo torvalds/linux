@@ -644,8 +644,6 @@ int qlcnic_83xx_set_led(struct net_device *, enum ethtool_phys_id_state);
 int qlcnic_83xx_flash_test(struct qlcnic_adapter *);
 int qlcnic_83xx_enable_flash_write(struct qlcnic_adapter *);
 int qlcnic_83xx_disable_flash_write(struct qlcnic_adapter *);
-u32 qlcnic_83xx_mac_rcode(struct qlcnic_adapter *);
-u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *, u32 *);
 void qlcnic_83xx_enable_mbx_poll(struct qlcnic_adapter *);
 void qlcnic_83xx_disable_mbx_poll(struct qlcnic_adapter *);
 void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *);

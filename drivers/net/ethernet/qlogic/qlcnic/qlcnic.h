@@ -466,7 +466,6 @@ struct qlcnic_hardware_context {
 	u32 *ext_reg_tbl;
 	u32 mbox_aen[QLC_83XX_MBX_AEN_CNT];
 	u32 mbox_reg[4];
-	spinlock_t mbx_lock;
 	struct qlcnic_mailbox *mailbox;
 };
 
