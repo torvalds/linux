@@ -92,8 +92,6 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 # define ll_generic_permission(inode, mask, flags, check_acl) \
 	 generic_permission(inode, mask)
 
-#define ll_blkdev_put(a, b) blkdev_put(a, b)
-
 #define ll_dentry_open(a,b,c)	dentry_open(a,b,c)
 
 #define ll_vfs_symlink(dir, dentry, mnt, path, mode) \

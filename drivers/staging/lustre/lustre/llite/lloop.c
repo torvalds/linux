@@ -617,7 +617,7 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LL_IOC_LLOOP_DETACH: {
 		err = loop_clr_fd(lo, bdev, 2);
 		if (err == 0)
-			ll_blkdev_put(bdev, 0); /* grabbed in LLOOP_ATTACH */
+			blkdev_put(bdev, 0); /* grabbed in LLOOP_ATTACH */
 		break;
 	}
 
@@ -712,7 +712,7 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		err = loop_set_fd(lo, NULL, bdev, file);
 		if (err) {
 			fput(file);
-			ll_blkdev_put(bdev, 0);
+			blkdev_put(bdev, 0);
 		}
 
 		break;
@@ -736,7 +736,7 @@ static enum llioc_iter lloop_ioctl(struct inode *unused, struct file *file,
 		bdev = lo->lo_device;
 		err = loop_clr_fd(lo, bdev, 1);
 		if (err == 0)
-			ll_blkdev_put(bdev, 0); /* grabbed in LLOOP_ATTACH */
+			blkdev_put(bdev, 0); /* grabbed in LLOOP_ATTACH */
 
 		break;
 	}
