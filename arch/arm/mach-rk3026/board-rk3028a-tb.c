@@ -98,7 +98,7 @@
 #define PLAY_ON_PIN		RK30_PIN0_PD1	//wakeup key		
 
 //pwm regulator
-#define REG_PWM			1  // (0 ~ 2)
+#define REG_PWM			2  // (0 ~ 2)
 
 //pmic
 #define PMU_INT_PIN		RK30_PIN3_PC6
