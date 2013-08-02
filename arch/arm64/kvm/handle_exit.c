@@ -47,21 +47,29 @@ static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 /**
- * kvm_handle_wfi - handle a wait-for-interrupts instruction executed by a guest
+ * kvm_handle_wfx - handle a wait-for-interrupts or wait-for-event
+ *		    instruction executed by a guest
+ *
  * @vcpu:	the vcpu pointer
  *
- * Simply call kvm_vcpu_block(), which will halt execution of
+ * WFE: Yield the CPU and come back to this vcpu when the scheduler
+ * decides to.
+ * WFI: Simply call kvm_vcpu_block(), which will halt execution of
  * world-switches and schedule other host processes until there is an
  * incoming IRQ or FIQ to the VM.
  */
-static int kvm_handle_wfi(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static int kvm_handle_wfx(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	kvm_vcpu_block(vcpu);
+	if (kvm_vcpu_get_hsr(vcpu) & ESR_EL2_EC_WFI_ISS_WFE)
+		kvm_vcpu_on_spin(vcpu);
+	else
+		kvm_vcpu_block(vcpu);
+
 	return 1;
 }
 
 static exit_handle_fn arm_exit_handlers[] = {
-	[ESR_EL2_EC_WFI]	= kvm_handle_wfi,
+	[ESR_EL2_EC_WFI]	= kvm_handle_wfx,
 	[ESR_EL2_EC_CP15_32]	= kvm_handle_cp15_32,
 	[ESR_EL2_EC_CP15_64]	= kvm_handle_cp15_64,
 	[ESR_EL2_EC_CP14_MR]	= kvm_handle_cp14_access,

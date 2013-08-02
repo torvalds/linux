@@ -63,6 +63,7 @@
  * TAC:		Trap ACTLR
  * TSC:		Trap SMC
  * TSW:		Trap cache operations by set/way
+ * TWE:		Trap WFE
  * TWI:		Trap WFI
  * TIDCP:	Trap L2CTLR/L2ECTLR
  * BSU_IS:	Upgrade barriers to the inner shareable domain
@@ -72,8 +73,9 @@
  * FMO:		Override CPSR.F and enable signaling with VF
  * SWIO:	Turn set/way invalidates into set/way clean+invalidate
  */
-#define HCR_GUEST_FLAGS (HCR_TSC | HCR_TSW | HCR_TWI | HCR_VM | HCR_BSU_IS | \
-			 HCR_FB | HCR_TAC | HCR_AMO | HCR_IMO | HCR_FMO | \
+#define HCR_GUEST_FLAGS (HCR_TSC | HCR_TSW | HCR_TWE | HCR_TWI | HCR_VM | \
+			 HCR_BSU_IS | HCR_FB | HCR_TAC | \
+			 HCR_AMO | HCR_IMO | HCR_FMO | \
 			 HCR_SWIO | HCR_TIDCP | HCR_RW)
 #define HCR_VIRT_EXCP_MASK (HCR_VA | HCR_VI | HCR_VF)
 
@@ -241,5 +243,7 @@
 #define ESR_EL2_EC_BRK64	(0x3C)
 
 #define ESR_EL2_EC_xABT_xFSR_EXTABT	0x10
+
+#define ESR_EL2_EC_WFI_ISS_WFE	(1 << 0)
 
 #endif /* __ARM64_KVM_ARM_H__ */
