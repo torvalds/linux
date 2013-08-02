@@ -289,7 +289,7 @@ static void lp3944_led_set_brightness(struct led_classdev *led_cdev,
 	dev_dbg(&led->client->dev, "%s: %s, %d\n",
 		__func__, led_cdev->name, brightness);
 
-	led->status = brightness;
+	led->status = !!brightness;
 	schedule_work(&led->work);
 }
 
