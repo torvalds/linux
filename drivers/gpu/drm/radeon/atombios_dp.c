@@ -550,7 +550,7 @@ static bool radeon_dp_get_link_status(struct radeon_connector *radeon_connector,
 		return false;
 	}
 
-	DRM_DEBUG_KMS("link status %*ph\n", 6, link_status);
+	DRM_DEBUG_KMS("link status %6ph\n", link_status);
 	return true;
 }
 

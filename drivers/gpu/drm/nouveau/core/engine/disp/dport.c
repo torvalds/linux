@@ -150,7 +150,7 @@ dp_link_train_update(struct dp_state *dp, u32 delay)
 	if (ret)
 		return ret;
 
-	DBG("status %*ph\n", 6, dp->stat);
+	DBG("status %6ph\n", dp->stat);
 	return 0;
 }
 
