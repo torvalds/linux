@@ -5285,7 +5285,7 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	case POWER_DOMAIN_TRANSCODER_B:
 	case POWER_DOMAIN_TRANSCODER_C:
 		return I915_READ(HSW_PWR_WELL_DRIVER) ==
-		       (HSW_PWR_WELL_ENABLE | HSW_PWR_WELL_STATE);
+		     (HSW_PWR_WELL_ENABLE_REQUEST | HSW_PWR_WELL_STATE_ENABLED);
 	default:
 		BUG();
 	}
@@ -5298,17 +5298,18 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 	uint32_t tmp;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
-	is_enabled = tmp & HSW_PWR_WELL_STATE;
-	enable_requested = tmp & HSW_PWR_WELL_ENABLE;
+	is_enabled = tmp & HSW_PWR_WELL_STATE_ENABLED;
+	enable_requested = tmp & HSW_PWR_WELL_ENABLE_REQUEST;
 
 	if (enable) {
 		if (!enable_requested)
-			I915_WRITE(HSW_PWR_WELL_DRIVER, HSW_PWR_WELL_ENABLE);
+			I915_WRITE(HSW_PWR_WELL_DRIVER,
+				   HSW_PWR_WELL_ENABLE_REQUEST);
 
 		if (!is_enabled) {
 			DRM_DEBUG_KMS("Enabling power well\n");
 			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
-				      HSW_PWR_WELL_STATE), 20))
+				      HSW_PWR_WELL_STATE_ENABLED), 20))
 				DRM_ERROR("Timeout enabling power well\n");
 		}
 	} else {
@@ -5410,7 +5411,7 @@ void intel_init_power_well(struct drm_device *dev)
 
 	/* We're taking over the BIOS, so clear any requests made by it since
 	 * the driver is in charge now. */
-	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE)
+	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST)
 		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
 }
 

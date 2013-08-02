@@ -10112,7 +10112,7 @@ void i915_redisable_vga(struct drm_device *dev)
 	 * follow the "don't touch the power well if we don't need it" policy
 	 * the rest of the driver uses. */
 	if (HAS_POWER_WELL(dev) &&
-	    (I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_STATE) == 0)
+	    (I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_STATE_ENABLED) == 0)
 		return;
 
 	if (I915_READ(vga_reg) != VGA_DISP_DISABLE) {
