@@ -10104,6 +10104,17 @@ void i915_redisable_vga(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 vga_reg = i915_vgacntrl_reg(dev);
 
+	/* This function can be called both from intel_modeset_setup_hw_state or
+	 * at a very early point in our resume sequence, where the power well
+	 * structures are not yet restored. Since this function is at a very
+	 * paranoid "someone might have enabled VGA while we were not looking"
+	 * level, just check if the power well is enabled instead of trying to
+	 * follow the "don't touch the power well if we don't need it" policy
+	 * the rest of the driver uses. */
+	if (HAS_POWER_WELL(dev) &&
+	    (I915_READ(HSW_PWR_WELL_DRIVER) & HSW_PWR_WELL_STATE) == 0)
+		return;
+
 	if (I915_READ(vga_reg) != VGA_DISP_DISABLE) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
 		i915_disable_vga(dev);
