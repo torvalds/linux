@@ -3,11 +3,19 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
+#include <linux/io.h>
+#include <linux/wakelock.h>
+#include <linux/workqueue.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <mach/irqs.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/cru.h>
+#include <mach/board.h>
+
+
 #ifdef CONFIG_RK_CONFIG
 #include <mach/config.h>
 #endif
@@ -124,7 +132,7 @@ void usb20otg_phy_suspend(void* pdata, int suspend)
 }
 void usb20otg_soft_reset(void)
 {
-#if 0 //@lyz todo for 3028 phy
+#if 1 //@lyz todo for 3028 phy
     printk("~~~~~~~~~~usb20otg_soft_reset\n");
     //phy reset
     *(unsigned int*)(USBGRF_UOC0_CON0) = 0x00030001;
@@ -414,5 +422,108 @@ static int __init usbdev_init_devices(void)
         return ret;
 }
 arch_initcall(usbdev_init_devices);
+
+
+/*********************************************************************
+                        rk3026 usb detect 
+*********************************************************************/
+
+#define WAKE_LOCK_TIMEOUT (HZ * 10)
+
+static struct wake_lock usb_wakelock;
+static struct delayed_work usb_det_wakeup_work;
+
+inline void do_wakeup(void)
+{
+    wake_lock_timeout(&usb_wakelock, WAKE_LOCK_TIMEOUT);
+	rk28_send_wakeup_key();
+}
+
+
+/*********** handler for bvalid irq ***********/
+
+static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
+{
+    /* clear irq */
+    writel_relaxed((1 << 31) | (1 << 15), RK2928_GRF_BASE + GRF_UOC0_CON0);
+    
+#ifdef CONFIG_RK_USB_UART
+    /* usb otg dp/dm switch to usb phy */
+    writel_relaxed((3 << (12 + 16)),RK2928_GRF_BASE + GRF_UOC1_CON4);
+#endif
+    
+    schedule_delayed_work(&usb_det_wakeup_work, HZ/10);
+
+    return IRQ_HANDLED;
+}
+
+/***** handler for otg id rise and fall edge *****/
+
+static irqreturn_t id_irq_handler(int irq, void *dev_id)
+{
+    unsigned int uoc_con;
+
+     /* clear irq */
+    uoc_con = readl_relaxed(RK2928_GRF_BASE + GRF_UOC_CON);
+    if(uoc_con & (1<<1))//id rise 
+    {
+        writel_relaxed((0x2 << 16) | 0x2, RK2928_GRF_BASE + GRF_UOC_CON);//clear id rise irq pandding
+    }
+    if(uoc_con & (1<<3))//id fall
+    { 
+        writel_relaxed((0x8 << 16) | 0x8, RK2928_GRF_BASE + GRF_UOC_CON);//clear id fall irq pandding
+    }
+    schedule_delayed_work(&usb_det_wakeup_work, HZ/10);
+    return IRQ_HANDLED;
+}
+
+/***** handler for otg line status change *****/
+
+static irqreturn_t line_irq_handler(int irq, void *dev_id)
+{
+
+    /* clear irq */
+    writel_relaxed((1 << 29) | (1 << 13), RK2928_GRF_BASE + GRF_UOC0_CON0); 
+
+    schedule_delayed_work(&usb_det_wakeup_work, HZ/10);
+    return IRQ_HANDLED;
+}
+
+
+static int __init otg_irq_detect_init(void)
+{
+    int ret;
+    int irq = IRQ_OTG_BVALID;
+
+    wake_lock_init(&usb_wakelock, WAKE_LOCK_SUSPEND, "usb_detect");
+    INIT_DELAYED_WORK(&usb_det_wakeup_work, do_wakeup);
+
+    ret = request_irq(irq, bvalid_irq_handler, 0, "bvalid", NULL);
+    if (ret < 0) {
+        pr_err("%s: request_irq(%d) failed\n", __func__, irq);
+        return ret;
+    }
+    
+    /* clear & enable bvalid irq */
+    writel_relaxed((3 << 30) | (3 << 14), RK2928_GRF_BASE + GRF_UOC0_CON0);
+
+
+    irq = IRQ_OTG0_ID;
+
+    ret = request_irq(irq, id_irq_handler, 0, "otg-id", NULL);
+    if (ret < 0) {
+        pr_err("%s: request_irq(%d) failed\n", __func__, irq);
+        return ret;
+    }
+
+    /* clear & enable otg change irq */
+    /* for rk3026 enable and clear id_fall_irq & id_rise_irq*/
+    writel_relaxed((0xf << 16) | 0xf, RK2928_GRF_BASE + GRF_UOC_CON);
+
+    enable_irq_wake(irq);
+    
+    return 0;
+}
+late_initcall(otg_irq_detect_init);
 #endif
 
