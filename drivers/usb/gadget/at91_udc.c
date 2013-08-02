@@ -870,6 +870,11 @@ static void clk_on(struct at91_udc *udc)
 	if (udc->clocked)
 		return;
 	udc->clocked = 1;
+
+	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
+		clk_set_rate(udc->uclk, 48000000);
+		clk_prepare_enable(udc->uclk);
+	}
 	clk_prepare_enable(udc->iclk);
 	clk_prepare_enable(udc->fclk);
 }
@@ -882,6 +887,8 @@ static void clk_off(struct at91_udc *udc)
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	clk_disable_unprepare(udc->fclk);
 	clk_disable_unprepare(udc->iclk);
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		clk_disable_unprepare(udc->uclk);
 }
 
 /*
@@ -1774,10 +1781,12 @@ static int at91udc_probe(struct platform_device *pdev)
 	/* get interface and function clocks */
 	udc->iclk = clk_get(dev, "udc_clk");
 	udc->fclk = clk_get(dev, "udpck");
-	if (IS_ERR(udc->iclk) || IS_ERR(udc->fclk)) {
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		udc->uclk = clk_get(dev, "usb_clk");
+	if (IS_ERR(udc->iclk) || IS_ERR(udc->fclk) ||
+	    (IS_ENABLED(CONFIG_COMMON_CLK) && IS_ERR(udc->uclk))) {
 		DBG("clocks missing\n");
 		retval = -ENODEV;
-		/* NOTE: we "know" here that refcounts on these are NOPs */
 		goto fail1;
 	}
 
@@ -1851,6 +1860,8 @@ fail3:
 fail2:
 	free_irq(udc->udp_irq, udc);
 fail1:
+	if (IS_ENABLED(CONFIG_COMMON_CLK) && !IS_ERR(udc->uclk))
+		clk_put(udc->uclk);
 	if (!IS_ERR(udc->fclk))
 		clk_put(udc->fclk);
 	if (!IS_ERR(udc->iclk))
@@ -1898,6 +1909,8 @@ static int __exit at91udc_remove(struct platform_device *pdev)
 
 	clk_put(udc->iclk);
 	clk_put(udc->fclk);
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		clk_put(udc->uclk);
 
 	return 0;
 }
