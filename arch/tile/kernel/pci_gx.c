@@ -69,16 +69,13 @@ static int pcie_rc[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
  * a HW PCIe link-training bug. The exact delay is specified with
  * a kernel boot argument in the form of "pcie_rc_delay=T,P,S",
  * where T is the TRIO instance number, P is the port number and S is
- * the delay in seconds. If the delay is not provided, the value
- * will be DEFAULT_RC_DELAY.
+ * the delay in seconds. If the argument is specified, but the delay is
+ * not provided, the value will be DEFAULT_RC_DELAY.
  */
 static int rc_delay[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
 
 /* Default number of seconds that the PCIe RC port probe can be delayed. */
 #define DEFAULT_RC_DELAY	10
-
-/* Max number of seconds that the PCIe RC port probe can be delayed. */
-#define MAX_RC_DELAY		20
 
 /* Array of the PCIe ports configuration info obtained from the BIB. */
 struct pcie_port_property pcie_ports[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
@@ -570,14 +567,9 @@ static int setup_pcie_rc_delay(char *str)
 		if (!isdigit(*str))
 			return -EINVAL;
 		delay = simple_strtoul(str, (char **)&str, 10);
-		if (delay > MAX_RC_DELAY)
-			return -EINVAL;
 	}
 
 	rc_delay[trio_index][mac] = delay ? : DEFAULT_RC_DELAY;
-	pr_info("Delaying PCIe RC link training for %u sec"
-		" on MAC %lu on TRIO %lu\n", rc_delay[trio_index][mac],
-		mac, trio_index);
 	return 0;
 }
 early_param("pcie_rc_delay", setup_pcie_rc_delay);
@@ -682,12 +674,6 @@ int __init pcibios_init(void)
 			continue;
 		}
 
-		/*
-		 * Delay the RC link training if needed.
-		 */
-		if (rc_delay[trio_index][mac])
-			msleep(rc_delay[trio_index][mac] * 1000);
-
 		ret = gxio_trio_force_rc_link_up(trio_context, mac);
 		if (ret < 0)
 			pr_err("PCI: PCIE_FORCE_LINK_UP failure, "
@@ -697,10 +683,21 @@ int __init pcibios_init(void)
 			trio_index, controller->mac);
 
 		/*
-		 * Wait a bit here because some EP devices take longer
-		 * to come up.
+		 * Delay the bus probe if needed.
 		 */
-		msleep(1000);
+		if (rc_delay[trio_index][mac]) {
+			pr_info("Delaying PCIe RC bus enumerating %d sec"
+				" on MAC %d on TRIO %d\n",
+				rc_delay[trio_index][mac], mac,
+				trio_index);
+			msleep(rc_delay[trio_index][mac] * 1000);
+		} else {
+			/*
+			 * Wait a bit here because some EP devices
+			 * take longer to come up.
+			 */
+			msleep(1000);
+		}
 
 		/*
 		 * Check for PCIe link-up status.
