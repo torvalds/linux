@@ -29,7 +29,6 @@ struct pci_controller {
 	int index;		/* PCI domain number */
 	struct pci_bus *root_bus;
 
-	int first_busno;
 	int last_busno;
 
 	int hv_cfg_fd[2];	/* config{0,1} fds for this PCIe controller */
