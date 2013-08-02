@@ -946,6 +946,7 @@ struct sctp_transport {
 	__u64 hb_nonce;
 
 	struct rcu_head rcu;
+	u32 dst_cookie;
 };
 
 struct sctp_transport *sctp_transport_new(struct net *, const union sctp_addr *,
