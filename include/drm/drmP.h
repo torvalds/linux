@@ -965,7 +965,7 @@ struct drm_driver {
 
 	u32 driver_features;
 	int dev_priv_size;
-	struct drm_ioctl_desc *ioctls;
+	const struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	const struct file_operations *fops;
 	union {
