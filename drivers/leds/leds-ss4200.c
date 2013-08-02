@@ -197,7 +197,7 @@ static void nasgpio_led_set_attr(struct led_classdev *led_cdev,
 	spin_unlock(&nasgpio_gpio_lock);
 }
 
-u32 nasgpio_led_get_attr(struct led_classdev *led_cdev, u32 port)
+static u32 nasgpio_led_get_attr(struct led_classdev *led_cdev, u32 port)
 {
 	struct nasgpio_led *led = led_classdev_to_nasgpio_led(led_cdev);
 	u32 gpio_in;
