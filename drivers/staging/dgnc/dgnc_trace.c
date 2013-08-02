@@ -32,7 +32,6 @@
 /* $Id: dgnc_trace.c,v 1.1.1.1 2009/05/20 12:19:19 markh Exp $ */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/sched.h>	/* For jiffies, task states */
 #include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
 #include <linux/vmalloc.h>
