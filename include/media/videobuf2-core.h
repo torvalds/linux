@@ -219,8 +219,9 @@ struct vb2_buffer {
  *			configured format and *num_buffers is the total number
  *			of buffers, that are being allocated. When called from
  *			VIDIOC_CREATE_BUFS, fmt != NULL and it describes the
- *			target frame format. In this case *num_buffers are being
- *			allocated additionally to q->num_buffers.
+ *			target frame format (if the format isn't valid the
+ *			callback must return -EINVAL). In this case *num_buffers
+ *			are being allocated additionally to q->num_buffers.
  * @wait_prepare:	release any locks taken while calling vb2 functions;
  *			it is called before an ioctl needs to wait for a new
  *			buffer to arrive; required to avoid a deadlock in
@@ -236,8 +237,10 @@ struct vb2_buffer {
  * @buf_prepare:	called every time the buffer is queued from userspace
  *			and from the VIDIOC_PREPARE_BUF ioctl; drivers may
  *			perform any initialization required before each hardware
- *			operation in this callback; if an error is returned, the
- *			buffer will not be queued in driver; optional
+ *			operation in this callback; drivers that support
+ *			VIDIOC_CREATE_BUFS must also validate the buffer size;
+ *			if an error is returned, the buffer will not be queued
+ *			in driver; optional
  * @buf_finish:		called before every dequeue of the buffer back to
  *			userspace; drivers may perform any operations required
  *			before userspace accesses the buffer; optional
