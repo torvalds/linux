@@ -42,10 +42,55 @@ struct vb2_dma_sg_buf {
 
 static void vb2_dma_sg_put(void *buf_priv);
 
+static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
+		gfp_t gfp_flags)
+{
+	unsigned int last_page = 0;
+	int size = buf->sg_desc.size;
+
+	while (size > 0) {
+		struct page *pages;
+		int order;
+		int i;
+
+		order = get_order(size);
+		/* Dont over allocate*/
+		if ((PAGE_SIZE << order) > size)
+			order--;
+
+		pages = NULL;
+		while (!pages) {
+			pages = alloc_pages(GFP_KERNEL | __GFP_ZERO |
+					__GFP_NOWARN | gfp_flags, order);
+			if (pages)
+				break;
+
+			if (order == 0) {
+				while (last_page--)
+					__free_page(buf->pages[last_page]);
+				return -ENOMEM;
+			}
+			order--;
+		}
+
+		split_page(pages, order);
+		for (i = 0; i < (1 << order); i++) {
+			buf->pages[last_page] = &pages[i];
+			sg_set_page(&buf->sg_desc.sglist[last_page],
+					buf->pages[last_page], PAGE_SIZE, 0);
+			last_page++;
+		}
+
+		size -= PAGE_SIZE << order;
+	}
+
+	return 0;
+}
+
 static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_flags)
 {
 	struct vb2_dma_sg_buf *buf;
-	int i;
+	int ret;
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
@@ -69,14 +114,9 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_fla
 	if (!buf->pages)
 		goto fail_pages_array_alloc;
 
-	for (i = 0; i < buf->sg_desc.num_pages; ++i) {
-		buf->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO |
-					   __GFP_NOWARN | gfp_flags);
-		if (NULL == buf->pages[i])
-			goto fail_pages_alloc;
-		sg_set_page(&buf->sg_desc.sglist[i],
-			    buf->pages[i], PAGE_SIZE, 0);
-	}
+	ret = vb2_dma_sg_alloc_compacted(buf, gfp_flags);
+	if (ret)
+		goto fail_pages_alloc;
 
 	buf->handler.refcount = &buf->refcount;
 	buf->handler.put = vb2_dma_sg_put;
@@ -89,8 +129,6 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_fla
 	return buf;
 
 fail_pages_alloc:
-	while (--i >= 0)
-		__free_page(buf->pages[i]);
 	kfree(buf->pages);
 
 fail_pages_array_alloc:
