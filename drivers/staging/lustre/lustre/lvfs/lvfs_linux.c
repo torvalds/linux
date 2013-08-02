@@ -238,7 +238,7 @@ struct l_file *l_dentry_open(struct lvfs_run_ctxt *ctxt, struct l_dentry *de,
 		.dentry = de,
 		.mnt = ctxt->pwdmnt,
 	};
-	return ll_dentry_open(&path, flags, current_cred());
+	return dentry_open(&path, flags, current_cred());
 }
 EXPORT_SYMBOL(l_dentry_open);
 
