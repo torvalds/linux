@@ -1413,6 +1413,10 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	dfprintk(VFS, "NFS: atomic_open(%s/%ld), %s\n",
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
 
+	err = nfs_check_flags(open_flags);
+	if (err)
+		return err;
+
 	/* NFS only supports OPEN on regular files */
 	if ((open_flags & O_DIRECTORY)) {
 		if (!d_unhashed(dentry)) {
