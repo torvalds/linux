@@ -3385,6 +3385,7 @@ static void cpu_axi_init(void)
 			break;
 
 		default:
+			cpu_div_rate = 150 * MHZ;
 			aclk_cpu_rate = 150 * MHZ;
 			hclk_cpu_rate = 150 * MHZ;
 			pclk_cpu_rate = 75 * MHZ;
