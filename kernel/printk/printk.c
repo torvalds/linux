@@ -2226,6 +2226,13 @@ void register_console(struct console *newcon)
 	struct console *bcon = NULL;
 	struct console_cmdline *c;
 
+	if (console_drivers)
+		for_each_console(bcon)
+			if (WARN(bcon == newcon,
+					"console '%s%d' already registered\n",
+					bcon->name, bcon->index))
+				return;
+
 	/*
 	 * before we register a new CON_BOOT console, make sure we don't
 	 * already have a valid console
