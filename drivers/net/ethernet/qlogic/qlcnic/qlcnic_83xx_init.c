@@ -617,7 +617,7 @@ int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 	if (err)
 		return err;
 
-	qlcnic_83xx_enable_mbx_intrpt(adapter);
+	qlcnic_83xx_enable_mbx_interrupt(adapter);
 
 	if (qlcnic_83xx_configure_opmode(adapter)) {
 		qlcnic_83xx_idc_enter_failed_state(adapter, 1);
@@ -2120,7 +2120,7 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	/* Initilaize 83xx mailbox spinlock */
 	spin_lock_init(&ahw->mbx_lock);
 
-	set_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status);
+	set_bit(QLC_83XX_MBX_READY, &ahw->idc.status);
 	qlcnic_83xx_clear_function_resources(adapter);
 
 	/* register for NIC IDC AEN Events */

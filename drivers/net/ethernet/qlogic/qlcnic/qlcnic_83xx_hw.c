@@ -149,7 +149,7 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.get_mac_address		= qlcnic_83xx_get_mac_address,
 	.setup_intr			= qlcnic_83xx_setup_intr,
 	.alloc_mbx_args			= qlcnic_83xx_alloc_mbx_args,
-	.mbx_cmd			= qlcnic_83xx_mbx_op,
+	.mbx_cmd			= qlcnic_83xx_issue_cmd,
 	.get_func_no			= qlcnic_83xx_get_func_no,
 	.api_lock			= qlcnic_83xx_cam_lock,
 	.api_unlock			= qlcnic_83xx_cam_unlock,
@@ -398,6 +398,12 @@ irqreturn_t qlcnic_83xx_clear_legacy_intr(struct qlcnic_adapter *adapter)
 	return IRQ_HANDLED;
 }
 
+static inline void qlcnic_83xx_notify_mbx_response(struct qlcnic_mailbox *mbx)
+{
+	atomic_set(&mbx->rsp_status, QLC_83XX_MBX_RESPONSE_ARRIVED);
+	complete(&mbx->completion);
+}
+
 static void qlcnic_83xx_poll_process_aen(struct qlcnic_adapter *adapter)
 {
 	u32 resp, event;
@@ -515,7 +521,7 @@ int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
 	}
 
 	/* Enable mailbox interrupt */
-	qlcnic_83xx_enable_mbx_intrpt(adapter);
+	qlcnic_83xx_enable_mbx_interrupt(adapter);
 
 	return err;
 }
@@ -629,7 +635,7 @@ void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *adapter)
 	ahw->max_uc_count = count;
 }
 
-void qlcnic_83xx_enable_mbx_intrpt(struct qlcnic_adapter *adapter)
+void qlcnic_83xx_enable_mbx_interrupt(struct qlcnic_adapter *adapter)
 {
 	u32 val;
 
@@ -737,8 +743,8 @@ u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *adapter, u32 *wait_time)
 	return data;
 }
 
-int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
-		       struct qlcnic_cmd_args *cmd)
+int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *adapter,
+			  struct qlcnic_cmd_args *cmd)
 {
 	int i;
 	u16 opcode;
@@ -829,6 +835,7 @@ int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 	u32 temp;
 	const struct qlcnic_mailbox_metadata *mbx_tbl;
 
+	memset(mbx, 0, sizeof(struct qlcnic_cmd_args));
 	mbx_tbl = qlcnic_83xx_mbx_tbl;
 	size = ARRAY_SIZE(qlcnic_83xx_mbx_tbl);
 	for (i = 0; i < size; i++) {
@@ -3454,4 +3461,301 @@ int qlcnic_83xx_resume(struct qlcnic_adapter *adapter)
 	qlcnic_schedule_work(adapter, qlcnic_83xx_idc_poll_dev_state,
 			     idc->delay);
 	return err;
+}
+
+void qlcnic_83xx_reinit_mbx_work(struct qlcnic_mailbox *mbx)
+{
+	INIT_COMPLETION(mbx->completion);
+	set_bit(QLC_83XX_MBX_READY, &mbx->status);
+}
+
+void qlcnic_83xx_free_mailbox(struct qlcnic_mailbox *mbx)
+{
+	destroy_workqueue(mbx->work_q);
+	kfree(mbx);
+}
+
+static inline void
+qlcnic_83xx_notify_cmd_completion(struct qlcnic_adapter *adapter,
+				  struct qlcnic_cmd_args *cmd)
+{
+	atomic_set(&cmd->rsp_status, QLC_83XX_MBX_RESPONSE_ARRIVED);
+
+	if (cmd->type == QLC_83XX_MBX_CMD_NO_WAIT) {
+		qlcnic_free_mbx_args(cmd);
+		kfree(cmd);
+		return;
+	}
+	complete(&cmd->completion);
+}
+
+static inline void qlcnic_83xx_flush_mbx_queue(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
+	struct list_head *head = &mbx->cmd_q;
+	struct qlcnic_cmd_args *cmd = NULL;
+
+	spin_lock(&mbx->queue_lock);
+
+	while (!list_empty(head)) {
+		cmd = list_entry(head->next, struct qlcnic_cmd_args, list);
+		list_del(&cmd->list);
+		mbx->num_cmds--;
+		qlcnic_83xx_notify_cmd_completion(adapter, cmd);
+	}
+
+	spin_unlock(&mbx->queue_lock);
+}
+
+static inline int qlcnic_83xx_check_mbx_status(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_mailbox *mbx = ahw->mailbox;
+	u32 host_mbx_ctrl;
+
+	if (!test_bit(QLC_83XX_MBX_READY, &mbx->status))
+		return -EBUSY;
+
+	host_mbx_ctrl = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
+	if (host_mbx_ctrl) {
+		ahw->idc.collect_dump = 1;
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static inline void qlcnic_83xx_signal_mbx_cmd(struct qlcnic_adapter *adapter,
+					      u8 issue_cmd)
+{
+	if (issue_cmd)
+		QLCWRX(adapter->ahw, QLCNIC_HOST_MBX_CTRL, QLCNIC_SET_OWNER);
+	else
+		QLCWRX(adapter->ahw, QLCNIC_FW_MBX_CTRL, QLCNIC_CLR_OWNER);
+}
+
+static inline void qlcnic_83xx_dequeue_mbx_cmd(struct qlcnic_adapter *adapter,
+					       struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
+
+	spin_lock(&mbx->queue_lock);
+
+	list_del(&cmd->list);
+	mbx->num_cmds--;
+
+	spin_unlock(&mbx->queue_lock);
+
+	qlcnic_83xx_notify_cmd_completion(adapter, cmd);
+}
+
+static void qlcnic_83xx_encode_mbx_cmd(struct qlcnic_adapter *adapter,
+				       struct qlcnic_cmd_args *cmd)
+{
+	u32 mbx_cmd, fw_hal_version, hdr_size, total_size, tmp;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int i, j;
+
+	if (cmd->op_type != QLC_83XX_MBX_POST_BC_OP) {
+		mbx_cmd = cmd->req.arg[0];
+		writel(mbx_cmd, QLCNIC_MBX_HOST(ahw, 0));
+		for (i = 1; i < cmd->req.num; i++)
+			writel(cmd->req.arg[i], QLCNIC_MBX_HOST(ahw, i));
+	} else {
+		fw_hal_version = ahw->fw_hal_version;
+		hdr_size = sizeof(struct qlcnic_bc_hdr) / sizeof(u32);
+		total_size = cmd->pay_size + hdr_size;
+		tmp = QLCNIC_CMD_BC_EVENT_SETUP | total_size << 16;
+		mbx_cmd = tmp | fw_hal_version << 29;
+		writel(mbx_cmd, QLCNIC_MBX_HOST(ahw, 0));
+
+		/* Back channel specific operations bits */
+		mbx_cmd = 0x1 | 1 << 4;
+
+		if (qlcnic_sriov_pf_check(adapter))
+			mbx_cmd |= cmd->func_num << 5;
+
+		writel(mbx_cmd, QLCNIC_MBX_HOST(ahw, 1));
+
+		for (i = 2, j = 0; j < hdr_size; i++, j++)
+			writel(*(cmd->hdr++), QLCNIC_MBX_HOST(ahw, i));
+		for (j = 0; j < cmd->pay_size; j++, i++)
+			writel(*(cmd->pay++), QLCNIC_MBX_HOST(ahw, i));
+	}
+}
+
+void qlcnic_83xx_detach_mailbox_work(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
+
+	clear_bit(QLC_83XX_MBX_READY, &mbx->status);
+	complete(&mbx->completion);
+	cancel_work_sync(&mbx->work);
+	flush_workqueue(mbx->work_q);
+	qlcnic_83xx_flush_mbx_queue(adapter);
+}
+
+static inline int qlcnic_83xx_enqueue_mbx_cmd(struct qlcnic_adapter *adapter,
+					      struct qlcnic_cmd_args *cmd,
+					      unsigned long *timeout)
+{
+	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
+
+	if (test_bit(QLC_83XX_MBX_READY, &mbx->status)) {
+		atomic_set(&cmd->rsp_status, QLC_83XX_MBX_RESPONSE_WAIT);
+		init_completion(&cmd->completion);
+		cmd->rsp_opcode = QLC_83XX_MBX_RESPONSE_UNKNOWN;
+
+		spin_lock(&mbx->queue_lock);
+
+		list_add_tail(&cmd->list, &mbx->cmd_q);
+		mbx->num_cmds++;
+		cmd->total_cmds = mbx->num_cmds;
+		*timeout = cmd->total_cmds * QLC_83XX_MBX_TIMEOUT;
+		queue_work(mbx->work_q, &mbx->work);
+
+		spin_unlock(&mbx->queue_lock);
+
+		return 0;
+	}
+
+	return -EBUSY;
+}
+
+static inline int qlcnic_83xx_check_mac_rcode(struct qlcnic_adapter *adapter,
+					      struct qlcnic_cmd_args *cmd)
+{
+	u8 mac_cmd_rcode;
+	u32 fw_data;
+
+	if (cmd->cmd_op == QLCNIC_CMD_CONFIG_MAC_VLAN) {
+		fw_data = readl(QLCNIC_MBX_FW(adapter->ahw, 2));
+		mac_cmd_rcode = (u8)fw_data;
+		if (mac_cmd_rcode == QLC_83XX_NO_NIC_RESOURCE ||
+		    mac_cmd_rcode == QLC_83XX_MAC_PRESENT ||
+		    mac_cmd_rcode == QLC_83XX_MAC_ABSENT) {
+			cmd->rsp_opcode = QLCNIC_RCODE_SUCCESS;
+			return QLCNIC_RCODE_SUCCESS;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static void qlcnic_83xx_decode_mbx_rsp(struct qlcnic_adapter *adapter,
+				       struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct device *dev = &adapter->pdev->dev;
+	u8 mbx_err_code;
+	u32 fw_data;
+
+	fw_data = readl(QLCNIC_MBX_FW(ahw, 0));
+	mbx_err_code = QLCNIC_MBX_STATUS(fw_data);
+	qlcnic_83xx_get_mbx_data(adapter, cmd);
+
+	switch (mbx_err_code) {
+	case QLCNIC_MBX_RSP_OK:
+	case QLCNIC_MBX_PORT_RSP_OK:
+		cmd->rsp_opcode = QLCNIC_RCODE_SUCCESS;
+		break;
+	default:
+		if (!qlcnic_83xx_check_mac_rcode(adapter, cmd))
+			break;
+
+		dev_err(dev, "%s: Mailbox command failed, opcode=0x%x, cmd_type=0x%x, func=0x%x, op_mode=0x%x, error=0x%x\n",
+			__func__, cmd->cmd_op, cmd->type, ahw->pci_func,
+			ahw->op_mode, mbx_err_code);
+		cmd->rsp_opcode = QLC_83XX_MBX_RESPONSE_FAILED;
+		qlcnic_dump_mbx(adapter, cmd);
+	}
+
+	return;
+}
+
+static void qlcnic_83xx_mailbox_worker(struct work_struct *work)
+{
+	struct qlcnic_mailbox *mbx = container_of(work, struct qlcnic_mailbox,
+						  work);
+	struct qlcnic_adapter *adapter = mbx->adapter;
+	struct qlcnic_mbx_ops *mbx_ops = mbx->ops;
+	struct device *dev = &adapter->pdev->dev;
+	atomic_t *rsp_status = &mbx->rsp_status;
+	struct list_head *head = &mbx->cmd_q;
+	struct qlcnic_hardware_context *ahw;
+	struct qlcnic_cmd_args *cmd = NULL;
+
+	ahw = adapter->ahw;
+
+	while (true) {
+		if (qlcnic_83xx_check_mbx_status(adapter))
+			return;
+
+		atomic_set(rsp_status, QLC_83XX_MBX_RESPONSE_WAIT);
+
+		spin_lock(&mbx->queue_lock);
+
+		if (list_empty(head)) {
+			spin_unlock(&mbx->queue_lock);
+			return;
+		}
+		cmd = list_entry(head->next, struct qlcnic_cmd_args, list);
+
+		spin_unlock(&mbx->queue_lock);
+
+		mbx_ops->encode_cmd(adapter, cmd);
+		mbx_ops->nofity_fw(adapter, QLC_83XX_MBX_REQUEST);
+
+		if (wait_for_completion_timeout(&mbx->completion,
+						QLC_83XX_MBX_TIMEOUT)) {
+			mbx_ops->decode_resp(adapter, cmd);
+			mbx_ops->nofity_fw(adapter, QLC_83XX_MBX_COMPLETION);
+		} else {
+			dev_err(dev, "%s: Mailbox command timeout, opcode=0x%x, cmd_type=0x%x, func=0x%x, op_mode=0x%x\n",
+				__func__, cmd->cmd_op, cmd->type, ahw->pci_func,
+				ahw->op_mode);
+			clear_bit(QLC_83XX_MBX_READY, &mbx->status);
+			qlcnic_83xx_idc_request_reset(adapter,
+						      QLCNIC_FORCE_FW_DUMP_KEY);
+			cmd->rsp_opcode = QLCNIC_RCODE_TIMEOUT;
+		}
+		mbx_ops->dequeue_cmd(adapter, cmd);
+	}
+}
+
+static struct qlcnic_mbx_ops qlcnic_83xx_mbx_ops = {
+	.enqueue_cmd    = qlcnic_83xx_enqueue_mbx_cmd,
+	.dequeue_cmd    = qlcnic_83xx_dequeue_mbx_cmd,
+	.decode_resp    = qlcnic_83xx_decode_mbx_rsp,
+	.encode_cmd     = qlcnic_83xx_encode_mbx_cmd,
+	.nofity_fw      = qlcnic_83xx_signal_mbx_cmd,
+};
+
+int qlcnic_83xx_init_mailbox_work(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_mailbox *mbx;
+
+	ahw->mailbox = kzalloc(sizeof(*mbx), GFP_KERNEL);
+	if (!ahw->mailbox)
+		return -ENOMEM;
+
+	mbx = ahw->mailbox;
+	mbx->ops = &qlcnic_83xx_mbx_ops;
+	mbx->adapter = adapter;
+
+	spin_lock_init(&mbx->queue_lock);
+	spin_lock_init(&mbx->aen_lock);
+	INIT_LIST_HEAD(&mbx->cmd_q);
+	init_completion(&mbx->completion);
+
+	mbx->work_q = create_singlethread_workqueue("qlcnic_mailbox");
+	if (mbx->work_q == NULL) {
+		kfree(mbx);
+		return -ENOMEM;
+	}
+
+	INIT_WORK(&mbx->work, qlcnic_83xx_mailbox_worker);
+	set_bit(QLC_83XX_MBX_READY, &mbx->status);
+	return 0;
 }

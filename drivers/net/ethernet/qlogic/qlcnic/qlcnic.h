@@ -20,7 +20,6 @@
 #include <linux/tcp.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
-
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/timer.h>
@@ -468,6 +467,7 @@ struct qlcnic_hardware_context {
 	u32 mbox_aen[QLC_83XX_MBX_AEN_CNT];
 	u32 mbox_reg[4];
 	spinlock_t mbx_lock;
+	struct qlcnic_mailbox *mailbox;
 };
 
 struct qlcnic_adapter_stats {
@@ -966,6 +966,21 @@ struct qlcnic_filter_hash {
 	u16 fbucket_size;
 };
 
+/* Mailbox specific data structures */
+struct qlcnic_mailbox {
+	struct workqueue_struct	*work_q;
+	struct qlcnic_adapter	*adapter;
+	struct qlcnic_mbx_ops	*ops;
+	struct work_struct	work;
+	struct completion	completion;
+	struct list_head	cmd_q;
+	unsigned long		status;
+	spinlock_t		queue_lock;	/* Mailbox queue lock */
+	spinlock_t		aen_lock;	/* Mailbox response/AEN lock */
+	atomic_t		rsp_status;
+	u32			num_cmds;
+};
+
 struct qlcnic_adapter {
 	struct qlcnic_hardware_context *ahw;
 	struct qlcnic_recv_context *recv_ctx;
@@ -1379,9 +1394,20 @@ struct _cdrp_cmd {
 };
 
 struct qlcnic_cmd_args {
-	struct _cdrp_cmd req;
-	struct _cdrp_cmd rsp;
-	int op_type;
+	struct completion	completion;
+	struct list_head	list;
+	struct _cdrp_cmd	req;
+	struct _cdrp_cmd	rsp;
+	atomic_t		rsp_status;
+	int			pay_size;
+	u32			rsp_opcode;
+	u32			total_cmds;
+	u32			op_type;
+	u32			type;
+	u32			cmd_op;
+	u32			*hdr;	/* Back channel message header */
+	u32			*pay;	/* Back channel message payload */
+	u8			func_num;
 };
 
 int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter);
@@ -1593,6 +1619,20 @@ struct qlcnic_nic_template {
 	int (*shutdown)(struct pci_dev *);
 	int (*resume)(struct qlcnic_adapter *);
 };
+
+struct qlcnic_mbx_ops {
+	int (*enqueue_cmd) (struct qlcnic_adapter *,
+			    struct qlcnic_cmd_args *, unsigned long *);
+	void (*dequeue_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
+	void (*decode_resp) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
+	void (*encode_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
+	void (*nofity_fw) (struct qlcnic_adapter *, u8);
+};
+
+int qlcnic_83xx_init_mailbox_work(struct qlcnic_adapter *);
+void qlcnic_83xx_detach_mailbox_work(struct qlcnic_adapter *);
+void qlcnic_83xx_reinit_mbx_work(struct qlcnic_mailbox *mbx);
+void qlcnic_83xx_free_mailbox(struct qlcnic_mailbox *mbx);
 
 /* Adapter hardware abstraction */
 struct qlcnic_hardware_ops {
