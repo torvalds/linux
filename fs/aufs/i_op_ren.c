@@ -208,33 +208,9 @@ static int au_ren_or_cpup(struct au_ren_args *a)
 		AuDebugOn(au_dbstart(d) != a->btgt);
 		err = vfsub_rename(a->src_h_dir, au_h_dptr(d, a->btgt),
 				   a->dst_h_dir, &a->h_path);
-	} else {
-#if 1
+	} else
 		BUG();
-#else
-		struct file *h_file;
 
-		au_fset_ren(a->flags, CPUP);
-		au_set_dbstart(d, a->btgt);
-		au_set_h_dptr(d, a->btgt, dget(a->dst_h_dentry));
-		h_file = au_h_open_pre(d, a->src_bstart);
-		if (IS_ERR(h_file))
-			err = PTR_ERR(h_file);
-		else {
-			err = au_sio_cpup_single(d, a->btgt, a->src_bstart, -1,
-						 !AuCpup_DTIME, a->dst_parent);
-			au_h_open_post(d, a->src_bstart, h_file);
-		}
-		if (!err) {
-			d = a->dst_dentry;
-			au_set_h_dptr(d, a->btgt, NULL);
-			au_update_dbstart(d);
-		} else {
-			au_set_h_dptr(d, a->btgt, NULL);
-			au_set_dbstart(d, a->src_bstart);
-		}
-#endif
-	}
 	if (!err && a->h_dst)
 		/* it will be set to dinfo later */
 		dget(a->h_dst);
@@ -341,25 +317,7 @@ static int do_rename(struct au_ren_args *a)
 		a->dst_h_dentry = au_h_dptr(d, a->btgt);
 	}
 
-	/* cpup src */
-	if (a->dst_h_dentry->d_inode && a->src_bstart != a->btgt) {
-#if 1
-		BUG();
-#else
-		struct file *h_file;
-
-		h_file = au_h_open_pre(a->src_dentry, a->src_bstart);
-		if (IS_ERR(h_file))
-			err = PTR_ERR(h_file);
-		else {
-			err = au_sio_cpup_simple(a->src_dentry, a->btgt, -1,
-						 !AuCpup_DTIME);
-			au_h_open_post(a->src_dentry, a->src_bstart, h_file);
-		}
-		if (unlikely(err))
-			goto out_whtmp;
-#endif
-	}
+	BUG_ON(a->dst_h_dentry->d_inode && a->src_bstart != a->btgt);
 
 	/* rename by vfs_rename or cpup */
 	d = a->dst_dentry;
@@ -971,10 +929,16 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 			     au_opt_udba(a->src_dentry->d_sb),
 			     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
 		if (!err) {
+			struct au_cpup_basic basic = {
+				.dentry	= a->src_dentry,
+				.bdst	= a->btgt,
+				.bsrc	= a->src_bstart,
+				.len	= -1
+			};
 			AuDebugOn(au_dbstart(a->src_dentry) != a->src_bstart);
-			err = au_sio_cpup_simple_h_open(a->src_dentry, a->btgt,
-							-1, AuCpup_DTIME, &pin,
-							a->src_bstart);
+			err = au_sio_cpup_simple(&basic,
+						 AuCpup_DTIME | AuCpup_HOPEN,
+						 &pin);
 			au_unpin(&pin);
 		}
 		if (unlikely(err))
