@@ -191,7 +191,7 @@ static DEFINE_PCI_DEVICE_TABLE(dwc3_pci_id_table) = {
 };
 MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int dwc3_pci_suspend(struct device *dev)
 {
 	struct pci_dev	*pci = to_pci_dev(dev);
@@ -216,15 +216,11 @@ static int dwc3_pci_resume(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops dwc3_pci_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_suspend, dwc3_pci_resume)
 };
-
-#define DEV_PM_OPS	(&dwc3_pci_dev_pm_ops)
-#else
-#define DEV_PM_OPS	NULL
-#endif /* CONFIG_PM */
 
 static struct pci_driver dwc3_pci_driver = {
 	.name		= "dwc3-pci",
@@ -232,7 +228,7 @@ static struct pci_driver dwc3_pci_driver = {
 	.probe		= dwc3_pci_probe,
 	.remove		= dwc3_pci_remove,
 	.driver		= {
-		.pm	= DEV_PM_OPS,
+		.pm	= &dwc3_pci_dev_pm_ops,
 	},
 };
 
