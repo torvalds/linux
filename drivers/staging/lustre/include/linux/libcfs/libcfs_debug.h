@@ -272,7 +272,6 @@ long libcfs_log_return(struct libcfs_debug_msg_data *, long rc);
 #if BITS_PER_LONG > 32
 #define RETURN(rc)							\
 do {									\
-	EXIT_NESTING;							\
 	if (cfs_cdebug_show(D_TRACE, DEBUG_SUBSYSTEM)) {		\
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_TRACE, NULL);	\
 		return (typeof(rc))libcfs_log_return(&msgdata,		\
@@ -289,7 +288,6 @@ do {									\
  */
 #define RETURN(rc)							\
 do {									\
-	EXIT_NESTING;							\
 	if (cfs_cdebug_show(D_TRACE, DEBUG_SUBSYSTEM)) {		\
 		typeof(rc) __rc = (rc);					\
 		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_TRACE, NULL);	\
@@ -305,7 +303,6 @@ do {									\
 #define RETURN(rc)						      \
 do {								    \
 	CDEBUG(D_TRACE, "Process leaving.\n");			  \
-	EXIT_NESTING;						   \
 	return (rc);						    \
 } while (0)
 #else
@@ -313,7 +310,6 @@ do {								    \
 #endif /* __GNUC__ */
 
 #define ENTRY							   \
-ENTRY_NESTING;							  \
 do {								    \
 	CDEBUG(D_TRACE, "Process entered\n");			   \
 } while (0)
@@ -321,7 +317,6 @@ do {								    \
 #define EXIT							    \
 do {								    \
 	CDEBUG(D_TRACE, "Process leaving\n");			   \
-	EXIT_NESTING;						   \
 } while(0)
 
 #define RETURN_EXIT							\
