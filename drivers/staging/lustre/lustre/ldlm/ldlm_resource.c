@@ -95,7 +95,6 @@ int ldlm_proc_setup(void)
 		{ "cancel_unused_locks_before_replay", &ldlm_rw_uint_fops,
 		  &ldlm_cancel_unused_locks_before_replay },
 		{ NULL }};
-	ENTRY;
 	LASSERT(ldlm_ns_proc_dir == NULL);
 
 	ldlm_type_proc_dir = lprocfs_register(OBD_LDLM_DEVICENAME,
@@ -568,7 +567,6 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 	cfs_hash_bd_t	  bd;
 	int		    idx;
 	int		    rc;
-	ENTRY;
 
 	LASSERT(obd != NULL);
 
@@ -808,8 +806,6 @@ EXPORT_SYMBOL(ldlm_namespace_cleanup);
  */
 static int __ldlm_namespace_free(struct ldlm_namespace *ns, int force)
 {
-	ENTRY;
-
 	/* At shutdown time, don't call the cancellation callback */
 	ldlm_namespace_cleanup(ns, force ? LDLM_FL_LOCAL_ONLY : 0);
 
@@ -864,7 +860,7 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 			       int force)
 {
 	int rc;
-	ENTRY;
+
 	if (!ns) {
 		EXIT;
 		return;
@@ -901,7 +897,6 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
  */
 void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 {
-	ENTRY;
 	if (!ns) {
 		EXIT;
 		return;

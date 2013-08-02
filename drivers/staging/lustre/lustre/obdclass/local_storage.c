@@ -45,8 +45,6 @@ static int ls_object_init(const struct lu_env *env, struct lu_object *o,
 	struct lu_object	*below;
 	struct lu_device	*under;
 
-	ENTRY;
-
 	ls = container_of0(o->lo_dev, struct ls_device, ls_top_dev.dd_lu_dev);
 	under = &ls->ls_osd->dd_lu_dev;
 	below = under->ld_ops->ldo_object_alloc(env, o->lo_header, under);
@@ -143,8 +141,6 @@ struct ls_device *ls_device_get(struct dt_device *dev)
 {
 	struct ls_device *ls;
 
-	ENTRY;
-
 	mutex_lock(&ls_list_mutex);
 	ls = __ls_find_dev(dev);
 	if (ls)
@@ -224,8 +220,6 @@ int local_object_declare_create(const struct lu_env *env,
 	struct dt_thread_info	*dti = dt_info(env);
 	int			 rc;
 
-	ENTRY;
-
 	/* update fid generation file */
 	if (los != NULL) {
 		LASSERT(dt_object_exists(los->los_obj));
@@ -254,8 +248,6 @@ int local_object_create(const struct lu_env *env,
 	struct dt_thread_info	*dti = dt_info(env);
 	obd_id			 lastid;
 	int			 rc;
-
-	ENTRY;
 
 	rc = dt_create(env, o, attr, NULL, dof, th);
 	if (rc)
@@ -588,8 +580,6 @@ int local_object_unlink(const struct lu_env *env, struct dt_device *dt,
 	struct thandle		*th;
 	int			 rc;
 
-	ENTRY;
-
 	rc = dt_lookup_dir(env, parent, name, &dti->dti_fid);
 	if (rc == -ENOENT)
 		RETURN(0);
@@ -760,8 +750,6 @@ int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 	struct thandle		*th;
 	__u32			 first_oid = fid_oid(first_fid);
 	int			 rc = 0;
-
-	ENTRY;
 
 	ls = ls_device_get(dev);
 	if (IS_ERR(ls))

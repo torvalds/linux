@@ -322,8 +322,6 @@ void lov_dump_pool(int level, struct pool_desc *pool)
 #define LOV_POOL_INIT_COUNT 2
 int lov_ost_pool_init(struct ost_pool *op, unsigned int count)
 {
-	ENTRY;
-
 	if (count == 0)
 		count = LOV_POOL_INIT_COUNT;
 	op->op_array = NULL;
@@ -366,7 +364,6 @@ int lov_ost_pool_extend(struct ost_pool *op, unsigned int min_count)
 int lov_ost_pool_add(struct ost_pool *op, __u32 idx, unsigned int min_count)
 {
 	int rc = 0, i;
-	ENTRY;
 
 	down_write(&op->op_rw_sem);
 
@@ -391,7 +388,6 @@ out:
 int lov_ost_pool_remove(struct ost_pool *op, __u32 idx)
 {
 	int i;
-	ENTRY;
 
 	down_write(&op->op_rw_sem);
 
@@ -412,8 +408,6 @@ int lov_ost_pool_remove(struct ost_pool *op, __u32 idx)
 
 int lov_ost_pool_free(struct ost_pool *op)
 {
-	ENTRY;
-
 	if (op->op_size == 0)
 		RETURN(0);
 
@@ -434,7 +428,6 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	struct lov_obd *lov;
 	struct pool_desc *new_pool;
 	int rc;
-	ENTRY;
 
 	lov = &(obd->u.lov);
 
@@ -513,7 +506,6 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 {
 	struct lov_obd *lov;
 	struct pool_desc *pool;
-	ENTRY;
 
 	lov = &(obd->u.lov);
 
@@ -547,7 +539,6 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 	struct pool_desc *pool;
 	unsigned int lov_idx;
 	int rc;
-	ENTRY;
 
 	lov = &(obd->u.lov);
 
@@ -594,7 +585,6 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 	struct pool_desc *pool;
 	unsigned int lov_idx;
 	int rc = 0;
-	ENTRY;
 
 	lov = &(obd->u.lov);
 
@@ -636,7 +626,6 @@ out:
 int lov_check_index_in_pool(__u32 idx, struct pool_desc *pool)
 {
 	int i, rc;
-	ENTRY;
 
 	/* caller may no have a ref on pool if it got the pool
 	 * without calling lov_find_pool() (e.g. go through the lov pool

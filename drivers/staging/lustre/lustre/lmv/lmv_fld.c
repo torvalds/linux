@@ -57,8 +57,6 @@ int lmv_fld_lookup(struct lmv_obd *lmv,
 		   mdsno_t *mds)
 {
 	int rc;
-	ENTRY;
-
 
 	/* FIXME: Currently ZFS still use local seq for ROOT unfortunately, and
 	 * this fid_is_local check should be removed once LU-2240 is fixed */

@@ -262,7 +262,6 @@ void gss_sec_ctx_replace_pf(struct gss_sec *gsec,
 	struct hlist_node     *next;
 	HLIST_HEAD(freelist);
 	unsigned int hash;
-	ENTRY;
 
 	gsec_pf = container_of(gsec, struct gss_sec_pipefs, gsp_base);
 
@@ -297,7 +296,6 @@ int gss_install_rvs_cli_ctx_pf(struct gss_sec *gsec,
 	struct vfs_cred	  vcred;
 	struct ptlrpc_cli_ctx   *cli_ctx;
 	int		      rc;
-	ENTRY;
 
 	vcred.vc_uid = 0;
 	vcred.vc_gid = 0;
@@ -324,7 +322,6 @@ void gss_ctx_cache_gc_pf(struct gss_sec_pipefs *gsec_pf,
 	struct ptlrpc_cli_ctx   *ctx;
 	struct hlist_node       *next;
 	int i;
-	ENTRY;
 
 	sec = &gsec_pf->gsp_base.gs_base;
 
@@ -347,7 +344,6 @@ struct ptlrpc_sec* gss_sec_create_pf(struct obd_import *imp,
 {
 	struct gss_sec_pipefs   *gsec_pf;
 	int		      alloc_size, hash_size, i;
-	ENTRY;
 
 #define GSS_SEC_PIPEFS_CTX_HASH_SIZE    (32)
 
@@ -423,7 +419,6 @@ struct ptlrpc_cli_ctx * gss_sec_lookup_ctx_pf(struct ptlrpc_sec *sec,
 	struct hlist_node       *next;
 	HLIST_HEAD(freelist);
 	unsigned int	    hash, gc = 0, found = 0;
-	ENTRY;
 
 	might_sleep();
 
@@ -545,7 +540,6 @@ int gss_sec_flush_ctx_cache_pf(struct ptlrpc_sec *sec,
 	struct hlist_node       *next;
 	HLIST_HEAD(freelist);
 	int i, busy = 0;
-	ENTRY;
 
 	might_sleep_if(grace);
 
@@ -704,7 +698,6 @@ void upcall_msg_delist(struct gss_upcall_msg *msg)
 static
 void gss_release_msg(struct gss_upcall_msg *gmsg)
 {
-	ENTRY;
 	LASSERT(atomic_read(&gmsg->gum_refcount) > 0);
 
 	if (!atomic_dec_and_test(&gmsg->gum_refcount)) {
@@ -809,7 +802,6 @@ ssize_t gss_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
 	char *data = (char *)msg->data + msg->copied;
 	ssize_t mlen = msg->len;
 	ssize_t left;
-	ENTRY;
 
 	if (mlen > buflen)
 		mlen = buflen;
@@ -835,7 +827,6 @@ ssize_t gss_pipe_downcall(struct file *filp, const char *src, size_t mlen)
 	int		      datalen;
 	int		      timeout, rc;
 	__u32		    mechidx, seq, gss_err;
-	ENTRY;
 
 	mechidx = (__u32) (long) rpci->private;
 	LASSERT(mechidx < MECH_MAX);
@@ -949,7 +940,6 @@ void gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	struct gss_upcall_msg	  *gmsg;
 	struct gss_upcall_msg_data     *gumd;
 	static cfs_time_t	       ratelimit = 0;
-	ENTRY;
 
 	LASSERT(list_empty(&msg->list));
 
@@ -988,7 +978,6 @@ void gss_pipe_release(struct inode *inode)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
 	__u32	     idx;
-	ENTRY;
 
 	idx = (__u32) (long) rpci->private;
 	LASSERT(idx < MECH_MAX);
@@ -1041,7 +1030,6 @@ int gss_ctx_refresh_pf(struct ptlrpc_cli_ctx *ctx)
 	struct gss_sec	     *gsec;
 	struct gss_upcall_msg      *gmsg;
 	int			 rc = 0;
-	ENTRY;
 
 	might_sleep();
 

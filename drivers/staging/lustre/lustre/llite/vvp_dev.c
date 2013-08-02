@@ -224,7 +224,6 @@ int cl_sb_fini(struct super_block *sb)
 	int		refcheck;
 	int		result;
 
-	ENTRY;
 	sbi = ll_s2sbi(sb);
 	env = cl_env_get(&refcheck);
 	if (!IS_ERR(env)) {

@@ -155,7 +155,6 @@ kportal_memhog_alloc (struct libcfs_device_userstate *ldu, int npages, int flags
 static int libcfs_psdev_open(unsigned long flags, void *args)
 {
 	struct libcfs_device_userstate *ldu;
-	ENTRY;
 
 	try_module_get(THIS_MODULE);
 
@@ -173,7 +172,6 @@ static int libcfs_psdev_open(unsigned long flags, void *args)
 static int libcfs_psdev_release(unsigned long flags, void *args)
 {
 	struct libcfs_device_userstate *ldu;
-	ENTRY;
 
 	ldu = (struct libcfs_device_userstate *)args;
 	if (ldu != NULL) {
@@ -222,7 +220,6 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 			    void *arg, struct libcfs_ioctl_data *data)
 {
 	int err = -EINVAL;
-	ENTRY;
 
 	switch (cmd) {
 	case IOC_LIBCFS_CLEAR_DEBUG:
@@ -330,7 +327,6 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 	char    *buf;
 	struct libcfs_ioctl_data *data;
 	int err = 0;
-	ENTRY;
 
 	LIBCFS_ALLOC_GFP(buf, 1024, GFP_IOFS);
 	if (buf == NULL)

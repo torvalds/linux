@@ -343,7 +343,6 @@ ksocknal_receive (ksock_conn_t *conn)
 	 * Caller checks ksnc_rx_nob_wanted to determine
 	 * progress/completion. */
 	int     rc;
-	ENTRY;
 
 	if (ksocknal_data.ksnd_stall_rx != 0) {
 		cfs_pause(cfs_time_seconds (ksocknal_data.ksnd_stall_rx));
@@ -389,7 +388,6 @@ ksocknal_tx_done (lnet_ni_t *ni, ksock_tx_t *tx)
 {
 	lnet_msg_t  *lnetmsg = tx->tx_lnetmsg;
 	int	  rc = (tx->tx_resid == 0 && !tx->tx_zc_aborted) ? 0 : -EIO;
-	ENTRY;
 
 	LASSERT(ni != NULL || tx->tx_conn != NULL);
 
@@ -1562,7 +1560,6 @@ int ksocknal_scheduler(void *arg)
 void ksocknal_read_callback (ksock_conn_t *conn)
 {
 	ksock_sched_t *sched;
-	ENTRY;
 
 	sched = conn->ksnc_scheduler;
 
@@ -1591,7 +1588,6 @@ void ksocknal_read_callback (ksock_conn_t *conn)
 void ksocknal_write_callback (ksock_conn_t *conn)
 {
 	ksock_sched_t *sched;
-	ENTRY;
 
 	sched = conn->ksnc_scheduler;
 

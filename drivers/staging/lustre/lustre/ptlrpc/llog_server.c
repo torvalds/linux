@@ -71,8 +71,6 @@ int llog_origin_handle_open(struct ptlrpc_request *req)
 	char			*name = NULL;
 	int			 rc;
 
-	ENTRY;
-
 	body = req_capsule_client_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	if (body == NULL)
 		RETURN(-EFAULT);
@@ -127,8 +125,6 @@ int llog_origin_handle_destroy(struct ptlrpc_request *req)
 	struct llog_ctxt	*ctxt;
 	int			 rc;
 
-	ENTRY;
-
 	body = req_capsule_client_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	if (body == NULL)
 		RETURN(-EFAULT);
@@ -168,8 +164,6 @@ int llog_origin_handle_next_block(struct ptlrpc_request *req)
 	__u32		flags;
 	void		*ptr;
 	int		  rc;
-
-	ENTRY;
 
 	body = req_capsule_client_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	if (body == NULL)
@@ -230,8 +224,6 @@ int llog_origin_handle_prev_block(struct ptlrpc_request *req)
 	void		 *ptr;
 	int		   rc;
 
-	ENTRY;
-
 	body = req_capsule_client_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	if (body == NULL)
 		RETURN(-EFAULT);
@@ -290,8 +282,6 @@ int llog_origin_handle_read_header(struct ptlrpc_request *req)
 	__u32		 flags;
 	int		   rc;
 
-	ENTRY;
-
 	body = req_capsule_client_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	if (body == NULL)
 		RETURN(-EFAULT);
@@ -336,7 +326,6 @@ EXPORT_SYMBOL(llog_origin_handle_read_header);
 
 int llog_origin_handle_close(struct ptlrpc_request *req)
 {
-	ENTRY;
 	/* Nothing to do */
 	RETURN(0);
 }
@@ -352,7 +341,6 @@ int llog_origin_handle_cancel(struct ptlrpc_request *req)
 	struct llog_handle *cathandle;
 	struct inode *inode;
 	void *handle;
-	ENTRY;
 
 	logcookies = req_capsule_client_get(&req->rq_pill, &RMF_LOGCOOKIES);
 	num_cookies = req_capsule_get_size(&req->rq_pill, &RMF_LOGCOOKIES,

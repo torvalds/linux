@@ -116,7 +116,6 @@ static struct cl_object *lov_sub_find(const struct lu_env *env,
 {
 	struct lu_object *o;
 
-	ENTRY;
 	o = lu_object_find_at(env, cl2lu_dev(dev), fid, &conf->coc_lu);
 	LASSERT(ergo(!IS_ERR(o), o->lo_dev->ld_type == &lovsub_device_type));
 	RETURN(lu2cl(o));
@@ -203,8 +202,6 @@ static int lov_init_raid0(const struct lu_env *env,
 	struct lov_stripe_md    *lsm     = conf->u.coc_md->lsm;
 	struct lu_fid	   *ofid    = &lti->lti_fid;
 	struct lov_layout_raid0 *r0      = &state->raid0;
-
-	ENTRY;
 
 	if (lsm->lsm_magic != LOV_MAGIC_V1 && lsm->lsm_magic != LOV_MAGIC_V3) {
 		dump_lsm(D_ERROR, lsm);
@@ -338,8 +335,6 @@ static int lov_delete_raid0(const struct lu_env *env, struct lov_object *lov,
 	struct lov_stripe_md    *lsm = lov->lo_lsm;
 	int i;
 
-	ENTRY;
-
 	dump_lsm(D_INODE, lsm);
 
 	lov_layout_wait(env, lov);
@@ -371,7 +366,6 @@ static void lov_fini_raid0(const struct lu_env *env, struct lov_object *lov,
 			   union lov_layout_state *state)
 {
 	struct lov_layout_raid0 *r0 = &state->raid0;
-	ENTRY;
 
 	if (r0->lo_sub != NULL) {
 		OBD_FREE_LARGE(r0->lo_sub, r0->lo_nr * sizeof r0->lo_sub[0]);
@@ -387,7 +381,6 @@ static void lov_fini_raid0(const struct lu_env *env, struct lov_object *lov,
 static void lov_fini_released(const struct lu_env *env, struct lov_object *lov,
 				union lov_layout_state *state)
 {
-	ENTRY;
 	dump_lsm(D_INODE, lov->lo_lsm);
 	lov_free_memmd(&lov->lo_lsm);
 	EXIT;
@@ -452,8 +445,6 @@ static int lov_attr_get_raid0(const struct lu_env *env, struct cl_object *obj,
 	struct lov_layout_raid0 *r0 = lov_r0(lov);
 	struct cl_attr		*lov_attr = &r0->lo_attr;
 	int			 result = 0;
-
-	ENTRY;
 
 	/* this is called w/o holding type guard mutex, so it must be inside
 	 * an on going IO otherwise lsm may be replaced.
@@ -634,7 +625,6 @@ static void lov_conf_unlock(struct lov_object *lov)
 static int lov_layout_wait(const struct lu_env *env, struct lov_object *lov)
 {
 	struct l_wait_info lwi = { 0 };
-	ENTRY;
 
 	while (atomic_read(&lov->lo_active_ios) > 0) {
 		CDEBUG(D_INODE, "file:"DFID" wait for active IO, now: %d.\n",
@@ -661,7 +651,6 @@ static int lov_layout_change(const struct lu_env *unused,
 	void *cookie;
 	struct lu_env *env;
 	int refcheck;
-	ENTRY;
 
 	LASSERT(0 <= lov->lo_type && lov->lo_type < ARRAY_SIZE(lov_dispatch));
 
@@ -721,7 +710,6 @@ int lov_object_init(const struct lu_env *env, struct lu_object *obj,
 	const struct lov_layout_operations *ops;
 	int result;
 
-	ENTRY;
 	init_rwsem(&lov->lo_type_guard);
 	atomic_set(&lov->lo_active_ios, 0);
 	init_waitqueue_head(&lov->lo_waitq);
@@ -743,7 +731,6 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 	struct lov_stripe_md	*lsm = NULL;
 	struct lov_object	*lov = cl2lov(obj);
 	int			 result = 0;
-	ENTRY;
 
 	lov_conf_lock(lov);
 	if (conf->coc_opc == OBJECT_CONF_INVALIDATE) {
@@ -791,7 +778,6 @@ static void lov_object_delete(const struct lu_env *env, struct lu_object *obj)
 {
 	struct lov_object *lov = lu2lov(obj);
 
-	ENTRY;
 	LOV_2DISPATCH_VOID(lov, llo_delete, env, lov, &lov->u);
 	EXIT;
 }
@@ -800,7 +786,6 @@ static void lov_object_free(const struct lu_env *env, struct lu_object *obj)
 {
 	struct lov_object *lov = lu2lov(obj);
 
-	ENTRY;
 	LOV_2DISPATCH_VOID(lov, llo_fini, env, lov, &lov->u);
 	lu_object_fini(obj);
 	OBD_SLAB_FREE_PTR(lov, lov_object_kmem);
@@ -887,7 +872,6 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 	struct lov_object *lov;
 	struct lu_object  *obj;
 
-	ENTRY;
 	OBD_SLAB_ALLOC_PTR_GFP(lov, lov_object_kmem, __GFP_IO);
 	if (lov != NULL) {
 		obj = lov2lu(lov);
@@ -958,7 +942,6 @@ int lov_read_and_clear_async_rc(struct cl_object *clob)
 {
 	struct lu_object *luobj;
 	int rc = 0;
-	ENTRY;
 
 	luobj = lu_object_locate(&cl_object_header(clob)->coh_lu,
 				 &lov_device_type);

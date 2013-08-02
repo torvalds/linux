@@ -469,8 +469,6 @@ static inline int llog_destroy(const struct lu_env *env,
 	struct llog_operations *lop;
 	int rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(handle, &lop);
 	if (rc)
 		RETURN(rc);
@@ -488,8 +486,6 @@ static inline int llog_next_block(const struct lu_env *env,
 {
 	struct llog_operations *lop;
 	int rc;
-
-	ENTRY;
 
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
@@ -509,8 +505,6 @@ static inline int llog_prev_block(const struct lu_env *env,
 	struct llog_operations *lop;
 	int rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
 		RETURN(rc);
@@ -527,8 +521,6 @@ static inline int llog_connect(struct llog_ctxt *ctxt,
 {
 	struct llog_operations	*lop;
 	int			 rc;
-
-	ENTRY;
 
 	rc = llog_obd2ops(ctxt, &lop);
 	if (rc)

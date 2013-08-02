@@ -118,7 +118,6 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 	ext_acl_xattr_header *acl = NULL;
 #endif
 	const char *pv = value;
-	ENTRY;
 
 	xattr_type = get_xattr_type(name);
 	rc = xattr_type_filter(sbi, xattr_type);
@@ -287,7 +286,6 @@ int ll_getxattr_common(struct inode *inode, const char *name,
 	void *xdata;
 	struct obd_capa *oc;
 	struct rmtacl_ctl_entry *rce = NULL;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p)\n",
 	       inode->i_ino, inode->i_generation, inode);

@@ -75,7 +75,6 @@ int ptlrpc_obd_ping(struct obd_device *obd)
 {
 	int rc;
 	struct ptlrpc_request *req;
-	ENTRY;
 
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	if (req == NULL)
@@ -94,7 +93,6 @@ EXPORT_SYMBOL(ptlrpc_obd_ping);
 int ptlrpc_ping(struct obd_import *imp)
 {
 	struct ptlrpc_request *req;
-	ENTRY;
 
 	req = ptlrpc_prep_ping(imp);
 	if (req == NULL) {
@@ -297,7 +295,6 @@ static void ptlrpc_pinger_process_import(struct obd_import *imp,
 static int ptlrpc_pinger_main(void *arg)
 {
 	struct ptlrpc_thread *thread = (struct ptlrpc_thread *)arg;
-	ENTRY;
 
 	/* Record that the thread is running */
 	thread_set_flags(thread, SVC_RUNNING);
@@ -375,7 +372,6 @@ int ptlrpc_start_pinger(void)
 {
 	struct l_wait_info lwi = { 0 };
 	int rc;
-	ENTRY;
 
 	if (!thread_is_init(&pinger_thread) &&
 	    !thread_is_stopped(&pinger_thread))
@@ -413,7 +409,6 @@ int ptlrpc_stop_pinger(void)
 {
 	struct l_wait_info lwi = { 0 };
 	int rc = 0;
-	ENTRY;
 
 	if (!thread_is_init(&pinger_thread) &&
 	    !thread_is_stopped(&pinger_thread))
@@ -452,7 +447,6 @@ void ptlrpc_pinger_commit_expected(struct obd_import *imp)
 
 int ptlrpc_pinger_add_import(struct obd_import *imp)
 {
-	ENTRY;
 	if (!list_empty(&imp->imp_pinger_chain))
 		RETURN(-EALREADY);
 
@@ -475,7 +469,6 @@ EXPORT_SYMBOL(ptlrpc_pinger_add_import);
 
 int ptlrpc_pinger_del_import(struct obd_import *imp)
 {
-	ENTRY;
 	if (list_empty(&imp->imp_pinger_chain))
 		RETURN(-ENOENT);
 
@@ -652,7 +645,6 @@ static int ping_evictor_main(void *arg)
 	struct obd_export *exp;
 	struct l_wait_info lwi = { 0 };
 	time_t expire_time;
-	ENTRY;
 
 	unshare_fs_struct();
 

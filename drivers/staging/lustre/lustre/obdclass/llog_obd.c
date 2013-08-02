@@ -110,7 +110,6 @@ int llog_cleanup(const struct lu_env *env, struct llog_ctxt *ctxt)
 	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 	struct obd_llog_group *olg;
 	int rc, idx;
-	ENTRY;
 
 	LASSERT(ctxt != NULL);
 	LASSERT(ctxt != LP_POISON);
@@ -149,7 +148,6 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 {
 	struct llog_ctxt *ctxt;
 	int rc = 0;
-	ENTRY;
 
 	if (index < 0 || index >= LLOG_MAX_CTXTS)
 		RETURN(-EINVAL);
@@ -217,7 +215,6 @@ EXPORT_SYMBOL(llog_setup);
 int llog_sync(struct llog_ctxt *ctxt, struct obd_export *exp, int flags)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (!ctxt)
 		RETURN(0);
@@ -234,7 +231,6 @@ int llog_obd_add(const struct lu_env *env, struct llog_ctxt *ctxt,
 		 struct llog_cookie *logcookies, int numcookies)
 {
 	int raised, rc;
-	ENTRY;
 
 	if (!ctxt) {
 		CERROR("No ctxt\n");
@@ -261,7 +257,6 @@ int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
 		struct llog_cookie *cookies, int flags)
 {
 	int rc;
-	ENTRY;
 
 	if (!ctxt) {
 		CERROR("No ctxt\n");
@@ -278,7 +273,7 @@ int obd_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
 		  struct obd_device *disk_obd, int *index)
 {
 	int rc;
-	ENTRY;
+
 	OBD_CHECK_DT_OP(obd, llog_init, 0);
 	OBD_COUNTER_INCREMENT(obd, llog_init);
 
@@ -290,7 +285,7 @@ EXPORT_SYMBOL(obd_llog_init);
 int obd_llog_finish(struct obd_device *obd, int count)
 {
 	int rc;
-	ENTRY;
+
 	OBD_CHECK_DT_OP(obd, llog_finish, 0);
 	OBD_COUNTER_INCREMENT(obd, llog_finish);
 

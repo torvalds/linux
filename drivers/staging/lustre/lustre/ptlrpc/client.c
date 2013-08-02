@@ -137,7 +137,6 @@ struct ptlrpc_bulk_desc *ptlrpc_prep_bulk_imp(struct ptlrpc_request *req,
 	struct obd_import *imp = req->rq_import;
 	struct ptlrpc_bulk_desc *desc;
 
-	ENTRY;
 	LASSERT(type == BULK_PUT_SINK || type == BULK_GET_SOURCE);
 	desc = ptlrpc_new_bulk(npages, max_brw, type, portal);
 	if (desc == NULL)
@@ -187,7 +186,6 @@ EXPORT_SYMBOL(__ptlrpc_prep_bulk_page);
 void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 {
 	int i;
-	ENTRY;
 
 	LASSERT(desc != NULL);
 	LASSERT(desc->bd_iov_count != LI_POISON); /* not freed already */
@@ -336,7 +334,6 @@ static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 	struct ptlrpc_request *early_req;
 	time_t		 olddl;
 	int		    rc;
-	ENTRY;
 
 	req->rq_early = 0;
 	spin_unlock(&req->rq_lock);
@@ -547,7 +544,6 @@ static int __ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 {
 	struct obd_import  *imp = request->rq_import;
 	int		 rc;
-	ENTRY;
 
 	if (unlikely(ctx))
 		request->rq_cli_ctx = sptlrpc_cli_ctx_get(ctx);
@@ -822,7 +818,6 @@ struct ptlrpc_request_set *ptlrpc_prep_set(void)
 {
 	struct ptlrpc_request_set *set;
 
-	ENTRY;
 	OBD_ALLOC(set, sizeof *set);
 	if (!set)
 		RETURN(NULL);
@@ -883,7 +878,6 @@ void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 	struct list_head       *next;
 	int	       expected_phase;
 	int	       n = 0;
-	ENTRY;
 
 	/* Requests on the set should either all be completed, or all be new */
 	expected_phase = (atomic_read(&set->set_remaining) == 0) ?
@@ -1027,7 +1021,6 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 				   struct ptlrpc_request *req, int *status)
 {
 	int delay = 0;
-	ENTRY;
 
 	LASSERT (status != NULL);
 	*status = 0;
@@ -1120,7 +1113,6 @@ static int ptlrpc_console_allow(struct ptlrpc_request *req)
 static int ptlrpc_check_status(struct ptlrpc_request *req)
 {
 	int err;
-	ENTRY;
 
 	err = lustre_msg_get_status(req->rq_repmsg);
 	if (lustre_msg_get_type(req->rq_repmsg) == PTL_RPC_MSG_ERR) {
@@ -1156,7 +1148,6 @@ static void ptlrpc_save_versions(struct ptlrpc_request *req)
 	struct lustre_msg *repmsg = req->rq_repmsg;
 	struct lustre_msg *reqmsg = req->rq_reqmsg;
 	__u64 *versions = lustre_msg_get_versions(repmsg);
-	ENTRY;
 
 	if (lustre_msg_get_flags(req->rq_reqmsg) & MSG_REPLAY)
 		return;
@@ -1183,7 +1174,6 @@ static int after_reply(struct ptlrpc_request *req)
 	int rc;
 	struct timeval work_start;
 	long timediff;
-	ENTRY;
 
 	LASSERT(obd != NULL);
 	/* repbuf must be unlinked */
@@ -1372,7 +1362,6 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 {
 	struct obd_import     *imp = req->rq_import;
 	int rc;
-	ENTRY;
 
 	LASSERT(req->rq_phase == RQ_PHASE_NEW);
 	if (req->rq_sent && (req->rq_sent > cfs_time_current_sec()) &&
@@ -1447,7 +1436,6 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 static inline int ptlrpc_set_producer(struct ptlrpc_request_set *set)
 {
 	int remaining, rc;
-	ENTRY;
 
 	LASSERT(set->set_producer != NULL);
 
@@ -1478,7 +1466,6 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 {
 	struct list_head *tmp, *next;
 	int force_timer_recalc = 0;
-	ENTRY;
 
 	if (atomic_read(&set->set_remaining) == 0)
 		RETURN(1);
@@ -1847,7 +1834,6 @@ int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink)
 {
 	struct obd_import *imp = req->rq_import;
 	int rc = 0;
-	ENTRY;
 
 	spin_lock(&req->rq_lock);
 	req->rq_timedout = 1;
@@ -1919,7 +1905,6 @@ int ptlrpc_expired_set(void *data)
 	struct ptlrpc_request_set *set = data;
 	struct list_head		*tmp;
 	time_t		     now = cfs_time_current_sec();
-	ENTRY;
 
 	LASSERT(set != NULL);
 
@@ -2006,7 +1991,6 @@ int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 	int		    timeout = 0;
 	struct ptlrpc_request *req;
 	int		    deadline;
-	ENTRY;
 
 	SIGNAL_MASK_ASSERT(); /* XXX BUG 1511 */
 
@@ -2061,7 +2045,6 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 	struct ptlrpc_request *req;
 	struct l_wait_info     lwi;
 	int		    rc, timeout;
-	ENTRY;
 
 	if (set->set_producer)
 		(void)ptlrpc_set_producer(set);
@@ -2185,7 +2168,6 @@ EXPORT_SYMBOL(ptlrpc_set_wait);
  */
 static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 {
-	ENTRY;
 	if (request == NULL) {
 		EXIT;
 		return;
@@ -2263,7 +2245,6 @@ EXPORT_SYMBOL(ptlrpc_req_finished_with_imp_lock);
  */
 static int __ptlrpc_req_finished(struct ptlrpc_request *request, int locked)
 {
-	ENTRY;
 	if (request == NULL)
 		RETURN(1);
 
@@ -2397,7 +2378,6 @@ void ptlrpc_free_committed(struct obd_import *imp)
 	struct list_head *tmp, *saved;
 	struct ptlrpc_request *req;
 	struct ptlrpc_request *last_req = NULL; /* temporary fire escape */
-	ENTRY;
 
 	LASSERT(imp != NULL);
 
@@ -2463,7 +2443,6 @@ free_req:
 
 void ptlrpc_cleanup_client(struct obd_import *imp)
 {
-	ENTRY;
 	EXIT;
 	return;
 }
@@ -2517,7 +2496,6 @@ EXPORT_SYMBOL(ptlrpc_restart_req);
  */
 struct ptlrpc_request *ptlrpc_request_addref(struct ptlrpc_request *req)
 {
-	ENTRY;
 	atomic_inc(&req->rq_refcount);
 	RETURN(req);
 }
@@ -2588,7 +2566,6 @@ int ptlrpc_queue_wait(struct ptlrpc_request *req)
 {
 	struct ptlrpc_request_set *set;
 	int rc;
-	ENTRY;
 
 	LASSERT(req->rq_set == NULL);
 	LASSERT(!req->rq_receiving_reply);
@@ -2629,7 +2606,6 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 	struct ptlrpc_replay_async_args *aa = data;
 	struct obd_import *imp = req->rq_import;
 
-	ENTRY;
 	atomic_dec(&imp->imp_replay_inflight);
 
 	if (!ptlrpc_client_replied(req)) {
@@ -2721,7 +2697,6 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 int ptlrpc_replay_req(struct ptlrpc_request *req)
 {
 	struct ptlrpc_replay_async_args *aa;
-	ENTRY;
 
 	LASSERT(req->rq_import->imp_state == LUSTRE_IMP_REPLAY);
 
@@ -2761,7 +2736,6 @@ EXPORT_SYMBOL(ptlrpc_replay_req);
 void ptlrpc_abort_inflight(struct obd_import *imp)
 {
 	struct list_head *tmp, *n;
-	ENTRY;
 
 	/* Make sure that no new requests get processed for this import.
 	 * ptlrpc_{queue,set}_wait must (and does) hold imp_lock while testing
@@ -2969,7 +2943,6 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 {
 	struct ptlrpc_request	 *req = NULL;
 	struct ptlrpc_work_async_args *args;
-	ENTRY;
 
 	might_sleep();
 

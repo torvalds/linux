@@ -1026,8 +1026,6 @@ cfs_hash_create(char *name, unsigned cur_bits, unsigned max_bits,
 	cfs_hash_t *hs;
 	int	 len;
 
-	ENTRY;
-
 	CLASSERT(CFS_HASH_THETA_BITS < 15);
 
 	LASSERT(name != NULL);
@@ -1101,7 +1099,6 @@ cfs_hash_destroy(cfs_hash_t *hs)
 	struct hlist_node     *pos;
 	cfs_hash_bd_t	 bd;
 	int		   i;
-	ENTRY;
 
 	LASSERT(hs != NULL);
 	LASSERT(!cfs_hash_is_exiting(hs) &&
@@ -1449,7 +1446,6 @@ cfs_hash_for_each_tight(cfs_hash_t *hs, cfs_hash_for_each_cb_t func,
 	int		   excl  = !!remove_safe;
 	int		   loop  = 0;
 	int		   i;
-	ENTRY;
 
 	cfs_hash_for_each_enter(hs);
 
@@ -1594,7 +1590,6 @@ cfs_hash_for_each_relax(cfs_hash_t *hs, cfs_hash_for_each_cb_t func, void *data)
 	int	       stop_on_change;
 	int	       rc;
 	int	       i;
-	ENTRY;
 
 	stop_on_change = cfs_hash_with_rehash_key(hs) ||
 			 !cfs_hash_with_no_itemref(hs) ||
@@ -1649,8 +1644,6 @@ int
 cfs_hash_for_each_nolock(cfs_hash_t *hs,
 			 cfs_hash_for_each_cb_t func, void *data)
 {
-	ENTRY;
-
 	if (cfs_hash_with_no_lock(hs) ||
 	    cfs_hash_with_rehash_key(hs) ||
 	    !cfs_hash_with_no_itemref(hs))
@@ -1685,7 +1678,6 @@ cfs_hash_for_each_empty(cfs_hash_t *hs,
 			cfs_hash_for_each_cb_t func, void *data)
 {
 	unsigned  i = 0;
-	ENTRY;
 
 	if (cfs_hash_with_no_lock(hs))
 		return -EOPNOTSUPP;

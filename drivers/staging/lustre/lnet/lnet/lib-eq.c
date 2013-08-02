@@ -244,7 +244,6 @@ lnet_eq_dequeue_event(lnet_eq_t *eq, lnet_event_t *ev)
 	int		new_index = eq->eq_deq_seq & (eq->eq_size - 1);
 	lnet_event_t	*new_event = &eq->eq_events[new_index];
 	int		rc;
-	ENTRY;
 
 	/* must called with lnet_eq_wait_lock hold */
 	if (LNET_SEQ_GT(eq->eq_deq_seq, new_event->sequence))
@@ -400,7 +399,6 @@ LNetEQPoll(lnet_handle_eq_t *eventqs, int neq, int timeout_ms,
 	int	wait = 1;
 	int	rc;
 	int	i;
-	ENTRY;
 
 	LASSERT (the_lnet.ln_init);
 	LASSERT (the_lnet.ln_refcount > 0);

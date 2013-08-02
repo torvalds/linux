@@ -83,7 +83,6 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	struct obd_ioctl_data *data;
 	int err;
 	int offset = 0;
-	ENTRY;
 
 	err = copy_from_user(&hdr, (void *)arg, sizeof(hdr));
 	if ( err )
@@ -169,8 +168,6 @@ EXPORT_SYMBOL(obd_ioctl_popdata);
 /*  opening /dev/obd */
 static int obd_class_open(struct inode * inode, struct file * file)
 {
-	ENTRY;
-
 	try_module_get(THIS_MODULE);
 	RETURN(0);
 }
@@ -178,8 +175,6 @@ static int obd_class_open(struct inode * inode, struct file * file)
 /*  closing /dev/obd */
 static int obd_class_release(struct inode * inode, struct file * file)
 {
-	ENTRY;
-
 	module_put(THIS_MODULE);
 	RETURN(0);
 }
@@ -189,7 +184,6 @@ static long obd_class_ioctl(struct file *filp, unsigned int cmd,
 			    unsigned long arg)
 {
 	int err = 0;
-	ENTRY;
 
 	/* Allow non-root access for OBD_IOC_PING_TARGET - used by lfs check */
 	if (!cfs_capable(CFS_CAP_SYS_ADMIN) && (cmd != OBD_IOC_PING_TARGET))
@@ -386,7 +380,6 @@ struct file_operations obd_device_list_fops = {
 int class_procfs_init(void)
 {
 	int rc = 0;
-	ENTRY;
 
 	obd_sysctl_init();
 	proc_lustre_root = lprocfs_register("fs/lustre", NULL,
@@ -407,7 +400,6 @@ out:
 
 int class_procfs_clean(void)
 {
-	ENTRY;
 	if (proc_lustre_root) {
 		lprocfs_remove(&proc_lustre_root);
 	}

@@ -78,7 +78,6 @@ static struct ll_sb_info *ll_init_sbi(void)
 	struct sysinfo si;
 	class_uuid_t uuid;
 	int i;
-	ENTRY;
 
 	OBD_ALLOC(sbi, sizeof(*sbi));
 	if (!sbi)
@@ -146,7 +145,6 @@ static struct ll_sb_info *ll_init_sbi(void)
 void ll_free_sbi(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	ENTRY;
 
 	if (sbi != NULL) {
 		spin_lock(&ll_sb_lock);
@@ -177,7 +175,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	struct lustre_md lmd;
 	obd_valid valid;
 	int size, err, checksum;
-	ENTRY;
 
 	obd = class_name2obd(md);
 	if (!obd) {
@@ -677,7 +674,6 @@ void lustre_dump_dentry(struct dentry *dentry, int recur)
 void client_common_put_super(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	ENTRY;
 
 #ifdef CONFIG_FS_POSIX_ACL
 	if (sbi->ll_flags & LL_SBI_RMT_CLIENT) {
@@ -712,8 +708,6 @@ void ll_kill_super(struct super_block *sb)
 {
 	struct ll_sb_info *sbi;
 
-	ENTRY;
-
 	/* not init sb ?*/
 	if (!(sb->s_flags & MS_ACTIVE))
 		return;
@@ -733,7 +727,6 @@ char *ll_read_opt(const char *opt, char *data)
 {
 	char *value;
 	char *retval;
-	ENTRY;
 
 	CDEBUG(D_SUPER, "option: %s, data %s\n", opt, data);
 	if (strncmp(opt, data, strlen(opt)))
@@ -766,7 +759,6 @@ static int ll_options(char *options, int *flags)
 {
 	int tmp;
 	char *s1 = options, *s2;
-	ENTRY;
 
 	if (!options)
 		RETURN(0);
@@ -978,7 +970,6 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	/* %p for void* in printf needs 16+2 characters: 0xffffffffffffffff */
 	const int instlen = sizeof(cfg->cfg_instance) * 2 + 2;
 	int    err;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p\n", sb);
 
@@ -1070,7 +1061,6 @@ void ll_put_super(struct super_block *sb)
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	char *profilenm = get_profile_name(sb);
 	int next, force = 1;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p - %s\n", sb, profilenm);
 
@@ -1177,7 +1167,6 @@ void ll_clear_inode(struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p)\n", inode->i_ino,
 	       inode->i_generation, inode);
@@ -1250,7 +1239,6 @@ int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ptlrpc_request *request = NULL;
 	int rc, ia_valid;
-	ENTRY;
 
 	op_data = ll_prep_md_op_data(op_data, inode, NULL, NULL, 0, 0,
 				     LUSTRE_OPC_ANY, NULL);
@@ -1309,7 +1297,6 @@ static int ll_setattr_done_writing(struct inode *inode,
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	int rc = 0;
-	ENTRY;
 
 	LASSERT(op_data != NULL);
 	if (!S_ISREG(inode->i_mode))
@@ -1375,7 +1362,6 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr)
 	struct md_op_data *op_data = NULL;
 	struct md_open_data *mod = NULL;
 	int rc = 0, rc1 = 0;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "%s: setattr inode %p/fid:"DFID" from %llu to %llu, "
 		"valid %x\n", ll_get_fsname(inode->i_sb, NULL, 0), inode,
@@ -1540,7 +1526,6 @@ int ll_statfs_internal(struct super_block *sb, struct obd_statfs *osfs,
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_statfs obd_osfs;
 	int rc;
-	ENTRY;
 
 	rc = obd_statfs(NULL, sbi->ll_md_exp, osfs, max_age, flags);
 	if (rc) {
@@ -1791,7 +1776,6 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 {
 	struct lustre_md *md = opaque;
 	struct ll_inode_info *lli = ll_i2info(inode);
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
 	       PFID(&lli->lli_fid), inode);
@@ -1840,7 +1824,6 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 void ll_delete_inode(struct inode *inode)
 {
 	struct cl_inode_info *lli = cl_i2info(inode);
-	ENTRY;
 
 	if (S_ISREG(inode->i_mode) && lli->lli_clob != NULL)
 		/* discard all dirty pages before truncating them, required by
@@ -1874,7 +1857,6 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ptlrpc_request *req = NULL;
 	int rc, flags = 0;
-	ENTRY;
 
 	switch(cmd) {
 	case FSFILT_IOC_GETFLAGS: {
@@ -1984,8 +1966,6 @@ void ll_umount_begin(struct super_block *sb)
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_device *obd;
 	struct obd_ioctl_data *ioc_data;
-	ENTRY;
-
 
 	CDEBUG(D_VFSTRACE, "VFS Op: superblock %p count %d active %d\n", sb,
 	       sb->s_count, atomic_read(&sb->s_active));
@@ -2066,7 +2046,6 @@ int ll_prep_inode(struct inode **inode, struct ptlrpc_request *req,
 	struct ll_sb_info *sbi = NULL;
 	struct lustre_md md;
 	int rc;
-	ENTRY;
 
 	LASSERT(*inode || sb);
 	sbi = sb ? ll_s2sbi(sb) : ll_i2sbi(*inode);
@@ -2321,7 +2300,6 @@ int ll_get_obd_name(struct inode *inode, unsigned int cmd, unsigned long arg)
 {
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct obd_device *obd;
-	ENTRY;
 
 	if (cmd == OBD_IOC_GETDTNAME)
 		obd = class_exp2obd(sbi->ll_dt_exp);

@@ -59,7 +59,7 @@ static void free_dentry_data(struct rcu_head *head)
 static void ll_release(struct dentry *de)
 {
 	struct ll_dentry_data *lld;
-	ENTRY;
+
 	LASSERT(de != NULL);
 	lld = ll_d2d(de);
 	if (lld == NULL) /* NFS copies the de->d_op methods (bug 4655) */
@@ -87,8 +87,6 @@ static void ll_release(struct dentry *de)
 int ll_dcompare(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-	ENTRY;
-
 	if (len != name->len)
 		RETURN(1);
 
@@ -127,7 +125,6 @@ static int find_cbdata(struct inode *inode)
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct lov_stripe_md *lsm;
 	int rc = 0;
-	ENTRY;
 
 	LASSERT(inode);
 	rc = md_find_cbdata(sbi->ll_md_exp, ll_inode2fid(inode),
@@ -154,7 +151,6 @@ static int find_cbdata(struct inode *inode)
  */
 static int ll_ddelete(const struct dentry *de)
 {
-	ENTRY;
 	LASSERT(de);
 
 	CDEBUG(D_DENTRY, "%s dentry %.*s (%p, parent %p, inode %p) %s%s\n",
@@ -184,7 +180,6 @@ static int ll_ddelete(const struct dentry *de)
 
 static int ll_set_dd(struct dentry *de)
 {
-	ENTRY;
 	LASSERT(de != NULL);
 
 	CDEBUG(D_DENTRY, "ldd on dentry %.*s (%p) parent %p inode %p refc %d\n",
@@ -259,8 +254,6 @@ void ll_intent_drop_lock(struct lookup_intent *it)
 
 void ll_intent_release(struct lookup_intent *it)
 {
-	ENTRY;
-
 	CDEBUG(D_INFO, "intent %p released\n", it);
 	ll_intent_drop_lock(it);
 	/* We are still holding extra reference on a request, need to free it */
@@ -281,7 +274,6 @@ void ll_invalidate_aliases(struct inode *inode)
 {
 	struct dentry *dentry;
 	struct ll_d_hlist_node *p;
-	ENTRY;
 
 	LASSERT(inode != NULL);
 
@@ -315,7 +307,6 @@ int ll_revalidate_it_finish(struct ptlrpc_request *request,
 			    struct dentry *de)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (!request)
 		RETURN(0);
@@ -370,7 +361,6 @@ int ll_revalidate_it(struct dentry *de, int lookup_flags,
 	struct inode *parent = de->d_parent->d_inode;
 	int rc;
 
-	ENTRY;
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%s,intent=%s\n", de->d_name.name,
 	       LL_IT2STR(it));
 
@@ -639,7 +629,6 @@ int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 	struct inode *parent = dentry->d_parent->d_inode;
 	int unplug = 0;
 
-	ENTRY;
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%s,flags=%u\n",
 	       dentry->d_name.name, flags);
 

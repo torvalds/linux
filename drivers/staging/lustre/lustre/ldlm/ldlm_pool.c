@@ -335,7 +335,6 @@ static void ldlm_srv_pool_push_slv(struct ldlm_pool *pl)
 static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
 {
 	time_t recalc_interval_sec;
-	ENTRY;
 
 	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period)
@@ -473,7 +472,6 @@ static void ldlm_cli_pool_pop_slv(struct ldlm_pool *pl)
 static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 {
 	time_t recalc_interval_sec;
-	ENTRY;
 
 	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period)
@@ -733,7 +731,6 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	struct lprocfs_vars pool_vars[2];
 	char *var_name = NULL;
 	int rc = 0;
-	ENTRY;
 
 	OBD_ALLOC(var_name, MAX_STRING_SIZE + 1);
 	if (!var_name)
@@ -835,7 +832,6 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		   int idx, ldlm_side_t client)
 {
 	int rc;
-	ENTRY;
 
 	spin_lock_init(&pl->pl_lock);
 	atomic_set(&pl->pl_granted, 0);
@@ -873,7 +869,6 @@ EXPORT_SYMBOL(ldlm_pool_init);
 
 void ldlm_pool_fini(struct ldlm_pool *pl)
 {
-	ENTRY;
 	ldlm_pool_proc_fini(pl);
 
 	/*
@@ -1302,7 +1297,6 @@ static int ldlm_pools_thread_main(void *arg)
 {
 	struct ptlrpc_thread *thread = (struct ptlrpc_thread *)arg;
 	int s_time, c_time;
-	ENTRY;
 
 	thread_set_flags(thread, SVC_RUNNING);
 	wake_up(&thread->t_ctl_waitq);
@@ -1349,7 +1343,6 @@ static int ldlm_pools_thread_start(void)
 {
 	struct l_wait_info lwi = { 0 };
 	task_t *task;
-	ENTRY;
 
 	if (ldlm_pools_thread != NULL)
 		RETURN(-EALREADY);
@@ -1376,8 +1369,6 @@ static int ldlm_pools_thread_start(void)
 
 static void ldlm_pools_thread_stop(void)
 {
-	ENTRY;
-
 	if (ldlm_pools_thread == NULL) {
 		EXIT;
 		return;
@@ -1400,7 +1391,6 @@ static void ldlm_pools_thread_stop(void)
 int ldlm_pools_init(void)
 {
 	int rc;
-	ENTRY;
 
 	rc = ldlm_pools_thread_start();
 	if (rc == 0) {

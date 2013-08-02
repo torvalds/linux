@@ -57,7 +57,6 @@ int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 	int rc, easize, def_easize, cookiesize;
 	struct lov_desc desc;
 	__u16 stripes;
-	ENTRY;
 
 	rc = obd_get_info(NULL, dt_exp, sizeof(KEY_LOVDESC), KEY_LOVDESC,
 			  &valsize, &desc, NULL);
@@ -95,7 +94,6 @@ int cl_ocd_update(struct obd_device *host,
 	__u64 flags;
 	int   result;
 
-	ENTRY;
 	if (!strcmp(watched->obd_type->typ_name, LUSTRE_OSC_NAME)) {
 		cli = &watched->u.cli;
 		lco = owner;

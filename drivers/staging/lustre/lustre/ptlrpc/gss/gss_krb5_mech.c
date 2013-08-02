@@ -890,7 +890,6 @@ int krb5_encrypt_rawobjs(struct ll_crypto_cipher *tfm,
 	__u8		  local_iv[16] = {0}, *buf;
 	__u32		 datalen = 0;
 	int		   i, rc;
-	ENTRY;
 
 	buf = outobj->data;
 	desc.tfm  = tfm;

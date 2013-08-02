@@ -202,7 +202,6 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 	struct list_head *layers;
 	int clean;
 	int result;
-	ENTRY;
 
 	/*
 	 * Create top-level object slice. This will also create
@@ -980,7 +979,6 @@ int lu_site_init(struct lu_site *s, struct lu_device *top)
 	char name[16];
 	int bits;
 	int i;
-	ENTRY;
 
 	memset(s, 0, sizeof *s);
 	bits = lu_htable_order();

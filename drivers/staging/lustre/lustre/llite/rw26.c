@@ -247,7 +247,6 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 	long page_size      = cl_page_size(obj);
 	bool do_io;
 	int  io_pages       = 0;
-	ENTRY;
 
 	queue = &io->ci_queue;
 	cl_2queue_init(queue);
@@ -381,7 +380,6 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	unsigned long seg = 0;
 	long size = MAX_DIO_SIZE;
 	int refcheck;
-	ENTRY;
 
 	if (!lli->lli_has_smd)
 		RETURN(-EBADF);
@@ -504,7 +502,6 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 	struct page *page;
 	int rc;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
-	ENTRY;
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)

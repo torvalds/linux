@@ -335,7 +335,6 @@ int class_attach(struct lustre_cfg *lcfg)
 	struct obd_device *obd = NULL;
 	char *typename, *name, *uuid;
 	int rc, len;
-	ENTRY;
 
 	if (!LUSTRE_CFG_BUFLEN(lcfg, 1)) {
 		CERROR("No type passed!\n");
@@ -449,7 +448,6 @@ int class_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	int err = 0;
 	struct obd_export *exp;
-	ENTRY;
 
 	LASSERT(obd != NULL);
 	LASSERTF(obd == class_num2obd(obd->obd_minor),
@@ -572,8 +570,6 @@ EXPORT_SYMBOL(class_setup);
  */
 int class_detach(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
-	ENTRY;
-
 	if (obd->obd_set_up) {
 		CERROR("OBD device %d still set up\n", obd->obd_minor);
 		RETURN(-EBUSY);
@@ -604,7 +600,6 @@ int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	int err = 0;
 	char *flag;
-	ENTRY;
 
 	OBD_RACE(OBD_FAIL_LDLM_RECOV_CLIENTS);
 
@@ -767,7 +762,6 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 	struct obd_import *imp;
 	struct obd_uuid uuid;
 	int rc;
-	ENTRY;
 
 	if (LUSTRE_CFG_BUFLEN(lcfg, 1) < 1 ||
 	    LUSTRE_CFG_BUFLEN(lcfg, 1) > sizeof(struct obd_uuid)) {
@@ -803,7 +797,6 @@ int class_del_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 	struct obd_import *imp;
 	struct obd_uuid uuid;
 	int rc;
-	ENTRY;
 
 	if (LUSTRE_CFG_BUFLEN(lcfg, 1) < 1 ||
 	    LUSTRE_CFG_BUFLEN(lcfg, 1) > sizeof(struct obd_uuid)) {
@@ -834,7 +827,6 @@ struct lustre_profile *class_get_profile(const char * prof)
 {
 	struct lustre_profile *lprof;
 
-	ENTRY;
 	list_for_each_entry(lprof, &lustre_profile_list, lp_list) {
 		if (!strcmp(lprof->lp_profile, prof)) {
 			RETURN(lprof);
@@ -853,7 +845,6 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 {
 	struct lustre_profile *lprof;
 	int err = 0;
-	ENTRY;
 
 	CDEBUG(D_CONFIG, "Add profile %s\n", prof);
 
@@ -899,7 +890,6 @@ out:
 void class_del_profile(const char *prof)
 {
 	struct lustre_profile *lprof;
-	ENTRY;
 
 	CDEBUG(D_CONFIG, "Del profile %s\n", prof);
 
@@ -920,7 +910,6 @@ EXPORT_SYMBOL(class_del_profile);
 void class_del_profiles(void)
 {
 	struct lustre_profile *lprof, *n;
-	ENTRY;
 
 	list_for_each_entry_safe(lprof, n, &lustre_profile_list, lp_list) {
 		list_del(&lprof->lp_list);
@@ -936,7 +925,6 @@ EXPORT_SYMBOL(class_del_profiles);
 
 static int class_set_global(char *ptr, int val, struct lustre_cfg *lcfg)
 {
-	ENTRY;
 	if (class_match_param(ptr, PARAM_AT_MIN, NULL) == 0)
 		at_min = val;
 	else if (class_match_param(ptr, PARAM_AT_MAX, NULL) == 0)
@@ -991,7 +979,6 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 	char			*value = NULL;
 	int			 name_len = 0;
 	int			 new_len = 0;
-	ENTRY;
 
 	if (cfg == NULL || new_name == NULL)
 		RETURN(ERR_PTR(-EINVAL));
@@ -1244,7 +1231,6 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 	int matched = 0, j = 0;
 	int rc = 0;
 	int skip = 0;
-	ENTRY;
 
 	if (lcfg->lcfg_command != LCFG_PARAM) {
 		CERROR("Unknown command: %d\n", lcfg->lcfg_command);
@@ -1335,7 +1321,6 @@ int class_config_llog_handler(const struct lu_env *env,
 	int cfg_len = rec->lrh_len;
 	char *cfg_buf = (char*) (rec + 1);
 	int rc = 0;
-	ENTRY;
 
 	//class_config_dump_handler(handle, rec, data);
 
@@ -1527,7 +1512,6 @@ int class_config_parse_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
 	struct llog_handle		*llh;
 	llog_cb_t			 callback;
 	int				 rc;
-	ENTRY;
 
 	CDEBUG(D_INFO, "looking up llog %s\n", name);
 	rc = llog_open(env, ctxt, &llh, NULL, name, LLOG_OPEN_EXISTS);
@@ -1574,8 +1558,6 @@ int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf, int size)
 	char			*end = buf + size;
 	int			 rc = 0;
 
-	ENTRY;
-
 	LASSERT(rec->lrh_type == OBD_CFG_REC);
 	rc = lustre_cfg_sanity_check(lcfg, rec->lrh_len);
 	if (rc < 0)
@@ -1620,8 +1602,6 @@ int class_config_dump_handler(const struct lu_env *env,
 	char	*outstr;
 	int	 rc = 0;
 
-	ENTRY;
-
 	OBD_ALLOC(outstr, 256);
 	if (outstr == NULL)
 		RETURN(-ENOMEM);
@@ -1643,8 +1623,6 @@ int class_config_dump_llog(const struct lu_env *env, struct llog_ctxt *ctxt,
 {
 	struct llog_handle	*llh;
 	int			 rc;
-
-	ENTRY;
 
 	LCONSOLE_INFO("Dumping config log %s\n", name);
 
@@ -1674,7 +1652,6 @@ int class_manual_cleanup(struct obd_device *obd)
 	struct lustre_cfg      *lcfg;
 	struct lustre_cfg_bufs  bufs;
 	int		     rc;
-	ENTRY;
 
 	if (!obd) {
 		CERROR("empty cleanup\n");

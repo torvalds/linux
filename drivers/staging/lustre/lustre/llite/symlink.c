@@ -50,7 +50,6 @@ static int ll_readlink_internal(struct inode *inode,
 	int rc, symlen = i_size_read(inode) + 1;
 	struct mdt_body *body;
 	struct md_op_data *op_data;
-	ENTRY;
 
 	*request = NULL;
 
@@ -122,7 +121,6 @@ static int ll_readlink(struct dentry *dentry, char *buffer, int buflen)
 	struct ptlrpc_request *request;
 	char *symname;
 	int rc;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op\n");
 
@@ -144,7 +142,6 @@ static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
 	struct ptlrpc_request *request = NULL;
 	int rc;
 	char *symname;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op\n");
 	/* Limit the recursive symlink depth to 5 instead of default

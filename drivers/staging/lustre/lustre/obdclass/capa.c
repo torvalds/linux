@@ -276,7 +276,6 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	unsigned int min;
 	int rc;
 	char alg[CRYPTO_MAX_ALG_NAME+1] = "aes";
-	ENTRY;
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
@@ -329,7 +328,6 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	unsigned int min;
 	int rc;
 	char alg[CRYPTO_MAX_ALG_NAME+1] = "aes";
-	ENTRY;
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */

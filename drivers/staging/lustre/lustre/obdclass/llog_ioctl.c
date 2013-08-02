@@ -45,7 +45,6 @@ static int str2logid(struct llog_logid *logid, char *str, int len)
 	char *start, *end, *endp;
 	__u64 id, seq;
 
-	ENTRY;
 	start = str;
 	if (*start != '#')
 		RETURN(-EINVAL);
@@ -95,8 +94,6 @@ static int llog_check_cb(const struct lu_env *env, struct llog_handle *handle,
 	static char *out;
 	char *endp;
 	int cur_index, rc = 0;
-
-	ENTRY;
 
 	if (ioc_data && ioc_data->ioc_inllen1 > 0) {
 		l = 0;
@@ -182,7 +179,6 @@ static int llog_print_cb(const struct lu_env *env, struct llog_handle *handle,
 	char *endp;
 	int cur_index;
 
-	ENTRY;
 	if (ioc_data != NULL && ioc_data->ioc_inllen1 > 0) {
 		l = 0;
 		remains = ioc_data->ioc_inllen4 +
@@ -244,8 +240,6 @@ static int llog_remove_log(const struct lu_env *env, struct llog_handle *cat,
 	struct llog_handle	*log;
 	int			 rc;
 
-	ENTRY;
-
 	rc = llog_cat_id2handle(env, cat, &log, logid);
 	if (rc) {
 		CDEBUG(D_IOCTL, "cannot find log #"DOSTID"#%08x\n",
@@ -271,7 +265,6 @@ static int llog_delete_cb(const struct lu_env *env, struct llog_handle *handle,
 	struct llog_logid_rec	*lir = (struct llog_logid_rec *)rec;
 	int			 rc;
 
-	ENTRY;
 	if (rec->lrh_type != LLOG_LOGID_MAGIC)
 		RETURN(-EINVAL);
 	rc = llog_remove_log(env, handle, &lir->lid_id);
@@ -286,8 +279,6 @@ int llog_ioctl(const struct lu_env *env, struct llog_ctxt *ctxt, int cmd,
 	struct llog_logid	 logid;
 	int			 rc = 0;
 	struct llog_handle	*handle = NULL;
-
-	ENTRY;
 
 	if (*data->ioc_inlbuf1 == '#') {
 		rc = str2logid(&logid, data->ioc_inlbuf1, data->ioc_inllen1);

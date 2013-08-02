@@ -122,7 +122,6 @@ static void lov_req_completion(const struct lu_env *env,
 {
 	struct lov_req *lr;
 
-	ENTRY;
 	lr = cl2lov_req(slice);
 	OBD_SLAB_FREE_PTR(lr, lov_req_kmem);
 	EXIT;
@@ -260,7 +259,6 @@ static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct lov_req *lr;
 	int result;
 
-	ENTRY;
 	OBD_SLAB_ALLOC_PTR_GFP(lr, lov_req_kmem, __GFP_IO);
 	if (lr != NULL) {
 		cl_req_slice_add(req, &lr->lr_cl, dev, &lov_req_ops);
@@ -311,7 +309,6 @@ static void lov_cl_del_target(const struct lu_env *env, struct lu_device *dev,
 			      __u32 index)
 {
 	struct lov_device *ld = lu2lov_dev(dev);
-	ENTRY;
 
 	if (ld->ld_target[index] != NULL) {
 		cl_stack_fini(env, lovsub2cl_dev(ld->ld_target[index]));
@@ -360,7 +357,6 @@ static int lov_expand_targets(const struct lu_env *env, struct lov_device *dev)
 	__u32 tgt_size;
 	__u32 sub_size;
 
-	ENTRY;
 	result = 0;
 	tgt_size = dev->ld_lov->lov_tgt_size;
 	sub_size = dev->ld_target_nr;
@@ -404,7 +400,6 @@ static int lov_cl_add_target(const struct lu_env *env, struct lu_device *dev,
 	struct lovsub_device *lsd;
 	struct cl_device     *cl;
 	int rc;
-	ENTRY;
 
 	obd_getref(obd);
 

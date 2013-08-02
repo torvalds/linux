@@ -505,7 +505,7 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 {
 	int rc;
-	ENTRY;
+
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&mcw->mcw_entry);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);

@@ -70,7 +70,6 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 			       size_t count)
 {
 	struct vm_area_struct *vma, *ret = NULL;
-	ENTRY;
 
 	/* mmap_sem must have been held by caller. */
 	LASSERT(!down_write_trylock(&mm->mmap_sem));
@@ -109,7 +108,6 @@ struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
 	struct cl_fault_io     *fio;
 	struct lu_env	       *env;
 	int			rc;
-	ENTRY;
 
 	*env_ret = NULL;
 	if (ll_file_nolock(file))
@@ -182,7 +180,6 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	sigset_t	     set;
 	struct inode	     *inode;
 	struct ll_inode_info     *lli;
-	ENTRY;
 
 	LASSERT(vmpage != NULL);
 
@@ -306,7 +303,6 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct cl_env_nest       nest;
 	int		      result;
 	int		      fault_ret = 0;
-	ENTRY;
 
 	io = ll_fault_io_init(vma, &env,  &nest, vmf->pgoff, &ra_flags);
 	if (IS_ERR(io))
@@ -433,7 +429,6 @@ static void ll_vm_open(struct vm_area_struct * vma)
 	struct inode *inode    = vma->vm_file->f_dentry->d_inode;
 	struct ccc_object *vob = cl_inode2ccc(inode);
 
-	ENTRY;
 	LASSERT(vma->vm_file);
 	LASSERT(atomic_read(&vob->cob_mmap_cnt) >= 0);
 	atomic_inc(&vob->cob_mmap_cnt);
@@ -448,7 +443,6 @@ static void ll_vm_close(struct vm_area_struct *vma)
 	struct inode      *inode = vma->vm_file->f_dentry->d_inode;
 	struct ccc_object *vob   = cl_inode2ccc(inode);
 
-	ENTRY;
 	LASSERT(vma->vm_file);
 	atomic_dec(&vob->cob_mmap_cnt);
 	LASSERT(atomic_read(&vob->cob_mmap_cnt) >= 0);
@@ -468,7 +462,6 @@ static inline unsigned long file_to_user(struct vm_area_struct *vma, __u64 byte)
 int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 {
 	int rc = -ENOENT;
-	ENTRY;
 
 	LASSERTF(last > first, "last "LPU64" first "LPU64"\n", last, first);
 	if (mapping_mapped(mapping)) {
@@ -491,7 +484,6 @@ int ll_file_mmap(struct file *file, struct vm_area_struct * vma)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	int rc;
-	ENTRY;
 
 	if (ll_file_nolock(file))
 		RETURN(-EOPNOTSUPP);

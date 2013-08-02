@@ -280,7 +280,6 @@ __u32 gss_unseal_msg(struct gss_ctx *mechctx,
 	__u8		    *clear_buf;
 	int		      clear_buflen;
 	__u32		    major;
-	ENTRY;
 
 	if (msgbuf->lm_bufcount != 2) {
 		CERROR("invalid bufcount %d\n", msgbuf->lm_bufcount);
@@ -646,7 +645,6 @@ int gss_cli_ctx_sign(struct ptlrpc_cli_ctx *ctx,
 	struct gss_cli_ctx      *gctx = ctx2gctx(ctx);
 	__u32		    flags = 0, seq, svc;
 	int		      rc;
-	ENTRY;
 
 	LASSERT(req->rq_reqbuf);
 	LASSERT(req->rq_reqbuf->lm_bufcount >= 2);
@@ -765,7 +763,6 @@ int gss_cli_ctx_verify(struct ptlrpc_cli_ctx *ctx,
 	struct lustre_msg      *msg = req->rq_repdata;
 	__u32		   major;
 	int		     pack_bulk, swabbed, rc = 0;
-	ENTRY;
 
 	LASSERT(req->rq_cli_ctx == ctx);
 	LASSERT(msg);
@@ -889,7 +886,6 @@ int gss_cli_ctx_seal(struct ptlrpc_cli_ctx *ctx,
 	struct gss_header       *ghdr;
 	__u32		    buflens[2], major;
 	int		      wiresize, rc;
-	ENTRY;
 
 	LASSERT(req->rq_clrbuf);
 	LASSERT(req->rq_cli_ctx == ctx);
@@ -988,7 +984,6 @@ int gss_cli_ctx_unseal(struct ptlrpc_cli_ctx *ctx,
 	struct lustre_msg       *msg = req->rq_repdata;
 	int		      msglen, pack_bulk, swabbed, rc;
 	__u32		    major;
-	ENTRY;
 
 	LASSERT(req->rq_cli_ctx == ctx);
 	LASSERT(req->rq_ctx_init == 0);
@@ -1148,7 +1143,6 @@ int gss_sec_create_common(struct gss_sec *gsec,
 void gss_sec_destroy_common(struct gss_sec *gsec)
 {
 	struct ptlrpc_sec      *sec = &gsec->gs_base;
-	ENTRY;
 
 	LASSERT(sec->ps_import);
 	LASSERT(atomic_read(&sec->ps_refcount) == 0);
@@ -1260,7 +1254,6 @@ int gss_alloc_reqbuf_intg(struct ptlrpc_sec *sec,
 	int		       bufsize, txtsize;
 	int		       bufcnt = 2;
 	__u32		     buflens[5];
-	ENTRY;
 
 	/*
 	 * on-wire data layout:
@@ -1342,7 +1335,6 @@ int gss_alloc_reqbuf_priv(struct ptlrpc_sec *sec,
 	__u32		     ibuflens[3], wbuflens[2];
 	int		       ibufcnt;
 	int		       clearsize, wiresize;
-	ENTRY;
 
 	LASSERT(req->rq_clrbuf == NULL);
 	LASSERT(req->rq_clrbuf_len == 0);
@@ -1442,7 +1434,6 @@ void gss_free_reqbuf(struct ptlrpc_sec *sec,
 		     struct ptlrpc_request *req)
 {
 	int     privacy;
-	ENTRY;
 
 	LASSERT(!req->rq_pool || req->rq_reqbuf);
 	privacy = SPTLRPC_FLVR_SVC(req->rq_flvr.sf_rpc) == SPTLRPC_SVC_PRIV;
@@ -1578,7 +1569,6 @@ int gss_alloc_repbuf(struct ptlrpc_sec *sec,
 		     int msgsize)
 {
 	int     svc = SPTLRPC_FLVR_SVC(req->rq_flvr.sf_rpc);
-	ENTRY;
 
 	LASSERT(!req->rq_pack_bulk ||
 		(req->rq_bulk_read || req->rq_bulk_write));
@@ -1891,7 +1881,6 @@ int gss_svc_sign(struct ptlrpc_request *req,
 {
 	__u32   flags = 0;
 	int     rc;
-	ENTRY;
 
 	LASSERT(rs->rs_msg == lustre_msg_buf(rs->rs_repbuf, 1, 0));
 
@@ -1933,7 +1922,6 @@ int gss_pack_err_notify(struct ptlrpc_request *req, __u32 major, __u32 minor)
 	struct gss_err_header     *ghdr;
 	int			replen = sizeof(struct ptlrpc_body);
 	int			rc;
-	ENTRY;
 
 	//if (OBD_FAIL_CHECK_ORSET(OBD_FAIL_SVCGSS_ERR_NOTIFY, OBD_FAIL_ONCE))
 	//      RETURN(-EINVAL);
@@ -1978,7 +1966,6 @@ int gss_svc_handle_init(struct ptlrpc_request *req,
 	__u32		      lustre_svc;
 	__u32		     *secdata, seclen;
 	int			swabbed, rc;
-	ENTRY;
 
 	CDEBUG(D_SEC, "processing gss init(%d) request from %s\n", gw->gw_proc,
 	       libcfs_nid2str(req->rq_peer.nid));
@@ -2094,7 +2081,6 @@ int gss_svc_verify_request(struct ptlrpc_request *req,
 	struct lustre_msg  *msg = req->rq_reqbuf;
 	int		 offset = 2;
 	int		 swabbed;
-	ENTRY;
 
 	*major = GSS_S_COMPLETE;
 
@@ -2174,7 +2160,6 @@ int gss_svc_unseal_request(struct ptlrpc_request *req,
 	struct gss_svc_ctx *gctx = grctx->src_ctx;
 	struct lustre_msg  *msg = req->rq_reqbuf;
 	int		 swabbed, msglen, offset = 1;
-	ENTRY;
 
 	if (gss_check_seq_num(&gctx->gsc_seqdata, gw->gw_seq, 0)) {
 		CERROR("phase 0: discard replayed req: seq %u\n", gw->gw_seq);
@@ -2249,7 +2234,6 @@ int gss_svc_handle_data(struct ptlrpc_request *req,
 	struct gss_svc_reqctx *grctx = gss_svc_ctx2reqctx(req->rq_svc_ctx);
 	__u32		  major = 0;
 	int		    rc = 0;
-	ENTRY;
 
 	grctx->src_ctx = gss_svc_upcall_get_ctx(req, gw);
 	if (!grctx->src_ctx) {
@@ -2294,7 +2278,6 @@ int gss_svc_handle_destroy(struct ptlrpc_request *req,
 {
 	struct gss_svc_reqctx  *grctx = gss_svc_ctx2reqctx(req->rq_svc_ctx);
 	__u32		   major;
-	ENTRY;
 
 	req->rq_ctx_fini = 1;
 	req->rq_no_reply = 1;
@@ -2343,7 +2326,6 @@ int gss_svc_accept(struct ptlrpc_sec_policy *policy, struct ptlrpc_request *req)
 	struct gss_svc_reqctx  *grctx;
 	struct gss_wire_ctx    *gw;
 	int		     swabbed, rc;
-	ENTRY;
 
 	LASSERT(req->rq_reqbuf);
 	LASSERT(req->rq_svc_ctx == NULL);
@@ -2434,7 +2416,6 @@ int gss_svc_accept(struct ptlrpc_sec_policy *policy, struct ptlrpc_request *req)
 void gss_svc_invalidate_ctx(struct ptlrpc_svc_ctx *svc_ctx)
 {
 	struct gss_svc_reqctx  *grctx;
-	ENTRY;
 
 	if (svc_ctx == NULL) {
 		EXIT;
@@ -2496,7 +2477,6 @@ int gss_svc_alloc_rs(struct ptlrpc_request *req, int msglen)
 	__u32			ibuflens[2], buflens[4];
 	int			  ibufcnt = 0, bufcnt;
 	int			  txtsize, wmsg_size, rs_size;
-	ENTRY;
 
 	LASSERT(msglen % 8 == 0);
 
@@ -2619,7 +2599,6 @@ static int gss_svc_seal(struct ptlrpc_request *req,
 	int		      token_buflen;
 	__u32		    buflens[2], major;
 	int		      msglen, rc;
-	ENTRY;
 
 	/* get clear data length. note embedded lustre_msg might
 	 * have been shrinked */
@@ -2712,7 +2691,6 @@ int gss_svc_authorize(struct ptlrpc_request *req)
 	struct gss_svc_reqctx     *grctx = gss_svc_ctx2reqctx(req->rq_svc_ctx);
 	struct gss_wire_ctx       *gw = &grctx->src_wirectx;
 	int			early, rc;
-	ENTRY;
 
 	early = (req->rq_packed_final == 0);
 

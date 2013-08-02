@@ -50,7 +50,6 @@ void vvp_write_pending(struct ccc_object *club, struct ccc_page *page)
 {
 	struct ll_inode_info *lli = ll_i2info(club->cob_inode);
 
-	ENTRY;
 	spin_lock(&lli->lli_lock);
 	lli->lli_flags |= LLIF_SOM_DIRTY;
 	if (page != NULL && list_empty(&page->cpg_pending_linkage))
@@ -66,7 +65,6 @@ void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
 	struct ll_inode_info *lli = ll_i2info(club->cob_inode);
 	int rc = 0;
 
-	ENTRY;
 	spin_lock(&lli->lli_lock);
 	if (page != NULL && !list_empty(&page->cpg_pending_linkage)) {
 		list_del_init(&page->cpg_pending_linkage);
@@ -85,7 +83,6 @@ void ll_queue_done_writing(struct inode *inode, unsigned long flags)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ccc_object *club = cl2ccc(ll_i2info(inode)->lli_clob);
-	ENTRY;
 
 	spin_lock(&lli->lli_lock);
 	lli->lli_flags |= flags;
@@ -126,7 +123,6 @@ void ll_queue_done_writing(struct inode *inode, unsigned long flags)
 void ll_done_writing_attr(struct inode *inode, struct md_op_data *op_data)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
-	ENTRY;
 
 	op_data->op_flags |= MF_SOM_CHANGE;
 	/* Check if Size-on-MDS attributes are valid. */
@@ -149,7 +145,6 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ccc_object *club = cl2ccc(ll_i2info(inode)->lli_clob);
-	ENTRY;
 
 	spin_lock(&lli->lli_lock);
 	if (!(list_empty(&club->cob_pending_list))) {
@@ -225,7 +220,6 @@ int ll_som_update(struct inode *inode, struct md_op_data *op_data)
 	__u32 old_flags;
 	struct obdo *oa;
 	int rc;
-	ENTRY;
 
 	LASSERT(op_data != NULL);
 	if (lli->lli_flags & LLIF_MDS_SIZE_LOCK)
@@ -293,7 +287,6 @@ static void ll_done_writing(struct inode *inode)
 	struct obd_client_handle *och = NULL;
 	struct md_op_data *op_data;
 	int rc;
-	ENTRY;
 
 	LASSERT(exp_connect_som(ll_i2mdexp(inode)));
 
@@ -347,7 +340,6 @@ static struct ll_inode_info *ll_close_next_lli(struct ll_close_queue *lcq)
 static int ll_close_thread(void *arg)
 {
 	struct ll_close_queue *lcq = arg;
-	ENTRY;
 
 	complete(&lcq->lcq_comp);
 

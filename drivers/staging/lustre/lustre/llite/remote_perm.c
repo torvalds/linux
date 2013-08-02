@@ -123,7 +123,6 @@ static int do_check_remote_perm(struct ll_inode_info *lli, int mask)
 	struct hlist_head *head;
 	struct ll_remote_perm *lrp;
 	int found = 0, rc;
-	ENTRY;
 
 	if (!lli->lli_remote_perms)
 		RETURN(-ENOENT);
@@ -163,7 +162,6 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_remote_perm *lrp = NULL, *tmp = NULL;
 	struct hlist_head *head, *perm_hash = NULL;
-	ENTRY;
 
 	LASSERT(ll_i2sbi(inode)->ll_flags & LL_SBI_RMT_CLIENT);
 
@@ -253,7 +251,6 @@ int lustre_check_remote_perm(struct inode *inode, int mask)
 	struct obd_capa *oc;
 	cfs_time_t save;
 	int i = 0, rc;
-	ENTRY;
 
 	do {
 		save = lli->lli_rmtperm_time;

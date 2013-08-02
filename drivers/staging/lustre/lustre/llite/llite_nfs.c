@@ -91,7 +91,6 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 						      ll_need_32bit_api(sbi));
 	struct  md_op_data    *op_data;
 	int		   rc;
-	ENTRY;
 
 	CDEBUG(D_INFO, "searching inode for:(%lu,"DFID")\n", hash, PFID(fid));
 
@@ -139,7 +138,6 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 {
 	struct inode  *inode;
 	struct dentry *result;
-	ENTRY;
 
 	CDEBUG(D_INFO, "Get dentry for fid: "DFID"\n", PFID(fid));
 	if (!fid_is_sane(fid))
@@ -192,7 +190,6 @@ static int ll_encode_fh(struct inode *inode, __u32 *fh, int *plen,
 			struct inode *parent)
 {
 	struct lustre_nfs_fid *nfs_fid = (void *)fh;
-	ENTRY;
 
 	CDEBUG(D_INFO, "encoding for (%lu,"DFID") maxlen=%d minlen=%d\n",
 	      inode->i_ino, PFID(ll_inode2fid(inode)), *plen,
@@ -236,7 +233,6 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		.lgd_fid = ll_i2info(child->d_inode)->lli_fid,
 		.ctx.actor = ll_nfs_get_name_filldir,
 	};
-	ENTRY;
 
 	if (!dir || !S_ISDIR(dir->i_mode))
 		GOTO(out, rc = -ENOTDIR);
@@ -288,7 +284,6 @@ static struct dentry *ll_get_parent(struct dentry *dchild)
 	struct md_op_data     *op_data;
 	int		   rc;
 	int		      lmmsize;
-	ENTRY;
 
 	LASSERT(dir && S_ISDIR(dir->i_mode));
 

@@ -219,7 +219,6 @@ static int osc_page_cache_add(const struct lu_env *env,
 	struct osc_io   *oio = osc_env_io(env);
 	struct osc_page *opg = cl2osc_page(slice);
 	int result;
-	ENTRY;
 
 	LINVRNT(osc_page_protected(env, opg, CLM_WRITE, 0));
 
@@ -294,7 +293,6 @@ static int osc_page_is_under_lock(const struct lu_env *env,
 	struct cl_lock *lock;
 	int	     result = -ENODATA;
 
-	ENTRY;
 	lock = cl_lock_at_page(env, slice->cpl_obj, slice->cpl_page,
 			       NULL, 1, 0);
 	if (lock != NULL) {
@@ -421,7 +419,6 @@ static void osc_page_delete(const struct lu_env *env,
 
 	LINVRNT(opg->ops_temp || osc_page_protected(env, opg, CLM_READ, 1));
 
-	ENTRY;
 	CDEBUG(D_TRACE, "%p\n", opg);
 	osc_page_transfer_put(env, opg);
 	rc = osc_teardown_async_page(env, obj, opg);
@@ -481,7 +478,7 @@ static int osc_page_flush(const struct lu_env *env,
 {
 	struct osc_page *opg = cl2osc_page(slice);
 	int rc = 0;
-	ENTRY;
+
 	rc = osc_flush_async_page(env, io, opg);
 	RETURN(rc);
 }
@@ -666,7 +663,6 @@ int osc_lru_shrink(struct client_obd *cli, int target)
 	int count = 0;
 	int index = 0;
 	int rc = 0;
-	ENTRY;
 
 	LASSERT(atomic_read(&cli->cl_lru_in_list) >= 0);
 	if (atomic_read(&cli->cl_lru_in_list) == 0 || target <= 0)
@@ -881,7 +877,6 @@ static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
 	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 	struct client_obd *cli = osc_cli(obj);
 	int rc = 0;
-	ENTRY;
 
 	if (cli->cl_cache == NULL) /* shall not be in LRU */
 		RETURN(0);

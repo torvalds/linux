@@ -309,11 +309,6 @@ do {								    \
 # error "Unkown compiler"
 #endif /* __GNUC__ */
 
-#define ENTRY							   \
-do {								    \
-	CDEBUG(D_TRACE, "Process entered\n");			   \
-} while (0)
-
 #define EXIT							    \
 do {								    \
 	CDEBUG(D_TRACE, "Process leaving\n");			   \

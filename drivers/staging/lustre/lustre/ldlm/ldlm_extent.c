@@ -72,7 +72,6 @@ __u64 ldlm_extent_shift_kms(struct ldlm_lock *lock, __u64 old_kms)
 	struct list_head *tmp;
 	struct ldlm_lock *lck;
 	__u64 kms = 0;
-	ENTRY;
 
 	/* don't let another thread in ldlm_extent_shift_kms race in
 	 * just after we finish and take our lock into account in its
@@ -103,7 +102,6 @@ struct kmem_cache *ldlm_interval_slab;
 struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 {
 	struct ldlm_interval *node;
-	ENTRY;
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
 	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);

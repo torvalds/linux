@@ -396,7 +396,6 @@ int sptlrpc_req_get_ctx(struct ptlrpc_request *req)
 	struct obd_import *imp = req->rq_import;
 	struct ptlrpc_sec *sec;
 	int		rc;
-	ENTRY;
 
 	LASSERT(!req->rq_cli_ctx);
 	LASSERT(imp);
@@ -428,8 +427,6 @@ int sptlrpc_req_get_ctx(struct ptlrpc_request *req)
  */
 void sptlrpc_req_put_ctx(struct ptlrpc_request *req, int sync)
 {
-	ENTRY;
-
 	LASSERT(req);
 	LASSERT(req->rq_cli_ctx);
 
@@ -520,7 +517,6 @@ int sptlrpc_req_replace_dead_ctx(struct ptlrpc_request *req)
 	struct ptlrpc_cli_ctx *oldctx = req->rq_cli_ctx;
 	struct ptlrpc_cli_ctx *newctx;
 	int		    rc;
-	ENTRY;
 
 	LASSERT(oldctx);
 
@@ -639,7 +635,6 @@ int sptlrpc_req_refresh_ctx(struct ptlrpc_request *req, long timeout)
 	struct ptlrpc_sec      *sec;
 	struct l_wait_info      lwi;
 	int		     rc;
-	ENTRY;
 
 	LASSERT(ctx);
 
@@ -889,7 +884,6 @@ int sptlrpc_import_check_ctx(struct obd_import *imp)
 	struct ptlrpc_cli_ctx *ctx;
 	struct ptlrpc_request *req = NULL;
 	int rc;
-	ENTRY;
 
 	might_sleep();
 
@@ -941,7 +935,6 @@ int sptlrpc_cli_wrap_request(struct ptlrpc_request *req)
 {
 	struct ptlrpc_cli_ctx *ctx = req->rq_cli_ctx;
 	int rc = 0;
-	ENTRY;
 
 	LASSERT(ctx);
 	LASSERT(ctx->cc_sec);
@@ -984,7 +977,6 @@ static int do_cli_unwrap_reply(struct ptlrpc_request *req)
 {
 	struct ptlrpc_cli_ctx *ctx = req->rq_cli_ctx;
 	int		    rc;
-	ENTRY;
 
 	LASSERT(ctx);
 	LASSERT(ctx->cc_sec);
@@ -1096,7 +1088,6 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	char		   *early_buf;
 	int		     early_bufsz, early_size;
 	int		     rc;
-	ENTRY;
 
 	OBD_ALLOC_PTR(early_req);
 	if (early_req == NULL)
@@ -1285,7 +1276,6 @@ struct ptlrpc_sec * sptlrpc_sec_create(struct obd_import *imp,
 	struct ptlrpc_sec_policy *policy;
 	struct ptlrpc_sec	*sec;
 	char		      str[32];
-	ENTRY;
 
 	if (svc_ctx) {
 		LASSERT(imp->imp_dlm_fake == 1);
@@ -1406,7 +1396,6 @@ int sptlrpc_import_sec_adapt(struct obd_import *imp,
 	enum lustre_sec_part	sp;
 	char			str[24];
 	int			 rc = 0;
-	ENTRY;
 
 	might_sleep();
 
@@ -1669,7 +1658,6 @@ int sptlrpc_cli_alloc_repbuf(struct ptlrpc_request *req, int msgsize)
 {
 	struct ptlrpc_cli_ctx *ctx = req->rq_cli_ctx;
 	struct ptlrpc_sec_policy *policy;
-	ENTRY;
 
 	LASSERT(ctx);
 	LASSERT(ctx->cc_sec);
@@ -1690,7 +1678,6 @@ void sptlrpc_cli_free_repbuf(struct ptlrpc_request *req)
 {
 	struct ptlrpc_cli_ctx *ctx = req->rq_cli_ctx;
 	struct ptlrpc_sec_policy *policy;
-	ENTRY;
 
 	LASSERT(ctx);
 	LASSERT(ctx->cc_sec);
@@ -2033,7 +2020,6 @@ int sptlrpc_svc_unwrap_request(struct ptlrpc_request *req)
 	struct ptlrpc_sec_policy *policy;
 	struct lustre_msg	*msg = req->rq_reqbuf;
 	int		       rc;
-	ENTRY;
 
 	LASSERT(msg);
 	LASSERT(req->rq_reqmsg == NULL);
@@ -2093,7 +2079,6 @@ int sptlrpc_svc_alloc_rs(struct ptlrpc_request *req, int msglen)
 	struct ptlrpc_sec_policy *policy;
 	struct ptlrpc_reply_state *rs;
 	int rc;
-	ENTRY;
 
 	LASSERT(req->rq_svc_ctx);
 	LASSERT(req->rq_svc_ctx->sc_policy);
@@ -2132,7 +2117,6 @@ int sptlrpc_svc_wrap_reply(struct ptlrpc_request *req)
 {
 	struct ptlrpc_sec_policy *policy;
 	int rc;
-	ENTRY;
 
 	LASSERT(req->rq_svc_ctx);
 	LASSERT(req->rq_svc_ctx->sc_policy);
@@ -2153,7 +2137,6 @@ void sptlrpc_svc_free_rs(struct ptlrpc_reply_state *rs)
 {
 	struct ptlrpc_sec_policy *policy;
 	unsigned int prealloc;
-	ENTRY;
 
 	LASSERT(rs->rs_svc_ctx);
 	LASSERT(rs->rs_svc_ctx->sc_policy);

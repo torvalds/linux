@@ -378,7 +378,6 @@ int gss_do_ctx_fini_rpc(struct gss_cli_ctx *gctx)
 	struct ptlrpc_request   *req;
 	struct ptlrpc_user_desc *pud;
 	int		      rc;
-	ENTRY;
 
 	LASSERT(atomic_read(&ctx->cc_refcount) > 0);
 

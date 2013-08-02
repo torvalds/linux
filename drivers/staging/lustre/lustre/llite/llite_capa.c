@@ -170,7 +170,6 @@ static int capa_thread_main(void *unused)
 	struct inode *inode = NULL;
 	struct l_wait_info lwi = { 0 };
 	int rc;
-	ENTRY;
 
 	thread_set_flags(&ll_capa_thread, SVC_RUNNING);
 	wake_up(&ll_capa_thread.t_ctl_waitq);
@@ -291,7 +290,6 @@ void ll_capa_timer_callback(unsigned long unused)
 int ll_capa_thread_start(void)
 {
 	task_t *task;
-	ENTRY;
 
 	init_waitqueue_head(&ll_capa_thread.t_ctl_waitq);
 
@@ -320,8 +318,6 @@ struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc)
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct obd_capa *ocapa;
 	int found = 0;
-
-	ENTRY;
 
 	if ((ll_i2sbi(inode)->ll_flags & LL_SBI_OSS_CAPA) == 0)
 		RETURN(NULL);
@@ -376,7 +372,6 @@ struct obd_capa *ll_mdscapa_get(struct inode *inode)
 {
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct obd_capa *ocapa;
-	ENTRY;
 
 	LASSERT(inode != NULL);
 
@@ -524,7 +519,6 @@ int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa)
 {
 	struct inode *inode = ocapa->u.cli.inode;
 	int rc = 0;
-	ENTRY;
 
 	LASSERT(ocapa);
 

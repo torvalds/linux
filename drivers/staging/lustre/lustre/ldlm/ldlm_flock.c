@@ -142,8 +142,6 @@ static inline void ldlm_flock_blocking_unlink(struct ldlm_lock *req)
 static inline void
 ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
 {
-	ENTRY;
-
 	LDLM_DEBUG(lock, "ldlm_flock_destroy(mode: %d, flags: 0x%llx)",
 		   mode, flags);
 
@@ -254,7 +252,6 @@ ldlm_process_flock_lock(struct ldlm_lock *req, __u64 *flags, int first_enq,
 	int splitted = 0;
 	const struct ldlm_callback_suite null_cbs = { NULL };
 	int rc;
-	ENTRY;
 
 	CDEBUG(D_DLMTRACE, "flags %#llx owner "LPU64" pid %u mode %u start "
 	       LPU64" end "LPU64"\n", *flags,
@@ -546,7 +543,6 @@ static void
 ldlm_flock_interrupted_wait(void *data)
 {
 	struct ldlm_lock *lock;
-	ENTRY;
 
 	lock = ((struct ldlm_flock_wait_data *)data)->fwd_lock;
 
@@ -581,7 +577,6 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	struct l_wait_info	      lwi;
 	ldlm_error_t		    err;
 	int			     rc = 0;
-	ENTRY;
 
 	CDEBUG(D_DLMTRACE, "flags: 0x%llx data: %p getlk: %p\n",
 	       flags, data, getlk);
@@ -705,8 +700,6 @@ EXPORT_SYMBOL(ldlm_flock_completion_ast);
 int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 			    void *data, int flag)
 {
-	ENTRY;
-
 	LASSERT(lock);
 	LASSERT(flag == LDLM_CB_CANCELING);
 
@@ -843,7 +836,6 @@ EXPORT_SYMBOL(ldlm_init_flock_export);
 
 void ldlm_destroy_flock_export(struct obd_export *exp)
 {
-	ENTRY;
 	if (exp->exp_flock_hash) {
 		cfs_hash_putref(exp->exp_flock_hash);
 		exp->exp_flock_hash = NULL;

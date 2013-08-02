@@ -65,7 +65,6 @@ void class_handle_hash(struct portals_handle *h,
 		       struct portals_handle_ops *ops)
 {
 	struct handle_bucket *bucket;
-	ENTRY;
 
 	LASSERT(h != NULL);
 	LASSERT(list_empty(&h->h_link));
@@ -139,7 +138,6 @@ EXPORT_SYMBOL(class_handle_unhash);
 void class_handle_hash_back(struct portals_handle *h)
 {
 	struct handle_bucket *bucket;
-	ENTRY;
 
 	bucket = handle_hash + (h->h_cookie & HANDLE_HASH_MASK);
 
@@ -157,7 +155,6 @@ void *class_handle2object(__u64 cookie)
 	struct handle_bucket *bucket;
 	struct portals_handle *h;
 	void *retval = NULL;
-	ENTRY;
 
 	LASSERT(handle_hash != NULL);
 

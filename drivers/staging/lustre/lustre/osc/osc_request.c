@@ -69,7 +69,6 @@ static int osc_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 		      struct lov_stripe_md *lsm)
 {
 	int lmm_size;
-	ENTRY;
 
 	lmm_size = sizeof(**lmmp);
 	if (lmmp == NULL)
@@ -101,7 +100,6 @@ static int osc_unpackmd(struct obd_export *exp, struct lov_stripe_md **lsmp,
 {
 	int lsm_size;
 	struct obd_import *imp = class_exp2cliimp(exp);
-	ENTRY;
 
 	if (lmm != NULL) {
 		if (lmm_bytes < sizeof(*lmm)) {
@@ -202,7 +200,6 @@ static int osc_getattr_interpret(const struct lu_env *env,
 				 struct osc_async_args *aa, int rc)
 {
 	struct ost_body *body;
-	ENTRY;
 
 	if (rc != 0)
 		GOTO(out, rc);
@@ -232,7 +229,6 @@ static int osc_getattr_async(struct obd_export *exp, struct obd_info *oinfo,
 	struct ptlrpc_request *req;
 	struct osc_async_args *aa;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_GETATTR);
 	if (req == NULL)
@@ -264,7 +260,6 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 	struct ptlrpc_request *req;
 	struct ost_body       *body;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_GETATTR);
 	if (req == NULL)
@@ -308,7 +303,6 @@ static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
 	struct ptlrpc_request *req;
 	struct ost_body       *body;
 	int		    rc;
-	ENTRY;
 
 	LASSERT(oinfo->oi_oa->o_valid & OBD_MD_FLGROUP);
 
@@ -349,7 +343,6 @@ static int osc_setattr_interpret(const struct lu_env *env,
 				 struct osc_setattr_args *sa, int rc)
 {
 	struct ost_body *body;
-	ENTRY;
 
 	if (rc != 0)
 		GOTO(out, rc);
@@ -373,7 +366,6 @@ int osc_setattr_async_base(struct obd_export *exp, struct obd_info *oinfo,
 	struct ptlrpc_request   *req;
 	struct osc_setattr_args *sa;
 	int		      rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_SETATTR);
 	if (req == NULL)
@@ -431,7 +423,6 @@ int osc_real_create(struct obd_export *exp, struct obdo *oa,
 	struct ost_body       *body;
 	struct lov_stripe_md  *lsm;
 	int		    rc;
-	ENTRY;
 
 	LASSERT(oa);
 	LASSERT(ea);
@@ -517,7 +508,6 @@ int osc_punch_base(struct obd_export *exp, struct obd_info *oinfo,
 	struct osc_setattr_args *sa;
 	struct ost_body	 *body;
 	int		      rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_PUNCH);
 	if (req == NULL)
@@ -571,7 +561,6 @@ static int osc_sync_interpret(const struct lu_env *env,
 {
 	struct osc_fsync_args *fa = arg;
 	struct ost_body *body;
-	ENTRY;
 
 	if (rc)
 		GOTO(out, rc);
@@ -596,7 +585,6 @@ int osc_sync_base(struct obd_export *exp, struct obd_info *oinfo,
 	struct ost_body       *body;
 	struct osc_fsync_args *fa;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_OST_SYNC);
 	if (req == NULL)
@@ -637,8 +625,6 @@ static int osc_sync(const struct lu_env *env, struct obd_export *exp,
 		    struct obd_info *oinfo, obd_size start, obd_size end,
 		    struct ptlrpc_request_set *set)
 {
-	ENTRY;
-
 	if (!oinfo->oi_oa) {
 		CDEBUG(D_INFO, "oa NULL\n");
 		RETURN(-EINVAL);
@@ -662,7 +648,6 @@ static int osc_resource_get_unused(struct obd_export *exp, struct obdo *oa,
 	struct ldlm_res_id res_id;
 	struct ldlm_resource *res;
 	int count;
-	ENTRY;
 
 	/* Return, i.e. cancel nothing, only if ELC is supported (flag in
 	 * export) but disabled through procfs (flag in NS).
@@ -720,7 +705,6 @@ int osc_create(const struct lu_env *env, struct obd_export *exp,
 	       struct obd_trans_info *oti)
 {
 	int rc = 0;
-	ENTRY;
 
 	LASSERT(oa);
 	LASSERT(ea);
@@ -760,7 +744,6 @@ static int osc_destroy(const struct lu_env *env, struct obd_export *exp,
 	struct ost_body       *body;
 	LIST_HEAD(cancels);
 	int rc, count;
-	ENTRY;
 
 	if (!oa) {
 		CDEBUG(D_INFO, "oa NULL\n");
@@ -948,7 +931,6 @@ int osc_shrink_grant_to_target(struct client_obd *cli, __u64 target_bytes)
 {
 	int			rc = 0;
 	struct ost_body	*body;
-	ENTRY;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	/* Don't shrink if we are already above or below the desired limit
@@ -1256,7 +1238,6 @@ static int osc_brw_prep_request(int cmd, struct client_obd *cli,struct obdo *oa,
 	struct req_capsule      *pill;
 	struct brw_page *pg_prev;
 
-	ENTRY;
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_BRW_PREP_REQ))
 		RETURN(-ENOMEM); /* Recoverable */
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_BRW_PREP_REQ2))
@@ -1496,7 +1477,6 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 	struct client_obd *cli = aa->aa_cli;
 	struct ost_body *body;
 	__u32 client_cksum = 0;
-	ENTRY;
 
 	if (rc < 0 && rc != -EDQUOT) {
 		DEBUG_REQ(D_INFO, req, "Failed request with rc = %d\n", rc);
@@ -1655,8 +1635,6 @@ static int osc_brw_internal(int cmd, struct obd_export *exp, struct obdo *oa,
 	int		    generation, resends = 0;
 	struct l_wait_info     lwi;
 
-	ENTRY;
-
 	init_waitqueue_head(&waitq);
 	generation = exp->exp_obd->u.cli.cl_import->imp_generation;
 
@@ -1720,7 +1698,6 @@ static int osc_brw_redo_request(struct ptlrpc_request *request,
 	struct ptlrpc_request *new_req;
 	struct osc_brw_async_args *new_aa;
 	struct osc_async_page *oap;
-	ENTRY;
 
 	DEBUG_REQ(rc == -EINPROGRESS ? D_RPCTRACE : D_ERROR, request,
 		  "redo for recoverable error %d", rc);
@@ -1873,7 +1850,6 @@ static int osc_brw(int cmd, struct obd_export *exp, struct obd_info *oinfo,
 	struct obd_import *imp = class_exp2cliimp(exp);
 	struct client_obd *cli;
 	int rc, page_count_orig;
-	ENTRY;
 
 	LASSERT((imp != NULL) && (imp->imp_obd != NULL));
 	cli = &imp->imp_obd->u.cli;
@@ -1946,7 +1922,6 @@ static int brw_interpret(const struct lu_env *env,
 	struct osc_extent *tmp;
 	struct cl_object  *obj = NULL;
 	struct client_obd *cli = aa->aa_cli;
-	ENTRY;
 
 	rc = osc_brw_fini_request(req, rc);
 	CDEBUG(D_INODE, "request %p aa %p rc %d\n", req, aa, rc);
@@ -2072,7 +2047,6 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	int				rc;
 	LIST_HEAD(rpc_list);
 
-	ENTRY;
 	LASSERT(!list_empty(ext_list));
 
 	/* add pages into rpc_list to build BRW rpc */
@@ -2337,7 +2311,6 @@ static int osc_enqueue_fini(struct ptlrpc_request *req, struct ost_lvb *lvb,
 			    __u64 *flags, int agl, int rc)
 {
 	int intent = *flags & LDLM_FL_HAS_INTENT;
-	ENTRY;
 
 	if (intent) {
 		/* The request was created before ldlm_cli_enqueue call. */
@@ -2496,7 +2469,6 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	int match_lvb = (agl != 0 ? 0 : LDLM_FL_LVB_READY);
 	ldlm_mode_t mode;
 	int rc;
-	ENTRY;
 
 	/* Filesystem lock extents are extended to page boundaries so that
 	 * dealing with the page cache is a little smoother.  */
@@ -2633,7 +2605,6 @@ static int osc_enqueue(struct obd_export *exp, struct obd_info *oinfo,
 {
 	struct ldlm_res_id res_id;
 	int rc;
-	ENTRY;
 
 	ostid_build_res_name(&oinfo->oi_md->lsm_oi, &res_id);
 	rc = osc_enqueue_base(exp, &res_id, &oinfo->oi_flags, &oinfo->oi_policy,
@@ -2652,7 +2623,6 @@ int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	struct obd_device *obd = exp->exp_obd;
 	int lflags = *flags;
 	ldlm_mode_t rc;
-	ENTRY;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_MATCH))
 		RETURN(-EIO);
@@ -2690,8 +2660,6 @@ int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 
 int osc_cancel_base(struct lustre_handle *lockh, __u32 mode)
 {
-	ENTRY;
-
 	if (unlikely(mode == LCK_GROUP))
 		ldlm_lock_decref_and_cancel(lockh, mode);
 	else
@@ -2703,7 +2671,6 @@ int osc_cancel_base(struct lustre_handle *lockh, __u32 mode)
 static int osc_cancel(struct obd_export *exp, struct lov_stripe_md *md,
 		      __u32 mode, struct lustre_handle *lockh)
 {
-	ENTRY;
 	RETURN(osc_cancel_base(lockh, mode));
 }
 
@@ -2728,7 +2695,6 @@ static int osc_statfs_interpret(const struct lu_env *env,
 				struct osc_async_args *aa, int rc)
 {
 	struct obd_statfs *msfs;
-	ENTRY;
 
 	if (rc == -EBADR)
 		/* The request has in fact never been sent
@@ -2764,7 +2730,6 @@ static int osc_statfs_async(struct obd_export *exp,
 	struct ptlrpc_request *req;
 	struct osc_async_args *aa;
 	int		    rc;
-	ENTRY;
 
 	/* We could possibly pass max_age in the request (as an absolute
 	 * timestamp or a "seconds.usec ago") so the target can avoid doing
@@ -2808,7 +2773,6 @@ static int osc_statfs(const struct lu_env *env, struct obd_export *exp,
 	struct ptlrpc_request *req;
 	struct obd_import     *imp = NULL;
 	int rc;
-	ENTRY;
 
 	/*Since the request might also come from lprocfs, so we need
 	 *sync this with client_disconnect_export Bug15684*/
@@ -2876,7 +2840,6 @@ static int osc_getstripe(struct lov_stripe_md *lsm, struct lov_user_md *lump)
 	struct lov_user_md_v3 lum, *lumk;
 	struct lov_user_ost_data_v1 *lmm_objects;
 	int rc = 0, lum_size;
-	ENTRY;
 
 	if (!lsm)
 		RETURN(-ENODATA);
@@ -2934,7 +2897,6 @@ static int osc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 	struct obd_device *obd = exp->exp_obd;
 	struct obd_ioctl_data *data = karg;
 	int err = 0;
-	ENTRY;
 
 	if (!try_module_get(THIS_MODULE)) {
 		CERROR("Can't get module. Is it alive?");
@@ -3018,7 +2980,6 @@ static int osc_get_info(const struct lu_env *env, struct obd_export *exp,
 			obd_count keylen, void *key, __u32 *vallen, void *val,
 			struct lov_stripe_md *lsm)
 {
-	ENTRY;
 	if (!vallen || !val)
 		RETURN(-EFAULT);
 
@@ -3159,7 +3120,6 @@ static int osc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	struct obd_import     *imp = class_exp2cliimp(exp);
 	char		  *tmp;
 	int		    rc;
-	ENTRY;
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_OSC_SHUTDOWN, 10);
 
@@ -3282,8 +3242,6 @@ static int osc_llog_finish(struct obd_device *obd, int count)
 {
 	struct llog_ctxt *ctxt;
 
-	ENTRY;
-
 	ctxt = llog_get_context(obd, LLOG_MDS_OST_ORIG_CTXT);
 	if (ctxt) {
 		llog_cat_close(NULL, ctxt->loc_handle);
@@ -3371,7 +3329,6 @@ static int osc_import_event(struct obd_device *obd,
 	struct client_obd *cli;
 	int rc = 0;
 
-	ENTRY;
 	LASSERT(imp->imp_obd == obd);
 
 	switch (event) {
@@ -3480,7 +3437,6 @@ int osc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	struct client_obd	  *cli = &obd->u.cli;
 	void		       *handler;
 	int			rc;
-	ENTRY;
 
 	rc = ptlrpcd_addref();
 	if (rc)
@@ -3533,7 +3489,6 @@ out_ptlrpcd:
 static int osc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
 	int rc = 0;
-	ENTRY;
 
 	switch (stage) {
 	case OBD_CLEANUP_EARLY: {
@@ -3579,8 +3534,6 @@ int osc_cleanup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 	int rc;
-
-	ENTRY;
 
 	/* lru cleanup */
 	if (cli->cl_cache != NULL) {
@@ -3673,7 +3626,6 @@ int __init osc_init(void)
 {
 	struct lprocfs_static_vars lvars = { 0 };
 	int rc;
-	ENTRY;
 
 	/* print an address of _any_ initialized kernel symbol from this
 	 * module, to allow debugging with gdb that doesn't support data

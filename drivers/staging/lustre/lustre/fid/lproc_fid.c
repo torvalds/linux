@@ -65,7 +65,6 @@ lprocfs_fid_write_common(const char *buffer, unsigned long count,
 {
 	struct lu_seq_range tmp;
 	int rc;
-	ENTRY;
 
 	LASSERT(range != NULL);
 
@@ -85,7 +84,6 @@ lprocfs_fid_space_seq_write(struct file *file, const char *buffer,
 {
 	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 
@@ -107,7 +105,6 @@ lprocfs_fid_space_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 
@@ -125,7 +122,6 @@ lprocfs_fid_width_seq_write(struct file *file, const char *buffer,
 	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
 	__u64  max;
 	int rc, val;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 
@@ -158,7 +154,6 @@ lprocfs_fid_width_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 
@@ -174,7 +169,6 @@ lprocfs_fid_fid_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 
@@ -191,7 +185,6 @@ lprocfs_fid_server_seq_show(struct seq_file *m, void *unused)
 	struct lu_client_seq *seq = (struct lu_client_seq *)m->private;
 	struct client_obd *cli;
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 

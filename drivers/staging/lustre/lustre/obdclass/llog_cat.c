@@ -67,7 +67,6 @@ static int llog_cat_new_log(const struct lu_env *env,
 	struct llog_log_hdr *llh;
 	struct llog_logid_rec rec = { { 0 }, };
 	int rc, index, bitmap_size;
-	ENTRY;
 
 	llh = cathandle->lgh_hdr;
 	bitmap_size = LLOG_BITMAP_SIZE(llh);
@@ -155,8 +154,6 @@ int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
 	struct llog_handle	*loghandle;
 	int			 rc = 0;
 
-	ENTRY;
-
 	if (cathandle == NULL)
 		RETURN(-EBADF);
 
@@ -217,8 +214,6 @@ int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 	struct llog_handle	*loghandle, *n;
 	int			 rc;
 
-	ENTRY;
-
 	list_for_each_entry_safe(loghandle, n, &cathandle->u.chd.chd_head,
 				     u.phd.phd_entry) {
 		struct llog_log_hdr	*llh = loghandle->lgh_hdr;
@@ -272,7 +267,6 @@ static struct llog_handle *llog_cat_current_log(struct llog_handle *cathandle,
 						struct thandle *th)
 {
 	struct llog_handle *loghandle = NULL;
-	ENTRY;
 
 	down_read_nested(&cathandle->lgh_lock, LLOGH_CAT);
 	loghandle = cathandle->u.chd.chd_current_log;
@@ -332,7 +326,6 @@ int llog_cat_add_rec(const struct lu_env *env, struct llog_handle *cathandle,
 {
 	struct llog_handle *loghandle;
 	int rc;
-	ENTRY;
 
 	LASSERT(rec->lrh_len <= LLOG_CHUNK_SIZE);
 	loghandle = llog_cat_current_log(cathandle, th);
@@ -382,8 +375,6 @@ int llog_cat_declare_add_rec(const struct lu_env *env,
 {
 	struct llog_handle	*loghandle, *next;
 	int			 rc = 0;
-
-	ENTRY;
 
 	if (cathandle->u.chd.chd_current_log == NULL) {
 		/* declare new plain llog */
@@ -498,8 +489,6 @@ int llog_cat_cancel_records(const struct lu_env *env,
 {
 	int i, index, rc = 0, failed = 0;
 
-	ENTRY;
-
 	for (i = 0; i < count; i++, cookies++) {
 		struct llog_handle	*loghandle;
 		struct llog_logid	*lgl = &cookies->lgc_lgl;
@@ -545,7 +534,6 @@ int llog_cat_process_cb(const struct lu_env *env, struct llog_handle *cat_llh,
 	struct llog_handle *llh;
 	int rc;
 
-	ENTRY;
 	if (rec->lrh_type != LLOG_LOGID_MAGIC) {
 		CERROR("invalid record in catalog\n");
 		RETURN(-EINVAL);
@@ -592,7 +580,6 @@ int llog_cat_process_or_fork(const struct lu_env *env,
 	struct llog_process_data d;
 	struct llog_log_hdr *llh = cat_llh->lgh_hdr;
 	int rc;
-	ENTRY;
 
 	LASSERT(llh->llh_flags & LLOG_F_IS_CAT);
 	d.lpd_data = data;
@@ -672,7 +659,6 @@ int llog_cat_reverse_process(const struct lu_env *env,
 	struct llog_process_cat_data cd;
 	struct llog_log_hdr *llh = cat_llh->lgh_hdr;
 	int rc;
-	ENTRY;
 
 	LASSERT(llh->llh_flags & LLOG_F_IS_CAT);
 	d.lpd_data = data;
@@ -709,7 +695,6 @@ int llog_cat_set_first_idx(struct llog_handle *cathandle, int index)
 {
 	struct llog_log_hdr *llh = cathandle->lgh_hdr;
 	int i, bitmap_size, idx;
-	ENTRY;
 
 	bitmap_size = LLOG_BITMAP_SIZE(llh);
 	if (llh->llh_cat_idx == (index - 1)) {
@@ -773,8 +758,6 @@ int cat_cancel_cb(const struct lu_env *env, struct llog_handle *cathandle,
 	struct llog_handle	*loghandle;
 	struct llog_log_hdr	*llh;
 	int			 rc;
-
-	ENTRY;
 
 	if (rec->lrh_type != LLOG_LOGID_MAGIC) {
 		CERROR("invalid record in catalog\n");

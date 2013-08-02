@@ -900,7 +900,6 @@ void lprocfs_free_per_client_stats(struct obd_device *obd)
 {
 	cfs_hash_t *hash = obd->obd_nid_stats_hash;
 	struct nid_stat *stat;
-	ENTRY;
 
 	/* we need extra list - because hash_exit called to early */
 	/* not need locking because all clients is died */
@@ -1498,7 +1497,6 @@ EXPORT_SYMBOL(lprocfs_nid_stats_clear_read);
 static int lprocfs_nid_stats_clear_write_cb(void *obj, void *data)
 {
 	struct nid_stat *stat = obj;
-	ENTRY;
 
 	CDEBUG(D_INFO,"refcnt %d\n", atomic_read(&stat->nid_exp_ref_count));
 	if (atomic_read(&stat->nid_exp_ref_count) == 1) {
@@ -1543,7 +1541,6 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 	proc_dir_entry_t *entry;
 	char *buffer = NULL;
 	int rc = 0;
-	ENTRY;
 
 	*newnid = 0;
 
@@ -1910,7 +1907,6 @@ int lprocfs_seq_create(proc_dir_entry_t *parent,
 		       void *data)
 {
 	struct proc_dir_entry *entry;
-	ENTRY;
 
 	/* Disallow secretly (un)writable entries. */
 	LASSERT((seq_fops->write == NULL) == ((mode & 0222) == 0));

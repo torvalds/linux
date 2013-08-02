@@ -785,7 +785,6 @@ cfs_parse_nidlist(char *str, int len, struct list_head *nidlist)
 	struct cfs_lstr src;
 	struct cfs_lstr res;
 	int rc;
-	ENTRY;
 
 	src.ls_str = str;
 	src.ls_len = len;
@@ -834,7 +833,6 @@ int cfs_match_nid(lnet_nid_t nid, struct list_head *nidlist)
 {
 	struct nidrange *nr;
 	struct addrrange *ar;
-	ENTRY;
 
 	list_for_each_entry(nr, nidlist, nr_link) {
 		if (nr->nr_netstrfns->nf_type != LNET_NETTYP(LNET_NIDNET(nid)))

@@ -52,7 +52,6 @@ obd_size lov_stripe_size(struct lov_stripe_md *lsm, obd_size ost_size,
 	obd_off swidth;
 	obd_size lov_size;
 	int magic = lsm->lsm_magic;
-	ENTRY;
 
 	if (ost_size == 0)
 		RETURN(0);

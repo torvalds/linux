@@ -45,7 +45,6 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 	struct libcfs_ioctl_hdr   *hdr;
 	struct libcfs_ioctl_data  *data;
 	int err;
-	ENTRY;
 
 	hdr = (struct libcfs_ioctl_hdr *)buf;
 	data = (struct libcfs_ioctl_data *)buf;

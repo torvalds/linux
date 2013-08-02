@@ -152,7 +152,6 @@ struct upcall_cache_entry *upcall_cache_get_entry(struct upcall_cache *cache,
 	struct list_head *head;
 	wait_queue_t wait;
 	int rc, found;
-	ENTRY;
 
 	LASSERT(cache);
 
@@ -273,8 +272,6 @@ EXPORT_SYMBOL(upcall_cache_get_entry);
 void upcall_cache_put_entry(struct upcall_cache *cache,
 			    struct upcall_cache_entry *entry)
 {
-	ENTRY;
-
 	if (!entry) {
 		EXIT;
 		return;
@@ -294,7 +291,6 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 	struct upcall_cache_entry *entry = NULL;
 	struct list_head *head;
 	int found = 0, rc = 0;
-	ENTRY;
 
 	LASSERT(cache);
 
@@ -364,7 +360,6 @@ static void cache_flush(struct upcall_cache *cache, int force)
 {
 	struct upcall_cache_entry *entry, *next;
 	int i;
-	ENTRY;
 
 	spin_lock(&cache->uc_lock);
 	for (i = 0; i < UC_CACHE_HASH_SIZE; i++) {
@@ -399,7 +394,6 @@ void upcall_cache_flush_one(struct upcall_cache *cache, __u64 key, void *args)
 	struct list_head *head;
 	struct upcall_cache_entry *entry;
 	int found = 0;
-	ENTRY;
 
 	head = &cache->uc_hashtable[UC_CACHE_HASH_INDEX(key)];
 
@@ -431,7 +425,6 @@ struct upcall_cache *upcall_cache_init(const char *name, const char *upcall,
 {
 	struct upcall_cache *cache;
 	int i;
-	ENTRY;
 
 	LIBCFS_ALLOC(cache, sizeof(*cache));
 	if (!cache)

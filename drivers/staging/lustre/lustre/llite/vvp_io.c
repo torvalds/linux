@@ -176,7 +176,6 @@ static int vvp_mmap_locks(const struct lu_env *env,
 	unsigned long	   seg;
 	ssize_t		 count;
 	int		     result;
-	ENTRY;
 
 	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
 
@@ -255,7 +254,6 @@ static int vvp_io_rw_lock(const struct lu_env *env, struct cl_io *io,
 	int ast_flags = 0;
 
 	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
-	ENTRY;
 
 	ccc_io_update_iov(env, cio, io);
 
@@ -274,7 +272,6 @@ static int vvp_io_read_lock(const struct lu_env *env,
 	struct ll_inode_info *lli = ll_i2info(ccc_object_inode(io->ci_obj));
 	int result;
 
-	ENTRY;
 	/* XXX: Layer violation, we shouldn't see lsm at llite level. */
 	if (lli->lli_has_smd) /* lsm-less file doesn't need to lock */
 		result = vvp_io_rw_lock(env, io, CLM_READ,
@@ -556,8 +553,6 @@ static int vvp_io_write_start(const struct lu_env *env,
 	loff_t pos = io->u.ci_wr.wr.crw_pos;
 	size_t cnt = io->u.ci_wr.wr.crw_count;
 
-	ENTRY;
-
 	if (!can_populate_pages(env, io, inode))
 		return 0;
 
@@ -807,8 +802,6 @@ static int vvp_io_read_page(const struct lu_env *env,
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 	LASSERT(slice->cpl_obj == obj);
 
-	ENTRY;
-
 	if (sbi->ll_ra_info.ra_max_pages_per_file &&
 	    sbi->ll_ra_info.ra_max_pages)
 		ras_update(sbi, inode, ras, page->cp_index,
@@ -923,8 +916,6 @@ static int vvp_io_prepare_write(const struct lu_env *env,
 
 	int result;
 
-	ENTRY;
-
 	LINVRNT(cl_page_is_vmlocked(env, pg));
 	LASSERT(vmpage->mapping->host == ccc_object_inode(obj));
 
@@ -964,8 +955,6 @@ static int vvp_io_commit_write(const struct lu_env *env,
 	int    result;
 	int    tallyop;
 	loff_t size;
-
-	ENTRY;
 
 	LINVRNT(cl_page_is_vmlocked(env, pg));
 	LASSERT(vmpage->mapping->host == inode);
@@ -1122,7 +1111,6 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 	int		 result;
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
-	ENTRY;
 
 	CL_IO_SLICE_CLEAN(cio, cui_cl);
 	cl_io_slice_add(io, &cio->cui_cl, obj, &vvp_io_ops);

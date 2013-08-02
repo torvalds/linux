@@ -203,7 +203,6 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 {
 	struct dentry *dchild_old, *dchild_new;
 	int err = 0;
-	ENTRY;
 
 	ASSERT_KERNEL_CTXT("kernel doing rename outside kernel context\n");
 	CDEBUG(D_INODE, "renaming file %.*s to %.*s\n",

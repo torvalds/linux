@@ -45,7 +45,6 @@ static inline struct osc_quota_info *osc_oqi_alloc(obd_uid id)
 int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[])
 {
 	int type;
-	ENTRY;
 
 	for (type = 0; type < MAXQUOTAS; type++) {
 		struct osc_quota_info *oqi;
@@ -79,7 +78,6 @@ int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
 {
 	int type;
 	int rc = 0;
-	ENTRY;
 
 	if ((valid & (OBD_MD_FLUSRQUOTA | OBD_MD_FLGRPQUOTA)) == 0)
 		RETURN(0);
@@ -211,7 +209,6 @@ int osc_quota_setup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 	int i, type;
-	ENTRY;
 
 	for (type = 0; type < MAXQUOTAS; type++) {
 		cli->cl_quota_hash[type] = cfs_hash_create("QUOTA_HASH",
@@ -240,7 +237,6 @@ int osc_quota_cleanup(struct obd_device *obd)
 {
 	struct client_obd     *cli = &obd->u.cli;
 	int type;
-	ENTRY;
 
 	for (type = 0; type < MAXQUOTAS; type++)
 		cfs_hash_putref(cli->cl_quota_hash[type]);
@@ -254,7 +250,6 @@ int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 	struct ptlrpc_request *req;
 	struct obd_quotactl   *oqc;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_OST_QUOTACTL, LUSTRE_OST_VERSION,
@@ -292,7 +287,6 @@ int osc_quotacheck(struct obd_device *unused, struct obd_export *exp,
 	struct ptlrpc_request   *req;
 	struct obd_quotactl     *body;
 	int		      rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_OST_QUOTACHECK, LUSTRE_OST_VERSION,
@@ -319,7 +313,6 @@ int osc_quota_poll_check(struct obd_export *exp, struct if_quotacheck *qchk)
 {
 	struct client_obd *cli = &exp->exp_obd->u.cli;
 	int rc;
-	ENTRY;
 
 	qchk->obd_uuid = cli->cl_target_uuid;
 	memcpy(qchk->obd_type, LUSTRE_OST_NAME, strlen(LUSTRE_OST_NAME));

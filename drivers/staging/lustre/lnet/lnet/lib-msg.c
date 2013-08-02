@@ -45,8 +45,6 @@
 void
 lnet_build_unlink_event (lnet_libmd_t *md, lnet_event_t *ev)
 {
-	ENTRY;
-
 	memset(ev, 0, sizeof(*ev));
 
 	ev->status   = 0;

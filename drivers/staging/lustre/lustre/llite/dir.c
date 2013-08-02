@@ -157,7 +157,6 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	int npages;
 	int i;
 	int rc;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) hash "LPU64"\n",
 	       inode->i_ino, inode->i_generation, inode, hash);
@@ -489,7 +488,6 @@ int ll_dir_read(struct inode *inode, struct dir_context *ctx)
 	struct ll_dir_chain   chain;
 	int		   done = 0;
 	int		   rc = 0;
-	ENTRY;
 
 	ll_dir_chain_init(&chain);
 
@@ -603,7 +601,6 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	int			hash64	= sbi->ll_flags & LL_SBI_64BIT_HASH;
 	int			api32	= ll_need_32bit_api(sbi);
 	int			rc;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p) pos %lu/%llu "
 	       " 32bit_api %d\n", inode->i_ino, inode->i_generation,
@@ -664,8 +661,6 @@ int ll_dir_setdirstripe(struct inode *dir, struct lmv_user_md *lump,
 	int mode;
 	int err;
 
-	ENTRY;
-
 	mode = (0755 & (S_IRWXUGO|S_ISVTX) & ~current->fs->umask) | S_IFDIR;
 	op_data = ll_prep_md_op_data(NULL, dir, NULL, filename,
 				     strlen(filename), mode, LUSTRE_OPC_MKDIR,
@@ -696,7 +691,6 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 	struct lustre_sb_info *lsi = s2lsi(inode->i_sb);
 	struct obd_device *mgc = lsi->lsi_mgc;
 	int lum_size;
-	ENTRY;
 
 	if (lump != NULL) {
 		/*
@@ -870,7 +864,6 @@ int ll_get_mdt_idx(struct inode *inode)
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct md_op_data *op_data;
 	int rc, mdtidx;
-	ENTRY;
 
 	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0,
 				     0, LUSTRE_OPC_ANY, NULL);
@@ -904,7 +897,6 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 	struct ll_sb_info		*sbi = ll_s2sbi(sb);
 	struct hsm_progress_kernel	 hpk;
 	int				 rc;
-	ENTRY;
 
 	/* Forge a hsm_progress based on data from copy. */
 	hpk.hpk_fid = copy->hc_hai.hai_fid;
@@ -977,7 +969,6 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 	struct ll_sb_info		*sbi = ll_s2sbi(sb);
 	struct hsm_progress_kernel	 hpk;
 	int				 rc;
-	ENTRY;
 
 	/* If you modify the logic here, also check llapi_hsm_copy_end(). */
 	/* Take care: copy->hc_hai.hai_action, len, gid and data are not
@@ -1082,7 +1073,6 @@ static int quotactl_ioctl(struct ll_sb_info *sbi, struct if_quotactl *qctl)
 	int id = qctl->qc_id;
 	int valid = qctl->qc_valid;
 	int rc = 0;
-	ENTRY;
 
 	switch (cmd) {
 	case LUSTRE_Q_INVALIDATE:
@@ -1243,7 +1233,6 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct obd_ioctl_data *data;
 	int rc = 0;
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), cmd=%#x\n",
 	       inode->i_ino, inode->i_generation, inode, cmd);
@@ -1907,7 +1896,6 @@ static loff_t ll_dir_seek(struct file *file, loff_t offset, int origin)
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	int api32 = ll_need_32bit_api(sbi);
 	loff_t ret = -EINVAL;
-	ENTRY;
 
 	mutex_lock(&inode->i_mutex);
 	switch (origin) {
@@ -1953,13 +1941,11 @@ out:
 
 int ll_dir_open(struct inode *inode, struct file *file)
 {
-	ENTRY;
 	RETURN(ll_file_open(inode, file));
 }
 
 int ll_dir_release(struct inode *inode, struct file *file)
 {
-	ENTRY;
 	RETURN(ll_file_release(inode, file));
 }
 

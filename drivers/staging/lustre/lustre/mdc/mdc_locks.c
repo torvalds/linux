@@ -115,7 +115,6 @@ int mdc_set_lock_data(struct obd_export *exp, __u64 *lockh, void *data,
 {
 	struct ldlm_lock *lock;
 	struct inode *new_inode = data;
-	ENTRY;
 
 	if(bits)
 		*bits = 0;
@@ -154,7 +153,6 @@ ldlm_mode_t mdc_lock_match(struct obd_export *exp, __u64 flags,
 {
 	struct ldlm_res_id res_id;
 	ldlm_mode_t rc;
-	ENTRY;
 
 	fid_build_reg_res_name(fid, &res_id);
 	rc = ldlm_lock_match(class_exp2obd(exp)->obd_namespace, flags,
@@ -173,8 +171,6 @@ int mdc_cancel_unused(struct obd_export *exp,
 	struct obd_device *obd = class_exp2obd(exp);
 	int rc;
 
-	ENTRY;
-
 	fid_build_reg_res_name(fid, &res_id);
 	rc = ldlm_cli_cancel_unused_resource(obd->obd_namespace, &res_id,
 					     policy, mode, flags, opaque);
@@ -187,7 +183,6 @@ int mdc_null_inode(struct obd_export *exp,
 	struct ldlm_res_id res_id;
 	struct ldlm_resource *res;
 	struct ldlm_namespace *ns = class_exp2obd(exp)->obd_namespace;
-	ENTRY;
 
 	LASSERTF(ns != NULL, "no namespace passed\n");
 
@@ -215,7 +210,6 @@ int mdc_find_cbdata(struct obd_export *exp,
 {
 	struct ldlm_res_id res_id;
 	int rc = 0;
-	ENTRY;
 
 	fid_build_reg_res_name((struct lu_fid*)fid, &res_id);
 	rc = ldlm_resource_iterate(class_exp2obd(exp)->obd_namespace, &res_id,
@@ -281,7 +275,6 @@ static struct ptlrpc_request *mdc_intent_open_pack(struct obd_export *exp,
 	int		    count = 0;
 	int		    mode;
 	int		    rc;
-	ENTRY;
 
 	it->it_create_mode = (it->it_create_mode & ~S_IFMT) | S_IFREG;
 
@@ -362,7 +355,6 @@ static struct ptlrpc_request *mdc_intent_unlink_pack(struct obd_export *exp,
 	struct obd_device     *obddev = class_exp2obd(exp);
 	struct ldlm_intent    *lit;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_LDLM_INTENT_UNLINK);
@@ -407,7 +399,6 @@ static struct ptlrpc_request *mdc_intent_getattr_pack(struct obd_export *exp,
 					       OBD_MD_FLRMTPERM : OBD_MD_FLACL);
 	struct ldlm_intent    *lit;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_LDLM_INTENT_GETATTR);
@@ -450,7 +441,6 @@ static struct ptlrpc_request *mdc_intent_layout_pack(struct obd_export *exp,
 	struct ldlm_intent    *lit;
 	struct layout_intent  *layout;
 	int rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				&RQF_LDLM_INTENT_LAYOUT);
@@ -485,7 +475,6 @@ mdc_enqueue_pack(struct obd_export *exp, int lvb_len)
 {
 	struct ptlrpc_request *req;
 	int rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_LDLM_ENQUEUE);
 	if (req == NULL)
@@ -516,7 +505,6 @@ static int mdc_finish_enqueue(struct obd_export *exp,
 	struct ldlm_lock    *lock;
 	void		*lvb_data = NULL;
 	int		  lvb_len = 0;
-	ENTRY;
 
 	LASSERT(rc >= 0);
 	/* Similarly, if we're going to replay this request, we don't want to
@@ -738,7 +726,6 @@ int mdc_enqueue(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	int		    generation, resends = 0;
 	struct ldlm_reply     *lockrep;
 	enum lvb_type	       lvb_type = 0;
-	ENTRY;
 
 	LASSERTF(!it || einfo->ei_type == LDLM_IBITS, "lock type %d\n",
 		 einfo->ei_type);
@@ -890,7 +877,6 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 	struct mdt_body *mdt_body;
 	struct ldlm_lock *lock;
 	int rc;
-	ENTRY;
 
 	LASSERT(request != NULL);
 	LASSERT(request != LP_POISON);
@@ -1006,7 +992,6 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
 	struct lustre_handle lockh;
 	ldlm_policy_data_t policy;
 	ldlm_mode_t mode;
-	ENTRY;
 
 	if (it->d.lustre.it_lock_handle) {
 		lockh.cookie = it->d.lustre.it_lock_handle;
@@ -1076,7 +1061,7 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 {
 	struct lustre_handle lockh;
 	int rc = 0;
-	ENTRY;
+
 	LASSERT(it);
 
 	CDEBUG(D_DLMTRACE, "(name: %.*s,"DFID") in obj "DFID
@@ -1153,7 +1138,6 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 	struct obd_device	*obddev;
 	struct ldlm_reply	 *lockrep;
 	__u64		     flags = LDLM_FL_HAS_INTENT;
-	ENTRY;
 
 	it    = &minfo->mi_it;
 	lockh = &minfo->mi_lockh;
@@ -1210,7 +1194,6 @@ int mdc_intent_getattr_async(struct obd_export *exp,
 				 };
 	int		      rc = 0;
 	__u64		    flags = LDLM_FL_HAS_INTENT;
-	ENTRY;
 
 	CDEBUG(D_DLMTRACE,"name: %.*s in inode "DFID", intent: %s flags %#o\n",
 	       op_data->op_namelen, op_data->op_name, PFID(&op_data->op_fid1),

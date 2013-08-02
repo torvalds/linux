@@ -66,7 +66,7 @@ struct lu_context_key fld_thread_key;
 static int fld_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 {
 	int rc;
-	ENTRY;
+
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&mcw->mcw_entry);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
@@ -124,7 +124,6 @@ fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
 {
 	struct lu_fld_target *target;
 	int hash;
-	ENTRY;
 
 	/* Because almost all of special sequence located in MDT0,
 	 * it should go to index 0 directly, instead of calculating
@@ -180,7 +179,6 @@ static struct lu_fld_target *
 fld_client_get_target(struct lu_client_fld *fld, seqno_t seq)
 {
 	struct lu_fld_target *target;
-	ENTRY;
 
 	LASSERT(fld->lcf_hash != NULL);
 
@@ -206,7 +204,6 @@ int fld_client_add_target(struct lu_client_fld *fld,
 {
 	const char *name;
 	struct lu_fld_target *target, *tmp;
-	ENTRY;
 
 	LASSERT(tar != NULL);
 	name = fld_target_name(tar);
@@ -258,7 +255,6 @@ EXPORT_SYMBOL(fld_client_add_target);
 int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 {
 	struct lu_fld_target *target, *tmp;
-	ENTRY;
 
 	spin_lock(&fld->lcf_lock);
 	list_for_each_entry_safe(target, tmp,
@@ -286,7 +282,6 @@ proc_dir_entry_t *fld_type_proc_dir = NULL;
 static int fld_client_proc_init(struct lu_client_fld *fld)
 {
 	int rc;
-	ENTRY;
 
 	fld->lcf_proc_dir = lprocfs_register(fld->lcf_name,
 					     fld_type_proc_dir,
@@ -316,7 +311,6 @@ out_cleanup:
 
 void fld_client_proc_fini(struct lu_client_fld *fld)
 {
-	ENTRY;
 	if (fld->lcf_proc_dir) {
 		if (!IS_ERR(fld->lcf_proc_dir))
 			lprocfs_remove(&fld->lcf_proc_dir);
@@ -348,7 +342,6 @@ int fld_client_init(struct lu_client_fld *fld,
 {
 	int cache_size, cache_threshold;
 	int rc;
-	ENTRY;
 
 	LASSERT(fld != NULL);
 
@@ -398,7 +391,6 @@ EXPORT_SYMBOL(fld_client_init);
 void fld_client_fini(struct lu_client_fld *fld)
 {
 	struct lu_fld_target *target, *tmp;
-	ENTRY;
 
 	spin_lock(&fld->lcf_lock);
 	list_for_each_entry_safe(target, tmp,
@@ -429,7 +421,6 @@ int fld_client_rpc(struct obd_export *exp,
 	__u32		 *op;
 	int		    rc;
 	struct obd_import     *imp;
-	ENTRY;
 
 	LASSERT(exp != NULL);
 
@@ -479,7 +470,6 @@ int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
 	struct lu_seq_range res = { 0 };
 	struct lu_fld_target *target;
 	int rc;
-	ENTRY;
 
 	fld->lcf_flags |= LUSTRE_FLD_RUN;
 

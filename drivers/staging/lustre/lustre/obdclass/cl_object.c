@@ -79,7 +79,6 @@ int cl_object_header_init(struct cl_object_header *h)
 {
 	int result;
 
-	ENTRY;
 	result = lu_object_header_init(&h->coh_lu);
 	if (result == 0) {
 		spin_lock_init(&h->coh_page_guard);
@@ -222,7 +221,6 @@ int cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 	int result;
 
 	LASSERT(spin_is_locked(cl_object_attr_guard(obj)));
-	ENTRY;
 
 	top = obj->co_lu.lo_header;
 	result = 0;
@@ -254,7 +252,6 @@ int cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
 	int result;
 
 	LASSERT(spin_is_locked(cl_object_attr_guard(obj)));
-	ENTRY;
 
 	top = obj->co_lu.lo_header;
 	result = 0;
@@ -287,7 +284,6 @@ int cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	ENTRY;
 	top = obj->co_lu.lo_header;
 	result = 0;
 	list_for_each_entry_reverse(obj, &top->loh_layers,
@@ -316,7 +312,6 @@ int cl_conf_set(const struct lu_env *env, struct cl_object *obj,
 	struct lu_object_header *top;
 	int result;
 
-	ENTRY;
 	top = obj->co_lu.lo_header;
 	result = 0;
 	list_for_each_entry(obj, &top->loh_layers, co_lu.lo_linkage) {
@@ -362,7 +357,6 @@ EXPORT_SYMBOL(cl_object_kill);
  */
 void cl_object_prune(const struct lu_env *env, struct cl_object *obj)
 {
-	ENTRY;
 	cl_pages_prune(env, obj);
 	cl_locks_prune(env, obj, 1);
 	EXIT;
@@ -941,7 +935,6 @@ EXPORT_SYMBOL(cl_env_nested_put);
  */
 void cl_attr2lvb(struct ost_lvb *lvb, const struct cl_attr *attr)
 {
-	ENTRY;
 	lvb->lvb_size   = attr->cat_size;
 	lvb->lvb_mtime  = attr->cat_mtime;
 	lvb->lvb_atime  = attr->cat_atime;
@@ -958,7 +951,6 @@ EXPORT_SYMBOL(cl_attr2lvb);
  */
 void cl_lvb2attr(struct cl_attr *attr, const struct ost_lvb *lvb)
 {
-	ENTRY;
 	attr->cat_size   = lvb->lvb_size;
 	attr->cat_mtime  = lvb->lvb_mtime;
 	attr->cat_atime  = lvb->lvb_atime;

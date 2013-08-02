@@ -60,8 +60,6 @@
  */
 void ptlrpc_initiate_recovery(struct obd_import *imp)
 {
-	ENTRY;
-
 	CDEBUG(D_HA, "%s: starting recovery\n", obd2cli_tgt(imp->imp_obd));
 	ptlrpc_connect_import(imp);
 
@@ -78,7 +76,6 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 	struct list_head *tmp, *pos;
 	struct ptlrpc_request *req = NULL;
 	__u64 last_transno;
-	ENTRY;
 
 	*inflight = 0;
 
@@ -152,8 +149,6 @@ int ptlrpc_resend(struct obd_import *imp)
 {
 	struct ptlrpc_request *req, *next;
 
-	ENTRY;
-
 	/* As long as we're in recovery, nothing should be added to the sending
 	 * list, so we don't need to hold the lock during this iteration and
 	 * resend process.
@@ -203,7 +198,6 @@ EXPORT_SYMBOL(ptlrpc_wake_delayed);
 void ptlrpc_request_handle_notconn(struct ptlrpc_request *failed_req)
 {
 	struct obd_import *imp = failed_req->rq_import;
-	ENTRY;
 
 	CDEBUG(D_HA, "import %s of %s@%s abruptly disconnected: reconnecting\n",
 	       imp->imp_obd->obd_name, obd2cli_tgt(imp->imp_obd),
@@ -246,7 +240,6 @@ int ptlrpc_set_import_active(struct obd_import *imp, int active)
 	struct obd_device *obd = imp->imp_obd;
 	int rc = 0;
 
-	ENTRY;
 	LASSERT(obd);
 
 	/* When deactivating, mark import invalid, and abort in-flight
@@ -287,7 +280,6 @@ EXPORT_SYMBOL(ptlrpc_set_import_active);
 int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 {
 	int rc = 0;
-	ENTRY;
 
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_state == LUSTRE_IMP_NEW || imp->imp_deactive ||

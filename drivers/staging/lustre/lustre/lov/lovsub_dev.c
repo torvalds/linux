@@ -55,7 +55,6 @@ static void lovsub_req_completion(const struct lu_env *env,
 {
 	struct lovsub_req *lsr;
 
-	ENTRY;
 	lsr = cl2lovsub_req(slice);
 	OBD_SLAB_FREE_PTR(lsr, lovsub_req_kmem);
 	EXIT;
@@ -73,7 +72,6 @@ static void lovsub_req_attr_set(const struct lu_env *env,
 {
 	struct lovsub_object *subobj;
 
-	ENTRY;
 	subobj = cl2lovsub(obj);
 	/*
 	 * There is no OBD_MD_* flag for obdo::o_stripe_idx, so set it
@@ -101,7 +99,6 @@ static int lovsub_device_init(const struct lu_env *env, struct lu_device *d,
 	struct lu_device_type *ldt;
 	int rc;
 
-	ENTRY;
 	next->ld_site = d->ld_site;
 	ldt = next->ld_type;
 	LASSERT(ldt != NULL);
@@ -123,7 +120,6 @@ static struct lu_device *lovsub_device_fini(const struct lu_env *env,
 	struct lu_device *next;
 	struct lovsub_device *lsd;
 
-	ENTRY;
 	lsd = lu2lovsub_dev(d);
 	next = cl2lu_dev(lsd->acid_next);
 	lsd->acid_super = NULL;

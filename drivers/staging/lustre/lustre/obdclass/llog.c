@@ -111,7 +111,6 @@ int llog_cancel_rec(const struct lu_env *env, struct llog_handle *loghandle,
 {
 	struct llog_log_hdr *llh = loghandle->lgh_hdr;
 	int rc = 0;
-	ENTRY;
 
 	CDEBUG(D_RPCTRACE, "Canceling %d in log "DOSTID"\n",
 	       index, POSTID(&loghandle->lgh_id.lgl_oi));
@@ -206,7 +205,6 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 	struct llog_log_hdr	*llh;
 	int			 rc;
 
-	ENTRY;
 	LASSERT(handle->lgh_hdr == NULL);
 
 	OBD_ALLOC_PTR(llh);
@@ -277,7 +275,6 @@ int llog_copy_handler(const struct lu_env *env,
 	char *cfg_buf = (char*) (rec + 1);
 	struct lustre_cfg *lcfg;
 	int rc = 0;
-	ENTRY;
 
 	/* Append all records */
 	local_rec.lrh_len -= sizeof(*rec) + sizeof(struct llog_rec_tail);
@@ -305,8 +302,6 @@ static int llog_process_thread(void *arg)
 	int				 rc = 0, index = 1, last_index;
 	int				 saved_index = 0;
 	int				 last_called_index = 0;
-
-	ENTRY;
 
 	LASSERT(llh);
 
@@ -457,8 +452,6 @@ int llog_process_or_fork(const struct lu_env *env,
 	struct llog_process_info *lpi;
 	int		      rc;
 
-	ENTRY;
-
 	OBD_ALLOC_PTR(lpi);
 	if (lpi == NULL) {
 		CERROR("cannot alloc pointer\n");
@@ -516,7 +509,6 @@ int llog_reverse_process(const struct lu_env *env,
 	struct llog_process_cat_data *cd = catdata;
 	void *buf;
 	int rc = 0, first_index = 1, index, idx;
-	ENTRY;
 
 	OBD_ALLOC(buf, LLOG_CHUNK_SIZE);
 	if (!buf)
@@ -617,8 +609,6 @@ int llog_exist(struct llog_handle *loghandle)
 	struct llog_operations	*lop;
 	int			 rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
 		RETURN(rc);
@@ -635,8 +625,6 @@ int llog_declare_create(const struct lu_env *env,
 {
 	struct llog_operations	*lop;
 	int			 raised, rc;
-
-	ENTRY;
 
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
@@ -659,8 +647,6 @@ int llog_create(const struct lu_env *env, struct llog_handle *handle,
 {
 	struct llog_operations	*lop;
 	int			 raised, rc;
-
-	ENTRY;
 
 	rc = llog_handle2ops(handle, &lop);
 	if (rc)
@@ -686,8 +672,6 @@ int llog_declare_write_rec(const struct lu_env *env,
 	struct llog_operations	*lop;
 	int			 raised, rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(handle, &lop);
 	if (rc)
 		RETURN(rc);
@@ -711,8 +695,6 @@ int llog_write_rec(const struct lu_env *env, struct llog_handle *handle,
 {
 	struct llog_operations	*lop;
 	int			 raised, rc, buflen;
-
-	ENTRY;
 
 	rc = llog_handle2ops(handle, &lop);
 	if (rc)
@@ -746,8 +728,6 @@ int llog_add(const struct lu_env *env, struct llog_handle *lgh,
 {
 	int raised, rc;
 
-	ENTRY;
-
 	if (lgh->lgh_logops->lop_add == NULL)
 		RETURN(-EOPNOTSUPP);
 
@@ -765,8 +745,6 @@ int llog_declare_add(const struct lu_env *env, struct llog_handle *lgh,
 		     struct llog_rec_hdr *rec, struct thandle *th)
 {
 	int raised, rc;
-
-	ENTRY;
 
 	if (lgh->lgh_logops->lop_declare_add == NULL)
 		RETURN(-EOPNOTSUPP);
@@ -791,8 +769,6 @@ int llog_open_create(const struct lu_env *env, struct llog_ctxt *ctxt,
 {
 	struct thandle	*th;
 	int		 rc;
-
-	ENTRY;
 
 	rc = llog_open(env, ctxt, res, logid, name, LLOG_OPEN_NEW);
 	if (rc)
@@ -838,8 +814,6 @@ int llog_erase(const struct lu_env *env, struct llog_ctxt *ctxt,
 	struct llog_handle	*handle;
 	int			 rc = 0, rc2;
 
-	ENTRY;
-
 	/* nothing to erase */
 	if (name == NULL && logid == NULL)
 		RETURN(0);
@@ -869,8 +843,6 @@ int llog_write(const struct lu_env *env, struct llog_handle *loghandle,
 	       int cookiecount, void *buf, int idx)
 {
 	int rc;
-
-	ENTRY;
 
 	LASSERT(loghandle);
 	LASSERT(loghandle->lgh_ctxt);
@@ -916,8 +888,6 @@ int llog_open(const struct lu_env *env, struct llog_ctxt *ctxt,
 	int	 raised;
 	int	 rc;
 
-	ENTRY;
-
 	LASSERT(ctxt);
 	LASSERT(ctxt->loc_logops);
 
@@ -950,8 +920,6 @@ int llog_close(const struct lu_env *env, struct llog_handle *loghandle)
 {
 	struct llog_operations	*lop;
 	int			 rc;
-
-	ENTRY;
 
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)

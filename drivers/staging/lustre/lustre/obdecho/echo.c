@@ -96,8 +96,6 @@ static int echo_init_export(struct obd_export *exp)
 
 static int echo_destroy_export(struct obd_export *exp)
 {
-	ENTRY;
-
 	target_destroy_export(exp);
 	ldlm_destroy_export(exp);
 
@@ -151,7 +149,6 @@ static int echo_destroy(const struct lu_env *env, struct obd_export *exp,
 {
 	struct obd_device *obd = class_exp2obd(exp);
 
-	ENTRY;
 	if (!obd) {
 		CERROR("invalid client cookie "LPX64"\n",
 		       exp->exp_handle.h_cookie);
@@ -178,7 +175,6 @@ static int echo_getattr(const struct lu_env *env, struct obd_export *exp,
 	struct obd_device *obd = class_exp2obd(exp);
 	obd_id id = ostid_id(&oinfo->oi_oa->o_oi);
 
-	ENTRY;
 	if (!obd) {
 		CERROR("invalid client cookie "LPX64"\n",
 		       exp->exp_handle.h_cookie);
@@ -203,7 +199,6 @@ static int echo_setattr(const struct lu_env *env, struct obd_export *exp,
 {
 	struct obd_device *obd = class_exp2obd(exp);
 
-	ENTRY;
 	if (!obd) {
 		CERROR("invalid client cookie "LPX64"\n",
 		       exp->exp_handle.h_cookie);
@@ -410,7 +405,6 @@ static int echo_preprw(const struct lu_env *env, int cmd,
 	int tot_bytes = 0;
 	int rc = 0;
 	int i, left;
-	ENTRY;
 
 	obd = export->exp_obd;
 	if (obd == NULL)
@@ -487,7 +481,6 @@ static int echo_commitrw(const struct lu_env *env, int cmd,
 	struct obd_device *obd;
 	int pgs = 0;
 	int i;
-	ENTRY;
 
 	obd = export->exp_obd;
 	if (obd == NULL)
@@ -565,7 +558,6 @@ static int echo_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	__u64		      lock_flags = 0;
 	struct ldlm_res_id	 res_id = {.name = {1}};
 	char		       ns_name[48];
-	ENTRY;
 
 	obd->u.echo.eo_obt.obt_magic = OBT_MAGIC;
 	spin_lock_init(&obd->u.echo.eo_lock);
@@ -606,7 +598,6 @@ static int echo_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 static int echo_cleanup(struct obd_device *obd)
 {
 	int leaked;
-	ENTRY;
 
 	lprocfs_obd_cleanup(obd);
 	lprocfs_free_obd_stats(obd);

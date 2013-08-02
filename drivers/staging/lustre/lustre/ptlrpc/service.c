@@ -369,7 +369,6 @@ static void rs_batch_fini(struct rs_batch *b)
 void ptlrpc_dispatch_difficult_reply(struct ptlrpc_reply_state *rs)
 {
 	struct ptlrpc_hr_thread *hrt;
-	ENTRY;
 
 	LASSERT(list_empty(&rs->rs_list));
 
@@ -386,8 +385,6 @@ void ptlrpc_dispatch_difficult_reply(struct ptlrpc_reply_state *rs)
 void
 ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs)
 {
-	ENTRY;
-
 	LASSERT(spin_is_locked(&rs->rs_svcpt->scp_rep_lock));
 	LASSERT(spin_is_locked(&rs->rs_lock));
 	LASSERT (rs->rs_difficult);
@@ -409,7 +406,6 @@ void ptlrpc_commit_replies(struct obd_export *exp)
 {
 	struct ptlrpc_reply_state *rs, *nxt;
 	DECLARE_RS_BATCH(batch);
-	ENTRY;
 
 	rs_batch_init(&batch);
 	/* Find any replies that have been committed and get their service
@@ -702,7 +698,6 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	int				cpt;
 	int				rc;
 	int				i;
-	ENTRY;
 
 	LASSERT(conf->psc_buf.bc_nbufs > 0);
 	LASSERT(conf->psc_buf.bc_buf_size >=
@@ -1037,8 +1032,6 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 	struct obd_export *oldest_exp;
 	time_t oldest_time, new_time;
 
-	ENTRY;
-
 	LASSERT(exp);
 
 	/* Compensate for slow machines, etc, by faking our request time
@@ -1261,7 +1254,6 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	cfs_duration_t olddl = req->rq_deadline - cfs_time_current_sec();
 	time_t newdl;
 	int rc;
-	ENTRY;
 
 	/* deadline is when the client expects us to reply, margin is the
 	   difference between clients' and servers' expectations */
@@ -1401,7 +1393,6 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	time_t now = cfs_time_current_sec();
 	cfs_duration_t delay;
 	int first, counter = 0;
-	ENTRY;
 
 	spin_lock(&svcpt->scp_at_lock);
 	if (svcpt->scp_at_check == 0) {
@@ -1503,7 +1494,6 @@ static int ptlrpc_server_hpreq_init(struct ptlrpc_service_part *svcpt,
 				    struct ptlrpc_request *req)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (svcpt->scp_service->srv_ops.so_hpreq_handler) {
 		rc = svcpt->scp_service->srv_ops.so_hpreq_handler(req);
@@ -1547,7 +1537,6 @@ static int ptlrpc_server_hpreq_init(struct ptlrpc_service_part *svcpt,
 /** Remove the request from the export list. */
 static void ptlrpc_server_hpreq_fini(struct ptlrpc_request *req)
 {
-	ENTRY;
 	if (req->rq_export && req->rq_ops) {
 		/* refresh lock timeout again so that client has more
 		 * room to send lock cancel RPC. */
@@ -1589,7 +1578,6 @@ static int ptlrpc_server_request_add(struct ptlrpc_service_part *svcpt,
 				     struct ptlrpc_request *req)
 {
 	int	rc;
-	ENTRY;
 
 	rc = ptlrpc_server_hpreq_init(svcpt, req);
 	if (rc < 0)
@@ -1703,7 +1691,6 @@ static struct ptlrpc_request *
 ptlrpc_server_request_get(struct ptlrpc_service_part *svcpt, bool force)
 {
 	struct ptlrpc_request *req = NULL;
-	ENTRY;
 
 	spin_lock(&svcpt->scp_req_lock);
 
@@ -1753,7 +1740,6 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 	struct ptlrpc_request	*req;
 	__u32			deadline;
 	int			rc;
-	ENTRY;
 
 	spin_lock(&svcpt->scp_lock);
 	if (list_empty(&svcpt->scp_req_incoming)) {
@@ -1900,7 +1886,6 @@ ptlrpc_server_handle_request(struct ptlrpc_service_part *svcpt,
 	long		   timediff;
 	int		    rc;
 	int		    fail_opc = 0;
-	ENTRY;
 
 	request = ptlrpc_server_request_get(svcpt, false);
 	if (request == NULL)
@@ -2057,7 +2042,6 @@ ptlrpc_handle_rs(struct ptlrpc_reply_state *rs)
 	struct obd_export	 *exp;
 	int			nlocks;
 	int			been_handled;
-	ENTRY;
 
 	exp = rs->rs_export;
 
@@ -2294,7 +2278,6 @@ static int ptlrpc_main(void *arg)
 #endif
 	struct lu_env *env;
 	int counter = 0, rc = 0;
-	ENTRY;
 
 	thread->t_pid = current_pid();
 	unshare_fs_struct();
@@ -2560,7 +2543,6 @@ static int ptlrpc_start_hr_threads(void)
 	struct ptlrpc_hr_partition	*hrp;
 	int				i;
 	int				j;
-	ENTRY;
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
 		int	rc = 0;
@@ -2593,8 +2575,6 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 	struct l_wait_info	lwi = { 0 };
 	struct ptlrpc_thread	*thread;
 	LIST_HEAD		(zombie);
-
-	ENTRY;
 
 	CDEBUG(D_INFO, "Stopping threads for service %s\n",
 	       svcpt->scp_service->srv_name);
@@ -2645,7 +2625,6 @@ void ptlrpc_stop_all_threads(struct ptlrpc_service *svc)
 {
 	struct ptlrpc_service_part *svcpt;
 	int			   i;
-	ENTRY;
 
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
 		if (svcpt->scp_service != NULL)
@@ -2661,7 +2640,6 @@ int ptlrpc_start_threads(struct ptlrpc_service *svc)
 	int	rc = 0;
 	int	i;
 	int	j;
-	ENTRY;
 
 	/* We require 2 threads min, see note in ptlrpc_server_handle_request */
 	LASSERT(svc->srv_nthrs_cpt_init >= PTLRPC_NTHRS_INIT);
@@ -2694,7 +2672,6 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	struct ptlrpc_thread	*thread;
 	struct ptlrpc_service	*svc;
 	int			rc;
-	ENTRY;
 
 	LASSERT(svcpt != NULL);
 
@@ -2801,7 +2778,6 @@ int ptlrpc_hr_init(void)
 	int				i;
 	int				j;
 	int				weight;
-	ENTRY;
 
 	memset(&ptlrpc_hr, 0, sizeof(ptlrpc_hr));
 	ptlrpc_hr.hr_cpt_table = cfs_cpt_table;
@@ -3068,8 +3044,6 @@ ptlrpc_service_free(struct ptlrpc_service *svc)
 
 int ptlrpc_unregister_service(struct ptlrpc_service *service)
 {
-	ENTRY;
-
 	CDEBUG(D_NET, "%s: tearing down\n", service->srv_name);
 
 	service->srv_is_stopping = 1;

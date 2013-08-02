@@ -211,7 +211,6 @@ static inline int lustre_cfg_len(__u32 bufcount, __u32 *buflens)
 {
 	int i;
 	int len;
-	ENTRY;
 
 	len = LCFG_HDR_SIZE(bufcount);
 	for (i = 0; i < bufcount; i++)
@@ -229,8 +228,6 @@ static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 	struct lustre_cfg *lcfg;
 	char *ptr;
 	int i;
-
-	ENTRY;
 
 	OBD_ALLOC(lcfg, lustre_cfg_len(bufs->lcfg_bufcount,
 				       bufs->lcfg_buflen));
@@ -263,7 +260,7 @@ static inline void lustre_cfg_free(struct lustre_cfg *lcfg)
 static inline int lustre_cfg_sanity_check(void *buf, int len)
 {
 	struct lustre_cfg *lcfg = (struct lustre_cfg *)buf;
-	ENTRY;
+
 	if (!lcfg)
 		RETURN(-EINVAL);
 

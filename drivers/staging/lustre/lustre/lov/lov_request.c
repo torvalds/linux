@@ -60,7 +60,6 @@ static void lov_init_set(struct lov_request_set *set)
 void lov_finish_set(struct lov_request_set *set)
 {
 	struct list_head *pos, *n;
-	ENTRY;
 
 	LASSERT(set);
 	list_for_each_safe(pos, n, &set->set_list) {
@@ -122,7 +121,6 @@ int lov_update_common_set(struct lov_request_set *set,
 			  struct lov_request *req, int rc)
 {
 	struct lov_obd *lov = &set->set_exp->exp_obd->u.lov;
-	ENTRY;
 
 	lov_update_set(set, req, rc);
 
@@ -232,7 +230,6 @@ int lov_update_enqueue_set(struct lov_request *req, __u32 mode, int rc)
 	struct lustre_handle *lov_lockhp;
 	struct obd_info *oi = set->set_oi;
 	struct lov_oinfo *loi;
-	ENTRY;
 
 	LASSERT(oi != NULL);
 
@@ -275,7 +272,6 @@ static int enqueue_done(struct lov_request_set *set, __u32 mode)
 	struct lov_obd *lov = &set->set_exp->exp_obd->u.lov;
 	int completes = atomic_read(&set->set_completes);
 	int rc = 0;
-	ENTRY;
 
 	/* enqueue/match success, just return */
 	if (completes && completes == atomic_read(&set->set_success))
@@ -312,7 +308,6 @@ int lov_fini_enqueue_set(struct lov_request_set *set, __u32 mode, int rc,
 			 struct ptlrpc_request_set *rqset)
 {
 	int ret = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -369,7 +364,6 @@ int lov_prep_enqueue_set(struct obd_export *exp, struct obd_info *oinfo,
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
 	struct lov_request_set *set;
 	int i, rc = 0;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)
@@ -454,7 +448,6 @@ out_set:
 int lov_fini_match_set(struct lov_request_set *set, __u32 mode, int flags)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -477,7 +470,6 @@ int lov_prep_match_set(struct obd_export *exp, struct obd_info *oinfo,
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
 	struct lov_request_set *set;
 	int i, rc = 0;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)
@@ -544,7 +536,6 @@ out_set:
 int lov_fini_cancel_set(struct lov_request_set *set)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -565,7 +556,6 @@ int lov_prep_cancel_set(struct obd_export *exp, struct obd_info *oinfo,
 {
 	struct lov_request_set *set;
 	int i, rc = 0;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)
@@ -628,7 +618,6 @@ static int common_attr_done(struct lov_request_set *set)
 	struct lov_request *req;
 	struct obdo *tmp_oa;
 	int rc = 0, attrset = 0;
-	ENTRY;
 
 	LASSERT(set->set_oi != NULL);
 
@@ -680,7 +669,6 @@ static int brw_done(struct lov_request_set *set)
 	struct lov_oinfo     *loi = NULL;
 	struct list_head *pos;
 	struct lov_request *req;
-	ENTRY;
 
 	list_for_each (pos, &set->set_list) {
 		req = list_entry(pos, struct lov_request, rq_link);
@@ -700,7 +688,6 @@ static int brw_done(struct lov_request_set *set)
 int lov_fini_brw_set(struct lov_request_set *set)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -727,7 +714,6 @@ int lov_prep_brw_set(struct obd_export *exp, struct obd_info *oinfo,
 	struct lov_request_set *set;
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
 	int rc = 0, i, shift;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)
@@ -838,7 +824,6 @@ out:
 int lov_fini_getattr_set(struct lov_request_set *set)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -867,7 +852,6 @@ int lov_prep_getattr_set(struct obd_export *exp, struct obd_info *oinfo,
 	struct lov_request_set *set;
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
 	int rc = 0, i;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)
@@ -921,8 +905,6 @@ out_set:
 
 int lov_fini_destroy_set(struct lov_request_set *set)
 {
-	ENTRY;
-
 	if (set == NULL)
 		RETURN(0);
 	LASSERT(set->set_exp);
@@ -943,7 +925,6 @@ int lov_prep_destroy_set(struct obd_export *exp, struct obd_info *oinfo,
 	struct lov_request_set *set;
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
 	int rc = 0, i;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)
@@ -996,7 +977,6 @@ out_set:
 int lov_fini_setattr_set(struct lov_request_set *set)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -1015,7 +995,6 @@ int lov_update_setattr_set(struct lov_request_set *set,
 {
 	struct lov_obd *lov = &req->rq_rqset->set_exp->exp_obd->u.lov;
 	struct lov_stripe_md *lsm = req->rq_rqset->set_oi->oi_md;
-	ENTRY;
 
 	lov_update_set(set, req, rc);
 
@@ -1056,7 +1035,6 @@ int lov_prep_setattr_set(struct obd_export *exp, struct obd_info *oinfo,
 	struct lov_request_set *set;
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
 	int rc = 0, i;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)
@@ -1122,7 +1100,6 @@ out_set:
 int lov_fini_punch_set(struct lov_request_set *set)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -1144,7 +1121,6 @@ int lov_update_punch_set(struct lov_request_set *set,
 {
 	struct lov_obd *lov = &req->rq_rqset->set_exp->exp_obd->u.lov;
 	struct lov_stripe_md *lsm = req->rq_rqset->set_oi->oi_md;
-	ENTRY;
 
 	lov_update_set(set, req, rc);
 
@@ -1182,7 +1158,6 @@ int lov_prep_punch_set(struct obd_export *exp, struct obd_info *oinfo,
 	struct lov_request_set *set;
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
 	int rc = 0, i;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)
@@ -1247,7 +1222,6 @@ out_set:
 int lov_fini_sync_set(struct lov_request_set *set)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -1281,7 +1255,6 @@ int lov_prep_sync_set(struct obd_export *exp, struct obd_info *oinfo,
 	struct lov_request_set *set;
 	struct lov_obd *lov = &exp->exp_obd->u.lov;
 	int rc = 0, i;
-	ENTRY;
 
 	OBD_ALLOC_PTR(set);
 	if (set == NULL)
@@ -1347,8 +1320,6 @@ out_set:
 
 int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,int success)
 {
-	ENTRY;
-
 	if (success) {
 		__u32 expected_stripes = lov_get_stripecnt(&obd->u.lov,
 							   LOV_MAGIC, 0);
@@ -1370,7 +1341,6 @@ int lov_fini_statfs(struct obd_device *obd, struct obd_statfs *osfs,int success)
 int lov_fini_statfs_set(struct lov_request_set *set)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (set == NULL)
 		RETURN(0);
@@ -1450,7 +1420,6 @@ static int cb_statfs_update(void *cookie, int rc)
 	struct lov_tgt_desc *tgt;
 	struct obd_device *lovobd, *tgtobd;
 	int success;
-	ENTRY;
 
 	lovreq = container_of(oinfo, struct lov_request, rq_oi);
 	set = lovreq->rq_rqset;
@@ -1497,7 +1466,6 @@ int lov_prep_statfs_set(struct obd_device *obd, struct obd_info *oinfo,
 	struct lov_request_set *set;
 	struct lov_obd *lov = &obd->u.lov;
 	int rc = 0, i;
-	ENTRY;
 
 	OBD_ALLOC(set, sizeof(*set));
 	if (set == NULL)

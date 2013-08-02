@@ -144,7 +144,6 @@ lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size)
 {
 	int count, i, esize;
 	ext_acl_xattr_header *new;
-	ENTRY;
 
 	if (unlikely(size < 0))
 		RETURN(ERR_PTR(-EINVAL));
@@ -178,7 +177,6 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 	int count, i, j, rc = 0;
 	__u32 id;
 	posix_acl_xattr_header *new;
-	ENTRY;
 
 	if (unlikely(size < 0))
 		RETURN(-EINVAL);
@@ -302,7 +300,6 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 	posix_acl_xattr_entry pe = {ACL_MASK, 0, ACL_UNDEFINED_ID};
 	posix_acl_xattr_header *new;
 	ext_acl_xattr_entry *ee, ae;
-	ENTRY;
 
 	lustre_posix_acl_cpu_to_le(&pe, &pe);
 	ee = lustre_ext_acl_xattr_search(ext_header, &pe, &pos);
@@ -420,7 +417,6 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 	posix_acl_xattr_entry pae;
 	ext_acl_xattr_header *new;
 	ext_acl_xattr_entry *ee, eae;
-	ENTRY;
 
 	if (unlikely(size < 0))
 		RETURN(ERR_PTR(-EINVAL));

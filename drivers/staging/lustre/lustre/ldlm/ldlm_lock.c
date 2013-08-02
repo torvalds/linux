@@ -188,8 +188,6 @@ EXPORT_SYMBOL(ldlm_lock_get);
  */
 void ldlm_lock_put(struct ldlm_lock *lock)
 {
-	ENTRY;
-
 	LASSERT(lock->l_resource != LP_POISON);
 	LASSERT(atomic_read(&lock->l_refc) > 0);
 	if (atomic_dec_and_test(&lock->l_refc)) {
@@ -253,7 +251,6 @@ int ldlm_lock_remove_from_lru(struct ldlm_lock *lock)
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 	int rc;
 
-	ENTRY;
 	if (lock->l_flags & LDLM_FL_NS_SRV) {
 		LASSERT(list_empty(&lock->l_lru));
 		RETURN(0);
@@ -289,7 +286,6 @@ void ldlm_lock_add_to_lru(struct ldlm_lock *lock)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
-	ENTRY;
 	spin_lock(&ns->ns_lock);
 	ldlm_lock_add_to_lru_nolock(lock);
 	spin_unlock(&ns->ns_lock);
@@ -304,7 +300,6 @@ void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
 {
 	struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
-	ENTRY;
 	if (lock->l_flags & LDLM_FL_NS_SRV) {
 		LASSERT(list_empty(&lock->l_lru));
 		EXIT;
@@ -341,8 +336,6 @@ void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
  */
 int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 {
-	ENTRY;
-
 	if (lock->l_readers || lock->l_writers) {
 		LDLM_ERROR(lock, "lock still has references");
 		LBUG();
@@ -393,7 +386,7 @@ int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 void ldlm_lock_destroy(struct ldlm_lock *lock)
 {
 	int first;
-	ENTRY;
+
 	lock_res_and_lock(lock);
 	first = ldlm_lock_destroy_internal(lock);
 	unlock_res_and_lock(lock);
@@ -412,7 +405,7 @@ void ldlm_lock_destroy(struct ldlm_lock *lock)
 void ldlm_lock_destroy_nolock(struct ldlm_lock *lock)
 {
 	int first;
-	ENTRY;
+
 	first = ldlm_lock_destroy_internal(lock);
 	/* drop reference from hashtable only for first destroy */
 	if (first) {
@@ -450,7 +443,6 @@ struct portals_handle_ops lock_handle_ops = {
 static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 {
 	struct ldlm_lock *lock;
-	ENTRY;
 
 	if (resource == NULL)
 		LBUG();
@@ -507,7 +499,6 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 	struct ldlm_resource *oldres = lock->l_resource;
 	struct ldlm_resource *newres;
 	int type;
-	ENTRY;
 
 	LASSERT(ns_is_client(ns));
 
@@ -586,7 +577,6 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 				     __u64 flags)
 {
 	struct ldlm_lock *lock;
-	ENTRY;
 
 	LASSERT(handle);
 
@@ -728,7 +718,6 @@ void ldlm_add_cp_work_item(struct ldlm_lock *lock, struct list_head *work_list)
 void ldlm_add_ast_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
 			    struct list_head *work_list)
 {
-	ENTRY;
 	check_res_locked(lock->l_resource);
 	if (new)
 		ldlm_add_bl_work_item(lock, new, work_list);
@@ -853,7 +842,6 @@ void ldlm_lock_decref_internal_nolock(struct ldlm_lock *lock, __u32 mode)
 void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 {
 	struct ldlm_namespace *ns;
-	ENTRY;
 
 	lock_res_and_lock(lock);
 
@@ -940,7 +928,6 @@ EXPORT_SYMBOL(ldlm_lock_decref);
 void ldlm_lock_decref_and_cancel(struct lustre_handle *lockh, __u32 mode)
 {
 	struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
-	ENTRY;
 
 	LASSERT(lock != NULL);
 
@@ -979,7 +966,6 @@ static void search_granted_lock(struct list_head *queue,
 {
 	struct list_head *tmp;
 	struct ldlm_lock *lock, *mode_end, *policy_end;
-	ENTRY;
 
 	list_for_each(tmp, queue) {
 		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
@@ -1062,7 +1048,6 @@ static void ldlm_granted_list_add_lock(struct ldlm_lock *lock,
 				       struct sl_insert_point *prev)
 {
 	struct ldlm_resource *res = lock->l_resource;
-	ENTRY;
 
 	check_res_locked(res);
 
@@ -1099,7 +1084,6 @@ static void ldlm_granted_list_add_lock(struct ldlm_lock *lock,
 static void ldlm_grant_lock_with_skiplist(struct ldlm_lock *lock)
 {
 	struct sl_insert_point prev;
-	ENTRY;
 
 	LASSERT(lock->l_req_mode == lock->l_granted_mode);
 
@@ -1122,7 +1106,6 @@ static void ldlm_grant_lock_with_skiplist(struct ldlm_lock *lock)
 void ldlm_grant_lock(struct ldlm_lock *lock, struct list_head *work_list)
 {
 	struct ldlm_resource *res = lock->l_resource;
-	ENTRY;
 
 	check_res_locked(res);
 
@@ -1304,7 +1287,6 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 	struct ldlm_resource *res;
 	struct ldlm_lock *lock, *old_lock = NULL;
 	int rc = 0;
-	ENTRY;
 
 	if (ns == NULL) {
 		old_lock = ldlm_handle2lock(lockh);
@@ -1425,7 +1407,6 @@ ldlm_mode_t ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
 {
 	struct ldlm_lock *lock;
 	ldlm_mode_t mode = 0;
-	ENTRY;
 
 	lock = ldlm_handle2lock(lockh);
 	if (lock != NULL) {
@@ -1459,7 +1440,6 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 		  enum req_location loc, void *data, int size)
 {
 	void *lvb;
-	ENTRY;
 
 	LASSERT(data != NULL);
 	LASSERT(size >= 0);
@@ -1567,7 +1547,6 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 {
 	struct ldlm_lock *lock;
 	struct ldlm_resource *res;
-	ENTRY;
 
 	res = ldlm_resource_get(ns, NULL, res_id, type, 1);
 	if (res == NULL)
@@ -1634,7 +1613,6 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 	int local = ns_is_client(ldlm_res_to_ns(res));
 	ldlm_error_t rc = ELDLM_OK;
 	struct ldlm_interval *node = NULL;
-	ENTRY;
 
 	lock->l_last_activity = cfs_time_current_sec();
 	/* policies are not executed on the client or during replay */
@@ -1736,7 +1714,6 @@ ldlm_work_bl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	struct ldlm_lock_desc   d;
 	int		     rc;
 	struct ldlm_lock       *lock;
-	ENTRY;
 
 	if (list_empty(arg->list))
 		RETURN(-ENOENT);
@@ -1773,7 +1750,6 @@ ldlm_work_cp_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	int		      rc = 0;
 	struct ldlm_lock	*lock;
 	ldlm_completion_callback completion_callback;
-	ENTRY;
 
 	if (list_empty(arg->list))
 		RETURN(-ENOENT);
@@ -1818,7 +1794,6 @@ ldlm_work_revoke_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	struct ldlm_lock_desc   desc;
 	int		     rc;
 	struct ldlm_lock       *lock;
-	ENTRY;
 
 	if (list_empty(arg->list))
 		RETURN(-ENOENT);
@@ -1846,7 +1821,6 @@ int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	struct ldlm_glimpse_work	*gl_work;
 	struct ldlm_lock		*lock;
 	int				 rc = 0;
-	ENTRY;
 
 	if (list_empty(arg->list))
 		RETURN(-ENOENT);
@@ -1958,8 +1932,6 @@ static int ldlm_reprocess_res(cfs_hash_t *hs, cfs_hash_bd_t *bd,
  */
 void ldlm_reprocess_all_ns(struct ldlm_namespace *ns)
 {
-	ENTRY;
-
 	if (ns != NULL) {
 		cfs_hash_for_each_nolock(ns->ns_rs_hash,
 					 ldlm_reprocess_res, NULL);
@@ -1980,7 +1952,6 @@ void ldlm_reprocess_all(struct ldlm_resource *res)
 {
 	LIST_HEAD(rpc_list);
 
-	ENTRY;
 	if (!ns_is_client(ldlm_res_to_ns(res))) {
 		CERROR("This is client-side-only module, cannot handle "
 		       "LDLM_NAMESPACE_SERVER resource type lock.\n");
@@ -2030,7 +2001,6 @@ void ldlm_lock_cancel(struct ldlm_lock *lock)
 {
 	struct ldlm_resource *res;
 	struct ldlm_namespace *ns;
-	ENTRY;
 
 	lock_res_and_lock(lock);
 
@@ -2077,7 +2047,6 @@ int ldlm_lock_set_data(struct lustre_handle *lockh, void *data)
 {
 	struct ldlm_lock *lock = ldlm_handle2lock(lockh);
 	int rc = -EINVAL;
-	ENTRY;
 
 	if (lock) {
 		if (lock->l_ast_data == NULL)
@@ -2158,8 +2127,6 @@ void ldlm_cancel_locks_for_export(struct obd_export *exp)
  */
 void ldlm_lock_downgrade(struct ldlm_lock *lock, int new_mode)
 {
-	ENTRY;
-
 	LASSERT(lock->l_granted_mode & (LCK_PW | LCK_EX));
 	LASSERT(new_mode == LCK_COS);
 
@@ -2195,7 +2162,6 @@ struct ldlm_resource *ldlm_lock_convert(struct ldlm_lock *lock, int new_mode,
 	struct ldlm_namespace *ns;
 	int granted = 0;
 	struct ldlm_interval *node;
-	ENTRY;
 
 	/* Just return if mode is unchanged. */
 	if (new_mode == lock->l_granted_mode) {

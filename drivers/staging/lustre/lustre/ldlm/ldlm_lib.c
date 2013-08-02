@@ -60,7 +60,6 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 	struct ptlrpc_connection *ptlrpc_conn;
 	struct obd_import_conn *imp_conn = NULL, *item;
 	int rc = 0;
-	ENTRY;
 
 	if (!create && !priority) {
 		CDEBUG(D_HA, "Nothing to do\n");
@@ -141,7 +140,6 @@ int client_import_del_conn(struct obd_import *imp, struct obd_uuid *uuid)
 	struct obd_import_conn *imp_conn;
 	struct obd_export *dlmexp;
 	int rc = -ENOENT;
-	ENTRY;
 
 	spin_lock(&imp->imp_lock);
 	if (list_empty(&imp->imp_conn_list)) {
@@ -200,7 +198,6 @@ int client_import_find_conn(struct obd_import *imp, lnet_nid_t peer,
 {
 	struct obd_import_conn *conn;
 	int rc = -ENOENT;
-	ENTRY;
 
 	spin_lock(&imp->imp_lock);
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
@@ -267,7 +264,6 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	ldlm_ns_type_t ns_type = LDLM_NS_TYPE_UNKNOWN;
 	int rc;
 	char	*cli_name = lustre_cfg_buf(lcfg, 0);
-	ENTRY;
 
 	/* In a more perfect world, we would hang a ptlrpc_client off of
 	 * obd_type and just use the values from there. */
@@ -466,8 +462,6 @@ EXPORT_SYMBOL(client_obd_setup);
 
 int client_obd_cleanup(struct obd_device *obddev)
 {
-	ENTRY;
-
 	ldlm_namespace_free_post(obddev->obd_namespace);
 	obddev->obd_namespace = NULL;
 
@@ -489,7 +483,6 @@ int client_connect_import(const struct lu_env *env,
 	struct obd_connect_data *ocd;
 	struct lustre_handle    conn    = { 0 };
 	int		     rc;
-	ENTRY;
 
 	*exp = NULL;
 	down_write(&cli->cl_sem);
@@ -553,7 +546,6 @@ int client_disconnect_export(struct obd_export *exp)
 	struct client_obd *cli;
 	struct obd_import *imp;
 	int rc = 0, err;
-	ENTRY;
 
 	if (!obd) {
 		CERROR("invalid export for disconnect: exp %p cookie "LPX64"\n",
@@ -627,7 +619,6 @@ EXPORT_SYMBOL(client_disconnect_export);
 int target_pack_pool_reply(struct ptlrpc_request *req)
 {
 	struct obd_device *obd;
-	ENTRY;
 
 	/* Check that we still have all structures alive as this may
 	 * be some late RPC at shutdown time. */
@@ -674,7 +665,6 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	int			netrc;
 	struct ptlrpc_reply_state *rs;
 	struct obd_export	 *exp;
-	ENTRY;
 
 	if (req->rq_no_reply) {
 		EXIT;

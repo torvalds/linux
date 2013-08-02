@@ -88,7 +88,6 @@ EXPORT_SYMBOL(lustre_swab_llog_id);
 
 void lustre_swab_llogd_body (struct llogd_body *d)
 {
-	ENTRY;
 	print_llogd_body(d);
 	lustre_swab_llog_id(&d->lgd_logid);
 	__swab32s (&d->lgd_ctxt_idx);
@@ -298,7 +297,6 @@ static void print_llog_hdr(struct llog_log_hdr *h)
 
 void lustre_swab_llog_hdr (struct llog_log_hdr *h)
 {
-	ENTRY;
 	print_llog_hdr(h);
 
 	lustre_swab_llog_rec(&h->llh_hdr);
@@ -311,7 +309,6 @@ EXPORT_SYMBOL(lustre_swab_llog_hdr);
 static void print_lustre_cfg(struct lustre_cfg *lcfg)
 {
 	int i;
-	ENTRY;
 
 	if (!(libcfs_debug & D_OTHER)) /* don't loop on nothing */
 		return;
@@ -334,7 +331,6 @@ static void print_lustre_cfg(struct lustre_cfg *lcfg)
 void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
 {
 	int i;
-	ENTRY;
 
 	__swab32s(&lcfg->lcfg_version);
 
@@ -377,7 +373,6 @@ struct cfg_marker32 {
 void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 {
 	struct cfg_marker32 *cm32 = (struct cfg_marker32*)marker;
-	ENTRY;
 
 	if (swab) {
 		__swab32s(&marker->cm_step);

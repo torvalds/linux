@@ -49,7 +49,6 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 		      struct obd_uuid *uuid)
 {
 	struct ptlrpc_connection *conn, *conn2;
-	ENTRY;
 
 	conn = cfs_hash_lookup(conn_hash, &peer);
 	if (conn)
@@ -92,7 +91,6 @@ EXPORT_SYMBOL(ptlrpc_connection_get);
 int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 {
 	int rc = 0;
-	ENTRY;
 
 	if (!conn)
 		RETURN(rc);
@@ -129,8 +127,6 @@ EXPORT_SYMBOL(ptlrpc_connection_put);
 struct ptlrpc_connection *
 ptlrpc_connection_addref(struct ptlrpc_connection *conn)
 {
-	ENTRY;
-
 	atomic_inc(&conn->c_refcount);
 	CDEBUG(D_INFO, "conn=%p refcount %d to %s\n",
 	       conn, atomic_read(&conn->c_refcount),
@@ -142,8 +138,6 @@ EXPORT_SYMBOL(ptlrpc_connection_addref);
 
 int ptlrpc_connection_init(void)
 {
-	ENTRY;
-
 	conn_hash = cfs_hash_create("CONN_HASH",
 				    HASH_CONN_CUR_BITS,
 				    HASH_CONN_MAX_BITS,
@@ -159,7 +153,6 @@ int ptlrpc_connection_init(void)
 EXPORT_SYMBOL(ptlrpc_connection_init);
 
 void ptlrpc_connection_fini(void) {
-	ENTRY;
 	cfs_hash_putref(conn_hash);
 	EXIT;
 }

@@ -78,7 +78,6 @@ void libcfs_run_debug_log_upcall(char *file)
 		"HOME=/",
 		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
 		NULL};
-	ENTRY;
 
 	argv[0] = lnet_debug_log_upcall;
 
@@ -108,7 +107,6 @@ void libcfs_run_upcall(char **argv)
 		"HOME=/",
 		"PATH=/sbin:/bin:/usr/sbin:/usr/bin",
 		NULL};
-	ENTRY;
 
 	argv[0] = lnet_upcall;
 	argc = 1;
@@ -141,7 +139,6 @@ void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *msgdata)
 	char *argv[6];
 	char buf[32];
 
-	ENTRY;
 	snprintf (buf, sizeof buf, "%d", msgdata->msg_line);
 
 	argv[1] = "LBUG";

@@ -112,7 +112,6 @@ int lustre_get_jobid(char *jobid)
 {
 	int jobid_len = JOBSTATS_JOBID_SIZE;
 	int rc = 0;
-	ENTRY;
 
 	memset(jobid, 0, JOBSTATS_JOBID_SIZE);
 	/* Jobstats isn't enabled */
@@ -194,7 +193,6 @@ int class_resolve_dev_name(__u32 len, const char *name)
 	int rc;
 	int dev;
 
-	ENTRY;
 	if (!len || !name) {
 		CERROR("No name passed,!\n");
 		GOTO(out, rc = -EINVAL);
@@ -225,7 +223,6 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 	struct libcfs_debug_ioctl_data *debug_data;
 	struct obd_device *obd = NULL;
 	int err = 0, len = 0;
-	ENTRY;
 
 	/* only for debugging */
 	if (cmd == LIBCFS_IOC_DEBUG_MASK) {
@@ -639,7 +636,6 @@ static void cleanup_obdclass(void)
 	int lustre_unregister_fs(void);
 	__u64 memory_leaked, pages_leaked;
 	__u64 memory_max, pages_max;
-	ENTRY;
 
 	lustre_unregister_fs();
 

@@ -93,8 +93,6 @@ static int llog_osd_pad(const struct lu_env *env, struct dt_object *o,
 	struct llog_thread_info	*lgi = llog_info(env);
 	int			 rc;
 
-	ENTRY;
-
 	LASSERT(th);
 	LASSERT(off);
 	LASSERT(len >= LLOG_MIN_REC_SIZE && (len & 0x7) == 0);
@@ -132,8 +130,6 @@ static int llog_osd_write_blob(const struct lu_env *env, struct dt_object *o,
 	struct llog_thread_info	*lgi = llog_info(env);
 	int			 buflen = rec->lrh_len;
 	int			 rc;
-
-	ENTRY;
 
 	LASSERT(env);
 	LASSERT(o);
@@ -210,8 +206,6 @@ static int llog_osd_read_header(const struct lu_env *env,
 	struct llog_thread_info	*lgi;
 	int			 rc;
 
-	ENTRY;
-
 	LASSERT(sizeof(*handle->lgh_hdr) == LLOG_CHUNK_SIZE);
 
 	o = handle->lgh_obj;
@@ -278,8 +272,6 @@ static int llog_osd_declare_write_rec(const struct lu_env *env,
 	struct dt_object	*o;
 	int			 rc;
 
-	ENTRY;
-
 	LASSERT(env);
 	LASSERT(th);
 	LASSERT(loghandle);
@@ -328,8 +320,6 @@ static int llog_osd_write_rec(const struct lu_env *env,
 	struct llog_rec_tail	*lrt;
 	struct dt_object	*o;
 	size_t			 left;
-
-	ENTRY;
 
 	LASSERT(env);
 	llh = loghandle->lgh_hdr;
@@ -537,8 +527,6 @@ static int llog_osd_next_block(const struct lu_env *env,
 	struct dt_device	*dt;
 	int			 rc;
 
-	ENTRY;
-
 	LASSERT(env);
 	LASSERT(lgi);
 
@@ -663,8 +651,6 @@ static int llog_osd_prev_block(const struct lu_env *env,
 	struct dt_device	*dt;
 	loff_t			 cur_offset;
 	int			 rc;
-
-	ENTRY;
 
 	if (len == 0 || len & (LLOG_CHUNK_SIZE - 1))
 		RETURN(-EINVAL);
@@ -794,8 +780,6 @@ static int llog_osd_open(const struct lu_env *env, struct llog_handle *handle,
 	struct local_oid_storage	*los;
 	int				 rc = 0;
 
-	ENTRY;
-
 	LASSERT(env);
 	LASSERT(ctxt);
 	LASSERT(ctxt->loc_exp);
@@ -887,8 +871,6 @@ static int llog_osd_declare_create(const struct lu_env *env,
 	struct dt_object		*o;
 	int				 rc;
 
-	ENTRY;
-
 	LASSERT(res->lgh_obj);
 	LASSERT(th);
 
@@ -936,8 +918,6 @@ static int llog_osd_create(const struct lu_env *env, struct llog_handle *res,
 	struct local_oid_storage *los;
 	struct dt_object	*o;
 	int		      rc = 0;
-
-	ENTRY;
 
 	LASSERT(env);
 	o = res->lgh_obj;
@@ -988,8 +968,6 @@ static int llog_osd_close(const struct lu_env *env, struct llog_handle *handle)
 	struct local_oid_storage	*los;
 	int				 rc = 0;
 
-	ENTRY;
-
 	LASSERT(handle->lgh_obj);
 
 	lu_object_put(env, &handle->lgh_obj->do_lu);
@@ -1013,8 +991,6 @@ static int llog_osd_destroy(const struct lu_env *env,
 	struct thandle		*th;
 	char			*name = NULL;
 	int			 rc;
-
-	ENTRY;
 
 	ctxt = loghandle->lgh_ctxt;
 	LASSERT(ctxt);
@@ -1089,8 +1065,6 @@ static int llog_osd_setup(const struct lu_env *env, struct obd_device *obd,
 	struct llog_thread_info		*lgi = llog_info(env);
 	struct llog_ctxt		*ctxt;
 	int				 rc = 0;
-
-	ENTRY;
 
 	LASSERT(obd);
 	LASSERT(olg->olg_ctxts[ctxt_idx]);
@@ -1170,8 +1144,6 @@ int llog_osd_get_cat_list(const struct lu_env *env, struct dt_device *d,
 	struct dt_object	*o = NULL;
 	struct thandle		*th;
 	int			 rc, size;
-
-	ENTRY;
 
 	LASSERT(d);
 

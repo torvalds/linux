@@ -92,7 +92,6 @@ static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 	struct hsm_action_item	*hai;
 	int			 len;
 	int			 fd, rc;
-	ENTRY;
 
 	rc = lprocfs_write_helper(buffer, count, &fd);
 	if (rc)

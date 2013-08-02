@@ -343,8 +343,6 @@ static void osc_lock_lvb_update(const struct lu_env *env, struct osc_lock *olck,
 	struct cl_attr    *attr;
 	unsigned	   valid;
 
-	ENTRY;
-
 	if (!(olck->ols_flags & LDLM_FL_LVB_READY))
 		RETURN_EXIT;
 
@@ -412,7 +410,6 @@ static void osc_lock_granted(const struct lu_env *env, struct osc_lock *olck,
 
 	LASSERT(dlmlock->l_granted_mode == dlmlock->l_req_mode);
 
-	ENTRY;
 	if (olck->ols_state < OLS_GRANTED) {
 		lock  = olck->ols_cl.cls_lock;
 		ext   = &dlmlock->l_policy_data.l_extent;
@@ -449,8 +446,6 @@ static void osc_lock_upcall0(const struct lu_env *env, struct osc_lock *olck)
 
 {
 	struct ldlm_lock *dlmlock;
-
-	ENTRY;
 
 	dlmlock = ldlm_handle2lock_long(&olck->ols_handle, 0);
 	LASSERT(dlmlock != NULL);
@@ -497,7 +492,6 @@ static int osc_lock_upcall(void *cookie, int errcode)
 	struct lu_env	   *env;
 	struct cl_env_nest       nest;
 
-	ENTRY;
 	env = cl_env_nested_get(&nest);
 	if (!IS_ERR(env)) {
 		int rc;
@@ -1023,7 +1017,6 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 	struct cl_lock	  *conflict= NULL;
 	int lockless		     = osc_lock_is_lockless(olck);
 	int rc			   = 0;
-	ENTRY;
 
 	LASSERT(cl_lock_is_mutexed(lock));
 
@@ -1118,7 +1111,6 @@ static int osc_lock_enqueue(const struct lu_env *env,
 	struct osc_lock	  *ols     = cl2osc_lock(slice);
 	struct cl_lock	   *lock    = ols->ols_cl.cls_lock;
 	int result;
-	ENTRY;
 
 	LASSERT(cl_lock_is_mutexed(lock));
 	LASSERTF(ols->ols_state == OLS_NEW,
@@ -1262,7 +1254,6 @@ static int osc_lock_flush(struct osc_lock *ols, int discard)
 	struct cl_env_nest    nest;
 	struct lu_env	*env;
 	int result = 0;
-	ENTRY;
 
 	env = cl_env_nested_get(&nest);
 	if (!IS_ERR(env)) {

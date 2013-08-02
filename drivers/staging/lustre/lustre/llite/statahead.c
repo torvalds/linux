@@ -200,7 +200,6 @@ ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
 	struct ll_sa_entry   *entry;
 	int		   entry_size;
 	char		 *dname;
-	ENTRY;
 
 	entry_size = sizeof(struct ll_sa_entry) + (len & ~3) + 4;
 	OBD_ALLOC(entry, entry_size);
@@ -465,7 +464,6 @@ static struct ll_statahead_info *ll_sai_alloc(void)
 {
 	struct ll_statahead_info *sai;
 	int		       i;
-	ENTRY;
 
 	OBD_ALLOC_PTR(sai);
 	if (!sai)
@@ -510,7 +508,6 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 {
 	struct inode	 *inode = sai->sai_inode;
 	struct ll_inode_info *lli   = ll_i2info(inode);
-	ENTRY;
 
 	if (atomic_dec_and_lock(&sai->sai_refcount, &lli->lli_sa_lock)) {
 		struct ll_sa_entry *entry, *next;
@@ -560,7 +557,6 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	struct ll_inode_info *lli   = ll_i2info(inode);
 	__u64		 index = lli->lli_agl_index;
 	int		   rc;
-	ENTRY;
 
 	LASSERT(list_empty(&lli->lli_agl_list));
 
@@ -628,7 +624,6 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 	struct ptlrpc_request  *req;
 	struct mdt_body	*body;
 	int		     rc    = 0;
-	ENTRY;
 
 	spin_lock(&lli->lli_sa_lock);
 	if (unlikely(sa_received_empty(sai))) {
@@ -713,7 +708,6 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 	struct ll_statahead_info *sai = NULL;
 	struct ll_sa_entry       *entry;
 	int		       wakeup;
-	ENTRY;
 
 	if (it_disposition(it, DISP_LOOKUP_NEG))
 		rc = -ENOENT;
@@ -852,7 +846,6 @@ static int do_sa_lookup(struct inode *dir, struct ll_sa_entry *entry)
 	struct ldlm_enqueue_info *einfo;
 	struct obd_capa	  *capas[2];
 	int		       rc;
-	ENTRY;
 
 	rc = sa_args_init(dir, NULL, entry, &minfo, &einfo, capas);
 	if (rc)
@@ -885,7 +878,6 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	struct ldlm_enqueue_info *einfo;
 	struct obd_capa	  *capas[2];
 	int rc;
-	ENTRY;
 
 	if (unlikely(inode == NULL))
 		RETURN(1);
@@ -934,7 +926,6 @@ static void ll_statahead_one(struct dentry *parent, const char* entry_name,
 	struct ll_sa_entry       *entry;
 	int		       rc;
 	int		       rc1;
-	ENTRY;
 
 	entry = ll_sa_entry_alloc(sai, sai->sai_index, entry_name,
 				  entry_name_len);
@@ -979,7 +970,6 @@ static int ll_agl_thread(void *arg)
 	struct ll_statahead_info *sai    = ll_sai_get(plli->lli_sai);
 	struct ptlrpc_thread     *thread = &sai->sai_agl_thread;
 	struct l_wait_info	lwi    = { 0 };
-	ENTRY;
 
 	CDEBUG(D_READA, "agl thread started: [pid %d] [parent %.*s]\n",
 	       current_pid(), parent->d_name.len, parent->d_name.name);
@@ -1038,7 +1028,6 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 	struct l_wait_info    lwi    = { 0 };
 	struct ll_inode_info  *plli;
 	task_t	      *task;
-	ENTRY;
 
 	CDEBUG(D_READA, "start agl thread: [pid %d] [parent %.*s]\n",
 	       current_pid(), parent->d_name.len, parent->d_name.name);
@@ -1074,7 +1063,6 @@ static int ll_statahead_thread(void *arg)
 	int		       rc     = 0;
 	struct ll_dir_chain       chain;
 	struct l_wait_info	lwi    = { 0 };
-	ENTRY;
 
 	CDEBUG(D_READA, "statahead thread started: [pid %d] [parent %.*s]\n",
 	       current_pid(), parent->d_name.len, parent->d_name.name);
@@ -1369,7 +1357,6 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 	__u64		 pos    = 0;
 	int		   dot_de;
 	int		   rc     = LS_NONE_FIRST_DE;
-	ENTRY;
 
 	ll_dir_chain_init(&chain);
 	page = ll_get_dir_page(dir, pos, &chain);
@@ -1481,7 +1468,6 @@ ll_sai_unplug(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 	struct ptlrpc_thread *thread = &sai->sai_thread;
 	struct ll_sb_info    *sbi    = ll_i2sbi(sai->sai_inode);
 	int		   hit;
-	ENTRY;
 
 	if (entry != NULL && entry->se_stat == SA_ENTRY_SUCC)
 		hit = 1;
@@ -1540,7 +1526,6 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	struct l_wait_info	lwi   = { 0 };
 	int		       rc    = 0;
 	struct ll_inode_info     *plli;
-	ENTRY;
 
 	LASSERT(lli->lli_opendir_pid == current_pid());
 

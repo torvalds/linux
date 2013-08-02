@@ -69,7 +69,6 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 	const char *debugstr;
 	char op = 0;
 	int newmask = minmask, i, len, found = 0;
-	ENTRY;
 
 	/* <str> must be a list of tokens separated by whitespace
 	 * and optionally an operator ('+' or '-').  If an operator

@@ -127,7 +127,6 @@ int lov_merge_lvb(struct obd_export *exp,
 	int   rc;
 	__u64 kms;
 
-	ENTRY;
 	lov_stripe_lock(lsm);
 	rc = lov_merge_lvb_kms(lsm, lvb, &kms);
 	lov_stripe_unlock(lsm);
@@ -147,7 +146,6 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 	struct lov_oinfo *loi;
 	int stripe = 0;
 	__u64 kms;
-	ENTRY;
 
 	LASSERT(spin_is_locked(&lsm->lsm_lock));
 	LASSERT(lsm->lsm_lock_owner == current_pid());

@@ -68,7 +68,6 @@ int gss_cli_ctx_wrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	__u32			    maj;
 	int			      offset;
 	int			      rc;
-	ENTRY;
 
 	LASSERT(req->rq_pack_bulk);
 	LASSERT(req->rq_bulk_read || req->rq_bulk_write);
@@ -171,7 +170,6 @@ int gss_cli_ctx_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	rawobj_t			 token;
 	__u32			    maj;
 	int			      roff, voff;
-	ENTRY;
 
 	LASSERT(req->rq_pack_bulk);
 	LASSERT(req->rq_bulk_read || req->rq_bulk_write);
@@ -318,7 +316,6 @@ int gss_cli_prep_bulk(struct ptlrpc_request *req,
 		      struct ptlrpc_bulk_desc *desc)
 {
 	int	     rc;
-	ENTRY;
 
 	LASSERT(req->rq_cli_ctx);
 	LASSERT(req->rq_pack_bulk);
@@ -341,7 +338,6 @@ int gss_svc_prep_bulk(struct ptlrpc_request *req,
 	struct gss_svc_reqctx	*grctx;
 	struct ptlrpc_bulk_sec_desc  *bsd;
 	int			   rc;
-	ENTRY;
 
 	LASSERT(req->rq_svc_ctx);
 	LASSERT(req->rq_pack_bulk);
@@ -372,7 +368,6 @@ int gss_svc_unwrap_bulk(struct ptlrpc_request *req,
 	struct ptlrpc_bulk_sec_desc  *bsdr, *bsdv;
 	rawobj_t		      token;
 	__u32			 maj;
-	ENTRY;
 
 	LASSERT(req->rq_svc_ctx);
 	LASSERT(req->rq_pack_bulk);
@@ -444,7 +439,6 @@ int gss_svc_wrap_bulk(struct ptlrpc_request *req,
 	rawobj_t		      token;
 	__u32			 maj;
 	int			   rc;
-	ENTRY;
 
 	LASSERT(req->rq_svc_ctx);
 	LASSERT(req->rq_pack_bulk);

@@ -169,7 +169,6 @@ int ccc_device_init(const struct lu_env *env, struct lu_device *d,
 {
 	struct ccc_device  *vdv;
 	int rc;
-	ENTRY;
 
 	vdv = lu2ccc_dev(d);
 	vdv->cdv_next = lu2cl_dev(next);
@@ -201,7 +200,6 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	struct lu_device  *lud;
 	struct cl_site    *site;
 	int rc;
-	ENTRY;
 
 	OBD_ALLOC_PTR(vdv);
 	if (vdv == NULL)
@@ -418,7 +416,6 @@ int ccc_object_glimpse(const struct lu_env *env,
 {
 	struct inode *inode = ccc_object_inode(obj);
 
-	ENTRY;
 	lvb->lvb_mtime = cl_inode_mtime(inode);
 	lvb->lvb_atime = cl_inode_atime(inode);
 	lvb->lvb_ctime = cl_inode_ctime(inode);
@@ -478,8 +475,6 @@ int ccc_page_is_under_lock(const struct lu_env *env,
 	struct cl_page       *page = slice->cpl_page;
 
 	int result;
-
-	ENTRY;
 
 	if (io->ci_type == CIT_READ || io->ci_type == CIT_WRITE ||
 	    io->ci_type == CIT_FAULT) {
@@ -559,7 +554,6 @@ int ccc_transient_page_prep(const struct lu_env *env,
 				   const struct cl_page_slice *slice,
 				   struct cl_io *unused)
 {
-	ENTRY;
 	/* transient page should always be sent. */
 	RETURN(0);
 }
@@ -623,7 +617,6 @@ int ccc_lock_fits_into(const struct lu_env *env,
 	const struct ccc_io	*cio   = ccc_env_io(env);
 	int			 result;
 
-	ENTRY;
 	/*
 	 * Work around DLM peculiarity: it assumes that glimpse
 	 * (LDLM_FL_HAS_INTENT) lock is always LCK_PR, and returns reads lock
@@ -655,7 +648,6 @@ void ccc_lock_state(const struct lu_env *env,
 		    enum cl_lock_state state)
 {
 	struct cl_lock *lock = slice->cls_lock;
-	ENTRY;
 
 	/*
 	 * Refresh inode attributes when the lock is moving into CLS_HELD
@@ -707,7 +699,6 @@ int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	struct cl_object       *obj   = io->ci_obj;
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
-	ENTRY;
 
 	CDEBUG(D_VFSTRACE, "lock: %d [%lu, %lu]\n", mode, start, end);
 
@@ -985,8 +976,6 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr,
 	struct cl_io  *io;
 	int	    result;
 	int	    refcheck;
-
-	ENTRY;
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
@@ -1295,7 +1284,6 @@ __u64 cl_fid_build_ino(const struct lu_fid *fid, int api32)
 __u32 cl_fid_build_gen(const struct lu_fid *fid)
 {
 	__u32 gen;
-	ENTRY;
 
 	if (fid_is_igif(fid)) {
 		gen = lu_igif_gen(fid);

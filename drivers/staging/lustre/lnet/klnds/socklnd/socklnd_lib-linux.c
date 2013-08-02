@@ -964,7 +964,6 @@ static void
 ksocknal_data_ready (struct sock *sk, int n)
 {
 	ksock_conn_t  *conn;
-	ENTRY;
 
 	/* interleave correctly with closing sockets... */
 	LASSERT(!in_irq());

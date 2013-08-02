@@ -260,8 +260,6 @@ int obd_ioctl_popdata(void *arg, void *data, int len);
 
 static inline void obd_ioctl_freedata(char *buf, int len)
 {
-	ENTRY;
-
 	OBD_FREE_LARGE(buf, len);
 	EXIT;
 	return;

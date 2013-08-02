@@ -192,7 +192,6 @@ int plain_ctx_sign(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 {
 	struct lustre_msg   *msg = req->rq_reqbuf;
 	struct plain_header *phdr;
-	ENTRY;
 
 	msg->lm_secflvr = req->rq_flvr.sf_rpc;
 
@@ -219,7 +218,6 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 	struct plain_header *phdr;
 	__u32		cksum;
 	int		  swabbed;
-	ENTRY;
 
 	if (msg->lm_bufcount != PLAIN_PACK_SEGMENTS) {
 		CERROR("unexpected reply buf count %u\n", msg->lm_bufcount);
@@ -417,7 +415,6 @@ static
 void plain_destroy_sec(struct ptlrpc_sec *sec)
 {
 	struct plain_sec       *plsec = sec2plsec(sec);
-	ENTRY;
 
 	LASSERT(sec->ps_policy == &plain_policy);
 	LASSERT(sec->ps_import);
@@ -445,7 +442,6 @@ struct ptlrpc_sec *plain_create_sec(struct obd_import *imp,
 	struct plain_sec       *plsec;
 	struct ptlrpc_sec      *sec;
 	struct ptlrpc_cli_ctx  *ctx;
-	ENTRY;
 
 	LASSERT(SPTLRPC_FLVR_POLICY(sf->sf_rpc) == SPTLRPC_POLICY_PLAIN);
 
@@ -491,7 +487,6 @@ struct ptlrpc_cli_ctx *plain_lookup_ctx(struct ptlrpc_sec *sec,
 {
 	struct plain_sec       *plsec = sec2plsec(sec);
 	struct ptlrpc_cli_ctx  *ctx;
-	ENTRY;
 
 	read_lock(&plsec->pls_lock);
 	ctx = plsec->pls_ctx;
@@ -526,7 +521,6 @@ int plain_flush_ctx_cache(struct ptlrpc_sec *sec,
 {
 	struct plain_sec       *plsec = sec2plsec(sec);
 	struct ptlrpc_cli_ctx  *ctx;
-	ENTRY;
 
 	/* do nothing unless caller want to flush for 'all' */
 	if (uid != -1)
@@ -549,7 +543,6 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 {
 	__u32 buflens[PLAIN_PACK_SEGMENTS] = { 0, };
 	int   alloc_len;
-	ENTRY;
 
 	buflens[PLAIN_PACK_HDR_OFF] = sizeof(struct plain_header);
 	buflens[PLAIN_PACK_MSG_OFF] = msgsize;
@@ -592,7 +585,6 @@ static
 void plain_free_reqbuf(struct ptlrpc_sec *sec,
 		       struct ptlrpc_request *req)
 {
-	ENTRY;
 	if (!req->rq_pool) {
 		OBD_FREE_LARGE(req->rq_reqbuf, req->rq_reqbuf_len);
 		req->rq_reqbuf = NULL;
@@ -608,7 +600,6 @@ int plain_alloc_repbuf(struct ptlrpc_sec *sec,
 {
 	__u32 buflens[PLAIN_PACK_SEGMENTS] = { 0, };
 	int alloc_len;
-	ENTRY;
 
 	buflens[PLAIN_PACK_HDR_OFF] = sizeof(struct plain_header);
 	buflens[PLAIN_PACK_MSG_OFF] = msgsize;
@@ -637,7 +628,6 @@ static
 void plain_free_repbuf(struct ptlrpc_sec *sec,
 		       struct ptlrpc_request *req)
 {
-	ENTRY;
 	OBD_FREE_LARGE(req->rq_repbuf, req->rq_repbuf_len);
 	req->rq_repbuf = NULL;
 	req->rq_repbuf_len = 0;
@@ -652,7 +642,6 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 	struct lustre_msg      *newbuf;
 	int		     oldsize;
 	int		     newmsg_size, newbuf_size;
-	ENTRY;
 
 	LASSERT(req->rq_reqbuf);
 	LASSERT(req->rq_reqbuf_len >= req->rq_reqlen);
@@ -715,7 +704,6 @@ int plain_accept(struct ptlrpc_request *req)
 	struct lustre_msg   *msg = req->rq_reqbuf;
 	struct plain_header *phdr;
 	int		  swabbed;
-	ENTRY;
 
 	LASSERT(SPTLRPC_FLVR_POLICY(req->rq_flvr.sf_rpc) ==
 		SPTLRPC_POLICY_PLAIN);
@@ -787,7 +775,6 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 	struct ptlrpc_reply_state   *rs;
 	__u32			buflens[PLAIN_PACK_SEGMENTS] = { 0, };
 	int			  rs_size = sizeof(*rs);
-	ENTRY;
 
 	LASSERT(msgsize % 8 == 0);
 
@@ -827,8 +814,6 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 static
 void plain_free_rs(struct ptlrpc_reply_state *rs)
 {
-	ENTRY;
-
 	LASSERT(atomic_read(&rs->rs_svc_ctx->sc_refcount) > 1);
 	atomic_dec(&rs->rs_svc_ctx->sc_refcount);
 
@@ -844,7 +829,6 @@ int plain_authorize(struct ptlrpc_request *req)
 	struct lustre_msg_v2      *msg = rs->rs_repbuf;
 	struct plain_header       *phdr;
 	int			len;
-	ENTRY;
 
 	LASSERT(rs);
 	LASSERT(msg);

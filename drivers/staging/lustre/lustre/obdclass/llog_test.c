@@ -105,8 +105,6 @@ static int llog_test_1(const struct lu_env *env,
 	int rc;
 	int rc2;
 
-	ENTRY;
-
 	CWARN("1a: create a log with name: %s\n", name);
 	ctxt = llog_get_context(obd, LLOG_TEST_ORIG_CTXT);
 	LASSERT(ctxt);
@@ -145,8 +143,6 @@ static int llog_test_2(const struct lu_env *env, struct obd_device *obd,
 	struct llog_handle	*loghandle;
 	struct llog_logid	 logid;
 	int			 rc;
-
-	ENTRY;
 
 	CWARN("2a: re-open a log with name: %s\n", name);
 	ctxt = llog_get_context(obd, LLOG_TEST_ORIG_CTXT);
@@ -223,8 +219,6 @@ static int llog_test_3(const struct lu_env *env, struct obd_device *obd,
 	struct llog_gen_rec	 lgr;
 	int			 rc, i;
 	int			 num_recs = 1; /* 1 for the header */
-
-	ENTRY;
 
 	lgr.lgr_hdr.lrh_len = lgr.lgr_tail.lrt_len = sizeof(lgr);
 	lgr.lgr_hdr.lrh_type = LLOG_GEN_REC;
@@ -327,8 +321,6 @@ static int llog_test_4(const struct lu_env *env, struct obd_device *obd)
 	int			 num_recs = 0;
 	char			*buf;
 	struct llog_rec_hdr	 rec;
-
-	ENTRY;
 
 	ctxt = llog_get_context(obd, LLOG_TEST_ORIG_CTXT);
 	LASSERT(ctxt);
@@ -504,8 +496,6 @@ static int llog_test_5(const struct lu_env *env, struct obd_device *obd)
 	int			 rc, rc2;
 	struct llog_mini_rec	 lmr;
 	struct llog_ctxt	*ctxt;
-
-	ENTRY;
 
 	ctxt = llog_get_context(obd, LLOG_TEST_ORIG_CTXT);
 	LASSERT(ctxt);
@@ -728,8 +718,6 @@ static int llog_test_7_sub(const struct lu_env *env, struct llog_ctxt *ctxt)
 	int			 rc = 0, i, process_count;
 	int			 num_recs = 0;
 
-	ENTRY;
-
 	rc = llog_open_create(env, ctxt, &llh, NULL, NULL);
 	if (rc) {
 		CERROR("7_sub: create log failed\n");
@@ -812,8 +800,6 @@ static int llog_test_7(const struct lu_env *env, struct obd_device *obd)
 {
 	struct llog_ctxt	*ctxt;
 	int			 rc;
-
-	ENTRY;
 
 	ctxt = llog_get_context(obd, LLOG_TEST_ORIG_CTXT);
 
@@ -908,7 +894,6 @@ static int llog_run_tests(const struct lu_env *env, struct obd_device *obd)
 	int			 rc, err;
 	char			 name[10];
 
-	ENTRY;
 	ctxt = llog_get_context(obd, LLOG_TEST_ORIG_CTXT);
 	LASSERT(ctxt);
 
@@ -970,8 +955,6 @@ static int llog_test_cleanup(struct obd_device *obd)
 	struct lu_env		 env;
 	int			 rc;
 
-	ENTRY;
-
 	rc = lu_env_init(&env, LCT_LOCAL | LCT_MG_THREAD);
 	if (rc)
 		RETURN(rc);
@@ -992,8 +975,6 @@ static int llog_test_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	struct lu_env		 env;
 	struct lu_context	 test_session;
 	int			 rc;
-
-	ENTRY;
 
 	if (lcfg->lcfg_bufcount < 2) {
 		CERROR("requires a TARGET OBD name\n");

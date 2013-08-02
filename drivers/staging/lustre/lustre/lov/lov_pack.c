@@ -143,7 +143,6 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 	int lmm_size, lmm_magic;
 	int i;
 	int cplen = 0;
-	ENTRY;
 
 	if (lsm) {
 		lmm_magic = lsm->lsm_magic;
@@ -309,7 +308,6 @@ int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,
 		    int pattern, int magic)
 {
 	int i, lsm_size;
-	ENTRY;
 
 	CDEBUG(D_INFO, "alloc lsm, stripe_count %d\n", stripe_count);
 
@@ -363,7 +361,6 @@ int lov_unpackmd(struct obd_export *exp,  struct lov_stripe_md **lsmp,
 	__u16 stripe_count;
 	__u32 magic;
 	__u32 pattern;
-	ENTRY;
 
 	/* If passed an MDS struct use values from there, otherwise defaults */
 	if (lmm) {
@@ -420,7 +417,6 @@ static int __lov_setstripe(struct obd_export *exp, int max_lmm_size,
 	__u16 stripe_count;
 	int rc;
 	int cplen = 0;
-	ENTRY;
 
 	rc = lov_lum_swab_if_needed(lumv3, &lmm_magic, lump);
 	if (rc)
@@ -546,8 +542,6 @@ int lov_setea(struct obd_export *exp, struct lov_stripe_md **lsmp,
 	obd_id last_id = 0;
 	struct lov_user_ost_data_v1 *lmm_objects;
 
-	ENTRY;
-
 	if (lump->lmm_magic == LOV_USER_MAGIC_V3)
 		lmm_objects = ((struct lov_user_md_v3 *)lump)->lmm_objects;
 	else
@@ -600,7 +594,6 @@ int lov_getstripe(struct obd_export *exp, struct lov_stripe_md *lsm,
 	int rc, lmm_size;
 	int lum_size;
 	mm_segment_t seg;
-	ENTRY;
 
 	if (!lsm)
 		RETURN(-ENODATA);

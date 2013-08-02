@@ -80,7 +80,6 @@ int lustre_process_log(struct super_block *sb, char *logname,
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct obd_device *mgc = lsi->lsi_mgc;
 	int rc;
-	ENTRY;
 
 	LASSERT(mgc);
 	LASSERT(cfg);
@@ -130,7 +129,6 @@ int lustre_end_log(struct super_block *sb, char *logname,
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct obd_device *mgc = lsi->lsi_mgc;
 	int rc;
-	ENTRY;
 
 	if (!mgc)
 		RETURN(-ENOENT);
@@ -223,7 +221,6 @@ int lustre_start_mgc(struct super_block *sb)
 	char *ptr;
 	int recov_bk;
 	int rc = 0, i = 0, j, len;
-	ENTRY;
 
 	LASSERT(lsi->lsi_lmd);
 
@@ -485,7 +482,6 @@ static int lustre_stop_mgc(struct super_block *sb)
 	struct obd_device *obd;
 	char *niduuid = 0, *ptr = 0;
 	int i, rc = 0, len = 0;
-	ENTRY;
 
 	if (!lsi)
 		RETURN(-ENOENT);
@@ -555,7 +551,6 @@ out:
 struct lustre_sb_info *lustre_init_lsi(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi;
-	ENTRY;
 
 	OBD_ALLOC_PTR(lsi);
 	if (!lsi)
@@ -582,7 +577,6 @@ struct lustre_sb_info *lustre_init_lsi(struct super_block *sb)
 static int lustre_free_lsi(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
-	ENTRY;
 
 	LASSERT(lsi != NULL);
 	CDEBUG(D_MOUNT, "Freeing lsi %p\n", lsi);
@@ -631,7 +625,6 @@ static int lustre_free_lsi(struct super_block *sb)
 int lustre_put_lsi(struct super_block *sb)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
-	ENTRY;
 
 	LASSERT(lsi != NULL);
 
@@ -764,7 +757,6 @@ EXPORT_SYMBOL(server_name2index);
 int lustre_common_put_super(struct super_block *sb)
 {
 	int rc;
-	ENTRY;
 
 	CDEBUG(D_MOUNT, "dropping sb %p\n", sb);
 
@@ -820,7 +812,6 @@ int lustre_check_exclusion(struct super_block *sb, char *svname)
 	struct lustre_mount_data *lmd = lsi->lsi_lmd;
 	__u32 index;
 	int i, rc;
-	ENTRY;
 
 	rc = server_name2index(svname, &index, NULL);
 	if (rc != LDD_F_SV_TYPE_OST)
@@ -845,7 +836,6 @@ static int lmd_make_exclusion(struct lustre_mount_data *lmd, const char *ptr)
 	const char *s1 = ptr, *s2;
 	__u32 index, *exclude_list;
 	int rc = 0, devmax;
-	ENTRY;
 
 	/* The shortest an ost name can be is 8 chars: -OST0000.
 	   We don't actually know the fsname at this time, so in fact
@@ -997,7 +987,6 @@ static int lmd_parse(char *options, struct lustre_mount_data *lmd)
 	char *s1, *s2, *devname = NULL;
 	struct lustre_mount_data *raw = (struct lustre_mount_data *)options;
 	int rc = 0;
-	ENTRY;
 
 	LASSERT(lmd);
 	if (!options) {
@@ -1204,7 +1193,6 @@ int lustre_fill_super(struct super_block *sb, void *data, int silent)
 	struct lustre_mount_data2 *lmd2 = data;
 	struct lustre_sb_info *lsi;
 	int rc;
-	ENTRY;
 
 	CDEBUG(D_MOUNT|D_VFSTRACE, "VFS Op: sb %p\n", sb);
 

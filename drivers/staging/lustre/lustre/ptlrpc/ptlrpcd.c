@@ -268,7 +268,6 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 	struct ptlrpc_request_set *set = pc->pc_set;
 	int rc = 0;
 	int rc2;
-	ENTRY;
 
 	if (atomic_read(&set->set_new_count)) {
 		spin_lock(&set->set_new_req_lock);
@@ -383,7 +382,6 @@ static int ptlrpcd(void *arg)
 	struct ptlrpc_request_set *set = pc->pc_set;
 	struct lu_env env = { .le_ses = NULL };
 	int rc, exit = 0;
-	ENTRY;
 
 	unshare_fs_struct();
 #if defined(CONFIG_SMP)
@@ -501,7 +499,6 @@ static int ptlrpcd_bind(int index, int max)
 #if defined(CONFIG_NUMA)
 	cpumask_t mask;
 #endif
-	ENTRY;
 
 	LASSERT(index <= max - 1);
 	pc = &ptlrpcds->pd_threads[index];
@@ -604,7 +601,6 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 {
 	int rc;
 	int env = 0;
-	ENTRY;
 
 	/*
 	 * Do not allow start second thread for one pc.
@@ -668,8 +664,6 @@ out:
 
 void ptlrpcd_stop(struct ptlrpcd_ctl *pc, int force)
 {
-	ENTRY;
-
 	if (!test_bit(LIOD_START, &pc->pc_flags)) {
 		CWARN("Thread for pc %p was not started\n", pc);
 		goto out;
@@ -687,7 +681,6 @@ out:
 void ptlrpcd_free(struct ptlrpcd_ctl *pc)
 {
 	struct ptlrpc_request_set *set = pc->pc_set;
-	ENTRY;
 
 	if (!test_bit(LIOD_START, &pc->pc_flags)) {
 		CWARN("Thread for pc %p was not started\n", pc);
@@ -722,7 +715,6 @@ out:
 static void ptlrpcd_fini(void)
 {
 	int i;
-	ENTRY;
 
 	if (ptlrpcds != NULL) {
 		for (i = 0; i < ptlrpcds->pd_nthreads; i++)
@@ -743,7 +735,6 @@ static int ptlrpcd_init(void)
 	int nthreads = num_online_cpus();
 	char name[16];
 	int size, i = -1, j, rc = 0;
-	ENTRY;
 
 	if (max_ptlrpcds > 0 && max_ptlrpcds < nthreads)
 		nthreads = max_ptlrpcds;
@@ -806,7 +797,6 @@ out:
 int ptlrpcd_addref(void)
 {
 	int rc = 0;
-	ENTRY;
 
 	mutex_lock(&ptlrpcd_mutex);
 	if (++ptlrpcd_users == 1)

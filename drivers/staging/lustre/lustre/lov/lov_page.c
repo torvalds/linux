@@ -69,7 +69,6 @@ static void lov_page_fini(const struct lu_env *env,
 	struct cl_page  *sub = lov_sub_page(slice);
 
 	LINVRNT(lov_page_invariant(slice));
-	ENTRY;
 
 	if (sub != NULL) {
 		LASSERT(sub->cp_state == CPS_FREEING);
@@ -90,7 +89,6 @@ static int lov_page_own(const struct lu_env *env,
 
 	LINVRNT(lov_page_invariant(slice));
 	LINVRNT(!cl2lov_page(slice)->lps_invalid);
-	ENTRY;
 
 	sub = lov_page_subio(env, lio, slice);
 	if (!IS_ERR(sub)) {
@@ -117,7 +115,6 @@ static int lov_page_cache_add(const struct lu_env *env,
 
 	LINVRNT(lov_page_invariant(slice));
 	LINVRNT(!cl2lov_page(slice)->lps_invalid);
-	ENTRY;
 
 	sub = lov_page_subio(env, lio, slice);
 	if (!IS_ERR(sub)) {
@@ -172,7 +169,6 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	obd_off	    suboff;
 	int		stripe;
 	int		rc;
-	ENTRY;
 
 	offset = cl_offset(obj, page->cp_index);
 	stripe = lov_stripe_number(loo->lo_lsm, offset);
@@ -221,7 +217,6 @@ int lov_page_init_empty(const struct lu_env *env, struct cl_object *obj,
 {
 	struct lov_page *lpg = cl_object_page_slice(obj, page);
 	void *addr;
-	ENTRY;
 
 	cl_page_slice_add(page, &lpg->lps_cl, obj, &lov_empty_page_ops);
 	addr = kmap(vmpage);

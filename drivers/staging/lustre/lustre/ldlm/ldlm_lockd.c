@@ -146,7 +146,6 @@ void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 			     struct ldlm_lock_desc *ld, struct ldlm_lock *lock)
 {
 	int do_ast;
-	ENTRY;
 
 	LDLM_DEBUG(lock, "client blocking AST callback handler");
 
@@ -188,7 +187,6 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	int lvb_len;
 	LIST_HEAD(ast_list);
 	int rc = 0;
-	ENTRY;
 
 	LDLM_DEBUG(lock, "client completion callback handler START");
 
@@ -332,7 +330,6 @@ static void ldlm_handle_gl_callback(struct ptlrpc_request *req,
 				    struct ldlm_lock *lock)
 {
 	int rc = -ENOSYS;
-	ENTRY;
 
 	LDLM_DEBUG(lock, "client glimpse AST callback handler");
 
@@ -382,7 +379,6 @@ static int __ldlm_bl_to_thread(struct ldlm_bl_work_item *blwi,
 			       ldlm_cancel_flags_t cancel_flags)
 {
 	struct ldlm_bl_pool *blp = ldlm_state->ldlm_bl_pool;
-	ENTRY;
 
 	spin_lock(&blp->blp_lock);
 	if (blwi->blwi_lock &&
@@ -446,8 +442,6 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 			     struct list_head *cancels, int count,
 			     ldlm_cancel_flags_t cancel_flags)
 {
-	ENTRY;
-
 	if (cancels && count == 0)
 		RETURN(0);
 
@@ -494,7 +488,6 @@ static int ldlm_handle_setinfo(struct ptlrpc_request *req)
 	void *val;
 	int keylen, vallen;
 	int rc = -ENOSYS;
-	ENTRY;
 
 	DEBUG_REQ(D_HSM, req, "%s: handle setinfo\n", obd->obd_name);
 
@@ -568,7 +561,6 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	struct ldlm_request *dlm_req;
 	struct ldlm_lock *lock;
 	int rc;
-	ENTRY;
 
 	/* Requests arrive in sender's byte order.  The ptlrpc service
 	 * handler has already checked and, if necessary, byte-swapped the
@@ -834,7 +826,6 @@ static int ldlm_bl_thread_start(struct ldlm_bl_pool *blp)
 static int ldlm_bl_thread_main(void *arg)
 {
 	struct ldlm_bl_pool *blp;
-	ENTRY;
 
 	{
 		struct ldlm_bl_thread_data *bltd = arg;
@@ -916,7 +907,7 @@ static int ldlm_cleanup(void);
 int ldlm_get_ref(void)
 {
 	int rc = 0;
-	ENTRY;
+
 	mutex_lock(&ldlm_ref_mutex);
 	if (++ldlm_refcount == 1) {
 		rc = ldlm_setup();
@@ -931,7 +922,6 @@ EXPORT_SYMBOL(ldlm_get_ref);
 
 void ldlm_put_ref(void)
 {
-	ENTRY;
 	mutex_lock(&ldlm_ref_mutex);
 	if (ldlm_refcount == 1) {
 		int rc = ldlm_cleanup();
@@ -1018,8 +1008,6 @@ static cfs_hash_ops_t ldlm_export_lock_ops = {
 
 int ldlm_init_export(struct obd_export *exp)
 {
-	ENTRY;
-
 	exp->exp_lock_hash =
 		cfs_hash_create(obd_uuid2str(&exp->exp_client_uuid),
 				HASH_EXP_LOCK_CUR_BITS,
@@ -1039,7 +1027,6 @@ EXPORT_SYMBOL(ldlm_init_export);
 
 void ldlm_destroy_export(struct obd_export *exp)
 {
-	ENTRY;
 	cfs_hash_putref(exp->exp_lock_hash);
 	exp->exp_lock_hash = NULL;
 
@@ -1054,7 +1041,6 @@ static int ldlm_setup(void)
 	struct ldlm_bl_pool			*blp = NULL;
 	int rc = 0;
 	int i;
-	ENTRY;
 
 	if (ldlm_state != NULL)
 		RETURN(-EALREADY);
@@ -1150,8 +1136,6 @@ static int ldlm_setup(void)
 
 static int ldlm_cleanup(void)
 {
-	ENTRY;
-
 	if (!list_empty(ldlm_namespace_list(LDLM_NAMESPACE_SERVER)) ||
 	    !list_empty(ldlm_namespace_list(LDLM_NAMESPACE_CLIENT))) {
 		CERROR("ldlm still has namespaces; clean these up first.\n");

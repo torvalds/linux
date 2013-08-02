@@ -64,7 +64,6 @@ static int llog_lvfs_pad(struct obd_device *obd, struct l_file *file,
 	struct llog_rec_hdr rec = { 0 };
 	struct llog_rec_tail tail;
 	int rc;
-	ENTRY;
 
 	LASSERT(len >= LLOG_MIN_REC_SIZE && (len & 0x7) == 0);
 
@@ -96,8 +95,6 @@ static int llog_lvfs_write_blob(struct obd_device *obd, struct l_file *file,
 	struct llog_rec_tail end;
 	loff_t saved_off = file->f_pos;
 	int buflen = rec->lrh_len;
-
-	ENTRY;
 
 	file->f_pos = off;
 
@@ -148,7 +145,6 @@ static int llog_lvfs_read_blob(struct obd_device *obd, struct l_file *file,
 {
 	loff_t offset = off;
 	int rc;
-	ENTRY;
 
 	rc = fsfilt_read_record(obd, file, buf, size, &offset);
 	if (rc) {
@@ -163,7 +159,6 @@ static int llog_lvfs_read_header(const struct lu_env *env,
 {
 	struct obd_device *obd;
 	int rc;
-	ENTRY;
 
 	LASSERT(sizeof(*handle->lgh_hdr) == LLOG_CHUNK_SIZE);
 
@@ -223,7 +218,6 @@ static int llog_lvfs_write_rec(const struct lu_env *env,
 	struct obd_device *obd;
 	struct file *file;
 	size_t left;
-	ENTRY;
 
 	llh = loghandle->lgh_hdr;
 	file = loghandle->lgh_file;
@@ -391,7 +385,6 @@ static int llog_lvfs_next_block(const struct lu_env *env,
 				int len)
 {
 	int rc;
-	ENTRY;
 
 	if (len == 0 || len & (LLOG_CHUNK_SIZE - 1))
 		RETURN(-EINVAL);
@@ -484,7 +477,6 @@ static int llog_lvfs_prev_block(const struct lu_env *env,
 {
 	__u64 cur_offset;
 	int rc;
-	ENTRY;
 
 	if (len == 0 || len & (LLOG_CHUNK_SIZE - 1))
 		RETURN(-EINVAL);
@@ -593,8 +585,6 @@ static int llog_lvfs_open(const struct lu_env *env,  struct llog_handle *handle,
 	struct obd_device	*obd;
 	int			 rc = 0;
 
-	ENTRY;
-
 	LASSERT(ctxt);
 	LASSERT(ctxt->loc_exp);
 	LASSERT(ctxt->loc_exp->exp_obd);
@@ -688,8 +678,6 @@ static int llog_lvfs_create(const struct lu_env *env,
 	int			 rc = 0;
 	int			 open_flags = O_RDWR | O_CREAT | O_LARGEFILE;
 
-	ENTRY;
-
 	LASSERT(ctxt);
 	LASSERT(ctxt->loc_exp);
 	obd = ctxt->loc_exp->exp_obd;
@@ -744,8 +732,6 @@ static int llog_lvfs_close(const struct lu_env *env,
 {
 	int rc;
 
-	ENTRY;
-
 	if (handle->lgh_file == NULL)
 		RETURN(0);
 	rc = filp_close(handle->lgh_file, 0);
@@ -772,7 +758,6 @@ static int llog_lvfs_destroy(const struct lu_env *env,
 	void *th;
 	struct inode *inode;
 	int rc, rc1;
-	ENTRY;
 
 	dir = MOUNT_CONFIGS_DIR;
 

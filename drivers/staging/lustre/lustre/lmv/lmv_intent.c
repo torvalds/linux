@@ -69,7 +69,6 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	struct mdt_body		*body;
 	int			pmode;
 	int			rc = 0;
-	ENTRY;
 
 	body = req_capsule_server_get(&(*reqp)->rq_pill, &RMF_MDT_BODY);
 	if (body == NULL)
@@ -168,7 +167,6 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 	struct lmv_tgt_desc	*tgt;
 	struct mdt_body		*body;
 	int			rc;
-	ENTRY;
 
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
 	if (IS_ERR(tgt))
@@ -252,7 +250,6 @@ int lmv_intent_lookup(struct obd_export *exp, struct md_op_data *op_data,
 	struct lmv_tgt_desc    *tgt = NULL;
 	struct mdt_body	*body;
 	int		     rc = 0;
-	ENTRY;
 
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
 	if (IS_ERR(tgt))
@@ -300,7 +297,6 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 {
 	struct obd_device *obd = exp->exp_obd;
 	int		rc;
-	ENTRY;
 
 	LASSERT(it != NULL);
 	LASSERT(fid_is_sane(&op_data->op_fid1));

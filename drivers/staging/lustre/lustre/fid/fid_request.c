@@ -63,7 +63,6 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	__u32                 *op;
 	unsigned int           debug_mask;
 	int                    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp), &RQF_SEQ_QUERY,
 					LUSTRE_MDS_VERSION, SEQ_QUERY);
@@ -145,7 +144,6 @@ int seq_client_alloc_super(struct lu_client_seq *seq,
 			   const struct lu_env *env)
 {
 	int rc;
-	ENTRY;
 
 	mutex_lock(&seq->lcs_mutex);
 
@@ -171,7 +169,6 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 				 struct lu_client_seq *seq)
 {
 	int rc;
-	ENTRY;
 
 	if (seq->lcs_srv) {
 		rc = 0;
@@ -194,7 +191,6 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 				struct lu_client_seq *seq, seqno_t *seqnr)
 {
 	int rc;
-	ENTRY;
 
 	LASSERT(range_is_sane(&seq->lcs_space));
 
@@ -307,7 +303,6 @@ int seq_client_alloc_fid(const struct lu_env *env,
 {
 	wait_queue_t link;
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 	LASSERT(fid != NULL);
@@ -407,7 +402,6 @@ EXPORT_SYMBOL(seq_client_flush);
 static void seq_client_proc_fini(struct lu_client_seq *seq)
 {
 #ifdef LPROCFS
-	ENTRY;
 	if (seq->lcs_proc_dir) {
 		if (!IS_ERR(seq->lcs_proc_dir))
 			lprocfs_remove(&seq->lcs_proc_dir);
@@ -421,7 +415,6 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 {
 #ifdef LPROCFS
 	int rc;
-	ENTRY;
 
 	seq->lcs_proc_dir = lprocfs_register(seq->lcs_name,
 					     seq_type_proc_dir,
@@ -460,7 +453,6 @@ int seq_client_init(struct lu_client_seq *seq,
 		    struct lu_server_seq *srv)
 {
 	int rc;
-	ENTRY;
 
 	LASSERT(seq != NULL);
 	LASSERT(prefix != NULL);
@@ -495,8 +487,6 @@ EXPORT_SYMBOL(seq_client_init);
 
 void seq_client_fini(struct lu_client_seq *seq)
 {
-	ENTRY;
-
 	seq_client_proc_fini(seq);
 
 	if (seq->lcs_exp != NULL) {
@@ -515,7 +505,6 @@ int client_fid_init(struct obd_device *obd,
 	struct client_obd *cli = &obd->u.cli;
 	char *prefix;
 	int rc;
-	ENTRY;
 
 	OBD_ALLOC_PTR(cli->cl_seq);
 	if (cli->cl_seq == NULL)
@@ -544,7 +533,6 @@ EXPORT_SYMBOL(client_fid_init);
 int client_fid_fini(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
-	ENTRY;
 
 	if (cli->cl_seq != NULL) {
 		seq_client_fini(cli->cl_seq);

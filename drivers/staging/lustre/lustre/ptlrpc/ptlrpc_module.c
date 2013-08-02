@@ -54,7 +54,6 @@ extern struct mutex ptlrpcd_mutex;
 __init int ptlrpc_init(void)
 {
 	int rc, cleanup_phase = 0;
-	ENTRY;
 
 	lustre_assert_wire_constants();
 #if RS_DEBUG

@@ -212,7 +212,6 @@ int cfs_get_environ(const char *key, char *value, int *val_len)
 	int key_len = strlen(key);
 	unsigned long addr;
 	int rc;
-	ENTRY;
 
 	buffer = kmalloc(buf_len, GFP_USER);
 	if (!buffer)

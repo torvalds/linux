@@ -171,7 +171,6 @@ LU_TYPE_INIT_FINI(osc, &osc_key, &osc_session_key);
 static int osc_cl_process_config(const struct lu_env *env,
 				 struct lu_device *d, struct lustre_cfg *cfg)
 {
-	ENTRY;
 	RETURN(osc_process_config_base(d->ld_obd, cfg));
 }
 

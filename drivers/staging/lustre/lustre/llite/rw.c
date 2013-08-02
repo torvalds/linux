@@ -225,7 +225,6 @@ int ll_prepare_write(struct file *file, struct page *vmpage, unsigned from,
 {
 	struct ll_cl_context *lcc;
 	int result;
-	ENTRY;
 
 	lcc = ll_cl_init(file, vmpage, 1);
 	if (!IS_ERR(lcc)) {
@@ -264,7 +263,6 @@ int ll_commit_write(struct file *file, struct page *vmpage, unsigned from,
 	struct cl_io     *io;
 	struct cl_page   *page;
 	int result = 0;
-	ENTRY;
 
 	lcc  = ll_cl_get();
 	env  = lcc->lcc_env;
@@ -322,7 +320,6 @@ static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 {
 	struct ll_ra_info *ra = &sbi->ll_ra_info;
 	long ret;
-	ENTRY;
 
 	/* If read-ahead pages left are less than 1M, do not do read-ahead,
 	 * otherwise it will form small read RPC(< 1M), which hurt server
@@ -465,8 +462,6 @@ static int cl_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 	struct ccc_page *cp;
 	int	      rc;
 
-	ENTRY;
-
 	rc = 0;
 	cl_page_assume(env, io, page);
 	lu_ref_add(&page->cp_reference, "ra", current);
@@ -512,8 +507,6 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 	unsigned int      gfp_mask;
 	int	       rc    = 0;
 	const char       *msg   = NULL;
-
-	ENTRY;
 
 	gfp_mask = GFP_HIGHUSER & ~__GFP_WAIT;
 #ifdef __GFP_NOWARN
@@ -719,7 +712,6 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	struct cl_object *clob;
 	int ret = 0;
 	__u64 kms;
-	ENTRY;
 
 	inode = mapping->host;
 	lli = ll_i2info(inode);
@@ -996,7 +988,6 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 {
 	struct ll_ra_info *ra = &sbi->ll_ra_info;
 	int zero = 0, stride_detect = 0, ra_miss = 0;
-	ENTRY;
 
 	spin_lock(&ras->ras_lock);
 
@@ -1152,7 +1143,6 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	bool redirtied = false;
 	bool unlocked = false;
 	int result;
-	ENTRY;
 
 	LASSERT(PageLocked(vmpage));
 	LASSERT(!PageWriteback(vmpage));
@@ -1244,7 +1234,6 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	int range_whole = 0;
 	int result;
 	int ignore_layout = 0;
-	ENTRY;
 
 	if (wbc->range_cyclic) {
 		start = mapping->writeback_index << PAGE_CACHE_SHIFT;
@@ -1285,7 +1274,6 @@ int ll_readpage(struct file *file, struct page *vmpage)
 {
 	struct ll_cl_context *lcc;
 	int result;
-	ENTRY;
 
 	lcc = ll_cl_init(file, vmpage, 0);
 	if (!IS_ERR(lcc)) {

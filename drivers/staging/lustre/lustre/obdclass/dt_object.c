@@ -219,7 +219,6 @@ struct dt_object *dt_locate_at(const struct lu_env *env,
 			       struct lu_device *top_dev)
 {
 	struct lu_object *lo, *n;
-	ENTRY;
 
 	lo = lu_object_find_at(env, top_dev, fid, NULL);
 	if (IS_ERR(lo))
@@ -375,8 +374,6 @@ struct dt_object *dt_find_or_create(const struct lu_env *env,
 	struct dt_object *dto;
 	struct thandle *th;
 	int rc;
-
-	ENTRY;
 
 	dto = dt_locate(env, dt, fid);
 	if (IS_ERR(dto))
@@ -659,7 +656,6 @@ static int dt_index_page_build(const struct lu_env *env, union lu_page *lp,
 	struct lu_idxpage	*lip = &lp->lp_idx;
 	char			*entry;
 	int			 rc, size;
-	ENTRY;
 
 	/* no support for variable key & record size for now */
 	LASSERT((ii->ii_flags & II_FL_VARKEY) == 0);
@@ -763,7 +759,6 @@ int dt_index_walk(const struct lu_env *env, struct dt_object *obj,
 	const struct dt_it_ops	*iops;
 	unsigned int		 pageidx, nob, nlupgs = 0;
 	int			 rc;
-	ENTRY;
 
 	LASSERT(rdpg->rp_pages != NULL);
 	LASSERT(obj->do_index_ops != NULL);
@@ -855,7 +850,6 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 	const struct dt_index_features	*feat;
 	struct dt_object		*obj;
 	int				 rc;
-	ENTRY;
 
 	/* rp_count shouldn't be null and should be a multiple of the container
 	 * size */

@@ -61,7 +61,6 @@ int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 
 	int result;
 
-	ENTRY;
 	under = &dev->acid_next->cd_lu_dev;
 	below = under->ld_ops->ldo_object_alloc(env, obj->lo_header, under);
 	if (below != NULL) {
@@ -78,7 +77,6 @@ static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)
 {
 	struct lovsub_object *los = lu2lovsub(obj);
 	struct lov_object    *lov = los->lso_super;
-	ENTRY;
 
 	/* We can't assume lov was assigned here, because of the shadow
 	 * object handling in lu_object_find.
@@ -110,7 +108,6 @@ static int lovsub_attr_set(const struct lu_env *env, struct cl_object *obj,
 {
 	struct lov_object *lov = cl2lovsub(obj)->lso_super;
 
-	ENTRY;
 	lov_r0(lov)->lo_attr_valid = 0;
 	RETURN(0);
 }
@@ -121,7 +118,6 @@ static int lovsub_object_glimpse(const struct lu_env *env,
 {
 	struct lovsub_object *los = cl2lovsub(obj);
 
-	ENTRY;
 	RETURN(cl_object_glimpse(env, &los->lso_super->lo_cl, lvb));
 }
 
@@ -150,7 +146,6 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 	struct lovsub_object *los;
 	struct lu_object     *obj;
 
-	ENTRY;
 	OBD_SLAB_ALLOC_PTR_GFP(los, lovsub_object_kmem, __GFP_IO);
 	if (los != NULL) {
 		struct cl_object_header *hdr;

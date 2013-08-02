@@ -110,7 +110,6 @@ static void lov_sublock_adopt(const struct lu_env *env, struct lov_lock *lck,
 
 	LASSERT(cl_lock_is_mutexed(parent));
 	LASSERT(cl_lock_is_mutexed(sublock));
-	ENTRY;
 
 	lsl = cl2sub_lock(sublock);
 	/*
@@ -145,7 +144,6 @@ static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
 	struct lov_lock_link *link;
 
 	LASSERT(idx < lck->lls_nr);
-	ENTRY;
 
 	OBD_SLAB_ALLOC_PTR_GFP(link, lov_lock_link_kmem, __GFP_IO);
 	if (link != NULL) {
@@ -187,7 +185,6 @@ static void lov_sublock_unlock(const struct lu_env *env,
 			       struct cl_lock_closure *closure,
 			       struct lov_sublock_env *subenv)
 {
-	ENTRY;
 	lov_sublock_env_put(subenv);
 	lsl->lss_active = NULL;
 	cl_lock_disclosure(env, closure);
@@ -203,7 +200,6 @@ static int lov_sublock_lock(const struct lu_env *env,
 	struct lovsub_lock *sublock;
 	struct cl_lock     *child;
 	int		 result = 0;
-	ENTRY;
 
 	LASSERT(list_empty(&closure->clc_list));
 
@@ -267,8 +263,6 @@ static int lov_subresult(int result, int rc)
 	int result_rank;
 	int rc_rank;
 
-	ENTRY;
-
 	LASSERTF(result <= 0 || result == CLO_REPEAT || result == CLO_WAIT,
 		 "result = %d", result);
 	LASSERTF(rc <= 0 || rc == CLO_REPEAT || rc == CLO_WAIT,
@@ -306,8 +300,6 @@ static int lov_lock_sub_init(const struct lu_env *env,
 	struct lov_object       *loo    = cl2lov(lck->lls_cl.cls_obj);
 	struct lov_layout_raid0 *r0     = lov_r0(loo);
 	struct cl_lock	  *parent = lck->lls_cl.cls_lock;
-
-	ENTRY;
 
 	lck->lls_orig = parent->cll_descr;
 	file_start = cl_offset(lov2cl(loo), parent->cll_descr.cld_start);
@@ -405,7 +397,6 @@ static int lov_sublock_release(const struct lu_env *env, struct lov_lock *lck,
 	struct cl_lock *parent = lck->lls_cl.cls_lock;
 
 	LASSERT(cl_lock_is_mutexed(parent));
-	ENTRY;
 
 	if (lck->lls_sub[i].sub_flags & LSF_HELD) {
 		struct cl_lock    *sublock;
@@ -451,7 +442,6 @@ static void lov_sublock_hold(const struct lu_env *env, struct lov_lock *lck,
 	struct cl_lock *parent = lck->lls_cl.cls_lock;
 
 	LASSERT(cl_lock_is_mutexed(parent));
-	ENTRY;
 
 	if (!(lck->lls_sub[i].sub_flags & LSF_HELD)) {
 		struct cl_lock *sublock;
@@ -477,7 +467,6 @@ static void lov_lock_fini(const struct lu_env *env,
 	struct lov_lock *lck;
 	int i;
 
-	ENTRY;
 	lck = cl2lov_lock(slice);
 	LASSERT(lck->lls_nr_filled == 0);
 	if (lck->lls_sub != NULL) {
@@ -500,7 +489,6 @@ static int lov_lock_enqueue_wait(const struct lu_env *env,
 {
 	struct cl_lock *lock = lck->lls_cl.cls_lock;
 	int	     result;
-	ENTRY;
 
 	LASSERT(cl_lock_is_mutexed(lock));
 
@@ -522,7 +510,6 @@ static int lov_lock_enqueue_one(const struct lu_env *env, struct lov_lock *lck,
 				struct cl_io *io, __u32 enqflags, int last)
 {
 	int result;
-	ENTRY;
 
 	/* first, try to enqueue a sub-lock ... */
 	result = cl_enqueue_try(env, sublock, io, enqflags);
@@ -599,8 +586,6 @@ static int lov_lock_enqueue(const struct lu_env *env,
 	int i;
 	int result;
 	enum cl_lock_state minstate;
-
-	ENTRY;
 
 	for (result = 0, minstate = CLS_FREEING, i = 0; i < lck->lls_nr; ++i) {
 		int rc;
@@ -691,8 +676,6 @@ static int lov_lock_unuse(const struct lu_env *env,
 	int i;
 	int result;
 
-	ENTRY;
-
 	for (result = 0, i = 0; i < lck->lls_nr; ++i) {
 		int rc;
 		struct lovsub_lock     *sub;
@@ -739,8 +722,6 @@ static void lov_lock_cancel(const struct lu_env *env,
 	struct cl_lock_closure *closure = lov_closure_get(env, slice->cls_lock);
 	int i;
 	int result;
-
-	ENTRY;
 
 	for (result = 0, i = 0; i < lck->lls_nr; ++i) {
 		int rc;
@@ -802,8 +783,6 @@ static int lov_lock_wait(const struct lu_env *env,
 	int		     result;
 	int		     i;
 
-	ENTRY;
-
 again:
 	for (result = 0, minstate = CLS_FREEING, i = 0, reenqueued = 0;
 	     i < lck->lls_nr; ++i) {
@@ -851,7 +830,6 @@ static int lov_lock_use(const struct lu_env *env,
 	int		     i;
 
 	LASSERT(slice->cls_lock->cll_state == CLS_INTRANSIT);
-	ENTRY;
 
 	for (result = 0, i = 0; i < lck->lls_nr; ++i) {
 		int rc;
@@ -1016,8 +994,6 @@ static int lov_lock_fits_into(const struct lu_env *env,
 	LASSERT(cl_object_same(need->cld_obj, slice->cls_obj));
 	LASSERT(lov->lls_nr > 0);
 
-	ENTRY;
-
 	/* for top lock, it's necessary to match enq flags otherwise it will
 	 * run into problem if a sublock is missing and reenqueue. */
 	if (need->cld_enq_flags != lov->lls_orig.cld_enq_flags)
@@ -1066,7 +1042,6 @@ void lov_lock_unlink(const struct lu_env *env,
 
 	LASSERT(cl_lock_is_mutexed(parent));
 	LASSERT(cl_lock_is_mutexed(sub->lss_cl.cls_lock));
-	ENTRY;
 
 	list_del_init(&link->lll_list);
 	LASSERT(lck->lls_sub[link->lll_idx].sub_lock == sub);
@@ -1087,7 +1062,6 @@ struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
 	struct lov_lock_link *scan;
 
 	LASSERT(cl_lock_is_mutexed(sub->lss_cl.cls_lock));
-	ENTRY;
 
 	list_for_each_entry(scan, &sub->lss_parents, lll_list) {
 		if (scan->lll_super == lck)
@@ -1120,7 +1094,6 @@ static void lov_lock_delete(const struct lu_env *env,
 	int		     i;
 
 	LASSERT(slice->cls_lock->cll_state == CLS_FREEING);
-	ENTRY;
 
 	for (i = 0; i < lck->lls_nr; ++i) {
 		struct lov_lock_sub *lls = &lck->lls_sub[i];
@@ -1192,7 +1165,6 @@ int lov_lock_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	struct lov_lock *lck;
 	int result;
 
-	ENTRY;
 	OBD_SLAB_ALLOC_PTR_GFP(lck, lov_lock_kmem, __GFP_IO);
 	if (lck != NULL) {
 		cl_lock_slice_add(lock, &lck->lls_cl, obj, &lov_lock_ops);
@@ -1228,7 +1200,6 @@ int lov_lock_init_empty(const struct lu_env *env, struct cl_object *obj,
 	struct lov_lock *lck;
 	int result = -ENOMEM;
 
-	ENTRY;
 	OBD_SLAB_ALLOC_PTR_GFP(lck, lov_lock_kmem, __GFP_IO);
 	if (lck != NULL) {
 		cl_lock_slice_add(lock, &lck->lls_cl, obj, &lov_empty_lock_ops);

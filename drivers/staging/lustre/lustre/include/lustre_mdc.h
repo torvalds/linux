@@ -84,8 +84,6 @@ static inline void mdc_init_rpc_lock(struct mdc_rpc_lock *lck)
 static inline void mdc_get_rpc_lock(struct mdc_rpc_lock *lck,
 				    struct lookup_intent *it)
 {
-	ENTRY;
-
 	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
 			   it->it_op == IT_LAYOUT))
 		return;

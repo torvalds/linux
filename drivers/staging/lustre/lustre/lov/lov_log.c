@@ -71,7 +71,6 @@ static int lov_llog_origin_add(const struct lu_env *env,
 	struct obd_device *obd = ctxt->loc_obd;
 	struct lov_obd *lov = &obd->u.lov;
 	int i, rc = 0, cookies = 0;
-	ENTRY;
 
 	LASSERTF(logcookies && numcookies >= lsm->lsm_stripe_count,
 		 "logcookies %p, numcookies %d lsm->lsm_stripe_count %d \n",
@@ -129,7 +128,6 @@ static int lov_llog_origin_connect(struct llog_ctxt *ctxt,
 	struct obd_device *obd = ctxt->loc_obd;
 	struct lov_obd *lov = &obd->u.lov;
 	int i, rc = 0, err = 0;
-	ENTRY;
 
 	obd_getref(obd);
 	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
@@ -167,7 +165,6 @@ static int lov_llog_repl_cancel(const struct lu_env *env,
 	struct lov_obd *lov;
 	struct obd_device *obd = ctxt->loc_obd;
 	int rc = 0, i;
-	ENTRY;
 
 	LASSERT(lsm != NULL);
 	LASSERT(count == lsm->lsm_stripe_count);
@@ -212,7 +209,6 @@ int lov_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
 	struct lov_obd *lov = &obd->u.lov;
 	struct obd_device *child;
 	int i, rc = 0;
-	ENTRY;
 
 	LASSERT(olg == &obd->obd_olg);
 	rc = llog_setup(NULL, obd, olg, LLOG_MDS_OST_ORIG_CTXT, disk_obd,
@@ -260,8 +256,6 @@ err_cleanup:
 int lov_llog_finish(struct obd_device *obd, int count)
 {
 	struct llog_ctxt *ctxt;
-
-	ENTRY;
 
 	/* cleanup our llogs only if the ctxts have been setup
 	 * (client lov doesn't setup, mds lov does). */

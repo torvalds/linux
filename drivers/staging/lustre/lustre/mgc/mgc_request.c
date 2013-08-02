@@ -118,7 +118,6 @@ static DEFINE_SPINLOCK(config_list_lock);
 /* Take a reference to a config log */
 static int config_log_get(struct config_llog_data *cld)
 {
-	ENTRY;
 	atomic_inc(&cld->cld_refcount);
 	CDEBUG(D_INFO, "log %s refs %d\n", cld->cld_logname,
 	       atomic_read(&cld->cld_refcount));
@@ -129,8 +128,6 @@ static int config_log_get(struct config_llog_data *cld)
    we can free the config log data */
 static void config_log_put(struct config_llog_data *cld)
 {
-	ENTRY;
-
 	CDEBUG(D_INFO, "log %s refs %d\n", cld->cld_logname,
 	       atomic_read(&cld->cld_refcount));
 	LASSERT(atomic_read(&cld->cld_refcount) > 0);
@@ -164,7 +161,6 @@ struct config_llog_data *config_log_find(char *logname,
 	struct config_llog_data *cld;
 	struct config_llog_data *found = NULL;
 	void *		   instance;
-	ENTRY;
 
 	LASSERT(logname != NULL);
 
@@ -198,7 +194,6 @@ struct config_llog_data *do_config_log_add(struct obd_device *obd,
 {
 	struct config_llog_data *cld;
 	int		      rc;
-	ENTRY;
 
 	CDEBUG(D_MGC, "do adding config log %s:%p\n", logname,
 	       cfg ? cfg->cfg_instance : 0);
@@ -296,7 +291,6 @@ static int config_log_add(struct obd_device *obd, char *logname,
 	struct config_llog_data *sptlrpc_cld;
 	char		     seclogname[32];
 	char		    *ptr;
-	ENTRY;
 
 	CDEBUG(D_MGC, "adding config log %s:%p\n", logname, cfg->cfg_instance);
 
@@ -357,7 +351,6 @@ static int config_log_end(char *logname, struct config_llog_instance *cfg)
 	struct config_llog_data *cld_sptlrpc = NULL;
 	struct config_llog_data *cld_recover = NULL;
 	int rc = 0;
-	ENTRY;
 
 	cld = config_log_find(logname, cfg);
 	if (cld == NULL)
@@ -415,7 +408,6 @@ int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 	struct obd_import       *imp = obd->u.cli.cl_import;
 	struct obd_connect_data *ocd = &imp->imp_connect_data;
 	struct config_llog_data *cld;
-	ENTRY;
 
 	seq_printf(m, "imperative_recovery: %s\n",
 		      OCD_HAS_FLAG(ocd, IMP_RECOV) ? "ENABLED" : "DISABLED");
@@ -445,7 +437,6 @@ static DECLARE_COMPLETION(rq_exit);
 
 static void do_requeue(struct config_llog_data *cld)
 {
-	ENTRY;
 	LASSERT(atomic_read(&cld->cld_refcount) > 0);
 
 	/* Do not run mgc_process_log on a disconnected export or an
@@ -474,7 +465,6 @@ static void do_requeue(struct config_llog_data *cld)
 static int mgc_requeue_thread(void *data)
 {
 	int rc = 0;
-	ENTRY;
 
 	CDEBUG(D_MGC, "Starting requeue thread\n");
 
@@ -563,8 +553,6 @@ static int mgc_requeue_thread(void *data)
    We are responsible for dropping the config log reference from here on out. */
 static void mgc_requeue_add(struct config_llog_data *cld)
 {
-	ENTRY;
-
 	CDEBUG(D_INFO, "log %s: requeue (r=%d sp=%d st=%x)\n",
 	       cld->cld_logname, atomic_read(&cld->cld_refcount),
 	       cld->cld_stopping, rq_state);
@@ -605,7 +593,6 @@ static int mgc_fs_setup(struct obd_device *obd, struct super_block *sb,
 	struct dentry *dentry;
 	char *label;
 	int err = 0;
-	ENTRY;
 
 	LASSERT(lsi);
 	LASSERT(lsi->lsi_srv_mnt == mnt);
@@ -668,7 +655,6 @@ static int mgc_fs_cleanup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 	int rc = 0;
-	ENTRY;
 
 	LASSERT(cli->cl_mgc_vfsmnt != NULL);
 
@@ -694,7 +680,6 @@ static atomic_t mgc_count = ATOMIC_INIT(0);
 static int mgc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
 	int rc = 0;
-	ENTRY;
 
 	switch (stage) {
 	case OBD_CLEANUP_EARLY:
@@ -726,7 +711,6 @@ static int mgc_cleanup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 	int rc;
-	ENTRY;
 
 	LASSERT(cli->cl_mgc_vfsmnt == NULL);
 
@@ -747,7 +731,6 @@ static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	struct lprocfs_static_vars lvars;
 	int rc;
-	ENTRY;
 
 	ptlrpcd_addref();
 
@@ -798,7 +781,6 @@ static int mgc_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 	struct lustre_handle lockh;
 	struct config_llog_data *cld = (struct config_llog_data *)data;
 	int rc = 0;
-	ENTRY;
 
 	switch (flag) {
 	case LDLM_CB_BLOCKING:
@@ -862,7 +844,6 @@ static int mgc_set_mgs_param(struct obd_export *exp,
 	struct ptlrpc_request *req;
 	struct mgs_send_param *req_msp, *rep_msp;
 	int rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_MGS_SET_INFO, LUSTRE_MGS_VERSION,
@@ -909,7 +890,6 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 	struct ptlrpc_request *req;
 	int short_limit = cld_is_sptlrpc(cld);
 	int rc;
-	ENTRY;
 
 	CDEBUG(D_MGC, "Enqueue for %s (res "LPX64")\n", cld->cld_logname,
 	       cld->cld_resid.name[0]);
@@ -944,8 +924,6 @@ static int mgc_enqueue(struct obd_export *exp, struct lov_stripe_md *lsm,
 static int mgc_cancel(struct obd_export *exp, struct lov_stripe_md *md,
 		      __u32 mode, struct lustre_handle *lockh)
 {
-	ENTRY;
-
 	ldlm_lock_decref(lockh, mode);
 
 	RETURN(0);
@@ -969,7 +947,6 @@ static int mgc_target_register(struct obd_export *exp,
 	struct ptlrpc_request  *req;
 	struct mgs_target_info *req_mti, *rep_mti;
 	int		     rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
 					&RQF_MGS_TARGET_REG, LUSTRE_MGS_VERSION,
@@ -1007,7 +984,6 @@ int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		       void *val, struct ptlrpc_request_set *set)
 {
 	int rc = -EINVAL;
-	ENTRY;
 
 	/* Turn off initial_recov after we try all backup servers once */
 	if (KEY_IS(KEY_INIT_RECOV_BACKUP)) {
@@ -1179,7 +1155,6 @@ static int mgc_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
 {
 	struct llog_ctxt *ctxt;
 	int rc;
-	ENTRY;
 
 	LASSERT(olg == &obd->obd_olg);
 
@@ -1207,8 +1182,6 @@ out:
 static int mgc_llog_finish(struct obd_device *obd, int count)
 {
 	struct llog_ctxt *ctxt;
-
-	ENTRY;
 
 	ctxt = llog_get_context(obd, LLOG_CONFIG_REPL_CTXT);
 	if (ctxt)
@@ -1242,7 +1215,6 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 	int   pos;
 	int   rc  = 0;
 	int   off = 0;
-	ENTRY;
 
 	LASSERT(cfg->cfg_instance != NULL);
 	LASSERT(cfg->cfg_sb == cfg->cfg_instance);
@@ -1443,7 +1415,6 @@ static int mgc_process_recover_log(struct obd_device *obd,
 	int i;
 	int ealen;
 	int rc;
-	ENTRY;
 
 	/* allocate buffer for bulk transfer.
 	 * if this is the first time for this mgs to read logs,
@@ -1586,8 +1557,6 @@ static int mgc_process_cfg_log(struct obd_device *mgc,
 	int rc = 0, must_pop = 0;
 	bool sptlrpc_started = false;
 
-	ENTRY;
-
 	LASSERT(cld);
 	LASSERT(mutex_is_locked(&cld->cld_lock));
 
@@ -1663,7 +1632,6 @@ int mgc_process_log(struct obd_device *mgc, struct config_llog_data *cld)
 	struct lustre_handle lockh = { 0 };
 	__u64 flags = LDLM_FL_NO_LRU;
 	int rc = 0, rcl;
-	ENTRY;
 
 	LASSERT(cld);
 
@@ -1737,7 +1705,6 @@ static int mgc_process_config(struct obd_device *obd, obd_count len, void *buf)
 	struct config_llog_instance *cfg = NULL;
 	char *logname;
 	int rc = 0;
-	ENTRY;
 
 	switch(lcfg->lcfg_command) {
 	case LCFG_LOV_ADD_OBD: {

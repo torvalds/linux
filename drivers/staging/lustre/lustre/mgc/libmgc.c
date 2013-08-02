@@ -56,7 +56,6 @@
 static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	int rc;
-	ENTRY;
 
 	ptlrpcd_addref();
 
@@ -85,7 +84,6 @@ err_decref:
 static int mgc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
 	int rc = 0;
-	ENTRY;
 
 	switch (stage) {
 	case OBD_CLEANUP_EARLY:
@@ -103,7 +101,6 @@ static int mgc_cleanup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 	int rc;
-	ENTRY;
 
 	LASSERT(cli->cl_mgc_vfsmnt == NULL);
 
@@ -118,7 +115,6 @@ static int mgc_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
 {
 	struct llog_ctxt *ctxt;
 	int rc;
-	ENTRY;
 
 	LASSERT(olg == &obd->obd_olg);
 	rc = llog_setup(NULL, obd, olg, LLOG_CONFIG_REPL_CTXT, tgt,
@@ -137,7 +133,6 @@ static int mgc_llog_finish(struct obd_device *obd, int count)
 {
 	struct llog_ctxt *ctxt;
 
-	ENTRY;
 
 	ctxt = llog_get_context(obd, LLOG_CONFIG_REPL_CTXT);
 	if (ctxt)

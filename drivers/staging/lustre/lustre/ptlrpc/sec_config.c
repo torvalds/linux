@@ -661,7 +661,6 @@ static int __sptlrpc_process_config(struct lustre_cfg *lcfg,
 	char		    fsname[MTI_NAME_MAXLEN];
 	struct sptlrpc_rule     rule;
 	int		     rc;
-	ENTRY;
 
 	target = lustre_cfg_string(lcfg, 1);
 	if (target == NULL) {
@@ -905,7 +904,6 @@ EXPORT_SYMBOL(sptlrpc_target_choose_flavor);
 void sptlrpc_conf_client_adapt(struct obd_device *obd)
 {
 	struct obd_import  *imp;
-	ENTRY;
 
 	LASSERT(strcmp(obd->obd_type->typ_name, LUSTRE_MDC_NAME) == 0 ||
 		strcmp(obd->obd_type->typ_name, LUSTRE_OSC_NAME) ==0);
@@ -1011,7 +1009,6 @@ int sptlrpc_target_local_copy_conf(struct obd_device *obd,
 	struct lvfs_run_ctxt  saved;
 	struct dentry	*dentry;
 	int		   rc;
-	ENTRY;
 
 	ctxt = llog_get_context(obd, LLOG_CONFIG_ORIG_CTXT);
 	if (ctxt == NULL)
@@ -1068,7 +1065,6 @@ static int local_read_handler(const struct lu_env *env,
 	struct sptlrpc_conf  *conf = (struct sptlrpc_conf *) data;
 	struct lustre_cfg    *lcfg = (struct lustre_cfg *)(rec + 1);
 	int		   cfg_len, rc;
-	ENTRY;
 
 	if (rec->lrh_type != OBD_CFG_REC) {
 		CERROR("unhandled lrh_type: %#x\n", rec->lrh_type);
@@ -1100,7 +1096,6 @@ int sptlrpc_target_local_read_conf(struct obd_device *obd,
 	struct llog_ctxt      *ctxt;
 	struct lvfs_run_ctxt   saved;
 	int		    rc;
-	ENTRY;
 
 	LASSERT(conf->sc_updated == 0 && conf->sc_local == 0);
 
@@ -1160,7 +1155,6 @@ int sptlrpc_conf_target_get_rules(struct obd_device *obd,
 	enum lustre_sec_part      sp_dst;
 	char		      fsname[MTI_NAME_MAXLEN];
 	int		       rc = 0;
-	ENTRY;
 
 	if (strcmp(obd->obd_type->typ_name, LUSTRE_MDT_NAME) == 0) {
 		sp_dst = LUSTRE_SP_MDT;

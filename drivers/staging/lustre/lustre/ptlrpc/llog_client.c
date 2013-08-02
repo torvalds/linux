@@ -85,7 +85,6 @@ static int llog_client_open(const struct lu_env *env,
 	struct llog_ctxt      *ctxt = lgh->lgh_ctxt;
 	struct ptlrpc_request *req = NULL;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(ctxt, imp);
 
@@ -147,7 +146,6 @@ static int llog_client_destroy(const struct lu_env *env,
 	struct ptlrpc_request *req = NULL;
 	struct llogd_body     *body;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(loghandle->lgh_ctxt, imp);
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_DESTROY,
@@ -184,7 +182,6 @@ static int llog_client_next_block(const struct lu_env *env,
 	struct llogd_body     *body;
 	void		  *ptr;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(loghandle->lgh_ctxt, imp);
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_NEXT_BLOCK,
@@ -238,7 +235,6 @@ static int llog_client_prev_block(const struct lu_env *env,
 	struct llogd_body     *body;
 	void		  *ptr;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(loghandle->lgh_ctxt, imp);
 	req = ptlrpc_request_alloc_pack(imp, &RQF_LLOG_ORIGIN_HANDLE_PREV_BLOCK,
@@ -287,7 +283,6 @@ static int llog_client_read_header(const struct lu_env *env,
 	struct llog_log_hdr   *hdr;
 	struct llog_rec_hdr   *llh_hdr;
 	int		    rc;
-	ENTRY;
 
 	LLOG_CLIENT_ENTRY(handle->lgh_ctxt, imp);
 	req = ptlrpc_request_alloc_pack(imp,&RQF_LLOG_ORIGIN_HANDLE_READ_HEADER,

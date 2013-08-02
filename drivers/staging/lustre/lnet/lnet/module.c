@@ -114,7 +114,6 @@ int
 init_lnet(void)
 {
 	int		  rc;
-	ENTRY;
 
 	mutex_init(&lnet_config_mutex);
 

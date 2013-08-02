@@ -54,7 +54,6 @@ static int ptl_send_buf (lnet_handle_md_t *mdh, void *base, int len,
 {
 	int	      rc;
 	lnet_md_t	 md;
-	ENTRY;
 
 	LASSERT (portal != 0);
 	LASSERT (conn != NULL);
@@ -122,7 +121,6 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	__u64 xid;
 	lnet_handle_me_t  me_h;
 	lnet_md_t	 md;
-	ENTRY;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_BULK_GET_NET))
 		RETURN(0);
@@ -247,7 +245,6 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 	wait_queue_head_t	     *wq;
 	struct l_wait_info       lwi;
 	int		      rc;
-	ENTRY;
 
 	LASSERT(!in_interrupt());     /* might sleep */
 
@@ -456,7 +453,6 @@ EXPORT_SYMBOL(ptlrpc_reply);
 int ptlrpc_send_error(struct ptlrpc_request *req, int may_be_difficult)
 {
 	int rc;
-	ENTRY;
 
 	if (req->rq_no_reply)
 		RETURN(0);
@@ -498,7 +494,6 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	lnet_handle_me_t  reply_me_h;
 	lnet_md_t	 reply_md;
 	struct obd_device *obd = request->rq_import->imp_obd;
-	ENTRY;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DROP_RPC))
 		RETURN(0);

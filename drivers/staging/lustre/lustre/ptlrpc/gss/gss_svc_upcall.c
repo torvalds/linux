@@ -259,8 +259,6 @@ static int rsi_parse(struct cache_detail *cd, char *mesg, int mlen)
 	struct rsi      rsii, *rsip = NULL;
 	time_t	  expiry;
 	int	     status = -EINVAL;
-	ENTRY;
-
 
 	memset(&rsii, 0, sizeof(rsii));
 
@@ -662,7 +660,6 @@ static void rsc_flush(rsc_entry_match *match, long data)
 	struct cache_head **ch;
 	struct rsc *rscp;
 	int n;
-	ENTRY;
 
 	write_lock(&rsc_cache.hash_lock);
 	for (n = 0; n < RSC_HASHMAX; n++) {
@@ -744,7 +741,6 @@ int gss_svc_upcall_install_rvs_ctx(struct obd_import *imp,
 	unsigned long   ctx_expiry;
 	__u32	   major;
 	int	     rc;
-	ENTRY;
 
 	memset(&rsci, 0, sizeof(rsci));
 
@@ -855,7 +851,6 @@ int gss_svc_upcall_handle_init(struct ptlrpc_request *req,
 	struct gss_rep_header     *rephdr;
 	int			first_check = 1;
 	int			rc = SECSVC_DROP;
-	ENTRY;
 
 	memset(&rsikey, 0, sizeof(rsikey));
 	rsikey.lustre_svc = lustre_svc;

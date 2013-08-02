@@ -75,7 +75,6 @@ int mdc_resource_get_unused(struct obd_export *exp, struct lu_fid *fid,
 	struct ldlm_res_id res_id;
 	struct ldlm_resource *res;
 	int count;
-	ENTRY;
 
 	/* Return, i.e. cancel nothing, only if ELC is supported (flag in
 	 * export) but disabled through procfs (flag in NS).
@@ -111,7 +110,6 @@ int mdc_setattr(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = exp->exp_obd;
 	int count = 0, rc;
 	__u64 bits;
-	ENTRY;
 
 	LASSERT(op_data != NULL);
 
@@ -217,7 +215,6 @@ int mdc_create(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_import *import = exp->exp_obd->u.cli.cl_import;
 	int generation = import->imp_generation;
 	LIST_HEAD(cancels);
-	ENTRY;
 
 	/* For case if upper layer did not alloc fid, do it now. */
 	if (!fid_is_sane(&op_data->op_fid2)) {
@@ -325,7 +322,6 @@ int mdc_unlink(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = class_exp2obd(exp);
 	struct ptlrpc_request *req = *request;
 	int count = 0, rc;
-	ENTRY;
 
 	LASSERT(req == NULL);
 
@@ -380,7 +376,6 @@ int mdc_link(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = exp->exp_obd;
 	struct ptlrpc_request *req;
 	int count = 0, rc;
-	ENTRY;
 
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID2) &&
 	    (fid_is_sane(&op_data->op_fid2)))
@@ -428,7 +423,6 @@ int mdc_rename(struct obd_export *exp, struct md_op_data *op_data,
 	struct obd_device *obd = exp->exp_obd;
 	struct ptlrpc_request *req;
 	int count = 0, rc;
-	ENTRY;
 
 	if ((op_data->op_flags & MF_MDC_CANCEL_FID1) &&
 	    (fid_is_sane(&op_data->op_fid1)))

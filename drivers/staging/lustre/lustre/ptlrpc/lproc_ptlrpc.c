@@ -480,7 +480,6 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	bool				hp = false;
 	int				i;
 	int				rc = 0;
-	ENTRY;
 
 	/**
 	 * Serialize NRS core lprocfs operations with policy registration/
@@ -638,7 +637,6 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file, const char *buffe
 	char			       *cmd_copy = NULL;
 	char			       *token;
 	int				rc = 0;
-	ENTRY;
 
 	if (count >= LPROCFS_NRS_WR_MAX_CMD)
 		GOTO(out, rc = -EINVAL);
@@ -1217,7 +1215,6 @@ int lprocfs_wr_ping(struct file *file, const char *buffer,
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	struct ptlrpc_request *req;
 	int		    rc;
-	ENTRY;
 
 	LPROCFS_CLIMP_CHECK(obd);
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);

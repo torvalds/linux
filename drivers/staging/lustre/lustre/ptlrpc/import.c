@@ -195,7 +195,6 @@ int ptlrpc_set_import_discon(struct obd_import *imp, __u32 conn_cnt)
 /* Must be called with imp_lock held! */
 static void ptlrpc_deactivate_and_unlock_import(struct obd_import *imp)
 {
-	ENTRY;
 	LASSERT(spin_is_locked(&imp->imp_lock));
 
 	CDEBUG(D_HA, "setting import %s INVALID\n", obd2cli_tgt(imp->imp_obd));
@@ -394,8 +393,6 @@ EXPORT_SYMBOL(ptlrpc_activate_import);
 
 void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 {
-	ENTRY;
-
 	LASSERT(!imp->imp_dlm_fake);
 
 	if (ptlrpc_set_import_discon(imp, conn_cnt)) {
@@ -461,7 +458,6 @@ static int import_select_connection(struct obd_import *imp)
 	struct obd_export *dlmexp;
 	char *target_start;
 	int target_len, tried_all = 1;
-	ENTRY;
 
 	spin_lock(&imp->imp_lock);
 
@@ -602,7 +598,6 @@ int ptlrpc_connect_import(struct obd_import *imp)
 			 (char *)&imp->imp_connect_data };
 	struct ptlrpc_connect_async_args *aa;
 	int rc;
-	ENTRY;
 
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_state == LUSTRE_IMP_CLOSED) {
@@ -756,7 +751,6 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	struct obd_connect_data *ocd;
 	struct obd_export *exp;
 	int ret;
-	ENTRY;
 
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_state == LUSTRE_IMP_CLOSED) {
@@ -1183,7 +1177,6 @@ static int completed_replay_interpret(const struct lu_env *env,
 				      struct ptlrpc_request *req,
 				      void * data, int rc)
 {
-	ENTRY;
 	atomic_dec(&req->rq_import->imp_replay_inflight);
 	if (req->rq_status == 0 &&
 	    !req->rq_import->imp_vbr_failed) {
@@ -1212,7 +1205,6 @@ static int completed_replay_interpret(const struct lu_env *env,
 static int signal_completed_replay(struct obd_import *imp)
 {
 	struct ptlrpc_request *req;
-	ENTRY;
 
 	if (unlikely(OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_FINISH_REPLAY)))
 		RETURN(0);
@@ -1247,8 +1239,6 @@ static int signal_completed_replay(struct obd_import *imp)
 static int ptlrpc_invalidate_import_thread(void *data)
 {
 	struct obd_import *imp = data;
-
-	ENTRY;
 
 	unshare_fs_struct();
 
@@ -1297,7 +1287,6 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 	char *target_start;
 	int target_len;
 
-	ENTRY;
 	if (imp->imp_state == LUSTRE_IMP_EVICTED) {
 		deuuidify(obd2cli_tgt(imp->imp_obd), NULL,
 			  &target_start, &target_len);
@@ -1401,7 +1390,6 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 	struct ptlrpc_request *req;
 	int rq_opc, rc = 0;
 	int nowait = imp->imp_obd->obd_force;
-	ENTRY;
 
 	if (nowait)
 		GOTO(set_state, rc);
@@ -1482,8 +1470,6 @@ EXPORT_SYMBOL(ptlrpc_disconnect_import);
 
 void ptlrpc_cleanup_imp(struct obd_import *imp)
 {
-	ENTRY;
-
 	spin_lock(&imp->imp_lock);
 	IMPORT_SET_STATE_NOLOCK(imp, LUSTRE_IMP_CLOSED);
 	imp->imp_generation++;

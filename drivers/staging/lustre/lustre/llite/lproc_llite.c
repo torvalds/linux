@@ -379,7 +379,6 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file, const char *buffer,
 	int mult, rc, pages_number;
 	int diff = 0;
 	int nrpages = 0;
-	ENTRY;
 
 	mult = 1 << (20 - PAGE_CACHE_SHIFT);
 	buffer = lprocfs_find_named_value(buffer, "max_cached_mb:", &count);
@@ -855,7 +854,6 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	proc_dir_entry_t *dir;
 	char name[MAX_STRING_SIZE + 1], *ptr;
 	int err, id, len, rc;
-	ENTRY;
 
 	memset(lvars, 0, sizeof(lvars));
 

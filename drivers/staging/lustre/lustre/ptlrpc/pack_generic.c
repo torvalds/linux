@@ -329,7 +329,6 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 {
 	struct ptlrpc_reply_state *rs;
 	int			msg_len, rc;
-	ENTRY;
 
 	LASSERT(req->rq_reply_state == NULL);
 
@@ -574,7 +573,6 @@ static int lustre_unpack_msg_v2(struct lustre_msg_v2 *m, int len)
 int __lustre_unpack_msg(struct lustre_msg *m, int len)
 {
 	int required_len, rc;
-	ENTRY;
 
 	/* We can provide a slightly better error log, if we check the
 	 * message magic and version first.  In the future, struct
@@ -1616,7 +1614,6 @@ int do_set_info_async(struct obd_import *imp,
 	struct ptlrpc_request *req;
 	char		  *tmp;
 	int		    rc;
-	ENTRY;
 
 	req = ptlrpc_request_alloc(imp, &RQF_OBD_SET_INFO);
 	if (req == NULL)
@@ -2166,7 +2163,6 @@ static void lustre_swab_lmm_oi(struct ost_id *oi)
 
 static void lustre_swab_lov_user_md_common(struct lov_user_md_v1 *lum)
 {
-	ENTRY;
 	__swab32s(&lum->lmm_magic);
 	__swab32s(&lum->lmm_pattern);
 	lustre_swab_lmm_oi(&lum->lmm_oi);
@@ -2179,7 +2175,6 @@ static void lustre_swab_lov_user_md_common(struct lov_user_md_v1 *lum)
 
 void lustre_swab_lov_user_md_v1(struct lov_user_md_v1 *lum)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_user_md v1\n");
 	lustre_swab_lov_user_md_common(lum);
 	EXIT;
@@ -2188,7 +2183,6 @@ EXPORT_SYMBOL(lustre_swab_lov_user_md_v1);
 
 void lustre_swab_lov_user_md_v3(struct lov_user_md_v3 *lum)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_user_md v3\n");
 	lustre_swab_lov_user_md_common((struct lov_user_md_v1 *)lum);
 	/* lmm_pool_name nothing to do with char */
@@ -2198,7 +2192,6 @@ EXPORT_SYMBOL(lustre_swab_lov_user_md_v3);
 
 void lustre_swab_lov_mds_md(struct lov_mds_md *lmm)
 {
-	ENTRY;
 	CDEBUG(D_IOCTL, "swabbing lov_mds_md\n");
 	__swab32s(&lmm->lmm_magic);
 	__swab32s(&lmm->lmm_pattern);
@@ -2214,7 +2207,7 @@ void lustre_swab_lov_user_md_objects(struct lov_user_ost_data *lod,
 				     int stripe_count)
 {
 	int i;
-	ENTRY;
+
 	for (i = 0; i < stripe_count; i++) {
 		lustre_swab_ost_id(&(lod[i].l_ost_oi));
 		__swab32s(&(lod[i].l_ost_gen));

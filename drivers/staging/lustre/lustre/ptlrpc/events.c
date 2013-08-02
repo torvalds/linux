@@ -55,7 +55,6 @@ void request_out_callback(lnet_event_t *ev)
 {
 	struct ptlrpc_cb_id   *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
-	ENTRY;
 
 	LASSERT (ev->type == LNET_EVENT_SEND ||
 		 ev->type == LNET_EVENT_UNLINK);
@@ -90,7 +89,6 @@ void reply_in_callback(lnet_event_t *ev)
 {
 	struct ptlrpc_cb_id   *cbid = ev->md.user_ptr;
 	struct ptlrpc_request *req = cbid->cbid_arg;
-	ENTRY;
 
 	DEBUG_REQ(D_NET, req, "type %d, status %d", ev->type, ev->status);
 
@@ -177,7 +175,6 @@ void client_bulk_callback (lnet_event_t *ev)
 	struct ptlrpc_cb_id     *cbid = ev->md.user_ptr;
 	struct ptlrpc_bulk_desc *desc = cbid->cbid_arg;
 	struct ptlrpc_request   *req;
-	ENTRY;
 
 	LASSERT ((desc->bd_type == BULK_PUT_SINK &&
 		  ev->type == LNET_EVENT_PUT) ||
@@ -289,7 +286,6 @@ void request_in_callback(lnet_event_t *ev)
 	struct ptlrpc_service_part	  *svcpt = rqbd->rqbd_svcpt;
 	struct ptlrpc_service	     *service = svcpt->scp_service;
 	struct ptlrpc_request	     *req;
-	ENTRY;
 
 	LASSERT (ev->type == LNET_EVENT_PUT ||
 		 ev->type == LNET_EVENT_UNLINK);
@@ -389,7 +385,6 @@ void reply_out_callback(lnet_event_t *ev)
 	struct ptlrpc_cb_id	  *cbid = ev->md.user_ptr;
 	struct ptlrpc_reply_state *rs = cbid->cbid_arg;
 	struct ptlrpc_service_part *svcpt = rs->rs_svcpt;
-	ENTRY;
 
 	LASSERT (ev->type == LNET_EVENT_SEND ||
 		 ev->type == LNET_EVENT_ACK ||

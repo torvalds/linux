@@ -91,7 +91,6 @@ static int nrs_policy_ctl_locked(struct ptlrpc_nrs_policy *policy,
 static void nrs_policy_stop0(struct ptlrpc_nrs_policy *policy)
 {
 	struct ptlrpc_nrs *nrs = policy->pol_nrs;
-	ENTRY;
 
 	if (policy->pol_desc->pd_ops->op_policy_stop != NULL) {
 		spin_unlock(&nrs->nrs_lock);
@@ -118,7 +117,6 @@ static void nrs_policy_stop0(struct ptlrpc_nrs_policy *policy)
 static int nrs_policy_stop_locked(struct ptlrpc_nrs_policy *policy)
 {
 	struct ptlrpc_nrs *nrs = policy->pol_nrs;
-	ENTRY;
 
 	if (nrs->nrs_policy_fallback == policy && !nrs->nrs_stopping)
 		RETURN(-EPERM);
@@ -158,7 +156,6 @@ static int nrs_policy_stop_locked(struct ptlrpc_nrs_policy *policy)
 static void nrs_policy_stop_primary(struct ptlrpc_nrs *nrs)
 {
 	struct ptlrpc_nrs_policy *tmp = nrs->nrs_policy_primary;
-	ENTRY;
 
 	if (tmp == NULL) {
 		/**
@@ -203,7 +200,6 @@ static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 {
 	struct ptlrpc_nrs      *nrs = policy->pol_nrs;
 	int			rc = 0;
-	ENTRY;
 
 	/**
 	 * Don't allow multiple starting which is too complex, and has no real
@@ -644,7 +640,6 @@ static int nrs_policy_ctl(struct ptlrpc_nrs *nrs, char *name,
 {
 	struct ptlrpc_nrs_policy       *policy;
 	int				rc = 0;
-	ENTRY;
 
 	spin_lock(&nrs->nrs_lock);
 
@@ -690,7 +685,6 @@ out:
 static int nrs_policy_unregister(struct ptlrpc_nrs *nrs, char *name)
 {
 	struct ptlrpc_nrs_policy *policy = NULL;
-	ENTRY;
 
 	spin_lock(&nrs->nrs_lock);
 
@@ -751,7 +745,6 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 	struct ptlrpc_nrs_policy       *tmp;
 	struct ptlrpc_service_part     *svcpt = nrs->nrs_svcpt;
 	int				rc;
-	ENTRY;
 
 	LASSERT(svcpt != NULL);
 	LASSERT(desc->pd_ops != NULL);
@@ -844,7 +837,6 @@ static void ptlrpc_nrs_req_add_nolock(struct ptlrpc_request *req)
 static void ptlrpc_nrs_hpreq_add_nolock(struct ptlrpc_request *req)
 {
 	int	opc = lustre_msg_get_opc(req->rq_reqmsg);
-	ENTRY;
 
 	spin_lock(&req->rq_lock);
 	req->rq_hp = 1;
@@ -891,7 +883,6 @@ static int nrs_register_policies_locked(struct ptlrpc_nrs *nrs)
 	struct ptlrpc_service_part	 *svcpt = nrs->nrs_svcpt;
 	struct ptlrpc_service		 *svc = svcpt->scp_service;
 	int				  rc = -EINVAL;
-	ENTRY;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 
@@ -966,7 +957,6 @@ static int nrs_svcpt_setup_locked(struct ptlrpc_service_part *svcpt)
 {
 	struct ptlrpc_nrs	       *nrs;
 	int				rc;
-	ENTRY;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 
@@ -1012,7 +1002,6 @@ static void nrs_svcpt_cleanup_locked(struct ptlrpc_service_part *svcpt)
 	struct ptlrpc_nrs_policy       *tmp;
 	int				rc;
 	bool				hp = false;
-	ENTRY;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 
@@ -1051,7 +1040,6 @@ again:
 static struct ptlrpc_nrs_pol_desc *nrs_policy_find_desc_locked(const char *name)
 {
 	struct ptlrpc_nrs_pol_desc     *tmp;
-	ENTRY;
 
 	list_for_each_entry(tmp, &nrs_core.nrs_policies, pd_list) {
 		if (strncmp(tmp->pd_name, name, NRS_POL_NAME_MAX) == 0)
@@ -1079,7 +1067,6 @@ static int nrs_policy_unregister_locked(struct ptlrpc_nrs_pol_desc *desc)
 	struct ptlrpc_service_part     *svcpt;
 	int				i;
 	int				rc = 0;
-	ENTRY;
 
 	LASSERT(mutex_is_locked(&nrs_core.nrs_mutex));
 	LASSERT(mutex_is_locked(&ptlrpc_all_services_mutex));
@@ -1143,7 +1130,6 @@ int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 	struct ptlrpc_service	       *svc;
 	struct ptlrpc_nrs_pol_desc     *desc;
 	int				rc = 0;
-	ENTRY;
 
 	LASSERT(conf != NULL);
 	LASSERT(conf->nc_ops != NULL);
@@ -1296,7 +1282,6 @@ int ptlrpc_nrs_policy_unregister(struct ptlrpc_nrs_pol_conf *conf)
 {
 	struct ptlrpc_nrs_pol_desc	*desc;
 	int				 rc;
-	ENTRY;
 
 	LASSERT(conf != NULL);
 
@@ -1630,7 +1615,6 @@ void ptlrpc_nrs_req_hp_move(struct ptlrpc_request *req)
 	struct ptlrpc_nrs_request	*nrq = &req->rq_nrq;
 	struct ptlrpc_nrs_resource	*res1[NRS_RES_MAX];
 	struct ptlrpc_nrs_resource	*res2[NRS_RES_MAX];
-	ENTRY;
 
 	/**
 	 * Obtain the high-priority NRS head resources.
@@ -1696,7 +1680,6 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 	struct ptlrpc_service_part     *svcpt;
 	int				i;
 	int				rc = 0;
-	ENTRY;
 
 	LASSERT(opc != PTLRPC_NRS_CTL_INVALID);
 
@@ -1745,7 +1728,6 @@ extern struct ptlrpc_nrs_pol_conf nrs_conf_fifo;
 int ptlrpc_nrs_init(void)
 {
 	int	rc;
-	ENTRY;
 
 	mutex_init(&nrs_core.nrs_mutex);
 	INIT_LIST_HEAD(&nrs_core.nrs_policies);

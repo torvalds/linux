@@ -524,7 +524,6 @@ void rvs_sec_install_root_ctx_kr(struct ptlrpc_sec *sec,
 	struct gss_sec_keyring *gsec_kr = sec2gsec_keyring(sec);
 	struct ptlrpc_cli_ctx  *ctx;
 	cfs_time_t	      now;
-	ENTRY;
 
 	LASSERT(sec_is_reverse(sec));
 
@@ -569,7 +568,6 @@ struct ptlrpc_sec * gss_sec_create_kr(struct obd_import *imp,
 				      struct sptlrpc_flavor *sf)
 {
 	struct gss_sec_keyring  *gsec_kr;
-	ENTRY;
 
 	OBD_ALLOC(gsec_kr, sizeof(*gsec_kr));
 	if (gsec_kr == NULL)
@@ -683,7 +681,6 @@ struct ptlrpc_cli_ctx * gss_sec_lookup_ctx_kr(struct ptlrpc_sec *sec,
 	char		    *coinfo;
 	int		      coinfo_size;
 	char		    *co_flags = "";
-	ENTRY;
 
 	LASSERT(imp != NULL);
 
@@ -891,7 +888,6 @@ void flush_spec_ctx_cache_kr(struct ptlrpc_sec *sec,
 	struct hlist_head	freelist = HLIST_HEAD_INIT;
 	struct hlist_node      *next;
 	struct ptlrpc_cli_ctx  *ctx;
-	ENTRY;
 
 	gsec_kr = sec2gsec_keyring(sec);
 
@@ -937,8 +933,6 @@ static
 int gss_sec_flush_ctx_cache_kr(struct ptlrpc_sec *sec,
 			       uid_t uid, int grace, int force)
 {
-	ENTRY;
-
 	CDEBUG(D_SEC, "sec %p(%d, nctx %d), uid %d, grace %d, force %d\n",
 	       sec, atomic_read(&sec->ps_refcount),
 	       atomic_read(&sec->ps_nctx),
@@ -959,7 +953,6 @@ void gss_sec_gc_ctx_kr(struct ptlrpc_sec *sec)
 	struct hlist_head	freelist = HLIST_HEAD_INIT;
 	struct hlist_node      *next;
 	struct ptlrpc_cli_ctx  *ctx;
-	ENTRY;
 
 	CWARN("running gc\n");
 
@@ -993,7 +986,6 @@ int gss_sec_display_kr(struct ptlrpc_sec *sec, struct seq_file *seq)
 	struct ptlrpc_cli_ctx  *ctx;
 	struct gss_cli_ctx     *gctx;
 	time_t		  now = cfs_time_current_sec();
-	ENTRY;
 
 	spin_lock(&sec->ps_lock);
 	hlist_for_each_entry_safe(ctx, next,
@@ -1148,7 +1140,6 @@ static
 int gss_kt_instantiate(struct key *key, const void *data, size_t datalen)
 {
 	int	     rc;
-	ENTRY;
 
 	if (data != NULL || datalen != 0) {
 		CERROR("invalid: data %p, len %lu\n", data, (long)datalen);
@@ -1198,7 +1189,6 @@ int gss_kt_update(struct key *key, const void *data, size_t datalen)
 	rawobj_t		 tmpobj = RAWOBJ_EMPTY;
 	__u32		    datalen32 = (__u32) datalen;
 	int		      rc;
-	ENTRY;
 
 	if (data == NULL || datalen == 0) {
 		CWARN("invalid: data %p, len %lu\n", data, (long)datalen);
@@ -1316,7 +1306,6 @@ int gss_kt_match(const struct key *key, const void *desc)
 static
 void gss_kt_destroy(struct key *key)
 {
-	ENTRY;
 	LASSERT(key->payload.data == NULL);
 	CDEBUG(D_SEC, "destroy key %p\n", key);
 	EXIT;

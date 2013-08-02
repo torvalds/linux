@@ -57,7 +57,6 @@
 int llog_initiator_connect(struct llog_ctxt *ctxt)
 {
 	struct obd_import *new_imp;
-	ENTRY;
 
 	LASSERT(ctxt);
 	new_imp = ctxt->loc_obd->u.cli.cl_import;

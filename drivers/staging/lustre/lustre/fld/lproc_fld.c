@@ -62,7 +62,6 @@ fld_proc_targets_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_fld *fld = (struct lu_client_fld *)m->private;
 	struct lu_fld_target *target;
-	ENTRY;
 
 	LASSERT(fld != NULL);
 
@@ -79,7 +78,6 @@ static int
 fld_proc_hash_seq_show(struct seq_file *m, void *unused)
 {
 	struct lu_client_fld *fld = (struct lu_client_fld *)m->private;
-	ENTRY;
 
 	LASSERT(fld != NULL);
 
@@ -97,7 +95,6 @@ fld_proc_hash_seq_write(struct file *file, const char *buffer,
 	struct lu_client_fld *fld = ((struct seq_file *)file->private_data)->private;
 	struct lu_fld_hash *hash = NULL;
 	int i;
-	ENTRY;
 
 	LASSERT(fld != NULL);
 
@@ -128,7 +125,6 @@ fld_proc_cache_flush_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *pos)
 {
 	struct lu_client_fld *fld = file->private_data;
-	ENTRY;
 
 	LASSERT(fld != NULL);
 
