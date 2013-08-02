@@ -39,7 +39,6 @@
 #include <linux/ctype.h>
 #include <linux/proc_fs.h>
 #include <linux/serial_reg.h>
-#include <linux/sched.h>		/* For in_egroup_p() */
 #include <linux/string.h>
 #include <asm/uaccess.h>		/* For copy_from_user/copy_to_user */
 
