@@ -950,12 +950,6 @@ struct qlcnic_ipaddr {
 #define QLCNIC_READD_AGE	20
 #define QLCNIC_LB_MAX_FILTERS	64
 #define QLCNIC_LB_BUCKET_SIZE	32
-
-/* QLCNIC Driver Error Code */
-#define QLCNIC_FW_NOT_RESPOND		51
-#define QLCNIC_TEST_IN_PROGRESS		52
-#define QLCNIC_UNDEFINED_ERROR		53
-#define QLCNIC_LB_CABLE_NOT_CONN	54
 #define QLCNIC_ILB_MAX_RCV_LOOP	10
 
 struct qlcnic_filter {

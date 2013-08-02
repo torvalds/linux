@@ -1652,7 +1652,7 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
 		netdev_warn(netdev,
 			    "Loopback test not supported in non privileged mode\n");
-		return ret;
+		return -ENOTSUPP;
 	}
 
 	if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
@@ -1686,13 +1686,13 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 		if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
 			netdev_info(netdev,
 				    "Device is resetting, free LB test resources\n");
-			ret = -EIO;
+			ret = -EBUSY;
 			goto free_diag_res;
 		}
 		if (loop++ > QLC_83XX_LB_WAIT_COUNT) {
 			netdev_info(netdev,
 				    "Firmware didn't sent link up event to loopback request\n");
-			ret = -QLCNIC_FW_NOT_RESPOND;
+			ret = -ETIMEDOUT;
 			qlcnic_83xx_clear_lb_mode(adapter, mode);
 			goto free_diag_res;
 		}
@@ -1729,6 +1729,15 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 		return status;
 
 	config = ahw->port_config;
+
+	/* Check if port is already in loopback mode */
+	if ((config & QLC_83XX_CFG_LOOPBACK_HSS) ||
+	    (config & QLC_83XX_CFG_LOOPBACK_EXT)) {
+		netdev_err(netdev,
+			   "Port already in Loopback mode.\n");
+		return -EINPROGRESS;
+	}
+
 	set_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 
 	if (mode == QLCNIC_ILB_MODE)
@@ -1756,14 +1765,14 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 			netdev_info(netdev,
 				    "Device is resetting, free LB test resources\n");
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
-			return -EIO;
+			return -EBUSY;
 		}
 		if (loop++ > QLC_83XX_LB_WAIT_COUNT) {
 			netdev_err(netdev,
 				   "Did not receive IDC completion AEN\n");
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 			qlcnic_83xx_clear_lb_mode(adapter, mode);
-			return -EIO;
+			return -ETIMEDOUT;
 		}
 	} while (test_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status));
 
@@ -1805,14 +1814,14 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 			netdev_info(netdev,
 				    "Device is resetting, free LB test resources\n");
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
-			return -EIO;
+			return -EBUSY;
 		}
 
 		if (loop++ > QLC_83XX_LB_WAIT_COUNT) {
 			netdev_err(netdev,
 				   "Did not receive IDC completion AEN\n");
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
-			return -EIO;
+			return -ETIMEDOUT;
 		}
 	} while (test_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status));
 

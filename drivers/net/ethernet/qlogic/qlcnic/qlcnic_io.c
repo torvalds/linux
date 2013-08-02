@@ -919,17 +919,17 @@ static void qlcnic_handle_fw_message(int desc_cnt, int index,
 			break;
 		case 1:
 			dev_info(dev, "loopback already in progress\n");
-			adapter->ahw->diag_cnt = -QLCNIC_TEST_IN_PROGRESS;
+			adapter->ahw->diag_cnt = -EINPROGRESS;
 			break;
 		case 2:
 			dev_info(dev, "loopback cable is not connected\n");
-			adapter->ahw->diag_cnt = -QLCNIC_LB_CABLE_NOT_CONN;
+			adapter->ahw->diag_cnt = -ENODEV;
 			break;
 		default:
 			dev_info(dev,
 				 "loopback configure request failed, err %x\n",
 				 ret);
-			adapter->ahw->diag_cnt = -QLCNIC_UNDEFINED_ERROR;
+			adapter->ahw->diag_cnt = -EIO;
 			break;
 		}
 		break;
