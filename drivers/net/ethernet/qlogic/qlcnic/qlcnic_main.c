@@ -2141,16 +2141,12 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_warn(&pdev->dev,
 			 "83xx adapter do not support MSI interrupts\n");
 
-	err = qlcnic_setup_intr(adapter, 0);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to setup interrupt\n");
-		goto err_out_disable_msi;
-	}
-
-	if (qlcnic_83xx_check(adapter)) {
-		err = qlcnic_83xx_setup_mbx_intr(adapter);
-		if (err)
+	if (qlcnic_82xx_check(adapter)) {
+		err = qlcnic_setup_intr(adapter, 0);
+		if (err) {
+			dev_err(&pdev->dev, "Failed to setup interrupt\n");
 			goto err_out_disable_msi;
+		}
 	}
 
 	err = qlcnic_get_act_pci_func(adapter);
@@ -2237,9 +2233,11 @@ static void qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_sriov_cleanup(adapter);
 
 	if (qlcnic_83xx_check(adapter)) {
-		qlcnic_83xx_free_mbx_intr(adapter);
 		qlcnic_83xx_register_nic_idc_func(adapter, 0);
 		cancel_delayed_work_sync(&adapter->idc_aen_work);
+		qlcnic_83xx_free_mbx_intr(adapter);
+		qlcnic_83xx_detach_mailbox_work(adapter);
+		qlcnic_83xx_free_mailbox(ahw->mailbox);
 	}
 
 	qlcnic_detach(adapter);

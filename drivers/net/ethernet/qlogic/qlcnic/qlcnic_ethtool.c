@@ -980,9 +980,9 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 		msleep(500);
 		qlcnic_process_rcv_ring_diag(sds_ring);
 		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
-			netdev_info(netdev, "firmware didnt respond to loopback"
-				" configure request\n");
-			ret = -QLCNIC_FW_NOT_RESPOND;
+			netdev_info(netdev,
+				    "Firmware didn't sent link up event to loopback request\n");
+			ret = -ETIMEDOUT;
 			goto free_res;
 		} else if (adapter->ahw->diag_cnt) {
 			ret = adapter->ahw->diag_cnt;

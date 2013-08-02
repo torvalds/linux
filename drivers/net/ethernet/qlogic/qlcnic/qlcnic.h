@@ -20,7 +20,6 @@
 #include <linux/tcp.h>
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
-
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/timer.h>
@@ -38,8 +37,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 2
-#define _QLCNIC_LINUX_SUBVERSION 44
-#define QLCNIC_LINUX_VERSIONID  "5.2.44"
+#define _QLCNIC_LINUX_SUBVERSION 45
+#define QLCNIC_LINUX_VERSIONID  "5.2.45"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -467,7 +466,7 @@ struct qlcnic_hardware_context {
 	u32 *ext_reg_tbl;
 	u32 mbox_aen[QLC_83XX_MBX_AEN_CNT];
 	u32 mbox_reg[4];
-	spinlock_t mbx_lock;
+	struct qlcnic_mailbox *mailbox;
 };
 
 struct qlcnic_adapter_stats {
@@ -950,12 +949,6 @@ struct qlcnic_ipaddr {
 #define QLCNIC_READD_AGE	20
 #define QLCNIC_LB_MAX_FILTERS	64
 #define QLCNIC_LB_BUCKET_SIZE	32
-
-/* QLCNIC Driver Error Code */
-#define QLCNIC_FW_NOT_RESPOND		51
-#define QLCNIC_TEST_IN_PROGRESS		52
-#define QLCNIC_UNDEFINED_ERROR		53
-#define QLCNIC_LB_CABLE_NOT_CONN	54
 #define QLCNIC_ILB_MAX_RCV_LOOP	10
 
 struct qlcnic_filter {
@@ -970,6 +963,21 @@ struct qlcnic_filter_hash {
 	u8 fnum;
 	u16 fmax;
 	u16 fbucket_size;
+};
+
+/* Mailbox specific data structures */
+struct qlcnic_mailbox {
+	struct workqueue_struct	*work_q;
+	struct qlcnic_adapter	*adapter;
+	struct qlcnic_mbx_ops	*ops;
+	struct work_struct	work;
+	struct completion	completion;
+	struct list_head	cmd_q;
+	unsigned long		status;
+	spinlock_t		queue_lock;	/* Mailbox queue lock */
+	spinlock_t		aen_lock;	/* Mailbox response/AEN lock */
+	atomic_t		rsp_status;
+	u32			num_cmds;
 };
 
 struct qlcnic_adapter {
@@ -1385,9 +1393,20 @@ struct _cdrp_cmd {
 };
 
 struct qlcnic_cmd_args {
-	struct _cdrp_cmd req;
-	struct _cdrp_cmd rsp;
-	int op_type;
+	struct completion	completion;
+	struct list_head	list;
+	struct _cdrp_cmd	req;
+	struct _cdrp_cmd	rsp;
+	atomic_t		rsp_status;
+	int			pay_size;
+	u32			rsp_opcode;
+	u32			total_cmds;
+	u32			op_type;
+	u32			type;
+	u32			cmd_op;
+	u32			*hdr;	/* Back channel message header */
+	u32			*pay;	/* Back channel message payload */
+	u8			func_num;
 };
 
 int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter);
@@ -1599,6 +1618,20 @@ struct qlcnic_nic_template {
 	int (*shutdown)(struct pci_dev *);
 	int (*resume)(struct qlcnic_adapter *);
 };
+
+struct qlcnic_mbx_ops {
+	int (*enqueue_cmd) (struct qlcnic_adapter *,
+			    struct qlcnic_cmd_args *, unsigned long *);
+	void (*dequeue_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
+	void (*decode_resp) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
+	void (*encode_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
+	void (*nofity_fw) (struct qlcnic_adapter *, u8);
+};
+
+int qlcnic_83xx_init_mailbox_work(struct qlcnic_adapter *);
+void qlcnic_83xx_detach_mailbox_work(struct qlcnic_adapter *);
+void qlcnic_83xx_reinit_mbx_work(struct qlcnic_mailbox *mbx);
+void qlcnic_83xx_free_mailbox(struct qlcnic_mailbox *mbx);
 
 /* Adapter hardware abstraction */
 struct qlcnic_hardware_ops {
