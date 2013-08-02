@@ -396,8 +396,6 @@ struct iwl_trans;
  *	May sleep
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
  *	automatically deleted.
- * @suspend: stop the device unless WoWLAN is configured
- * @resume: resume activity of the device
  * @write8: write a u8 to a register at offset ofs from the BAR
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
@@ -443,10 +441,7 @@ struct iwl_trans_ops {
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
-#ifdef CONFIG_PM_SLEEP
-	int (*suspend)(struct iwl_trans *trans);
-	int (*resume)(struct iwl_trans *trans);
-#endif
+
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
@@ -699,18 +694,6 @@ static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
 {
 	return trans->ops->dbgfs_register(trans, dir);
 }
-
-#ifdef CONFIG_PM_SLEEP
-static inline int iwl_trans_suspend(struct iwl_trans *trans)
-{
-	return trans->ops->suspend(trans);
-}
-
-static inline int iwl_trans_resume(struct iwl_trans *trans)
-{
-	return trans->ops->resume(trans);
-}
-#endif
 
 static inline void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
 {
