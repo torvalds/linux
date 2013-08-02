@@ -305,6 +305,11 @@ static const struct regulator_desc max8660_reg[] = {
 	},
 };
 
+enum {
+	MAX8660 = 0,
+	MAX8661 = 1,
+};
+
 static int max8660_probe(struct i2c_client *client,
 				   const struct i2c_device_id *i2c_id)
 {
@@ -313,6 +318,7 @@ static int max8660_probe(struct i2c_client *client,
 	struct regulator_config config = { };
 	struct max8660 *max8660;
 	int boot_on, i, id, ret = -EINVAL;
+	unsigned int type;
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
 		dev_err(&client->dev, "Too many regulators found!\n");
@@ -327,6 +333,7 @@ static int max8660_probe(struct i2c_client *client,
 
 	max8660->client = client;
 	rdev = max8660->rdev;
+	type = i2c_id->driver_data;
 
 	if (pdata->en34_is_high) {
 		/* Simulate always on */
@@ -376,7 +383,7 @@ static int max8660_probe(struct i2c_client *client,
 			break;
 
 		case MAX8660_V7:
-			if (!strcmp(i2c_id->name, "max8661")) {
+			if (type == MAX8661) {
 				dev_err(&client->dev, "Regulator not on this chip!\n");
 				goto err_out;
 			}
@@ -431,8 +438,8 @@ static int max8660_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max8660_id[] = {
-	{ "max8660", 0 },
-	{ "max8661", 0 },
+	{ .name = "max8660", .driver_data = MAX8660 },
+	{ .name = "max8661", .driver_data = MAX8661 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max8660_id);
