@@ -37,6 +37,15 @@
 #include "../dmaengine.h"
 #include "shdma.h"
 
+/* DMA register */
+#define SAR	0x00
+#define DAR	0x04
+#define TCR	0x08
+#define CHCR	0x0C
+#define DMAOR	0x40
+
+#define TEND	0x18 /* USB-DMAC */
+
 #define SH_DMAE_DRV_NAME "sh-dma-engine"
 
 /* Default MEMCPY transfer size = 2^2 = 4 bytes */
