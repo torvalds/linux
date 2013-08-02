@@ -209,9 +209,9 @@ static void arc_serial_start_tx(struct uart_port *port)
 	arc_serial_tx_chars(uart);
 }
 
-static void arc_serial_rx_chars(struct arc_uart_port *uart)
+static void arc_serial_rx_chars(struct arc_uart_port *uart, unsigned int status)
 {
-	unsigned int status, ch, flg = 0;
+	unsigned int ch, flg = 0;
 
 	/*
 	 * UART has 4 deep RX-FIFO. Driver's recongnition of this fact
@@ -222,11 +222,11 @@ static void arc_serial_rx_chars(struct arc_uart_port *uart)
 	 * before RX-EMPTY=0, implies some sort of buffering going on in the
 	 * controller, which is indeed the Rx-FIFO.
 	 */
-	while (!((status = UART_GET_STATUS(uart)) & RXEMPTY)) {
-
-		ch = UART_GET_DATA(uart);
-		uart->port.icount.rx++;
-
+	do {
+		/*
+		 * This could be an Rx Intr for err (no data),
+		 * so check err and clear that Intr first
+		 */
 		if (unlikely(status & (RXOERR | RXFERR))) {
 			if (status & RXOERR) {
 				uart->port.icount.overrun++;
@@ -242,6 +242,12 @@ static void arc_serial_rx_chars(struct arc_uart_port *uart)
 		} else
 			flg = TTY_NORMAL;
 
+		if (status & RXEMPTY)
+			continue;
+
+		ch = UART_GET_DATA(uart);
+		uart->port.icount.rx++;
+
 		if (unlikely(uart_handle_sysrq_char(&uart->port, ch)))
 			goto done;
 
@@ -249,7 +255,7 @@ static void arc_serial_rx_chars(struct arc_uart_port *uart)
 
 done:
 		tty_flip_buffer_push(&uart->port.state->port);
-	}
+	} while (!((status = UART_GET_STATUS(uart)) & RXEMPTY));
 }
 
 /*
@@ -292,11 +298,11 @@ static irqreturn_t arc_serial_isr(int irq, void *dev_id)
 	 * notifications from the UART Controller.
 	 * To demultiplex between the two, we check the relevant bits
 	 */
-	if ((status & RXIENB) && !(status & RXEMPTY)) {
+	if (status & RXIENB) {
 
 		/* already in ISR, no need of xx_irqsave */
 		spin_lock(&uart->port.lock);
-		arc_serial_rx_chars(uart);
+		arc_serial_rx_chars(uart, status);
 		spin_unlock(&uart->port.lock);
 	}
 
