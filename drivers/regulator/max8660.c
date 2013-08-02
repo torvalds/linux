@@ -44,6 +44,9 @@
 #include <linux/regulator/driver.h>
 #include <linux/slab.h>
 #include <linux/regulator/max8660.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/regulator/of_regulator.h>
 
 #define MAX8660_DCDC_MIN_UV	 725000
 #define MAX8660_DCDC_MAX_UV	1800000
@@ -310,6 +313,63 @@ enum {
 	MAX8661 = 1,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id max8660_dt_ids[] = {
+	{ .compatible = "maxim,max8660", .data = (void *) MAX8660 },
+	{ .compatible = "maxim,max8661", .data = (void *) MAX8661 },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max8660_dt_ids);
+
+static int max8660_pdata_from_dt(struct device *dev,
+				 struct device_node **of_node,
+				 struct max8660_platform_data *pdata)
+{
+	int matched, i;
+	struct device_node *np;
+	struct max8660_subdev_data *sub;
+	struct of_regulator_match rmatch[ARRAY_SIZE(max8660_reg)];
+
+	np = of_find_node_by_name(dev->of_node, "regulators");
+	if (!np) {
+		dev_err(dev, "missing 'regulators' subnode in DT\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(rmatch); i++)
+		rmatch[i].name = max8660_reg[i].name;
+
+	matched = of_regulator_match(dev, np, rmatch, ARRAY_SIZE(rmatch));
+	if (matched <= 0)
+		return matched;
+
+	pdata->subdevs = devm_kzalloc(dev, sizeof(struct max8660_subdev_data) *
+						matched, GFP_KERNEL);
+	if (!pdata->subdevs)
+		return -ENOMEM;
+
+	pdata->num_subdevs = matched;
+	sub = pdata->subdevs;
+
+	for (i = 0; i < matched; i++) {
+		sub->id = i;
+		sub->name = rmatch[i].name;
+		sub->platform_data = rmatch[i].init_data;
+		of_node[i] = rmatch[i].of_node;
+		sub++;
+	}
+
+	return 0;
+}
+#else
+static inline int max8660_pdata_from_dt(struct device *dev,
+					struct device_node **of_node,
+					struct max8660_platform_data **pdata)
+{
+	return 0;
+}
+#endif
+
 static int max8660_probe(struct i2c_client *client,
 				   const struct i2c_device_id *i2c_id)
 {
@@ -319,7 +379,27 @@ static int max8660_probe(struct i2c_client *client,
 	struct regulator_config config = { };
 	struct max8660 *max8660;
 	int boot_on, i, id, ret = -EINVAL;
+	struct device_node *of_node[MAX8660_V_END];
 	unsigned int type;
+
+	if (dev->of_node && !pdata) {
+		const struct of_device_id *id;
+		struct max8660_platform_data pdata_of;
+
+		id = of_match_device(of_match_ptr(max8660_dt_ids), dev);
+		if (!id)
+			return -ENODEV;
+
+		ret = max8660_pdata_from_dt(dev, of_node, &pdata_of);
+		if (ret < 0)
+			return ret;
+
+		pdata = &pdata_of;
+		type = (unsigned int) id->data;
+	} else {
+		type = i2c_id->driver_data;
+		memset(of_node, 0, sizeof(of_node));
+	}
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
 		dev_err(dev, "Too many regulators found!\n");
@@ -334,7 +414,6 @@ static int max8660_probe(struct i2c_client *client,
 
 	max8660->client = client;
 	rdev = max8660->rdev;
-	type = i2c_id->driver_data;
 
 	if (pdata->en34_is_high) {
 		/* Simulate always on */
@@ -407,6 +486,7 @@ static int max8660_probe(struct i2c_client *client,
 
 		config.dev = dev;
 		config.init_data = pdata->subdevs[i].platform_data;
+		config.of_node = of_node[i];
 		config.driver_data = max8660;
 
 		rdev[i] = regulator_register(&max8660_reg[id], &config);
