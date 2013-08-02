@@ -90,8 +90,10 @@ int caam_sm_example_init(struct platform_device *pdev)
 	u32 unit, units;
 	int rtnval = 0;
 	u8 clrkey8[8], clrkey16[16], clrkey24[24], clrkey32[32];
-	u8 blkkey8[16], blkkey16[16], blkkey24[24], blkkey32[32];
-	u8 rstkey8[16], rstkey16[16], rstkey24[24], rstkey32[32];
+	u8 blkkey8[AES_BLOCK_PAD(8)], blkkey16[AES_BLOCK_PAD(16)];
+	u8 blkkey24[AES_BLOCK_PAD(24)], blkkey32[AES_BLOCK_PAD(32)];
+	u8 rstkey8[AES_BLOCK_PAD(8)], rstkey16[AES_BLOCK_PAD(16)];
+	u8 rstkey24[AES_BLOCK_PAD(24)], rstkey32[AES_BLOCK_PAD(32)];
 	u8 __iomem *blob8, *blob16, *blob24, *blob32;
 	u32 keyslot8, keyslot16, keyslot24, keyslot32 = 0;
 
