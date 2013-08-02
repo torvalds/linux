@@ -346,7 +346,7 @@ static int enc_get_mpeg_dma(struct solo_dev *solo_dev, dma_addr_t dma,
 /* Build a descriptor queue out of an SG list and send it to the P2M for
  * processing. */
 static int solo_send_desc(struct solo_enc_dev *solo_enc, int skip,
-			  struct vb2_dma_sg_desc *vbuf, int off, int size,
+			  struct sg_table *vbuf, int off, int size,
 			  unsigned int base, unsigned int base_size)
 {
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
@@ -359,7 +359,7 @@ static int solo_send_desc(struct solo_enc_dev *solo_enc, int skip,
 
 	solo_enc->desc_count = 1;
 
-	for_each_sg(vbuf->sglist, sg, vbuf->num_pages, i) {
+	for_each_sg(vbuf->sgl, sg, vbuf->nents, i) {
 		struct solo_p2m_desc *desc;
 		dma_addr_t dma;
 		int len;
@@ -434,7 +434,7 @@ static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
 		struct vb2_buffer *vb, struct vop_header *vh)
 {
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
-	struct vb2_dma_sg_desc *vbuf = vb2_dma_sg_plane_desc(vb, 0);
+	struct sg_table *vbuf = vb2_dma_sg_plane_desc(vb, 0);
 	int frame_size;
 	int ret;
 
@@ -443,7 +443,7 @@ static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
 	if (vb2_plane_size(vb, 0) < vh->jpeg_size + solo_enc->jpeg_len)
 		return -EIO;
 
-	sg_copy_from_buffer(vbuf->sglist, vbuf->num_pages,
+	sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
 			solo_enc->jpeg_header,
 			solo_enc->jpeg_len);
 
@@ -451,12 +451,12 @@ static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
 		& ~(DMA_ALIGN - 1);
 	vb2_set_plane_payload(vb, 0, vh->jpeg_size + solo_enc->jpeg_len);
 
-	dma_map_sg(&solo_dev->pdev->dev, vbuf->sglist, vbuf->num_pages,
+	dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
 	ret = solo_send_desc(solo_enc, solo_enc->jpeg_len, vbuf, vh->jpeg_off,
 			frame_size, SOLO_JPEG_EXT_ADDR(solo_dev),
 			SOLO_JPEG_EXT_SIZE(solo_dev));
-	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sglist, vbuf->num_pages,
+	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
 	return ret;
 }
@@ -465,7 +465,7 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 		struct vb2_buffer *vb, struct vop_header *vh)
 {
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
-	struct vb2_dma_sg_desc *vbuf = vb2_dma_sg_plane_desc(vb, 0);
+	struct sg_table *vbuf = vb2_dma_sg_plane_desc(vb, 0);
 	int frame_off, frame_size;
 	int skip = 0;
 	int ret;
@@ -475,7 +475,7 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 
 	/* If this is a key frame, add extra header */
 	if (!vh->vop_type) {
-		sg_copy_from_buffer(vbuf->sglist, vbuf->num_pages,
+		sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
 				solo_enc->vop,
 				solo_enc->vop_len);
 
@@ -494,12 +494,12 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 	frame_size = (vh->mpeg_size + skip + (DMA_ALIGN - 1))
 		& ~(DMA_ALIGN - 1);
 
-	dma_map_sg(&solo_dev->pdev->dev, vbuf->sglist, vbuf->num_pages,
+	dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
 	ret = solo_send_desc(solo_enc, skip, vbuf, frame_off, frame_size,
 			SOLO_MP4E_EXT_ADDR(solo_dev),
 			SOLO_MP4E_EXT_SIZE(solo_dev));
-	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sglist, vbuf->num_pages,
+	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
 	return ret;
 }
