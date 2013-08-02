@@ -1556,12 +1556,21 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
+	crtc = dig_port->base.base.crtc;
+	if (crtc == NULL) {
+		DRM_DEBUG_KMS("crtc not active for PSR\n");
+		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
+		return false;
+	}
+
+	intel_crtc = to_intel_crtc(crtc);
 	if (!intel_crtc->active || !crtc->fb || !crtc->mode.clock) {
 		DRM_DEBUG_KMS("crtc not active for PSR\n");
 		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
 		return false;
 	}
 
+	obj = to_intel_framebuffer(crtc->fb)->obj;
 	if (obj->tiling_mode != I915_TILING_X ||
 	    obj->fence_reg == I915_FENCE_REG_NONE) {
 		DRM_DEBUG_KMS("PSR condition failed: fb not tiled or fenced\n");
