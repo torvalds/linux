@@ -497,8 +497,11 @@ void intel_panel_set_backlight(struct drm_device *dev, u32 level, u32 max)
 		goto out;
 	}
 
-	/* scale to hardware */
-	level = level * freq / max;
+	/* scale to hardware, but be careful to not overflow */
+	if (freq < max)
+		level = level * freq / max;
+	else
+		level = freq / max * level;
 
 	dev_priv->backlight.level = level;
 	if (dev_priv->backlight.device)
