@@ -88,6 +88,7 @@
 #include <linux/virtio_net.h>
 #include <linux/errqueue.h>
 #include <linux/net_tstamp.h>
+#include <linux/if_arp.h>
 
 #ifdef CONFIG_INET
 #include <net/inet_common.h>
@@ -2005,6 +2006,9 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		if (unlikely(err))
 			return err;
 
+		if (dev->type == ARPHRD_ETHER)
+			skb->protocol = eth_type_trans(skb, dev);
+
 		data += dev->hard_header_len;
 		to_write -= dev->hard_header_len;
 	}
@@ -2324,6 +2328,13 @@ static int packet_snd(struct socket *sock,
 
 	sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
 
+	if (dev->type == ARPHRD_ETHER) {
+		skb->protocol = eth_type_trans(skb, dev);
+	} else {
+		skb->protocol = proto;
+		skb->dev = dev;
+	}
+
 	if (!gso_type && (len > dev->mtu + reserve + extra_len)) {
 		/* Earlier code assumed this would be a VLAN pkt,
 		 * double-check this now that we have the actual
@@ -2338,8 +2349,6 @@ static int packet_snd(struct socket *sock,
 		}
 	}
 
-	skb->protocol = proto;
-	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
 
