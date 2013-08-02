@@ -33,6 +33,7 @@
 #ifndef MLX4_DEVICE_H
 #define MLX4_DEVICE_H
 
+#include <linux/if_ether.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
 #include <linux/radix-tree.h>
@@ -620,7 +621,7 @@ struct mlx4_eth_av {
 	u8		dgid[16];
 	u32		reserved4[2];
 	__be16		vlan;
-	u8		mac[6];
+	u8		mac[ETH_ALEN];
 };
 
 union mlx4_ext_av {
@@ -914,10 +915,10 @@ enum mlx4_net_trans_promisc_mode {
 };
 
 struct mlx4_spec_eth {
-	u8	dst_mac[6];
-	u8	dst_mac_msk[6];
-	u8	src_mac[6];
-	u8	src_mac_msk[6];
+	u8	dst_mac[ETH_ALEN];
+	u8	dst_mac_msk[ETH_ALEN];
+	u8	src_mac[ETH_ALEN];
+	u8	src_mac_msk[ETH_ALEN];
 	u8	ether_type_enable;
 	__be16	ether_type;
 	__be16	vlan_id_msk;

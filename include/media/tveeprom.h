@@ -12,6 +12,8 @@ enum tveeprom_audio_processor {
 	TVEEPROM_AUDPROC_OTHER,
 };
 
+#include <linux/if_ether.h>
+
 struct tveeprom {
 	u32 has_radio;
 	/* If has_ir == 0, then it is unknown what the IR capabilities are,
@@ -40,7 +42,7 @@ struct tveeprom {
 	u32 revision;
 	u32 serial_number;
 	char rev_str[5];
-	u8 MAC_address[6];
+	u8 MAC_address[ETH_ALEN];
 };
 
 void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,

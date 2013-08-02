@@ -18,6 +18,7 @@
 
 #include <linux/string.h>
 #include <linux/of_mdio.h>
+#include <linux/if_ether.h>
 #include <asm/types.h>
 
 #define FS_ENET_NAME	"fs_enet"
@@ -135,7 +136,7 @@ struct fs_platform_info {
 	const struct fs_mii_bus_info *bus_info;
 
 	int rx_ring, tx_ring;	/* number of buffers on rx     */
-	__u8 macaddr[6];	/* mac address                 */
+	__u8 macaddr[ETH_ALEN];	/* mac address                 */
 	int rx_copybreak;	/* limit we copy small frames  */
 	int use_napi;		/* use NAPI                    */
 	int napi_weight;	/* NAPI weight                 */

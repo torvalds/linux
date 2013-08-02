@@ -16,6 +16,7 @@
 #define LINUX_IEEE80211_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
 #include <asm/byteorder.h>
 
 /*
@@ -209,28 +210,28 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 struct ieee80211_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
 	__le16 seq_ctrl;
-	u8 addr4[6];
+	u8 addr4[ETH_ALEN];
 } __packed __aligned(2);
 
 struct ieee80211_hdr_3addr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
 	__le16 seq_ctrl;
 } __packed __aligned(2);
 
 struct ieee80211_qos_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[6];
-	u8 addr2[6];
-	u8 addr3[6];
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
 	__le16 seq_ctrl;
 	__le16 qos_ctrl;
 } __packed __aligned(2);
@@ -608,8 +609,8 @@ struct ieee80211s_hdr {
 	u8 flags;
 	u8 ttl;
 	__le32 seqnum;
-	u8 eaddr1[6];
-	u8 eaddr2[6];
+	u8 eaddr1[ETH_ALEN];
+	u8 eaddr2[ETH_ALEN];
 } __packed __aligned(2);
 
 /* Mesh flags */
@@ -758,7 +759,7 @@ struct ieee80211_rann_ie {
 	u8 rann_flags;
 	u8 rann_hopcount;
 	u8 rann_ttl;
-	u8 rann_addr[6];
+	u8 rann_addr[ETH_ALEN];
 	__le32 rann_seq;
 	__le32 rann_interval;
 	__le32 rann_metric;
@@ -802,9 +803,9 @@ enum ieee80211_vht_opmode_bits {
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
-	u8 da[6];
-	u8 sa[6];
-	u8 bssid[6];
+	u8 da[ETH_ALEN];
+	u8 sa[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 	__le16 seq_ctrl;
 	union {
 		struct {
@@ -833,7 +834,7 @@ struct ieee80211_mgmt {
 		struct {
 			__le16 capab_info;
 			__le16 listen_interval;
-			u8 current_ap[6];
+			u8 current_ap[ETH_ALEN];
 			/* followed by SSID and Supported rates */
 			u8 variable[0];
 		} __packed reassoc_req;
@@ -966,21 +967,21 @@ struct ieee80211_vendor_ie {
 struct ieee80211_rts {
 	__le16 frame_control;
 	__le16 duration;
-	u8 ra[6];
-	u8 ta[6];
+	u8 ra[ETH_ALEN];
+	u8 ta[ETH_ALEN];
 } __packed __aligned(2);
 
 struct ieee80211_cts {
 	__le16 frame_control;
 	__le16 duration;
-	u8 ra[6];
+	u8 ra[ETH_ALEN];
 } __packed __aligned(2);
 
 struct ieee80211_pspoll {
 	__le16 frame_control;
 	__le16 aid;
-	u8 bssid[6];
-	u8 ta[6];
+	u8 bssid[ETH_ALEN];
+	u8 ta[ETH_ALEN];
 } __packed __aligned(2);
 
 /* TDLS */
@@ -989,14 +990,14 @@ struct ieee80211_pspoll {
 struct ieee80211_tdls_lnkie {
 	u8 ie_type; /* Link Identifier IE */
 	u8 ie_len;
-	u8 bssid[6];
-	u8 init_sta[6];
-	u8 resp_sta[6];
+	u8 bssid[ETH_ALEN];
+	u8 init_sta[ETH_ALEN];
+	u8 resp_sta[ETH_ALEN];
 } __packed;
 
 struct ieee80211_tdls_data {
-	u8 da[6];
-	u8 sa[6];
+	u8 da[ETH_ALEN];
+	u8 sa[ETH_ALEN];
 	__be16 ether_type;
 	u8 payload_type;
 	u8 category;
@@ -1090,8 +1091,8 @@ struct ieee80211_p2p_noa_attr {
 struct ieee80211_bar {
 	__le16 frame_control;
 	__le16 duration;
-	__u8 ra[6];
-	__u8 ta[6];
+	__u8 ra[ETH_ALEN];
+	__u8 ta[ETH_ALEN];
 	__le16 control;
 	__le16 start_seq_num;
 } __packed;

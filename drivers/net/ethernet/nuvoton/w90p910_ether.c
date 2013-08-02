@@ -922,7 +922,7 @@ static void __init get_mac_address(struct net_device *dev)
 {
 	struct w90p910_ether *ether = netdev_priv(dev);
 	struct platform_device *pdev;
-	char addr[6];
+	char addr[ETH_ALEN];
 
 	pdev = ether->pdev;
 
@@ -934,7 +934,7 @@ static void __init get_mac_address(struct net_device *dev)
 	addr[5] = 0xa8;
 
 	if (is_valid_ether_addr(addr))
-		memcpy(dev->dev_addr, &addr, 0x06);
+		memcpy(dev->dev_addr, &addr, ETH_ALEN);
 	else
 		dev_err(&pdev->dev, "invalid mac address\n");
 }
