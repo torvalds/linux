@@ -47,6 +47,8 @@ static __init int sysfb_init(void)
 	bool compatible;
 	int ret;
 
+	sysfb_apply_efi_quirks();
+
 	/* try to create a simple-framebuffer device */
 	compatible = parse_mode(si, &mode);
 	if (compatible) {
@@ -68,4 +70,5 @@ static __init int sysfb_init(void)
 	return IS_ERR(pd) ? PTR_ERR(pd) : 0;
 }
 
+/* must execute after PCI subsystem for EFI quirks */
 device_initcall(sysfb_init);
