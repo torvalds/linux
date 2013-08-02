@@ -33,7 +33,6 @@
 
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/sched.h>	/* For jiffies, task states */
 #include <linux/interrupt.h>    /* For tasklet and interrupt structs/defines */
 #include <linux/delay.h>	/* For udelay */
