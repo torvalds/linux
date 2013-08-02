@@ -2721,7 +2721,7 @@ int ll_inode_permission(struct inode *inode, int mask)
 		return lustre_check_remote_perm(inode, mask);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_INODE_PERM, 1);
-	rc = ll_generic_permission(inode, mask, flags, ll_check_acl);
+	rc = generic_permission(inode, mask);
 
 	RETURN(rc);
 }
