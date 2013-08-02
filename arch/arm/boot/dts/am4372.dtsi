@@ -22,8 +22,12 @@
 	};
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		cpu@0 {
 			compatible = "arm,cortex-a9";
+			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
