@@ -396,7 +396,7 @@ static int qxl_alloc_surf_ioctl(struct drm_device *dev, void *data,
 	return ret;
 }
 
-struct drm_ioctl_desc qxl_ioctls[] = {
+const struct drm_ioctl_desc qxl_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(QXL_ALLOC, qxl_alloc_ioctl, DRM_AUTH|DRM_UNLOCKED),
 
 	DRM_IOCTL_DEF_DRV(QXL_MAP, qxl_map_ioctl, DRM_AUTH|DRM_UNLOCKED),

@@ -149,7 +149,7 @@ typedef struct drm_mga_private {
 	unsigned int agp_size;
 } drm_mga_private_t;
 
-extern struct drm_ioctl_desc mga_ioctls[];
+extern const struct drm_ioctl_desc mga_ioctls[];
 extern int mga_max_ioctl;
 
 				/* mga_dma.c */

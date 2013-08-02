@@ -787,7 +787,7 @@ int imx_drm_remove_connector(struct imx_drm_connector *imx_drm_connector)
 }
 EXPORT_SYMBOL_GPL(imx_drm_remove_connector);
 
-static struct drm_ioctl_desc imx_drm_ioctls[] = {
+static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 	/* none so far */
 };
 

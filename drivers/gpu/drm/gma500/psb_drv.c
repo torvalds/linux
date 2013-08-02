@@ -131,7 +131,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 
-static struct drm_ioctl_desc psb_ioctls[] = {
+static const struct drm_ioctl_desc psb_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(GMA_ADB, psb_adb_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(GMA_MODE_OPERATION, psb_mode_operation_ioctl,
 		      DRM_AUTH),

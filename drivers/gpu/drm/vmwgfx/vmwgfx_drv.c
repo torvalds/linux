@@ -124,7 +124,7 @@
  * Ioctl definitions.
  */
 
-static struct drm_ioctl_desc vmw_ioctls[] = {
+static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_GET_PARAM, vmw_getparam_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
@@ -792,7 +792,7 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
 	    && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
-		struct drm_ioctl_desc *ioctl =
+		const struct drm_ioctl_desc *ioctl =
 		    &vmw_ioctls[nr - DRM_COMMAND_BASE];
 
 		if (unlikely(ioctl->cmd_drv != cmd)) {
