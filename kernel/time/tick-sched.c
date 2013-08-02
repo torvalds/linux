@@ -246,6 +246,7 @@ void tick_nohz_full_kick_all(void)
 	preempt_disable();
 	smp_call_function_many(tick_nohz_full_mask,
 			       nohz_full_kick_ipi, NULL, false);
+	tick_nohz_full_kick();
 	preempt_enable();
 }
 
