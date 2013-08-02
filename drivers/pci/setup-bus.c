@@ -1300,15 +1300,12 @@ static void pci_bus_dump_resources(struct pci_bus *bus)
 static int __init pci_bus_get_depth(struct pci_bus *bus)
 {
 	int depth = 0;
-	struct pci_dev *dev;
+	struct pci_bus *child_bus;
 
-	list_for_each_entry(dev, &bus->devices, bus_list) {
+	list_for_each_entry(child_bus, &bus->children, node){
 		int ret;
-		struct pci_bus *b = dev->subordinate;
-		if (!b)
-			continue;
 
-		ret = pci_bus_get_depth(b);
+		ret = pci_bus_get_depth(child_bus);
 		if (ret + 1 > depth)
 			depth = ret + 1;
 	}
