@@ -1,6 +1,7 @@
 menu "IPP"
 config RK29_IPP
 	tristate "ROCKCHIP RK29 IPP"
+	depends on ARCH_RK29 || ARCH_RK30 || ARCH_RK3188
 	default m
 	help
           rk29 ipp module.	
