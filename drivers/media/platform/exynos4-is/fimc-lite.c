@@ -1504,16 +1504,17 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
+	if (!dev->of_node)
+		return -ENODEV;
+
 	fimc = devm_kzalloc(dev, sizeof(*fimc), GFP_KERNEL);
 	if (!fimc)
 		return -ENOMEM;
 
-	if (dev->of_node) {
-		of_id = of_match_node(flite_of_match, dev->of_node);
-		if (of_id)
-			drv_data = (struct flite_drvdata *)of_id->data;
-		fimc->index = of_alias_get_id(dev->of_node, "fimc-lite");
-	}
+	of_id = of_match_node(flite_of_match, dev->of_node);
+	if (of_id)
+		drv_data = (struct flite_drvdata *)of_id->data;
+	fimc->index = of_alias_get_id(dev->of_node, "fimc-lite");
 
 	if (!drv_data || fimc->index >= drv_data->num_instances ||
 						fimc->index < 0) {
