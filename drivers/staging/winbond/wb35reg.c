@@ -14,7 +14,8 @@ extern void phy_calibration_winbond(struct hw_data *phw_data, u32 frequency);
  * Flag : AUTO_INCREMENT - RegisterNo will auto increment 4
  *	  NO_INCREMENT - Function will write data into the same register
  */
-unsigned char Wb35Reg_BurstWrite(struct hw_data *pHwData, u16 RegisterNo, u32 *pRegisterData, u8 NumberOfData, u8 Flag)
+unsigned char Wb35Reg_BurstWrite(struct hw_data *pHwData, u16 RegisterNo,
+				 u32 *pRegisterData, u8 NumberOfData, u8 Flag)
 {
 	struct wb35_reg		*reg = &pHwData->reg;
 	struct urb		*urb = NULL;
@@ -72,7 +73,7 @@ unsigned char Wb35Reg_BurstWrite(struct hw_data *pHwData, u16 RegisterNo, u32 *p
 	return true;
 }
 
-void Wb35Reg_Update(struct hw_data *pHwData,  u16 RegisterNo,  u32 RegisterValue)
+void Wb35Reg_Update(struct hw_data *pHwData, u16 RegisterNo, u32 RegisterValue)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	switch (RegisterNo) {
@@ -118,7 +119,8 @@ void Wb35Reg_Update(struct hw_data *pHwData,  u16 RegisterNo,  u32 RegisterValue
  * true  : read command process successfully
  * false : register not support
  */
-unsigned char Wb35Reg_WriteSync(struct hw_data *pHwData, u16 RegisterNo, u32 RegisterValue)
+unsigned char Wb35Reg_WriteSync(struct hw_data *pHwData, u16 RegisterNo,
+				u32 RegisterValue)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	int ret = -1;
@@ -139,9 +141,10 @@ unsigned char Wb35Reg_WriteSync(struct hw_data *pHwData, u16 RegisterNo, u32 Reg
 	/* Sync IoCallDriver */
 	reg->EP0vm_state = VM_RUNNING;
 	ret = usb_control_msg(pHwData->udev,
-			       usb_sndctrlpipe(pHwData->udev, 0),
-			       0x03, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-			       0x0, RegisterNo, &RegisterValue, 4, HZ * 100);
+			      usb_sndctrlpipe(pHwData->udev, 0),
+			      0x03,
+			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+			      0x0, RegisterNo, &RegisterValue, 4, HZ * 100);
 	reg->EP0vm_state = VM_STOP;
 	reg->SyncIoPause = 0;
 
@@ -159,7 +162,8 @@ unsigned char Wb35Reg_WriteSync(struct hw_data *pHwData, u16 RegisterNo, u32 Reg
  * true  : read command process successfully
  * false : register not support
  */
-unsigned char Wb35Reg_Write(struct hw_data *pHwData, u16 RegisterNo, u32 RegisterValue)
+unsigned char Wb35Reg_Write(struct hw_data *pHwData, u16 RegisterNo,
+			    u32 RegisterValue)
 {
 	struct wb35_reg		*reg = &pHwData->reg;
 	struct usb_ctrlrequest	*dr;
@@ -286,7 +290,8 @@ unsigned char Wb35Reg_WriteWithCallbackValue(struct hw_data *pHwData,
  * pRegisterValue : It must be a resident buffer due to
  *		    asynchronous read register.
  */
-unsigned char Wb35Reg_ReadSync(struct hw_data *pHwData, u16 RegisterNo, u32 *pRegisterValue)
+unsigned char Wb35Reg_ReadSync(struct hw_data *pHwData, u16 RegisterNo,
+			       u32 *pRegisterValue)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	u32		*pltmp = pRegisterValue;
@@ -305,9 +310,10 @@ unsigned char Wb35Reg_ReadSync(struct hw_data *pHwData, u16 RegisterNo, u32 *pRe
 
 	reg->EP0vm_state = VM_RUNNING;
 	ret = usb_control_msg(pHwData->udev,
-			       usb_rcvctrlpipe(pHwData->udev, 0),
-			       0x01, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			       0x0, RegisterNo, pltmp, 4, HZ * 100);
+			      usb_rcvctrlpipe(pHwData->udev, 0),
+			      0x01,
+			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
+			      0x0, RegisterNo, pltmp, 4, HZ * 100);
 
 	*pRegisterValue = cpu_to_le32(*pltmp);
 
@@ -332,7 +338,8 @@ unsigned char Wb35Reg_ReadSync(struct hw_data *pHwData, u16 RegisterNo, u32 *pRe
  * pRegisterValue : It must be a resident buffer due to
  *		    asynchronous read register.
  */
-unsigned char Wb35Reg_Read(struct hw_data *pHwData, u16 RegisterNo, u32 *pRegisterValue)
+unsigned char Wb35Reg_Read(struct hw_data *pHwData, u16 RegisterNo,
+			   u32 *pRegisterValue)
 {
 	struct wb35_reg		*reg = &pHwData->reg;
 	struct usb_ctrlrequest	*dr;
