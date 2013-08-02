@@ -573,7 +573,7 @@ static int loop_clr_fd(struct lloop_device *lo, struct block_device *bdev,
 	lo->lo_offset = 0;
 	lo->lo_sizelimit = 0;
 	lo->lo_flags = 0;
-	ll_invalidate_bdev(bdev, 0);
+	invalidate_bdev(bdev);
 	set_capacity(disks[lo->lo_number], 0);
 	bd_set_size(bdev, 0);
 	mapping_set_gfp_mask(filp->f_mapping, gfp);
