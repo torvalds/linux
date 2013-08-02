@@ -243,7 +243,8 @@ static int mmc_read_ssr(struct mmc_card *card)
 	 * bitfield positions accordingly.
 	 */
 	au = UNSTUFF_BITS(ssr, 428 - 384, 4);
-	if (au > 0 || au <= 9) {
+    //if (au > 0 || au <= 9) {  //Modifyed by xbw at 2013-02-28
+	if (au > 0 && au <= 9) {
 		card->ssr.au = 1 << (au + 4);
 		es = UNSTUFF_BITS(ssr, 408 - 384, 16);
 		et = UNSTUFF_BITS(ssr, 402 - 384, 6);
@@ -290,7 +291,8 @@ static int mmc_read_switch(struct mmc_card *card)
 	}
 
 	/* Find out the supported Bus Speed Modes. */
-	err = mmc_sd_switch(card, 0, 0, 1, status);
+    //err = mmc_sd_switch(card, 0, 0, 1, status);
+    err = mmc_sd_switch(card, 0, 0, 0, status);  //Modifyed by xbw at 2013-02-28
 	if (err) {
 		/*
 		 * If the host or the card can't do the switch,

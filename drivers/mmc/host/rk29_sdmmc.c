@@ -106,7 +106,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.5.05 The last modify date is 2013-05-08"
+#define RK29_SDMMC_VERSION "Ver.6.00 The last modify date is 2013-08-02"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -136,6 +136,16 @@ int debug_level = 5;
 #else
 #define DRIVER_SDMMC_USE_NEW_IOMUX_API 0
 #endif
+
+//support Internal DMA 
+#if 0 //Sometime in the future to enable
+#define DRIVER_SDMMC_USE_IDMA 1
+#else
+#define DRIVER_SDMMC_USE_IDMA 0
+#endif
+
+#define SWITCH_VOLTAGE_18_33            0 //RK30_PIN2_PD7 //Temporary experiment
+#define SWITCH_VOLTAGE_ENABLE_VALUE_33  GPIO_LOW
 
 enum {
 	EVENT_CMD_COMPLETE = 0,
@@ -728,6 +738,28 @@ err:
 }
 #endif
 
+
+
+/**
+**  This function checks whether the core supports the IDMAC.
+**  return Returns 1 if HW supports IDMAC, else returns 0.
+*/
+u32 rk_sdmmc_check_idma_support(struct rk29_sdmmc *host)
+{
+     u32 retval = 0;
+     u32 ctrl_reg;
+	 ctrl_reg = rk29_sdmmc_read(host->regs, SDMMC_CTRL);
+     if(ctrl_reg & SDMMC_CTRL_USE_IDMAC)
+        retval = 1;//Return "true", indicating the hardware supports IDMAC
+     else
+        retval = 0;// Hardware doesnot support IDMAC
+
+	return retval;
+}
+
+
+
+
 static u32 rk29_sdmmc_prepare_command(struct mmc_command *cmd)
 {
 	u32		cmdr = cmd->opcode;
@@ -855,6 +887,7 @@ static int rk29_sdmmc_start_command(struct rk29_sdmmc *host, struct mmc_command 
     }
 			
 	rk29_sdmmc_write(host->regs, SDMMC_CMDARG, cmd->arg); // write to SDMMC_CMDARG register
+	
 #if defined(CONFIG_ARCH_RK29)	
 	rk29_sdmmc_write(host->regs, SDMMC_CMD, cmd_flags | SDMMC_CMD_START); // write to SDMMC_CMD register
 #else
@@ -890,7 +923,7 @@ static int rk29_sdmmc_start_command(struct rk29_sdmmc *host, struct mmc_command 
 		return SDM_WAIT_FOR_CMDSTART_TIMEOUT;
 	}
     host->errorstep = 0xfe;
- 
+
 	return SDM_SUCCESS;
 }
 
@@ -1644,6 +1677,90 @@ static int rk29_sdmmc_get_cd(struct mmc_host *mmc)
 }
 
 
+/**
+  * Delay loop.
+  * Very rough microsecond delay loop  for the system.
+  * \param[in] u32 Value in Number of Microseconds.
+  * \return Returns Void
+ **/
+void rk_sdmmc_udelay(u32 value)
+{
+	u32 counter;
+	for (counter = 0; counter < value ; counter++)
+		udelay(1);
+}
+
+int rk_sdmmc_reset_host(struct rk29_sdmmc *host)
+{
+    int ret = SDM_SUCCESS;
+    int timeout;
+    //reset the host cotroller
+    rk29_sdmmc_write(host->regs, SDMMC_CTRL, SDMMC_CTRL_RESET);
+    udelay(10);
+    
+    timeout = 1000;
+    while((rk29_sdmmc_read(host->regs, SDMMC_CTRL) & SDMMC_CTRL_RESET)&& timeout--)
+        udelay(1);
+    if(0 == timeout)
+    {
+        ret = SDM_FALSE;
+        printk(KERN_ERR "%d..  reset ctrl_reset fail! [%s]=\n", __LINE__, host->dma_name);
+        goto EXIT_RESET;
+    }
+
+#if !defined(CONFIG_ARCH_RK29)
+    //reset DMA
+    rk29_sdmmc_write(host->regs, SDMMC_CTRL, SDMMC_CTRL_DMA_RESET);
+    udelay(10);
+    
+    timeout = 1000;
+    while((rk29_sdmmc_read(host->regs, SDMMC_CTRL) & SDMMC_CTRL_DMA_RESET)&& timeout--)
+        udelay(1);    
+    if(0 == timeout)
+    {
+        ret = SDM_FALSE;
+        printk(KERN_ERR "%d..  reset dma_reset fail! [%s]=\n", __LINE__, host->dma_name);
+        goto EXIT_RESET;
+    }
+#endif
+
+    //reset FIFO
+    rk29_sdmmc_write(host->regs, SDMMC_CTRL, SDMMC_CTRL_FIFO_RESET);
+    udelay(10);
+    
+    timeout = 1000;
+    while((rk29_sdmmc_read(host->regs, SDMMC_CTRL) & SDMMC_CTRL_FIFO_RESET)&& timeout--)
+        udelay(1);       
+    if(0 == timeout)
+    {
+        ret = SDM_FALSE;
+        printk(KERN_ERR "%d..  reset fofo_reset fail! [%s]=\n", __LINE__, host->dma_name);
+        goto EXIT_RESET;
+    }
+
+#if DRIVER_SDMMC_USE_IDMA
+    //reset the internal DMA Controller.
+    rk29_sdmmc_write(host->regs, SDMMC_BMOD, BMOD_SWR);
+    udelay(10);
+    
+    timeout = 1000;
+    while((rk29_sdmmc_read(host->regs, SDMMC_BMOD) & BMOD_SWR)&& timeout--)
+        udelay(1);       
+    if(0 == timeout)
+    {
+        ret = SDM_FALSE;
+        printk(KERN_ERR "%d..  reset IDMAC fail! [%s]=\n", __LINE__, host->dma_name);
+        goto EXIT_RESET;
+    }
+
+    // Program the BMOD register for DMA
+    rk29_sdmmc_write(host->regs, SDMMC_BMOD, BMOD_DSL_TWO);
+#endif
+
+EXIT_RESET:
+    return ret;
+}
+
 /****************************************************************/
 //reset the SDMMC controller of the current host
 /****************************************************************/
@@ -1662,38 +1779,22 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
             
         value = rk29_sdmmc_read(host->regs, SDMMC_DATA);
     }
-   
+
     /* reset */
-#if defined(CONFIG_ARCH_RK29)     
-    rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET ));
-#else
-    rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
-#endif
-    timeOut = 1000;
-    value = rk29_sdmmc_read(host->regs, SDMMC_CTRL);
-    while (( value & (SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_RESET)) && (timeOut > 0))
-    {
-        udelay(1);
-        timeOut--;
-        value = rk29_sdmmc_read(host->regs, SDMMC_CTRL);
-    }
-
-    if (timeOut == 0)
-    {
-        printk(KERN_WARNING "%s..%s..%d..  reset controller fail! [%s]=\n",\
-				__FILE__, __FUNCTION__,__LINE__, host->dma_name);
-
-        host->errorstep = 0x0A;
-        return SDM_WAIT_FOR_FIFORESET_TIMEOUT;
-    }
+    value = rk_sdmmc_reset_host(host);
+    if(value)
+        return SDM_FALSE;
 
      /* FIFO threshold settings  */
-  	rk29_sdmmc_write(host->regs, SDMMC_FIFOTH, (SD_MSIZE_16 | (RX_WMARK << RX_WMARK_SHIFT) | (TX_WMARK << TX_WMARK_SHIFT)));
+  	rk29_sdmmc_write(host->regs, SDMMC_FIFOTH, FIFO_THRESHOLD_WATERMASK);
   	
     rk29_sdmmc_write(host->regs, SDMMC_CTYPE, SDMMC_CTYPE_1BIT);
     rk29_sdmmc_write(host->regs, SDMMC_CLKSRC, CLK_DIV_SRC_0);
+
     /* config debounce */
     host->bus_hz = clk_get_rate(host->clk);
+    
+#if 0//Perhaps in some cases, it is necessary to restrict.
     if((host->bus_hz > 52000000) || (host->bus_hz <= 0))
     {
         printk(KERN_WARNING "%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits. [%s]\n",\
@@ -1702,14 +1803,16 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
 		host->errorstep = 0x0B;            
         return SDM_PARAM_ERROR;            
     }
+#endif
 
-    rk29_sdmmc_write(host->regs, SDMMC_DEBNCE, (DEBOUNCE_TIME*host->bus_hz)&0xFFFFFF);
+    rk29_sdmmc_write(host->regs, SDMMC_DEBNCE, (DEBOUNCE_TIME*host->bus_hz)& SDMMC_DEFAULT_DEBNCE_VAL);
 
     /* config interrupt */
     rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
 
     if(host->use_dma)
     {
+
         if(RK29_CTRL_SDMMC_ID == host->pdev->id)
         {
 		    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,RK29_SDMMC_INTMASK_USEDMA);
@@ -1793,10 +1896,21 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
 		}		
     }
 
+    /*
+    **  Some machines may crash because of sdio-interrupt to open too early.
+    **  then, in the initialization phase, close the interruption.
+    **  noted by xbw,at 2013-07-25
+    */
+    rk29_sdmmc_write(host->regs, SDMMC_INTMASK,rk29_sdmmc_read(host->regs, SDMMC_INTMASK) & ~SDMMC_INT_SDIO);
+    
 	rk29_sdmmc_write(host->regs, SDMMC_PWREN, POWER_ENABLE);
 	
+#if DRIVER_SDMMC_USE_IDMA 
+    rk29_sdmmc_write(host->regs, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE | SDMMC_CTRL_USE_IDMAC); //Set the bit  use_internal_dmac.
+#else
    	rk29_sdmmc_write(host->regs, SDMMC_CTRL,SDMMC_CTRL_INT_ENABLE); // enable mci interrupt
-
+#endif
+ 
     return SDM_SUCCESS;
 }
 
@@ -2251,7 +2365,23 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
         goto start_request_Err; 
 	}
 	host->errorstep = 0xfd;
-
+    
+#if DRIVER_SDMMC_USE_IDMA 
+    /*  Check if it is a data command. If yes, we need to handle only IDMAC interrupts
+    **  So we disable the Slave mode interrupts and enable DMA mode interrupts.
+    **  CTRL and BMOD registers are set up for DMA mode of operation
+    */
+    if(mrq->data)
+    {
+        rk29_sdmmc_write(host->regs, SDMMC_INTMASK, 0x00000000);//Mask all slave interrupts
+        rk29_sdmmc_write(host->regs, SDMMC_IDINTEN, IDMAC_EN_INT_ALL);
+        rk29_sdmmc_write(host->regs, SDMMC_CTRL, SDMMC_CTRL_USE_IDMAC);
+        rk29_sdmmc_write(host->regs, SDMMC_BMOD, BMOD_DE);            
+        rk29_sdmmc_write(host->regs, SDMMC_BMOD, BMOD_DSL_TWO);// Program the BMOD register for DMA
+        rk29_sdmmc_write(host->regs, SDMMC_FIFOTH, FIFO_THRESHOLD_WATERMASK);
+    }
+#endif    
+   
     xbwprintk(7, "%s..%d...  CMD=%d, wait for INT_CMD_DONE, ret=%d , \n  \
         host->state=0x%x, cmdINT=0x%x \n    host->pendingEvent=0x%lu, host->completeEvents=0x%lu [%s]\n\n",\
         __FUNCTION__, __LINE__, host->cmd->opcode,ret, \
@@ -2679,6 +2809,112 @@ static int rk29_sdmmc_clear_fifo(struct rk29_sdmmc *host)
     return ret;
 }
 
+static int rk_sdmmc_signal_voltage_switch(struct mmc_host *mmc,
+	struct mmc_ios *ios)
+{
+	struct rk29_sdmmc *host;
+	unsigned int value,uhs_reg;
+
+	host = mmc_priv(mmc);
+
+	/*
+	 * We first check whether the request is to set signalling voltage
+	 * to 3.3V. If so, we change the voltage to 3.3V and return quickly.
+	 */
+	uhs_reg = rk29_sdmmc_read(host->regs, SDMMC_UHS_REG); 
+    if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330) 
+    {
+    	//set 3.3v
+    	#if SWITCH_VOLTAGE_18_33
+    	if(NULL != SWITCH_VOLTAGE_18_33)
+    	    gpio_direction_output(SWITCH_VOLTAGE_18_33, SWITCH_VOLTAGE_ENABLE_VALUE_33);
+        #endif
+    	//set High-power mode
+    	value = rk29_sdmmc_read(host->regs, SDMMC_CLKENA);
+    	rk29_sdmmc_write(host->regs,SDMMC_CLKENA , value& ~SDMMC_CLKEN_LOW_PWR);
+
+    	//SDMMC_UHS_REG
+    	rk29_sdmmc_write(host->regs,SDMMC_UHS_REG , uhs_reg & ~SDMMC_UHS_VOLT_REG_18);
+
+        /* Wait for 5ms */
+		usleep_range(5000, 5500);
+
+		/* 3.3V regulator output should be stable within 5 ms */
+		uhs_reg = rk29_sdmmc_read(host->regs, SDMMC_UHS_REG);
+        if( !(uhs_reg & SDMMC_UHS_VOLT_REG_18))
+            return 0;
+        else
+        {
+            printk(KERN_INFO  ": Switching to 3.3V "
+				"signalling voltage failed.  [%s]\n", host->dma_name);
+			return -EIO;
+        }   
+
+    }
+    else if (!(uhs_reg & SDMMC_UHS_VOLT_REG_18) && (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180))
+    {
+        /* Stop SDCLK */
+        rk29_sdmmc_control_clock(host, FALSE);
+
+		/* Check whether DAT[3:0] is 0000 */
+		value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
+		if ((value & SDMMC_STAUTS_DATA_BUSY) == 0)
+		{
+			/*
+			 * Enable 1.8V Signal Enable in the Host register 
+			 */
+			rk29_sdmmc_write(host->regs,SDMMC_UHS_REG , uhs_reg |SDMMC_UHS_VOLT_REG_18);
+
+			/* Wait for 5ms */
+			usleep_range(5000, 5500);
+
+			uhs_reg = rk29_sdmmc_read(host->regs, SDMMC_UHS_REG);
+            if( uhs_reg & SDMMC_UHS_VOLT_REG_18)
+            {
+
+                /* Provide SDCLK again and wait for 1ms*/
+				rk29_sdmmc_control_clock(host, TRUE);
+				usleep_range(1000, 1500);
+
+				/*
+				 * If DAT[3:0] level is 1111b, then the card
+				 * was successfully switched to 1.8V signaling.
+				 */
+				value = rk29_sdmmc_read(host->regs, SDMMC_STATUS);
+		        if ((value & SDMMC_STAUTS_DATA_BUSY) == 0)
+		            return 0;
+            }
+		}
+
+    	/*
+		 * If we are here, that means the switch to 1.8V signaling
+		 * failed. We power cycle the card, and retry initialization
+		 * sequence by setting S18R to 0.
+		 */
+		#if SWITCH_VOLTAGE_18_33
+		if(NULL != SWITCH_VOLTAGE_18_33)
+            gpio_direction_output(SWITCH_VOLTAGE_18_33, !(SWITCH_VOLTAGE_ENABLE_VALUE_33));
+        #endif
+        
+		/* Wait for 1ms as per the spec */
+		usleep_range(1000, 1500);
+
+        #if SWITCH_VOLTAGE_18_33
+        if(NULL != SWITCH_VOLTAGE_18_33)
+		    gpio_direction_output(SWITCH_VOLTAGE_18_33, SWITCH_VOLTAGE_ENABLE_VALUE_33);
+		#endif    
+
+		printk(KERN_INFO ": Switching to 1.8V signalling "
+			"voltage failed, retrying with S18R set to 0. [%s]\n", host->dma_name);
+		return -EAGAIN;
+
+    }
+    else
+    {
+        /* No signal voltage switch required */
+		return 0;
+    }
+}
 
 
 static const struct mmc_host_ops rk29_sdmmc_ops[] = {
@@ -2687,6 +2923,7 @@ static const struct mmc_host_ops rk29_sdmmc_ops[] = {
 		.set_ios	= rk29_sdmmc_set_ios,
 		.get_ro		= rk29_sdmmc_get_ro,
 		.get_cd		= rk29_sdmmc_get_cd,
+	    .start_signal_voltage_switch	= rk_sdmmc_signal_voltage_switch,
 	},
 	{
 		.request	= rk29_sdmmc_request,
@@ -3700,7 +3937,18 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	//mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->ocr_avail = MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|MMC_VDD_30_31
                      | MMC_VDD_31_32|MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_34_35| MMC_VDD_35_36;    ///set valid volage 2.7---3.6v
+#if 1
+
+    mmc->ocr_avail = mmc->ocr_avail |MMC_VDD_26_27 |MMC_VDD_25_26 |MMC_VDD_24_25 |MMC_VDD_23_24
+                     |MMC_VDD_22_23 |MMC_VDD_21_22 |MMC_VDD_20_21 |MMC_VDD_165_195;
+#endif
 	mmc->caps = pdata->host_caps;
+#if 1	
+    mmc->caps = mmc->caps | MMC_CAP_1_8V_DDR |MMC_CAP_1_2V_DDR /*|MMC_CAP_DRIVER_TYPE_A |MMC_CAP_DRIVER_TYPE_C |MMC_CAP_DRIVER_TYPE_D*/
+                |MMC_CAP_UHS_SDR12 |MMC_CAP_UHS_SDR25 |MMC_CAP_UHS_SDR50 |MMC_CAP_UHS_SDR104 |MMC_CAP_UHS_DDR50
+               /* |MMC_CAP_MAX_CURRENT_200 |MMC_CAP_MAX_CURRENT_400 |MMC_CAP_MAX_CURRENT_600 |MMC_CAP_MAX_CURRENT_800
+                |MMC_CAP_SET_XPC_330*/;
+#endif
 	mmc->re_initialized_flags = 1;
 	mmc->doneflag = 1;
 	mmc->sdmmc_host_hw_init = rk29_sdmmc_hw_init;
@@ -3830,6 +4078,10 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	    host->errorstep = 0x8C;
 	    goto err_dmaunmap;
 	}
+
+	//gpio request for switch_voltage 
+	if(RK29_CTRL_SDMMC_ID == host->pdev->id)
+	    gpio_request(SWITCH_VOLTAGE_18_33, "sd_volt_switch");
 
 #if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
     if((RK29_CTRL_SDMMC_ID == host->pdev->id) && (INVALID_GPIO != host->det_pin.io))

@@ -16,6 +16,8 @@
 #ifndef __RK2918_SDMMC_H
 #define __RK2918_SDMMC_H
 
+#include <linux/bitops.h>
+
 #define MAX_SG_CHN	2
 
 
@@ -47,32 +49,46 @@
 #define SDMMC_USRID           (0x068)   //User ID register
 
 #if defined(CONFIG_ARCH_RK29)
-#define SDMMC_DATA            (0x100)
+#define SDMMC_DATA            (0x100)   //FIFO data read write
 #else
 #define SDMMC_VERID           (0x06c)   //Version ID register
 #define SDMMC_UHS_REG         (0x074)   //UHS-I register
 #define SDMMC_RST_n           (0x078)   //Hardware reset register
+#define SDMMC_BMOD		      (0x080)   //Bus mode register, control IMAC
+#define SDMMC_PLDMND		  (0x084)   //Poll Demand Register
+#define SDMMC_DBADDR		  (0x088)   //Descriptor List Base Address Register for 32-bit.
+#define SDMMC_IDSTS		      (0x08c)   //Internal DMAC Status register
+#define SDMMC_IDINTEN		  (0x090)   //Internal DMAC Interrupt Enable Register
+#define SDMMC_DSCADDR		  (0x094)   //Current Host Descriptor Address Register for 32-bit
+#define SDMMC_BUFADDR		  (0x098)   //Current Buffer Descriptor Address Register for 32-bit
 #define SDMMC_CARDTHRCTL      (0x100)   //Card Read Threshold Enable
 #define SDMMC_BACK_END_POWER  (0x104)   //Back-end Power
-#define SDMMC_FIFO_BASE       (0x200)   //
+#define SDMMC_FIFO_BASE       (0x200)   //FIFO data read write
 
 #define SDMMC_DATA            SDMMC_FIFO_BASE
 #endif
 
-#define RK2818_BIT(n)				(1<<(n))
+#define BIT(n)				(1<<(n))
 #define RK_CLEAR_BIT(n)		        (0<<(n))
 
 
 /* Control register defines (base+ 0x00)*/
-#define SDMMC_CTRL_OD_PULLUP	  RK2818_BIT(24)
-#define SDMMC_CTRL_DMA_ENABLE     RK2818_BIT(5)
-#define SDMMC_CTRL_INT_ENABLE     RK2818_BIT(4)
-#define SDMMC_CTRL_DMA_RESET      RK2818_BIT(2)
-#define SDMMC_CTRL_FIFO_RESET     RK2818_BIT(1)
-#define SDMMC_CTRL_RESET          RK2818_BIT(0)
+#define SDMMC_CTRL_USE_IDMAC	    BIT(25)
+#define SDMMC_CTRL_OD_PULLUP	    BIT(24)
+#define SDMMC_CTRL_CEATA_INT_EN	    BIT(11)
+#define SDMMC_CTRL_SEND_AS_CCSD	    BIT(10)
+#define SDMMC_CTRL_SEND_CCSD		BIT(9)
+#define SDMMC_CTRL_ABRT_READ_DATA	BIT(8)
+#define SDMMC_CTRL_SEND_IRQ_RESP	BIT(7)
+#define SDMMC_CTRL_READ_WAIT		BIT(6)
+#define SDMMC_CTRL_DMA_ENABLE       BIT(5)
+#define SDMMC_CTRL_INT_ENABLE       BIT(4)
+#define SDMMC_CTRL_DMA_RESET        BIT(2)
+#define SDMMC_CTRL_FIFO_RESET       BIT(1)
+#define SDMMC_CTRL_RESET            BIT(0)
 
 /* Power Enable Register(base+ 0x04) */
-#define POWER_ENABLE             RK2818_BIT(0)      //Power enable
+#define POWER_ENABLE             BIT(0)             //Power enable
 #define POWER_DISABLE            RK_CLEAR_BIT(0)    //Power off
 
 /* SDMMC Clock source Register(base+ 0x0C) */
@@ -83,9 +99,9 @@
 
 
 /* Clock Enable register defines(base+0x10) */
-#define SDMMC_CLKEN_LOW_PWR      RK2818_BIT(16)
+#define SDMMC_CLKEN_LOW_PWR      BIT(16)
 #define SDMMC_CLKEN_NO_LOW_PWR   RK_CLEAR_BIT(16)   //low-power mode disabled
-#define SDMMC_CLKEN_ENABLE       RK2818_BIT(0)
+#define SDMMC_CLKEN_ENABLE       BIT(0)
 #define SDMMC_CLKEN_DISABLE      RK_CLEAR_BIT(16)   //clock disabled
 
 /* time-out register defines(base+0x14) */
@@ -95,79 +111,83 @@
 #define SDMMC_TMOUT_RESP_MSK     0xFF
 
 /* card-type register defines(base+0x18) */
-#define SDMMC_CTYPE_8BIT         RK2818_BIT(16)
-#define SDMMC_CTYPE_4BIT         RK2818_BIT(0)
+#define SDMMC_CTYPE_8BIT         BIT(16)
+#define SDMMC_CTYPE_4BIT         BIT(0)
 #define SDMMC_CTYPE_1BIT         RK_CLEAR_BIT(0)
 
 /* Interrupt status & mask register defines(base+0x24) */
 #if defined(CONFIG_ARCH_RK29)
-#define SDMMC_INT_SDIO          RK2818_BIT(16)      //SDIO interrupt
+#define SDMMC_INT_SDIO          BIT(16)      //SDIO interrupt
 #else
-#define SDMMC_INT_SDIO          RK2818_BIT(24)      //SDIO interrupt
-#define SDMMC_INT_UNBUSY        RK2818_BIT(16)      //data no busy interrupt
+#define SDMMC_INT_SDIO          BIT(24)      //SDIO interrupt
+#define SDMMC_INT_UNBUSY        BIT(16)      //data no busy interrupt
 #endif
 
-#define SDMMC_INT_EBE           RK2818_BIT(15)      //End Bit Error(read)/Write no CRC
-#define SDMMC_INT_ACD           RK2818_BIT(14)      //Auto Command Done
-#define SDMMC_INT_SBE           RK2818_BIT(13)      //Start Bit Error
-#define SDMMC_INT_HLE           RK2818_BIT(12)      //Hardware Locked Write Error
-#define SDMMC_INT_FRUN          RK2818_BIT(11)      //FIFO Underrun/Overrun Error
-#define SDMMC_INT_HTO           RK2818_BIT(10)      //Data Starvation by Host Timeout
-#define SDMMC_INT_DRTO          RK2818_BIT(9)       //Data Read TimeOut
-#define SDMMC_INT_RTO           RK2818_BIT(8)       //Response TimeOut
-#define SDMMC_INT_DCRC          RK2818_BIT(7)       //Data CRC Error
-#define SDMMC_INT_RCRC          RK2818_BIT(6)       //Response CRC Error
-#define SDMMC_INT_RXDR          RK2818_BIT(5)       //Receive FIFO Data Request
-#define SDMMC_INT_TXDR          RK2818_BIT(4)       //Transmit FIFO Data Request
-#define SDMMC_INT_DTO			RK2818_BIT(3)       //Data Transfer Over
-#define SDMMC_INT_CMD_DONE		RK2818_BIT(2)       //Command Done
-#define SDMMC_INT_RE	        RK2818_BIT(1)       //Response Error
-#define SDMMC_INT_CD            RK2818_BIT(0)       //Card Detect
+#define SDMMC_INT_EBE           BIT(15)      //End Bit Error(read)/Write no CRC
+#define SDMMC_INT_ACD           BIT(14)      //Auto Command Done
+#define SDMMC_INT_SBE           BIT(13)      //Start Bit Error
+#define SDMMC_INT_HLE           BIT(12)      //Hardware Locked Write Error
+#define SDMMC_INT_FRUN          BIT(11)      //FIFO Underrun/Overrun Error
+#define SDMMC_INT_HTO           BIT(10)      //Data Starvation by Host Timeout
+#define SDMMC_INT_VSI           SDMMC_INT_HTO   // VSI => Voltage Switch Interrupt,Volt_Switch_int
+#define SDMMC_INT_DRTO          BIT(9)       //Data Read TimeOut
+#define SDMMC_INT_RTO           BIT(8)       //Response TimeOut
+#define SDMMC_INT_DCRC          BIT(7)       //Data CRC Error
+#define SDMMC_INT_RCRC          BIT(6)       //Response CRC Error
+#define SDMMC_INT_RXDR          BIT(5)       //Receive FIFO Data Request
+#define SDMMC_INT_TXDR          BIT(4)       //Transmit FIFO Data Request
+#define SDMMC_INT_DTO			BIT(3)       //Data Transfer Over
+#define SDMMC_INT_CMD_DONE		BIT(2)       //Command Done
+#define SDMMC_INT_RE	        BIT(1)       //Response Error
+#define SDMMC_INT_CD            BIT(0)       //Card Detect
 
 /* Command register defines(base+0x2C) */
-#define SDMMC_CMD_START         RK2818_BIT(31)      //start command
+#define SDMMC_CMD_START         BIT(31)      //start command
 #if !defined(CONFIG_ARCH_RK29)
-#define SDMMC_CMD_USE_HOLD_REG      RK2818_BIT(29)      //Use hold register.
-#define SDMMC_CMD_VOLT_SWITCH       RK2818_BIT(28)      //Voltage switch bit
-#define SDMMC_CMD_BOOT_MODE         RK2818_BIT(27)      //set boot mode.
-#define SDMMC_CMD_DISABLE_BOOT      RK2818_BIT(26)      //disable boot.
-#define SDMMC_CMD_EXPECT_BOOT_ACK   RK2818_BIT(25)      //Expect Boot Acknowledge.
-#define SDMMC_CMD_ENABLE_BOOT       RK2818_BIT(24)      //be set only for mandatory boot mode.
+#define SDMMC_CMD_USE_HOLD_REG      BIT(29)      //Use hold register.
+#define SDMMC_CMD_VOLT_SWITCH       BIT(28)      //Voltage switch bit
+#define SDMMC_CMD_BOOT_MODE         BIT(27)      //set boot mode.
+#define SDMMC_CMD_DISABLE_BOOT      BIT(26)      //disable boot.
+#define SDMMC_CMD_EXPECT_BOOT_ACK   BIT(25)      //Expect Boot Acknowledge.
+#define SDMMC_CMD_ENABLE_BOOT       BIT(24)      //be set only for mandatory boot mode.
+#define SDMMC_CMD_CCS_EXP		    BIT(23)      //expect Command Completion Signal(CCS) from the CE-ATA device.
+#define SDMMC_CMD_CEATA_RD		    BIT(22)      //software should set this bit to indicate that CE-ATA device
 #endif
-#define SDMMC_CMD_UPD_CLK       RK2818_BIT(21)      //update clock register only
-#define SDMMC_CMD_INIT          RK2818_BIT(15)      //send initialization sequence
-#define SDMMC_CMD_STOP          RK2818_BIT(14)      //stop abort command
-#define SDMMC_CMD_PRV_DAT_NO_WAIT  RK_CLEAR_BIT(13) //not wait previous data transfer complete, send command at once
-#define SDMMC_CMD_PRV_DAT_WAIT  RK2818_BIT(13)      //wait previous data transfer complete
-#define SDMMC_CMD_SEND_STOP     RK2818_BIT(12)      //send auto stop command at end of data transfer
-#define SDMMC_CMD_BLOCK_MODE    RK_CLEAR_BIT(11)    //block data transfer command
-#define SDMMC_CMD_STRM_MODE     RK2818_BIT(11)      //stream data transfer command
-#define SDMMC_CMD_DAT_READ      RK_CLEAR_BIT(10)    //read from card
-#define SDMMC_CMD_DAT_WRITE     RK2818_BIT(10)      //write to card; 
-#define SDMMC_CMD_DAT_WR        RK2818_BIT(10)      //write to card;
-#define SDMMC_CMD_DAT_NO_EXP    RK_CLEAR_BIT(9)     //no data transfer expected
-#define SDMMC_CMD_DAT_EXP       RK2818_BIT(9)       //data transfer expected
-#define SDMMC_CMD_RESP_NO_CRC   RK_CLEAR_BIT(8)     //do not check response crc
-#define SDMMC_CMD_RESP_CRC      RK2818_BIT(8)       //check response crc
+#define SDMMC_CMD_UPD_CLK           BIT(21)             //update clock register only
+#define SDMMC_CMD_INIT              BIT(15)             //send initialization sequence
+#define SDMMC_CMD_STOP              BIT(14)             //stop abort command
+#define SDMMC_CMD_PRV_DAT_NO_WAIT   RK_CLEAR_BIT(13)    //not wait previous data transfer complete, send command at once
+#define SDMMC_CMD_PRV_DAT_WAIT      BIT(13)             //wait previous data transfer complete
+#define SDMMC_CMD_SEND_STOP         BIT(12)             //send auto stop command at end of data transfer
+#define SDMMC_CMD_BLOCK_MODE        RK_CLEAR_BIT(11)    //block data transfer command
+#define SDMMC_CMD_STRM_MODE         BIT(11)             //stream data transfer command
+#define SDMMC_CMD_DAT_READ          RK_CLEAR_BIT(10)    //read from card
+#define SDMMC_CMD_DAT_WRITE         BIT(10)             //write to card; 
+#define SDMMC_CMD_DAT_WR            BIT(10)             //write to card;
+#define SDMMC_CMD_DAT_NO_EXP        RK_CLEAR_BIT(9)     //no data transfer expected
+#define SDMMC_CMD_DAT_EXP           BIT(9)              //data transfer expected
+#define SDMMC_CMD_RESP_NO_CRC       RK_CLEAR_BIT(8)     //do not check response crc
+#define SDMMC_CMD_RESP_CRC          BIT(8)              //check response crc
 #define SDMMC_CMD_RESP_CRC_NOCARE   SDMMC_CMD_RESP_CRC  //not care response crc
-#define SDMMC_CMD_RESP_SHORT    RK_CLEAR_BIT(7)     //short response expected from card
-#define SDMMC_CMD_RESP_LONG     RK2818_BIT(7)       //long response expected from card;
-#define SDMMC_CMD_RESP_NOCARE   SDMMC_CMD_RESP_SHORT    //not care response length
-#define SDMMC_CMD_RESP_NO_EXP   RK_CLEAR_BIT(6)     //no response expected from card
-#define SDMMC_CMD_RESP_EXP      RK2818_BIT(6)       //response expected from card
-#define SDMMC_CMD_INDX(n)       ((n) & 0x1F)
+#define SDMMC_CMD_RESP_SHORT        RK_CLEAR_BIT(7)         //short response expected from card
+#define SDMMC_CMD_RESP_LONG         BIT(7)                  //long response expected from card;
+#define SDMMC_CMD_RESP_NOCARE       SDMMC_CMD_RESP_SHORT    //not care response length
+#define SDMMC_CMD_RESP_NO_EXP       RK_CLEAR_BIT(6)         //no response expected from card
+#define SDMMC_CMD_RESP_EXP          BIT(6)                  //response expected from card
+#define SDMMC_CMD_INDX(n)           ((n) & 0x1F)
 
 
 /* Status register defines (base+0x48)*/
-#define SDMMC_STAUTS_MC_BUSY	RK2818_BIT(10)
-#define SDMMC_STAUTS_DATA_BUSY	RK2818_BIT(9)       //Card busy
-#define SDMMC_CMD_FSM_MASK		(0x0F << 4)	//Command FSM status mask
-#define SDMMC_CMD_FSM_IDLE      (0x00)			//CMD FSM is IDLE
-#define SDMMC_STAUTS_FIFO_FULL	RK2818_BIT(3)       //FIFO is full status
-#define SDMMC_STAUTS_FIFO_EMPTY	RK2818_BIT(2)       //FIFO is empty status
+#define SDMMC_STAUTS_MC_BUSY	    BIT(10)
+#define SDMMC_STAUTS_DATA_BUSY	    BIT(9)          //Card busy
+#define SDMMC_CMD_FSM_MASK		    (0x0F << 4)	    //Command FSM status mask
+#define SDMMC_CMD_FSM_IDLE          (0x00)			//CMD FSM is IDLE
+#define SDMMC_STAUTS_FIFO_FULL	    BIT(3)          //FIFO is full status
+#define SDMMC_STAUTS_FIFO_EMPTY	    BIT(2)          //FIFO is empty status
 
-#define SDMMC_GET_FCNT(x)       (((x)>>17) & 0x1FF)//fifo_count, numbers of filled locations in FIFO
-#define SDMMC_FIFO_SZ           32
+/* Status register defines */
+#define SDMMC_GET_FCNT(x)           (((x)>>17) & 0x1FF)//fifo_count, numbers of filled locations in FIFO
+#define SDMMC_FIFO_SZ               32
 
 
 /* FIFO Register (base + 0x4c)*/
@@ -179,6 +199,7 @@
 #define SD_MSIZE_64       (0x5 << 28)
 #define SD_MSIZE_128      (0x6 << 28)
 #define SD_MSIZE_256      (0x7 << 28)
+
 
 #if defined(CONFIG_ARCH_RK29)
 #define FIFO_DEPTH        (0x20)       //FIFO depth = 32 word
@@ -199,19 +220,77 @@
 #define TX_WMARK          (FIFO_DEPTH/2)       //TX watermark level set to  128
 #endif
 
+#define FIFO_THRESHOLD_WATERMASK    (SD_MSIZE_16 |(RX_WMARK << RX_WMARK_SHIFT)|(TX_WMARK << TX_WMARK_SHIFT))
+
 /* CDETECT register defines (base+0x50)*/
-#define SDMMC_CARD_DETECT_N		RK2818_BIT(0)        //0--represents presence of card.
+#define SDMMC_CARD_DETECT_N		BIT(0)      //0--represents presence of card.
 
 /* WRIPRT register defines (base+0x54)*/
-#define SDMMC_WRITE_PROTECT		RK2818_BIT(0)       // 1--represents write protect
+#define SDMMC_WRITE_PROTECT		BIT(0)      // 1--represents write protect
+
+/* Control SDMMC_UHS_REG defines (base+ 0x74)*/
+#define SDMMC_UHS_DDR_MODE      BIT(16)     // 0--Non DDR Mode; 1--DDR mode 
+#define SDMMC_UHS_VOLT_REG_18   BIT(0)      // 0--3.3v; 1--1.8V
 
 
+// #ifdef IDMAC_SUPPORT
+
+/* Bus Mode Register (base + 0x80) */
+#define  BMOD_SWR 		    BIT(0)	    // Software Reset: Auto cleared after one clock cycle                                0
+#define  BMOD_FB 		    BIT(1)	    // Fixed Burst Length: when set SINGLE/INCR/INCR4/INCR8/INCR16 used at the start     1 
+#define  BMOD_DE 		    BIT(7)	    // Idmac Enable: When set IDMAC is enabled                                           7
+#define	 BMOD_DSL_MSK		0x0000007C	// Descriptor Skip length: In Number of Words                                      6:2 
+#define	 BMOD_DSL_Shift		2	        // Descriptor Skip length Shift value
+#define	 BMOD_DSL_ZERO      0x00000000	// No Gap between Descriptors
+#define	 BMOD_DSL_TWO       0x00000008	// 2 Words Gap between Descriptors
+#define  BMOD_PBL		    0x00000400	// MSIZE in FIFOTH Register 
+
+/* Internal DMAC Status Register(base + 0x8c)*/
+/* Internal DMAC Interrupt Enable Register Bit Definitions */
+#define  IDMAC_AI			    0x00000200   // Abnormal Interrupt Summary Enable/ Status                                       9
+#define  IDMAC_NI    		   	0x00000100   // Normal Interrupt Summary Enable/ Status                                         8
+#define  IDMAC_CES				0x00000020   // Card Error Summary Interrupt Enable/ status                                     5
+#define  IDMAC_DU				0x00000010   // Descriptor Unavailabe Interrupt Enable /Status                                  4
+#define  IDMAC_FBE				0x00000004   // Fata Bus Error Enable/ Status                                                   2
+#define  IDMAC_RI				0x00000002   // Rx Interrupt Enable/ Status                                                     1
+#define  IDMAC_TI				0x00000001   // Tx Interrupt Enable/ Status                                                     0
+
+#define  IDMAC_EN_INT_ALL   	0x00000337   // Enables all interrupts 
+
+#define IDMAC_HOST_ABORT_TX     0x00000400   // Host Abort received during Transmission                                     12:10 
+#define IDMAC_HOST_ABORT_RX     0x00000800   // Host Abort received during Reception                                        12:10 
+
+/* IDMAC FSM States */
+#define IDMAC_DMA_IDLE          0x00000000   // DMA is in IDLE state                                                        
+#define IDMAC_DMA_SUSPEND       0x00002000   // DMA is in SUSPEND state                                                     
+#define IDMAC_DESC_RD           0x00004000   // DMA is in DESC READ or FETCH State                                          
+#define IDMAC_DESC_CHK          0x00006000   // DMA is checking the Descriptor for Correctness                              
+#define IDMAC_DMA_RD_REQ_WAIT   0x00008000   // DMA is in this state till dma_req is asserted (Read operation)              
+#define IDMAC_DMA_WR_REQ_WAIT   0x0000A000   // DMA is in this state till dma_req is asserted (Write operation)             
+#define IDMAC_DMA_RD            0x0000C000   // DMA is in Read mode                                                         
+#define IDMAC_DMA_WR            0x0000E000   // DMA is in Write mode                                                         
+#define IDMAC_DESC_CLOSE        0x00010000   // DMA is closing the Descriptor                                               
+
+#define FIFOTH_MSIZE_1		0x00000000   // Multiple Trans. Size is 1
+#define FIFOTH_MSIZE_4		0x10000000   // Multiple Trans. Size is 4
+#define FIFOTH_MSIZE_8   	0x20000000   // Multiple Trans. Size is 8
+#define FIFOTH_MSIZE_16		0x30000000   // Multiple Trans. Size is 16
+#define FIFOTH_MSIZE_32		0x40000000   // Multiple Trans. Size is 32
+#define FIFOTH_MSIZE_64		0x50000000   // Multiple Trans. Size is 64
+#define FIFOTH_MSIZE_128	0x60000000   // Multiple Trans. Size is 128
+#define FIFOTH_MSIZE_256	0x70000000   // Multiple Trans. Size is 256
+// #endif //#endif --#ifdef IDMAC_SUPPORT
+
+
+/**********************************************************************
+**  Misc Defines 
+**********************************************************************/
+#define SDMMC_MAX_BUFF_SIZE_IDMAC       8192
+#define SDMMC_DEFAULT_DEBNCE_VAL        0x0FFFFFF
 
 /* Specifies how often in millisecs to poll for card removal-insertion changes
  * when the timer switch is open */
 #define RK_SDMMC0_SWITCH_POLL_DELAY 35
-
-
 
 /* SDMMC progress  return value */
 #define SDM_SUCCESS              (0)                    
