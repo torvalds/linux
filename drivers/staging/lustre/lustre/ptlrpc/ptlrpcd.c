@@ -666,16 +666,13 @@ void ptlrpcd_stop(struct ptlrpcd_ctl *pc, int force)
 {
 	if (!test_bit(LIOD_START, &pc->pc_flags)) {
 		CWARN("Thread for pc %p was not started\n", pc);
-		goto out;
+		return;
 	}
 
 	set_bit(LIOD_STOP, &pc->pc_flags);
 	if (force)
 		set_bit(LIOD_FORCE, &pc->pc_flags);
 	wake_up(&pc->pc_set->set_waitq);
-
-out:
-	EXIT;
 }
 
 void ptlrpcd_free(struct ptlrpcd_ctl *pc)
@@ -709,7 +706,6 @@ out:
 		pc->pc_partners = NULL;
 	}
 	pc->pc_npartners = 0;
-	EXIT;
 }
 
 static void ptlrpcd_fini(void)
@@ -726,8 +722,6 @@ static void ptlrpcd_fini(void)
 		OBD_FREE(ptlrpcds, ptlrpcds->pd_size);
 		ptlrpcds = NULL;
 	}
-
-	EXIT;
 }
 
 static int ptlrpcd_init(void)

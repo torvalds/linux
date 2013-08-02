@@ -568,7 +568,6 @@ int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa)
 	if (capa_for_oss(capa))
 		inode_add_oss_capa(inode, ocapa);
 	DEBUG_CAPA(D_SEC, capa, "renew");
-	EXIT;
 retry:
 	list_del_init(&ocapa->c_list);
 	sort_add_capa(ocapa, ll_capa_list);

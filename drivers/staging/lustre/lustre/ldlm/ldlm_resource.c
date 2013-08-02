@@ -862,7 +862,6 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 	int rc;
 
 	if (!ns) {
-		EXIT;
 		return;
 	}
 
@@ -887,7 +886,6 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 		rc = __ldlm_namespace_free(ns, 1);
 		LASSERT(rc == 0);
 	}
-	EXIT;
 }
 
 /**
@@ -898,7 +896,6 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 {
 	if (!ns) {
-		EXIT;
 		return;
 	}
 
@@ -917,7 +914,6 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 	LASSERT(list_empty(&ns->ns_list_chain));
 	OBD_FREE_PTR(ns);
 	ldlm_put_ref();
-	EXIT;
 }
 
 /**

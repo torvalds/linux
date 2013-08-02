@@ -149,7 +149,6 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 		data->ioc_inlbuf4 = &data->ioc_bulk[0] + offset;
 	}
 
-	EXIT;
 	return 0;
 }
 EXPORT_SYMBOL(obd_ioctl_getdata);

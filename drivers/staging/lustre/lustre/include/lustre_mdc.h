@@ -124,7 +124,7 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 {
 	if (it != NULL && (it->it_op == IT_GETATTR || it->it_op == IT_LOOKUP ||
 			   it->it_op == IT_LAYOUT))
-		goto out;
+		return;
 
 	if (lck->rpcl_it == MDC_FAKE_RPCL_IT) { /* OBD_FAIL_MDC_RPCS_SEM */
 		mutex_lock(&lck->rpcl_mutex);
@@ -141,8 +141,6 @@ static inline void mdc_put_rpc_lock(struct mdc_rpc_lock *lck,
 	}
 
 	mutex_unlock(&lck->rpcl_mutex);
- out:
-	EXIT;
 }
 
 static inline void mdc_update_max_ea_from_body(struct obd_export *exp,

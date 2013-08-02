@@ -218,8 +218,6 @@ void ldlm_lock_put(struct ldlm_lock *lock)
 		lu_ref_fini(&lock->l_reference);
 		OBD_FREE_RCU(lock, sizeof(*lock), &lock->l_handle);
 	}
-
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_lock_put);
 
@@ -259,7 +257,6 @@ int ldlm_lock_remove_from_lru(struct ldlm_lock *lock)
 	spin_lock(&ns->ns_lock);
 	rc = ldlm_lock_remove_from_lru_nolock(lock);
 	spin_unlock(&ns->ns_lock);
-	EXIT;
 	return rc;
 }
 
@@ -289,7 +286,6 @@ void ldlm_lock_add_to_lru(struct ldlm_lock *lock)
 	spin_lock(&ns->ns_lock);
 	ldlm_lock_add_to_lru_nolock(lock);
 	spin_unlock(&ns->ns_lock);
-	EXIT;
 }
 
 /**
@@ -302,7 +298,6 @@ void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
 
 	if (lock->l_flags & LDLM_FL_NS_SRV) {
 		LASSERT(list_empty(&lock->l_lru));
-		EXIT;
 		return;
 	}
 
@@ -312,7 +307,6 @@ void ldlm_lock_touch_in_lru(struct ldlm_lock *lock)
 		ldlm_lock_add_to_lru_nolock(lock);
 	}
 	spin_unlock(&ns->ns_lock);
-	EXIT;
 }
 
 /**
@@ -348,7 +342,6 @@ int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 
 	if (lock->l_flags & LDLM_FL_DESTROYED) {
 		LASSERT(list_empty(&lock->l_lru));
-		EXIT;
 		return 0;
 	}
 	lock->l_flags |= LDLM_FL_DESTROYED;
@@ -376,7 +369,6 @@ int ldlm_lock_destroy_internal(struct ldlm_lock *lock)
 	if (lock->l_export && lock->l_completion_ast)
 		lock->l_completion_ast(lock, 0);
 #endif
-	EXIT;
 	return 1;
 }
 
@@ -396,7 +388,6 @@ void ldlm_lock_destroy(struct ldlm_lock *lock)
 		lu_ref_del(&lock->l_reference, "hash", lock);
 		LDLM_LOCK_RELEASE(lock);
 	}
-	EXIT;
 }
 
 /**
@@ -412,7 +403,6 @@ void ldlm_lock_destroy_nolock(struct ldlm_lock *lock)
 		lu_ref_del(&lock->l_reference, "hash", lock);
 		LDLM_LOCK_RELEASE(lock);
 	}
-	EXIT;
 }
 
 /* this is called by portals_handle2object with the handle lock taken */
@@ -723,7 +713,6 @@ void ldlm_add_ast_work_item(struct ldlm_lock *lock, struct ldlm_lock *new,
 		ldlm_add_bl_work_item(lock, new, work_list);
 	else
 		ldlm_add_cp_work_item(lock, work_list);
-	EXIT;
 }
 
 /**
@@ -902,8 +891,6 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 		LDLM_DEBUG(lock, "do not add lock into lru list");
 		unlock_res_and_lock(lock);
 	}
-
-	EXIT;
 }
 
 /**
@@ -985,7 +972,6 @@ static void search_granted_lock(struct list_head *queue,
 			prev->res_link = &mode_end->l_res_link;
 			prev->mode_link = &mode_end->l_sl_mode;
 			prev->policy_link = &req->l_sl_policy;
-			EXIT;
 			return;
 		} else if (lock->l_resource->lr_type == LDLM_IBITS) {
 			for (;;) {
@@ -1004,7 +990,6 @@ static void search_granted_lock(struct list_head *queue,
 						&policy_end->l_sl_mode;
 					prev->policy_link =
 						&policy_end->l_sl_policy;
-					EXIT;
 					return;
 				}
 
@@ -1023,7 +1008,6 @@ static void search_granted_lock(struct list_head *queue,
 			prev->res_link = &mode_end->l_res_link;
 			prev->mode_link = &mode_end->l_sl_mode;
 			prev->policy_link = &req->l_sl_policy;
-			EXIT;
 			return;
 		} else {
 			LDLM_ERROR(lock,"is not LDLM_PLAIN or LDLM_IBITS lock");
@@ -1036,7 +1020,6 @@ static void search_granted_lock(struct list_head *queue,
 	prev->res_link = queue->prev;
 	prev->mode_link = &req->l_sl_mode;
 	prev->policy_link = &req->l_sl_policy;
-	EXIT;
 	return;
 }
 
@@ -1073,8 +1056,6 @@ static void ldlm_granted_list_add_lock(struct ldlm_lock *lock,
 		list_add(&lock->l_sl_mode, prev->mode_link);
 	if (&lock->l_sl_policy != prev->policy_link)
 		list_add(&lock->l_sl_policy, prev->policy_link);
-
-	EXIT;
 }
 
 /**
@@ -1089,7 +1070,6 @@ static void ldlm_grant_lock_with_skiplist(struct ldlm_lock *lock)
 
 	search_granted_lock(&lock->l_resource->lr_granted, lock, &prev);
 	ldlm_granted_list_add_lock(lock, &prev);
-	EXIT;
 }
 
 /**
@@ -1124,7 +1104,6 @@ void ldlm_grant_lock(struct ldlm_lock *lock, struct list_head *work_list)
 		ldlm_add_ast_work_item(lock, NULL, work_list);
 
 	ldlm_pool_add(&ldlm_res_to_ns(res)->ns_pool, lock);
-	EXIT;
 }
 
 /**
@@ -1322,7 +1301,6 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 	if (lock != NULL)
 		GOTO(out, rc = 1);
 
-	EXIT;
  out:
 	unlock_res(res);
 	LDLM_RESOURCE_DELREF(res);
@@ -1423,8 +1401,6 @@ ldlm_mode_t ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
 		mode = lock->l_granted_mode;
 		ldlm_lock_addref_internal_nolock(lock, mode);
 	}
-
-	EXIT;
 
 out:
 	if (lock != NULL) {
@@ -1936,7 +1912,6 @@ void ldlm_reprocess_all_ns(struct ldlm_namespace *ns)
 		cfs_hash_for_each_nolock(ns->ns_rs_hash,
 					 ldlm_reprocess_res, NULL);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_reprocess_all_ns);
 
@@ -1957,7 +1932,6 @@ void ldlm_reprocess_all(struct ldlm_resource *res)
 		       "LDLM_NAMESPACE_SERVER resource type lock.\n");
 		LBUG();
 	}
-	EXIT;
 }
 
 /**
@@ -2035,8 +2009,6 @@ void ldlm_lock_cancel(struct ldlm_lock *lock)
 	 * if not to zero out lock->l_granted_mode */
 	lock->l_granted_mode = LCK_MINMODE;
 	unlock_res_and_lock(lock);
-
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_lock_cancel);
 
@@ -2142,8 +2114,6 @@ void ldlm_lock_downgrade(struct ldlm_lock *lock, int new_mode)
 	ldlm_grant_lock(lock, NULL);
 	unlock_res_and_lock(lock);
 	ldlm_reprocess_all(lock->l_resource);
-
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_lock_downgrade);
 

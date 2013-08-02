@@ -316,7 +316,6 @@ void fld_client_proc_fini(struct lu_client_fld *fld)
 			lprocfs_remove(&fld->lcf_proc_dir);
 		fld->lcf_proc_dir = NULL;
 	}
-	EXIT;
 }
 #else
 static int fld_client_proc_init(struct lu_client_fld *fld)
@@ -377,7 +376,6 @@ int fld_client_init(struct lu_client_fld *fld,
 	rc = fld_client_proc_init(fld);
 	if (rc)
 		GOTO(out, rc);
-	EXIT;
 out:
 	if (rc)
 		fld_client_fini(fld);
@@ -408,8 +406,6 @@ void fld_client_fini(struct lu_client_fld *fld)
 			fld_cache_fini(fld->lcf_cache);
 		fld->lcf_cache = NULL;
 	}
-
-	EXIT;
 }
 EXPORT_SYMBOL(fld_client_fini);
 
@@ -458,7 +454,6 @@ int fld_client_rpc(struct obd_export *exp,
 	if (prange == NULL)
 		GOTO(out_req, rc = -EFAULT);
 	*range = *prange;
-	EXIT;
 out_req:
 	ptlrpc_req_finished(req);
 	return rc;

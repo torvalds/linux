@@ -926,7 +926,6 @@ void flush_spec_ctx_cache_kr(struct ptlrpc_sec *sec,
 	spin_unlock(&sec->ps_lock);
 
 	dispose_ctx_list_kr(&freelist);
-	EXIT;
 }
 
 static
@@ -974,8 +973,6 @@ void gss_sec_gc_ctx_kr(struct ptlrpc_sec *sec)
 	spin_unlock(&sec->ps_lock);
 
 	dispose_ctx_list_kr(&freelist);
-	EXIT;
-	return;
 }
 
 static
@@ -1308,7 +1305,6 @@ void gss_kt_destroy(struct key *key)
 {
 	LASSERT(key->payload.data == NULL);
 	CDEBUG(D_SEC, "destroy key %p\n", key);
-	EXIT;
 }
 
 static

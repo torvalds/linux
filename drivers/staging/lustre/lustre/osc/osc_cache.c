@@ -781,7 +781,6 @@ restart:
 
 		goto restart;
 	}
-	EXIT;
 
 out:
 	osc_extent_put(env, cur);
@@ -1136,7 +1135,6 @@ static int osc_extent_expand(struct osc_extent *ext, pgoff_t index, int *grants)
 	LASSERT(*grants >= 0);
 	EASSERTF(osc_extent_is_overlapped(obj, ext) == 0, ext,
 		 "overlapped after expanding for %lu.\n", index);
-	EXIT;
 
 out:
 	osc_object_unlock(obj);
@@ -1330,7 +1328,6 @@ static void osc_release_write_grant(struct client_obd *cli,
 {
 	LASSERT(spin_is_locked(&cli->cl_loi_list_lock.lock));
 	if (!(pga->flag & OBD_BRW_FROM_GRANT)) {
-		EXIT;
 		return;
 	}
 
@@ -1342,7 +1339,6 @@ static void osc_release_write_grant(struct client_obd *cli,
 		atomic_dec(&obd_dirty_transit_pages);
 		cli->cl_dirty_transit -= PAGE_CACHE_SIZE;
 	}
-	EXIT;
 }
 
 /**
@@ -1544,7 +1540,6 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 		if (osc_enter_cache_try(cli, oap, bytes, 0))
 			GOTO(out, rc = 0);
 	}
-	EXIT;
 out:
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
 	OSC_DUMP_GRANT(cli, "returned %d.\n", rc);
@@ -1582,8 +1577,6 @@ wakeup:
 
 		wake_up(&ocw->ocw_waitq);
 	}
-
-	EXIT;
 }
 
 static int osc_max_rpc_in_flight(struct client_obd *cli, struct osc_object *osc)
@@ -1765,8 +1758,6 @@ static void osc_ap_completion(const struct lu_env *env, struct client_obd *cli,
 	if (rc)
 		CERROR("completion on oap %p obj %p returns %d.\n",
 		       oap, osc, rc);
-
-	EXIT;
 }
 
 /**
@@ -2430,7 +2421,6 @@ int osc_flush_async_page(const struct lu_env *env, struct cl_io *io,
 		unplug = true;
 	}
 	rc = 0;
-	EXIT;
 
 out:
 	osc_object_unlock(obj);

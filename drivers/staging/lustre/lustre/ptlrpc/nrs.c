@@ -110,8 +110,6 @@ static void nrs_policy_stop0(struct ptlrpc_nrs_policy *policy)
 
 	if (atomic_dec_and_test(&policy->pol_desc->pd_refs))
 		module_put(policy->pol_desc->pd_owner);
-
-	EXIT;
 }
 
 static int nrs_policy_stop_locked(struct ptlrpc_nrs_policy *policy)
@@ -158,7 +156,6 @@ static void nrs_policy_stop_primary(struct ptlrpc_nrs *nrs)
 	struct ptlrpc_nrs_policy *tmp = nrs->nrs_policy_primary;
 
 	if (tmp == NULL) {
-		EXIT;
 		return;
 	}
 
@@ -169,7 +166,6 @@ static void nrs_policy_stop_primary(struct ptlrpc_nrs *nrs)
 
 	if (tmp->pol_ref == 0)
 		nrs_policy_stop0(tmp);
-	EXIT;
 }
 
 /**
@@ -839,7 +835,6 @@ static void ptlrpc_nrs_hpreq_add_nolock(struct ptlrpc_request *req)
 	if (opc != OBD_PING)
 		DEBUG_REQ(D_NET, req, "high priority req");
 	spin_unlock(&req->rq_lock);
-	EXIT;
 }
 
 /**
@@ -1020,8 +1015,6 @@ again:
 
 	if (hp)
 		OBD_FREE_PTR(nrs);
-
-	EXIT;
 }
 
 /**
@@ -1639,7 +1632,6 @@ out:
 	 * returned false.
 	 */
 	nrs_resource_put_safe(res1);
-	EXIT;
 }
 
 /**

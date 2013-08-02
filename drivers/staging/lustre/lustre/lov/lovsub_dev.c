@@ -57,7 +57,6 @@ static void lovsub_req_completion(const struct lu_env *env,
 
 	lsr = cl2lovsub_req(slice);
 	OBD_SLAB_FREE_PTR(lsr, lovsub_req_kmem);
-	EXIT;
 }
 
 /**
@@ -78,7 +77,6 @@ static void lovsub_req_attr_set(const struct lu_env *env,
 	 * unconditionally. It never changes anyway.
 	 */
 	attr->cra_oa->o_stripe_idx = subobj->lso_index;
-	EXIT;
 }
 
 static const struct cl_req_operations lovsub_req_ops = {

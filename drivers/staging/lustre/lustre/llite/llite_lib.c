@@ -152,7 +152,6 @@ void ll_free_sbi(struct super_block *sb)
 		spin_unlock(&ll_sb_lock);
 		OBD_FREE(sbi, sizeof(*sbi));
 	}
-	EXIT;
 }
 
 static struct dentry_operations ll_d_root_ops = {
@@ -700,8 +699,6 @@ void client_common_put_super(struct super_block *sb)
 	obd_fid_fini(sbi->ll_md_exp->exp_obd);
 	obd_disconnect(sbi->ll_md_exp);
 	sbi->ll_md_exp = NULL;
-
-	EXIT;
 }
 
 void ll_kill_super(struct super_block *sb)
@@ -720,7 +717,6 @@ void ll_kill_super(struct super_block *sb)
 		sb->s_dev = sbi->ll_sdev_orig;
 		sbi->ll_umounting = 1;
 	}
-	EXIT;
 }
 
 char *ll_read_opt(const char *opt, char *data)
@@ -1112,8 +1108,6 @@ void ll_put_super(struct super_block *sb)
 	lustre_common_put_super(sb);
 
 	module_put(THIS_MODULE);
-
-	EXIT;
 } /* client_put_super */
 
 struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock)
@@ -1227,8 +1221,6 @@ void ll_clear_inode(struct inode *inode)
 	 */
 	cl_inode_fini(inode);
 	lli->lli_has_smd = false;
-
-	EXIT;
 }
 
 int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
@@ -1469,7 +1461,6 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr)
 		 * setting times to past, but it is necessary due to possible
 		 * time de-synchronization between MDT inode and OST objects */
 		rc = ll_setattr_ost(inode, attr);
-	EXIT;
 out:
 	if (op_data) {
 		if (op_data->op_ioepoch) {
@@ -1803,21 +1794,16 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 		inode->i_op = &ll_file_inode_operations;
 		inode->i_fop = sbi->ll_fop;
 		inode->i_mapping->a_ops = (struct address_space_operations *)&ll_aops;
-		EXIT;
 	} else if (S_ISDIR(inode->i_mode)) {
 		inode->i_op = &ll_dir_inode_operations;
 		inode->i_fop = &ll_dir_operations;
-		EXIT;
 	} else if (S_ISLNK(inode->i_mode)) {
 		inode->i_op = &ll_fast_symlink_inode_operations;
-		EXIT;
 	} else {
 		inode->i_op = &ll_special_inode_operations;
 
 		init_special_inode(inode, inode->i_mode,
 				   inode->i_rdev);
-
-		EXIT;
 	}
 }
 
@@ -1847,8 +1833,6 @@ void ll_delete_inode(struct inode *inode)
 
 	ll_clear_inode(inode);
 	clear_inode(inode);
-
-	EXIT;
 }
 
 int ll_iocontrol(struct inode *inode, struct file *file,
@@ -1974,7 +1958,6 @@ void ll_umount_begin(struct super_block *sb)
 	if (obd == NULL) {
 		CERROR("Invalid MDC connection handle "LPX64"\n",
 		       sbi->ll_md_exp->exp_handle.h_cookie);
-		EXIT;
 		return;
 	}
 	obd->obd_force = 1;
@@ -1983,7 +1966,6 @@ void ll_umount_begin(struct super_block *sb)
 	if (obd == NULL) {
 		CERROR("Invalid LOV connection handle "LPX64"\n",
 		       sbi->ll_dt_exp->exp_handle.h_cookie);
-		EXIT;
 		return;
 	}
 	obd->obd_force = 1;
@@ -2004,8 +1986,6 @@ void ll_umount_begin(struct super_block *sb)
 	 * schedule() and sleep one second if needed, and hope.
 	 */
 	schedule();
-
-	EXIT;
 }
 
 int ll_remount_fs(struct super_block *sb, int *flags, char *data)

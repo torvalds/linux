@@ -226,7 +226,6 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 		*out = new;
 		rc = 0;
 	}
-	EXIT;
 
 _out:
 	if (rc) {
@@ -394,7 +393,6 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 		*out = new;
 		rc = 0;
 	}
-	EXIT;
 
 _out:
 	if (rc) {
@@ -528,7 +526,6 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 	new->a_count = cpu_to_le32(j);
 	/* free unused space. */
 	rc = lustre_ext_acl_xattr_reduce_space(&new, ext_count);
-	EXIT;
 
 out:
 	if (rc) {

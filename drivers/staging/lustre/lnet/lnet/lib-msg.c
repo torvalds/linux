@@ -52,7 +52,6 @@ lnet_build_unlink_event (lnet_libmd_t *md, lnet_event_t *ev)
 	ev->type     = LNET_EVENT_UNLINK;
 	lnet_md_deconstruct(md, &ev->md);
 	lnet_md2handle(&ev->md_handle, md);
-	EXIT;
 }
 
 /*

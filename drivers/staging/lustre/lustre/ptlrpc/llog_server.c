@@ -106,7 +106,6 @@ int llog_origin_handle_open(struct ptlrpc_request *req)
 	body = req_capsule_server_get(&req->rq_pill, &RMF_LLOGD_BODY);
 	body->lgd_logid = loghandle->lgh_id;
 
-	EXIT;
 out_close:
 	llog_origin_close(req->rq_svc_thread->t_env, loghandle);
 out_pop:
@@ -202,7 +201,6 @@ int llog_origin_handle_next_block(struct ptlrpc_request *req)
 			     &repbody->lgd_cur_offset, ptr, LLOG_CHUNK_SIZE);
 	if (rc)
 		GOTO(out_close, rc);
-	EXIT;
 out_close:
 	llog_origin_close(req->rq_svc_thread->t_env, loghandle);
 out_pop:
@@ -261,7 +259,6 @@ int llog_origin_handle_prev_block(struct ptlrpc_request *req)
 	if (rc)
 		GOTO(out_close, rc);
 
-	EXIT;
 out_close:
 	llog_origin_close(req->rq_svc_thread->t_env, loghandle);
 out_pop:
@@ -314,7 +311,6 @@ int llog_origin_handle_read_header(struct ptlrpc_request *req)
 
 	hdr = req_capsule_server_get(&req->rq_pill, &RMF_LLOG_LOG_HDR);
 	*hdr = *loghandle->lgh_hdr;
-	EXIT;
 out_close:
 	llog_origin_close(req->rq_svc_thread->t_env, loghandle);
 out_pop:

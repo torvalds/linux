@@ -149,8 +149,6 @@ static void config_log_put(struct config_llog_data *cld)
 		class_export_put(cld->cld_mgcexp);
 		OBD_FREE(cld, sizeof(*cld) + strlen(cld->cld_logname) + 1);
 	}
-
-	EXIT;
 }
 
 /* Find a config log by name */
@@ -451,8 +449,6 @@ static void do_requeue(struct config_llog_data *cld)
 		       cld->cld_logname);
 	}
 	up_read(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem);
-
-	EXIT;
 }
 
 /* this timeout represents how many seconds MGC should wait before
@@ -579,7 +575,6 @@ static void mgc_requeue_add(struct config_llog_data *cld)
 		spin_unlock(&config_list_lock);
 		wake_up(&rq_waitq);
 	}
-	EXIT;
 }
 
 /********************** class fns **********************/
@@ -1596,7 +1591,6 @@ static int mgc_process_cfg_log(struct obd_device *mgc,
 	   be updated here. */
 	rc = class_config_parse_llog(NULL, ctxt, cld->cld_logname,
 				     &cld->cld_cfg);
-	EXIT;
 
 out_pop:
 	llog_ctxt_put(ctxt);

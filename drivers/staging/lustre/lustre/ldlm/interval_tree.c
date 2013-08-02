@@ -361,7 +361,6 @@ static void interval_insert_color(struct interval_node *node,
 	}
 
 	(*root)->in_color = INTERVAL_BLACK;
-	EXIT;
 }
 
 struct interval_node *interval_insert(struct interval_node *node,
@@ -476,7 +475,6 @@ static void interval_erase_color(struct interval_node *node,
 	}
 	if (node)
 		node->in_color = INTERVAL_BLACK;
-	EXIT;
 }
 
 /*
@@ -498,7 +496,6 @@ static void update_maxhigh(struct interval_node *node,
 			break;
 		node = node->in_parent;
 	}
-	EXIT;
 }
 
 void interval_erase(struct interval_node *node,
@@ -570,7 +567,6 @@ void interval_erase(struct interval_node *node,
 color:
 	if (color == INTERVAL_BLACK)
 		interval_erase_color(child, parent, root);
-	EXIT;
 }
 EXPORT_SYMBOL(interval_erase);
 

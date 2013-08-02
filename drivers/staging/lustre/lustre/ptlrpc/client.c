@@ -206,7 +206,6 @@ void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 
 	OBD_FREE(desc, offsetof(struct ptlrpc_bulk_desc,
 				bd_iov[desc->bd_max_iov]));
-	EXIT;
 }
 EXPORT_SYMBOL(__ptlrpc_free_bulk);
 
@@ -919,7 +918,6 @@ void ptlrpc_set_destroy(struct ptlrpc_request_set *set)
 	LASSERT(atomic_read(&set->set_remaining) == 0);
 
 	ptlrpc_reqset_put(set);
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_set_destroy);
 
@@ -1156,8 +1154,6 @@ static void ptlrpc_save_versions(struct ptlrpc_request *req)
 	lustre_msg_set_versions(reqmsg, versions);
 	CDEBUG(D_INFO, "Client save versions ["LPX64"/"LPX64"]\n",
 	       versions[0], versions[1]);
-
-	EXIT;
 }
 
 /**
@@ -2169,7 +2165,6 @@ EXPORT_SYMBOL(ptlrpc_set_wait);
 static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 {
 	if (request == NULL) {
-		EXIT;
 		return;
 	}
 
@@ -2222,7 +2217,6 @@ static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 		__ptlrpc_free_req_to_pool(request);
 	else
 		OBD_FREE(request, sizeof(*request));
-	EXIT;
 }
 
 static int __ptlrpc_req_finished(struct ptlrpc_request *request, int locked);
@@ -2388,7 +2382,6 @@ void ptlrpc_free_committed(struct obd_import *imp)
 	    imp->imp_generation == imp->imp_last_generation_checked) {
 		CDEBUG(D_INFO, "%s: skip recheck: last_committed "LPU64"\n",
 		       imp->imp_obd->obd_name, imp->imp_peer_committed_transno);
-		EXIT;
 		return;
 	}
 	CDEBUG(D_RPCTRACE, "%s: committing for last_committed "LPU64" gen %d\n",
@@ -2436,15 +2429,10 @@ free_req:
 		list_del_init(&req->rq_replay_list);
 		__ptlrpc_req_finished(req, 1);
 	}
-
-	EXIT;
-	return;
 }
 
 void ptlrpc_cleanup_client(struct obd_import *imp)
 {
-	EXIT;
-	return;
 }
 EXPORT_SYMBOL(ptlrpc_cleanup_client);
 
@@ -2783,8 +2771,6 @@ void ptlrpc_abort_inflight(struct obd_import *imp)
 		ptlrpc_free_committed(imp);
 
 	spin_unlock(&imp->imp_lock);
-
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_abort_inflight);
 

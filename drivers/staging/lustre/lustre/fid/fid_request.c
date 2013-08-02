@@ -133,7 +133,6 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence "DRANGE"]\n",
 		     seq->lcs_name, opcname, PRANGE(output));
 
-	EXIT;
 out_req:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -407,7 +406,6 @@ static void seq_client_proc_fini(struct lu_client_seq *seq)
 			lprocfs_remove(&seq->lcs_proc_dir);
 		seq->lcs_proc_dir = NULL;
 	}
-	EXIT;
 #endif /* LPROCFS */
 }
 
@@ -495,7 +493,6 @@ void seq_client_fini(struct lu_client_seq *seq)
 	}
 
 	seq->lcs_srv = NULL;
-	EXIT;
 }
 EXPORT_SYMBOL(seq_client_fini);
 

@@ -288,8 +288,6 @@ static void vvp_page_completion_read(const struct lu_env *env,
 
 	if (page->cp_sync_io == NULL)
 		unlock_page(vmpage);
-
-	EXIT;
 }
 
 static void vvp_page_completion_write(const struct lu_env *env,
@@ -326,7 +324,6 @@ static void vvp_page_completion_write(const struct lu_env *env,
 		vvp_vmpage_error(ccc_object_inode(pg->cp_obj), vmpage, ioret);
 
 	end_page_writeback(vmpage);
-	EXIT;
 }
 
 /**

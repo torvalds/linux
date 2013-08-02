@@ -977,8 +977,6 @@ ksocknal_data_ready (struct sock *sk, int n)
 		ksocknal_read_callback(conn);
 
 	read_unlock(&ksocknal_data.ksnd_global_lock);
-
-	EXIT;
 }
 
 static void

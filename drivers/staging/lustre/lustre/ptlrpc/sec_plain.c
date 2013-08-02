@@ -425,7 +425,6 @@ void plain_destroy_sec(struct ptlrpc_sec *sec)
 	class_import_put(sec->ps_import);
 
 	OBD_FREE_PTR(plsec);
-	EXIT;
 }
 
 static
@@ -590,7 +589,6 @@ void plain_free_reqbuf(struct ptlrpc_sec *sec,
 		req->rq_reqbuf = NULL;
 		req->rq_reqbuf_len = 0;
 	}
-	EXIT;
 }
 
 static
@@ -631,7 +629,6 @@ void plain_free_repbuf(struct ptlrpc_sec *sec,
 	OBD_FREE_LARGE(req->rq_repbuf, req->rq_repbuf_len);
 	req->rq_repbuf = NULL;
 	req->rq_repbuf_len = 0;
-	EXIT;
 }
 
 static
@@ -819,7 +816,6 @@ void plain_free_rs(struct ptlrpc_reply_state *rs)
 
 	if (!rs->rs_prealloc)
 		OBD_FREE_LARGE(rs, rs->rs_size);
-	EXIT;
 }
 
 static

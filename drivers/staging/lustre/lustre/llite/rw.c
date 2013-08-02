@@ -1123,7 +1123,6 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	if ((ras->ras_consecutive_requests > 1 || stride_detect) &&
 	    !ras->ras_request_index)
 		ras_increase_window(inode, ras, ra);
-	EXIT;
 out_unlock:
 	RAS_CDEBUG(ras);
 	ras->ras_request_index++;

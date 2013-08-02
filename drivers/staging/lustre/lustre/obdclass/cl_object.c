@@ -359,7 +359,6 @@ void cl_object_prune(const struct lu_env *env, struct cl_object *obj)
 {
 	cl_pages_prune(env, obj);
 	cl_locks_prune(env, obj, 1);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_object_prune);
 
@@ -940,7 +939,6 @@ void cl_attr2lvb(struct ost_lvb *lvb, const struct cl_attr *attr)
 	lvb->lvb_atime  = attr->cat_atime;
 	lvb->lvb_ctime  = attr->cat_ctime;
 	lvb->lvb_blocks = attr->cat_blocks;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_attr2lvb);
 
@@ -956,7 +954,6 @@ void cl_lvb2attr(struct cl_attr *attr, const struct ost_lvb *lvb)
 	attr->cat_atime  = lvb->lvb_atime;
 	attr->cat_ctime  = lvb->lvb_ctime;
 	attr->cat_blocks = lvb->lvb_blocks;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lvb2attr);
 

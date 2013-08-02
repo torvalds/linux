@@ -316,7 +316,6 @@ static void echo_page_fini(const struct lu_env *env,
 
 	atomic_dec(&eco->eo_npages);
 	page_cache_release(vmpage);
-	EXIT;
 }
 
 static int echo_page_prep(const struct lu_env *env,
@@ -565,7 +564,6 @@ static void echo_object_free(const struct lu_env *env, struct lu_object *obj)
 	if (eco->eo_lsm)
 		echo_free_memmd(eco->eo_dev, &eco->eo_lsm);
 	OBD_SLAB_FREE_PTR(eco, echo_object_kmem);
-	EXIT;
 }
 
 static int echo_object_print(const struct lu_env *env, void *cookie,
@@ -1214,7 +1212,6 @@ static int cl_echo_enqueue(struct echo_object *eco, obd_off start, obd_off end,
 	result = cl_echo_enqueue0(env, eco, start, end, mode, cookie, 0);
 	cl_io_fini(env, io);
 
-	EXIT;
 out:
 	cl_env_put(env, &refcheck);
 	return result;
@@ -1366,7 +1363,6 @@ static int cl_echo_object_brw(struct echo_object *eco, int rw, obd_off offset,
 	}
 
 	cl_echo_cancel0(env, ed, lh.cookie);
-	EXIT;
 error_lock:
 	cl_2queue_discard(env, io, queue);
 	cl_2queue_disown(env, io, queue);
@@ -1597,7 +1593,6 @@ echo_md_create_internal(const struct lu_env *env, struct echo_device *ed,
 	}
 	CDEBUG(D_RPCTRACE, "End creating object "DFID" %s %p rc  = %d\n",
 	       PFID(lu_object_fid(&parent->mo_lu)), lname->ln_name, parent, rc);
-	EXIT;
 out_put:
 	lu_object_put(env, ec_child);
 	return rc;
@@ -2280,7 +2275,6 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	cl_echo_object_put(eco);
 
 	CDEBUG(D_INFO, "oa oid "DOSTID"\n", POSTID(&oa->o_oi));
-	EXIT;
 
  failed:
 	if (created && rc)
@@ -2938,7 +2932,6 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		GOTO (out, rc = -ENOTTY);
 	}
 
-	EXIT;
 out:
 	lu_env_fini(env);
 	OBD_FREE_PTR(env);

@@ -413,7 +413,6 @@ do_getxattr:
 		memcpy(buffer, xdata, body->eadatasize);
 		rc = body->eadatasize;
 	}
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 	return rc;

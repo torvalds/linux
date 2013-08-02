@@ -237,7 +237,6 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 
 	if (page_pool != &page0)
 		OBD_FREE(page_pool, sizeof(struct page *) * max_pages);
-	EXIT;
 	return rc;
 }
 
@@ -1300,7 +1299,6 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			GOTO(out_free, rc);
 		}
 		ptlrpc_req_finished(request);
-		EXIT;
 out_free:
 		obd_ioctl_freedata(buf, len);
 		return rc;
@@ -1522,7 +1520,6 @@ out_rmdir:
 				GOTO(out_req, rc = -EFAULT);
 		}
 
-		EXIT;
 	out_req:
 		ptlrpc_req_finished(request);
 		if (filename)
@@ -1587,7 +1584,6 @@ out_rmdir:
 		if (copy_to_user(&lumd->lmd_st, &st, sizeof(st)))
 			GOTO(free_lsm, rc = -EFAULT);
 
-		EXIT;
 	free_lsm:
 		obd_free_memmd(sbi->ll_dt_exp, &lsm);
 	free_lmm:

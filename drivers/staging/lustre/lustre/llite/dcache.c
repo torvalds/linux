@@ -73,8 +73,6 @@ static void ll_release(struct dentry *de)
 	LASSERT(lld->lld_mnt_count == 0);
 	de->d_fsdata = NULL;
 	call_rcu(&lld->lld_rcu_head, free_dentry_data);
-
-	EXIT;
 }
 
 /* Compare if two dentries are the same.  Don't match if the existing dentry
@@ -267,7 +265,6 @@ void ll_intent_release(struct lookup_intent *it)
 
 	it->d.lustre.it_disposition = 0;
 	it->d.lustre.it_data = NULL;
-	EXIT;
 }
 
 void ll_invalidate_aliases(struct inode *inode)
@@ -298,8 +295,6 @@ void ll_invalidate_aliases(struct inode *inode)
 		d_lustre_invalidate(dentry, 0);
 	}
 	ll_unlock_dcache(inode);
-
-	EXIT;
 }
 
 int ll_revalidate_it_finish(struct ptlrpc_request *request,

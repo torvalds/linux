@@ -649,8 +649,6 @@ static inline void obd_cleanup_client_import(struct obd_device *obd)
 		obd->u.cli.cl_import = NULL;
 	}
 	up_write(&obd->u.cli.cl_sem);
-
-	EXIT;
 }
 
 static inline int
@@ -1099,7 +1097,6 @@ static inline void obd_getref(struct obd_device *obd)
 		OBD_COUNTER_INCREMENT(obd, getref);
 		OBP(obd, getref)(obd);
 	}
-	EXIT;
 }
 
 static inline void obd_putref(struct obd_device *obd)
@@ -1108,7 +1105,6 @@ static inline void obd_putref(struct obd_device *obd)
 		OBD_COUNTER_INCREMENT(obd, putref);
 		OBP(obd, putref)(obd);
 	}
-	EXIT;
 }
 
 static inline int obd_init_export(struct obd_export *exp)
@@ -1525,14 +1521,12 @@ static inline void obd_import_event(struct obd_device *obd,
 {
 	if (!obd) {
 		CERROR("NULL device\n");
-		EXIT;
 		return;
 	}
 	if (obd->obd_set_up && OBP(obd, import_event)) {
 		OBD_COUNTER_INCREMENT(obd, import_event);
 		OBP(obd, import_event)(obd, imp, event);
 	}
-	EXIT;
 }
 
 static inline int obd_llog_connect(struct obd_export *exp,

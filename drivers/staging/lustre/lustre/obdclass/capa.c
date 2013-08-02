@@ -311,8 +311,6 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 		GOTO(out, rc);
 	}
 
-	EXIT;
-
 out:
 	ll_crypto_free_blkcipher(tfm);
 	return rc;
@@ -363,8 +361,6 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 		CERROR("failed to decrypt for aes\n");
 		GOTO(out, rc);
 	}
-
-	EXIT;
 
 out:
 	ll_crypto_free_blkcipher(tfm);

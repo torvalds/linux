@@ -202,7 +202,6 @@ int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
 	loghandle->u.phd.phd_cookie.lgc_lgl = cathandle->lgh_id;
 	loghandle->u.phd.phd_cookie.lgc_index =
 				loghandle->lgh_hdr->llh_cat_idx;
-	EXIT;
 out:
 	llog_handle_get(loghandle);
 	*res = loghandle;

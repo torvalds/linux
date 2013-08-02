@@ -132,7 +132,6 @@ static int llog_client_open(const struct lu_env *env,
 
 	lgh->lgh_id = body->lgd_logid;
 	lgh->lgh_ctxt = ctxt;
-	EXIT;
 out:
 	LLOG_CLIENT_EXIT(ctxt, imp);
 	ptlrpc_req_finished(req);
@@ -218,7 +217,6 @@ static int llog_client_next_block(const struct lu_env *env,
 	*cur_offset = body->lgd_cur_offset;
 
 	memcpy(buf, ptr, len);
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 err_exit:
@@ -266,7 +264,6 @@ static int llog_client_prev_block(const struct lu_env *env,
 		GOTO(out, rc =-EFAULT);
 
 	memcpy(buf, ptr, len);
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 err_exit:
@@ -321,7 +318,6 @@ static int llog_client_read_header(const struct lu_env *env,
 		CERROR("you may need to re-run lconf --write_conf.\n");
 		rc = -EIO;
 	}
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 err_exit:

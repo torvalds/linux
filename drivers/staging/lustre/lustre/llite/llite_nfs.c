@@ -245,8 +245,6 @@ static int ll_get_name(struct dentry *dentry, char *name,
 	mutex_unlock(&dir->i_mutex);
 	if (!rc && !lgd.lgd_found)
 		rc = -ENOENT;
-	EXIT;
-
 out:
 	return rc;
 }

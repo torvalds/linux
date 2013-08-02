@@ -390,8 +390,6 @@ static void osc_lock_lvb_update(const struct lu_env *env, struct osc_lock *olck,
 		cl_object_attr_set(env, obj, attr, valid);
 
 	cl_object_attr_unlock(obj);
-
-	EXIT;
 }
 
 /**
@@ -439,7 +437,6 @@ static void osc_lock_granted(const struct lu_env *env, struct osc_lock *olck,
 		LINVRNT(osc_lock_invariant(olck));
 		lock_res_and_lock(dlmlock);
 	}
-	EXIT;
 }
 
 static void osc_lock_upcall0(const struct lu_env *env, struct osc_lock *olck)

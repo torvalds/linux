@@ -1157,8 +1157,6 @@ void gss_sec_destroy_common(struct gss_sec *gsec)
 
 	if (SPTLRPC_FLVR_BULK_SVC(sec->ps_flvr.sf_rpc) == SPTLRPC_BULK_SVC_PRIV)
 		sptlrpc_enc_pool_del_user();
-
-	EXIT;
 }
 
 void gss_sec_kill(struct ptlrpc_sec *sec)
@@ -1462,8 +1460,6 @@ release_reqbuf:
 		req->rq_reqbuf = NULL;
 		req->rq_reqbuf_len = 0;
 	}
-
-	EXIT;
 }
 
 static int do_alloc_repbuf(struct ptlrpc_request *req, int bufsize)
@@ -2418,7 +2414,6 @@ void gss_svc_invalidate_ctx(struct ptlrpc_svc_ctx *svc_ctx)
 	struct gss_svc_reqctx  *grctx;
 
 	if (svc_ctx == NULL) {
-		EXIT;
 		return;
 	}
 
@@ -2427,8 +2422,6 @@ void gss_svc_invalidate_ctx(struct ptlrpc_svc_ctx *svc_ctx)
 	CWARN("gss svc invalidate ctx %p(%u)\n",
 	      grctx->src_ctx, grctx->src_ctx->gsc_uid);
 	gss_svc_upcall_destroy_ctx(grctx->src_ctx);
-
-	EXIT;
 }
 
 static inline

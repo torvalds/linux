@@ -99,7 +99,6 @@ void class_handle_hash(struct portals_handle *h,
 
 	CDEBUG(D_INFO, "added object %p with handle "LPX64" to hash\n",
 	       h, h->h_cookie);
-	EXIT;
 }
 EXPORT_SYMBOL(class_handle_hash);
 
@@ -145,8 +144,6 @@ void class_handle_hash_back(struct portals_handle *h)
 	list_add_rcu(&h->h_link, &bucket->head);
 	h->h_in = 1;
 	spin_unlock(&bucket->lock);
-
-	EXIT;
 }
 EXPORT_SYMBOL(class_handle_hash_back);
 

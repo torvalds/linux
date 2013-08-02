@@ -60,7 +60,6 @@ static void lovsub_lock_fini(const struct lu_env *env,
 	lsl = cl2lovsub_lock(slice);
 	LASSERT(list_empty(&lsl->lss_parents));
 	OBD_SLAB_FREE_PTR(lsl, lovsub_lock_kmem);
-	EXIT;
 }
 
 static void lovsub_parent_lock(const struct lu_env *env, struct lov_lock *lov)
@@ -71,7 +70,6 @@ static void lovsub_parent_lock(const struct lu_env *env, struct lov_lock *lov)
 	cl_lock_get(parent);
 	lu_ref_add(&parent->cll_reference, "lovsub-parent", current);
 	cl_lock_mutex_get(env, parent);
-	EXIT;
 }
 
 static void lovsub_parent_unlock(const struct lu_env *env, struct lov_lock *lov)
@@ -82,7 +80,6 @@ static void lovsub_parent_unlock(const struct lu_env *env, struct lov_lock *lov)
 	cl_lock_mutex_put(env, lov->lls_cl.cls_lock);
 	lu_ref_del(&parent->cll_reference, "lovsub-parent", current);
 	cl_lock_put(env, parent);
-	EXIT;
 }
 
 /**
@@ -109,7 +106,6 @@ static void lovsub_lock_state(const struct lu_env *env,
 			lovsub_parent_unlock(env, lov);
 		}
 	}
-	EXIT;
 }
 
 /**
@@ -177,7 +173,6 @@ static void lovsub_lock_descr_map(const struct cl_lock_descr *in,
 	}
 	out->cld_start = start;
 	out->cld_end   = end;
-	EXIT;
 }
 
 /**
@@ -422,7 +417,6 @@ static void lovsub_lock_delete(const struct lu_env *env,
 			}
 	       }
 	} while (restart);
-	EXIT;
 }
 
 static int lovsub_lock_print(const struct lu_env *env, void *cookie,

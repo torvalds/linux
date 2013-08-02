@@ -764,7 +764,6 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 	lu_ref_add(&page->cp_reference, "fault", io);
 	fio->ft_page = page;
-	EXIT;
 
 out:
 	/* return unlocked vmpage to avoid deadlocking */

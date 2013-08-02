@@ -249,7 +249,6 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 			spin_unlock(&lli->lli_lock);
 		}
 	}
-	EXIT;
 
 out_io:
 	cl_io_fini(env, io);
@@ -432,7 +431,6 @@ static void ll_vm_open(struct vm_area_struct * vma)
 	LASSERT(vma->vm_file);
 	LASSERT(atomic_read(&vob->cob_mmap_cnt) >= 0);
 	atomic_inc(&vob->cob_mmap_cnt);
-	EXIT;
 }
 
 /**
@@ -446,7 +444,6 @@ static void ll_vm_close(struct vm_area_struct *vma)
 	LASSERT(vma->vm_file);
 	atomic_dec(&vob->cob_mmap_cnt);
 	LASSERT(atomic_read(&vob->cob_mmap_cnt) >= 0);
-	EXIT;
 }
 
 

@@ -547,8 +547,6 @@ static void ll_sai_put(struct ll_statahead_info *sai)
 		iput(inode);
 		OBD_FREE_PTR(sai);
 	}
-
-	EXIT;
 }
 
 /* Do NOT forget to drop inode refcount when into sai_entries_agl. */
@@ -609,8 +607,6 @@ static void ll_agl_trigger(struct inode *inode, struct ll_statahead_info *sai)
 	       PFID(&lli->lli_fid), index, rc);
 
 	iput(inode);
-
-	EXIT;
 }
 
 static void ll_post_statahead(struct ll_statahead_info *sai)
@@ -685,8 +681,6 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 	if (agl_should_run(sai, child))
 		ll_agl_add(sai, child, entry->se_index);
 
-	EXIT;
-
 out:
 	/* The "ll_sa_entry_to_stated()" will drop related ldlm ibits lock
 	 * reference count by calling "ll_intent_drop_lock()" in spite of the
@@ -756,8 +750,6 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 		if (wakeup)
 			wake_up(&sai->sai_thread.t_ctl_waitq);
 	}
-
-	EXIT;
 
 out:
 	if (rc != 0) {
@@ -956,8 +948,6 @@ static void ll_statahead_one(struct dentry *parent, const char* entry_name,
 	sai->sai_index++;
 	/* drop one refcount on entry by ll_sa_entry_alloc */
 	ll_sa_entry_put(sai, entry);
-
-	EXIT;
 }
 
 static int ll_agl_thread(void *arg)
@@ -1044,7 +1034,6 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 	l_wait_event(thread->t_ctl_waitq,
 		     thread_is_running(thread) || thread_is_stopped(thread),
 		     &lwi);
-	EXIT;
 }
 
 static int ll_statahead_thread(void *arg)
@@ -1245,7 +1234,6 @@ do_it:
 			 */
 		}
 	}
-	EXIT;
 
 out:
 	if (sai->sai_agl_valid) {
@@ -1455,7 +1443,6 @@ static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 			ll_release_page(page, 1);
 		}
 	}
-	EXIT;
 
 out:
 	ll_dir_chain_fini(&chain);
@@ -1502,8 +1489,6 @@ ll_sai_unplug(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 
 	if (!thread_is_stopped(thread))
 		wake_up(&thread->t_ctl_waitq);
-
-	EXIT;
 }
 
 /**

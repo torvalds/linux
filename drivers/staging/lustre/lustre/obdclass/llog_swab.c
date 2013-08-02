@@ -97,7 +97,6 @@ void lustre_swab_llogd_body (struct llogd_body *d)
 	__swab32s (&d->lgd_len);
 	__swab64s (&d->lgd_cur_offset);
 	print_llogd_body(d);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_llogd_body);
 
@@ -302,7 +301,6 @@ void lustre_swab_llog_hdr (struct llog_log_hdr *h)
 	lustre_swab_llog_rec(&h->llh_hdr);
 
 	print_llog_hdr(h);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_llog_hdr);
 
@@ -325,7 +323,6 @@ static void print_lustre_cfg(struct lustre_cfg *lcfg)
 		for (i = 0; i < lcfg->lcfg_bufcount; i++)
 			CDEBUG(D_OTHER, "\tlcfg->lcfg_buflens[%d]: %d\n",
 			       i, lcfg->lcfg_buflens[i]);
-	EXIT;
 }
 
 void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
@@ -337,7 +334,6 @@ void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
 	if (lcfg->lcfg_version != LUSTRE_CFG_VERSION) {
 		CERROR("not swabbing lustre_cfg version %#x (expecting %#x)\n",
 		       lcfg->lcfg_version, LUSTRE_CFG_VERSION);
-		EXIT;
 		return;
 	}
 
@@ -350,7 +346,6 @@ void lustre_swab_lustre_cfg(struct lustre_cfg *lcfg)
 		__swab32s(&lcfg->lcfg_buflens[i]);
 
 	print_lustre_cfg(lcfg);
-	EXIT;
 	return;
 }
 EXPORT_SYMBOL(lustre_swab_lustre_cfg);
@@ -413,7 +408,6 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 		__swab64s(&marker->cm_canceltime);
 	}
 
-	EXIT;
 	return;
 }
 EXPORT_SYMBOL(lustre_swab_cfg_marker);

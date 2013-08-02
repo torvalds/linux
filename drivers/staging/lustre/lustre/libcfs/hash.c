@@ -1149,8 +1149,6 @@ cfs_hash_destroy(cfs_hash_t *hs)
 	i = cfs_hash_with_bigname(hs) ?
 	    CFS_HASH_BIGNAME_LEN : CFS_HASH_NAME_LEN;
 	LIBCFS_FREE(hs, offsetof(cfs_hash_t, hs_name[i]));
-
-	EXIT;
 }
 
 cfs_hash_t *cfs_hash_getref(cfs_hash_t *hs)

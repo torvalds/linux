@@ -171,7 +171,6 @@ void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 
 	LDLM_DEBUG(lock, "client blocking callback handler END");
 	LDLM_LOCK_RELEASE(lock);
-	EXIT;
 }
 
 /**
@@ -353,12 +352,10 @@ static void ldlm_handle_gl_callback(struct ptlrpc_request *req,
 		if (ldlm_bl_to_thread_lock(ns, NULL, lock))
 			ldlm_handle_bl_callback(ns, NULL, lock);
 
-		EXIT;
 		return;
 	}
 	unlock_res_and_lock(lock);
 	LDLM_LOCK_RELEASE(lock);
-	EXIT;
 }
 
 static int ldlm_callback_reply(struct ptlrpc_request *req, int rc)
@@ -933,8 +930,6 @@ void ldlm_put_ref(void)
 		ldlm_refcount--;
 	}
 	mutex_unlock(&ldlm_ref_mutex);
-
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_put_ref);
 
@@ -1031,7 +1026,6 @@ void ldlm_destroy_export(struct obd_export *exp)
 	exp->exp_lock_hash = NULL;
 
 	ldlm_destroy_flock_export(exp);
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_destroy_export);
 

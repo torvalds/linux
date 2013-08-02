@@ -253,7 +253,6 @@ static inline void lustre_cfg_free(struct lustre_cfg *lcfg)
 	len = lustre_cfg_len(lcfg->lcfg_bufcount, lcfg->lcfg_buflens);
 
 	OBD_FREE(lcfg, len);
-	EXIT;
 	return;
 }
 

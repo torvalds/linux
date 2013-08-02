@@ -273,7 +273,6 @@ void upcall_cache_put_entry(struct upcall_cache *cache,
 			    struct upcall_cache_entry *entry)
 {
 	if (!entry) {
-		EXIT;
 		return;
 	}
 
@@ -281,7 +280,6 @@ void upcall_cache_put_entry(struct upcall_cache *cache,
 	spin_lock(&cache->uc_lock);
 	put_entry(cache, entry);
 	spin_unlock(&cache->uc_lock);
-	EXIT;
 }
 EXPORT_SYMBOL(upcall_cache_put_entry);
 
@@ -374,7 +372,6 @@ static void cache_flush(struct upcall_cache *cache, int force)
 		}
 	}
 	spin_unlock(&cache->uc_lock);
-	EXIT;
 }
 
 void upcall_cache_flush_idle(struct upcall_cache *cache)

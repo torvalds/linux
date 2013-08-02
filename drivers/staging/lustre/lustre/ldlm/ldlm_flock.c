@@ -160,7 +160,6 @@ ldlm_flock_destroy(struct ldlm_lock *lock, ldlm_mode_t mode, __u64 flags)
 	}
 
 	ldlm_lock_destroy_nolock(lock);
-	EXIT;
 }
 
 /**
@@ -553,8 +552,6 @@ ldlm_flock_interrupted_wait(void *data)
 	/* client side - set flag to prevent lock from being put on LRU list */
 	lock->l_flags |= LDLM_FL_CBPENDING;
 	unlock_res_and_lock(lock);
-
-	EXIT;
 }
 
 /**
@@ -840,6 +837,5 @@ void ldlm_destroy_flock_export(struct obd_export *exp)
 		cfs_hash_putref(exp->exp_flock_hash);
 		exp->exp_flock_hash = NULL;
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_destroy_flock_export);

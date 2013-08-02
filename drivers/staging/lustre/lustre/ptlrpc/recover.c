@@ -62,8 +62,6 @@ void ptlrpc_initiate_recovery(struct obd_import *imp)
 {
 	CDEBUG(D_HA, "%s: starting recovery\n", obd2cli_tgt(imp->imp_obd));
 	ptlrpc_connect_import(imp);
-
-	EXIT;
 }
 
 /**
@@ -224,8 +222,6 @@ void ptlrpc_request_handle_notconn(struct ptlrpc_request *failed_req)
 	if (!failed_req->rq_no_resend)
 		failed_req->rq_resend = 1;
 	spin_unlock(&failed_req->rq_lock);
-
-	EXIT;
 }
 
 /**
@@ -329,7 +325,6 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 		CDEBUG(D_HA, "%s: recovery finished\n",
 		       obd2cli_tgt(imp->imp_obd));
 	}
-	EXIT;
 
 out:
 	return rc;

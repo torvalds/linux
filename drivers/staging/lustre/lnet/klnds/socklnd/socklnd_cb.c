@@ -400,8 +400,6 @@ ksocknal_tx_done (lnet_ni_t *ni, ksock_tx_t *tx)
 	ksocknal_free_tx (tx);
 	if (lnetmsg != NULL) /* KSOCK_MSG_NOOP go without lnetmsg */
 		lnet_finalize (ni, lnetmsg, rc);
-
-	EXIT;
 }
 
 void
@@ -1577,8 +1575,6 @@ void ksocknal_read_callback (ksock_conn_t *conn)
 		wake_up (&sched->kss_waitq);
 	}
 	spin_unlock_bh(&sched->kss_lock);
-
-	EXIT;
 }
 
 /*
@@ -1607,8 +1603,6 @@ void ksocknal_write_callback (ksock_conn_t *conn)
 	}
 
 	spin_unlock_bh(&sched->kss_lock);
-
-	EXIT;
 }
 
 ksock_proto_t *

@@ -78,7 +78,6 @@ static void lov_io_sub_fini(const struct lu_env *env, struct lov_io *lio,
 			cl_env_put(sub->sub_env, &sub->sub_refcheck);
 		sub->sub_env = NULL;
 	}
-	EXIT;
 }
 
 static void lov_io_sub_inherit(struct cl_io *io, struct lov_io *lio,
@@ -345,8 +344,6 @@ static void lov_io_slice_init(struct lov_io *lio,
 	default:
 		LBUG();
 	}
-
-	EXIT;
 }
 
 static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
@@ -366,7 +363,6 @@ static void lov_io_fini(const struct lu_env *env, const struct cl_io_slice *ios)
 	LASSERT(atomic_read(&lov->lo_active_ios) > 0);
 	if (atomic_dec_and_test(&lov->lo_active_ios))
 		wake_up_all(&lov->lo_waitq);
-	EXIT;
 }
 
 static obd_off lov_offset_mod(obd_off val, int delta)
@@ -524,7 +520,6 @@ static void lov_io_iter_fini(const struct lu_env *env,
 	LASSERT(rc == 0);
 	while (!list_empty(&lio->lis_active))
 		list_del_init(lio->lis_active.next);
-	EXIT;
 }
 
 static void lov_io_unlock(const struct lu_env *env,
@@ -534,7 +529,6 @@ static void lov_io_unlock(const struct lu_env *env,
 
 	rc = lov_io_call(env, cl2lov_io(env, ios), lov_io_unlock_wrapper);
 	LASSERT(rc == 0);
-	EXIT;
 }
 
 
@@ -820,7 +814,6 @@ static void lov_empty_io_fini(const struct lu_env *env,
 
 	if (atomic_dec_and_test(&lov->lo_active_ios))
 		wake_up_all(&lov->lo_waitq);
-	EXIT;
 }
 
 static void lov_empty_impossible(const struct lu_env *env,

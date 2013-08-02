@@ -204,8 +204,6 @@ static void ptlrpc_deactivate_and_unlock_import(struct obd_import *imp)
 
 	ptlrpc_abort_inflight(imp);
 	obd_import_event(imp->imp_obd, imp, IMP_EVENT_INACTIVE);
-
-	EXIT;
 }
 
 /*
@@ -414,7 +412,6 @@ void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 
 		ptlrpc_pinger_wake_up();
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_fail_import);
 
@@ -1475,8 +1472,6 @@ void ptlrpc_cleanup_imp(struct obd_import *imp)
 	imp->imp_generation++;
 	spin_unlock(&imp->imp_lock);
 	ptlrpc_abort_inflight(imp);
-
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_cleanup_imp);
 

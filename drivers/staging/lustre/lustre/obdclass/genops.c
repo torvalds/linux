@@ -648,7 +648,6 @@ void obd_cleanup_caches(void)
 		kmem_cache_destroy(capa_cachep);
 		capa_cachep = NULL;
 	}
-	EXIT;
 }
 
 int obd_init_caches(void)
@@ -769,7 +768,6 @@ static void class_export_destroy(struct obd_export *exp)
 	class_decref(obd, "export", exp);
 
 	OBD_FREE_RCU(exp, sizeof(*exp), &exp->exp_handle);
-	EXIT;
 }
 
 static void export_handle_addref(void *export)
@@ -947,7 +945,6 @@ void class_import_destroy(struct obd_import *imp)
 	LASSERT(imp->imp_sec == NULL);
 	class_decref(imp->imp_obd, "import", imp);
 	OBD_FREE_RCU(imp, sizeof(*imp), &imp->imp_handle);
-	EXIT;
 }
 
 static void import_handle_addref(void *import)
@@ -986,7 +983,6 @@ void class_import_put(struct obd_import *imp)
 
 	/* catch possible import put race */
 	LASSERT_ATOMIC_GE_LT(&imp->imp_refcount, 0, LI_POISON);
-	EXIT;
 }
 EXPORT_SYMBOL(class_import_put);
 
@@ -1265,7 +1261,6 @@ static void class_disconnect_export_list(struct list_head *list,
 		       obd_export_nid2str(exp), exp, rc);
 		class_export_put(exp);
 	}
-	EXIT;
 }
 
 void class_disconnect_exports(struct obd_device *obd)
@@ -1287,7 +1282,6 @@ void class_disconnect_exports(struct obd_device *obd)
 	} else
 		CDEBUG(D_HA, "OBD device %d (%p) has no exports\n",
 		       obd->obd_minor, obd);
-	EXIT;
 }
 EXPORT_SYMBOL(class_disconnect_exports);
 
@@ -1338,7 +1332,6 @@ void class_disconnect_stale_exports(struct obd_device *obd,
 
 	class_disconnect_export_list(&work_list, exp_flags_from_obd(obd) |
 						 OBD_OPT_ABORT_RECOV);
-	EXIT;
 }
 EXPORT_SYMBOL(class_disconnect_stale_exports);
 
@@ -1605,7 +1598,6 @@ void obd_zombie_impexp_cull(void)
 
 		cond_resched();
 	} while (import != NULL || export != NULL);
-	EXIT;
 }
 
 static struct completion	obd_zombie_start;

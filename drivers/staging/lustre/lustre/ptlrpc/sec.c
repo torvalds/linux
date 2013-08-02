@@ -441,7 +441,6 @@ void sptlrpc_req_put_ctx(struct ptlrpc_request *req, int sync)
 
 	sptlrpc_cli_ctx_put(req->rq_cli_ctx, sync);
 	req->rq_cli_ctx = NULL;
-	EXIT;
 }
 
 static
@@ -1691,7 +1690,6 @@ void sptlrpc_cli_free_repbuf(struct ptlrpc_request *req)
 	policy = ctx->cc_sec->ps_policy;
 	policy->sp_cops->free_repbuf(ctx->cc_sec, req);
 	req->rq_repmsg = NULL;
-	EXIT;
 }
 
 int sptlrpc_cli_install_rvs_ctx(struct obd_import *imp,
@@ -2149,7 +2147,6 @@ void sptlrpc_svc_free_rs(struct ptlrpc_reply_state *rs)
 
 	if (prealloc)
 		lustre_put_emerg_rs(rs);
-	EXIT;
 }
 
 void sptlrpc_svc_ctx_addref(struct ptlrpc_request *req)

@@ -922,7 +922,6 @@ void sptlrpc_conf_client_adapt(struct obd_device *obd)
 	}
 
 	up_read(&obd->u.cli.cl_sem);
-	EXIT;
 }
 EXPORT_SYMBOL(sptlrpc_conf_client_adapt);
 

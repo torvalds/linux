@@ -131,7 +131,6 @@ static void lov_sublock_adopt(const struct lu_env *env, struct lov_lock *lck,
 
 	rc = lov_sublock_modify(env, lck, lsl, &sublock->cll_descr, idx);
 	LASSERT(rc == 0); /* there is no way this can fail, currently */
-	EXIT;
 }
 
 static struct cl_lock *lov_sublock_alloc(const struct lu_env *env,
@@ -188,7 +187,6 @@ static void lov_sublock_unlock(const struct lu_env *env,
 	lov_sublock_env_put(subenv);
 	lsl->lss_active = NULL;
 	cl_lock_disclosure(env, closure);
-	EXIT;
 }
 
 static int lov_sublock_lock(const struct lu_env *env,
@@ -458,7 +456,6 @@ static void lov_sublock_hold(const struct lu_env *env, struct lov_lock *lck,
 		cl_lock_user_add(env, sublock);
 		cl_lock_put(env, sublock);
 	}
-	EXIT;
 }
 
 static void lov_lock_fini(const struct lu_env *env,
@@ -480,7 +477,6 @@ static void lov_lock_fini(const struct lu_env *env,
 			       lck->lls_nr * sizeof lck->lls_sub[0]);
 	}
 	OBD_SLAB_FREE_PTR(lck, lov_lock_kmem);
-	EXIT;
 }
 
 static int lov_lock_enqueue_wait(const struct lu_env *env,
@@ -1052,7 +1048,6 @@ void lov_lock_unlink(const struct lu_env *env,
 	lu_ref_del(&parent->cll_reference, "lov-child", sub->lss_cl.cls_lock);
 	cl_lock_put(env, parent);
 	OBD_SLAB_FREE_PTR(link, lov_lock_link_kmem);
-	EXIT;
 }
 
 struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
@@ -1123,7 +1118,6 @@ static void lov_lock_delete(const struct lu_env *env,
 	}
 
 	cl_lock_closure_fini(closure);
-	EXIT;
 }
 
 static int lov_lock_print(const struct lu_env *env, void *cookie,

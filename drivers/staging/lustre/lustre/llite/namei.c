@@ -714,7 +714,6 @@ static struct inode *ll_create_node(struct inode *dir, const char *name,
 	CDEBUG(D_DLMTRACE, "setting l_ast_data to inode %p (%lu/%u)\n",
 	       inode, inode->i_ino, inode->i_generation);
 	ll_set_lock_data(sbi->ll_md_exp, inode, it, NULL);
-	EXIT;
  out:
 	ptlrpc_req_finished(request);
 	return inode;
@@ -814,7 +813,6 @@ static int ll_new_node(struct inode *dir, struct qstr *name,
 
 		d_instantiate(dchild, inode);
 	}
-	EXIT;
 err_exit:
 	ptlrpc_req_finished(request);
 
@@ -923,7 +921,6 @@ static int ll_link_generic(struct inode *src,  struct inode *dir,
 
 	ll_update_times(request, dir);
 	ll_stats_ops_tally(sbi, LPROC_LL_LINK, 1);
-	EXIT;
 out:
 	ptlrpc_req_finished(request);
 	RETURN(err);

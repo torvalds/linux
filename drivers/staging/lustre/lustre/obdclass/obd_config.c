@@ -902,7 +902,6 @@ void class_del_profile(const char *prof)
 			OBD_FREE(lprof->lp_md, strlen(lprof->lp_md) + 1);
 		OBD_FREE(lprof, sizeof *lprof);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(class_del_profile);
 
@@ -919,7 +918,6 @@ void class_del_profiles(void)
 			OBD_FREE(lprof->lp_md, strlen(lprof->lp_md) + 1);
 		OBD_FREE(lprof, sizeof *lprof);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(class_del_profiles);
 

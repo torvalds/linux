@@ -124,7 +124,6 @@ static void lov_req_completion(const struct lu_env *env,
 
 	lr = cl2lov_req(slice);
 	OBD_SLAB_FREE_PTR(lr, lov_req_kmem);
-	EXIT;
 }
 
 static const struct cl_req_operations lov_req_ops = {
@@ -314,7 +313,6 @@ static void lov_cl_del_target(const struct lu_env *env, struct lu_device *dev,
 		cl_stack_fini(env, lovsub2cl_dev(ld->ld_target[index]));
 		ld->ld_target[index] = NULL;
 	}
-	EXIT;
 }
 
 static struct lov_device_emerg **lov_emerg_alloc(int nr)

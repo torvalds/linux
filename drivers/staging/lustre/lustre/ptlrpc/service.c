@@ -379,7 +379,6 @@ void ptlrpc_dispatch_difficult_reply(struct ptlrpc_reply_state *rs)
 	spin_unlock(&hrt->hrt_lock);
 
 	wake_up(&hrt->hrt_waitq);
-	EXIT;
 }
 
 void
@@ -391,14 +390,12 @@ ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs)
 	rs->rs_scheduled_ever = 1;  /* flag any notification attempt */
 
 	if (rs->rs_scheduled) {     /* being set up or already notified */
-		EXIT;
 		return;
 	}
 
 	rs->rs_scheduled = 1;
 	list_del_init(&rs->rs_list);
 	ptlrpc_dispatch_difficult_reply(rs);
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_schedule_difficult_reply);
 
@@ -425,7 +422,6 @@ void ptlrpc_commit_replies(struct obd_export *exp)
 	}
 	spin_unlock(&exp->exp_uncommitted_replies_lock);
 	rs_batch_fini(&batch);
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_commit_replies);
 
@@ -1071,7 +1067,6 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 
 	if (exp->exp_obd->obd_recovering) {
 		/* be nice to everyone during recovery */
-		EXIT;
 		return;
 	}
 
@@ -1100,8 +1095,6 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 				exp->exp_obd->obd_eviction_timer = 0;
 		}
 	}
-
-	EXIT;
 }
 
 /**
@@ -1547,7 +1540,6 @@ static void ptlrpc_server_hpreq_fini(struct ptlrpc_request *req)
 		list_del_init(&req->rq_exp_list);
 		spin_unlock_bh(&req->rq_export->exp_rpc_lock);
 	}
-	EXIT;
 }
 
 static int ptlrpc_hpreq_check(struct ptlrpc_request *req)
@@ -2615,7 +2607,6 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 		list_del(&thread->t_link);
 		OBD_FREE_PTR(thread);
 	}
-	EXIT;
 }
 
 /**
@@ -2630,8 +2621,6 @@ void ptlrpc_stop_all_threads(struct ptlrpc_service *svc)
 		if (svcpt->scp_service != NULL)
 			ptlrpc_svcpt_stop_threads(svcpt);
 	}
-
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_stop_all_threads);
 

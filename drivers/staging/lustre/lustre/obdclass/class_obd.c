@@ -675,8 +675,6 @@ static void cleanup_obdclass(void)
 	CDEBUG((pages_leaked) ? D_ERROR : D_INFO,
 	       "obd_memory_pages max: "LPU64", leaked: "LPU64"\n",
 	       pages_max, pages_leaked);
-
-	EXIT;
 }
 
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");

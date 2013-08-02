@@ -139,7 +139,6 @@ static int send_getstatus(struct obd_import *imp, struct lu_fid *rootfid,
 	       "root fid="DFID", last_committed="LPU64"\n",
 	       PFID(rootfid),
 	       lustre_msg_get_last_committed(req->rq_repmsg));
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -597,7 +596,6 @@ int mdc_get_lustre_md(struct obd_export *exp, struct ptlrpc_request *req,
 		md->oss_capa = oc;
 	}
 
-	EXIT;
 out:
 	if (rc) {
 		if (md->oss_capa) {
@@ -637,7 +635,6 @@ void mdc_replay_open(struct ptlrpc_request *req)
 	if (mod == NULL) {
 		DEBUG_REQ(D_ERROR, req,
 			  "Can't properly replay without open data.");
-		EXIT;
 		return;
 	}
 
@@ -671,7 +668,6 @@ void mdc_replay_open(struct ptlrpc_request *req)
 		DEBUG_REQ(D_HA, close_req, "updating close body with new fh");
 		epoch->handle = body->handle;
 	}
-	EXIT;
 }
 
 void mdc_commit_open(struct ptlrpc_request *req)
@@ -1096,7 +1092,6 @@ static int mdc_statfs(const struct lu_env *env,
 		GOTO(out, rc = -EPROTO);
 
 	*osfs = *msfs;
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 output:
@@ -1249,7 +1244,6 @@ static int mdc_ioc_hsm_current_action(struct obd_export *exp,
 
 	*hca = *req_hca;
 
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1313,7 +1307,6 @@ static int mdc_ioc_hsm_state_get(struct obd_export *exp,
 
 	*hus = *req_hus;
 
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1354,7 +1347,6 @@ static int mdc_ioc_hsm_state_set(struct obd_export *exp,
 	rc = mdc_queue_wait(req);
 	GOTO(out, rc);
 
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1702,7 +1694,6 @@ static int mdc_ioc_swap_layouts(struct obd_export *exp,
 	rc = ptlrpc_queue_wait(req);
 	if (rc)
 		GOTO(out, rc);
-	EXIT;
 
 out:
 	ptlrpc_req_finished(req);
@@ -2558,7 +2549,6 @@ static int mdc_interpret_renew_capa(const struct lu_env *env,
 	capa = req_capsule_server_get(&req->rq_pill, &RMF_CAPA2);
 	if (!capa)
 		GOTO(out, capa = ERR_PTR(-EFAULT));
-	EXIT;
 out:
 	ra->ra_cb(ra->ra_oc, capa);
 	return 0;

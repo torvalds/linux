@@ -309,11 +309,6 @@ do {								    \
 # error "Unkown compiler"
 #endif /* __GNUC__ */
 
-#define EXIT							    \
-do {								    \
-	CDEBUG(D_TRACE, "Process leaving\n");			   \
-} while(0)
-
 extern int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
 			    const char *format1, ...)
 	__attribute__ ((format (printf, 2, 3)));

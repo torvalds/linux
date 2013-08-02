@@ -95,8 +95,6 @@ void libcfs_run_debug_log_upcall(char *file)
 		CDEBUG(D_HA, "Invoked LNET debug log upcall %s %s\n",
 		       argv[0], argv[1]);
 	}
-
-	EXIT;
 }
 
 void libcfs_run_upcall(char **argv)

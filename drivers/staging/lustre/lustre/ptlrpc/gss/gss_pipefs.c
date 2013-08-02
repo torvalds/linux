@@ -286,7 +286,6 @@ void gss_sec_ctx_replace_pf(struct gss_sec *gsec,
 	spin_unlock(&gsec->gs_base.ps_lock);
 
 	ctx_list_destroy_pf(&freelist);
-	EXIT;
 }
 
 static
@@ -334,7 +333,6 @@ void gss_ctx_cache_gc_pf(struct gss_sec_pipefs *gsec_pf,
 	}
 
 	sec->ps_gc_next = cfs_time_current_sec() + sec->ps_gc_interval;
-	EXIT;
 }
 
 static
@@ -701,7 +699,6 @@ void gss_release_msg(struct gss_upcall_msg *gmsg)
 	LASSERT(atomic_read(&gmsg->gum_refcount) > 0);
 
 	if (!atomic_dec_and_test(&gmsg->gum_refcount)) {
-		EXIT;
 		return;
 	}
 
@@ -714,7 +711,6 @@ void gss_release_msg(struct gss_upcall_msg *gmsg)
 	LASSERT(list_empty(&gmsg->gum_list));
 	LASSERT(list_empty(&gmsg->gum_base.list));
 	OBD_FREE_PTR(gmsg);
-	EXIT;
 }
 
 static
@@ -945,7 +941,6 @@ void gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 
 	/* normally errno is >= 0 */
 	if (msg->errno >= 0) {
-		EXIT;
 		return;
 	}
 
@@ -970,7 +965,6 @@ void gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	}
 	gss_msg_fail_ctx(gmsg);
 	gss_release_msg(gmsg);
-	EXIT;
 }
 
 static
@@ -1009,7 +1003,6 @@ void gss_pipe_release(struct inode *inode)
 		upcall_list_lock(idx);
 	}
 	upcall_list_unlock(idx);
-	EXIT;
 }
 
 static struct rpc_pipe_ops gss_upcall_ops = {

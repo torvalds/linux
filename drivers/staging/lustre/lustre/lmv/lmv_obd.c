@@ -118,7 +118,6 @@ static int lmv_set_mdc_active(struct lmv_obd *lmv, struct obd_uuid *uuid,
 	CDEBUG(D_INFO, "Marking OBD %p %sactive\n", obd,
 	       activate ? "" : "in");
 	lmv_activate_target(lmv, tgt, activate);
-	EXIT;
 
  out_lmv_lock:
 	spin_unlock(&lmv->lmv_lock);
@@ -1267,7 +1266,6 @@ int __lmv_fid_alloc(struct lmv_obd *lmv, struct lu_fid *fid,
 		rc = 0;
 	}
 
-	EXIT;
 out:
 	mutex_unlock(&tgt->ltd_fid_mutex);
 	return rc;
@@ -1457,7 +1455,6 @@ static int lmv_statfs(const struct lu_env *env, struct obd_export *exp,
 		}
 	}
 
-	EXIT;
 out_free_temp:
 	OBD_FREE(temp, sizeof(*temp));
 	return rc;
@@ -1764,7 +1761,6 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	rc = md_enqueue(tgt->ltd_exp, einfo, it, rdata, lockh,
 			lmm, lmmsize, NULL, extra_lock_flags);
 	OBD_FREE_PTR(rdata);
-	EXIT;
 out:
 	ldlm_lock_decref(&plock, pmode);
 	return rc;

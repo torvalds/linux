@@ -1221,7 +1221,6 @@ out_trans:
 		GOTO(out, rc);
 	}
 
-	EXIT;
 out:
 	lu_object_put(env, &o->do_lu);
 	RETURN(rc);

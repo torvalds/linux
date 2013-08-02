@@ -525,8 +525,6 @@ int client_connect_import(const struct lu_env *env,
 
 	ptlrpc_pinger_add_import(imp);
 
-	EXIT;
-
 	if (rc) {
 out_ldlm:
 		cli->cl_conn_count--;
@@ -597,8 +595,6 @@ int client_disconnect_export(struct obd_export *exp)
 
 	ptlrpc_invalidate_import(imp);
 
-	EXIT;
-
 out_disconnect:
 	/* Use server style - class_disconnect should be always called for
 	 * o_disconnect. */
@@ -667,7 +663,6 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	struct obd_export	 *exp;
 
 	if (req->rq_no_reply) {
-		EXIT;
 		return;
 	}
 
@@ -676,7 +671,6 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	if (rs == NULL || !rs->rs_difficult) {
 		/* no notifiers */
 		target_send_reply_msg (req, rc, fail_id);
-		EXIT;
 		return;
 	}
 
@@ -747,7 +741,6 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	}
 	spin_unlock(&rs->rs_lock);
 	spin_unlock(&svcpt->scp_rep_lock);
-	EXIT;
 }
 EXPORT_SYMBOL(target_send_reply);
 

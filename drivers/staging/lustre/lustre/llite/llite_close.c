@@ -56,7 +56,6 @@ void vvp_write_pending(struct ccc_object *club, struct ccc_page *page)
 		list_add(&page->cpg_pending_linkage,
 			     &club->cob_pending_list);
 	spin_unlock(&lli->lli_lock);
-	EXIT;
 }
 
 /** records that a write has completed */
@@ -73,7 +72,6 @@ void vvp_write_complete(struct ccc_object *club, struct ccc_page *page)
 	spin_unlock(&lli->lli_lock);
 	if (rc)
 		ll_queue_done_writing(club->cob_inode, 0);
-	EXIT;
 }
 
 /** Queues DONE_WRITING if
@@ -116,7 +114,6 @@ void ll_queue_done_writing(struct inode *inode, unsigned long flags)
 		spin_unlock(&lcq->lcq_lock);
 	}
 	spin_unlock(&lli->lli_lock);
-	EXIT;
 }
 
 /** Pack SOM attributes info @opdata for CLOSE, DONE_WRITING rpc. */
@@ -136,7 +133,6 @@ void ll_done_writing_attr(struct inode *inode, struct md_op_data *op_data)
 		op_data->op_attr.ia_valid |= ATTR_MTIME_SET | ATTR_CTIME_SET |
 				ATTR_ATIME_SET | ATTR_SIZE | ATTR_BLOCKS;
 	}
-	EXIT;
 }
 
 /** Closes ioepoch and packs Size-on-MDS attribute if needed into @op_data. */
@@ -204,7 +200,6 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 	spin_unlock(&lli->lli_lock);
 	ll_done_writing_attr(inode, op_data);
 
-	EXIT;
 out:
 	return;
 }
@@ -293,7 +288,6 @@ static void ll_done_writing(struct inode *inode)
 	OBD_ALLOC_PTR(op_data);
 	if (op_data == NULL) {
 		CERROR("can't allocate op_data\n");
-		EXIT;
 		return;
 	}
 
@@ -317,7 +311,6 @@ out:
 		md_clear_open_replay_data(ll_i2sbi(inode)->ll_md_exp, och);
 		OBD_FREE_PTR(och);
 	}
-	EXIT;
 }
 
 static struct ll_inode_info *ll_close_next_lli(struct ll_close_queue *lcq)

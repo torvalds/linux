@@ -78,8 +78,6 @@ void request_out_callback(lnet_event_t *ev)
 	}
 
 	ptlrpc_req_finished(req);
-
-	EXIT;
 }
 
 /*
@@ -164,7 +162,6 @@ out_wake:
 	 * since we don't have our own ref */
 	ptlrpc_client_wake_req(req);
 	spin_unlock(&req->rq_lock);
-	EXIT;
 }
 
 /*
@@ -217,7 +214,6 @@ void client_bulk_callback (lnet_event_t *ev)
 		ptlrpc_client_wake_req(desc->bd_req);
 
 	spin_unlock(&desc->bd_lock);
-	EXIT;
 }
 
 /*
@@ -374,7 +370,6 @@ void request_in_callback(lnet_event_t *ev)
 	wake_up(&svcpt->scp_waitq);
 
 	spin_unlock(&svcpt->scp_lock);
-	EXIT;
 }
 
 /*
@@ -395,7 +390,6 @@ void reply_out_callback(lnet_event_t *ev)
 		 * net's ref on 'rs' */
 		LASSERT (ev->unlinked);
 		ptlrpc_rs_decref(rs);
-		EXIT;
 		return;
 	}
 
@@ -416,7 +410,6 @@ void reply_out_callback(lnet_event_t *ev)
 		spin_unlock(&rs->rs_lock);
 		spin_unlock(&svcpt->scp_rep_lock);
 	}
-	EXIT;
 }
 
 

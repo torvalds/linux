@@ -674,7 +674,6 @@ void ccc_lock_state(const struct lu_env *env,
 		    lock->cll_descr.cld_end == CL_PAGE_EOF)
 			cl_merge_lvb(env, inode);
 	}
-	EXIT;
 }
 
 /*****************************************************************************

@@ -111,7 +111,6 @@ out:
 	ll_pack_inode2opdata(inode, op_data, &och->och_fh);
 	ll_prep_md_op_data(op_data, inode, NULL, NULL,
 			   0, 0, LUSTRE_OPC_ANY, NULL);
-	EXIT;
 }
 
 static int ll_close_inode_openhandle(struct obd_export *md_exp,
@@ -177,9 +176,7 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 			       inode->i_ino, rc);
 	}
 
-	EXIT;
 out:
-
 	if (exp_connect_som(exp) && !epoch_close &&
 	    S_ISREG(inode->i_mode) && (och->och_flags & FMODE_WRITE)) {
 		ll_queue_done_writing(inode, LLIF_DONE_WRITING);
@@ -1690,7 +1687,6 @@ int ll_data_version(struct inode *inode, __u64 *data_version,
 	}
 
 	OBD_FREE_PTR(obdo);
-	EXIT;
 out:
 	ccc_inode_lsm_put(inode, lsm);
 	RETURN(rc);
@@ -2939,8 +2935,6 @@ static int ll_layout_fetch(struct inode *inode, struct ldlm_lock *lock)
 	lock->l_lvb_len = lmmsize;
 	unlock_res_and_lock(lock);
 
-	EXIT;
-
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -3029,7 +3023,6 @@ static int ll_layout_lock_set(struct lustre_handle *lockh, ldlm_mode_t mode,
 
 	/* refresh layout failed, need to wait */
 	wait_layout = rc == -EBUSY;
-	EXIT;
 
 out:
 	LDLM_LOCK_PUT(lock);

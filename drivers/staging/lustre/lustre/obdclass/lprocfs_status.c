@@ -910,7 +910,6 @@ void lprocfs_free_per_client_stats(struct obd_device *obd)
 		cfs_hash_del(hash, &stat->nid, &stat->nid_hash);
 		lprocfs_free_client_stats(stat);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(lprocfs_free_per_client_stats);
 

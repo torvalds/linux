@@ -437,7 +437,6 @@ static void osc_page_delete(const struct lu_env *env,
 	spin_unlock(&obj->oo_seatbelt);
 
 	osc_lru_del(osc_cli(obj), opg, true);
-	EXIT;
 }
 
 void osc_page_clip(const struct lu_env *env, const struct cl_page_slice *slice,

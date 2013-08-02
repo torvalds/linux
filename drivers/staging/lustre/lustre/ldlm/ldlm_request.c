@@ -456,7 +456,6 @@ int ldlm_cli_enqueue_local(struct ldlm_namespace *ns,
 		lock->l_completion_ast(lock, *flags, NULL);
 
 	LDLM_DEBUG(lock, "client-side local enqueue handler, new lock created");
-	EXIT;
  out:
 	LDLM_LOCK_RELEASE(lock);
  out_nolock:
@@ -689,7 +688,6 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue END");
-	EXIT;
 cleanup:
 	if (cleanup_phase == 1 && rc)
 		failed_lock_cleanup(ns, lock, mode);
@@ -1083,7 +1081,6 @@ int ldlm_cli_convert(struct lustre_handle *lockh, int new_mode, __u32 *flags)
 	} else {
 		rc = LUSTRE_EDEADLK;
 	}
-	EXIT;
  out:
 	LDLM_LOCK_PUT(lock);
 	ptlrpc_req_finished(req);
@@ -1168,7 +1165,6 @@ static void ldlm_cancel_pack(struct ptlrpc_request *req,
 		packed++;
 	}
 	CDEBUG(D_DLMTRACE, "%d locks packed\n", packed);
-	EXIT;
 }
 
 /**
@@ -1253,7 +1249,6 @@ int ldlm_cli_cancel_req(struct obd_export *exp, struct list_head *cancels,
 	}
 
 	ptlrpc_req_finished(req);
-	EXIT;
 out:
 	return sent ? sent : rc;
 }

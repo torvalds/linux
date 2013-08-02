@@ -291,7 +291,6 @@ static int osc_getattr(const struct lu_env *env, struct obd_export *exp,
 	oinfo->oi_oa->o_blksize = cli_brw_size(exp->exp_obd);
 	oinfo->oi_oa->o_valid |= OBD_MD_FLBLKSZ;
 
-	EXIT;
  out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -332,7 +331,6 @@ static int osc_setattr(const struct lu_env *env, struct obd_export *exp,
 	lustre_get_wire_obdo(&req->rq_import->imp_connect_data, oinfo->oi_oa,
 			     &body->oa);
 
-	EXIT;
 out:
 	ptlrpc_req_finished(req);
 	RETURN(rc);
@@ -2202,7 +2200,6 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 	 */
 	ptlrpcd_add_req(req, pol, -1);
 	rc = 0;
-	EXIT;
 
 out:
 	if (mem_tight != 0)
@@ -2822,7 +2819,6 @@ static int osc_statfs(const struct lu_env *env, struct obd_export *exp,
 
 	*osfs = *msfs;
 
-	EXIT;
  out:
 	ptlrpc_req_finished(req);
 	return rc;

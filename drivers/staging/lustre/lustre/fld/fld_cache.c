@@ -118,8 +118,6 @@ void fld_cache_fini(struct fld_cache *cache)
 	CDEBUG(D_INFO, "  Cache hits: "LPU64"%%\n", pct);
 
 	OBD_FREE_PTR(cache);
-
-	EXIT;
 }
 
 /**
@@ -196,8 +194,6 @@ restart_fixup:
 		    c_range->lsr_end == n_range->lsr_end)
 			fld_cache_entry_delete(cache, f_curr);
 	}
-
-	EXIT;
 }
 
 /**
@@ -255,8 +251,6 @@ void fld_cache_flush(struct fld_cache *cache)
 	cache->fci_cache_size = 0;
 	fld_cache_shrink(cache);
 	write_unlock(&cache->fci_lock);
-
-	EXIT;
 }
 
 /**
@@ -276,7 +270,6 @@ void fld_cache_punch_hole(struct fld_cache *cache,
 	OBD_ALLOC_GFP(fldt, sizeof *fldt, GFP_ATOMIC);
 	if (!fldt) {
 		OBD_FREE_PTR(f_new);
-		EXIT;
 		/* overlap is not allowed, so dont mess up list. */
 		return;
 	}
@@ -299,7 +292,6 @@ void fld_cache_punch_hole(struct fld_cache *cache,
 	fld_cache_entry_add(cache, fldt, &f_new->fce_list);
 
 	/* no need to fixup */
-	EXIT;
 }
 
 /**

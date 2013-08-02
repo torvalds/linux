@@ -810,7 +810,6 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 			     "recalc_timing", "sec");
 	rc = lprocfs_register_stats(pl->pl_proc_dir, "stats", pl->pl_stats);
 
-	EXIT;
 out_free_name:
 	OBD_FREE(var_name, MAX_STRING_SIZE + 1);
 	return rc;
@@ -877,7 +876,6 @@ void ldlm_pool_fini(struct ldlm_pool *pl)
 	 * any abnormal using cases.
 	 */
 	POISON(pl, 0x5a, sizeof(*pl));
-	EXIT;
 }
 EXPORT_SYMBOL(ldlm_pool_fini);
 
@@ -1370,7 +1368,6 @@ static int ldlm_pools_thread_start(void)
 static void ldlm_pools_thread_stop(void)
 {
 	if (ldlm_pools_thread == NULL) {
-		EXIT;
 		return;
 	}
 
@@ -1385,7 +1382,6 @@ static void ldlm_pools_thread_stop(void)
 	wait_for_completion(&ldlm_pools_comp);
 	OBD_FREE_PTR(ldlm_pools_thread);
 	ldlm_pools_thread = NULL;
-	EXIT;
 }
 
 int ldlm_pools_init(void)

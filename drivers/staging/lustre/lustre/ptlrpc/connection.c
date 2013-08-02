@@ -79,7 +79,6 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 		OBD_FREE_PTR(conn);
 		conn = conn2;
 	}
-	EXIT;
 out:
 	CDEBUG(D_INFO, "conn=%p refcount %d to %s\n",
 	       conn, atomic_read(&conn->c_refcount),
@@ -152,9 +151,9 @@ int ptlrpc_connection_init(void)
 }
 EXPORT_SYMBOL(ptlrpc_connection_init);
 
-void ptlrpc_connection_fini(void) {
+void ptlrpc_connection_fini(void)
+{
 	cfs_hash_putref(conn_hash);
-	EXIT;
 }
 EXPORT_SYMBOL(ptlrpc_connection_fini);
 

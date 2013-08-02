@@ -271,7 +271,6 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 	cl_object_put(env, obj);
 	lu_ref_fini(&page->cp_reference);
 	OBD_FREE(page, pagesize);
-	EXIT;
 }
 
 /**
@@ -560,7 +559,6 @@ static void cl_page_state_set0(const struct lu_env *env,
 		CS_PAGESTATE_INC(page->cp_obj, state);
 		cl_page_state_set_trust(page, state);
 	}
-	EXIT;
 }
 
 static void cl_page_state_set(const struct lu_env *env,
@@ -580,7 +578,6 @@ static void cl_page_state_set(const struct lu_env *env,
 void cl_page_get(struct cl_page *page)
 {
 	cl_page_get_trust(page);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_get);
 
@@ -612,8 +609,6 @@ void cl_page_put(const struct lu_env *env, struct cl_page *page)
 		 */
 		cl_page_free(env, page);
 	}
-
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_put);
 
@@ -790,7 +785,6 @@ static void cl_page_invoid(const struct lu_env *env,
 	CL_PAGE_INVOID(env, page, op,
 		       (const struct lu_env *,
 			const struct cl_page_slice *, struct cl_io *), io);
-	EXIT;
 }
 
 static void cl_page_owner_clear(struct cl_page *page)
@@ -803,7 +797,6 @@ static void cl_page_owner_clear(struct cl_page *page)
 			page->cp_task = NULL;
 		}
 	}
-	EXIT;
 }
 
 static void cl_page_owner_set(struct cl_page *page)
@@ -812,7 +805,6 @@ static void cl_page_owner_set(struct cl_page *page)
 		LASSERT(page->cp_owner != NULL);
 		page->cp_owner->ci_owned_nr++;
 	}
-	EXIT;
 }
 
 void cl_page_disown0(const struct lu_env *env,
@@ -836,7 +828,6 @@ void cl_page_disown0(const struct lu_env *env,
 			       (const struct lu_env *,
 				const struct cl_page_slice *, struct cl_io *),
 			       io);
-	EXIT;
 }
 
 /**
@@ -953,7 +944,6 @@ void cl_page_assume(const struct lu_env *env,
 	pg->cp_task = current;
 	cl_page_owner_set(pg);
 	cl_page_state_set(env, pg, CPS_OWNED);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_assume);
 
@@ -982,7 +972,6 @@ void cl_page_unassume(const struct lu_env *env,
 			       (const struct lu_env *,
 				const struct cl_page_slice *, struct cl_io *),
 			       io);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_unassume);
 
@@ -1005,7 +994,6 @@ void cl_page_disown(const struct lu_env *env,
 	pg = cl_page_top(pg);
 	io = cl_io_top(io);
 	cl_page_disown0(env, io, pg);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_disown);
 
@@ -1082,8 +1070,6 @@ static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg,
 			cl_page_put(env, tmp);
 		}
 	}
-
-	EXIT;
 }
 
 /**
@@ -1115,7 +1101,6 @@ void cl_page_delete(const struct lu_env *env, struct cl_page *pg)
 {
 	PINVRNT(env, pg, cl_page_invariant(pg));
 	cl_page_delete0(env, pg, 1);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_delete);
 
@@ -1193,7 +1178,6 @@ static void cl_page_io_start(const struct lu_env *env,
 	 */
 	cl_page_owner_clear(pg);
 	cl_page_state_set(env, pg, cl_req_type_state(crt));
-	EXIT;
 }
 
 /**
@@ -1282,8 +1266,6 @@ void cl_page_completion(const struct lu_env *env,
 
 	if (anchor)
 		cl_sync_io_note(anchor, ioret);
-
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_completion);
 
@@ -1558,7 +1540,6 @@ void cl_page_slice_add(struct cl_page *page, struct cl_page_slice *slice,
 	slice->cpl_obj  = obj;
 	slice->cpl_ops  = ops;
 	slice->cpl_page = page;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_page_slice_add);
 

@@ -86,7 +86,6 @@ void lov_finish_set(struct lov_request_set *set)
 		lov_llh_put(set->set_lockh);
 
 	OBD_FREE(set, sizeof(*set));
-	EXIT;
 }
 
 int lov_set_finished(struct lov_request_set *set, int idempotent)

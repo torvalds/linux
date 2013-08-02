@@ -195,7 +195,6 @@ void cl_lock_slice_add(struct cl_lock *lock, struct cl_lock_slice *slice,
 	list_add_tail(&slice->cls_linkage, &lock->cll_layers);
 	slice->cls_obj = obj;
 	slice->cls_ops = ops;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_slice_add);
 
@@ -271,7 +270,6 @@ static void cl_lock_free(const struct lu_env *env, struct cl_lock *lock)
 	lu_ref_fini(&lock->cll_holders);
 	mutex_destroy(&lock->cll_guard);
 	OBD_SLAB_FREE_PTR(lock, cl_lock_kmem);
-	EXIT;
 }
 
 /**
@@ -301,7 +299,6 @@ void cl_lock_put(const struct lu_env *env, struct cl_lock *lock)
 		}
 		CS_LOCK_DEC(obj, busy);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_put);
 
@@ -783,7 +780,6 @@ static void cl_lock_cancel0(const struct lu_env *env, struct cl_lock *lock)
 				slice->cls_ops->clo_cancel(env, slice);
 		}
 	}
-	EXIT;
 }
 
 static void cl_lock_delete0(const struct lu_env *env, struct cl_lock *lock)
@@ -823,7 +819,6 @@ static void cl_lock_delete0(const struct lu_env *env, struct cl_lock *lock)
 		 * existing references goes away.
 		 */
 	}
-	EXIT;
 }
 
 /**
@@ -896,7 +891,6 @@ void cl_lock_hold_release(const struct lu_env *env, struct cl_lock *lock,
 			cl_lock_delete0(env, lock);
 		}
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_hold_release);
 
@@ -977,7 +971,6 @@ static void cl_lock_state_signal(const struct lu_env *env, struct cl_lock *lock,
 		if (slice->cls_ops->clo_state != NULL)
 			slice->cls_ops->clo_state(env, slice, state);
 	wake_up_all(&lock->cll_wq);
-	EXIT;
 }
 
 /**
@@ -991,7 +984,6 @@ void cl_lock_signal(const struct lu_env *env, struct cl_lock *lock)
 {
 	cl_lock_trace(D_DLMTRACE, env, "state signal lock", lock);
 	cl_lock_state_signal(env, lock, lock->cll_state);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_signal);
 
@@ -1023,7 +1015,6 @@ void cl_lock_state_set(const struct lu_env *env, struct cl_lock *lock,
 		cl_lock_state_signal(env, lock, state);
 		lock->cll_state = state;
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_state_set);
 
@@ -1388,8 +1379,6 @@ static void cl_unuse_locked(const struct lu_env *env, struct cl_lock *lock)
 	result = cl_unuse_try(env, lock);
 	if (result)
 		CL_LOCK_DEBUG(D_ERROR, env, lock, "unuse return %d\n", result);
-
-	EXIT;
 }
 
 /**
@@ -1401,7 +1390,6 @@ void cl_unuse(const struct lu_env *env, struct cl_lock *lock)
 	cl_unuse_locked(env, lock);
 	cl_lock_mutex_put(env, lock);
 	cl_lock_lockdep_release(env, lock);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_unuse);
 
@@ -1737,7 +1725,6 @@ void cl_lock_delete(const struct lu_env *env, struct cl_lock *lock)
 		cl_lock_delete0(env, lock);
 	else
 		lock->cll_flags |= CLF_DOOMED;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_delete);
 
@@ -1763,7 +1750,6 @@ void cl_lock_error(const struct lu_env *env, struct cl_lock *lock, int error)
 		cl_lock_cancel(env, lock);
 		cl_lock_delete(env, lock);
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_error);
 
@@ -1788,7 +1774,6 @@ void cl_lock_cancel(const struct lu_env *env, struct cl_lock *lock)
 		cl_lock_cancel0(env, lock);
 	else
 		lock->cll_flags |= CLF_CANCELPEND;
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_cancel);
 
@@ -2018,7 +2003,6 @@ again:
 		spin_lock(&head->coh_lock_guard);
 	}
 	spin_unlock(&head->coh_lock_guard);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_locks_prune);
 
@@ -2128,7 +2112,6 @@ void cl_lock_hold_add(const struct lu_env *env, struct cl_lock *lock,
 	cl_lock_get(lock);
 	lu_ref_add(&lock->cll_holders, scope, source);
 	lu_ref_add(&lock->cll_reference, scope, source);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_hold_add);
 
@@ -2143,7 +2126,6 @@ void cl_lock_unhold(const struct lu_env *env, struct cl_lock *lock,
 	cl_lock_hold_release(env, lock, scope, source);
 	lu_ref_del(&lock->cll_reference, scope, source);
 	cl_lock_put(env, lock);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_unhold);
 
@@ -2160,7 +2142,6 @@ void cl_lock_release(const struct lu_env *env, struct cl_lock *lock,
 	cl_lock_mutex_put(env, lock);
 	lu_ref_del(&lock->cll_reference, scope, source);
 	cl_lock_put(env, lock);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_release);
 
@@ -2170,7 +2151,6 @@ void cl_lock_user_add(const struct lu_env *env, struct cl_lock *lock)
 	LINVRNT(cl_lock_invariant(env, lock));
 
 	cl_lock_used_mod(env, lock, +1);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_user_add);
 
@@ -2183,7 +2163,6 @@ void cl_lock_user_del(const struct lu_env *env, struct cl_lock *lock)
 	cl_lock_used_mod(env, lock, -1);
 	if (lock->cll_users == 0)
 		wake_up_all(&lock->cll_wq);
-	EXIT;
 }
 EXPORT_SYMBOL(cl_lock_user_del);
 

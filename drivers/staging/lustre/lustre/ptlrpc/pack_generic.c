@@ -2170,14 +2170,12 @@ static void lustre_swab_lov_user_md_common(struct lov_user_md_v1 *lum)
 	__swab16s(&lum->lmm_stripe_count);
 	__swab16s(&lum->lmm_stripe_offset);
 	print_lum(lum);
-	EXIT;
 }
 
 void lustre_swab_lov_user_md_v1(struct lov_user_md_v1 *lum)
 {
 	CDEBUG(D_IOCTL, "swabbing lov_user_md v1\n");
 	lustre_swab_lov_user_md_common(lum);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_v1);
 
@@ -2186,7 +2184,6 @@ void lustre_swab_lov_user_md_v3(struct lov_user_md_v3 *lum)
 	CDEBUG(D_IOCTL, "swabbing lov_user_md v3\n");
 	lustre_swab_lov_user_md_common((struct lov_user_md_v1 *)lum);
 	/* lmm_pool_name nothing to do with char */
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_v3);
 
@@ -2199,7 +2196,6 @@ void lustre_swab_lov_mds_md(struct lov_mds_md *lmm)
 	__swab32s(&lmm->lmm_stripe_size);
 	__swab16s(&lmm->lmm_stripe_count);
 	__swab16s(&lmm->lmm_layout_gen);
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_mds_md);
 
@@ -2213,7 +2209,6 @@ void lustre_swab_lov_user_md_objects(struct lov_user_ost_data *lod,
 		__swab32s(&(lod[i].l_ost_gen));
 		__swab32s(&(lod[i].l_ost_idx));
 	}
-	EXIT;
 }
 EXPORT_SYMBOL(lustre_swab_lov_user_md_objects);
 

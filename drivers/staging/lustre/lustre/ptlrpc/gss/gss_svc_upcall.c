@@ -681,7 +681,6 @@ static void rsc_flush(rsc_entry_match *match, long data)
 		}
 	}
 	write_unlock(&rsc_cache.hash_lock);
-	EXIT;
 }
 
 static int match_uid(struct rsc *rscp, long uid)

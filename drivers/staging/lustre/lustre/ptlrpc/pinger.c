@@ -350,7 +350,6 @@ static int ptlrpc_pinger_main(void *arg)
 				     thread_is_event(thread),
 				     &lwi);
 			if (thread_test_and_clear_flags(thread, SVC_STOPPING)) {
-				EXIT;
 				break;
 			} else {
 				/* woken after adding import to reset timer */

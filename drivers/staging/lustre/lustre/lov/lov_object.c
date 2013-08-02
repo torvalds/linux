@@ -374,8 +374,6 @@ static void lov_fini_raid0(const struct lu_env *env, struct lov_object *lov,
 
 	dump_lsm(D_INODE, lov->lo_lsm);
 	lov_free_memmd(&lov->lo_lsm);
-
-	EXIT;
 }
 
 static void lov_fini_released(const struct lu_env *env, struct lov_object *lov,
@@ -383,7 +381,6 @@ static void lov_fini_released(const struct lu_env *env, struct lov_object *lov,
 {
 	dump_lsm(D_INODE, lov->lo_lsm);
 	lov_free_memmd(&lov->lo_lsm);
-	EXIT;
 }
 
 static int lov_print_empty(const struct lu_env *env, void *cookie,
@@ -767,7 +764,6 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 	}
 
 	lov->lo_layout_invalid = lov_layout_change(env, lov, conf);
-	EXIT;
 
 out:
 	lov_conf_unlock(lov);
@@ -779,7 +775,6 @@ static void lov_object_delete(const struct lu_env *env, struct lu_object *obj)
 	struct lov_object *lov = lu2lov(obj);
 
 	LOV_2DISPATCH_VOID(lov, llo_delete, env, lov, &lov->u);
-	EXIT;
 }
 
 static void lov_object_free(const struct lu_env *env, struct lu_object *obj)
@@ -789,7 +784,6 @@ static void lov_object_free(const struct lu_env *env, struct lu_object *obj)
 	LOV_2DISPATCH_VOID(lov, llo_fini, env, lov, &lov->u);
 	lu_object_fini(obj);
 	OBD_SLAB_FREE_PTR(lov, lov_object_kmem);
-	EXIT;
 }
 
 static int lov_object_print(const struct lu_env *env, void *cookie,
