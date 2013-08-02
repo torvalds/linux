@@ -674,10 +674,33 @@ int __init pcibios_init(void)
 			continue;
 		}
 
-		ret = gxio_trio_force_rc_link_up(trio_context, mac);
-		if (ret < 0)
-			pr_err("PCI: PCIE_FORCE_LINK_UP failure, "
-				"MAC %d on TRIO %d\n", mac, trio_index);
+		/*
+		 * Check for PCIe link-up status to decide if we need
+		 * to force the link to come up.
+		 */
+		reg_offset =
+			(TRIO_PCIE_INTFC_PORT_STATUS <<
+				TRIO_CFG_REGION_ADDR__REG_SHIFT) |
+			(TRIO_CFG_REGION_ADDR__INTFC_VAL_MAC_INTERFACE <<
+				TRIO_CFG_REGION_ADDR__INTFC_SHIFT) |
+			(mac << TRIO_CFG_REGION_ADDR__MAC_SEL_SHIFT);
+
+		port_status.word =
+			__gxio_mmio_read(trio_context->mmio_base_mac +
+					 reg_offset);
+		if (!port_status.dl_up) {
+			if (rc_delay[trio_index][mac]) {
+				pr_info("Delaying PCIe RC TRIO init %d sec"
+					" on MAC %d on TRIO %d\n",
+					rc_delay[trio_index][mac], mac,
+					trio_index);
+				msleep(rc_delay[trio_index][mac] * 1000);
+			}
+			ret = gxio_trio_force_rc_link_up(trio_context, mac);
+			if (ret < 0)
+				pr_err("PCI: PCIE_FORCE_LINK_UP failure, "
+					"MAC %d on TRIO %d\n", mac, trio_index);
+		}
 
 		pr_info("PCI: Found PCI controller #%d on TRIO %d MAC %d\n", i,
 			trio_index, controller->mac);
@@ -700,16 +723,8 @@ int __init pcibios_init(void)
 		}
 
 		/*
-		 * Check for PCIe link-up status.
+		 * Check for PCIe link-up status again.
 		 */
-
-		reg_offset =
-			(TRIO_PCIE_INTFC_PORT_STATUS <<
-				TRIO_CFG_REGION_ADDR__REG_SHIFT) |
-			(TRIO_CFG_REGION_ADDR__INTFC_VAL_MAC_INTERFACE <<
-				TRIO_CFG_REGION_ADDR__INTFC_SHIFT ) |
-			(mac << TRIO_CFG_REGION_ADDR__MAC_SEL_SHIFT);
-
 		port_status.word =
 			__gxio_mmio_read(trio_context->mmio_base_mac +
 					 reg_offset);
