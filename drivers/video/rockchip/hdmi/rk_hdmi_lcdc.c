@@ -107,10 +107,11 @@ int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic)
 	screen->hdmi_resolution = hdmi_mode[i].flag;
 
 	/* Pin polarity */
-#ifdef CONFIG_HDMI_RK616
+#if defined(CONFIG_HDMI_RK616) && !defined(CONFIG_ARCH_RK3026)
 	screen->pin_hsync = 0;
 	screen->pin_vsync = 0;
 #else 
+	screen->pin_hsync = 0;
 	if(FB_SYNC_HOR_HIGH_ACT & hdmi_mode[i].sync)
 		screen->pin_hsync = 1;
 	else
