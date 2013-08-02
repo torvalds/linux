@@ -38,7 +38,6 @@
  * $Id: dgnc_mgmt.c,v 1.2 2010/12/14 20:08:29 markh Exp $
  */
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/ctype.h>
 #include <linux/sched.h>	/* For jiffies, task states */
 #include <linux/interrupt.h>	/* For tasklet and interrupt structs/defines */
