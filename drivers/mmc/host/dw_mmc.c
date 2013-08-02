@@ -1659,6 +1659,9 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			queue_work(host->card_workqueue, &host->card_work);
 		}
 
+		if (pending & SDMMC_INT_HLE)
+			mci_writel(host, RINTSTS, SDMMC_INT_HLE);
+
 		/* Handle SDIO Interrupts */
 		for (i = 0; i < host->num_slots; i++) {
 			struct dw_mci_slot *slot = host->slot[i];
