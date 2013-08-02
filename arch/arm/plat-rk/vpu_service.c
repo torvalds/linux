@@ -233,7 +233,6 @@ static vpu_device 	dec_dev;
 static vpu_device 	enc_dev;
 static unsigned int irq_vdpu = IRQ_VDPU;
 static unsigned int irq_vepu = IRQ_VEPU;
-static bool dev_already_added = false;
 
 #define VPU_POWER_OFF_DELAY		4*HZ /* 4s */
 #define VPU_TIMEOUT_DELAY		2*HZ /* 2s */
@@ -1031,12 +1030,9 @@ static struct platform_device vpu_service_device = {
 	.id 		   = -1,
 };
 
-static int vpu_service_probe(struct platform_device *pdev)
+static int vpu_probe(struct platform_device *pdev)
 {
 	int irq;
-
-	if (dev_already_added)
-		return -EEXIST;
 
 	irq = platform_get_irq_byname(pdev, "irq_vdpu");
 	if (irq > 0)
@@ -1045,13 +1041,18 @@ static int vpu_service_probe(struct platform_device *pdev)
 	if (irq > 0)
 		irq_vepu = irq;
 
-	dev_already_added = true;
-
 	return 0;
 }
 
+static struct platform_driver vpu_driver = {
+	.probe     = vpu_probe,
+	.driver    = {
+		.name  = "vpu",
+		.owner = THIS_MODULE,
+	},
+};
+
 static struct platform_driver vpu_service_driver = {
-	.probe     = vpu_service_probe,
 	.driver    = {
 		.name  = "vpu_service",
 		.owner = THIS_MODULE,
@@ -1366,7 +1367,7 @@ static int __init vpu_service_init(void)
 {
 	int ret;
 
-	platform_driver_register(&vpu_service_driver);
+	platform_driver_register(&vpu_driver);
 	pr_debug("baseaddr = 0x%08x vdpu irq = %d vepu irq = %d\n", VCODEC_PHYS, irq_vdpu, irq_vepu);
 
 	wake_lock_init(&service.wake_lock, WAKE_LOCK_SUSPEND, "vpu");
@@ -1426,8 +1427,8 @@ static int __init vpu_service_init(void)
 		goto err_register;
 	}
 
-	if (!dev_already_added)
-		platform_device_register(&vpu_service_device);
+	platform_device_register(&vpu_service_device);
+	platform_driver_probe(&vpu_service_driver, NULL);
 	get_hw_info();
 	vpu_service_power_off();
 	pr_info("init success\n");
