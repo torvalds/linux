@@ -724,12 +724,14 @@ static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 	return &asc_ports[id];
 }
 
+#ifdef CONFIG_OF
 static struct of_device_id asc_match[] = {
 	{ .compatible = "st,asc", },
 	{},
 };
 
 MODULE_DEVICE_TABLE(of, asc_match);
+#endif
 
 static int asc_serial_probe(struct platform_device *pdev)
 {
