@@ -1,6 +1,6 @@
 config LUSTRE_FS
 	tristate "Lustre file system client support"
-	depends on STAGING && INET && BLOCK && m
+	depends on INET && m
 	select LNET
 	select CRYPTO
 	select CRYPTO_CRC32
@@ -53,3 +53,8 @@ config LUSTRE_TRANSLATE_ERRNOS
 	bool
 	depends on LUSTRE_FS && !X86
 	default true
+
+config LUSTRE_LLITE_LLOOP
+	bool "Lustre virtual block device"
+	depends on LUSTRE_FS && BLOCK
+	default m

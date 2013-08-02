@@ -848,10 +848,8 @@ static void lloop_exit(void)
 		blk_cleanup_queue(loop_dev[i].lo_queue);
 		put_disk(disks[i]);
 	}
-	if (ll_unregister_blkdev(lloop_major, "lloop"))
-		CWARN("lloop: cannot unregister blkdev\n");
-	else
-		CDEBUG(D_CONFIG, "unregistered lloop major %d\n", lloop_major);
+
+	unregister_blkdev(lloop_major, "lloop");
 
 	OBD_FREE(disks, max_loop * sizeof(*disks));
 	OBD_FREE(loop_dev, max_loop * sizeof(*loop_dev));

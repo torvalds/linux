@@ -111,13 +111,6 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 #define TREE_READ_LOCK_IRQ(mapping)	spin_lock_irq(&(mapping)->tree_lock)
 #define TREE_READ_UNLOCK_IRQ(mapping)	spin_unlock_irq(&(mapping)->tree_lock)
 
-static inline
-int ll_unregister_blkdev(unsigned int dev, const char *name)
-{
-	unregister_blkdev(dev, name);
-	return 0;
-}
-
 #define ll_invalidate_bdev(a,b)	 invalidate_bdev((a))
 
 #ifndef FS_HAS_FIEMAP
