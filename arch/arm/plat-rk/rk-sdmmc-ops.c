@@ -461,6 +461,185 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
 
 };
 // ---end -#if defined(CONFIG_ARCH_RK2928)
+#elif defined(CONFIG_ARCH_RK3026)
+/*
+* define the gpio for sdmmc0
+*/
+static struct rksdmmc_gpio_board rksdmmc0_gpio_init = {
+
+     .clk_gpio       = {
+        .io             = RK30_PIN1_PC0,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc0_clk",
+            .fgpio      = GPIO1_C0,
+            .fmux       = MMC0_CLKOUT,
+        },
+    },   
+
+    .cmd_gpio           = {
+        .io             = RK30_PIN1_PB7,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc0_cmd",
+            .fgpio      = GPIO1_B7,
+            .fmux       = MMC0_CMD,
+        },
+    },      
+
+   .data0_gpio       = {
+        .io             = RK30_PIN1_PC2,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc0_d0",
+            .fgpio      = GPIO1_C2,
+            .fmux       = MMC0_D0,
+        },
+    },      
+
+    .data1_gpio       = {
+        .io             = RK30_PIN1_PC3,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc0_d1",
+            .fgpio      = GPIO1_C3,
+            .fmux       = MMC0_D1,
+        },
+    },      
+
+    .data2_gpio       = {
+        .io             = RK30_PIN1_PC4,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc0_d2",
+            .fgpio      = GPIO1_C4,
+            .fmux       = MMC0_D2,
+        },
+    }, 
+
+    .data3_gpio       = {
+        .io             = RK30_PIN1_PC5,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc0_d3",
+            .fgpio      = GPIO1_C5,
+            .fmux       = MMC0_D3,
+        },
+    }, 
+
+   
+    .power_en_gpio      = {   
+#if defined(RK29SDK_SD_CARD_PWR_EN) || (INVALID_GPIO != RK29SDK_SD_CARD_PWR_EN)
+        .io             = RK29SDK_SD_CARD_PWR_EN,
+        .enable         = RK29SDK_SD_CARD_PWR_EN_LEVEL,
+        #ifdef RK29SDK_SD_CARD_PWR_EN_PIN_NAME
+        .iomux          = {
+            .name       = RK29SDK_SD_CARD_PWR_EN_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO
+            .fgpio      = RK29SDK_SD_CARD_PWR_EN_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX
+            .fmux       = RK29SDK_SD_CARD_PWR_EN_IOMUX_FMUX,
+            #endif
+        },
+        #endif
+#else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+#endif
+    }, 
+
+    .detect_irq       = {
+#if defined(RK29SDK_SD_CARD_DETECT_N) || (INVALID_GPIO != RK29SDK_SD_CARD_DETECT_N)  
+        .io             = RK29SDK_SD_CARD_DETECT_N,
+        .enable         = RK29SDK_SD_CARD_INSERT_LEVEL,
+        #ifdef RK29SDK_SD_CARD_DETECT_PIN_NAME
+        .iomux          = {
+            .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO
+            .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
+            #endif
+            #ifdef RK29SDK_SD_CARD_DETECT_IOMUX_FMUX
+            .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
+            #endif
+        },
+        #endif
+#else
+        .io             = INVALID_GPIO,
+        .enable         = GPIO_LOW,
+#endif            
+    }, 
+};
+
+
+/*
+* define the gpio for sdmmc1
+*/
+static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
+
+     .clk_gpio       = {
+        .io             = RK30_PIN0_PB1,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc1_clk",
+            .fgpio      = GPIO0_B1,
+            .fmux       = MMC1_CLKOUT,
+        },
+    },   
+
+    .cmd_gpio           = {
+        .io             = RK30_PIN0_PB0,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc1_cmd",
+            .fgpio      = GPIO0_B0,
+            .fmux       = MMC1_CMD,
+        },
+    },      
+
+   .data0_gpio       = {
+        .io             = RK30_PIN0_PB3,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc1_d0",
+            .fgpio      = GPIO0_B3,
+            .fmux       = MMC1_D0,
+        },
+    },      
+
+    .data1_gpio       = {
+        .io             = RK30_PIN0_PB4,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc1_d1",
+            .fgpio      = GPIO0_B4,
+            .fmux       = MMC1_D1,
+        },
+    },      
+
+    .data2_gpio       = {
+        .io             = RK30_PIN0_PB5,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc1_d2",
+            .fgpio      = GPIO0_B5,
+            .fmux       = MMC1_D2,
+        },
+    }, 
+
+    .data3_gpio       = {
+        .io             = RK30_PIN0_PB6,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = "mmc1_d3",
+            .fgpio      = GPIO0_B6,
+            .fmux       = MMC1_D3,
+        },
+    }, 
+
+
+};
+// ---end -#if defined(CONFIG_ARCH_RK3026)
 
 #else //default for RK30,RK3066 SDK
 /*

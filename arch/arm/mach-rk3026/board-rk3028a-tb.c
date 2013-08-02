@@ -721,40 +721,40 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
 	},
 
 	.reset_gpio         = { // BT_RST
-		.io             = RK30_PIN1_PB3, // set io to INVALID_GPIO for disable it
+		.io             = RK30_PIN3_PD5, // set io to INVALID_GPIO for disable it
 		.enable         = GPIO_LOW,
 		.iomux          = {
 			.name       = "bt_reset",
-			.fgpio      = GPIO1_B3,
+			//.fgpio      = GPIO3_D5,
 		},
 	}, 
 
 	.wake_gpio          = { // BT_WAKE, use to control bt's sleep and wakeup
-		.io             = RK30_PIN1_PB2, // set io to INVALID_GPIO for disable it
+		.io             = RK30_PIN0_PC6, // set io to INVALID_GPIO for disable it
 		.enable         = GPIO_HIGH,
 		.iomux          = {
 			.name       = "bt_wake",
-			.fgpio      = GPIO1_B2,
+			//.fgpio      = GPIO0_C6,
 		},
 	},
 
 	.wake_host_irq      = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
 		.gpio           = {
-			.io         = RK30_PIN0_PA4, // set io to INVALID_GPIO for disable it
+			.io         = RK30_PIN0_PC5, // set io to INVALID_GPIO for disable it
 			.enable     = GPIO_LOW,      // set GPIO_LOW for falling, set 0 for rising
 			.iomux      = {
 				.name   = "bt_wake_host",
-				//.fgpio  = GPIO0_A4,  
+				//.fgpio  = GPIO0_C5,  
 			},
 		},
 	},
 
 	.rts_gpio           = { // UART_RTS, enable or disable BT's data coming
-		.io             = RK30_PIN1_PA3, // set io to INVALID_GPIO for disable it
+		.io             = RK30_PIN0_PC3, // set io to INVALID_GPIO for disable it
 		.enable         = GPIO_LOW,
 		.iomux          = {
 			.name       = "bt_rts",
-			.fgpio      = GPIO1_A3,
+			.fgpio      = GPIO0_C3,
 			.fmux       = UART0_RTSN,
 		},
 	}
@@ -1153,6 +1153,11 @@ static void __init machine_rk30_board_init(void)
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	rk_platform_add_display_devices();	
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
+	rk29sdk_wifi_bt_gpio_control_init();
+#elif defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+    rk29sdk_wifi_combo_module_gpio_init();
+#endif
 }
 
 static void __init rk30_reserve(void)
