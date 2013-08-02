@@ -838,6 +838,8 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
  * pbus_size_mem() - size the memory window of a given bus
  *
  * @bus : the bus
+ * @mask: mask the resource flag, then compare it with type
+ * @type: the type of free resource from bridge
  * @min_size : the minimum memory window that must to be allocated
  * @add_size : additional optional memory window
  * @realloc_head : track the additional memory window on this list
