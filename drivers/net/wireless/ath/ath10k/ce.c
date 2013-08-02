@@ -79,7 +79,7 @@ static inline void ath10k_ce_src_ring_write_index_set(struct ath10k *ar,
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	void __iomem *indicator_addr;
 
-	if (!test_bit(ATH10K_PCI_FEATURE_HW_1_0_WARKAROUND, ar_pci->features)) {
+	if (!test_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features)) {
 		ath10k_pci_write32(ar, ce_ctrl_addr + SR_WR_INDEX_ADDRESS, n);
 		return;
 	}
