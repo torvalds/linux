@@ -190,7 +190,6 @@ struct ath10k_pci {
 	struct device *dev;
 	struct ath10k *ar;
 	void __iomem *mem;
-	int cacheline_sz;
 
 	DECLARE_BITMAP(features, ATH10K_PCI_FEATURE_COUNT);
 
