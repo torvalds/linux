@@ -144,6 +144,10 @@ struct pci_controller {
 
 	int pio_mem_index;	/* PIO region index for memory access */
 
+#ifdef CONFIG_TILE_PCI_IO
+	int pio_io_index;	/* PIO region index for I/O space access */
+#endif
+
 	/*
 	 * Mem-Map regions for all the memory controllers so that Linux can
 	 * map all of its physical memory space to the PCI bus.
@@ -152,6 +156,10 @@ struct pci_controller {
 
 	int index;		/* PCI domain number */
 	struct pci_bus *root_bus;
+
+	/* PCI I/O space resource for this controller. */
+	struct resource io_space;
+	char io_space_name[32];
 
 	/* PCI memory space resource for this controller. */
 	struct resource mem_space;
@@ -210,7 +218,8 @@ static inline int pcibios_assign_all_busses(void)
 }
 
 #define PCIBIOS_MIN_MEM		0
-#define PCIBIOS_MIN_IO		0
+/* Minimum PCI I/O address, starting at the page boundary. */
+#define PCIBIOS_MIN_IO		PAGE_SIZE
 
 /* Use any cpu for PCI. */
 #define cpumask_of_pcibus(bus) cpu_online_mask

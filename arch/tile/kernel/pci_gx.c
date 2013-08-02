@@ -77,6 +77,9 @@ static int rc_delay[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
 /* Default number of seconds that the PCIe RC port probe can be delayed. */
 #define DEFAULT_RC_DELAY	10
 
+/* The PCI I/O space size in each PCI domain. */
+#define IO_SPACE_SIZE		0x10000
+
 /* Array of the PCIe ports configuration info obtained from the BIB. */
 struct pcie_port_property pcie_ports[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
 
@@ -420,6 +423,17 @@ out:
 
 		controller->index = i;
 		controller->ops = &tile_cfg_ops;
+
+		controller->io_space.start = PCIBIOS_MIN_IO +
+			(i * IO_SPACE_SIZE);
+		controller->io_space.end = controller->io_space.start +
+			IO_SPACE_SIZE - 1;
+		BUG_ON(controller->io_space.end > IO_SPACE_LIMIT);
+		controller->io_space.flags = IORESOURCE_IO;
+		snprintf(controller->io_space_name,
+			 sizeof(controller->io_space_name),
+			 "PCI I/O domain %d", i);
+		controller->io_space.name = controller->io_space_name;
 
 		/*
 		 * The PCI memory resource is located above the PA space.
@@ -861,17 +875,16 @@ int __init pcibios_init(void)
 		/*
 		 * The PCI memory resource is located above the PA space.
 		 * The memory range for the PCI root bus should not overlap
-		 * with the physical RAM
+		 * with the physical RAM.
 		 */
 		pci_add_resource_offset(&resources, &controller->mem_space,
 					controller->mem_offset);
-
+		pci_add_resource(&resources, &controller->io_space);
 		controller->first_busno = next_busno;
 		bus = pci_scan_root_bus(NULL, next_busno, controller->ops,
 					controller, &resources);
 		controller->root_bus = bus;
 		next_busno = bus->busn_res.end + 1;
-
 	}
 
 	/* Do machine dependent PCI interrupt routing */
@@ -915,9 +928,9 @@ int __init pcibios_init(void)
 				pci_controllers[i].mem_resources[0] =
 					*next_bus->resource[0];
 				pci_controllers[i].mem_resources[1] =
-					 *next_bus->resource[1];
+					*next_bus->resource[1];
 				pci_controllers[i].mem_resources[2] =
-					 *next_bus->resource[2];
+					*next_bus->resource[2];
 
 				break;
 			}
@@ -966,6 +979,39 @@ int __init pcibios_init(void)
 
 			continue;
 		}
+
+#ifdef CONFIG_TILE_PCI_IO
+		/*
+		 * Alloc a PIO region for PCI I/O space access for each RC port.
+		 */
+		ret = gxio_trio_alloc_pio_regions(trio_context, 1, 0, 0);
+		if (ret < 0) {
+			pr_err("PCI: I/O PIO alloc failure on TRIO %d mac %d, "
+				"give up\n", controller->trio_index,
+				controller->mac);
+
+			continue;
+		}
+
+		controller->pio_io_index = ret;
+
+		/*
+		 * For PIO IO, the bus_address_hi parameter is hard-coded 0
+		 * because PCI I/O address space is 32-bit.
+		 */
+		ret = gxio_trio_init_pio_region_aux(trio_context,
+						    controller->pio_io_index,
+						    controller->mac,
+						    0,
+						    HV_TRIO_PIO_FLAG_IO_SPACE);
+		if (ret < 0) {
+			pr_err("PCI: I/O PIO init failure on TRIO %d mac %d, "
+				"give up\n", controller->trio_index,
+				controller->mac);
+
+			continue;
+		}
+#endif
 
 		/*
 		 * Configure a Mem-Map region for each memory controller so
@@ -1052,8 +1098,7 @@ char *pcibios_setup(char *str)
 
 /*
  * Enable memory address decoding, as appropriate, for the
- * device described by the 'dev' struct. The I/O decoding
- * is disabled, though the TILE-Gx supports I/O addressing.
+ * device described by the 'dev' struct.
  *
  * This is called from the generic PCI layer, and can be called
  * for bridges or endpoints.
@@ -1134,9 +1179,76 @@ got_it:
 	 * We need to keep the PCI bus address's in-page offset in the VA.
 	 */
 	return iorpc_ioremap(trio_fd, offset, size) +
-		(phys_addr & (PAGE_SIZE - 1));
+		(start & (PAGE_SIZE - 1));
 }
 EXPORT_SYMBOL(ioremap);
+
+#ifdef CONFIG_TILE_PCI_IO
+/* Map a PCI I/O address into VA space. */
+void __iomem *ioport_map(unsigned long port, unsigned int size)
+{
+	struct pci_controller *controller = NULL;
+	resource_size_t bar_start;
+	resource_size_t bar_end;
+	resource_size_t offset;
+	resource_size_t start;
+	resource_size_t end;
+	int trio_fd;
+	int i;
+
+	start = port;
+	end = port + size - 1;
+
+	/*
+	 * In the following, each PCI controller's mem_resources[0]
+	 * represents its PCI I/O resource. By searching port in each
+	 * controller's mem_resources[0], we can determine the controller
+	 * that should accept the PCI I/O access.
+	 */
+
+	for (i = 0; i < num_rc_controllers; i++) {
+		/*
+		 * Skip controllers that are not properly initialized or
+		 * have down links.
+		 */
+		if (pci_controllers[i].root_bus == NULL)
+			continue;
+
+		bar_start = pci_controllers[i].mem_resources[0].start;
+		bar_end = pci_controllers[i].mem_resources[0].end;
+
+		if ((start >= bar_start) && (end <= bar_end)) {
+
+			controller = &pci_controllers[i];
+
+			goto got_it;
+		}
+	}
+
+	if (controller == NULL)
+		return NULL;
+
+got_it:
+	trio_fd = controller->trio->fd;
+
+	/* Convert the resource start to the bus address offset. */
+	port -= controller->io_space.start;
+
+	offset = HV_TRIO_PIO_OFFSET(controller->pio_io_index) + port;
+
+	/*
+	 * We need to keep the PCI bus address's in-page offset in the VA.
+	 */
+	return iorpc_ioremap(trio_fd, offset, size) + (port & (PAGE_SIZE - 1));
+}
+EXPORT_SYMBOL(ioport_map);
+
+void ioport_unmap(void __iomem *addr)
+{
+	iounmap(addr);
+}
+EXPORT_SYMBOL(ioport_unmap);
+#endif
 
 void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 {
