@@ -87,9 +87,6 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 
 #define LTIME_S(time)		   (time.tv_sec)
 
-#define ll_vfs_symlink(dir, dentry, mnt, path, mode) \
-		       vfs_symlink(dir, dentry, path)
-
 /* inode_dio_wait(i) use as-is for write lock */
 # define inode_dio_write_done(i)	do {} while (0) /* for write unlock */
 # define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
