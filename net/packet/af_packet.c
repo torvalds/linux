@@ -2333,23 +2333,16 @@ static int packet_snd(struct socket *sock,
 
 	if (dev->type == ARPHRD_ETHER) {
 		skb->protocol = eth_type_trans(skb, dev);
+		if (skb->protocol == htons(ETH_P_8021Q))
+			reserve += VLAN_HLEN;
 	} else {
 		skb->protocol = proto;
 		skb->dev = dev;
 	}
 
 	if (!gso_type && (len > dev->mtu + reserve + extra_len)) {
-		/* Earlier code assumed this would be a VLAN pkt,
-		 * double-check this now that we have the actual
-		 * packet in hand.
-		 */
-		struct ethhdr *ehdr;
-		skb_reset_mac_header(skb);
-		ehdr = eth_hdr(skb);
-		if (ehdr->h_proto != htons(ETH_P_8021Q)) {
-			err = -EMSGSIZE;
-			goto out_free;
-		}
+		err = -EMSGSIZE;
+		goto out_free;
 	}
 
 	skb->priority = sk->sk_priority;
