@@ -2578,8 +2578,15 @@ EXPORT_SYMBOL_GPL(vb2_ioctl_expbuf);
 int vb2_fop_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->queue->lock ? vdev->queue->lock : vdev->lock;
+	int err;
 
-	return vb2_mmap(vdev->queue, vma);
+	if (lock && mutex_lock_interruptible(lock))
+		return -ERESTARTSYS;
+	err = vb2_mmap(vdev->queue, vma);
+	if (lock)
+		mutex_unlock(lock);
+	return err;
 }
 EXPORT_SYMBOL_GPL(vb2_fop_mmap);
 
@@ -2685,8 +2692,15 @@ unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->queue->lock ? vdev->queue->lock : vdev->lock;
+	int ret;
 
-	return vb2_get_unmapped_area(vdev->queue, addr, len, pgoff, flags);
+	if (lock && mutex_lock_interruptible(lock))
+		return -ERESTARTSYS;
+	ret = vb2_get_unmapped_area(vdev->queue, addr, len, pgoff, flags);
+	if (lock)
+		mutex_unlock(lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(vb2_fop_get_unmapped_area);
 #endif
