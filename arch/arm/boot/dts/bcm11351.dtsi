@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Broadcom Corporation
+ * Copyright (C) 2012-2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -54,6 +54,11 @@
 		reg = <0x3ff20000 0x1000>;
 		cache-unified;
 		cache-level = <2>;
+	};
+
+	watchdog@35002f40 {
+		compatible = "brcm,bcm11351-wdt", "brcm,kona-wdt";
+		reg = <0x35002f40 0x6c>;
 	};
 
 	timer@35006000 {
