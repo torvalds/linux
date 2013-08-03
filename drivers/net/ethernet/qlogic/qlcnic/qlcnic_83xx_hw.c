@@ -2075,18 +2075,25 @@ void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *adapter)
 static void qlcnic_83xx_handle_link_aen(struct qlcnic_adapter *adapter,
 					u32 data[])
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u8 link_status, duplex;
 	/* link speed */
 	link_status = LSB(data[3]) & 1;
-	adapter->ahw->link_speed = MSW(data[2]);
-	adapter->ahw->link_autoneg = MSB(MSW(data[3]));
-	adapter->ahw->module_type = MSB(LSW(data[3]));
-	duplex = LSB(MSW(data[3]));
-	if (duplex)
-		adapter->ahw->link_duplex = DUPLEX_FULL;
-	else
-		adapter->ahw->link_duplex = DUPLEX_HALF;
-	adapter->ahw->has_link_events = 1;
+	if (link_status) {
+		ahw->link_speed = MSW(data[2]);
+		duplex = LSB(MSW(data[3]));
+		if (duplex)
+			ahw->link_duplex = DUPLEX_FULL;
+		else
+			ahw->link_duplex = DUPLEX_HALF;
+	} else {
+		ahw->link_speed = SPEED_UNKNOWN;
+		ahw->link_duplex = DUPLEX_UNKNOWN;
+	}
+
+	ahw->link_autoneg = MSB(MSW(data[3]));
+	ahw->module_type = MSB(LSW(data[3]));
+	ahw->has_link_events = 1;
 	qlcnic_advert_link_change(adapter, link_status);
 }
 
