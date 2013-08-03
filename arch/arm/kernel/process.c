@@ -474,17 +474,18 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 		 "[sigpage]" : NULL;
 }
 
+static struct page *signal_page;
 extern struct page *get_signal_page(void);
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
-	struct page *page;
 	unsigned long addr;
 	int ret;
 
-	page = get_signal_page();
-	if (!page)
+	if (!signal_page)
+		signal_page = get_signal_page();
+	if (!signal_page)
 		return -ENOMEM;
 
 	down_write(&mm->mmap_sem);
@@ -496,7 +497,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	ret = install_special_mapping(mm, addr, PAGE_SIZE,
 		VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
-		&page);
+		&signal_page);
 
 	if (ret == 0)
 		mm->context.sigpage = addr;
