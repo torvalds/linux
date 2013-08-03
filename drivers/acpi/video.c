@@ -185,8 +185,6 @@ struct acpi_video_device_cap {
 struct acpi_video_brightness_flags {
 	u8 _BCL_no_ac_battery_levels:1;	/* no AC/Battery levels in _BCL */
 	u8 _BCL_reversed:1;		/* _BCL package is in a reversed order */
-	u8 _BCL_use_index:1;		/* levels in _BCL are index values */
-	u8 _BCM_use_index:1;		/* input of _BCM is an index value */
 	u8 _BQC_use_index:1;		/* _BQC returns an index value */
 };
 
@@ -808,16 +806,6 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 
 	br->count = count;
 	device->brightness = br;
-
-	/* Check the input/output of _BQC/_BCL/_BCM */
-	if ((max_level < 100) && (max_level <= (count - 2)))
-		br->flags._BCL_use_index = 1;
-
-	/*
-	 * _BCM is always consistent with _BCL,
-	 * at least for all the laptops we have ever seen.
-	 */
-	br->flags._BCM_use_index = br->flags._BCL_use_index;
 
 	/* _BQC uses INDEX while _BCL uses VALUE in some laptops */
 	br->curr = level = max_level;
