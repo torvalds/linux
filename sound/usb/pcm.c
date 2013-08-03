@@ -334,41 +334,39 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 {
 	struct usb_host_interface *alts;
 	struct usb_interface *iface;
-	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
 	int implicit_fb = 0;
 	unsigned int ep;
+
+	/* Implicit feedback sync EPs consumers are always playback EPs */
+	if (subs->direction != SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
 
 	switch (subs->stream->chip->usb_id) {
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
 	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
-		if (is_playback) {
-			implicit_fb = 1;
-			ep = 0x81;
-			iface = usb_ifnum_to_if(dev, 3);
+		implicit_fb = 1;
+		ep = 0x81;
+		iface = usb_ifnum_to_if(dev, 3);
 
-			if (!iface || iface->num_altsetting == 0)
-				return -EINVAL;
+		if (!iface || iface->num_altsetting == 0)
+			return -EINVAL;
 
-			alts = &iface->altsetting[1];
-			goto add_sync_ep;
-		}
+		alts = &iface->altsetting[1];
+		goto add_sync_ep;
 		break;
 	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
 	case USB_ID(0x0763, 0x2081):
-		if (is_playback) {
-			implicit_fb = 1;
-			ep = 0x81;
-			iface = usb_ifnum_to_if(dev, 2);
+		implicit_fb = 1;
+		ep = 0x81;
+		iface = usb_ifnum_to_if(dev, 2);
 
-			if (!iface || iface->num_altsetting == 0)
-				return -EINVAL;
+		if (!iface || iface->num_altsetting == 0)
+			return -EINVAL;
 
-			alts = &iface->altsetting[1];
-			goto add_sync_ep;
-		}
+		alts = &iface->altsetting[1];
+		goto add_sync_ep;
 	}
-	if (is_playback &&
-	    attr == USB_ENDPOINT_SYNC_ASYNC &&
+	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
 	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
 	    altsd->bInterfaceProtocol == 2 &&
 	    altsd->bNumEndpoints == 1 &&
