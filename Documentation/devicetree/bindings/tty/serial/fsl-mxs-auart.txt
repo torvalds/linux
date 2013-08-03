@@ -10,6 +10,10 @@ Required properties:
   Refer to dma.txt and fsl-mxs-dma.txt for details.
 - dma-names: "rx" for RX channel, "tx" for TX channel.
 
+Optional properties:
+- fsl,uart-has-rtscts : Indicate the UART has RTS and CTS lines,
+	it also means you enable the DMA support for this UART.
+
 Example:
 auart0: serial@8006a000 {
 	compatible = "fsl,imx28-auart", "fsl,imx23-auart";
