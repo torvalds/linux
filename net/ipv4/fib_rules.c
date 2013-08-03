@@ -109,7 +109,7 @@ static bool fib4_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg
 	/* do not accept result if the route does
 	 * not meet the required prefix length
 	 */
-	if (result->prefixlen < rule->table_prefixlen_min)
+	if (result->prefixlen <= rule->suppress_prefixlen)
 		goto suppress_route;
 
 	/* do not accept result if the route uses a device
