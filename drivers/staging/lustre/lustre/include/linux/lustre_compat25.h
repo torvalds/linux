@@ -99,19 +99,6 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 #define FS_HAS_FIEMAP			(0)
 #endif
 
-
-/* add a lustre compatible layer for crypto API */
-#include <linux/crypto.h>
-
-static inline
-struct crypto_blkcipher *ll_crypto_alloc_blkcipher(const char *name,
-						   u32 type, u32 mask)
-{
-	struct crypto_blkcipher *rtn = crypto_alloc_blkcipher(name, type, mask);
-
-	return (rtn == NULL ? ERR_PTR(-ENOMEM) : rtn);
-}
-
 #define ll_vfs_rmdir(dir,entry,mnt)	     vfs_rmdir(dir,entry)
 #define ll_vfs_mkdir(inode,dir,mnt,mode)	vfs_mkdir(inode,dir,mode)
 #define ll_vfs_link(old,mnt,dir,new,mnt1)       vfs_link(old,dir,new)

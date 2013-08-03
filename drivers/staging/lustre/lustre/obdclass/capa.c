@@ -303,7 +303,7 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = ll_crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0 );
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
 		return PTR_ERR(tfm);
@@ -353,7 +353,7 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = ll_crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0 );
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
 		return PTR_ERR(tfm);

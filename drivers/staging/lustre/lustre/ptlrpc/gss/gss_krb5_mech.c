@@ -148,7 +148,7 @@ static const char * enctype2str(__u32 enctype)
 static
 int keyblock_init(struct krb5_keyblock *kb, char *alg_name, int alg_mode)
 {
-	kb->kb_tfm = ll_crypto_alloc_blkcipher(alg_name, alg_mode, 0);
+	kb->kb_tfm = crypto_alloc_blkcipher(alg_name, alg_mode, 0);
 	if (IS_ERR(kb->kb_tfm)) {
 		CERROR("failed to alloc tfm: %s, mode %d\n",
 		       alg_name, alg_mode);
@@ -1256,7 +1256,7 @@ __u32 gss_wrap_kerberos(struct gss_ctx *gctx,
 			GOTO(arc4_out, rc = -EACCES);
 		}
 
-		arc4_tfm = ll_crypto_alloc_blkcipher("ecb(arc4)", 0, 0);
+		arc4_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, 0);
 		if (IS_ERR(arc4_tfm)) {
 			CERROR("failed to alloc tfm arc4 in ECB mode\n");
 			GOTO(arc4_out_key, rc = -EACCES);
@@ -1532,7 +1532,7 @@ __u32 gss_unwrap_kerberos(struct gss_ctx  *gctx,
 			GOTO(arc4_out, rc = -EACCES);
 		}
 
-		arc4_tfm = ll_crypto_alloc_blkcipher("ecb(arc4)", 0, 0);
+		arc4_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, 0);
 		if (IS_ERR(arc4_tfm)) {
 			CERROR("failed to alloc tfm arc4 in ECB mode\n");
 			GOTO(arc4_out_key, rc = -EACCES);
