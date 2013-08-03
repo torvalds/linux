@@ -179,7 +179,9 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	}
 	if (device->parent && (state < device->parent->power.state)) {
 		dev_warn(&device->dev,
-			 "Cannot transition to a higher-powered state than parent\n");
+			 "Cannot transition to power state %s for parent in %s\n",
+			 acpi_power_state_string(state),
+			 acpi_power_state_string(device->parent->power.state));
 		return -ENODEV;
 	}
 
