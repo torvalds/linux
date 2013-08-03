@@ -1453,6 +1453,9 @@ err:
  */
 void fcoe_ctlr_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		return;
 	skb_queue_tail(&fip->fip_recv_list, skb);
 	schedule_work(&fip->recv_work);
 }
