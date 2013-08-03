@@ -225,7 +225,7 @@ int ll_som_update(struct inode *inode, struct md_op_data *op_data)
 	OBDO_ALLOC(oa);
 	if (!oa) {
 		CERROR("can't allocate memory for Size-on-MDS update.\n");
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	old_flags = op_data->op_flags;
@@ -255,7 +255,7 @@ int ll_som_update(struct inode *inode, struct md_op_data *op_data)
 	ptlrpc_req_finished(request);
 
 	OBDO_FREE(oa);
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -356,7 +356,7 @@ static int ll_close_thread(void *arg)
 
 	CDEBUG(D_INFO, "ll_close exiting\n");
 	complete(&lcq->lcq_comp);
-	RETURN(0);
+	return 0;
 }
 
 int ll_close_thread_start(struct ll_close_queue **lcq_ret)

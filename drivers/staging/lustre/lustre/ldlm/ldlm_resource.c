@@ -78,7 +78,7 @@ static ssize_t lprocfs_wr_dump_ns(struct file *file, const char *buffer,
 {
 	ldlm_dump_all_namespaces(LDLM_NAMESPACE_SERVER, D_DLMTRACE);
 	ldlm_dump_all_namespaces(LDLM_NAMESPACE_CLIENT, D_DLMTRACE);
-	RETURN(count);
+	return count;
 }
 LPROC_SEQ_FOPS_WR_ONLY(ldlm, dump_ns);
 
@@ -126,7 +126,7 @@ int ldlm_proc_setup(void)
 
 	rc = lprocfs_add_vars(ldlm_type_proc_dir, list, NULL);
 
-	RETURN(0);
+	return 0;
 
 err_ns:
 	lprocfs_remove(&ldlm_ns_proc_dir);
@@ -136,7 +136,7 @@ err:
 	ldlm_svc_proc_dir = NULL;
 	ldlm_type_proc_dir = NULL;
 	ldlm_ns_proc_dir = NULL;
-	RETURN(rc);
+	return rc;
 }
 
 void ldlm_proc_cleanup(void)
@@ -573,7 +573,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 	rc = ldlm_get_ref();
 	if (rc) {
 		CERROR("ldlm_get_ref failed: %d\n", rc);
-		RETURN(NULL);
+		return NULL;
 	}
 
 	for (idx = 0;;idx++) {
@@ -647,7 +647,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 	}
 
 	ldlm_namespace_register(ns, client);
-	RETURN(ns);
+	return ns;
 out_proc:
 	ldlm_namespace_proc_unregister(ns);
 	ldlm_namespace_cleanup(ns, 0);
@@ -657,7 +657,7 @@ out_ns:
 	OBD_FREE_PTR(ns);
 out_ref:
 	ldlm_put_ref();
-	RETURN(NULL);
+	return NULL;
 }
 EXPORT_SYMBOL(ldlm_namespace_new);
 
@@ -837,13 +837,13 @@ force_wait:
 				       "with %d resources in use, (rc=%d)\n",
 				       ldlm_ns_name(ns),
 				       atomic_read(&ns->ns_bref), rc);
-			RETURN(ELDLM_NAMESPACE_EXISTS);
+			return ELDLM_NAMESPACE_EXISTS;
 		}
 		CDEBUG(D_DLMTRACE, "dlm namespace %s free done waiting\n",
 		       ldlm_ns_name(ns));
 	}
 
-	RETURN(ELDLM_OK);
+	return ELDLM_OK;
 }
 
 /**

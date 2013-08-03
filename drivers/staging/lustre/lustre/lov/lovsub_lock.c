@@ -136,7 +136,7 @@ static unsigned long lovsub_lock_weigh(const struct lu_env *env,
 	} else
 		dumbbell = 0;
 
-	RETURN(dumbbell);
+	return dumbbell;
 }
 
 /**
@@ -240,7 +240,7 @@ static int lovsub_lock_modify(const struct lu_env *env,
 		lovsub_parent_unlock(env, lov);
 		result = result ?: rc;
 	}
-	RETURN(result);
+	return result;
 }
 
 static int lovsub_lock_closure(const struct lu_env *env,
@@ -263,7 +263,7 @@ static int lovsub_lock_closure(const struct lu_env *env,
 		if (result != 0)
 			break;
 	}
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -278,7 +278,7 @@ static int lovsub_lock_delete_one(const struct lu_env *env,
 
 	parent = lov->lls_cl.cls_lock;
 	if (parent->cll_error)
-		RETURN(0);
+		return 0;
 
 	result = 0;
 	switch (parent->cll_state) {
@@ -370,7 +370,7 @@ static int lovsub_lock_delete_one(const struct lu_env *env,
 		break;
 	}
 
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -460,7 +460,7 @@ int lovsub_lock_init(const struct lu_env *env, struct cl_object *obj,
 		result = 0;
 	} else
 		result = -ENOMEM;
-	RETURN(result);
+	return result;
 }
 
 /** @} lov */

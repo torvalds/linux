@@ -212,6 +212,6 @@ int class_check_uuid(struct obd_uuid *uuid, __u64 nid)
 		break;
 	}
 	spin_unlock(&g_uuid_lock);
-	RETURN(found);
+	return found;
 }
 EXPORT_SYMBOL(class_check_uuid);

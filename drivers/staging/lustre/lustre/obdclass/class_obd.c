@@ -116,14 +116,14 @@ int lustre_get_jobid(char *jobid)
 	memset(jobid, 0, JOBSTATS_JOBID_SIZE);
 	/* Jobstats isn't enabled */
 	if (strcmp(obd_jobid_var, JOBSTATS_DISABLE) == 0)
-		RETURN(0);
+		return 0;
 
 	/* Use process name + fsuid as jobid */
 	if (strcmp(obd_jobid_var, JOBSTATS_PROCNAME_UID) == 0) {
 		snprintf(jobid, JOBSTATS_JOBID_SIZE, "%s.%u",
 			 current_comm(),
 			 from_kuid(&init_user_ns, current_fsuid()));
-		RETURN(0);
+		return 0;
 	}
 
 	rc = cfs_get_environ(obd_jobid_var, jobid, &jobid_len);
@@ -150,7 +150,7 @@ int lustre_get_jobid(char *jobid)
 			       obd_jobid_var, rc);
 		}
 	}
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(lustre_get_jobid);
 
@@ -213,7 +213,7 @@ int class_resolve_dev_name(__u32 len, const char *name)
 	rc = dev;
 
 out:
-	RETURN(rc);
+	return rc;
 }
 
 int class_handle_ioctl(unsigned int cmd, unsigned long arg)
@@ -235,7 +235,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 	CDEBUG(D_IOCTL, "cmd = %x\n", cmd);
 	if (obd_ioctl_getdata(&buf, &len, (void *)arg)) {
 		CERROR("OBD ioctl: data error\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	data = (struct obd_ioctl_data *)buf;
 
@@ -426,7 +426,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
  out:
 	if (buf)
 		obd_ioctl_freedata(buf, len);
-	RETURN(err);
+	return err;
 } /* class_handle_ioctl */
 
 extern struct miscdevice obd_psdev;
@@ -522,7 +522,7 @@ static int __init init_obdclass(void)
 					 LPROCFS_STATS_FLAG_IRQ_SAFE);
 	if (obd_memory == NULL) {
 		CERROR("kmalloc of 'obd_memory' failed\n");
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	lprocfs_counter_init(obd_memory, OBD_MEMORY_STAT,

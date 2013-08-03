@@ -275,7 +275,7 @@ static int osc_io_prepare_write(const struct lu_env *env,
 		 * [from, to) bytes of this page to OST. -jay */
 		cl_page_export(env, slice->cpl_page, 1);
 
-	RETURN(result);
+	return result;
 }
 
 static int osc_io_commit_write(const struct lu_env *env,
@@ -304,7 +304,7 @@ static int osc_io_commit_write(const struct lu_env *env,
 		/* see osc_io_prepare_write() for lockless io handling. */
 		cl_page_clip(env, slice->cpl_page, from, to);
 
-	RETURN(0);
+	return 0;
 }
 
 static int osc_io_fault_start(const struct lu_env *env,
@@ -325,7 +325,7 @@ static int osc_io_fault_start(const struct lu_env *env,
 	if (fio->ft_writable)
 		osc_page_touch_at(env, ios->cis_obj,
 				  fio->ft_index, fio->ft_nob);
-	RETURN(0);
+	return 0;
 }
 
 static int osc_async_upcall(void *a, int rc)
@@ -524,7 +524,7 @@ static int osc_io_read_start(const struct lu_env *env,
 		}
 		cl_object_attr_unlock(obj);
 	}
-	RETURN(result);
+	return result;
 }
 
 static int osc_io_write_start(const struct lu_env *env,
@@ -547,7 +547,7 @@ static int osc_io_write_start(const struct lu_env *env,
 		}
 		cl_object_attr_unlock(obj);
 	}
-	RETURN(result);
+	return result;
 }
 
 static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
@@ -578,7 +578,7 @@ static int osc_fsync_ost(const struct lu_env *env, struct osc_object *obj,
 
 	rc = osc_sync_base(osc_export(obj), oinfo, osc_async_upcall, cbargs,
 			   PTLRPCD_SET);
-	RETURN(rc);
+	return rc;
 }
 
 static int osc_io_fsync_start(const struct lu_env *env,
@@ -617,7 +617,7 @@ static int osc_io_fsync_start(const struct lu_env *env,
 			result = rc;
 	}
 
-	RETURN(result);
+	return result;
 }
 
 static void osc_io_fsync_end(const struct lu_env *env,

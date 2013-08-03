@@ -117,7 +117,7 @@ static int lov_llog_origin_add(const struct lu_env *env,
 		/* Note that rc is always 1 if llog_obd_add was successful */
 		cookies += rc;
 	}
-	RETURN(cookies);
+	return cookies;
 }
 
 static int lov_llog_origin_connect(struct llog_ctxt *ctxt,
@@ -152,7 +152,7 @@ static int lov_llog_origin_connect(struct llog_ctxt *ctxt,
 	}
 	obd_putref(obd);
 
-	RETURN(err);
+	return err;
 }
 
 /* the replicators commit callback */
@@ -191,7 +191,7 @@ static int lov_llog_repl_cancel(const struct lu_env *env,
 		}
 	}
 	obd_putref(obd);
-	RETURN(rc);
+	return rc;
 }
 
 static struct llog_operations lov_mds_ost_orig_logops = {
@@ -214,7 +214,7 @@ int lov_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
 	rc = llog_setup(NULL, obd, olg, LLOG_MDS_OST_ORIG_CTXT, disk_obd,
 			&lov_mds_ost_orig_logops);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = llog_setup(NULL, obd, olg, LLOG_SIZE_REPL_CTXT, disk_obd,
 			&lov_size_repl_logops);
@@ -268,5 +268,5 @@ int lov_llog_finish(struct obd_device *obd, int count)
 		llog_cleanup(NULL, ctxt);
 
 	/* lov->tgt llogs are cleaned during osc_cleanup. */
-	RETURN(0);
+	return 0;
 }

@@ -462,7 +462,7 @@ static int import_select_connection(struct obd_import *imp)
 		CERROR("%s: no connections available\n",
 		       imp->imp_obd->obd_name);
 		spin_unlock(&imp->imp_lock);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
@@ -551,7 +551,7 @@ static int import_select_connection(struct obd_import *imp)
 
 	spin_unlock(&imp->imp_lock);
 
-	RETURN(0);
+	return 0;
 }
 
 /*
@@ -600,15 +600,15 @@ int ptlrpc_connect_import(struct obd_import *imp)
 	if (imp->imp_state == LUSTRE_IMP_CLOSED) {
 		spin_unlock(&imp->imp_lock);
 		CERROR("can't connect to a closed import\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	} else if (imp->imp_state == LUSTRE_IMP_FULL) {
 		spin_unlock(&imp->imp_lock);
 		CERROR("already connected\n");
-		RETURN(0);
+		return 0;
 	} else if (imp->imp_state == LUSTRE_IMP_CONNECTING) {
 		spin_unlock(&imp->imp_lock);
 		CERROR("already connecting\n");
-		RETURN(-EALREADY);
+		return -EALREADY;
 	}
 
 	IMPORT_SET_STATE_NOLOCK(imp, LUSTRE_IMP_CONNECTING);
@@ -708,7 +708,7 @@ out:
 		IMPORT_SET_STATE(imp, LUSTRE_IMP_DISCON);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_connect_import);
 
@@ -753,7 +753,7 @@ static int ptlrpc_connect_interpret(const struct lu_env *env,
 	if (imp->imp_state == LUSTRE_IMP_CLOSED) {
 		imp->imp_connect_tried = 1;
 		spin_unlock(&imp->imp_lock);
-		RETURN(0);
+		return 0;
 	}
 
 	if (rc) {
@@ -975,7 +975,7 @@ finish:
 			       imp->imp_connection->c_remote_uuid.uuid);
 			ptlrpc_connect_import(imp);
 			imp->imp_connect_tried = 1;
-			RETURN(0);
+			return 0;
 		}
 	} else {
 
@@ -1128,7 +1128,7 @@ out:
 
 			/* reply message might not be ready */
 			if (request->rq_repmsg == NULL)
-				RETURN(-EPROTO);
+				return -EPROTO;
 
 			ocd = req_capsule_server_get(&request->rq_pill,
 						     &RMF_CONNECT_DATA);
@@ -1152,7 +1152,7 @@ out:
 				ptlrpc_deactivate_import(imp);
 				IMPORT_SET_STATE(imp, LUSTRE_IMP_CLOSED);
 			}
-			RETURN(-EPROTO);
+			return -EPROTO;
 		}
 
 		ptlrpc_maybe_ping_import_soon(imp);
@@ -1163,7 +1163,7 @@ out:
 	}
 
 	wake_up_all(&imp->imp_recovery_waitq);
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1192,7 +1192,7 @@ static int completed_replay_interpret(const struct lu_env *env,
 		ptlrpc_connect_import(req->rq_import);
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -1204,7 +1204,7 @@ static int signal_completed_replay(struct obd_import *imp)
 	struct ptlrpc_request *req;
 
 	if (unlikely(OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_FINISH_REPLAY)))
-		RETURN(0);
+		return 0;
 
 	LASSERT(atomic_read(&imp->imp_replay_inflight) == 0);
 	atomic_inc(&imp->imp_replay_inflight);
@@ -1213,7 +1213,7 @@ static int signal_completed_replay(struct obd_import *imp)
 					OBD_PING);
 	if (req == NULL) {
 		atomic_dec(&imp->imp_replay_inflight);
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	ptlrpc_request_set_replen(req);
@@ -1225,7 +1225,7 @@ static int signal_completed_replay(struct obd_import *imp)
 	req->rq_interpret_reply = completed_replay_interpret;
 
 	ptlrpcd_add_req(req, PDL_POLICY_ROUND, -1);
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -1254,7 +1254,7 @@ static int ptlrpc_invalidate_import_thread(void *data)
 	ptlrpc_import_recovery_state_machine(imp);
 
 	class_import_put(imp);
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -1320,7 +1320,7 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 		} else {
 			rc = 0;
 		}
-		RETURN(rc);
+		return rc;
 		}
 	}
 
@@ -1379,7 +1379,7 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 	}
 
 out:
-	RETURN(rc);
+	return rc;
 }
 
 int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
@@ -1398,7 +1398,7 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 	default:
 		CERROR("don't know how to disconnect from %s (connect_op %d)\n",
 		       obd2cli_tgt(imp->imp_obd), imp->imp_connect_op);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (ptlrpc_import_in_recovery(imp)) {
@@ -1461,7 +1461,7 @@ out:
 	memset(&imp->imp_remote_handle, 0, sizeof(imp->imp_remote_handle));
 	spin_unlock(&imp->imp_lock);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_disconnect_import);
 

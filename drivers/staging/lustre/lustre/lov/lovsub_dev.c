@@ -103,13 +103,13 @@ static int lovsub_device_init(const struct lu_env *env, struct lu_device *d,
 	rc = ldt->ldt_ops->ldto_device_init(env, next, ldt->ldt_name, NULL);
 	if (rc) {
 		next->ld_site = NULL;
-		RETURN(rc);
+		return rc;
 	}
 
 	lu_device_get(next);
 	lu_ref_add(&next->ld_reference, "lu-stack", &lu_site_init);
 	lsd->acid_next = lu2cl_dev(next);
-	RETURN(rc);
+	return rc;
 }
 
 static struct lu_device *lovsub_device_fini(const struct lu_env *env,
@@ -122,7 +122,7 @@ static struct lu_device *lovsub_device_fini(const struct lu_env *env,
 	next = cl2lu_dev(lsd->acid_next);
 	lsd->acid_super = NULL;
 	lsd->acid_next = NULL;
-	RETURN(next);
+	return next;
 }
 
 static struct lu_device *lovsub_device_free(const struct lu_env *env,

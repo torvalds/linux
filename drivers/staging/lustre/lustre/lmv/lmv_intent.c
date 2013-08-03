@@ -72,7 +72,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 
 	body = req_capsule_server_get(&(*reqp)->rq_pill, &RMF_MDT_BODY);
 	if (body == NULL)
-		RETURN(-EPROTO);
+		return -EPROTO;
 
 	LASSERT((body->valid & OBD_MD_MDS));
 
@@ -169,7 +169,7 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
 	if (IS_ERR(tgt))
-		RETURN(PTR_ERR(tgt));
+		return PTR_ERR(tgt);
 
 	/* If it is ready to open the file by FID, do not need
 	 * allocate FID at all, otherwise it will confuse MDT */
@@ -182,7 +182,7 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 		op_data->op_fid3 = op_data->op_fid2;
 		rc = lmv_fid_alloc(exp, &op_data->op_fid2, op_data);
 		if (rc != 0)
-			RETURN(rc);
+			return rc;
 	}
 
 	CDEBUG(D_INODE, "OPEN_INTENT with fid1="DFID", fid2="DFID","
@@ -192,7 +192,7 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it, flags,
 			    reqp, cb_blocking, extra_lock_flags);
 	if (rc != 0)
-		RETURN(rc);
+		return rc;
 	/*
 	 * Nothing is found, do not access body->fid1 as it is zero and thus
 	 * pointless.
@@ -200,16 +200,16 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 	if ((it->d.lustre.it_disposition & DISP_LOOKUP_NEG) &&
 	    !(it->d.lustre.it_disposition & DISP_OPEN_CREATE) &&
 	    !(it->d.lustre.it_disposition & DISP_OPEN_OPEN))
-		RETURN(rc);
+		return rc;
 
 	body = req_capsule_server_get(&(*reqp)->rq_pill, &RMF_MDT_BODY);
 	if (body == NULL)
-		RETURN(-EPROTO);
+		return -EPROTO;
 	/*
 	 * Not cross-ref case, just get out of here.
 	 */
 	if (likely(!(body->valid & OBD_MD_MDS)))
-		RETURN(0);
+		return 0;
 
 	/*
 	 * Okay, MDS has returned success. Probably name has been resolved in
@@ -229,10 +229,10 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 		       "%*s: %d\n", LL_IT2STR(it), PFID(&op_data->op_fid2),
 		       PFID(&op_data->op_fid1), op_data->op_namelen,
 		       op_data->op_name, rc);
-		RETURN(rc);
+		return rc;
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 /*
@@ -252,7 +252,7 @@ int lmv_intent_lookup(struct obd_export *exp, struct md_op_data *op_data,
 
 	tgt = lmv_locate_mds(lmv, op_data, &op_data->op_fid1);
 	if (IS_ERR(tgt))
-		RETURN(PTR_ERR(tgt));
+		return PTR_ERR(tgt);
 
 	if (!fid_is_sane(&op_data->op_fid2))
 		fid_zero(&op_data->op_fid2);
@@ -269,7 +269,7 @@ int lmv_intent_lookup(struct obd_export *exp, struct md_op_data *op_data,
 			     flags, reqp, cb_blocking, extra_lock_flags);
 
 	if (rc < 0 || *reqp == NULL)
-		RETURN(rc);
+		return rc;
 
 	/*
 	 * MDS has returned success. Probably name has been resolved in
@@ -277,15 +277,15 @@ int lmv_intent_lookup(struct obd_export *exp, struct md_op_data *op_data,
 	 */
 	body = req_capsule_server_get(&(*reqp)->rq_pill, &RMF_MDT_BODY);
 	if (body == NULL)
-		RETURN(-EPROTO);
+		return -EPROTO;
 	/* Not cross-ref case, just get out of here. */
 	if (likely(!(body->valid & OBD_MD_MDS)))
-		RETURN(0);
+		return 0;
 
 	rc = lmv_intent_remote(exp, lmm, lmmsize, it, NULL, flags, reqp,
 			       cb_blocking, extra_lock_flags);
 
-	RETURN(rc);
+	return rc;
 }
 
 int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
@@ -306,7 +306,7 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 
 	rc = lmv_check_connect(obd);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	if (it->it_op & (IT_LOOKUP | IT_GETATTR | IT_LAYOUT))
 		rc = lmv_intent_lookup(exp, op_data, lmm, lmmsize, it,
@@ -318,5 +318,5 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 				     extra_lock_flags);
 	else
 		LBUG();
-	RETURN(rc);
+	return rc;
 }

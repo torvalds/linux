@@ -78,7 +78,7 @@ int ptlrpc_obd_ping(struct obd_device *obd)
 
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	req->rq_send_state = LUSTRE_IMP_FULL;
 
@@ -86,7 +86,7 @@ int ptlrpc_obd_ping(struct obd_device *obd)
 
 	ptlrpc_req_finished(req);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_obd_ping);
 
@@ -99,14 +99,14 @@ int ptlrpc_ping(struct obd_import *imp)
 		CERROR("OOM trying to ping %s->%s\n",
 		       imp->imp_obd->obd_uuid.uuid,
 		       obd2cli_tgt(imp->imp_obd));
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	DEBUG_REQ(D_INFO, req, "pinging %s->%s",
 		  imp->imp_obd->obd_uuid.uuid, obd2cli_tgt(imp->imp_obd));
 	ptlrpcd_add_req(req, PDL_POLICY_ROUND, -1);
 
-	RETURN(0);
+	return 0;
 }
 
 void ptlrpc_update_next_ping(struct obd_import *imp, int soon)
@@ -374,7 +374,7 @@ int ptlrpc_start_pinger(void)
 
 	if (!thread_is_init(&pinger_thread) &&
 	    !thread_is_stopped(&pinger_thread))
-		RETURN(-EALREADY);
+		return -EALREADY;
 
 	init_waitqueue_head(&pinger_thread.t_ctl_waitq);
 	init_waitqueue_head(&suspend_timeouts_waitq);
@@ -387,7 +387,7 @@ int ptlrpc_start_pinger(void)
 				 &pinger_thread, pinger_thread.t_name));
 	if (IS_ERR_VALUE(rc)) {
 		CERROR("cannot start thread: %d\n", rc);
-		RETURN(rc);
+		return rc;
 	}
 	l_wait_event(pinger_thread.t_ctl_waitq,
 		     thread_is_running(&pinger_thread), &lwi);
@@ -399,7 +399,7 @@ int ptlrpc_start_pinger(void)
 		      "(Search for the \"suppress_pings\" kernel module "
 		      "parameter.)\n");
 
-	RETURN(0);
+	return 0;
 }
 
 int ptlrpc_pinger_remove_timeouts(void);
@@ -411,7 +411,7 @@ int ptlrpc_stop_pinger(void)
 
 	if (!thread_is_init(&pinger_thread) &&
 	    !thread_is_stopped(&pinger_thread))
-		RETURN(-EALREADY);
+		return -EALREADY;
 
 	ptlrpc_pinger_remove_timeouts();
 	thread_set_flags(&pinger_thread, SVC_STOPPING);
@@ -420,7 +420,7 @@ int ptlrpc_stop_pinger(void)
 	l_wait_event(pinger_thread.t_ctl_waitq,
 		     thread_is_stopped(&pinger_thread), &lwi);
 
-	RETURN(rc);
+	return rc;
 }
 
 void ptlrpc_pinger_sending_on_import(struct obd_import *imp)
@@ -447,7 +447,7 @@ void ptlrpc_pinger_commit_expected(struct obd_import *imp)
 int ptlrpc_pinger_add_import(struct obd_import *imp)
 {
 	if (!list_empty(&imp->imp_pinger_chain))
-		RETURN(-EALREADY);
+		return -EALREADY;
 
 	mutex_lock(&pinger_mutex);
 	CDEBUG(D_HA, "adding pingable import %s->%s\n",
@@ -462,14 +462,14 @@ int ptlrpc_pinger_add_import(struct obd_import *imp)
 	ptlrpc_pinger_wake_up();
 	mutex_unlock(&pinger_mutex);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ptlrpc_pinger_add_import);
 
 int ptlrpc_pinger_del_import(struct obd_import *imp)
 {
 	if (list_empty(&imp->imp_pinger_chain))
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	mutex_lock(&pinger_mutex);
 	list_del_init(&imp->imp_pinger_chain);
@@ -479,7 +479,7 @@ int ptlrpc_pinger_del_import(struct obd_import *imp)
 	imp->imp_obd->obd_no_recov = 1;
 	class_import_put(imp);
 	mutex_unlock(&pinger_mutex);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ptlrpc_pinger_del_import);
 
@@ -715,7 +715,7 @@ static int ping_evictor_main(void *arg)
 	}
 	CDEBUG(D_HA, "Exiting Ping Evictor\n");
 
-	RETURN(0);
+	return 0;
 }
 
 void ping_evictor_start(void)

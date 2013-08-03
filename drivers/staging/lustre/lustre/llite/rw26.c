@@ -180,7 +180,7 @@ static int ll_set_page_dirty(struct page *vmpage)
 	 */
 	vvp_write_pending(obj, cpg);
 #endif
-	RETURN(__set_page_dirty_nobuffers(vmpage));
+	return __set_page_dirty_nobuffers(vmpage);
 }
 
 #define MAX_DIRECTIO_SIZE 2*1024*1024*1024UL
@@ -332,7 +332,7 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 	cl_2queue_discard(env, io, queue);
 	cl_2queue_disown(env, io, queue);
 	cl_2queue_fini(env, queue);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ll_direct_rw_pages);
 
@@ -382,11 +382,11 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	int refcheck;
 
 	if (!lli->lli_has_smd)
-		RETURN(-EBADF);
+		return -EBADF;
 
 	/* FIXME: io smaller than PAGE_SIZE is broken on ia64 ??? */
 	if ((file_offset & ~CFS_PAGE_MASK) || (count & ~CFS_PAGE_MASK))
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode=%lu/%u(%p), size=%lu (max %lu), "
 	       "offset=%lld=%llx, pages %lu (max %lu)\n",
@@ -398,7 +398,7 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 	for (seg = 0; seg < nr_segs; seg++) {
 		if (((unsigned long)iov[seg].iov_base & ~CFS_PAGE_MASK) ||
 		    (iov[seg].iov_len & ~CFS_PAGE_MASK))
-			RETURN(-EINVAL);
+			return -EINVAL;
 	}
 
 	env = cl_env_get(&refcheck);
@@ -491,7 +491,7 @@ out:
 	}
 
 	cl_env_put(env, &refcheck);
-	RETURN(tot_bytes ? : result);
+	return tot_bytes ? : result;
 }
 
 static int ll_write_begin(struct file *file, struct address_space *mapping,
@@ -505,7 +505,7 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	*pagep = page;
 
@@ -514,7 +514,7 @@ static int ll_write_begin(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		page_cache_release(page);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int ll_write_end(struct file *file, struct address_space *mapping,

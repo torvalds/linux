@@ -118,7 +118,7 @@ static struct cl_object *lov_sub_find(const struct lu_env *env,
 
 	o = lu_object_find_at(env, cl2lu_dev(dev), fid, &conf->coc_lu);
 	LASSERT(ergo(!IS_ERR(o), o->lo_dev->ld_type == &lovsub_device_type));
-	RETURN(lu2cl(o));
+	return lu2cl(o);
 }
 
 static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
@@ -252,7 +252,7 @@ static int lov_init_raid0(const struct lu_env *env,
 	} else
 		result = -ENOMEM;
 out:
-	RETURN(result);
+	return result;
 }
 
 static int lov_init_released(const struct lu_env *env,
@@ -353,7 +353,7 @@ static int lov_delete_raid0(const struct lu_env *env, struct lov_object *lov,
 		}
 	}
 	cl_object_prune(env, &lov->lo_cl);
-	RETURN(0);
+	return 0;
 }
 
 static void lov_fini_empty(const struct lu_env *env, struct lov_object *lov,
@@ -497,7 +497,7 @@ static int lov_attr_get_raid0(const struct lu_env *env, struct cl_object *obj,
 		if (attr->cat_mtime < lov_attr->cat_mtime)
 			attr->cat_mtime = lov_attr->cat_mtime;
 	}
-	RETURN(result);
+	return result;
 }
 
 const static struct lov_layout_operations lov_dispatch[] = {
@@ -631,7 +631,7 @@ static int lov_layout_wait(const struct lu_env *env, struct lov_object *lov)
 		l_wait_event(lov->lo_waitq,
 			     atomic_read(&lov->lo_active_ios) == 0, &lwi);
 	}
-	RETURN(0);
+	return 0;
 }
 
 static int lov_layout_change(const struct lu_env *unused,
@@ -659,7 +659,7 @@ static int lov_layout_change(const struct lu_env *unused,
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env)) {
 		cl_env_reexit(cookie);
-		RETURN(PTR_ERR(env));
+		return PTR_ERR(env);
 	}
 
 	old_ops = &lov_dispatch[lov->lo_type];
@@ -689,7 +689,7 @@ static int lov_layout_change(const struct lu_env *unused,
 
 	cl_env_put(env, &refcheck);
 	cl_env_reexit(cookie);
-	RETURN(result);
+	return result;
 }
 
 /*****************************************************************************
@@ -719,7 +719,7 @@ int lov_object_init(const struct lu_env *env, struct lu_object *obj,
 	result = ops->llo_init(env, dev, lov, cconf, set);
 	if (result == 0)
 		ops->llo_install(env, lov, set);
-	RETURN(result);
+	return result;
 }
 
 static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
@@ -767,7 +767,7 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 
 out:
 	lov_conf_unlock(lov);
-	RETURN(result);
+	return result;
 }
 
 static void lov_object_delete(const struct lu_env *env, struct lu_object *obj)
@@ -880,7 +880,7 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 		obj->lo_ops = &lov_lu_obj_ops;
 	} else
 		obj = NULL;
-	RETURN(obj);
+	return obj;
 }
 
 struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
@@ -965,7 +965,7 @@ int lov_read_and_clear_async_rc(struct cl_object *clob)
 		}
 		lov_conf_thaw(lov);
 	}
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(lov_read_and_clear_async_rc);
 

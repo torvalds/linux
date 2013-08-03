@@ -198,7 +198,7 @@ static struct lu_device *lov_device_fini(const struct lu_env *env,
 
 	LASSERT(ld->ld_lov != NULL);
 	if (ld->ld_target == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	lov_foreach_target(ld, i) {
 		struct lovsub_device *lsd;
@@ -209,7 +209,7 @@ static struct lu_device *lov_device_fini(const struct lu_env *env,
 			ld->ld_target[i] = NULL;
 		}
 	}
-	RETURN(NULL);
+	return NULL;
 }
 
 static int lov_device_init(const struct lu_env *env, struct lu_device *d,
@@ -221,7 +221,7 @@ static int lov_device_init(const struct lu_env *env, struct lu_device *d,
 
 	LASSERT(d->ld_site != NULL);
 	if (ld->ld_target == NULL)
-		RETURN(rc);
+		return rc;
 
 	lov_foreach_target(ld, i) {
 		struct lovsub_device *lsd;
@@ -249,7 +249,7 @@ static int lov_device_init(const struct lu_env *env, struct lu_device *d,
 	else
 		ld->ld_flags |= LOV_DEV_INITIALIZED;
 
-	RETURN(rc);
+	return rc;
 }
 
 static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
@@ -264,7 +264,7 @@ static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
 		result = 0;
 	} else
 		result = -ENOMEM;
-	RETURN(result);
+	return result;
 }
 
 static const struct cl_device_operations lov_cl_ops = {
@@ -365,7 +365,7 @@ static int lov_expand_targets(const struct lu_env *env, struct lov_device *dev)
 
 		emerg = lov_emerg_alloc(tgt_size);
 		if (IS_ERR(emerg))
-			RETURN(PTR_ERR(emerg));
+			return PTR_ERR(emerg);
 
 		OBD_ALLOC(newd, tgt_size * sz);
 		if (newd != NULL) {
@@ -386,7 +386,7 @@ static int lov_expand_targets(const struct lu_env *env, struct lov_device *dev)
 			result = -ENOMEM;
 		}
 	}
-	RETURN(result);
+	return result;
 }
 
 static int lov_cl_add_target(const struct lu_env *env, struct lu_device *dev,
@@ -407,7 +407,7 @@ static int lov_cl_add_target(const struct lu_env *env, struct lu_device *dev,
 
 	if (!tgt->ltd_obd->obd_set_up) {
 		CERROR("Target %s not set up\n", obd_uuid2str(&tgt->ltd_uuid));
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	rc = lov_expand_targets(env, ld);
@@ -429,7 +429,7 @@ static int lov_cl_add_target(const struct lu_env *env, struct lu_device *dev,
 		}
 	}
 	obd_putref(obd);
-	RETURN(rc);
+	return rc;
 }
 
 static int lov_process_config(const struct lu_env *env,
@@ -459,7 +459,7 @@ static int lov_process_config(const struct lu_env *env,
 		}
 	}
 	obd_putref(obd);
-	RETURN(rc);
+	return rc;
 }
 
 static const struct lu_device_operations lov_lu_ops = {
@@ -478,7 +478,7 @@ static struct lu_device *lov_device_alloc(const struct lu_env *env,
 
 	OBD_ALLOC_PTR(ld);
 	if (ld == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	cl_device_init(&ld->ld_cl, t);
 	d = lov2lu_dev(ld);
@@ -494,11 +494,11 @@ static struct lu_device *lov_device_alloc(const struct lu_env *env,
 	rc = lov_setup(obd, cfg);
 	if (rc) {
 		lov_device_free(env, d);
-		RETURN(ERR_PTR(rc));
+		return ERR_PTR(rc);
 	}
 
 	ld->ld_lov = &obd->u.lov;
-	RETURN(d);
+	return d;
 }
 
 static const struct lu_device_type_operations lov_device_type_ops = {

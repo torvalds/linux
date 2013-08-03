@@ -132,11 +132,11 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 		if (rc) {
 			CERROR("recovery replay error %d for req "
 			       LPU64"\n", rc, req->rq_xid);
-			RETURN(rc);
+			return rc;
 		}
 		*inflight = 1;
 	}
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -156,7 +156,7 @@ int ptlrpc_resend(struct obd_import *imp)
 	spin_lock(&imp->imp_lock);
 	if (imp->imp_state != LUSTRE_IMP_RECOVER) {
 		spin_unlock(&imp->imp_lock);
-		RETURN(-1);
+		return -1;
 	}
 
 	list_for_each_entry_safe(req, next, &imp->imp_sending_list,
@@ -169,7 +169,7 @@ int ptlrpc_resend(struct obd_import *imp)
 	}
 	spin_unlock(&imp->imp_lock);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ptlrpc_resend);
 
@@ -268,7 +268,7 @@ int ptlrpc_set_import_active(struct obd_import *imp, int active)
 		rc = ptlrpc_recover_import(imp, NULL, 0);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_set_import_active);
 

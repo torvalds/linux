@@ -169,13 +169,13 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 
 	if (class_search_type(name)) {
 		CDEBUG(D_IOCTL, "Type %s already registered\n", name);
-		RETURN(-EEXIST);
+		return -EEXIST;
 	}
 
 	rc = -ENOMEM;
 	OBD_ALLOC(type, sizeof(*type));
 	if (type == NULL)
-		RETURN(rc);
+		return rc;
 
 	OBD_ALLOC_PTR(type->typ_dt_ops);
 	OBD_ALLOC_PTR(type->typ_md_ops);
@@ -213,7 +213,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	list_add(&type->typ_chain, &obd_types);
 	spin_unlock(&obd_types_lock);
 
-	RETURN (0);
+	return 0;
 
  failed:
 	if (type->typ_name != NULL)
@@ -223,7 +223,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	if (type->typ_dt_ops != NULL)
 		OBD_FREE_PTR(type->typ_dt_ops);
 	OBD_FREE(type, sizeof(*type));
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(class_register_type);
 
@@ -233,7 +233,7 @@ int class_unregister_type(const char *name)
 
 	if (!type) {
 		CERROR("unknown obd type\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (type->typ_refcnt) {
@@ -242,7 +242,7 @@ int class_unregister_type(const char *name)
 		/* Remove ops, but leave the name for debugging */
 		OBD_FREE_PTR(type->typ_dt_ops);
 		OBD_FREE_PTR(type->typ_md_ops);
-		RETURN(-EBUSY);
+		return -EBUSY;
 	}
 
 	if (type->typ_procroot) {
@@ -261,7 +261,7 @@ int class_unregister_type(const char *name)
 	if (type->typ_md_ops != NULL)
 		OBD_FREE_PTR(type->typ_md_ops);
 	OBD_FREE(type, sizeof(*type));
-	RETURN(0);
+	return 0;
 } /* class_unregister_type */
 EXPORT_SYMBOL(class_unregister_type);
 
@@ -286,13 +286,13 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 
 	if (strlen(name) >= MAX_OBD_NAME) {
 		CERROR("name/uuid must be < %u bytes long\n", MAX_OBD_NAME);
-		RETURN(ERR_PTR(-EINVAL));
+		return ERR_PTR(-EINVAL);
 	}
 
 	type = class_get_type(type_name);
 	if (type == NULL){
 		CERROR("OBD: unknown type: %s\n", type_name);
-		RETURN(ERR_PTR(-ENODEV));
+		return ERR_PTR(-ENODEV);
 	}
 
 	newdev = obd_device_alloc();
@@ -346,7 +346,7 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 	CDEBUG(D_IOCTL, "Adding new device %s (%p)\n",
 	       result->obd_name, result);
 
-	RETURN(result);
+	return result;
 out:
 	obd_device_free(newdev);
 out_type:
@@ -678,10 +678,10 @@ int obd_init_caches(void)
 	if (!capa_cachep)
 		GOTO(out, -ENOMEM);
 
-	RETURN(0);
+	return 0;
  out:
 	obd_cleanup_caches();
-	RETURN(-ENOMEM);
+	return -ENOMEM;
 
 }
 
@@ -692,17 +692,17 @@ struct obd_export *class_conn2export(struct lustre_handle *conn)
 
 	if (!conn) {
 		CDEBUG(D_CACHE, "looking for null handle\n");
-		RETURN(NULL);
+		return NULL;
 	}
 
 	if (conn->cookie == -1) {  /* this means assign a new connection */
 		CDEBUG(D_CACHE, "want a new connection\n");
-		RETURN(NULL);
+		return NULL;
 	}
 
 	CDEBUG(D_INFO, "looking for export cookie "LPX64"\n", conn->cookie);
 	export = class_handle2object(conn->cookie);
-	RETURN(export);
+	return export;
 }
 EXPORT_SYMBOL(class_conn2export);
 
@@ -888,7 +888,7 @@ struct obd_export *class_new_export(struct obd_device *obd,
 	export->exp_obd->obd_num_exports++;
 	spin_unlock(&obd->obd_dev_lock);
 	cfs_hash_putref(hash);
-	RETURN(export);
+	return export;
 
 exit_unlock:
 	spin_unlock(&obd->obd_dev_lock);
@@ -1107,14 +1107,14 @@ int class_connect(struct lustre_handle *conn, struct obd_device *obd,
 
 	export = class_new_export(obd, cluuid);
 	if (IS_ERR(export))
-		RETURN(PTR_ERR(export));
+		return PTR_ERR(export);
 
 	conn->cookie = export->exp_handle.h_cookie;
 	class_export_put(export);
 
 	CDEBUG(D_IOCTL, "connect: client %s, cookie "LPX64"\n",
 	       cluuid->uuid, conn->cookie);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(class_connect);
 
@@ -1173,7 +1173,7 @@ int class_disconnect(struct obd_export *export)
 
 	if (export == NULL) {
 		CWARN("attempting to free NULL export %p\n", export);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	spin_lock(&export->exp_lock);
@@ -1201,7 +1201,7 @@ int class_disconnect(struct obd_export *export)
 	class_unlink_export(export);
 no_disconn:
 	class_export_put(export);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(class_disconnect);
 
@@ -1622,7 +1622,7 @@ static int obd_zombie_impexp_check(void *arg)
 	     !test_bit(OBD_ZOMBIE_STOP, &obd_zombie_flags);
 	spin_unlock(&obd_zombie_impexp_lock);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1724,7 +1724,7 @@ static int obd_zombie_impexp_thread(void *unused)
 
 	complete(&obd_zombie_stop);
 
-	RETURN(0);
+	return 0;
 }
 
 
@@ -1745,10 +1745,10 @@ int obd_zombie_impexp_init(void)
 
 	task = kthread_run(obd_zombie_impexp_thread, NULL, "obd_zombid");
 	if (IS_ERR(task))
-		RETURN(PTR_ERR(task));
+		return PTR_ERR(task);
 
 	wait_for_completion(&obd_zombie_start);
-	RETURN(0);
+	return 0;
 }
 /**
  * stop destroy zombie import/export thread

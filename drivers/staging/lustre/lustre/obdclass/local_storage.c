@@ -49,11 +49,11 @@ static int ls_object_init(const struct lu_env *env, struct lu_object *o,
 	under = &ls->ls_osd->dd_lu_dev;
 	below = under->ld_ops->ldo_object_alloc(env, o->lo_header, under);
 	if (below == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	lu_object_add(o, below);
 
-	RETURN(0);
+	return 0;
 }
 
 static void ls_object_free(const struct lu_env *env, struct lu_object *o)
@@ -166,7 +166,7 @@ struct ls_device *ls_device_get(struct dt_device *dev)
 	list_add(&ls->ls_linkage, &ls_list_head);
 out_ls:
 	mutex_unlock(&ls_list_mutex);
-	RETURN(ls);
+	return ls;
 }
 
 void ls_device_put(const struct lu_env *env, struct ls_device *ls)
@@ -226,18 +226,18 @@ int local_object_declare_create(const struct lu_env *env,
 		rc = dt_declare_record_write(env, los->los_obj,
 					     sizeof(struct los_ondisk), 0, th);
 		if (rc)
-			RETURN(rc);
+			return rc;
 	}
 
 	rc = dt_declare_create(env, o, attr, NULL, dof, th);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	dti->dti_lb.lb_buf = NULL;
 	dti->dti_lb.lb_len = sizeof(dti->dti_lma);
 	rc = dt_declare_xattr_set(env, o, &dti->dti_lb, XATTR_NAME_LMA, 0, th);
 
-	RETURN(rc);
+	return rc;
 }
 
 int local_object_create(const struct lu_env *env,
@@ -251,10 +251,10 @@ int local_object_create(const struct lu_env *env,
 
 	rc = dt_create(env, o, attr, NULL, dof, th);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	if (los == NULL)
-		RETURN(rc);
+		return rc;
 
 	LASSERT(los->los_obj);
 	LASSERT(dt_object_exists(los->los_obj));
@@ -275,7 +275,7 @@ int local_object_create(const struct lu_env *env,
 			     th);
 	mutex_unlock(&los->los_id_lock);
 
-	RETURN(rc);
+	return rc;
 }
 
 /*
@@ -296,7 +296,7 @@ struct dt_object *__local_file_create(const struct lu_env *env,
 
 	dto = ls_locate(env, ls, fid);
 	if (unlikely(IS_ERR(dto)))
-		RETURN(dto);
+		return dto;
 
 	LASSERT(dto != NULL);
 	if (dt_object_exists(dto))
@@ -369,7 +369,7 @@ out:
 		lu_object_put_nocache(env, &dto->do_lu);
 		dto = ERR_PTR(rc);
 	}
-	RETURN(dto);
+	return dto;
 }
 
 /*
@@ -582,13 +582,13 @@ int local_object_unlink(const struct lu_env *env, struct dt_device *dt,
 
 	rc = dt_lookup_dir(env, parent, name, &dti->dti_fid);
 	if (rc == -ENOENT)
-		RETURN(0);
+		return 0;
 	else if (rc < 0)
-		RETURN(rc);
+		return rc;
 
 	dto = dt_locate(env, dt, &dti->dti_fid);
 	if (unlikely(IS_ERR(dto)))
-		RETURN(PTR_ERR(dto));
+		return PTR_ERR(dto);
 
 	th = dt_trans_create(env, dt);
 	if (IS_ERR(th))
@@ -753,7 +753,7 @@ int local_oid_storage_init(const struct lu_env *env, struct dt_device *dev,
 
 	ls = ls_device_get(dev);
 	if (IS_ERR(ls))
-		RETURN(PTR_ERR(ls));
+		return PTR_ERR(ls);
 
 	mutex_lock(&ls->ls_los_mutex);
 	*los = dt_los_find(ls, fid_seq(first_fid));

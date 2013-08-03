@@ -215,12 +215,12 @@ int cfs_get_environ(const char *key, char *value, int *val_len)
 
 	buffer = kmalloc(buf_len, GFP_USER);
 	if (!buffer)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	mm = get_task_mm(current);
 	if (!mm) {
 		kfree(buffer);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* Avoid deadlocks on mmap_sem if called from sys_mmap_pgoff(),

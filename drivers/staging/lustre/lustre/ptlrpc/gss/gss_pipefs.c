@@ -301,16 +301,16 @@ int gss_install_rvs_cli_ctx_pf(struct gss_sec *gsec,
 
 	cli_ctx = ctx_create_pf(&gsec->gs_base, &vcred);
 	if (!cli_ctx)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	rc = gss_copy_rvc_cli_ctx(cli_ctx, svc_ctx);
 	if (rc) {
 		ctx_destroy_pf(cli_ctx->cc_sec, cli_ctx);
-		RETURN(rc);
+		return rc;
 	}
 
 	gss_sec_ctx_replace_pf(gsec, cli_ctx);
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -356,7 +356,7 @@ struct ptlrpc_sec* gss_sec_create_pf(struct obd_import *imp,
 
 	OBD_ALLOC(gsec_pf, alloc_size);
 	if (!gsec_pf)
-		RETURN(NULL);
+		return NULL;
 
 	gsec_pf->gsp_chash_size = hash_size;
 	for (i = 0; i < hash_size; i++)
@@ -374,13 +374,13 @@ struct ptlrpc_sec* gss_sec_create_pf(struct obd_import *imp,
 			goto err_destroy;
 	}
 
-	RETURN(&gsec_pf->gsp_base.gs_base);
+	return &gsec_pf->gsp_base.gs_base;
 
 err_destroy:
 	gss_sec_destroy_common(&gsec_pf->gsp_base);
 err_free:
 	OBD_FREE(gsec_pf, alloc_size);
-	RETURN(NULL);
+	return NULL;
 }
 
 static
@@ -466,7 +466,7 @@ retry:
 		/* don't allocate for reverse sec */
 		if (sec_is_reverse(sec)) {
 			spin_unlock(&sec->ps_lock);
-			RETURN(NULL);
+			return NULL;
 		}
 
 		if (new) {
@@ -497,7 +497,7 @@ retry:
 	}
 
 	ctx_list_destroy_pf(&freelist);
-	RETURN(ctx);
+	return ctx;
 }
 
 static
@@ -576,7 +576,7 @@ int gss_sec_flush_ctx_cache_pf(struct ptlrpc_sec *sec,
 	spin_unlock(&sec->ps_lock);
 
 	ctx_list_destroy_pf(&freelist);
-	RETURN(busy);
+	return busy;
 }
 
 /****************************************
@@ -804,12 +804,12 @@ ssize_t gss_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
 	left = copy_to_user(dst, data, mlen);
 	if (left < 0) {
 		msg->errno = left;
-		RETURN(left);
+		return left;
 	}
 	mlen -= left;
 	msg->copied += mlen;
 	msg->errno = 0;
-	RETURN(mlen);
+	return mlen;
 }
 
 static
@@ -829,7 +829,7 @@ ssize_t gss_pipe_downcall(struct file *filp, const char *src, size_t mlen)
 
 	OBD_ALLOC(buf, mlen);
 	if (!buf)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	if (copy_from_user(buf, src, mlen)) {
 		CERROR("failed copy user space data\n");
@@ -927,7 +927,7 @@ out_free:
 	 * hack pipefs: always return asked length unless all following
 	 * downcalls might be messed up. */
 	rc = mlen;
-	RETURN(rc);
+	return rc;
 }
 
 static
@@ -1033,14 +1033,14 @@ int gss_ctx_refresh_pf(struct ptlrpc_cli_ctx *ctx)
 	imp = ctx->cc_sec->ps_import;
 	if (!imp->imp_connection) {
 		CERROR("import has no connection set\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	gsec = container_of(ctx->cc_sec, struct gss_sec, gs_base);
 
 	OBD_ALLOC_PTR(gmsg);
 	if (!gmsg)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	/* initialize pipefs base msg */
 	INIT_LIST_HEAD(&gmsg->gum_base.list);
@@ -1088,10 +1088,10 @@ int gss_ctx_refresh_pf(struct ptlrpc_cli_ctx *ctx)
 		goto err_free;
 	}
 
-	RETURN(0);
+	return 0;
 err_free:
 	OBD_FREE_PTR(gmsg);
-	RETURN(rc);
+	return rc;
 }
 
 static

@@ -175,7 +175,7 @@ find_again:
 			new = alloc_entry(cache, key, args);
 			if (!new) {
 				CERROR("fail to alloc entry\n");
-				RETURN(ERR_PTR(-ENOMEM));
+				return ERR_PTR(-ENOMEM);
 			}
 			goto find_again;
 		} else {
@@ -265,7 +265,7 @@ find_again:
 	/* Now we know it's good */
 out:
 	spin_unlock(&cache->uc_lock);
-	RETURN(entry);
+	return entry;
 }
 EXPORT_SYMBOL(upcall_cache_get_entry);
 
@@ -308,7 +308,7 @@ int upcall_cache_downcall(struct upcall_cache *cache, __u32 err, __u64 key,
 		       cache->uc_name, key);
 		/* haven't found, it's possible */
 		spin_unlock(&cache->uc_lock);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (err) {
@@ -350,7 +350,7 @@ out:
 	wake_up_all(&entry->ue_waitq);
 	put_entry(cache, entry);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(upcall_cache_downcall);
 
@@ -425,7 +425,7 @@ struct upcall_cache *upcall_cache_init(const char *name, const char *upcall,
 
 	LIBCFS_ALLOC(cache, sizeof(*cache));
 	if (!cache)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&cache->uc_lock);
 	rwlock_init(&cache->uc_upcall_rwlock);
@@ -438,7 +438,7 @@ struct upcall_cache *upcall_cache_init(const char *name, const char *upcall,
 	cache->uc_acquire_expire = 30;
 	cache->uc_ops = ops;
 
-	RETURN(cache);
+	return cache;
 }
 EXPORT_SYMBOL(upcall_cache_init);
 

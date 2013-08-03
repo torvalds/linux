@@ -103,7 +103,7 @@ int gss_cli_ctx_wrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	bsd->bsd_svc = SPTLRPC_FLVR_BULK_SVC(req->rq_flvr.sf_rpc);
 
 	if (bsd->bsd_svc == SPTLRPC_BULK_SVC_NULL)
-		RETURN(0);
+		return 0;
 
 	LASSERT(bsd->bsd_svc == SPTLRPC_BULK_SVC_INTG ||
 		bsd->bsd_svc == SPTLRPC_BULK_SVC_PRIV);
@@ -131,18 +131,18 @@ int gss_cli_ctx_wrap_bulk(struct ptlrpc_cli_ctx *ctx,
 					   &token);
 			if (maj != GSS_S_COMPLETE) {
 				CWARN("failed to sign bulk data: %x\n", maj);
-				RETURN(-EACCES);
+				return -EACCES;
 			}
 		} else {
 			/* privacy mode */
 			if (desc->bd_iov_count == 0)
-				RETURN(0);
+				return 0;
 
 			rc = sptlrpc_enc_pool_get_pages(desc);
 			if (rc) {
 				CERROR("bulk write: failed to allocate "
 				       "encryption pages: %d\n", rc);
-				RETURN(rc);
+				return rc;
 			}
 
 			token.data = bsd->bsd_data;
@@ -152,12 +152,12 @@ int gss_cli_ctx_wrap_bulk(struct ptlrpc_cli_ctx *ctx,
 			maj = lgss_wrap_bulk(gctx->gc_mechctx, desc, &token, 0);
 			if (maj != GSS_S_COMPLETE) {
 				CWARN("fail to encrypt bulk data: %x\n", maj);
-				RETURN(-EACCES);
+				return -EACCES;
 			}
 		}
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 int gss_cli_ctx_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
@@ -218,7 +218,7 @@ int gss_cli_ctx_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 		       "(%u,%u,%u) != (%u,%u,%u)\n",
 		       bsdr->bsd_version, bsdr->bsd_type, bsdr->bsd_svc,
 		       bsdv->bsd_version, bsdv->bsd_type, bsdv->bsd_svc);
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	LASSERT(bsdv->bsd_svc == SPTLRPC_BULK_SVC_NULL ||
@@ -233,7 +233,7 @@ int gss_cli_ctx_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	if (req->rq_bulk_write) {
 		if (bsdv->bsd_flags & BSD_FL_ERR) {
 			CERROR("server reported bulk i/o failure\n");
-			RETURN(-EIO);
+			return -EIO;
 		}
 
 		if (bsdv->bsd_svc == SPTLRPC_BULK_SVC_PRIV)
@@ -268,12 +268,12 @@ int gss_cli_ctx_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 					      &token);
 			if (maj != GSS_S_COMPLETE) {
 				CERROR("failed to verify bulk read: %x\n", maj);
-				RETURN(-EACCES);
+				return -EACCES;
 			}
 		} else if (bsdv->bsd_svc == SPTLRPC_BULK_SVC_PRIV) {
 			desc->bd_nob = bsdv->bsd_nob;
 			if (desc->bd_nob == 0)
-				RETURN(0);
+				return 0;
 
 			token.data = bsdv->bsd_data;
 			token.len = lustre_msg_buflen(vmsg, voff) -
@@ -284,14 +284,14 @@ int gss_cli_ctx_unwrap_bulk(struct ptlrpc_cli_ctx *ctx,
 			if (maj != GSS_S_COMPLETE) {
 				CERROR("failed to decrypt bulk read: %x\n",
 				       maj);
-				RETURN(-EACCES);
+				return -EACCES;
 			}
 
 			desc->bd_nob_transferred = desc->bd_nob;
 		}
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 static int gss_prep_bulk(struct ptlrpc_bulk_desc *desc,
@@ -322,14 +322,14 @@ int gss_cli_prep_bulk(struct ptlrpc_request *req,
 	LASSERT(req->rq_bulk_read);
 
 	if (SPTLRPC_FLVR_BULK_SVC(req->rq_flvr.sf_rpc) != SPTLRPC_BULK_SVC_PRIV)
-		RETURN(0);
+		return 0;
 
 	rc = gss_prep_bulk(desc, ctx2gctx(req->rq_cli_ctx)->gc_mechctx);
 	if (rc)
 		CERROR("bulk read: failed to prepare encryption "
 		       "pages: %d\n", rc);
 
-	RETURN(rc);
+	return rc;
 }
 
 int gss_svc_prep_bulk(struct ptlrpc_request *req,
@@ -351,14 +351,14 @@ int gss_svc_prep_bulk(struct ptlrpc_request *req,
 
 	bsd = grctx->src_reqbsd;
 	if (bsd->bsd_svc != SPTLRPC_BULK_SVC_PRIV)
-		RETURN(0);
+		return 0;
 
 	rc = gss_prep_bulk(desc, grctx->src_ctx->gsc_mechctx);
 	if (rc)
 		CERROR("bulk write: failed to prepare encryption "
 		       "pages: %d\n", rc);
 
-	RETURN(rc);
+	return rc;
 }
 
 int gss_svc_unwrap_bulk(struct ptlrpc_request *req,
@@ -399,7 +399,7 @@ int gss_svc_unwrap_bulk(struct ptlrpc_request *req,
 		if (maj != GSS_S_COMPLETE) {
 			bsdv->bsd_flags |= BSD_FL_ERR;
 			CERROR("failed to verify bulk signature: %x\n", maj);
-			RETURN(-EACCES);
+			return -EACCES;
 		}
 		break;
 	case SPTLRPC_BULK_SVC_PRIV:
@@ -407,7 +407,7 @@ int gss_svc_unwrap_bulk(struct ptlrpc_request *req,
 			bsdv->bsd_flags |= BSD_FL_ERR;
 			CERROR("prepared nob %d doesn't match the actual "
 			       "nob %d\n", desc->bd_nob, bsdr->bsd_nob);
-			RETURN(-EPROTO);
+			return -EPROTO;
 		}
 
 		if (desc->bd_iov_count == 0) {
@@ -423,12 +423,12 @@ int gss_svc_unwrap_bulk(struct ptlrpc_request *req,
 		if (maj != GSS_S_COMPLETE) {
 			bsdv->bsd_flags |= BSD_FL_ERR;
 			CERROR("failed decrypt bulk data: %x\n", maj);
-			RETURN(-EACCES);
+			return -EACCES;
 		}
 		break;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 int gss_svc_wrap_bulk(struct ptlrpc_request *req,
@@ -470,7 +470,7 @@ int gss_svc_wrap_bulk(struct ptlrpc_request *req,
 		if (maj != GSS_S_COMPLETE) {
 			bsdv->bsd_flags |= BSD_FL_ERR;
 			CERROR("failed to sign bulk data: %x\n", maj);
-			RETURN(-EACCES);
+			return -EACCES;
 		}
 		break;
 	case SPTLRPC_BULK_SVC_PRIV:
@@ -486,7 +486,7 @@ int gss_svc_wrap_bulk(struct ptlrpc_request *req,
 			bsdv->bsd_flags |= BSD_FL_ERR;
 			CERROR("bulk read: failed to allocate encryption "
 			       "pages: %d\n", rc);
-			RETURN(rc);
+			return rc;
 		}
 
 		token.data = bsdv->bsd_data;
@@ -497,10 +497,10 @@ int gss_svc_wrap_bulk(struct ptlrpc_request *req,
 		if (maj != GSS_S_COMPLETE) {
 			bsdv->bsd_flags |= BSD_FL_ERR;
 			CERROR("failed to encrypt bulk data: %x\n", maj);
-			RETURN(-EACCES);
+			return -EACCES;
 		}
 		break;
 	}
 
-	RETURN(0);
+	return 0;
 }

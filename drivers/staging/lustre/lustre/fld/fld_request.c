@@ -70,7 +70,7 @@ static int fld_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&mcw->mcw_entry);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	RETURN(rc);
+	return rc;
 };
 
 static void fld_enter_request(struct client_obd *cli)
@@ -137,7 +137,7 @@ fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
 
 	list_for_each_entry(target, &fld->lcf_targets, ft_chain) {
 		if (target->ft_idx == hash)
-			RETURN(target);
+			return target;
 	}
 
 	CERROR("%s: Can't find target by hash %d (seq "LPX64"). "
@@ -161,7 +161,7 @@ fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
 	 * LBUG() to catch this situation.
 	 */
 	LBUG();
-	RETURN(NULL);
+	return NULL;
 }
 
 struct lu_fld_hash fld_hash[] = {
@@ -192,7 +192,7 @@ fld_client_get_target(struct lu_client_fld *fld, seqno_t seq)
 		       target->ft_idx, seq);
 	}
 
-	RETURN(target);
+	return target;
 }
 
 /*
@@ -214,7 +214,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 		CERROR("%s: Attempt to add target %s (idx "LPU64") "
 		       "on fly - skip it\n", fld->lcf_name, name,
 		       tar->ft_idx);
-		RETURN(0);
+		return 0;
 	} else {
 		CDEBUG(D_INFO, "%s: Adding target %s (idx "
 		       LPU64")\n", fld->lcf_name, name, tar->ft_idx);
@@ -222,7 +222,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 
 	OBD_ALLOC_PTR(target);
 	if (target == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	spin_lock(&fld->lcf_lock);
 	list_for_each_entry(tmp, &fld->lcf_targets, ft_chain) {
@@ -231,7 +231,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 			OBD_FREE_PTR(target);
 			CERROR("Target %s exists in FLD and known as %s:#"LPU64"\n",
 			       name, fld_target_name(tmp), tmp->ft_idx);
-			RETURN(-EEXIST);
+			return -EEXIST;
 		}
 	}
 
@@ -247,7 +247,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 	fld->lcf_count++;
 	spin_unlock(&fld->lcf_lock);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(fld_client_add_target);
 
@@ -268,11 +268,11 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 				class_export_put(target->ft_exp);
 
 			OBD_FREE_PTR(target);
-			RETURN(0);
+			return 0;
 		}
 	}
 	spin_unlock(&fld->lcf_lock);
-	RETURN(-ENOENT);
+	return -ENOENT;
 }
 EXPORT_SYMBOL(fld_client_del_target);
 
@@ -291,7 +291,7 @@ static int fld_client_proc_init(struct lu_client_fld *fld)
 		CERROR("%s: LProcFS failed in fld-init\n",
 		       fld->lcf_name);
 		rc = PTR_ERR(fld->lcf_proc_dir);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = lprocfs_add_vars(fld->lcf_proc_dir,
@@ -302,7 +302,7 @@ static int fld_client_proc_init(struct lu_client_fld *fld)
 		GOTO(out_cleanup, rc);
 	}
 
-	RETURN(0);
+	return 0;
 
 out_cleanup:
 	fld_client_proc_fini(fld);
@@ -350,7 +350,7 @@ int fld_client_init(struct lu_client_fld *fld,
 	if (!hash_is_sane(hash)) {
 		CERROR("%s: Wrong hash function %#x\n",
 		       fld->lcf_name, hash);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	fld->lcf_count = 0;
@@ -424,7 +424,7 @@ int fld_client_rpc(struct obd_export *exp,
 	req = ptlrpc_request_alloc_pack(imp, &RQF_FLD_QUERY, LUSTRE_MDS_VERSION,
 					FLD_QUERY);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	op = req_capsule_client_get(&req->rq_pill, &RMF_FLD_OPC);
 	*op = fld_op;
@@ -471,7 +471,7 @@ int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
 	rc = fld_cache_lookup(fld->lcf_cache, seq, &res);
 	if (rc == 0) {
 		*mds = res.lsr_index;
-		RETURN(0);
+		return 0;
 	}
 
 	/* Can not find it in the cache */
@@ -491,7 +491,7 @@ int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
 
 		fld_cache_insert(fld->lcf_cache, &res);
 	}
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(fld_client_lookup);
 

@@ -210,7 +210,7 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 
 	dchild_old = ll_lookup_one_len(oldname, dir, strlen(oldname));
 	if (IS_ERR(dchild_old))
-		RETURN(PTR_ERR(dchild_old));
+		return PTR_ERR(dchild_old);
 
 	if (!dchild_old->d_inode)
 		GOTO(put_old, err = -ENOENT);
@@ -225,7 +225,7 @@ int lustre_rename(struct dentry *dir, struct vfsmount *mnt,
 	dput(dchild_new);
 put_old:
 	dput(dchild_old);
-	RETURN(err);
+	return err;
 }
 EXPORT_SYMBOL(lustre_rename);
 
@@ -250,7 +250,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 	__s64 ret = 0;
 
 	if (lc == NULL || header == NULL)
-		RETURN(0);
+		return 0;
 
 	switch (field) {
 		case LPROCFS_FIELDS_FLAGS_CONFIG:
@@ -280,7 +280,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 			break;
 	};
 
-	RETURN(ret);
+	return ret;
 }
 EXPORT_SYMBOL(lprocfs_read_helper);
 #endif /* LPROCFS */

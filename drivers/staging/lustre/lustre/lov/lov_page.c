@@ -95,7 +95,7 @@ static int lov_page_own(const struct lu_env *env,
 		lov_sub_put(sub);
 	} else
 		LBUG(); /* Arrgh */
-	RETURN(0);
+	return 0;
 }
 
 static void lov_page_assume(const struct lu_env *env,
@@ -124,7 +124,7 @@ static int lov_page_cache_add(const struct lu_env *env,
 		rc = PTR_ERR(sub);
 		CL_PAGE_DEBUG(D_ERROR, env, slice->cpl_page, "rc = %d\n", rc);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int lov_page_print(const struct lu_env *env,
@@ -221,7 +221,7 @@ int lov_page_init_empty(const struct lu_env *env, struct cl_object *obj,
 	memset(addr, 0, cl_page_size(obj));
 	kunmap(vmpage);
 	cl_page_export(env, page, 1);
-	RETURN(0);
+	return 0;
 }
 
 

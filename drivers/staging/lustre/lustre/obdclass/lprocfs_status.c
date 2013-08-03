@@ -1503,13 +1503,13 @@ static int lprocfs_nid_stats_clear_write_cb(void *obj, void *data)
 		spin_lock(&stat->nid_obd->obd_nid_lock);
 		list_move(&stat->nid_list, data);
 		spin_unlock(&stat->nid_obd->obd_nid_lock);
-		RETURN(1);
+		return 1;
 	}
 	/* we has reference to object - only clear data*/
 	if (stat->nid_stats)
 		lprocfs_clear_stats(stat->nid_stats);
 
-	RETURN(0);
+	return 0;
 }
 
 int lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
@@ -1545,13 +1545,13 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 
 	if (!exp || !exp->exp_obd || !exp->exp_obd->obd_proc_exports_entry ||
 	    !exp->exp_obd->obd_nid_stats_hash)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	/* not test against zero because eric say:
 	 * You may only test nid against another nid, or LNET_NID_ANY.
 	 * Anything else is nonsense.*/
 	if (!nid || *nid == LNET_NID_ANY)
-		RETURN(0);
+		return 0;
 
 	obd = exp->exp_obd;
 
@@ -1559,7 +1559,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 
 	OBD_ALLOC_PTR(new_stat);
 	if (new_stat == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	new_stat->nid	       = *nid;
 	new_stat->nid_obd	   = exp->exp_obd;
@@ -1627,7 +1627,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 	list_add(&new_stat->nid_list, &obd->obd_nid_stats);
 	spin_unlock(&obd->obd_nid_lock);
 
-	RETURN(rc);
+	return rc;
 
 destroy_new_ns:
 	if (new_stat->nid_proc != NULL)
@@ -1637,7 +1637,7 @@ destroy_new_ns:
 destroy_new:
 	nidstat_putref(new_stat);
 	OBD_FREE_PTR(new_stat);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(lprocfs_exp_setup);
 
@@ -1646,7 +1646,7 @@ int lprocfs_exp_cleanup(struct obd_export *exp)
 	struct nid_stat *stat = exp->exp_nid_stats;
 
 	if(!stat || !exp->exp_obd)
-		RETURN(0);
+		return 0;
 
 	nidstat_putref(exp->exp_nid_stats);
 	exp->exp_nid_stats = NULL;
@@ -1912,9 +1912,9 @@ int lprocfs_seq_create(proc_dir_entry_t *parent,
 	entry = proc_create_data(name, mode, parent, seq_fops, data);
 
 	if (entry == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_seq_create);
 

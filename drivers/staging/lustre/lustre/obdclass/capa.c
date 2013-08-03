@@ -282,7 +282,7 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	tfm = ll_crypto_alloc_blkcipher(alg, 0, 0 );
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
-		RETURN(PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	min = ll_crypto_tfm_alg_min_keysize(tfm);
@@ -332,7 +332,7 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 	tfm = ll_crypto_alloc_blkcipher(alg, 0, 0 );
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
-		RETURN(PTR_ERR(tfm));
+		return PTR_ERR(tfm);
 	}
 
 	min = ll_crypto_tfm_alg_min_keysize(tfm);

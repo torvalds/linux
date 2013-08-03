@@ -204,7 +204,7 @@ ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
 	entry_size = sizeof(struct ll_sa_entry) + (len & ~3) + 4;
 	OBD_ALLOC(entry, entry_size);
 	if (unlikely(entry == NULL))
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	CDEBUG(D_READA, "alloc sa entry %.*s(%p) index "LPU64"\n",
 	       len, name, entry, index);
@@ -253,7 +253,7 @@ ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
 
 	atomic_inc(&sai->sai_cache_count);
 
-	RETURN(entry);
+	return entry;
 }
 
 /*
@@ -467,7 +467,7 @@ static struct ll_statahead_info *ll_sai_alloc(void)
 
 	OBD_ALLOC_PTR(sai);
 	if (!sai)
-		RETURN(NULL);
+		return NULL;
 
 	atomic_set(&sai->sai_refcount, 1);
 
@@ -494,7 +494,7 @@ static struct ll_statahead_info *ll_sai_alloc(void)
 	}
 	atomic_set(&sai->sai_cache_count, 0);
 
-	RETURN(sai);
+	return sai;
 }
 
 static inline struct ll_statahead_info *
@@ -841,7 +841,7 @@ static int do_sa_lookup(struct inode *dir, struct ll_sa_entry *entry)
 
 	rc = sa_args_init(dir, NULL, entry, &minfo, &einfo, capas);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = md_intent_getattr_async(ll_i2mdexp(dir), minfo, einfo);
 	if (!rc) {
@@ -851,7 +851,7 @@ static int do_sa_lookup(struct inode *dir, struct ll_sa_entry *entry)
 		sa_args_fini(minfo, einfo);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -872,27 +872,27 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	int rc;
 
 	if (unlikely(inode == NULL))
-		RETURN(1);
+		return 1;
 
 	if (d_mountpoint(dentry))
-		RETURN(1);
+		return 1;
 
 	if (unlikely(dentry == dentry->d_sb->s_root))
-		RETURN(1);
+		return 1;
 
 	entry->se_inode = igrab(inode);
 	rc = md_revalidate_lock(ll_i2mdexp(dir), &it, ll_inode2fid(inode),NULL);
 	if (rc == 1) {
 		entry->se_handle = it.d.lustre.it_lock_handle;
 		ll_intent_release(&it);
-		RETURN(1);
+		return 1;
 	}
 
 	rc = sa_args_init(dir, inode, entry, &minfo, &einfo, capas);
 	if (rc) {
 		entry->se_inode = NULL;
 		iput(inode);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = md_intent_getattr_async(ll_i2mdexp(dir), minfo, einfo);
@@ -905,7 +905,7 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 		sa_args_fini(minfo, einfo);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 static void ll_statahead_one(struct dentry *parent, const char* entry_name,
@@ -1009,7 +1009,7 @@ static int ll_agl_thread(void *arg)
 	ll_sai_put(sai);
 	CDEBUG(D_READA, "agl thread stopped: [pid %d] [parent %.*s]\n",
 	       current_pid(), parent->d_name.len, parent->d_name.name);
-	RETURN(0);
+	return 0;
 }
 
 static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
@@ -1520,7 +1520,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 			     list_empty(&sai->sai_entries_stated))) {
 			/* to release resource */
 			ll_stop_statahead(dir, lli->lli_opendir_key);
-			RETURN(-EAGAIN);
+			return -EAGAIN;
 		}
 
 		if ((*dentryp)->d_name.name[0] == '.') {
@@ -1546,14 +1546,14 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 				 * "sai_ls_all" enabled as above.
 				 */
 				sai->sai_miss_hidden++;
-				RETURN(-EAGAIN);
+				return -EAGAIN;
 			}
 		}
 
 		entry = ll_sa_entry_get_byname(sai, &(*dentryp)->d_name);
 		if (entry == NULL || only_unplug) {
 			ll_sai_unplug(sai, entry);
-			RETURN(entry ? 1 : -EAGAIN);
+			return entry ? 1 : -EAGAIN;
 		}
 
 		/* if statahead is busy in readdir, help it do post-work */
@@ -1572,7 +1572,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 					  &lwi);
 			if (rc < 0) {
 				ll_sai_unplug(sai, entry);
-				RETURN(-EAGAIN);
+				return -EAGAIN;
 			}
 		}
 
@@ -1602,7 +1602,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 					      inode->i_ino,
 					      inode->i_generation);
 					ll_sai_unplug(sai, entry);
-					RETURN(-ESTALE);
+					return -ESTALE;
 				} else {
 					iput(inode);
 				}
@@ -1616,7 +1616,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		}
 
 		ll_sai_unplug(sai, entry);
-		RETURN(rc);
+		return rc;
 	}
 
 	/* I am the "lli_opendir_pid" owner, only me can set "lli_sai". */
@@ -1668,7 +1668,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		thread_set_flags(&sai->sai_agl_thread, SVC_STOPPED);
 		ll_sai_put(sai);
 		LASSERT(lli->lli_sai == NULL);
-		RETURN(-EAGAIN);
+		return -EAGAIN;
 	}
 
 	l_wait_event(thread->t_ctl_waitq,
@@ -1679,7 +1679,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	 * We don't stat-ahead for the first dirent since we are already in
 	 * lookup.
 	 */
-	RETURN(-EAGAIN);
+	return -EAGAIN;
 
 out:
 	if (sai != NULL)

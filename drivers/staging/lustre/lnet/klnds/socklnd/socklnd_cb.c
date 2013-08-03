@@ -380,7 +380,7 @@ ksocknal_receive (ksock_conn_t *conn)
 	}
 
 	ksocknal_connsock_decref(conn);
-	RETURN (rc);
+	return rc;
 }
 
 void

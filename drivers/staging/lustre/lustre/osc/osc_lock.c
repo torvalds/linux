@@ -580,7 +580,7 @@ static int osc_lock_upcall(void *cookie, int errcode)
 		/* should never happen, similar to osc_ldlm_blocking_ast(). */
 		LBUG();
 	}
-	RETURN(errcode);
+	return errcode;
 }
 
 /**
@@ -1084,7 +1084,7 @@ static int osc_lock_enqueue_wait(const struct lu_env *env,
 			rc = CLO_WAIT;
 		}
 	}
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1160,7 +1160,7 @@ static int osc_lock_enqueue(const struct lu_env *env,
 		}
 	}
 	LASSERT(ergo(ols->ols_glimpse, !osc_lock_is_lockless(ols)));
-	RETURN(result);
+	return result;
 }
 
 static int osc_lock_wait(const struct lu_env *env,
@@ -1280,7 +1280,7 @@ static int osc_lock_flush(struct osc_lock *ols, int discard)
 		ols->ols_flush = 1;
 		LINVRNT(!osc_lock_has_pages(ols));
 	}
-	RETURN(result);
+	return result;
 }
 
 /**

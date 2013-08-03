@@ -66,11 +66,11 @@ __init int ptlrpc_init(void)
 
 	rc = req_layout_init();
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = ptlrpc_hr_init();
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	cleanup_phase = 1;
 
@@ -109,7 +109,7 @@ __init int ptlrpc_init(void)
 	rc = tgt_mod_init();
 	if (rc)
 		GOTO(cleanup, rc);
-	RETURN(0);
+	return 0;
 
 cleanup:
 	switch(cleanup_phase) {

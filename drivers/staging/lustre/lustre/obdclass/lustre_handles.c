@@ -174,7 +174,7 @@ void *class_handle2object(__u64 cookie)
 	}
 	rcu_read_unlock();
 
-	RETURN(retval);
+	return retval;
 }
 EXPORT_SYMBOL(class_handle2object);
 

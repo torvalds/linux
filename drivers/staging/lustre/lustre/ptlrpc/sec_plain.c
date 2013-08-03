@@ -208,7 +208,7 @@ int plain_ctx_sign(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 
 	req->rq_reqdata_len = lustre_msg_size_v2(msg->lm_bufcount,
 						 msg->lm_buflens);
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -221,7 +221,7 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 
 	if (msg->lm_bufcount != PLAIN_PACK_SEGMENTS) {
 		CERROR("unexpected reply buf count %u\n", msg->lm_bufcount);
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	swabbed = ptlrpc_rep_need_swab(req);
@@ -229,24 +229,24 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 	phdr = lustre_msg_buf(msg, PLAIN_PACK_HDR_OFF, sizeof(*phdr));
 	if (phdr == NULL) {
 		CERROR("missing plain header\n");
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	if (phdr->ph_ver != 0) {
 		CERROR("Invalid header version\n");
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	/* expect no user desc in reply */
 	if (phdr->ph_flags & PLAIN_FL_USER) {
 		CERROR("Unexpected udesc flag in reply\n");
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	if (phdr->ph_bulk_hash_alg != req->rq_flvr.u_bulk.hash.hash_alg) {
 		CERROR("reply bulk flavor %u != %u\n", phdr->ph_bulk_hash_alg,
 		       req->rq_flvr.u_bulk.hash.hash_alg);
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	if (unlikely(req->rq_early)) {
@@ -260,7 +260,7 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 			CDEBUG(D_SEC,
 			       "early reply checksum mismatch: %08x != %08x\n",
 			       cpu_to_le32(cksum), msg->lm_cksum);
-			RETURN(-EINVAL);
+			return -EINVAL;
 		}
 	} else {
 		/* whether we sent with bulk or not, we expect the same
@@ -270,18 +270,18 @@ int plain_ctx_verify(struct ptlrpc_cli_ctx *ctx, struct ptlrpc_request *req)
 			  phdr->ph_flags & PLAIN_FL_BULK)) {
 			CERROR("%s bulk checksum in reply\n",
 			       req->rq_pack_bulk ? "Missing" : "Unexpected");
-			RETURN(-EPROTO);
+			return -EPROTO;
 		}
 
 		if (phdr->ph_flags & PLAIN_FL_BULK) {
 			if (plain_unpack_bsd(msg, swabbed))
-				RETURN(-EPROTO);
+				return -EPROTO;
 		}
 	}
 
 	req->rq_repmsg = lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF, 0);
 	req->rq_replen = lustre_msg_buflen(msg, PLAIN_PACK_MSG_OFF);
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -305,10 +305,10 @@ int plain_cli_wrap_bulk(struct ptlrpc_cli_ctx *ctx,
 	bsd->bsd_svc = SPTLRPC_FLVR_BULK_SVC(req->rq_flvr.sf_rpc);
 
 	if (bsd->bsd_svc == SPTLRPC_BULK_SVC_NULL)
-		RETURN(0);
+		return 0;
 
 	if (req->rq_bulk_read)
-		RETURN(0);
+		return 0;
 
 	rc = plain_generate_bulk_csum(desc, req->rq_flvr.u_bulk.hash.hash_alg,
 				      token);
@@ -446,7 +446,7 @@ struct ptlrpc_sec *plain_create_sec(struct obd_import *imp,
 
 	OBD_ALLOC_PTR(plsec);
 	if (plsec == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	/*
 	 * initialize plain_sec
@@ -471,12 +471,12 @@ struct ptlrpc_sec *plain_create_sec(struct obd_import *imp,
 		ctx = plain_sec_install_ctx(plsec);
 		if (ctx == NULL) {
 			plain_destroy_sec(sec);
-			RETURN(NULL);
+			return NULL;
 		}
 		sptlrpc_cli_ctx_put(ctx, 1);
 	}
 
-	RETURN(sec);
+	return sec;
 }
 
 static
@@ -496,7 +496,7 @@ struct ptlrpc_cli_ctx *plain_lookup_ctx(struct ptlrpc_sec *sec,
 	if (unlikely(ctx == NULL))
 		ctx = plain_sec_install_ctx(plsec);
 
-	RETURN(ctx);
+	return ctx;
 }
 
 static
@@ -523,7 +523,7 @@ int plain_flush_ctx_cache(struct ptlrpc_sec *sec,
 
 	/* do nothing unless caller want to flush for 'all' */
 	if (uid != -1)
-		RETURN(0);
+		return 0;
 
 	write_lock(&plsec->pls_lock);
 	ctx = plsec->pls_ctx;
@@ -532,7 +532,7 @@ int plain_flush_ctx_cache(struct ptlrpc_sec *sec,
 
 	if (ctx)
 		sptlrpc_cli_ctx_put(ctx, 1);
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -562,7 +562,7 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 		alloc_len = size_roundup_power2(alloc_len);
 		OBD_ALLOC_LARGE(req->rq_reqbuf, alloc_len);
 		if (!req->rq_reqbuf)
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 
 		req->rq_reqbuf_len = alloc_len;
 	} else {
@@ -577,7 +577,7 @@ int plain_alloc_reqbuf(struct ptlrpc_sec *sec,
 	if (req->rq_pack_udesc)
 		sptlrpc_pack_user_desc(req->rq_reqbuf, PLAIN_PACK_USER_OFF);
 
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -616,10 +616,10 @@ int plain_alloc_repbuf(struct ptlrpc_sec *sec,
 
 	OBD_ALLOC_LARGE(req->rq_repbuf, alloc_len);
 	if (!req->rq_repbuf)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	req->rq_repbuf_len = alloc_len;
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -667,7 +667,7 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 
 		OBD_ALLOC_LARGE(newbuf, newbuf_size);
 		if (newbuf == NULL)
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 
 		memcpy(newbuf, req->rq_reqbuf, req->rq_reqbuf_len);
 
@@ -683,7 +683,7 @@ int plain_enlarge_reqbuf(struct ptlrpc_sec *sec,
 	_sptlrpc_enlarge_msg_inplace(req->rq_reqmsg, segment, newsize);
 
 	req->rq_reqlen = newmsg_size;
-	RETURN(0);
+	return 0;
 }
 
 /****************************************
@@ -710,12 +710,12 @@ int plain_accept(struct ptlrpc_request *req)
 	    SPTLRPC_FLVR_BULK_TYPE(req->rq_flvr.sf_rpc) !=
 	    SPTLRPC_FLVR_BULK_TYPE(SPTLRPC_FLVR_PLAIN)) {
 		CERROR("Invalid rpc flavor %x\n", req->rq_flvr.sf_rpc);
-		RETURN(SECSVC_DROP);
+		return SECSVC_DROP;
 	}
 
 	if (msg->lm_bufcount < PLAIN_PACK_SEGMENTS) {
 		CERROR("unexpected request buf count %u\n", msg->lm_bufcount);
-		RETURN(SECSVC_DROP);
+		return SECSVC_DROP;
 	}
 
 	swabbed = ptlrpc_req_need_swab(req);
@@ -723,17 +723,17 @@ int plain_accept(struct ptlrpc_request *req)
 	phdr = lustre_msg_buf(msg, PLAIN_PACK_HDR_OFF, sizeof(*phdr));
 	if (phdr == NULL) {
 		CERROR("missing plain header\n");
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	if (phdr->ph_ver != 0) {
 		CERROR("Invalid header version\n");
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	if (phdr->ph_bulk_hash_alg >= BULK_HASH_ALG_MAX) {
 		CERROR("invalid hash algorithm: %u\n", phdr->ph_bulk_hash_alg);
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	req->rq_sp_from = phdr->ph_sp;
@@ -743,7 +743,7 @@ int plain_accept(struct ptlrpc_request *req)
 		if (sptlrpc_unpack_user_desc(msg, PLAIN_PACK_USER_OFF,
 					     swabbed)) {
 			CERROR("Mal-formed user descriptor\n");
-			RETURN(SECSVC_DROP);
+			return SECSVC_DROP;
 		}
 
 		req->rq_pack_udesc = 1;
@@ -752,7 +752,7 @@ int plain_accept(struct ptlrpc_request *req)
 
 	if (phdr->ph_flags & PLAIN_FL_BULK) {
 		if (plain_unpack_bsd(msg, swabbed))
-			RETURN(SECSVC_DROP);
+			return SECSVC_DROP;
 
 		req->rq_pack_bulk = 1;
 	}
@@ -763,7 +763,7 @@ int plain_accept(struct ptlrpc_request *req)
 	req->rq_svc_ctx = &plain_svc_ctx;
 	atomic_inc(&req->rq_svc_ctx->sc_refcount);
 
-	RETURN(SECSVC_OK);
+	return SECSVC_OK;
 }
 
 static
@@ -791,7 +791,7 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 	} else {
 		OBD_ALLOC_LARGE(rs, rs_size);
 		if (rs == NULL)
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 
 		rs->rs_size = rs_size;
 	}
@@ -805,7 +805,7 @@ int plain_alloc_rs(struct ptlrpc_request *req, int msgsize)
 	rs->rs_msg = lustre_msg_buf_v2(rs->rs_repbuf, PLAIN_PACK_MSG_OFF, 0);
 
 	req->rq_reply_state = rs;
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -862,7 +862,7 @@ int plain_authorize(struct ptlrpc_request *req)
 			req->rq_reply_off = 0;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 static

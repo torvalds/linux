@@ -180,14 +180,14 @@ static int vvp_mmap_locks(const struct lu_env *env,
 	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
 
 	if (!cl_is_normalio(env, io))
-		RETURN(0);
+		return 0;
 
 	if (vio->cui_iov == NULL) /* nfs or loop back device write */
-		RETURN(0);
+		return 0;
 
 	/* No MM (e.g. NFS)? No vmas too. */
 	if (mm == NULL)
-		RETURN(0);
+		return 0;
 
 	for (seg = 0; seg < vio->cui_nrsegs; seg++) {
 		const struct iovec *iv = &vio->cui_iov[seg];
@@ -233,7 +233,7 @@ static int vvp_mmap_locks(const struct lu_env *env,
 			       descr->cld_end);
 
 			if (result < 0)
-				RETURN(result);
+				return result;
 
 			if (vma->vm_end - addr >= count)
 				break;
@@ -243,7 +243,7 @@ static int vvp_mmap_locks(const struct lu_env *env,
 		}
 		up_read(&mm->mmap_sem);
 	}
-	RETURN(0);
+	return 0;
 }
 
 static int vvp_io_rw_lock(const struct lu_env *env, struct cl_io *io,
@@ -262,7 +262,7 @@ static int vvp_io_rw_lock(const struct lu_env *env, struct cl_io *io,
 	result = vvp_mmap_locks(env, cio, io);
 	if (result == 0)
 		result = ccc_io_one_lock(env, io, ast_flags, mode, start, end);
-	RETURN(result);
+	return result;
 }
 
 static int vvp_io_read_lock(const struct lu_env *env,
@@ -280,7 +280,7 @@ static int vvp_io_read_lock(const struct lu_env *env,
 					io->u.ci_rd.rd.crw_count - 1);
 	else
 		result = 0;
-	RETURN(result);
+	return result;
 }
 
 static int vvp_io_fault_lock(const struct lu_env *env,
@@ -580,7 +580,7 @@ static int vvp_io_write_start(const struct lu_env *env,
 				  cio->cui_fd, pos, result, WRITE);
 		result = 0;
 	}
-	RETURN(result);
+	return result;
 }
 
 static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
@@ -813,7 +813,7 @@ static int vvp_io_read_page(const struct lu_env *env,
 			       rc == -ENODATA ? "without a lock" :
 			       "match failed", rc);
 		if (rc != -ENODATA)
-			RETURN(rc);
+			return rc;
 	}
 
 	if (cp->cpg_defer_uptodate) {
@@ -830,7 +830,7 @@ static int vvp_io_read_page(const struct lu_env *env,
 		ll_readahead(env, io, ras,
 			     vmpage->mapping, &queue->c2_qin, fd->fd_flags);
 
-	RETURN(0);
+	return 0;
 }
 
 static int vvp_page_sync_io(const struct lu_env *env, struct cl_io *io,
@@ -934,7 +934,7 @@ static int vvp_io_prepare_write(const struct lu_env *env,
 							pg, cp, from, to);
 	} else
 		CL_PAGE_HEADER(D_PAGE, env, pg, "uptodate\n");
-	RETURN(result);
+	return result;
 }
 
 static int vvp_io_commit_write(const struct lu_env *env,
@@ -1057,7 +1057,7 @@ static int vvp_io_commit_write(const struct lu_env *env,
 			cl_page_discard(env, io, pg);
 	}
 	ll_inode_size_unlock(inode);
-	RETURN(result);
+	return result;
 }
 
 static const struct cl_io_operations vvp_io_ops = {
@@ -1163,7 +1163,7 @@ int vvp_io_init(const struct lu_env *env, struct cl_object *obj,
 				PFID(lu_object_fid(&obj->co_lu)), result);
 	}
 
-	RETURN(result);
+	return result;
 }
 
 static struct vvp_io *cl2vvp_io(const struct lu_env *env,

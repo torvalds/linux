@@ -86,23 +86,23 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 
 	err = copy_from_user(&hdr, (void *)arg, sizeof(hdr));
 	if ( err )
-		RETURN(err);
+		return err;
 
 	if (hdr.ioc_version != OBD_IOCTL_VERSION) {
 		CERROR("Version mismatch kernel (%x) vs application (%x)\n",
 		       OBD_IOCTL_VERSION, hdr.ioc_version);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (hdr.ioc_len > OBD_MAX_IOCTL_BUFFER) {
 		CERROR("User buffer len %d exceeds %d max buffer\n",
 		       hdr.ioc_len, OBD_MAX_IOCTL_BUFFER);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (hdr.ioc_len < sizeof(struct obd_ioctl_data)) {
 		CERROR("User buffer too small for ioctl (%d)\n", hdr.ioc_len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* When there are lots of processes calling vmalloc on multi-core
@@ -113,7 +113,7 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	if (*buf == NULL) {
 		CERROR("Cannot allocate control buffer of len %d\n",
 		       hdr.ioc_len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	*len = hdr.ioc_len;
 	data = (struct obd_ioctl_data *)*buf;
@@ -121,13 +121,13 @@ int obd_ioctl_getdata(char **buf, int *len, void *arg)
 	err = copy_from_user(*buf, (void *)arg, hdr.ioc_len);
 	if ( err ) {
 		OBD_FREE_LARGE(*buf, hdr.ioc_len);
-		RETURN(err);
+		return err;
 	}
 
 	if (obd_ioctl_is_invalid(data)) {
 		CERROR("ioctl not correctly formatted\n");
 		OBD_FREE_LARGE(*buf, hdr.ioc_len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (data->ioc_inllen1) {
@@ -168,14 +168,14 @@ EXPORT_SYMBOL(obd_ioctl_popdata);
 static int obd_class_open(struct inode * inode, struct file * file)
 {
 	try_module_get(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 /*  closing /dev/obd */
 static int obd_class_release(struct inode * inode, struct file * file)
 {
 	module_put(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 /* to control /dev/obd */
@@ -186,13 +186,13 @@ static long obd_class_ioctl(struct file *filp, unsigned int cmd,
 
 	/* Allow non-root access for OBD_IOC_PING_TARGET - used by lfs check */
 	if (!cfs_capable(CFS_CAP_SYS_ADMIN) && (cmd != OBD_IOC_PING_TARGET))
-		RETURN(err = -EACCES);
+		return err = -EACCES;
 	if ((cmd & 0xffffff00) == ((int)'T') << 8) /* ignore all tty ioctls */
-		RETURN(err = -ENOTTY);
+		return err = -ENOTTY;
 
 	err = class_handle_ioctl(cmd, (unsigned long)arg);
 
-	RETURN(err);
+	return err;
 }
 
 /* declare character device */
@@ -394,7 +394,7 @@ int class_procfs_init(void)
 out:
 	if (rc)
 		CERROR("error adding /proc/fs/lustre/devices file\n");
-	RETURN(0);
+	return 0;
 }
 
 int class_procfs_clean(void)
@@ -402,5 +402,5 @@ int class_procfs_clean(void)
 	if (proc_lustre_root) {
 		lprocfs_remove(&proc_lustre_root);
 	}
-	RETURN(0);
+	return 0;
 }

@@ -193,7 +193,7 @@ static int osc_object_glimpse(const struct lu_env *env,
 
 	lvb->lvb_size   = oinfo->loi_kms;
 	lvb->lvb_blocks = oinfo->loi_lvb.lvb_blocks;
-	RETURN(0);
+	return 0;
 }
 
 

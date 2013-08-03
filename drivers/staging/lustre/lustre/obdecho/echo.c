@@ -99,7 +99,7 @@ static int echo_destroy_export(struct obd_export *exp)
 	target_destroy_export(exp);
 	ldlm_destroy_export(exp);
 
-	RETURN(0);
+	return 0;
 }
 
  static __u64 echo_next_id(struct obd_device *obddev)
@@ -152,21 +152,21 @@ static int echo_destroy(const struct lu_env *env, struct obd_export *exp,
 	if (!obd) {
 		CERROR("invalid client cookie "LPX64"\n",
 		       exp->exp_handle.h_cookie);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (!(oa->o_valid & OBD_MD_FLID)) {
 		CERROR("obdo missing FLID valid flag: "LPX64"\n", oa->o_valid);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (ostid_id(&oa->o_oi) > obd->u.echo.eo_lastino ||
 	    ostid_id(&oa->o_oi) < ECHO_INIT_OID) {
 		CERROR("bad destroy objid: "DOSTID"\n", POSTID(&oa->o_oi));
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 static int echo_getattr(const struct lu_env *env, struct obd_export *exp,
@@ -178,20 +178,20 @@ static int echo_getattr(const struct lu_env *env, struct obd_export *exp,
 	if (!obd) {
 		CERROR("invalid client cookie "LPX64"\n",
 		       exp->exp_handle.h_cookie);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (!(oinfo->oi_oa->o_valid & OBD_MD_FLID)) {
 		CERROR("obdo missing FLID valid flag: "LPX64"\n",
 		       oinfo->oi_oa->o_valid);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	obdo_cpy_md(oinfo->oi_oa, &obd->u.echo.eo_oa, oinfo->oi_oa->o_valid);
 	ostid_set_seq_echo(&oinfo->oi_oa->o_oi);
 	ostid_set_id(&oinfo->oi_oa->o_oi, id);
 
-	RETURN(0);
+	return 0;
 }
 
 static int echo_setattr(const struct lu_env *env, struct obd_export *exp,
@@ -202,13 +202,13 @@ static int echo_setattr(const struct lu_env *env, struct obd_export *exp,
 	if (!obd) {
 		CERROR("invalid client cookie "LPX64"\n",
 		       exp->exp_handle.h_cookie);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (!(oinfo->oi_oa->o_valid & OBD_MD_FLID)) {
 		CERROR("obdo missing FLID valid flag: "LPX64"\n",
 		       oinfo->oi_oa->o_valid);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	memcpy(&obd->u.echo.eo_oa, oinfo->oi_oa, sizeof(*oinfo->oi_oa));
@@ -220,7 +220,7 @@ static int echo_setattr(const struct lu_env *env, struct obd_export *exp,
 		oti->oti_ack_locks[0].lock = obd->u.echo.eo_nl_lock;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 static void
@@ -408,7 +408,7 @@ static int echo_preprw(const struct lu_env *env, int cmd,
 
 	obd = export->exp_obd;
 	if (obd == NULL)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	/* Temp fix to stop falling foul of osc_announce_cached() */
 	oa->o_valid &= ~(OBD_MD_FLBLOCKS | OBD_MD_FLGRANT);
@@ -450,7 +450,7 @@ static int echo_preprw(const struct lu_env *env, int cmd,
 	CDEBUG(D_PAGE, "%d pages allocated after prep\n",
 	       atomic_read(&obd->u.echo.eo_prep));
 
-	RETURN(0);
+	return 0;
 
 preprw_cleanup:
 	/* It is possible that we would rather handle errors by  allow
@@ -484,7 +484,7 @@ static int echo_commitrw(const struct lu_env *env, int cmd,
 
 	obd = export->exp_obd;
 	if (obd == NULL)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	if (rc)
 		GOTO(commitrw_cleanup, rc);
@@ -499,7 +499,7 @@ static int echo_commitrw(const struct lu_env *env, int cmd,
 
 	if (niocount && res == NULL) {
 		CERROR("NULL res niobuf with niocount %d\n", niocount);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	LASSERT(oti == NULL || oti->oti_handle == (void *)DESC_PRIV);
@@ -530,7 +530,7 @@ static int echo_commitrw(const struct lu_env *env, int cmd,
 
 	CDEBUG(D_PAGE, "%d pages remain after commit\n",
 	       atomic_read(&obd->u.echo.eo_prep));
-	RETURN(rc);
+	return rc;
 
 commitrw_cleanup:
 	atomic_sub(pgs, &obd->u.echo.eo_prep);
@@ -570,7 +570,7 @@ static int echo_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 						LDLM_NS_TYPE_OST);
 	if (obd->obd_namespace == NULL) {
 		LBUG();
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	rc = ldlm_cli_enqueue_local(obd->obd_namespace, &res_id, LDLM_PLAIN,
@@ -592,7 +592,7 @@ static int echo_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	ptlrpc_init_client (LDLM_CB_REQUEST_PORTAL, LDLM_CB_REPLY_PORTAL,
 			    "echo_ldlm_cb_client", &obd->obd_ldlm_client);
-	RETURN(0);
+	return 0;
 }
 
 static int echo_cleanup(struct obd_device *obd)
@@ -615,7 +615,7 @@ static int echo_cleanup(struct obd_device *obd)
 	if (leaked != 0)
 		CERROR("%d prep/commitrw pages leaked\n", leaked);
 
-	RETURN(0);
+	return 0;
 }
 
 struct obd_ops echo_obd_ops = {

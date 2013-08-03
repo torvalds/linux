@@ -339,7 +339,7 @@ out:
 
 	if (status)
 		CERROR("rsi parse error %d\n", status);
-	RETURN(status);
+	return status;
 }
 
 static struct cache_detail rsi_cache = {
@@ -787,7 +787,7 @@ out:
 	if (rc)
 		CERROR("create reverse svc ctx: idx "LPX64", rc %d\n",
 		       gsec->gs_rvs_hdl, rc);
-	RETURN(rc);
+	return rc;
 }
 
 int gss_svc_upcall_expire_rvs_ctx(rawobj_t *handle)
@@ -1010,7 +1010,7 @@ out:
 
 		COMPAT_RSC_PUT(&rsci->h, &rsc_cache);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 struct gss_svc_ctx *gss_svc_upcall_get_ctx(struct ptlrpc_request *req,

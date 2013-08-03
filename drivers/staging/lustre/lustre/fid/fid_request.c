@@ -67,7 +67,7 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp), &RQF_SEQ_QUERY,
 					LUSTRE_MDS_VERSION, SEQ_QUERY);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	/* Init operation code */
 	op = req_capsule_client_get(&req->rq_pill, &RMF_SEQ_OPC);
@@ -153,14 +153,14 @@ int seq_client_alloc_super(struct lu_client_seq *seq,
 		 * setup (lcs_exp != NULL) */
 		if (seq->lcs_exp == NULL) {
 			mutex_unlock(&seq->lcs_mutex);
-			RETURN(-EINPROGRESS);
+			return -EINPROGRESS;
 		}
 
 		rc = seq_client_rpc(seq, &seq->lcs_space,
 				    SEQ_ALLOC_SUPER, "super");
 	}
 	mutex_unlock(&seq->lcs_mutex);
-	RETURN(rc);
+	return rc;
 }
 
 /* Request sequence-controller node to allocate new meta-sequence. */
@@ -182,7 +182,7 @@ static int seq_client_alloc_meta(const struct lu_env *env,
 		} while (rc == -EINPROGRESS || rc == -EAGAIN);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 /* Allocate new sequence for client. */
@@ -198,7 +198,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 		if (rc) {
 			CERROR("%s: Can't allocate new meta-sequence,"
 			       "rc %d\n", seq->lcs_name, rc);
-			RETURN(rc);
+			return rc;
 		} else {
 			CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
 			       seq->lcs_name, PRANGE(&seq->lcs_space));
@@ -214,7 +214,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 	CDEBUG(D_INFO, "%s: Allocated sequence ["LPX64"]\n", seq->lcs_name,
 	       *seqnr);
 
-	RETURN(rc);
+	return rc;
 }
 
 static int seq_fid_alloc_prep(struct lu_client_seq *seq,
@@ -333,7 +333,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 			       "rc %d\n", seq->lcs_name, rc);
 			seq_fid_alloc_fini(seq);
 			mutex_unlock(&seq->lcs_mutex);
-			RETURN(rc);
+			return rc;
 		}
 
 		CDEBUG(D_INFO, "%s: Switch to sequence "
@@ -357,7 +357,7 @@ int seq_client_alloc_fid(const struct lu_env *env,
 	mutex_unlock(&seq->lcs_mutex);
 
 	CDEBUG(D_INFO, "%s: Allocated FID "DFID"\n", seq->lcs_name,  PFID(fid));
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(seq_client_alloc_fid);
 
@@ -422,7 +422,7 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 		CERROR("%s: LProcFS failed in seq-init\n",
 		       seq->lcs_name);
 		rc = PTR_ERR(seq->lcs_proc_dir);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = lprocfs_add_vars(seq->lcs_proc_dir,
@@ -433,7 +433,7 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 		GOTO(out_cleanup, rc);
 	}
 
-	RETURN(0);
+	return 0;
 
 out_cleanup:
 	seq_client_proc_fini(seq);
@@ -479,7 +479,7 @@ int seq_client_init(struct lu_client_seq *seq,
 	rc = seq_client_proc_init(seq);
 	if (rc)
 		seq_client_fini(seq);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(seq_client_init);
 
@@ -505,7 +505,7 @@ int client_fid_init(struct obd_device *obd,
 
 	OBD_ALLOC_PTR(cli->cl_seq);
 	if (cli->cl_seq == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	OBD_ALLOC(prefix, MAX_OBD_NAME + 5);
 	if (prefix == NULL)
@@ -519,7 +519,7 @@ int client_fid_init(struct obd_device *obd,
 	if (rc)
 		GOTO(out_free_seq, rc);
 
-	RETURN(rc);
+	return rc;
 out_free_seq:
 	OBD_FREE_PTR(cli->cl_seq);
 	cli->cl_seq = NULL;
@@ -537,7 +537,7 @@ int client_fid_fini(struct obd_device *obd)
 		cli->cl_seq = NULL;
 	}
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(client_fid_fini);
 

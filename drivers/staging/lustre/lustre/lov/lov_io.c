@@ -207,7 +207,7 @@ static int lov_io_sub_init(const struct lu_env *env, struct lov_io *lio,
 	}
 	if (result != 0)
 		lov_io_sub_fini(env, lio, sub);
-	RETURN(result);
+	return result;
 }
 
 struct lov_io_sub *lov_sub_get(const struct lu_env *env,
@@ -227,7 +227,7 @@ struct lov_io_sub *lov_sub_get(const struct lu_env *env,
 		lov_sub_enter(sub);
 	else
 		sub = ERR_PTR(rc);
-	RETURN(sub);
+	return sub;
 }
 
 void lov_sub_put(struct lov_io_sub *sub)
@@ -249,7 +249,7 @@ static int lov_page_stripe(const struct cl_page *page)
 		lu_object_locate(page->cp_child->cp_obj->co_lu.lo_header,
 				 &lovsub_device_type));
 	LASSERT(subobj != NULL);
-	RETURN(subobj->lso_index);
+	return subobj->lso_index;
 }
 
 struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
@@ -265,7 +265,7 @@ struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
 	LASSERT(lio->lis_nr_subios > 0);
 
 	stripe = lov_page_stripe(page);
-	RETURN(lov_sub_get(env, lio, stripe));
+	return lov_sub_get(env, lio, stripe);
 }
 
 
@@ -290,7 +290,7 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 		result = 0;
 	} else
 		result = -ENOMEM;
-	RETURN(result);
+	return result;
 }
 
 static void lov_io_slice_init(struct lov_io *lio,
@@ -407,7 +407,7 @@ static int lov_io_iter_init(const struct lu_env *env,
 		else
 			break;
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int lov_io_rw_iter_init(const struct lu_env *env,
@@ -443,7 +443,7 @@ static int lov_io_rw_iter_init(const struct lu_env *env,
 	 * XXX The following call should be optimized: we know, that
 	 * [lio->lis_pos, lio->lis_endpos) intersects with exactly one stripe.
 	 */
-	RETURN(lov_io_iter_init(env, ios));
+	return lov_io_iter_init(env, ios);
 }
 
 static int lov_io_call(const struct lu_env *env, struct lov_io *lio,
@@ -463,17 +463,17 @@ static int lov_io_call(const struct lu_env *env, struct lov_io *lio,
 		if (parent->ci_result == 0)
 			parent->ci_result = sub->sub_io->ci_result;
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int lov_io_lock(const struct lu_env *env, const struct cl_io_slice *ios)
 {
-	RETURN(lov_io_call(env, cl2lov_io(env, ios), cl_io_lock));
+	return lov_io_call(env, cl2lov_io(env, ios), cl_io_lock);
 }
 
 static int lov_io_start(const struct lu_env *env, const struct cl_io_slice *ios)
 {
-	RETURN(lov_io_call(env, cl2lov_io(env, ios), cl_io_start));
+	return lov_io_call(env, cl2lov_io(env, ios), cl_io_start);
 }
 
 static int lov_io_end_wrapper(const struct lu_env *env, struct cl_io *io)
@@ -487,19 +487,19 @@ static int lov_io_end_wrapper(const struct lu_env *env, struct cl_io *io)
 		cl_io_end(env, io);
 	else
 		io->ci_state = CIS_IO_FINISHED;
-	RETURN(0);
+	return 0;
 }
 
 static int lov_io_iter_fini_wrapper(const struct lu_env *env, struct cl_io *io)
 {
 	cl_io_iter_fini(env, io);
-	RETURN(0);
+	return 0;
 }
 
 static int lov_io_unlock_wrapper(const struct lu_env *env, struct cl_io *io)
 {
 	cl_io_unlock(env, io);
-	RETURN(0);
+	return 0;
 }
 
 static void lov_io_end(const struct lu_env *env, const struct cl_io_slice *ios)
@@ -585,7 +585,7 @@ static int lov_io_submit(const struct lu_env *env,
 		rc = cl_io_submit_rw(sub->sub_env, sub->sub_io,
 				     crt, queue);
 		lov_sub_put(sub);
-		RETURN(rc);
+		return rc;
 	}
 
 	LASSERT(lio->lis_subs != NULL);
@@ -593,7 +593,7 @@ static int lov_io_submit(const struct lu_env *env,
 		OBD_ALLOC_LARGE(stripes_qin,
 				sizeof(*stripes_qin) * lio->lis_nr_subios);
 		if (stripes_qin == NULL)
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 
 		for (stripe = 0; stripe < lio->lis_nr_subios; stripe++)
 			cl_page_list_init(&stripes_qin[stripe]);
@@ -659,7 +659,7 @@ static int lov_io_submit(const struct lu_env *env,
 		mutex_unlock(&ld->ld_mutex);
 	}
 
-	RETURN(rc);
+	return rc;
 #undef QIN
 }
 
@@ -680,7 +680,7 @@ static int lov_io_prepare_write(const struct lu_env *env,
 		lov_sub_put(sub);
 	} else
 		result = PTR_ERR(sub);
-	RETURN(result);
+	return result;
 }
 
 static int lov_io_commit_write(const struct lu_env *env,
@@ -700,7 +700,7 @@ static int lov_io_commit_write(const struct lu_env *env,
 		lov_sub_put(sub);
 	} else
 		result = PTR_ERR(sub);
-	RETURN(result);
+	return result;
 }
 
 static int lov_io_fault_start(const struct lu_env *env,
@@ -715,7 +715,7 @@ static int lov_io_fault_start(const struct lu_env *env,
 	sub = lov_sub_get(env, lio, lov_page_stripe(fio->ft_page));
 	sub->sub_io->u.ci_fault.ft_nob = fio->ft_nob;
 	lov_sub_put(sub);
-	RETURN(lov_io_start(env, ios));
+	return lov_io_start(env, ios);
 }
 
 static void lov_io_fsync_end(const struct lu_env *env,
@@ -892,7 +892,7 @@ int lov_io_init_raid0(const struct lu_env *env, struct cl_object *obj,
 			atomic_inc(&lov->lo_active_ios);
 		}
 	}
-	RETURN(io->ci_result);
+	return io->ci_result;
 }
 
 int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
@@ -929,7 +929,7 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 	}
 
 	io->ci_result = result < 0 ? result : 0;
-	RETURN(result != 0);
+	return result != 0;
 }
 
 int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
@@ -963,6 +963,6 @@ int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
 	}
 
 	io->ci_result = result < 0 ? result : 0;
-	RETURN(result != 0);
+	return result != 0;
 }
 /** @} lov */

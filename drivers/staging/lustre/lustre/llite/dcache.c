@@ -86,10 +86,10 @@ int ll_dcompare(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	if (len != name->len)
-		RETURN(1);
+		return 1;
 
 	if (memcmp(str, name->name, len))
-		RETURN(1);
+		return 1;
 
 	CDEBUG(D_DENTRY, "found name %.*s(%p) flags %#x refc %d\n",
 	       name->len, name->name, dentry, dentry->d_flags,
@@ -97,12 +97,12 @@ int ll_dcompare(const struct dentry *parent, const struct dentry *dentry,
 
 	/* mountpoint is always valid */
 	if (d_mountpoint((struct dentry *)dentry))
-		RETURN(0);
+		return 0;
 
 	if (d_lustre_invalid(dentry))
-		RETURN(1);
+		return 1;
 
-	RETURN(0);
+	return 0;
 }
 
 static inline int return_if_equal(struct ldlm_lock *lock, void *data)
@@ -128,16 +128,16 @@ static int find_cbdata(struct inode *inode)
 	rc = md_find_cbdata(sbi->ll_md_exp, ll_inode2fid(inode),
 			    return_if_equal, NULL);
 	if (rc != 0)
-		 RETURN(rc);
+		 return rc;
 
 	lsm = ccc_inode_lsm_get(inode);
 	if (lsm == NULL)
-		RETURN(rc);
+		return rc;
 
 	rc = obd_find_cbdata(sbi->ll_dt_exp, lsm, return_if_equal, NULL);
 	ccc_inode_lsm_put(inode, lsm);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -172,8 +172,8 @@ static int ll_ddelete(const struct dentry *de)
 #endif
 
 	if (d_lustre_invalid((struct dentry *)de))
-		RETURN(1);
-	RETURN(0);
+		return 1;
+	return 0;
 }
 
 static int ll_set_dd(struct dentry *de)
@@ -196,11 +196,11 @@ static int ll_set_dd(struct dentry *de)
 				OBD_FREE_PTR(lld);
 			spin_unlock(&de->d_lock);
 		} else {
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 		}
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 int ll_dops_init(struct dentry *de, int block, int init_sa)
@@ -304,14 +304,14 @@ int ll_revalidate_it_finish(struct ptlrpc_request *request,
 	int rc = 0;
 
 	if (!request)
-		RETURN(0);
+		return 0;
 
 	if (it_disposition(it, DISP_LOOKUP_NEG))
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	rc = ll_prep_inode(&de->d_inode, request, NULL, it);
 
-	RETURN(rc);
+	return rc;
 }
 
 void ll_lookup_finish_locks(struct lookup_intent *it, struct dentry *dentry)
@@ -368,10 +368,10 @@ int ll_revalidate_it(struct dentry *de, int lookup_flags,
 		   away this negative dentry and actually do the request to
 		   kernel to create whatever needs to be created (if possible)*/
 		if (it && (it->it_op & IT_CREAT))
-			RETURN(0);
+			return 0;
 
 		if (d_lustre_invalid(de))
-			RETURN(0);
+			return 0;
 
 		ibits = MDS_INODELOCK_UPDATE;
 		rc = ll_have_md_lock(parent, &ibits, LCK_MINMODE);
@@ -398,7 +398,7 @@ int ll_revalidate_it(struct dentry *de, int lookup_flags,
 	LASSERT(it);
 
 	if (it->it_op == IT_LOOKUP && !d_lustre_invalid(de))
-		RETURN(1);
+		return 1;
 
 	if (it->it_op == IT_OPEN) {
 		struct inode *inode = de->d_inode;
@@ -445,7 +445,7 @@ int ll_revalidate_it(struct dentry *de, int lookup_flags,
 			   if it would be, we'll reopen the open request to
 			   MDS later during file open path */
 			mutex_unlock(&lli->lli_och_mutex);
-			RETURN(1);
+			return 1;
 		} else {
 			mutex_unlock(&lli->lli_och_mutex);
 		}
@@ -464,7 +464,7 @@ do_lock:
 				     de->d_name.name, de->d_name.len,
 				     0, LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
-		RETURN(PTR_ERR(op_data));
+		return PTR_ERR(op_data);
 
 	if (!IS_POSIXACL(parent) || !exp_connect_umask(exp))
 		it->it_create_mode &= ~current_umask();
@@ -551,7 +551,7 @@ out:
 mark:
 	if (it != NULL && it->it_op == IT_GETATTR && rc > 0)
 		ll_statahead_mark(parent, de);
-	RETURN(rc);
+	return rc;
 
 	/*
 	 * This part is here to combat evil-evil race in real_lookup on 2.6
@@ -583,7 +583,7 @@ do_lookup:
 							 LUSTRE_OPC_CREATE :
 							 LUSTRE_OPC_ANY), NULL);
 	if (IS_ERR(op_data))
-		RETURN(PTR_ERR(op_data));
+		return PTR_ERR(op_data);
 
 	rc = md_intent_lock(exp, op_data, NULL, 0,  it, 0, &req,
 			    ll_md_blocking_ast, 0);
@@ -630,7 +630,7 @@ int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 	if (!(flags & (LOOKUP_PARENT|LOOKUP_OPEN|LOOKUP_CREATE)) &&
 	    ll_need_statahead(parent, dentry) > 0) {
 		if (flags & LOOKUP_RCU)
-			RETURN(-ECHILD);
+			return -ECHILD;
 
 		if (dentry->d_inode == NULL)
 			unplug = 1;
@@ -638,7 +638,7 @@ int ll_revalidate_nd(struct dentry *dentry, unsigned int flags)
 		ll_statahead_mark(parent, dentry);
 	}
 
-	RETURN(1);
+	return 1;
 }
 
 

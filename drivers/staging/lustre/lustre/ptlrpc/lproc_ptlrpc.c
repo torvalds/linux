@@ -612,7 +612,7 @@ out:
 
 	mutex_unlock(&nrs_core.nrs_mutex);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -696,7 +696,7 @@ out:
 	if (cmd_copy)
 		OBD_FREE(cmd_copy, LPROCFS_NRS_WR_MAX_CMD);
 
-	RETURN(rc < 0 ? rc : count);
+	return rc < 0 ? rc : count;
 }
 LPROC_SEQ_FOPS(ptlrpc_lprocfs_nrs);
 
@@ -1220,7 +1220,7 @@ int lprocfs_wr_ping(struct file *file, const char *buffer,
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
 	LPROCFS_CLIMP_EXIT(obd);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	req->rq_send_state = LUSTRE_IMP_FULL;
 
@@ -1228,8 +1228,8 @@ int lprocfs_wr_ping(struct file *file, const char *buffer,
 
 	ptlrpc_req_finished(req);
 	if (rc >= 0)
-		RETURN(count);
-	RETURN(rc);
+		return count;
+	return rc;
 }
 EXPORT_SYMBOL(lprocfs_wr_ping);
 

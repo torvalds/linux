@@ -95,10 +95,10 @@ static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 
 	rc = lprocfs_write_helper(buffer, count, &fd);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	if (fd < 0)
-		RETURN(-ERANGE);
+		return -ERANGE;
 	CWARN("message to fd %d\n", fd);
 
 	len = sizeof(*lh) + sizeof(*hal) + MTI_NAME_MAXLEN +
@@ -139,8 +139,8 @@ static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 	}
 	OBD_FREE(lh, len);
 	if (rc < 0)
-		RETURN(rc);
-	RETURN(count);
+		return rc;
+	return count;
 }
 
 struct file_operations mdc_kuc_fops = {

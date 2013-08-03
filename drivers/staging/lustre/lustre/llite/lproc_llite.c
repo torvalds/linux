@@ -384,17 +384,17 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file, const char *buffer,
 	buffer = lprocfs_find_named_value(buffer, "max_cached_mb:", &count);
 	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	if (pages_number < 0 || pages_number > totalram_pages) {
 		CERROR("%s: can't set max cache more than %lu MB\n",
 		       ll_get_fsname(sb, NULL, 0),
 		       totalram_pages >> (20 - PAGE_CACHE_SHIFT));
-		RETURN(-ERANGE);
+		return -ERANGE;
 	}
 
 	if (sbi->ll_dt_exp == NULL)
-		RETURN(-ENODEV);
+		return -ENODEV;
 
 	spin_lock(&sbi->ll_lock);
 	diff = pages_number - cache->ccc_lru_max;
@@ -878,7 +878,7 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	if (IS_ERR(sbi->ll_proc_root)) {
 		err = PTR_ERR(sbi->ll_proc_root);
 		sbi->ll_proc_root = NULL;
-		RETURN(err);
+		return err;
 	}
 
 	rc = lprocfs_seq_create(sbi->ll_proc_root, "dump_page_cache", 0444,
@@ -992,7 +992,7 @@ out:
 		lprocfs_free_stats(&sbi->ll_ra_stats);
 		lprocfs_free_stats(&sbi->ll_stats);
 	}
-	RETURN(err);
+	return err;
 }
 
 void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi)

@@ -63,13 +63,13 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 
 	if (!create && !priority) {
 		CDEBUG(D_HA, "Nothing to do\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	ptlrpc_conn = ptlrpc_uuid_to_connection(uuid);
 	if (!ptlrpc_conn) {
 		CDEBUG(D_HA, "can't find connection %s\n", uuid->uuid);
-		RETURN (-ENOENT);
+		return -ENOENT;
 	}
 
 	if (create) {
@@ -114,13 +114,13 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 	}
 
 	spin_unlock(&imp->imp_lock);
-	RETURN(0);
+	return 0;
 out_free:
 	if (imp_conn)
 		OBD_FREE(imp_conn, sizeof(*imp_conn));
 out_put:
 	ptlrpc_connection_put(ptlrpc_conn);
-	RETURN(rc);
+	return rc;
 }
 
 int import_set_conn_priority(struct obd_import *imp, struct obd_uuid *uuid)
@@ -185,7 +185,7 @@ out:
 	spin_unlock(&imp->imp_lock);
 	if (rc == -ENOENT)
 		CERROR("connection %s not found\n", uuid->uuid);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(client_import_del_conn);
 
@@ -209,7 +209,7 @@ int client_import_find_conn(struct obd_import *imp, lnet_nid_t peer,
 		}
 	}
 	spin_unlock(&imp->imp_lock);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(client_import_find_conn);
 
@@ -301,27 +301,27 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	} else {
 		CERROR("unknown client OBD type \"%s\", can't setup\n",
 		       name);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (LUSTRE_CFG_BUFLEN(lcfg, 1) < 1) {
 		CERROR("requires a TARGET UUID\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (LUSTRE_CFG_BUFLEN(lcfg, 1) > 37) {
 		CERROR("client UUID must be less than 38 characters\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (LUSTRE_CFG_BUFLEN(lcfg, 2) < 1) {
 		CERROR("setup requires a SERVER UUID\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (LUSTRE_CFG_BUFLEN(lcfg, 2) > 37) {
 		CERROR("target UUID must be less than 38 characters\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	init_rwsem(&cli->cl_sem);
@@ -448,14 +448,14 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 
 	cli->cl_qchk_stat = CL_NOT_QUOTACHECKED;
 
-	RETURN(rc);
+	return rc;
 
 err_import:
 	class_destroy_import(imp);
 err_ldlm:
 	ldlm_put_ref();
 err:
-	RETURN(rc);
+	return rc;
 
 }
 EXPORT_SYMBOL(client_obd_setup);
@@ -468,7 +468,7 @@ int client_obd_cleanup(struct obd_device *obddev)
 	LASSERT(obddev->u.cli.cl_import == NULL);
 
 	ldlm_put_ref();
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(client_obd_cleanup);
 
@@ -548,7 +548,7 @@ int client_disconnect_export(struct obd_export *exp)
 	if (!obd) {
 		CERROR("invalid export for disconnect: exp %p cookie "LPX64"\n",
 		       exp, exp ? exp->exp_handle.h_cookie : -1);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	cli = &obd->u.cli;
@@ -604,7 +604,7 @@ out_disconnect:
 
 	up_write(&cli->cl_sem);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(client_disconnect_export);
 
@@ -622,7 +622,7 @@ int target_pack_pool_reply(struct ptlrpc_request *req)
 		     !exp_connect_lru_resize(req->rq_export))) {
 		lustre_msg_set_slv(req->rq_repmsg, 0);
 		lustre_msg_set_limit(req->rq_repmsg, 0);
-		RETURN(0);
+		return 0;
 	}
 
 	/* OBD is alive here as export is alive, which we checked above. */
@@ -633,7 +633,7 @@ int target_pack_pool_reply(struct ptlrpc_request *req)
 	lustre_msg_set_limit(req->rq_repmsg, obd->obd_pool_limit);
 	read_unlock(&obd->obd_pool_lock);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(target_pack_pool_reply);
 

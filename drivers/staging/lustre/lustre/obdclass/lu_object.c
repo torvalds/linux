@@ -209,9 +209,9 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 	 */
 	top = dev->ld_ops->ldo_object_alloc(env, NULL, dev);
 	if (top == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 	if (IS_ERR(top))
-		RETURN(top);
+		return top;
 	/*
 	 * This is the only place where object fid is assigned. It's constant
 	 * after this point.
@@ -232,7 +232,7 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 			result = scan->lo_ops->loo_object_init(env, scan, conf);
 			if (result != 0) {
 				lu_object_free(env, top);
-				RETURN(ERR_PTR(result));
+				return ERR_PTR(result);
 			}
 			scan->lo_flags |= LU_OBJECT_ALLOCATED;
 		}
@@ -243,13 +243,13 @@ static struct lu_object *lu_object_alloc(const struct lu_env *env,
 			result = scan->lo_ops->loo_object_start(env, scan);
 			if (result != 0) {
 				lu_object_free(env, top);
-				RETURN(ERR_PTR(result));
+				return ERR_PTR(result);
 			}
 		}
 	}
 
 	lprocfs_counter_incr(dev->ld_site->ls_stats, LU_SS_CREATED);
-	RETURN(top);
+	return top;
 }
 
 /**
@@ -316,7 +316,7 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	int		      i;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OBD_NO_LRU))
-		RETURN(0);
+		return 0;
 
 	INIT_LIST_HEAD(&dispose);
 	/*
@@ -1039,7 +1039,7 @@ int lu_site_init(struct lu_site *s, struct lu_device *top)
 
 	lu_dev_add_linkage(s, top);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lu_site_init);
 

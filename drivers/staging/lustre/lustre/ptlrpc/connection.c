@@ -56,7 +56,7 @@ ptlrpc_connection_get(lnet_process_id_t peer, lnet_nid_t self,
 
 	OBD_ALLOC_PTR(conn);
 	if (!conn)
-		RETURN(NULL);
+		return NULL;
 
 	conn->c_peer = peer;
 	conn->c_self = self;
@@ -92,7 +92,7 @@ int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 	int rc = 0;
 
 	if (!conn)
-		RETURN(rc);
+		return rc;
 
 	LASSERT(atomic_read(&conn->c_refcount) > 1);
 
@@ -119,7 +119,7 @@ int ptlrpc_connection_put(struct ptlrpc_connection *conn)
 	       conn, atomic_read(&conn->c_refcount),
 	       libcfs_nid2str(conn->c_peer.nid));
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_connection_put);
 
@@ -131,7 +131,7 @@ ptlrpc_connection_addref(struct ptlrpc_connection *conn)
 	       conn, atomic_read(&conn->c_refcount),
 	       libcfs_nid2str(conn->c_peer.nid));
 
-	RETURN(conn);
+	return conn;
 }
 EXPORT_SYMBOL(ptlrpc_connection_addref);
 
@@ -145,9 +145,9 @@ int ptlrpc_connection_init(void)
 				    CFS_HASH_MAX_THETA,
 				    &conn_hash_ops, CFS_HASH_DEFAULT);
 	if (!conn_hash)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ptlrpc_connection_init);
 

@@ -78,22 +78,22 @@ static int verify_handle(char *test, struct llog_handle *llh, int num_recs)
 	if (active_recs != num_recs) {
 		CERROR("%s: expected %d active recs after write, found %d\n",
 		       test, num_recs, active_recs);
-		RETURN(-ERANGE);
+		return -ERANGE;
 	}
 
 	if (llh->lgh_hdr->llh_count != num_recs) {
 		CERROR("%s: handle->count is %d, expected %d after write\n",
 		       test, llh->lgh_hdr->llh_count, num_recs);
-		RETURN(-ERANGE);
+		return -ERANGE;
 	}
 
 	if (llh->lgh_last_idx < last_idx) {
 		CERROR("%s: handle->last_idx is %d, expected %d after write\n",
 		       test, llh->lgh_last_idx, last_idx);
-		RETURN(-ERANGE);
+		return -ERANGE;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 /* Test named-log create/open, close */
@@ -132,7 +132,7 @@ out_close:
 	}
 out:
 	llog_ctxt_put(ctxt);
-	RETURN(rc);
+	return rc;
 }
 
 /* Test named-log reopen; returns opened log on success */
@@ -209,7 +209,7 @@ out_close_llh:
 out_put:
 	llog_ctxt_put(ctxt);
 
-	RETURN(rc);
+	return rc;
 }
 
 /* Test record writing, single and in bulk */
@@ -228,12 +228,12 @@ static int llog_test_3(const struct lu_env *env, struct obd_device *obd,
 	num_recs++;
 	if (rc < 0) {
 		CERROR("3a: write one log record failed: %d\n", rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = verify_handle("3a", llh, num_recs);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	CWARN("3b: write 10 cfg log records with 8 bytes bufs\n");
 	for (i = 0; i < 10; i++) {
@@ -247,14 +247,14 @@ static int llog_test_3(const struct lu_env *env, struct obd_device *obd,
 		if (rc < 0) {
 			CERROR("3b: write 10 records failed at #%d: %d\n",
 			       i + 1, rc);
-			RETURN(rc);
+			return rc;
 		}
 		num_recs++;
 	}
 
 	rc = verify_handle("3b", llh, num_recs);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	CWARN("3c: write 1000 more log records\n");
 	for (i = 0; i < 1000; i++) {
@@ -262,14 +262,14 @@ static int llog_test_3(const struct lu_env *env, struct obd_device *obd,
 		if (rc < 0) {
 			CERROR("3c: write 1000 records failed at #%d: %d\n",
 			       i + 1, rc);
-			RETURN(rc);
+			return rc;
 		}
 		num_recs++;
 	}
 
 	rc = verify_handle("3c", llh, num_recs);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	CWARN("3d: write log more than BITMAP_SIZE, return -ENOSPC\n");
 	for (i = 0; i < LLOG_BITMAP_SIZE(llh->lgh_hdr) + 1; i++) {
@@ -293,20 +293,20 @@ static int llog_test_3(const struct lu_env *env, struct obd_device *obd,
 		} else if (rc < 0) {
 			CERROR("3d: write recs failed at #%d: %d\n",
 			       i + 1, rc);
-			RETURN(rc);
+			return rc;
 		}
 		num_recs++;
 	}
 	if (rc != -ENOSPC) {
 		CWARN("3d: write record more than BITMAP size!\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 	CWARN("3d: wrote %d more records before end of llog is reached\n",
 	      num_recs);
 
 	rc = verify_handle("3d", llh, num_recs);
 
-	RETURN(rc);
+	return rc;
 }
 
 /* Test catalogue additions */
@@ -416,7 +416,7 @@ out:
 	}
 ctxt_release:
 	llog_ctxt_put(ctxt);
-	RETURN(rc);
+	return rc;
 }
 
 static int cat_counter;
@@ -429,7 +429,7 @@ static int cat_print_cb(const struct lu_env *env, struct llog_handle *llh,
 
 	if (rec->lrh_type != LLOG_LOGID_MAGIC) {
 		CERROR("invalid record in catalog\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	logid_to_fid(&lir->lid_id, &fid);
@@ -440,7 +440,7 @@ static int cat_print_cb(const struct lu_env *env, struct llog_handle *llh,
 
 	cat_counter++;
 
-	RETURN(0);
+	return 0;
 }
 
 static int plain_counter;
@@ -452,7 +452,7 @@ static int plain_print_cb(const struct lu_env *env, struct llog_handle *llh,
 
 	if (!(llh->lgh_hdr->llh_flags & LLOG_F_IS_PLAIN)) {
 		CERROR("log is not plain\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	logid_to_fid(&llh->lgh_id, &fid);
@@ -462,7 +462,7 @@ static int plain_print_cb(const struct lu_env *env, struct llog_handle *llh,
 
 	plain_counter++;
 
-	RETURN(0);
+	return 0;
 }
 
 static int cancel_count;
@@ -475,7 +475,7 @@ static int llog_cancel_rec_cb(const struct lu_env *env,
 
 	if (!(llh->lgh_hdr->llh_flags & LLOG_F_IS_PLAIN)) {
 		CERROR("log is not plain\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	cookie.lgc_lgl = llh->lgh_id;
@@ -484,8 +484,8 @@ static int llog_cancel_rec_cb(const struct lu_env *env,
 	llog_cat_cancel_records(env, llh->u.phd.phd_cat_handle, 1, &cookie);
 	cancel_count++;
 	if (cancel_count == LLOG_TEST_RECNUM)
-		RETURN(-LLOG_EEMPTY);
-	RETURN(0);
+		return -LLOG_EEMPTY;
+	return 0;
 }
 
 /* Test log and catalogue processing */
@@ -592,7 +592,7 @@ out:
 out_put:
 	llog_ctxt_put(ctxt);
 
-	RETURN(rc);
+	return rc;
 }
 
 /* Test client api; open log by name and process */
@@ -676,7 +676,7 @@ nctxt_put:
 	llog_ctxt_put(nctxt);
 ctxt_release:
 	llog_ctxt_put(ctxt);
-	RETURN(rc);
+	return rc;
 }
 
 static union {
@@ -721,7 +721,7 @@ static int llog_test_7_sub(const struct lu_env *env, struct llog_ctxt *ctxt)
 	rc = llog_open_create(env, ctxt, &llh, NULL, NULL);
 	if (rc) {
 		CERROR("7_sub: create log failed\n");
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = llog_init_handle(env, llh,
@@ -792,7 +792,7 @@ out_close:
 	if (rc)
 		llog_destroy(env, llh);
 	llog_close(env, llh);
-	RETURN(rc);
+	return rc;
 }
 
 /* Test all llog records writing and processing */
@@ -881,7 +881,7 @@ static int llog_test_7(const struct lu_env *env, struct obd_device *obd)
 	}
 out:
 	llog_ctxt_put(ctxt);
-	RETURN(rc);
+	return rc;
 }
 
 /* -------------------------------------------------------------------------
@@ -957,14 +957,14 @@ static int llog_test_cleanup(struct obd_device *obd)
 
 	rc = lu_env_init(&env, LCT_LOCAL | LCT_MG_THREAD);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	tgt = obd->obd_lvfs_ctxt.dt->dd_lu_dev.ld_obd;
 	rc = llog_cleanup(&env, llog_get_context(tgt, LLOG_TEST_ORIG_CTXT));
 	if (rc)
 		CERROR("failed to llog_test_llog_finish: %d\n", rc);
 	lu_env_fini(&env);
-	RETURN(rc);
+	return rc;
 }
 
 static int llog_test_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
@@ -978,12 +978,12 @@ static int llog_test_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	if (lcfg->lcfg_bufcount < 2) {
 		CERROR("requires a TARGET OBD name\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (lcfg->lcfg_buflens[1] < 1) {
 		CERROR("requires a TARGET OBD name\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* disk obd */
@@ -991,12 +991,12 @@ static int llog_test_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	if (!tgt || !tgt->obd_attached || !tgt->obd_set_up) {
 		CERROR("target device not attached or not set up (%s)\n",
 		       lustre_cfg_string(lcfg, 1));
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	rc = lu_env_init(&env, LCT_LOCAL | LCT_MG_THREAD);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rc = lu_context_init(&test_session, LCT_SESSION);
 	if (rc)
@@ -1037,7 +1037,7 @@ cleanup_session:
 	lu_context_fini(&test_session);
 cleanup_env:
 	lu_env_fini(&env);
-	RETURN(rc);
+	return rc;
 }
 
 static struct obd_ops llog_obd_ops = {

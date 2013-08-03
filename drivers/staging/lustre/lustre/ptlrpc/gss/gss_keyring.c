@@ -571,7 +571,7 @@ struct ptlrpc_sec * gss_sec_create_kr(struct obd_import *imp,
 
 	OBD_ALLOC(gsec_kr, sizeof(*gsec_kr));
 	if (gsec_kr == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	INIT_HLIST_HEAD(&gsec_kr->gsk_clist);
 	gsec_kr->gsk_root_ctx = NULL;
@@ -590,11 +590,11 @@ struct ptlrpc_sec * gss_sec_create_kr(struct obd_import *imp,
 		goto err_free;
 	}
 
-	RETURN(&gsec_kr->gsk_base.gs_base);
+	return &gsec_kr->gsk_base.gs_base;
 
 err_free:
 	OBD_FREE(gsec_kr, sizeof(*gsec_kr));
-	RETURN(NULL);
+	return NULL;
 }
 
 static
@@ -694,7 +694,7 @@ struct ptlrpc_cli_ctx * gss_sec_lookup_ctx_kr(struct ptlrpc_sec *sec,
 		 * always succeed.
 		 */
 		if (ctx || sec_is_reverse(sec))
-			RETURN(ctx);
+			return ctx;
 	}
 
 	LASSERT(create != 0);
@@ -818,7 +818,7 @@ struct ptlrpc_cli_ctx * gss_sec_lookup_ctx_kr(struct ptlrpc_sec *sec,
 out:
 	if (is_root)
 		mutex_unlock(&gsec_kr->gsk_root_uc_lock);
-	RETURN(ctx);
+	return ctx;
 }
 
 static
@@ -942,7 +942,7 @@ int gss_sec_flush_ctx_cache_kr(struct ptlrpc_sec *sec,
 	else
 		flush_spec_ctx_cache_kr(sec, uid, grace, force);
 
-	RETURN(0);
+	return 0;
 }
 
 static
@@ -1021,7 +1021,7 @@ int gss_sec_display_kr(struct ptlrpc_sec *sec, struct seq_file *seq)
 	}
 	spin_unlock(&sec->ps_lock);
 
-	RETURN(0);
+	return 0;
 }
 
 /****************************************
@@ -1140,12 +1140,12 @@ int gss_kt_instantiate(struct key *key, const void *data, size_t datalen)
 
 	if (data != NULL || datalen != 0) {
 		CERROR("invalid: data %p, len %lu\n", data, (long)datalen);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (key->payload.data != 0) {
 		CERROR("key already have payload\n");
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* link the key to session keyring, so following context negotiation
@@ -1167,11 +1167,11 @@ int gss_kt_instantiate(struct key *key, const void *data, size_t datalen)
 		CERROR("failed to link key %08x to keyring %08x: %d\n",
 		       key->serial,
 		       key_tgcred(current)->session_keyring->serial, rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	CDEBUG(D_SEC, "key %p instantiated, ctx %p\n", key, key->payload.data);
-	RETURN(0);
+	return 0;
 }
 
 /*
@@ -1189,7 +1189,7 @@ int gss_kt_update(struct key *key, const void *data, size_t datalen)
 
 	if (data == NULL || datalen == 0) {
 		CWARN("invalid: data %p, len %lu\n", data, (long)datalen);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	/* if upcall finished negotiation too fast (mostly likely because
@@ -1203,9 +1203,9 @@ int gss_kt_update(struct key *key, const void *data, size_t datalen)
 
 		rc = key_validate(key);
 		if (rc == 0)
-			RETURN(-EAGAIN);
+			return -EAGAIN;
 		else
-			RETURN(rc);
+			return rc;
 	}
 
 	LASSERT(atomic_read(&ctx->cc_refcount) > 0);
@@ -1216,7 +1216,7 @@ int gss_kt_update(struct key *key, const void *data, size_t datalen)
 	/* don't proceed if already refreshed */
 	if (cli_ctx_is_refreshed(ctx)) {
 		CWARN("ctx already done refresh\n");
-		RETURN(0);
+		return 0;
 	}
 
 	sptlrpc_cli_ctx_get(ctx);
@@ -1291,7 +1291,7 @@ out:
 
 	/* let user space think it's a success */
 	sptlrpc_cli_ctx_put(ctx, 1);
-	RETURN(0);
+	return 0;
 }
 
 static

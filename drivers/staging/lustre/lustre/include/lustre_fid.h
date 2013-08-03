@@ -677,14 +677,14 @@ static inline __u64 fid_flatten(const struct lu_fid *fid)
 
 	if (fid_is_igif(fid)) {
 		ino = lu_igif_ino(fid);
-		RETURN(ino);
+		return ino;
 	}
 
 	seq = fid_seq(fid);
 
 	ino = (seq << 24) + ((seq >> 24) & 0xffffff0000ULL) + fid_oid(fid);
 
-	RETURN(ino ? ino : fid_oid(fid));
+	return ino ? ino : fid_oid(fid);
 }
 
 static inline __u32 fid_hash(const struct lu_fid *f, int bits)
@@ -703,7 +703,7 @@ static inline __u32 fid_flatten32(const struct lu_fid *fid)
 
 	if (fid_is_igif(fid)) {
 		ino = lu_igif_ino(fid);
-		RETURN(ino);
+		return ino;
 	}
 
 	seq = fid_seq(fid) - FID_SEQ_START;
@@ -717,7 +717,7 @@ static inline __u32 fid_flatten32(const struct lu_fid *fid)
 	       (seq >> (64 - (40-8)) & 0xffffff00) +
 	       (fid_oid(fid) & 0xff000fff) + ((fid_oid(fid) & 0x00fff000) << 8);
 
-	RETURN(ino ? ino : fid_oid(fid));
+	return ino ? ino : fid_oid(fid);
 }
 
 static inline int lu_fid_diff(struct lu_fid *fid1, struct lu_fid *fid2)

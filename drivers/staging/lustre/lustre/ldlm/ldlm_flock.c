@@ -305,12 +305,12 @@ reprocess:
 				continue;
 
 			if (!first_enq)
-				RETURN(LDLM_ITER_CONTINUE);
+				return LDLM_ITER_CONTINUE;
 
 			if (*flags & LDLM_FL_BLOCK_NOWAIT) {
 				ldlm_flock_destroy(req, mode, *flags);
 				*err = -EAGAIN;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 
 			if (*flags & LDLM_FL_TEST_LOCK) {
@@ -323,7 +323,7 @@ reprocess:
 				req->l_policy_data.l_flock.end =
 					lock->l_policy_data.l_flock.end;
 				*flags |= LDLM_FL_LOCK_CHANGED;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 
 			/* add lock to blocking list before deadlock
@@ -332,18 +332,18 @@ reprocess:
 			if (rc) {
 				ldlm_flock_destroy(req, mode, *flags);
 				*err = rc;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 			if (ldlm_flock_deadlock(req, lock)) {
 				ldlm_flock_blocking_unlink(req);
 				ldlm_flock_destroy(req, mode, *flags);
 				*err = -EDEADLK;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 
 			ldlm_resource_add_lock(res, &res->lr_waiting, req);
 			*flags |= LDLM_FL_BLOCK_GRANTED;
-			RETURN(LDLM_ITER_STOP);
+			return LDLM_ITER_STOP;
 		}
 	}
 
@@ -351,7 +351,7 @@ reprocess:
 		ldlm_flock_destroy(req, mode, *flags);
 		req->l_req_mode = LCK_NL;
 		*flags |= LDLM_FL_LOCK_CHANGED;
-		RETURN(LDLM_ITER_STOP);
+		return LDLM_ITER_STOP;
 	}
 
 	/* In case we had slept on this lock request take it off of the
@@ -463,7 +463,7 @@ reprocess:
 				ldlm_flock_destroy(req, lock->l_granted_mode,
 						   *flags);
 				*err = -ENOLCK;
-				RETURN(LDLM_ITER_STOP);
+				return LDLM_ITER_STOP;
 			}
 			goto reprocess;
 		}
@@ -530,7 +530,7 @@ reprocess:
 		ldlm_flock_destroy(req, mode, *flags);
 
 	ldlm_resource_dump(D_INFO, res);
-	RETURN(LDLM_ITER_CONTINUE);
+	return LDLM_ITER_CONTINUE;
 }
 
 struct ldlm_flock_wait_data {
@@ -591,7 +591,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 
 		/* Need to wake up the waiter if we were evicted */
 		wake_up(&lock->l_waitq);
-		RETURN(0);
+		return 0;
 	}
 
 	LASSERT(flags != LDLM_FL_WAIT_NOREPROC);
@@ -603,7 +603,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 			goto granted;
 		/* CP AST RPC: lock get granted, wake it up */
 		wake_up(&lock->l_waitq);
-		RETURN(0);
+		return 0;
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue returned a blocked lock, "
@@ -629,7 +629,7 @@ ldlm_flock_completion_ast(struct ldlm_lock *lock, __u64 flags, void *data)
 	if (rc) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
 			   rc);
-		RETURN(rc);
+		return rc;
 	}
 
 granted:
@@ -637,18 +637,18 @@ granted:
 
 	if (lock->l_flags & LDLM_FL_DESTROYED) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: destroyed");
-		RETURN(0);
+		return 0;
 	}
 
 	if (lock->l_flags & LDLM_FL_FAILED) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed");
-		RETURN(-EIO);
+		return -EIO;
 	}
 
 	if (rc) {
 		LDLM_DEBUG(lock, "client-side enqueue waking up: failed (%d)",
 			   rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	LDLM_DEBUG(lock, "client-side enqueue granted");
@@ -690,7 +690,7 @@ granted:
 		ldlm_process_flock_lock(lock, &noreproc, 1, &err, NULL);
 	}
 	unlock_res_and_lock(lock);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ldlm_flock_completion_ast);
 
@@ -704,7 +704,7 @@ int ldlm_flock_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 	lock_res_and_lock(lock);
 	ldlm_flock_blocking_unlink(lock);
 	unlock_res_and_lock(lock);
-	RETURN(0);
+	return 0;
 }
 
 void ldlm_flock_policy_wire18_to_local(const ldlm_wire_policy_data_t *wpolicy,
@@ -825,9 +825,9 @@ int ldlm_init_flock_export(struct obd_export *exp)
 				&ldlm_export_flock_ops,
 				CFS_HASH_DEFAULT | CFS_HASH_NBLK_CHANGE);
 	if (!exp->exp_flock_hash)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ldlm_init_flock_export);
 

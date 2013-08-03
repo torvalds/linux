@@ -72,7 +72,7 @@ struct fld_cache *fld_cache_init(const char *name,
 
 	OBD_ALLOC_PTR(cache);
 	if (cache == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&cache->fci_entries_head);
 	INIT_LIST_HEAD(&cache->fci_lru);
@@ -92,7 +92,7 @@ struct fld_cache *fld_cache_init(const char *name,
 	CDEBUG(D_INFO, "%s: FLD cache - Size: %d, Threshold: %d\n",
 	       cache->fci_name, cache_size, cache_threshold);
 
-	RETURN(cache);
+	return cache;
 }
 
 /**
@@ -223,7 +223,7 @@ static int fld_cache_shrink(struct fld_cache *cache)
 	LASSERT(cache != NULL);
 
 	if (cache->fci_cache_count < cache->fci_cache_size)
-		RETURN(0);
+		return 0;
 
 	curr = cache->fci_lru.prev;
 
@@ -239,7 +239,7 @@ static int fld_cache_shrink(struct fld_cache *cache)
 	CDEBUG(D_INFO, "%s: FLD cache - Shrunk by "
 	       "%d entries\n", cache->fci_name, num);
 
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -367,10 +367,10 @@ struct fld_cache_entry
 
 	OBD_ALLOC_PTR(f_new);
 	if (!f_new)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	f_new->fce_range = *range;
-	RETURN(f_new);
+	return f_new;
 }
 
 /**
@@ -424,7 +424,7 @@ int fld_cache_insert_nolock(struct fld_cache *cache,
 	/* Add new entry to cache and lru list. */
 	fld_cache_entry_add(cache, f_new, prev);
 out:
-	RETURN(0);
+	return 0;
 }
 
 int fld_cache_insert(struct fld_cache *cache,
@@ -435,7 +435,7 @@ int fld_cache_insert(struct fld_cache *cache,
 
 	flde = fld_cache_entry_create(range);
 	if (IS_ERR(flde))
-		RETURN(PTR_ERR(flde));
+		return PTR_ERR(flde);
 
 	write_lock(&cache->fci_lock);
 	rc = fld_cache_insert_nolock(cache, flde);
@@ -443,7 +443,7 @@ int fld_cache_insert(struct fld_cache *cache,
 	if (rc)
 		OBD_FREE_PTR(flde);
 
-	RETURN(rc);
+	return rc;
 }
 
 void fld_cache_delete_nolock(struct fld_cache *cache,
@@ -495,7 +495,7 @@ struct fld_cache_entry
 		}
 	}
 
-	RETURN(got);
+	return got;
 }
 
 /**
@@ -509,7 +509,7 @@ struct fld_cache_entry
 	read_lock(&cache->fci_lock);
 	got = fld_cache_entry_lookup_nolock(cache, range);
 	read_unlock(&cache->fci_lock);
-	RETURN(got);
+	return got;
 }
 
 /**
@@ -539,9 +539,9 @@ int fld_cache_lookup(struct fld_cache *cache,
 
 			cache->fci_stat.fst_cache++;
 			read_unlock(&cache->fci_lock);
-			RETURN(0);
+			return 0;
 		}
 	}
 	read_unlock(&cache->fci_lock);
-	RETURN(-ENOENT);
+	return -ENOENT;
 }

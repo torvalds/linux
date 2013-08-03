@@ -102,15 +102,15 @@ int lustre_buf2som(void *buf, int rc, struct md_som_data *msd)
 
 	if (rc == 0 ||  rc == -ENODATA)
 		/* no SOM attributes */
-		RETURN(-ENODATA);
+		return -ENODATA;
 
 	if (rc < 0)
 		/* error hit while fetching xattr */
-		RETURN(rc);
+		return rc;
 
 	/* check SOM compatibility */
 	if (attrs->som_incompat & ~cpu_to_le32(SOM_INCOMPAT_SUPP))
-		RETURN(-ENODATA);
+		return -ENODATA;
 
 	/* unpack SOM attributes */
 	lustre_som_swab(attrs);
@@ -123,7 +123,7 @@ int lustre_buf2som(void *buf, int rc, struct md_som_data *msd)
 	msd->msd_blocks   = attrs->som_blocks;
 	msd->msd_mountid  = attrs->som_mountid;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lustre_buf2som);
 
@@ -158,11 +158,11 @@ int lustre_buf2hsm(void *buf, int rc, struct md_hsm *mh)
 
 	if (rc == 0 ||  rc == -ENODATA)
 		/* no HSM attributes */
-		RETURN(-ENODATA);
+		return -ENODATA;
 
 	if (rc < 0)
 		/* error hit while fetching xattr */
-		RETURN(rc);
+		return rc;
 
 	/* unpack HSM attributes */
 	lustre_hsm_swab(attrs);
@@ -173,7 +173,7 @@ int lustre_buf2hsm(void *buf, int rc, struct md_hsm *mh)
 	mh->mh_arch_id  = attrs->hsm_arch_id;
 	mh->mh_arch_ver = attrs->hsm_arch_ver;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lustre_buf2hsm);
 

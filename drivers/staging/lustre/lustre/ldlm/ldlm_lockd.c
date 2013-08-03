@@ -127,12 +127,12 @@ struct ldlm_bl_work_item {
 
 int ldlm_del_waiting_lock(struct ldlm_lock *lock)
 {
-	RETURN(0);
+	return 0;
 }
 
 int ldlm_refresh_waiting_lock(struct ldlm_lock *lock, int timeout)
 {
-	RETURN(0);
+	return 0;
 }
 
 
@@ -395,7 +395,7 @@ static int __ldlm_bl_to_thread(struct ldlm_bl_work_item *blwi,
 	if (!(cancel_flags & LCF_ASYNC))
 		wait_for_completion(&blwi->blwi_comp);
 
-	RETURN(0);
+	return 0;
 }
 
 static inline void init_blwi(struct ldlm_bl_work_item *blwi,
@@ -440,17 +440,17 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 			     ldlm_cancel_flags_t cancel_flags)
 {
 	if (cancels && count == 0)
-		RETURN(0);
+		return 0;
 
 	if (cancel_flags & LCF_ASYNC) {
 		struct ldlm_bl_work_item *blwi;
 
 		OBD_ALLOC(blwi, sizeof(*blwi));
 		if (blwi == NULL)
-			RETURN(-ENOMEM);
+			return -ENOMEM;
 		init_blwi(blwi, ns, ld, cancels, count, lock, cancel_flags);
 
-		RETURN(__ldlm_bl_to_thread(blwi, cancel_flags));
+		return __ldlm_bl_to_thread(blwi, cancel_flags);
 	} else {
 		/* if it is synchronous call do minimum mem alloc, as it could
 		 * be triggered from kernel shrinker
@@ -459,7 +459,7 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 
 		memset(&blwi, 0, sizeof(blwi));
 		init_blwi(&blwi, ns, ld, cancels, count, lock, cancel_flags);
-		RETURN(__ldlm_bl_to_thread(&blwi, cancel_flags));
+		return __ldlm_bl_to_thread(&blwi, cancel_flags);
 	}
 }
 
@@ -493,14 +493,14 @@ static int ldlm_handle_setinfo(struct ptlrpc_request *req)
 	key = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_KEY);
 	if (key == NULL) {
 		DEBUG_REQ(D_IOCTL, req, "no set_info key");
-		RETURN(-EFAULT);
+		return -EFAULT;
 	}
 	keylen = req_capsule_get_size(&req->rq_pill, &RMF_SETINFO_KEY,
 				      RCL_CLIENT);
 	val = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_VAL);
 	if (val == NULL) {
 		DEBUG_REQ(D_IOCTL, req, "no set_info val");
-		RETURN(-EFAULT);
+		return -EFAULT;
 	}
 	vallen = req_capsule_get_size(&req->rq_pill, &RMF_SETINFO_VAL,
 				      RCL_CLIENT);
@@ -542,7 +542,7 @@ static int ldlm_handle_qc_callback(struct ptlrpc_request *req)
 	oqctl = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
 	if (oqctl == NULL) {
 		CERROR("Can't unpack obd_quotactl\n");
-		RETURN(-EPROTO);
+		return -EPROTO;
 	}
 
 	oqctl->qc_stat = ptlrpc_status_ntoh(oqctl->qc_stat);
@@ -566,7 +566,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 
 	/* do nothing for sec context finalize */
 	if (lustre_msg_get_opc(req->rq_reqmsg) == SEC_CTX_FINI)
-		RETURN(0);
+		return 0;
 
 	req_capsule_init(&req->rq_pill, req, RCL_SERVER);
 
@@ -574,7 +574,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		rc = ldlm_callback_reply(req, -ENOTCONN);
 		ldlm_callback_errmsg(req, "Operate on unconnected server",
 				     rc, NULL);
-		RETURN(0);
+		return 0;
 	}
 
 	LASSERT(req->rq_export != NULL);
@@ -583,71 +583,71 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 	switch (lustre_msg_get_opc(req->rq_reqmsg)) {
 	case LDLM_BL_CALLBACK:
 		if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_BL_CALLBACK_NET))
-			RETURN(0);
+			return 0;
 		break;
 	case LDLM_CP_CALLBACK:
 		if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CP_CALLBACK_NET))
-			RETURN(0);
+			return 0;
 		break;
 	case LDLM_GL_CALLBACK:
 		if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_GL_CALLBACK_NET))
-			RETURN(0);
+			return 0;
 		break;
 	case LDLM_SET_INFO:
 		rc = ldlm_handle_setinfo(req);
 		ldlm_callback_reply(req, rc);
-		RETURN(0);
+		return 0;
 	case OBD_LOG_CANCEL: /* remove this eventually - for 1.4.0 compat */
 		CERROR("shouldn't be handling OBD_LOG_CANCEL on DLM thread\n");
 		req_capsule_set(&req->rq_pill, &RQF_LOG_CANCEL);
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOG_CANCEL_NET))
-			RETURN(0);
+			return 0;
 		rc = llog_origin_handle_cancel(req);
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOG_CANCEL_REP))
-			RETURN(0);
+			return 0;
 		ldlm_callback_reply(req, rc);
-		RETURN(0);
+		return 0;
 	case LLOG_ORIGIN_HANDLE_CREATE:
 		req_capsule_set(&req->rq_pill, &RQF_LLOG_ORIGIN_HANDLE_CREATE);
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			RETURN(0);
+			return 0;
 		rc = llog_origin_handle_open(req);
 		ldlm_callback_reply(req, rc);
-		RETURN(0);
+		return 0;
 	case LLOG_ORIGIN_HANDLE_NEXT_BLOCK:
 		req_capsule_set(&req->rq_pill,
 				&RQF_LLOG_ORIGIN_HANDLE_NEXT_BLOCK);
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			RETURN(0);
+			return 0;
 		rc = llog_origin_handle_next_block(req);
 		ldlm_callback_reply(req, rc);
-		RETURN(0);
+		return 0;
 	case LLOG_ORIGIN_HANDLE_READ_HEADER:
 		req_capsule_set(&req->rq_pill,
 				&RQF_LLOG_ORIGIN_HANDLE_READ_HEADER);
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			RETURN(0);
+			return 0;
 		rc = llog_origin_handle_read_header(req);
 		ldlm_callback_reply(req, rc);
-		RETURN(0);
+		return 0;
 	case LLOG_ORIGIN_HANDLE_CLOSE:
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_LOGD_NET))
-			RETURN(0);
+			return 0;
 		rc = llog_origin_handle_close(req);
 		ldlm_callback_reply(req, rc);
-		RETURN(0);
+		return 0;
 	case OBD_QC_CALLBACK:
 		req_capsule_set(&req->rq_pill, &RQF_QC_CALLBACK);
 		if (OBD_FAIL_CHECK(OBD_FAIL_OBD_QC_CALLBACK_NET))
-			RETURN(0);
+			return 0;
 		rc = ldlm_handle_qc_callback(req);
 		ldlm_callback_reply(req, rc);
-		RETURN(0);
+		return 0;
 	default:
 		CERROR("unknown opcode %u\n",
 		       lustre_msg_get_opc(req->rq_reqmsg));
 		ldlm_callback_reply(req, -EPROTO);
-		RETURN(0);
+		return 0;
 	}
 
 	ns = req->rq_export->exp_obd->obd_namespace;
@@ -660,7 +660,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		rc = ldlm_callback_reply(req, -EPROTO);
 		ldlm_callback_errmsg(req, "Operate without parameter", rc,
 				     NULL);
-		RETURN(0);
+		return 0;
 	}
 
 	/* Force a known safe race, send a cancel to the server for a lock
@@ -679,7 +679,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		rc = ldlm_callback_reply(req, -EINVAL);
 		ldlm_callback_errmsg(req, "Operate with invalid parameter", rc,
 				     &dlm_req->lock_handle[0]);
-		RETURN(0);
+		return 0;
 	}
 
 	if ((lock->l_flags & LDLM_FL_FAIL_LOC) &&
@@ -706,7 +706,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 			rc = ldlm_callback_reply(req, -EINVAL);
 			ldlm_callback_errmsg(req, "Operate on stale lock", rc,
 					     &dlm_req->lock_handle[0]);
-			RETURN(0);
+			return 0;
 		}
 		/* BL_AST locks are not needed in LRU.
 		 * Let ldlm_cancel_lru() be fast. */
@@ -752,7 +752,7 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		LBUG();			 /* checked above */
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 
@@ -894,7 +894,7 @@ static int ldlm_bl_thread_main(void *arg)
 	atomic_dec(&blp->blp_busy_threads);
 	atomic_dec(&blp->blp_num_threads);
 	complete(&blp->blp_comp);
-	RETURN(0);
+	return 0;
 }
 
 
@@ -913,7 +913,7 @@ int ldlm_get_ref(void)
 	}
 	mutex_unlock(&ldlm_ref_mutex);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ldlm_get_ref);
 
@@ -1014,9 +1014,9 @@ int ldlm_init_export(struct obd_export *exp)
 				CFS_HASH_NBLK_CHANGE);
 
 	if (!exp->exp_lock_hash)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ldlm_init_export);
 
@@ -1037,11 +1037,11 @@ static int ldlm_setup(void)
 	int i;
 
 	if (ldlm_state != NULL)
-		RETURN(-EALREADY);
+		return -EALREADY;
 
 	OBD_ALLOC(ldlm_state, sizeof(*ldlm_state));
 	if (ldlm_state == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 #ifdef LPROCFS
 	rc = ldlm_proc_setup();
@@ -1121,11 +1121,11 @@ static int ldlm_setup(void)
 		CERROR("Failed to initialize LDLM pools: %d\n", rc);
 		GOTO(out, rc);
 	}
-	RETURN(0);
+	return 0;
 
  out:
 	ldlm_cleanup();
-	RETURN(rc);
+	return rc;
 }
 
 static int ldlm_cleanup(void)
@@ -1135,7 +1135,7 @@ static int ldlm_cleanup(void)
 		CERROR("ldlm still has namespaces; clean these up first.\n");
 		ldlm_dump_all_namespaces(LDLM_NAMESPACE_SERVER, D_DLMTRACE);
 		ldlm_dump_all_namespaces(LDLM_NAMESPACE_CLIENT, D_DLMTRACE);
-		RETURN(-EBUSY);
+		return -EBUSY;
 	}
 
 	ldlm_pools_fini();
@@ -1168,7 +1168,7 @@ static int ldlm_cleanup(void)
 	OBD_FREE(ldlm_state, sizeof(*ldlm_state));
 	ldlm_state = NULL;
 
-	RETURN(0);
+	return 0;
 }
 
 int ldlm_init(void)

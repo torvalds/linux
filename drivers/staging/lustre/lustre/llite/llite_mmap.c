@@ -82,7 +82,7 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 			break;
 		}
 	}
-	RETURN(ret);
+	return ret;
 }
 
 /**
@@ -111,7 +111,7 @@ struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
 
 	*env_ret = NULL;
 	if (ll_file_nolock(file))
-		RETURN(ERR_PTR(-EOPNOTSUPP));
+		return ERR_PTR(-EOPNOTSUPP);
 
 	/*
 	 * page fault can be called when lustre IO is
@@ -122,7 +122,7 @@ struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
 	 */
 	env = cl_env_nested_get(nest);
 	if (IS_ERR(env))
-		 RETURN(ERR_PTR(-EINVAL));
+		 return ERR_PTR(-EINVAL);
 
 	*env_ret = env;
 
@@ -305,7 +305,7 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	io = ll_fault_io_init(vma, &env,  &nest, vmf->pgoff, &ra_flags);
 	if (IS_ERR(io))
-		RETURN(to_fault_error(PTR_ERR(io)));
+		return to_fault_error(PTR_ERR(io));
 
 	result = io->ci_result;
 	if (result == 0) {
@@ -332,7 +332,7 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	CDEBUG(D_MMAP, "%s fault %d/%d\n",
 	       current->comm, fault_ret, result);
-	RETURN(fault_ret);
+	return fault_ret;
 }
 
 static int ll_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -467,7 +467,7 @@ int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 				    last - first + 1, 0);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 static struct vm_operations_struct ll_file_vm_ops = {
@@ -483,7 +483,7 @@ int ll_file_mmap(struct file *file, struct vm_area_struct * vma)
 	int rc;
 
 	if (ll_file_nolock(file))
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_MAP, 1);
 	rc = generic_file_mmap(file, vma);
@@ -494,5 +494,5 @@ int ll_file_mmap(struct file *file, struct vm_area_struct * vma)
 		rc = ll_glimpse_size(inode);
 	}
 
-	RETURN(rc);
+	return rc;
 }

@@ -80,19 +80,7 @@ static inline int __is_po2(unsigned long long val)
 #define LERRCHKSUM(hexnum) (((hexnum) & 0xf) ^ ((hexnum) >> 4 & 0xf) ^ \
 			   ((hexnum) >> 8 & 0xf))
 
-
-/*
- * Some (nomina odiosa sunt) platforms define NULL as naked 0. This confuses
- * Lustre RETURN(NULL) macro.
- */
-#if defined(NULL)
-#undef NULL
-#endif
-
-#define NULL ((void *)0)
-
 #define LUSTRE_SRV_LNET_PID      LUSTRE_LNET_PID
-
 
 #include <linux/list.h>
 

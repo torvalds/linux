@@ -181,7 +181,7 @@ int ccc_device_init(const struct lu_env *env, struct lu_device *d,
 		lu_device_get(next);
 		lu_ref_add(&next->ld_reference, "lu-stack", &lu_site_init);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 struct lu_device *ccc_device_fini(const struct lu_env *env,
@@ -203,7 +203,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 
 	OBD_ALLOC_PTR(vdv);
 	if (vdv == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	lud = &vdv->cdv_cl.cd_lu_dev;
 	cl_device_init(&vdv->cdv_cl, t);
@@ -226,7 +226,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 		ccc_device_free(env, lud);
 		lud = ERR_PTR(rc);
 	}
-	RETURN(lud);
+	return lud;
 }
 
 struct lu_device *ccc_device_free(const struct lu_env *env,
@@ -426,7 +426,7 @@ int ccc_object_glimpse(const struct lu_env *env,
 	 */
 	if (lvb->lvb_size > 0 && lvb->lvb_blocks == 0)
 		lvb->lvb_blocks = dirty_cnt(inode);
-	RETURN(0);
+	return 0;
 }
 
 
@@ -490,7 +490,7 @@ int ccc_page_is_under_lock(const struct lu_env *env,
 		}
 	} else
 		result = 0;
-	RETURN(result);
+	return result;
 }
 
 int ccc_fail(const struct lu_env *env, const struct cl_page_slice *slice)
@@ -555,7 +555,7 @@ int ccc_transient_page_prep(const struct lu_env *env,
 				   struct cl_io *unused)
 {
 	/* transient page should always be sent. */
-	RETURN(0);
+	return 0;
 }
 
 /*****************************************************************************
@@ -635,7 +635,7 @@ int ccc_lock_fits_into(const struct lu_env *env,
 		result = lock->cll_state >= CLS_ENQUEUED;
 	else
 		result = 1;
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -715,7 +715,7 @@ int ccc_io_one_lock_index(const struct lu_env *env, struct cl_io *io,
 	descr->cld_enq_flags = enqflags;
 
 	cl_io_lock_add(env, io, &cio->cui_link);
-	RETURN(0);
+	return 0;
 }
 
 void ccc_io_update_iov(const struct lu_env *env,
@@ -978,7 +978,7 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr,
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
-		RETURN(PTR_ERR(env));
+		return PTR_ERR(env);
 
 	io = ccc_env_thread_io(env);
 	io->ci_obj = cl_i2info(inode)->lli_clob;
@@ -1007,7 +1007,7 @@ again:
 	if (unlikely(io->ci_need_restart))
 		goto again;
 	cl_env_put(env, &refcheck);
-	RETURN(result);
+	return result;
 }
 
 /*****************************************************************************
@@ -1272,9 +1272,9 @@ __u16 ll_dirent_type_get(struct lu_dirent *ent)
 __u64 cl_fid_build_ino(const struct lu_fid *fid, int api32)
 {
 	if (BITS_PER_LONG == 32 || api32)
-		RETURN(fid_flatten32(fid));
+		return fid_flatten32(fid);
 	else
-		RETURN(fid_flatten(fid));
+		return fid_flatten(fid);
 }
 
 /**
@@ -1286,11 +1286,11 @@ __u32 cl_fid_build_gen(const struct lu_fid *fid)
 
 	if (fid_is_igif(fid)) {
 		gen = lu_igif_gen(fid);
-		RETURN(gen);
+		return gen;
 	}
 
 	gen = (fid_flatten(fid) >> 32);
-	RETURN(gen);
+	return gen;
 }
 
 /* lsm is unreliable after hsm implementation as layout can be changed at

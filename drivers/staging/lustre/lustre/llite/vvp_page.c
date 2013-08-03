@@ -219,7 +219,7 @@ static int vvp_page_prep_read(const struct lu_env *env,
 			      struct cl_io *unused)
 {
 	/* Skip the page already marked as PG_uptodate. */
-	RETURN(PageUptodate(cl2vm_page(slice)) ? -EALREADY : 0);
+	return PageUptodate(cl2vm_page(slice)) ? -EALREADY : 0;
 }
 
 static int vvp_page_prep_write(const struct lu_env *env,
@@ -366,7 +366,7 @@ static int vvp_page_make_ready(const struct lu_env *env,
 		LBUG();
 	}
 	unlock_page(vmpage);
-	RETURN(result);
+	return result;
 }
 
 static int vvp_page_print(const struct lu_env *env,

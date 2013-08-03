@@ -509,7 +509,7 @@ static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 	client_obd_list_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&mcw->mcw_entry);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	RETURN(rc);
+	return rc;
 };
 
 /* We record requests in flight in cli->cl_r_in_flight here.

@@ -571,7 +571,7 @@ int osc_extent_release(const struct lu_env *env, struct osc_extent *ext)
 		osc_io_unplug_async(env, osc_cli(obj), obj);
 	}
 	osc_extent_put(env, ext);
-	RETURN(rc);
+	return rc;
 }
 
 static inline int overlapped(struct osc_extent *ex1, struct osc_extent *ex2)
@@ -604,7 +604,7 @@ struct osc_extent *osc_extent_find(const struct lu_env *env,
 
 	cur = osc_extent_alloc(obj);
 	if (cur == NULL)
-		RETURN(ERR_PTR(-ENOMEM));
+		return ERR_PTR(-ENOMEM);
 
 	lock = cl_lock_at_pgoff(env, osc2cl(obj), index, NULL, 1, 0);
 	LASSERT(lock != NULL);
@@ -842,7 +842,7 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 	osc_extent_remove(ext);
 	/* put the refcount for RPC */
 	osc_extent_put(env, ext);
-	RETURN(0);
+	return 0;
 }
 
 static int extent_wait_cb(struct osc_extent *ext, int state)
@@ -897,7 +897,7 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 	}
 	if (rc == 0 && ext->oe_rc < 0)
 		rc = ext->oe_rc;
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1015,7 +1015,7 @@ static int osc_extent_truncate(struct osc_extent *ext, pgoff_t trunc_index,
 out:
 	cl_io_fini(env, io);
 	cl_env_nested_put(&nest, env);
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1089,7 +1089,7 @@ static int osc_extent_make_ready(const struct lu_env *env,
 	/* get a refcount for RPC. */
 	osc_extent_get(ext);
 
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -1138,7 +1138,7 @@ static int osc_extent_expand(struct osc_extent *ext, pgoff_t index, int *grants)
 
 out:
 	osc_object_unlock(obj);
-	RETURN(rc);
+	return rc;
 }
 
 static void osc_extent_tree_dump0(int level, struct osc_object *obj,
@@ -1201,7 +1201,7 @@ static int osc_make_ready(const struct lu_env *env, struct osc_async_page *oap,
 	result = cl_page_make_ready(env, page, CRT_WRITE);
 	if (result == 0)
 		opg->ops_submit_time = cfs_time_current();
-	RETURN(result);
+	return result;
 }
 
 static int osc_refresh_count(const struct lu_env *env,
@@ -1293,7 +1293,7 @@ static int osc_completion(const struct lu_env *env, struct osc_async_page *oap,
 
 	cl_page_completion(env, page, crt, rc);
 
-	RETURN(0);
+	return 0;
 }
 
 #define OSC_DUMP_GRANT(cli, fmt, args...) do {				      \
@@ -1543,7 +1543,7 @@ static int osc_enter_cache(const struct lu_env *env, struct client_obd *cli,
 out:
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
 	OSC_DUMP_GRANT(cli, "returned %d.\n", rc);
-	RETURN(rc);
+	return rc;
 }
 
 /* caller must hold loi_list_lock */
@@ -1602,42 +1602,42 @@ static int osc_makes_rpc(struct client_obd *cli, struct osc_object *osc,
 
 	if (cmd & OBD_BRW_WRITE) {
 		if (atomic_read(&osc->oo_nr_writes) == 0)
-			RETURN(0);
+			return 0;
 		if (invalid_import) {
 			CDEBUG(D_CACHE, "invalid import forcing RPC\n");
-			RETURN(1);
+			return 1;
 		}
 		if (!list_empty(&osc->oo_hp_exts)) {
 			CDEBUG(D_CACHE, "high prio request forcing RPC\n");
-			RETURN(1);
+			return 1;
 		}
 		if (!list_empty(&osc->oo_urgent_exts)) {
 			CDEBUG(D_CACHE, "urgent request forcing RPC\n");
-			RETURN(1);
+			return 1;
 		}
 		/* trigger a write rpc stream as long as there are dirtiers
 		 * waiting for space.  as they're waiting, they're not going to
 		 * create more pages to coalesce with what's waiting.. */
 		if (!list_empty(&cli->cl_cache_waiters)) {
 			CDEBUG(D_CACHE, "cache waiters forcing RPC\n");
-			RETURN(1);
+			return 1;
 		}
 		if (atomic_read(&osc->oo_nr_writes) >=
 		    cli->cl_max_pages_per_rpc)
-			RETURN(1);
+			return 1;
 	} else {
 		if (atomic_read(&osc->oo_nr_reads) == 0)
-			RETURN(0);
+			return 0;
 		if (invalid_import) {
 			CDEBUG(D_CACHE, "invalid import forcing RPC\n");
-			RETURN(1);
+			return 1;
 		}
 		/* all read are urgent. */
 		if (!list_empty(&osc->oo_reading_exts))
-			RETURN(1);
+			return 1;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 static void osc_update_pending(struct osc_object *obj, int cmd, int delta)
@@ -1776,7 +1776,7 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 
 	*max_pages = max(ext->oe_mppr, *max_pages);
 	if (*pc + ext->oe_nr_pages > *max_pages)
-		RETURN(0);
+		return 0;
 
 	list_for_each_entry(tmp, rpclist, oe_link) {
 		EASSERT(tmp->oe_owner == current, tmp);
@@ -1789,7 +1789,7 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 
 		if (tmp->oe_srvlock != ext->oe_srvlock ||
 		    !tmp->oe_grants != !ext->oe_grants)
-			RETURN(0);
+			return 0;
 
 		/* remove break for strict check */
 		break;
@@ -1798,7 +1798,7 @@ static int try_to_add_extent_for_io(struct client_obd *cli,
 	*pc += ext->oe_nr_pages;
 	list_move_tail(&ext->oe_link, rpclist);
 	ext->oe_owner = current;
-	RETURN(1);
+	return 1;
 }
 
 /**
@@ -1894,7 +1894,7 @@ osc_send_write_rpc(const struct lu_env *env, struct client_obd *cli,
 	LASSERT(equi(page_count == 0, list_empty(&rpclist)));
 
 	if (list_empty(&rpclist))
-		RETURN(0);
+		return 0;
 
 	osc_update_pending(osc, OBD_BRW_WRITE, -page_count);
 
@@ -1935,7 +1935,7 @@ osc_send_write_rpc(const struct lu_env *env, struct client_obd *cli,
 	}
 
 	osc_object_lock(osc);
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1982,7 +1982,7 @@ osc_send_read_rpc(const struct lu_env *env, struct client_obd *cli,
 
 		osc_object_lock(osc);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 #define list_to_obj(list, item) ({					      \
@@ -1999,9 +1999,9 @@ static struct osc_object *osc_next_obj(struct client_obd *cli)
 	 * will be flushed quickly and other clients can get the lock,
 	 * then objects which have pages ready to be stuffed into RPCs */
 	if (!list_empty(&cli->cl_loi_hp_ready_list))
-		RETURN(list_to_obj(&cli->cl_loi_hp_ready_list, hp_ready_item));
+		return list_to_obj(&cli->cl_loi_hp_ready_list, hp_ready_item);
 	if (!list_empty(&cli->cl_loi_ready_list))
-		RETURN(list_to_obj(&cli->cl_loi_ready_list, ready_item));
+		return list_to_obj(&cli->cl_loi_ready_list, ready_item);
 
 	/* then if we have cache waiters, return all objects with queued
 	 * writes.  This is especially important when many small files
@@ -2009,19 +2009,17 @@ static struct osc_object *osc_next_obj(struct client_obd *cli)
 	 * they don't pass the nr_pending/object threshhold */
 	if (!list_empty(&cli->cl_cache_waiters) &&
 	    !list_empty(&cli->cl_loi_write_list))
-		RETURN(list_to_obj(&cli->cl_loi_write_list, write_item));
+		return list_to_obj(&cli->cl_loi_write_list, write_item);
 
 	/* then return all queued objects when we have an invalid import
 	 * so that they get flushed */
 	if (cli->cl_import == NULL || cli->cl_import->imp_invalid) {
 		if (!list_empty(&cli->cl_loi_write_list))
-			RETURN(list_to_obj(&cli->cl_loi_write_list,
-					   write_item));
+			return list_to_obj(&cli->cl_loi_write_list, write_item);
 		if (!list_empty(&cli->cl_loi_read_list))
-			RETURN(list_to_obj(&cli->cl_loi_read_list,
-					   read_item));
+			return list_to_obj(&cli->cl_loi_read_list, read_item);
 	}
-	RETURN(NULL);
+	return NULL;
 }
 
 /* called with the loi list lock held */
@@ -2157,7 +2155,7 @@ int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 	spin_lock_init(&oap->oap_lock);
 	CDEBUG(D_INFO, "oap %p page %p obj off "LPU64"\n",
 	       oap, page, oap->oap_obj_off);
-	RETURN(0);
+	return 0;
 }
 
 int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
@@ -2176,14 +2174,14 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 	int    rc = 0;
 
 	if (oap->oap_magic != OAP_MAGIC)
-		RETURN(-EINVAL);
+		return -EINVAL;
 
 	if (cli->cl_import == NULL || cli->cl_import->imp_invalid)
-		RETURN(-EIO);
+		return -EIO;
 
 	if (!list_empty(&oap->oap_pending_item) ||
 	    !list_empty(&oap->oap_rpc_item))
-		RETURN(-EBUSY);
+		return -EBUSY;
 
 	/* Set the OBD_BRW_SRVLOCK before the page is queued. */
 	brw_flags |= ops->ops_srvlock ? OBD_BRW_SRVLOCK : 0;
@@ -2211,7 +2209,7 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 		if (rc == 0 && osc_quota_chkdq(cli, qid) == NO_QUOTA)
 			rc = -EDQUOT;
 		if (rc)
-			RETURN(rc);
+			return rc;
 	}
 
 	oap->oap_cmd = cmd;
@@ -2319,7 +2317,7 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 		list_add_tail(&oap->oap_pending_item, &ext->oe_pages);
 		osc_object_unlock(osc);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 int osc_teardown_async_page(const struct lu_env *env,
@@ -2352,7 +2350,7 @@ int osc_teardown_async_page(const struct lu_env *env,
 	osc_object_unlock(obj);
 	if (ext != NULL)
 		osc_extent_put(env, ext);
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -2491,7 +2489,7 @@ int osc_cancel_async_page(const struct lu_env *env, struct osc_page *ops)
 	}
 
 	osc_list_maint(cli, obj);
-	RETURN(rc);
+	return rc;
 }
 
 int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
@@ -2521,7 +2519,7 @@ int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 			list_del_init(&oap->oap_pending_item);
 			osc_ap_completion(env, cli, oap, 0, -ENOMEM);
 		}
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	ext->oe_rw = !!(cmd & OBD_BRW_READ);
@@ -2547,7 +2545,7 @@ int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 	osc_object_unlock(obj);
 
 	osc_io_unplug(env, cli, obj, PDL_POLICY_ROUND);
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -2668,7 +2666,7 @@ again:
 		waiting = NULL;
 		goto again;
 	}
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -2756,7 +2754,7 @@ again:
 	osc_object_unlock(obj);
 
 	OSC_IO_DEBUG(obj, "sync file range.\n");
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -2871,7 +2869,7 @@ int osc_cache_writeback_range(const struct lu_env *env, struct osc_object *obj,
 	}
 
 	OSC_IO_DEBUG(obj, "cache page out.\n");
-	RETURN(result);
+	return result;
 }
 
 /** @} osc */

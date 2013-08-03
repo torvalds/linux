@@ -130,10 +130,10 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 			cio->cui_glimpse = 0;
 
 			if (lock == NULL)
-				RETURN(0);
+				return 0;
 
 			if (IS_ERR(lock))
-				RETURN(PTR_ERR(lock));
+				return PTR_ERR(lock);
 
 			LASSERT(agl == 0);
 			result = cl_wait(env, lock);
@@ -158,7 +158,7 @@ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
 		}
 	}
 
-	RETURN(result);
+	return result;
 }
 
 static int cl_io_get(struct inode *inode, struct lu_env **envout,
@@ -223,7 +223,7 @@ int cl_glimpse_size0(struct inode *inode, int agl)
 			goto again;
 		cl_env_put(env, &refcheck);
 	}
-	RETURN(result);
+	return result;
 }
 
 int cl_local_size(struct inode *inode)
@@ -238,11 +238,11 @@ int cl_local_size(struct inode *inode)
 	int		      refcheck;
 
 	if (!cl_i2info(inode)->lli_has_smd)
-		RETURN(0);
+		return 0;
 
 	result = cl_io_get(inode, &env, &io, &refcheck);
 	if (result <= 0)
-		RETURN(result);
+		return result;
 
 	clob = io->ci_obj;
 	result = cl_io_init(env, io, CIT_MISC, clob);
@@ -265,5 +265,5 @@ int cl_local_size(struct inode *inode)
 	}
 	cl_io_fini(env, io);
 	cl_env_put(env, &refcheck);
-	RETURN(result);
+	return result;
 }

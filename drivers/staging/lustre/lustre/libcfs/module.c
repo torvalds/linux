@@ -165,7 +165,7 @@ static int libcfs_psdev_open(unsigned long flags, void *args)
 	}
 	*(struct libcfs_device_userstate **)args = ldu;
 
-	RETURN(0);
+	return 0;
 }
 
 /* called when closing /dev/device */
@@ -180,7 +180,7 @@ static int libcfs_psdev_release(unsigned long flags, void *args)
 	}
 
 	module_put(THIS_MODULE);
-	RETURN(0);
+	return 0;
 }
 
 static struct rw_semaphore ioctl_list_sem;
@@ -224,7 +224,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 	switch (cmd) {
 	case IOC_LIBCFS_CLEAR_DEBUG:
 		libcfs_debug_clear_buffer();
-		RETURN(0);
+		return 0;
 	/*
 	 * case IOC_LIBCFS_PANIC:
 	 * Handled in arch/cfs_module.c
@@ -232,9 +232,9 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 	case IOC_LIBCFS_MARK_DEBUG:
 		if (data->ioc_inlbuf1 == NULL ||
 		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0')
-			RETURN(-EINVAL);
+			return -EINVAL;
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
-		RETURN(0);
+		return 0;
 #if LWT_SUPPORT
 	case IOC_LIBCFS_LWT_CONTROL:
 		err = lwt_control ((data->ioc_flags & 1) != 0,
@@ -298,7 +298,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 			ping(data);
 			symbol_put(kping_client);
 		}
-		RETURN(0);
+		return 0;
 	}
 
 	default: {
@@ -319,7 +319,7 @@ static int libcfs_ioctl_int(struct cfs_psdev_file *pfile,unsigned long cmd,
 	}
 	}
 
-	RETURN(err);
+	return err;
 }
 
 static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *arg)
@@ -330,7 +330,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 
 	LIBCFS_ALLOC_GFP(buf, 1024, GFP_IOFS);
 	if (buf == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	/* 'cmd' and permissions get checked in our arch-specific caller */
 	if (libcfs_ioctl_getdata(buf, buf + 800, (void *)arg)) {
@@ -343,7 +343,7 @@ static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd, void *a
 
 out:
 	LIBCFS_FREE(buf, 1024);
-	RETURN(err);
+	return err;
 }
 
 

@@ -301,7 +301,7 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 		 * new modules are loaded, i.e., early during boot up.
 		 */
 		CERROR("Failure to refill session: %d\n", rc2);
-		RETURN(rc);
+		return rc;
 	}
 
 	if (atomic_read(&set->set_remaining))
@@ -367,7 +367,7 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 		}
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -408,7 +408,7 @@ static int ptlrpcd(void *arg)
 	complete(&pc->pc_starting);
 
 	if (rc != 0)
-		RETURN(rc);
+		return rc;
 
 	/*
 	 * This mainloop strongly resembles ptlrpc_set_wait() except that our
@@ -593,7 +593,7 @@ static int ptlrpcd_bind(int index, int max)
 		}
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 
@@ -608,7 +608,7 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 	if (test_and_set_bit(LIOD_START, &pc->pc_flags)) {
 		CWARN("Starting second thread (%s) for same pc %p\n",
 		      name, pc);
-		RETURN(0);
+		return 0;
 	}
 
 	pc->pc_index = index;
@@ -659,7 +659,7 @@ out:
 		clear_bit(LIOD_BIND, &pc->pc_flags);
 		clear_bit(LIOD_START, &pc->pc_flags);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 void ptlrpcd_stop(struct ptlrpcd_ctl *pc, int force)
@@ -785,7 +785,7 @@ out:
 		ptlrpcds = NULL;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 int ptlrpcd_addref(void)
@@ -796,7 +796,7 @@ int ptlrpcd_addref(void)
 	if (++ptlrpcd_users == 1)
 		rc = ptlrpcd_init();
 	mutex_unlock(&ptlrpcd_mutex);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpcd_addref);
 

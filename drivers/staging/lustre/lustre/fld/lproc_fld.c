@@ -71,7 +71,7 @@ fld_proc_targets_seq_show(struct seq_file *m, void *unused)
 		seq_printf(m, "%s\n", fld_target_name(target));
 	spin_unlock(&fld->lcf_lock);
 
-	RETURN(0);
+	return 0;
 }
 
 static int
@@ -85,7 +85,7 @@ fld_proc_hash_seq_show(struct seq_file *m, void *unused)
 	seq_printf(m, "%s\n", fld->lcf_hash->fh_name);
 	spin_unlock(&fld->lcf_lock);
 
-	RETURN(0);
+	return 0;
 }
 
 static ssize_t
@@ -117,7 +117,7 @@ fld_proc_hash_seq_write(struct file *file, const char *buffer,
 		       fld->lcf_name, hash->fh_name);
 	}
 
-	RETURN(count);
+	return count;
 }
 
 static ssize_t
@@ -132,7 +132,7 @@ fld_proc_cache_flush_write(struct file *file, const char __user *buffer,
 
 	CDEBUG(D_INFO, "%s: Lookup cache is flushed\n", fld->lcf_name);
 
-	RETURN(count);
+	return count;
 }
 
 static int fld_proc_cache_flush_open(struct inode *inode, struct file *file)

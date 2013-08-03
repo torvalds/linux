@@ -338,13 +338,13 @@ static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
 
 	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period)
-		RETURN(0);
+		return 0;
 
 	spin_lock(&pl->pl_lock);
 	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period) {
 		spin_unlock(&pl->pl_lock);
-		RETURN(0);
+		return 0;
 	}
 	/*
 	 * Recalc SLV after last period. This should be done
@@ -366,7 +366,7 @@ static int ldlm_srv_pool_recalc(struct ldlm_pool *pl)
 	lprocfs_counter_add(pl->pl_stats, LDLM_POOL_TIMING_STAT,
 			    recalc_interval_sec);
 	spin_unlock(&pl->pl_lock);
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -393,7 +393,7 @@ static int ldlm_srv_pool_shrink(struct ldlm_pool *pl,
 	 * and can't cancel anything. Let's catch this race.
 	 */
 	if (atomic_read(&pl->pl_granted) == 0)
-		RETURN(0);
+		return 0;
 
 	spin_lock(&pl->pl_lock);
 
@@ -475,7 +475,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 
 	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period)
-		RETURN(0);
+		return 0;
 
 	spin_lock(&pl->pl_lock);
 	/*
@@ -484,7 +484,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	recalc_interval_sec = cfs_time_current_sec() - pl->pl_recalc_time;
 	if (recalc_interval_sec < pl->pl_recalc_period) {
 		spin_unlock(&pl->pl_lock);
-		RETURN(0);
+		return 0;
 	}
 
 	/*
@@ -501,7 +501,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	 * Do not cancel locks in case lru resize is disabled for this ns.
 	 */
 	if (!ns_connect_lru_resize(ldlm_pl2ns(pl)))
-		RETURN(0);
+		return 0;
 
 	/*
 	 * In the time of canceling locks on client we do not need to maintain
@@ -509,8 +509,7 @@ static int ldlm_cli_pool_recalc(struct ldlm_pool *pl)
 	 * It may be called when SLV has changed much, this is why we do not
 	 * take into account pl->pl_recalc_time here.
 	 */
-	RETURN(ldlm_cancel_lru(ldlm_pl2ns(pl), 0, LCF_ASYNC,
-			       LDLM_CANCEL_LRUR));
+	return ldlm_cancel_lru(ldlm_pl2ns(pl), 0, LCF_ASYNC, LDLM_CANCEL_LRUR);
 }
 
 /**
@@ -530,7 +529,7 @@ static int ldlm_cli_pool_shrink(struct ldlm_pool *pl,
 	 * Do not cancel locks in case lru resize is disabled for this ns.
 	 */
 	if (!ns_connect_lru_resize(ns))
-		RETURN(0);
+		return 0;
 
 	/*
 	 * Make sure that pool knows last SLV and Limit from obd.
@@ -734,7 +733,7 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 
 	OBD_ALLOC(var_name, MAX_STRING_SIZE + 1);
 	if (!var_name)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	parent_ns_proc = ns->ns_proc_dir_entry;
 	if (parent_ns_proc == NULL) {
@@ -858,11 +857,11 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 	pl->pl_client_lock_volume = 0;
 	rc = ldlm_pool_proc_init(pl);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	CDEBUG(D_DLMTRACE, "Lock pool %s is initialized\n", pl->pl_name);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ldlm_pool_init);
 
@@ -1343,11 +1342,11 @@ static int ldlm_pools_thread_start(void)
 	task_t *task;
 
 	if (ldlm_pools_thread != NULL)
-		RETURN(-EALREADY);
+		return -EALREADY;
 
 	OBD_ALLOC_PTR(ldlm_pools_thread);
 	if (ldlm_pools_thread == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	init_completion(&ldlm_pools_comp);
 	init_waitqueue_head(&ldlm_pools_thread->t_ctl_waitq);
@@ -1358,11 +1357,11 @@ static int ldlm_pools_thread_start(void)
 		CERROR("Can't start pool thread, error %ld\n", PTR_ERR(task));
 		OBD_FREE(ldlm_pools_thread, sizeof(*ldlm_pools_thread));
 		ldlm_pools_thread = NULL;
-		RETURN(PTR_ERR(task));
+		return PTR_ERR(task);
 	}
 	l_wait_event(ldlm_pools_thread->t_ctl_waitq,
 		     thread_is_running(ldlm_pools_thread), &lwi);
-	RETURN(0);
+	return 0;
 }
 
 static void ldlm_pools_thread_stop(void)
@@ -1397,7 +1396,7 @@ int ldlm_pools_init(void)
 			set_shrinker(DEFAULT_SEEKS,
 					 ldlm_pools_cli_shrink);
 	}
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ldlm_pools_init);
 

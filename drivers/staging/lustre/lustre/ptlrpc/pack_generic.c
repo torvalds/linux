@@ -341,7 +341,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 	msg_len = lustre_msg_size_v2(count, lens);
 	rc = sptlrpc_svc_alloc_rs(req, msg_len);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	rs = req->rq_reply_state;
 	atomic_set(&rs->rs_refcount, 1);    /* 1 ref for rq_reply_state */
@@ -362,7 +362,7 @@ int lustre_pack_reply_v2(struct ptlrpc_request *req, int count,
 
 	PTLRPC_RS_DEBUG_LRU_ADD(rs);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(lustre_pack_reply_v2);
 
@@ -586,12 +586,12 @@ int __lustre_unpack_msg(struct lustre_msg *m, int len)
 		/* can't even look inside the message */
 		CERROR("message length %d too small for magic/version check\n",
 		       len);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	rc = lustre_unpack_msg_v2(m, len);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(__lustre_unpack_msg);
 
@@ -1617,7 +1617,7 @@ int do_set_info_async(struct obd_import *imp,
 
 	req = ptlrpc_request_alloc(imp, &RQF_OBD_SET_INFO);
 	if (req == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	req_capsule_set_size(&req->rq_pill, &RMF_SETINFO_KEY,
 			     RCL_CLIENT, keylen);
@@ -1626,7 +1626,7 @@ int do_set_info_async(struct obd_import *imp,
 	rc = ptlrpc_request_pack(req, version, opcode);
 	if (rc) {
 		ptlrpc_request_free(req);
-		RETURN(rc);
+		return rc;
 	}
 
 	tmp = req_capsule_client_get(&req->rq_pill, &RMF_SETINFO_KEY);
@@ -1644,7 +1644,7 @@ int do_set_info_async(struct obd_import *imp,
 		ptlrpc_req_finished(req);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(do_set_info_async);
 

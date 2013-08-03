@@ -394,7 +394,7 @@ static struct cl_lock *cl_lock_alloc(const struct lu_env *env,
 		}
 	} else
 		lock = ERR_PTR(-ENOMEM);
-	RETURN(lock);
+	return lock;
 }
 
 /**
@@ -464,9 +464,9 @@ static int cl_lock_fits_into(const struct lu_env *env,
 	list_for_each_entry(slice, &lock->cll_layers, cls_linkage) {
 		if (slice->cls_ops->clo_fits_into != NULL &&
 		    !slice->cls_ops->clo_fits_into(env, slice, need, io))
-			RETURN(0);
+			return 0;
 	}
-	RETURN(1);
+	return 1;
 }
 
 static struct cl_lock *cl_lock_lookup(const struct lu_env *env,
@@ -494,10 +494,10 @@ static struct cl_lock *cl_lock_lookup(const struct lu_env *env,
 		if (matched) {
 			cl_lock_get_trust(lock);
 			CS_LOCK_INC(obj, hit);
-			RETURN(lock);
+			return lock;
 		}
 	}
-	RETURN(NULL);
+	return NULL;
 }
 
 /**
@@ -549,7 +549,7 @@ static struct cl_lock *cl_lock_find(const struct lu_env *env,
 			}
 		}
 	}
-	RETURN(lock);
+	return lock;
 }
 
 /**
@@ -621,9 +621,9 @@ const struct cl_lock_slice *cl_lock_at(const struct cl_lock *lock,
 
 	list_for_each_entry(slice, &lock->cll_layers, cls_linkage) {
 		if (slice->cls_obj->co_lu.lo_dev->ld_type == dtype)
-			RETURN(slice);
+			return slice;
 	}
-	RETURN(NULL);
+	return NULL;
 }
 EXPORT_SYMBOL(cl_lock_at);
 
@@ -703,7 +703,7 @@ int cl_lock_mutex_try(const struct lu_env *env, struct cl_lock *lock)
 		cl_lock_mutex_tail(env, lock);
 	} else
 		result = -EBUSY;
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_lock_mutex_try);
 
@@ -955,7 +955,7 @@ int cl_lock_state_wait(const struct lu_env *env, struct cl_lock *lock)
 		/* Restore old blocked signals */
 		cfs_restore_sigs(blocked);
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_lock_state_wait);
 
@@ -1061,7 +1061,7 @@ int cl_use_try(const struct lu_env *env, struct cl_lock *lock, int atomic)
 
 	LASSERT(lock->cll_state == CLS_CACHED);
 	if (lock->cll_error)
-		RETURN(lock->cll_error);
+		return lock->cll_error;
 
 	result = -ENOSYS;
 	state = cl_lock_intransit(env, lock);
@@ -1101,7 +1101,7 @@ int cl_use_try(const struct lu_env *env, struct cl_lock *lock, int atomic)
 
 	}
 	cl_lock_extransit(env, lock, state);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_use_try);
 
@@ -1126,7 +1126,7 @@ static int cl_enqueue_kick(const struct lu_env *env,
 		}
 	}
 	LASSERT(result != -ENOSYS);
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -1189,7 +1189,7 @@ int cl_enqueue_try(const struct lu_env *env, struct cl_lock *lock,
 			LBUG();
 		}
 	} while (result == CLO_REPEAT);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_enqueue_try);
 
@@ -1234,7 +1234,7 @@ int cl_lock_enqueue_wait(const struct lu_env *env,
 		cl_lock_mutex_get(env, lock);
 
 	LASSERT(rc <= 0);
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(cl_lock_enqueue_wait);
 
@@ -1265,7 +1265,7 @@ static int cl_enqueue_locked(const struct lu_env *env, struct cl_lock *lock,
 	LASSERT(ergo(result == 0 && !(enqflags & CEF_AGL),
 		     lock->cll_state == CLS_ENQUEUED ||
 		     lock->cll_state == CLS_HELD));
-	RETURN(result);
+	return result;
 }
 
 /**
@@ -1290,7 +1290,7 @@ int cl_enqueue(const struct lu_env *env, struct cl_lock *lock,
 		cl_lock_lockdep_release(env, lock);
 	LASSERT(ergo(result == 0, lock->cll_state == CLS_ENQUEUED ||
 		     lock->cll_state == CLS_HELD));
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_enqueue);
 
@@ -1315,14 +1315,14 @@ int cl_unuse_try(const struct lu_env *env, struct cl_lock *lock)
 
 	if (lock->cll_users > 1) {
 		cl_lock_user_del(env, lock);
-		RETURN(0);
+		return 0;
 	}
 
 	/* Only if the lock is in CLS_HELD or CLS_ENQUEUED state, it can hold
 	 * underlying resources. */
 	if (!(lock->cll_state == CLS_HELD || lock->cll_state == CLS_ENQUEUED)) {
 		cl_lock_user_del(env, lock);
-		RETURN(0);
+		return 0;
 	}
 
 	/*
@@ -1368,7 +1368,7 @@ int cl_unuse_try(const struct lu_env *env, struct cl_lock *lock)
 		state = CLS_NEW;
 		cl_lock_extransit(env, lock, state);
 	}
-	RETURN(result ?: lock->cll_error);
+	return result ?: lock->cll_error;
 }
 EXPORT_SYMBOL(cl_unuse_try);
 
@@ -1447,7 +1447,7 @@ int cl_wait_try(const struct lu_env *env, struct cl_lock *lock)
 			cl_lock_state_set(env, lock, CLS_HELD);
 		}
 	} while (result == CLO_REPEAT);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_wait_try);
 
@@ -1487,7 +1487,7 @@ int cl_wait(const struct lu_env *env, struct cl_lock *lock)
 	cl_lock_trace(D_DLMTRACE, env, "wait lock", lock);
 	cl_lock_mutex_put(env, lock);
 	LASSERT(ergo(result == 0, lock->cll_state == CLS_HELD));
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_wait);
 
@@ -1513,7 +1513,7 @@ unsigned long cl_lock_weigh(const struct lu_env *env, struct cl_lock *lock)
 				pound = ~0UL;
 		}
 	}
-	RETURN(pound);
+	return pound;
 }
 EXPORT_SYMBOL(cl_lock_weigh);
 
@@ -1545,7 +1545,7 @@ int cl_lock_modify(const struct lu_env *env, struct cl_lock *lock,
 		if (slice->cls_ops->clo_modify != NULL) {
 			result = slice->cls_ops->clo_modify(env, slice, desc);
 			if (result != 0)
-				RETURN(result);
+				return result;
 		}
 	}
 	CL_LOCK_DEBUG(D_DLMTRACE, env, lock, " -> "DDESCR"@"DFID"\n",
@@ -1558,7 +1558,7 @@ int cl_lock_modify(const struct lu_env *env, struct cl_lock *lock,
 	spin_lock(&hdr->coh_lock_guard);
 	lock->cll_descr = *desc;
 	spin_unlock(&hdr->coh_lock_guard);
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(cl_lock_modify);
 
@@ -1613,7 +1613,7 @@ int cl_lock_closure_build(const struct lu_env *env, struct cl_lock *lock,
 	}
 	if (result != 0)
 		cl_lock_disclosure(env, closure);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_lock_closure_build);
 
@@ -1660,7 +1660,7 @@ int cl_lock_enclosure(const struct lu_env *env, struct cl_lock *lock,
 		}
 		result = CLO_REPEAT;
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_lock_enclosure);
 
@@ -1824,7 +1824,7 @@ struct cl_lock *cl_lock_at_pgoff(const struct lu_env *env,
 		}
 	}
 	spin_unlock(&head->coh_lock_guard);
-	RETURN(lock);
+	return lock;
 }
 EXPORT_SYMBOL(cl_lock_at_pgoff);
 
@@ -1946,7 +1946,7 @@ int cl_lock_discard_pages(const struct lu_env *env, struct cl_lock *lock)
 	} while (res != CLP_GANG_OKAY);
 out:
 	cl_io_fini(env, io);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_lock_discard_pages);
 
@@ -2028,7 +2028,7 @@ static struct cl_lock *cl_lock_hold_mutex(const struct lu_env *env,
 		cl_lock_mutex_put(env, lock);
 		cl_lock_put(env, lock);
 	}
-	RETURN(lock);
+	return lock;
 }
 
 /**
@@ -2047,7 +2047,7 @@ struct cl_lock *cl_lock_hold(const struct lu_env *env, const struct cl_io *io,
 	lock = cl_lock_hold_mutex(env, io, need, scope, source);
 	if (!IS_ERR(lock))
 		cl_lock_mutex_put(env, lock);
-	RETURN(lock);
+	return lock;
 }
 EXPORT_SYMBOL(cl_lock_hold);
 
@@ -2094,7 +2094,7 @@ struct cl_lock *cl_lock_request(const struct lu_env *env, struct cl_io *io,
 			lock = ERR_PTR(rc);
 		}
 	} while (rc == 0);
-	RETURN(lock);
+	return lock;
 }
 EXPORT_SYMBOL(cl_lock_request);
 

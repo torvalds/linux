@@ -81,11 +81,11 @@ static int nrs_policy_ctl_locked(struct ptlrpc_nrs_policy *policy,
 	 * policy->pol_private will be NULL in such a case.
 	 */
 	if (policy->pol_state == NRS_POL_STATE_STOPPED)
-		RETURN(-ENODEV);
+		return -ENODEV;
 
-	RETURN(policy->pol_desc->pd_ops->op_policy_ctl != NULL ?
+	return policy->pol_desc->pd_ops->op_policy_ctl != NULL ?
 	       policy->pol_desc->pd_ops->op_policy_ctl(policy, opc, arg) :
-	       -ENOSYS);
+	       -ENOSYS;
 }
 
 static void nrs_policy_stop0(struct ptlrpc_nrs_policy *policy)
@@ -117,14 +117,14 @@ static int nrs_policy_stop_locked(struct ptlrpc_nrs_policy *policy)
 	struct ptlrpc_nrs *nrs = policy->pol_nrs;
 
 	if (nrs->nrs_policy_fallback == policy && !nrs->nrs_stopping)
-		RETURN(-EPERM);
+		return -EPERM;
 
 	if (policy->pol_state == NRS_POL_STATE_STARTING)
-		RETURN(-EAGAIN);
+		return -EAGAIN;
 
 	/* In progress or already stopped */
 	if (policy->pol_state != NRS_POL_STATE_STARTED)
-		RETURN(0);
+		return 0;
 
 	policy->pol_state = NRS_POL_STATE_STOPPING;
 
@@ -141,7 +141,7 @@ static int nrs_policy_stop_locked(struct ptlrpc_nrs_policy *policy)
 	if (policy->pol_ref == 1)
 		nrs_policy_stop0(policy);
 
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -197,12 +197,12 @@ static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 	 * benefit.
 	 */
 	if (nrs->nrs_policy_starting)
-		RETURN(-EAGAIN);
+		return -EAGAIN;
 
 	LASSERT(policy->pol_state != NRS_POL_STATE_STARTING);
 
 	if (policy->pol_state == NRS_POL_STATE_STOPPING)
-		RETURN(-EAGAIN);
+		return -EAGAIN;
 
 	if (policy->pol_flags & PTLRPC_NRS_FL_FALLBACK) {
 		/**
@@ -213,7 +213,7 @@ static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 		 */
 		if (policy == nrs->nrs_policy_fallback) {
 			nrs_policy_stop_primary(nrs);
-			RETURN(0);
+			return 0;
 		}
 
 		/**
@@ -228,10 +228,10 @@ static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 		 * Shouldn't start primary policy if w/o fallback policy.
 		 */
 		if (nrs->nrs_policy_fallback == NULL)
-			RETURN(-EPERM);
+			return -EPERM;
 
 		if (policy->pol_state == NRS_POL_STATE_STARTED)
-			RETURN(0);
+			return 0;
 	}
 
 	/**
@@ -243,7 +243,7 @@ static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 		atomic_dec(&policy->pol_desc->pd_refs);
 		CERROR("NRS: cannot get module for policy %s; is it alive?\n",
 		       policy->pol_desc->pd_name);
-		RETURN(-ENODEV);
+		return -ENODEV;
 	}
 
 	/**
@@ -290,7 +290,7 @@ static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 out:
 	nrs->nrs_policy_starting = 0;
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -660,7 +660,7 @@ out:
 
 	spin_unlock(&nrs->nrs_lock);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -684,7 +684,7 @@ static int nrs_policy_unregister(struct ptlrpc_nrs *nrs, char *name)
 		spin_unlock(&nrs->nrs_lock);
 
 		CERROR("Can't find NRS policy %s\n", name);
-		RETURN(-ENOENT);
+		return -ENOENT;
 	}
 
 	if (policy->pol_ref > 1) {
@@ -693,7 +693,7 @@ static int nrs_policy_unregister(struct ptlrpc_nrs *nrs, char *name)
 		nrs_policy_put_locked(policy);
 
 		spin_unlock(&nrs->nrs_lock);
-		RETURN(-EBUSY);
+		return -EBUSY;
 	}
 
 	LASSERT(policy->pol_req_queued == 0);
@@ -716,7 +716,7 @@ static int nrs_policy_unregister(struct ptlrpc_nrs *nrs, char *name)
 	LASSERT(policy->pol_private == NULL);
 	OBD_FREE_PTR(policy);
 
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -748,7 +748,7 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 	OBD_CPT_ALLOC_GFP(policy, svcpt->scp_service->srv_cptable,
 			  svcpt->scp_cpt, sizeof(*policy), __GFP_IO);
 	if (policy == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	policy->pol_nrs     = nrs;
 	policy->pol_desc    = desc;
@@ -761,7 +761,7 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 	rc = nrs_policy_init(policy);
 	if (rc != 0) {
 		OBD_FREE_PTR(policy);
-		RETURN(rc);
+		return rc;
 	}
 
 	spin_lock(&nrs->nrs_lock);
@@ -777,7 +777,7 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 		nrs_policy_fini(policy);
 		OBD_FREE_PTR(policy);
 
-		RETURN(-EEXIST);
+		return -EEXIST;
 	}
 
 	list_add_tail(&policy->pol_list, &nrs->nrs_policy_list);
@@ -791,7 +791,7 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 	if (rc != 0)
 		(void) nrs_policy_unregister(nrs, policy->pol_desc->pd_name);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -893,7 +893,7 @@ static int nrs_register_policies_locked(struct ptlrpc_nrs *nrs)
 		}
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -931,7 +931,7 @@ static int nrs_svcpt_setup_locked0(struct ptlrpc_nrs *nrs,
 
 	rc = nrs_register_policies_locked(nrs);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -974,7 +974,7 @@ static int nrs_svcpt_setup_locked(struct ptlrpc_service_part *svcpt)
 	rc = nrs_svcpt_setup_locked0(nrs, svcpt);
 
 out:
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1031,9 +1031,9 @@ static struct ptlrpc_nrs_pol_desc *nrs_policy_find_desc_locked(const char *name)
 
 	list_for_each_entry(tmp, &nrs_core.nrs_policies, pd_list) {
 		if (strncmp(tmp->pd_name, name, NRS_POL_NAME_MAX) == 0)
-			RETURN(tmp);
+			return tmp;
 	}
-	RETURN(NULL);
+	return NULL;
 }
 
 /**
@@ -1082,7 +1082,7 @@ again:
 				       "partition %d of service %s: %d\n",
 				       desc->pd_name, svcpt->scp_cpt,
 				       svcpt->scp_service->srv_name, rc);
-				RETURN(rc);
+				return rc;
 			}
 
 			if (!hp && nrs_svc_has_hp(svc)) {
@@ -1095,7 +1095,7 @@ again:
 			desc->pd_ops->op_lprocfs_fini(svc);
 	}
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1145,7 +1145,7 @@ int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 		       "policy flags; external policies cannot act as fallback "
 		       "policies, or be started immediately upon registration "
 		       "without interaction with lprocfs\n", conf->nc_name);
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
 	mutex_lock(&nrs_core.nrs_mutex);
@@ -1248,7 +1248,7 @@ internal:
 fail:
 	mutex_unlock(&nrs_core.nrs_mutex);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_nrs_policy_register);
 
@@ -1276,7 +1276,7 @@ int ptlrpc_nrs_policy_unregister(struct ptlrpc_nrs_pol_conf *conf)
 	if (conf->nc_flags & PTLRPC_NRS_FL_FALLBACK) {
 		CERROR("Unable to unregister a fallback policy, unless the "
 		       "PTLRPC service is stopping.\n");
-		RETURN(-EPERM);
+		return -EPERM;
 	}
 
 	conf->nc_name[NRS_POL_NAME_MAX - 1] = '\0';
@@ -1314,7 +1314,7 @@ fail:
 not_exist:
 	mutex_unlock(&nrs_core.nrs_mutex);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ptlrpc_nrs_policy_unregister);
 
@@ -1369,7 +1369,7 @@ failed:
 
 	mutex_unlock(&nrs_core.nrs_mutex);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1698,7 +1698,7 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 		}
 	}
 out:
-	RETURN(rc);
+	return rc;
 }
 
 
@@ -1724,7 +1724,7 @@ int ptlrpc_nrs_init(void)
 		GOTO(fail, rc);
 
 
-	RETURN(rc);
+	return rc;
 fail:
 	/**
 	 * Since no PTLRPC services have been started at this point, all we need
@@ -1732,7 +1732,7 @@ fail:
 	 */
 	ptlrpc_nrs_fini();
 
-	RETURN(rc);
+	return rc;
 }
 
 /**

@@ -252,7 +252,7 @@ int ll_prepare_write(struct file *file, struct page *vmpage, unsigned from,
 	} else {
 		result = PTR_ERR(lcc);
 	}
-	RETURN(result);
+	return result;
 }
 
 int ll_commit_write(struct file *file, struct page *vmpage, unsigned from,
@@ -282,7 +282,7 @@ int ll_commit_write(struct file *file, struct page *vmpage, unsigned from,
 	lu_ref_del(&page->cp_reference, "prepare_write", current);
 	cl_page_put(env, page);
 	ll_cl_fini(lcc);
-	RETURN(result);
+	return result;
 }
 
 struct obd_capa *cl_capa_lookup(struct inode *inode, enum cl_req_type crt)
@@ -351,7 +351,7 @@ static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 	}
 
 out:
-	RETURN(ret);
+	return ret;
 }
 
 void ll_ra_count_put(struct ll_sb_info *sbi, unsigned long len)
@@ -483,7 +483,7 @@ static int cl_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 	}
 	lu_ref_del(&page->cp_reference, "ra", current);
 	cl_page_put(env, page);
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -544,7 +544,7 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
 		ll_ra_stats_inc(mapping, which);
 		CDEBUG(D_READA, "%s\n", msg);
 	}
-	RETURN(rc);
+	return rc;
 }
 
 #define RIA_DEBUG(ria)						       \
@@ -724,11 +724,11 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	cl_object_attr_unlock(clob);
 
 	if (ret != 0)
-		RETURN(ret);
+		return ret;
 	kms = attr->cat_kms;
 	if (kms == 0) {
 		ll_ra_stats_inc(mapping, RA_STAT_ZERO_LEN);
-		RETURN(0);
+		return 0;
 	}
 
 	spin_lock(&ras->ras_lock);
@@ -786,11 +786,11 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 
 	if (end == 0) {
 		ll_ra_stats_inc(mapping, RA_STAT_ZERO_WINDOW);
-		RETURN(0);
+		return 0;
 	}
 	len = ria_page_count(ria);
 	if (len == 0)
-		RETURN(0);
+		return 0;
 
 	reserved = ll_ra_count_get(ll_i2sbi(inode), ria, len);
 	if (reserved < len)
@@ -829,7 +829,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 		spin_unlock(&ras->ras_lock);
 	}
 
-	RETURN(ret);
+	return ret;
 }
 
 static void ras_set_start(struct inode *inode, struct ll_readahead_state *ras,
@@ -1266,7 +1266,7 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 			end = i_size_read(inode);
 		mapping->writeback_index = (end >> PAGE_CACHE_SHIFT) + 1;
 	}
-	RETURN(result);
+	return result;
 }
 
 int ll_readpage(struct file *file, struct page *vmpage)
@@ -1294,5 +1294,5 @@ int ll_readpage(struct file *file, struct page *vmpage)
 		unlock_page(vmpage);
 		result = PTR_ERR(lcc);
 	}
-	RETURN(result);
+	return result;
 }

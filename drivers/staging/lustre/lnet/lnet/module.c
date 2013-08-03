@@ -120,7 +120,7 @@ init_lnet(void)
 	rc = LNetInit();
 	if (rc != 0) {
 		CERROR("LNetInit: error %d\n", rc);
-		RETURN(rc);
+		return rc;
 	}
 
 	rc = libcfs_register_ioctl(&lnet_ioctl_handler);
@@ -132,7 +132,7 @@ init_lnet(void)
 		(void) kthread_run(lnet_configure, NULL, "lnet_initd");
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 void

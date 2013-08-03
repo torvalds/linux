@@ -920,7 +920,7 @@ int krb5_encrypt_rawobjs(struct ll_crypto_cipher *tfm,
 
 		if (rc) {
 			CERROR("encrypt error %d\n", rc);
-			RETURN(rc);
+			return rc;
 		}
 
 		datalen += inobjs[i].len;
@@ -928,7 +928,7 @@ int krb5_encrypt_rawobjs(struct ll_crypto_cipher *tfm,
 	}
 
 	outobj->len = datalen;
-	RETURN(0);
+	return 0;
 }
 
 /*

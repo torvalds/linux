@@ -69,7 +69,7 @@ int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 		result = 0;
 	} else
 		result = -ENOMEM;
-	RETURN(result);
+	return result;
 
 }
 
@@ -108,7 +108,7 @@ static int lovsub_attr_set(const struct lu_env *env, struct cl_object *obj,
 	struct lov_object *lov = cl2lovsub(obj)->lso_super;
 
 	lov_r0(lov)->lo_attr_valid = 0;
-	RETURN(0);
+	return 0;
 }
 
 static int lovsub_object_glimpse(const struct lu_env *env,
@@ -117,7 +117,7 @@ static int lovsub_object_glimpse(const struct lu_env *env,
 {
 	struct lovsub_object *los = cl2lovsub(obj);
 
-	RETURN(cl_object_glimpse(env, &los->lso_super->lo_cl, lvb));
+	return cl_object_glimpse(env, &los->lso_super->lo_cl, lvb);
 }
 
 
@@ -158,7 +158,7 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 		obj->lo_ops = &lovsub_lu_obj_ops;
 	} else
 		obj = NULL;
-	RETURN(obj);
+	return obj;
 }
 
 /** @} lov */

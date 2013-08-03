@@ -167,7 +167,7 @@ static int llog_client_destroy(const struct lu_env *env,
 	ptlrpc_req_finished(req);
 err_exit:
 	LLOG_CLIENT_EXIT(loghandle->lgh_ctxt, imp);
-	RETURN(rc);
+	return rc;
 }
 
 

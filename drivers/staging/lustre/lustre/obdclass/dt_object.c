@@ -377,11 +377,11 @@ struct dt_object *dt_find_or_create(const struct lu_env *env,
 
 	dto = dt_locate(env, dt, fid);
 	if (IS_ERR(dto))
-		RETURN(dto);
+		return dto;
 
 	LASSERT(dto != NULL);
 	if (dt_object_exists(dto))
-		RETURN(dto);
+		return dto;
 
 	th = dt_trans_create(env, dt);
 	if (IS_ERR(th))
@@ -412,9 +412,9 @@ trans_stop:
 out:
 	if (rc) {
 		lu_object_put(env, &dto->do_lu);
-		RETURN(ERR_PTR(rc));
+		return ERR_PTR(rc);
 	}
-	RETURN(dto);
+	return dto;
 }
 EXPORT_SYMBOL(dt_find_or_create);
 
@@ -765,14 +765,14 @@ int dt_index_walk(const struct lu_env *env, struct dt_object *obj,
 
 	nob = rdpg->rp_count;
 	if (nob <= 0)
-		RETURN(-EFAULT);
+		return -EFAULT;
 
 	/* Iterate through index and fill containers from @rdpg */
 	iops = &obj->do_index_ops->dio_it;
 	LASSERT(iops != NULL);
 	it = iops->init(env, obj, rdpg->rp_attrs, BYPASS_CAPA);
 	if (IS_ERR(it))
-		RETURN(PTR_ERR(it));
+		return PTR_ERR(it);
 
 	rc = iops->load(env, it, rdpg->rp_hash);
 	if (rc == 0) {
@@ -826,7 +826,7 @@ int dt_index_walk(const struct lu_env *env, struct dt_object *obj,
 	if (rc >= 0)
 		rc = min_t(unsigned int, nlupgs * LU_PAGE_SIZE, rdpg->rp_count);
 
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(dt_index_walk);
 
@@ -854,21 +854,21 @@ int dt_index_read(const struct lu_env *env, struct dt_device *dev,
 	/* rp_count shouldn't be null and should be a multiple of the container
 	 * size */
 	if (rdpg->rp_count <= 0 && (rdpg->rp_count & (LU_PAGE_SIZE - 1)) != 0)
-		RETURN(-EFAULT);
+		return -EFAULT;
 
 	if (fid_seq(&ii->ii_fid) >= FID_SEQ_NORMAL)
 		/* we don't support directory transfer via OBD_IDX_READ for the
 		 * time being */
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	if (!fid_is_quota(&ii->ii_fid))
 		/* block access to all local files except quota files */
-		RETURN(-EPERM);
+		return -EPERM;
 
 	/* lookup index object subject to the transfer */
 	obj = dt_locate(env, dev, &ii->ii_fid);
 	if (IS_ERR(obj))
-		RETURN(PTR_ERR(obj));
+		return PTR_ERR(obj);
 	if (dt_object_exists(obj) == 0)
 		GOTO(out, rc = -ENOENT);
 

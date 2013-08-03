@@ -251,7 +251,7 @@ int ldlm_lock_remove_from_lru(struct ldlm_lock *lock)
 
 	if (lock->l_flags & LDLM_FL_NS_SRV) {
 		LASSERT(list_empty(&lock->l_lru));
-		RETURN(0);
+		return 0;
 	}
 
 	spin_lock(&ns->ns_lock);
@@ -439,7 +439,7 @@ static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 
 	OBD_SLAB_ALLOC_PTR_GFP(lock, ldlm_lock_slab, __GFP_IO);
 	if (lock == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	spin_lock_init(&lock->l_lock);
 	lock->l_resource = resource;
@@ -475,7 +475,7 @@ static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 #endif
 	INIT_LIST_HEAD(&lock->l_exp_list);
 
-	RETURN(lock);
+	return lock;
 }
 
 /**
@@ -497,7 +497,7 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 		   sizeof(lock->l_resource->lr_name)) == 0) {
 		/* Nothing to do */
 		unlock_res_and_lock(lock);
-		RETURN(0);
+		return 0;
 	}
 
 	LASSERT(new_resid->name[0] != 0);
@@ -510,7 +510,7 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 
 	newres = ldlm_resource_get(ns, NULL, new_resid, type, 1);
 	if (newres == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	lu_ref_add(&newres->lr_reference, "lock", lock);
 	/*
@@ -538,7 +538,7 @@ int ldlm_lock_change_resource(struct ldlm_namespace *ns, struct ldlm_lock *lock,
 	lu_ref_del(&oldres->lr_reference, "lock", lock);
 	ldlm_resource_putref(oldres);
 
-	RETURN(0);
+	return 0;
 }
 EXPORT_SYMBOL(ldlm_lock_change_resource);
 
@@ -572,13 +572,13 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 
 	lock = class_handle2object(handle->cookie);
 	if (lock == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	/* It's unlikely but possible that someone marked the lock as
 	 * destroyed after we did handle2object on it */
 	if (flags == 0 && ((lock->l_flags & LDLM_FL_DESTROYED)== 0)) {
 		lu_ref_add(&lock->l_reference, "handle", current);
-		RETURN(lock);
+		return lock;
 	}
 
 	lock_res_and_lock(lock);
@@ -590,20 +590,20 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 		unlock_res_and_lock(lock);
 		CDEBUG(D_INFO, "lock already destroyed: lock %p\n", lock);
 		LDLM_LOCK_PUT(lock);
-		RETURN(NULL);
+		return NULL;
 	}
 
 	if (flags && (lock->l_flags & flags)) {
 		unlock_res_and_lock(lock);
 		LDLM_LOCK_PUT(lock);
-		RETURN(NULL);
+		return NULL;
 	}
 
 	if (flags)
 		lock->l_flags |= flags;
 
 	unlock_res_and_lock(lock);
-	RETURN(lock);
+	return lock;
 }
 EXPORT_SYMBOL(__ldlm_handle2lock);
 /** @} ldlm_handles */
@@ -1280,7 +1280,7 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 	res = ldlm_resource_get(ns, NULL, res_id, type, 0);
 	if (res == NULL) {
 		LASSERT(old_lock == NULL);
-		RETURN(0);
+		return 0;
 	}
 
 	LDLM_RESOURCE_ADDREF(res);
@@ -1433,7 +1433,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 						lustre_swab_ost_lvb);
 			if (unlikely(lvb == NULL)) {
 				LDLM_ERROR(lock, "no LVB");
-				RETURN(-EPROTO);
+				return -EPROTO;
 			}
 
 			memcpy(data, lvb, size);
@@ -1450,7 +1450,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 						lustre_swab_ost_lvb_v1);
 			if (unlikely(lvb == NULL)) {
 				LDLM_ERROR(lock, "no LVB");
-				RETURN(-EPROTO);
+				return -EPROTO;
 			}
 
 			memcpy(data, lvb, size);
@@ -1460,7 +1460,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 		} else {
 			LDLM_ERROR(lock, "Replied unexpected ost LVB size %d",
 				   size);
-			RETURN(-EINVAL);
+			return -EINVAL;
 		}
 		break;
 	case LVB_T_LQUOTA:
@@ -1475,14 +1475,14 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 						lustre_swab_lquota_lvb);
 			if (unlikely(lvb == NULL)) {
 				LDLM_ERROR(lock, "no LVB");
-				RETURN(-EPROTO);
+				return -EPROTO;
 			}
 
 			memcpy(data, lvb, size);
 		} else {
 			LDLM_ERROR(lock, "Replied unexpected lquota LVB size %d",
 				   size);
-			RETURN(-EINVAL);
+			return -EINVAL;
 		}
 		break;
 	case LVB_T_LAYOUT:
@@ -1495,7 +1495,7 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 			lvb = req_capsule_server_get(pill, &RMF_DLM_LVB);
 		if (unlikely(lvb == NULL)) {
 			LDLM_ERROR(lock, "no LVB");
-			RETURN(-EPROTO);
+			return -EPROTO;
 		}
 
 		memcpy(data, lvb, size);
@@ -1503,10 +1503,10 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 	default:
 		LDLM_ERROR(lock, "Unknown LVB type: %d\n", lock->l_lvb_type);
 		dump_stack();
-		RETURN(-EINVAL);
+		return -EINVAL;
 	}
 
-	RETURN(0);
+	return 0;
 }
 
 /**
@@ -1526,12 +1526,12 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 
 	res = ldlm_resource_get(ns, NULL, res_id, type, 1);
 	if (res == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	lock = ldlm_lock_new(res);
 
 	if (lock == NULL)
-		RETURN(NULL);
+		return NULL;
 
 	lock->l_req_mode = mode;
 	lock->l_ast_data = data;
@@ -1562,7 +1562,7 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_NEW_LOCK))
 		GOTO(out, 0);
 
-	RETURN(lock);
+	return lock;
 
 out:
 	ldlm_lock_destroy(lock);
@@ -1606,11 +1606,11 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 				LDLM_LOCK_RELEASE(lock);
 			}
 			*flags |= LDLM_FL_LOCK_CHANGED;
-			RETURN(0);
+			return 0;
 		} else if (rc != ELDLM_OK ||
 			   (rc == ELDLM_OK && (*flags & LDLM_FL_INTENT_ONLY))) {
 			ldlm_lock_destroy(lock);
-			RETURN(rc);
+			return rc;
 		}
 	}
 
@@ -1692,7 +1692,7 @@ ldlm_work_bl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	struct ldlm_lock       *lock;
 
 	if (list_empty(arg->list))
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	lock = list_entry(arg->list->next, struct ldlm_lock, l_bl_ast);
 
@@ -1713,7 +1713,7 @@ ldlm_work_bl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	lock->l_blocking_lock = NULL;
 	LDLM_LOCK_RELEASE(lock);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1728,7 +1728,7 @@ ldlm_work_cp_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	ldlm_completion_callback completion_callback;
 
 	if (list_empty(arg->list))
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	lock = list_entry(arg->list->next, struct ldlm_lock, l_cp_ast);
 
@@ -1757,7 +1757,7 @@ ldlm_work_cp_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 		rc = completion_callback(lock, 0, (void *)arg);
 	LDLM_LOCK_RELEASE(lock);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1772,7 +1772,7 @@ ldlm_work_revoke_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	struct ldlm_lock       *lock;
 
 	if (list_empty(arg->list))
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	lock = list_entry(arg->list->next, struct ldlm_lock, l_rk_ast);
 	list_del_init(&lock->l_rk_ast);
@@ -1785,7 +1785,7 @@ ldlm_work_revoke_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	rc = lock->l_blocking_ast(lock, &desc, (void*)arg, LDLM_CB_BLOCKING);
 	LDLM_LOCK_RELEASE(lock);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1799,7 +1799,7 @@ int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	int				 rc = 0;
 
 	if (list_empty(arg->list))
-		RETURN(-ENOENT);
+		return -ENOENT;
 
 	gl_work = list_entry(arg->list->next, struct ldlm_glimpse_work,
 				 gl_list);
@@ -1819,7 +1819,7 @@ int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	if ((gl_work->gl_flags & LDLM_GL_WORK_NOFREE) == 0)
 		OBD_FREE_PTR(gl_work);
 
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -1836,11 +1836,11 @@ int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 	int		     rc;
 
 	if (list_empty(rpc_list))
-		RETURN(0);
+		return 0;
 
 	OBD_ALLOC_PTR(arg);
 	if (arg == NULL)
-		RETURN(-ENOMEM);
+		return -ENOMEM;
 
 	atomic_set(&arg->restart, 0);
 	arg->list = rpc_list;
@@ -2027,7 +2027,7 @@ int ldlm_lock_set_data(struct lustre_handle *lockh, void *data)
 			rc = 0;
 		LDLM_LOCK_PUT(lock);
 	}
-	RETURN(rc);
+	return rc;
 }
 EXPORT_SYMBOL(ldlm_lock_set_data);
 
@@ -2136,7 +2136,7 @@ struct ldlm_resource *ldlm_lock_convert(struct ldlm_lock *lock, int new_mode,
 	/* Just return if mode is unchanged. */
 	if (new_mode == lock->l_granted_mode) {
 		*flags |= LDLM_FL_BLOCK_GRANTED;
-		RETURN(lock->l_resource);
+		return lock->l_resource;
 	}
 
 	/* I can't check the type of lock here because the bitlock of lock
@@ -2144,7 +2144,7 @@ struct ldlm_resource *ldlm_lock_convert(struct ldlm_lock *lock, int new_mode,
 	OBD_SLAB_ALLOC_PTR_GFP(node, ldlm_interval_slab, __GFP_IO);
 	if (node == NULL)
 		/* Actually, this causes EDEADLOCK to be returned */
-		RETURN(NULL);
+		return NULL;
 
 	LASSERTF((new_mode == LCK_PW && lock->l_granted_mode == LCK_PR),
 		 "new_mode %u, granted %u\n", new_mode, lock->l_granted_mode);
@@ -2203,7 +2203,7 @@ struct ldlm_resource *ldlm_lock_convert(struct ldlm_lock *lock, int new_mode,
 		ldlm_run_ast_work(ns, &rpc_list, LDLM_WORK_CP_AST);
 	if (node)
 		OBD_SLAB_FREE(node, ldlm_interval_slab, sizeof(*node));
-	RETURN(res);
+	return res;
 }
 EXPORT_SYMBOL(ldlm_lock_convert);
 

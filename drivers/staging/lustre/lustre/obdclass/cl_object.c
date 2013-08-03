@@ -93,7 +93,7 @@ int cl_object_header_init(struct cl_object_header *h)
 		INIT_LIST_HEAD(&h->coh_locks);
 		h->coh_page_bufsize = ALIGN(sizeof(struct cl_page), 8);
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_object_header_init);
 
@@ -234,7 +234,7 @@ int cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 			}
 		}
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_object_attr_get);
 
@@ -266,7 +266,7 @@ int cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
 			}
 		}
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_object_attr_set);
 
@@ -299,7 +299,7 @@ int cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 			 "ctime: "LPU64" blocks: "LPU64"\n",
 			 lvb->lvb_size, lvb->lvb_mtime, lvb->lvb_atime,
 			 lvb->lvb_ctime, lvb->lvb_blocks);
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_object_glimpse);
 
@@ -321,7 +321,7 @@ int cl_conf_set(const struct lu_env *env, struct cl_object *obj,
 				break;
 		}
 	}
-	RETURN(result);
+	return result;
 }
 EXPORT_SYMBOL(cl_conf_set);
 

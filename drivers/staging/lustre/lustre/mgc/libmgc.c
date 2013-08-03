@@ -72,13 +72,13 @@ static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 		GOTO(err_cleanup, rc);
 	}
 
-	RETURN(rc);
+	return rc;
 
 err_cleanup:
 	client_obd_cleanup(obd);
 err_decref:
 	ptlrpcd_decref();
-	RETURN(rc);
+	return rc;
 }
 
 static int mgc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
@@ -94,7 +94,7 @@ static int mgc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 			CERROR("failed to cleanup llogging subsystems\n");
 		break;
 	}
-	RETURN(rc);
+	return rc;
 }
 
 static int mgc_cleanup(struct obd_device *obd)
@@ -107,7 +107,7 @@ static int mgc_cleanup(struct obd_device *obd)
 	ptlrpcd_decref();
 
 	rc = client_obd_cleanup(obd);
-	RETURN(rc);
+	return rc;
 }
 
 static int mgc_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
@@ -120,13 +120,13 @@ static int mgc_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
 	rc = llog_setup(NULL, obd, olg, LLOG_CONFIG_REPL_CTXT, tgt,
 			&llog_client_ops);
 	if (rc < 0)
-		RETURN(rc);
+		return rc;
 
 	ctxt = llog_group_get_ctxt(olg, LLOG_CONFIG_REPL_CTXT);
 	llog_initiator_connect(ctxt);
 	llog_ctxt_put(ctxt);
 
-	RETURN(rc);
+	return rc;
 }
 
 static int mgc_llog_finish(struct obd_device *obd, int count)
@@ -138,7 +138,7 @@ static int mgc_llog_finish(struct obd_device *obd, int count)
 	if (ctxt)
 		llog_cleanup(NULL, ctxt);
 
-	RETURN(0);
+	return 0;
 }
 
 struct obd_ops mgc_obd_ops = {

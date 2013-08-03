@@ -279,7 +279,7 @@ static int capa_thread_main(void *unused)
 
 	thread_set_flags(&ll_capa_thread, SVC_STOPPED);
 	wake_up(&ll_capa_thread.t_ctl_waitq);
-	RETURN(0);
+	return 0;
 }
 
 void ll_capa_timer_callback(unsigned long unused)
@@ -297,12 +297,12 @@ int ll_capa_thread_start(void)
 	if (IS_ERR(task)) {
 		CERROR("cannot start expired capa thread: rc %ld\n",
 			PTR_ERR(task));
-		RETURN(PTR_ERR(task));
+		return PTR_ERR(task);
 	}
 	wait_event(ll_capa_thread.t_ctl_waitq,
 		       thread_is_running(&ll_capa_thread));
 
-	RETURN(0);
+	return 0;
 }
 
 void ll_capa_thread_stop(void)
@@ -320,7 +320,7 @@ struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc)
 	int found = 0;
 
 	if ((ll_i2sbi(inode)->ll_flags & LL_SBI_OSS_CAPA) == 0)
-		RETURN(NULL);
+		return NULL;
 
 	LASSERT(opc == CAPA_OPC_OSS_WRITE || opc == CAPA_OPC_OSS_RW ||
 		opc == CAPA_OPC_OSS_TRUNC);
@@ -364,7 +364,7 @@ struct obd_capa *ll_osscapa_get(struct inode *inode, __u64 opc)
 	}
 	spin_unlock(&capa_lock);
 
-	RETURN(ocapa);
+	return ocapa;
 }
 EXPORT_SYMBOL(ll_osscapa_get);
 
@@ -376,7 +376,7 @@ struct obd_capa *ll_mdscapa_get(struct inode *inode)
 	LASSERT(inode != NULL);
 
 	if ((ll_i2sbi(inode)->ll_flags & LL_SBI_MDS_CAPA) == 0)
-		RETURN(NULL);
+		return NULL;
 
 	spin_lock(&capa_lock);
 	ocapa = capa_get(lli->lli_mds_capa);
@@ -386,7 +386,7 @@ struct obd_capa *ll_mdscapa_get(struct inode *inode)
 		atomic_set(&ll_capa_debug, 0);
 	}
 
-	RETURN(ocapa);
+	return ocapa;
 }
 
 static struct obd_capa *do_add_mds_capa(struct inode *inode,
@@ -554,7 +554,7 @@ int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa)
 
 		capa_put(ocapa);
 		iput(inode);
-		RETURN(rc);
+		return rc;
 	}
 
 	spin_lock(&ocapa->c_lock);
