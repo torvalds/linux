@@ -334,7 +334,6 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 {
 	struct usb_host_interface *alts;
 	struct usb_interface *iface;
-	int implicit_fb = 0;
 	unsigned int ep;
 
 	/* Implicit feedback sync EPs consumers are always playback EPs */
@@ -344,7 +343,6 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	switch (subs->stream->chip->usb_id) {
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
 	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
-		implicit_fb = 1;
 		ep = 0x81;
 		iface = usb_ifnum_to_if(dev, 3);
 
@@ -356,7 +354,6 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 		break;
 	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
 	case USB_ID(0x0763, 0x2081):
-		implicit_fb = 1;
 		ep = 0x81;
 		iface = usb_ifnum_to_if(dev, 2);
 
@@ -374,7 +371,6 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	    search_roland_implicit_fb(dev, altsd->bInterfaceNumber + 1,
 				      altsd->bAlternateSetting,
 				      &alts, &ep) >= 0) {
-		implicit_fb = 1;
 		goto add_sync_ep;
 	}
 
@@ -384,9 +380,7 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 add_sync_ep:
 	subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
 						   alts, ep, !subs->direction,
-						   implicit_fb ?
-							SND_USB_ENDPOINT_TYPE_DATA :
-							SND_USB_ENDPOINT_TYPE_SYNC);
+						   SND_USB_ENDPOINT_TYPE_DATA);
 	if (!subs->sync_endpoint)
 		return -EINVAL;
 
