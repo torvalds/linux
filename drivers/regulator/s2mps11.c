@@ -207,8 +207,8 @@ static int s2mps11_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 				  ramp_val << ramp_shift, 1 << ramp_shift);
 
 ramp_disable:
-	return regmap_update_bits(rdev->regmap, S2MPS11_REG_RAMP, 0,
-				  1 << enable_shift);
+	return regmap_update_bits(rdev->regmap, S2MPS11_REG_RAMP,
+				  1 << enable_shift, 0);
 }
 
 static struct regulator_ops s2mps11_ldo_ops = {
