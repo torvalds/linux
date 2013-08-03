@@ -418,6 +418,9 @@ struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 	struct snd_usb_endpoint *ep;
 	int is_playback = direction == SNDRV_PCM_STREAM_PLAYBACK;
 
+	if (WARN_ON(!alts))
+		return NULL;
+
 	mutex_lock(&chip->mutex);
 
 	list_for_each_entry(ep, &chip->ep_list, list) {
