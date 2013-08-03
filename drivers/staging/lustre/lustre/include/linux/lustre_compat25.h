@@ -108,12 +108,6 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 #define ll_vfs_rename(old,old_dir,mnt,new,new_dir,mnt1) \
 		vfs_rename(old,old_dir,new,new_dir)
 
-#ifdef for_each_possible_cpu
-#define cfs_for_each_possible_cpu(cpu) for_each_possible_cpu(cpu)
-#elif defined(for_each_cpu)
-#define cfs_for_each_possible_cpu(cpu) for_each_cpu(cpu)
-#endif
-
 #define cfs_bio_io_error(a,b)   bio_io_error((a))
 #define cfs_bio_endio(a,b,c)    bio_endio((a),(c))
 

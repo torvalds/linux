@@ -63,16 +63,6 @@
 
 #include <linux/libcfs/linux/linux-time.h>
 
-
-/*
- * CPU
- */
-#ifdef for_each_possible_cpu
-#define cfs_for_each_possible_cpu(cpu) for_each_possible_cpu(cpu)
-#elif defined(for_each_cpu)
-#define cfs_for_each_possible_cpu(cpu) for_each_cpu(cpu)
-#endif
-
 /*
  * Sysctl register
  */
