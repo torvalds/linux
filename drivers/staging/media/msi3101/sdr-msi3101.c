@@ -1079,9 +1079,10 @@ err:
 
 static int msi3101_set_tuner(struct msi3101_state *s)
 {
-	int i, ret, len;
-	u32 reg, synthstep, thresh, n, frac;
-	u64 fsynth;
+	int ret, i, len;
+	unsigned int n, m, thresh, frac, vco_step, tmp;
+	u32 reg;
+	u64 f_vco;
 	u8 mode, lo_div;
 	const struct msi3101_gain *gain_lut;
 	static const struct {
@@ -1176,21 +1177,30 @@ static int msi3101_set_tuner(struct msi3101_state *s)
 	if (i == ARRAY_SIZE(bandwidth_lut))
 		goto err;
 
-	#define FSTEP 10000
-	#define FREF1 24000000
-	fsynth = (rf_freq + 0) * lo_div;
-	synthstep = FSTEP * lo_div;
-	thresh = (FREF1 * 4) / synthstep;
-	n = fsynth / (FREF1 * 4);
-	frac = thresh * (fsynth % (FREF1 * 4)) / (FREF1 * 4);
+#define F_OUT_STEP 1
+#define R_REF 4
+#define F_IF 0
+	f_vco = (rf_freq + F_IF) * lo_div;
+	n = f_vco / (F_REF * R_REF);
+	m = f_vco % (F_REF * R_REF);
 
-	if (thresh > 4095 || n > 63 || frac > 4095) {
-		dev_dbg(&s->udev->dev,
-				"%s: synth setup failed rf=%d thresh=%d n=%d frac=%d\n",
-				__func__, rf_freq, thresh, n, frac);
-		ret = -EINVAL;
-		goto err;
-	}
+	vco_step = F_OUT_STEP * lo_div;
+	thresh = (F_REF * R_REF) / vco_step;
+	frac = 1ul * thresh * m / (F_REF * R_REF);
+
+	/* Divide to reg max. After that RF resolution will be +-500Hz. */
+	tmp = DIV_ROUND_UP(thresh, 4095);
+	thresh = DIV_ROUND_CLOSEST(thresh, tmp);
+	frac = DIV_ROUND_CLOSEST(frac, tmp);
+
+	/* calc real RF set */
+	tmp = 1ul * F_REF * R_REF * n;
+	tmp += 1ul * F_REF * R_REF * frac / thresh;
+	tmp /= lo_div;
+
+	dev_dbg(&s->udev->dev,
+			"%s: rf=%u:%u n=%d thresh=%d frac=%d\n",
+				__func__, rf_freq, tmp, n, thresh, frac);
 
 	ret = msi3101_tuner_write(s, 0x00000e);
 	ret = msi3101_tuner_write(s, 0x000003);
