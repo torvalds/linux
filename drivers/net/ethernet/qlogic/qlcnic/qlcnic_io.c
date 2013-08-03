@@ -262,7 +262,7 @@ void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter, u64 *uaddr,
 
 	mac_req = (struct qlcnic_mac_req *)&(req->words[0]);
 	mac_req->op = vlan_id ? QLCNIC_MAC_VLAN_ADD : QLCNIC_MAC_ADD;
-	memcpy(mac_req->mac_addr, &uaddr, ETH_ALEN);
+	memcpy(mac_req->mac_addr, uaddr, ETH_ALEN);
 
 	vlan_req = (struct qlcnic_vlan_req *)&req->words[1];
 	vlan_req->vlan_id = cpu_to_le16(vlan_id);
