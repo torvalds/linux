@@ -1546,13 +1546,13 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 		wake_up_process(fps->thread);
 	spin_unlock(&fps->fcoe_rx_list.lock);
 
-	return 0;
+	return NET_RX_SUCCESS;
 err:
 	per_cpu_ptr(lport->stats, get_cpu())->ErrorFrames++;
 	put_cpu();
 err2:
 	kfree_skb(skb);
-	return -1;
+	return NET_RX_DROP;
 }
 
 /**
