@@ -647,12 +647,15 @@ static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 		iomux_set(LCDC0_D15);
 		iomux_set(LCDC0_D16);
 		iomux_set(LCDC0_D17);
-		iomux_set(LCDC0_D18);
-		iomux_set(LCDC0_D19);
-		iomux_set(LCDC0_D20);
-		iomux_set(LCDC0_D21);
-		iomux_set(LCDC0_D22);
-		iomux_set(LCDC0_D23);
+		if(!((dev_drv->screen0->face == OUT_P666)||(dev_drv->screen0->face == OUT_P565)))
+		{
+			iomux_set(LCDC0_D18);
+			iomux_set(LCDC0_D19);
+			iomux_set(LCDC0_D20);//iomux uart2 in
+			iomux_set(LCDC0_D21);//iomux uart2 out
+			iomux_set(LCDC0_D22);
+			iomux_set(LCDC0_D23);
+		}
 	}
 	#endif
 	ret = clk_set_rate(lcdc_dev->dclk, screen->pixclock);

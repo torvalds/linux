@@ -11,4 +11,7 @@ config MACH_RK3026_TB
 config MACH_RK3028A_TB
 	bool "RK3028A Top Board"
 
+config MACH_RK3028A_86V
+	bool "RK3028A 86V Board"
+
 endchoice
