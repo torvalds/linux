@@ -59,8 +59,7 @@
  * groups_search() is copied from linux kernel!
  * A simple bsearch.
  */
-static int lustre_groups_search(group_info_t *group_info,
-				gid_t grp)
+static int lustre_groups_search(const struct group_info *group_info, gid_t grp)
 {
 	int left, right;
 
@@ -84,7 +83,7 @@ static int lustre_groups_search(group_info_t *group_info,
 	return 0;
 }
 
-void lustre_groups_from_list(group_info_t *ginfo, gid_t *glist)
+void lustre_groups_from_list(struct group_info *ginfo, gid_t *glist)
 {
 	int i;
 	int count = ginfo->ngroups;
@@ -103,7 +102,7 @@ EXPORT_SYMBOL(lustre_groups_from_list);
 
 /* groups_sort() is copied from linux kernel! */
 /* a simple shell-metzner sort */
-void lustre_groups_sort(group_info_t *group_info)
+void lustre_groups_sort(struct group_info *group_info)
 {
 	int base, max, stride;
 	int gidsetsize = group_info->ngroups;
@@ -141,7 +140,7 @@ int lustre_in_group_p(struct lu_ucred *mu, gid_t grp)
 	int rc = 1;
 
 	if (grp != mu->uc_fsgid) {
-		group_info_t *group_info = NULL;
+		struct group_info *group_info = NULL;
 
 		if (mu->uc_ginfo || !mu->uc_identity ||
 		    mu->uc_valid == UCRED_OLD)

@@ -168,32 +168,7 @@ do {								 \
 /*
  * atomic
  */
-
-
 #define cfs_atomic_add_unless(atom, a, u)    atomic_add_unless(atom, a, u)
 #define cfs_atomic_cmpxchg(atom, old, nv)    atomic_cmpxchg(atom, old, nv)
 
-/*
- * membar
- */
-
-
-/*
- * interrupt
- */
-
-
-/*
- * might_sleep
- */
-
-/*
- * group_info
- */
-typedef struct group_info group_info_t;
-
-
-/*
- * Random bytes
- */
 #endif

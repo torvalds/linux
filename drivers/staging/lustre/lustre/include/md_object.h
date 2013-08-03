@@ -871,7 +871,7 @@ struct lu_ucred {
 	__u32	       uc_suppgids[2];
 	cfs_cap_t	   uc_cap;
 	__u32	       uc_umask;
-	group_info_t   *uc_ginfo;
+	struct group_info *uc_ginfo;
 	struct md_identity *uc_identity;
 };
 

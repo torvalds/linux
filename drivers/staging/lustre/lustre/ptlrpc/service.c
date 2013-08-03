@@ -2266,7 +2266,7 @@ static int ptlrpc_main(void *arg)
 	struct ptlrpc_service		*svc = svcpt->scp_service;
 	struct ptlrpc_reply_state	*rs;
 #ifdef WITH_GROUP_INFO
-	group_info_t *ginfo = NULL;
+	struct group_info *ginfo = NULL;
 #endif
 	struct lu_env *env;
 	int counter = 0, rc = 0;
