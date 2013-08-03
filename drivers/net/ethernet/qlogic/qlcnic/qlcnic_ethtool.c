@@ -301,9 +301,13 @@ int qlcnic_82xx_get_settings(struct qlcnic_adapter *adapter,
 		}
 
 		if (netif_running(adapter->netdev) && ahw->has_link_events) {
-			reg = QLCRD32(adapter, P3P_LINK_SPEED_REG(pcifn));
-			speed = P3P_LINK_SPEED_VAL(pcifn, reg);
-			ahw->link_speed = speed * P3P_LINK_SPEED_MHZ;
+			if (ahw->linkup) {
+				reg = QLCRD32(adapter,
+					      P3P_LINK_SPEED_REG(pcifn));
+				speed = P3P_LINK_SPEED_VAL(pcifn, reg);
+				ahw->link_speed = speed * P3P_LINK_SPEED_MHZ;
+			}
+
 			ethtool_cmd_speed_set(ecmd, ahw->link_speed);
 			ecmd->autoneg = ahw->link_autoneg;
 			ecmd->duplex = ahw->link_duplex;
