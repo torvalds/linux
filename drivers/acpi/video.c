@@ -236,8 +236,7 @@ static int acpi_video_get_brightness(struct backlight_device *bd)
 {
 	unsigned long long cur_level;
 	int i;
-	struct acpi_video_device *vd =
-		(struct acpi_video_device *)bl_get_data(bd);
+	struct acpi_video_device *vd = bl_get_data(bd);
 
 	if (acpi_video_device_lcd_get_level_current(vd, &cur_level, false))
 		return -EINVAL;
@@ -255,8 +254,7 @@ static int acpi_video_get_brightness(struct backlight_device *bd)
 static int acpi_video_set_brightness(struct backlight_device *bd)
 {
 	int request_level = bd->props.brightness + 2;
-	struct acpi_video_device *vd =
-		(struct acpi_video_device *)bl_get_data(bd);
+	struct acpi_video_device *vd = bl_get_data(bd);
 
 	return acpi_video_device_lcd_set_level(vd,
 				vd->brightness->levels[request_level]);
