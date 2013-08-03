@@ -2764,7 +2764,7 @@ re_arm:
  */
 static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 {
-	unsigned long trans_start;
+	unsigned long trans_start, last_rx;
 	struct slave *slave;
 	int extra_ticks;
 	int commit = 0;
@@ -2778,11 +2778,12 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 
 	bond_for_each_slave(bond, slave) {
 		slave->new_link = BOND_LINK_NOCHANGE;
+		last_rx = slave_last_rx(bond, slave);
 
 		if (slave->link != BOND_LINK_UP) {
 			if (time_in_range(jiffies,
-				slave_last_rx(bond, slave) - delta_in_ticks,
-				slave_last_rx(bond, slave) + delta_in_ticks + extra_ticks)) {
+				last_rx - delta_in_ticks,
+				last_rx + delta_in_ticks + extra_ticks)) {
 
 				slave->new_link = BOND_LINK_UP;
 				commit++;
@@ -2817,8 +2818,8 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		if (!bond_is_active_slave(slave) &&
 		    !bond->current_arp_slave &&
 		    !time_in_range(jiffies,
-			slave_last_rx(bond, slave) - delta_in_ticks,
-			slave_last_rx(bond, slave) + 3 * delta_in_ticks + extra_ticks)) {
+			last_rx - delta_in_ticks,
+			last_rx + 3 * delta_in_ticks + extra_ticks)) {
 
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
@@ -2836,8 +2837,8 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 			trans_start - delta_in_ticks,
 			trans_start + 2 * delta_in_ticks + extra_ticks) ||
 		     !time_in_range(jiffies,
-			slave_last_rx(bond, slave) - delta_in_ticks,
-			slave_last_rx(bond, slave) + 2 * delta_in_ticks + extra_ticks))) {
+			last_rx - delta_in_ticks,
+			last_rx + 2 * delta_in_ticks + extra_ticks))) {
 
 			slave->new_link = BOND_LINK_DOWN;
 			commit++;
