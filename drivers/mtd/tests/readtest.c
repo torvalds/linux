@@ -29,6 +29,8 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 
+#include "mtd_test.h"
+
 static int dev = -EINVAL;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
@@ -44,7 +46,6 @@ static int pgcnt;
 
 static int read_eraseblock_by_page(int ebnum)
 {
-	size_t read;
 	int i, ret, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;
@@ -52,16 +53,12 @@ static int read_eraseblock_by_page(int ebnum)
 
 	for (i = 0; i < pgcnt; i++) {
 		memset(buf, 0 , pgsize);
-		ret = mtd_read(mtd, addr, pgsize, &read, buf);
-		if (ret == -EUCLEAN)
-			ret = 0;
-		if (ret || read != pgsize) {
+		ret = mtdtest_read(mtd, addr, pgsize, buf);
+		if (ret) {
 			pr_err("error: read failed at %#llx\n",
 			       (long long)addr);
 			if (!err)
 				err = ret;
-			if (!err)
-				err = -EINVAL;
 		}
 		if (mtd->oobsize) {
 			struct mtd_oob_ops ops;
@@ -127,39 +124,6 @@ static void dump_eraseblock(int ebnum)
 		}
 }
 
-static int is_block_bad(int ebnum)
-{
-	loff_t addr = ebnum * mtd->erasesize;
-	int ret;
-
-	ret = mtd_block_isbad(mtd, addr);
-	if (ret)
-		pr_info("block %d is bad\n", ebnum);
-	return ret;
-}
-
-static int scan_for_bad_eraseblocks(void)
-{
-	int i, bad = 0;
-
-	bbt = kzalloc(ebcnt, GFP_KERNEL);
-	if (!bbt)
-		return -ENOMEM;
-
-	if (!mtd_can_have_bb(mtd))
-		return 0;
-
-	pr_info("scanning for bad eraseblocks\n");
-	for (i = 0; i < ebcnt; ++i) {
-		bbt[i] = is_block_bad(i) ? 1 : 0;
-		if (bbt[i])
-			bad += 1;
-		cond_resched();
-	}
-	pr_info("scanned %d eraseblocks, %d are bad\n", i, bad);
-	return 0;
-}
-
 static int __init mtd_readtest_init(void)
 {
 	uint64_t tmp;
@@ -208,7 +172,10 @@ static int __init mtd_readtest_init(void)
 	if (!iobuf1)
 		goto out;
 
-	err = scan_for_bad_eraseblocks();
+	bbt = kzalloc(ebcnt, GFP_KERNEL);
+	if (!bbt)
+		goto out;
+	err = mtdtest_scan_for_bad_eraseblocks(mtd, bbt, 0, ebcnt);
 	if (err)
 		goto out;
 
