@@ -1452,6 +1452,12 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 			skb_tail_pointer(skb), skb_end_pointer(skb),
 			skb->csum, skb->dev ? skb->dev->name : "<NULL>");
 
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+
+	if (skb == NULL)
+		return NET_RX_DROP;
+
 	eh = eth_hdr(skb);
 
 	if (is_fip_mode(ctlr) &&
