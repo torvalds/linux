@@ -31,6 +31,8 @@
 #include <linux/vmalloc.h>
 #include <linux/random.h>
 
+#include "mtd_test.h"
+
 static int dev = -EINVAL;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
@@ -81,46 +83,8 @@ static int rand_len(int offs)
 	return len;
 }
 
-static int erase_eraseblock(int ebnum)
-{
-	int err;
-	struct erase_info ei;
-	loff_t addr = ebnum * mtd->erasesize;
-
-	memset(&ei, 0, sizeof(struct erase_info));
-	ei.mtd  = mtd;
-	ei.addr = addr;
-	ei.len  = mtd->erasesize;
-
-	err = mtd_erase(mtd, &ei);
-	if (unlikely(err)) {
-		pr_err("error %d while erasing EB %d\n", err, ebnum);
-		return err;
-	}
-
-	if (unlikely(ei.state == MTD_ERASE_FAILED)) {
-		pr_err("some erase error occurred at EB %d\n",
-		       ebnum);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int is_block_bad(int ebnum)
-{
-	loff_t addr = ebnum * mtd->erasesize;
-	int ret;
-
-	ret = mtd_block_isbad(mtd, addr);
-	if (ret)
-		pr_info("block %d is bad\n", ebnum);
-	return ret;
-}
-
 static int do_read(void)
 {
-	size_t read;
 	int eb = rand_eb();
 	int offs = rand_offs();
 	int len = rand_len(offs), err;
@@ -133,14 +97,10 @@ static int do_read(void)
 			len = mtd->erasesize - offs;
 	}
 	addr = eb * mtd->erasesize + offs;
-	err = mtd_read(mtd, addr, len, &read, readbuf);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (unlikely(err || read != len)) {
+	err = mtdtest_read(mtd, addr, len, readbuf);
+	if (unlikely(err)) {
 		pr_err("error: read failed at 0x%llx\n",
 		       (long long)addr);
-		if (!err)
-			err = -EINVAL;
 		return err;
 	}
 	return 0;
@@ -149,12 +109,11 @@ static int do_read(void)
 static int do_write(void)
 {
 	int eb = rand_eb(), offs, err, len;
-	size_t written;
 	loff_t addr;
 
 	offs = offsets[eb];
 	if (offs >= mtd->erasesize) {
-		err = erase_eraseblock(eb);
+		err = mtdtest_erase_eraseblock(mtd, eb);
 		if (err)
 			return err;
 		offs = offsets[eb] = 0;
@@ -165,19 +124,17 @@ static int do_write(void)
 		if (bbt[eb + 1])
 			len = mtd->erasesize - offs;
 		else {
-			err = erase_eraseblock(eb + 1);
+			err = mtdtest_erase_eraseblock(mtd, eb + 1);
 			if (err)
 				return err;
 			offsets[eb + 1] = 0;
 		}
 	}
 	addr = eb * mtd->erasesize + offs;
-	err = mtd_write(mtd, addr, len, &written, writebuf);
-	if (unlikely(err || written != len)) {
+	err = mtdtest_write(mtd, addr, len, writebuf);
+	if (unlikely(err)) {
 		pr_err("error: write failed at 0x%llx\n",
 		       (long long)addr);
-		if (!err)
-			err = -EINVAL;
 		return err;
 	}
 	offs += len;
@@ -195,28 +152,6 @@ static int do_operation(void)
 		return do_read();
 	else
 		return do_write();
-}
-
-static int scan_for_bad_eraseblocks(void)
-{
-	int i, bad = 0;
-
-	bbt = kzalloc(ebcnt, GFP_KERNEL);
-	if (!bbt)
-		return -ENOMEM;
-
-	if (!mtd_can_have_bb(mtd))
-		return 0;
-
-	pr_info("scanning for bad eraseblocks\n");
-	for (i = 0; i < ebcnt; ++i) {
-		bbt[i] = is_block_bad(i) ? 1 : 0;
-		if (bbt[i])
-			bad += 1;
-		cond_resched();
-	}
-	pr_info("scanned %d eraseblocks, %d are bad\n", i, bad);
-	return 0;
 }
 
 static int __init mtd_stresstest_init(void)
@@ -280,7 +215,10 @@ static int __init mtd_stresstest_init(void)
 		offsets[i] = mtd->erasesize;
 	prandom_bytes(writebuf, bufsize);
 
-	err = scan_for_bad_eraseblocks();
+	bbt = kzalloc(ebcnt, GFP_KERNEL);
+	if (!bbt)
+		goto out;
+	err = mtdtest_scan_for_bad_eraseblocks(mtd, bbt, 0, ebcnt);
 	if (err)
 		goto out;
 
