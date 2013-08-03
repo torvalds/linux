@@ -80,8 +80,6 @@ LL_PROC_PROTO(name)				     \
 				 __##name);	     \
 }
 
-typedef struct module module_t;
-
 /*
  * Proc file system APIs
  */

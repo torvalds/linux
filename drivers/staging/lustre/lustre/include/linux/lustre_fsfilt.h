@@ -54,7 +54,7 @@ typedef void (*fsfilt_cb_t)(struct obd_device *obd, __u64 last_rcvd,
 
 struct fsfilt_operations {
 	struct list_head fs_list;
-	module_t *fs_owner;
+	struct module *fs_owner;
 	char   *fs_type;
 	char   *(* fs_getlabel)(struct super_block *sb);
 	void   *(* fs_start)(struct inode *inode, int op, void *desc_private,
