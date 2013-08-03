@@ -449,7 +449,7 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
     
 #ifdef CONFIG_RK_USB_UART
     /* usb otg dp/dm switch to usb phy */
-    writel_relaxed((3 << (12 + 16)),RK2928_GRF_BASE + GRF_UOC1_CON4);
+    writel_relaxed((3 << (12 + 16)),RK2928_GRF_BASE + GRF_UOC1_CON0);
 #endif
     
     schedule_delayed_work(&usb_det_wakeup_work, HZ/10);
