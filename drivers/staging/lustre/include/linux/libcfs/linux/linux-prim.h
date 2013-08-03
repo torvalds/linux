@@ -80,14 +80,6 @@ LL_PROC_PROTO(name)				     \
 				 __##name);	     \
 }
 
-/*
- * Symbol register
- */
-#define cfs_symbol_register(s, p)       do {} while(0)
-#define cfs_symbol_unregister(s)	do {} while(0)
-#define cfs_symbol_get(s)	       symbol_get(s)
-#define cfs_symbol_put(s)	       symbol_put(s)
-
 typedef struct module module_t;
 
 /*
