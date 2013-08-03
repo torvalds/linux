@@ -405,7 +405,7 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 {
 	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
 	unsigned int ep, attr;
-	int implicit_fb = 0;
+	bool implicit_fb;
 	int err;
 
 	/* we need a sync pipe in async OUT or adaptive IN mode */
@@ -432,8 +432,7 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	   the audio fields in the endpoint descriptors */
 	if ((get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_ISOC ||
 	    (get_endpoint(alts, 1)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
-	     get_endpoint(alts, 1)->bSynchAddress != 0 &&
-	     !implicit_fb)) {
+	     get_endpoint(alts, 1)->bSynchAddress != 0)) {
 		snd_printk(KERN_ERR "%d:%d:%d : invalid sync pipe. bmAttributes %02x, bLength %d, bSynchAddress %02x\n",
 			   dev->devnum, fmt->iface, fmt->altsetting,
 			   get_endpoint(alts, 1)->bmAttributes,
@@ -442,8 +441,7 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 		return -EINVAL;
 	}
 	ep = get_endpoint(alts, 1)->bEndpointAddress;
-	if (!implicit_fb &&
-	    get_endpoint(alts, 0)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
+	if (get_endpoint(alts, 0)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
 	    ((is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress | USB_DIR_IN)) ||
 	     (!is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress & ~USB_DIR_IN)))) {
 		snd_printk(KERN_ERR "%d:%d:%d : invalid sync pipe. is_playback %d, ep %02x, bSynchAddress %02x\n",
