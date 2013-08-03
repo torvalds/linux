@@ -201,6 +201,10 @@
 #define R_FB_PULSE_C_POS_MSB                          0xfb
 #define R_FF_S_PLL_MAX_PHASE_ERR_THRESH_NUM_LINES     0xff
 
+/* SAA7113 bit-masks */
+#define SAA7113_R_08_FSEL 0x40
+#define SAA7113_R_08_AUFD 0x80
+
 #if 0
 /* Those structs will be used in the future for debug purposes */
 struct saa711x_reg_descr {

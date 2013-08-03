@@ -462,24 +462,6 @@ static const unsigned char saa7115_cfg_50hz_video[] = {
 
 /* ============== SAA7715 VIDEO templates (end) =======  */
 
-/* ============== GM7113C VIDEO templates =============  */
-static const unsigned char gm7113c_cfg_60hz_video[] = {
-	R_08_SYNC_CNTL, 0x68,			/* 0xBO: auto detection, 0x68 = NTSC */
-	R_0E_CHROMA_CNTL_1, 0x07,		/* video autodetection is on */
-
-	0x00, 0x00
-};
-
-static const unsigned char gm7113c_cfg_50hz_video[] = {
-	R_08_SYNC_CNTL, 0x28,			/* 0x28 = PAL */
-	R_0E_CHROMA_CNTL_1, 0x07,
-
-	0x00, 0x00
-};
-
-/* ============== GM7113C VIDEO templates (end) =======  */
-
-
 static const unsigned char saa7115_cfg_vbi_on[] = {
 	R_80_GLOBAL_CNTL_1, 0x00,			/* reset tasks */
 	R_88_POWER_SAVE_ADC_PORT_CNTL, 0xd0,		/* reset scaler */
@@ -964,17 +946,24 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	// This works for NTSC-M, SECAM-L and the 50Hz PAL variants.
 	if (std & V4L2_STD_525_60) {
 		v4l2_dbg(1, debug, sd, "decoder set standard 60 Hz\n");
-		if (state->ident == GM7113C)
-			saa711x_writeregs(sd, gm7113c_cfg_60hz_video);
-		else
+		if (state->ident == GM7113C) {
+			u8 reg = saa711x_read(sd, R_08_SYNC_CNTL);
+			reg &= ~(SAA7113_R_08_FSEL | SAA7113_R_08_AUFD);
+			reg |= SAA7113_R_08_FSEL;
+			saa711x_write(sd, R_08_SYNC_CNTL, reg);
+		} else {
 			saa711x_writeregs(sd, saa7115_cfg_60hz_video);
+		}
 		saa711x_set_size(sd, 720, 480);
 	} else {
 		v4l2_dbg(1, debug, sd, "decoder set standard 50 Hz\n");
-		if (state->ident == GM7113C)
-			saa711x_writeregs(sd, gm7113c_cfg_50hz_video);
-		else
+		if (state->ident == GM7113C) {
+			u8 reg = saa711x_read(sd, R_08_SYNC_CNTL);
+			reg &= ~(SAA7113_R_08_FSEL | SAA7113_R_08_AUFD);
+			saa711x_write(sd, R_08_SYNC_CNTL, reg);
+		} else {
 			saa711x_writeregs(sd, saa7115_cfg_50hz_video);
+		}
 		saa711x_set_size(sd, 720, 576);
 	}
 
