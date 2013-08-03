@@ -479,7 +479,8 @@ add_sync_ep:
 		subs->data_endpoint->sync_master = subs->sync_endpoint;
 	}
 
-	if ((err = snd_usb_init_pitch(subs->stream->chip, fmt->iface, alts, fmt)) < 0)
+	err = snd_usb_init_pitch(subs->stream->chip, fmt->iface, alts, fmt);
+	if (err < 0)
 		return err;
 
 	subs->cur_audiofmt = fmt;
