@@ -562,7 +562,7 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	INIT_LIST_HEAD(&adapter->vf_mc_list);
 	if (!qlcnic_use_msi_x && !!qlcnic_use_msi)
 		dev_warn(&adapter->pdev->dev,
-			 "83xx adapter do not support MSI interrupts\n");
+			 "Device does not support MSI interrupts\n");
 
 	err = qlcnic_setup_intr(adapter, 1);
 	if (err) {
