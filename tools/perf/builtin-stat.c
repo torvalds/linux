@@ -416,6 +416,8 @@ static void print_interval(void)
 		list_for_each_entry(counter, &evsel_list->entries, node)
 			print_counter_aggr(counter, prefix);
 	}
+
+	fflush(output);
 }
 
 static void handle_initial_delay(void)
