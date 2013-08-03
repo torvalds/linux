@@ -150,6 +150,7 @@ static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Link_Test_on_offline",
 	"Interrupt_Test_offline",
 	"Internal_Loopback_offline",
+	"External_Loopback_offline",
 	"EEPROM_Test_offline"
 };
 
@@ -1026,8 +1027,15 @@ qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 		if (data[3])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		data[4] = qlcnic_eeprom_test(dev);
-		if (data[4])
+		if (eth_test->flags & ETH_TEST_FL_EXTERNAL_LB) {
+			data[4] = qlcnic_loopback_test(dev, QLCNIC_ELB_MODE);
+			if (data[4])
+				eth_test->flags |= ETH_TEST_FL_FAILED;
+			eth_test->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
+		}
+
+		data[5] = qlcnic_eeprom_test(dev);
+		if (data[5])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 	}
 }
