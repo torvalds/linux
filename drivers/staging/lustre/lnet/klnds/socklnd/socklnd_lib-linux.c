@@ -316,7 +316,7 @@ ksocknal_lib_tunables_init ()
 		*ksocknal_tunables.ksnd_zc_recv_min_nfrags = LNET_MAX_IOV;
 
 	ksocknal_tunables.ksnd_sysctl =
-		cfs_register_sysctl_table(ksocknal_top_ctl_table, 0);
+		register_sysctl_table(ksocknal_top_ctl_table);
 
 	if (ksocknal_tunables.ksnd_sysctl == NULL)
 		CWARN("Can't setup /proc tunables\n");

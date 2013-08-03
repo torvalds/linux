@@ -104,6 +104,4 @@ int proc_call_handler(void *data, int write,
 #define cfs_for_each_possible_cpu(cpu) for_each_cpu(cpu)
 #endif
 
-#define cfs_register_sysctl_table(t, a) register_sysctl_table(t)
-
 #endif /* _PORTALS_COMPAT_H */

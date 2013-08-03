@@ -79,8 +79,6 @@
 typedef struct ctl_table		ctl_table_t;
 typedef struct ctl_table_header		ctl_table_header_t;
 
-#define cfs_register_sysctl_table(t, a) register_sysctl_table(t)
-
 #define DECLARE_PROC_HANDLER(name)		      \
 static int					      \
 LL_PROC_PROTO(name)				     \

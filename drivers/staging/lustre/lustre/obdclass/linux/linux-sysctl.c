@@ -429,7 +429,7 @@ void obd_sysctl_init (void)
 {
 #ifdef CONFIG_SYSCTL
 	if ( !obd_table_header )
-		obd_table_header = cfs_register_sysctl_table(parent_table, 0);
+		obd_table_header = register_sysctl_table(parent_table);
 #endif
 }
 

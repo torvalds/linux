@@ -562,7 +562,7 @@ int insert_proc(void)
 {
 #ifdef CONFIG_SYSCTL
 	if (lnet_table_header == NULL)
-		lnet_table_header = cfs_register_sysctl_table(top_table, 0);
+		lnet_table_header = register_sysctl_table(top_table);
 #endif
 	return 0;
 }
