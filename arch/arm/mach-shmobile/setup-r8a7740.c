@@ -986,16 +986,22 @@ void __init r8a7740_add_early_devices(void)
 
 #ifdef CONFIG_USE_OF
 
-static const struct of_dev_auxdata r8a7740_auxdata_lookup[] __initconst = {
-	{ }
-};
+void __init r8a7740_add_early_devices_dt(void)
+{
+	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
+
+	early_platform_add_devices(r8a7740_early_devices,
+				   ARRAY_SIZE(r8a7740_early_devices));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
+}
 
 void __init r8a7740_add_standard_devices_dt(void)
 {
 	platform_add_devices(r8a7740_devices_dt,
 			    ARRAY_SIZE(r8a7740_devices_dt));
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     r8a7740_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 void __init r8a7740_init_delay(void)
