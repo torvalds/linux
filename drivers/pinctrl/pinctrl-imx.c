@@ -239,8 +239,38 @@ static int imx_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 		dev_dbg(ipctl->dev, "write: offset 0x%x val 0x%x\n",
 			pin_reg->mux_reg, mux[i]);
 
-		/* some pins also need select input setting, set it if found */
-		if (input_reg[i]) {
+		/*
+		 * If the select input value begins with 0xff, it's a quirky
+		 * select input and the value should be interpreted as below.
+		 *     31     23      15      7        0
+		 *     | 0xff | shift | width | select |
+		 * It's used to work around the problem that the select
+		 * input for some pin is not implemented in the select
+		 * input register but in some general purpose register.
+		 * We encode the select input value, width and shift of
+		 * the bit field into input_val cell of pin function ID
+		 * in device tree, and then decode them here for setting
+		 * up the select input bits in general purpose register.
+		 */
+		if (input_val[i] >> 24 == 0xff) {
+			u32 val = input_val[i];
+			u8 select = val & 0xff;
+			u8 width = (val >> 8) & 0xff;
+			u8 shift = (val >> 16) & 0xff;
+			u32 mask = ((1 << width) - 1) << shift;
+			/*
+			 * The input_reg[i] here is actually some IOMUXC general
+			 * purpose register, not regular select input register.
+			 */
+			val = readl(ipctl->base + input_reg[i]);
+			val &= ~mask;
+			val |= select << shift;
+			writel(val, ipctl->base + input_reg[i]);
+		} else if (input_reg[i]) {
+			/*
+			 * Regular select input register can never be at offset
+			 * 0, and we only print register value for regular case.
+			 */
 			writel(input_val[i], ipctl->base + input_reg[i]);
 			dev_dbg(ipctl->dev,
 				"==>select_input: offset 0x%x val 0x%x\n",
