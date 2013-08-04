@@ -39,13 +39,8 @@ struct iwl_rs_rate_info {
 	u8 plcp_siso;	/* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
 	u8 plcp_mimo2;	/* uCode API:  IWL_RATE_MIMO2_6M_PLCP, etc. */
 	u8 plcp_mimo3;  /* uCode API:  IWL_RATE_MIMO3_6M_PLCP, etc. */
-	u8 ieee;	/* MAC header:  IWL_RATE_6M_IEEE, etc. */
-	u8 prev_ieee;    /* previous rate in IEEE speeds */
-	u8 next_ieee;    /* next rate in IEEE speeds */
 	u8 prev_rs;      /* previous rate used in rs algo */
 	u8 next_rs;      /* next rate used in rs algo */
-	u8 prev_rs_tgg;  /* previous rate used in TGG rs algo */
-	u8 next_rs_tgg;  /* next rate used in TGG rs algo */
 };
 
 #define IWL_RATE_60M_PLCP 3
@@ -118,23 +113,6 @@ enum {
 	IWL_RATE_SISO_INVM_PLCP,
 	IWL_RATE_MIMO2_INVM_PLCP = IWL_RATE_SISO_INVM_PLCP,
 	IWL_RATE_MIMO3_INVM_PLCP = IWL_RATE_SISO_INVM_PLCP,
-};
-
-/* MAC header values for bit rates */
-enum {
-	IWL_RATE_6M_IEEE  = 12,
-	IWL_RATE_9M_IEEE  = 18,
-	IWL_RATE_12M_IEEE = 24,
-	IWL_RATE_18M_IEEE = 36,
-	IWL_RATE_24M_IEEE = 48,
-	IWL_RATE_36M_IEEE = 72,
-	IWL_RATE_48M_IEEE = 96,
-	IWL_RATE_54M_IEEE = 108,
-	IWL_RATE_60M_IEEE = 120,
-	IWL_RATE_1M_IEEE  = 2,
-	IWL_RATE_2M_IEEE  = 4,
-	IWL_RATE_5M_IEEE  = 11,
-	IWL_RATE_11M_IEEE = 22,
 };
 
 #define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
