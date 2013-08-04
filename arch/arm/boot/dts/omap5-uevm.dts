@@ -235,7 +235,7 @@
 };
 
 &mmc1 {
-	vmmc-supply = <&vmmcsd_fixed>;
+	vmmc-supply = <&ldo9_reg>;
 	bus-width = <4>;
 };
 
@@ -282,6 +282,7 @@
 
 			regulators {
 				smps123_reg: smps123 {
+					/* VDD_OPP_MPU */
 					regulator-name = "smps123";
 					regulator-min-microvolt = < 600000>;
 					regulator-max-microvolt = <1500000>;
@@ -290,6 +291,7 @@
 				};
 
 				smps45_reg: smps45 {
+					/* VDD_OPP_MM */
 					regulator-name = "smps45";
 					regulator-min-microvolt = < 600000>;
 					regulator-max-microvolt = <1310000>;
@@ -298,6 +300,7 @@
 				};
 
 				smps6_reg: smps6 {
+					/* VDD_DDR3 - over VDD_SMPS6 */
 					regulator-name = "smps6";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
@@ -306,6 +309,7 @@
 				};
 
 				smps7_reg: smps7 {
+					/* VDDS_1v8_OMAP over VDDS_1v8_MAIN */
 					regulator-name = "smps7";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
@@ -314,6 +318,7 @@
 				};
 
 				smps8_reg: smps8 {
+					/* VDD_OPP_CORE */
 					regulator-name = "smps8";
 					regulator-min-microvolt = < 600000>;
 					regulator-max-microvolt = <1310000>;
@@ -322,15 +327,15 @@
 				};
 
 				smps9_reg: smps9 {
+					/* VDDA_2v1_AUD over VDD_2v1 */
 					regulator-name = "smps9";
 					regulator-min-microvolt = <2100000>;
 					regulator-max-microvolt = <2100000>;
-					regulator-always-on;
-					regulator-boot-on;
 					ti,smps-range = <0x80>;
 				};
 
 				smps10_reg: smps10 {
+					/* VBUS_5V_OTG */
 					regulator-name = "smps10";
 					regulator-min-microvolt = <5000000>;
 					regulator-max-microvolt = <5000000>;
@@ -339,38 +344,40 @@
 				};
 
 				ldo1_reg: ldo1 {
+					/* VDDAPHY_CAM: vdda_csiport */
 					regulator-name = "ldo1";
-					regulator-min-microvolt = <2800000>;
-					regulator-max-microvolt = <2800000>;
-					regulator-always-on;
-					regulator-boot-on;
+					regulator-min-microvolt = <1500000>;
+					regulator-max-microvolt = <1800000>;
 				};
 
 				ldo2_reg: ldo2 {
+					/* VCC_2V8_DISP: Does not go anywhere */
 					regulator-name = "ldo2";
-					regulator-min-microvolt = <2900000>;
-					regulator-max-microvolt = <2900000>;
-					regulator-always-on;
-					regulator-boot-on;
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+					/* Unused */
+					status = "disabled";
 				};
 
 				ldo3_reg: ldo3 {
+					/* VDDAPHY_MDM: vdda_lli */
 					regulator-name = "ldo3";
-					regulator-min-microvolt = <3000000>;
-					regulator-max-microvolt = <3000000>;
-					regulator-always-on;
+					regulator-min-microvolt = <1500000>;
+					regulator-max-microvolt = <1500000>;
 					regulator-boot-on;
+					/* Only if Modem is used */
+					status = "disabled";
 				};
 
 				ldo4_reg: ldo4 {
+					/* VDDAPHY_DISP: vdda_dsiport/hdmi */
 					regulator-name = "ldo4";
-					regulator-min-microvolt = <2200000>;
-					regulator-max-microvolt = <2200000>;
-					regulator-always-on;
-					regulator-boot-on;
+					regulator-min-microvolt = <1500000>;
+					regulator-max-microvolt = <1800000>;
 				};
 
 				ldo5_reg: ldo5 {
+					/* VDDA_1V8_PHY: usb/sata/hdmi.. */
 					regulator-name = "ldo5";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
@@ -379,38 +386,43 @@
 				};
 
 				ldo6_reg: ldo6 {
+					/* VDDS_1V2_WKUP: hsic/ldo_emu_wkup */
 					regulator-name = "ldo6";
-					regulator-min-microvolt = <1500000>;
-					regulator-max-microvolt = <1500000>;
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
 
 				ldo7_reg: ldo7 {
+					/* VDD_VPP: vpp1 */
 					regulator-name = "ldo7";
-					regulator-min-microvolt = <1500000>;
-					regulator-max-microvolt = <1500000>;
-					regulator-always-on;
-					regulator-boot-on;
+					regulator-min-microvolt = <2000000>;
+					regulator-max-microvolt = <2000000>;
+					/* Only for efuse reprograming! */
+					status = "disabled";
 				};
 
 				ldo8_reg: ldo8 {
+					/* VDD_3v0: Does not go anywhere */
 					regulator-name = "ldo8";
-					regulator-min-microvolt = <1500000>;
-					regulator-max-microvolt = <1500000>;
-					regulator-always-on;
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
 					regulator-boot-on;
+					/* Unused */
+					status = "disabled";
 				};
 
 				ldo9_reg: ldo9 {
+					/* VCC_DV_SDIO: vdds_sdcard */
 					regulator-name = "ldo9";
 					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <3300000>;
-					regulator-always-on;
+					regulator-max-microvolt = <3000000>;
 					regulator-boot-on;
 				};
 
 				ldoln_reg: ldoln {
+					/* VDDA_1v8_REF: vdds_osc/mm_l4per.. */
 					regulator-name = "ldoln";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
@@ -419,9 +431,17 @@
 				};
 
 				ldousb_reg: ldousb {
+					/* VDDA_3V_USB: VDDA_USBHS33 */
 					regulator-name = "ldousb";
 					regulator-min-microvolt = <3250000>;
 					regulator-max-microvolt = <3250000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				regen3_reg: regen3 {
+					/* REGEN3 controls LDO9 supply to card */
+					regulator-name = "regen3";
 					regulator-always-on;
 					regulator-boot-on;
 				};
