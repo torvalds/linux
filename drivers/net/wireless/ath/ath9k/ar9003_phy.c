@@ -1412,8 +1412,7 @@ static void ar9003_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 }
 
-static void ar9003_hw_antctrl_shared_chain_lnadiv(struct ath_hw *ah,
-						  bool enable)
+static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 {
 	u8 ant_div_ctl1;
 	u32 regval;
@@ -1646,7 +1645,7 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 
 	ops->antdiv_comb_conf_get = ar9003_hw_antdiv_comb_conf_get;
 	ops->antdiv_comb_conf_set = ar9003_hw_antdiv_comb_conf_set;
-	ops->antctrl_shared_chain_lnadiv = ar9003_hw_antctrl_shared_chain_lnadiv;
+	ops->set_bt_ant_diversity = ar9003_hw_set_bt_ant_diversity;
 	ops->spectral_scan_config = ar9003_hw_spectral_scan_config;
 	ops->spectral_scan_trigger = ar9003_hw_spectral_scan_trigger;
 	ops->spectral_scan_wait = ar9003_hw_spectral_scan_wait;

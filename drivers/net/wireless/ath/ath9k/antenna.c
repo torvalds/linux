@@ -888,5 +888,5 @@ void ath_ant_comb_update(struct ath_softc *sc)
 	ath9k_hw_antdiv_comb_conf_set(ah, &div_ant_conf);
 
 	if (common->bt_ant_diversity)
-		ath9k_hw_antctrl_shared_chain_lnadiv(ah, true);
+		ath9k_hw_set_bt_ant_diversity(ah, true);
 }
