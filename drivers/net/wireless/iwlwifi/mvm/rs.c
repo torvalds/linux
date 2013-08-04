@@ -3009,32 +3009,6 @@ static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 	.llseek = default_llseek,
 };
 
-static ssize_t rs_sta_dbgfs_rate_scale_data_read(struct file *file,
-			char __user *user_buf, size_t count, loff_t *ppos)
-{
-	struct iwl_lq_sta *lq_sta = file->private_data;
-	struct iwl_scale_tbl_info *tbl = &lq_sta->lq_info[lq_sta->active_tbl];
-	char buff[120];
-	int desc = 0;
-
-	if (is_Ht(tbl->lq_type))
-		desc += sprintf(buff+desc,
-				"Bit Rate= %d Mb/s\n",
-				tbl->expected_tpt[lq_sta->last_txrate_idx]);
-	else
-		desc += sprintf(buff+desc,
-				"Bit Rate= %d Mb/s\n",
-				iwl_rates[lq_sta->last_txrate_idx].ieee >> 1);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buff, desc);
-}
-
-static const struct file_operations rs_sta_dbgfs_rate_scale_data_ops = {
-	.read = rs_sta_dbgfs_rate_scale_data_read,
-	.open = simple_open,
-	.llseek = default_llseek,
-};
-
 static void rs_add_debugfs(void *mvm, void *mvm_sta, struct dentry *dir)
 {
 	struct iwl_lq_sta *lq_sta = mvm_sta;
@@ -3044,9 +3018,6 @@ static void rs_add_debugfs(void *mvm, void *mvm_sta, struct dentry *dir)
 	lq_sta->rs_sta_dbgfs_stats_table_file =
 		debugfs_create_file("rate_stats_table", S_IRUSR, dir,
 				    lq_sta, &rs_sta_dbgfs_stats_table_ops);
-	lq_sta->rs_sta_dbgfs_rate_scale_data_file =
-		debugfs_create_file("rate_scale_data", S_IRUSR, dir,
-				    lq_sta, &rs_sta_dbgfs_rate_scale_data_ops);
 	lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file =
 		debugfs_create_u8("tx_agg_tid_enable", S_IRUSR | S_IWUSR, dir,
 				  &lq_sta->tx_agg_tid_en);
@@ -3057,7 +3028,6 @@ static void rs_remove_debugfs(void *mvm, void *mvm_sta)
 	struct iwl_lq_sta *lq_sta = mvm_sta;
 	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_rate_scale_data_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
 }
 #endif
