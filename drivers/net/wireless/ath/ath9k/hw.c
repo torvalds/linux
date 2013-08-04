@@ -2559,34 +2559,28 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (AR_SREV_9287_11_OR_LATER(ah) || AR_SREV_9271(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_SGI_20;
 
-	if (AR_SREV_9285(ah))
+	if (AR_SREV_9285(ah)) {
 		if (ah->eep_ops->get_eeprom(ah, EEP_MODAL_VER) >= 3) {
 			ant_div_ctl1 =
 				ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
-			if ((ant_div_ctl1 & 0x1) && ((ant_div_ctl1 >> 3) & 0x1))
+			if ((ant_div_ctl1 & 0x1) && ((ant_div_ctl1 >> 3) & 0x1)) {
 				pCap->hw_caps |= ATH9K_HW_CAP_ANT_DIV_COMB;
+				ath_info(common, "Enable LNA combining\n");
+			}
 		}
+	}
+
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		if (ah->eep_ops->get_eeprom(ah, EEP_CHAIN_MASK_REDUCE))
 			pCap->hw_caps |= ATH9K_HW_CAP_APM;
 	}
 
-
 	if (AR_SREV_9330(ah) || AR_SREV_9485(ah) || AR_SREV_9565(ah)) {
 		ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
-		/*
-		 * enable the diversity-combining algorithm only when
-		 * both enable_lna_div and enable_fast_div are set
-		 *		Table for Diversity
-		 * ant_div_alt_lnaconf		bit 0-1
-		 * ant_div_main_lnaconf		bit 2-3
-		 * ant_div_alt_gaintb		bit 4
-		 * ant_div_main_gaintb		bit 5
-		 * enable_ant_div_lnadiv	bit 6
-		 * enable_ant_fast_div		bit 7
-		 */
-		if ((ant_div_ctl1 >> 0x6) == 0x3)
+		if ((ant_div_ctl1 >> 0x6) == 0x3) {
 			pCap->hw_caps |= ATH9K_HW_CAP_ANT_DIV_COMB;
+			ath_info(common, "Enable LNA combining\n");
+		}
 	}
 
 	if (ath9k_hw_dfs_tested(ah))
