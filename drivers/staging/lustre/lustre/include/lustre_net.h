@@ -2636,7 +2636,7 @@ struct ptlrpc_service_part {
 	/** reqs waiting for replies */
 	struct ptlrpc_at_array		scp_at_array;
 	/** early reply timer */
-	timer_list_t			scp_at_timer;
+	struct timer_list		scp_at_timer;
 	/** debug */
 	cfs_time_t			scp_at_checktime;
 	/** check early replies */

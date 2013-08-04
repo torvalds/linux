@@ -56,13 +56,13 @@ int64_t waitq_timedwait(wait_queue_t *, cfs_task_state_t, int64_t);
 void waitq_wait(wait_queue_t *, cfs_task_state_t);
 void add_wait_queue_exclusive_head(wait_queue_head_t *, wait_queue_t *);
 
-void cfs_init_timer(timer_list_t *t);
-void cfs_timer_init(timer_list_t *t, cfs_timer_func_t *func, void *arg);
-void cfs_timer_done(timer_list_t *t);
-void cfs_timer_arm(timer_list_t *t, cfs_time_t deadline);
-void cfs_timer_disarm(timer_list_t *t);
-int  cfs_timer_is_armed(timer_list_t *t);
-cfs_time_t cfs_timer_deadline(timer_list_t *t);
+void cfs_init_timer(struct timer_list *t);
+void cfs_timer_init(struct timer_list *t, cfs_timer_func_t *func, void *arg);
+void cfs_timer_done(struct timer_list *t);
+void cfs_timer_arm(struct timer_list *t, cfs_time_t deadline);
+void cfs_timer_disarm(struct timer_list *t);
+int  cfs_timer_is_armed(struct timer_list *t);
+cfs_time_t cfs_timer_deadline(struct timer_list *t);
 
 /*
  * Memory

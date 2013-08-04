@@ -1122,7 +1122,7 @@ int ll_update_remote_perm(struct inode *inode, struct mdt_remote_perm *perm);
 int lustre_check_remote_perm(struct inode *inode, int mask);
 
 /* llite/llite_capa.c */
-extern timer_list_t ll_capa_timer;
+extern struct timer_list ll_capa_timer;
 
 int ll_capa_thread_start(void);
 void ll_capa_thread_stop(void);

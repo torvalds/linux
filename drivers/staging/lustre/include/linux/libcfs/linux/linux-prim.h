@@ -107,9 +107,4 @@ typedef struct task_struct	      task_t;
 	current->journal_info = journal_info;   \
 	} while(0)
 
-/*
- * Timer
- */
-typedef struct timer_list timer_list_t;
-
 #endif
