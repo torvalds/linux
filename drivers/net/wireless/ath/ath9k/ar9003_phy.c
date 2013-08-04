@@ -1420,7 +1420,6 @@ static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 	if (!AR_SREV_9565(ah))
 		return;
 
-	ah->shared_chain_lnadiv = enable;
 	ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
 
 	regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);

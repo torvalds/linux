@@ -3561,6 +3561,7 @@ static u16 ar9003_hw_ant_ctrl_chain_get(struct ath_hw *ah, int chain,
 
 static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	int chain;
 	u32 regval, value, gpio;
@@ -3646,7 +3647,7 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		regval |= ((value >> 6) & 0x1) << AR_PHY_ANT_DIV_LNADIV_S;
 
 		if (AR_SREV_9565(ah)) {
-			if (ah->shared_chain_lnadiv) {
+			if (common->bt_ant_diversity) {
 				regval |= (1 << AR_PHY_ANT_SW_RX_PROT_S);
 			} else {
 				regval &= ~(1 << AR_PHY_ANT_DIV_LNADIV_S);

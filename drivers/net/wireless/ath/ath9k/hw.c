@@ -2056,7 +2056,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_apply_gpio_override(ah);
 
-	if (AR_SREV_9565(ah) && ah->shared_chain_lnadiv)
+	if (AR_SREV_9565(ah) && common->bt_ant_diversity)
 		REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV, AR_BTCOEX_WL_LNADIV_FORCE_ON);
 
 	return 0;
