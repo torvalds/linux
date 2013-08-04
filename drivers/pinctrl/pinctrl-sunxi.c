@@ -526,6 +526,7 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d,
 	struct sunxi_pinctrl *pctl = irq_data_get_irq_chip_data(d);
 	u32 reg = sunxi_irq_cfg_reg(d->hwirq);
 	u8 index = sunxi_irq_cfg_offset(d->hwirq);
+	u32 regval;
 	u8 mode;
 
 	switch (type) {
@@ -548,7 +549,9 @@ static int sunxi_pinctrl_irq_set_type(struct irq_data *d,
 		return -EINVAL;
 	}
 
-	writel((mode & IRQ_CFG_IRQ_MASK) << index, pctl->membase + reg);
+	regval = readl(pctl->membase + reg);
+	regval &= ~IRQ_CFG_IRQ_MASK;
+	writel(regval | (mode << index), pctl->membase + reg);
 
 	return 0;
 }
