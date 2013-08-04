@@ -2663,12 +2663,18 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 	int ret, i;
 	struct ib_qp_attr *attr;
 	struct ib_qp *qp;
+	u16 pkey_index;
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
 	if (!attr) {
 		printk(KERN_ERR PFX "Couldn't kmalloc ib_qp_attr\n");
 		return -ENOMEM;
 	}
+
+	ret = ib_find_pkey(port_priv->device, port_priv->port_num,
+			   IB_DEFAULT_PKEY_FULL, &pkey_index);
+	if (ret)
+		pkey_index = 0;
 
 	for (i = 0; i < IB_MAD_QPS_CORE; i++) {
 		qp = port_priv->qp_info[i].qp;
@@ -2680,7 +2686,7 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 		 * one is needed for the Reset to Init transition
 		 */
 		attr->qp_state = IB_QPS_INIT;
-		attr->pkey_index = 0;
+		attr->pkey_index = pkey_index;
 		attr->qkey = (qp->qp_num == 0) ? 0 : IB_QP1_QKEY;
 		ret = ib_modify_qp(qp, attr, IB_QP_STATE |
 					     IB_QP_PKEY_INDEX | IB_QP_QKEY);

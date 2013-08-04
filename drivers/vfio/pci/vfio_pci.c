@@ -137,8 +137,27 @@ static void vfio_pci_disable(struct vfio_pci_device *vdev)
 	 */
 	pci_write_config_word(pdev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
 
-	if (vdev->reset_works)
-		__pci_reset_function(pdev);
+	/*
+	 * Careful, device_lock may already be held.  This is the case if
+	 * a driver unbind is blocked.  Try to get the locks ourselves to
+	 * prevent a deadlock.
+	 */
+	if (vdev->reset_works) {
+		bool reset_done = false;
+
+		if (pci_cfg_access_trylock(pdev)) {
+			if (device_trylock(&pdev->dev)) {
+				__pci_reset_function_locked(pdev);
+				reset_done = true;
+				device_unlock(&pdev->dev);
+			}
+			pci_cfg_access_unlock(pdev);
+		}
+
+		if (!reset_done)
+			pr_warn("%s: Unable to acquire locks for reset of %s\n",
+				__func__, dev_name(&pdev->dev));
+	}
 
 	pci_restore_state(pdev);
 }
