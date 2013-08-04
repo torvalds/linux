@@ -161,7 +161,7 @@ nf_tproxy_get_sock_v4(struct net *net, const u8 protocol,
 	return sk;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
+#ifdef XT_TPROXY_HAVE_IPV6
 static inline struct sock *
 nf_tproxy_get_sock_v6(struct net *net, const u8 protocol,
 		      const struct in6_addr *saddr, const struct in6_addr *daddr,
