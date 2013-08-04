@@ -162,11 +162,6 @@ static inline bool sk_can_busy_loop(struct sock *sk)
 	return false;
 }
 
-static inline bool sk_busy_poll(struct sock *sk, int nonblock)
-{
-	return false;
-}
-
 static inline void skb_mark_napi_id(struct sk_buff *skb,
 				    struct napi_struct *napi)
 {
