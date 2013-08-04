@@ -299,10 +299,13 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 	} else if (pdata->num_regulators) {
-		/* Check whether num_regulator is valid. */
 		unsigned int count = 0;
-		for (i = 0; pdata->regulators[i]; i++)
-			count++;
+
+		/* Check whether num_regulator is valid. */
+		for (i = 0; ARRAY_SIZE(pdata->regulators); i++) {
+			if (pdata->regulators[i])
+				count++;
+		}
 		if (count != pdata->num_regulators)
 			return -EINVAL;
 	} else {
