@@ -129,6 +129,8 @@ struct kirkwood_dma_data {
 	struct clk *extclk;
 	uint32_t ctl_play;
 	uint32_t ctl_rec;
+	struct snd_pcm_substream *substream_play;
+	struct snd_pcm_substream *substream_rec;
 	int irq;
 	int burst;
 };
