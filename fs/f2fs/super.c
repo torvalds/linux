@@ -23,17 +23,21 @@
 #include <linux/exportfs.h>
 #include <linux/blkdev.h>
 #include <linux/f2fs_fs.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 
 #include "f2fs.h"
 #include "node.h"
 #include "segment.h"
 #include "xattr.h"
+#include "gc.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/f2fs.h>
 
 static struct proc_dir_entry *f2fs_proc_root;
 static struct kmem_cache *f2fs_inode_cachep;
+static struct kset *f2fs_kset;
 
 enum {
 	Opt_gc_background,
@@ -57,6 +61,111 @@ static match_table_t f2fs_tokens = {
 	{Opt_active_logs, "active_logs=%u"},
 	{Opt_disable_ext_identify, "disable_ext_identify"},
 	{Opt_err, NULL},
+};
+
+/* Sysfs support for f2fs */
+struct f2fs_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct f2fs_attr *, struct f2fs_sb_info *, char *);
+	ssize_t (*store)(struct f2fs_attr *, struct f2fs_sb_info *,
+			 const char *, size_t);
+	int offset;
+};
+
+static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
+			struct f2fs_sb_info *sbi, char *buf)
+{
+	struct f2fs_gc_kthread *gc_kth = sbi->gc_thread;
+	unsigned int *ui;
+
+	if (!gc_kth)
+		return -EINVAL;
+
+	ui = (unsigned int *)(((char *)gc_kth) + a->offset);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", *ui);
+}
+
+static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
+			struct f2fs_sb_info *sbi,
+			const char *buf, size_t count)
+{
+	struct f2fs_gc_kthread *gc_kth = sbi->gc_thread;
+	unsigned long t;
+	unsigned int *ui;
+	ssize_t ret;
+
+	if (!gc_kth)
+		return -EINVAL;
+
+	ui = (unsigned int *)(((char *)gc_kth) + a->offset);
+
+	ret = kstrtoul(skip_spaces(buf), 0, &t);
+	if (ret < 0)
+		return ret;
+	*ui = t;
+	return count;
+}
+
+static ssize_t f2fs_attr_show(struct kobject *kobj,
+				struct attribute *attr, char *buf)
+{
+	struct f2fs_sb_info *sbi = container_of(kobj, struct f2fs_sb_info,
+								s_kobj);
+	struct f2fs_attr *a = container_of(attr, struct f2fs_attr, attr);
+
+	return a->show ? a->show(a, sbi, buf) : 0;
+}
+
+static ssize_t f2fs_attr_store(struct kobject *kobj, struct attribute *attr,
+						const char *buf, size_t len)
+{
+	struct f2fs_sb_info *sbi = container_of(kobj, struct f2fs_sb_info,
+									s_kobj);
+	struct f2fs_attr *a = container_of(attr, struct f2fs_attr, attr);
+
+	return a->store ? a->store(a, sbi, buf, len) : 0;
+}
+
+static void f2fs_sb_release(struct kobject *kobj)
+{
+	struct f2fs_sb_info *sbi = container_of(kobj, struct f2fs_sb_info,
+								s_kobj);
+	complete(&sbi->s_kobj_unregister);
+}
+
+#define F2FS_ATTR_OFFSET(_name, _mode, _show, _store, _elname) \
+static struct f2fs_attr f2fs_attr_##_name = {			\
+	.attr = {.name = __stringify(_name), .mode = _mode },	\
+	.show	= _show,					\
+	.store	= _store,					\
+	.offset = offsetof(struct f2fs_gc_kthread, _elname),	\
+}
+
+#define F2FS_RW_ATTR(name, elname)	\
+	F2FS_ATTR_OFFSET(name, 0644, f2fs_sbi_show, f2fs_sbi_store, elname)
+
+F2FS_RW_ATTR(gc_min_sleep_time, min_sleep_time);
+F2FS_RW_ATTR(gc_max_sleep_time, max_sleep_time);
+F2FS_RW_ATTR(gc_no_gc_sleep_time, no_gc_sleep_time);
+
+#define ATTR_LIST(name) (&f2fs_attr_##name.attr)
+static struct attribute *f2fs_attrs[] = {
+	ATTR_LIST(gc_min_sleep_time),
+	ATTR_LIST(gc_max_sleep_time),
+	ATTR_LIST(gc_no_gc_sleep_time),
+	NULL,
+};
+
+static const struct sysfs_ops f2fs_attr_ops = {
+	.show	= f2fs_attr_show,
+	.store	= f2fs_attr_store,
+};
+
+static struct kobj_type f2fs_ktype = {
+	.default_attrs	= f2fs_attrs,
+	.sysfs_ops	= &f2fs_attr_ops,
+	.release	= f2fs_sb_release,
 };
 
 void f2fs_msg(struct super_block *sb, const char *level, const char *fmt, ...)
@@ -229,6 +338,7 @@ static void f2fs_put_super(struct super_block *sb)
 		remove_proc_entry("segment_info", sbi->s_proc);
 		remove_proc_entry(sb->s_id, f2fs_proc_root);
 	}
+	kobject_del(&sbi->s_kobj);
 
 	f2fs_destroy_stats(sbi);
 	stop_gc_thread(sbi);
@@ -243,6 +353,8 @@ static void f2fs_put_super(struct super_block *sb)
 	destroy_segment_manager(sbi);
 
 	kfree(sbi->ckpt);
+	kobject_put(&sbi->s_kobj);
+	wait_for_completion(&sbi->s_kobj_unregister);
 
 	sb->s_fs_info = NULL;
 	brelse(sbi->raw_super_buf);
@@ -818,6 +930,13 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 					"the device does not support discard");
 	}
 
+	sbi->s_kobj.kset = f2fs_kset;
+	init_completion(&sbi->s_kobj_unregister);
+	err = kobject_init_and_add(&sbi->s_kobj, &f2fs_ktype, NULL,
+							"%s", sb->s_id);
+	if (err)
+		goto fail;
+
 	return 0;
 fail:
 	stop_gc_thread(sbi);
@@ -892,6 +1011,9 @@ static int __init init_f2fs_fs(void)
 	err = create_checkpoint_caches();
 	if (err)
 		goto fail;
+	f2fs_kset = kset_create_and_add("f2fs", NULL, fs_kobj);
+	if (!f2fs_kset)
+		goto fail;
 	err = register_filesystem(&f2fs_fs_type);
 	if (err)
 		goto fail;
@@ -910,6 +1032,7 @@ static void __exit exit_f2fs_fs(void)
 	destroy_gc_caches();
 	destroy_node_manager_caches();
 	destroy_inodecache();
+	kset_unregister(f2fs_kset);
 }
 
 module_init(init_f2fs_fs)

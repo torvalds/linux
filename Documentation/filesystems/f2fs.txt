@@ -133,6 +133,32 @@ f2fs. Each file shows the whole f2fs information.
  - current memory footprint consumed by f2fs.
 
 ================================================================================
+SYSFS ENTRIES
+================================================================================
+
+Information about mounted f2f2 file systems can be found in
+/sys/fs/f2fs.  Each mounted filesystem will have a directory in
+/sys/fs/f2fs based on its device name (i.e., /sys/fs/f2fs/sda).
+The files in each per-device directory are shown in table below.
+
+Files in /sys/fs/f2fs/<devname>
+(see also Documentation/ABI/testing/sysfs-fs-f2fs)
+..............................................................................
+ File                         Content
+
+ gc_max_sleep_time            This tuning parameter controls the maximum sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+ gc_min_sleep_time            This tuning parameter controls the minimum sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+ gc_no_gc_sleep_time          This tuning parameter controls the default sleep
+                              time for the garbage collection thread. Time is
+                              in milliseconds.
+
+================================================================================
 USAGE
 ================================================================================
 
