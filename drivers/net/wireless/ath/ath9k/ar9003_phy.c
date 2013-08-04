@@ -1414,58 +1414,102 @@ static void ar9003_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 
 static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 {
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	u8 ant_div_ctl1;
 	u32 regval;
 
-	if (!AR_SREV_9565(ah))
+	if (!AR_SREV_9485(ah) && !AR_SREV_9565(ah))
 		return;
+
+	if (AR_SREV_9485(ah)) {
+		regval = ar9003_hw_ant_ctrl_common_2_get(ah,
+						 IS_CHAN_2GHZ(ah->curchan));
+		if (enable) {
+			regval &= ~AR_SWITCH_TABLE_COM2_ALL;
+			regval |= ah->config.ant_ctrl_comm2g_switch_enable;
+		}
+		REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2,
+			      AR_SWITCH_TABLE_COM2_ALL, regval);
+	}
 
 	ant_div_ctl1 = ah->eep_ops->get_eeprom(ah, EEP_ANT_DIV_CTL1);
 
+	/*
+	 * Set MAIN/ALT LNA conf.
+	 * Set MAIN/ALT gain_tb.
+	 */
 	regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
 	regval &= (~AR_ANT_DIV_CTRL_ALL);
 	regval |= (ant_div_ctl1 & 0x3f) << AR_ANT_DIV_CTRL_ALL_S;
-	regval &= ~AR_PHY_ANT_DIV_LNADIV;
-	regval |= ((ant_div_ctl1 >> 6) & 0x1) << AR_PHY_ANT_DIV_LNADIV_S;
-
-	if (enable)
-		regval |= AR_ANT_DIV_ENABLE;
-
 	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 
-	regval = REG_READ(ah, AR_PHY_CCK_DETECT);
-	regval &= ~AR_FAST_DIV_ENABLE;
-	regval |= ((ant_div_ctl1 >> 7) & 0x1) << AR_FAST_DIV_ENABLE_S;
-
-	if (enable)
-		regval |= AR_FAST_DIV_ENABLE;
-
-	REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
-
-	if (enable) {
-		REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL,
-			    (1 << AR_PHY_ANT_SW_RX_PROT_S));
-		if (ah->curchan && IS_CHAN_2GHZ(ah->curchan))
-			REG_SET_BIT(ah, AR_PHY_RESTART,
-				    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
-		REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV,
-			    AR_BTCOEX_WL_LNADIV_FORCE_ON);
-	} else {
-		REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_ENABLE);
-		REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
-			    (1 << AR_PHY_ANT_SW_RX_PROT_S));
-		REG_CLR_BIT(ah, AR_PHY_CCK_DETECT, AR_FAST_DIV_ENABLE);
-		REG_CLR_BIT(ah, AR_BTCOEX_WL_LNADIV,
-			    AR_BTCOEX_WL_LNADIV_FORCE_ON);
-
+	if (AR_SREV_9485_11(ah)) {
+		/*
+		 * Enable LNA diversity.
+		 */
 		regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
-		regval &= ~(AR_PHY_ANT_DIV_MAIN_LNACONF |
-			AR_PHY_ANT_DIV_ALT_LNACONF |
-			AR_PHY_ANT_DIV_MAIN_GAINTB |
-			AR_PHY_ANT_DIV_ALT_GAINTB);
-		regval |= (ATH_ANT_DIV_COMB_LNA1 << AR_PHY_ANT_DIV_MAIN_LNACONF_S);
-		regval |= (ATH_ANT_DIV_COMB_LNA2 << AR_PHY_ANT_DIV_ALT_LNACONF_S);
+		regval &= ~AR_PHY_ANT_DIV_LNADIV;
+		regval |= ((ant_div_ctl1 >> 6) & 0x1) << AR_PHY_ANT_DIV_LNADIV_S;
+		if (enable)
+			regval |= AR_ANT_DIV_ENABLE;
+
 		REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+
+		/*
+		 * Enable fast antenna diversity.
+		 */
+		regval = REG_READ(ah, AR_PHY_CCK_DETECT);
+		regval &= ~AR_FAST_DIV_ENABLE;
+		regval |= ((ant_div_ctl1 >> 7) & 0x1) << AR_FAST_DIV_ENABLE_S;
+		if (enable)
+			regval |= AR_FAST_DIV_ENABLE;
+
+		REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
+
+		if (pCap->hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) {
+			regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+			regval &= (~(AR_PHY_ANT_DIV_MAIN_LNACONF |
+				     AR_PHY_ANT_DIV_ALT_LNACONF |
+				     AR_PHY_ANT_DIV_ALT_GAINTB |
+				     AR_PHY_ANT_DIV_MAIN_GAINTB));
+			/*
+			 * Set MAIN to LNA1 and ALT to LNA2 at the
+			 * beginning.
+			 */
+			regval |= (ATH_ANT_DIV_COMB_LNA1 <<
+				   AR_PHY_ANT_DIV_MAIN_LNACONF_S);
+			regval |= (ATH_ANT_DIV_COMB_LNA2 <<
+				   AR_PHY_ANT_DIV_ALT_LNACONF_S);
+			REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+		}
+	} else if (AR_SREV_9565(ah)) {
+		if (enable) {
+			REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+				    (1 << AR_PHY_ANT_SW_RX_PROT_S));
+			if (ah->curchan && IS_CHAN_2GHZ(ah->curchan))
+				REG_SET_BIT(ah, AR_PHY_RESTART,
+					    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
+			REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV,
+				    AR_BTCOEX_WL_LNADIV_FORCE_ON);
+		} else {
+			REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_ENABLE);
+			REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+				    (1 << AR_PHY_ANT_SW_RX_PROT_S));
+			REG_CLR_BIT(ah, AR_PHY_CCK_DETECT, AR_FAST_DIV_ENABLE);
+			REG_CLR_BIT(ah, AR_BTCOEX_WL_LNADIV,
+				    AR_BTCOEX_WL_LNADIV_FORCE_ON);
+
+			regval = REG_READ(ah, AR_PHY_MC_GAIN_CTRL);
+			regval &= ~(AR_PHY_ANT_DIV_MAIN_LNACONF |
+				    AR_PHY_ANT_DIV_ALT_LNACONF |
+				    AR_PHY_ANT_DIV_MAIN_GAINTB |
+				    AR_PHY_ANT_DIV_ALT_GAINTB);
+			regval |= (ATH_ANT_DIV_COMB_LNA1 <<
+				   AR_PHY_ANT_DIV_MAIN_LNACONF_S);
+			regval |= (ATH_ANT_DIV_COMB_LNA2 <<
+				   AR_PHY_ANT_DIV_ALT_LNACONF_S);
+			REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
+		}
 	}
 }
 
