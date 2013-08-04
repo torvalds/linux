@@ -8069,7 +8069,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	seg.base = vmcs12->host_gs_base;
 	vmx_set_segment(vcpu, &seg, VCPU_SREG_GS);
 	seg = (struct kvm_segment) {
-		.base = 0,
+		.base = vmcs12->host_tr_base,
 		.limit = 0x67,
 		.selector = vmcs12->host_tr_selector,
 		.type = 11,
