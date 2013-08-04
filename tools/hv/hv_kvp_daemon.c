@@ -1299,6 +1299,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	}
 
 	error = kvp_write_file(file, "HWADDR", "", mac_addr);
+	free(mac_addr);
 	if (error)
 		goto setval_error;
 
@@ -1344,7 +1345,6 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 		goto setval_error;
 
 setval_done:
-	free(mac_addr);
 	fclose(file);
 
 	/*
@@ -1358,7 +1358,6 @@ setval_done:
 
 setval_error:
 	syslog(LOG_ERR, "Failed to write config file");
-	free(mac_addr);
 	fclose(file);
 	return error;
 }
