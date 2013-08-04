@@ -165,10 +165,4 @@ do {								 \
 #define cfs_waitq_wait_event_interruptible_timeout(wq, c, timeout, ret) \
 	ret = wait_event_interruptible_timeout(wq, c, timeout)
 
-/*
- * atomic
- */
-#define cfs_atomic_add_unless(atom, a, u)    atomic_add_unless(atom, a, u)
-#define cfs_atomic_cmpxchg(atom, old, nv)    atomic_cmpxchg(atom, old, nv)
-
 #endif

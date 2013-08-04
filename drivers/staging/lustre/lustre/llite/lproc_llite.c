@@ -419,7 +419,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file, const char *buffer,
 				break;
 
 			nv = ov > diff ? ov - diff : 0;
-			rc = cfs_atomic_cmpxchg(&cache->ccc_lru_left, ov, nv);
+			rc = atomic_cmpxchg(&cache->ccc_lru_left, ov, nv);
 			if (likely(ov == rc)) {
 				diff -= ov - nv;
 				nrpages += ov - nv;
