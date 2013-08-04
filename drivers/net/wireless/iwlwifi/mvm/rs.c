@@ -136,7 +136,7 @@ static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 		/* skip 9M not supported in ht*/
 		if (idx >= IWL_RATE_9M_INDEX)
 			idx += 1;
-		if ((idx >= IWL_FIRST_OFDM_RATE) && (idx <= IWL_LAST_OFDM_RATE))
+		if ((idx >= IWL_FIRST_HT_RATE) && (idx <= IWL_LAST_HT_RATE))
 			return idx;
 
 	/* legacy rate format, search for match in table */
@@ -180,35 +180,38 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
  */
 
 static s32 expected_tpt_legacy[IWL_RATE_COUNT] = {
-	7, 13, 35, 58, 40, 57, 72, 98, 121, 154, 177, 186, 0
+	7, 13, 35, 58, 40, 57, 72, 98, 121, 154, 177, 186, 0, 0, 0
 };
 
-static s32 expected_tpt_siso20MHz[4][IWL_RATE_COUNT] = {
-	{0, 0, 0, 0, 42, 0,  76, 102, 124, 159, 183, 193, 202}, /* Norm */
-	{0, 0, 0, 0, 46, 0,  82, 110, 132, 168, 192, 202, 210}, /* SGI */
-	{0, 0, 0, 0, 47, 0,  91, 133, 171, 242, 305, 334, 362}, /* AGG */
-	{0, 0, 0, 0, 52, 0, 101, 145, 187, 264, 330, 361, 390}, /* AGG+SGI */
+/* Expected TpT tables. 4 indexes:
+ * 0 - NGI, 1 - SGI, 2 - AGG+NGI, 3 - AGG+SGI
+ */
+static s32 expected_tpt_siso_20MHz[4][IWL_RATE_COUNT] = {
+	{0, 0, 0, 0, 42, 0,  76, 102, 124, 159, 183, 193, 202, 216, 0},
+	{0, 0, 0, 0, 46, 0,  82, 110, 132, 168, 192, 202, 210, 225, 0},
+	{0, 0, 0, 0, 49, 0,  97, 145, 192, 285, 375, 420, 464, 551, 0},
+	{0, 0, 0, 0, 54, 0, 108, 160, 213, 315, 415, 465, 513, 608, 0},
 };
 
-static s32 expected_tpt_siso40MHz[4][IWL_RATE_COUNT] = {
-	{0, 0, 0, 0,  77, 0, 127, 160, 184, 220, 242, 250, 257}, /* Norm */
-	{0, 0, 0, 0,  83, 0, 135, 169, 193, 229, 250, 257, 264}, /* SGI */
-	{0, 0, 0, 0,  94, 0, 177, 249, 313, 423, 512, 550, 586}, /* AGG */
-	{0, 0, 0, 0, 104, 0, 193, 270, 338, 454, 545, 584, 620}, /* AGG+SGI */
+static s32 expected_tpt_siso_40MHz[4][IWL_RATE_COUNT] = {
+	{0, 0, 0, 0,  77, 0, 127, 160, 184, 220, 242, 250,  257,  269,  275},
+	{0, 0, 0, 0,  83, 0, 135, 169, 193, 229, 250, 257,  264,  275,  280},
+	{0, 0, 0, 0, 101, 0, 199, 295, 389, 570, 744, 828,  911, 1070, 1173},
+	{0, 0, 0, 0, 112, 0, 220, 326, 429, 629, 819, 912, 1000, 1173, 1284},
 };
 
 static s32 expected_tpt_mimo2_20MHz[4][IWL_RATE_COUNT] = {
-	{0, 0, 0, 0,  74, 0, 123, 155, 179, 214, 236, 244, 251}, /* Norm */
-	{0, 0, 0, 0,  81, 0, 131, 164, 188, 223, 243, 251, 257}, /* SGI */
-	{0, 0, 0, 0,  89, 0, 167, 235, 296, 402, 488, 526, 560}, /* AGG */
-	{0, 0, 0, 0,  97, 0, 182, 255, 320, 431, 520, 558, 593}, /* AGG+SGI*/
+	{0, 0, 0, 0,  74, 0, 123, 155, 179, 213, 235, 243, 250,  261, 0},
+	{0, 0, 0, 0,  81, 0, 131, 164, 187, 221, 242, 250, 256,  267, 0},
+	{0, 0, 0, 0,  98, 0, 193, 286, 375, 550, 718, 799, 878, 1032, 0},
+	{0, 0, 0, 0, 109, 0, 214, 316, 414, 607, 790, 879, 965, 1132, 0},
 };
 
 static s32 expected_tpt_mimo2_40MHz[4][IWL_RATE_COUNT] = {
-	{0, 0, 0, 0, 123, 0, 182, 214, 235, 264, 279, 285, 289}, /* Norm */
-	{0, 0, 0, 0, 131, 0, 191, 222, 242, 270, 284, 289, 293}, /* SGI */
-	{0, 0, 0, 0, 171, 0, 305, 410, 496, 634, 731, 771, 805}, /* AGG */
-	{0, 0, 0, 0, 186, 0, 329, 439, 527, 667, 764, 803, 838}, /* AGG+SGI */
+	{0, 0, 0, 0, 123, 0, 182, 214, 235,  264,  279,  285,  289,  296,  300},
+	{0, 0, 0, 0, 131, 0, 191, 222, 242,  270,  284,  289,  293,  300,  303},
+	{0, 0, 0, 0, 200, 0, 390, 571, 741, 1067, 1365, 1505, 1640, 1894, 2053},
+	{0, 0, 0, 0, 221, 0, 430, 630, 816, 1169, 1490, 1641, 1784, 2053, 2221},
 };
 
 /* mbps, mcs */
@@ -426,9 +429,9 @@ static u32 rate_n_flags_from_tbl(struct iwl_mvm *mvm,
 		if (index >= IWL_FIRST_CCK_RATE && index <= IWL_LAST_CCK_RATE)
 			rate_n_flags |= RATE_MCS_CCK_MSK;
 	} else if (is_Ht(tbl->lq_type)) {
-		if (index > IWL_LAST_OFDM_RATE) {
+		if (index > IWL_LAST_HT_RATE) {
 			IWL_ERR(mvm, "Invalid HT rate index %d\n", index);
-			index = IWL_LAST_OFDM_RATE;
+			index = IWL_LAST_HT_RATE;
 		}
 		rate_n_flags = RATE_MCS_HT_MSK;
 
@@ -962,9 +965,9 @@ static void rs_set_expected_tpt_table(struct iwl_lq_sta *lq_sta,
 	 * (SISO/MIMO2), channel width (20/40), SGI, and aggregation
 	 * status */
 	if (is_siso(tbl->lq_type) && !tbl->is_ht40)
-		ht_tbl_pointer = expected_tpt_siso20MHz;
+		ht_tbl_pointer = expected_tpt_siso_20MHz;
 	else if (is_siso(tbl->lq_type))
-		ht_tbl_pointer = expected_tpt_siso40MHz;
+		ht_tbl_pointer = expected_tpt_siso_40MHz;
 	else if (is_mimo2(tbl->lq_type) && !tbl->is_ht40)
 		ht_tbl_pointer = expected_tpt_mimo2_20MHz;
 	else {
