@@ -18,3 +18,9 @@ Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
 Description:
 		 Controls the default sleep time for gc_thread. Time
 		 is in milliseconds.
+
+What:		/sys/fs/f2fs/<disk>/gc_idle
+Date:		July 2013
+Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
+Description:
+		 Controls the victim selection policy for garbage collection.

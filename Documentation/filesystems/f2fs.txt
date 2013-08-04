@@ -158,6 +158,12 @@ Files in /sys/fs/f2fs/<devname>
                               time for the garbage collection thread. Time is
                               in milliseconds.
 
+ gc_idle                      This parameter controls the selection of victim
+                              policy for garbage collection. Setting gc_idle = 0
+                              (default) will disable this option. Setting
+                              gc_idle = 1 will select the Cost Benefit approach
+                              & setting gc_idle = 2 will select the greedy aproach.
+
 ================================================================================
 USAGE
 ================================================================================

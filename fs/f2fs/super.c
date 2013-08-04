@@ -148,12 +148,14 @@ static struct f2fs_attr f2fs_attr_##_name = {			\
 F2FS_RW_ATTR(gc_min_sleep_time, min_sleep_time);
 F2FS_RW_ATTR(gc_max_sleep_time, max_sleep_time);
 F2FS_RW_ATTR(gc_no_gc_sleep_time, no_gc_sleep_time);
+F2FS_RW_ATTR(gc_idle, gc_idle);
 
 #define ATTR_LIST(name) (&f2fs_attr_##name.attr)
 static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(gc_min_sleep_time),
 	ATTR_LIST(gc_max_sleep_time),
 	ATTR_LIST(gc_no_gc_sleep_time),
+	ATTR_LIST(gc_idle),
 	NULL,
 };
 
