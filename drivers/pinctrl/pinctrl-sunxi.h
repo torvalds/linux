@@ -14,6 +14,7 @@
 #define __PINCTRL_SUNXI_H
 
 #include <linux/kernel.h>
+#include <linux/spinlock.h>
 
 #define PA_BASE	0
 #define PB_BASE	32
@@ -407,6 +408,7 @@ struct sunxi_pinctrl {
 	unsigned			ngroups;
 	int				irq;
 	int				irq_array[SUNXI_IRQ_NUMBER];
+	spinlock_t			lock;
 	struct pinctrl_dev		*pctl_dev;
 };
 
