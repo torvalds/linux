@@ -86,11 +86,6 @@ LL_PROC_PROTO(name)				     \
 typedef struct proc_dir_entry	   proc_dir_entry_t;
 
 /*
- * Wait Queue
- */
-typedef long			    cfs_task_state_t;
-
-/*
  * Task struct
  */
 typedef struct task_struct	      task_t;
