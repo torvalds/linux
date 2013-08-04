@@ -362,7 +362,7 @@ static int ll_close_thread(void *arg)
 int ll_close_thread_start(struct ll_close_queue **lcq_ret)
 {
 	struct ll_close_queue *lcq;
-	task_t *task;
+	struct task_struct *task;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CLOSE_THREAD))
 		return -EINTR;

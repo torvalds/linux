@@ -1339,7 +1339,7 @@ static int ldlm_pools_thread_main(void *arg)
 static int ldlm_pools_thread_start(void)
 {
 	struct l_wait_info lwi = { 0 };
-	task_t *task;
+	struct task_struct *task;
 
 	if (ldlm_pools_thread != NULL)
 		return -EALREADY;

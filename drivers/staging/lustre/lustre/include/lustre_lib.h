@@ -96,7 +96,7 @@ void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs);
 /* l_lock.c */
 struct lustre_lock {
 	int			l_depth;
-	task_t		*l_owner;
+	struct task_struct	*l_owner;
 	struct semaphore	l_sem;
 	spinlock_t		l_spin;
 };

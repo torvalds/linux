@@ -217,7 +217,7 @@ again:
 int sptlrpc_gc_init(void)
 {
 	struct l_wait_info lwi = { 0 };
-	task_t *task;
+	struct task_struct *task;
 
 	mutex_init(&sec_gc_mutex);
 	spin_lock_init(&sec_gc_list_lock);

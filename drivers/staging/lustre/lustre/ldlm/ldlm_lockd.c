@@ -796,7 +796,7 @@ static int ldlm_bl_thread_main(void *arg);
 static int ldlm_bl_thread_start(struct ldlm_bl_pool *blp)
 {
 	struct ldlm_bl_thread_data bltd = { .bltd_blp = blp };
-	task_t *task;
+	struct task_struct *task;
 
 	init_completion(&bltd.bltd_comp);
 	bltd.bltd_num = atomic_read(&blp->blp_num_threads);

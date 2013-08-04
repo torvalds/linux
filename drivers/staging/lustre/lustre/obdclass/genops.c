@@ -1733,7 +1733,7 @@ static int obd_zombie_impexp_thread(void *unused)
  */
 int obd_zombie_impexp_init(void)
 {
-	task_t *task;
+	struct task_struct *task;
 
 	INIT_LIST_HEAD(&obd_zombie_imports);
 	INIT_LIST_HEAD(&obd_zombie_exports);

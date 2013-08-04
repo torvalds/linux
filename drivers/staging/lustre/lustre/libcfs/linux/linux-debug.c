@@ -170,12 +170,6 @@ void lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
 		schedule();
 }
 
-task_t *libcfs_current(void)
-{
-	CWARN("current task struct is %p\n", current);
-	return current;
-}
-
 static int panic_notifier(struct notifier_block *self, unsigned long unused1,
 			 void *unused2)
 {
@@ -203,9 +197,6 @@ void libcfs_unregister_panic_notifier(void)
 {
 	atomic_notifier_chain_unregister(&panic_notifier_list, &libcfs_panic_notifier);
 }
-
-EXPORT_SYMBOL(libcfs_current);
-
 
 EXPORT_SYMBOL(libcfs_run_upcall);
 EXPORT_SYMBOL(libcfs_run_lbug_upcall);

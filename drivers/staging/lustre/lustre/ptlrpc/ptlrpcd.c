@@ -630,7 +630,8 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 
 	env = 1;
 	{
-		task_t *task;
+		struct task_struct *task;
+
 		if (index >= 0) {
 			rc = ptlrpcd_bind(index, max);
 			if (rc < 0)

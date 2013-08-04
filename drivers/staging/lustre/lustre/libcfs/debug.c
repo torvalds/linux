@@ -361,7 +361,7 @@ int libcfs_debug_dumplog_thread(void *arg)
 void libcfs_debug_dumplog(void)
 {
 	wait_queue_t wait;
-	task_t    *dumper;
+	struct task_struct *dumper;
 
 	/* we're being careful to ensure that the kernel thread is
 	 * able to set our state to running as it exits before we
