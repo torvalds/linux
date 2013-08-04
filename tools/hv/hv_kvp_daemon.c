@@ -1353,7 +1353,11 @@ setval_done:
 	 */
 
 	snprintf(cmd, sizeof(cmd), "%s %s", "hv_set_ifconfig", if_file);
-	system(cmd);
+	if (system(cmd)) {
+		syslog(LOG_ERR, "Failed to execute cmd '%s'; error: %d %s",
+				cmd, errno, strerror(errno));
+		return HV_E_FAIL;
+	}
 	return 0;
 
 setval_error:
