@@ -2898,5 +2898,7 @@ ksocknal_module_init (void)
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Kernel TCP Socket LND v3.0.0");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("3.0.0");
 
-cfs_module(ksocknal, "3.0.0", ksocknal_module_init, ksocknal_module_fini);
+module_init(ksocknal_module_init);
+module_exit(ksocknal_module_fini);

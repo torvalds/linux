@@ -491,4 +491,6 @@ static void exit_libcfs_module(void)
 	libcfs_arch_cleanup();
 }
 
-cfs_module(libcfs, "1.0.0", init_libcfs_module, exit_libcfs_module);
+MODULE_VERSION("1.0.0");
+module_init(init_libcfs_module);
+module_exit(exit_libcfs_module);

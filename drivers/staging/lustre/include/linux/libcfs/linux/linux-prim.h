@@ -107,15 +107,6 @@ typedef struct task_struct	      task_t;
 	current->journal_info = journal_info;   \
 	} while(0)
 
-/* Module interfaces */
-#define cfs_module(name, version, init, fini) \
-	module_init(init);		    \
-	module_exit(fini)
-
-/*
- * Signal
- */
-
 /*
  * Timer
  */

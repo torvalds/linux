@@ -564,5 +564,7 @@ static void __exit fid_mod_exit(void)
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre FID Module");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("0.1.0");
 
-cfs_module(fid, "0.1.0", fid_mod_init, fid_mod_exit);
+module_init(fid_mod_init);
+module_exit(fid_mod_exit);

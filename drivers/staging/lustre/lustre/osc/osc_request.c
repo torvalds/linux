@@ -3656,5 +3656,7 @@ static void /*__exit*/ osc_exit(void)
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("Lustre Object Storage Client (OSC)");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(LUSTRE_VERSION_STRING);
 
-cfs_module(osc, LUSTRE_VERSION_STRING, osc_init, osc_exit);
+module_init(osc_init);
+module_exit(osc_exit);
