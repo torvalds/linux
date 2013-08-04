@@ -10,7 +10,7 @@
 #include <linux/thread_info.h>
 
 extern struct task_struct *__switch_to(void *, void *);
-extern void update_per_regs(struct task_struct *task);
+extern void update_cr_regs(struct task_struct *task);
 
 static inline void save_fp_regs(s390_fp_regs *fpregs)
 {
@@ -86,7 +86,7 @@ static inline void restore_access_regs(unsigned int *acrs)
 		restore_fp_regs(&next->thread.fp_regs);			\
 		restore_access_regs(&next->thread.acrs[0]);		\
 		restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);	\
-		update_per_regs(next);					\
+		update_cr_regs(next);					\
 	}								\
 	prev = __switch_to(prev,next);					\
 } while (0)

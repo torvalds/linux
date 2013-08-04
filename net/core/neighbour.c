@@ -2769,6 +2769,7 @@ EXPORT_SYMBOL(neigh_app_ns);
 
 #ifdef CONFIG_SYSCTL
 static int zero;
+static int int_max = INT_MAX;
 static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
 
 static int proc_unres_qlen(struct ctl_table *ctl, int write,
@@ -2821,19 +2822,25 @@ static struct neigh_sysctl_table {
 			.procname	= "mcast_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1 	= &zero,
+			.extra2		= &int_max,
+			.proc_handler	= proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_UCAST_PROBE] = {
 			.procname	= "ucast_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1 	= &zero,
+			.extra2		= &int_max,
+			.proc_handler	= proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_APP_PROBE] = {
 			.procname	= "app_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1 	= &zero,
+			.extra2		= &int_max,
+			.proc_handler	= proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_RETRANS_TIME] = {
 			.procname	= "retrans_time",
@@ -2876,7 +2883,9 @@ static struct neigh_sysctl_table {
 			.procname	= "proxy_qlen",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1 	= &zero,
+			.extra2		= &int_max,
+			.proc_handler	= proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_ANYCAST_DELAY] = {
 			.procname	= "anycast_delay",
@@ -2918,19 +2927,25 @@ static struct neigh_sysctl_table {
 			.procname	= "gc_thresh1",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1 	= &zero,
+			.extra2		= &int_max,
+			.proc_handler	= proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_GC_THRESH2] = {
 			.procname	= "gc_thresh2",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1 	= &zero,
+			.extra2		= &int_max,
+			.proc_handler	= proc_dointvec_minmax,
 		},
 		[NEIGH_VAR_GC_THRESH3] = {
 			.procname	= "gc_thresh3",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.extra1 	= &zero,
+			.extra2		= &int_max,
+			.proc_handler	= proc_dointvec_minmax,
 		},
 		{},
 	},

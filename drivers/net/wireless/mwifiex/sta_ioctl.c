@@ -257,10 +257,10 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			goto done;
 	}
 
-	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
+	    priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) {
 		u8 config_bands;
 
-		/* Infra mode */
 		ret = mwifiex_deauthenticate(priv, NULL);
 		if (ret)
 			goto done;

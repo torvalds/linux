@@ -1193,7 +1193,9 @@ static int svc_tcp_has_wspace(struct svc_xprt *xprt)
 	if (test_bit(XPT_LISTENER, &xprt->xpt_flags))
 		return 1;
 	required = atomic_read(&xprt->xpt_reserved) + serv->sv_max_mesg;
-	if (sk_stream_wspace(svsk->sk_sk) >= required)
+	if (sk_stream_wspace(svsk->sk_sk) >= required ||
+	    (sk_stream_min_wspace(svsk->sk_sk) == 0 &&
+	     atomic_read(&xprt->xpt_reserved) == 0))
 		return 1;
 	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
 	return 0;

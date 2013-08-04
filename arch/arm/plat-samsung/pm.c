@@ -80,7 +80,7 @@ unsigned char pm_uart_udivslot;
 
 #ifdef CONFIG_SAMSUNG_PM_DEBUG
 
-static struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
+static struct pm_uart_save uart_save;
 
 static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 {
@@ -101,11 +101,7 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 
 static void s3c_pm_save_uarts(void)
 {
-	struct pm_uart_save *save = uart_save;
-	unsigned int uart;
-
-	for (uart = 0; uart < CONFIG_SERIAL_SAMSUNG_UARTS; uart++, save++)
-		s3c_pm_save_uart(uart, save);
+	s3c_pm_save_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
 }
 
 static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
@@ -126,11 +122,7 @@ static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 
 static void s3c_pm_restore_uarts(void)
 {
-	struct pm_uart_save *save = uart_save;
-	unsigned int uart;
-
-	for (uart = 0; uart < CONFIG_SERIAL_SAMSUNG_UARTS; uart++, save++)
-		s3c_pm_restore_uart(uart, save);
+	s3c_pm_restore_uart(CONFIG_DEBUG_S3C_UART, &uart_save);
 }
 #else
 static void s3c_pm_save_uarts(void) { }

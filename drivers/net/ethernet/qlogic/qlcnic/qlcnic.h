@@ -1419,8 +1419,8 @@ void qlcnic_pci_camqm_write_2M(struct qlcnic_adapter *, u64, u64);
 #define ADDR_IN_RANGE(addr, low, high)	\
 	(((addr) < (high)) && ((addr) >= (low)))
 
-#define QLCRD32(adapter, off) \
-	(adapter->ahw->hw_ops->read_reg)(adapter, off)
+#define QLCRD32(adapter, off, err) \
+	(adapter->ahw->hw_ops->read_reg)(adapter, off, err)
 
 #define QLCWR32(adapter, off, val) \
 	adapter->ahw->hw_ops->write_reg(adapter, off, val)
@@ -1637,7 +1637,7 @@ void qlcnic_83xx_free_mailbox(struct qlcnic_mailbox *mbx);
 struct qlcnic_hardware_ops {
 	void (*read_crb) (struct qlcnic_adapter *, char *, loff_t, size_t);
 	void (*write_crb) (struct qlcnic_adapter *, char *, loff_t, size_t);
-	int (*read_reg) (struct qlcnic_adapter *, ulong);
+	int (*read_reg) (struct qlcnic_adapter *, ulong, int *);
 	int (*write_reg) (struct qlcnic_adapter *, ulong, u32);
 	void (*get_ocm_win) (struct qlcnic_hardware_context *);
 	int (*get_mac_address) (struct qlcnic_adapter *, u8 *);
@@ -1693,12 +1693,6 @@ static inline void qlcnic_write_crb(struct qlcnic_adapter *adapter, char *buf,
 				    loff_t offset, size_t size)
 {
 	adapter->ahw->hw_ops->write_crb(adapter, buf, offset, size);
-}
-
-static inline int qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter,
-				       ulong off)
-{
-	return adapter->ahw->hw_ops->read_reg(adapter, off);
 }
 
 static inline int qlcnic_hw_write_wx_2M(struct qlcnic_adapter *adapter,
@@ -1902,7 +1896,8 @@ static inline void qlcnic_free_mac_list(struct qlcnic_adapter *adapter)
 
 static inline void qlcnic_set_mac_filter_count(struct qlcnic_adapter *adapter)
 {
-	adapter->ahw->hw_ops->set_mac_filter_count(adapter);
+	if (adapter->ahw->hw_ops->set_mac_filter_count)
+		adapter->ahw->hw_ops->set_mac_filter_count(adapter);
 }
 
 static inline void qlcnic_dev_request_reset(struct qlcnic_adapter *adapter,
