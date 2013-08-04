@@ -155,8 +155,12 @@ struct iwl_powertable_cmd {
  * @lprx_rssi_threshold: Signal strength up to which LP RX can be enabled.
  *			Default: 80dbm
  * @num_skip_dtim:	Number of DTIMs to skip if Skip over DTIM flag is set
- * @snooze_interval:	TBD
- * @snooze_window:	TBD
+ * @snooze_interval:	Maximum time between attempts to retrieve buffered data
+ *			from the AP [msec]
+ * @snooze_window:	A window of time in which PBW snoozing insures that all
+ *			packets received. It is also the minimum time from last
+ *			received unicast RX packet, before client stops snoozing
+ *			for data. [msec]
  * @snooze_step:	TBD
  * @qndp_tid:		TID client shall use for uAPSD QNDP triggers
  * @uapsd_ac_flags:	Set trigger-enabled and delivery-enabled indication for

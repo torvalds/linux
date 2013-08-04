@@ -301,6 +301,20 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 			cpu_to_le32(IWL_MVM_UAPSD_RX_DATA_TIMEOUT);
 		cmd->tx_data_timeout_uapsd =
 			cpu_to_le32(IWL_MVM_UAPSD_TX_DATA_TIMEOUT);
+
+		if (cmd->uapsd_ac_flags == (BIT(IEEE80211_AC_VO) |
+					    BIT(IEEE80211_AC_VI) |
+					    BIT(IEEE80211_AC_BE) |
+					    BIT(IEEE80211_AC_BK))) {
+			cmd->flags |= cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
+			cmd->snooze_interval =
+				cpu_to_le16(IWL_MVM_PS_SNOOZE_INTERVAL);
+			cmd->snooze_window =
+				(mvm->cur_ucode == IWL_UCODE_WOWLAN) ?
+				cpu_to_le16(IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW) :
+				cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
+		}
+
 		cmd->uapsd_max_sp = IWL_UAPSD_MAX_SP;
 		cmd->heavy_tx_thld_packets =
 			IWL_MVM_PS_HEAVY_TX_THLD_PACKETS;
@@ -340,6 +354,14 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	}
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD)
 		cmd->lprx_rssi_threshold = mvmvif->dbgfs_pm.lprx_rssi_threshold;
+	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SNOOZE_ENABLE) {
+		if (mvmvif->dbgfs_pm.snooze_ena)
+			cmd->flags |=
+				cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
+		else
+			cmd->flags &=
+				cpu_to_le16(~POWER_FLAGS_SNOOZE_ENA_MSK);
+	}
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 }
 
@@ -475,6 +497,19 @@ static int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 			pos += scnprintf(buf+pos, bufsz-pos,
 					 "heavy_rx_thld_percentage = %d\n",
 					 cmd.heavy_rx_thld_percentage);
+			pos +=
+			scnprintf(buf+pos, bufsz-pos, "snooze_enable = %d\n",
+				  (cmd.flags &
+				   cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) ?
+				  1 : 0);
+		}
+		if (cmd.flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
+			pos += scnprintf(buf+pos, bufsz-pos,
+					 "snooze_interval = %d\n",
+					 cmd.snooze_interval);
+			pos += scnprintf(buf+pos, bufsz-pos,
+					 "snooze_window = %d\n",
+					 cmd.snooze_window);
 		}
 	}
 	return pos;

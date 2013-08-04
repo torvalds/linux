@@ -180,6 +180,7 @@ enum iwl_dbgfs_pm_mask {
 	MVM_DEBUGFS_PM_DISABLE_POWER_OFF = BIT(5),
 	MVM_DEBUGFS_PM_LPRX_ENA = BIT(6),
 	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
+	MVM_DEBUGFS_PM_SNOOZE_ENABLE = BIT(8),
 };
 
 struct iwl_dbgfs_pm {
@@ -191,6 +192,7 @@ struct iwl_dbgfs_pm {
 	bool disable_power_off;
 	bool lprx_ena;
 	u32 lprx_rssi_threshold;
+	bool snooze_ena;
 	int mask;
 };
 
