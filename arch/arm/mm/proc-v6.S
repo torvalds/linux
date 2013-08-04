@@ -180,8 +180,6 @@ ENDPROC(cpu_v6_do_resume)
 
 	.align
 
-	__CPUINIT
-
 /*
  *	__v6_setup
  *

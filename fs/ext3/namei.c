@@ -1780,11 +1780,11 @@ retry:
 		inode->i_op = &ext3_file_inode_operations;
 		inode->i_fop = &ext3_file_operations;
 		ext3_set_aops(inode);
+		d_tmpfile(dentry, inode);
 		err = ext3_orphan_add(handle, inode);
 		if (err)
 			goto err_drop_inode;
 		mark_inode_dirty(inode);
-		d_tmpfile(dentry, inode);
 		unlock_new_inode(inode);
 	}
 	ext3_journal_stop(handle);

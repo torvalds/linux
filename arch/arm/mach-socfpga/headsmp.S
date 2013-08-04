@@ -10,7 +10,6 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-	__CPUINIT
 	.arch	armv7-a
 
 ENTRY(secondary_trampoline)
