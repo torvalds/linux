@@ -264,7 +264,7 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add(NULL, MV_XOR_NAME ".1", xor1);
 	orion_clkdev_add("0", "pcie", pex0);
 	orion_clkdev_add("1", "pcie", pex1);
-	orion_clkdev_add(NULL, "kirkwood-i2s", audio);
+	orion_clkdev_add(NULL, "mvebu-audio", audio);
 	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".0", runit);
 	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".1", runit);
 
@@ -560,7 +560,7 @@ void __init kirkwood_timer_init(void)
 /*****************************************************************************
  * Audio
  ****************************************************************************/
-static struct resource kirkwood_i2s_resources[] = {
+static struct resource kirkwood_audio_resources[] = {
 	[0] = {
 		.start  = AUDIO_PHYS_BASE,
 		.end    = AUDIO_PHYS_BASE + SZ_16K - 1,
@@ -573,29 +573,23 @@ static struct resource kirkwood_i2s_resources[] = {
 	},
 };
 
-static struct kirkwood_asoc_platform_data kirkwood_i2s_data = {
+static struct kirkwood_asoc_platform_data kirkwood_audio_data = {
 	.burst       = 128,
 };
 
-static struct platform_device kirkwood_i2s_device = {
-	.name		= "kirkwood-i2s",
+static struct platform_device kirkwood_audio_device = {
+	.name		= "mvebu-audio",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(kirkwood_i2s_resources),
-	.resource	= kirkwood_i2s_resources,
+	.num_resources	= ARRAY_SIZE(kirkwood_audio_resources),
+	.resource	= kirkwood_audio_resources,
 	.dev		= {
-		.platform_data	= &kirkwood_i2s_data,
+		.platform_data	= &kirkwood_audio_data,
 	},
-};
-
-static struct platform_device kirkwood_pcm_device = {
-	.name		= "kirkwood-pcm-audio",
-	.id		= -1,
 };
 
 void __init kirkwood_audio_init(void)
 {
-	platform_device_register(&kirkwood_i2s_device);
-	platform_device_register(&kirkwood_pcm_device);
+	platform_device_register(&kirkwood_audio_device);
 }
 
 /*****************************************************************************

@@ -24,7 +24,7 @@
 #include <linux/platform_data/asoc-kirkwood.h>
 #include "kirkwood.h"
 
-#define DRV_NAME	"kirkwood-i2s"
+#define DRV_NAME	"mvebu-audio"
 
 #define KIRKWOOD_I2S_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | \
@@ -517,10 +517,20 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 
 	err = snd_soc_register_component(&pdev->dev, &kirkwood_i2s_component,
 					 soc_dai, 1);
-	if (!err)
-		return 0;
-	dev_err(&pdev->dev, "snd_soc_register_component failed\n");
+	if (err) {
+		dev_err(&pdev->dev, "snd_soc_register_component failed\n");
+		goto err_component;
+	}
 
+	err = snd_soc_register_platform(&pdev->dev, &kirkwood_soc_platform);
+	if (err) {
+		dev_err(&pdev->dev, "snd_soc_register_platform failed\n");
+		goto err_platform;
+	}
+	return 0;
+ err_platform:
+	snd_soc_unregister_component(&pdev->dev);
+ err_component:
 	if (!IS_ERR(priv->extclk))
 		clk_disable_unprepare(priv->extclk);
 	clk_disable_unprepare(priv->clk);
@@ -532,6 +542,7 @@ static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct kirkwood_dma_data *priv = dev_get_drvdata(&pdev->dev);
 
+	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_component(&pdev->dev);
 
 	if (!IS_ERR(priv->extclk))
@@ -556,4 +567,4 @@ module_platform_driver(kirkwood_i2s_driver);
 MODULE_AUTHOR("Arnaud Patard, <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Kirkwood I2S SoC Interface");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:kirkwood-i2s");
+MODULE_ALIAS("platform:mvebu-audio");
