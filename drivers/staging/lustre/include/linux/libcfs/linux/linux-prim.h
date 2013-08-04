@@ -88,11 +88,7 @@ typedef struct proc_dir_entry	   proc_dir_entry_t;
 /*
  * Wait Queue
  */
-
-
 typedef long			    cfs_task_state_t;
-
-#define CFS_DECL_WAITQ(wq)		DECLARE_WAIT_QUEUE_HEAD(wq)
 
 /*
  * Task struct

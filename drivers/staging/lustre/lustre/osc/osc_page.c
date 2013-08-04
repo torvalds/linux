@@ -582,7 +582,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
  * at any time.
  */
 
-static CFS_DECL_WAITQ(osc_lru_waitq);
+static DECLARE_WAIT_QUEUE_HEAD(osc_lru_waitq);
 static atomic_t osc_lru_waiters = ATOMIC_INIT(0);
 /* LRU pages are freed in batch mode. OSC should at least free this
  * number of pages to avoid running out of LRU budget, and.. */
