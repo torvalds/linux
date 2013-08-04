@@ -634,9 +634,6 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	int err = 0;
 	int ilock;
 
-	/* for nobh_write_end */
-	*fsdata = NULL;
-
 	f2fs_balance_fs(sbi);
 repeat:
 	page = grab_cache_page_write_begin(mapping, index, flags);
