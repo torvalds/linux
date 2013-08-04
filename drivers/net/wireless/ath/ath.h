@@ -159,7 +159,7 @@ struct ath_common {
 
 	bool btcoex_enabled;
 	bool disable_ani;
-	bool antenna_diversity;
+	bool bt_ant_diversity;
 };
 
 struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,
