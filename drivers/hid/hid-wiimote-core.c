@@ -212,10 +212,12 @@ static __u8 select_drm(struct wiimote_data *wdata)
 
 	if (ir == WIIPROTO_FLAG_IR_BASIC) {
 		if (wdata->state.flags & WIIPROTO_FLAG_ACCEL) {
-			if (ext)
-				return WIIPROTO_REQ_DRM_KAIE;
-			else
-				return WIIPROTO_REQ_DRM_KAI;
+			/* GEN10 and ealier devices bind IR formats to DRMs.
+			 * Hence, we cannot use DRM_KAI here as it might be
+			 * bound to IR_EXT. Use DRM_KAIE unconditionally so we
+			 * work with all devices and our parsers can use the
+			 * fixed formats, too. */
+			return WIIPROTO_REQ_DRM_KAIE;
 		} else {
 			return WIIPROTO_REQ_DRM_KIE;
 		}
