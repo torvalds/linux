@@ -11,7 +11,7 @@ extern void XGI_GetVBType(struct vb_device_info *);
 extern void XGI_SenseCRT1(struct vb_device_info *);
 extern unsigned char XGISetModeNew(struct xgifb_video_info *xgifb_info,
 				   struct xgi_hw_device_info *HwDeviceExtension,
-				   unsigned short ModeNo) ;
+				   unsigned short ModeNo);
 
 extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
 				      unsigned short *ModeIdIndex);
