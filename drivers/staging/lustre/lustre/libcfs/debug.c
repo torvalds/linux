@@ -335,9 +335,10 @@ libcfs_debug_str2mask(int *mask, const char *str, int is_subsys)
  */
 void libcfs_debug_dumplog_internal(void *arg)
 {
-	DECL_JOURNAL_DATA;
+	void *journal_info;
 
-	PUSH_JOURNAL;
+	journal_info = current->journal_info;
+	current->journal_info = NULL;
 
 	if (strncmp(libcfs_debug_file_path_arr, "NONE", 4) != 0) {
 		snprintf(debug_file_name, sizeof(debug_file_name) - 1,
@@ -348,7 +349,8 @@ void libcfs_debug_dumplog_internal(void *arg)
 		cfs_tracefile_dump_all_pages(debug_file_name);
 		libcfs_run_debug_log_upcall(debug_file_name);
 	}
-	POP_JOURNAL;
+
+	current->journal_info = journal_info;
 }
 
 int libcfs_debug_dumplog_thread(void *arg)

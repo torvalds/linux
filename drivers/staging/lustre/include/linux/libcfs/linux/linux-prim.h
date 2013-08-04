@@ -85,13 +85,4 @@ LL_PROC_PROTO(name)				     \
  */
 typedef struct proc_dir_entry	   proc_dir_entry_t;
 
-#define DECL_JOURNAL_DATA	   void *journal_info
-#define PUSH_JOURNAL		do {    \
-	journal_info = current->journal_info;   \
-	current->journal_info = NULL;	   \
-	} while(0)
-#define POP_JOURNAL		 do {    \
-	current->journal_info = journal_info;   \
-	} while(0)
-
 #endif
