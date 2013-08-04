@@ -45,6 +45,7 @@
 #include <linux/moduleparam.h>
 #include <linux/jiffies.h>
 #include <linux/syscalls.h>
+#include <linux/of.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
@@ -681,6 +682,40 @@ static void sysrq_detect_reset_sequence(struct sysrq_state *state,
 	}
 }
 
+#ifdef CONFIG_OF
+static void sysrq_of_get_keyreset_config(void)
+{
+	u32 key;
+	struct device_node *np;
+	struct property *prop;
+	const __be32 *p;
+
+	np = of_find_node_by_path("/chosen/linux,sysrq-reset-seq");
+	if (!np) {
+		pr_debug("No sysrq node found");
+		return;
+	}
+
+	/* Reset in case a __weak definition was present */
+	sysrq_reset_seq_len = 0;
+
+	of_property_for_each_u32(np, "keyset", prop, p, key) {
+		if (key == KEY_RESERVED || key > KEY_MAX ||
+		    sysrq_reset_seq_len == SYSRQ_KEY_RESET_MAX)
+			break;
+
+		sysrq_reset_seq[sysrq_reset_seq_len++] = (unsigned short)key;
+	}
+
+	/* Get reset timeout if any. */
+	of_property_read_u32(np, "timeout-ms", &sysrq_reset_downtime_ms);
+}
+#else
+static void sysrq_of_get_keyreset_config(void)
+{
+}
+#endif
+
 static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 {
 	struct sysrq_state *sysrq =
@@ -914,6 +949,7 @@ static inline void sysrq_register_handler(void)
 	int error;
 	int i;
 
+	/* First check if a __weak interface was instantiated. */
 	for (i = 0; i < ARRAY_SIZE(sysrq_reset_seq); i++) {
 		key = platform_sysrq_reset_seq[i];
 		if (key == KEY_RESERVED || key > KEY_MAX)
@@ -921,6 +957,12 @@ static inline void sysrq_register_handler(void)
 
 		sysrq_reset_seq[sysrq_reset_seq_len++] = key;
 	}
+
+	/*
+	 * DT configuration takes precedence over anything that would
+	 * have been defined via the __weak interface.
+	 */
+	sysrq_of_get_keyreset_config();
 
 	error = input_register_handler(&sysrq_handler);
 	if (error)
