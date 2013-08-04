@@ -72,7 +72,7 @@ struct lu_fld_target {
 struct lu_server_fld {
 	/**
 	 * Fld dir proc entry. */
-	proc_dir_entry_t    *lsf_proc_dir;
+	struct proc_dir_entry    *lsf_proc_dir;
 
 	/**
 	 * /fld file object device */
@@ -100,7 +100,7 @@ struct lu_server_fld {
 struct lu_client_fld {
 	/**
 	 * Client side proc entry. */
-	proc_dir_entry_t    *lcf_proc_dir;
+	struct proc_dir_entry    *lcf_proc_dir;
 
 	/**
 	 * List of exports client FLD knows about. */

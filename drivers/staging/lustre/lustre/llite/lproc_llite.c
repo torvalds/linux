@@ -851,7 +851,7 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_device *obd;
-	proc_dir_entry_t *dir;
+	struct proc_dir_entry *dir;
 	char name[MAX_STRING_SIZE + 1], *ptr;
 	int err, id, len, rc;
 

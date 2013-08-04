@@ -131,7 +131,7 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 	struct obd_device *tgt_obd;
 	static struct obd_uuid lov_osc_uuid = { "LOV_OSC_UUID" };
 	struct obd_import *imp;
-	proc_dir_entry_t *lov_proc_dir;
+	struct proc_dir_entry *lov_proc_dir;
 	int rc;
 
 	if (!lov->lov_tgts[index])
@@ -193,7 +193,7 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 	lov_proc_dir = obd->obd_proc_private;
 	if (lov_proc_dir) {
 		struct obd_device *osc_obd = lov->lov_tgts[index]->ltd_exp->exp_obd;
-		proc_dir_entry_t *osc_symlink;
+		struct proc_dir_entry *osc_symlink;
 
 		LASSERT(osc_obd != NULL);
 		LASSERT(osc_obd->obd_magic == OBD_DEVICE_MAGIC);
@@ -273,7 +273,7 @@ static int lov_connect(const struct lu_env *env,
 
 static int lov_disconnect_obd(struct obd_device *obd, struct lov_tgt_desc *tgt)
 {
-	proc_dir_entry_t *lov_proc_dir;
+	struct proc_dir_entry *lov_proc_dir;
 	struct lov_obd *lov = &obd->u.lov;
 	struct obd_device *osc_obd;
 	int rc;

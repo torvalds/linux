@@ -345,7 +345,7 @@ enum {
 
 #define EXTRA_FIRST_OPC LDLM_GLIMPSE_ENQUEUE
 /* class_obd.c */
-extern proc_dir_entry_t *proc_lustre_root;
+extern struct proc_dir_entry *proc_lustre_root;
 
 struct obd_device;
 struct obd_histogram;
@@ -550,11 +550,11 @@ extern void lprocfs_free_md_stats(struct obd_device *obddev);
 struct obd_export;
 struct nid_stat;
 extern int lprocfs_add_clear_entry(struct obd_device * obd,
-				   proc_dir_entry_t *entry);
+				   struct proc_dir_entry *entry);
 extern int lprocfs_exp_setup(struct obd_export *exp,
 			     lnet_nid_t *peer_nid, int *newnid);
 extern int lprocfs_exp_cleanup(struct obd_export *exp);
-extern proc_dir_entry_t *lprocfs_add_simple(struct proc_dir_entry *root,
+extern struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 						char *name,
 						void *data,
 						struct file_operations *fops);
@@ -567,27 +567,27 @@ lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
 			      unsigned long count, void *data);
 extern int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data);
 
-extern int lprocfs_register_stats(proc_dir_entry_t *root, const char *name,
+extern int lprocfs_register_stats(struct proc_dir_entry *root, const char *name,
 				  struct lprocfs_stats *stats);
 
 /* lprocfs_status.c */
-extern int lprocfs_add_vars(proc_dir_entry_t *root,
+extern int lprocfs_add_vars(struct proc_dir_entry *root,
 			    struct lprocfs_vars *var,
 			    void *data);
 
-extern proc_dir_entry_t *lprocfs_register(const char *name,
-					      proc_dir_entry_t *parent,
+extern struct proc_dir_entry *lprocfs_register(const char *name,
+					      struct proc_dir_entry *parent,
 					      struct lprocfs_vars *list,
 					      void *data);
 
-extern void lprocfs_remove(proc_dir_entry_t **root);
+extern void lprocfs_remove(struct proc_dir_entry **root);
 extern void lprocfs_remove_proc_entry(const char *name,
 				      struct proc_dir_entry *parent);
 
 extern int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list);
 extern int lprocfs_obd_cleanup(struct obd_device *obd);
 
-extern int lprocfs_seq_create(proc_dir_entry_t *parent, const char *name,
+extern int lprocfs_seq_create(struct proc_dir_entry *parent, const char *name,
 			      umode_t mode,
 			      const struct file_operations *seq_fops,
 			      void *data);
@@ -838,7 +838,7 @@ static inline void lprocfs_clear_stats(struct lprocfs_stats *stats)
 { return; }
 static inline void lprocfs_free_stats(struct lprocfs_stats **stats)
 { return; }
-static inline int lprocfs_register_stats(proc_dir_entry_t *root,
+static inline int lprocfs_register_stats(struct proc_dir_entry *root,
 					 const char *name,
 					 struct lprocfs_stats *stats)
 { return 0; }
@@ -869,7 +869,7 @@ static inline int lprocfs_exp_setup(struct obd_export *exp,lnet_nid_t *peer_nid,
 { return 0; }
 static inline int lprocfs_exp_cleanup(struct obd_export *exp)
 { return 0; }
-static inline proc_dir_entry_t *
+static inline struct proc_dir_entry *
 lprocfs_add_simple(struct proc_dir_entry *root, char *name,
 		   void *data, struct file_operations *fops)
 {return 0; }
@@ -887,15 +887,15 @@ static inline
 int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data)
 { return 0; }
 
-static inline proc_dir_entry_t *
-lprocfs_register(const char *name, proc_dir_entry_t *parent,
+static inline struct proc_dir_entry *
+lprocfs_register(const char *name, struct proc_dir_entry *parent,
 		 struct lprocfs_vars *list, void *data)
 { return NULL; }
-static inline int lprocfs_add_vars(proc_dir_entry_t *root,
+static inline int lprocfs_add_vars(struct proc_dir_entry *root,
 				   struct lprocfs_vars *var,
 				   void *data)
 { return 0; }
-static inline void lprocfs_remove(proc_dir_entry_t **root)
+static inline void lprocfs_remove(struct proc_dir_entry **root)
 { return; }
 static inline void lprocfs_remove_proc_entry(const char *name,
 					     struct proc_dir_entry *parent)

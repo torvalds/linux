@@ -2489,7 +2489,7 @@ struct ptlrpc_service {
 	/** limit of threads number for each partition */
 	int				srv_nthrs_cpt_limit;
 	/** Root of /proc dir tree for this service */
-	proc_dir_entry_t	   *srv_procroot;
+	struct proc_dir_entry	   *srv_procroot;
 	/** Pointer to statistic data for this service */
 	struct lprocfs_stats	   *srv_stats;
 	/** # hp per lp reqs to handle */

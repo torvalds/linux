@@ -80,9 +80,4 @@ LL_PROC_PROTO(name)				     \
 				 __##name);	     \
 }
 
-/*
- * Proc file system APIs
- */
-typedef struct proc_dir_entry	   proc_dir_entry_t;
-
 #endif

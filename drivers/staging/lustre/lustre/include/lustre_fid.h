@@ -346,7 +346,7 @@ struct lu_client_seq {
 	struct lu_seq_range	 lcs_space;
 
 	/* Seq related proc */
-	proc_dir_entry_t   *lcs_proc_dir;
+	struct proc_dir_entry   *lcs_proc_dir;
 
 	/* This holds last allocated fid in last obtained seq */
 	struct lu_fid	   lcs_fid;
@@ -393,7 +393,7 @@ struct lu_server_seq {
 	struct dt_object       *lss_obj;
 
 	/* Seq related proc */
-	proc_dir_entry_t   *lss_proc_dir;
+	struct proc_dir_entry   *lss_proc_dir;
 
 	/* LUSTRE_SEQ_SERVER or LUSTRE_SEQ_CONTROLLER */
 	enum lu_mgr_type       lss_type;

@@ -673,7 +673,7 @@ static int lmv_disconnect(struct obd_export *exp)
 	}
 
 	if (obd->obd_proc_private)
-		lprocfs_remove((proc_dir_entry_t **)&obd->obd_proc_private);
+		lprocfs_remove((struct proc_dir_entry **)&obd->obd_proc_private);
 	else
 		CERROR("/proc/fs/lustre/%s/%s/target_obds missing\n",
 		       obd->obd_type->typ_name, obd->obd_name);

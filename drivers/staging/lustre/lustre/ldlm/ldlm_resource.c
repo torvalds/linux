@@ -62,9 +62,9 @@ LIST_HEAD(ldlm_cli_active_namespace_list);
 /* Client namespaces that don't have any locks in them */
 LIST_HEAD(ldlm_cli_inactive_namespace_list);
 
-proc_dir_entry_t *ldlm_type_proc_dir = NULL;
-proc_dir_entry_t *ldlm_ns_proc_dir = NULL;
-proc_dir_entry_t *ldlm_svc_proc_dir = NULL;
+struct proc_dir_entry *ldlm_type_proc_dir = NULL;
+struct proc_dir_entry *ldlm_ns_proc_dir = NULL;
+struct proc_dir_entry *ldlm_svc_proc_dir = NULL;
 
 extern unsigned int ldlm_cancel_unused_locks_before_replay;
 
@@ -329,7 +329,7 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 {
 	struct lprocfs_vars lock_vars[2];
 	char lock_name[MAX_STRING_SIZE + 1];
-	proc_dir_entry_t *ns_pde;
+	struct proc_dir_entry *ns_pde;
 
 	LASSERT(ns != NULL);
 	LASSERT(ns->ns_rs_hash != NULL);

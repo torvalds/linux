@@ -68,11 +68,11 @@ EXPORT_SYMBOL(lprocfs_seq_release);
 
 /* lprocfs API calls */
 
-proc_dir_entry_t *lprocfs_add_simple(struct proc_dir_entry *root,
+struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 				     char *name, void *data,
 				     struct file_operations *fops)
 {
-	proc_dir_entry_t *proc;
+	struct proc_dir_entry *proc;
 	umode_t mode = 0;
 
 	if (root == NULL || name == NULL || fops == NULL)
@@ -1537,7 +1537,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 {
 	struct nid_stat *new_stat, *old_stat;
 	struct obd_device *obd = NULL;
-	proc_dir_entry_t *entry;
+	struct proc_dir_entry *entry;
 	char *buffer = NULL;
 	int rc = 0;
 
@@ -1899,7 +1899,7 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 }
 EXPORT_SYMBOL(lprocfs_find_named_value);
 
-int lprocfs_seq_create(proc_dir_entry_t *parent,
+int lprocfs_seq_create(struct proc_dir_entry *parent,
 		       const char *name,
 		       umode_t mode,
 		       const struct file_operations *seq_fops,

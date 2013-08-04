@@ -238,7 +238,7 @@ struct obd_type {
 	struct list_head typ_chain;
 	struct obd_ops *typ_dt_ops;
 	struct md_ops *typ_md_ops;
-	proc_dir_entry_t *typ_procroot;
+	struct proc_dir_entry *typ_procroot;
 	char *typ_name;
 	int  typ_refcnt;
 	struct lu_device_type *typ_lu;
@@ -537,7 +537,7 @@ struct pool_desc {
 	struct lov_qos_rr     pool_rr;		/* round robin qos */
 	struct hlist_node      pool_hash;	      /* access by poolname */
 	struct list_head	    pool_list;	      /* serial access */
-	proc_dir_entry_t *pool_proc_entry;	/* file in /proc */
+	struct proc_dir_entry *pool_proc_entry;	/* file in /proc */
 	struct obd_device    *pool_lobd;	      /* obd of the lov/lod to which
 						       * this pool belongs */
 };
@@ -558,7 +558,7 @@ struct lov_obd {
 	int		     lov_pool_count;
 	cfs_hash_t	     *lov_pools_hash_body; /* used for key access */
 	struct list_head	      lov_pool_list; /* used for sequential access */
-	proc_dir_entry_t   *lov_pool_proc_entry;
+	struct proc_dir_entry   *lov_pool_proc_entry;
 	enum lustre_sec_part    lov_sp_me;
 
 	/* Cached LRU pages from upper layer */
@@ -931,10 +931,10 @@ struct obd_device {
 	unsigned int	   md_cntr_base;
 	struct lprocfs_stats  *md_stats;
 
-	proc_dir_entry_t  *obd_proc_entry;
+	struct proc_dir_entry  *obd_proc_entry;
 	void		  *obd_proc_private; /* type private PDEs */
-	proc_dir_entry_t  *obd_proc_exports_entry;
-	proc_dir_entry_t  *obd_svc_procroot;
+	struct proc_dir_entry  *obd_proc_exports_entry;
+	struct proc_dir_entry  *obd_svc_procroot;
 	struct lprocfs_stats  *obd_svc_stats;
 	atomic_t	   obd_evict_inprogress;
 	wait_queue_head_t	    obd_evict_inprogress_waitq;

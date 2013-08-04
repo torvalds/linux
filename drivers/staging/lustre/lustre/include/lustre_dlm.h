@@ -235,7 +235,7 @@ struct ldlm_pool_ops {
  */
 struct ldlm_pool {
 	/** Pool proc directory. */
-	proc_dir_entry_t	*pl_proc_dir;
+	struct proc_dir_entry	*pl_proc_dir;
 	/** Pool name, must be long enough to hold compound proc entry name. */
 	char			pl_name[100];
 	/** Lock for protecting SLV/CLV updates. */

@@ -142,7 +142,7 @@
  */
 #define LDLM_POOL_SLV_SHIFT (10)
 
-extern proc_dir_entry_t *ldlm_ns_proc_dir;
+extern struct proc_dir_entry *ldlm_ns_proc_dir;
 
 static inline __u64 dru(__u64 val, __u32 shift, int round_up)
 {
