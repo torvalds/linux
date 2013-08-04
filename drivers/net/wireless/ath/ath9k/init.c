@@ -516,6 +516,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 static void ath9k_init_platform(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (common->bus_ops->ath_bus_type != ATH_PCI)
@@ -531,8 +532,14 @@ static void ath9k_init_platform(struct ath_softc *sc)
 		ath_info(common, "Set parameters for %s\n",
 			 (sc->driver_data & ATH9K_PCI_CUS198) ?
 			 "CUS198" : "CUS230");
-	} else if (sc->driver_data & ATH9K_PCI_CUS217) {
+	}
+
+	if (sc->driver_data & ATH9K_PCI_CUS217)
 		ath_info(common, "CUS217 card detected\n");
+
+	if (sc->driver_data & ATH9K_PCI_BT_ANT_DIV) {
+		pCap->hw_caps |= ATH9K_HW_CAP_BT_ANT_DIV;
+		ath_info(common, "Set BT/WLAN RX diversity capability\n");
 	}
 }
 
@@ -586,6 +593,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 {
 	struct ath9k_platform_data *pdata = sc->dev->platform_data;
 	struct ath_hw *ah = NULL;
+	struct ath9k_hw_capabilities *pCap;
 	struct ath_common *common;
 	int ret = 0, i;
 	int csz = 0;
@@ -602,6 +610,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ah->reg_ops.rmw = ath9k_reg_rmw;
 	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
+	pCap = &ah->caps;
 
 	sc->dfs_detector = dfs_pattern_detector_init(ah, NL80211_DFS_UNSET);
 
@@ -633,10 +642,14 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ath9k_init_platform(sc);
 
 	/*
-	 * Enable WLAN/BT RX Antenna diversity only when BTCOEX is enabled
-	 * and the user manually requests the feature.
+	 * Enable WLAN/BT RX Antenna diversity only when:
+	 *
+	 * - BTCOEX is enabled
+	 * - the user manually requests the feature.
+	 * - the HW cap is set using the platform data.
 	 */
-	if (common->btcoex_enabled && ath9k_bt_ant_diversity)
+	if (common->btcoex_enabled && ath9k_bt_ant_diversity &&
+	    (pCap->hw_caps & ATH9K_HW_CAP_BT_ANT_DIV))
 		common->bt_ant_diversity = 1;
 
 	spin_lock_init(&common->cc_lock);

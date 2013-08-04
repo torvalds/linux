@@ -289,6 +289,7 @@ static ssize_t write_file_bt_ant_diversity(struct file *file,
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath9k_hw_capabilities *pCap = &sc->sc_ah->caps;
 	unsigned long bt_ant_diversity;
 	char buf[32];
 	ssize_t len;
@@ -296,6 +297,9 @@ static ssize_t write_file_bt_ant_diversity(struct file *file,
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
 		return -EFAULT;
+
+	if (!(pCap->hw_caps & ATH9K_HW_CAP_BT_ANT_DIV))
+		goto exit;
 
 	buf[len] = '\0';
 	if (kstrtoul(buf, 0, &bt_ant_diversity))
@@ -307,7 +311,7 @@ static ssize_t write_file_bt_ant_diversity(struct file *file,
 	ath_dbg(common, CONFIG, "Enable WLAN/BT RX Antenna diversity: %d\n",
 		common->bt_ant_diversity);
 	ath9k_ps_restore(sc);
-
+exit:
 	return count;
 }
 
