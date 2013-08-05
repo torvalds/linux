@@ -477,15 +477,14 @@ out:
 }
 
 static noinline_for_stack
-int cpup_entry(struct au_cp_generic *cpg, unsigned int flags,
-	       struct dentry *dst_parent, struct au_pin *pin,
+int cpup_entry(struct au_cp_generic *cpg, struct dentry *dst_parent,
 	       struct au_cpup_reg_attr *h_src_attr)
 {
 	int err;
 	umode_t mode;
 	unsigned int mnt_flags;
 	unsigned char isdir;
-	const unsigned char do_dt = !!au_ftest_cpup(flags, DTIME);
+	const unsigned char do_dt = !!au_ftest_cpup(cpg->flags, DTIME);
 	struct au_dtime dt;
 	struct path h_path;
 	struct dentry *h_src, *h_dst, *h_parent;
@@ -499,7 +498,7 @@ int cpup_entry(struct au_cp_generic *cpg, unsigned int flags,
 
 	/* try stopping to be referenced while we are creating */
 	h_dst = au_h_dptr(cpg->dentry, cpg->bdst);
-	if (au_ftest_cpup(flags, RENAME))
+	if (au_ftest_cpup(cpg->flags, RENAME))
 		AuDebugOn(strncmp(h_dst->d_name.name, AUFS_WH_PFX,
 				  AUFS_WH_PFX_LEN));
 	h_parent = h_dst->d_parent; /* dir inode is locked */
@@ -520,10 +519,8 @@ int cpup_entry(struct au_cp_generic *cpg, unsigned int flags,
 	switch (mode & S_IFMT) {
 	case S_IFREG:
 		err = vfsub_create(h_dir, &h_path, mode | S_IWUSR);
-		if (!err) {
-			cpg->pin = pin; /* tmp for git-commit */
+		if (!err)
 			err = au_do_cpup_regular(cpg, h_src_attr);
-		}
 		break;
 	case S_IFDIR:
 		isdir = 1;
@@ -563,7 +560,7 @@ int cpup_entry(struct au_cp_generic *cpg, unsigned int flags,
 	    /* todo: unnecessary? */
 	    /* && cpg->dentry->d_inode->i_nlink == 1 */
 	    && cpg->bdst < cpg->bsrc
-	    && !au_ftest_cpup(flags, KEEPLINO))
+	    && !au_ftest_cpup(cpg->flags, KEEPLINO))
 		au_xino_write(sb, cpg->bsrc, h_inode->i_ino, /*ino*/0);
 		/* ignore this error */
 
@@ -689,7 +686,9 @@ static int au_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
 
 	isdir = S_ISDIR(inode->i_mode);
 	old_ibstart = au_ibstart(inode);
-	err = cpup_entry(cpg, flags, dst_parent, pin, &h_src_attr);
+	cpg->pin = pin; /* tmp for git-commit */
+	cpg->flags = flags;
+	err = cpup_entry(cpg, dst_parent, &h_src_attr);
 	if (unlikely(err))
 		goto out_rev;
 	dst_inode = h_dst->d_inode;

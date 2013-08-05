@@ -45,6 +45,7 @@ struct au_cp_generic {
 	aufs_bindex_t	bdst, bsrc;
 	loff_t		len;
 	struct au_pin	*pin;
+	unsigned int	flags;
 };
 
 /* cpup flags */
