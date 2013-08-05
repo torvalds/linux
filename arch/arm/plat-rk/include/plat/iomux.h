@@ -11,4 +11,11 @@ void iomux_set_gpio_mode(int gpio);
 void iomux_set(unsigned int mode);
 void __init iomux_init(void);
 
+/* return value:
+ * -1: mode is invalide 
+ * 0:  mode is not set
+ * 1:  mode is set
+ */
+int iomux_is_set(unsigned int);
+
 #endif

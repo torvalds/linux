@@ -96,8 +96,34 @@ void iomux_set(unsigned int mode)
 
         writel_relaxed(v, (void *)addr);
 }
+int iomux_is_set(unsigned int mode)
+{
+        unsigned int v, addr, mask;
+        struct union_mode m;
+        
+        m.mode = mode;
+	if(!mode_is_valid(mode)){
+		INFO("<%s> mode(0x%x) is invalid\n", __func__, mode);
+		return -1;
+	}
+        mask = 3;
+        v = (m.mux.mode << (m.mux.off * 2)) + (mask << (m.mux.off * 2 + 16));
+        addr = (unsigned int)GRF_IOMUX_BASE + 16 * m.mux.bank + 4 * (m.mux.goff - 0x0A);
+
+        if((readl_relaxed((void *)addr) & v) != 0)
+		return 1;
+	else if((mode & 0x03) == 0) //gpio mode
+		return 1;
+	else
+		return 0;
+}
 #else
 void iomux_set(unsigned int mode)
+{
+	INFO("%s is not support\n", __func__);
+	return;
+}
+int iomux_is_set(unsigned int mode)
 {
 	INFO("%s is not support\n", __func__);
 	return;
