@@ -168,6 +168,9 @@ pcie_stream_intr_config_sel_t;
 struct pcie_trio_ports_property
 {
   struct pcie_port_property ports[TILEGX_TRIO_PCIES];
+
+  /** Set if this TRIO belongs to a Gx72 device. */
+  uint8_t is_gx72;
 };
 
 /* Flags indicating traffic class. */

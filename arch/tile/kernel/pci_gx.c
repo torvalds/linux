@@ -436,9 +436,26 @@ int __init tile_pci_init(void)
 
 	/*
 	 * Now determine which PCIe ports are configured to operate in RC
-	 * mode.  To use a port, it must be allowed to be in RC mode by the
+	 * mode. There is a differece in the port configuration capability
+	 * between the Gx36 and Gx72 devices.
+	 *
+	 * The Gx36 has configuration capability for each of the 3 PCIe
+	 * interfaces (disable, auto endpoint, auto RC, etc.).
+	 * On the Gx72, you can only select one of the 3 PCIe interfaces per
+	 * TRIO to train automatically. Further, the allowable training modes
+	 * are reduced to four options (auto endpoint, auto RC, stream x1,
+	 * stream x4).
+	 *
+	 * For Gx36 ports, it must be allowed to be in RC mode by the
 	 * Board Information Block, and the hardware strapping pins must be
 	 * set to RC mode.
+	 *
+	 * For Gx72 ports, the port will operate in RC mode if either of the
+	 * following is true:
+	 * 1. It is allowed to be in RC mode by the Board Information Block,
+	 *    and the BIB doesn't allow the EP mode.
+	 * 2. It is allowed to be in either the RC or the EP mode by the BIB,
+	 *    and the hardware strapping pin is set to RC mode.
 	 */
 	for (i = 0; i < TILEGX_NUM_TRIO; i++) {
 		gxio_trio_context_t *context = &trio_contexts[i];
@@ -447,8 +464,18 @@ int __init tile_pci_init(void)
 			continue;
 
 		for (j = 0; j < TILEGX_TRIO_PCIES; j++) {
-			if (pcie_ports[i].ports[j].allow_rc &&
-			    strapped_for_rc(context, j)) {
+			int is_rc = 0;
+
+			if (pcie_ports[i].is_gx72 &&
+			    pcie_ports[i].ports[j].allow_rc) {
+				if (!pcie_ports[i].ports[j].allow_ep ||
+				    strapped_for_rc(context, j))
+					is_rc = 1;
+			} else if (pcie_ports[i].ports[j].allow_rc &&
+				   strapped_for_rc(context, j)) {
+				is_rc = 1;
+			}
+			if (is_rc) {
 				pcie_rc[i][j] = 1;
 				num_rc_controllers++;
 			}
