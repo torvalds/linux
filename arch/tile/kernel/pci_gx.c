@@ -860,9 +860,15 @@ int __init pcibios_init(void)
 
 #endif
 
+		/*
+		 * To save VMALLOC space, we take advantage of the fact that
+		 * bit 29 in the PIO CFG address format is reserved 0. With
+		 * TRIO_TILE_PIO_REGION_SETUP_CFG_ADDR__MAC_SHIFT being 30,
+		 * this cuts VMALLOC space usage from 1GB to 512MB per mac.
+		 */
 		trio_context->mmio_base_pio_cfg[mac] =
-			iorpc_ioremap(trio_context->fd, offset,
-			(1 << TRIO_TILE_PIO_REGION_SETUP_CFG_ADDR__MAC_SHIFT));
+			iorpc_ioremap(trio_context->fd, offset, (1UL <<
+			(TRIO_TILE_PIO_REGION_SETUP_CFG_ADDR__MAC_SHIFT - 1)));
 		if (trio_context->mmio_base_pio_cfg[mac] == NULL) {
 			pr_err("PCI: PIO map failure for mac %d on TRIO %d\n",
 				mac, trio_index);
