@@ -109,7 +109,8 @@ static int omap_rng_probe(struct platform_device *pdev)
 	struct omap_rng_private_data *priv;
 	int ret;
 
-	priv = kzalloc(sizeof(struct omap_rng_private_data), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct omap_rng_private_data),
+			    GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "could not allocate memory\n");
 		return -ENOMEM;
@@ -144,8 +145,6 @@ err_register:
 	priv->base = NULL;
 	pm_runtime_disable(&pdev->dev);
 err_ioremap:
-	kfree(priv);
-
 	return ret;
 }
 
@@ -159,10 +158,6 @@ static int __exit omap_rng_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	release_mem_region(priv->mem_res->start, resource_size(priv->mem_res));
-
-	kfree(priv);
 
 	return 0;
 }
