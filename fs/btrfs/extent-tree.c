@@ -113,7 +113,8 @@ static noinline int
 block_group_cache_done(struct btrfs_block_group_cache *cache)
 {
 	smp_mb();
-	return cache->cached == BTRFS_CACHE_FINISHED;
+	return cache->cached == BTRFS_CACHE_FINISHED ||
+		cache->cached == BTRFS_CACHE_ERROR;
 }
 
 static int block_group_bits(struct btrfs_block_group_cache *cache, u64 bits)
@@ -389,7 +390,7 @@ static noinline void caching_thread(struct btrfs_work *work)
 	u64 total_found = 0;
 	u64 last = 0;
 	u32 nritems;
-	int ret = 0;
+	int ret = -ENOMEM;
 
 	caching_ctl = container_of(work, struct btrfs_caching_control, work);
 	block_group = caching_ctl->block_group;
@@ -517,6 +518,12 @@ err:
 
 	mutex_unlock(&caching_ctl->mutex);
 out:
+	if (ret) {
+		spin_lock(&block_group->lock);
+		block_group->caching_ctl = NULL;
+		block_group->cached = BTRFS_CACHE_ERROR;
+		spin_unlock(&block_group->lock);
+	}
 	wake_up(&caching_ctl->wait);
 
 	put_caching_control(caching_ctl);
@@ -6035,8 +6042,11 @@ static u64 stripe_align(struct btrfs_root *root,
  * for our min num_bytes.  Another option is to have it go ahead
  * and look in the rbtree for a free extent of a given size, but this
  * is a good start.
+ *
+ * Callers of this must check if cache->cached == BTRFS_CACHE_ERROR before using
+ * any of the information in this block group.
  */
-static noinline int
+static noinline void
 wait_block_group_cache_progress(struct btrfs_block_group_cache *cache,
 				u64 num_bytes)
 {
@@ -6044,28 +6054,29 @@ wait_block_group_cache_progress(struct btrfs_block_group_cache *cache,
 
 	caching_ctl = get_caching_control(cache);
 	if (!caching_ctl)
-		return 0;
+		return;
 
 	wait_event(caching_ctl->wait, block_group_cache_done(cache) ||
 		   (cache->free_space_ctl->free_space >= num_bytes));
 
 	put_caching_control(caching_ctl);
-	return 0;
 }
 
 static noinline int
 wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 {
 	struct btrfs_caching_control *caching_ctl;
+	int ret = 0;
 
 	caching_ctl = get_caching_control(cache);
 	if (!caching_ctl)
-		return 0;
+		return (cache->cached == BTRFS_CACHE_ERROR) ? -EIO : 0;
 
 	wait_event(caching_ctl->wait, block_group_cache_done(cache));
-
+	if (cache->cached == BTRFS_CACHE_ERROR)
+		ret = -EIO;
 	put_caching_control(caching_ctl);
-	return 0;
+	return ret;
 }
 
 int __get_raid_index(u64 flags)
@@ -6248,6 +6259,8 @@ have_block_group:
 			ret = 0;
 		}
 
+		if (unlikely(block_group->cached == BTRFS_CACHE_ERROR))
+			goto loop;
 		if (unlikely(block_group->ro))
 			goto loop;
 
@@ -8230,7 +8243,8 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		 * We haven't cached this block group, which means we could
 		 * possibly have excluded extents on this block group.
 		 */
-		if (block_group->cached == BTRFS_CACHE_NO)
+		if (block_group->cached == BTRFS_CACHE_NO ||
+		    block_group->cached == BTRFS_CACHE_ERROR)
 			free_excluded_extents(info->extent_root, block_group);
 
 		btrfs_remove_free_space_cache(block_group);
