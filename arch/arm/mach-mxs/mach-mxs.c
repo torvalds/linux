@@ -62,6 +62,8 @@
 static u32 chipid;
 static u32 socid;
 
+static void __iomem *reset_addr;
+
 static inline void __mxs_setl(u32 mask, void __iomem *reg)
 {
 	__raw_writel(mask, reg + MXS_SET_ADDR);
@@ -400,6 +402,27 @@ static const char __init *mxs_get_revision(void)
 		return kasprintf(GFP_KERNEL, "%s", "Unknown");
 }
 
+#define MX23_CLKCTRL_RESET_OFFSET	0x120
+#define MX28_CLKCTRL_RESET_OFFSET	0x1e0
+
+static int __init mxs_restart_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
+	reset_addr = of_iomap(np, 0);
+	if (!reset_addr)
+		return -ENODEV;
+
+	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
+		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
+	else
+		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+	of_node_put(np);
+
+	return 0;
+}
+
 static void __init mxs_machine_init(void)
 {
 	struct device_node *root;
@@ -443,12 +466,12 @@ static void __init mxs_machine_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     NULL, parent);
 
+	mxs_restart_init();
+
 	if (of_machine_is_compatible("karo,tx28"))
 		tx28_post_init();
 }
 
-#define MX23_CLKCTRL_RESET_OFFSET	0x120
-#define MX28_CLKCTRL_RESET_OFFSET	0x1e0
 #define MXS_CLKCTRL_RESET_CHIP		(1 << 1)
 
 /*
@@ -456,28 +479,16 @@ static void __init mxs_machine_init(void)
  */
 static void mxs_restart(enum reboot_mode mode, const char *cmd)
 {
-	struct device_node *np;
-	void __iomem *reset_addr;
+	if (reset_addr) {
+		/* reset the chip */
+		__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
-	reset_addr = of_iomap(np, 0);
-	if (!reset_addr)
-		goto soft;
+		pr_err("Failed to assert the chip reset\n");
 
-	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
-		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
-	else
-		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+		/* Delay to allow the serial port to show the message */
+		mdelay(50);
+	}
 
-	/* reset the chip */
-	__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
-
-	pr_err("Failed to assert the chip reset\n");
-
-	/* Delay to allow the serial port to show the message */
-	mdelay(50);
-
-soft:
 	/* We'll take a jump through zero as a poor second */
 	soft_restart(0);
 }
