@@ -1042,7 +1042,7 @@ int oz_hcd_heartbeat(void *hport)
 		if (ep->credit < 0)
 			continue;
 		delta = timespec_sub(ts, ep->timestamp);
-		ep->credit += timespec_to_ns(&delta) / NSEC_PER_MSEC;
+		ep->credit += div_u64(timespec_to_ns(&delta), NSEC_PER_MSEC);
 		if (ep->credit > ep->credit_ceiling)
 			ep->credit = ep->credit_ceiling;
 		ep->timestamp = ts;
@@ -1086,7 +1086,7 @@ int oz_hcd_heartbeat(void *hport)
 			continue;
 		}
 		delta = timespec_sub(ts, ep->timestamp);
-		ep->credit += timespec_to_ns(&delta) / NSEC_PER_MSEC;
+		ep->credit += div_u64(timespec_to_ns(&delta), NSEC_PER_MSEC);
 		ep->timestamp = ts;
 		while (!list_empty(&ep->urb_list)) {
 			struct oz_urb_link *urbl =
