@@ -2198,7 +2198,8 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 #else
 	nested_vmx_exit_ctls_high = 0;
 #endif
-	nested_vmx_exit_ctls_high |= VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR;
+	nested_vmx_exit_ctls_high |= (VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR |
+				      VM_EXIT_LOAD_IA32_EFER);
 
 	/* entry controls */
 	rdmsr(MSR_IA32_VMX_ENTRY_CTLS,
@@ -2207,8 +2208,8 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	nested_vmx_entry_ctls_low = VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR;
 	nested_vmx_entry_ctls_high &=
 		VM_ENTRY_LOAD_IA32_PAT | VM_ENTRY_IA32E_MODE;
-	nested_vmx_entry_ctls_high |= VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR;
-
+	nested_vmx_entry_ctls_high |= (VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR |
+				       VM_ENTRY_LOAD_IA32_EFER);
 	/* cpu-based controls */
 	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS,
 		nested_vmx_procbased_ctls_low, nested_vmx_procbased_ctls_high);
@@ -7529,10 +7530,18 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	vcpu->arch.cr0_guest_owned_bits &= ~vmcs12->cr0_guest_host_mask;
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~vcpu->arch.cr0_guest_owned_bits);
 
-	/* Note: IA32_MODE, LOAD_IA32_EFER are modified by vmx_set_efer below */
-	vmcs_write32(VM_EXIT_CONTROLS,
-		vmcs12->vm_exit_controls | vmcs_config.vmexit_ctrl);
-	vmcs_write32(VM_ENTRY_CONTROLS, vmcs12->vm_entry_controls |
+	/* L2->L1 exit controls are emulated - the hardware exit is to L0 so
+	 * we should use its exit controls. Note that VM_EXIT_LOAD_IA32_EFER
+	 * bits are further modified by vmx_set_efer() below.
+	 */
+	vmcs_write32(VM_EXIT_CONTROLS, vmcs_config.vmexit_ctrl);
+
+	/* vmcs12's VM_ENTRY_LOAD_IA32_EFER and VM_ENTRY_IA32E_MODE are
+	 * emulated by vmx_set_efer(), below.
+	 */
+	vmcs_write32(VM_ENTRY_CONTROLS,
+		(vmcs12->vm_entry_controls & ~VM_ENTRY_LOAD_IA32_EFER &
+			~VM_ENTRY_IA32E_MODE) |
 		(vmcs_config.vmentry_ctrl & ~VM_ENTRY_IA32E_MODE));
 
 	if (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_IA32_PAT)
