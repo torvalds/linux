@@ -198,9 +198,6 @@ static SIMPLE_DEV_PM_OPS(omap_rng_pm, omap_rng_suspend, omap_rng_resume);
 
 #endif
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:omap_rng");
-
 static struct platform_driver omap_rng_driver = {
 	.driver = {
 		.name		= "omap_rng",
@@ -211,18 +208,7 @@ static struct platform_driver omap_rng_driver = {
 	.remove		= __exit_p(omap_rng_remove),
 };
 
-static int __init omap_rng_init(void)
-{
-	return platform_driver_register(&omap_rng_driver);
-}
-
-static void __exit omap_rng_exit(void)
-{
-	platform_driver_unregister(&omap_rng_driver);
-}
-
-module_init(omap_rng_init);
-module_exit(omap_rng_exit);
-
+module_platform_driver(omap_rng_driver);
+MODULE_ALIAS("platform:omap_rng");
 MODULE_AUTHOR("Deepak Saxena (and others)");
 MODULE_LICENSE("GPL");
