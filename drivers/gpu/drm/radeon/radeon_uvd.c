@@ -55,7 +55,6 @@ static void radeon_uvd_idle_work_handler(struct work_struct *work);
 int radeon_uvd_init(struct radeon_device *rdev)
 {
 	struct platform_device *pdev;
-	const struct firmware *fw;
 	unsigned long bo_size;
 	const char *fw_name;
 	int i, r;
@@ -105,7 +104,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 
-	r = request_firmware(&fw, fw_name, &pdev->dev);
+	r = request_firmware(&rdev->uvd_fw, fw_name, &pdev->dev);
 	if (r) {
 		dev_err(rdev->dev, "radeon_uvd: Can't load firmware \"%s\"\n",
 			fw_name);
@@ -115,7 +114,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 
 	platform_device_unregister(pdev);
 
-	bo_size = RADEON_GPU_PAGE_ALIGN(fw->size + 8) +
+	bo_size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 8) +
 		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE;
 	r = radeon_bo_create(rdev, bo_size, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->uvd.vcpu_bo);
@@ -148,12 +147,6 @@ int radeon_uvd_init(struct radeon_device *rdev)
 
 	radeon_bo_unreserve(rdev->uvd.vcpu_bo);
 
-	rdev->uvd.fw_size = fw->size;
-	memset(rdev->uvd.cpu_addr, 0, bo_size);
-	memcpy(rdev->uvd.cpu_addr, fw->data, fw->size);
-
-	release_firmware(fw);
-
 	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
 		atomic_set(&rdev->uvd.handles[i], 0);
 		rdev->uvd.filp[i] = NULL;
@@ -177,33 +170,60 @@ void radeon_uvd_fini(struct radeon_device *rdev)
 	}
 
 	radeon_bo_unref(&rdev->uvd.vcpu_bo);
+
+	release_firmware(rdev->uvd_fw);
 }
 
 int radeon_uvd_suspend(struct radeon_device *rdev)
 {
 	unsigned size;
+	void *ptr;
+	int i;
 
 	if (rdev->uvd.vcpu_bo == NULL)
 		return 0;
 
+	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i)
+		if (atomic_read(&rdev->uvd.handles[i]))
+			break;
+
+	if (i == RADEON_MAX_UVD_HANDLES)
+		return 0;
+
 	size = radeon_bo_size(rdev->uvd.vcpu_bo);
+	size -= rdev->uvd_fw->size;
+
+	ptr = rdev->uvd.cpu_addr;
+	ptr += rdev->uvd_fw->size;
+
 	rdev->uvd.saved_bo = kmalloc(size, GFP_KERNEL);
-	memcpy(rdev->uvd.saved_bo, rdev->uvd.cpu_addr, size);
+	memcpy(rdev->uvd.saved_bo, ptr, size);
 
 	return 0;
 }
 
 int radeon_uvd_resume(struct radeon_device *rdev)
 {
+	unsigned size;
+	void *ptr;
+
 	if (rdev->uvd.vcpu_bo == NULL)
 		return -EINVAL;
 
+	memcpy(rdev->uvd.cpu_addr, rdev->uvd_fw->data, rdev->uvd_fw->size);
+
+	size = radeon_bo_size(rdev->uvd.vcpu_bo);
+	size -= rdev->uvd_fw->size;
+
+	ptr = rdev->uvd.cpu_addr;
+	ptr += rdev->uvd_fw->size;
+
 	if (rdev->uvd.saved_bo != NULL) {
-		unsigned size = radeon_bo_size(rdev->uvd.vcpu_bo);
-		memcpy(rdev->uvd.cpu_addr, rdev->uvd.saved_bo, size);
+		memcpy(ptr, rdev->uvd.saved_bo, size);
 		kfree(rdev->uvd.saved_bo);
 		rdev->uvd.saved_bo = NULL;
-	}
+	} else
+		memset(ptr, 0, size);
 
 	return 0;
 }
