@@ -20,6 +20,11 @@
 #include <linux/slab.h>
 #include <linux/mtd/partitions.h>
 
+static bool node_has_compatible(struct device_node *pp)
+{
+	return of_get_property(pp, "compatible", NULL);
+}
+
 static int parse_ofpart_partitions(struct mtd_info *master,
 				   struct mtd_partition **pparts,
 				   struct mtd_part_parser_data *data)
@@ -40,8 +45,12 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 	/* First count the subnodes */
 	pp = NULL;
 	nr_parts = 0;
-	while ((pp = of_get_next_child(node, pp)))
+	while ((pp = of_get_next_child(node, pp))) {
+		if (node_has_compatible(pp))
+			continue;
+
 		nr_parts++;
+	}
 
 	if (nr_parts == 0)
 		return 0;
@@ -56,6 +65,9 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 		const __be32 *reg;
 		int len;
 		int a_cells, s_cells;
+
+		if (node_has_compatible(pp))
+			continue;
 
 		reg = of_get_property(pp, "reg", &len);
 		if (!reg) {
