@@ -44,6 +44,7 @@ struct au_cp_generic {
 	struct dentry	*dentry;
 	aufs_bindex_t	bdst, bsrc;
 	loff_t		len;
+	struct au_pin	*pin;
 };
 
 /* cpup flags */

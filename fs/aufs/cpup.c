@@ -401,7 +401,7 @@ out:
 	return err;
 }
 
-static int au_do_cpup_regular(struct au_cp_generic *cpg, struct au_pin *pin,
+static int au_do_cpup_regular(struct au_cp_generic *cpg,
 			      struct au_cpup_reg_attr *h_src_attr)
 {
 	int err, rerr;
@@ -418,7 +418,7 @@ static int au_do_cpup_regular(struct au_cp_generic *cpg, struct au_pin *pin,
 	if (cpg->len) {
 		/* try stopping to update while we are referencing */
 		mutex_lock_nested(&h_src_inode->i_mutex, AuLsc_I_CHILD);
-		au_pin_hdir_unlock(pin);
+		au_pin_hdir_unlock(cpg->pin);
 
 		h_src_dentry = au_h_dptr(cpg->dentry, cpg->bsrc);
 		h_src_mnt = au_sbr_mnt(cpg->dentry->d_sb, cpg->bsrc);
@@ -431,7 +431,7 @@ static int au_do_cpup_regular(struct au_cp_generic *cpg, struct au_pin *pin,
 		h_src_attr->valid = 1;
 		err = au_cp_regular(cpg);
 		mutex_unlock(&h_src_inode->i_mutex);
-		rerr = au_pin_hdir_relock(pin);
+		rerr = au_pin_hdir_relock(cpg->pin);
 		if (!err && rerr)
 			err = rerr;
 	}
@@ -520,8 +520,10 @@ int cpup_entry(struct au_cp_generic *cpg, unsigned int flags,
 	switch (mode & S_IFMT) {
 	case S_IFREG:
 		err = vfsub_create(h_dir, &h_path, mode | S_IWUSR);
-		if (!err)
-			err = au_do_cpup_regular(cpg, pin, h_src_attr);
+		if (!err) {
+			cpg->pin = pin; /* tmp for git-commit */
+			err = au_do_cpup_regular(cpg, h_src_attr);
+		}
 		break;
 	case S_IFDIR:
 		isdir = 1;
