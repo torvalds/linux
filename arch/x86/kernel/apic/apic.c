@@ -913,7 +913,7 @@ static void local_apic_timer_interrupt(void)
  * [ if a single-CPU system runs an SMP kernel then we call the local
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
-void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -932,7 +932,7 @@ void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-void __irq_entry smp_trace_apic_timer_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_trace_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -1946,14 +1946,14 @@ static inline void __smp_spurious_interrupt(void)
 		"should never happen.\n", smp_processor_id());
 }
 
-void smp_spurious_interrupt(struct pt_regs *regs)
+__visible void smp_spurious_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_spurious_interrupt();
 	exiting_irq();
 }
 
-void smp_trace_spurious_interrupt(struct pt_regs *regs)
+__visible void smp_trace_spurious_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	trace_spurious_apic_entry(SPURIOUS_APIC_VECTOR);
@@ -2002,14 +2002,14 @@ static inline void __smp_error_interrupt(struct pt_regs *regs)
 
 }
 
-void smp_error_interrupt(struct pt_regs *regs)
+__visible void smp_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	__smp_error_interrupt(regs);
 	exiting_irq();
 }
 
-void smp_trace_error_interrupt(struct pt_regs *regs)
+__visible void smp_trace_error_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
 	trace_error_apic_entry(ERROR_APIC_VECTOR);
