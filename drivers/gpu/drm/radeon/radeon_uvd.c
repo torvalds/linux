@@ -235,8 +235,8 @@ void radeon_uvd_free_handles(struct radeon_device *rdev, struct drm_file *filp)
 {
 	int i, r;
 	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
-		if (rdev->uvd.filp[i] == filp) {
-			uint32_t handle = atomic_read(&rdev->uvd.handles[i]);
+		uint32_t handle = atomic_read(&rdev->uvd.handles[i]);
+		if (handle != 0 && rdev->uvd.filp[i] == filp) {
 			struct radeon_fence *fence;
 
 			r = radeon_uvd_get_destroy_msg(rdev,
