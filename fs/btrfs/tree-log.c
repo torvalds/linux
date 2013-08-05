@@ -747,7 +747,8 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 	ret = btrfs_unlink_inode(trans, root, dir, inode, name, name_len);
 	if (ret)
 		goto out;
-	btrfs_run_delayed_items(trans, root);
+	else
+		ret = btrfs_run_delayed_items(trans, root);
 out:
 	kfree(name);
 	iput(inode);
@@ -923,7 +924,9 @@ again:
 				kfree(victim_name);
 				if (ret)
 					return ret;
-				btrfs_run_delayed_items(trans, root);
+				ret = btrfs_run_delayed_items(trans, root);
+				if (ret)
+					return ret;
 				*search_done = 1;
 				goto again;
 			}
@@ -990,7 +993,9 @@ again:
 								 inode,
 								 victim_name,
 								 victim_name_len);
-					btrfs_run_delayed_items(trans, root);
+					if (!ret)
+						ret = btrfs_run_delayed_items(
+								  trans, root);
 				}
 				iput(victim_parent);
 				kfree(victim_name);
@@ -1812,7 +1817,7 @@ again:
 			ret = btrfs_unlink_inode(trans, root, dir, inode,
 						 name, name_len);
 			if (!ret)
-				btrfs_run_delayed_items(trans, root);
+				ret = btrfs_run_delayed_items(trans, root);
 			kfree(name);
 			iput(inode);
 			if (ret)
