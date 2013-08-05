@@ -895,10 +895,7 @@ static ssize_t iwl_dbgfs_bf_params_write(struct file *file,
 	if (param == MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER && !value) {
 		ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 	} else {
-		if (mvmvif->bf_enabled)
-			ret = iwl_mvm_enable_beacon_filter(mvm, vif);
-		else
-			ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+		ret = iwl_mvm_enable_beacon_filter(mvm, vif);
 	}
 	mutex_unlock(&mvm->mutex);
 
