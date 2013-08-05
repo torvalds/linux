@@ -8,7 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -806,9 +805,20 @@ static void g2d_dma_start(struct g2d_data *g2d,
 	struct g2d_cmdlist_node *node =
 				list_first_entry(&runqueue_node->run_cmdlist,
 						struct g2d_cmdlist_node, list);
+	int ret;
 
-	pm_runtime_get_sync(g2d->dev);
-	clk_enable(g2d->gate_clk);
+	ret = pm_runtime_get_sync(g2d->dev);
+	if (ret < 0) {
+		dev_warn(g2d->dev, "failed pm power on.\n");
+		return;
+	}
+
+	ret = clk_prepare_enable(g2d->gate_clk);
+	if (ret < 0) {
+		dev_warn(g2d->dev, "failed to enable clock.\n");
+		pm_runtime_put_sync(g2d->dev);
+		return;
+	}
 
 	writel_relaxed(node->dma_addr, g2d->regs + G2D_DMA_SFR_BASE_ADDR);
 	writel_relaxed(G2D_DMA_START, g2d->regs + G2D_DMA_COMMAND);
@@ -861,7 +871,7 @@ static void g2d_runqueue_worker(struct work_struct *work)
 					    runqueue_work);
 
 	mutex_lock(&g2d->runqueue_mutex);
-	clk_disable(g2d->gate_clk);
+	clk_disable_unprepare(g2d->gate_clk);
 	pm_runtime_put_sync(g2d->dev);
 
 	complete(&g2d->runqueue_node->complete);
@@ -1521,7 +1531,6 @@ static const struct of_device_id exynos_g2d_match[] = {
 	{ .compatible = "samsung,exynos5250-g2d" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 #endif
 
 struct platform_driver g2d_driver = {

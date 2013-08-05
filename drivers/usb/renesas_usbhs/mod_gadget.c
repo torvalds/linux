@@ -855,10 +855,6 @@ static int usbhsg_gadget_stop(struct usb_gadget *gadget,
 	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
 
-	if (!driver		||
-	    !driver->unbind)
-		return -EINVAL;
-
 	usbhsg_try_stop(priv, USBHSG_STATUS_REGISTERD);
 	gpriv->driver = NULL;
 

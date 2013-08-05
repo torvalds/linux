@@ -17,21 +17,12 @@ struct acpi_device;
 #define ACPI_VIDEO_DISPLAY_LEGACY_TV      0x0200
 
 #if (defined CONFIG_ACPI_VIDEO || defined CONFIG_ACPI_VIDEO_MODULE)
-extern int __acpi_video_register(bool backlight_quirks);
-static inline int acpi_video_register(void)
-{
-	return __acpi_video_register(false);
-}
-static inline int acpi_video_register_with_quirks(void)
-{
-	return __acpi_video_register(true);
-}
+extern int acpi_video_register(void);
 extern void acpi_video_unregister(void);
 extern int acpi_video_get_edid(struct acpi_device *device, int type,
 			       int device_id, void **edid);
 #else
 static inline int acpi_video_register(void) { return 0; }
-static inline int acpi_video_register_with_quirks(void) { return 0; }
 static inline void acpi_video_unregister(void) { return; }
 static inline int acpi_video_get_edid(struct acpi_device *device, int type,
 				      int device_id, void **edid)
