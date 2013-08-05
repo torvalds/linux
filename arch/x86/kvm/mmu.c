@@ -3182,6 +3182,7 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 	mmu_sync_roots(vcpu);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 }
+EXPORT_SYMBOL_GPL(kvm_mmu_sync_roots);
 
 static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr,
 				  u32 access, struct x86_exception *exception)
@@ -3451,6 +3452,7 @@ void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 	++vcpu->stat.tlb_flush;
 	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 }
+EXPORT_SYMBOL_GPL(kvm_mmu_flush_tlb);
 
 static void paging_new_cr3(struct kvm_vcpu *vcpu)
 {
