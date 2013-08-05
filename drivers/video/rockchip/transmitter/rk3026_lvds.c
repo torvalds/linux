@@ -22,35 +22,25 @@
 
 static void rk3026_output_lvds(rk_screen *screen)
 {
-
 	u32 val =0;
-	
-	/*
-		Choise LVDS transmitter source from LCDC or EBC
-	*/
-#if defined(CONFIG_LCDC0_RK3188)	
-	val |= LVDS_DATA_SEL;	
-#else
-	val &= ~(LVDS_DATA_SEL);
-#endif
-	/* 
-		When LVDS output format   is  8bit mode format-1/8bit mode format-2,  configure 
-		grf_lvds_con0 in 24-bit color mode.
-		When LVDS output format is 8bit mode format-3/6bit mode, configure 
-	 	grf_lvds_con0 in 18-bit color mode. 
-	*/
-	if(screen->lvds_format == 0 || screen->lvds_format == 1)
-		val |= LVDS_CBS_COL_SEL(2);
-	else
-		val |= LVDS_CBS_COL_SEL(1);
-	
-		 
-	val &= ~(LVDS_CBG_PWR_EN | LVDS_OUTPUT_EN | LVDS_SWING_SEL);
-	val |= (LVDS_OUTPUT_FORMAT(screen->lvds_format) | LVDS_PLL_PWR_EN | LVDS_SWING_SEL);
 
-	val |= (LVDS_DATA_SEL | LVDS_OUTPUT_FORMAT(3) | LVDS_CBG_PWR_EN | LVDS_PLL_PWR_EN |
-			LVDS_OUTPUT_EN | LVDS_CBS_COL_SEL(3) | LVDS_SWING_SEL) << 16;	
-	val = LVDS_OUT_CONFIG;
+	#if defined(CONFIG_LCDC0_RK3188)	
+		val |= LVDS_DATA_SEL(0);
+	#else
+		val |= LVDS_DATA_SEL(1);
+	#endif
+	
+	if(screen->lvds_format == 0 || screen->lvds_format == 1)
+		val |= LVDS_CBS_COL_SEL(2);  //24bit lvds
+	else
+		val |= LVDS_CBS_COL_SEL(1);  //16bit lvds
+
+	val |= ((LVDS_OUTPUT_FORMAT(screen->lvds_format))|LVDS_INPUT_FORMAT(1)|LVDS_OUTPUT_LOAD_SEL(0)|
+		LVDS_CBG_PWD_EN(1)|LVDS_PLL_PWD_EN(0)|LVDS_OUTPUT_EN(0)|LVDS_SWING_SEL(0));
+
+	val |= ((m_DATA_SEL|m_CBS_COL_SEL|m_OUTPUT_FORMAT|m_INPUT_FORMAT|m_OUTPUT_LOAD_SEL|
+		m_CBG_PWD_EN|m_PLL_PWD_EN|m_OUTPUT_EN|m_SWING_SEL)<<16);
+
 	lvds_writel(val,CRU_LVDS_CON0);
 	
 	return;
@@ -58,33 +48,12 @@ static void rk3026_output_lvds(rk_screen *screen)
 
 static void rk3026_output_lvttl(rk_screen *screen)
 {
+
 	u32 val =0;
 
-	/*
-		Choise LVDS transmitter source from LCDC or EBC
-	*/
-#if defined(CONFIG_LCDC0_RK3188)	
-	val |= LVDS_DATA_SEL;	
-#else
-	val &= ~(LVDS_DATA_SEL);
-#endif
-	/* 
-		When LVDS output format   is  8bit mode format-1/8bit mode format-2,  configure 
-		grf_lvds_con0 in 24-bit color mode.
-		When LVDS output format is 8bit mode format-3/6bit mode, configure 
-	 	grf_lvds_con0 in 18-bit color mode. 
-	*/
-	if(screen->lvds_format == 0 || screen->lvds_format == 1)
-		val |= LVDS_CBS_COL_SEL(2);
-	else
-		val |= LVDS_CBS_COL_SEL(1);
-		
-	val &= ~(LVDS_DATA_SEL | LVDS_CBG_PWR_EN | LVDS_SWING_SEL);
-	val |= (LVDS_OUTPUT_FORMAT(screen->lvds_format) | LVDS_PLL_PWR_EN | LVDS_OUTPUT_EN | LVDS_CBS_COL_SEL(3));
-
-	val |= ((LVDS_DATA_SEL | LVDS_CBG_PWR_EN | LVDS_SWING_SEL | LVDS_OUTPUT_FORMAT(screen->lvds_format) | 
-		LVDS_PLL_PWR_EN | LVDS_OUTPUT_EN | LVDS_CBS_COL_SEL(3)) << 16);
-
+	val |= (LVDS_CBG_PWD_EN(0)|LVDS_PLL_PWD_EN(1)|LVDS_OUTPUT_EN(1));
+	val |= ((m_CBG_PWD_EN|m_PLL_PWD_EN|m_OUTPUT_EN)<<16);
+	
 	lvds_writel(val,CRU_LVDS_CON0);
 
 	return;			
@@ -92,13 +61,14 @@ static void rk3026_output_lvttl(rk_screen *screen)
 
 static void rk3026_output_disable(void)
 {	
+
 	u32 val =0;
-	
-	val |= ((LVDS_CBG_PWR_EN | LVDS_PLL_PWR_EN | LVDS_CBS_COL_SEL(3)) << 16);
-	val &= ~(LVDS_CBG_PWR_EN);
-	val |= (LVDS_PLL_PWR_EN | LVDS_CBS_COL_SEL(3)); 		
-	
+
+	val |= (LVDS_CBG_PWD_EN(1)|LVDS_PLL_PWD_EN(0)|LVDS_OUTPUT_EN(0)|LVDS_CBS_COL_SEL(0));
+	val |= ((m_CBG_PWD_EN|m_PLL_PWD_EN|m_OUTPUT_EN|m_CBS_COL_SEL)<<16);
+
 	lvds_writel(val,CRU_LVDS_CON0);
+	
 }
 
 
