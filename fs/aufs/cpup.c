@@ -947,7 +947,7 @@ out:
  * copyup the deleted file for writing.
  */
 static int au_do_cpup_wh(struct au_cp_generic *cpg, struct dentry *wh_dentry,
-			 struct file *file, struct au_pin *pin)
+			 struct file *file)
 {
 	int err;
 	unsigned int flags_orig;
@@ -972,7 +972,6 @@ static int au_do_cpup_wh(struct au_cp_generic *cpg, struct dentry *wh_dentry,
 	}
 	flags_orig = cpg->flags;
 	cpg->flags = !AuCpup_DTIME;
-	cpg->pin = pin; /* tmp for git-commit */
 	err = au_cpup_single(cpg, /*h_parent*/NULL);
 	cpg->flags = flags_orig;
 	if (file) {
@@ -987,8 +986,7 @@ static int au_do_cpup_wh(struct au_cp_generic *cpg, struct dentry *wh_dentry,
 	return err;
 }
 
-static int au_cpup_wh(struct au_cp_generic *cpg, struct file *file,
-		      struct au_pin *pin)
+static int au_cpup_wh(struct au_cp_generic *cpg, struct file *file)
 {
 	int err;
 	aufs_bindex_t bdst;
@@ -1010,7 +1008,7 @@ static int au_cpup_wh(struct au_cp_generic *cpg, struct file *file,
 	h_path.dentry = h_parent;
 	h_path.mnt = au_br_mnt(br);
 	au_dtime_store(&dt, parent, &h_path);
-	err = au_do_cpup_wh(cpg, wh_dentry, file, pin);
+	err = au_do_cpup_wh(cpg, wh_dentry, file);
 	if (unlikely(err))
 		goto out_wh;
 
@@ -1039,27 +1037,25 @@ struct au_cpup_wh_args {
 	int *errp;
 	struct au_cp_generic *cpg;
 	struct file *file;
-	struct au_pin *pin;
 };
 
 static void au_call_cpup_wh(void *args)
 {
 	struct au_cpup_wh_args *a = args;
 
-	au_pin_hdir_acquire_nest(a->pin);
-	*a->errp = au_cpup_wh(a->cpg, a->file, a->pin);
-	au_pin_hdir_release(a->pin);
+	au_pin_hdir_acquire_nest(a->cpg->pin);
+	*a->errp = au_cpup_wh(a->cpg, a->file);
+	au_pin_hdir_release(a->cpg->pin);
 }
 
-int au_sio_cpup_wh(struct au_cp_generic *cpg, struct file *file,
-		   struct au_pin *pin)
+int au_sio_cpup_wh(struct au_cp_generic *cpg, struct file *file)
 {
 	int err, wkq_err;
 	aufs_bindex_t bdst;
 	struct dentry *dentry, *parent, *h_orph, *h_parent, *h_dentry;
 	struct inode *dir, *h_dir, *h_tmpdir;
 	struct au_wbr *wbr;
-	struct au_pin wh_pin;
+	struct au_pin wh_pin, *pin_orig;
 
 	dentry = cpg->dentry;
 	bdst = cpg->bdst;
@@ -1069,6 +1065,7 @@ int au_sio_cpup_wh(struct au_cp_generic *cpg, struct file *file,
 	h_parent = NULL;
 	h_dir = au_igrab(au_h_iptr(dir, bdst));
 	h_tmpdir = h_dir;
+	pin_orig = NULL;
 	if (!h_dir->i_nlink) {
 		wbr = au_sbr(dentry->d_sb, bdst)->br_wbr;
 		h_orph = wbr->wbr_orph;
@@ -1085,20 +1082,20 @@ int au_sio_cpup_wh(struct au_cp_generic *cpg, struct file *file,
 		mutex_lock_nested(&h_tmpdir->i_mutex, AuLsc_I_PARENT3);
 		/* todo: au_h_open_pre()? */
 
+		pin_orig = cpg->pin;
 		au_pin_init(&wh_pin, dentry, bdst, AuLsc_DI_PARENT,
-			    AuLsc_I_PARENT3, pin->udba, AuPin_DI_LOCKED);
-		pin = &wh_pin;
+			    AuLsc_I_PARENT3, cpg->pin->udba, AuPin_DI_LOCKED);
+		cpg->pin = &wh_pin;
 	}
 
 	if (!au_test_h_perm_sio(h_tmpdir, MAY_EXEC | MAY_WRITE)
-	    && !au_cpup_sio_test(pin, dentry->d_inode->i_mode))
-		err = au_cpup_wh(cpg, file, pin);
+	    && !au_cpup_sio_test(cpg->pin, dentry->d_inode->i_mode))
+		err = au_cpup_wh(cpg, file);
 	else {
 		struct au_cpup_wh_args args = {
 			.errp	= &err,
 			.cpg	= cpg,
-			.file	= file,
-			.pin	= pin
+			.file	= file
 		};
 		wkq_err = au_wkq_wait(au_call_cpup_wh, &args);
 		if (unlikely(wkq_err))
@@ -1110,6 +1107,8 @@ int au_sio_cpup_wh(struct au_cp_generic *cpg, struct file *file,
 		/* todo: au_h_open_post()? */
 		au_set_h_iptr(dir, bdst, au_igrab(h_dir), /*flags*/0);
 		au_set_h_dptr(parent, bdst, h_parent);
+		AuDebugOn(!pin_orig);
+		cpg->pin = pin_orig;
 	}
 	iput(h_dir);
 	dput(parent);

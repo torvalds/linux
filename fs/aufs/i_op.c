@@ -676,9 +676,10 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 				.dentry	= dentry,
 				.bdst	= a->btgt,
 				.bsrc	= -1,
-				.len	= sz
+				.len	= sz,
+				.pin	= &a->pin
 			};
-			err = au_sio_cpup_wh(&cpg, /*file*/NULL, &a->pin);
+			err = au_sio_cpup_wh(&cpg, /*file*/NULL);
 			if (unlikely(err))
 				goto out_unlock;
 			hi_wh = au_hi_wh(inode, a->btgt);

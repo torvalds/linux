@@ -224,7 +224,8 @@ static int au_ready_to_write_wh(struct file *file, loff_t len,
 		.dentry	= file->f_dentry,
 		.bdst	= bcpup,
 		.bsrc	= -1,
-		.len	= len
+		.len	= len,
+		.pin	= pin
 	};
 
 	au_update_dbstart(cpg.dentry);
@@ -238,7 +239,7 @@ static int au_ready_to_write_wh(struct file *file, loff_t len,
 	}
 	hi_wh = au_hi_wh(inode, bcpup);
 	if (!hi_wh && !h_inode)
-		err = au_sio_cpup_wh(&cpg, file, pin);
+		err = au_sio_cpup_wh(&cpg, file);
 	else
 		/* already copied-up after unlink */
 		err = au_reopen_wh(file, bcpup, hi_wh);
