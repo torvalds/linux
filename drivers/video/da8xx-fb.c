@@ -131,10 +131,6 @@
 
 #define WSI_TIMEOUT	50
 #define PALETTE_SIZE	256
-#define LEFT_MARGIN	64
-#define RIGHT_MARGIN	64
-#define UPPER_MARGIN	32
-#define LOWER_MARGIN	32
 
 static void __iomem *da8xx_fb_reg_base;
 static struct resource *lcdc_regs;
@@ -184,23 +180,7 @@ struct da8xx_fb_par {
 	u32 pseudo_palette[16];
 };
 
-/* Variable Screen Information */
-static struct fb_var_screeninfo da8xx_fb_var = {
-	.xoffset = 0,
-	.yoffset = 0,
-	.transp = {0, 0, 0},
-	.nonstd = 0,
-	.activate = 0,
-	.height = -1,
-	.width = -1,
-	.accel_flags = 0,
-	.left_margin = LEFT_MARGIN,
-	.right_margin = RIGHT_MARGIN,
-	.upper_margin = UPPER_MARGIN,
-	.lower_margin = LOWER_MARGIN,
-	.sync = 0,
-	.vmode = FB_VMODE_NONINTERLACED
-};
+static struct fb_var_screeninfo da8xx_fb_var;
 
 static struct fb_fix_screeninfo da8xx_fb_fix = {
 	.id = "DA8xx FB Drv",
