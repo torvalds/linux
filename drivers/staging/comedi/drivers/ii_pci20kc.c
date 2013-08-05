@@ -350,31 +350,22 @@ static int ii20k_dio_insn_config(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int mask = 1 << CR_CHAN(insn->chanspec);
-	unsigned int bits;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
-	if (mask & 0x000000ff)
-		bits = 0x000000ff;
-	else if (mask & 0x0000ff00)
-		bits = 0x0000ff00;
-	else if (mask & 0x00ff0000)
-		bits = 0x00ff0000;
+	if (chan < 8)
+		mask = 0x000000ff;
+	else if (chan < 16)
+		mask = 0x0000ff00;
+	else if (chan < 24)
+		mask = 0x00ff0000;
 	else
-		bits = 0xff000000;
+		mask = 0xff000000;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~bits;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	ii20k_dio_config(dev, s);
 

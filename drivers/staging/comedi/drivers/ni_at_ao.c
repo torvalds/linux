@@ -248,42 +248,35 @@ static int atao_dio_insn_bits(struct comedi_device *dev,
 
 static int atao_dio_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct atao_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask, bit;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	if (chan < 4)
+		mask = 0x0f;
+	else
+		mask = 0xf0;
 
-	mask = (chan < 4) ? 0x0f : 0xf0;
-	bit = (chan < 4) ? DOUTEN1 : DOUTEN2;
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= mask;
-		devpriv->cfg3 |= bit;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~mask;
-		devpriv->cfg3 &= ~bit;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
+	if (s->io_bits & 0x0f)
+		devpriv->cfg3 |= DOUTEN1;
+	else
+		devpriv->cfg3 &= ~DOUTEN1;
+	if (s->io_bits & 0xf0)
+		devpriv->cfg3 |= DOUTEN2;
+	else
+		devpriv->cfg3 &= ~DOUTEN2;
 
 	outw(devpriv->cfg3, dev->iobase + ATAO_CFG3);
 
-	return 1;
+	return insn->n;
 }
 
 /*

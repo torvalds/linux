@@ -515,32 +515,35 @@ static int s526_dio_insn_bits(struct comedi_device *dev,
 
 static int s526_dio_insn_config(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	int group, mask;
+	unsigned int mask;
+	int ret;
 
-	group = chan >> 2;
-	mask = 0xF << (group << 2);
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		/* bit 10/11 set the group 1/2's mode */
-		s->state |= 1 << (group + 10);
-		s->io_bits |= mask;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->state &= ~(1 << (group + 10)); /* 1 is output, 0 is input. */
-		s->io_bits &= ~mask;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-	default:
-		return -EINVAL;
-	}
+	if (chan < 4)
+		mask = 0x0f;
+	else
+		mask = 0xf0;
+
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
+
+	/* bit 10/11 set the group 1/2's mode */
+	if (s->io_bits & 0x0f)
+		s->state |= (1 << 10);
+	else
+		s->state &= ~(1 << 10);
+	if (s->io_bits & 0xf0)
+		s->state |= (1 << 11);
+	else
+		s->state &= ~(1 << 11);
+
 	outw(s->state, dev->iobase + REG_DIO);
 
-	return 1;
+	return insn->n;
 }
 
 static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
