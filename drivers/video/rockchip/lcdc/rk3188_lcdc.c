@@ -944,8 +944,12 @@ static int rk3188_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int la
 	if((dev_drv->first_frame))  //this is the first frame of the system ,enable frame start interrupt
 	{
 		dev_drv->first_frame = 0;
-		lcdc_msk_reg(lcdc_dev,INT_STATUS,m_FS_INT_CLEAR |m_FS_INT_EN ,
-			  v_FS_INT_CLEAR(1) | v_FS_INT_EN(1));
+		lcdc_msk_reg(lcdc_dev,INT_STATUS,m_HS_INT_CLEAR | m_HS_INT_EN |
+			m_FS_INT_CLEAR | m_FS_INT_EN | m_LF_INT_EN | m_LF_INT_CLEAR |
+			m_LF_INT_NUM | m_BUS_ERR_INT_CLEAR | m_BUS_ERR_INT_EN,
+			v_FS_INT_CLEAR(1) | v_FS_INT_EN(1) | v_HS_INT_CLEAR(1) |
+			v_HS_INT_EN(0) | v_LF_INT_CLEAR(1) | v_LF_INT_EN(1) |
+			v_LF_INT_NUM(screen->vsync_len + screen->upper_margin+screen->y_res -1));
 		lcdc_cfg_done(lcdc_dev);  // write any value to  REG_CFG_DONE let config become effective
 		 
 	}
@@ -1425,6 +1429,33 @@ static int rk3188_lcdc_dpi_status(struct rk_lcdc_device_driver *dev_drv)
 	return ovl;
 }
 
+int rk3188_lcdc_poll_vblank(struct rk_lcdc_device_driver * dev_drv)
+{
+	struct rk3188_lcdc_device *lcdc_dev = 
+				container_of(dev_drv,struct rk3188_lcdc_device,driver);    
+        u32 int_reg ;
+	int ret;
+	//spin_lock(&lcdc_dev->reg_lock);
+	if(lcdc_dev->clk_on)
+	{
+		int_reg = lcdc_readl(lcdc_dev,INT_STATUS);
+	        if(int_reg & m_LF_INT_STA)
+	        {
+	              lcdc_msk_reg(lcdc_dev, INT_STATUS, m_LF_INT_CLEAR,v_LF_INT_CLEAR(1));              
+	              ret =  RK_LF_STATUS_FC;
+	        }
+	        else
+	             ret = RK_LF_STATUS_FR;
+	}
+	else
+	{
+		ret = RK_LF_STATUS_NC;
+	}	
+	//spin_unlock(&lcdc_dev->reg_lock);
+
+	return ret;
+}
+
 static struct layer_par lcdc_layer[] = {
 	[0] = {
 		.name  		= "win0",
@@ -1459,6 +1490,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.fb_get_layer           = rk3188_fb_get_layer,
 	.fb_layer_remap         = rk3188_fb_layer_remap,
 	.set_dsp_lut            = rk3188_set_dsp_lut,
+	.poll_vblank		= rk3188_lcdc_poll_vblank,
 	.dpi_open               = rk3188_lcdc_dpi_open,
 	.dpi_layer_sel          = rk3188_lcdc_dpi_layer_sel,
 	.dpi_status          	= rk3188_lcdc_dpi_status,
@@ -1469,18 +1501,26 @@ static irqreturn_t rk3188_lcdc_isr(int irq, void *dev_id)
 	struct rk3188_lcdc_device *lcdc_dev = 
 				(struct rk3188_lcdc_device *)dev_id;
 	ktime_t timestamp = ktime_get();
-	
-	lcdc_msk_reg(lcdc_dev, INT_STATUS, m_FS_INT_CLEAR, v_FS_INT_CLEAR(1));
-
-	if(lcdc_dev->driver.wait_fs)  //three buffer ,no need to wait for sync
+	u32 int_reg = lcdc_readl(lcdc_dev,INT_STATUS);
+                
+	if(int_reg & m_FS_INT_STA)
 	{
-		spin_lock(&(lcdc_dev->driver.cpl_lock));
-		complete(&(lcdc_dev->driver.frame_done));
-		spin_unlock(&(lcdc_dev->driver.cpl_lock));
+		timestamp = ktime_get();
+		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_FS_INT_CLEAR,v_FS_INT_CLEAR(1));
+		if(lcdc_dev->driver.wait_fs)  //three buffer ,no need to wait for sync
+		{
+			spin_lock(&(lcdc_dev->driver.cpl_lock));
+			complete(&(lcdc_dev->driver.frame_done));
+			spin_unlock(&(lcdc_dev->driver.cpl_lock));
+		}
+		lcdc_dev->driver.vsync_info.timestamp = timestamp;
+		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
+		
 	}
-	lcdc_dev->driver.vsync_info.timestamp = timestamp;
-	wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
-	
+	else if(int_reg & m_LF_INT_STA)
+	{
+		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_LF_INT_CLEAR,v_LF_INT_CLEAR(1));
+	}
 	return IRQ_HANDLED;
 }
 

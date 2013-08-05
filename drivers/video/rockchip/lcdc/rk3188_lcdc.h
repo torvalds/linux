@@ -183,7 +183,7 @@
 #define m_FS_INT_CLEAR		(1<<9)
 #define m_LF_INT_CLEAR		(1<<10)
 #define m_BUS_ERR_INT_CLEAR	(1<<11)
-#define m_LINE_FLAG_NUM		(0xfff<<12)
+#define m_LF_INT_NUM		(0xfff<<12)
 #define v_HS_INT_EN(x)		(((x)&1)<<4)
 #define v_FS_INT_EN(x)		(((x)&1)<<5)
 #define v_LF_INT_EN(x)		(((x)&1)<<6)
@@ -192,7 +192,7 @@
 #define v_FS_INT_CLEAR(x)	(((x)&1)<<9)
 #define v_LF_INT_CLEAR(x)	(((x)&1)<<10)
 #define v_BUS_ERR_INT_CLEAR(x)	(((x)&1)<<11)
-#define v_LINE_FLAG_NUM(x)	(((x)&0xfff)<<12)
+#define v_LF_INT_NUM(x)		(((x)&0xfff)<<12)
 
 
 #define ALPHA_CTRL		(0x14)

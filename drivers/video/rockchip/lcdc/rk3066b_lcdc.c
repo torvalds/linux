@@ -706,8 +706,12 @@ int rk3066b_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id
 	if((dev_drv->first_frame))  //this is the first frame of the system ,enable frame start interrupt
 	{
 		dev_drv->first_frame = 0;
-		LcdMskReg(lcdc_dev,INT_STATUS,m_FRM_STARTCLEAR | m_FRM_STARTMASK ,
-			  v_FRM_STARTCLEAR(1) | v_FRM_STARTMASK(0));
+		LcdMskReg(lcdc_dev,INT_STATUS,m_HOR_STARTMASK | m_FRM_STARTMASK | m_SCANNING_MASK | 
+			m_HOR_STARTCLEAR | m_FRM_STARTCLEAR |m_SCANNING_CLEAR | m_SCAN_LINE_NUM,
+			  v_HOR_STARTMASK(1) | v_FRM_STARTMASK(0) | v_SCANNING_MASK(0) |
+			  v_HOR_STARTCLEAR(1) | v_FRM_STARTCLEAR(1) | v_SCANNING_CLEAR(1) |
+			  //v_SCANNING_CLEAR(screen->vsync_len + screen->upper_margin+screen->y_res -1));
+			  v_SCAN_LINE_NUM(screen->vsync_len + screen->upper_margin+screen->y_res -1));
 		LCDC_REG_CFG_DONE();  // write any value to  REG_CFG_DONE let config become effective
 		 
 	}
@@ -1120,7 +1124,7 @@ int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 		LcdMskReg(lcdc_dev, INT_STATUS, m_SCANNING_CLEAR | m_FRM_STARTCLEAR | m_HOR_STARTCLEAR |
 					m_SCANNING_MASK | m_HOR_STARTMASK | m_FRM_STARTMASK , 
 					v_SCANNING_CLEAR(1) | v_FRM_STARTCLEAR(1) | v_HOR_STARTCLEAR(1) | 
-					v_SCANNING_MASK(1) | v_FRM_STARTMASK(0) | v_HOR_STARTMASK(1));
+					v_SCANNING_MASK(0) | v_FRM_STARTMASK(0) | v_HOR_STARTMASK(1));
 		LCDC_REG_CFG_DONE();
 	}
 	lcdc_dev->clk_on = 1;
@@ -1137,6 +1141,9 @@ int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 {
 	struct rk3066b_lcdc_device *lcdc_dev = (struct rk3066b_lcdc_device *)dev_id;
+
+	u32 int_reg = LcdRdReg(lcdc_dev,INT_STATUS);
+	if(int_reg & m_FRM_START){
 	ktime_t timestamp = ktime_get();
 	
 	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_STARTCLEAR, v_FRM_STARTCLEAR(1));
@@ -1154,7 +1161,10 @@ static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 
 	lcdc_dev->driver.vsync_info.timestamp = timestamp;
 	wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
-	
+	}
+	else if(int_reg & m_SCANNING_FLAG){
+		LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_STARTCLEAR, v_SCANNING_CLEAR(1));
+	}
 	return IRQ_HANDLED;
 }
 
@@ -1191,6 +1201,33 @@ static int rk3066b_set_dsp_lut(struct rk_lcdc_device_driver *dev_drv,int *lut)
 	return ret;
 }
 
+int rk3066b_lcdc_poll_vblank(struct rk_lcdc_device_driver * dev_drv)
+{
+	struct rk3066b_lcdc_device *lcdc_dev = 
+				container_of(dev_drv,struct rk3066b_lcdc_device,driver);    
+        u32 int_reg ;
+	int ret;
+	//spin_lock(&lcdc_dev->reg_lock);
+	if(lcdc_dev->clk_on)
+	{
+		int_reg = LcdRdReg(lcdc_dev,INT_STATUS);
+	        if(int_reg & m_SCANNING_FLAG)
+	        {
+	              LcdMskReg(lcdc_dev, INT_STATUS, m_SCANNING_CLEAR,v_SCANNING_CLEAR(1));              
+	              ret =  RK_LF_STATUS_FC;
+	        }
+	        else
+	             ret = RK_LF_STATUS_FR;
+	}
+	else
+	{
+		ret = RK_LF_STATUS_NC;
+	}	
+	//spin_unlock(&lcdc_dev->reg_lock);
+
+
+	return ret;
+}
 
 static struct layer_par lcdc_layer[] = {
 	[0] = {
@@ -1225,6 +1262,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.fb_get_layer           = rk3066b_fb_get_layer,
 	.fb_layer_remap         = rk3066b_fb_layer_remap,
 	.set_dsp_lut            = rk3066b_set_dsp_lut,
+	.poll_vblank		= rk3066b_lcdc_poll_vblank,
 };
 #ifdef CONFIG_PM
 static int rk3066b_lcdc_suspend(struct platform_device *pdev, pm_message_t state)

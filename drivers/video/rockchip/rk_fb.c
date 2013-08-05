@@ -29,10 +29,13 @@
 #include <linux/earlysuspend.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
-#include<linux/rk_fb.h>
+#include <linux/rk_fb.h>
 #include <plat/ipp.h>
 #include "hdmi/rk_hdmi.h"
 #include <linux/linux_logo.h>
+
+#include <mach/clock.h>
+#include <linux/clk.h>
 
 void rk29_backlight_set(bool on);
 bool rk29_get_backlight_status(void);
@@ -117,9 +120,14 @@ struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name)
 
 static struct rk_lcdc_device_driver * rk_get_prmry_lcdc_drv(void)
 {
-	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+	struct rk_fb_inf *inf = NULL; 
 	struct rk_lcdc_device_driver *dev_drv = NULL;
 	int i = 0;
+
+	if(likely(g_fb_pdev))
+		inf = platform_get_drvdata(g_fb_pdev);
+	else
+		return NULL;
 	
 	for(i = 0; i < inf->num_lcdc;i++)
 	{
@@ -133,11 +141,40 @@ static struct rk_lcdc_device_driver * rk_get_prmry_lcdc_drv(void)
 	return dev_drv;
 }
 
+//get one frame time
+int rk_fb_get_prmry_screen_ft(void)
+{
+        struct rk_lcdc_device_driver *dev_drv = rk_get_prmry_lcdc_drv();
+        
+        uint32_t pix_count,ft_us,dclk_mhz;
+
+        if (0 == dev_drv->id)
+                dclk_mhz = clk_get_rate(clk_get(NULL, "dclk_lcdc0"))/(1000*1000);
+        else 
+                dclk_mhz = clk_get_rate(clk_get(NULL, "dclk_lcdc1"))/(1000*1000);
+
+        pix_count = (dev_drv->cur_screen->upper_margin + dev_drv->cur_screen->lower_margin + dev_drv->cur_screen->y_res +dev_drv->cur_screen->vsync_len)*
+        (dev_drv->cur_screen->left_margin + dev_drv->cur_screen->right_margin + dev_drv->cur_screen->x_res + dev_drv->cur_screen->hsync_len);       // one frame time ,(pico seconds)
+        
+        ft_us = pix_count / dclk_mhz;
+
+        if(likely(dev_drv))
+            return ft_us;
+        else
+            return 0;
+
+}
+
 static struct rk_lcdc_device_driver * rk_get_extend_lcdc_drv(void)
 {
-	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+	struct rk_fb_inf *inf = NULL; 
 	struct rk_lcdc_device_driver *dev_drv = NULL;
 	int i = 0;
+	
+	if(likely(g_fb_pdev))
+		inf = platform_get_drvdata(g_fb_pdev);
+	else
+		return NULL;
 	
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
@@ -162,6 +199,32 @@ u32 rk_fb_get_prmry_screen_pixclock(void)
 {
 	struct rk_lcdc_device_driver *dev_drv = rk_get_prmry_lcdc_drv();
 	return dev_drv->pixclock;
+}
+
+int rk_fb_poll_prmry_screen_vblank(void)
+{
+	struct rk_lcdc_device_driver *dev_drv = rk_get_prmry_lcdc_drv();
+	if(likely(dev_drv))
+	{
+		if(dev_drv->poll_vblank)
+			return dev_drv->poll_vblank(dev_drv);
+		else
+			return RK_LF_STATUS_NC;	
+	}
+	else
+		return RK_LF_STATUS_NC;
+}
+
+bool rk_fb_poll_wait_frame_complete(void)
+{
+	uint32_t timeout = MAX_TIMEOUT;
+	if(rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_NC)
+		return false;
+
+	while( !(rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_FR)  &&  --timeout);
+	while( !(rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_FC)  &&  --timeout);
+
+	return true;
 }
 static int rk_fb_open(struct fb_info *info,int user)
 {
@@ -1409,6 +1472,8 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 		dev_drv->lcdc_hdmi_process = def_drv->lcdc_hdmi_process;
 	if(def_drv->lcdc_reg_update)
 		dev_drv->lcdc_reg_update = def_drv->lcdc_reg_update;
+	if(def_drv->poll_vblank)
+		dev_drv->poll_vblank = def_drv->poll_vblank;
 	if(def_drv->dpi_open)
 		dev_drv->dpi_open = def_drv->dpi_open;
 	if(def_drv->dpi_layer_sel)
