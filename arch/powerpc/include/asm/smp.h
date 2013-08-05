@@ -186,6 +186,8 @@ extern int smt_enabled_at_boot;
 extern int smp_mpic_probe(void);
 extern void smp_mpic_setup_cpu(int cpu);
 extern int smp_generic_kick_cpu(int nr);
+extern int smp_generic_cpu_bootable(unsigned int nr);
+
 
 extern void smp_generic_give_timebase(void);
 extern void smp_generic_take_timebase(void);
