@@ -480,10 +480,14 @@ static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 		oz_free_urb_link(urbl);
 		return 0;
 	}
-	if (in_dir)
+	if (in_dir && port->in_ep[ep_addr])
 		ep = port->in_ep[ep_addr];
-	else
+	else if (!in_dir && port->out_ep[ep_addr])
 		ep = port->out_ep[ep_addr];
+	else {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	/*For interrupt endpoint check for buffered data
 	* & complete urb
@@ -505,6 +509,7 @@ static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 	} else {
 		err = -EPIPE;
 	}
+out:
 	spin_unlock_bh(&port->ozhcd->hcd_lock);
 	if (err)
 		oz_free_urb_link(urbl);
