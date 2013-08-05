@@ -17,7 +17,6 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
-#include <linux/numa.h>
 #include <asm-generic/pci_iomap.h>
 
 #ifndef __tilegx__
