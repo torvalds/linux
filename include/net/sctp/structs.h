@@ -782,6 +782,7 @@ struct sctp_transport {
 
 	/* Has this transport moved the ctsn since we last sacked */
 	__u32 sack_generation;
+	u32 dst_cookie;
 
 	struct flowi fl;
 
@@ -946,7 +947,6 @@ struct sctp_transport {
 	__u64 hb_nonce;
 
 	struct rcu_head rcu;
-	u32 dst_cookie;
 };
 
 struct sctp_transport *sctp_transport_new(struct net *, const union sctp_addr *,
