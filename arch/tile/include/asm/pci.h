@@ -173,9 +173,6 @@ struct pci_controller {
 
 	/* Table that maps the INTx numbers to Linux irq numbers. */
 	int irq_intx_table[4];
-
-	/* Address ranges that are routed to this controller/bridge. */
-	struct resource mem_resources[3];
 };
 
 extern struct pci_controller pci_controllers[TILEGX_NUM_TRIO * TILEGX_TRIO_PCIES];
