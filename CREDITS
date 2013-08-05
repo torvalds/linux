@@ -637,14 +637,13 @@ S: 14509 NE 39th Street #1096
 S: Bellevue, Washington 98007
 S: USA
 
-N: Christopher L. Cheney
-E: ccheney@debian.org
-E: ccheney@cheney.cx
-W: http://www.cheney.cx
+N: Chris Cheney
+E: chris.cheney@gmail.com
+E: ccheney@redhat.com
 P: 1024D/8E384AF2 2D31 1927 87D7 1F24 9FF9  1BC5 D106 5AB3 8E38 4AF2
 D: Vista Imaging usb webcam driver
-S: 314 Prince of Wales
-S: Conroe, TX 77304
+S: 2308 Therrell Way
+S: McKinney, TX 75070
 S: USA
 
 N: Stuart Cheshire
