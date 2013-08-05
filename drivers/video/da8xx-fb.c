@@ -554,10 +554,11 @@ static int lcd_cfg_frame_buffer(struct da8xx_fb_par *par, u32 width, u32 height,
 		break;
 	case 24:
 		reg |= LCD_V2_TFT_24BPP_MODE;
+		break;
 	case 32:
+		reg |= LCD_V2_TFT_24BPP_MODE;
 		reg |= LCD_V2_TFT_24BPP_UNPACK;
 		break;
-
 	case 8:
 		par->palette_sz = 256 * 2;
 		break;
