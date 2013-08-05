@@ -238,9 +238,6 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		ath_restart_work(sc);
 	}
 
-	if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx != 3)
-		ath_ant_comb_update(sc);
-
 	ieee80211_wake_queues(sc->hw);
 
 	return true;

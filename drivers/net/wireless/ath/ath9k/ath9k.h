@@ -628,7 +628,6 @@ struct ath_ant_comb {
 };
 
 void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
-void ath_ant_comb_update(struct ath_softc *sc);
 
 /********************/
 /* Main driver core */

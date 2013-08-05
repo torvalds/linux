@@ -867,26 +867,3 @@ div_comb_done:
 	antcomb->main_recv_cnt = 0;
 	antcomb->alt_recv_cnt = 0;
 }
-
-void ath_ant_comb_update(struct ath_softc *sc)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_hw_antcomb_conf div_ant_conf;
-	u8 lna_conf;
-
-	ath9k_hw_antdiv_comb_conf_get(ah, &div_ant_conf);
-
-	if (sc->ant_rx == 1)
-		lna_conf = ATH_ANT_DIV_COMB_LNA1;
-	else
-		lna_conf = ATH_ANT_DIV_COMB_LNA2;
-
-	div_ant_conf.main_lna_conf = lna_conf;
-	div_ant_conf.alt_lna_conf = lna_conf;
-
-	ath9k_hw_antdiv_comb_conf_set(ah, &div_ant_conf);
-
-	if (common->bt_ant_diversity)
-		ath9k_hw_set_bt_ant_diversity(ah, true);
-}

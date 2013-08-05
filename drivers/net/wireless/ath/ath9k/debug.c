@@ -307,7 +307,7 @@ static ssize_t write_file_bt_ant_diversity(struct file *file,
 
 	common->bt_ant_diversity = !!bt_ant_diversity;
 	ath9k_ps_wakeup(sc);
-	ath_ant_comb_update(sc);
+	ath9k_hw_set_bt_ant_diversity(sc->sc_ah, common->bt_ant_diversity);
 	ath_dbg(common, CONFIG, "Enable WLAN/BT RX Antenna diversity: %d\n",
 		common->bt_ant_diversity);
 	ath9k_ps_restore(sc);
