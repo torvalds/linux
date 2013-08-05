@@ -3739,9 +3739,8 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_VFE);
 
 	if (netdev->flags & IFF_PROMISC) {
-		u32 mrqc = rd32(E1000_MRQC);
 		/* retain VLAN HW filtering if in VT mode */
-		if (mrqc & E1000_MRQC_ENABLE_VMDQ)
+		if (adapter->vfs_allocated_count)
 			rctl |= E1000_RCTL_VFE;
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		vmolr |= (E1000_VMOLR_ROPE | E1000_VMOLR_MPME);

@@ -3478,7 +3478,7 @@ static int alloc_buf_list(SLMP_INFO *info)
 	for ( i = 0; i < info->rx_buf_count; i++ ) {
 		/* calculate and store physical address of this buffer entry */
 		info->rx_buf_list_ex[i].phys_entry =
-			info->buffer_list_phys + (i * sizeof(SCABUFSIZE));
+			info->buffer_list_phys + (i * SCABUFSIZE);
 
 		/* calculate and store physical address of */
 		/* next entry in cirular list of entries */

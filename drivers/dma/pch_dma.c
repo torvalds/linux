@@ -867,6 +867,7 @@ static int pch_dma_probe(struct pci_dev *pdev,
 
 	if (!(pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "Cannot find proper base address\n");
+		err = -ENODEV;
 		goto err_disable_pdev;
 	}
 

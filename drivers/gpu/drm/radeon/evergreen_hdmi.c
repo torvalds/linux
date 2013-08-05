@@ -157,9 +157,9 @@ static void evergreen_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
+	WREG32(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL(radeon_crtc->crtc_id));
 	WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 100);
 	WREG32(DCCG_AUDIO_DTO0_MODULE, clock * 100);
-	WREG32(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL(radeon_crtc->crtc_id));
 }
 
 

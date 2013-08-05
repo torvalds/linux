@@ -118,7 +118,7 @@
 	 (EVENT_UNIT_MASK      << EVENT_UNIT_SHIFT)		|	\
 	 (EVENT_COMBINE_MASK   << EVENT_COMBINE_SHIFT)		|	\
 	 (EVENT_MARKED_MASK    << EVENT_MARKED_SHIFT)		|	\
-	 (EVENT_EBB_MASK       << EVENT_CONFIG_EBB_SHIFT)	|	\
+	 (EVENT_EBB_MASK       << PERF_EVENT_CONFIG_EBB_SHIFT)	|	\
 	  EVENT_PSEL_MASK)
 
 /* MMCRA IFM bits - POWER8 */
@@ -233,10 +233,10 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 	pmc   = (event >> EVENT_PMC_SHIFT)        & EVENT_PMC_MASK;
 	unit  = (event >> EVENT_UNIT_SHIFT)       & EVENT_UNIT_MASK;
 	cache = (event >> EVENT_CACHE_SEL_SHIFT)  & EVENT_CACHE_SEL_MASK;
-	ebb   = (event >> EVENT_CONFIG_EBB_SHIFT) & EVENT_EBB_MASK;
+	ebb   = (event >> PERF_EVENT_CONFIG_EBB_SHIFT) & EVENT_EBB_MASK;
 
 	/* Clear the EBB bit in the event, so event checks work below */
-	event &= ~(EVENT_EBB_MASK << EVENT_CONFIG_EBB_SHIFT);
+	event &= ~(EVENT_EBB_MASK << PERF_EVENT_CONFIG_EBB_SHIFT);
 
 	if (pmc) {
 		if (pmc > 6)
@@ -561,18 +561,13 @@ static int power8_generic_events[] = {
 static u64 power8_bhrb_filter_map(u64 branch_sample_type)
 {
 	u64 pmu_bhrb_filter = 0;
-	u64 br_privilege = branch_sample_type & ONLY_PLM;
 
-	/* BHRB and regular PMU events share the same prvillege state
+	/* BHRB and regular PMU events share the same privilege state
 	 * filter configuration. BHRB is always recorded along with a
-	 * regular PMU event. So privilege state filter criteria for BHRB
-	 * and the companion PMU events has to be the same. As a default
-	 * "perf record" tool sets all privillege bits ON when no filter
-	 * criteria is provided in the command line. So as along as all
-	 * privillege bits are ON or they are OFF, we are good to go.
+	 * regular PMU event. As the privilege state filter is handled
+	 * in the basic PMC configuration of the accompanying regular
+	 * PMU event, we ignore any separate BHRB specific request.
 	 */
-	if ((br_privilege != 7) && (br_privilege != 0))
-		return -1;
 
 	/* No branch filter requested */
 	if (branch_sample_type & PERF_SAMPLE_BRANCH_ANY)
@@ -621,10 +616,19 @@ static struct power_pmu power8_pmu = {
 
 static int __init init_power8_pmu(void)
 {
+	int rc;
+
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power8"))
 		return -ENODEV;
 
-	return register_power_pmu(&power8_pmu);
+	rc = register_power_pmu(&power8_pmu);
+	if (rc)
+		return rc;
+
+	/* Tell userspace that EBB is supported */
+	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_EBB;
+
+	return 0;
 }
 early_initcall(init_power8_pmu);

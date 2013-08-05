@@ -335,7 +335,7 @@ static int pcm990_mci_init(struct device *dev, irq_handler_t mci_detect_int,
 	return err;
 }
 
-static void pcm990_mci_setpower(struct device *dev, unsigned int vdd)
+static int pcm990_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data *p_d = dev->platform_data;
 	u8 val;
@@ -348,6 +348,7 @@ static void pcm990_mci_setpower(struct device *dev, unsigned int vdd)
 		val &= ~PCM990_CTRL_MMC2PWR;
 
 	pcm990_cpld_writeb(PCM990_CTRL_MMC2PWR, PCM990_CTRL_REG5);
+	return 0;
 }
 
 static void pcm990_mci_exit(struct device *dev, void *data)
