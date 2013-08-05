@@ -943,8 +943,8 @@ static int skge_rx_setup(struct skge_port *skge, struct skge_element *e,
 	if (pci_dma_mapping_error(skge->hw->pdev, map))
 		return -1;
 
-	rd->dma_lo = map;
-	rd->dma_hi = map >> 32;
+	rd->dma_lo = lower_32_bits(map);
+	rd->dma_hi = upper_32_bits(map);
 	e->skb = skb;
 	rd->csum1_start = ETH_HLEN;
 	rd->csum2_start = ETH_HLEN;
@@ -2551,7 +2551,7 @@ static int skge_up(struct net_device *dev)
 
 	BUG_ON(skge->dma & 7);
 
-	if ((u64)skge->dma >> 32 != ((u64) skge->dma + skge->mem_size) >> 32) {
+	if (upper_32_bits(skge->dma) != upper_32_bits(skge->dma + skge->mem_size)) {
 		dev_err(&hw->pdev->dev, "pci_alloc_consistent region crosses 4G boundary\n");
 		err = -EINVAL;
 		goto free_pci_mem;
@@ -2756,8 +2756,8 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 	dma_unmap_addr_set(e, mapaddr, map);
 	dma_unmap_len_set(e, maplen, len);
 
-	td->dma_lo = map;
-	td->dma_hi = map >> 32;
+	td->dma_lo = lower_32_bits(map);
+	td->dma_hi = upper_32_bits(map);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const int offset = skb_checksum_start_offset(skb);
@@ -2796,8 +2796,8 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 			tf = e->desc;
 			BUG_ON(tf->control & BMU_OWN);
 
-			tf->dma_lo = map;
-			tf->dma_hi = (u64) map >> 32;
+			tf->dma_lo = lower_32_bits(map);
+			tf->dma_hi = upper_32_bits(map);
 			dma_unmap_addr_set(e, mapaddr, map);
 			dma_unmap_len_set(e, maplen, skb_frag_size(frag));
 
