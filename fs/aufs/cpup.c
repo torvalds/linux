@@ -603,8 +603,7 @@ out:
  * @len is for truncating when it is -1 copyup the entire file.
  * in link/rename cases, @dst_parent may be different from the real one.
  */
-static int au_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
-			  struct dentry *dst_parent, struct au_pin *pin)
+static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 {
 	int err, rerr;
 	aufs_bindex_t old_ibstart;
@@ -649,7 +648,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
 		}
 
 		if (dst_inode->i_nlink) {
-			const int do_dt = au_ftest_cpup(flags, DTIME);
+			const int do_dt = au_ftest_cpup(cpg->flags, DTIME);
 
 			h_src = au_plink_lkup(inode, cpg->bdst);
 			err = PTR_ERR(h_src);
@@ -671,7 +670,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
 
 			h_path.dentry = h_dst;
 			err = vfsub_link(h_src, h_dir, &h_path);
-			if (!err && au_ftest_cpup(flags, RENAME))
+			if (!err && au_ftest_cpup(cpg->flags, RENAME))
 				err = au_do_ren_after_cpup
 					(cpg->dentry, cpg->bdst, &h_path);
 			if (do_dt)
@@ -686,20 +685,18 @@ static int au_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
 
 	isdir = S_ISDIR(inode->i_mode);
 	old_ibstart = au_ibstart(inode);
-	cpg->pin = pin; /* tmp for git-commit */
-	cpg->flags = flags;
 	err = cpup_entry(cpg, dst_parent, &h_src_attr);
 	if (unlikely(err))
 		goto out_rev;
 	dst_inode = h_dst->d_inode;
 	mutex_lock_nested(&dst_inode->i_mutex, AuLsc_I_CHILD2);
 	/* todo: necessary? */
-	/* au_pin_hdir_unlock(pin); */
+	/* au_pin_hdir_unlock(cpg->pin); */
 
 	err = cpup_iattr(cpg->dentry, cpg->bdst, h_src, &h_src_attr);
 	if (unlikely(err)) {
 		/* todo: necessary? */
-		/* au_pin_hdir_relock(pin); */ /* ignore an error */
+		/* au_pin_hdir_relock(cpg->pin); */ /* ignore an error */
 		mutex_unlock(&dst_inode->i_mutex);
 		goto out_rev;
 	}
@@ -708,7 +705,8 @@ static int au_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
 		if (S_ISREG(inode->i_mode)) {
 			err = au_dy_iaop(inode, cpg->bdst, dst_inode);
 			if (unlikely(err)) {
-				/* au_pin_hdir_relock(pin); ignore an error */
+				/* ignore an error */
+				/* au_pin_hdir_relock(cpg->pin); */
 				mutex_unlock(&dst_inode->i_mutex);
 				goto out_rev;
 			}
@@ -719,7 +717,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
 		      au_hi_flags(inode, isdir));
 
 	/* todo: necessary? */
-	/* err = au_pin_hdir_relock(pin); */
+	/* err = au_pin_hdir_relock(cpg->pin); */
 	mutex_unlock(&dst_inode->i_mutex);
 	if (unlikely(err))
 		goto out_rev;
@@ -729,7 +727,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
 	    && plink)
 		au_plink_append(inode, cpg->bdst, h_dst);
 
-	if (au_ftest_cpup(flags, RENAME)) {
+	if (au_ftest_cpup(cpg->flags, RENAME)) {
 		h_path.dentry = h_dst;
 		err = au_do_ren_after_cpup(cpg->dentry, cpg->bdst, &h_path);
 	}
@@ -762,18 +760,16 @@ out:
 struct au_cpup_single_args {
 	int *errp;
 	struct au_cp_generic *cpg;
-	unsigned int flags;
 	struct dentry *dst_parent;
-	struct au_pin *pin;
 };
 
 static void au_call_cpup_single(void *args)
 {
 	struct au_cpup_single_args *a = args;
 
-	au_pin_hdir_acquire_nest(a->pin);
-	*a->errp = au_cpup_single(a->cpg, a->flags, a->dst_parent, a->pin);
-	au_pin_hdir_release(a->pin);
+	au_pin_hdir_acquire_nest(a->cpg->pin);
+	*a->errp = au_cpup_single(a->cpg, a->dst_parent);
+	au_pin_hdir_release(a->cpg->pin);
 }
 #endif
 
@@ -817,22 +813,19 @@ static int au_cpup_sio_test(struct au_pin *pin, umode_t mode)
 }
 
 #if 0 /* unused */
-int au_sio_cpup_single(struct au_cp_generic *cpg, unsigned int flags,
-		       struct dentry *dst_parent, struct au_pin *pin)
+int au_sio_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 {
 	int err, wkq_err;
 	struct dentry *h_dentry;
 
 	h_dentry = au_h_dptr(cpg->dentry, cpg->bsrc);
 	if (!au_cpup_sio_test(pin, h_dentry->d_inode->i_mode))
-		err = au_cpup_single(cpg, flags, dst_parent, pin);
+		err = au_cpup_single(cpg, dst_parent);
 	else {
 		struct au_cpup_single_args args = {
 			.errp		= &err,
 			.cpg		= cpg,
-			.flags		= flags,
-			.dst_parent	= dst_parent,
-			.pin		= pin
+			.dst_parent	= dst_parent
 		};
 		wkq_err = au_wkq_wait(au_call_cpup_single, &args);
 		if (unlikely(wkq_err))
@@ -851,6 +844,7 @@ static int au_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
 			  struct au_pin *pin)
 {
 	int err;
+	unsigned int flags_orig;
 	aufs_bindex_t bsrc, bend;
 	struct dentry *dentry, *h_dentry;
 
@@ -872,7 +866,11 @@ static int au_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
 
 	err = au_lkup_neg(dentry, cpg->bdst, /*wh*/1);
 	if (!err) {
-		err = au_cpup_single(cpg, flags | AuCpup_RENAME, NULL, pin);
+		flags_orig = cpg->flags;
+		au_fset_cpup(cpg->flags, RENAME);
+		cpg->pin = pin; /* tmp for git-commit */
+		err = au_cpup_single(cpg, NULL);
+		cpg->flags = flags_orig;
 		if (!err)
 			return 0; /* success */
 
@@ -952,6 +950,7 @@ static int au_do_cpup_wh(struct au_cp_generic *cpg, struct dentry *wh_dentry,
 			 struct file *file, struct au_pin *pin)
 {
 	int err;
+	unsigned int flags_orig;
 	aufs_bindex_t bsrc_orig;
 	struct dentry *h_d_dst, *h_d_start;
 	struct au_dinfo *dinfo;
@@ -971,7 +970,11 @@ static int au_do_cpup_wh(struct au_cp_generic *cpg, struct dentry *wh_dentry,
 		h_d_start = hdp[0 + cpg->bsrc].hd_dentry;
 		hdp[0 + cpg->bsrc].hd_dentry = au_hf_top(file)->f_dentry;
 	}
-	err = au_cpup_single(cpg, !AuCpup_DTIME, /*h_parent*/NULL, pin);
+	flags_orig = cpg->flags;
+	cpg->flags = !AuCpup_DTIME;
+	cpg->pin = pin; /* tmp for git-commit */
+	err = au_cpup_single(cpg, /*h_parent*/NULL);
+	cpg->flags = flags_orig;
 	if (file) {
 		if (!err)
 			err = au_reopen_nondir(file);
