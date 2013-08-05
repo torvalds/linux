@@ -1240,16 +1240,33 @@ static irqreturn_t rk_mmc_interrupt(int irq, void *dev_id)
 #define EMMC_FLAHS_SEL	(1<<11)
 static int internal_storage_is_emmc(void)
 {
+#ifdef CONFIG_ARCH_RK3026
+	if((iomux_is_set(EMMC_CLKOUT) == 1) &&
+	   (iomux_is_set(EMMC_CMD) == 1) &&
+	   (iomux_is_set(EMMC_D0) == 1))
+		return 1;
+#else
 	if(readl_relaxed(RK30_GRF_BASE + GRF_SOC_CON0) & EMMC_FLAHS_SEL)
 		return 1;
-	else
-		return 0;
+#endif
+	return 0;
 }
 static void rk_mmc_set_iomux(void)
 {
 	iomux_set(EMMC_CLKOUT);
 	iomux_set(EMMC_CMD);
 	iomux_set(EMMC_RSTNOUT);
+#ifdef CONFIG_ARCH_RK3026
+	iomux_set(EMMC_PWREN);
+	iomux_set(EMMC_D0);
+	iomux_set(EMMC_D1);
+	iomux_set(EMMC_D2);
+	iomux_set(EMMC_D3);
+	iomux_set(EMMC_D4);
+	iomux_set(EMMC_D5);
+	iomux_set(EMMC_D6);
+	iomux_set(EMMC_D7);
+#endif
 }
 
 static int rk_mmc_probe(struct platform_device *pdev)
