@@ -682,17 +682,6 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		 */
 	}
 
-	/*
-	 * Does the new cr3 value map to physical memory? (Note, we
-	 * catch an invalid cr3 even in real-mode, because it would
-	 * cause trouble later on when we turn on paging anyway.)
-	 *
-	 * A real CPU would silently accept an invalid cr3 and would
-	 * attempt to use it - with largely undefined (and often hard
-	 * to debug) behavior on the guest side.
-	 */
-	if (unlikely(!gfn_to_memslot(vcpu->kvm, cr3 >> PAGE_SHIFT)))
-		return 1;
 	vcpu->arch.cr3 = cr3;
 	__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
 	vcpu->arch.mmu.new_cr3(vcpu);
