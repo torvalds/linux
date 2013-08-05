@@ -257,7 +257,7 @@ static void tile_dma_unmap_page(struct device *dev, dma_addr_t dma_address,
 	BUG_ON(!valid_dma_direction(direction));
 
 	__dma_complete_page(pfn_to_page(PFN_DOWN(dma_address)),
-			    dma_address & PAGE_OFFSET, size, direction);
+			    dma_address & (PAGE_SIZE - 1), size, direction);
 }
 
 static void tile_dma_sync_single_for_cpu(struct device *dev,
@@ -436,7 +436,7 @@ static void tile_pci_dma_unmap_page(struct device *dev, dma_addr_t dma_address,
 	dma_address -= get_dma_offset(dev);
 
 	__dma_complete_page(pfn_to_page(PFN_DOWN(dma_address)),
-			    dma_address & PAGE_OFFSET, size, direction);
+			    dma_address & (PAGE_SIZE - 1), size, direction);
 }
 
 static void tile_pci_dma_sync_single_for_cpu(struct device *dev,
