@@ -708,8 +708,7 @@ static struct resource sw_ehci2_resources[] = {
 };
 
 static struct platform_device sw_usb_ehci_device[] = {
-	[0] = { /* TODO: remove */ },
-	[1] = {
+	[0] = {
 	       .name = ehci_name,
 	       .id = 1,
 	       .dev = {
@@ -721,7 +720,7 @@ static struct platform_device sw_usb_ehci_device[] = {
 	       .num_resources = ARRAY_SIZE(sw_ehci1_resources),
 	       },
 
-	[2] = {
+	[1] = {
 	       .name = ehci_name,
 	       .id = 2,
 	       .dev = {
@@ -777,8 +776,7 @@ static struct resource sw_ohci2_resources[] = {
 };
 
 static struct platform_device sw_usb_ohci_device[] = {
-	[0] = { /* TODO: remove */ },
-	[1] = {
+	[0] = {
 	       .name = ohci_name,
 	       .id = 1,
 	       .dev = {
@@ -789,7 +787,7 @@ static struct platform_device sw_usb_ohci_device[] = {
 	       .resource = sw_ohci1_resources,
 	       .num_resources = ARRAY_SIZE(sw_ohci1_resources),
 	       },
-	[2] = {
+	[1] = {
 	       .name = ohci_name,
 	       .id = 2,
 	       .dev = {
@@ -926,15 +924,15 @@ static int __init sw_hci_sunxi_init(void)
 
 /* XXX '.used' flag is for USB port, not for EHCI or OHCI. So it can be checked this way */
 	if (sw_ehci1.used) {
-		platform_device_register(&sw_usb_ehci_device[1]);
-		platform_device_register(&sw_usb_ohci_device[1]);
+		platform_device_register(&sw_usb_ehci_device[0]);
+		platform_device_register(&sw_usb_ohci_device[0]);
 	} else {
 /*      DMSG_PANIC("ERR: usb%d %s is disabled in script.bin\n", sw_ehci1.usbc_no, sw_ehci1.hci_name); */
 	}
 
 	if (sw_ehci2.used) {
-		platform_device_register(&sw_usb_ehci_device[2]);
-		platform_device_register(&sw_usb_ohci_device[2]);
+		platform_device_register(&sw_usb_ehci_device[1]);
+		platform_device_register(&sw_usb_ohci_device[1]);
 	} else {
 /*      DMSG_PANIC("ERR: usb%d %s is disabled in script.bin\n", sw_ehci2.usbc_no, sw_ehci2.hci_name); */
 	}
@@ -949,8 +947,8 @@ static void __exit sw_hci_sunxi_exit(void)
 {
 /* XXX '.used' flag is for USB port, not for EHCI or OHCI. So it can be checked this way */
 	if (sw_ehci1.used) {
-		platform_device_unregister(&sw_usb_ehci_device[1]);
-		platform_device_unregister(&sw_usb_ohci_device[1]);
+		platform_device_unregister(&sw_usb_ehci_device[0]);
+		platform_device_unregister(&sw_usb_ohci_device[0]);
 
 		exit_sw_hci(&sw_ehci1, 0);
 		exit_sw_hci(&sw_ohci1, 1);
@@ -959,8 +957,8 @@ static void __exit sw_hci_sunxi_exit(void)
 	}
 
 	if (sw_ehci2.used) {
-		platform_device_unregister(&sw_usb_ehci_device[2]);
-		platform_device_unregister(&sw_usb_ohci_device[2]);
+		platform_device_unregister(&sw_usb_ehci_device[1]);
+		platform_device_unregister(&sw_usb_ohci_device[1]);
 
 		exit_sw_hci(&sw_ehci2, 0);
 		exit_sw_hci(&sw_ohci2, 1);
