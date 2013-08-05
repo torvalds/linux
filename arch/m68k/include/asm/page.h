@@ -48,6 +48,9 @@ extern unsigned long _ramend;
 #include <asm/page_no.h>
 #endif
 
+#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
+				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
 #include <asm-generic/getorder.h>
 
 #endif /* _M68K_PAGE_H */
