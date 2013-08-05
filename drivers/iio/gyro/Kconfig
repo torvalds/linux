@@ -1,6 +1,8 @@
 #
 # IIO Digital Gyroscope Sensor drivers configuration
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Digital gyroscope sensors"
 
 config ADIS16080
@@ -25,6 +27,18 @@ config ADIS16136
 	help
 	  Say yes here to build support for the Analog Devices ADIS16133, ADIS16135,
 	  ADIS16136 gyroscope devices.
+
+config ADIS16260
+	tristate "Analog Devices ADIS16260 Digital Gyroscope Sensor SPI driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices ADIS16260 ADIS16265
+	  ADIS16250 ADIS16255 and ADIS16251 programmable digital gyroscope sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called adis16260.
 
 config ADXRS450
 	tristate "Analog Devices ADXRS450/3 Digital Output Gyroscope SPI driver"
@@ -58,8 +72,8 @@ config IIO_ST_GYRO_3AXIS
 	  Say yes here to build support for STMicroelectronics gyroscopes:
 	  L3G4200D, LSM330DL, L3GD20, L3GD20H, LSM330DLC, L3G4IS, LSM330.
 
-	  This driver can also be built as a module. If so, will be created
-	  these modules:
+	  This driver can also be built as a module. If so, these modules
+	  will be created:
 	  - st_gyro (core functions for the driver [it is mandatory]);
 	  - st_gyro_i2c (necessary for the I2C devices [optional*]);
 	  - st_gyro_spi (necessary for the SPI devices [optional*]);

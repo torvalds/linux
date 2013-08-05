@@ -237,6 +237,10 @@ MEM
   devm_kzalloc()
   devm_kfree()
 
+IIO
+  devm_iio_device_alloc()
+  devm_iio_device_free()
+
 IO region
   devm_request_region()
   devm_request_mem_region()

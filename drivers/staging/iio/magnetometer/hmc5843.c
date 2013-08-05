@@ -20,12 +20,10 @@
 */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/slab.h>
-#include <linux/types.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/delay.h>
 
 #define HMC5843_CONFIG_REG_A			0x00
 #define HMC5843_CONFIG_REG_B			0x01
@@ -42,23 +40,12 @@
 #define HMC5883_DATA_OUT_Y_MSB_REG		0x07
 #define HMC5883_DATA_OUT_Y_LSB_REG		0x08
 #define HMC5843_STATUS_REG			0x09
-#define HMC5843_ID_REG_A			0x0A
-#define HMC5843_ID_REG_B			0x0B
-#define HMC5843_ID_REG_C			0x0C
 
 enum hmc5843_ids {
 	HMC5843_ID,
 	HMC5883_ID,
 	HMC5883L_ID,
 };
-
-/*
- * Beware: identification of the HMC5883 is still "H43";
- * I2C address is also unchanged
- */
-#define HMC5843_ID_REG_LENGTH			0x03
-#define HMC5843_ID_STRING			"H43"
-#define HMC5843_I2C_ADDRESS			0x1E
 
 /*
  * Range gain settings in (+-)Ga
@@ -185,14 +172,9 @@ static const char * const hmc5883_regval_to_sample_freq[] = {
 	"0.75", "1.5", "3", "7.5", "15", "30", "75",
 };
 
-/* Addresses to scan: 0x1E */
-static const unsigned short normal_i2c[] = { HMC5843_I2C_ADDRESS,
-					     I2C_CLIENT_END };
-
 /* Describe chip variants */
 struct hmc5843_chip_info {
 	const struct iio_chan_spec *channels;
-	int num_channels;
 	const char * const *regval_to_sample_freq;
 	const int *regval_to_input_field_mga;
 	const int *regval_to_nanoscale;
@@ -225,18 +207,29 @@ static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	struct hmc5843_data *data = iio_priv(indio_dev);
 	s32 result;
+	int tries = 150;
 
 	mutex_lock(&data->lock);
-	result = i2c_smbus_read_byte_data(client, HMC5843_STATUS_REG);
-	while (!(result & HMC5843_DATA_READY))
-		result = i2c_smbus_read_byte_data(client, HMC5843_STATUS_REG);
+	while (tries-- > 0) {
+		result = i2c_smbus_read_byte_data(client,
+			HMC5843_STATUS_REG);
+		if (result & HMC5843_DATA_READY)
+			break;
+		msleep(20);
+	}
 
-	result = i2c_smbus_read_word_data(client, address);
+	if (tries < 0) {
+		dev_err(&client->dev, "data not ready\n");
+		mutex_unlock(&data->lock);
+		return -EIO;
+	}
+
+	result = i2c_smbus_read_word_swapped(client, address);
 	mutex_unlock(&data->lock);
 	if (result < 0)
 		return -EINVAL;
 
-	*val = (s16)swab16((u16)result);
+	*val = result;
 	return IIO_VAL_INT;
 }
 
@@ -559,14 +552,14 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-#define HMC5843_CHANNEL(axis, add)					\
+#define HMC5843_CHANNEL(axis, addr)					\
 	{								\
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
-		.address = add						\
+		.address = addr						\
 	}
 
 static const struct iio_chan_spec hmc5843_channels[] = {
@@ -597,7 +590,6 @@ static const struct attribute_group hmc5843_group = {
 static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 	[HMC5843_ID] = {
 		.channels = hmc5843_channels,
-		.num_channels = ARRAY_SIZE(hmc5843_channels),
 		.regval_to_sample_freq = hmc5843_regval_to_sample_freq,
 		.regval_to_input_field_mga =
 			hmc5843_regval_to_input_field_mga,
@@ -605,7 +597,6 @@ static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 	},
 	[HMC5883_ID] = {
 		.channels = hmc5883_channels,
-		.num_channels = ARRAY_SIZE(hmc5883_channels),
 		.regval_to_sample_freq = hmc5883_regval_to_sample_freq,
 		.regval_to_input_field_mga =
 			hmc5883_regval_to_input_field_mga,
@@ -613,32 +604,12 @@ static const struct hmc5843_chip_info hmc5843_chip_info_tbl[] = {
 	},
 	[HMC5883L_ID] = {
 		.channels = hmc5883_channels,
-		.num_channels = ARRAY_SIZE(hmc5883_channels),
 		.regval_to_sample_freq = hmc5883_regval_to_sample_freq,
 		.regval_to_input_field_mga =
 			hmc5883l_regval_to_input_field_mga,
 		.regval_to_nanoscale = hmc5883l_regval_to_nanoscale,
 	},
 };
-
-static int hmc5843_detect(struct i2c_client *client,
-			  struct i2c_board_info *info)
-{
-	unsigned char id_str[HMC5843_ID_REG_LENGTH];
-
-	if (client->addr != HMC5843_I2C_ADDRESS)
-		return -ENODEV;
-
-	if (i2c_smbus_read_i2c_block_data(client, HMC5843_ID_REG_A,
-				HMC5843_ID_REG_LENGTH, id_str)
-			!= HMC5843_ID_REG_LENGTH)
-		return -ENODEV;
-
-	if (0 != strncmp(id_str, HMC5843_ID_STRING, HMC5843_ID_REG_LENGTH))
-		return -ENODEV;
-
-	return 0;
-}
 
 /* Called when we have found a new HMC58X3 */
 static void hmc5843_init_client(struct i2c_client *client,
@@ -649,7 +620,7 @@ static void hmc5843_init_client(struct i2c_client *client,
 
 	data->variant = &hmc5843_chip_info_tbl[id->driver_data];
 	indio_dev->channels = data->variant->channels;
-	indio_dev->num_channels = data->variant->num_channels;
+	indio_dev->num_channels = 3;
 	hmc5843_set_meas_conf(client, data->meas_conf);
 	hmc5843_set_rate(client, data->rate);
 	hmc5843_configure(client, data->operating_mode);
@@ -756,8 +727,6 @@ static struct i2c_driver hmc5843_driver = {
 	.id_table	= hmc5843_id,
 	.probe		= hmc5843_probe,
 	.remove		= hmc5843_remove,
-	.detect		= hmc5843_detect,
-	.address_list	= normal_i2c,
 };
 module_i2c_driver(hmc5843_driver);
 
