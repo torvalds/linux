@@ -50,6 +50,10 @@ static int get_ramp_delay(int ramp_delay)
 			break;
 		cnt++;
 	}
+
+	if (cnt > 3)
+		cnt = 3;
+
 	return cnt;
 }
 
@@ -203,8 +207,8 @@ static int s2mps11_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 
 	ramp_val = get_ramp_delay(ramp_delay);
 
-	return regmap_update_bits(rdev->regmap, ramp_reg,
-				  ramp_val << ramp_shift, 1 << ramp_shift);
+	return regmap_update_bits(rdev->regmap, ramp_reg, 0x3 << ramp_shift,
+				  ramp_val << ramp_shift);
 
 ramp_disable:
 	return regmap_update_bits(rdev->regmap, S2MPS11_REG_RAMP,
