@@ -267,7 +267,9 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 		.dentry	= file->f_dentry,
 		.bdst	= -1,
 		.bsrc	= -1,
-		.len	= len
+		.len	= len,
+		.pin	= pin,
+		.flags	= AuCpup_DTIME
 	};
 
 	sb = cpg.dentry->d_sb;
@@ -318,8 +320,7 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 		else {
 			di_downgrade_lock(parent, AuLock_IR);
 			if (dbstart > cpg.bdst)
-				err = au_sio_cpup_simple(&cpg, AuCpup_DTIME,
-							 pin);
+				err = au_sio_cpup_simple(&cpg);
 			if (!err)
 				err = au_reopen_nondir(file);
 			au_h_open_post(cpg.dentry, cpg.bsrc, h_file);
@@ -390,7 +391,9 @@ static int au_file_refresh_by_inode(struct file *file, int *need_reopen)
 		.dentry	= file->f_dentry,
 		.bdst	= -1,
 		.bsrc	= -1,
-		.len	= -1
+		.len	= -1,
+		.pin	= &pin,
+		.flags	= AuCpup_DTIME
 	};
 
 	FiMustWriteLock(file);
@@ -429,7 +432,7 @@ static int au_file_refresh_by_inode(struct file *file, int *need_reopen)
 		err = au_pin(&pin, cpg.dentry, cpg.bdst, AuOpt_UDBA_NONE,
 			     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
 		if (!err) {
-			err = au_sio_cpup_simple(&cpg, AuCpup_DTIME, &pin);
+			err = au_sio_cpup_simple(&cpg);
 			au_unpin(&pin);
 		}
 	} else if (hi_wh) {

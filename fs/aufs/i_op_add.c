@@ -361,7 +361,9 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 		.dentry	= src_dentry,
 		.bdst	= a->bdst,
 		.bsrc	= a->bsrc,
-		.len	= -1
+		.len	= -1,
+		.pin	= &a->pin,
+		.flags	= AuCpup_DTIME | AuCpup_HOPEN /* | AuCpup_KEEPLINO */
 	};
 
 	di_read_lock_parent(a->src_parent, AuLock_IR);
@@ -376,9 +378,7 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 	if (unlikely(err))
 		goto out;
 
-	err = au_sio_cpup_simple(&cpg, AuCpup_DTIME | AuCpup_HOPEN,
-				 /* AuCpup_KEEPLINO */
-				 &a->pin);
+	err = au_sio_cpup_simple(&cpg);
 	au_unpin(&a->pin);
 
 out:
@@ -421,10 +421,11 @@ static int au_cpup_or_link(struct dentry *src_dentry, struct dentry *dentry,
 				.dentry	= dentry,
 				.bdst	= a->bdst,
 				.bsrc	= -1,
-				.len	= -1
+				.len	= -1,
+				.pin	= &a->pin,
+				.flags	= AuCpup_KEEPLINO
 			};
-			err = au_sio_cpup_simple(&cpg, AuCpup_KEEPLINO,
-						 &a->pin);
+			err = au_sio_cpup_simple(&cpg);
 			au_h_open_post(dentry, a->bsrc, h_file);
 			if (!err) {
 				dput(a->h_path.dentry);

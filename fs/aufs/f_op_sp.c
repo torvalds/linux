@@ -186,7 +186,9 @@ static int au_cpup_sp(struct dentry *dentry)
 		.dentry	= dentry,
 		.bdst	= -1,
 		.bsrc	= -1,
-		.len	= -1
+		.len	= -1,
+		.pin	= &pin,
+		.flags	= AuCpup_DTIME
 	};
 
 	AuDbg("%.*s\n", AuDLNPair(dentry));
@@ -204,7 +206,7 @@ static int au_cpup_sp(struct dentry *dentry)
 	err = au_pin(&pin, dentry, cpg.bdst, au_opt_udba(dentry->d_sb),
 		     AuPin_MNT_WRITE);
 	if (!err) {
-		err = au_sio_cpup_simple(&cpg, AuCpup_DTIME, &pin);
+		err = au_sio_cpup_simple(&cpg);
 		au_unpin(&pin);
 	}
 

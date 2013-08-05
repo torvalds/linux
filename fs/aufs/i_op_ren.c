@@ -933,12 +933,12 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 				.dentry	= a->src_dentry,
 				.bdst	= a->btgt,
 				.bsrc	= a->src_bstart,
-				.len	= -1
+				.len	= -1,
+				.pin	= &pin,
+				.flags	= AuCpup_DTIME | AuCpup_HOPEN
 			};
 			AuDebugOn(au_dbstart(a->src_dentry) != a->src_bstart);
-			err = au_sio_cpup_simple(&cpg,
-						 AuCpup_DTIME | AuCpup_HOPEN,
-						 &pin);
+			err = au_sio_cpup_simple(&cpg);
 			au_unpin(&pin);
 		}
 		if (unlikely(err))

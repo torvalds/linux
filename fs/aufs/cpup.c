@@ -840,8 +840,7 @@ int au_sio_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
  * copyup the @dentry from the first active lower branch to @bdst,
  * using au_cpup_single().
  */
-static int au_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
-			  struct au_pin *pin)
+static int au_cpup_simple(struct au_cp_generic *cpg)
 {
 	int err;
 	unsigned int flags_orig;
@@ -868,7 +867,6 @@ static int au_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
 	if (!err) {
 		flags_orig = cpg->flags;
 		au_fset_cpup(cpg->flags, RENAME);
-		cpg->pin = pin; /* tmp for git-commit */
 		err = au_cpup_single(cpg, NULL);
 		cpg->flags = flags_orig;
 		if (!err)
@@ -885,21 +883,18 @@ static int au_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
 struct au_cpup_simple_args {
 	int *errp;
 	struct au_cp_generic *cpg;
-	unsigned int flags;
-	struct au_pin *pin;
 };
 
 static void au_call_cpup_simple(void *args)
 {
 	struct au_cpup_simple_args *a = args;
 
-	au_pin_hdir_acquire_nest(a->pin);
-	*a->errp = au_cpup_simple(a->cpg, a->flags, a->pin);
-	au_pin_hdir_release(a->pin);
+	au_pin_hdir_acquire_nest(a->cpg->pin);
+	*a->errp = au_cpup_simple(a->cpg);
+	au_pin_hdir_release(a->cpg->pin);
 }
 
-int au_sio_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
-		       struct au_pin *pin)
+int au_sio_cpup_simple(struct au_cp_generic *cpg)
 {
 	int err, wkq_err;
 	struct dentry *dentry, *parent;
@@ -908,7 +903,7 @@ int au_sio_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
 
 	dentry = cpg->dentry;
 	h_file = NULL;
-	if (au_ftest_cpup(flags, HOPEN)) {
+	if (au_ftest_cpup(cpg->flags, HOPEN)) {
 		AuDebugOn(cpg->bsrc < 0);
 		h_file = au_h_open_pre(dentry, cpg->bsrc);
 		err = PTR_ERR(h_file);
@@ -919,14 +914,12 @@ int au_sio_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
 	parent = dget_parent(dentry);
 	h_dir = au_h_iptr(parent->d_inode, cpg->bdst);
 	if (!au_test_h_perm_sio(h_dir, MAY_EXEC | MAY_WRITE)
-	    && !au_cpup_sio_test(pin, dentry->d_inode->i_mode))
-		err = au_cpup_simple(cpg, flags, pin);
+	    && !au_cpup_sio_test(cpg->pin, dentry->d_inode->i_mode))
+		err = au_cpup_simple(cpg);
 	else {
 		struct au_cpup_simple_args args = {
 			.errp		= &err,
-			.cpg		= cpg,
-			.flags		= flags,
-			.pin		= pin
+			.cpg		= cpg
 		};
 		wkq_err = au_wkq_wait(au_call_cpup_simple, &args);
 		if (unlikely(wkq_err))
@@ -1195,9 +1188,11 @@ static int au_cpup_dir(struct dentry *dentry, aufs_bindex_t bdst,
 		.dentry	= dentry,
 		.bdst	= bdst,
 		.bsrc	= -1,
-		.len	= 0
+		.len	= 0,
+		.pin	= pin,
+		.flags	= AuCpup_DTIME
 	};
-	return au_sio_cpup_simple(&cpg, AuCpup_DTIME, pin);
+	return au_sio_cpup_simple(&cpg);
 }
 
 int au_cpup_dirs(struct dentry *dentry, aufs_bindex_t bdst)

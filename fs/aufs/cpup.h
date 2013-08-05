@@ -62,8 +62,7 @@ struct au_cp_generic {
 	do { (flags) &= ~AuCpup_##name; } while (0)
 
 int au_copy_file(struct file *dst, struct file *src, loff_t len);
-int au_sio_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
-		       struct au_pin *pin);
+int au_sio_cpup_simple(struct au_cp_generic *cpg);
 int au_sio_cpup_wh(struct au_cp_generic *cpg, struct file *file);
 
 int au_cp_dirs(struct dentry *dentry, aufs_bindex_t bdst,
