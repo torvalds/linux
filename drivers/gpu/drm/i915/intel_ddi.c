@@ -94,15 +94,8 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		hsw_ddi_translations_fdi :
 		hsw_ddi_translations_dp);
 
-	DRM_DEBUG_DRIVER("Initializing DDI buffers for port %c in %s mode\n",
-			port_name(port),
-			use_fdi_mode ? "FDI" : "DP");
-
-	WARN((use_fdi_mode && (port != PORT_E)),
-		"Programming port %c in FDI mode, this probably will not work.\n",
-		port_name(port));
-
-	for (i=0, reg=DDI_BUF_TRANS(port); i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
+	for (i = 0, reg = DDI_BUF_TRANS(port);
+	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
 		I915_WRITE(reg, ddi_translations[i]);
 		reg += 4;
 	}
