@@ -160,7 +160,6 @@ struct da8xx_fb_par {
 	struct clk *lcdc_clk;
 	int irq;
 	unsigned int palette_sz;
-	unsigned int pxl_clk;
 	int blank;
 	wait_queue_head_t	vsync_wait;
 	int			vsync_flag;
@@ -201,7 +200,7 @@ static struct fb_videomode known_lcd_panels[] = {
 		.name           = "Sharp_LCD035Q3DG01",
 		.xres           = 320,
 		.yres           = 240,
-		.pixclock       = 4608000,
+		.pixclock       = KHZ2PICOS(4607),
 		.left_margin    = 6,
 		.right_margin   = 8,
 		.upper_margin   = 2,
@@ -216,7 +215,7 @@ static struct fb_videomode known_lcd_panels[] = {
 		.name           = "Sharp_LK043T1DG01",
 		.xres           = 480,
 		.yres           = 272,
-		.pixclock       = 7833600,
+		.pixclock       = KHZ2PICOS(7833),
 		.left_margin    = 2,
 		.right_margin   = 2,
 		.upper_margin   = 2,
@@ -231,7 +230,7 @@ static struct fb_videomode known_lcd_panels[] = {
 		.name           = "SP10Q010",
 		.xres           = 320,
 		.yres           = 240,
-		.pixclock       = 7833600,
+		.pixclock       = KHZ2PICOS(7833),
 		.left_margin    = 10,
 		.right_margin   = 10,
 		.upper_margin   = 10,
@@ -680,13 +679,14 @@ static void da8xx_fb_lcd_reset(void)
 	}
 }
 
-static void lcd_calc_clk_divider(struct da8xx_fb_par *par)
+static inline unsigned da8xx_fb_calc_clk_divider(struct da8xx_fb_par *par,
+						 unsigned pixclock)
 {
-	unsigned int lcd_clk, div;
+	return par->lcd_fck_rate / (PICOS2KHZ(pixclock) * 1000);
+}
 
-	lcd_clk = clk_get_rate(par->lcdc_clk);
-	div = lcd_clk / par->pxl_clk;
-
+static inline void da8xx_fb_config_clk_divider(unsigned div)
+{
 	/* Configure the LCD clock divisor. */
 	lcdc_write(LCD_CLK_DIVISOR(div) |
 			(LCD_RASTER_MODE & 0x1), LCD_CTRL_REG);
@@ -694,7 +694,14 @@ static void lcd_calc_clk_divider(struct da8xx_fb_par *par)
 	if (lcd_revision == LCD_VERSION_2)
 		lcdc_write(LCD_V2_DMA_CLK_EN | LCD_V2_LIDD_CLK_EN |
 				LCD_V2_CORE_CLK_EN, LCD_CLK_ENABLE_REG);
+}
 
+static inline void da8xx_fb_calc_config_clk_divider(struct da8xx_fb_par *par,
+						    struct fb_videomode *mode)
+{
+	unsigned div = da8xx_fb_calc_clk_divider(par, mode->pixclock);
+
+	da8xx_fb_config_clk_divider(div);
 }
 
 static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
@@ -705,8 +712,7 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 
 	da8xx_fb_lcd_reset();
 
-	/* Calculate the divider */
-	lcd_calc_clk_divider(par);
+	da8xx_fb_calc_config_clk_divider(par, panel);
 
 	if (panel->sync & FB_SYNC_CLK_INVERT)
 		lcdc_write((lcdc_read(LCD_RASTER_TIMING_2_REG) |
@@ -969,7 +975,7 @@ static int lcd_da8xx_cpufreq_transition(struct notifier_block *nb,
 		if (par->lcd_fck_rate != clk_get_rate(par->lcdc_clk)) {
 			par->lcd_fck_rate = clk_get_rate(par->lcdc_clk);
 			lcd_disable_raster(true);
-			lcd_calc_clk_divider(par);
+			da8xx_fb_calc_config_clk_divider(par, &par->mode);
 			if (par->blank == FB_BLANK_UNBLANK)
 				lcd_enable_raster();
 		}
@@ -1195,22 +1201,6 @@ static struct fb_ops da8xx_fb_ops = {
 	.fb_blank = cfb_blank,
 };
 
-/* Calculate and return pixel clock period in pico seconds */
-static unsigned int da8xxfb_pixel_clk_period(struct da8xx_fb_par *par)
-{
-	unsigned int lcd_clk, div;
-	unsigned int configured_pix_clk;
-	unsigned long long pix_clk_period_picosec = 1000000000000ULL;
-
-	lcd_clk = clk_get_rate(par->lcdc_clk);
-	div = lcd_clk / par->pxl_clk;
-	configured_pix_clk = (lcd_clk / div);
-
-	do_div(pix_clk_period_picosec, configured_pix_clk);
-
-	return pix_clk_period_picosec;
-}
-
 static int fb_probe(struct platform_device *device)
 {
 	struct da8xx_lcdc_platform_data *fb_pdata =
@@ -1303,7 +1293,6 @@ static int fb_probe(struct platform_device *device)
 	par = da8xx_fb_info->par;
 	par->lcdc_clk = fb_clk;
 	par->lcd_fck_rate = clk_get_rate(fb_clk);
-	par->pxl_clk = lcdc_info->pixclock;
 	if (fb_pdata->panel_power_ctrl) {
 		par->panel_power_ctrl = fb_pdata->panel_power_ctrl;
 		par->panel_power_ctrl(1);
@@ -1368,7 +1357,6 @@ static int fb_probe(struct platform_device *device)
 	da8xx_fb_var.grayscale =
 	    lcd_cfg->panel_shade == MONOCHROME ? 1 : 0;
 	da8xx_fb_var.bits_per_pixel = lcd_cfg->bpp;
-	da8xx_fb_var.pixclock = da8xxfb_pixel_clk_period(par);
 
 	/* Initialize fbinfo */
 	da8xx_fb_info->flags = FBINFO_FLAG_DEFAULT;
