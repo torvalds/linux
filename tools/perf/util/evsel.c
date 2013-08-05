@@ -13,6 +13,7 @@
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
+#include <sys/resource.h>
 #include "asm/bug.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -867,6 +868,7 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	int cpu, thread;
 	unsigned long flags = 0;
 	int pid = -1, err;
+	enum { NO_CHANGE, SET_TO_MAX, INCREASED_MAX } set_rlimit = NO_CHANGE;
 
 	if (evsel->fd == NULL &&
 	    perf_evsel__alloc_fd(evsel, cpus->nr, threads->nr) < 0)
@@ -894,6 +896,7 @@ retry_sample_id:
 
 			group_fd = get_group_fd(evsel, cpu, thread);
 
+retry_open:
 			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
 								     pid,
 								     cpus->map[cpu],
@@ -902,12 +905,37 @@ retry_sample_id:
 				err = -errno;
 				goto try_fallback;
 			}
+			set_rlimit = NO_CHANGE;
 		}
 	}
 
 	return 0;
 
 try_fallback:
+	/*
+	 * perf stat needs between 5 and 22 fds per CPU. When we run out
+	 * of them try to increase the limits.
+	 */
+	if (err == -EMFILE && set_rlimit < INCREASED_MAX) {
+		struct rlimit l;
+		int old_errno = errno;
+
+		if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
+			if (set_rlimit == NO_CHANGE)
+				l.rlim_cur = l.rlim_max;
+			else {
+				l.rlim_cur = l.rlim_max + 1000;
+				l.rlim_max = l.rlim_cur;
+			}
+			if (setrlimit(RLIMIT_NOFILE, &l) == 0) {
+				set_rlimit++;
+				errno = old_errno;
+				goto retry_open;
+			}
+		}
+		errno = old_errno;
+	}
+
 	if (err != -EINVAL || cpu > 0 || thread > 0)
 		goto out_close;
 
