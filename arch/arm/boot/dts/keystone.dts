@@ -7,7 +7,7 @@
  */
 
 /dts-v1/;
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	model = "Texas Instruments Keystone 2 SoC";
