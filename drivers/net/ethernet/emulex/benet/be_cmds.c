@@ -1010,9 +1010,9 @@ static u32 be_encoded_q_len(int q_len)
 	return len_encoded;
 }
 
-int be_cmd_mccq_ext_create(struct be_adapter *adapter,
-			struct be_queue_info *mccq,
-			struct be_queue_info *cq)
+static int be_cmd_mccq_ext_create(struct be_adapter *adapter,
+				struct be_queue_info *mccq,
+				struct be_queue_info *cq)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_mcc_ext_create *req;
@@ -1068,9 +1068,9 @@ int be_cmd_mccq_ext_create(struct be_adapter *adapter,
 	return status;
 }
 
-int be_cmd_mccq_org_create(struct be_adapter *adapter,
-			struct be_queue_info *mccq,
-			struct be_queue_info *cq)
+static int be_cmd_mccq_org_create(struct be_adapter *adapter,
+				struct be_queue_info *mccq,
+				struct be_queue_info *cq)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_mcc_create *req;
@@ -3163,8 +3163,8 @@ err:
 }
 
 /* Uses mbox */
-int be_cmd_get_profile_config_mbox(struct be_adapter *adapter,
-				   u8 domain, struct be_dma_mem *cmd)
+static int be_cmd_get_profile_config_mbox(struct be_adapter *adapter,
+					u8 domain, struct be_dma_mem *cmd)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_profile_config *req;
@@ -3191,8 +3191,8 @@ int be_cmd_get_profile_config_mbox(struct be_adapter *adapter,
 }
 
 /* Uses sync mcc */
-int be_cmd_get_profile_config_mccq(struct be_adapter *adapter,
-				   u8 domain, struct be_dma_mem *cmd)
+static int be_cmd_get_profile_config_mccq(struct be_adapter *adapter,
+					u8 domain, struct be_dma_mem *cmd)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_profile_config *req;

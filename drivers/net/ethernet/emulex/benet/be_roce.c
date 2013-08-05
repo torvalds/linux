@@ -93,7 +93,7 @@ void be_roce_dev_add(struct be_adapter *adapter)
 	}
 }
 
-void _be_roce_dev_remove(struct be_adapter *adapter)
+static void _be_roce_dev_remove(struct be_adapter *adapter)
 {
 	if (ocrdma_drv && ocrdma_drv->remove && adapter->ocrdma_dev)
 		ocrdma_drv->remove(adapter->ocrdma_dev);
@@ -110,7 +110,7 @@ void be_roce_dev_remove(struct be_adapter *adapter)
 	}
 }
 
-void _be_roce_dev_open(struct be_adapter *adapter)
+static void _be_roce_dev_open(struct be_adapter *adapter)
 {
 	if (ocrdma_drv && adapter->ocrdma_dev &&
 	    ocrdma_drv->state_change_handler)
@@ -126,7 +126,7 @@ void be_roce_dev_open(struct be_adapter *adapter)
 	}
 }
 
-void _be_roce_dev_close(struct be_adapter *adapter)
+static void _be_roce_dev_close(struct be_adapter *adapter)
 {
 	if (ocrdma_drv && adapter->ocrdma_dev &&
 	    ocrdma_drv->state_change_handler)
