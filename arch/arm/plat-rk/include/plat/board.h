@@ -555,8 +555,7 @@ void __sramfunc board_pmu_resume(void);
  * For DDR frequency scaling setup. Board code something like this:
  *
  * This array _must_ be sorted in ascending frequency (without DDR_FREQ_*) order.
- * 必须按频率（不必考虑DDR_FREQ_*）递增。
- *static struct cpufreq_frequency_table dvfs_ddr_table[] = {
+ * 必须按频率（不必考虑DDR_FREQ_*）递增�? *static struct cpufreq_frequency_table dvfs_ddr_table[] = {
  *	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,	.index = xxxx * 1000},
  *	{.frequency = 200 * 1000 + DDR_FREQ_IDLE,	.index = xxxx * 1000},
  *	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,	.index = xxxx * 1000},
@@ -565,11 +564,12 @@ void __sramfunc board_pmu_resume(void);
  *};
  */
 enum ddr_freq_mode {
-	DDR_FREQ_NORMAL = 1,	// default
-	DDR_FREQ_VIDEO,		// when video is playing
-       DDR_FREQ_DUALVIEW,     // when dual view,lcdc0 and lcdc1 open at the same time
-	DDR_FREQ_IDLE,		// when screen is idle
-	DDR_FREQ_SUSPEND,	// when early suspend
+	DDR_FREQ_SUSPEND=(0x1<<0),	// when early suspend
+	DDR_FREQ_VIDEO=(0x1<<1),		// when video is playing
+	DDR_FREQ_VIDEO_LOW=(0x1<<2),                // when video is playing low
+	DDR_FREQ_DUALVIEW=(0x1<<3),     // when dual view,lcdc0 and lcdc1 open at the same time
+	DDR_FREQ_IDLE=(0x1<<4),		// when screen is idle
+	DDR_FREQ_NORMAL=(0x1<<8),      // default
 };
 
 #endif

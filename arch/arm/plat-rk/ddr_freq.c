@@ -18,6 +18,13 @@
 #include <mach/ddr.h>
 #include <mach/dvfs.h>
 
+#include <linux/rk_fb.h>
+//#include <linux/delay.h>
+
+#include <asm/cacheflush.h>
+#include <asm/tlbflush.h>
+#include <linux/vmalloc.h>
+
 enum {
 	DEBUG_DDR = 1U << 0,
 	DEBUG_VIDEO_STATE = 1U << 1,
@@ -34,13 +41,15 @@ module_param(debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 enum SYS_STATUS {
 	SYS_STATUS_SUSPEND = 0,	// 0x01
 	SYS_STATUS_VIDEO,	// 0x02
-	SYS_STATUS_GPU,		// 0x04
-	SYS_STATUS_RGA,		// 0x08
-	SYS_STATUS_CIF0,	// 0x10
-	SYS_STATUS_CIF1,	// 0x20
-	SYS_STATUS_REBOOT,	// 0x40
-	SYS_STATUS_LCDC0,	// 0x80
-	SYS_STATUS_LCDC1,	// 0x100
+	SYS_STATUS_VIDEO_720P,       // 0x04
+	SYS_STATUS_VIDEO_1080P,       // 0x08
+	SYS_STATUS_GPU,		// 0x10
+	SYS_STATUS_RGA,		// 0x20
+	SYS_STATUS_CIF0,	// 0x40
+	SYS_STATUS_CIF1,	// 0x80
+	SYS_STATUS_REBOOT,	// 0x100
+	SYS_STATUS_LCDC0,	// 0x200
+	SYS_STATUS_LCDC1,	// 0x400
 };
 
 struct ddr {
@@ -51,6 +60,7 @@ struct ddr {
 	struct clk *clk;
 	unsigned long normal_rate;
 	unsigned long video_rate;
+	unsigned long video_low_rate;
        unsigned long dualview_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
@@ -117,8 +127,13 @@ static noinline void ddrfreq_work(unsigned long sys_status)
 	      && (s & (1 << SYS_STATUS_LCDC1))
 	      ) {
 		ddrfreq_mode(false, &ddr.dualview_rate, "dual-view");
-	} else if (ddr.video_rate && (s & (1 << SYS_STATUS_VIDEO))) {
-		ddrfreq_mode(false, &ddr.video_rate, "video");
+	} else if ((ddr.video_rate || ddr.video_low_rate) && (s & (1 << SYS_STATUS_VIDEO))) {
+		if(ddr.video_low_rate && (s & (1 << SYS_STATUS_VIDEO_720P)))
+			ddrfreq_mode(false, &ddr.video_low_rate, "video low");
+		else if(ddr.video_rate && (s & (1 << SYS_STATUS_VIDEO_1080P)))
+			ddrfreq_mode(false, &ddr.video_rate, "video");
+		else
+			ddrfreq_mode(false, &ddr.normal_rate, "video normal");
 	} else if (ddr.idle_rate
 		&& !(s & (1 << SYS_STATUS_GPU))
 		&& !(s & (1 << SYS_STATUS_RGA))
@@ -174,11 +189,12 @@ static void __sramfunc pause_cpu(void *info)
 	local_irq_restore(flags);
 }
 
-static void _ddr_change_freq(uint32_t nMHz)
+static int _ddr_change_freq_(uint32_t nMHz,struct ddr_freq_t ddr_freq_t)
 {
 	u32 timeout = MAX_TIMEOUT;
 	unsigned int cpu;
 	unsigned int this_cpu = smp_processor_id();
+	int ret;
 
 	cpu_maps_update_begin();
 
@@ -195,12 +211,45 @@ static void _ddr_change_freq(uint32_t nMHz)
 		}
 	}
 
-	ddr_change_freq(nMHz);
+	ret = ddr_change_freq_sram(nMHz,ddr_freq_t);
 
 	set_other_cpus_pause(false);
 
 out:
 	cpu_maps_update_done();
+
+	return ret;
+}
+
+static void _ddr_change_freq(uint32_t nMHz)
+{
+	struct ddr_freq_t ddr_freq_t;
+	int test_count=0;
+
+	ddr_freq_t.screen_ft_us = 0;
+	ddr_freq_t.t0 = 0;
+	ddr_freq_t.t1 = 0;
+
+#if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
+	do
+	{
+		if(rk_fb_poll_wait_frame_complete() == true)
+		{
+			ddr_freq_t.t0 = cpu_clock(0);
+			ddr_freq_t.screen_ft_us = rk_fb_get_prmry_screen_ft();
+
+			test_count++;
+			//dprintk(DEBUG_VERBOSE,"test_count=%d\n",test_count);
+			usleep_range(ddr_freq_t.screen_ft_us-test_count*1000,ddr_freq_t.screen_ft_us-test_count*1000);
+
+			flush_cache_all();
+			outer_flush_all();
+			flush_tlb_all();
+		}
+	}while(_ddr_change_freq_(nMHz,ddr_freq_t)==0);
+#else
+	_ddr_change_freq_(nMHz,ddr_freq_t);
+#endif
 }
 #else
 static void _ddr_change_freq(uint32_t nMHz)
@@ -237,27 +286,67 @@ static int video_state_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#define VIDEO_LOW_RESOLUTION       (1080*720)
 static ssize_t video_state_write(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
 	char state;
+	char *cookie_pot;
+	char *p;
+	char *buf = vzalloc(count);
+	uint32_t v_width=0,v_height=0,v_sync=0;
+	cookie_pot = buf;
 
 	if (count < 1)
 		return count;
-	if (copy_from_user(&state, buffer, 1)) {
+	if (copy_from_user(cookie_pot, buffer, count)) {
 		return -EFAULT;
 	}
 
-	dprintk(DEBUG_VIDEO_STATE, "video_state write %c\n", state);
+	dprintk(DEBUG_VIDEO_STATE, "video_state write %s,len %d\n", cookie_pot,count);
+
+	state=cookie_pot[0];
+	if( (count>=3) && (cookie_pot[2]=='w') )
+	{
+		strsep(&cookie_pot,",");
+		strsep(&cookie_pot,"=");
+		p=strsep(&cookie_pot,",");
+		v_width = simple_strtol(p,NULL,10);
+		strsep(&cookie_pot,"=");
+		p=strsep(&cookie_pot,",");
+		v_height= simple_strtol(p,NULL,10);
+		strsep(&cookie_pot,"=");
+		p=strsep(&cookie_pot,",");
+		v_sync= simple_strtol(p,NULL,10);
+		dprintk(DEBUG_VIDEO_STATE, "video_state %c,width=%d,height=%d,sync=%d\n", state,v_width,v_height,v_sync);
+	}
+
 	switch (state) {
 	case '0':
 		ddrfreq_clear_sys_status(SYS_STATUS_VIDEO);
+		ddrfreq_clear_sys_status(SYS_STATUS_VIDEO_720P);
+		ddrfreq_clear_sys_status(SYS_STATUS_VIDEO_1080P);
 		break;
 	case '1':
 		ddrfreq_set_sys_status(SYS_STATUS_VIDEO);
+
+		if( (v_width == 0) && (v_height == 0)){
+			ddrfreq_set_sys_status(SYS_STATUS_VIDEO_1080P);
+		}
+		else if(v_sync==1){
+			if(ddr.video_low_rate && ((v_width*v_height) <= VIDEO_LOW_RESOLUTION) )
+				ddrfreq_set_sys_status(SYS_STATUS_VIDEO_720P);
+			else
+				ddrfreq_set_sys_status(SYS_STATUS_VIDEO_1080P);
+		}
+		else{
+			ddrfreq_clear_sys_status(SYS_STATUS_VIDEO_720P);
+			ddrfreq_clear_sys_status(SYS_STATUS_VIDEO_1080P);
+		}
 		break;
 	default:
 		return -EINVAL;
+
 	}
 	ddr.video_state = state;
 	return count;
@@ -383,7 +472,7 @@ static int ddrfreq_init(void)
 {
 	int i, ret;
 	struct cpufreq_frequency_table *table;
-	bool new_version = false;
+	int ddrfreq_version = 0;
 
 	init_waitqueue_head(&ddr.wait);
 	ddr.video_state = '0';
@@ -409,16 +498,22 @@ static int ddrfreq_init(void)
 
 	for (i = 0; table && table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		if (table[i].frequency % 1000) {
-			new_version = true;
+			ddrfreq_version = 1;
+		}
+
+		if (table[i].frequency % 1000 > 100) {
+			ddrfreq_version = 2;
 			break;
 		}
 	}
-	if (!new_version) {
+        
+	if (ddrfreq_version==0) {
 		ddr.video_rate = 300 * MHZ;
 		ddr.dualview_rate = ddr.normal_rate;
 		ddr.suspend_rate = 200 * MHZ;
 	}
-	for (i = 0; new_version && table && table[i].frequency != CPUFREQ_TABLE_END; i++) {
+
+	for (i = 0; ddrfreq_version == 1 && table && table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		unsigned int mode = table[i].frequency % 1000;
 		unsigned long rate;
 
@@ -428,6 +523,9 @@ static int ddrfreq_init(void)
 		switch (mode) {
 		case DDR_FREQ_NORMAL:
 			ddr.normal_rate = rate;
+			break;
+		case DDR_FREQ_VIDEO_LOW:
+			ddr.video_low_rate = rate;
 			break;
 		case DDR_FREQ_VIDEO:
 			ddr.video_rate = rate;
@@ -442,6 +540,32 @@ static int ddrfreq_init(void)
 			ddr.suspend_rate = rate;
 			break;
 		}
+	}
+
+	for (i = 0; ddrfreq_version == 2 && table && table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		unsigned int mode = table[i].frequency % 1000;
+		unsigned long rate;
+
+		table[i].frequency -= mode;
+		rate = table[i].frequency * 1000;
+
+		if( (mode&DDR_FREQ_NORMAL) == DDR_FREQ_NORMAL)
+			ddr.normal_rate = rate;
+
+		if( (mode&DDR_FREQ_VIDEO_LOW) == DDR_FREQ_VIDEO_LOW)
+			ddr.video_low_rate = rate;
+
+		if( (mode&DDR_FREQ_VIDEO) == DDR_FREQ_VIDEO)
+			ddr.video_rate = rate;
+
+		if( (mode&DDR_FREQ_DUALVIEW) == DDR_FREQ_DUALVIEW)
+			ddr.dualview_rate= rate;
+
+		if( (mode&DDR_FREQ_IDLE) == DDR_FREQ_IDLE)
+			ddr.idle_rate = rate;
+
+		if( (mode&DDR_FREQ_SUSPEND) == DDR_FREQ_SUSPEND)
+			ddr.suspend_rate = rate;
 	}
 
 	if (ddr.idle_rate) {
@@ -501,9 +625,9 @@ static int ddrfreq_late_init(void)
 
 	register_reboot_notifier(&ddrfreq_reboot_notifier);
 
-	pr_info("verion 2.4 20130427\n");
-	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
-		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.dualview_rate / MHZ,ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
+	pr_info("verion 3.1 20130805\n");
+	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz video_low %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
+		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.video_low_rate / MHZ, ddr.dualview_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
 
 	return 0;
 

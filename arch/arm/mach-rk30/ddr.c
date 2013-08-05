@@ -23,10 +23,11 @@
 #include <mach/ddr.h>
 #include <mach/cpu.h>
 #include <plat/efuse.h>
+#include <linux/rk_fb.h>
 
 typedef uint32_t uint32;
 
-#define ENABLE_DDR_CLCOK_GPLL_PATH  //for RK3188
+//#define ENABLE_DDR_CLCOK_GPLL_PATH  //for RK3188
 
 #define DDR3_DDR2_DLL_DISABLE_FREQ    (125)
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
@@ -3525,7 +3526,7 @@ int ddr_get_datatraing_value_3168(bool end_flag,uint32_t dqstr_value,uint32_t mi
     data8_dqstr[dqstr_value][3]=pPHY_Reg->DATX8[0].DXDQSTR;
 
     ddr_print("training %luMhz[%d]:0x%x-0x%x-0x%x-0x%x\n",
-        clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000,dqstr_value,data8_dqstr[dqstr_value][0],data8_dqstr[dqstr_value][1],
+        clk_get_rate(clk_get(NULL, "ddr"))/1000000,dqstr_value,data8_dqstr[dqstr_value][0],data8_dqstr[dqstr_value][1],
         data8_dqstr[dqstr_value][2],data8_dqstr[dqstr_value][3]);
     return 0;
 }
@@ -3594,7 +3595,7 @@ void __sramlocalfunc ddr_set_pll_exit_3168(uint32 freq_slew,uint32_t dqstr_value
 }
 #endif 
 
-uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz)
+uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz , struct ddr_freq_t ddr_freq_t)
 {
     uint32_t ret;
     u32 i;
@@ -3608,7 +3609,7 @@ uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz)
     uint32_t freq_slew=0,dqstr_value=0;
     if(dqstr_flag==true)
     {
-        dqstr_value=(nMHz-min_ddr_freq+1)/50;
+        dqstr_value=((nMHz-min_ddr_freq+1)/25 + 1) /2;
         freq_slew = (nMHz>ddr_freq)? 1 : 0;
     }
 #endif
@@ -3653,6 +3654,26 @@ uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz)
 #endif
     dsb();
 
+#if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
+    if(ddr_freq_t.screen_ft_us > 0)
+    {
+        ddr_freq_t.t1 = cpu_clock(0);
+        ddr_freq_t.t2 = (u32)(ddr_freq_t.t1 - ddr_freq_t.t0)/1000;
+
+        if(ddr_freq_t.t2 > ddr_freq_t.screen_ft_us)
+        {
+            DDR_RESTORE_SP(save_sp);
+            local_fiq_enable();
+            local_irq_restore(flags);
+            return 0;
+        }
+        else
+        {
+            rk_fb_poll_wait_frame_complete();
+        }
+    }
+#endif
+
     /** 2. ddr enter self-refresh mode or precharge power-down mode */
    idle_port();
 #if defined(CONFIG_ARCH_RK3066B)
@@ -3682,6 +3703,8 @@ uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz)
 uint32_t ddr_change_freq_gpll_dpll(uint32_t nMHz)
 {
     uint32_t gpll_freq,gpll_div;
+    struct ddr_freq_t ddr_freq_t;
+    ddr_freq_t.screen_ft_us = 0;
 
     gpllvaluel = ddr_get_pll_freq(GPLL);
 
@@ -3704,7 +3727,7 @@ uint32_t ddr_change_freq_gpll_dpll(uint32_t nMHz)
         }
 
         ddr_select_gpll_div=gpll_div;    //select GPLL
-        ddr_change_freq_sram(gpll_freq);
+        ddr_change_freq_sram(gpll_freq,ddr_freq_t);
         ddr_select_gpll_div=0;
 
         ddr_set_pll(nMHz,0); //count DPLL
@@ -3715,7 +3738,7 @@ uint32_t ddr_change_freq_gpll_dpll(uint32_t nMHz)
         ddr_print("GPLL frequency = %dMHz,Not suitable for ddr_clock \n",gpllvaluel);
     }
 
-    return ddr_change_freq_sram(nMHz);
+    return ddr_change_freq_sram(nMHz,ddr_freq_t);
 
 }
 
@@ -3729,19 +3752,14 @@ if rk3188 DPLL is bad,use GPLL
 ******************************************/
 uint32_t ddr_change_freq(uint32_t nMHz)
 {
+    struct ddr_freq_t ddr_freq_t;
+    ddr_freq_t.screen_ft_us = 0;
 
-    if(ddr_rk3188_dpll_is_good == false)    //if rk3188 DPLL is bad,use GPLL
-    {
-        return ddr_change_freq_sram(nMHz);
-    }
-    else
-    {
 #if defined(ENABLE_DDR_CLCOK_GPLL_PATH) && defined(CONFIG_ARCH_RK3188)
-        return ddr_change_freq_gpll_dpll(nMHz);
+    return ddr_change_freq_gpll_dpll(nMHz);
 #else
-        return ddr_change_freq_sram(nMHz);
+    return ddr_change_freq_sram(nMHz,ddr_freq_t);
 #endif
-    }
 }
 EXPORT_SYMBOL(ddr_change_freq);
 
@@ -3982,7 +4000,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20130712 \n");
+    ddr_print("version 1.00 20130805 0 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;

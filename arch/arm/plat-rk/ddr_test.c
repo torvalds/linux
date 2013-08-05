@@ -8,6 +8,21 @@
 #include <linux/uaccess.h>
 #include <linux/clk.h>
 
+#include <linux/freezer.h>
+#include <linux/kthread.h>
+
+#include <mach/ddr.h>
+
+struct ddrtest {
+    struct clk *pll;
+    struct clk *clk;
+    volatile unsigned int freq;
+    volatile bool change_end;
+    struct task_struct *task;
+    wait_queue_head_t wait;
+};
+static struct ddrtest ddrtest;
+
 static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
 			   unsigned long len, void *data)
 {
@@ -52,10 +67,14 @@ static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
                 p=strsep(&cookie_pot,"M");
                 value = simple_strtol(p,NULL,10);
                 printk("change!!! freq=%dMHz\n", value);
-                clk_set_rate(clk_ddr, value * 1000000);
+                //clk_set_rate(clk_ddr, value * 1000000);
+                ddrtest.freq = value;
+                ddrtest.change_end = false;
+                wake_up(&ddrtest.wait);
+                while(ddrtest.change_end != true);  //wait change freq end
                 value = clk_get_rate(clk_ddr) / 1000000;
                 printk("success!!! freq=%dMHz\n", value);
-                msleep(32);
+                msleep(64);
                 printk("\n");
             }
             else
@@ -92,10 +111,14 @@ static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
                     }while(value < value1);
 
                     printk("change!!! freq=%dMHz\n", value);
-                    clk_set_rate(clk_ddr, value * 1000000);
+                    //clk_set_rate(clk_ddr, value * 1000000);
+                    ddrtest.freq = value;
+                    ddrtest.change_end = false;
+                    wake_up(&ddrtest.wait);
+                    while(ddrtest.change_end != true);  //wait change freq end
                     value = clk_get_rate(clk_ddr) / 1000000;
                     printk("success!!! freq=%dMHz\n", value);
-                    msleep(32);
+                    msleep(64);
                     count++;
                 }
 
@@ -140,10 +163,14 @@ static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
                     }
 
                     printk("change!!! freq=%dMHz\n", value);
-                    clk_set_rate(clk_ddr, value * 1000000);
+                    //clk_set_rate(clk_ddr, value * 1000000);
+                    ddrtest.freq = value;
+                    ddrtest.change_end = false;
+                    wake_up(&ddrtest.wait);
+                    while(ddrtest.change_end != true);  //wait change freq end
                     value = clk_get_rate(clk_ddr) / 1000000;
                     printk("success!!! freq=%dMHz\n", value);
-                    msleep(32);
+                    msleep(64);
                     count++;
                 }
 
@@ -176,19 +203,65 @@ static const struct file_operations ddr_proc_fops = {
     .owner		= THIS_MODULE,
 };
 
+static void ddrtest_work(unsigned int value)
+{
+
+    clk_set_rate(ddrtest.clk, value * 1000000);
+    ddrtest.change_end = true;
+}
+
+static int ddrtest_task(void *data)
+{
+    set_freezable();
+
+    do {
+        //unsigned long status = ddr.sys_status;
+        ddrtest_work(ddrtest.freq);
+        wait_event_freezable(ddrtest.wait, (ddrtest.change_end == false ) || kthread_should_stop());
+    } while (!kthread_should_stop());
+
+    return 0;
+}
+
 static int ddr_proc_init(void)
 {
     struct proc_dir_entry *ddr_proc_entry;
+    int ret;
+    struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
+    init_waitqueue_head(&ddrtest.wait);
+
+    ddrtest.pll = clk_get(NULL, "ddr_pll");
+    ddrtest.clk = clk_get(NULL, "ddr");
+    if (IS_ERR(ddrtest.clk)) {
+        ret = PTR_ERR(ddrtest.clk);
+        ddrtest.clk = NULL;
+        pr_err("failed to get ddr clk, error %d\n", ret);
+        return ret;
+    }
+
     ddr_proc_entry = create_proc_entry("driver/ddr_ts", 0777, NULL);
     if(ddr_proc_entry != NULL)
     {
         ddr_proc_entry->write_proc = ddr_proc_write;
-        return -1;
+        //return -1;
     }
     else
     {
         printk("create proc error !\n");
     }
+
+    ddrtest.task = kthread_create(ddrtest_task, NULL, "ddrtestd");
+    if (IS_ERR(ddrtest.task)) {
+        ret = PTR_ERR(ddrtest.task);
+        pr_err("failed to create kthread! error %d\n", ret);
+        goto err;
+    }
+    sched_setscheduler_nocheck(ddrtest.task,SCHED_FIFO, &param);
+    get_task_struct(ddrtest.task);
+    kthread_bind(ddrtest.task, 0);
+    wake_up_process(ddrtest.task);
+
+err:
     return 0;
 }
 
