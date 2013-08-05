@@ -688,7 +688,7 @@ static void ks_soft_reset(struct ks_net *ks, unsigned op)
 }
 
 
-void ks_enable_qmu(struct ks_net *ks)
+static void ks_enable_qmu(struct ks_net *ks)
 {
 	u16 w;
 
