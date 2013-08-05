@@ -2076,11 +2076,13 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 		spin_lock(&ci->i_ceph_lock);
 	}
 
-	if (need & CEPH_CAP_FILE_WR) {
+	have = __ceph_caps_issued(ci, &implemented);
+
+	if (have & need & CEPH_CAP_FILE_WR) {
 		if (endoff >= 0 && endoff > (loff_t)ci->i_max_size) {
 			dout("get_cap_refs %p endoff %llu > maxsize %llu\n",
 			     inode, endoff, ci->i_max_size);
-			if (endoff > ci->i_wanted_max_size) {
+			if (endoff > ci->i_requested_max_size) {
 				*check_max = 1;
 				ret = 1;
 			}
@@ -2095,7 +2097,6 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 			goto out;
 		}
 	}
-	have = __ceph_caps_issued(ci, &implemented);
 
 	if ((have & need) == need) {
 		/*
@@ -2137,14 +2138,17 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 
 	/* do we need to explicitly request a larger max_size? */
 	spin_lock(&ci->i_ceph_lock);
-	if ((endoff >= ci->i_max_size ||
-	     endoff > (inode->i_size << 1)) &&
-	    endoff > ci->i_wanted_max_size) {
+	if (endoff >= ci->i_max_size && endoff > ci->i_wanted_max_size) {
 		dout("write %p at large endoff %llu, req max_size\n",
 		     inode, endoff);
 		ci->i_wanted_max_size = endoff;
-		check = 1;
 	}
+	/* duplicate ceph_check_caps()'s logic */
+	if (ci->i_auth_cap &&
+	    (ci->i_auth_cap->issued & CEPH_CAP_FILE_WR) &&
+	    ci->i_wanted_max_size > ci->i_max_size &&
+	    ci->i_wanted_max_size > ci->i_requested_max_size)
+		check = 1;
 	spin_unlock(&ci->i_ceph_lock);
 	if (check)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
