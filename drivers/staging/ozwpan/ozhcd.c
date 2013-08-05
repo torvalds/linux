@@ -715,6 +715,7 @@ void oz_hcd_pd_departed(void *hport)
 	hpd = port->hpd;
 	port->hpd = NULL;
 	port->bus_addr = 0xff;
+	port->config_num = 0;
 	port->flags &= ~(OZ_PORT_F_PRESENT | OZ_PORT_F_DYING);
 	port->flags |= OZ_PORT_F_CHANGED;
 	port->status &= ~USB_PORT_STAT_CONNECTION;
