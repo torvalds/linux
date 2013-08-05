@@ -180,6 +180,7 @@ struct pci_controller {
 
 extern struct pci_controller pci_controllers[TILEGX_NUM_TRIO * TILEGX_TRIO_PCIES];
 extern gxio_trio_context_t trio_contexts[TILEGX_NUM_TRIO];
+extern int num_trio_shims;
 
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
