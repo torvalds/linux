@@ -731,9 +731,6 @@ void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db);
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 
-typedef void (*health_handler_t)(struct pci_dev *pdev, struct health_buffer __iomem *buf, int size);
-int mlx5_register_health_report_handler(health_handler_t handler);
-void mlx5_unregister_health_report_handler(void);
 const char *mlx5_command_str(int command);
 int mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);
