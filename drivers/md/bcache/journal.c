@@ -44,11 +44,11 @@ static int journal_read_bucket(struct cache *ca, struct list_head *list,
 
 	closure_init_stack(&cl);
 
-	pr_debug("reading %llu", (uint64_t) bucket);
+	pr_debug("reading %u", bucket_index);
 
 	while (offset < ca->sb.bucket_size) {
 reread:		left = ca->sb.bucket_size - offset;
-		len = min_t(unsigned, left, PAGE_SECTORS * 8);
+		len = min_t(unsigned, left, PAGE_SECTORS << JSET_BITS);
 
 		bio_reset(bio);
 		bio->bi_iter.bi_sector	= bucket + offset;
@@ -74,17 +74,26 @@ reread:		left = ca->sb.bucket_size - offset;
 			struct list_head *where;
 			size_t blocks, bytes = set_bytes(j);
 
-			if (j->magic != jset_magic(&ca->sb))
+			if (j->magic != jset_magic(&ca->sb)) {
+				pr_debug("%u: bad magic", bucket_index);
 				return ret;
+			}
 
-			if (bytes > left << 9)
+			if (bytes > left << 9 ||
+			    bytes > PAGE_SIZE << JSET_BITS) {
+				pr_info("%u: too big, %zu bytes, offset %u",
+					bucket_index, bytes, offset);
 				return ret;
+			}
 
 			if (bytes > len << 9)
 				goto reread;
 
-			if (j->csum != csum_set(j))
+			if (j->csum != csum_set(j)) {
+				pr_info("%u: bad csum, %zu bytes, offset %u",
+					bucket_index, bytes, offset);
 				return ret;
+			}
 
 			blocks = set_blocks(j, ca->set);
 
