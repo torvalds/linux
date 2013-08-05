@@ -141,12 +141,12 @@ static irq_handler_t lcdc_irq_handler;
 static wait_queue_head_t frame_done_wq;
 static int frame_done_flag;
 
-static inline unsigned int lcdc_read(unsigned int addr)
+static unsigned int lcdc_read(unsigned int addr)
 {
 	return (unsigned int)__raw_readl(da8xx_fb_reg_base + (addr));
 }
 
-static inline void lcdc_write(unsigned int val, unsigned int addr)
+static void lcdc_write(unsigned int val, unsigned int addr)
 {
 	__raw_writel(val, da8xx_fb_reg_base + (addr));
 }
@@ -245,13 +245,13 @@ static struct fb_videomode known_lcd_panels[] = {
 	},
 };
 
-static inline bool da8xx_fb_is_raster_enabled(void)
+static bool da8xx_fb_is_raster_enabled(void)
 {
 	return !!(lcdc_read(LCD_RASTER_CTRL_REG) & LCD_RASTER_ENABLE);
 }
 
 /* Enable the Raster Engine of the LCD Controller */
-static inline void lcd_enable_raster(void)
+static void lcd_enable_raster(void)
 {
 	u32 reg;
 
@@ -273,8 +273,7 @@ static inline void lcd_enable_raster(void)
 }
 
 /* Disable the Raster Engine of the LCD Controller */
-static inline void lcd_disable_raster(enum da8xx_frame_complete
-					wait_for_frame_done)
+static void lcd_disable_raster(enum da8xx_frame_complete wait_for_frame_done)
 {
 	u32 reg;
 	int ret;
@@ -750,7 +749,7 @@ static int da8xx_fb_calc_config_clk_divider(struct da8xx_fb_par *par,
 	return da8xx_fb_config_clk_divider(par, lcdc_clk_div, lcdc_clk_rate);
 }
 
-static inline unsigned da8xx_fb_round_clk(struct da8xx_fb_par *par,
+static unsigned da8xx_fb_round_clk(struct da8xx_fb_par *par,
 					  unsigned pixclock)
 {
 	unsigned lcdc_clk_div, lcdc_clk_rate;
@@ -1043,7 +1042,7 @@ static int lcd_da8xx_cpufreq_transition(struct notifier_block *nb,
 	return 0;
 }
 
-static inline int lcd_da8xx_cpufreq_register(struct da8xx_fb_par *par)
+static int lcd_da8xx_cpufreq_register(struct da8xx_fb_par *par)
 {
 	par->freq_transition.notifier_call = lcd_da8xx_cpufreq_transition;
 
@@ -1051,7 +1050,7 @@ static inline int lcd_da8xx_cpufreq_register(struct da8xx_fb_par *par)
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
-static inline void lcd_da8xx_cpufreq_deregister(struct da8xx_fb_par *par)
+static void lcd_da8xx_cpufreq_deregister(struct da8xx_fb_par *par)
 {
 	cpufreq_unregister_notifier(&par->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
