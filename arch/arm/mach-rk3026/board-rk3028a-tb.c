@@ -970,8 +970,8 @@ static struct pmu_info tps65910_ldo_info[] = {
 	},
 	{
 		.name          = "vdig1",    //vcc18_cif
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
+		.min_uv          = 2800000,//1800000,
+		.max_uv         = 2800000,//1800000,
 	},
 
 	{
@@ -1179,6 +1179,10 @@ static void __init rk30_reserve(void)
 	//ion reserve
 #ifdef CONFIG_ION
 	rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion", ION_RESERVE_SIZE);
+#endif
+
+#ifdef CONFIG_VIDEO_RK29
+	rk30_camera_request_reserve_mem();
 #endif
 	board_mem_reserved();
 }

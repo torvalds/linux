@@ -5,10 +5,8 @@
 *v0.0.1: this driver is compatible with generic_sensor
 *v0.1.1:
 *        add sensor_focus_af_const_pause_usr_cb;
-*v0.1.2:
-	  crop for rk3188m
 */
-static int version = KERNEL_VERSION(0,1,2);
+static int version = KERNEL_VERSION(0,1,1);
 module_param(version, int, S_IRUGO);
 
 static int debug =1;
@@ -25,13 +23,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_BUS_PARAM                     (SOCAM_MASTER |\
                                              SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH| SOCAM_VSYNC_ACTIVE_HIGH|\
                                              SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
-#if defined(CONFIG_SOC_RK3188M)
-#define SENSOR_PREVIEW_W                     (800 - 20)
-#define SENSOR_PREVIEW_H                     (600 - 20)
-#else
-#define SENSOR_PREVIEW_W					 (800)
-#define SENSOR_PREVIEW_H					 (600)
-#endif
+#define SENSOR_PREVIEW_W                     800
+#define SENSOR_PREVIEW_H                     600
 #define SENSOR_PREVIEW_FPS                   15000     // 15fps 
 #define SENSOR_FULLRES_L_FPS                 5000      // 7.5fps
 #define SENSOR_FULLRES_H_FPS                 10000      // 7.5fps
@@ -959,11 +952,6 @@ static int sensor_s_fmt_cb_bh (struct i2c_client *client,struct v4l2_mbus_framef
     if (capture) {
         //sensor_ae_transfer(client);
     }
-#if defined(CONFIG_SOC_RK3188M)
-	mf->width-=20;
-	mf->height-=20;
-	msleep(300);
-#endif
     return 0;
 }
 

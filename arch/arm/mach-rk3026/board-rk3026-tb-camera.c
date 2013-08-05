@@ -34,7 +34,7 @@ Comprehensive camera device registration:
                           
 */
 static struct rkcamera_platform_data new_camera[] = { 
-    new_camera_device(RK29_CAM_SENSOR_OV5642,
+    new_camera_device(RK29_CAM_SENSOR_OV5640,
                         back,
                         RK2928_PIN3_PB3,
                         0,

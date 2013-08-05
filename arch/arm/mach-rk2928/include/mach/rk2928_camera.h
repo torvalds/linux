@@ -20,9 +20,16 @@
 #ifndef __ASM_ARCH_CAMERA_RK2928_H_
 
 #define __ASM_ARCH_CAMERA_RK2928_H_
+
+#if defined(CONFIG_ARCH_RK2928)
 #define RK29_CAM_DRV_NAME "rk-camera-rk2928"
+#elif defined(CONFIG_ARCH_RK3026)
+#define RK29_CAM_DRV_NAME "rk-camera-rk3026"
+#endif
+
 #define RK_SUPPORT_CIF0   1
 #define RK_SUPPORT_CIF1   0
+
 #include <plat/rk_camera.h>
 
 #define CONFIG_CAMERA_SCALE_CROP_MACHINE    RK_CAM_SCALE_CROP_ARM

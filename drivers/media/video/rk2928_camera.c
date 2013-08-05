@@ -103,7 +103,7 @@ static void rk30_camera_request_reserve_mem(void)
 {
     int i,max_resolution;
     int cam_ipp_mem=PMEM_CAMIPP_NECESSARY, cam_pmem=PMEM_CAM_NECESSARY;
-
+    
     i =0;
     max_resolution = 0x00;
     while (strstr(new_camera[i].dev.device_info.dev.init_name,"end")==NULL) {
@@ -163,26 +163,24 @@ static void rk30_camera_request_reserve_mem(void)
         }
     }
 
-    
+ 
+    rk_camera_platform_data.meminfo.vbase = rk_camera_platform_data.meminfo_cif1.vbase = NULL;
+#if defined(CONFIG_VIDEO_RKCIF_WORK_SIMUL_OFF) || ((RK_SUPPORT_CIF0 && RK_SUPPORT_CIF1) == 0)
+    rk_camera_platform_data.meminfo.name = "camera_ipp_mem";
+    rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem",cam_ipp_mem);
+    rk_camera_platform_data.meminfo.size= cam_ipp_mem;
 
-#ifdef CONFIG_VIDEO_RK29_WORK_IPP
-        rk_camera_platform_data.meminfo.vbase = rk_camera_platform_data.meminfo_cif1.vbase = NULL;
-    #if defined(CONFIG_VIDEO_RKCIF_WORK_SIMUL_OFF) || ((RK_SUPPORT_CIF0 && RK_SUPPORT_CIF1) == 0)
-        rk_camera_platform_data.meminfo.name = "camera_ipp_mem";
-        rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem",cam_ipp_mem);
-        rk_camera_platform_data.meminfo.size= cam_ipp_mem;
+    memcpy(&rk_camera_platform_data.meminfo_cif1,&rk_camera_platform_data.meminfo,sizeof(struct rk29camera_mem_res));
+#else
+    rk_camera_platform_data.meminfo.name = "camera_ipp_mem_0";
+    rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem_0",PMEM_CAMIPP_NECESSARY_CIF_0);
+    rk_camera_platform_data.meminfo.size= PMEM_CAMIPP_NECESSARY_CIF_0;
 
-        memcpy(&rk_camera_platform_data.meminfo_cif1,&rk_camera_platform_data.meminfo,sizeof(struct rk29camera_mem_res));
-    #else
-        rk_camera_platform_data.meminfo.name = "camera_ipp_mem_0";
-        rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem_0",PMEM_CAMIPP_NECESSARY_CIF_0);
-        rk_camera_platform_data.meminfo.size= PMEM_CAMIPP_NECESSARY_CIF_0;
-        
-        rk_camera_platform_data.meminfo_cif1.name = "camera_ipp_mem_1";
-        rk_camera_platform_data.meminfo_cif1.start =board_mem_reserve_add("camera_ipp_mem_1",PMEM_CAMIPP_NECESSARY_CIF_1);
-        rk_camera_platform_data.meminfo_cif1.size= PMEM_CAMIPP_NECESSARY_CIF_1;
-    #endif
- #endif
+    rk_camera_platform_data.meminfo_cif1.name = "camera_ipp_mem_1";
+    rk_camera_platform_data.meminfo_cif1.start =board_mem_reserve_add("camera_ipp_mem_1",PMEM_CAMIPP_NECESSARY_CIF_1);
+    rk_camera_platform_data.meminfo_cif1.size= PMEM_CAMIPP_NECESSARY_CIF_1;
+#endif
+
  #if PMEM_CAM_NECESSARY
         android_pmem_cam_pdata.start = board_mem_reserve_add((char*)(android_pmem_cam_pdata.name),cam_pmem);
         android_pmem_cam_pdata.size= cam_pmem;
@@ -253,7 +251,7 @@ static int rk_register_camera_devices(void)
        (rk_camera_platform_data.sensor_register)(); 
     
  #if PMEM_CAM_NECESSARY
-            platform_device_register(&android_pmem_cam_device);
+    platform_device_register(&android_pmem_cam_device);
  #endif
     
 	return 0;

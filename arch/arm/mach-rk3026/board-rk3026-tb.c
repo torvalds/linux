@@ -1112,6 +1112,9 @@ static void __init rk30_reserve(void)
 #ifdef CONFIG_ION
 	rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion", ION_RESERVE_SIZE);
 #endif
+#ifdef CONFIG_VIDEO_RK29
+	rk30_camera_request_reserve_mem();
+#endif
 	board_mem_reserved();
 }
 
