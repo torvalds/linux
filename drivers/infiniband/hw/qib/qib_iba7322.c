@@ -1596,6 +1596,8 @@ static void sdma_7322_p_errors(struct qib_pportdata *ppd, u64 errs)
 	struct qib_devdata *dd = ppd->dd;
 
 	errs &= QIB_E_P_SDMAERRS;
+	err_decode(ppd->cpspec->sdmamsgbuf, sizeof(ppd->cpspec->sdmamsgbuf),
+		   errs, qib_7322p_error_msgs);
 
 	if (errs & QIB_E_P_SDMAUNEXPDATA)
 		qib_dev_err(dd, "IB%u:%u SDmaUnexpData\n", dd->unit,

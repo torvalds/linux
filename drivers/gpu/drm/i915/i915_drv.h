@@ -1582,6 +1582,7 @@ void i915_hangcheck_elapsed(unsigned long data);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
+extern void intel_pm_init(struct drm_device *dev);
 extern void intel_hpd_init(struct drm_device *dev);
 extern void intel_gt_init(struct drm_device *dev);
 extern void intel_gt_sanitize(struct drm_device *dev);
