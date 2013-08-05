@@ -23,6 +23,13 @@
  * so the code in this file is compiled twice, once per pte size.
  */
 
+/*
+ * This is used to catch non optimized PT_GUEST_(DIRTY|ACCESS)_SHIFT macro
+ * uses for EPT without A/D paging type.
+ */
+extern u64 __pure __using_nonexistent_pte_bit(void)
+	       __compiletime_error("wrong use of PT_GUEST_(DIRTY|ACCESS)_SHIFT");
+
 #if PTTYPE == 64
 	#define pt_element_t u64
 	#define guest_walker guest_walker64
@@ -58,6 +65,21 @@
 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
 	#define CMPXCHG cmpxchg
+#elif PTTYPE == PTTYPE_EPT
+	#define pt_element_t u64
+	#define guest_walker guest_walkerEPT
+	#define FNAME(name) ept_##name
+	#define PT_BASE_ADDR_MASK PT64_BASE_ADDR_MASK
+	#define PT_LVL_ADDR_MASK(lvl) PT64_LVL_ADDR_MASK(lvl)
+	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
+	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
+	#define PT_LEVEL_BITS PT64_LEVEL_BITS
+	#define PT_GUEST_ACCESSED_MASK 0
+	#define PT_GUEST_DIRTY_MASK 0
+	#define PT_GUEST_DIRTY_SHIFT __using_nonexistent_pte_bit()
+	#define PT_GUEST_ACCESSED_SHIFT __using_nonexistent_pte_bit()
+	#define CMPXCHG cmpxchg64
+	#define PT_MAX_FULL_LEVELS 4
 #else
 	#error Invalid PTTYPE value
 #endif
@@ -115,7 +137,11 @@ static bool FNAME(is_rsvd_bits_set)(struct kvm_mmu *mmu, u64 gpte, int level)
 
 static inline int FNAME(is_present_gpte)(unsigned long pte)
 {
+#if PTTYPE != PTTYPE_EPT
 	return is_present_gpte(pte);
+#else
+	return pte & 7;
+#endif
 }
 
 static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
@@ -165,9 +191,14 @@ no_present:
 static inline unsigned FNAME(gpte_access)(struct kvm_vcpu *vcpu, u64 gpte)
 {
 	unsigned access;
-
+#if PTTYPE == PTTYPE_EPT
+	access = ((gpte & VMX_EPT_WRITABLE_MASK) ? ACC_WRITE_MASK : 0) |
+		((gpte & VMX_EPT_EXECUTABLE_MASK) ? ACC_EXEC_MASK : 0) |
+		ACC_USER_MASK;
+#else
 	access = (gpte & (PT_WRITABLE_MASK | PT_USER_MASK)) | ACC_EXEC_MASK;
 	access &= ~(gpte >> PT64_NX_SHIFT);
+#endif
 
 	return access;
 }
@@ -369,6 +400,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 					access);
 }
 
+#if PTTYPE != PTTYPE_EPT
 static int FNAME(walk_addr_nested)(struct guest_walker *walker,
 				   struct kvm_vcpu *vcpu, gva_t addr,
 				   u32 access)
@@ -376,6 +408,7 @@ static int FNAME(walk_addr_nested)(struct guest_walker *walker,
 	return FNAME(walk_addr_generic)(walker, vcpu, &vcpu->arch.nested_mmu,
 					addr, access);
 }
+#endif
 
 static bool
 FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
@@ -803,6 +836,7 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,
 	return gpa;
 }
 
+#if PTTYPE != PTTYPE_EPT
 static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
 				      u32 access,
 				      struct x86_exception *exception)
@@ -821,6 +855,7 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
 
 	return gpa;
 }
+#endif
 
 /*
  * Using the cached information from sp->gfns is safe because:

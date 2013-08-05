@@ -3494,6 +3494,11 @@ static inline bool is_last_gpte(struct kvm_mmu *mmu, unsigned level, unsigned gp
 	return mmu->last_pte_bitmap & (1 << index);
 }
 
+#define PTTYPE_EPT 18 /* arbitrary */
+#define PTTYPE PTTYPE_EPT
+#include "paging_tmpl.h"
+#undef PTTYPE
+
 #define PTTYPE 64
 #include "paging_tmpl.h"
 #undef PTTYPE
