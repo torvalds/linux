@@ -795,32 +795,20 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
             pBuf->wDuration_bb = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_BB, cbFrameLength, PK_TYPE_11B, pDevice->byTopCCKBasicRate, bNeedAck, byFBOption));    //0:RTSDuration_bb, 1:2.4G, 1:CCKData
             pBuf->wDuration_aa = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //2:RTSDuration_aa, 1:2.4G, 2,3: 2.4G OFDMData
             pBuf->wDuration_ba = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_BA, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //1:RTSDuration_ba, 1:2.4G, 2,3:2.4G OFDM Data
+		pBuf->data.duration = pBuf->wDuration_aa;
+		/*Get RTS Frame body */
+		pBuf->data.frame_control = TYPE_CTL_RTS;
 
-            pBuf->Data.wDurationID = pBuf->wDuration_aa;
-            //Get RTS Frame body
-            pBuf->Data.wFrameControl = TYPE_CTL_RTS;//0x00B4
+		if (pDevice->eOPMode == OP_MODE_ADHOC ||
+				pDevice->eOPMode == OP_MODE_AP)
+			memcpy(pBuf->data.ra, psEthHeader->h_dest, ETH_ALEN);
+		else
+			memcpy(pBuf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-	    (pDevice->eOPMode == OP_MODE_AP)) {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(psEthHeader->h_dest[0]),
-		       ETH_ALEN);
-	}
-            else {
-		    memcpy(&(pBuf->Data.abyRA[0]),
-			   &(pDevice->abyBSSID[0]),
-			   ETH_ALEN);
-	    }
-	if (pDevice->eOPMode == OP_MODE_AP) {
-		memcpy(&(pBuf->Data.abyTA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-	}
-            else {
-		    memcpy(&(pBuf->Data.abyTA[0]),
-			   &(psEthHeader->h_source[0]),
-			   ETH_ALEN);
-            }
+		if (pDevice->eOPMode == OP_MODE_AP)
+			memcpy(pBuf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+		else
+			memcpy(pBuf->data.ta, psEthHeader->h_source, ETH_ALEN);
         }
         else {
            PSRTS_g_FB pBuf = (PSRTS_g_FB)pvRTS;
@@ -841,33 +829,20 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
             pBuf->wRTSDuration_aa_f0 = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA_F0, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption));    //5:wRTSDuration_aa_f0, 1:2.4G, 1:CCKData
             pBuf->wRTSDuration_ba_f1 = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_BA_F1, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption));    //6:wRTSDuration_ba_f1, 1:2.4G, 1:CCKData
             pBuf->wRTSDuration_aa_f1 = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA_F1, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption));    //7:wRTSDuration_aa_f1, 1:2.4G, 1:CCKData
-            pBuf->Data.wDurationID = pBuf->wDuration_aa;
-            //Get RTS Frame body
-            pBuf->Data.wFrameControl = TYPE_CTL_RTS;//0x00B4
+		pBuf->data.duration = pBuf->wDuration_aa;
+		/*Get RTS Frame body*/
+		pBuf->data.frame_control = TYPE_CTL_RTS;
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-	    (pDevice->eOPMode == OP_MODE_AP)) {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(psEthHeader->h_dest[0]),
-		       ETH_ALEN);
-	}
-            else {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-            }
+		if (pDevice->eOPMode == OP_MODE_ADHOC ||
+				pDevice->eOPMode == OP_MODE_AP)
+			memcpy(pBuf->data.ra, psEthHeader->h_dest, ETH_ALEN);
+		else
+			memcpy(pBuf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 
-	if (pDevice->eOPMode == OP_MODE_AP) {
-		memcpy(&(pBuf->Data.abyTA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-	}
-            else {
-		    memcpy(&(pBuf->Data.abyTA[0]),
-			   &(psEthHeader->h_source[0]),
-			   ETH_ALEN);
-            }
-
+		if (pDevice->eOPMode == OP_MODE_AP)
+			memcpy(pBuf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+		else
+			memcpy(pBuf->data.ta, psEthHeader->h_source, ETH_ALEN);
         } // if (byFBOption == AUTO_FB_NONE)
     }
     else if (byPktType == PK_TYPE_11A) {
@@ -880,31 +855,20 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
             pBuf->wTransmitLength = cpu_to_le16(wLen);
             //Get Duration
             pBuf->wDuration = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //0:RTSDuration_aa, 0:5G, 0: 5G OFDMData
-    	    pBuf->Data.wDurationID = pBuf->wDuration;
-            //Get RTS Frame body
-            pBuf->Data.wFrameControl = TYPE_CTL_RTS;//0x00B4
+		pBuf->data.duration = pBuf->wDuration;
+		/* Get RTS Frame body */
+		pBuf->data.frame_control = TYPE_CTL_RTS;
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-	    (pDevice->eOPMode == OP_MODE_AP)) {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(psEthHeader->h_dest[0]),
-		       ETH_ALEN);
-	} else {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-	}
+		if (pDevice->eOPMode == OP_MODE_ADHOC ||
+				pDevice->eOPMode == OP_MODE_AP)
+			memcpy(pBuf->data.ra, psEthHeader->h_dest, ETH_ALEN);
+		else
+			memcpy(pBuf->data.ra, pDevice->abyBSSID, ETH_ALEN);
 
-	if (pDevice->eOPMode == OP_MODE_AP) {
-		memcpy(&(pBuf->Data.abyTA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-	} else {
-		memcpy(&(pBuf->Data.abyTA[0]),
-		       &(psEthHeader->h_source[0]),
-		       ETH_ALEN);
-	}
-
+		if (pDevice->eOPMode == OP_MODE_AP)
+			memcpy(pBuf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+		else
+			memcpy(pBuf->data.ta, psEthHeader->h_source, ETH_ALEN);
         }
         else {
             PSRTS_a_FB pBuf = (PSRTS_a_FB)pvRTS;
@@ -917,29 +881,20 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
             pBuf->wDuration = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //0:RTSDuration_aa, 0:5G, 0: 5G OFDMData
     	    pBuf->wRTSDuration_f0 = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA_F0, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //5:RTSDuration_aa_f0, 0:5G, 0: 5G OFDMData
     	    pBuf->wRTSDuration_f1 = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_AA_F1, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //7:RTSDuration_aa_f1, 0:5G, 0:
-    	    pBuf->Data.wDurationID = pBuf->wDuration;
-    	    //Get RTS Frame body
-            pBuf->Data.wFrameControl = TYPE_CTL_RTS;//0x00B4
+		pBuf->data.duration = pBuf->wDuration;
+		/* Get RTS Frame body */
+		pBuf->data.frame_control = TYPE_CTL_RTS;
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-	    (pDevice->eOPMode == OP_MODE_AP)) {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(psEthHeader->h_dest[0]),
-		       ETH_ALEN);
-	} else {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-	}
-	if (pDevice->eOPMode == OP_MODE_AP) {
-		memcpy(&(pBuf->Data.abyTA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-	} else {
-		memcpy(&(pBuf->Data.abyTA[0]),
-		       &(psEthHeader->h_source[0]),
-		       ETH_ALEN);
-	}
+		if (pDevice->eOPMode == OP_MODE_ADHOC ||
+				pDevice->eOPMode == OP_MODE_AP)
+			memcpy(pBuf->data.ra, psEthHeader->h_dest, ETH_ALEN);
+		else
+			memcpy(pBuf->data.ra, pDevice->abyBSSID, ETH_ALEN);
+
+		if (pDevice->eOPMode == OP_MODE_AP)
+			memcpy(pBuf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+		else
+			memcpy(pBuf->data.ta, psEthHeader->h_source, ETH_ALEN);
         }
     }
     else if (byPktType == PK_TYPE_11B) {
@@ -951,31 +906,21 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
         pBuf->wTransmitLength = cpu_to_le16(wLen);
         //Get Duration
         pBuf->wDuration = cpu_to_le16((u16)s_uGetRTSCTSDuration(pDevice, RTSDUR_BB, cbFrameLength, byPktType, wCurrentRate, bNeedAck, byFBOption)); //0:RTSDuration_bb, 1:2.4G, 1:CCKData
-        pBuf->Data.wDurationID = pBuf->wDuration;
-        //Get RTS Frame body
-        pBuf->Data.wFrameControl = TYPE_CTL_RTS;//0x00B4
 
-	if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
-            (pDevice->eOPMode == OP_MODE_AP)) {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(psEthHeader->h_dest[0]),
-		       ETH_ALEN);
-        }
-        else {
-		memcpy(&(pBuf->Data.abyRA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-        }
+	pBuf->data.duration = pBuf->wDuration;
+	/* Get RTS Frame body */
+	pBuf->data.frame_control = TYPE_CTL_RTS;
 
-        if (pDevice->eOPMode == OP_MODE_AP) {
-		memcpy(&(pBuf->Data.abyTA[0]),
-		       &(pDevice->abyBSSID[0]),
-		       ETH_ALEN);
-	} else {
-		memcpy(&(pBuf->Data.abyTA[0]),
-		       &(psEthHeader->h_source[0]),
-		       ETH_ALEN);
-        }
+	if (pDevice->eOPMode == OP_MODE_ADHOC ||
+			pDevice->eOPMode == OP_MODE_AP)
+		memcpy(pBuf->data.ra, psEthHeader->h_dest, ETH_ALEN);
+	else
+		memcpy(pBuf->data.ra, pDevice->abyBSSID, ETH_ALEN);
+
+	if (pDevice->eOPMode == OP_MODE_AP)
+		memcpy(pBuf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+	else
+		memcpy(pBuf->data.ta, psEthHeader->h_source, ETH_ALEN);
     }
 }
 

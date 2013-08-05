@@ -33,6 +33,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/ieee80211.h>
 
 #include "tether.h"
 
@@ -187,16 +188,6 @@ typedef const SRrvTime_atim *PCSRrvTime_atim;
 /*
  * RTS buffer header
  */
-typedef struct tagSRTSData {
-    u16    wFrameControl;
-    u16    wDurationID;
-    u8    abyRA[ETH_ALEN];
-    u8    abyTA[ETH_ALEN];
-} __attribute__ ((__packed__))
-SRTSData, *PSRTSData;
-
-typedef const SRTSData *PCSRTSData;
-
 typedef struct tagSRTS_g {
     u8        bySignalField_b;
     u8        byServiceField_b;
@@ -208,7 +199,7 @@ typedef struct tagSRTS_g {
     u16        wDuration_aa;
     u16        wDuration_bb;
     u16        wReserved;
-    SRTSData    Data;
+	struct ieee80211_rts data;
 } __attribute__ ((__packed__))
 SRTS_g, *PSRTS_g;
 typedef const SRTS_g *PCSRTS_g;
@@ -228,7 +219,7 @@ typedef struct tagSRTS_g_FB {
     u16        wRTSDuration_aa_f0;
     u16        wRTSDuration_ba_f1;
     u16        wRTSDuration_aa_f1;
-    SRTSData    Data;
+	struct ieee80211_rts data;
 } __attribute__ ((__packed__))
 SRTS_g_FB, *PSRTS_g_FB;
 
@@ -240,7 +231,7 @@ typedef struct tagSRTS_ab {
     u16        wTransmitLength;
     u16        wDuration;
     u16        wReserved;
-    SRTSData    Data;
+	struct ieee80211_rts data;
 } __attribute__ ((__packed__))
 SRTS_ab, *PSRTS_ab;
 
@@ -254,7 +245,7 @@ typedef struct tagSRTS_a_FB {
     u16        wReserved;
     u16        wRTSDuration_f0;
     u16        wRTSDuration_f1;
-    SRTSData    Data;
+	struct ieee80211_rts data;
 } __attribute__ ((__packed__))
 SRTS_a_FB, *PSRTS_a_FB;
 
