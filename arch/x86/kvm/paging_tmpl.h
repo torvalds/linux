@@ -32,6 +32,10 @@
 	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_BITS PT64_LEVEL_BITS
+	#define PT_GUEST_ACCESSED_MASK PT_ACCESSED_MASK
+	#define PT_GUEST_DIRTY_MASK PT_DIRTY_MASK
+	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
+	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
 	#ifdef CONFIG_X86_64
 	#define PT_MAX_FULL_LEVELS 4
 	#define CMPXCHG cmpxchg
@@ -49,6 +53,10 @@
 	#define PT_INDEX(addr, level) PT32_INDEX(addr, level)
 	#define PT_LEVEL_BITS PT32_LEVEL_BITS
 	#define PT_MAX_FULL_LEVELS 2
+	#define PT_GUEST_ACCESSED_MASK PT_ACCESSED_MASK
+	#define PT_GUEST_DIRTY_MASK PT_DIRTY_MASK
+	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
+	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
 	#define CMPXCHG cmpxchg
 #else
 	#error Invalid PTTYPE value
@@ -88,7 +96,8 @@ static inline void FNAME(protect_clean_gpte)(unsigned *access, unsigned gpte)
 
 	mask = (unsigned)~ACC_WRITE_MASK;
 	/* Allow write access to dirty gptes */
-	mask |= (gpte >> (PT_DIRTY_SHIFT - PT_WRITABLE_SHIFT)) & PT_WRITABLE_MASK;
+	mask |= (gpte >> (PT_GUEST_DIRTY_SHIFT - PT_WRITABLE_SHIFT)) &
+		PT_WRITABLE_MASK;
 	*access &= mask;
 }
 
@@ -138,7 +147,7 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 	if (!FNAME(is_present_gpte)(gpte))
 		goto no_present;
 
-	if (!(gpte & PT_ACCESSED_MASK))
+	if (!(gpte & PT_GUEST_ACCESSED_MASK))
 		goto no_present;
 
 	return false;
@@ -174,14 +183,14 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 		table_gfn = walker->table_gfn[level - 1];
 		ptep_user = walker->ptep_user[level - 1];
 		index = offset_in_page(ptep_user) / sizeof(pt_element_t);
-		if (!(pte & PT_ACCESSED_MASK)) {
+		if (!(pte & PT_GUEST_ACCESSED_MASK)) {
 			trace_kvm_mmu_set_accessed_bit(table_gfn, index, sizeof(pte));
-			pte |= PT_ACCESSED_MASK;
+			pte |= PT_GUEST_ACCESSED_MASK;
 		}
 		if (level == walker->level && write_fault &&
-				!(pte & PT_DIRTY_MASK)) {
+				!(pte & PT_GUEST_DIRTY_MASK)) {
 			trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
-			pte |= PT_DIRTY_MASK;
+			pte |= PT_GUEST_DIRTY_MASK;
 		}
 		if (pte == orig_pte)
 			continue;
@@ -235,7 +244,7 @@ retry_walk:
 	ASSERT((!is_long_mode(vcpu) && is_pae(vcpu)) ||
 	       (mmu->get_cr3(vcpu) & CR3_NONPAE_RESERVED_BITS) == 0);
 
-	accessed_dirty = PT_ACCESSED_MASK;
+	accessed_dirty = PT_GUEST_ACCESSED_MASK;
 	pt_access = pte_access = ACC_ALL;
 	++walker->level;
 
@@ -310,7 +319,8 @@ retry_walk:
 		 * On a write fault, fold the dirty bit into accessed_dirty by
 		 * shifting it one place right.
 		 */
-		accessed_dirty &= pte >> (PT_DIRTY_SHIFT - PT_ACCESSED_SHIFT);
+		accessed_dirty &= pte >>
+			(PT_GUEST_DIRTY_SHIFT - PT_GUEST_ACCESSED_SHIFT);
 
 	if (unlikely(!accessed_dirty)) {
 		ret = FNAME(update_accessed_dirty_bits)(vcpu, mmu, walker, write_fault);
@@ -886,3 +896,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 #undef gpte_to_gfn
 #undef gpte_to_gfn_lvl
 #undef CMPXCHG
+#undef PT_GUEST_ACCESSED_MASK
+#undef PT_GUEST_DIRTY_MASK
+#undef PT_GUEST_DIRTY_SHIFT
+#undef PT_GUEST_ACCESSED_SHIFT
