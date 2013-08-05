@@ -20,6 +20,10 @@
 #include <linux/cache.h>
 #include <linux/io.h>
 
+#ifdef __tilegx__
+#define ARCH_HAS_DMA_GET_REQUIRED_MASK
+#endif
+
 extern struct dma_map_ops *tile_dma_map_ops;
 extern struct dma_map_ops *gx_pci_dma_map_ops;
 extern struct dma_map_ops *gx_legacy_pci_dma_map_ops;

@@ -607,3 +607,21 @@ int dma_set_coherent_mask(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(dma_set_coherent_mask);
 #endif
+
+#ifdef ARCH_HAS_DMA_GET_REQUIRED_MASK
+/*
+ * The generic dma_get_required_mask() uses the highest physical address
+ * (max_pfn) to provide the hint to the PCI drivers regarding 32-bit or
+ * 64-bit DMA configuration. Since TILEGx has I/O TLB/MMU, allowing the
+ * DMAs to use the full 64-bit PCI address space and not limited by
+ * the physical memory space, we always let the PCI devices use
+ * 64-bit DMA if they have that capability, by returning the 64-bit
+ * DMA mask here. The device driver has the option to use 32-bit DMA if
+ * the device is not capable of 64-bit DMA.
+ */
+u64 dma_get_required_mask(struct device *dev)
+{
+	return DMA_BIT_MASK(64);
+}
+EXPORT_SYMBOL_GPL(dma_get_required_mask);
+#endif
