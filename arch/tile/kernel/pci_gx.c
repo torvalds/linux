@@ -91,7 +91,7 @@ static int rc_delay[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
 	TRIO_PCIE_INTFC_PORT_CONFIG__STRAP_STATE_VAL_AUTO_CONFIG_ENDPOINT_G1
 
 /* Array of the PCIe ports configuration info obtained from the BIB. */
-struct pcie_port_property pcie_ports[TILEGX_NUM_TRIO][TILEGX_TRIO_PCIES];
+struct pcie_trio_ports_property pcie_ports[TILEGX_NUM_TRIO];
 
 /* Number of configured TRIO instances. */
 int num_trio_shims;
@@ -195,10 +195,7 @@ static int tile_pcie_open(int trio_index)
 #endif
 
 	/* Get the properties of the PCIe ports on this TRIO instance. */
-	ret = hv_dev_pread(context->fd, 0,
-		(HV_VirtAddr)&pcie_ports[trio_index][0],
-		sizeof(struct pcie_port_property) * TILEGX_TRIO_PCIES,
-		GXIO_TRIO_OP_GET_PORT_PROPERTY);
+	ret = gxio_trio_get_port_property(context, &pcie_ports[trio_index]);
 	if (ret < 0) {
 		pr_err("PCI: PCIE_GET_PORT_PROPERTY failure, error %d,"
 		       " on TRIO %d\n", ret, trio_index);
@@ -221,8 +218,8 @@ static int tile_pcie_open(int trio_index)
 		unsigned int reg_offset;
 
 		/* Ignore ports that are not specified in the BIB. */
-		if (!pcie_ports[trio_index][mac].allow_rc &&
-		    !pcie_ports[trio_index][mac].allow_ep)
+		if (!pcie_ports[trio_index].ports[mac].allow_rc &&
+		    !pcie_ports[trio_index].ports[mac].allow_ep)
 			continue;
 
 		reg_offset =
@@ -243,7 +240,7 @@ static int tile_pcie_open(int trio_index)
 			 */
 			if (port_config.strap_state == AUTO_CONFIG_EP ||
 			    port_config.strap_state == AUTO_CONFIG_EP_G1)
-				pcie_ports[trio_index][mac].allow_ep = 1;
+				pcie_ports[trio_index].ports[mac].allow_ep = 1;
 		}
 	}
 
@@ -438,9 +435,10 @@ int __init tile_pci_init(void)
 		return 0;
 
 	/*
-	 * Now determine which PCIe ports are configured to operate in RC mode.
-	 * We look at the Board Information Block first and then see if there
-	 * are any overriding configuration by the HW strapping pin.
+	 * Now determine which PCIe ports are configured to operate in RC
+	 * mode.  To use a port, it must be allowed to be in RC mode by the
+	 * Board Information Block, and the hardware strapping pins must be
+	 * set to RC mode.
 	 */
 	for (i = 0; i < TILEGX_NUM_TRIO; i++) {
 		gxio_trio_context_t *context = &trio_contexts[i];
@@ -449,7 +447,7 @@ int __init tile_pci_init(void)
 			continue;
 
 		for (j = 0; j < TILEGX_TRIO_PCIES; j++) {
-			if (pcie_ports[i][j].allow_rc &&
+			if (pcie_ports[i].ports[j].allow_rc &&
 			    strapped_for_rc(context, j)) {
 				pcie_rc[i][j] = 1;
 				num_rc_controllers++;
@@ -736,7 +734,7 @@ int __init pcibios_init(void)
 			__gxio_mmio_read(trio_context->mmio_base_mac +
 					 reg_offset);
 		if (!port_status.dl_up) {
-			if (pcie_ports[trio_index][mac].removable) {
+			if (pcie_ports[trio_index].ports[mac].removable) {
 				pr_info("PCI: link is down, MAC %d on TRIO %d\n",
 					mac, trio_index);
 				pr_info("This is expected if no PCIe card"
