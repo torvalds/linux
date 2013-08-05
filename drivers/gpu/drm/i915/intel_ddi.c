@@ -84,15 +84,14 @@ static enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
  * in either FDI or DP modes only, as HDMI connections will work with both
  * of those
  */
-static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
-				      bool use_fdi_mode)
+static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
 	int i;
-	const u32 *ddi_translations = ((use_fdi_mode) ?
+	const u32 *ddi_translations = (port == PORT_E) ?
 		hsw_ddi_translations_fdi :
-		hsw_ddi_translations_dp);
+		hsw_ddi_translations_dp;
 
 	for (i = 0, reg = DDI_BUF_TRANS(port);
 	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
@@ -111,14 +110,8 @@ void intel_prepare_ddi(struct drm_device *dev)
 	if (!HAS_DDI(dev))
 		return;
 
-	for (port = PORT_A; port < PORT_E; port++)
-		intel_prepare_ddi_buffers(dev, port, false);
-
-	/* DDI E is the suggested one to work in FDI mode, so program is as such
-	 * by default. It will have to be re-programmed in case a digital DP
-	 * output will be detected on it
-	 */
-	intel_prepare_ddi_buffers(dev, PORT_E, true);
+	for (port = PORT_A; port <= PORT_E; port++)
+		intel_prepare_ddi_buffers(dev, port);
 }
 
 static const long hsw_ddi_buf_ctl_values[] = {
