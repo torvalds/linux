@@ -294,11 +294,12 @@ static int asoc_bfin_ac97_probe(struct platform_device *pdev)
 	/* Request PB3 as reset pin */
 	ret = devm_gpio_request_one(&pdev->dev,
 				    CONFIG_SND_BF5XX_RESET_GPIO_NUM,
-				    GPIOF_OUT_INIT_HIGH, "SND_AD198x RESET") {
+				    GPIOF_OUT_INIT_HIGH, "SND_AD198x RESET");
+	if (ret) {
 		dev_err(&pdev->dev,
 			"Failed to request GPIO_%d for reset: %d\n",
 			CONFIG_SND_BF5XX_RESET_GPIO_NUM, ret);
-		goto gpio_err;
+		return ret;
 	}
 #endif
 

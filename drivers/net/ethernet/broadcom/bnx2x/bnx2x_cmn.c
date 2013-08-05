@@ -3117,7 +3117,7 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 /* must be called with local_bh_disable()d */
 int bnx2x_low_latency_recv(struct napi_struct *napi)
 {

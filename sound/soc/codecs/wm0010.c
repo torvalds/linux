@@ -410,6 +410,16 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 			rec->command, rec->length);
 		len = rec->length + 8;
 
+		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
+		if (!xfer) {
+			dev_err(codec->dev, "Failed to allocate xfer\n");
+			ret = -ENOMEM;
+			goto abort;
+		}
+
+		xfer->codec = codec;
+		list_add_tail(&xfer->list, &xfer_list);
+
 		out = kzalloc(len, GFP_KERNEL);
 		if (!out) {
 			dev_err(codec->dev,
@@ -417,6 +427,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 			ret = -ENOMEM;
 			goto abort1;
 		}
+		xfer->t.rx_buf = out;
 
 		img = kzalloc(len, GFP_KERNEL);
 		if (!img) {
@@ -425,24 +436,13 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 			ret = -ENOMEM;
 			goto abort1;
 		}
+		xfer->t.tx_buf = img;
 
 		byte_swap_64((u64 *)&rec->command, img, len);
-
-		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
-		if (!xfer) {
-			dev_err(codec->dev, "Failed to allocate xfer\n");
-			ret = -ENOMEM;
-			goto abort1;
-		}
-
-		xfer->codec = codec;
-		list_add_tail(&xfer->list, &xfer_list);
 
 		spi_message_init(&xfer->m);
 		xfer->m.complete = wm0010_boot_xfer_complete;
 		xfer->m.context = xfer;
-		xfer->t.tx_buf = img;
-		xfer->t.rx_buf = out;
 		xfer->t.len = len;
 		xfer->t.bits_per_word = 8;
 

@@ -186,17 +186,24 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
  */
 static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 {
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c;
+	int c, new, old;
+	smp_mb();
+	__asm__ __volatile__(
+	"1:	ldl_l	%[old],%[mem]\n"
+	"	cmpeq	%[old],%[u],%[c]\n"
+	"	addl	%[old],%[a],%[new]\n"
+	"	bne	%[c],2f\n"
+	"	stl_c	%[new],%[mem]\n"
+	"	beq	%[new],3f\n"
+	"2:\n"
+	".subsection 2\n"
+	"3:	br	1b\n"
+	".previous"
+	: [old] "=&r"(old), [new] "=&r"(new), [c] "=&r"(c)
+	: [mem] "m"(*v), [a] "rI"(a), [u] "rI"((long)u)
+	: "memory");
+	smp_mb();
+	return old;
 }
 
 
@@ -207,21 +214,56 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as it was not @u.
- * Returns the old value of @v.
+ * Returns true iff @v was not @u.
  */
 static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 {
-	long c, old;
-	c = atomic64_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic64_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c != (u);
+	long c, tmp;
+	smp_mb();
+	__asm__ __volatile__(
+	"1:	ldq_l	%[tmp],%[mem]\n"
+	"	cmpeq	%[tmp],%[u],%[c]\n"
+	"	addq	%[tmp],%[a],%[tmp]\n"
+	"	bne	%[c],2f\n"
+	"	stq_c	%[tmp],%[mem]\n"
+	"	beq	%[tmp],3f\n"
+	"2:\n"
+	".subsection 2\n"
+	"3:	br	1b\n"
+	".previous"
+	: [tmp] "=&r"(tmp), [c] "=&r"(c)
+	: [mem] "m"(*v), [a] "rI"(a), [u] "rI"(u)
+	: "memory");
+	smp_mb();
+	return !c;
+}
+
+/*
+ * atomic64_dec_if_positive - decrement by 1 if old value positive
+ * @v: pointer of type atomic_t
+ *
+ * The function returns the old value of *v minus 1, even if
+ * the atomic variable, v, was not decremented.
+ */
+static inline long atomic64_dec_if_positive(atomic64_t *v)
+{
+	long old, tmp;
+	smp_mb();
+	__asm__ __volatile__(
+	"1:	ldq_l	%[old],%[mem]\n"
+	"	subq	%[old],1,%[tmp]\n"
+	"	ble	%[old],2f\n"
+	"	stq_c	%[tmp],%[mem]\n"
+	"	beq	%[tmp],3f\n"
+	"2:\n"
+	".subsection 2\n"
+	"3:	br	1b\n"
+	".previous"
+	: [old] "=&r"(old), [tmp] "=&r"(tmp)
+	: [mem] "m"(*v)
+	: "memory");
+	smp_mb();
+	return old - 1;
 }
 
 #define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)

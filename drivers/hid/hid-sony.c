@@ -369,7 +369,8 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (sc->quirks & PS3REMOTE)
 		return ps3remote_mapping(hdev, hi, field, usage, bit, max);
 
-	return -1;
+	/* Let hid-core decide for the others */
+	return 0;
 }
 
 /*

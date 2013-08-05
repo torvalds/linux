@@ -1,7 +1,6 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
-header-y += a.out.h
 header-y += byteorder.h
 header-y += fcntl.h
 header-y += hwcap.h

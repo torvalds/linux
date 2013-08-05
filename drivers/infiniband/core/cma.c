@@ -423,7 +423,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 	struct sockaddr_ib *addr;
 	union ib_gid gid, sgid, *dgid;
 	u16 pkey, index;
-	u8 port, p;
+	u8 p;
 	int i;
 
 	cma_dev = NULL;
@@ -443,7 +443,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 				if (!memcmp(&gid, dgid, sizeof(gid))) {
 					cma_dev = cur_dev;
 					sgid = gid;
-					port = p;
+					id_priv->id.port_num = p;
 					goto found;
 				}
 
@@ -451,7 +451,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 						 dgid->global.subnet_prefix)) {
 					cma_dev = cur_dev;
 					sgid = gid;
-					port = p;
+					id_priv->id.port_num = p;
 				}
 			}
 		}
@@ -462,7 +462,6 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 
 found:
 	cma_attach_to_dev(id_priv, cma_dev);
-	id_priv->id.port_num = port;
 	addr = (struct sockaddr_ib *) cma_src_addr(id_priv);
 	memcpy(&addr->sib_addr, &sgid, sizeof sgid);
 	cma_translate_ib(addr, &id_priv->id.route.addr.dev_addr);
@@ -880,7 +879,8 @@ static int cma_save_net_info(struct rdma_cm_id *id, struct rdma_cm_id *listen_id
 {
 	struct cma_hdr *hdr;
 
-	if (listen_id->route.addr.src_addr.ss_family == AF_IB) {
+	if ((listen_id->route.addr.src_addr.ss_family == AF_IB) &&
+	    (ib_event->event == IB_CM_REQ_RECEIVED)) {
 		cma_save_ib_info(id, listen_id, ib_event->param.req_rcvd.primary_path);
 		return 0;
 	}
@@ -2677,29 +2677,32 @@ static int cma_resolve_ib_udp(struct rdma_id_private *id_priv,
 {
 	struct ib_cm_sidr_req_param req;
 	struct ib_cm_id	*id;
+	void *private_data;
 	int offset, ret;
 
+	memset(&req, 0, sizeof req);
 	offset = cma_user_data_offset(id_priv);
 	req.private_data_len = offset + conn_param->private_data_len;
 	if (req.private_data_len < conn_param->private_data_len)
 		return -EINVAL;
 
 	if (req.private_data_len) {
-		req.private_data = kzalloc(req.private_data_len, GFP_ATOMIC);
-		if (!req.private_data)
+		private_data = kzalloc(req.private_data_len, GFP_ATOMIC);
+		if (!private_data)
 			return -ENOMEM;
 	} else {
-		req.private_data = NULL;
+		private_data = NULL;
 	}
 
 	if (conn_param->private_data && conn_param->private_data_len)
-		memcpy((void *) req.private_data + offset,
-		       conn_param->private_data, conn_param->private_data_len);
+		memcpy(private_data + offset, conn_param->private_data,
+		       conn_param->private_data_len);
 
-	if (req.private_data) {
-		ret = cma_format_hdr((void *) req.private_data, id_priv);
+	if (private_data) {
+		ret = cma_format_hdr(private_data, id_priv);
 		if (ret)
 			goto out;
+		req.private_data = private_data;
 	}
 
 	id = ib_create_cm_id(id_priv->id.device, cma_sidr_rep_handler,
@@ -2721,7 +2724,7 @@ static int cma_resolve_ib_udp(struct rdma_id_private *id_priv,
 		id_priv->cm_id.ib = NULL;
 	}
 out:
-	kfree(req.private_data);
+	kfree(private_data);
 	return ret;
 }
 
