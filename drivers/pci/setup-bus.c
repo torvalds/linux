@@ -749,12 +749,12 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	struct resource *b_res = find_free_bus_resource(bus, IORESOURCE_IO);
 	resource_size_t size = 0, size0 = 0, size1 = 0;
 	resource_size_t children_add_size = 0;
-	resource_size_t min_align, io_align, align;
+	resource_size_t min_align, align;
 
 	if (!b_res)
  		return;
 
-	io_align = min_align = window_alignment(bus, IORESOURCE_IO);
+	min_align = window_alignment(bus, IORESOURCE_IO);
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		int i;
 
@@ -780,9 +780,6 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 				children_add_size += get_res_add_size(realloc_head, r);
 		}
 	}
-
-	if (min_align > io_align)
-		min_align = io_align;
 
 	size0 = calculate_iosize(size, min_size, size1,
 			resource_size(b_res), min_align);
