@@ -32,4 +32,6 @@ extern void r8a7778_clock_init(void);
 extern void r8a7778_init_irq_extpin(int irlm);
 extern void r8a7778_pinmux_init(void);
 
+extern int r8a7778_usb_phy_power(bool enable);
+
 #endif /* __ASM_R8A7778_H__ */
