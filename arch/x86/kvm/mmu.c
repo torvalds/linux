@@ -331,11 +331,6 @@ static int is_large_pte(u64 pte)
 	return pte & PT_PAGE_SIZE_MASK;
 }
 
-static int is_dirty_gpte(unsigned long pte)
-{
-	return pte & PT_DIRTY_MASK;
-}
-
 static int is_rmap_spte(u64 pte)
 {
 	return is_shadow_present_pte(pte);
@@ -2574,14 +2569,6 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 	mmu_free_roots(vcpu);
 }
 
-static bool is_rsvd_bits_set(struct kvm_mmu *mmu, u64 gpte, int level)
-{
-	int bit7;
-
-	bit7 = (gpte >> 7) & 1;
-	return (gpte & mmu->rsvd_bits_mask[bit7][level-1]) != 0;
-}
-
 static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
 				     bool no_dirty_log)
 {
@@ -2592,26 +2579,6 @@ static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
 		return KVM_PFN_ERR_FAULT;
 
 	return gfn_to_pfn_memslot_atomic(slot, gfn);
-}
-
-static bool prefetch_invalid_gpte(struct kvm_vcpu *vcpu,
-				  struct kvm_mmu_page *sp, u64 *spte,
-				  u64 gpte)
-{
-	if (is_rsvd_bits_set(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
-		goto no_present;
-
-	if (!is_present_gpte(gpte))
-		goto no_present;
-
-	if (!(gpte & PT_ACCESSED_MASK))
-		goto no_present;
-
-	return false;
-
-no_present:
-	drop_spte(vcpu->kvm, spte);
-	return true;
 }
 
 static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
@@ -3501,18 +3468,6 @@ static void paging_free(struct kvm_vcpu *vcpu)
 	nonpaging_free(vcpu);
 }
 
-static inline void protect_clean_gpte(unsigned *access, unsigned gpte)
-{
-	unsigned mask;
-
-	BUILD_BUG_ON(PT_WRITABLE_MASK != ACC_WRITE_MASK);
-
-	mask = (unsigned)~ACC_WRITE_MASK;
-	/* Allow write access to dirty gptes */
-	mask |= (gpte >> (PT_DIRTY_SHIFT - PT_WRITABLE_SHIFT)) & PT_WRITABLE_MASK;
-	*access &= mask;
-}
-
 static bool sync_mmio_spte(struct kvm *kvm, u64 *sptep, gfn_t gfn,
 			   unsigned access, int *nr_present)
 {
@@ -3528,16 +3483,6 @@ static bool sync_mmio_spte(struct kvm *kvm, u64 *sptep, gfn_t gfn,
 	}
 
 	return false;
-}
-
-static inline unsigned gpte_access(struct kvm_vcpu *vcpu, u64 gpte)
-{
-	unsigned access;
-
-	access = (gpte & (PT_WRITABLE_MASK | PT_USER_MASK)) | ACC_EXEC_MASK;
-	access &= ~(gpte >> PT64_NX_SHIFT);
-
-	return access;
 }
 
 static inline bool is_last_gpte(struct kvm_mmu *mmu, unsigned level, unsigned gpte)
