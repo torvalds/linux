@@ -271,7 +271,8 @@ static inline void lcd_enable_raster(void)
 }
 
 /* Disable the Raster Engine of the LCD Controller */
-static inline void lcd_disable_raster(bool wait_for_frame_done)
+static inline void lcd_disable_raster(enum da8xx_frame_complete
+					wait_for_frame_done)
 {
 	u32 reg;
 	int ret;
@@ -283,7 +284,8 @@ static inline void lcd_disable_raster(bool wait_for_frame_done)
 		/* return if already disabled */
 		return;
 
-	if ((wait_for_frame_done == true) && (lcd_revision == LCD_VERSION_2)) {
+	if ((wait_for_frame_done == DA8XX_FRAME_WAIT) &&
+			(lcd_revision == LCD_VERSION_2)) {
 		frame_done_flag = 0;
 		ret = wait_event_interruptible_timeout(frame_done_wq,
 				frame_done_flag != 0,
@@ -771,7 +773,7 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 	u32 stat = lcdc_read(LCD_MASKED_STAT_REG);
 
 	if ((stat & LCD_SYNC_LOST) && (stat & LCD_FIFO_UNDERFLOW)) {
-		lcd_disable_raster(false);
+		lcd_disable_raster(DA8XX_FRAME_NOWAIT);
 		lcdc_write(stat, LCD_MASKED_STAT_REG);
 		lcd_enable_raster();
 	} else if (stat & LCD_PL_LOAD_DONE) {
@@ -781,7 +783,7 @@ static irqreturn_t lcdc_irq_handler_rev02(int irq, void *arg)
 		 * interrupt via the following write to the status register. If
 		 * this is done after then one gets multiple PL done interrupts.
 		 */
-		lcd_disable_raster(false);
+		lcd_disable_raster(DA8XX_FRAME_NOWAIT);
 
 		lcdc_write(stat, LCD_MASKED_STAT_REG);
 
@@ -834,7 +836,7 @@ static irqreturn_t lcdc_irq_handler_rev01(int irq, void *arg)
 	u32 reg_ras;
 
 	if ((stat & LCD_SYNC_LOST) && (stat & LCD_FIFO_UNDERFLOW)) {
-		lcd_disable_raster(false);
+		lcd_disable_raster(DA8XX_FRAME_NOWAIT);
 		lcdc_write(stat, LCD_STAT_REG);
 		lcd_enable_raster();
 	} else if (stat & LCD_PL_LOAD_DONE) {
@@ -844,7 +846,7 @@ static irqreturn_t lcdc_irq_handler_rev01(int irq, void *arg)
 		 * interrupt via the following write to the status register. If
 		 * this is done after then one gets multiple PL done interrupts.
 		 */
-		lcd_disable_raster(false);
+		lcd_disable_raster(DA8XX_FRAME_NOWAIT);
 
 		lcdc_write(stat, LCD_STAT_REG);
 
@@ -986,7 +988,7 @@ static int lcd_da8xx_cpufreq_transition(struct notifier_block *nb,
 	if (val == CPUFREQ_POSTCHANGE) {
 		if (par->lcd_fck_rate != clk_get_rate(par->lcdc_clk)) {
 			par->lcd_fck_rate = clk_get_rate(par->lcdc_clk);
-			lcd_disable_raster(true);
+			lcd_disable_raster(DA8XX_FRAME_WAIT);
 			da8xx_fb_calc_config_clk_divider(par, &par->mode);
 			if (par->blank == FB_BLANK_UNBLANK)
 				lcd_enable_raster();
@@ -1024,7 +1026,7 @@ static int fb_remove(struct platform_device *dev)
 		if (par->panel_power_ctrl)
 			par->panel_power_ctrl(0);
 
-		lcd_disable_raster(true);
+		lcd_disable_raster(DA8XX_FRAME_WAIT);
 		lcdc_write(0, LCD_RASTER_CTRL_REG);
 
 		/* disable DMA  */
@@ -1140,7 +1142,7 @@ static int cfb_blank(int blank, struct fb_info *info)
 		if (par->panel_power_ctrl)
 			par->panel_power_ctrl(0);
 
-		lcd_disable_raster(true);
+		lcd_disable_raster(DA8XX_FRAME_WAIT);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1208,7 +1210,7 @@ static int da8xxfb_set_par(struct fb_info *info)
 	bool raster = da8xx_fb_is_raster_enabled();
 
 	if (raster)
-		lcd_disable_raster(true);
+		lcd_disable_raster(DA8XX_FRAME_WAIT);
 
 	fb_var_to_videomode(&par->mode, &info->var);
 
@@ -1569,7 +1571,7 @@ static int fb_suspend(struct platform_device *dev, pm_message_t state)
 		par->panel_power_ctrl(0);
 
 	fb_set_suspend(info, 1);
-	lcd_disable_raster(true);
+	lcd_disable_raster(DA8XX_FRAME_WAIT);
 	lcd_context_save();
 	pm_runtime_put_sync(&dev->dev);
 	console_unlock();
