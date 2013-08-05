@@ -28,7 +28,6 @@
 #define OCTEON_SPI_MAX_CLOCK_HZ 16000000
 
 struct octeon_spi {
-	struct spi_master *my_master;
 	u64 register_base;
 	u64 last_cfg;
 	u64 cs_enax;
@@ -268,7 +267,6 @@ static int octeon_spi_nop_transfer_hardware(struct spi_master *master)
 
 static int octeon_spi_probe(struct platform_device *pdev)
 {
-
 	struct resource *res_mem;
 	struct spi_master *master;
 	struct octeon_spi *p;
@@ -278,8 +276,7 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 	p = spi_master_get_devdata(master);
-	platform_set_drvdata(pdev, p);
-	p->my_master = master;
+	platform_set_drvdata(pdev, master);
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -328,10 +325,11 @@ fail:
 
 static int octeon_spi_remove(struct platform_device *pdev)
 {
-	struct octeon_spi *p = platform_get_drvdata(pdev);
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct octeon_spi *p = spi_master_get_devdata(master);
 	u64 register_base = p->register_base;
 
-	spi_unregister_master(p->my_master);
+	spi_unregister_master(master);
 
 	/* Clear the CSENA* and put everything in a known state. */
 	cvmx_write_csr(register_base + OCTEON_SPI_CFG, 0);
