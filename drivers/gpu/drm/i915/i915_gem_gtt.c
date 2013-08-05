@@ -52,6 +52,7 @@
  */
 #define HSW_CACHEABILITY_CONTROL(bits)	((((bits) & 0x7) << 1) | \
 					 (((bits) & 0x8) << (11 - 3)))
+#define HSW_WB_LLC_AGE3			HSW_CACHEABILITY_CONTROL(0x2)
 #define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
 
@@ -105,7 +106,7 @@ static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
 
 	if (level != I915_CACHE_NONE)
-		pte |= HSW_WB_LLC_AGE0;
+		pte |= HSW_WB_LLC_AGE3;
 
 	return pte;
 }
