@@ -253,8 +253,8 @@ EXPORT_SYMBOL_HDA(snd_hda_jack_detect_enable);
 int snd_hda_jack_set_gating_jack(struct hda_codec *codec, hda_nid_t gated_nid,
 				 hda_nid_t gating_nid)
 {
-	struct hda_jack_tbl *gated = snd_hda_jack_tbl_get(codec, gated_nid);
-	struct hda_jack_tbl *gating = snd_hda_jack_tbl_get(codec, gating_nid);
+	struct hda_jack_tbl *gated = snd_hda_jack_tbl_new(codec, gated_nid);
+	struct hda_jack_tbl *gating = snd_hda_jack_tbl_new(codec, gating_nid);
 
 	if (!gated || !gating)
 		return -EINVAL;
