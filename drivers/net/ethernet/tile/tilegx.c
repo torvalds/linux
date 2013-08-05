@@ -1510,8 +1510,10 @@ static int tile_net_open(struct net_device *dev)
 
 	/* Get the instance info. */
 	rc = gxio_mpipe_link_instance(dev->name);
-	if (rc < 0 || rc >= NR_MPIPE_MAX)
+	if (rc < 0 || rc >= NR_MPIPE_MAX) {
+		mutex_unlock(&tile_net_devs_for_channel_mutex);
 		return -EIO;
+	}
 
 	priv->instance = rc;
 	instance = rc;
