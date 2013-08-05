@@ -466,7 +466,7 @@ extern void br_multicast_free_pg(struct rcu_head *head);
 extern struct net_bridge_port_group *br_multicast_new_port_group(
 				struct net_bridge_port *port,
 				struct br_ip *group,
-				struct net_bridge_port_group *next,
+				struct net_bridge_port_group __rcu *next,
 				unsigned char state);
 extern void br_mdb_init(void);
 extern void br_mdb_uninit(void);

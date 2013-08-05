@@ -61,7 +61,8 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 
 	for (i = 0; i < mdb->max; i++) {
 		struct net_bridge_mdb_entry *mp;
-		struct net_bridge_port_group *p, **pp;
+		struct net_bridge_port_group *p;
+		struct net_bridge_port_group __rcu **pp;
 		struct net_bridge_port *port;
 
 		hlist_for_each_entry_rcu(mp, &mdb->mhash[i], hlist[mdb->ver]) {
