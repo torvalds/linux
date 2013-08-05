@@ -869,12 +869,59 @@ static int max77xxx_setup_gpios(struct device *dev,
 	return 0;
 }
 
+/**
+ * max77xxx_read_gpios - read the current state of the dvs GPIOs
+ *
+ * We call this function at bootup to detect what slot the firmware was
+ * using for the DVS GPIOs.  That way we can properly preserve the firmware's
+ * voltage settings
+ */
+static int max77xxx_read_gpios(struct max77xxx_platform_data *pdata)
+{
+	int buck_default_idx = pdata->buck_default_idx;
+	int result = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pdata->buck_gpio_dvs); i++, result <<= 1) {
+		int gpio = pdata->buck_gpio_dvs[i];
+
+		/* OK if some GPIOs aren't defined; we'll use default */
+		if (!gpio_is_valid(gpio)) {
+			result |= (buck_default_idx >> i) & 1;
+			continue;
+		}
+
+		if (gpio_get_value_cansleep(gpio))
+			result |= 1;
+	}
+
+	return result;
+}
+
 static inline bool max77xxx_is_dvs_buck(int id, int type)
 {
 	/* On 77686 bucks 2-4 are DVS; on 77802 bucks 1-4, 6 are */
 	return (id >= MAX77XXX_BUCK2 && id <= MAX77XXX_BUCK4) ||
 	       (type == TYPE_MAX77802 && (id == MAX77XXX_BUCK1 ||
 					  id == MAX77XXX_BUCK6));
+}
+
+static void max77xxx_copy_reg(struct device *dev, struct regmap *regmap,
+			      int from_reg, int to_reg)
+{
+	int val;
+	int ret;
+
+	if (from_reg == to_reg)
+		return;
+
+	ret = regmap_read(regmap, from_reg, &val);
+	if (!ret)
+		ret = regmap_write(regmap, to_reg, val);
+
+	if (ret)
+		dev_warn(dev, "Copy err %d => %d (%d)\n",
+			 from_reg, to_reg, ret);
 }
 
 static int max77xxx_pmic_probe(struct platform_device *pdev)
@@ -886,6 +933,8 @@ static int max77xxx_pmic_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	struct max77xxx_info *info;
 	unsigned int reg;
+	int buck_default_idx;
+	int buck_old_idx;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
@@ -926,6 +975,9 @@ static int max77xxx_pmic_probe(struct platform_device *pdev)
 	config.driver_data = max77xxx;
 	platform_set_drvdata(pdev, max77xxx);
 
+	buck_default_idx = pdata->buck_default_idx;
+	buck_old_idx = max77xxx_read_gpios(pdata);
+
 	for (i = 0; i < max77xxx->num_regulators; i++) {
 		int id = pdata->regulators[i].id;
 
@@ -937,8 +989,14 @@ static int max77xxx_pmic_probe(struct platform_device *pdev)
 		else
 			max77xxx->opmode[id] = MAX77XXX_OPMODE_NORMAL;
 
-		if (max77xxx_is_dvs_buck(id, max77xxx->type))
-			info->regulators[i].vsel_reg += pdata->buck_default_idx;
+		if (max77xxx_is_dvs_buck(id, max77xxx->type)) {
+			/* Try to copy over data so we keep firmware settings */
+			reg = info->regulators[i].vsel_reg;
+			max77xxx_copy_reg(&pdev->dev, iodev->regmap,
+					  reg + buck_old_idx,
+					  reg + buck_default_idx);
+			info->regulators[i].vsel_reg += buck_default_idx;
+		}
 
 		max77xxx->rdev[i] = regulator_register(&info->regulators[i],
 						       &config);
