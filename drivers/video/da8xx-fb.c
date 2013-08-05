@@ -1329,6 +1329,8 @@ static int fb_probe(struct platform_device *device)
 		par->panel_power_ctrl(1);
 	}
 
+	fb_videomode_to_var(&da8xx_fb_var, lcdc_info);
+
 	if (lcd_init(par, lcd_cfg, lcdc_info) < 0) {
 		dev_err(&device->dev, "lcd_init failed\n");
 		ret = -EFAULT;
@@ -1381,25 +1383,9 @@ static int fb_probe(struct platform_device *device)
 		goto err_release_pl_mem;
 	}
 
-	/* Initialize par */
-	da8xx_fb_info->var.bits_per_pixel = lcd_cfg->bpp;
-
-	da8xx_fb_var.xres = lcdc_info->xres;
-	da8xx_fb_var.xres_virtual = lcdc_info->xres;
-
-	da8xx_fb_var.yres         = lcdc_info->yres;
-	da8xx_fb_var.yres_virtual = lcdc_info->yres * LCD_NUM_BUFFERS;
-
 	da8xx_fb_var.grayscale =
 	    lcd_cfg->panel_shade == MONOCHROME ? 1 : 0;
 	da8xx_fb_var.bits_per_pixel = lcd_cfg->bpp;
-
-	da8xx_fb_var.hsync_len = lcdc_info->hsync_len;
-	da8xx_fb_var.vsync_len = lcdc_info->vsync_len;
-	da8xx_fb_var.right_margin = lcdc_info->right_margin;
-	da8xx_fb_var.left_margin  = lcdc_info->left_margin;
-	da8xx_fb_var.lower_margin = lcdc_info->lower_margin;
-	da8xx_fb_var.upper_margin = lcdc_info->upper_margin;
 	da8xx_fb_var.pixclock = da8xxfb_pixel_clk_period(par);
 
 	/* Initialize fbinfo */
