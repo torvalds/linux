@@ -716,7 +716,6 @@ static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu);
 static u64 construct_eptp(unsigned long root_hpa);
 static void kvm_cpu_vmxon(u64 addr);
 static void kvm_cpu_vmxoff(void);
-static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
@@ -1041,8 +1040,7 @@ static inline bool nested_cpu_has2(struct vmcs12 *vmcs12, u32 bit)
 		(vmcs12->secondary_vm_exec_control & bit);
 }
 
-static inline bool nested_cpu_has_virtual_nmis(struct vmcs12 *vmcs12,
-	struct kvm_vcpu *vcpu)
+static inline bool nested_cpu_has_virtual_nmis(struct vmcs12 *vmcs12)
 {
 	return vmcs12->pin_based_vm_exec_control & PIN_BASED_VIRTUAL_NMIS;
 }
@@ -6770,7 +6768,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 
 	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked &&
 	    !(is_guest_mode(vcpu) && nested_cpu_has_virtual_nmis(
-	                                get_vmcs12(vcpu), vcpu)))) {
+					get_vmcs12(vcpu))))) {
 		if (vmx_interrupt_allowed(vcpu)) {
 			vmx->soft_vnmi_blocked = 0;
 		} else if (vmx->vnmi_blocked_time > 1000000000LL &&
