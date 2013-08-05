@@ -169,13 +169,11 @@ static struct snd_soc_dai_driver pcm1792a_dai = {
 	.ops = &pcm1792a_dai_ops,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id pcm1792a_of_match[] = {
 	{ .compatible = "ti,pcm1792a", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcm1792a_of_match);
-#endif
 
 static const struct regmap_config pcm1792a_regmap = {
 	.reg_bits		= 8,
@@ -231,7 +229,7 @@ static struct spi_driver pcm1792a_codec_driver = {
 	.driver = {
 		.name = "pcm1792a",
 		.owner = THIS_MODULE,
-		.of_match_table = pcm1792a_of_match,
+		.of_match_table = of_match_ptr(pcm1792a_of_match),
 	},
 	.id_table = pcm1792a_spi_ids,
 	.probe = pcm1792a_spi_probe,
