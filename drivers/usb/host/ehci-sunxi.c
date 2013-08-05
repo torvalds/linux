@@ -129,8 +129,14 @@ static void sw_stop_ehci(struct sw_hci_hcd *sw_ehci)
 static int sw_ehci_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int ret = ehci_init(hcd);
+	int ret;
 
+	ret = ehci_setup(hcd);
+	if (ret)
+		return ret;
+
+	/* TODO: is following ok for sunxi? Only very few ehci drivers seem to
+	 * disable watchdog. */
 	ehci->need_io_watchdog = 0;
 
 	return ret;
@@ -149,9 +155,6 @@ static const struct hc_driver sw_ehci_hc_driver = {
 
 	/*
 	 * basic lifecycle operations
-	 *
-	 * FIXME -- ehci_init() doesn't do enough here.
-	 * See ehci-ppc-soc for a complete implementation.
 	 */
 	.reset = sw_ehci_setup,
 	.start = ehci_run,
@@ -297,16 +300,11 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
 	hcd->regs = sw_ehci->ehci_base;
 	sw_ehci->hcd = hcd;
 
-	/* echi start to work */
+	/* ehci start to work */
 	sw_start_ehci(sw_ehci);
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
-	ehci->regs =
-	    hcd->regs + HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
-
-	/* cache this readonly data, minimize chip reads */
-	ehci->hcs_params = readl(&ehci->caps->hcs_params);
 
 	ret = usb_add_hcd(hcd, sw_ehci->irq_no, IRQF_DISABLED | IRQF_SHARED);
 	if (ret != 0) {
