@@ -3836,8 +3836,12 @@ again:
 	if (force < space_info->force_alloc)
 		force = space_info->force_alloc;
 	if (space_info->full) {
+		if (should_alloc_chunk(extent_root, space_info, force))
+			ret = -ENOSPC;
+		else
+			ret = 0;
 		spin_unlock(&space_info->lock);
-		return 0;
+		return ret;
 	}
 
 	if (!should_alloc_chunk(extent_root, space_info, force)) {
