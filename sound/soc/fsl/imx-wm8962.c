@@ -1,9 +1,9 @@
 /*
- * Copyright 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2014 Freescale Semiconductor, Inc.
  *
  * Based on imx-sgtl5000.c
- * Copyright 2012 Freescale Semiconductor, Inc.
- * Copyright 2012 Linaro Ltd.
+ * Copyright (C) 2012 Freescale Semiconductor, Inc.
+ * Copyright (C) 2012 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -39,6 +39,8 @@ struct imx_wm8962_data {
 
 struct imx_priv {
 	struct platform_device *pdev;
+	struct snd_pcm_substream *first_stream;
+	struct snd_pcm_substream *second_stream;
 };
 static struct imx_priv card_priv;
 
@@ -49,89 +51,117 @@ static const struct snd_soc_dapm_widget imx_wm8962_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("DMIC", NULL),
 };
 
-static int sample_rate = 44100;
-static snd_pcm_format_t sample_format = SNDRV_PCM_FORMAT_S16_LE;
-
 static int imx_hifi_hw_params(struct snd_pcm_substream *substream,
-		struct snd_pcm_hw_params *params)
+				     struct snd_pcm_hw_params *params)
 {
-	sample_rate = params_rate(params);
-	sample_format = params_format(params);
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct imx_priv *priv = &card_priv;
+	struct device *dev = &priv->pdev->dev;
+	struct snd_soc_card *card = platform_get_drvdata(priv->pdev);
+	struct imx_wm8962_data *data = snd_soc_card_get_drvdata(card);
+	unsigned int sample_rate = params_rate(params);
+	snd_pcm_format_t sample_format = params_format(params);
+	u32 dai_format, pll_out;
+	int ret = 0;
+
+	if (!priv->first_stream) {
+		priv->first_stream = substream;
+	} else {
+		priv->second_stream = substream;
+
+		/* We suppose the two substream are using same params */
+		return 0;
+	}
+
+	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		SND_SOC_DAIFMT_CBM_CFM;
+
+	/* set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
+	if (ret) {
+		dev_err(dev, "failed to set codec dai fmt: %d\n", ret);
+		return ret;
+	}
+
+	if (sample_format == SNDRV_PCM_FORMAT_S24_LE)
+		pll_out = sample_rate * 384;
+	else
+		pll_out = sample_rate * 256;
+
+	ret = snd_soc_dai_set_pll(codec_dai, WM8962_FLL, WM8962_FLL_MCLK,
+			data->clk_frequency, pll_out);
+	if (ret) {
+		dev_err(dev, "failed to start FLL: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8962_SYSCLK_FLL,
+			pll_out, SND_SOC_CLOCK_IN);
+	if (ret) {
+		dev_err(dev, "failed to set SYSCLK: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int imx_hifi_hw_free(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct imx_priv *priv = &card_priv;
+	struct snd_soc_card *card = platform_get_drvdata(priv->pdev);
+	struct imx_wm8962_data *data = snd_soc_card_get_drvdata(card);
+	struct device *dev = &priv->pdev->dev;
+	int ret;
+
+	/* We don't need to handle anything if there's no substream running */
+	if (!priv->first_stream)
+		return 0;
+
+	if (priv->first_stream == substream)
+		priv->first_stream = priv->second_stream;
+	priv->second_stream = NULL;
+
+	if (!priv->first_stream) {
+		/*
+		 * WM8962 doesn't allow us to continuously setting FLL,
+		 * So we set MCLK as sysclk once, which'd remove the limitation.
+		 */
+		ret = snd_soc_dai_set_sysclk(codec_dai, WM8962_SYSCLK_MCLK,
+				data->clk_frequency, SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			dev_err(dev, "failed to switch away from FLL: %d\n", ret);
+			return ret;
+		}
+
+		/*
+		 * Continuously setting FLL would cause playback distortion.
+		 * We can fix it just by mute codec after playback.
+		 */
+		ret = snd_soc_dai_digital_mute(codec_dai, 1, substream->stream);
+		if (ret < 0) {
+			dev_err(dev, "failed to set MUTE: %d\n", ret);
+			return ret;
+		}
+
+		/* Disable FLL and let codec do pm_runtime_put() */
+		ret = snd_soc_dai_set_pll(codec_dai, WM8962_FLL,
+				WM8962_FLL_MCLK, 0, 0);
+		if (ret < 0) {
+			dev_err(dev, "failed to stop FLL: %d\n", ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
 
 static struct snd_soc_ops imx_hifi_ops = {
 	.hw_params = imx_hifi_hw_params,
+	.hw_free = imx_hifi_hw_free,
 };
-
-static int imx_wm8962_set_bias_level(struct snd_soc_card *card,
-					struct snd_soc_dapm_context *dapm,
-					enum snd_soc_bias_level level)
-{
-	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
-	struct imx_priv *priv = &card_priv;
-	struct imx_wm8962_data *data = snd_soc_card_get_drvdata(card);
-	struct device *dev = &priv->pdev->dev;
-	unsigned int pll_out;
-	int ret;
-
-	if (dapm->dev != codec_dai->dev)
-		return 0;
-
-	switch (level) {
-	case SND_SOC_BIAS_PREPARE:
-		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
-			if (sample_format == SNDRV_PCM_FORMAT_S24_LE)
-				pll_out = sample_rate * 384;
-			else
-				pll_out = sample_rate * 256;
-
-			ret = snd_soc_dai_set_pll(codec_dai, WM8962_FLL,
-					WM8962_FLL_MCLK, data->clk_frequency,
-					pll_out);
-			if (ret < 0) {
-				dev_err(dev, "failed to start FLL: %d\n", ret);
-				return ret;
-			}
-
-			ret = snd_soc_dai_set_sysclk(codec_dai,
-					WM8962_SYSCLK_FLL, pll_out,
-					SND_SOC_CLOCK_IN);
-			if (ret < 0) {
-				dev_err(dev, "failed to set SYSCLK: %d\n", ret);
-				return ret;
-			}
-		}
-		break;
-
-	case SND_SOC_BIAS_STANDBY:
-		if (dapm->bias_level == SND_SOC_BIAS_PREPARE) {
-			ret = snd_soc_dai_set_sysclk(codec_dai,
-					WM8962_SYSCLK_MCLK, data->clk_frequency,
-					SND_SOC_CLOCK_IN);
-			if (ret < 0) {
-				dev_err(dev,
-					"failed to switch away from FLL: %d\n",
-					ret);
-				return ret;
-			}
-
-			ret = snd_soc_dai_set_pll(codec_dai, WM8962_FLL,
-					0, 0, 0);
-			if (ret < 0) {
-				dev_err(dev, "failed to stop FLL: %d\n", ret);
-				return ret;
-			}
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	return 0;
-}
 
 static int imx_wm8962_late_probe(struct snd_soc_card *card)
 {
@@ -219,6 +249,9 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	priv->first_stream = NULL;
+	priv->second_stream = NULL;
+
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
@@ -263,7 +296,6 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_wm8962_dapm_widgets);
 
 	data->card.late_probe = imx_wm8962_late_probe;
-	data->card.set_bias_level = imx_wm8962_set_bias_level;
 
 	platform_set_drvdata(pdev, &data->card);
 	snd_soc_card_set_drvdata(&data->card, data);
