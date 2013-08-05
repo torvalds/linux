@@ -4,6 +4,7 @@
 #include <linux/sys.h>
 #include <linux/cache.h>
 #include <asm/asm-offsets.h>
+#include <asm/syscall.h>
 
 #define __SYSCALL_COMMON(nr, sym, compat) __SYSCALL_64(nr, sym, compat)
 
@@ -18,8 +19,6 @@
 #undef __SYSCALL_64
 
 #define __SYSCALL_64(nr, sym, compat) [nr] = sym,
-
-typedef void (*sys_call_ptr_t)(void);
 
 extern void sys_ni_syscall(void);
 
