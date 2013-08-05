@@ -45,7 +45,7 @@ unsigned char Wb35Reg_BurstWrite(struct hw_data *pHwData, u16 RegisterNo,
 	reg_queue->pBuffer = (u32 *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue));
 	memcpy(reg_queue->pBuffer, pRegisterData, DataSize);
 	/* the function for reversing register data from little endian to big endian */
-	for (i = 0; i < NumberOfData ; i++)
+	for (i = 0; i < NumberOfData; i++)
 		reg_queue->pBuffer[i] = cpu_to_le32(reg_queue->pBuffer[i]);
 
 	dr = (struct usb_ctrlrequest *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue) + DataSize);
