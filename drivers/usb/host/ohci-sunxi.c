@@ -57,18 +57,6 @@ static int close_ohci_clock(struct sw_hci_hcd *sw_ohci)
 	return sw_ohci->close_clock(sw_ohci, 1);
 }
 
-static int sw_get_io_resource(struct platform_device *pdev,
-			      struct sw_hci_hcd *sw_ohci)
-{
-	return 0;
-}
-
-static int sw_release_io_resource(struct platform_device *pdev,
-				  struct sw_hci_hcd *sw_ohci)
-{
-	return 0;
-}
-
 static void sw_start_ohc(struct sw_hci_hcd *sw_ohci)
 {
 	open_ohci_clock(sw_ohci);
@@ -183,9 +171,9 @@ static int sw_ohci_hcd_remove(struct platform_device *pdev)
 	sw_stop_ohc(sw_ohci);
 	sw_ohci->probe = 0;
 
-	usb_put_hcd(hcd);
+	iounmap(hcd->regs);
 
-	sw_release_io_resource(pdev, sw_ohci);
+	usb_put_hcd(hcd);
 
 	sw_ohci->hcd = NULL;
 
@@ -225,6 +213,8 @@ EXPORT_SYMBOL(sw_usb_disable_ohci);
 static int sw_ohci_hcd_probe(struct platform_device *pdev)
 {
 	int ret;
+	int irq;
+	struct resource *res;
 	struct usb_hcd *hcd = NULL;
 	struct sw_hci_hcd *sw_ohci = NULL;
 
@@ -246,9 +236,12 @@ static int sw_ohci_hcd_probe(struct platform_device *pdev)
 		SW_OHCI_NAME, sw_ohci->usbc_no, pdev->name, pdev->id, sw_ohci);
 
 	/* get io resource */
-	sw_get_io_resource(pdev, sw_ohci);
-	sw_ohci->ohci_base = sw_ohci->usb_vbase + SW_USB_OHCI_BASE_OFFSET;
-	sw_ohci->ohci_reg_length = SW_USB_OHCI_LEN;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		pr_err("%s: failed to get io memory\n", __func__);
+		ret = -ENOMEM;
+		goto err_get_iomem;
+	}
 
 	/*creat a usb_hcd for the ohci controller */
 	hcd = usb_create_hcd(&sw_ohci_hc_driver, &pdev->dev, SW_OHCI_NAME);
@@ -258,9 +251,15 @@ static int sw_ohci_hcd_probe(struct platform_device *pdev)
 		goto err_create_hcd;
 	}
 
-	hcd->rsrc_start = (u32) sw_ohci->ohci_base;
-	hcd->rsrc_len = sw_ohci->ohci_reg_length;
-	hcd->regs = sw_ohci->ohci_base;
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
+	hcd->regs = ioremap(res->start, resource_size(res));
+	if (!hcd->regs) {
+		pr_err("%s: failed to ioremap\n", __func__);
+		ret = -ENOMEM;
+		goto err_ioremap;
+	}
+
 	sw_ohci->hcd = hcd;
 
 	/* ochi start to work */
@@ -268,7 +267,14 @@ static int sw_ohci_hcd_probe(struct platform_device *pdev)
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	ret = usb_add_hcd(hcd, sw_ohci->irq_no, IRQF_DISABLED | IRQF_SHARED);
+	irq = platform_get_irq(pdev, 0);
+	if (!irq) {
+		pr_err("%s: failed to get irq\n", __func__);
+		ret =  -ENODEV;
+		goto err_get_irq;
+	}
+
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (ret != 0) {
 		pr_err("%s: failed to add hcd, rc=%d\n", __func__, ret);
 		goto err_add_hcd;
@@ -297,7 +303,11 @@ static int sw_ohci_hcd_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_hcd:
+err_get_irq:
+	iounmap(hcd->regs);
+err_ioremap:
 	usb_put_hcd(hcd);
+err_get_iomem:
 err_create_hcd:
 	sw_ohci->hcd = NULL;
 	g_sw_ohci[sw_ohci->usbc_no] = NULL;
