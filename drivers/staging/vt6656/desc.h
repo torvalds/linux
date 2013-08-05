@@ -254,21 +254,14 @@ typedef const SRTS_a_FB *PCSRTS_a_FB;
 /*
  * CTS buffer header
  */
-typedef struct tagSCTSData {
-    u16    wFrameControl;
-    u16    wDurationID;
-    u8    abyRA[ETH_ALEN];
-    u16    wReserved;
-} __attribute__ ((__packed__))
-SCTSData, *PSCTSData;
-
 typedef struct tagSCTS {
     u8        bySignalField_b;
     u8        byServiceField_b;
     u16        wTransmitLength_b;
     u16        wDuration_ba;
     u16        wReserved;
-    SCTSData    Data;
+	struct ieee80211_cts data;
+	u16 reserved2;
 } __attribute__ ((__packed__))
 SCTS, *PSCTS;
 
@@ -282,7 +275,8 @@ typedef struct tagSCTS_FB {
     u16        wReserved;
     u16        wCTSDuration_ba_f0;
     u16        wCTSDuration_ba_f1;
-    SCTSData    Data;
+	struct ieee80211_cts data;
+	u16 reserved2;
 } __attribute__ ((__packed__))
 SCTS_FB, *PSCTS_FB;
 
