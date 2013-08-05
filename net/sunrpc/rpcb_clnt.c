@@ -238,6 +238,14 @@ static int rpcb_create_local_unix(struct net *net)
 		.program	= &rpcb_program,
 		.version	= RPCBVERS_2,
 		.authflavor	= RPC_AUTH_NULL,
+		/*
+		 * We turn off the idle timeout to prevent the kernel
+		 * from automatically disconnecting the socket.
+		 * Otherwise, we'd have to cache the mount namespace
+		 * of the caller and somehow pass that to the socket
+		 * reconnect code.
+		 */
+		.flags		= RPC_CLNT_CREATE_NO_IDLE_TIMEOUT,
 	};
 	struct rpc_clnt *clnt, *clnt4;
 	int result = 0;
