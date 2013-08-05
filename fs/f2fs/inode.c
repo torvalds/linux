@@ -151,7 +151,7 @@ void update_inode(struct inode *inode, struct page *node_page)
 	struct f2fs_node *rn;
 	struct f2fs_inode *ri;
 
-	wait_on_page_writeback(node_page);
+	f2fs_wait_on_page_writeback(node_page, NODE, false);
 
 	rn = F2FS_NODE(node_page);
 	ri = &(rn->i);

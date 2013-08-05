@@ -705,6 +705,16 @@ retry:
 	trace_f2fs_submit_write_page(page, blk_addr, type);
 }
 
+void f2fs_wait_on_page_writeback(struct page *page,
+				enum page_type type, bool sync)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
+	if (PageWriteback(page)) {
+		f2fs_submit_bio(sbi, type, sync);
+		wait_on_page_writeback(page);
+	}
+}
+
 static bool __has_curseg_space(struct f2fs_sb_info *sbi, int type)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
