@@ -155,6 +155,7 @@ static void *s_vGetFreeContext(struct vnt_private *pDevice)
         pContext = pDevice->apTD[ii];
         if (pContext->bBoolInUse == false) {
             pContext->bBoolInUse = true;
+		memset(pContext->Data, 0, MAX_TOTAL_SIZE_WITH_ALL_HEADERS);
             pReturnContext = pContext;
             break;
         }
@@ -1206,7 +1207,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 	}
 
     pTxBufHead = (PTX_BUFFER) usbPacketBuf;
-    memset(pTxBufHead, 0, sizeof(TX_BUFFER));
 
     // Get pkt type
     if (ntohs(psEthHeader->h_proto) > ETH_DATA_LEN) {
@@ -1582,8 +1582,6 @@ static void s_vGenerateMACHeader(struct vnt_private *pDevice,
 {
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyBufferAddr;
 
-    memset(pMACHeader, 0, (sizeof(struct ieee80211_hdr)));
-
     if (uDMAIdx == TYPE_ATIMDMA) {
     	pMACHeader->frame_control = TYPE_802_11_ATIM;
     } else {
@@ -1699,7 +1697,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     cbFrameBodySize = pPacket->cbPayloadLen;
     pTxBufHead = (PSTxBufHead) pbyTxBufferAddr;
     wTxBufSize = sizeof(STxBufHead);
-    memset(pTxBufHead, 0, wTxBufSize);
 
     if (pDevice->byBBType == BB_TYPE_11A) {
         wCurrentRate = RATE_6M;
@@ -1827,9 +1824,6 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         pvTxDataHd = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab));
         cbHeaderSize = wTxBufSize + sizeof(SRrvTime_ab) + sizeof(STxDataHead_ab);
     }
-
-    memset((void *)(pbyTxBufferAddr + wTxBufSize), 0,
-	   (cbHeaderSize - wTxBufSize));
 
     memcpy(&(sEthHeader.h_dest[0]),
 	   &(pPacket->p80211Header->sA3.abyAddr1[0]),
@@ -1968,7 +1962,6 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 
     pTxBufHead = (PSTxShortBufHead) pbyTxBufferAddr;
     wTxBufSize = sizeof(STxShortBufHead);
-    memset(pTxBufHead, 0, wTxBufSize);
 
     if (pDevice->byBBType == BB_TYPE_11A) {
         wCurrentRate = RATE_6M;
@@ -2077,7 +2070,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     pbyTxBufferAddr = (u8 *)(&pTX_Buffer->adwTxKey[0]);
     pTxBufHead = (PSTxBufHead) pbyTxBufferAddr;
     wTxBufSize = sizeof(STxBufHead);
-    memset(pTxBufHead, 0, wTxBufSize);
 
     if (pDevice->byBBType == BB_TYPE_11A) {
         wCurrentRate = RATE_6M;
@@ -2233,8 +2225,6 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
         pvTxDataHd = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR);
         cbHeaderSize = wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR + sizeof(STxDataHead_ab);
     }
-    memset((void *)(pbyTxBufferAddr + wTxBufSize), 0,
-	   (cbHeaderSize - wTxBufSize));
     memcpy(&(sEthHeader.h_dest[0]),
 	   &(p80211Header->sA3.abyAddr1[0]),
 	   ETH_ALEN);
