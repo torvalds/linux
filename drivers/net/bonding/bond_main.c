@@ -776,6 +776,8 @@ static void bond_hw_addr_flush(struct net_device *bond_dev,
 static void bond_hw_addr_swap(struct bonding *bond, struct slave *new_active,
 			      struct slave *old_active)
 {
+	ASSERT_RTNL();
+
 	if (old_active) {
 		if (bond->dev->flags & IFF_PROMISC)
 			dev_set_promiscuity(old_active->dev, -1);
@@ -3551,24 +3553,20 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
 
-	read_lock(&bond->lock);
+	ASSERT_RTNL();
 
 	if (USES_PRIMARY(bond->params.mode)) {
-		read_lock(&bond->curr_slave_lock);
-		slave = bond->curr_active_slave;
+		slave = rtnl_dereference(bond->curr_active_slave);
 		if (slave) {
 			dev_uc_sync(slave->dev, bond_dev);
 			dev_mc_sync(slave->dev, bond_dev);
 		}
-		read_unlock(&bond->curr_slave_lock);
 	} else {
 		bond_for_each_slave(bond, slave) {
 			dev_uc_sync_multiple(slave->dev, bond_dev);
 			dev_mc_sync_multiple(slave->dev, bond_dev);
 		}
 	}
-
-	read_unlock(&bond->lock);
 }
 
 static int bond_neigh_init(struct neighbour *n)
