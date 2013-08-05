@@ -218,8 +218,7 @@ retry_walk:
 		if (unlikely(!is_present_gpte(pte)))
 			goto error;
 
-		if (unlikely(is_rsvd_bits_set(&vcpu->arch.mmu, pte,
-					      walker->level))) {
+		if (unlikely(is_rsvd_bits_set(mmu, pte, walker->level))) {
 			errcode |= PFERR_RSVD_MASK | PFERR_PRESENT_MASK;
 			goto error;
 		}
