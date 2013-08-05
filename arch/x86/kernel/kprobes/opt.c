@@ -88,9 +88,7 @@ static void __kprobes synthesize_set_arg1(kprobe_opcode_t *addr, unsigned long v
 	*(unsigned long *)addr = val;
 }
 
-static void __used __kprobes kprobes_optinsn_template_holder(void)
-{
-	asm volatile (
+asm (
 			".global optprobe_template_entry\n"
 			"optprobe_template_entry:\n"
 #ifdef CONFIG_X86_64
@@ -129,7 +127,6 @@ static void __used __kprobes kprobes_optinsn_template_holder(void)
 #endif
 			".global optprobe_template_end\n"
 			"optprobe_template_end:\n");
-}
 
 #define TMPL_MOVE_IDX \
 	((long)&optprobe_template_val - (long)&optprobe_template_entry)
