@@ -82,7 +82,7 @@ static void mv_u3d_phy_write(void __iomem *base, u32 reg, u32 value)
 	writel_relaxed(value, data);
 }
 
-void mv_u3d_phy_shutdown(struct usb_phy *phy)
+static void mv_u3d_phy_shutdown(struct usb_phy *phy)
 {
 	struct mv_u3d_phy *mv_u3d_phy;
 	void __iomem *base;
