@@ -653,7 +653,7 @@ static struct attribute_group inputs_attr_group = {
 	.attrs = inputs_attrs,
 };
 
-int mv_otg_remove(struct platform_device *pdev)
+static int mv_otg_remove(struct platform_device *pdev)
 {
 	struct mv_otg *mvotg = platform_get_drvdata(pdev);
 
@@ -893,7 +893,7 @@ static int mv_otg_resume(struct platform_device *pdev)
 
 static struct platform_driver mv_otg_driver = {
 	.probe = mv_otg_probe,
-	.remove = __exit_p(mv_otg_remove),
+	.remove = mv_otg_remove,
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = driver_name,
