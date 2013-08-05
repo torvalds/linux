@@ -475,7 +475,7 @@ static int ioctx_add_table(struct kioctx *ctx, struct mm_struct *mm)
 	struct aio_ring *ring;
 
 	spin_lock(&mm->ioctx_lock);
-	table = rcu_dereference(mm->ioctx_table);
+	table = mm->ioctx_table;
 
 	while (1) {
 		if (table)
@@ -503,7 +503,7 @@ static int ioctx_add_table(struct kioctx *ctx, struct mm_struct *mm)
 		table->nr = new_nr;
 
 		spin_lock(&mm->ioctx_lock);
-		old = rcu_dereference(mm->ioctx_table);
+		old = mm->ioctx_table;
 
 		if (!old) {
 			rcu_assign_pointer(mm->ioctx_table, table);
@@ -579,10 +579,6 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	if (ctx->req_batch < 1)
 		ctx->req_batch = 1;
 
-	err = ioctx_add_table(ctx, mm);
-	if (err)
-		goto out_cleanup_noerr;
-
 	/* limit the number of system wide aios */
 	spin_lock(&aio_nr_lock);
 	if (aio_nr + nr_events > (aio_max_nr * 2UL) ||
@@ -595,13 +591,18 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	percpu_ref_get(&ctx->users); /* io_setup() will drop this ref */
 
+	err = ioctx_add_table(ctx, mm);
+	if (err)
+		goto out_cleanup_put;
+
 	pr_debug("allocated ioctx %p[%ld]: mm=%p mask=0x%x\n",
 		 ctx, ctx->user_id, mm, ctx->nr_events);
 	return ctx;
 
+out_cleanup_put:
+	percpu_ref_put(&ctx->users);
 out_cleanup:
 	err = -EAGAIN;
-out_cleanup_noerr:
 	aio_free_ring(ctx);
 out_freepcpu:
 	free_percpu(ctx->cpu);
@@ -626,7 +627,7 @@ static void kill_ioctx(struct mm_struct *mm, struct kioctx *ctx)
 		struct kioctx_table *table;
 
 		spin_lock(&mm->ioctx_lock);
-		table = rcu_dereference(mm->ioctx_table);
+		table = mm->ioctx_table;
 
 		WARN_ON(ctx != table->table[ctx->id]);
 		table->table[ctx->id] = NULL;
