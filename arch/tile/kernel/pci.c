@@ -51,6 +51,8 @@
  *
  */
 
+static int pci_probe = 1;
+
 /*
  * This flag tells if the platform is TILEmpower that needs
  * special configuration for the PLX switch chip.
@@ -142,6 +144,11 @@ static int tile_init_irqs(int controller_id, struct pci_controller *controller)
 int __init tile_pci_init(void)
 {
 	int i;
+
+	if (!pci_probe) {
+		pr_info("PCI: disabled by boot argument\n");
+		return 0;
+	}
 
 	pr_info("PCI: Searching for controllers...\n");
 
@@ -376,6 +383,16 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling. */
+}
+
+/* Process any "pci=" kernel boot arguments. */
+char * __init pcibios_setup(char *str)
+{
+	if (!strcmp(str, "off")) {
+		pci_probe = 0;
+		return NULL;
+	}
+	return str;
 }
 
 /*
