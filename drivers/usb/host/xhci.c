@@ -29,6 +29,7 @@
 #include <linux/dmi.h>
 
 #include "xhci.h"
+#include "xhci-trace.h"
 
 #define DRIVER_AUTHOR "Sarah Sharp"
 #define DRIVER_DESC "'eXtensible' Host Controller (xHC) Driver"
@@ -3666,7 +3667,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	union xhci_trb *cmd_trb;
 
 	if (!udev->slot_id) {
-		xhci_dbg(xhci, "Bad Slot ID %d\n", udev->slot_id);
+		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
+				"Bad Slot ID %d", udev->slot_id);
 		return -EINVAL;
 	}
 
@@ -3712,7 +3714,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 					udev->slot_id);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
-		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
+				"FIXME: allocate a command ring segment");
 		return ret;
 	}
 	xhci_ring_cmd_db(xhci);
@@ -3752,7 +3755,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		ret = -ENODEV;
 		break;
 	case COMP_SUCCESS:
-		xhci_dbg(xhci, "Successful Address Device command\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_address,
+				"Successful Address Device command");
 		break;
 	default:
 		xhci_err(xhci, "ERROR: unexpected command completion "
@@ -3766,13 +3770,16 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		return ret;
 	}
 	temp_64 = xhci_read_64(xhci, &xhci->op_regs->dcbaa_ptr);
-	xhci_dbg(xhci, "Op regs DCBAA ptr = %#016llx\n", temp_64);
-	xhci_dbg(xhci, "Slot ID %d dcbaa entry @%p = %#016llx\n",
-		 udev->slot_id,
-		 &xhci->dcbaa->dev_context_ptrs[udev->slot_id],
-		 (unsigned long long)
-		 le64_to_cpu(xhci->dcbaa->dev_context_ptrs[udev->slot_id]));
-	xhci_dbg(xhci, "Output Context DMA address = %#08llx\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
+			"Op regs DCBAA ptr = %#016llx", temp_64);
+	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
+		"Slot ID %d dcbaa entry @%p = %#016llx",
+		udev->slot_id,
+		&xhci->dcbaa->dev_context_ptrs[udev->slot_id],
+		(unsigned long long)
+		le64_to_cpu(xhci->dcbaa->dev_context_ptrs[udev->slot_id]));
+	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
+			"Output Context DMA address = %#08llx",
 			(unsigned long long)virt_dev->out_ctx->dma);
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);
@@ -3791,7 +3798,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	ctrl_ctx->add_flags = 0;
 	ctrl_ctx->drop_flags = 0;
 
-	xhci_dbg(xhci, "Internal device address = %d\n", virt_dev->address);
+	xhci_dbg_trace(xhci, trace_xhci_dbg_address,
+			"Internal device address = %d", virt_dev->address);
 
 	return 0;
 }
