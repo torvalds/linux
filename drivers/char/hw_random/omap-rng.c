@@ -24,6 +24,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_address.h>
 
 #include <asm/io.h>
 
@@ -103,6 +106,14 @@ static struct hwrng omap_rng_ops = {
 	.data_present	= omap_rng_data_present,
 	.data_read	= omap_rng_data_read,
 };
+
+#if defined(CONFIG_OF)
+static const struct of_device_id omap_rng_of_match[] = {
+		{ .compatible = "ti,omap2-rng" },
+		{},
+};
+MODULE_DEVICE_TABLE(of, omap_rng_of_match);
+#endif
 
 static int omap_rng_probe(struct platform_device *pdev)
 {
@@ -197,6 +208,7 @@ static struct platform_driver omap_rng_driver = {
 		.name		= "omap_rng",
 		.owner		= THIS_MODULE,
 		.pm		= OMAP_RNG_PM,
+		.of_match_table = of_match_ptr(omap_rng_of_match),
 	},
 	.probe		= omap_rng_probe,
 	.remove		= __exit_p(omap_rng_remove),
