@@ -1195,7 +1195,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		max_delay = msecs_to_jiffies(ntohs(mld->mld_maxdelay));
 		if (max_delay)
 			group = &mld->mld_mca;
-	} else if (skb->len >= sizeof(*mld2q)) {
+	} else {
 		if (!pskb_may_pull(skb, sizeof(*mld2q))) {
 			err = -EINVAL;
 			goto out;
