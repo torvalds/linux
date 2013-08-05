@@ -36,8 +36,9 @@ static void *tile_dma_alloc_coherent(struct device *dev, size_t size,
 				     dma_addr_t *dma_handle, gfp_t gfp,
 				     struct dma_attrs *attrs)
 {
-	u64 dma_mask = dev->coherent_dma_mask ?: DMA_BIT_MASK(32);
-	int node = dev_to_node(dev);
+	u64 dma_mask = (dev && dev->coherent_dma_mask) ?
+		dev->coherent_dma_mask : DMA_BIT_MASK(32);
+	int node = dev ? dev_to_node(dev) : 0;
 	int order = get_order(size);
 	struct page *pg;
 	dma_addr_t addr;
