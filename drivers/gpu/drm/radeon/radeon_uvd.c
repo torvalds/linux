@@ -357,8 +357,10 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 	}
 
 	r = radeon_bo_kmap(bo, &ptr);
-	if (r)
+	if (r) {
+		DRM_ERROR("Failed mapping the UVD message (%d)!\n", r);
 		return r;
+	}
 
 	msg = ptr + offset;
 
@@ -384,8 +386,14 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		radeon_bo_kunmap(bo);
 		return 0;
 	} else {
-		/* it's a create msg, no special handling needed */
 		radeon_bo_kunmap(bo);
+
+		if (msg_type != 0) {
+			DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
+			return -EINVAL;
+		}
+
+		/* it's a create msg, no special handling needed */
 	}
 
 	/* create or decode, validate the handle */
@@ -408,7 +416,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 
 static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 			       int data0, int data1,
-			       unsigned buf_sizes[])
+			       unsigned buf_sizes[], bool *has_msg_cmd)
 {
 	struct radeon_cs_chunk *relocs_chunk;
 	struct radeon_cs_reloc *reloc;
@@ -437,7 +445,7 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 
 	if (cmd < 0x4) {
 		if ((end - start) < buf_sizes[cmd]) {
-			DRM_ERROR("buffer to small (%d / %d)!\n",
+			DRM_ERROR("buffer (%d) to small (%d / %d)!\n", cmd,
 				  (unsigned)(end - start), buf_sizes[cmd]);
 			return -EINVAL;
 		}
@@ -462,9 +470,17 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 	}
 
 	if (cmd == 0) {
+		if (*has_msg_cmd) {
+			DRM_ERROR("More than one message in a UVD-IB!\n");
+			return -EINVAL;
+		}
+		*has_msg_cmd = true;
 		r = radeon_uvd_cs_msg(p, reloc->robj, offset, buf_sizes);
 		if (r)
 			return r;
+	} else if (!*has_msg_cmd) {
+		DRM_ERROR("Message needed before other commands are send!\n");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -473,7 +489,8 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 static int radeon_uvd_cs_reg(struct radeon_cs_parser *p,
 			     struct radeon_cs_packet *pkt,
 			     int *data0, int *data1,
-			     unsigned buf_sizes[])
+			     unsigned buf_sizes[],
+			     bool *has_msg_cmd)
 {
 	int i, r;
 
@@ -487,7 +504,8 @@ static int radeon_uvd_cs_reg(struct radeon_cs_parser *p,
 			*data1 = p->idx;
 			break;
 		case UVD_GPCOM_VCPU_CMD:
-			r = radeon_uvd_cs_reloc(p, *data0, *data1, buf_sizes);
+			r = radeon_uvd_cs_reloc(p, *data0, *data1,
+						buf_sizes, has_msg_cmd);
 			if (r)
 				return r;
 			break;
@@ -507,6 +525,9 @@ int radeon_uvd_cs_parse(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_packet pkt;
 	int r, data0 = 0, data1 = 0;
+
+	/* does the IB has a msg command */
+	bool has_msg_cmd = false;
 
 	/* minimum buffer sizes */
 	unsigned buf_sizes[] = {
@@ -534,8 +555,8 @@ int radeon_uvd_cs_parse(struct radeon_cs_parser *p)
 			return r;
 		switch (pkt.type) {
 		case RADEON_PACKET_TYPE0:
-			r = radeon_uvd_cs_reg(p, &pkt, &data0,
-					      &data1, buf_sizes);
+			r = radeon_uvd_cs_reg(p, &pkt, &data0, &data1,
+					      buf_sizes, &has_msg_cmd);
 			if (r)
 				return r;
 			break;
@@ -547,6 +568,12 @@ int radeon_uvd_cs_parse(struct radeon_cs_parser *p)
 			return -EINVAL;
 		}
 	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
+
+	if (!has_msg_cmd) {
+		DRM_ERROR("UVD-IBs need a msg command!\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
