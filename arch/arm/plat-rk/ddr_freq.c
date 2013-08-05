@@ -211,8 +211,11 @@ static int _ddr_change_freq_(uint32_t nMHz,struct ddr_freq_t ddr_freq_t)
 		}
 	}
 
+#ifdef CONFIG_ARCH_RK3026
+        ret = ddr_change_freq(nMHz);
+#else
 	ret = ddr_change_freq_sram(nMHz,ddr_freq_t);
-
+#endif
 	set_other_cpus_pause(false);
 
 out:
@@ -625,7 +628,7 @@ static int ddrfreq_late_init(void)
 
 	register_reboot_notifier(&ddrfreq_reboot_notifier);
 
-	pr_info("verion 3.1 20130805\n");
+	pr_info("verion 3.1 20130805 1\n");
 	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz video_low %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
 		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.video_low_rate / MHZ, ddr.dualview_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
 

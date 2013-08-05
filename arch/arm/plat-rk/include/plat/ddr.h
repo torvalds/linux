@@ -143,18 +143,19 @@
 #define DDR_TYPE DDR_LPDDR
 #endif
 
-void __sramfunc ddr_suspend(void);
-void __sramfunc ddr_resume(void);
-//void __sramlocalfunc delayus(uint32_t us);
-#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
-uint32_t __sramfunc ddr_change_freq(uint32_t nMHz);
-#else
 struct ddr_freq_t {
     unsigned long screen_ft_us;
     unsigned long long t0;
     unsigned long long t1;
     unsigned long t2;
 };
+
+void __sramfunc ddr_suspend(void);
+void __sramfunc ddr_resume(void);
+//void __sramlocalfunc delayus(uint32_t us);
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
+uint32_t __sramfunc ddr_change_freq(uint32_t nMHz);
+#else
 uint32_t ddr_change_freq(uint32_t nMHz);
 uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz , struct ddr_freq_t ddr_freq_t);
 #endif
