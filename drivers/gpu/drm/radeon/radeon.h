@@ -1441,6 +1441,7 @@ struct radeon_uvd {
 	void			*saved_bo;
 	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
+	unsigned		img_size[RADEON_MAX_UVD_HANDLES];
 	struct delayed_work	idle_work;
 };
 

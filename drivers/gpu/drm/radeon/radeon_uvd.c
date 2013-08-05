@@ -147,6 +147,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
 		atomic_set(&rdev->uvd.handles[i], 0);
 		rdev->uvd.filp[i] = NULL;
+		rdev->uvd.img_size[i] = 0;
 	}
 
 	return 0;
@@ -347,6 +348,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 			     unsigned offset, unsigned buf_sizes[])
 {
 	int32_t *msg, msg_type, handle;
+	unsigned img_size = 0;
 	void *ptr;
 
 	int i, r;
@@ -383,6 +385,8 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 	if (msg_type == 1) {
 		/* it's a decode msg, calc buffer sizes */
 		r = radeon_uvd_cs_msg_decode(msg, buf_sizes);
+		/* calc image size (width * height) */
+		img_size = msg[6] * msg[7];
 		radeon_bo_kunmap(bo);
 		if (r)
 			return r;
@@ -394,6 +398,8 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		radeon_bo_kunmap(bo);
 		return 0;
 	} else {
+		/* it's a create msg, calc image size (width * height) */
+		img_size = msg[7] * msg[8];
 		radeon_bo_kunmap(bo);
 
 		if (msg_type != 0) {
@@ -414,6 +420,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
 		if (!atomic_cmpxchg(&p->rdev->uvd.handles[i], 0, handle)) {
 			p->rdev->uvd.filp[i] = p->filp;
+			p->rdev->uvd.img_size[i] = img_size;
 			return 0;
 		}
 	}
@@ -731,6 +738,34 @@ int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 	radeon_bo_unreserve(bo);
 
 	return radeon_uvd_send_msg(rdev, ring, bo, fence);
+}
+
+/**
+ * radeon_uvd_count_handles - count number of open streams
+ *
+ * @rdev: radeon_device pointer
+ * @sd: number of SD streams
+ * @hd: number of HD streams
+ *
+ * Count the number of open SD/HD streams as a hint for power mangement
+ */
+static void radeon_uvd_count_handles(struct radeon_device *rdev,
+				     unsigned *sd, unsigned *hd)
+{
+	unsigned i;
+
+	*sd = 0;
+	*hd = 0;
+
+	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+		if (!atomic_read(&rdev->uvd.handles[i]))
+			continue;
+
+		if (rdev->uvd.img_size[i] >= 720*576)
+			++(*hd);
+		else
+			++(*sd);
+	}
 }
 
 static void radeon_uvd_idle_work_handler(struct work_struct *work)
