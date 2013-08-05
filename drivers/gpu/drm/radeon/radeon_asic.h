@@ -337,9 +337,6 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_dma_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_uvd_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
-int r600_copy_blit(struct radeon_device *rdev,
-		   uint64_t src_offset, uint64_t dst_offset,
-		   unsigned num_gpu_pages, struct radeon_fence **fence);
 int r600_copy_cpdma(struct radeon_device *rdev,
 		    uint64_t src_offset, uint64_t dst_offset,
 		    unsigned num_gpu_pages, struct radeon_fence **fence);
@@ -371,8 +368,6 @@ int r600_count_pipe_bits(uint32_t val);
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
 int r600_pcie_gart_init(struct radeon_device *rdev);
 void r600_scratch_init(struct radeon_device *rdev);
-int r600_blit_init(struct radeon_device *rdev);
-void r600_blit_fini(struct radeon_device *rdev);
 int r600_init_microcode(struct radeon_device *rdev);
 /* r600 irq */
 int r600_irq_process(struct radeon_device *rdev);
@@ -391,16 +386,6 @@ int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
 void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
-/* r600 blit */
-int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
-			   struct radeon_fence **fence, struct radeon_sa_bo **vb,
-			   struct radeon_semaphore **sem);
-void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence **fence,
-			 struct radeon_sa_bo *vb, struct radeon_semaphore *sem);
-void r600_kms_blit_copy(struct radeon_device *rdev,
-			u64 src_gpu_addr, u64 dst_gpu_addr,
-			unsigned num_gpu_pages,
-			struct radeon_sa_bo *vb);
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
 u32 r600_get_xclk(struct radeon_device *rdev);
 uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev);
@@ -530,7 +515,6 @@ extern u32 evergreen_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_ba
 extern void evergreen_post_page_flip(struct radeon_device *rdev, int crtc);
 extern void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc);
 void evergreen_disable_interrupt_state(struct radeon_device *rdev);
-int evergreen_blit_init(struct radeon_device *rdev);
 int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
 void evergreen_dma_fence_ring_emit(struct radeon_device *rdev,
 				   struct radeon_fence *fence);

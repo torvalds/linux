@@ -5144,13 +5144,6 @@ static int evergreen_startup(struct radeon_device *rdev)
 	}
 	evergreen_gpu_init(rdev);
 
-	r = evergreen_blit_init(rdev);
-	if (r) {
-		r600_blit_fini(rdev);
-		rdev->asic->copy.copy = NULL;
-		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
-
 	/* allocate rlc buffers */
 	if (rdev->flags & RADEON_IS_IGP) {
 		rdev->rlc.reg_list = sumo_rlc_save_restore_register_list;
@@ -5420,7 +5413,6 @@ int evergreen_init(struct radeon_device *rdev)
 void evergreen_fini(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
-	r600_blit_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_dma_fini(rdev);
 	r600_irq_fini(rdev);

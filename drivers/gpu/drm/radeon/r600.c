@@ -3136,25 +3136,6 @@ void r600_uvd_semaphore_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, emit_wait ? 1 : 0);
 }
 
-int r600_copy_blit(struct radeon_device *rdev,
-		   uint64_t src_offset,
-		   uint64_t dst_offset,
-		   unsigned num_gpu_pages,
-		   struct radeon_fence **fence)
-{
-	struct radeon_semaphore *sem = NULL;
-	struct radeon_sa_bo *vb = NULL;
-	int r;
-
-	r = r600_blit_prepare_copy(rdev, num_gpu_pages, fence, &vb, &sem);
-	if (r) {
-		return r;
-	}
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages, vb);
-	r600_blit_done_copy(rdev, fence, vb, sem);
-	return 0;
-}
-
 /**
  * r600_copy_cpdma - copy pages using the CP DMA engine
  *
@@ -3356,12 +3337,6 @@ static int r600_startup(struct radeon_device *rdev)
 			return r;
 	}
 	r600_gpu_init(rdev);
-	r = r600_blit_init(rdev);
-	if (r) {
-		r600_blit_fini(rdev);
-		rdev->asic->copy.copy = NULL;
-		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
 
 	/* allocate wb buffer */
 	r = radeon_wb_init(rdev);
@@ -3574,7 +3549,6 @@ int r600_init(struct radeon_device *rdev)
 void r600_fini(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
-	r600_blit_fini(rdev);
 	r600_cp_fini(rdev);
 	r600_dma_fini(rdev);
 	r600_irq_fini(rdev);

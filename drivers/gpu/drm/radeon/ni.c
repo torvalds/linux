@@ -2118,13 +2118,6 @@ static int cayman_startup(struct radeon_device *rdev)
 		return r;
 	cayman_gpu_init(rdev);
 
-	r = evergreen_blit_init(rdev);
-	if (r) {
-		r600_blit_fini(rdev);
-		rdev->asic->copy.copy = NULL;
-		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
-
 	/* allocate rlc buffers */
 	if (rdev->flags & RADEON_IS_IGP) {
 		rdev->rlc.reg_list = tn_rlc_save_restore_register_list;
@@ -2413,7 +2406,6 @@ int cayman_init(struct radeon_device *rdev)
 
 void cayman_fini(struct radeon_device *rdev)
 {
-	r600_blit_fini(rdev);
 	cayman_cp_fini(rdev);
 	cayman_dma_fini(rdev);
 	r600_irq_fini(rdev);
