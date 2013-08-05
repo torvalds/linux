@@ -94,18 +94,6 @@ static void sw_ehci_port_configure(struct sw_hci_hcd *sw_ehci, u32 enable)
 	return;
 }
 
-static int sw_get_io_resource(struct platform_device *pdev,
-			      struct sw_hci_hcd *sw_ehci)
-{
-	return 0;
-}
-
-static int sw_release_io_resource(struct platform_device *pdev,
-				  struct sw_hci_hcd *sw_ehci)
-{
-	return 0;
-}
-
 static void sw_start_ehci(struct sw_hci_hcd *sw_ehci)
 {
 	open_ehci_clock(sw_ehci);
@@ -215,7 +203,7 @@ static int sw_ehci_hcd_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(hcd);
 
-	sw_release_io_resource(pdev, sw_ehci);
+	iounmap(hcd->regs);
 
 	usb_put_hcd(hcd);
 
@@ -262,6 +250,8 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd = NULL;
 	struct ehci_hcd *ehci = NULL;
 	struct sw_hci_hcd *sw_ehci = NULL;
+	struct resource *res;
+	int irq;
 	int ret = 0;
 
 	if (pdev == NULL)
@@ -283,9 +273,12 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
 		SW_EHCI_NAME, sw_ehci->usbc_no, pdev->name, pdev->id, sw_ehci);
 
 	/* get io resource */
-	sw_get_io_resource(pdev, sw_ehci);
-	sw_ehci->ehci_base = sw_ehci->usb_vbase + SW_USB_EHCI_BASE_OFFSET;
-	sw_ehci->ehci_reg_length = SW_USB_EHCI_LEN;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		pr_err("%s: failed to get io memory\n", __func__);
+		ret = -ENOMEM;
+		goto err_get_iomem;
+	}
 
 	/* creat a usb_hcd for the ehci controller */
 	hcd = usb_create_hcd(&sw_ehci_hc_driver, &pdev->dev, SW_EHCI_NAME);
@@ -295,10 +288,23 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
 		goto err_create_hcd;
 	}
 
-	hcd->rsrc_start = (u32) sw_ehci->ehci_base;
-	hcd->rsrc_len = sw_ehci->ehci_reg_length;
-	hcd->regs = sw_ehci->ehci_base;
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
+	hcd->regs = ioremap(res->start, resource_size(res));
+	if (!hcd->regs) {
+		pr_err("%s: failed to ioremap\n", __func__);
+		ret = -ENOMEM;
+		goto err_ioremap;
+	}
+
 	sw_ehci->hcd = hcd;
+
+	irq = platform_get_irq(pdev, 0);
+	if (!irq) {
+		pr_err("%s: failed to get irq\n", __func__);
+		ret =  -ENODEV;
+		goto err_get_irq;
+	}
 
 	/* ehci start to work */
 	sw_start_ehci(sw_ehci);
@@ -306,7 +312,7 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
 
-	ret = usb_add_hcd(hcd, sw_ehci->irq_no, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (ret != 0) {
 		pr_err("%s: failed to add hcd, rc=%d\n", __func__, ret);
 		goto err_add_hcd;
@@ -335,7 +341,11 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_hcd:
+err_get_irq:
+	iounmap(hcd->regs);
+err_ioremap:
 	usb_put_hcd(hcd);
+err_get_iomem:
 err_create_hcd:
 	sw_ehci->hcd = NULL;
 	g_sw_ehci[sw_ehci->usbc_no] = NULL;
