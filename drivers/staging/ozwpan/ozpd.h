@@ -48,8 +48,8 @@ struct oz_farewell {
 	struct list_head link;
 	u8 ep_num;
 	u8 index;
-	u8 report[32];
 	u8 len;
+	u8 report[0];
 };
 
 /* Data structure that holds information on a specific peripheral device (PD).

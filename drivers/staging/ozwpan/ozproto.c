@@ -291,7 +291,7 @@ static void oz_add_farewell(struct oz_pd *pd, u8 ep_num, u8 index,
 	struct oz_farewell *f;
 	struct oz_farewell *f2;
 	int found = 0;
-	f = kmalloc(sizeof(struct oz_farewell) + len - 1, GFP_ATOMIC);
+	f = kmalloc(sizeof(struct oz_farewell) + len, GFP_ATOMIC);
 	if (!f)
 		return;
 	f->ep_num = ep_num;
