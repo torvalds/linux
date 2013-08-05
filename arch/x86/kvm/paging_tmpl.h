@@ -92,6 +92,10 @@ static inline void FNAME(protect_clean_gpte)(unsigned *access, unsigned gpte)
 {
 	unsigned mask;
 
+	/* dirty bit is not supported, so no need to track it */
+	if (!PT_GUEST_DIRTY_MASK)
+		return;
+
 	BUILD_BUG_ON(PT_WRITABLE_MASK != ACC_WRITE_MASK);
 
 	mask = (unsigned)~ACC_WRITE_MASK;
@@ -147,7 +151,8 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 	if (!FNAME(is_present_gpte)(gpte))
 		goto no_present;
 
-	if (!(gpte & PT_GUEST_ACCESSED_MASK))
+	/* if accessed bit is not supported prefetch non accessed gpte */
+	if (PT_GUEST_ACCESSED_MASK && !(gpte & PT_GUEST_ACCESSED_MASK))
 		goto no_present;
 
 	return false;
@@ -177,6 +182,10 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 	pt_element_t __user *ptep_user;
 	gfn_t table_gfn;
 	int ret;
+
+	/* dirty/accessed bits are not supported, so no need to update them */
+	if (!PT_GUEST_DIRTY_MASK)
+		return 0;
 
 	for (level = walker->max_level; level >= walker->level; --level) {
 		pte = orig_pte = walker->ptes[level - 1];
@@ -316,8 +325,9 @@ retry_walk:
 		FNAME(protect_clean_gpte)(&pte_access, pte);
 	else
 		/*
-		 * On a write fault, fold the dirty bit into accessed_dirty by
-		 * shifting it one place right.
+		 * On a write fault, fold the dirty bit into accessed_dirty.
+		 * For modes without A/D bits support accessed_dirty will be
+		 * always clear.
 		 */
 		accessed_dirty &= pte >>
 			(PT_GUEST_DIRTY_SHIFT - PT_GUEST_ACCESSED_SHIFT);
