@@ -1433,7 +1433,7 @@ SOC_DAPM_SINGLE("AIF1.1 Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
 
 #define WM8994_CLASS_W_SWITCH(xname, reg, shift, max, invert) \
 	SOC_SINGLE_EXT(xname, reg, shift, max, invert, \
-		snd_soc_get_volsw, wm8994_put_class_w)
+		snd_soc_dapm_get_volsw, wm8994_put_class_w)
 
 static int wm8994_put_class_w(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
