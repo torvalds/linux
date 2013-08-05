@@ -2285,19 +2285,11 @@ void i915_gem_restore_fences(struct drm_device *dev)
 void i915_gem_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
-	struct drm_i915_gem_object *obj;
 	struct intel_ring_buffer *ring;
 	int i;
 
 	for_each_ring(ring, dev_priv, i)
 		i915_gem_reset_ring_lists(dev_priv, ring);
-
-	/* Move everything out of the GPU domains to ensure we do any
-	 * necessary invalidation upon reuse.
-	 */
-	list_for_each_entry(obj, &vm->inactive_list, mm_list)
-		obj->base.read_domains &= ~I915_GEM_GPU_DOMAINS;
 
 	i915_gem_restore_fences(dev);
 }
