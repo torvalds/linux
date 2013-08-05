@@ -235,7 +235,7 @@ struct fw_ohci {
 	dma_addr_t next_config_rom_bus;
 	__be32     next_header;
 
-	__le32    *self_id_cpu;
+	__le32    *self_id;
 	dma_addr_t self_id_bus;
 	struct work_struct bus_reset_work;
 
@@ -1929,12 +1929,12 @@ static void bus_reset_work(struct work_struct *work)
 		return;
 	}
 
-	generation = (cond_le32_to_cpu(ohci->self_id_cpu[0]) >> 16) & 0xff;
+	generation = (cond_le32_to_cpu(ohci->self_id[0]) >> 16) & 0xff;
 	rmb();
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
-		u32 id  = cond_le32_to_cpu(ohci->self_id_cpu[i]);
-		u32 id2 = cond_le32_to_cpu(ohci->self_id_cpu[i + 1]);
+		u32 id  = cond_le32_to_cpu(ohci->self_id[i]);
+		u32 id2 = cond_le32_to_cpu(ohci->self_id[i + 1]);
 
 		if (id != ~id2) {
 			/*
@@ -3692,7 +3692,7 @@ static int pci_probe(struct pci_dev *dev,
 		goto fail_contexts;
 	}
 
-	ohci->self_id_cpu = ohci->misc_buffer     + PAGE_SIZE/2;
+	ohci->self_id     = ohci->misc_buffer     + PAGE_SIZE/2;
 	ohci->self_id_bus = ohci->misc_buffer_bus + PAGE_SIZE/2;
 
 	bus_options = reg_read(ohci, OHCI1394_BusOptions);
