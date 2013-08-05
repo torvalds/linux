@@ -36,6 +36,8 @@ Optional properties:
     - reg : should specify the address and size used for NFC command registers,
             NFC registers and NFC Sram. NFC Sram address and size can be absent
             if don't want to use it.
+  - Optional properties:
+    - atmel,write-by-sram: boolean to enable NFC write by sram.
 
 Examples:
 nand0: nand@40000000,0 {
