@@ -177,9 +177,14 @@ static inline struct hlist_head *vs_head(struct net *net, __be16 port)
 /* First remote destination for a forwarding entry.
  * Guaranteed to be non-NULL because remotes are never deleted.
  */
-static inline struct vxlan_rdst *first_remote(struct vxlan_fdb *fdb)
+static inline struct vxlan_rdst *first_remote_rcu(struct vxlan_fdb *fdb)
 {
-	return list_first_or_null_rcu(&fdb->remotes, struct vxlan_rdst, list);
+	return list_entry_rcu(fdb->remotes.next, struct vxlan_rdst, list);
+}
+
+static inline struct vxlan_rdst *first_remote_rtnl(struct vxlan_fdb *fdb)
+{
+	return list_first_entry(&fdb->remotes, struct vxlan_rdst, list);
 }
 
 /* Find VXLAN socket based on network namespace and UDP port */
@@ -297,7 +302,8 @@ static void vxlan_fdb_notify(struct vxlan_dev *vxlan,
 	if (skb == NULL)
 		goto errout;
 
-	err = vxlan_fdb_info(skb, vxlan, fdb, 0, 0, type, 0, first_remote(fdb));
+	err = vxlan_fdb_info(skb, vxlan, fdb, 0, 0, type, 0,
+			     first_remote_rtnl(fdb));
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in vxlan_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -740,7 +746,7 @@ static bool vxlan_snoop(struct net_device *dev,
 
 	f = vxlan_find_mac(vxlan, src_mac);
 	if (likely(f)) {
-		struct vxlan_rdst *rdst = first_remote(f);
+		struct vxlan_rdst *rdst = first_remote_rcu(f);
 
 		if (likely(rdst->remote_ip == src_ip))
 			return false;
@@ -1005,7 +1011,7 @@ static int arp_reduce(struct net_device *dev, struct sk_buff *skb)
 		}
 
 		f = vxlan_find_mac(vxlan, n->ha);
-		if (f && first_remote(f)->remote_ip == htonl(INADDR_ANY)) {
+		if (f && first_remote_rcu(f)->remote_ip == htonl(INADDR_ANY)) {
 			/* bridge-local neighbor */
 			neigh_release(n);
 			goto out;
