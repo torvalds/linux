@@ -114,7 +114,7 @@ void usb20otg_hw_init(void)
 #ifdef CONFIG_RK_CONFIG
     otg_drv_init(0);
 #else
-    rk30_mux_api_set(GPIO3_C1, 1);  
+    iomux_set(GPIO3_C1|0x01);  
 #endif
 }
 void usb20otg_phy_suspend(void* pdata, int suspend)
@@ -449,7 +449,7 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
     
 #ifdef CONFIG_RK_USB_UART
     /* usb otg dp/dm switch to usb phy */
-    writel_relaxed((3 << (12 + 16)),RK2928_GRF_BASE + GRF_UOC1_CON0);
+    dwc_otg_uart_mode(NULL, PHY_USB_MODE);
 #endif
     
     schedule_delayed_work(&usb_det_wakeup_work, HZ/10);
