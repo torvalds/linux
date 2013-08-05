@@ -63,10 +63,13 @@
  */
 #ifdef __KERNEL__
 
+#include <linux/spinlock_types.h>
+
 #define IRQ_STACK_SIZE      (4096 << 2) /* 16k irq stack size */
 
 union irq_stack_union {
 	unsigned long stack[IRQ_STACK_SIZE/sizeof(unsigned long)];
+	raw_spinlock_t lock;
 };
 
 DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);

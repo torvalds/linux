@@ -224,6 +224,9 @@ struct mips_frame_info {
 	int		pc_offset;
 };
 
+#define J_TARGET(pc,target)	\
+		(((unsigned long)(pc) & 0xf0000000) | ((target) << 2))
+
 static inline int is_ra_save_ins(union mips_instruction *ip)
 {
 #ifdef CONFIG_CPU_MICROMIPS
@@ -264,7 +267,7 @@ static inline int is_ra_save_ins(union mips_instruction *ip)
 #endif
 }
 
-static inline int is_jal_jalr_jr_ins(union mips_instruction *ip)
+static inline int is_jump_ins(union mips_instruction *ip)
 {
 #ifdef CONFIG_CPU_MICROMIPS
 	/*
@@ -288,6 +291,8 @@ static inline int is_jal_jalr_jr_ins(union mips_instruction *ip)
 		return 0;
 	return (((ip->u_format.uimmediate >> 6) & mm_jalr_op) == mm_jalr_op);
 #else
+	if (ip->j_format.opcode == j_op)
+		return 1;
 	if (ip->j_format.opcode == jal_op)
 		return 1;
 	if (ip->r_format.opcode != spec_op)
@@ -350,7 +355,7 @@ static int get_frame_info(struct mips_frame_info *info)
 
 	for (i = 0; i < max_insns; i++, ip++) {
 
-		if (is_jal_jalr_jr_ins(ip))
+		if (is_jump_ins(ip))
 			break;
 		if (!info->frame_size) {
 			if (is_sp_move_ins(ip))
@@ -393,15 +398,42 @@ err:
 
 static struct mips_frame_info schedule_mfi __read_mostly;
 
+#ifdef CONFIG_KALLSYMS
+static unsigned long get___schedule_addr(void)
+{
+	return kallsyms_lookup_name("__schedule");
+}
+#else
+static unsigned long get___schedule_addr(void)
+{
+	union mips_instruction *ip = (void *)schedule;
+	int max_insns = 8;
+	int i;
+
+	for (i = 0; i < max_insns; i++, ip++) {
+		if (ip->j_format.opcode == j_op)
+			return J_TARGET(ip, ip->j_format.target);
+	}
+	return 0;
+}
+#endif
+
 static int __init frame_info_init(void)
 {
 	unsigned long size = 0;
 #ifdef CONFIG_KALLSYMS
 	unsigned long ofs;
-
-	kallsyms_lookup_size_offset((unsigned long)schedule, &size, &ofs);
 #endif
-	schedule_mfi.func = schedule;
+	unsigned long addr;
+
+	addr = get___schedule_addr();
+	if (!addr)
+		addr = (unsigned long)schedule;
+
+#ifdef CONFIG_KALLSYMS
+	kallsyms_lookup_size_offset(addr, &size, &ofs);
+#endif
+	schedule_mfi.func = (void *)addr;
 	schedule_mfi.func_size = size;
 
 	get_frame_info(&schedule_mfi);

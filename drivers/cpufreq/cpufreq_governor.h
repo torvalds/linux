@@ -211,6 +211,7 @@ struct common_dbs_data {
 struct dbs_data {
 	struct common_dbs_data *cdata;
 	unsigned int min_sampling_rate;
+	int usage_count;
 	void *tuners;
 
 	/* dbs_mutex protects dbs_enable in governor start/stop */

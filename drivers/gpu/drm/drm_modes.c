@@ -1143,6 +1143,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 				was_digit = false;
 			} else
 				goto done;
+			break;
 		case '0' ... '9':
 			was_digit = true;
 			break;

@@ -52,7 +52,8 @@ static void ltq_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
 	int i;
 
 	for (i = 0; i < num_maps; i++)
-		if (map[i].type == PIN_MAP_TYPE_CONFIGS_PIN)
+		if (map[i].type == PIN_MAP_TYPE_CONFIGS_PIN ||
+		    map[i].type == PIN_MAP_TYPE_CONFIGS_GROUP)
 			kfree(map[i].data.configs.configs);
 	kfree(map);
 }

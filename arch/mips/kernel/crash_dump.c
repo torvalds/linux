@@ -2,6 +2,7 @@
 #include <linux/bootmem.h>
 #include <linux/crash_dump.h>
 #include <asm/uaccess.h>
+#include <linux/slab.h>
 
 static int __init parse_savemaxmem(char *p)
 {

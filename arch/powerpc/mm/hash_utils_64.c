@@ -33,6 +33,7 @@
 #include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/memblock.h>
+#include <linux/context_tracking.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -954,6 +955,7 @@ void hash_failure_debug(unsigned long ea, unsigned long access,
  */
 int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 {
+	enum ctx_state prev_state = exception_enter();
 	pgd_t *pgdir;
 	unsigned long vsid;
 	struct mm_struct *mm;
@@ -973,7 +975,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		mm = current->mm;
 		if (! mm) {
 			DBG_LOW(" user region with no mm !\n");
-			return 1;
+			rc = 1;
+			goto bail;
 		}
 		psize = get_slice_psize(mm, ea);
 		ssize = user_segment_size(ea);
@@ -992,19 +995,23 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		/* Not a valid range
 		 * Send the problem up to do_page_fault 
 		 */
-		return 1;
+		rc = 1;
+		goto bail;
 	}
 	DBG_LOW(" mm=%p, mm->pgdir=%p, vsid=%016lx\n", mm, mm->pgd, vsid);
 
 	/* Bad address. */
 	if (!vsid) {
 		DBG_LOW("Bad address!\n");
-		return 1;
+		rc = 1;
+		goto bail;
 	}
 	/* Get pgdir */
 	pgdir = mm->pgd;
-	if (pgdir == NULL)
-		return 1;
+	if (pgdir == NULL) {
+		rc = 1;
+		goto bail;
+	}
 
 	/* Check CPU locality */
 	tmp = cpumask_of(smp_processor_id());
@@ -1027,7 +1034,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	ptep = find_linux_pte_or_hugepte(pgdir, ea, &hugeshift);
 	if (ptep == NULL || !pte_present(*ptep)) {
 		DBG_LOW(" no PTE !\n");
-		return 1;
+		rc = 1;
+		goto bail;
 	}
 
 	/* Add _PAGE_PRESENT to the required access perm */
@@ -1038,13 +1046,16 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	 */
 	if (access & ~pte_val(*ptep)) {
 		DBG_LOW(" no access !\n");
-		return 1;
+		rc = 1;
+		goto bail;
 	}
 
 #ifdef CONFIG_HUGETLB_PAGE
-	if (hugeshift)
-		return __hash_page_huge(ea, access, vsid, ptep, trap, local,
+	if (hugeshift) {
+		rc = __hash_page_huge(ea, access, vsid, ptep, trap, local,
 					ssize, hugeshift, psize);
+		goto bail;
+	}
 #endif /* CONFIG_HUGETLB_PAGE */
 
 #ifndef CONFIG_PPC_64K_PAGES
@@ -1124,6 +1135,9 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		pte_val(*(ptep + PTRS_PER_PTE)));
 #endif
 	DBG_LOW(" -> rc=%d\n", rc);
+
+bail:
+	exception_exit(prev_state);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(hash_page);
@@ -1259,6 +1273,8 @@ void flush_hash_range(unsigned long number, int local)
  */
 void low_hash_fault(struct pt_regs *regs, unsigned long address, int rc)
 {
+	enum ctx_state prev_state = exception_enter();
+
 	if (user_mode(regs)) {
 #ifdef CONFIG_PPC_SUBPAGE_PROT
 		if (rc == -2)
@@ -1268,6 +1284,8 @@ void low_hash_fault(struct pt_regs *regs, unsigned long address, int rc)
 			_exception(SIGBUS, regs, BUS_ADRERR, address);
 	} else
 		bad_page_fault(regs, address, SIGBUS);
+
+	exception_exit(prev_state);
 }
 
 long hpte_insert_repeating(unsigned long hash, unsigned long vpn,

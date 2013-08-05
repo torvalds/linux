@@ -1700,7 +1700,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 		unsigned int j;
 		DECLARE_COMPLETION_ONSTACK(complete);
 
-		bio = bio_alloc(GFP_NOFS, num_pages - i);
+		bio = btrfs_io_bio_alloc(GFP_NOFS, num_pages - i);
 		if (!bio) {
 			printk(KERN_INFO
 			       "btrfsic: bio_alloc() for %u pages failed!\n",

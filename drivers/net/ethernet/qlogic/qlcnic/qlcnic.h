@@ -429,6 +429,7 @@ struct qlcnic_hardware_context {
 
 	u16 port_type;
 	u16 board_type;
+	u16 supported_type;
 
 	u16 link_speed;
 	u16 link_duplex;
@@ -1514,6 +1515,7 @@ void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter);
 void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter);
 void qlcnic_82xx_add_sysfs(struct qlcnic_adapter *adapter);
 void qlcnic_82xx_remove_sysfs(struct qlcnic_adapter *adapter);
+int qlcnic_82xx_get_settings(struct qlcnic_adapter *, struct ethtool_cmd *);
 
 int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
 int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);

@@ -30,15 +30,19 @@ struct journal_head {
 
 	/*
 	 * Journalling list for this buffer [jbd_lock_bh_state()]
+	 * NOTE: We *cannot* combine this with b_modified into a bitfield
+	 * as gcc would then (which the C standard allows but which is
+	 * very unuseful) make 64-bit accesses to the bitfield and clobber
+	 * b_jcount if its update races with bitfield modification.
 	 */
-	unsigned b_jlist:4;
+	unsigned b_jlist;
 
 	/*
 	 * This flag signals the buffer has been modified by
 	 * the currently running transaction
 	 * [jbd_lock_bh_state()]
 	 */
-	unsigned b_modified:1;
+	unsigned b_modified;
 
 	/*
 	 * Copy of the buffer data frozen for writing to the log.

@@ -131,7 +131,9 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[2] = "RSS XOR Hash Function support",
 		[3] = "Device manage flow steering support",
 		[4] = "Automatic MAC reassignment support",
-		[5] = "Time stamping support"
+		[5] = "Time stamping support",
+		[6] = "VST (control vlan insertion/stripping) support",
+		[7] = "FSM (MAC anti-spoofing) support"
 	};
 	int i;
 

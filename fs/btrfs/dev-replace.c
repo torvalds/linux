@@ -313,6 +313,11 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_device *src_device = NULL;
 
+	if (btrfs_fs_incompat(fs_info, RAID56)) {
+		pr_warn("btrfs: dev_replace cannot yet handle RAID5/RAID6\n");
+		return -EINVAL;
+	}
+
 	switch (args->start.cont_reading_from_srcdev_mode) {
 	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS:
 	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID:

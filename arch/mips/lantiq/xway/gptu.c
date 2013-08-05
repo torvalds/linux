@@ -144,10 +144,6 @@ static int gptu_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get resource\n");
-		return -ENOMEM;
-	}
 
 	/* remap gptu register range */
 	gptu_membase = devm_ioremap_resource(&pdev->dev, res);
@@ -169,6 +165,8 @@ static int gptu_probe(struct platform_device *pdev)
 	if (((gptu_r32(GPTU_ID) >> 8) & 0xff) != GPTU_MAGIC) {
 		dev_err(&pdev->dev, "Failed to find magic\n");
 		gptu_hwexit();
+		clk_disable(clk);
+		clk_put(clk);
 		return -ENAVAIL;
 	}
 

@@ -8,7 +8,6 @@ extern struct t10_alua_lu_gp *default_lu_gp;
 struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
 int	core_free_device_list_for_node(struct se_node_acl *,
 		struct se_portal_group *);
-void	core_dec_lacl_count(struct se_node_acl *, struct se_cmd *);
 void	core_update_device_list_access(u32, u32, struct se_node_acl *);
 int	core_enable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
 		u32, u32, struct se_node_acl *, struct se_portal_group *);

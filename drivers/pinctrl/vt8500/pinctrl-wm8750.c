@@ -53,7 +53,7 @@ static const struct wmt_pinctrl_bank_registers wm8750_banks[] = {
 #define WMT_PIN_EXTGPIO6	WMT_PIN(0, 6)
 #define WMT_PIN_EXTGPIO7	WMT_PIN(0, 7)
 #define WMT_PIN_WAKEUP0		WMT_PIN(0, 16)
-#define WMT_PIN_WAKEUP1		WMT_PIN(0, 16)
+#define WMT_PIN_WAKEUP1		WMT_PIN(0, 17)
 #define WMT_PIN_SD0CD		WMT_PIN(0, 28)
 #define WMT_PIN_VDOUT0		WMT_PIN(1, 0)
 #define WMT_PIN_VDOUT1		WMT_PIN(1, 1)

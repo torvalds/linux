@@ -1166,7 +1166,8 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 	(*map)->data.mux.function = np->name;
 
 	if (pcs->is_pinconf) {
-		if (pcs_parse_pinconf(pcs, np, function, map))
+		res = pcs_parse_pinconf(pcs, np, function, map);
+		if (res)
 			goto free_pingroups;
 		*num_maps = 2;
 	} else {

@@ -9,8 +9,10 @@ static inline void pnv_smp_init(void) { }
 
 #ifdef CONFIG_PCI
 extern void pnv_pci_init(void);
+extern void pnv_pci_shutdown(void);
 #else
 static inline void pnv_pci_init(void) { }
+static inline void pnv_pci_shutdown(void) { }
 #endif
 
 #endif /* _POWERNV_H */

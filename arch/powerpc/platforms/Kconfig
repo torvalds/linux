@@ -128,7 +128,7 @@ config PPC_RTAS_DAEMON
 
 config RTAS_PROC
 	bool "Proc interface to RTAS"
-	depends on PPC_RTAS
+	depends on PPC_RTAS && PROC_FS
 	default y
 
 config RTAS_FLASH

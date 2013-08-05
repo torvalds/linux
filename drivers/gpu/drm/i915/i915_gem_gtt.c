@@ -709,15 +709,6 @@ static inline size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
 	return snb_gmch_ctl << 25; /* 32 MB units */
 }
 
-static inline size_t gen7_get_stolen_size(u16 snb_gmch_ctl)
-{
-	static const int stolen_decoder[] = {
-		0, 0, 0, 0, 0, 32, 48, 64, 128, 256, 96, 160, 224, 352};
-	snb_gmch_ctl >>= IVB_GMCH_GMS_SHIFT;
-	snb_gmch_ctl &= IVB_GMCH_GMS_MASK;
-	return stolen_decoder[snb_gmch_ctl] << 20;
-}
-
 static int gen6_gmch_probe(struct drm_device *dev,
 			   size_t *gtt_total,
 			   size_t *stolen,
@@ -747,11 +738,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 	gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
 
-	if (IS_GEN7(dev) && !IS_VALLEYVIEW(dev))
-		*stolen = gen7_get_stolen_size(snb_gmch_ctl);
-	else
-		*stolen = gen6_get_stolen_size(snb_gmch_ctl);
-
+	*stolen = gen6_get_stolen_size(snb_gmch_ctl);
 	*gtt_total = (gtt_size / sizeof(gen6_gtt_pte_t)) << PAGE_SHIFT;
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */

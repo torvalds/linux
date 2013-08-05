@@ -91,7 +91,7 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 /*
  * Parameter names of iSCSI Extentions for RDMA (iSER).  See RFC-5046
  */
-#define RDMAEXTENTIONS			"RDMAExtensions"
+#define RDMAEXTENSIONS			"RDMAExtensions"
 #define INITIATORRECVDATASEGMENTLENGTH	"InitiatorRecvDataSegmentLength"
 #define TARGETRECVDATASEGMENTLENGTH	"TargetRecvDataSegmentLength"
 
@@ -142,7 +142,7 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 /*
  * Initial values for iSER parameters following RFC-5046 Section 6
  */
-#define INITIAL_RDMAEXTENTIONS			NO
+#define INITIAL_RDMAEXTENSIONS			NO
 #define INITIAL_INITIATORRECVDATASEGMENTLENGTH	"262144"
 #define INITIAL_TARGETRECVDATASEGMENTLENGTH	"8192"
 

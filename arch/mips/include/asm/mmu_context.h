@@ -67,67 +67,44 @@ extern unsigned long pgd_current[];
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif
 #endif /* CONFIG_MIPS_PGD_C0_CONTEXT*/
+#if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
-#define ASID_INC(asid)						\
-({								\
-	unsigned long __asid = asid;				\
-	__asm__("1:\taddiu\t%0,1\t\t\t\t# patched\n\t"		\
-	".section\t__asid_inc,\"a\"\n\t"			\
-	".word\t1b\n\t"						\
-	".previous"						\
-	:"=r" (__asid)						\
-	:"0" (__asid));						\
-	__asid;							\
-})
-#define ASID_MASK(asid)						\
-({								\
-	unsigned long __asid = asid;				\
-	__asm__("1:\tandi\t%0,%1,0xfc0\t\t\t# patched\n\t"	\
-	".section\t__asid_mask,\"a\"\n\t"			\
-	".word\t1b\n\t"						\
-	".previous"						\
-	:"=r" (__asid)						\
-	:"r" (__asid));						\
-	__asid;							\
-})
-#define ASID_VERSION_MASK					\
-({								\
-	unsigned long __asid;					\
-	__asm__("1:\taddiu\t%0,$0,0xff00\t\t\t\t# patched\n\t"	\
-	".section\t__asid_version_mask,\"a\"\n\t"		\
-	".word\t1b\n\t"						\
-	".previous"						\
-	:"=r" (__asid));					\
-	__asid;							\
-})
-#define ASID_FIRST_VERSION					\
-({								\
-	unsigned long __asid = asid;				\
-	__asm__("1:\tli\t%0,0x100\t\t\t\t# patched\n\t"		\
-	".section\t__asid_first_version,\"a\"\n\t"		\
-	".word\t1b\n\t"						\
-	".previous"						\
-	:"=r" (__asid));					\
-	__asid;							\
-})
+#define ASID_INC	0x40
+#define ASID_MASK	0xfc0
 
-#define ASID_FIRST_VERSION_R3000	0x1000
-#define ASID_FIRST_VERSION_R4000	0x100
-#define ASID_FIRST_VERSION_R8000	0x1000
-#define ASID_FIRST_VERSION_RM9000	0x1000
+#elif defined(CONFIG_CPU_R8000)
 
-#ifdef CONFIG_MIPS_MT_SMTC
-#define SMTC_HW_ASID_MASK		0xff
-extern unsigned int smtc_asid_mask;
+#define ASID_INC	0x10
+#define ASID_MASK	0xff0
+
+#elif defined(CONFIG_MIPS_MT_SMTC)
+
+#define ASID_INC	0x1
+extern unsigned long smtc_asid_mask;
+#define ASID_MASK	(smtc_asid_mask)
+#define HW_ASID_MASK	0xff
+/* End SMTC/34K debug hack */
+#else /* FIXME: not correct for R6000 */
+
+#define ASID_INC	0x1
+#define ASID_MASK	0xff
+
 #endif
 
 #define cpu_context(cpu, mm)	((mm)->context.asid[cpu])
-#define cpu_asid(cpu, mm)	ASID_MASK(cpu_context((cpu), (mm)))
+#define cpu_asid(cpu, mm)	(cpu_context((cpu), (mm)) & ASID_MASK)
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
+
+/*
+ *  All unused by hardware upper bits will be considered
+ *  as a software asid extension.
+ */
+#define ASID_VERSION_MASK  ((unsigned long)~(ASID_MASK|(ASID_MASK-1)))
+#define ASID_FIRST_VERSION ((unsigned long)(~ASID_VERSION_MASK) + 1)
 
 #ifndef CONFIG_MIPS_MT_SMTC
 /* Normal, classic MIPS get_new_mmu_context */
@@ -137,7 +114,7 @@ get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 	extern void kvm_local_flush_tlb_all(void);
 	unsigned long asid = asid_cache(cpu);
 
-	if (!ASID_MASK((asid = ASID_INC(asid)))) {
+	if (! ((asid += ASID_INC) & ASID_MASK) ) {
 		if (cpu_has_vtag_icache)
 			flush_icache_all();
 #ifdef CONFIG_VIRTUALIZATION
@@ -200,7 +177,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 * free up the ASID value for use and flush any old
 	 * instances of it from the TLB.
 	 */
-	oldasid = ASID_MASK(read_c0_entryhi());
+	oldasid = (read_c0_entryhi() & ASID_MASK);
 	if(smtc_live_asid[mytlb][oldasid]) {
 		smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
 		if(smtc_live_asid[mytlb][oldasid] == 0)
@@ -211,7 +188,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 * having ASID_MASK smaller than the hardware maximum,
 	 * make sure no "soft" bits become "hard"...
 	 */
-	write_c0_entryhi((read_c0_entryhi() & ~SMTC_HW_ASID_MASK) |
+	write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK) |
 			 cpu_asid(cpu, next));
 	ehb(); /* Make sure it propagates to TCStatus */
 	evpe(mtflags);
@@ -264,15 +241,15 @@ activate_mm(struct mm_struct *prev, struct mm_struct *next)
 #ifdef CONFIG_MIPS_MT_SMTC
 	/* See comments for similar code above */
 	mtflags = dvpe();
-	oldasid = ASID_MASK(read_c0_entryhi());
+	oldasid = read_c0_entryhi() & ASID_MASK;
 	if(smtc_live_asid[mytlb][oldasid]) {
 		smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
 		if(smtc_live_asid[mytlb][oldasid] == 0)
 			 smtc_flush_tlb_asid(oldasid);
 	}
 	/* See comments for similar code above */
-	write_c0_entryhi((read_c0_entryhi() & ~SMTC_HW_ASID_MASK) |
-	                 cpu_asid(cpu, next));
+	write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK) |
+			 cpu_asid(cpu, next));
 	ehb(); /* Make sure it propagates to TCStatus */
 	evpe(mtflags);
 #else
@@ -309,14 +286,14 @@ drop_mmu_context(struct mm_struct *mm, unsigned cpu)
 #ifdef CONFIG_MIPS_MT_SMTC
 		/* See comments for similar code above */
 		prevvpe = dvpe();
-		oldasid = ASID_MASK(read_c0_entryhi());
+		oldasid = (read_c0_entryhi() & ASID_MASK);
 		if (smtc_live_asid[mytlb][oldasid]) {
 			smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
 			if(smtc_live_asid[mytlb][oldasid] == 0)
 				smtc_flush_tlb_asid(oldasid);
 		}
 		/* See comments for similar code above */
-		write_c0_entryhi((read_c0_entryhi() & ~SMTC_HW_ASID_MASK)
+		write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK)
 				| cpu_asid(cpu, mm));
 		ehb(); /* Make sure it propagates to TCStatus */
 		evpe(prevvpe);

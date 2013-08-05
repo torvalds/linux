@@ -167,11 +167,6 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	clk_prepare_enable(mxc_rng->clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		err = -ENOENT;
-		goto err_region;
-	}
-
 	mxc_rng->mem = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(mxc_rng->mem)) {
 		err = PTR_ERR(mxc_rng->mem);
@@ -189,7 +184,6 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	return 0;
 
 err_ioremap:
-err_region:
 	clk_disable_unprepare(mxc_rng->clk);
 
 out:

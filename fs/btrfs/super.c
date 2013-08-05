@@ -1263,6 +1263,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 
 		btrfs_dev_replace_suspend_for_unmount(fs_info);
 		btrfs_scrub_cancel(fs_info);
+		btrfs_pause_balance(fs_info);
 
 		ret = btrfs_commit_super(root);
 		if (ret)

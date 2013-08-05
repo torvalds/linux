@@ -15,8 +15,6 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 
-#include <linux/irqchip/arm-gic.h>
-
 #include <asm/mcpm.h>
 #include <asm/smp.h>
 #include <asm/smp_plat.h>
@@ -49,7 +47,6 @@ static int __cpuinit mcpm_boot_secondary(unsigned int cpu, struct task_struct *i
 static void __cpuinit mcpm_secondary_init(unsigned int cpu)
 {
 	mcpm_cpu_powered_up();
-	gic_secondary_init(0);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
