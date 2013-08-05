@@ -2047,12 +2047,18 @@ static void shadow_walk_next(struct kvm_shadow_walk_iterator *iterator)
 	return __shadow_walk_next(iterator, *iterator->sptep);
 }
 
-static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
+static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp, bool accessed)
 {
 	u64 spte;
 
+	BUILD_BUG_ON(VMX_EPT_READABLE_MASK != PT_PRESENT_MASK ||
+			VMX_EPT_WRITABLE_MASK != PT_WRITABLE_MASK);
+
 	spte = __pa(sp->spt) | PT_PRESENT_MASK | PT_WRITABLE_MASK |
-	       shadow_user_mask | shadow_x_mask | shadow_accessed_mask;
+	       shadow_user_mask | shadow_x_mask;
+
+	if (accessed)
+		spte |= shadow_accessed_mask;
 
 	mmu_spte_set(sptep, spte);
 }
@@ -2677,7 +2683,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 					      iterator.level - 1,
 					      1, ACC_ALL, iterator.sptep);
 
-			link_shadow_page(iterator.sptep, sp);
+			link_shadow_page(iterator.sptep, sp, true);
 		}
 	}
 	return emulate;
