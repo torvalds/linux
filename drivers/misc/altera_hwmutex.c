@@ -288,7 +288,7 @@ static int altera_mutex_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id altera_mutex_match[] = {
-	{ .compatible = "altr,mutex-1.0" },
+	{ .compatible = "altr,hwmutex-1.0" },
 	{ /* Sentinel */ }
 };
 
