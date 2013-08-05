@@ -929,14 +929,14 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 			     au_opt_udba(a->src_dentry->d_sb),
 			     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
 		if (!err) {
-			struct au_cpup_basic basic = {
+			struct au_cp_generic cpg = {
 				.dentry	= a->src_dentry,
 				.bdst	= a->btgt,
 				.bsrc	= a->src_bstart,
 				.len	= -1
 			};
 			AuDebugOn(au_dbstart(a->src_dentry) != a->src_bstart);
-			err = au_sio_cpup_simple(&basic,
+			err = au_sio_cpup_simple(&cpg,
 						 AuCpup_DTIME | AuCpup_HOPEN,
 						 &pin);
 			au_unpin(&pin);

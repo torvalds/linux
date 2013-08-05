@@ -40,7 +40,7 @@ void au_cpup_attr_all(struct inode *inode, int force);
 
 /* ---------------------------------------------------------------------- */
 
-struct au_cpup_basic {
+struct au_cp_generic {
 	struct dentry	*dentry;
 	aufs_bindex_t	bdst, bsrc;
 	loff_t		len;
@@ -60,9 +60,9 @@ struct au_cpup_basic {
 	do { (flags) &= ~AuCpup_##name; } while (0)
 
 int au_copy_file(struct file *dst, struct file *src, loff_t len);
-int au_sio_cpup_simple(struct au_cpup_basic *basic, unsigned int flags,
+int au_sio_cpup_simple(struct au_cp_generic *cpg, unsigned int flags,
 		       struct au_pin *pin);
-int au_sio_cpup_wh(struct au_cpup_basic *basic, struct file *file,
+int au_sio_cpup_wh(struct au_cp_generic *cpg, struct file *file,
 		   struct au_pin *pin);
 
 int au_cp_dirs(struct dentry *dentry, aufs_bindex_t bdst,
