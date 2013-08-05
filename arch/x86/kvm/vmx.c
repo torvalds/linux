@@ -7595,6 +7595,16 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	kvm_set_cr3(vcpu, vmcs12->guest_cr3);
 	kvm_mmu_reset_context(vcpu);
 
+	/*
+	 * L1 may access the L2's PDPTR, so save them to construct vmcs12
+	 */
+	if (enable_ept) {
+		vmcs_write64(GUEST_PDPTR0, vmcs12->guest_pdptr0);
+		vmcs_write64(GUEST_PDPTR1, vmcs12->guest_pdptr1);
+		vmcs_write64(GUEST_PDPTR2, vmcs12->guest_pdptr2);
+		vmcs_write64(GUEST_PDPTR3, vmcs12->guest_pdptr3);
+	}
+
 	kvm_register_write(vcpu, VCPU_REGS_RSP, vmcs12->guest_rsp);
 	kvm_register_write(vcpu, VCPU_REGS_RIP, vmcs12->guest_rip);
 }
@@ -7916,6 +7926,22 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
 	vmcs12->guest_pending_dbg_exceptions =
 		vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS);
+
+	/*
+	 * In some cases (usually, nested EPT), L2 is allowed to change its
+	 * own CR3 without exiting. If it has changed it, we must keep it.
+	 * Of course, if L0 is using shadow page tables, GUEST_CR3 was defined
+	 * by L0, not L1 or L2, so we mustn't unconditionally copy it to vmcs12.
+	 *
+	 * Additionally, restore L2's PDPTR to vmcs12.
+	 */
+	if (enable_ept) {
+		vmcs12->guest_cr3 = vmcs_read64(GUEST_CR3);
+		vmcs12->guest_pdptr0 = vmcs_read64(GUEST_PDPTR0);
+		vmcs12->guest_pdptr1 = vmcs_read64(GUEST_PDPTR1);
+		vmcs12->guest_pdptr2 = vmcs_read64(GUEST_PDPTR2);
+		vmcs12->guest_pdptr3 = vmcs_read64(GUEST_PDPTR3);
+	}
 
 	vmcs12->vm_entry_controls =
 		(vmcs12->vm_entry_controls & ~VM_ENTRY_IA32E_MODE) |
