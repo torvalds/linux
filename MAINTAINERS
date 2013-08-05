@@ -9238,6 +9238,8 @@ F:	drivers/media/tuners/tuner-xc2028.*
 XEN HYPERVISOR INTERFACE
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 M:	Jeremy Fitzhardinge <jeremy@goop.org>
+M:	Boris Ostrovsky <boris.ostrovsky@oracle.com>
+M:	David Vrabel <david.vrabel@citrix.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/xen/
