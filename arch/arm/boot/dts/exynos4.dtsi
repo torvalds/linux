@@ -303,13 +303,21 @@
 	};
 
 	mfc: codec@13400000 {
-		compatible = "samsung,mfc-v5";
+		compatible = "samsung,mfc-v5", "simple-bus";
 		reg = <0x13400000 0x10000>;
 		interrupts = <0 94 0>;
 		samsung,power-domain = <&pd_mfc>;
 		clocks = <&clock 273>;
 		clock-names = "mfc";
 		status = "disabled";
+
+		mfc_r: memport-r {
+			compatible = "samsung,memport";
+		};
+
+		mfc_l: memport-l {
+			compatible = "samsung,memport";
+		};
 	};
 
 	serial@13800000 {

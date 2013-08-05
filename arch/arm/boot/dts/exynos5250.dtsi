@@ -186,12 +186,20 @@
 	};
 
 	codec@11000000 {
-		compatible = "samsung,mfc-v6";
+		compatible = "samsung,mfc-v6", "simple-bus";
 		reg = <0x11000000 0x10000>;
 		interrupts = <0 96 0>;
 		samsung,power-domain = <&pd_mfc>;
 		clocks = <&clock 266>;
 		clock-names = "mfc";
+
+		mfc_r: memport-r {
+			compatible = "samsung,memport";
+		};
+
+		mfc_l: memport-l {
+			compatible = "samsung,memport";
+		};
 	};
 
 	rtc@101E0000 {

@@ -6,11 +6,18 @@ The MFC device driver is a v4l2 driver which can encode/decode
 video raw/elementary streams and has support for all popular
 video codecs.
 
+The MFC device is connected to system bus with two memory ports (AXI
+masters) for better performance. Those memory ports are modelled as
+separate child devices, so one can assign some properties to them (like
+memory region for dma buffer allocation or sysmmu controller).
+
 Required properties:
   - compatible : value should be either one among the following
 	(a) "samsung,mfc-v5" for MFC v5 present in Exynos4 SoCs
 	(b) "samsung,mfc-v6" for MFC v6 present in Exynos5 SoCs
 	(b) "samsung,mfc-v7" for MFC v7 present in Exynos5420 SoC
+	and additionally "simple-bus" to correctly initialize child
+	devices for memory ports (AXI masters)
 
   - reg : Physical base address of the IP registers and length of memory
 	  mapped region.
@@ -20,31 +27,69 @@ Required properties:
   - clock-names : from common clock binding: must contain "mfc",
 		  corresponding to entry in the clocks property.
 
-  - samsung,mfc-r : Base address of the first memory bank used by MFC
-		    for DMA contiguous memory allocation and its size.
-
-  - samsung,mfc-l : Base address of the second memory bank used by MFC
-		    for DMA contiguous memory allocation and its size.
-
 Optional properties:
   - samsung,power-domain : power-domain property defined with a phandle
 			   to respective power domain.
+
+Two child nodes must be defined for MFC device. Their names must be
+following: "memport-r" and "memport-l" ("right" and "left"). Required
+properties:
+  - compatible : value should be "samsung,memport"
+  - dma-memory-region : optional property with a phandle to respective memory
+			region (see devicetree/bindings/memory.txt), if no region
+			is defined, sysmmu controller must be used for managing
+			limited dma window of each memory port.
+
 
 Example:
 SoC specific DT entry:
 
 mfc: codec@13400000 {
-	compatible = "samsung,mfc-v5";
+	compatible = "samsung,mfc-v5", "simple-bus";
 	reg = <0x13400000 0x10000>;
 	interrupts = <0 94 0>;
 	samsung,power-domain = <&pd_mfc>;
 	clocks = <&clock 273>;
 	clock-names = "mfc";
+	status = "disabled";
+
+	mfc_r: memport-r {
+		compatible = "samsung,memport";
+	};
+
+	mfc_l: memport-l {
+		compatible = "samsung,memport";
+	};
 };
 
 Board specific DT entry:
 
+memory {
+	/* ... */
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mfc_l_mem: mfc_l_region@43000000 {
+			compatible = "contiguous-memory-region", "reserved-memory-region";
+			reg = <0x43000000 0x1000000>;
+		};
+
+		mfc_r_mem: mfc_r_region@52000000 {
+			compatible = "contiguous-memory-region", "reserved-memory-region";
+			reg = <0x52000000 0x1000000>;
+		};
+	};
+};
+
 codec@13400000 {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
+	status = "okay";
+
+	memport-r {
+		dma-memory-region = <&mfc_r_mem>;
+	};
+
+	memport-l {
+		dma-memory-region = <&mfc_l_mem>;
+	};
 };

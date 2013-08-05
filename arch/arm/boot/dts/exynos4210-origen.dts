@@ -26,6 +26,21 @@
 		       0x50000000 0x10000000
 		       0x60000000 0x10000000
 		       0x70000000 0x10000000>;
+
+		reserved-memory {
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mfc_l_mem: mfc_l_region@43000000 {
+				compatible = "contiguous-memory-region", "reserved-memory-region";
+				reg = <0x43000000 0x1000000>;
+			};
+
+			mfc_r_mem: mfc_r_region@51000000 {
+				compatible = "contiguous-memory-region", "reserved-memory-region";
+				reg = <0x51000000 0x1000000>;
+			};
+		};
 	};
 
 	chosen {
@@ -73,9 +88,15 @@
 	};
 
 	codec@13400000 {
-		samsung,mfc-r = <0x43000000 0x800000>;
-		samsung,mfc-l = <0x51000000 0x800000>;
 		status = "okay";
+
+		memport-r {
+			dma-memory-region = <&mfc_r_mem>;
+		};
+
+		memport-l {
+			dma-memory-region = <&mfc_l_mem>;
+		};
 	};
 
 	serial@13800000 {
