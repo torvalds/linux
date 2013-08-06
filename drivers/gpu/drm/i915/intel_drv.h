@@ -26,6 +26,7 @@
 #define __INTEL_DRV_H__
 
 #include <linux/i2c.h>
+#include <linux/hdmi.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include <drm/drm_crtc.h>
@@ -464,7 +465,8 @@ struct intel_hdmi {
 	enum hdmi_force_audio force_audio;
 	bool rgb_quant_range_selectable;
 	void (*write_infoframe)(struct drm_encoder *encoder,
-				struct dip_infoframe *frame);
+				enum hdmi_infoframe_type type,
+				const uint8_t *frame, ssize_t len);
 	void (*set_infoframes)(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode);
 };
