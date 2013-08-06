@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
@@ -136,6 +137,14 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 
 	snprintf(dssdev->alias, sizeof(dssdev->alias),
 			"display%d", disp_num_counter++);
+
+	/* Use 'label' property for name, if it exists */
+	if (dssdev->dev->of_node)
+		of_property_read_string(dssdev->dev->of_node, "label",
+			&dssdev->name);
+
+	if (dssdev->name == NULL)
+		dssdev->name = dssdev->alias;
 
 	if (drv && drv->get_resolution == NULL)
 		drv->get_resolution = omapdss_default_get_resolution;
