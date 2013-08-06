@@ -449,8 +449,11 @@ struct intel_device_info {
 
 enum i915_cache_level {
 	I915_CACHE_NONE = 0,
-	I915_CACHE_LLC,
-	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
+	I915_CACHE_LLC, /* also used for snoopable memory on non-LLC */
+	I915_CACHE_L3_LLC, /* gen7+, L3 sits between the domain specifc
+			      caches, eg sampler/render caches, and the
+			      large Last-Level-Cache. LLC is coherent with
+			      the CPU, but L3 is only visible to the GPU. */
 };
 
 typedef uint32_t gen6_gtt_pte_t;

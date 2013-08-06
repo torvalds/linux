@@ -43,7 +43,7 @@
 #define GEN6_PTE_UNCACHED		(1 << 1)
 #define HSW_PTE_UNCACHED		(0)
 #define GEN6_PTE_CACHE_LLC		(2 << 1)
-#define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
+#define GEN7_PTE_CACHE_L3_LLC		(3 << 1)
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
 #define HSW_PTE_ADDR_ENCODE(addr)	HSW_GTT_ADDR_ENCODE(addr)
 
@@ -56,15 +56,36 @@
 #define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
 
-static gen6_gtt_pte_t gen6_pte_encode(dma_addr_t addr,
-				      enum i915_cache_level level)
+static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
+				     enum i915_cache_level level)
 {
 	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
-	case I915_CACHE_LLC_MLC:
-		pte |= GEN6_PTE_CACHE_LLC_MLC;
+	case I915_CACHE_L3_LLC:
+	case I915_CACHE_LLC:
+		pte |= GEN6_PTE_CACHE_LLC;
+		break;
+	case I915_CACHE_NONE:
+		pte |= GEN6_PTE_UNCACHED;
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	return pte;
+}
+
+static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
+				     enum i915_cache_level level)
+{
+	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	pte |= GEN6_PTE_ADDR_ENCODE(addr);
+
+	switch (level) {
+	case I915_CACHE_L3_LLC:
+		pte |= GEN7_PTE_CACHE_L3_LLC;
 		break;
 	case I915_CACHE_LLC:
 		pte |= GEN6_PTE_CACHE_LLC;
@@ -73,7 +94,7 @@ static gen6_gtt_pte_t gen6_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		BUG();
+		WARN_ON(1);
 	}
 
 	return pte;
@@ -890,8 +911,10 @@ int i915_gem_gtt_init(struct drm_device *dev)
 			gtt->base.pte_encode = hsw_pte_encode;
 		else if (IS_VALLEYVIEW(dev))
 			gtt->base.pte_encode = byt_pte_encode;
+		else if (INTEL_INFO(dev)->gen >= 7)
+			gtt->base.pte_encode = ivb_pte_encode;
 		else
-			gtt->base.pte_encode = gen6_pte_encode;
+			gtt->base.pte_encode = snb_pte_encode;
 	}
 
 	ret = gtt->gtt_probe(dev, &gtt->base.total, &gtt->stolen_size,
