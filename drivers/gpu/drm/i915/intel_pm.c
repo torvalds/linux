@@ -2838,7 +2838,7 @@ sandybridge_compute_sprite_srwm(struct drm_device *dev, int plane,
 
 static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 					 uint32_t sprite_width, int pixel_size,
-					 bool enable, bool scaled)
+					 bool enabled, bool scaled)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = dev_priv->wm.spr_latency[0] * 100;	/* In unit 0.1us */
@@ -2846,7 +2846,7 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 	int sprite_wm, reg;
 	int ret;
 
-	if (!enable)
+	if (!enabled)
 		return;
 
 	switch (pipe) {
@@ -2961,13 +2961,13 @@ void intel_update_watermarks(struct drm_device *dev)
 
 void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 				    uint32_t sprite_width, int pixel_size,
-				    bool enable, bool scaled)
+				    bool enabled, bool scaled)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (dev_priv->display.update_sprite_wm)
 		dev_priv->display.update_sprite_wm(dev, pipe, sprite_width,
-						   pixel_size, enable, scaled);
+						   pixel_size, enabled, scaled);
 }
 
 static struct drm_i915_gem_object *
