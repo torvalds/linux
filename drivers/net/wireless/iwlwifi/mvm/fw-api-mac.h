@@ -372,4 +372,13 @@ static inline u32 iwl_mvm_reciprocal(u32 v)
 	return 0xFFFFFFFF / v;
 }
 
+#define IWL_NONQOS_SEQ_GET	0x1
+#define IWL_NONQOS_SEQ_SET	0x2
+struct iwl_nonqos_seq_query_cmd {
+	__le32 get_set_flag;
+	__le32 mac_id_n_color;
+	__le16 value;
+	__le16 reserved;
+} __packed; /* NON_QOS_TX_COUNTER_GET_SET_API_S_VER_1 */
+
 #endif /* __fw_api_mac_h__ */

@@ -84,6 +84,8 @@
  * @IWL_UCODE_TLV_FLAGS_BF_UPDATED: new beacon filtering API
  * @IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID: not sending a probe with the SSID element
  *	from the probe request template.
+ * @IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API: modified D3 API to allow keeping
+ *	connection when going back to D0
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL: new NS offload (small version)
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
  * @IWL_UCODE_TLV_FLAGS_SCHED_SCAN: this uCode image supports scheduled scan.
@@ -105,6 +107,7 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS	= BIT(10),
 	IWL_UCODE_TLV_FLAGS_BF_UPDATED		= BIT(11),
 	IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID	= BIT(12),
+	IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API	= BIT(14),
 	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL	= BIT(15),
 	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE	= BIT(16),
 	IWL_UCODE_TLV_FLAGS_SCHED_SCAN		= BIT(17),

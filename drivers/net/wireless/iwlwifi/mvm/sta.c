@@ -337,8 +337,12 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
 			mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
 
-	/* for HW restart - need to reset the seq_number etc... */
-	memset(mvm_sta->tid_data, 0, sizeof(mvm_sta->tid_data));
+	/* for HW restart - reset everything but the sequence number */
+	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+		u16 seq = mvm_sta->tid_data[i].seq_number;
+		memset(&mvm_sta->tid_data[i], 0, sizeof(mvm_sta->tid_data[i]));
+		mvm_sta->tid_data[i].seq_number = seq;
+	}
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)

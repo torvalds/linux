@@ -1042,6 +1042,9 @@ int iwl_mvm_mac_ctxt_add(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (ret)
 		return ret;
 
+	/* will only do anything at resume from D3 time */
+	iwl_mvm_set_last_nonqos_seq(mvm, vif);
+
 	mvmvif->uploaded = true;
 	return 0;
 }

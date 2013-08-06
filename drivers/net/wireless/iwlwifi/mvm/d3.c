@@ -863,6 +863,13 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_nonqos_seq_query_cmd query_cmd = {
+		.get_set_flag = cpu_to_le32(IWL_NONQOS_SEQ_GET),
+		.mac_id_n_color =
+			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
+							mvmvif->color)),
+	};
 	struct iwl_host_cmd cmd = {
 		.id = NON_QOS_TX_COUNTER_CMD,
 		.flags = CMD_SYNC | CMD_WANT_SKB,
@@ -870,19 +877,55 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 	int err;
 	u32 size;
 
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API) {
+		cmd.data[0] = &query_cmd;
+		cmd.len[0] = sizeof(query_cmd);
+	}
+
 	err = iwl_mvm_send_cmd(mvm, &cmd);
 	if (err)
 		return err;
 
 	size = le32_to_cpu(cmd.resp_pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 	size -= sizeof(cmd.resp_pkt->hdr);
-	if (size != sizeof(__le32))
+	if (size < sizeof(__le16)) {
 		err = -EINVAL;
-	else
-		err = le32_to_cpup((__le32 *)cmd.resp_pkt->data);
+	} else {
+		err = le16_to_cpup((__le16 *)cmd.resp_pkt->data);
+		/* new API returns next, not last-used seqno */
+		if (mvm->fw->ucode_capa.flags &
+				IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API)
+			err -= 0x10;
+	}
 
 	iwl_free_resp(&cmd);
 	return err;
+}
+
+void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_nonqos_seq_query_cmd query_cmd = {
+		.get_set_flag = cpu_to_le32(IWL_NONQOS_SEQ_SET),
+		.mac_id_n_color =
+			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
+							mvmvif->color)),
+		.value = cpu_to_le16(mvmvif->seqno),
+	};
+
+	/* return if called during restart, not resume from D3 */
+	if (!mvmvif->seqno_valid)
+		return;
+
+	mvmvif->seqno_valid = false;
+
+	if (!(mvm->fw->ucode_capa.flags &
+			IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API))
+		return;
+
+	if (iwl_mvm_send_cmd_pdu(mvm, NON_QOS_TX_COUNTER_CMD, CMD_SYNC,
+				 sizeof(query_cmd), &query_cmd))
+		IWL_ERR(mvm, "failed to set non-QoS seqno\n");
 }
 
 static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
@@ -1203,16 +1246,26 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	return __iwl_mvm_suspend(hw, wowlan, false);
 }
 
+/* converted data from the different status responses */
+struct iwl_wowlan_status_data {
+	u16 pattern_number;
+	u16 qos_seq_ctr[8];
+	u32 wakeup_reasons;
+	u32 wake_packet_length;
+	u32 wake_packet_bufsize;
+	const u8 *wake_packet;
+};
+
 static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
-					  struct iwl_wowlan_status *status)
+					  struct iwl_wowlan_status_data *status)
 {
 	struct sk_buff *pkt = NULL;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
 	struct cfg80211_wowlan_wakeup *wakeup_report = &wakeup;
-	u32 reasons = le32_to_cpu(status->wakeup_reasons);
+	u32 reasons = status->wakeup_reasons;
 
 	if (reasons == IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS) {
 		wakeup_report = NULL;
@@ -1224,7 +1277,7 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_PATTERN)
 		wakeup.pattern_idx =
-			le16_to_cpu(status->pattern_number);
+			status->pattern_number;
 
 	if (reasons & (IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
 		       IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH))
@@ -1252,8 +1305,8 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 		wakeup.tcp_match = true;
 
 	if (status->wake_packet_bufsize) {
-		int pktsize = le32_to_cpu(status->wake_packet_bufsize);
-		int pktlen = le32_to_cpu(status->wake_packet_length);
+		int pktsize = status->wake_packet_bufsize;
+		int pktlen = status->wake_packet_length;
 		const u8 *pktdata = status->wake_packet;
 		struct ieee80211_hdr *hdr = (void *)pktdata;
 		int truncated = pktlen - pktsize;
@@ -1333,8 +1386,229 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 	kfree_skb(pkt);
 }
 
+static void iwl_mvm_aes_sc_to_seq(struct aes_sc *sc,
+				  struct ieee80211_key_seq *seq)
+{
+	u64 pn;
+
+	pn = le64_to_cpu(sc->pn);
+	seq->ccmp.pn[0] = pn >> 40;
+	seq->ccmp.pn[1] = pn >> 32;
+	seq->ccmp.pn[2] = pn >> 24;
+	seq->ccmp.pn[3] = pn >> 16;
+	seq->ccmp.pn[4] = pn >> 8;
+	seq->ccmp.pn[5] = pn;
+}
+
+static void iwl_mvm_tkip_sc_to_seq(struct tkip_sc *sc,
+				   struct ieee80211_key_seq *seq)
+{
+	seq->tkip.iv32 = le32_to_cpu(sc->iv32);
+	seq->tkip.iv16 = le16_to_cpu(sc->iv16);
+}
+
+static void iwl_mvm_set_aes_rx_seq(struct aes_sc *scs,
+				   struct ieee80211_key_conf *key)
+{
+	int tid;
+
+	BUILD_BUG_ON(IWL_NUM_RSC != IEEE80211_NUM_TIDS);
+
+	for (tid = 0; tid < IWL_NUM_RSC; tid++) {
+		struct ieee80211_key_seq seq = {};
+
+		iwl_mvm_aes_sc_to_seq(&scs[tid], &seq);
+		ieee80211_set_key_rx_seq(key, tid, &seq);
+	}
+}
+
+static void iwl_mvm_set_tkip_rx_seq(struct tkip_sc *scs,
+				    struct ieee80211_key_conf *key)
+{
+	int tid;
+
+	BUILD_BUG_ON(IWL_NUM_RSC != IEEE80211_NUM_TIDS);
+
+	for (tid = 0; tid < IWL_NUM_RSC; tid++) {
+		struct ieee80211_key_seq seq = {};
+
+		iwl_mvm_tkip_sc_to_seq(&scs[tid], &seq);
+		ieee80211_set_key_rx_seq(key, tid, &seq);
+	}
+}
+
+static void iwl_mvm_set_key_rx_seq(struct ieee80211_key_conf *key,
+				   struct iwl_wowlan_status_v6 *status)
+{
+	union iwl_all_tsc_rsc *rsc = &status->gtk.rsc.all_tsc_rsc;
+
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+		iwl_mvm_set_aes_rx_seq(rsc->aes.multicast_rsc, key);
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		iwl_mvm_set_tkip_rx_seq(rsc->tkip.multicast_rsc, key);
+		break;
+	default:
+		WARN_ON(1);
+	}
+}
+
+struct iwl_mvm_d3_gtk_iter_data {
+	struct iwl_wowlan_status_v6 *status;
+	void *last_gtk;
+	u32 cipher;
+	bool find_phase, unhandled_cipher;
+	int num_keys;
+};
+
+static void iwl_mvm_d3_update_gtks(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_sta *sta,
+				   struct ieee80211_key_conf *key,
+				   void *_data)
+{
+	struct iwl_mvm_d3_gtk_iter_data *data = _data;
+
+	if (data->unhandled_cipher)
+		return;
+
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		/* ignore WEP completely, nothing to do */
+		return;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_TKIP:
+		/* we support these */
+		break;
+	default:
+		/* everything else (even CMAC for MFP) - disconnect from AP */
+		data->unhandled_cipher = true;
+		return;
+	}
+
+	data->num_keys++;
+
+	/*
+	 * pairwise key - update sequence counters only;
+	 * note that this assumes no TDLS sessions are active
+	 */
+	if (sta) {
+		struct ieee80211_key_seq seq = {};
+		union iwl_all_tsc_rsc *sc = &data->status->gtk.rsc.all_tsc_rsc;
+
+		if (data->find_phase)
+			return;
+
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_CCMP:
+			iwl_mvm_aes_sc_to_seq(&sc->aes.tsc, &seq);
+			iwl_mvm_set_aes_rx_seq(sc->aes.unicast_rsc, key);
+			break;
+		case WLAN_CIPHER_SUITE_TKIP:
+			iwl_mvm_tkip_sc_to_seq(&sc->tkip.tsc, &seq);
+			iwl_mvm_set_tkip_rx_seq(sc->tkip.unicast_rsc, key);
+			break;
+		}
+		ieee80211_set_key_tx_seq(key, &seq);
+
+		/* that's it for this key */
+		return;
+	}
+
+	if (data->find_phase) {
+		data->last_gtk = key;
+		data->cipher = key->cipher;
+		return;
+	}
+
+	if (data->status->num_of_gtk_rekeys)
+		ieee80211_remove_key(key);
+	else if (data->last_gtk == key)
+		iwl_mvm_set_key_rx_seq(key, data->status);
+}
+
+static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif,
+					  struct iwl_wowlan_status_v6 *status)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_d3_gtk_iter_data gtkdata = {
+		.status = status,
+	};
+
+	if (!status || !vif->bss_conf.bssid)
+		return false;
+
+	/* find last GTK that we used initially, if any */
+	gtkdata.find_phase = true;
+	ieee80211_iter_keys(mvm->hw, vif,
+			    iwl_mvm_d3_update_gtks, &gtkdata);
+	/* not trying to keep connections with MFP/unhandled ciphers */
+	if (gtkdata.unhandled_cipher)
+		return false;
+	if (!gtkdata.num_keys)
+		return true;
+	if (!gtkdata.last_gtk)
+		return false;
+
+	/*
+	 * invalidate all other GTKs that might still exist and update
+	 * the one that we used
+	 */
+	gtkdata.find_phase = false;
+	ieee80211_iter_keys(mvm->hw, vif,
+			    iwl_mvm_d3_update_gtks, &gtkdata);
+
+	if (status->num_of_gtk_rekeys) {
+		struct ieee80211_key_conf *key;
+		struct {
+			struct ieee80211_key_conf conf;
+			u8 key[32];
+		} conf = {
+			.conf.cipher = gtkdata.cipher,
+			.conf.keyidx = status->gtk.key_index,
+		};
+
+		switch (gtkdata.cipher) {
+		case WLAN_CIPHER_SUITE_CCMP:
+			conf.conf.keylen = WLAN_KEY_LEN_CCMP;
+			memcpy(conf.conf.key, status->gtk.decrypt_key,
+			       WLAN_KEY_LEN_CCMP);
+			break;
+		case WLAN_CIPHER_SUITE_TKIP:
+			conf.conf.keylen = WLAN_KEY_LEN_TKIP;
+			memcpy(conf.conf.key, status->gtk.decrypt_key, 16);
+			/* leave TX MIC key zeroed, we don't use it anyway */
+			memcpy(conf.conf.key +
+			       NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY,
+			       status->gtk.tkip_mic_key, 8);
+			break;
+		}
+
+		key = ieee80211_gtk_rekey_add(vif, &conf.conf);
+		if (IS_ERR(key))
+			return false;
+		iwl_mvm_set_key_rx_seq(key, status);
+	}
+
+	if (status->num_of_gtk_rekeys) {
+		__be64 replay_ctr =
+			cpu_to_be64(le64_to_cpu(status->replay_ctr));
+		ieee80211_gtk_rekey_notify(vif, vif->bss_conf.bssid,
+					   (void *)&replay_ctr, GFP_KERNEL);
+	}
+
+	mvmvif->seqno_valid = true;
+	/* +0x10 because the set API expects next-to-use, not last-used */
+	mvmvif->seqno = le16_to_cpu(status->non_qos_seq_ctr) + 0x10;
+
+	return true;
+}
+
 /* releases the MVM mutex */
-static void iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
+static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif)
 {
 	u32 base = mvm->error_event_table;
@@ -1347,8 +1621,12 @@ static void iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 		.id = WOWLAN_GET_STATUSES,
 		.flags = CMD_SYNC | CMD_WANT_SKB,
 	};
-	struct iwl_wowlan_status *status;
-	int ret, len;
+	struct iwl_wowlan_status_data status;
+	struct iwl_wowlan_status_v6 *status_v6;
+	int ret, len, status_size, i;
+	bool keep;
+	struct ieee80211_sta *ap_sta;
+	struct iwl_mvm_sta *mvm_ap_sta;
 
 	iwl_trans_read_mem_bytes(mvm->trans, base,
 				 &err_info, sizeof(err_info));
@@ -1381,32 +1659,83 @@ static void iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	if (!cmd.resp_pkt)
 		goto out_unlock;
 
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API)
+		status_size = sizeof(struct iwl_wowlan_status_v6);
+	else
+		status_size = sizeof(struct iwl_wowlan_status_v4);
+
 	len = le32_to_cpu(cmd.resp_pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	if (len - sizeof(struct iwl_cmd_header) < sizeof(*status)) {
+	if (len - sizeof(struct iwl_cmd_header) < status_size) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
 		goto out_free_resp;
 	}
 
-	status = (void *)cmd.resp_pkt->data;
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_CONTINUITY_API) {
+		status_v6 = (void *)cmd.resp_pkt->data;
+
+		status.pattern_number = le16_to_cpu(status_v6->pattern_number);
+		for (i = 0; i < 8; i++)
+			status.qos_seq_ctr[i] =
+				le16_to_cpu(status_v6->qos_seq_ctr[i]);
+		status.wakeup_reasons = le32_to_cpu(status_v6->wakeup_reasons);
+		status.wake_packet_length =
+			le32_to_cpu(status_v6->wake_packet_length);
+		status.wake_packet_bufsize =
+			le32_to_cpu(status_v6->wake_packet_bufsize);
+		status.wake_packet = status_v6->wake_packet;
+	} else {
+		struct iwl_wowlan_status_v4 *status_v4;
+		status_v6 = NULL;
+		status_v4 = (void *)cmd.resp_pkt->data;
+
+		status.pattern_number = le16_to_cpu(status_v4->pattern_number);
+		for (i = 0; i < 8; i++)
+			status.qos_seq_ctr[i] =
+				le16_to_cpu(status_v4->qos_seq_ctr[i]);
+		status.wakeup_reasons = le32_to_cpu(status_v4->wakeup_reasons);
+		status.wake_packet_length =
+			le32_to_cpu(status_v4->wake_packet_length);
+		status.wake_packet_bufsize =
+			le32_to_cpu(status_v4->wake_packet_bufsize);
+		status.wake_packet = status_v4->wake_packet;
+	}
 
 	if (len - sizeof(struct iwl_cmd_header) !=
-	    sizeof(*status) +
-	    ALIGN(le32_to_cpu(status->wake_packet_bufsize), 4)) {
+	    status_size + ALIGN(status.wake_packet_bufsize, 4)) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
 		goto out_free_resp;
+	}
+
+	/* still at hard-coded place 0 for D3 image */
+	ap_sta = rcu_dereference_protected(
+			mvm->fw_id_to_mac_id[0],
+			lockdep_is_held(&mvm->mutex));
+	if (IS_ERR_OR_NULL(ap_sta))
+		goto out_free_resp;
+
+	mvm_ap_sta = (struct iwl_mvm_sta *)ap_sta->drv_priv;
+	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+		u16 seq = status.qos_seq_ctr[i];
+		/* firmware stores last-used value, we store next value */
+		seq += 0x10;
+		mvm_ap_sta->tid_data[i].seq_number = seq;
 	}
 
 	/* now we have all the data we need, unlock to avoid mac80211 issues */
 	mutex_unlock(&mvm->mutex);
 
-	iwl_mvm_report_wakeup_reasons(mvm, vif, status);
+	iwl_mvm_report_wakeup_reasons(mvm, vif, &status);
+
+	keep = iwl_mvm_setup_connection_keep(mvm, vif, status_v6);
+
 	iwl_free_resp(&cmd);
-	return;
+	return keep;
 
  out_free_resp:
 	iwl_free_resp(&cmd);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
+	return false;
 }
 
 static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)
@@ -1429,6 +1758,17 @@ static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)
 #endif
 }
 
+static void iwl_mvm_d3_disconnect_iter(void *data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	/* skip the one we keep connection on */
+	if (data == vif)
+		return;
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		ieee80211_resume_disconnect(vif);
+}
+
 static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 {
 	struct iwl_d3_iter_data resume_iter_data = {
@@ -1437,6 +1777,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	struct ieee80211_vif *vif = NULL;
 	int ret;
 	enum iwl_d3_status d3_status;
+	bool keep = false;
 
 	mutex_lock(&mvm->mutex);
 
@@ -1462,7 +1803,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	/* query SRAM first in case we want event logging */
 	iwl_mvm_read_d3_sram(mvm);
 
-	iwl_mvm_query_wakeup_reasons(mvm, vif);
+	keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
 	/* has unlocked the mutex, so skip that */
 	goto out;
 
@@ -1470,8 +1811,10 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	mutex_unlock(&mvm->mutex);
 
  out:
-	if (!test && vif)
-		ieee80211_resume_disconnect(vif);
+	if (!test)
+		ieee80211_iterate_active_interfaces_rtnl(mvm->hw,
+			IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_d3_disconnect_iter, keep ? vif : NULL);
 
 	/* return 1 to reconfigure the device */
 	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);

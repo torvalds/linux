@@ -313,6 +313,9 @@ struct iwl_mvm_vif {
 
 	int tx_key_idx;
 
+	bool seqno_valid;
+	u16 seqno;
+
 #if IS_ENABLED(CONFIG_IPV6)
 	/* IPv6 addresses for WoWLAN */
 	struct in6_addr target_ipv6_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX];
@@ -796,6 +799,15 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
 extern const struct file_operations iwl_dbgfs_d3_test_ops;
+#ifdef CONFIG_PM_SLEEP
+void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif);
+#else
+static inline void
+iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+}
+#endif
 
 /* BT Coex */
 int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm);
