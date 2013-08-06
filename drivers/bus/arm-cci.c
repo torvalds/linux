@@ -463,8 +463,6 @@ static int __init cci_pmu_init(void)
 	return 0;
 }
 
-static void cci_pmu_destroy(void) { }
-
 #endif /* CONFIG_HW_PERF_EVENTS */
 
 struct cpu_port {
