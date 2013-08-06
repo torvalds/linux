@@ -2212,9 +2212,13 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	/* If bit 55 of VMX_BASIC is off, bits 0-8 and 12 must be 1. */
 	nested_vmx_entry_ctls_low = VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR;
 	nested_vmx_entry_ctls_high &=
-		VM_ENTRY_LOAD_IA32_PAT | VM_ENTRY_IA32E_MODE;
+#ifdef CONFIG_X86_64
+		VM_ENTRY_IA32E_MODE |
+#endif
+		VM_ENTRY_LOAD_IA32_PAT;
 	nested_vmx_entry_ctls_high |= (VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR |
 				       VM_ENTRY_LOAD_IA32_EFER);
+
 	/* cpu-based controls */
 	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS,
 		nested_vmx_procbased_ctls_low, nested_vmx_procbased_ctls_high);
