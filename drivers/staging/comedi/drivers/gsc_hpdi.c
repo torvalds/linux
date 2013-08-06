@@ -224,37 +224,26 @@ struct hpdi_private {
 	volatile uint32_t bits[24];
 	/* number of bytes at which to generate COMEDI_CB_BLOCK events */
 	volatile unsigned int block_size;
-	unsigned dio_config_output:1;
 };
 
 static int dio_config_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct hpdi_private *devpriv = dev->private;
+	int ret;
 
 	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		devpriv->dio_config_output = 1;
-		return insn->n;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		devpriv->dio_config_output = 0;
-		return insn->n;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    devpriv->dio_config_output ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
 	case INSN_CONFIG_BLOCK_SIZE:
 		return dio_config_block_size(dev, data);
-		break;
 	default:
+		ret = comedi_dio_insn_config(dev, s, insn, data, 0xffffffff);
+		if (ret)
+			return ret;
 		break;
 	}
 
-	return -EINVAL;
+	return insn->n;
 }
 
 static void disable_plx_interrupts(struct comedi_device *dev)
@@ -673,9 +662,7 @@ static int di_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_cmd *cmd)
 {
-	struct hpdi_private *devpriv = dev->private;
-
-	if (devpriv->dio_config_output)
+	if (s->io_bits)
 		return -EINVAL;
 	else
 		return di_cmd_test(dev, s, cmd);
@@ -746,9 +733,7 @@ static int di_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct hpdi_private *devpriv = dev->private;
-
-	if (devpriv->dio_config_output)
+	if (s->io_bits)
 		return -EINVAL;
 	else
 		return di_cmd(dev, s);
