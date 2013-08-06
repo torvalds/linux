@@ -90,7 +90,7 @@ static void free_buffer_page(struct ion_system_heap *heap,
 {
 	bool cached = ion_buffer_cached(buffer);
 
-	if (!cached) {
+	if (!cached && !(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE)) {
 		struct ion_page_pool *pool = heap->pools[order_to_index(order)];
 		ion_page_pool_free(pool, page);
 	} else {
@@ -205,7 +205,7 @@ static void ion_system_heap_free(struct ion_buffer *buffer)
 
 	/* uncached pages come from the page pools, zero them before returning
 	   for security purposes (other allocations are zerod at alloc time */
-	if (!cached)
+	if (!cached && !(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE))
 		ion_heap_buffer_zero(buffer);
 
 	for_each_sg(table->sgl, sg, table->nents, i)
