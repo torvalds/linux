@@ -18,10 +18,9 @@
 #define _CPUFREQ_GOVERNOR_H
 
 #include <linux/cpufreq.h>
-#include <linux/kobject.h>
+#include <linux/kernel_stat.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/workqueue.h>
-#include <linux/sysfs.h>
 
 /*
  * The polling frequency depends on the capability of the processor. Default

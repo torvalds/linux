@@ -9,17 +9,10 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/cpu.h>
-#include <linux/sysfs.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
-#include <linux/jiffies.h>
-#include <linux/percpu.h>
-#include <linux/kobject.h>
-#include <linux/spinlock.h>
-#include <linux/notifier.h>
+#include <linux/slab.h>
 #include <asm/cputime.h>
 
 static spinlock_t cpufreq_stats_lock;
