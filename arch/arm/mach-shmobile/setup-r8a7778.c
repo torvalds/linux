@@ -333,7 +333,7 @@ void __init r8a7778_add_mmc_device(struct sh_mmcif_plat_data *info)
 		info, sizeof(*info));
 }
 
-void __init r8a7778_add_standard_devices(void)
+void __init r8a7778_add_dt_devices(void)
 {
 	int i;
 
@@ -355,6 +355,11 @@ void __init r8a7778_add_standard_devices(void)
 
 	r8a7778_register_tmu(0);
 	r8a7778_register_tmu(1);
+}
+
+void __init r8a7778_add_standard_devices(void)
+{
+	r8a7778_add_dt_devices();
 }
 
 void __init r8a7778_init_late(void)

@@ -19,10 +19,10 @@
 
 / {
 	model = "bockw";
-	compatible = "renesas,bockw", "renesas,r8a7778";
+	compatible = "renesas,bockw-reference", "renesas,r8a7778";
 
 	chosen {
-		bootargs = "console=ttySC0,115200 ignore_loglevel ip=dhcp root=/dev/nfs rw";
+		bootargs = "console=ttySC0,115200 ignore_loglevel rw";
 	};
 
 	memory {

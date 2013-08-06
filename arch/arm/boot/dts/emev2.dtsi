@@ -46,6 +46,12 @@
 		      <0xe0020000 0x0100>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 120 4>,
+			     <0 121 4>;
+	};
+
 	sti@e0180000 {
 		compatible = "renesas,em-sti";
 		reg = <0xe0180000 0x54>;

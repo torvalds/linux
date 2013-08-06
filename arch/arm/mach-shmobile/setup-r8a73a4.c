@@ -188,7 +188,7 @@ static struct resource cmt10_resources[] = {
 					  &cmt##idx##_platform_data,	\
 					  sizeof(struct sh_timer_config))
 
-void __init r8a73a4_add_standard_devices(void)
+void __init r8a73a4_add_dt_devices(void)
 {
 	r8a73a4_register_scif(SCIFA0);
 	r8a73a4_register_scif(SCIFA1);
@@ -196,10 +196,15 @@ void __init r8a73a4_add_standard_devices(void)
 	r8a73a4_register_scif(SCIFB1);
 	r8a73a4_register_scif(SCIFB2);
 	r8a73a4_register_scif(SCIFB3);
+	r8a7790_register_cmt(10);
+}
+
+void __init r8a73a4_add_standard_devices(void)
+{
+	r8a73a4_add_dt_devices();
 	r8a73a4_register_irqc(0);
 	r8a73a4_register_irqc(1);
 	r8a73a4_register_thermal();
-	r8a7790_register_cmt(10);
 }
 
 void __init r8a73a4_init_delay(void)

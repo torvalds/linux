@@ -257,13 +257,18 @@ static void __init marzen_init(void)
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
 }
 
-MACHINE_START(MARZEN, "marzen")
+static const char *marzen_boards_compat_dt[] __initdata = {
+        "renesas,marzen",
+        NULL,
+};
+
+DT_MACHINE_START(MARZEN, "marzen")
 	.smp		= smp_ops(r8a7779_smp_ops),
 	.map_io		= r8a7779_map_io,
 	.init_early	= r8a7779_add_early_devices,
-	.nr_irqs	= NR_IRQS_LEGACY,
-	.init_irq	= r8a7779_init_irq,
+	.init_irq	= r8a7779_init_irq_dt,
 	.init_machine	= marzen_init,
 	.init_late	= r8a7779_init_late,
+	.dt_compat	= marzen_boards_compat_dt,
 	.init_time	= r8a7779_earlytimer_init,
 MACHINE_END

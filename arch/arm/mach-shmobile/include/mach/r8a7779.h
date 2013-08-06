@@ -24,7 +24,6 @@ static inline struct r8a7779_pm_ch *to_r8a7779_ch(struct generic_pm_domain *d)
 }
 
 extern void r8a7779_init_delay(void);
-extern void r8a7779_init_irq(void);
 extern void r8a7779_init_irq_extpin(int irlm);
 extern void r8a7779_init_irq_dt(void);
 extern void r8a7779_map_io(void);

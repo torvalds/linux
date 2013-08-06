@@ -89,14 +89,17 @@ void __init r8a7779_init_irq_extpin(int irlm)
 		pr_warn("r8a7779: unable to setup external irq pin mode\n");
 }
 
+#ifdef CONFIG_OF
 static int r8a7779_set_wake(struct irq_data *data, unsigned int on)
 {
 	return 0; /* always allow wakeup */
 }
 
-static void __init r8a7779_init_irq_common(void)
+void __init r8a7779_init_irq_dt(void)
 {
 	gic_arch_extn.irq_set_wake = r8a7779_set_wake;
+
+	irqchip_init();
 
 	/* route all interrupts to ARM */
 	__raw_writel(0xffffffff, INT2NTSR0);
@@ -108,23 +111,6 @@ static void __init r8a7779_init_irq_common(void)
 	__raw_writel(0xfffbffdf, INT2SMSKCR2);
 	__raw_writel(0xbffffffc, INT2SMSKCR3);
 	__raw_writel(0x003fee3f, INT2SMSKCR4);
-}
 
-void __init r8a7779_init_irq(void)
-{
-	void __iomem *gic_dist_base = IOMEM(0xf0001000);
-	void __iomem *gic_cpu_base = IOMEM(0xf0000100);
-
-	/* use GIC to handle interrupts */
-	gic_init(0, 29, gic_dist_base, gic_cpu_base);
-
-	r8a7779_init_irq_common();
-}
-
-#ifdef CONFIG_OF
-void __init r8a7779_init_irq_dt(void)
-{
-	irqchip_init();
-	r8a7779_init_irq_common();
 }
 #endif
