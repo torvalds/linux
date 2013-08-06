@@ -2359,6 +2359,10 @@ extern int	       skb_copy_datagram_from_iovec(struct sk_buff *skb,
 						    const struct iovec *from,
 						    int from_offset,
 						    int len);
+extern int	       zerocopy_sg_from_iovec(struct sk_buff *skb,
+					      const struct iovec *frm,
+					      int offset,
+					      size_t count);
 extern int	       skb_copy_datagram_const_iovec(const struct sk_buff *from,
 						     int offset,
 						     const struct iovec *to,
