@@ -747,14 +747,14 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 {
 	struct pci_dev *dev;
 	struct resource *b_res = find_free_bus_resource(bus, IORESOURCE_IO);
-	unsigned long size = 0, size0 = 0, size1 = 0;
+	resource_size_t size = 0, size0 = 0, size1 = 0;
 	resource_size_t children_add_size = 0;
-	resource_size_t min_align, io_align, align;
+	resource_size_t min_align, align;
 
 	if (!b_res)
  		return;
 
-	io_align = min_align = window_alignment(bus, IORESOURCE_IO);
+	min_align = window_alignment(bus, IORESOURCE_IO);
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		int i;
 
@@ -781,9 +781,6 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 		}
 	}
 
-	if (min_align > io_align)
-		min_align = io_align;
-
 	size0 = calculate_iosize(size, min_size, size1,
 			resource_size(b_res), min_align);
 	if (children_add_size > add_size)
@@ -807,8 +804,9 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 		add_to_list(realloc_head, bus->self, b_res, size1-size0,
 			    min_align);
 		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
-				 "%pR to %pR add_size %lx\n", b_res,
-				 &bus->busn_res, size1-size0);
+				 "%pR to %pR add_size %llx\n", b_res,
+				 &bus->busn_res,
+				 (unsigned long long)size1-size0);
 	}
 }
 
@@ -838,6 +836,8 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
  * pbus_size_mem() - size the memory window of a given bus
  *
  * @bus : the bus
+ * @mask: mask the resource flag, then compare it with type
+ * @type: the type of free resource from bridge
  * @min_size : the minimum memory window that must to be allocated
  * @add_size : additional optional memory window
  * @realloc_head : track the additional memory window on this list
@@ -1300,15 +1300,12 @@ static void pci_bus_dump_resources(struct pci_bus *bus)
 static int __init pci_bus_get_depth(struct pci_bus *bus)
 {
 	int depth = 0;
-	struct pci_dev *dev;
+	struct pci_bus *child_bus;
 
-	list_for_each_entry(dev, &bus->devices, bus_list) {
+	list_for_each_entry(child_bus, &bus->children, node){
 		int ret;
-		struct pci_bus *b = dev->subordinate;
-		if (!b)
-			continue;
 
-		ret = pci_bus_get_depth(b);
+		ret = pci_bus_get_depth(child_bus);
 		if (ret + 1 > depth)
 			depth = ret + 1;
 	}
