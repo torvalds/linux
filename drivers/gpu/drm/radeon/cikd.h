@@ -35,6 +35,63 @@
 #define CG_CLKPIN_CNTL                                    0xC05001A0
 #       define XTALIN_DIVIDE                              (1 << 1)
 
+/* PCIE registers idx/data 0x38/0x3c */
+#define PCIE_LC_STATUS1                                   0x1400028 /* PCIE */
+#       define LC_REVERSE_RCVR                            (1 << 0)
+#       define LC_REVERSE_XMIT                            (1 << 1)
+#       define LC_OPERATING_LINK_WIDTH_MASK               (0x7 << 2)
+#       define LC_OPERATING_LINK_WIDTH_SHIFT              2
+#       define LC_DETECTED_LINK_WIDTH_MASK                (0x7 << 5)
+#       define LC_DETECTED_LINK_WIDTH_SHIFT               5
+
+#define PCIE_LC_LINK_WIDTH_CNTL                           0x100100A2 /* PCIE */
+#       define LC_LINK_WIDTH_SHIFT                        0
+#       define LC_LINK_WIDTH_MASK                         0x7
+#       define LC_LINK_WIDTH_X0                           0
+#       define LC_LINK_WIDTH_X1                           1
+#       define LC_LINK_WIDTH_X2                           2
+#       define LC_LINK_WIDTH_X4                           3
+#       define LC_LINK_WIDTH_X8                           4
+#       define LC_LINK_WIDTH_X16                          6
+#       define LC_LINK_WIDTH_RD_SHIFT                     4
+#       define LC_LINK_WIDTH_RD_MASK                      0x70
+#       define LC_RECONFIG_ARC_MISSING_ESCAPE             (1 << 7)
+#       define LC_RECONFIG_NOW                            (1 << 8)
+#       define LC_RENEGOTIATION_SUPPORT                   (1 << 9)
+#       define LC_RENEGOTIATE_EN                          (1 << 10)
+#       define LC_SHORT_RECONFIG_EN                       (1 << 11)
+#       define LC_UPCONFIGURE_SUPPORT                     (1 << 12)
+#       define LC_UPCONFIGURE_DIS                         (1 << 13)
+#       define LC_DYN_LANES_PWR_STATE(x)                  ((x) << 21)
+#       define LC_DYN_LANES_PWR_STATE_MASK                (0x3 << 21)
+#       define LC_DYN_LANES_PWR_STATE_SHIFT               21
+
+#define PCIE_LC_SPEED_CNTL                                0x100100A4 /* PCIE */
+#       define LC_GEN2_EN_STRAP                           (1 << 0)
+#       define LC_GEN3_EN_STRAP                           (1 << 1)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_EN           (1 << 2)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_MASK         (0x3 << 3)
+#       define LC_TARGET_LINK_SPEED_OVERRIDE_SHIFT        3
+#       define LC_FORCE_EN_SW_SPEED_CHANGE                (1 << 5)
+#       define LC_FORCE_DIS_SW_SPEED_CHANGE               (1 << 6)
+#       define LC_FORCE_EN_HW_SPEED_CHANGE                (1 << 7)
+#       define LC_FORCE_DIS_HW_SPEED_CHANGE               (1 << 8)
+#       define LC_INITIATE_LINK_SPEED_CHANGE              (1 << 9)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_MASK      (0x3 << 10)
+#       define LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_SHIFT     10
+#       define LC_CURRENT_DATA_RATE_MASK                  (0x3 << 13) /* 0/1/2 = gen1/2/3 */
+#       define LC_CURRENT_DATA_RATE_SHIFT                 13
+#       define LC_CLR_FAILED_SPD_CHANGE_CNT               (1 << 16)
+#       define LC_OTHER_SIDE_EVER_SENT_GEN2               (1 << 18)
+#       define LC_OTHER_SIDE_SUPPORTS_GEN2                (1 << 19)
+#       define LC_OTHER_SIDE_EVER_SENT_GEN3               (1 << 20)
+#       define LC_OTHER_SIDE_SUPPORTS_GEN3                (1 << 21)
+
+#define PCIE_LC_CNTL4                                     0x100100B6 /* PCIE */
+#       define LC_REDO_EQ                                 (1 << 5)
+#       define LC_SET_QUIESCE                             (1 << 13)
+
+/* direct registers */
 #define PCIE_INDEX  					0x38
 #define PCIE_DATA  					0x3C
 

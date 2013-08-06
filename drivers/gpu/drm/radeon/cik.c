@@ -61,6 +61,7 @@ extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *m
 extern void si_rlc_fini(struct radeon_device *rdev);
 extern int si_rlc_init(struct radeon_device *rdev);
 static void cik_rlc_stop(struct radeon_device *rdev);
+static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 
 /*
  * Indirect registers accessor
@@ -5949,6 +5950,9 @@ static int cik_startup(struct radeon_device *rdev)
 	struct radeon_ring *ring;
 	int r;
 
+	/* enable pcie gen2/3 link */
+	cik_pcie_gen3_enable(rdev);
+
 	cik_mc_program(rdev);
 
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -7050,4 +7054,161 @@ int cik_uvd_resume(struct radeon_device *rdev)
 	WREG32(UVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
 
 	return 0;
+}
+
+static void cik_pcie_gen3_enable(struct radeon_device *rdev)
+{
+	struct pci_dev *root = rdev->pdev->bus->self;
+	int bridge_pos, gpu_pos;
+	u32 speed_cntl, mask, current_data_rate;
+	int ret, i;
+	u16 tmp16;
+
+	if (radeon_pcie_gen2 == 0)
+		return;
+
+	if (rdev->flags & RADEON_IS_IGP)
+		return;
+
+	if (!(rdev->flags & RADEON_IS_PCIE))
+		return;
+
+	ret = drm_pcie_get_speed_cap_mask(rdev->ddev, &mask);
+	if (ret != 0)
+		return;
+
+	if (!(mask & (DRM_PCIE_SPEED_50 | DRM_PCIE_SPEED_80)))
+		return;
+
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
+	current_data_rate = (speed_cntl & LC_CURRENT_DATA_RATE_MASK) >>
+		LC_CURRENT_DATA_RATE_SHIFT;
+	if (mask & DRM_PCIE_SPEED_80) {
+		if (current_data_rate == 2) {
+			DRM_INFO("PCIE gen 3 link speeds already enabled\n");
+			return;
+		}
+		DRM_INFO("enabling PCIE gen 3 link speeds, disable with radeon.pcie_gen2=0\n");
+	} else if (mask & DRM_PCIE_SPEED_50) {
+		if (current_data_rate == 1) {
+			DRM_INFO("PCIE gen 2 link speeds already enabled\n");
+			return;
+		}
+		DRM_INFO("enabling PCIE gen 2 link speeds, disable with radeon.pcie_gen2=0\n");
+	}
+
+	bridge_pos = pci_pcie_cap(root);
+	if (!bridge_pos)
+		return;
+
+	gpu_pos = pci_pcie_cap(rdev->pdev);
+	if (!gpu_pos)
+		return;
+
+	if (mask & DRM_PCIE_SPEED_80) {
+		/* re-try equalization if gen3 is not already enabled */
+		if (current_data_rate != 2) {
+			u16 bridge_cfg, gpu_cfg;
+			u16 bridge_cfg2, gpu_cfg2;
+			u32 max_lw, current_lw, tmp;
+
+			pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL, &bridge_cfg);
+			pci_read_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL, &gpu_cfg);
+
+			tmp16 = bridge_cfg | PCI_EXP_LNKCTL_HAWD;
+			pci_write_config_word(root, bridge_pos + PCI_EXP_LNKCTL, tmp16);
+
+			tmp16 = gpu_cfg | PCI_EXP_LNKCTL_HAWD;
+			pci_write_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL, tmp16);
+
+			tmp = RREG32_PCIE_PORT(PCIE_LC_STATUS1);
+			max_lw = (tmp & LC_DETECTED_LINK_WIDTH_MASK) >> LC_DETECTED_LINK_WIDTH_SHIFT;
+			current_lw = (tmp & LC_OPERATING_LINK_WIDTH_MASK) >> LC_OPERATING_LINK_WIDTH_SHIFT;
+
+			if (current_lw < max_lw) {
+				tmp = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
+				if (tmp & LC_RENEGOTIATION_SUPPORT) {
+					tmp &= ~(LC_LINK_WIDTH_MASK | LC_UPCONFIGURE_DIS);
+					tmp |= (max_lw << LC_LINK_WIDTH_SHIFT);
+					tmp |= LC_UPCONFIGURE_SUPPORT | LC_RENEGOTIATE_EN | LC_RECONFIG_NOW;
+					WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, tmp);
+				}
+			}
+
+			for (i = 0; i < 10; i++) {
+				/* check status */
+				pci_read_config_word(rdev->pdev, gpu_pos + PCI_EXP_DEVSTA, &tmp16);
+				if (tmp16 & PCI_EXP_DEVSTA_TRPND)
+					break;
+
+				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL, &bridge_cfg);
+				pci_read_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL, &gpu_cfg);
+
+				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL2, &bridge_cfg2);
+				pci_read_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &gpu_cfg2);
+
+				tmp = RREG32_PCIE_PORT(PCIE_LC_CNTL4);
+				tmp |= LC_SET_QUIESCE;
+				WREG32_PCIE_PORT(PCIE_LC_CNTL4, tmp);
+
+				tmp = RREG32_PCIE_PORT(PCIE_LC_CNTL4);
+				tmp |= LC_REDO_EQ;
+				WREG32_PCIE_PORT(PCIE_LC_CNTL4, tmp);
+
+				mdelay(100);
+
+				/* linkctl */
+				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL, &tmp16);
+				tmp16 &= ~PCI_EXP_LNKCTL_HAWD;
+				tmp16 |= (bridge_cfg & PCI_EXP_LNKCTL_HAWD);
+				pci_write_config_word(root, bridge_pos + PCI_EXP_LNKCTL, tmp16);
+
+				pci_read_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL, &tmp16);
+				tmp16 &= ~PCI_EXP_LNKCTL_HAWD;
+				tmp16 |= (gpu_cfg & PCI_EXP_LNKCTL_HAWD);
+				pci_write_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL, tmp16);
+
+				/* linkctl2 */
+				pci_read_config_word(root, bridge_pos + PCI_EXP_LNKCTL2, &tmp16);
+				tmp16 &= ~((1 << 4) | (7 << 9));
+				tmp16 |= (bridge_cfg2 & ((1 << 4) | (7 << 9)));
+				pci_write_config_word(root, bridge_pos + PCI_EXP_LNKCTL2, tmp16);
+
+				pci_read_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
+				tmp16 &= ~((1 << 4) | (7 << 9));
+				tmp16 |= (gpu_cfg2 & ((1 << 4) | (7 << 9)));
+				pci_write_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL2, tmp16);
+
+				tmp = RREG32_PCIE_PORT(PCIE_LC_CNTL4);
+				tmp &= ~LC_SET_QUIESCE;
+				WREG32_PCIE_PORT(PCIE_LC_CNTL4, tmp);
+			}
+		}
+	}
+
+	/* set the link speed */
+	speed_cntl |= LC_FORCE_EN_SW_SPEED_CHANGE | LC_FORCE_DIS_HW_SPEED_CHANGE;
+	speed_cntl &= ~LC_FORCE_DIS_SW_SPEED_CHANGE;
+	WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
+
+	pci_read_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
+	tmp16 &= ~0xf;
+	if (mask & DRM_PCIE_SPEED_80)
+		tmp16 |= 3; /* gen3 */
+	else if (mask & DRM_PCIE_SPEED_50)
+		tmp16 |= 2; /* gen2 */
+	else
+		tmp16 |= 1; /* gen1 */
+	pci_write_config_word(rdev->pdev, gpu_pos + PCI_EXP_LNKCTL2, tmp16);
+
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
+	speed_cntl |= LC_INITIATE_LINK_SPEED_CHANGE;
+	WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
+		if ((speed_cntl & LC_INITIATE_LINK_SPEED_CHANGE) == 0)
+			break;
+		udelay(1);
+	}
 }
