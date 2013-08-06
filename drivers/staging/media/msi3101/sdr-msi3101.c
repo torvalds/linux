@@ -1129,8 +1129,18 @@ static int msi3101_set_usb_adc(struct msi3101_state *s)
 	 *
 	 * VCO 202000000 - 720000000++
 	 */
-	reg3 = 0x01c00303;
+	reg3 = 0x01000303;
 	reg4 = 0x00000004;
+
+	/* XXX: Filters? AGC? */
+	if (f_sr < 6000000)
+		reg3 |= 0x1 << 20;
+	else if (f_sr < 7000000)
+		reg3 |= 0x5 << 20;
+	else if (f_sr < 8500000)
+		reg3 |= 0x9 << 20;
+	else
+		reg3 |= 0xd << 20;
 
 	for (div_r_out = 4; div_r_out < 16; div_r_out += 2) {
 		f_vco = f_sr * div_r_out * 12;
