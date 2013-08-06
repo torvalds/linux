@@ -52,7 +52,7 @@ int hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame)
 
 	frame->type = HDMI_INFOFRAME_TYPE_AVI;
 	frame->version = 2;
-	frame->length = 13;
+	frame->length = HDMI_AVI_INFOFRAME_SIZE;
 
 	return 0;
 }
@@ -151,7 +151,7 @@ int hdmi_spd_infoframe_init(struct hdmi_spd_infoframe *frame,
 
 	frame->type = HDMI_INFOFRAME_TYPE_SPD;
 	frame->version = 1;
-	frame->length = 25;
+	frame->length = HDMI_SPD_INFOFRAME_SIZE;
 
 	strncpy(frame->vendor, vendor, sizeof(frame->vendor));
 	strncpy(frame->product, product, sizeof(frame->product));
@@ -218,7 +218,7 @@ int hdmi_audio_infoframe_init(struct hdmi_audio_infoframe *frame)
 
 	frame->type = HDMI_INFOFRAME_TYPE_AUDIO;
 	frame->version = 1;
-	frame->length = 10;
+	frame->length = HDMI_AUDIO_INFOFRAME_SIZE;
 
 	return 0;
 }
