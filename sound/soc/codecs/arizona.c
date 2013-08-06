@@ -553,6 +553,26 @@ const struct soc_enum arizona_ng_hold =
 			4, arizona_ng_hold_text);
 EXPORT_SYMBOL_GPL(arizona_ng_hold);
 
+static const char * const arizona_in_dmic_osr_text[] = {
+	"1.536MHz", "3.072MHz", "6.144MHz",
+};
+
+const struct soc_enum arizona_in_dmic_osr[] = {
+	SOC_ENUM_SINGLE(ARIZONA_IN1L_CONTROL, ARIZONA_IN1_OSR_SHIFT,
+			ARRAY_SIZE(arizona_in_dmic_osr_text),
+			arizona_in_dmic_osr_text),
+	SOC_ENUM_SINGLE(ARIZONA_IN2L_CONTROL, ARIZONA_IN2_OSR_SHIFT,
+			ARRAY_SIZE(arizona_in_dmic_osr_text),
+			arizona_in_dmic_osr_text),
+	SOC_ENUM_SINGLE(ARIZONA_IN3L_CONTROL, ARIZONA_IN3_OSR_SHIFT,
+			ARRAY_SIZE(arizona_in_dmic_osr_text),
+			arizona_in_dmic_osr_text),
+	SOC_ENUM_SINGLE(ARIZONA_IN4L_CONTROL, ARIZONA_IN4_OSR_SHIFT,
+			ARRAY_SIZE(arizona_in_dmic_osr_text),
+			arizona_in_dmic_osr_text),
+};
+EXPORT_SYMBOL_GPL(arizona_in_dmic_osr);
+
 static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 {
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);

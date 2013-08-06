@@ -58,14 +58,10 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 	SOC_SINGLE(name " NG SPKDAT2R Switch", base, 11, 1, 0)
 
 static const struct snd_kcontrol_new wm5110_snd_controls[] = {
-SOC_SINGLE("IN1 High Performance Switch", ARIZONA_IN1L_CONTROL,
-	   ARIZONA_IN1_OSR_SHIFT, 1, 0),
-SOC_SINGLE("IN2 High Performance Switch", ARIZONA_IN2L_CONTROL,
-	   ARIZONA_IN2_OSR_SHIFT, 1, 0),
-SOC_SINGLE("IN3 High Performance Switch", ARIZONA_IN3L_CONTROL,
-	   ARIZONA_IN3_OSR_SHIFT, 1, 0),
-SOC_SINGLE("IN4 High Performance Switch", ARIZONA_IN4L_CONTROL,
-	   ARIZONA_IN4_OSR_SHIFT, 1, 0),
+SOC_ENUM("IN1 OSR", arizona_in_dmic_osr[0]),
+SOC_ENUM("IN2 OSR", arizona_in_dmic_osr[1]),
+SOC_ENUM("IN3 OSR", arizona_in_dmic_osr[2]),
+SOC_ENUM("IN4 OSR", arizona_in_dmic_osr[3]),
 
 SOC_SINGLE_RANGE_TLV("IN1L Volume", ARIZONA_IN1L_CONTROL,
 		     ARIZONA_IN1L_PGA_VOL_SHIFT, 0x40, 0x5f, 0, ana_tlv),
