@@ -152,7 +152,7 @@ static int __init add_legacy_soc_port(struct device_node *np,
 				      struct device_node *soc_dev)
 {
 	u64 addr;
-	const u32 *addrp;
+	const __be32 *addrp;
 	upf_t flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ
 		| UPF_FIXED_PORT;
 	struct device_node *tsi = of_get_parent(np);
@@ -242,7 +242,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 				      struct device_node *pci_dev)
 {
 	u64 addr, base;
-	const u32 *addrp;
+	const __be32 *addrp;
 	unsigned int flags;
 	int iotype, index = -1, lindex = 0;
 
@@ -275,7 +275,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	if (iotype == UPIO_MEM)
 		base = addr;
 	else
-		base = addrp[2];
+		base = of_read_number(&addrp[2], 1);
 
 	/* Try to guess an index... If we have subdevices of the pci dev,
 	 * we get to their "reg" property
