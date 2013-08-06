@@ -3106,8 +3106,6 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 		frame->pixel_repeat = 1;
 
 	frame->video_code = drm_match_cea_mode(mode);
-	if (!frame->video_code)
-		return 0;
 
 	frame->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
 	frame->active_info_valid = 1;
