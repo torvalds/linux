@@ -137,8 +137,6 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 
 /* codec private data */
 struct twl4030_priv {
-	struct snd_soc_codec codec;
-
 	unsigned int codec_powered;
 
 	/* reference counts of AIF/APLL users */
