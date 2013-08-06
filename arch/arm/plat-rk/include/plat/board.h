@@ -517,6 +517,22 @@ struct rk_hdmi_platform_data {
 #define BOOT_MODE_WATCHDOG		8
 int board_boot_mode(void);
 
+static inline const char *boot_mode_name(u32 mode)
+{
+	switch (mode) {
+	case BOOT_MODE_NORMAL: return "NORMAL";
+	case BOOT_MODE_FACTORY2: return "FACTORY2";
+	case BOOT_MODE_RECOVERY: return "RECOVERY";
+	case BOOT_MODE_CHARGE: return "CHARGE";
+	case BOOT_MODE_POWER_TEST: return "POWER_TEST";
+	case BOOT_MODE_OFFMODE_CHARGING: return "OFFMODE_CHARGING";
+	case BOOT_MODE_REBOOT: return "REBOOT";
+	case BOOT_MODE_PANIC: return "PANIC";
+	case BOOT_MODE_WATCHDOG: return "WATCHDOG";
+	default: return "";
+	}
+}
+
 /* for USB detection */
 #if defined(CONFIG_USB_GADGET) && !defined(CONFIG_RK_USB_DETECT_BY_OTG_BVALID)
 int __init board_usb_detect_init(unsigned gpio);
@@ -555,8 +571,7 @@ void __sramfunc board_pmu_resume(void);
  * For DDR frequency scaling setup. Board code something like this:
  *
  * This array _must_ be sorted in ascending frequency (without DDR_FREQ_*) order.
- * 必须按频率（不必考虑DDR_FREQ_*）递增�? *static struct cpufreq_frequency_table dvfs_ddr_table[] = {
- *	{.frequency = 200 * 1000 + DDR_FREQ_SUSPEND,	.index = xxxx * 1000},
+ * static struct cpufreq_frequency_table dvfs_ddr_table[] = {
  *	{.frequency = 200 * 1000 + DDR_FREQ_IDLE,	.index = xxxx * 1000},
  *	{.frequency = 300 * 1000 + DDR_FREQ_VIDEO,	.index = xxxx * 1000},
  *	{.frequency = 400 * 1000 + DDR_FREQ_NORMAL,	.index = xxxx * 1000},

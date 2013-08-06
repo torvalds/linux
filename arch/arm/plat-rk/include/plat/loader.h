@@ -18,4 +18,22 @@ enum {
     BOOT_MAX         /* MAX VALID BOOT TYPE.*/
 };
 
+static inline const char *boot_flag_name(u32 flag)
+{
+	flag -= SYS_KERNRL_REBOOT_FLAG;
+	switch (flag) {
+	case BOOT_NORMAL: return "NORMAL";
+	case BOOT_LOADER: return "LOADER";
+	case BOOT_MASKROM: return "MASKROM";
+	case BOOT_RECOVER: return "RECOVER";
+	case BOOT_NORECOVER: return "NORECOVER";
+	case BOOT_SECONDOS: return "SECONDOS";
+	case BOOT_WIPEDATA: return "WIPEDATA";
+	case BOOT_WIPEALL: return "WIPEALL";
+	case BOOT_CHECKIMG: return "CHECKIMG";
+	case BOOT_FASTBOOT: return "FASTBOOT";
+	default: return "";
+	}
+}
+
 #endif
