@@ -318,8 +318,11 @@
 /** hv_set_pte_super_shift */
 #define HV_DISPATCH_SET_PTE_SUPER_SHIFT           57
 
+/** hv_console_set_ipi */
+#define HV_DISPATCH_CONSOLE_SET_IPI               63
+
 /** One more than the largest dispatch value */
-#define _HV_DISPATCH_END                          58
+#define _HV_DISPATCH_END                          64
 
 
 #ifndef __ASSEMBLER__
@@ -584,6 +587,30 @@ typedef struct
  * @result Zero if no error, non-zero for invalid parameters.
  */
 int hv_get_ipi_pte(HV_Coord tile, int pl, HV_PTE* pte);
+
+/** Configure the console interrupt.
+ *
+ * When the console client interrupt is enabled, the hypervisor will
+ * deliver the specified IPI to the client in the following situations:
+ *
+ * - The console has at least one character available for input.
+ *
+ * - The console can accept new characters for output, and the last call
+ *   to hv_console_write() did not write all of the characters requested
+ *   by the client.
+ *
+ * Note that in some system configurations, console interrupt will not
+ * be available; clients should be prepared for this routine to fail and
+ * to fall back to periodic console polling in that case.
+ *
+ * @param ipi Index of the IPI register which will receive the interrupt.
+ * @param event IPI event number for console interrupt. If less than 0,
+ *        disable the console IPI interrupt.
+ * @param coord Tile to be targeted for console interrupt.
+ * @return 0 on success, otherwise, HV_EINVAL if illegal parameter,
+ *         HV_ENOTSUP if console interrupt are not available.
+ */
+int hv_console_set_ipi(int ipi, int event, HV_Coord coord);
 
 #else /* !CHIP_HAS_IPI() */
 

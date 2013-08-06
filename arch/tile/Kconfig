@@ -112,6 +112,7 @@ config SMP
 config HVC_TILE
 	depends on TTY
 	select HVC_DRIVER
+	select HVC_IRQ if TILEGX
 	def_bool y
 
 config TILEGX

@@ -56,4 +56,5 @@ hv_inquire_realpa = TEXT_OFFSET + 0x106c0;
 hv_flush_all = TEXT_OFFSET + 0x106e0;
 hv_get_ipi_pte = TEXT_OFFSET + 0x10700;
 hv_set_pte_super_shift = TEXT_OFFSET + 0x10720;
-hv_glue_internals = TEXT_OFFSET + 0x10740;
+hv_console_set_ipi = TEXT_OFFSET + 0x107e0;
+hv_glue_internals = TEXT_OFFSET + 0x10800;
