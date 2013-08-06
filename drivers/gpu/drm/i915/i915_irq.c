@@ -142,14 +142,18 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 			      uint32_t interrupt_mask,
 			      uint32_t enabled_irq_mask)
 {
-	uint32_t pmimr = I915_READ(GEN6_PMIMR);
-	pmimr &= ~interrupt_mask;
-	pmimr |= (~enabled_irq_mask & interrupt_mask);
+	uint32_t pmimr, new_val;
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	I915_WRITE(GEN6_PMIMR, pmimr);
-	POSTING_READ(GEN6_PMIMR);
+	pmimr = new_val = I915_READ(GEN6_PMIMR);
+	new_val &= ~interrupt_mask;
+	new_val |= (~enabled_irq_mask & interrupt_mask);
+
+	if (new_val != pmimr) {
+		I915_WRITE(GEN6_PMIMR, new_val);
+		POSTING_READ(GEN6_PMIMR);
+	}
 }
 
 void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
