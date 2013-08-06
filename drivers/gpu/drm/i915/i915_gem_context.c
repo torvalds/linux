@@ -155,7 +155,7 @@ create_hw_context(struct drm_device *dev,
 
 	if (INTEL_INFO(dev)->gen >= 7) {
 		ret = i915_gem_object_set_cache_level(ctx->obj,
-						      I915_CACHE_LLC_MLC);
+						      I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
 		if (WARN_ON(ret))
 			goto err_out;

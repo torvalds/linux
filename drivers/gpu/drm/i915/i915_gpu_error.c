@@ -938,8 +938,8 @@ const char *i915_cache_level_str(int type)
 {
 	switch (type) {
 	case I915_CACHE_NONE: return " uncached";
-	case I915_CACHE_LLC: return " snooped (LLC)";
-	case I915_CACHE_LLC_MLC: return " snooped (LLC+MLC)";
+	case I915_CACHE_LLC: return " snooped or LLC";
+	case I915_CACHE_L3_LLC: return " L3+LLC";
 	default: return "";
 	}
 }
