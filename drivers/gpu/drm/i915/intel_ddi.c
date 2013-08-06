@@ -1139,10 +1139,13 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 
 int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 {
-	if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT)
+	uint32_t lcpll = I915_READ(LCPLL_CTL);
+
+	if (lcpll & LCPLL_CD_SOURCE_FCLK)
+		return 800000;
+	else if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT)
 		return 450000;
-	else if ((I915_READ(LCPLL_CTL) & LCPLL_CLK_FREQ_MASK) ==
-		 LCPLL_CLK_FREQ_450)
+	else if ((lcpll & LCPLL_CLK_FREQ_MASK) == LCPLL_CLK_FREQ_450)
 		return 450000;
 	else if (IS_ULT(dev_priv->dev))
 		return 337500;
