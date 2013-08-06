@@ -154,6 +154,65 @@ static int __init setup_maxnodemem(char *str)
 }
 early_param("maxnodemem", setup_maxnodemem);
 
+struct memmap_entry {
+	u64 addr;	/* start of memory segment */
+	u64 size;	/* size of memory segment */
+};
+static struct memmap_entry memmap_map[64];
+static int memmap_nr;
+
+static void add_memmap_region(u64 addr, u64 size)
+{
+	if (memmap_nr >= ARRAY_SIZE(memmap_map)) {
+		pr_err("Ooops! Too many entries in the memory map!\n");
+		return;
+	}
+	memmap_map[memmap_nr].addr = addr;
+	memmap_map[memmap_nr].size = size;
+	memmap_nr++;
+}
+
+static int __init setup_memmap(char *p)
+{
+	char *oldp;
+	u64 start_at, mem_size;
+
+	if (!p)
+		return -EINVAL;
+
+	if (!strncmp(p, "exactmap", 8)) {
+		pr_err("\"memmap=exactmap\" not valid on tile\n");
+		return 0;
+	}
+
+	oldp = p;
+	mem_size = memparse(p, &p);
+	if (p == oldp)
+		return -EINVAL;
+
+	if (*p == '@') {
+		pr_err("\"memmap=nn@ss\" (force RAM) invalid on tile\n");
+	} else if (*p == '#') {
+		pr_err("\"memmap=nn#ss\" (force ACPI data) invalid on tile\n");
+	} else if (*p == '$') {
+		start_at = memparse(p+1, &p);
+		add_memmap_region(start_at, mem_size);
+	} else {
+		if (mem_size == 0)
+			return -EINVAL;
+		maxmem_pfn = (mem_size >> HPAGE_SHIFT) <<
+			(HPAGE_SHIFT - PAGE_SHIFT);
+	}
+	return *p == '\0' ? 0 : -EINVAL;
+}
+early_param("memmap", setup_memmap);
+
+static int __init setup_mem(char *str)
+{
+	return setup_maxmem(str);
+}
+early_param("mem", setup_mem);  /* compatibility with x86 */
+
 static int __init setup_isolnodes(char *str)
 {
 	char buf[MAX_NUMNODES * 5];
@@ -628,6 +687,12 @@ static void __init setup_bootmem_allocator(void)
 	int i;
 	for (i = 0; i < MAX_NUMNODES; ++i)
 		setup_bootmem_allocator_node(i);
+
+	/* Reserve any memory excluded by "memmap" arguments. */
+	for (i = 0; i < memmap_nr; ++i) {
+		struct memmap_entry *m = &memmap_map[i];
+		reserve_bootmem(m->addr, m->size, 0);
+	}
 
 #ifdef CONFIG_KEXEC
 	if (crashk_res.start != crashk_res.end)
@@ -1562,11 +1627,11 @@ insert_non_bus_resource(void)
 #endif
 
 static struct resource* __init
-insert_ram_resource(u64 start_pfn, u64 end_pfn)
+insert_ram_resource(u64 start_pfn, u64 end_pfn, bool reserved)
 {
 	struct resource *res =
 		kzalloc(sizeof(struct resource), GFP_ATOMIC);
-	res->name = "System RAM";
+	res->name = reserved ? "Reserved" : "System RAM";
 	res->start = start_pfn << PAGE_SHIFT;
 	res->end = (end_pfn << PAGE_SHIFT) - 1;
 	res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
@@ -1601,11 +1666,11 @@ static int __init request_standard_resources(void)
 		    end_pfn > pci_reserve_start_pfn) {
 			if (end_pfn > pci_reserve_end_pfn)
 				insert_ram_resource(pci_reserve_end_pfn,
-						     end_pfn);
+						    end_pfn, 0);
 			end_pfn = pci_reserve_start_pfn;
 		}
 #endif
-		insert_ram_resource(start_pfn, end_pfn);
+		insert_ram_resource(start_pfn, end_pfn, 0);
 	}
 
 	code_resource.start = __pa(_text - CODE_DELTA);
@@ -1615,6 +1680,13 @@ static int __init request_standard_resources(void)
 
 	insert_resource(&iomem_resource, &code_resource);
 	insert_resource(&iomem_resource, &data_resource);
+
+	/* Mark any "memmap" regions busy for the resource manager. */
+	for (i = 0; i < memmap_nr; ++i) {
+		struct memmap_entry *m = &memmap_map[i];
+		insert_ram_resource(PFN_DOWN(m->addr),
+				    PFN_UP(m->addr + m->size - 1), 1);
+	}
 
 #ifdef CONFIG_KEXEC
 	insert_resource(&iomem_resource, &crashk_res);
