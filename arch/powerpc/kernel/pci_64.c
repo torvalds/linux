@@ -272,7 +272,7 @@ static void quirk_radeon_32bit_msi(struct pci_dev *dev)
 	struct pci_dn *pdn = pci_get_pdn(dev);
 
 	if (pdn)
-		pdn->force_32bit_msi = 1;
+		pdn->force_32bit_msi = true;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x68f2, quirk_radeon_32bit_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0xaa68, quirk_radeon_32bit_msi);
