@@ -94,7 +94,7 @@ struct cpufreq_policy {
 #define CPUFREQ_SHARED_TYPE_ANY	 (3) /* Freq can be set from any dependent CPU*/
 
 struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu);
-void cpufreq_cpu_put(struct cpufreq_policy *data);
+void cpufreq_cpu_put(struct cpufreq_policy *policy);
 
 static inline bool policy_is_shared(struct cpufreq_policy *policy)
 {
