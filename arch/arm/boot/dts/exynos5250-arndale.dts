@@ -30,6 +30,29 @@
 		samsung,mfc-l = <0x51000000 0x800000>;
 	};
 
+	i2s0: i2s@03830000 {
+		status = "okay";
+	};
+
+	i2s1: i2s@12D60000 {
+		status = "disabled";
+	};
+
+	i2s2: i2s@12D70000 {
+		status = "disabled";
+	};
+
+	i2s_stub: i2s-stub {
+		compatible = "linux,i2s-stub";
+	};
+
+	sound {
+		compatible = "samsung,smdk-i2s-stub";
+
+		samsung,i2s-controller = <&i2s0>;
+		samsung,audio-codec = <&i2s_stub>;
+	};
+
 	i2c@12C60000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <20000>;
