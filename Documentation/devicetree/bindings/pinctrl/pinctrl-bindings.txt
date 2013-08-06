@@ -138,6 +138,9 @@ structure of the DT nodes that contain these properties.
 
 Supported generic properties are:
 
+pins			- the list of pins that properties in the node
+			  apply to
+function		- the mux function to select
 bias-disable		- disable any pin bias
 bias-high-impedance	- high impedance mode ("third-state", "floating")
 bias-bus-hold		- latch weakly
@@ -158,6 +161,19 @@ output-high		- set the pin to output mode with high level
 
 Some of the generic properties take arguments. For those that do, the
 arguments are described below.
+
+- pins takes a list of pin names or IDs as a required argument. The specific
+  binding for the hardware defines:
+  - Whether the entries are integers or strings, and their meaning.
+
+- function takes a list of function names/IDs as a required argument. The
+  specific binding for the hardware defines:
+  - Whether the entries are integers or strings, and their meaning.
+  - Whether only a single entry is allowed (which is applied to all entries
+    in the pins property), or whether there may alternatively be one entry per
+    entry in the pins property, in which case the list lengths must match, and
+    for each list index i, the function at list index i is applied to the pin
+    at list index i.
 
 - bias-pull-up, -down and -pin-default take as optional argument on hardware
   supporting it the pull strength in Ohm. bias-disable will disable the pull.
