@@ -4144,7 +4144,8 @@ static void be_worker(struct work_struct *work)
 			be_cmd_get_stats(adapter, &adapter->stats_cmd);
 	}
 
-	if (MODULO(adapter->work_counter, adapter->be_get_temp_freq) == 0)
+	if (be_physfn(adapter) &&
+	    MODULO(adapter->work_counter, adapter->be_get_temp_freq) == 0)
 		be_cmd_get_die_temperature(adapter);
 
 	for_all_rx_queues(adapter, rxo, i) {
