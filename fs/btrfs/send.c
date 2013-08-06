@@ -1668,6 +1668,7 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 			      u64 *who_ino, u64 *who_gen)
 {
 	int ret = 0;
+	u64 gen;
 	u64 other_inode = 0;
 	u8 other_type = 0;
 
@@ -1677,6 +1678,24 @@ static int will_overwrite_ref(struct send_ctx *sctx, u64 dir, u64 dir_gen,
 	ret = is_inode_existent(sctx, dir, dir_gen);
 	if (ret <= 0)
 		goto out;
+
+	/*
+	 * If we have a parent root we need to verify that the parent dir was
+	 * not delted and then re-created, if it was then we have no overwrite
+	 * and we can just unlink this entry.
+	 */
+	if (sctx->parent_root) {
+		ret = get_inode_info(sctx->parent_root, dir, NULL, &gen, NULL,
+				     NULL, NULL, NULL);
+		if (ret < 0 && ret != -ENOENT)
+			goto out;
+		if (ret) {
+			ret = 0;
+			goto out;
+		}
+		if (gen != dir_gen)
+			goto out;
+	}
 
 	ret = lookup_dir_item_inode(sctx->parent_root, dir, name, name_len,
 			&other_inode, &other_type);
