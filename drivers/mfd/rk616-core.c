@@ -13,6 +13,10 @@
 #include <linux/seq_file.h>
 #endif
 
+#if defined(RK616_MIPI_DSI)
+#include "../video/rockchip/transmitter/rk616_mipi_dsi.h"
+#endif
+
 #ifndef MHZ
 #define MHZ (1000*1000)
 #endif
@@ -35,6 +39,17 @@ static struct mfd_cell rk616_devs[] = {
 		.id = 3,
 	},
 };
+
+
+void rk616_mclk_set_rate(struct clk *mclk,unsigned long rate)
+{
+	clk_set_rate(mclk, rate);
+
+#if defined(RK616_MIPI_DSI)
+	rk_mipi_dsi_init_lite();
+#endif
+
+}
 
 static int rk616_i2c_read_reg(struct mfd_rk616 *rk616, u16 reg,u32 *pval)
 {
@@ -476,7 +491,8 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 		iomux_set(I2S0_MCLK);
 		#endif
 		clk_enable(iis_clk);
-		clk_set_rate(iis_clk, 11289600);
+		//clk_set_rate(iis_clk, 11289600);
+		rk616_mclk_set_rate(iis_clk,11289600);
 		//clk_put(iis_clk);
 	}
 

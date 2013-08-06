@@ -289,6 +289,7 @@ struct mfd_rk616 {
 
 extern int rk616_set_vif(struct mfd_rk616 * rk616,rk_screen * screen,bool connect);
 extern int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable);
+extern void rk616_mclk_set_rate(struct clk *mclk,unsigned long rate);
 
 
 

@@ -18,7 +18,7 @@
 #define MIPI_DSI_REGISTER_IO	1
 #define CONFIG_MIPI_DSI_LINUX   1
 //#define CONFIG_MIPI_DSI_FT 		1
-#define CONFIG_MFD_RK616   		1
+//#define CONFIG_MFD_RK616   		1
 
 #ifdef CONFIG_MIPI_DSI_LINUX
 #include <linux/kernel.h>
@@ -95,6 +95,7 @@ static struct mipi_dsi_screen *g_screen = NULL;
 #define msleep 		DelayMs_nops
 static u32 fre_to_period(u32 fre);
 #endif
+static int rk_mipi_dsi_is_active(void);
 static int rk_mipi_dsi_enable_hs_clk(u32 enable);
 static int rk_mipi_dsi_enable_video_mode(u32 enable);
 static int rk_mipi_dsi_enable_command_mode(u32 enable);
@@ -391,9 +392,9 @@ static int rk_mipi_dsi_phy_power_down(void) {
 }
 
 static void rk_mipi_dsi_set_hs_clk(void) {
-	dsi_set_bits((gDsi.phy.fbdiv >> 8) & 0x01, reg_fbdiv_8);
 	dsi_set_bits(gDsi.phy.prediv, reg_prediv);
 	dsi_set_bits(gDsi.phy.fbdiv & 0xff, reg_fbdiv);
+	dsi_set_bits((gDsi.phy.fbdiv >> 8) & 0x01, reg_fbdiv_8);
 }
 
 
@@ -469,8 +470,7 @@ static int rk_mipi_dsi_host_power_up(void) {
 	return ret;
 }
 
-static int rk_mipi_dsi_host_power_down(void) {
-	
+static int rk_mipi_dsi_host_power_down(void) {	
 	rk_mipi_dsi_enable_video_mode(0);
 	rk_mipi_dsi_enable_hs_clk(0);
 	dsi_set_bits(0, shutdownz);
@@ -723,6 +723,73 @@ static int rk_mipi_dsi_init(void *array, u32 n) {
 }
 
 
+int rk_mipi_dsi_init_lite(void) {
+
+	u32 decimals = 1000, i = 0, pre = 0, val = 0, ref_clk = 0;
+	struct mipi_dsi_screen *screen = g_screen;
+	
+	if(rk_mipi_dsi_is_active() == 0)
+		return -1;
+	
+	ref_clk = clk_get_rate(dsi_rk616->mclk);
+	if(gDsi.phy.ref_clk == ref_clk)
+		return -1;
+		
+	gDsi.phy.ref_clk = ref_clk;
+	gDsi.phy.sys_clk = gDsi.phy.ref_clk;
+	
+	if((screen->hs_tx_clk <= 80 * MHz) || (screen->hs_tx_clk >= 1000 * MHz))
+		gDsi.phy.ddr_clk = 1000 * MHz;    //default is 1HGz
+	else
+		gDsi.phy.ddr_clk = screen->hs_tx_clk;
+		
+	decimals = gDsi.phy.ref_clk;
+	for(i = 1; i < 6; i++) {
+		pre = gDsi.phy.ref_clk / i;
+		if((decimals > (gDsi.phy.ddr_clk % pre)) && (gDsi.phy.ddr_clk / pre < 512)) {
+			decimals = gDsi.phy.ddr_clk % pre;
+			gDsi.phy.prediv = i;
+			gDsi.phy.fbdiv = gDsi.phy.ddr_clk / pre;
+		}	
+		if(decimals == 0) 
+			break;		
+	}
+
+	MIPI_DBG("prediv:%d, fbdiv:%d\n", gDsi.phy.prediv, gDsi.phy.fbdiv);
+	gDsi.phy.ddr_clk = gDsi.phy.ref_clk / gDsi.phy.prediv * gDsi.phy.fbdiv;	
+	gDsi.phy.txbyte_clk = gDsi.phy.ddr_clk / 8;
+	
+	gDsi.phy.txclkesc = 20 * MHz;        // < 20MHz
+	gDsi.phy.txclkesc = gDsi.phy.txbyte_clk / (gDsi.phy.txbyte_clk / gDsi.phy.txclkesc + 1);
+	
+	gDsi.phy.pclk = div_u64(1000000000000llu, gDsi.phy.Tpclk);
+	gDsi.phy.Ttxclkesc = div_u64(1000000000000llu, gDsi.phy.txclkesc);
+	gDsi.phy.Tsys_clk = div_u64(1000000000000llu, gDsi.phy.sys_clk);
+	gDsi.phy.Tddr_clk = div_u64(1000000000000llu, gDsi.phy.ddr_clk);
+	gDsi.phy.Ttxbyte_clk = div_u64(1000000000000llu, gDsi.phy.txbyte_clk);
+	gDsi.phy.UI = gDsi.phy.Tddr_clk;
+		
+	MIPI_DBG("UI:%d\n", gDsi.phy.UI);	
+	MIPI_DBG("ref_clk:%d\n", gDsi.phy.ref_clk);
+	MIPI_DBG("pclk:%d, Tpclk:%d\n", gDsi.phy.pclk, gDsi.phy.Tpclk);
+	MIPI_DBG("sys_clk:%d, Tsys_clk:%d\n", gDsi.phy.sys_clk, gDsi.phy.Tsys_clk);
+	MIPI_DBG("ddr_clk:%d, Tddr_clk:%d\n", gDsi.phy.ddr_clk, gDsi.phy.Tddr_clk);
+	MIPI_DBG("txbyte_clk:%d, Ttxbyte_clk:%d\n", gDsi.phy.txbyte_clk, gDsi.phy.Ttxbyte_clk);
+	MIPI_DBG("txclkesc:%d, Ttxclkesc:%d\n", gDsi.phy.txclkesc, gDsi.phy.Ttxclkesc);
+		
+	rk_mipi_dsi_host_power_down();
+	rk_mipi_dsi_phy_power_down();
+	rk_mipi_dsi_phy_power_up();
+	rk_mipi_dsi_phy_init(screen, 0);
+	//rk_mipi_dsi_host_power_up();
+	//rk_mipi_dsi_host_init(screen, 0);
+	//dsi_set_bits(0, shutdownz);
+	rk_mipi_dsi_enable_hs_clk(1);
+	rk_mipi_dsi_enable_video_mode(1);
+	dsi_set_bits(1, shutdownz);
+	return 0;
+}
+
 
 static int rk_mipi_dsi_enable_video_mode(u32 enable) {
 
@@ -964,7 +1031,12 @@ int reg_proc_write(struct file *file, const char __user *buff, size_t count, lof
 		case 's':
 				while(*(++data) == ' ');
 				sscanf(data, "%d", &read_val);
-				rk_mipi_dsi_init(g_screen, read_val * MHz);
+				if(read_val == 11)
+					read_val = 11289600;
+				else	
+					read_val *= MHz;
+				clk_set_rate(dsi_rk616->mclk, read_val);	
+				rk_mipi_dsi_init_lite();
 			break;
 		case 'd':
 		case 'g':

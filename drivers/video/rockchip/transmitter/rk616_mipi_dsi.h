@@ -311,5 +311,5 @@ struct dsi {
 #define MHz   1000000
 #endif
 extern int rk616_mipi_dsi_ft_init(void);
-
+int rk_mipi_dsi_init_lite(void);
 #endif /* end of RK616_MIPI_DSI_H */

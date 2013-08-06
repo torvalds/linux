@@ -1809,6 +1809,9 @@ static int rk616_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 
 	rk616->stereo_sysclk = freq;
 
+	//set I2S mclk for mipi
+	rk616_mclk_set_rate(rk616_mfd->mclk, freq);
+
 	return 0;
 }
 
