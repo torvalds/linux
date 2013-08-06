@@ -21,6 +21,8 @@
 #ifndef _TI_HDMI_H
 #define _TI_HDMI_H
 
+#include <linux/platform_device.h>
+
 struct hdmi_ip_data;
 
 enum hdmi_pll_pwr {
@@ -28,6 +30,12 @@ enum hdmi_pll_pwr {
 	HDMI_PLLPWRCMD_PLLONLY = 1,
 	HDMI_PLLPWRCMD_BOTHON_ALLCLKS = 2,
 	HDMI_PLLPWRCMD_BOTHON_NOPHYCLK = 3
+};
+
+enum hdmi_phy_pwr {
+	HDMI_PHYPWRCMD_OFF = 0,
+	HDMI_PHYPWRCMD_LDOON = 1,
+	HDMI_PHYPWRCMD_TXON = 2
 };
 
 enum hdmi_core_hdmi_dvi {
@@ -42,9 +50,65 @@ enum hdmi_clk_refsel {
 	HDMI_REFSEL_SYSCLK = 3
 };
 
+enum hdmi_packing_mode {
+	HDMI_PACK_10b_RGB_YUV444 = 0,
+	HDMI_PACK_24b_RGB_YUV444_YUV422 = 1,
+	HDMI_PACK_20b_YUV422 = 2,
+	HDMI_PACK_ALREADYPACKED = 7
+};
+
+enum hdmi_stereo_channels {
+	HDMI_AUDIO_STEREO_NOCHANNELS = 0,
+	HDMI_AUDIO_STEREO_ONECHANNEL = 1,
+	HDMI_AUDIO_STEREO_TWOCHANNELS = 2,
+	HDMI_AUDIO_STEREO_THREECHANNELS = 3,
+	HDMI_AUDIO_STEREO_FOURCHANNELS = 4
+};
+
+enum hdmi_audio_type {
+	HDMI_AUDIO_TYPE_LPCM = 0,
+	HDMI_AUDIO_TYPE_IEC = 1
+};
+
+enum hdmi_audio_justify {
+	HDMI_AUDIO_JUSTIFY_LEFT = 0,
+	HDMI_AUDIO_JUSTIFY_RIGHT = 1
+};
+
+enum hdmi_audio_sample_order {
+	HDMI_AUDIO_SAMPLE_RIGHT_FIRST = 0,
+	HDMI_AUDIO_SAMPLE_LEFT_FIRST = 1
+};
+
+enum hdmi_audio_samples_perword {
+	HDMI_AUDIO_ONEWORD_ONESAMPLE = 0,
+	HDMI_AUDIO_ONEWORD_TWOSAMPLES = 1
+};
+
+enum hdmi_audio_sample_size {
+	HDMI_AUDIO_SAMPLE_16BITS = 0,
+	HDMI_AUDIO_SAMPLE_24BITS = 1
+};
+
+enum hdmi_audio_transf_mode {
+	HDMI_AUDIO_TRANSF_DMA = 0,
+	HDMI_AUDIO_TRANSF_IRQ = 1
+};
+
+enum hdmi_audio_blk_strt_end_sig {
+	HDMI_AUDIO_BLOCK_SIG_STARTEND_ON = 0,
+	HDMI_AUDIO_BLOCK_SIG_STARTEND_OFF = 1
+};
+
 struct hdmi_cm {
 	int	code;
 	int	mode;
+};
+
+struct hdmi_video_format {
+	enum hdmi_packing_mode	packing_mode;
+	u32			y_res;	/* Line per panel */
+	u32			x_res;	/* pixel per line */
 };
 
 struct hdmi_config {
@@ -63,6 +127,24 @@ struct hdmi_pll_info {
 	enum hdmi_clk_refsel refsel;
 };
 
+struct hdmi_audio_format {
+	enum hdmi_stereo_channels		stereo_channels;
+	u8					active_chnnls_msk;
+	enum hdmi_audio_type			type;
+	enum hdmi_audio_justify			justification;
+	enum hdmi_audio_sample_order		sample_order;
+	enum hdmi_audio_samples_perword		samples_per_word;
+	enum hdmi_audio_sample_size		sample_size;
+	enum hdmi_audio_blk_strt_end_sig	en_sig_blk_strt_end;
+};
+
+struct hdmi_audio_dma {
+	u8				transfer_size;
+	u8				block_size;
+	enum hdmi_audio_transf_mode	mode;
+	u16				fifo_threshold;
+};
+
 struct ti_hdmi_ip_ops {
 
 	void (*video_configure)(struct hdmi_ip_data *ip_data);
@@ -77,12 +159,6 @@ struct ti_hdmi_ip_ops {
 
 	void (*pll_disable)(struct hdmi_ip_data *ip_data);
 
-	int (*video_enable)(struct hdmi_ip_data *ip_data);
-
-	void (*video_disable)(struct hdmi_ip_data *ip_data);
-
-	void (*dump_wrapper)(struct hdmi_ip_data *ip_data, struct seq_file *s);
-
 	void (*dump_core)(struct hdmi_ip_data *ip_data, struct seq_file *s);
 
 	void (*dump_pll)(struct hdmi_ip_data *ip_data, struct seq_file *s);
@@ -90,10 +166,6 @@ struct ti_hdmi_ip_ops {
 	void (*dump_phy)(struct hdmi_ip_data *ip_data, struct seq_file *s);
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
-	int (*audio_enable)(struct hdmi_ip_data *ip_data);
-
-	void (*audio_disable)(struct hdmi_ip_data *ip_data);
-
 	int (*audio_start)(struct hdmi_ip_data *ip_data);
 
 	void (*audio_stop)(struct hdmi_ip_data *ip_data);
@@ -147,8 +219,13 @@ struct hdmi_core_infoframe_avi {
 	u16	db12_13_pixel_sofright;
 };
 
+struct hdmi_wp_data {
+	void __iomem *base;
+};
+
 struct hdmi_ip_data {
-	void __iomem	*base_wp;	/* HDMI wrapper */
+	struct hdmi_wp_data	wp;
+
 	unsigned long	core_sys_offset;
 	unsigned long	core_av_offset;
 	unsigned long	pll_offset;
@@ -162,22 +239,44 @@ struct hdmi_ip_data {
 	/* ti_hdmi_4xxx_ip private data. These should be in a separate struct */
 	struct mutex lock;
 };
+
+/* HDMI wrapper funcs */
+int hdmi_wp_video_start(struct hdmi_wp_data *wp);
+void hdmi_wp_video_stop(struct hdmi_wp_data *wp);
+void hdmi_wp_dump(struct hdmi_wp_data *wp, struct seq_file *s);
+u32 hdmi_wp_get_irqstatus(struct hdmi_wp_data *wp);
+void hdmi_wp_set_irqstatus(struct hdmi_wp_data *wp, u32 irqstatus);
+void hdmi_wp_set_irqenable(struct hdmi_wp_data *wp, u32 mask);
+void hdmi_wp_clear_irqenable(struct hdmi_wp_data *wp, u32 mask);
+int hdmi_wp_set_phy_pwr(struct hdmi_wp_data *wp, enum hdmi_phy_pwr val);
+int hdmi_wp_set_pll_pwr(struct hdmi_wp_data *wp, enum hdmi_pll_pwr val);
+void hdmi_wp_video_config_format(struct hdmi_wp_data *wp,
+		struct hdmi_video_format *video_fmt);
+void hdmi_wp_video_config_interface(struct hdmi_wp_data *wp,
+		struct omap_video_timings *timings);
+void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
+		struct omap_video_timings *timings);
+void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
+		struct omap_video_timings *timings, struct hdmi_config *param);
+int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp);
+
 int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data, u8 *edid, int len);
-int ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_wp_video_stop(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_pll_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_wp_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 void ti_hdmi_4xxx_pll_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 void ti_hdmi_4xxx_phy_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 int hdmi_compute_acr(u32 sample_freq, u32 *n, u32 *cts);
-int ti_hdmi_4xxx_wp_audio_enable(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_wp_audio_disable(struct hdmi_ip_data *ip_data);
+int hdmi_wp_audio_enable(struct hdmi_wp_data *wp, bool enable);
+int hdmi_wp_audio_core_req_enable(struct hdmi_wp_data *wp, bool enable);
+void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
+		struct hdmi_audio_format *aud_fmt);
+void hdmi_wp_audio_config_dma(struct hdmi_wp_data *wp,
+		struct hdmi_audio_dma *aud_dma);
 int ti_hdmi_4xxx_audio_start(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_audio_stop(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,

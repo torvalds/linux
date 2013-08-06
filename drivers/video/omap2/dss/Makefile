@@ -10,5 +10,5 @@ omapdss-$(CONFIG_OMAP2_DSS_RFBI) += rfbi.o
 omapdss-$(CONFIG_OMAP2_DSS_VENC) += venc.o
 omapdss-$(CONFIG_OMAP2_DSS_SDI) += sdi.o
 omapdss-$(CONFIG_OMAP2_DSS_DSI) += dsi.o
-omapdss-$(CONFIG_OMAP4_DSS_HDMI) += hdmi.o ti_hdmi_4xxx_ip.o
+omapdss-$(CONFIG_OMAP4_DSS_HDMI) += hdmi.o hdmi_wp.o ti_hdmi_4xxx_ip.o
 ccflags-$(CONFIG_OMAP2_DSS_DEBUG) += -DDEBUG

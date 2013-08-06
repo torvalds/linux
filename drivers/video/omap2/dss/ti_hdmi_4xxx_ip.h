@@ -226,18 +226,6 @@
 #define HDMI_TXPHY_POWER_CTRL			0x8
 #define HDMI_TXPHY_PAD_CFG_CTRL			0xC
 
-#define REG_FLD_MOD(base, idx, val, start, end) \
-	hdmi_write_reg(base, idx, FLD_MOD(hdmi_read_reg(base, idx),\
-							val, start, end))
-#define REG_GET(base, idx, start, end) \
-	FLD_GET(hdmi_read_reg(base, idx), start, end)
-
-enum hdmi_phy_pwr {
-	HDMI_PHYPWRCMD_OFF = 0,
-	HDMI_PHYPWRCMD_LDOON = 1,
-	HDMI_PHYPWRCMD_TXON = 2
-};
-
 enum hdmi_core_inputbus_width {
 	HDMI_INPUT_8BIT = 0,
 	HDMI_INPUT_10BIT = 1,
@@ -328,13 +316,6 @@ enum hdmi_core_infoframe {
 	HDMI_INFOFRAME_AVI_DB5PR_10 = 9,
 };
 
-enum hdmi_packing_mode {
-	HDMI_PACK_10b_RGB_YUV444 = 0,
-	HDMI_PACK_24b_RGB_YUV444_YUV422 = 1,
-	HDMI_PACK_20b_YUV422 = 2,
-	HDMI_PACK_ALREADYPACKED = 7
-};
-
 enum hdmi_core_audio_layout {
 	HDMI_AUDIO_LAYOUT_2CH = 0,
 	HDMI_AUDIO_LAYOUT_8CH = 1
@@ -343,49 +324,6 @@ enum hdmi_core_audio_layout {
 enum hdmi_core_cts_mode {
 	HDMI_AUDIO_CTS_MODE_HW = 0,
 	HDMI_AUDIO_CTS_MODE_SW = 1
-};
-
-enum hdmi_stereo_channels {
-	HDMI_AUDIO_STEREO_NOCHANNELS = 0,
-	HDMI_AUDIO_STEREO_ONECHANNEL = 1,
-	HDMI_AUDIO_STEREO_TWOCHANNELS = 2,
-	HDMI_AUDIO_STEREO_THREECHANNELS = 3,
-	HDMI_AUDIO_STEREO_FOURCHANNELS = 4
-};
-
-enum hdmi_audio_type {
-	HDMI_AUDIO_TYPE_LPCM = 0,
-	HDMI_AUDIO_TYPE_IEC = 1
-};
-
-enum hdmi_audio_justify {
-	HDMI_AUDIO_JUSTIFY_LEFT = 0,
-	HDMI_AUDIO_JUSTIFY_RIGHT = 1
-};
-
-enum hdmi_audio_sample_order {
-	HDMI_AUDIO_SAMPLE_RIGHT_FIRST = 0,
-	HDMI_AUDIO_SAMPLE_LEFT_FIRST = 1
-};
-
-enum hdmi_audio_samples_perword {
-	HDMI_AUDIO_ONEWORD_ONESAMPLE = 0,
-	HDMI_AUDIO_ONEWORD_TWOSAMPLES = 1
-};
-
-enum hdmi_audio_sample_size {
-	HDMI_AUDIO_SAMPLE_16BITS = 0,
-	HDMI_AUDIO_SAMPLE_24BITS = 1
-};
-
-enum hdmi_audio_transf_mode {
-	HDMI_AUDIO_TRANSF_DMA = 0,
-	HDMI_AUDIO_TRANSF_IRQ = 1
-};
-
-enum hdmi_audio_blk_strt_end_sig {
-	HDMI_AUDIO_BLOCK_SIG_STARTEND_ON = 0,
-	HDMI_AUDIO_BLOCK_SIG_STARTEND_OFF = 1
 };
 
 enum hdmi_audio_i2s_config {
@@ -434,29 +372,6 @@ struct hdmi_core_packet_enable_repeat {
 	u32	generic_pkt_repeat;
 };
 
-struct hdmi_video_format {
-	enum hdmi_packing_mode	packing_mode;
-	u32			y_res;	/* Line per panel */
-	u32			x_res;	/* pixel per line */
-};
-
-struct hdmi_audio_format {
-	enum hdmi_stereo_channels		stereo_channels;
-	u8					active_chnnls_msk;
-	enum hdmi_audio_type			type;
-	enum hdmi_audio_justify			justification;
-	enum hdmi_audio_sample_order		sample_order;
-	enum hdmi_audio_samples_perword		samples_per_word;
-	enum hdmi_audio_sample_size		sample_size;
-	enum hdmi_audio_blk_strt_end_sig	en_sig_blk_strt_end;
-};
-
-struct hdmi_audio_dma {
-	u8				transfer_size;
-	u8				block_size;
-	enum hdmi_audio_transf_mode	mode;
-	u16				fifo_threshold;
-};
 
 struct hdmi_core_audio_i2s_config {
 	u8 in_length_bits;

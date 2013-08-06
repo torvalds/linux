@@ -40,7 +40,6 @@
 #include "dss.h"
 #include "dss_features.h"
 
-#define HDMI_WP			0x0
 #define HDMI_CORE_SYS		0x400
 #define HDMI_CORE_AV		0x900
 #define HDMI_PLLCTRL		0x200
@@ -529,7 +528,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 
 	hdmi_compute_pll(dssdev, phy, &hdmi.ip_data.pll_data);
 
-	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
+	hdmi_wp_video_stop(&hdmi.ip_data.wp);
 
 	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
 	r = hdmi.ip_data.ops->pll_enable(&hdmi.ip_data);
@@ -552,7 +551,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	/* tv size */
 	dss_mgr_set_timings(mgr, p);
 
-	r = hdmi.ip_data.ops->video_enable(&hdmi.ip_data);
+	r = hdmi_wp_video_start(&hdmi.ip_data.wp);
 	if (r)
 		goto err_vid_enable;
 
@@ -563,7 +562,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	return 0;
 
 err_mgr_enable:
-	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
+	hdmi_wp_video_stop(&hdmi.ip_data.wp);
 err_vid_enable:
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 err_phy_enable:
@@ -579,7 +578,7 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 
 	dss_mgr_disable(mgr);
 
-	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
+	hdmi_wp_video_stop(&hdmi.ip_data.wp);
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
 
@@ -642,7 +641,7 @@ static void hdmi_dump_regs(struct seq_file *s)
 		return;
 	}
 
-	hdmi.ip_data.ops->dump_wrapper(&hdmi.ip_data, s);
+	hdmi_wp_dump(&hdmi.ip_data.wp, s);
 	hdmi.ip_data.ops->dump_pll(&hdmi.ip_data, s);
 	hdmi.ip_data.ops->dump_phy(&hdmi.ip_data, s);
 	hdmi.ip_data.ops->dump_core(&hdmi.ip_data, s);
@@ -946,8 +945,7 @@ static int hdmi_audio_enable(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-
-	r = hdmi.ip_data.ops->audio_enable(&hdmi.ip_data);
+	r = hdmi_wp_audio_enable(&hdmi.ip_data.wp, true);
 	if (r)
 		goto err;
 
@@ -961,7 +959,7 @@ err:
 
 static void hdmi_audio_disable(struct omap_dss_device *dssdev)
 {
-	hdmi.ip_data.ops->audio_disable(&hdmi.ip_data);
+	hdmi_wp_audio_enable(&hdmi.ip_data.wp, false);
 }
 
 static int hdmi_audio_start(struct omap_dss_device *dssdev)
@@ -1086,7 +1084,6 @@ static void __exit hdmi_uninit_output(struct platform_device *pdev)
 /* HDMI HW IP initialisation */
 static int omapdss_hdmihw_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	int r;
 
 	hdmi.pdev = pdev;
@@ -1094,12 +1091,9 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	mutex_init(&hdmi.lock);
 	mutex_init(&hdmi.ip_data.lock);
 
-	res = platform_get_resource(hdmi.pdev, IORESOURCE_MEM, 0);
-
-	/* Base address taken from platform */
-	hdmi.ip_data.base_wp = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(hdmi.ip_data.base_wp))
-		return PTR_ERR(hdmi.ip_data.base_wp);
+	r = hdmi_wp_init(pdev, &hdmi.ip_data.wp);
+	if (r)
+		return r;
 
 	hdmi.ip_data.irq = platform_get_irq(pdev, 0);
 	if (hdmi.ip_data.irq < 0) {
