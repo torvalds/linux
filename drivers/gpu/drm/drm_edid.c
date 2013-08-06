@@ -3131,6 +3131,9 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	if (err < 0)
 		return err;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		frame->pixel_repeat = 1;
+
 	frame->video_code = drm_match_cea_mode(mode);
 	if (!frame->video_code)
 		return 0;
