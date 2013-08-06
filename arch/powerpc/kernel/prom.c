@@ -456,7 +456,7 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 	if (dm == NULL || l < sizeof(__be32))
 		return 0;
 
-	n = *dm++;	/* number of entries */
+	n = of_read_number(dm++, 1);	/* number of entries */
 	if (l < (n * (dt_root_addr_cells + 4) + 1) * sizeof(__be32))
 		return 0;
 
@@ -468,7 +468,7 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 
 	for (; n != 0; --n) {
 		base = dt_mem_next_cell(dt_root_addr_cells, &dm);
-		flags = dm[3];
+		flags = of_read_number(&dm[3], 1);
 		/* skip DRC index, pad, assoc. list index, flags */
 		dm += 4;
 		/* skip this block if the reserved bit is set in flags (0x80)
