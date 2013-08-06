@@ -31,7 +31,7 @@
 
 		cpu: cpu@0x0 {
 			device_type = "cpu";
-			compatible = "ALTR,nios2-13.0", "ALTR,nios2-1.0";
+			compatible = "ALTR,nios2-1.0";
 			reg = < 0x00000000 >;
 			interrupt-controller;
 			#interrupt-cells = < 1 >;
@@ -45,11 +45,12 @@
 			ALTR,tlb-num-ways = < 16 >;
 			ALTR,tlb-num-entries = < 128 >;
 			ALTR,tlb-ptr-sz = < 7 >;
-			ALTR,has-div;
-			ALTR,has-mul;
-			ALTR,reset-addr = < 0xc0000000 >;
+			ALTR,has-div = < 1 >;
+			ALTR,has-mul = < 1 >;
+			ALTR,reset-addr = < 0xc2800000 >;
 			ALTR,fast-tlb-miss-addr = < 0xc7fff400 >;
 			ALTR,exception-addr = < 0xd0000020 >;
+			ALTR,has-initda = < 1 >;
 		}; //end cpu@0x0 (cpu)
 	}; //end cpus
 
@@ -68,7 +69,7 @@
 		bus-frequency = < 125000000 >;
 
 		pb_cpu_to_io: bridge@0x8000000 {
-			compatible = "ALTR,avalon-13.0", "simple-bus";
+			compatible = "simple-bus";
 			reg = < 0x08000000 0x00800000 >;
 			#address-cells = < 1 >;
 			#size-cells = < 1 >;
@@ -85,7 +86,7 @@
 				0x00004D00 0x08004D00 0x00000010 >;
 
 			timer_1ms: timer@0x400000 {
-				compatible = "ALTR,timer-13.0.1", "ALTR,timer-1.0";
+				compatible = "ALTR,timer-1.0";
 				reg = < 0x00400000 0x00000020 >;
 				interrupt-parent = < &cpu >;
 				interrupts = < 11 >;
@@ -93,25 +94,26 @@
 			}; //end timer@0x400000 (timer_1ms)
 
 			sysid: sysid@0x4d40 {
-				compatible = "ALTR,sysid-13.0", "ALTR,sysid-1.0";
+				compatible = "ALTR,sysid-1.0";
 				reg = < 0x00004D40 0x00000008 >;
 				id = < 0 >;
 				timestamp = < 1364882880 >;
 			}; //end sysid@0x4d40 (sysid)
 
 			jtag_uart: serial@0x4d50 {
-				compatible = "ALTR,juart-13.0.1", "ALTR,juart-1.0";
+				compatible = "ALTR,juart-1.0";
 				reg = < 0x00004D50 0x00000008 >;
 				interrupt-parent = < &cpu >;
 				interrupts = < 1 >;
 			}; //end serial@0x4d50 (jtag_uart)
 
 			tse_mac: ethernet@0x4000 {
-				compatible = "ALTR,tse-13.0", "ALTR,tse-1.0";
+				compatible = "ALTR,tse-1.0";
 				reg = < 0x00004000 0x00000400
 					0x00004400 0x00000040
 					0x00004800 0x00000040
 					0x00002000 0x00002000 >;
+                                reg-names = "control_port", "rx_csr", "tx_csr", "s1";
 				interrupt-parent = < &cpu >;
 				interrupts = < 2 3 >;
 				ALTR,rx-fifo-depth = < 2048 >;
@@ -124,7 +126,7 @@
 			}; //end ethernet@0x4000 (tse_mac)
 
 			uart: serial@0x4c80 {
-				compatible = "ALTR,uart-13.0.1", "ALTR,uart-1.0";
+				compatible = "ALTR,uart-1.0";
 				reg = < 0x00004C80 0x00000020 >;
 				interrupt-parent = < &cpu >;
 				interrupts = < 10 >;
@@ -133,7 +135,7 @@
 			}; //end serial@0x4c80 (uart)
 
 			user_led_pio_8out: gpio@0x4cc0 {
-				compatible = "ALTR,pio-13.0.1", "ALTR,pio-1.0";
+				compatible = "ALTR,pio-1.0";
 				reg = < 0x00004CC0 0x00000010 >;
 				width = < 8 >;
 				resetvalue = < 255 >;
@@ -142,24 +144,26 @@
 			}; //end gpio@0x4cc0 (user_led_pio_8out)
 
 			user_dipsw_pio_8in: gpio@0x4ce0 {
-				compatible = "ALTR,pio-13.0.1", "ALTR,pio-1.0";
+				compatible = "ALTR,pio-1.0";
 				reg = < 0x00004CE0 0x00000010 >;
 				interrupt-parent = < &cpu >;
 				interrupts = < 8 >;
 				width = < 8 >;
 				resetvalue = < 0 >;
+				edge_type = < 2 >;
 				level_trigger = < 0 >;
 				#gpio-cells = < 2 >;
 				gpio-controller;
 			}; //end gpio@0x4ce0 (user_dipsw_pio_8in)
 
 			user_pb_pio_4in: gpio@0x4d00 {
-				compatible = "ALTR,pio-13.0.1", "ALTR,pio-1.0";
+				compatible = "ALTR,pio-1.0";
 				reg = < 0x00004D00 0x00000010 >;
 				interrupt-parent = < &cpu >;
 				interrupts = < 9 >;
 				width = < 4 >;
 				resetvalue = < 0 >;
+				edge_type = < 2 >;
 				level_trigger = < 0 >;
 				#gpio-cells = < 2 >;
 				gpio-controller;
@@ -167,7 +171,7 @@
 		}; //end bridge@0x8000000 (pb_cpu_to_io)
 
 		cfi_flash_64m: flash@0x0 {
-			compatible = "ALTR,cfi_flash-13.0", "cfi-flash";
+			compatible = "cfi-flash";
 			reg = < 0x00000000 0x04000000 >;
 			bank-width = < 2 >;
 			device-width = < 1 >;
