@@ -320,14 +320,14 @@ static void __init initialize_cache_info(void)
 		 * d-cache and i-cache sizes... -Peter
 		 */
 		if (num_cpus == 1) {
-			const u32 *sizep, *lsizep;
+			const __be32 *sizep, *lsizep;
 			u32 size, lsize;
 
 			size = 0;
 			lsize = cur_cpu_spec->dcache_bsize;
 			sizep = of_get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
-				size = *sizep;
+				size = be32_to_cpu(*sizep);
 			lsizep = of_get_property(np, "d-cache-block-size",
 						 NULL);
 			/* fallback if block size missing */
@@ -336,7 +336,7 @@ static void __init initialize_cache_info(void)
 							 "d-cache-line-size",
 							 NULL);
 			if (lsizep != NULL)
-				lsize = *lsizep;
+				lsize = be32_to_cpu(*lsizep);
 			if (sizep == NULL || lsizep == NULL)
 				DBG("Argh, can't find dcache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
@@ -350,7 +350,7 @@ static void __init initialize_cache_info(void)
 			lsize = cur_cpu_spec->icache_bsize;
 			sizep = of_get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
-				size = *sizep;
+				size = be32_to_cpu(*sizep);
 			lsizep = of_get_property(np, "i-cache-block-size",
 						 NULL);
 			if (lsizep == NULL)
@@ -358,7 +358,7 @@ static void __init initialize_cache_info(void)
 							 "i-cache-line-size",
 							 NULL);
 			if (lsizep != NULL)
-				lsize = *lsizep;
+				lsize = be32_to_cpu(*lsizep);
 			if (sizep == NULL || lsizep == NULL)
 				DBG("Argh, can't find icache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
