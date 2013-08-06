@@ -135,6 +135,9 @@ static struct ath_frame_info *get_frame_info(struct sk_buff *skb)
 
 static void ath_send_bar(struct ath_atx_tid *tid, u16 seqno)
 {
+	if (!tid->an->sta)
+		return;
+
 	ieee80211_send_bar(tid->an->vif, tid->an->sta->addr, tid->tidno,
 			   seqno << IEEE80211_SEQ_SEQ_SHIFT);
 }
@@ -1382,7 +1385,7 @@ static bool ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	if (list_empty(&bf_q))
 		return false;
 
-	if (tid->ac->clear_ps_filter) {
+	if (tid->ac->clear_ps_filter || tid->an->no_ps_filter) {
 		tid->ac->clear_ps_filter = false;
 		tx_info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
 	}
@@ -1572,7 +1575,7 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 			sent++;
 			TX_STAT_INC(txq->axq_qnum, a_queued_hw);
 
-			if (!ath_tid_has_buffered(tid))
+			if (an->sta && !ath_tid_has_buffered(tid))
 				ieee80211_sta_set_buffered(an->sta, i, false);
 		}
 		ath_txq_unlock_complete(sc, tid->ac->txq);
@@ -2104,6 +2107,7 @@ static int ath_tx_prepare(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = txctl->sta;
 	struct ieee80211_vif *vif = info->control.vif;
+	struct ath_vif *avp;
 	struct ath_softc *sc = hw->priv;
 	int frmlen = skb->len + FCS_LEN;
 	int padpos, padsize;
@@ -2111,6 +2115,10 @@ static int ath_tx_prepare(struct ieee80211_hw *hw, struct sk_buff *skb,
 	/* NOTE:  sta can be NULL according to net/mac80211.h */
 	if (sta)
 		txctl->an = (struct ath_node *)sta->drv_priv;
+	else if (vif && ieee80211_is_data(hdr->frame_control)) {
+		avp = (void *)vif->drv_priv;
+		txctl->an = &avp->mcast_node;
+	}
 
 	if (info->control.hw_key)
 		frmlen += info->control.hw_key->icv_len;

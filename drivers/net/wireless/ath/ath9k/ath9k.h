@@ -265,6 +265,7 @@ struct ath_node {
 	u8 mpdudensity;
 
 	bool sleeping;
+	bool no_ps_filter;
 
 #if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
 	struct dentry *node_stat;
@@ -364,6 +365,7 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 /********/
 
 struct ath_vif {
+	struct ath_node mcast_node;
 	int av_bslot;
 	bool primary_sta_vif;
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */

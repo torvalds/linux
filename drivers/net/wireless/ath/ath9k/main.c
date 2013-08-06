@@ -963,6 +963,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	struct ath_node *an = &avp->mcast_node;
 
 	mutex_lock(&sc->mutex);
 
@@ -975,6 +977,12 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
+
+	an->sc = sc;
+	an->sta = NULL;
+	an->vif = vif;
+	an->no_ps_filter = true;
+	ath_tx_node_init(sc, an);
 
 	mutex_unlock(&sc->mutex);
 	return 0;
@@ -1013,6 +1021,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
 
 	ath_dbg(common, CONFIG, "Detach Interface\n");
 
@@ -1026,6 +1035,8 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	ath9k_ps_wakeup(sc);
 	ath9k_calculate_summary_state(hw, NULL);
 	ath9k_ps_restore(sc);
+
+	ath_tx_node_cleanup(sc, &avp->mcast_node);
 
 	mutex_unlock(&sc->mutex);
 }
