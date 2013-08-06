@@ -54,7 +54,7 @@ static struct acpi_processor_performance *eps_acpi_cpu_perf;
 /* Minimum necessary to get acpi_processor_get_bios_limit() working */
 static int eps_acpi_init(void)
 {
-	eps_acpi_cpu_perf = kzalloc(sizeof(struct acpi_processor_performance),
+	eps_acpi_cpu_perf = kzalloc(sizeof(*eps_acpi_cpu_perf),
 				      GFP_KERNEL);
 	if (!eps_acpi_cpu_perf)
 		return -ENOMEM;
@@ -366,7 +366,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		states = 2;
 
 	/* Allocate private data and frequency table for current cpu */
-	centaur = kzalloc(sizeof(struct eps_cpu_data)
+	centaur = kzalloc(sizeof(*centaur)
 		    + (states + 1) * sizeof(struct cpufreq_frequency_table),
 		    GFP_KERNEL);
 	if (!centaur)

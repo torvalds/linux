@@ -447,9 +447,8 @@ static int __init g5_neo2_cpufreq_init(struct device_node *cpus)
 		if (!shdr)
 			goto bail_noprops;
 		g5_fvt_table = (struct smu_sdbp_fvt *)&shdr[1];
-		ssize = (shdr->len * sizeof(u32)) -
-			sizeof(struct smu_sdbp_header);
-		g5_fvt_count = ssize / sizeof(struct smu_sdbp_fvt);
+		ssize = (shdr->len * sizeof(u32)) - sizeof(*shdr);
+		g5_fvt_count = ssize / sizeof(*g5_fvt_table);
 		g5_fvt_cur = 0;
 
 		/* Sanity checking */

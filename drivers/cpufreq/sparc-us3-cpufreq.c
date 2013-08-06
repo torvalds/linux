@@ -212,12 +212,11 @@ static int __init us3_freq_init(void)
 		struct cpufreq_driver *driver;
 
 		ret = -ENOMEM;
-		driver = kzalloc(sizeof(struct cpufreq_driver), GFP_KERNEL);
+		driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 		if (!driver)
 			goto err_out;
 
-		us3_freq_table = kzalloc(
-			(NR_CPUS * sizeof(struct us3_freq_percpu_info)),
+		us3_freq_table = kzalloc((NR_CPUS * sizeof(*us3_freq_table)),
 			GFP_KERNEL);
 		if (!us3_freq_table)
 			goto err_out;

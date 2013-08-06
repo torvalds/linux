@@ -289,7 +289,7 @@ static int __init exynos_cpufreq_init(void)
 {
 	int ret = -EINVAL;
 
-	exynos_info = kzalloc(sizeof(struct exynos_dvfs_info), GFP_KERNEL);
+	exynos_info = kzalloc(sizeof(*exynos_info), GFP_KERNEL);
 	if (!exynos_info)
 		return -ENOMEM;
 
