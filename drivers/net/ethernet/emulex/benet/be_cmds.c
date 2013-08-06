@@ -1464,6 +1464,12 @@ static int be_mac_to_link_speed(int mac_speed)
 		return 1000;
 	case PHY_LINK_SPEED_10GBPS:
 		return 10000;
+	case PHY_LINK_SPEED_20GBPS:
+		return 20000;
+	case PHY_LINK_SPEED_25GBPS:
+		return 25000;
+	case PHY_LINK_SPEED_40GBPS:
+		return 40000;
 	}
 	return 0;
 }
