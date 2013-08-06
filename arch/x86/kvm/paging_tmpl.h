@@ -129,10 +129,10 @@ static inline void FNAME(protect_clean_gpte)(unsigned *access, unsigned gpte)
 
 static bool FNAME(is_rsvd_bits_set)(struct kvm_mmu *mmu, u64 gpte, int level)
 {
-	int bit7;
+	int bit7 = (gpte >> 7) & 1, low6 = gpte & 0x3f;
 
-	bit7 = (gpte >> 7) & 1;
-	return (gpte & mmu->rsvd_bits_mask[bit7][level-1]) != 0;
+	return (gpte & mmu->rsvd_bits_mask[bit7][level-1]) |
+		((mmu->bad_mt_xwr & (1ull << low6)) != 0);
 }
 
 static inline int FNAME(is_present_gpte)(unsigned long pte)
@@ -386,6 +386,25 @@ error:
 	walker->fault.vector = PF_VECTOR;
 	walker->fault.error_code_valid = true;
 	walker->fault.error_code = errcode;
+
+#if PTTYPE == PTTYPE_EPT
+	/*
+	 * Use PFERR_RSVD_MASK in error_code to to tell if EPT
+	 * misconfiguration requires to be injected. The detection is
+	 * done by is_rsvd_bits_set() above.
+	 *
+	 * We set up the value of exit_qualification to inject:
+	 * [2:0] - Derive from [2:0] of real exit_qualification at EPT violation
+	 * [5:3] - Calculated by the page walk of the guest EPT page tables
+	 * [7:8] - Derived from [7:8] of real exit_qualification
+	 *
+	 * The other bits are set to 0.
+	 */
+	if (!(errcode & PFERR_RSVD_MASK)) {
+		vcpu->arch.exit_qualification &= 0x187;
+		vcpu->arch.exit_qualification |= ((pt_access & pte) & 0x7) << 3;
+	}
+#endif
 	walker->fault.address = addr;
 	walker->fault.nested_page_fault = mmu != vcpu->arch.walk_mmu;
 

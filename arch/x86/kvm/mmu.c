@@ -3519,6 +3519,8 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	int maxphyaddr = cpuid_maxphyaddr(vcpu);
 	u64 exb_bit_rsvd = 0;
 
+	context->bad_mt_xwr = 0;
+
 	if (!context->nx)
 		exb_bit_rsvd = rsvd_bits(63, 63);
 	switch (context->root_level) {
@@ -3574,7 +3576,40 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 	}
 }
 
-static void update_permission_bitmask(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu)
+static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
+		struct kvm_mmu *context, bool execonly)
+{
+	int maxphyaddr = cpuid_maxphyaddr(vcpu);
+	int pte;
+
+	context->rsvd_bits_mask[0][3] =
+		rsvd_bits(maxphyaddr, 51) | rsvd_bits(3, 7);
+	context->rsvd_bits_mask[0][2] =
+		rsvd_bits(maxphyaddr, 51) | rsvd_bits(3, 6);
+	context->rsvd_bits_mask[0][1] =
+		rsvd_bits(maxphyaddr, 51) | rsvd_bits(3, 6);
+	context->rsvd_bits_mask[0][0] = rsvd_bits(maxphyaddr, 51);
+
+	/* large page */
+	context->rsvd_bits_mask[1][3] = context->rsvd_bits_mask[0][3];
+	context->rsvd_bits_mask[1][2] =
+		rsvd_bits(maxphyaddr, 51) | rsvd_bits(12, 29);
+	context->rsvd_bits_mask[1][1] =
+		rsvd_bits(maxphyaddr, 51) | rsvd_bits(12, 20);
+	context->rsvd_bits_mask[1][0] = context->rsvd_bits_mask[0][0];
+
+	for (pte = 0; pte < 64; pte++) {
+		int rwx_bits = pte & 7;
+		int mt = pte >> 3;
+		if (mt == 0x2 || mt == 0x3 || mt == 0x7 ||
+				rwx_bits == 0x2 || rwx_bits == 0x6 ||
+				(rwx_bits == 0x4 && !execonly))
+			context->bad_mt_xwr |= (1ull << pte);
+	}
+}
+
+static void update_permission_bitmask(struct kvm_vcpu *vcpu,
+		struct kvm_mmu *mmu, bool ept)
 {
 	unsigned bit, byte, pfec;
 	u8 map;
@@ -3592,12 +3627,16 @@ static void update_permission_bitmask(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu
 			w = bit & ACC_WRITE_MASK;
 			u = bit & ACC_USER_MASK;
 
-			/* Not really needed: !nx will cause pte.nx to fault */
-			x |= !mmu->nx;
-			/* Allow supervisor writes if !cr0.wp */
-			w |= !is_write_protection(vcpu) && !uf;
-			/* Disallow supervisor fetches of user code if cr4.smep */
-			x &= !(smep && u && !uf);
+			if (!ept) {
+				/* Not really needed: !nx will cause pte.nx to fault */
+				x |= !mmu->nx;
+				/* Allow supervisor writes if !cr0.wp */
+				w |= !is_write_protection(vcpu) && !uf;
+				/* Disallow supervisor fetches of user code if cr4.smep */
+				x &= !(smep && u && !uf);
+			} else
+				/* Not really needed: no U/S accesses on ept  */
+				u = 1;
 
 			fault = (ff && !x) || (uf && !u) || (wf && !w);
 			map |= fault << bit;
@@ -3632,7 +3671,7 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->root_level = level;
 
 	reset_rsvds_bits_mask(vcpu, context);
-	update_permission_bitmask(vcpu, context);
+	update_permission_bitmask(vcpu, context, false);
 	update_last_pte_bitmap(vcpu, context);
 
 	ASSERT(is_pae(vcpu));
@@ -3662,7 +3701,7 @@ static int paging32_init_context(struct kvm_vcpu *vcpu,
 	context->root_level = PT32_ROOT_LEVEL;
 
 	reset_rsvds_bits_mask(vcpu, context);
-	update_permission_bitmask(vcpu, context);
+	update_permission_bitmask(vcpu, context, false);
 	update_last_pte_bitmap(vcpu, context);
 
 	context->new_cr3 = paging_new_cr3;
@@ -3724,7 +3763,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 		context->gva_to_gpa = paging32_gva_to_gpa;
 	}
 
-	update_permission_bitmask(vcpu, context);
+	update_permission_bitmask(vcpu, context, false);
 	update_last_pte_bitmap(vcpu, context);
 
 	return 0;
@@ -3803,7 +3842,7 @@ static int init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 		g_context->gva_to_gpa = paging32_gva_to_gpa_nested;
 	}
 
-	update_permission_bitmask(vcpu, g_context);
+	update_permission_bitmask(vcpu, g_context, false);
 	update_last_pte_bitmap(vcpu, g_context);
 
 	return 0;

@@ -286,6 +286,7 @@ struct kvm_mmu {
 	u64 *pae_root;
 	u64 *lm_root;
 	u64 rsvd_bits_mask[2][4];
+	u64 bad_mt_xwr;
 
 	/*
 	 * Bitmap: bit set = last pte in walk
@@ -512,6 +513,9 @@ struct kvm_vcpu_arch {
 	 * instruction.
 	 */
 	bool write_fault_to_shadow_pgtable;
+
+	/* set at EPT violation at this point */
+	unsigned long exit_qualification;
 };
 
 struct kvm_lpage_info {
