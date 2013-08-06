@@ -612,7 +612,7 @@ unsigned long long sched_clock(void)
 static int __init get_freq(char *name, int cells, unsigned long *val)
 {
 	struct device_node *cpu;
-	const unsigned int *fp;
+	const __be32 *fp;
 	int found = 0;
 
 	/* The cpu node should have timebase and clock frequency properties */
