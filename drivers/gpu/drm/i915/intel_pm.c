@@ -2182,7 +2182,6 @@ struct hsw_wm_maximums {
 
 struct hsw_lp_wm_result {
 	bool enable;
-	bool fbc_enable;
 	uint32_t pri_val;
 	uint32_t spr_val;
 	uint32_t cur_val;
@@ -2323,13 +2322,6 @@ static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
 	result->cur_val = max3(res[0].cur_val, res[1].cur_val, res[2].cur_val);
 	result->fbc_val = max3(res[0].fbc_val, res[1].fbc_val, res[2].fbc_val);
 	result->enable = true;
-
-	if (result->fbc_val > max->fbc) {
-		result->fbc_enable = false;
-		result->fbc_val = 0;
-	} else {
-		result->fbc_enable = true;
-	}
 
 	if (!result->enable)
 		return false;
@@ -2575,9 +2567,9 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	 * a WM level. */
 	results->enable_fbc_wm = true;
 	for (level = 1; level <= max_level; level++) {
-		if (!lp_results[level - 1].fbc_enable) {
+		if (!lp_results[level - 1].fbc_val > lp_maximums->fbc) {
 			results->enable_fbc_wm = false;
-			break;
+			lp_results[level - 1].fbc_val = 0;
 		}
 	}
 
