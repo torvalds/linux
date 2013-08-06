@@ -870,7 +870,8 @@ void vmalloc_sync_all(void)
 {
 #ifdef __tilegx__
 	/* Currently all L1 kernel pmd's are static and shared. */
-	BUG_ON(pgd_index(VMALLOC_END) != pgd_index(VMALLOC_START));
+	BUILD_BUG_ON(pgd_index(VMALLOC_END - PAGE_SIZE) !=
+		     pgd_index(VMALLOC_START));
 #else
 	/*
 	 * Note that races in the updates of insync and start aren't
