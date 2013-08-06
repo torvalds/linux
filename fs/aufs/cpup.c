@@ -608,21 +608,28 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 	int err, rerr;
 	aufs_bindex_t old_ibstart;
 	unsigned char isdir, plink;
-	struct au_dtime dt;
-	struct path h_path;
 	struct dentry *h_src, *h_dst, *h_parent;
 	struct inode *dst_inode, *h_dir, *inode;
 	struct super_block *sb;
 	struct au_branch *br;
-	struct au_cpup_reg_attr h_src_attr = {
-		.valid = 0
-	};
+	/* to reuduce stack size */
+	struct {
+		struct au_dtime dt;
+		struct path h_path;
+		struct au_cpup_reg_attr h_src_attr;
+	} *a;
 
 	AuDebugOn(cpg->bsrc <= cpg->bdst);
 
+	err = -ENOMEM;
+	a = kmalloc(sizeof(*a), GFP_NOFS);
+	if (unlikely(!a))
+		goto out;
+	a->h_src_attr.valid = 0;
+
 	sb = cpg->dentry->d_sb;
 	br = au_sbr(sb, cpg->bdst);
-	h_path.mnt = au_br_mnt(br);
+	a->h_path.mnt = au_br_mnt(br);
 	h_dst = au_h_dptr(cpg->dentry, cpg->bdst);
 	h_parent = h_dst->d_parent; /* dir inode is locked */
 	h_dir = h_parent->d_inode;
@@ -644,7 +651,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 			AuIOErr("hi%lu(i%lu) exists on b%d "
 				"but plink is disabled\n",
 				dst_inode->i_ino, inode->i_ino, cpg->bdst);
-			goto out;
+			goto out_parent;
 		}
 
 		if (dst_inode->i_nlink) {
@@ -653,30 +660,30 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 			h_src = au_plink_lkup(inode, cpg->bdst);
 			err = PTR_ERR(h_src);
 			if (IS_ERR(h_src))
-				goto out;
+				goto out_parent;
 			if (unlikely(!h_src->d_inode)) {
 				err = -EIO;
 				AuIOErr("i%lu exists on a upper branch "
 					"but not pseudo-linked\n",
 					inode->i_ino);
 				dput(h_src);
-				goto out;
+				goto out_parent;
 			}
 
 			if (do_dt) {
-				h_path.dentry = h_parent;
-				au_dtime_store(&dt, dst_parent, &h_path);
+				a->h_path.dentry = h_parent;
+				au_dtime_store(&a->dt, dst_parent, &a->h_path);
 			}
 
-			h_path.dentry = h_dst;
-			err = vfsub_link(h_src, h_dir, &h_path);
+			a->h_path.dentry = h_dst;
+			err = vfsub_link(h_src, h_dir, &a->h_path);
 			if (!err && au_ftest_cpup(cpg->flags, RENAME))
 				err = au_do_ren_after_cpup
-					(cpg->dentry, cpg->bdst, &h_path);
+					(cpg->dentry, cpg->bdst, &a->h_path);
 			if (do_dt)
-				au_dtime_revert(&dt);
+				au_dtime_revert(&a->dt);
 			dput(h_src);
-			goto out;
+			goto out_parent;
 		} else
 			/* todo: cpup_wh_file? */
 			/* udba work */
@@ -685,7 +692,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 
 	isdir = S_ISDIR(inode->i_mode);
 	old_ibstart = au_ibstart(inode);
-	err = cpup_entry(cpg, dst_parent, &h_src_attr);
+	err = cpup_entry(cpg, dst_parent, &a->h_src_attr);
 	if (unlikely(err))
 		goto out_rev;
 	dst_inode = h_dst->d_inode;
@@ -693,7 +700,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 	/* todo: necessary? */
 	/* au_pin_hdir_unlock(cpg->pin); */
 
-	err = cpup_iattr(cpg->dentry, cpg->bdst, h_src, &h_src_attr);
+	err = cpup_iattr(cpg->dentry, cpg->bdst, h_src, &a->h_src_attr);
 	if (unlikely(err)) {
 		/* todo: necessary? */
 		/* au_pin_hdir_relock(cpg->pin); */ /* ignore an error */
@@ -728,31 +735,33 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 		au_plink_append(inode, cpg->bdst, h_dst);
 
 	if (au_ftest_cpup(cpg->flags, RENAME)) {
-		h_path.dentry = h_dst;
-		err = au_do_ren_after_cpup(cpg->dentry, cpg->bdst, &h_path);
+		a->h_path.dentry = h_dst;
+		err = au_do_ren_after_cpup(cpg->dentry, cpg->bdst, &a->h_path);
 	}
 	if (!err)
-		goto out; /* success */
+		goto out_parent; /* success */
 
 	/* revert */
 out_rev:
-	h_path.dentry = h_parent;
-	au_dtime_store(&dt, dst_parent, &h_path);
-	h_path.dentry = h_dst;
+	a->h_path.dentry = h_parent;
+	au_dtime_store(&a->dt, dst_parent, &a->h_path);
+	a->h_path.dentry = h_dst;
 	rerr = 0;
 	if (h_dst->d_inode) {
 		if (!isdir)
-			rerr = vfsub_unlink(h_dir, &h_path, /*force*/0);
+			rerr = vfsub_unlink(h_dir, &a->h_path, /*force*/0);
 		else
-			rerr = vfsub_rmdir(h_dir, &h_path);
+			rerr = vfsub_rmdir(h_dir, &a->h_path);
 	}
-	au_dtime_revert(&dt);
+	au_dtime_revert(&a->dt);
 	if (rerr) {
 		AuIOErr("failed removing broken entry(%d, %d)\n", err, rerr);
 		err = -EIO;
 	}
-out:
+out_parent:
 	dput(dst_parent);
+	kfree(a);
+out:
 	return err;
 }
 

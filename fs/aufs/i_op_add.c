@@ -234,46 +234,54 @@ static int add_simple(struct inode *dir, struct dentry *dentry,
 	int err;
 	aufs_bindex_t bstart;
 	unsigned char created;
-	struct au_dtime dt;
-	struct au_pin pin;
-	struct path h_path;
 	struct dentry *wh_dentry, *parent;
 	struct inode *h_dir;
-	struct au_wr_dir_args wr_dir_args = {
-		.force_btgt	= -1,
-		.flags		= AuWrDir_ADD_ENTRY
-	};
+	/* to reuduce stack size */
+	struct {
+		struct au_dtime dt;
+		struct au_pin pin;
+		struct path h_path;
+		struct au_wr_dir_args wr_dir_args;
+	} *a;
 
 	AuDbg("%.*s\n", AuDLNPair(dentry));
 	IMustLock(dir);
 
+	err = -ENOMEM;
+	a = kmalloc(sizeof(*a), GFP_NOFS);
+	if (unlikely(!a))
+		goto out;
+	a->wr_dir_args.force_btgt = -1;
+	a->wr_dir_args.flags = AuWrDir_ADD_ENTRY;
+
 	parent = dentry->d_parent; /* dir inode is locked */
 	err = aufs_read_lock(dentry, AuLock_DW | AuLock_GEN);
 	if (unlikely(err))
-		goto out;
+		goto out_free;
 	err = au_d_may_add(dentry);
 	if (unlikely(err))
 		goto out_unlock;
 	di_write_lock_parent(parent);
-	wh_dentry = lock_hdir_lkup_wh(dentry, &dt, /*src_dentry*/NULL, &pin,
-				      &wr_dir_args);
+	wh_dentry = lock_hdir_lkup_wh(dentry, &a->dt, /*src_dentry*/NULL,
+				      &a->pin, &a->wr_dir_args);
 	err = PTR_ERR(wh_dentry);
 	if (IS_ERR(wh_dentry))
 		goto out_parent;
 
 	bstart = au_dbstart(dentry);
-	h_path.dentry = au_h_dptr(dentry, bstart);
-	h_path.mnt = au_sbr_mnt(dentry->d_sb, bstart);
-	h_dir = au_pinned_h_dir(&pin);
+	a->h_path.dentry = au_h_dptr(dentry, bstart);
+	a->h_path.mnt = au_sbr_mnt(dentry->d_sb, bstart);
+	h_dir = au_pinned_h_dir(&a->pin);
 	switch (arg->type) {
 	case Creat:
-		err = vfsub_create(h_dir, &h_path, arg->u.c.mode);
+		err = vfsub_create(h_dir, &a->h_path, arg->u.c.mode);
 		break;
 	case Symlink:
-		err = vfsub_symlink(h_dir, &h_path, arg->u.s.symname);
+		err = vfsub_symlink(h_dir, &a->h_path, arg->u.s.symname);
 		break;
 	case Mknod:
-		err = vfsub_mknod(h_dir, &h_path, arg->u.m.mode, arg->u.m.dev);
+		err = vfsub_mknod(h_dir, &a->h_path, arg->u.m.mode,
+				  arg->u.m.dev);
 		break;
 	default:
 		BUG();
@@ -283,18 +291,18 @@ static int add_simple(struct inode *dir, struct dentry *dentry,
 		err = epilog(dir, bstart, wh_dentry, dentry);
 
 	/* revert */
-	if (unlikely(created && err && h_path.dentry->d_inode)) {
+	if (unlikely(created && err && a->h_path.dentry->d_inode)) {
 		int rerr;
-		rerr = vfsub_unlink(h_dir, &h_path, /*force*/0);
+		rerr = vfsub_unlink(h_dir, &a->h_path, /*force*/0);
 		if (rerr) {
 			AuIOErr("%.*s revert failure(%d, %d)\n",
 				AuDLNPair(dentry), err, rerr);
 			err = -EIO;
 		}
-		au_dtime_revert(&dt);
+		au_dtime_revert(&a->dt);
 	}
 
-	au_unpin(&pin);
+	au_unpin(&a->pin);
 	dput(wh_dentry);
 
 out_parent:
@@ -305,6 +313,8 @@ out_unlock:
 		d_drop(dentry);
 	}
 	aufs_read_unlock(dentry, AuLock_DW);
+out_free:
+	kfree(a);
 out:
 	return err;
 }
