@@ -27,9 +27,6 @@
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
- *
  * Written or modified by:
  *   La Monte H.P. Yarroll <piggy@acm.org>
  *   Karl Knutson          <karl@athena.chicago.il.us>
@@ -39,9 +36,6 @@
  *   Xingang Guo           <xingang.guo@intel.com>
  *   Sridhar Samudrala     <samudrala@us.ibm.com>
  *   Daisy Chang           <daisyc@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #ifndef __sctp_constants_h__

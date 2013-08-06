@@ -27,9 +27,6 @@
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
- *
  * Written or modified by:
  *    Dinakaran Joseph
  *    Jon Grimm <jgrimm@us.ibm.com>
@@ -37,9 +34,6 @@
  *
  * Rewritten to use libcrc32c by:
  *    Vlad Yasevich <vladislav.yasevich@hp.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #ifndef __sctp_checksum_h__

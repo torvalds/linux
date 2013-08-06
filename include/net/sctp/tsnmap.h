@@ -30,17 +30,11 @@
  * email address(es):
  *    lksctp developers <linux-sctp@vger.kernel.org>
  *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
- *
  * Written or modified by:
  *   Jon Grimm             <jgrimm@us.ibm.com>
  *   La Monte H.P. Yarroll <piggy@acm.org>
  *   Karl Knutson          <karl@athena.chicago.il.us>
  *   Sridhar Samudrala     <sri@us.ibm.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 #include <net/sctp/constants.h>
 
