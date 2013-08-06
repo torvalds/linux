@@ -23,6 +23,9 @@ enum hdmi_infoframe_type {
 #define HDMI_SPD_INFOFRAME_SIZE    25
 #define HDMI_AUDIO_INFOFRAME_SIZE  10
 
+#define HDMI_INFOFRAME_SIZE(type)	\
+	(HDMI_INFOFRAME_HEADER_SIZE + HDMI_ ## type ## _INFOFRAME_SIZE)
+
 struct hdmi_any_infoframe {
 	enum hdmi_infoframe_type type;
 	unsigned char version;
