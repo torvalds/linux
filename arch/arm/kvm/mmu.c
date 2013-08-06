@@ -132,37 +132,37 @@ static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long long addr = start, end = start + size;
-	u64 range;
+	u64 next;
 
 	while (addr < end) {
 		pgd = pgdp + pgd_index(addr);
 		pud = pud_offset(pgd, addr);
 		if (pud_none(*pud)) {
-			addr += PUD_SIZE;
+			addr = pud_addr_end(addr, end);
 			continue;
 		}
 
 		pmd = pmd_offset(pud, addr);
 		if (pmd_none(*pmd)) {
-			addr += PMD_SIZE;
+			addr = pmd_addr_end(addr, end);
 			continue;
 		}
 
 		pte = pte_offset_kernel(pmd, addr);
 		clear_pte_entry(kvm, pte, addr);
-		range = PAGE_SIZE;
+		next = addr + PAGE_SIZE;
 
 		/* If we emptied the pte, walk back up the ladder */
 		if (pte_empty(pte)) {
 			clear_pmd_entry(kvm, pmd, addr);
-			range = PMD_SIZE;
+			next = pmd_addr_end(addr, end);
 			if (pmd_empty(pmd)) {
 				clear_pud_entry(kvm, pud, addr);
-				range = PUD_SIZE;
+				next = pud_addr_end(addr, end);
 			}
 		}
 
-		addr += range;
+		addr = next;
 	}
 }
 
