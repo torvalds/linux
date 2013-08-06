@@ -261,6 +261,16 @@ config PINCTRL_EXYNOS5440
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_PALMAS
+	bool "Pinctrl driver for the PALMA Series MFD devices"
+	depends on OF && MFD_PALMAS
+	select GENERIC_PINCONF
+	help
+	  Palmas device supports the configuration of pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the Palmas series devices like
+	  TPS65913, TPS80036 etc.
+
 config PINCTRL_S3C24XX
 	bool "Samsung S3C24XX SoC pinctrl driver"
 	depends on ARCH_S3C24XX
