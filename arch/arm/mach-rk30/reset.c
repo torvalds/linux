@@ -8,6 +8,25 @@
 #include <mach/board.h>
 #include <mach/pmu.h>
 
+static bool is_panic = false;
+
+static int panic_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+	is_panic = true;
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block panic_block = {
+	.notifier_call	= panic_event,
+};
+
+static int __init arch_reset_init(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	return 0;
+}
+core_initcall(arch_reset_init);
+
 static void rk30_arch_reset(char mode, const char *cmd)
 {
 	u32 boot_flag = 0;
@@ -21,7 +40,7 @@ static void rk30_arch_reset(char mode, const char *cmd)
 		else if (!strcmp(cmd, "charge"))
 			boot_mode = BOOT_MODE_CHARGE;
 	} else {
-		if (system_state != SYSTEM_RESTART)
+		if (is_panic)
 			boot_mode = BOOT_MODE_PANIC;
 	}
 	writel_relaxed(boot_flag, RK30_PMU_BASE + PMU_SYS_REG0);	// for loader
