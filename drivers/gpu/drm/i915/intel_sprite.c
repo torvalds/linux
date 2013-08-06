@@ -154,6 +154,8 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	/* Activate double buffered register update */
 	I915_MODIFY_DISPBASE(SPSURF(pipe, plane), 0);
 	POSTING_READ(SPSURF(pipe, plane));
+
+	intel_update_sprite_watermarks(dplane, crtc, 0, 0, false, false);
 }
 
 static int
@@ -504,6 +506,8 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	/* Flush double buffered register updates */
 	I915_MODIFY_DISPBASE(DVSSURF(pipe), 0);
 	POSTING_READ(DVSSURF(pipe));
+
+	intel_update_sprite_watermarks(plane, crtc, 0, 0, false, false);
 }
 
 static void
