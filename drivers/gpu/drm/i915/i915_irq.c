@@ -1373,6 +1373,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
+	bool err_int_reenable = false;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -1401,7 +1402,9 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	 * handler. */
 	if (IS_HASWELL(dev)) {
 		spin_lock(&dev_priv->irq_lock);
-		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		err_int_reenable = ~dev_priv->irq_mask & DE_ERR_INT_IVB;
+		if (err_int_reenable)
+			ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
 		spin_unlock(&dev_priv->irq_lock);
 	}
 
@@ -1437,7 +1440,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		}
 	}
 
-	if (IS_HASWELL(dev)) {
+	if (err_int_reenable) {
 		spin_lock(&dev_priv->irq_lock);
 		if (ivb_can_enable_err_int(dev))
 			ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
