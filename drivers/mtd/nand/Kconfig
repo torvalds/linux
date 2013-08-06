@@ -433,13 +433,6 @@ config MTD_NAND_PLATFORM
 	  devices. You will need to provide platform-specific functions
 	  via platform_data.
 
-config MTD_ALAUDA
-	tristate "MTD driver for Olympus MAUSB-10 and Fujifilm DPC-R1"
-	depends on USB
-	help
-	  These two (and possibly other) Alauda-based cardreaders for
-	  SmartMedia and xD allow raw flash access.
-
 config MTD_NAND_ORION
 	tristate "NAND Flash support for Marvell Orion SoC"
 	depends on PLAT_ORION
