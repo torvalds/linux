@@ -437,6 +437,7 @@ void __init smp_setup_cpu_maps(void)
 
 	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < nr_cpu_ids) {
 		const __be32 *intserv;
+		__be32 cpu_be;
 		int j, len;
 
 		DBG("  * %s...\n", dn->full_name);
@@ -450,8 +451,10 @@ void __init smp_setup_cpu_maps(void)
 		} else {
 			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
 			intserv = of_get_property(dn, "reg", NULL);
-			if (!intserv)
-				intserv = &cpu;	/* assume logical == phys */
+			if (!intserv) {
+				cpu_be = cpu_to_be32(cpu);
+				intserv = &cpu_be;	/* assume logical == phys */
+			}
 		}
 
 		for (j = 0; j < nthreads && cpu < nr_cpu_ids; j++) {
