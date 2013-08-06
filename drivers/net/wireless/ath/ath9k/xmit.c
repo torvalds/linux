@@ -906,9 +906,9 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 {
 #define PADBYTES(_len) ((4 - ((_len) % 4)) % 4)
 	struct ath_buf *bf, *bf_first = NULL, *bf_prev = NULL;
-	int rl = 0, nframes = 0, ndelim, prev_al = 0;
+	int nframes = 0, ndelim;
 	u16 aggr_limit = 0, al = 0, bpad = 0,
-		al_delta, h_baw = tid->baw_size / 2;
+	    al_delta, h_baw = tid->baw_size / 2;
 	enum ATH_AGGR_STATUS status = ATH_AGGR_DONE;
 	struct ieee80211_tx_info *tx_info;
 	struct ath_frame_info *fi;
@@ -925,33 +925,24 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		skb = bf->bf_mpdu;
 		fi = get_frame_info(skb);
 
-		if (!bf_first)
+		if (!bf_first) {
 			bf_first = bf;
-
-		if (!rl) {
 			ath_set_rates(tid->an->vif, tid->an->sta, bf);
 			aggr_limit = ath_lookup_rate(sc, bf, tid);
-			rl = 1;
 		}
 
 		/* do not exceed aggregation limit */
 		al_delta = ATH_AGGR_DELIM_SZ + fi->framelen;
+		if (nframes) {
+			if (aggr_limit < al + bpad + al_delta ||
+			    ath_lookup_legacy(bf) || nframes >= h_baw) {
+				status = ATH_AGGR_LIMITED;
+				break;
+			}
 
-		if (nframes &&
-		    ((aggr_limit < (al + bpad + al_delta + prev_al)) ||
-		     ath_lookup_legacy(bf))) {
-			status = ATH_AGGR_LIMITED;
-			break;
-		}
-
-		tx_info = IEEE80211_SKB_CB(bf->bf_mpdu);
-		if (nframes && (tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE))
-			break;
-
-		/* do not exceed subframe limit */
-		if (nframes >= min((int)h_baw, ATH_AMPDU_SUBFRAME_DEFAULT)) {
-			status = ATH_AGGR_LIMITED;
-			break;
+			tx_info = IEEE80211_SKB_CB(bf->bf_mpdu);
+			if (tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
+				break;
 		}
 
 		/* add padding for previous frame to aggregation length */
