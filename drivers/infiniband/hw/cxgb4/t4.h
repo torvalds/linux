@@ -47,7 +47,7 @@
 #define T4_MAX_QP_DEPTH (T4_MAX_RQ_SIZE - 1)
 #define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
 #define T4_MAX_NUM_STAG (1<<15)
-#define T4_MAX_MR_SIZE (~0ULL - 1)
+#define T4_MAX_MR_SIZE (~0ULL)
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
