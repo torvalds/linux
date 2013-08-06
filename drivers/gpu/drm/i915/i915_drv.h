@@ -1055,6 +1055,11 @@ struct intel_vbt_data {
 	struct child_device_config *child_dev;
 };
 
+enum intel_ddb_partitioning {
+	INTEL_DDB_PART_1_2,
+	INTEL_DDB_PART_5_6, /* IVB+ */
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
