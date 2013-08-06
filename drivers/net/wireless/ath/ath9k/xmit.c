@@ -225,7 +225,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 			}
 		}
 
-		if (fi->retries) {
+		if (fi->baw_tracked) {
 			list_add_tail(&bf->list, &bf_head);
 			ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
@@ -262,13 +262,16 @@ static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 }
 
 static void ath_tx_addto_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
-			     u16 seqno)
+			     struct ath_buf *bf)
 {
+	struct ath_frame_info *fi = get_frame_info(bf->bf_mpdu);
+	u16 seqno = bf->bf_state.seqno;
 	int index, cindex;
 
 	index  = ATH_BA_INDEX(tid->seq_start, seqno);
 	cindex = (tid->baw_head + index) & (ATH_TID_MAX_BUFS - 1);
 	__set_bit(cindex, tid->tx_buf);
+	fi->baw_tracked = 1;
 
 	if (index >= ((tid->baw_tail - tid->baw_head) &
 		(ATH_TID_MAX_BUFS - 1))) {
@@ -960,8 +963,8 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 		bf->bf_next = NULL;
 
 		/* link buffers of this frame to the aggregate */
-		if (!fi->retries)
-			ath_tx_addto_baw(sc, tid, bf->bf_state.seqno);
+		if (!fi->baw_tracked)
+			ath_tx_addto_baw(sc, tid, bf);
 		bf->bf_state.ndelim = ndelim;
 
 		__skb_unlink(skb, tid_q);
@@ -1479,7 +1482,7 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 			__skb_unlink(bf->bf_mpdu, tid_q);
 			list_add_tail(&bf->list, &bf_q);
 			ath_set_rates(tid->an->vif, tid->an->sta, bf);
-			ath_tx_addto_baw(sc, tid, bf->bf_state.seqno);
+			ath_tx_addto_baw(sc, tid, bf);
 			bf->bf_state.bf_type &= ~BUF_AGGR;
 			if (bf_tail)
 				bf_tail->bf_next = bf;
@@ -1912,7 +1915,7 @@ static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_txq *txq,
 	list_add(&bf->list, &bf_head);
 
 	/* Add sub-frame to BAW */
-	ath_tx_addto_baw(sc, tid, bf->bf_state.seqno);
+	ath_tx_addto_baw(sc, tid, bf);
 
 	/* Queue to h/w without aggregation */
 	TX_STAT_INC(txq->axq_qnum, a_queued_hw);

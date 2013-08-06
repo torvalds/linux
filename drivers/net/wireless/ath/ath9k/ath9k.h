@@ -211,8 +211,9 @@ struct ath_frame_info {
 	int framelen;
 	enum ath9k_key_type keytype;
 	u8 keyix;
-	u8 retries;
 	u8 rtscts_rate;
+	u8 retries : 7;
+	u8 baw_tracked : 1;
 };
 
 struct ath_buf_state {
