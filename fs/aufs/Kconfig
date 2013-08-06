@@ -180,7 +180,7 @@ config AUFS_BR_HFSPLUS
 
 config AUFS_BDEV_LOOP
 	bool
-	depends on BLK_DEV_LOOP = y
+	depends on BLK_DEV_LOOP
 	default y
 	help
 	Automatic configuration for internal use.
