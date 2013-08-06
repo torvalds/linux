@@ -1164,6 +1164,8 @@
 #              define	ADDR_SURF_P8_32x32_16x16		12
 #              define	ADDR_SURF_P8_32x32_16x32		13
 #              define	ADDR_SURF_P8_32x64_32x32		14
+#              define	ADDR_SURF_P16_32x32_8x16		16
+#              define	ADDR_SURF_P16_32x32_16x16		17
 #       define TILE_SPLIT(x)					((x) << 11)
 #              define	ADDR_SURF_TILE_SPLIT_64B		0
 #              define	ADDR_SURF_TILE_SPLIT_128B		1
