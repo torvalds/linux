@@ -493,33 +493,6 @@ static int bond_vlan_rx_kill_vid(struct net_device *bond_dev,
 	return 0;
 }
 
-static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *slave_dev)
-{
-	struct vlan_entry *vlan;
-	int res;
-
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		res = vlan_vid_add(slave_dev, htons(ETH_P_8021Q),
-				   vlan->vlan_id);
-		if (res)
-			pr_warning("%s: Failed to add vlan id %d to device %s\n",
-				   bond->dev->name, vlan->vlan_id,
-				   slave_dev->name);
-	}
-}
-
-static void bond_del_vlans_from_slave(struct bonding *bond,
-				      struct net_device *slave_dev)
-{
-	struct vlan_entry *vlan;
-
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		if (!vlan->vlan_id)
-			continue;
-		vlan_vid_del(slave_dev, htons(ETH_P_8021Q), vlan->vlan_id);
-	}
-}
-
 /*------------------------------- Link status -------------------------------*/
 
 /*
@@ -1630,7 +1603,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		dev_mc_add(slave_dev, lacpdu_multicast);
 	}
 
-	bond_add_vlans_on_slave(bond, slave_dev);
+	if (vlan_vids_add_by_dev(slave_dev, bond_dev)) {
+		pr_err("%s: Error: Couldn't add bond vlan ids to %s\n",
+		       bond_dev->name, slave_dev->name);
+		goto err_close;
+	}
 
 	write_lock_bh(&bond->lock);
 
@@ -1806,7 +1783,7 @@ err_detach:
 	if (!USES_PRIMARY(bond->params.mode))
 		bond_hw_addr_flush(bond_dev, slave_dev);
 
-	bond_del_vlans_from_slave(bond, slave_dev);
+	vlan_vids_del_by_dev(slave_dev, bond_dev);
 	write_lock_bh(&bond->lock);
 	bond_detach_slave(bond, new_slave);
 	if (bond->primary_slave == new_slave)
@@ -2002,7 +1979,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 	/* must do this from outside any spinlocks */
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
 
-	bond_del_vlans_from_slave(bond, slave_dev);
+	vlan_vids_del_by_dev(slave_dev, bond_dev);
 
 	/* If the mode USES_PRIMARY, then this cases was handled above by
 	 * bond_change_active_slave(..., NULL)
