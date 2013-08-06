@@ -2095,6 +2095,8 @@ struct radeon_device {
 	/* ACPI interface */
 	struct radeon_atif		atif;
 	struct radeon_atcs		atcs;
+	/* srbm instance registers */
+	struct mutex			srbm_mutex;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
