@@ -170,12 +170,18 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 
 static bool ath_tid_has_buffered(struct ath_atx_tid *tid)
 {
-	return !skb_queue_empty(&tid->buf_q);
+	return !skb_queue_empty(&tid->buf_q) || !skb_queue_empty(&tid->retry_q);
 }
 
 static struct sk_buff *ath_tid_dequeue(struct ath_atx_tid *tid)
 {
-	return __skb_dequeue(&tid->buf_q);
+	struct sk_buff *skb;
+
+	skb = __skb_dequeue(&tid->retry_q);
+	if (!skb)
+		skb = __skb_dequeue(&tid->buf_q);
+
+	return skb;
 }
 
 static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
@@ -593,7 +599,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		if (an->sleeping)
 			ieee80211_sta_set_buffered(sta, tid->tidno, true);
 
-		skb_queue_splice(&bf_pending, &tid->buf_q);
+		skb_queue_splice_tail(&bf_pending, &tid->retry_q);
 		if (!an->sleeping) {
 			ath_tx_queue_tid(txq, tid);
 
@@ -833,7 +839,10 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 	u16 seqno;
 
 	while (1) {
-		*q = &tid->buf_q;
+		*q = &tid->retry_q;
+		if (skb_queue_empty(*q))
+			*q = &tid->buf_q;
+
 		skb = skb_peek(*q);
 		if (!skb)
 			break;
@@ -2636,6 +2645,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 		tid->paused    = false;
 		tid->active	   = false;
 		__skb_queue_head_init(&tid->buf_q);
+		__skb_queue_head_init(&tid->retry_q);
 		acno = TID_TO_WME_AC(tidno);
 		tid->ac = &an->ac[acno];
 	}
