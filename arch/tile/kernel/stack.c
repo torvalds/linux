@@ -103,8 +103,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 		if (kbt->verbose)
 			pr_err("  <%s while in kernel mode>\n", fault);
 	} else if (EX1_PL(p->ex1) == USER_PL &&
-	    p->pc < PAGE_OFFSET &&
-	    p->sp < PAGE_OFFSET) {
+		   p->sp < PAGE_OFFSET && p->sp != 0) {
 		if (kbt->verbose)
 			pr_err("  <%s while in user mode>\n", fault);
 	} else if (kbt->verbose) {
@@ -352,6 +351,26 @@ static void describe_addr(struct KBacktraceIterator *kbt,
 }
 
 /*
+ * Avoid possible crash recursion during backtrace.  If it happens, it
+ * makes it easy to lose the actual root cause of the failure, so we
+ * put a simple guard on all the backtrace loops.
+ */
+static bool start_backtrace(void)
+{
+	if (current->thread.in_backtrace) {
+		pr_err("Backtrace requested while in backtrace!\n");
+		return false;
+	}
+	current->thread.in_backtrace = true;
+	return true;
+}
+
+static void end_backtrace(void)
+{
+	current->thread.in_backtrace = false;
+}
+
+/*
  * This method wraps the backtracer's more generic support.
  * It is only invoked from the architecture-specific code; show_stack()
  * and dump_stack() (in entry.S) are architecture-independent entry points.
@@ -361,6 +380,8 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 	int i;
 	int have_mmap_sem = 0;
 
+	if (!start_backtrace())
+		return;
 	if (headers) {
 		/*
 		 * Add a blank line since if we are called from panic(),
@@ -402,6 +423,7 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		pr_err("Stack dump complete\n");
 	if (have_mmap_sem)
 		up_read(&kbt->task->mm->mmap_sem);
+	end_backtrace();
 }
 EXPORT_SYMBOL(tile_show_stack);
 
@@ -463,6 +485,8 @@ void save_stack_trace_tsk(struct task_struct *task, struct stack_trace *trace)
 	int skip = trace->skip;
 	int i = 0;
 
+	if (!start_backtrace())
+		goto done;
 	if (task == NULL || task == current)
 		KBacktraceIterator_init_current(&kbt);
 	else
@@ -476,6 +500,8 @@ void save_stack_trace_tsk(struct task_struct *task, struct stack_trace *trace)
 			break;
 		trace->entries[i++] = kbt.it.pc;
 	}
+	end_backtrace();
+done:
 	trace->nr_entries = i;
 }
 EXPORT_SYMBOL(save_stack_trace_tsk);
