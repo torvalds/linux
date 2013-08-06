@@ -572,7 +572,7 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev,
 	if (daddr)
 		memcpy(&iph->daddr, daddr, 4);
 	if (iph->daddr)
-		return t->hlen;
+		return t->hlen + sizeof(*iph);
 
 	return -(t->hlen + sizeof(*iph));
 }
