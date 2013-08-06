@@ -160,12 +160,12 @@ struct __prelim_ref {
 
 static int __add_prelim_ref(struct list_head *head, u64 root_id,
 			    struct btrfs_key *key, int level,
-			    u64 parent, u64 wanted_disk_byte, int count)
+			    u64 parent, u64 wanted_disk_byte, int count,
+			    gfp_t gfp_mask)
 {
 	struct __prelim_ref *ref;
 
-	/* in case we're adding delayed refs, we're holding the refs spinlock */
-	ref = kmalloc(sizeof(*ref), GFP_ATOMIC);
+	ref = kmalloc(sizeof(*ref), gfp_mask);
 	if (!ref)
 		return -ENOMEM;
 
@@ -547,7 +547,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			ref = btrfs_delayed_node_to_tree_ref(node);
 			ret = __add_prelim_ref(prefs, ref->root, &op_key,
 					       ref->level + 1, 0, node->bytenr,
-					       node->ref_mod * sgn);
+					       node->ref_mod * sgn, GFP_ATOMIC);
 			break;
 		}
 		case BTRFS_SHARED_BLOCK_REF_KEY: {
@@ -557,7 +557,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			ret = __add_prelim_ref(prefs, ref->root, NULL,
 					       ref->level + 1, ref->parent,
 					       node->bytenr,
-					       node->ref_mod * sgn);
+					       node->ref_mod * sgn, GFP_ATOMIC);
 			break;
 		}
 		case BTRFS_EXTENT_DATA_REF_KEY: {
@@ -569,7 +569,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			key.offset = ref->offset;
 			ret = __add_prelim_ref(prefs, ref->root, &key, 0, 0,
 					       node->bytenr,
-					       node->ref_mod * sgn);
+					       node->ref_mod * sgn, GFP_ATOMIC);
 			break;
 		}
 		case BTRFS_SHARED_DATA_REF_KEY: {
@@ -582,7 +582,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			key.offset = ref->offset;
 			ret = __add_prelim_ref(prefs, ref->root, &key, 0,
 					       ref->parent, node->bytenr,
-					       node->ref_mod * sgn);
+					       node->ref_mod * sgn, GFP_ATOMIC);
 			break;
 		}
 		default:
@@ -656,7 +656,7 @@ static int __add_inline_refs(struct btrfs_fs_info *fs_info,
 		case BTRFS_SHARED_BLOCK_REF_KEY:
 			ret = __add_prelim_ref(prefs, 0, NULL,
 						*info_level + 1, offset,
-						bytenr, 1);
+						bytenr, 1, GFP_NOFS);
 			break;
 		case BTRFS_SHARED_DATA_REF_KEY: {
 			struct btrfs_shared_data_ref *sdref;
@@ -665,13 +665,13 @@ static int __add_inline_refs(struct btrfs_fs_info *fs_info,
 			sdref = (struct btrfs_shared_data_ref *)(iref + 1);
 			count = btrfs_shared_data_ref_count(leaf, sdref);
 			ret = __add_prelim_ref(prefs, 0, NULL, 0, offset,
-					       bytenr, count);
+					       bytenr, count, GFP_NOFS);
 			break;
 		}
 		case BTRFS_TREE_BLOCK_REF_KEY:
 			ret = __add_prelim_ref(prefs, offset, NULL,
 					       *info_level + 1, 0,
-					       bytenr, 1);
+					       bytenr, 1, GFP_NOFS);
 			break;
 		case BTRFS_EXTENT_DATA_REF_KEY: {
 			struct btrfs_extent_data_ref *dref;
@@ -686,7 +686,7 @@ static int __add_inline_refs(struct btrfs_fs_info *fs_info,
 			key.offset = btrfs_extent_data_ref_offset(leaf, dref);
 			root = btrfs_extent_data_ref_root(leaf, dref);
 			ret = __add_prelim_ref(prefs, root, &key, 0, 0,
-					       bytenr, count);
+					       bytenr, count, GFP_NOFS);
 			break;
 		}
 		default:
@@ -737,7 +737,7 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
 		case BTRFS_SHARED_BLOCK_REF_KEY:
 			ret = __add_prelim_ref(prefs, 0, NULL,
 						info_level + 1, key.offset,
-						bytenr, 1);
+						bytenr, 1, GFP_NOFS);
 			break;
 		case BTRFS_SHARED_DATA_REF_KEY: {
 			struct btrfs_shared_data_ref *sdref;
@@ -747,13 +747,13 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
 					      struct btrfs_shared_data_ref);
 			count = btrfs_shared_data_ref_count(leaf, sdref);
 			ret = __add_prelim_ref(prefs, 0, NULL, 0, key.offset,
-						bytenr, count);
+						bytenr, count, GFP_NOFS);
 			break;
 		}
 		case BTRFS_TREE_BLOCK_REF_KEY:
 			ret = __add_prelim_ref(prefs, key.offset, NULL,
 					       info_level + 1, 0,
-					       bytenr, 1);
+					       bytenr, 1, GFP_NOFS);
 			break;
 		case BTRFS_EXTENT_DATA_REF_KEY: {
 			struct btrfs_extent_data_ref *dref;
@@ -769,7 +769,7 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
 			key.offset = btrfs_extent_data_ref_offset(leaf, dref);
 			root = btrfs_extent_data_ref_root(leaf, dref);
 			ret = __add_prelim_ref(prefs, root, &key, 0, 0,
-					       bytenr, count);
+					       bytenr, count, GFP_NOFS);
 			break;
 		}
 		default:
