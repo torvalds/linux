@@ -22,6 +22,9 @@
 
 #include "aufs.h"
 
+/* added into drivers/block/loop.c */
+static struct file *(*backing_file_func)(struct super_block *sb);
+
 /*
  * test if two lower dentries have overlapping branches.
  */
@@ -31,7 +34,7 @@ int au_test_loopback_overlap(struct super_block *sb, struct dentry *h_adding)
 	struct file *backing_file;
 
 	h_sb = h_adding->d_sb;
-	backing_file = loop_backing_file(h_sb);
+	backing_file = backing_file_func(h_sb);
 	if (!backing_file)
 		return 0;
 
@@ -119,16 +122,26 @@ int au_loopback_init(void)
 
 	AuDebugOn(sizeof(sb->s_magic) != sizeof(unsigned long));
 
-	err = 0;
+	err = -ENOMEM;
 	au_warn_loopback_array = kcalloc(au_warn_loopback_step,
 					 sizeof(unsigned long), GFP_NOFS);
 	if (unlikely(!au_warn_loopback_array))
-		err = -ENOMEM;
+		goto out;
 
+	err = 0;
+	backing_file_func = symbol_get(loop_backing_file);
+	if (backing_file_func)
+		goto out; /* success */
+
+	pr_err("loop_backing_file() is not defined\n");
+	err = -ENOSYS;
+	kfree(au_warn_loopback_array);
+out:
 	return err;
 }
 
 void au_loopback_fin(void)
 {
+	symbol_put(loop_backing_file);
 	kfree(au_warn_loopback_array);
 }
