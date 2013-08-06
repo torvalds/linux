@@ -284,8 +284,10 @@ int acpi_unbind_one(struct device *dev)
 		return 0;
 
 	status = acpi_bus_get_device(ACPI_HANDLE(dev), &acpi_dev);
-	if (ACPI_FAILURE(status))
-		goto err;
+	if (ACPI_FAILURE(status)) {
+		dev_err(dev, "Oops, ACPI handle corrupt in %s()\n", __func__);
+		return -EINVAL;
+	}
 
 	mutex_lock(&acpi_dev->physical_node_lock);
 
@@ -307,12 +309,7 @@ int acpi_unbind_one(struct device *dev)
 		}
 
 	mutex_unlock(&acpi_dev->physical_node_lock);
-
 	return 0;
-
-err:
-	dev_err(dev, "Oops, 'acpi_handle' corrupt\n");
-	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(acpi_unbind_one);
 
