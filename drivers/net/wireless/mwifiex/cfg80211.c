@@ -2455,6 +2455,119 @@ static void mwifiex_cfg80211_set_wakeup(struct wiphy *wiphy,
 }
 #endif
 
+static int mwifiex_get_coalesce_pkt_type(u8 *byte_seq)
+{
+	const u8 ipv4_mc_mac[] = {0x33, 0x33};
+	const u8 ipv6_mc_mac[] = {0x01, 0x00, 0x5e};
+	const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff};
+
+	if ((byte_seq[0] & 0x01) &&
+	    (byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ] == 1))
+		return PACKET_TYPE_UNICAST;
+	else if (!memcmp(byte_seq, bc_mac, 4))
+		return PACKET_TYPE_BROADCAST;
+	else if ((!memcmp(byte_seq, ipv4_mc_mac, 2) &&
+		  byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ] == 2) ||
+		 (!memcmp(byte_seq, ipv6_mc_mac, 3) &&
+		  byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ] == 3))
+		return PACKET_TYPE_MULTICAST;
+
+	return 0;
+}
+
+static int
+mwifiex_fill_coalesce_rule_info(struct mwifiex_private *priv,
+				struct cfg80211_coalesce_rules *crule,
+				struct mwifiex_coalesce_rule *mrule)
+{
+	u8 byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ + 1];
+	struct filt_field_param *param;
+	int i;
+
+	mrule->max_coalescing_delay = crule->delay;
+
+	param = mrule->params;
+
+	for (i = 0; i < crule->n_patterns; i++) {
+		memset(byte_seq, 0, sizeof(byte_seq));
+		if (!mwifiex_is_pattern_supported(&crule->patterns[i],
+						  byte_seq,
+						MWIFIEX_COALESCE_MAX_BYTESEQ)) {
+			dev_err(priv->adapter->dev, "Pattern not supported\n");
+			return -EOPNOTSUPP;
+		}
+
+		if (!crule->patterns[i].pkt_offset) {
+			u8 pkt_type;
+
+			pkt_type = mwifiex_get_coalesce_pkt_type(byte_seq);
+			if (pkt_type && mrule->pkt_type) {
+				dev_err(priv->adapter->dev,
+					"Multiple packet types not allowed\n");
+				return -EOPNOTSUPP;
+			} else if (pkt_type) {
+				mrule->pkt_type = pkt_type;
+				continue;
+			}
+		}
+
+		if (crule->condition == NL80211_COALESCE_CONDITION_MATCH)
+			param->operation = RECV_FILTER_MATCH_TYPE_EQ;
+		else
+			param->operation = RECV_FILTER_MATCH_TYPE_NE;
+
+		param->operand_len = byte_seq[MWIFIEX_COALESCE_MAX_BYTESEQ];
+		memcpy(param->operand_byte_stream, byte_seq,
+		       param->operand_len);
+		param->offset = crule->patterns[i].pkt_offset;
+		param++;
+
+		mrule->num_of_fields++;
+	}
+
+	if (!mrule->pkt_type) {
+		dev_err(priv->adapter->dev,
+			"Packet type can not be determined\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int mwifiex_cfg80211_set_coalesce(struct wiphy *wiphy,
+					 struct cfg80211_coalesce *coalesce)
+{
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	int i, ret;
+	struct mwifiex_ds_coalesce_cfg coalesce_cfg;
+	struct mwifiex_private *priv =
+			mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+
+	memset(&coalesce_cfg, 0, sizeof(coalesce_cfg));
+	if (!coalesce) {
+		dev_dbg(adapter->dev,
+			"Disable coalesce and reset all previous rules\n");
+		return mwifiex_send_cmd_sync(priv, HostCmd_CMD_COALESCE_CFG,
+					     HostCmd_ACT_GEN_SET, 0,
+					     &coalesce_cfg);
+	}
+
+	coalesce_cfg.num_of_rules = coalesce->n_rules;
+	for (i = 0; i < coalesce->n_rules; i++) {
+		ret = mwifiex_fill_coalesce_rule_info(priv, &coalesce->rules[i],
+						      &coalesce_cfg.rule[i]);
+		if (ret) {
+			dev_err(priv->adapter->dev,
+				"Recheck the patterns provided for rule %d\n",
+				i + 1);
+			return ret;
+		}
+	}
+
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_COALESCE_CFG,
+				     HostCmd_ACT_GEN_SET, 0, &coalesce_cfg);
+}
+
 /* station cfg80211 operations */
 static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.add_virtual_intf = mwifiex_add_virtual_intf,
@@ -2488,6 +2601,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.suspend = mwifiex_cfg80211_suspend,
 	.resume = mwifiex_cfg80211_resume,
 	.set_wakeup = mwifiex_cfg80211_set_wakeup,
+	.set_coalesce = mwifiex_cfg80211_set_coalesce,
 #endif
 };
 
@@ -2511,6 +2625,15 @@ static bool mwifiex_is_valid_alpha2(const char *alpha2)
 
 	return false;
 }
+
+static const struct wiphy_coalesce_support mwifiex_coalesce_support = {
+	.n_rules = MWIFIEX_COALESCE_MAX_RULES,
+	.max_delay = MWIFIEX_MAX_COALESCING_DELAY,
+	.n_patterns = MWIFIEX_COALESCE_MAX_FILTERS,
+	.pattern_min_len = 1,
+	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
+	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,
+};
 
 /*
  * This function registers the device with CFG802.11 subsystem.
@@ -2572,6 +2695,8 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 #ifdef CONFIG_PM
 	wiphy->wowlan = &mwifiex_wowlan_support;
 #endif
+
+	wiphy->coalesce = &mwifiex_coalesce_support;
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |

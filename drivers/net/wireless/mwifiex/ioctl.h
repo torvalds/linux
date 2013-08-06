@@ -397,4 +397,39 @@ enum {
 	MWIFIEX_FUNC_SHUTDOWN,
 };
 
+enum COALESCE_OPERATION {
+	RECV_FILTER_MATCH_TYPE_EQ = 0x80,
+	RECV_FILTER_MATCH_TYPE_NE,
+};
+
+enum COALESCE_PACKET_TYPE {
+	PACKET_TYPE_UNICAST = 1,
+	PACKET_TYPE_MULTICAST = 2,
+	PACKET_TYPE_BROADCAST = 3
+};
+
+#define MWIFIEX_COALESCE_MAX_RULES	8
+#define MWIFIEX_COALESCE_MAX_BYTESEQ	4	/* non-adjustable */
+#define MWIFIEX_COALESCE_MAX_FILTERS	4
+#define MWIFIEX_MAX_COALESCING_DELAY	100     /* in msecs */
+
+struct filt_field_param {
+	u8 operation;
+	u8 operand_len;
+	u16 offset;
+	u8 operand_byte_stream[MWIFIEX_COALESCE_MAX_BYTESEQ];
+};
+
+struct mwifiex_coalesce_rule {
+	u16 max_coalescing_delay;
+	u8 num_of_fields;
+	u8 pkt_type;
+	struct filt_field_param params[MWIFIEX_COALESCE_MAX_FILTERS];
+};
+
+struct mwifiex_ds_coalesce_cfg {
+	u16 num_of_rules;
+	struct mwifiex_coalesce_rule rule[MWIFIEX_COALESCE_MAX_RULES];
+};
+
 #endif /* !_MWIFIEX_IOCTL_H_ */
