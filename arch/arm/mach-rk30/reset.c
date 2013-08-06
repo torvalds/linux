@@ -43,8 +43,13 @@ static void rk30_arch_reset(char mode, const char *cmd)
 		if (is_panic)
 			boot_mode = BOOT_MODE_PANIC;
 	}
+#ifndef RK30_PMU_BASE
+	writel_relaxed(boot_flag, RK30_GRF_BASE + GRF_OS_REG4);	// for loader
+	writel_relaxed(boot_mode, RK30_GRF_BASE + GRF_OS_REG5);	// for linux
+#else
 	writel_relaxed(boot_flag, RK30_PMU_BASE + PMU_SYS_REG0);	// for loader
 	writel_relaxed(boot_mode, RK30_PMU_BASE + PMU_SYS_REG1);	// for linux
+#endif
 	dsb();
 
 	/* restore clk_cpu:aclk_cpu to default value for RK3168 */

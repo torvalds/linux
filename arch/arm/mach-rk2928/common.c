@@ -16,10 +16,8 @@
 #include <mach/loader.h>
 #include <mach/ddr.h>
 #include <mach/cpu.h>
-#include <mach/cpu_axi.h>
 #include <mach/debug_uart.h>
 
-#ifdef CONFIG_ARCH_RK2928
 static void __init rk2928_cpu_axi_init(void)
 {
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x0088);	// cpu0
@@ -34,23 +32,6 @@ static void __init rk2928_cpu_axi_init(void)
 	writel_relaxed(0x3f, RK2928_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
 	dsb();
 }
-#define cpu_axi_init rk2928_cpu_axi_init
-#else
-static void __init rk3026_cpu_axi_init(void)
-{
-	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU0);
-	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU1R);
-	CPU_AXI_SET_QOS_PRIORITY(0, 0, CPU1W);
-	CPU_AXI_SET_QOS_PRIORITY(0, 0, PERI);
-	CPU_AXI_SET_QOS_PRIORITY(3, 3, LCDC0);
-	CPU_AXI_SET_QOS_PRIORITY(3, 3, LCDC1);
-	CPU_AXI_SET_QOS_PRIORITY(2, 1, GPU);
-
-	writel_relaxed(0x3f, RK2928_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
-	dsb();
-}
-#define cpu_axi_init rk3026_cpu_axi_init
-#endif
 
 #define L2_LY_SP_OFF (0)
 #define L2_LY_SP_MSK (0x7)
@@ -62,25 +43,20 @@ static void __init rk3026_cpu_axi_init(void)
 #define L2_LY_WR_MSK (0x7)
 #define L2_LY_SET(ly,off) (((ly)-1)<<(off))
 
-#define L2_LATENCY(setup_cycles, read_cycles, write_cycles) \
-	L2_LY_SET(setup_cycles, L2_LY_SP_OFF) | \
-	L2_LY_SET(read_cycles, L2_LY_RD_OFF) | \
-	L2_LY_SET(write_cycles, L2_LY_WR_OFF)
-
 static void __init rk2928_l2_cache_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	u32 aux_ctrl, aux_ctrl_mask;
 
-	writel_relaxed(L2_LATENCY(1, 1, 1), RK2928_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
-	writel_relaxed(L2_LATENCY(2, 3, 1), RK2928_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
+	writel_relaxed(L2_LY_SET(1,L2_LY_SP_OFF)
+				|L2_LY_SET(1,L2_LY_RD_OFF)
+				|L2_LY_SET(1,L2_LY_WR_OFF), RK2928_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
+	writel_relaxed(L2_LY_SET(2,L2_LY_SP_OFF)
+				|L2_LY_SET(3,L2_LY_RD_OFF)
+				|L2_LY_SET(1,L2_LY_WR_OFF), RK2928_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
 
 	/* L2X0 Prefetch Control */
-#ifdef CONFIG_ARCH_RK2928
 	writel_relaxed(0x30000000, RK2928_L2C_BASE + L2X0_PREFETCH_CTRL);
-#else
-	writel_relaxed(0x70000003, RK2928_L2C_BASE + L2X0_PREFETCH_CTRL);
-#endif
 
 	/* L2X0 Power Control */
 	writel_relaxed(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN, RK2928_L2C_BASE + L2X0_POWER_CTRL);
@@ -105,28 +81,21 @@ static void __init rk2928_l2_cache_init(void)
 			(0x1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT) |
 			(0x1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT) );
 
-#ifdef CONFIG_ARCH_RK3026
-	/* force 16-way, 16KB way-size on RK3026 */
-	aux_ctrl |= (1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT) | (0x1 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT);
-	aux_ctrl_mask &= ~((1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT) | (0x7 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT));
-#endif
-
 	l2x0_init(RK2928_L2C_BASE, aux_ctrl, aux_ctrl_mask);
 #endif
 }
 
 static int boot_mode;
-
 static void __init rk2928_boot_mode_init(void)
 {
-	u32 boot_flag = readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG4) | (readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG5) << 16);
+	u32 boot_flag = (readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG4) | (readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG5) << 16)) - SYS_KERNRL_REBOOT_FLAG;
 	boot_mode = readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG6);
 
-	if (boot_flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
+	if (boot_flag == BOOT_RECOVER) {
 		boot_mode = BOOT_MODE_RECOVERY;
 	}
-	if (boot_mode || ((boot_flag & 0xff) && ((boot_flag & 0xffffff00) == SYS_KERNRL_REBOOT_FLAG)))
-		printk("Boot mode: %s (%d) flag: %s (0x%08x)\n", boot_mode_name(boot_mode), boot_mode, boot_flag_name(boot_flag), boot_flag);
+	if (boot_mode || boot_flag)
+		printk("Boot mode: %d flag: %d\n", boot_mode, boot_flag);
 }
 
 int board_boot_mode(void)
@@ -142,7 +111,7 @@ void __init rk2928_init_irq(void)
 	rk_fiq_init();
 #endif
 	rk30_gpio_init();
-	soc_gpio_init();
+        soc_gpio_init();
 }
 
 static unsigned int __initdata ddr_freq = DDR_FREQ;
@@ -153,81 +122,48 @@ static int __init ddr_freq_setup(char *str)
 }
 early_param("ddr_freq", ddr_freq_setup);
 
-static void usb_uart_init(void)
+void __init rk2928_map_io(void)
 {
+	rk2928_map_common_io();
 #ifdef DEBUG_UART_BASE
-#ifdef CONFIG_ARCH_RK2928
 #ifdef CONFIG_RK_USB_UART
 	writel_relaxed(0x04000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
 	if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<10)))//detect id
 	{
-		writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+	    writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
 	}
 	else
 	{
-		if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<7)))//detect vbus
-		{
-			writel_relaxed(0x10001000, RK2928_GRF_BASE + GRF_UOC0_CON0);
-			writel_relaxed(0x007f0055, RK2928_GRF_BASE + GRF_UOC0_CON5);
-			writel_relaxed(0x34003000, RK2928_GRF_BASE + GRF_UOC1_CON4);
-		}
-		else
-		{
-			writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
-		}
-	}
+        if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<7)))//detect vbus
+        {
+            writel_relaxed(0x10001000, RK2928_GRF_BASE + GRF_UOC0_CON0);
+            writel_relaxed(0x007f0055, RK2928_GRF_BASE + GRF_UOC0_CON5);
+            writel_relaxed(0x34003000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+        }   
+        else
+	    {
+            writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+	    }
+    }
 #else
-	writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
-#endif // end of CONFIG_RK_USB_UART
-	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
-	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
-	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
-	writel_relaxed(0x83, DEBUG_UART_BASE + 0x0c);
-	writel_relaxed(0x0d, DEBUG_UART_BASE + 0x00);
-	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
-	writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
-#endif //end of CONFIG_ARCH_RK2928
-#ifdef CONFIG_ARCH_RK3026
-
-writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON0);
-#ifdef CONFIG_RK_USB_UART
-	writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON0);
-
-	if((readl_relaxed(RK2928_GRF_BASE + GRF_SOC_STATUS0) & (1<<10)))//detect id
-	{
-		if(!(readl_relaxed(RK2928_GRF_BASE + GRF_SOC_STATUS0) & (1<<7)))//detect vbus
-		{
-			writel_relaxed(0x007f0055, RK2928_GRF_BASE + GRF_UOC0_CON0);
-			writel_relaxed(0x34003000, RK2928_GRF_BASE + GRF_UOC1_CON0);
-		}
-		else
-		{
-			writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON0);
-		}
-	}
-
-#endif // end of CONFIG_RK_USB_UART
-#endif //end of CONFIG_ARCH_RK3026
-#endif //end of DEBUG_UART_BASE
-}
-
-void __init rk2928_map_io(void)
-{
-	rk2928_map_common_io();
-	usb_uart_init();
+        writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+#endif
+        writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
+        writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
+        writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
+        writel_relaxed(0x83, DEBUG_UART_BASE + 0x0c);
+        writel_relaxed(0x0d, DEBUG_UART_BASE + 0x00);
+        writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
+        writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
+#endif
 	rk29_setup_early_printk();
-	cpu_axi_init();
+	rk2928_cpu_axi_init();
 	rk29_sram_init();
 	board_clock_init();
 	rk2928_l2_cache_init();
 	ddr_init(DDR_TYPE, ddr_freq);
 //	clk_disable_unused();
-#ifdef CONFIG_ARCH_RK2928
 	rk2928_iomux_init();
-#endif
-#ifdef CONFIG_ARCH_RK3026
-	iomux_init();
-#endif
 	rk2928_boot_mode_init();
 }
 
