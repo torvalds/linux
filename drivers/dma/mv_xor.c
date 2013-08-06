@@ -647,7 +647,7 @@ mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 	dev_dbg(mv_chan_to_devp(mv_chan),
 		"%s sw_desc %p async_tx %p\n",
-		__func__, sw_desc, sw_desc ? &sw_desc->async_tx : 0);
+		__func__, sw_desc, sw_desc ? &sw_desc->async_tx : NULL);
 
 	return sw_desc ? &sw_desc->async_tx : NULL;
 }
