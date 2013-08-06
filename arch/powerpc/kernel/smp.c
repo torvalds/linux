@@ -232,6 +232,12 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 	smp_ops->cause_ipi(cpu, info->data);
 }
 
+#ifdef __BIG_ENDIAN__
+#define IPI_MESSAGE(A) (1 << (24 - 8 * (A)))
+#else
+#define IPI_MESSAGE(A) (1 << (8 * (A)))
+#endif
+
 irqreturn_t smp_ipi_demux(void)
 {
 	struct cpu_messages *info = &__get_cpu_var(ipi_message);
@@ -241,19 +247,14 @@ irqreturn_t smp_ipi_demux(void)
 
 	do {
 		all = xchg(&info->messages, 0);
-
-#ifdef __BIG_ENDIAN
-		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNCTION)))
+		if (all & IPI_MESSAGE(PPC_MSG_CALL_FUNCTION))
 			generic_smp_call_function_interrupt();
-		if (all & (1 << (24 - 8 * PPC_MSG_RESCHEDULE)))
+		if (all & IPI_MESSAGE(PPC_MSG_RESCHEDULE))
 			scheduler_ipi();
-		if (all & (1 << (24 - 8 * PPC_MSG_CALL_FUNC_SINGLE)))
+		if (all & IPI_MESSAGE(PPC_MSG_CALL_FUNC_SINGLE))
 			generic_smp_call_function_single_interrupt();
-		if (all & (1 << (24 - 8 * PPC_MSG_DEBUGGER_BREAK)))
+		if (all & IPI_MESSAGE(PPC_MSG_DEBUGGER_BREAK))
 			debug_ipi_action(0, NULL);
-#else
-#error Unsupported ENDIAN
-#endif
 	} while (info->messages);
 
 	return IRQ_HANDLED;
