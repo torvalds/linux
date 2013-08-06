@@ -1345,8 +1345,8 @@ ath_tx_form_burst(struct ath_softc *sc, struct ath_txq *txq,
 	} while (1);
 }
 
-static void ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
-			      struct ath_atx_tid *tid)
+static bool ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
+			      struct ath_atx_tid *tid, bool *stop)
 {
 	struct ath_buf *bf;
 	struct ieee80211_tx_info *tx_info;
@@ -1355,40 +1355,41 @@ static void ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	int aggr_len = 0;
 	bool aggr, last = true;
 
-	do {
-		if (!ath_tid_has_buffered(tid))
-			return;
+	if (!ath_tid_has_buffered(tid))
+		return false;
 
-		INIT_LIST_HEAD(&bf_q);
+	INIT_LIST_HEAD(&bf_q);
 
-		bf = ath_tx_get_tid_subframe(sc, txq, tid, &tid_q);
-		if (!bf)
-			break;
+	bf = ath_tx_get_tid_subframe(sc, txq, tid, &tid_q);
+	if (!bf)
+		return false;
 
-		tx_info = IEEE80211_SKB_CB(bf->bf_mpdu);
-		aggr = !!(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
-		if ((aggr && txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH) ||
-		    (!aggr && txq->axq_depth >= ATH_NON_AGGR_MIN_QDEPTH))
-			break;
+	tx_info = IEEE80211_SKB_CB(bf->bf_mpdu);
+	aggr = !!(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
+	if ((aggr && txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH) ||
+		(!aggr && txq->axq_depth >= ATH_NON_AGGR_MIN_QDEPTH)) {
+		*stop = true;
+		return false;
+	}
 
-		ath_set_rates(tid->an->vif, tid->an->sta, bf);
-		if (aggr)
-			last = ath_tx_form_aggr(sc, txq, tid, &bf_q, bf,
-						tid_q, &aggr_len);
-		else
-			ath_tx_form_burst(sc, txq, tid, &bf_q, bf, tid_q);
+	ath_set_rates(tid->an->vif, tid->an->sta, bf);
+	if (aggr)
+		last = ath_tx_form_aggr(sc, txq, tid, &bf_q, bf,
+					tid_q, &aggr_len);
+	else
+		ath_tx_form_burst(sc, txq, tid, &bf_q, bf, tid_q);
 
-		if (list_empty(&bf_q))
-			return;
+	if (list_empty(&bf_q))
+		return false;
 
-		if (tid->ac->clear_ps_filter) {
-			tid->ac->clear_ps_filter = false;
-			tx_info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
-		}
+	if (tid->ac->clear_ps_filter) {
+		tid->ac->clear_ps_filter = false;
+		tx_info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
+	}
 
-		ath_tx_fill_desc(sc, bf, txq, aggr_len);
-		ath_tx_txqaddbuf(sc, txq, &bf_q, false);
-	} while (!last);
+	ath_tx_fill_desc(sc, bf, txq, aggr_len);
+	ath_tx_txqaddbuf(sc, txq, &bf_q, false);
+	return true;
 }
 
 int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
@@ -1824,25 +1825,27 @@ void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
  */
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_atx_ac *ac, *ac_tmp, *last_ac;
+	struct ath_atx_ac *ac, *last_ac;
 	struct ath_atx_tid *tid, *last_tid;
+	bool sent = false;
 
 	if (test_bit(SC_OP_HW_RESET, &sc->sc_flags) ||
-	    list_empty(&txq->axq_acq) ||
-	    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
+	    list_empty(&txq->axq_acq))
 		return;
 
 	rcu_read_lock();
 
-	ac = list_first_entry(&txq->axq_acq, struct ath_atx_ac, list);
 	last_ac = list_entry(txq->axq_acq.prev, struct ath_atx_ac, list);
+	while (!list_empty(&txq->axq_acq)) {
+		bool stop = false;
 
-	list_for_each_entry_safe(ac, ac_tmp, &txq->axq_acq, list) {
+		ac = list_first_entry(&txq->axq_acq, struct ath_atx_ac, list);
 		last_tid = list_entry(ac->tid_q.prev, struct ath_atx_tid, list);
 		list_del(&ac->list);
 		ac->sched = false;
 
 		while (!list_empty(&ac->tid_q)) {
+
 			tid = list_first_entry(&ac->tid_q, struct ath_atx_tid,
 					       list);
 			list_del(&tid->list);
@@ -1851,7 +1854,8 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 			if (tid->paused)
 				continue;
 
-			ath_tx_sched_aggr(sc, txq, tid);
+			if (ath_tx_sched_aggr(sc, txq, tid, &stop))
+				sent = true;
 
 			/*
 			 * add tid to round-robin queue if more frames
@@ -1860,8 +1864,7 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 			if (ath_tid_has_buffered(tid))
 				ath_tx_queue_tid(txq, tid);
 
-			if (tid == last_tid ||
-			    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
+			if (stop || tid == last_tid)
 				break;
 		}
 
@@ -1870,9 +1873,17 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 			list_add_tail(&ac->list, &txq->axq_acq);
 		}
 
-		if (ac == last_ac ||
-		    txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH)
+		if (stop)
 			break;
+
+		if (ac == last_ac) {
+			if (!sent)
+				break;
+
+			sent = false;
+			last_ac = list_entry(txq->axq_acq.prev,
+					     struct ath_atx_ac, list);
+		}
 	}
 
 	rcu_read_unlock();
