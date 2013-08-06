@@ -67,7 +67,7 @@ PPC64_CACHES:
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_KPROBE(__flush_icache_range)
+_KPROBE(flush_icache_range)
 BEGIN_FTR_SECTION
 	blr
 END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)

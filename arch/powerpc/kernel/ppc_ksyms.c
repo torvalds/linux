@@ -111,7 +111,6 @@ EXPORT_SYMBOL(giveup_spe);
 #ifndef CONFIG_PPC64
 EXPORT_SYMBOL(flush_instruction_cache);
 #endif
-EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
 
 #ifdef CONFIG_SMP
