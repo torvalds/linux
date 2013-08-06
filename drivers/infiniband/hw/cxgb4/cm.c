@@ -332,6 +332,7 @@ static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp)
 	} else {
 		skb = alloc_skb(len, gfp);
 	}
+	t4_set_arp_err_handler(skb, NULL, NULL);
 	return skb;
 }
 
@@ -2025,6 +2026,7 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	rpl->opt0 = cpu_to_be64(opt0);
 	rpl->opt2 = cpu_to_be32(opt2);
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, ep->ctrlq_idx);
+	t4_set_arp_err_handler(skb, NULL, arp_failure_discard);
 	c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 
 	return;
