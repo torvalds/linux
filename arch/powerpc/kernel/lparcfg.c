@@ -165,7 +165,7 @@ static void parse_ppp_data(struct seq_file *m)
 	           ppp_data.active_system_procs);
 
 	/* pool related entries are appropriate for shared configs */
-	if (lppaca_of(0).shared_proc) {
+	if (lppaca_shared_proc(get_lppaca())) {
 		unsigned long pool_idle_time, pool_procs;
 
 		seq_printf(m, "pool=%d\n", ppp_data.pool_num);
@@ -473,7 +473,8 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "partition_potential_processors=%d\n",
 		   partition_potential_processors);
 
-	seq_printf(m, "shared_processor_mode=%d\n", lppaca_of(0).shared_proc);
+	seq_printf(m, "shared_processor_mode=%d\n",
+		   lppaca_shared_proc(get_lppaca()));
 
 	seq_printf(m, "slb_size=%d\n", mmu_slb_size);
 

@@ -1609,7 +1609,7 @@ int start_topology_update(void)
 #endif
 		}
 	} else if (firmware_has_feature(FW_FEATURE_VPHN) &&
-		   get_lppaca()->shared_proc) {
+		   lppaca_shared_proc(get_lppaca())) {
 		if (!vphn_enabled) {
 			prrn_enabled = 0;
 			vphn_enabled = 1;

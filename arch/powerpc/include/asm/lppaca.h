@@ -50,10 +50,8 @@ struct lppaca {
 
 	u32	desc;			/* Eye catcher 0xD397D781 */
 	u16	size;			/* Size of this struct */
-	u16	reserved1;
-	u16	reserved2:14;
-	u8	shared_proc:1;		/* Shared processor indicator */
-	u8	secondary_thread:1;	/* Secondary thread indicator */
+	u8	reserved1[3];
+	u8	__old_status;		/* Old status, including shared proc */
 	u8	reserved3[14];
 	volatile u32 dyn_hw_node_id;	/* Dynamic hardware node id */
 	volatile u32 dyn_hw_proc_id;	/* Dynamic hardware proc id */
@@ -106,6 +104,18 @@ struct lppaca {
 extern struct lppaca lppaca[];
 
 #define lppaca_of(cpu)	(*paca[cpu].lppaca_ptr)
+
+/*
+ * Old kernels used a reserved bit in the VPA to determine if it was running
+ * in shared processor mode. New kernels look for a non zero yield count
+ * but KVM still needs to set the bit to keep the old stuff happy.
+ */
+#define LPPACA_OLD_SHARED_PROC		2
+
+static inline bool lppaca_shared_proc(struct lppaca *l)
+{
+	return l->yield_count != 0;
+}
 
 /*
  * SLB shadow buffer structure as defined in the PAPR.  The save_area

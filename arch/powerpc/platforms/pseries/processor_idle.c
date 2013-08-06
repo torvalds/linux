@@ -308,7 +308,7 @@ static int pseries_idle_probe(void)
 		return -EPERM;
 	}
 
-	if (get_lppaca()->shared_proc)
+	if (lppaca_shared_proc(get_lppaca()))
 		cpuidle_state_table = shared_states;
 	else
 		cpuidle_state_table = dedicated_states;
