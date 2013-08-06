@@ -242,8 +242,6 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 	list_add(&physical_node->node, physnode_list);
 	acpi_dev->physical_node_count++;
 
-	mutex_unlock(&acpi_dev->physical_node_lock);
-
 	if (!ACPI_HANDLE(dev))
 		ACPI_HANDLE_SET(dev, acpi_dev->handle);
 
@@ -252,6 +250,8 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 			physical_node_name);
 	retval = sysfs_create_link(&dev->kobj, &acpi_dev->dev.kobj,
 		"firmware_node");
+
+	mutex_unlock(&acpi_dev->physical_node_lock);
 
 	if (acpi_dev->wakeup.flags.valid)
 		device_set_wakeup_capable(dev, true);
