@@ -720,6 +720,7 @@ extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd2 *mode_cmd,
 				  struct drm_i915_gem_object *obj);
+extern void intel_framebuffer_fini(struct intel_framebuffer *fb);
 extern int intel_fbdev_init(struct drm_device *dev);
 extern void intel_fbdev_initial_config(struct drm_device *dev);
 extern void intel_fbdev_fini(struct drm_device *dev);

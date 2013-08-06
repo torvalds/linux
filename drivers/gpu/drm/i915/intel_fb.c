@@ -193,26 +193,21 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 static void intel_fbdev_destroy(struct drm_device *dev,
 				struct intel_fbdev *ifbdev)
 {
-	struct fb_info *info;
-	struct intel_framebuffer *ifb = &ifbdev->ifb;
-
 	if (ifbdev->helper.fbdev) {
-		info = ifbdev->helper.fbdev;
+		struct fb_info *info = ifbdev->helper.fbdev;
+
 		unregister_framebuffer(info);
 		iounmap(info->screen_base);
 		if (info->cmap.len)
 			fb_dealloc_cmap(&info->cmap);
+
 		framebuffer_release(info);
 	}
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	drm_framebuffer_unregister_private(&ifb->base);
-	drm_framebuffer_cleanup(&ifb->base);
-	if (ifb->obj) {
-		drm_gem_object_unreference_unlocked(&ifb->obj->base);
-		ifb->obj = NULL;
-	}
+	drm_framebuffer_unregister_private(&ifbdev->ifb.base);
+	intel_framebuffer_fini(&ifbdev->ifb);
 }
 
 int intel_fbdev_init(struct drm_device *dev)
