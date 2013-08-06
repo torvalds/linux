@@ -7562,13 +7562,11 @@ static int nl80211_set_cqm_txe(struct genl_info *info,
 			       u32 rate, u32 pkts, u32 intvl)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	struct wireless_dev *wdev;
 	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
 	if (rate > 100 || intvl > NL80211_CQM_TXE_MAX_INTVL)
 		return -EINVAL;
-
-	wdev = dev->ieee80211_ptr;
 
 	if (!rdev->ops->set_cqm_txe_config)
 		return -EOPNOTSUPP;
@@ -7584,13 +7582,15 @@ static int nl80211_set_cqm_rssi(struct genl_info *info,
 				s32 threshold, u32 hysteresis)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	struct wireless_dev *wdev;
 	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
 	if (threshold > 0)
 		return -EINVAL;
 
-	wdev = dev->ieee80211_ptr;
+	/* disabling - hysteresis should also be zero then */
+	if (threshold == 0)
+		hysteresis = 0;
 
 	if (!rdev->ops->set_cqm_rssi_config)
 		return -EOPNOTSUPP;
@@ -7609,36 +7609,33 @@ static int nl80211_set_cqm(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	cqm = info->attrs[NL80211_ATTR_CQM];
-	if (!cqm) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (!cqm)
+		return -EINVAL;
 
 	err = nla_parse_nested(attrs, NL80211_ATTR_CQM_MAX, cqm,
 			       nl80211_attr_cqm_policy);
 	if (err)
-		goto out;
+		return err;
 
 	if (attrs[NL80211_ATTR_CQM_RSSI_THOLD] &&
 	    attrs[NL80211_ATTR_CQM_RSSI_HYST]) {
-		s32 threshold;
-		u32 hysteresis;
-		threshold = nla_get_u32(attrs[NL80211_ATTR_CQM_RSSI_THOLD]);
-		hysteresis = nla_get_u32(attrs[NL80211_ATTR_CQM_RSSI_HYST]);
-		err = nl80211_set_cqm_rssi(info, threshold, hysteresis);
-	} else if (attrs[NL80211_ATTR_CQM_TXE_RATE] &&
-		   attrs[NL80211_ATTR_CQM_TXE_PKTS] &&
-		   attrs[NL80211_ATTR_CQM_TXE_INTVL]) {
-		u32 rate, pkts, intvl;
-		rate = nla_get_u32(attrs[NL80211_ATTR_CQM_TXE_RATE]);
-		pkts = nla_get_u32(attrs[NL80211_ATTR_CQM_TXE_PKTS]);
-		intvl = nla_get_u32(attrs[NL80211_ATTR_CQM_TXE_INTVL]);
-		err = nl80211_set_cqm_txe(info, rate, pkts, intvl);
-	} else
-		err = -EINVAL;
+		s32 threshold = nla_get_s32(attrs[NL80211_ATTR_CQM_RSSI_THOLD]);
+		u32 hysteresis = nla_get_u32(attrs[NL80211_ATTR_CQM_RSSI_HYST]);
 
-out:
-	return err;
+		return nl80211_set_cqm_rssi(info, threshold, hysteresis);
+	}
+
+	if (attrs[NL80211_ATTR_CQM_TXE_RATE] &&
+	    attrs[NL80211_ATTR_CQM_TXE_PKTS] &&
+	    attrs[NL80211_ATTR_CQM_TXE_INTVL]) {
+		u32 rate = nla_get_u32(attrs[NL80211_ATTR_CQM_TXE_RATE]);
+		u32 pkts = nla_get_u32(attrs[NL80211_ATTR_CQM_TXE_PKTS]);
+		u32 intvl = nla_get_u32(attrs[NL80211_ATTR_CQM_TXE_INTVL]);
+
+		return nl80211_set_cqm_txe(info, rate, pkts, intvl);
+	}
+
+	return -EINVAL;
 }
 
 static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
