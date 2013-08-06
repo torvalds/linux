@@ -2196,13 +2196,15 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	 * If bit 55 of VMX_BASIC is off, bits 0-8 and 10, 11, 13, 14, 16 and
 	 * 17 must be 1.
 	 */
+	rdmsr(MSR_IA32_VMX_EXIT_CTLS,
+		nested_vmx_exit_ctls_low, nested_vmx_exit_ctls_high);
 	nested_vmx_exit_ctls_low = VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR;
 	/* Note that guest use of VM_EXIT_ACK_INTR_ON_EXIT is not supported. */
+	nested_vmx_exit_ctls_high &=
 #ifdef CONFIG_X86_64
-	nested_vmx_exit_ctls_high = VM_EXIT_HOST_ADDR_SPACE_SIZE;
-#else
-	nested_vmx_exit_ctls_high = 0;
+		VM_EXIT_HOST_ADDR_SPACE_SIZE |
 #endif
+		VM_EXIT_LOAD_IA32_PAT | VM_EXIT_SAVE_IA32_PAT;
 	nested_vmx_exit_ctls_high |= (VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR |
 				      VM_EXIT_LOAD_IA32_EFER);
 
