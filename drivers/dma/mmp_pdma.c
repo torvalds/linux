@@ -356,7 +356,8 @@ static dma_cookie_t mmp_pdma_tx_submit(struct dma_async_tx_descriptor *tx)
 	return cookie;
 }
 
-struct mmp_pdma_desc_sw *mmp_pdma_alloc_descriptor(struct mmp_pdma_chan *chan)
+static struct mmp_pdma_desc_sw *
+mmp_pdma_alloc_descriptor(struct mmp_pdma_chan *chan)
 {
 	struct mmp_pdma_desc_sw *desc;
 	dma_addr_t pdesc;
