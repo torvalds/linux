@@ -2996,13 +2996,6 @@ static void be_get_resources(struct be_adapter *adapter)
 	}
 
 	if (profile_present) {
-		/* Sanity fixes for Lancer */
-		adapter->max_pmac_cnt = min_t(u16, adapter->max_pmac_cnt,
-					      BE_UC_PMAC_COUNT);
-		adapter->max_vlans = min_t(u16, adapter->max_vlans,
-					   BE_NUM_VLANS_SUPPORTED);
-		adapter->max_mcast_mac = min_t(u16, adapter->max_mcast_mac,
-					       BE_MAX_MC);
 		adapter->max_tx_queues = min_t(u16, adapter->max_tx_queues,
 					       MAX_TX_QS);
 		adapter->max_rss_queues = min_t(u16, adapter->max_rss_queues,
