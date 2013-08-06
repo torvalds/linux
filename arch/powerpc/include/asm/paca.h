@@ -68,8 +68,13 @@ struct paca_struct {
 	 * instruction.  They must travel together and be properly
 	 * aligned.
 	 */
+#ifdef __BIG_ENDIAN__
 	u16 lock_token;			/* Constant 0x8000, used in locks */
 	u16 paca_index;			/* Logical processor number */
+#else
+	u16 paca_index;			/* Logical processor number */
+	u16 lock_token;			/* Constant 0x8000, used in locks */
+#endif
 
 	u64 kernel_toc;			/* Kernel TOC address */
 	u64 kernelbase;			/* Base address of kernel */
