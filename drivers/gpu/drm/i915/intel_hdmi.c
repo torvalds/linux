@@ -364,9 +364,6 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 		return;
 	}
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
-		frame.avi.pixel_repeat = 1;
-
 	if (intel_hdmi->rgb_quant_range_selectable) {
 		if (intel_crtc->config.limited_color_range)
 			frame.avi.quantization_range =
