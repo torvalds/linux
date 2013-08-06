@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "kirkwood-nsa310-common.dtsi"
+#include "kirkwood-nsa310-common.dtsi"
 
 / {
 	compatible = "zyxel,nsa310", "marvell,kirkwood-88f6281", "marvell,kirkwood";

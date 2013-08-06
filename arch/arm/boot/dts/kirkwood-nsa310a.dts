@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "kirkwood-nsa310-common.dtsi"
+#include "kirkwood-nsa310-common.dtsi"
 
 /*
  * There are at least two different NSA310 designs. This variant does
