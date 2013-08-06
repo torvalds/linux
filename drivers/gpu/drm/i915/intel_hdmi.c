@@ -67,21 +67,6 @@ static struct intel_hdmi *intel_attached_hdmi(struct drm_connector *connector)
 	return enc_to_intel_hdmi(&intel_attached_encoder(connector)->base);
 }
 
-void intel_dip_infoframe_csum(struct dip_infoframe *frame)
-{
-	uint8_t *data = (uint8_t *)frame;
-	uint8_t sum = 0;
-	unsigned i;
-
-	frame->checksum = 0;
-	frame->ecc = 0;
-
-	for (i = 0; i < frame->len + DIP_HEADER_SIZE; i++)
-		sum += data[i];
-
-	frame->checksum = 0x100 - sum;
-}
-
 static u32 g4x_infoframe_index(enum hdmi_infoframe_type type)
 {
 	switch (type) {
