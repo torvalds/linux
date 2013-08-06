@@ -61,25 +61,23 @@ int acpi_create_platform_device(struct acpi_device *adev,
 
 	INIT_LIST_HEAD(&resource_list);
 	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
-	if (count < 0)
+	if (count < 0) {
 		return 0;
+	} else if (count > 0) {
+		resources = kmalloc(count * sizeof(struct resource),
+				    GFP_KERNEL);
+		if (!resources) {
+			dev_err(&adev->dev, "No memory for resources\n");
+			acpi_dev_free_resource_list(&resource_list);
+			return -ENOMEM;
+		}
+		count = 0;
+		list_for_each_entry(rentry, &resource_list, node)
+			resources[count++] = rentry->res;
 
-	if (!count)
-		goto create_dev;
-
-	resources = kmalloc(count * sizeof(struct resource), GFP_KERNEL);
-	if (!resources) {
-		dev_err(&adev->dev, "No memory for resources\n");
 		acpi_dev_free_resource_list(&resource_list);
-		return -ENOMEM;
 	}
-	count = 0;
-	list_for_each_entry(rentry, &resource_list, node)
-		resources[count++] = rentry->res;
 
-	acpi_dev_free_resource_list(&resource_list);
-
-create_dev:
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	/*
 	 * If the ACPI node has a parent and that parent has a physical device
