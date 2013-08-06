@@ -68,7 +68,9 @@ PPC64_CACHES:
  */
 
 _KPROBE(__flush_icache_range)
-
+BEGIN_FTR_SECTION
+	blr
+END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 /*
  * Flush the data cache to memory 
  * 
