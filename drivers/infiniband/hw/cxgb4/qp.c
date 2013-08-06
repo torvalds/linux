@@ -1350,9 +1350,14 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 			qhp->attr.ecode = attrs->ecode;
 			t4_set_wq_in_error(&qhp->wq);
 			ep = qhp->ep;
+			disconnect = 1;
 			if (!internal)
 				terminate = 1;
-			disconnect = 1;
+			else {
+				ret = rdma_fini(rhp, qhp, ep);
+				if (ret)
+					goto err;
+			}
 			c4iw_get_ep(&qhp->ep->com);
 			break;
 		case C4IW_QP_STATE_ERROR:
