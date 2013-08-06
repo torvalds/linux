@@ -325,14 +325,43 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
 	POSTING_READ(ctl_reg);
 }
 
+/*
+ * The data we write to the DIP data buffer registers is 1 byte bigger than the
+ * HDMI infoframe size because of an ECC/reserved byte at position 3 (starting
+ * at 0). It's also a byte used by DisplayPort so the same DIP registers can be
+ * used for both technologies.
+ *
+ * DW0: Reserved/ECC/DP | HB2 | HB1 | HB0
+ * DW1:       DB3       | DB2 | DB1 | DB0
+ * DW2:       DB7       | DB6 | DB5 | DB4
+ * DW3: ...
+ *
+ * (HB is Header Byte, DB is Data Byte)
+ *
+ * The hdmi pack() functions don't know about that hardware specific hole so we
+ * trick them by giving an offset into the buffer and moving back the header
+ * bytes by one.
+ */
 static void intel_set_infoframe(struct drm_encoder *encoder,
-				struct dip_infoframe *frame)
+				union hdmi_infoframe *frame)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	uint8_t buffer[VIDEO_DIP_DATA_SIZE];
+	ssize_t len;
 
-	intel_dip_infoframe_csum(frame);
-	intel_hdmi->write_infoframe(encoder, frame->type, (uint8_t *)frame,
-				    DIP_HEADER_SIZE + frame->len);
+	/* see comment above for the reason for this offset */
+	len = hdmi_infoframe_pack(frame, buffer + 1, sizeof(buffer) - 1);
+	if (len < 0)
+		return;
+
+	/* Insert the 'hole' (see big comment above) at position 3 */
+	buffer[0] = buffer[1];
+	buffer[1] = buffer[2];
+	buffer[2] = buffer[3];
+	buffer[3] = 0;
+	len++;
+
+	intel_hdmi->write_infoframe(encoder, frame->any.type, buffer, len);
 }
 
 static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
@@ -340,40 +369,45 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	struct dip_infoframe avi_if = {
-		.type = DIP_TYPE_AVI,
-		.ver = DIP_VERSION_AVI,
-		.len = DIP_LEN_AVI,
-	};
+	union hdmi_infoframe frame;
+	int ret;
+
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						       adjusted_mode);
+	if (ret < 0) {
+		DRM_ERROR("couldn't fill AVI infoframe\n");
+		return;
+	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
-		avi_if.body.avi.YQ_CN_PR |= DIP_AVI_PR_2;
+		frame.avi.pixel_repeat = 1;
 
 	if (intel_hdmi->rgb_quant_range_selectable) {
 		if (intel_crtc->config.limited_color_range)
-			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
+			frame.avi.quantization_range =
+				HDMI_QUANTIZATION_RANGE_LIMITED;
 		else
-			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
+			frame.avi.quantization_range =
+				HDMI_QUANTIZATION_RANGE_FULL;
 	}
 
-	avi_if.body.avi.VIC = drm_match_cea_mode(adjusted_mode);
-
-	intel_set_infoframe(encoder, &avi_if);
+	intel_set_infoframe(encoder, &frame);
 }
 
 static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 {
-	struct dip_infoframe spd_if;
+	union hdmi_infoframe frame;
+	int ret;
 
-	memset(&spd_if, 0, sizeof(spd_if));
-	spd_if.type = DIP_TYPE_SPD;
-	spd_if.ver = DIP_VERSION_SPD;
-	spd_if.len = DIP_LEN_SPD;
-	strcpy(spd_if.body.spd.vn, "Intel");
-	strcpy(spd_if.body.spd.pd, "Integrated gfx");
-	spd_if.body.spd.sdi = DIP_SPD_PC;
+	ret = hdmi_spd_infoframe_init(&frame.spd, "Intel", "Integrated gfx");
+	if (ret < 0) {
+		DRM_ERROR("couldn't fill SPD infoframe\n");
+		return;
+	}
 
-	intel_set_infoframe(encoder, &spd_if);
+	frame.spd.sdi = HDMI_SPD_SDI_PC;
+
+	intel_set_infoframe(encoder, &frame);
 }
 
 static void g4x_set_infoframes(struct drm_encoder *encoder,
