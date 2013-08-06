@@ -1153,7 +1153,7 @@ EXPORT_SYMBOL(vio_h_cop_sync);
 
 static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 {
-	const unsigned char *dma_window;
+	const __be32 *dma_window;
 	struct iommu_table *tbl;
 	unsigned long offset, size;
 

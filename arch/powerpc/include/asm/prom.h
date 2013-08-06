@@ -38,8 +38,9 @@ extern unsigned long pci_address_to_pio(phys_addr_t address);
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.
  */
-void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
-		unsigned long *busno, unsigned long *phys, unsigned long *size);
+void of_parse_dma_window(struct device_node *dn, const __be32 *dma_window,
+			 unsigned long *busno, unsigned long *phys,
+			 unsigned long *size);
 
 extern void kdump_move_device_tree(void);
 
