@@ -233,27 +233,19 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 static int pcmuio_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	unsigned int chan_mask = 1 << CR_CHAN(insn->chanspec);
 	int asic = s->index / 2;
 	int port = (s->index % 2) ? 3 : 0;
+	int ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= chan_mask;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~chan_mask;
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
+	if (data[0] == INSN_CONFIG_DIO_INPUT)
 		pcmuio_write(dev, s->io_bits, asic, 0, port);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & chan_mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
 
 	return insn->n;
 }

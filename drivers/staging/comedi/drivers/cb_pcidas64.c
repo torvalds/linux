@@ -3510,31 +3510,20 @@ static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int dio_60xx_config_insn(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	unsigned int mask;
+	int ret;
 
-	mask = 1 << CR_CHAN(insn->chanspec);
-
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~mask;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= mask;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return 2;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
 	writeb(s->io_bits,
 	       devpriv->dio_counter_iobase + DIO_DIRECTION_60XX_REG);
 
-	return 1;
+	return insn->n;
 }
 
 static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,

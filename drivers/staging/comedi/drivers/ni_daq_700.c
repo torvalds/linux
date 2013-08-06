@@ -90,21 +90,17 @@ static int daq700_dio_insn_bits(struct comedi_device *dev,
 
 static int daq700_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	unsigned int chan = 1 << CR_CHAN(insn->chanspec);
+	int ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & chan) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
+	/* The DIO channels are not configurable, fix the io_bits */
+	s->io_bits = 0x00ff;
 
 	return insn->n;
 }

@@ -1040,23 +1040,11 @@ static int usbduxsigma_dio_insn_config(struct comedi_device *dev,
 				       struct comedi_insn *insn,
 				       unsigned int *data)
 {
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask = 1 << chan;
+	int ret;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= mask;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~mask;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
 	/*
 	 * We don't tell the firmware here as it would take 8 frames

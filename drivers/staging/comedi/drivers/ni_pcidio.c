@@ -640,32 +640,19 @@ static void debug_int(struct comedi_device *dev)
 
 static int ni_pcidio_insn_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct nidio96_private *devpriv = dev->private;
+	int ret;
 
-	if (insn->n != 1)
-		return -EINVAL;
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1 << CR_CHAN(insn->chanspec);
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1 << CR_CHAN(insn->chanspec));
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->
-		     io_bits & (1 << CR_CHAN(insn->chanspec))) ? COMEDI_OUTPUT :
-		    COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
+
 	writel(s->io_bits, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_pcidio_insn_bits(struct comedi_device *dev,
