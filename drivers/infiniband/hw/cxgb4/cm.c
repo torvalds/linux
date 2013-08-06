@@ -546,7 +546,7 @@ static unsigned int select_ntuple(struct c4iw_dev *dev, struct dst_entry *dst,
 			ntuple |= FILTER_SEL_VLAN_NONE << FILTER_SEL_WIDTH_P_FC;
 		else {
 			ntuple |= l2t->vlan << FILTER_SEL_WIDTH_P_FC;
-			ntuple |= 1 << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
+			ntuple |= 1 << FILTER_SEL_WIDTH_TAG_P_FC;
 		}
 		ntuple |= l2t->lport << S_PORT | IPPROTO_TCP <<
 			  FILTER_SEL_WIDTH_VLD_TAG_P_FC;
