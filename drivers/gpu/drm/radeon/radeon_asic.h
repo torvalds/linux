@@ -424,8 +424,7 @@ void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 						       struct seq_file *m);
 
 /* uvd */
-int r600_uvd_init(struct radeon_device *rdev);
-int r600_uvd_rbc_start(struct radeon_device *rdev);
+int r600_uvd_init(struct radeon_device *rdev, bool ring_test);
 void r600_uvd_stop(struct radeon_device *rdev);
 int r600_uvd_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r600_uvd_fence_emit(struct radeon_device *rdev,
@@ -696,7 +695,6 @@ u32 cik_get_xclk(struct radeon_device *rdev);
 uint32_t cik_pciep_rreg(struct radeon_device *rdev, uint32_t reg);
 void cik_pciep_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
-int cik_uvd_resume(struct radeon_device *rdev);
 void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
 			      struct radeon_fence *fence);
 void cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,

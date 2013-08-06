@@ -69,6 +69,7 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
 static void cik_init_pg(struct radeon_device *rdev);
 static void cik_init_cg(struct radeon_device *rdev);
+static void cik_uvd_resume(struct radeon_device *rdev);
 
 /* get temperature in millidegrees */
 int ci_get_temp(struct radeon_device *rdev)
@@ -7619,8 +7620,9 @@ static int cik_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = cik_uvd_resume(rdev);
+	r = radeon_uvd_resume(rdev);
 	if (!r) {
+		cik_uvd_resume(rdev);
 		r = radeon_fence_driver_start_ring(rdev,
 						   R600_RING_TYPE_UVD_INDEX);
 		if (r)
@@ -7708,7 +7710,7 @@ static int cik_startup(struct radeon_device *rdev)
 				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     0, 0xfffff, RADEON_CP_PACKET2);
 		if (!r)
-			r = r600_uvd_init(rdev);
+			r = r600_uvd_init(rdev, true);
 		if (r)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
 	}
@@ -8598,15 +8600,10 @@ int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	return r;
 }
 
-int cik_uvd_resume(struct radeon_device *rdev)
+static void cik_uvd_resume(struct radeon_device *rdev)
 {
 	uint64_t addr;
 	uint32_t size;
-	int r;
-
-	r = radeon_uvd_resume(rdev);
-	if (r)
-		return r;
 
 	/* programm the VCPU memory controller bits 0-27 */
 	addr = rdev->uvd.gpu_addr >> 3;
@@ -8632,7 +8629,6 @@ int cik_uvd_resume(struct radeon_device *rdev)
 	addr = (rdev->uvd.gpu_addr >> 32) & 0xFF;
 	WREG32(UVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
 
-	return 0;
 }
 
 static void cik_pcie_gen3_enable(struct radeon_device *rdev)

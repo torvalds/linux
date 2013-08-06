@@ -2230,7 +2230,7 @@ static int cayman_startup(struct radeon_device *rdev)
 				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     0, 0xfffff, RADEON_CP_PACKET2);
 		if (!r)
-			r = r600_uvd_init(rdev);
+			r = r600_uvd_init(rdev, true);
 		if (r)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
 	}

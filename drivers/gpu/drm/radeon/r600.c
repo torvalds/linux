@@ -2623,7 +2623,7 @@ void r600_dma_fini(struct radeon_device *rdev)
 /*
  * UVD
  */
-int r600_uvd_rbc_start(struct radeon_device *rdev)
+static int r600_uvd_rbc_start(struct radeon_device *rdev, bool ring_test)
 {
 	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	uint64_t rptr_addr;
@@ -2664,47 +2664,47 @@ int r600_uvd_rbc_start(struct radeon_device *rdev)
 	rb_bufsz = (0x1 << 8) | rb_bufsz;
 	WREG32(UVD_RBC_RB_CNTL, rb_bufsz);
 
-	ring->ready = true;
-	r = radeon_ring_test(rdev, R600_RING_TYPE_UVD_INDEX, ring);
-	if (r) {
-		ring->ready = false;
-		return r;
+	if (ring_test) {
+		ring->ready = true;
+		r = radeon_ring_test(rdev, R600_RING_TYPE_UVD_INDEX, ring);
+		if (r) {
+			ring->ready = false;
+			return r;
+		}
+
+		r = radeon_ring_lock(rdev, ring, 10);
+		if (r) {
+			DRM_ERROR("radeon: ring failed to lock UVD ring (%d).\n", r);
+			return r;
+		}
+
+		tmp = PACKET0(UVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL, 0);
+		radeon_ring_write(ring, tmp);
+		radeon_ring_write(ring, 0xFFFFF);
+
+		tmp = PACKET0(UVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL, 0);
+		radeon_ring_write(ring, tmp);
+		radeon_ring_write(ring, 0xFFFFF);
+
+		tmp = PACKET0(UVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL, 0);
+		radeon_ring_write(ring, tmp);
+		radeon_ring_write(ring, 0xFFFFF);
+
+		/* Clear timeout status bits */
+		radeon_ring_write(ring, PACKET0(UVD_SEMA_TIMEOUT_STATUS, 0));
+		radeon_ring_write(ring, 0x8);
+
+		radeon_ring_write(ring, PACKET0(UVD_SEMA_CNTL, 0));
+		radeon_ring_write(ring, 3);
+
+		radeon_ring_unlock_commit(rdev, ring);
 	}
-
-	r = radeon_ring_lock(rdev, ring, 10);
-	if (r) {
-		DRM_ERROR("radeon: ring failed to lock UVD ring (%d).\n", r);
-		return r;
-	}
-
-	tmp = PACKET0(UVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL, 0);
-	radeon_ring_write(ring, tmp);
-	radeon_ring_write(ring, 0xFFFFF);
-
-	tmp = PACKET0(UVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL, 0);
-	radeon_ring_write(ring, tmp);
-	radeon_ring_write(ring, 0xFFFFF);
-
-	tmp = PACKET0(UVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL, 0);
-	radeon_ring_write(ring, tmp);
-	radeon_ring_write(ring, 0xFFFFF);
-
-	/* Clear timeout status bits */
-	radeon_ring_write(ring, PACKET0(UVD_SEMA_TIMEOUT_STATUS, 0));
-	radeon_ring_write(ring, 0x8);
-
-	radeon_ring_write(ring, PACKET0(UVD_SEMA_CNTL, 0));
-	radeon_ring_write(ring, 3);
-
-	radeon_ring_unlock_commit(rdev, ring);
 
 	return 0;
 }
 
-void r600_uvd_stop(struct radeon_device *rdev)
+void r600_do_uvd_stop(struct radeon_device *rdev)
 {
-	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-
 	/* force RBC into idle state */
 	WREG32(UVD_RBC_RB_CNTL, 0x11010101);
 
@@ -2723,11 +2723,17 @@ void r600_uvd_stop(struct radeon_device *rdev)
 	/* Unstall UMC and register bus */
 	WREG32_P(UVD_LMI_CTRL2, 0, ~(1 << 8));
 	WREG32_P(UVD_RB_ARB_CTRL, 0, ~(1 << 3));
+}
 
+void r600_uvd_stop(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+
+	r600_do_uvd_stop(rdev);
 	ring->ready = false;
 }
 
-int r600_uvd_init(struct radeon_device *rdev)
+int r600_uvd_init(struct radeon_device *rdev, bool ring_test)
 {
 	int i, j, r;
 	/* disable byte swapping */
@@ -2815,17 +2821,17 @@ int r600_uvd_init(struct radeon_device *rdev)
 
 	if (r) {
 		DRM_ERROR("UVD not responding, giving up!!!\n");
-		radeon_set_uvd_clocks(rdev, 0, 0);
-		return r;
+		goto done;
 	}
 
 	/* enable interupt */
 	WREG32_P(UVD_MASTINT_EN, 3<<1, ~(3 << 1));
 
-	r = r600_uvd_rbc_start(rdev);
+	r = r600_uvd_rbc_start(rdev, ring_test);
 	if (!r)
 		DRM_INFO("UVD initialized successfully.\n");
 
+done:
 	/* lower clocks again */
 	radeon_set_uvd_clocks(rdev, 0, 0);
 
