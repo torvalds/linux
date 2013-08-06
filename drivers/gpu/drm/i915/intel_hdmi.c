@@ -327,8 +327,8 @@ static void hsw_write_infoframe(struct drm_encoder *encoder,
  * trick them by giving an offset into the buffer and moving back the header
  * bytes by one.
  */
-static void intel_set_infoframe(struct drm_encoder *encoder,
-				union hdmi_infoframe *frame)
+static void intel_write_infoframe(struct drm_encoder *encoder,
+				  union hdmi_infoframe *frame)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	uint8_t buffer[VIDEO_DIP_DATA_SIZE];
@@ -373,7 +373,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 				HDMI_QUANTIZATION_RANGE_FULL;
 	}
 
-	intel_set_infoframe(encoder, &frame);
+	intel_write_infoframe(encoder, &frame);
 }
 
 static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
@@ -389,7 +389,7 @@ static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 
 	frame.spd.sdi = HDMI_SPD_SDI_PC;
 
-	intel_set_infoframe(encoder, &frame);
+	intel_write_infoframe(encoder, &frame);
 }
 
 static void g4x_set_infoframes(struct drm_encoder *encoder,
