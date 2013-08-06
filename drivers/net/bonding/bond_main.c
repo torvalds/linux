@@ -455,13 +455,13 @@ static int bond_vlan_rx_add_vid(struct net_device *bond_dev,
 	if (res) {
 		pr_err("%s: Error: Failed to add vlan id %d\n",
 		       bond_dev->name, vid);
-		return res;
+		goto unwind;
 	}
 
 	return 0;
 
 unwind:
-	/* unwind from head to the slave that failed */
+	/* unwind from the slave that failed */
 	bond_for_each_slave_continue_reverse(bond, slave)
 		vlan_vid_del(slave->dev, proto, vid);
 
