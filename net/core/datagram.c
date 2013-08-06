@@ -48,6 +48,7 @@
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/pagemap.h>
 
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -638,10 +639,7 @@ int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 			return -EMSGSIZE;
 		num_pages = get_user_pages_fast(base, size, 0, &page[i]);
 		if (num_pages != size) {
-			int j;
-
-			for (j = 0; j < num_pages; j++)
-				put_page(page[i + j]);
+			release_pages(&page[i], num_pages, 0);
 			return -EFAULT;
 		}
 		truesize = size * PAGE_SIZE;
