@@ -781,5 +781,8 @@ extern void hsw_restore_lcpll(struct drm_i915_private *dev_priv);
 extern void ilk_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 extern void ilk_disable_gt_irq(struct drm_i915_private *dev_priv,
 			       uint32_t mask);
+extern void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
+extern void snb_disable_pm_irq(struct drm_i915_private *dev_priv,
+			       uint32_t mask);
 
 #endif /* __INTEL_DRV_H__ */
