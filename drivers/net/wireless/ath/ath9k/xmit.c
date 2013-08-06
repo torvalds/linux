@@ -672,7 +672,7 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	} else
 		ath_tx_complete_aggr(sc, txq, bf, bf_head, ts, txok);
 
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) && !flush)
+	if (!flush)
 		ath_txq_schedule(sc, txq);
 }
 
@@ -848,6 +848,7 @@ static struct ath_buf *
 ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 			struct ath_atx_tid *tid, struct sk_buff_head **q)
 {
+	struct ieee80211_tx_info *tx_info;
 	struct ath_frame_info *fi;
 	struct sk_buff *skb;
 	struct ath_buf *bf;
@@ -874,6 +875,16 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 			continue;
 		}
 
+		bf->bf_next = NULL;
+		bf->bf_lastbf = bf;
+
+		tx_info = IEEE80211_SKB_CB(skb);
+		tx_info->flags &= ~IEEE80211_TX_CTL_CLEAR_PS_FILT;
+		if (!(tx_info->flags & IEEE80211_TX_CTL_AMPDU)) {
+			bf->bf_state.bf_type = 0;
+			return bf;
+		}
+
 		bf->bf_state.bf_type = BUF_AMPDU | BUF_AGGR;
 		seqno = bf->bf_state.seqno;
 
@@ -893,8 +904,6 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 			continue;
 		}
 
-		bf->bf_next = NULL;
-		bf->bf_lastbf = bf;
 		return bf;
 	}
 
@@ -1356,7 +1365,7 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 
 	ath_txq_lock(sc, txq);
 	txtid->active = false;
-	txtid->paused = true;
+	txtid->paused = false;
 	ath_tx_flush_tid(sc, txtid);
 	ath_txq_unlock_complete(sc, txq);
 }
@@ -2425,8 +2434,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
-			if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
-				ath_txq_schedule(sc, txq);
+			ath_txq_schedule(sc, txq);
 			break;
 		}
 		bf = list_first_entry(&txq->axq_q, struct ath_buf, list);
