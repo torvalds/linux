@@ -258,7 +258,8 @@ static void be_async_grp5_evt_process(struct be_adapter *adapter,
 		(struct be_async_event_grp5_pvid_state *)evt);
 	break;
 	default:
-		dev_warn(&adapter->pdev->dev, "Unknown grp5 event!\n");
+		dev_warn(&adapter->pdev->dev, "Unknown grp5 event 0x%x!\n",
+			 event_type);
 		break;
 	}
 }
@@ -279,7 +280,8 @@ static void be_async_dbg_evt_process(struct be_adapter *adapter,
 		adapter->flags |= BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
 	break;
 	default:
-		dev_warn(&adapter->pdev->dev, "Unknown debug event\n");
+		dev_warn(&adapter->pdev->dev, "Unknown debug event 0x%x!\n",
+			 event_type);
 	break;
 	}
 }
