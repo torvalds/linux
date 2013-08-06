@@ -137,6 +137,8 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_AGGR_ENCRYPTDELIM      10
 /* minimum h/w qdepth to be sustained to maximize aggregation */
 #define ATH_AGGR_MIN_QDEPTH        2
+/* minimum h/w qdepth for non-aggregated traffic */
+#define ATH_NON_AGGR_MIN_QDEPTH    8
 
 #define IEEE80211_SEQ_SEQ_SHIFT    4
 #define IEEE80211_SEQ_MAX          4096
@@ -172,12 +174,6 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define IS_CCK_RATE(rate) ((rate >= 0x18) && (rate <= 0x1e))
 
 #define ATH_TX_COMPLETE_POLL_INT	1000
-
-enum ATH_AGGR_STATUS {
-	ATH_AGGR_DONE,
-	ATH_AGGR_BAW_CLOSED,
-	ATH_AGGR_LIMITED,
-};
 
 #define ATH_TXFIFO_DEPTH 8
 struct ath_txq {
