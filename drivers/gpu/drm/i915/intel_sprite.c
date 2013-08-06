@@ -38,7 +38,8 @@
 #include "i915_drv.h"
 
 static void
-vlv_update_plane(struct drm_plane *dplane, struct drm_framebuffer *fb,
+vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
@@ -140,7 +141,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_framebuffer *fb,
 }
 
 static void
-vlv_disable_plane(struct drm_plane *dplane)
+vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = dplane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -207,7 +208,8 @@ vlv_get_colorkey(struct drm_plane *dplane,
 }
 
 static void
-ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
+ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
@@ -320,7 +322,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 }
 
 static void
-ivb_disable_plane(struct drm_plane *plane)
+ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -400,7 +402,8 @@ ivb_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
 }
 
 static void
-ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
+ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
@@ -488,7 +491,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 }
 
 static void
-ilk_disable_plane(struct drm_plane *plane)
+ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -823,11 +826,11 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		intel_enable_primary(crtc);
 
 	if (visible)
-		intel_plane->update_plane(plane, fb, obj,
+		intel_plane->update_plane(plane, crtc, fb, obj,
 					  crtc_x, crtc_y, crtc_w, crtc_h,
 					  src_x, src_y, src_w, src_h);
 	else
-		intel_plane->disable_plane(plane);
+		intel_plane->disable_plane(plane, crtc);
 
 	if (disable_primary)
 		intel_disable_primary(crtc);
@@ -862,7 +865,7 @@ intel_disable_plane(struct drm_plane *plane)
 
 	if (plane->crtc)
 		intel_enable_primary(plane->crtc);
-	intel_plane->disable_plane(plane);
+	intel_plane->disable_plane(plane, plane->crtc);
 
 	if (!intel_plane->obj)
 		goto out;

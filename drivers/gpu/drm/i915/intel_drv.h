@@ -359,13 +359,15 @@ struct intel_plane {
 	struct intel_plane_wm_parameters wm;
 
 	void (*update_plane)(struct drm_plane *plane,
+			     struct drm_crtc *crtc,
 			     struct drm_framebuffer *fb,
 			     struct drm_i915_gem_object *obj,
 			     int crtc_x, int crtc_y,
 			     unsigned int crtc_w, unsigned int crtc_h,
 			     uint32_t x, uint32_t y,
 			     uint32_t src_w, uint32_t src_h);
-	void (*disable_plane)(struct drm_plane *plane);
+	void (*disable_plane)(struct drm_plane *plane,
+			      struct drm_crtc *crtc);
 	int (*update_colorkey)(struct drm_plane *plane,
 			       struct drm_intel_sprite_colorkey *key);
 	void (*get_colorkey)(struct drm_plane *plane,
