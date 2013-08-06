@@ -2764,11 +2764,12 @@ static int __do_readpage(struct extent_io_tree *tree,
 	struct block_device *bdev;
 	int ret;
 	int nr = 0;
+	int parent_locked = *bio_flags & EXTENT_BIO_PARENT_LOCKED;
 	size_t pg_offset = 0;
 	size_t iosize;
 	size_t disk_io_size;
 	size_t blocksize = inode->i_sb->s_blocksize;
-	unsigned long this_bio_flag = 0;
+	unsigned long this_bio_flag = *bio_flags & EXTENT_BIO_PARENT_LOCKED;
 
 	set_page_extent_mapped(page);
 
@@ -2807,15 +2808,18 @@ static int __do_readpage(struct extent_io_tree *tree,
 			kunmap_atomic(userpage);
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    &cached, GFP_NOFS);
-			unlock_extent_cached(tree, cur, cur + iosize - 1,
-					     &cached, GFP_NOFS);
+			if (!parent_locked)
+				unlock_extent_cached(tree, cur,
+						     cur + iosize - 1,
+						     &cached, GFP_NOFS);
 			break;
 		}
 		em = __get_extent_map(inode, page, pg_offset, cur,
 				      end - cur + 1, get_extent, em_cached);
 		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
-			unlock_extent(tree, cur, end);
+			if (!parent_locked)
+				unlock_extent(tree, cur, end);
 			break;
 		}
 		extent_offset = cur - em->start;
@@ -2823,7 +2827,7 @@ static int __do_readpage(struct extent_io_tree *tree,
 		BUG_ON(end < cur);
 
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
-			this_bio_flag = EXTENT_BIO_COMPRESSED;
+			this_bio_flag |= EXTENT_BIO_COMPRESSED;
 			extent_set_compress_type(&this_bio_flag,
 						 em->compress_type);
 		}
@@ -2867,7 +2871,8 @@ static int __do_readpage(struct extent_io_tree *tree,
 		if (test_range_bit(tree, cur, cur_end,
 				   EXTENT_UPTODATE, 1, NULL)) {
 			check_page_uptodate(tree, page);
-			unlock_extent(tree, cur, cur + iosize - 1);
+			if (!parent_locked)
+				unlock_extent(tree, cur, cur + iosize - 1);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
@@ -2877,7 +2882,8 @@ static int __do_readpage(struct extent_io_tree *tree,
 		 */
 		if (block_start == EXTENT_MAP_INLINE) {
 			SetPageError(page);
-			unlock_extent(tree, cur, cur + iosize - 1);
+			if (!parent_locked)
+				unlock_extent(tree, cur, cur + iosize - 1);
 			cur = cur + iosize;
 			pg_offset += iosize;
 			continue;
@@ -2895,7 +2901,8 @@ static int __do_readpage(struct extent_io_tree *tree,
 			*bio_flags = this_bio_flag;
 		} else {
 			SetPageError(page);
-			unlock_extent(tree, cur, cur + iosize - 1);
+			if (!parent_locked)
+				unlock_extent(tree, cur, cur + iosize - 1);
 		}
 		cur = cur + iosize;
 		pg_offset += iosize;
@@ -3015,6 +3022,20 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	int ret;
 
 	ret = __extent_read_full_page(tree, page, get_extent, &bio, mirror_num,
+				      &bio_flags, READ);
+	if (bio)
+		ret = submit_one_bio(READ, bio, mirror_num, bio_flags);
+	return ret;
+}
+
+int extent_read_full_page_nolock(struct extent_io_tree *tree, struct page *page,
+				 get_extent_t *get_extent, int mirror_num)
+{
+	struct bio *bio = NULL;
+	unsigned long bio_flags = EXTENT_BIO_PARENT_LOCKED;
+	int ret;
+
+	ret = __do_readpage(tree, page, get_extent, NULL, &bio, mirror_num,
 				      &bio_flags, READ);
 	if (bio)
 		ret = submit_one_bio(READ, bio, mirror_num, bio_flags);
