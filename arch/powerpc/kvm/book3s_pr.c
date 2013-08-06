@@ -792,7 +792,7 @@ program_interrupt:
 	}
 	case BOOK3S_INTERRUPT_SYSCALL:
 		if (vcpu->arch.papr_enabled &&
-		    (kvmppc_get_last_inst(vcpu) == 0x44000022) &&
+		    (kvmppc_get_last_sc(vcpu) == 0x44000022) &&
 		    !(vcpu->arch.shared->msr & MSR_PR)) {
 			/* SC 1 papr hypercalls */
 			ulong cmd = kvmppc_get_gpr(vcpu, 3);
