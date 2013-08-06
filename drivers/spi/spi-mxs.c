@@ -67,12 +67,7 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 {
 	struct mxs_spi *spi = spi_master_get_devdata(dev->master);
 	struct mxs_ssp *ssp = &spi->ssp;
-	uint8_t bits_per_word;
 	uint32_t hz = 0;
-
-	bits_per_word = dev->bits_per_word;
-	if (t && t->bits_per_word)
-		bits_per_word = t->bits_per_word;
 
 	hz = dev->max_speed_hz;
 	if (t && t->speed_hz)
