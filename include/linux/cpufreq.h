@@ -179,7 +179,6 @@ __ATTR(_name, 0644, show_##_name, store_##_name)
 
 
 struct cpufreq_driver {
-	struct module		*owner;
 	char			name[CPUFREQ_NAME_LEN];
 	u8			flags;
 	/*

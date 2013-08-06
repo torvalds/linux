@@ -158,7 +158,6 @@ static struct cpufreq_driver kirkwood_cpufreq_driver = {
 	.init	= kirkwood_cpufreq_cpu_init,
 	.exit	= kirkwood_cpufreq_cpu_exit,
 	.name	= "kirkwood-cpufreq",
-	.owner	= THIS_MODULE,
 	.attr	= kirkwood_cpufreq_attr,
 };
 

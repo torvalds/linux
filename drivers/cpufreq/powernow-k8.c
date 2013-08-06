@@ -1240,7 +1240,6 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 	.exit		= powernowk8_cpu_exit,
 	.get		= powernowk8_get,
 	.name		= "powernow-k8",
-	.owner		= THIS_MODULE,
 	.attr		= powernow_k8_attr,
 };
 

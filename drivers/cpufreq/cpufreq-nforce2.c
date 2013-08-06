@@ -379,7 +379,6 @@ static struct cpufreq_driver nforce2_driver = {
 	.get = nforce2_get,
 	.init = nforce2_cpu_init,
 	.exit = nforce2_cpu_exit,
-	.owner = THIS_MODULE,
 };
 
 #ifdef MODULE

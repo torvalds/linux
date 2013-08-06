@@ -160,7 +160,6 @@ static struct freq_attr *sh_freq_attr[] = {
 };
 
 static struct cpufreq_driver sh_cpufreq_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "sh",
 	.get		= sh_cpufreq_get,
 	.target		= sh_cpufreq_target,

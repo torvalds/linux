@@ -446,7 +446,6 @@ static struct cpufreq_driver gx_suspmod_driver = {
 	.target		= cpufreq_gx_target,
 	.init		= cpufreq_gx_cpu_init,
 	.name		= "gx-suspmod",
-	.owner		= THIS_MODULE,
 };
 
 static int __init cpufreq_gx_init(void)

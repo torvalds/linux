@@ -147,7 +147,6 @@ static struct cpufreq_driver sc520_freq_driver = {
 	.init	= sc520_freq_cpu_init,
 	.exit	= sc520_freq_cpu_exit,
 	.name	= "sc520_freq",
-	.owner	= THIS_MODULE,
 	.attr	= sc520_freq_attr,
 };
 

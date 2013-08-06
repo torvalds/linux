@@ -477,7 +477,6 @@ static struct cpufreq_driver pmac_cpufreq_driver = {
 	.flags		= CPUFREQ_PM_NO_WARN,
 	.attr		= pmac_cpu_freqs_attr,
 	.name		= "powermac",
-	.owner		= THIS_MODULE,
 };
 
 

@@ -371,7 +371,6 @@ static int g5_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver g5_cpufreq_driver = {
 	.name		= "powermac",
-	.owner		= THIS_MODULE,
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= g5_cpufreq_cpu_init,
 	.verify		= g5_cpufreq_verify,
