@@ -838,15 +838,16 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 {
 	struct ip_tunnel_net *itn = net_generic(net, ip_tnl_net_id);
 	struct ip_tunnel_parm parms;
+	unsigned int i;
 
-	itn->tunnels = kzalloc(IP_TNL_HASH_SIZE * sizeof(struct hlist_head), GFP_KERNEL);
-	if (!itn->tunnels)
-		return -ENOMEM;
+	for (i = 0; i < IP_TNL_HASH_SIZE; i++)
+		INIT_HLIST_HEAD(&itn->tunnels[i]);
 
 	if (!ops) {
 		itn->fb_tunnel_dev = NULL;
 		return 0;
 	}
+
 	memset(&parms, 0, sizeof(parms));
 	if (devname)
 		strlcpy(parms.name, devname, IFNAMSIZ);
@@ -854,10 +855,9 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 	rtnl_lock();
 	itn->fb_tunnel_dev = __ip_tunnel_create(net, ops, &parms);
 	rtnl_unlock();
-	if (IS_ERR(itn->fb_tunnel_dev)) {
-		kfree(itn->tunnels);
+
+	if (IS_ERR(itn->fb_tunnel_dev))
 		return PTR_ERR(itn->fb_tunnel_dev);
-	}
 
 	return 0;
 }
@@ -887,7 +887,6 @@ void ip_tunnel_delete_net(struct ip_tunnel_net *itn)
 	ip_tunnel_destroy(itn, &list);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
-	kfree(itn->tunnels);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_delete_net);
 

@@ -86,12 +86,12 @@ struct tnl_ptk_info {
 #define PACKET_RCVD	0
 #define PACKET_REJECT	1
 
-#define IP_TNL_HASH_BITS   10
+#define IP_TNL_HASH_BITS   7
 #define IP_TNL_HASH_SIZE   (1 << IP_TNL_HASH_BITS)
 
 struct ip_tunnel_net {
-	struct hlist_head *tunnels;
 	struct net_device *fb_tunnel_dev;
+	struct hlist_head tunnels[IP_TNL_HASH_SIZE];
 };
 
 #ifdef CONFIG_INET
