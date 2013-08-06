@@ -247,9 +247,9 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 
 	acpi_physnode_link_name(physical_node_name, node_id);
 	retval = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
-			physical_node_name);
+				   physical_node_name);
 	retval = sysfs_create_link(&dev->kobj, &acpi_dev->dev.kobj,
-		"firmware_node");
+				   "firmware_node");
 
 	mutex_unlock(&acpi_dev->physical_node_lock);
 
@@ -293,12 +293,11 @@ int acpi_unbind_one(struct device *dev)
 		char physical_node_name[PHYSICAL_NODE_NAME_SIZE];
 
 		entry = list_entry(node, struct acpi_device_physical_node,
-			node);
+				   node);
 		if (entry->dev != dev)
 			continue;
 
 		list_del(node);
-
 		acpi_dev->physical_node_count--;
 
 		acpi_physnode_link_name(physical_node_name, entry->node_id);
