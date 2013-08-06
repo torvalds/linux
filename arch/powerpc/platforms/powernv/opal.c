@@ -422,7 +422,7 @@ void opal_shutdown(void)
 
 	for (i = 0; i < opal_irq_count; i++) {
 		if (opal_irqs[i])
-			free_irq(opal_irqs[i], 0);
+			free_irq(opal_irqs[i], NULL);
 		opal_irqs[i] = 0;
 	}
 }

@@ -325,7 +325,7 @@ static void __init initialize_cache_info(void)
 							 NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
-			if (sizep == 0 || lsizep == 0)
+			if (sizep == NULL || lsizep == NULL)
 				DBG("Argh, can't find dcache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
 
@@ -347,7 +347,7 @@ static void __init initialize_cache_info(void)
 							 NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
-			if (sizep == 0 || lsizep == 0)
+			if (sizep == NULL || lsizep == NULL)
 				DBG("Argh, can't find icache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
 

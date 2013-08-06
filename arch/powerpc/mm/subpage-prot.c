@@ -105,7 +105,7 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 		limit = spt->maxaddr;
 	for (; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
-		if (addr < 0x100000000) {
+		if (addr < 0x100000000UL) {
 			spm = spt->low_prot;
 		} else {
 			spm = spt->protptrs[addr >> SBP_L3_SHIFT];
@@ -219,7 +219,7 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 	for (limit = addr + len; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
 		err = -ENOMEM;
-		if (addr < 0x100000000) {
+		if (addr < 0x100000000UL) {
 			spm = spt->low_prot;
 		} else {
 			spm = spt->protptrs[addr >> SBP_L3_SHIFT];

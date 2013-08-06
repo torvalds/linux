@@ -183,7 +183,7 @@ static void __init pseries_mpic_init_IRQ(void)
 	np = of_find_node_by_path("/");
 	naddr = of_n_addr_cells(np);
 	opprop = of_get_property(np, "platform-open-pic", &opplen);
-	if (opprop != 0) {
+	if (opprop != NULL) {
 		openpic_addr = of_read_number(opprop, naddr);
 		printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
 	}

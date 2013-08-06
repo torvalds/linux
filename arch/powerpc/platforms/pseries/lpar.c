@@ -724,7 +724,7 @@ int h_get_mpp(struct hvcall_mpp_data *mpp_data)
 
 	mpp_data->mem_weight = (retbuf[3] >> 7 * 8) & 0xff;
 	mpp_data->unallocated_mem_weight = (retbuf[3] >> 6 * 8) & 0xff;
-	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffff;
+	mpp_data->unallocated_entitlement = retbuf[3] & 0xffffffffffffUL;
 
 	mpp_data->pool_size = retbuf[4];
 	mpp_data->loan_request = retbuf[5];

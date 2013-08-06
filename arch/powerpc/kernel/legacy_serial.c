@@ -99,7 +99,7 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 		legacy_serial_count = index + 1;
 
 	/* Check if there is a port who already claimed our slot */
-	if (legacy_serial_infos[index].np != 0) {
+	if (legacy_serial_infos[index].np != NULL) {
 		/* if we still have some room, move it, else override */
 		if (legacy_serial_count < MAX_LEGACY_SERIAL_PORTS) {
 			printk(KERN_DEBUG "Moved legacy port %d -> %d\n",
