@@ -323,7 +323,7 @@ static int alloc_dispatch_logs(void)
 	get_paca()->lppaca_ptr->dtl_idx = 0;
 
 	/* hypervisor reads buffer length from this field */
-	dtl->enqueue_to_dispatch_time = DISPATCH_LOG_BYTES;
+	dtl->enqueue_to_dispatch_time = cpu_to_be32(DISPATCH_LOG_BYTES);
 	ret = register_dtl(hard_smp_processor_id(), __pa(dtl));
 	if (ret)
 		pr_err("WARNING: DTL registration of cpu %d (hw %d) failed "

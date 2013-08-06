@@ -45,7 +45,11 @@ static inline void idle_loop_prolog(unsigned long *in_purr)
 
 static inline void idle_loop_epilog(unsigned long in_purr)
 {
-	get_lppaca()->wait_state_cycles += mfspr(SPRN_PURR) - in_purr;
+	u64 wait_cycles;
+
+	wait_cycles = be64_to_cpu(get_lppaca()->wait_state_cycles);
+	wait_cycles += mfspr(SPRN_PURR) - in_purr;
+	get_lppaca()->wait_state_cycles = cpu_to_be64(wait_cycles);
 	get_lppaca()->idle = 0;
 }
 

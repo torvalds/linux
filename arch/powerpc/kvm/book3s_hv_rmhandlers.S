@@ -29,6 +29,10 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/mmu-hash64.h>
 
+#ifdef __LITTLE_ENDIAN__
+#error Need to fix lppaca and SLB shadow accesses in little endian mode
+#endif
+
 /*****************************************************************************
  *                                                                           *
  *        Real Mode handlers that need to be in the linear mapping           *

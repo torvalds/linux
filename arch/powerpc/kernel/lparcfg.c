@@ -387,8 +387,8 @@ static void pseries_cmo_data(struct seq_file *m)
 		return;
 
 	for_each_possible_cpu(cpu) {
-		cmo_faults += lppaca_of(cpu).cmo_faults;
-		cmo_fault_time += lppaca_of(cpu).cmo_fault_time;
+		cmo_faults += be64_to_cpu(lppaca_of(cpu).cmo_faults);
+		cmo_fault_time += be64_to_cpu(lppaca_of(cpu).cmo_fault_time);
 	}
 
 	seq_printf(m, "cmo_faults=%lu\n", cmo_faults);
@@ -406,8 +406,9 @@ static void splpar_dispatch_data(struct seq_file *m)
 	unsigned long dispatch_dispersions = 0;
 
 	for_each_possible_cpu(cpu) {
-		dispatches += lppaca_of(cpu).yield_count;
-		dispatch_dispersions += lppaca_of(cpu).dispersion_count;
+		dispatches += be32_to_cpu(lppaca_of(cpu).yield_count);
+		dispatch_dispersions +=
+			be32_to_cpu(lppaca_of(cpu).dispersion_count);
 	}
 
 	seq_printf(m, "dispatches=%lu\n", dispatches);
