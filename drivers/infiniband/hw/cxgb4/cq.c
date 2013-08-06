@@ -611,9 +611,12 @@ proc_cqe:
 		* to the first unsignaled one, and idx points to the
 		* signaled one.  So adjust in_use based on this delta.
 		* if this is not completing any unsigned wrs, then the
-		* delta will be 0.
+		* delta will be 0. Handle wrapping also!
 		*/
-		wq->sq.in_use -= idx - wq->sq.cidx;
+		if (idx < wq->sq.cidx)
+			wq->sq.in_use -= wq->sq.size + idx - wq->sq.cidx;
+		else
+			wq->sq.in_use -= idx - wq->sq.cidx;
 		BUG_ON(wq->sq.in_use < 0 && wq->sq.in_use < wq->sq.size);
 
 		wq->sq.cidx = (uint16_t)idx;
