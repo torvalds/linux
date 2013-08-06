@@ -2309,7 +2309,8 @@ EXPORT_SYMBOL_GPL(mwifiex_del_virtual_intf);
 
 #ifdef CONFIG_PM
 static bool
-mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq)
+mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq,
+			     u8 max_byte_seq)
 {
 	int j, k, valid_byte_cnt = 0;
 	bool dont_care_byte = false;
@@ -2327,12 +2328,12 @@ mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq)
 					dont_care_byte = true;
 			}
 
-			if (valid_byte_cnt > MWIFIEX_MEF_MAX_BYTESEQ)
+			if (valid_byte_cnt > max_byte_seq)
 				return false;
 		}
 	}
 
-	byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] = valid_byte_cnt;
+	byte_seq[max_byte_seq] = valid_byte_cnt;
 
 	return true;
 }
@@ -2375,7 +2376,8 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 	for (i = 0; i < wowlan->n_patterns; i++) {
 		memset(byte_seq, 0, sizeof(byte_seq));
 		if (!mwifiex_is_pattern_supported(&wowlan->patterns[i],
-						  byte_seq)) {
+						  byte_seq,
+						  MWIFIEX_MEF_MAX_BYTESEQ)) {
 			wiphy_err(wiphy, "Pattern not supported\n");
 			kfree(mef_entry);
 			return -EOPNOTSUPP;
