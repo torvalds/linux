@@ -23,6 +23,12 @@ enum hdmi_infoframe_type {
 #define HDMI_SPD_INFOFRAME_SIZE    25
 #define HDMI_AUDIO_INFOFRAME_SIZE  10
 
+struct hdmi_any_infoframe {
+	enum hdmi_infoframe_type type;
+	unsigned char version;
+	unsigned char length;
+};
+
 enum hdmi_colorspace {
 	HDMI_COLORSPACE_RGB,
 	HDMI_COLORSPACE_YUV422,
@@ -227,5 +233,16 @@ struct hdmi_vendor_infoframe {
 
 ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 				   void *buffer, size_t size);
+
+union hdmi_infoframe {
+	struct hdmi_any_infoframe any;
+	struct hdmi_avi_infoframe avi;
+	struct hdmi_spd_infoframe spd;
+	struct hdmi_vendor_infoframe vendor;
+	struct hdmi_audio_infoframe audio;
+};
+
+ssize_t
+hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer, size_t size);
 
 #endif /* _DRM_HDMI_H */
