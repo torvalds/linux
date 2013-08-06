@@ -44,7 +44,7 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 #include <net/xfrm.h>
-
+#include <net/inet_ecn.h>
 
 
 int ip6_rcv_finish(struct sk_buff *skb)
@@ -109,6 +109,10 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (hdr->version != 6)
 		goto err;
 
+	IP6_ADD_STATS_BH(dev_net(dev), idev,
+			 IPSTATS_MIB_NOECTPKTS +
+				(ipv6_get_dsfield(hdr) & INET_ECN_MASK),
+			 max_t(unsigned short, 1, skb_shinfo(skb)->gso_segs));
 	/*
 	 * RFC4291 2.5.3
 	 * A packet received on an interface with a destination address
