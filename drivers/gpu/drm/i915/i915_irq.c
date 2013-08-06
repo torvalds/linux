@@ -104,6 +104,34 @@ ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 	}
 }
 
+/**
+ * ilk_update_gt_irq - update GTIMR
+ * @dev_priv: driver private
+ * @interrupt_mask: mask of interrupt bits to update
+ * @enabled_irq_mask: mask of interrupt bits to enable
+ */
+static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
+			      uint32_t interrupt_mask,
+			      uint32_t enabled_irq_mask)
+{
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	dev_priv->gt_irq_mask &= ~interrupt_mask;
+	dev_priv->gt_irq_mask |= (~enabled_irq_mask & interrupt_mask);
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	POSTING_READ(GTIMR);
+}
+
+void ilk_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+{
+	ilk_update_gt_irq(dev_priv, mask, mask);
+}
+
+void ilk_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+{
+	ilk_update_gt_irq(dev_priv, mask, 0);
+}
+
 static bool ivb_can_enable_err_int(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -806,8 +834,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	dev_priv->gt_irq_mask &= ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	ilk_enable_gt_irq(dev_priv, GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
@@ -837,8 +864,7 @@ static void ivybridge_parity_error_irq_handler(struct drm_device *dev)
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
-	dev_priv->gt_irq_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	ilk_disable_gt_irq(dev_priv, GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
 	spin_unlock(&dev_priv->irq_lock);
 
 	queue_work(dev_priv->wq, &dev_priv->l3_parity.error_work);
