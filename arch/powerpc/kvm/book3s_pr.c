@@ -468,7 +468,8 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 		 * both the traditional FP registers and the added VSX
 		 * registers into thread.fpr[].
 		 */
-		giveup_fpu(current);
+		if (current->thread.regs->msr & MSR_FP)
+			giveup_fpu(current);
 		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
 			vcpu_fpr[i] = thread_fpr[get_fpr_index(i)];
 
@@ -483,7 +484,8 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 
 #ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
-		giveup_altivec(current);
+		if (current->thread.regs->msr & MSR_VEC)
+			giveup_altivec(current);
 		memcpy(vcpu->arch.vr, t->vr, sizeof(vcpu->arch.vr));
 		vcpu->arch.vscr = t->vscr;
 	}
@@ -575,8 +577,6 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 	printk(KERN_INFO "Loading up ext 0x%lx\n", msr);
 #endif
 
-	current->thread.regs->msr |= msr;
-
 	if (msr & MSR_FP) {
 		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
 			thread_fpr[get_fpr_index(i)] = vcpu_fpr[i];
@@ -598,10 +598,30 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 #endif
 	}
 
+	current->thread.regs->msr |= msr;
 	vcpu->arch.guest_owned_ext |= msr;
 	kvmppc_recalc_shadow_msr(vcpu);
 
 	return RESUME_GUEST;
+}
+
+/*
+ * Kernel code using FP or VMX could have flushed guest state to
+ * the thread_struct; if so, get it back now.
+ */
+static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
+{
+	unsigned long lost_ext;
+
+	lost_ext = vcpu->arch.guest_owned_ext & ~current->thread.regs->msr;
+	if (!lost_ext)
+		return;
+
+	if (lost_ext & MSR_FP)
+		kvmppc_load_up_fpu();
+	if (lost_ext & MSR_VEC)
+		kvmppc_load_up_altivec();
+	current->thread.regs->msr |= lost_ext;
 }
 
 int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -892,6 +912,7 @@ program_interrupt:
 		} else {
 			kvmppc_fix_ee_before_entry();
 		}
+		kvmppc_handle_lost_ext(vcpu);
 	}
 
 	trace_kvm_book3s_reenter(r, vcpu);
