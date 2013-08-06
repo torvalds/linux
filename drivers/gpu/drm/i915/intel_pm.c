@@ -2284,31 +2284,45 @@ static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
 			  params->pri_bytes_per_pixel);
 }
 
+static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
+				 int level,
+				 struct hsw_pipe_wm_parameters *p,
+				 struct hsw_lp_wm_result *result)
+{
+	uint16_t pri_latency = dev_priv->wm.pri_latency[level];
+	uint16_t spr_latency = dev_priv->wm.spr_latency[level];
+	uint16_t cur_latency = dev_priv->wm.cur_latency[level];
+
+	/* WM1+ latency values stored in 0.5us units */
+	if (level > 0) {
+		pri_latency *= 5;
+		spr_latency *= 5;
+		cur_latency *= 5;
+	}
+
+	result->pri_val = ilk_compute_pri_wm(p, pri_latency, level);
+	result->spr_val = ilk_compute_spr_wm(p, spr_latency);
+	result->cur_val = ilk_compute_cur_wm(p, cur_latency);
+	result->fbc_val = ilk_compute_fbc_wm(p, result->pri_val);
+	result->enable = true;
+}
+
 static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
 			      int level, struct hsw_wm_maximums *max,
 			      struct hsw_pipe_wm_parameters *params,
 			      struct hsw_lp_wm_result *result)
 {
 	enum pipe pipe;
-	uint32_t pri_val[3], spr_val[3], cur_val[3], fbc_val[3];
+	struct hsw_lp_wm_result res[3];
 
-	for (pipe = PIPE_A; pipe <= PIPE_C; pipe++) {
-		struct hsw_pipe_wm_parameters *p = &params[pipe];
-		/* WM1+ latency values stored in 0.5us units */
-		uint16_t pri_latency = dev_priv->wm.pri_latency[level] * 5;
-		uint16_t spr_latency = dev_priv->wm.spr_latency[level] * 5;
-		uint16_t cur_latency = dev_priv->wm.cur_latency[level] * 5;
+	for (pipe = PIPE_A; pipe <= PIPE_C; pipe++)
+		ilk_compute_wm_level(dev_priv, level, &params[pipe], &res[pipe]);
 
-		pri_val[pipe] = ilk_compute_pri_wm(p, pri_latency, true);
-		spr_val[pipe] = ilk_compute_spr_wm(p, spr_latency);
-		cur_val[pipe] = ilk_compute_cur_wm(p, cur_latency);
-		fbc_val[pipe] = ilk_compute_fbc_wm(p, pri_val[pipe]);
-	}
-
-	result->pri_val = max3(pri_val[0], pri_val[1], pri_val[2]);
-	result->spr_val = max3(spr_val[0], spr_val[1], spr_val[2]);
-	result->cur_val = max3(cur_val[0], cur_val[1], cur_val[2]);
-	result->fbc_val = max3(fbc_val[0], fbc_val[1], fbc_val[2]);
+	result->pri_val = max3(res[0].pri_val, res[1].pri_val, res[2].pri_val);
+	result->spr_val = max3(res[0].spr_val, res[1].spr_val, res[2].spr_val);
+	result->cur_val = max3(res[0].cur_val, res[1].cur_val, res[2].cur_val);
+	result->fbc_val = max3(res[0].fbc_val, res[1].fbc_val, res[2].fbc_val);
+	result->enable = true;
 
 	if (result->fbc_val > max->fbc) {
 		result->fbc_enable = false;
@@ -2316,6 +2330,9 @@ static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
 	} else {
 		result->fbc_enable = true;
 	}
+
+	if (!result->enable)
+		return false;
 
 	result->enable = result->pri_val <= max->pri &&
 			 result->spr_val <= max->spr &&
