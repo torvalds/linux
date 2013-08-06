@@ -362,13 +362,13 @@ struct mwifiex_ds_misc_subsc_evt {
 	struct subsc_evt_cfg bcn_h_rssi_cfg;
 };
 
-#define MAX_BYTESEQ		6	/* non-adjustable */
-#define MWIFIEX_MAX_FILTERS	10
+#define MWIFIEX_MEF_MAX_BYTESEQ		6	/* non-adjustable */
+#define MWIFIEX_MEF_MAX_FILTERS		10
 
 struct mwifiex_mef_filter {
 	u16 repeat;
 	u16 offset;
-	s8 byte_seq[MAX_BYTESEQ + 1];
+	s8 byte_seq[MWIFIEX_MEF_MAX_BYTESEQ + 1];
 	u8 filt_type;
 	u8 filt_action;
 };
@@ -376,7 +376,7 @@ struct mwifiex_mef_filter {
 struct mwifiex_mef_entry {
 	u8 mode;
 	u8 action;
-	struct mwifiex_mef_filter filter[MWIFIEX_MAX_FILTERS];
+	struct mwifiex_mef_filter filter[MWIFIEX_MEF_MAX_FILTERS];
 };
 
 struct mwifiex_ds_mef_cfg {

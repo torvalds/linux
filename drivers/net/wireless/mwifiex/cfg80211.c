@@ -2327,12 +2327,12 @@ mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq)
 					dont_care_byte = true;
 			}
 
-			if (valid_byte_cnt > MAX_BYTESEQ)
+			if (valid_byte_cnt > MWIFIEX_MEF_MAX_BYTESEQ)
 				return false;
 		}
 	}
 
-	byte_seq[MAX_BYTESEQ] = valid_byte_cnt;
+	byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] = valid_byte_cnt;
 
 	return true;
 }
@@ -2345,7 +2345,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 	struct mwifiex_mef_entry *mef_entry;
 	int i, filt_num = 0, ret;
 	bool first_pat = true;
-	u8 byte_seq[MAX_BYTESEQ + 1];
+	u8 byte_seq[MWIFIEX_MEF_MAX_BYTESEQ + 1];
 	const u8 ipv4_mc_mac[] = {0x33, 0x33};
 	const u8 ipv6_mc_mac[] = {0x01, 0x00, 0x5e};
 	struct mwifiex_private *priv =
@@ -2383,16 +2383,16 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 
 		if (!wowlan->patterns[i].pkt_offset) {
 			if (!(byte_seq[0] & 0x01) &&
-			    (byte_seq[MAX_BYTESEQ] == 1)) {
+			    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 1)) {
 				mef_cfg.criteria |= MWIFIEX_CRITERIA_UNICAST;
 				continue;
 			} else if (is_broadcast_ether_addr(byte_seq)) {
 				mef_cfg.criteria |= MWIFIEX_CRITERIA_BROADCAST;
 				continue;
 			} else if ((!memcmp(byte_seq, ipv4_mc_mac, 2) &&
-				    (byte_seq[MAX_BYTESEQ] == 2)) ||
+				    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 2)) ||
 				   (!memcmp(byte_seq, ipv6_mc_mac, 3) &&
-				    (byte_seq[MAX_BYTESEQ] == 3))) {
+				    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 3))) {
 				mef_cfg.criteria |= MWIFIEX_CRITERIA_MULTICAST;
 				continue;
 			}
@@ -2418,7 +2418,8 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		mef_entry->filter[filt_num].repeat = 16;
 		memcpy(mef_entry->filter[filt_num].byte_seq, priv->curr_addr,
 		       ETH_ALEN);
-		mef_entry->filter[filt_num].byte_seq[MAX_BYTESEQ] = ETH_ALEN;
+		mef_entry->filter[filt_num].byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] =
+								ETH_ALEN;
 		mef_entry->filter[filt_num].offset = 14;
 		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
 		if (filt_num)
@@ -2491,7 +2492,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support mwifiex_wowlan_support = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT,
-	.n_patterns = MWIFIEX_MAX_FILTERS,
+	.n_patterns = MWIFIEX_MEF_MAX_FILTERS,
 	.pattern_min_len = 1,
 	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
 	.max_pkt_offset = MWIFIEX_MAX_OFFSET_LEN,

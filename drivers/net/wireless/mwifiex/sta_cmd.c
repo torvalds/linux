@@ -1070,7 +1070,7 @@ mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
 	int i, byte_len;
 	u8 *stack_ptr = *buffer;
 
-	for (i = 0; i < MWIFIEX_MAX_FILTERS; i++) {
+	for (i = 0; i < MWIFIEX_MEF_MAX_FILTERS; i++) {
 		filter = &mef_entry->filter[i];
 		if (!filter->filt_type)
 			break;
@@ -1079,7 +1079,7 @@ mwifiex_cmd_append_rpn_expression(struct mwifiex_private *priv,
 		*stack_ptr = TYPE_DNUM;
 		stack_ptr += 1;
 
-		byte_len = filter->byte_seq[MAX_BYTESEQ];
+		byte_len = filter->byte_seq[MWIFIEX_MEF_MAX_BYTESEQ];
 		memcpy(stack_ptr, filter->byte_seq, byte_len);
 		stack_ptr += byte_len;
 		*stack_ptr = byte_len;
