@@ -984,7 +984,7 @@ static __initdata struct of_device_id ext_clk_match[] = {
 	{},
 };
 
-struct __initdata samsung_pll_clock exynos4_plls[nr_plls] = {
+static struct __initdata samsung_pll_clock exynos4_plls[nr_plls] = {
 	[apll] = PLL_A(pll_35xx, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, "fout_apll", NULL),
 	[mpll] = PLL_A(pll_35xx, fout_mpll, "fout_mpll", "fin_pll",
