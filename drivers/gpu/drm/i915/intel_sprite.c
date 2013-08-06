@@ -109,7 +109,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 
 	sprctl |= SP_ENABLE;
 
-	intel_update_sprite_watermarks(dev, pipe, src_w, pixel_size, true,
+	intel_update_sprite_watermarks(dplane, crtc, src_w, pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
 
 	/* Sizes are 0 based */
@@ -265,7 +265,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (IS_HASWELL(dev))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
-	intel_update_sprite_watermarks(dev, pipe, src_w, pixel_size, true,
+	intel_update_sprite_watermarks(plane, crtc, src_w, pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
 
 	/* Sizes are 0 based */
@@ -340,7 +340,7 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 
 	dev_priv->sprite_scaling_enabled &= ~(1 << pipe);
 
-	intel_update_sprite_watermarks(dev, pipe, 0, 0, false, false);
+	intel_update_sprite_watermarks(plane, crtc, 0, 0, false, false);
 
 	/* potentially re-enable LP watermarks */
 	if (scaling_was_enabled && !dev_priv->sprite_scaling_enabled)
@@ -455,7 +455,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
 	dvscntr |= DVS_ENABLE;
 
-	intel_update_sprite_watermarks(dev, pipe, src_w, pixel_size, true,
+	intel_update_sprite_watermarks(plane, crtc, src_w, pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
 
 	/* Sizes are 0 based */
