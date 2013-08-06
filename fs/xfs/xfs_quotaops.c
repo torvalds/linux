@@ -56,6 +56,18 @@ xfs_fs_get_xstate(
 }
 
 STATIC int
+xfs_fs_get_xstatev(
+	struct super_block	*sb,
+	struct fs_quota_statv	*fqs)
+{
+	struct xfs_mount	*mp = XFS_M(sb);
+
+	if (!XFS_IS_QUOTA_RUNNING(mp))
+		return -ENOSYS;
+	return -xfs_qm_scall_getqstatv(mp, fqs);
+}
+
+STATIC int
 xfs_fs_set_xstate(
 	struct super_block	*sb,
 	unsigned int		uflags,
@@ -135,6 +147,7 @@ xfs_fs_set_dqblk(
 }
 
 const struct quotactl_ops xfs_quotactl_operations = {
+	.get_xstatev		= xfs_fs_get_xstatev,
 	.get_xstate		= xfs_fs_get_xstate,
 	.set_xstate		= xfs_fs_set_xstate,
 	.get_dqblk		= xfs_fs_get_dqblk,
