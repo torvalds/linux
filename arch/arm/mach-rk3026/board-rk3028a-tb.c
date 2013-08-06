@@ -1032,7 +1032,7 @@ void __sramfunc board_pmu_resume(void)
 #define GPS_OSCEN_PIN 	RK2928_PIN1_PB0
 #define GPS_RXEN_PIN 	RK2928_PIN1_PB0
 
-int rk_gps_io_init(void)
+static int rk_gps_io_init(void)
 {
 	printk("%s \n", __FUNCTION__);
 	
@@ -1054,25 +1054,25 @@ int rk_gps_io_init(void)
 #endif	
 	return 0;
 }
-int rk_gps_power_up(void)
+static int rk_gps_power_up(void)
 {
 	printk("%s \n", __FUNCTION__);
 
 	return 0;
 }
 
-int rk_gps_power_down(void)
+static int rk_gps_power_down(void)
 {
 	printk("%s \n", __FUNCTION__);
 
 	return 0;
 }
 
-int rk_gps_reset_set(int level)
+static int rk_gps_reset_set(int level)
 {
 	return 0;
 }
-int rk_enable_hclk_gps(void)
+static int rk_enable_hclk_gps(void)
 {
 	struct clk *gps_aclk = NULL;
 	gps_aclk = clk_get(NULL, "aclk_gps");
@@ -1085,7 +1085,7 @@ int rk_enable_hclk_gps(void)
 		printk("get gps aclk fail\n");
 	return 0;
 }
-int rk_disable_hclk_gps(void)
+static int rk_disable_hclk_gps(void)
 {
 	struct clk *gps_aclk = NULL;
 	gps_aclk = clk_get(NULL, "aclk_gps");
@@ -1100,7 +1100,7 @@ int rk_disable_hclk_gps(void)
 		printk("get gps aclk fail\n");
 	return 0;
 }
-struct rk_gps_data rk_gps_info = {
+static struct rk_gps_data rk_gps_info = {
 	.io_init = rk_gps_io_init,
 	.power_up = rk_gps_power_up,
 	.power_down = rk_gps_power_down,
@@ -1123,7 +1123,7 @@ struct rk_gps_data rk_gps_info = {
 	.u32GpsPhySize = RK2928_GPS_SIZE,
 };
 
-struct platform_device rk_device_gps = {
+static struct platform_device rk_device_gps = {
 	.name = "gps_hv5820b",
 	.id = -1,
 	.dev		= {
