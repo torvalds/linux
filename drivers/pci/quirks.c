@@ -3126,9 +3126,6 @@ static int reset_intel_generic_dev(struct pci_dev *dev, int probe)
 
 static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 {
-	int i;
-	u16 status;
-
 	/*
 	 * http://www.intel.com/content/dam/doc/datasheet/82599-10-gbe-controller-datasheet.pdf
 	 *
@@ -3140,20 +3137,9 @@ static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
 	if (probe)
 		return 0;
 
-	/* Wait for Transaction Pending bit clean */
-	for (i = 0; i < 4; i++) {
-		if (i)
-			msleep((1 << (i - 1)) * 100);
+	if (!pci_wait_for_pending_transaction(dev))
+		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
 
-		pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
-		if (!(status & PCI_EXP_DEVSTA_TRPND))
-			goto clear;
-	}
-
-	dev_err(&dev->dev, "transaction is not cleared; "
-			"proceeding with reset anyway\n");
-
-clear:
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
 
 	msleep(100);
