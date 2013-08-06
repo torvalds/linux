@@ -1532,7 +1532,7 @@ int be_cmd_get_die_temperature(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_cntl_addnl_attribs *req;
-	int status;
+	int status = 0;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
