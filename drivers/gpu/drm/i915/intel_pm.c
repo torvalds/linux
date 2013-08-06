@@ -2196,11 +2196,6 @@ struct hsw_wm_values {
 	bool enable_fbc_wm;
 };
 
-enum hsw_data_buf_partitioning {
-	HSW_DATA_BUF_PART_1_2,
-	HSW_DATA_BUF_PART_5_6,
-};
-
 /*
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
@@ -2631,11 +2626,11 @@ static struct hsw_wm_values *hsw_find_best_result(struct hsw_wm_values *r1,
  */
 static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 				struct hsw_wm_values *results,
-				enum hsw_data_buf_partitioning partitioning)
+				enum intel_ddb_partitioning partitioning)
 {
 	struct hsw_wm_values previous;
 	uint32_t val;
-	enum hsw_data_buf_partitioning prev_partitioning;
+	enum intel_ddb_partitioning prev_partitioning;
 	bool prev_enable_fbc_wm;
 
 	previous.wm_pipe[0] = I915_READ(WM0_PIPEA_ILK);
@@ -2652,7 +2647,7 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 	previous.wm_linetime[2] = I915_READ(PIPE_WM_LINETIME(PIPE_C));
 
 	prev_partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
-			    HSW_DATA_BUF_PART_5_6 : HSW_DATA_BUF_PART_1_2;
+				INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
 
 	prev_enable_fbc_wm = !(I915_READ(DISP_ARB_CTL) & DISP_FBC_WM_DIS);
 
@@ -2691,7 +2686,7 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 
 	if (prev_partitioning != partitioning) {
 		val = I915_READ(WM_MISC);
-		if (partitioning == HSW_DATA_BUF_PART_1_2)
+		if (partitioning == INTEL_DDB_PART_1_2)
 			val &= ~WM_MISC_DATA_PARTITION_5_6;
 		else
 			val |= WM_MISC_DATA_PARTITION_5_6;
@@ -2728,7 +2723,7 @@ static void haswell_update_wm(struct drm_device *dev)
 	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
 	struct hsw_pipe_wm_parameters params[3];
 	struct hsw_wm_values results_1_2, results_5_6, *best_results;
-	enum hsw_data_buf_partitioning partitioning;
+	enum intel_ddb_partitioning partitioning;
 
 	hsw_compute_wm_parameters(dev, params, &lp_max_1_2, &lp_max_5_6);
 
@@ -2743,7 +2738,7 @@ static void haswell_update_wm(struct drm_device *dev)
 	}
 
 	partitioning = (best_results == &results_1_2) ?
-		       HSW_DATA_BUF_PART_1_2 : HSW_DATA_BUF_PART_5_6;
+		       INTEL_DDB_PART_1_2 : INTEL_DDB_PART_5_6;
 
 	hsw_write_wm_values(dev_priv, best_results, partitioning);
 }
