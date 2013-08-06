@@ -342,6 +342,10 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 
 /* drivers.c - general comedi driver functions */
 
+int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
+			   struct comedi_insn *, unsigned int *data,
+			   unsigned int mask);
+
 void *comedi_alloc_devpriv(struct comedi_device *, size_t);
 int comedi_alloc_subdevices(struct comedi_device *, int);
 

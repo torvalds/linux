@@ -150,6 +150,46 @@ int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
 	return -EINVAL;
 }
 
+/**
+ * comedi_dio_insn_config() - boilerplate (*insn_config) for DIO subdevices.
+ * @dev: comedi_device struct
+ * @s: comedi_subdevice struct
+ * @insn: comedi_insn struct
+ * @data: parameters for the @insn
+ * @mask: io_bits mask for grouped channels
+ */
+int comedi_dio_insn_config(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned int *data,
+			   unsigned int mask)
+{
+	unsigned int chan_mask = 1 << CR_CHAN(insn->chanspec);
+
+	if (!mask)
+		mask = chan_mask;
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~mask;
+		break;
+
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= mask;
+		break;
+
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(comedi_dio_insn_config);
+
 static int insn_rw_emulate_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
