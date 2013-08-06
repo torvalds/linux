@@ -9,7 +9,7 @@
 #include "util/thread.h"
 #include "util/header.h"
 #include "util/session.h"
-
+#include "util/intlist.h"
 #include "util/parse-options.h"
 #include "util/trace-event.h"
 #include "util/debug.h"
@@ -106,6 +106,9 @@ struct perf_kvm_stat {
 	u64 total_time;
 	u64 total_count;
 	u64 lost_events;
+
+	const char *pid_str;
+	struct intlist *pid_list;
 
 	struct rb_root result;
 
@@ -777,16 +780,29 @@ static int process_lost_event(struct perf_tool *tool,
 	return 0;
 }
 
+static bool skip_sample(struct perf_kvm_stat *kvm,
+			struct perf_sample *sample)
+{
+	if (kvm->pid_list && intlist__find(kvm->pid_list, sample->pid) == NULL)
+		return true;
+
+	return false;
+}
+
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
-	struct thread *thread = machine__findnew_thread(machine, sample->tid);
+	struct thread *thread;
 	struct perf_kvm_stat *kvm = container_of(tool, struct perf_kvm_stat,
 						 tool);
 
+	if (skip_sample(kvm, sample))
+		return 0;
+
+	thread = machine__findnew_thread(machine, sample->tid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			event->header.type);
@@ -1209,10 +1225,26 @@ static int read_events(struct perf_kvm_stat *kvm)
 	return perf_session__process_events(kvm->session, &kvm->tool);
 }
 
+static int parse_target_str(struct perf_kvm_stat *kvm)
+{
+	if (kvm->pid_str) {
+		kvm->pid_list = intlist__new(kvm->pid_str);
+		if (kvm->pid_list == NULL) {
+			pr_err("Error parsing process id string\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int kvm_events_report_vcpu(struct perf_kvm_stat *kvm)
 {
 	int ret = -EINVAL;
 	int vcpu = kvm->trace_vcpu;
+
+	if (parse_target_str(kvm) != 0)
+		goto exit;
 
 	if (!verify_vcpu(vcpu))
 		goto exit;
@@ -1300,6 +1332,8 @@ kvm_events_report(struct perf_kvm_stat *kvm, int argc, const char **argv)
 		OPT_STRING('k', "key", &kvm->sort_key, "sort-key",
 			    "key for sorting: sample(sort by samples number)"
 			    " time (sort by avg time)"),
+		OPT_STRING('p', "pid", &kvm->pid_str, "pid",
+			   "analyze events only for given process id(s)"),
 		OPT_END()
 	};
 
