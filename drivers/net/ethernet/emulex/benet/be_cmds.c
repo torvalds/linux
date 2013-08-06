@@ -2454,6 +2454,12 @@ int be_cmd_get_phy_info(struct be_adapter *adapter)
 			le16_to_cpu(resp_phy_info->fixed_speeds_supported);
 		adapter->phy.misc_params =
 			le32_to_cpu(resp_phy_info->misc_params);
+
+		if (BE2_chip(adapter)) {
+			adapter->phy.fixed_speeds_supported =
+				BE_SUPPORTED_SPEED_10GBPS |
+				BE_SUPPORTED_SPEED_1GBPS;
+		}
 	}
 	pci_free_consistent(adapter->pdev, cmd.size,
 				cmd.va, cmd.dma);
