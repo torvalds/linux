@@ -70,7 +70,8 @@ static void dma_enqueue(struct snd_pcm_substream *substream)
 
 	pr_debug("Entered %s\n", __func__);
 
-	limit = (prtd->dma_end - prtd->dma_start) / prtd->dma_period;
+	limit = (unsigned int) (prtd->dma_end - prtd->dma_start)
+		/ prtd->dma_period;
 
 	pr_debug("%s: loaded %d, limit %d\n",
 				__func__, prtd->dma_loaded, limit);
