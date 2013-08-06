@@ -833,7 +833,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 {
 	int i, err = 0;
 	struct sirfsoc_gpio_bank *bank;
-	void *regs;
+	void __iomem *regs;
 	struct platform_device *pdev;
 	bool is_marco = false;
 
