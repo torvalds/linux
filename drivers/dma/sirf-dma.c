@@ -595,7 +595,7 @@ sirfsoc_dma_prep_cyclic(struct dma_chan *chan, dma_addr_t addr,
 	spin_unlock_irqrestore(&schan->lock, iflags);
 
 	if (!sdesc)
-		return 0;
+		return NULL;
 
 	/* Place descriptor in prepared list */
 	spin_lock_irqsave(&schan->lock, iflags);
