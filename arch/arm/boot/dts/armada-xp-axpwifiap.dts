@@ -16,7 +16,7 @@
  */
 
 /dts-v1/;
-/include/ "armada-xp-mv78230.dtsi"
+#include "armada-xp-mv78230.dtsi"
 
 / {
 	model = "Marvell RD-AXPWiFiAP";
@@ -32,8 +32,30 @@
 	};
 
 	soc {
-		ranges = <0          0 0xf1000000 0x100000  /* Internal registers 1MiB */
-			  0xe0000000 0 0xe0000000 0x8100000 /* PCIe */>;
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000>;
+
+		pcie-controller {
+			status = "okay";
+
+			/* First mini-PCIe port */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			/* Second mini-PCIe port */
+			pcie@2,0 {
+				/* Port 0, Lane 1 */
+				status = "okay";
+			};
+
+			/* Renesas uPD720202 USB 3.0 controller */
+			pcie@3,0 {
+				/* Port 0, Lane 3 */
+				status = "okay";
+			};
+		};
 
 		internal-regs {
 			pinctrl {
@@ -121,28 +143,6 @@
 					compatible = "n25q128a13";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <108000000>;
-				};
-			};
-
-			pcie-controller {
-				status = "okay";
-
-				/* First mini-PCIe port */
-				pcie@1,0 {
-					/* Port 0, Lane 0 */
-					status = "okay";
-				};
-
-				/* Second mini-PCIe port */
-				pcie@2,0 {
-					/* Port 0, Lane 1 */
-					status = "okay";
-				};
-
-				/* Renesas uPD720202 USB 3.0 controller */
-				pcie@3,0 {
-					/* Port 0, Lane 3 */
-					status = "okay";
 				};
 			};
 		};
