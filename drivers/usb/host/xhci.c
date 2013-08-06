@@ -3738,6 +3738,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);
+	trace_xhci_address_ctx(xhci, virt_dev->in_ctx,
+				slot_ctx->dev_info >> 27);
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	cmd_trb = xhci->cmd_ring->dequeue;
@@ -3794,6 +3796,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 				"code 0x%x.\n", virt_dev->cmd_status);
 		xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 2);
+		trace_xhci_address_ctx(xhci, virt_dev->out_ctx, 1);
 		ret = -EINVAL;
 		break;
 	}
@@ -3814,6 +3817,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 			(unsigned long long)virt_dev->out_ctx->dma);
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);
+	trace_xhci_address_ctx(xhci, virt_dev->in_ctx,
+				slot_ctx->dev_info >> 27);
 	xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->out_ctx, 2);
 	/*
@@ -3821,6 +3826,8 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	 * address given back to us by the HC.
 	 */
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
+	trace_xhci_address_ctx(xhci, virt_dev->out_ctx,
+				slot_ctx->dev_info >> 27);
 	/* Use kernel assigned address for devices; store xHC assigned
 	 * address locally. */
 	virt_dev->address = (le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK)
