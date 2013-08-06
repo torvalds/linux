@@ -2818,7 +2818,8 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	struct xhci_dequeue_state deq_state;
 	struct xhci_virt_ep *ep;
 
-	xhci_dbg(xhci, "Cleaning up stalled endpoint ring\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
+			"Cleaning up stalled endpoint ring");
 	ep = &xhci->devs[udev->slot_id]->eps[ep_index];
 	/* We need to move the HW's dequeue pointer past this TD,
 	 * or it will attempt to resend it on the next doorbell ring.
@@ -2831,7 +2832,8 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	 * issue a configure endpoint command later.
 	 */
 	if (!(xhci->quirks & XHCI_RESET_EP_QUIRK)) {
-		xhci_dbg(xhci, "Queueing new dequeue state\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
+				"Queueing new dequeue state");
 		xhci_queue_new_dequeue_state(xhci, udev->slot_id,
 				ep_index, ep->stopped_stream, &deq_state);
 	} else {
@@ -2874,16 +2876,19 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	virt_ep = &xhci->devs[udev->slot_id]->eps[ep_index];
 	if (!virt_ep->stopped_td) {
-		xhci_dbg(xhci, "Endpoint 0x%x not halted, refusing to reset.\n",
-				ep->desc.bEndpointAddress);
+		xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
+			"Endpoint 0x%x not halted, refusing to reset.",
+			ep->desc.bEndpointAddress);
 		return;
 	}
 	if (usb_endpoint_xfer_control(&ep->desc)) {
-		xhci_dbg(xhci, "Control endpoint stall already handled.\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
+				"Control endpoint stall already handled.");
 		return;
 	}
 
-	xhci_dbg(xhci, "Queueing reset endpoint command\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
+			"Queueing reset endpoint command");
 	spin_lock_irqsave(&xhci->lock, flags);
 	ret = xhci_queue_reset_ep(xhci, udev->slot_id, ep_index);
 	/*

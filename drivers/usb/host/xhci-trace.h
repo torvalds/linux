@@ -46,6 +46,11 @@ DEFINE_EVENT(xhci_log_msg, xhci_dbg_quirks,
 	TP_ARGS(vaf)
 );
 
+DEFINE_EVENT(xhci_log_msg, xhci_dbg_reset_ep,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf)
+);
+
 #endif /* __XHCI_TRACE_H */
 
 /* this part must be outside header guard */

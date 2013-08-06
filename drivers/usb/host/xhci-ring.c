@@ -1151,7 +1151,8 @@ static void handle_reset_ep_completion(struct xhci_hcd *xhci,
 	/* This command will only fail if the endpoint wasn't halted,
 	 * but we don't care.
 	 */
-	xhci_dbg(xhci, "Ignoring reset ep completion code of %u\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
+		"Ignoring reset ep completion code of %u",
 		 GET_COMP_CODE(le32_to_cpu(event->status)));
 
 	/* HW with the reset endpoint quirk needs to have a configure endpoint
