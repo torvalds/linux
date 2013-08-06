@@ -296,7 +296,15 @@ static struct ctl_table sctp_net_table[] = {
 		.extra1		= &max_autoclose_min,
 		.extra2		= &max_autoclose_max,
 	},
-
+	{
+		.procname	= "checksum_disable",
+		.data		= &init_net.sctp.checksum_disable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
 	{ /* sentinel */ }
 };
 

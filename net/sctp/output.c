@@ -395,6 +395,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	int padding;		/* How much padding do we need?  */
 	__u8 has_data = 0;
 	struct dst_entry *dst = tp->dst;
+	struct net *net;
 	unsigned char *auth = NULL;	/* pointer to auth in skb data */
 	__u32 cksum_buf_len = sizeof(struct sctphdr);
 
@@ -541,7 +542,9 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * Note: Adler-32 is no longer applicable, as has been replaced
 	 * by CRC32-C as described in <draft-ietf-tsvwg-sctpcsum-02.txt>.
 	 */
-	if (!sctp_checksum_disable) {
+	net = dev_net(dst->dev);
+
+	if (!net->sctp.checksum_disable) {
 		if (!(dst->dev->features & NETIF_F_SCTP_CSUM)) {
 			__u32 crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
 

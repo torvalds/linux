@@ -141,10 +141,6 @@ extern struct sctp_globals {
 	/* This is the sctp port control hash.	*/
 	int port_hashsize;
 	struct sctp_bind_hashbucket *port_hashtable;
-
-	/* Flag to indicate whether computing and verifying checksum
-	 * is disabled. */
-        bool checksum_disable;
 } sctp_globals;
 
 #define sctp_max_instreams		(sctp_globals.max_instreams)
@@ -156,7 +152,6 @@ extern struct sctp_globals {
 #define sctp_assoc_hashtable		(sctp_globals.assoc_hashtable)
 #define sctp_port_hashsize		(sctp_globals.port_hashsize)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
-#define sctp_checksum_disable		(sctp_globals.checksum_disable)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {
