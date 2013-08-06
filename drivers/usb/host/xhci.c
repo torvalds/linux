@@ -418,9 +418,11 @@ static void compliance_mode_recovery(unsigned long arg)
 			 * Compliance Mode Detected. Letting USB Core
 			 * handle the Warm Reset
 			 */
-			xhci_dbg(xhci, "Compliance mode detected->port %d\n",
+			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+					"Compliance mode detected->port %d",
 					i + 1);
-			xhci_dbg(xhci, "Attempting compliance mode recovery\n");
+			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+					"Attempting compliance mode recovery");
 			hcd = xhci->shared_hcd;
 
 			if (hcd->state == HC_STATE_SUSPENDED)
@@ -458,7 +460,8 @@ static void compliance_mode_recovery_timer_init(struct xhci_hcd *xhci)
 	set_timer_slack(&xhci->comp_mode_recovery_timer,
 			msecs_to_jiffies(COMP_MODE_RCVRY_MSECS));
 	add_timer(&xhci->comp_mode_recovery_timer);
-	xhci_dbg(xhci, "Compliance mode recovery timer initialized\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+			"Compliance mode recovery timer initialized");
 }
 
 /*
@@ -509,7 +512,8 @@ int xhci_init(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "xhci_init\n");
 	spin_lock_init(&xhci->lock);
 	if (xhci->hci_version == 0x95 && link_quirk) {
-		xhci_dbg(xhci, "QUIRK: Not clearing Link TRB chain bits.\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"QUIRK: Not clearing Link TRB chain bits.");
 		xhci->quirks |= XHCI_LINK_TRB_QUIRK;
 	} else {
 		xhci_dbg(xhci, "xHCI doesn't need link TRB QUIRK\n");
@@ -668,7 +672,8 @@ void xhci_stop(struct usb_hcd *hcd)
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 			(!(xhci_all_ports_seen_u0(xhci)))) {
 		del_timer_sync(&xhci->comp_mode_recovery_timer);
-		xhci_dbg(xhci, "%s: compliance mode recovery timer deleted\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"%s: compliance mode recovery timer deleted",
 				__func__);
 	}
 
@@ -866,7 +871,8 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 			(!(xhci_all_ports_seen_u0(xhci)))) {
 		del_timer_sync(&xhci->comp_mode_recovery_timer);
-		xhci_dbg(xhci, "%s: compliance mode recovery timer deleted\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"%s: compliance mode recovery timer deleted",
 				__func__);
 	}
 
@@ -931,7 +937,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 				!(xhci_all_ports_seen_u0(xhci))) {
 			del_timer_sync(&xhci->comp_mode_recovery_timer);
-			xhci_dbg(xhci, "Compliance Mode Recovery Timer deleted!\n");
+			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Compliance Mode Recovery Timer deleted!");
 		}
 
 		/* Let the USB core know _both_ roothubs lost power. */
@@ -1894,14 +1901,16 @@ static int xhci_reserve_host_resources(struct xhci_hcd *xhci,
 
 	added_eps = xhci_count_num_new_endpoints(xhci, ctrl_ctx);
 	if (xhci->num_active_eps + added_eps > xhci->limit_active_eps) {
-		xhci_dbg(xhci, "Not enough ep ctxs: "
-				"%u active, need to add %u, limit is %u.\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Not enough ep ctxs: "
+				"%u active, need to add %u, limit is %u.",
 				xhci->num_active_eps, added_eps,
 				xhci->limit_active_eps);
 		return -ENOMEM;
 	}
 	xhci->num_active_eps += added_eps;
-	xhci_dbg(xhci, "Adding %u ep ctxs, %u now active.\n", added_eps,
+	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+			"Adding %u ep ctxs, %u now active.", added_eps,
 			xhci->num_active_eps);
 	return 0;
 }
@@ -1919,7 +1928,8 @@ static void xhci_free_host_resources(struct xhci_hcd *xhci,
 
 	num_failed_eps = xhci_count_num_new_endpoints(xhci, ctrl_ctx);
 	xhci->num_active_eps -= num_failed_eps;
-	xhci_dbg(xhci, "Removing %u failed ep ctxs, %u now active.\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+			"Removing %u failed ep ctxs, %u now active.",
 			num_failed_eps,
 			xhci->num_active_eps);
 }
@@ -1938,7 +1948,8 @@ static void xhci_finish_resource_reservation(struct xhci_hcd *xhci,
 	num_dropped_eps = xhci_count_num_dropped_endpoints(xhci, ctrl_ctx);
 	xhci->num_active_eps -= num_dropped_eps;
 	if (num_dropped_eps)
-		xhci_dbg(xhci, "Removing %u dropped ep ctxs, %u now active.\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Removing %u dropped ep ctxs, %u now active.",
 				num_dropped_eps,
 				xhci->num_active_eps);
 }
@@ -2099,18 +2110,21 @@ static int xhci_check_bw_table(struct xhci_hcd *xhci,
 	 * that the HS bus has enough bandwidth if we are activing a new TT.
 	 */
 	if (virt_dev->tt_info) {
-		xhci_dbg(xhci, "Recalculating BW for rootport %u\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Recalculating BW for rootport %u",
 				virt_dev->real_port);
 		if (xhci_check_tt_bw_table(xhci, virt_dev, old_active_eps)) {
 			xhci_warn(xhci, "Not enough bandwidth on HS bus for "
 					"newly activated TT.\n");
 			return -ENOMEM;
 		}
-		xhci_dbg(xhci, "Recalculating BW for TT slot %u port %u\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Recalculating BW for TT slot %u port %u",
 				virt_dev->tt_info->slot_id,
 				virt_dev->tt_info->ttport);
 	} else {
-		xhci_dbg(xhci, "Recalculating BW for rootport %u\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Recalculating BW for rootport %u",
 				virt_dev->real_port);
 	}
 
@@ -2218,8 +2232,9 @@ static int xhci_check_bw_table(struct xhci_hcd *xhci,
 			xhci->rh_bw[port_index].num_active_tts;
 	}
 
-	xhci_dbg(xhci, "Final bandwidth: %u, Limit: %u, Reserved: %u, "
-		"Available: %u " "percent\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+		"Final bandwidth: %u, Limit: %u, Reserved: %u, "
+		"Available: %u " "percent",
 		bw_used, max_bandwidth, bw_reserved,
 		(max_bandwidth - bw_used - bw_reserved) * 100 /
 		max_bandwidth);
@@ -2825,8 +2840,9 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 		 * XXX: No idea how this hardware will react when stream rings
 		 * are enabled.
 		 */
-		xhci_dbg(xhci, "Setting up input context for "
-				"configure endpoint command\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Setting up input context for "
+				"configure endpoint command");
 		xhci_setup_input_ctx_for_quirk(xhci, udev->slot_id,
 				ep_index, &deq_state);
 	}
@@ -3305,8 +3321,9 @@ void xhci_free_device_endpoint_resources(struct xhci_hcd *xhci,
 	}
 	xhci->num_active_eps -= num_dropped_eps;
 	if (num_dropped_eps)
-		xhci_dbg(xhci, "Dropped %u ep ctxs, flags = 0x%x, "
-				"%u now active.\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Dropped %u ep ctxs, flags = 0x%x, "
+				"%u now active.",
 				num_dropped_eps, drop_flags,
 				xhci->num_active_eps);
 }
@@ -3568,13 +3585,15 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 static int xhci_reserve_host_control_ep_resources(struct xhci_hcd *xhci)
 {
 	if (xhci->num_active_eps + 1 > xhci->limit_active_eps) {
-		xhci_dbg(xhci, "Not enough ep ctxs: "
-				"%u active, need to add 1, limit is %u.\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Not enough ep ctxs: "
+				"%u active, need to add 1, limit is %u.",
 				xhci->num_active_eps, xhci->limit_active_eps);
 		return -ENOMEM;
 	}
 	xhci->num_active_eps += 1;
-	xhci_dbg(xhci, "Adding 1 ep ctx, %u now active.\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+			"Adding 1 ep ctx, %u now active.",
 			xhci->num_active_eps);
 	return 0;
 }

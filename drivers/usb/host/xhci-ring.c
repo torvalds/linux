@@ -1159,7 +1159,8 @@ static void handle_reset_ep_completion(struct xhci_hcd *xhci,
 	 * because the HW can't handle two commands being queued in a row.
 	 */
 	if (xhci->quirks & XHCI_RESET_EP_QUIRK) {
-		xhci_dbg(xhci, "Queueing configure endpoint command\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Queueing configure endpoint command");
 		xhci_queue_configure_endpoint(xhci,
 				xhci->devs[slot_id]->in_ctx->dma, slot_id,
 				false);
@@ -1445,8 +1446,9 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 			ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
 			if (!(ep_state & EP_HALTED))
 				goto bandwidth_change;
-			xhci_dbg(xhci, "Completed config ep cmd - "
-					"last ep index = %d, state = %d\n",
+			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+					"Completed config ep cmd - "
+					"last ep index = %d, state = %d",
 					ep_index, ep_state);
 			/* Clear internal halted state and restart ring(s) */
 			xhci->devs[slot_id]->eps[ep_index].ep_state &=
@@ -1499,7 +1501,8 @@ bandwidth_change:
 			xhci->error_bitmask |= 1 << 6;
 			break;
 		}
-		xhci_dbg(xhci, "NEC firmware version %2x.%02x\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+			"NEC firmware version %2x.%02x",
 			 NEC_FW_MAJOR(le32_to_cpu(event->status)),
 			 NEC_FW_MINOR(le32_to_cpu(event->status)));
 		break;

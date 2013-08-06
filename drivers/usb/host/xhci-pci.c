@@ -25,6 +25,7 @@
 #include <linux/module.h>
 
 #include "xhci.h"
+#include "xhci-trace.h"
 
 /* Device for a quirk */
 #define PCI_VENDOR_ID_FRESCO_LOGIC	0x1b73
@@ -64,16 +65,18 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 		if (pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_PDK &&
 				pdev->revision == 0x0) {
 			xhci->quirks |= XHCI_RESET_EP_QUIRK;
-			xhci_dbg(xhci, "QUIRK: Fresco Logic xHC needs configure"
-					" endpoint cmd after reset endpoint\n");
+			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"QUIRK: Fresco Logic xHC needs configure"
+				" endpoint cmd after reset endpoint");
 		}
 		/* Fresco Logic confirms: all revisions of this chip do not
 		 * support MSI, even though some of them claim to in their PCI
 		 * capabilities.
 		 */
 		xhci->quirks |= XHCI_BROKEN_MSI;
-		xhci_dbg(xhci, "QUIRK: Fresco Logic revision %u "
-				"has broken MSI implementation\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"QUIRK: Fresco Logic revision %u "
+				"has broken MSI implementation",
 				pdev->revision);
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 	}
@@ -110,7 +113,8 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_ETRON &&
 			pdev->device == PCI_DEVICE_ID_ASROCK_P67) {
 		xhci->quirks |= XHCI_RESET_ON_RESUME;
-		xhci_dbg(xhci, "QUIRK: Resetting on resume\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"QUIRK: Resetting on resume");
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 	}
 	if (pdev->vendor == PCI_VENDOR_ID_VIA)
