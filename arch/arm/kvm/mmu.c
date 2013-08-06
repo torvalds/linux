@@ -85,6 +85,12 @@ static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
 	return p;
 }
 
+static bool page_empty(void *ptr)
+{
+	struct page *ptr_page = virt_to_page(ptr);
+	return page_count(ptr_page) == 1;
+}
+
 static void clear_pud_entry(struct kvm *kvm, pud_t *pud, phys_addr_t addr)
 {
 	pmd_t *pmd_table = pmd_offset(pud, 0);
@@ -103,12 +109,6 @@ static void clear_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr)
 	put_page(virt_to_page(pmd));
 }
 
-static bool pmd_empty(pmd_t *pmd)
-{
-	struct page *pmd_page = virt_to_page(pmd);
-	return page_count(pmd_page) == 1;
-}
-
 static void clear_pte_entry(struct kvm *kvm, pte_t *pte, phys_addr_t addr)
 {
 	if (pte_present(*pte)) {
@@ -116,12 +116,6 @@ static void clear_pte_entry(struct kvm *kvm, pte_t *pte, phys_addr_t addr)
 		put_page(virt_to_page(pte));
 		kvm_tlb_flush_vmid_ipa(kvm, addr);
 	}
-}
-
-static bool pte_empty(pte_t *pte)
-{
-	struct page *pte_page = virt_to_page(pte);
-	return page_count(pte_page) == 1;
 }
 
 static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
@@ -153,10 +147,10 @@ static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
 		next = addr + PAGE_SIZE;
 
 		/* If we emptied the pte, walk back up the ladder */
-		if (pte_empty(pte)) {
+		if (page_empty(pte)) {
 			clear_pmd_entry(kvm, pmd, addr);
 			next = pmd_addr_end(addr, end);
-			if (pmd_empty(pmd)) {
+			if (page_empty(pmd) && !page_empty(pud)) {
 				clear_pud_entry(kvm, pud, addr);
 				next = pud_addr_end(addr, end);
 			}
