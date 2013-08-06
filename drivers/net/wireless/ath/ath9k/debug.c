@@ -270,6 +270,8 @@ static const struct file_operations fops_ani = {
 	.llseek = default_llseek,
 };
 
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
 static ssize_t read_file_bt_ant_diversity(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
@@ -322,6 +324,8 @@ static const struct file_operations fops_bt_ant_diversity = {
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
+
+#endif
 
 void ath9k_debug_stat_ant(struct ath_softc *sc,
 			  struct ath_hw_antcomb_conf *div_ant_conf,
@@ -1935,11 +1939,11 @@ int ath9k_init_debug(struct ath_hw *ah)
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
 	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
-	debugfs_create_file("bt_ant_diversity", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
 	debugfs_create_file("antenna_diversity", S_IRUSR,
 			    sc->debug.debugfs_phy, sc, &fops_antenna_diversity);
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	debugfs_create_file("bt_ant_diversity", S_IRUSR | S_IWUSR,
+			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
 	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
 #endif

@@ -1412,6 +1412,8 @@ static void ar9003_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 }
 
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
 static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
@@ -1512,6 +1514,8 @@ static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 		}
 	}
 }
+
+#endif
 
 static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 				      struct ath9k_channel *chan,
@@ -1688,10 +1692,13 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 
 	ops->antdiv_comb_conf_get = ar9003_hw_antdiv_comb_conf_get;
 	ops->antdiv_comb_conf_set = ar9003_hw_antdiv_comb_conf_set;
-	ops->set_bt_ant_diversity = ar9003_hw_set_bt_ant_diversity;
 	ops->spectral_scan_config = ar9003_hw_spectral_scan_config;
 	ops->spectral_scan_trigger = ar9003_hw_spectral_scan_trigger;
 	ops->spectral_scan_wait = ar9003_hw_spectral_scan_wait;
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	ops->set_bt_ant_diversity = ar9003_hw_set_bt_ant_diversity;
+#endif
 
 	ar9003_hw_set_nf_limits(ah);
 	ar9003_hw_set_radar_conf(ah);

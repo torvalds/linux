@@ -555,6 +555,8 @@ static void ar9002_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regval);
 }
 
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
 static void ar9002_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 {
 	struct ath_btcoex_hw *btcoex = &ah->btcoex_hw;
@@ -613,6 +615,8 @@ static void ar9002_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 	regval |= SM((antdiv_ctrl1 >> 3), AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
 	REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
 }
+
+#endif
 
 static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 				    struct ath_spec_scan *param)
@@ -689,10 +693,13 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 
 	ops->antdiv_comb_conf_get = ar9002_hw_antdiv_comb_conf_get;
 	ops->antdiv_comb_conf_set = ar9002_hw_antdiv_comb_conf_set;
-	ops->set_bt_ant_diversity = ar9002_hw_set_bt_ant_diversity;
 	ops->spectral_scan_config = ar9002_hw_spectral_scan_config;
 	ops->spectral_scan_trigger = ar9002_hw_spectral_scan_trigger;
 	ops->spectral_scan_wait = ar9002_hw_spectral_scan_wait;
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	ops->set_bt_ant_diversity = ar9002_hw_set_bt_ant_diversity;
+#endif
 
 	ar9002_hw_set_nf_limits(ah);
 }
