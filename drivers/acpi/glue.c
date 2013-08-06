@@ -173,6 +173,15 @@ acpi_handle acpi_find_child(acpi_handle parent, u64 addr, bool is_bridge)
 }
 EXPORT_SYMBOL_GPL(acpi_find_child);
 
+static void acpi_physnode_link_name(char *buf, unsigned int node_id)
+{
+	if (node_id > 0)
+		snprintf(buf, PHYSICAL_NODE_NAME_SIZE,
+			 PHYSICAL_NODE_STRING "%u", node_id);
+	else
+		strcpy(buf, PHYSICAL_NODE_STRING);
+}
+
 int acpi_bind_one(struct device *dev, acpi_handle handle)
 {
 	struct acpi_device *acpi_dev;
@@ -238,11 +247,7 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 	if (!ACPI_HANDLE(dev))
 		ACPI_HANDLE_SET(dev, acpi_dev->handle);
 
-	if (!physical_node->node_id)
-		strcpy(physical_node_name, PHYSICAL_NODE_STRING);
-	else
-		sprintf(physical_node_name,
-			"physical_node%d", physical_node->node_id);
+	acpi_physnode_link_name(physical_node_name, node_id);
 	retval = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
 			physical_node_name);
 	retval = sysfs_create_link(&dev->kobj, &acpi_dev->dev.kobj,
@@ -296,12 +301,7 @@ int acpi_unbind_one(struct device *dev)
 
 		acpi_dev->physical_node_count--;
 
-		if (!entry->node_id)
-			strcpy(physical_node_name, PHYSICAL_NODE_STRING);
-		else
-			sprintf(physical_node_name,
-				"physical_node%d", entry->node_id);
-
+		acpi_physnode_link_name(physical_node_name, entry->node_id);
 		sysfs_remove_link(&acpi_dev->dev.kobj, physical_node_name);
 		sysfs_remove_link(&dev->kobj, "firmware_node");
 		ACPI_HANDLE_SET(dev, NULL);
