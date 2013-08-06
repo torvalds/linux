@@ -375,6 +375,9 @@ static int __devinit rk29_wdt_probe(struct platform_device *pdev)
 
 	wdt_clock = clk_get(&pdev->dev, "wdt");
 	if (IS_ERR(wdt_clock)) {
+		wdt_clock = clk_get(&pdev->dev, "pclk_wdt");
+	}
+	if (IS_ERR(wdt_clock)) {
 		dev_err(dev, "failed to find watchdog clock source\n");
 		ret = PTR_ERR(wdt_clock);
 		goto err_irq;
