@@ -1434,7 +1434,6 @@ int main(void)
 	int	pool;
 	char	*if_name;
 	struct hv_kvp_ipaddr_value *kvp_ip_val;
-	char *kvp_send_buffer;
 	char *kvp_recv_buffer;
 	size_t kvp_recv_buffer_len;
 
@@ -1443,11 +1442,10 @@ int main(void)
 	openlog("KVP", 0, LOG_USER);
 	syslog(LOG_INFO, "KVP starting; pid is:%d", getpid());
 
-	kvp_recv_buffer_len = NLMSG_HDRLEN + sizeof(struct cn_msg) + sizeof(struct hv_kvp_msg);
-	kvp_send_buffer = calloc(1, kvp_recv_buffer_len);
+	kvp_recv_buffer_len = NLMSG_LENGTH(0) + sizeof(struct cn_msg) + sizeof(struct hv_kvp_msg);
 	kvp_recv_buffer = calloc(1, kvp_recv_buffer_len);
-	if (!(kvp_send_buffer && kvp_recv_buffer)) {
-		syslog(LOG_ERR, "Failed to allocate netlink buffers");
+	if (!kvp_recv_buffer) {
+		syslog(LOG_ERR, "Failed to allocate netlink buffer");
 		exit(EXIT_FAILURE);
 	}
 	/*
@@ -1494,7 +1492,7 @@ int main(void)
 	/*
 	 * Register ourselves with the kernel.
 	 */
-	message = (struct cn_msg *)kvp_send_buffer;
+	message = (struct cn_msg *)kvp_recv_buffer;
 	message->id.idx = CN_KVP_IDX;
 	message->id.val = CN_KVP_VAL;
 
