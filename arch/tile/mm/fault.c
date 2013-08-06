@@ -722,8 +722,49 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 {
 	int is_page_fault;
 
+#ifdef __tilegx__
+	/*
+	 * We don't need early do_page_fault_ics() support, since unlike
+	 * Pro we don't need to worry about unlocking the atomic locks.
+	 * There is only one current case in GX where we touch any memory
+	 * under ICS other than our own kernel stack, and we handle that
+	 * here.  (If we crash due to trying to touch our own stack,
+	 * we're in too much trouble for C code to help out anyway.)
+	 */
+	if (write & ~1) {
+		unsigned long pc = write & ~1;
+		if (pc >= (unsigned long) __start_unalign_asm_code &&
+		    pc < (unsigned long) __end_unalign_asm_code) {
+			struct thread_info *ti = current_thread_info();
+			/*
+			 * Our EX_CONTEXT is still what it was from the
+			 * initial unalign exception, but now we've faulted
+			 * on the JIT page.  We would like to complete the
+			 * page fault however is appropriate, and then retry
+			 * the instruction that caused the unalign exception.
+			 * Our state has been "corrupted" by setting the low
+			 * bit in "sp", and stashing r0..r3 in the
+			 * thread_info area, so we revert all of that, then
+			 * continue as if this were a normal page fault.
+			 */
+			regs->sp &= ~1UL;
+			regs->regs[0] = ti->unalign_jit_tmp[0];
+			regs->regs[1] = ti->unalign_jit_tmp[1];
+			regs->regs[2] = ti->unalign_jit_tmp[2];
+			regs->regs[3] = ti->unalign_jit_tmp[3];
+			write &= 1;
+		} else {
+			pr_alert("%s/%d: ICS set at page fault at %#lx: %#lx\n",
+				 current->comm, current->pid, pc, address);
+			show_regs(regs);
+			do_group_exit(SIGKILL);
+			return;
+		}
+	}
+#else
 	/* This case should have been handled by do_page_fault_ics(). */
 	BUG_ON(write & ~1);
+#endif
 
 #if CHIP_HAS_TILE_DMA()
 	/*

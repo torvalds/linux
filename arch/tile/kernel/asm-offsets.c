@@ -60,6 +60,12 @@ void foo(void)
 	       offsetof(struct thread_info, homecache_cpu));
 	DEFINE(THREAD_INFO_STEP_STATE_OFFSET,
 	       offsetof(struct thread_info, step_state));
+#ifdef __tilegx__
+	DEFINE(THREAD_INFO_UNALIGN_JIT_BASE_OFFSET,
+	       offsetof(struct thread_info, unalign_jit_base));
+	DEFINE(THREAD_INFO_UNALIGN_JIT_TMP_OFFSET,
+	       offsetof(struct thread_info, unalign_jit_tmp));
+#endif
 
 	DEFINE(TASK_STRUCT_THREAD_KSP_OFFSET,
 	       offsetof(struct task_struct, thread.ksp));

@@ -1420,7 +1420,6 @@ handle_ill:
 	{
 	 lw     r0, r0          /* indirect thru thread_info to get task_info*/
 	 addi   r1, sp, C_ABI_SAVE_AREA_SIZE  /* put ptregs pointer into r1 */
-	 move   r2, zero        /* load error code into r2 */
 	}
 
 	jal     send_sigtrap    /* issue a SIGTRAP */

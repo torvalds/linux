@@ -272,7 +272,7 @@ void do_syscall_trace_exit(struct pt_regs *regs)
 		trace_sys_exit(regs, regs->regs[0]);
 }
 
-void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
+void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs)
 {
 	struct siginfo info;
 
@@ -288,5 +288,5 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 /* Handle synthetic interrupt delivered only by the simulator. */
 void __kprobes do_breakpoint(struct pt_regs* regs, int fault_num)
 {
-	send_sigtrap(current, regs, fault_num);
+	send_sigtrap(current, regs);
 }

@@ -247,6 +247,13 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(task)	task_pc(task)
 #define KSTK_ESP(task)	task_sp(task)
 
+/* Fine-grained unaligned JIT support */
+#define GET_UNALIGN_CTL(tsk, adr)	get_unalign_ctl((tsk), (adr))
+#define SET_UNALIGN_CTL(tsk, val)	set_unalign_ctl((tsk), (val))
+
+extern int get_unalign_ctl(struct task_struct *tsk, unsigned long adr);
+extern int set_unalign_ctl(struct task_struct *tsk, unsigned int val);
+
 /* Standard format for printing registers and other word-size data. */
 #ifdef __tilegx__
 # define REGFMT "0x%016lx"

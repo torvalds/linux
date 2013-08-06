@@ -17,11 +17,13 @@
 #include <linux/linkage.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
+#include <linux/init.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/irqflags.h>
 #include <asm/asm-offsets.h>
 #include <asm/types.h>
+#include <asm/traps.h>
 #include <asm/signal.h>
 #include <hv/hypervisor.h>
 #include <arch/abi.h>
@@ -98,6 +100,189 @@
 	}
 	.endm
 
+	/*
+	 * Unalign data exception fast handling: In order to handle
+	 * unaligned data access, a fast JIT version is generated and stored
+	 * in a specific area in user space. We first need to do a quick poke
+	 * to see if the JIT is available. We use certain bits in the fault
+	 * PC (3 to 9 is used for 16KB page size) as index to address the JIT
+	 * code area. The first 64bit word is the fault PC, and the 2nd one is
+	 * the fault bundle itself. If these 2 words both match, then we
+	 * directly "iret" to JIT code. If not, a slow path is invoked to
+	 * generate new JIT code. Note: the current JIT code WILL be
+	 * overwritten if it existed. So, ideally we can handle 128 unalign
+	 * fixups via JIT. For lookup efficiency and to effectively support
+	 * tight loops with multiple unaligned reference, a simple
+	 * direct-mapped cache is used.
+	 *
+	 * SPR_EX_CONTEXT_K_0 is modified to return to JIT code.
+	 * SPR_EX_CONTEXT_K_1 has ICS set.
+	 * SPR_EX_CONTEXT_0_0 is setup to user program's next PC.
+	 * SPR_EX_CONTEXT_0_1 = 0.
+	 */
+	.macro int_hand_unalign_fast  vecnum, vecname
+	.org  (\vecnum << 8)
+intvec_\vecname:
+	/* Put r3 in SPR_SYSTEM_SAVE_K_1.  */
+	mtspr   SPR_SYSTEM_SAVE_K_1, r3
+
+	mfspr   r3, SPR_EX_CONTEXT_K_1
+	/*
+	 * Examine if exception comes from user without ICS set.
+	 * If not, just go directly to the slow path.
+	 */
+	bnez    r3, hand_unalign_slow_nonuser
+
+	mfspr   r3, SPR_SYSTEM_SAVE_K_0
+
+	/* Get &thread_info->unalign_jit_tmp[0] in r3. */
+	mm      r3, zero, LOG2_THREAD_SIZE, 63
+#if THREAD_SIZE < 65536
+	addli   r3, r3, -(PAGE_SIZE - THREAD_INFO_UNALIGN_JIT_TMP_OFFSET)
+#else
+	addli   r3, r3, -(PAGE_SIZE/2)
+	addli   r3, r3, -(PAGE_SIZE/2 - THREAD_INFO_UNALIGN_JIT_TMP_OFFSET)
+#endif
+
+	/*
+	 * Save r0, r1, r2 into thread_info array r3 points to
+	 * from low to high memory in order.
+	 */
+	st_add  r3, r0, 8
+	st_add  r3, r1, 8
+	{
+	 st_add r3, r2, 8
+	 andi   r2, sp, 7
+	}
+
+	/* Save stored r3 value so we can revert it on a page fault. */
+	mfspr   r1, SPR_SYSTEM_SAVE_K_1
+	st      r3, r1
+
+	{
+	 /* Generate a SIGBUS if sp is not 8-byte aligned. */
+	 bnez   r2, hand_unalign_slow_badsp
+	}
+
+	/*
+	 * Get the thread_info in r0; load r1 with pc. Set the low bit of sp
+	 * as an indicator to the page fault code in case we fault.
+	 */
+	{
+	 ori    sp, sp, 1
+	 mfspr  r1, SPR_EX_CONTEXT_K_0
+	}
+
+	/* Add the jit_info offset in thread_info; extract r1 [3:9] into r2. */
+	{
+	 addli  r0, r3, THREAD_INFO_UNALIGN_JIT_BASE_OFFSET - \
+	  (THREAD_INFO_UNALIGN_JIT_TMP_OFFSET + (3 * 8))
+	 bfextu r2, r1, 3, (2 + PAGE_SHIFT - UNALIGN_JIT_SHIFT)
+	}
+
+	/* Load the jit_info; multiply r2 by 128. */
+	{
+	 ld     r0, r0
+	 shli   r2, r2, UNALIGN_JIT_SHIFT
+	}
+
+	/*
+	 * If r0 is NULL, the JIT page is not mapped, so go to slow path;
+	 * add offset r2 to r0 at the same time.
+	 */
+	{
+	 beqz   r0, hand_unalign_slow
+	 add    r2, r0, r2
+	}
+
+        /*
+	 * We are loading from userspace (both the JIT info PC and
+	 * instruction word, and the instruction word we executed)
+	 * and since either could fault while holding the interrupt
+	 * critical section, we must tag this region and check it in
+	 * do_page_fault() to handle it properly.
+	 */
+ENTRY(__start_unalign_asm_code)
+
+	/* Load first word of JIT in r0 and increment r2 by 8. */
+	ld_add  r0, r2, 8
+
+	/*
+	 * Compare the PC with the 1st word in JIT; load the fault bundle
+	 * into r1.
+	 */
+	{
+	 cmpeq  r0, r0, r1
+	 ld     r1, r1
+	}
+
+	/* Go to slow path if PC doesn't match. */
+	beqz    r0, hand_unalign_slow
+
+	/*
+	 * Load the 2nd word of JIT, which is supposed to be the fault
+	 * bundle for a cache hit. Increment r2; after this bundle r2 will
+	 * point to the potential start of the JIT code we want to run.
+	 */
+	ld_add  r0, r2, 8
+
+	/* No further accesses to userspace are done after this point. */
+ENTRY(__end_unalign_asm_code)
+
+	/* Compare the real bundle with what is saved in the JIT area. */
+	{
+	 cmpeq  r0, r1, r0
+	 mtspr  SPR_EX_CONTEXT_0_1, zero
+	}
+
+	/* Go to slow path if the fault bundle does not match. */
+	beqz    r0, hand_unalign_slow
+
+	/*
+	 * A cache hit is found.
+	 * r2 points to start of JIT code (3rd word).
+	 * r0 is the fault pc.
+	 * r1 is the fault bundle.
+	 * Reset the low bit of sp.
+	 */
+	{
+	 mfspr  r0, SPR_EX_CONTEXT_K_0
+	 andi   sp, sp, ~1
+	}
+
+	/* Write r2 into EX_CONTEXT_K_0 and increment PC. */
+	{
+	 mtspr  SPR_EX_CONTEXT_K_0, r2
+	 addi   r0, r0, 8
+	}
+
+	/*
+	 * Set ICS on kernel EX_CONTEXT_K_1 in order to "iret" to
+	 * user with ICS set. This way, if the JIT fixup causes another
+	 * unalign exception (which shouldn't be possible) the user
+	 * process will be terminated with SIGBUS. Also, our fixup will
+	 * run without interleaving with external interrupts.
+	 * Each fixup is at most 14 bundles, so it won't hold ICS for long.
+	 */
+	{
+	 movei  r1, PL_ICS_EX1(USER_PL, 1)
+	 mtspr  SPR_EX_CONTEXT_0_0, r0
+	}
+
+	{
+	 mtspr  SPR_EX_CONTEXT_K_1, r1
+	 addi   r3, r3, -(3 * 8)
+	}
+
+	/* Restore r0..r3. */
+	ld_add  r0, r3, 8
+	ld_add  r1, r3, 8
+	ld_add  r2, r3, 8
+	ld      r3, r3
+
+	iret
+	ENDPROC(intvec_\vecname)
+	.endm
 
 #ifdef __COLLECT_LINKER_FEEDBACK__
 	.pushsection .text.intvec_feedback,"ax"
@@ -118,15 +303,21 @@ intvec_feedback:
 	 * The "processing" argument specifies the code for processing
 	 * the interrupt. Defaults to "handle_interrupt".
 	 */
-	.macro  int_hand vecnum, vecname, c_routine, processing=handle_interrupt
-	.org    (\vecnum << 8)
+	.macro __int_hand vecnum, vecname, c_routine,processing=handle_interrupt
 intvec_\vecname:
 	/* Temporarily save a register so we have somewhere to work. */
 
 	mtspr   SPR_SYSTEM_SAVE_K_1, r0
 	mfspr   r0, SPR_EX_CONTEXT_K_1
 
-	andi    r0, r0, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
+	/*
+	 * The unalign data fastpath code sets the low bit in sp to
+	 * force us to reset it here on fault.
+	 */
+	{
+	 blbs   sp, 2f
+	 andi   r0, r0, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
+	}
 
 	.ifc    \vecnum, INT_DOUBLE_FAULT
 	/*
@@ -176,7 +367,7 @@ intvec_\vecname:
 	}
 	.endif
 
-
+2:
 	/*
 	 * SYSTEM_SAVE_K_0 holds the cpu number in the low bits, and
 	 * the current stack top in the higher bits.  So we recover
@@ -1223,10 +1414,31 @@ STD_ENTRY(_sys_clone)
 	j       sys_clone
 	STD_ENDPROC(_sys_clone)
 
-/* The single-step support may need to read all the registers. */
+	/*
+	 * Recover r3, r2, r1 and r0 here saved by unalign fast vector.
+	 * The vector area limit is 32 bundles, so we handle the reload here.
+	 * r0, r1, r2 are in thread_info from low to high memory in order.
+	 * r3 points to location the original r3 was saved.
+	 * We put this code in the __HEAD section so it can be reached
+	 * via a conditional branch from the fast path.
+	 */
+	__HEAD
+hand_unalign_slow:
+	andi    sp, sp, ~1
+hand_unalign_slow_badsp:
+	addi    r3, r3, -(3 * 8)
+	ld_add  r0, r3, 8
+	ld_add  r1, r3, 8
+	ld      r2, r3
+hand_unalign_slow_nonuser:
+	mfspr   r3, SPR_SYSTEM_SAVE_K_1
+	__int_hand     INT_UNALIGN_DATA, UNALIGN_DATA_SLOW, int_unalign
+
+/* The unaligned data support needs to read all the registers. */
 int_unalign:
 	push_extra_callee_saves r0
-	j       do_trap
+	j       do_unaligned
+ENDPROC(hand_unalign_slow)
 
 /* Fill the return address stack with nonzero entries. */
 STD_ENTRY(fill_ra_stack)
@@ -1239,6 +1451,11 @@ STD_ENTRY(fill_ra_stack)
 3:	jal	4f
 4:	jrp	r0
 	STD_ENDPROC(fill_ra_stack)
+
+	.macro int_hand  vecnum, vecname, c_routine, processing=handle_interrupt
+	.org   (\vecnum << 8)
+		__int_hand   \vecnum, \vecname, \c_routine, \processing
+	.endm
 
 /* Include .intrpt1 array of interrupt vectors */
 	.section ".intrpt1", "ax"
@@ -1272,7 +1489,7 @@ STD_ENTRY(fill_ra_stack)
 	int_hand     INT_SWINT_1, SWINT_1, SYSCALL, handle_syscall
 	int_hand     INT_SWINT_0, SWINT_0, do_trap
 	int_hand     INT_ILL_TRANS, ILL_TRANS, do_trap
-	int_hand     INT_UNALIGN_DATA, UNALIGN_DATA, int_unalign
+	int_hand_unalign_fast INT_UNALIGN_DATA, UNALIGN_DATA
 	int_hand     INT_DTLB_MISS, DTLB_MISS, do_page_fault
 	int_hand     INT_DTLB_ACCESS, DTLB_ACCESS, do_page_fault
 	int_hand     INT_IDN_FIREWALL, IDN_FIREWALL, do_hardwall_trap

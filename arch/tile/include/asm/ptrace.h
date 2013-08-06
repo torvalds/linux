@@ -79,8 +79,7 @@ extern void single_step_execve(void);
 
 struct task_struct;
 
-extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
-			 int error_code);
+extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs);
 
 #ifdef __tilegx__
 /* We need this since sigval_t has a user pointer in it, for GETSIGINFO etc. */

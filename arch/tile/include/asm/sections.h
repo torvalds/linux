@@ -28,7 +28,9 @@ extern char __w1data_begin[], __w1data_end[];
 
 /* Not exactly sections, but PC comparison points in the code. */
 extern char __rt_sigreturn[], __rt_sigreturn_end[];
-#ifndef __tilegx__
+#ifdef __tilegx__
+extern char __start_unalign_asm_code[], __end_unalign_asm_code[];
+#else
 extern char sys_cmpxchg[], __sys_cmpxchg_end[];
 extern char __sys_cmpxchg_grab_lock[];
 extern char __start_atomic_asm_code[], __end_atomic_asm_code[];
