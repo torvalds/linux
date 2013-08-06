@@ -2180,14 +2180,6 @@ struct hsw_wm_maximums {
 	uint16_t fbc;
 };
 
-struct hsw_lp_wm_result {
-	bool enable;
-	uint32_t pri_val;
-	uint32_t spr_val;
-	uint32_t cur_val;
-	uint32_t fbc_val;
-};
-
 struct hsw_wm_values {
 	uint32_t wm_pipe[3];
 	uint32_t wm_lp[3];
@@ -2280,7 +2272,7 @@ static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
 
 static bool ilk_check_wm(int level,
 			 const struct hsw_wm_maximums *max,
-			 struct hsw_lp_wm_result *result)
+			 struct intel_wm_level *result)
 {
 	bool ret;
 
@@ -2324,7 +2316,7 @@ static bool ilk_check_wm(int level,
 static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 				 int level,
 				 struct hsw_pipe_wm_parameters *p,
-				 struct hsw_lp_wm_result *result)
+				 struct intel_wm_level *result)
 {
 	uint16_t pri_latency = dev_priv->wm.pri_latency[level];
 	uint16_t spr_latency = dev_priv->wm.spr_latency[level];
@@ -2347,10 +2339,10 @@ static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
 			      int level, struct hsw_wm_maximums *max,
 			      struct hsw_pipe_wm_parameters *params,
-			      struct hsw_lp_wm_result *result)
+			      struct intel_wm_level *result)
 {
 	enum pipe pipe;
-	struct hsw_lp_wm_result res[3];
+	struct intel_wm_level res[3];
 
 	for (pipe = PIPE_A; pipe <= PIPE_C; pipe++)
 		ilk_compute_wm_level(dev_priv, level, &params[pipe], &res[pipe]);
@@ -2584,7 +2576,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
-	struct hsw_lp_wm_result lp_results[4] = {};
+	struct intel_wm_level lp_results[4] = {};
 	enum pipe pipe;
 	int level, max_level, wm_lp;
 
@@ -2607,7 +2599,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 
 	memset(results, 0, sizeof(*results));
 	for (wm_lp = 1; wm_lp <= 3; wm_lp++) {
-		const struct hsw_lp_wm_result *r;
+		const struct intel_wm_level *r;
 
 		level = (max_level == 4 && wm_lp > 1) ? wm_lp + 1 : wm_lp;
 		if (level > max_level)
