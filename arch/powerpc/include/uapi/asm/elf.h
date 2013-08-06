@@ -109,7 +109,6 @@ typedef elf_gregset_t32 compat_elf_gregset_t;
 # define ELF_GREG_TYPE	elf_greg_t64
 # define ELF_ARCH	EM_PPC64
 # define ELF_CLASS	ELFCLASS64
-# define ELF_DATA	ELFDATA2MSB
 typedef elf_greg_t64 elf_greg_t;
 typedef elf_gregset_t64 elf_gregset_t;
 #else
@@ -118,10 +117,15 @@ typedef elf_gregset_t64 elf_gregset_t;
 # define ELF_GREG_TYPE	elf_greg_t32
 # define ELF_ARCH	EM_PPC
 # define ELF_CLASS	ELFCLASS32
-# define ELF_DATA	ELFDATA2MSB
 typedef elf_greg_t32 elf_greg_t;
 typedef elf_gregset_t32 elf_gregset_t;
 #endif /* __powerpc64__ */
+
+#ifdef __BIG_ENDIAN__
+#define ELF_DATA	ELFDATA2MSB
+#else
+#define ELF_DATA	ELFDATA2LSB
+#endif
 
 /* Floating point registers */
 typedef double elf_fpreg_t;
