@@ -114,7 +114,8 @@
 
 #define IGMP_V1_Router_Present_Timeout		(400*HZ)
 #define IGMP_V2_Router_Present_Timeout		(400*HZ)
-#define IGMP_Unsolicited_Report_Interval	(10*HZ)
+#define IGMP_V2_Unsolicited_Report_Interval	(10*HZ)
+#define IGMP_V3_Unsolicited_Report_Interval	(1*HZ)
 #define IGMP_Query_Response_Interval		(10*HZ)
 #define IGMP_Unsolicited_Report_Count		2
 
@@ -138,6 +139,14 @@
 	 IN_DEV_CONF_GET((in_dev), FORCE_IGMP_VERSION) == 2 || \
 	 ((in_dev)->mr_v2_seen && \
 	  time_before(jiffies, (in_dev)->mr_v2_seen)))
+
+static int unsolicited_report_interval(struct in_device *in_dev)
+{
+	if (IGMP_V1_SEEN(in_dev) || IGMP_V2_SEEN(in_dev))
+		return IGMP_V2_Unsolicited_Report_Interval;
+	else /* v3 */
+		return IGMP_V3_Unsolicited_Report_Interval;
+}
 
 static void igmpv3_add_delrec(struct in_device *in_dev, struct ip_mc_list *im);
 static void igmpv3_del_delrec(struct in_device *in_dev, __be32 multiaddr);
@@ -722,7 +731,8 @@ static void igmp_ifc_timer_expire(unsigned long data)
 	igmpv3_send_cr(in_dev);
 	if (in_dev->mr_ifc_count) {
 		in_dev->mr_ifc_count--;
-		igmp_ifc_start_timer(in_dev, IGMP_Unsolicited_Report_Interval);
+		igmp_ifc_start_timer(in_dev,
+				     unsolicited_report_interval(in_dev));
 	}
 	__in_dev_put(in_dev);
 }
@@ -747,7 +757,7 @@ static void igmp_timer_expire(unsigned long data)
 
 	if (im->unsolicit_count) {
 		im->unsolicit_count--;
-		igmp_start_timer(im, IGMP_Unsolicited_Report_Interval);
+		igmp_start_timer(im, unsolicited_report_interval(in_dev));
 	}
 	im->reporter = 1;
 	spin_unlock(&im->lock);
