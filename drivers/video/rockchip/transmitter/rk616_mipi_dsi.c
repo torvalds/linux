@@ -77,8 +77,9 @@
 *
 *v1.0 : this driver is mipi dsi driver of rockchip;
 *v1.1 : add FT code 
+*v1.2 : add rk_mipi_dsi_init_lite() for mclk variation
 */
-#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.1 2013-07-23"
+#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.2 2013-08-06"
 
 
 
@@ -727,6 +728,9 @@ int rk_mipi_dsi_init_lite(void) {
 
 	u32 decimals = 1000, i = 0, pre = 0, val = 0, ref_clk = 0;
 	struct mipi_dsi_screen *screen = g_screen;
+	
+	if(!screen)
+		return -1;
 	
 	if(rk_mipi_dsi_is_active() == 0)
 		return -1;

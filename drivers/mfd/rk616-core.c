@@ -40,12 +40,12 @@ static struct mfd_cell rk616_devs[] = {
 	},
 };
 
-
+extern int rk_mipi_dsi_init_lite(void);
 void rk616_mclk_set_rate(struct clk *mclk,unsigned long rate)
 {
 	clk_set_rate(mclk, rate);
 
-#if defined(RK616_MIPI_DSI)
+#if defined(CONFIG_RK616_MIPI_DSI)
 	rk_mipi_dsi_init_lite();
 #endif
 
