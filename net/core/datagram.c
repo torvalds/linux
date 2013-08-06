@@ -653,7 +653,6 @@ int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *from,
 			int off = base & ~PAGE_MASK;
 			int size = min_t(int, len, PAGE_SIZE - off);
 			skb_fill_page_desc(skb, i, page[i], off, size);
-			/* increase sk_wmem_alloc */
 			base += size;
 			len -= size;
 			i++;
