@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
 /* AIC26 driver private data */
 struct aic26 {
 	struct spi_device *spi;
-	struct snd_soc_codec codec;
+	struct snd_soc_codec *codec;
 	int master;
 	int datfm;
 	int mclk;
@@ -330,7 +330,7 @@ static ssize_t aic26_keyclick_show(struct device *dev,
 	struct aic26 *aic26 = dev_get_drvdata(dev);
 	int val, amp, freq, len;
 
-	val = aic26_reg_read_cache(&aic26->codec, AIC26_REG_AUDIO_CTRL2);
+	val = aic26_reg_read_cache(aic26->codec, AIC26_REG_AUDIO_CTRL2);
 	amp = (val >> 12) & 0x7;
 	freq = (125 << ((val >> 8) & 0x7)) >> 1;
 	len = 2 * (1 + ((val >> 4) & 0xf));
@@ -346,9 +346,9 @@ static ssize_t aic26_keyclick_set(struct device *dev,
 	struct aic26 *aic26 = dev_get_drvdata(dev);
 	int val;
 
-	val = aic26_reg_read_cache(&aic26->codec, AIC26_REG_AUDIO_CTRL2);
+	val = aic26_reg_read_cache(aic26->codec, AIC26_REG_AUDIO_CTRL2);
 	val |= 0x8000;
-	aic26_reg_write(&aic26->codec, AIC26_REG_AUDIO_CTRL2, val);
+	aic26_reg_write(aic26->codec, AIC26_REG_AUDIO_CTRL2, val);
 
 	return count;
 }
@@ -360,7 +360,10 @@ static DEVICE_ATTR(keyclick, 0644, aic26_keyclick_show, aic26_keyclick_set);
  */
 static int aic26_probe(struct snd_soc_codec *codec)
 {
+	struct aic26 *aic26 = dev_get_drvdata(codec->dev);
 	int ret, err, i, reg;
+
+	aic26->codec = codec;
 
 	dev_info(codec->dev, "Probing AIC26 SoC CODEC driver\n");
 
