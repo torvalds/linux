@@ -1629,10 +1629,12 @@ drm_gem_object_unreference(struct drm_gem_object *obj)
 static inline void
 drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 {
-	if (obj != NULL) {
+	if (obj && !atomic_add_unless(&obj->refcount.refcount, -1, 1)) {
 		struct drm_device *dev = obj->dev;
+
 		mutex_lock(&dev->struct_mutex);
-		kref_put(&obj->refcount, drm_gem_object_free);
+		if (likely(atomic_dec_and_test(&obj->refcount.refcount)))
+			drm_gem_object_free(&obj->refcount);
 		mutex_unlock(&dev->struct_mutex);
 	}
 }
