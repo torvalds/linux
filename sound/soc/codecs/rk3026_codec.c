@@ -24,6 +24,8 @@
 #include <sound/tlv.h>
 #include <asm/io.h>
 #include <mach/board.h>
+#include <mach/io.h>
+#include <mach/iomux.h>
 #include <mach/cru.h>
 #include "rk3026_codec.h"
 
@@ -44,7 +46,15 @@
  *  31: 6dB
  *  Step: 1.5dB
 */
-#define  OUT_VOLUME    26//0~31
+#define  OUT_VOLUME    24//0~31
+
+/* capture vol set
+ * 0: -18db
+ * 12: 0db
+ * 31: 28.5db
+ * step: 1.5db
+*/
+#define CAP_VOL	   17//0-31
 
 
 struct rk3026_codec_priv {
@@ -115,6 +125,7 @@ static const unsigned int rk3026_reg_defaults[RK3026_PGAR_AGC_CTL5+1] = {
 	[RK3026_ADC_INT_CTL2] = 0x000e,
 	[RK3026_DAC_INT_CTL1] = 0x0050,
 	[RK3026_DAC_INT_CTL2] = 0x000e,
+	[RK3026_DAC_INT_CTL3] = 0x22,
 	[RK3026_ADC_MIC_CTL] = 0x0000,
 	[RK3026_BST_CTL] = 0x000,
 	[RK3026_ALC_MUNIN_CTL] = 0x0044,
@@ -193,13 +204,13 @@ static unsigned int rk3026_set_init_value(struct snd_soc_codec *codec, unsigned 
 			{
 				if (value & power_bit)
 				{
-					writel_relaxed(value, rk3026_priv->regbase+reg);
-					writel_relaxed((value & set_bit), rk3026_priv->regbase+reg);
+					writel(value, rk3026_priv->regbase+reg);
+					writel((value & set_bit), rk3026_priv->regbase+reg);
 				}
 				else
 				{	
-					writel_relaxed((value & ~set_bit), rk3026_priv->regbase+reg);
-					writel_relaxed(value, rk3026_priv->regbase+reg);
+					writel((value & ~set_bit), rk3026_priv->regbase+reg);
+					writel(value, rk3026_priv->regbase+reg);
 
 				}				
 			}
@@ -229,6 +240,7 @@ static int rk3026_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 	case RK3026_ADC_INT_CTL2:
 	case RK3026_DAC_INT_CTL1:
 	case RK3026_DAC_INT_CTL2:
+	case RK3026_DAC_INT_CTL3:
 	case RK3026_ADC_MIC_CTL:
 	case RK3026_BST_CTL:
 	case RK3026_ALC_MUNIN_CTL:
@@ -336,7 +348,7 @@ static int rk3026_codec_write(struct snd_soc_codec *codec, unsigned int reg, uns
 	new_value = rk3026_set_init_value(codec, reg, value);
 
 	if (new_value == -1)
-		writel_relaxed(value, rk3026_priv->regbase+reg);
+		writel(value, rk3026_priv->regbase+reg);
 
 	rk3026_write_reg_cache(codec, reg, value);
 
@@ -356,7 +368,7 @@ static int rk3026_hw_write(const struct i2c_client *client, const char *buf, int
 	if (count == 3) {
 		reg = (unsigned int)buf[0];
 		value = (buf[1] & 0xff00) | (0x00ff & buf[2]);
-		writel_relaxed(value, rk3026_priv->regbase+reg);
+		writel(value, rk3026_priv->regbase+reg);
 	} else {
 		printk("%s : i2c len error\n", __func__);
 	}
@@ -366,9 +378,9 @@ static int rk3026_hw_write(const struct i2c_client *client, const char *buf, int
 
 static int rk3026_reset(struct snd_soc_codec *codec)
 {
-	writel_relaxed(0xfc, rk3026_priv->regbase+RK3026_RESET);
+	writel(0xfc, rk3026_priv->regbase+RK3026_RESET);
 	mdelay(10);
-	writel_relaxed(0x43, rk3026_priv->regbase+RK3026_RESET);
+	writel(0x43, rk3026_priv->regbase+RK3026_RESET);
 	mdelay(10);
 
 	memcpy(codec->reg_cache, rk3026_reg_defaults,
@@ -1155,10 +1167,10 @@ static const struct snd_soc_dapm_widget rk3026_dapm_widgets[] = {
 		RK3026_MICBIAS_VOL_ENABLE, 0),
 
 	/* DACs */
-	SND_SOC_DAPM_ADC_E("DACL", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_DAC_E("DACL", NULL, SND_SOC_NOPM,
 		0, 0, rk3026_dacl_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_ADC_E("DACR", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_DAC_E("DACR", NULL, SND_SOC_NOPM,
 		0, 0, rk3026_dacr_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 
@@ -1537,7 +1549,6 @@ static int rk3026_digital_mute(struct snd_soc_dai *dai, int mute)
 	is_hp_pd = (RK3026_HPOUTL_MSK | RK3026_HPOUTR_MSK) & snd_soc_read(codec, RK3026_HPOUT_CTL);
 
 	if (mute) {
-		DBG("%s : set hp ctl gpio LOW\n", __func__);
 		if (rk3026_priv && rk3026_priv->hp_ctl_gpio != INVALID_GPIO &&
 		    is_hp_pd) {
 			DBG("%s : set hp ctl gpio LOW\n", __func__);
@@ -1556,27 +1567,24 @@ static int rk3026_digital_mute(struct snd_soc_dai *dai, int mute)
 }
 
 static struct rk3026_reg_val_typ playback_power_up_list[] = {
-#if 0
-	{0xbc,0x01},
-	{0xbc,0x21},	
 	{0xbc,0x28},
-#endif
+	{0x18,0x32},
 	{0xa0,0x40},
 	{0xa0,0x62},
 	{0xa4,0x88},
 	{0xa4,0xcc},
 	{0xa4,0xee},
-	{0xa4,0xff},
 	{0xa8,0x44},
 	{0xb0,0x92},
 	{0xb0,0xdb},
-	{0xac,0xff},//DAC
+	{0xac,0x11},//DAC
 	{0xa8,0x55},
 	{0xa8,0x77},
+	{0xa4,0xff},
 	{0xb0,0xff},
-	{0xb4,0x1a},
-	{0xb8,0x1a},
-
+	{0xa0,0x73},
+	{0xb4,OUT_VOLUME},
+	{0xb8,OUT_VOLUME},
 };
 #define RK3026_CODEC_PLAYBACK_POWER_UP_LIST_LEN ARRAY_SIZE(playback_power_up_list)
 
@@ -1593,7 +1601,8 @@ static struct rk3026_reg_val_typ playback_power_down_list[] = {
 	{0xa4,0x00},
 	{0xa0,0x40},
 	{0xa0,0x00},
-	{0xbc,0x08},
+	{0x18,0x22},
+	//{0xbc,0x08},
 
 };
 #define RK3026_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN ARRAY_SIZE(playback_power_down_list)
@@ -1603,15 +1612,16 @@ static struct rk3026_reg_val_typ capture_power_up_list[] = {
 	{0x88, 0xc0},
 	{0x88, 0xc7},
 	{0x9c, 0x88},
-	{0x8c, 0x44},
+	{0x8c, 0x40},
 	{0x90, 0x66},
 	{0x9c, 0xcc},
 	{0x9c, 0xee},
-	{0x8c, 0x55},
+	{0x8c, 0x70},
 	{0x90, 0x77},
-	{0x94, 0x3f},
-	{0x98, 0x3f},
+	{0x94, 0x20 | CAP_VOL},
+	{0x98, CAP_VOL},
 	{0x88, 0xf7},
+
 };
 #define RK3026_CODEC_CAPTURE_POWER_UP_LIST_LEN ARRAY_SIZE(capture_power_up_list)
 
@@ -1623,6 +1633,8 @@ static struct rk3026_reg_val_typ capture_power_down_list[] = {
 	{0x88, 0xc7},
 	{0x88, 0xc0},
 	{0x88, 0x80},
+	{0X94, 0x0c},
+	{0X98, 0x0c},
 };
 #define RK3026_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(capture_power_down_list)
 
@@ -2028,6 +2040,16 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 		rk3026_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	}
 
+	//set for capacity output,clear up noise
+	snd_soc_write(codec, 0xbc,0x1e);
+	snd_soc_write(codec, 0xbc,0x3e);
+	//snd_soc_write(codec, 0xbc,0x28);
+
+	// select  i2s sdi from  acodec
+	val = readl(RK2928_GRF_BASE+GRF_SOC_CON0);
+	writel(val | 0x04000400,RK2928_GRF_BASE+GRF_SOC_CON0);
+	val = readl(RK2928_GRF_BASE+GRF_SOC_CON0);
+	printk("%s : i2s sdi from acodec val=%u\n",__func__,val);
 	return 0;
 
 err__:
@@ -2137,9 +2159,9 @@ void rk3026_platform_shutdown(struct platform_device *pdev)
 		}
 	}
 
-	writel_relaxed(0xfc, rk3026_priv->regbase+RK3026_RESET);
+	writel(0xfc, rk3026_priv->regbase+RK3026_RESET);
 	mdelay(10);
-	writel_relaxed(0x03, rk3026_priv->regbase+RK3026_RESET);
+	writel(0x03, rk3026_priv->regbase+RK3026_RESET);
 
 	if (rk3026_priv)
 		kfree(rk3026_priv);
