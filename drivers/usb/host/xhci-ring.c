@@ -1380,6 +1380,9 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		return;
 	}
 
+	trace_xhci_cmd_completion(&xhci->cmd_ring->dequeue->generic,
+					(struct xhci_generic_trb *) event);
+
 	if ((GET_COMP_CODE(le32_to_cpu(event->status)) == COMP_CMD_ABORT) ||
 		(GET_COMP_CODE(le32_to_cpu(event->status)) == COMP_CMD_STOP)) {
 		/* If the return value is 0, we think the trb pointed by

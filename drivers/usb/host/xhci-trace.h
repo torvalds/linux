@@ -93,6 +93,36 @@ DEFINE_EVENT(xhci_log_ctx, xhci_address_ctx,
 	TP_ARGS(xhci, ctx, ep_num)
 );
 
+DECLARE_EVENT_CLASS(xhci_log_event,
+	TP_PROTO(void *trb_va, struct xhci_generic_trb *ev),
+	TP_ARGS(trb_va, ev),
+	TP_STRUCT__entry(
+		__field(void *, va)
+		__field(u64, dma)
+		__field(u32, status)
+		__field(u32, flags)
+		__dynamic_array(__le32, trb, 4)
+	),
+	TP_fast_assign(
+		__entry->va = trb_va;
+		__entry->dma = le64_to_cpu(((u64)ev->field[1]) << 32 |
+						ev->field[0]);
+		__entry->status = le32_to_cpu(ev->field[2]);
+		__entry->flags = le32_to_cpu(ev->field[3]);
+		memcpy(__get_dynamic_array(trb), trb_va,
+			sizeof(struct xhci_generic_trb));
+	),
+	TP_printk("\ntrb_dma=@%llx, trb_va=@%p, status=%08x, flags=%08x",
+			(unsigned long long) __entry->dma, __entry->va,
+			__entry->status, __entry->flags
+	)
+);
+
+DEFINE_EVENT(xhci_log_event, xhci_cmd_completion,
+	TP_PROTO(void *trb_va, struct xhci_generic_trb *ev),
+	TP_ARGS(trb_va, ev)
+);
+
 #endif /* __XHCI_TRACE_H */
 
 /* this part must be outside header guard */
