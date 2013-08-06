@@ -279,7 +279,6 @@ int acpi_unbind_one(struct device *dev)
 	struct acpi_device_physical_node *entry;
 	struct acpi_device *acpi_dev;
 	acpi_status status;
-	struct list_head *node, *next;
 
 	if (!ACPI_HANDLE(dev))
 		return 0;
@@ -289,25 +288,24 @@ int acpi_unbind_one(struct device *dev)
 		goto err;
 
 	mutex_lock(&acpi_dev->physical_node_lock);
-	list_for_each_safe(node, next, &acpi_dev->physical_node_list) {
-		char physical_node_name[PHYSICAL_NODE_NAME_SIZE];
 
-		entry = list_entry(node, struct acpi_device_physical_node,
-				   node);
-		if (entry->dev != dev)
-			continue;
+	list_for_each_entry(entry, &acpi_dev->physical_node_list, node)
+		if (entry->dev == dev) {
+			char physnode_name[PHYSICAL_NODE_NAME_SIZE];
 
-		list_del(node);
-		acpi_dev->physical_node_count--;
+			list_del(&entry->node);
+			acpi_dev->physical_node_count--;
 
-		acpi_physnode_link_name(physical_node_name, entry->node_id);
-		sysfs_remove_link(&acpi_dev->dev.kobj, physical_node_name);
-		sysfs_remove_link(&dev->kobj, "firmware_node");
-		ACPI_HANDLE_SET(dev, NULL);
-		/* acpi_bind_one increase refcnt by one */
-		put_device(dev);
-		kfree(entry);
-	}
+			acpi_physnode_link_name(physnode_name, entry->node_id);
+			sysfs_remove_link(&acpi_dev->dev.kobj, physnode_name);
+			sysfs_remove_link(&dev->kobj, "firmware_node");
+			ACPI_HANDLE_SET(dev, NULL);
+			/* acpi_bind_one() increase refcnt by one. */
+			put_device(dev);
+			kfree(entry);
+			break;
+		}
+
 	mutex_unlock(&acpi_dev->physical_node_lock);
 
 	return 0;
