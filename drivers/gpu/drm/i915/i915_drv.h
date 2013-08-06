@@ -1123,6 +1123,7 @@ typedef struct drm_i915_private {
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask;
 	u32 gt_irq_mask;
+	u32 pm_irq_mask;
 
 	struct work_struct hotplug_work;
 	bool enable_hotplug_processing;

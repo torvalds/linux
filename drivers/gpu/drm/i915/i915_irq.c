@@ -142,16 +142,17 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 			      uint32_t interrupt_mask,
 			      uint32_t enabled_irq_mask)
 {
-	uint32_t pmimr, new_val;
+	uint32_t new_val;
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	pmimr = new_val = I915_READ(GEN6_PMIMR);
+	new_val = dev_priv->pm_irq_mask;
 	new_val &= ~interrupt_mask;
 	new_val |= (~enabled_irq_mask & interrupt_mask);
 
-	if (new_val != pmimr) {
-		I915_WRITE(GEN6_PMIMR, new_val);
+	if (new_val != dev_priv->pm_irq_mask) {
+		dev_priv->pm_irq_mask = new_val;
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_irq_mask);
 		POSTING_READ(GEN6_PMIMR);
 	}
 }
@@ -2263,8 +2264,9 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 		if (HAS_VEBOX(dev))
 			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
 
+		dev_priv->pm_irq_mask = 0xffffffff;
 		I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
-		I915_WRITE(GEN6_PMIMR, 0xffffffff);
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_irq_mask);
 		I915_WRITE(GEN6_PMIER, pm_irqs);
 		POSTING_READ(GEN6_PMIER);
 	}
