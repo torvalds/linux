@@ -8694,14 +8694,13 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = netdev_priv(dev);
-	pci_ers_result_t result;
-	int err;
+	pci_ers_result_t result = PCI_ERS_RESULT_DISCONNECT;
+	int err = 0;
 
 	rtnl_lock();
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset\n");
-		result = PCI_ERS_RESULT_DISCONNECT;
 	} else {
 		pci_set_master(pdev);
 		pci_restore_state(pdev);
@@ -8709,9 +8708,15 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 
 		if (netif_running(dev)) {
 			bnx2_set_power_state(bp, PCI_D0);
-			bnx2_init_nic(bp, 1);
+			err = bnx2_init_nic(bp, 1);
 		}
-		result = PCI_ERS_RESULT_RECOVERED;
+		if (!err)
+			result = PCI_ERS_RESULT_RECOVERED;
+	}
+
+	if (result != PCI_ERS_RESULT_RECOVERED && netif_running(dev)) {
+		bnx2_napi_enable(bp);
+		dev_close(dev);
 	}
 	rtnl_unlock();
 
