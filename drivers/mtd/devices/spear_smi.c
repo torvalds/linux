@@ -550,7 +550,7 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	struct spear_snor_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
-	void *src;
+	void __iomem *src;
 	u32 ctrlreg1, val;
 	int ret;
 
@@ -583,7 +583,7 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	writel(val, dev->io_base + SMI_CR1);
 
-	memcpy_fromio(buf, (u8 *)src, len);
+	memcpy_fromio(buf, src, len);
 
 	/* restore ctrl reg1 */
 	writel(ctrlreg1, dev->io_base + SMI_CR1);
@@ -596,7 +596,7 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 }
 
 static inline int spear_smi_cpy_toio(struct spear_smi *dev, u32 bank,
-		void *dest, const void *src, size_t len)
+		void __iomem *dest, const void *src, size_t len)
 {
 	int ret;
 	u32 ctrlreg1;
@@ -643,7 +643,7 @@ static int spear_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	struct spear_snor_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
-	void *dest;
+	void __iomem *dest;
 	u32 page_offset, page_size;
 	int ret;
 
