@@ -253,6 +253,9 @@ static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 	ref->pfn = pfn;
 	ref->flags |= E500_TLB_VALID;
 
+	/* Mark the page accessed */
+	kvm_set_pfn_accessed(pfn);
+
 	if (tlbe_is_writable(gtlbe))
 		kvm_set_pfn_dirty(pfn);
 }
