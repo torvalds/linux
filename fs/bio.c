@@ -821,12 +821,12 @@ void bio_advance(struct bio *bio, unsigned bytes)
 			break;
 		}
 
-		if (bytes >= bio_iovec(bio)->bv_len) {
-			bytes -= bio_iovec(bio)->bv_len;
+		if (bytes >= bio_iovec(bio).bv_len) {
+			bytes -= bio_iovec(bio).bv_len;
 			bio->bi_iter.bi_idx++;
 		} else {
-			bio_iovec(bio)->bv_len -= bytes;
-			bio_iovec(bio)->bv_offset += bytes;
+			bio_iovec(bio).bv_len -= bytes;
+			bio_iovec(bio).bv_offset += bytes;
 			bytes = 0;
 		}
 	}
@@ -879,8 +879,8 @@ void bio_copy_data(struct bio *dst, struct bio *src)
 	unsigned src_offset, dst_offset, bytes;
 	void *src_p, *dst_p;
 
-	src_bv = bio_iovec(src);
-	dst_bv = bio_iovec(dst);
+	src_bv = __bio_iovec(src);
+	dst_bv = __bio_iovec(dst);
 
 	src_offset = src_bv->bv_offset;
 	dst_offset = dst_bv->bv_offset;
@@ -893,7 +893,7 @@ void bio_copy_data(struct bio *dst, struct bio *src)
 				if (!src)
 					break;
 
-				src_bv = bio_iovec(src);
+				src_bv = __bio_iovec(src);
 			}
 
 			src_offset = src_bv->bv_offset;
@@ -906,7 +906,7 @@ void bio_copy_data(struct bio *dst, struct bio *src)
 				if (!dst)
 					break;
 
-				dst_bv = bio_iovec(dst);
+				dst_bv = __bio_iovec(dst);
 			}
 
 			dst_offset = dst_bv->bv_offset;
@@ -1776,8 +1776,8 @@ struct bio_pair *bio_split(struct bio *bi, int first_sectors)
 	bp->bio1.bi_iter.bi_size = first_sectors << 9;
 
 	if (bi->bi_vcnt != 0) {
-		bp->bv1 = *bio_iovec(bi);
-		bp->bv2 = *bio_iovec(bi);
+		bp->bv1 = bio_iovec(bi);
+		bp->bv2 = bio_iovec(bi);
 
 		if (bio_is_rw(bi)) {
 			bp->bv2.bv_offset += first_sectors << 9;
