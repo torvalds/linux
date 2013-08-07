@@ -16,6 +16,8 @@ static int vmlinux_matches_kallsyms_filter(struct map *map __maybe_unused,
 	return 0;
 }
 
+#define UM(x) kallsyms_map->unmap_ip(kallsyms_map, (x))
+
 int test__vmlinux_matches_kallsyms(void)
 {
 	int err = -1;
@@ -74,7 +76,7 @@ int test__vmlinux_matches_kallsyms(void)
 		goto out;
 	}
 
-	ref_reloc_sym.addr = sym->start;
+	ref_reloc_sym.addr = UM(sym->start);
 
 	/*
 	 * Step 5:
@@ -131,7 +133,7 @@ int test__vmlinux_matches_kallsyms(void)
 							 mem_start, NULL, NULL);
 		pair = first_pair;
 
-		if (pair && pair->start == mem_start) {
+		if (pair && UM(pair->start) == mem_start) {
 next_pair:
 			if (strcmp(sym->name, pair->name) == 0) {
 				/*
@@ -143,11 +145,11 @@ next_pair:
 				 * off the real size. More than that and we
 				 * _really_ have a problem.
 				 */
-				s64 skew = mem_end - pair->end;
+				s64 skew = mem_end - UM(pair->end);
 				if (llabs(skew) >= page_size)
 					pr_debug("%#" PRIx64 ": diff end addr for %s v: %#" PRIx64 " k: %#" PRIx64 "\n",
 						 mem_start, sym->name, mem_end,
-						 pair->end);
+						 UM(pair->end));
 
 				/*
 				 * Do not count this as a failure, because we
@@ -165,7 +167,7 @@ detour:
 				if (nnd) {
 					struct symbol *next = rb_entry(nnd, struct symbol, rb_node);
 
-					if (next->start == mem_start) {
+					if (UM(next->start) == mem_start) {
 						pair = next;
 						goto next_pair;
 					}
