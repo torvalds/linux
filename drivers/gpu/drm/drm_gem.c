@@ -317,6 +317,31 @@ drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 EXPORT_SYMBOL(drm_gem_free_mmap_offset);
 
 /**
+ * drm_gem_create_mmap_offset_size - create a fake mmap offset for an object
+ * @obj: obj in question
+ * @size: the virtual size
+ *
+ * GEM memory mapping works by handing back to userspace a fake mmap offset
+ * it can use in a subsequent mmap(2) call.  The DRM core code then looks
+ * up the object based on the offset and sets up the various memory mapping
+ * structures.
+ *
+ * This routine allocates and attaches a fake offset for @obj, in cases where
+ * the virtual size differs from the physical size (ie. obj->size).  Otherwise
+ * just use drm_gem_create_mmap_offset().
+ */
+int
+drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_gem_mm *mm = dev->mm_private;
+
+	return drm_vma_offset_add(&mm->vma_manager, &obj->vma_node,
+				  size / PAGE_SIZE);
+}
+EXPORT_SYMBOL(drm_gem_create_mmap_offset_size);
+
+/**
  * drm_gem_create_mmap_offset - create a fake mmap offset for an object
  * @obj: obj in question
  *
@@ -327,14 +352,9 @@ EXPORT_SYMBOL(drm_gem_free_mmap_offset);
  *
  * This routine allocates and attaches a fake offset for @obj.
  */
-int
-drm_gem_create_mmap_offset(struct drm_gem_object *obj)
+int drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
-	struct drm_gem_mm *mm = dev->mm_private;
-
-	return drm_vma_offset_add(&mm->vma_manager, &obj->vma_node,
-				  obj->size / PAGE_SIZE);
+	return drm_gem_create_mmap_offset_size(obj, obj->size);
 }
 EXPORT_SYMBOL(drm_gem_create_mmap_offset);
 
