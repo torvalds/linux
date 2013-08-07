@@ -105,23 +105,18 @@ static int vss_operate(int operation)
 
 static int netlink_send(int fd, struct cn_msg *msg)
 {
-	struct nlmsghdr *nlh;
+	struct nlmsghdr nlh = { .nlmsg_type = NLMSG_DONE };
 	unsigned int size;
 	struct msghdr message;
-	char buffer[64];
 	struct iovec iov[2];
 
 	size = sizeof(struct cn_msg) + msg->len;
 
-	nlh = (struct nlmsghdr *)buffer;
-	nlh->nlmsg_seq = 0;
-	nlh->nlmsg_pid = getpid();
-	nlh->nlmsg_type = NLMSG_DONE;
-	nlh->nlmsg_len = NLMSG_LENGTH(size - sizeof(*nlh));
-	nlh->nlmsg_flags = 0;
+	nlh.nlmsg_pid = getpid();
+	nlh.nlmsg_len = NLMSG_LENGTH(size);
 
-	iov[0].iov_base = nlh;
-	iov[0].iov_len = sizeof(*nlh);
+	iov[0].iov_base = &nlh;
+	iov[0].iov_len = sizeof(nlh);
 
 	iov[1].iov_base = msg;
 	iov[1].iov_len = size;
