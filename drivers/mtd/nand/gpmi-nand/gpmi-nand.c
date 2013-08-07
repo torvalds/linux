@@ -354,7 +354,7 @@ static int acquire_register_block(struct gpmi_nand_data *this,
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
 	if (!r) {
 		pr_err("Can't get resource for %s\n", res_name);
-		return -ENXIO;
+		return -ENODEV;
 	}
 
 	p = ioremap(r->start, resource_size(r));
@@ -395,7 +395,7 @@ static int acquire_bch_irq(struct gpmi_nand_data *this, irq_handler_t irq_h)
 	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, res_name);
 	if (!r) {
 		pr_err("Can't get resource for %s\n", res_name);
-		return -ENXIO;
+		return -ENODEV;
 	}
 
 	err = request_irq(r->start, irq_h, 0, res_name, this);
@@ -1584,7 +1584,7 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 		pdev->id_entry = of_id->data;
 	} else {
 		pr_err("Failed to find the right device id.\n");
-		return -ENOMEM;
+		return -ENODEV;
 	}
 
 	this = kzalloc(sizeof(*this), GFP_KERNEL);
