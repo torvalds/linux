@@ -1386,7 +1386,7 @@ static int vxlan_open(struct net_device *dev)
 		return -ENOTCONN;
 
 	if (IN_MULTICAST(ntohl(vxlan->default_dst.remote_ip)) &&
-	    ! vxlan_group_used(vn, vxlan->default_dst.remote_ip)) {
+	    vxlan_group_used(vn, vxlan->default_dst.remote_ip)) {
 		vxlan_sock_hold(vs);
 		dev_hold(dev);
 		queue_work(vxlan_wq, &vxlan->igmp_join);
