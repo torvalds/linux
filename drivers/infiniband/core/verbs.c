@@ -1254,3 +1254,30 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
 	return xrcd->device->dealloc_xrcd(xrcd);
 }
 EXPORT_SYMBOL(ib_dealloc_xrcd);
+
+struct ib_flow *ib_create_flow(struct ib_qp *qp,
+			       struct ib_flow_attr *flow_attr,
+			       int domain)
+{
+	struct ib_flow *flow_id;
+	if (!qp->device->create_flow)
+		return ERR_PTR(-ENOSYS);
+
+	flow_id = qp->device->create_flow(qp, flow_attr, domain);
+	if (!IS_ERR(flow_id))
+		atomic_inc(&qp->usecnt);
+	return flow_id;
+}
+EXPORT_SYMBOL(ib_create_flow);
+
+int ib_destroy_flow(struct ib_flow *flow_id)
+{
+	int err;
+	struct ib_qp *qp = flow_id->qp;
+
+	err = qp->device->destroy_flow(flow_id);
+	if (!err)
+		atomic_dec(&qp->usecnt);
+	return err;
+}
+EXPORT_SYMBOL(ib_destroy_flow);
