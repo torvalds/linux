@@ -38,8 +38,6 @@
  */
 #define BIO_INLINE_VECS		4
 
-static mempool_t *bio_split_pool __read_mostly;
-
 /*
  * if you change this list, also change bvec_alloc or things will
  * break badly! cannot be bigger than what you can fit into an
@@ -1829,89 +1827,6 @@ struct bio *bio_split(struct bio *bio, int sectors,
 }
 EXPORT_SYMBOL(bio_split);
 
-void bio_pair_release(struct bio_pair *bp)
-{
-	if (atomic_dec_and_test(&bp->cnt)) {
-		struct bio *master = bp->bio1.bi_private;
-
-		bio_endio(master, bp->error);
-		mempool_free(bp, bp->bio2.bi_private);
-	}
-}
-EXPORT_SYMBOL(bio_pair_release);
-
-static void bio_pair_end_1(struct bio *bi, int err)
-{
-	struct bio_pair *bp = container_of(bi, struct bio_pair, bio1);
-
-	if (err)
-		bp->error = err;
-
-	bio_pair_release(bp);
-}
-
-static void bio_pair_end_2(struct bio *bi, int err)
-{
-	struct bio_pair *bp = container_of(bi, struct bio_pair, bio2);
-
-	if (err)
-		bp->error = err;
-
-	bio_pair_release(bp);
-}
-
-/*
- * split a bio - only worry about a bio with a single page in its iovec
- */
-struct bio_pair *bio_pair_split(struct bio *bi, int first_sectors)
-{
-	struct bio_pair *bp = mempool_alloc(bio_split_pool, GFP_NOIO);
-
-	if (!bp)
-		return bp;
-
-	trace_block_split(bdev_get_queue(bi->bi_bdev), bi,
-				bi->bi_iter.bi_sector + first_sectors);
-
-	BUG_ON(bio_multiple_segments(bi));
-	atomic_set(&bp->cnt, 3);
-	bp->error = 0;
-	bp->bio1 = *bi;
-	bp->bio2 = *bi;
-	bp->bio2.bi_iter.bi_sector += first_sectors;
-	bp->bio2.bi_iter.bi_size -= first_sectors << 9;
-	bp->bio1.bi_iter.bi_size = first_sectors << 9;
-
-	if (bi->bi_vcnt != 0) {
-		bp->bv1 = bio_iovec(bi);
-		bp->bv2 = bio_iovec(bi);
-
-		if (bio_is_rw(bi)) {
-			bp->bv2.bv_offset += first_sectors << 9;
-			bp->bv2.bv_len -= first_sectors << 9;
-			bp->bv1.bv_len = first_sectors << 9;
-		}
-
-		bp->bio1.bi_io_vec = &bp->bv1;
-		bp->bio2.bi_io_vec = &bp->bv2;
-
-		bp->bio1.bi_max_vecs = 1;
-		bp->bio2.bi_max_vecs = 1;
-	}
-
-	bp->bio1.bi_end_io = bio_pair_end_1;
-	bp->bio2.bi_end_io = bio_pair_end_2;
-
-	bp->bio1.bi_private = bi;
-	bp->bio2.bi_private = bio_split_pool;
-
-	if (bio_integrity(bi))
-		bio_integrity_split(bi, bp, first_sectors);
-
-	return bp;
-}
-EXPORT_SYMBOL(bio_pair_split);
-
 /**
  * bio_trim - trim a bio
  * @bio:	bio to trim
@@ -2112,11 +2027,6 @@ static int __init init_bio(void)
 
 	if (bioset_integrity_create(fs_bio_set, BIO_POOL_SIZE))
 		panic("bio: can't create integrity pool\n");
-
-	bio_split_pool = mempool_create_kmalloc_pool(BIO_SPLIT_ENTRIES,
-						     sizeof(struct bio_pair));
-	if (!bio_split_pool)
-		panic("bio: can't create split pool\n");
 
 	return 0;
 }
