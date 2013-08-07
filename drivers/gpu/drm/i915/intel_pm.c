@@ -2278,6 +2278,49 @@ static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
 			  params->pri_bytes_per_pixel);
 }
 
+static bool ilk_check_wm(int level,
+			 const struct hsw_wm_maximums *max,
+			 struct hsw_lp_wm_result *result)
+{
+	bool ret;
+
+	/* already determined to be invalid? */
+	if (!result->enable)
+		return false;
+
+	result->enable = result->pri_val <= max->pri &&
+			 result->spr_val <= max->spr &&
+			 result->cur_val <= max->cur;
+
+	ret = result->enable;
+
+	/*
+	 * HACK until we can pre-compute everything,
+	 * and thus fail gracefully if LP0 watermarks
+	 * are exceeded...
+	 */
+	if (level == 0 && !result->enable) {
+		if (result->pri_val > max->pri)
+			DRM_DEBUG_KMS("Primary WM%d too large %u (max %u)\n",
+				      level, result->pri_val, max->pri);
+		if (result->spr_val > max->spr)
+			DRM_DEBUG_KMS("Sprite WM%d too large %u (max %u)\n",
+				      level, result->spr_val, max->spr);
+		if (result->cur_val > max->cur)
+			DRM_DEBUG_KMS("Cursor WM%d too large %u (max %u)\n",
+				      level, result->cur_val, max->cur);
+
+		result->pri_val = min_t(uint32_t, result->pri_val, max->pri);
+		result->spr_val = min_t(uint32_t, result->spr_val, max->spr);
+		result->cur_val = min_t(uint32_t, result->cur_val, max->cur);
+		result->enable = true;
+	}
+
+	DRM_DEBUG_KMS("WM%d: %sabled\n", level, result->enable ? "en" : "dis");
+
+	return ret;
+}
+
 static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 				 int level,
 				 struct hsw_pipe_wm_parameters *p,
@@ -2318,13 +2361,7 @@ static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
 	result->fbc_val = max3(res[0].fbc_val, res[1].fbc_val, res[2].fbc_val);
 	result->enable = true;
 
-	if (!result->enable)
-		return false;
-
-	result->enable = result->pri_val <= max->pri &&
-			 result->spr_val <= max->spr &&
-			 result->cur_val <= max->cur;
-	return result->enable;
+	return ilk_check_wm(level, max, result);
 }
 
 static uint32_t hsw_compute_wm_pipe(struct drm_i915_private *dev_priv,
