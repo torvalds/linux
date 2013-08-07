@@ -951,6 +951,57 @@ out_elf_end:
 	return err;
 }
 
+static int elf_read_maps(Elf *elf, bool exe, mapfn_t mapfn, void *data)
+{
+	GElf_Phdr phdr;
+	size_t i, phdrnum;
+	int err;
+	u64 sz;
+
+	if (elf_getphdrnum(elf, &phdrnum))
+		return -1;
+
+	for (i = 0; i < phdrnum; i++) {
+		if (gelf_getphdr(elf, i, &phdr) == NULL)
+			return -1;
+		if (phdr.p_type != PT_LOAD)
+			continue;
+		if (exe) {
+			if (!(phdr.p_flags & PF_X))
+				continue;
+		} else {
+			if (!(phdr.p_flags & PF_R))
+				continue;
+		}
+		sz = min(phdr.p_memsz, phdr.p_filesz);
+		if (!sz)
+			continue;
+		err = mapfn(phdr.p_vaddr, sz, phdr.p_offset, data);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+int file__read_maps(int fd, bool exe, mapfn_t mapfn, void *data,
+		    bool *is_64_bit)
+{
+	int err;
+	Elf *elf;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		return -1;
+
+	if (is_64_bit)
+		*is_64_bit = (gelf_getclass(elf) == ELFCLASS64);
+
+	err = elf_read_maps(elf, exe, mapfn, data);
+
+	elf_end(elf);
+	return err;
+}
+
 void symbol__elf_init(void)
 {
 	elf_version(EV_CURRENT);

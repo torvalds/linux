@@ -856,6 +856,18 @@ static void machine__set_kernel_mmap_len(struct machine *machine,
 	}
 }
 
+static bool machine__uses_kcore(struct machine *machine)
+{
+	struct dso *dso;
+
+	list_for_each_entry(dso, &machine->kernel_dsos, node) {
+		if (dso__is_kcore(dso))
+			return true;
+	}
+
+	return false;
+}
+
 static int machine__process_kernel_mmap_event(struct machine *machine,
 					      union perf_event *event)
 {
@@ -863,6 +875,10 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 	char kmmap_prefix[PATH_MAX];
 	enum dso_kernel_type kernel_type;
 	bool is_kernel_mmap;
+
+	/* If we have maps from kcore then we do not need or want any others */
+	if (machine__uses_kcore(machine))
+		return 0;
 
 	machine__mmap_name(machine, kmmap_prefix, sizeof(kmmap_prefix));
 	if (machine__is_host(machine))

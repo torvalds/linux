@@ -555,3 +555,21 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 
 	return NULL;
 }
+
+struct map *maps__first(struct rb_root *maps)
+{
+	struct rb_node *first = rb_first(maps);
+
+	if (first)
+		return rb_entry(first, struct map, rb_node);
+	return NULL;
+}
+
+struct map *maps__next(struct map *map)
+{
+	struct rb_node *next = rb_next(&map->rb_node);
+
+	if (next)
+		return rb_entry(next, struct map, rb_node);
+	return NULL;
+}

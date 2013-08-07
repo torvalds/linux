@@ -95,6 +95,11 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 			 dso->long_name);
 		break;
 
+	case DSO_BINARY_TYPE__KCORE:
+	case DSO_BINARY_TYPE__GUEST_KCORE:
+		snprintf(file, size, "%s", dso->long_name);
+		break;
+
 	default:
 	case DSO_BINARY_TYPE__KALLSYMS:
 	case DSO_BINARY_TYPE__GUEST_KALLSYMS:

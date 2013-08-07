@@ -21,6 +21,8 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 	DSO_BINARY_TYPE__GUEST_KMODULE,
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
+	DSO_BINARY_TYPE__KCORE,
+	DSO_BINARY_TYPE__GUEST_KCORE,
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
@@ -153,6 +155,12 @@ static inline bool dso__is_vmlinux(struct dso *dso)
 {
 	return dso->data_type == DSO_BINARY_TYPE__VMLINUX ||
 	       dso->data_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
+}
+
+static inline bool dso__is_kcore(struct dso *dso)
+{
+	return dso->data_type == DSO_BINARY_TYPE__KCORE ||
+	       dso->data_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
 
 #endif /* __PERF_DSO */
