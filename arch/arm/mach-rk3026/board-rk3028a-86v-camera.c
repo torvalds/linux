@@ -34,30 +34,37 @@ Comprehensive camera device registration:
                           
 */
 static struct rkcamera_platform_data new_camera[] = { 
-    new_camera_device(RK29_CAM_SENSOR_OV5642,
+    new_camera_device(RK29_CAM_SENSOR_GC2035,
                         back,
-                        RK2928_PIN3_PB3,
+                        RK30_PIN3_PB3,
                         0,
                         0,
-                        0,
+                        1,
                         0),
+    new_camera_device(RK29_CAM_SENSOR_GC0308,
+                        front,
+                        RK30_PIN3_PD7,
+                        0,
+                        0,
+                        1,
+                        0), 
     new_camera_device_end
 };
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
-#define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV5642						/* back camera sensor */
-#define CONFIG_SENSOR_IIC_ADDR_0		0
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  0
+#define CONFIG_SENSOR_0 RK29_CAM_SENSOR_GC2035						/* back camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_0		0x00
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  1
 #define CONFIG_SENSOR_CIF_INDEX_0                    0
 #define CONFIG_SENSOR_ORIENTATION_0 	  90
 #define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_0		  INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK2928_PIN3_PB3
+#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK30_PIN3_PB3
 #define CONFIG_SENSOR_FALSH_PIN_0		  INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
-#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
+#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_H
 
 #define CONFIG_SENSOR_QCIF_FPS_FIXED_0		15000
 #define CONFIG_SENSOR_240X160_FPS_FIXED_0   15000
@@ -114,14 +121,14 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_02      15000
 #define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
 
-#define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_1 	   0// 0x60
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  3
+#define CONFIG_SENSOR_1 RK29_CAM_SENSOR_GC0308                      /* front camera sensor 0 */
+#define CONFIG_SENSOR_IIC_ADDR_1 	    0x00
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  1
 #define CONFIG_SENSOR_CIF_INDEX_1				  0
 #define CONFIG_SENSOR_ORIENTATION_1       270
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK2928_PIN3_PB3
+#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK30_PIN3_PD7
 #define CONFIG_SENSOR_FALSH_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L

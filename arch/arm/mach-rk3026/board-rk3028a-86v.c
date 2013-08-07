@@ -59,6 +59,9 @@
         #include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
 
+#if defined(CONFIG_GPS_RK)
+#include "../../../drivers/misc/gps/rk_gps/rk_gps.h"
+#endif
 #include "board-rk3028a-86v-camera.c"
 
 /***********************************************************
@@ -454,6 +457,7 @@ static int rk_platform_add_display_devices(void)
 *	gsensor
 ************************************************************/
 #if defined (CONFIG_GS_MMA8452)
+#define MMA8452_INT_PIN GS_INT_PIN
 static int mma8452_init_platform_hw(void)
 {
 	return 0;
@@ -468,8 +472,37 @@ static struct sensor_platform_data mma8452_info = {
 };
 #endif
 
+/*MMA7660 gsensor*/
+#if defined (CONFIG_GS_MMA7660)
+#define MMA7660_INT_PIN   GS_INT_PIN
+
+static int mma7660_init_platform_hw(void)
+{
+	//rk30_mux_api_set(GPIO1B2_SPI_RXD_UART1_SIN_NAME, GPIO1B_GPIO1B2);
+
+	return 0;
+}
+
+static struct sensor_platform_data mma7660_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+    .init_platform_hw = mma7660_init_platform_hw,
+#ifndef CONFIG_MFD_RK616
+	#ifdef CONFIG_TOUCHSCREEN_GSLX680_RK3168
+	.orientation = {-1, 0, 0, 0, -1, 0, 0, 0, 1},
+	#else
+    .orientation = {0, -1, 0, -1, 0, 0, 0, 0, -1},
+    #endif  
+#else
+	.orientation = {1, 0, 0, 0, -1, 0, 0, 0, -1},
+#endif	
+};
+#endif
+
+
 #if defined (CONFIG_GS_MXC6225)
-#define MXC6225_INT_PIN   RK30_PIN3_PD1
+#define MXC6225_INT_PIN   GS_INT_PIN
 
 static int mxc6225_init_platform_hw(void)
 {
@@ -743,6 +776,35 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 };
 #endif //endif--#ifdef CONFIG_SDMMC1_RK29
 
+#ifdef CONFIG_BATTERY_RK30_ADC_FAC
+static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
+        .dc_det_pin      = RK30_PIN1_PB4,
+        .batt_low_pin    = INVALID_GPIO, 
+        .charge_set_pin  = INVALID_GPIO,
+        .charge_ok_pin   = RK30_PIN1_PA0,
+	 .usb_det_pin = INVALID_GPIO,
+        .dc_det_level    = GPIO_LOW,
+        .charge_ok_level = GPIO_HIGH,
+
+	.reference_voltage = 1800, // the rK2928 is 3300;RK3066 and rk29 are 2500;rk3066B is 1800;
+       .pull_up_res = 200,     //divider resistance ,  pull-up resistor
+       .pull_down_res = 120, //divider resistance , pull-down resistor
+
+	.is_reboot_charging = 1,
+        .save_capacity   = 1 ,
+        .low_voltage_protection = 3600,    
+};
+
+static struct platform_device rk30_device_adc_battery = {
+        .name   = "rk30-battery",
+        .id     = -1,
+        .dev = {
+                .platform_data = &rk30_adc_battery_platdata,
+        },
+};
+#endif
+
+
 /***********************************************************
 *	rfkill
 ************************************************************/
@@ -836,7 +898,7 @@ static struct platform_device device_ion = {
 
 #ifdef CONFIG_SND_SOC_RK3026
 struct rk3026_codec_pdata rk3026_codec_pdata_info={
-	    .spk_ctl_gpio = INVALID_GPIO,
+	    .spk_ctl_gpio = RK2928_PIN3_PD4,
 	    .hp_ctl_gpio = RK2928_PIN3_PD4,
 	};
 
@@ -997,8 +1059,8 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 	},
 	{
 		.name          = "vio",   //vcc_io
-		.min_uv          = 3000000,
-		.max_uv         = 3000000,
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
 	},
 	
 };
@@ -1010,8 +1072,8 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 	},*/
 	{
 		.name          = "vdig1",    //vcc18_cif
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
+		.min_uv          = 2800000,//1800000,
+		.max_uv         = 2800000,//1800000,
 	},
 	{
 		.name          = "vdig2",   //vdd11
@@ -1063,20 +1125,116 @@ void __sramfunc board_pmu_resume(void)
 	#endif
 }
 
+#if defined(CONFIG_GPS_RK)
+#define GPS_OSCEN_PIN 	RK2928_PIN1_PB0
+#define GPS_RXEN_PIN 	RK2928_PIN1_PB0
+
+static int rk_gps_io_init(void)
+{
+	printk("%s \n", __FUNCTION__);
+	
+	gpio_request(GPS_OSCEN_PIN, NULL);
+	gpio_direction_output(GPS_OSCEN_PIN, GPIO_LOW);	
+	
+	iomux_set(GPS_CLK);//GPS_CLK
+	iomux_set(GPS_MAG);//GPS_MAG
+	iomux_set(GPS_SIGN);//GPS_SIGN
+#if 0
+	gpio_request(RK30_PIN1_PA6, NULL);
+	gpio_direction_output(RK30_PIN1_PA6, GPIO_LOW);
+
+	gpio_request(RK30_PIN1_PA5, NULL);
+	gpio_direction_output(RK30_PIN1_PA5, GPIO_LOW);	
+
+	gpio_request(RK30_PIN1_PA7, NULL);
+	gpio_direction_output(RK30_PIN1_PA7, GPIO_LOW);		
+#endif	
+	return 0;
+}
+static int rk_gps_power_up(void)
+{
+	printk("%s \n", __FUNCTION__);
+
+	return 0;
+}
+
+static int rk_gps_power_down(void)
+{
+	printk("%s \n", __FUNCTION__);
+
+	return 0;
+}
+
+static int rk_gps_reset_set(int level)
+{
+	return 0;
+}
+static int rk_enable_hclk_gps(void)
+{
+	struct clk *gps_aclk = NULL;
+	gps_aclk = clk_get(NULL, "aclk_gps");
+	if(gps_aclk) {
+		clk_enable(gps_aclk);
+		clk_put(gps_aclk);
+		printk("%s \n", __FUNCTION__);
+	}
+	else
+		printk("get gps aclk fail\n");
+	return 0;
+}
+static int rk_disable_hclk_gps(void)
+{
+	struct clk *gps_aclk = NULL;
+	gps_aclk = clk_get(NULL, "aclk_gps");
+	if(gps_aclk) {
+		//TO wait long enough until GPS ISR is finished.
+		msleep(5);
+		clk_disable(gps_aclk);
+		clk_put(gps_aclk);
+		printk("%s \n", __FUNCTION__);
+	}	
+	else
+		printk("get gps aclk fail\n");
+	return 0;
+}
+static struct rk_gps_data rk_gps_info = {
+	.io_init = rk_gps_io_init,
+	.power_up = rk_gps_power_up,
+	.power_down = rk_gps_power_down,
+	.reset = rk_gps_reset_set,
+	.enable_hclk_gps = rk_enable_hclk_gps,
+	.disable_hclk_gps = rk_disable_hclk_gps,
+	.GpsSign = RK2928_PIN1_PA5,
+	.GpsMag = RK2928_PIN1_PA4,        //GPIO index
+	.GpsClk = RK2928_PIN1_PA2,        //GPIO index
+	.GpsVCCEn = GPS_OSCEN_PIN,     //GPIO index
+#if 0	
+	.GpsSpi_CSO = RK30_PIN1_PA4,    //GPIO index
+	.GpsSpiClk = RK30_PIN1_PA5,     //GPIO index
+	.GpsSpiMOSI = RK30_PIN1_PA7,	  //GPIO index
+#endif	
+	.GpsIrq = IRQ_GPS,
+	.GpsSpiEn = 0,
+	.GpsAdcCh = 2,
+	.u32GpsPhyAddr = RK2928_GPS_PHYS,
+	.u32GpsPhySize = RK2928_GPS_SIZE,
+};
+
+static struct platform_device rk_device_gps = {
+	.name = "gps_hv5820b",
+	.id = -1,
+	.dev		= {
+	.platform_data = &rk_gps_info,
+		}
+	};
+#endif
+
+
 /***********************************************************
 *	i2c
 ************************************************************/
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
-#if defined (CONFIG_GS_MMA8452)
-	{
-		.type	        = "gs_mma8452",
-		.addr	        = 0x1d,
-		.flags	        = 0,
-		.irq	        = GS_INT_PIN,
-		.platform_data = &mma8452_info,
-	},
-#endif
 #if defined (CONFIG_MFD_TPS65910)
 	{
 		.type           = "tps65910",
@@ -1101,7 +1259,24 @@ static struct i2c_board_info __initdata i2c1_info[] = {
                 .platform_data  = &mxc6225_info,
         },
 #endif
-
+#if defined (CONFIG_GS_MMA7660)
+	{
+		.type	        = "gs_mma7660",//gs_mma7660
+		.addr	        = 0x4c,
+		.flags	        = 0,
+		.irq	        = MMA7660_INT_PIN,
+		.platform_data = &mma7660_info,
+	},
+#endif
+#if defined (CONFIG_GS_MMA8452)
+	{
+		.type	        = "gs_mma8452",
+		.addr	        = 0x1d,
+		.flags	        = 0,
+		.irq	        = MMA8452_INT_PIN,
+		.platform_data = &mma8452_info,
+	},
+#endif
 };
 #endif
 
@@ -1186,8 +1361,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RFKILL_RK
 	&device_rfkill_rk,
 #endif
+#ifdef CONFIG_BATTERY_RK30_ADC_FAC
+ 	&rk30_device_adc_battery,
+#endif
 #ifdef CONFIG_SND_SOC_RK3026
 	&rk3026_codec,
+#endif
+#ifdef CONFIG_GPS_RK
+	&rk_device_gps,
 #endif
 };
 
@@ -1238,6 +1419,14 @@ static void __init rk30_reserve(void)
 	//ion reserve
 #ifdef CONFIG_ION
 	rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion", ION_RESERVE_SIZE);
+#endif
+
+#ifdef CONFIG_VIDEO_RK29
+	rk30_camera_request_reserve_mem();
+#endif
+#ifdef CONFIG_GPS_RK
+	//it must be more than 8MB
+	rk_gps_info.u32MemoryPhyAddr = board_mem_reserve_add("gps", SZ_8M);
 #endif
 	board_mem_reserved();
 }
