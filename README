@@ -336,7 +336,7 @@ IF SOMETHING GOES WRONG:
    relevant mailing-list or to the newsgroup.
 
  - In all bug-reports, *please* tell what kernel you are talking about,
-   how to duplicate the problem, and what your setup is (use your common
+   how to reproduce the problem, and what your setup is (use your common
    sense).  If the problem is new, tell me so, and if the problem is
    old, please try to tell me when you first noticed it.
 
