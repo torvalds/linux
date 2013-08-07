@@ -5,6 +5,7 @@ raid6_pq-y	+= algos.o recov.o tables.o int1.o int2.o int4.o \
 
 raid6_pq-$(CONFIG_X86) += recov_ssse3.o recov_avx2.o mmx.o sse1.o sse2.o avx2.o
 raid6_pq-$(CONFIG_ALTIVEC) += altivec1.o altivec2.o altivec4.o altivec8.o
+raid6_pq-$(CONFIG_TILEGX) += tilegx8.o
 
 hostprogs-y	+= mktables
 
@@ -68,6 +69,11 @@ CFLAGS_altivec8.o += $(altivec_flags)
 targets += altivec8.c
 $(obj)/altivec8.c:   UNROLL := 8
 $(obj)/altivec8.c:   $(src)/altivec.uc $(src)/unroll.awk FORCE
+	$(call if_changed,unroll)
+
+targets += tilegx8.c
+$(obj)/tilegx8.c:   UNROLL := 8
+$(obj)/tilegx8.c:   $(src)/tilegx.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 quiet_cmd_mktable = TABLE   $@
