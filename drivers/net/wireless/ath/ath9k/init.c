@@ -645,11 +645,11 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	/*
 	 * Enable WLAN/BT RX Antenna diversity only when:
 	 *
-	 * - BTCOEX is enabled
+	 * - BTCOEX is disabled.
 	 * - the user manually requests the feature.
 	 * - the HW cap is set using the platform data.
 	 */
-	if (common->btcoex_enabled && ath9k_bt_ant_diversity &&
+	if (!common->btcoex_enabled && ath9k_bt_ant_diversity &&
 	    (pCap->hw_caps & ATH9K_HW_CAP_BT_ANT_DIV))
 		common->bt_ant_diversity = 1;
 
