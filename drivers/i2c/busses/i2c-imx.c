@@ -543,6 +543,11 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 		return PTR_ERR(i2c_imx->clk);
 	}
 
+	ret = clk_prepare_enable(i2c_imx->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "can't enable I2C clock\n");
+		return ret;
+	}
 	/* Request IRQ */
 	ret = devm_request_irq(&pdev->dev, irq, i2c_imx_isr, 0,
 				pdev->name, i2c_imx);
@@ -580,6 +585,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 
 	/* Set up platform driver data */
 	platform_set_drvdata(pdev, i2c_imx);
+	clk_disable_unprepare(i2c_imx->clk);
 
 	dev_dbg(&i2c_imx->adapter.dev, "claimed irq %d\n", irq);
 	dev_dbg(&i2c_imx->adapter.dev, "device resources from 0x%x to 0x%x\n",
