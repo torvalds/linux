@@ -636,76 +636,76 @@ static struct tasklet_struct reset_tasklet = {
 #ifndef CONFIG_ARCH_RK29
 static void dwc_otg_hcd_enable(struct work_struct *work)
 {
-    dwc_otg_hcd_t *dwc_otg_hcd;
-    dwc_otg_core_if_t *_core_if;
+	dwc_otg_hcd_t *dwc_otg_hcd;
+	dwc_otg_core_if_t *_core_if;
 	struct dwc_otg_platform_data *pldata;
 
-    dwc_otg_hcd = container_of(work, dwc_otg_hcd_t, host_enable_work.work);
-    _core_if = dwc_otg_hcd->core_if;
-    pldata = _core_if->otg_dev->pldata;
+	dwc_otg_hcd = container_of(work, dwc_otg_hcd_t, host_enable_work.work);
+	_core_if = dwc_otg_hcd->core_if;
+	pldata = _core_if->otg_dev->pldata;
     
 	if(dwc_otg_hcd->host_enabled == dwc_otg_hcd->host_setenable){
-//        DWC_PRINT("%s, enable flag %d\n", __func__, dwc_otg_hcd->host_setenable);
-	    goto out;
+//	DWC_PRINT("%s, enable flag %d\n", __func__, dwc_otg_hcd->host_setenable);
+		goto out;
 	}
 	    
-	if(dwc_otg_hcd->host_setenable == 2)    // enable -> disable
-	{
-	    if(pldata->get_status(USB_STATUS_DPDM)){// usb device connected
-	        dwc_otg_hcd->host_setenable = 1;
-	        goto out;
-	    }
-	    DWC_PRINT("%s, disable host controller\n", __func__);
+	if(dwc_otg_hcd->host_setenable == 2){// enable -> disable
+		if(pldata->get_status(USB_STATUS_DPDM)){// usb device connected
+			dwc_otg_hcd->host_setenable = 1;
+			goto out;
+		}
+		DWC_PRINT("%s, disable host controller\n", __func__);
 #if 0
-        if (_core_if->hcd_cb && _core_if->hcd_cb->disconnect) {
-                _core_if->hcd_cb->disconnect( _core_if->hcd_cb->p );
-        }
+		if (_core_if->hcd_cb && _core_if->hcd_cb->disconnect) {
+		_core_if->hcd_cb->disconnect( _core_if->hcd_cb->p );
+		}
 #endif
-        dwc_otg_disable_host_interrupts( _core_if );
-        //if (_core_if->hcd_cb && _core_if->hcd_cb->stop) {
-        //        _core_if->hcd_cb->stop( _core_if->hcd_cb->p );
-        //}
-        if(pldata->phy_suspend) 
-            pldata->phy_suspend( pldata, USB_PHY_SUSPEND);
-        udelay(3);
-        pldata->clock_enable( pldata, 0);
-	}
-	else if(dwc_otg_hcd->host_setenable == 1)
-	{
-	    DWC_PRINT("%s, enable host controller\n", __func__);
-        pldata->clock_enable( pldata, 1);
-        if(pldata->phy_suspend) 
-            pldata->phy_suspend( pldata, USB_PHY_ENABLED);
-        mdelay(5);
-        if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
-                _core_if->hcd_cb->start( _core_if->hcd_cb->p );
-        }
+		pldata->soft_reset();
+		dwc_otg_disable_host_interrupts( _core_if );
+//		if (_core_if->hcd_cb && _core_if->hcd_cb->stop) {
+//			_core_if->hcd_cb->stop( _core_if->hcd_cb->p );
+//		}
+		if(pldata->phy_suspend) 
+			pldata->phy_suspend( pldata, USB_PHY_SUSPEND);
+		udelay(3);
+		pldata->clock_enable( pldata, 0);
+	}else if(dwc_otg_hcd->host_setenable == 1){
+		DWC_PRINT("%s, enable host controller\n", __func__);
+		pldata->clock_enable( pldata, 1);
+		if(pldata->phy_suspend) 
+			pldata->phy_suspend( pldata, USB_PHY_ENABLED);
+		mdelay(5);
+		dwc_otg_core_init(_core_if);
+		dwc_otg_enable_global_interrupts(_core_if);
+		if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
+			_core_if->hcd_cb->start( _core_if->hcd_cb->p );
+		}
 	}
 	dwc_otg_hcd->host_enabled = dwc_otg_hcd->host_setenable;
 out:
-    return;
+	return;
 }
 static void dwc_otg_hcd_connect_detect(unsigned long pdata)
 {
-    dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *)pdata;
-    dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
+	dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *)pdata;
+	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	unsigned long flags;
 	struct dwc_otg_platform_data *pldata;
-    pldata = core_if->otg_dev->pldata;
+	pldata = core_if->otg_dev->pldata;
 
 	local_irq_save(flags);
 
-//    DWC_PRINT("%s hprt %x, grfstatus 0x%x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<22));
-    if(pldata->get_status(USB_STATUS_DPDM)) // usb device connected    
-        dwc_otg_hcd->host_setenable = 1;
-    else{                                   // no device, suspend host    
-        if((dwc_read_reg32(core_if->host_if->hprt0) & 1) == 0)
-            dwc_otg_hcd->host_setenable = 2;
-    }
-    if((dwc_otg_hcd->host_enabled)&&(dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled)){
-        schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 1);
-    }
-    mod_timer(&dwc_otg_hcd->connect_detect_timer,jiffies + (HZ<<1)); 
+//	DWC_PRINT("%s hprt %x, grfstatus 0x%x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<22));
+	if(pldata->get_status(USB_STATUS_DPDM)) // usb device connected    
+		dwc_otg_hcd->host_setenable = 1;
+	else{                                   // no device, suspend host    
+		if((dwc_read_reg32(core_if->host_if->hprt0) & 1) == 0)
+		dwc_otg_hcd->host_setenable = 2;
+	}
+	if((dwc_otg_hcd->host_enabled)&&(dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled)){
+		schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 1);
+	}
+	mod_timer(&dwc_otg_hcd->connect_detect_timer,jiffies + (HZ<<1)); 
 	local_irq_restore(flags);
 	return;
 }
@@ -721,7 +721,7 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
-    dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
 
 	int 		num_channels;
 	int 		i;
