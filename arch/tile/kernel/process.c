@@ -591,21 +591,21 @@ void show_regs(struct pt_regs *regs)
 	pr_err("\n");
 	show_regs_print_info(KERN_ERR);
 #ifdef __tilegx__
-	for (i = 0; i < 51; i += 3)
+	for (i = 0; i < 17; i++)
 		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
-		       i, regs->regs[i], i+1, regs->regs[i+1],
-		       i+2, regs->regs[i+2]);
-	pr_err(" r51: "REGFMT" r52: "REGFMT" tp : "REGFMT"\n",
-	       regs->regs[51], regs->regs[52], regs->tp);
+		       i, regs->regs[i], i+18, regs->regs[i+18],
+		       i+36, regs->regs[i+36]);
+	pr_err(" r17: "REGFMT" r35: "REGFMT" tp : "REGFMT"\n",
+	       regs->regs[17], regs->regs[35], regs->tp);
 	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
 #else
-	for (i = 0; i < 52; i += 4)
+	for (i = 0; i < 13; i++)
 		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
 		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
-		       i, regs->regs[i], i+1, regs->regs[i+1],
-		       i+2, regs->regs[i+2], i+3, regs->regs[i+3]);
-	pr_err(" r52: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
-	       regs->regs[52], regs->tp, regs->sp, regs->lr);
+		       i, regs->regs[i], i+14, regs->regs[i+14],
+		       i+27, regs->regs[i+27], i+40, regs->regs[i+40]);
+	pr_err(" r13: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
+	       regs->regs[13], regs->tp, regs->sp, regs->lr);
 #endif
 	pr_err(" pc : "REGFMT" ex1: %ld     faultnum: %ld\n",
 	       regs->pc, regs->ex1, regs->faultnum);
