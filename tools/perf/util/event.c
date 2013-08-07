@@ -592,9 +592,10 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 void thread__find_addr_map(struct thread *self,
 			   struct machine *machine, u8 cpumode,
 			   enum map_type type, u64 addr,
-			   struct addr_location *al)
+			   struct addr_location *al, symbol_filter_t filter)
 {
 	struct map_groups *mg = &self->mg;
+	bool load_map = false;
 
 	al->thread = self;
 	al->addr = addr;
@@ -609,11 +610,13 @@ void thread__find_addr_map(struct thread *self,
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
 		mg = &machine->kmaps;
+		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_USER && perf_host) {
 		al->level = '.';
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
 		al->level = 'g';
 		mg = &machine->kmaps;
+		load_map = true;
 	} else {
 		/*
 		 * 'u' means guest os user space.
@@ -654,8 +657,15 @@ try_again:
 			mg = &machine->kmaps;
 			goto try_again;
 		}
-	} else
+	} else {
+		/*
+		 * Kernel maps might be changed when loading symbols so loading
+		 * must be done prior to using kernel maps.
+		 */
+		if (load_map)
+			map__load(al->map, filter);
 		al->addr = al->map->map_ip(al->map, al->addr);
+	}
 }
 
 void thread__find_addr_location(struct thread *thread, struct machine *machine,
@@ -663,7 +673,7 @@ void thread__find_addr_location(struct thread *thread, struct machine *machine,
 				struct addr_location *al,
 				symbol_filter_t filter)
 {
-	thread__find_addr_map(thread, machine, cpumode, type, addr, al);
+	thread__find_addr_map(thread, machine, cpumode, type, addr, al, filter);
 	if (al->map != NULL)
 		al->sym = map__find_symbol(al->map, al->addr, filter);
 	else
@@ -699,7 +709,7 @@ int perf_event__preprocess_sample(const union perf_event *event,
 		machine__create_kernel_maps(machine);
 
 	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
-			      event->ip.ip, al);
+			      event->ip.ip, al, filter);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");

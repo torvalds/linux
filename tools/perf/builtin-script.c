@@ -341,10 +341,10 @@ static void print_sample_addr(union perf_event *event,
 		return;
 
 	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
-			      sample->addr, &al);
+			      sample->addr, &al, NULL);
 	if (!al.map)
 		thread__find_addr_map(thread, machine, cpumode, MAP__VARIABLE,
-				      sample->addr, &al);
+				      sample->addr, &al, NULL);
 
 	al.cpu = sample->cpu;
 	al.sym = NULL;

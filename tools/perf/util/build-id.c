@@ -33,7 +33,7 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 	}
 
 	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
-			      event->ip.ip, &al);
+			      event->ip.ip, &al, NULL);
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
