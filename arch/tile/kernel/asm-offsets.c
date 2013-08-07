@@ -58,6 +58,8 @@ void foo(void)
 	       offsetof(struct thread_info, status));
 	DEFINE(THREAD_INFO_HOMECACHE_CPU_OFFSET,
 	       offsetof(struct thread_info, homecache_cpu));
+	DEFINE(THREAD_INFO_PREEMPT_COUNT_OFFSET,
+	       offsetof(struct thread_info, preempt_count));
 	DEFINE(THREAD_INFO_STEP_STATE_OFFSET,
 	       offsetof(struct thread_info, step_state));
 #ifdef __tilegx__

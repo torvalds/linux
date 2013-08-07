@@ -74,6 +74,7 @@ static DEFINE_SPINLOCK(available_irqs_lock);
 /*
  * The interrupt handling path, implemented in terms of HV interrupt
  * emulation on TILE64 and TILEPro, and IPI hardware on TILE-Gx.
+ * Entered with interrupts disabled.
  */
 void tile_dev_intr(struct pt_regs *regs, int intnum)
 {

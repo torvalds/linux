@@ -100,8 +100,8 @@ static void smp_start_cpu_interrupt(void)
 /* Handler to stop the current cpu. */
 static void smp_stop_cpu_interrupt(void)
 {
-	set_cpu_online(smp_processor_id(), 0);
 	arch_local_irq_disable_all();
+	set_cpu_online(smp_processor_id(), 0);
 	for (;;)
 		asm("nap; nop");
 }

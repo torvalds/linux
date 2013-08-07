@@ -194,7 +194,7 @@ static int KBacktraceIterator_next_item_inclusive(
  */
 static void validate_stack(struct pt_regs *regs)
 {
-	int cpu = smp_processor_id();
+	int cpu = raw_smp_processor_id();
 	unsigned long ksp0 = get_current_ksp0();
 	unsigned long ksp0_base = ksp0 - THREAD_SIZE;
 	unsigned long sp = stack_pointer;
@@ -392,7 +392,7 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		pr_err("Starting stack dump of tid %d, pid %d (%s)"
 		       " on cpu %d at cycle %lld\n",
 		       kbt->task->pid, kbt->task->tgid, kbt->task->comm,
-		       smp_processor_id(), get_cycles());
+		       raw_smp_processor_id(), get_cycles());
 	}
 	kbt->verbose = 1;
 	i = 0;

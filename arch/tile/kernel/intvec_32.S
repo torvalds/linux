@@ -28,10 +28,6 @@
 #include <arch/interrupts.h>
 #include <arch/spr_def.h>
 
-#ifdef CONFIG_PREEMPT
-# error "No support for kernel preemption currently"
-#endif
-
 #define PTREGS_PTR(reg, ptreg) addli reg, sp, C_ABI_SAVE_AREA_SIZE + (ptreg)
 
 #define PTREGS_OFFSET_SYSCALL PTREGS_OFFSET_REG(TREG_SYSCALL_NR)
@@ -812,17 +808,34 @@ STD_ENTRY(interrupt_return)
 	}
 	lw      r29, r29
 	andi    r29, r29, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
+	bzt     r29, .Lresume_userspace
+
+#ifdef CONFIG_PREEMPT
+	/* Returning to kernel space. Check if we need preemption. */
+	GET_THREAD_INFO(r29)
+	addli   r28, r29, THREAD_INFO_FLAGS_OFFSET
 	{
-	 bzt    r29, .Lresume_userspace
-	 PTREGS_PTR(r29, PTREGS_OFFSET_PC)
+	 lw     r28, r28
+	 addli  r29, r29, THREAD_INFO_PREEMPT_COUNT_OFFSET
 	}
+	{
+	 andi   r28, r28, _TIF_NEED_RESCHED
+	 lw     r29, r29
+	}
+	bzt     r28, 1f
+	bnz     r29, 1f
+	jal     preempt_schedule_irq
+	FEEDBACK_REENTER(interrupt_return)
+1:
+#endif
 
 	/* If we're resuming to _cpu_idle_nap, bump PC forward by 8. */
 	{
-	 lw     r28, r29
+	 PTREGS_PTR(r29, PTREGS_OFFSET_PC)
 	 moveli r27, lo16(_cpu_idle_nap)
 	}
 	{
+	 lw     r28, r29
 	 auli   r27, r27, ha16(_cpu_idle_nap)
 	}
 	{

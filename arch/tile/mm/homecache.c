@@ -172,7 +172,8 @@ void flush_remote(unsigned long cache_pfn, unsigned long cache_control,
 
 static void homecache_finv_page_va(void* va, int home)
 {
-	if (home == smp_processor_id()) {
+	int cpu = get_cpu();
+	if (home == cpu) {
 		finv_buffer_local(va, PAGE_SIZE);
 	} else if (home == PAGE_HOME_HASH) {
 		finv_buffer_remote(va, PAGE_SIZE, 1);
@@ -180,6 +181,7 @@ static void homecache_finv_page_va(void* va, int home)
 		BUG_ON(home < 0 || home >= NR_CPUS);
 		finv_buffer_remote(va, PAGE_SIZE, 0);
 	}
+	put_cpu();
 }
 
 void homecache_finv_map_page(struct page *page, int home)

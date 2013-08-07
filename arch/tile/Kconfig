@@ -301,6 +301,8 @@ config PAGE_OFFSET
 
 source "mm/Kconfig"
 
+source "kernel/Kconfig.preempt"
+
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
 	default n

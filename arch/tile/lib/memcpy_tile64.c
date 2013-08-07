@@ -65,7 +65,7 @@ static void memcpy_multicache(void *dest, const void *source,
 	pmd_t *pmdp;
 	pte_t *ptep;
 	int type0, type1;
-	int cpu = get_cpu();
+	int cpu = smp_processor_id();
 
 	/*
 	 * Disable interrupts so that we don't recurse into memcpy()
@@ -126,7 +126,6 @@ static void memcpy_multicache(void *dest, const void *source,
 	kmap_atomic_idx_pop();
 	sim_allow_multiple_caching(0);
 	local_irq_restore(flags);
-	put_cpu();
 }
 
 /*
@@ -137,6 +136,9 @@ static void memcpy_multicache(void *dest, const void *source,
 static unsigned long fast_copy(void *dest, const void *source, int len,
 			       memcpy_t func)
 {
+	int cpu = get_cpu();
+	unsigned long retval;
+
 	/*
 	 * Check if it's big enough to bother with.  We may end up doing a
 	 * small copy via TLB manipulation if we're near a page boundary,
@@ -158,7 +160,7 @@ retry_source:
 		    !hv_pte_get_readable(src_pte) ||
 		    hv_pte_get_mode(src_pte) != HV_PTE_MODE_CACHE_TILE_L3)
 			break;
-		if (get_remote_cache_cpu(src_pte) == smp_processor_id())
+		if (get_remote_cache_cpu(src_pte) == cpu)
 			break;
 		src_page = pfn_to_page(pte_pfn(src_pte));
 		get_page(src_page);
@@ -235,7 +237,9 @@ retry_dest:
 		len -= copy_size;
 	}
 
-	return func(dest, source, len);
+	retval = func(dest, source, len);
+	put_cpu();
+	return retval;
 }
 
 void *memcpy(void *to, const void *from, __kernel_size_t n)
