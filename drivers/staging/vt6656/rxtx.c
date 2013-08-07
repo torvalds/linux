@@ -392,147 +392,44 @@ static u32 s_uGetDataDuration(struct vnt_private *pDevice, u8 byDurType,
 	u32 uFragIdx, u32 cbLastFragmentSize, u32 uMACfragNum,
 	u8 byFBOption)
 {
-	int bLastFrag = 0;
-	u32 uAckTime = 0, uNextPktTime = 0;
-
-    if (uFragIdx == (uMACfragNum-1)) {
-        bLastFrag = 1;
-    }
+	u32 uAckTime = 0;
 
     switch (byDurType) {
 
     case DATADUR_B:    //DATADUR_B
-        if (((uMACfragNum == 1)) || (bLastFrag == 1)) {//Non Frag or Last Frag
             if (bNeedAck) {
             	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
                 return (pDevice->uSIFS + uAckTime);
             } else {
                 return 0;
             }
-        }
-        else {//First Frag or Mid Frag
-            if (uFragIdx == (uMACfragNum-2)) {
-            	uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wRate, bNeedAck);
-            } else {
-                uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wRate, bNeedAck);
-            }
-            if (bNeedAck) {
-            	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-                return (pDevice->uSIFS + uAckTime + uNextPktTime);
-            } else {
-                return (pDevice->uSIFS + uNextPktTime);
-            }
-        }
         break;
 
     case DATADUR_A:    //DATADUR_A
-        if (((uMACfragNum==1)) || (bLastFrag==1)) {//Non Frag or Last Frag
             if(bNeedAck){
             	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
                 return (pDevice->uSIFS + uAckTime);
             } else {
                 return 0;
             }
-        }
-        else {//First Frag or Mid Frag
-            if(uFragIdx == (uMACfragNum-2)){
-            	uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wRate, bNeedAck);
-            } else {
-                uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wRate, bNeedAck);
-            }
-            if(bNeedAck){
-            	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-                return (pDevice->uSIFS + uAckTime + uNextPktTime);
-            } else {
-                return (pDevice->uSIFS + uNextPktTime);
-            }
-        }
         break;
 
     case DATADUR_A_F0:    //DATADUR_A_F0
-	    if (((uMACfragNum==1)) || (bLastFrag==1)) {//Non Frag or Last Frag
             if(bNeedAck){
             	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
                 return (pDevice->uSIFS + uAckTime);
             } else {
                 return 0;
             }
-        }
-	    else { //First Frag or Mid Frag
-	        if (byFBOption == AUTO_FB_0) {
-                if (wRate < RATE_18M)
-                    wRate = RATE_18M;
-                else if (wRate > RATE_54M)
-                    wRate = RATE_54M;
-
-	            if(uFragIdx == (uMACfragNum-2)){
-            	    uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-                } else {
-                    uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE0][wRate-RATE_18M], bNeedAck);
-                }
-	        } else { // (byFBOption == AUTO_FB_1)
-                if (wRate < RATE_18M)
-                    wRate = RATE_18M;
-                else if (wRate > RATE_54M)
-                    wRate = RATE_54M;
-
-	            if(uFragIdx == (uMACfragNum-2)){
-            	    uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-                } else {
-                    uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-                }
-	        }
-
-	        if(bNeedAck){
-            	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-                return (pDevice->uSIFS + uAckTime + uNextPktTime);
-            } else {
-                return (pDevice->uSIFS + uNextPktTime);
-            }
-	    }
         break;
 
     case DATADUR_A_F1:    //DATADUR_A_F1
-        if (((uMACfragNum==1)) || (bLastFrag==1)) {//Non Frag or Last Frag
             if(bNeedAck){
             	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
                 return (pDevice->uSIFS + uAckTime);
             } else {
                 return 0;
             }
-        }
-	    else { //First Frag or Mid Frag
-	        if (byFBOption == AUTO_FB_0) {
-                if (wRate < RATE_18M)
-                    wRate = RATE_18M;
-                else if (wRate > RATE_54M)
-                    wRate = RATE_54M;
-
-	            if(uFragIdx == (uMACfragNum-2)){
-            	    uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-                } else {
-                    uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt0[FB_RATE1][wRate-RATE_18M], bNeedAck);
-                }
-
-	        } else { // (byFBOption == AUTO_FB_1)
-                if (wRate < RATE_18M)
-                    wRate = RATE_18M;
-                else if (wRate > RATE_54M)
-                    wRate = RATE_54M;
-
-	            if(uFragIdx == (uMACfragNum-2)){
-            	    uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-                } else {
-                    uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE1][wRate-RATE_18M], bNeedAck);
-                }
-	        }
-	        if(bNeedAck){
-            	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-                return (pDevice->uSIFS + uAckTime + uNextPktTime);
-            } else {
-                return (pDevice->uSIFS + uNextPktTime);
-            }
-	    }
         break;
 
     default:
