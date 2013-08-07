@@ -1107,6 +1107,60 @@ static struct bfin_display_config bfin_display_data = {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_VIDEO_ADV7343)
+#include <media/adv7343.h>
+
+static struct v4l2_output adv7343_outputs[] = {
+	{
+		.index = 0,
+		.name = "Composite",
+		.type = V4L2_OUTPUT_TYPE_ANALOG,
+		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_OUT_CAP_STD,
+	},
+};
+
+static struct disp_route adv7343_routes[] = {
+	{
+		.output = 0,
+	},
+};
+
+static struct adv7343_platform_data adv7343_data = {
+	.mode_config = {
+		.sleep_mode = false,
+		.pll_control = false,
+		.dac_1 = true,
+		.dac_2 = true,
+		.dac_3 = true,
+		.dac_4 = true,
+		.dac_5 = true,
+		.dac_6 = true,
+	},
+	.sd_config = {
+		.sd_dac_out1 = false,
+		.sd_dac_out2 = false,
+	},
+};
+
+static struct bfin_display_config bfin_display_data = {
+	.card_name = "BF609",
+	.outputs = adv7343_outputs,
+	.num_outputs = ARRAY_SIZE(adv7343_outputs),
+	.routes = adv7343_routes,
+	.i2c_adapter_id = 0,
+	.board_info = {
+		.type = "adv7343",
+		.addr = 0x2b,
+		.platform_data = (void *)&adv7343_data,
+	},
+	.ppi_info = &ppi_info_disp,
+	.ppi_control = (PACK_EN | DLEN_8 | EPPI_CTL_FS1LO_FS2LO
+			| EPPI_CTL_POLC3 | EPPI_CTL_BLANKGEN | EPPI_CTL_SYNC2
+			| EPPI_CTL_NON656 | EPPI_CTL_DIR),
+};
+#endif
+
 static struct platform_device bfin_display_device = {
 	.name = "bfin_display",
 	.dev = {
