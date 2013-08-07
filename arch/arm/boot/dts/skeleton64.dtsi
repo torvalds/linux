@@ -9,5 +9,5 @@
 	#size-cells = <2>;
 	chosen { };
 	aliases { };
-	memory { device_type = "memory"; reg = <0 0>; };
+	memory { device_type = "memory"; reg = <0 0 0 0>; };
 };
