@@ -2735,76 +2735,26 @@ ctnetlink_parse_expect_nat(const struct nlattr *attr,
 #endif
 }
 
-static int
-ctnetlink_create_expect(struct net *net, u16 zone,
-			const struct nlattr * const cda[],
-			u_int8_t u3,
-			u32 portid, int report)
+static struct nf_conntrack_expect *
+ctnetlink_alloc_expect(const struct nlattr * const cda[], struct nf_conn *ct,
+		       struct nf_conntrack_helper *helper,
+		       struct nf_conntrack_tuple *tuple,
+		       struct nf_conntrack_tuple *mask)
 {
-	struct nf_conntrack_tuple tuple, mask, master_tuple;
-	struct nf_conntrack_tuple_hash *h = NULL;
-	struct nf_conntrack_expect *exp;
-	struct nf_conn *ct;
-	struct nf_conn_help *help;
-	struct nf_conntrack_helper *helper = NULL;
 	u_int32_t class = 0;
-	int err = 0;
-
-	/* caller guarantees that those three CTA_EXPECT_* exist */
-	err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_TUPLE, u3);
-	if (err < 0)
-		return err;
-	err = ctnetlink_parse_tuple(cda, &mask, CTA_EXPECT_MASK, u3);
-	if (err < 0)
-		return err;
-	err = ctnetlink_parse_tuple(cda, &master_tuple, CTA_EXPECT_MASTER, u3);
-	if (err < 0)
-		return err;
-
-	/* Look for master conntrack of this expectation */
-	h = nf_conntrack_find_get(net, zone, &master_tuple);
-	if (!h)
-		return -ENOENT;
-	ct = nf_ct_tuplehash_to_ctrack(h);
-
-	/* Look for helper of this expectation */
-	if (cda[CTA_EXPECT_HELP_NAME]) {
-		const char *helpname = nla_data(cda[CTA_EXPECT_HELP_NAME]);
-
-		helper = __nf_conntrack_helper_find(helpname, nf_ct_l3num(ct),
-						    nf_ct_protonum(ct));
-		if (helper == NULL) {
-#ifdef CONFIG_MODULES
-			if (request_module("nfct-helper-%s", helpname) < 0) {
-				err = -EOPNOTSUPP;
-				goto out;
-			}
-
-			helper = __nf_conntrack_helper_find(helpname,
-							    nf_ct_l3num(ct),
-							    nf_ct_protonum(ct));
-			if (helper) {
-				err = -EAGAIN;
-				goto out;
-			}
-#endif
-			err = -EOPNOTSUPP;
-			goto out;
-		}
-	}
+	struct nf_conntrack_expect *exp;
+	struct nf_conn_help *help;
+	int err;
 
 	if (cda[CTA_EXPECT_CLASS] && helper) {
 		class = ntohl(nla_get_be32(cda[CTA_EXPECT_CLASS]));
-		if (class > helper->expect_class_max) {
-			err = -EINVAL;
-			goto out;
-		}
+		if (class > helper->expect_class_max)
+			return ERR_PTR(-EINVAL);
 	}
 	exp = nf_ct_expect_alloc(ct);
-	if (!exp) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!exp)
+		return ERR_PTR(-ENOMEM);
+
 	help = nfct_help(ct);
 	if (!help) {
 		if (!cda[CTA_EXPECT_TIMEOUT]) {
@@ -2842,21 +2792,89 @@ ctnetlink_create_expect(struct net *net, u16 zone,
 	exp->class = class;
 	exp->master = ct;
 	exp->helper = helper;
-	memcpy(&exp->tuple, &tuple, sizeof(struct nf_conntrack_tuple));
-	memcpy(&exp->mask.src.u3, &mask.src.u3, sizeof(exp->mask.src.u3));
-	exp->mask.src.u.all = mask.src.u.all;
+	exp->tuple = *tuple;
+	exp->mask.src.u3 = mask->src.u3;
+	exp->mask.src.u.all = mask->src.u.all;
 
 	if (cda[CTA_EXPECT_NAT]) {
 		err = ctnetlink_parse_expect_nat(cda[CTA_EXPECT_NAT],
-						 exp, u3);
+						 exp, nf_ct_l3num(ct));
 		if (err < 0)
 			goto err_out;
 	}
-	err = nf_ct_expect_related_report(exp, portid, report);
+	return exp;
 err_out:
 	nf_ct_expect_put(exp);
-out:
-	nf_ct_put(nf_ct_tuplehash_to_ctrack(h));
+	return ERR_PTR(err);
+}
+
+static int
+ctnetlink_create_expect(struct net *net, u16 zone,
+			const struct nlattr * const cda[],
+			u_int8_t u3, u32 portid, int report)
+{
+	struct nf_conntrack_tuple tuple, mask, master_tuple;
+	struct nf_conntrack_tuple_hash *h = NULL;
+	struct nf_conntrack_helper *helper = NULL;
+	struct nf_conntrack_expect *exp;
+	struct nf_conn *ct;
+	int err;
+
+	/* caller guarantees that those three CTA_EXPECT_* exist */
+	err = ctnetlink_parse_tuple(cda, &tuple, CTA_EXPECT_TUPLE, u3);
+	if (err < 0)
+		return err;
+	err = ctnetlink_parse_tuple(cda, &mask, CTA_EXPECT_MASK, u3);
+	if (err < 0)
+		return err;
+	err = ctnetlink_parse_tuple(cda, &master_tuple, CTA_EXPECT_MASTER, u3);
+	if (err < 0)
+		return err;
+
+	/* Look for master conntrack of this expectation */
+	h = nf_conntrack_find_get(net, zone, &master_tuple);
+	if (!h)
+		return -ENOENT;
+	ct = nf_ct_tuplehash_to_ctrack(h);
+
+	if (cda[CTA_EXPECT_HELP_NAME]) {
+		const char *helpname = nla_data(cda[CTA_EXPECT_HELP_NAME]);
+
+		helper = __nf_conntrack_helper_find(helpname, u3,
+						    nf_ct_protonum(ct));
+		if (helper == NULL) {
+#ifdef CONFIG_MODULES
+			if (request_module("nfct-helper-%s", helpname) < 0) {
+				err = -EOPNOTSUPP;
+				goto err_ct;
+			}
+			helper = __nf_conntrack_helper_find(helpname, u3,
+							    nf_ct_protonum(ct));
+			if (helper) {
+				err = -EAGAIN;
+				goto err_ct;
+			}
+#endif
+			err = -EOPNOTSUPP;
+			goto err_ct;
+		}
+	}
+
+	exp = ctnetlink_alloc_expect(cda, ct, helper, &tuple, &mask);
+	if (IS_ERR(exp)) {
+		err = PTR_ERR(exp);
+		goto err_ct;
+	}
+
+	err = nf_ct_expect_related_report(exp, portid, report);
+	if (err < 0)
+		goto err_exp;
+
+	return 0;
+err_exp:
+	nf_ct_expect_put(exp);
+err_ct:
+	nf_ct_put(ct);
 	return err;
 }
 
