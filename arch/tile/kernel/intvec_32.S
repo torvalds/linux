@@ -758,7 +758,7 @@ intvec_\vecname:
 	.macro  dc_dispatch vecnum, vecname
 	.org    (\vecnum << 8)
 intvec_\vecname:
-	j       hv_downcall_dispatch
+	j       _hv_downcall_dispatch
 	ENDPROC(intvec_\vecname)
 	.endm
 

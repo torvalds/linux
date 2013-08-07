@@ -39,12 +39,12 @@ ENTRY(_start)
 	}
 	{
 	  moveli r0, _HV_VERSION_OLD_HV_INIT
-	  jal hv_init
+	  jal _hv_init
 	}
 	/* Get a reasonable default ASID in r0 */
 	{
 	  move r0, zero
-	  jal hv_inquire_asid
+	  jal _hv_inquire_asid
 	}
 	/* Install the default page table */
 	{
@@ -73,12 +73,12 @@ ENTRY(_start)
 	}
 	{
 	  auli lr, lr, ha16(1f)
-	  j hv_install_context
+	  j _hv_install_context
 	}
 1:
 
 	/* Get our processor number and save it away in SAVE_K_0. */
-	jal hv_inquire_topology
+	jal _hv_inquire_topology
 	mulll_uu r4, r1, r2        /* r1 == y, r2 == width */
 	add r4, r4, r0             /* r0 == x, so r4 == cpu == y*width + x */
 

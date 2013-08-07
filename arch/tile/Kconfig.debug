@@ -24,4 +24,12 @@ config DEBUG_EXTRA_FLAGS
 	  size and build time noticeably.  Such flags are often
 	  helpful if the main use of debug info is line number info.
 
+config TILE_HVGLUE_TRACE
+	bool "Provide wrapper functions for hypervisor ABI calls"
+	default n
+	help
+	  Provide wrapper functions for the hypervisor ABI calls
+	  defined in arch/tile/kernel/hvglue.S.  This allows tracing
+	  mechanisms, etc., to have visibility into those calls.
+
 endmenu

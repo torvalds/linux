@@ -55,11 +55,11 @@ ENTRY(_start)
 	  movei r2, TILE_CHIP_REV
 	  movei r3, KERNEL_PL
 	}
-	jal hv_init
+	jal _hv_init
 	/* Get a reasonable default ASID in r0 */
 	{
 	  move r0, zero
-	  jal hv_inquire_asid
+	  jal _hv_inquire_asid
 	}
 
 	/*
@@ -130,7 +130,7 @@ ENTRY(_start)
 	}
 	{
 	  moveli r3, CTX_PAGE_FLAG
-	  j hv_install_context
+	  j _hv_install_context
 	}
 1:
 
@@ -141,7 +141,7 @@ ENTRY(_start)
 	mtspr SPR_INTERRUPT_VECTOR_BASE_K, r0
 
 	/* Get our processor number and save it away in SAVE_K_0. */
-	jal hv_inquire_topology
+	jal _hv_inquire_topology
 	{
 	  GET_FIRST_INT(r5, r1)   /* r5 = width */
 	  GET_SECOND_INT(r4, r0)  /* r4 = y */

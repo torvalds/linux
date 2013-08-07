@@ -3,7 +3,7 @@
 #
 
 extra-y := vmlinux.lds head_$(BITS).o
-obj-y := backtrace.o entry.o irq.o messaging.o \
+obj-y := backtrace.o entry.o hvglue.o irq.o messaging.o \
 	pci-dma.o proc.o process.o ptrace.o reboot.o \
 	setup.o signal.o single_step.o stack.o sys.o \
 	sysfs.o time.o traps.o unaligned.o vdso.o \
@@ -21,5 +21,6 @@ else
 obj-$(CONFIG_PCI)		+= pci.o
 endif
 obj-$(CONFIG_TILE_USB)		+= usb.o
+obj-$(CONFIG_TILE_HVGLUE_TRACE)	+= hvglue_trace.o
 
 obj-y				+= vdso/

@@ -31,7 +31,10 @@ SECTIONS
   } :intrpt1 =0
 
   /* Hypervisor call vectors */
-  #include "hvglue.lds"
+  . = ALIGN(0x10000);
+  .hvglue : AT (ADDR(.hvglue) - LOAD_OFFSET) {
+    *(.hvglue)
+  } :NONE
 
   /* Now the real code */
   . = ALIGN(0x20000);
