@@ -608,7 +608,7 @@ out:
 
 /*
  * Head is defined to be the point of the log where the next log write
- * write could go.  This means that incomplete LR writes at the end are
+ * could go.  This means that incomplete LR writes at the end are
  * eliminated when calculating the head.  We aren't guaranteed that previous
  * LR have complete transactions.  We only know that a cycle number of
  * current cycle number -1 won't be present in the log if we start writing
