@@ -146,8 +146,6 @@ typedef __uint64_t __psunsigned_t;
 #define xfs_inherit_sync	xfs_params.inherit_sync.val
 #define xfs_inherit_nodump	xfs_params.inherit_nodump.val
 #define xfs_inherit_noatime	xfs_params.inherit_noatim.val
-#define xfs_buf_timer_centisecs	xfs_params.xfs_buf_timer.val
-#define xfs_buf_age_centisecs	xfs_params.xfs_buf_age.val
 #define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
 #define xfs_rotorstep		xfs_params.rotorstep.val
 #define xfs_inherit_nodefrag	xfs_params.inherit_nodfrg.val
