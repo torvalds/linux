@@ -675,13 +675,14 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 	if (au_ftest_icpup(a->flags, DID_CPUP) && d_unlinked(dentry)) {
 		hi_wh = au_hi_wh(inode, a->btgt);
 		if (!hi_wh) {
-			struct au_cpup_basic basic = {
+			struct au_cp_generic cpg = {
 				.dentry	= dentry,
 				.bdst	= a->btgt,
 				.bsrc	= -1,
-				.len	= sz
+				.len	= sz,
+				.pin	= &a->pin
 			};
-			err = au_sio_cpup_wh(&basic, /*file*/NULL, &a->pin);
+			err = au_sio_cpup_wh(&cpg, /*file*/NULL);
 			if (unlikely(err))
 				goto out_unlock;
 			hi_wh = au_hi_wh(inode, a->btgt);
@@ -699,14 +700,15 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 		goto out; /* success */
 
 	if (!d_unhashed(dentry)) {
-		struct au_cpup_basic basic = {
+		struct au_cp_generic cpg = {
 			.dentry	= dentry,
 			.bdst	= a->btgt,
 			.bsrc	= bstart,
-			.len	= sz
+			.len	= sz,
+			.pin	= &a->pin,
+			.flags	= AuCpup_DTIME | AuCpup_HOPEN
 		};
-		err = au_sio_cpup_simple(&basic, AuCpup_DTIME | AuCpup_HOPEN,
-					 &a->pin);
+		err = au_sio_cpup_simple(&cpg);
 		if (!err)
 			a->h_path.dentry = au_h_dptr(dentry, a->btgt);
 	} else if (!hi_wh)
