@@ -4340,12 +4340,12 @@ struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src)
 	struct extent_buffer *new;
 	unsigned long num_pages = num_extent_pages(src->start, src->len);
 
-	new = __alloc_extent_buffer(NULL, src->start, src->len, GFP_ATOMIC);
+	new = __alloc_extent_buffer(NULL, src->start, src->len, GFP_NOFS);
 	if (new == NULL)
 		return NULL;
 
 	for (i = 0; i < num_pages; i++) {
-		p = alloc_page(GFP_ATOMIC);
+		p = alloc_page(GFP_NOFS);
 		if (!p) {
 			btrfs_release_extent_buffer(new);
 			return NULL;
@@ -4369,12 +4369,12 @@ struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len)
 	unsigned long num_pages = num_extent_pages(0, len);
 	unsigned long i;
 
-	eb = __alloc_extent_buffer(NULL, start, len, GFP_ATOMIC);
+	eb = __alloc_extent_buffer(NULL, start, len, GFP_NOFS);
 	if (!eb)
 		return NULL;
 
 	for (i = 0; i < num_pages; i++) {
-		eb->pages[i] = alloc_page(GFP_ATOMIC);
+		eb->pages[i] = alloc_page(GFP_NOFS);
 		if (!eb->pages[i])
 			goto err;
 	}

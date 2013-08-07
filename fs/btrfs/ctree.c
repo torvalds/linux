@@ -1191,8 +1191,8 @@ __tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
  * is freed (its refcount is decremented).
  */
 static struct extent_buffer *
-tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
-		    u64 time_seq)
+tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
+		    struct extent_buffer *eb, u64 time_seq)
 {
 	struct extent_buffer *eb_rewin;
 	struct tree_mod_elem *tm;
@@ -1207,12 +1207,15 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 	if (!tm)
 		return eb;
 
+	btrfs_set_path_blocking(path);
+	btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
+
 	if (tm->op == MOD_LOG_KEY_REMOVE_WHILE_FREEING) {
 		BUG_ON(tm->slot != 0);
 		eb_rewin = alloc_dummy_extent_buffer(eb->start,
 						fs_info->tree_root->nodesize);
 		if (!eb_rewin) {
-			btrfs_tree_read_unlock(eb);
+			btrfs_tree_read_unlock_blocking(eb);
 			free_extent_buffer(eb);
 			return NULL;
 		}
@@ -1224,13 +1227,14 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 	} else {
 		eb_rewin = btrfs_clone_extent_buffer(eb);
 		if (!eb_rewin) {
-			btrfs_tree_read_unlock(eb);
+			btrfs_tree_read_unlock_blocking(eb);
 			free_extent_buffer(eb);
 			return NULL;
 		}
 	}
 
-	btrfs_tree_read_unlock(eb);
+	btrfs_clear_path_blocking(path, NULL, BTRFS_READ_LOCK);
+	btrfs_tree_read_unlock_blocking(eb);
 	free_extent_buffer(eb);
 
 	extent_buffer_get(eb_rewin);
@@ -1294,8 +1298,9 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		free_extent_buffer(eb_root);
 		eb = alloc_dummy_extent_buffer(logical, root->nodesize);
 	} else {
+		btrfs_set_lock_blocking_rw(eb_root, BTRFS_READ_LOCK);
 		eb = btrfs_clone_extent_buffer(eb_root);
-		btrfs_tree_read_unlock(eb_root);
+		btrfs_tree_read_unlock_blocking(eb_root);
 		free_extent_buffer(eb_root);
 	}
 
@@ -2779,7 +2784,7 @@ again:
 				btrfs_clear_path_blocking(p, b,
 							  BTRFS_READ_LOCK);
 			}
-			b = tree_mod_log_rewind(root->fs_info, b, time_seq);
+			b = tree_mod_log_rewind(root->fs_info, p, b, time_seq);
 			if (!b) {
 				ret = -ENOMEM;
 				goto done;
