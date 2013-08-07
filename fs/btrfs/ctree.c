@@ -1211,7 +1211,11 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 		BUG_ON(tm->slot != 0);
 		eb_rewin = alloc_dummy_extent_buffer(eb->start,
 						fs_info->tree_root->nodesize);
-		BUG_ON(!eb_rewin);
+		if (!eb_rewin) {
+			btrfs_tree_read_unlock(eb);
+			free_extent_buffer(eb);
+			return NULL;
+		}
 		btrfs_set_header_bytenr(eb_rewin, eb->start);
 		btrfs_set_header_backref_rev(eb_rewin,
 					     btrfs_header_backref_rev(eb));
@@ -1219,7 +1223,11 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 		btrfs_set_header_level(eb_rewin, btrfs_header_level(eb));
 	} else {
 		eb_rewin = btrfs_clone_extent_buffer(eb);
-		BUG_ON(!eb_rewin);
+		if (!eb_rewin) {
+			btrfs_tree_read_unlock(eb);
+			free_extent_buffer(eb);
+			return NULL;
+		}
 	}
 
 	btrfs_tree_read_unlock(eb);
@@ -2772,6 +2780,10 @@ again:
 							  BTRFS_READ_LOCK);
 			}
 			b = tree_mod_log_rewind(root->fs_info, b, time_seq);
+			if (!b) {
+				ret = -ENOMEM;
+				goto done;
+			}
 			p->locks[level] = BTRFS_READ_LOCK;
 			p->nodes[level] = b;
 		} else {
