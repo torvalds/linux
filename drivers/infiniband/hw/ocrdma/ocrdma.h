@@ -172,7 +172,6 @@ struct ocrdma_dev {
 
 struct ocrdma_cq {
 	struct ib_cq ibcq;
-	struct ocrdma_dev *dev;
 	struct ocrdma_cqe *va;
 	u32 phase;
 	u32 getp;	/* pointer to pending wrs to
@@ -214,7 +213,6 @@ struct ocrdma_pd {
 
 struct ocrdma_ah {
 	struct ib_ah ibah;
-	struct ocrdma_dev *dev;
 	struct ocrdma_av *av;
 	u16 sgid_index;
 	u32 id;
@@ -234,7 +232,6 @@ struct ocrdma_qp_hwq_info {
 
 struct ocrdma_srq {
 	struct ib_srq ibsrq;
-	struct ocrdma_dev *dev;
 	u8 __iomem *db;
 	struct ocrdma_qp_hwq_info rq;
 	u64 *rqe_wr_id_tbl;
@@ -293,7 +290,6 @@ struct ocrdma_qp {
 };
 
 struct ocrdma_hw_mr {
-	struct ocrdma_dev *dev;
 	u32 lkey;
 	u8 fr_mr;
 	u8 remote_atomic;
@@ -321,7 +317,6 @@ struct ocrdma_mr {
 
 struct ocrdma_ucontext {
 	struct ib_ucontext ibucontext;
-	struct ocrdma_dev *dev;
 
 	struct list_head mm_head;
 	struct mutex mm_list_lock; /* protects list entries of mm type */

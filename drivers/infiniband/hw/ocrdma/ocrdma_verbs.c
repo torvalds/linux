@@ -229,7 +229,6 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
-	ctx->dev = dev;
 	INIT_LIST_HEAD(&ctx->mm_head);
 	mutex_init(&ctx->mm_list_lock);
 
@@ -274,7 +273,8 @@ int ocrdma_dealloc_ucontext(struct ib_ucontext *ibctx)
 {
 	struct ocrdma_mm *mm, *tmp;
 	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ibctx);
-	struct pci_dev *pdev = uctx->dev->nic_info.pdev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibctx->device);
+	struct pci_dev *pdev = dev->nic_info.pdev;
 
 	ocrdma_del_mmap(uctx, uctx->ah_tbl.pa, uctx->ah_tbl.len);
 	dma_free_coherent(&pdev->dev, uctx->ah_tbl.len, uctx->ah_tbl.va,
@@ -291,7 +291,7 @@ int ocrdma_dealloc_ucontext(struct ib_ucontext *ibctx)
 int ocrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
 	struct ocrdma_ucontext *ucontext = get_ocrdma_ucontext(context);
-	struct ocrdma_dev *dev = ucontext->dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(context->device);
 	unsigned long vm_page = vma->vm_pgoff << PAGE_SHIFT;
 	u64 unmapped_db = (u64) dev->nic_info.unmapped_db;
 	unsigned long len = (vma->vm_end - vma->vm_start);
@@ -432,11 +432,10 @@ int ocrdma_dealloc_pd(struct ib_pd *ibpd)
 	return status;
 }
 
-static int ocrdma_alloc_lkey(struct ocrdma_mr *mr, u32 pdid, int acc,
-			    u32 num_pbls, u32 addr_check)
+static int ocrdma_alloc_lkey(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
+			    u32 pdid, int acc, u32 num_pbls, u32 addr_check)
 {
 	int status;
-	struct ocrdma_dev *dev = mr->hwmr.dev;
 
 	mr->hwmr.fr_mr = 0;
 	mr->hwmr.local_rd = 1;
@@ -473,8 +472,7 @@ struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *ibpd, int acc)
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->hwmr.dev = dev;
-	status = ocrdma_alloc_lkey(mr, pd->id, acc, 0,
+	status = ocrdma_alloc_lkey(dev, mr, pd->id, acc, 0,
 				   OCRDMA_ADDR_CHECK_DISABLE);
 	if (status) {
 		kfree(mr);
@@ -503,7 +501,8 @@ static void ocrdma_free_mr_pbl_tbl(struct ocrdma_dev *dev,
 	}
 }
 
-static int ocrdma_get_pbl_info(struct ocrdma_mr *mr, u32 num_pbes)
+static int ocrdma_get_pbl_info(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
+			      u32 num_pbes)
 {
 	u32 num_pbls = 0;
 	u32 idx = 0;
@@ -519,7 +518,7 @@ static int ocrdma_get_pbl_info(struct ocrdma_mr *mr, u32 num_pbes)
 		num_pbls = roundup(num_pbes, (pbl_size / sizeof(u64)));
 		num_pbls = num_pbls / (pbl_size / sizeof(u64));
 		idx++;
-	} while (num_pbls >= mr->hwmr.dev->attr.max_num_mr_pbl);
+	} while (num_pbls >= dev->attr.max_num_mr_pbl);
 
 	mr->hwmr.num_pbes = num_pbes;
 	mr->hwmr.num_pbls = num_pbls;
@@ -627,14 +626,13 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(status);
-	mr->hwmr.dev = dev;
 	mr->umem = ib_umem_get(ibpd->uobject->context, start, len, acc, 0);
 	if (IS_ERR(mr->umem)) {
 		status = -EFAULT;
 		goto umem_err;
 	}
 	num_pbes = ib_umem_page_count(mr->umem);
-	status = ocrdma_get_pbl_info(mr, num_pbes);
+	status = ocrdma_get_pbl_info(dev, mr, num_pbes);
 	if (status)
 		goto umem_err;
 
@@ -670,7 +668,7 @@ umem_err:
 int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 {
 	struct ocrdma_mr *mr = get_ocrdma_mr(ib_mr);
-	struct ocrdma_dev *dev = mr->hwmr.dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ib_mr->device);
 	int status;
 
 	status = ocrdma_mbx_dealloc_lkey(dev, mr->hwmr.fr_mr, mr->hwmr.lkey);
@@ -685,7 +683,8 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 	return status;
 }
 
-static int ocrdma_copy_cq_uresp(struct ocrdma_cq *cq, struct ib_udata *udata,
+static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
+				struct ib_udata *udata,
 				struct ib_ucontext *ib_ctx)
 {
 	int status;
@@ -698,13 +697,13 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_cq *cq, struct ib_udata *udata,
 	uresp.num_pages = 1;
 	uresp.max_hw_cqe = cq->max_hw_cqe;
 	uresp.page_addr[0] = cq->pa;
-	uresp.db_page_addr = cq->dev->nic_info.unmapped_db;
-	uresp.db_page_size = cq->dev->nic_info.db_page_size;
+	uresp.db_page_addr = dev->nic_info.unmapped_db;
+	uresp.db_page_size = dev->nic_info.db_page_size;
 	uresp.phase_change = cq->phase_change ? 1 : 0;
 	status = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 	if (status) {
 		pr_err("%s(%d) copy error cqid=0x%x.\n",
-		       __func__, cq->dev->id, cq->id);
+		       __func__, dev->id, cq->id);
 		goto err;
 	}
 	uctx = get_ocrdma_ucontext(ib_ctx);
@@ -743,7 +742,6 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev, int entries, int vector,
 	spin_lock_init(&cq->comp_handler_lock);
 	INIT_LIST_HEAD(&cq->sq_head);
 	INIT_LIST_HEAD(&cq->rq_head);
-	cq->dev = dev;
 
 	status = ocrdma_mbx_create_cq(dev, cq, entries, ureq.dpp_cq);
 	if (status) {
@@ -751,7 +749,7 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev, int entries, int vector,
 		return ERR_PTR(status);
 	}
 	if (ib_ctx) {
-		status = ocrdma_copy_cq_uresp(cq, udata, ib_ctx);
+		status = ocrdma_copy_cq_uresp(dev, cq, udata, ib_ctx);
 		if (status)
 			goto ctx_err;
 	}
@@ -785,7 +783,7 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq)
 {
 	int status;
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
-	struct ocrdma_dev *dev = cq->dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibcq->device);
 
 	status = ocrdma_mbx_destroy_cq(dev, cq);
 
@@ -1457,7 +1455,8 @@ int ocrdma_destroy_qp(struct ib_qp *ibqp)
 	return status;
 }
 
-static int ocrdma_copy_srq_uresp(struct ocrdma_srq *srq, struct ib_udata *udata)
+static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
+				struct ib_udata *udata)
 {
 	int status;
 	struct ocrdma_create_srq_uresp uresp;
@@ -1467,11 +1466,11 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_srq *srq, struct ib_udata *udata)
 	uresp.num_rq_pages = 1;
 	uresp.rq_page_addr[0] = srq->rq.pa;
 	uresp.rq_page_size = srq->rq.len;
-	uresp.db_page_addr = srq->dev->nic_info.unmapped_db +
-	    (srq->pd->id * srq->dev->nic_info.db_page_size);
-	uresp.db_page_size = srq->dev->nic_info.db_page_size;
+	uresp.db_page_addr = dev->nic_info.unmapped_db +
+	    (srq->pd->id * dev->nic_info.db_page_size);
+	uresp.db_page_size = dev->nic_info.db_page_size;
 	uresp.num_rqe_allocated = srq->rq.max_cnt;
-	if (srq->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
+	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
 		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ1_OFFSET;
 		uresp.db_shift = 24;
 	} else {
@@ -1508,10 +1507,9 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 		return ERR_PTR(status);
 
 	spin_lock_init(&srq->q_lock);
-	srq->dev = dev;
 	srq->pd = pd;
 	srq->db = dev->nic_info.db + (pd->id * dev->nic_info.db_page_size);
-	status = ocrdma_mbx_create_srq(srq, init_attr, pd);
+	status = ocrdma_mbx_create_srq(dev, srq, init_attr, pd);
 	if (status)
 		goto err;
 
@@ -1538,7 +1536,7 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 	}
 
 	if (udata) {
-		status = ocrdma_copy_srq_uresp(srq, udata);
+		status = ocrdma_copy_srq_uresp(dev, srq, udata);
 		if (status)
 			goto arm_err;
 	}
@@ -1584,10 +1582,9 @@ int ocrdma_destroy_srq(struct ib_srq *ibsrq)
 {
 	int status;
 	struct ocrdma_srq *srq;
-	struct ocrdma_dev *dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibsrq->device);
 
 	srq = get_ocrdma_srq(ibsrq);
-	dev = srq->dev;
 
 	status = ocrdma_mbx_destroy_srq(dev, srq);
 
@@ -2354,7 +2351,7 @@ static int ocrdma_poll_hwcq(struct ocrdma_cq *cq, int num_entries,
 	bool expand = false;
 	int polled_hw_cqes = 0;
 	struct ocrdma_qp *qp = NULL;
-	struct ocrdma_dev *dev = cq->dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(cq->ibcq.device);
 	struct ocrdma_cqe *cqe;
 	u16 cur_getp; bool polled = false; bool stop = false;
 
@@ -2435,14 +2432,11 @@ static int ocrdma_add_err_cqe(struct ocrdma_cq *cq, int num_entries,
 int ocrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 {
 	int cqes_to_poll = num_entries;
-	struct ocrdma_cq *cq = NULL;
-	unsigned long flags;
-	struct ocrdma_dev *dev;
+	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibcq->device);
 	int num_os_cqe = 0, err_cqes = 0;
 	struct ocrdma_qp *qp;
-
-	cq = get_ocrdma_cq(ibcq);
-	dev = cq->dev;
+	unsigned long flags;
 
 	/* poll cqes from adapter CQ */
 	spin_lock_irqsave(&cq->cq_lock, flags);
@@ -2473,16 +2467,14 @@ int ocrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 {
-	struct ocrdma_cq *cq;
-	unsigned long flags;
-	struct ocrdma_dev *dev;
+	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibcq->device);
 	u16 cq_id;
 	u16 cur_getp;
 	struct ocrdma_cqe *cqe;
+	unsigned long flags;
 
-	cq = get_ocrdma_cq(ibcq);
 	cq_id = cq->id;
-	dev = cq->dev;
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	if (cq_flags & IB_CQ_NEXT_COMP || cq_flags & IB_CQ_SOLICITED)

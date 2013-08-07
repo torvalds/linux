@@ -35,12 +35,11 @@
 #include "ocrdma_ah.h"
 #include "ocrdma_hw.h"
 
-static inline int set_av_attr(struct ocrdma_ah *ah,
+static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 				struct ib_ah_attr *attr, int pdid)
 {
 	int status = 0;
 	u16 vlan_tag; bool vlan_enabled = false;
-	struct ocrdma_dev *dev = ah->dev;
 	struct ocrdma_eth_vlan eth;
 	struct ocrdma_grh grh;
 	int eth_sz;
@@ -100,12 +99,11 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 	ah = kzalloc(sizeof *ah, GFP_ATOMIC);
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
-	ah->dev = dev;
 
 	status = ocrdma_alloc_av(dev, ah);
 	if (status)
 		goto av_err;
-	status = set_av_attr(ah, attr, pd->id);
+	status = set_av_attr(dev, ah, attr, pd->id);
 	if (status)
 		goto av_conf_err;
 
@@ -126,7 +124,9 @@ av_err:
 int ocrdma_destroy_ah(struct ib_ah *ibah)
 {
 	struct ocrdma_ah *ah = get_ocrdma_ah(ibah);
-	ocrdma_free_av(ah->dev, ah);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibah->device);
+
+	ocrdma_free_av(dev, ah);
 	kfree(ah);
 	return 0;
 }

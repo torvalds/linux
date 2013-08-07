@@ -112,8 +112,7 @@ int ocrdma_mbx_modify_qp(struct ocrdma_dev *, struct ocrdma_qp *,
 int ocrdma_mbx_query_qp(struct ocrdma_dev *, struct ocrdma_qp *,
 			struct ocrdma_qp_params *param);
 int ocrdma_mbx_destroy_qp(struct ocrdma_dev *, struct ocrdma_qp *);
-
-int ocrdma_mbx_create_srq(struct ocrdma_srq *,
+int ocrdma_mbx_create_srq(struct ocrdma_dev *, struct ocrdma_srq *,
 			  struct ib_srq_init_attr *,
 			  struct ocrdma_pd *);
 int ocrdma_mbx_modify_srq(struct ocrdma_srq *, struct ib_srq_attr *);
