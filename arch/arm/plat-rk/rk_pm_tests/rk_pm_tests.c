@@ -55,6 +55,7 @@ REVISION 0.01
 #include "cpu_usage.h"
 #include "rk_suspend_test.h"
 #include "clk_auto_volt.h"
+#include "dvfs_table_scan.h"
 #include "delayline.h"
 //#include "rk2928_freq.h"
 //#include "rk2928_max_freq.h"
@@ -78,7 +79,7 @@ static struct pm_attribute pm_attrs[] = {
 	__ATTR(clk_rate, S_IRUGO | S_IWUSR, clk_rate_show, clk_rate_store),
 #endif
 #ifdef CONFIG_PM_TEST_CLK_VOLT
-	__ATTR(clk_volt, S_IRUGO | S_IWUSR, clk_volt_show, clk_volt_store),
+	__ATTR(clk_volt, S_IRUGO | S_IWUSR | S_IWUGO, clk_volt_show, clk_volt_store),
 #endif
 #ifdef CONFIG_PM_TEST_MAXFREQ
 	__ATTR(maxfreq_volt, S_IRUGO | S_IWUSR, maxfreq_show, maxfreq_store),
@@ -95,6 +96,9 @@ static struct pm_attribute pm_attrs[] = {
 #endif
 #ifdef CONFIG_PM_TEST_CLK_AUTO_VOLT
 	__ATTR(clk_auto_volt, S_IRUGO | S_IWUSR, clk_auto_volt_show, clk_auto_volt_store),
+#endif
+#ifdef CONFIG_PM_TEST_DVFS_TABLE_SCAN
+	__ATTR(dvfs_table_scan, S_IRUGO | S_IWUSR | S_IWUGO, dvfs_table_scan_show, dvfs_table_scan_store),
 #endif
 #ifdef CONFIG_PM_TEST_DELAYLINE
 	__ATTR(delayline, S_IRUGO | S_IWUSR, delayline_show, delayline_store),

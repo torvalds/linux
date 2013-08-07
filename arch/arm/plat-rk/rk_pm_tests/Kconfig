@@ -43,6 +43,11 @@ config PM_TEST_CLK_AUTO_VOLT
 	help
 	  Use to auto scale regulator's voltage by step
 
+config PM_TEST_DVFS_TABLE_SCAN
+	bool "dvfs table scan"
+	help
+	  Use to scan dvfs table
+
 config PM_TEST_DELAYLINE
 	bool "Get delayline value"
 	help
