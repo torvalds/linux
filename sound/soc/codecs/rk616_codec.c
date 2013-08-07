@@ -44,20 +44,14 @@
 #define  SPKOUT_VOLUME    22 //0~31
 #define  HPOUT_VOLUME     21 //0~31
 
-#ifdef CONFIG_MACH_RK_FAC   
-//for factorytool          
-  	int rk616_hdmi_ctrl=0;
-#endif 
-
-
 struct rk616_codec_priv {
 	struct snd_soc_codec *codec;
 
 	unsigned int stereo_sysclk;
 	unsigned int rate;
 
-	int playback_active;
-	int capture_active;
+	bool is_playback_powerup;
+	bool is_capture_powerup;
 
 	int spk_ctl_gpio;
 	int hp_ctl_gpio;
@@ -487,11 +481,12 @@ static int rk616_codec_write(struct snd_soc_codec *codec, unsigned int reg, unsi
 
 static int rk616_hw_write(const struct i2c_client *client, const char *buf, int count)
 {
-	struct snd_soc_codec *codec = rk616_priv->codec;
+	struct rk616_codec_priv *rk616 = rk616_priv;
+	struct snd_soc_codec *codec = rk616->codec;
 	unsigned int reg, value;
 	int ret = -1;
 
-	if (!rk616_priv || !rk616_priv->codec) {
+	if (!rk616 || !rk616->codec) {
 		printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
 		return -EINVAL;
 	}
@@ -535,11 +530,12 @@ static int rk616_reset(struct snd_soc_codec *codec)
 
 int rk616_headset_mic_detect(bool headset_status)
 {
+	struct rk616_codec_priv *rk616 = rk616_priv;
 	struct snd_soc_codec *codec = rk616_priv->codec;
 
 	DBG("%s\n", __func__);
 
-	if (!rk616_priv || !rk616_priv->codec) {
+	if (!rk616 || !rk616->codec) {
 		printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
 		return -EINVAL;
 	}
@@ -562,81 +558,19 @@ bool get_hdmi_state(void)
 {
 	return is_hdmi_in;
 }
+
 #ifdef CONFIG_MACH_RK_FAC
 void rk616_codec_set_spk(bool on)
-{
-	struct snd_soc_codec *codec = rk616_priv->codec;
-
-	DBG("%s : %s\n", __func__, on ? "enable spk" : "disable spk");
-        
-  if(rk616_hdmi_ctrl)
-  {
-
-		if (!rk616_priv || !rk616_priv->codec) {
-			printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
-			return;
-		}
-	
-		if (on) {
-			if (rk616_for_mid)
-			{
-				snd_soc_update_bits(codec, RK616_SPKL_CTL,
-					RK616_MUTE, 0);
-				snd_soc_update_bits(codec, RK616_SPKR_CTL,
-					RK616_MUTE, 0);
-				snd_soc_update_bits(codec, RK616_HPL_CTL,
-					RK616_MUTE, 0);
-				snd_soc_update_bits(codec, RK616_HPR_CTL,
-					RK616_MUTE, 0);
-			}
-			else
-			{
-				snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-				snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-			}
-		} else {
-			if (rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
-				DBG("%s : set spk ctl gpio LOW\n", __func__);
-				gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
-			}
-	
-			if (rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
-				DBG("%s : set hp ctl gpio LOW\n", __func__);
-				gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
-				snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
-			}
-	
-			if (rk616_for_mid)
-			{
-				snd_soc_update_bits(codec, RK616_SPKL_CTL,
-					RK616_MUTE, RK616_MUTE);
-				snd_soc_update_bits(codec, RK616_SPKR_CTL,
-					RK616_MUTE, RK616_MUTE);
-				snd_soc_update_bits(codec, RK616_HPL_CTL,
-					RK616_MUTE, RK616_MUTE);
-				snd_soc_update_bits(codec, RK616_HPR_CTL,
-					RK616_MUTE, RK616_MUTE);
-			}
-			else
-			{
-				snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-				snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-			}
-		}
-		snd_soc_dapm_sync(&codec->dapm);
-	
-		is_hdmi_in = on ? 0 : 1;
-	}
-}
-EXPORT_SYMBOL_GPL(rk616_codec_set_spk);
 #else
 void codec_set_spk(bool on)
+#endif
 {
+	struct rk616_codec_priv *rk616 = rk616_priv;
 	struct snd_soc_codec *codec = rk616_priv->codec;
 
 	DBG("%s : %s\n", __func__, on ? "enable spk" : "disable spk");
 
-	if (!rk616_priv || !rk616_priv->codec) {
+	if (!rk616 || !rk616->codec) {
 		printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
 		return;
 	}
@@ -659,14 +593,14 @@ void codec_set_spk(bool on)
 			snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
 		}
 	} else {
-		if (rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+		if (rk616->spk_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set spk ctl gpio LOW\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_LOW);
 		}
 
-		if (rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+		if (rk616->hp_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set hp ctl gpio LOW\n", __func__);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+			gpio_set_value(rk616->hp_ctl_gpio, GPIO_LOW);
 			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
 		}
 
@@ -691,6 +625,9 @@ void codec_set_spk(bool on)
 
 	is_hdmi_in = on ? 0 : 1;
 }
+#ifdef CONFIG_MACH_RK_FAC
+EXPORT_SYMBOL_GPL(rk616_codec_set_spk);
+#else
 EXPORT_SYMBOL_GPL(codec_set_spk);
 #endif
 
@@ -998,14 +935,16 @@ static const SOC_ENUM_SINGLE_DECL(rk616_voice_call_path_type, 0, 0, rk616_voice_
 static int rk616_playback_path_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	if (!rk616_priv) {
+	struct rk616_codec_priv *rk616 = rk616_priv;
+
+	if (!rk616) {
 		printk("%s : rk616_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
 	DBG("%s : playback_path = %ld\n",__func__,ucontrol->value.integer.value[0]);
 
-	ucontrol->value.integer.value[0] = rk616_priv->playback_path;
+	ucontrol->value.integer.value[0] = rk616->playback_path;
 
 	return 0;
 }
@@ -1013,38 +952,39 @@ static int rk616_playback_path_get(struct snd_kcontrol *kcontrol,
 static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	struct rk616_codec_priv *rk616 = rk616_priv;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
-	if (!rk616_priv) {
+	if (!rk616) {
 		printk("%s : rk616_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
-	if (rk616_priv->playback_path == ucontrol->value.integer.value[0]){
+	if (rk616->playback_path == ucontrol->value.integer.value[0]){
 		DBG("%s : playback_path is not changed!\n",__func__);
 		//return 0;
 	}
 
-	rk616_priv->playback_path = ucontrol->value.integer.value[0];
+	rk616->playback_path = ucontrol->value.integer.value[0];
 
 	printk("%s : set playback_path = %ld\n", __func__,
-		rk616_priv->playback_path);
+		rk616->playback_path);
 
 	// mute output for pop noise
-	if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+	if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO) {
 		DBG("%s : set spk ctl gpio LOW\n", __func__);
-		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+		gpio_set_value(rk616->spk_ctl_gpio, GPIO_LOW);
 	}
 
-	if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+	if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO) {
 		DBG("%s : set hp ctl gpio LOW\n", __func__);
-		gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+		gpio_set_value(rk616->hp_ctl_gpio, GPIO_LOW);
 	}
 
 	if(get_hdmi_state())
 		return 0;
 
-	switch (rk616_priv->playback_path) {
+	switch (rk616->playback_path) {
 	case OFF:
 		break;
 	case RCV:
@@ -1069,9 +1009,11 @@ static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
 		snd_soc_update_bits(codec, RK616_SPKR_CTL,
 			RK616_VOL_MASK, SPKOUT_VOLUME);
 
-		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set spk ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_HIGH);
+			//sleep for MOSFET or SPK power amplifier chip
+			msleep(150);
 		}
 		break;
 	case HP_PATH:
@@ -1083,9 +1025,11 @@ static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
 		snd_soc_update_bits(codec, RK616_SPKR_CTL,
 			RK616_VOL_MASK, HPOUT_VOLUME);
 
-		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set hp ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->hp_ctl_gpio, GPIO_HIGH);
+			//sleep for MOSFET or SPK power amplifier chip
+			msleep(50);
 		}
 		break;
 	case BT:
@@ -1097,14 +1041,18 @@ static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
 		snd_soc_update_bits(codec, RK616_SPKR_CTL,
 			RK616_VOL_MASK, HPOUT_VOLUME);
 
-		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set spk ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_HIGH);
+			//sleep for MOSFET or SPK power amplifier chip
+			msleep(150);
 		}
 
-		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set hp ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->hp_ctl_gpio, GPIO_HIGH);
+			//sleep for MOSFET or SPK power amplifier chip
+			msleep(50);
 		}
 		break;
 	default:
@@ -1117,7 +1065,9 @@ static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
 static int rk616_capture_path_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	if (!rk616_priv) {
+	struct rk616_codec_priv *rk616 = rk616_priv;
+
+	if (!rk616) {
 		printk("%s : rk616_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
@@ -1125,7 +1075,7 @@ static int rk616_capture_path_get(struct snd_kcontrol *kcontrol,
 	DBG("%s : capture_path = %ld\n", __func__,
 		ucontrol->value.integer.value[0]);
 
-	ucontrol->value.integer.value[0] = rk616_priv->capture_path;
+	ucontrol->value.integer.value[0] = rk616->capture_path;
 
 	return 0;
 }
@@ -1133,35 +1083,36 @@ static int rk616_capture_path_get(struct snd_kcontrol *kcontrol,
 static int rk616_capture_path_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	struct rk616_codec_priv *rk616 = rk616_priv;
 	//struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
-	if (!rk616_priv) {
+	if (!rk616) {
 		printk("%s : rk616_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
-	if (rk616_priv->capture_path == ucontrol->value.integer.value[0]){
+	if (rk616->capture_path == ucontrol->value.integer.value[0]){
 		DBG("%s : capture_path is not changed!\n", __func__);
 		//return 0;
 	}
 
-	rk616_priv->capture_path = ucontrol->value.integer.value[0];
+	rk616->capture_path = ucontrol->value.integer.value[0];
 
-	printk("%s : set capture_path = %ld\n", __func__, rk616_priv->capture_path);
+	printk("%s : set capture_path = %ld\n", __func__, rk616->capture_path);
 
-	switch (rk616_priv->capture_path) {
+	switch (rk616->capture_path) {
 	case MIC_OFF:
 		break;
 	case Main_Mic:
-		if (rk616_priv && rk616_priv->mic_sel_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->mic_sel_gpio != INVALID_GPIO) {
 			DBG("%s : set mic sel gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->mic_sel_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->mic_sel_gpio, GPIO_HIGH);
 		}
 		break;
 	case Hands_Free_Mic:
-		if (rk616_priv && rk616_priv->mic_sel_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->mic_sel_gpio != INVALID_GPIO) {
 			DBG("%s : set mic sel gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->mic_sel_gpio, GPIO_LOW);
+			gpio_set_value(rk616->mic_sel_gpio, GPIO_LOW);
 		}
 		break;
 	case BT_Sco_Mic:
@@ -1176,7 +1127,9 @@ static int rk616_capture_path_put(struct snd_kcontrol *kcontrol,
 static int rk616_voice_call_path_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	if (!rk616_priv) {
+	struct rk616_codec_priv *rk616 = rk616_priv;
+
+	if (!rk616) {
 		printk("%s : rk616_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
@@ -1184,7 +1137,7 @@ static int rk616_voice_call_path_get(struct snd_kcontrol *kcontrol,
 	DBG("%s : voice_call_path = %ld\n", __func__,
 		ucontrol->value.integer.value[0]);
 
-	ucontrol->value.integer.value[0] = rk616_priv->voice_call_path;
+	ucontrol->value.integer.value[0] = rk616->voice_call_path;
 
 	return 0;
 }
@@ -1192,41 +1145,42 @@ static int rk616_voice_call_path_get(struct snd_kcontrol *kcontrol,
 static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	struct rk616_codec_priv *rk616 = rk616_priv;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
-	if (!rk616_priv) {
+	if (!rk616) {
 		printk("%s : rk616_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
-	if (rk616_priv->voice_call_path == ucontrol->value.integer.value[0]){
+	if (rk616->voice_call_path == ucontrol->value.integer.value[0]){
 		DBG("%s : voice_call_path is not changed!\n",__func__);
 		//return 0;
 	}
 
-	rk616_priv->voice_call_path = ucontrol->value.integer.value[0];
+	rk616->voice_call_path = ucontrol->value.integer.value[0];
 
 	printk("%s : set voice_call_path = %ld\n", __func__,
-		rk616_priv->voice_call_path);
+		rk616->voice_call_path);
 
-	if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+	if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO) {
 		DBG("%s : set spk ctl gpio LOW\n", __func__);
-		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+		gpio_set_value(rk616->spk_ctl_gpio, GPIO_LOW);
 	}
 
-	if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+	if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO) {
 		DBG("%s : set hp ctl gpio LOW\n", __func__);
-		gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+		gpio_set_value(rk616->hp_ctl_gpio, GPIO_LOW);
 	}
 
-	switch (rk616_priv->voice_call_path) {
+	switch (rk616->voice_call_path) {
 	case OFF:
 		break;
 	case RCV:
 		snd_soc_write(codec, RK616_MICBIAS_CTL, 0x7f);  //open micbias 1
-		if (rk616_priv && rk616_priv->mic_sel_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->mic_sel_gpio != INVALID_GPIO) {
 			DBG("%s : set mic sel gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->mic_sel_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->mic_sel_gpio, GPIO_HIGH);
 		}
 
 		//close incall route
@@ -1244,16 +1198,18 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 			RK616_HML_F_PGAL | RK616_HMR_F_PGAL);
 
 		// open spk for key tone
-		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set spk ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_HIGH);
+			//sleep for MOSFET or SPK power amplifier chip
+			msleep(150);
 		}
 		break;
 	case SPK_PATH:
 		snd_soc_write(codec, RK616_MICBIAS_CTL, 0x7f);  //open micbias 1
-		if (rk616_priv && rk616_priv->mic_sel_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->mic_sel_gpio != INVALID_GPIO) {
 			DBG("%s : set mic sel gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->mic_sel_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->mic_sel_gpio, GPIO_HIGH);
 		}
 
 		snd_soc_update_bits(codec, RK616_PGA_AGC_CTL,
@@ -1272,17 +1228,19 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		snd_soc_update_bits(codec, RK616_SPKR_CTL,
 			RK616_VOL_MASK, SPKOUT_VOLUME);
 
-		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set spk ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_HIGH);
+			//sleep for MOSFET or SPK power amplifier chip
+			msleep(150);
 		}
 		break;
 	case HP_PATH:
 	case HP_NO_MIC:
 		snd_soc_write(codec, RK616_MICBIAS_CTL, 0x7f); //open micbias 1
-		if (rk616_priv && rk616_priv->mic_sel_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->mic_sel_gpio != INVALID_GPIO) {
 			DBG("%s : set mic sel gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->mic_sel_gpio, GPIO_LOW);
+			gpio_set_value(rk616->mic_sel_gpio, GPIO_LOW);
 		}
 
 		snd_soc_update_bits(codec, RK616_PGA_AGC_CTL,
@@ -1301,9 +1259,11 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		snd_soc_update_bits(codec, RK616_SPKR_CTL,
 			RK616_VOL_MASK, HPOUT_VOLUME);
 
-		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set hp ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->hp_ctl_gpio, GPIO_HIGH);
+			//sleep for MOSFET or SPK power amplifier chip
+			msleep(50);
 		}
 		break;
 	case BT:
@@ -1802,8 +1762,9 @@ static int rk616_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
-	if (!rk616) {
-		printk("%s : rk616 is NULL\n", __func__);
+	if (!rk616 || !rk616_mfd) {
+		printk("%s : %s %s\n", __func__, !rk616 ? "rk616 is NULL" : "",
+			!rk616_mfd ? "rk616_mfd is NULL" : "");
 		return -EINVAL;
 	}
 
@@ -2037,6 +1998,7 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 {
+	struct rk616_codec_priv *rk616 = rk616_priv;
 	struct snd_soc_codec *codec = dai->codec;
 	unsigned int is_spk_pd, is_hp_pd;
 
@@ -2046,6 +2008,11 @@ static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 		return 0;
 	}
 
+	if (!rk616) {
+		printk("%s : rk616_priv is NULL\n", __func__);
+		return -EINVAL;
+	}
+
 	is_spk_pd = RK616_PWRD & snd_soc_read(codec, RK616_SPKL_CTL);
 	is_spk_pd &= RK616_PWRD & snd_soc_read(codec, RK616_SPKR_CTL);
 
@@ -2053,32 +2020,39 @@ static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 	is_hp_pd &= RK616_PWRD & snd_soc_read(codec, RK616_HPR_CTL);
 
 	if (mute) {
-		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO &&
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO &&
 		    !is_spk_pd) {
 			DBG("%s : set spk ctl gpio LOW\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_LOW);
 		}
 
-		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO &&
+		if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO &&
 		    !is_hp_pd) {
 			DBG("%s : set hp ctl gpio LOW\n", __func__);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+			gpio_set_value(rk616->hp_ctl_gpio, GPIO_LOW);
 			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
 		}
 	} else {
-		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO &&
+		if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO &&
 		    !is_hp_pd) {
 			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x21);
 			msleep(10);
 			DBG("%s : set hp ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->hp_ctl_gpio, GPIO_HIGH);
 		}
 
-		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO &&
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO &&
 		    !is_spk_pd) {
 			DBG("%s : set spk ctl gpio HIGH\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_HIGH);
 		}
+
+		//sleep for MOSFET or SPK power amplifier chip
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO &&
+		    !is_spk_pd)
+			msleep(150);
+		else
+			msleep(50);
 	}
 
 	return 0;
@@ -2161,10 +2135,11 @@ static struct rk616_reg_val_typ capture_power_down_list[] = {
 
 static int rk616_codec_power_up(int type)
 {
-	struct snd_soc_codec *codec = rk616_priv->codec;
+	struct rk616_codec_priv *rk616 = rk616_priv;
+	struct snd_soc_codec *codec = rk616->codec;
 	int i;
 
-	if (!rk616_priv || !rk616_priv->codec) {
+	if (!rk616 || !rk616->codec) {
 		printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
 		return -EINVAL;
 	}
@@ -2175,14 +2150,14 @@ static int rk616_codec_power_up(int type)
 
 	if (type == RK616_CODEC_PLAYBACK) {
 		// mute output for pop noise
-		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set spk ctl gpio LOW\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_LOW);
 		}
 
-		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set hp ctl gpio LOW\n", __func__);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+			gpio_set_value(rk616->hp_ctl_gpio, GPIO_LOW);
 		}
 
 		for (i = 0; i < RK616_CODEC_PLAYBACK_POWER_UP_LIST_LEN; i++) {
@@ -2194,11 +2169,13 @@ static int rk616_codec_power_up(int type)
 		#else
 			codec_set_spk(!get_hdmi_state());
 		#endif
+		rk616->is_playback_powerup = true;
 	} else if (type == RK616_CODEC_CAPTURE) {
 		for (i = 0; i < RK616_CODEC_CAPTURE_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, capture_power_up_list[i].reg,
 				capture_power_up_list[i].value);
 		}
+		rk616->is_capture_powerup = true;
 	}
 
 	return 0;
@@ -2207,15 +2184,16 @@ static int rk616_codec_power_up(int type)
 static int rk616_codec_power_down(int type)
 {
 	struct rk616_codec_priv *rk616 = rk616_priv;
-	struct snd_soc_codec *codec = rk616_priv->codec;
+	struct snd_soc_codec *codec = rk616->codec;
 	int i;
       
-	if (!rk616_priv || !rk616_priv->codec) {
+	if (!rk616 || !rk616->codec) {
 		printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
 		return -EINVAL;
 	}
 
-	if (rk616->playback_active <= 0 && rk616->capture_active <= 0)
+	if ((type == RK616_CODEC_PLAYBACK && !(rk616->is_capture_powerup)) ||
+		(type == RK616_CODEC_CAPTURE && !(rk616->is_playback_powerup)))
 		type = RK616_CODEC_ALL;
 
 	printk("%s : power down %s%s%s\n", __func__,
@@ -2226,14 +2204,14 @@ static int rk616_codec_power_down(int type)
 	// mute output for pop noise
 	if (type == RK616_CODEC_PLAYBACK ||
 		type == RK616_CODEC_ALL) {
-		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->spk_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set spk ctl gpio LOW\n", __func__);
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+			gpio_set_value(rk616->spk_ctl_gpio, GPIO_LOW);
 		}
 
-		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+		if (rk616 && rk616->hp_ctl_gpio != INVALID_GPIO) {
 			DBG("%s : set hp ctl gpio LOW\n", __func__);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+			gpio_set_value(rk616->hp_ctl_gpio, GPIO_LOW);
 		}
 	}
 
@@ -2242,13 +2220,17 @@ static int rk616_codec_power_down(int type)
 			snd_soc_write(codec, capture_power_down_list[i].reg,
 				capture_power_down_list[i].value);
 		}
+		rk616->is_capture_powerup = false;
 	} else if (type == RK616_CODEC_PLAYBACK) {
 		for (i = 0; i < RK616_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN; i++) {
 			snd_soc_write(codec, playback_power_down_list[i].reg,
 				playback_power_down_list[i].value);
 		}
+		rk616->is_playback_powerup = false;
 	} else if (type == RK616_CODEC_ALL) {
 		rk616_reset(codec);
+		rk616->is_playback_powerup = false;
+		rk616->is_capture_powerup = false;
 	}
 
 	return 0;
@@ -2275,8 +2257,6 @@ static int rk616_startup(struct snd_pcm_substream *substream,
 {
 	struct rk616_codec_priv *rk616 = rk616_priv;
 	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-	bool is_codec_playback_running = rk616->playback_active > 0 ;
-	bool is_codec_capture_running = rk616->capture_active > 0;
 
 	if (!rk616_for_mid)
 	{
@@ -2293,22 +2273,14 @@ static int rk616_startup(struct snd_pcm_substream *substream,
 		playback ? "PLAYBACK":"CAPTURE");
 
 	if (playback) {
-		rk616->playback_active++;
-
-		if (rk616->playback_active > 0 && !is_codec_playback_running) {
+		if (!rk616->is_playback_powerup)
 			rk616_codec_power_up(RK616_CODEC_PLAYBACK);
-		}
 	} else {//capture
-		rk616->capture_active++;
-		if (rk616->capture_active > 0 && !is_codec_capture_running) {
-			cancel_delayed_work_sync(&capture_delayed_work);
-			if (rk616_codec_work_capture_type == RK616_CODEC_WORK_NULL) {
-				rk616_codec_power_up(RK616_CODEC_CAPTURE);
-			} else {
-				DBG("Capture is being closed, so interrupt work process ! \n");
-				rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
-			}
-		}
+		cancel_delayed_work_sync(&capture_delayed_work);
+		rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
+
+		if (!rk616->is_capture_powerup)
+			rk616_codec_power_up(RK616_CODEC_CAPTURE);
 	}
 
 	return 0;
@@ -2319,9 +2291,7 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 {
 	struct rk616_codec_priv *rk616 = rk616_priv;
 	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-	bool is_codec_playback_running = rk616->playback_active > 0;
-	bool is_codec_capture_running = rk616->capture_active > 0;
-	
+
 	if (!rk616_for_mid)
 	{
 		DBG("%s immediately return for phone\n", __func__);
@@ -2337,29 +2307,18 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 		playback ? "PLAYBACK":"CAPTURE");
 
 	if (playback) {
-		rk616->playback_active--;
-
-		if (rk616->playback_active <= 0) {
-			if (is_codec_playback_running == true)
+		if (dai->playback_active <= 0) {
+			if (rk616->is_playback_powerup)
 				rk616_codec_power_down(RK616_CODEC_PLAYBACK);
 			else
 				DBG("Playback has been closed, so return !\n");
 		}
 	} else {//capture
-		rk616->capture_active--;
-
-		if (rk616->capture_active <= 0) {
+		if (dai->capture_active <= 0) {
 			if ((rk616_codec_work_capture_type != RK616_CODEC_WORK_POWER_DOWN) &&
-			    (is_codec_capture_running == true)) {
+			    rk616->is_capture_powerup) {
 				cancel_delayed_work_sync(&capture_delayed_work);
-				/*
-				* If rk616_codec_work_capture_type is NULL means codec already power down,
-				* so power up codec.
-				* If rk616_codec_work_capture_type is RK616_CODEC_WORK_POWER_UP it means
-				* codec haven't be powered up, so we don't need to power down codec.
-				* If it is playback call power down, power down immediatly, because audioflinger
-				* already has delay 3s.
-				*/
+
 				rk616_codec_work_capture_type = RK616_CODEC_WORK_POWER_DOWN;
 				queue_delayed_work(rk616_codec_workq, &capture_delayed_work,msecs_to_jiffies(3000));
 			} else {
@@ -2500,8 +2459,8 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	if (rk616_for_mid)
 	{
-		rk616->playback_active = 0;
-		rk616->capture_active = 0;
+		rk616->is_playback_powerup = false;
+		rk616->is_capture_powerup = false;
 
 		rk616_codec_workq = create_freezable_workqueue("rk616-codec");
 
@@ -2557,10 +2516,6 @@ static int rk616_probe(struct snd_soc_codec *codec)
 				ARRAY_SIZE(rk616_dapm_routes));
 
 	}
-	
-	#ifdef CONFIG_MACH_RK_FAC             
-  	 	rk616_hdmi_ctrl=1;
-	#endif 
 
 	return 0;
 
@@ -2575,18 +2530,20 @@ err__:
 /* power down chip */
 static int rk616_remove(struct snd_soc_codec *codec)
 {
+	struct rk616_codec_priv *rk616 = rk616_priv;
+
 	DBG("%s\n", __func__);
 
-	if (!rk616_priv) {
+	if (!rk616) {
 		printk("%s : rk616_priv is NULL\n", __func__);
 		return 0;
 	}
 
-	if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+	if (rk616->spk_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616->spk_ctl_gpio, GPIO_LOW);
 
-	if (rk616_priv->hp_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+	if (rk616->hp_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616->hp_ctl_gpio, GPIO_LOW);
 
 	mdelay(10);
 
@@ -2604,8 +2561,8 @@ static int rk616_remove(struct snd_soc_codec *codec)
 	snd_soc_write(codec, RK616_RESET, 0x3);
 	mdelay(10);
 
-	if (rk616_priv)
-		kfree(rk616_priv);
+	if (rk616)
+		kfree(rk616);
 
 	return 0;
 }
@@ -2648,18 +2605,21 @@ static __devexit int rk616_platform_remove(struct platform_device *pdev)
 
 void rk616_platform_shutdown(struct platform_device *pdev)
 {
+	struct rk616_codec_priv *rk616 = rk616_priv;
+	struct snd_soc_codec *codec = rk616->codec;
+
 	DBG("%s\n", __func__);
 
-	if (!rk616_priv || !rk616_priv->codec) {
+	if (!rk616 || !rk616->codec) {
 		printk("%s : rk616_priv or rk616_priv->codec is NULL\n", __func__);
 		return;
 	}
 
-	if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+	if (rk616->spk_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616->spk_ctl_gpio, GPIO_LOW);
 
-	if (rk616_priv->hp_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+	if (rk616->hp_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616->hp_ctl_gpio, GPIO_LOW);
 
 	mdelay(10);
 
@@ -2671,12 +2631,12 @@ void rk616_platform_shutdown(struct platform_device *pdev)
 		}
 	}
 
-	snd_soc_write(rk616_priv->codec, RK616_RESET, 0xfc);
+	snd_soc_write(codec, RK616_RESET, 0xfc);
 	mdelay(10);
-	snd_soc_write(rk616_priv->codec, RK616_RESET, 0x3);
+	snd_soc_write(codec, RK616_RESET, 0x3);
 
-	if (rk616_priv)
-		kfree(rk616_priv);
+	if (rk616)
+		kfree(rk616);
 }
 
 static struct platform_driver rk616_codec_driver = {
