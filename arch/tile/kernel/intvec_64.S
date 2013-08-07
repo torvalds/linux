@@ -492,7 +492,7 @@ intvec_\vecname:
 	mfspr   r3, SPR_SYSTEM_SAVE_K_2   /* info about page fault */
 	.else
 	.ifc \vecnum, INT_ILL_TRANS
-	mfspr   r2, ILL_TRANS_REASON
+	mfspr   r2, ILL_VA_PC
 	.else
 	.ifc \vecnum, INT_DOUBLE_FAULT
 	mfspr   r2, SPR_SYSTEM_SAVE_K_2   /* double fault info from HV */
