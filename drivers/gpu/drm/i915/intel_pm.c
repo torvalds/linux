@@ -2188,6 +2188,14 @@ struct hsw_wm_values {
 	bool enable_fbc_wm;
 };
 
+/* used in computing the new watermarks state */
+struct intel_wm_config {
+	unsigned int num_pipes_active;
+	bool sprites_enabled;
+	bool sprites_scaled;
+	bool fbc_wm_enabled;
+};
+
 /*
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
@@ -2281,8 +2289,7 @@ static unsigned int ilk_display_fifo_size(const struct drm_device *dev)
 /* Calculate the maximum primary/sprite plane watermark */
 static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 				     int level,
-				     unsigned int num_pipes_active,
-				     bool sprite_enabled,
+				     const struct intel_wm_config *config,
 				     enum intel_ddb_partitioning ddb_partitioning,
 				     bool is_sprite)
 {
@@ -2290,11 +2297,11 @@ static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 	unsigned int max;
 
 	/* if sprites aren't enabled, sprites get nothing */
-	if (is_sprite && !sprite_enabled)
+	if (is_sprite && !config->sprites_enabled)
 		return 0;
 
 	/* HSW allows LP1+ watermarks even with multiple pipes */
-	if (level == 0 || num_pipes_active > 1) {
+	if (level == 0 || config->num_pipes_active > 1) {
 		fifo_size /= INTEL_INFO(dev)->num_pipes;
 
 		/*
@@ -2306,7 +2313,7 @@ static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 			fifo_size /= 2;
 	}
 
-	if (sprite_enabled) {
+	if (config->sprites_enabled) {
 		/* level 0 is always calculated with 1:1 split */
 		if (level > 0 && ddb_partitioning == INTEL_DDB_PART_5_6) {
 			if (is_sprite)
@@ -2333,10 +2340,11 @@ static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 
 /* Calculate the maximum cursor plane watermark */
 static unsigned int ilk_cursor_wm_max(const struct drm_device *dev,
-				      int level, unsigned int num_pipes_active)
+				      int level,
+				      const struct intel_wm_config *config)
 {
 	/* HSW LP1+ watermarks w/ multiple pipes */
-	if (level > 0 && num_pipes_active > 1)
+	if (level > 0 && config->num_pipes_active > 1)
 		return 64;
 
 	/* otherwise just report max that registers can hold */
@@ -2355,16 +2363,13 @@ static unsigned int ilk_fbc_wm_max(void)
 
 static void ilk_wm_max(struct drm_device *dev,
 		       int level,
-		       unsigned int num_pipes_active,
-		       bool sprite_enabled,
+		       const struct intel_wm_config *config,
 		       enum intel_ddb_partitioning ddb_partitioning,
 		       struct hsw_wm_maximums *max)
 {
-	max->pri = ilk_plane_wm_max(dev, level, num_pipes_active,
-				    sprite_enabled, ddb_partitioning, false);
-	max->spr = ilk_plane_wm_max(dev, level, num_pipes_active,
-				    sprite_enabled, ddb_partitioning, true);
-	max->cur = ilk_cursor_wm_max(dev, level, num_pipes_active);
+	max->pri = ilk_plane_wm_max(dev, level, config, ddb_partitioning, false);
+	max->spr = ilk_plane_wm_max(dev, level, config, ddb_partitioning, true);
+	max->cur = ilk_cursor_wm_max(dev, level, config);
 	max->fbc = ilk_fbc_wm_max();
 }
 
@@ -2614,7 +2619,7 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
 	enum pipe pipe;
-	int pipes_active = 0, sprites_enabled = 0;
+	struct intel_wm_config config = {};
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -2627,7 +2632,7 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		if (!p->active)
 			continue;
 
-		pipes_active++;
+		config.num_pipes_active++;
 
 		p->pipe_htotal = intel_crtc->config.adjusted_mode.htotal;
 		p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
@@ -2649,17 +2654,14 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		p->spr_bytes_per_pixel = intel_plane->wm.bytes_per_pixel;
 		p->spr_horiz_pixels = intel_plane->wm.horiz_pixels;
 
-		if (p->sprite_enabled)
-			sprites_enabled++;
+		config.sprites_enabled |= p->sprite_enabled;
 	}
 
-	ilk_wm_max(dev, 1, pipes_active, sprites_enabled,
-		   INTEL_DDB_PART_1_2, lp_max_1_2);
+	ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_1_2, lp_max_1_2);
 
 	/* 5/6 split only in single pipe config on IVB+ */
-	if (INTEL_INFO(dev)->gen >= 7 && pipes_active <= 1)
-		ilk_wm_max(dev, 1, pipes_active, sprites_enabled,
-			   INTEL_DDB_PART_5_6, lp_max_5_6);
+	if (INTEL_INFO(dev)->gen >= 7 && config.num_pipes_active <= 1)
+		ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_5_6, lp_max_5_6);
 	else
 		*lp_max_5_6 = *lp_max_1_2;
 }
