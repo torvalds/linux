@@ -36,5 +36,6 @@ int test__bp_signal_overflow(void);
 int test__task_exit(void);
 int test__sw_clock_freq(void);
 int test__perf_time_to_tsc(void);
+int test__code_reading(void);
 
 #endif /* TESTS_H */
