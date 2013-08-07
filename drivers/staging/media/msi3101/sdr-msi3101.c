@@ -1507,11 +1507,11 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		const struct v4l2_frequency *f)
 {
 	struct msi3101_state *s = video_drvdata(file);
-	dev_dbg(&s->udev->dev, "%s: frequency=%u Hz (%d)\n",
-			__func__, f->frequency * 625U / 10U, f->frequency);
+	dev_dbg(&s->udev->dev, "%s: frequency=%lu Hz (%u)\n",
+			__func__, f->frequency * 625UL / 10UL, f->frequency);
 
 	return v4l2_ctrl_s_ctrl_int64(s->ctrl_tuner_rf,
-			f->frequency * 625U / 10U);
+			f->frequency * 625UL / 10UL);
 }
 
 const struct v4l2_ioctl_ops msi3101_ioctl_ops = {
