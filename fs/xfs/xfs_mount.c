@@ -1083,7 +1083,7 @@ xfs_log_sbcount(xfs_mount_t *mp)
 }
 
 /*
- * xfs_mod_incore_sb_unlocked() is a utility routine common used to apply
+ * xfs_mod_incore_sb_unlocked() is a utility routine commonly used to apply
  * a delta to a specified field in the in-core superblock.  Simply
  * switch on the field indicated and apply the delta to that field.
  * Fields are not allowed to dip below zero, so if the delta would
