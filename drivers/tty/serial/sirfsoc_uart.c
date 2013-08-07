@@ -139,40 +139,66 @@ static void sirfsoc_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static void sirfsoc_uart_stop_tx(struct uart_port *port)
 {
+	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	unsigned int regv;
-	regv = rd_regl(port, SIRFUART_INT_EN);
-	wr_regl(port, SIRFUART_INT_EN, regv & ~SIRFUART_TX_INT_EN);
+
+	if (!sirfport->is_marco) {
+		regv = rd_regl(port, SIRFUART_INT_EN);
+		wr_regl(port, SIRFUART_INT_EN, regv & ~SIRFUART_TX_INT_EN);
+	} else {
+		wr_regl(port, SIRFUART_INT_EN_CLR, SIRFUART_TX_INT_EN);
+	}
 }
 
 void sirfsoc_uart_start_tx(struct uart_port *port)
 {
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	unsigned long regv;
+
 	sirfsoc_uart_pio_tx_chars(sirfport, 1);
 	wr_regl(port, SIRFUART_TX_FIFO_OP, SIRFUART_TX_FIFO_START);
-	regv = rd_regl(port, SIRFUART_INT_EN);
-	wr_regl(port, SIRFUART_INT_EN, regv | SIRFUART_TX_INT_EN);
+
+	if (!sirfport->is_marco) {
+		regv = rd_regl(port, SIRFUART_INT_EN);
+		wr_regl(port, SIRFUART_INT_EN, regv | SIRFUART_TX_INT_EN);
+	} else {
+		wr_regl(port, SIRFUART_INT_EN, SIRFUART_TX_INT_EN);
+	}
 }
 
 static void sirfsoc_uart_stop_rx(struct uart_port *port)
 {
+	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	unsigned long regv;
+
 	wr_regl(port, SIRFUART_RX_FIFO_OP, 0);
-	regv = rd_regl(port, SIRFUART_INT_EN);
-	wr_regl(port, SIRFUART_INT_EN, regv & ~SIRFUART_RX_IO_INT_EN);
+
+	if (!sirfport->is_marco) {
+		regv = rd_regl(port, SIRFUART_INT_EN);
+		wr_regl(port, SIRFUART_INT_EN, regv & ~SIRFUART_RX_IO_INT_EN);
+	} else {
+		wr_regl(port, SIRFUART_INT_EN_CLR, SIRFUART_RX_IO_INT_EN);
+	}
 }
 
 static void sirfsoc_uart_disable_ms(struct uart_port *port)
 {
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	unsigned long reg;
+
 	sirfport->ms_enabled = 0;
 	if (!sirfport->hw_flow_ctrl)
 		return;
+
 	reg = rd_regl(port, SIRFUART_AFC_CTRL);
 	wr_regl(port, SIRFUART_AFC_CTRL, reg & ~0x3FF);
-	reg = rd_regl(port, SIRFUART_INT_EN);
-	wr_regl(port, SIRFUART_INT_EN, reg & ~SIRFUART_CTS_INT_EN);
+
+	if (!sirfport->is_marco) {
+		reg = rd_regl(port, SIRFUART_INT_EN);
+		wr_regl(port, SIRFUART_INT_EN, reg & ~SIRFUART_CTS_INT_EN);
+	} else {
+		wr_regl(port, SIRFUART_INT_EN_CLR, SIRFUART_CTS_INT_EN);
+	}
 }
 
 static void sirfsoc_uart_enable_ms(struct uart_port *port)
@@ -180,13 +206,20 @@ static void sirfsoc_uart_enable_ms(struct uart_port *port)
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	unsigned long reg;
 	unsigned long flg;
+
 	if (!sirfport->hw_flow_ctrl)
 		return;
 	flg = SIRFUART_AFC_RX_EN | SIRFUART_AFC_TX_EN;
 	reg = rd_regl(port, SIRFUART_AFC_CTRL);
 	wr_regl(port, SIRFUART_AFC_CTRL, reg | flg);
-	reg = rd_regl(port, SIRFUART_INT_EN);
-	wr_regl(port, SIRFUART_INT_EN, reg | SIRFUART_CTS_INT_EN);
+
+	if (!sirfport->is_marco) {
+		reg = rd_regl(port, SIRFUART_INT_EN);
+		wr_regl(port, SIRFUART_INT_EN, reg | SIRFUART_CTS_INT_EN);
+	} else {
+		wr_regl(port, SIRFUART_INT_EN, SIRFUART_CTS_INT_EN);
+	}
+
 	uart_handle_cts_change(port,
 		!(rd_regl(port, SIRFUART_AFC_CTRL) & SIRFUART_CTS_IN_STATUS));
 	sirfport->ms_enabled = 1;
@@ -313,9 +346,16 @@ recv_char:
 
 static void sirfsoc_uart_start_rx(struct uart_port *port)
 {
-	unsigned long regv;
-	regv = rd_regl(port, SIRFUART_INT_EN);
-	wr_regl(port, SIRFUART_INT_EN, regv | SIRFUART_RX_IO_INT_EN);
+	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
+
+	if (!sirfport->is_marco) {
+		unsigned long regv;
+		regv = rd_regl(port, SIRFUART_INT_EN);
+		wr_regl(port, SIRFUART_INT_EN, regv | SIRFUART_RX_IO_INT_EN);
+	} else {
+		wr_regl(port, SIRFUART_INT_EN, SIRFUART_RX_IO_INT_EN);
+	}
+
 	wr_regl(port, SIRFUART_RX_FIFO_OP, SIRFUART_RX_FIFO_RESET);
 	wr_regl(port, SIRFUART_RX_FIFO_OP, 0);
 	wr_regl(port, SIRFUART_RX_FIFO_OP, SIRFUART_RX_FIFO_START);
@@ -513,7 +553,12 @@ irq_err:
 static void sirfsoc_uart_shutdown(struct uart_port *port)
 {
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
-	wr_regl(port, SIRFUART_INT_EN, 0);
+
+	if (!sirfport->is_marco)
+		wr_regl(port, SIRFUART_INT_EN, 0);
+	else
+		wr_regl(port, SIRFUART_INT_EN_CLR, ~0UL);
+
 	free_irq(port->irq, sirfport);
 	if (sirfport->ms_enabled) {
 		sirfsoc_uart_disable_ms(port);
@@ -651,6 +696,9 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 	port = &sirfport->port;
 	port->dev = &pdev->dev;
 	port->private_data = sirfport;
+
+	if (of_device_is_compatible(pdev->dev.of_node, "sirf,marco-uart"))
+		sirfport->is_marco = true;
 
 	if (of_find_property(pdev->dev.of_node, "hw_flow_ctrl", NULL))
 		sirfport->hw_flow_ctrl = 1;

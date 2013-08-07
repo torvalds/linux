@@ -13,6 +13,7 @@
 #define SIRFUART_DIVISOR			0x0050
 #define SIRFUART_INT_EN				0x0054
 #define SIRFUART_INT_STATUS			0x0058
+#define SIRFUART_INT_EN_CLR			0x0060
 #define SIRFUART_TX_DMA_IO_CTRL			0x0100
 #define SIRFUART_TX_DMA_IO_LEN			0x0104
 #define SIRFUART_TX_FIFO_CTRL			0x0108
@@ -164,6 +165,8 @@ struct sirfsoc_uart_port {
 	struct uart_port		port;
 	struct pinctrl			*p;
 	struct clk			*clk;
+	/* for SiRFmarco, there are SET/CLR for UART_INT_EN */
+	bool				is_marco;
 };
 
 /* Hardware Flow Control */
