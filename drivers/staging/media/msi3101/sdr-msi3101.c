@@ -1306,11 +1306,11 @@ static int msi3101_set_tuner(struct msi3101_state *s)
 		u8 mode;
 		u8 lo_div;
 	} band_lut[] = {
-		{ 30000000, 0x01, 16}, /* AM_MODE1 */
+		{ 47000000, 0x01, 16}, /* AM_MODE1 */
 		{108000000, 0x02, 32}, /* VHF_MODE */
-		{240000000, 0x04, 16}, /* B3_MODE */
+		{330000000, 0x04, 16}, /* B3_MODE */
 		{960000000, 0x08,  4}, /* B45_MODE */
-		{167500000, 0x10,  2}, /* BL_MODE */
+		{      ~0U, 0x10,  2}, /* BL_MODE */
 	};
 	static const struct {
 		u32 freq;
