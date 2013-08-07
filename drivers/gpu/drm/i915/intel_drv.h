@@ -487,6 +487,7 @@ struct intel_dp {
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
+	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
@@ -498,13 +499,14 @@ struct intel_dp {
 	int backlight_off_delay;
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
+	bool psr_setup_done;
 	struct intel_connector *attached_connector;
 };
 
 struct intel_digital_port {
 	struct intel_encoder base;
 	enum port port;
-	u32 port_reversal;
+	u32 saved_port_bits;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
 };
@@ -804,7 +806,6 @@ extern void intel_init_power_well(struct drm_device *dev);
 extern void intel_set_power_well(struct drm_device *dev, bool enable);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
 extern void intel_disable_gt_powersave(struct drm_device *dev);
-extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);
 extern void ironlake_teardown_rc6(struct drm_device *dev);
 
 extern bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
@@ -832,5 +833,12 @@ extern bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 extern bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
 						 enum transcoder pch_transcoder,
 						 bool enable);
+
+extern void intel_edp_psr_enable(struct intel_dp *intel_dp);
+extern void intel_edp_psr_disable(struct intel_dp *intel_dp);
+extern void intel_edp_psr_update(struct drm_device *dev);
+extern void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
+			      bool switch_to_fclk, bool allow_power_down);
+extern void hsw_restore_lcpll(struct drm_i915_private *dev_priv);
 
 #endif /* __INTEL_DRV_H__ */

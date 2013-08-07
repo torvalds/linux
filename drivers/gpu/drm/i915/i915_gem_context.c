@@ -304,31 +304,24 @@ static int context_idr_cleanup(int id, void *p, void *data)
 }
 
 struct i915_ctx_hang_stats *
-i915_gem_context_get_hang_stats(struct intel_ring_buffer *ring,
+i915_gem_context_get_hang_stats(struct drm_device *dev,
 				struct drm_file *file,
 				u32 id)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct i915_hw_context *to;
-
-	if (dev_priv->hw_contexts_disabled)
-		return ERR_PTR(-ENOENT);
-
-	if (ring->id != RCS)
-		return ERR_PTR(-EINVAL);
-
-	if (file == NULL)
-		return ERR_PTR(-EINVAL);
+	struct i915_hw_context *ctx;
 
 	if (id == DEFAULT_CONTEXT_ID)
 		return &file_priv->hang_stats;
 
-	to = i915_gem_context_get(file->driver_priv, id);
-	if (to == NULL)
+	ctx = NULL;
+	if (!dev_priv->hw_contexts_disabled)
+		ctx = i915_gem_context_get(file->driver_priv, id);
+	if (ctx == NULL)
 		return ERR_PTR(-ENOENT);
 
-	return &to->hang_stats;
+	return &ctx->hang_stats;
 }
 
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)

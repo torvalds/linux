@@ -45,45 +45,27 @@
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct pci_dev *pdev = dev_priv->bridge_dev;
 	struct resource *r;
 	u32 base;
 
-	/* On the machines I have tested the Graphics Base of Stolen Memory
-	 * is unreliable, so on those compute the base by subtracting the
-	 * stolen memory from the Top of Low Usable DRAM which is where the
-	 * BIOS places the graphics stolen memory.
+	/* Almost universally we can find the Graphics Base of Stolen Memory
+	 * at offset 0x5c in the igfx configuration space. On a few (desktop)
+	 * machines this is also mirrored in the bridge device at different
+	 * locations, or in the MCHBAR. On gen2, the layout is again slightly
+	 * different with the Graphics Segment immediately following Top of
+	 * Memory (or Top of Usable DRAM). Note it appears that TOUD is only
+	 * reported by 865g, so we just use the top of memory as determined
+	 * by the e820 probe.
 	 *
-	 * On gen2, the layout is slightly different with the Graphics Segment
-	 * immediately following Top of Memory (or Top of Usable DRAM). Note
-	 * it appears that TOUD is only reported by 865g, so we just use the
-	 * top of memory as determined by the e820 probe.
-	 *
-	 * XXX gen2 requires an unavailable symbol and 945gm fails with
-	 * its value of TOLUD.
+	 * XXX However gen2 requires an unavailable symbol.
 	 */
 	base = 0;
-	if (IS_VALLEYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 3) {
+		/* Read Graphics Base of Stolen Memory directly */
 		pci_read_config_dword(dev->pdev, 0x5c, &base);
 		base &= ~((1<<20) - 1);
-	} else if (INTEL_INFO(dev)->gen >= 6) {
-		/* Read Base Data of Stolen Memory Register (BDSM) directly.
-		 * Note that there is also a MCHBAR miror at 0x1080c0 or
-		 * we could use device 2:0x5c instead.
-		*/
-		pci_read_config_dword(pdev, 0xB0, &base);
-		base &= ~4095; /* lower bits used for locking register */
-	} else if (INTEL_INFO(dev)->gen > 3 || IS_G33(dev)) {
-		/* Read Graphics Base of Stolen Memory directly */
-		pci_read_config_dword(pdev, 0xA4, &base);
+	} else { /* GEN2 */
 #if 0
-	} else if (IS_GEN3(dev)) {
-		u8 val;
-		/* Stolen is immediately below Top of Low Usable DRAM */
-		pci_read_config_byte(pdev, 0x9c, &val);
-		base = val >> 3 << 27;
-		base -= dev_priv->mm.gtt->stolen_size;
-	} else {
 		/* Stolen is immediately above Top of Memory */
 		base = max_low_pfn_mapped << PAGE_SHIFT;
 #endif
@@ -367,8 +349,10 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 					       u32 size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
+	struct i915_vma *vma;
 	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
@@ -409,30 +393,38 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (gtt_offset == I915_GTT_OFFSET_NONE)
 		return obj;
 
+	vma = i915_gem_vma_create(obj, &dev_priv->gtt.base);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err_out;
+	}
+
 	/* To simplify the initialisation sequence between KMS and GTT,
 	 * we allow construction of the stolen object prior to
 	 * setting up the GTT space. The actual reservation will occur
 	 * later.
 	 */
-	obj->gtt_space.start = gtt_offset;
-	obj->gtt_space.size = size;
-	if (drm_mm_initialized(&dev_priv->mm.gtt_space)) {
-		ret = drm_mm_reserve_node(&dev_priv->mm.gtt_space,
-					  &obj->gtt_space);
+	vma->node.start = gtt_offset;
+	vma->node.size = size;
+	if (drm_mm_initialized(&dev_priv->gtt.base.mm)) {
+		ret = drm_mm_reserve_node(&dev_priv->gtt.base.mm, &vma->node);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			goto unref_out;
+			i915_gem_vma_destroy(vma);
+			goto err_out;
 		}
 	}
 
 	obj->has_global_gtt_mapping = 1;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
+	list_add_tail(&obj->mm_list, &vm->inactive_list);
 
 	return obj;
 
-unref_out:
+err_out:
+	drm_mm_remove_node(stolen);
+	kfree(stolen);
 	drm_gem_object_unreference(&obj->base);
 	return NULL;
 }

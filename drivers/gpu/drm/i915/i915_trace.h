@@ -406,10 +406,12 @@ TRACE_EVENT(i915_flip_complete,
 	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
 );
 
-TRACE_EVENT(i915_reg_rw,
-	TP_PROTO(bool write, u32 reg, u64 val, int len),
+TRACE_EVENT_CONDITION(i915_reg_rw,
+	TP_PROTO(bool write, u32 reg, u64 val, int len, bool trace),
 
-	TP_ARGS(write, reg, val, len),
+	TP_ARGS(write, reg, val, len, trace),
+
+	TP_CONDITION(trace),
 
 	TP_STRUCT__entry(
 		__field(u64, val)

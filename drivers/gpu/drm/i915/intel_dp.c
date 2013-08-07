@@ -276,6 +276,45 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 	return status;
 }
 
+static uint32_t get_aux_clock_divider(struct intel_dp *intel_dp,
+				      int index)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* The clock divider is based off the hrawclk,
+	 * and would like to run at 2MHz. So, take the
+	 * hrawclk value and divide by 2 and use that
+	 *
+	 * Note that PCH attached eDP panels should use a 125MHz input
+	 * clock divider.
+	 */
+	if (IS_VALLEYVIEW(dev)) {
+		return index ? 0 : 100;
+	} else if (intel_dig_port->port == PORT_A) {
+		if (index)
+			return 0;
+		if (HAS_DDI(dev))
+			return DIV_ROUND_CLOSEST(intel_ddi_get_cdclk_freq(dev_priv), 2000);
+		else if (IS_GEN6(dev) || IS_GEN7(dev))
+			return 200; /* SNB & IVB eDP input clock at 400Mhz */
+		else
+			return 225; /* eDP input clock at 450Mhz */
+	} else if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
+		/* Workaround for non-ULT HSW */
+		switch (index) {
+		case 0: return 63;
+		case 1: return 72;
+		default: return 0;
+		}
+	} else if (HAS_PCH_SPLIT(dev)) {
+		return index ? 0 : DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
+	} else {
+		return index ? 0 :intel_hrawclk(dev) / 2;
+	}
+}
+
 static int
 intel_dp_aux_ch(struct intel_dp *intel_dp,
 		uint8_t *send, int send_bytes,
@@ -286,10 +325,10 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t ch_ctl = intel_dp->aux_ch_ctl_reg;
 	uint32_t ch_data = ch_ctl + 4;
+	uint32_t aux_clock_divider;
 	int i, ret, recv_bytes;
 	uint32_t status;
-	uint32_t aux_clock_divider;
-	int try, precharge;
+	int try, precharge, clock = 0;
 	bool has_aux_irq = INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev);
 
 	/* dp aux is extremely sensitive to irq latency, hence request the
@@ -299,31 +338,6 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	pm_qos_update_request(&dev_priv->pm_qos, 0);
 
 	intel_dp_check_edp(intel_dp);
-	/* The clock divider is based off the hrawclk,
-	 * and would like to run at 2MHz. So, take the
-	 * hrawclk value and divide by 2 and use that
-	 *
-	 * Note that PCH attached eDP panels should use a 125MHz input
-	 * clock divider.
-	 */
-	if (IS_VALLEYVIEW(dev)) {
-		aux_clock_divider = 100;
-	} else if (intel_dig_port->port == PORT_A) {
-		if (HAS_DDI(dev))
-			aux_clock_divider = DIV_ROUND_CLOSEST(
-				intel_ddi_get_cdclk_freq(dev_priv), 2000);
-		else if (IS_GEN6(dev) || IS_GEN7(dev))
-			aux_clock_divider = 200; /* SNB & IVB eDP input clock at 400Mhz */
-		else
-			aux_clock_divider = 225; /* eDP input clock at 450Mhz */
-	} else if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
-		/* Workaround for non-ULT HSW */
-		aux_clock_divider = 74;
-	} else if (HAS_PCH_SPLIT(dev)) {
-		aux_clock_divider = DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
-	} else {
-		aux_clock_divider = intel_hrawclk(dev) / 2;
-	}
 
 	if (IS_GEN6(dev))
 		precharge = 3;
@@ -345,37 +359,41 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		goto out;
 	}
 
-	/* Must try at least 3 times according to DP spec */
-	for (try = 0; try < 5; try++) {
-		/* Load the send data into the aux channel data registers */
-		for (i = 0; i < send_bytes; i += 4)
-			I915_WRITE(ch_data + i,
-				   pack_aux(send + i, send_bytes - i));
+	while ((aux_clock_divider = get_aux_clock_divider(intel_dp, clock++))) {
+		/* Must try at least 3 times according to DP spec */
+		for (try = 0; try < 5; try++) {
+			/* Load the send data into the aux channel data registers */
+			for (i = 0; i < send_bytes; i += 4)
+				I915_WRITE(ch_data + i,
+					   pack_aux(send + i, send_bytes - i));
 
-		/* Send the command and wait for it to complete */
-		I915_WRITE(ch_ctl,
-			   DP_AUX_CH_CTL_SEND_BUSY |
-			   (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
-			   DP_AUX_CH_CTL_TIME_OUT_400us |
-			   (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-			   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
-			   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
-			   DP_AUX_CH_CTL_DONE |
-			   DP_AUX_CH_CTL_TIME_OUT_ERROR |
-			   DP_AUX_CH_CTL_RECEIVE_ERROR);
+			/* Send the command and wait for it to complete */
+			I915_WRITE(ch_ctl,
+				   DP_AUX_CH_CTL_SEND_BUSY |
+				   (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
+				   DP_AUX_CH_CTL_TIME_OUT_400us |
+				   (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+				   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+				   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
+				   DP_AUX_CH_CTL_DONE |
+				   DP_AUX_CH_CTL_TIME_OUT_ERROR |
+				   DP_AUX_CH_CTL_RECEIVE_ERROR);
 
-		status = intel_dp_aux_wait_done(intel_dp, has_aux_irq);
+			status = intel_dp_aux_wait_done(intel_dp, has_aux_irq);
 
-		/* Clear done status and any errors */
-		I915_WRITE(ch_ctl,
-			   status |
-			   DP_AUX_CH_CTL_DONE |
-			   DP_AUX_CH_CTL_TIME_OUT_ERROR |
-			   DP_AUX_CH_CTL_RECEIVE_ERROR);
+			/* Clear done status and any errors */
+			I915_WRITE(ch_ctl,
+				   status |
+				   DP_AUX_CH_CTL_DONE |
+				   DP_AUX_CH_CTL_TIME_OUT_ERROR |
+				   DP_AUX_CH_CTL_RECEIVE_ERROR);
 
-		if (status & (DP_AUX_CH_CTL_TIME_OUT_ERROR |
-			      DP_AUX_CH_CTL_RECEIVE_ERROR))
-			continue;
+			if (status & (DP_AUX_CH_CTL_TIME_OUT_ERROR |
+				      DP_AUX_CH_CTL_RECEIVE_ERROR))
+				continue;
+			if (status & DP_AUX_CH_CTL_DONE)
+				break;
+		}
 		if (status & DP_AUX_CH_CTL_DONE)
 			break;
 	}
@@ -710,8 +728,11 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
 	bpp = pipe_config->pipe_bpp;
-	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp)
+	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp) {
+		DRM_DEBUG_KMS("clamping bpp for eDP panel to BIOS-provided %i\n",
+			      dev_priv->vbt.edp_bpp);
 		bpp = min_t(int, bpp, dev_priv->vbt.edp_bpp);
+	}
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
 		mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
@@ -1367,6 +1388,268 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 		else
 			pipe_config->port_clock = 270000;
 	}
+}
+
+static bool is_edp_psr(struct intel_dp *intel_dp)
+{
+	return is_edp(intel_dp) &&
+		intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED;
+}
+
+static bool intel_edp_is_psr_enabled(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_HASWELL(dev))
+		return false;
+
+	return I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
+}
+
+static void intel_edp_psr_write_vsc(struct intel_dp *intel_dp,
+				    struct edp_vsc_psr *vsc_psr)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
+	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(crtc->config.cpu_transcoder);
+	u32 data_reg = HSW_TVIDEO_DIP_VSC_DATA(crtc->config.cpu_transcoder);
+	uint32_t *data = (uint32_t *) vsc_psr;
+	unsigned int i;
+
+	/* As per BSPec (Pipe Video Data Island Packet), we need to disable
+	   the video DIP being updated before program video DIP data buffer
+	   registers for DIP being updated. */
+	I915_WRITE(ctl_reg, 0);
+	POSTING_READ(ctl_reg);
+
+	for (i = 0; i < VIDEO_DIP_VSC_DATA_SIZE; i += 4) {
+		if (i < sizeof(struct edp_vsc_psr))
+			I915_WRITE(data_reg + i, *data++);
+		else
+			I915_WRITE(data_reg + i, 0);
+	}
+
+	I915_WRITE(ctl_reg, VIDEO_DIP_ENABLE_VSC_HSW);
+	POSTING_READ(ctl_reg);
+}
+
+static void intel_edp_psr_setup(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct edp_vsc_psr psr_vsc;
+
+	if (intel_dp->psr_setup_done)
+		return;
+
+	/* Prepare VSC packet as per EDP 1.3 spec, Table 3.10 */
+	memset(&psr_vsc, 0, sizeof(psr_vsc));
+	psr_vsc.sdp_header.HB0 = 0;
+	psr_vsc.sdp_header.HB1 = 0x7;
+	psr_vsc.sdp_header.HB2 = 0x2;
+	psr_vsc.sdp_header.HB3 = 0x8;
+	intel_edp_psr_write_vsc(intel_dp, &psr_vsc);
+
+	/* Avoid continuous PSR exit by masking memup and hpd */
+	I915_WRITE(EDP_PSR_DEBUG_CTL, EDP_PSR_DEBUG_MASK_MEMUP |
+		   EDP_PSR_DEBUG_MASK_HPD);
+
+	intel_dp->psr_setup_done = true;
+}
+
+static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t aux_clock_divider = get_aux_clock_divider(intel_dp, 0);
+	int precharge = 0x3;
+	int msg_size = 5;       /* Header(4) + Message(1) */
+
+	/* Enable PSR in sink */
+	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT)
+		intel_dp_aux_native_write_1(intel_dp, DP_PSR_EN_CFG,
+					    DP_PSR_ENABLE &
+					    ~DP_PSR_MAIN_LINK_ACTIVE);
+	else
+		intel_dp_aux_native_write_1(intel_dp, DP_PSR_EN_CFG,
+					    DP_PSR_ENABLE |
+					    DP_PSR_MAIN_LINK_ACTIVE);
+
+	/* Setup AUX registers */
+	I915_WRITE(EDP_PSR_AUX_DATA1, EDP_PSR_DPCD_COMMAND);
+	I915_WRITE(EDP_PSR_AUX_DATA2, EDP_PSR_DPCD_NORMAL_OPERATION);
+	I915_WRITE(EDP_PSR_AUX_CTL,
+		   DP_AUX_CH_CTL_TIME_OUT_400us |
+		   (msg_size << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+		   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+		   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT));
+}
+
+static void intel_edp_psr_enable_source(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t max_sleep_time = 0x1f;
+	uint32_t idle_frames = 1;
+	uint32_t val = 0x0;
+
+	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT) {
+		val |= EDP_PSR_LINK_STANDBY;
+		val |= EDP_PSR_TP2_TP3_TIME_0us;
+		val |= EDP_PSR_TP1_TIME_0us;
+		val |= EDP_PSR_SKIP_AUX_EXIT;
+	} else
+		val |= EDP_PSR_LINK_DISABLE;
+
+	I915_WRITE(EDP_PSR_CTL, val |
+		   EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES |
+		   max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT |
+		   idle_frames << EDP_PSR_IDLE_FRAME_SHIFT |
+		   EDP_PSR_ENABLE);
+}
+
+static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dig_port->base.base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_gem_object *obj = to_intel_framebuffer(crtc->fb)->obj;
+	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
+
+	if (!IS_HASWELL(dev)) {
+		DRM_DEBUG_KMS("PSR not supported on this platform\n");
+		dev_priv->no_psr_reason = PSR_NO_SOURCE;
+		return false;
+	}
+
+	if ((intel_encoder->type != INTEL_OUTPUT_EDP) ||
+	    (dig_port->port != PORT_A)) {
+		DRM_DEBUG_KMS("HSW ties PSR to DDI A (eDP)\n");
+		dev_priv->no_psr_reason = PSR_HSW_NOT_DDIA;
+		return false;
+	}
+
+	if (!is_edp_psr(intel_dp)) {
+		DRM_DEBUG_KMS("PSR not supported by this panel\n");
+		dev_priv->no_psr_reason = PSR_NO_SINK;
+		return false;
+	}
+
+	if (!i915_enable_psr) {
+		DRM_DEBUG_KMS("PSR disable by flag\n");
+		dev_priv->no_psr_reason = PSR_MODULE_PARAM;
+		return false;
+	}
+
+	crtc = dig_port->base.base.crtc;
+	if (crtc == NULL) {
+		DRM_DEBUG_KMS("crtc not active for PSR\n");
+		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
+		return false;
+	}
+
+	intel_crtc = to_intel_crtc(crtc);
+	if (!intel_crtc->active || !crtc->fb || !crtc->mode.clock) {
+		DRM_DEBUG_KMS("crtc not active for PSR\n");
+		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
+		return false;
+	}
+
+	obj = to_intel_framebuffer(crtc->fb)->obj;
+	if (obj->tiling_mode != I915_TILING_X ||
+	    obj->fence_reg == I915_FENCE_REG_NONE) {
+		DRM_DEBUG_KMS("PSR condition failed: fb not tiled or fenced\n");
+		dev_priv->no_psr_reason = PSR_NOT_TILED;
+		return false;
+	}
+
+	if (I915_READ(SPRCTL(intel_crtc->pipe)) & SPRITE_ENABLE) {
+		DRM_DEBUG_KMS("PSR condition failed: Sprite is Enabled\n");
+		dev_priv->no_psr_reason = PSR_SPRITE_ENABLED;
+		return false;
+	}
+
+	if (I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config.cpu_transcoder)) &
+	    S3D_ENABLE) {
+		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
+		dev_priv->no_psr_reason = PSR_S3D_ENABLED;
+		return false;
+	}
+
+	if (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) {
+		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
+		dev_priv->no_psr_reason = PSR_INTERLACED_ENABLED;
+		return false;
+	}
+
+	return true;
+}
+
+static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+
+	if (!intel_edp_psr_match_conditions(intel_dp) ||
+	    intel_edp_is_psr_enabled(dev))
+		return;
+
+	/* Setup PSR once */
+	intel_edp_psr_setup(intel_dp);
+
+	/* Enable PSR on the panel */
+	intel_edp_psr_enable_sink(intel_dp);
+
+	/* Enable PSR on the host */
+	intel_edp_psr_enable_source(intel_dp);
+}
+
+void intel_edp_psr_enable(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+
+	if (intel_edp_psr_match_conditions(intel_dp) &&
+	    !intel_edp_is_psr_enabled(dev))
+		intel_edp_psr_do_enable(intel_dp);
+}
+
+void intel_edp_psr_disable(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!intel_edp_is_psr_enabled(dev))
+		return;
+
+	I915_WRITE(EDP_PSR_CTL, I915_READ(EDP_PSR_CTL) & ~EDP_PSR_ENABLE);
+
+	/* Wait till PSR is idle */
+	if (_wait_for((I915_READ(EDP_PSR_STATUS_CTL) &
+		       EDP_PSR_STATUS_STATE_MASK) == 0, 2000, 10))
+		DRM_ERROR("Timed out waiting for PSR Idle State\n");
+}
+
+void intel_edp_psr_update(struct drm_device *dev)
+{
+	struct intel_encoder *encoder;
+	struct intel_dp *intel_dp = NULL;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head)
+		if (encoder->type == INTEL_OUTPUT_EDP) {
+			intel_dp = enc_to_intel_dp(&encoder->base);
+
+			if (!is_edp_psr(intel_dp))
+				return;
+
+			if (!intel_edp_psr_match_conditions(intel_dp))
+				intel_edp_psr_disable(intel_dp);
+			else
+				if (!intel_edp_is_psr_enabled(dev))
+					intel_edp_psr_do_enable(intel_dp);
+		}
 }
 
 static void intel_disable_dp(struct intel_encoder *encoder)
@@ -2282,6 +2565,13 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] == 0)
 		return false; /* DPCD not present */
 
+	/* Check if the panel supports PSR */
+	memset(intel_dp->psr_dpcd, 0, sizeof(intel_dp->psr_dpcd));
+	intel_dp_aux_native_read_retry(intel_dp, DP_PSR_SUPPORT,
+				       intel_dp->psr_dpcd,
+				       sizeof(intel_dp->psr_dpcd));
+	if (is_edp_psr(intel_dp))
+		DRM_DEBUG_KMS("Detected EDP PSR Panel.\n");
 	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 	      DP_DWN_STRM_PORT_PRESENT))
 		return true; /* native DP sink */
@@ -2548,6 +2838,9 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status;
 	struct edid *edid = NULL;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector));
 
 	intel_dp->has_audio = false;
 
@@ -3172,6 +3465,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	error = intel_dp_i2c_init(intel_dp, intel_connector, name);
 	WARN(error, "intel_dp_i2c_init failed with error %d for port %c\n",
 	     error, port_name(port));
+
+	intel_dp->psr_setup_done = false;
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
 		i2c_del_adapter(&intel_dp->adapter);

@@ -1358,7 +1358,7 @@ cleanup_gem:
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
-	drm_mm_takedown(&dev_priv->mm.gtt_space);
+	drm_mm_takedown(&dev_priv->gtt.base.mm);
 cleanup_irq:
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
@@ -1436,22 +1436,6 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_early_sanitize_regs - clean up BIOS state
- * @dev: DRM device
- *
- * This function must be called before we do any I915_READ or I915_WRITE. Its
- * purpose is to clean up any state left by the BIOS that may affect us when
- * reading and/or writing registers.
- */
-static void intel_early_sanitize_regs(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (HAS_FPGA_DBG_UNCLAIMED(dev))
-		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
-}
-
-/**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
  * @flags: startup flags
@@ -1490,7 +1474,20 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->dev = dev;
 	dev_priv->info = info;
 
+	spin_lock_init(&dev_priv->irq_lock);
+	spin_lock_init(&dev_priv->gpu_error.lock);
+	spin_lock_init(&dev_priv->backlight.lock);
+	spin_lock_init(&dev_priv->uncore.lock);
+	spin_lock_init(&dev_priv->mm.object_stat_lock);
+	mutex_init(&dev_priv->dpio_lock);
+	mutex_init(&dev_priv->rps.hw_lock);
+	mutex_init(&dev_priv->modeset_restore_lock);
+
 	i915_dump_device_info(dev_priv);
+
+	INIT_LIST_HEAD(&dev_priv->vm_list);
+	INIT_LIST_HEAD(&dev_priv->gtt.base.global_link);
+	list_add(&dev_priv->gtt.base.global_link, &dev_priv->vm_list);
 
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;
@@ -1517,7 +1514,17 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_bridge;
 	}
 
-	intel_early_sanitize_regs(dev);
+	intel_uncore_early_sanitize(dev);
+
+	if (IS_HASWELL(dev) && (I915_READ(HSW_EDRAM_PRESENT) == 1)) {
+		/* The docs do not explain exactly how the calculation can be
+		 * made. It is somewhat guessable, but for now, it's always
+		 * 128MB.
+		 * NB: We can't write IDICR yet because we do not have gt funcs
+		 * set up */
+		dev_priv->ellc_size = 128;
+		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
+	}
 
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
@@ -1580,7 +1587,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_detect_pch(dev);
 
 	intel_irq_init(dev);
-	intel_gt_init(dev);
+	intel_pm_init(dev);
+	intel_uncore_sanitize(dev);
+	intel_uncore_init(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev);
@@ -1604,14 +1613,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 */
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
-
-	spin_lock_init(&dev_priv->irq_lock);
-	spin_lock_init(&dev_priv->gpu_error.lock);
-	spin_lock_init(&dev_priv->backlight.lock);
-	mutex_init(&dev_priv->dpio_lock);
-
-	mutex_init(&dev_priv->rps.hw_lock);
-	mutex_init(&dev_priv->modeset_restore_lock);
 
 	dev_priv->num_plane = 1;
 	if (IS_VALLEYVIEW(dev))
@@ -1642,7 +1643,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (INTEL_INFO(dev)->num_pipes) {
 		/* Must be done after probing outputs */
 		intel_opregion_init(dev);
-		acpi_video_register();
+		acpi_video_register_with_quirks();
 	}
 
 	if (IS_GEN5(dev))
@@ -1663,7 +1664,7 @@ out_gem_unload:
 out_mtrrfree:
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
 	io_mapping_free(dev_priv->gtt.mappable);
-	dev_priv->gtt.gtt_remove(dev);
+	dev_priv->gtt.base.cleanup(&dev_priv->gtt.base);
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
@@ -1748,7 +1749,9 @@ int i915_driver_unload(struct drm_device *dev)
 			i915_free_hws(dev);
 	}
 
-	drm_mm_takedown(&dev_priv->mm.gtt_space);
+	list_del(&dev_priv->gtt.base.global_link);
+	WARN_ON(!list_empty(&dev_priv->vm_list));
+	drm_mm_takedown(&dev_priv->gtt.base.mm);
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
 
@@ -1758,7 +1761,7 @@ int i915_driver_unload(struct drm_device *dev)
 	destroy_workqueue(dev_priv->wq);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
-	dev_priv->gtt.gtt_remove(dev);
+	dev_priv->gtt.base.cleanup(&dev_priv->gtt.base);
 
 	if (dev_priv->slab)
 		kmem_cache_destroy(dev_priv->slab);

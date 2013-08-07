@@ -214,7 +214,6 @@ struct trace_array {
 	struct dentry		*event_dir;
 	struct list_head	systems;
 	struct list_head	events;
-	struct task_struct	*waiter;
 	int			ref;
 };
 
@@ -680,6 +679,15 @@ extern int trace_selftest_startup_sched_switch(struct tracer *trace,
 					       struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
+/*
+ * Tracer data references selftest functions that only occur
+ * on boot up. These can be __init functions. Thus, when selftests
+ * are enabled, then the tracers need to reference __init functions.
+ */
+#define __tracer_data		__refdata
+#else
+/* Tracers are seldom changed. Optimize when selftests are disabled. */
+#define __tracer_data		__read_mostly
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);

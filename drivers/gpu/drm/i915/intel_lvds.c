@@ -109,6 +109,13 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_PVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	/* gen2/3 store dither state in pfit control, needs to match */
+	if (INTEL_INFO(dev)->gen < 4) {
+		tmp = I915_READ(PFIT_CONTROL);
+
+		pipe_config->gmch_pfit.control |= tmp & PANEL_8TO6_DITHER_ENABLE;
+	}
 }
 
 /* The LVDS pin pair needs to be on before the DPLLs are enabled.
@@ -297,14 +304,11 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 
 		intel_pch_panel_fitting(intel_crtc, pipe_config,
 					intel_connector->panel.fitting_mode);
-		return true;
 	} else {
 		intel_gmch_panel_fitting(intel_crtc, pipe_config,
 					 intel_connector->panel.fitting_mode);
-	}
 
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
-	pipe_config->timings_set = true;
+	}
 
 	/*
 	 * XXX: It would be nice to support lower refresh rates on the
@@ -338,6 +342,9 @@ intel_lvds_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, drm_get_connector_name(connector));
 
 	status = intel_panel_detect(dev);
 	if (status != connector_status_unknown)

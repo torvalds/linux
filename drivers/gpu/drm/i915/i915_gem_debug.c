@@ -97,7 +97,7 @@ i915_verify_lists(struct drm_device *dev)
 		}
 	}
 
-	list_for_each_entry(obj, &dev_priv->mm.inactive_list, list) {
+	list_for_each_entry(obj, &i915_gtt_vm->inactive_list, list) {
 		if (obj->base.dev != dev ||
 		    !atomic_read(&obj->base.refcount.refcount)) {
 			DRM_ERROR("freed inactive %p\n", obj);

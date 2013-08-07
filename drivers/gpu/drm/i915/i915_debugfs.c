@@ -135,7 +135,8 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	uintptr_t list = (uintptr_t) node->info_ent->data;
 	struct list_head *head;
 	struct drm_device *dev = node->minor->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_i915_gem_object *obj;
 	size_t total_obj_size, total_gtt_size;
 	int count, ret;
@@ -147,11 +148,11 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	switch (list) {
 	case ACTIVE_LIST:
 		seq_puts(m, "Active:\n");
-		head = &dev_priv->mm.active_list;
+		head = &vm->active_list;
 		break;
 	case INACTIVE_LIST:
 		seq_puts(m, "Inactive:\n");
-		head = &dev_priv->mm.inactive_list;
+		head = &vm->inactive_list;
 		break;
 	default:
 		mutex_unlock(&dev->struct_mutex);
@@ -219,6 +220,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	u32 count, mappable_count, purgeable_count;
 	size_t size, mappable_size, purgeable_size;
 	struct drm_i915_gem_object *obj;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_file *file;
 	int ret;
 
@@ -236,12 +238,12 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.active_list, mm_list);
+	count_objects(&vm->active_list, mm_list);
 	seq_printf(m, "  %u [%u] active objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.inactive_list, mm_list);
+	count_objects(&vm->inactive_list, mm_list);
 	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -276,8 +278,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		   count, size);
 
 	seq_printf(m, "%zu [%lu] gtt total\n",
-		   dev_priv->gtt.total,
-		   dev_priv->gtt.mappable_end - dev_priv->gtt.start);
+		   dev_priv->gtt.base.total,
+		   dev_priv->gtt.mappable_end - dev_priv->gtt.base.start);
 
 	seq_putc(m, '\n');
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
@@ -987,9 +989,9 @@ static int gen6_drpc_info(struct seq_file *m)
 	if (ret)
 		return ret;
 
-	spin_lock_irq(&dev_priv->gt_lock);
-	forcewake_count = dev_priv->forcewake_count;
-	spin_unlock_irq(&dev_priv->gt_lock);
+	spin_lock_irq(&dev_priv->uncore.lock);
+	forcewake_count = dev_priv->uncore.forcewake_count;
+	spin_unlock_irq(&dev_priv->uncore.lock);
 
 	if (forcewake_count) {
 		seq_puts(m, "RC information inaccurate because somebody "
@@ -1002,7 +1004,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	}
 
 	gt_core_status = readl(dev_priv->regs + GEN6_GT_CORE_STATUS);
-	trace_i915_reg_rw(false, GEN6_GT_CORE_STATUS, gt_core_status, 4);
+	trace_i915_reg_rw(false, GEN6_GT_CORE_STATUS, gt_core_status, 4, true);
 
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
@@ -1373,9 +1375,9 @@ static int i915_gen6_forcewake_count_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned forcewake_count;
 
-	spin_lock_irq(&dev_priv->gt_lock);
-	forcewake_count = dev_priv->forcewake_count;
-	spin_unlock_irq(&dev_priv->gt_lock);
+	spin_lock_irq(&dev_priv->uncore.lock);
+	forcewake_count = dev_priv->uncore.forcewake_count;
+	spin_unlock_irq(&dev_priv->uncore.lock);
 
 	seq_printf(m, "forcewake count = %u\n", forcewake_count);
 
@@ -1530,6 +1532,148 @@ static int i915_dpio_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_llc(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Size calculation for LLC is a bit of a pain. Ignore for now. */
+	seq_printf(m, "LLC: %s\n", yesno(HAS_LLC(dev)));
+	seq_printf(m, "eLLC: %zuMB\n", dev_priv->ellc_size);
+
+	return 0;
+}
+
+static int i915_edp_psr_status(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 psrstat, psrperf;
+
+	if (!IS_HASWELL(dev)) {
+		seq_puts(m, "PSR not supported on this platform\n");
+	} else if (IS_HASWELL(dev) && I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE) {
+		seq_puts(m, "PSR enabled\n");
+	} else {
+		seq_puts(m, "PSR disabled: ");
+		switch (dev_priv->no_psr_reason) {
+		case PSR_NO_SOURCE:
+			seq_puts(m, "not supported on this platform");
+			break;
+		case PSR_NO_SINK:
+			seq_puts(m, "not supported by panel");
+			break;
+		case PSR_MODULE_PARAM:
+			seq_puts(m, "disabled by flag");
+			break;
+		case PSR_CRTC_NOT_ACTIVE:
+			seq_puts(m, "crtc not active");
+			break;
+		case PSR_PWR_WELL_ENABLED:
+			seq_puts(m, "power well enabled");
+			break;
+		case PSR_NOT_TILED:
+			seq_puts(m, "not tiled");
+			break;
+		case PSR_SPRITE_ENABLED:
+			seq_puts(m, "sprite enabled");
+			break;
+		case PSR_S3D_ENABLED:
+			seq_puts(m, "stereo 3d enabled");
+			break;
+		case PSR_INTERLACED_ENABLED:
+			seq_puts(m, "interlaced enabled");
+			break;
+		case PSR_HSW_NOT_DDIA:
+			seq_puts(m, "HSW ties PSR to DDI A (eDP)");
+			break;
+		default:
+			seq_puts(m, "unknown reason");
+		}
+		seq_puts(m, "\n");
+		return 0;
+	}
+
+	psrstat = I915_READ(EDP_PSR_STATUS_CTL);
+
+	seq_puts(m, "PSR Current State: ");
+	switch (psrstat & EDP_PSR_STATUS_STATE_MASK) {
+	case EDP_PSR_STATUS_STATE_IDLE:
+		seq_puts(m, "Reset state\n");
+		break;
+	case EDP_PSR_STATUS_STATE_SRDONACK:
+		seq_puts(m, "Wait for TG/Stream to send on frame of data after SRD conditions are met\n");
+		break;
+	case EDP_PSR_STATUS_STATE_SRDENT:
+		seq_puts(m, "SRD entry\n");
+		break;
+	case EDP_PSR_STATUS_STATE_BUFOFF:
+		seq_puts(m, "Wait for buffer turn off\n");
+		break;
+	case EDP_PSR_STATUS_STATE_BUFON:
+		seq_puts(m, "Wait for buffer turn on\n");
+		break;
+	case EDP_PSR_STATUS_STATE_AUXACK:
+		seq_puts(m, "Wait for AUX to acknowledge on SRD exit\n");
+		break;
+	case EDP_PSR_STATUS_STATE_SRDOFFACK:
+		seq_puts(m, "Wait for TG/Stream to acknowledge the SRD VDM exit\n");
+		break;
+	default:
+		seq_puts(m, "Unknown\n");
+		break;
+	}
+
+	seq_puts(m, "Link Status: ");
+	switch (psrstat & EDP_PSR_STATUS_LINK_MASK) {
+	case EDP_PSR_STATUS_LINK_FULL_OFF:
+		seq_puts(m, "Link is fully off\n");
+		break;
+	case EDP_PSR_STATUS_LINK_FULL_ON:
+		seq_puts(m, "Link is fully on\n");
+		break;
+	case EDP_PSR_STATUS_LINK_STANDBY:
+		seq_puts(m, "Link is in standby\n");
+		break;
+	default:
+		seq_puts(m, "Unknown\n");
+		break;
+	}
+
+	seq_printf(m, "PSR Entry Count: %u\n",
+		   psrstat >> EDP_PSR_STATUS_COUNT_SHIFT &
+		   EDP_PSR_STATUS_COUNT_MASK);
+
+	seq_printf(m, "Max Sleep Timer Counter: %u\n",
+		   psrstat >> EDP_PSR_STATUS_MAX_SLEEP_TIMER_SHIFT &
+		   EDP_PSR_STATUS_MAX_SLEEP_TIMER_MASK);
+
+	seq_printf(m, "Had AUX error: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_AUX_ERROR));
+
+	seq_printf(m, "Sending AUX: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_AUX_SENDING));
+
+	seq_printf(m, "Sending Idle: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_SENDING_IDLE));
+
+	seq_printf(m, "Sending TP2 TP3: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_SENDING_TP2_TP3));
+
+	seq_printf(m, "Sending TP1: %s\n",
+		   yesno(psrstat & EDP_PSR_STATUS_SENDING_TP1));
+
+	seq_printf(m, "Idle Count: %u\n",
+		   psrstat & EDP_PSR_STATUS_IDLE_MASK);
+
+	psrperf = (I915_READ(EDP_PSR_PERF_CNT)) & EDP_PSR_PERF_CNT_MASK;
+	seq_printf(m, "Performance Counter: %u\n", psrperf);
+
+	return 0;
+}
+
 static int
 i915_wedged_get(void *data, u64 *val)
 {
@@ -1612,6 +1756,7 @@ i915_drop_caches_set(void *data, u64 val)
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj, *next;
+	struct i915_address_space *vm = &dev_priv->gtt.base;
 	int ret;
 
 	DRM_DEBUG_DRIVER("Dropping caches: 0x%08llx\n", val);
@@ -1632,7 +1777,8 @@ i915_drop_caches_set(void *data, u64 val)
 		i915_gem_retire_requests(dev);
 
 	if (val & DROP_BOUND) {
-		list_for_each_entry_safe(obj, next, &dev_priv->mm.inactive_list, mm_list)
+		list_for_each_entry_safe(obj, next, &vm->inactive_list,
+					 mm_list)
 			if (obj->pin_count == 0) {
 				ret = i915_gem_object_unbind(obj);
 				if (ret)
@@ -1959,6 +2105,8 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_swizzle_info", i915_swizzle_info, 0},
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},
 	{"i915_dpio", i915_dpio_info, 0},
+	{"i915_llc", i915_llc, 0},
+	{"i915_edp_psr_status", i915_edp_psr_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

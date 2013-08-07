@@ -2274,6 +2274,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	intel_update_fbc(dev);
+	intel_edp_psr_update(dev);
 	mutex_unlock(&dev->struct_mutex);
 
 	intel_crtc_update_sarea_pos(crtc, x, y);
@@ -4162,6 +4163,30 @@ static int i9xx_misc_get_display_clock_speed(struct drm_device *dev)
 	return 200000;
 }
 
+static int pnv_get_display_clock_speed(struct drm_device *dev)
+{
+	u16 gcfgc = 0;
+
+	pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
+
+	switch (gcfgc & GC_DISPLAY_CLOCK_MASK) {
+	case GC_DISPLAY_CLOCK_267_MHZ_PNV:
+		return 267000;
+	case GC_DISPLAY_CLOCK_333_MHZ_PNV:
+		return 333000;
+	case GC_DISPLAY_CLOCK_444_MHZ_PNV:
+		return 444000;
+	case GC_DISPLAY_CLOCK_200_MHZ_PNV:
+		return 200000;
+	default:
+		DRM_ERROR("Unknown pnv display core clock 0x%04x\n", gcfgc);
+	case GC_DISPLAY_CLOCK_133_MHZ_PNV:
+		return 133000;
+	case GC_DISPLAY_CLOCK_167_MHZ_PNV:
+		return 167000;
+	}
+}
+
 static int i915gm_get_display_clock_speed(struct drm_device *dev)
 {
 	u16 gcfgc = 0;
@@ -4946,22 +4971,19 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 	uint32_t tmp;
 
 	tmp = I915_READ(PFIT_CONTROL);
+	if (!(tmp & PFIT_ENABLE))
+		return;
 
+	/* Check whether the pfit is attached to our pipe. */
 	if (INTEL_INFO(dev)->gen < 4) {
 		if (crtc->pipe != PIPE_B)
 			return;
-
-		/* gen2/3 store dither state in pfit control, needs to match */
-		pipe_config->gmch_pfit.control = tmp & PANEL_8TO6_DITHER_ENABLE;
 	} else {
 		if ((tmp & PFIT_PIPE_MASK) != (crtc->pipe << PFIT_PIPE_SHIFT))
 			return;
 	}
 
-	if (!(tmp & PFIT_ENABLE))
-		return;
-
-	pipe_config->gmch_pfit.control = I915_READ(PFIT_CONTROL);
+	pipe_config->gmch_pfit.control = tmp;
 	pipe_config->gmch_pfit.pgm_ratios = I915_READ(PFIT_PGM_RATIOS);
 	if (INTEL_INFO(dev)->gen < 5)
 		pipe_config->gmch_pfit.lvds_border_bits =
@@ -5166,73 +5188,36 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	BUG_ON(val != final);
 }
 
-/* Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O. */
-static void lpt_init_pch_refclk(struct drm_device *dev)
+static void lpt_reset_fdi_mphy(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct intel_encoder *encoder;
-	bool has_vga = false;
-	bool is_sdv = false;
-	u32 tmp;
+	uint32_t tmp;
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
-		switch (encoder->type) {
-		case INTEL_OUTPUT_ANALOG:
-			has_vga = true;
-			break;
-		}
-	}
+	tmp = I915_READ(SOUTH_CHICKEN2);
+	tmp |= FDI_MPHY_IOSFSB_RESET_CTL;
+	I915_WRITE(SOUTH_CHICKEN2, tmp);
 
-	if (!has_vga)
-		return;
+	if (wait_for_atomic_us(I915_READ(SOUTH_CHICKEN2) &
+			       FDI_MPHY_IOSFSB_RESET_STATUS, 100))
+		DRM_ERROR("FDI mPHY reset assert timeout\n");
 
-	mutex_lock(&dev_priv->dpio_lock);
+	tmp = I915_READ(SOUTH_CHICKEN2);
+	tmp &= ~FDI_MPHY_IOSFSB_RESET_CTL;
+	I915_WRITE(SOUTH_CHICKEN2, tmp);
 
-	/* XXX: Rip out SDV support once Haswell ships for real. */
-	if (IS_HASWELL(dev) && (dev->pci_device & 0xFF00) == 0x0C00)
-		is_sdv = true;
+	if (wait_for_atomic_us((I915_READ(SOUTH_CHICKEN2) &
+				FDI_MPHY_IOSFSB_RESET_STATUS) == 0, 100))
+		DRM_ERROR("FDI mPHY reset de-assert timeout\n");
+}
 
-	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
-	tmp &= ~SBI_SSCCTL_DISABLE;
-	tmp |= SBI_SSCCTL_PATHALT;
-	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
-
-	udelay(24);
-
-	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
-	tmp &= ~SBI_SSCCTL_PATHALT;
-	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
-
-	if (!is_sdv) {
-		tmp = I915_READ(SOUTH_CHICKEN2);
-		tmp |= FDI_MPHY_IOSFSB_RESET_CTL;
-		I915_WRITE(SOUTH_CHICKEN2, tmp);
-
-		if (wait_for_atomic_us(I915_READ(SOUTH_CHICKEN2) &
-				       FDI_MPHY_IOSFSB_RESET_STATUS, 100))
-			DRM_ERROR("FDI mPHY reset assert timeout\n");
-
-		tmp = I915_READ(SOUTH_CHICKEN2);
-		tmp &= ~FDI_MPHY_IOSFSB_RESET_CTL;
-		I915_WRITE(SOUTH_CHICKEN2, tmp);
-
-		if (wait_for_atomic_us((I915_READ(SOUTH_CHICKEN2) &
-				        FDI_MPHY_IOSFSB_RESET_STATUS) == 0,
-				       100))
-			DRM_ERROR("FDI mPHY reset de-assert timeout\n");
-	}
+/* WaMPhyProgramming:hsw */
+static void lpt_program_fdi_mphy(struct drm_i915_private *dev_priv)
+{
+	uint32_t tmp;
 
 	tmp = intel_sbi_read(dev_priv, 0x8008, SBI_MPHY);
 	tmp &= ~(0xFF << 24);
 	tmp |= (0x12 << 24);
 	intel_sbi_write(dev_priv, 0x8008, tmp, SBI_MPHY);
-
-	if (is_sdv) {
-		tmp = intel_sbi_read(dev_priv, 0x800C, SBI_MPHY);
-		tmp |= 0x7FFF;
-		intel_sbi_write(dev_priv, 0x800C, tmp, SBI_MPHY);
-	}
 
 	tmp = intel_sbi_read(dev_priv, 0x2008, SBI_MPHY);
 	tmp |= (1 << 11);
@@ -5242,24 +5227,6 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	tmp |= (1 << 11);
 	intel_sbi_write(dev_priv, 0x2108, tmp, SBI_MPHY);
 
-	if (is_sdv) {
-		tmp = intel_sbi_read(dev_priv, 0x2038, SBI_MPHY);
-		tmp |= (0x3F << 24) | (0xF << 20) | (0xF << 16);
-		intel_sbi_write(dev_priv, 0x2038, tmp, SBI_MPHY);
-
-		tmp = intel_sbi_read(dev_priv, 0x2138, SBI_MPHY);
-		tmp |= (0x3F << 24) | (0xF << 20) | (0xF << 16);
-		intel_sbi_write(dev_priv, 0x2138, tmp, SBI_MPHY);
-
-		tmp = intel_sbi_read(dev_priv, 0x203C, SBI_MPHY);
-		tmp |= (0x3F << 8);
-		intel_sbi_write(dev_priv, 0x203C, tmp, SBI_MPHY);
-
-		tmp = intel_sbi_read(dev_priv, 0x213C, SBI_MPHY);
-		tmp |= (0x3F << 8);
-		intel_sbi_write(dev_priv, 0x213C, tmp, SBI_MPHY);
-	}
-
 	tmp = intel_sbi_read(dev_priv, 0x206C, SBI_MPHY);
 	tmp |= (1 << 24) | (1 << 21) | (1 << 18);
 	intel_sbi_write(dev_priv, 0x206C, tmp, SBI_MPHY);
@@ -5268,17 +5235,15 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	tmp |= (1 << 24) | (1 << 21) | (1 << 18);
 	intel_sbi_write(dev_priv, 0x216C, tmp, SBI_MPHY);
 
-	if (!is_sdv) {
-		tmp = intel_sbi_read(dev_priv, 0x2080, SBI_MPHY);
-		tmp &= ~(7 << 13);
-		tmp |= (5 << 13);
-		intel_sbi_write(dev_priv, 0x2080, tmp, SBI_MPHY);
+	tmp = intel_sbi_read(dev_priv, 0x2080, SBI_MPHY);
+	tmp &= ~(7 << 13);
+	tmp |= (5 << 13);
+	intel_sbi_write(dev_priv, 0x2080, tmp, SBI_MPHY);
 
-		tmp = intel_sbi_read(dev_priv, 0x2180, SBI_MPHY);
-		tmp &= ~(7 << 13);
-		tmp |= (5 << 13);
-		intel_sbi_write(dev_priv, 0x2180, tmp, SBI_MPHY);
-	}
+	tmp = intel_sbi_read(dev_priv, 0x2180, SBI_MPHY);
+	tmp &= ~(7 << 13);
+	tmp |= (5 << 13);
+	intel_sbi_write(dev_priv, 0x2180, tmp, SBI_MPHY);
 
 	tmp = intel_sbi_read(dev_priv, 0x208C, SBI_MPHY);
 	tmp &= ~0xFF;
@@ -5300,32 +5265,118 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	tmp |= (0x1C << 16);
 	intel_sbi_write(dev_priv, 0x2198, tmp, SBI_MPHY);
 
-	if (!is_sdv) {
-		tmp = intel_sbi_read(dev_priv, 0x20C4, SBI_MPHY);
-		tmp |= (1 << 27);
-		intel_sbi_write(dev_priv, 0x20C4, tmp, SBI_MPHY);
+	tmp = intel_sbi_read(dev_priv, 0x20C4, SBI_MPHY);
+	tmp |= (1 << 27);
+	intel_sbi_write(dev_priv, 0x20C4, tmp, SBI_MPHY);
 
-		tmp = intel_sbi_read(dev_priv, 0x21C4, SBI_MPHY);
-		tmp |= (1 << 27);
-		intel_sbi_write(dev_priv, 0x21C4, tmp, SBI_MPHY);
+	tmp = intel_sbi_read(dev_priv, 0x21C4, SBI_MPHY);
+	tmp |= (1 << 27);
+	intel_sbi_write(dev_priv, 0x21C4, tmp, SBI_MPHY);
 
-		tmp = intel_sbi_read(dev_priv, 0x20EC, SBI_MPHY);
-		tmp &= ~(0xF << 28);
-		tmp |= (4 << 28);
-		intel_sbi_write(dev_priv, 0x20EC, tmp, SBI_MPHY);
+	tmp = intel_sbi_read(dev_priv, 0x20EC, SBI_MPHY);
+	tmp &= ~(0xF << 28);
+	tmp |= (4 << 28);
+	intel_sbi_write(dev_priv, 0x20EC, tmp, SBI_MPHY);
 
-		tmp = intel_sbi_read(dev_priv, 0x21EC, SBI_MPHY);
-		tmp &= ~(0xF << 28);
-		tmp |= (4 << 28);
-		intel_sbi_write(dev_priv, 0x21EC, tmp, SBI_MPHY);
+	tmp = intel_sbi_read(dev_priv, 0x21EC, SBI_MPHY);
+	tmp &= ~(0xF << 28);
+	tmp |= (4 << 28);
+	intel_sbi_write(dev_priv, 0x21EC, tmp, SBI_MPHY);
+}
+
+/* Implements 3 different sequences from BSpec chapter "Display iCLK
+ * Programming" based on the parameters passed:
+ * - Sequence to enable CLKOUT_DP
+ * - Sequence to enable CLKOUT_DP without spread
+ * - Sequence to enable CLKOUT_DP for FDI usage and configure PCH FDI I/O
+ */
+static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
+				 bool with_fdi)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t reg, tmp;
+
+	if (WARN(with_fdi && !with_spread, "FDI requires downspread\n"))
+		with_spread = true;
+	if (WARN(dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE &&
+		 with_fdi, "LP PCH doesn't have FDI\n"))
+		with_fdi = false;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	tmp &= ~SBI_SSCCTL_DISABLE;
+	tmp |= SBI_SSCCTL_PATHALT;
+	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+
+	udelay(24);
+
+	if (with_spread) {
+		tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+		tmp &= ~SBI_SSCCTL_PATHALT;
+		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+
+		if (with_fdi) {
+			lpt_reset_fdi_mphy(dev_priv);
+			lpt_program_fdi_mphy(dev_priv);
+		}
 	}
 
-	/* ULT uses SBI_GEN0, but ULT doesn't have VGA, so we don't care. */
-	tmp = intel_sbi_read(dev_priv, SBI_DBUFF0, SBI_ICLK);
-	tmp |= SBI_DBUFF0_ENABLE;
-	intel_sbi_write(dev_priv, SBI_DBUFF0, tmp, SBI_ICLK);
+	reg = (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) ?
+	       SBI_GEN0 : SBI_DBUFF0;
+	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
+	tmp |= SBI_GEN0_CFG_BUFFENABLE_DISABLE;
+	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
 
 	mutex_unlock(&dev_priv->dpio_lock);
+}
+
+/* Sequence to disable CLKOUT_DP */
+static void lpt_disable_clkout_dp(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t reg, tmp;
+
+	mutex_lock(&dev_priv->dpio_lock);
+
+	reg = (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) ?
+	       SBI_GEN0 : SBI_DBUFF0;
+	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
+	tmp &= ~SBI_GEN0_CFG_BUFFENABLE_DISABLE;
+	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
+
+	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	if (!(tmp & SBI_SSCCTL_DISABLE)) {
+		if (!(tmp & SBI_SSCCTL_PATHALT)) {
+			tmp |= SBI_SSCCTL_PATHALT;
+			intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+			udelay(32);
+		}
+		tmp |= SBI_SSCCTL_DISABLE;
+		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+	}
+
+	mutex_unlock(&dev_priv->dpio_lock);
+}
+
+static void lpt_init_pch_refclk(struct drm_device *dev)
+{
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
+	bool has_vga = false;
+
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
+		switch (encoder->type) {
+		case INTEL_OUTPUT_ANALOG:
+			has_vga = true;
+			break;
+		}
+	}
+
+	if (has_vga)
+		lpt_enable_clkout_dp(dev, true, true);
+	else
+		lpt_disable_clkout_dp(dev);
 }
 
 /*
@@ -5893,6 +5944,142 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	ironlake_get_pfit_config(crtc, pipe_config);
 
 	return true;
+}
+
+static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
+	struct intel_crtc *crtc;
+	unsigned long irqflags;
+	uint32_t val, pch_hpd_mask;
+
+	pch_hpd_mask = SDE_PORTB_HOTPLUG_CPT | SDE_PORTC_HOTPLUG_CPT;
+	if (!(dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE))
+		pch_hpd_mask |= SDE_PORTD_HOTPLUG_CPT | SDE_CRT_HOTPLUG_CPT;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
+		WARN(crtc->base.enabled, "CRTC for pipe %c enabled\n",
+		     pipe_name(crtc->pipe));
+
+	WARN(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on\n");
+	WARN(plls->spll_refcount, "SPLL enabled\n");
+	WARN(plls->wrpll1_refcount, "WRPLL1 enabled\n");
+	WARN(plls->wrpll2_refcount, "WRPLL2 enabled\n");
+	WARN(I915_READ(PCH_PP_STATUS) & PP_ON, "Panel power on\n");
+	WARN(I915_READ(BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
+	     "CPU PWM1 enabled\n");
+	WARN(I915_READ(HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
+	     "CPU PWM2 enabled\n");
+	WARN(I915_READ(BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
+	     "PCH PWM1 enabled\n");
+	WARN(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
+	     "Utility pin enabled\n");
+	WARN(I915_READ(PCH_GTC_CTL) & PCH_GTC_ENABLE, "PCH GTC enabled\n");
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	val = I915_READ(DEIMR);
+	WARN((val & ~DE_PCH_EVENT_IVB) != val,
+	     "Unexpected DEIMR bits enabled: 0x%x\n", val);
+	val = I915_READ(SDEIMR);
+	WARN((val & ~pch_hpd_mask) != val,
+	     "Unexpected SDEIMR bits enabled: 0x%x\n", val);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+/*
+ * This function implements pieces of two sequences from BSpec:
+ * - Sequence for display software to disable LCPLL
+ * - Sequence for display software to allow package C8+
+ * The steps implemented here are just the steps that actually touch the LCPLL
+ * register. Callers should take care of disabling all the display engine
+ * functions, doing the mode unset, fixing interrupts, etc.
+ */
+void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
+		       bool switch_to_fclk, bool allow_power_down)
+{
+	uint32_t val;
+
+	assert_can_disable_lcpll(dev_priv);
+
+	val = I915_READ(LCPLL_CTL);
+
+	if (switch_to_fclk) {
+		val |= LCPLL_CD_SOURCE_FCLK;
+		I915_WRITE(LCPLL_CTL, val);
+
+		if (wait_for_atomic_us(I915_READ(LCPLL_CTL) &
+				       LCPLL_CD_SOURCE_FCLK_DONE, 1))
+			DRM_ERROR("Switching to FCLK failed\n");
+
+		val = I915_READ(LCPLL_CTL);
+	}
+
+	val |= LCPLL_PLL_DISABLE;
+	I915_WRITE(LCPLL_CTL, val);
+	POSTING_READ(LCPLL_CTL);
+
+	if (wait_for((I915_READ(LCPLL_CTL) & LCPLL_PLL_LOCK) == 0, 1))
+		DRM_ERROR("LCPLL still locked\n");
+
+	val = I915_READ(D_COMP);
+	val |= D_COMP_COMP_DISABLE;
+	I915_WRITE(D_COMP, val);
+	POSTING_READ(D_COMP);
+	ndelay(100);
+
+	if (wait_for((I915_READ(D_COMP) & D_COMP_RCOMP_IN_PROGRESS) == 0, 1))
+		DRM_ERROR("D_COMP RCOMP still in progress\n");
+
+	if (allow_power_down) {
+		val = I915_READ(LCPLL_CTL);
+		val |= LCPLL_POWER_DOWN_ALLOW;
+		I915_WRITE(LCPLL_CTL, val);
+		POSTING_READ(LCPLL_CTL);
+	}
+}
+
+/*
+ * Fully restores LCPLL, disallowing power down and switching back to LCPLL
+ * source.
+ */
+void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
+{
+	uint32_t val;
+
+	val = I915_READ(LCPLL_CTL);
+
+	if ((val & (LCPLL_PLL_LOCK | LCPLL_PLL_DISABLE | LCPLL_CD_SOURCE_FCLK |
+		    LCPLL_POWER_DOWN_ALLOW)) == LCPLL_PLL_LOCK)
+		return;
+
+	if (val & LCPLL_POWER_DOWN_ALLOW) {
+		val &= ~LCPLL_POWER_DOWN_ALLOW;
+		I915_WRITE(LCPLL_CTL, val);
+	}
+
+	val = I915_READ(D_COMP);
+	val |= D_COMP_COMP_FORCE;
+	val &= ~D_COMP_COMP_DISABLE;
+	I915_WRITE(D_COMP, val);
+	I915_READ(D_COMP);
+
+	val = I915_READ(LCPLL_CTL);
+	val &= ~LCPLL_PLL_DISABLE;
+	I915_WRITE(LCPLL_CTL, val);
+
+	if (wait_for(I915_READ(LCPLL_CTL) & LCPLL_PLL_LOCK, 5))
+		DRM_ERROR("LCPLL not locked yet\n");
+
+	if (val & LCPLL_CD_SOURCE_FCLK) {
+		val = I915_READ(LCPLL_CTL);
+		val &= ~LCPLL_CD_SOURCE_FCLK;
+		I915_WRITE(LCPLL_CTL, val);
+
+		if (wait_for_atomic_us((I915_READ(LCPLL_CTL) &
+					LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
+			DRM_ERROR("Switching back to LCPLL failed\n");
+	}
 }
 
 static void haswell_modeset_global_resources(struct drm_device *dev)
@@ -8434,6 +8621,8 @@ check_shared_dpll_state(struct drm_device *dev)
 		     pll->active, pll->refcount);
 		WARN(pll->active && !pll->on,
 		     "pll in active use but not on in sw tracking\n");
+		WARN(pll->on && !pll->active,
+		     "pll in on but not on in use in sw tracking\n");
 		WARN(pll->on != active,
 		     "pll on state mismatch (expected %i, found %i)\n",
 		     pll->on, active);
@@ -8658,15 +8847,20 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 }
 
 static bool
-is_crtc_connector_off(struct drm_crtc *crtc, struct drm_connector *connectors,
-		      int num_connectors)
+is_crtc_connector_off(struct drm_mode_set *set)
 {
 	int i;
 
-	for (i = 0; i < num_connectors; i++)
-		if (connectors[i].encoder &&
-		    connectors[i].encoder->crtc == crtc &&
-		    connectors[i].dpms != DRM_MODE_DPMS_ON)
+	if (set->num_connectors == 0)
+		return false;
+
+	if (WARN_ON(set->connectors == NULL))
+		return false;
+
+	for (i = 0; i < set->num_connectors; i++)
+		if (set->connectors[i]->encoder &&
+		    set->connectors[i]->encoder->crtc == set->crtc &&
+		    set->connectors[i]->dpms != DRM_MODE_DPMS_ON)
 			return true;
 
 	return false;
@@ -8679,10 +8873,8 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
-	if (set->connectors != NULL &&
-	    is_crtc_connector_off(set->crtc, *set->connectors,
-				  set->num_connectors)) {
-			config->mode_changed = true;
+	if (is_crtc_connector_off(set)) {
+		config->mode_changed = true;
 	} else if (set->crtc->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
 		if (set->crtc->fb == NULL) {
@@ -9437,9 +9629,12 @@ static void intel_init_display(struct drm_device *dev)
 	else if (IS_I915G(dev))
 		dev_priv->display.get_display_clock_speed =
 			i915_get_display_clock_speed;
-	else if (IS_I945GM(dev) || IS_845G(dev) || IS_PINEVIEW_M(dev))
+	else if (IS_I945GM(dev) || IS_845G(dev))
 		dev_priv->display.get_display_clock_speed =
 			i9xx_misc_get_display_clock_speed;
+	else if (IS_PINEVIEW(dev))
+		dev_priv->display.get_display_clock_speed =
+			pnv_get_display_clock_speed;
 	else if (IS_I915GM(dev))
 		dev_priv->display.get_display_clock_speed =
 			i915gm_get_display_clock_speed;
@@ -9536,6 +9731,17 @@ static void quirk_invert_brightness(struct drm_device *dev)
 	DRM_INFO("applying inverted panel brightness quirk\n");
 }
 
+/*
+ * Some machines (Dell XPS13) suffer broken backlight controls if
+ * BLM_PCH_PWM_ENABLE is set.
+ */
+static void quirk_no_pcm_pwm_enable(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	dev_priv->quirks |= QUIRK_NO_PCH_PWM_ENABLE;
+	DRM_INFO("applying no-PCH_PWM_ENABLE quirk\n");
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
@@ -9605,6 +9811,11 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* Acer Aspire 4736Z */
 	{ 0x2a42, 0x1025, 0x0260, quirk_invert_brightness },
+
+	/* Dell XPS13 HD Sandy Bridge */
+	{ 0x0116, 0x1028, 0x052e, quirk_no_pcm_pwm_enable },
+	/* Dell XPS13 HD and XPS13 FHD Ivy Bridge */
+	{ 0x0166, 0x1028, 0x058b, quirk_no_pcm_pwm_enable },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
@@ -9955,8 +10166,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		}
 		pll->refcount = pll->active;
 
-		DRM_DEBUG_KMS("%s hw state readout: refcount %i\n",
-			      pll->name, pll->refcount);
+		DRM_DEBUG_KMS("%s hw state readout: refcount %i, on %i\n",
+			      pll->name, pll->refcount, pll->on);
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
@@ -10016,6 +10227,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	struct drm_plane *plane;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
+	int i;
 
 	intel_modeset_readout_hw_state(dev);
 
@@ -10045,6 +10257,18 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 		intel_sanitize_crtc(crtc);
 		intel_dump_pipe_config(crtc, &crtc->config, "[setup_hw_state]");
+	}
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+
+		if (!pll->on || pll->active)
+			continue;
+
+		DRM_DEBUG_KMS("%s enabled but not in use, disabling\n", pll->name);
+
+		pll->disable(dev_priv, pll);
+		pll->on = false;
 	}
 
 	if (force_restore) {
@@ -10256,8 +10480,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 	 * well was on, so here we have to clear the FPGA_DBG_RM_NOCLAIM bit to
 	 * prevent the next I915_WRITE from detecting it and printing an error
 	 * message. */
-	if (HAS_POWER_WELL(dev))
-		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+	intel_uncore_clear_errors(dev);
 
 	return error;
 }
