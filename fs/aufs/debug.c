@@ -87,7 +87,7 @@ static int do_pri_inode(aufs_bindex_t bindex, struct inode *inode, int hn,
 		return -1;
 	}
 
-	/* the type of i_blocks depends upon CONFIG_LSF */
+	/* the type of i_blocks depends upon CONFIG_LBDAF */
 	BUILD_BUG_ON(sizeof(inode->i_blocks) != sizeof(unsigned long)
 		     && sizeof(inode->i_blocks) != sizeof(u64));
 	if (wh) {
