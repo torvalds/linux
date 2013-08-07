@@ -85,6 +85,7 @@ struct dso {
 	u8		 lname_alloc:1;
 	u8		 sorted_by_name;
 	u8		 loaded;
+	u8		 rel;
 	u8		 build_id[BUILD_ID_SIZE];
 	const char	 *short_name;
 	char		 *long_name;

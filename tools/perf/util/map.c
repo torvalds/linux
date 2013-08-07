@@ -248,14 +248,18 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 
 /*
  * objdump wants/reports absolute IPs for ET_EXEC, and RIPs for ET_DYN.
- * map->dso->adjust_symbols==1 for ET_EXEC-like cases.
+ * map->dso->adjust_symbols==1 for ET_EXEC-like cases except ET_REL which is
+ * relative to section start.
  */
 u64 map__rip_2objdump(struct map *map, u64 rip)
 {
-	u64 addr = map->dso->adjust_symbols ?
-			map->unmap_ip(map, rip) :	/* RIP -> IP */
-			rip;
-	return addr;
+	if (!map->dso->adjust_symbols)
+		return rip;
+
+	if (map->dso->rel)
+		return rip - map->pgoff;
+
+	return map->unmap_ip(map, rip);
 }
 
 void map_groups__init(struct map_groups *mg)

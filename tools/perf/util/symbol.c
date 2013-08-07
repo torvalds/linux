@@ -854,10 +854,15 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	if (!runtime_ss && syms_ss)
 		runtime_ss = syms_ss;
 
-	if (syms_ss)
-		ret = dso__load_sym(dso, map, syms_ss, runtime_ss, filter, 0);
-	else
+	if (syms_ss) {
+		int km;
+
+		km = dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE ||
+		     dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE;
+		ret = dso__load_sym(dso, map, syms_ss, runtime_ss, filter, km);
+	} else {
 		ret = -1;
+	}
 
 	if (ret > 0) {
 		int nr_plt;

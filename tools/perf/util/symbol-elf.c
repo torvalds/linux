@@ -599,11 +599,13 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	if (dso->kernel == DSO_TYPE_USER) {
 		GElf_Shdr shdr;
 		ss->adjust_symbols = (ehdr.e_type == ET_EXEC ||
+				ehdr.e_type == ET_REL ||
 				elf_section_by_name(elf, &ehdr, &shdr,
 						     ".gnu.prelink_undo",
 						     NULL) != NULL);
 	} else {
-		ss->adjust_symbols = ehdr.e_type == ET_EXEC;
+		ss->adjust_symbols = ehdr.e_type == ET_EXEC ||
+				     ehdr.e_type == ET_REL;
 	}
 
 	ss->name   = strdup(name);
@@ -676,6 +678,14 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	bool remap_kernel = false, adjust_kernel_syms = false;
 
 	dso->symtab_type = syms_ss->type;
+	dso->rel = syms_ss->ehdr.e_type == ET_REL;
+
+	/*
+	 * Modules may already have symbols from kallsyms, but those symbols
+	 * have the wrong values for the dso maps, so remove them.
+	 */
+	if (kmodule && syms_ss->symtab)
+		symbols__delete(&dso->symbols[map->type]);
 
 	if (!syms_ss->symtab) {
 		syms_ss->symtab  = syms_ss->dynsym;
@@ -828,10 +838,23 @@ int dso__load_sym(struct dso *dso, struct map *map,
 					map_groups__insert(kmap->kmaps, map);
 				}
 
+				/*
+				 * The initial module mapping is based on
+				 * /proc/modules mapped to offset zero.
+				 * Overwrite it to map to the module dso.
+				 */
+				if (remap_kernel && kmodule) {
+					remap_kernel = false;
+					map->pgoff = shdr.sh_offset;
+				}
+
 				curr_map = map;
 				curr_dso = dso;
 				goto new_symbol;
 			}
+
+			if (!kmap)
+				goto new_symbol;
 
 			snprintf(dso_name, sizeof(dso_name),
 				 "%s%s", dso->short_name, section_name);
