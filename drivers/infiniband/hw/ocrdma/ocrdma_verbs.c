@@ -337,20 +337,21 @@ static int ocrdma_copy_pd_uresp(struct ocrdma_pd *pd,
 	u32 db_page_size;
 	struct ocrdma_alloc_pd_uresp rsp;
 	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ib_ctx);
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
 	memset(&rsp, 0, sizeof(rsp));
 	rsp.id = pd->id;
 	rsp.dpp_enabled = pd->dpp_enabled;
-	db_page_addr = pd->dev->nic_info.unmapped_db +
-			(pd->id * pd->dev->nic_info.db_page_size);
-	db_page_size = pd->dev->nic_info.db_page_size;
+	db_page_addr = dev->nic_info.unmapped_db +
+			(pd->id * dev->nic_info.db_page_size);
+	db_page_size = dev->nic_info.db_page_size;
 
 	status = ocrdma_add_mmap(uctx, db_page_addr, db_page_size);
 	if (status)
 		return status;
 
 	if (pd->dpp_enabled) {
-		dpp_page_addr = pd->dev->nic_info.dpp_unmapped_addr +
+		dpp_page_addr = dev->nic_info.dpp_unmapped_addr +
 				(pd->id * OCRDMA_DPP_PAGE_SIZE);
 		status = ocrdma_add_mmap(uctx, dpp_page_addr,
 				 OCRDMA_DPP_PAGE_SIZE);
@@ -386,10 +387,9 @@ struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
-	pd->dev = dev;
 	if (udata && context) {
-		pd->dpp_enabled = (dev->nic_info.dev_family ==
-					OCRDMA_GEN2_FAMILY) ? true : false;
+		pd->dpp_enabled =
+			(dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY);
 		pd->num_dpp_qp =
 			pd->dpp_enabled ? OCRDMA_PD_MAX_DPP_ENABLED_QP : 0;
 	}
@@ -414,7 +414,7 @@ err:
 int ocrdma_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
-	struct ocrdma_dev *dev = pd->dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	int status;
 	u64 usr_db;
 
@@ -432,25 +432,12 @@ int ocrdma_dealloc_pd(struct ib_pd *ibpd)
 	return status;
 }
 
-static struct ocrdma_mr *ocrdma_alloc_lkey(struct ib_pd *ibpd,
-					   int acc, u32 num_pbls,
-					   u32 addr_check)
+static int ocrdma_alloc_lkey(struct ocrdma_mr *mr, u32 pdid, int acc,
+			    u32 num_pbls, u32 addr_check)
 {
 	int status;
-	struct ocrdma_mr *mr;
-	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
-	struct ocrdma_dev *dev = pd->dev;
+	struct ocrdma_dev *dev = mr->hwmr.dev;
 
-	if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE)) {
-		pr_err("%s(%d) leaving err, invalid access rights\n",
-		       __func__, dev->id);
-		return ERR_PTR(-EINVAL);
-	}
-
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr)
-		return ERR_PTR(-ENOMEM);
-	mr->hwmr.dev = dev;
 	mr->hwmr.fr_mr = 0;
 	mr->hwmr.local_rd = 1;
 	mr->hwmr.remote_rd = (acc & IB_ACCESS_REMOTE_READ) ? 1 : 0;
@@ -460,25 +447,39 @@ static struct ocrdma_mr *ocrdma_alloc_lkey(struct ib_pd *ibpd,
 	mr->hwmr.remote_atomic = (acc & IB_ACCESS_REMOTE_ATOMIC) ? 1 : 0;
 	mr->hwmr.num_pbls = num_pbls;
 
-	status = ocrdma_mbx_alloc_lkey(dev, &mr->hwmr, pd->id, addr_check);
-	if (status) {
-		kfree(mr);
-		return ERR_PTR(-ENOMEM);
-	}
-	mr->pd = pd;
+	status = ocrdma_mbx_alloc_lkey(dev, &mr->hwmr, pdid, addr_check);
+	if (status)
+		return status;
+
 	mr->ibmr.lkey = mr->hwmr.lkey;
 	if (mr->hwmr.remote_wr || mr->hwmr.remote_rd)
 		mr->ibmr.rkey = mr->hwmr.lkey;
-	return mr;
+	return 0;
 }
 
 struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *ibpd, int acc)
 {
+	int status;
 	struct ocrdma_mr *mr;
+	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 
-	mr = ocrdma_alloc_lkey(ibpd, acc, 0, OCRDMA_ADDR_CHECK_DISABLE);
-	if (IS_ERR(mr))
-		return ERR_CAST(mr);
+	if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE)) {
+		pr_err("%s err, invalid access rights\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
+
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	mr->hwmr.dev = dev;
+	status = ocrdma_alloc_lkey(mr, pd->id, acc, 0,
+				   OCRDMA_ADDR_CHECK_DISABLE);
+	if (status) {
+		kfree(mr);
+		return ERR_PTR(status);
+	}
 
 	return &mr->ibmr;
 }
@@ -613,13 +614,12 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 				 u64 usr_addr, int acc, struct ib_udata *udata)
 {
 	int status = -ENOMEM;
-	struct ocrdma_dev *dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	struct ocrdma_mr *mr;
 	struct ocrdma_pd *pd;
 	u32 num_pbes;
 
 	pd = get_ocrdma_pd(ibpd);
-	dev = pd->dev;
 
 	if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE))
 		return ERR_PTR(-EINVAL);
@@ -654,7 +654,6 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	status = ocrdma_reg_mr(dev, &mr->hwmr, pd->id, acc);
 	if (status)
 		goto mbx_err;
-	mr->pd = pd;
 	mr->ibmr.lkey = mr->hwmr.lkey;
 	if (mr->hwmr.remote_wr || mr->hwmr.remote_rd)
 		mr->ibmr.rkey = mr->hwmr.lkey;
@@ -1026,7 +1025,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	int status;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_qp *qp;
-	struct ocrdma_dev *dev = pd->dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	struct ocrdma_create_qp_ureq ureq;
 	u16 dpp_credit_lmt, dpp_offset;
 
@@ -1360,17 +1359,18 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 		 */
 		discard_cnt += 1;
 		cqe->cmn.qpn = 0;
-		if (is_cqe_for_sq(cqe))
+		if (is_cqe_for_sq(cqe)) {
 			ocrdma_hwq_inc_tail(&qp->sq);
-		else {
+		} else {
 			if (qp->srq) {
 				spin_lock_irqsave(&qp->srq->q_lock, flags);
 				ocrdma_hwq_inc_tail(&qp->srq->rq);
 				ocrdma_srq_toggle_bit(qp->srq, cur_getp);
 				spin_unlock_irqrestore(&qp->srq->q_lock, flags);
 
-			} else
+			} else {
 				ocrdma_hwq_inc_tail(&qp->rq);
+			}
 		}
 skip_cqe:
 		cur_getp = (cur_getp + 1) % cq->max_hw_cqe;
@@ -1495,7 +1495,7 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 {
 	int status = -ENOMEM;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
-	struct ocrdma_dev *dev = pd->dev;
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	struct ocrdma_srq *srq;
 
 	if (init_attr->attr.max_sge > dev->attr.max_recv_sge)
@@ -1675,8 +1675,9 @@ static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 		ocrdma_build_ud_hdr(qp, hdr, wr);
 		sge = (struct ocrdma_sge *)(hdr + 2);
 		wqe_size += sizeof(struct ocrdma_ewqe_ud_hdr);
-	} else
+	} else {
 		sge = (struct ocrdma_sge *)(hdr + 1);
+	}
 
 	status = ocrdma_build_inline_sges(qp, hdr, sge, wr, wqe_size);
 	return status;
@@ -1958,7 +1959,7 @@ int ocrdma_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 static enum ib_wc_status ocrdma_to_ibwc_err(u16 status)
 {
-	enum ib_wc_status ibwc_status = IB_WC_GENERAL_ERR;
+	enum ib_wc_status ibwc_status;
 
 	switch (status) {
 	case OCRDMA_CQE_GENERAL_ERR:
@@ -2299,9 +2300,9 @@ static void ocrdma_poll_success_rcqe(struct ocrdma_qp *qp,
 		ibwc->ex.invalidate_rkey = le32_to_cpu(cqe->rq.lkey_immdt);
 		ibwc->wc_flags |= IB_WC_WITH_INVALIDATE;
 	}
-	if (qp->ibqp.srq)
+	if (qp->ibqp.srq) {
 		ocrdma_update_free_srq_cqe(ibwc, cqe, qp);
-	else {
+	} else {
 		ibwc->wr_id = qp->rqe_wr_id_tbl[qp->rq.tail];
 		ocrdma_hwq_inc_tail(&qp->rq);
 	}
@@ -2314,13 +2315,14 @@ static bool ocrdma_poll_rcqe(struct ocrdma_qp *qp, struct ocrdma_cqe *cqe,
 	bool expand = false;
 
 	ibwc->wc_flags = 0;
-	if (qp->qp_type == IB_QPT_UD || qp->qp_type == IB_QPT_GSI)
+	if (qp->qp_type == IB_QPT_UD || qp->qp_type == IB_QPT_GSI) {
 		status = (le32_to_cpu(cqe->flags_status_srcqpn) &
 					OCRDMA_CQE_UD_STATUS_MASK) >>
 					OCRDMA_CQE_UD_STATUS_SHIFT;
-	else
+	} else {
 		status = (le32_to_cpu(cqe->flags_status_srcqpn) &
 			     OCRDMA_CQE_STATUS_MASK) >> OCRDMA_CQE_STATUS_SHIFT;
+	}
 
 	if (status == OCRDMA_CQE_SUCCESS) {
 		*polled = true;
@@ -2338,9 +2340,10 @@ static void ocrdma_change_cq_phase(struct ocrdma_cq *cq, struct ocrdma_cqe *cqe,
 	if (cq->phase_change) {
 		if (cur_getp == 0)
 			cq->phase = (~cq->phase & OCRDMA_CQE_VALID);
-	} else
+	} else {
 		/* clear valid bit */
 		cqe->flags_status_srcqpn = 0;
+	}
 }
 
 static int ocrdma_poll_hwcq(struct ocrdma_cq *cq, int num_entries,
@@ -2417,8 +2420,9 @@ static int ocrdma_add_err_cqe(struct ocrdma_cq *cq, int num_entries,
 		} else if (!is_hw_rq_empty(qp) && qp->rq_cq == cq) {
 			ibwc->wr_id = qp->rqe_wr_id_tbl[qp->rq.tail];
 			ocrdma_hwq_inc_tail(&qp->rq);
-		} else
+		} else {
 			return err_cqes;
+		}
 		ibwc->byte_len = 0;
 		ibwc->status = IB_WC_WR_FLUSH_ERR;
 		ibwc = ibwc + 1;

@@ -317,7 +317,6 @@ struct ocrdma_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
 	struct ocrdma_hw_mr hwmr;
-	struct ocrdma_pd *pd;
 };
 
 struct ocrdma_ucontext {
@@ -393,7 +392,7 @@ static inline int is_cqe_valid(struct ocrdma_cq *cq, struct ocrdma_cqe *cqe)
 {
 	int cqe_valid;
 	cqe_valid = le32_to_cpu(cqe->flags_status_srcqpn) & OCRDMA_CQE_VALID;
-	return ((cqe_valid == cq->phase) ? 1 : 0);
+	return (cqe_valid == cq->phase);
 }
 
 static inline int is_cqe_for_sq(struct ocrdma_cqe *cqe)
