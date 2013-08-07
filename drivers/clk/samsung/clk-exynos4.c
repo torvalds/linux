@@ -194,7 +194,7 @@ enum exynos4_clks {
  * list of controller registers to be saved and restored during a
  * suspend/resume cycle.
  */
-static __initdata unsigned long exynos4210_clk_save[] = {
+static unsigned long exynos4210_clk_save[] __initdata = {
 	E4210_SRC_IMAGE,
 	E4210_SRC_LCD1,
 	E4210_SRC_MASK_LCD1,
@@ -205,7 +205,7 @@ static __initdata unsigned long exynos4210_clk_save[] = {
 	E4210_MPLL_CON0,
 };
 
-static __initdata unsigned long exynos4x12_clk_save[] = {
+static unsigned long exynos4x12_clk_save[] __initdata = {
 	E4X12_GATE_IP_IMAGE,
 	E4X12_GATE_IP_PERIR,
 	E4X12_SRC_CAM1,
@@ -214,7 +214,7 @@ static __initdata unsigned long exynos4x12_clk_save[] = {
 	E4X12_MPLL_CON0,
 };
 
-static __initdata unsigned long exynos4_clk_regs[] = {
+static unsigned long exynos4_clk_regs[] __initdata = {
 	SRC_LEFTBUS,
 	DIV_LEFTBUS,
 	GATE_IP_LEFTBUS,
@@ -978,13 +978,13 @@ static void __init exynos4_clk_register_finpll(unsigned long xom)
 
 }
 
-static __initdata struct of_device_id ext_clk_match[] = {
+static struct of_device_id ext_clk_match[] __initdata = {
 	{ .compatible = "samsung,clock-xxti", .data = (void *)0, },
 	{ .compatible = "samsung,clock-xusbxti", .data = (void *)1, },
 	{},
 };
 
-static struct __initdata samsung_pll_clock exynos4_plls[nr_plls] = {
+static struct samsung_pll_clock exynos4_plls[nr_plls] __initdata = {
 	[apll] = PLL_A(pll_35xx, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, "fout_apll", NULL),
 	[mpll] = PLL_A(pll_35xx, fout_mpll, "fout_mpll", "fin_pll",
