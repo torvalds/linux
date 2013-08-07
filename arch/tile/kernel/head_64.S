@@ -25,6 +25,15 @@
 #include <arch/chip.h>
 #include <arch/spr_def.h>
 
+/* Extract two 32-bit bit values that were read into one register. */
+#ifdef __BIG_ENDIAN__
+#define GET_FIRST_INT(rd, rs) shrsi rd, rs, 32
+#define GET_SECOND_INT(rd, rs) addxi rd, rs, 0
+#else
+#define GET_FIRST_INT(rd, rs) addxi rd, rs, 0
+#define GET_SECOND_INT(rd, rs) shrsi rd, rs, 32
+#endif
+
 /*
  * This module contains the entry code for kernel images. It performs the
  * minimal setup needed to call the generic C routines.
@@ -61,7 +70,7 @@ ENTRY(_start)
 	 * other CPUs should see a properly-constructed page table.
 	 */
 	{
-	  v4int_l r2, zero, r0    /* ASID for hv_install_context */
+	  GET_FIRST_INT(r2, r0)    /* ASID for hv_install_context */
 	  moveli r4, hw1_last(swapper_pgprot - PAGE_OFFSET)
 	}
 	{
@@ -131,19 +140,14 @@ ENTRY(_start)
 	shl16insli r0, r0, hw0(MEM_SV_START)
 	mtspr SPR_INTERRUPT_VECTOR_BASE_K, r0
 
-	/*
-	 * Get our processor number and save it away in SAVE_K_0.
-	 * Extract stuff from the topology structure: r4 = y, r6 = x,
-	 * r5 = width.  FIXME: consider whether we want to just make these
-	 * 64-bit values (and if so fix smp_topology write below, too).
-	 */
+	/* Get our processor number and save it away in SAVE_K_0. */
 	jal hv_inquire_topology
 	{
-	  v4int_l r5, zero, r1    /* r5 = width */
-	  shrui r4, r0, 32        /* r4 = y */
+	  GET_FIRST_INT(r5, r1)   /* r5 = width */
+	  GET_SECOND_INT(r4, r0)  /* r4 = y */
 	}
 	{
-	  v4int_l r6, zero, r0    /* r6 = x */
+	  GET_FIRST_INT(r6, r0)   /* r6 = x */
 	  mul_lu_lu r4, r4, r5
 	}
 	{
