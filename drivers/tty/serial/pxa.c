@@ -332,31 +332,6 @@ static void serial_pxa_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
-#if 0
-static void serial_pxa_dma_init(struct pxa_uart *up)
-{
-	up->rxdma =
-		pxa_request_dma(up->name, DMA_PRIO_LOW, pxa_receive_dma, up);
-	if (up->rxdma < 0)
-		goto out;
-	up->txdma =
-		pxa_request_dma(up->name, DMA_PRIO_LOW, pxa_transmit_dma, up);
-	if (up->txdma < 0)
-		goto err_txdma;
-	up->dmadesc = kmalloc(4 * sizeof(pxa_dma_desc), GFP_KERNEL);
-	if (!up->dmadesc)
-		goto err_alloc;
-
-	/* ... */
-err_alloc:
-	pxa_free_dma(up->txdma);
-err_rxdma:
-	pxa_free_dma(up->rxdma);
-out:
-	return;
-}
-#endif
-
 static int serial_pxa_startup(struct uart_port *port)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
