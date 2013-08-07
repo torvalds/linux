@@ -732,7 +732,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"s             Toggle source code view\n"
 		"/             Search string\n"
 		"r             Run available scripts\n"
-		"?             Search previous string\n");
+		"?             Search string backwards\n");
 			continue;
 		case 'r':
 			{
