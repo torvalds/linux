@@ -1433,7 +1433,7 @@ static inline u_char *NS_PAGE_BYTE_OFF(struct nandsim *ns)
 	return NS_GET_PAGE(ns)->byte + ns->regs.column + ns->regs.off;
 }
 
-int do_read_error(struct nandsim *ns, int num)
+static int do_read_error(struct nandsim *ns, int num)
 {
 	unsigned int page_no = ns->regs.row;
 
@@ -1445,7 +1445,7 @@ int do_read_error(struct nandsim *ns, int num)
 	return 0;
 }
 
-void do_bit_flips(struct nandsim *ns, int num)
+static void do_bit_flips(struct nandsim *ns, int num)
 {
 	if (bitflips && prandom_u32() < (1 << 22)) {
 		int flips = 1;
