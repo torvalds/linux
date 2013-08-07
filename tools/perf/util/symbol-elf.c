@@ -603,7 +603,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 						     ".gnu.prelink_undo",
 						     NULL) != NULL);
 	} else {
-		ss->adjust_symbols = 0;
+		ss->adjust_symbols = ehdr.e_type == ET_EXEC;
 	}
 
 	ss->name   = strdup(name);
@@ -624,6 +624,37 @@ out_close:
 	return err;
 }
 
+/**
+ * ref_reloc_sym_not_found - has kernel relocation symbol been found.
+ * @kmap: kernel maps and relocation reference symbol
+ *
+ * This function returns %true if we are dealing with the kernel maps and the
+ * relocation reference symbol has not yet been found.  Otherwise %false is
+ * returned.
+ */
+static bool ref_reloc_sym_not_found(struct kmap *kmap)
+{
+	return kmap && kmap->ref_reloc_sym && kmap->ref_reloc_sym->name &&
+	       !kmap->ref_reloc_sym->unrelocated_addr;
+}
+
+/**
+ * ref_reloc - kernel relocation offset.
+ * @kmap: kernel maps and relocation reference symbol
+ *
+ * This function returns the offset of kernel addresses as determined by using
+ * the relocation reference symbol i.e. if the kernel has not been relocated
+ * then the return value is zero.
+ */
+static u64 ref_reloc(struct kmap *kmap)
+{
+	if (kmap && kmap->ref_reloc_sym &&
+	    kmap->ref_reloc_sym->unrelocated_addr)
+		return kmap->ref_reloc_sym->addr -
+		       kmap->ref_reloc_sym->unrelocated_addr;
+	return 0;
+}
+
 int dso__load_sym(struct dso *dso, struct map *map,
 		  struct symsrc *syms_ss, struct symsrc *runtime_ss,
 		  symbol_filter_t filter, int kmodule)
@@ -642,6 +673,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	Elf_Scn *sec, *sec_strndx;
 	Elf *elf;
 	int nr = 0;
+	bool remap_kernel = false, adjust_kernel_syms = false;
 
 	dso->symtab_type = syms_ss->type;
 
@@ -681,7 +713,31 @@ int dso__load_sym(struct dso *dso, struct map *map,
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
 
 	memset(&sym, 0, sizeof(sym));
-	dso->adjust_symbols = runtime_ss->adjust_symbols;
+
+	/*
+	 * The kernel relocation symbol is needed in advance in order to adjust
+	 * kernel maps correctly.
+	 */
+	if (ref_reloc_sym_not_found(kmap)) {
+		elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) {
+			const char *elf_name = elf_sym__name(&sym, symstrs);
+
+			if (strcmp(elf_name, kmap->ref_reloc_sym->name))
+				continue;
+			kmap->ref_reloc_sym->unrelocated_addr = sym.st_value;
+			break;
+		}
+	}
+
+	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
+	/*
+	 * Initial kernel and module mappings do not map to the dso.  For
+	 * function mappings, flag the fixups.
+	 */
+	if (map->type == MAP__FUNCTION && (dso->kernel || kmodule)) {
+		remap_kernel = true;
+		adjust_kernel_syms = dso->adjust_symbols;
+	}
 	elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) {
 		struct symbol *f;
 		const char *elf_name = elf_sym__name(&sym, symstrs);
@@ -689,10 +745,6 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		int is_label = elf_sym__is_label(&sym);
 		const char *section_name;
 		bool used_opd = false;
-
-		if (kmap && kmap->ref_reloc_sym && kmap->ref_reloc_sym->name &&
-		    strcmp(elf_name, kmap->ref_reloc_sym->name) == 0)
-			kmap->ref_reloc_sym->unrelocated_addr = sym.st_value;
 
 		if (!is_label && !elf_sym__is_a(&sym, map->type))
 			continue;
@@ -745,8 +797,12 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		    (sym.st_value & 1))
 			--sym.st_value;
 
-		if (dso->kernel != DSO_TYPE_USER || kmodule) {
+		if (dso->kernel || kmodule) {
 			char dso_name[PATH_MAX];
+
+			/* Adjust symbol to map to file offset */
+			if (adjust_kernel_syms)
+				sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 
 			if (strcmp(section_name,
 				   (curr_dso->short_name +
@@ -754,6 +810,24 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				goto new_symbol;
 
 			if (strcmp(section_name, ".text") == 0) {
+				/*
+				 * The initial kernel mapping is based on
+				 * kallsyms and identity maps.  Overwrite it to
+				 * map to the kernel dso.
+				 */
+				if (remap_kernel && dso->kernel) {
+					remap_kernel = false;
+					map->start = shdr.sh_addr +
+						     ref_reloc(kmap);
+					map->end = map->start + shdr.sh_size;
+					map->pgoff = shdr.sh_offset;
+					map->map_ip = map__map_ip;
+					map->unmap_ip = map__unmap_ip;
+					/* Ensure maps are correctly ordered */
+					map_groups__remove(kmap->kmaps, map);
+					map_groups__insert(kmap->kmaps, map);
+				}
+
 				curr_map = map;
 				curr_dso = dso;
 				goto new_symbol;
@@ -781,8 +855,16 @@ int dso__load_sym(struct dso *dso, struct map *map,
 					dso__delete(curr_dso);
 					goto out_elf_end;
 				}
-				curr_map->map_ip = identity__map_ip;
-				curr_map->unmap_ip = identity__map_ip;
+				if (adjust_kernel_syms) {
+					curr_map->start = shdr.sh_addr +
+							  ref_reloc(kmap);
+					curr_map->end = curr_map->start +
+							shdr.sh_size;
+					curr_map->pgoff = shdr.sh_offset;
+				} else {
+					curr_map->map_ip = identity__map_ip;
+					curr_map->unmap_ip = identity__map_ip;
+				}
 				curr_dso->symtab_type = dso->symtab_type;
 				map_groups__insert(kmap->kmaps, curr_map);
 				dsos__add(&dso->node, curr_dso);

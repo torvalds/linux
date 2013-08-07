@@ -182,12 +182,6 @@ int map__load(struct map *map, symbol_filter_t filter)
 #endif
 		return -1;
 	}
-	/*
-	 * Only applies to the kernel, as its symtabs aren't relative like the
-	 * module ones.
-	 */
-	if (map->dso->kernel)
-		map__reloc_vmlinux(map);
 
 	return 0;
 }
@@ -511,35 +505,6 @@ int map_groups__clone(struct map_groups *mg,
 		map_groups__insert(mg, new);
 	}
 	return 0;
-}
-
-static u64 map__reloc_map_ip(struct map *map, u64 ip)
-{
-	return ip + (s64)map->pgoff;
-}
-
-static u64 map__reloc_unmap_ip(struct map *map, u64 ip)
-{
-	return ip - (s64)map->pgoff;
-}
-
-void map__reloc_vmlinux(struct map *map)
-{
-	struct kmap *kmap = map__kmap(map);
-	s64 reloc;
-
-	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->unrelocated_addr)
-		return;
-
-	reloc = (kmap->ref_reloc_sym->unrelocated_addr -
-		 kmap->ref_reloc_sym->addr);
-
-	if (!reloc)
-		return;
-
-	map->map_ip   = map__reloc_map_ip;
-	map->unmap_ip = map__reloc_unmap_ip;
-	map->pgoff    = reloc;
 }
 
 void maps__insert(struct rb_root *maps, struct map *map)

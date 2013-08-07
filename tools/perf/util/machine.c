@@ -628,10 +628,8 @@ int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 	struct map *map = machine->vmlinux_maps[type];
 	int ret = dso__load_vmlinux_path(map->dso, map, filter);
 
-	if (ret > 0) {
+	if (ret > 0)
 		dso__set_loaded(map->dso, type);
-		map__reloc_vmlinux(map);
-	}
 
 	return ret;
 }

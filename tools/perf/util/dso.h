@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/rbtree.h>
+#include <stdbool.h>
 #include "types.h"
 #include "map.h"
 
@@ -146,4 +147,11 @@ size_t dso__fprintf_buildid(struct dso *dso, FILE *fp);
 size_t dso__fprintf_symbols_by_name(struct dso *dso,
 				    enum map_type type, FILE *fp);
 size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp);
+
+static inline bool dso__is_vmlinux(struct dso *dso)
+{
+	return dso->data_type == DSO_BINARY_TYPE__VMLINUX ||
+	       dso->data_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
+}
+
 #endif /* __PERF_DSO */

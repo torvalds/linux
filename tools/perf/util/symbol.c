@@ -917,6 +917,10 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	symsrc__destroy(&ss);
 
 	if (err > 0) {
+		if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+			dso->data_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
+		else
+			dso->data_type = DSO_BINARY_TYPE__VMLINUX;
 		dso__set_long_name(dso, (char *)vmlinux);
 		dso__set_loaded(dso, map->type);
 		pr_debug("Using %s for symbols\n", symfs_vmlinux);
@@ -989,7 +993,7 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map,
 			dso__set_long_name(dso,
 					   strdup(symbol_conf.vmlinux_name));
 			dso->lname_alloc = 1;
-			goto out_fixup;
+			return err;
 		}
 		return err;
 	}
@@ -997,7 +1001,7 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map,
 	if (vmlinux_path != NULL) {
 		err = dso__load_vmlinux_path(dso, map, filter);
 		if (err > 0)
-			goto out_fixup;
+			return err;
 	}
 
 	/* do not try local files if a symfs was given */
@@ -1058,7 +1062,6 @@ do_kallsyms:
 
 	if (err > 0) {
 		dso__set_long_name(dso, strdup("[kernel.kallsyms]"));
-out_fixup:
 		map__fixup_start(map);
 		map__fixup_end(map);
 	}
@@ -1089,7 +1092,7 @@ static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map,
 		if (symbol_conf.default_guest_vmlinux_name != NULL) {
 			err = dso__load_vmlinux(dso, map,
 				symbol_conf.default_guest_vmlinux_name, filter);
-			goto out_try_fixup;
+			return err;
 		}
 
 		kallsyms_filename = symbol_conf.default_guest_kallsyms;
@@ -1101,15 +1104,10 @@ static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map,
 	}
 
 	err = dso__load_kallsyms(dso, kallsyms_filename, map, filter);
-	if (err > 0)
-		pr_debug("Using %s for symbols\n", kallsyms_filename);
-
-out_try_fixup:
 	if (err > 0) {
-		if (kallsyms_filename != NULL) {
-			machine__mmap_name(machine, path, sizeof(path));
-			dso__set_long_name(dso, strdup(path));
-		}
+		pr_debug("Using %s for symbols\n", kallsyms_filename);
+		machine__mmap_name(machine, path, sizeof(path));
+		dso__set_long_name(dso, strdup(path));
 		map__fixup_start(map);
 		map__fixup_end(map);
 	}
