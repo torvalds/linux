@@ -2084,6 +2084,8 @@ static int nfs_validate_text_mount_data(void *options,
 		max_namelen = NFS4_MAXNAMLEN;
 		max_pathlen = NFS4_MAXPATHLEN;
 		nfs_validate_transport_protocol(args);
+		if (args->nfs_server.protocol == XPRT_TRANSPORT_UDP)
+			goto out_invalid_transport_udp;
 		nfs4_validate_mount_flags(args);
 #else
 		goto out_v4_not_compiled;
@@ -2106,6 +2108,10 @@ static int nfs_validate_text_mount_data(void *options,
 out_v4_not_compiled:
 	dfprintk(MOUNT, "NFS: NFSv4 is not compiled into kernel\n");
 	return -EPROTONOSUPPORT;
+#else
+out_invalid_transport_udp:
+	dfprintk(MOUNT, "NFSv4: Unsupported transport protocol udp\n");
+	return -EINVAL;
 #endif /* !CONFIG_NFS_V4 */
 
 out_no_address:
@@ -2711,6 +2717,8 @@ static int nfs4_validate_mount_data(void *options,
 		args->acdirmax	= data->acdirmax;
 		args->nfs_server.protocol = data->proto;
 		nfs_validate_transport_protocol(args);
+		if (args->nfs_server.protocol == XPRT_TRANSPORT_UDP)
+			goto out_invalid_transport_udp;
 
 		break;
 	default:
@@ -2730,6 +2738,10 @@ out_inval_auth:
 
 out_no_address:
 	dfprintk(MOUNT, "NFS4: mount program didn't pass remote address\n");
+	return -EINVAL;
+
+out_invalid_transport_udp:
+	dfprintk(MOUNT, "NFSv4: Unsupported transport protocol udp\n");
 	return -EINVAL;
 }
 
