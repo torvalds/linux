@@ -29,6 +29,7 @@
 #include <asm/switch_to.h>
 #include <asm/sigframe.h>
 #include <asm/stack.h>
+#include <asm/vdso.h>
 #include <arch/abi.h>
 #include <arch/interrupts.h>
 
@@ -119,7 +120,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 /* Is the pc pointing to a sigreturn trampoline? */
 static int is_sigreturn(unsigned long pc)
 {
-	return (pc == VDSO_BASE);
+	return current->mm && (pc == VDSO_SYM(&__vdso_rt_sigreturn));
 }
 
 /* Return a pt_regs pointer for a valid signal handler frame */
@@ -128,7 +129,7 @@ static struct pt_regs *valid_sigframe(struct KBacktraceIterator* kbt,
 {
 	BacktraceIterator *b = &kbt->it;
 
-	if (b->pc == VDSO_BASE && b->sp < PAGE_OFFSET &&
+	if (is_sigreturn(b->pc) && b->sp < PAGE_OFFSET &&
 	    b->sp % sizeof(long) == 0) {
 		int retval;
 		pagefault_disable();

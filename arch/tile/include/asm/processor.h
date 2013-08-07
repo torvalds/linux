@@ -180,10 +180,10 @@ struct thread_struct {
 #define TASK_SIZE		TASK_SIZE_MAX
 #endif
 
-/* We provide a minimal "vdso" a la x86; just the sigreturn code for now. */
-#define VDSO_BASE		(TASK_SIZE - PAGE_SIZE)
+#define VDSO_BASE	((unsigned long)current->active_mm->context.vdso_base)
+#define VDSO_SYM(x)	(VDSO_BASE + (unsigned long)(x))
 
-#define STACK_TOP		VDSO_BASE
+#define STACK_TOP		TASK_SIZE
 
 /* STACK_TOP_MAX is used temporarily in execve and should not check COMPAT. */
 #define STACK_TOP_MAX		TASK_SIZE_MAX

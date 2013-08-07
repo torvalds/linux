@@ -64,6 +64,9 @@ config HUGETLB_SUPER_PAGES
 	depends on HUGETLB_PAGE && TILEGX
 	def_bool y
 
+config GENERIC_TIME_VSYSCALL
+	def_bool y
+
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y

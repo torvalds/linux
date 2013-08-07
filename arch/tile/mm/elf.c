@@ -21,6 +21,7 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
+#include <asm/vdso.h>
 #include <arch/sim.h>
 
 /* Notify a running simulator, if any, that an exec just occurred. */
@@ -102,37 +103,10 @@ static void sim_notify_interp(unsigned long load_addr)
 }
 
 
-/* Kernel address of page used to map read-only kernel data into userspace. */
-static void *vdso_page;
-
-/* One-entry array used for install_special_mapping. */
-static struct page *vdso_pages[1];
-
-static int __init vdso_setup(void)
-{
-	vdso_page = (void *)get_zeroed_page(GFP_ATOMIC);
-	memcpy(vdso_page, __rt_sigreturn, __rt_sigreturn_end - __rt_sigreturn);
-	vdso_pages[0] = virt_to_page(vdso_page);
-	return 0;
-}
-device_initcall(vdso_setup);
-
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	if (vma->vm_private_data == vdso_pages)
-		return "[vdso]";
-#ifndef __tilegx__
-	if (vma->vm_start == MEM_USER_INTRPT)
-		return "[intrpt]";
-#endif
-	return NULL;
-}
-
 int arch_setup_additional_pages(struct linux_binprm *bprm,
 				int executable_stack)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long vdso_base;
 	int retval = 0;
 
 	down_write(&mm->mmap_sem);
@@ -145,14 +119,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	if (!notify_exec(mm))
 		sim_notify_exec(bprm->filename);
 
-	/*
-	 * MAYWRITE to allow gdb to COW and set breakpoints
-	 */
-	vdso_base = VDSO_BASE;
-	retval = install_special_mapping(mm, vdso_base, PAGE_SIZE,
-					 VM_READ|VM_EXEC|
-					 VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-					 vdso_pages);
+	retval = setup_vdso_pages();
 
 #ifndef __tilegx__
 	/*

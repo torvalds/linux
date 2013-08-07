@@ -39,6 +39,12 @@
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 
 /*
+ * We do define AT_SYSINFO_EHDR to support vDSO,
+ * but don't use the gate mechanism.
+ */
+#define __HAVE_ARCH_GATE_AREA		1
+
+/*
  * If the Kconfig doesn't specify, set a maximum zone order that
  * is enough so that we can create huge pages from small pages given
  * the respective sizes of the two page types.  See <linux/mmzone.h>.
@@ -246,7 +252,7 @@ static inline __attribute_const__ int get_order(unsigned long size)
 
 #endif /* __tilegx__ */
 
-#ifndef __ASSEMBLY__
+#if !defined(__ASSEMBLY__) && !defined(VDSO_BUILD)
 
 #ifdef CONFIG_HIGHMEM
 

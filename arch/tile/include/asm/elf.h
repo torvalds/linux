@@ -132,6 +132,11 @@ extern int dump_task_regs(struct task_struct *, elf_gregset_t *);
 struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int executable_stack);
+#define ARCH_DLINFO \
+do { \
+	NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_BASE); \
+} while (0)
+
 #ifdef CONFIG_COMPAT
 
 #define COMPAT_ELF_PLATFORM "tilegx-m32"

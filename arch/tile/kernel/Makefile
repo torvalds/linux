@@ -6,7 +6,7 @@ extra-y := vmlinux.lds head_$(BITS).o
 obj-y := backtrace.o entry.o irq.o messaging.o \
 	pci-dma.o proc.o process.o ptrace.o reboot.o \
 	setup.o signal.o single_step.o stack.o sys.o \
-	sysfs.o time.o traps.o unaligned.o \
+	sysfs.o time.o traps.o unaligned.o vdso.o \
 	intvec_$(BITS).o regs_$(BITS).o tile-desc_$(BITS).o
 
 obj-$(CONFIG_HARDWALL)		+= hardwall.o
@@ -21,3 +21,5 @@ else
 obj-$(CONFIG_PCI)		+= pci.o
 endif
 obj-$(CONFIG_TILE_USB)		+= usb.o
+
+obj-y				+= vdso/
