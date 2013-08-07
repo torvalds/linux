@@ -1616,6 +1616,10 @@ void drm_gem_free_mmap_offset(struct drm_gem_object *obj);
 int drm_gem_create_mmap_offset(struct drm_gem_object *obj);
 int drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size);
 
+struct page **drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
+void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
+		bool dirty, bool accessed);
+
 struct drm_gem_object *drm_gem_object_lookup(struct drm_device *dev,
 					     struct drm_file *filp,
 					     u32 handle);
