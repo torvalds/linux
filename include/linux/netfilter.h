@@ -325,6 +325,8 @@ struct nfq_ct_hook {
 	size_t (*build_size)(const struct nf_conn *ct);
 	int (*build)(struct sk_buff *skb, struct nf_conn *ct);
 	int (*parse)(const struct nlattr *attr, struct nf_conn *ct);
+	int (*attach_expect)(const struct nlattr *attr, struct nf_conn *ct,
+			     u32 portid, u32 report);
 };
 extern struct nfq_ct_hook __rcu *nfq_ct_hook;
 

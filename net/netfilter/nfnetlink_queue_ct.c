@@ -96,3 +96,18 @@ void nfqnl_ct_seq_adjust(struct sk_buff *skb, struct nf_conn *ct,
 	if ((ct->status & IPS_NAT_MASK) && diff)
 		nfq_nat_ct->seq_adjust(skb, ct, ctinfo, diff);
 }
+
+int nfqnl_attach_expect(struct nf_conn *ct, const struct nlattr *attr,
+			u32 portid, u32 report)
+{
+	struct nfq_ct_hook *nfq_ct;
+
+	if (nf_ct_is_untracked(ct))
+		return 0;
+
+	nfq_ct = rcu_dereference(nfq_ct_hook);
+	if (nfq_ct == NULL)
+		return -EOPNOTSUPP;
+
+	return nfq_ct->attach_expect(attr, ct, portid, report);
+}
