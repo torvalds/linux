@@ -52,11 +52,14 @@ struct ak4104_private {
 };
 
 static const struct snd_soc_dapm_widget ak4104_dapm_widgets[] = {
+SND_SOC_DAPM_PGA("TXE", AK4104_REG_TX, AK4104_TX_TXE, 0, NULL, 0),
+
 SND_SOC_DAPM_OUTPUT("TX"),
 };
 
 static const struct snd_soc_dapm_route ak4104_dapm_routes[] = {
-	{ "TX", NULL, "Playback" },
+	{ "TXE", NULL, "Playback" },
+	{ "TX", NULL, "TXE" },
 };
 
 static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
@@ -146,29 +149,11 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* enable transmitter */
-	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_TX,
-				 AK4104_TX_TXE, AK4104_TX_TXE);
-	if (ret < 0)
-		return ret;
-
 	return 0;
-}
-
-static int ak4104_hw_free(struct snd_pcm_substream *substream,
-			  struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
-
-	/* disable transmitter */
-	return regmap_update_bits(ak4104->regmap, AK4104_REG_TX,
-				  AK4104_TX_TXE, 0);
 }
 
 static const struct snd_soc_dai_ops ak4101_dai_ops = {
 	.hw_params = ak4104_hw_params,
-	.hw_free = ak4104_hw_free,
 	.set_fmt = ak4104_set_dai_fmt,
 };
 
