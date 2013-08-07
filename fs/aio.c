@@ -812,7 +812,7 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 		goto out;
 
 	ctx = table->table[id];
-	if (ctx->user_id == ctx_id) {
+	if (ctx && ctx->user_id == ctx_id) {
 		percpu_ref_get(&ctx->users);
 		ret = ctx;
 	}
