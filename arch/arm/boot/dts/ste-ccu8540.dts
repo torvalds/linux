@@ -10,8 +10,8 @@
  */
 
 /dts-v1/;
-#include "dbx5x0.dtsi"
-#include "ccu8540-pinctrl.dtsi"
+#include "ste-dbx5x0.dtsi"
+#include "ste-ccu8540-pinctrl.dtsi"
 
 / {
 	model = "ST-Ericsson U8540 platform with Device Tree";

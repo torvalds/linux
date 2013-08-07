@@ -10,7 +10,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "dbx5x0.dtsi"
+#include "ste-dbx5x0.dtsi"
 
 / {
 	memory {
