@@ -2250,6 +2250,22 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_WBINVD_EXITING;
 
+	if (enable_ept) {
+		/* nested EPT: emulate EPT also to L1 */
+		nested_vmx_secondary_ctls_high |= SECONDARY_EXEC_ENABLE_EPT;
+		nested_vmx_ept_caps = VMX_EPT_PAGE_WALK_4_BIT;
+		nested_vmx_ept_caps |= VMX_EPT_INVEPT_BIT;
+		nested_vmx_ept_caps &= vmx_capability.ept;
+		/*
+		 * Since invept is completely emulated we support both global
+		 * and context invalidation independent of what host cpu
+		 * supports
+		 */
+		nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
+			VMX_EPT_EXTENT_CONTEXT_BIT;
+	} else
+		nested_vmx_ept_caps = 0;
+
 	/* miscellaneous data */
 	rdmsr(MSR_IA32_VMX_MISC, nested_vmx_misc_low, nested_vmx_misc_high);
 	nested_vmx_misc_low &= VMX_MISC_PREEMPTION_TIMER_RATE_MASK |
@@ -2358,8 +2374,8 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 					nested_vmx_secondary_ctls_high);
 		break;
 	case MSR_IA32_VMX_EPT_VPID_CAP:
-		/* Currently, no nested ept or nested vpid */
-		*pdata = 0;
+		/* Currently, no nested vpid support */
+		*pdata = nested_vmx_ept_caps;
 		break;
 	default:
 		return 0;
