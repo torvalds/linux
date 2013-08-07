@@ -2089,7 +2089,7 @@ xlog_write_setup_ophdr(
  * Set up the parameters of the region copy into the log. This has
  * to handle region write split across multiple log buffers - this
  * state is kept external to this function so that this code can
- * can be written in an obvious, self documenting manner.
+ * be written in an obvious, self documenting manner.
  */
 static int
 xlog_write_setup_copy(
