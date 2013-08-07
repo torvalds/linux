@@ -95,6 +95,22 @@
 #define I2CR_IIEN	0x40
 #define I2CR_IEN	0x80
 
+/* register bits different operating codes definition:
+ * 1) I2SR: Interrupt flags clear operation differ between SoCs:
+ * - write zero to clear(w0c) INT flag on i.MX,
+ * - but write one to clear(w1c) INT flag on Vybrid.
+ * 2) I2CR: I2C module enable operation also differ between SoCs:
+ * - set I2CR_IEN bit enable the module on i.MX,
+ * - but clear I2CR_IEN bit enable the module on Vybrid.
+ */
+#define I2SR_CLR_OPCODE_W0C	0x0
+#define I2SR_CLR_OPCODE_W1C	(I2SR_IAL | I2SR_IIF)
+#define I2CR_IEN_OPCODE_0	0x0
+#define I2CR_IEN_OPCODE_1	I2CR_IEN
+
+#define IMX_I2SR_CLR_OPCODE	I2SR_CLR_OPCODE_W0C
+#define IMX_I2CR_IEN_OPCODE	I2CR_IEN_OPCODE_1
+
 /** Variables ******************************************************************
 *******************************************************************************/
 
@@ -242,8 +258,8 @@ static int i2c_imx_start(struct imx_i2c_struct *i2c_imx)
 	clk_prepare_enable(i2c_imx->clk);
 	imx_i2c_write_reg(i2c_imx->ifdr, i2c_imx, IMX_I2C_IFDR);
 	/* Enable I2C controller */
-	imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2SR);
-	imx_i2c_write_reg(I2CR_IEN, i2c_imx, IMX_I2C_I2CR);
+	imx_i2c_write_reg(IMX_I2SR_CLR_OPCODE, i2c_imx, IMX_I2C_I2SR);
+	imx_i2c_write_reg(IMX_I2CR_IEN_OPCODE, i2c_imx, IMX_I2C_I2CR);
 
 	/* Wait controller to be stable */
 	udelay(50);
@@ -287,7 +303,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 	}
 
 	/* Disable I2C controller */
-	imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2CR);
+	imx_i2c_write_reg(IMX_I2CR_IEN_OPCODE ^ I2CR_IEN, i2c_imx, IMX_I2C_I2CR);
 	clk_disable_unprepare(i2c_imx->clk);
 }
 
@@ -339,6 +355,7 @@ static irqreturn_t i2c_imx_isr(int irq, void *dev_id)
 		/* save status register */
 		i2c_imx->i2csr = temp;
 		temp &= ~I2SR_IIF;
+		temp |= (IMX_I2SR_CLR_OPCODE & I2SR_IIF);
 		imx_i2c_write_reg(temp, i2c_imx, IMX_I2C_I2SR);
 		wake_up(&i2c_imx->queue);
 		return IRQ_HANDLED;
@@ -596,8 +613,8 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	i2c_imx_set_clk(i2c_imx, bitrate);
 
 	/* Set up chip registers to defaults */
-	imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2CR);
-	imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2SR);
+	imx_i2c_write_reg(IMX_I2CR_IEN_OPCODE ^ I2CR_IEN, i2c_imx, IMX_I2C_I2CR);
+	imx_i2c_write_reg(IMX_I2SR_CLR_OPCODE, i2c_imx, IMX_I2C_I2SR);
 
 	/* Add I2C adapter */
 	ret = i2c_add_numbered_adapter(&i2c_imx->adapter);
