@@ -61,9 +61,6 @@
  * various member access, note that bio_data should of course not be used
  * on highmem page vectors
  */
-#define bio_iovec_idx(bio, idx)	(&((bio)->bi_io_vec[(idx)]))
-#define __bio_iovec(bio)	bio_iovec_idx((bio), (bio)->bi_iter.bi_idx)
-
 #define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])
 
 #define bvec_iter_page(bvec, iter)				\
@@ -162,18 +159,15 @@ static inline void *bio_data(struct bio *bio)
  * permanent PIO fall back, user is probably better off disabling highmem
  * I/O completely on that queue (see ide-dma for example)
  */
-#define __bio_kmap_atomic(bio, idx)				\
-	(kmap_atomic(bio_iovec_idx((bio), (idx))->bv_page) +	\
-		bio_iovec_idx((bio), (idx))->bv_offset)
+#define __bio_kmap_atomic(bio, iter)				\
+	(kmap_atomic(bio_iter_iovec((bio), (iter)).bv_page) +	\
+		bio_iter_iovec((bio), (iter)).bv_offset)
 
-#define __bio_kunmap_atomic(addr) kunmap_atomic(addr)
+#define __bio_kunmap_atomic(addr)	kunmap_atomic(addr)
 
 /*
  * merge helpers etc
  */
-
-#define __BVEC_END(bio)		bio_iovec_idx((bio), (bio)->bi_vcnt - 1)
-#define __BVEC_START(bio)	bio_iovec_idx((bio), (bio)->bi_iter.bi_idx)
 
 /* Default implementation of BIOVEC_PHYS_MERGEABLE */
 #define __BIOVEC_PHYS_MERGEABLE(vec1, vec2)	\
@@ -191,8 +185,6 @@ static inline void *bio_data(struct bio *bio)
 	(((addr1) | (mask)) == (((addr2) - 1) | (mask)))
 #define BIOVEC_SEG_BOUNDARY(q, b1, b2) \
 	__BIO_SEG_BOUNDARY(bvec_to_phys((b1)), bvec_to_phys((b2)) + (b2)->bv_len, queue_segment_boundary((q)))
-#define BIO_SEG_BOUNDARY(q, b1, b2) \
-	BIOVEC_SEG_BOUNDARY((q), __BVEC_END((b1)), __BVEC_START((b2)))
 
 #define bio_io_error(bio) bio_endio((bio), -EIO)
 
@@ -201,9 +193,7 @@ static inline void *bio_data(struct bio *bio)
  * before it got to the driver and the driver won't own all of it
  */
 #define bio_for_each_segment_all(bvl, bio, i)				\
-	for (i = 0;							\
-	     bvl = bio_iovec_idx((bio), (i)), i < (bio)->bi_vcnt;	\
-	     i++)
+	for (i = 0, bvl = (bio)->bi_io_vec; i < (bio)->bi_vcnt; i++, bvl++)
 
 static inline void bvec_iter_advance(struct bio_vec *bv, struct bvec_iter *iter,
 				     unsigned bytes)
@@ -468,15 +458,15 @@ static inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
 }
 #endif
 
-static inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
+static inline char *__bio_kmap_irq(struct bio *bio, struct bvec_iter iter,
 				   unsigned long *flags)
 {
-	return bvec_kmap_irq(bio_iovec_idx(bio, idx), flags);
+	return bvec_kmap_irq(&bio_iter_iovec(bio, iter), flags);
 }
 #define __bio_kunmap_irq(buf, flags)	bvec_kunmap_irq(buf, flags)
 
 #define bio_kmap_irq(bio, flags) \
-	__bio_kmap_irq((bio), (bio)->bi_iter.bi_idx, (flags))
+	__bio_kmap_irq((bio), (bio)->bi_iter, (flags))
 #define bio_kunmap_irq(buf,flags)	__bio_kunmap_irq(buf, flags)
 
 /*
