@@ -35,7 +35,6 @@ struct uio_device {
 	atomic_t		event;
 	struct fasync_struct	*async_queue;
 	wait_queue_head_t	wait;
-	int			vma_count;
 	struct uio_info		*info;
 	struct kobject		*map_dir;
 	struct kobject		*portio_dir;
@@ -593,18 +592,6 @@ static int uio_find_mem_index(struct vm_area_struct *vma)
 	return -1;
 }
 
-static void uio_vma_open(struct vm_area_struct *vma)
-{
-	struct uio_device *idev = vma->vm_private_data;
-	idev->vma_count++;
-}
-
-static void uio_vma_close(struct vm_area_struct *vma)
-{
-	struct uio_device *idev = vma->vm_private_data;
-	idev->vma_count--;
-}
-
 static int uio_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct uio_device *idev = vma->vm_private_data;
@@ -631,8 +618,6 @@ static int uio_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 
 static const struct vm_operations_struct uio_logical_vm_ops = {
-	.open = uio_vma_open,
-	.close = uio_vma_close,
 	.fault = uio_vma_fault,
 };
 
@@ -640,7 +625,6 @@ static int uio_mmap_logical(struct vm_area_struct *vma)
 {
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = &uio_logical_vm_ops;
-	uio_vma_open(vma);
 	return 0;
 }
 
