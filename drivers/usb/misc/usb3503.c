@@ -187,7 +187,7 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	const u32 *property;
 	int len;
 
-	hub = kzalloc(sizeof(struct usb3503), GFP_KERNEL);
+	hub = devm_kzalloc(&i2c->dev, sizeof(struct usb3503), GFP_KERNEL);
 	if (!hub) {
 		dev_err(&i2c->dev, "private data alloc fail\n");
 		return err;
@@ -229,35 +229,35 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	}
 
 	if (gpio_is_valid(hub->gpio_intn)) {
-		err = gpio_request_one(hub->gpio_intn,
+		err = devm_gpio_request_one(&i2c->dev, hub->gpio_intn,
 				GPIOF_OUT_INIT_HIGH, "usb3503 intn");
 		if (err) {
 			dev_err(&i2c->dev,
 					"unable to request GPIO %d as connect pin (%d)\n",
 					hub->gpio_intn, err);
-			goto err_out;
+			return err;
 		}
 	}
 
 	if (gpio_is_valid(hub->gpio_connect)) {
-		err = gpio_request_one(hub->gpio_connect,
+		err = devm_gpio_request_one(&i2c->dev, hub->gpio_connect,
 				GPIOF_OUT_INIT_HIGH, "usb3503 connect");
 		if (err) {
 			dev_err(&i2c->dev,
 					"unable to request GPIO %d as connect pin (%d)\n",
 					hub->gpio_connect, err);
-			goto err_gpio_connect;
+			return err;
 		}
 	}
 
 	if (gpio_is_valid(hub->gpio_reset)) {
-		err = gpio_request_one(hub->gpio_reset,
+		err = devm_gpio_request_one(&i2c->dev, hub->gpio_reset,
 				GPIOF_OUT_INIT_LOW, "usb3503 reset");
 		if (err) {
 			dev_err(&i2c->dev,
 					"unable to request GPIO %d as reset pin (%d)\n",
 					hub->gpio_reset, err);
-			goto err_gpio_reset;
+			return err;
 		}
 	}
 
@@ -265,33 +265,6 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	dev_info(&i2c->dev, "%s: probed on  %s mode\n", __func__,
 			(hub->mode == USB3503_MODE_HUB) ? "hub" : "standby");
-
-	return 0;
-
-err_gpio_reset:
-	if (gpio_is_valid(hub->gpio_connect))
-		gpio_free(hub->gpio_connect);
-err_gpio_connect:
-	if (gpio_is_valid(hub->gpio_intn))
-		gpio_free(hub->gpio_intn);
-err_out:
-	kfree(hub);
-
-	return err;
-}
-
-static int usb3503_remove(struct i2c_client *i2c)
-{
-	struct usb3503 *hub = i2c_get_clientdata(i2c);
-
-	if (gpio_is_valid(hub->gpio_intn))
-		gpio_free(hub->gpio_intn);
-	if (gpio_is_valid(hub->gpio_connect))
-		gpio_free(hub->gpio_connect);
-	if (gpio_is_valid(hub->gpio_reset))
-		gpio_free(hub->gpio_reset);
-
-	kfree(hub);
 
 	return 0;
 }
@@ -316,7 +289,6 @@ static struct i2c_driver usb3503_driver = {
 		.of_match_table = of_match_ptr(usb3503_of_match),
 	},
 	.probe		= usb3503_probe,
-	.remove		= usb3503_remove,
 	.id_table	= usb3503_id,
 };
 
