@@ -97,7 +97,7 @@ static struct samsung_gate_clock exynos5440_gate_clks[] __initdata = {
 	GATE(cs250_o, "cs250_o", "cs250", CLKEN_OV_VAL, 19, 0, 0),
 };
 
-static __initdata struct of_device_id ext_clk_match[] = {
+static struct of_device_id ext_clk_match[] __initdata = {
 	{ .compatible = "samsung,clock-xtal", .data = (void *)0, },
 	{},
 };
