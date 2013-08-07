@@ -47,7 +47,7 @@ static void _batadv_update_route(struct batadv_priv *bat_priv,
 	if ((curr_router) && (!neigh_node)) {
 		batadv_dbg(BATADV_DBG_ROUTES, bat_priv,
 			   "Deleting route towards: %pM\n", orig_node->orig);
-		batadv_tt_global_del_orig(bat_priv, orig_node,
+		batadv_tt_global_del_orig(bat_priv, orig_node, -1,
 					  "Deleted route towards originator");
 
 	/* route added */

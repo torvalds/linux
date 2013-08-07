@@ -1581,8 +1581,18 @@ out:
 		batadv_tt_local_entry_free_ref(local_entry);
 }
 
+/**
+ * batadv_tt_global_del_orig - remove all the TT global entries belonging to the
+ *  given originator matching the provided vid
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: the originator owning the entries to remove
+ * @match_vid: the VLAN identifier to match. If negative all the entries will be
+ *  removed
+ * @message: debug message to print as "reason"
+ */
 void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,
 			       struct batadv_orig_node *orig_node,
+			       int32_t match_vid,
 			       const char *message)
 {
 	struct batadv_tt_global_entry *tt_global;
@@ -1604,6 +1614,10 @@ void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,
 		spin_lock_bh(list_lock);
 		hlist_for_each_entry_safe(tt_common_entry, safe,
 					  head, hash_entry) {
+			/* remove only matching entries */
+			if (match_vid >= 0 && tt_common_entry->vid != match_vid)
+				continue;
+
 			tt_global = container_of(tt_common_entry,
 						 struct batadv_tt_global_entry,
 						 common);
@@ -2570,7 +2584,8 @@ static void batadv_tt_fill_gtable(struct batadv_priv *bat_priv,
 		goto out;
 
 	/* Purge the old table first.. */
-	batadv_tt_global_del_orig(bat_priv, orig_node, "Received full table");
+	batadv_tt_global_del_orig(bat_priv, orig_node, -1,
+				  "Received full table");
 
 	_batadv_tt_update_changes(bat_priv, orig_node, tt_change, num_entries,
 				  ttvn);

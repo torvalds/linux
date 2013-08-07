@@ -411,10 +411,10 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, uint8_t *orig,
 		return NULL;
 	}
 
-	/* this is a gateway now, remove any tt entries */
+	/* this is a gateway now, remove any TT entry on this VLAN */
 	orig_node = batadv_orig_hash_find(bat_priv, orig);
 	if (orig_node) {
-		batadv_tt_global_del_orig(bat_priv, orig_node,
+		batadv_tt_global_del_orig(bat_priv, orig_node, vid,
 					  "became a backbone gateway");
 		batadv_orig_node_free_ref(orig_node);
 	}
