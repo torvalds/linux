@@ -1210,12 +1210,12 @@ static int gsc_resume(struct device *dev)
 		spin_unlock_irqrestore(&gsc->slock, flags);
 		return 0;
 	}
-	gsc_hw_set_sw_reset(gsc);
-	gsc_wait_reset(gsc);
-
 	spin_unlock_irqrestore(&gsc->slock, flags);
 
-	return gsc_m2m_resume(gsc);
+	if (!pm_runtime_suspended(dev))
+		return gsc_runtime_resume(dev);
+
+	return 0;
 }
 
 static int gsc_suspend(struct device *dev)
@@ -1227,7 +1227,10 @@ static int gsc_suspend(struct device *dev)
 	if (test_and_set_bit(ST_SUSPEND, &gsc->state))
 		return 0;
 
-	return gsc_m2m_suspend(gsc);
+	if (!pm_runtime_suspended(dev))
+		return gsc_runtime_suspend(dev);
+
+	return 0;
 }
 
 static const struct dev_pm_ops gsc_pm_ops = {
