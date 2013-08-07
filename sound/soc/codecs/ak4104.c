@@ -51,6 +51,14 @@ struct ak4104_private {
 	struct regmap *regmap;
 };
 
+static const struct snd_soc_dapm_widget ak4104_dapm_widgets[] = {
+SND_SOC_DAPM_OUTPUT("TX"),
+};
+
+static const struct snd_soc_dapm_route ak4104_dapm_routes[] = {
+	{ "TX", NULL, "Playback" },
+};
+
 static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int format)
 {
@@ -214,6 +222,11 @@ static int ak4104_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
 	.probe =	ak4104_probe,
 	.remove =	ak4104_remove,
+
+	.dapm_widgets = ak4104_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(ak4104_dapm_widgets),
+	.dapm_routes = ak4104_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(ak4104_dapm_routes),
 };
 
 static const struct regmap_config ak4104_regmap = {
