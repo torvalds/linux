@@ -76,36 +76,7 @@ static inline void ath10k_ce_src_ring_write_index_set(struct ath10k *ar,
 						      u32 ce_ctrl_addr,
 						      unsigned int n)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	void __iomem *indicator_addr;
-
-	if (!test_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features)) {
-		ath10k_pci_write32(ar, ce_ctrl_addr + SR_WR_INDEX_ADDRESS, n);
-		return;
-	}
-
-	/* workaround for QCA988x_1.0 HW CE */
-	indicator_addr = ar_pci->mem + ce_ctrl_addr + DST_WATERMARK_ADDRESS;
-
-	if (ce_ctrl_addr == ath10k_ce_base_address(CDC_WAR_DATA_CE)) {
-		iowrite32((CDC_WAR_MAGIC_STR | n), indicator_addr);
-	} else {
-		unsigned long irq_flags;
-		local_irq_save(irq_flags);
-		iowrite32(1, indicator_addr);
-
-		/*
-		 * PCIE write waits for ACK in IPQ8K, there is no
-		 * need to read back value.
-		 */
-		(void)ioread32(indicator_addr);
-		(void)ioread32(indicator_addr); /* conservative */
-
-		ath10k_pci_write32(ar, ce_ctrl_addr + SR_WR_INDEX_ADDRESS, n);
-
-		iowrite32(0, indicator_addr);
-		local_irq_restore(irq_flags);
-	}
+	ath10k_pci_write32(ar, ce_ctrl_addr + SR_WR_INDEX_ADDRESS, n);
 }
 
 static inline u32 ath10k_ce_src_ring_write_index_get(struct ath10k *ar,

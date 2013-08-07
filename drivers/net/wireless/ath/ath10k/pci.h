@@ -152,8 +152,7 @@ struct service_to_pipe {
 
 enum ath10k_pci_features {
 	ATH10K_PCI_FEATURE_MSI_X		= 0,
-	ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND	= 1,
-	ATH10K_PCI_FEATURE_SOC_POWER_SAVE	= 2,
+	ATH10K_PCI_FEATURE_SOC_POWER_SAVE	= 1,
 
 	/* keep last */
 	ATH10K_PCI_FEATURE_COUNT
@@ -234,9 +233,6 @@ struct ath10k_pci {
 
 	/* Map CE id to ce_state */
 	struct ce_state *ce_id_to_state[CE_COUNT_MAX];
-
-	/* makes sure that dummy reads are atomic */
-	spinlock_t hw_v1_workaround_lock;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
@@ -310,23 +306,8 @@ static inline void ath10k_pci_write32(struct ath10k *ar, u32 offset,
 				      u32 value)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	void __iomem *addr = ar_pci->mem;
 
-	if (test_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features)) {
-		unsigned long irq_flags;
-
-		spin_lock_irqsave(&ar_pci->hw_v1_workaround_lock, irq_flags);
-
-		ioread32(addr+offset+4); /* 3rd read prior to write */
-		ioread32(addr+offset+4); /* 2nd read prior to write */
-		ioread32(addr+offset+4); /* 1st read prior to write */
-		iowrite32(value, addr+offset);
-
-		spin_unlock_irqrestore(&ar_pci->hw_v1_workaround_lock,
-				       irq_flags);
-	} else {
-		iowrite32(value, addr+offset);
-	}
+	iowrite32(value, ar_pci->mem + offset);
 }
 
 static inline u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)

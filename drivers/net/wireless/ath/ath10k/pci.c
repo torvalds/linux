@@ -36,11 +36,9 @@ static unsigned int ath10k_target_ps;
 module_param(ath10k_target_ps, uint, 0644);
 MODULE_PARM_DESC(ath10k_target_ps, "Enable ath10k Target (SoC) PS option");
 
-#define QCA988X_1_0_DEVICE_ID	(0xabcd)
 #define QCA988X_2_0_DEVICE_ID	(0x003c)
 
 static DEFINE_PCI_DEVICE_TABLE(ath10k_pci_id_table) = {
-	{ PCI_VDEVICE(ATHEROS, QCA988X_1_0_DEVICE_ID) }, /* PCI-E QCA988X V1 */
 	{ PCI_VDEVICE(ATHEROS, QCA988X_2_0_DEVICE_ID) }, /* PCI-E QCA988X V2 */
 	{0}
 };
@@ -2269,9 +2267,6 @@ static void ath10k_pci_dump_features(struct ath10k_pci *ar_pci)
 		case ATH10K_PCI_FEATURE_MSI_X:
 			ath10k_dbg(ATH10K_DBG_PCI, "device supports MSI-X\n");
 			break;
-		case ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND:
-			ath10k_dbg(ATH10K_DBG_PCI, "QCA988X_1.0 workaround enabled\n");
-			break;
 		case ATH10K_PCI_FEATURE_SOC_POWER_SAVE:
 			ath10k_dbg(ATH10K_DBG_PCI, "QCA98XX SoC power save enabled\n");
 			break;
@@ -2298,9 +2293,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar_pci->dev = &pdev->dev;
 
 	switch (pci_dev->device) {
-	case QCA988X_1_0_DEVICE_ID:
-		set_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features);
-		break;
 	case QCA988X_2_0_DEVICE_ID:
 		set_bit(ATH10K_PCI_FEATURE_MSI_X, ar_pci->features);
 		break;
@@ -2321,10 +2313,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		ret = -EINVAL;
 		goto err_ar_pci;
 	}
-
-	/* Enable QCA988X_1.0 HW workarounds */
-	if (test_bit(ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND, ar_pci->features))
-		spin_lock_init(&ar_pci->hw_v1_workaround_lock);
 
 	ar_pci->ar = ar;
 	ar_pci->fw_indicator_address = FW_INDICATOR_ADDRESS;
@@ -2483,9 +2471,6 @@ module_exit(ath10k_pci_exit);
 MODULE_AUTHOR("Qualcomm Atheros");
 MODULE_DESCRIPTION("Driver support for Atheros QCA988X PCIe devices");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_FIRMWARE(QCA988X_HW_1_0_FW_DIR "/" QCA988X_HW_1_0_FW_FILE);
-MODULE_FIRMWARE(QCA988X_HW_1_0_FW_DIR "/" QCA988X_HW_1_0_OTP_FILE);
-MODULE_FIRMWARE(QCA988X_HW_1_0_FW_DIR "/" QCA988X_HW_1_0_BOARD_DATA_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" QCA988X_HW_2_0_FW_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" QCA988X_HW_2_0_OTP_FILE);
 MODULE_FIRMWARE(QCA988X_HW_2_0_FW_DIR "/" QCA988X_HW_2_0_BOARD_DATA_FILE);

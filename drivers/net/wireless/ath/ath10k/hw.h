@@ -26,14 +26,6 @@
 #define SUPPORTED_FW_RELEASE	0
 #define SUPPORTED_FW_BUILD	629
 
-/* QCA988X 1.0 definitions */
-#define QCA988X_HW_1_0_VERSION		0x4000002c
-#define QCA988X_HW_1_0_FW_DIR		"ath10k/QCA988X/hw1.0"
-#define QCA988X_HW_1_0_FW_FILE		"firmware.bin"
-#define QCA988X_HW_1_0_OTP_FILE		"otp.bin"
-#define QCA988X_HW_1_0_BOARD_DATA_FILE	"board.bin"
-#define QCA988X_HW_1_0_PATCH_LOAD_ADDR	0x1234
-
 /* QCA988X 2.0 definitions */
 #define QCA988X_HW_2_0_VERSION		0x4100016c
 #define QCA988X_HW_2_0_FW_DIR		"ath10k/QCA988X/hw2.0"

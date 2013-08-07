@@ -39,17 +39,6 @@ MODULE_PARM_DESC(p2p, "Enable ath10k P2P support");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
-		.id = QCA988X_HW_1_0_VERSION,
-		.name = "qca988x hw1.0",
-		.patch_load_addr = QCA988X_HW_1_0_PATCH_LOAD_ADDR,
-		.fw = {
-			.dir = QCA988X_HW_1_0_FW_DIR,
-			.fw = QCA988X_HW_1_0_FW_FILE,
-			.otp = QCA988X_HW_1_0_OTP_FILE,
-			.board = QCA988X_HW_1_0_BOARD_DATA_FILE,
-		},
-	},
-	{
 		.id = QCA988X_HW_2_0_VERSION,
 		.name = "qca988x hw2.0",
 		.patch_load_addr = QCA988X_HW_2_0_PATCH_LOAD_ADDR,
