@@ -568,7 +568,7 @@ void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
 	addr = area->addr;
 	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,
 			       phys_addr, pgprot)) {
-		remove_vm_area((void *)(PAGE_MASK & (unsigned long) addr));
+		free_vm_area(area);
 		return NULL;
 	}
 	return (__force void __iomem *) (offset + (char *)addr);
