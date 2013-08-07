@@ -44,3 +44,10 @@ void shmobile_smp_hook(unsigned int cpu, unsigned long fn, unsigned long arg)
 	shmobile_smp_arg[cpu] = arg;
 	flush_cache_all();
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+int shmobile_smp_cpu_disable(unsigned int cpu)
+{
+	return 0; /* Hotplug of any CPU is supported */
+}
+#endif
