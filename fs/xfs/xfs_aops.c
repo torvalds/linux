@@ -451,7 +451,7 @@ xfs_start_page_writeback(
 		end_page_writeback(page);
 }
 
-static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
+static inline int xfs_bio_add_buffer(struct bio *bio, struct buffer_head *bh)
 {
 	return bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
 }
@@ -525,7 +525,7 @@ xfs_submit_ioend(
 				goto retry;
 			}
 
-			if (bio_add_buffer(bio, bh) != bh->b_size) {
+			if (xfs_bio_add_buffer(bio, bh) != bh->b_size) {
 				xfs_submit_ioend_bio(wbc, ioend, bio);
 				goto retry;
 			}
