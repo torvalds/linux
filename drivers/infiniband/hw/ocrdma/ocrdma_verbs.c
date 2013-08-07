@@ -1101,7 +1101,7 @@ int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	qp = get_ocrdma_qp(ibqp);
 	dev = qp->dev;
 	if (attr_mask & IB_QP_STATE)
-		status = ocrdma_qp_state_machine(qp, attr->qp_state, &old_qps);
+		status = ocrdma_qp_state_change(qp, attr->qp_state, &old_qps);
 	/* if new and previous states are same hw doesn't need to
 	 * know about it.
 	 */
@@ -2106,7 +2106,7 @@ static bool ocrdma_update_err_cqe(struct ib_wc *ibwc, struct ocrdma_cqe *cqe,
 	ibwc->status = ocrdma_to_ibwc_err(status);
 
 	ocrdma_flush_qp(qp);
-	ocrdma_qp_state_machine(qp, IB_QPS_ERR, NULL);
+	ocrdma_qp_state_change(qp, IB_QPS_ERR, NULL);
 
 	/* if wqe/rqe pending for which cqe needs to be returned,
 	 * trigger inflating it.

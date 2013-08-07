@@ -122,7 +122,7 @@ int ocrdma_mbx_destroy_srq(struct ocrdma_dev *, struct ocrdma_srq *);
 int ocrdma_alloc_av(struct ocrdma_dev *, struct ocrdma_ah *);
 int ocrdma_free_av(struct ocrdma_dev *, struct ocrdma_ah *);
 
-int ocrdma_qp_state_machine(struct ocrdma_qp *, enum ib_qp_state new_state,
+int ocrdma_qp_state_change(struct ocrdma_qp *, enum ib_qp_state new_state,
 			    enum ib_qp_state *old_ib_state);
 bool ocrdma_is_qp_in_sq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);
 bool ocrdma_is_qp_in_rq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);

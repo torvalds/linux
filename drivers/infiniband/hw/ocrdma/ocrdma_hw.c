@@ -654,7 +654,7 @@ static void ocrdma_process_qpcat_error(struct ocrdma_dev *dev,
 
 	if (qp == NULL)
 		BUG();
-	ocrdma_qp_state_machine(qp, new_ib_qps, &old_ib_qps);
+	ocrdma_qp_state_change(qp, new_ib_qps, &old_ib_qps);
 }
 
 static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
@@ -1676,8 +1676,8 @@ void ocrdma_flush_qp(struct ocrdma_qp *qp)
 	spin_unlock_irqrestore(&qp->dev->flush_q_lock, flags);
 }
 
-int ocrdma_qp_state_machine(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
-			    enum ib_qp_state *old_ib_state)
+int ocrdma_qp_state_change(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
+			   enum ib_qp_state *old_ib_state)
 {
 	unsigned long flags;
 	int status = 0;
@@ -1694,96 +1694,11 @@ int ocrdma_qp_state_machine(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
 		return 1;
 	}
 
-	switch (qp->state) {
-	case OCRDMA_QPS_RST:
-		switch (new_state) {
-		case OCRDMA_QPS_RST:
-		case OCRDMA_QPS_INIT:
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_INIT:
-		/* qps: INIT->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_INIT:
-		case OCRDMA_QPS_RTR:
-			break;
-		case OCRDMA_QPS_ERR:
-			ocrdma_flush_qp(qp);
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_RTR:
-		/* qps: RTS->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_RTS:
-			break;
-		case OCRDMA_QPS_ERR:
-			ocrdma_flush_qp(qp);
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_RTS:
-		/* qps: RTS->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_SQD:
-		case OCRDMA_QPS_SQE:
-			break;
-		case OCRDMA_QPS_ERR:
-			ocrdma_flush_qp(qp);
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_SQD:
-		/* qps: SQD->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_RTS:
-		case OCRDMA_QPS_SQE:
-		case OCRDMA_QPS_ERR:
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_SQE:
-		switch (new_state) {
-		case OCRDMA_QPS_RTS:
-		case OCRDMA_QPS_ERR:
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_ERR:
-		/* qps: ERR->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_RST:
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	default:
-		status = -EINVAL;
-		break;
-	};
-	if (!status)
-		qp->state = new_state;
+
+	if (new_state == OCRDMA_QPS_ERR)
+		ocrdma_flush_qp(qp);
+
+	qp->state = new_state;
 
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 	return status;
