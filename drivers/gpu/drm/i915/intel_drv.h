@@ -331,6 +331,13 @@ struct intel_crtc {
 	bool pch_fifo_underrun_disabled;
 };
 
+struct intel_plane_wm_parameters {
+	uint32_t horiz_pixels;
+	uint8_t bytes_per_pixel;
+	bool enabled;
+	bool scaled;
+};
+
 struct intel_plane {
 	struct drm_plane base;
 	int plane;
@@ -349,12 +356,7 @@ struct intel_plane {
 	 * as the other pieces of the struct may not reflect the values we want
 	 * for the watermark calculations. Currently only Haswell uses this.
 	 */
-	struct {
-		bool enabled;
-		bool scaled;
-		uint8_t bytes_per_pixel;
-		uint32_t horiz_pixels;
-	} wm;
+	struct intel_plane_wm_parameters wm;
 
 	void (*update_plane)(struct drm_plane *plane,
 			     struct drm_framebuffer *fb,
