@@ -527,7 +527,7 @@ xfs_set_inoalignment(xfs_mount_t *mp)
 }
 
 /*
- * Check that the data (and log if separate) are an ok size.
+ * Check that the data (and log if separate) is an ok size.
  */
 STATIC int
 xfs_check_sizes(xfs_mount_t *mp)
