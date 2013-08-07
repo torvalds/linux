@@ -592,7 +592,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 
 	data->base_common = devm_ioremap(&pdev->dev, res.start,
 					resource_size(&res));
-	if (!data->base) {
+	if (!data->base_common) {
 		dev_err(&pdev->dev, "Failed to ioremap memory\n");
 		return -ENOMEM;
 	}
