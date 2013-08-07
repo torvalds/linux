@@ -237,7 +237,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	 * mapping_gfp_mask(mapping) which conflicts w/ GFP_DMA32.. probably
 	 * we actually want CMA memory for it all anyways..
 	 */
-	pages = _drm_gem_get_pages(obj, GFP_KERNEL);
+	pages = drm_gem_get_pages(obj, GFP_KERNEL);
 	if (IS_ERR(pages)) {
 		dev_err(obj->dev->dev, "could not get pages: %ld\n", PTR_ERR(pages));
 		return PTR_ERR(pages);
@@ -271,7 +271,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	return 0;
 
 free_pages:
-	_drm_gem_put_pages(obj, pages, true, false);
+	drm_gem_put_pages(obj, pages, true, false);
 
 	return ret;
 }
@@ -295,7 +295,7 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 	kfree(omap_obj->addrs);
 	omap_obj->addrs = NULL;
 
-	_drm_gem_put_pages(obj, omap_obj->pages, true, false);
+	drm_gem_put_pages(obj, omap_obj->pages, true, false);
 	omap_obj->pages = NULL;
 }
 
@@ -316,7 +316,7 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 
 	/* Make it mmapable */
 	size = omap_gem_mmap_size(obj);
-	ret = _drm_gem_create_mmap_offset_size(obj, size);
+	ret = drm_gem_create_mmap_offset_size(obj, size);
 	if (ret) {
 		dev_err(dev->dev, "could not allocate mmap offset\n");
 		return 0;
