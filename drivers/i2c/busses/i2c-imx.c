@@ -499,6 +499,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	struct imx_i2c_struct *i2c_imx;
 	struct resource *res;
 	struct imxi2c_platform_data *pdata = pdev->dev.platform_data;
+	const struct platform_device_id *imx_id;
 	void __iomem *base;
 	int irq, ret;
 	u32 bitrate;
@@ -524,8 +525,11 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	}
 
 	if (of_id)
-		pdev->id_entry = of_id->data;
-	i2c_imx->devtype = pdev->id_entry->driver_data;
+		imx_id = of_id->data;
+	else
+		imx_id = platform_get_device_id(pdev);
+
+	i2c_imx->devtype = imx_id->driver_data;
 
 	/* Setup i2c_imx driver structure */
 	strlcpy(i2c_imx->adapter.name, pdev->name, sizeof(i2c_imx->adapter.name));
