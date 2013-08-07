@@ -30,6 +30,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/list_sort.h>
 #include <drm/drmP.h>
 #include "intel_drv.h"
 #include "intel_ringbuffer.h"
@@ -180,6 +181,67 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		total_obj_size += vma->obj->base.size;
 		total_gtt_size += vma->node.size;
 		count++;
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	seq_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
+		   count, total_obj_size, total_gtt_size);
+	return 0;
+}
+
+static int obj_rank_by_stolen(void *priv,
+			      struct list_head *A, struct list_head *B)
+{
+	struct drm_i915_gem_object *a =
+		container_of(A, struct drm_i915_gem_object, exec_list);
+	struct drm_i915_gem_object *b =
+		container_of(B, struct drm_i915_gem_object, exec_list);
+
+	return a->stolen->start - b->stolen->start;
+}
+
+static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj;
+	size_t total_obj_size, total_gtt_size;
+	LIST_HEAD(stolen);
+	int count, ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	total_obj_size = total_gtt_size = count = 0;
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		if (obj->stolen == NULL)
+			continue;
+
+		list_add(&obj->exec_list, &stolen);
+
+		total_obj_size += obj->base.size;
+		total_gtt_size += i915_gem_obj_ggtt_size(obj);
+		count++;
+	}
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
+		if (obj->stolen == NULL)
+			continue;
+
+		list_add(&obj->exec_list, &stolen);
+
+		total_obj_size += obj->base.size;
+		count++;
+	}
+	list_sort(NULL, &stolen, obj_rank_by_stolen);
+	seq_puts(m, "Stolen:\n");
+	while (!list_empty(&stolen)) {
+		obj = list_first_entry(&stolen, typeof(*obj), exec_list);
+		seq_puts(m, "   ");
+		describe_obj(m, obj);
+		seq_putc(m, '\n');
+		list_del_init(&obj->exec_list);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -2114,6 +2176,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_pinned", i915_gem_gtt_info, 0, (void *) PINNED_LIST},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
+	{"i915_gem_stolen", i915_gem_stolen_list_info },
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
