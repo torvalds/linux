@@ -1725,6 +1725,104 @@ static struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO_GP_ALL(),
 };
 
+/* - DU RGB ----------------------------------------------------------------- */
+static const unsigned int du_rgb666_pins[] = {
+	/* R[7:2], G[7:2], B[7:2] */
+	RCAR_GP_PIN(4, 21), RCAR_GP_PIN(4, 20), RCAR_GP_PIN(4, 19),
+	RCAR_GP_PIN(4, 18), RCAR_GP_PIN(4, 17), RCAR_GP_PIN(4, 16),
+	RCAR_GP_PIN(5, 4),  RCAR_GP_PIN(5, 15), RCAR_GP_PIN(5, 14),
+	RCAR_GP_PIN(5, 7),  RCAR_GP_PIN(4, 30), RCAR_GP_PIN(4, 27),
+	RCAR_GP_PIN(5, 13), RCAR_GP_PIN(5, 12), RCAR_GP_PIN(5, 11),
+	RCAR_GP_PIN(5, 10), RCAR_GP_PIN(5, 9),  RCAR_GP_PIN(5, 8),
+};
+static const unsigned int du_rgb666_mux[] = {
+	DU2_DR7_MARK, DU2_DR6_MARK, DU2_DR5_MARK, DU2_DR4_MARK,
+	DU2_DR3_MARK, DU2_DR2_MARK,
+	DU2_DG7_MARK, DU2_DG6_MARK, DU2_DG5_MARK, DU2_DG4_MARK,
+	DU2_DG3_MARK, DU2_DG2_MARK,
+	DU2_DB7_MARK, DU2_DB6_MARK, DU2_DB5_MARK, DU2_DB4_MARK,
+	DU2_DB3_MARK, DU2_DB2_MARK,
+};
+static const unsigned int du_rgb888_pins[] = {
+	/* R[7:0], G[7:0], B[7:0] */
+	RCAR_GP_PIN(4, 21), RCAR_GP_PIN(4, 20), RCAR_GP_PIN(4, 19),
+	RCAR_GP_PIN(4, 18), RCAR_GP_PIN(4, 17), RCAR_GP_PIN(4, 16),
+	RCAR_GP_PIN(4, 29), RCAR_GP_PIN(4, 28), RCAR_GP_PIN(5, 4),
+	RCAR_GP_PIN(5, 15), RCAR_GP_PIN(5, 14), RCAR_GP_PIN(5, 7),
+	RCAR_GP_PIN(4, 30), RCAR_GP_PIN(4, 27), RCAR_GP_PIN(5, 1),
+	RCAR_GP_PIN(4, 31), RCAR_GP_PIN(5, 13), RCAR_GP_PIN(5, 12),
+	RCAR_GP_PIN(5, 11), RCAR_GP_PIN(5, 10), RCAR_GP_PIN(5, 9),
+	RCAR_GP_PIN(5, 8),  RCAR_GP_PIN(5, 6),  RCAR_GP_PIN(5, 5),
+};
+static const unsigned int du_rgb888_mux[] = {
+	DU2_DR7_MARK, DU2_DR6_MARK, DU2_DR5_MARK, DU2_DR4_MARK,
+	DU2_DR3_MARK, DU2_DR2_MARK, DU2_DR1_MARK, DU2_DR0_MARK,
+	DU2_DG7_MARK, DU2_DG6_MARK, DU2_DG5_MARK, DU2_DG4_MARK,
+	DU2_DG3_MARK, DU2_DG2_MARK, DU2_DG1_MARK, DU2_DG0_MARK,
+	DU2_DB7_MARK, DU2_DB6_MARK, DU2_DB5_MARK, DU2_DB4_MARK,
+	DU2_DB3_MARK, DU2_DB2_MARK, DU2_DB1_MARK, DU2_DB0_MARK,
+};
+static const unsigned int du_clk_out_0_pins[] = {
+	/* CLKOUT */
+	RCAR_GP_PIN(5, 2),
+};
+static const unsigned int du_clk_out_0_mux[] = {
+	DU0_DOTCLKOUT_MARK
+};
+static const unsigned int du_clk_out_1_pins[] = {
+	/* CLKOUT */
+	RCAR_GP_PIN(5, 3),
+};
+static const unsigned int du_clk_out_1_mux[] = {
+	DU1_DOTCLKOUT_MARK
+};
+static const unsigned int du_sync_0_pins[] = {
+	/* VSYNC, HSYNC, DISP */
+	RCAR_GP_PIN(4, 15), RCAR_GP_PIN(4, 14), RCAR_GP_PIN(5, 0),
+};
+static const unsigned int du_sync_0_mux[] = {
+	DU2_EXVSYNC_DU2_VSYNC_MARK, DU2_EXHSYNC_DU2_HSYNC_MARK,
+	DU2_EXODDF_DU2_ODDF_DISP_CDE_MARK
+};
+static const unsigned int du_sync_1_pins[] = {
+	/* VSYNC, HSYNC, DISP */
+	RCAR_GP_PIN(4, 15), RCAR_GP_PIN(4, 14), RCAR_GP_PIN(5, 16),
+};
+static const unsigned int du_sync_1_mux[] = {
+	DU2_EXVSYNC_DU2_VSYNC_MARK, DU2_EXHSYNC_DU2_HSYNC_MARK,
+	DU2_DISP_MARK
+};
+static const unsigned int du_cde_pins[] = {
+	/* CDE */
+	RCAR_GP_PIN(5, 17),
+};
+static const unsigned int du_cde_mux[] = {
+	DU2_CDE_MARK,
+};
+/* - DU0 -------------------------------------------------------------------- */
+static const unsigned int du0_clk_in_pins[] = {
+	/* CLKIN */
+	RCAR_GP_PIN(5, 26),
+};
+static const unsigned int du0_clk_in_mux[] = {
+	DU_DOTCLKIN0_MARK
+};
+/* - DU1 -------------------------------------------------------------------- */
+static const unsigned int du1_clk_in_pins[] = {
+	/* CLKIN */
+	RCAR_GP_PIN(5, 27),
+};
+static const unsigned int du1_clk_in_mux[] = {
+	DU_DOTCLKIN1_MARK,
+};
+/* - DU2 -------------------------------------------------------------------- */
+static const unsigned int du2_clk_in_pins[] = {
+	/* CLKIN */
+	RCAR_GP_PIN(5, 28),
+};
+static const unsigned int du2_clk_in_mux[] = {
+	DU_DOTCLKIN2_MARK,
+};
 /* - ETH -------------------------------------------------------------------- */
 static const unsigned int eth_link_pins[] = {
 	/* LINK */
@@ -2916,6 +3014,16 @@ static const unsigned int vin1_clk_mux[] = {
 };
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
+	SH_PFC_PIN_GROUP(du_rgb666),
+	SH_PFC_PIN_GROUP(du_rgb888),
+	SH_PFC_PIN_GROUP(du_clk_out_0),
+	SH_PFC_PIN_GROUP(du_clk_out_1),
+	SH_PFC_PIN_GROUP(du_sync_0),
+	SH_PFC_PIN_GROUP(du_sync_1),
+	SH_PFC_PIN_GROUP(du_cde),
+	SH_PFC_PIN_GROUP(du0_clk_in),
+	SH_PFC_PIN_GROUP(du1_clk_in),
+	SH_PFC_PIN_GROUP(du2_clk_in),
 	SH_PFC_PIN_GROUP(eth_link),
 	SH_PFC_PIN_GROUP(eth_magic),
 	SH_PFC_PIN_GROUP(eth_mdio),
@@ -3079,6 +3187,28 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(vin0_clk),
 	SH_PFC_PIN_GROUP(vin1_data),
 	SH_PFC_PIN_GROUP(vin1_clk),
+};
+
+static const char * const du_groups[] = {
+	"du_rgb666",
+	"du_rgb888",
+	"du_clk_out_0",
+	"du_clk_out_1",
+	"du_sync_0",
+	"du_sync_1",
+	"du_cde",
+};
+
+static const char * const du0_groups[] = {
+	"du0_clk_in",
+};
+
+static const char * const du1_groups[] = {
+	"du1_clk_in",
+};
+
+static const char * const du2_groups[] = {
+	"du2_clk_in",
 };
 
 static const char * const eth_groups[] = {
@@ -3332,6 +3462,10 @@ static const char * const vin1_groups[] = {
 };
 
 static const struct sh_pfc_function pinmux_functions[] = {
+	SH_PFC_FUNCTION(du),
+	SH_PFC_FUNCTION(du0),
+	SH_PFC_FUNCTION(du1),
+	SH_PFC_FUNCTION(du2),
 	SH_PFC_FUNCTION(eth),
 	SH_PFC_FUNCTION(hscif0),
 	SH_PFC_FUNCTION(hscif1),
