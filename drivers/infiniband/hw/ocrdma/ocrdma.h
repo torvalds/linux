@@ -60,6 +60,7 @@ struct ocrdma_dev_attr {
 	int max_send_sge;
 	int max_recv_sge;
 	int max_srq_sge;
+	int max_rdma_sge;
 	int max_mr;
 	u64 max_mr_size;
 	u32 max_num_mr_pbl;
@@ -287,6 +288,7 @@ struct ocrdma_qp {
 	u32 qkey;
 	bool dpp_enabled;
 	u8 *ird_q_va;
+	u16 db_cache;
 };
 
 struct ocrdma_hw_mr {

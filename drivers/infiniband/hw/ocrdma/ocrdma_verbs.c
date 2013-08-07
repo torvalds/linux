@@ -84,7 +84,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 					IB_DEVICE_SYS_IMAGE_GUID |
 					IB_DEVICE_LOCAL_DMA_LKEY;
 	attr->max_sge = min(dev->attr.max_send_sge, dev->attr.max_srq_sge);
-	attr->max_sge_rd = 0;
+	attr->max_sge_rd = dev->attr.max_rdma_sge;
 	attr->max_cq = dev->attr.max_cq;
 	attr->max_cqe = dev->attr.max_cqe;
 	attr->max_mr = dev->attr.max_mr;
@@ -327,7 +327,7 @@ int ocrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return status;
 }
 
-static int ocrdma_copy_pd_uresp(struct ocrdma_pd *pd,
+static int ocrdma_copy_pd_uresp(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
 				struct ib_ucontext *ib_ctx,
 				struct ib_udata *udata)
 {
@@ -337,7 +337,6 @@ static int ocrdma_copy_pd_uresp(struct ocrdma_pd *pd,
 	u32 db_page_size;
 	struct ocrdma_alloc_pd_uresp rsp;
 	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ib_ctx);
-	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
 	memset(&rsp, 0, sizeof(rsp));
 	rsp.id = pd->id;
@@ -400,14 +399,15 @@ struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
 	}
 
 	if (udata && context) {
-		status = ocrdma_copy_pd_uresp(pd, context, udata);
+		status = ocrdma_copy_pd_uresp(dev, pd, context, udata);
 		if (status)
 			goto err;
 	}
 	return &pd->ibpd;
 
 err:
-	ocrdma_dealloc_pd(&pd->ibpd);
+	status = ocrdma_mbx_dealloc_pd(dev, pd);
+	kfree(pd);
 	return ERR_PTR(status);
 }
 
@@ -1090,6 +1090,17 @@ gen_err:
 	return ERR_PTR(status);
 }
 
+
+static void ocrdma_flush_rq_db(struct ocrdma_qp *qp)
+{
+	if (qp->db_cache) {
+		u32 val = qp->rq.dbid | (qp->db_cache <<
+				ocrdma_get_num_posted_shift(qp));
+		iowrite32(val, qp->rq_db);
+		qp->db_cache = 0;
+	}
+}
+
 int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask)
 {
@@ -1108,6 +1119,9 @@ int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (status < 0)
 		return status;
 	status = ocrdma_mbx_modify_qp(dev, qp, attr, attr_mask, old_qps);
+	if (!status && attr_mask & IB_QP_STATE && attr->qp_state == IB_QPS_RTR)
+		ocrdma_flush_rq_db(qp);
+
 	return status;
 }
 
@@ -1822,7 +1836,10 @@ static void ocrdma_ring_rq_db(struct ocrdma_qp *qp)
 {
 	u32 val = qp->rq.dbid | (1 << ocrdma_get_num_posted_shift(qp));
 
-	iowrite32(val, qp->rq_db);
+	if (qp->state != OCRDMA_QPS_INIT)
+		iowrite32(val, qp->rq_db);
+	else
+		qp->db_cache++;
 }
 
 static void ocrdma_build_rqe(struct ocrdma_hdr_wqe *rqe, struct ib_recv_wr *wr,

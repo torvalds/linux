@@ -1306,7 +1306,7 @@ struct ocrdma_reg_nsmr_cont {
 	u32 last;
 
 	struct ocrdma_pa pbl[MAX_OCRDMA_NSMR_PBL];
-} __packed;
+};
 
 struct ocrdma_pbe {
 	u32 pa_hi;
