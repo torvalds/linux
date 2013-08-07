@@ -40,7 +40,6 @@ static inline int shmobile_cpuidle_init(void) { return 0; }
 #endif
 
 extern void __iomem *shmobile_scu_base;
-extern void shmobile_smp_init_cpus(unsigned int ncores);
 
 static inline void __init shmobile_init_late(void)
 {
