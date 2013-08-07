@@ -2162,15 +2162,11 @@ static uint32_t ilk_wm_fbc(uint32_t pri_val, uint32_t horiz_pixels,
 
 struct hsw_pipe_wm_parameters {
 	bool active;
-	bool sprite_enabled;
-	uint8_t pri_bytes_per_pixel;
-	uint8_t spr_bytes_per_pixel;
-	uint8_t cur_bytes_per_pixel;
-	uint32_t pri_horiz_pixels;
-	uint32_t spr_horiz_pixels;
-	uint32_t cur_horiz_pixels;
 	uint32_t pipe_htotal;
 	uint32_t pixel_rate;
+	struct intel_plane_wm_parameters pri;
+	struct intel_plane_wm_parameters spr;
+	struct intel_plane_wm_parameters cur;
 };
 
 struct hsw_wm_maximums {
@@ -2206,12 +2202,11 @@ static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
 {
 	uint32_t method1, method2;
 
-	/* TODO: for now, assume the primary plane is always enabled. */
-	if (!params->active)
+	if (!params->active || !params->pri.enabled)
 		return 0;
 
 	method1 = ilk_wm_method1(params->pixel_rate,
-				 params->pri_bytes_per_pixel,
+				 params->pri.bytes_per_pixel,
 				 mem_value);
 
 	if (!is_lp)
@@ -2219,8 +2214,8 @@ static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
 
 	method2 = ilk_wm_method2(params->pixel_rate,
 				 params->pipe_htotal,
-				 params->pri_horiz_pixels,
-				 params->pri_bytes_per_pixel,
+				 params->pri.horiz_pixels,
+				 params->pri.bytes_per_pixel,
 				 mem_value);
 
 	return min(method1, method2);
@@ -2235,16 +2230,16 @@ static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
 {
 	uint32_t method1, method2;
 
-	if (!params->active || !params->sprite_enabled)
+	if (!params->active || !params->spr.enabled)
 		return 0;
 
 	method1 = ilk_wm_method1(params->pixel_rate,
-				 params->spr_bytes_per_pixel,
+				 params->spr.bytes_per_pixel,
 				 mem_value);
 	method2 = ilk_wm_method2(params->pixel_rate,
 				 params->pipe_htotal,
-				 params->spr_horiz_pixels,
-				 params->spr_bytes_per_pixel,
+				 params->spr.horiz_pixels,
+				 params->spr.bytes_per_pixel,
 				 mem_value);
 	return min(method1, method2);
 }
@@ -2256,13 +2251,13 @@ static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
 static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
-	if (!params->active)
+	if (!params->active || !params->cur.enabled)
 		return 0;
 
 	return ilk_wm_method2(params->pixel_rate,
 			      params->pipe_htotal,
-			      params->cur_horiz_pixels,
-			      params->cur_bytes_per_pixel,
+			      params->cur.horiz_pixels,
+			      params->cur.bytes_per_pixel,
 			      mem_value);
 }
 
@@ -2270,12 +2265,12 @@ static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
 static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
 				   uint32_t pri_val)
 {
-	if (!params->active)
+	if (!params->active || !params->pri.enabled)
 		return 0;
 
 	return ilk_wm_fbc(pri_val,
-			  params->pri_horiz_pixels,
-			  params->pri_bytes_per_pixel);
+			  params->pri.horiz_pixels,
+			  params->pri.bytes_per_pixel);
 }
 
 static unsigned int ilk_display_fifo_size(const struct drm_device *dev)
@@ -2636,11 +2631,14 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 
 		p->pipe_htotal = intel_crtc->config.adjusted_mode.htotal;
 		p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
-		p->pri_bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
-		p->cur_bytes_per_pixel = 4;
-		p->pri_horiz_pixels =
+		p->pri.bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
+		p->cur.bytes_per_pixel = 4;
+		p->pri.horiz_pixels =
 			intel_crtc->config.requested_mode.hdisplay;
-		p->cur_horiz_pixels = 64;
+		p->cur.horiz_pixels = 64;
+		/* TODO: for now, assume primary and cursor planes are always enabled. */
+		p->pri.enabled = true;
+		p->cur.enabled = true;
 	}
 
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
@@ -2650,11 +2648,10 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		pipe = intel_plane->pipe;
 		p = &params[pipe];
 
-		p->sprite_enabled = intel_plane->wm.enabled;
-		p->spr_bytes_per_pixel = intel_plane->wm.bytes_per_pixel;
-		p->spr_horiz_pixels = intel_plane->wm.horiz_pixels;
+		p->spr = intel_plane->wm;
 
-		config.sprites_enabled |= p->sprite_enabled;
+		config.sprites_enabled |= p->spr.enabled;
+		config.sprites_scaled |= p->spr.scaled;
 	}
 
 	ilk_wm_max(dev, 1, &config, INTEL_DDB_PART_1_2, lp_max_1_2);
