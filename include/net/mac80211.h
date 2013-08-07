@@ -3688,6 +3688,89 @@ void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 			      int tid, struct ieee80211_key_seq *seq);
 
 /**
+ * ieee80211_set_key_tx_seq - set key TX sequence counter
+ *
+ * @keyconf: the parameter passed with the set key
+ * @seq: new sequence data
+ *
+ * This function allows a driver to set the current TX IV/PNs for the
+ * given key. This is useful when resuming from WoWLAN sleep and the
+ * device may have transmitted frames using the PTK, e.g. replies to
+ * ARP requests.
+ *
+ * Note that this function may only be called when no TX processing
+ * can be done concurrently.
+ */
+void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
+			      struct ieee80211_key_seq *seq);
+
+/**
+ * ieee80211_set_key_rx_seq - set key RX sequence counter
+ *
+ * @keyconf: the parameter passed with the set key
+ * @tid: The TID, or -1 for the management frame value (CCMP only);
+ *	the value on TID 0 is also used for non-QoS frames. For
+ *	CMAC, only TID 0 is valid.
+ * @seq: new sequence data
+ *
+ * This function allows a driver to set the current RX IV/PNs for the
+ * given key. This is useful when resuming from WoWLAN sleep and GTK
+ * rekey may have been done while suspended. It should not be called
+ * if IV checking is done by the device and not by mac80211.
+ *
+ * Note that this function may only be called when no RX processing
+ * can be done concurrently.
+ */
+void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
+			      int tid, struct ieee80211_key_seq *seq);
+
+/**
+ * ieee80211_remove_key - remove the given key
+ * @keyconf: the parameter passed with the set key
+ *
+ * Remove the given key. If the key was uploaded to the hardware at the
+ * time this function is called, it is not deleted in the hardware but
+ * instead assumed to have been removed already.
+ *
+ * Note that due to locking considerations this function can (currently)
+ * only be called during key iteration (ieee80211_iter_keys().)
+ */
+void ieee80211_remove_key(struct ieee80211_key_conf *keyconf);
+
+/**
+ * ieee80211_gtk_rekey_add - add a GTK key from rekeying during WoWLAN
+ * @vif: the virtual interface to add the key on
+ * @keyconf: new key data
+ *
+ * When GTK rekeying was done while the system was suspended, (a) new
+ * key(s) will be available. These will be needed by mac80211 for proper
+ * RX processing, so this function allows setting them.
+ *
+ * The function returns the newly allocated key structure, which will
+ * have similar contents to the passed key configuration but point to
+ * mac80211-owned memory. In case of errors, the function returns an
+ * ERR_PTR(), use IS_ERR() etc.
+ *
+ * Note that this function assumes the key isn't added to hardware
+ * acceleration, so no TX will be done with the key. Since it's a GTK
+ * on managed (station) networks, this is true anyway. If the driver
+ * calls this function from the resume callback and subsequently uses
+ * the return code 1 to reconfigure the device, this key will be part
+ * of the reconfiguration.
+ *
+ * Note that the driver should also call ieee80211_set_key_rx_seq()
+ * for the new key for each TID to set up sequence counters properly.
+ *
+ * IMPORTANT: If this replaces a key that is present in the hardware,
+ * then it will attempt to remove it during this call. In many cases
+ * this isn't what you want, so call ieee80211_remove_key() first for
+ * the key that's being replaced.
+ */
+struct ieee80211_key_conf *
+ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
+			struct ieee80211_key_conf *keyconf);
+
+/**
  * ieee80211_gtk_rekey_notify - notify userspace supplicant of rekeying
  * @vif: virtual interface the rekeying was done on
  * @bssid: The BSSID of the AP, for checking association
