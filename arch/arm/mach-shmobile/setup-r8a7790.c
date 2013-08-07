@@ -31,17 +31,18 @@
 #include <mach/r8a7790.h>
 #include <asm/mach/arch.h>
 
-static struct resource pfc_resources[] __initdata = {
+static const struct resource pfc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
 };
 
 #define R8A7790_GPIO(idx)						\
-static struct resource r8a7790_gpio##idx##_resources[] __initdata = {	\
+static const struct resource r8a7790_gpio##idx##_resources[] __initconst = { \
 	DEFINE_RES_MEM(0xe6050000 + 0x1000 * (idx), 0x50),		\
 	DEFINE_RES_IRQ(gic_spi(4 + (idx))),				\
 };									\
 									\
-static struct gpio_rcar_config r8a7790_gpio##idx##_platform_data __initdata = {	\
+static const struct gpio_rcar_config					\
+r8a7790_gpio##idx##_platform_data __initconst = {			\
 	.gpio_base	= 32 * (idx),					\
 	.irq_base	= 0,						\
 	.number_of_pins	= 32,						\
@@ -112,7 +113,7 @@ void __init r8a7790_pinmux_init(void)
 enum { SCIFA0, SCIFA1, SCIFB0, SCIFB1, SCIFB2, SCIFA2, SCIF0, SCIF1,
        HSCIF0, HSCIF1 };
 
-static struct plat_sci_port scif[] __initdata = {
+static const struct plat_sci_port scif[] __initconst = {
 	SCIFA_DATA(SCIFA0, 0xe6c40000, gic_spi(144)), /* SCIFA0 */
 	SCIFA_DATA(SCIFA1, 0xe6c50000, gic_spi(145)), /* SCIFA1 */
 	SCIFB_DATA(SCIFB0, 0xe6c20000, gic_spi(148)), /* SCIFB0 */
@@ -131,11 +132,11 @@ static inline void r8a7790_register_scif(int idx)
 				      sizeof(struct plat_sci_port));
 }
 
-static struct renesas_irqc_config irqc0_data __initdata = {
+static const struct renesas_irqc_config irqc0_data __initconst = {
 	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
 };
 
-static struct resource irqc0_resources[] __initdata = {
+static const struct resource irqc0_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe61c0000, 0x200), /* IRQC Event Detector Block_0 */
 	DEFINE_RES_IRQ(gic_spi(0)), /* IRQ0 */
 	DEFINE_RES_IRQ(gic_spi(1)), /* IRQ1 */
@@ -150,7 +151,7 @@ static struct resource irqc0_resources[] __initdata = {
 					  &irqc##idx##_data,		\
 					  sizeof(struct renesas_irqc_config))
 
-static struct resource thermal_resources[] __initdata = {
+static const struct resource thermal_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe61f0000, 0x14),
 	DEFINE_RES_MEM(0xe61f0100, 0x38),
 	DEFINE_RES_IRQ(gic_spi(69)),
@@ -161,13 +162,13 @@ static struct resource thermal_resources[] __initdata = {
 					thermal_resources,		\
 					ARRAY_SIZE(thermal_resources))
 
-static struct sh_timer_config cmt00_platform_data __initdata = {
+static const struct sh_timer_config cmt00_platform_data __initconst = {
 	.name = "CMT00",
 	.timer_bit = 0,
 	.clockevent_rating = 80,
 };
 
-static struct resource cmt00_resources[] __initdata = {
+static const struct resource cmt00_resources[] __initconst = {
 	DEFINE_RES_MEM(0xffca0510, 0x0c),
 	DEFINE_RES_MEM(0xffca0500, 0x04),
 	DEFINE_RES_IRQ(gic_spi(142)), /* CMT0_0 */
@@ -276,7 +277,7 @@ void __init r8a7790_init_early(void)
 
 #ifdef CONFIG_USE_OF
 
-static const char *r8a7790_boards_compat_dt[] __initdata = {
+static const char * const r8a7790_boards_compat_dt[] __initconst = {
 	"renesas,r8a7790",
 	NULL,
 };
