@@ -510,7 +510,7 @@ xfs_btree_ptr_addr(
 }
 
 /*
- * Get a the root block which is stored in the inode.
+ * Get the root block which is stored in the inode.
  *
  * For now this btree implementation assumes the btree root is always
  * stored in the if_broot field of an inode fork.
