@@ -304,7 +304,7 @@ _xfs_buf_free_pages(
  *	Releases the specified buffer.
  *
  * 	The modification state of any associated pages is left unchanged.
- * 	The buffer most not be on any hash - use xfs_buf_rele instead for
+ * 	The buffer must not be on any hash - use xfs_buf_rele instead for
  * 	hashed and refcounted buffers
  */
 void
