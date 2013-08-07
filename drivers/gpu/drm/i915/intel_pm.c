@@ -2270,6 +2270,104 @@ static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
 			  params->pri_bytes_per_pixel);
 }
 
+static unsigned int ilk_display_fifo_size(const struct drm_device *dev)
+{
+	if (INTEL_INFO(dev)->gen >= 7)
+		return 768;
+	else
+		return 512;
+}
+
+/* Calculate the maximum primary/sprite plane watermark */
+static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
+				     int level,
+				     unsigned int num_pipes_active,
+				     bool sprite_enabled,
+				     enum intel_ddb_partitioning ddb_partitioning,
+				     bool is_sprite)
+{
+	unsigned int fifo_size = ilk_display_fifo_size(dev);
+	unsigned int max;
+
+	/* if sprites aren't enabled, sprites get nothing */
+	if (is_sprite && !sprite_enabled)
+		return 0;
+
+	/* HSW allows LP1+ watermarks even with multiple pipes */
+	if (level == 0 || num_pipes_active > 1) {
+		fifo_size /= INTEL_INFO(dev)->num_pipes;
+
+		/*
+		 * For some reason the non self refresh
+		 * FIFO size is only half of the self
+		 * refresh FIFO size on ILK/SNB.
+		 */
+		if (INTEL_INFO(dev)->gen <= 6)
+			fifo_size /= 2;
+	}
+
+	if (sprite_enabled) {
+		/* level 0 is always calculated with 1:1 split */
+		if (level > 0 && ddb_partitioning == INTEL_DDB_PART_5_6) {
+			if (is_sprite)
+				fifo_size *= 5;
+			fifo_size /= 6;
+		} else {
+			fifo_size /= 2;
+		}
+	}
+
+	/* clamp to max that the registers can hold */
+	if (INTEL_INFO(dev)->gen >= 7)
+		/* IVB/HSW primary/sprite plane watermarks */
+		max = level == 0 ? 127 : 1023;
+	else if (!is_sprite)
+		/* ILK/SNB primary plane watermarks */
+		max = level == 0 ? 127 : 511;
+	else
+		/* ILK/SNB sprite plane watermarks */
+		max = level == 0 ? 63 : 255;
+
+	return min(fifo_size, max);
+}
+
+/* Calculate the maximum cursor plane watermark */
+static unsigned int ilk_cursor_wm_max(const struct drm_device *dev,
+				      int level, unsigned int num_pipes_active)
+{
+	/* HSW LP1+ watermarks w/ multiple pipes */
+	if (level > 0 && num_pipes_active > 1)
+		return 64;
+
+	/* otherwise just report max that registers can hold */
+	if (INTEL_INFO(dev)->gen >= 7)
+		return level == 0 ? 63 : 255;
+	else
+		return level == 0 ? 31 : 63;
+}
+
+/* Calculate the maximum FBC watermark */
+static unsigned int ilk_fbc_wm_max(void)
+{
+	/* max that registers can hold */
+	return 15;
+}
+
+static void ilk_wm_max(struct drm_device *dev,
+		       int level,
+		       unsigned int num_pipes_active,
+		       bool sprite_enabled,
+		       enum intel_ddb_partitioning ddb_partitioning,
+		       struct hsw_wm_maximums *max)
+{
+	max->pri = ilk_plane_wm_max(dev, level, num_pipes_active,
+				    sprite_enabled, ddb_partitioning, false);
+	max->spr = ilk_plane_wm_max(dev, level, num_pipes_active,
+				    sprite_enabled, ddb_partitioning, true);
+	max->cur = ilk_cursor_wm_max(dev, level, num_pipes_active);
+	max->fbc = ilk_fbc_wm_max();
+}
+
 static bool ilk_check_wm(int level,
 			 const struct hsw_wm_maximums *max,
 			 struct intel_wm_level *result)
@@ -2555,18 +2653,15 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 			sprites_enabled++;
 	}
 
-	if (pipes_active > 1) {
-		lp_max_1_2->pri = lp_max_5_6->pri = sprites_enabled ? 128 : 256;
-		lp_max_1_2->spr = lp_max_5_6->spr = 128;
-		lp_max_1_2->cur = lp_max_5_6->cur = 64;
-	} else {
-		lp_max_1_2->pri = sprites_enabled ? 384 : 768;
-		lp_max_5_6->pri = sprites_enabled ? 128 : 768;
-		lp_max_1_2->spr = 384;
-		lp_max_5_6->spr = 640;
-		lp_max_1_2->cur = lp_max_5_6->cur = 255;
-	}
-	lp_max_1_2->fbc = lp_max_5_6->fbc = 15;
+	ilk_wm_max(dev, 1, pipes_active, sprites_enabled,
+		   INTEL_DDB_PART_1_2, lp_max_1_2);
+
+	/* 5/6 split only in single pipe config on IVB+ */
+	if (INTEL_INFO(dev)->gen >= 7 && pipes_active <= 1)
+		ilk_wm_max(dev, 1, pipes_active, sprites_enabled,
+			   INTEL_DDB_PART_5_6, lp_max_5_6);
+	else
+		*lp_max_5_6 = *lp_max_1_2;
 }
 
 static void hsw_compute_wm_results(struct drm_device *dev,
