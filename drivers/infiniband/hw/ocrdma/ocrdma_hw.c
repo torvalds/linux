@@ -2124,9 +2124,10 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 {
 	int status;
 	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
-	union ib_gid sgid;
+	union ib_gid sgid, zgid;
 	u32 vlan_id;
 	u8 mac_addr[6];
+
 	if ((ah_attr->ah_flags & IB_AH_GRH) == 0)
 		return -EINVAL;
 	cmd->params.tclass_sq_psn |=
@@ -2142,6 +2143,11 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 			 ah_attr->grh.sgid_index, &sgid);
 	if (status)
 		return status;
+
+	memset(&zgid, 0, sizeof(zgid));
+	if (!memcmp(&sgid, &zgid, sizeof(zgid)))
+		return -EINVAL;
+
 	qp->sgid_idx = ah_attr->grh.sgid_index;
 	memcpy(&cmd->params.sgid[0], &sgid.raw[0], sizeof(cmd->params.sgid));
 	ocrdma_resolve_dgid(qp->dev, &ah_attr->grh.dgid, &mac_addr[0]);
