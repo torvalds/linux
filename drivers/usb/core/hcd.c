@@ -2653,7 +2653,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	 * should already have been reset (and boot firmware kicked off etc).
 	 */
 	if (hcd->driver->reset && (retval = hcd->driver->reset(hcd)) < 0) {
-		dev_err(hcd->self.controller, "can't setup\n");
+		dev_err(hcd->self.controller, "can't setup: %d\n", retval);
 		goto err_hcd_driver_setup;
 	}
 	hcd->rh_pollable = 1;
