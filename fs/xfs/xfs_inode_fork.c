@@ -473,7 +473,7 @@ xfs_iread_extents(
  *
  * The caller must not request to add more records than would fit in
  * the on-disk inode root.  If the if_broot is currently NULL, then
- * if we adding records one will be allocated.  The caller must also
+ * if we are adding records, one will be allocated.  The caller must also
  * not request that the number of records go below zero, although
  * it can go to zero.
  *
