@@ -21,7 +21,7 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
-#include <arch/sim_def.h>
+#include <arch/sim.h>
 
 /* Notify a running simulator, if any, that an exec just occurred. */
 static void sim_notify_exec(const char *binary_name)
@@ -38,21 +38,55 @@ static void sim_notify_exec(const char *binary_name)
 
 static int notify_exec(struct mm_struct *mm)
 {
-	int retval = 0;  /* failure */
+	char *buf, *path;
+	struct vm_area_struct *vma;
 
-	if (mm->exe_file) {
-		char *buf = (char *) __get_free_page(GFP_KERNEL);
-		if (buf) {
-			char *path = d_path(&mm->exe_file->f_path,
-					    buf, PAGE_SIZE);
-			if (!IS_ERR(path)) {
-				sim_notify_exec(path);
-				retval = 1;
-			}
-			free_page((unsigned long)buf);
+	if (!sim_is_simulator())
+		return 1;
+
+	if (mm->exe_file == NULL)
+		return 0;
+
+	for (vma = current->mm->mmap; ; vma = vma->vm_next) {
+		if (vma == NULL)
+			return 0;
+		if (vma->vm_file == mm->exe_file)
+			break;
+	}
+
+	buf = (char *) __get_free_page(GFP_KERNEL);
+	if (buf == NULL)
+		return 0;
+
+	path = d_path(&mm->exe_file->f_path, buf, PAGE_SIZE);
+	if (IS_ERR(path)) {
+		free_page((unsigned long)buf);
+		return 0;
+	}
+
+	/*
+	 * Notify simulator of an ET_DYN object so we know the load address.
+	 * The somewhat cryptic overuse of SIM_CONTROL_DLOPEN allows us
+	 * to be backward-compatible with older simulator releases.
+	 */
+	if (vma->vm_start == (ELF_ET_DYN_BASE & PAGE_MASK)) {
+		char buf[64];
+		int i;
+
+		snprintf(buf, sizeof(buf), "0x%lx:@", vma->vm_start);
+		for (i = 0; ; ++i) {
+			char c = buf[i];
+			__insn_mtspr(SPR_SIM_CONTROL,
+				     (SIM_CONTROL_DLOPEN
+				      | (c << _SIM_CONTROL_OPERATOR_BITS)));
+			if (c == '\0')
+				break;
 		}
 	}
-	return retval;
+
+	sim_notify_exec(path);
+	free_page((unsigned long)buf);
+	return 1;
 }
 
 /* Notify a running simulator, if any, that we loaded an interpreter. */
