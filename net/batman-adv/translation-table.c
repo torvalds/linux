@@ -1153,6 +1153,10 @@ static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
 	struct batadv_tt_common_entry *common;
 	uint16_t local_flags;
 
+	/* ignore global entries from backbone nodes */
+	if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig, vid))
+		return true;
+
 	tt_global_entry = batadv_tt_global_hash_find(bat_priv, tt_addr, vid);
 	tt_local_entry = batadv_tt_local_hash_find(bat_priv, tt_addr, vid);
 
@@ -2135,7 +2139,8 @@ static bool batadv_tt_global_check_crc(struct batadv_orig_node *orig_node,
 		 * the CRC as we ignore all the global entries over it
 		 */
 		if (batadv_bla_is_backbone_gw_orig(orig_node->bat_priv,
-						   orig_node->orig))
+						   orig_node->orig,
+						   ntohs(tt_vlan_tmp->vid)))
 			continue;
 
 		vlan = batadv_orig_node_vlan_get(orig_node,
@@ -2183,7 +2188,8 @@ static void batadv_tt_global_update_crc(struct batadv_priv *bat_priv,
 		/* if orig_node is a backbone node for this VLAN, don't compute
 		 * the CRC as we ignore all the global entries over it
 		 */
-		if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig))
+		if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig,
+						   vlan->vid))
 			continue;
 
 		crc = batadv_tt_global_crc(bat_priv, orig_node, vlan->vid);
@@ -2527,16 +2533,11 @@ static bool batadv_send_tt_response(struct batadv_priv *bat_priv,
 				    struct batadv_tvlv_tt_data *tt_data,
 				    uint8_t *req_src, uint8_t *req_dst)
 {
-	if (batadv_is_my_mac(bat_priv, req_dst)) {
-		/* don't answer backbone gws! */
-		if (batadv_bla_is_backbone_gw_orig(bat_priv, req_src))
-			return true;
-
+	if (batadv_is_my_mac(bat_priv, req_dst))
 		return batadv_send_my_tt_response(bat_priv, tt_data, req_src);
-	} else {
+	else
 		return batadv_send_other_tt_response(bat_priv, tt_data,
 						     req_src, req_dst);
-	}
 }
 
 static void _batadv_tt_update_changes(struct batadv_priv *bat_priv,
@@ -2667,10 +2668,6 @@ static void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 		   "Received TT_RESPONSE from %pM for ttvn %d t_size: %d [%c]\n",
 		   resp_src, tt_data->ttvn, num_entries,
 		   (tt_data->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
-
-	/* we should have never asked a backbone gw */
-	if (batadv_bla_is_backbone_gw_orig(bat_priv, resp_src))
-		goto out;
 
 	orig_node = batadv_orig_hash_find(bat_priv, resp_src);
 	if (!orig_node)
@@ -3052,10 +3049,6 @@ static void batadv_tt_update_orig(struct batadv_priv *bat_priv,
 	struct batadv_tvlv_tt_vlan_data *tt_vlan;
 	bool full_table = true;
 
-	/* don't care about a backbone gateways updates. */
-	if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig))
-		return;
-
 	tt_vlan = (struct batadv_tvlv_tt_vlan_data *)tt_buff;
 	/* orig table not initialised AND first diff is in the OGM OR the ttvn
 	 * increased by one -> we can apply the attached changes
@@ -3176,13 +3169,6 @@ bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 					  unsigned short vid)
 {
 	bool ret = false;
-
-	/* if the originator is a backbone node (meaning it belongs to the same
-	 * LAN of this node) the temporary client must not be added because to
-	 * reach such destination the node must use the LAN instead of the mesh
-	 */
-	if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig))
-		goto out;
 
 	if (!batadv_tt_global_add(bat_priv, orig_node, addr, vid,
 				  BATADV_TT_CLIENT_TEMP,
@@ -3343,13 +3329,6 @@ static int batadv_roam_tvlv_unicast_handler_v1(struct batadv_priv *bat_priv,
 	 */
 	if (!batadv_is_my_mac(bat_priv, dst))
 		return NET_RX_DROP;
-
-	/* check if it is a backbone gateway. we don't accept
-	 * roaming advertisement from it, as it has the same
-	 * entries as we have.
-	 */
-	if (batadv_bla_is_backbone_gw_orig(bat_priv, src))
-		goto out;
 
 	if (tvlv_value_len < sizeof(*roaming_adv))
 		goto out;

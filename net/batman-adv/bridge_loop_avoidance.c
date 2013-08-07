@@ -1315,12 +1315,14 @@ out:
 
 /* @bat_priv: the bat priv with all the soft interface information
  * @orig: originator mac address
+ * @vid: VLAN identifier
  *
- * check if the originator is a gateway for any VLAN ID.
+ * Check if the originator is a gateway for the VLAN identified by vid.
  *
- * returns 1 if it is found, 0 otherwise
+ * Returns true if orig is a backbone for this vid, false otherwise.
  */
-int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
+bool batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig,
+				    unsigned short vid)
 {
 	struct batadv_hashtable *hash = bat_priv->bla.backbone_hash;
 	struct hlist_head *head;
@@ -1328,25 +1330,26 @@ int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig)
 	int i;
 
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
-		return 0;
+		return false;
 
 	if (!hash)
-		return 0;
+		return false;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(backbone_gw, head, hash_entry) {
-			if (batadv_compare_eth(backbone_gw->orig, orig)) {
+			if (batadv_compare_eth(backbone_gw->orig, orig) &&
+			    backbone_gw->vid == vid) {
 				rcu_read_unlock();
-				return 1;
+				return true;
 			}
 		}
 		rcu_read_unlock();
 	}
 
-	return 0;
+	return false;
 }
 
 
