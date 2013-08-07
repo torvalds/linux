@@ -3429,7 +3429,7 @@ safe_delay_store(struct mddev *mddev, const char *cbuf, size_t len)
 		mddev->safemode_delay = (msec*HZ)/1000;
 		if (mddev->safemode_delay == 0)
 			mddev->safemode_delay = 1;
-		if (mddev->safemode_delay < old_delay)
+		if (mddev->safemode_delay < old_delay || old_delay == 0)
 			md_safemode_timeout((unsigned long)mddev);
 	}
 	return len;
