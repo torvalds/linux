@@ -11,49 +11,6 @@
 
 #include <linux/blkdev.h>
 
-static void bch_bi_idx_hack_endio(struct bio *bio, int error)
-{
-	struct bio *p = bio->bi_private;
-
-	bio_endio(p, error);
-	bio_put(bio);
-}
-
-static void bch_generic_make_request_hack(struct bio *bio)
-{
-	if (bio->bi_iter.bi_idx) {
-		struct bio_vec bv;
-		struct bvec_iter iter;
-		unsigned segs = bio_segments(bio);
-		struct bio *clone = bio_alloc(GFP_NOIO, segs);
-
-		bio_for_each_segment(bv, bio, iter)
-			clone->bi_io_vec[clone->bi_vcnt++] = bv;
-
-		clone->bi_iter.bi_sector = bio->bi_iter.bi_sector;
-		clone->bi_bdev		= bio->bi_bdev;
-		clone->bi_rw		= bio->bi_rw;
-		clone->bi_vcnt		= segs;
-		clone->bi_iter.bi_size	= bio->bi_iter.bi_size;
-
-		clone->bi_private	= bio;
-		clone->bi_end_io	= bch_bi_idx_hack_endio;
-
-		bio = clone;
-	}
-
-	/*
-	 * Hack, since drivers that clone bios clone up to bi_max_vecs, but our
-	 * bios might have had more than that (before we split them per device
-	 * limitations).
-	 *
-	 * To be taken out once immutable bvec stuff is in.
-	 */
-	bio->bi_max_vecs = bio->bi_vcnt;
-
-	generic_make_request(bio);
-}
-
 /**
  * bch_bio_split - split a bio
  * @bio:	bio to split
@@ -222,12 +179,12 @@ void bch_generic_make_request(struct bio *bio, struct bio_split_pool *p)
 		n->bi_private	= &s->cl;
 
 		closure_get(&s->cl);
-		bch_generic_make_request_hack(n);
+		generic_make_request(n);
 	} while (n != bio);
 
 	continue_at(&s->cl, bch_bio_submit_split_done, NULL);
 submit:
-	bch_generic_make_request_hack(bio);
+	generic_make_request(bio);
 }
 
 /* Bios with headers */
