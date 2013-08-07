@@ -1684,7 +1684,7 @@ xfs_lookup_get_search_key(
 
 /*
  * Lookup the record.  The cursor is made to point to it, based on dir.
- * Return 0 if can't find any such record, 1 for success.
+ * stat is set to 0 if can't find any such record, 1 for success.
  */
 int					/* error */
 xfs_btree_lookup(
