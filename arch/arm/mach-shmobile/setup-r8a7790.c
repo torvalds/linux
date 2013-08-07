@@ -267,7 +267,7 @@ void __init r8a7790_timer_init(void)
 	clocksource_of_init();
 }
 
-void __init r8a7790_init_delay(void)
+void __init r8a7790_init_early(void)
 {
 #ifndef CONFIG_ARM_ARCH_TIMER
 	shmobile_setup_delay(1300, 2, 4); /* Cortex-A15 @ 1300MHz */
@@ -282,7 +282,7 @@ static const char *r8a7790_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A7790_DT, "Generic R8A7790 (Flattened Device Tree)")
-	.init_early	= r8a7790_init_delay,
+	.init_early	= r8a7790_init_early,
 	.init_time	= r8a7790_timer_init,
 	.dt_compat	= r8a7790_boards_compat_dt,
 MACHINE_END
