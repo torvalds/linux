@@ -905,14 +905,14 @@ static void pmecc_enable(struct atmel_nand_host *host, int ecc_op)
 {
 	u32 val;
 
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_RST);
-	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DISABLE);
-	val = pmecc_readl_relaxed(host->ecc, CFG);
-
 	if (ecc_op != NAND_ECC_READ && ecc_op != NAND_ECC_WRITE) {
 		dev_err(host->dev, "atmel_nand: wrong pmecc operation type!");
 		return;
 	}
+
+	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_RST);
+	pmecc_writel(host->ecc, CTRL, PMECC_CTRL_DISABLE);
+	val = pmecc_readl_relaxed(host->ecc, CFG);
 
 	if (ecc_op == NAND_ECC_READ)
 		pmecc_writel(host->ecc, CFG, (val & ~PMECC_CFG_WRITE_OP)
