@@ -64,12 +64,21 @@
 /* Default value */
 #define IMX_I2C_BIT_RATE	100000	/* 100kHz */
 
-/* IMX I2C registers */
+/* IMX I2C registers:
+ * the I2C register offset is different between SoCs,
+ * to provid support for all these chips, split the
+ * register offset into a fixed base address and a
+ * variable shift value, then the full register offset
+ * will be calculated by
+ * reg_off = ( reg_base_addr << reg_shift)
+ */
 #define IMX_I2C_IADR	0x00	/* i2c slave address */
-#define IMX_I2C_IFDR	0x04	/* i2c frequency divider */
-#define IMX_I2C_I2CR	0x08	/* i2c control */
-#define IMX_I2C_I2SR	0x0C	/* i2c status */
-#define IMX_I2C_I2DR	0x10	/* i2c transfer data */
+#define IMX_I2C_IFDR	0x01	/* i2c frequency divider */
+#define IMX_I2C_I2CR	0x02	/* i2c control */
+#define IMX_I2C_I2SR	0x03	/* i2c status */
+#define IMX_I2C_I2DR	0x04	/* i2c transfer data */
+
+#define IMX_I2C_REGSHIFT	2
 
 /* Bits of IMX I2C registers */
 #define I2SR_RXAK	0x01
@@ -163,13 +172,13 @@ static inline int is_imx1_i2c(struct imx_i2c_struct *i2c_imx)
 static inline void imx_i2c_write_reg(unsigned int val,
 		struct imx_i2c_struct *i2c_imx, unsigned int reg)
 {
-	writeb(val, i2c_imx->base + reg);
+	writeb(val, i2c_imx->base + (reg << IMX_I2C_REGSHIFT));
 }
 
 static inline unsigned char imx_i2c_read_reg(struct imx_i2c_struct *i2c_imx,
 		unsigned int reg)
 {
-	return readb(i2c_imx->base + reg);
+	return readb(i2c_imx->base + (reg << IMX_I2C_REGSHIFT));
 }
 
 /** Functions for IMX I2C adapter driver ***************************************
