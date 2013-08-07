@@ -1398,7 +1398,7 @@ netlink_send(int fd, struct cn_msg *msg)
 	char buffer[64];
 	struct iovec iov[2];
 
-	size = NLMSG_SPACE(sizeof(struct cn_msg) + msg->len);
+	size = sizeof(struct cn_msg) + msg->len;
 
 	nlh = (struct nlmsghdr *)buffer;
 	nlh->nlmsg_seq = 0;
