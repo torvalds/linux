@@ -243,18 +243,23 @@ int filter_current_check_discard(struct ring_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(filter_current_check_discard);
 
-cycle_t ftrace_now(int cpu)
+cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
 {
 	u64 ts;
 
 	/* Early boot up does not have a buffer yet */
-	if (!global_trace.trace_buffer.buffer)
+	if (!buf->buffer)
 		return trace_clock_local();
 
-	ts = ring_buffer_time_stamp(global_trace.trace_buffer.buffer, cpu);
-	ring_buffer_normalize_time_stamp(global_trace.trace_buffer.buffer, cpu, &ts);
+	ts = ring_buffer_time_stamp(buf->buffer, cpu);
+	ring_buffer_normalize_time_stamp(buf->buffer, cpu, &ts);
 
 	return ts;
+}
+
+cycle_t ftrace_now(int cpu)
+{
+	return buffer_ftrace_now(&global_trace.trace_buffer, cpu);
 }
 
 /**
@@ -1211,17 +1216,12 @@ void tracing_reset_online_cpus(struct trace_buffer *buf)
 	/* Make sure all commits have finished */
 	synchronize_sched();
 
-	buf->time_start = ftrace_now(buf->cpu);
+	buf->time_start = buffer_ftrace_now(buf, buf->cpu);
 
 	for_each_online_cpu(cpu)
 		ring_buffer_reset_cpu(buffer, cpu);
 
 	ring_buffer_record_enable(buffer);
-}
-
-void tracing_reset_current(int cpu)
-{
-	tracing_reset(&global_trace.trace_buffer, cpu);
 }
 
 /* Must have trace_types_lock held */
@@ -4151,6 +4151,7 @@ waitagain:
 	memset(&iter->seq, 0,
 	       sizeof(struct trace_iterator) -
 	       offsetof(struct trace_iterator, seq));
+	cpumask_clear(iter->started);
 	iter->pos = -1;
 
 	trace_event_read_lock();
@@ -4468,7 +4469,7 @@ tracing_free_buffer_release(struct inode *inode, struct file *filp)
 
 	/* disable tracing ? */
 	if (trace_flags & TRACE_ITER_STOP_ON_FREE)
-		tracing_off();
+		tracer_tracing_off(tr);
 	/* resize the ring buffer to 0 */
 	tracing_resize_ring_buffer(tr, 0, RING_BUFFER_ALL_CPUS);
 
@@ -4633,12 +4634,12 @@ static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
 	 * New clock may not be consistent with the previous clock.
 	 * Reset the buffer so that it doesn't have incomparable timestamps.
 	 */
-	tracing_reset_online_cpus(&global_trace.trace_buffer);
+	tracing_reset_online_cpus(&tr->trace_buffer);
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 	if (tr->flags & TRACE_ARRAY_FL_GLOBAL && tr->max_buffer.buffer)
 		ring_buffer_set_clock(tr->max_buffer.buffer, trace_clocks[i].func);
-	tracing_reset_online_cpus(&global_trace.max_buffer);
+	tracing_reset_online_cpus(&tr->max_buffer);
 #endif
 
 	mutex_unlock(&trace_types_lock);
