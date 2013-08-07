@@ -71,18 +71,11 @@ static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 	shmobile_smp_scu_prepare_cpus(max_cpus);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static int sh73a0_cpu_disable(unsigned int cpu)
-{
-	return 0; /* CPU0 and CPU1 supported */
-}
-#endif /* CONFIG_HOTPLUG_CPU */
-
 struct smp_operations sh73a0_smp_ops __initdata = {
 	.smp_prepare_cpus	= sh73a0_smp_prepare_cpus,
 	.smp_boot_secondary	= sh73a0_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
-	.cpu_disable		= sh73a0_cpu_disable,
+	.cpu_disable		= shmobile_smp_cpu_disable,
 	.cpu_die		= shmobile_smp_scu_cpu_die,
 	.cpu_kill		= shmobile_smp_scu_cpu_kill,
 #endif
