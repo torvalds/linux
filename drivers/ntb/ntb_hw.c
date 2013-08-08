@@ -1031,16 +1031,15 @@ static int ntb_setup_msix(struct ntb_device *ndev)
 	struct pci_dev *pdev = ndev->pdev;
 	struct msix_entry *msix;
 	int msix_entries;
-	int rc, i, pos;
+	int rc, i;
 	u16 val;
 
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
-	if (!pos) {
+	if (!pdev->msix_cap) {
 		rc = -EIO;
 		goto err;
 	}
 
-	rc = pci_read_config_word(pdev, pos + PCI_MSIX_FLAGS, &val);
+	rc = pci_read_config_word(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, &val);
 	if (rc)
 		goto err;
 
