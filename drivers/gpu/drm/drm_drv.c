@@ -238,13 +238,6 @@ static int __init drm_core_init(void)
 		goto err_p2;
 	}
 
-	drm_proc_root = proc_mkdir("dri", NULL);
-	if (!drm_proc_root) {
-		DRM_ERROR("Cannot create /proc/dri\n");
-		ret = -1;
-		goto err_p3;
-	}
-
 	drm_debugfs_root = debugfs_create_dir("dri", NULL);
 	if (!drm_debugfs_root) {
 		DRM_ERROR("Cannot create /sys/kernel/debug/dri\n");
@@ -267,7 +260,6 @@ err_p1:
 
 static void __exit drm_core_exit(void)
 {
-	remove_proc_entry("dri", NULL);
 	debugfs_remove(drm_debugfs_root);
 	drm_sysfs_destroy();
 

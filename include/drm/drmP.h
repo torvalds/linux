@@ -45,7 +45,6 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
-#include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/file.h>
 #include <linux/platform_device.h>
@@ -1027,8 +1026,6 @@ struct drm_minor {
 	struct device kdev;		/**< Linux device */
 	struct drm_device *dev;
 
-	struct proc_dir_entry *proc_root;  /**< proc directory entry */
-	struct drm_info_node proc_nodes;
 	struct dentry *debugfs_root;
 
 	struct list_head debugfs_list;
@@ -1438,16 +1435,11 @@ extern unsigned int drm_timestamp_precision;
 extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
-extern struct proc_dir_entry *drm_proc_root;
 extern struct dentry *drm_debugfs_root;
 
 extern struct idr drm_minors_idr;
 
 extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
-
-				/* Proc support (drm_proc.h) */
-extern int drm_proc_init(struct drm_minor *minor, struct proc_dir_entry *root);
-extern int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root);
 
 				/* Debugfs support */
 #if defined(CONFIG_DEBUG_FS)
