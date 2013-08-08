@@ -691,8 +691,8 @@ void __init __weak r8a7779_register_twd(void) { }
 void __init r8a7779_earlytimer_init(void)
 {
 	r8a7779_clock_init();
-	shmobile_earlytimer_init();
 	r8a7779_register_twd();
+	shmobile_earlytimer_init();
 }
 
 void __init r8a7779_add_early_devices(void)
