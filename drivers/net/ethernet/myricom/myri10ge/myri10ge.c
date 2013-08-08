@@ -3625,13 +3625,12 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 	struct pci_dev *pdev = mgp->pdev;
 	char *old_fw;
 	bool old_allocated;
-	int i, status, ncpus, msix_cap;
+	int i, status, ncpus;
 
 	mgp->num_slices = 1;
-	msix_cap = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
 	ncpus = netif_get_num_default_rss_queues();
 
-	if (myri10ge_max_slices == 1 || msix_cap == 0 ||
+	if (myri10ge_max_slices == 1 || !pdev->msix_cap ||
 	    (myri10ge_max_slices == -1 && ncpus < 2))
 		return;
 
