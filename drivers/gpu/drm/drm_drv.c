@@ -171,6 +171,31 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 #define DRM_CORE_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
 
 /**
+ * drm_legacy_dev_reinit
+ *
+ * Reinitializes a legacy/ums drm device in it's lastclose function.
+ */
+static void drm_legacy_dev_reinit(struct drm_device *dev)
+{
+	int i;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	atomic_set(&dev->ioctl_count, 0);
+	atomic_set(&dev->vma_count, 0);
+
+	for (i = 0; i < ARRAY_SIZE(dev->counts); i++)
+		atomic_set(&dev->counts[i], 0);
+
+	dev->sigdata.lock = NULL;
+
+	dev->context_flag = 0;
+	dev->last_context = 0;
+	dev->if_version = 0;
+}
+
+/**
  * Take down the DRM device.
  *
  * \param dev DRM device structure.
@@ -208,6 +233,8 @@ int drm_lastclose(struct drm_device * dev)
 
 	dev->dev_mapping = NULL;
 	mutex_unlock(&dev->struct_mutex);
+
+	drm_legacy_dev_reinit(dev);
 
 	DRM_DEBUG("lastclose completed\n");
 	return 0;

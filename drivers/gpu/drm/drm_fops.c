@@ -48,7 +48,6 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 
 static int drm_setup(struct drm_device * dev)
 {
-	int i;
 	int ret;
 
 	if (dev->driver->firstopen) {
@@ -57,32 +56,12 @@ static int drm_setup(struct drm_device * dev)
 			return ret;
 	}
 
-	atomic_set(&dev->ioctl_count, 0);
-	atomic_set(&dev->vma_count, 0);
+	ret = drm_legacy_dma_setup(dev);
+	if (ret < 0)
+		return ret;
 
-	i = drm_legacy_dma_setup(dev);
-	if (i < 0)
-		return i;
-
-	for (i = 0; i < ARRAY_SIZE(dev->counts); i++)
-		atomic_set(&dev->counts[i], 0);
-
-	dev->sigdata.lock = NULL;
-
-	dev->context_flag = 0;
-	dev->last_context = 0;
-	dev->if_version = 0;
 
 	DRM_DEBUG("\n");
-
-	/*
-	 * The kernel's context could be created here, but is now created
-	 * in drm_dma_enqueue.  This is more resource-efficient for
-	 * hardware that does not do DMA, but may mean that
-	 * drm_select_queue fails between the time the interrupt is
-	 * initialized and the time the queues are initialized.
-	 */
-
 	return 0;
 }
 
