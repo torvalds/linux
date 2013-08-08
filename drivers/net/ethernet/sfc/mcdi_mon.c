@@ -28,7 +28,7 @@ static const struct {
 	const char *label;
 	enum efx_hwmon_type hwmon_type;
 	int port;
-} efx_mcdi_sensor_type[MC_CMD_SENSOR_ENTRY_MAXNUM] = {
+} efx_mcdi_sensor_type[] = {
 #define SENSOR(name, label, hwmon_type, port)			\
 	[MC_CMD_SENSOR_##name] = { label, hwmon_type, port }
 	SENSOR(CONTROLLER_TEMP,	   "Controller temp.",	   EFX_HWMON_TEMP, -1),
@@ -86,6 +86,7 @@ struct efx_mcdi_mon_attribute {
 	struct device_attribute dev_attr;
 	unsigned int index;
 	unsigned int type;
+	enum efx_hwmon_type hwmon_type;
 	unsigned int limit_value;
 	char name[12];
 };
@@ -93,11 +94,12 @@ struct efx_mcdi_mon_attribute {
 static int efx_mcdi_mon_update(struct efx_nic *efx)
 {
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_READ_SENSORS_IN_LEN);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_READ_SENSORS_EXT_IN_LEN);
 	int rc;
 
-	MCDI_SET_QWORD(inbuf, READ_SENSORS_IN_DMA_ADDR,
+	MCDI_SET_QWORD(inbuf, READ_SENSORS_EXT_IN_DMA_ADDR,
 		       hwmon->dma_buf.dma_addr);
+	MCDI_SET_DWORD(inbuf, READ_SENSORS_EXT_IN_LENGTH, hwmon->dma_buf.len);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_READ_SENSORS,
 			  inbuf, sizeof(inbuf), NULL, 0, NULL);
@@ -159,7 +161,7 @@ static ssize_t efx_mcdi_mon_show_value(struct device *dev,
 	value = EFX_DWORD_FIELD(entry, MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
 
 	/* Convert temperature from degrees to milli-degrees Celsius */
-	if (efx_mcdi_sensor_type[mon_attr->type].hwmon_type == EFX_HWMON_TEMP)
+	if (mon_attr->hwmon_type == EFX_HWMON_TEMP)
 		value *= 1000;
 
 	return sprintf(buf, "%u\n", value);
@@ -176,7 +178,7 @@ static ssize_t efx_mcdi_mon_show_limit(struct device *dev,
 	value = mon_attr->limit_value;
 
 	/* Convert temperature from degrees to milli-degrees Celsius */
-	if (efx_mcdi_sensor_type[mon_attr->type].hwmon_type == EFX_HWMON_TEMP)
+	if (mon_attr->hwmon_type == EFX_HWMON_TEMP)
 		value *= 1000;
 
 	return sprintf(buf, "%u\n", value);
@@ -224,6 +226,10 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 	strlcpy(attr->name, name, sizeof(attr->name));
 	attr->index = index;
 	attr->type = type;
+	if (type < ARRAY_SIZE(efx_mcdi_sensor_type))
+		attr->hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
+	else
+		attr->hwmon_type = EFX_HWMON_UNKNOWN;
 	attr->limit_value = limit_value;
 	sysfs_attr_init(&attr->dev_attr.attr);
 	attr->dev_attr.attr.name = attr->name;
@@ -238,35 +244,42 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 int efx_mcdi_mon_probe(struct efx_nic *efx)
 {
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
-	unsigned int n_attrs, n_temp = 0, n_cool = 0, n_in = 0;
+	unsigned int n_temp = 0, n_cool = 0, n_in = 0;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SENSOR_INFO_EXT_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_SENSOR_INFO_OUT_LENMAX);
+	unsigned int n_pages, n_sensors, n_attrs, page;
 	size_t outlen;
 	char name[12];
 	u32 mask;
-	int rc, i, type;
+	int rc, i, j, type;
 
-	BUILD_BUG_ON(MC_CMD_SENSOR_INFO_IN_LEN != 0);
+	/* Find out how many sensors are present */
+	n_sensors = 0;
+	page = 0;
+	do {
+		MCDI_SET_DWORD(inbuf, SENSOR_INFO_EXT_IN_PAGE, page);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_SENSOR_INFO, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		return rc;
-	if (outlen < MC_CMD_SENSOR_INFO_OUT_LENMIN)
-		return -EIO;
+		rc = efx_mcdi_rpc(efx, MC_CMD_SENSOR_INFO, inbuf, sizeof(inbuf),
+				  outbuf, sizeof(outbuf), &outlen);
+		if (rc)
+			return rc;
+		if (outlen < MC_CMD_SENSOR_INFO_OUT_LENMIN)
+			return -EIO;
 
-	/* Find out which sensors are present.  Don't create a device
-	 * if there are none.
-	 */
-	mask = MCDI_DWORD(outbuf, SENSOR_INFO_OUT_MASK);
-	if (mask == 0)
+		mask = MCDI_DWORD(outbuf, SENSOR_INFO_OUT_MASK);
+		n_sensors += hweight32(mask & ~(1 << MC_CMD_SENSOR_PAGE0_NEXT));
+		++page;
+	} while (mask & (1 << MC_CMD_SENSOR_PAGE0_NEXT));
+	n_pages = page;
+
+	/* Don't create a device if there are none */
+	if (n_sensors == 0)
 		return 0;
 
-	/* Check again for short response */
-	if (outlen < MC_CMD_SENSOR_INFO_OUT_LEN(hweight32(mask)))
-		return -EIO;
-
-	rc = efx_nic_alloc_buffer(efx, &hwmon->dma_buf,
-				  4 * MC_CMD_SENSOR_ENTRY_MAXNUM, GFP_KERNEL);
+	rc = efx_nic_alloc_buffer(
+		efx, &hwmon->dma_buf,
+		n_sensors * MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_LEN,
+		GFP_KERNEL);
 	if (rc)
 		return rc;
 
@@ -277,7 +290,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 	 * attributes for this set of sensors: name of the driver plus
 	 * value, min, max, crit, alarm and label for each sensor.
 	 */
-	n_attrs = 1 + 6 * hweight32(mask);
+	n_attrs = 1 + 6 * n_sensors;
 	hwmon->attrs = kcalloc(n_attrs, sizeof(*hwmon->attrs), GFP_KERNEL);
 	if (!hwmon->attrs) {
 		rc = -ENOMEM;
@@ -294,26 +307,63 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail;
 
-	for (i = 0, type = -1; ; i++) {
+	for (i = 0, j = -1, type = -1; ; i++) {
+		enum efx_hwmon_type hwmon_type;
 		const char *hwmon_prefix;
 		unsigned hwmon_index;
 		u16 min1, max1, min2, max2;
 
 		/* Find next sensor type or exit if there is none */
-		type++;
-		while (!(mask & (1 << type))) {
+		do {
 			type++;
-			if (type == 32)
-				return 0;
+
+			if ((type % 32) == 0) {
+				page = type / 32;
+				j = -1;
+				if (page == n_pages)
+					return 0;
+
+				MCDI_SET_DWORD(inbuf, SENSOR_INFO_EXT_IN_PAGE,
+					       page);
+				rc = efx_mcdi_rpc(efx, MC_CMD_SENSOR_INFO,
+						  inbuf, sizeof(inbuf),
+						  outbuf, sizeof(outbuf),
+						  &outlen);
+				if (rc)
+					goto fail;
+				if (outlen < MC_CMD_SENSOR_INFO_OUT_LENMIN) {
+					rc = -EIO;
+					goto fail;
+				}
+
+				mask = (MCDI_DWORD(outbuf,
+						   SENSOR_INFO_OUT_MASK) &
+					~(1 << MC_CMD_SENSOR_PAGE0_NEXT));
+
+				/* Check again for short response */
+				if (outlen <
+				    MC_CMD_SENSOR_INFO_OUT_LEN(hweight32(mask))) {
+					rc = -EIO;
+					goto fail;
+				}
+			}
+		} while (!(mask & (1 << type % 32)));
+		j++;
+
+		if (type < ARRAY_SIZE(efx_mcdi_sensor_type)) {
+			hwmon_type = efx_mcdi_sensor_type[type].hwmon_type;
+
+			/* Skip sensors specific to a different port */
+			if (hwmon_type != EFX_HWMON_UNKNOWN &&
+			    efx_mcdi_sensor_type[type].port >= 0 &&
+			    efx_mcdi_sensor_type[type].port !=
+			    efx_port_num(efx))
+				continue;
+		} else {
+			hwmon_type = EFX_HWMON_UNKNOWN;
 		}
 
-		/* Skip sensors specific to a different port */
-		if (efx_mcdi_sensor_type[type].hwmon_type != EFX_HWMON_UNKNOWN &&
-		    efx_mcdi_sensor_type[type].port >= 0 &&
-		    efx_mcdi_sensor_type[type].port != efx_port_num(efx))
-			continue;
-
-		switch (efx_mcdi_sensor_type[type].hwmon_type) {
+		switch (hwmon_type) {
 		case EFX_HWMON_TEMP:
 			hwmon_prefix = "temp";
 			hwmon_index = ++n_temp; /* 1-based */
@@ -333,13 +383,13 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 		}
 
 		min1 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
-					SENSOR_INFO_ENTRY, i, MIN1);
+					SENSOR_INFO_ENTRY, j, MIN1);
 		max1 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
-					SENSOR_INFO_ENTRY, i, MAX1);
+					SENSOR_INFO_ENTRY, j, MAX1);
 		min2 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
-					SENSOR_INFO_ENTRY, i, MIN2);
+					SENSOR_INFO_ENTRY, j, MIN2);
 		max2 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
-					SENSOR_INFO_ENTRY, i, MAX2);
+					SENSOR_INFO_ENTRY, j, MAX2);
 
 		if (min1 != max1) {
 			snprintf(name, sizeof(name), "%s%u_input",
@@ -386,7 +436,8 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 		if (rc)
 			goto fail;
 
-		if (efx_mcdi_sensor_type[type].label) {
+		if (type < ARRAY_SIZE(efx_mcdi_sensor_type) &&
+		    efx_mcdi_sensor_type[type].label) {
 			snprintf(name, sizeof(name), "%s%u_label",
 				 hwmon_prefix, hwmon_index);
 			rc = efx_mcdi_mon_add_attr(
