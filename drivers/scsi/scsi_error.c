@@ -223,6 +223,74 @@ static inline void scsi_eh_prt_fail_stats(struct Scsi_Host *shost,
 }
 #endif
 
+ /**
+ * scsi_report_lun_change - Set flag on all *other* devices on the same target
+ *                          to indicate that a UNIT ATTENTION is expected.
+ * @sdev:	Device reporting the UNIT ATTENTION
+ */
+static void scsi_report_lun_change(struct scsi_device *sdev)
+{
+	sdev->sdev_target->expecting_lun_change = 1;
+}
+
+/**
+ * scsi_report_sense - Examine scsi sense information and log messages for
+ *		       certain conditions, also issue uevents for some of them.
+ * @sdev:	Device reporting the sense code
+ * @sshdr:	sshdr to be examined
+ */
+static void scsi_report_sense(struct scsi_device *sdev,
+			      struct scsi_sense_hdr *sshdr)
+{
+	enum scsi_device_event evt_type = SDEV_EVT_MAXBITS;	/* i.e. none */
+
+	if (sshdr->sense_key == UNIT_ATTENTION) {
+		if (sshdr->asc == 0x3f && sshdr->ascq == 0x03) {
+			evt_type = SDEV_EVT_INQUIRY_CHANGE_REPORTED;
+			sdev_printk(KERN_WARNING, sdev,
+				    "Inquiry data has changed");
+		} else if (sshdr->asc == 0x3f && sshdr->ascq == 0x0e) {
+			evt_type = SDEV_EVT_LUN_CHANGE_REPORTED;
+			scsi_report_lun_change(sdev);
+			sdev_printk(KERN_WARNING, sdev,
+				    "Warning! Received an indication that the "
+				    "LUN assignments on this target have "
+				    "changed. The Linux SCSI layer does not "
+				    "automatically remap LUN assignments.\n");
+		} else if (sshdr->asc == 0x3f)
+			sdev_printk(KERN_WARNING, sdev,
+				    "Warning! Received an indication that the "
+				    "operating parameters on this target have "
+				    "changed. The Linux SCSI layer does not "
+				    "automatically adjust these parameters.\n");
+
+		if (sshdr->asc == 0x38 && sshdr->ascq == 0x07) {
+			evt_type = SDEV_EVT_SOFT_THRESHOLD_REACHED_REPORTED;
+			sdev_printk(KERN_WARNING, sdev,
+				    "Warning! Received an indication that the "
+				    "LUN reached a thin provisioning soft "
+				    "threshold.\n");
+		}
+
+		if (sshdr->asc == 0x2a && sshdr->ascq == 0x01) {
+			evt_type = SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED;
+			sdev_printk(KERN_WARNING, sdev,
+				    "Mode parameters changed");
+		} else if (sshdr->asc == 0x2a && sshdr->ascq == 0x09) {
+			evt_type = SDEV_EVT_CAPACITY_CHANGE_REPORTED;
+			sdev_printk(KERN_WARNING, sdev,
+				    "Capacity data has changed");
+		} else if (sshdr->asc == 0x2a)
+			sdev_printk(KERN_WARNING, sdev,
+				    "Parameters changed");
+	}
+
+	if (evt_type != SDEV_EVT_MAXBITS) {
+		set_bit(evt_type, sdev->pending_events);
+		schedule_work(&sdev->event_work);
+	}
+}
+
 /**
  * scsi_check_sense - Examine scsi cmd sense
  * @scmd:	Cmd to have sense checked.
@@ -249,6 +317,8 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 		 * issued ones, we need to try to recover and interpret
 		 */
 		return SUCCESS;
+
+	scsi_report_sense(sdev, &sshdr);
 
 	if (scsi_sense_is_deferred(&sshdr))
 		return NEEDS_RETRY;
@@ -315,6 +385,14 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 			}
 		}
 		/*
+		 * we might also expect a cc/ua if another LUN on the target
+		 * reported a UA with an ASC/ASCQ of 3F 0E -
+		 * REPORTED LUNS DATA HAS CHANGED.
+		 */
+		if (scmd->device->sdev_target->expecting_lun_change &&
+		    sshdr.asc == 0x3f && sshdr.ascq == 0x0e)
+			return NEEDS_RETRY;
+		/*
 		 * if the device is in the process of becoming ready, we
 		 * should retry.
 		 */
@@ -327,26 +405,6 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 		if (scmd->device->allow_restart &&
 		    (sshdr.asc == 0x04) && (sshdr.ascq == 0x02))
 			return FAILED;
-
-		if (sshdr.asc == 0x3f && sshdr.ascq == 0x0e)
-			scmd_printk(KERN_WARNING, scmd,
-				    "Warning! Received an indication that the "
-				    "LUN assignments on this target have "
-				    "changed. The Linux SCSI layer does not "
-				    "automatically remap LUN assignments.\n");
-		else if (sshdr.asc == 0x3f)
-			scmd_printk(KERN_WARNING, scmd,
-				    "Warning! Received an indication that the "
-				    "operating parameters on this target have "
-				    "changed. The Linux SCSI layer does not "
-				    "automatically adjust these parameters.\n");
-
-		if (sshdr.asc == 0x38 && sshdr.ascq == 0x07)
-			scmd_printk(KERN_WARNING, scmd,
-				    "Warning! Received an indication that the "
-				    "LUN reached a thin provisioning soft "
-				    "threshold.\n");
-
 		/*
 		 * Pass the UA upwards for a determination in the completion
 		 * functions.
@@ -1574,6 +1632,8 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 */
 		return ADD_TO_MLQUEUE;
 	case GOOD:
+		if (scmd->cmnd[0] == REPORT_LUNS)
+			scmd->device->sdev_target->expecting_lun_change = 0;
 		scsi_handle_queue_ramp_up(scmd->device);
 	case COMMAND_TERMINATED:
 		return SUCCESS;
