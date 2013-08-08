@@ -42,10 +42,6 @@
 
 #include <drm/drmP.h>
 
-/******************************************************************/
-/** \name Context bitmap support */
-/*@{*/
-
 /**
  * Free a handle from the context bitmap.
  *
@@ -56,11 +52,46 @@
  * in drm_device::ctx_idr, while holding the drm_device::struct_mutex
  * lock.
  */
-void drm_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
+static void drm_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
 {
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
 	mutex_lock(&dev->struct_mutex);
 	idr_remove(&dev->ctx_idr, ctx_handle);
 	mutex_unlock(&dev->struct_mutex);
+}
+
+/******************************************************************/
+/** \name Context bitmap support */
+/*@{*/
+
+void drm_legacy_ctxbitmap_release(struct drm_device *dev,
+				  struct drm_file *file_priv)
+{
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	mutex_lock(&dev->ctxlist_mutex);
+	if (!list_empty(&dev->ctxlist)) {
+		struct drm_ctx_list *pos, *n;
+
+		list_for_each_entry_safe(pos, n, &dev->ctxlist, head) {
+			if (pos->tag == file_priv &&
+			    pos->handle != DRM_KERNEL_CONTEXT) {
+				if (dev->driver->context_dtor)
+					dev->driver->context_dtor(dev,
+								  pos->handle);
+
+				drm_ctxbitmap_free(dev, pos->handle);
+
+				list_del(&pos->head);
+				kfree(pos);
+				--dev->ctx_count;
+			}
+		}
+	}
+	mutex_unlock(&dev->ctxlist_mutex);
 }
 
 /**
@@ -90,10 +121,12 @@ static int drm_ctxbitmap_next(struct drm_device * dev)
  *
  * Initialise the drm_device::ctx_idr
  */
-int drm_ctxbitmap_init(struct drm_device * dev)
+void drm_legacy_ctxbitmap_init(struct drm_device * dev)
 {
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
 	idr_init(&dev->ctx_idr);
-	return 0;
 }
 
 /**
@@ -104,7 +137,7 @@ int drm_ctxbitmap_init(struct drm_device * dev)
  * Free all idr members using drm_ctx_sarea_free helper function
  * while holding the drm_device::struct_mutex lock.
  */
-void drm_ctxbitmap_cleanup(struct drm_device * dev)
+void drm_legacy_ctxbitmap_cleanup(struct drm_device * dev)
 {
 	mutex_lock(&dev->struct_mutex);
 	idr_destroy(&dev->ctx_idr);
@@ -135,6 +168,9 @@ int drm_getsareactx(struct drm_device *dev, void *data,
 	struct drm_ctx_priv_map *request = data;
 	struct drm_local_map *map;
 	struct drm_map_list *_entry;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -179,6 +215,9 @@ int drm_setsareactx(struct drm_device *dev, void *data,
 	struct drm_ctx_priv_map *request = data;
 	struct drm_local_map *map = NULL;
 	struct drm_map_list *r_list = NULL;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(r_list, &dev->maplist, head) {
@@ -280,6 +319,9 @@ int drm_resctx(struct drm_device *dev, void *data,
 	struct drm_ctx ctx;
 	int i;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	if (res->count >= DRM_RESERVED_CONTEXTS) {
 		memset(&ctx, 0, sizeof(ctx));
 		for (i = 0; i < DRM_RESERVED_CONTEXTS; i++) {
@@ -309,6 +351,9 @@ int drm_addctx(struct drm_device *dev, void *data,
 {
 	struct drm_ctx_list *ctx_entry;
 	struct drm_ctx *ctx = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	ctx->handle = drm_ctxbitmap_next(dev);
 	if (ctx->handle == DRM_KERNEL_CONTEXT) {
@@ -353,6 +398,9 @@ int drm_getctx(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_ctx *ctx = data;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	/* This is 0, because we don't handle any context flags */
 	ctx->flags = 0;
 
@@ -375,6 +423,9 @@ int drm_switchctx(struct drm_device *dev, void *data,
 {
 	struct drm_ctx *ctx = data;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	DRM_DEBUG("%d\n", ctx->handle);
 	return drm_context_switch(dev, dev->last_context, ctx->handle);
 }
@@ -394,6 +445,9 @@ int drm_newctx(struct drm_device *dev, void *data,
 	       struct drm_file *file_priv)
 {
 	struct drm_ctx *ctx = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	DRM_DEBUG("%d\n", ctx->handle);
 	drm_context_switch_complete(dev, file_priv, ctx->handle);
@@ -416,6 +470,9 @@ int drm_rmctx(struct drm_device *dev, void *data,
 	      struct drm_file *file_priv)
 {
 	struct drm_ctx *ctx = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	DRM_DEBUG("%d\n", ctx->handle);
 	if (ctx->handle != DRM_KERNEL_CONTEXT) {
