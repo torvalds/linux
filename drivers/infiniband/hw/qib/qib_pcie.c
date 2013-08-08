@@ -283,12 +283,12 @@ int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent,
 		goto bail;
 	}
 
-	pos = pci_find_capability(dd->pcidev, PCI_CAP_ID_MSIX);
+	pos = dd->pcidev->msix_cap;
 	if (nent && *nent && pos) {
 		qib_msix_setup(dd, pos, nent, entry);
 		ret = 0; /* did it, either MSIx or INTx */
 	} else {
-		pos = pci_find_capability(dd->pcidev, PCI_CAP_ID_MSI);
+		pos = dd->pcidev->msi_cap;
 		if (pos)
 			ret = qib_msi_setup(dd, pos);
 		else
@@ -357,7 +357,7 @@ int qib_reinit_intr(struct qib_devdata *dd)
 	if (!dd->msi_lo)
 		goto bail;
 
-	pos = pci_find_capability(dd->pcidev, PCI_CAP_ID_MSI);
+	pos = dd->pcidev->msi_cap;
 	if (!pos) {
 		qib_dev_err(dd,
 			"Can't find MSI capability, can't restore MSI settings\n");
@@ -426,7 +426,7 @@ void qib_enable_intx(struct pci_dev *pdev)
 	if (new != cw)
 		pci_write_config_word(pdev, PCI_COMMAND, new);
 
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSI);
+	pos = pdev->msi_cap;
 	if (pos) {
 		/* then turn off MSI */
 		pci_read_config_word(pdev, pos + PCI_MSI_FLAGS, &cw);
@@ -434,7 +434,7 @@ void qib_enable_intx(struct pci_dev *pdev)
 		if (new != cw)
 			pci_write_config_word(pdev, pos + PCI_MSI_FLAGS, new);
 	}
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
+	pos = pdev->msix_cap;
 	if (pos) {
 		/* then turn off MSIx */
 		pci_read_config_word(pdev, pos + PCI_MSIX_FLAGS, &cw);
