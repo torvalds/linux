@@ -144,35 +144,10 @@ struct sw_hci_hcd {
 
 	void __iomem *usb_vbase; /* USB base address */
 
-	void __iomem *ehci_base;
-	__u32 ehci_reg_length;
-	void __iomem *ohci_base;
-	__u32 ohci_reg_length;
-
-	struct resource *sram_base_res;	/* SRAM resources */
-	struct resource *sram_base_req;	/* SRAM resources */
 	void __iomem *sram_vbase; /* SRAM base address */
-	__u32 sram_reg_start;
-	__u32 sram_reg_length;
-
-	struct resource *clock_base_res; /* clock resources */
-	struct resource *clock_base_req; /* clock resources */
 	void __iomem *clock_vbase; /* clock base address */
-	__u32 clock_reg_start;
-	__u32 clock_reg_length;
-
-	struct resource *gpio_base_res;	/* gpio resources */
-	struct resource *gpio_base_req;	/* gpio resources */
 	void __iomem *gpio_vbase; /* gpio base address */
-	__u32 gpio_reg_start;
-	__u32 gpio_reg_length;
-
-	struct resource *sdram_base_res; /* sdram resources */
-	struct resource *sdram_base_req; /* sdram resources */
 	void __iomem *sdram_vbase; /* sdram base address */
-	__u32 sdram_reg_start;
-	__u32 sdram_reg_length;
-
 	struct platform_device *pdev;
 	struct usb_hcd *hcd;
 
