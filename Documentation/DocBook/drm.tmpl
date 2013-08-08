@@ -2405,18 +2405,18 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
       </abstract>
       <para>
         The <methodname>firstopen</methodname> method is called by the DRM core
-	when an application opens a device that has no other opened file handle.
-	Similarly the <methodname>lastclose</methodname> method is called when
-	the last application holding a file handle opened on the device closes
-	it. Both methods are mostly used for UMS (User Mode Setting) drivers to
-	acquire and release device resources which should be done in the
-	<methodname>load</methodname> and <methodname>unload</methodname>
-	methods for KMS drivers.
+	for legacy UMS (User Mode Setting) drivers only when an application
+	opens a device that has no other opened file handle. UMS drivers can
+	implement it to acquire device resources. KMS drivers can't use the
+	method and must acquire resources in the <methodname>load</methodname>
+	method instead.
       </para>
       <para>
-        Note that the <methodname>lastclose</methodname> method is also called
-	at module unload time or, for hot-pluggable devices, when the device is
-	unplugged. The <methodname>firstopen</methodname> and
+	Similarly the <methodname>lastclose</methodname> method is called when
+	the last application holding a file handle opened on the device closes
+	it, for both UMS and KMS drivers. Additionally, the method is also
+	called at module unload time or, for hot-pluggable devices, when the
+	device is unplugged. The <methodname>firstopen</methodname> and
 	<methodname>lastclose</methodname> calls can thus be unbalanced.
       </para>
       <para>
@@ -2445,7 +2445,12 @@ void (*postclose) (struct drm_device *, struct drm_file *);</synopsis>
       <para>
         The <methodname>lastclose</methodname> method should restore CRTC and
 	plane properties to default value, so that a subsequent open of the
-	device will not inherit state from the previous user.
+	device will not inherit state from the previous user. It can also be
+	used to execute delayed power switching state changes, e.g. in
+	conjunction with the vga-switcheroo infrastructure. Beyond that KMS
+	drivers should not do any further cleanup. Only legacy UMS drivers might
+	need to clean up device state so that the vga console or an independent
+	fbdev driver could take over.
       </para>
     </sect2>
     <sect2>

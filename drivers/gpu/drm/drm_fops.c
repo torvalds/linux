@@ -51,7 +51,8 @@ static int drm_setup(struct drm_device * dev)
 	int i;
 	int ret;
 
-	if (dev->driver->firstopen) {
+	if (dev->driver->firstopen &&
+	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = dev->driver->firstopen(dev);
 		if (ret != 0)
 			return ret;
