@@ -1455,6 +1455,18 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 	return retcode;
 }
 
+int drm_dma_ioctl(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
+{
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	if (dev->driver->dma_ioctl)
+		return dev->driver->dma_ioctl(dev, data, file_priv);
+	else
+		return -EINVAL;
+}
+
 struct drm_local_map *drm_getsarea(struct drm_device *dev)
 {
 	struct drm_map_list *entry;

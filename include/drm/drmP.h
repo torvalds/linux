@@ -1355,6 +1355,8 @@ extern int drm_freebufs(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 extern int drm_mapbufs(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
+extern int drm_dma_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 
 				/* DMA support (drm_dma.h) */
 extern int drm_legacy_dma_setup(struct drm_device *dev);

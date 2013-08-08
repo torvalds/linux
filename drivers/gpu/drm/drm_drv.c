@@ -106,8 +106,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_INFO_BUFS, drm_infobufs, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_IOCTL_MAP_BUFS, drm_mapbufs, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_IOCTL_FREE_BUFS, drm_freebufs, DRM_AUTH),
-	/* The DRM_IOCTL_DMA ioctl should be defined by the driver. */
-	DRM_IOCTL_DEF(DRM_IOCTL_DMA, NULL, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_IOCTL_DMA, drm_dma_ioctl, DRM_AUTH),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_CONTROL, drm_control, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
@@ -397,9 +396,6 @@ long drm_ioctl(struct file *filp,
 
 	/* Do not trust userspace, use our own definition */
 	func = ioctl->func;
-	/* is there a local override? */
-	if ((nr == DRM_IOCTL_NR(DRM_IOCTL_DMA)) && dev->driver->dma_ioctl)
-		func = dev->driver->dma_ioctl;
 
 	if (!func) {
 		DRM_DEBUG("no function\n");
