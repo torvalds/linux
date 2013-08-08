@@ -43,8 +43,6 @@
 static struct sw_hci_hcd *g_sw_ehci[3];
 static u32 ehci_first_probe[3] = { 1, 1, 1 };
 
-extern int usb_disabled(void);
-
 void print_ehci_info(struct sw_hci_hcd *sw_ehci)
 {
 	pr_info("----------print_ehci_info---------\n");
@@ -256,10 +254,6 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
 
 	if (pdev == NULL)
 		return -EINVAL;
-
-	/* if usb is disabled, can not probe */
-	if (usb_disabled())
-		return -ENODEV;
 
 	sw_ehci = pdev->dev.platform_data;
 	if (!sw_ehci)
