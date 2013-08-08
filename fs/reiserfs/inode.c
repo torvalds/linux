@@ -30,7 +30,6 @@ void reiserfs_evict_inode(struct inode *inode)
 	    JOURNAL_PER_BALANCE_CNT * 2 +
 	    2 * REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb);
 	struct reiserfs_transaction_handle th;
-	int depth;
 	int err;
 
 	if (!inode->i_nlink && !is_bad_inode(inode))
@@ -40,11 +39,13 @@ void reiserfs_evict_inode(struct inode *inode)
 	if (inode->i_nlink)
 		goto no_delete;
 
-	depth = reiserfs_write_lock_once(inode->i_sb);
-
 	/* The = 0 happens when we abort creating a new inode for some reason like lack of space.. */
 	if (!(inode->i_state & I_NEW) && INODE_PKEY(inode)->k_objectid != 0) {	/* also handles bad_inode case */
+		int depth;
+
 		reiserfs_delete_xattrs(inode);
+
+		depth = reiserfs_write_lock_once(inode->i_sb);
 
 		if (journal_begin(&th, inode->i_sb, jbegin_count))
 			goto out;
@@ -72,12 +73,12 @@ void reiserfs_evict_inode(struct inode *inode)
 		/* all items of file are deleted, so we can remove "save" link */
 		remove_save_link(inode, 0 /* not truncate */ );	/* we can't do anything
 								 * about an error here */
+out:
+		reiserfs_write_unlock_once(inode->i_sb, depth);
 	} else {
 		/* no object items are in the tree */
 		;
 	}
-      out:
-	reiserfs_write_unlock_once(inode->i_sb, depth);
 	clear_inode(inode);	/* note this must go after the journal_end to prevent deadlock */
 	dquot_drop(inode);
 	inode->i_blocks = 0;
@@ -1941,7 +1942,9 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	}
 
 	if (reiserfs_posixacl(inode->i_sb)) {
+		reiserfs_write_unlock(inode->i_sb);
 		retval = reiserfs_inherit_default_acl(th, dir, dentry, inode);
+		reiserfs_write_lock(inode->i_sb);
 		if (retval) {
 			err = retval;
 			reiserfs_check_path(&path_to_key);
@@ -1956,7 +1959,9 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		inode->i_flags |= S_PRIVATE;
 
 	if (security->name) {
+		reiserfs_write_unlock(inode->i_sb);
 		retval = reiserfs_security_write(th, inode, security);
+		reiserfs_write_lock(inode->i_sb);
 		if (retval) {
 			err = retval;
 			reiserfs_check_path(&path_to_key);
@@ -3129,6 +3134,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 		 */
 		if (get_inode_item_key_version(inode) == KEY_FORMAT_3_5 &&
 		    attr->ia_size > MAX_NON_LFS) {
+			reiserfs_write_unlock_once(inode->i_sb, depth);
 			error = -EFBIG;
 			goto out;
 		}
@@ -3150,8 +3156,10 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 				if (err)
 					error = err;
 			}
-			if (error)
+			if (error) {
+				reiserfs_write_unlock_once(inode->i_sb, depth);
 				goto out;
+			}
 			/*
 			 * file size is changed, ctime and mtime are
 			 * to be updated
@@ -3159,6 +3167,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 			attr->ia_valid |= (ATTR_MTIME | ATTR_CTIME);
 		}
 	}
+	reiserfs_write_unlock_once(inode->i_sb, depth);
 
 	if ((((attr->ia_valid & ATTR_UID) && (from_kuid(&init_user_ns, attr->ia_uid) & ~0xffff)) ||
 	     ((attr->ia_valid & ATTR_GID) && (from_kgid(&init_user_ns, attr->ia_gid) & ~0xffff))) &&
@@ -3183,14 +3192,16 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 			return error;
 
 		/* (user+group)*(old+new) structure - we count quota info and , inode write (sb, inode) */
+		depth = reiserfs_write_lock_once(inode->i_sb);
 		error = journal_begin(&th, inode->i_sb, jbegin_count);
+		reiserfs_write_unlock_once(inode->i_sb, depth);
 		if (error)
 			goto out;
-		reiserfs_write_unlock_once(inode->i_sb, depth);
 		error = dquot_transfer(inode, attr);
 		depth = reiserfs_write_lock_once(inode->i_sb);
 		if (error) {
 			journal_end(&th, inode->i_sb, jbegin_count);
+			reiserfs_write_unlock_once(inode->i_sb, depth);
 			goto out;
 		}
 
@@ -3202,17 +3213,11 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 			inode->i_gid = attr->ia_gid;
 		mark_inode_dirty(inode);
 		error = journal_end(&th, inode->i_sb, jbegin_count);
+		reiserfs_write_unlock_once(inode->i_sb, depth);
 		if (error)
 			goto out;
 	}
 
-	/*
-	 * Relax the lock here, as it might truncate the
-	 * inode pages and wait for inode pages locks.
-	 * To release such page lock, the owner needs the
-	 * reiserfs lock
-	 */
-	reiserfs_write_unlock_once(inode->i_sb, depth);
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    attr->ia_size != i_size_read(inode)) {
 		error = inode_newsize_ok(inode, attr->ia_size);
@@ -3226,16 +3231,13 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 		setattr_copy(inode, attr);
 		mark_inode_dirty(inode);
 	}
-	depth = reiserfs_write_lock_once(inode->i_sb);
 
 	if (!error && reiserfs_posixacl(inode->i_sb)) {
 		if (attr->ia_valid & ATTR_MODE)
 			error = reiserfs_acl_chmod(inode);
 	}
 
-      out:
-	reiserfs_write_unlock_once(inode->i_sb, depth);
-
+out:
 	return error;
 }
 

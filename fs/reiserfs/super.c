@@ -1335,7 +1335,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 				kfree(qf_names[i]);
 #endif
 		err = -EINVAL;
-		goto out_unlock;
+		goto out_err_unlock;
 	}
 #ifdef CONFIG_QUOTA
 	handle_quota_files(s, qf_names, &qfmt);
@@ -1379,35 +1379,32 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	if (blocks) {
 		err = reiserfs_resize(s, blocks);
 		if (err != 0)
-			goto out_unlock;
+			goto out_err_unlock;
 	}
 
 	if (*mount_flags & MS_RDONLY) {
+		reiserfs_write_unlock(s);
 		reiserfs_xattr_init(s, *mount_flags);
 		/* remount read-only */
 		if (s->s_flags & MS_RDONLY)
 			/* it is read-only already */
-			goto out_ok;
+			goto out_ok_unlocked;
 
-		/*
-		 * Drop write lock. Quota will retake it when needed and lock
-		 * ordering requires calling dquot_suspend() without it.
-		 */
-		reiserfs_write_unlock(s);
 		err = dquot_suspend(s, -1);
 		if (err < 0)
 			goto out_err;
-		reiserfs_write_lock(s);
 
 		/* try to remount file system with read-only permissions */
 		if (sb_umount_state(rs) == REISERFS_VALID_FS
 		    || REISERFS_SB(s)->s_mount_state != REISERFS_VALID_FS) {
-			goto out_ok;
+			goto out_ok_unlocked;
 		}
+
+		reiserfs_write_lock(s);
 
 		err = journal_begin(&th, s, 10);
 		if (err)
-			goto out_unlock;
+			goto out_err_unlock;
 
 		/* Mounting a rw partition read-only. */
 		reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
@@ -1416,13 +1413,14 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	} else {
 		/* remount read-write */
 		if (!(s->s_flags & MS_RDONLY)) {
+			reiserfs_write_unlock(s);
 			reiserfs_xattr_init(s, *mount_flags);
-			goto out_ok;	/* We are read-write already */
+			goto out_ok_unlocked;	/* We are read-write already */
 		}
 
 		if (reiserfs_is_journal_aborted(journal)) {
 			err = journal->j_errno;
-			goto out_unlock;
+			goto out_err_unlock;
 		}
 
 		handle_data_mode(s, mount_options);
@@ -1431,7 +1429,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		s->s_flags &= ~MS_RDONLY;	/* now it is safe to call journal_begin */
 		err = journal_begin(&th, s, 10);
 		if (err)
-			goto out_unlock;
+			goto out_err_unlock;
 
 		/* Mount a partition which is read-only, read-write */
 		reiserfs_prepare_for_journal(s, SB_BUFFER_WITH_SB(s), 1);
@@ -1448,26 +1446,22 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	SB_JOURNAL(s)->j_must_wait = 1;
 	err = journal_end(&th, s, 10);
 	if (err)
-		goto out_unlock;
+		goto out_err_unlock;
 
+	reiserfs_write_unlock(s);
 	if (!(*mount_flags & MS_RDONLY)) {
-		/*
-		 * Drop write lock. Quota will retake it when needed and lock
-		 * ordering requires calling dquot_resume() without it.
-		 */
-		reiserfs_write_unlock(s);
 		dquot_resume(s, -1);
 		reiserfs_write_lock(s);
 		finish_unfinished(s);
+		reiserfs_write_unlock(s);
 		reiserfs_xattr_init(s, *mount_flags);
 	}
 
-out_ok:
+out_ok_unlocked:
 	replace_mount_options(s, new_opts);
-	reiserfs_write_unlock(s);
 	return 0;
 
-out_unlock:
+out_err_unlock:
 	reiserfs_write_unlock(s);
 out_err:
 	kfree(new_opts);
@@ -2014,12 +2008,14 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 			goto error;
 		}
 
+		reiserfs_write_unlock(s);
 		if ((errval = reiserfs_lookup_privroot(s)) ||
 		    (errval = reiserfs_xattr_init(s, s->s_flags))) {
 			dput(s->s_root);
 			s->s_root = NULL;
-			goto error;
+			goto error_unlocked;
 		}
+		reiserfs_write_lock(s);
 
 		/* look for files which were to be removed in previous session */
 		finish_unfinished(s);
@@ -2028,12 +2024,14 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 			reiserfs_info(s, "using 3.5.x disk format\n");
 		}
 
+		reiserfs_write_unlock(s);
 		if ((errval = reiserfs_lookup_privroot(s)) ||
 		    (errval = reiserfs_xattr_init(s, s->s_flags))) {
 			dput(s->s_root);
 			s->s_root = NULL;
-			goto error;
+			goto error_unlocked;
 		}
+		reiserfs_write_lock(s);
 	}
 	// mark hash in super block: it could be unset. overwrite should be ok
 	set_sb_hash_function_code(rs, function2code(sbi->s_hash_function));
