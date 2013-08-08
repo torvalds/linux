@@ -1497,6 +1497,8 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 	int print_sym = print_opts & PRINT_IP_OPT_SYM;
 	int print_dso = print_opts & PRINT_IP_OPT_DSO;
 	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
+	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
+	char s = print_oneline ? ' ' : '\t';
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample,
 					  NULL) < 0) {
@@ -1521,7 +1523,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 				break;
 
 			if (print_ip)
-				printf("%16" PRIx64, node->ip);
+				printf("%c%16" PRIx64, s, node->ip);
 
 			if (print_sym) {
 				printf(" ");
@@ -1537,7 +1539,9 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 				map__fprintf_dsoname(node->map, stdout);
 				printf(")");
 			}
-			printf("\n");
+
+			if (!print_oneline)
+				printf("\n");
 
 			callchain_cursor_advance(&callchain_cursor);
 		}

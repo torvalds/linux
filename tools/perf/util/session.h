@@ -45,6 +45,7 @@ struct perf_session {
 #define PRINT_IP_OPT_SYM		(1<<1)
 #define PRINT_IP_OPT_DSO		(1<<2)
 #define PRINT_IP_OPT_SYMOFFSET	(1<<3)
+#define PRINT_IP_OPT_ONELINE	(1<<4)
 
 struct perf_tool;
 
