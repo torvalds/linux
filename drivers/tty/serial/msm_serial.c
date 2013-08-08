@@ -234,7 +234,8 @@ static void handle_tx(struct uart_port *port)
 			break;
 
 		if (msm_port->is_uartdm)
-			num_chars = min(tx_count - tf_pointer, sizeof(buf));
+			num_chars = min(tx_count - tf_pointer,
+					(unsigned int)sizeof(buf));
 		else
 			num_chars = 1;
 
