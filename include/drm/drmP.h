@@ -163,13 +163,7 @@ int drm_err(const char *func, const char *format, ...);
 #define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
 #define DRM_KERNEL_CONTEXT    0	 /**< Change drm_resctx if changed */
 #define DRM_RESERVED_CONTEXTS 1	 /**< Change drm_resctx if changed */
-#define DRM_LOOPING_LIMIT     5000000
-#define DRM_TIME_SLICE	      (HZ/20)  /**< Time slice for GLXContexts */
-#define DRM_LOCK_SLICE	      1	/**< Time slice for lock, in jiffies */
 
-#define DRM_FLAG_DEBUG	  0x01
-
-#define DRM_MAX_CTXBITMAP (PAGE_SIZE * 8)
 #define DRM_MAP_HASH_OFFSET 0x10000000
 
 /*@}*/
@@ -257,9 +251,6 @@ int drm_err(const char *func, const char *format, ...);
 /*@{*/
 
 #define DRM_ARRAY_SIZE(x) ARRAY_SIZE(x)
-
-#define DRM_LEFTCOUNT(x) (((x)->rp + (x)->count - (x)->wp) % ((x)->count + 1))
-#define DRM_BUFCOUNT(x) ((x)->count - DRM_LEFTCOUNT(x))
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
