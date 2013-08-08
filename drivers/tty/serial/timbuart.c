@@ -162,7 +162,7 @@ static void timbuart_handle_tx_port(struct uart_port *port, u32 isr, u32 *ier)
 	dev_dbg(port->dev, "%s - leaving\n", __func__);
 }
 
-void timbuart_handle_rx_port(struct uart_port *port, u32 isr, u32 *ier)
+static void timbuart_handle_rx_port(struct uart_port *port, u32 isr, u32 *ier)
 {
 	if (isr & RXFLAGS) {
 		/* Some RX status is set */
@@ -184,7 +184,7 @@ void timbuart_handle_rx_port(struct uart_port *port, u32 isr, u32 *ier)
 	dev_dbg(port->dev, "%s - leaving\n", __func__);
 }
 
-void timbuart_tasklet(unsigned long arg)
+static void timbuart_tasklet(unsigned long arg)
 {
 	struct timbuart_port *uart = (struct timbuart_port *)arg;
 	u32 isr, ier = 0;
