@@ -2252,6 +2252,7 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	nested_vmx_secondary_ctls_low = 0;
 	nested_vmx_secondary_ctls_high &=
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+		SECONDARY_EXEC_UNRESTRICTED_GUEST |
 		SECONDARY_EXEC_WBINVD_EXITING;
 
 	if (enable_ept) {
@@ -4877,6 +4878,17 @@ vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[2] = 0xc1;
 }
 
+static bool nested_cr0_valid(struct vmcs12 *vmcs12, unsigned long val)
+{
+	unsigned long always_on = VMXON_CR0_ALWAYSON;
+
+	if (nested_vmx_secondary_ctls_high &
+		SECONDARY_EXEC_UNRESTRICTED_GUEST &&
+	    nested_cpu_has2(vmcs12, SECONDARY_EXEC_UNRESTRICTED_GUEST))
+		always_on &= ~(X86_CR0_PE | X86_CR0_PG);
+	return (val & always_on) == always_on;
+}
+
 /* called to set cr0 as appropriate for a mov-to-cr0 exit. */
 static int handle_set_cr0(struct kvm_vcpu *vcpu, unsigned long val)
 {
@@ -4895,9 +4907,7 @@ static int handle_set_cr0(struct kvm_vcpu *vcpu, unsigned long val)
 		val = (val & ~vmcs12->cr0_guest_host_mask) |
 			(vmcs12->guest_cr0 & vmcs12->cr0_guest_host_mask);
 
-		/* TODO: will have to take unrestricted guest mode into
-		 * account */
-		if ((val & VMXON_CR0_ALWAYSON) != VMXON_CR0_ALWAYSON)
+		if (!nested_cr0_valid(vmcs12, val))
 			return 1;
 
 		if (kvm_set_cr0(vcpu, val))
@@ -7876,7 +7886,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		return 1;
 	}
 
-	if (((vmcs12->guest_cr0 & VMXON_CR0_ALWAYSON) != VMXON_CR0_ALWAYSON) ||
+	if (!nested_cr0_valid(vmcs12, vmcs12->guest_cr0) ||
 	    ((vmcs12->guest_cr4 & VMXON_CR4_ALWAYSON) != VMXON_CR4_ALWAYSON)) {
 		nested_vmx_entry_failure(vcpu, vmcs12,
 			EXIT_REASON_INVALID_STATE, ENTRY_FAIL_DEFAULT);
