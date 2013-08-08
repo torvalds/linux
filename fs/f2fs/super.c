@@ -47,6 +47,7 @@ enum {
 	Opt_noacl,
 	Opt_active_logs,
 	Opt_disable_ext_identify,
+	Opt_inline_xattr,
 	Opt_err,
 };
 
@@ -59,6 +60,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_noacl, "noacl"},
 	{Opt_active_logs, "active_logs=%u"},
 	{Opt_disable_ext_identify, "disable_ext_identify"},
+	{Opt_inline_xattr, "inline_xattr"},
 	{Opt_err, NULL},
 };
 
@@ -238,10 +240,17 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_nouser_xattr:
 			clear_opt(sbi, XATTR_USER);
 			break;
+		case Opt_inline_xattr:
+			set_opt(sbi, INLINE_XATTR);
+			break;
 #else
 		case Opt_nouser_xattr:
 			f2fs_msg(sb, KERN_INFO,
 				"nouser_xattr options not supported");
+			break;
+		case Opt_inline_xattr:
+			f2fs_msg(sb, KERN_INFO,
+				"inline_xattr options not supported");
 			break;
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
@@ -291,6 +300,9 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 	rwlock_init(&fi->ext.ext_lock);
 
 	set_inode_flag(fi, FI_NEW_INODE);
+
+	if (test_opt(F2FS_SB(sb), INLINE_XATTR))
+		set_inode_flag(fi, FI_INLINE_XATTR);
 
 	return &fi->vfs_inode;
 }
@@ -444,6 +456,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",user_xattr");
 	else
 		seq_puts(seq, ",nouser_xattr");
+	if (test_opt(sbi, INLINE_XATTR))
+		seq_puts(seq, ",inline_xattr");
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
 	if (test_opt(sbi, POSIX_ACL))

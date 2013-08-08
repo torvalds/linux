@@ -144,10 +144,12 @@ struct f2fs_extent {
 #define ADDRS_PER_BLOCK         1018	/* Address Pointers in a Direct Block */
 #define NIDS_PER_BLOCK          1018	/* Node IDs in an Indirect Block */
 
+#define F2FS_INLINE_XATTR	0x01	/* file inline xattr flag */
+
 struct f2fs_inode {
 	__le16 i_mode;			/* file mode */
 	__u8 i_advise;			/* file hints */
-	__u8 i_reserved;		/* reserved */
+	__u8 i_inline;			/* file inline flags */
 	__le32 i_uid;			/* user ID */
 	__le32 i_gid;			/* group ID */
 	__le32 i_links;			/* links count */

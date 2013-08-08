@@ -85,6 +85,7 @@ static int do_read_inode(struct inode *inode)
 	fi->i_advise = ri->i_advise;
 	fi->i_pino = le32_to_cpu(ri->i_pino);
 	get_extent_info(&fi->ext, ri->i_ext);
+	get_inline_info(fi, ri);
 	f2fs_put_page(node_page, 1);
 	return 0;
 }
@@ -164,6 +165,7 @@ void update_inode(struct inode *inode, struct page *node_page)
 	ri->i_size = cpu_to_le64(i_size_read(inode));
 	ri->i_blocks = cpu_to_le64(inode->i_blocks);
 	set_raw_extent(&F2FS_I(inode)->ext, &ri->i_ext);
+	set_raw_inline(F2FS_I(inode), ri);
 
 	ri->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
 	ri->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);

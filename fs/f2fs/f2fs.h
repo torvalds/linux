@@ -29,6 +29,7 @@
 #define F2FS_MOUNT_XATTR_USER		0x00000010
 #define F2FS_MOUNT_POSIX_ACL		0x00000020
 #define F2FS_MOUNT_DISABLE_EXT_IDENTIFY	0x00000040
+#define F2FS_MOUNT_INLINE_XATTR		0x00000080
 
 #define clear_opt(sbi, option)	(sbi->mount_opt.opt &= ~F2FS_MOUNT_##option)
 #define set_opt(sbi, option)	(sbi->mount_opt.opt |= F2FS_MOUNT_##option)
@@ -892,6 +893,7 @@ enum {
 	FI_NO_ALLOC,		/* should not allocate any blocks */
 	FI_UPDATE_DIR,		/* should update inode block for consistency */
 	FI_DELAY_IPUT,		/* used for the recovery */
+	FI_INLINE_XATTR,	/* used for inline xattr */
 };
 
 static inline void set_inode_flag(struct f2fs_inode_info *fi, int flag)
@@ -922,6 +924,22 @@ static inline int cond_clear_inode_flag(struct f2fs_inode_info *fi, int flag)
 		return 1;
 	}
 	return 0;
+}
+
+static inline void get_inline_info(struct f2fs_inode_info *fi,
+					struct f2fs_inode *ri)
+{
+	if (ri->i_inline & F2FS_INLINE_XATTR)
+		set_inode_flag(fi, FI_INLINE_XATTR);
+}
+
+static inline void set_raw_inline(struct f2fs_inode_info *fi,
+					struct f2fs_inode *ri)
+{
+	ri->i_inline = 0;
+
+	if (is_inode_flag_set(fi, FI_INLINE_XATTR))
+		ri->i_inline |= F2FS_INLINE_XATTR;
 }
 
 static inline int f2fs_readonly(struct super_block *sb)
