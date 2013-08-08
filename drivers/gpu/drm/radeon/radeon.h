@@ -160,6 +160,38 @@ extern int radeon_aspm;
 #define RADEON_CG_BLOCK_VCE			(1 << 4)
 #define RADEON_CG_BLOCK_HDP			(1 << 5)
 
+/* CG flags */
+#define RADEON_CG_SUPPORT_GFX_MGCG		(1 << 0)
+#define RADEON_CG_SUPPORT_GFX_MGLS		(1 << 1)
+#define RADEON_CG_SUPPORT_GFX_CGCG		(1 << 2)
+#define RADEON_CG_SUPPORT_GFX_CGLS		(1 << 3)
+#define RADEON_CG_SUPPORT_GFX_CGTS		(1 << 4)
+#define RADEON_CG_SUPPORT_GFX_CGTS_LS		(1 << 5)
+#define RADEON_CG_SUPPORT_GFX_CP_LS		(1 << 6)
+#define RADEON_CG_SUPPORT_GFX_RLC_LS		(1 << 7)
+#define RADEON_CG_SUPPORT_MC_LS			(1 << 8)
+#define RADEON_CG_SUPPORT_MC_MGCG		(1 << 9)
+#define RADEON_CG_SUPPORT_SDMA_LS		(1 << 10)
+#define RADEON_CG_SUPPORT_SDMA_MGCG		(1 << 11)
+#define RADEON_CG_SUPPORT_BIF_LS		(1 << 12)
+#define RADEON_CG_SUPPORT_UVD_MGCG		(1 << 13)
+#define RADEON_CG_SUPPORT_VCE_MGCG		(1 << 14)
+#define RADEON_CG_SUPPORT_HDP_LS		(1 << 15)
+#define RADEON_CG_SUPPORT_HDP_MGCG		(1 << 16)
+
+/* PG flags */
+#define RADEON_PG_SUPPORT_GFX_CG		(1 << 0)
+#define RADEON_PG_SUPPORT_GFX_SMG		(1 << 1)
+#define RADEON_PG_SUPPORT_GFX_DMG		(1 << 2)
+#define RADEON_PG_SUPPORT_UVD			(1 << 3)
+#define RADEON_PG_SUPPORT_VCE			(1 << 4)
+#define RADEON_PG_SUPPORT_CP			(1 << 5)
+#define RADEON_PG_SUPPORT_GDS			(1 << 6)
+#define RADEON_PG_SUPPORT_RLC_SMU_HS		(1 << 7)
+#define RADEON_PG_SUPPORT_SDMA			(1 << 8)
+#define RADEON_PG_SUPPORT_ACP			(1 << 9)
+#define RADEON_PG_SUPPORT_SAMU			(1 << 10)
+
 /* max cursor sizes (in pixels) */
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64
@@ -2156,6 +2188,9 @@ struct radeon_device {
 	struct radeon_atcs		atcs;
 	/* srbm instance registers */
 	struct mutex			srbm_mutex;
+	/* clock, powergating flags */
+	u32 cg_flags;
+	u32 pg_flags;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
