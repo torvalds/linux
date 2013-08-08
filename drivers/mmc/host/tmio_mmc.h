@@ -68,7 +68,6 @@ struct tmio_mmc_host {
 	enum tmio_mmc_power	power;
 
 	/* Callbacks for clock / power control */
-	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
 
 	/* pio related stuff */
