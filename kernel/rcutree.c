@@ -1452,7 +1452,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 	rdp = this_cpu_ptr(rsp->rda);
 	rcu_advance_cbs(rsp, rnp, rdp);  /* Reduce false positives below. */
 	if (cpu_needs_another_gp(rsp, rdp))
-		rsp->gp_flags = 1;
+		rsp->gp_flags = RCU_GP_FLAG_INIT;
 	raw_spin_unlock_irq(&rnp->lock);
 }
 
