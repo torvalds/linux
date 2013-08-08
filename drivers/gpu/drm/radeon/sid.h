@@ -581,6 +581,7 @@
 #define		CLKS_MASK				(0xfff << 0)
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
+#define 	CLOCK_GATING_DIS			(1 << 23)
 #define	HDP_NONSURFACE_BASE				0x2C04
 #define	HDP_NONSURFACE_INFO				0x2C08
 #define	HDP_NONSURFACE_SIZE				0x2C0C
@@ -588,6 +589,8 @@
 #define HDP_ADDR_CONFIG  				0x2F48
 #define HDP_MISC_CNTL					0x2F4C
 #define 	HDP_FLUSH_INVALIDATE_CACHE			(1 << 0)
+#define HDP_MEM_POWER_LS				0x2F50
+#define 	HDP_LS_ENABLE				(1 << 0)
 
 #define ATC_MISC_CG           				0x3350
 
@@ -1354,6 +1357,7 @@
 /* PCIE registers idx/data 0x30/0x34 */
 #define PCIE_CNTL2                                        0x1c /* PCIE */
 #       define SLV_MEM_LS_EN                              (1 << 16)
+#       define SLV_MEM_AGGRESSIVE_LS_EN                   (1 << 17)
 #       define MST_MEM_LS_EN                              (1 << 18)
 #       define REPLAY_MEM_LS_EN                           (1 << 19)
 #define PCIE_LC_STATUS1                                   0x28 /* PCIE */
@@ -1702,6 +1706,10 @@
 #define DMA_STATUS_REG                                    0xd034
 #       define DMA_IDLE                                   (1 << 0)
 #define DMA_TILING_CONFIG  				  0xd0b8
+
+#define	DMA_POWER_CNTL					0xd0bc
+#       define MEM_POWER_OVERRIDE                       (1 << 8)
+#define	DMA_CLK_CTRL					0xd0c0
 
 #define	DMA_PG						0xd0d4
 #	define PG_CNTL_ENABLE				(1 << 0)

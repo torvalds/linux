@@ -159,6 +159,7 @@ extern int radeon_aspm;
 #define RADEON_CG_BLOCK_UVD			(1 << 3)
 #define RADEON_CG_BLOCK_VCE			(1 << 4)
 #define RADEON_CG_BLOCK_HDP			(1 << 5)
+#define RADEON_CG_BLOCK_BIF			(1 << 6)
 
 /* CG flags */
 #define RADEON_CG_SUPPORT_GFX_MGCG		(1 << 0)

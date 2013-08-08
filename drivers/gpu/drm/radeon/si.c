@@ -4844,7 +4844,7 @@ static void si_enable_dma_pg(struct radeon_device *rdev, bool enable)
 	u32 data, orig;
 
 	orig = data = RREG32(DMA_PG);
-	if (enable)
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_SDMA))
 		data |= PG_CNTL_ENABLE;
 	else
 		data &= ~PG_CNTL_ENABLE;
@@ -4868,7 +4868,7 @@ static void si_enable_gfx_cgpg(struct radeon_device *rdev,
 {
 	u32 tmp;
 
-	if (enable) {
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG)) {
 		tmp = RLC_PUD(0x10) | RLC_PDD(0x10) | RLC_TTPD(0x10) | RLC_MSD(0x10);
 		WREG32(RLC_TTOP_D, tmp);
 
@@ -4973,7 +4973,7 @@ static void si_enable_cgcg(struct radeon_device *rdev,
 
 	si_enable_gui_idle_interrupt(rdev, enable);
 
-	if (enable) {
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGCG)) {
 		WREG32(RLC_GCPM_GENERAL_3, 0x00000080);
 
 		tmp = si_halt_rlc(rdev);
@@ -5007,16 +5007,18 @@ static void si_enable_mgcg(struct radeon_device *rdev,
 {
 	u32 data, orig, tmp = 0;
 
-	if (enable) {
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_MGCG)) {
 		orig = data = RREG32(CGTS_SM_CTRL_REG);
 		data = 0x96940200;
 		if (orig != data)
 			WREG32(CGTS_SM_CTRL_REG, data);
 
-		orig = data = RREG32(CP_MEM_SLP_CNTL);
-		data |= CP_MEM_LS_EN;
-		if (orig != data)
-			WREG32(CP_MEM_SLP_CNTL, data);
+		if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CP_LS) {
+			orig = data = RREG32(CP_MEM_SLP_CNTL);
+			data |= CP_MEM_LS_EN;
+			if (orig != data)
+				WREG32(CP_MEM_SLP_CNTL, data);
+		}
 
 		orig = data = RREG32(RLC_CGTT_MGCG_OVERRIDE);
 		data &= 0xffffffc0;
@@ -5061,7 +5063,7 @@ static void si_enable_uvd_mgcg(struct radeon_device *rdev,
 {
 	u32 orig, data, tmp;
 
-	if (enable) {
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_UVD_MGCG)) {
 		tmp = RREG32_UVD_CTX(UVD_CGC_MEM_CTRL);
 		tmp |= 0x3fff;
 		WREG32_UVD_CTX(UVD_CGC_MEM_CTRL, tmp);
@@ -5109,7 +5111,7 @@ static void si_enable_mc_ls(struct radeon_device *rdev,
 
 	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
 		orig = data = RREG32(mc_cg_registers[i]);
-		if (enable)
+		if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_MC_LS))
 			data |= MC_LS_ENABLE;
 		else
 			data &= ~MC_LS_ENABLE;
@@ -5118,19 +5120,158 @@ static void si_enable_mc_ls(struct radeon_device *rdev,
 	}
 }
 
+static void si_enable_mc_mgcg(struct radeon_device *rdev,
+			       bool enable)
+{
+	int i;
+	u32 orig, data;
+
+	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
+		orig = data = RREG32(mc_cg_registers[i]);
+		if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_MC_MGCG))
+			data |= MC_CG_ENABLE;
+		else
+			data &= ~MC_CG_ENABLE;
+		if (data != orig)
+			WREG32(mc_cg_registers[i], data);
+	}
+}
+
+static void si_enable_dma_mgcg(struct radeon_device *rdev,
+			       bool enable)
+{
+	u32 orig, data, offset;
+	int i;
+
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_SDMA_MGCG)) {
+		for (i = 0; i < 2; i++) {
+			if (i == 0)
+				offset = DMA0_REGISTER_OFFSET;
+			else
+				offset = DMA1_REGISTER_OFFSET;
+			orig = data = RREG32(DMA_POWER_CNTL + offset);
+			data &= ~MEM_POWER_OVERRIDE;
+			if (data != orig)
+				WREG32(DMA_POWER_CNTL + offset, data);
+			WREG32(DMA_CLK_CTRL + offset, 0x00000100);
+		}
+	} else {
+		for (i = 0; i < 2; i++) {
+			if (i == 0)
+				offset = DMA0_REGISTER_OFFSET;
+			else
+				offset = DMA1_REGISTER_OFFSET;
+			orig = data = RREG32(DMA_POWER_CNTL + offset);
+			data |= MEM_POWER_OVERRIDE;
+			if (data != orig)
+				WREG32(DMA_POWER_CNTL + offset, data);
+
+			orig = data = RREG32(DMA_CLK_CTRL + offset);
+			data = 0xff000000;
+			if (data != orig)
+				WREG32(DMA_CLK_CTRL + offset, data);
+		}
+	}
+}
+
+static void si_enable_bif_mgls(struct radeon_device *rdev,
+			       bool enable)
+{
+	u32 orig, data;
+
+	orig = data = RREG32_PCIE(PCIE_CNTL2);
+
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_BIF_LS))
+		data |= SLV_MEM_LS_EN | MST_MEM_LS_EN |
+			REPLAY_MEM_LS_EN | SLV_MEM_AGGRESSIVE_LS_EN;
+	else
+		data &= ~(SLV_MEM_LS_EN | MST_MEM_LS_EN |
+			  REPLAY_MEM_LS_EN | SLV_MEM_AGGRESSIVE_LS_EN);
+
+	if (orig != data)
+		WREG32_PCIE(PCIE_CNTL2, data);
+}
+
+static void si_enable_hdp_mgcg(struct radeon_device *rdev,
+			       bool enable)
+{
+	u32 orig, data;
+
+	orig = data = RREG32(HDP_HOST_PATH_CNTL);
+
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_HDP_MGCG))
+		data &= ~CLOCK_GATING_DIS;
+	else
+		data |= CLOCK_GATING_DIS;
+
+	if (orig != data)
+		WREG32(HDP_HOST_PATH_CNTL, data);
+}
+
+static void si_enable_hdp_ls(struct radeon_device *rdev,
+			     bool enable)
+{
+	u32 orig, data;
+
+	orig = data = RREG32(HDP_MEM_POWER_LS);
+
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_HDP_LS))
+		data |= HDP_LS_ENABLE;
+	else
+		data &= ~HDP_LS_ENABLE;
+
+	if (orig != data)
+		WREG32(HDP_MEM_POWER_LS, data);
+}
+
+void si_update_cg(struct radeon_device *rdev,
+		  u32 block, bool enable)
+{
+	if (block & RADEON_CG_BLOCK_GFX) {
+		/* order matters! */
+		if (enable) {
+			si_enable_mgcg(rdev, true);
+			si_enable_cgcg(rdev, true);
+		} else {
+			si_enable_cgcg(rdev, false);
+			si_enable_mgcg(rdev, false);
+		}
+	}
+
+	if (block & RADEON_CG_BLOCK_MC) {
+		si_enable_mc_mgcg(rdev, enable);
+		si_enable_mc_ls(rdev, enable);
+	}
+
+	if (block & RADEON_CG_BLOCK_SDMA) {
+		si_enable_dma_mgcg(rdev, enable);
+	}
+
+	if (block & RADEON_CG_BLOCK_BIF) {
+		si_enable_bif_mgls(rdev, enable);
+	}
+
+	if (block & RADEON_CG_BLOCK_UVD) {
+		if (rdev->has_uvd) {
+			si_enable_uvd_mgcg(rdev, enable);
+		}
+	}
+
+	if (block & RADEON_CG_BLOCK_HDP) {
+		si_enable_hdp_mgcg(rdev, enable);
+		si_enable_hdp_ls(rdev, enable);
+	}
+}
 
 static void si_init_cg(struct radeon_device *rdev)
 {
-	if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_MGCG)
-		si_enable_mgcg(rdev, true);
-	if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGCG)
-		si_enable_cgcg(rdev, false/*true*/);
-	/* Disable MC LS on tahiti */
-	if (!(rdev->cg_flags & RADEON_CG_SUPPORT_MC_LS))
-		si_enable_mc_ls(rdev, false);
+	si_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
+			    RADEON_CG_BLOCK_MC |
+			    RADEON_CG_BLOCK_SDMA |
+			    RADEON_CG_BLOCK_BIF |
+			    RADEON_CG_BLOCK_HDP), true);
 	if (rdev->has_uvd) {
-		if (rdev->cg_flags & RADEON_CG_SUPPORT_UVD_MGCG)
-			si_enable_uvd_mgcg(rdev, true);
+		si_update_cg(rdev, RADEON_CG_BLOCK_UVD, true);
 		si_init_uvd_internal_cg(rdev);
 	}
 }
@@ -5138,13 +5279,20 @@ static void si_init_cg(struct radeon_device *rdev)
 static void si_fini_cg(struct radeon_device *rdev)
 {
 	if (rdev->has_uvd) {
-		if (rdev->cg_flags & RADEON_CG_SUPPORT_UVD_MGCG)
-			si_enable_uvd_mgcg(rdev, false);
+		si_update_cg(rdev, RADEON_CG_BLOCK_UVD, false);
 	}
-	if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGCG)
-		si_enable_cgcg(rdev, false);
-	if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_MGCG)
-		si_enable_mgcg(rdev, false);
+	si_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
+			    RADEON_CG_BLOCK_MC |
+			    RADEON_CG_BLOCK_SDMA |
+			    RADEON_CG_BLOCK_BIF |
+			    RADEON_CG_BLOCK_HDP), false);
+}
+
+void si_update_pg(struct radeon_device *rdev,
+		  bool enable)
+{
+	si_enable_dma_pg(rdev, enable);
+	si_enable_gfx_cgpg(rdev, enable);
 }
 
 static void si_init_pg(struct radeon_device *rdev)
@@ -5152,13 +5300,12 @@ static void si_init_pg(struct radeon_device *rdev)
 	if (rdev->pg_flags) {
 		if (rdev->pg_flags & RADEON_PG_SUPPORT_SDMA) {
 			si_init_dma_pg(rdev);
-			si_enable_dma_pg(rdev, true);
 		}
 		si_init_ao_cu_mask(rdev);
 		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG) {
 			si_init_gfx_cgpg(rdev);
-			si_enable_gfx_cgpg(rdev, true);
 		}
+		si_update_pg(rdev, false);
 	} else {
 		WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
 		WREG32(RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
@@ -6308,6 +6455,8 @@ int si_suspend(struct radeon_device *rdev)
 		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
 	}
+	si_fini_pg(rdev);
+	si_fini_cg(rdev);
 	si_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	si_pcie_gart_disable(rdev);
@@ -6439,10 +6588,10 @@ void si_fini(struct radeon_device *rdev)
 {
 	si_cp_fini(rdev);
 	cayman_dma_fini(rdev);
+	si_fini_pg(rdev);
+	si_fini_cg(rdev);
 	si_irq_fini(rdev);
 	sumo_rlc_fini(rdev);
-	si_fini_cg(rdev);
-	si_fini_pg(rdev);
 	radeon_wb_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
