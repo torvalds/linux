@@ -624,7 +624,6 @@ static void reiserfs_dirty_inode(struct inode *inode, int flags)
 	struct reiserfs_transaction_handle th;
 
 	int err = 0;
-	int lock_depth;
 
 	if (inode->i_sb->s_flags & MS_RDONLY) {
 		reiserfs_warning(inode->i_sb, "clm-6006",
@@ -632,7 +631,7 @@ static void reiserfs_dirty_inode(struct inode *inode, int flags)
 				 inode->i_ino);
 		return;
 	}
-	lock_depth = reiserfs_write_lock_once(inode->i_sb);
+	reiserfs_write_lock(inode->i_sb);
 
 	/* this is really only used for atime updates, so they don't have
 	 ** to be included in O_SYNC or fsync
@@ -645,7 +644,7 @@ static void reiserfs_dirty_inode(struct inode *inode, int flags)
 	journal_end(&th, inode->i_sb, 1);
 
 out:
-	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
+	reiserfs_write_unlock(inode->i_sb);
 }
 
 static int reiserfs_show_options(struct seq_file *seq, struct dentry *root)

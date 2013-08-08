@@ -524,14 +524,14 @@ static int is_tree_node(struct buffer_head *bh, int level)
  * the caller (search_by_key) will perform other schedule-unsafe
  * operations just after calling this function.
  *
- * @return true if we have unlocked
+ * @return depth of lock to be restored after read completes
  */
-static bool search_by_key_reada(struct super_block *s,
+static int search_by_key_reada(struct super_block *s,
 				struct buffer_head **bh,
 				b_blocknr_t *b, int num)
 {
 	int i, j;
-	bool unlocked = false;
+	int depth = -1;
 
 	for (i = 0; i < num; i++) {
 		bh[i] = sb_getblk(s, b[i]);
@@ -549,15 +549,13 @@ static bool search_by_key_reada(struct super_block *s,
 		 * you have to make sure the prepared bit isn't set on this buffer
 		 */
 		if (!buffer_uptodate(bh[j])) {
-			if (!unlocked) {
-				reiserfs_write_unlock(s);
-				unlocked = true;
-			}
+			if (depth == -1)
+				depth = reiserfs_write_unlock_nested(s);
 			ll_rw_block(READA, 1, bh + j);
 		}
 		brelse(bh[j]);
 	}
-	return unlocked;
+	return depth;
 }
 
 /**************************************************************************
@@ -645,26 +643,26 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,	/* Key to s
 		   have a pointer to it. */
 		if ((bh = last_element->pe_buffer =
 		     sb_getblk(sb, block_number))) {
-			bool unlocked = false;
+
+			/*
+			 * We'll need to drop the lock if we encounter any
+			 * buffers that need to be read. If all of them are
+			 * already up to date, we don't need to drop the lock.
+			 */
+			int depth = -1;
 
 			if (!buffer_uptodate(bh) && reada_count > 1)
-				/* may unlock the write lock */
-				unlocked = search_by_key_reada(sb, reada_bh,
+				depth = search_by_key_reada(sb, reada_bh,
 						    reada_blocks, reada_count);
-			/*
-			 * If we haven't already unlocked the write lock,
-			 * then we need to do that here before reading
-			 * the current block
-			 */
-			if (!buffer_uptodate(bh) && !unlocked) {
-				reiserfs_write_unlock(sb);
-				unlocked = true;
-			}
+
+			if (!buffer_uptodate(bh) && depth == -1)
+				depth = reiserfs_write_unlock_nested(sb);
+
 			ll_rw_block(READ, 1, &bh);
 			wait_on_buffer(bh);
 
-			if (unlocked)
-				reiserfs_write_lock(sb);
+			if (depth != -1)
+				reiserfs_write_lock_nested(sb, depth);
 			if (!buffer_uptodate(bh))
 				goto io_error;
 		} else {
@@ -1059,9 +1057,7 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 			reiserfs_free_block(th, inode, block, 1);
 		    }
 
-		    reiserfs_write_unlock(sb);
-		    cond_resched();
-		    reiserfs_write_lock(sb);
+		    reiserfs_cond_resched(sb);
 
 		    if (item_moved (&s_ih, path))  {
 			need_re_search = 1;

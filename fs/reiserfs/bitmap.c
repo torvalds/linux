@@ -1340,10 +1340,11 @@ struct buffer_head *reiserfs_read_bitmap_block(struct super_block *sb,
 		                 "reading failed", __func__, block);
 	else {
 		if (buffer_locked(bh)) {
+			int depth;
 			PROC_INFO_INC(sb, scan_bitmap.wait);
-			reiserfs_write_unlock(sb);
+			depth = reiserfs_write_unlock_nested(sb);
 			__wait_on_buffer(bh);
-			reiserfs_write_lock(sb);
+			reiserfs_write_lock_nested(sb, depth);
 		}
 		BUG_ON(!buffer_uptodate(bh));
 		BUG_ON(atomic_read(&bh->b_count) == 0);
