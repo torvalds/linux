@@ -225,11 +225,15 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 	list_for_each_entry(pn, &acpi_dev->physical_node_list, node) {
 		/* Sanity check. */
 		if (pn->dev == dev) {
-			dev_warn(dev, "Already associated with ACPI node\n");
-			if (ACPI_HANDLE(dev) == handle)
-				retval = 0;
+			mutex_unlock(&acpi_dev->physical_node_lock);
 
-			goto out_free;
+			dev_warn(dev, "Already associated with ACPI node\n");
+			kfree(physical_node);
+			if (ACPI_HANDLE(dev) != handle)
+				goto err;
+
+			put_device(dev);
+			return 0;
 		}
 		if (pn->node_id == node_id) {
 			physnode_list = &pn->node;
@@ -262,15 +266,6 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 	ACPI_HANDLE_SET(dev, NULL);
 	put_device(dev);
 	return retval;
-
- out_free:
-	mutex_unlock(&acpi_dev->physical_node_lock);
-	kfree(physical_node);
-	if (retval)
-		goto err;
-
-	put_device(dev);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_bind_one);
 
