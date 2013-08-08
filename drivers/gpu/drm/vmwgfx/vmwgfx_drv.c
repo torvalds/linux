@@ -795,29 +795,12 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	return drm_ioctl(filp, cmd, arg);
 }
 
-static int vmw_firstopen(struct drm_device *dev)
-{
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	dev_priv->is_opened = true;
-
-	return 0;
-}
-
 static void vmw_lastclose(struct drm_device *dev)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct drm_crtc *crtc;
 	struct drm_mode_set set;
 	int ret;
 
-	/**
-	 * Do nothing on the lastclose call from drm_unload.
-	 */
-
-	if (!dev_priv->is_opened)
-		return;
-
-	dev_priv->is_opened = false;
 	set.x = 0;
 	set.y = 0;
 	set.fb = NULL;
@@ -1131,7 +1114,6 @@ static struct drm_driver driver = {
 	DRIVER_MODESET,
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
-	.firstopen = vmw_firstopen,
 	.lastclose = vmw_lastclose,
 	.irq_preinstall = vmw_irq_preinstall,
 	.irq_postinstall = vmw_irq_postinstall,
