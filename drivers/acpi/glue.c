@@ -252,8 +252,15 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 	acpi_physnode_link_name(physical_node_name, node_id);
 	retval = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
 				   physical_node_name);
+	if (retval)
+		dev_err(&acpi_dev->dev, "Failed to create link %s (%d)\n",
+			physical_node_name, retval);
+
 	retval = sysfs_create_link(&dev->kobj, &acpi_dev->dev.kobj,
 				   "firmware_node");
+	if (retval)
+		dev_err(dev, "Failed to create link firmware_node (%d)\n",
+			retval);
 
 	mutex_unlock(&acpi_dev->physical_node_lock);
 
