@@ -518,6 +518,18 @@
 					fsl,pull-up = <1>;
 				};
 
+				saif0_pins_b: saif0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						0x3150 /* MX28_PAD_SAIF0_LRCLK__SAIF0_LRCLK */
+						0x3160 /* MX28_PAD_SAIF0_BITCLK__SAIF0_BITCLK */
+						0x3170 /* MX28_PAD_SAIF0_SDATA0__SAIF0_SDATA0 */
+					>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
 				saif1_pins_a: saif1@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
