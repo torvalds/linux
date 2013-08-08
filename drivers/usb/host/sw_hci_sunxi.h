@@ -84,10 +84,6 @@
 #define  USBC_REG_clear_bit_l(bp, reg) \
 	(USBC_Writel((USBC_Readl(reg) & (~(1 << (bp)))), (reg)))
 
-#define SW_SRAM_BASE		0x01c00000
-#define SW_SRAM_BASE_LEN	0x100
-#define SW_GPIO_BASE		0x01c20800
-#define SW_GPIO_BASE_LEN	0x100
 #define SW_VA_CCM_USBCLK_OFFSET			0xcc
 #define SW_VA_CCM_AHBMOD_OFFSET			0x60
 
@@ -122,9 +118,6 @@
 #define SW_INT_SRC_OHCI0	SW_INT_IRQNO_USB3
 #define SW_INT_SRC_EHCI1	SW_INT_IRQNO_USB2
 #define SW_INT_SRC_OHCI1	SW_INT_IRQNO_USB4
-
-#define SW_SDRAM_BASE		0x01c01000
-#define SW_SDRAM_BASE_LEN	0x100
 
 #define SW_SDRAM_REG_HPCR_USB1	(0x250 + ((1 << 2) * 4))
 #define SW_SDRAM_REG_HPCR_USB2	(0x250 + ((1 << 2) * 5))
