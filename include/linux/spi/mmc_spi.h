@@ -26,15 +26,6 @@ struct mmc_spi_platform_data {
 		void *);
 	void (*exit)(struct device *, void *);
 
-	/* sense switch on sd cards */
-	int (*get_ro)(struct device *);
-
-	/*
-	 * If board does not use CD interrupts, driver can optimize polling
-	 * using this function.
-	 */
-	int (*get_cd)(struct device *);
-
 	/*
 	 * Card Detect and Read Only GPIOs. To enable debouncing on the card
 	 * detect GPIO, set the cd_debounce to the debounce time in
