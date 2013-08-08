@@ -3764,17 +3764,21 @@ static inline unsigned int hmp_select_slower_cpu(struct task_struct *tsk,
 static inline void hmp_next_up_delay(struct sched_entity *se, int cpu)
 {
 	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
-
-	se->avg.hmp_last_up_migration = cfs_rq_clock_task(cfs_rq);
+	u64 now = cfs_rq_clock_task(cfs_rq);
+	se->avg.hmp_last_up_migration = now;
 	se->avg.hmp_last_down_migration = 0;
+	cpu_rq(cpu)->avg.hmp_last_up_migration = now;
+	cpu_rq(cpu)->avg.hmp_last_down_migration = 0;
 }
 
 static inline void hmp_next_down_delay(struct sched_entity *se, int cpu)
 {
 	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
-
-	se->avg.hmp_last_down_migration = cfs_rq_clock_task(cfs_rq);
+	u64 now = cfs_rq_clock_task(cfs_rq);
+	se->avg.hmp_last_down_migration = now;
 	se->avg.hmp_last_up_migration = 0;
+	cpu_rq(cpu)->avg.hmp_last_down_migration = now;
+	cpu_rq(cpu)->avg.hmp_last_up_migration = 0;
 }
 
 #ifdef CONFIG_HMP_VARIABLE_SCALE
@@ -3946,15 +3950,37 @@ static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
 {
 	int cpu;
 	int min_cpu_runnable_temp = NR_CPUS;
+	u64 min_target_last_migration = ULLONG_MAX;
+	u64 curr_last_migration;
 	unsigned long min_runnable_load = INT_MAX;
-	unsigned long contrib;
+	unsigned long scaled_min_runnable_load = INT_MAX;
+	unsigned long contrib, scaled_contrib;
+	struct sched_avg *avg;
 
 	for_each_cpu_mask(cpu, hmpd->cpus) {
+		avg = &cpu_rq(cpu)->avg;
+		/* used for both up and down migration */
+		curr_last_migration = avg->hmp_last_up_migration ?
+			avg->hmp_last_up_migration : avg->hmp_last_down_migration;
+
 		/* don't use the divisor in the loop, just at the end */
-		contrib = cpu_rq(cpu)->avg.runnable_avg_sum * scale_load_down(1024);
-		if (contrib < min_runnable_load) {
+		contrib = avg->runnable_avg_sum * scale_load_down(1024);
+		scaled_contrib = contrib >> 22;
+
+		if ((contrib < min_runnable_load) ||
+			(scaled_contrib == scaled_min_runnable_load &&
+			 curr_last_migration < min_target_last_migration)) {
+			/*
+			 * if the load is the same target the CPU with
+			 * the longest time since a migration.
+			 * This is to spread migration load between
+			 * members of a domain more evenly when the
+			 * domain is fully loaded
+			 */
 			min_runnable_load = contrib;
+			scaled_min_runnable_load = scaled_contrib;
 			min_cpu_runnable_temp = cpu;
+			min_target_last_migration = curr_last_migration;
 		}
 	}
 
