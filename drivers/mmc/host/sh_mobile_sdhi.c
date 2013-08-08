@@ -77,13 +77,6 @@ static void sh_mobile_sdhi_set_pwr(struct platform_device *pdev, int state)
 	p->set_pwr(pdev, state);
 }
 
-static int sh_mobile_sdhi_get_cd(struct platform_device *pdev)
-{
-	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
-
-	return p->get_cd(pdev);
-}
-
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
 {
 	int timeout = 1000;
@@ -182,8 +175,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->cd_gpio = p->cd_gpio;
 		if (p->set_pwr)
 			mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
-		if (p->get_cd)
-			mmc_data->get_cd = sh_mobile_sdhi_get_cd;
 
 		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
 			/*
