@@ -766,6 +766,15 @@ retry_snap:
 		mutex_unlock(&inode->i_mutex);
 		written = ceph_sync_write(file, iov->iov_base, count,
 					  pos, &iocb->ki_pos);
+		if (written == -EOLDSNAPC) {
+			dout("aio_write %p %llx.%llx %llu~%u"
+				"got EOLDSNAPC, retrying\n",
+				inode, ceph_vinop(inode),
+				pos, (unsigned)iov->iov_len);
+			mutex_lock(&inode->i_mutex);
+			hold_mutex = true;
+			goto retry_snap;
+		}
 	} else {
 		written = generic_file_buffered_write(iocb, iov, nr_segs,
 						      pos, &iocb->ki_pos,
@@ -796,13 +805,6 @@ retry_snap:
 			written = err;
 	}
 
-	if (written == -EOLDSNAPC) {
-		dout("aio_write %p %llx.%llx %llu~%u got EOLDSNAPC, retrying\n",
-		     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len);
-		mutex_lock(&inode->i_mutex);
-		hold_mutex = true;
-		goto retry_snap;
-	}
 out:
 	if (hold_mutex)
 		mutex_unlock(&inode->i_mutex);
