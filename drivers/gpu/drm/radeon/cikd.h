@@ -27,7 +27,8 @@
 #define BONAIRE_GB_ADDR_CONFIG_GOLDEN        0x12010001
 #define HAWAII_GB_ADDR_CONFIG_GOLDEN         0x12011003
 
-#define CIK_RB_BITMAP_WIDTH_PER_SH  2
+#define CIK_RB_BITMAP_WIDTH_PER_SH     2
+#define HAWAII_RB_BITMAP_WIDTH_PER_SH  4
 
 /* DIDT IND registers */
 #define DIDT_SQ_CTRL0                                     0x0
@@ -1459,6 +1460,7 @@
 #       define RASTER_CONFIG_RB_MAP_1                   1
 #       define RASTER_CONFIG_RB_MAP_2                   2
 #       define RASTER_CONFIG_RB_MAP_3                   3
+#define		PKR_MAP(x)				((x) << 8)
 
 #define VGT_EVENT_INITIATOR                             0x28a90
 #       define SAMPLE_STREAMOUTSTATS1                   (1 << 0)

@@ -3042,7 +3042,10 @@ static void cik_setup_rb(struct radeon_device *rdev,
 		for (j = 0; j < sh_per_se; j++) {
 			cik_select_se_sh(rdev, i, j);
 			data = cik_get_rb_disabled(rdev, max_rb_num, se_num, sh_per_se);
-			disabled_rbs |= data << ((i * sh_per_se + j) * CIK_RB_BITMAP_WIDTH_PER_SH);
+			if (rdev->family == CHIP_HAWAII)
+				disabled_rbs |= data << ((i * sh_per_se + j) * HAWAII_RB_BITMAP_WIDTH_PER_SH);
+			else
+				disabled_rbs |= data << ((i * sh_per_se + j) * CIK_RB_BITMAP_WIDTH_PER_SH);
 		}
 	}
 	cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
@@ -3059,6 +3062,12 @@ static void cik_setup_rb(struct radeon_device *rdev,
 		data = 0;
 		for (j = 0; j < sh_per_se; j++) {
 			switch (enabled_rbs & 3) {
+			case 0:
+				if (j == 0)
+					data |= PKR_MAP(RASTER_CONFIG_RB_MAP_3);
+				else
+					data |= PKR_MAP(RASTER_CONFIG_RB_MAP_0);
+				break;
 			case 1:
 				data |= (RASTER_CONFIG_RB_MAP_0 << (i * sh_per_se + j) * 2);
 				break;
