@@ -192,7 +192,7 @@ static struct snd_soc_card snd_soc_card_s6105 = {
 	.num_links = 1,
 };
 
-static struct s6000_snd_platform_data __initdata s6105_snd_data = {
+static struct s6000_snd_platform_data s6105_snd_data __initdata = {
 	.wide		= 0,
 	.channel_in	= 0,
 	.channel_out	= 1,
