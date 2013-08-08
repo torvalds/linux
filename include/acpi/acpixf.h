@@ -212,8 +212,8 @@ acpi_status
 acpi_walk_namespace(acpi_object_type type,
 		    acpi_handle start_object,
 		    u32 max_depth,
-		    acpi_walk_callback pre_order_visit,
-		    acpi_walk_callback post_order_visit,
+		    acpi_walk_callback descending_callback,
+		    acpi_walk_callback ascending_callback,
 		    void *context, void **return_value);
 
 acpi_status
