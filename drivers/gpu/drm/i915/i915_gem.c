@@ -62,6 +62,12 @@ static long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
 static void i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
+static bool cpu_cache_is_coherent(struct drm_device *dev,
+				  enum i915_cache_level level)
+{
+	return HAS_LLC(dev) || level != I915_CACHE_NONE;
+}
+
 static inline void i915_gem_object_fence_lost(struct drm_i915_gem_object *obj)
 {
 	if (obj->tiling_mode)
@@ -414,8 +420,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		 * read domain and manually flush cachelines (if required). This
 		 * optimizes for the case when the gpu will dirty the data
 		 * anyway again before the next pread happens. */
-		if (obj->cache_level == I915_CACHE_NONE)
-			needs_clflush = 1;
+		needs_clflush = !cpu_cache_is_coherent(dev, obj->cache_level);
 		if (i915_gem_obj_bound_any(obj)) {
 			ret = i915_gem_object_set_to_gtt_domain(obj, false);
 			if (ret)
@@ -739,11 +744,11 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 				return ret;
 		}
 	}
-	/* Same trick applies for invalidate partially written cachelines before
-	 * writing.  */
-	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)
-	    && obj->cache_level == I915_CACHE_NONE)
-		needs_clflush_before = 1;
+	/* Same trick applies to invalidate partially written cachelines read
+	 * before writing. */
+	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0)
+		needs_clflush_before =
+			!cpu_cache_is_coherent(dev, obj->cache_level);
 
 	ret = i915_gem_object_get_pages(obj);
 	if (ret)
@@ -3585,7 +3590,8 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 
 	/* Flush the CPU cache if it's still invalid. */
 	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0) {
-		i915_gem_clflush_object(obj);
+		if (!cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
+			i915_gem_clflush_object(obj);
 
 		obj->base.read_domains |= I915_GEM_DOMAIN_CPU;
 	}
