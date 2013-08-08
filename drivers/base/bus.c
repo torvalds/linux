@@ -725,6 +725,10 @@ int bus_add_driver(struct device_driver *drv)
 		printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
 			__func__, drv->name);
 	}
+	error = driver_add_groups(drv, bus->drv_groups);
+	if (error)
+		printk(KERN_ERR "%s: driver_create_groups(%s) failed\n",
+			__func__, drv->name);
 
 	if (!drv->suppress_bind_attrs) {
 		error = add_bind_files(drv);
@@ -762,6 +766,7 @@ void bus_remove_driver(struct device_driver *drv)
 	if (!drv->suppress_bind_attrs)
 		remove_bind_files(drv);
 	driver_remove_attrs(drv->bus, drv);
+	driver_remove_groups(drv, drv->bus->drv_groups);
 	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->p->knode_bus);
 	pr_debug("bus: '%s': remove driver %s\n", drv->bus->name, drv->name);
