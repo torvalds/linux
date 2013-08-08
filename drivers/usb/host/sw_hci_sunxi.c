@@ -680,31 +680,13 @@ static struct sw_hci_hcd sw_ehci2;
 static u64 sw_ehci_dmamask = DMA_BIT_MASK(32);
 
 static struct resource sw_ehci1_resources[] = {
-	[0] = {
-		.start = SW_PA_USB1_IO_BASE + SW_USB_EHCI_BASE_OFFSET,
-		.end = SW_PA_USB1_IO_BASE + SW_USB_EHCI_BASE_OFFSET +
-		       (SW_USB_EHCI_LEN - 1),
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = SW_INT_SRC_EHCI0,
-		.end = SW_INT_SRC_EHCI0,
-		.flags = IORESOURCE_IRQ,
-	},
+		DEFINE_RES_MEM(SW_PA_USB1_IO_BASE + SW_USB_EHCI_BASE_OFFSET, SW_USB_EHCI_LEN),
+		DEFINE_RES_IRQ(SW_INT_SRC_EHCI0)
 };
 
 static struct resource sw_ehci2_resources[] = {
-	[0] = {
-		.start = SW_PA_USB2_IO_BASE + SW_USB_EHCI_BASE_OFFSET,
-		.end = SW_PA_USB2_IO_BASE + SW_USB_EHCI_BASE_OFFSET +
-		       (SW_USB_EHCI_LEN - 1),
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = SW_INT_SRC_EHCI1,
-		.end = SW_INT_SRC_EHCI1,
-		.flags = IORESOURCE_IRQ,
-	},
+		DEFINE_RES_MEM(SW_PA_USB2_IO_BASE + SW_USB_EHCI_BASE_OFFSET, SW_USB_EHCI_LEN),
+		DEFINE_RES_IRQ(SW_INT_SRC_EHCI1)
 };
 
 static struct platform_device sw_usb_ehci_device[] = {
@@ -748,31 +730,13 @@ static struct sw_hci_hcd sw_ohci2;
 static u64 sw_ohci_dmamask = DMA_BIT_MASK(32);
 
 static struct resource sw_ohci1_resources[] = {
-	[0] = {
-		.start = SW_PA_USB1_IO_BASE + SW_USB_OHCI_BASE_OFFSET,
-		.end = SW_PA_USB1_IO_BASE + SW_USB_OHCI_BASE_OFFSET +
-		       (SW_USB_OHCI_LEN - 1),
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = SW_INT_SRC_OHCI0,
-		.end = SW_INT_SRC_OHCI0,
-		.flags = IORESOURCE_IRQ,
-	},
+		DEFINE_RES_MEM(SW_PA_USB1_IO_BASE + SW_USB_OHCI_BASE_OFFSET, SW_USB_OHCI_LEN),
+		DEFINE_RES_IRQ(SW_INT_SRC_OHCI0)
 };
 
 static struct resource sw_ohci2_resources[] = {
-	[0] = {
-		.start = SW_PA_USB2_IO_BASE + SW_USB_OHCI_BASE_OFFSET,
-		.end = SW_PA_USB2_IO_BASE + SW_USB_OHCI_BASE_OFFSET +
-		       (SW_USB_OHCI_LEN - 1),
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = SW_INT_SRC_OHCI1,
-		.end = SW_INT_SRC_OHCI1,
-		.flags = IORESOURCE_IRQ,
-	},
+		DEFINE_RES_MEM(SW_PA_USB2_IO_BASE + SW_USB_OHCI_BASE_OFFSET, SW_USB_OHCI_LEN),
+		DEFINE_RES_IRQ(SW_INT_SRC_OHCI1)
 };
 
 static struct platform_device sw_usb_ohci_device[] = {
