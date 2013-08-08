@@ -713,7 +713,7 @@ static int jz4740_mmc_request_gpios(struct mmc_host *mmc,
 		mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 	if (gpio_is_valid(pdata->gpio_card_detect)) {
-		ret = mmc_gpio_request_cd(mmc, pdata->gpio_card_detect);
+		ret = mmc_gpio_request_cd(mmc, pdata->gpio_card_detect, 0);
 		if (ret)
 			return ret;
 	}
