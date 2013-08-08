@@ -97,7 +97,7 @@ static int sdhci_sirf_probe(struct platform_device *pdev)
 	 * gets setup in sdhci_add_host() and we oops.
 	 */
 	if (gpio_is_valid(priv->gpio_cd)) {
-		ret = mmc_gpio_request_cd(host->mmc, priv->gpio_cd);
+		ret = mmc_gpio_request_cd(host->mmc, priv->gpio_cd, 0);
 		if (ret) {
 			dev_err(&pdev->dev, "card detect irq request failed: %d\n",
 				ret);

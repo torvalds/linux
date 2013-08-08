@@ -374,7 +374,7 @@ int mmc_of_parse(struct mmc_host *host)
 			if (!(flags & OF_GPIO_ACTIVE_LOW))
 				gpio_inv_cd = true;
 
-			ret = mmc_gpio_request_cd(host, gpio);
+			ret = mmc_gpio_request_cd(host, gpio, 0);
 			if (ret < 0) {
 				dev_err(host->parent,
 					"Failed to request CD GPIO #%d: %d!\n",
