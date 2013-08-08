@@ -449,19 +449,6 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
  * Outdated mess for old drm with Xorg being in charge (void function now).
  */
 /**
- * radeon_driver_firstopen_kms - drm callback for first open
- *
- * @dev: drm dev pointer
- *
- * Nothing to be done for KMS (all asics).
- * Returns 0 on success.
- */
-int radeon_driver_firstopen_kms(struct drm_device *dev)
-{
-	return 0;
-}
-
-/**
  * radeon_driver_firstopen_kms - drm callback for last close
  *
  * @dev: drm dev pointer

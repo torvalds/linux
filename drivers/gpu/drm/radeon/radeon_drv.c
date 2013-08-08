@@ -81,7 +81,6 @@
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
-int radeon_driver_firstopen_kms(struct drm_device *dev);
 void radeon_driver_lastclose_kms(struct drm_device *dev);
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv);
 void radeon_driver_postclose_kms(struct drm_device *dev,
@@ -390,7 +389,6 @@ static struct drm_driver kms_driver = {
 	    DRIVER_PRIME,
 	.dev_priv_size = 0,
 	.load = radeon_driver_load_kms,
-	.firstopen = radeon_driver_firstopen_kms,
 	.open = radeon_driver_open_kms,
 	.preclose = radeon_driver_preclose_kms,
 	.postclose = radeon_driver_postclose_kms,
