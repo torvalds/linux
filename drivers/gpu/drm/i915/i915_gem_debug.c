@@ -115,4 +115,4 @@ i915_verify_lists(struct drm_device *dev)
 
 	return warned = err;
 }
-#endif /* WATCH_INACTIVE */
+#endif /* WATCH_LIST */
