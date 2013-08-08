@@ -364,7 +364,7 @@ static int max8660_pdata_from_dt(struct device *dev,
 #else
 static inline int max8660_pdata_from_dt(struct device *dev,
 					struct device_node **of_node,
-					struct max8660_platform_data **pdata)
+					struct max8660_platform_data *pdata)
 {
 	return 0;
 }
@@ -380,7 +380,7 @@ static int max8660_probe(struct i2c_client *client,
 	struct max8660 *max8660;
 	int boot_on, i, id, ret = -EINVAL;
 	struct device_node *of_node[MAX8660_V_END];
-	unsigned int type;
+	unsigned long type;
 
 	if (dev->of_node && !pdata) {
 		const struct of_device_id *id;
@@ -395,7 +395,7 @@ static int max8660_probe(struct i2c_client *client,
 			return ret;
 
 		pdata = &pdata_of;
-		type = (unsigned int) id->data;
+		type = (unsigned long) id->data;
 	} else {
 		type = i2c_id->driver_data;
 		memset(of_node, 0, sizeof(of_node));
