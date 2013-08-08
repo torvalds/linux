@@ -1118,11 +1118,32 @@ static struct v4l2_output adv7343_outputs[] = {
 		.std = V4L2_STD_ALL,
 		.capabilities = V4L2_OUT_CAP_STD,
 	},
+	{
+		.index = 1,
+		.name = "S-Video",
+		.type = V4L2_OUTPUT_TYPE_ANALOG,
+		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_OUT_CAP_STD,
+	},
+	{
+		.index = 2,
+		.name = "Component",
+		.type = V4L2_OUTPUT_TYPE_ANALOG,
+		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_OUT_CAP_STD,
+	},
+
 };
 
 static struct disp_route adv7343_routes[] = {
 	{
-		.output = 0,
+		.output = ADV7343_COMPOSITE_ID,
+	},
+	{
+		.output = ADV7343_SVIDEO_ID,
+	},
+	{
+		.output = ADV7343_COMPONENT_ID,
 	},
 };
 
