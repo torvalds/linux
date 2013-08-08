@@ -147,6 +147,13 @@ config IMX_THERMAL
 	  cpufreq is used as the cooling device to throttle CPUs when the
 	  passive trip is crossed.
 
+config DEVICE_THERMAL
+	tristate "generic device cooling support"
+	help
+	  Support for device cooling.
+	  It supports notification of crossing passive trip for devices,
+	  devices need to do their own actions to cool down the SOC.
+
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR
