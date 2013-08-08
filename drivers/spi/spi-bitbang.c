@@ -446,8 +446,7 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 			master->setup = spi_bitbang_setup;
 			master->cleanup = spi_bitbang_cleanup;
 		}
-	} else if (!master->setup)
-		return -EINVAL;
+	}
 
 	/* driver may get busy before register() returns, especially
 	 * if someone registered boardinfo for devices
