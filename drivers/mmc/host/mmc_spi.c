@@ -36,6 +36,7 @@
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>		/* for R1_SPI_* bit values */
+#include <linux/mmc/slot-gpio.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
@@ -1278,11 +1279,8 @@ static int mmc_spi_get_ro(struct mmc_host *mmc)
 
 	if (host->pdata && host->pdata->get_ro)
 		return !!host->pdata->get_ro(mmc->parent);
-	/*
-	 * Board doesn't support read only detection; let the mmc core
-	 * decide what to do.
-	 */
-	return -ENOSYS;
+	else
+		return mmc_gpio_get_ro(mmc);
 }
 
 static int mmc_spi_get_cd(struct mmc_host *mmc)
@@ -1291,7 +1289,8 @@ static int mmc_spi_get_cd(struct mmc_host *mmc)
 
 	if (host->pdata && host->pdata->get_cd)
 		return !!host->pdata->get_cd(mmc->parent);
-	return -ENOSYS;
+	else
+		return mmc_gpio_get_cd(mmc);
 }
 
 static const struct mmc_host_ops mmc_spi_ops = {
@@ -1324,6 +1323,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	struct mmc_host		*mmc;
 	struct mmc_spi_host	*host;
 	int			status;
+	bool			has_ro = false;
 
 	/* We rely on full duplex transfers, mostly to reduce
 	 * per-transfer overheads (by making fewer transfers).
@@ -1448,18 +1448,33 @@ static int mmc_spi_probe(struct spi_device *spi)
 	}
 
 	/* pass platform capabilities, if any */
-	if (host->pdata)
+	if (host->pdata) {
 		mmc->caps |= host->pdata->caps;
+		mmc->caps2 |= host->pdata->caps2;
+	}
 
 	status = mmc_add_host(mmc);
 	if (status != 0)
 		goto fail_add_host;
 
+	if (host->pdata && host->pdata->flags & MMC_SPI_USE_CD_GPIO) {
+		status = mmc_gpio_request_cd(mmc, host->pdata->cd_gpio,
+					     host->pdata->cd_debounce);
+		if (status != 0)
+			goto fail_add_host;
+	}
+
+	if (host->pdata && host->pdata->flags & MMC_SPI_USE_RO_GPIO) {
+		has_ro = true;
+		status = mmc_gpio_request_ro(mmc, host->pdata->ro_gpio);
+		if (status != 0)
+			goto fail_add_host;
+	}
+
 	dev_info(&spi->dev, "SD/MMC host %s%s%s%s%s\n",
 			dev_name(&mmc->class_dev),
 			host->dma_dev ? "" : ", no DMA",
-			(host->pdata && host->pdata->get_ro)
-				? "" : ", no WP",
+			has_ro ? "" : ", no WP",
 			(host->pdata && host->pdata->setpower)
 				? "" : ", no poweroff",
 			(mmc->caps & MMC_CAP_NEEDS_POLL)
