@@ -1130,161 +1130,6 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 	return 0;
 }
 
-static int drm_addbufs_fb(struct drm_device * dev, struct drm_buf_desc * request)
-{
-	struct drm_device_dma *dma = dev->dma;
-	struct drm_buf_entry *entry;
-	struct drm_buf *buf;
-	unsigned long offset;
-	unsigned long agp_offset;
-	int count;
-	int order;
-	int size;
-	int alignment;
-	int page_order;
-	int total;
-	int byte_count;
-	int i;
-	struct drm_buf **temp_buflist;
-
-	if (!drm_core_check_feature(dev, DRIVER_FB_DMA))
-		return -EINVAL;
-
-	if (!dma)
-		return -EINVAL;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	count = request->count;
-	order = order_base_2(request->size);
-	size = 1 << order;
-
-	alignment = (request->flags & _DRM_PAGE_ALIGN)
-	    ? PAGE_ALIGN(size) : size;
-	page_order = order - PAGE_SHIFT > 0 ? order - PAGE_SHIFT : 0;
-	total = PAGE_SIZE << page_order;
-
-	byte_count = 0;
-	agp_offset = request->agp_start;
-
-	DRM_DEBUG("count:      %d\n", count);
-	DRM_DEBUG("order:      %d\n", order);
-	DRM_DEBUG("size:       %d\n", size);
-	DRM_DEBUG("agp_offset: %lu\n", agp_offset);
-	DRM_DEBUG("alignment:  %d\n", alignment);
-	DRM_DEBUG("page_order: %d\n", page_order);
-	DRM_DEBUG("total:      %d\n", total);
-
-	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
-		return -EINVAL;
-
-	spin_lock(&dev->count_lock);
-	if (dev->buf_use) {
-		spin_unlock(&dev->count_lock);
-		return -EBUSY;
-	}
-	atomic_inc(&dev->buf_alloc);
-	spin_unlock(&dev->count_lock);
-
-	mutex_lock(&dev->struct_mutex);
-	entry = &dma->bufs[order];
-	if (entry->buf_count) {
-		mutex_unlock(&dev->struct_mutex);
-		atomic_dec(&dev->buf_alloc);
-		return -ENOMEM;	/* May only call once for each order */
-	}
-
-	if (count < 0 || count > 4096) {
-		mutex_unlock(&dev->struct_mutex);
-		atomic_dec(&dev->buf_alloc);
-		return -EINVAL;
-	}
-
-	entry->buflist = kzalloc(count * sizeof(*entry->buflist),
-				GFP_KERNEL);
-	if (!entry->buflist) {
-		mutex_unlock(&dev->struct_mutex);
-		atomic_dec(&dev->buf_alloc);
-		return -ENOMEM;
-	}
-
-	entry->buf_size = size;
-	entry->page_order = page_order;
-
-	offset = 0;
-
-	while (entry->buf_count < count) {
-		buf = &entry->buflist[entry->buf_count];
-		buf->idx = dma->buf_count + entry->buf_count;
-		buf->total = alignment;
-		buf->order = order;
-		buf->used = 0;
-
-		buf->offset = (dma->byte_count + offset);
-		buf->bus_address = agp_offset + offset;
-		buf->address = (void *)(agp_offset + offset);
-		buf->next = NULL;
-		buf->waiting = 0;
-		buf->pending = 0;
-		buf->file_priv = NULL;
-
-		buf->dev_priv_size = dev->driver->dev_priv_size;
-		buf->dev_private = kzalloc(buf->dev_priv_size, GFP_KERNEL);
-		if (!buf->dev_private) {
-			/* Set count correctly so we free the proper amount. */
-			entry->buf_count = count;
-			drm_cleanup_buf_error(dev, entry);
-			mutex_unlock(&dev->struct_mutex);
-			atomic_dec(&dev->buf_alloc);
-			return -ENOMEM;
-		}
-
-		DRM_DEBUG("buffer %d @ %p\n", entry->buf_count, buf->address);
-
-		offset += alignment;
-		entry->buf_count++;
-		byte_count += PAGE_SIZE << page_order;
-	}
-
-	DRM_DEBUG("byte_count: %d\n", byte_count);
-
-	temp_buflist = krealloc(dma->buflist,
-				(dma->buf_count + entry->buf_count) *
-				sizeof(*dma->buflist), GFP_KERNEL);
-	if (!temp_buflist) {
-		/* Free the entry because it isn't valid */
-		drm_cleanup_buf_error(dev, entry);
-		mutex_unlock(&dev->struct_mutex);
-		atomic_dec(&dev->buf_alloc);
-		return -ENOMEM;
-	}
-	dma->buflist = temp_buflist;
-
-	for (i = 0; i < entry->buf_count; i++) {
-		dma->buflist[i + dma->buf_count] = &entry->buflist[i];
-	}
-
-	dma->buf_count += entry->buf_count;
-	dma->seg_count += entry->seg_count;
-	dma->page_count += byte_count >> PAGE_SHIFT;
-	dma->byte_count += byte_count;
-
-	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
-	DRM_DEBUG("entry->buf_count : %d\n", entry->buf_count);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	request->count = entry->buf_count;
-	request->size = size;
-
-	dma->flags = _DRM_DMA_USE_FB;
-
-	atomic_dec(&dev->buf_alloc);
-	return 0;
-}
-
-
 /**
  * Add buffers for DMA transfers (ioctl).
  *
@@ -1319,7 +1164,7 @@ int drm_addbufs(struct drm_device *dev, void *data,
 	if (request->flags & _DRM_SG_BUFFER)
 		ret = drm_addbufs_sg(dev, request);
 	else if (request->flags & _DRM_FB_BUFFER)
-		ret = drm_addbufs_fb(dev, request);
+		ret = -EINVAL;
 	else
 		ret = drm_addbufs_pci(dev, request);
 
@@ -1556,9 +1401,7 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 	if (request->count >= dma->buf_count) {
 		if ((drm_core_has_AGP(dev) && (dma->flags & _DRM_DMA_USE_AGP))
 		    || (drm_core_check_feature(dev, DRIVER_SG)
-			&& (dma->flags & _DRM_DMA_USE_SG))
-		    || (drm_core_check_feature(dev, DRIVER_FB_DMA)
-			&& (dma->flags & _DRM_DMA_USE_FB))) {
+			&& (dma->flags & _DRM_DMA_USE_SG))) {
 			struct drm_local_map *map = dev->agp_buffer_map;
 			unsigned long token = dev->agp_buffer_token;
 

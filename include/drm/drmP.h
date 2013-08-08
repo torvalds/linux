@@ -147,7 +147,6 @@ int drm_err(const char *func, const char *format, ...);
 #define DRIVER_IRQ_SHARED  0x80
 #define DRIVER_IRQ_VBL     0x100
 #define DRIVER_DMA_QUEUE   0x200
-#define DRIVER_FB_DMA      0x400
 #define DRIVER_IRQ_VBL2    0x800
 #define DRIVER_GEM         0x1000
 #define DRIVER_MODESET     0x2000
