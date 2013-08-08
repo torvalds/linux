@@ -297,7 +297,7 @@ struct ioc4_serial {
 	struct ioc4_uartregs uart_1;
 	struct ioc4_uartregs uart_2;
 	struct ioc4_uartregs uart_3;
-} ioc4_serial;
+};
 
 /* UART clock speed */
 #define IOC4_SER_XIN_CLK_66     66666667
@@ -2767,7 +2767,7 @@ ioc4_serial_core_attach(struct pci_dev *pdev, int port_type)
  *		called per card found from IOC4 master module.
  * @idd: Master module data for this IOC4
  */
-int
+static int
 ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 {
 	unsigned long tmp_addr1;
