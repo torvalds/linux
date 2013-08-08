@@ -157,7 +157,7 @@ static void sirfsoc_uart_stop_tx(struct uart_port *port)
 
 }
 
-void sirfsoc_uart_start_tx(struct uart_port *port)
+static void sirfsoc_uart_start_tx(struct uart_port *port)
 {
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	struct sirfsoc_register *ureg = &sirfport->uart_reg->uart_reg;
@@ -829,7 +829,7 @@ static struct of_device_id sirfsoc_uart_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, sirfsoc_uart_ids);
 
-int sirfsoc_uart_probe(struct platform_device *pdev)
+static int sirfsoc_uart_probe(struct platform_device *pdev)
 {
 	struct sirfsoc_uart_port *sirfport;
 	struct uart_port *port;
