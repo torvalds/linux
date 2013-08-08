@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2012 Nicira, Inc.
+ * Copyright (c) 2007-2013 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -376,8 +376,10 @@ static int output_userspace(struct datapath *dp, struct sk_buff *skb,
 	const struct nlattr *a;
 	int rem;
 
+	BUG_ON(!OVS_CB(skb)->pkt_key);
+
 	upcall.cmd = OVS_PACKET_CMD_ACTION;
-	upcall.key = &OVS_CB(skb)->flow->key;
+	upcall.key = OVS_CB(skb)->pkt_key;
 	upcall.userdata = NULL;
 	upcall.portid = 0;
 
