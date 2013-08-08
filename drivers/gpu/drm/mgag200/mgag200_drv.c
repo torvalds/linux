@@ -88,7 +88,7 @@ static const struct file_operations mgag200_driver_fops = {
 };
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_USE_MTRR,
+	.driver_features = DRIVER_GEM | DRIVER_MODESET,
 	.load = mgag200_driver_load,
 	.unload = mgag200_driver_unload,
 	.fops = &mgag200_driver_fops,

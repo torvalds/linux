@@ -197,7 +197,7 @@ static const struct file_operations ast_fops = {
 };
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_USE_MTRR | DRIVER_MODESET | DRIVER_GEM,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.dev_priv_size = 0,
 
 	.load = ast_driver_load,
