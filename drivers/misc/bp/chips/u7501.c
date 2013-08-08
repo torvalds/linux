@@ -203,7 +203,7 @@ struct bp_operate bp_U7501_ops = {
 	.bp_wakeup_ap		= RK2928_PIN3_PC3,	//
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
-	.trig			= IRQF_TRIGGER_RISING,
+	.trig			= IRQF_TRIGGER_FALLING,//IRQF_TRIGGER_RISING,
 
 	.active			= bp_active,
 	.init			= bp_init,
@@ -232,7 +232,7 @@ struct bp_operate bp_U7501_ops = {
 	.bp_wakeup_ap		= RK30_PIN0_PC5,	//
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
-	.trig			= IRQF_TRIGGER_RISING,
+	.trig			= IRQF_TRIGGER_FALLING,//IRQF_TRIGGER_RISING,
 
 	.active			= bp_active,
 	.init			= bp_init,
@@ -261,7 +261,7 @@ struct bp_operate bp_U7501_ops = {
 	.bp_wakeup_ap		= BP_UNKNOW_DATA,//RK2928_PIN3_PC3,	//
 	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
 	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
-	.trig			= IRQF_TRIGGER_RISING,
+	.trig			= IRQF_TRIGGER_FALLING,//IRQF_TRIGGER_RISING,
 
 	.active			= bp_active,
 	.init			= bp_init,
