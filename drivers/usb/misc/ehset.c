@@ -96,7 +96,25 @@ static int ehset_probe(struct usb_interface *intf,
 		kfree(buf);
 		break;
 	case TEST_SINGLE_STEP_SET_FEATURE:
-		/* unsupported for now */
+		/*
+		 * GetDescriptor SETUP request -> 15secs delay -> IN & STATUS
+		 *
+		 * Note, this test is only supported on root hubs since the
+		 * SetPortFeature handling can only be done inside the HCD's
+		 * hub_control callback function.
+		 */
+		if (hub_udev != dev->bus->root_hub) {
+			dev_err(&intf->dev, "SINGLE_STEP_SET_FEATURE test only supported on root hub\n");
+			break;
+		}
+
+		ret = usb_control_msg(hub_udev, usb_sndctrlpipe(hub_udev, 0),
+					USB_REQ_SET_FEATURE, USB_RT_PORT,
+					USB_PORT_FEAT_TEST,
+					(6 << 8) | portnum,
+					NULL, 0, 60 * 1000);
+
+		break;
 	default:
 		dev_err(&intf->dev, "%s: unsupported PID: 0x%x\n",
 			__func__, test_pid);
