@@ -135,11 +135,13 @@ static inline int update_sits_in_cursum(struct f2fs_summary_block *rs, int i)
 /*
  * For INODE and NODE manager
  */
-#define XATTR_NODE_OFFSET	(-1)	/*
-					 * store xattrs to one node block per
-					 * file keeping -1 as its node offset to
-					 * distinguish from index node blocks.
-					 */
+/*
+ * XATTR_NODE_OFFSET stores xattrs to one node block per file keeping -1
+ * as its node offset to distinguish from index node blocks.
+ * But some bits are used to mark the node block.
+ */
+#define XATTR_NODE_OFFSET	((((unsigned int)-1) << OFFSET_BIT_SHIFT) \
+				>> OFFSET_BIT_SHIFT)
 enum {
 	ALLOC_NODE,			/* allocate a new node page if needed */
 	LOOKUP_NODE,			/* look up a node without readahead */

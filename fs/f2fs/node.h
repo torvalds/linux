@@ -229,6 +229,10 @@ static inline block_t next_blkaddr_of_node(struct page *node_page)
 static inline bool IS_DNODE(struct page *node_page)
 {
 	unsigned int ofs = ofs_of_node(node_page);
+
+	if (ofs == XATTR_NODE_OFFSET)
+		return false;
+
 	if (ofs == 3 || ofs == 4 + NIDS_PER_BLOCK ||
 			ofs == 5 + 2 * NIDS_PER_BLOCK)
 		return false;
