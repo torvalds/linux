@@ -20,6 +20,13 @@ enum lp55xx_engine_index {
 	LP55XX_ENGINE_1,
 	LP55XX_ENGINE_2,
 	LP55XX_ENGINE_3,
+	LP55XX_ENGINE_MAX = LP55XX_ENGINE_3,
+};
+
+enum lp55xx_engine_mode {
+	LP55XX_ENGINE_DISABLED,
+	LP55XX_ENGINE_LOAD,
+	LP55XX_ENGINE_RUN,
 };
 
 struct lp55xx_led;
@@ -72,6 +79,16 @@ struct lp55xx_device_config {
 };
 
 /*
+ * struct lp55xx_engine
+ * @mode       : Engine mode
+ * @led_mux    : Mux bits for LED selection. Only used in LP5523
+ */
+struct lp55xx_engine {
+	enum lp55xx_engine_mode mode;
+	u16 led_mux;
+};
+
+/*
  * struct lp55xx_chip
  * @cl         : I2C communication for access registers
  * @pdata      : Platform specific data
@@ -79,6 +96,7 @@ struct lp55xx_device_config {
  * @num_leds   : Number of registered LEDs
  * @cfg        : Device specific configuration data
  * @engine_idx : Selected engine number
+ * @engines    : Engine structure for the device attribute R/W interface
  * @fw         : Firmware data for running a LED pattern
  */
 struct lp55xx_chip {
@@ -89,6 +107,7 @@ struct lp55xx_chip {
 	int num_leds;
 	struct lp55xx_device_config *cfg;
 	enum lp55xx_engine_index engine_idx;
+	struct lp55xx_engine engines[LP55XX_ENGINE_MAX];
 	const struct firmware *fw;
 };
 
