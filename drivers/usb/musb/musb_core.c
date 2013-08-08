@@ -130,7 +130,8 @@ static inline struct musb *dev_to_musb(struct device *dev)
 
 /*-------------------------------------------------------------------------*/
 
-#ifndef CONFIG_BLACKFIN
+#if !defined(CONFIG_BLACKFIN) && !(defined(CONFIG_USB_MUSB_SUNXI) || \
+				   defined(CONFIG_USB_MUSB_SUNXI_MODULE))
 static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
 {
 	void __iomem *addr = phy->io_priv;

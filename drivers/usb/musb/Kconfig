@@ -5,7 +5,7 @@
 
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
-	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
+	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, AW, ...)'
 	depends on USB && USB_GADGET
 	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
 	select TWL4030_USB if MACH_OMAP_3430SDP
@@ -24,6 +24,8 @@ config USB_MUSB_HDRC
 
 	  Analog Devices parts using this IP include Blackfin BF54x,
 	  BF525 and BF527.
+
+	  Allwinner parts using this IP include SUN4I and SUN5I.
 
 	  If you do not know what this is, please say N.
 
@@ -62,6 +64,11 @@ config USB_MUSB_UX500
 	tristate "U8500 and U5500"
 	depends on (ARCH_U8500 && AB8500_USB)
 
+config USB_MUSB_SUNXI
+	tristate "Allwinner SUN4I/SUN5I"
+	select NOP_USB_XCEIV
+	depends on (ARCH_SUN4I || ARCH_SUN5I)
+
 endchoice
 
 choice
@@ -70,7 +77,7 @@ choice
 	default USB_INVENTRA_DMA if USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
 	default USB_TI_CPPI_DMA if USB_MUSB_DAVINCI
 	default USB_TUSB_OMAP_DMA if USB_MUSB_TUSB6010
-	default MUSB_PIO_ONLY if USB_MUSB_TUSB6010 || USB_MUSB_DA8XX || USB_MUSB_AM35X
+	default MUSB_PIO_ONLY if USB_MUSB_TUSB6010 || USB_MUSB_DA8XX || USB_MUSB_AM35X || USB_MUSB_SUNXI
 	help
 	  Unfortunately, only one option can be enabled here. Ideally one
 	  should be able to build all these drivers into one kernel to

@@ -18,6 +18,9 @@ obj-$(CONFIG_USB_MUSB_DAVINCI)			+= davinci.o
 obj-$(CONFIG_USB_MUSB_DA8XX)			+= da8xx.o
 obj-$(CONFIG_USB_MUSB_BLACKFIN)			+= blackfin.o
 obj-$(CONFIG_USB_MUSB_UX500)			+= ux500.o
+obj-$(CONFIG_USB_MUSB_SUNXI)			+= sunxi_musb.o
+
+sunxi_musb-y := sunxi.o
 
 # the kconfig must guarantee that only one of the
 # possible I/O schemes will be enabled at a time ...

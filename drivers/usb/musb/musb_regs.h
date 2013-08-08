@@ -216,6 +216,8 @@
 
 #ifndef CONFIG_BLACKFIN
 
+#if !(defined(CONFIG_USB_MUSB_SUNXI) || defined(CONFIG_USB_MUSB_SUNXI_MODULE))
+
 /*
  * Common USB registers
  */
@@ -452,6 +454,281 @@ static inline u8  musb_read_txhubport(void __iomem *mbase, u8 epnum)
 {
 	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXHUBPORT));
 }
+
+#else /* CONFIG_USB_MUSB_SUNXI || CONFIG_USB_MUSB_SUNXI_MODULE */
+
+/*
+ * register offsets from the Allwinner driver
+ */
+
+#define USBC_REG_o_FADDR	0x0098
+#define USBC_REG_o_PCTL		0x0040
+#define USBC_REG_o_INTTx	0x0044
+#define USBC_REG_o_INTRx	0x0046
+#define USBC_REG_o_INTTxE	0x0048
+#define USBC_REG_o_INTRxE	0x004A
+#define USBC_REG_o_INTUSB	0x004C
+#define USBC_REG_o_INTUSBE	0x0050
+#define USBC_REG_o_FRNUM	0x0054
+#define USBC_REG_o_EPIND	0x0042
+#define USBC_REG_o_TMCTL	0x007C
+
+#define USBC_REG_o_DEVCTL	0x0041
+#define USBC_REG_o_TXFIFOSZ	0x0090
+#define USBC_REG_o_RXFIFOSZ	0x0094
+#define USBC_REG_o_TXFIFOAD	0x0092
+#define USBC_REG_o_RXFIFOAD	0x0096
+
+#define USBC_REG_o_EPINFO	0x0078
+#define USBC_REG_o_RAMINFO	0x0079
+#define USBC_REG_o_LINKINFO	0x007A
+#define USBC_REG_o_VPLEN	0x007B
+#define USBC_REG_o_HSEOF	0x007C
+#define USBC_REG_o_FSEOF	0x007D
+#define USBC_REG_o_LSEOF	0x007E
+
+#define USBC_REG_o_TXMAXP	0x0080
+#define USBC_REG_o_CSR0		0x0082
+#define USBC_REG_o_TXCSR	0x0082
+#define USBC_REG_o_RXMAXP	0x0084
+#define USBC_REG_o_RXCSR	0x0086
+#define USBC_REG_o_COUNT0	0x0088
+#define USBC_REG_o_RXCOUNT	0x0088
+#define USBC_REG_o_EP0TYPE	0x008C
+#define USBC_REG_o_TXTYPE	0x008C
+#define USBC_REG_o_NAKLIMIT0	0x008D
+#define USBC_REG_o_TXINTERVAL	0x008D
+#define USBC_REG_o_RXTYPE	0x008E
+#define USBC_REG_o_RXINTERVAL	0x008F
+#define USBC_REG_o_CONFIGDATA	0x00c0
+
+#define USBC_REG_o_TXFADDRx	0x0098
+#define USBC_REG_o_TXHADDRx	0x009A
+#define USBC_REG_o_TXHPORTx	0x009B
+#define USBC_REG_o_RXFADDRx	0x009C
+#define USBC_REG_o_RXHADDRx	0x009E
+#define USBC_REG_o_RXHPORTx	0x009F
+
+/*
+ * Common USB registers
+ */
+
+#define MUSB_FADDR		USBC_REG_o_FADDR
+#define MUSB_POWER		USBC_REG_o_PCTL
+
+#define MUSB_INTRTX		USBC_REG_o_INTTx
+#define MUSB_INTRRX		USBC_REG_o_INTRx
+#define MUSB_INTRTXE		USBC_REG_o_INTTxE
+#define MUSB_INTRRXE		USBC_REG_o_INTRxE
+#define MUSB_INTRUSB		USBC_REG_o_INTUSB
+#define MUSB_INTRUSBE		USBC_REG_o_INTUSBE
+#define MUSB_FRAME		USBC_REG_o_FRNUM
+#define MUSB_INDEX		USBC_REG_o_EPIND
+#define MUSB_TESTMODE		USBC_REG_o_TMCTL
+
+/* Get offset for a given FIFO from musb->mregs */
+#define MUSB_FIFO_OFFSET(epnum)	(0x00 + ((epnum) * 4))
+
+/*
+ * Additional Control Registers
+ */
+
+#define MUSB_DEVCTL		USBC_REG_o_DEVCTL
+
+/* These are always controlled through the INDEX register */
+#define MUSB_TXFIFOSZ		USBC_REG_o_TXFIFOSZ
+#define MUSB_RXFIFOSZ		USBC_REG_o_RXFIFOSZ
+#define MUSB_TXFIFOADD		USBC_REG_o_TXFIFOAD
+#define MUSB_RXFIFOADD		USBC_REG_o_RXFIFOAD
+
+#define MUSB_EPINFO		USBC_REG_o_EPINFO
+#define MUSB_RAMINFO		USBC_REG_o_RAMINFO
+#define MUSB_LINKINFO		USBC_REG_o_LINKINFO
+#define MUSB_VPLEN		USBC_REG_o_VPLEN
+#define MUSB_HS_EOF1		USBC_REG_o_HSEOF
+#define MUSB_FS_EOF1		USBC_REG_o_FSEOF
+#define MUSB_LS_EOF1		USBC_REG_o_LSEOF
+
+/* Offsets to endpoint registers */
+#define MUSB_TXMAXP		USBC_REG_o_TXMAXP
+#define MUSB_TXCSR		USBC_REG_o_TXCSR
+#define MUSB_CSR0		USBC_REG_o_CSR0
+#define MUSB_RXMAXP		USBC_REG_o_RXMAXP
+#define MUSB_RXCSR		USBC_REG_o_RXCSR
+#define MUSB_RXCOUNT		USBC_REG_o_RXCOUNT
+#define MUSB_COUNT0		USBC_REG_o_COUNT0
+#define MUSB_TXTYPE		USBC_REG_o_TXTYPE
+#define MUSB_TYPE0		USBC_REG_o_EP0TYPE
+#define MUSB_TXINTERVAL		USBC_REG_o_TXINTERVAL
+#define MUSB_NAKLIMIT0		USBC_REG_o_NAKLIMIT0
+#define MUSB_RXTYPE		USBC_REG_o_RXTYPE
+#define MUSB_RXINTERVAL		USBC_REG_o_RXINTERVAL
+
+#define MUSB_CONFIGDATA		USBC_REG_o_CONFIGDATA
+#define MUSB_FIFOSIZE		USBC_REG_o_TXFIFOSZ
+
+/* Offsets to endpoint registers in indexed model (using INDEX register) */
+#define MUSB_INDEXED_OFFSET(_epnum, _offset) (_offset)
+
+#define MUSB_TXCSR_MODE		0x2000
+
+/* "bus control"/target registers, for host side multipoint (external hubs) */
+#define MUSB_TXFUNCADDR		USBC_REG_o_TXFADDRx
+#define MUSB_TXHUBADDR		USBC_REG_o_TXHADDRx
+#define MUSB_TXHUBPORT		USBC_REG_o_TXHPORTx
+
+#define MUSB_RXFUNCADDR		USBC_REG_o_RXFADDRx
+#define MUSB_RXHUBADDR		USBC_REG_o_RXHADDRx
+#define MUSB_RXHUBPORT		USBC_REG_o_RXHPORTx
+
+/* Endpoint is selected with MUSB_INDEX. */
+#define MUSB_BUSCTL_OFFSET(_epnum, _offset) (_offset)
+
+static inline void musb_write_txfifosz(void __iomem *mbase, u8 c_size)
+{
+	musb_writeb(mbase, MUSB_TXFIFOSZ, c_size);
+}
+
+static inline void musb_write_txfifoadd(void __iomem *mbase, u16 c_off)
+{
+	musb_writew(mbase, MUSB_TXFIFOADD, c_off);
+}
+
+static inline void musb_write_rxfifosz(void __iomem *mbase, u8 c_size)
+{
+	musb_writeb(mbase, MUSB_RXFIFOSZ, c_size);
+}
+
+static inline void  musb_write_rxfifoadd(void __iomem *mbase, u16 c_off)
+{
+	musb_writew(mbase, MUSB_RXFIFOADD, c_off);
+}
+
+static inline void musb_write_ulpi_buscontrol(void __iomem *mbase, u8 val)
+{
+}
+
+static inline u8 musb_read_txfifosz(void __iomem *mbase)
+{
+	return musb_readb(mbase, MUSB_TXFIFOSZ);
+}
+
+static inline u16 musb_read_txfifoadd(void __iomem *mbase)
+{
+	return musb_readw(mbase, MUSB_TXFIFOADD);
+}
+
+static inline u8 musb_read_rxfifosz(void __iomem *mbase)
+{
+	return musb_readb(mbase, MUSB_RXFIFOSZ);
+}
+
+static inline u16  musb_read_rxfifoadd(void __iomem *mbase)
+{
+	return musb_readw(mbase, MUSB_RXFIFOADD);
+}
+
+static inline u8 musb_read_ulpi_buscontrol(void __iomem *mbase)
+{
+	return 0;
+}
+
+static inline u8 musb_read_configdata(void __iomem *mbase)
+{
+	musb_writeb(mbase, MUSB_INDEX, 0);
+	return musb_readb(mbase, MUSB_CONFIGDATA);
+}
+
+static inline u16 musb_read_hwvers(void __iomem *mbase)
+{
+	/* Unknown version */
+	return 0;
+}
+
+static inline void __iomem *musb_read_target_reg_base(u8 i, void __iomem *mbase)
+{
+	return MUSB_BUSCTL_OFFSET(i, 0) + mbase;
+}
+
+static inline void musb_write_rxfunaddr(void __iomem *ep_target_regs,
+		u8 qh_addr_reg)
+{
+	musb_writeb(ep_target_regs, MUSB_RXFUNCADDR, qh_addr_reg);
+}
+
+static inline void musb_write_rxhubaddr(void __iomem *ep_target_regs,
+		u8 qh_h_addr_reg)
+{
+	musb_writeb(ep_target_regs, MUSB_RXHUBADDR, qh_h_addr_reg);
+}
+
+static inline void musb_write_rxhubport(void __iomem *ep_target_regs,
+		u8 qh_h_port_reg)
+{
+	musb_writeb(ep_target_regs, MUSB_RXHUBPORT, qh_h_port_reg);
+}
+
+static inline void musb_write_txfunaddr(void __iomem *mbase, u8 epnum,
+		u8 qh_addr_reg)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	musb_writeb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXFUNCADDR),
+		    qh_addr_reg);
+}
+
+static inline void musb_write_txhubaddr(void __iomem *mbase, u8 epnum,
+		u8 qh_addr_reg)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	musb_writeb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXHUBADDR),
+		    qh_addr_reg);
+}
+
+static inline void musb_write_txhubport(void __iomem *mbase, u8 epnum,
+		u8 qh_h_port_reg)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	musb_writeb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXHUBPORT),
+		    qh_h_port_reg);
+}
+
+static inline u8 musb_read_rxfunaddr(void __iomem *mbase, u8 epnum)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_RXFUNCADDR));
+}
+
+static inline u8 musb_read_rxhubaddr(void __iomem *mbase, u8 epnum)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_RXHUBADDR));
+}
+
+static inline u8 musb_read_rxhubport(void __iomem *mbase, u8 epnum)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_RXHUBPORT));
+}
+
+static inline u8  musb_read_txfunaddr(void __iomem *mbase, u8 epnum)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXFUNCADDR));
+}
+
+static inline u8  musb_read_txhubaddr(void __iomem *mbase, u8 epnum)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXHUBADDR));
+}
+
+static inline u8  musb_read_txhubport(void __iomem *mbase, u8 epnum)
+{
+	WARN_ON(musb_readb(mbase, MUSB_INDEX) != epnum);
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXHUBPORT));
+}
+
+#endif /* CONFIG_USB_MUSB_SUNXI || CONFIG_USB_MUSB_SUNXI_MODULE */
 
 #else /* CONFIG_BLACKFIN */
 
