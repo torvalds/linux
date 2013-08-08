@@ -220,17 +220,11 @@ static int lp5521_update_program_memory(struct lp55xx_chip *chip,
 	};
 	unsigned cmd;
 	char c[3];
-	int program_size;
 	int nrchars;
-	int offset = 0;
 	int ret;
-	int i;
+	int offset = 0;
+	int i = 0;
 
-	/* clear program memory before updating */
-	for (i = 0; i < LP5521_PROGRAM_LENGTH; i++)
-		lp55xx_write(chip, addr[idx] + i, 0);
-
-	i = 0;
 	while ((offset < size - 1) && (i < LP5521_PROGRAM_LENGTH)) {
 		/* separate sscanfs because length is working only for %s */
 		ret = sscanf(data + offset, "%2s%n ", c, &nrchars);
@@ -250,11 +244,9 @@ static int lp5521_update_program_memory(struct lp55xx_chip *chip,
 	if (i % 2)
 		goto err;
 
-	program_size = i;
-
 	mutex_lock(&chip->lock);
 
-	for (i = 0; i < program_size; i++) {
+	for (i = 0; i < LP5521_PROGRAM_LENGTH; i++) {
 		ret = lp55xx_write(chip, addr[idx] + i, pattern[i]);
 		if (ret) {
 			mutex_unlock(&chip->lock);
