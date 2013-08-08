@@ -672,6 +672,7 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_TGT_RESET_TMO:
 		case ISCSI_PARAM_IFACE_NAME:
 		case ISCSI_PARAM_INITIATOR_NAME:
+		case ISCSI_PARAM_DISCOVERY_SESS:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -701,7 +702,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 static struct iscsi_transport iscsi_iser_transport = {
 	.owner                  = THIS_MODULE,
 	.name                   = "iser",
-	.caps                   = CAP_RECOVERY_L0 | CAP_MULTI_R2T,
+	.caps                   = CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_TEXT_NEGO,
 	/* session management */
 	.create_session         = iscsi_iser_session_create,
 	.destroy_session        = iscsi_iser_session_destroy,

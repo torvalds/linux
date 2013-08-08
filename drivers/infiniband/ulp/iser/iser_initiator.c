@@ -234,6 +234,7 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn)
 static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)
 {
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
+	struct iscsi_session *session = conn->session;
 
 	iser_dbg("req op %x flags %x\n", req->opcode, req->flags);
 	/* check if this is the last login - going to full feature phase */
@@ -248,7 +249,13 @@ static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)
 	WARN_ON(iser_conn->ib_conn->post_recv_buf_count != 1);
 	WARN_ON(atomic_read(&iser_conn->ib_conn->post_send_buf_count) != 0);
 
-	iser_dbg("Initially post: %d\n", ISER_MIN_POSTED_RX);
+	if (session->discovery_sess) {
+		iser_info("Discovery session, re-using login RX buffer\n");
+		return 0;
+	} else
+		iser_info("Normal session, posting batch of RX %d buffers\n",
+			  ISER_MIN_POSTED_RX);
+
 	/* Initial post receive buffers */
 	if (iser_post_recvm(iser_conn->ib_conn, ISER_MIN_POSTED_RX))
 		return -ENOMEM;
@@ -425,6 +432,8 @@ int iser_send_control(struct iscsi_conn *conn,
 	}
 
 	if (task == conn->login_task) {
+		iser_dbg("op %x dsl %lx, posting login rx buffer\n",
+			 task->hdr->opcode, data_seg_len);
 		err = iser_post_recvl(iser_conn->ib_conn);
 		if (err)
 			goto send_control_error;
