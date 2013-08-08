@@ -8139,13 +8139,13 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	if (BNX2_CHIP(bp) == BNX2_CHIP_5709 &&
 	    BNX2_CHIP_REV(bp) != BNX2_CHIP_REV_Ax) {
-		if (pci_find_capability(pdev, PCI_CAP_ID_MSIX))
+		if (pdev->msix_cap)
 			bp->flags |= BNX2_FLAG_MSIX_CAP;
 	}
 
 	if (BNX2_CHIP_ID(bp) != BNX2_CHIP_ID_5706_A0 &&
 	    BNX2_CHIP_ID(bp) != BNX2_CHIP_ID_5706_A1) {
-		if (pci_find_capability(pdev, PCI_CAP_ID_MSI))
+		if (pdev->msi_cap)
 			bp->flags |= BNX2_FLAG_MSI_CAP;
 	}
 
