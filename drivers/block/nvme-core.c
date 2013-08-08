@@ -342,11 +342,11 @@ static void bio_completion(struct nvme_dev *dev, void *ctx,
 	struct bio *bio = iod->private;
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
 
-	if (iod->nents)
+	if (iod->nents) {
 		dma_unmap_sg(&dev->pci_dev->dev, iod->sg, iod->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-
-	nvme_end_io_acct(bio, iod->start_time);
+		nvme_end_io_acct(bio, iod->start_time);
+	}
 	nvme_free_iod(dev, iod);
 	if (status)
 		bio_endio(bio, -EIO);
