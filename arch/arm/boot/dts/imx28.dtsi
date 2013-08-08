@@ -815,7 +815,7 @@
 				reg = <0x8003c800 0x100>;
 				status = "disabled";
 			};
-                };
+		};
 
 		apbx@80040000 {
 			compatible = "simple-bus";
@@ -1045,6 +1045,5 @@
 			reg = <0x800f8000 0x8000>;
 			status = "disabled";
 		};
-
 	};
 };
