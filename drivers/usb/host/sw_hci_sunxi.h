@@ -27,9 +27,6 @@
 #ifndef __SW_HCI_SUNXI_H__
 #define __SW_HCI_SUNXI_H__
 
-#include <linux/usb.h>
-#include <linux/usb/hcd.h>
-
 #include <mach/irqs.h>
 
 #define  DMSG_PRINT(stuff...)	printk(stuff)
