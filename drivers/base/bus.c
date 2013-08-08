@@ -499,6 +499,9 @@ int bus_add_device(struct device *dev)
 		error = device_add_attrs(bus, dev);
 		if (error)
 			goto out_put;
+		error = device_add_groups(dev, bus->dev_groups);
+		if (error)
+			goto out_groups;
 		error = sysfs_create_link(&bus->p->devices_kset->kobj,
 						&dev->kobj, dev_name(dev));
 		if (error)
@@ -513,6 +516,8 @@ int bus_add_device(struct device *dev)
 
 out_subsys:
 	sysfs_remove_link(&bus->p->devices_kset->kobj, dev_name(dev));
+out_groups:
+	device_remove_groups(dev, bus->dev_groups);
 out_id:
 	device_remove_attrs(bus, dev);
 out_put:
@@ -575,6 +580,7 @@ void bus_remove_device(struct device *dev)
 	sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
 			  dev_name(dev));
 	device_remove_attrs(dev->bus, dev);
+	device_remove_groups(dev, dev->bus->dev_groups);
 	if (klist_node_attached(&dev->p->knode_bus))
 		klist_del(&dev->p->knode_bus);
 

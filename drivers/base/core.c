@@ -491,8 +491,7 @@ static void device_remove_bin_attributes(struct device *dev,
 			device_remove_bin_file(dev, &attrs[i]);
 }
 
-static int device_add_groups(struct device *dev,
-			     const struct attribute_group **groups)
+int device_add_groups(struct device *dev, const struct attribute_group **groups)
 {
 	int error = 0;
 	int i;
@@ -511,8 +510,8 @@ static int device_add_groups(struct device *dev,
 	return error;
 }
 
-static void device_remove_groups(struct device *dev,
-				 const struct attribute_group **groups)
+void device_remove_groups(struct device *dev,
+			  const struct attribute_group **groups)
 {
 	int i;
 
