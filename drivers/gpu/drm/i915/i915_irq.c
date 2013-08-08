@@ -1915,7 +1915,7 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
  * we kick the ring. If we see no progress on three subsequent calls
  * we assume chip is wedged and try to fix it by resetting the chip.
  */
-void i915_hangcheck_elapsed(unsigned long data)
+static void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
