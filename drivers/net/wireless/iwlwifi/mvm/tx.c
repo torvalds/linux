@@ -668,10 +668,6 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			iwl_mvm_check_ratid_empty(mvm, sta, tid);
 			spin_unlock_bh(&mvmsta->lock);
 		}
-
-#ifdef CONFIG_PM_SLEEP
-		mvmsta->last_seq_ctl = seq_ctl;
-#endif
 	} else {
 		sta = NULL;
 		mvmsta = NULL;

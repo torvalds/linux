@@ -793,6 +793,31 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return 0;
 }
 
+static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_host_cmd cmd = {
+		.id = NON_QOS_TX_COUNTER_CMD,
+		.flags = CMD_SYNC | CMD_WANT_SKB,
+	};
+	int err;
+	u32 size;
+
+	err = iwl_mvm_send_cmd(mvm, &cmd);
+	if (err)
+		return err;
+
+	size = le32_to_cpu(cmd.resp_pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+	size -= sizeof(cmd.resp_pkt->hdr);
+	if (size != sizeof(__le32))
+		err = -EINVAL;
+	else
+		err = le32_to_cpup((__le32 *)cmd.resp_pkt->data);
+
+	iwl_free_resp(&cmd);
+	return err;
+}
+
 static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			     struct cfg80211_wowlan *wowlan,
 			     bool test)
@@ -829,7 +854,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	};
 	int ret, i;
 	int len __maybe_unused;
-	u16 seq;
 	u8 old_aux_sta_id, old_ap_sta_id = IWL_MVM_STATION_COUNT;
 
 	if (!wowlan) {
@@ -872,26 +896,15 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mvm_ap_sta = (struct iwl_mvm_sta *)ap_sta->drv_priv;
 
-	/*
-	 * The D3 firmware still hardcodes the AP station ID for the
-	 * BSS we're associated with as 0. Store the real STA ID here
-	 * and assign 0. When we leave this function, we'll restore
-	 * the original value for the resume code.
-	 */
-	old_ap_sta_id = mvm_ap_sta->sta_id;
-	mvm_ap_sta->sta_id = 0;
-	mvmvif->ap_sta_id = 0;
-
 	/* TODO: wowlan_config_cmd.wowlan_ba_teardown_tids */
 
 	wowlan_config_cmd.is_11n_connection = ap_sta->ht_cap.ht_supported;
 
-	/*
-	 * We know the last used seqno, and the uCode expects to know that
-	 * one, it will increment before TX.
-	 */
-	seq = mvm_ap_sta->last_seq_ctl & IEEE80211_SCTL_SEQ;
-	wowlan_config_cmd.non_qos_seq = cpu_to_le16(seq);
+	/* Query the last used seqno and set it */
+	ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);
+	if (ret < 0)
+		goto out_noreset;
+	wowlan_config_cmd.non_qos_seq = cpu_to_le16(ret);
 
 	/*
 	 * For QoS counters, we store the one to use next, so subtract 0x10
@@ -899,7 +912,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	 * increment after using the value (i.e. store the next value to use).
 	 */
 	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
-		seq = mvm_ap_sta->tid_data[i].seq_number;
+		u16 seq = mvm_ap_sta->tid_data[i].seq_number;
 		seq -= 0x10;
 		wowlan_config_cmd.qos_seq[i] = cpu_to_le16(seq);
 	}
@@ -943,6 +956,16 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	iwl_mvm_cancel_scan(mvm);
 
 	iwl_trans_stop_device(mvm->trans);
+
+	/*
+	 * The D3 firmware still hardcodes the AP station ID for the
+	 * BSS we're associated with as 0. Store the real STA ID here
+	 * and assign 0. When we leave this function, we'll restore
+	 * the original value for the resume code.
+	 */
+	old_ap_sta_id = mvm_ap_sta->sta_id;
+	mvm_ap_sta->sta_id = 0;
+	mvmvif->ap_sta_id = 0;
 
 	/*
 	 * Set the HW restart bit -- this is mostly true as we're
