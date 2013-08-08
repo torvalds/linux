@@ -1425,14 +1425,7 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_
 						 struct perf_evsel *evsel,
 						 struct machine *machine)
 {
-	struct thread *thread = machine__findnew_thread(machine, sample->tid);
 	int err = 0;
-
-	if (thread == NULL) {
-		pr_debug("problem processing %s event, skipping it.\n",
-			 perf_evsel__name(evsel));
-		return -1;
-	}
 
 	evsel->hists.stats.total_period += sample->period;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
