@@ -12544,16 +12544,14 @@ static int bnx2x_set_qm_cid_count(struct bnx2x *bp)
 static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev,
 				     int cnic_cnt, bool is_vf)
 {
-	int pos, index;
+	int index;
 	u16 control = 0;
-
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
 
 	/*
 	 * If MSI-X is not supported - return number of SBs needed to support
 	 * one fast path queue: one FP queue + SB for CNIC
 	 */
-	if (!pos) {
+	if (!pdev->msix_cap) {
 		dev_info(&pdev->dev, "no msix capability found\n");
 		return 1 + cnic_cnt;
 	}
@@ -12566,7 +12564,7 @@ static int bnx2x_get_num_non_def_sbs(struct pci_dev *pdev,
 	 * without the default SB.
 	 * For VFs there is no default SB, then we return (index+1).
 	 */
-	pci_read_config_word(pdev, pos  + PCI_MSI_FLAGS, &control);
+	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSI_FLAGS, &control);
 
 	index = control & PCI_MSIX_FLAGS_QSIZE;
 
