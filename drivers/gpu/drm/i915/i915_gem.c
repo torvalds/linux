@@ -3477,6 +3477,10 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 		args->caching = I915_CACHING_CACHED;
 		break;
 
+	case I915_CACHE_WT:
+		args->caching = I915_CACHING_DISPLAY;
+		break;
+
 	default:
 		args->caching = I915_CACHING_NONE;
 		break;
@@ -3502,6 +3506,9 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_CACHING_CACHED:
 		level = I915_CACHE_LLC;
+		break;
+	case I915_CACHING_DISPLAY:
+		level = HAS_WT(dev) ? I915_CACHE_WT : I915_CACHE_NONE;
 		break;
 	default:
 		return -EINVAL;
