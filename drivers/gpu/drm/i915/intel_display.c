@@ -50,6 +50,10 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
 				    struct intel_crtc_config *pipe_config);
 
+static int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
+			  int x, int y, struct drm_framebuffer *old_fb);
+
+
 typedef struct {
 	int	min, max;
 } intel_range_t;
@@ -8738,9 +8742,9 @@ out:
 	return ret;
 }
 
-int intel_set_mode(struct drm_crtc *crtc,
-		     struct drm_display_mode *mode,
-		     int x, int y, struct drm_framebuffer *fb)
+static int intel_set_mode(struct drm_crtc *crtc,
+			  struct drm_display_mode *mode,
+			  int x, int y, struct drm_framebuffer *fb)
 {
 	int ret;
 
