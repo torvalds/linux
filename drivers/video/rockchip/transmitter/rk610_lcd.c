@@ -101,9 +101,9 @@ static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *s
 #else
 		    c |=  LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL);
 #endif                
+		    rk610_scaler_write_p0_reg(client, LVDS_CON0, &c);
 		    c = LCD1_OUT_ENABLE(LCD1_AS_IN);
 		    rk610_scaler_write_p0_reg(client, LCD1_CON, &c);
-		    rk610_scaler_write_p0_reg(client, LVDS_CON0, &c);
 		    c = LVDS_OUT_ENABLE(0xf) |LVDS_TX_PWR_ENABLE(0xf); 
 		    rk610_scaler_write_p0_reg(client, LVDS_CON1, &c);
              
