@@ -683,6 +683,21 @@
 					fsl,pull-up = <1>;
 				};
 
+				spi3_pins_a: spi3@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3082 /* MX28_PAD_AUART2_RX__SSP3_D4 */
+						0x3092 /* MX28_PAD_AUART2_TX__SSP3_D5 */
+						0x2180 /* MX28_PAD_SSP3_SCK__SSP3_SCK */
+						0x2190 /* MX28_PAD_SSP3_MOSI__SSP3_CMD */
+						0x21A0 /* MX28_PAD_SSP3_MISO__SSP3_D0 */
+						0x21B0 /* MX28_PAD_SSP3_SS0__SSP3_D3 */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				usbphy0_pins_a: usbphy0@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
