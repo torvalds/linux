@@ -884,7 +884,7 @@ static struct platform_driver sport_uart_driver = {
 };
 
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CONSOLE
-static __initdata struct early_platform_driver early_sport_uart_driver = {
+static struct early_platform_driver early_sport_uart_driver __initdata = {
 	.class_str = CLASS_BFIN_SPORT_CONSOLE,
 	.pdrv = &sport_uart_driver,
 	.requested_id = EARLY_PLATFORM_ID_UNSET,
