@@ -140,8 +140,6 @@ struct sw_hci_hcd {
 	__u32 irq_no; /* interrupt number */
 	char hci_name[32]; /* hci name */
 
-	struct resource *usb_base_res; /* USB resources */
-	struct resource *usb_base_req; /* USB resources */
 	void __iomem *usb_vbase; /* USB base address */
 
 	void __iomem *ehci_base;
