@@ -402,6 +402,7 @@ static void hci_port_configure(struct sw_hci_hcd *sw_hci, u32 enable)
 {
 	unsigned long reg_value = 0;
 	u32 usbc_sdram_hpcr = 0;
+	void __iomem *addr = NULL;
 
 	if (sw_hci->usbc_no == 1) {
 		usbc_sdram_hpcr = SW_SDRAM_REG_HPCR_USB1;
@@ -412,13 +413,15 @@ static void hci_port_configure(struct sw_hci_hcd *sw_hci, u32 enable)
 		return;
 	}
 
-	reg_value = USBC_Readl(sw_hci->sdram_vbase + usbc_sdram_hpcr);
+	addr = sw_hci->sdram_vbase + usbc_sdram_hpcr;
+
+	reg_value = USBC_Readl(addr);
 	if (enable)
 		reg_value |= (1 << SW_SDRAM_BP_HPCR_ACCESS_EN);
 	else
 		reg_value &= ~(1 << SW_SDRAM_BP_HPCR_ACCESS_EN);
 
-	USBC_Writel(reg_value, (sw_hci->sdram_vbase + usbc_sdram_hpcr));
+	USBC_Writel(reg_value, addr);
 
 	return;
 }
