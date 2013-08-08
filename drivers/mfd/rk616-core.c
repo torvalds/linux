@@ -44,11 +44,6 @@ extern int rk_mipi_dsi_init_lite(void);
 void rk616_mclk_set_rate(struct clk *mclk,unsigned long rate)
 {
 	clk_set_rate(mclk, rate);
-
-#if defined(CONFIG_RK616_MIPI_DSI)
-	rk_mipi_dsi_init_lite();
-#endif
-
 }
 
 static int rk616_i2c_read_reg(struct mfd_rk616 *rk616, u16 reg,u32 *pval)

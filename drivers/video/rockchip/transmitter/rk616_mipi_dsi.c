@@ -36,7 +36,7 @@
 #include <linux/seq_file.h>
 #include<linux/earlysuspend.h>
 #include <linux/regulator/machine.h>
-
+#include <plat/clock.h>
 #else
 #include "ft_lcd.h"
 #endif
@@ -78,8 +78,9 @@
 *v1.0 : this driver is mipi dsi driver of rockchip;
 *v1.1 : add FT code 
 *v1.2 : add rk_mipi_dsi_init_lite() for mclk variation
+*v1.3 : add clk_notifier function for mclk variation
 */
-#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.2 2013-08-06"
+#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.3 2013-08-08"
 
 
 
@@ -726,7 +727,7 @@ static int rk_mipi_dsi_init(void *array, u32 n) {
 
 int rk_mipi_dsi_init_lite(void) {
 
-	u32 decimals = 1000, i = 0, pre = 0, val = 0, ref_clk = 0;
+	u32 decimals = 1000, i = 0, pre = 0, ref_clk = 0;
 	struct mipi_dsi_screen *screen = g_screen;
 	
 	if(!screen)
@@ -1040,7 +1041,7 @@ int reg_proc_write(struct file *file, const char __user *buff, size_t count, lof
 				else	
 					read_val *= MHz;
 				clk_set_rate(dsi_rk616->mclk, read_val);	
-				rk_mipi_dsi_init_lite();
+				//rk_mipi_dsi_init_lite();
 			break;
 		case 'd':
 		case 'g':
@@ -1319,7 +1320,15 @@ static void rk616_mipi_dsi_late_resume(struct early_suspend *h)
 
 #endif  /* end of CONFIG_HAS_EARLYSUSPEND */
 
+static int rk616_mipi_dsi_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr) {
+	rk_mipi_dsi_init_lite();
+	return 0;
+}		
 
+struct notifier_block mipi_dsi_nb= {
+	.notifier_call = rk616_mipi_dsi_notifier_event,
+};
 
 static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 {
@@ -1333,6 +1342,8 @@ static int rk616_mipi_dsi_probe(struct platform_device *pdev)
 	}
 	else
 		dsi_rk616 = rk616;
+	
+	clk_notifier_register(rk616->mclk, &mipi_dsi_nb);
 	
 	screen = rk_fb_get_prmry_screen();
 	if(!screen) {
@@ -1393,6 +1404,7 @@ do_release_region:
 
 static int rk616_mipi_dsi_remove(struct platform_device *pdev)
 {
+	clk_notifier_unregister(dsi_rk616->mclk, &mipi_dsi_nb);
 	return 0;
 }
 
