@@ -65,44 +65,33 @@ static inline unsigned long bmips_read_zscm_reg(unsigned int offset)
 {
 	unsigned long ret;
 
-	__asm__ __volatile__(
-		".set push\n"
-		".set noreorder\n"
-		"cache %1, 0(%2)\n"
-		"sync\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"mfc0 %0, $28, 3\n"
-		"_ssnop\n"
-		".set pop\n"
-		: "=&r" (ret)
-		: "i" (Index_Load_Tag_S), "r" (ZSCM_REG_BASE + offset)
-		: "memory");
+	barrier();
+	cache_op(Index_Load_Tag_S, ZSCM_REG_BASE + offset);
+	__sync();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	ret = read_c0_ddatalo();
+	_ssnop();
+
 	return ret;
 }
 
 static inline void bmips_write_zscm_reg(unsigned int offset, unsigned long data)
 {
-	__asm__ __volatile__(
-		".set push\n"
-		".set noreorder\n"
-		"mtc0 %0, $28, 3\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"cache %1, 0(%2)\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		"_ssnop\n"
-		: /* no outputs */
-		: "r" (data),
-		  "i" (Index_Store_Tag_S), "r" (ZSCM_REG_BASE + offset)
-		: "memory");
+	write_c0_ddatalo(data);
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	cache_op(Index_Store_Tag_S, ZSCM_REG_BASE + offset);
+	_ssnop();
+	_ssnop();
+	_ssnop();
+	barrier();
 }
 
 #endif /* !defined(__ASSEMBLY__) */
