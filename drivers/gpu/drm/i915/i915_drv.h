@@ -454,6 +454,7 @@ enum i915_cache_level {
 			      caches, eg sampler/render caches, and the
 			      large Last-Level-Cache. LLC is coherent with
 			      the CPU, but L3 is only visible to the GPU. */
+	I915_CACHE_WT, /* hsw:gt3e WriteThrough for scanouts */
 };
 
 typedef uint32_t gen6_gtt_pte_t;
@@ -1385,7 +1386,7 @@ struct drm_i915_gem_object {
 	unsigned int pending_fenced_gpu_access:1;
 	unsigned int fenced_gpu_access:1;
 
-	unsigned int cache_level:2;
+	unsigned int cache_level:3;
 
 	unsigned int has_aliasing_ppgtt_mapping:1;
 	unsigned int has_global_gtt_mapping:1;
@@ -1530,6 +1531,7 @@ struct drm_i915_file_private {
 #define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
 #define HAS_VEBOX(dev)          (INTEL_INFO(dev)->has_vebox_ring)
 #define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
+#define HAS_WT(dev)            (IS_HASWELL(dev) && to_i915(dev)->ellc_size)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->gen >= 6)

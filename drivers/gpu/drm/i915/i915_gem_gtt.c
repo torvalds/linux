@@ -55,6 +55,7 @@
 #define HSW_WB_LLC_AGE3			HSW_CACHEABILITY_CONTROL(0x2)
 #define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
+#define HSW_WT_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0x6)
 
 static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
 				     enum i915_cache_level level)
@@ -138,8 +139,16 @@ static gen6_gtt_pte_t iris_pte_encode(dma_addr_t addr,
 	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
 
-	if (level != I915_CACHE_NONE)
+	switch (level) {
+	case I915_CACHE_NONE:
+		break;
+	case I915_CACHE_WT:
+		pte |= HSW_WT_ELLC_LLC_AGE0;
+		break;
+	default:
 		pte |= HSW_WB_ELLC_LLC_AGE0;
+		break;
+	}
 
 	return pte;
 }
