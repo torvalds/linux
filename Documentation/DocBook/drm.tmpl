@@ -156,13 +156,6 @@
             </para></listitem>
           </varlistentry>
           <varlistentry>
-            <term>DRIVER_USE_MTRR</term>
-            <listitem><para>
-              Driver uses MTRR interface for mapping memory, the DRM core will
-              manage MTRR resources. Deprecated.
-            </para></listitem>
-          </varlistentry>
-          <varlistentry>
             <term>DRIVER_PCI_DMA</term>
             <listitem><para>
               Driver is capable of PCI DMA, mapping of PCI DMA buffers to
@@ -193,28 +186,6 @@
               <para>DRIVER_IRQ_SHARED indicates whether the device &amp; handler
               support shared IRQs (note that this is required of PCI  drivers).
             </para></listitem>
-          </varlistentry>
-          <varlistentry>
-            <term>DRIVER_IRQ_VBL</term>
-            <listitem><para>Unused. Deprecated.</para></listitem>
-          </varlistentry>
-          <varlistentry>
-            <term>DRIVER_DMA_QUEUE</term>
-            <listitem><para>
-              Should be set if the driver queues DMA requests and completes them
-              asynchronously.  Deprecated.
-            </para></listitem>
-          </varlistentry>
-          <varlistentry>
-            <term>DRIVER_FB_DMA</term>
-            <listitem><para>
-              Driver supports DMA to/from the framebuffer, mapping of frambuffer
-              DMA buffers to userspace will be supported. Deprecated.
-            </para></listitem>
-          </varlistentry>
-          <varlistentry>
-            <term>DRIVER_IRQ_VBL2</term>
-            <listitem><para>Unused. Deprecated.</para></listitem>
           </varlistentry>
           <varlistentry>
             <term>DRIVER_GEM</term>
