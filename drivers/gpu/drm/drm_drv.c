@@ -196,11 +196,7 @@ int drm_lastclose(struct drm_device * dev)
 
 	drm_agp_clear(dev);
 
-	if (drm_core_check_feature(dev, DRIVER_SG) && dev->sg &&
-	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
-		drm_sg_cleanup(dev->sg);
-		dev->sg = NULL;
-	}
+	drm_legacy_sg_cleanup(dev);
 
 	/* Clear vma list (only built for debugging) */
 	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
