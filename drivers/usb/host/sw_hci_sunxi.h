@@ -27,12 +27,6 @@
 #ifndef __SW_HCI_SUNXI_H__
 #define __SW_HCI_SUNXI_H__
 
-#include <linux/delay.h>
-#include <linux/types.h>
-
-#include <linux/io.h>
-#include <linux/irq.h>
-
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 

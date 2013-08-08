@@ -35,7 +35,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/timer.h>
-#include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -49,10 +48,8 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
-#include <mach/irqs.h>
 
 #include <mach/clock.h>
-#include <mach/platform.h>
 #include <plat/system.h>
 #include <plat/sys_config.h>
 
