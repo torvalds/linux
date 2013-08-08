@@ -1392,15 +1392,6 @@ static int process_sched_fork_event(struct perf_tool *tool,
 	return 0;
 }
 
-static int process_sched_exit_event(struct perf_tool *tool __maybe_unused,
-				    struct perf_evsel *evsel,
-				    struct perf_sample *sample __maybe_unused,
-				    struct machine *machine __maybe_unused)
-{
-	pr_debug("sched_exit event %p\n", evsel);
-	return 0;
-}
-
 static int process_sched_migrate_task_event(struct perf_tool *tool,
 					    struct perf_evsel *evsel,
 					    struct perf_sample *sample,
@@ -1447,7 +1438,6 @@ static int perf_sched__read_events(struct perf_sched *sched,
 		{ "sched:sched_wakeup",	      process_sched_wakeup_event, },
 		{ "sched:sched_wakeup_new",   process_sched_wakeup_event, },
 		{ "sched:sched_process_fork", process_sched_fork_event, },
-		{ "sched:sched_process_exit", process_sched_exit_event, },
 		{ "sched:sched_migrate_task", process_sched_migrate_task_event, },
 	};
 	struct perf_session *session;
@@ -1634,7 +1624,6 @@ static int __cmd_record(int argc, const char **argv)
 		"-e", "sched:sched_stat_sleep",
 		"-e", "sched:sched_stat_iowait",
 		"-e", "sched:sched_stat_runtime",
-		"-e", "sched:sched_process_exit",
 		"-e", "sched:sched_process_fork",
 		"-e", "sched:sched_wakeup",
 		"-e", "sched:sched_migrate_task",
