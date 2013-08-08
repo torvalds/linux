@@ -3460,6 +3460,215 @@ int pci_reset_function(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_reset_function);
 
+/* Lock devices from the top of the tree down */
+static void pci_bus_lock(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_dev_lock(dev);
+		if (dev->subordinate)
+			pci_bus_lock(dev->subordinate);
+	}
+}
+
+/* Unlock devices from the bottom of the tree up */
+static void pci_bus_unlock(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (dev->subordinate)
+			pci_bus_unlock(dev->subordinate);
+		pci_dev_unlock(dev);
+	}
+}
+
+/* Lock devices from the top of the tree down */
+static void pci_slot_lock(struct pci_slot *slot)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
+		if (!dev->slot || dev->slot != slot)
+			continue;
+		pci_dev_lock(dev);
+		if (dev->subordinate)
+			pci_bus_lock(dev->subordinate);
+	}
+}
+
+/* Unlock devices from the bottom of the tree up */
+static void pci_slot_unlock(struct pci_slot *slot)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
+		if (!dev->slot || dev->slot != slot)
+			continue;
+		if (dev->subordinate)
+			pci_bus_unlock(dev->subordinate);
+		pci_dev_unlock(dev);
+	}
+}
+
+/* Save and disable devices from the top of the tree down */
+static void pci_bus_save_and_disable(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_dev_save_and_disable(dev);
+		if (dev->subordinate)
+			pci_bus_save_and_disable(dev->subordinate);
+	}
+}
+
+/*
+ * Restore devices from top of the tree down - parent bridges need to be
+ * restored before we can get to subordinate devices.
+ */
+static void pci_bus_restore(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_dev_restore(dev);
+		if (dev->subordinate)
+			pci_bus_restore(dev->subordinate);
+	}
+}
+
+/* Save and disable devices from the top of the tree down */
+static void pci_slot_save_and_disable(struct pci_slot *slot)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
+		if (!dev->slot || dev->slot != slot)
+			continue;
+		pci_dev_save_and_disable(dev);
+		if (dev->subordinate)
+			pci_bus_save_and_disable(dev->subordinate);
+	}
+}
+
+/*
+ * Restore devices from top of the tree down - parent bridges need to be
+ * restored before we can get to subordinate devices.
+ */
+static void pci_slot_restore(struct pci_slot *slot)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
+		if (!dev->slot || dev->slot != slot)
+			continue;
+		pci_dev_restore(dev);
+		if (dev->subordinate)
+			pci_bus_restore(dev->subordinate);
+	}
+}
+
+static int pci_slot_reset(struct pci_slot *slot, int probe)
+{
+	int rc;
+
+	if (!slot)
+		return -ENOTTY;
+
+	if (!probe)
+		pci_slot_lock(slot);
+
+	might_sleep();
+
+	rc = pci_reset_hotplug_slot(slot->hotplug, probe);
+
+	if (!probe)
+		pci_slot_unlock(slot);
+
+	return rc;
+}
+
+/**
+ * pci_reset_slot - reset a PCI slot
+ * @slot: PCI slot to reset
+ *
+ * A PCI bus may host multiple slots, each slot may support a reset mechanism
+ * independent of other slots.  For instance, some slots may support slot power
+ * control.  In the case of a 1:1 bus to slot architecture, this function may
+ * wrap the bus reset to avoid spurious slot related events such as hotplug.
+ * Generally a slot reset should be attempted before a bus reset.  All of the
+ * function of the slot and any subordinate buses behind the slot are reset
+ * through this function.  PCI config space of all devices in the slot and
+ * behind the slot is saved before and restored after reset.
+ *
+ * Return 0 on success, non-zero on error.
+ */
+int pci_reset_slot(struct pci_slot *slot)
+{
+	int rc;
+
+	rc = pci_slot_reset(slot, 1);
+	if (rc)
+		return rc;
+
+	pci_slot_save_and_disable(slot);
+
+	rc = pci_slot_reset(slot, 0);
+
+	pci_slot_restore(slot);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pci_reset_slot);
+
+static int pci_bus_reset(struct pci_bus *bus, int probe)
+{
+	if (!bus->self)
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	pci_bus_lock(bus);
+
+	might_sleep();
+
+	pci_reset_bridge_secondary_bus(bus->self);
+
+	pci_bus_unlock(bus);
+
+	return 0;
+}
+
+/**
+ * pci_reset_bus - reset a PCI bus
+ * @bus: top level PCI bus to reset
+ *
+ * Do a bus reset on the given bus and any subordinate buses, saving
+ * and restoring state of all devices.
+ *
+ * Return 0 on success, non-zero on error.
+ */
+int pci_reset_bus(struct pci_bus *bus)
+{
+	int rc;
+
+	rc = pci_bus_reset(bus, 1);
+	if (rc)
+		return rc;
+
+	pci_bus_save_and_disable(bus);
+
+	rc = pci_bus_reset(bus, 0);
+
+	pci_bus_restore(bus);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(pci_reset_bus);
+
 /**
  * pcix_get_max_mmrbc - get PCI-X maximum designed memory read byte count
  * @dev: PCI device to query
