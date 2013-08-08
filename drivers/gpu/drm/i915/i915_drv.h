@@ -201,7 +201,6 @@ struct intel_ddi_plls {
 #define DRIVER_MINOR		6
 #define DRIVER_PATCHLEVEL	0
 
-#define WATCH_COHERENCY	0
 #define WATCH_LISTS	0
 #define WATCH_GTT	0
 
@@ -2035,8 +2034,6 @@ int i915_verify_lists(struct drm_device *dev);
 #else
 #define i915_verify_lists(dev) 0
 #endif
-void i915_gem_object_check_coherency(struct drm_i915_gem_object *obj,
-				     int handle);
 
 /* i915_debugfs.c */
 int i915_debugfs_init(struct drm_minor *minor);
