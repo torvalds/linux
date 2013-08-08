@@ -74,7 +74,6 @@
 #include <linux/idr.h>
 
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
-#define __OS_HAS_MTRR (defined(CONFIG_MTRR))
 
 struct module;
 
@@ -139,7 +138,6 @@ int drm_err(const char *func, const char *format, ...);
 /* driver capabilities and requirements mask */
 #define DRIVER_USE_AGP     0x1
 #define DRIVER_REQUIRE_AGP 0x2
-#define DRIVER_USE_MTRR    0x4
 #define DRIVER_PCI_DMA     0x8
 #define DRIVER_SG          0x10
 #define DRIVER_HAVE_DMA    0x20
@@ -1218,15 +1216,6 @@ static inline int drm_dev_to_irq(struct drm_device *dev)
 {
 	return dev->driver->bus->get_irq(dev);
 }
-
-#if __OS_HAS_MTRR
-static inline int drm_core_has_MTRR(struct drm_device *dev)
-{
-	return drm_core_check_feature(dev, DRIVER_USE_MTRR);
-}
-#else
-#define drm_core_has_MTRR(dev) (0)
-#endif
 
 static inline void drm_device_set_unplugged(struct drm_device *dev)
 {

@@ -276,12 +276,11 @@ static int drm_pci_agp_init(struct drm_device *dev)
 			DRM_ERROR("Cannot initialize the agpgart module.\n");
 			return -EINVAL;
 		}
-		if (drm_core_has_MTRR(dev)) {
-			if (dev->agp)
-				dev->agp->agp_mtrr = arch_phys_wc_add(
-					dev->agp->agp_info.aper_base,
-					dev->agp->agp_info.aper_size *
-					1024 * 1024);
+		if (dev->agp) {
+			dev->agp->agp_mtrr = arch_phys_wc_add(
+				dev->agp->agp_info.aper_base,
+				dev->agp->agp_info.aper_size *
+				1024 * 1024);
 		}
 	}
 	return 0;
@@ -290,8 +289,7 @@ static int drm_pci_agp_init(struct drm_device *dev)
 static void drm_pci_agp_destroy(struct drm_device *dev)
 {
 	if (drm_core_has_AGP(dev) && dev->agp) {
-		if (drm_core_has_MTRR(dev))
-			arch_phys_wc_del(dev->agp->agp_mtrr);
+		arch_phys_wc_del(dev->agp->agp_mtrr);
 		drm_agp_clear(dev);
 		drm_agp_destroy(dev->agp);
 		dev->agp = NULL;
