@@ -1223,7 +1223,7 @@ static struct tegra_cpu_car_ops tegra20_cpu_car_ops = {
 #endif
 };
 
-static __initdata struct tegra_clk_init_table init_table[] = {
+static struct tegra_clk_init_table init_table[] __initdata = {
 	{pll_p, clk_max, 216000000, 1},
 	{pll_p_out1, clk_max, 28800000, 1},
 	{pll_p_out2, clk_max, 48000000, 1},
