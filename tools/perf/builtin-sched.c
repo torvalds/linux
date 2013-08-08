@@ -1445,7 +1445,7 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_
 	return err;
 }
 
-static int perf_sched__read_events(struct perf_sched *sched, bool destroy,
+static int perf_sched__read_events(struct perf_sched *sched,
 				   struct perf_session **psession)
 {
 	const struct perf_evsel_str_handler handlers[] = {
@@ -1480,11 +1480,10 @@ static int perf_sched__read_events(struct perf_sched *sched, bool destroy,
 		sched->nr_lost_chunks = session->stats.nr_events[PERF_RECORD_LOST];
 	}
 
-	if (destroy)
-		perf_session__delete(session);
-
 	if (psession)
 		*psession = session;
+	else
+		perf_session__delete(session);
 
 	return 0;
 
@@ -1529,8 +1528,11 @@ static int perf_sched__lat(struct perf_sched *sched)
 	struct perf_session *session;
 
 	setup_pager();
-	if (perf_sched__read_events(sched, false, &session))
+
+	/* save session -- references to threads are held in work_list */
+	if (perf_sched__read_events(sched, &session))
 		return -1;
+
 	perf_sched__sort_lat(sched);
 
 	printf("\n ---------------------------------------------------------------------------------------------------------------\n");
@@ -1565,7 +1567,7 @@ static int perf_sched__map(struct perf_sched *sched)
 	sched->max_cpu = sysconf(_SC_NPROCESSORS_CONF);
 
 	setup_pager();
-	if (perf_sched__read_events(sched, true, NULL))
+	if (perf_sched__read_events(sched, NULL))
 		return -1;
 	print_bad_events(sched);
 	return 0;
@@ -1580,7 +1582,7 @@ static int perf_sched__replay(struct perf_sched *sched)
 
 	test_calibrations(sched);
 
-	if (perf_sched__read_events(sched, true, NULL))
+	if (perf_sched__read_events(sched, NULL))
 		return -1;
 
 	printf("nr_run_events:        %ld\n", sched->nr_run_events);
