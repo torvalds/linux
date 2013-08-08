@@ -5121,39 +5121,44 @@ static void si_enable_mc_ls(struct radeon_device *rdev,
 
 static void si_init_cg(struct radeon_device *rdev)
 {
-	si_enable_mgcg(rdev, true);
-	si_enable_cgcg(rdev, false);
-	/* disable MC LS on Tahiti */
-	if (rdev->family == CHIP_TAHITI)
+	if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_MGCG)
+		si_enable_mgcg(rdev, true);
+	if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGCG)
+		si_enable_cgcg(rdev, false/*true*/);
+	/* Disable MC LS on tahiti */
+	if (!(rdev->cg_flags & RADEON_CG_SUPPORT_MC_LS))
 		si_enable_mc_ls(rdev, false);
 	if (rdev->has_uvd) {
-		si_enable_uvd_mgcg(rdev, true);
+		if (rdev->cg_flags & RADEON_CG_SUPPORT_UVD_MGCG)
+			si_enable_uvd_mgcg(rdev, true);
 		si_init_uvd_internal_cg(rdev);
 	}
 }
 
 static void si_fini_cg(struct radeon_device *rdev)
 {
-	if (rdev->has_uvd)
-		si_enable_uvd_mgcg(rdev, false);
-	si_enable_cgcg(rdev, false);
-	si_enable_mgcg(rdev, false);
+	if (rdev->has_uvd) {
+		if (rdev->cg_flags & RADEON_CG_SUPPORT_UVD_MGCG)
+			si_enable_uvd_mgcg(rdev, false);
+	}
+	if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGCG)
+		si_enable_cgcg(rdev, false);
+	if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_MGCG)
+		si_enable_mgcg(rdev, false);
 }
 
 static void si_init_pg(struct radeon_device *rdev)
 {
-	bool has_pg = false;
-#if 0
-	/* only cape verde supports PG */
-	if (rdev->family == CHIP_VERDE)
-		has_pg = true;
-#endif
-	if (has_pg) {
+	if (rdev->pg_flags) {
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_SDMA) {
+			si_init_dma_pg(rdev);
+			si_enable_dma_pg(rdev, true);
+		}
 		si_init_ao_cu_mask(rdev);
-		si_init_dma_pg(rdev);
-		si_enable_dma_pg(rdev, true);
-		si_init_gfx_cgpg(rdev);
-		si_enable_gfx_cgpg(rdev, true);
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG) {
+			si_init_gfx_cgpg(rdev);
+			si_enable_gfx_cgpg(rdev, true);
+		}
 	} else {
 		WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
 		WREG32(RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
@@ -5162,15 +5167,11 @@ static void si_init_pg(struct radeon_device *rdev)
 
 static void si_fini_pg(struct radeon_device *rdev)
 {
-	bool has_pg = false;
-
-	/* only cape verde supports PG */
-	if (rdev->family == CHIP_VERDE)
-		has_pg = true;
-
-	if (has_pg) {
-		si_enable_dma_pg(rdev, false);
-		si_enable_gfx_cgpg(rdev, false);
+	if (rdev->pg_flags) {
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_SDMA)
+			si_enable_dma_pg(rdev, false);
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG)
+			si_enable_gfx_cgpg(rdev, false);
 	}
 }
 
