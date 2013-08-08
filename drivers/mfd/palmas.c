@@ -229,6 +229,32 @@ static void palmas_dt_to_pdata(struct i2c_client *i2c,
 					PALMAS_POWER_CTRL_ENABLE2_MASK;
 	if (i2c->irq)
 		palmas_set_pdata_irq_flag(i2c, pdata);
+
+	pdata->pm_off = of_property_read_bool(node,
+			"ti,system-power-controller");
+}
+
+static struct palmas *palmas_dev;
+static void palmas_power_off(void)
+{
+	unsigned int addr;
+	int ret, slave;
+
+	if (!palmas_dev)
+		return;
+
+	slave = PALMAS_BASE_TO_SLAVE(PALMAS_PMU_CONTROL_BASE);
+	addr = PALMAS_BASE_TO_REG(PALMAS_PMU_CONTROL_BASE, PALMAS_DEV_CTRL);
+
+	ret = regmap_update_bits(
+			palmas_dev->regmap[slave],
+			addr,
+			PALMAS_DEV_CTRL_DEV_ON,
+			0);
+
+	if (ret)
+		pr_err("%s: Unable to write to DEV_CTRL_DEV_ON: %d\n",
+				__func__, ret);
 }
 
 static unsigned int palmas_features = PALMAS_PMIC_FEATURE_SMPS10_BOOST;
@@ -423,10 +449,13 @@ no_irq:
 	 */
 	if (node) {
 		ret = of_platform_populate(node, NULL, NULL, &i2c->dev);
-		if (ret < 0)
+		if (ret < 0) {
 			goto err_irq;
-		else
+		} else if (pdata->pm_off && !pm_power_off) {
+			palmas_dev = palmas;
+			pm_power_off = palmas_power_off;
 			return ret;
+		}
 	}
 
 	return ret;
