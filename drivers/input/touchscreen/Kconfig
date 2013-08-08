@@ -943,4 +943,15 @@ config TOUCHSCREEN_ZFORCE
 	  To compile this driver as a module, choose M here: the
 	  module will be called zforce_ts.
 
+config TOUCHSCREEN_MXT224E
+	tristate "Atmel mXT224E based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a TPS6507x based touchscreen
+	  controller.
+
+	  If unsure, say N.
+
+	  module will be called atmel_mXT224E.
+
 endif
