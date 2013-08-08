@@ -47,7 +47,7 @@
 #define MAX_CALLID 65535
 
 static DECLARE_BITMAP(callid_bitmap, MAX_CALLID + 1);
-static struct pppox_sock **callid_sock;
+static struct pppox_sock __rcu **callid_sock;
 
 static DEFINE_SPINLOCK(chan_lock);
 
