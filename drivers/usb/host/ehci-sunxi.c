@@ -290,10 +290,10 @@ static int sw_ehci_hcd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, hcd);
 
-	pr_debug("[%s]: probe, clock: 0x60(0x%x), 0xcc(0x%x);"
+	pr_debug("[%s]: probe, clock: SW_VA_CCM_AHBMOD_OFFSET(0x%x), SW_VA_CCM_USBCLK_OFFSET(0x%x);"
 	     " usb: 0x800(0x%x), dram:(0x%x, 0x%x)\n",
-	     sw_ehci->hci_name, (u32) USBC_Readl(sw_ehci->clock_vbase + 0x60),
-	     (u32) USBC_Readl(sw_ehci->clock_vbase + 0xcc),
+	     sw_ehci->hci_name, (u32) USBC_Readl(sw_ehci->clock_vbase + SW_VA_CCM_AHBMOD_OFFSET),
+	     (u32) USBC_Readl(sw_ehci->clock_vbase + SW_VA_CCM_USBCLK_OFFSET),
 	     (u32) USBC_Readl(sw_ehci->usb_vbase + 0x800),
 	     (u32) USBC_Readl(sw_ehci->sdram_vbase + SW_SDRAM_REG_HPCR_USB1),
 	     (u32) USBC_Readl(sw_ehci->sdram_vbase + SW_SDRAM_REG_HPCR_USB2));
