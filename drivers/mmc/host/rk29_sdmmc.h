@@ -68,6 +68,59 @@
 #define SDMMC_DATA            SDMMC_FIFO_BASE
 #endif
 
+struct sdmmc_reg
+{
+  u32      addr;
+  char   * name;
+};
+
+static struct sdmmc_reg rk_sdmmc_regs[] =
+{
+  { 0x0000, "      CTRL" },
+  { 0x0004, "     PWREN" },
+  { 0x0008, "    CLKDIV" },
+  { 0x000C, "    CLKSRC" },
+  { 0x0010, "    CLKENA" },
+  { 0x0014, "     TMOUT" },
+  { 0x0018, "     CTYPE" },
+  { 0x001C, "    BLKSIZ" },
+  { 0x0020, "    BYTCNT" },
+  { 0x0024, "    INTMSK" },
+  { 0x0028, "    CMDARG" },
+  { 0x002C, "       CMD" },
+  { 0x0030, "     RESP0" },
+  { 0x0034, "     RESP1" },
+  { 0x0038, "     RESP2" },
+  { 0x003C, "     RESP3" },
+  { 0x0040, "    MINSTS" },
+  { 0x0044, "   RINTSTS" },
+  { 0x0048, "    STATUS" },
+  { 0x004C, "    FIFOTH" },
+  { 0x0050, "   CDETECT" },
+  { 0x0054, "    WRTPRT" },
+  { 0x0058, "      GPIO" },
+  { 0x005C, "    TCBCNT" },
+  { 0x0060, "    TBBCNT" },
+  { 0x0064, "    DEBNCE" },
+  { 0x0068, "     USRID" },
+#if !defined(CONFIG_ARCH_RK29)  
+  { 0x006C, "     VERID" },
+  { 0x0070, "      HCON" },
+  { 0x0074, "   UHS_REG" },
+  { 0x0078, "     RST_n" },
+  { 0x0080, "      BMOD" },
+  { 0x0084, "    PLDMND" },
+  { 0x0088, "    DBADDR" },
+  { 0x008C, "     IDSTS" },
+  { 0x0090, "   IDINTEN" },
+  { 0x0094, "   DSCADDR" },
+  { 0x0098, "   BUFADDR" },
+  { 0x0100, "CARDTHRCTL" },
+  { 0x0104, "BackEndPwr" },
+#endif  
+  { 0, 0 }
+};
+
 #define BIT(n)				(1<<(n))
 #define RK_CLEAR_BIT(n)		        (0<<(n))
 
@@ -102,7 +155,7 @@
 #define SDMMC_CLKEN_LOW_PWR      BIT(16)
 #define SDMMC_CLKEN_NO_LOW_PWR   RK_CLEAR_BIT(16)   //low-power mode disabled
 #define SDMMC_CLKEN_ENABLE       BIT(0)
-#define SDMMC_CLKEN_DISABLE      RK_CLEAR_BIT(16)   //clock disabled
+#define SDMMC_CLKEN_DISABLE      RK_CLEAR_BIT(0)   //clock disabled
 
 /* time-out register defines(base+0x14) */
 #define SDMMC_TMOUT_DATA(n)      _SBF(8, (n))
@@ -186,8 +239,9 @@
 #define SDMMC_STAUTS_FIFO_EMPTY	    BIT(2)          //FIFO is empty status
 
 /* Status register defines */
-#define SDMMC_GET_FCNT(x)           (((x)>>17) & 0x1FF)//fifo_count, numbers of filled locations in FIFO
+#define SDMMC_GET_FCNT(x)           (((x)>>17) & 0x1FFF)//fifo_count, numbers of filled locations in FIFO
 #define SDMMC_FIFO_SZ               32
+#define PIO_DATA_SHIFT              2
 
 
 /* FIFO Register (base + 0x4c)*/
@@ -308,13 +362,239 @@
 #define SDM_WAIT_FOR_CMDSTART_TIMEOUT   (12)  
 #define SDM_WAIT_FOR_FIFORESET_TIMEOUT  (13)  
 
-
-
 #define FALSE			0
 #define TRUE			1
 
-
 #define DEBOUNCE_TIME         (25)     //uint is ms, recommend 5--25ms
+
+#if defined(CONFIG_ARCH_RK29)
+#define SDMMC_USE_INT_UNBUSY     0
+#else
+#define SDMMC_USE_INT_UNBUSY     0///1 
+#endif
+
+/*
+** You can set the macro to true, if some module wants to use this feature, which is about SDIO suspend-resume.
+** As the following example.
+** added by xbw at 2013-05-08
+*/
+#if defined(CONFIG_MTK_COMBO_DRIVER_VERSION_JB2)
+#define RK_SDMMC_USE_SDIO_SUSPEND_RESUME    1
+#else
+#define RK_SDMMC_USE_SDIO_SUSPEND_RESUME    0
+#endif
+
+#define RK29_SDMMC_ERROR_FLAGS		(SDMMC_INT_FRUN | SDMMC_INT_HLE )
+
+#if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+    #if SDMMC_USE_INT_UNBUSY
+    #define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_UNBUSY |RK29_SDMMC_ERROR_FLAGS )
+    #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_UNBUSY |RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_TXDR | SDMMC_INT_RXDR )
+    #else
+    #define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS )
+    #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_TXDR | SDMMC_INT_RXDR )
+    #endif
+#else
+    #if SDMMC_USE_INT_UNBUSY
+    #define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_UNBUSY |RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD)
+    #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_UNBUSY |RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD| SDMMC_INT_TXDR | SDMMC_INT_RXDR )
+    #else
+    #define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD)
+    #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD| SDMMC_INT_TXDR | SDMMC_INT_RXDR )
+    #endif
+#endif
+
+#define RK29_SDMMC_SEND_START_TIMEOUT   3000  //The time interval from the time SEND_CMD to START_CMD_BIT cleared.
+#define RK29_ERROR_PRINTK_INTERVAL      200   //The time interval between the two printk for the same error. 
+#define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
+#define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
+
+//#define RK29_SDMMC_VERSION "Ver.6.00 The last modify date is 2013-08-02"
+
+#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
+#define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
+#define RK29_CTRL_SDIO1_ID   1  //mainly used by sdio-wifi
+#define RK29_CTRL_SDIO2_ID   2  //mainly used by sdio-card
+#else
+#define RK29_CTRL_SDMMC_ID   5  
+#define RK29_CTRL_SDIO1_ID   1  
+#define RK29_CTRL_SDIO2_ID   2  
+#endif
+
+#define SDMMC_CLOCK_TEST     0
+
+#define RK29_SDMMC_NOTIFY_REMOVE_INSERTION /* use sysfs to notify the removal or insertion of sd-card*/
+//#define RK29_SDMMC_LIST_QUEUE            /* use list-queue for multi-card*/
+
+//support Internal DMA 
+#if 0 //Sometime in the future to enable
+#define DRIVER_SDMMC_USE_IDMA 1
+#else
+#define DRIVER_SDMMC_USE_IDMA 0
+#endif
+
+
+enum {
+	EVENT_CMD_COMPLETE = 0,
+	EVENT_DATA_COMPLETE,
+	EVENT_DATA_UNBUSY,
+	EVENT_DATA_ERROR,
+	EVENT_XFER_ERROR
+};
+
+enum rk29_sdmmc_state {
+	STATE_IDLE = 0,
+	STATE_SENDING_CMD,
+	STATE_DATA_BUSY,
+	STATE_DATA_UNBUSY,
+	STATE_DATA_END,
+	STATE_SENDING_STOP,
+};
+
+struct rk29_sdmmc_dma_info {
+	enum dma_ch chn;
+	char *name;
+	struct rk29_dma_client client;
+};
+
+static struct rk29_sdmmc_dma_info rk29_sdmmc_dma_infos[]= {
+	{
+		.chn = DMACH_SDMMC,
+		.client = {
+			.name = "rk29-dma-sdmmc0",
+		}
+	},
+	{
+		.chn = DMACH_SDIO,
+		.client = {
+			.name = "rk29-dma-sdio1",
+		}
+	},
+
+	{
+		.chn = DMACH_EMMC,
+		.client = {
+			.name = "rk29-dma-sdio2",
+		}
+	},
+};
+
+
+/* Interrupt Information */
+typedef struct TagSDC_INT_INFO
+{
+    u32     transLen;               //the length of data sent.
+    u32     desLen;                 //the total length of the all data.
+    u32    *pBuf;                   //the data buffer for interrupt read or write.
+}SDC_INT_INFO_T;
+
+
+struct rk29_sdmmc {
+	spinlock_t		lock;
+	void __iomem	*regs;
+	struct clk 		*clk;
+
+	struct mmc_request	*mrq;
+	struct mmc_request	*new_mrq;
+	struct mmc_command	*cmd;
+	struct mmc_data		*data;	
+	struct scatterlist	*sg;
+	unsigned int		pio_offset;
+
+	dma_addr_t		dma_addr;;
+	unsigned int	use_dma:1;
+	char			dma_name[8];
+	u32			cmd_status;
+	u32			data_status;
+	u32			stop_cmdr;
+
+    u32         old_div;
+	u32			cmdr;   //the value setted into command-register
+	u32			dodma;  //sign the DMA used for transfer.
+	u32         errorstep;//record the error point.
+	int         timeout_times;  //use to force close the sdmmc0 when the timeout_times exceeds the limit.
+	u32         *pbuf;
+	SDC_INT_INFO_T    intInfo; 
+    struct rk29_sdmmc_dma_info 	dma_info;
+    int         irq;
+	int error_times;
+	u32 old_cmd;
+	
+	struct tasklet_struct	tasklet;
+	unsigned long		pending_events;
+	unsigned long		completed_events;
+	enum rk29_sdmmc_state	state;
+
+#ifdef RK29_SDMMC_LIST_QUEUE
+	struct list_head	queue;
+	struct list_head	queue_node;
+#endif
+
+	u32			bus_hz;
+	struct platform_device	*pdev;
+	struct mmc_host		*mmc;
+	u32			ctype;
+	unsigned int		clock;
+	unsigned long		flags;
+	
+#define RK29_SDMMC_CARD_PRESENT	0
+
+	int			id;
+
+	struct timer_list	detect_timer; 
+	struct timer_list	request_timer; //the timer for INT_CMD_DONE
+	struct timer_list	DTO_timer;     //the timer for INT_DTO
+	struct mmc_command	stopcmd;
+    struct rksdmmc_gpio det_pin;
+
+	/* flag for current bus settings */
+    u32 bus_mode;
+
+    unsigned int            oldstatus;
+    unsigned int            complete_done;
+    unsigned int            retryfunc;
+    
+    int gpio_irq;
+	int gpio_power_en;
+	int gpio_power_en_level;
+	struct delayed_work		work;
+
+#ifdef CONFIG_RK29_SDIO_IRQ_FROM_GPIO
+    unsigned int sdio_INT_gpio;
+    unsigned int sdio_irq;
+    unsigned long trigger_level;
+#endif
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT) || defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    int write_protect;
+    int protect_level;
+#endif
+
+	bool			irq_state;
+    void (*set_iomux)(int device_id, unsigned int bus_width);
+
+    /* FIFO push and pull */
+    int         data_shift;
+    void (*push_data)(struct rk29_sdmmc *host, void *buf, int cnt);
+    void (*pull_data)(struct rk29_sdmmc *host, void *buf, int cnt);
+};
+
+
+#ifdef RK29_SDMMC_NOTIFY_REMOVE_INSERTION
+static struct rk29_sdmmc    *globalSDhost[3];
+#endif
+
+#define rk29_sdmmc_test_and_clear_pending(host, event)		\
+	test_and_clear_bit(event, &host->pending_events)
+#define rk29_sdmmc_test_pending(host, event)		\
+	test_bit(event, &host->pending_events)
+#define rk29_sdmmc_test_completed(host, event)           \
+        test_bit(event, &host->completed_events)       
+#define rk29_sdmmc_set_completed(host, event)			\
+	set_bit(event, &host->completed_events)
+#define rk29_sdmmc_set_pending(host, event)				\
+	set_bit(event, &host->pending_events)
+
 
 
 #endif
