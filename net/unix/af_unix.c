@@ -1479,7 +1479,8 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 				 MAX_SKB_FRAGS * PAGE_SIZE);
 
 	skb = sock_alloc_send_pskb(sk, len - data_len, data_len,
-				   msg->msg_flags & MSG_DONTWAIT, &err);
+				   msg->msg_flags & MSG_DONTWAIT, &err,
+				   PAGE_ALLOC_COSTLY_ORDER);
 	if (skb == NULL)
 		goto out;
 
@@ -1651,7 +1652,8 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		data_len = max_t(int, 0, size - SKB_MAX_HEAD(0));
 
 		skb = sock_alloc_send_pskb(sk, size - data_len, data_len,
-					   msg->msg_flags & MSG_DONTWAIT, &err);
+					   msg->msg_flags & MSG_DONTWAIT, &err,
+					   get_order(UNIX_SKB_FRAGS_SZ));
 		if (!skb)
 			goto out_err;
 
