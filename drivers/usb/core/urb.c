@@ -416,7 +416,8 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			urb->iso_frame_desc[n].status = -EXDEV;
 			urb->iso_frame_desc[n].actual_length = 0;
 		}
-	} else if (dev->speed != USB_SPEED_WIRELESS && urb->num_sgs) {
+	} else if (urb->num_sgs && !urb->dev->bus->no_sg_constraint &&
+			dev->speed != USB_SPEED_WIRELESS) {
 		struct scatterlist *sg;
 		int i;
 
