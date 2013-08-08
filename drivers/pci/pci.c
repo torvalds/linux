@@ -3332,6 +3332,13 @@ static void pci_dev_unlock(struct pci_dev *dev)
 
 static void pci_dev_save_and_disable(struct pci_dev *dev)
 {
+	/*
+	 * Wake-up device prior to save.  PM registers default to D0 after
+	 * reset and a simple register restore doesn't reliably return
+	 * to a non-D0 state anyway.
+	 */
+	pci_set_power_state(dev, PCI_D0);
+
 	pci_save_state(dev);
 	/*
 	 * Disable the device by clearing the Command register, except for
