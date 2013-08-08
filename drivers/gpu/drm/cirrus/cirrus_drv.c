@@ -85,7 +85,6 @@ static const struct file_operations cirrus_driver_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
 #endif
-	.fasync = drm_fasync,
 };
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_USE_MTRR,

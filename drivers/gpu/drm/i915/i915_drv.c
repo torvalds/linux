@@ -994,7 +994,6 @@ static const struct file_operations i915_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 	.read = drm_read,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = i915_compat_ioctl,

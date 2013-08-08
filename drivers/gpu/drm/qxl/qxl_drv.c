@@ -86,7 +86,6 @@ static const struct file_operations qxl_fops = {
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 	.mmap = qxl_mmap,
 };
 

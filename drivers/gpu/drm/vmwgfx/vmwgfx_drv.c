@@ -1129,7 +1129,6 @@ static const struct file_operations vmwgfx_driver_fops = {
 	.mmap = vmw_mmap,
 	.poll = vmw_fops_poll,
 	.read = vmw_fops_read,
-	.fasync = drm_fasync,
 #if defined(CONFIG_COMPAT)
 	.compat_ioctl = drm_compat_ioctl,
 #endif

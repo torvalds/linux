@@ -583,7 +583,6 @@ static const struct file_operations omapdriver_fops = {
 		.release = drm_release,
 		.mmap = omap_gem_mmap,
 		.poll = drm_poll,
-		.fasync = drm_fasync,
 		.read = drm_read,
 		.llseek = noop_llseek,
 };

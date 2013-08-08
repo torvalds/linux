@@ -267,7 +267,6 @@ static const struct file_operations shmob_drm_fops = {
 #endif
 	.poll		= drm_poll,
 	.read		= drm_read,
-	.fasync		= drm_fasync,
 	.llseek		= no_llseek,
 	.mmap		= drm_gem_cma_mmap,
 };

@@ -500,7 +500,6 @@ static const struct file_operations tegra_drm_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = tegra_drm_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 	.read = drm_read,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,

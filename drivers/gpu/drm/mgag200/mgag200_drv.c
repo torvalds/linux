@@ -81,7 +81,6 @@ static const struct file_operations mgag200_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = mgag200_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
 #endif
