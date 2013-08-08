@@ -91,9 +91,14 @@ static unsigned int clk_get_cpu_rate(unsigned int cpu)
 
 static unsigned int bL_cpufreq_get_rate(unsigned int cpu)
 {
-	pr_debug("%s: freq: %d\n", __func__, per_cpu(cpu_last_req_freq, cpu));
+	if (is_bL_switching_enabled()) {
+		pr_debug("%s: freq: %d\n", __func__, per_cpu(cpu_last_req_freq,
+					cpu));
 
-	return per_cpu(cpu_last_req_freq, cpu);
+		return per_cpu(cpu_last_req_freq, cpu);
+	} else {
+		return clk_get_cpu_rate(cpu);
+	}
 }
 
 static unsigned int
@@ -101,14 +106,15 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 {
 	u32 new_rate, prev_rate;
 	int ret;
+	bool bLs = is_bL_switching_enabled();
 
 	mutex_lock(&cluster_lock[new_cluster]);
 
-	prev_rate = per_cpu(cpu_last_req_freq, cpu);
-	per_cpu(cpu_last_req_freq, cpu) = rate;
-	per_cpu(physical_cluster, cpu) = new_cluster;
+	if (bLs) {
+		prev_rate = per_cpu(cpu_last_req_freq, cpu);
+		per_cpu(cpu_last_req_freq, cpu) = rate;
+		per_cpu(physical_cluster, cpu) = new_cluster;
 
-	if (is_bL_switching_enabled()) {
 		new_rate = find_cluster_maxfreq(new_cluster);
 		new_rate = ACTUAL_FREQ(new_cluster, new_rate);
 	} else {
@@ -122,8 +128,10 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 	if (WARN_ON(ret)) {
 		pr_err("clk_set_rate failed: %d, new cluster: %d\n", ret,
 				new_cluster);
-		per_cpu(cpu_last_req_freq, cpu) = prev_rate;
-		per_cpu(physical_cluster, cpu) = old_cluster;
+		if (bLs) {
+			per_cpu(cpu_last_req_freq, cpu) = prev_rate;
+			per_cpu(physical_cluster, cpu) = old_cluster;
+		}
 
 		mutex_unlock(&cluster_lock[new_cluster]);
 
@@ -463,7 +471,9 @@ static int bL_cpufreq_init(struct cpufreq_policy *policy)
 		policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 
 	policy->cur = clk_get_cpu_rate(policy->cpu);
-	per_cpu(cpu_last_req_freq, policy->cpu) = policy->cur;
+
+	if (is_bL_switching_enabled())
+		per_cpu(cpu_last_req_freq, policy->cpu) = policy->cur;
 
 	dev_info(cpu_dev, "%s: CPU %d initialized\n", __func__, policy->cpu);
 	return 0;
