@@ -1316,9 +1316,11 @@ static bool tcp_fastopen_check(struct sock *sk, struct sk_buff *skb,
 		tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 		return true;
 	}
+
 	if (foc->len == TCP_FASTOPEN_COOKIE_SIZE) {
 		if ((sysctl_tcp_fastopen & TFO_SERVER_COOKIE_NOT_CHKED) == 0) {
-			tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr, valid_foc);
+			tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
+						ip_hdr(skb)->daddr, valid_foc);
 			if ((valid_foc->len != TCP_FASTOPEN_COOKIE_SIZE) ||
 			    memcmp(&foc->val[0], &valid_foc->val[0],
 			    TCP_FASTOPEN_COOKIE_SIZE) != 0)
@@ -1329,14 +1331,16 @@ static bool tcp_fastopen_check(struct sock *sk, struct sk_buff *skb,
 		tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 		return true;
 	} else if (foc->len == 0) { /* Client requesting a cookie */
-		tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr, valid_foc);
+		tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
+					ip_hdr(skb)->daddr, valid_foc);
 		NET_INC_STATS_BH(sock_net(sk),
 		    LINUX_MIB_TCPFASTOPENCOOKIEREQD);
 	} else {
 		/* Client sent a cookie with wrong size. Treat it
 		 * the same as invalid and return a valid one.
 		 */
-		tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr, valid_foc);
+		tcp_fastopen_cookie_gen(ip_hdr(skb)->saddr,
+					ip_hdr(skb)->daddr, valid_foc);
 	}
 	return false;
 }

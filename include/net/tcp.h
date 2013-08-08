@@ -1300,7 +1300,8 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 
 extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
 int tcp_fastopen_reset_cipher(void *key, unsigned int len);
-void tcp_fastopen_cookie_gen(__be32 addr, struct tcp_fastopen_cookie *foc);
+extern void tcp_fastopen_cookie_gen(__be32 src, __be32 dst,
+				    struct tcp_fastopen_cookie *foc);
 
 #define TCP_FASTOPEN_KEY_LENGTH 16
 
