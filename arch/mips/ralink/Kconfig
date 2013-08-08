@@ -29,6 +29,8 @@ choice
 
 	config SOC_MT7620
 		bool "MT7620"
+		select USB_ARCH_HAS_OHCI
+		select USB_ARCH_HAS_EHCI
 
 endchoice
 
