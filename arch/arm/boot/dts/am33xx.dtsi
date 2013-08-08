@@ -684,6 +684,15 @@
 			status = "disabled";
 		};
 
+		lcdc: lcdc@4830e000 {
+			compatible = "ti,am33xx-tilcdc";
+			reg = <0x4830e000 0x1000>;
+			interrupt-parent = <&intc>;
+			interrupts = <36>;
+			ti,hwmods = "lcdc";
+			status = "disabled";
+		};
+
 		tscadc: tscadc@44e0d000 {
 			compatible = "ti,am3359-tscadc";
 			reg = <0x44e0d000 0x1000>;
