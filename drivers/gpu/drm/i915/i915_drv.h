@@ -1677,7 +1677,6 @@ extern void intel_pm_init(struct drm_device *dev);
 extern void intel_uncore_sanitize(struct drm_device *dev);
 extern void intel_uncore_early_sanitize(struct drm_device *dev);
 extern void intel_uncore_init(struct drm_device *dev);
-extern void intel_uncore_reset(struct drm_device *dev);
 extern void intel_uncore_clear_errors(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
 
@@ -1843,9 +1842,6 @@ static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 
 void i915_gem_reset(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj);
-int __must_check i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
-					    uint32_t read_domains,
-					    uint32_t write_domain);
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
@@ -2034,8 +2030,6 @@ void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
 void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
 
 /* i915_gem_debug.c */
-void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
-			  const char *where, uint32_t mark);
 #if WATCH_LISTS
 int i915_verify_lists(struct drm_device *dev);
 #else
@@ -2043,8 +2037,6 @@ int i915_verify_lists(struct drm_device *dev);
 #endif
 void i915_gem_object_check_coherency(struct drm_i915_gem_object *obj,
 				     int handle);
-void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
-			  const char *where, uint32_t mark);
 
 /* i915_debugfs.c */
 int i915_debugfs_init(struct drm_minor *minor);
