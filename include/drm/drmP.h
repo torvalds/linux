@@ -1390,8 +1390,8 @@ extern int drm_mapbufs(struct drm_device *dev, void *data,
 extern int drm_order(unsigned long size);
 
 				/* DMA support (drm_dma.h) */
-extern int drm_dma_setup(struct drm_device *dev);
-extern void drm_dma_takedown(struct drm_device *dev);
+extern int drm_legacy_dma_setup(struct drm_device *dev);
+extern void drm_legacy_dma_takedown(struct drm_device *dev);
 extern void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf);
 extern void drm_core_reclaim_buffers(struct drm_device *dev,
 				     struct drm_file *filp);

@@ -204,9 +204,7 @@ int drm_lastclose(struct drm_device * dev)
 		kfree(vma);
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA) &&
-	    !drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_dma_takedown(dev);
+	drm_legacy_dma_takedown(dev);
 
 	dev->dev_mapping = NULL;
 	mutex_unlock(&dev->struct_mutex);
