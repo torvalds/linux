@@ -3512,6 +3512,7 @@ done:
  * fastest domain first.
  */
 DEFINE_PER_CPU(struct hmp_domain *, hmp_cpu_domain);
+static const int hmp_max_tasks = 5;
 
 extern void __init arch_get_hmp_domains(struct list_head *hmp_domains_list);
 
@@ -3575,6 +3576,78 @@ static void hmp_offline_cpu(int cpu)
 
 	if(domain)
 		cpumask_clear_cpu(cpu, &domain->cpus);
+}
+/*
+ * Needed to determine heaviest tasks etc.
+ */
+static inline unsigned int hmp_cpu_is_fastest(int cpu);
+static inline unsigned int hmp_cpu_is_slowest(int cpu);
+static inline struct hmp_domain *hmp_slower_domain(int cpu);
+static inline struct hmp_domain *hmp_faster_domain(int cpu);
+
+/* must hold runqueue lock for queue se is currently on */
+static struct sched_entity *hmp_get_heaviest_task(
+				struct sched_entity *se, int migrate_up)
+{
+	int num_tasks = hmp_max_tasks;
+	struct sched_entity *max_se = se;
+	unsigned long int max_ratio = se->avg.load_avg_ratio;
+	const struct cpumask *hmp_target_mask = NULL;
+
+	if (migrate_up) {
+		struct hmp_domain *hmp;
+		if (hmp_cpu_is_fastest(cpu_of(se->cfs_rq->rq)))
+			return max_se;
+
+		hmp = hmp_faster_domain(cpu_of(se->cfs_rq->rq));
+		hmp_target_mask = &hmp->cpus;
+	}
+
+	while (num_tasks && se) {
+		if (entity_is_task(se) &&
+			(se->avg.load_avg_ratio > max_ratio &&
+			 hmp_target_mask &&
+			 cpumask_intersects(hmp_target_mask,
+				tsk_cpus_allowed(task_of(se))))) {
+			max_se = se;
+			max_ratio = se->avg.load_avg_ratio;
+		}
+		se = __pick_next_entity(se);
+		num_tasks--;
+	}
+	return max_se;
+}
+
+static struct sched_entity *hmp_get_lightest_task(
+				struct sched_entity *se, int migrate_down)
+{
+	int num_tasks = hmp_max_tasks;
+	struct sched_entity *min_se = se;
+	unsigned long int min_ratio = se->avg.load_avg_ratio;
+	const struct cpumask *hmp_target_mask = NULL;
+
+	if (migrate_down) {
+		struct hmp_domain *hmp;
+		if (hmp_cpu_is_slowest(cpu_of(se->cfs_rq->rq)))
+			return min_se;
+
+		hmp = hmp_slower_domain(cpu_of(se->cfs_rq->rq));
+		hmp_target_mask = &hmp->cpus;
+	}
+
+	while (num_tasks && se) {
+		if (entity_is_task(se) &&
+			(se->avg.load_avg_ratio < min_ratio &&
+			hmp_target_mask &&
+				cpumask_intersects(hmp_target_mask,
+				tsk_cpus_allowed(task_of(se))))) {
+			min_se = se;
+			min_ratio = se->avg.load_avg_ratio;
+		}
+		se = __pick_next_entity(se);
+		num_tasks--;
+	}
+	return min_se;
 }
 
 /*
@@ -3665,7 +3738,15 @@ static inline unsigned int hmp_select_slower_cpu(struct task_struct *tsk,
 							int cpu)
 {
 	int lowest_cpu=NR_CPUS;
-	__always_unused int lowest_ratio = hmp_domain_min_load(hmp_slower_domain(cpu), &lowest_cpu);
+	struct hmp_domain *hmp;
+	__always_unused int lowest_ratio;
+
+	if (hmp_cpu_is_slowest(cpu))
+		hmp = hmp_cpu_domain(cpu);
+	else
+		hmp = hmp_slower_domain(cpu);
+
+	lowest_ratio = hmp_domain_min_load(hmp, &lowest_cpu);
 	/*
 	 * If the lowest-loaded CPU in the domain is allowed by the task affinity
 	 * select that one, otherwise select one which is allowed
@@ -6585,7 +6666,7 @@ static DEFINE_SPINLOCK(hmp_force_migration);
 static void hmp_force_up_migration(int this_cpu)
 {
 	int cpu, target_cpu;
-	struct sched_entity *curr;
+	struct sched_entity *curr, *orig;
 	struct rq *target;
 	unsigned long flags;
 	unsigned int force;
@@ -6611,6 +6692,8 @@ static void hmp_force_up_migration(int this_cpu)
 				cfs_rq = group_cfs_rq(curr);
 			}
 		}
+		orig = curr;
+		curr = hmp_get_heaviest_task(curr, 1);
 		p = task_of(curr);
 		if (hmp_up_migration(cpu, &target_cpu, curr)) {
 			if (!target->active_balance) {
@@ -6628,6 +6711,7 @@ static void hmp_force_up_migration(int this_cpu)
 			 * Selecting the lightest task for offloading will
 			 * require extensive book keeping.
 			 */
+			curr = hmp_get_lightest_task(orig, 1);
 			target->push_cpu = hmp_offload_down(cpu, curr);
 			if (target->push_cpu < NR_CPUS) {
 				target->active_balance = 1;
