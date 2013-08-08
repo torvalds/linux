@@ -70,13 +70,6 @@ static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 	clk_disable(priv->clk);
 }
 
-static void sh_mobile_sdhi_set_pwr(struct platform_device *pdev, int state)
-{
-	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
-
-	p->set_pwr(pdev, state);
-}
-
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
 {
 	int timeout = 1000;
@@ -173,8 +166,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->capabilities |= p->tmio_caps;
 		mmc_data->capabilities2 |= p->tmio_caps2;
 		mmc_data->cd_gpio = p->cd_gpio;
-		if (p->set_pwr)
-			mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
 
 		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
 			/*
