@@ -717,7 +717,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		top->exact_samples++;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample,
-					  symbol_filter) < 0 ||
+					  machine->symbol_filter) < 0 ||
 	    al.filtered)
 		return;
 
@@ -937,6 +937,8 @@ static int __cmd_top(struct perf_top *top)
 	top->session = perf_session__new(NULL, O_WRONLY, false, false, NULL);
 	if (top->session == NULL)
 		return -ENOMEM;
+
+	machines__set_symbol_filter(&top->session->machines, symbol_filter);
 
 	if (!objdump_path) {
 		ret = perf_session_env__lookup_objdump(&top->session->header.env);
