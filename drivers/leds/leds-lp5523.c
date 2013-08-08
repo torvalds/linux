@@ -152,15 +152,21 @@ static void lp5523_load_engine(struct lp55xx_chip *chip)
 		[LP55XX_ENGINE_3] = LP5523_LOAD_ENG3,
 	};
 
+	lp55xx_update_bits(chip, LP5523_REG_OP_MODE, mask[idx], val[idx]);
+
+	lp5523_wait_opmode_done();
+}
+
+static void lp5523_load_engine_and_select_page(struct lp55xx_chip *chip)
+{
+	enum lp55xx_engine_index idx = chip->engine_idx;
 	u8 page_sel[] = {
 		[LP55XX_ENGINE_1] = LP5523_PAGE_ENG1,
 		[LP55XX_ENGINE_2] = LP5523_PAGE_ENG2,
 		[LP55XX_ENGINE_3] = LP5523_PAGE_ENG3,
 	};
 
-	lp55xx_update_bits(chip, LP5523_REG_OP_MODE, mask[idx], val[idx]);
-
-	lp5523_wait_opmode_done();
+	lp5523_load_engine(chip);
 
 	lp55xx_write(chip, LP5523_REG_PROG_PAGE_SEL, page_sel[idx]);
 }
@@ -290,7 +296,7 @@ static void lp5523_firmware_loaded(struct lp55xx_chip *chip)
 	 *  2) write firmware data into program memory
 	 */
 
-	lp5523_load_engine(chip);
+	lp5523_load_engine_and_select_page(chip);
 	lp5523_update_program_memory(chip, fw->data, fw->size);
 }
 
