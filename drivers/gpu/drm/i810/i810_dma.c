@@ -113,7 +113,6 @@ static const struct file_operations i810_buffer_fops = {
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = i810_mmap_buffers,
-	.fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
 #endif

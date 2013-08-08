@@ -1166,8 +1166,6 @@ struct drm_device {
 
 	/*@} */
 
-	struct fasync_struct *buf_async;/**< Processes waiting for SIGIO */
-
 	struct drm_agp_head *agp;	/**< AGP data */
 
 	struct device *dev;             /**< Device structure */
@@ -1264,7 +1262,6 @@ extern int drm_lastclose(struct drm_device *dev);
 extern struct mutex drm_global_mutex;
 extern int drm_open(struct inode *inode, struct file *filp);
 extern int drm_stub_open(struct inode *inode, struct file *filp);
-extern int drm_fasync(int fd, struct file *filp, int on);
 extern ssize_t drm_read(struct file *filp, char __user *buffer,
 			size_t count, loff_t *offset);
 extern int drm_release(struct inode *inode, struct file *filp);

@@ -622,7 +622,6 @@ static const struct file_operations psb_gem_fops = {
 	.unlocked_ioctl = psb_unlocked_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 	.read = drm_read,
 };
 

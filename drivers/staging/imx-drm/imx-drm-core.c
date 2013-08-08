@@ -207,7 +207,6 @@ static const struct file_operations imx_drm_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_gem_cma_mmap,
 	.poll = drm_poll,
-	.fasync = drm_fasync,
 	.read = drm_read,
 	.llseek = noop_llseek,
 };

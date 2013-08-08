@@ -73,8 +73,6 @@ static int drm_setup(struct drm_device * dev)
 	dev->last_context = 0;
 	dev->if_version = 0;
 
-	dev->buf_async = NULL;
-
 	DRM_DEBUG("\n");
 
 	/*
@@ -371,18 +369,6 @@ out_put_pid:
 	filp->private_data = NULL;
 	return ret;
 }
-
-/** No-op. */
-int drm_fasync(int fd, struct file *filp, int on)
-{
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->minor->dev;
-
-	DRM_DEBUG("fd = %d, device = 0x%lx\n", fd,
-		  (long)old_encode_dev(priv->minor->device));
-	return fasync_helper(fd, filp, on, &dev->buf_async);
-}
-EXPORT_SYMBOL(drm_fasync);
 
 static void drm_master_release(struct drm_device *dev, struct file *filp)
 {
