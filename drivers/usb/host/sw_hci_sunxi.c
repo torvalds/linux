@@ -73,6 +73,15 @@ static u32 ohci_irq_no[3] = { 0, SW_INT_SRC_OHCI0, SW_INT_SRC_OHCI1 };
 static u32 usb1_set_vbus_cnt;
 static u32 usb2_set_vbus_cnt;
 
+
+static void dbg_clocks(struct sw_hci_hcd *sw_hci)
+{
+	DMSG_DEBUG("[%s]: clock info, SW_VA_CCM_AHBMOD_OFFSET(0x%x), SW_VA_CCM_USBCLK_OFFSET(0x%x)\n",
+		   sw_hci->hci_name,
+		   (u32) USBC_Readl(SW_VA_CCM_IO_BASE + SW_VA_CCM_AHBMOD_OFFSET),
+		   (u32) USBC_Readl(SW_VA_CCM_IO_BASE + SW_VA_CCM_USBCLK_OFFSET));
+}
+
 static s32 get_usb_cfg(struct sw_hci_hcd *sw_hci)
 {
 	__s32 ret = 0;
@@ -317,10 +326,7 @@ static int open_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
 		     sw_hci->phy_reset, sw_hci->clk_is_open, sw_hci->ohci_gate);
 	}
 
-	DMSG_DEBUG("[%s]: open clock, 0x60(0x%x), 0xcc(0x%x)\n",
-		   sw_hci->hci_name,
-		   (u32) USBC_Readl(SW_VA_CCM_IO_BASE + 0x60),
-		   (u32) USBC_Readl(SW_VA_CCM_IO_BASE + 0xcc));
+	dbg_clocks(sw_hci);
 
 	return 0;
 }
@@ -349,10 +355,7 @@ static int close_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
 		     sw_hci->phy_reset, sw_hci->clk_is_open, sw_hci->ohci_gate);
 	}
 
-	DMSG_DEBUG("[%s]: close clock, 0x60(0x%x), 0xcc(0x%x)\n",
-		   sw_hci->hci_name,
-		   (u32) USBC_Readl(SW_VA_CCM_IO_BASE + 0x60),
-		   (u32) USBC_Readl(SW_VA_CCM_IO_BASE + 0xcc));
+	dbg_clocks(sw_hci);
 
 	return 0;
 }
