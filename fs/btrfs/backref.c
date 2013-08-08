@@ -911,7 +911,6 @@ again:
 
 	while (!list_empty(&prefs)) {
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);
-		list_del(&ref->list);
 		WARN_ON(ref->count < 0);
 		if (ref->count && ref->root_id && ref->parent == 0) {
 			/* no parent == root of tree */
@@ -956,6 +955,7 @@ again:
 				eie->next = ref->inode_list;
 			}
 		}
+		list_del(&ref->list);
 		kfree(ref);
 	}
 
