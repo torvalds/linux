@@ -775,9 +775,6 @@ static void print_sw_hci(struct sw_hci_hcd *sw_hci)
 	DMSG_DEBUG("usbc_no              = %d\n", sw_hci->usbc_no);
 
 	DMSG_DEBUG("usb_vbase            = 0x%p\n", sw_hci->usb_vbase);
-	DMSG_DEBUG("sram_vbase           = 0x%p\n", sw_hci->sram_vbase);
-	DMSG_DEBUG("clock_vbase          = 0x%p\n", sw_hci->clock_vbase);
-	DMSG_DEBUG("sdram_vbase          = 0x%p\n", sw_hci->sdram_vbase);
 
 	DMSG_DEBUG("used                 = %d\n", sw_hci->used);
 	DMSG_DEBUG("host_init_state      = %d\n", sw_hci->host_init_state);
