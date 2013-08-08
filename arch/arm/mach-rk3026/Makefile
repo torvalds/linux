@@ -2,7 +2,7 @@ ifneq ($(CONFIG_RK_FPGA),y)
 obj-y += ../plat-rk/clock.o
 obj-y += clock_data.o
 obj-y += ../mach-rk2928/ddr.o
-obj-y += ../mach-rk30/reset.o
+obj-y += reset.o
 obj-$(CONFIG_PM) += ../mach-rk2928/pm.o
 endif
 obj-y += common.o
