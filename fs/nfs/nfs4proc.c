@@ -7090,6 +7090,10 @@ out:
 	return status;
 }
 
+/**
+ * Use the state managment nfs_client cl_rpcclient, which uses krb5i (if
+ * possible) as per RFC3530bis and RFC5661 Security Considerations sections
+ */
 static int
 _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		    struct nfs_fsinfo *info, struct nfs4_secinfo_flavors *flavors)
@@ -7105,7 +7109,8 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	return nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
+	return nfs4_call_sync(server->nfs_client->cl_rpcclient, server, &msg,
+				&args.seq_args, &res.seq_res, 0);
 }
 
 static int
