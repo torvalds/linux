@@ -413,7 +413,7 @@ static void hci_port_configure(struct sw_hci_hcd *sw_hci, u32 enable)
 		return;
 	}
 
-	addr = sw_hci->sdram_vbase + usbc_sdram_hpcr;
+	addr = (void __iomem*) SW_VA_DRAM_IO_BASE + usbc_sdram_hpcr;
 
 	reg_value = USBC_Readl(addr);
 	if (enable)
@@ -826,10 +826,6 @@ static int init_sw_hci(struct sw_hci_hcd *sw_hci, u32 usbc_no, u32 ohci,
 	sprintf(sw_hci->hci_name, "%s%d", hci_name, sw_hci->usbc_no);
 
 	sw_hci->usb_vbase = (void __iomem *)usbc_base[sw_hci->usbc_no];
-	sw_hci->sram_vbase = (void __iomem *)SW_VA_SRAM_IO_BASE;
-	sw_hci->clock_vbase = (void __iomem *)SW_VA_CCM_IO_BASE;
-	sw_hci->gpio_vbase = (void __iomem *)SW_VA_PORTC_IO_BASE;
-	sw_hci->sdram_vbase = (void __iomem *)SW_VA_DRAM_IO_BASE;
 
 	get_usb_cfg(sw_hci);
 	sw_hci->open_clock = open_clock;

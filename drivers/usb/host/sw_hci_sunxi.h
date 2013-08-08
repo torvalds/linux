@@ -137,10 +137,6 @@ struct sw_hci_hcd {
 
 	void __iomem *usb_vbase; /* USB base address */
 
-	void __iomem *sram_vbase; /* SRAM base address */
-	void __iomem *clock_vbase; /* clock base address */
-	void __iomem *gpio_vbase; /* gpio base address */
-	void __iomem *sdram_vbase; /* sdram base address */
 	struct platform_device *pdev;
 	struct usb_hcd *hcd;
 
