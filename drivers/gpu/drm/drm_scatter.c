@@ -87,6 +87,9 @@ int drm_sg_alloc(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("\n");
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
 	if (!drm_core_check_feature(dev, DRIVER_SG))
 		return -EINVAL;
 
@@ -196,6 +199,9 @@ int drm_sg_free(struct drm_device *dev, void *data,
 {
 	struct drm_scatter_gather *request = data;
 	struct drm_sg_mem *entry;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_SG))
 		return -EINVAL;
