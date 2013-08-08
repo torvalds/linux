@@ -88,7 +88,6 @@
 #include <linux/virtio_net.h>
 #include <linux/errqueue.h>
 #include <linux/net_tstamp.h>
-#include <linux/if_arp.h>
 
 #ifdef CONFIG_INET
 #include <net/inet_common.h>
@@ -1924,7 +1923,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		__be16 proto, unsigned char *addr, int hlen)
 {
 	union tpacket_uhdr ph;
-	int to_write, offset, len, tp_len, nr_frags, len_max, max_frame_len;
+	int to_write, offset, len, tp_len, nr_frags, len_max;
 	struct socket *sock = po->sk.sk_socket;
 	struct page *page;
 	void *data;
@@ -1946,6 +1945,10 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	default:
 		tp_len = ph.h1->tp_len;
 		break;
+	}
+	if (unlikely(tp_len > size_max)) {
+		pr_err("packet size is too long (%d > %d)\n", tp_len, size_max);
+		return -EMSGSIZE;
 	}
 
 	skb_reserve(skb, hlen);
@@ -2002,23 +2005,8 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		if (unlikely(err))
 			return err;
 
-		if (dev->type == ARPHRD_ETHER)
-			skb->protocol = eth_type_trans(skb, dev);
-
 		data += dev->hard_header_len;
 		to_write -= dev->hard_header_len;
-	}
-
-	max_frame_len = dev->mtu + dev->hard_header_len;
-	if (skb->protocol == htons(ETH_P_8021Q))
-		max_frame_len += VLAN_HLEN;
-
-	if (size_max > max_frame_len)
-		size_max = max_frame_len;
-
-	if (unlikely(tp_len > size_max)) {
-		pr_err("packet size is too long (%d > %d)\n", tp_len, size_max);
-		return -EMSGSIZE;
 	}
 
 	offset = offset_in_page(data);
@@ -2059,7 +2047,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	struct net_device *dev;
 	__be16 proto;
 	bool need_rls_dev = false;
-	int err;
+	int err, reserve = 0;
 	void *ph;
 	struct sockaddr_ll *saddr = (struct sockaddr_ll *)msg->msg_name;
 	int tp_len, size_max;
@@ -2092,12 +2080,17 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	if (unlikely(dev == NULL))
 		goto out;
 
+	reserve = dev->hard_header_len;
+
 	err = -ENETDOWN;
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_put;
 
 	size_max = po->tx_ring.frame_size
 		- (po->tp_hdrlen - sizeof(struct sockaddr_ll));
+
+	if (size_max > dev->mtu + reserve)
+		size_max = dev->mtu + reserve;
 
 	do {
 		ph = packet_current_frame(po, &po->tx_ring,
@@ -2331,20 +2324,22 @@ static int packet_snd(struct socket *sock,
 
 	sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
 
-	if (dev->type == ARPHRD_ETHER) {
-		skb->protocol = eth_type_trans(skb, dev);
-		if (skb->protocol == htons(ETH_P_8021Q))
-			reserve += VLAN_HLEN;
-	} else {
-		skb->protocol = proto;
-		skb->dev = dev;
-	}
-
 	if (!gso_type && (len > dev->mtu + reserve + extra_len)) {
-		err = -EMSGSIZE;
-		goto out_free;
+		/* Earlier code assumed this would be a VLAN pkt,
+		 * double-check this now that we have the actual
+		 * packet in hand.
+		 */
+		struct ethhdr *ehdr;
+		skb_reset_mac_header(skb);
+		ehdr = eth_hdr(skb);
+		if (ehdr->h_proto != htons(ETH_P_8021Q)) {
+			err = -EMSGSIZE;
+			goto out_free;
+		}
 	}
 
+	skb->protocol = proto;
+	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
 
