@@ -66,6 +66,7 @@ struct output_option {
 static struct {
 	bool user_set;
 	bool wildcard_set;
+	unsigned int print_ip_opts;
 	u64 fields;
 	u64 invalid_fields;
 } output[PERF_TYPE_MAX] = {
@@ -235,6 +236,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 {
 	int j;
 	struct perf_evsel *evsel;
+	struct perf_event_attr *attr;
 
 	for (j = 0; j < PERF_TYPE_MAX; ++j) {
 		evsel = perf_session__find_first_evtype(session, j);
@@ -253,6 +255,24 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		if (evsel && output[j].fields &&
 			perf_evsel__check_attr(evsel, session))
 			return -1;
+
+		if (evsel == NULL)
+			continue;
+
+		attr = &evsel->attr;
+
+		output[j].print_ip_opts = 0;
+		if (PRINT_FIELD(IP))
+			output[j].print_ip_opts |= PRINT_IP_OPT_IP;
+
+		if (PRINT_FIELD(SYM))
+			output[j].print_ip_opts |= PRINT_IP_OPT_SYM;
+
+		if (PRINT_FIELD(DSO))
+			output[j].print_ip_opts |= PRINT_IP_OPT_DSO;
+
+		if (PRINT_FIELD(SYMOFFSET))
+			output[j].print_ip_opts |= PRINT_IP_OPT_SYMOFFSET;
 	}
 
 	return 0;
@@ -382,8 +402,7 @@ static void print_sample_bts(union perf_event *event,
 		else
 			printf("\n");
 		perf_evsel__print_ip(evsel, event, sample, machine,
-				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
-				     PRINT_FIELD(SYMOFFSET));
+				     output[attr->type].print_ip_opts);
 	}
 
 	printf(" => ");
@@ -423,9 +442,9 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 			printf(" ");
 		else
 			printf("\n");
+
 		perf_evsel__print_ip(evsel, event, sample, machine,
-				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
-				     PRINT_FIELD(SYMOFFSET));
+				     output[attr->type].print_ip_opts);
 	}
 
 	printf("\n");

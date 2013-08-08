@@ -41,6 +41,11 @@ struct perf_session {
 	char			filename[1];
 };
 
+#define PRINT_IP_OPT_IP		(1<<0)
+#define PRINT_IP_OPT_SYM		(1<<1)
+#define PRINT_IP_OPT_DSO		(1<<2)
+#define PRINT_IP_OPT_SYMOFFSET	(1<<3)
+
 struct perf_tool;
 
 struct perf_session *perf_session__new(const char *filename, int mode,
@@ -103,7 +108,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 
 void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 			  struct perf_sample *sample, struct machine *machine,
-			  int print_sym, int print_dso, int print_symoffset);
+			  unsigned int print_opts);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);
