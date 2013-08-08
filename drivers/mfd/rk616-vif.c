@@ -782,6 +782,7 @@ int rk616_set_vif(struct mfd_rk616 *rk616,rk_screen *screen,bool connect)
 	{
 		rk616_vif_disable(rk616,0);
 		rk616_vif_disable(rk616,1);
+                rk616_mclk_set_rate(rk616->mclk, 11289600);
 		return 0;
 	}
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
