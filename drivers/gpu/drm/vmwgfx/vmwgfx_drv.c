@@ -1143,7 +1143,6 @@ static struct drm_driver driver = {
 	.disable_vblank = vmw_disable_vblank,
 	.ioctls = vmw_ioctls,
 	.num_ioctls = DRM_ARRAY_SIZE(vmw_ioctls),
-	.dma_quiescent = NULL,	/*vmw_dma_quiescent, */
 	.master_create = vmw_master_create,
 	.master_destroy = vmw_master_destroy,
 	.master_set = vmw_master_set,
