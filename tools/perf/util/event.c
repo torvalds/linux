@@ -670,12 +670,13 @@ try_again:
 
 void thread__find_addr_location(struct thread *thread, struct machine *machine,
 				u8 cpumode, enum map_type type, u64 addr,
-				struct addr_location *al,
-				symbol_filter_t filter)
+				struct addr_location *al)
 {
-	thread__find_addr_map(thread, machine, cpumode, type, addr, al, filter);
+	thread__find_addr_map(thread, machine, cpumode, type, addr, al,
+			      machine->symbol_filter);
 	if (al->map != NULL)
-		al->sym = map__find_symbol(al->map, al->addr, filter);
+		al->sym = map__find_symbol(al->map, al->addr,
+					   machine->symbol_filter);
 	else
 		al->sym = NULL;
 }
