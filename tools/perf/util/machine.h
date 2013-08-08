@@ -29,6 +29,7 @@ struct machine {
 	struct list_head  kernel_dsos;
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
+	symbol_filter_t	  symbol_filter;
 };
 
 static inline
@@ -51,6 +52,7 @@ typedef void (*machine__process_t)(struct machine *machine, void *data);
 struct machines {
 	struct machine host;
 	struct rb_root guests;
+	symbol_filter_t symbol_filter;
 };
 
 void machines__init(struct machines *machines);
@@ -67,6 +69,9 @@ struct machine *machines__findnew(struct machines *machines, pid_t pid);
 
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size);
 char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
+
+void machines__set_symbol_filter(struct machines *machines,
+				 symbol_filter_t symbol_filter);
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *machine);

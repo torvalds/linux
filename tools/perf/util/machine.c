@@ -25,6 +25,8 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->kmaps.machine = machine;
 	machine->pid = pid;
 
+	machine->symbol_filter = NULL;
+
 	machine->root_dir = strdup(root_dir);
 	if (machine->root_dir == NULL)
 		return -ENOMEM;
@@ -95,6 +97,7 @@ void machines__init(struct machines *machines)
 {
 	machine__init(&machines->host, "", HOST_KERNEL_ID);
 	machines->guests = RB_ROOT;
+	machines->symbol_filter = NULL;
 }
 
 void machines__exit(struct machines *machines)
@@ -118,6 +121,8 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 		return NULL;
 	}
 
+	machine->symbol_filter = machines->symbol_filter;
+
 	while (*p != NULL) {
 		parent = *p;
 		pos = rb_entry(parent, struct machine, rb_node);
@@ -131,6 +136,21 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 	rb_insert_color(&machine->rb_node, &machines->guests);
 
 	return machine;
+}
+
+void machines__set_symbol_filter(struct machines *machines,
+				 symbol_filter_t symbol_filter)
+{
+	struct rb_node *nd;
+
+	machines->symbol_filter = symbol_filter;
+	machines->host.symbol_filter = symbol_filter;
+
+	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+		struct machine *machine = rb_entry(nd, struct machine, rb_node);
+
+		machine->symbol_filter = symbol_filter;
+	}
 }
 
 struct machine *machines__find(struct machines *machines, pid_t pid)
