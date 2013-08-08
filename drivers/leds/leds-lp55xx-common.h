@@ -29,6 +29,53 @@ enum lp55xx_engine_mode {
 	LP55XX_ENGINE_RUN,
 };
 
+#define LP55XX_DEV_ATTR_RW(name, show, store)	\
+	DEVICE_ATTR(name, S_IRUGO | S_IWUSR, show, store)
+#define LP55XX_DEV_ATTR_RO(name, show)		\
+	DEVICE_ATTR(name, S_IRUGO, show, NULL)
+#define LP55XX_DEV_ATTR_WO(name, store)		\
+	DEVICE_ATTR(name, S_IWUSR, NULL, store)
+
+#define show_mode(nr)							\
+static ssize_t show_engine##nr##_mode(struct device *dev,		\
+				    struct device_attribute *attr,	\
+				    char *buf)				\
+{									\
+	return show_engine_mode(dev, attr, buf, nr);			\
+}
+
+#define store_mode(nr)							\
+static ssize_t store_engine##nr##_mode(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     const char *buf, size_t len)	\
+{									\
+	return store_engine_mode(dev, attr, buf, len, nr);		\
+}
+
+#define show_leds(nr)							\
+static ssize_t show_engine##nr##_leds(struct device *dev,		\
+			    struct device_attribute *attr,		\
+			    char *buf)					\
+{									\
+	return show_engine_leds(dev, attr, buf, nr);			\
+}
+
+#define store_leds(nr)						\
+static ssize_t store_engine##nr##_leds(struct device *dev,	\
+			     struct device_attribute *attr,	\
+			     const char *buf, size_t len)	\
+{								\
+	return store_engine_leds(dev, attr, buf, len, nr);	\
+}
+
+#define store_load(nr)							\
+static ssize_t store_engine##nr##_load(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     const char *buf, size_t len)	\
+{									\
+	return store_engine_load(dev, attr, buf, len, nr);		\
+}
+
 struct lp55xx_led;
 struct lp55xx_chip;
 
