@@ -2133,7 +2133,7 @@ static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
 	if (!gpio_is_valid(gpio))
 		return;
 
-	if (mmc_gpio_request_cd(mmc, gpio))
+	if (mmc_gpio_request_cd(mmc, gpio, 0))
 		dev_warn(dev, "gpio [%d] request failed\n", gpio);
 }
 #else /* CONFIG_OF */

@@ -741,6 +741,11 @@ static int jz4740_mmc_request_gpios(struct platform_device *pdev)
 			"MMC read only", false, 0);
 	if (ret)
 		goto err_free_gpio_card_detect;
+	if (gpio_is_valid(pdata->gpio_card_detect)) {
+		ret = mmc_gpio_request_cd(mmc, pdata->gpio_card_detect, 0);
+		if (ret)
+			return ret;
+	}
 
 	ret = jz4740_mmc_request_gpio(&pdev->dev, pdata->gpio_power,
 			"MMC read only", true, pdata->power_active_low);

@@ -1431,7 +1431,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	}
 
 	if (pd && pd->use_cd_gpio) {
-		ret = mmc_gpio_request_cd(mmc, pd->cd_gpio);
+		ret = mmc_gpio_request_cd(mmc, pd->cd_gpio, 0);
 		if (ret < 0)
 			goto erqcd;
 	}
