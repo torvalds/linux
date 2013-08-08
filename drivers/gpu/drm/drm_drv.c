@@ -231,6 +231,7 @@ static int __init drm_core_init(void)
 	int ret = -ENOMEM;
 
 	drm_global_init();
+	drm_connector_ida_init();
 	idr_init(&drm_minors_idr);
 
 	if (register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops))
@@ -278,6 +279,7 @@ static void __exit drm_core_exit(void)
 
 	unregister_chrdev(DRM_MAJOR, "drm");
 
+	drm_connector_ida_destroy();
 	idr_destroy(&drm_minors_idr);
 }
 

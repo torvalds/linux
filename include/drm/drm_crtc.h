@@ -879,6 +879,8 @@ extern int drm_crtc_init(struct drm_device *dev,
 			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
 
+extern void drm_connector_ida_init(void);
+extern void drm_connector_ida_destroy(void);
 extern int drm_connector_init(struct drm_device *dev,
 			      struct drm_connector *connector,
 			      const struct drm_connector_funcs *funcs,
