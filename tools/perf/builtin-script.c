@@ -402,7 +402,8 @@ static void print_sample_bts(union perf_event *event,
 		else
 			printf("\n");
 		perf_evsel__print_ip(evsel, event, sample, machine,
-				     output[attr->type].print_ip_opts);
+				     output[attr->type].print_ip_opts,
+				     PERF_MAX_STACK_DEPTH);
 	}
 
 	printf(" => ");
@@ -444,7 +445,8 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 			printf("\n");
 
 		perf_evsel__print_ip(evsel, event, sample, machine,
-				     output[attr->type].print_ip_opts);
+				     output[attr->type].print_ip_opts,
+				     PERF_MAX_STACK_DEPTH);
 	}
 
 	printf("\n");

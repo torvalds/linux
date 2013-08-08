@@ -1489,7 +1489,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 
 void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 			  struct perf_sample *sample, struct machine *machine,
-			  unsigned int print_opts)
+			  unsigned int print_opts, unsigned int stack_depth)
 {
 	struct addr_location al;
 	struct callchain_cursor_node *node;
@@ -1517,7 +1517,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 		}
 		callchain_cursor_commit(&callchain_cursor);
 
-		while (1) {
+		while (stack_depth) {
 			node = callchain_cursor_current(&callchain_cursor);
 			if (!node)
 				break;
@@ -1544,6 +1544,8 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 				printf("\n");
 
 			callchain_cursor_advance(&callchain_cursor);
+
+			stack_depth--;
 		}
 
 	} else {
