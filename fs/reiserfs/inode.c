@@ -57,8 +57,11 @@ void reiserfs_evict_inode(struct inode *inode)
 		/* Do quota update inside a transaction for journaled quotas. We must do that
 		 * after delete_object so that quota updates go into the same transaction as
 		 * stat data deletion */
-		if (!err) 
+		if (!err) {
+			int depth = reiserfs_write_unlock_nested(inode->i_sb);
 			dquot_free_inode(inode);
+			reiserfs_write_lock_nested(inode->i_sb, depth);
+		}
 
 		if (journal_end(&th, inode->i_sb, jbegin_count))
 			goto out;
@@ -1768,7 +1771,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		       struct inode *inode,
 		       struct reiserfs_security_handle *security)
 {
-	struct super_block *sb;
+	struct super_block *sb = dir->i_sb;
 	struct reiserfs_iget_args args;
 	INITIALIZE_PATH(path_to_key);
 	struct cpu_key key;
@@ -1780,17 +1783,15 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(!th->t_trans_id);
 
-	reiserfs_write_unlock(inode->i_sb);
+	depth = reiserfs_write_unlock_nested(sb);
 	err = dquot_alloc_inode(inode);
-	reiserfs_write_lock(inode->i_sb);
+	reiserfs_write_lock_nested(sb, depth);
 	if (err)
 		goto out_end_trans;
 	if (!dir->i_nlink) {
 		err = -EPERM;
 		goto out_bad_inode;
 	}
-
-	sb = dir->i_sb;
 
 	/* item head of new item */
 	ih.ih_key.k_dir_id = reiserfs_choose_packing(dir);
@@ -1983,14 +1984,16 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	INODE_PKEY(inode)->k_objectid = 0;
 
 	/* Quota change must be inside a transaction for journaling */
+	depth = reiserfs_write_unlock_nested(inode->i_sb);
 	dquot_free_inode(inode);
+	reiserfs_write_lock_nested(inode->i_sb, depth);
 
       out_end_trans:
 	journal_end(th, th->t_super, th->t_blocks_allocated);
-	reiserfs_write_unlock(inode->i_sb);
 	/* Drop can be outside and it needs more credits so it's better to have it outside */
+	depth = reiserfs_write_unlock_nested(inode->i_sb);
 	dquot_drop(inode);
-	reiserfs_write_lock(inode->i_sb);
+	reiserfs_write_lock_nested(inode->i_sb, depth);
 	inode->i_flags |= S_NOQUOTA;
 	make_bad_inode(inode);
 
