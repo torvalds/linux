@@ -524,12 +524,6 @@ static int dev_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-static int dev_firstopen(struct drm_device *dev)
-{
-	DBG("firstopen: dev=%p", dev);
-	return 0;
-}
-
 /**
  * lastclose - clean up after all DRM clients have exited
  * @dev: DRM device
@@ -609,7 +603,6 @@ static struct drm_driver omap_drm_driver = {
 		.load = dev_load,
 		.unload = dev_unload,
 		.open = dev_open,
-		.firstopen = dev_firstopen,
 		.lastclose = dev_lastclose,
 		.preclose = dev_preclose,
 		.postclose = dev_postclose,
