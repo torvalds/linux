@@ -2156,7 +2156,7 @@ static const struct of_device_id pmc_match[] __initconst = {
  * dfll_soc/dfll_ref apparently must be kept enabled, otherwise I2C5
  * breaks
  */
-static __initdata struct tegra_clk_init_table init_table[] = {
+static struct tegra_clk_init_table init_table[] __initdata = {
 	{uarta, pll_p, 408000000, 0},
 	{uartb, pll_p, 408000000, 0},
 	{uartc, pll_p, 408000000, 0},
