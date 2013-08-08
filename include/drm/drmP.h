@@ -883,8 +883,6 @@ struct drm_driver {
 	void (*irq_preinstall) (struct drm_device *dev);
 	int (*irq_postinstall) (struct drm_device *dev);
 	void (*irq_uninstall) (struct drm_device *dev);
-	void (*set_version) (struct drm_device *dev,
-			     struct drm_set_version *sv);
 
 	/* Master routines */
 	int (*master_create)(struct drm_device *dev, struct drm_master *master);

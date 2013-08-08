@@ -352,9 +352,6 @@ int drm_setversion(struct drm_device *dev, void *data, struct drm_file *file_pri
 			retcode = -EINVAL;
 			goto done;
 		}
-
-		if (dev->driver->set_version)
-			dev->driver->set_version(dev, sv);
 	}
 
 done:
