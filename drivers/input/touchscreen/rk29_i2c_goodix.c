@@ -780,7 +780,6 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 	ts->power = goodix_ts_power;
 	ts->get_touch_info = goodix_get_touch_info;
 	ts->input_parms_init = goodix_input_params_init;
-	i2c_set_clientdata(client, ts);
 	
 
 	if (pdata->init_platform_hw)
@@ -821,6 +820,7 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 	ts->early_suspend.resume = rk_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
 #endif
+	i2c_set_clientdata(client, ts);
 
 	info_buf= kzalloc(ts->max_touch_num*sizeof(struct rk_touch_info), GFP_KERNEL);
 	if(!info_buf)
@@ -901,7 +901,8 @@ static void rk_ts_shutdown(struct i2c_client *client)
 {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct rk_ts_data *ts = i2c_get_clientdata(client);
-	unregister_early_suspend(&ts->early_suspend);
+	if (ts)
+		unregister_early_suspend(&ts->early_suspend);
 #endif
 }
 
