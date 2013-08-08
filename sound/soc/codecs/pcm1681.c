@@ -225,7 +225,7 @@ static const struct snd_kcontrol_new pcm1681_controls[] = {
 			    pcm1681_get_deemph, pcm1681_put_deemph),
 };
 
-struct snd_soc_dai_driver pcm1681_dai = {
+static struct snd_soc_dai_driver pcm1681_dai = {
 	.name = "pcm1681-hifi",
 	.playback = {
 		.stream_name = "Playback",
