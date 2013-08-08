@@ -1176,7 +1176,7 @@ bfin_earlyprintk_console_write(struct console *co, const char *s, unsigned int c
  * don't let the common infrastructure play with things. (see calls to setup
  * & earlysetup in ./kernel/printk.c:register_console()
  */
-static struct __initdata console bfin_early_serial_console = {
+static struct console bfin_early_serial_console __initdata = {
 	.name = "early_BFuart",
 	.write = bfin_earlyprintk_console_write,
 	.device = uart_console_device,
@@ -1398,7 +1398,7 @@ static struct platform_driver bfin_serial_driver = {
 };
 
 #if defined(CONFIG_SERIAL_BFIN_CONSOLE)
-static __initdata struct early_platform_driver early_bfin_serial_driver = {
+static struct early_platform_driver early_bfin_serial_driver __initdata = {
 	.class_str = CLASS_BFIN_CONSOLE,
 	.pdrv = &bfin_serial_driver,
 	.requested_id = EARLY_PLATFORM_ID_UNSET,
@@ -1477,7 +1477,7 @@ static struct platform_driver bfin_earlyprintk_driver = {
 	},
 };
 
-static __initdata struct early_platform_driver early_bfin_earlyprintk_driver = {
+static struct early_platform_driver early_bfin_earlyprintk_driver __initdata = {
 	.class_str = CLASS_BFIN_EARLYPRINTK,
 	.pdrv = &bfin_earlyprintk_driver,
 	.requested_id = EARLY_PLATFORM_ID_UNSET,
