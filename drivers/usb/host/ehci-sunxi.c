@@ -43,31 +43,6 @@
 static struct sw_hci_hcd *g_sw_ehci[3];
 static u32 ehci_first_probe[3] = { 1, 1, 1 };
 
-void print_ehci_info(struct sw_hci_hcd *sw_ehci)
-{
-	pr_info("----------print_ehci_info---------\n");
-	pr_info("hci_name             = %s\n", sw_ehci->hci_name);
-	pr_info("irq_no               = %d\n", sw_ehci->irq_no);
-	pr_info("usbc_no              = %d\n", sw_ehci->usbc_no);
-
-	pr_info("usb_vbase            = 0x%p\n", sw_ehci->usb_vbase);
-	pr_info("sram_vbase           = 0x%p\n", sw_ehci->sram_vbase);
-	pr_info("clock_vbase          = 0x%p\n", sw_ehci->clock_vbase);
-	pr_info("sdram_vbase          = 0x%p\n", sw_ehci->sdram_vbase);
-
-	pr_info("clock: AHB(0x%x), USB(0x%x)\n",
-		(u32) USBC_Readl(sw_ehci->clock_vbase + 0x60),
-		(u32) USBC_Readl(sw_ehci->clock_vbase + 0xcc));
-
-	pr_info("USB: 0x%x\n",
-		(u32) USBC_Readl(sw_ehci->usb_vbase + SW_USB_PMU_IRQ_ENABLE));
-	pr_info("DRAM: USB1(0x%x), USB2(0x%x)\n",
-	       (u32) USBC_Readl(sw_ehci->sdram_vbase + SW_SDRAM_REG_HPCR_USB1),
-	       (u32) USBC_Readl(sw_ehci->sdram_vbase + SW_SDRAM_REG_HPCR_USB2));
-
-	pr_info("----------------------------------\n");
-}
-
 static void sw_start_ehci(struct sw_hci_hcd *sw_ehci)
 {
 	sw_ehci->open_clock(sw_ehci, 0);

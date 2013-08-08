@@ -797,6 +797,16 @@ static void print_sw_hci(struct sw_hci_hcd *sw_hci)
 	DMSG_DEBUG("data                 = %d\n",
 		   sw_hci->drv_vbus_gpio_set.data);
 
+	dbg_clocks(sw_hci);
+
+	pr_info("USB PMU IRQ: 0x%x\n",
+		(u32) USBC_Readl(sw_hci->usb_vbase + SW_USB_PMU_IRQ_ENABLE));
+	pr_info("DRAM: USB1(0x%x), USB2(0x%x)\n",
+	       (u32) USBC_Readl(SW_VA_DRAM_IO_BASE + SW_SDRAM_REG_HPCR_USB1),
+	       (u32) USBC_Readl(SW_VA_DRAM_IO_BASE + SW_SDRAM_REG_HPCR_USB2));
+
+	pr_info("----------------------------------\n");
+
 	DMSG_DEBUG("\n--------------------------\n");
 
 	return;
