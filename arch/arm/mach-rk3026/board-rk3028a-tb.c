@@ -435,6 +435,20 @@ static struct sensor_platform_data mma8452_info = {
         .orientation = {-1, 0, 0, 0, -1, 0, 0, 0, 1},
 };
 #endif
+#if defined (CONFIG_GS_LIS3DH)
+static int lis3dh_init_platform_hw(void)
+{
+        return 0;
+}
+
+static struct sensor_platform_data lis3dh_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+        .init_platform_hw = lis3dh_init_platform_hw,
+	.orientation = {-1, 0, 0, 0, -1, 0, 0, 0, 1},
+};
+#endif
 
 /***********************************************************
 *	keyboard
@@ -1147,6 +1161,16 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &mma8452_info,
 	},
 #endif
+#if defined (CONFIG_GS_LIS3DH)
+	{
+		.type	        = "gs_lis3dh",
+		.addr	        = 0x19,   //0x19(SA0-->VCC), 0x18(SA0-->GND)
+		.flags	        = 0,
+		.irq	        = GS_INT_PIN,
+		.platform_data = &lis3dh_info,
+	},
+#endif
+
 };
 #endif
 
