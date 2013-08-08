@@ -45,20 +45,9 @@
 static struct sw_hci_hcd *g_sw_ohci[3];
 static u32 ohci_first_probe[3] = { 1, 1, 1 };
 
-static int open_ohci_clock(struct sw_hci_hcd *sw_ohci)
-{
-	return sw_ohci->open_clock(sw_ohci, 1);
-}
-
-static int close_ohci_clock(struct sw_hci_hcd *sw_ohci)
-{
-	return sw_ohci->close_clock(sw_ohci, 1);
-}
-
 static void sw_start_ohc(struct sw_hci_hcd *sw_ohci)
 {
-	open_ohci_clock(sw_ohci);
-
+	sw_ohci->open_clock(sw_ohci, 1);
 	sw_ohci->port_configure(sw_ohci, 1);
 	sw_ohci->usb_passby(sw_ohci, 1);
 	sw_ohci->set_power(sw_ohci, 1);
@@ -71,8 +60,7 @@ static void sw_stop_ohc(struct sw_hci_hcd *sw_ohci)
 	sw_ohci->set_power(sw_ohci, 0);
 	sw_ohci->usb_passby(sw_ohci, 0);
 	sw_ohci->port_configure(sw_ohci, 0);
-
-	close_ohci_clock(sw_ohci);
+	sw_ohci->close_clock(sw_ohci, 1);
 
 	return;
 }

@@ -68,46 +68,22 @@ void print_ehci_info(struct sw_hci_hcd *sw_ehci)
 	pr_info("----------------------------------\n");
 }
 
-static void sw_hcd_board_set_vbus(struct sw_hci_hcd *sw_ehci, int is_on)
-{
-	sw_ehci->set_power(sw_ehci, is_on);
-
-	return;
-}
-
-static int open_ehci_clock(struct sw_hci_hcd *sw_ehci)
-{
-	return sw_ehci->open_clock(sw_ehci, 0);
-}
-
-static int close_ehci_clock(struct sw_hci_hcd *sw_ehci)
-{
-	return sw_ehci->close_clock(sw_ehci, 0);
-}
-
-static void sw_ehci_port_configure(struct sw_hci_hcd *sw_ehci, u32 enable)
-{
-	sw_ehci->port_configure(sw_ehci, enable);
-
-	return;
-}
-
 static void sw_start_ehci(struct sw_hci_hcd *sw_ehci)
 {
-	open_ehci_clock(sw_ehci);
+	sw_ehci->open_clock(sw_ehci, 0);
 	sw_ehci->usb_passby(sw_ehci, 1);
-	sw_ehci_port_configure(sw_ehci, 1);
-	sw_hcd_board_set_vbus(sw_ehci, 1);
+	sw_ehci->port_configure(sw_ehci, 1 /*enable*/);
+	sw_ehci->set_power(sw_ehci, 1);
 
 	return;
 }
 
 static void sw_stop_ehci(struct sw_hci_hcd *sw_ehci)
 {
-	sw_hcd_board_set_vbus(sw_ehci, 0);
-	sw_ehci_port_configure(sw_ehci, 0);
+	sw_ehci->set_power(sw_ehci, 0);
+	sw_ehci->port_configure(sw_ehci, 0 /*disable*/);
 	sw_ehci->usb_passby(sw_ehci, 0);
-	close_ehci_clock(sw_ehci);
+	sw_ehci->close_clock(sw_ehci, 0);
 
 	return;
 }

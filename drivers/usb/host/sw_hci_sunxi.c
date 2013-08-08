@@ -839,13 +839,6 @@ failed1:
 	return -1;
 }
 
-static int exit_sw_hci(struct sw_hci_hcd *sw_hci, u32 ohci)
-{
-	clock_exit(sw_hci, ohci);
-
-	return 0;
-}
-
 static int __init sw_hci_sunxi_init(void)
 {
 /* XXX Should be rewtitten with checks if CONFIG_USB_EHCI_HCD or CONFIG_USB_OHCI_HCD
@@ -911,8 +904,8 @@ static void __exit sw_hci_sunxi_exit(void)
 		platform_device_unregister(&sw_usb_ehci_device[0]);
 		platform_device_unregister(&sw_usb_ohci_device[0]);
 
-		exit_sw_hci(&sw_ehci1, 0);
-		exit_sw_hci(&sw_ohci1, 1);
+		clock_exit(&sw_ehci1, 0);
+		clock_exit(&sw_ohci1, 1);
 
 		free_pin(sw_ehci1.drv_vbus_Handle);
 	}
@@ -921,8 +914,8 @@ static void __exit sw_hci_sunxi_exit(void)
 		platform_device_unregister(&sw_usb_ehci_device[1]);
 		platform_device_unregister(&sw_usb_ohci_device[1]);
 
-		exit_sw_hci(&sw_ehci2, 0);
-		exit_sw_hci(&sw_ohci2, 1);
+		clock_exit(&sw_ehci2, 0);
+		clock_exit(&sw_ohci2, 1);
 
 		free_pin(sw_ehci2.drv_vbus_Handle);
 	}
