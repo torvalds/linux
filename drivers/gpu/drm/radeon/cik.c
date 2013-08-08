@@ -41,6 +41,14 @@ MODULE_FIRMWARE("radeon/BONAIRE_mc.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_rlc.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_sdma.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_smc.bin");
+MODULE_FIRMWARE("radeon/HAWAII_pfp.bin");
+MODULE_FIRMWARE("radeon/HAWAII_me.bin");
+MODULE_FIRMWARE("radeon/HAWAII_ce.bin");
+MODULE_FIRMWARE("radeon/HAWAII_mec.bin");
+MODULE_FIRMWARE("radeon/HAWAII_mc.bin");
+MODULE_FIRMWARE("radeon/HAWAII_rlc.bin");
+MODULE_FIRMWARE("radeon/HAWAII_sdma.bin");
+MODULE_FIRMWARE("radeon/HAWAII_smc.bin");
 MODULE_FIRMWARE("radeon/KAVERI_pfp.bin");
 MODULE_FIRMWARE("radeon/KAVERI_me.bin");
 MODULE_FIRMWARE("radeon/KAVERI_ce.bin");
@@ -1628,6 +1636,35 @@ static const u32 bonaire_io_mc_regs[BONAIRE_IO_MC_REGS_SIZE][2] =
 	{0x0000009f, 0x00b48000}
 };
 
+#define HAWAII_IO_MC_REGS_SIZE 22
+
+static const u32 hawaii_io_mc_regs[HAWAII_IO_MC_REGS_SIZE][2] =
+{
+	{0x0000007d, 0x40000000},
+	{0x0000007e, 0x40180304},
+	{0x0000007f, 0x0000ff00},
+	{0x00000081, 0x00000000},
+	{0x00000083, 0x00000800},
+	{0x00000086, 0x00000000},
+	{0x00000087, 0x00000100},
+	{0x00000088, 0x00020100},
+	{0x00000089, 0x00000000},
+	{0x0000008b, 0x00040000},
+	{0x0000008c, 0x00000100},
+	{0x0000008e, 0xff010000},
+	{0x00000090, 0xffffefff},
+	{0x00000091, 0xfff3efff},
+	{0x00000092, 0xfff3efbf},
+	{0x00000093, 0xf7ffffff},
+	{0x00000094, 0xffffff7f},
+	{0x00000095, 0x00000fff},
+	{0x00000096, 0x00116fff},
+	{0x00000097, 0x60010000},
+	{0x00000098, 0x10010000},
+	{0x0000009f, 0x00c79000}
+};
+
+
 /**
  * cik_srbm_select - select specific register instances
  *
@@ -1672,11 +1709,17 @@ static int ci_mc_load_microcode(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
-	default:
 		io_mc_regs = (u32 *)&bonaire_io_mc_regs;
 		ucode_size = CIK_MC_UCODE_SIZE;
 		regs_size = BONAIRE_IO_MC_REGS_SIZE;
 		break;
+	case CHIP_HAWAII:
+		io_mc_regs = (u32 *)&hawaii_io_mc_regs;
+		ucode_size = HAWAII_MC_UCODE_SIZE;
+		regs_size = HAWAII_IO_MC_REGS_SIZE;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	running = RREG32(MC_SEQ_SUP_CNTL) & RUN_MASK;
@@ -1738,8 +1781,8 @@ static int cik_init_microcode(struct radeon_device *rdev)
 {
 	const char *chip_name;
 	size_t pfp_req_size, me_req_size, ce_req_size,
-		mec_req_size, rlc_req_size, mc_req_size,
-		sdma_req_size, smc_req_size;
+		mec_req_size, rlc_req_size, mc_req_size = 0,
+		sdma_req_size, smc_req_size = 0;
 	char fw_name[30];
 	int err;
 
@@ -1756,6 +1799,17 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		mc_req_size = CIK_MC_UCODE_SIZE * 4;
 		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
 		smc_req_size = ALIGN(BONAIRE_SMC_UCODE_SIZE, 4);
+		break;
+	case CHIP_HAWAII:
+		chip_name = "HAWAII";
+		pfp_req_size = CIK_PFP_UCODE_SIZE * 4;
+		me_req_size = CIK_ME_UCODE_SIZE * 4;
+		ce_req_size = CIK_CE_UCODE_SIZE * 4;
+		mec_req_size = CIK_MEC_UCODE_SIZE * 4;
+		rlc_req_size = BONAIRE_RLC_UCODE_SIZE * 4;
+		mc_req_size = HAWAII_MC_UCODE_SIZE * 4;
+		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
+		smc_req_size = ALIGN(HAWAII_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_KAVERI:
 		chip_name = "KAVERI";
@@ -5505,6 +5559,7 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
 	default:
 		size = BONAIRE_RLC_UCODE_SIZE;
 		break;
