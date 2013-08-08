@@ -765,7 +765,7 @@ static struct console serial_pxa_console = {
 #define PXA_CONSOLE	NULL
 #endif
 
-struct uart_ops serial_pxa_pops = {
+static struct uart_ops serial_pxa_pops = {
 	.tx_empty	= serial_pxa_tx_empty,
 	.set_mctrl	= serial_pxa_set_mctrl,
 	.get_mctrl	= serial_pxa_get_mctrl,
@@ -943,7 +943,7 @@ static struct platform_driver serial_pxa_driver = {
 	},
 };
 
-int __init serial_pxa_init(void)
+static int __init serial_pxa_init(void)
 {
 	int ret;
 
@@ -958,7 +958,7 @@ int __init serial_pxa_init(void)
 	return ret;
 }
 
-void __exit serial_pxa_exit(void)
+static void __exit serial_pxa_exit(void)
 {
 	platform_driver_unregister(&serial_pxa_driver);
 	uart_unregister_driver(&serial_pxa_reg);
