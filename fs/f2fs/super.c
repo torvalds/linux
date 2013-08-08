@@ -23,7 +23,6 @@
 #include <linux/exportfs.h>
 #include <linux/blkdev.h>
 #include <linux/f2fs_fs.h>
-#include <linux/kobject.h>
 #include <linux/sysfs.h>
 
 #include "f2fs.h"

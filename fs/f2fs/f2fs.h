@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/crc32.h>
 #include <linux/magic.h>
+#include <linux/kobject.h>
 
 /*
  * For mount options
