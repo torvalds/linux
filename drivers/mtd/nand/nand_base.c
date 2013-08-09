@@ -1980,13 +1980,14 @@ static int nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
  * nand_write_subpage_hwecc - [REPLACABLE] hardware ECC based subpage write
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
- * @column:	column address of subpage within the page
+ * @offset:	column address of subpage within the page
  * @data_len:	data length
+ * @buf:	data buffer
  * @oob_required: must write chip->oob_poi to OOB
  */
 static int nand_write_subpage_hwecc(struct mtd_info *mtd,
 				struct nand_chip *chip, uint32_t offset,
-				uint32_t data_len, const uint8_t *data_buf,
+				uint32_t data_len, const uint8_t *buf,
 				int oob_required)
 {
 	uint8_t *oob_buf  = chip->oob_poi;
@@ -2005,20 +2006,20 @@ static int nand_write_subpage_hwecc(struct mtd_info *mtd,
 		chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
 
 		/* write data (untouched subpages already masked by 0xFF) */
-		chip->write_buf(mtd, data_buf, ecc_size);
+		chip->write_buf(mtd, buf, ecc_size);
 
 		/* mask ECC of un-touched subpages by padding 0xFF */
 		if ((step < start_step) || (step > end_step))
 			memset(ecc_calc, 0xff, ecc_bytes);
 		else
-			chip->ecc.calculate(mtd, data_buf, ecc_calc);
+			chip->ecc.calculate(mtd, buf, ecc_calc);
 
 		/* mask OOB of un-touched subpages by padding 0xFF */
 		/* if oob_required, preserve OOB metadata of written subpage */
 		if (!oob_required || (step < start_step) || (step > end_step))
 			memset(oob_buf, 0xff, oob_bytes);
 
-		data_buf += ecc_size;
+		buf += ecc_size;
 		ecc_calc += ecc_bytes;
 		oob_buf  += oob_bytes;
 	}
