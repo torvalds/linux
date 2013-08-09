@@ -6761,7 +6761,7 @@ void sched_move_task(struct task_struct *tsk)
 	if (unlikely(running))
 		tsk->sched_class->put_prev_task(rq, tsk);
 
-	tg = container_of(task_subsys_state_check(tsk, cpu_cgroup_subsys_id,
+	tg = container_of(task_css_check(tsk, cpu_cgroup_subsys_id,
 				lockdep_is_held(&tsk->sighand->siglock)),
 			  struct task_group, css);
 	tg = autogroup_task_group(tsk, tg);
@@ -7086,7 +7086,7 @@ int sched_rt_handler(struct ctl_table *table, int write,
 /* return corresponding task_group object of a cgroup */
 static inline struct task_group *cgroup_tg(struct cgroup *cgrp)
 {
-	return container_of(cgroup_subsys_state(cgrp, cpu_cgroup_subsys_id),
+	return container_of(cgroup_css(cgrp, cpu_cgroup_subsys_id),
 			    struct task_group, css);
 }
 

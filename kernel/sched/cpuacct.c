@@ -36,14 +36,14 @@ struct cpuacct {
 /* return cpu accounting group corresponding to this container */
 static inline struct cpuacct *cgroup_ca(struct cgroup *cgrp)
 {
-	return container_of(cgroup_subsys_state(cgrp, cpuacct_subsys_id),
+	return container_of(cgroup_css(cgrp, cpuacct_subsys_id),
 			    struct cpuacct, css);
 }
 
 /* return cpu accounting group to which this task belongs */
 static inline struct cpuacct *task_ca(struct task_struct *tsk)
 {
-	return container_of(task_subsys_state(tsk, cpuacct_subsys_id),
+	return container_of(task_css(tsk, cpuacct_subsys_id),
 			    struct cpuacct, css);
 }
 

@@ -58,12 +58,12 @@ static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
 
 static inline struct dev_cgroup *cgroup_to_devcgroup(struct cgroup *cgroup)
 {
-	return css_to_devcgroup(cgroup_subsys_state(cgroup, devices_subsys_id));
+	return css_to_devcgroup(cgroup_css(cgroup, devices_subsys_id));
 }
 
 static inline struct dev_cgroup *task_devcgroup(struct task_struct *task)
 {
-	return css_to_devcgroup(task_subsys_state(task, devices_subsys_id));
+	return css_to_devcgroup(task_css(task, devices_subsys_id));
 }
 
 struct cgroup_subsys devices_subsys;

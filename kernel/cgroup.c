@@ -81,7 +81,7 @@
  */
 #ifdef CONFIG_PROVE_RCU
 DEFINE_MUTEX(cgroup_mutex);
-EXPORT_SYMBOL_GPL(cgroup_mutex);	/* only for task_subsys_state_check() */
+EXPORT_SYMBOL_GPL(cgroup_mutex);	/* only for lockdep */
 #else
 static DEFINE_MUTEX(cgroup_mutex);
 #endif

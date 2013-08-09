@@ -647,8 +647,15 @@ struct cgroup_subsys {
 #undef IS_SUBSYS_ENABLED
 #undef SUBSYS
 
-static inline struct cgroup_subsys_state *cgroup_subsys_state(
-	struct cgroup *cgrp, int subsys_id)
+/**
+ * cgroup_css - obtain a cgroup's css for the specified subsystem
+ * @cgrp: the cgroup of interest
+ * @subsys_id: the subsystem of interest
+ *
+ * Return @cgrp's css (cgroup_subsys_state) associated with @subsys_id.
+ */
+static inline struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
+						     int subsys_id)
 {
 	return cgrp->subsys[subsys_id];
 }
@@ -678,7 +685,7 @@ extern struct mutex cgroup_mutex;
 #endif
 
 /**
- * task_subsys_state_check - obtain css for (task, subsys) w/ extra access conds
+ * task_css_check - obtain css for (task, subsys) w/ extra access conds
  * @task: the target task
  * @subsys_id: the target subsystem ID
  * @__c: extra condition expression to be passed to rcu_dereference_check()
@@ -686,7 +693,7 @@ extern struct mutex cgroup_mutex;
  * Return the cgroup_subsys_state for the (@task, @subsys_id) pair.  The
  * synchronization rules are the same as task_css_set_check().
  */
-#define task_subsys_state_check(task, subsys_id, __c)			\
+#define task_css_check(task, subsys_id, __c)				\
 	task_css_set_check((task), (__c))->subsys[(subsys_id)]
 
 /**
@@ -701,22 +708,22 @@ static inline struct css_set *task_css_set(struct task_struct *task)
 }
 
 /**
- * task_subsys_state - obtain css for (task, subsys)
+ * task_css - obtain css for (task, subsys)
  * @task: the target task
  * @subsys_id: the target subsystem ID
  *
- * See task_subsys_state_check().
+ * See task_css_check().
  */
-static inline struct cgroup_subsys_state *
-task_subsys_state(struct task_struct *task, int subsys_id)
+static inline struct cgroup_subsys_state *task_css(struct task_struct *task,
+						   int subsys_id)
 {
-	return task_subsys_state_check(task, subsys_id, false);
+	return task_css_check(task, subsys_id, false);
 }
 
-static inline struct cgroup* task_cgroup(struct task_struct *task,
-					       int subsys_id)
+static inline struct cgroup *task_cgroup(struct task_struct *task,
+					 int subsys_id)
 {
-	return task_subsys_state(task, subsys_id)->cgroup;
+	return task_css(task, subsys_id)->cgroup;
 }
 
 /**

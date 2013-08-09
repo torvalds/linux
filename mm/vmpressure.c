@@ -76,7 +76,7 @@ static struct vmpressure *work_to_vmpressure(struct work_struct *work)
 
 static struct vmpressure *cg_to_vmpressure(struct cgroup *cg)
 {
-	return css_to_vmpressure(cgroup_subsys_state(cg, mem_cgroup_subsys_id));
+	return css_to_vmpressure(cgroup_css(cg, mem_cgroup_subsys_id));
 }
 
 static struct vmpressure *vmpressure_parent(struct vmpressure *vmpr)

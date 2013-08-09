@@ -47,13 +47,13 @@ struct freezer {
 
 static inline struct freezer *cgroup_freezer(struct cgroup *cgroup)
 {
-	return container_of(cgroup_subsys_state(cgroup, freezer_subsys_id),
+	return container_of(cgroup_css(cgroup, freezer_subsys_id),
 			    struct freezer, css);
 }
 
 static inline struct freezer *task_freezer(struct task_struct *task)
 {
-	return container_of(task_subsys_state(task, freezer_subsys_id),
+	return container_of(task_css(task, freezer_subsys_id),
 			    struct freezer, css);
 }
 
