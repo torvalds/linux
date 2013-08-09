@@ -149,10 +149,6 @@ static void ceph_invalidatepage(struct page *page, unsigned long offset)
 	struct ceph_inode_info *ci;
 	struct ceph_snap_context *snapc = page_snap_context(page);
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(!PagePrivate(page));
-	BUG_ON(!page->mapping);
-
 	inode = page->mapping->host;
 
 	/*
