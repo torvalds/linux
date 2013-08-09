@@ -34,13 +34,6 @@
 #define FALSE  0
 #endif
 
-#ifdef SBE_INCLUDE_SYMBOLS
-#define STATIC
-#else
-#define STATIC  static
-#endif
-
-
 /*------------------------------------------------------------------------
  *      EEPROM address definitions
  *------------------------------------------------------------------------
@@ -120,7 +113,7 @@ short       mfg_template[sizeof (FLD_TYPE2)] =
  *      (the MSB becomes the LSB etc.).
  */
 
-STATIC void
+static void
 BuildByteReverse (void)
 {
     long        half;           /* Used to build by powers to 2 */
@@ -141,7 +134,7 @@ BuildByteReverse (void)
  *------------------------------------------------------------------------
  */
 
-STATIC void
+static void
 eeprom_delay (void)
 {
     int         timeout;
@@ -224,7 +217,7 @@ eeprom_get_byte (long addr)
  *      Issue the EEPROM command to disable writes.
  */
 
-STATIC void
+static void
 disable_pmc_eeprom (long addr)
 {
     eeprom_put_byte (addr, EPROM_EWDS, SIZE_ADDR_OP);
@@ -241,7 +234,7 @@ disable_pmc_eeprom (long addr)
  *      Issue the EEPROM command to enable writes.
  */
 
-STATIC void
+static void
 enable_pmc_eeprom (long addr)
 {
     eeprom_put_byte (addr, EPROM_EWEN, SIZE_ADDR_OP);
