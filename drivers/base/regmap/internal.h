@@ -223,7 +223,7 @@ int regcache_set_reg_present(struct regmap *map, unsigned int reg);
 static inline bool regcache_reg_present(struct regmap *map, unsigned int reg)
 {
 	if (!map->cache_present)
-		return true;
+		return false;
 	if (reg > map->cache_present_nbits)
 		return false;
 	return map->cache_present[BIT_WORD(reg)] & BIT_MASK(reg);
