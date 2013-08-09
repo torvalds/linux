@@ -103,7 +103,7 @@ static int usb3503_clear_bits(struct i2c_client *client, char reg, char req)
 static int usb3503_reset(int gpio_reset, int state)
 {
 	if (gpio_is_valid(gpio_reset))
-		gpio_set_value(gpio_reset, state);
+		gpio_set_value_cansleep(gpio_reset, state);
 
 	/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
 	if (state)
