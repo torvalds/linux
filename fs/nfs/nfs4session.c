@@ -44,6 +44,17 @@ static void nfs4_shrink_slot_table(struct nfs4_slot_table  *tbl, u32 newsize)
 	}
 }
 
+/**
+ * nfs4_slot_tbl_drain_complete - wake waiters when drain is complete
+ * @tbl - controlling slot table
+ *
+ */
+void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl)
+{
+	if (nfs4_slot_tbl_draining(tbl))
+		complete(&tbl->complete);
+}
+
 /*
  * nfs4_free_slot - free a slot and efficiently update slot table.
  *
@@ -212,13 +223,6 @@ out:
 	return ret;
 }
 
-/* Destroy the slot table */
-static void nfs4_destroy_slot_tables(struct nfs4_session *session)
-{
-	nfs4_shrink_slot_table(&session->fc_slot_table, 0);
-	nfs4_shrink_slot_table(&session->bc_slot_table, 0);
-}
-
 static bool nfs41_assign_slot(struct rpc_task *task, void *pslot)
 {
 	struct nfs4_sequence_args *args = task->tk_msg.rpc_argp;
@@ -383,6 +387,15 @@ void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
+#if defined(CONFIG_NFS_V4_1)
+
+/* Destroy the slot table */
+static void nfs4_destroy_slot_tables(struct nfs4_session *session)
+{
+	nfs4_shrink_slot_table(&session->fc_slot_table, 0);
+	nfs4_shrink_slot_table(&session->bc_slot_table, 0);
+}
+
 /*
  * Initialize or reset the forechannel and backchannel tables
  */
@@ -513,4 +526,4 @@ int nfs4_init_ds_session(struct nfs_client *clp, unsigned long lease_time)
 }
 EXPORT_SYMBOL_GPL(nfs4_init_ds_session);
 
-
+#endif	/* defined(CONFIG_NFS_V4_1) */
