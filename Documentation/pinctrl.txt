@@ -856,7 +856,7 @@ static unsigned long uart_sleep_mode[] = {
     PIN_CONF_PACKED(PIN_CONFIG_OUTPUT, 0),
 };
 
-static struct pinctrl_map __initdata pinmap[] = {
+static struct pinctrl_map pinmap[] __initdata = {
     PIN_MAP_MUX_GROUP("uart", PINCTRL_STATE_DEFAULT, "pinctrl-foo",
                       "u0_group", "u0"),
     PIN_MAP_CONFIGS_PIN("uart", PINCTRL_STATE_DEFAULT, "pinctrl-foo",
@@ -951,7 +951,7 @@ Since the above construct is pretty common there is a helper macro to make
 it even more compact which assumes you want to use pinctrl-foo and position
 0 for mapping, for example:
 
-static struct pinctrl_map __initdata mapping[] = {
+static struct pinctrl_map mapping[] __initdata = {
 	PIN_MAP_MUX_GROUP("foo-i2c.o", PINCTRL_STATE_DEFAULT, "pinctrl-foo", NULL, "i2c0"),
 };
 
@@ -970,7 +970,7 @@ static unsigned long i2c_pin_configs[] = {
 	FOO_SLEW_RATE_SLOW,
 };
 
-static struct pinctrl_map __initdata mapping[] = {
+static struct pinctrl_map mapping[] __initdata = {
 	PIN_MAP_MUX_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", "i2c0"),
 	PIN_MAP_CONFIGS_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", i2c_grp_configs),
 	PIN_MAP_CONFIGS_PIN("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0scl", i2c_pin_configs),
@@ -984,7 +984,7 @@ order to explicitly indicate that the states were provided and intended to
 be empty. Table entry macro PIN_MAP_DUMMY_STATE serves the purpose of defining
 a named state without causing any pin controller to be programmed:
 
-static struct pinctrl_map __initdata mapping[] = {
+static struct pinctrl_map mapping[] __initdata = {
 	PIN_MAP_DUMMY_STATE("foo-i2c.0", PINCTRL_STATE_DEFAULT),
 };
 
