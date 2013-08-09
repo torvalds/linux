@@ -270,6 +270,14 @@ enum ath10k_state {
 	ATH10K_STATE_WEDGED,
 };
 
+enum ath10k_fw_features {
+	/* wmi_mgmt_rx_hdr contains extra RSSI information */
+	ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX = 0,
+
+	/* keep last */
+	ATH10K_FW_FEATURE_COUNT,
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -287,6 +295,8 @@ struct ath10k {
 	u32 ht_cap_info;
 	u32 vht_cap_info;
 	u32 num_rf_chains;
+
+	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
 	struct targetdef *targetdef;
 	struct hostdef *hostdef;

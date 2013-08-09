@@ -316,7 +316,9 @@ static inline u8 get_rate_idx(u32 rate, enum ieee80211_band band)
 
 static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 {
-	struct wmi_mgmt_rx_event *event = (struct wmi_mgmt_rx_event *)skb->data;
+	struct wmi_mgmt_rx_event_v1 *ev_v1;
+	struct wmi_mgmt_rx_event_v2 *ev_v2;
+	struct wmi_mgmt_rx_hdr_v1 *ev_hdr;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr;
 	u32 rx_status;
@@ -326,13 +328,24 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	u32 rate;
 	u32 buf_len;
 	u16 fc;
+	int pull_len;
 
-	channel   = __le32_to_cpu(event->hdr.channel);
-	buf_len   = __le32_to_cpu(event->hdr.buf_len);
-	rx_status = __le32_to_cpu(event->hdr.status);
-	snr       = __le32_to_cpu(event->hdr.snr);
-	phy_mode  = __le32_to_cpu(event->hdr.phy_mode);
-	rate	  = __le32_to_cpu(event->hdr.rate);
+	if (test_bit(ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX, ar->fw_features)) {
+		ev_v2 = (struct wmi_mgmt_rx_event_v2 *)skb->data;
+		ev_hdr = &ev_v2->hdr.v1;
+		pull_len = sizeof(*ev_v2);
+	} else {
+		ev_v1 = (struct wmi_mgmt_rx_event_v1 *)skb->data;
+		ev_hdr = &ev_v1->hdr;
+		pull_len = sizeof(*ev_v1);
+	}
+
+	channel   = __le32_to_cpu(ev_hdr->channel);
+	buf_len   = __le32_to_cpu(ev_hdr->buf_len);
+	rx_status = __le32_to_cpu(ev_hdr->status);
+	snr       = __le32_to_cpu(ev_hdr->snr);
+	phy_mode  = __le32_to_cpu(ev_hdr->phy_mode);
+	rate	  = __le32_to_cpu(ev_hdr->rate);
 
 	memset(status, 0, sizeof(*status));
 
@@ -359,7 +372,7 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	status->signal = snr + ATH10K_DEFAULT_NOISE_FLOOR;
 	status->rate_idx = get_rate_idx(rate, status->band);
 
-	skb_pull(skb, sizeof(event->hdr));
+	skb_pull(skb, pull_len);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
@@ -943,6 +956,9 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	ar->fw_version_build = (__le32_to_cpu(ev->sw_version_1) & 0x0000ffff);
 	ar->phy_capability = __le32_to_cpu(ev->phy_capability);
 	ar->num_rf_chains = __le32_to_cpu(ev->num_rf_chains);
+
+	if (ar->fw_version_build > 636)
+		set_bit(ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX, ar->fw_features);
 
 	if (ar->num_rf_chains > WMI_MAX_SPATIAL_STREAM) {
 		ath10k_warn("hardware advertises support for more spatial streams than it should (%d > %d)\n",

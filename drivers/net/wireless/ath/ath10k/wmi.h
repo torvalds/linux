@@ -1268,7 +1268,7 @@ struct wmi_scan_event {
  * good idea to pass all the fields in the RX status
  * descriptor up to the host.
  */
-struct wmi_mgmt_rx_hdr {
+struct wmi_mgmt_rx_hdr_v1 {
 	__le32 channel;
 	__le32 snr;
 	__le32 rate;
@@ -1277,8 +1277,18 @@ struct wmi_mgmt_rx_hdr {
 	__le32 status; /* %WMI_RX_STATUS_ */
 } __packed;
 
-struct wmi_mgmt_rx_event {
-	struct wmi_mgmt_rx_hdr hdr;
+struct wmi_mgmt_rx_hdr_v2 {
+	struct wmi_mgmt_rx_hdr_v1 v1;
+	__le32 rssi_ctl[4];
+} __packed;
+
+struct wmi_mgmt_rx_event_v1 {
+	struct wmi_mgmt_rx_hdr_v1 hdr;
+	u8 buf[0];
+} __packed;
+
+struct wmi_mgmt_rx_event_v2 {
+	struct wmi_mgmt_rx_hdr_v2 hdr;
 	u8 buf[0];
 } __packed;
 
