@@ -23,6 +23,14 @@
 
 #define NFSDBG_FACILITY		NFSDBG_STATE
 
+static void nfs4_init_slot_table(struct nfs4_slot_table *tbl, const char *queue)
+{
+	tbl->highest_used_slotid = NFS4_NO_SLOT;
+	spin_lock_init(&tbl->slot_tbl_lock);
+	rpc_init_priority_wait_queue(&tbl->slot_tbl_waitq, queue);
+	init_completion(&tbl->complete);
+}
+
 /*
  * nfs4_shrink_slot_table - free retired slots from the slot table
  */
@@ -221,6 +229,21 @@ static int nfs4_realloc_slot_table(struct nfs4_slot_table *tbl,
 out:
 	dprintk("<-- %s: return %d\n", __func__, ret);
 	return ret;
+}
+
+/**
+ * nfs4_setup_slot_table - prepare a stand-alone slot table for use
+ * @tbl: slot table to set up
+ * @max_reqs: maximum number of requests allowed
+ * @queue: name to give RPC wait queue
+ *
+ * Returns zero on success, or a negative errno.
+ */
+int nfs4_setup_slot_table(struct nfs4_slot_table *tbl, unsigned int max_reqs,
+		const char *queue)
+{
+	nfs4_init_slot_table(tbl, queue);
+	return nfs4_realloc_slot_table(tbl, max_reqs, 0);
 }
 
 static bool nfs41_assign_slot(struct rpc_task *task, void *pslot)
@@ -425,24 +448,13 @@ int nfs4_setup_session_slot_tables(struct nfs4_session *ses)
 struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 {
 	struct nfs4_session *session;
-	struct nfs4_slot_table *tbl;
 
 	session = kzalloc(sizeof(struct nfs4_session), GFP_NOFS);
 	if (!session)
 		return NULL;
 
-	tbl = &session->fc_slot_table;
-	tbl->highest_used_slotid = NFS4_NO_SLOT;
-	spin_lock_init(&tbl->slot_tbl_lock);
-	rpc_init_priority_wait_queue(&tbl->slot_tbl_waitq, "ForeChannel Slot table");
-	init_completion(&tbl->complete);
-
-	tbl = &session->bc_slot_table;
-	tbl->highest_used_slotid = NFS4_NO_SLOT;
-	spin_lock_init(&tbl->slot_tbl_lock);
-	rpc_init_wait_queue(&tbl->slot_tbl_waitq, "BackChannel Slot table");
-	init_completion(&tbl->complete);
-
+	nfs4_init_slot_table(&session->fc_slot_table, "ForeChannel Slot table");
+	nfs4_init_slot_table(&session->bc_slot_table, "BackChannel Slot table");
 	session->session_state = 1<<NFS4_SESSION_INITING;
 
 	session->clp = clp;

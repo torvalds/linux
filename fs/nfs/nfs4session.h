@@ -72,6 +72,8 @@ enum nfs4_session_state {
 	NFS4_SESSION_INITING,
 };
 
+extern int nfs4_setup_slot_table(struct nfs4_slot_table *tbl,
+		unsigned int max_reqs, const char *queue);
 extern struct nfs4_slot *nfs4_alloc_slot(struct nfs4_slot_table *tbl);
 extern void nfs4_free_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot);
 extern void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl);
