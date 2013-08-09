@@ -34,6 +34,35 @@
 # define UNLOCK_LOCK_PREFIX
 #endif
 
+/* How long a lock should spin before we consider blocking */
+#define SPIN_THRESHOLD	(1 << 15)
+
+#ifndef CONFIG_PARAVIRT_SPINLOCKS
+
+static __always_inline void __ticket_lock_spinning(struct arch_spinlock *lock,
+							__ticket_t ticket)
+{
+}
+
+static __always_inline void ____ticket_unlock_kick(struct arch_spinlock *lock,
+							 __ticket_t ticket)
+{
+}
+
+#endif	/* CONFIG_PARAVIRT_SPINLOCKS */
+
+
+/*
+ * If a spinlock has someone waiting on it, then kick the appropriate
+ * waiting cpu.
+ */
+static __always_inline void __ticket_unlock_kick(struct arch_spinlock *lock,
+							__ticket_t next)
+{
+	if (unlikely(lock->tickets.tail != next))
+		____ticket_unlock_kick(lock, next);
+}
+
 /*
  * Ticket locks are conceptually two parts, one indicating the current head of
  * the queue, and the other indicating the current tail. The lock is acquired
@@ -47,19 +76,24 @@
  * in the high part, because a wide xadd increment of the low part would carry
  * up and contaminate the high part.
  */
-static __always_inline void __ticket_spin_lock(arch_spinlock_t *lock)
+static __always_inline void __ticket_spin_lock(struct arch_spinlock *lock)
 {
 	register struct __raw_tickets inc = { .tail = 1 };
 
 	inc = xadd(&lock->tickets, inc);
 
 	for (;;) {
-		if (inc.head == inc.tail)
-			break;
-		cpu_relax();
-		inc.head = ACCESS_ONCE(lock->tickets.head);
+		unsigned count = SPIN_THRESHOLD;
+
+		do {
+			if (inc.head == inc.tail)
+				goto out;
+			cpu_relax();
+			inc.head = ACCESS_ONCE(lock->tickets.head);
+		} while (--count);
+		__ticket_lock_spinning(lock, inc.tail);
 	}
-	barrier();		/* make sure nothing creeps before the lock is taken */
+out:	barrier();	/* make sure nothing creeps before the lock is taken */
 }
 
 static __always_inline int __ticket_spin_trylock(arch_spinlock_t *lock)
@@ -78,7 +112,10 @@ static __always_inline int __ticket_spin_trylock(arch_spinlock_t *lock)
 
 static __always_inline void __ticket_spin_unlock(arch_spinlock_t *lock)
 {
+	__ticket_t next = lock->tickets.head + 1;
+
 	__add(&lock->tickets.head, 1, UNLOCK_LOCK_PREFIX);
+	__ticket_unlock_kick(lock, next);
 }
 
 static inline int __ticket_spin_is_locked(arch_spinlock_t *lock)
@@ -94,8 +131,6 @@ static inline int __ticket_spin_is_contended(arch_spinlock_t *lock)
 
 	return (__ticket_t)(tmp.tail - tmp.head) > 1;
 }
-
-#ifndef CONFIG_PARAVIRT_SPINLOCKS
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
@@ -128,8 +163,6 @@ static __always_inline void arch_spin_lock_flags(arch_spinlock_t *lock,
 {
 	arch_spin_lock(lock);
 }
-
-#endif	/* CONFIG_PARAVIRT_SPINLOCKS */
 
 static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 {
