@@ -946,8 +946,6 @@ static const struct driver_info hg20f9_info = {
 	.data = FLAG_EEPROM_MAC,
 };
 
-extern const struct driver_info ax88172a_info;
-
 static const struct usb_device_id	products [] = {
 {
 	// Linksys USB200M
