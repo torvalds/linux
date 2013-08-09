@@ -70,7 +70,7 @@ static int kirkwood_cpuidle_probe(struct platform_device *pdev)
 	return cpuidle_register(&kirkwood_idle_driver, NULL);
 }
 
-int kirkwood_cpuidle_remove(struct platform_device *pdev)
+static int kirkwood_cpuidle_remove(struct platform_device *pdev)
 {
 	cpuidle_unregister(&kirkwood_idle_driver);
 	return 0;
