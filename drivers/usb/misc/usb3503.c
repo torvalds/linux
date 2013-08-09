@@ -272,6 +272,7 @@ MODULE_DEVICE_TABLE(i2c, usb3503_id);
 #ifdef CONFIG_OF
 static const struct of_device_id usb3503_of_match[] = {
 	{ .compatible = "smsc,usb3503", },
+	{ .compatible = "smsc,usb3503a", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, usb3503_of_match);
