@@ -1297,7 +1297,7 @@ static void note_gp_changes(struct rcu_state *rsp, struct rcu_data *rdp)
 }
 
 /*
- * Initialize a new grace period.
+ * Initialize a new grace period.  Return 0 if no grace period required.
  */
 static int rcu_gp_init(struct rcu_state *rsp)
 {
@@ -1306,10 +1306,18 @@ static int rcu_gp_init(struct rcu_state *rsp)
 
 	rcu_bind_gp_kthread();
 	raw_spin_lock_irq(&rnp->lock);
+	if (rsp->gp_flags == 0) {
+		/* Spurious wakeup, tell caller to go back to sleep.  */
+		raw_spin_unlock_irq(&rnp->lock);
+		return 0;
+	}
 	rsp->gp_flags = 0; /* Clear all flags: New grace period. */
 
-	if (rcu_gp_in_progress(rsp)) {
-		/* Grace period already in progress, don't start another.  */
+	if (WARN_ON_ONCE(rcu_gp_in_progress(rsp))) {
+		/*
+		 * Grace period already in progress, don't start another.
+		 * Not supposed to be able to happen.
+		 */
 		raw_spin_unlock_irq(&rnp->lock);
 		return 0;
 	}
@@ -1474,8 +1482,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 			wait_event_interruptible(rsp->gp_wq,
 						 rsp->gp_flags &
 						 RCU_GP_FLAG_INIT);
-			if ((rsp->gp_flags & RCU_GP_FLAG_INIT) &&
-			    rcu_gp_init(rsp))
+			if (rcu_gp_init(rsp))
 				break;
 			cond_resched();
 			flush_signals(current);
