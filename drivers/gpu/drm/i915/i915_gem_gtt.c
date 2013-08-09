@@ -487,7 +487,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 				       dev_priv->gtt.base.total / PAGE_SIZE);
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		i915_gem_clflush_object(obj);
+		i915_gem_clflush_object(obj, obj->pin_display);
 		i915_gem_gtt_bind_object(obj, obj->cache_level);
 	}
 
