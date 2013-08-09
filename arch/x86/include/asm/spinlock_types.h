@@ -3,13 +3,21 @@
 
 #include <linux/types.h>
 
-#if (CONFIG_NR_CPUS < 256)
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+#define __TICKET_LOCK_INC	2
+#else
+#define __TICKET_LOCK_INC	1
+#endif
+
+#if (CONFIG_NR_CPUS < (256 / __TICKET_LOCK_INC))
 typedef u8  __ticket_t;
 typedef u16 __ticketpair_t;
 #else
 typedef u16 __ticket_t;
 typedef u32 __ticketpair_t;
 #endif
+
+#define TICKET_LOCK_INC	((__ticket_t)__TICKET_LOCK_INC)
 
 #define TICKET_SHIFT	(sizeof(__ticket_t) * 8)
 
