@@ -2681,6 +2681,8 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 			break;
 	max_level = level - 1;
 
+	memset(results, 0, sizeof(*results));
+
 	/* The spec says it is preferred to disable FBC WMs instead of disabling
 	 * a WM level. */
 	results->enable_fbc_wm = true;
@@ -2691,7 +2693,6 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 		}
 	}
 
-	memset(results, 0, sizeof(*results));
 	for (wm_lp = 1; wm_lp <= 3; wm_lp++) {
 		const struct intel_wm_level *r;
 
