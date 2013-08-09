@@ -3037,15 +3037,16 @@ static void cgroup_enable_task_cg_lists(void)
 }
 
 /**
- * cgroup_next_sibling - find the next sibling of a given cgroup
- * @pos: the current cgroup
+ * cgroup_next_child - find the next child of a given cgroup
+ * @pos: the current position (%NULL to initiate traversal)
+ * @cgrp: cgroup whose descendants to walk
  *
- * This function returns the next sibling of @pos and should be called
- * under RCU read lock.  The only requirement is that @pos is accessible.
- * The next sibling is guaranteed to be returned regardless of @pos's
- * state.
+ * This function returns the next child of @cgrp and should be called under
+ * RCU read lock.  The only requirement is that @cgrp and @pos are
+ * accessible.  The next sibling is guaranteed to be returned regardless of
+ * their states.
  */
-struct cgroup *cgroup_next_sibling(struct cgroup *pos)
+struct cgroup *cgroup_next_child(struct cgroup *pos, struct cgroup *cgrp)
 {
 	struct cgroup *next;
 
@@ -3061,30 +3062,30 @@ struct cgroup *cgroup_next_sibling(struct cgroup *pos)
 	 * safe to dereference from this RCU critical section.  If
 	 * ->sibling.next is inaccessible, cgroup_is_dead() is guaranteed
 	 * to be visible as %true here.
+	 *
+	 * If @pos is dead, its next pointer can't be dereferenced;
+	 * however, as each cgroup is given a monotonically increasing
+	 * unique serial number and always appended to the sibling list,
+	 * the next one can be found by walking the parent's children until
+	 * we see a cgroup with higher serial number than @pos's.  While
+	 * this path can be slower, it's taken only when either the current
+	 * cgroup is removed or iteration and removal race.
 	 */
-	if (likely(!cgroup_is_dead(pos))) {
+	if (!pos) {
+		next = list_entry_rcu(cgrp->children.next, struct cgroup, sibling);
+	} else if (likely(!cgroup_is_dead(pos))) {
 		next = list_entry_rcu(pos->sibling.next, struct cgroup, sibling);
-		if (&next->sibling != &pos->parent->children)
-			return next;
-		return NULL;
+	} else {
+		list_for_each_entry_rcu(next, &cgrp->children, sibling)
+			if (next->serial_nr > pos->serial_nr)
+				break;
 	}
 
-	/*
-	 * Can't dereference the next pointer.  Each cgroup is given a
-	 * monotonically increasing unique serial number and always
-	 * appended to the sibling list, so the next one can be found by
-	 * walking the parent's children until we see a cgroup with higher
-	 * serial number than @pos's.
-	 *
-	 * While this path can be slow, it's taken only when either the
-	 * current cgroup is removed or iteration and removal race.
-	 */
-	list_for_each_entry_rcu(next, &pos->parent->children, sibling)
-		if (next->serial_nr > pos->serial_nr)
-			return next;
+	if (&next->sibling != &cgrp->children)
+		return next;
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(cgroup_next_sibling);
+EXPORT_SYMBOL_GPL(cgroup_next_child);
 
 /**
  * cgroup_next_descendant_pre - find the next descendant for pre-order walk
@@ -3117,7 +3118,7 @@ struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
 
 	/* no child, visit my or the closest ancestor's next sibling */
 	while (pos != cgroup) {
-		next = cgroup_next_sibling(pos);
+		next = cgroup_next_child(pos, pos->parent);
 		if (next)
 			return next;
 		pos = pos->parent;
@@ -3198,7 +3199,7 @@ struct cgroup *cgroup_next_descendant_post(struct cgroup *pos,
 	}
 
 	/* if there's an unvisited sibling, visit its leftmost descendant */
-	next = cgroup_next_sibling(pos);
+	next = cgroup_next_child(pos, pos->parent);
 	if (next)
 		return cgroup_leftmost_descendant(next);
 
@@ -4549,9 +4550,9 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	/*
 	 * Mark @cgrp dead.  This prevents further task migration and child
 	 * creation by disabling cgroup_lock_live_group().  Note that
-	 * CGRP_DEAD assertion is depended upon by cgroup_next_sibling() to
+	 * CGRP_DEAD assertion is depended upon by cgroup_next_child() to
 	 * resume iteration after dropping RCU read lock.  See
-	 * cgroup_next_sibling() for details.
+	 * cgroup_next_child() for details.
 	 */
 	set_bit(CGRP_DEAD, &cgrp->flags);
 
