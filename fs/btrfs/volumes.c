@@ -1620,7 +1620,11 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	/*
 	 * the device list mutex makes sure that we don't change
 	 * the device list while someone else is writing out all
-	 * the device supers.
+	 * the device supers. Whoever is writing all supers, should
+	 * lock the device list mutex before getting the number of
+	 * devices in the super block (super_copy). Conversely,
+	 * whoever updates the number of devices in the super block
+	 * (super_copy) should hold the device list mutex.
 	 */
 
 	cur_devices = device->fs_devices;
@@ -1644,10 +1648,10 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		device->fs_devices->open_devices--;
 
 	call_rcu(&device->rcu, free_device);
-	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	num_devices = btrfs_super_num_devices(root->fs_info->super_copy) - 1;
 	btrfs_set_super_num_devices(root->fs_info->super_copy, num_devices);
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	if (cur_devices->open_devices == 0) {
 		struct btrfs_fs_devices *fs_devices;

@@ -3365,7 +3365,6 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	int total_errors = 0;
 	u64 flags;
 
-	max_errors = btrfs_super_num_devices(root->fs_info->super_copy) - 1;
 	do_barriers = !btrfs_test_opt(root, NOBARRIER);
 	backup_super_roots(root->fs_info);
 
@@ -3374,6 +3373,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	head = &root->fs_info->fs_devices->devices;
+	max_errors = btrfs_super_num_devices(root->fs_info->super_copy) - 1;
 
 	if (do_barriers) {
 		ret = barrier_all_devices(root->fs_info);
