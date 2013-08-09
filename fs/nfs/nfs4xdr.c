@@ -1858,11 +1858,10 @@ static void encode_sequence(struct xdr_stream *xdr,
 	struct nfs4_slot *slot = args->sa_slot;
 	__be32 *p;
 
-	if (slot == NULL)
-		return;
-
 	tp = slot->table;
 	session = tp->session;
+	if (!session)
+		return;
 
 	encode_op_hdr(xdr, OP_SEQUENCE, decode_sequence_maxsz, hdr);
 
@@ -2043,9 +2042,9 @@ static void encode_free_stateid(struct xdr_stream *xdr,
 static u32 nfs4_xdr_minorversion(const struct nfs4_sequence_args *args)
 {
 #if defined(CONFIG_NFS_V4_1)
-
-	if (args->sa_slot)
-		return args->sa_slot->table->session->clp->cl_mvops->minor_version;
+	struct nfs4_session *session = args->sa_slot->table->session;
+	if (session)
+		return session->clp->cl_mvops->minor_version;
 #endif /* CONFIG_NFS_V4_1 */
 	return 0;
 }
@@ -5594,6 +5593,8 @@ static int decode_sequence(struct xdr_stream *xdr,
 	__be32 *p;
 
 	if (res->sr_slot == NULL)
+		return 0;
+	if (!res->sr_slot->table->session)
 		return 0;
 
 	status = decode_op_hdr(xdr, OP_SEQUENCE);
