@@ -39,15 +39,25 @@ TRACE_EVENT(rcu_utilization,
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
 
 /*
- * Tracepoint for grace-period events: starting and ending a grace
- * period ("start" and "end", respectively), a CPU noting the start
- * of a new grace period or the end of an old grace period ("cpustart"
- * and "cpuend", respectively), a CPU passing through a quiescent
- * state ("cpuqs"), a CPU coming online or going offline ("cpuonl"
- * and "cpuofl", respectively), a CPU being kicked for being too
- * long in dyntick-idle mode ("kick"), a CPU accelerating its new
- * callbacks to RCU_NEXT_READY_TAIL ("AccReadyCB"), and a CPU
- * accelerating its new callbacks to RCU_WAIT_TAIL ("AccWaitCB").
+ * Tracepoint for grace-period events.  Takes a string identifying the
+ * RCU flavor, the grace-period number, and a string identifying the
+ * grace-period-related event as follows:
+ *
+ *	"AccReadyCB": CPU acclerates new callbacks to RCU_NEXT_READY_TAIL.
+ *	"AccWaitCB": CPU accelerates new callbacks to RCU_WAIT_TAIL.
+ *	"start": Start a grace period.
+ *	"cpustart": CPU first notices a grace-period start.
+ *	"cpuqs": CPU passes through a quiescent state.
+ *	"cpuonl": CPU comes online.
+ *	"cpuofl": CPU goes offline.
+ *	"reqwait": GP kthread sleeps waiting for grace-period request.
+ *	"reqwaitsig": GP kthread awakened by signal from reqwait state.
+ *	"fqswait": GP kthread waiting until time to force quiescent states.
+ *	"fqsstart": GP kthread starts forcing quiescent states.
+ *	"fqsend": GP kthread done forcing quiescent states.
+ *	"fqswaitsig": GP kthread awakened by signal from fqswait state.
+ *	"end": End a grace period.
+ *	"cpuend": CPU first notices a grace-period end.
  */
 TRACE_EVENT(rcu_grace_period,
 
