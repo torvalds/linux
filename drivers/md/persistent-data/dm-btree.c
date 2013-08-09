@@ -287,7 +287,7 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 					info->value_type.dec(info->value_type.context,
 							     value_ptr(f->n, i));
 			}
-			f->current_child = f->nr_children;
+			pop_frame(s);
 		}
 	}
 
