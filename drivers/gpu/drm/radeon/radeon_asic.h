@@ -784,5 +784,6 @@ void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m);
 int kv_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
+void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
 
 #endif

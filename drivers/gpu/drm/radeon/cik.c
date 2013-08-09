@@ -69,7 +69,7 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
 static void cik_init_pg(struct radeon_device *rdev);
 static void cik_init_cg(struct radeon_device *rdev);
-static void cik_uvd_resume(struct radeon_device *rdev);
+void cik_uvd_resume(struct radeon_device *rdev);
 
 /* get temperature in millidegrees */
 int ci_get_temp(struct radeon_device *rdev)
@@ -8600,7 +8600,7 @@ int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	return r;
 }
 
-static void cik_uvd_resume(struct radeon_device *rdev)
+void cik_uvd_resume(struct radeon_device *rdev)
 {
 	uint64_t addr;
 	uint32_t size;

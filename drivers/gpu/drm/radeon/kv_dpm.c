@@ -49,7 +49,7 @@ static int kv_set_thermal_temperature_range(struct radeon_device *rdev,
 					    int min_temp, int max_temp);
 static int kv_init_fps_limits(struct radeon_device *rdev);
 
-static void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
+void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
 static void kv_dpm_powergate_vce(struct radeon_device *rdev, bool gate);
 static void kv_dpm_powergate_samu(struct radeon_device *rdev, bool gate);
 static void kv_dpm_powergate_acp(struct radeon_device *rdev, bool gate);
@@ -58,6 +58,10 @@ extern void cik_enter_rlc_safe_mode(struct radeon_device *rdev);
 extern void cik_exit_rlc_safe_mode(struct radeon_device *rdev);
 extern void cik_update_cg(struct radeon_device *rdev,
 			  u32 block, bool enable);
+
+extern void cik_uvd_resume(struct radeon_device *rdev);
+extern int r600_uvd_init(struct radeon_device *rdev, bool ring_test);
+extern void r600_do_uvd_stop(struct radeon_device *rdev);
 
 static const struct kv_lcac_config_values sx_local_cac_cfg_kv[] =
 {
@@ -1201,6 +1205,7 @@ int kv_dpm_enable(struct radeon_device *rdev)
 	kv_dpm_powergate_acp(rdev, true);
 	kv_dpm_powergate_samu(rdev, true);
 	kv_dpm_powergate_vce(rdev, true);
+	kv_dpm_powergate_uvd(rdev, true);
 
 	kv_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
 
@@ -1458,7 +1463,7 @@ static int kv_update_acp_dpm(struct radeon_device *rdev, bool gate)
 	return kv_enable_acp_dpm(rdev, !gate);
 }
 
-static void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
+void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
 
@@ -1468,13 +1473,18 @@ static void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 	pi->uvd_power_gated = gate;
 
 	if (gate) {
-		kv_update_uvd_dpm(rdev, true);
+		r600_do_uvd_stop(rdev);
+		cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, false);
+		kv_update_uvd_dpm(rdev, gate);
 		if (pi->caps_uvd_pg)
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_UVDPowerOFF);
 	} else {
 		if (pi->caps_uvd_pg)
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_UVDPowerON);
-		kv_update_uvd_dpm(rdev, false);
+		cik_uvd_resume(rdev);
+		r600_uvd_init(rdev, false);
+		cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, true);
+		kv_update_uvd_dpm(rdev, gate);
 	}
 }
 
@@ -1714,7 +1724,6 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 				return ret;
 			}
 #endif
-			kv_update_uvd_dpm(rdev, false);
 			kv_update_sclk_t(rdev);
 		}
 	} else {
@@ -1740,7 +1749,6 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 				return ret;
 			}
 #endif
-			kv_update_uvd_dpm(rdev, false);
 			kv_update_sclk_t(rdev);
 			kv_enable_nb_dpm(rdev);
 		}
@@ -2502,7 +2510,7 @@ int kv_dpm_init(struct radeon_device *rdev)
 	pi->voltage_drop_t = 0;
 	pi->caps_sclk_throttle_low_notification = false;
 	pi->caps_fps = false; /* true? */
-	pi->caps_uvd_pg = false; /* XXX */
+	pi->caps_uvd_pg = true;
 	pi->caps_uvd_dpm = true;
 	pi->caps_vce_pg = false;
 	pi->caps_samu_pg = false;
