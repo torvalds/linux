@@ -23,9 +23,6 @@
 #include "htc.h"
 #include "rx_desc.h"
 
-#define HTT_CURRENT_VERSION_MAJOR	2
-#define HTT_CURRENT_VERSION_MINOR	1
-
 enum htt_dbg_stats_type {
 	HTT_DBG_STATS_WAL_PDEV_TXRX = 1 << 0,
 	HTT_DBG_STATS_RX_REORDER    = 1 << 1,
@@ -45,6 +42,9 @@ enum htt_h2t_msg_type { /* host-to-target */
 	HTT_H2T_MSG_TYPE_SYNC               = 4,
 	HTT_H2T_MSG_TYPE_AGGR_CFG           = 5,
 	HTT_H2T_MSG_TYPE_FRAG_DESC_BANK_CFG = 6,
+
+	/* This command is used for sending management frames in HTT < 3.0.
+	 * HTT >= 3.0 uses TX_FRM for everything. */
 	HTT_H2T_MSG_TYPE_MGMT_TX            = 7,
 
 	HTT_H2T_NUM_MSGS /* keep this last */

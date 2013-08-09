@@ -401,10 +401,16 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		goto err;
 	}
 
-	txfrag = dev_alloc_skb(frag_len);
-	if (!txfrag) {
-		res = -ENOMEM;
-		goto err;
+	/* Since HTT 3.0 there is no separate mgmt tx command. However in case
+	 * of mgmt tx using TX_FRM there is not tx fragment list. Instead of tx
+	 * fragment list host driver specifies directly frame pointer. */
+	if (htt->target_version_major < 3 ||
+	    !ieee80211_is_mgmt(hdr->frame_control)) {
+		txfrag = dev_alloc_skb(frag_len);
+		if (!txfrag) {
+			res = -ENOMEM;
+			goto err;
+		}
 	}
 
 	if (!IS_ALIGNED((unsigned long)txdesc->data, 4)) {
@@ -427,23 +433,31 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	if (res)
 		goto err;
 
-	/* tx fragment list must be terminated with zero-entry */
-	skb_put(txfrag, frag_len);
-	tx_frags = (struct htt_data_tx_desc_frag *)txfrag->data;
-	tx_frags[0].paddr = __cpu_to_le32(ATH10K_SKB_CB(msdu)->paddr);
-	tx_frags[0].len   = __cpu_to_le32(msdu->len);
-	tx_frags[1].paddr = __cpu_to_le32(0);
-	tx_frags[1].len   = __cpu_to_le32(0);
+	/* Since HTT 3.0 there is no separate mgmt tx command. However in case
+	 * of mgmt tx using TX_FRM there is not tx fragment list. Instead of tx
+	 * fragment list host driver specifies directly frame pointer. */
+	if (htt->target_version_major < 3 ||
+	    !ieee80211_is_mgmt(hdr->frame_control)) {
+		/* tx fragment list must be terminated with zero-entry */
+		skb_put(txfrag, frag_len);
+		tx_frags = (struct htt_data_tx_desc_frag *)txfrag->data;
+		tx_frags[0].paddr = __cpu_to_le32(ATH10K_SKB_CB(msdu)->paddr);
+		tx_frags[0].len   = __cpu_to_le32(msdu->len);
+		tx_frags[1].paddr = __cpu_to_le32(0);
+		tx_frags[1].len   = __cpu_to_le32(0);
 
-	res = ath10k_skb_map(dev, txfrag);
-	if (res)
-		goto err;
+		res = ath10k_skb_map(dev, txfrag);
+		if (res)
+			goto err;
 
-	ath10k_dbg(ATH10K_DBG_HTT, "txfrag 0x%llx msdu 0x%llx\n",
-		   (unsigned long long) ATH10K_SKB_CB(txfrag)->paddr,
+		ath10k_dbg(ATH10K_DBG_HTT, "txfrag 0x%llx\n",
+			   (unsigned long long) ATH10K_SKB_CB(txfrag)->paddr);
+		ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "txfrag: ",
+				txfrag->data, frag_len);
+	}
+
+	ath10k_dbg(ATH10K_DBG_HTT, "msdu 0x%llx\n",
 		   (unsigned long long) ATH10K_SKB_CB(msdu)->paddr);
-	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "txfrag: ",
-			txfrag->data, frag_len);
 	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "msdu: ",
 			msdu->data, msdu->len);
 
@@ -459,8 +473,17 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	if (!ieee80211_has_protected(hdr->frame_control))
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
 	flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
-	flags0 |= SM(ATH10K_HW_TXRX_NATIVE_WIFI,
-		     HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
+
+	/* Since HTT 3.0 there is no separate mgmt tx command. However in case
+	 * of mgmt tx using TX_FRM there is not tx fragment list. Instead of tx
+	 * fragment list host driver specifies directly frame pointer. */
+	if (htt->target_version_major >= 3 &&
+	    ieee80211_is_mgmt(hdr->frame_control))
+		flags0 |= SM(ATH10K_HW_TXRX_MGMT,
+			     HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
+	else
+		flags0 |= SM(ATH10K_HW_TXRX_NATIVE_WIFI,
+			     HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
 
 	flags1  = 0;
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
@@ -468,7 +491,14 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD;
 	flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD;
 
-	frags_paddr = ATH10K_SKB_CB(txfrag)->paddr;
+	/* Since HTT 3.0 there is no separate mgmt tx command. However in case
+	 * of mgmt tx using TX_FRM there is not tx fragment list. Instead of tx
+	 * fragment list host driver specifies directly frame pointer. */
+	if (htt->target_version_major >= 3 &&
+	    ieee80211_is_mgmt(hdr->frame_control))
+		frags_paddr = ATH10K_SKB_CB(msdu)->paddr;
+	else
+		frags_paddr = ATH10K_SKB_CB(txfrag)->paddr;
 
 	cmd->hdr.msg_type        = HTT_H2T_MSG_TYPE_TX_FRM;
 	cmd->data_tx.flags0      = flags0;

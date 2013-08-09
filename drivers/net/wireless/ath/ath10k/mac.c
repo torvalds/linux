@@ -1473,6 +1473,12 @@ static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int ret;
 
+	if (ar->htt.target_version_major >= 3) {
+		/* Since HTT 3.0 there is no separate mgmt tx command */
+		ret = ath10k_htt_tx(&ar->htt, skb);
+		goto exit;
+	}
+
 	if (ieee80211_is_mgmt(hdr->frame_control))
 		ret = ath10k_htt_mgmt_tx(&ar->htt, skb);
 	else if (ieee80211_is_nullfunc(hdr->frame_control))
@@ -1484,6 +1490,7 @@ static void ath10k_tx_htt(struct ath10k *ar, struct sk_buff *skb)
 	else
 		ret = ath10k_htt_tx(&ar->htt, skb);
 
+exit:
 	if (ret) {
 		ath10k_warn("tx failed (%d). dropping packet.\n", ret);
 		ieee80211_free_txskb(ar->hw, skb);
@@ -1720,8 +1727,10 @@ static void ath10k_tx(struct ieee80211_hw *hw,
 	/* we must calculate tid before we apply qos workaround
 	 * as we'd lose the qos control field */
 	tid = HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
-	if (ieee80211_is_data_qos(hdr->frame_control) &&
-	    is_unicast_ether_addr(ieee80211_get_DA(hdr))) {
+	if (ieee80211_is_mgmt(hdr->frame_control)) {
+		tid = HTT_DATA_TX_EXT_TID_MGMT;
+	} else if (ieee80211_is_data_qos(hdr->frame_control) &&
+		   is_unicast_ether_addr(ieee80211_get_DA(hdr))) {
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	}

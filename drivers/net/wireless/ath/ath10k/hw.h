@@ -45,6 +45,9 @@ enum ath10k_hw_txrx_mode {
 	ATH10K_HW_TXRX_RAW = 0,
 	ATH10K_HW_TXRX_NATIVE_WIFI = 1,
 	ATH10K_HW_TXRX_ETHERNET = 2,
+
+	/* Valid for HTT >= 3.0. Used for management frames in TX_FRM. */
+	ATH10K_HW_TXRX_MGMT = 3,
 };
 
 enum ath10k_mcast2ucast_mode {
