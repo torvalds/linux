@@ -76,7 +76,7 @@ void nfs4_free_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot)
 			nfs4_slot_tbl_drain_complete(tbl);
 		}
 	}
-	dprintk("%s: slotid %u highest_used_slotid %d\n", __func__,
+	dprintk("%s: slotid %u highest_used_slotid %u\n", __func__,
 		slotid, tbl->highest_used_slotid);
 }
 
@@ -146,9 +146,9 @@ struct nfs4_slot *nfs4_alloc_slot(struct nfs4_slot_table *tbl)
 	ret->generation = tbl->generation;
 
 out:
-	dprintk("<-- %s used_slots=%04lx highest_used=%d slotid=%d \n",
+	dprintk("<-- %s used_slots=%04lx highest_used=%u slotid=%u\n",
 		__func__, tbl->used_slots[0], tbl->highest_used_slotid,
-		!IS_ERR(ret) ? ret->slot_nr : -1);
+		!IS_ERR(ret) ? ret->slot_nr : NFS4_NO_SLOT);
 	return ret;
 }
 
@@ -191,7 +191,7 @@ static int nfs4_realloc_slot_table(struct nfs4_slot_table *tbl,
 {
 	int ret;
 
-	dprintk("--> %s: max_reqs=%u, tbl->max_slots %d\n", __func__,
+	dprintk("--> %s: max_reqs=%u, tbl->max_slots %u\n", __func__,
 		max_reqs, tbl->max_slots);
 
 	if (max_reqs > NFS4_MAX_SLOT_TABLE)
@@ -205,7 +205,7 @@ static int nfs4_realloc_slot_table(struct nfs4_slot_table *tbl,
 	nfs4_reset_slot_table(tbl, max_reqs - 1, ivalue);
 	spin_unlock(&tbl->slot_tbl_lock);
 
-	dprintk("%s: tbl=%p slots=%p max_slots=%d\n", __func__,
+	dprintk("%s: tbl=%p slots=%p max_slots=%u\n", __func__,
 		tbl, tbl->slots, tbl->max_slots);
 out:
 	dprintk("<-- %s: return %d\n", __func__, ret);

@@ -664,7 +664,7 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 
 	args->sa_slot = slot;
 
-	dprintk("<-- %s slotid=%d seqid=%d\n", __func__,
+	dprintk("<-- %s slotid=%u seqid=%u\n", __func__,
 			slot->slot_nr, slot->seq_nr);
 
 	res->sr_slot = slot;
@@ -704,9 +704,9 @@ int nfs4_setup_sequence(const struct nfs_server *server,
 		goto out;
 	}
 
-	dprintk("--> %s clp %p session %p sr_slot %d\n",
+	dprintk("--> %s clp %p session %p sr_slot %u\n",
 		__func__, session->clp, session, res->sr_slot ?
-			res->sr_slot->slot_nr : -1);
+			res->sr_slot->slot_nr : NFS4_NO_SLOT);
 
 	ret = nfs41_setup_sequence(session, args, res, task);
 out:
