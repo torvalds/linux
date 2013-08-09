@@ -28,6 +28,7 @@
 #       define SPLL_SLEEP                                (1 << 1)
 #       define SPLL_REF_DIV(x)                           ((x) << 2)
 #       define SPLL_REF_DIV_MASK                         (7 << 2)
+#       define SPLL_REF_DIV_SHIFT                        2
 #       define SPLL_FB_DIV(x)                            ((x) << 5)
 #       define SPLL_FB_DIV_MASK                          (0xff << 2)
 #       define SPLL_FB_DIV_SHIFT                         2
@@ -36,8 +37,10 @@
 #       define SPLL_PULSENUM_MASK                        (3 << 14)
 #       define SPLL_SW_HILEN(x)                          ((x) << 16)
 #       define SPLL_SW_HILEN_MASK                        (0xf << 16)
+#       define SPLL_SW_HILEN_SHIFT                       16
 #       define SPLL_SW_LOLEN(x)                          ((x) << 20)
 #       define SPLL_SW_LOLEN_MASK                        (0xf << 20)
+#       define SPLL_SW_LOLEN_SHIFT                       20
 #       define SPLL_DIVEN                                (1 << 24)
 #       define SPLL_BYPASS_EN                            (1 << 25)
 #       define SPLL_CHG_STATUS                           (1 << 29)

@@ -353,6 +353,7 @@ int mgag200_bo_pin(struct mgag200_bo *bo, u32 pl_flag, u64 *gpu_addr)
 		bo->pin_count++;
 		if (gpu_addr)
 			*gpu_addr = mgag200_bo_gpu_offset(bo);
+		return 0;
 	}
 
 	mgag200_ttm_placement(bo, pl_flag);

@@ -179,7 +179,7 @@ static void qxl_crtc_destroy(struct drm_crtc *crtc)
 	kfree(qxl_crtc);
 }
 
-static void
+static int
 qxl_hide_cursor(struct qxl_device *qdev)
 {
 	struct qxl_release *release;
@@ -188,14 +188,22 @@ qxl_hide_cursor(struct qxl_device *qdev)
 
 	ret = qxl_alloc_release_reserved(qdev, sizeof(*cmd), QXL_RELEASE_CURSOR_CMD,
 					 &release, NULL);
+	if (ret)
+		return ret;
+
+	ret = qxl_release_reserve_list(release, true);
+	if (ret) {
+		qxl_release_free(qdev, release);
+		return ret;
+	}
 
 	cmd = (struct qxl_cursor_cmd *)qxl_release_map(qdev, release);
 	cmd->type = QXL_CURSOR_HIDE;
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 
-	qxl_fence_releaseable(qdev, release);
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
-	qxl_release_unreserve(qdev, release);
+	qxl_release_fence_buffer_objects(release);
+	return 0;
 }
 
 static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
@@ -216,10 +224,8 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 
 	int size = 64*64*4;
 	int ret = 0;
-	if (!handle) {
-		qxl_hide_cursor(qdev);
-		return 0;
-	}
+	if (!handle)
+		return qxl_hide_cursor(qdev);
 
 	obj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
 	if (!obj) {
@@ -234,8 +240,9 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 		goto out_unref;
 
 	ret = qxl_bo_pin(user_bo, QXL_GEM_DOMAIN_CPU, NULL);
+	qxl_bo_unreserve(user_bo);
 	if (ret)
-		goto out_unreserve;
+		goto out_unref;
 
 	ret = qxl_bo_kmap(user_bo, &user_ptr);
 	if (ret)
@@ -246,13 +253,19 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 					 &release, NULL);
 	if (ret)
 		goto out_kunmap;
-	ret = qxl_alloc_bo_reserved(qdev, sizeof(struct qxl_cursor) + size,
-				    &cursor_bo);
+
+	ret = qxl_alloc_bo_reserved(qdev, release, sizeof(struct qxl_cursor) + size,
+			   &cursor_bo);
 	if (ret)
 		goto out_free_release;
-	ret = qxl_bo_kmap(cursor_bo, (void **)&cursor);
+
+	ret = qxl_release_reserve_list(release, false);
 	if (ret)
 		goto out_free_bo;
+
+	ret = qxl_bo_kmap(cursor_bo, (void **)&cursor);
+	if (ret)
+		goto out_backoff;
 
 	cursor->header.unique = 0;
 	cursor->header.type = SPICE_CURSOR_TYPE_ALPHA;
@@ -269,11 +282,7 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 
 	qxl_bo_kunmap(cursor_bo);
 
-	/* finish with the userspace bo */
 	qxl_bo_kunmap(user_bo);
-	qxl_bo_unpin(user_bo);
-	qxl_bo_unreserve(user_bo);
-	drm_gem_object_unreference_unlocked(obj);
 
 	cmd = (struct qxl_cursor_cmd *)qxl_release_map(qdev, release);
 	cmd->type = QXL_CURSOR_SET;
@@ -281,30 +290,35 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 	cmd->u.set.position.y = qcrtc->cur_y;
 
 	cmd->u.set.shape = qxl_bo_physical_address(qdev, cursor_bo, 0);
-	qxl_release_add_res(qdev, release, cursor_bo);
 
 	cmd->u.set.visible = 1;
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 
-	qxl_fence_releaseable(qdev, release);
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
-	qxl_release_unreserve(qdev, release);
+	qxl_release_fence_buffer_objects(release);
 
-	qxl_bo_unreserve(cursor_bo);
+	/* finish with the userspace bo */
+	ret = qxl_bo_reserve(user_bo, false);
+	if (!ret) {
+		qxl_bo_unpin(user_bo);
+		qxl_bo_unreserve(user_bo);
+	}
+	drm_gem_object_unreference_unlocked(obj);
+
 	qxl_bo_unref(&cursor_bo);
 
 	return ret;
+
+out_backoff:
+	qxl_release_backoff_reserve_list(release);
 out_free_bo:
 	qxl_bo_unref(&cursor_bo);
 out_free_release:
-	qxl_release_unreserve(qdev, release);
 	qxl_release_free(qdev, release);
 out_kunmap:
 	qxl_bo_kunmap(user_bo);
 out_unpin:
 	qxl_bo_unpin(user_bo);
-out_unreserve:
-	qxl_bo_unreserve(user_bo);
 out_unref:
 	drm_gem_object_unreference_unlocked(obj);
 	return ret;
@@ -322,6 +336,14 @@ static int qxl_crtc_cursor_move(struct drm_crtc *crtc,
 
 	ret = qxl_alloc_release_reserved(qdev, sizeof(*cmd), QXL_RELEASE_CURSOR_CMD,
 				   &release, NULL);
+	if (ret)
+		return ret;
+
+	ret = qxl_release_reserve_list(release, true);
+	if (ret) {
+		qxl_release_free(qdev, release);
+		return ret;
+	}
 
 	qcrtc->cur_x = x;
 	qcrtc->cur_y = y;
@@ -332,9 +354,9 @@ static int qxl_crtc_cursor_move(struct drm_crtc *crtc,
 	cmd->u.position.y = qcrtc->cur_y;
 	qxl_release_unmap(qdev, release, &cmd->release_info);
 
-	qxl_fence_releaseable(qdev, release);
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
-	qxl_release_unreserve(qdev, release);
+	qxl_release_fence_buffer_objects(release);
+
 	return 0;
 }
 

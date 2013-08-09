@@ -309,7 +309,8 @@ EXPORT_SYMBOL(__alloc_skb);
  * @frag_size: size of fragment, or 0 if head was kmalloced
  *
  * Allocate a new &sk_buff. Caller provides space holding head and
- * skb_shared_info. @data must have been allocated by kmalloc()
+ * skb_shared_info. @data must have been allocated by kmalloc() only if
+ * @frag_size is 0, otherwise data should come from the page allocator.
  * The return is the new skb buffer.
  * On a failure the return is %NULL, and @data is not freed.
  * Notes :
@@ -739,7 +740,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 
 	skb_copy_secmark(new, old);
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	new->napi_id	= old->napi_id;
 #endif
 }

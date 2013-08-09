@@ -123,7 +123,7 @@ static int arch_timer_set_next_event_phys(unsigned long evt,
 	return 0;
 }
 
-static int __cpuinit arch_timer_setup(struct clock_event_device *clk)
+static int arch_timer_setup(struct clock_event_device *clk)
 {
 	clk->features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP;
 	clk->name = "arch_sys_timer";
@@ -221,7 +221,7 @@ struct timecounter *arch_timer_get_timecounter(void)
 	return &timecounter;
 }
 
-static void __cpuinit arch_timer_stop(struct clock_event_device *clk)
+static void arch_timer_stop(struct clock_event_device *clk)
 {
 	pr_debug("arch_timer_teardown disable IRQ%d cpu #%d\n",
 		 clk->irq, smp_processor_id());
@@ -237,7 +237,7 @@ static void __cpuinit arch_timer_stop(struct clock_event_device *clk)
 	clk->set_mode(CLOCK_EVT_MODE_UNUSED, clk);
 }
 
-static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
+static int arch_timer_cpu_notify(struct notifier_block *self,
 					   unsigned long action, void *hcpu)
 {
 	/*
@@ -256,7 +256,7 @@ static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block arch_timer_cpu_nb __cpuinitdata = {
+static struct notifier_block arch_timer_cpu_nb = {
 	.notifier_call = arch_timer_cpu_notify,
 };
 

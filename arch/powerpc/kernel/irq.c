@@ -362,7 +362,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).spurious_irqs);
 	seq_printf(p, "  Spurious interrupts\n");
 
-	seq_printf(p, "%*s: ", prec, "CNT");
+	seq_printf(p, "%*s: ", prec, "PMI");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).pmu_irqs);
 	seq_printf(p, "  Performance monitoring interrupts\n");

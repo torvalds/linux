@@ -157,9 +157,9 @@ static void evergreen_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
+	WREG32(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL(radeon_crtc->crtc_id));
 	WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 100);
 	WREG32(DCCG_AUDIO_DTO0_MODULE, clock * 100);
-	WREG32(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL(radeon_crtc->crtc_id));
 }
 
 
@@ -176,6 +176,9 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	struct hdmi_avi_infoframe frame;
 	uint32_t offset;
 	ssize_t err;
+
+	if (!dig || !dig->afmt)
+		return;
 
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (!dig->afmt->enabled)
@@ -279,6 +282,9 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+	if (!dig || !dig->afmt)
+		return;
 
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (enable && dig->afmt->enabled)

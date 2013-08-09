@@ -7466,6 +7466,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	int err = 0;
 	int ret;
 	int level;
+	bool root_dropped = false;
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -7523,6 +7524,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		while (1) {
 			btrfs_tree_lock(path->nodes[level]);
 			btrfs_set_lock_blocking(path->nodes[level]);
+			path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 
 			ret = btrfs_lookup_extent_info(trans, root,
 						path->nodes[level]->start,
@@ -7538,6 +7540,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 				break;
 
 			btrfs_tree_unlock(path->nodes[level]);
+			path->locks[level] = 0;
 			WARN_ON(wc->refs[level] != 1);
 			level--;
 		}
@@ -7552,11 +7555,6 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	wc->reada_count = BTRFS_NODEPTRS_PER_BLOCK(root);
 
 	while (1) {
-		if (!for_reloc && btrfs_need_cleaner_sleep(root)) {
-			pr_debug("btrfs: drop snapshot early exit\n");
-			err = -EAGAIN;
-			goto out_end_trans;
-		}
 
 		ret = walk_down_tree(trans, root, path, wc);
 		if (ret < 0) {
@@ -7584,7 +7582,8 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		}
 
 		BUG_ON(wc->level == 0);
-		if (btrfs_should_end_transaction(trans, tree_root)) {
+		if (btrfs_should_end_transaction(trans, tree_root) ||
+		    (!for_reloc && btrfs_need_cleaner_sleep(root))) {
 			ret = btrfs_update_root(trans, tree_root,
 						&root->root_key,
 						root_item);
@@ -7595,6 +7594,12 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 			}
 
 			btrfs_end_transaction_throttle(trans, tree_root);
+			if (!for_reloc && btrfs_need_cleaner_sleep(root)) {
+				pr_debug("btrfs: drop snapshot early exit\n");
+				err = -EAGAIN;
+				goto out_free;
+			}
+
 			trans = btrfs_start_transaction(tree_root, 0);
 			if (IS_ERR(trans)) {
 				err = PTR_ERR(trans);
@@ -7639,12 +7644,22 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 		free_extent_buffer(root->commit_root);
 		btrfs_put_fs_root(root);
 	}
+	root_dropped = true;
 out_end_trans:
 	btrfs_end_transaction_throttle(trans, tree_root);
 out_free:
 	kfree(wc);
 	btrfs_free_path(path);
 out:
+	/*
+	 * So if we need to stop dropping the snapshot for whatever reason we
+	 * need to make sure to add it back to the dead root list so that we
+	 * keep trying to do the work later.  This also cleans up roots if we
+	 * don't have it in the radix (like when we recover after a power fail
+	 * or unmount) so we don't leak memory.
+	 */
+	if (root_dropped == false)
+		btrfs_add_dead_root(root);
 	if (err)
 		btrfs_std_error(root->fs_info, err);
 	return err;

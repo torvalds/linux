@@ -20,8 +20,6 @@
 
 #include "omap44xx.h"
 
-	__CPUINIT
-
 /* Physical address needed since MMU not enabled yet on secondary core */
 #define AUX_CORE_BOOT0_PA			0x48281800
 

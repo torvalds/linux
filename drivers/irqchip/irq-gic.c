@@ -414,7 +414,7 @@ static void __init gic_dist_init(struct gic_chip_data *gic)
 	writel_relaxed(1, base + GIC_DIST_CTRL);
 }
 
-static void __cpuinit gic_cpu_init(struct gic_chip_data *gic)
+static void gic_cpu_init(struct gic_chip_data *gic)
 {
 	void __iomem *dist_base = gic_data_dist_base(gic);
 	void __iomem *base = gic_data_cpu_base(gic);
@@ -702,8 +702,8 @@ static int gic_irq_domain_xlate(struct irq_domain *d,
 }
 
 #ifdef CONFIG_SMP
-static int __cpuinit gic_secondary_init(struct notifier_block *nfb,
-					unsigned long action, void *hcpu)
+static int gic_secondary_init(struct notifier_block *nfb, unsigned long action,
+			      void *hcpu)
 {
 	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
 		gic_cpu_init(&gic_data[0]);
@@ -714,7 +714,7 @@ static int __cpuinit gic_secondary_init(struct notifier_block *nfb,
  * Notifier for enabling the GIC CPU interface. Set an arbitrarily high
  * priority because the GIC needs to be up before the ARM generic timers.
  */
-static struct notifier_block __cpuinitdata gic_cpu_notifier = {
+static struct notifier_block gic_cpu_notifier = {
 	.notifier_call = gic_secondary_init,
 	.priority = 100,
 };

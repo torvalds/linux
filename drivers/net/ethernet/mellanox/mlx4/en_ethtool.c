@@ -223,7 +223,7 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_STATS:
 		return (priv->stats_bitmap ? bit_count : NUM_ALL_STATS) +
 			(priv->tx_ring_num * 2) +
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 			(priv->rx_ring_num * 5);
 #else
 			(priv->rx_ring_num * 2);
@@ -276,7 +276,7 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		data[index++] = priv->rx_ring[i].packets;
 		data[index++] = priv->rx_ring[i].bytes;
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 		data[index++] = priv->rx_ring[i].yields;
 		data[index++] = priv->rx_ring[i].misses;
 		data[index++] = priv->rx_ring[i].cleaned;
@@ -344,7 +344,7 @@ static void mlx4_en_get_strings(struct net_device *dev,
 				"rx%d_packets", i);
 			sprintf(data + (index++) * ETH_GSTRING_LEN,
 				"rx%d_bytes", i);
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 			sprintf(data + (index++) * ETH_GSTRING_LEN,
 				"rx%d_napi_yield", i);
 			sprintf(data + (index++) * ETH_GSTRING_LEN,

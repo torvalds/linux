@@ -101,6 +101,8 @@ enum {
 	MLX5_CMD_OP_QUERY_ADAPTER		= 0x101,
 	MLX5_CMD_OP_INIT_HCA			= 0x102,
 	MLX5_CMD_OP_TEARDOWN_HCA		= 0x103,
+	MLX5_CMD_OP_ENABLE_HCA			= 0x104,
+	MLX5_CMD_OP_DISABLE_HCA			= 0x105,
 	MLX5_CMD_OP_QUERY_PAGES			= 0x107,
 	MLX5_CMD_OP_MANAGE_PAGES		= 0x108,
 	MLX5_CMD_OP_SET_HCA_CAP			= 0x109,
@@ -690,7 +692,7 @@ int mlx5_pagealloc_start(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev);
 void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
 				 s16 npages);
-int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev);
+int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev);
 void mlx5_register_debugfs(void);
 void mlx5_unregister_debugfs(void);

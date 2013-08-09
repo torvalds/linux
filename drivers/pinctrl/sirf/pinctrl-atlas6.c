@@ -496,7 +496,7 @@ static const unsigned sdmmc5_pins[] = { 24, 25, 26 };
 static const struct sirfsoc_muxmask usp0_muxmask[] = {
 	{
 		.group = 1,
-		.mask = BIT(19) | BIT(20) | BIT(21) | BIT(22),
+		.mask = BIT(19) | BIT(20) | BIT(21) | BIT(22) | BIT(23),
 	},
 };
 
@@ -507,8 +507,21 @@ static const struct sirfsoc_padmux usp0_padmux = {
 	.funcval = 0,
 };
 
-static const unsigned usp0_pins[] = { 51, 52, 53, 54 };
+static const unsigned usp0_pins[] = { 51, 52, 53, 54, 55 };
 
+static const struct sirfsoc_muxmask usp0_uart_nostreamctrl_muxmask[] = {
+	{
+		.group = 1,
+		.mask = BIT(20) | BIT(21),
+	},
+};
+
+static const struct sirfsoc_padmux usp0_uart_nostreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp0_uart_nostreamctrl_muxmask),
+	.muxmask = usp0_uart_nostreamctrl_muxmask,
+};
+
+static const unsigned usp0_uart_nostreamctrl_pins[] = { 52, 53 };
 static const struct sirfsoc_muxmask usp1_muxmask[] = {
 	{
 		.group = 0,
@@ -822,6 +835,8 @@ static const struct sirfsoc_pin_group sirfsoc_pin_groups[] = {
 	SIRFSOC_PIN_GROUP("uart2grp", uart2_pins),
 	SIRFSOC_PIN_GROUP("uart2_nostreamctrlgrp", uart2_nostreamctrl_pins),
 	SIRFSOC_PIN_GROUP("usp0grp", usp0_pins),
+	SIRFSOC_PIN_GROUP("usp0_uart_nostreamctrl_grp",
+					usp0_uart_nostreamctrl_pins),
 	SIRFSOC_PIN_GROUP("usp1grp", usp1_pins),
 	SIRFSOC_PIN_GROUP("i2c0grp", i2c0_pins),
 	SIRFSOC_PIN_GROUP("i2c1grp", i2c1_pins),
@@ -862,6 +877,8 @@ static const char * const uart0grp[] = { "uart0grp" };
 static const char * const uart1grp[] = { "uart1grp" };
 static const char * const uart2grp[] = { "uart2grp" };
 static const char * const uart2_nostreamctrlgrp[] = { "uart2_nostreamctrlgrp" };
+static const char * const usp0_uart_nostreamctrl_grp[] = {
+					"usp0_uart_nostreamctrl_grp" };
 static const char * const usp0grp[] = { "usp0grp" };
 static const char * const usp1grp[] = { "usp1grp" };
 static const char * const i2c0grp[] = { "i2c0grp" };
@@ -904,6 +921,9 @@ static const struct sirfsoc_pmx_func sirfsoc_pmx_functions[] = {
 	SIRFSOC_PMX_FUNCTION("uart2", uart2grp, uart2_padmux),
 	SIRFSOC_PMX_FUNCTION("uart2_nostreamctrl", uart2_nostreamctrlgrp, uart2_nostreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("usp0", usp0grp, usp0_padmux),
+	SIRFSOC_PMX_FUNCTION("usp0_uart_nostreamctrl",
+						usp0_uart_nostreamctrl_grp,
+						usp0_uart_nostreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("usp1", usp1grp, usp1_padmux),
 	SIRFSOC_PMX_FUNCTION("i2c0", i2c0grp, i2c0_padmux),
 	SIRFSOC_PMX_FUNCTION("i2c1", i2c1grp, i2c1_padmux),
