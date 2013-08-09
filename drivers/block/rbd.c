@@ -2163,9 +2163,9 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 	struct rbd_obj_request *obj_request = NULL;
 	struct rbd_obj_request *next_obj_request;
 	bool write_request = img_request_write_test(img_request);
-	struct bio *bio_list = 0;
+	struct bio *bio_list = NULL;
 	unsigned int bio_offset = 0;
-	struct page **pages = 0;
+	struct page **pages = NULL;
 	u64 img_offset;
 	u64 resid;
 	u16 opcode;
