@@ -891,14 +891,14 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 
 /* A cgroup_task_iter should be treated as an opaque object */
 struct cgroup_task_iter {
+	struct cgroup			*origin_cgrp;
 	struct list_head		*cset_link;
 	struct list_head		*task;
 };
 
 void cgroup_task_iter_start(struct cgroup *cgrp, struct cgroup_task_iter *it);
-struct task_struct *cgroup_task_iter_next(struct cgroup *cgrp,
-					  struct cgroup_task_iter *it);
-void cgroup_task_iter_end(struct cgroup *cgrp, struct cgroup_task_iter *it);
+struct task_struct *cgroup_task_iter_next(struct cgroup_task_iter *it);
+void cgroup_task_iter_end(struct cgroup_task_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
