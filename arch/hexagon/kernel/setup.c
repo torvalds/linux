@@ -41,7 +41,7 @@ static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 
 int on_simulator;
 
-void __cpuinit calibrate_delay(void)
+void calibrate_delay(void)
 {
 	loops_per_jiffy = thread_freq_mhz * 1000000 / HZ;
 }

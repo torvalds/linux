@@ -410,8 +410,6 @@ ENTRY(cpu_arm920_do_resume)
 ENDPROC(cpu_arm920_do_resume)
 #endif
 
-	__CPUINIT
-
 	.type	__arm920_setup, #function
 __arm920_setup:
 	mov	r0, #0

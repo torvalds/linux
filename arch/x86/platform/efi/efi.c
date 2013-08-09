@@ -931,13 +931,6 @@ void __init efi_enter_virtual_mode(void)
 			va = efi_ioremap(md->phys_addr, size,
 					 md->type, md->attribute);
 
-		if (!(md->attribute & EFI_MEMORY_RUNTIME)) {
-			if (!va)
-				pr_err("ioremap of 0x%llX failed!\n",
-				       (unsigned long long)md->phys_addr);
-			continue;
-		}
-
 		md->virt_addr = (u64) (unsigned long) va;
 
 		if (!va) {

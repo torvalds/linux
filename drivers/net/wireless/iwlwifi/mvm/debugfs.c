@@ -988,7 +988,11 @@ void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	char buf[100];
 
-	if (!dbgfs_dir)
+	/*
+	 * Check if debugfs directory already exist before creating it.
+	 * This may happen when, for example, resetting hw or suspend-resume
+	 */
+	if (!dbgfs_dir || mvmvif->dbgfs_dir)
 		return;
 
 	mvmvif->dbgfs_dir = debugfs_create_dir("iwlmvm", dbgfs_dir);

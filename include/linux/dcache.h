@@ -324,7 +324,7 @@ static inline int __d_rcu_to_refcount(struct dentry *dentry, unsigned seq)
 	return ret;
 }
 
-static inline unsigned d_count(struct dentry *dentry)
+static inline unsigned d_count(const struct dentry *dentry)
 {
 	return dentry->d_count;
 }

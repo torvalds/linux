@@ -104,7 +104,7 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 	/* Possible issue in here */
-	device_unregister(&trig_info->dev);
+	device_del(&trig_info->dev);
 }
 EXPORT_SYMBOL(iio_trigger_unregister);
 

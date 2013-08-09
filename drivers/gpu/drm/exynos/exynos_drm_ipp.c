@@ -12,7 +12,6 @@
  *
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/clk.h>
@@ -342,10 +341,10 @@ int exynos_drm_ipp_get_property(struct drm_device *drm_dev, void *data,
 		 */
 		ippdrv = ipp_find_obj(&ctx->ipp_idr, &ctx->ipp_lock,
 						prop_list->ipp_id);
-		if (!ippdrv) {
+		if (IS_ERR(ippdrv)) {
 			DRM_ERROR("not found ipp%d driver.\n",
 					prop_list->ipp_id);
-			return -EINVAL;
+			return PTR_ERR(ippdrv);
 		}
 
 		prop_list = ippdrv->prop_list;
@@ -970,9 +969,9 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 	/* find command node */
 	c_node = ipp_find_obj(&ctx->prop_idr, &ctx->prop_lock,
 		qbuf->prop_id);
-	if (!c_node) {
+	if (IS_ERR(c_node)) {
 		DRM_ERROR("failed to get command node.\n");
-		return -EFAULT;
+		return PTR_ERR(c_node);
 	}
 
 	/* buffer control */
@@ -1106,9 +1105,9 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 
 	c_node = ipp_find_obj(&ctx->prop_idr, &ctx->prop_lock,
 		cmd_ctrl->prop_id);
-	if (!c_node) {
+	if (IS_ERR(c_node)) {
 		DRM_ERROR("invalid command node list.\n");
-		return -EINVAL;
+		return PTR_ERR(c_node);
 	}
 
 	if (!exynos_drm_ipp_check_valid(ippdrv->dev, cmd_ctrl->ctrl,

@@ -167,7 +167,7 @@ static irqreturn_t armada_370_xp_timer_interrupt(int irq, void *dev_id)
 /*
  * Setup the local clock events for a CPU.
  */
-static int __cpuinit armada_370_xp_timer_setup(struct clock_event_device *evt)
+static int armada_370_xp_timer_setup(struct clock_event_device *evt)
 {
 	u32 u;
 	int cpu = smp_processor_id();
@@ -205,7 +205,7 @@ static void  armada_370_xp_timer_stop(struct clock_event_device *evt)
 	disable_percpu_irq(evt->irq);
 }
 
-static struct local_timer_ops armada_370_xp_local_timer_ops __cpuinitdata = {
+static struct local_timer_ops armada_370_xp_local_timer_ops = {
 	.setup	= armada_370_xp_timer_setup,
 	.stop	=  armada_370_xp_timer_stop,
 };

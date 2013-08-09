@@ -29,7 +29,7 @@
 
 #include "core.h"
 
-static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
 

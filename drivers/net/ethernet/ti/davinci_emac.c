@@ -1568,8 +1568,7 @@ static int emac_dev_open(struct net_device *ndev)
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (devm_request_irq(&priv->pdev->dev, i, emac_irq,
-					     IRQF_DISABLED,
-					     ndev->name, ndev))
+					     0, ndev->name, ndev))
 				goto rollback;
 		}
 		k++;

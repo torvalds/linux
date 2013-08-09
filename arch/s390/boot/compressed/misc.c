@@ -47,6 +47,10 @@ static unsigned long free_mem_end_ptr;
 #include "../../../../lib/decompress_bunzip2.c"
 #endif
 
+#ifdef CONFIG_KERNEL_LZ4
+#include "../../../../lib/decompress_unlz4.c"
+#endif
+
 #ifdef CONFIG_KERNEL_LZMA
 #include "../../../../lib/decompress_unlzma.c"
 #endif

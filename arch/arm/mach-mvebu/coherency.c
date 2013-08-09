@@ -28,7 +28,7 @@
 #include <asm/cacheflush.h>
 #include "armada-370-xp.h"
 
-unsigned long __cpuinitdata coherency_phys_base;
+unsigned long coherency_phys_base;
 static void __iomem *coherency_base;
 static void __iomem *coherency_cpu_base;
 

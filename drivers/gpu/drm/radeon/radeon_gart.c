@@ -467,6 +467,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 		size *= 2;
 		r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
 					      RADEON_GPU_PAGE_ALIGN(size),
+					      RADEON_VM_PTB_ALIGN_SIZE,
 					      RADEON_GEM_DOMAIN_VRAM);
 		if (r) {
 			dev_err(rdev->dev, "failed to allocate vm bo (%dKB)\n",
@@ -620,10 +621,10 @@ int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm)
 	}
 
 retry:
-	pd_size = RADEON_GPU_PAGE_ALIGN(radeon_vm_directory_size(rdev));
+	pd_size = radeon_vm_directory_size(rdev);
 	r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager,
 			     &vm->page_directory, pd_size,
-			     RADEON_GPU_PAGE_SIZE, false);
+			     RADEON_VM_PTB_ALIGN_SIZE, false);
 	if (r == -ENOMEM) {
 		r = radeon_vm_evict(rdev, vm);
 		if (r)

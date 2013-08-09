@@ -100,7 +100,7 @@ struct htb_class {
 	struct psched_ratecfg	ceil;
 	s64			buffer, cbuffer;/* token bucket depth/rate */
 	s64			mbuffer;	/* max wait time */
-	int			prio;		/* these two are used only by leaves... */
+	u32			prio;		/* these two are used only by leaves... */
 	int			quantum;	/* but stored for parent-to-leaf return */
 
 	struct tcf_proto	*filter_list;	/* class attached filters */

@@ -583,6 +583,9 @@ int efivars_sysfs_init(void)
 	struct kobject *parent_kobj = efivars_kobject();
 	int error = 0;
 
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+		return -ENODEV;
+
 	/* No efivars has been registered yet */
 	if (!parent_kobj)
 		return 0;

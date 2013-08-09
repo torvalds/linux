@@ -1998,7 +1998,7 @@ static int ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 	return total_rx_packets;
 }
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 /* must be called with local_bh_disable()d */
 static int ixgbe_low_latency_recv(struct napi_struct *napi)
 {
@@ -2030,7 +2030,7 @@ static int ixgbe_low_latency_recv(struct napi_struct *napi)
 
 	return found;
 }
-#endif	/* CONFIG_NET_LL_RX_POLL */
+#endif	/* CONFIG_NET_RX_BUSY_POLL */
 
 /**
  * ixgbe_configure_msix - Configure MSI-X hardware
@@ -7227,7 +7227,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbe_netpoll,
 #endif
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll		= ixgbe_low_latency_recv,
 #endif
 #ifdef IXGBE_FCOE

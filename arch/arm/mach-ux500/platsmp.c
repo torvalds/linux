@@ -54,7 +54,7 @@ static void __iomem *scu_base_addr(void)
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static void __cpuinit ux500_secondary_init(unsigned int cpu)
+static void ux500_secondary_init(unsigned int cpu)
 {
 	/*
 	 * let the primary processor know we're out of the
@@ -69,7 +69,7 @@ static void __cpuinit ux500_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static int __cpuinit ux500_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int ux500_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 

@@ -25,7 +25,7 @@
 /* All messages are stored here */
 static DEFINE_PER_CPU(HV_MsgState, msg_state);
 
-void __cpuinit init_messaging(void)
+void init_messaging(void)
 {
 	/* Allocate storage for messages in kernel space */
 	HV_MsgState *state = &__get_cpu_var(msg_state);
