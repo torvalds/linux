@@ -38,6 +38,8 @@ struct nfs4_minor_version_ops {
 	u32	minor_version;
 	unsigned init_caps;
 
+	int	(*init_client)(struct nfs_client *);
+	void	(*shutdown_client)(struct nfs_client *);
 	bool	(*match_stateid)(const nfs4_stateid *,
 			const nfs4_stateid *);
 	int	(*find_root_sec)(struct nfs_server *, struct nfs_fh *,
@@ -292,6 +294,10 @@ extern const u32 nfs4_pathconf_bitmap[3];
 extern const u32 nfs4_fsinfo_bitmap[3];
 extern const u32 nfs4_fs_locations_bitmap[3];
 
+void nfs40_shutdown_client(struct nfs_client *);
+void nfs41_shutdown_client(struct nfs_client *);
+int nfs40_init_client(struct nfs_client *);
+int nfs41_init_client(struct nfs_client *);
 void nfs4_free_client(struct nfs_client *);
 
 struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *);
