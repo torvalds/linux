@@ -889,31 +889,16 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 	for ((pos) = css_next_descendant_post(NULL, (css)); (pos);	\
 	     (pos) = css_next_descendant_post((pos), (css)))
 
-/* A cgroup_iter should be treated as an opaque object */
-struct cgroup_iter {
-	struct list_head *cset_link;
-	struct list_head *task;
+/* A cgroup_task_iter should be treated as an opaque object */
+struct cgroup_task_iter {
+	struct list_head		*cset_link;
+	struct list_head		*task;
 };
 
-/*
- * To iterate across the tasks in a cgroup:
- *
- * 1) call cgroup_iter_start to initialize an iterator
- *
- * 2) call cgroup_iter_next() to retrieve member tasks until it
- *    returns NULL or until you want to end the iteration
- *
- * 3) call cgroup_iter_end() to destroy the iterator.
- *
- * Or, call cgroup_scan_tasks() to iterate through every task in a
- * cgroup - cgroup_scan_tasks() holds the css_set_lock when calling
- * the test_task() callback, but not while calling the process_task()
- * callback.
- */
-void cgroup_iter_start(struct cgroup *cgrp, struct cgroup_iter *it);
-struct task_struct *cgroup_iter_next(struct cgroup *cgrp,
-					struct cgroup_iter *it);
-void cgroup_iter_end(struct cgroup *cgrp, struct cgroup_iter *it);
+void cgroup_task_iter_start(struct cgroup *cgrp, struct cgroup_task_iter *it);
+struct task_struct *cgroup_task_iter_next(struct cgroup *cgrp,
+					  struct cgroup_task_iter *it);
+void cgroup_task_iter_end(struct cgroup *cgrp, struct cgroup_task_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
