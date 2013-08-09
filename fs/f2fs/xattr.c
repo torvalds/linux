@@ -488,7 +488,7 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	}
 
 	/* store checkpoint version for conducting checkpoint during fsync */
-	fi->xattr_ver = le64_to_cpu(F2FS_CKPT(sbi)->checkpoint_ver);
+	fi->xattr_ver = cur_cp_version(F2FS_CKPT(sbi));
 
 	if (ipage)
 		update_inode(inode, ipage);

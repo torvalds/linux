@@ -117,7 +117,7 @@ static int recover_inode(struct inode *inode, struct page *node_page)
 
 static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 {
-	unsigned long long cp_ver = le64_to_cpu(sbi->ckpt->checkpoint_ver);
+	unsigned long long cp_ver = cur_cp_version(F2FS_CKPT(sbi));
 	struct curseg_info *curseg;
 	struct page *page;
 	block_t blkaddr;
@@ -355,7 +355,7 @@ err:
 static int recover_data(struct f2fs_sb_info *sbi,
 				struct list_head *head, int type)
 {
-	unsigned long long cp_ver = le64_to_cpu(sbi->ckpt->checkpoint_ver);
+	unsigned long long cp_ver = cur_cp_version(F2FS_CKPT(sbi));
 	struct curseg_info *curseg;
 	struct page *page;
 	int err = 0;
