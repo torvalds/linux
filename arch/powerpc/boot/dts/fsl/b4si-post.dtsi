@@ -204,7 +204,7 @@
 		};
 	};
 
-/include/ "qoriq-mpic.dtsi"
+/include/ "qoriq-mpic4.3.dtsi"
 
 	guts: global-utilities@e0000 {
 		compatible = "fsl,b4-device-config";
