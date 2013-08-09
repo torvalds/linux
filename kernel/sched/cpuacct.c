@@ -33,18 +33,21 @@ struct cpuacct {
 	struct kernel_cpustat __percpu *cpustat;
 };
 
+static inline struct cpuacct *css_ca(struct cgroup_subsys_state *css)
+{
+	return css ? container_of(css, struct cpuacct, css) : NULL;
+}
+
 /* return cpu accounting group corresponding to this container */
 static inline struct cpuacct *cgroup_ca(struct cgroup *cgrp)
 {
-	return container_of(cgroup_css(cgrp, cpuacct_subsys_id),
-			    struct cpuacct, css);
+	return css_ca(cgroup_css(cgrp, cpuacct_subsys_id));
 }
 
 /* return cpu accounting group to which this task belongs */
 static inline struct cpuacct *task_ca(struct task_struct *tsk)
 {
-	return container_of(task_css(tsk, cpuacct_subsys_id),
-			    struct cpuacct, css);
+	return css_ca(task_css(tsk, cpuacct_subsys_id));
 }
 
 static inline struct cpuacct *__parent_ca(struct cpuacct *ca)

@@ -45,16 +45,19 @@ struct freezer {
 	spinlock_t			lock;
 };
 
+static inline struct freezer *css_freezer(struct cgroup_subsys_state *css)
+{
+	return css ? container_of(css, struct freezer, css) : NULL;
+}
+
 static inline struct freezer *cgroup_freezer(struct cgroup *cgroup)
 {
-	return container_of(cgroup_css(cgroup, freezer_subsys_id),
-			    struct freezer, css);
+	return css_freezer(cgroup_css(cgroup, freezer_subsys_id));
 }
 
 static inline struct freezer *task_freezer(struct task_struct *task)
 {
-	return container_of(task_css(task, freezer_subsys_id),
-			    struct freezer, css);
+	return css_freezer(task_css(task, freezer_subsys_id));
 }
 
 static struct freezer *parent_freezer(struct freezer *freezer)

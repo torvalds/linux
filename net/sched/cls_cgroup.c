@@ -23,16 +23,19 @@
 #include <net/sock.h>
 #include <net/cls_cgroup.h>
 
+static inline struct cgroup_cls_state *css_cls_state(struct cgroup_subsys_state *css)
+{
+	return css ? container_of(css, struct cgroup_cls_state, css) : NULL;
+}
+
 static inline struct cgroup_cls_state *cgrp_cls_state(struct cgroup *cgrp)
 {
-	return container_of(cgroup_css(cgrp, net_cls_subsys_id),
-			    struct cgroup_cls_state, css);
+	return css_cls_state(cgroup_css(cgrp, net_cls_subsys_id));
 }
 
 static inline struct cgroup_cls_state *task_cls_state(struct task_struct *p)
 {
-	return container_of(task_css(p, net_cls_subsys_id),
-			    struct cgroup_cls_state, css);
+	return css_cls_state(task_css(p, net_cls_subsys_id));
 }
 
 static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)

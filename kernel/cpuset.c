@@ -114,18 +114,21 @@ struct cpuset {
 	int relax_domain_level;
 };
 
+static inline struct cpuset *css_cs(struct cgroup_subsys_state *css)
+{
+	return css ? container_of(css, struct cpuset, css) : NULL;
+}
+
 /* Retrieve the cpuset for a cgroup */
 static inline struct cpuset *cgroup_cs(struct cgroup *cgrp)
 {
-	return container_of(cgroup_css(cgrp, cpuset_subsys_id),
-			    struct cpuset, css);
+	return css_cs(cgroup_css(cgrp, cpuset_subsys_id));
 }
 
 /* Retrieve the cpuset for a task */
 static inline struct cpuset *task_cs(struct task_struct *task)
 {
-	return container_of(task_css(task, cpuset_subsys_id),
-			    struct cpuset, css);
+	return css_cs(task_css(task, cpuset_subsys_id));
 }
 
 static inline struct cpuset *parent_cs(struct cpuset *cs)
