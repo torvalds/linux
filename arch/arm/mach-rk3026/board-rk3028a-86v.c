@@ -456,6 +456,7 @@ static int rk_platform_add_display_devices(void)
 /***********************************************************
 *	gsensor
 ************************************************************/
+// mma 8452 gsensor
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN GS_INT_PIN
 static int mma8452_init_platform_hw(void)
@@ -471,6 +472,24 @@ static struct sensor_platform_data mma8452_info = {
         .orientation = {-1, 0, 0, 0, -1, 0, 0, 0, 1},
 };
 #endif
+
+// lsm303d gsensor
+#if defined (CONFIG_GS_LSM303D)
+#define LSM303D_INT_PIN GS_INT_PIN
+static int lms303d_init_platform_hw(void)
+{
+	return 0;
+}
+
+static struct sensor_platform_data lms303d_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+        .init_platform_hw = lms303d_init_platform_hw,
+        .orientation = {-1, 0, 0, 0, -1, 0, 0, 0, 1},
+};
+#endif
+
 
 /*MMA7660 gsensor*/
 #if defined (CONFIG_GS_MMA7660)
@@ -907,7 +926,7 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
 
-	.reference_voltage = 1800, // the rK2928 is 3300;RK3066 and rk29 are 2500;rk3066B is 1800;
+	.reference_voltage = 3300, // the rK2928 is 3300;RK3066 and rk29 are 2500;rk3066B is 1800;
        .pull_up_res = 200,     //divider resistance ,  pull-up resistor
        .pull_down_res = 120, //divider resistance , pull-down resistor
 
@@ -1406,6 +1425,15 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		.irq	        = LIS3DH_INT_PIN,
 		.platform_data = &lis3dh_info,
 	},
+#endif
+#if defined (CONFIG_GS_LSM303D)
+        {
+            .type           = "gs_lsm303d",
+            .addr           = 0x1d,   //0x19(SA0-->VCC), 0x18(SA0-->GND)
+            .flags          = 0,
+            .irq            = LSM303D_INT_PIN,         
+	    .platform_data  = &lms303d_info,           
+        },
 #endif
 #if defined (CONFIG_COMPASS_AK8975)
 	{
