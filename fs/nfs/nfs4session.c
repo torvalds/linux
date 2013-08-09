@@ -232,6 +232,16 @@ out:
 }
 
 /**
+ * nfs4_release_slot_table - release resources attached to a slot table
+ * @tbl: slot table to shut down
+ *
+ */
+void nfs4_release_slot_table(struct nfs4_slot_table *tbl)
+{
+	nfs4_shrink_slot_table(tbl, 0);
+}
+
+/**
  * nfs4_setup_slot_table - prepare a stand-alone slot table for use
  * @tbl: slot table to set up
  * @max_reqs: maximum number of requests allowed
@@ -412,11 +422,10 @@ void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 
 #if defined(CONFIG_NFS_V4_1)
 
-/* Destroy the slot table */
-static void nfs4_destroy_slot_tables(struct nfs4_session *session)
+static void nfs4_destroy_session_slot_tables(struct nfs4_session *session)
 {
-	nfs4_shrink_slot_table(&session->fc_slot_table, 0);
-	nfs4_shrink_slot_table(&session->bc_slot_table, 0);
+	nfs4_release_slot_table(&session->fc_slot_table);
+	nfs4_release_slot_table(&session->bc_slot_table);
 }
 
 /*
@@ -441,7 +450,7 @@ int nfs4_setup_session_slot_tables(struct nfs4_session *ses)
 	if (status && tbl->slots == NULL)
 		/* Fore and back channel share a connection so get
 		 * both slot tables or neither */
-		nfs4_destroy_slot_tables(ses);
+		nfs4_destroy_session_slot_tables(ses);
 	return status;
 }
 
@@ -477,7 +486,7 @@ void nfs4_destroy_session(struct nfs4_session *session)
 	dprintk("%s Destroy backchannel for xprt %p\n",
 		__func__, xprt);
 	xprt_destroy_backchannel(xprt, NFS41_BC_MIN_CALLBACKS);
-	nfs4_destroy_slot_tables(session);
+	nfs4_destroy_session_slot_tables(session);
 	kfree(session);
 }
 
