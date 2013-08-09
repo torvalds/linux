@@ -694,6 +694,25 @@ static void __init setup_bootmem_allocator(void)
 		reserve_bootmem(m->addr, m->size, 0);
 	}
 
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (initrd_start) {
+		/* Make sure the initrd memory region is not modified. */
+		if (reserve_bootmem(initrd_start, initrd_end - initrd_start,
+				    BOOTMEM_EXCLUSIVE)) {
+			pr_crit("The initrd memory region has been polluted. Disabling it.\n");
+			initrd_start = 0;
+			initrd_end = 0;
+		} else {
+			/*
+			 * Translate initrd_start & initrd_end from PA to VA for
+			 * future access.
+			 */
+			initrd_start += PAGE_OFFSET;
+			initrd_end += PAGE_OFFSET;
+		}
+	}
+#endif
+
 #ifdef CONFIG_KEXEC
 	if (crashk_res.start != crashk_res.end)
 		reserve_bootmem(crashk_res.start, resource_size(&crashk_res), 0);
@@ -1095,6 +1114,10 @@ static void __init load_hv_initrd(void)
 	int fd, rc;
 	void *initrd;
 
+	/* If initrd has already been set, skip initramfs file in hvfs. */
+	if (initrd_start)
+		return;
+
 	fd = hv_fs_findfile((HV_VirtAddr) initramfs_file);
 	if (fd == HV_ENOENT) {
 		if (set_initramfs_file) {
@@ -1132,6 +1155,25 @@ void __init free_initrd_mem(unsigned long begin, unsigned long end)
 {
 	free_bootmem(__pa(begin), end - begin);
 }
+
+static int __init setup_initrd(char *str)
+{
+	char *endp;
+	unsigned long initrd_size;
+
+	initrd_size = str ? simple_strtoul(str, &endp, 0) : 0;
+	if (initrd_size == 0 || *endp != '@')
+		return -EINVAL;
+
+	initrd_start = simple_strtoul(endp+1, &endp, 0);
+	if (initrd_start == 0)
+		return -EINVAL;
+
+	initrd_end = initrd_start + initrd_size;
+
+	return 0;
+}
+early_param("initrd", setup_initrd);
 
 #else
 static inline void load_hv_initrd(void) {}
