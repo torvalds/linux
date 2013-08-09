@@ -1470,6 +1470,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 static int __noreturn rcu_gp_kthread(void *arg)
 {
 	int fqs_state;
+	int gf;
 	unsigned long j;
 	int ret;
 	struct rcu_state *rsp = arg;
@@ -1495,10 +1496,13 @@ static int __noreturn rcu_gp_kthread(void *arg)
 			j = HZ;
 			jiffies_till_first_fqs = HZ;
 		}
+		ret = 0;
 		for (;;) {
-			rsp->jiffies_force_qs = jiffies + j;
+			if (!ret)
+				rsp->jiffies_force_qs = jiffies + j;
 			ret = wait_event_interruptible_timeout(rsp->gp_wq,
-					(rsp->gp_flags & RCU_GP_FLAG_FQS) ||
+					((gf = ACCESS_ONCE(rsp->gp_flags)) &
+					 RCU_GP_FLAG_FQS) ||
 					(!ACCESS_ONCE(rnp->qsmask) &&
 					 !rcu_preempt_blocked_readers_cgp(rnp)),
 					j);
@@ -1507,7 +1511,8 @@ static int __noreturn rcu_gp_kthread(void *arg)
 			    !rcu_preempt_blocked_readers_cgp(rnp))
 				break;
 			/* If time for quiescent-state forcing, do it. */
-			if (ret == 0 || (rsp->gp_flags & RCU_GP_FLAG_FQS)) {
+			if (ULONG_CMP_GE(jiffies, rsp->jiffies_force_qs) ||
+			    (gf & RCU_GP_FLAG_FQS)) {
 				fqs_state = rcu_gp_fqs(rsp, fqs_state);
 				cond_resched();
 			} else {
