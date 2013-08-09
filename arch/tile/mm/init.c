@@ -777,10 +777,7 @@ void __init paging_init(void)
 
 	kernel_physical_mapping_init(pgd_base);
 
-	/*
-	 * Fixed mappings, only the page table structure has to be
-	 * created - mappings will be set by set_fixmap():
-	 */
+	/* Fixed mappings, only the page table structure has to be created. */
 	page_table_range_init(fix_to_virt(__end_of_fixed_addresses - 1),
 			      FIXADDR_TOP, pgd_base);
 
