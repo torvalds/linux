@@ -832,8 +832,8 @@ static struct cpuset *effective_nodemask_cpuset(struct cpuset *cs)
  * @tsk: task to test
  * @data: cpuset to @tsk belongs to
  *
- * Called by cgroup_scan_tasks() for each task in a cgroup whose
- * cpus_allowed mask needs to be changed.
+ * Called by css_scan_tasks() for each task in a cgroup whose cpus_allowed
+ * mask needs to be changed.
  *
  * We don't need to re-check for the cgroup/cpuset membership, since we're
  * holding cpuset_mutex at this point.
@@ -849,27 +849,26 @@ static void cpuset_change_cpumask(struct task_struct *tsk, void *data)
 /**
  * update_tasks_cpumask - Update the cpumasks of tasks in the cpuset.
  * @cs: the cpuset in which each task's cpus_allowed mask needs to be changed
- * @heap: if NULL, defer allocating heap memory to cgroup_scan_tasks()
+ * @heap: if NULL, defer allocating heap memory to css_scan_tasks()
  *
  * Called with cpuset_mutex held
  *
- * The cgroup_scan_tasks() function will scan all the tasks in a cgroup,
+ * The css_scan_tasks() function will scan all the tasks in a cgroup,
  * calling callback functions for each.
  *
- * No return value. It's guaranteed that cgroup_scan_tasks() always returns 0
+ * No return value. It's guaranteed that css_scan_tasks() always returns 0
  * if @heap != NULL.
  */
 static void update_tasks_cpumask(struct cpuset *cs, struct ptr_heap *heap)
 {
-	cgroup_scan_tasks(cs->css.cgroup, NULL, cpuset_change_cpumask, cs,
-			  heap);
+	css_scan_tasks(&cs->css, NULL, cpuset_change_cpumask, cs, heap);
 }
 
 /*
  * update_tasks_cpumask_hier - Update the cpumasks of tasks in the hierarchy.
  * @root_cs: the root cpuset of the hierarchy
  * @update_root: update root cpuset or not?
- * @heap: the heap used by cgroup_scan_tasks()
+ * @heap: the heap used by css_scan_tasks()
  *
  * This will update cpumasks of tasks in @root_cs and all other empty cpusets
  * which take on cpumask of @root_cs.
@@ -1082,11 +1081,10 @@ static void *cpuset_being_rebound;
 /**
  * update_tasks_nodemask - Update the nodemasks of tasks in the cpuset.
  * @cs: the cpuset in which each task's mems_allowed mask needs to be changed
- * @heap: if NULL, defer allocating heap memory to cgroup_scan_tasks()
+ * @heap: if NULL, defer allocating heap memory to css_scan_tasks()
  *
- * Called with cpuset_mutex held
- * No return value. It's guaranteed that cgroup_scan_tasks() always returns 0
- * if @heap != NULL.
+ * Called with cpuset_mutex held.  No return value. It's guaranteed that
+ * css_scan_tasks() always returns 0 if @heap != NULL.
  */
 static void update_tasks_nodemask(struct cpuset *cs, struct ptr_heap *heap)
 {
@@ -1109,8 +1107,7 @@ static void update_tasks_nodemask(struct cpuset *cs, struct ptr_heap *heap)
 	 * It's ok if we rebind the same mm twice; mpol_rebind_mm()
 	 * is idempotent.  Also migrate pages in each mm to new nodes.
 	 */
-	cgroup_scan_tasks(cs->css.cgroup, NULL, cpuset_change_nodemask, &arg,
-			  heap);
+	css_scan_tasks(&cs->css, NULL, cpuset_change_nodemask, &arg, heap);
 
 	/*
 	 * All the tasks' nodemasks have been updated, update
@@ -1126,7 +1123,7 @@ static void update_tasks_nodemask(struct cpuset *cs, struct ptr_heap *heap)
  * update_tasks_nodemask_hier - Update the nodemasks of tasks in the hierarchy.
  * @cs: the root cpuset of the hierarchy
  * @update_root: update the root cpuset or not?
- * @heap: the heap used by cgroup_scan_tasks()
+ * @heap: the heap used by css_scan_tasks()
  *
  * This will update nodemasks of tasks in @root_cs and all other empty cpusets
  * which take on nodemask of @root_cs.
@@ -1254,12 +1251,12 @@ static int update_relax_domain_level(struct cpuset *cs, s64 val)
 	return 0;
 }
 
-/*
+/**
  * cpuset_change_flag - make a task's spread flags the same as its cpuset's
  * @tsk: task to be updated
  * @data: cpuset to @tsk belongs to
  *
- * Called by cgroup_scan_tasks() for each task in a cgroup.
+ * Called by css_scan_tasks() for each task in a cgroup.
  *
  * We don't need to re-check for the cgroup/cpuset membership, since we're
  * holding cpuset_mutex at this point.
@@ -1271,22 +1268,22 @@ static void cpuset_change_flag(struct task_struct *tsk, void *data)
 	cpuset_update_task_spread_flag(cs, tsk);
 }
 
-/*
+/**
  * update_tasks_flags - update the spread flags of tasks in the cpuset.
  * @cs: the cpuset in which each task's spread flags needs to be changed
- * @heap: if NULL, defer allocating heap memory to cgroup_scan_tasks()
+ * @heap: if NULL, defer allocating heap memory to css_scan_tasks()
  *
  * Called with cpuset_mutex held
  *
- * The cgroup_scan_tasks() function will scan all the tasks in a cgroup,
+ * The css_scan_tasks() function will scan all the tasks in a cgroup,
  * calling callback functions for each.
  *
- * No return value. It's guaranteed that cgroup_scan_tasks() always returns 0
+ * No return value. It's guaranteed that css_scan_tasks() always returns 0
  * if @heap != NULL.
  */
 static void update_tasks_flags(struct cpuset *cs, struct ptr_heap *heap)
 {
-	cgroup_scan_tasks(cs->css.cgroup, NULL, cpuset_change_flag, cs, heap);
+	css_scan_tasks(&cs->css, NULL, cpuset_change_flag, cs, heap);
 }
 
 /*

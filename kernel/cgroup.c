@@ -370,7 +370,7 @@ static int cgroup_init_idr(struct cgroup_subsys *ss,
 /*
  * css_set_lock protects the list of css_set objects, and the chain of
  * tasks off each css_set.  Nests outside task->alloc_lock due to
- * cgroup_task_iter_start().
+ * css_task_iter_start().
  */
 static DEFINE_RWLOCK(css_set_lock);
 static int css_set_count;
@@ -398,9 +398,9 @@ static unsigned long css_set_hash(struct cgroup_subsys_state *css[])
 
 /*
  * We don't maintain the lists running through each css_set to its task
- * until after the first call to cgroup_task_iter_start().  This reduces
- * the fork()/exit() overhead for people who have cgroups compiled into
- * their kernel but not actually in use.
+ * until after the first call to css_task_iter_start().  This reduces the
+ * fork()/exit() overhead for people who have cgroups compiled into their
+ * kernel but not actually in use.
  */
 static int use_task_css_set_links __read_mostly;
 
@@ -2989,7 +2989,7 @@ int cgroup_task_count(const struct cgroup *cgrp)
  * To reduce the fork() overhead for systems that are not actually using
  * their cgroups capability, we don't maintain the lists running through
  * each css_set to its tasks until we see the list actually used - in other
- * words after the first call to cgroup_task_iter_start().
+ * words after the first call to css_task_iter_start().
  */
 static void cgroup_enable_task_cg_lists(void)
 {
@@ -3204,12 +3204,12 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 EXPORT_SYMBOL_GPL(css_next_descendant_post);
 
 /**
- * cgroup_advance_task_iter - advance a task itererator to the next css_set
+ * css_advance_task_iter - advance a task itererator to the next css_set
  * @it: the iterator to advance
  *
  * Advance @it to the next css_set to walk.
  */
-static void cgroup_advance_task_iter(struct cgroup_task_iter *it)
+static void css_advance_task_iter(struct css_task_iter *it)
 {
 	struct list_head *l = it->cset_link;
 	struct cgrp_cset_link *link;
@@ -3218,7 +3218,7 @@ static void cgroup_advance_task_iter(struct cgroup_task_iter *it)
 	/* Advance to the next non-empty css_set */
 	do {
 		l = l->next;
-		if (l == &it->origin_cgrp->cset_links) {
+		if (l == &it->origin_css->cgroup->cset_links) {
 			it->cset_link = NULL;
 			return;
 		}
@@ -3230,47 +3230,48 @@ static void cgroup_advance_task_iter(struct cgroup_task_iter *it)
 }
 
 /**
- * cgroup_task_iter_start - initiate task iteration
- * @cgrp: the cgroup to walk tasks of
+ * css_task_iter_start - initiate task iteration
+ * @css: the css to walk tasks of
  * @it: the task iterator to use
  *
- * Initiate iteration through the tasks of @cgrp.  The caller can call
- * cgroup_task_iter_next() to walk through the tasks until the function
- * returns NULL.  On completion of iteration, cgroup_task_iter_end() must
- * be called.
+ * Initiate iteration through the tasks of @css.  The caller can call
+ * css_task_iter_next() to walk through the tasks until the function
+ * returns NULL.  On completion of iteration, css_task_iter_end() must be
+ * called.
  *
  * Note that this function acquires a lock which is released when the
  * iteration finishes.  The caller can't sleep while iteration is in
  * progress.
  */
-void cgroup_task_iter_start(struct cgroup *cgrp, struct cgroup_task_iter *it)
+void css_task_iter_start(struct cgroup_subsys_state *css,
+			 struct css_task_iter *it)
 	__acquires(css_set_lock)
 {
 	/*
-	 * The first time anyone tries to iterate across a cgroup,
-	 * we need to enable the list linking each css_set to its
-	 * tasks, and fix up all existing tasks.
+	 * The first time anyone tries to iterate across a css, we need to
+	 * enable the list linking each css_set to its tasks, and fix up
+	 * all existing tasks.
 	 */
 	if (!use_task_css_set_links)
 		cgroup_enable_task_cg_lists();
 
 	read_lock(&css_set_lock);
 
-	it->origin_cgrp = cgrp;
-	it->cset_link = &cgrp->cset_links;
+	it->origin_css = css;
+	it->cset_link = &css->cgroup->cset_links;
 
-	cgroup_advance_task_iter(it);
+	css_advance_task_iter(it);
 }
 
 /**
- * cgroup_task_iter_next - return the next task for the iterator
+ * css_task_iter_next - return the next task for the iterator
  * @it: the task iterator being iterated
  *
  * The "next" function for task iteration.  @it should have been
- * initialized via cgroup_task_iter_start().  Returns NULL when the
- * iteration reaches the end.
+ * initialized via css_task_iter_start().  Returns NULL when the iteration
+ * reaches the end.
  */
-struct task_struct *cgroup_task_iter_next(struct cgroup_task_iter *it)
+struct task_struct *css_task_iter_next(struct css_task_iter *it)
 {
 	struct task_struct *res;
 	struct list_head *l = it->task;
@@ -3288,7 +3289,7 @@ struct task_struct *cgroup_task_iter_next(struct cgroup_task_iter *it)
 		 * We reached the end of this task list - move on to the
 		 * next cgrp_cset_link.
 		 */
-		cgroup_advance_task_iter(it);
+		css_advance_task_iter(it);
 	} else {
 		it->task = l;
 	}
@@ -3296,12 +3297,12 @@ struct task_struct *cgroup_task_iter_next(struct cgroup_task_iter *it)
 }
 
 /**
- * cgroup_task_iter_end - finish task iteration
+ * css_task_iter_end - finish task iteration
  * @it: the task iterator to finish
  *
- * Finish task iteration started by cgroup_task_iter_start().
+ * Finish task iteration started by css_task_iter_start().
  */
-void cgroup_task_iter_end(struct cgroup_task_iter *it)
+void css_task_iter_end(struct css_task_iter *it)
 	__releases(css_set_lock)
 {
 	read_unlock(&css_set_lock);
@@ -3342,24 +3343,24 @@ static inline int started_after(void *p1, void *p2)
 }
 
 /**
- * cgroup_scan_tasks - iterate though all the tasks in a cgroup
- * @cgrp: the cgroup to iterate tasks of
+ * css_scan_tasks - iterate though all the tasks in a css
+ * @css: the css to iterate tasks of
  * @test: optional test callback
  * @process: process callback
  * @data: data passed to @test and @process
  * @heap: optional pre-allocated heap used for task iteration
  *
- * Iterate through all the tasks in a cgroup, calling @test for each, and
- * if it returns %true, call @process for it also.
+ * Iterate through all the tasks in @css, calling @test for each, and if it
+ * returns %true, call @process for it also.
  *
  * @test may be NULL, meaning always true (select all tasks), which
- * effectively duplicates cgroup_task_iter_{start,next,end}() but does not
+ * effectively duplicates css_task_iter_{start,next,end}() but does not
  * lock css_set_lock for the call to @process.
  *
  * It is guaranteed that @process will act on every task that is a member
- * of @cgrp for the duration of this call.  This function may or may not
- * call @process for tasks that exit or move to a different cgroup during
- * the call, or are forked or move into the cgroup during the call.
+ * of @css for the duration of this call.  This function may or may not
+ * call @process for tasks that exit or move to a different css during the
+ * call, or are forked or move into the css during the call.
  *
  * Note that @test may be called with locks held, and may in some
  * situations be called multiple times for the same task, so it should be
@@ -3370,13 +3371,13 @@ static inline int started_after(void *p1, void *p2)
  * temporary heap will be used (allocation of which may cause this function
  * to fail).
  */
-int cgroup_scan_tasks(struct cgroup *cgrp,
-		      bool (*test)(struct task_struct *, void *),
-		      void (*process)(struct task_struct *, void *),
-		      void *data, struct ptr_heap *heap)
+int css_scan_tasks(struct cgroup_subsys_state *css,
+		   bool (*test)(struct task_struct *, void *),
+		   void (*process)(struct task_struct *, void *),
+		   void *data, struct ptr_heap *heap)
 {
 	int retval, i;
-	struct cgroup_task_iter it;
+	struct css_task_iter it;
 	struct task_struct *p, *dropped;
 	/* Never dereference latest_task, since it's not refcounted */
 	struct task_struct *latest_task = NULL;
@@ -3397,7 +3398,7 @@ int cgroup_scan_tasks(struct cgroup *cgrp,
 
  again:
 	/*
-	 * Scan tasks in the cgroup, using the @test callback to determine
+	 * Scan tasks in the css, using the @test callback to determine
 	 * which are of interest, and invoking @process callback on the
 	 * ones which need an update.  Since we don't want to hold any
 	 * locks during the task updates, gather tasks to be processed in a
@@ -3408,8 +3409,8 @@ int cgroup_scan_tasks(struct cgroup *cgrp,
 	 * guarantees forward progress and that we don't miss any tasks.
 	 */
 	heap->size = 0;
-	cgroup_task_iter_start(cgrp, &it);
-	while ((p = cgroup_task_iter_next(&it))) {
+	css_task_iter_start(css, &it);
+	while ((p = css_task_iter_next(&it))) {
 		/*
 		 * Only affect tasks that qualify per the caller's callback,
 		 * if he provided one
@@ -3442,7 +3443,7 @@ int cgroup_scan_tasks(struct cgroup *cgrp,
 		 * the heap and wasn't inserted
 		 */
 	}
-	cgroup_task_iter_end(&it);
+	css_task_iter_end(&it);
 
 	if (heap->size) {
 		for (i = 0; i < heap->size; i++) {
@@ -3485,7 +3486,8 @@ static void cgroup_transfer_one_task(struct task_struct *task, void *data)
  */
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 {
-	return cgroup_scan_tasks(from, NULL, cgroup_transfer_one_task, to, NULL);
+	return css_scan_tasks(&from->dummy_css, NULL, cgroup_transfer_one_task,
+			      to, NULL);
 }
 
 /*
@@ -3639,7 +3641,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	pid_t *array;
 	int length;
 	int pid, n = 0; /* used for populating the array */
-	struct cgroup_task_iter it;
+	struct css_task_iter it;
 	struct task_struct *tsk;
 	struct cgroup_pidlist *l;
 
@@ -3654,8 +3656,8 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	if (!array)
 		return -ENOMEM;
 	/* now, populate the array */
-	cgroup_task_iter_start(cgrp, &it);
-	while ((tsk = cgroup_task_iter_next(&it))) {
+	css_task_iter_start(&cgrp->dummy_css, &it);
+	while ((tsk = css_task_iter_next(&it))) {
 		if (unlikely(n == length))
 			break;
 		/* get tgid or pid for procs or tasks file respectively */
@@ -3666,7 +3668,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 		if (pid > 0) /* make sure to only use valid results */
 			array[n++] = pid;
 	}
-	cgroup_task_iter_end(&it);
+	css_task_iter_end(&it);
 	length = n;
 	/* now sort & (if procs) strip out duplicates */
 	sort(array, length, sizeof(pid_t), cmppid, NULL);
@@ -3700,7 +3702,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 {
 	int ret = -EINVAL;
 	struct cgroup *cgrp;
-	struct cgroup_task_iter it;
+	struct css_task_iter it;
 	struct task_struct *tsk;
 
 	/*
@@ -3714,8 +3716,8 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	ret = 0;
 	cgrp = dentry->d_fsdata;
 
-	cgroup_task_iter_start(cgrp, &it);
-	while ((tsk = cgroup_task_iter_next(&it))) {
+	css_task_iter_start(&cgrp->dummy_css, &it);
+	while ((tsk = css_task_iter_next(&it))) {
 		switch (tsk->state) {
 		case TASK_RUNNING:
 			stats->nr_running++;
@@ -3735,7 +3737,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 			break;
 		}
 	}
-	cgroup_task_iter_end(&it);
+	css_task_iter_end(&it);
 
 err:
 	return ret;

@@ -880,21 +880,22 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 	for ((pos) = css_next_descendant_post(NULL, (css)); (pos);	\
 	     (pos) = css_next_descendant_post((pos), (css)))
 
-/* A cgroup_task_iter should be treated as an opaque object */
-struct cgroup_task_iter {
-	struct cgroup			*origin_cgrp;
+/* A css_task_iter should be treated as an opaque object */
+struct css_task_iter {
+	struct cgroup_subsys_state	*origin_css;
 	struct list_head		*cset_link;
 	struct list_head		*task;
 };
 
-void cgroup_task_iter_start(struct cgroup *cgrp, struct cgroup_task_iter *it);
-struct task_struct *cgroup_task_iter_next(struct cgroup_task_iter *it);
-void cgroup_task_iter_end(struct cgroup_task_iter *it);
+void css_task_iter_start(struct cgroup_subsys_state *css,
+			 struct css_task_iter *it);
+struct task_struct *css_task_iter_next(struct css_task_iter *it);
+void css_task_iter_end(struct css_task_iter *it);
 
-int cgroup_scan_tasks(struct cgroup *cgrp,
-		      bool (*test)(struct task_struct *, void *),
-		      void (*process)(struct task_struct *, void *),
-		      void *data, struct ptr_heap *heap);
+int css_scan_tasks(struct cgroup_subsys_state *css,
+		   bool (*test)(struct task_struct *, void *),
+		   void (*process)(struct task_struct *, void *),
+		   void *data, struct ptr_heap *heap);
 
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
