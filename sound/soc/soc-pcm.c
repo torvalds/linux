@@ -1203,7 +1203,7 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 		}
 	}
 
-	dev_err(card->dev, "ASoC: can't get %s BE for %s\n",
+	dev_dbg(card->dev, "ASoC: can't get %s BE for %s\n",
 		stream ? "capture" : "playback", widget->name);
 	return NULL;
 }
@@ -1315,7 +1315,7 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 		/* is there a valid BE rtd for this widget */
 		be = dpcm_get_be(card, list->widgets[i], stream);
 		if (!be) {
-			dev_err(fe->dev, "ASoC: no BE found for %s\n",
+			dev_dbg(fe->dev, "ASoC: no BE found for %s\n",
 					list->widgets[i]->name);
 			continue;
 		}
