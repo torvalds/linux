@@ -1128,7 +1128,7 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 
 	/* kill the intf files first */
 	if (pol->cftypes)
-		cgroup_rm_cftypes(&blkio_subsys, pol->cftypes);
+		cgroup_rm_cftypes(pol->cftypes);
 
 	/* unregister and update blkgs */
 	blkcg_policy[pol->plid] = NULL;
