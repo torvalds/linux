@@ -891,6 +891,17 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		return;
 	}
 
+	/* if a fixed bssid and a fixed freq have been provided create the IBSS
+	 * directly and do not waste time scanning
+	 */
+	if (ifibss->fixed_bssid && ifibss->fixed_channel) {
+		sdata_info(sdata, "Created IBSS using preconfigured BSSID %pM\n",
+			   bssid);
+		ieee80211_sta_create_ibss(sdata);
+		return;
+	}
+
+
 	ibss_dbg(sdata, "sta_find_ibss: did not try to join ibss\n");
 
 	/* Selected IBSS not found in current scan results - try to scan */
