@@ -167,11 +167,6 @@ void snb_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	snb_update_pm_irq(dev_priv, mask, 0);
 }
 
-static void snb_set_pm_irq(struct drm_i915_private *dev_priv, uint32_t val)
-{
-	snb_update_pm_irq(dev_priv, 0xffffffff, ~val);
-}
-
 static bool ivb_can_enable_err_int(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -963,7 +958,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv,
 
 	spin_lock(&dev_priv->irq_lock);
 	dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
-	snb_set_pm_irq(dev_priv, dev_priv->rps.pm_iir);
+	snb_disable_pm_irq(dev_priv, pm_iir & GEN6_PM_RPS_EVENTS);
 	spin_unlock(&dev_priv->irq_lock);
 
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
@@ -1046,9 +1041,7 @@ static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
 	if (pm_iir & GEN6_PM_RPS_EVENTS) {
 		spin_lock(&dev_priv->irq_lock);
 		dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
-		snb_set_pm_irq(dev_priv, dev_priv->rps.pm_iir);
-		/* never want to mask useful interrupts. */
-		WARN_ON(I915_READ_NOTRACE(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
+		snb_disable_pm_irq(dev_priv, pm_iir & GEN6_PM_RPS_EVENTS);
 		spin_unlock(&dev_priv->irq_lock);
 
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
