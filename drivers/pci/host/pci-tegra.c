@@ -195,6 +195,25 @@
 #define PADS_REFCLK_CFG0			0x000000C8
 #define PADS_REFCLK_CFG1			0x000000CC
 
+/*
+ * Fields in PADS_REFCLK_CFG*. Those registers form an array of 16-bit
+ * entries, one entry per PCIe port. These field definitions and desired
+ * values aren't in the TRM, but do come from NVIDIA.
+ */
+#define PADS_REFCLK_CFG_TERM_SHIFT		2  /* 6:2 */
+#define PADS_REFCLK_CFG_E_TERM_SHIFT		7
+#define PADS_REFCLK_CFG_PREDI_SHIFT		8  /* 11:8 */
+#define PADS_REFCLK_CFG_DRVI_SHIFT		12 /* 15:12 */
+
+/* Default value provided by HW engineering is 0xfa5c */
+#define PADS_REFCLK_CFG_VALUE \
+	( \
+		(0x17 << PADS_REFCLK_CFG_TERM_SHIFT)   | \
+		(0    << PADS_REFCLK_CFG_E_TERM_SHIFT) | \
+		(0xa  << PADS_REFCLK_CFG_PREDI_SHIFT)  | \
+		(0xf  << PADS_REFCLK_CFG_DRVI_SHIFT)     \
+	)
+
 struct tegra_msi {
 	struct msi_chip chip;
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
@@ -808,11 +827,11 @@ static int tegra_pcie_enable_controller(struct tegra_pcie *pcie)
 	value |= PADS_PLL_CTL_RST_B4SM;
 	pads_writel(pcie, value, soc->pads_pll_ctl);
 
-	/*
-	 * Hack, set the clock voltage to the DEFAULT provided by hw folks.
-	 * This doesn't exist in the documentation.
-	 */
-	pads_writel(pcie, 0xfa5cfa5c, PADS_REFCLK_CFG0);
+	/* Configure the reference clock driver */
+	value = PADS_REFCLK_CFG_VALUE | (PADS_REFCLK_CFG_VALUE << 16);
+	pads_writel(pcie, value, PADS_REFCLK_CFG0);
+	if (soc->num_ports > 2)
+		pads_writel(pcie, PADS_REFCLK_CFG_VALUE, PADS_REFCLK_CFG1);
 
 	/* wait for the PLL to lock */
 	timeout = 300;
