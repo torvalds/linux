@@ -209,9 +209,7 @@ static inline struct blkcg *bio_blkcg(struct bio *bio)
  */
 static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
 {
-	struct cgroup *pcg = blkcg->css.cgroup->parent;
-
-	return pcg ? cgroup_to_blkcg(pcg) : NULL;
+	return css_to_blkcg(css_parent(&blkcg->css));
 }
 
 /**

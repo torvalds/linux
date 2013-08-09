@@ -62,11 +62,7 @@ static inline struct freezer *task_freezer(struct task_struct *task)
 
 static struct freezer *parent_freezer(struct freezer *freezer)
 {
-	struct cgroup *pcg = freezer->css.cgroup->parent;
-
-	if (pcg)
-		return cgroup_freezer(pcg);
-	return NULL;
+	return css_freezer(css_parent(&freezer->css));
 }
 
 bool cgroup_freezing(struct task_struct *task)
@@ -234,7 +230,7 @@ static void freezer_fork(struct task_struct *task)
 	 * The root cgroup is non-freezable, so we can skip the
 	 * following check.
 	 */
-	if (!freezer->css.cgroup->parent)
+	if (!parent_freezer(freezer))
 		goto out;
 
 	spin_lock_irq(&freezer->lock);

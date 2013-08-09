@@ -133,11 +133,7 @@ static inline struct cpuset *task_cs(struct task_struct *task)
 
 static inline struct cpuset *parent_cs(struct cpuset *cs)
 {
-	struct cgroup *pcgrp = cs->css.cgroup->parent;
-
-	if (pcgrp)
-		return cgroup_cs(pcgrp);
-	return NULL;
+	return css_cs(css_parent(&cs->css));
 }
 
 #ifdef CONFIG_NUMA

@@ -647,6 +647,21 @@ struct cgroup_subsys {
 #undef SUBSYS
 
 /**
+ * css_parent - find the parent css
+ * @css: the target cgroup_subsys_state
+ *
+ * Return the parent css of @css.  This function is guaranteed to return
+ * non-NULL parent as long as @css isn't the root.
+ */
+static inline
+struct cgroup_subsys_state *css_parent(struct cgroup_subsys_state *css)
+{
+	struct cgroup *parent_cgrp = css->cgroup->parent;
+
+	return parent_cgrp ? parent_cgrp->subsys[css->ss->subsys_id] : NULL;
+}
+
+/**
  * cgroup_css - obtain a cgroup's css for the specified subsystem
  * @cgrp: the cgroup of interest
  * @subsys_id: the subsystem of interest

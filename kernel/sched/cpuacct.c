@@ -50,16 +50,9 @@ static inline struct cpuacct *task_ca(struct task_struct *tsk)
 	return css_ca(task_css(tsk, cpuacct_subsys_id));
 }
 
-static inline struct cpuacct *__parent_ca(struct cpuacct *ca)
-{
-	return cgroup_ca(ca->css.cgroup->parent);
-}
-
 static inline struct cpuacct *parent_ca(struct cpuacct *ca)
 {
-	if (!ca->css.cgroup->parent)
-		return NULL;
-	return cgroup_ca(ca->css.cgroup->parent);
+	return css_ca(css_parent(&ca->css));
 }
 
 static DEFINE_PER_CPU(u64, root_cpuacct_cpuusage);
@@ -284,7 +277,7 @@ void cpuacct_account_field(struct task_struct *p, int index, u64 val)
 	while (ca != &root_cpuacct) {
 		kcpustat = this_cpu_ptr(ca->cpustat);
 		kcpustat->cpustat[index] += val;
-		ca = __parent_ca(ca);
+		ca = parent_ca(ca);
 	}
 	rcu_read_unlock();
 }

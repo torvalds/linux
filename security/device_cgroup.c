@@ -198,13 +198,11 @@ static inline bool is_devcg_online(const struct dev_cgroup *devcg)
  */
 static int devcgroup_online(struct cgroup *cgroup)
 {
-	struct dev_cgroup *dev_cgroup, *parent_dev_cgroup = NULL;
+	struct dev_cgroup *dev_cgroup = cgroup_to_devcgroup(cgroup);
+	struct dev_cgroup *parent_dev_cgroup = css_to_devcgroup(css_parent(&dev_cgroup->css));
 	int ret = 0;
 
 	mutex_lock(&devcgroup_mutex);
-	dev_cgroup = cgroup_to_devcgroup(cgroup);
-	if (cgroup->parent)
-		parent_dev_cgroup = cgroup_to_devcgroup(cgroup->parent);
 
 	if (parent_dev_cgroup == NULL)
 		dev_cgroup->behavior = DEVCG_DEFAULT_ALLOW;
@@ -394,12 +392,10 @@ static bool may_access(struct dev_cgroup *dev_cgroup,
 static int parent_has_perm(struct dev_cgroup *childcg,
 				  struct dev_exception_item *ex)
 {
-	struct cgroup *pcg = childcg->css.cgroup->parent;
-	struct dev_cgroup *parent;
+	struct dev_cgroup *parent = css_to_devcgroup(css_parent(&childcg->css));
 
-	if (!pcg)
+	if (!parent)
 		return 1;
-	parent = cgroup_to_devcgroup(pcg);
 	return may_access(parent, ex, childcg->behavior);
 }
 
@@ -524,14 +520,10 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	char temp[12];		/* 11 + 1 characters needed for a u32 */
 	int count, rc = 0;
 	struct dev_exception_item ex;
-	struct cgroup *p = devcgroup->css.cgroup;
-	struct dev_cgroup *parent = NULL;
+	struct dev_cgroup *parent = css_to_devcgroup(css_parent(&devcgroup->css));
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-
-	if (p->parent)
-		parent = cgroup_to_devcgroup(p->parent);
 
 	memset(&ex, 0, sizeof(ex));
 	b = buffer;

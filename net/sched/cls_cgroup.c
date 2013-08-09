@@ -50,9 +50,11 @@ static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 
 static int cgrp_css_online(struct cgroup *cgrp)
 {
-	if (cgrp->parent)
-		cgrp_cls_state(cgrp)->classid =
-			cgrp_cls_state(cgrp->parent)->classid;
+	struct cgroup_cls_state *cs = cgrp_cls_state(cgrp);
+	struct cgroup_cls_state *parent = css_cls_state(css_parent(&cs->css));
+
+	if (parent)
+		cs->classid = parent->classid;
 	return 0;
 }
 
