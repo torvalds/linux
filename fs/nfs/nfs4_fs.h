@@ -49,6 +49,7 @@ struct nfs4_minor_version_ops {
 			struct nfs_fsinfo *);
 	int	(*free_lock_state)(struct nfs_server *,
 			struct nfs4_lock_state *);
+	const struct rpc_call_ops *call_sync_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
 	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
 	const struct nfs4_state_maintenance_ops *state_renewal_ops;

@@ -741,36 +741,6 @@ static const struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
-static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
-				   struct nfs_server *server,
-				   struct rpc_message *msg,
-				   struct nfs4_sequence_args *args,
-				   struct nfs4_sequence_res *res)
-{
-	int ret;
-	struct rpc_task *task;
-	struct nfs4_call_sync_data data = {
-		.seq_server = server,
-		.seq_args = args,
-		.seq_res = res,
-	};
-	struct rpc_task_setup task_setup = {
-		.rpc_client = clnt,
-		.rpc_message = msg,
-		.callback_ops = &nfs41_call_sync_ops,
-		.callback_data = &data
-	};
-
-	task = rpc_run_task(&task_setup);
-	if (IS_ERR(task))
-		ret = PTR_ERR(task);
-	else {
-		ret = task->tk_status;
-		rpc_put_task(task);
-	}
-	return ret;
-}
-
 #else
 static int nfs4_setup_sequence(const struct nfs_server *server,
 			       struct nfs4_sequence_args *args,
@@ -787,6 +757,55 @@ static int nfs4_sequence_done(struct rpc_task *task,
 	return 1;
 }
 #endif /* CONFIG_NFS_V4_1 */
+
+static void nfs40_call_sync_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_call_sync_data *data = calldata;
+	nfs4_setup_sequence(data->seq_server,
+				data->seq_args, data->seq_res, task);
+}
+
+static void nfs40_call_sync_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_call_sync_data *data = calldata;
+	nfs4_sequence_done(task, data->seq_res);
+}
+
+static const struct rpc_call_ops nfs40_call_sync_ops = {
+	.rpc_call_prepare = nfs40_call_sync_prepare,
+	.rpc_call_done = nfs40_call_sync_done,
+};
+
+static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
+				   struct nfs_server *server,
+				   struct rpc_message *msg,
+				   struct nfs4_sequence_args *args,
+				   struct nfs4_sequence_res *res)
+{
+	int ret;
+	struct rpc_task *task;
+	struct nfs_client *clp = server->nfs_client;
+	struct nfs4_call_sync_data data = {
+		.seq_server = server,
+		.seq_args = args,
+		.seq_res = res,
+	};
+	struct rpc_task_setup task_setup = {
+		.rpc_client = clnt,
+		.rpc_message = msg,
+		.callback_ops = clp->cl_mvops->call_sync_ops,
+		.callback_data = &data
+	};
+
+	task = rpc_run_task(&task_setup);
+	if (IS_ERR(task))
+		ret = PTR_ERR(task);
+	else {
+		ret = task->tk_status;
+		rpc_put_task(task);
+	}
+	return ret;
+}
 
 static
 int _nfs4_call_sync(struct rpc_clnt *clnt,
@@ -807,8 +826,7 @@ int nfs4_call_sync(struct rpc_clnt *clnt,
 		   int cache_reply)
 {
 	nfs4_init_sequence(args, res, cache_reply);
-	return server->nfs_client->cl_mvops->call_sync(clnt, server, msg,
-						args, res);
+	return nfs4_call_sync_sequence(clnt, server, msg, args, res);
 }
 
 static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
@@ -7529,6 +7547,7 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 	.match_stateid = nfs4_match_stateid,
 	.find_root_sec = nfs4_find_root_sec,
 	.free_lock_state = nfs4_release_lockowner,
+	.call_sync_ops = &nfs40_call_sync_ops,
 	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs40_nograce_recovery_ops,
 	.state_renewal_ops = &nfs40_state_renewal_ops,
@@ -7547,6 +7566,7 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
+	.call_sync_ops = &nfs41_call_sync_ops,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
 	.state_renewal_ops = &nfs41_state_renewal_ops,
@@ -7566,6 +7586,7 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
+	.call_sync_ops = &nfs41_call_sync_ops,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
 	.state_renewal_ops = &nfs41_state_renewal_ops,
