@@ -3501,6 +3501,22 @@ unlock:
 	return ret;
 }
 
+static bool is_pin_display(struct drm_i915_gem_object *obj)
+{
+	/* There are 3 sources that pin objects:
+	 *   1. The display engine (scanouts, sprites, cursors);
+	 *   2. Reservations for execbuffer;
+	 *   3. The user.
+	 *
+	 * We can ignore reservations as we hold the struct_mutex and
+	 * are only called outside of the reservation path.  The user
+	 * can only increment pin_count once, and so if after
+	 * subtracting the potential reference by the user, any pin_count
+	 * remains, it must be due to another use by the display engine.
+	 */
+	return obj->pin_count - !!obj->user_pin_count;
+}
+
 /*
  * Prepare buffer for display plane (scanout, cursors, etc).
  * Can be called from an uninterruptible phase (modesetting) and allows
@@ -3520,6 +3536,11 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 			return ret;
 	}
 
+	/* Mark the pin_display early so that we account for the
+	 * display coherency whilst setting up the cache domains.
+	 */
+	obj->pin_display = true;
+
 	/* The display engine is not coherent with the LLC cache on gen6.  As
 	 * a result, we make sure that the pinning that is about to occur is
 	 * done with uncached PTEs. This is lowest common denominator for all
@@ -3531,7 +3552,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 */
 	ret = i915_gem_object_set_cache_level(obj, I915_CACHE_NONE);
 	if (ret)
-		return ret;
+		goto err_unpin_display;
 
 	/* As the user may map the buffer once pinned in the display plane
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
@@ -3539,7 +3560,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 */
 	ret = i915_gem_obj_ggtt_pin(obj, alignment, true, false);
 	if (ret)
-		return ret;
+		goto err_unpin_display;
 
 	i915_gem_object_flush_cpu_write_domain(obj);
 
@@ -3557,6 +3578,17 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 					    old_write_domain);
 
 	return 0;
+
+err_unpin_display:
+	obj->pin_display = is_pin_display(obj);
+	return ret;
+}
+
+void
+i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj)
+{
+	i915_gem_object_unpin(obj);
+	obj->pin_display = is_pin_display(obj);
 }
 
 int
