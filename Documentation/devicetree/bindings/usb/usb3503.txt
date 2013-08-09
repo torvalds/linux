@@ -3,6 +3,8 @@ SMSC USB3503 High-Speed Hub Controller
 Required properties:
 - compatible: Should be "smsc,usb3503" or "smsc,usb3503a".
 - reg: Specifies the i2c slave address, it should be 0x08.
+
+Optional properties:
 - connect-gpios: Should specify GPIO for connect.
 - disabled-ports: Should specify the ports unused.
 	'1' or '2' or '3' are availe for this property to describe the port
