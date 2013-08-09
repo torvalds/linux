@@ -161,6 +161,7 @@ struct frame {
 };
 
 struct del_stack {
+	struct dm_btree_info *info;
 	struct dm_transaction_manager *tm;
 	int top;
 	struct frame spine[MAX_SPINE_DEPTH];
@@ -181,6 +182,20 @@ static int top_frame(struct del_stack *s, struct frame **f)
 static int unprocessed_frames(struct del_stack *s)
 {
 	return s->top >= 0;
+}
+
+static void prefetch_children(struct del_stack *s, struct frame *f)
+{
+	unsigned i;
+	struct dm_block_manager *bm = dm_tm_get_bm(s->tm);
+
+	for (i = 0; i < f->nr_children; i++)
+		dm_bm_prefetch(bm, value64(f->n, i));
+}
+
+static bool is_internal_level(struct dm_btree_info *info, struct frame *f)
+{
+	return f->level < (info->levels - 1);
 }
 
 static int push_frame(struct del_stack *s, dm_block_t b, unsigned level)
@@ -205,6 +220,7 @@ static int push_frame(struct del_stack *s, dm_block_t b, unsigned level)
 		dm_tm_dec(s->tm, b);
 
 	else {
+		uint32_t flags;
 		struct frame *f = s->spine + ++s->top;
 
 		r = dm_tm_read_lock(s->tm, b, &btree_node_validator, &f->b);
@@ -217,6 +233,10 @@ static int push_frame(struct del_stack *s, dm_block_t b, unsigned level)
 		f->level = level;
 		f->nr_children = le32_to_cpu(f->n->header.nr_entries);
 		f->current_child = 0;
+
+		flags = le32_to_cpu(f->n->header.flags);
+		if (flags & INTERNAL_NODE || is_internal_level(s->info, f))
+			prefetch_children(s, f);
 	}
 
 	return 0;
@@ -230,11 +250,6 @@ static void pop_frame(struct del_stack *s)
 	dm_tm_unlock(s->tm, f->b);
 }
 
-static bool is_internal_level(struct dm_btree_info *info, struct frame *f)
-{
-	return f->level < (info->levels - 1);
-}
-
 int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 {
 	int r;
@@ -243,6 +258,7 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
+	s->info = info;
 	s->tm = info->tm;
 	s->top = -1;
 
