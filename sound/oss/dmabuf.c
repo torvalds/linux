@@ -557,7 +557,6 @@ int DMAbuf_getrdbuffer(int dev, char **buf, int *len, int dontblock)
 	unsigned long flags;
 	int err = 0, n = 0;
 	struct dma_buffparms *dmap = adev->dmap_in;
-	int go;
 
 	if (!(adev->open_mode & OPEN_READ))
 		return -EIO;
@@ -584,7 +583,7 @@ int DMAbuf_getrdbuffer(int dev, char **buf, int *len, int dontblock)
 			spin_unlock_irqrestore(&dmap->lock,flags);
 			return -EAGAIN;
 		}
-		if ((go = adev->go))
+		if (adev->go)
 			timeout = dmabuf_timeout(dmap);
 
 		spin_unlock_irqrestore(&dmap->lock,flags);
