@@ -10,6 +10,27 @@
 		reg = <0x80000000 0x7ff00000>;
 	};
 
+	pcie-controller {
+		status = "okay";
+		pex-clk-supply = <&sys_3v3_pexs_reg>;
+		vdd-supply = <&ldo1_reg>;
+		avdd-supply = <&ldo2_reg>;
+
+		pci@1,0 {
+			status = "okay";
+			nvidia,num-lanes = <4>;
+		};
+
+		pci@2,0 {
+			status = "okay";
+			nvidia,num-lanes = <1>;
+		};
+
+		pci@3,0 {
+			nvidia,num-lanes = <1>;
+		};
+	};
+
 	host1x {
 		hdmi {
 			status = "okay";
