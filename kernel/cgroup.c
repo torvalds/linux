@@ -3343,32 +3343,37 @@ static inline int started_after(void *p1, void *p2)
 
 /**
  * cgroup_scan_tasks - iterate though all the tasks in a cgroup
- * @scan: struct cgroup_scanner containing arguments for the scan
+ * @cgrp: the cgroup to iterate tasks of
+ * @test: optional test callback
+ * @process: process callback
+ * @data: data passed to @test and @process
+ * @heap: optional pre-allocated heap used for task iteration
  *
- * Arguments include pointers to callback functions test_task() and
- * process_task().
- * Iterate through all the tasks in a cgroup, calling test_task() for each,
- * and if it returns true, call process_task() for it also.
- * The test_task pointer may be NULL, meaning always true (select all tasks).
- * Effectively duplicates cgroup_task_iter_{start,next,end}()
- * but does not lock css_set_lock for the call to process_task().
- * The struct cgroup_scanner may be embedded in any structure of the caller's
- * creation.
- * It is guaranteed that process_task() will act on every task that
- * is a member of the cgroup for the duration of this call. This
- * function may or may not call process_task() for tasks that exit
- * or move to a different cgroup during the call, or are forked or
- * move into the cgroup during the call.
+ * Iterate through all the tasks in a cgroup, calling @test for each, and
+ * if it returns %true, call @process for it also.
  *
- * Note that test_task() may be called with locks held, and may in some
- * situations be called multiple times for the same task, so it should
- * be cheap.
- * If the heap pointer in the struct cgroup_scanner is non-NULL, a heap has been
- * pre-allocated and will be used for heap operations (and its "gt" member will
- * be overwritten), else a temporary heap will be used (allocation of which
- * may cause this function to fail).
+ * @test may be NULL, meaning always true (select all tasks), which
+ * effectively duplicates cgroup_task_iter_{start,next,end}() but does not
+ * lock css_set_lock for the call to @process.
+ *
+ * It is guaranteed that @process will act on every task that is a member
+ * of @cgrp for the duration of this call.  This function may or may not
+ * call @process for tasks that exit or move to a different cgroup during
+ * the call, or are forked or move into the cgroup during the call.
+ *
+ * Note that @test may be called with locks held, and may in some
+ * situations be called multiple times for the same task, so it should be
+ * cheap.
+ *
+ * If @heap is non-NULL, a heap has been pre-allocated and will be used for
+ * heap operations (and its "gt" member will be overwritten), else a
+ * temporary heap will be used (allocation of which may cause this function
+ * to fail).
  */
-int cgroup_scan_tasks(struct cgroup_scanner *scan)
+int cgroup_scan_tasks(struct cgroup *cgrp,
+		      bool (*test)(struct task_struct *, void *),
+		      void (*process)(struct task_struct *, void *),
+		      void *data, struct ptr_heap *heap)
 {
 	int retval, i;
 	struct cgroup_task_iter it;
@@ -3376,12 +3381,10 @@ int cgroup_scan_tasks(struct cgroup_scanner *scan)
 	/* Never dereference latest_task, since it's not refcounted */
 	struct task_struct *latest_task = NULL;
 	struct ptr_heap tmp_heap;
-	struct ptr_heap *heap;
 	struct timespec latest_time = { 0, 0 };
 
-	if (scan->heap) {
+	if (heap) {
 		/* The caller supplied our heap and pre-allocated its memory */
-		heap = scan->heap;
 		heap->gt = &started_after;
 	} else {
 		/* We need to allocate our own heap memory */
@@ -3394,25 +3397,24 @@ int cgroup_scan_tasks(struct cgroup_scanner *scan)
 
  again:
 	/*
-	 * Scan tasks in the cgroup, using the scanner's "test_task" callback
-	 * to determine which are of interest, and using the scanner's
-	 * "process_task" callback to process any of them that need an update.
-	 * Since we don't want to hold any locks during the task updates,
-	 * gather tasks to be processed in a heap structure.
-	 * The heap is sorted by descending task start time.
-	 * If the statically-sized heap fills up, we overflow tasks that
-	 * started later, and in future iterations only consider tasks that
-	 * started after the latest task in the previous pass. This
+	 * Scan tasks in the cgroup, using the @test callback to determine
+	 * which are of interest, and invoking @process callback on the
+	 * ones which need an update.  Since we don't want to hold any
+	 * locks during the task updates, gather tasks to be processed in a
+	 * heap structure.  The heap is sorted by descending task start
+	 * time.  If the statically-sized heap fills up, we overflow tasks
+	 * that started later, and in future iterations only consider tasks
+	 * that started after the latest task in the previous pass. This
 	 * guarantees forward progress and that we don't miss any tasks.
 	 */
 	heap->size = 0;
-	cgroup_task_iter_start(scan->cgrp, &it);
+	cgroup_task_iter_start(cgrp, &it);
 	while ((p = cgroup_task_iter_next(&it))) {
 		/*
 		 * Only affect tasks that qualify per the caller's callback,
 		 * if he provided one
 		 */
-		if (scan->test_task && !scan->test_task(p, scan))
+		if (test && !test(p, data))
 			continue;
 		/*
 		 * Only process tasks that started after the last task
@@ -3450,7 +3452,7 @@ int cgroup_scan_tasks(struct cgroup_scanner *scan)
 				latest_task = q;
 			}
 			/* Process the task per the caller's callback */
-			scan->process_task(q, scan);
+			process(q, data);
 			put_task_struct(q);
 		}
 		/*
@@ -3467,10 +3469,9 @@ int cgroup_scan_tasks(struct cgroup_scanner *scan)
 	return 0;
 }
 
-static void cgroup_transfer_one_task(struct task_struct *task,
-				     struct cgroup_scanner *scan)
+static void cgroup_transfer_one_task(struct task_struct *task, void *data)
 {
-	struct cgroup *new_cgroup = scan->data;
+	struct cgroup *new_cgroup = data;
 
 	mutex_lock(&cgroup_mutex);
 	cgroup_attach_task(new_cgroup, task, false);
@@ -3484,15 +3485,7 @@ static void cgroup_transfer_one_task(struct task_struct *task,
  */
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 {
-	struct cgroup_scanner scan;
-
-	scan.cgrp = from;
-	scan.test_task = NULL; /* select all tasks in cgroup */
-	scan.process_task = cgroup_transfer_one_task;
-	scan.heap = NULL;
-	scan.data = to;
-
-	return cgroup_scan_tasks(&scan);
+	return cgroup_scan_tasks(from, NULL, cgroup_transfer_one_task, to, NULL);
 }
 
 /*

@@ -528,15 +528,6 @@ struct cftype_set {
 	struct cftype			*cfts;
 };
 
-struct cgroup_scanner {
-	struct cgroup *cgrp;
-	int (*test_task)(struct task_struct *p, struct cgroup_scanner *scan);
-	void (*process_task)(struct task_struct *p,
-			struct cgroup_scanner *scan);
-	struct ptr_heap *heap;
-	void *data;
-};
-
 /*
  * See the comment above CGRP_ROOT_SANE_BEHAVIOR for details.  This
  * function can be called as long as @cgrp is accessible.
@@ -899,7 +890,12 @@ struct cgroup_task_iter {
 void cgroup_task_iter_start(struct cgroup *cgrp, struct cgroup_task_iter *it);
 struct task_struct *cgroup_task_iter_next(struct cgroup_task_iter *it);
 void cgroup_task_iter_end(struct cgroup_task_iter *it);
-int cgroup_scan_tasks(struct cgroup_scanner *scan);
+
+int cgroup_scan_tasks(struct cgroup *cgrp,
+		      bool (*test)(struct task_struct *, void *),
+		      void (*process)(struct task_struct *, void *),
+		      void *data, struct ptr_heap *heap);
+
 int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
 int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 
