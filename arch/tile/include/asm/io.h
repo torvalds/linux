@@ -255,7 +255,7 @@ static inline void writeq(u64 val, unsigned long addr)
 
 static inline void memset_io(volatile void *dst, int val, size_t len)
 {
-	int x;
+	size_t x;
 	BUG_ON((unsigned long)dst & 0x3);
 	val = (val & 0xff) * 0x01010101;
 	for (x = 0; x < len; x += 4)
@@ -265,7 +265,7 @@ static inline void memset_io(volatile void *dst, int val, size_t len)
 static inline void memcpy_fromio(void *dst, const volatile void __iomem *src,
 				 size_t len)
 {
-	int x;
+	size_t x;
 	BUG_ON((unsigned long)src & 0x3);
 	for (x = 0; x < len; x += 4)
 		*(u32 *)(dst + x) = readl(src + x);
@@ -274,7 +274,7 @@ static inline void memcpy_fromio(void *dst, const volatile void __iomem *src,
 static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 				size_t len)
 {
-	int x;
+	size_t x;
 	BUG_ON((unsigned long)dst & 0x3);
 	for (x = 0; x < len; x += 4)
 		writel(*(u32 *)(src + x), dst + x);
