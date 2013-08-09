@@ -78,22 +78,21 @@ static int usb3503_reset(struct usb3503 *hub, int state)
 	return 0;
 }
 
-static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
+static int usb3503_connect(struct usb3503 *hub)
 {
 	struct device *dev = hub->dev;
-	int err = 0;
+	int err;
 
-	switch (mode) {
-	case USB3503_MODE_HUB:
-		usb3503_reset(hub, 1);
+	usb3503_reset(hub, 1);
 
+	if (hub->regmap) {
 		/* SP_ILOCK: set connect_n, config_n for config */
 		err = regmap_write(hub->regmap, USB3503_SP_ILOCK,
-				(USB3503_SPILOCK_CONNECT
+			   (USB3503_SPILOCK_CONNECT
 				 | USB3503_SPILOCK_CONFIG));
 		if (err < 0) {
 			dev_err(dev, "SP_ILOCK failed (%d)\n", err);
-			goto err_hubmode;
+			return err;
 		}
 
 		/* PDS : Disable For Self Powered Operation */
@@ -103,7 +102,7 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 					hub->port_off_mask);
 			if (err < 0) {
 				dev_err(dev, "PDS failed (%d)\n", err);
-				goto err_hubmode;
+				return err;
 			}
 		}
 
@@ -113,7 +112,7 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 					 USB3503_SELF_BUS_PWR);
 		if (err < 0) {
 			dev_err(dev, "CFG1 failed (%d)\n", err);
-			goto err_hubmode;
+			return err;
 		}
 
 		/* SP_LOCK: clear connect_n, config_n for hub connect */
@@ -122,14 +121,27 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 					  | USB3503_SPILOCK_CONFIG), 0);
 		if (err < 0) {
 			dev_err(dev, "SP_ILOCK failed (%d)\n", err);
-			goto err_hubmode;
+			return err;
 		}
+	}
 
-		if (gpio_is_valid(hub->gpio_connect))
-			gpio_set_value_cansleep(hub->gpio_connect, 1);
+	if (gpio_is_valid(hub->gpio_connect))
+		gpio_set_value_cansleep(hub->gpio_connect, 1);
 
-		hub->mode = mode;
-		dev_info(dev, "switched to HUB mode\n");
+	hub->mode = USB3503_MODE_HUB;
+	dev_info(dev, "switched to HUB mode\n");
+
+	return 0;
+}
+
+static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
+{
+	struct device *dev = hub->dev;
+	int err = 0;
+
+	switch (mode) {
+	case USB3503_MODE_HUB:
+		err = usb3503_connect(hub);
 		break;
 
 	case USB3503_MODE_STANDBY:
@@ -145,7 +157,6 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 		break;
 	}
 
-err_hubmode:
 	return err;
 }
 
@@ -197,6 +208,9 @@ static int usb3503_probe(struct usb3503 *hub)
 		of_property_read_u32(np, "initial-mode", &mode);
 		hub->mode = mode;
 	}
+
+	if (hub->port_off_mask && !hub->regmap)
+		dev_err(dev, "Ports disabled with no control interface\n");
 
 	if (gpio_is_valid(hub->gpio_intn)) {
 		err = devm_gpio_request_one(dev, hub->gpio_intn,
@@ -263,6 +277,20 @@ static int usb3503_i2c_probe(struct i2c_client *i2c,
 	return usb3503_probe(hub);
 }
 
+static int usb3503_platform_probe(struct platform_device *pdev)
+{
+	struct usb3503 *hub;
+
+	hub = devm_kzalloc(&pdev->dev, sizeof(struct usb3503), GFP_KERNEL);
+	if (!hub) {
+		dev_err(&pdev->dev, "private data alloc fail\n");
+		return -ENOMEM;
+	}
+	hub->dev = &pdev->dev;
+
+	return usb3503_probe(hub);
+}
+
 static const struct i2c_device_id usb3503_id[] = {
 	{ USB3503_I2C_NAME, 0 },
 	{ }
@@ -278,7 +306,7 @@ static const struct of_device_id usb3503_of_match[] = {
 MODULE_DEVICE_TABLE(of, usb3503_of_match);
 #endif
 
-static struct i2c_driver usb3503_driver = {
+static struct i2c_driver usb3503_i2c_driver = {
 	.driver = {
 		.name = USB3503_I2C_NAME,
 		.of_match_table = of_match_ptr(usb3503_of_match),
@@ -287,7 +315,38 @@ static struct i2c_driver usb3503_driver = {
 	.id_table	= usb3503_id,
 };
 
-module_i2c_driver(usb3503_driver);
+static struct platform_driver usb3503_platform_driver = {
+	.driver = {
+		.name = USB3503_I2C_NAME,
+		.of_match_table = of_match_ptr(usb3503_of_match),
+		.owner = THIS_MODULE,
+	},
+	.probe		= usb3503_platform_probe,
+};
+
+static int __init usb3503_init(void)
+{
+	int err;
+
+	err = i2c_register_driver(THIS_MODULE, &usb3503_i2c_driver);
+	if (err != 0)
+		pr_err("usb3503: Failed to register I2C driver: %d\n", err);
+
+	err = platform_driver_register(&usb3503_platform_driver);
+	if (err != 0)
+		pr_err("usb3503: Failed to register platform driver: %d\n",
+		       err);
+
+	return 0;
+}
+module_init(usb3503_init);
+
+static void __exit usb3503_exit(void)
+{
+	platform_driver_unregister(&usb3503_platform_driver);
+	i2c_del_driver(&usb3503_i2c_driver);
+}
+module_exit(usb3503_exit);
 
 MODULE_AUTHOR("Dongjin Kim <tobetter@gmail.com>");
 MODULE_DESCRIPTION("USB3503 USB HUB driver");
