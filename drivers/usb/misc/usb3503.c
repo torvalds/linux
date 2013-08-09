@@ -156,30 +156,15 @@ static const struct regmap_config usb3503_regmap_config = {
 	.max_register = USB3503_RESET,
 };
 
-static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+static int usb3503_probe(struct usb3503 *hub)
 {
-	struct usb3503_platform_data *pdata = dev_get_platdata(&i2c->dev);
-	struct device_node *np = i2c->dev.of_node;
-	struct usb3503 *hub;
-	int err = -ENOMEM;
+	struct device *dev = hub->dev;
+	struct usb3503_platform_data *pdata = dev_get_platdata(dev);
+	struct device_node *np = dev->of_node;
+	int err;
 	u32 mode = USB3503_MODE_UNKNOWN;
 	const u32 *property;
 	int len;
-
-	hub = devm_kzalloc(&i2c->dev, sizeof(struct usb3503), GFP_KERNEL);
-	if (!hub) {
-		dev_err(&i2c->dev, "private data alloc fail\n");
-		return err;
-	}
-
-	i2c_set_clientdata(i2c, hub);
-	hub->regmap = devm_regmap_init_i2c(i2c, &usb3503_regmap_config);
-	if (IS_ERR(hub->regmap)) {
-		err = PTR_ERR(hub->regmap);
-		dev_err(&i2c->dev, "Failed to initialise regmap: %d\n", err);
-		return err;
-	}
-	hub->dev = &i2c->dev;
 
 	if (pdata) {
 		hub->port_off_mask	= pdata->port_off_mask;
@@ -214,44 +199,68 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	}
 
 	if (gpio_is_valid(hub->gpio_intn)) {
-		err = devm_gpio_request_one(&i2c->dev, hub->gpio_intn,
+		err = devm_gpio_request_one(dev, hub->gpio_intn,
 				GPIOF_OUT_INIT_HIGH, "usb3503 intn");
 		if (err) {
-			dev_err(&i2c->dev,
-					"unable to request GPIO %d as connect pin (%d)\n",
-					hub->gpio_intn, err);
+			dev_err(dev,
+				"unable to request GPIO %d as connect pin (%d)\n",
+				hub->gpio_intn, err);
 			return err;
 		}
 	}
 
 	if (gpio_is_valid(hub->gpio_connect)) {
-		err = devm_gpio_request_one(&i2c->dev, hub->gpio_connect,
+		err = devm_gpio_request_one(dev, hub->gpio_connect,
 				GPIOF_OUT_INIT_LOW, "usb3503 connect");
 		if (err) {
-			dev_err(&i2c->dev,
-					"unable to request GPIO %d as connect pin (%d)\n",
-					hub->gpio_connect, err);
+			dev_err(dev,
+				"unable to request GPIO %d as connect pin (%d)\n",
+				hub->gpio_connect, err);
 			return err;
 		}
 	}
 
 	if (gpio_is_valid(hub->gpio_reset)) {
-		err = devm_gpio_request_one(&i2c->dev, hub->gpio_reset,
+		err = devm_gpio_request_one(dev, hub->gpio_reset,
 				GPIOF_OUT_INIT_LOW, "usb3503 reset");
 		if (err) {
-			dev_err(&i2c->dev,
-					"unable to request GPIO %d as reset pin (%d)\n",
-					hub->gpio_reset, err);
+			dev_err(dev,
+				"unable to request GPIO %d as reset pin (%d)\n",
+				hub->gpio_reset, err);
 			return err;
 		}
 	}
 
 	usb3503_switch_mode(hub, hub->mode);
 
-	dev_info(&i2c->dev, "%s: probed on  %s mode\n", __func__,
+	dev_info(dev, "%s: probed on  %s mode\n", __func__,
 			(hub->mode == USB3503_MODE_HUB) ? "hub" : "standby");
 
 	return 0;
+}
+
+static int usb3503_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
+{
+	struct usb3503 *hub;
+	int err;
+
+	hub = devm_kzalloc(&i2c->dev, sizeof(struct usb3503), GFP_KERNEL);
+	if (!hub) {
+		dev_err(&i2c->dev, "private data alloc fail\n");
+		return -ENOMEM;
+	}
+
+	i2c_set_clientdata(i2c, hub);
+	hub->regmap = devm_regmap_init_i2c(i2c, &usb3503_regmap_config);
+	if (IS_ERR(hub->regmap)) {
+		err = PTR_ERR(hub->regmap);
+		dev_err(&i2c->dev, "Failed to initialise regmap: %d\n", err);
+		return err;
+	}
+	hub->dev = &i2c->dev;
+
+	return usb3503_probe(hub);
 }
 
 static const struct i2c_device_id usb3503_id[] = {
@@ -273,7 +282,7 @@ static struct i2c_driver usb3503_driver = {
 		.name = USB3503_I2C_NAME,
 		.of_match_table = of_match_ptr(usb3503_of_match),
 	},
-	.probe		= usb3503_probe,
+	.probe		= usb3503_i2c_probe,
 	.id_table	= usb3503_id,
 };
 
