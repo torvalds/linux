@@ -1187,9 +1187,6 @@ static int __net_init sctp_net_init(struct net *net)
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	net->sctp.cookie_preserve_enable 	= 1;
 
-	/* Whether SCTP checksumming is disabled(1) or not(0) */
-	net->sctp.checksum_disable		= 0;
-
 	/* Default sctp sockets to use md5 as their hmac alg */
 #if defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_MD5)
 	net->sctp.sctp_hmac_alg			= "md5";
@@ -1546,4 +1543,6 @@ MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-132");
 MODULE_ALIAS("net-pf-" __stringify(PF_INET6) "-proto-132");
 MODULE_AUTHOR("Linux Kernel SCTP developers <linux-sctp@vger.kernel.org>");
 MODULE_DESCRIPTION("Support for the SCTP protocol (RFC2960)");
+module_param_named(no_checksums, sctp_checksum_disable, bool, 0644);
+MODULE_PARM_DESC(no_checksums, "Disable checksums computing and verification");
 MODULE_LICENSE("GPL");

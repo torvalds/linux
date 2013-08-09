@@ -1507,14 +1507,6 @@ sack_timeout - INTEGER
 
 	Default: 200
 
-checksum_disable - BOOLEAN
-	Disable SCTP checksum computing and verification for debugging purpose.
-
-	1: Disable checksumming
-	0: Enable checksumming
-
-	Default: 0
-
 valid_cookie_life - INTEGER
 	The default lifetime of the SCTP cookie (in milliseconds).  The cookie
 	is used during association establishment.

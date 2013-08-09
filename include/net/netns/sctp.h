@@ -129,9 +129,6 @@ struct netns_sctp {
 
 	/* Threshold for autoclose timeout, in seconds. */
 	unsigned long max_autoclose;
-
-	/* Flag to disable SCTP checksumming. */
-	int checksum_disable;
 };
 
 #endif /* __NETNS_SCTP_H__ */
