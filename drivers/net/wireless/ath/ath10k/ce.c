@@ -941,6 +941,12 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 				     (nentries * sizeof(struct ce_desc) +
 				      CE_DESC_RING_ALIGN),
 				     &base_addr);
+	if (!src_ring->base_addr_owner_space_unaligned) {
+		kfree(ce_state->src_ring);
+		ce_state->src_ring = NULL;
+		return -ENOMEM;
+	}
+
 	src_ring->base_addr_ce_space_unaligned = base_addr;
 
 	src_ring->base_addr_owner_space = PTR_ALIGN(
@@ -957,6 +963,16 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 	src_ring->shadow_base_unaligned =
 		kmalloc((nentries * sizeof(struct ce_desc) +
 			 CE_DESC_RING_ALIGN), GFP_KERNEL);
+	if (!src_ring->shadow_base_unaligned) {
+		pci_free_consistent(ar_pci->pdev,
+				    (nentries * sizeof(struct ce_desc) +
+				     CE_DESC_RING_ALIGN),
+				    src_ring->base_addr_owner_space,
+				    src_ring->base_addr_ce_space);
+		kfree(ce_state->src_ring);
+		ce_state->src_ring = NULL;
+		return -ENOMEM;
+	}
 
 	src_ring->shadow_base = PTR_ALIGN(
 			src_ring->shadow_base_unaligned,
@@ -1026,6 +1042,12 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 				     (nentries * sizeof(struct ce_desc) +
 				      CE_DESC_RING_ALIGN),
 				     &base_addr);
+	if (!dest_ring->base_addr_owner_space_unaligned) {
+		kfree(ce_state->dest_ring);
+		ce_state->dest_ring = NULL;
+		return -ENOMEM;
+	}
+
 	dest_ring->base_addr_ce_space_unaligned = base_addr;
 
 	/*
