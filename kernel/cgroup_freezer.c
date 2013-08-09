@@ -91,7 +91,8 @@ static const char *freezer_state_strs(unsigned int state)
 
 struct cgroup_subsys freezer_subsys;
 
-static struct cgroup_subsys_state *freezer_css_alloc(struct cgroup *cgroup)
+static struct cgroup_subsys_state *
+freezer_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct freezer *freezer;
 
@@ -104,16 +105,16 @@ static struct cgroup_subsys_state *freezer_css_alloc(struct cgroup *cgroup)
 }
 
 /**
- * freezer_css_online - commit creation of a freezer cgroup
- * @cgroup: cgroup being created
+ * freezer_css_online - commit creation of a freezer css
+ * @css: css being created
  *
- * We're committing to creation of @cgroup.  Mark it online and inherit
+ * We're committing to creation of @css.  Mark it online and inherit
  * parent's freezing state while holding both parent's and our
  * freezer->lock.
  */
-static int freezer_css_online(struct cgroup *cgroup)
+static int freezer_css_online(struct cgroup_subsys_state *css)
 {
-	struct freezer *freezer = cgroup_freezer(cgroup);
+	struct freezer *freezer = css_freezer(css);
 	struct freezer *parent = parent_freezer(freezer);
 
 	/*
@@ -140,15 +141,15 @@ static int freezer_css_online(struct cgroup *cgroup)
 }
 
 /**
- * freezer_css_offline - initiate destruction of @cgroup
- * @cgroup: cgroup being destroyed
+ * freezer_css_offline - initiate destruction of a freezer css
+ * @css: css being destroyed
  *
- * @cgroup is going away.  Mark it dead and decrement system_freezing_count
- * if it was holding one.
+ * @css is going away.  Mark it dead and decrement system_freezing_count if
+ * it was holding one.
  */
-static void freezer_css_offline(struct cgroup *cgroup)
+static void freezer_css_offline(struct cgroup_subsys_state *css)
 {
-	struct freezer *freezer = cgroup_freezer(cgroup);
+	struct freezer *freezer = css_freezer(css);
 
 	spin_lock_irq(&freezer->lock);
 
@@ -160,9 +161,9 @@ static void freezer_css_offline(struct cgroup *cgroup)
 	spin_unlock_irq(&freezer->lock);
 }
 
-static void freezer_css_free(struct cgroup *cgroup)
+static void freezer_css_free(struct cgroup_subsys_state *css)
 {
-	kfree(cgroup_freezer(cgroup));
+	kfree(css_freezer(css));
 }
 
 /*
@@ -174,25 +175,26 @@ static void freezer_css_free(struct cgroup *cgroup)
  * @freezer->lock.  freezer_attach() makes the new tasks conform to the
  * current state and all following state changes can see the new tasks.
  */
-static void freezer_attach(struct cgroup *new_cgrp, struct cgroup_taskset *tset)
+static void freezer_attach(struct cgroup_subsys_state *new_css,
+			   struct cgroup_taskset *tset)
 {
-	struct freezer *freezer = cgroup_freezer(new_cgrp);
+	struct freezer *freezer = css_freezer(new_css);
 	struct task_struct *task;
 	bool clear_frozen = false;
 
 	spin_lock_irq(&freezer->lock);
 
 	/*
-	 * Make the new tasks conform to the current state of @new_cgrp.
+	 * Make the new tasks conform to the current state of @new_css.
 	 * For simplicity, when migrating any task to a FROZEN cgroup, we
 	 * revert it to FREEZING and let update_if_frozen() determine the
 	 * correct state later.
 	 *
-	 * Tasks in @tset are on @new_cgrp but may not conform to its
+	 * Tasks in @tset are on @new_css but may not conform to its
 	 * current state before executing the following - !frozen tasks may
 	 * be visible in a FROZEN cgroup and frozen tasks in a THAWED one.
 	 */
-	cgroup_taskset_for_each(task, new_cgrp, tset) {
+	cgroup_taskset_for_each(task, new_css->cgroup, tset) {
 		if (!(freezer->state & CGROUP_FREEZING)) {
 			__thaw_task(task);
 		} else {

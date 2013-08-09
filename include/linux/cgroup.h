@@ -579,18 +579,22 @@ int cgroup_taskset_size(struct cgroup_taskset *tset);
  */
 
 struct cgroup_subsys {
-	struct cgroup_subsys_state *(*css_alloc)(struct cgroup *cgrp);
-	int (*css_online)(struct cgroup *cgrp);
-	void (*css_offline)(struct cgroup *cgrp);
-	void (*css_free)(struct cgroup *cgrp);
+	struct cgroup_subsys_state *(*css_alloc)(struct cgroup_subsys_state *parent_css);
+	int (*css_online)(struct cgroup_subsys_state *css);
+	void (*css_offline)(struct cgroup_subsys_state *css);
+	void (*css_free)(struct cgroup_subsys_state *css);
 
-	int (*can_attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
-	void (*cancel_attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
-	void (*attach)(struct cgroup *cgrp, struct cgroup_taskset *tset);
+	int (*can_attach)(struct cgroup_subsys_state *css,
+			  struct cgroup_taskset *tset);
+	void (*cancel_attach)(struct cgroup_subsys_state *css,
+			      struct cgroup_taskset *tset);
+	void (*attach)(struct cgroup_subsys_state *css,
+		       struct cgroup_taskset *tset);
 	void (*fork)(struct task_struct *task);
-	void (*exit)(struct cgroup *cgrp, struct cgroup *old_cgrp,
+	void (*exit)(struct cgroup_subsys_state *css,
+		     struct cgroup_subsys_state *old_css,
 		     struct task_struct *task);
-	void (*bind)(struct cgroup *root);
+	void (*bind)(struct cgroup_subsys_state *root_css);
 
 	int subsys_id;
 	int disabled;

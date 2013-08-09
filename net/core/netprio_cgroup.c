@@ -126,7 +126,8 @@ static int netprio_set_prio(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
+static struct cgroup_subsys_state *
+cgrp_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct cgroup_subsys_state *css;
 
@@ -137,16 +138,14 @@ static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 	return css;
 }
 
-static int cgrp_css_online(struct cgroup *cgrp)
+static int cgrp_css_online(struct cgroup_subsys_state *css)
 {
-	struct cgroup_subsys_state *css = cgroup_css(cgrp, net_prio_subsys_id);
-	struct cgroup_subsys_state *parent_css;
+	struct cgroup_subsys_state *parent_css = css_parent(css);
 	struct net_device *dev;
 	int ret = 0;
 
-	if (!cgrp->parent)
+	if (!parent_css)
 		return 0;
-	parent_css = cgroup_css(cgrp->parent, net_prio_subsys_id);
 
 	rtnl_lock();
 	/*
@@ -164,9 +163,9 @@ static int cgrp_css_online(struct cgroup *cgrp)
 	return ret;
 }
 
-static void cgrp_css_free(struct cgroup *cgrp)
+static void cgrp_css_free(struct cgroup_subsys_state *css)
 {
-	kfree(cgroup_css(cgrp, net_prio_subsys_id));
+	kfree(css);
 }
 
 static u64 read_prioidx(struct cgroup *cgrp, struct cftype *cft)
@@ -221,12 +220,13 @@ static int update_netprio(const void *v, struct file *file, unsigned n)
 	return 0;
 }
 
-static void net_prio_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+static void net_prio_attach(struct cgroup_subsys_state *css,
+			    struct cgroup_taskset *tset)
 {
 	struct task_struct *p;
 	void *v;
 
-	cgroup_taskset_for_each(p, cgrp, tset) {
+	cgroup_taskset_for_each(p, css->cgroup, tset) {
 		task_lock(p);
 		v = (void *)(unsigned long)task_netprioidx(p);
 		iterate_fd(p->files, 0, update_netprio, v);

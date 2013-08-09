@@ -853,8 +853,11 @@ static void cgroup_free_fn(struct work_struct *work)
 	/*
 	 * Release the subsystem state objects.
 	 */
-	for_each_root_subsys(cgrp->root, ss)
-		ss->css_free(cgrp);
+	for_each_root_subsys(cgrp->root, ss) {
+		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+
+		ss->css_free(css);
+	}
 
 	cgrp->root->number_of_cgroups--;
 	mutex_unlock(&cgroup_mutex);
@@ -1056,7 +1059,7 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 			list_move(&ss->sibling, &root->subsys_list);
 			ss->root = root;
 			if (ss->bind)
-				ss->bind(cgrp);
+				ss->bind(cgrp->subsys[i]);
 
 			/* refcount was already taken, and we're keeping it */
 			root->subsys_mask |= bit;
@@ -1066,7 +1069,7 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 			BUG_ON(cgrp->subsys[i]->cgroup != cgrp);
 
 			if (ss->bind)
-				ss->bind(cgroup_dummy_top);
+				ss->bind(cgroup_dummy_top->subsys[i]);
 			cgroup_dummy_top->subsys[i]->cgroup = cgroup_dummy_top;
 			cgrp->subsys[i] = NULL;
 			cgroup_subsys[i]->root = &cgroup_dummy_root;
@@ -2049,8 +2052,10 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	 * step 1: check that we can legitimately attach to the cgroup.
 	 */
 	for_each_root_subsys(root, ss) {
+		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+
 		if (ss->can_attach) {
-			retval = ss->can_attach(cgrp, &tset);
+			retval = ss->can_attach(css, &tset);
 			if (retval) {
 				failed_ss = ss;
 				goto out_cancel_attach;
@@ -2089,8 +2094,10 @@ static int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk,
 	 * step 4: do subsystem attach callbacks.
 	 */
 	for_each_root_subsys(root, ss) {
+		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+
 		if (ss->attach)
-			ss->attach(cgrp, &tset);
+			ss->attach(css, &tset);
 	}
 
 	/*
@@ -2109,10 +2116,12 @@ out_put_css_set_refs:
 out_cancel_attach:
 	if (retval) {
 		for_each_root_subsys(root, ss) {
+			struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+
 			if (ss == failed_ss)
 				break;
 			if (ss->cancel_attach)
-				ss->cancel_attach(cgrp, &tset);
+				ss->cancel_attach(css, &tset);
 		}
 	}
 out_free_group_list:
@@ -4206,14 +4215,15 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 /* invoke ->css_online() on a new CSS and mark it online if successful */
 static int online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
+	struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
 	int ret = 0;
 
 	lockdep_assert_held(&cgroup_mutex);
 
 	if (ss->css_online)
-		ret = ss->css_online(cgrp);
+		ret = ss->css_online(css);
 	if (!ret)
-		cgrp->subsys[ss->subsys_id]->flags |= CSS_ONLINE;
+		css->flags |= CSS_ONLINE;
 	return ret;
 }
 
@@ -4228,9 +4238,9 @@ static void offline_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 		return;
 
 	if (ss->css_offline)
-		ss->css_offline(cgrp);
+		ss->css_offline(css);
 
-	cgrp->subsys[ss->subsys_id]->flags &= ~CSS_ONLINE;
+	css->flags &= ~CSS_ONLINE;
 }
 
 /*
@@ -4305,7 +4315,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	for_each_root_subsys(root, ss) {
 		struct cgroup_subsys_state *css;
 
-		css = ss->css_alloc(cgrp);
+		css = ss->css_alloc(parent->subsys[ss->subsys_id]);
 		if (IS_ERR(css)) {
 			err = PTR_ERR(css);
 			goto err_free_all;
@@ -4313,7 +4323,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 		err = percpu_ref_init(&css->refcnt, css_release);
 		if (err) {
-			ss->css_free(cgrp);
+			ss->css_free(css);
 			goto err_free_all;
 		}
 
@@ -4386,7 +4396,7 @@ err_free_all:
 
 		if (css) {
 			percpu_ref_cancel_init(&css->refcnt);
-			ss->css_free(cgrp);
+			ss->css_free(css);
 		}
 	}
 	mutex_unlock(&cgroup_mutex);
@@ -4641,7 +4651,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	/* Create the top cgroup state for this subsystem */
 	list_add(&ss->sibling, &cgroup_dummy_root.subsys_list);
 	ss->root = &cgroup_dummy_root;
-	css = ss->css_alloc(cgroup_dummy_top);
+	css = ss->css_alloc(cgroup_dummy_top->subsys[ss->subsys_id]);
 	/* We don't handle early failures gracefully */
 	BUG_ON(IS_ERR(css));
 	init_cgroup_css(css, ss, cgroup_dummy_top);
@@ -4720,7 +4730,7 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	 * struct, so this can happen first (i.e. before the dummy root
 	 * attachment).
 	 */
-	css = ss->css_alloc(cgroup_dummy_top);
+	css = ss->css_alloc(cgroup_dummy_top->subsys[ss->subsys_id]);
 	if (IS_ERR(css)) {
 		/* failure case - need to deassign the cgroup_subsys[] slot. */
 		cgroup_subsys[ss->subsys_id] = NULL;
@@ -4836,7 +4846,7 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 	 * the cgrp->subsys pointer to find their state. note that this
 	 * also takes care of freeing the css_id.
 	 */
-	ss->css_free(cgroup_dummy_top);
+	ss->css_free(cgroup_dummy_top->subsys[ss->subsys_id]);
 	cgroup_dummy_top->subsys[ss->subsys_id] = NULL;
 
 	mutex_unlock(&cgroup_mutex);
@@ -5192,10 +5202,10 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 		 */
 		for_each_builtin_subsys(ss, i) {
 			if (ss->exit) {
-				struct cgroup *old_cgrp = cset->subsys[i]->cgroup;
-				struct cgroup *cgrp = task_cgroup(tsk, i);
+				struct cgroup_subsys_state *old_css = cset->subsys[i];
+				struct cgroup_subsys_state *css = task_css(tsk, i);
 
-				ss->exit(cgrp, old_cgrp, tsk);
+				ss->exit(css, old_css, tsk);
 			}
 		}
 	}
@@ -5529,7 +5539,8 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
 }
 
 #ifdef CONFIG_CGROUP_DEBUG
-static struct cgroup_subsys_state *debug_css_alloc(struct cgroup *cgrp)
+static struct cgroup_subsys_state *
+debug_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct cgroup_subsys_state *css = kzalloc(sizeof(*css), GFP_KERNEL);
 
@@ -5539,9 +5550,9 @@ static struct cgroup_subsys_state *debug_css_alloc(struct cgroup *cgrp)
 	return css;
 }
 
-static void debug_css_free(struct cgroup *cgrp)
+static void debug_css_free(struct cgroup_subsys_state *css)
 {
-	kfree(cgrp->subsys[debug_subsys_id]);
+	kfree(css);
 }
 
 static u64 debug_taskcount_read(struct cgroup *cgrp, struct cftype *cft)

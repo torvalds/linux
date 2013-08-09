@@ -765,18 +765,18 @@ struct cftype blkcg_files[] = {
 
 /**
  * blkcg_css_offline - cgroup css_offline callback
- * @cgroup: cgroup of interest
+ * @css: css of interest
  *
- * This function is called when @cgroup is about to go away and responsible
- * for shooting down all blkgs associated with @cgroup.  blkgs should be
+ * This function is called when @css is about to go away and responsible
+ * for shooting down all blkgs associated with @css.  blkgs should be
  * removed while holding both q and blkcg locks.  As blkcg lock is nested
  * inside q lock, this function performs reverse double lock dancing.
  *
  * This is the blkcg counterpart of ioc_release_fn().
  */
-static void blkcg_css_offline(struct cgroup *cgroup)
+static void blkcg_css_offline(struct cgroup_subsys_state *css)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	spin_lock_irq(&blkcg->lock);
 
@@ -798,21 +798,21 @@ static void blkcg_css_offline(struct cgroup *cgroup)
 	spin_unlock_irq(&blkcg->lock);
 }
 
-static void blkcg_css_free(struct cgroup *cgroup)
+static void blkcg_css_free(struct cgroup_subsys_state *css)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	if (blkcg != &blkcg_root)
 		kfree(blkcg);
 }
 
-static struct cgroup_subsys_state *blkcg_css_alloc(struct cgroup *cgroup)
+static struct cgroup_subsys_state *
+blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	static atomic64_t id_seq = ATOMIC64_INIT(0);
 	struct blkcg *blkcg;
-	struct cgroup *parent = cgroup->parent;
 
-	if (!parent) {
+	if (!parent_css) {
 		blkcg = &blkcg_root;
 		goto done;
 	}
@@ -883,14 +883,15 @@ void blkcg_exit_queue(struct request_queue *q)
  * of the main cic data structures.  For now we allow a task to change
  * its cgroup only if it's the only owner of its ioc.
  */
-static int blkcg_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+static int blkcg_can_attach(struct cgroup_subsys_state *css,
+			    struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
 	struct io_context *ioc;
 	int ret = 0;
 
 	/* task_lock() is needed to avoid races with exit_io_context() */
-	cgroup_taskset_for_each(task, cgrp, tset) {
+	cgroup_taskset_for_each(task, css->cgroup, tset) {
 		task_lock(task);
 		ioc = task->io_context;
 		if (ioc && atomic_read(&ioc->nr_tasks) > 1)

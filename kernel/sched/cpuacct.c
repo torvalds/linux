@@ -62,11 +62,12 @@ static struct cpuacct root_cpuacct = {
 };
 
 /* create a new cpu accounting group */
-static struct cgroup_subsys_state *cpuacct_css_alloc(struct cgroup *cgrp)
+static struct cgroup_subsys_state *
+cpuacct_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct cpuacct *ca;
 
-	if (!cgrp->parent)
+	if (!parent_css)
 		return &root_cpuacct.css;
 
 	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
@@ -92,9 +93,9 @@ out:
 }
 
 /* destroy an existing cpu accounting group */
-static void cpuacct_css_free(struct cgroup *cgrp)
+static void cpuacct_css_free(struct cgroup_subsys_state *css)
 {
-	struct cpuacct *ca = cgroup_ca(cgrp);
+	struct cpuacct *ca = css_ca(css);
 
 	free_percpu(ca->cpustat);
 	free_percpu(ca->cpuusage);
