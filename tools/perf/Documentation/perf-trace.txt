@@ -26,6 +26,10 @@ OPTIONS
 --all-cpus::
         System-wide collection from all CPUs.
 
+-e::
+--expr::
+	List of events to show, currently only syscall names.
+
 -p::
 --pid=::
 	Record events on existing process ID (comma separated list).
