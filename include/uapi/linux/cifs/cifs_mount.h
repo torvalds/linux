@@ -20,6 +20,7 @@
 #define CIFS_MAX_DOMAINNAME_LEN 256 /* max fully qualified domain name */
 #define CIFS_MAX_USERNAME_LEN   256 /* reasonable max for current servers */
 #define CIFS_MAX_PASSWORD_LEN   512 /* Windows max seems to be 256 wide chars */
-#define CIFS_MAX_SHARE_LEN       80
+#define CIFS_MAX_SHARE_LEN      256 /* reasonable max share name length */
+
 
 #endif /* _CIFS_MOUNT_H */
