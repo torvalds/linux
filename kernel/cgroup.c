@@ -159,9 +159,9 @@ struct css_id {
  */
 struct cgroup_event {
 	/*
-	 * Cgroup which the event belongs to.
+	 * css which the event belongs to.
 	 */
-	struct cgroup *cgrp;
+	struct cgroup_subsys_state *css;
 	/*
 	 * Control file which the event associated.
 	 */
@@ -3955,11 +3955,12 @@ static void cgroup_event_remove(struct work_struct *work)
 {
 	struct cgroup_event *event = container_of(work, struct cgroup_event,
 			remove);
-	struct cgroup *cgrp = event->cgrp;
+	struct cgroup_subsys_state *css = event->css;
+	struct cgroup *cgrp = css->cgroup;
 
 	remove_wait_queue(event->wqh, &event->wait);
 
-	event->cft->unregister_event(cgrp, event->cft, event->eventfd);
+	event->cft->unregister_event(css, event->cft, event->eventfd);
 
 	/* Notify userspace the event is going away. */
 	eventfd_signal(event->eventfd, 1);
@@ -3979,7 +3980,7 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
 {
 	struct cgroup_event *event = container_of(wait,
 			struct cgroup_event, wait);
-	struct cgroup *cgrp = event->cgrp;
+	struct cgroup *cgrp = event->css->cgroup;
 	unsigned long flags = (unsigned long)key;
 
 	if (flags & POLLHUP) {
@@ -4048,7 +4049,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
 		return -ENOMEM;
-	event->cgrp = cgrp;
+	event->css = css;
 	INIT_LIST_HEAD(&event->list);
 	init_poll_funcptr(&event->pt, cgroup_event_ptable_queue_proc);
 	init_waitqueue_func_entry(&event->wait, cgroup_event_wake);
@@ -4099,7 +4100,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *css,
 		goto out_put_cfile;
 	}
 
-	ret = event->cft->register_event(cgrp, event->cft,
+	ret = event->cft->register_event(css, event->cft,
 			event->eventfd, buffer);
 	if (ret)
 		goto out_put_cfile;

@@ -506,16 +506,18 @@ struct cftype {
 	 * you want to provide this functionality. Use eventfd_signal()
 	 * on eventfd to send notification to userspace.
 	 */
-	int (*register_event)(struct cgroup *cgrp, struct cftype *cft,
-			struct eventfd_ctx *eventfd, const char *args);
+	int (*register_event)(struct cgroup_subsys_state *css,
+			      struct cftype *cft, struct eventfd_ctx *eventfd,
+			      const char *args);
 	/*
 	 * unregister_event() callback will be called when userspace
 	 * closes the eventfd or on cgroup removing.
 	 * This callback must be implemented, if you want provide
 	 * notification functionality.
 	 */
-	void (*unregister_event)(struct cgroup *cgrp, struct cftype *cft,
-			struct eventfd_ctx *eventfd);
+	void (*unregister_event)(struct cgroup_subsys_state *css,
+				 struct cftype *cft,
+				 struct eventfd_ctx *eventfd);
 };
 
 /*
