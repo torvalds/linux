@@ -108,13 +108,13 @@ static int check_offs_len(struct mtd_info *mtd,
 	int ret = 0;
 
 	/* Start address must align on block boundary */
-	if (ofs & ((1 << chip->phys_erase_shift) - 1)) {
+	if (ofs & ((1ULL << chip->phys_erase_shift) - 1)) {
 		pr_debug("%s: unaligned address\n", __func__);
 		ret = -EINVAL;
 	}
 
 	/* Length must align on block boundary */
-	if (len & ((1 << chip->phys_erase_shift) - 1)) {
+	if (len & ((1ULL << chip->phys_erase_shift) - 1)) {
 		pr_debug("%s: length not block aligned\n", __func__);
 		ret = -EINVAL;
 	}
@@ -394,7 +394,7 @@ static int nand_block_markbad_lowlevel(struct mtd_info *mtd, loff_t ofs)
 		memset(&einfo, 0, sizeof(einfo));
 		einfo.mtd = mtd;
 		einfo.addr = ofs;
-		einfo.len = 1 << chip->phys_erase_shift;
+		einfo.len = 1ULL << chip->phys_erase_shift;
 		nand_erase_nand(mtd, &einfo, 0);
 
 		/* Write bad block marker to OOB */
@@ -2630,7 +2630,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		}
 
 		/* Increment page address and decrement length */
-		len -= (1 << chip->phys_erase_shift);
+		len -= (1ULL << chip->phys_erase_shift);
 		page += pages_per_block;
 
 		/* Check, if we cross a chip boundary */
