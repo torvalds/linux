@@ -3416,8 +3416,10 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		printk(KERN_ERR "btrfs: %d errors while writing supers\n",
 		       total_errors);
 
-		/* This shouldn't happen. FUA is masked off if unsupported */
-		BUG();
+		/* FUA is masked off if unsupported and can't be the reason */
+		btrfs_error(root->fs_info, -EIO,
+			    "%d errors while writing supers", total_errors);
+		return -EIO;
 	}
 
 	total_errors = 0;
