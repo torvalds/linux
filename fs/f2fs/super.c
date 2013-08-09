@@ -317,7 +317,6 @@ static int f2fs_drop_inode(struct inode *inode)
 static void f2fs_dirty_inode(struct inode *inode, int flags)
 {
 	set_inode_flag(F2FS_I(inode), FI_DIRTY_INODE);
-	return;
 }
 
 static void f2fs_i_callback(struct rcu_head *head)

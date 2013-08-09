@@ -117,7 +117,6 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 	}
 
 	mutex_unlock(&dirty_i->seglist_lock);
-	return;
 }
 
 /*
@@ -261,7 +260,6 @@ static void __add_sum_entry(struct f2fs_sb_info *sbi, int type,
 	void *addr = curseg->sum_blk;
 	addr += curseg->next_blkoff * sizeof(struct f2fs_summary);
 	memcpy(addr, sum, sizeof(struct f2fs_summary));
-	return;
 }
 
 /*
@@ -559,7 +557,6 @@ out:
 #ifdef CONFIG_F2FS_STAT_FS
 	sbi->segment_count[curseg->alloc_type]++;
 #endif
-	return;
 }
 
 void allocate_new_segments(struct f2fs_sb_info *sbi)
@@ -1192,7 +1189,6 @@ void write_node_summaries(struct f2fs_sb_info *sbi, block_t start_blk)
 {
 	if (is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG))
 		write_normal_summaries(sbi, start_blk, CURSEG_HOT_NODE);
-	return;
 }
 
 int lookup_journal_in_cursum(struct f2fs_summary_block *sum, int type,

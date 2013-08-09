@@ -176,7 +176,6 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 end_update:
 	write_unlock(&fi->ext.ext_lock);
 	sync_inode_page(dn);
-	return;
 }
 
 struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
