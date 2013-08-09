@@ -226,7 +226,7 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 		*(bcc_ptr+1) = 0;
 	} else {
 		bytes_ret = cifs_strtoUTF16((__le16 *) bcc_ptr, ses->user_name,
-					    MAX_USERNAME_SIZE, nls_cp);
+					    CIFS_MAX_USERNAME_LEN, nls_cp);
 	}
 	bcc_ptr += 2 * bytes_ret;
 	bcc_ptr += 2; /* account for null termination */
@@ -246,8 +246,8 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 	/* BB what about null user mounts - check that we do this BB */
 	/* copy user */
 	if (ses->user_name != NULL) {
-		strncpy(bcc_ptr, ses->user_name, MAX_USERNAME_SIZE);
-		bcc_ptr += strnlen(ses->user_name, MAX_USERNAME_SIZE);
+		strncpy(bcc_ptr, ses->user_name, CIFS_MAX_USERNAME_LEN);
+		bcc_ptr += strnlen(ses->user_name, CIFS_MAX_USERNAME_LEN);
 	}
 	/* else null user mount */
 	*bcc_ptr = 0;
@@ -501,7 +501,7 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	} else {
 		int len;
 		len = cifs_strtoUTF16((__le16 *)tmp, ses->domainName,
-				      MAX_USERNAME_SIZE, nls_cp);
+				      CIFS_MAX_USERNAME_LEN, nls_cp);
 		len *= 2; /* unicode is 2 bytes each */
 		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->DomainName.Length = cpu_to_le16(len);
@@ -517,7 +517,7 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	} else {
 		int len;
 		len = cifs_strtoUTF16((__le16 *)tmp, ses->user_name,
-				      MAX_USERNAME_SIZE, nls_cp);
+				      CIFS_MAX_USERNAME_LEN, nls_cp);
 		len *= 2; /* unicode is 2 bytes each */
 		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->UserName.Length = cpu_to_le16(len);

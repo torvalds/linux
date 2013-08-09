@@ -1577,8 +1577,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (strnlen(string, MAX_USERNAME_SIZE) >
-							MAX_USERNAME_SIZE) {
+			if (strnlen(string, CIFS_MAX_USERNAME_LEN) >
+							CIFS_MAX_USERNAME_LEN) {
 				printk(KERN_WARNING "CIFS: username too long\n");
 				goto cifs_parse_mount_err;
 			}
@@ -2223,13 +2223,13 @@ static int match_session(struct cifs_ses *ses, struct smb_vol *vol)
 		/* anything else takes username/password */
 		if (strncmp(ses->user_name,
 			    vol->username ? vol->username : "",
-			    MAX_USERNAME_SIZE))
+			    CIFS_MAX_USERNAME_LEN))
 			return 0;
 		if (strlen(vol->username) != 0 &&
 		    ses->password != NULL &&
 		    strncmp(ses->password,
 			    vol->password ? vol->password : "",
-			    MAX_PASSWORD_SIZE))
+			    CIFS_MAX_PASSWORD_LEN))
 			return 0;
 	}
 	return 1;
@@ -2354,7 +2354,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	}
 
 	len = delim - payload;
-	if (len > MAX_USERNAME_SIZE || len <= 0) {
+	if (len > CIFS_MAX_USERNAME_LEN || len <= 0) {
 		cifs_dbg(FYI, "Bad value from username search (len=%zd)\n",
 			 len);
 		rc = -EINVAL;
@@ -2371,7 +2371,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	cifs_dbg(FYI, "%s: username=%s\n", __func__, vol->username);
 
 	len = key->datalen - (len + 1);
-	if (len > MAX_PASSWORD_SIZE || len <= 0) {
+	if (len > CIFS_MAX_PASSWORD_LEN || len <= 0) {
 		cifs_dbg(FYI, "Bad len for password search (len=%zd)\n", len);
 		rc = -EINVAL;
 		kfree(vol->username);

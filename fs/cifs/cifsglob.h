@@ -28,6 +28,7 @@
 #include "cifsacl.h"
 #include <crypto/internal/hash.h>
 #include <linux/scatterlist.h>
+#include <uapi/linux/cifs/cifs_mount.h>
 #ifdef CONFIG_CIFS_SMB2
 #include "smb2pdu.h"
 #endif
@@ -41,12 +42,8 @@
 #define MAX_SES_INFO 2
 #define MAX_TCON_INFO 4
 
-#define MAX_TREE_SIZE (2 + MAX_SERVER_SIZE + 1 + MAX_SHARE_SIZE + 1)
+#define MAX_TREE_SIZE (2 + MAX_SERVER_SIZE + 1 + CIFS_MAX_SHARE_LEN + 1)
 #define MAX_SERVER_SIZE 15
-#define MAX_SHARE_SIZE 80
-#define CIFS_MAX_DOMAINNAME_LEN 256 /* max domain name length */
-#define MAX_USERNAME_SIZE 256	/* reasonable maximum for current servers */
-#define MAX_PASSWORD_SIZE 512	/* max for windows seems to be 256 wide chars */
 
 #define CIFS_MIN_RCV_POOL 4
 
