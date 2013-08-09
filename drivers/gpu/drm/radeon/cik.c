@@ -5062,7 +5062,7 @@ static void cik_enable_cgcg(struct radeon_device *rdev, bool enable)
 
 	cik_enable_gui_idle_interrupt(rdev, enable);
 
-	if (enable) {
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGCG)) {
 		tmp = cik_halt_rlc(rdev);
 
 		cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
@@ -5092,11 +5092,15 @@ static void cik_enable_mgcg(struct radeon_device *rdev, bool enable)
 {
 	u32 data, orig, tmp = 0;
 
-	if (enable) {
-		orig = data = RREG32(CP_MEM_SLP_CNTL);
-		data |= CP_MEM_LS_EN;
-		if (orig != data)
-			WREG32(CP_MEM_SLP_CNTL, data);
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_MGCG)) {
+		if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_MGLS) {
+			if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CP_LS) {
+				orig = data = RREG32(CP_MEM_SLP_CNTL);
+				data |= CP_MEM_LS_EN;
+				if (orig != data)
+					WREG32(CP_MEM_SLP_CNTL, data);
+			}
+		}
 
 		orig = data = RREG32(RLC_CGTT_MGCG_OVERRIDE);
 		data &= 0xfffffffd;
@@ -5113,17 +5117,21 @@ static void cik_enable_mgcg(struct radeon_device *rdev, bool enable)
 
 		cik_update_rlc(rdev, tmp);
 
-		orig = data = RREG32(CGTS_SM_CTRL_REG);
-		data &= ~SM_MODE_MASK;
-		data |= SM_MODE(0x2);
-		data |= SM_MODE_ENABLE;
-		data &= ~CGTS_OVERRIDE;
-		data &= ~CGTS_LS_OVERRIDE;
-		data &= ~ON_MONITOR_ADD_MASK;
-		data |= ON_MONITOR_ADD_EN;
-		data |= ON_MONITOR_ADD(0x96);
-		if (orig != data)
-			WREG32(CGTS_SM_CTRL_REG, data);
+		if (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGTS) {
+			orig = data = RREG32(CGTS_SM_CTRL_REG);
+			data &= ~SM_MODE_MASK;
+			data |= SM_MODE(0x2);
+			data |= SM_MODE_ENABLE;
+			data &= ~CGTS_OVERRIDE;
+			if ((rdev->cg_flags & RADEON_CG_SUPPORT_GFX_MGLS) &&
+			    (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGTS_LS))
+				data &= ~CGTS_LS_OVERRIDE;
+			data &= ~ON_MONITOR_ADD_MASK;
+			data |= ON_MONITOR_ADD_EN;
+			data |= ON_MONITOR_ADD(0x96);
+			if (orig != data)
+				WREG32(CGTS_SM_CTRL_REG, data);
+		}
 	} else {
 		orig = data = RREG32(RLC_CGTT_MGCG_OVERRIDE);
 		data |= 0x00000002;
@@ -5180,7 +5188,7 @@ static void cik_enable_mc_ls(struct radeon_device *rdev,
 
 	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
 		orig = data = RREG32(mc_cg_registers[i]);
-		if (enable)
+		if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_MC_LS))
 			data |= MC_LS_ENABLE;
 		else
 			data &= ~MC_LS_ENABLE;
@@ -5197,7 +5205,7 @@ static void cik_enable_mc_mgcg(struct radeon_device *rdev,
 
 	for (i = 0; i < ARRAY_SIZE(mc_cg_registers); i++) {
 		orig = data = RREG32(mc_cg_registers[i]);
-		if (enable)
+		if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_MC_MGCG))
 			data |= MC_CG_ENABLE;
 		else
 			data &= ~MC_CG_ENABLE;
@@ -5211,7 +5219,7 @@ static void cik_enable_sdma_mgcg(struct radeon_device *rdev,
 {
 	u32 orig, data;
 
-	if (enable) {
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_SDMA_MGCG)) {
 		WREG32(SDMA0_CLK_CTRL + SDMA0_REGISTER_OFFSET, 0x00000100);
 		WREG32(SDMA0_CLK_CTRL + SDMA1_REGISTER_OFFSET, 0x00000100);
 	} else {
@@ -5232,7 +5240,7 @@ static void cik_enable_sdma_mgls(struct radeon_device *rdev,
 {
 	u32 orig, data;
 
-	if (enable) {
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_SDMA_LS)) {
 		orig = data = RREG32(SDMA0_POWER_CNTL + SDMA0_REGISTER_OFFSET);
 		data |= 0x100;
 		if (orig != data)
@@ -5260,7 +5268,7 @@ static void cik_enable_uvd_mgcg(struct radeon_device *rdev,
 {
 	u32 orig, data;
 
-	if (enable) {
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_UVD_MGCG)) {
 		data = RREG32_UVD_CTX(UVD_CGC_MEM_CTRL);
 		data = 0xfff;
 		WREG32_UVD_CTX(UVD_CGC_MEM_CTRL, data);
@@ -5281,6 +5289,24 @@ static void cik_enable_uvd_mgcg(struct radeon_device *rdev,
 	}
 }
 
+static void cik_enable_bif_mgls(struct radeon_device *rdev,
+			       bool enable)
+{
+	u32 orig, data;
+
+	orig = data = RREG32_PCIE_PORT(PCIE_CNTL2);
+
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_BIF_LS))
+		data |= SLV_MEM_LS_EN | MST_MEM_LS_EN |
+			REPLAY_MEM_LS_EN | SLV_MEM_AGGRESSIVE_LS_EN;
+	else
+		data &= ~(SLV_MEM_LS_EN | MST_MEM_LS_EN |
+			  REPLAY_MEM_LS_EN | SLV_MEM_AGGRESSIVE_LS_EN);
+
+	if (orig != data)
+		WREG32_PCIE_PORT(PCIE_CNTL2, data);
+}
+
 static void cik_enable_hdp_mgcg(struct radeon_device *rdev,
 				bool enable)
 {
@@ -5288,7 +5314,7 @@ static void cik_enable_hdp_mgcg(struct radeon_device *rdev,
 
 	orig = data = RREG32(HDP_HOST_PATH_CNTL);
 
-	if (enable)
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_HDP_MGCG))
 		data &= ~CLOCK_GATING_DIS;
 	else
 		data |= CLOCK_GATING_DIS;
@@ -5304,7 +5330,7 @@ static void cik_enable_hdp_ls(struct radeon_device *rdev,
 
 	orig = data = RREG32(HDP_MEM_POWER_LS);
 
-	if (enable)
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_HDP_LS))
 		data |= HDP_LS_ENABLE;
 	else
 		data &= ~HDP_LS_ENABLE;
@@ -5339,6 +5365,10 @@ void cik_update_cg(struct radeon_device *rdev,
 		cik_enable_sdma_mgls(rdev, enable);
 	}
 
+	if (block & RADEON_CG_BLOCK_BIF) {
+		cik_enable_bif_mgls(rdev, enable);
+	}
+
 	if (block & RADEON_CG_BLOCK_UVD) {
 		if (rdev->has_uvd)
 			cik_enable_uvd_mgcg(rdev, enable);
@@ -5360,8 +5390,20 @@ static void cik_init_cg(struct radeon_device *rdev)
 
 	cik_update_cg(rdev, (RADEON_CG_BLOCK_MC |
 			     RADEON_CG_BLOCK_SDMA |
+			     RADEON_CG_BLOCK_BIF |
 			     RADEON_CG_BLOCK_UVD |
 			     RADEON_CG_BLOCK_HDP), true);
+}
+
+static void cik_fini_cg(struct radeon_device *rdev)
+{
+	cik_update_cg(rdev, (RADEON_CG_BLOCK_MC |
+			     RADEON_CG_BLOCK_SDMA |
+			     RADEON_CG_BLOCK_BIF |
+			     RADEON_CG_BLOCK_UVD |
+			     RADEON_CG_BLOCK_HDP), false);
+
+	cik_update_cg(rdev, RADEON_CG_BLOCK_GFX, false);
 }
 
 static void cik_enable_sck_slowdown_on_pu(struct radeon_device *rdev,
@@ -5370,7 +5412,7 @@ static void cik_enable_sck_slowdown_on_pu(struct radeon_device *rdev,
 	u32 data, orig;
 
 	orig = data = RREG32(RLC_PG_CNTL);
-	if (enable)
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_RLC_SMU_HS))
 		data |= SMU_CLK_SLOWDOWN_ON_PU_ENABLE;
 	else
 		data &= ~SMU_CLK_SLOWDOWN_ON_PU_ENABLE;
@@ -5384,7 +5426,7 @@ static void cik_enable_sck_slowdown_on_pd(struct radeon_device *rdev,
 	u32 data, orig;
 
 	orig = data = RREG32(RLC_PG_CNTL);
-	if (enable)
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_RLC_SMU_HS))
 		data |= SMU_CLK_SLOWDOWN_ON_PD_ENABLE;
 	else
 		data &= ~SMU_CLK_SLOWDOWN_ON_PD_ENABLE;
@@ -5397,7 +5439,7 @@ static void cik_enable_cp_pg(struct radeon_device *rdev, bool enable)
 	u32 data, orig;
 
 	orig = data = RREG32(RLC_PG_CNTL);
-	if (enable)
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_CP))
 		data &= ~DISABLE_CP_PG;
 	else
 		data |= DISABLE_CP_PG;
@@ -5410,7 +5452,7 @@ static void cik_enable_gds_pg(struct radeon_device *rdev, bool enable)
 	u32 data, orig;
 
 	orig = data = RREG32(RLC_PG_CNTL);
-	if (enable)
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GDS))
 		data &= ~DISABLE_GDS_PG;
 	else
 		data |= DISABLE_GDS_PG;
@@ -5465,7 +5507,7 @@ static void cik_enable_gfx_cgpg(struct radeon_device *rdev,
 {
 	u32 data, orig;
 
-	if (enable) {
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG)) {
 		orig = data = RREG32(RLC_PG_CNTL);
 		data |= GFX_PG_ENABLE;
 		if (orig != data)
@@ -5552,7 +5594,7 @@ static void cik_enable_gfx_static_mgpg(struct radeon_device *rdev,
 	u32 data, orig;
 
 	orig = data = RREG32(RLC_PG_CNTL);
-	if (enable)
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_SMG))
 		data |= STATIC_PER_CU_PG_ENABLE;
 	else
 		data &= ~STATIC_PER_CU_PG_ENABLE;
@@ -5566,7 +5608,7 @@ static void cik_enable_gfx_dynamic_mgpg(struct radeon_device *rdev,
 	u32 data, orig;
 
 	orig = data = RREG32(RLC_PG_CNTL);
-	if (enable)
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_DMG))
 		data |= DYN_PER_CU_PG_ENABLE;
 	else
 		data &= ~DYN_PER_CU_PG_ENABLE;
@@ -5628,49 +5670,34 @@ static void cik_init_gfx_cgpg(struct radeon_device *rdev)
 
 static void cik_update_gfx_pg(struct radeon_device *rdev, bool enable)
 {
-	bool has_pg = false;
-	bool has_dyn_mgpg = false;
-	bool has_static_mgpg = false;
-
-	/* only APUs have PG */
-	if (rdev->flags & RADEON_IS_IGP) {
-		has_pg = true;
-		has_static_mgpg = true;
-		if (rdev->family == CHIP_KAVERI)
-			has_dyn_mgpg = true;
-	}
-
-	if (has_pg) {
-		cik_enable_gfx_cgpg(rdev, enable);
-		if (enable) {
-			cik_enable_gfx_static_mgpg(rdev, has_static_mgpg);
-			cik_enable_gfx_dynamic_mgpg(rdev, has_dyn_mgpg);
-		} else {
-			cik_enable_gfx_static_mgpg(rdev, false);
-			cik_enable_gfx_dynamic_mgpg(rdev, false);
-		}
-	}
-
+	cik_enable_gfx_cgpg(rdev, enable);
+	cik_enable_gfx_static_mgpg(rdev, enable);
+	cik_enable_gfx_dynamic_mgpg(rdev, enable);
 }
 
-void cik_init_pg(struct radeon_device *rdev)
+static void cik_init_pg(struct radeon_device *rdev)
 {
-	bool has_pg = false;
-
-	/* only APUs have PG */
-	if (rdev->flags & RADEON_IS_IGP) {
-		/* XXX disable this for now */
-		/* has_pg = true; */
-	}
-
-	if (has_pg) {
+	if (rdev->pg_flags) {
 		cik_enable_sck_slowdown_on_pu(rdev, true);
 		cik_enable_sck_slowdown_on_pd(rdev, true);
-		cik_init_gfx_cgpg(rdev);
-		cik_enable_cp_pg(rdev, true);
-		cik_enable_gds_pg(rdev, true);
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG) {
+			cik_init_gfx_cgpg(rdev);
+			cik_enable_cp_pg(rdev, true);
+			cik_enable_gds_pg(rdev, true);
+		}
 		cik_init_ao_cu_mask(rdev);
 		cik_update_gfx_pg(rdev, true);
+	}
+}
+
+static void cik_fini_pg(struct radeon_device *rdev)
+{
+	if (rdev->pg_flags) {
+		cik_update_gfx_pg(rdev, false);
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG) {
+			cik_enable_cp_pg(rdev, false);
+			cik_enable_gds_pg(rdev, false);
+		}
 	}
 }
 
@@ -7059,6 +7086,8 @@ int cik_suspend(struct radeon_device *rdev)
 	cik_sdma_enable(rdev, false);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
+	cik_fini_pg(rdev);
+	cik_fini_cg(rdev);
 	cik_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	cik_pcie_gart_disable(rdev);
@@ -7214,6 +7243,8 @@ void cik_fini(struct radeon_device *rdev)
 {
 	cik_cp_fini(rdev);
 	cik_sdma_fini(rdev);
+	cik_fini_pg(rdev);
+	cik_fini_cg(rdev);
 	cik_irq_fini(rdev);
 	sumo_rlc_fini(rdev);
 	cik_mec_fini(rdev);

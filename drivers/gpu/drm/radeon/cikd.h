@@ -285,6 +285,7 @@
 
 #define PCIE_CNTL2                                        0x1001001c /* PCIE */
 #       define SLV_MEM_LS_EN                              (1 << 16)
+#       define SLV_MEM_AGGRESSIVE_LS_EN                   (1 << 17)
 #       define MST_MEM_LS_EN                              (1 << 18)
 #       define REPLAY_MEM_LS_EN                           (1 << 19)
 
