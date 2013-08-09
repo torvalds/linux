@@ -285,7 +285,7 @@ static unsigned int ricoh619_dcdc_get_mode(struct regulator_dev *rdev)
 		return REGULATOR_MODE_NORMAL;
 	case 2:
 		return REGULATOR_MODE_STANDBY;
-	case 4:
+	case 3:
 		return REGULATOR_MODE_NORMAL;
 	default:
 		return -1;

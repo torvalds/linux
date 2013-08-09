@@ -35,6 +35,8 @@
 #define	ADC_VDD_MV	2800
 #define	MIN_VOLTAGE	3100
 #define	MAX_VOLTAGE	4200
+#define	B_VALUE		3435
+
 
 /* 619 Register information */
 /* bank 0 */
@@ -54,6 +56,7 @@
 #define	REGISET1_REG	0xB6
 #define	REGISET2_REG	0xB7
 #define	CHGISET_REG		0xB8
+#define	TIMSET_REG		0xB9
 #define	BATSET1_REG		0xBA
 #define	BATSET2_REG		0xBB
 
@@ -85,6 +88,8 @@
 /* bank 1 */
 /* Top address for battery initial setting */
 #define	BAT_INIT_TOP_REG	0xBC
+#define	TEMP_GAIN_H_REG	0xD6
+#define	TEMP_OFF_H_REG	0xB8
 #define	BAT_REL_SEL_REG		0xDA
 #define	BAT_TA_SEL_REG		0xDB
 /**************************/

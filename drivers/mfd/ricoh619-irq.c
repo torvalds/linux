@@ -372,9 +372,9 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 		}
 		if (i != 2) {
 			ret = ricoh619_write(ricoh619->dev,
-					irq_clr_add[i], ~int_sts[i]);
+				irq_clr_add[i], ~int_sts[i]);
 			if (ret < 0) {
-				dev_err(ricoh619->dev, "Error in reading reg 0x%02x "
+				dev_err(ricoh619->dev, "Error in writing reg 0x%02x "
 					"error: %d\n", irq_clr_add[i], ret);
 			}
 		}
@@ -438,6 +438,7 @@ int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
 				int irq_base)
 {
 	int i, ret;
+	u8 reg_data = 0;
 
 	if (!irq_base) {
 		dev_warn(ricoh619->dev, "No interrupt support on IRQ base\n");
@@ -447,10 +448,21 @@ int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
 	mutex_init(&ricoh619->irq_lock);
 
 	/* Initialize all locals to 0 */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 2; i++) {
 		ricoh619->irq_en_cache[i] = 0;
 		ricoh619->irq_en_reg[i] = 0;
 	}
+
+	/* Initialize rtc */
+	ricoh619->irq_en_cache[2] = 0x20;
+	ricoh619->irq_en_reg[2] = 0x20;
+
+	/* Initialize all locals to 0 */
+	for (i = 3; i < 8; i++) {
+		ricoh619->irq_en_cache[i] = 0;
+		ricoh619->irq_en_reg[i] = 0;
+	}
+
 	// Charger Mask register must be set to 1 for masking Int output.
 	for (i = 8; i < MAX_INTERRUPT_MASKS; i++) {
 		ricoh619->irq_en_cache[i] = 0xff;
@@ -490,11 +502,29 @@ int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
 
 	/* Clear all interrupts in case they woke up active. */
 	for (i = 0; i < MAX_INTERRUPT_MASKS; i++)  {
-		ret = ricoh619_write(ricoh619->dev,
+		if(irq_clr_add[i] != RICOH619_INT_IR_RTC)
+		{
+			ret = ricoh619_write(ricoh619->dev,
 					irq_clr_add[i], 0);
-		if (ret < 0)
-			dev_err(ricoh619->dev, "Error in writing reg 0x%02x "
-				"error: %d\n", irq_clr_add[i], ret);
+			if (ret < 0)
+				dev_err(ricoh619->dev, "Error in writing reg 0x%02x "
+					"error: %d\n", irq_clr_add[i], ret);
+		}
+		else
+		{
+			ret = ricoh619_read(ricoh619->dev,
+					RICOH619_INT_IR_RTC, &reg_data);
+			if (ret < 0)
+				dev_err(ricoh619->dev, "Error in reading reg 0x%02x "
+					"error: %d\n", RICOH619_INT_IR_RTC, ret);
+			reg_data &= 0xf0;
+			ret = ricoh619_write(ricoh619->dev,
+					RICOH619_INT_IR_RTC, reg_data);
+			if (ret < 0)
+				dev_err(ricoh619->dev, "Error in writing reg 0x%02x "
+					"error: %d\n", RICOH619_INT_IR_RTC, ret);
+			
+		}
 	}
 
 	ricoh619->irq_base = irq_base;
@@ -512,7 +542,7 @@ int ricoh619_irq_init(struct ricoh619 *ricoh619, int irq,
 	}
 
 	ret = request_threaded_irq(irq, NULL, ricoh619_irq,
-			IRQ_TYPE_EDGE_FALLING|IRQF_DISABLED|IRQF_ONESHOT,
+			IRQ_TYPE_LEVEL_LOW|IRQF_DISABLED|IRQF_ONESHOT,
 						   "ricoh619", ricoh619);
 	if (ret < 0)
 		dev_err(ricoh619->dev, "Error in registering interrupt "
