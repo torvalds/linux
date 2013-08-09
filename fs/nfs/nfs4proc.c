@@ -5725,7 +5725,22 @@ struct nfs_release_lockowner_data {
 	struct nfs4_lock_state *lsp;
 	struct nfs_server *server;
 	struct nfs_release_lockowner_args args;
+	struct nfs4_sequence_args seq_args;
+	struct nfs4_sequence_res seq_res;
 };
+
+static void nfs4_release_lockowner_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs_release_lockowner_data *data = calldata;
+	nfs40_setup_sequence(data->server,
+				&data->seq_args, &data->seq_res, task);
+}
+
+static void nfs4_release_lockowner_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs_release_lockowner_data *data = calldata;
+	nfs40_sequence_done(task, &data->seq_res);
+}
 
 static void nfs4_release_lockowner_release(void *calldata)
 {
@@ -5735,6 +5750,8 @@ static void nfs4_release_lockowner_release(void *calldata)
 }
 
 static const struct rpc_call_ops nfs4_release_lockowner_ops = {
+	.rpc_call_prepare = nfs4_release_lockowner_prepare,
+	.rpc_call_done = nfs4_release_lockowner_done,
 	.rpc_release = nfs4_release_lockowner_release,
 };
 
@@ -5747,14 +5764,17 @@ static int nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_st
 
 	if (server->nfs_client->cl_mvops->minor_version != 0)
 		return -EINVAL;
+
 	data = kmalloc(sizeof(*data), GFP_NOFS);
 	if (!data)
 		return -ENOMEM;
+	nfs4_init_sequence(&data->seq_args, &data->seq_res, 0);
 	data->lsp = lsp;
 	data->server = server;
 	data->args.lock_owner.clientid = server->nfs_client->cl_clientid;
 	data->args.lock_owner.id = lsp->ls_seqid.owner_id;
 	data->args.lock_owner.s_dev = server->s_dev;
+
 	msg.rpc_argp = &data->args;
 	rpc_call_async(server->client, &msg, 0, &nfs4_release_lockowner_ops, data);
 	return 0;
