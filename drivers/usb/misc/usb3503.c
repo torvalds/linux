@@ -162,7 +162,7 @@ static int usb3503_probe(struct usb3503 *hub)
 	struct usb3503_platform_data *pdata = dev_get_platdata(dev);
 	struct device_node *np = dev->of_node;
 	int err;
-	u32 mode = USB3503_MODE_UNKNOWN;
+	u32 mode = USB3503_MODE_HUB;
 	const u32 *property;
 	int len;
 
