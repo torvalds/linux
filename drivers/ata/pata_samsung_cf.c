@@ -241,8 +241,8 @@ static u8 pata_s3c_check_altstatus(struct ata_port *ap)
 /*
  * pata_s3c_data_xfer - Transfer data by PIO
  */
-unsigned int pata_s3c_data_xfer(struct ata_device *dev, unsigned char *buf,
-				unsigned int buflen, int rw)
+static unsigned int pata_s3c_data_xfer(struct ata_device *dev,
+				unsigned char *buf, unsigned int buflen, int rw)
 {
 	struct ata_port *ap = dev->link->ap;
 	struct s3c_ide_info *info = ap->host->private_data;
@@ -418,7 +418,7 @@ static struct ata_port_operations pata_s5p_port_ops = {
 	.set_piomode		= pata_s3c_set_piomode,
 };
 
-static void pata_s3c_enable(void *s3c_ide_regbase, bool state)
+static void pata_s3c_enable(void __iomem *s3c_ide_regbase, bool state)
 {
 	u32 temp = readl(s3c_ide_regbase + S3C_ATA_CTRL);
 	temp = state ? (temp | 1) : (temp & ~1);
