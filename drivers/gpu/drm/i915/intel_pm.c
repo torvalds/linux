@@ -2685,7 +2685,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	 * a WM level. */
 	results->enable_fbc_wm = true;
 	for (level = 1; level <= max_level; level++) {
-		if (!lp_results[level - 1].fbc_val > lp_maximums->fbc) {
+		if (lp_results[level - 1].fbc_val > lp_maximums->fbc) {
 			results->enable_fbc_wm = false;
 			lp_results[level - 1].fbc_val = 0;
 		}
