@@ -636,6 +636,9 @@ lqasc_console_setup(struct console *co, char *options)
 
 	port = &ltq_port->port;
 
+	if (!IS_ERR(ltq_port->clk))
+		clk_enable(ltq_port->clk);
+
 	port->uartclk = clk_get_rate(ltq_port->fpiclk);
 
 	if (options)
