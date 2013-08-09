@@ -1963,6 +1963,9 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
+#ifdef CONFIG_EMMC_RK
+extern struct mmc_card *this_card;
+#endif
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -2005,6 +2008,9 @@ static int mmc_blk_probe(struct mmc_card *card)
 		if (mmc_add_disk(part_md))
 			goto out;
 	}
+#ifdef CONFIG_EMMC_RK
+	this_card = card;
+#endif
 	return 0;
 
  out:
@@ -2017,6 +2023,9 @@ static void mmc_blk_remove(struct mmc_card *card)
 {
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
+#ifdef CONFIG_EMMC_RK
+	this_card = NULL;
+#endif
 	mmc_blk_remove_parts(card, md);
 	mmc_claim_host(card->host);
 	mmc_blk_part_switch(card, md);
