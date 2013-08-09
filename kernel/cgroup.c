@@ -1907,18 +1907,20 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset)
 EXPORT_SYMBOL_GPL(cgroup_taskset_next);
 
 /**
- * cgroup_taskset_cur_cgroup - return the matching cgroup for the current task
+ * cgroup_taskset_cur_css - return the matching css for the current task
  * @tset: taskset of interest
+ * @subsys_id: the ID of the target subsystem
  *
- * Return the cgroup for the current (last returned) task of @tset.  This
- * function must be preceded by either cgroup_taskset_first() or
- * cgroup_taskset_next().
+ * Return the css for the current (last returned) task of @tset for
+ * subsystem specified by @subsys_id.  This function must be preceded by
+ * either cgroup_taskset_first() or cgroup_taskset_next().
  */
-struct cgroup *cgroup_taskset_cur_cgroup(struct cgroup_taskset *tset)
+struct cgroup_subsys_state *cgroup_taskset_cur_css(struct cgroup_taskset *tset,
+						   int subsys_id)
 {
-	return tset->cur_cgrp;
+	return cgroup_css(tset->cur_cgrp, subsys_id);
 }
-EXPORT_SYMBOL_GPL(cgroup_taskset_cur_cgroup);
+EXPORT_SYMBOL_GPL(cgroup_taskset_cur_css);
 
 /**
  * cgroup_taskset_size - return the number of tasks in taskset

@@ -562,20 +562,22 @@ int cgroup_task_count(const struct cgroup *cgrp);
 struct cgroup_taskset;
 struct task_struct *cgroup_taskset_first(struct cgroup_taskset *tset);
 struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset);
-struct cgroup *cgroup_taskset_cur_cgroup(struct cgroup_taskset *tset);
+struct cgroup_subsys_state *cgroup_taskset_cur_css(struct cgroup_taskset *tset,
+						   int subsys_id);
 int cgroup_taskset_size(struct cgroup_taskset *tset);
 
 /**
  * cgroup_taskset_for_each - iterate cgroup_taskset
  * @task: the loop cursor
- * @skip_cgrp: skip if task's cgroup matches this, %NULL to iterate through all
+ * @skip_css: skip if task's css matches this, %NULL to iterate through all
  * @tset: taskset to iterate
  */
-#define cgroup_taskset_for_each(task, skip_cgrp, tset)			\
+#define cgroup_taskset_for_each(task, skip_css, tset)			\
 	for ((task) = cgroup_taskset_first((tset)); (task);		\
 	     (task) = cgroup_taskset_next((tset)))			\
-		if (!(skip_cgrp) ||					\
-		    cgroup_taskset_cur_cgroup((tset)) != (skip_cgrp))
+		if (!(skip_css) ||					\
+		    cgroup_taskset_cur_css((tset),			\
+			(skip_css)->ss->subsys_id) != (skip_css))
 
 /*
  * Control Group subsystem type.
