@@ -508,7 +508,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* Allocate resources for the MAC context, and add it the the fw  */
+	/* Allocate resources for the MAC context, and add it to the fw  */
 	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
 	if (ret)
 		goto out_unlock;
@@ -569,16 +569,16 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_power_update_mode(mvm, vif);
 
 	/* beacon filtering */
+	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+	if (ret)
+		goto out_remove_mac;
+
 	if (!mvm->bf_allowed_vif &&
 	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BF_UPDATED){
 		mvm->bf_allowed_vif = mvmvif;
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 	}
-
-	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
-	if (ret)
-		goto out_release;
 
 	/*
 	 * P2P_DEVICE interface does not have a channel context assigned to it,
@@ -590,7 +590,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvmvif->phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
 		if (!mvmvif->phy_ctxt) {
 			ret = -ENOSPC;
-			goto out_remove_mac;
+			goto out_free_bf;
 		}
 
 		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->phy_ctxt);
@@ -614,6 +614,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_binding_remove_vif(mvm, vif);
  out_unref_phy:
 	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
+ out_free_bf:
+	if (mvm->bf_allowed_vif == mvmvif) {
+		mvm->bf_allowed_vif = NULL;
+		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+	}
  out_remove_mac:
 	mvmvif->phy_ctxt = NULL;
 	iwl_mvm_mac_ctxt_remove(mvm, vif);

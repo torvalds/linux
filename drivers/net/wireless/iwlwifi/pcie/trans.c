@@ -820,25 +820,6 @@ static void iwl_trans_pcie_set_pmi(struct iwl_trans *trans, bool state)
 		clear_bit(STATUS_TPOWER_PMI, &trans_pcie->status);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
-{
-	return 0;
-}
-
-static int iwl_trans_pcie_resume(struct iwl_trans *trans)
-{
-	bool hw_rfkill;
-
-	iwl_enable_rfkill_int(trans);
-
-	hw_rfkill = iwl_is_rfkill_set(trans);
-	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
-
-	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
-
 static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent,
 						unsigned long *flags)
 {
@@ -1380,10 +1361,6 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,
 
-#ifdef CONFIG_PM_SLEEP
-	.suspend = iwl_trans_pcie_suspend,
-	.resume = iwl_trans_pcie_resume,
-#endif
 	.write8 = iwl_trans_pcie_write8,
 	.write32 = iwl_trans_pcie_write32,
 	.read32 = iwl_trans_pcie_read32,

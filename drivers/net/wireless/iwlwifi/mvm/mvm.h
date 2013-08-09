@@ -421,6 +421,8 @@ struct iwl_mvm {
 
 	struct iwl_notif_wait_data notif_wait;
 
+	struct mvm_statistics_rx rx_stats;
+
 	unsigned long transport_queue_stop;
 	u8 queue_to_mac80211[IWL_MAX_HW_QUEUES];
 	atomic_t queue_stop_count[IWL_MAX_HW_QUEUES];
