@@ -33,7 +33,7 @@
 #include <linux/i2c/twl.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/musb.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 #include <linux/smsc911x.h>
 
 #include <linux/wl12xx.h>
@@ -468,7 +468,7 @@ struct wl12xx_platform_data omap3evm_wlan_data __initdata = {
 static struct regulator_consumer_supply omap3evm_vaux2_supplies[] = {
 	REGULATOR_SUPPLY("VDD_CSIPHY1", "omap3isp"),	/* OMAP ISP */
 	REGULATOR_SUPPLY("VDD_CSIPHY2", "omap3isp"),	/* OMAP ISP */
-	REGULATOR_SUPPLY("vcc", "nop_usb_xceiv.2"),	/* hsusb port 2 */
+	REGULATOR_SUPPLY("vcc", "usb_phy_gen_xceiv.2"),	/* hsusb port 2 */
 	REGULATOR_SUPPLY("vaux2", NULL),
 };
 
