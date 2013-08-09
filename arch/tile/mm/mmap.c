@@ -58,16 +58,36 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 #else
 	int is_32bit = 0;
 #endif
+	unsigned long random_factor = 0UL;
+
+	/*
+	 *  8 bits of randomness in 32bit mmaps, 24 address space bits
+	 * 12 bits of randomness in 64bit mmaps, 28 address space bits
+	 */
+	if (current->flags & PF_RANDOMIZE) {
+		if (is_32bit)
+			random_factor = get_random_int() % (1<<8);
+		else
+			random_factor = get_random_int() % (1<<12);
+
+		random_factor <<= PAGE_SHIFT;
+	}
 
 	/*
 	 * Use standard layout if the expected stack growth is unlimited
 	 * or we are running native 64 bits.
 	 */
-	if (!is_32bit || rlimit(RLIMIT_STACK) == RLIM_INFINITY) {
-		mm->mmap_base = TASK_UNMAPPED_BASE;
+	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY) {
+		mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
 		mm->get_unmapped_area = arch_get_unmapped_area;
 	} else {
 		mm->mmap_base = mmap_base(mm);
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 	}
+}
+
+unsigned long arch_randomize_brk(struct mm_struct *mm)
+{
+	unsigned long range_end = mm->brk + 0x02000000;
+	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
 }

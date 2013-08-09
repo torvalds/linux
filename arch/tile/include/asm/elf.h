@@ -137,6 +137,10 @@ do { \
 	NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_BASE); \
 } while (0)
 
+struct mm_struct;
+extern unsigned long arch_randomize_brk(struct mm_struct *mm);
+#define arch_randomize_brk arch_randomize_brk
+
 #ifdef CONFIG_COMPAT
 
 #define COMPAT_ELF_PLATFORM "tilegx-m32"
