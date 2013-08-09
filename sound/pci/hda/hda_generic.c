@@ -816,6 +816,8 @@ static void resume_path_from_idx(struct hda_codec *codec, int path_idx)
 
 static int hda_gen_mixer_mute_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol);
+static int hda_gen_bind_mute_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol);
 
 enum {
 	HDA_CTL_WIDGET_VOL,
@@ -833,7 +835,13 @@ static const struct snd_kcontrol_new control_templates[] = {
 		.put = hda_gen_mixer_mute_put, /* replaced */
 		.private_value = HDA_COMPOSE_AMP_VAL(0, 3, 0, 0),
 	},
-	HDA_BIND_MUTE(NULL, 0, 0, 0),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_bind_switch_get,
+		.put = hda_gen_bind_mute_put, /* replaced */
+		.private_value = HDA_COMPOSE_AMP_VAL(0, 3, 0, 0),
+	},
 };
 
 /* add dynamic controls from template */
@@ -940,8 +948,8 @@ static int add_stereo_sw(struct hda_codec *codec, const char *pfx,
 }
 
 /* playback mute control with the software mute bit check */
-static int hda_gen_mixer_mute_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+static void sync_auto_mute_bits(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gen_spec *spec = codec->spec;
@@ -952,8 +960,20 @@ static int hda_gen_mixer_mute_put(struct snd_kcontrol *kcontrol,
 		ucontrol->value.integer.value[0] &= enabled;
 		ucontrol->value.integer.value[1] &= enabled;
 	}
+}
 
+static int hda_gen_mixer_mute_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	sync_auto_mute_bits(kcontrol, ucontrol);
 	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
+}
+
+static int hda_gen_bind_mute_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	sync_auto_mute_bits(kcontrol, ucontrol);
+	return snd_hda_mixer_bind_switch_put(kcontrol, ucontrol);
 }
 
 /* any ctl assigned to the path with the given index? */
