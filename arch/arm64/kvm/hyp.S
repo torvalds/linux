@@ -335,11 +335,8 @@
 .endm
 
 .macro activate_traps
-	ldr	x2, [x0, #VCPU_IRQ_LINES]
-	ldr	x1, [x0, #VCPU_HCR_EL2]
-	orr	x2, x2, x1
-	msr	hcr_el2, x2
-
+	ldr     x2, [x0, #VCPU_HCR_EL2]
+	msr     hcr_el2, x2
 	ldr	x2, =(CPTR_EL2_TTA)
 	msr	cptr_el2, x2
 
@@ -382,12 +379,22 @@
 	ldr	x24, [x24, VGIC_SAVE_FN]
 	kern_hyp_va	x24
 	blr	x24
+	mrs	x24, hcr_el2
+	mov	x25, #HCR_INT_OVERRIDE
+	neg	x25, x25
+	and	x24, x24, x25
+	msr	hcr_el2, x24
 .endm
 
 /*
  * Call into the vgic backend for state restoring
  */
 .macro restore_vgic_state
+	mrs	x24, hcr_el2
+	ldr	x25, [x0, #VCPU_IRQ_LINES]
+	orr	x24, x24, #HCR_INT_OVERRIDE
+	orr	x24, x24, x25
+	msr	hcr_el2, x24
 	adr	x24, __vgic_sr_vectors
 	ldr	x24, [x24, #VGIC_RESTORE_FN]
 	kern_hyp_va	x24
