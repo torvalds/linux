@@ -134,7 +134,7 @@ struct wowlan_key_data {
 	struct iwl_wowlan_rsc_tsc_params_cmd *rsc_tsc;
 	struct iwl_wowlan_tkip_params_cmd *tkip;
 	bool error, use_rsc_tsc, use_tkip;
-	int gtk_key_idx;
+	int wep_key_idx;
 };
 
 static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
@@ -188,8 +188,8 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 			wkc.wep_key.key_offset = 0;
 		} else {
 			/* others start at 1 */
-			data->gtk_key_idx++;
-			wkc.wep_key.key_offset = data->gtk_key_idx;
+			data->wep_key_idx++;
+			wkc.wep_key.key_offset = data->wep_key_idx;
 		}
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, WEP_KEY, CMD_SYNC,
@@ -316,8 +316,13 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		mvm->ptk_ivlen = key->iv_len;
 		mvm->ptk_icvlen = key->icv_len;
 	} else {
-		data->gtk_key_idx++;
-		key->hw_key_idx = data->gtk_key_idx;
+		/*
+		 * firmware only supports TSC/RSC for a single key,
+		 * so if there are multiple keep overwriting them
+		 * with new ones -- this relies on mac80211 doing
+		 * list_add_tail().
+		 */
+		key->hw_key_idx = 1;
 		mvm->gtk_ivlen = key->iv_len;
 		mvm->gtk_icvlen = key->icv_len;
 	}

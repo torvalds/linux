@@ -69,7 +69,6 @@
 /* Scan Commands, Responses, Notifications */
 
 /* Masks for iwl_scan_channel.type flags */
-#define SCAN_CHANNEL_TYPE_PASSIVE	0
 #define SCAN_CHANNEL_TYPE_ACTIVE	BIT(0)
 #define SCAN_CHANNEL_NARROW_BAND	BIT(22)
 
