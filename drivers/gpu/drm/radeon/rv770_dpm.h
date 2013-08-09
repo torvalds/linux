@@ -275,6 +275,7 @@ void rv770_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
 void rv770_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
 					     struct radeon_ps *new_ps,
 					     struct radeon_ps *old_ps);
+void rv770_get_engine_memory_ss(struct radeon_device *rdev);
 
 /* smc */
 int rv770_read_smc_soft_register(struct radeon_device *rdev,

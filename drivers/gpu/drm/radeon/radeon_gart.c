@@ -207,7 +207,6 @@ void radeon_gart_table_vram_free(struct radeon_device *rdev)
 	if (rdev->gart.robj == NULL) {
 		return;
 	}
-	radeon_gart_table_vram_unpin(rdev);
 	radeon_bo_unref(&rdev->gart.robj);
 }
 
