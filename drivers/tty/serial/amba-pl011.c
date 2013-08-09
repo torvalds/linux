@@ -677,6 +677,8 @@ static inline bool pl011_dma_tx_start(struct uart_amba_port *uap)
  * Locking: called with port lock held and IRQs disabled.
  */
 static void pl011_dma_flush_buffer(struct uart_port *port)
+__releases(&uap->port.lock)
+__acquires(&uap->port.lock)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 
@@ -1198,6 +1200,8 @@ static void pl011_enable_ms(struct uart_port *port)
 }
 
 static void pl011_rx_chars(struct uart_amba_port *uap)
+__releases(&uap->port.lock)
+__acquires(&uap->port.lock)
 {
 	pl011_fifo_to_tty(uap);
 
