@@ -677,7 +677,7 @@ static int ci_power_control_set_level(struct radeon_device *rdev)
 	return ret;
 }
 
-static void ci_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
+void ci_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 {
 	ci_update_uvd_dpm(rdev, gate);
 }
@@ -4674,11 +4674,6 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 #endif
-	ret = ci_update_uvd_dpm(rdev, false);
-	if (ret) {
-		DRM_ERROR("ci_update_uvd_dpm failed\n");
-		return ret;
-	}
 	ret = ci_update_sclk_t(rdev);
 	if (ret) {
 		DRM_ERROR("ci_update_sclk_t failed\n");
