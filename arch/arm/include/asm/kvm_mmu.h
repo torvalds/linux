@@ -64,7 +64,7 @@ void kvm_clear_hyp_idmap(void);
 
 static inline void kvm_set_pte(pte_t *pte, pte_t new_pte)
 {
-	pte_val(*pte) = new_pte;
+	*pte = new_pte;
 	/*
 	 * flush_pmd_entry just takes a void pointer and cleans the necessary
 	 * cache entries, so we can reuse the function for ptes.
