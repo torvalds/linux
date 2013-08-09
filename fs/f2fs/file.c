@@ -161,9 +161,14 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		need_cp = true;
 	else if (!is_checkpointed_node(sbi, F2FS_I(inode)->i_pino))
 		need_cp = true;
+	else if (F2FS_I(inode)->xattr_ver ==
+			le64_to_cpu(F2FS_CKPT(sbi)->checkpoint_ver))
+		need_cp = true;
 
 	if (need_cp) {
 		nid_t pino;
+
+		F2FS_I(inode)->xattr_ver = 0;
 
 		/* all the dirty node pages should be flushed for POR */
 		ret = f2fs_sync_fs(inode->i_sb, 1);
