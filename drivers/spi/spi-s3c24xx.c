@@ -690,7 +690,7 @@ static int s3c24xx_spi_remove(struct platform_device *dev)
 
 static int s3c24xx_spi_suspend(struct device *dev)
 {
-	struct s3c24xx_spi *hw = platform_get_drvdata(to_platform_device(dev));
+	struct s3c24xx_spi *hw = dev_get_drvdata(dev);
 
 	if (hw->pdata && hw->pdata->gpio_setup)
 		hw->pdata->gpio_setup(hw->pdata, 0);
@@ -701,7 +701,7 @@ static int s3c24xx_spi_suspend(struct device *dev)
 
 static int s3c24xx_spi_resume(struct device *dev)
 {
-	struct s3c24xx_spi *hw = platform_get_drvdata(to_platform_device(dev));
+	struct s3c24xx_spi *hw = dev_get_drvdata(dev);
 
 	s3c24xx_spi_initialsetup(hw);
 	return 0;
