@@ -206,7 +206,7 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 		return;
 	}
 	qbo = container_of(bo, struct qxl_bo, tbo);
-	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU);
+	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU, false);
 	*placement = qbo->placement;
 }
 

@@ -430,7 +430,7 @@ static int dummy_enc_nameattr_array(struct xdr_stream *xdr,
 static int dummy_dec_nameattr_array(struct xdr_stream *xdr,
 				    struct gssx_name_attr_array *naa)
 {
-	struct gssx_name_attr dummy;
+	struct gssx_name_attr dummy = { .attr = {.len = 0} };
 	u32 count, i;
 	__be32 *p;
 
@@ -493,12 +493,13 @@ static int gssx_enc_name(struct xdr_stream *xdr,
 	return err;
 }
 
+
 static int gssx_dec_name(struct xdr_stream *xdr,
 			 struct gssx_name *name)
 {
-	struct xdr_netobj dummy_netobj;
-	struct gssx_name_attr_array dummy_name_attr_array;
-	struct gssx_option_array dummy_option_array;
+	struct xdr_netobj dummy_netobj = { .len = 0 };
+	struct gssx_name_attr_array dummy_name_attr_array = { .count = 0 };
+	struct gssx_option_array dummy_option_array = { .count = 0 };
 	int err;
 
 	/* name->display_name */

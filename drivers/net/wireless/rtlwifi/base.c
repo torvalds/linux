@@ -172,6 +172,7 @@ u8 rtl_tid_to_ac(u8 tid)
 {
 	return tid_to_ac[tid];
 }
+EXPORT_SYMBOL_GPL(rtl_tid_to_ac);
 
 static void _rtl_init_hw_ht_capab(struct ieee80211_hw *hw,
 				  struct ieee80211_sta_ht_cap *ht_cap)
@@ -406,6 +407,7 @@ void rtl_deinit_deferred_work(struct ieee80211_hw *hw)
 	cancel_delayed_work(&rtlpriv->works.ps_rfon_wq);
 	cancel_delayed_work(&rtlpriv->works.fwevt_wq);
 }
+EXPORT_SYMBOL_GPL(rtl_deinit_deferred_work);
 
 void rtl_init_rfkill(struct ieee80211_hw *hw)
 {
@@ -439,6 +441,7 @@ void rtl_deinit_rfkill(struct ieee80211_hw *hw)
 {
 	wiphy_rfkill_stop_polling(hw->wiphy);
 }
+EXPORT_SYMBOL_GPL(rtl_deinit_rfkill);
 
 int rtl_init_core(struct ieee80211_hw *hw)
 {
@@ -489,10 +492,12 @@ int rtl_init_core(struct ieee80211_hw *hw)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rtl_init_core);
 
 void rtl_deinit_core(struct ieee80211_hw *hw)
 {
 }
+EXPORT_SYMBOL_GPL(rtl_deinit_core);
 
 void rtl_init_rx_config(struct ieee80211_hw *hw)
 {
@@ -501,6 +506,7 @@ void rtl_init_rx_config(struct ieee80211_hw *hw)
 
 	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *) (&mac->rx_conf));
 }
+EXPORT_SYMBOL_GPL(rtl_init_rx_config);
 
 /*********************************************************
  *
@@ -879,6 +885,7 @@ bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(rtl_tx_mgmt_proc);
 
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
@@ -1052,6 +1059,7 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(rtl_action_proc);
 
 /*should call before software enc*/
 u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
@@ -1125,6 +1133,7 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(rtl_is_special_data);
 
 /*********************************************************
  *
@@ -1300,6 +1309,7 @@ void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	rtlpriv->link_info.bcn_rx_inperiod++;
 }
+EXPORT_SYMBOL_GPL(rtl_beacon_statistic);
 
 void rtl_watchdog_wq_callback(void *data)
 {
@@ -1793,6 +1803,7 @@ void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len)
 
 	mac->vendor = vendor;
 }
+EXPORT_SYMBOL_GPL(rtl_recognize_peer);
 
 /*********************************************************
  *
@@ -1849,6 +1860,7 @@ struct attribute_group rtl_attribute_group = {
 	.name = "rtlsysfs",
 	.attrs = rtl_sysfs_entries,
 };
+EXPORT_SYMBOL_GPL(rtl_attribute_group);
 
 MODULE_AUTHOR("lizhaoming	<chaoming_li@realsil.com.cn>");
 MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
@@ -1856,7 +1868,8 @@ MODULE_AUTHOR("Larry Finger	<Larry.FInger@lwfinger.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 802.11n PCI wireless core");
 
-struct rtl_global_var global_var = {};
+struct rtl_global_var rtl_global_var = {};
+EXPORT_SYMBOL_GPL(rtl_global_var);
 
 static int __init rtl_core_module_init(void)
 {
@@ -1864,8 +1877,8 @@ static int __init rtl_core_module_init(void)
 		pr_err("Unable to register rtl_rc, use default RC !!\n");
 
 	/* init some global vars */
-	INIT_LIST_HEAD(&global_var.glb_priv_list);
-	spin_lock_init(&global_var.glb_list_lock);
+	INIT_LIST_HEAD(&rtl_global_var.glb_priv_list);
+	spin_lock_init(&rtl_global_var.glb_list_lock);
 
 	return 0;
 }

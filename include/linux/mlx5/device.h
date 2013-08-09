@@ -690,6 +690,26 @@ struct mlx5_query_cq_mbox_out {
 	__be64			pas[0];
 };
 
+struct mlx5_enable_hca_mbox_in {
+	struct mlx5_inbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
+struct mlx5_enable_hca_mbox_out {
+	struct mlx5_outbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
+struct mlx5_disable_hca_mbox_in {
+	struct mlx5_inbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
+struct mlx5_disable_hca_mbox_out {
+	struct mlx5_outbox_hdr	hdr;
+	u8			rsvd[8];
+};
+
 struct mlx5_eq_context {
 	u8			status;
 	u8			ec_oi;
