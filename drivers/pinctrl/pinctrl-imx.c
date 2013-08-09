@@ -456,6 +456,11 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	 * do sanity check and calculate pins number
 	 */
 	list = of_get_property(np, "fsl,pins", &size);
+	if (!list) {
+		dev_err(info->dev, "no fsl,pins property in node %s\n", np->full_name);
+		return -EINVAL;
+	}
+
 	/* we do not check return since it's safe node passed down */
 	if (!size || size % pin_size) {
 		dev_err(info->dev, "Invalid fsl,pins property in node %s\n", np->full_name);
