@@ -43,6 +43,27 @@ struct exynos_dvfs_info {
 	bool (*need_apll_change)(unsigned int, unsigned int);
 };
 
+#ifdef CONFIG_ARM_EXYNOS4210_CPUFREQ
 extern int exynos4210_cpufreq_init(struct exynos_dvfs_info *);
+#else
+static inline int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+#ifdef CONFIG_ARM_EXYNOS4X12_CPUFREQ
 extern int exynos4x12_cpufreq_init(struct exynos_dvfs_info *);
+#else
+static inline int exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+#ifdef CONFIG_ARM_EXYNOS5250_CPUFREQ
 extern int exynos5250_cpufreq_init(struct exynos_dvfs_info *);
+#else
+static inline int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
+{
+	return -EOPNOTSUPP;
+}
+#endif

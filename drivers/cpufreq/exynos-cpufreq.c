@@ -332,7 +332,6 @@ err_cpufreq:
 	regulator_put(arm_regulator);
 err_vdd_arm:
 	kfree(exynos_info);
-	pr_debug("%s: failed initialization\n", __func__);
 	return -EINVAL;
 }
 late_initcall(exynos_cpufreq_init);
