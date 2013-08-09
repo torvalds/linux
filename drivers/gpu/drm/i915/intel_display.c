@@ -1877,7 +1877,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	return 0;
 
 err_unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_unpin_from_display_plane(obj);
 err_interruptible:
 	dev_priv->mm.interruptible = true;
 	return ret;
@@ -1886,7 +1886,7 @@ err_interruptible:
 void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
 {
 	i915_gem_object_unpin_fence(obj);
-	i915_gem_object_unpin(obj);
+	i915_gem_object_unpin_from_display_plane(obj);
 }
 
 /* Computes the linear offset to the base tile and adjusts x, y. bytes per pixel
@@ -6763,7 +6763,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			if (intel_crtc->cursor_bo != obj)
 				i915_gem_detach_phys_object(dev, intel_crtc->cursor_bo);
 		} else
-			i915_gem_object_unpin(intel_crtc->cursor_bo);
+			i915_gem_object_unpin_from_display_plane(intel_crtc->cursor_bo);
 		drm_gem_object_unreference(&intel_crtc->cursor_bo->base);
 	}
 
@@ -6778,7 +6778,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	return 0;
 fail_unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_unpin_from_display_plane(obj);
 fail_locked:
 	mutex_unlock(&dev->struct_mutex);
 fail:

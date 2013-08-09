@@ -1377,6 +1377,7 @@ struct drm_i915_gem_object {
 	 */
 	unsigned int fault_mappable:1;
 	unsigned int pin_mappable:1;
+	unsigned int pin_display:1;
 
 	/*
 	 * Is the GPU currently using a fence to access this buffer,
@@ -1866,6 +1867,7 @@ int __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     struct intel_ring_buffer *pipelined);
+void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj);
 int i915_gem_attach_phys_object(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
 				int id,
