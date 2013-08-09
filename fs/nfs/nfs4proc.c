@@ -1610,9 +1610,19 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 	return nfs4_handle_delegation_recall_error(server, state, stateid, err);
 }
 
+static void nfs4_open_confirm_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_opendata *data = calldata;
+
+	nfs40_setup_sequence(data->o_arg.server, &data->o_arg.seq_args,
+				&data->o_res.seq_res, task);
+}
+
 static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_opendata *data = calldata;
+
+	nfs40_sequence_done(task, &data->o_res.seq_res);
 
 	data->rpc_status = task->tk_status;
 	if (data->rpc_status == 0) {
@@ -1642,6 +1652,7 @@ out_free:
 }
 
 static const struct rpc_call_ops nfs4_open_confirm_ops = {
+	.rpc_call_prepare = nfs4_open_confirm_prepare,
 	.rpc_call_done = nfs4_open_confirm_done,
 	.rpc_release = nfs4_open_confirm_release,
 };
@@ -1669,6 +1680,7 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 	};
 	int status;
 
+	nfs4_init_sequence(&data->o_arg.seq_args, &data->o_res.seq_res, 1);
 	kref_get(&data->kref);
 	data->rpc_done = 0;
 	data->rpc_status = 0;
