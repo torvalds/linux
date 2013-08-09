@@ -1,5 +1,5 @@
 /*
- * rcar_du_vga.c  --  R-Car Display Unit VGA DAC and Connector
+ * rcar_du_vgacon.c  --  R-Car Display Unit VGA Connector
  *
  * Copyright (C) 2013 Renesas Corporation
  *
@@ -16,12 +16,9 @@
 #include <drm/drm_crtc_helper.h>
 
 #include "rcar_du_drv.h"
+#include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
-#include "rcar_du_vga.h"
-
-/* -----------------------------------------------------------------------------
- * Connector
- */
+#include "rcar_du_vgacon.h"
 
 static int rcar_du_vga_connector_get_modes(struct drm_connector *connector)
 {
@@ -49,7 +46,7 @@ static void rcar_du_vga_connector_destroy(struct drm_connector *connector)
 static enum drm_connector_status
 rcar_du_vga_connector_detect(struct drm_connector *connector, bool force)
 {
-	return connector_status_unknown;
+	return connector_status_connected;
 }
 
 static const struct drm_connector_funcs connector_funcs = {
@@ -59,8 +56,8 @@ static const struct drm_connector_funcs connector_funcs = {
 	.destroy = rcar_du_vga_connector_destroy,
 };
 
-static int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
-				      struct rcar_du_encoder *renc)
+int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
+			       struct rcar_du_encoder *renc)
 {
 	struct rcar_du_connector *rcon;
 	struct drm_connector *connector;
@@ -96,54 +93,4 @@ static int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
 	rcon->encoder = renc;
 
 	return 0;
-}
-
-/* -----------------------------------------------------------------------------
- * Encoder
- */
-
-static void rcar_du_vga_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-}
-
-static bool rcar_du_vga_encoder_mode_fixup(struct drm_encoder *encoder,
-					   const struct drm_display_mode *mode,
-					   struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
-static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-	.dpms = rcar_du_vga_encoder_dpms,
-	.mode_fixup = rcar_du_vga_encoder_mode_fixup,
-	.prepare = rcar_du_encoder_mode_prepare,
-	.commit = rcar_du_encoder_mode_commit,
-	.mode_set = rcar_du_encoder_mode_set,
-};
-
-static const struct drm_encoder_funcs encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
-int rcar_du_vga_init(struct rcar_du_device *rcdu,
-		     const struct rcar_du_encoder_vga_data *data,
-		     unsigned int output)
-{
-	struct rcar_du_encoder *renc;
-	int ret;
-
-	renc = devm_kzalloc(rcdu->dev, sizeof(*renc), GFP_KERNEL);
-	if (renc == NULL)
-		return -ENOMEM;
-
-	renc->output = output;
-
-	ret = drm_encoder_init(rcdu->ddev, &renc->encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_DAC);
-	if (ret < 0)
-		return ret;
-
-	drm_encoder_helper_add(&renc->encoder, &encoder_helper_funcs);
-
-	return rcar_du_vga_connector_init(rcdu, renc);
 }

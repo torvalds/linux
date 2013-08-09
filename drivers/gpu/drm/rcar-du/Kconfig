@@ -7,3 +7,10 @@ config DRM_RCAR_DU
 	help
 	  Choose this option if you have an R-Car chipset.
 	  If M is selected the module will be called rcar-du-drm.
+
+config DRM_RCAR_LVDS
+	bool "R-Car DU LVDS Encoder Support"
+	depends on DRM_RCAR_DU
+	help
+	  Enable support the R-Car Display Unit embedded LVDS encoders
+	  (currently only on R8A7790).
