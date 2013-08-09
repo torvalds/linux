@@ -140,7 +140,7 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 		break;
 
 	default:
-		dev_err(dev, "unknown mode is request\n");
+		dev_err(dev, "unknown mode is requested\n");
 		err = -EINVAL;
 		break;
 	}
@@ -233,7 +233,7 @@ static int usb3503_probe(struct usb3503 *hub)
 
 	usb3503_switch_mode(hub, hub->mode);
 
-	dev_info(dev, "%s: probed on  %s mode\n", __func__,
+	dev_info(dev, "%s: probed in %s mode\n", __func__,
 			(hub->mode == USB3503_MODE_HUB) ? "hub" : "standby");
 
 	return 0;
