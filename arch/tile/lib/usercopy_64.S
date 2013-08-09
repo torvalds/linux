@@ -36,6 +36,7 @@ strnlen_user_fault:
 	{ move r0, zero; jrp lr }
 	ENDPROC(strnlen_user_fault)
 	.section __ex_table,"a"
+	.align 8
 	.quad 1b, strnlen_user_fault
 	.popsection
 
@@ -59,6 +60,7 @@ strncpy_from_user_fault:
 	{ movei r0, -EFAULT; jrp lr }
 	ENDPROC(strncpy_from_user_fault)
 	.section __ex_table,"a"
+	.align 8
 	.quad 1b, strncpy_from_user_fault
 	.popsection
 
@@ -77,6 +79,7 @@ STD_ENTRY(clear_user_asm)
 	bnezt r1, 1b
 2:      { move r0, r1; jrp lr }
 	.pushsection __ex_table,"a"
+	.align 8
 	.quad 1b, 2b
 	.popsection
 
@@ -86,6 +89,7 @@ STD_ENTRY(clear_user_asm)
 2:      { move r0, r1; jrp lr }
 	STD_ENDPROC(clear_user_asm)
 	.pushsection __ex_table,"a"
+	.align 8
 	.quad 1b, 2b
 	.popsection
 
@@ -105,6 +109,7 @@ STD_ENTRY(flush_user_asm)
 2:      { move r0, r1; jrp lr }
 	STD_ENDPROC(flush_user_asm)
 	.pushsection __ex_table,"a"
+	.align 8
 	.quad 1b, 2b
 	.popsection
 
@@ -124,5 +129,6 @@ STD_ENTRY(finv_user_asm)
 2:      { move r0, r1; jrp lr }
 	STD_ENDPROC(finv_user_asm)
 	.pushsection __ex_table,"a"
+	.align 8
 	.quad 1b, 2b
 	.popsection

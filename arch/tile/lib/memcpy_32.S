@@ -44,6 +44,7 @@
  */
 #define EX \
 	.pushsection __ex_table, "a"; \
+	.align 4; \
 	.word 9f, memcpy_common_fixup; \
 	.popsection; \
 	9
@@ -614,5 +615,6 @@ memcpy_fixup_loop:
 	.size memcpy_common_fixup, . - memcpy_common_fixup
 
 	.section __ex_table,"a"
+	.align 4
 	.word .Lcfu, .Lcopy_from_user_fixup_zero_remainder
 	.word .Lctu, .Lcopy_to_user_fixup_done
