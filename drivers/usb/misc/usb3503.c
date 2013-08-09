@@ -100,10 +100,13 @@ static int usb3503_clear_bits(struct i2c_client *client, char reg, char req)
 	return 0;
 }
 
-static int usb3503_reset(int gpio_reset, int state)
+static int usb3503_reset(struct usb3503 *hub, int state)
 {
-	if (gpio_is_valid(gpio_reset))
-		gpio_set_value_cansleep(gpio_reset, state);
+	if (!state && gpio_is_valid(hub->gpio_connect))
+		gpio_set_value_cansleep(hub->gpio_connect, 0);
+
+	if (gpio_is_valid(hub->gpio_reset))
+		gpio_set_value_cansleep(hub->gpio_reset, state);
 
 	/* Wait T_HUBINIT == 4ms for hub logic to stabilize */
 	if (state)
@@ -119,7 +122,7 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 
 	switch (mode) {
 	case USB3503_MODE_HUB:
-		usb3503_reset(hub->gpio_reset, 1);
+		usb3503_reset(hub, 1);
 
 		/* SP_ILOCK: set connect_n, config_n for config */
 		err = usb3503_write_register(i2c, USB3503_SP_ILOCK,
@@ -156,12 +159,15 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 			goto err_hubmode;
 		}
 
+		if (gpio_is_valid(hub->gpio_connect))
+			gpio_set_value_cansleep(hub->gpio_connect, 1);
+
 		hub->mode = mode;
 		dev_info(&i2c->dev, "switched to HUB mode\n");
 		break;
 
 	case USB3503_MODE_STANDBY:
-		usb3503_reset(hub->gpio_reset, 0);
+		usb3503_reset(hub, 0);
 
 		hub->mode = mode;
 		dev_info(&i2c->dev, "switched to STANDBY mode\n");
@@ -241,7 +247,7 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	if (gpio_is_valid(hub->gpio_connect)) {
 		err = devm_gpio_request_one(&i2c->dev, hub->gpio_connect,
-				GPIOF_OUT_INIT_HIGH, "usb3503 connect");
+				GPIOF_OUT_INIT_LOW, "usb3503 connect");
 		if (err) {
 			dev_err(&i2c->dev,
 					"unable to request GPIO %d as connect pin (%d)\n",
