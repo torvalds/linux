@@ -45,6 +45,7 @@ TRACE_EVENT(rcu_utilization,
  *
  *	"AccReadyCB": CPU acclerates new callbacks to RCU_NEXT_READY_TAIL.
  *	"AccWaitCB": CPU accelerates new callbacks to RCU_WAIT_TAIL.
+ *	"newreq": Request a new grace period.
  *	"start": Start a grace period.
  *	"cpustart": CPU first notices a grace-period start.
  *	"cpuqs": CPU passes through a quiescent state.
