@@ -34,6 +34,7 @@
 #include <linux/hugetlb.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
+#include <linux/kdebug.h>
 
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
@@ -720,6 +721,17 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 		   unsigned long address, unsigned long write)
 {
 	int is_page_fault;
+
+#ifdef CONFIG_KPROBES
+	/*
+	 * This is to notify the fault handler of the kprobes.  The
+	 * exception code is redundant as it is also carried in REGS,
+	 * but we pass it anyhow.
+	 */
+	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, -1,
+		       regs->faultnum, SIGSEGV) == NOTIFY_STOP)
+		return;
+#endif
 
 #ifdef __tilegx__
 	/*

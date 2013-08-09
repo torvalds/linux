@@ -43,6 +43,7 @@ SECTIONS
     HEAD_TEXT
     SCHED_TEXT
     LOCK_TEXT
+    KPROBES_TEXT
     IRQENTRY_TEXT
     __fix_text_end = .;   /* tile-cpack won't rearrange before this */
     TEXT_TEXT

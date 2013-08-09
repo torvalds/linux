@@ -33,6 +33,7 @@ typedef unsigned long pt_reg_t;
 
 #ifndef __ASSEMBLY__
 
+#define regs_return_value(regs) ((regs)->regs[0])
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
 #define user_stack_pointer(regs) ((regs)->sp)

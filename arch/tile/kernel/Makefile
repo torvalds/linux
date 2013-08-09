@@ -28,5 +28,6 @@ endif
 obj-$(CONFIG_TILE_USB)		+= usb.o
 obj-$(CONFIG_TILE_HVGLUE_TRACE)	+= hvglue_trace.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o mcount_64.o
+obj-$(CONFIG_KPROBES)		+= kprobes.o
 
 obj-y				+= vdso/

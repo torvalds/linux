@@ -20,6 +20,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <asm/cacheflush.h>
+#include <asm/homecache.h>
 
 HV_Topology smp_topology __write_once;
 EXPORT_SYMBOL(smp_topology);
@@ -167,9 +168,16 @@ static void ipi_flush_icache_range(void *info)
 void flush_icache_range(unsigned long start, unsigned long end)
 {
 	struct ipi_flush flush = { start, end };
-	preempt_disable();
-	on_each_cpu(ipi_flush_icache_range, &flush, 1);
-	preempt_enable();
+
+	/* If invoked with irqs disabled, we can not issue IPIs. */
+	if (irqs_disabled())
+		flush_remote(0, HV_FLUSH_EVICT_L1I, NULL, 0, 0, 0,
+			NULL, NULL, 0);
+	else {
+		preempt_disable();
+		on_each_cpu(ipi_flush_icache_range, &flush, 1);
+		preempt_enable();
+	}
 }
 
 
