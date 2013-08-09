@@ -119,8 +119,6 @@ static void dvb_buf_release(struct videobuf_queue *q,
 	cx23885_free_buffer(q, (struct cx23885_buffer *)vb);
 }
 
-static int cx23885_dvb_set_frontend(struct dvb_frontend *fe);
-
 static void cx23885_dvb_gate_ctrl(struct cx23885_tsport  *port, int open)
 {
 	struct videobuf_dvb_frontends *f;
@@ -135,12 +133,6 @@ static void cx23885_dvb_gate_ctrl(struct cx23885_tsport  *port, int open)
 
 	if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
 		fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, open);
-
-	/*
-	 * FIXME: Improve this path to avoid calling the
-	 * cx23885_dvb_set_frontend() every time it passes here.
-	 */
-	cx23885_dvb_set_frontend(fe->dvb.frontend);
 }
 
 static struct videobuf_queue_ops dvb_qops = {
@@ -561,7 +553,19 @@ static int cx23885_dvb_set_frontend(struct dvb_frontend *fe)
 		cx23885_gpio_set(dev, GPIO_0);
 		break;
 	}
+
+	/* Call the real set_frontend */
+	if (port->set_frontend)
+		return port->set_frontend(fe);
+
 	return 0;
+}
+
+static void cx23885_set_frontend_hook(struct cx23885_tsport *port,
+				     struct dvb_frontend *fe)
+{
+	port->set_frontend = fe->ops.set_frontend;
+	fe->ops.set_frontend = cx23885_dvb_set_frontend;
 }
 
 static struct lgs8gxx_config magicpro_prohdtve2_lgs8g75_config = {
@@ -771,6 +775,8 @@ static int dvb_register(struct cx23885_tsport *port)
 				   0x60, &dev->i2c_bus[1].i2c_adap,
 				   &hauppauge_hvr127x_config);
 		}
+		if (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1275)
+			cx23885_set_frontend_hook(port, fe0->dvb.frontend);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255_22111:
@@ -1106,6 +1112,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				&i2c_bus2->i2c_adap,
 				&mygica_x8506_xc5000_config);
 		}
+		cx23885_set_frontend_hook(port, fe0->dvb.frontend);
 		break;
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
 		i2c_bus = &dev->i2c_bus[0];
@@ -1119,6 +1126,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				&i2c_bus2->i2c_adap,
 				&magicpro_prohdtve2_xc5000_config);
 		}
+		cx23885_set_frontend_hook(port, fe0->dvb.frontend);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 		i2c_bus = &dev->i2c_bus[0];

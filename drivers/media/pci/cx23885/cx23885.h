@@ -320,6 +320,8 @@ struct cx23885_tsport {
 
 	/* Workaround for a temp dvb_frontend that the tuner can attached to */
 	struct dvb_frontend analog_fe;
+
+	int (*set_frontend)(struct dvb_frontend *fe);
 };
 
 struct cx23885_kernel_ir {
