@@ -2651,7 +2651,7 @@ i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	struct i915_address_space *ggtt = &dev_priv->gtt.base;
 
-	if (!i915_gem_obj_ggtt_bound(obj));
+	if (!i915_gem_obj_ggtt_bound(obj))
 		return 0;
 
 	if (obj->pin_count)
