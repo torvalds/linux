@@ -678,19 +678,6 @@ struct cgroup_subsys_state *css_parent(struct cgroup_subsys_state *css)
 }
 
 /**
- * cgroup_css - obtain a cgroup's css for the specified subsystem
- * @cgrp: the cgroup of interest
- * @subsys_id: the subsystem of interest
- *
- * Return @cgrp's css (cgroup_subsys_state) associated with @subsys_id.
- */
-static inline struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
-						     int subsys_id)
-{
-	return cgrp->subsys[subsys_id];
-}
-
-/**
  * task_css_set_check - obtain a task's css_set with extra access conditions
  * @task: the task to obtain css_set for
  * @__c: extra condition expression to be passed to rcu_dereference_check()
