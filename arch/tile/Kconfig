@@ -119,7 +119,12 @@ config HVC_TILE
 	def_bool y
 
 config TILEGX
-	bool "Building with TILE-Gx (64-bit) compiler and toolchain"
+	bool "Building for TILE-Gx (64-bit) processor"
+	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
 
 config TILEPRO
 	def_bool !TILEGX
