@@ -14,6 +14,8 @@ Mandatory properties:
 - ranges: ranges describing the MMIO registers to control the PCIe
   interfaces, and ranges describing the MBus windows needed to access
   the memory and I/O regions of each PCIe interface.
+- msi-parent: Link to the hardware entity that serves as the Message
+  Signaled Interrupt controller for this PCI controller.
 
 The ranges describing the MMIO registers have the following layout:
 
@@ -86,6 +88,7 @@ pcie-controller {
 	#size-cells = <2>;
 
 	bus-range = <0x00 0xff>;
+	msi-parent = <&mpic>;
 
 	ranges =
 	       <0x82000000 0 0x40000 MBUS_ID(0xf0, 0x01) 0x40000 0 0x00002000	/* Port 0.0 registers */
