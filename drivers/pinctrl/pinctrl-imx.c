@@ -550,7 +550,6 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *child;
-	int ret;
 	u32 nfuncs = 0;
 	u32 i = 0;
 
@@ -577,13 +576,8 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 	if (!info->groups)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, child) {
-		ret = imx_pinctrl_parse_functions(child, info, i++);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to parse function\n");
-			return ret;
-		}
-	}
+	for_each_child_of_node(np, child)
+		imx_pinctrl_parse_functions(child, info, i++);
 
 	return 0;
 }
