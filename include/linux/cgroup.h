@@ -800,9 +800,8 @@ struct cgroup *cgroup_next_child(struct cgroup *pos, struct cgroup *cgrp);
  * the start of the next iteration by, for example, bumping the css refcnt.
  */
 #define cgroup_for_each_child(pos, cgrp)				\
-	for ((pos) = list_first_or_null_rcu(&(cgrp)->children,		\
-					    struct cgroup, sibling);	\
-	     (pos); (pos) = cgroup_next_child((pos), (cgrp)))
+	for ((pos) = cgroup_next_child(NULL, (cgrp)); (pos);		\
+	     (pos) = cgroup_next_child((pos), (cgrp)))
 
 struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
 					  struct cgroup *cgroup);
