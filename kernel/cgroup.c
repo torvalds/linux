@@ -2235,34 +2235,38 @@ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(cgroup_attach_task_all);
 
-static int cgroup_tasks_write(struct cgroup *cgrp, struct cftype *cft, u64 pid)
+static int cgroup_tasks_write(struct cgroup_subsys_state *css,
+			      struct cftype *cft, u64 pid)
 {
-	return attach_task_by_pid(cgrp, pid, false);
+	return attach_task_by_pid(css->cgroup, pid, false);
 }
 
-static int cgroup_procs_write(struct cgroup *cgrp, struct cftype *cft, u64 tgid)
+static int cgroup_procs_write(struct cgroup_subsys_state *css,
+			      struct cftype *cft, u64 tgid)
 {
-	return attach_task_by_pid(cgrp, tgid, true);
+	return attach_task_by_pid(css->cgroup, tgid, true);
 }
 
-static int cgroup_release_agent_write(struct cgroup *cgrp, struct cftype *cft,
-				      const char *buffer)
+static int cgroup_release_agent_write(struct cgroup_subsys_state *css,
+				      struct cftype *cft, const char *buffer)
 {
-	BUILD_BUG_ON(sizeof(cgrp->root->release_agent_path) < PATH_MAX);
+	BUILD_BUG_ON(sizeof(css->cgroup->root->release_agent_path) < PATH_MAX);
 	if (strlen(buffer) >= PATH_MAX)
 		return -EINVAL;
-	if (!cgroup_lock_live_group(cgrp))
+	if (!cgroup_lock_live_group(css->cgroup))
 		return -ENODEV;
 	mutex_lock(&cgroup_root_mutex);
-	strcpy(cgrp->root->release_agent_path, buffer);
+	strcpy(css->cgroup->root->release_agent_path, buffer);
 	mutex_unlock(&cgroup_root_mutex);
 	mutex_unlock(&cgroup_mutex);
 	return 0;
 }
 
-static int cgroup_release_agent_show(struct cgroup *cgrp, struct cftype *cft,
-				     struct seq_file *seq)
+static int cgroup_release_agent_show(struct cgroup_subsys_state *css,
+				     struct cftype *cft, struct seq_file *seq)
 {
+	struct cgroup *cgrp = css->cgroup;
+
 	if (!cgroup_lock_live_group(cgrp))
 		return -ENODEV;
 	seq_puts(seq, cgrp->root->release_agent_path);
@@ -2271,10 +2275,10 @@ static int cgroup_release_agent_show(struct cgroup *cgrp, struct cftype *cft,
 	return 0;
 }
 
-static int cgroup_sane_behavior_show(struct cgroup *cgrp, struct cftype *cft,
-				     struct seq_file *seq)
+static int cgroup_sane_behavior_show(struct cgroup_subsys_state *css,
+				     struct cftype *cft, struct seq_file *seq)
 {
-	seq_printf(seq, "%d\n", cgroup_sane_behavior(cgrp));
+	seq_printf(seq, "%d\n", cgroup_sane_behavior(css->cgroup));
 	return 0;
 }
 
@@ -2292,10 +2296,10 @@ static struct cgroup_subsys_state *cgroup_file_css(struct cfent *cfe)
 /* A buffer size big enough for numbers or short strings */
 #define CGROUP_LOCAL_BUFFER_SIZE 64
 
-static ssize_t cgroup_write_X64(struct cgroup *cgrp, struct cftype *cft,
-				struct file *file,
-				const char __user *userbuf,
-				size_t nbytes, loff_t *unused_ppos)
+static ssize_t cgroup_write_X64(struct cgroup_subsys_state *css,
+				struct cftype *cft, struct file *file,
+				const char __user *userbuf, size_t nbytes,
+				loff_t *unused_ppos)
 {
 	char buffer[CGROUP_LOCAL_BUFFER_SIZE];
 	int retval = 0;
@@ -2313,22 +2317,22 @@ static ssize_t cgroup_write_X64(struct cgroup *cgrp, struct cftype *cft,
 		u64 val = simple_strtoull(strstrip(buffer), &end, 0);
 		if (*end)
 			return -EINVAL;
-		retval = cft->write_u64(cgrp, cft, val);
+		retval = cft->write_u64(css, cft, val);
 	} else {
 		s64 val = simple_strtoll(strstrip(buffer), &end, 0);
 		if (*end)
 			return -EINVAL;
-		retval = cft->write_s64(cgrp, cft, val);
+		retval = cft->write_s64(css, cft, val);
 	}
 	if (!retval)
 		retval = nbytes;
 	return retval;
 }
 
-static ssize_t cgroup_write_string(struct cgroup *cgrp, struct cftype *cft,
-				   struct file *file,
-				   const char __user *userbuf,
-				   size_t nbytes, loff_t *unused_ppos)
+static ssize_t cgroup_write_string(struct cgroup_subsys_state *css,
+				   struct cftype *cft, struct file *file,
+				   const char __user *userbuf, size_t nbytes,
+				   loff_t *unused_ppos)
 {
 	char local_buffer[CGROUP_LOCAL_BUFFER_SIZE];
 	int retval = 0;
@@ -2351,7 +2355,7 @@ static ssize_t cgroup_write_string(struct cgroup *cgrp, struct cftype *cft,
 	}
 
 	buffer[nbytes] = 0;     /* nul-terminate */
-	retval = cft->write_string(cgrp, cft, strstrip(buffer));
+	retval = cft->write_string(css, cft, strstrip(buffer));
 	if (!retval)
 		retval = nbytes;
 out:
@@ -2361,60 +2365,60 @@ out:
 }
 
 static ssize_t cgroup_file_write(struct file *file, const char __user *buf,
-						size_t nbytes, loff_t *ppos)
+				 size_t nbytes, loff_t *ppos)
 {
+	struct cfent *cfe = __d_cfe(file->f_dentry);
 	struct cftype *cft = __d_cft(file->f_dentry);
-	struct cgroup *cgrp = __d_cgrp(file->f_dentry->d_parent);
+	struct cgroup_subsys_state *css = cgroup_file_css(cfe);
 
 	if (cft->write)
-		return cft->write(cgrp, cft, file, buf, nbytes, ppos);
+		return cft->write(css, cft, file, buf, nbytes, ppos);
 	if (cft->write_u64 || cft->write_s64)
-		return cgroup_write_X64(cgrp, cft, file, buf, nbytes, ppos);
+		return cgroup_write_X64(css, cft, file, buf, nbytes, ppos);
 	if (cft->write_string)
-		return cgroup_write_string(cgrp, cft, file, buf, nbytes, ppos);
+		return cgroup_write_string(css, cft, file, buf, nbytes, ppos);
 	if (cft->trigger) {
-		int ret = cft->trigger(cgrp, (unsigned int)cft->private);
+		int ret = cft->trigger(css, (unsigned int)cft->private);
 		return ret ? ret : nbytes;
 	}
 	return -EINVAL;
 }
 
-static ssize_t cgroup_read_u64(struct cgroup *cgrp, struct cftype *cft,
-			       struct file *file,
-			       char __user *buf, size_t nbytes,
-			       loff_t *ppos)
+static ssize_t cgroup_read_u64(struct cgroup_subsys_state *css,
+			       struct cftype *cft, struct file *file,
+			       char __user *buf, size_t nbytes, loff_t *ppos)
 {
 	char tmp[CGROUP_LOCAL_BUFFER_SIZE];
-	u64 val = cft->read_u64(cgrp, cft);
+	u64 val = cft->read_u64(css, cft);
 	int len = sprintf(tmp, "%llu\n", (unsigned long long) val);
 
 	return simple_read_from_buffer(buf, nbytes, ppos, tmp, len);
 }
 
-static ssize_t cgroup_read_s64(struct cgroup *cgrp, struct cftype *cft,
-			       struct file *file,
-			       char __user *buf, size_t nbytes,
-			       loff_t *ppos)
+static ssize_t cgroup_read_s64(struct cgroup_subsys_state *css,
+			       struct cftype *cft, struct file *file,
+			       char __user *buf, size_t nbytes, loff_t *ppos)
 {
 	char tmp[CGROUP_LOCAL_BUFFER_SIZE];
-	s64 val = cft->read_s64(cgrp, cft);
+	s64 val = cft->read_s64(css, cft);
 	int len = sprintf(tmp, "%lld\n", (long long) val);
 
 	return simple_read_from_buffer(buf, nbytes, ppos, tmp, len);
 }
 
 static ssize_t cgroup_file_read(struct file *file, char __user *buf,
-				   size_t nbytes, loff_t *ppos)
+				size_t nbytes, loff_t *ppos)
 {
+	struct cfent *cfe = __d_cfe(file->f_dentry);
 	struct cftype *cft = __d_cft(file->f_dentry);
-	struct cgroup *cgrp = __d_cgrp(file->f_dentry->d_parent);
+	struct cgroup_subsys_state *css = cgroup_file_css(cfe);
 
 	if (cft->read)
-		return cft->read(cgrp, cft, file, buf, nbytes, ppos);
+		return cft->read(css, cft, file, buf, nbytes, ppos);
 	if (cft->read_u64)
-		return cgroup_read_u64(cgrp, cft, file, buf, nbytes, ppos);
+		return cgroup_read_u64(css, cft, file, buf, nbytes, ppos);
 	if (cft->read_s64)
-		return cgroup_read_s64(cgrp, cft, file, buf, nbytes, ppos);
+		return cgroup_read_s64(css, cft, file, buf, nbytes, ppos);
 	return -EINVAL;
 }
 
@@ -2433,16 +2437,16 @@ static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 {
 	struct cfent *cfe = m->private;
 	struct cftype *cft = cfe->type;
-	struct cgroup *cgrp = __d_cgrp(cfe->dentry->d_parent);
+	struct cgroup_subsys_state *css = cgroup_file_css(cfe);
 
 	if (cft->read_map) {
 		struct cgroup_map_cb cb = {
 			.fill = cgroup_map_add,
 			.state = m,
 		};
-		return cft->read_map(cgrp, cft, &cb);
+		return cft->read_map(css, cft, &cb);
 	}
-	return cft->read_seq_string(cgrp, cft, m);
+	return cft->read_seq_string(css, cft, m);
 }
 
 static const struct file_operations cgroup_seqfile_operations = {
@@ -3860,21 +3864,20 @@ static int cgroup_procs_open(struct inode *unused, struct file *file)
 	return cgroup_pidlist_open(file, CGROUP_FILE_PROCS);
 }
 
-static u64 cgroup_read_notify_on_release(struct cgroup *cgrp,
-					    struct cftype *cft)
+static u64 cgroup_read_notify_on_release(struct cgroup_subsys_state *css,
+					 struct cftype *cft)
 {
-	return notify_on_release(cgrp);
+	return notify_on_release(css->cgroup);
 }
 
-static int cgroup_write_notify_on_release(struct cgroup *cgrp,
-					  struct cftype *cft,
-					  u64 val)
+static int cgroup_write_notify_on_release(struct cgroup_subsys_state *css,
+					  struct cftype *cft, u64 val)
 {
-	clear_bit(CGRP_RELEASABLE, &cgrp->flags);
+	clear_bit(CGRP_RELEASABLE, &css->cgroup->flags);
 	if (val)
-		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+		set_bit(CGRP_NOTIFY_ON_RELEASE, &css->cgroup->flags);
 	else
-		clear_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+		clear_bit(CGRP_NOTIFY_ON_RELEASE, &css->cgroup->flags);
 	return 0;
 }
 
@@ -3972,9 +3975,10 @@ static void cgroup_event_ptable_queue_proc(struct file *file,
  * Input must be in format '<event_fd> <control_fd> <args>'.
  * Interpretation of args is defined by control file implementation.
  */
-static int cgroup_write_event_control(struct cgroup *cgrp, struct cftype *cft,
-				      const char *buffer)
+static int cgroup_write_event_control(struct cgroup_subsys_state *css,
+				      struct cftype *cft, const char *buffer)
 {
+	struct cgroup *cgrp = css->cgroup;
 	struct cgroup_event *event;
 	struct cgroup *cgrp_cfile;
 	unsigned int efd, cfd;
@@ -4082,20 +4086,19 @@ out_kfree:
 	return ret;
 }
 
-static u64 cgroup_clone_children_read(struct cgroup *cgrp,
-				    struct cftype *cft)
+static u64 cgroup_clone_children_read(struct cgroup_subsys_state *css,
+				      struct cftype *cft)
 {
-	return test_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
+	return test_bit(CGRP_CPUSET_CLONE_CHILDREN, &css->cgroup->flags);
 }
 
-static int cgroup_clone_children_write(struct cgroup *cgrp,
-				     struct cftype *cft,
-				     u64 val)
+static int cgroup_clone_children_write(struct cgroup_subsys_state *css,
+				       struct cftype *cft, u64 val)
 {
 	if (val)
-		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
+		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &css->cgroup->flags);
 	else
-		clear_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
+		clear_bit(CGRP_CPUSET_CLONE_CHILDREN, &css->cgroup->flags);
 	return 0;
 }
 
@@ -5585,17 +5588,19 @@ static void debug_css_free(struct cgroup_subsys_state *css)
 	kfree(css);
 }
 
-static u64 debug_taskcount_read(struct cgroup *cgrp, struct cftype *cft)
+static u64 debug_taskcount_read(struct cgroup_subsys_state *css,
+				struct cftype *cft)
 {
-	return cgroup_task_count(cgrp);
+	return cgroup_task_count(css->cgroup);
 }
 
-static u64 current_css_set_read(struct cgroup *cgrp, struct cftype *cft)
+static u64 current_css_set_read(struct cgroup_subsys_state *css,
+				struct cftype *cft)
 {
 	return (u64)(unsigned long)current->cgroups;
 }
 
-static u64 current_css_set_refcount_read(struct cgroup *cgrp,
+static u64 current_css_set_refcount_read(struct cgroup_subsys_state *css,
 					 struct cftype *cft)
 {
 	u64 count;
@@ -5606,7 +5611,7 @@ static u64 current_css_set_refcount_read(struct cgroup *cgrp,
 	return count;
 }
 
-static int current_css_set_cg_links_read(struct cgroup *cgrp,
+static int current_css_set_cg_links_read(struct cgroup_subsys_state *css,
 					 struct cftype *cft,
 					 struct seq_file *seq)
 {
@@ -5633,14 +5638,13 @@ static int current_css_set_cg_links_read(struct cgroup *cgrp,
 }
 
 #define MAX_TASKS_SHOWN_PER_CSS 25
-static int cgroup_css_links_read(struct cgroup *cgrp,
-				 struct cftype *cft,
-				 struct seq_file *seq)
+static int cgroup_css_links_read(struct cgroup_subsys_state *css,
+				 struct cftype *cft, struct seq_file *seq)
 {
 	struct cgrp_cset_link *link;
 
 	read_lock(&css_set_lock);
-	list_for_each_entry(link, &cgrp->cset_links, cset_link) {
+	list_for_each_entry(link, &css->cgroup->cset_links, cset_link) {
 		struct css_set *cset = link->cset;
 		struct task_struct *task;
 		int count = 0;
@@ -5659,9 +5663,9 @@ static int cgroup_css_links_read(struct cgroup *cgrp,
 	return 0;
 }
 
-static u64 releasable_read(struct cgroup *cgrp, struct cftype *cft)
+static u64 releasable_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
-	return test_bit(CGRP_RELEASABLE, &cgrp->flags);
+	return test_bit(CGRP_RELEASABLE, &css->cgroup->flags);
 }
 
 static struct cftype debug_files[] =  {

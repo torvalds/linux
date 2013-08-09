@@ -40,12 +40,6 @@ struct hugetlb_cgroup *hugetlb_cgroup_from_css(struct cgroup_subsys_state *s)
 }
 
 static inline
-struct hugetlb_cgroup *hugetlb_cgroup_from_cgroup(struct cgroup *cgroup)
-{
-	return hugetlb_cgroup_from_css(cgroup_css(cgroup, hugetlb_subsys_id));
-}
-
-static inline
 struct hugetlb_cgroup *hugetlb_cgroup_from_task(struct task_struct *task)
 {
 	return hugetlb_cgroup_from_css(task_css(task, hugetlb_subsys_id));
@@ -248,14 +242,15 @@ void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 	return;
 }
 
-static ssize_t hugetlb_cgroup_read(struct cgroup *cgroup, struct cftype *cft,
-				   struct file *file, char __user *buf,
-				   size_t nbytes, loff_t *ppos)
+static ssize_t hugetlb_cgroup_read(struct cgroup_subsys_state *css,
+				   struct cftype *cft, struct file *file,
+				   char __user *buf, size_t nbytes,
+				   loff_t *ppos)
 {
 	u64 val;
 	char str[64];
 	int idx, name, len;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 
 	idx = MEMFILE_IDX(cft->private);
 	name = MEMFILE_ATTR(cft->private);
@@ -265,12 +260,12 @@ static ssize_t hugetlb_cgroup_read(struct cgroup *cgroup, struct cftype *cft,
 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
 }
 
-static int hugetlb_cgroup_write(struct cgroup *cgroup, struct cftype *cft,
-				const char *buffer)
+static int hugetlb_cgroup_write(struct cgroup_subsys_state *css,
+				struct cftype *cft, const char *buffer)
 {
 	int idx, name, ret;
 	unsigned long long val;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 
 	idx = MEMFILE_IDX(cft->private);
 	name = MEMFILE_ATTR(cft->private);
@@ -295,10 +290,11 @@ static int hugetlb_cgroup_write(struct cgroup *cgroup, struct cftype *cft,
 	return ret;
 }
 
-static int hugetlb_cgroup_reset(struct cgroup *cgroup, unsigned int event)
+static int hugetlb_cgroup_reset(struct cgroup_subsys_state *css,
+				unsigned int event)
 {
 	int idx, name, ret = 0;
-	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_cgroup(cgroup);
+	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 
 	idx = MEMFILE_IDX(event);
 	name = MEMFILE_ATTR(event);

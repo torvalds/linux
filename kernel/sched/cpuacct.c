@@ -38,12 +38,6 @@ static inline struct cpuacct *css_ca(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct cpuacct, css) : NULL;
 }
 
-/* return cpu accounting group corresponding to this container */
-static inline struct cpuacct *cgroup_ca(struct cgroup *cgrp)
-{
-	return css_ca(cgroup_css(cgrp, cpuacct_subsys_id));
-}
-
 /* return cpu accounting group to which this task belongs */
 static inline struct cpuacct *task_ca(struct task_struct *tsk)
 {
@@ -138,9 +132,9 @@ static void cpuacct_cpuusage_write(struct cpuacct *ca, int cpu, u64 val)
 }
 
 /* return total cpu usage (in nanoseconds) of a group */
-static u64 cpuusage_read(struct cgroup *cgrp, struct cftype *cft)
+static u64 cpuusage_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
-	struct cpuacct *ca = cgroup_ca(cgrp);
+	struct cpuacct *ca = css_ca(css);
 	u64 totalcpuusage = 0;
 	int i;
 
@@ -150,10 +144,10 @@ static u64 cpuusage_read(struct cgroup *cgrp, struct cftype *cft)
 	return totalcpuusage;
 }
 
-static int cpuusage_write(struct cgroup *cgrp, struct cftype *cftype,
-								u64 reset)
+static int cpuusage_write(struct cgroup_subsys_state *css, struct cftype *cft,
+			  u64 reset)
 {
-	struct cpuacct *ca = cgroup_ca(cgrp);
+	struct cpuacct *ca = css_ca(css);
 	int err = 0;
 	int i;
 
@@ -169,10 +163,10 @@ out:
 	return err;
 }
 
-static int cpuacct_percpu_seq_read(struct cgroup *cgroup, struct cftype *cft,
-				   struct seq_file *m)
+static int cpuacct_percpu_seq_read(struct cgroup_subsys_state *css,
+				   struct cftype *cft, struct seq_file *m)
 {
-	struct cpuacct *ca = cgroup_ca(cgroup);
+	struct cpuacct *ca = css_ca(css);
 	u64 percpu;
 	int i;
 
@@ -189,10 +183,10 @@ static const char * const cpuacct_stat_desc[] = {
 	[CPUACCT_STAT_SYSTEM] = "system",
 };
 
-static int cpuacct_stats_show(struct cgroup *cgrp, struct cftype *cft,
-			      struct cgroup_map_cb *cb)
+static int cpuacct_stats_show(struct cgroup_subsys_state *css,
+			      struct cftype *cft, struct cgroup_map_cb *cb)
 {
-	struct cpuacct *ca = cgroup_ca(cgrp);
+	struct cpuacct *ca = css_ca(css);
 	int cpu;
 	s64 val = 0;
 

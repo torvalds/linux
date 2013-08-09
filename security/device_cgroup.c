@@ -289,10 +289,10 @@ static void set_majmin(char *str, unsigned m)
 		sprintf(str, "%u", m);
 }
 
-static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
-				struct seq_file *m)
+static int devcgroup_seq_read(struct cgroup_subsys_state *css,
+			      struct cftype *cft, struct seq_file *m)
 {
-	struct dev_cgroup *devcgroup = cgroup_to_devcgroup(cgroup);
+	struct dev_cgroup *devcgroup = css_to_devcgroup(css);
 	struct dev_exception_item *ex;
 	char maj[MAJMINLEN], min[MAJMINLEN], acc[ACCLEN];
 
@@ -669,13 +669,13 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	return rc;
 }
 
-static int devcgroup_access_write(struct cgroup *cgrp, struct cftype *cft,
-				  const char *buffer)
+static int devcgroup_access_write(struct cgroup_subsys_state *css,
+				  struct cftype *cft, const char *buffer)
 {
 	int retval;
 
 	mutex_lock(&devcgroup_mutex);
-	retval = devcgroup_update_access(cgroup_to_devcgroup(cgrp),
+	retval = devcgroup_update_access(css_to_devcgroup(css),
 					 cft->private, buffer);
 	mutex_unlock(&devcgroup_mutex);
 	return retval;

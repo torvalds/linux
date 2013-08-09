@@ -437,10 +437,10 @@ struct request_list *__blk_queue_next_rl(struct request_list *rl,
 	return &blkg->rl;
 }
 
-static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
-			     u64 val)
+static int blkcg_reset_stats(struct cgroup_subsys_state *css,
+			     struct cftype *cftype, u64 val)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgroup);
+	struct blkcg *blkcg = css_to_blkcg(css);
 	struct blkcg_gq *blkg;
 	int i;
 

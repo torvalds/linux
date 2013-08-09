@@ -1607,12 +1607,11 @@ static u64 cfqg_prfill_weight_device(struct seq_file *sf,
 	return __blkg_prfill_u64(sf, pd, cfqg->dev_weight);
 }
 
-static int cfqg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
-				    struct seq_file *sf)
+static int cfqg_print_weight_device(struct cgroup_subsys_state *css,
+				    struct cftype *cft, struct seq_file *sf)
 {
-	blkcg_print_blkgs(sf, cgroup_to_blkcg(cgrp),
-			  cfqg_prfill_weight_device, &blkcg_policy_cfq, 0,
-			  false);
+	blkcg_print_blkgs(sf, css_to_blkcg(css), cfqg_prfill_weight_device,
+			  &blkcg_policy_cfq, 0, false);
 	return 0;
 }
 
@@ -1626,35 +1625,34 @@ static u64 cfqg_prfill_leaf_weight_device(struct seq_file *sf,
 	return __blkg_prfill_u64(sf, pd, cfqg->dev_leaf_weight);
 }
 
-static int cfqg_print_leaf_weight_device(struct cgroup *cgrp,
+static int cfqg_print_leaf_weight_device(struct cgroup_subsys_state *css,
 					 struct cftype *cft,
 					 struct seq_file *sf)
 {
-	blkcg_print_blkgs(sf, cgroup_to_blkcg(cgrp),
-			  cfqg_prfill_leaf_weight_device, &blkcg_policy_cfq, 0,
-			  false);
+	blkcg_print_blkgs(sf, css_to_blkcg(css), cfqg_prfill_leaf_weight_device,
+			  &blkcg_policy_cfq, 0, false);
 	return 0;
 }
 
-static int cfq_print_weight(struct cgroup *cgrp, struct cftype *cft,
+static int cfq_print_weight(struct cgroup_subsys_state *css, struct cftype *cft,
 			    struct seq_file *sf)
 {
-	seq_printf(sf, "%u\n", cgroup_to_blkcg(cgrp)->cfq_weight);
+	seq_printf(sf, "%u\n", css_to_blkcg(css)->cfq_weight);
 	return 0;
 }
 
-static int cfq_print_leaf_weight(struct cgroup *cgrp, struct cftype *cft,
-				 struct seq_file *sf)
+static int cfq_print_leaf_weight(struct cgroup_subsys_state *css,
+				 struct cftype *cft, struct seq_file *sf)
 {
-	seq_printf(sf, "%u\n",
-		   cgroup_to_blkcg(cgrp)->cfq_leaf_weight);
+	seq_printf(sf, "%u\n", css_to_blkcg(css)->cfq_leaf_weight);
 	return 0;
 }
 
-static int __cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
-				    const char *buf, bool is_leaf_weight)
+static int __cfqg_set_weight_device(struct cgroup_subsys_state *css,
+				    struct cftype *cft, const char *buf,
+				    bool is_leaf_weight)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 	struct blkg_conf_ctx ctx;
 	struct cfq_group *cfqg;
 	int ret;
@@ -1680,22 +1678,22 @@ static int __cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 	return ret;
 }
 
-static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
-				  const char *buf)
+static int cfqg_set_weight_device(struct cgroup_subsys_state *css,
+				  struct cftype *cft, const char *buf)
 {
-	return __cfqg_set_weight_device(cgrp, cft, buf, false);
+	return __cfqg_set_weight_device(css, cft, buf, false);
 }
 
-static int cfqg_set_leaf_weight_device(struct cgroup *cgrp, struct cftype *cft,
-				       const char *buf)
+static int cfqg_set_leaf_weight_device(struct cgroup_subsys_state *css,
+				       struct cftype *cft, const char *buf)
 {
-	return __cfqg_set_weight_device(cgrp, cft, buf, true);
+	return __cfqg_set_weight_device(css, cft, buf, true);
 }
 
-static int __cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val,
-			    bool is_leaf_weight)
+static int __cfq_set_weight(struct cgroup_subsys_state *css, struct cftype *cft,
+			    u64 val, bool is_leaf_weight)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 	struct blkcg_gq *blkg;
 
 	if (val < CFQ_WEIGHT_MIN || val > CFQ_WEIGHT_MAX)
@@ -1727,30 +1725,32 @@ static int __cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val,
 	return 0;
 }
 
-static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
+static int cfq_set_weight(struct cgroup_subsys_state *css, struct cftype *cft,
+			  u64 val)
 {
-	return __cfq_set_weight(cgrp, cft, val, false);
+	return __cfq_set_weight(css, cft, val, false);
 }
 
-static int cfq_set_leaf_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
+static int cfq_set_leaf_weight(struct cgroup_subsys_state *css,
+			       struct cftype *cft, u64 val)
 {
-	return __cfq_set_weight(cgrp, cft, val, true);
+	return __cfq_set_weight(css, cft, val, true);
 }
 
-static int cfqg_print_stat(struct cgroup *cgrp, struct cftype *cft,
+static int cfqg_print_stat(struct cgroup_subsys_state *css, struct cftype *cft,
 			   struct seq_file *sf)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	blkcg_print_blkgs(sf, blkcg, blkg_prfill_stat, &blkcg_policy_cfq,
 			  cft->private, false);
 	return 0;
 }
 
-static int cfqg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
-			     struct seq_file *sf)
+static int cfqg_print_rwstat(struct cgroup_subsys_state *css,
+			     struct cftype *cft, struct seq_file *sf)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	blkcg_print_blkgs(sf, blkcg, blkg_prfill_rwstat, &blkcg_policy_cfq,
 			  cft->private, true);
@@ -1773,20 +1773,20 @@ static u64 cfqg_prfill_rwstat_recursive(struct seq_file *sf,
 	return __blkg_prfill_rwstat(sf, pd, &sum);
 }
 
-static int cfqg_print_stat_recursive(struct cgroup *cgrp, struct cftype *cft,
-				     struct seq_file *sf)
+static int cfqg_print_stat_recursive(struct cgroup_subsys_state *css,
+				     struct cftype *cft, struct seq_file *sf)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	blkcg_print_blkgs(sf, blkcg, cfqg_prfill_stat_recursive,
 			  &blkcg_policy_cfq, cft->private, false);
 	return 0;
 }
 
-static int cfqg_print_rwstat_recursive(struct cgroup *cgrp, struct cftype *cft,
-				       struct seq_file *sf)
+static int cfqg_print_rwstat_recursive(struct cgroup_subsys_state *css,
+				       struct cftype *cft, struct seq_file *sf)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	blkcg_print_blkgs(sf, blkcg, cfqg_prfill_rwstat_recursive,
 			  &blkcg_policy_cfq, cft->private, true);
@@ -1810,10 +1810,10 @@ static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf,
 }
 
 /* print avg_queue_size */
-static int cfqg_print_avg_queue_size(struct cgroup *cgrp, struct cftype *cft,
-				     struct seq_file *sf)
+static int cfqg_print_avg_queue_size(struct cgroup_subsys_state *css,
+				     struct cftype *cft, struct seq_file *sf)
 {
-	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg *blkcg = css_to_blkcg(css);
 
 	blkcg_print_blkgs(sf, blkcg, cfqg_prfill_avg_queue_size,
 			  &blkcg_policy_cfq, 0, false);
