@@ -417,7 +417,7 @@ static void sahara_aes_done_task(unsigned long data)
 	dev->req->base.complete(&dev->req->base, dev->error);
 }
 
-void sahara_watchdog(unsigned long data)
+static void sahara_watchdog(unsigned long data)
 {
 	struct sahara_dev *dev = (struct sahara_dev *)data;
 	unsigned int err = sahara_read(dev, SAHARA_REG_ERRSTATUS);
