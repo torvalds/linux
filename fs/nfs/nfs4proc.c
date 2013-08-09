@@ -463,6 +463,12 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
 	do_renew_lease(server->nfs_client, timestamp);
 }
 
+struct nfs4_call_sync_data {
+	const struct nfs_server *seq_server;
+	struct nfs4_sequence_args *seq_args;
+	struct nfs4_sequence_res *seq_res;
+};
+
 #if defined(CONFIG_NFS_V4_1)
 
 static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
@@ -714,15 +720,9 @@ out:
 	return ret;
 }
 
-struct nfs41_call_sync_data {
-	const struct nfs_server *seq_server;
-	struct nfs4_sequence_args *seq_args;
-	struct nfs4_sequence_res *seq_res;
-};
-
 static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 {
-	struct nfs41_call_sync_data *data = calldata;
+	struct nfs4_call_sync_data *data = calldata;
 	struct nfs4_session *session = nfs4_get_session(data->seq_server);
 
 	dprintk("--> %s data->seq_server %p\n", __func__, data->seq_server);
@@ -732,7 +732,7 @@ static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 
 static void nfs41_call_sync_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs41_call_sync_data *data = calldata;
+	struct nfs4_call_sync_data *data = calldata;
 
 	nfs41_sequence_done(task, data->seq_res);
 }
@@ -750,7 +750,7 @@ static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
 {
 	int ret;
 	struct rpc_task *task;
-	struct nfs41_call_sync_data data = {
+	struct nfs4_call_sync_data data = {
 		.seq_server = server,
 		.seq_args = args,
 		.seq_res = res,
