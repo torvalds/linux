@@ -48,12 +48,13 @@ strnlen_user_fault:
  */
 STD_ENTRY(strncpy_from_user_asm)
 	{ beqz r2, 2f; move r3, r0 }
-1:      { ld1u r4, r1; addi r1, r1, 1; addi r2, r2, -1 }
+1:	{ ld1u r4, r1; addi r1, r1, 1; addi r2, r2, -1 }
 	{ st1 r0, r4; addi r0, r0, 1 }
-	beqz r2, 2f
-	bnezt r4, 1b
-	addi r0, r0, -1   /* don't count the trailing NUL */
-2:      { sub r0, r0, r3; jrp lr }
+	beqz r4, 2f
+	bnezt r2, 1b
+	{ sub r0, r0, r3; jrp lr }
+2:	addi r0, r0, -1   /* don't count the trailing NUL */
+	{ sub r0, r0, r3; jrp lr }
 	STD_ENDPROC(strncpy_from_user_asm)
 	.pushsection .fixup,"ax"
 strncpy_from_user_fault:
