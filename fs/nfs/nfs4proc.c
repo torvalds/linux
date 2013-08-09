@@ -4918,7 +4918,6 @@ static void nfs4_delegreturn_release(void *calldata)
 	kfree(calldata);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs4_delegreturndata *d_data;
@@ -4930,12 +4929,9 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *data)
 			&d_data->res.seq_res,
 			task);
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 static const struct rpc_call_ops nfs4_delegreturn_ops = {
-#if defined(CONFIG_NFS_V4_1)
 	.rpc_call_prepare = nfs4_delegreturn_prepare,
-#endif /* CONFIG_NFS_V4_1 */
 	.rpc_call_done = nfs4_delegreturn_done,
 	.rpc_release = nfs4_delegreturn_release,
 };
