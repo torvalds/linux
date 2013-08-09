@@ -710,13 +710,11 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
 	ssize_t count, written = 0;
 	int err, want, got;
-	bool hold_mutex;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
 	mutex_lock(&inode->i_mutex);
-	hold_mutex = true;
 
 	err = generic_segment_checks(iov, &nr_segs, &count, VERIFY_READ);
 	if (err)
@@ -772,7 +770,6 @@ retry_snap:
 				inode, ceph_vinop(inode),
 				pos, (unsigned)iov->iov_len);
 			mutex_lock(&inode->i_mutex);
-			hold_mutex = true;
 			goto retry_snap;
 		}
 	} else {
@@ -781,7 +778,6 @@ retry_snap:
 						      count, 0);
 		mutex_unlock(&inode->i_mutex);
 	}
-	hold_mutex = false;
 
 	if (written >= 0) {
 		int dirty;
@@ -805,11 +801,12 @@ retry_snap:
 			written = err;
 	}
 
-out:
-	if (hold_mutex)
-		mutex_unlock(&inode->i_mutex);
-	current->backing_dev_info = NULL;
+	goto out_unlocked;
 
+out:
+	mutex_unlock(&inode->i_mutex);
+out_unlocked:
+	current->backing_dev_info = NULL;
 	return written ? written : err;
 }
 
