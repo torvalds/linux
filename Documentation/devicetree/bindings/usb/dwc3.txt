@@ -6,7 +6,9 @@ Required properties:
  - compatible: must be "snps,dwc3"
  - reg : Address and length of the register set for the device
  - interrupts: Interrupts used by the dwc3 controller.
- - usb-phy : array of phandle for the PHY device
+ - usb-phy : array of phandle for the PHY device.  The first element
+   in the array is expected to be a handle to the USB2/HS PHY and
+   the second element is expected to be a handle to the USB3/SS PHY
 
 Optional properties:
  - tx-fifo-resize: determines if the FIFO *has* to be reallocated.
