@@ -1231,6 +1231,101 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	return ret;
 }
 
+static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
+				    const char *opname,
+				    int (*handler)(struct vb2_queue *,
+						   struct v4l2_buffer *,
+						   struct vb2_buffer *))
+{
+	struct rw_semaphore *mmap_sem = NULL;
+	struct vb2_buffer *vb;
+	int ret;
+
+	/*
+	 * In case of user pointer buffers vb2 allocators need to get direct
+	 * access to userspace pages. This requires getting the mmap semaphore
+	 * for read access in the current process structure. The same semaphore
+	 * is taken before calling mmap operation, while both qbuf/prepare_buf
+	 * and mmap are called by the driver or v4l2 core with the driver's lock
+	 * held. To avoid an AB-BA deadlock (mmap_sem then driver's lock in mmap
+	 * and driver's lock then mmap_sem in qbuf/prepare_buf) the videobuf2
+	 * core releases the driver's lock, takes mmap_sem and then takes the
+	 * driver's lock again.
+	 *
+	 * To avoid racing with other vb2 calls, which might be called after
+	 * releasing the driver's lock, this operation is performed at the
+	 * beginning of qbuf/prepare_buf processing. This way the queue status
+	 * is consistent after getting the driver's lock back.
+	 */
+	if (q->memory == V4L2_MEMORY_USERPTR) {
+		mmap_sem = &current->mm->mmap_sem;
+		call_qop(q, wait_prepare, q);
+		down_read(mmap_sem);
+		call_qop(q, wait_finish, q);
+	}
+
+	if (q->fileio) {
+		dprintk(1, "%s(): file io in progress\n", opname);
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	if (b->type != q->type) {
+		dprintk(1, "%s(): invalid buffer type\n", opname);
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	if (b->index >= q->num_buffers) {
+		dprintk(1, "%s(): buffer index out of range\n", opname);
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	vb = q->bufs[b->index];
+	if (NULL == vb) {
+		/* Should never happen */
+		dprintk(1, "%s(): buffer is NULL\n", opname);
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	if (b->memory != q->memory) {
+		dprintk(1, "%s(): invalid memory type\n", opname);
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	ret = __verify_planes_array(vb, b);
+	if (ret)
+		goto unlock;
+
+	ret = handler(q, b, vb);
+	if (ret)
+		goto unlock;
+
+	/* Fill buffer information for the userspace */
+	__fill_v4l2_buffer(vb, b);
+
+	dprintk(1, "%s() of buffer %d succeeded\n", opname, vb->v4l2_buf.index);
+unlock:
+	if (mmap_sem)
+		up_read(mmap_sem);
+	return ret;
+}
+
+static int __vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
+			     struct vb2_buffer *vb)
+{
+	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
+		dprintk(1, "%s(): invalid buffer state %d\n", __func__,
+			vb->state);
+		return -EINVAL;
+	}
+
+	return __buf_prepare(vb, b);
+}
+
 /**
  * vb2_prepare_buf() - Pass ownership of a buffer from userspace to the kernel
  * @q:		videobuf2 queue
@@ -1248,86 +1343,43 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
  */
 int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b)
 {
-	struct rw_semaphore *mmap_sem = NULL;
-	struct vb2_buffer *vb;
-	int ret;
-
-	/*
-	 * In case of user pointer buffers vb2 allocator needs to get direct
-	 * access to userspace pages. This requires getting read access on
-	 * mmap semaphore in the current process structure. The same
-	 * semaphore is taken before calling mmap operation, while both mmap
-	 * and prepare_buf are called by the driver or v4l2 core with driver's
-	 * lock held. To avoid a AB-BA deadlock (mmap_sem then driver's lock in
-	 * mmap and driver's lock then mmap_sem in prepare_buf) the videobuf2
-	 * core release driver's lock, takes mmap_sem and then takes again
-	 * driver's lock.
-	 *
-	 * To avoid race with other vb2 calls, which might be called after
-	 * releasing driver's lock, this operation is performed at the
-	 * beggining of prepare_buf processing. This way the queue status is
-	 * consistent after getting driver's lock back.
-	 */
-	if (q->memory == V4L2_MEMORY_USERPTR) {
-		mmap_sem = &current->mm->mmap_sem;
-		call_qop(q, wait_prepare, q);
-		down_read(mmap_sem);
-		call_qop(q, wait_finish, q);
-	}
-
-	if (q->fileio) {
-		dprintk(1, "%s(): file io in progress\n", __func__);
-		ret = -EBUSY;
-		goto unlock;
-	}
-
-	if (b->type != q->type) {
-		dprintk(1, "%s(): invalid buffer type\n", __func__);
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	if (b->index >= q->num_buffers) {
-		dprintk(1, "%s(): buffer index out of range\n", __func__);
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	vb = q->bufs[b->index];
-	if (NULL == vb) {
-		/* Should never happen */
-		dprintk(1, "%s(): buffer is NULL\n", __func__);
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	if (b->memory != q->memory) {
-		dprintk(1, "%s(): invalid memory type\n", __func__);
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "%s(): invalid buffer state %d\n", __func__, vb->state);
-		ret = -EINVAL;
-		goto unlock;
-	}
-	ret = __verify_planes_array(vb, b);
-	if (ret < 0)
-		goto unlock;
-
-	ret = __buf_prepare(vb, b);
-	if (ret < 0)
-		goto unlock;
-
-	__fill_v4l2_buffer(vb, b);
-
-unlock:
-	if (mmap_sem)
-		up_read(mmap_sem);
-	return ret;
+	return vb2_queue_or_prepare_buf(q, b, "prepare_buf", __vb2_prepare_buf);
 }
 EXPORT_SYMBOL_GPL(vb2_prepare_buf);
+
+static int __vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b,
+		      struct vb2_buffer *vb)
+{
+	int ret;
+
+	switch (vb->state) {
+	case VB2_BUF_STATE_DEQUEUED:
+		ret = __buf_prepare(vb, b);
+		if (ret)
+			return ret;
+	case VB2_BUF_STATE_PREPARED:
+		break;
+	default:
+		dprintk(1, "qbuf: buffer already in use\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Add to the queued buffers list, a buffer will stay on it until
+	 * dequeued in dqbuf.
+	 */
+	list_add_tail(&vb->queued_entry, &q->queued_list);
+	vb->state = VB2_BUF_STATE_QUEUED;
+
+	/*
+	 * If already streaming, give the buffer to driver for processing.
+	 * If not, the buffer will be given to driver on next streamon.
+	 */
+	if (q->streaming)
+		__enqueue_in_driver(vb);
+
+	return 0;
+}
 
 /**
  * vb2_qbuf() - Queue a buffer from userspace
@@ -1348,103 +1400,7 @@ EXPORT_SYMBOL_GPL(vb2_prepare_buf);
  */
 int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 {
-	struct rw_semaphore *mmap_sem = NULL;
-	struct vb2_buffer *vb;
-	int ret = 0;
-
-	/*
-	 * In case of user pointer buffers vb2 allocator needs to get direct
-	 * access to userspace pages. This requires getting read access on
-	 * mmap semaphore in the current process structure. The same
-	 * semaphore is taken before calling mmap operation, while both mmap
-	 * and qbuf are called by the driver or v4l2 core with driver's lock
-	 * held. To avoid a AB-BA deadlock (mmap_sem then driver's lock in
-	 * mmap and driver's lock then mmap_sem in qbuf) the videobuf2 core
-	 * release driver's lock, takes mmap_sem and then takes again driver's
-	 * lock.
-	 *
-	 * To avoid race with other vb2 calls, which might be called after
-	 * releasing driver's lock, this operation is performed at the
-	 * beggining of qbuf processing. This way the queue status is
-	 * consistent after getting driver's lock back.
-	 */
-	if (q->memory == V4L2_MEMORY_USERPTR) {
-		mmap_sem = &current->mm->mmap_sem;
-		call_qop(q, wait_prepare, q);
-		down_read(mmap_sem);
-		call_qop(q, wait_finish, q);
-	}
-
-	if (q->fileio) {
-		dprintk(1, "qbuf: file io in progress\n");
-		ret = -EBUSY;
-		goto unlock;
-	}
-
-	if (b->type != q->type) {
-		dprintk(1, "qbuf: invalid buffer type\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	if (b->index >= q->num_buffers) {
-		dprintk(1, "qbuf: buffer index out of range\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	vb = q->bufs[b->index];
-	if (NULL == vb) {
-		/* Should never happen */
-		dprintk(1, "qbuf: buffer is NULL\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	if (b->memory != q->memory) {
-		dprintk(1, "qbuf: invalid memory type\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
-	ret = __verify_planes_array(vb, b);
-	if (ret)
-		goto unlock;
-
-	switch (vb->state) {
-	case VB2_BUF_STATE_DEQUEUED:
-		ret = __buf_prepare(vb, b);
-		if (ret)
-			goto unlock;
-	case VB2_BUF_STATE_PREPARED:
-		break;
-	default:
-		dprintk(1, "qbuf: buffer already in use\n");
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	/*
-	 * Add to the queued buffers list, a buffer will stay on it until
-	 * dequeued in dqbuf.
-	 */
-	list_add_tail(&vb->queued_entry, &q->queued_list);
-	vb->state = VB2_BUF_STATE_QUEUED;
-
-	/*
-	 * If already streaming, give the buffer to driver for processing.
-	 * If not, the buffer will be given to driver on next streamon.
-	 */
-	if (q->streaming)
-		__enqueue_in_driver(vb);
-
-	/* Fill buffer information for the userspace */
-	__fill_v4l2_buffer(vb, b);
-
-	dprintk(1, "qbuf of buffer %d succeeded\n", vb->v4l2_buf.index);
-unlock:
-	if (mmap_sem)
-		up_read(mmap_sem);
-	return ret;
+	return vb2_queue_or_prepare_buf(q, b, "qbuf", __vb2_qbuf);
 }
 EXPORT_SYMBOL_GPL(vb2_qbuf);
 
