@@ -215,32 +215,6 @@ out:
 	return cred;
 }
 
-#if defined(CONFIG_NFS_V4_1)
-
-static int nfs41_setup_state_renewal(struct nfs_client *clp)
-{
-	int status;
-	struct nfs_fsinfo fsinfo;
-
-	if (!test_bit(NFS_CS_CHECK_LEASE_TIME, &clp->cl_res_state)) {
-		nfs4_schedule_state_renewal(clp);
-		return 0;
-	}
-
-	status = nfs4_proc_get_lease_time(clp, &fsinfo);
-	if (status == 0) {
-		/* Update lease time and schedule renewal */
-		spin_lock(&clp->cl_lock);
-		clp->cl_lease_time = fsinfo.lease_time * HZ;
-		clp->cl_last_renewal = jiffies;
-		spin_unlock(&clp->cl_lock);
-
-		nfs4_schedule_state_renewal(clp);
-	}
-
-	return status;
-}
-
 static void nfs4_end_drain_slot_table(struct nfs4_slot_table *tbl)
 {
 	if (test_and_clear_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
@@ -253,6 +227,11 @@ static void nfs4_end_drain_slot_table(struct nfs4_slot_table *tbl)
 static void nfs4_end_drain_session(struct nfs_client *clp)
 {
 	struct nfs4_session *ses = clp->cl_session;
+
+	if (clp->cl_slot_tbl) {
+		nfs4_end_drain_slot_table(clp->cl_slot_tbl);
+		return;
+	}
 
 	if (ses != NULL) {
 		nfs4_end_drain_slot_table(&ses->bc_slot_table);
@@ -278,12 +257,41 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	struct nfs4_session *ses = clp->cl_session;
 	int ret = 0;
 
+	if (clp->cl_slot_tbl)
+		return nfs4_drain_slot_tbl(clp->cl_slot_tbl);
+
 	/* back channel */
 	ret = nfs4_drain_slot_tbl(&ses->bc_slot_table);
 	if (ret)
 		return ret;
 	/* fore channel */
 	return nfs4_drain_slot_tbl(&ses->fc_slot_table);
+}
+
+#if defined(CONFIG_NFS_V4_1)
+
+static int nfs41_setup_state_renewal(struct nfs_client *clp)
+{
+	int status;
+	struct nfs_fsinfo fsinfo;
+
+	if (!test_bit(NFS_CS_CHECK_LEASE_TIME, &clp->cl_res_state)) {
+		nfs4_schedule_state_renewal(clp);
+		return 0;
+	}
+
+	status = nfs4_proc_get_lease_time(clp, &fsinfo);
+	if (status == 0) {
+		/* Update lease time and schedule renewal */
+		spin_lock(&clp->cl_lock);
+		clp->cl_lease_time = fsinfo.lease_time * HZ;
+		clp->cl_last_renewal = jiffies;
+		spin_unlock(&clp->cl_lock);
+
+		nfs4_schedule_state_renewal(clp);
+	}
+
+	return status;
 }
 
 static void nfs41_finish_session_reset(struct nfs_client *clp)
@@ -2085,7 +2093,6 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 }
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
-static void nfs4_end_drain_session(struct nfs_client *clp) { }
 
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
