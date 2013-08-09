@@ -242,8 +242,8 @@ static int dbg_show(struct seq_file *s, void *_)
 	seq_printf(s, "mask2     %s\n", buf);
 	/* ignore ackint2 */
 
-	schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
-
+	queue_delayed_work(system_power_efficient_wq, &tps->work,
+			   POWER_POLL_DELAY);
 
 	/* VMAIN voltage, enable lowpower, etc */
 	value = i2c_smbus_read_byte_data(tps->client, TPS_VDCDC1);
@@ -400,7 +400,8 @@ static void tps65010_interrupt(struct tps65010 *tps)
 			&& (tps->chgstatus & (TPS_CHG_USB|TPS_CHG_AC)))
 		poll = 1;
 	if (poll)
-		schedule_delayed_work(&tps->work, POWER_POLL_DELAY);
+		queue_delayed_work(system_power_efficient_wq, &tps->work,
+				   POWER_POLL_DELAY);
 
 	/* also potentially gpio-in rise or fall */
 }
@@ -448,7 +449,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 
 	disable_irq_nosync(irq);
 	set_bit(FLAG_IRQ_ENABLE, &tps->flags);
-	schedule_delayed_work(&tps->work, 0);
+	queue_delayed_work(system_power_efficient_wq, &tps->work, 0);
 	return IRQ_HANDLED;
 }
 
@@ -718,7 +719,8 @@ int tps65010_set_vbus_draw(unsigned mA)
 			&& test_and_set_bit(
 				FLAG_VBUS_CHANGED, &the_tps->flags)) {
 		/* gadget drivers call this in_irq() */
-		schedule_delayed_work(&the_tps->work, 0);
+		queue_delayed_work(system_power_efficient_wq, &the_tps->work,
+				   0);
 	}
 	local_irq_restore(flags);
 
