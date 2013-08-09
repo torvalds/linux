@@ -808,16 +808,6 @@ static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
 }
 
 static
-int _nfs4_call_sync(struct rpc_clnt *clnt,
-		    struct nfs_server *server,
-		    struct rpc_message *msg,
-		    struct nfs4_sequence_args *args,
-		    struct nfs4_sequence_res *res)
-{
-	return rpc_call_sync(clnt, msg, 0);
-}
-
-static
 int nfs4_call_sync(struct rpc_clnt *clnt,
 		   struct nfs_server *server,
 		   struct rpc_message *msg,
@@ -7543,7 +7533,6 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 		| NFS_CAP_ATOMIC_OPEN
 		| NFS_CAP_CHANGE_ATTR
 		| NFS_CAP_POSIX_LOCK,
-	.call_sync = _nfs4_call_sync,
 	.match_stateid = nfs4_match_stateid,
 	.find_root_sec = nfs4_find_root_sec,
 	.free_lock_state = nfs4_release_lockowner,
@@ -7562,7 +7551,6 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 		| NFS_CAP_POSIX_LOCK
 		| NFS_CAP_STATEID_NFSV41
 		| NFS_CAP_ATOMIC_OPEN_V1,
-	.call_sync = nfs4_call_sync_sequence,
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
@@ -7582,7 +7570,6 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 		| NFS_CAP_POSIX_LOCK
 		| NFS_CAP_STATEID_NFSV41
 		| NFS_CAP_ATOMIC_OPEN_V1,
-	.call_sync = nfs4_call_sync_sequence,
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,

@@ -38,11 +38,6 @@ struct nfs4_minor_version_ops {
 	u32	minor_version;
 	unsigned init_caps;
 
-	int	(*call_sync)(struct rpc_clnt *clnt,
-			struct nfs_server *server,
-			struct rpc_message *msg,
-			struct nfs4_sequence_args *args,
-			struct nfs4_sequence_res *res);
 	bool	(*match_stateid)(const nfs4_stateid *,
 			const nfs4_stateid *);
 	int	(*find_root_sec)(struct nfs_server *, struct nfs_fh *,
