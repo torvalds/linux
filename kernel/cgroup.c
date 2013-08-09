@@ -2982,30 +2982,6 @@ int cgroup_task_count(const struct cgroup *cgrp)
 }
 
 /*
- * Advance a list_head iterator.  The iterator should be positioned at
- * the start of a css_set
- */
-static void cgroup_advance_iter(struct cgroup *cgrp, struct cgroup_iter *it)
-{
-	struct list_head *l = it->cset_link;
-	struct cgrp_cset_link *link;
-	struct css_set *cset;
-
-	/* Advance to the next non-empty css_set */
-	do {
-		l = l->next;
-		if (l == &cgrp->cset_links) {
-			it->cset_link = NULL;
-			return;
-		}
-		link = list_entry(l, struct cgrp_cset_link, cset_link);
-		cset = link->cset;
-	} while (list_empty(&cset->tasks));
-	it->cset_link = l;
-	it->task = cset->tasks.next;
-}
-
-/*
  * To reduce the fork() overhead for systems that are not actually
  * using their cgroups capability, we don't maintain the lists running
  * through each css_set to its tasks until we see the list actually
@@ -3222,6 +3198,30 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
 	return next != root ? next : NULL;
 }
 EXPORT_SYMBOL_GPL(css_next_descendant_post);
+
+/*
+ * Advance a list_head iterator.  The iterator should be positioned at
+ * the start of a css_set
+ */
+static void cgroup_advance_iter(struct cgroup *cgrp, struct cgroup_iter *it)
+{
+	struct list_head *l = it->cset_link;
+	struct cgrp_cset_link *link;
+	struct css_set *cset;
+
+	/* Advance to the next non-empty css_set */
+	do {
+		l = l->next;
+		if (l == &cgrp->cset_links) {
+			it->cset_link = NULL;
+			return;
+		}
+		link = list_entry(l, struct cgrp_cset_link, cset_link);
+		cset = link->cset;
+	} while (list_empty(&cset->tasks));
+	it->cset_link = l;
+	it->task = cset->tasks.next;
+}
 
 void cgroup_iter_start(struct cgroup *cgrp, struct cgroup_iter *it)
 	__acquires(css_set_lock)
