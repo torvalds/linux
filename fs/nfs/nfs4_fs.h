@@ -247,9 +247,6 @@ static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *ser
 	return server->nfs_client->cl_session;
 }
 
-extern int nfs4_setup_sequence(const struct nfs_server *server,
-		struct nfs4_sequence_args *args, struct nfs4_sequence_res *res,
-		struct rpc_task *task);
 extern int nfs41_setup_sequence(struct nfs4_session *session,
 		struct nfs4_sequence_args *args, struct nfs4_sequence_res *res,
 		struct rpc_task *task);
@@ -276,14 +273,6 @@ is_ds_client(struct nfs_client *clp)
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
 {
 	return NULL;
-}
-
-static inline int nfs4_setup_sequence(const struct nfs_server *server,
-		struct nfs4_sequence_args *args, struct nfs4_sequence_res *res,
-		struct rpc_task *task)
-{
-	rpc_call_start(task);
-	return 0;
 }
 
 static inline bool
