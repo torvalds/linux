@@ -291,6 +291,7 @@ struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg, struct request_queue *q,
  * read locked.  If called under either blkcg or queue lock, the iteration
  * is guaranteed to include all and only online blkgs.  The caller may
  * update @pos_css by calling css_rightmost_descendant() to skip subtree.
+ * @p_blkg is included in the iteration and the first node to be visited.
  */
 #define blkg_for_each_descendant_pre(d_blkg, pos_css, p_blkg)		\
 	css_for_each_descendant_pre((pos_css), &(p_blkg)->blkcg->css)	\
@@ -304,7 +305,8 @@ struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg, struct request_queue *q,
  * @p_blkg: target blkg to walk descendants of
  *
  * Similar to blkg_for_each_descendant_pre() but performs post-order
- * traversal instead.  Synchronization rules are the same.
+ * traversal instead.  Synchronization rules are the same.  @p_blkg is
+ * included in the iteration and the last node to be visited.
  */
 #define blkg_for_each_descendant_post(d_blkg, pos_css, p_blkg)		\
 	css_for_each_descendant_post((pos_css), &(p_blkg)->blkcg->css)	\

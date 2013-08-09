@@ -798,7 +798,8 @@ css_rightmost_descendant(struct cgroup_subsys_state *pos);
  * @pos: the css * to use as the loop cursor
  * @root: css whose descendants to walk
  *
- * Walk @root's descendants.  Must be called under rcu_read_lock().  A
+ * Walk @root's descendants.  @root is included in the iteration and the
+ * first node to be visited.  Must be called under rcu_read_lock().  A
  * descendant css which hasn't finished ->css_online() or already has
  * finished ->css_offline() may show up during traversal and it's each
  * subsystem's responsibility to verify that each @pos is alive.
@@ -820,13 +821,12 @@ css_rightmost_descendant(struct cgroup_subsys_state *pos);
  *
  * my_update_state(@css)
  * {
- *	Lock @css;
- *	Update @css's state;
- *	Unlock @css;
- *
  *	css_for_each_descendant_pre(@pos, @css) {
  *		Lock @pos;
- *		Verify @pos is alive and inherit state from @pos's parent;
+ *		if (@pos == @css)
+ *			Update @css's state;
+ *		else
+ *			Verify @pos is alive and inherit state from its parent;
  *		Unlock @pos;
  *	}
  * }
@@ -864,8 +864,9 @@ css_next_descendant_post(struct cgroup_subsys_state *pos,
  * @css: css whose descendants to walk
  *
  * Similar to css_for_each_descendant_pre() but performs post-order
- * traversal instead.  Note that the walk visibility guarantee described in
- * pre-order walk doesn't apply the same to post-order walks.
+ * traversal instead.  @root is included in the iteration and the last
+ * node to be visited.  Note that the walk visibility guarantee described
+ * in pre-order walk doesn't apply the same to post-order walks.
  */
 #define css_for_each_descendant_post(pos, css)				\
 	for ((pos) = css_next_descendant_post(NULL, (css)); (pos);	\

@@ -456,7 +456,7 @@ static int propagate_exception(struct dev_cgroup *devcg_root,
 		 * methods), and online ones are safe to access outside RCU
 		 * read lock without bumping refcnt.
 		 */
-		if (!is_devcg_online(devcg))
+		if (pos == &devcg_root->css || !is_devcg_online(devcg))
 			continue;
 
 		rcu_read_unlock();

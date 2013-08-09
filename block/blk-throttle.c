@@ -1379,7 +1379,6 @@ static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
 	 * restrictions in the whole hierarchy and allows them to bypass
 	 * blk-throttle.
 	 */
-	tg_update_has_rules(tg);
 	blkg_for_each_descendant_pre(blkg, pos_css, ctx.blkg)
 		tg_update_has_rules(blkg_to_tg(blkg));
 
@@ -1638,8 +1637,6 @@ void blk_throtl_drain(struct request_queue *q)
 	 */
 	blkg_for_each_descendant_post(blkg, pos_css, td->queue->root_blkg)
 		tg_drain_bios(&blkg_to_tg(blkg)->service_queue);
-
-	tg_drain_bios(&td_root_tg(td)->service_queue);
 
 	/* finally, transfer bios from top-level tg's into the td */
 	tg_drain_bios(&td->service_queue);

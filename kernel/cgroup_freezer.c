@@ -311,7 +311,6 @@ static int freezer_read(struct cgroup_subsys_state *css, struct cftype *cft,
 	/* update states bottom-up */
 	css_for_each_descendant_post(pos, css)
 		update_if_frozen(pos);
-	update_if_frozen(css);
 
 	rcu_read_unlock();
 
@@ -391,11 +390,6 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 {
 	struct cgroup_subsys_state *pos;
 
-	/* update @freezer */
-	spin_lock_irq(&freezer->lock);
-	freezer_apply_state(freezer, freeze, CGROUP_FREEZING_SELF);
-	spin_unlock_irq(&freezer->lock);
-
 	/*
 	 * Update all its descendants in pre-order traversal.  Each
 	 * descendant will try to inherit its parent's FREEZING state as
@@ -406,14 +400,23 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 		struct freezer *pos_f = css_freezer(pos);
 		struct freezer *parent = parent_freezer(pos_f);
 
-		/*
-		 * Our update to @parent->state is already visible which is
-		 * all we need.  No need to lock @parent.  For more info on
-		 * synchronization, see freezer_post_create().
-		 */
 		spin_lock_irq(&pos_f->lock);
-		freezer_apply_state(pos_f, parent->state & CGROUP_FREEZING,
-				    CGROUP_FREEZING_PARENT);
+
+		if (pos_f == freezer) {
+			freezer_apply_state(pos_f, freeze,
+					    CGROUP_FREEZING_SELF);
+		} else {
+			/*
+			 * Our update to @parent->state is already visible
+			 * which is all we need.  No need to lock @parent.
+			 * For more info on synchronization, see
+			 * freezer_post_create().
+			 */
+			freezer_apply_state(pos_f,
+					    parent->state & CGROUP_FREEZING,
+					    CGROUP_FREEZING_PARENT);
+		}
+
 		spin_unlock_irq(&pos_f->lock);
 	}
 	rcu_read_unlock();

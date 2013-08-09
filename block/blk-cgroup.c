@@ -615,11 +615,9 @@ u64 blkg_stat_recursive_sum(struct blkg_policy_data *pd, int off)
 	struct blkcg_policy *pol = blkcg_policy[pd->plid];
 	struct blkcg_gq *pos_blkg;
 	struct cgroup_subsys_state *pos_css;
-	u64 sum;
+	u64 sum = 0;
 
 	lockdep_assert_held(pd->blkg->q->queue_lock);
-
-	sum = blkg_stat_read((void *)pd + off);
 
 	rcu_read_lock();
 	blkg_for_each_descendant_pre(pos_blkg, pos_css, pd_to_blkg(pd)) {
@@ -650,12 +648,10 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkg_policy_data *pd,
 	struct blkcg_policy *pol = blkcg_policy[pd->plid];
 	struct blkcg_gq *pos_blkg;
 	struct cgroup_subsys_state *pos_css;
-	struct blkg_rwstat sum;
+	struct blkg_rwstat sum = { };
 	int i;
 
 	lockdep_assert_held(pd->blkg->q->queue_lock);
-
-	sum = blkg_rwstat_read((void *)pd + off);
 
 	rcu_read_lock();
 	blkg_for_each_descendant_pre(pos_blkg, pos_css, pd_to_blkg(pd)) {
