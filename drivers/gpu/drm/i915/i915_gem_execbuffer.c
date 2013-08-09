@@ -716,7 +716,7 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 			return ret;
 
 		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
-			i915_gem_clflush_object(obj);
+			i915_gem_clflush_object(obj, false);
 
 		flush_domains |= obj->base.write_domain;
 	}
