@@ -26,6 +26,7 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/usb3503.h>
+#include <linux/regmap.h>
 
 #define USB3503_VIDL		0x00
 #define USB3503_VIDM		0x01
@@ -50,55 +51,17 @@
 #define USB3503_CFGP		0xee
 #define USB3503_CLKSUSP		(1 << 7)
 
+#define USB3503_RESET		0xff
+
 struct usb3503 {
 	enum usb3503_mode	mode;
-	struct i2c_client	*client;
+	struct regmap		*regmap;
+	struct device		*dev;
 	u8	port_off_mask;
 	int	gpio_intn;
 	int	gpio_reset;
 	int	gpio_connect;
 };
-
-static int usb3503_write_register(struct i2c_client *client,
-		char reg, char data)
-{
-	return i2c_smbus_write_byte_data(client, reg, data);
-}
-
-static int usb3503_read_register(struct i2c_client *client, char reg)
-{
-	return i2c_smbus_read_byte_data(client, reg);
-}
-
-static int usb3503_set_bits(struct i2c_client *client, char reg, char req)
-{
-	int err;
-
-	err = usb3503_read_register(client, reg);
-	if (err < 0)
-		return err;
-
-	err = usb3503_write_register(client, reg, err | req);
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-
-static int usb3503_clear_bits(struct i2c_client *client, char reg, char req)
-{
-	int err;
-
-	err = usb3503_read_register(client, reg);
-	if (err < 0)
-		return err;
-
-	err = usb3503_write_register(client, reg, err & ~req);
-	if (err < 0)
-		return err;
-
-	return 0;
-}
 
 static int usb3503_reset(struct usb3503 *hub, int state)
 {
@@ -117,7 +80,7 @@ static int usb3503_reset(struct usb3503 *hub, int state)
 
 static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 {
-	struct i2c_client *i2c = hub->client;
+	struct device *dev = hub->dev;
 	int err = 0;
 
 	switch (mode) {
@@ -125,37 +88,40 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 		usb3503_reset(hub, 1);
 
 		/* SP_ILOCK: set connect_n, config_n for config */
-		err = usb3503_write_register(i2c, USB3503_SP_ILOCK,
+		err = regmap_write(hub->regmap, USB3503_SP_ILOCK,
 				(USB3503_SPILOCK_CONNECT
 				 | USB3503_SPILOCK_CONFIG));
 		if (err < 0) {
-			dev_err(&i2c->dev, "SP_ILOCK failed (%d)\n", err);
+			dev_err(dev, "SP_ILOCK failed (%d)\n", err);
 			goto err_hubmode;
 		}
 
 		/* PDS : Disable For Self Powered Operation */
 		if (hub->port_off_mask) {
-			err = usb3503_set_bits(i2c, USB3503_PDS,
+			err = regmap_update_bits(hub->regmap, USB3503_PDS,
+					hub->port_off_mask,
 					hub->port_off_mask);
 			if (err < 0) {
-				dev_err(&i2c->dev, "PDS failed (%d)\n", err);
+				dev_err(dev, "PDS failed (%d)\n", err);
 				goto err_hubmode;
 			}
 		}
 
 		/* CFG1 : SELF_BUS_PWR -> Self-Powerd operation */
-		err = usb3503_set_bits(i2c, USB3503_CFG1, USB3503_SELF_BUS_PWR);
+		err = regmap_update_bits(hub->regmap, USB3503_CFG1,
+					 USB3503_SELF_BUS_PWR,
+					 USB3503_SELF_BUS_PWR);
 		if (err < 0) {
-			dev_err(&i2c->dev, "CFG1 failed (%d)\n", err);
+			dev_err(dev, "CFG1 failed (%d)\n", err);
 			goto err_hubmode;
 		}
 
 		/* SP_LOCK: clear connect_n, config_n for hub connect */
-		err = usb3503_clear_bits(i2c, USB3503_SP_ILOCK,
-				(USB3503_SPILOCK_CONNECT
-				 | USB3503_SPILOCK_CONFIG));
+		err = regmap_update_bits(hub->regmap, USB3503_SP_ILOCK,
+					 (USB3503_SPILOCK_CONNECT
+					  | USB3503_SPILOCK_CONFIG), 0);
 		if (err < 0) {
-			dev_err(&i2c->dev, "SP_ILOCK failed (%d)\n", err);
+			dev_err(dev, "SP_ILOCK failed (%d)\n", err);
 			goto err_hubmode;
 		}
 
@@ -163,18 +129,18 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 			gpio_set_value_cansleep(hub->gpio_connect, 1);
 
 		hub->mode = mode;
-		dev_info(&i2c->dev, "switched to HUB mode\n");
+		dev_info(dev, "switched to HUB mode\n");
 		break;
 
 	case USB3503_MODE_STANDBY:
 		usb3503_reset(hub, 0);
 
 		hub->mode = mode;
-		dev_info(&i2c->dev, "switched to STANDBY mode\n");
+		dev_info(dev, "switched to STANDBY mode\n");
 		break;
 
 	default:
-		dev_err(&i2c->dev, "unknown mode is request\n");
+		dev_err(dev, "unknown mode is request\n");
 		err = -EINVAL;
 		break;
 	}
@@ -182,6 +148,13 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 err_hubmode:
 	return err;
 }
+
+static const struct regmap_config usb3503_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = USB3503_RESET,
+};
 
 static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
@@ -200,7 +173,13 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	}
 
 	i2c_set_clientdata(i2c, hub);
-	hub->client = i2c;
+	hub->regmap = devm_regmap_init_i2c(i2c, &usb3503_regmap_config);
+	if (IS_ERR(hub->regmap)) {
+		err = PTR_ERR(hub->regmap);
+		dev_err(&i2c->dev, "Failed to initialise regmap: %d\n", err);
+		return err;
+	}
+	hub->dev = &i2c->dev;
 
 	if (pdata) {
 		hub->port_off_mask	= pdata->port_off_mask;
