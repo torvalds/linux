@@ -1349,7 +1349,7 @@ static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
 	struct throtl_grp *tg;
 	struct throtl_service_queue *sq;
 	struct blkcg_gq *blkg;
-	struct cgroup *pos_cgrp;
+	struct cgroup_subsys_state *pos_css;
 	int ret;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
@@ -1380,7 +1380,7 @@ static int tg_set_conf(struct cgroup_subsys_state *css, struct cftype *cft,
 	 * blk-throttle.
 	 */
 	tg_update_has_rules(tg);
-	blkg_for_each_descendant_pre(blkg, pos_cgrp, ctx.blkg)
+	blkg_for_each_descendant_pre(blkg, pos_css, ctx.blkg)
 		tg_update_has_rules(blkg_to_tg(blkg));
 
 	/*
@@ -1623,7 +1623,7 @@ void blk_throtl_drain(struct request_queue *q)
 {
 	struct throtl_data *td = q->td;
 	struct blkcg_gq *blkg;
-	struct cgroup *pos_cgrp;
+	struct cgroup_subsys_state *pos_css;
 	struct bio *bio;
 	int rw;
 
@@ -1636,7 +1636,7 @@ void blk_throtl_drain(struct request_queue *q)
 	 * better to walk service_queue tree directly but blkg walk is
 	 * easier.
 	 */
-	blkg_for_each_descendant_post(blkg, pos_cgrp, td->queue->root_blkg)
+	blkg_for_each_descendant_post(blkg, pos_css, td->queue->root_blkg)
 		tg_drain_bios(&blkg_to_tg(blkg)->service_queue);
 
 	tg_drain_bios(&td_root_tg(td)->service_queue);

@@ -779,68 +779,72 @@ static inline struct cgroup *cgroup_from_id(struct cgroup_subsys *ss, int id)
 	return idr_find(&ss->root->cgroup_idr, id);
 }
 
-struct cgroup *cgroup_next_child(struct cgroup *pos, struct cgroup *cgrp);
+struct cgroup_subsys_state *css_next_child(struct cgroup_subsys_state *pos,
+					   struct cgroup_subsys_state *parent);
 
 /**
- * cgroup_for_each_child - iterate through children of a cgroup
- * @pos: the cgroup * to use as the loop cursor
- * @cgrp: cgroup whose children to walk
+ * css_for_each_child - iterate through children of a css
+ * @pos: the css * to use as the loop cursor
+ * @parent: css whose children to walk
  *
- * Walk @cgrp's children.  Must be called under rcu_read_lock().  A child
- * cgroup which hasn't finished ->css_online() or already has finished
+ * Walk @parent's children.  Must be called under rcu_read_lock().  A child
+ * css which hasn't finished ->css_online() or already has finished
  * ->css_offline() may show up during traversal and it's each subsystem's
  * responsibility to verify that each @pos is alive.
  *
  * If a subsystem synchronizes against the parent in its ->css_online() and
- * before starting iterating, a cgroup which finished ->css_online() is
+ * before starting iterating, a css which finished ->css_online() is
  * guaranteed to be visible in the future iterations.
  *
  * It is allowed to temporarily drop RCU read lock during iteration.  The
  * caller is responsible for ensuring that @pos remains accessible until
  * the start of the next iteration by, for example, bumping the css refcnt.
  */
-#define cgroup_for_each_child(pos, cgrp)				\
-	for ((pos) = cgroup_next_child(NULL, (cgrp)); (pos);		\
-	     (pos) = cgroup_next_child((pos), (cgrp)))
+#define css_for_each_child(pos, parent)					\
+	for ((pos) = css_next_child(NULL, (parent)); (pos);		\
+	     (pos) = css_next_child((pos), (parent)))
 
-struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
-					  struct cgroup *cgroup);
-struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos);
+struct cgroup_subsys_state *
+css_next_descendant_pre(struct cgroup_subsys_state *pos,
+			struct cgroup_subsys_state *css);
+
+struct cgroup_subsys_state *
+css_rightmost_descendant(struct cgroup_subsys_state *pos);
 
 /**
- * cgroup_for_each_descendant_pre - pre-order walk of a cgroup's descendants
- * @pos: the cgroup * to use as the loop cursor
- * @cgroup: cgroup whose descendants to walk
+ * css_for_each_descendant_pre - pre-order walk of a css's descendants
+ * @pos: the css * to use as the loop cursor
+ * @root: css whose descendants to walk
  *
- * Walk @cgroup's descendants.  Must be called under rcu_read_lock().  A
- * descendant cgroup which hasn't finished ->css_online() or already has
+ * Walk @root's descendants.  Must be called under rcu_read_lock().  A
+ * descendant css which hasn't finished ->css_online() or already has
  * finished ->css_offline() may show up during traversal and it's each
  * subsystem's responsibility to verify that each @pos is alive.
  *
  * If a subsystem synchronizes against the parent in its ->css_online() and
  * before starting iterating, and synchronizes against @pos on each
- * iteration, any descendant cgroup which finished ->css_online() is
+ * iteration, any descendant css which finished ->css_online() is
  * guaranteed to be visible in the future iterations.
  *
  * In other words, the following guarantees that a descendant can't escape
  * state updates of its ancestors.
  *
- * my_online(@cgrp)
+ * my_online(@css)
  * {
- *	Lock @cgrp->parent and @cgrp;
- *	Inherit state from @cgrp->parent;
+ *	Lock @css's parent and @css;
+ *	Inherit state from the parent;
  *	Unlock both.
  * }
  *
- * my_update_state(@cgrp)
+ * my_update_state(@css)
  * {
- *	Lock @cgrp;
- *	Update @cgrp's state;
- *	Unlock @cgrp;
+ *	Lock @css;
+ *	Update @css's state;
+ *	Unlock @css;
  *
- *	cgroup_for_each_descendant_pre(@pos, @cgrp) {
+ *	css_for_each_descendant_pre(@pos, @css) {
  *		Lock @pos;
- *		Verify @pos is alive and inherit state from @pos->parent;
+ *		Verify @pos is alive and inherit state from @pos's parent;
  *		Unlock @pos;
  *	}
  * }
@@ -851,8 +855,7 @@ struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos);
  * visible by walking order and, as long as inheriting operations to the
  * same @pos are atomic to each other, multiple updates racing each other
  * still result in the correct state.  It's guaranateed that at least one
- * inheritance happens for any cgroup after the latest update to its
- * parent.
+ * inheritance happens for any css after the latest update to its parent.
  *
  * If checking parent's state requires locking the parent, each inheriting
  * iteration should lock and unlock both @pos->parent and @pos.
@@ -865,25 +868,26 @@ struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos);
  * caller is responsible for ensuring that @pos remains accessible until
  * the start of the next iteration by, for example, bumping the css refcnt.
  */
-#define cgroup_for_each_descendant_pre(pos, cgroup)			\
-	for (pos = cgroup_next_descendant_pre(NULL, (cgroup)); (pos);	\
-	     pos = cgroup_next_descendant_pre((pos), (cgroup)))
+#define css_for_each_descendant_pre(pos, css)				\
+	for ((pos) = css_next_descendant_pre(NULL, (css)); (pos);	\
+	     (pos) = css_next_descendant_pre((pos), (css)))
 
-struct cgroup *cgroup_next_descendant_post(struct cgroup *pos,
-					   struct cgroup *cgroup);
+struct cgroup_subsys_state *
+css_next_descendant_post(struct cgroup_subsys_state *pos,
+			 struct cgroup_subsys_state *css);
 
 /**
- * cgroup_for_each_descendant_post - post-order walk of a cgroup's descendants
- * @pos: the cgroup * to use as the loop cursor
- * @cgroup: cgroup whose descendants to walk
+ * css_for_each_descendant_post - post-order walk of a css's descendants
+ * @pos: the css * to use as the loop cursor
+ * @css: css whose descendants to walk
  *
- * Similar to cgroup_for_each_descendant_pre() but performs post-order
+ * Similar to css_for_each_descendant_pre() but performs post-order
  * traversal instead.  Note that the walk visibility guarantee described in
  * pre-order walk doesn't apply the same to post-order walks.
  */
-#define cgroup_for_each_descendant_post(pos, cgroup)			\
-	for (pos = cgroup_next_descendant_post(NULL, (cgroup)); (pos);	\
-	     pos = cgroup_next_descendant_post((pos), (cgroup)))
+#define css_for_each_descendant_post(pos, css)				\
+	for ((pos) = css_next_descendant_post(NULL, (css)); (pos);	\
+	     (pos) = css_next_descendant_post((pos), (css)))
 
 /* A cgroup_iter should be treated as an opaque object */
 struct cgroup_iter {

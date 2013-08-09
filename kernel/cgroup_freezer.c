@@ -50,11 +50,6 @@ static inline struct freezer *css_freezer(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct freezer, css) : NULL;
 }
 
-static inline struct freezer *cgroup_freezer(struct cgroup *cgroup)
-{
-	return css_freezer(cgroup_css(cgroup, freezer_subsys_id));
-}
-
 static inline struct freezer *task_freezer(struct task_struct *task)
 {
 	return css_freezer(task_css(task, freezer_subsys_id));
@@ -120,7 +115,7 @@ static int freezer_css_online(struct cgroup_subsys_state *css)
 	/*
 	 * The following double locking and freezing state inheritance
 	 * guarantee that @cgroup can never escape ancestors' freezing
-	 * states.  See cgroup_for_each_descendant_pre() for details.
+	 * states.  See css_for_each_descendant_pre() for details.
 	 */
 	if (parent)
 		spin_lock_irq(&parent->lock);
@@ -262,7 +257,7 @@ out:
 static void update_if_frozen(struct cgroup_subsys_state *css)
 {
 	struct freezer *freezer = css_freezer(css);
-	struct cgroup *pos;
+	struct cgroup_subsys_state *pos;
 	struct cgroup_iter it;
 	struct task_struct *task;
 
@@ -275,8 +270,8 @@ static void update_if_frozen(struct cgroup_subsys_state *css)
 		goto out_unlock;
 
 	/* are all (live) children frozen? */
-	cgroup_for_each_child(pos, css->cgroup) {
-		struct freezer *child = cgroup_freezer(pos);
+	css_for_each_child(pos, css) {
+		struct freezer *child = css_freezer(pos);
 
 		if ((child->state & CGROUP_FREEZER_ONLINE) &&
 		    !(child->state & CGROUP_FROZEN))
@@ -309,13 +304,13 @@ out_unlock:
 static int freezer_read(struct cgroup_subsys_state *css, struct cftype *cft,
 			struct seq_file *m)
 {
-	struct cgroup *pos;
+	struct cgroup_subsys_state *pos;
 
 	rcu_read_lock();
 
 	/* update states bottom-up */
-	cgroup_for_each_descendant_post(pos, css->cgroup)
-		update_if_frozen(cgroup_css(pos, freezer_subsys_id));
+	css_for_each_descendant_post(pos, css)
+		update_if_frozen(pos);
 	update_if_frozen(css);
 
 	rcu_read_unlock();
@@ -396,7 +391,7 @@ static void freezer_apply_state(struct freezer *freezer, bool freeze,
  */
 static void freezer_change_state(struct freezer *freezer, bool freeze)
 {
-	struct cgroup *pos;
+	struct cgroup_subsys_state *pos;
 
 	/* update @freezer */
 	spin_lock_irq(&freezer->lock);
@@ -409,8 +404,8 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 	 * CGROUP_FREEZING_PARENT.
 	 */
 	rcu_read_lock();
-	cgroup_for_each_descendant_pre(pos, freezer->css.cgroup) {
-		struct freezer *pos_f = cgroup_freezer(pos);
+	css_for_each_descendant_pre(pos, &freezer->css) {
+		struct freezer *pos_f = css_freezer(pos);
 		struct freezer *parent = parent_freezer(pos_f);
 
 		/*

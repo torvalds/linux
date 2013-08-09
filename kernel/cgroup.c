@@ -2814,8 +2814,8 @@ static void cgroup_cfts_prepare(void)
 	/*
 	 * Thanks to the entanglement with vfs inode locking, we can't walk
 	 * the existing cgroups under cgroup_mutex and create files.
-	 * Instead, we use cgroup_for_each_descendant_pre() and drop RCU
-	 * read lock before calling cgroup_addrm_files().
+	 * Instead, we use css_for_each_descendant_pre() and drop RCU read
+	 * lock before calling cgroup_addrm_files().
 	 */
 	mutex_lock(&cgroup_mutex);
 }
@@ -2825,10 +2825,11 @@ static int cgroup_cfts_commit(struct cftype *cfts, bool is_add)
 {
 	LIST_HEAD(pending);
 	struct cgroup_subsys *ss = cfts[0].ss;
-	struct cgroup *cgrp, *root = &ss->root->top_cgroup;
+	struct cgroup *root = &ss->root->top_cgroup;
 	struct super_block *sb = ss->root->sb;
 	struct dentry *prev = NULL;
 	struct inode *inode;
+	struct cgroup_subsys_state *css;
 	u64 update_before;
 	int ret = 0;
 
@@ -2861,7 +2862,9 @@ static int cgroup_cfts_commit(struct cftype *cfts, bool is_add)
 
 	/* add/rm files for all cgroups created before */
 	rcu_read_lock();
-	cgroup_for_each_descendant_pre(cgrp, root) {
+	css_for_each_descendant_pre(css, cgroup_css(root, ss->subsys_id)) {
+		struct cgroup *cgrp = css->cgroup;
+
 		if (cgroup_is_dead(cgrp))
 			continue;
 
@@ -3037,17 +3040,21 @@ static void cgroup_enable_task_cg_lists(void)
 }
 
 /**
- * cgroup_next_child - find the next child of a given cgroup
- * @pos: the current position (%NULL to initiate traversal)
- * @cgrp: cgroup whose descendants to walk
+ * css_next_child - find the next child of a given css
+ * @pos_css: the current position (%NULL to initiate traversal)
+ * @parent_css: css whose children to walk
  *
- * This function returns the next child of @cgrp and should be called under
- * RCU read lock.  The only requirement is that @cgrp and @pos are
- * accessible.  The next sibling is guaranteed to be returned regardless of
- * their states.
+ * This function returns the next child of @parent_css and should be called
+ * under RCU read lock.  The only requirement is that @parent_css and
+ * @pos_css are accessible.  The next sibling is guaranteed to be returned
+ * regardless of their states.
  */
-struct cgroup *cgroup_next_child(struct cgroup *pos, struct cgroup *cgrp)
+struct cgroup_subsys_state *
+css_next_child(struct cgroup_subsys_state *pos_css,
+	       struct cgroup_subsys_state *parent_css)
 {
+	struct cgroup *pos = pos_css ? pos_css->cgroup : NULL;
+	struct cgroup *cgrp = parent_css->cgroup;
 	struct cgroup *next;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
@@ -3081,59 +3088,64 @@ struct cgroup *cgroup_next_child(struct cgroup *pos, struct cgroup *cgrp)
 				break;
 	}
 
-	if (&next->sibling != &cgrp->children)
-		return next;
-	return NULL;
+	if (&next->sibling == &cgrp->children)
+		return NULL;
+
+	if (parent_css->ss)
+		return cgroup_css(next, parent_css->ss->subsys_id);
+	else
+		return &next->dummy_css;
 }
-EXPORT_SYMBOL_GPL(cgroup_next_child);
+EXPORT_SYMBOL_GPL(css_next_child);
 
 /**
- * cgroup_next_descendant_pre - find the next descendant for pre-order walk
+ * css_next_descendant_pre - find the next descendant for pre-order walk
  * @pos: the current position (%NULL to initiate traversal)
- * @cgroup: cgroup whose descendants to walk
+ * @root: css whose descendants to walk
  *
- * To be used by cgroup_for_each_descendant_pre().  Find the next
- * descendant to visit for pre-order traversal of @cgroup's descendants.
+ * To be used by css_for_each_descendant_pre().  Find the next descendant
+ * to visit for pre-order traversal of @root's descendants.
  *
  * While this function requires RCU read locking, it doesn't require the
  * whole traversal to be contained in a single RCU critical section.  This
  * function will return the correct next descendant as long as both @pos
- * and @cgroup are accessible and @pos is a descendant of @cgroup.
+ * and @root are accessible and @pos is a descendant of @root.
  */
-struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
-					  struct cgroup *cgroup)
+struct cgroup_subsys_state *
+css_next_descendant_pre(struct cgroup_subsys_state *pos,
+			struct cgroup_subsys_state *root)
 {
-	struct cgroup *next;
+	struct cgroup_subsys_state *next;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
-	/* if first iteration, pretend we just visited @cgroup */
+	/* if first iteration, pretend we just visited @root */
 	if (!pos)
-		pos = cgroup;
+		pos = root;
 
 	/* visit the first child if exists */
-	next = cgroup_next_child(NULL, pos);
+	next = css_next_child(NULL, pos);
 	if (next)
 		return next;
 
 	/* no child, visit my or the closest ancestor's next sibling */
-	while (pos != cgroup) {
-		next = cgroup_next_child(pos, pos->parent);
+	while (pos != root) {
+		next = css_next_child(pos, css_parent(pos));
 		if (next)
 			return next;
-		pos = pos->parent;
+		pos = css_parent(pos);
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(cgroup_next_descendant_pre);
+EXPORT_SYMBOL_GPL(css_next_descendant_pre);
 
 /**
- * cgroup_rightmost_descendant - return the rightmost descendant of a cgroup
- * @pos: cgroup of interest
+ * css_rightmost_descendant - return the rightmost descendant of a css
+ * @pos: css of interest
  *
- * Return the rightmost descendant of @pos.  If there's no descendant,
- * @pos is returned.  This can be used during pre-order traversal to skip
+ * Return the rightmost descendant of @pos.  If there's no descendant, @pos
+ * is returned.  This can be used during pre-order traversal to skip
  * subtree of @pos.
  *
  * While this function requires RCU read locking, it doesn't require the
@@ -3141,9 +3153,10 @@ EXPORT_SYMBOL_GPL(cgroup_next_descendant_pre);
  * function will return the correct rightmost descendant as long as @pos is
  * accessible.
  */
-struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos)
+struct cgroup_subsys_state *
+css_rightmost_descendant(struct cgroup_subsys_state *pos)
 {
-	struct cgroup *last, *tmp;
+	struct cgroup_subsys_state *last, *tmp;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
@@ -3151,62 +3164,64 @@ struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos)
 		last = pos;
 		/* ->prev isn't RCU safe, walk ->next till the end */
 		pos = NULL;
-		cgroup_for_each_child(tmp, last)
+		css_for_each_child(tmp, last)
 			pos = tmp;
 	} while (pos);
 
 	return last;
 }
-EXPORT_SYMBOL_GPL(cgroup_rightmost_descendant);
+EXPORT_SYMBOL_GPL(css_rightmost_descendant);
 
-static struct cgroup *cgroup_leftmost_descendant(struct cgroup *pos)
+static struct cgroup_subsys_state *
+css_leftmost_descendant(struct cgroup_subsys_state *pos)
 {
-	struct cgroup *last;
+	struct cgroup_subsys_state *last;
 
 	do {
 		last = pos;
-		pos = cgroup_next_child(NULL, pos);
+		pos = css_next_child(NULL, pos);
 	} while (pos);
 
 	return last;
 }
 
 /**
- * cgroup_next_descendant_post - find the next descendant for post-order walk
+ * css_next_descendant_post - find the next descendant for post-order walk
  * @pos: the current position (%NULL to initiate traversal)
- * @cgroup: cgroup whose descendants to walk
+ * @root: css whose descendants to walk
  *
- * To be used by cgroup_for_each_descendant_post().  Find the next
- * descendant to visit for post-order traversal of @cgroup's descendants.
+ * To be used by css_for_each_descendant_post().  Find the next descendant
+ * to visit for post-order traversal of @root's descendants.
  *
  * While this function requires RCU read locking, it doesn't require the
  * whole traversal to be contained in a single RCU critical section.  This
  * function will return the correct next descendant as long as both @pos
  * and @cgroup are accessible and @pos is a descendant of @cgroup.
  */
-struct cgroup *cgroup_next_descendant_post(struct cgroup *pos,
-					   struct cgroup *cgroup)
+struct cgroup_subsys_state *
+css_next_descendant_post(struct cgroup_subsys_state *pos,
+			 struct cgroup_subsys_state *root)
 {
-	struct cgroup *next;
+	struct cgroup_subsys_state *next;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	/* if first iteration, visit the leftmost descendant */
 	if (!pos) {
-		next = cgroup_leftmost_descendant(cgroup);
-		return next != cgroup ? next : NULL;
+		next = css_leftmost_descendant(root);
+		return next != root ? next : NULL;
 	}
 
 	/* if there's an unvisited sibling, visit its leftmost descendant */
-	next = cgroup_next_child(pos, pos->parent);
+	next = css_next_child(pos, css_parent(pos));
 	if (next)
-		return cgroup_leftmost_descendant(next);
+		return css_leftmost_descendant(next);
 
 	/* no sibling left, visit parent */
-	next = pos->parent;
-	return next != cgroup ? next : NULL;
+	next = css_parent(pos);
+	return next != root ? next : NULL;
 }
-EXPORT_SYMBOL_GPL(cgroup_next_descendant_post);
+EXPORT_SYMBOL_GPL(css_next_descendant_post);
 
 void cgroup_iter_start(struct cgroup *cgrp, struct cgroup_iter *it)
 	__acquires(css_set_lock)
@@ -4549,9 +4564,9 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	/*
 	 * Mark @cgrp dead.  This prevents further task migration and child
 	 * creation by disabling cgroup_lock_live_group().  Note that
-	 * CGRP_DEAD assertion is depended upon by cgroup_next_child() to
+	 * CGRP_DEAD assertion is depended upon by css_next_child() to
 	 * resume iteration after dropping RCU read lock.  See
-	 * cgroup_next_child() for details.
+	 * css_next_child() for details.
 	 */
 	set_bit(CGRP_DEAD, &cgrp->flags);
 

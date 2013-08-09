@@ -56,11 +56,6 @@ static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
 	return s ? container_of(s, struct dev_cgroup, css) : NULL;
 }
 
-static inline struct dev_cgroup *cgroup_to_devcgroup(struct cgroup *cgroup)
-{
-	return css_to_devcgroup(cgroup_css(cgroup, devices_subsys_id));
-}
-
 static inline struct dev_cgroup *task_devcgroup(struct task_struct *task)
 {
 	return css_to_devcgroup(task_css(task, devices_subsys_id));
@@ -447,13 +442,13 @@ static void revalidate_active_exceptions(struct dev_cgroup *devcg)
 static int propagate_exception(struct dev_cgroup *devcg_root,
 			       struct dev_exception_item *ex)
 {
-	struct cgroup *root = devcg_root->css.cgroup, *pos;
+	struct cgroup_subsys_state *pos;
 	int rc = 0;
 
 	rcu_read_lock();
 
-	cgroup_for_each_descendant_pre(pos, root) {
-		struct dev_cgroup *devcg = cgroup_to_devcgroup(pos);
+	css_for_each_descendant_pre(pos, &devcg_root->css) {
+		struct dev_cgroup *devcg = css_to_devcgroup(pos);
 
 		/*
 		 * Because devcgroup_mutex is held, no devcg will become

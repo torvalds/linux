@@ -184,11 +184,6 @@ static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct blkcg, css) : NULL;
 }
 
-static inline struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup)
-{
-	return css_to_blkcg(cgroup_css(cgroup, blkio_subsys_id));
-}
-
 static inline struct blkcg *task_blkcg(struct task_struct *tsk)
 {
 	return css_to_blkcg(task_css(tsk, blkio_subsys_id));
@@ -289,32 +284,31 @@ struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg, struct request_queue *q,
 /**
  * blkg_for_each_descendant_pre - pre-order walk of a blkg's descendants
  * @d_blkg: loop cursor pointing to the current descendant
- * @pos_cgrp: used for iteration
+ * @pos_css: used for iteration
  * @p_blkg: target blkg to walk descendants of
  *
  * Walk @c_blkg through the descendants of @p_blkg.  Must be used with RCU
  * read locked.  If called under either blkcg or queue lock, the iteration
  * is guaranteed to include all and only online blkgs.  The caller may
- * update @pos_cgrp by calling cgroup_rightmost_descendant() to skip
- * subtree.
+ * update @pos_css by calling css_rightmost_descendant() to skip subtree.
  */
-#define blkg_for_each_descendant_pre(d_blkg, pos_cgrp, p_blkg)		\
-	cgroup_for_each_descendant_pre((pos_cgrp), (p_blkg)->blkcg->css.cgroup) \
-		if (((d_blkg) = __blkg_lookup(cgroup_to_blkcg(pos_cgrp), \
+#define blkg_for_each_descendant_pre(d_blkg, pos_css, p_blkg)		\
+	css_for_each_descendant_pre((pos_css), &(p_blkg)->blkcg->css)	\
+		if (((d_blkg) = __blkg_lookup(css_to_blkcg(pos_css),	\
 					      (p_blkg)->q, false)))
 
 /**
  * blkg_for_each_descendant_post - post-order walk of a blkg's descendants
  * @d_blkg: loop cursor pointing to the current descendant
- * @pos_cgrp: used for iteration
+ * @pos_css: used for iteration
  * @p_blkg: target blkg to walk descendants of
  *
  * Similar to blkg_for_each_descendant_pre() but performs post-order
  * traversal instead.  Synchronization rules are the same.
  */
-#define blkg_for_each_descendant_post(d_blkg, pos_cgrp, p_blkg)		\
-	cgroup_for_each_descendant_post((pos_cgrp), (p_blkg)->blkcg->css.cgroup) \
-		if (((d_blkg) = __blkg_lookup(cgroup_to_blkcg(pos_cgrp), \
+#define blkg_for_each_descendant_post(d_blkg, pos_css, p_blkg)		\
+	css_for_each_descendant_post((pos_css), &(p_blkg)->blkcg->css)	\
+		if (((d_blkg) = __blkg_lookup(css_to_blkcg(pos_css),	\
 					      (p_blkg)->q, false)))
 
 /**
@@ -577,7 +571,6 @@ static inline int blkcg_activate_policy(struct request_queue *q,
 static inline void blkcg_deactivate_policy(struct request_queue *q,
 					   const struct blkcg_policy *pol) { }
 
-static inline struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup) { return NULL; }
 static inline struct blkcg *bio_blkcg(struct bio *bio) { return NULL; }
 
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,

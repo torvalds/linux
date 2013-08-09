@@ -1082,7 +1082,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
 static struct mem_cgroup *__mem_cgroup_iter_next(struct mem_cgroup *root,
 		struct mem_cgroup *last_visited)
 {
-	struct cgroup *prev_cgroup, *next_cgroup;
+	struct cgroup_subsys_state *prev_css, *next_css;
 
 	/*
 	 * Root is not visited by cgroup iterators so it needs an
@@ -1091,11 +1091,9 @@ static struct mem_cgroup *__mem_cgroup_iter_next(struct mem_cgroup *root,
 	if (!last_visited)
 		return root;
 
-	prev_cgroup = (last_visited == root) ? NULL
-		: last_visited->css.cgroup;
+	prev_css = (last_visited == root) ? NULL : &last_visited->css;
 skip_node:
-	next_cgroup = cgroup_next_descendant_pre(
-			prev_cgroup, root->css.cgroup);
+	next_css = css_next_descendant_pre(prev_css, &root->css);
 
 	/*
 	 * Even if we found a group we have to make sure it is
@@ -1104,13 +1102,13 @@ skip_node:
 	 * last_visited css is safe to use because it is
 	 * protected by css_get and the tree walk is rcu safe.
 	 */
-	if (next_cgroup) {
-		struct mem_cgroup *mem = mem_cgroup_from_cont(
-				next_cgroup);
+	if (next_css) {
+		struct mem_cgroup *mem = mem_cgroup_from_css(next_css);
+
 		if (css_tryget(&mem->css))
 			return mem;
 		else {
-			prev_cgroup = next_cgroup;
+			prev_css = next_css;
 			goto skip_node;
 		}
 	}
@@ -4939,10 +4937,10 @@ static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
  */
 static inline bool __memcg_has_children(struct mem_cgroup *memcg)
 {
-	struct cgroup *pos;
+	struct cgroup_subsys_state *pos;
 
 	/* bounce at first found */
-	cgroup_for_each_child(pos, memcg->css.cgroup)
+	css_for_each_child(pos, &memcg->css)
 		return true;
 	return false;
 }
