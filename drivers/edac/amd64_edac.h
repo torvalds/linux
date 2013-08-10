@@ -348,7 +348,9 @@ struct amd64_pvt {
 
 	u16 mc_node_id;		/* MC index of this MC node */
 	u8 fam;			/* CPU family */
-	u8 model;		/* CPU model */
+	u8 model;		/* ... model */
+	u8 stepping;		/* ... stepping */
+
 	int ext_model;		/* extended model value of this node */
 	int channel_count;
 
