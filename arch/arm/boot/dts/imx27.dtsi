@@ -300,6 +300,7 @@
 				reg = <0x10016000 0x1000>;
 				clocks = <&clks 0>;
 				clock-names = "audmux";
+				status = "disabled";
 			};
 
 			cspi3: cspi@10017000 {
