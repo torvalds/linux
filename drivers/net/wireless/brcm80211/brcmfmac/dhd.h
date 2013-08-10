@@ -557,7 +557,6 @@ struct brcmf_pub {
 
 	struct brcmf_fweh_info fweh;
 
-	bool fw_signals;
 	struct brcmf_fws_info *fws;
 	spinlock_t fws_spinlock;
 

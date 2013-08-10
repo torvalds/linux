@@ -425,6 +425,7 @@ struct brcmf_fws_info {
 	struct brcmf_fws_stats stats;
 	struct brcmf_fws_hanger hanger;
 	enum brcmf_fws_fcmode fcmode;
+	bool fw_signals;
 	bool bcmc_credit_check;
 	struct brcmf_fws_macdesc_table desc;
 	struct workqueue_struct *fws_wq;
@@ -1160,7 +1161,8 @@ static void brcmf_fws_return_credits(struct brcmf_fws_info *fws,
 static void brcmf_fws_schedule_deq(struct brcmf_fws_info *fws)
 {
 	/* only schedule dequeue when there are credits for delayed traffic */
-	if (fws->fifo_credit_map & fws->fifo_delay_map)
+	if ((fws->fifo_credit_map & fws->fifo_delay_map) ||
+	    (!brcmf_fws_fc_active(fws) && fws->fifo_delay_map))
 		queue_work(fws->fws_wq, &fws->fws_dequeue_work);
 }
 
@@ -1498,8 +1500,10 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 
 	WARN_ON(signal_len > skb->len);
 
+	if (!signal_len)
+		return 0;
 	/* if flow control disabled, skip to packet data and leave */
-	if (!signal_len || !drvr->fw_signals) {
+	if (!fws->fw_signals) {
 		skb_pull(skb, signal_len);
 		return 0;
 	}
@@ -1749,7 +1753,6 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	int fifo = BRCMF_FWS_FIFO_BCMC;
 	bool multicast = is_multicast_ether_addr(eh->h_dest);
 	bool pae = eh->h_proto == htons(ETH_P_PAE);
-	int ret;
 
 	brcmf_dbg(DATA, "tx proto=0x%X\n", ntohs(eh->h_proto));
 	/* determine the priority */
@@ -1759,17 +1762,6 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	drvr->tx_multicast += !!multicast;
 	if (pae)
 		atomic_inc(&ifp->pend_8021x_cnt);
-
-	if (!brcmf_fws_fc_active(fws)) {
-		/* If the protocol uses a data header, apply it */
-		brcmf_proto_hdrpush(drvr, ifp->ifidx, 0, skb);
-
-		/* Use bus module to send data frame */
-		ret = brcmf_bus_txdata(drvr->bus_if, skb);
-		if (ret < 0)
-			brcmf_txfinalize(drvr, skb, false);
-		return ret;
-	}
 
 	/* set control buffer information */
 	skcb->if_flags = 0;
@@ -1818,7 +1810,7 @@ void brcmf_fws_add_interface(struct brcmf_if *ifp)
 	struct brcmf_fws_info *fws = ifp->drvr->fws;
 	struct brcmf_fws_mac_descriptor *entry;
 
-	if (!ifp->ndev || !ifp->drvr->fw_signals)
+	if (!ifp->ndev)
 		return;
 
 	entry = &fws->desc.iface[ifp->ifidx];
@@ -1849,15 +1841,38 @@ void brcmf_fws_del_interface(struct brcmf_if *ifp)
 static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 {
 	struct brcmf_fws_info *fws;
+	struct brcmf_pub *drvr;
 	struct sk_buff *skb;
 	ulong flags;
 	int fifo;
+	u32 hslot;
+	u32 ifidx;
+	int ret;
 
 	fws = container_of(worker, struct brcmf_fws_info, fws_dequeue_work);
+	drvr = fws->drvr;
 
-	brcmf_fws_lock(fws->drvr, flags);
+	brcmf_fws_lock(drvr, flags);
 	for (fifo = BRCMF_FWS_FIFO_BCMC; fifo >= 0 && !fws->bus_flow_blocked;
 	     fifo--) {
+		if (!brcmf_fws_fc_active(fws)) {
+			while ((skb = brcmf_fws_deq(fws, fifo)) != NULL) {
+				hslot = brcmf_skb_htod_tag_get_field(skb,
+								     HSLOT);
+				brcmf_fws_hanger_poppkt(&fws->hanger, hslot,
+							&skb, true);
+				ifidx = brcmf_skb_if_flags_get_field(skb,
+								     INDEX);
+				brcmf_proto_hdrpush(drvr, ifidx, 0, skb);
+				/* Use bus module to send data frame */
+				ret = brcmf_bus_txdata(drvr->bus_if, skb);
+				if (ret < 0)
+					brcmf_txfinalize(drvr, skb, false);
+				if (fws->bus_flow_blocked)
+					break;
+			}
+			continue;
+		}
 		while ((fws->fifo_credit[fifo]) || ((!fws->bcmc_credit_check) &&
 		       (fifo == BRCMF_FWS_FIFO_BCMC))) {
 			skb = brcmf_fws_deq(fws, fifo);
@@ -1885,16 +1900,14 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 			}
 		}
 	}
-	brcmf_fws_unlock(fws->drvr, flags);
+	brcmf_fws_unlock(drvr, flags);
 }
 
 int brcmf_fws_init(struct brcmf_pub *drvr)
 {
+	struct brcmf_fws_info *fws;
 	u32 tlv = BRCMF_FWS_FLAGS_RSSI_SIGNALS;
 	int rc;
-
-	if (!drvr->fw_signals)
-		return 0;
 
 	spin_lock_init(&drvr->fws_spinlock);
 
@@ -1904,20 +1917,21 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		goto fail;
 	}
 
+	fws = drvr->fws;
 	/* set linkage back */
-	drvr->fws->drvr = drvr;
-	drvr->fws->fcmode = fcmode;
+	fws->drvr = drvr;
+	fws->fcmode = fcmode;
 
-	drvr->fws->fws_wq = create_singlethread_workqueue("brcmf_fws_wq");
-	if (drvr->fws->fws_wq == NULL) {
+	fws->fws_wq = create_singlethread_workqueue("brcmf_fws_wq");
+	if (fws->fws_wq == NULL) {
 		brcmf_err("workqueue creation failed\n");
 		rc = -EBADF;
 		goto fail;
 	}
-	INIT_WORK(&drvr->fws->fws_dequeue_work, brcmf_fws_dequeue_worker);
+	INIT_WORK(&fws->fws_dequeue_work, brcmf_fws_dequeue_worker);
 
 	/* enable firmware signalling if fcmode active */
-	if (drvr->fws->fcmode != BRCMF_FWS_FCMODE_NONE)
+	if (fws->fcmode != BRCMF_FWS_FCMODE_NONE)
 		tlv |= BRCMF_FWS_FLAGS_XONXOFF_SIGNALS |
 		       BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS |
 		       BRCMF_FWS_FLAGS_HOST_PROPTXSTATUS_ACTIVE |
@@ -1937,34 +1951,33 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		goto fail;
 	}
 
-	/* setting the iovar may fail if feature is unsupported
+	/* Setting the iovar may fail if feature is unsupported
 	 * so leave the rc as is so driver initialization can
-	 * continue.
+	 * continue. Set mode back to none indicating not enabled.
 	 */
+	fws->fw_signals = true;
 	if (brcmf_fil_iovar_int_set(drvr->iflist[0], "tlv", tlv)) {
 		brcmf_err("failed to set bdcv2 tlv signaling\n");
-		goto fail_event;
+		fws->fcmode = BRCMF_FWS_FCMODE_NONE;
+		fws->fw_signals = false;
 	}
 
 	if (brcmf_fil_iovar_int_set(drvr->iflist[0], "ampdu_hostreorder", 1))
 		brcmf_dbg(INFO, "enabling AMPDU host-reorder failed\n");
 
-	brcmf_fws_hanger_init(&drvr->fws->hanger);
-	brcmf_fws_macdesc_init(&drvr->fws->desc.other, NULL, 0);
-	brcmf_fws_macdesc_set_name(drvr->fws, &drvr->fws->desc.other);
-	brcmu_pktq_init(&drvr->fws->desc.other.psq, BRCMF_FWS_PSQ_PREC_COUNT,
+	brcmf_fws_hanger_init(&fws->hanger);
+	brcmf_fws_macdesc_init(&fws->desc.other, NULL, 0);
+	brcmf_fws_macdesc_set_name(fws, &fws->desc.other);
+	brcmu_pktq_init(&fws->desc.other.psq, BRCMF_FWS_PSQ_PREC_COUNT,
 			BRCMF_FWS_PSQ_LEN);
 
 	/* create debugfs file for statistics */
-	brcmf_debugfs_create_fws_stats(drvr, &drvr->fws->stats);
+	brcmf_debugfs_create_fws_stats(drvr, &fws->stats);
 
 	brcmf_dbg(INFO, "%s bdcv2 tlv signaling [%x]\n",
-		  drvr->fw_signals ? "enabled" : "disabled", tlv);
+		  fws->fw_signals ? "enabled" : "disabled", tlv);
 	return 0;
 
-fail_event:
-	brcmf_fweh_unregister(drvr, BRCMF_E_BCMC_CREDIT_SUPPORT);
-	brcmf_fweh_unregister(drvr, BRCMF_E_FIFO_CREDIT_MAP);
 fail:
 	brcmf_fws_deinit(drvr);
 	return rc;
@@ -1977,11 +1990,6 @@ void brcmf_fws_deinit(struct brcmf_pub *drvr)
 
 	if (!fws)
 		return;
-
-	/* disable firmware signalling entirely
-	 * to avoid using the workqueue.
-	 */
-	drvr->fw_signals = false;
 
 	if (drvr->fws->fws_wq)
 		destroy_workqueue(drvr->fws->fws_wq);
@@ -1998,7 +2006,7 @@ void brcmf_fws_deinit(struct brcmf_pub *drvr)
 
 bool brcmf_fws_fc_active(struct brcmf_fws_info *fws)
 {
-	if (!fws)
+	if (!fws->creditmap_received)
 		return false;
 
 	return fws->fcmode != BRCMF_FWS_FCMODE_NONE;

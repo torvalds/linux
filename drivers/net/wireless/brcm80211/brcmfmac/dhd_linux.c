@@ -278,18 +278,10 @@ void brcmf_txflowblock(struct device *dev, bool state)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
-	int i;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (brcmf_fws_fc_active(drvr->fws)) {
-		brcmf_fws_bus_blocked(drvr, state);
-	} else {
-		for (i = 0; i < BRCMF_MAX_IFS; i++)
-			brcmf_txflowblock_if(drvr->iflist[i],
-					     BRCMF_NETIF_STOP_REASON_BLOCK_BUS,
-					     state);
-	}
+	brcmf_fws_bus_blocked(drvr, state);
 }
 
 static void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
@@ -534,7 +526,7 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 		skb_unlink(skb, skb_list);
 
 		/* process and remove protocol-specific header */
-		ret = brcmf_proto_hdrpull(drvr, drvr->fw_signals, &ifidx, skb);
+		ret = brcmf_proto_hdrpull(drvr, true, &ifidx, skb);
 		ifp = drvr->iflist[ifidx];
 
 		if (ret || !ifp || !ifp->ndev) {
@@ -1109,7 +1101,6 @@ int brcmf_bus_start(struct device *dev)
 	if (ret < 0)
 		goto fail;
 
-	drvr->fw_signals = true;
 	ret = brcmf_fws_init(drvr);
 	if (ret < 0)
 		goto fail;
