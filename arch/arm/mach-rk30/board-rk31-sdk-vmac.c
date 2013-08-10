@@ -28,7 +28,7 @@ static int rk30_rmii_io_init(void)
 	iomux_set(RMII_CLKOUT);
 
 	//rk3188 gpio3 and sdio drive strength , 
-      grf_writel(0x0f<16|0x0f,GRF_IO_CON3);
+    grf_writel(0x0f<<16|0x0f,GRF_IO_CON3);
       
 	//phy power gpio
 	err = gpio_request(PHY_PWR_EN_GPIO, "phy_power_en");
