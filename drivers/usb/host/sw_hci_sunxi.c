@@ -359,35 +359,25 @@ static int close_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
 static void usb_passby(struct sw_hci_hcd *sw_hci, u32 enable)
 {
 	unsigned long reg_value = 0;
+	unsigned long bits = 0;
 	static DEFINE_SPINLOCK(lock);
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&lock, flags);
 
-	/*enable passby */
-	if (enable) {
-		reg_value =
-		    USBC_Readl(sw_hci->usb_vbase + SW_USB_PMU_IRQ_ENABLE);
-		reg_value |= (1 << 10);	/* AHB Master interface INCR8 enable */
-		reg_value |= (1 << 9);	/* AHB Master interface burst type
-					   INCR4 enable */
-		reg_value |= (1 << 8);	/* AHB Master interface INCRX align
-					   enable */
-		reg_value |= (1 << 0);	/* ULPI bypass enable */
-		USBC_Writel(reg_value,
-			    (sw_hci->usb_vbase + SW_USB_PMU_IRQ_ENABLE));
-	} else {
-		reg_value =
-		    USBC_Readl(sw_hci->usb_vbase + SW_USB_PMU_IRQ_ENABLE);
-		reg_value &= ~(1 << 10);/* AHB Master interface INCR8 disable */
-		reg_value &= ~(1 << 9);	/* AHB Master interface burst type
-					   INCR4 disable */
-		reg_value &= ~(1 << 8);	/* AHB Master interface INCRX align
-					   disable */
-		reg_value &= ~(1 << 0);	/* ULPI bypass disable */
-		USBC_Writel(reg_value,
-			    (sw_hci->usb_vbase + SW_USB_PMU_IRQ_ENABLE));
-	}
+	bits =	BIT(10) | /* AHB Master interface INCR8 enable */
+			BIT(9)  | /* AHB Master interface burst type INCR4 enable */
+			BIT(8)  | /* AHB Master interface INCRX align enable */
+			BIT(0);   /* ULPI bypass enable */
+
+	reg_value = USBC_Readl(sw_hci->usb_vbase + SW_USB_PMU_IRQ_ENABLE);
+
+	if (enable)
+		reg_value |= bits;
+	else
+		reg_value &= ~bits;
+
+	USBC_Writel(reg_value, sw_hci->usb_vbase + SW_USB_PMU_IRQ_ENABLE);
 
 	spin_unlock_irqrestore(&lock, flags);
 
