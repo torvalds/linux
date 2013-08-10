@@ -194,6 +194,8 @@
 #define BRCMF_E_IF_DEL				2
 #define BRCMF_E_IF_CHANGE			3
 
+#define BRCMF_E_IF_FLAG_NOIF			1
+
 #define BRCMF_E_IF_ROLE_STA			0
 #define BRCMF_E_IF_ROLE_AP			1
 #define BRCMF_E_IF_ROLE_WDS			2
