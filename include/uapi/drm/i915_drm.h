@@ -768,8 +768,32 @@ struct drm_i915_gem_busy {
 	__u32 busy;
 };
 
+/**
+ * I915_CACHING_NONE
+ *
+ * GPU access is not coherent with cpu caches. Default for machines without an
+ * LLC.
+ */
 #define I915_CACHING_NONE		0
+/**
+ * I915_CACHING_CACHED
+ *
+ * GPU access is coherent with cpu caches and furthermore the data is cached in
+ * last-level caches shared between cpu cores and the gpu GT. Default on
+ * machines with HAS_LLC.
+ */
 #define I915_CACHING_CACHED		1
+/**
+ * I915_CACHING_DISPLAY
+ *
+ * Special GPU caching mode which is coherent with the scanout engines.
+ * Transparently falls back to I915_CACHING_NONE on platforms where no special
+ * cache mode (like write-through or gfdt flushing) is available. The kernel
+ * automatically sets this mode when using a buffer as a scanout target.
+ * Userspace can manually set this mode to avoid a costly stall and clflush in
+ * the hotpath of drawing the first frame.
+ */
+#define I915_CACHING_DISPLAY		2
 
 struct drm_i915_gem_caching {
 	/**
