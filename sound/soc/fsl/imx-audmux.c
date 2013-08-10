@@ -278,7 +278,7 @@ static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
 		}
 
 		for (i = 0; (ret = of_property_read_u32_index(child,
-					"fsl,port-config\n", i, &val)) == 0;
+					"fsl,port-config", i, &val)) == 0;
 				++i) {
 			if (audmux_type == IMX31_AUDMUX) {
 				if (i % 2)
@@ -290,7 +290,7 @@ static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
 			}
 		}
 
-		if (ret != -ENODATA) {
+		if (ret != -EOVERFLOW) {
 			dev_err(&pdev->dev, "Failed to read u32 at index %d of child %s\n",
 					i, child->full_name);
 			continue;
