@@ -71,7 +71,7 @@
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
 #define PDMA_ALIGNMENT		3
-#define PDMA_MAX_DESC_BYTES	0x1000
+#define PDMA_MAX_DESC_BYTES	DCMD_LENGTH
 
 struct mmp_pdma_desc_hw {
 	u32 ddadr;	/* Points to the next descriptor + flags */
