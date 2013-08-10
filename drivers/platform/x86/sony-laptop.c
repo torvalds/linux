@@ -4320,7 +4320,8 @@ static int sony_pic_add(struct acpi_device *device)
 		goto err_free_resources;
 	}
 
-	if (sonypi_compat_init())
+	result = sonypi_compat_init();
+	if (result)
 		goto err_remove_input;
 
 	/* request io port */
