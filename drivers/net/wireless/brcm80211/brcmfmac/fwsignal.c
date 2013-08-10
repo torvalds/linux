@@ -1483,6 +1483,7 @@ static int brcmf_fws_notify_bcmc_credit_support(struct brcmf_if *ifp,
 int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		      struct sk_buff *skb)
 {
+	struct brcmf_skb_reorder_data *rd;
 	struct brcmf_fws_info *fws = drvr->fws;
 	u8 *signal_data;
 	s16 data_len;
@@ -1536,8 +1537,11 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 
 		err = BRCMF_FWS_RET_OK_NOSCHEDULE;
 		switch (type) {
-		case BRCMF_FWS_TYPE_HOST_REORDER_RXPKTS:
 		case BRCMF_FWS_TYPE_COMP_TXSTATUS:
+			break;
+		case BRCMF_FWS_TYPE_HOST_REORDER_RXPKTS:
+			rd = (struct brcmf_skb_reorder_data *)skb->cb;
+			rd->reorder = data;
 			break;
 		case BRCMF_FWS_TYPE_MACDESC_ADD:
 		case BRCMF_FWS_TYPE_MACDESC_DEL:
@@ -1747,6 +1751,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	bool pae = eh->h_proto == htons(ETH_P_PAE);
 	int ret;
 
+	brcmf_dbg(DATA, "tx proto=0x%X\n", ntohs(eh->h_proto));
 	/* determine the priority */
 	if (!skb->priority)
 		skb->priority = cfg80211_classify8021d(skb);
@@ -1915,7 +1920,8 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	if (drvr->fws->fcmode != BRCMF_FWS_FCMODE_NONE)
 		tlv |= BRCMF_FWS_FLAGS_XONXOFF_SIGNALS |
 		       BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS |
-		       BRCMF_FWS_FLAGS_HOST_PROPTXSTATUS_ACTIVE;
+		       BRCMF_FWS_FLAGS_HOST_PROPTXSTATUS_ACTIVE |
+		       BRCMF_FWS_FLAGS_HOST_RXREORDER_ACTIVE;
 
 	rc = brcmf_fweh_register(drvr, BRCMF_E_FIFO_CREDIT_MAP,
 				 brcmf_fws_notify_credit_map);
@@ -1939,6 +1945,9 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		brcmf_err("failed to set bdcv2 tlv signaling\n");
 		goto fail_event;
 	}
+
+	if (brcmf_fil_iovar_int_set(drvr->iflist[0], "ampdu_hostreorder", 1))
+		brcmf_dbg(INFO, "enabling AMPDU host-reorder failed\n");
 
 	brcmf_fws_hanger_init(&drvr->fws->hanger);
 	brcmf_fws_macdesc_init(&drvr->fws->desc.other, NULL, 0);
