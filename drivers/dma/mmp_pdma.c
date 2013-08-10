@@ -18,6 +18,7 @@
 #include <linux/platform_data/mmp_dma.h>
 #include <linux/dmapool.h>
 #include <linux/of_device.h>
+#include <linux/of_dma.h>
 #include <linux/of.h>
 #include <linux/dma/mmp-pdma.h>
 
@@ -777,6 +778,39 @@ static struct of_device_id mmp_pdma_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mmp_pdma_dt_ids);
 
+static struct dma_chan *mmp_pdma_dma_xlate(struct of_phandle_args *dma_spec,
+					   struct of_dma *ofdma)
+{
+	struct mmp_pdma_device *d = ofdma->of_dma_data;
+	struct dma_chan *chan, *candidate;
+
+retry:
+	candidate = NULL;
+
+	/* walk the list of channels registered with the current instance and
+	 * find one that is currently unused */
+	list_for_each_entry(chan, &d->device.channels, device_node)
+		if (chan->client_count == 0) {
+			candidate = chan;
+			break;
+		}
+
+	if (!candidate)
+		return NULL;
+
+	/* dma_get_slave_channel will return NULL if we lost a race between
+	 * the lookup and the reservation */
+	chan = dma_get_slave_channel(candidate);
+
+	if (chan) {
+		struct mmp_pdma_chan *c = to_mmp_pdma_chan(chan);
+		c->drcmr = dma_spec->args[0];
+		return chan;
+	}
+
+	goto retry;
+}
+
 static int mmp_pdma_probe(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev;
@@ -861,6 +895,16 @@ static int mmp_pdma_probe(struct platform_device *op)
 	if (ret) {
 		dev_err(pdev->device.dev, "unable to register\n");
 		return ret;
+	}
+
+	if (op->dev.of_node) {
+		/* Device-tree DMA controller registration */
+		ret = of_dma_controller_register(op->dev.of_node,
+						 mmp_pdma_dma_xlate, pdev);
+		if (ret < 0) {
+			dev_err(&op->dev, "of_dma_controller_register failed\n");
+			return ret;
+		}
 	}
 
 	dev_info(pdev->device.dev, "initialized\n");
