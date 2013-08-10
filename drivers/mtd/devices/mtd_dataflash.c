@@ -88,8 +88,6 @@ struct dataflash {
 	uint8_t			command[4];
 	char			name[24];
 
-	unsigned		partitioned:1;
-
 	unsigned short		page_offset;	/* offset in flash address */
 	unsigned int		page_size;	/* of bytes per page */
 
