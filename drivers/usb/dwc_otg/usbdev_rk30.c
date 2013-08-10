@@ -21,9 +21,11 @@
 #define USBGRF_UOC0_CON0	(GRF_REG_BASE+0x10c)
 #define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x114)
 #define USBGRF_UOC0_CON3	(GRF_REG_BASE+0x118)
+#define USBGRF_UOC1_CON0	(GRF_REG_BASE+0x11C)
 #define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x124)
 #define USBGRF_UOC1_CON3	(GRF_REG_BASE+0x128)
 
+#define USBGRF_UOC2_CON0	(GRF_REG_BASE+0x12C)
 #if defined(CONFIG_SOC_RK3066B) || defined(CONFIG_SOC_RK3108) 
 #define RK3066B_HOST_DRV_VBUS RK30_PIN0_PD7
 #define RK3066B_OTG_DRV_VBUS  RK30_PIN0_PD6
@@ -480,6 +482,96 @@ struct platform_device device_usb20_host = {
 	},
 };
 #endif
+#ifdef CONFIG_USB_EHCI_RK
+void rkehci_hw_init(void)
+{
+	unsigned int * phy_con0 = (unsigned int*)(USBGRF_UOC2_CON0);
+	unsigned int * phy_con1 = (unsigned int*)(USBGRF_UOC1_CON0);
+	unsigned int * phy_con2 = (unsigned int*)(USBGRF_UOC0_CON0);
+	// usb phy config init
+	// hsic phy config init, set hsicphy_txsrtune
+	*phy_con0 = ((0xf<<6)<<16)|(0xf<<6);
+
+	// other haredware init
+	// set common_on, in suspend mode, otg/host PLL blocks remain powered
+#ifdef CONFIG_ARCH_RK3188
+	*phy_con1 = (1<<16)|0;
+#else
+	*phy_con2 = (1<<16)|0;
+#endif
+}
+
+void rkehci_clock_init(void* pdata)
+{
+	struct rkehci_platform_data *usbpdata=pdata;
+
+#ifdef CONFIG_ARCH_RK3188  
+	struct clk *clk_otg, *clk_hs;
+
+	/* By default, hsicphy_480m's parent is otg phy 480MHz clk
+	 * rk3188 must use host phy 480MHz clk
+	 */
+	clk_hs = clk_get(NULL, "hsicphy_480m");
+	clk_otg = clk_get(NULL, "otgphy1_480m");
+	clk_set_parent(clk_hs, clk_otg);
+#endif
+
+	usbpdata->hclk_hsic = clk_get(NULL, "hclk_hsic");
+	usbpdata->hsic_phy_480m = clk_get(NULL, "hsicphy_480m");
+	usbpdata->hsic_phy_12m = clk_get(NULL, "hsicphy_12m");
+}
+
+void rkehci_clock_enable(void* pdata, int enable)
+{
+	struct rkehci_platform_data *usbpdata=pdata;
+
+	if(enable == usbpdata->clk_status)
+		return;
+
+	if(enable){
+		clk_enable(usbpdata->hclk_hsic);
+		clk_enable(usbpdata->hsic_phy_480m);
+		clk_enable(usbpdata->hsic_phy_12m);
+		usbpdata->clk_status = 1;
+	}else{
+		clk_disable(usbpdata->hsic_phy_12m);
+		clk_disable(usbpdata->hsic_phy_480m);
+		clk_disable(usbpdata->hclk_hsic);
+		usbpdata->clk_status = 0;
+	}
+}
+
+void rkehci_soft_reset(void)
+{
+	unsigned int * phy_con0 = (unsigned int*)(USBGRF_UOC2_CON0);
+
+	cru_set_soft_reset(SOFT_RST_HSICPHY, true);
+	udelay(12);
+	cru_set_soft_reset(SOFT_RST_HSICPHY, false);
+	mdelay(2);
+
+	*phy_con0 = ((1<<10)<<16)|(1<<10);
+	udelay(2);
+	*phy_con0 = ((1<<10)<<16)|(0<<10);
+	udelay(2);
+
+	cru_set_soft_reset(SOFT_RST_HSIC_AHB, true);
+	udelay(2);
+	cru_set_soft_reset(SOFT_RST_HSIC_AHB, false);
+	udelay(2);
+}
+
+struct rkehci_platform_data rkehci_pdata = {
+	.hclk_hsic = NULL,
+	.hsic_phy_12m = NULL,
+	.hsic_phy_480m = NULL,
+	.clk_status = -1,
+	.hw_init = rkehci_hw_init,
+	.clock_init = rkehci_clock_init,
+	.clock_enable = rkehci_clock_enable,
+	.soft_reset = rkehci_soft_reset,
+};
+
 static struct resource resources_hsusb_host[] = {
     {
         .start = IRQ_HSIC,
@@ -500,8 +592,10 @@ struct platform_device device_hsusb_host = {
     .resource       = resources_hsusb_host,
     .dev            = {
         .coherent_dma_mask      = 0xffffffff,
+        .platform_data  = &rkehci_pdata,
     },
 };
+#endif
 
 static int __init usbdev_init_devices(void)
 {

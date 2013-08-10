@@ -4,9 +4,11 @@ choice
 
 config SOC_RK3188
 	bool "RK3188"
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 config SOC_RK3188M
 	bool "RK3188M"
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 
 endchoice
 

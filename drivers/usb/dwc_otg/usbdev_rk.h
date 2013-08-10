@@ -25,3 +25,14 @@ struct dwc_otg_platform_data {
     void (*dwc_otg_uart_mode)(void* pdata, int enter_usb_uart_mode);
     int (*get_status)(int id);
 };
+
+struct rkehci_platform_data{
+	struct clk* hclk_hsic;
+	struct clk* hsic_phy_480m;
+	struct clk* hsic_phy_12m;
+	void (*hw_init)(void);
+	void (*clock_init)(void* pdata);
+	void (*clock_enable)(void *pdata, int enable);
+	void (*soft_reset)(void);
+	int clk_status;
+};
