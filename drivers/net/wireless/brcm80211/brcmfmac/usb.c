@@ -614,7 +614,6 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	return 0;
 
 fail:
-	brcmf_txcomplete(dev, skb, false);
 	return ret;
 }
 

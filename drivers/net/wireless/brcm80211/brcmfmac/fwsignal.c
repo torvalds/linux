@@ -1745,6 +1745,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	int fifo = BRCMF_FWS_FIFO_BCMC;
 	bool multicast = is_multicast_ether_addr(eh->h_dest);
 	bool pae = eh->h_proto == htons(ETH_P_PAE);
+	int ret;
 
 	/* determine the priority */
 	if (!skb->priority)
@@ -1759,7 +1760,10 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 		brcmf_proto_hdrpush(drvr, ifp->ifidx, 0, skb);
 
 		/* Use bus module to send data frame */
-		return brcmf_bus_txdata(drvr->bus_if, skb);
+		ret = brcmf_bus_txdata(drvr->bus_if, skb);
+		if (ret < 0)
+			brcmf_txfinalize(drvr, skb, false);
+		return ret;
 	}
 
 	/* set control buffer information */

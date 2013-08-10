@@ -2297,7 +2297,6 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	spin_lock_irqsave(&bus->txqlock, flags);
 	if (!brcmf_c_prec_enq(bus->sdiodev->dev, &bus->txq, pkt, prec)) {
 		skb_pull(pkt, SDPCM_HDRLEN);
-		brcmf_txcomplete(bus->sdiodev->dev, pkt, false);
 		brcmf_err("out of bus->txq !!!\n");
 		ret = -ENOSR;
 	} else {
