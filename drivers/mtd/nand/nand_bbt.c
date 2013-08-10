@@ -1392,4 +1392,3 @@ int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs)
 }
 
 EXPORT_SYMBOL(nand_scan_bbt);
-EXPORT_SYMBOL(nand_default_bbt);
