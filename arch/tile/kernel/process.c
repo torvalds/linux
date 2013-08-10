@@ -226,19 +226,20 @@ int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
 			(unsigned int __user *)adr);
 }
 
+static struct task_struct corrupt_current = { .comm = "<corrupt>" };
+
 /*
  * Return "current" if it looks plausible, or else a pointer to a dummy.
  * This can be helpful if we are just trying to emit a clean panic.
  */
 struct task_struct *validate_current(void)
 {
-	static struct task_struct corrupt = { .comm = "<corrupt>" };
 	struct task_struct *tsk = current;
 	if (unlikely((unsigned long)tsk < PAGE_OFFSET ||
 		     (high_memory && (void *)tsk > high_memory) ||
 		     ((unsigned long)tsk & (__alignof__(*tsk) - 1)) != 0)) {
 		pr_err("Corrupt 'current' %p (sp %#lx)\n", tsk, stack_pointer);
-		tsk = &corrupt;
+		tsk = &corrupt_current;
 	}
 	return tsk;
 }
@@ -589,7 +590,8 @@ void show_regs(struct pt_regs *regs)
 	int i;
 
 	pr_err("\n");
-	show_regs_print_info(KERN_ERR);
+	if (tsk != &corrupt_current)
+		show_regs_print_info(KERN_ERR);
 #ifdef __tilegx__
 	for (i = 0; i < 17; i++)
 		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
