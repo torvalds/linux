@@ -123,6 +123,11 @@ enum {
 	STATE_READY,
 };
 
+enum pxa3xx_nand_variant {
+	PXA3XX_NAND_VARIANT_PXA,
+	PXA3XX_NAND_VARIANT_ARMADA370,
+};
+
 struct pxa3xx_nand_host {
 	struct nand_chip	chip;
 	struct pxa3xx_nand_cmdset *cmdset;
@@ -170,6 +175,12 @@ struct pxa3xx_nand_info {
 
 	struct pxa3xx_nand_host *host[NUM_CHIP_SELECT];
 	unsigned int		state;
+
+	/*
+	 * This driver supports NFCv1 (as found in PXA SoC)
+	 * and NFCv2 (as found in Armada 370/XP SoC).
+	 */
+	enum pxa3xx_nand_variant variant;
 
 	int			cs;
 	int			use_ecc;	/* use HW ECC ? */
@@ -1192,10 +1203,27 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static struct of_device_id pxa3xx_nand_dt_ids[] = {
-	{ .compatible = "marvell,pxa3xx-nand" },
+	{
+		.compatible = "marvell,pxa3xx-nand",
+		.data       = (void *)PXA3XX_NAND_VARIANT_PXA,
+	},
+	{
+		.compatible = "marvell,armada370-nand",
+		.data       = (void *)PXA3XX_NAND_VARIANT_ARMADA370,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, pxa3xx_nand_dt_ids);
+
+static enum pxa3xx_nand_variant
+pxa3xx_nand_get_variant(struct platform_device *pdev)
+{
+	const struct of_device_id *of_id =
+			of_match_device(pxa3xx_nand_dt_ids, &pdev->dev);
+	if (!of_id)
+		return PXA3XX_NAND_VARIANT_PXA;
+	return (enum pxa3xx_nand_variant)of_id->data;
+}
 
 static int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 {
@@ -1252,6 +1280,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	}
 
 	info = platform_get_drvdata(pdev);
+	info->variant = pxa3xx_nand_get_variant(pdev);
 	probe_success = 0;
 	for (cs = 0; cs < pdata->num_cs; cs++) {
 		info->cs = cs;
