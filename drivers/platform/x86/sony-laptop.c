@@ -2440,7 +2440,10 @@ static ssize_t sony_nc_gfx_switch_status_show(struct device *dev,
 	if (pos < 0)
 		return pos;
 
-	return snprintf(buffer, PAGE_SIZE, "%s\n", pos ? "speed" : "stamina");
+	return snprintf(buffer, PAGE_SIZE, "%s\n",
+					pos == SPEED ? "speed" :
+					pos == STAMINA ? "stamina" :
+					pos == AUTO ? "auto" : "unknown");
 }
 
 static int sony_nc_gfx_switch_setup(struct platform_device *pd,
