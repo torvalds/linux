@@ -2551,33 +2551,6 @@ int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_put_value_enum_double);
 
 /**
- * snd_soc_info_enum_ext - external enumerated single mixer info callback
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information about an external enumerated
- * single mixer.
- *
- * Returns 0 for success.
- */
-int snd_soc_info_enum_ext(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = e->max;
-
-	if (uinfo->value.enumerated.item > e->max - 1)
-		uinfo->value.enumerated.item = e->max - 1;
-	strcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item]);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_enum_ext);
-
-/**
  * snd_soc_info_volsw - single mixer info callback
  * @kcontrol: mixer control
  * @uinfo: control element information
