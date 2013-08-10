@@ -493,7 +493,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		while (bf) {
 			bf_next = bf->bf_next;
 
-			if (!bf->bf_stale || bf_next != NULL)
+			if (!bf->bf_state.stale || bf_next != NULL)
 				list_move_tail(&bf->list, &bf_head);
 
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts, 0);
@@ -586,7 +586,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		 * not a holding desc.
 		 */
 		INIT_LIST_HEAD(&bf_head);
-		if (bf_next != NULL || !bf_last->bf_stale)
+		if (bf_next != NULL || !bf_last->bf_state.stale)
 			list_move_tail(&bf->list, &bf_head);
 
 		if (!txpending) {
@@ -610,7 +610,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				ieee80211_sta_eosp(sta);
 			}
 			/* retry the un-acked ones */
-			if (bf->bf_next == NULL && bf_last->bf_stale) {
+			if (bf->bf_next == NULL && bf_last->bf_state.stale) {
 				struct ath_buf *tbf;
 
 				tbf = ath_clone_txbuf(sc, bf_last);
@@ -1734,7 +1734,7 @@ static void ath_drain_txq_list(struct ath_softc *sc, struct ath_txq *txq,
 	while (!list_empty(list)) {
 		bf = list_first_entry(list, struct ath_buf, list);
 
-		if (bf->bf_stale) {
+		if (bf->bf_state.stale) {
 			list_del(&bf->list);
 
 			ath_tx_return_buffer(sc, bf);
@@ -2490,7 +2490,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		 * it with the STALE flag.
 		 */
 		bf_held = NULL;
-		if (bf->bf_stale) {
+		if (bf->bf_state.stale) {
 			bf_held = bf;
 			if (list_is_last(&bf_held->list, &txq->axq_q))
 				break;
@@ -2514,7 +2514,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		 * however leave the last descriptor back as the holding
 		 * descriptor for hw.
 		 */
-		lastbf->bf_stale = true;
+		lastbf->bf_state.stale = true;
 		INIT_LIST_HEAD(&bf_head);
 		if (!list_is_singular(&lastbf->list))
 			list_cut_position(&bf_head,
@@ -2585,7 +2585,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		}
 
 		bf = list_first_entry(fifo_list, struct ath_buf, list);
-		if (bf->bf_stale) {
+		if (bf->bf_state.stale) {
 			list_del(&bf->list);
 			ath_tx_return_buffer(sc, bf);
 			bf = list_first_entry(fifo_list, struct ath_buf, list);
@@ -2607,7 +2607,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 				ath_tx_txqaddbuf(sc, txq, &bf_q, true);
 			}
 		} else {
-			lastbf->bf_stale = true;
+			lastbf->bf_state.stale = true;
 			if (bf != lastbf)
 				list_cut_position(&bf_head, fifo_list,
 						  lastbf->list.prev);
