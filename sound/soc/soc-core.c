@@ -2578,32 +2578,6 @@ int snd_soc_info_enum_ext(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_info_enum_ext);
 
 /**
- * snd_soc_info_volsw_ext - external single mixer info callback
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information about a single external mixer control.
- *
- * Returns 0 for success.
- */
-int snd_soc_info_volsw_ext(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	int max = kcontrol->private_value;
-
-	if (max == 1 && !strstr(kcontrol->id.name, " Volume"))
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	else
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = max;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_volsw_ext);
-
-/**
  * snd_soc_info_volsw - single mixer info callback
  * @kcontrol: mixer control
  * @uinfo: control element information
