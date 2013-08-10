@@ -47,6 +47,16 @@ static struct mfd_cell power_devs[] = {
 	.id = -1,
 	.num_resources = 0,
 },
+{
+	.name = RT5025_DEVICE_NAME "-swjeita",
+	.id = -1,
+	.num_resources = 0,
+},
+{
+	.name = RT5025_DEVICE_NAME "-battery",
+	.id = -1,
+	.num_resources = 0,
+},
 };
 #endif /* CONFIG_POWER_RT5025 */
 
@@ -95,7 +105,6 @@ int __devinit rt5025_core_init(struct rt5025_chip *chip, struct rt5025_platform_
 	int ret = 0;
 
 	RTINFO("Start to initialize all device\n");
-	printk("%s,line=%d\n", __func__,__LINE__);
 
 	#ifdef CONFIG_REGULATOR_RT5025
 	if (pdata && pdata->regulator[0]) {
@@ -117,7 +126,7 @@ int __devinit rt5025_core_init(struct rt5025_chip *chip, struct rt5025_platform_
 	#endif /* CONFIG_REGULATOR_RT5025 */
 
 	#ifdef CONFIG_POWER_RT5025
-	if (pdata && pdata->power_data) {
+	if (pdata && pdata->power_data && pdata->jeita_data) {
 	    RTINFO("mfd add power dev\n");
 		#if (LINUX_VERSION_CODE>=KERNEL_VERSION(3,6,0))
 		ret = mfd_add_devices(chip->dev, 0, &power_devs[0],
@@ -155,7 +164,7 @@ int __devinit rt5025_core_init(struct rt5025_chip *chip, struct rt5025_platform_
 		}
 	}
 	#endif /* CONFIG_GPIO_RT5025 */
-\
+
 	#ifdef CONFIG_MFD_RT5025_MISC
 	if (pdata && pdata->misc_data) {
 		RTINFO("mfd add misc dev\n");
@@ -193,10 +202,9 @@ int __devinit rt5025_core_init(struct rt5025_chip *chip, struct rt5025_platform_
 		}
 	}
 	#endif /* CONFIG_MFD_RT5025_IRQ */
-#if 1
+
 	#ifdef CONFIG_MFD_RT5025_DEBUG
 	RTINFO("mfd add debug dev\n");
-	printk("%s,line=%d\n", __func__,__LINE__);
 	#if (LINUX_VERSION_CODE>=KERNEL_VERSION(3,6,0))
 	ret = mfd_add_devices(chip->dev, 0, &debug_devs[0],
 			      ARRAY_SIZE(debug_devs),
@@ -211,8 +219,7 @@ int __devinit rt5025_core_init(struct rt5025_chip *chip, struct rt5025_platform_
 		goto out_dev;
 	}
 	#endif /* CONFIG_MFD_RT5025_DEBUG */
-#endif
-	
+
 	RTINFO("Initialize all device successfully\n");
 	return ret;
 out_dev:

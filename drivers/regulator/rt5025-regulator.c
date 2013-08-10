@@ -35,6 +35,8 @@ struct rt5025_regulator_info {
 	int	vol_mask;
 	int	enable_bit;
 	int	enable_reg;
+	int	mode_bit;
+	int	mode_reg;
 };
 
 //for DCDC1
@@ -121,10 +123,10 @@ static int rt5025_list_voltage(struct regulator_dev *rdev, unsigned index)
 
 	return (index>=info->vol_output_size)? \
 		 -EINVAL: \
-		info->vol_output_list[index ];
+		info->vol_output_list[index];
 }
 
-//#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,38))
+#if 0 //(LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,38))
 static int rt5025_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 {
 	struct rt5025_regulator_info *info = rdev_get_drvdata(rdev);
@@ -147,7 +149,7 @@ static int rt5025_get_voltage_sel(struct regulator_dev *rdev)
 		return ret;
 	return (ret & info->vol_mask)  >> info->vol_shift;
 }
-//#else
+#else
 static int rt5025_find_voltage(struct regulator_dev *rdev,
 			       int min_uV, int max_uV)
 {
@@ -169,6 +171,7 @@ static int rt5025_set_voltage(struct regulator_dev *rdev,
 {
 	struct rt5025_regulator_info *info = rdev_get_drvdata(rdev);
 	unsigned char data;
+
 	if (check_range(info, min_uV, max_uV)) {
 		dev_err(info->chip->dev, "invalid voltage range (%d, %d) uV\n",
 			min_uV, max_uV);
@@ -176,20 +179,22 @@ static int rt5025_set_voltage(struct regulator_dev *rdev,
 	}
 	data = rt5025_find_voltage(rdev,min_uV,max_uV);
 	data <<= info->vol_shift;
+
 	return rt5025_assign_bits(info->i2c, info->vol_reg, info->vol_mask, data);
 }
 
 
 static int rt5025_get_voltage(struct regulator_dev *rdev)
 {
+	struct rt5025_regulator_info *info = rdev_get_drvdata(rdev);
 	int ret;
-	ret = rt5025_get_voltage_sel(rdev);
+	ret = rt5025_reg_read(info->i2c, info->vol_reg);
 	if (ret < 0)
 		return ret;
-	return rt5025_list_voltage(rdev, ret );
-
+	ret =  (ret & info->vol_mask)  >> info->vol_shift;
+	return rt5025_list_voltage(rdev, ret);
 }
-//#endif /* LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,38) */
+#endif /* LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,38) */
 
 static int rt5025_enable(struct regulator_dev *rdev)
 {
@@ -218,102 +223,61 @@ static int rt5025_is_enabled(struct regulator_dev *rdev)
 
 	return (ret & (info->enable_bit))?1:0;
 }
-static int rt5025_dcdc_get_mode(struct regulator_dev *rdev)
-{
-	struct rt5025_regulator_info *info = rdev_get_drvdata(rdev);
-	int buck = rdev_get_id(rdev) - 0;
-	int ret;
-	uint8_t control;
-	
-	ret = rt5025_reg_read(info->i2c, 0x0c);
-        if (ret < 0) {
-                return ret;
-        }
-	if (buck ==0){
-	control =(ret & 0x80)>>7;
-	}
-	else if (buck ==1){
-	control =(ret & 0x40)>>6;
-	}
-	else if (buck ==2){
-	control =(ret & 0x20)>>5;
-	}
-	else{
-	return -1;
-	}
-	switch (control) {
-	case 0:
-		return REGULATOR_MODE_FAST;
-	case 1:
-		return REGULATOR_MODE_NORMAL;
-	default:
-		return -1;
-	}
-	
-}
-static int rt5025_dcdc_set_mode(struct regulator_dev *rdev, unsigned int mode)
-{
-	struct rt5025_regulator_info *info = rdev_get_drvdata(rdev);
-	int buck = rdev_get_id(rdev) - 0;
-	int ret;
-	uint8_t control;
-	
-	ret = rt5025_reg_read(info->i2c, 0x0c);
-	if (buck ==0){
-	control =ret &(~ (1 <<7));
-	}
-	else if (buck ==1){
-	control =ret &(~ (1 <<6));
-	}
-	else if (buck ==2){
-	control =ret &(~ (1 <<5));
-	}
-	else{
-	return -1;
-	}
-	
-	switch(mode)
-	{
-	case REGULATOR_MODE_FAST:
-		return  rt5025_reg_write(info->i2c, 0x0c,control);
-	case REGULATOR_MODE_NORMAL:
-		 return rt5025_reg_write(info->i2c, 0x0c,(control | (1 <<(7-buck))));
-	default:
-		printk("error:pmu_rt5025 only powersave pwm & auto mode\n");
-		return -EINVAL;
-	}
-}
-static int rt5025_dcdc_set_voltage_time_sel(struct regulator_dev *rdev,   unsigned int old_selector,
-				     unsigned int new_selector)
-{
-	int old_volt, new_volt;
-	
-	old_volt = rt5025_list_voltage(rdev, old_selector);
-	if (old_volt < 0)
-		return old_volt;
-	
-	new_volt = rt5025_list_voltage(rdev, new_selector);
-	if (new_volt < 0)
-		return new_volt;
 
-	return DIV_ROUND_UP(abs(old_volt - new_volt), 25000);
+static int rt5025_set_mode(struct regulator_dev *rdev, unsigned int mode)
+{
+	struct rt5025_regulator_info *info = rdev_get_drvdata(rdev);
+	int ret;
+	if (!info->mode_bit)
+		ret = 0;
+	else
+	{
+		switch (mode)
+		{
+			case REGULATOR_MODE_NORMAL:
+				ret = rt5025_set_bits(info->i2c, info->mode_reg, info->mode_bit);
+				break;
+			case REGULATOR_MODE_FAST:
+				ret = rt5025_clr_bits(info->i2c, info->mode_reg, info->mode_bit);
+				break;
+			default:
+				ret = -EINVAL;
+				break;
+		}
+	}
+	return ret;
+}
+
+static unsigned int rt5025_get_mode(struct regulator_dev *rdev)
+{
+	struct rt5025_regulator_info *info = rdev_get_drvdata(rdev);
+	unsigned int mode;
+	int data;
+
+	if (!info->mode_bit)
+		mode = REGULATOR_MODE_NORMAL;
+	else
+	{
+		data = rt5025_reg_read(info->i2c, info->mode_reg);
+		mode = (data & info->mode_bit)?REGULATOR_MODE_NORMAL:REGULATOR_MODE_FAST;
+	}
+	return mode;
 }
 
 static struct regulator_ops rt5025_regulator_ops = {
 	.list_voltage		= rt5025_list_voltage,
-//#if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,38))
-//	.get_voltage_sel	= rt5025_get_voltage_sel,
-//	.set_voltage_sel	= rt5025_set_voltage_sel,
-//#else
+#if 0 //(LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,38))
+	.get_voltage_sel	= rt5025_get_voltage_sel,
+	.set_voltage_sel	= rt5025_set_voltage_sel,
+#else
 	.set_voltage		= rt5025_set_voltage,
 	.get_voltage		= rt5025_get_voltage,
-//#endif /* LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,38) */
+#endif /* LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,38) */
 	.enable			= rt5025_enable,
 	.disable		= rt5025_disable,
 	.is_enabled		= rt5025_is_enabled,
-	.get_mode = rt5025_dcdc_get_mode,
-	.set_mode = rt5025_dcdc_set_mode,
-	.set_voltage_time_sel = rt5025_dcdc_set_voltage_time_sel,
+	.set_mode		= rt5025_set_mode,
+	.get_mode		= rt5025_get_mode,
 };
 
 #define RT5025_DCDCVOUT_LIST1 rt5025_vol_output_list1
@@ -358,6 +322,8 @@ static struct regulator_ops rt5025_regulator_ops = {
 	.vol_mask	= RT5025_DCDCVOUT_MASK##_id,		\
 	.enable_reg	= RT5025_DCDC_OUTPUT_EN,		\
 	.enable_bit	= RT5025_DCDCEN_MASK##_id,		\
+	.mode_reg	= RT5025_REG_DCDCVRC,			\
+	.mode_bit	= RT5025_DCDCMODE_MASK##_id		\
 }
 
 #define RT5025_LDO(_id, min, max)				\
@@ -379,6 +345,8 @@ static struct regulator_ops rt5025_regulator_ops = {
 	.vol_mask	= RT5025_LDOVOUT_MASK##_id,		\
 	.enable_reg	= RT5025_LDO_OUTPUT_EN,			\
 	.enable_bit	= RT5025_LDOEN_MASK##_id,		\
+	.mode_reg	= RT5025_REG_LDOVRC,			\
+	.mode_bit	= RT5025_LDOMODE_MASK##_id,		\
 }
 
 static struct rt5025_regulator_info rt5025_regulator_info[] = 

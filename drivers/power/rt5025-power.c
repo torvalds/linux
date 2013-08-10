@@ -22,7 +22,6 @@
 #include <linux/workqueue.h>
 #include <linux/mfd/rt5025.h>
 #include <linux/power/rt5025-power.h>
-#include <linux/power/rt5025-gauge.h>
 #include <linux/delay.h>
 
 
@@ -33,6 +32,7 @@ static enum power_supply_property rt5025_adap_props[] = {
 static char *rt5025_supply_list[] = {
 	"rt5025-battery",
 };
+
 
 #if 0
 static int rt5025_set_charging_current_switch (struct i2c_client *i2c, int onoff)
@@ -62,6 +62,7 @@ static int rt5025_set_charging_current(struct i2c_client *i2c, int cur_value)
 	u8 data = 0;
 
 	//ICC Setting
+	#if 0
 	if (cur_value > 2000)
 		data |= 0x0f<<3;
 	else if (cur_value >= 500 && cur_value <= 2000)
@@ -69,7 +70,7 @@ static int rt5025_set_charging_current(struct i2c_client *i2c, int cur_value)
 		data = (cur_value-500)/100;
 		data<<=3;
 	}
-	
+	#endif
 
 	//AICR Setting
 	if (cur_value > 1000)
@@ -79,7 +80,7 @@ static int rt5025_set_charging_current(struct i2c_client *i2c, int cur_value)
 	else if (cur_value > 100 && cur_value >= 500)
 		data |= 0x01<<1;
 
-	rt5025_assign_bits(i2c, RT5025_REG_CHGCTL4, RT5025_CHGCC_MASK, data);
+	rt5025_assign_bits(i2c, RT5025_REG_CHGCTL4, RT5025_CHGAICR_MASK, data);
 	return ret;
 }
 
@@ -94,22 +95,52 @@ static int rt5025_chgstat_changed(struct rt5025_power_info *info, unsigned new_v
 			rt5025_set_charging_buck(info->i2c, 1);
 			#endif
 			info->chg_stat = 0x00;
+			#if 1
+			if (info->chip->battery_info)
+			{
+				if (info->chg_term == 0)
+					rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_DISCHARGING);
+				else if (info->chg_term > 0)
+				{
+					rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_FULL);
+					info->chg_term = 0;
+				}
+				
+			}
+			#else
 			if (info->event_callback)
 				info->event_callback->rt5025_gauge_set_status(POWER_SUPPLY_STATUS_CHARGING);
+			#endif
 			break;
 		case 0x01:
 			//rt5025_set_charging_current_switch(info->i2c, 1);
 			info->chg_stat = 0x01;
+			#if 1
+			if (info->chip->battery_info)
+			{
+				rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_CHARGING);
+				info->chg_term = 0;
+			}
+			#else
 			if (info->event_callback)
 				info->event_callback->rt5025_gauge_set_status(POWER_SUPPLY_STATUS_CHARGING);
+			#endif
 			break;
 		case 0x02:
 			#if 0
 			rt5025_set_charging_current_switch(info->i2c, 0);
 			#endif
 			info->chg_stat = 0x02;
+			#if 1
+			if (info->chip->battery_info)
+			{
+				rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_FULL);
+				info->chg_term = 0;
+			}
+			#else
 			if (info->event_callback)
 				info->event_callback->rt5025_gauge_set_status(POWER_SUPPLY_STATUS_FULL);
+			#endif
 			break;
 		case 0x03:
 			#if 0
@@ -117,8 +148,21 @@ static int rt5025_chgstat_changed(struct rt5025_power_info *info, unsigned new_v
 			rt5025_set_charging_current_switch(info->i2c, 0);
 			#endif
 			info->chg_stat = 0x03;
+			#if 1
+			if (info->chip->battery_info)
+			{
+				if (info->chg_term == 0)
+					rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_CHARGING);
+				else if (info->chg_term > 1)
+				{
+					rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_FULL);
+					info->chg_term = 0;
+				}
+			}
+			#else
 			if (info->event_callback)
 				info->event_callback->rt5025_gauge_set_status(POWER_SUPPLY_STATUS_DISCHARGING);
+			#endif
 			break;
 		default:
 			break;
@@ -126,6 +170,7 @@ static int rt5025_chgstat_changed(struct rt5025_power_info *info, unsigned new_v
 	return ret;
 }
 
+#if 0
 int rt5025_power_passirq_to_gauge(struct rt5025_power_info *info)
 {
 	if (info->event_callback)
@@ -133,6 +178,7 @@ int rt5025_power_passirq_to_gauge(struct rt5025_power_info *info)
 	return 0;
 }
 EXPORT_SYMBOL(rt5025_power_passirq_to_gauge);
+#endif
 
 int rt5025_power_charge_detect(struct rt5025_power_info *info)
 {
@@ -169,6 +215,7 @@ int rt5025_power_charge_detect(struct rt5025_power_info *info)
 		schedule_delayed_work(&info->usb_detect_work, 0); //no delay
 
 	new_chgval = (chgstatval&RT5025_CHGSTAT_MASK)>>RT5025_CHGSTAT_SHIFT;
+	
 	if (new_acval || new_usbval)
 	{
 		if (old_chgval != new_chgval)
@@ -183,8 +230,15 @@ int rt5025_power_charge_detect(struct rt5025_power_info *info)
 		rt5025_set_charging_current_switch(info->i2c, 0);
 		#endif
 		info->chg_stat = RT5025_CHGSTAT_UNKNOWN;
+		if (info->chip->jeita_info)
+			rt5025_notify_charging_cable(info->chip->jeita_info, JEITA_NO_CHARGE);
+		#if 1
+		if (info->chip->battery_info)
+			rt5025_gauge_set_status(info->chip->battery_info, POWER_SUPPLY_STATUS_NOT_CHARGING);
+		#else
 		if (info->event_callback)
 			info->event_callback->rt5025_gauge_set_status(POWER_SUPPLY_STATUS_NOT_CHARGING);
+		#endif
 	}
 
 	return ret;
@@ -212,7 +266,9 @@ static int rt5025_adap_get_props(struct power_supply *psy,
 	return 0;
 }
 
+
 extern int dwc_vbus_status(void);
+
 
 static void usb_detect_work_func(struct work_struct *work)
 {
@@ -225,6 +281,7 @@ static void usb_detect_work_func(struct work_struct *work)
 	if (pi->ac_online)
 	{
 		rt5025_set_charging_current(pi->i2c, 1000);
+		rt5025_notify_charging_cable(pi->chip->jeita_info, JEITA_AC_ADAPTER);
 		pi->usb_cnt = 0;
 	}
 	else if (pi->usb_online)
@@ -234,11 +291,13 @@ static void usb_detect_work_func(struct work_struct *work)
 		{
 			case 2: // USB Wall charger
 				rt5025_set_charging_current(pi->i2c, 1000);
+				rt5025_notify_charging_cable(pi->chip->jeita_info, JEITA_USB_TA);
 				pr_info("rt5025: detect usb wall charger\n");
 				break;
 			case 1: //normal USB
 			default:
 				rt5025_set_charging_current(pi->i2c, 500);
+				rt5025_notify_charging_cable(pi->chip->jeita_info, JEITA_NORMAL_USB);
 				pr_info("rt5025: detect normal usb\n");
 				break;
 		}
@@ -249,6 +308,7 @@ static void usb_detect_work_func(struct work_struct *work)
 	{
 		//default to prevent over current charging
 		rt5025_set_charging_current(pi->i2c, 500);
+		rt5025_notify_charging_cable(pi->chip->jeita_info, JEITA_NO_CHARGE);
 		//reset usb_cnt;
 		pi->usb_cnt = 0;
 	}
@@ -259,13 +319,14 @@ static void usb_detect_work_func(struct work_struct *work)
 
 static int __devinit rt5025_init_charger(struct rt5025_power_info *info, struct rt5025_power_data* pd)
 {
-	RTINFO("++\n");
 	info->ac_online = 0;
 	info->usb_online =0;
 	//init charger buckck & charger current en to disable stat
 	info->chg_stat = RT5025_CHGSTAT_UNKNOWN;
+	#if 0
 	if (info->event_callback)
 		info->event_callback->rt5025_gauge_set_status(POWER_SUPPLY_STATUS_DISCHARGING);
+	#endif
 	rt5025_set_bits(info->i2c, RT5025_REG_CHGCTL4, RT5025_CHGRST_MASK);
 	udelay(200);
 	//init register setting
@@ -278,7 +339,6 @@ static int __devinit rt5025_init_charger(struct rt5025_power_info *info, struct 
 	
 	rt5025_power_charge_detect(info);
 
-	RTINFO("--\n");
 	return 0;
 }
 
@@ -288,25 +348,26 @@ static int __devinit rt5025_power_probe(struct platform_device *pdev)
 	struct rt5025_platform_data *pdata = chip->dev->platform_data;
 	struct rt5025_power_info *pi;
 	int ret = 0;
-	printk("%s,line=%d\n", __func__,__LINE__);	
-
+	
 	pi = kzalloc(sizeof(*pi), GFP_KERNEL);
 	if (!pi)
 		return -ENOMEM;
 
 	pi->i2c = chip->i2c;
 	pi->dev = &pdev->dev;
-	pi->fcc = pdata->power_data->fcc;
+	pi->chip = chip;
 	mutex_init(&pi->var_lock);
 	INIT_DELAYED_WORK(&pi->usb_detect_work, usb_detect_work_func);
 
+	#if 0
 	ret = rt5025_gauge_init(pi);
 	if (ret)
 		goto out;
+	#endif
 
 	platform_set_drvdata(pdev, pi);
 
-	pi->ac.name = "rt5025-ac";
+	pi->ac.name = "rt5025-dc";
 	pi->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	pi->ac.supplied_to = rt5025_supply_list;
 	pi->ac.properties = rt5025_adap_props;
@@ -340,18 +401,23 @@ out:
 
 static int rt5025_power_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	#if 0
 	struct rt5025_power_info *pi = platform_get_drvdata(pdev);
 
 	if (pi->event_callback)
 		pi->event_callback->rt5025_gauge_suspend();
+	#endif
 	return 0;
 }
 
 static int rt5025_power_resume(struct platform_device *pdev)
 {
+	#if 0
 	struct rt5025_power_info *pi = platform_get_drvdata(pdev);
+
 	if (pi->event_callback)
 		pi->event_callback->rt5025_gauge_resume();
+	#endif
 	return 0;
 }
 
@@ -360,8 +426,10 @@ static int __devexit rt5025_power_remove(struct platform_device *pdev)
 	struct rt5025_power_info *pi = platform_get_drvdata(pdev);
 	struct rt5025_chip *chip = dev_get_drvdata(pdev->dev.parent);
 
+	#if 0
 	if (pi->event_callback)
 		pi->event_callback->rt5025_gauge_remove();
+	#endif
 	power_supply_unregister(&pi->usb);
 	power_supply_unregister(&pi->ac);
 	chip->power_info = NULL;

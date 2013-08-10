@@ -49,4 +49,4 @@ obj-$(CONFIG_PLAT_RK)		+= rk29_charger_display.o
 obj-$(CONFIG_BATTERY_RK30_ADC_FAC)  += rk30_factory_adc_battery.o
 obj-$(CONFIG_CW2015_BATTERY)  += cw2015_battery.o
 obj-$(CONFIG_BATTERY_RICOH619)	+= ricoh619-battery.o
-obj-$(CONFIG_POWER_RT5025)	+= rt5025-power.o rt5025-gauge.o
+obj-$(CONFIG_POWER_RT5025)	+= rt5025-power.o rt5025-battery.o rt5025-swjeita.o

@@ -14,6 +14,7 @@
 #define __LINUX_MFD_RT5025_H
 
 #include <linux/power_supply.h>
+#include <linux/android_alarm.h>
 
 #define RT5025_DEVICE_NAME "RT5025"
 
@@ -215,7 +216,6 @@ struct rt5025_power_data {
 		}bitfield;
 		unsigned char val;
 	}CHGControl7;
-	u32 fcc;
 };
 
 struct rt5025_gpio_data {
@@ -337,6 +337,21 @@ struct rt5025_irq_data {
 	}irq_enable5;
 };
 
+enum {
+	JEITA_NO_CHARGE,
+	JEITA_NORMAL_USB,
+	JEITA_USB_TA,
+	JEITA_AC_ADAPTER,
+	JEITA_CHARGER_MAX,
+};
+
+struct rt5025_jeita_data {
+	int* temp;
+	u8* temp_scalar;
+	int (*temp_cc)[5];
+	int (*temp_cv)[5];
+};
+
 #define CHG_EVENT_INACOVP	(0x80<<16)
 #define CHG_EVENT_INAC_PLUGIN	(0x40<<16)
 #define CHG_EVENT_INUSBOVP	(0x10<<16)
@@ -360,7 +375,9 @@ struct rt5025_irq_data {
 
 #define CHARGER_DETECT_MASK	(CHG_EVENT_INAC_PLUGIN | CHG_EVENT_INUSB_PLUGIN | \
 				 CHG_EVENT_CHSLPI_INAC | CHG_EVENT_CHSLPI_INUSB | \
-				 CHG_EVENT_CHBADI_INAC | CHG_EVENT_CHBADI_INUSB)
+				 CHG_EVENT_CHBADI_INAC | CHG_EVENT_CHBADI_INUSB | \
+				 CHG_EVENT_CHTERMI | CHG_EVENT_CHRCHGI)
+ 
 
 #define PWR_EVENT_OTIQ		(0x80<<8)
 #define PWR_EVENT_DCDC1LV	(0x40<<8)
@@ -374,7 +391,7 @@ struct rt5025_irq_data {
 #define PWR_EVENT_KPSHDN	(0x80<<0)
 #define PWR_EVNET_PWRONR	(0x40<<0)
 #define PWR_EVENT_PWRONF	(0x20<<0)
-#define	PWR_EVENT_RESETB	(0x10<<0)
+#define PWR_EVENT_RESETB	(0x10<<0)
 #define PWR_EVENT_GPIO2IE	(0x08<<0)
 #define PWR_EVENT_GPIO1IE	(0x04<<0)
 #define PWR_EVENT_GPIO0IE	(0x02<<0)
@@ -393,38 +410,13 @@ struct rt5025_event_callback {
 	#endif
 };
 
-struct rt5025_power_info {
-	struct i2c_client	*i2c;
-	struct device		*dev;
-	struct rt5025_gauge_callbacks *event_callback;
-	struct power_supply	ac;
-	struct power_supply	usb;
-	struct mutex	var_lock;
-	struct delayed_work usb_detect_work;
-	int usb_cnt;
-	u32	fcc;
-	unsigned		ac_online:1;
-	unsigned		usb_online:1;
-	unsigned		chg_stat:3;
-};
-
-struct rt5025_chip {
-	struct i2c_client *i2c;
-	struct workqueue_struct *wq;
-	struct device *dev;
-	struct rt5025_power_info *power_info;
-	int suspend;
-	int irq;
-	struct delayed_work delayed_work;
-	struct mutex io_lock;
-};
-
 struct rt5025_platform_data {
 	struct regulator_init_data* regulator[RT5025_MAX_REGULATOR];
 	struct rt5025_power_data* power_data;
 	struct rt5025_gpio_data* gpio_data;
 	struct rt5025_misc_data* misc_data;
 	struct rt5025_irq_data* irq_data;
+	struct rt5025_jeita_data* jeita_data;
 	struct rt5025_event_callback *cb;
 	int (*pre_init)(struct rt5025_chip *rt5025_chip);
 	/** Called after subdevices are set up */
@@ -432,14 +424,195 @@ struct rt5025_platform_data {
 	int intr_pin;
 };
 
+struct rt5025_power_info {
+	struct i2c_client	*i2c;
+	struct device		*dev;
+	struct rt5025_chip	*chip;
+	//struct rt5025_gauge_callbacks *event_callback;
+	struct power_supply	ac;
+	struct power_supply	usb;
+	struct mutex	var_lock;
+	struct delayed_work usb_detect_work;
+	int usb_cnt;
+	int chg_term;
+	unsigned		ac_online:1;
+	unsigned		usb_online:1;
+	unsigned		chg_stat:3;
+};
+
+struct rt5025_swjeita_info {
+	struct i2c_client *i2c;
+	struct rt5025_chip *chip;
+	int *temp;
+	u8 *temp_scalar;
+	int (*temp_cc)[5];
+	int (*temp_cv)[5];
+	int cur_section;
+	int cur_cable;
+	int cur_temp;
+	int init_once;
+	int suspend;
+};
+
+struct rt5025_battery_info {
+	struct i2c_client *client;
+	struct rt5025_chip *chip;
+	//struct rt5025_gauge_callbacks cb;
+
+	struct power_supply	battery;
+	
+	struct delayed_work monitor_work;
+	struct wake_lock monitor_wake_lock;
+	struct wake_lock low_battery_wake_lock;
+//#if RT5025_TEST_WAKE_LOCK
+	struct wake_lock test_wake_lock;
+//#endif
+	struct alarm wakeup_alarm;
+	
+	bool temp_range_0_5;
+	bool temp_range_5_10;
+	bool temp_range_10_15;
+	bool temp_range_15_20;
+	bool temp_range_20_30;
+	bool temp_range_30_35;
+	bool temp_range_35_40;
+	bool temp_range_40_45;
+	bool temp_range_45_50;
+	
+	bool range_0_5_done;
+	bool range_5_10_done;
+	bool range_10_15_done;
+	bool range_15_20_done;
+	bool range_20_30_done;
+	bool range_30_35_done;
+	bool range_35_40_done;
+	bool range_40_45_done;
+	bool range_45_50_done;
+	
+	
+	
+	bool	suspend_poll;
+	ktime_t	last_poll;
+//	ktime_t	last_event;
+  struct timespec last_event;
+
+  u16 update_time;
+  
+  /* previous battery voltage */
+  u16 pre_vcell;
+  /* previous battery current */
+  s16 pre_curr;	
+  /* battery voltage */
+  u16 vcell;
+  /* battery current */
+  s16 curr;
+  /* battery current offset */
+  u16 curr_offset;
+  /* AIN voltage */
+  u16 ain_volt;
+  /* battery external temperature */
+  s16 ext_temp;
+  /* charge coulomb counter */
+  u32 chg_cc;
+  u32 chg_cc_unuse;
+  /* discharge coulomb counter */
+  u32 dchg_cc;
+  u32 dchg_cc_unuse;
+  /* battery capacity */
+  u16 soc;
+  u16 temp_soc;
+  u16 pre_soc;
+  
+  u16 time_interval;
+  u16 pre_gauge_timer;
+    
+  u8 online;
+  u8 status;
+  u8 internal_status;
+  u8 health;
+  u8 present;
+
+  /* IRQ flag */
+  u8 irq_flag;
+   
+  /* max voltage IRQ flag */
+  bool max_volt_irq;
+  /* min voltage1 IRQ flag */
+  bool min_volt1_irq;  
+  /* min voltage2 IRQ flag */
+  bool min_volt2_irq;
+  /* max temperature IRQ flag */
+  bool max_temp_irq;
+  /* min temperature IRQ flag */
+  bool min_temp_irq;
+
+  bool min_volt2_alert;
+
+	u8 temp_high_cnt;
+	u8 temp_low_cnt;
+	u8 temp_recover_cnt;
+	
+	bool init_cap;
+	bool avg_flag;
+	
+  /* remain capacity */
+  u32 rm;
+  /* SOC permille  */
+  u16 permille;
+  /* full capccity */
+  u16 fcc_aging;
+  u16 fcc;
+  u16	dc;
+  s16 tempcmp;
+  #if 0
+  u32 time_to_empty;
+  u32 time_to_full;
+  #endif
+  
+  bool edv_flag;
+  bool edv_detection;
+  u8 edv_cnt;
+  
+  bool tp_flag;
+  u8 tp_cnt;
+  
+  u8 cycle_cnt;
+  u32 acc_dchg_cap;
+
+  bool smooth_flag;
+  
+  u16 gauge_timer;
+  s16 curr_raw;
+
+  bool init_once;
+  bool device_suspend;
+  u8 test_temp;
+};
+
+struct rt5025_chip {
+	struct i2c_client *i2c;
+	struct workqueue_struct *wq;
+	struct device *dev;
+	struct rt5025_power_info *power_info;
+	struct rt5025_swjeita_info *jeita_info;
+	struct rt5025_battery_info *battery_info;
+	int suspend;
+	int irq;
+	struct delayed_work delayed_work;
+	struct mutex io_lock;
+};
+
 #ifdef CONFIG_MFD_RT5025_MISC
 extern void rt5025_power_off(void);
 #endif /* CONFIG_MFD_RT5025_MISC */
 
 #ifdef CONFIG_POWER_RT5025
-extern int rt5025_gauge_init(struct rt5025_power_info *);
-extern int rt5025_power_passirq_to_gauge(struct rt5025_power_info *);
+extern void rt5025_gauge_set_status(struct rt5025_battery_info *, int);
+extern void rt5025_gauge_set_online(struct rt5025_battery_info *, bool);
+extern void rt5025_gauge_irq_handler(struct rt5025_battery_info *, u8);
 extern int rt5025_power_charge_detect(struct rt5025_power_info *);
+extern int rt5025_notify_charging_cable(struct rt5025_swjeita_info *, int);
+extern int rt5025_swjeita_irq_handler(struct rt5025_swjeita_info *, unsigned char);
 #endif /* CONFIG_POEWR_RT5025 */
 
 extern int rt5025_reg_block_read(struct i2c_client *, int, int, void *);
