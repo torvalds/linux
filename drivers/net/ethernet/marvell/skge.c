@@ -3077,11 +3077,13 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 
 		pci_dma_sync_single_for_cpu(skge->hw->pdev,
 					    dma_unmap_addr(e, mapaddr),
-					    len, PCI_DMA_FROMDEVICE);
+					    dma_unmap_len(e, maplen),
+					    PCI_DMA_FROMDEVICE);
 		skb_copy_from_linear_data(e->skb, skb->data, len);
 		pci_dma_sync_single_for_device(skge->hw->pdev,
 					       dma_unmap_addr(e, mapaddr),
-					       len, PCI_DMA_FROMDEVICE);
+					       dma_unmap_len(e, maplen),
+					       PCI_DMA_FROMDEVICE);
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
 		struct sk_buff *nskb;
