@@ -158,7 +158,7 @@ ENTRY(_start)
 	/*
 	 * Load up our per-cpu offset.  When the first (master) tile
 	 * boots, this value is still zero, so we will load boot_pc
-	 * with start_kernel, and boot_sp with init_stack + THREAD_SIZE.
+	 * with start_kernel, and boot_sp with at the top of init_stack.
 	 * The master tile initializes the per-cpu offset array, so that
 	 * when subsequent (secondary) tiles boot, they will instead load
 	 * from their per-cpu versions of boot_sp and boot_pc.
@@ -202,9 +202,9 @@ ENTRY(_start)
 	}
 	ld r0, r0
 	ld sp, r1
-	or r4, sp, r4
+	shli r4, r4, CPU_SHIFT
+	bfins r4, sp, 0, CPU_SHIFT-1
 	mtspr SPR_SYSTEM_SAVE_K_0, r4  /* save ksp0 + cpu */
-	addi sp, sp, -STACK_TOP_DELTA
 	{
 	  move lr, zero   /* stop backtraces in the called function */
 	  jr r0

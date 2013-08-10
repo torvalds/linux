@@ -148,9 +148,10 @@ struct thread_struct {
 
 /*
  * Start with "sp" this many bytes below the top of the kernel stack.
- * This preserves the invariant that a called function may write to *sp.
+ * This allows us to be cache-aware when handling the initial save
+ * of the pt_regs value to the stack.
  */
-#define STACK_TOP_DELTA 8
+#define STACK_TOP_DELTA 64
 
 /*
  * When entering the kernel via a fault, start with the top of the
@@ -234,15 +235,15 @@ extern int do_work_pending(struct pt_regs *regs, u32 flags);
 unsigned long get_wchan(struct task_struct *p);
 
 /* Return initial ksp value for given task. */
-#define task_ksp0(task) ((unsigned long)(task)->stack + THREAD_SIZE)
+#define task_ksp0(task) \
+	((unsigned long)(task)->stack + THREAD_SIZE - STACK_TOP_DELTA)
 
 /* Return some info about the user process TASK. */
-#define KSTK_TOP(task)	(task_ksp0(task) - STACK_TOP_DELTA)
 #define task_pt_regs(task) \
-  ((struct pt_regs *)(task_ksp0(task) - KSTK_PTREGS_GAP) - 1)
+	((struct pt_regs *)(task_ksp0(task) - KSTK_PTREGS_GAP) - 1)
 #define current_pt_regs()                                   \
-  ((struct pt_regs *)((stack_pointer | (THREAD_SIZE - 1)) - \
-                      (KSTK_PTREGS_GAP - 1)) - 1)
+	((struct pt_regs *)((stack_pointer | (THREAD_SIZE - 1)) - \
+			    STACK_TOP_DELTA - (KSTK_PTREGS_GAP - 1)) - 1)
 #define task_sp(task)	(task_pt_regs(task)->sp)
 #define task_pc(task)	(task_pt_regs(task)->pc)
 /* Aliases for pc and sp (used in fs/proc/array.c) */
@@ -355,20 +356,38 @@ extern int kdata_huge;
 #define KERNEL_PL CONFIG_KERNEL_PL
 
 /* SYSTEM_SAVE_K_0 holds the current cpu number ORed with ksp0. */
-#define CPU_LOG_MASK_VALUE 12
-#define CPU_MASK_VALUE ((1 << CPU_LOG_MASK_VALUE) - 1)
-#if CONFIG_NR_CPUS > CPU_MASK_VALUE
-# error Too many cpus!
+#ifdef __tilegx__
+#define CPU_SHIFT 48
+#if CHIP_VA_WIDTH() > CPU_SHIFT
+# error Too many VA bits!
 #endif
+#define MAX_CPU_ID ((1 << (64 - CPU_SHIFT)) - 1)
 #define raw_smp_processor_id() \
-	((int)__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & CPU_MASK_VALUE)
+	((int)(__insn_mfspr(SPR_SYSTEM_SAVE_K_0) >> CPU_SHIFT))
 #define get_current_ksp0() \
-	(__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & ~CPU_MASK_VALUE)
+	((unsigned long)(((long)__insn_mfspr(SPR_SYSTEM_SAVE_K_0) << \
+			  (64 - CPU_SHIFT)) >> (64 - CPU_SHIFT)))
+#define next_current_ksp0(task) ({ \
+	unsigned long __ksp0 = task_ksp0(task) & ((1UL << CPU_SHIFT) - 1); \
+	unsigned long __cpu = (long)raw_smp_processor_id() << CPU_SHIFT; \
+	__ksp0 | __cpu; \
+})
+#else
+#define LOG2_NR_CPU_IDS 6
+#define MAX_CPU_ID ((1 << LOG2_NR_CPU_IDS) - 1)
+#define raw_smp_processor_id() \
+	((int)__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & MAX_CPU_ID)
+#define get_current_ksp0() \
+	(__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & ~MAX_CPU_ID)
 #define next_current_ksp0(task) ({ \
 	unsigned long __ksp0 = task_ksp0(task); \
 	int __cpu = raw_smp_processor_id(); \
-	BUG_ON(__ksp0 & CPU_MASK_VALUE); \
+	BUG_ON(__ksp0 & MAX_CPU_ID); \
 	__ksp0 | __cpu; \
 })
+#endif
+#if CONFIG_NR_CPUS > (MAX_CPU_ID + 1)
+# error Too many cpus!
+#endif
 
 #endif /* _ASM_TILE_PROCESSOR_H */

@@ -185,7 +185,7 @@ intvec_\vecname:
 	 * point sp at the top aligned address on the actual stack page.
 	 */
 	mfspr   r0, SPR_SYSTEM_SAVE_K_0
-	mm      r0, r0, zero, LOG2_THREAD_SIZE, 31
+	mm      r0, r0, zero, LOG2_NR_CPU_IDS, 31
 
 0:
 	/*
@@ -203,6 +203,9 @@ intvec_\vecname:
 	 *    cache line 1: r14...r29
 	 *    cache line 0: 2 x frame, r0..r13
 	 */
+#if STACK_TOP_DELTA != 64
+#error STACK_TOP_DELTA must be 64 for assumptions here and in task_pt_regs()
+#endif
 	andi    r0, r0, -64
 
 	/*
@@ -464,7 +467,7 @@ intvec_\vecname:
 	}
 	{
 	 auli   r21, r21, ha16(__per_cpu_offset)
-	 mm     r20, r20, zero, 0, LOG2_THREAD_SIZE-1
+	 mm     r20, r20, zero, 0, LOG2_NR_CPU_IDS-1
 	}
 	s2a     r20, r20, r21
 	lw      tp, r20

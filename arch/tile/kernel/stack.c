@@ -197,19 +197,19 @@ static void validate_stack(struct pt_regs *regs)
 {
 	int cpu = raw_smp_processor_id();
 	unsigned long ksp0 = get_current_ksp0();
-	unsigned long ksp0_base = ksp0 - THREAD_SIZE;
+	unsigned long ksp0_base = ksp0 & -THREAD_SIZE;
 	unsigned long sp = stack_pointer;
 
 	if (EX1_PL(regs->ex1) == KERNEL_PL && regs->sp >= ksp0) {
-		pr_err("WARNING: cpu %d: kernel stack page %#lx underrun!\n"
+		pr_err("WARNING: cpu %d: kernel stack %#lx..%#lx underrun!\n"
 		       "  sp %#lx (%#lx in caller), caller pc %#lx, lr %#lx\n",
-		       cpu, ksp0_base, sp, regs->sp, regs->pc, regs->lr);
+		       cpu, ksp0_base, ksp0, sp, regs->sp, regs->pc, regs->lr);
 	}
 
 	else if (sp < ksp0_base + sizeof(struct thread_info)) {
-		pr_err("WARNING: cpu %d: kernel stack page %#lx overrun!\n"
+		pr_err("WARNING: cpu %d: kernel stack %#lx..%#lx overrun!\n"
 		       "  sp %#lx (%#lx in caller), caller pc %#lx, lr %#lx\n",
-		       cpu, ksp0_base, sp, regs->sp, regs->pc, regs->lr);
+		       cpu, ksp0_base, ksp0, sp, regs->sp, regs->pc, regs->lr);
 	}
 }
 

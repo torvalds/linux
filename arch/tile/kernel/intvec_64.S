@@ -132,13 +132,9 @@ intvec_\vecname:
 	mfspr   r3, SPR_SYSTEM_SAVE_K_0
 
 	/* Get &thread_info->unalign_jit_tmp[0] in r3. */
+	bfexts  r3, r3, 0, CPU_SHIFT-1
 	mm      r3, zero, LOG2_THREAD_SIZE, 63
-#if THREAD_SIZE < 65536
-	addli   r3, r3, -(PAGE_SIZE - THREAD_INFO_UNALIGN_JIT_TMP_OFFSET)
-#else
-	addli   r3, r3, -(PAGE_SIZE/2)
-	addli   r3, r3, -(PAGE_SIZE/2 - THREAD_INFO_UNALIGN_JIT_TMP_OFFSET)
-#endif
+	addli   r3, r3, THREAD_INFO_UNALIGN_JIT_TMP_OFFSET
 
 	/*
 	 * Save r0, r1, r2 into thread_info array r3 points to
@@ -365,13 +361,13 @@ intvec_\vecname:
 
 2:
 	/*
-	 * SYSTEM_SAVE_K_0 holds the cpu number in the low bits, and
-	 * the current stack top in the higher bits.  So we recover
-	 * our stack top by just masking off the low bits, then
+	 * SYSTEM_SAVE_K_0 holds the cpu number in the high bits, and
+	 * the current stack top in the lower bits.  So we recover
+	 * our starting stack value by sign-extending the low bits, then
 	 * point sp at the top aligned address on the actual stack page.
 	 */
 	mfspr   r0, SPR_SYSTEM_SAVE_K_0
-	mm      r0, zero, LOG2_THREAD_SIZE, 63
+	bfexts  r0, r0, 0, CPU_SHIFT-1
 
 0:
 	/*
@@ -393,6 +389,9 @@ intvec_\vecname:
 	 *    cache line 1: r6...r13
 	 *    cache line 0: 2 x frame, r0..r5
 	 */
+#if STACK_TOP_DELTA != 64
+#error STACK_TOP_DELTA must be 64 for assumptions here and in task_pt_regs()
+#endif
 	andi    r0, r0, -64
 
 	/*
@@ -690,7 +689,7 @@ intvec_\vecname:
 	}
 	{
 	 shl16insli r21, r21, hw1(__per_cpu_offset)
-	 bfextu r20, r20, 0, LOG2_THREAD_SIZE-1
+	 bfextu r20, r20, CPU_SHIFT, 63
 	}
 	shl16insli r21, r21, hw0(__per_cpu_offset)
 	shl3add r20, r20, r21
