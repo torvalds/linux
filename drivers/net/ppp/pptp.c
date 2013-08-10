@@ -83,11 +83,11 @@ static const struct proto_ops pptp_ops;
 struct pptp_gre_header {
 	u8  flags;
 	u8  ver;
-	u16 protocol;
-	u16 payload_len;
-	u16 call_id;
-	u32 seq;
-	u32 ack;
+	__be16 protocol;
+	__be16 payload_len;
+	__be16 call_id;
+	__be32 seq;
+	__be32 ack;
 } __packed;
 
 static struct pppox_sock *lookup_chan(u16 call_id, __be32 s_addr)
