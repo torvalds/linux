@@ -176,10 +176,14 @@ bool bch_ptr_bad(struct btree *b, const struct bkey *k)
 	    bch_ptr_invalid(b, k))
 		return true;
 
-	for (i = 0; i < KEY_PTRS(k); i++) {
+	for (i = 0; i < KEY_PTRS(k); i++)
 		if (!ptr_available(b->c, k, i))
 			return true;
 
+	if (!expensive_debug_checks(b->c) && KEY_DIRTY(k))
+		return false;
+
+	for (i = 0; i < KEY_PTRS(k); i++) {
 		g = PTR_BUCKET(b->c, k, i);
 		stale = ptr_stale(b->c, k, i);
 
