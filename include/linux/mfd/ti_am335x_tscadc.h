@@ -113,10 +113,26 @@
 #define CNTRLREG_8WIRE		CNTRLREG_AFE_CTRL(3)
 #define CNTRLREG_TSCENB		BIT(7)
 
+/* FIFO READ Register */
+#define FIFOREAD_DATA_MASK (0xfff << 0)
+#define FIFOREAD_CHNLID_MASK (0xf << 16)
+
+/* Sequencer Status */
+#define SEQ_STATUS BIT(5)
+
 #define ADC_CLK			3000000
 #define	MAX_CLK_DIV		7
 #define TOTAL_STEPS		16
 #define TOTAL_CHANNELS		8
+
+/*
+* ADC runs at 3MHz, and it takes
+* 15 cycles to latch one data output.
+* Hence the idle time for ADC to
+* process one sample data would be
+* around 5 micro seconds.
+*/
+#define IDLE_TIMEOUT 5 /* microsec */
 
 #define TSCADC_CELLS		2
 
