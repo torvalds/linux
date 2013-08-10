@@ -303,7 +303,7 @@ static struct rt5025_power_data rt5025_power_data = {
 			.BATD_EN = 0,
 		},
 	},
-	.fcc = 6200, //6200 mAh
+//	.fcc = 6200, //6200 mAh
 };
 
 static struct rt5025_gpio_data rt5025_gpio_data = {
@@ -379,7 +379,7 @@ static struct rt5025_irq_data rt5025_irq_data = {
 			.TIMEOUT_PC = 1,
 			.CHVSREGI = 0,
 			.CHTREGI = 0,
-			.CHRCHGI = 0,
+			.CHRCHGI = 1,
 		},
 	},
 	.irq_enable4 = {
@@ -405,6 +405,27 @@ static struct rt5025_irq_data rt5025_irq_data = {
 			.KPSHDN = 1,
 		},
 	},
+};
+
+//temp unit: 'c*10 degree
+static int jeita_temp[4] = { 0, 150, 500, 600};
+static u8 jeita_scalar[4] = { 0x2d,  0x25, 0x12, 0x0e};
+//cc unit: xxx mA
+static int jeita_temp_cc[][5] = {{ 500,  500,  500,  500, 500},    // not plugin
+			   	 {   0 , 250,  500,  250,   0},    // normal USB
+			   	 {   0,  500, 1000,  500,   0},    // USB charger
+				 {   0,  500, 1000,  500,   0}};   // AC Adapter
+//cv unit: xxx mV
+static int jeita_temp_cv[][5] = {{ 4200, 4200, 4200, 4200, 4200},  // not plugin
+				 { 4200, 4200, 4200, 4200, 4200},  // normal USB
+				 { 4200, 4200, 4200, 4200, 4200},  // USB charger
+				 { 4200, 4200, 4200, 4200, 4200}}; // AC Adapter
+
+static struct rt5025_jeita_data rt5025_jeita_data = {
+	.temp = jeita_temp,
+	.temp_scalar = jeita_scalar,
+	.temp_cc = jeita_temp_cc,
+	.temp_cv = jeita_temp_cv,
 };
 
 static void rt5025_charger_event_callback(uint32_t detected)
@@ -449,6 +470,7 @@ static struct rt5025_platform_data rt5025_data = {
 	.gpio_data = &rt5025_gpio_data,
 	.misc_data = &rt5025_misc_data,
 	.irq_data = &rt5025_irq_data,
+	.jeita_data = &rt5025_jeita_data,
 	.cb = &rt5025_event_callback,
 	.intr_pin = 81, //GPIO81
 };
