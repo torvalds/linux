@@ -1122,9 +1122,9 @@ static int smiapp_power_on(struct smiapp_sensor *sensor)
 		rval = sensor->platform_data->set_xclk(
 			&sensor->src->sd, sensor->platform_data->ext_clk);
 	else
-		rval = clk_enable(sensor->ext_clk);
+		rval = clk_prepare_enable(sensor->ext_clk);
 	if (rval < 0) {
-		dev_dbg(&client->dev, "failed to set xclk\n");
+		dev_dbg(&client->dev, "failed to enable xclk\n");
 		goto out_xclk_fail;
 	}
 	usleep_range(1000, 1000);
@@ -1244,7 +1244,7 @@ out_cci_addr_fail:
 	if (sensor->platform_data->set_xclk)
 		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
 	else
-		clk_disable(sensor->ext_clk);
+		clk_disable_unprepare(sensor->ext_clk);
 
 out_xclk_fail:
 	regulator_disable(sensor->vana);
@@ -1270,7 +1270,7 @@ static void smiapp_power_off(struct smiapp_sensor *sensor)
 	if (sensor->platform_data->set_xclk)
 		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
 	else
-		clk_disable(sensor->ext_clk);
+		clk_disable_unprepare(sensor->ext_clk);
 	usleep_range(5000, 5000);
 	regulator_disable(sensor->vana);
 	sensor->streaming = 0;
@@ -2839,7 +2839,7 @@ static int smiapp_remove(struct i2c_client *client)
 		if (sensor->platform_data->set_xclk)
 			sensor->platform_data->set_xclk(&sensor->src->sd, 0);
 		else
-			clk_disable(sensor->ext_clk);
+			clk_disable_unprepare(sensor->ext_clk);
 		sensor->power_count = 0;
 	}
 
