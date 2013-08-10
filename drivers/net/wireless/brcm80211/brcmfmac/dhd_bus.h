@@ -36,7 +36,11 @@ struct brcmf_bus_dcmd {
  *
  * @init: prepare for communication with dongle.
  * @stop: clear pending frames, disable data flow.
- * @txdata: send a data frame to the dongle (callee disposes skb).
+ * @txdata: send a data frame to the dongle. When the data
+ *	has been transferred, the common driver must be
+ *	notified using brcmf_txcomplete(). The common
+ *	driver calls this function with interrupts
+ *	disabled.
  * @txctl: transmit a control request message to dongle.
  * @rxctl: receive a control response message from dongle.
  * @gettxq: obtain a reference of bus transmit queue (optional).
