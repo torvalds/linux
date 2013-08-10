@@ -19,6 +19,7 @@
 #include <linux/dmapool.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
+#include <linux/dma/mmp-pdma.h>
 
 #include "dmaengine.h"
 
@@ -635,8 +636,13 @@ static int mmp_pdma_control(struct dma_chan *dchan, enum dma_ctrl_cmd cmd,
 			chan->dcmd |= DCMD_BURST32;
 
 		chan->dir = cfg->direction;
-		chan->drcmr = cfg->slave_id;
 		chan->dev_addr = addr;
+		/* FIXME: drivers should be ported over to use the filter
+		 * function. Once that's done, the following two lines can
+		 * be removed.
+		 */
+		if (cfg->slave_id)
+			chan->drcmr = cfg->slave_id;
 		break;
 	default:
 		return -ENOSYS;
@@ -876,6 +882,19 @@ static struct platform_driver mmp_pdma_driver = {
 	.probe		= mmp_pdma_probe,
 	.remove		= mmp_pdma_remove,
 };
+
+bool mmp_pdma_filter_fn(struct dma_chan *chan, void *param)
+{
+	struct mmp_pdma_chan *c = to_mmp_pdma_chan(chan);
+
+	if (chan->device->dev->driver != &mmp_pdma_driver.driver)
+		return false;
+
+	c->drcmr = *(unsigned int *) param;
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(mmp_pdma_filter_fn);
 
 module_platform_driver(mmp_pdma_driver);
 
