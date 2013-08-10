@@ -1835,12 +1835,12 @@ static void smiapp_set_compose_scaler(struct v4l2_subdev *subdev,
 		* sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN]
 		/ sensor->limits[SMIAPP_LIMIT_MIN_X_OUTPUT_SIZE];
 
-	a = min(sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX],
-		max(a, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN]));
-	b = min(sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX],
-		max(b, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN]));
-	max_m = min(sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX],
-		    max(max_m, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN]));
+	a = clamp(a, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN],
+		  sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX]);
+	b = clamp(b, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN],
+		  sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX]);
+	max_m = clamp(max_m, sensor->limits[SMIAPP_LIMIT_SCALER_M_MIN],
+		      sensor->limits[SMIAPP_LIMIT_SCALER_M_MAX]);
 
 	dev_dbg(&client->dev, "scaling: a %d b %d max_m %d\n", a, b, max_m);
 
