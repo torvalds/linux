@@ -1153,7 +1153,12 @@ static long ddr_clk_round_rate(struct clk *clk, unsigned long rate)
 static unsigned long ddr_clk_recalc_rate(struct clk *clk)
 {
 	u32 shift = get_cru_bits(clk->clksel_con, clk->div_mask, clk->div_shift);
-	unsigned long rate = clk->parent->recalc(clk->parent) >> shift;
+	unsigned long rate = 0;
+
+	clk->parent = clk->get_parent(clk);
+	clk->parent->rate = clk->parent->recalc(clk->parent);
+	rate = clk->parent->rate >> shift;
+
 	pr_debug("%s new clock rate is %lu (shift %u)\n", clk->name, rate, shift);
 	return rate;
 }
@@ -1161,6 +1166,8 @@ static struct clk *clk_ddr_parents[2] = {&ddr_pll_clk, &general_pll_clk};
 static struct clk clk_ddr = {
 	.name		= "ddr",
 	.parent		= &ddr_pll_clk,
+	.get_parent	= clksel_get_parent,
+	.set_parent	= clksel_set_parent,
 	.recalc		= ddr_clk_recalc_rate,
 	.set_rate	= ddr_clk_set_rate,
 	.round_rate	= ddr_clk_round_rate,
