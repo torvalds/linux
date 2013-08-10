@@ -63,24 +63,6 @@
 #define  USBC_Writel(value, reg) \
 	(*(volatile unsigned long *) (reg) = (value))
 
-#define  USBC_REG_test_bit_b(bp, reg)	(USBC_Readb(reg) & (1 << (bp)))
-#define  USBC_REG_test_bit_w(bp, reg)	(USBC_Readw(reg) & (1 << (bp)))
-#define  USBC_REG_test_bit_l(bp, reg)	(USBC_Readl(reg) & (1 << (bp)))
-
-#define  USBC_REG_set_bit_b(bp, reg) \
-	(USBC_Writeb((USBC_Readb(reg) | (1 << (bp))), (reg)))
-#define  USBC_REG_set_bit_w(bp, reg) \
-	(USBC_Writew((USBC_Readw(reg) | (1 << (bp))), (reg)))
-#define  USBC_REG_set_bit_l(bp, reg) \
-	(USBC_Writel((USBC_Readl(reg) | (1 << (bp))), (reg)))
-
-#define  USBC_REG_clear_bit_b(bp, reg) \
-	(USBC_Writeb((USBC_Readb(reg) & (~(1 << (bp)))), (reg)))
-#define  USBC_REG_clear_bit_w(bp, reg) \
-	(USBC_Writew((USBC_Readw(reg) & (~(1 << (bp)))), (reg)))
-#define  USBC_REG_clear_bit_l(bp, reg) \
-	(USBC_Writel((USBC_Readl(reg) & (~(1 << (bp)))), (reg)))
-
 #define SW_VA_CCM_USBCLK_OFFSET			0xcc
 #define SW_VA_CCM_AHBMOD_OFFSET			0x60
 
