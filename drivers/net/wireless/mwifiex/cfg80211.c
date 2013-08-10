@@ -2307,7 +2307,6 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 }
 EXPORT_SYMBOL_GPL(mwifiex_del_virtual_intf);
 
-#ifdef CONFIG_PM
 static bool
 mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq,
 			     u8 max_byte_seq)
@@ -2338,6 +2337,7 @@ mwifiex_is_pattern_supported(struct cfg80211_pkt_pattern *pat, s8 *byte_seq,
 	return true;
 }
 
+#ifdef CONFIG_PM
 static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 				    struct cfg80211_wowlan *wowlan)
 {
@@ -2601,8 +2601,8 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.suspend = mwifiex_cfg80211_suspend,
 	.resume = mwifiex_cfg80211_resume,
 	.set_wakeup = mwifiex_cfg80211_set_wakeup,
-	.set_coalesce = mwifiex_cfg80211_set_coalesce,
 #endif
+	.set_coalesce = mwifiex_cfg80211_set_coalesce,
 };
 
 #ifdef CONFIG_PM
