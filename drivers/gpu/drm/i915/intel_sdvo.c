@@ -538,7 +538,8 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 				  &status))
 		goto log_fail;
 
-	while (status == SDVO_CMD_STATUS_PENDING && --retry) {
+	while ((status == SDVO_CMD_STATUS_PENDING ||
+			status == SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED) && --retry) {
 		if (retry < 10)
 			msleep(15);
 		else
