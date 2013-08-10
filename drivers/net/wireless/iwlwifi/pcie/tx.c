@@ -838,7 +838,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 				  sizeof(struct iwl_txq), GFP_KERNEL);
 	if (!trans_pcie->txq) {
 		IWL_ERR(trans, "Not enough memory for txq\n");
-		ret = ENOMEM;
+		ret = -ENOMEM;
 		goto error;
 	}
 
