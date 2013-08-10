@@ -47,6 +47,8 @@
 #define DCSR_CMPST	(1 << 10)       /* The Descriptor Compare Status */
 #define DCSR_EORINTR	(1 << 9)        /* The end of Receive */
 
+#define DRCMR(n)	((((n) < 64) ? 0x0100 : 0x1100) + \
+				 (((n) & 0x3f) << 2))
 #define DRCMR_MAPVLD	(1 << 7)	/* Map Valid (read / write) */
 #define DRCMR_CHLNUM	0x1f		/* mask for Channel Number (read / write) */
 
@@ -143,8 +145,7 @@ static void enable_chan(struct mmp_pdma_phy *phy)
 	if (!phy->vchan)
 		return;
 
-	reg = phy->vchan->drcmr;
-	reg = (((reg) < 64) ? 0x0100 : 0x1100) + (((reg) & 0x3f) << 2);
+	reg = DRCMR(phy->vchan->drcmr);
 	writel(DRCMR_MAPVLD | phy->idx, phy->base + reg);
 
 	reg = (phy->idx << 2) + DCSR;
@@ -258,8 +259,7 @@ static void mmp_pdma_free_phy(struct mmp_pdma_chan *pchan)
 		return;
 
 	/* clear the channel mapping in DRCMR */
-	reg = pchan->phy->vchan->drcmr;
-	reg = ((reg < 64) ? 0x0100 : 0x1100) + ((reg & 0x3f) << 2);
+	reg = DRCMR(pchan->phy->vchan->drcmr);
 	writel(0, pchan->phy->base + reg);
 
 	spin_lock_irqsave(&pdev->phy_lock, flags);
