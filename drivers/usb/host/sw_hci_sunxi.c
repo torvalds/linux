@@ -70,8 +70,6 @@ static char *usbc_phy_reset_name[3] = { "usb_phy0", "usb_phy1", "usb_phy2" };
 static u32 usbc_base[3] = {
 	SW_VA_USB0_IO_BASE, SW_VA_USB1_IO_BASE, SW_VA_USB2_IO_BASE
 };
-static u32 ehci_irq_no[3] = { 0, SW_INT_SRC_EHCI0, SW_INT_SRC_EHCI1 };
-static u32 ohci_irq_no[3] = { 0, SW_INT_SRC_OHCI0, SW_INT_SRC_OHCI1 };
 
 static u32 usb1_set_vbus_cnt;
 static u32 usb2_set_vbus_cnt;
@@ -199,7 +197,10 @@ static void UsbPhyInit(__u32 usbc_no)
 /*	DMSG_INFO("csr2-1: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x20, 5)); */
 
 	/* 调节 disconnect 域值 */
-	USBC_Phy_Write(usbc_no, 0x2a, 3, 2);
+	if (sunxi_is_sun5i())
+		USBC_Phy_Write(usbc_no, 0x2a, 2, 2);
+	else
+		USBC_Phy_Write(usbc_no, 0x2a, 3, 2);
 
 /*	DMSG_INFO("csr2: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x2a, 2));
 	DMSG_INFO("csr3: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Readl(USBC_Phy_GetCsr(usbc_no))); */
@@ -687,12 +688,12 @@ static u64 sw_ehci_dmamask = DMA_BIT_MASK(32);
 
 static struct resource sw_ehci1_resources[] = {
 		DEFINE_RES_MEM(SW_PA_USB1_IO_BASE + SW_USB_EHCI_BASE_OFFSET, SW_USB_EHCI_LEN),
-		DEFINE_RES_IRQ(SW_INT_SRC_EHCI0)
+		DEFINE_RES_IRQ(SW_INT_IRQNO_USB1)
 };
 
 static struct resource sw_ehci2_resources[] = {
 		DEFINE_RES_MEM(SW_PA_USB2_IO_BASE + SW_USB_EHCI_BASE_OFFSET, SW_USB_EHCI_LEN),
-		DEFINE_RES_IRQ(SW_INT_SRC_EHCI1)
+		DEFINE_RES_IRQ(SW_INT_IRQNO_USB2)
 };
 
 static struct platform_device sw_usb_ehci_device[] = {
@@ -737,12 +738,12 @@ static u64 sw_ohci_dmamask = DMA_BIT_MASK(32);
 
 static struct resource sw_ohci1_resources[] = {
 		DEFINE_RES_MEM(SW_PA_USB1_IO_BASE + SW_USB_OHCI_BASE_OFFSET, SW_USB_OHCI_LEN),
-		DEFINE_RES_IRQ(SW_INT_SRC_OHCI0)
+		DEFINE_RES_IRQ(SW_INT_IRQNO_USB3)
 };
 
 static struct resource sw_ohci2_resources[] = {
 		DEFINE_RES_MEM(SW_PA_USB2_IO_BASE + SW_USB_OHCI_BASE_OFFSET, SW_USB_OHCI_LEN),
-		DEFINE_RES_IRQ(SW_INT_SRC_OHCI1)
+		DEFINE_RES_IRQ(SW_INT_IRQNO_USB4)
 };
 
 static struct platform_device sw_usb_ohci_device[] = {
@@ -774,7 +775,6 @@ static void print_sw_hci(struct sw_hci_hcd *sw_hci)
 {
 	DMSG_DEBUG("\n------%s config------\n", sw_hci->hci_name);
 	DMSG_DEBUG("hci_name             = %s\n", sw_hci->hci_name);
-	DMSG_DEBUG("irq_no               = %d\n", sw_hci->irq_no);
 	DMSG_DEBUG("usbc_no              = %d\n", sw_hci->usbc_no);
 
 	DMSG_DEBUG("usb_vbase            = 0x%p\n", sw_hci->usb_vbase);
@@ -821,11 +821,6 @@ static int init_sw_hci(struct sw_hci_hcd *sw_hci, u32 usbc_no, u32 ohci,
 
 	sw_hci->usbc_no = usbc_no;
 
-	if (ohci)
-		sw_hci->irq_no = ohci_irq_no[sw_hci->usbc_no];
-	else
-		sw_hci->irq_no = ehci_irq_no[sw_hci->usbc_no];
-
 	sprintf(sw_hci->hci_name, "%s%d", hci_name, sw_hci->usbc_no);
 
 	sw_hci->usb_vbase = (void __iomem *)usbc_base[sw_hci->usbc_no];
@@ -858,6 +853,15 @@ static int __init sw_hci_sunxi_init(void)
 */
 	u32 usb1_drv_vbus_Handle = 0;
 	u32 usb2_drv_vbus_Handle = 0;
+
+	if (sunxi_is_sun5i()) {
+		/*
+		 * The sun5i has only one usb controller and thus uses
+		 * IRQNO_USB2 for its ohci controller.
+		 */
+		sw_ohci1_resources[1].start = SW_INT_IRQNO_USB2;
+		sw_ohci1_resources[1].end   = SW_INT_IRQNO_USB2;
+	}
 
 	init_sw_hci(&sw_ehci1, 1, 0, ehci_name);
 	init_sw_hci(&sw_ohci1, 1, 1, ohci_name);

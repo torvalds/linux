@@ -106,11 +106,6 @@
 #define SW_CCMU_BP_USB_CLK_USBPHY1_RST		1
 #define SW_CCMU_BP_USB_CLK_USBPHY0_RST		0
 
-#define SW_INT_SRC_EHCI0	SW_INT_IRQNO_USB1
-#define SW_INT_SRC_OHCI0	SW_INT_IRQNO_USB3
-#define SW_INT_SRC_EHCI1	SW_INT_IRQNO_USB2
-#define SW_INT_SRC_OHCI1	SW_INT_IRQNO_USB4
-
 #define SW_SDRAM_REG_HPCR_USB1	(0x250 + ((1 << 2) * 4))
 #define SW_SDRAM_REG_HPCR_USB2	(0x250 + ((1 << 2) * 5))
 
@@ -124,7 +119,6 @@
 
 struct sw_hci_hcd {
 	__u32 usbc_no; /* usb controller number */
-	__u32 irq_no; /* interrupt number */
 	char hci_name[32]; /* hci name */
 
 	void __iomem *usb_vbase; /* USB base address */
