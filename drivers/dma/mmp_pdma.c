@@ -907,7 +907,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 		}
 	}
 
-	dev_info(pdev->device.dev, "initialized\n");
+	dev_info(pdev->device.dev, "initialized %d channels\n", dma_channels);
 	return 0;
 }
 
