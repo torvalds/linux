@@ -652,19 +652,18 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	up = kzalloc(sizeof(struct ar933x_uart_port), GFP_KERNEL);
+	up = devm_kzalloc(&pdev->dev, sizeof(struct ar933x_uart_port),
+			  GFP_KERNEL);
 	if (!up)
 		return -ENOMEM;
 
 	port = &up->port;
+
+	port->membase = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(port->membase))
+		return PTR_ERR(port->membase);
+
 	port->mapbase = mem_res->start;
-
-	port->membase = ioremap(mem_res->start, AR933X_UART_REGS_SIZE);
-	if (!port->membase) {
-		ret = -ENOMEM;
-		goto err_free_up;
-	}
-
 	port->line = id;
 	port->irq = irq_res->start;
 	port->dev = &pdev->dev;
@@ -686,16 +685,10 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 
 	ret = uart_add_one_port(&ar933x_uart_driver, &up->port);
 	if (ret)
-		goto err_unmap;
+		return ret;
 
 	platform_set_drvdata(pdev, up);
 	return 0;
-
-err_unmap:
-	iounmap(up->port.membase);
-err_free_up:
-	kfree(up);
-	return ret;
 }
 
 static int ar933x_uart_remove(struct platform_device *pdev)
@@ -704,11 +697,8 @@ static int ar933x_uart_remove(struct platform_device *pdev)
 
 	up = platform_get_drvdata(pdev);
 
-	if (up) {
+	if (up)
 		uart_remove_one_port(&ar933x_uart_driver, &up->port);
-		iounmap(up->port.membase);
-		kfree(up);
-	}
 
 	return 0;
 }
