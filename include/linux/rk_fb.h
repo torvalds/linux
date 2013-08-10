@@ -66,7 +66,7 @@
 #define RK_LF_STATUS_FC                  0xef
 #define RK_LF_STATUS_FR                  0xee
 #define RK_LF_STATUS_NC                  0xfe
-#define MAX_TIMEOUT 			 (1600000UL << 6) //>0.64s
+#define RK_LF_MAX_TIMEOUT 			 (1600000UL << 6) //>0.64s
 
 
 extern int rk_fb_poll_prmry_screen_vblank(void);

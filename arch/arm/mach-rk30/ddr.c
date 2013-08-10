@@ -3190,12 +3190,17 @@ uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz , struct ddr_freq_t ddr_f
     dsb();
 
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)  
+    n = ddr_freq_t.screen_ft_us;
+    n = ddr_freq_t.t0;
+    dsb();
+
     if(ddr_freq_t.screen_ft_us > 0)
     {
         ddr_freq_t.t1 = cpu_clock(0);
-        ddr_freq_t.t2 = (u32)(ddr_freq_t.t1 - ddr_freq_t.t0)/1000;
+        ddr_freq_t.t2 = (u32)(ddr_freq_t.t1 - ddr_freq_t.t0);   //ns
 
-        if(ddr_freq_t.t2 > ddr_freq_t.screen_ft_us)
+        //if test_count exceed maximum test times,ddr_freq_t.screen_ft_us == 0xfefefefe by ddr_freq.c
+        if( (ddr_freq_t.t2 > ddr_freq_t.screen_ft_us*1000) && (ddr_freq_t.screen_ft_us != 0xfefefefe))
         {
             DDR_RESTORE_SP(save_sp);
             local_fiq_enable();
@@ -3550,7 +3555,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 201300806 \n");
+    ddr_print("version 1.00 201300810 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;

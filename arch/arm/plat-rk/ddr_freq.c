@@ -194,7 +194,7 @@ static int _ddr_change_freq_(uint32_t nMHz,struct ddr_freq_t ddr_freq_t)
 	u32 timeout = MAX_TIMEOUT;
 	unsigned int cpu;
 	unsigned int this_cpu = smp_processor_id();
-	int ret;
+	int ret = 0;
 
 	cpu_maps_update_begin();
 
@@ -242,7 +242,12 @@ static void _ddr_change_freq(uint32_t nMHz)
 			ddr_freq_t.screen_ft_us = rk_fb_get_prmry_screen_ft();
 
 			test_count++;
-			//dprintk(DEBUG_VERBOSE,"test_count=%d\n",test_count);
+                        if(test_count > 10) //test 10 times
+                        {
+				ddr_freq_t.screen_ft_us = 0xfefefefe;
+				dprintk(DEBUG_DDR,"%s:test_count exceed maximum!\n",__func__);
+                        }
+			dprintk(DEBUG_VERBOSE,"%s:test_count=%d\n",__func__,test_count);
 			usleep_range(ddr_freq_t.screen_ft_us-test_count*1000,ddr_freq_t.screen_ft_us-test_count*1000);
 
 			flush_cache_all();
@@ -628,7 +633,7 @@ static int ddrfreq_late_init(void)
 
 	register_reboot_notifier(&ddrfreq_reboot_notifier);
 
-	pr_info("verion 3.1 20130805 1\n");
+	pr_info("verion 3.1 20130810\n");
 	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz video_low %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
 		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.video_low_rate / MHZ, ddr.dualview_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
 

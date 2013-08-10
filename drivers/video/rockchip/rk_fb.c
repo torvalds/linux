@@ -217,7 +217,7 @@ int rk_fb_poll_prmry_screen_vblank(void)
 
 bool rk_fb_poll_wait_frame_complete(void)
 {
-	uint32_t timeout = MAX_TIMEOUT;
+	uint32_t timeout = RK_LF_MAX_TIMEOUT;
 	if(rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_NC)
 		return false;
 
