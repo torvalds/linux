@@ -7698,7 +7698,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, 0); /* aux display base address, unused */
 
 	intel_mark_page_flip_active(intel_crtc);
-	intel_ring_advance(ring);
+	__intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
@@ -7740,7 +7740,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_NOOP);
 
 	intel_mark_page_flip_active(intel_crtc);
-	intel_ring_advance(ring);
+	__intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
@@ -7789,7 +7789,7 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, pf | pipesrc);
 
 	intel_mark_page_flip_active(intel_crtc);
-	intel_ring_advance(ring);
+	__intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
@@ -7834,7 +7834,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, pf | pipesrc);
 
 	intel_mark_page_flip_active(intel_crtc);
-	intel_ring_advance(ring);
+	__intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
@@ -7913,7 +7913,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, (MI_NOOP));
 
 	intel_mark_page_flip_active(intel_crtc);
-	intel_ring_advance(ring);
+	__intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
