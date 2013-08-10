@@ -220,7 +220,7 @@ static struct mmp_pdma_phy *lookup_phy(struct mmp_pdma_chan *pchan)
 {
 	int prio, i;
 	struct mmp_pdma_device *pdev = to_mmp_pdma_dev(pchan->chan.device);
-	struct mmp_pdma_phy *phy;
+	struct mmp_pdma_phy *phy, *found = NULL;
 	unsigned long flags;
 
 	/*
@@ -239,14 +239,15 @@ static struct mmp_pdma_phy *lookup_phy(struct mmp_pdma_chan *pchan)
 			phy = &pdev->phy[i];
 			if (!phy->vchan) {
 				phy->vchan = pchan;
-				spin_unlock_irqrestore(&pdev->phy_lock, flags);
-				return phy;
+				found = phy;
+				goto out_unlock;
 			}
 		}
 	}
 
+out_unlock:
 	spin_unlock_irqrestore(&pdev->phy_lock, flags);
-	return NULL;
+	return found;
 }
 
 static void mmp_pdma_free_phy(struct mmp_pdma_chan *pchan)
