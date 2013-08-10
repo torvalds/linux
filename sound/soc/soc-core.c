@@ -47,8 +47,6 @@
 
 #define NAME_SIZE	32
 
-static DECLARE_WAIT_QUEUE_HEAD(soc_pm_waitq);
-
 #ifdef CONFIG_DEBUG_FS
 struct dentry *snd_soc_debugfs_root;
 EXPORT_SYMBOL_GPL(snd_soc_debugfs_root);
