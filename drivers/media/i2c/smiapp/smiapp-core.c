@@ -2363,11 +2363,9 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	}
 
 	if (!sensor->platform_data->set_xclk) {
-		sensor->ext_clk = devm_clk_get(&client->dev,
-					sensor->platform_data->ext_clk_name);
+		sensor->ext_clk = devm_clk_get(&client->dev, "ext_clk");
 		if (IS_ERR(sensor->ext_clk)) {
-			dev_err(&client->dev, "could not get clock %s\n",
-				sensor->platform_data->ext_clk_name);
+			dev_err(&client->dev, "could not get clock\n");
 			return -ENODEV;
 		}
 
@@ -2375,8 +2373,7 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 				    sensor->platform_data->ext_clk);
 		if (rval < 0) {
 			dev_err(&client->dev,
-				"unable to set clock %s freq to %u\n",
-				sensor->platform_data->ext_clk_name,
+				"unable to set clock freq to %u\n",
 				sensor->platform_data->ext_clk);
 			return -ENODEV;
 		}
