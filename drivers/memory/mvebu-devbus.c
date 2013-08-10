@@ -44,14 +44,6 @@
 #define READ_PARAM_OFFSET	0x0
 #define WRITE_PARAM_OFFSET	0x4
 
-static const char * const devbus_wins[] = {
-	"devbus-boot",
-	"devbus-cs0",
-	"devbus-cs1",
-	"devbus-cs2",
-	"devbus-cs3",
-};
-
 struct devbus_read_params {
 	u32 bus_width;
 	u32 badr_skew;
