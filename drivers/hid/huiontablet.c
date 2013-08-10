@@ -201,8 +201,8 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
        
 	input_set_drvdata(input_dev, mouse);
 
-        input_set_abs_params(input_dev, ABS_X, 0, 0x7fff, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, 0x7fff, 0, 0);
+        input_set_abs_params(input_dev, ABS_X, 0, 0x7ff, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, 0x7ff, 0, 0);
         input_set_abs_params(input_dev, ABS_PRESSURE, 0, 1024, 0, 0);
 
 	input_dev->open = usb_mouse_open;
