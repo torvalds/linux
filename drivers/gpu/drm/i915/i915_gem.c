@@ -3199,6 +3199,8 @@ search_free:
 	if (i915_is_ggtt(vm))
 		obj->map_and_fenceable = mappable && fenceable;
 
+	WARN_ON(map_and_fenceable && !obj->map_and_fenceable);
+
 	trace_i915_vma_bind(vma, map_and_fenceable);
 	i915_gem_verify_gtt(dev);
 	return 0;
