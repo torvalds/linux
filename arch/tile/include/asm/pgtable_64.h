@@ -63,6 +63,15 @@
 /* We have no pud since we are a three-level page table. */
 #include <asm-generic/pgtable-nopud.h>
 
+/*
+ * pmds are the same as pgds and ptes, so converting is a no-op.
+ */
+#define pmd_pte(pmd) (pmd)
+#define pmdp_ptep(pmdp) (pmdp)
+#define pte_pmd(pte) (pte)
+
+#define pud_pte(pud) ((pud).pgd)
+
 static inline int pud_none(pud_t pud)
 {
 	return pud_val(pud) == 0;
@@ -71,6 +80,11 @@ static inline int pud_none(pud_t pud)
 static inline int pud_present(pud_t pud)
 {
 	return pud_val(pud) & _PAGE_PRESENT;
+}
+
+static inline int pud_huge_page(pud_t pud)
+{
+	return pud_val(pud) & _PAGE_HUGE_PAGE;
 }
 
 #define pmd_ERROR(e) \
@@ -88,6 +102,9 @@ static inline int pud_bad(pud_t pud)
 
 /* Return the page-table frame number (ptfn) that a pud_t points at. */
 #define pud_ptfn(pud) hv_pte_get_ptfn((pud).pgd)
+
+/* Return the page frame number (pfn) that a pud_t points at. */
+#define pud_pfn(pud) pte_pfn(pud_pte(pud))
 
 /*
  * A given kernel pud_t maps to a kernel pmd_t table at a specific
@@ -151,13 +168,6 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 {
 	return hv_pte(__insn_exch(&ptep->val, 0UL));
 }
-
-/*
- * pmds are the same as pgds and ptes, so converting is a no-op.
- */
-#define pmd_pte(pmd) (pmd)
-#define pmdp_ptep(pmdp) (pmdp)
-#define pte_pmd(pte) (pte)
 
 #endif /* __ASSEMBLY__ */
 

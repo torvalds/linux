@@ -338,6 +338,8 @@ pte_t *virt_to_pte(struct mm_struct* mm, unsigned long addr)
 	pud = pud_offset(pgd, addr);
 	if (!pud_present(*pud))
 		return NULL;
+	if (pud_huge_page(*pud))
+		return (pte_t *)pud;
 	pmd = pmd_offset(pud, addr);
 	if (pmd_huge_page(*pmd))
 		return (pte_t *)pmd;
@@ -345,6 +347,7 @@ pte_t *virt_to_pte(struct mm_struct* mm, unsigned long addr)
 		return NULL;
 	return pte_offset_kernel(pmd, addr);
 }
+EXPORT_SYMBOL(virt_to_pte);
 
 pgprot_t set_remote_cache_cpu(pgprot_t prot, int cpu)
 {
