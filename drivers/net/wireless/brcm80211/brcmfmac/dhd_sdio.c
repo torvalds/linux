@@ -1166,7 +1166,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 {
 	u16 dlen, totlen;
 	u8 *dptr, num = 0;
-
+	u32 align = 0;
 	u16 sublen;
 	struct sk_buff *pfirst, *pnext;
 
@@ -1180,6 +1180,11 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 
 	brcmf_dbg(SDIO, "start: glomd %p glom %p\n",
 		  bus->glomd, skb_peek(&bus->glom));
+
+	if (bus->sdiodev->pdata)
+		align = bus->sdiodev->pdata->sd_sgentry_align;
+	if (align < 4)
+		align = 4;
 
 	/* If there's a descriptor, generate the packet chain */
 	if (bus->glomd) {
@@ -1204,9 +1209,9 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 				pnext = NULL;
 				break;
 			}
-			if (sublen % BRCMF_SDALIGN) {
+			if (sublen % align) {
 				brcmf_err("sublen %d not multiple of %d\n",
-					  sublen, BRCMF_SDALIGN);
+					  sublen, align);
 			}
 			totlen += sublen;
 
@@ -1219,7 +1224,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 			}
 
 			/* Allocate/chain packet for next subframe */
-			pnext = brcmu_pkt_buf_get_skb(sublen + BRCMF_SDALIGN);
+			pnext = brcmu_pkt_buf_get_skb(sublen + align);
 			if (pnext == NULL) {
 				brcmf_err("bcm_pkt_buf_get_skb failed, num %d len %d\n",
 					  num, sublen);
@@ -1228,7 +1233,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 			skb_queue_tail(&bus->glom, pnext);
 
 			/* Adhere to start alignment requirements */
-			pkt_align(pnext, sublen, BRCMF_SDALIGN);
+			pkt_align(pnext, sublen, align);
 		}
 
 		/* If all allocations succeeded, save packet chain
@@ -3832,7 +3837,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	struct brcmf_sdio *bus;
 	struct brcmf_bus_dcmd *dlst;
 	u32 dngl_txglom;
-	u32 dngl_txglomalign;
+	u32 txglomalign = 0;
 	u8 idx;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -3926,9 +3931,13 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 			dlst->param_len = sizeof(u32);
 		} else {
 			/* otherwise, set txglomalign */
-			dngl_txglomalign = bus->sdiodev->bus_if->align;
+			if (sdiodev->pdata)
+				txglomalign = sdiodev->pdata->sd_sgentry_align;
+			/* SDIO ADMA requires at least 32 bit alignment */
+			if (txglomalign < 4)
+				txglomalign = 4;
 			dlst->name = "bus:txglomalign";
-			dlst->param = (char *)&dngl_txglomalign;
+			dlst->param = (char *)&txglomalign;
 			dlst->param_len = sizeof(u32);
 		}
 		list_add(&dlst->list, &bus->sdiodev->bus_if->dcmd_list);

@@ -69,7 +69,6 @@ struct brcmf_bus_ops {
  * @maxctl: maximum size for rxctl request message.
  * @tx_realloc: number of tx packets realloced for headroom.
  * @dstats: dongle-based statistical data.
- * @align: alignment requirement for the bus.
  * @dcmd_list: bus/device specific dongle initialization commands.
  * @chip: device identifier of the dongle chip.
  * @chiprev: revision of the dongle chip.
@@ -84,7 +83,6 @@ struct brcmf_bus {
 	enum brcmf_bus_state state;
 	uint maxctl;
 	unsigned long tx_realloc;
-	u8 align;
 	u32 chip;
 	u32 chiprev;
 	struct list_head dcmd_list;
