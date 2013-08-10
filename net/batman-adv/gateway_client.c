@@ -508,6 +508,7 @@ out:
 	return 0;
 }
 
+/* this call might reallocate skb data */
 static bool batadv_is_type_dhcprequest(struct sk_buff *skb, int header_len)
 {
 	int ret = false;
@@ -568,6 +569,7 @@ out:
 	return ret;
 }
 
+/* this call might reallocate skb data */
 bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 {
 	struct ethhdr *ethhdr;
@@ -619,6 +621,12 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 
 	if (!pskb_may_pull(skb, *header_len + sizeof(*udphdr)))
 		return false;
+
+	/* skb->data might have been reallocated by pskb_may_pull() */
+	ethhdr = (struct ethhdr *)skb->data;
+	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q)
+		ethhdr = (struct ethhdr *)(skb->data + VLAN_HLEN);
+
 	udphdr = (struct udphdr *)(skb->data + *header_len);
 	*header_len += sizeof(*udphdr);
 
@@ -634,12 +642,14 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 	return true;
 }
 
+/* this call might reallocate skb data */
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
-			    struct sk_buff *skb, struct ethhdr *ethhdr)
+			    struct sk_buff *skb)
 {
 	struct batadv_neigh_node *neigh_curr = NULL, *neigh_old = NULL;
 	struct batadv_orig_node *orig_dst_node = NULL;
 	struct batadv_gw_node *curr_gw = NULL;
+	struct ethhdr *ethhdr;
 	bool ret, out_of_range = false;
 	unsigned int header_len = 0;
 	uint8_t curr_tq_avg;
@@ -648,6 +658,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	if (!ret)
 		goto out;
 
+	ethhdr = (struct ethhdr *)skb->data;
 	orig_dst_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
 						 ethhdr->h_dest);
 	if (!orig_dst_node)
