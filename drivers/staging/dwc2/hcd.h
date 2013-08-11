@@ -232,16 +232,19 @@ enum dwc2_transaction_type {
  *                       - DWC2_HC_PID_DATA1
  * @ping_state:         Ping state
  * @do_split:           Full/low speed endpoint on high-speed hub requires split
- * @qtd_list:           List of QTDs for this QH
- * @channel:            Host channel currently processing transfers for this QH
+ * @td_first:           Index of first activated isochronous transfer descriptor
+ * @td_last:            Index of last activated isochronous transfer descriptor
  * @usecs:              Bandwidth in microseconds per (micro)frame
  * @interval:           Interval between transfers in (micro)frames
- * @sched_frame:        (micro)frame to initialize a periodic transfer.
+ * @sched_frame:        (Micro)frame to initialize a periodic transfer.
  *                      The transfer executes in the following (micro)frame.
  * @start_split_frame:  (Micro)frame at which last start split was initialized
+ * @ntd:                Actual number of transfer descriptors in a list
  * @dw_align_buf:       Used instead of original buffer if its physical address
  *                      is not dword-aligned
  * @dw_align_buf_dma:   DMA address for align_buf
+ * @qtd_list:           List of QTDs for this QH
+ * @channel:            Host channel currently processing transfers for this QH
  * @qh_list_entry:      Entry for QH in either the periodic or non-periodic
  *                      schedule
  * @desc_list:          List of transfer descriptors
@@ -249,9 +252,6 @@ enum dwc2_transaction_type {
  * @n_bytes:            Xfer Bytes array. Each element corresponds to a transfer
  *                      descriptor and indicates original XferSize value for the
  *                      descriptor
- * @ntd:                Actual number of transfer descriptors in a list
- * @td_first:           Index of first activated isochronous transfer descriptor
- * @td_last:            Index of last activated isochronous transfer descriptor
  * @tt_buffer_dirty     True if clear_tt_buffer_complete is pending
  *
  * A Queue Head (QH) holds the static characteristics of an endpoint and
@@ -266,21 +266,21 @@ struct dwc2_qh {
 	u8 data_toggle;
 	u8 ping_state;
 	u8 do_split;
-	struct list_head qtd_list;
-	struct dwc2_host_chan *channel;
+	u8 td_first;
+	u8 td_last;
 	u16 usecs;
 	u16 interval;
 	u16 sched_frame;
 	u16 start_split_frame;
+	u16 ntd;
 	u8 *dw_align_buf;
 	dma_addr_t dw_align_buf_dma;
+	struct list_head qtd_list;
+	struct dwc2_host_chan *channel;
 	struct list_head qh_list_entry;
 	struct dwc2_hcd_dma_desc *desc_list;
 	dma_addr_t desc_list_dma;
 	u32 *n_bytes;
-	u16 ntd;
-	u8 td_first;
-	u8 td_last;
 	unsigned tt_buffer_dirty:1;
 };
 
