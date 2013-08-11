@@ -63,7 +63,6 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	unsigned int speed_hz;
 	int mode;
 	bool cpha, cpol;
-	int bits_per_word;
 	const u8 *tx_buf;
 	u8 *rx_buf;
 	int len;
@@ -75,12 +74,9 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	mode = msg_setup->mode;
 	cpha = mode & SPI_CPHA;
 	cpol = mode & SPI_CPOL;
-	bits_per_word = msg_setup->bits_per_word;
 
 	if (xfer->speed_hz)
 		speed_hz = xfer->speed_hz;
-	if (xfer->bits_per_word)
-		bits_per_word = xfer->bits_per_word;
 
 	if (speed_hz > OCTEON_SPI_MAX_CLOCK_HZ)
 		speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
