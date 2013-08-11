@@ -247,21 +247,21 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 	    gpio_is_valid(adau1701->gpio_pll_mode[1])) {
 		switch (clkdiv) {
 		case 64:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 0);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 0);
 			break;
 		case 256:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 0);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 1);
 			break;
 		case 384:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 1);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 0);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 0);
 			break;
 		case 0:	/* fallback */
 		case 512:
-			gpio_set_value(adau1701->gpio_pll_mode[0], 1);
-			gpio_set_value(adau1701->gpio_pll_mode[1], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[0], 1);
+			gpio_set_value_cansleep(adau1701->gpio_pll_mode[1], 1);
 			break;
 		}
 	}
@@ -269,10 +269,10 @@ static int adau1701_reset(struct snd_soc_codec *codec, unsigned int clkdiv)
 	adau1701->pll_clkdiv = clkdiv;
 
 	if (gpio_is_valid(adau1701->gpio_nreset)) {
-		gpio_set_value(adau1701->gpio_nreset, 0);
+		gpio_set_value_cansleep(adau1701->gpio_nreset, 0);
 		/* minimum reset time is 20ns */
 		udelay(1);
-		gpio_set_value(adau1701->gpio_nreset, 1);
+		gpio_set_value_cansleep(adau1701->gpio_nreset, 1);
 		/* power-up time may be as long as 85ms */
 		mdelay(85);
 	}
