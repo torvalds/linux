@@ -1826,10 +1826,10 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 	u32 tmp;
 
 	if (ring->hangcheck.acthd != acthd)
-		return active;
+		return HANGCHECK_ACTIVE;
 
 	if (IS_GEN2(dev))
-		return hung;
+		return HANGCHECK_HUNG;
 
 	/* Is the chip hanging on a WAIT_FOR_EVENT?
 	 * If so we can simply poke the RB_WAIT bit
@@ -1841,24 +1841,24 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 		DRM_ERROR("Kicking stuck wait on %s\n",
 			  ring->name);
 		I915_WRITE_CTL(ring, tmp);
-		return kick;
+		return HANGCHECK_KICK;
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6 && tmp & RING_WAIT_SEMAPHORE) {
 		switch (semaphore_passed(ring)) {
 		default:
-			return hung;
+			return HANGCHECK_HUNG;
 		case 1:
 			DRM_ERROR("Kicking stuck semaphore on %s\n",
 				  ring->name);
 			I915_WRITE_CTL(ring, tmp);
-			return kick;
+			return HANGCHECK_KICK;
 		case 0:
-			return wait;
+			return HANGCHECK_WAIT;
 		}
 	}
 
-	return hung;
+	return HANGCHECK_HUNG;
 }
 
 /**
@@ -1926,16 +1926,16 @@ static void i915_hangcheck_elapsed(unsigned long data)
 								    acthd);
 
 				switch (ring->hangcheck.action) {
-				case wait:
+				case HANGCHECK_WAIT:
 					score = 0;
 					break;
-				case active:
+				case HANGCHECK_ACTIVE:
 					score = BUSY;
 					break;
-				case kick:
+				case HANGCHECK_KICK:
 					score = KICK;
 					break;
-				case hung:
+				case HANGCHECK_HUNG:
 					score = HUNG;
 					stuck[i] = true;
 					break;
