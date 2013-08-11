@@ -64,5 +64,12 @@ int xlp_get_dram_map(int n, uint64_t *dram_map);
 /* Device tree related */
 void *xlp_dt_init(void *fdtp);
 
+static inline int cpu_is_xlpii(void)
+{
+	int chip = read_c0_prid() & 0xff00;
+
+	return chip == PRID_IMP_NETLOGIC_XLP2XX;
+}
+
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_NLM_XLP_H */

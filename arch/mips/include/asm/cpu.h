@@ -179,6 +179,7 @@
 
 #define PRID_IMP_NETLOGIC_XLP8XX	0x1000
 #define PRID_IMP_NETLOGIC_XLP3XX	0x1100
+#define PRID_IMP_NETLOGIC_XLP2XX	0x1200
 
 /*
  * Definitions for 7:0 on legacy processors

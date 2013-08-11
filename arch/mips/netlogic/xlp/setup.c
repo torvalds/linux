@@ -110,7 +110,12 @@ void __init plat_mem_setup(void)
 
 const char *get_system_type(void)
 {
-	return "Netlogic XLP Series";
+	switch (read_c0_prid() & 0xff00) {
+	case PRID_IMP_NETLOGIC_XLP2XX:
+		return "Broadcom XLPII Series";
+	default:
+		return "Netlogic XLP Series";
+	}
 }
 
 void __init prom_free_prom_memory(void)
@@ -120,12 +125,20 @@ void __init prom_free_prom_memory(void)
 
 void xlp_mmu_init(void)
 {
-	/* enable extended TLB and Large Fixed TLB */
-	write_c0_config6(read_c0_config6() | 0x24);
+	u32 conf4;
 
-	/* set page mask of Fixed TLB in config7 */
-	write_c0_config7(PM_DEFAULT_MASK >>
-		(13 + (ffz(PM_DEFAULT_MASK >> 13) / 2)));
+	if (cpu_is_xlpii()) {
+		/* XLPII series has extended pagesize in config 4 */
+		conf4 = read_c0_config4() & ~0x1f00u;
+		write_c0_config4(conf4 | ((PAGE_SHIFT - 10) / 2 << 8));
+	} else {
+		/* enable extended TLB and Large Fixed TLB */
+		write_c0_config6(read_c0_config6() | 0x24);
+
+		/* set page mask of extended Fixed TLB in config7 */
+		write_c0_config7(PM_DEFAULT_MASK >>
+			(13 + (ffz(PM_DEFAULT_MASK >> 13) / 2)));
+	}
 }
 
 void nlm_percpu_init(int hwcpuid)
