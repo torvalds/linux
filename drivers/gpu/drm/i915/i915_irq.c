@@ -1905,8 +1905,6 @@ static void i915_hangcheck_elapsed(unsigned long data)
 				} else
 					busy = false;
 			} else {
-				int score;
-
 				/* We always increment the hangcheck score
 				 * if the ring is busy and still processing
 				 * the same request, so that no single request
@@ -1927,20 +1925,18 @@ static void i915_hangcheck_elapsed(unsigned long data)
 
 				switch (ring->hangcheck.action) {
 				case HANGCHECK_WAIT:
-					score = 0;
 					break;
 				case HANGCHECK_ACTIVE:
-					score = BUSY;
+					ring->hangcheck.score += BUSY;
 					break;
 				case HANGCHECK_KICK:
-					score = KICK;
+					ring->hangcheck.score += KICK;
 					break;
 				case HANGCHECK_HUNG:
-					score = HUNG;
+					ring->hangcheck.score += HUNG;
 					stuck[i] = true;
 					break;
 				}
-				ring->hangcheck.score += score;
 			}
 		} else {
 			/* Gradually reduce the count so that we catch DoS
