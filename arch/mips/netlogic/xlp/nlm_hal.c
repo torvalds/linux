@@ -127,16 +127,123 @@ unsigned int nlm_get_core_frequency(int node, int core)
 
 	sysbase = nlm_get_node(node)->sysbase;
 	rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
-	dfsval = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIV_VALUE);
-	pll_divf = ((rstval >> 10) & 0x7f) + 1;
-	pll_divr = ((rstval >> 8)  & 0x3) + 1;
-	ext_div	 = ((rstval >> 30) & 0x3) + 1;
-	dfs_div	 = ((dfsval >> (core * 4)) & 0xf) + 1;
+	if (cpu_is_xlpii()) {
+		num = 1000000ULL * (400 * 3 + 100 * (rstval >> 26));
+		denom = 3;
+	} else {
+		dfsval = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIV_VALUE);
+		pll_divf = ((rstval >> 10) & 0x7f) + 1;
+		pll_divr = ((rstval >> 8)  & 0x3) + 1;
+		ext_div  = ((rstval >> 30) & 0x3) + 1;
+		dfs_div  = ((dfsval >> (core * 4)) & 0xf) + 1;
 
-	num = 800000000ULL * pll_divf;
-	denom = 3 * pll_divr * ext_div * dfs_div;
+		num = 800000000ULL * pll_divf;
+		denom = 3 * pll_divr * ext_div * dfs_div;
+	}
 	do_div(num, denom);
 	return (unsigned int)num;
+}
+
+/* Calculate Frequency to the PIC from PLL.
+ * freq_out = ( ref_freq/2 * (6 + ctrl2[7:0]) + ctrl2[20:8]/2^13 ) /
+ * ((2^ctrl0[7:5]) * Table(ctrl0[26:24]))
+ */
+static unsigned int nlm_2xx_get_pic_frequency(int node)
+{
+	u32 ctrl_val0, ctrl_val2, vco_post_div, pll_post_div;
+	u32 mdiv, fdiv, pll_out_freq_den, reg_select, ref_div, pic_div;
+	u64 ref_clk, sysbase, pll_out_freq_num, ref_clk_select;
+
+	sysbase = nlm_get_node(node)->sysbase;
+
+	/* Find ref_clk_base */
+	ref_clk_select =
+		(nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG) >> 18) & 0x3;
+	switch (ref_clk_select) {
+	case 0:
+		ref_clk = 200000000ULL;
+		ref_div = 3;
+		break;
+	case 1:
+		ref_clk = 100000000ULL;
+		ref_div = 1;
+		break;
+	case 2:
+		ref_clk = 125000000ULL;
+		ref_div = 1;
+		break;
+	case 3:
+		ref_clk = 400000000ULL;
+		ref_div = 3;
+		break;
+	}
+
+	/* Find the clock source PLL device for PIC */
+	reg_select = (nlm_read_sys_reg(sysbase, SYS_CLK_DEV_SEL) >> 22) & 0x3;
+	switch (reg_select) {
+	case 0:
+		ctrl_val0 = nlm_read_sys_reg(sysbase, SYS_PLL_CTRL0);
+		ctrl_val2 = nlm_read_sys_reg(sysbase, SYS_PLL_CTRL2);
+		break;
+	case 1:
+		ctrl_val0 = nlm_read_sys_reg(sysbase, SYS_PLL_CTRL0_DEVX(0));
+		ctrl_val2 = nlm_read_sys_reg(sysbase, SYS_PLL_CTRL2_DEVX(0));
+		break;
+	case 2:
+		ctrl_val0 = nlm_read_sys_reg(sysbase, SYS_PLL_CTRL0_DEVX(1));
+		ctrl_val2 = nlm_read_sys_reg(sysbase, SYS_PLL_CTRL2_DEVX(1));
+		break;
+	case 3:
+		ctrl_val0 = nlm_read_sys_reg(sysbase, SYS_PLL_CTRL0_DEVX(2));
+		ctrl_val2 = nlm_read_sys_reg(sysbase, SYS_PLL_CTRL2_DEVX(2));
+		break;
+	}
+
+	vco_post_div = (ctrl_val0 >> 5) & 0x7;
+	pll_post_div = (ctrl_val0 >> 24) & 0x7;
+	mdiv = ctrl_val2 & 0xff;
+	fdiv = (ctrl_val2 >> 8) & 0xfff;
+
+	/* Find PLL post divider value */
+	switch (pll_post_div) {
+	case 1:
+		pll_post_div = 2;
+		break;
+	case 3:
+		pll_post_div = 4;
+		break;
+	case 7:
+		pll_post_div = 8;
+		break;
+	case 6:
+		pll_post_div = 16;
+		break;
+	case 0:
+	default:
+		pll_post_div = 1;
+		break;
+	}
+
+	fdiv = fdiv/(1 << 13);
+	pll_out_freq_num = ((ref_clk >> 1) * (6 + mdiv)) + fdiv;
+	pll_out_freq_den = (1 << vco_post_div) * pll_post_div * 3;
+
+	if (pll_out_freq_den > 0)
+		do_div(pll_out_freq_num, pll_out_freq_den);
+
+	/* PIC post divider, which happens after PLL */
+	pic_div = (nlm_read_sys_reg(sysbase, SYS_CLK_DEV_DIV) >> 22) & 0x3;
+	do_div(pll_out_freq_num, 1 << pic_div);
+
+	return pll_out_freq_num;
+}
+
+unsigned int nlm_get_pic_frequency(int node)
+{
+	if (cpu_is_xlpii())
+		return nlm_2xx_get_pic_frequency(node);
+	else
+		return 133333333;
 }
 
 unsigned int nlm_get_cpu_frequency(void)
