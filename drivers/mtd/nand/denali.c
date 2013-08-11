@@ -1394,7 +1394,7 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 };
 
 /* initialize driver data structures */
-void denali_drv_init(struct denali_nand_info *denali)
+static void denali_drv_init(struct denali_nand_info *denali)
 {
 	denali->idx = 0;
 
