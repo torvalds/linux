@@ -32,13 +32,11 @@ itlb_load:
 dtlb_load:
 	.asciz	"SUNW,dtlb-load"
 
-	/* XXX __cpuinit this thing XXX */
 #define TRAMP_STACK_SIZE	1024
 	.align	16
 tramp_stack:
 	.skip	TRAMP_STACK_SIZE
 
-	__CPUINIT
 	.align		8
 	.globl		sparc64_cpu_startup, sparc64_cpu_startup_end
 sparc64_cpu_startup:

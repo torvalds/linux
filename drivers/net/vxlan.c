@@ -1767,9 +1767,15 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
+	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 
+	flush_workqueue(vxlan_wq);
+
+	spin_lock(&vn->sock_lock);
 	hlist_del_rcu(&vxlan->hlist);
+	spin_unlock(&vn->sock_lock);
+
 	list_del(&vxlan->next);
 	unregister_netdevice_queue(dev, head);
 }

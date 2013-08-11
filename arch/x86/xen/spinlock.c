@@ -361,7 +361,7 @@ static irqreturn_t dummy_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void __cpuinit xen_init_lock_cpu(int cpu)
+void xen_init_lock_cpu(int cpu)
 {
 	int irq;
 	char *name;

@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
-#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
@@ -2144,7 +2143,6 @@ void r600_cp_stop(struct radeon_device *rdev)
 
 int r600_init_microcode(struct radeon_device *rdev)
 {
-	struct platform_device *pdev;
 	const char *chip_name;
 	const char *rlc_chip_name;
 	const char *smc_chip_name = "RV770";
@@ -2153,13 +2151,6 @@ int r600_init_microcode(struct radeon_device *rdev)
 	int err;
 
 	DRM_DEBUG("\n");
-
-	pdev = platform_device_register_simple("radeon_cp", 0, NULL, 0);
-	err = IS_ERR(pdev);
-	if (err) {
-		printk(KERN_ERR "radeon_cp: Failed to register firmware\n");
-		return -EINVAL;
-	}
 
 	switch (rdev->family) {
 	case CHIP_R600:
@@ -2272,7 +2263,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	DRM_INFO("Loading %s Microcode\n", chip_name);
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
-	err = request_firmware(&rdev->pfp_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->pfp_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->pfp_fw->size != pfp_req_size) {
@@ -2284,7 +2275,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
-	err = request_firmware(&rdev->me_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->me_fw->size != me_req_size) {
@@ -2295,7 +2286,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
-	err = request_firmware(&rdev->rlc_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->rlc_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->rlc_fw->size != rlc_req_size) {
@@ -2307,7 +2298,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_HEMLOCK)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", smc_chip_name);
-		err = request_firmware(&rdev->smc_fw, fw_name, &pdev->dev);
+		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
 		if (err)
 			goto out;
 		if (rdev->smc_fw->size != smc_req_size) {
@@ -2319,8 +2310,6 @@ int r600_init_microcode(struct radeon_device *rdev)
 	}
 
 out:
-	platform_device_unregister(pdev);
-
 	if (err) {
 		if (err != -EINVAL)
 			printk(KERN_ERR
@@ -3019,7 +3008,7 @@ void r600_uvd_fence_emit(struct radeon_device *rdev,
 			 struct radeon_fence *fence)
 {
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
-	uint32_t addr = rdev->fence_drv[fence->ring].gpu_addr;
+	uint64_t addr = rdev->fence_drv[fence->ring].gpu_addr;
 
 	radeon_ring_write(ring, PACKET0(UVD_CONTEXT_ID, 0));
 	radeon_ring_write(ring, fence->seq);
@@ -3142,6 +3131,87 @@ int r600_copy_blit(struct radeon_device *rdev,
 	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages, vb);
 	r600_blit_done_copy(rdev, fence, vb, sem);
 	return 0;
+}
+
+/**
+ * r600_copy_cpdma - copy pages using the CP DMA engine
+ *
+ * @rdev: radeon_device pointer
+ * @src_offset: src GPU address
+ * @dst_offset: dst GPU address
+ * @num_gpu_pages: number of GPU pages to xfer
+ * @fence: radeon fence object
+ *
+ * Copy GPU paging using the CP DMA engine (r6xx+).
+ * Used by the radeon ttm implementation to move pages if
+ * registered as the asic copy callback.
+ */
+int r600_copy_cpdma(struct radeon_device *rdev,
+		    uint64_t src_offset, uint64_t dst_offset,
+		    unsigned num_gpu_pages,
+		    struct radeon_fence **fence)
+{
+	struct radeon_semaphore *sem = NULL;
+	int ring_index = rdev->asic->copy.blit_ring_index;
+	struct radeon_ring *ring = &rdev->ring[ring_index];
+	u32 size_in_bytes, cur_size_in_bytes, tmp;
+	int i, num_loops;
+	int r = 0;
+
+	r = radeon_semaphore_create(rdev, &sem);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		return r;
+	}
+
+	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
+	num_loops = DIV_ROUND_UP(size_in_bytes, 0x1fffff);
+	r = radeon_ring_lock(rdev, ring, num_loops * 6 + 21);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		radeon_semaphore_free(rdev, &sem, NULL);
+		return r;
+	}
+
+	if (radeon_fence_need_sync(*fence, ring->idx)) {
+		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
+					    ring->idx);
+		radeon_fence_note_sync(*fence, ring->idx);
+	} else {
+		radeon_semaphore_free(rdev, &sem, NULL);
+	}
+
+	for (i = 0; i < num_loops; i++) {
+		cur_size_in_bytes = size_in_bytes;
+		if (cur_size_in_bytes > 0x1fffff)
+			cur_size_in_bytes = 0x1fffff;
+		size_in_bytes -= cur_size_in_bytes;
+		tmp = upper_32_bits(src_offset) & 0xff;
+		if (size_in_bytes == 0)
+			tmp |= PACKET3_CP_DMA_CP_SYNC;
+		radeon_ring_write(ring, PACKET3(PACKET3_CP_DMA, 4));
+		radeon_ring_write(ring, src_offset & 0xffffffff);
+		radeon_ring_write(ring, tmp);
+		radeon_ring_write(ring, dst_offset & 0xffffffff);
+		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
+		radeon_ring_write(ring, cur_size_in_bytes);
+		src_offset += cur_size_in_bytes;
+		dst_offset += cur_size_in_bytes;
+	}
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	radeon_ring_write(ring, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+	radeon_ring_write(ring, WAIT_CP_DMA_IDLE_bit);
+
+	r = radeon_fence_emit(rdev, fence, ring->idx);
+	if (r) {
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
+	}
+
+	radeon_ring_unlock_commit(rdev, ring);
+	radeon_semaphore_free(rdev, &sem, *fence);
+
+	return r;
 }
 
 /**

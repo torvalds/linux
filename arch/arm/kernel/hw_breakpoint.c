@@ -1020,7 +1020,7 @@ out_mdbgen:
 		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
 }
 
-static int __cpuinit dbg_reset_notify(struct notifier_block *self,
+static int dbg_reset_notify(struct notifier_block *self,
 				      unsigned long action, void *cpu)
 {
 	if ((action & ~CPU_TASKS_FROZEN) == CPU_ONLINE)
@@ -1029,7 +1029,7 @@ static int __cpuinit dbg_reset_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata dbg_reset_nb = {
+static struct notifier_block dbg_reset_nb = {
 	.notifier_call = dbg_reset_notify,
 };
 

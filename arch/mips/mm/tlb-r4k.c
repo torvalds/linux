@@ -389,7 +389,7 @@ int __init has_transparent_hugepage(void)
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE  */
 
-static int __cpuinitdata ntlb;
+static int ntlb;
 static int __init set_ntlb(char *str)
 {
 	get_option(&str, &ntlb);
@@ -398,7 +398,7 @@ static int __init set_ntlb(char *str)
 
 __setup("ntlb=", set_ntlb);
 
-void __cpuinit tlb_init(void)
+void tlb_init(void)
 {
 	/*
 	 * You should never change this register:

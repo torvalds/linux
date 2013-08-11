@@ -1763,12 +1763,14 @@ void rv6xx_setup_asic(struct radeon_device *rdev)
 {
 	r600_enable_acpi_pm(rdev);
 
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L0s)
-		rv6xx_enable_l0s(rdev);
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L1)
-		rv6xx_enable_l1(rdev);
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1)
-		rv6xx_enable_pll_sleep_in_l1(rdev);
+	if (radeon_aspm != 0) {
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L0s)
+			rv6xx_enable_l0s(rdev);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L1)
+			rv6xx_enable_l1(rdev);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1)
+			rv6xx_enable_pll_sleep_in_l1(rdev);
+	}
 }
 
 void rv6xx_dpm_display_configuration_changed(struct radeon_device *rdev)

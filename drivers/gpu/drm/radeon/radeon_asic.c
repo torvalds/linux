@@ -1026,8 +1026,8 @@ static struct radeon_asic r600_asic = {
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &r600_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.copy = &r600_copy_dma,
-		.copy_ring_index = R600_RING_TYPE_DMA_INDEX,
+		.copy = &r600_copy_cpdma,
+		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
 	.surface = {
 		.set_reg = r600_set_surface_reg,
@@ -1119,8 +1119,8 @@ static struct radeon_asic rv6xx_asic = {
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &r600_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.copy = &r600_copy_dma,
-		.copy_ring_index = R600_RING_TYPE_DMA_INDEX,
+		.copy = &r600_copy_cpdma,
+		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
 	.surface = {
 		.set_reg = r600_set_surface_reg,
@@ -1229,8 +1229,8 @@ static struct radeon_asic rs780_asic = {
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &r600_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.copy = &r600_copy_dma,
-		.copy_ring_index = R600_RING_TYPE_DMA_INDEX,
+		.copy = &r600_copy_cpdma,
+		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
 	.surface = {
 		.set_reg = r600_set_surface_reg,
@@ -1270,6 +1270,7 @@ static struct radeon_asic rs780_asic = {
 		.get_sclk = &rs780_dpm_get_sclk,
 		.get_mclk = &rs780_dpm_get_mclk,
 		.print_power_state = &rs780_dpm_print_power_state,
+		.debugfs_print_current_performance_level = &rs780_dpm_debugfs_print_current_performance_level,
 	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,

@@ -13,12 +13,8 @@
 
 #ifdef CONFIG_EXPORT_UASM
 #include <linux/export.h>
-#define __uasminit
-#define __uasminitdata
 #define UASM_EXPORT_SYMBOL(sym) EXPORT_SYMBOL(sym)
 #else
-#define __uasminit __cpuinit
-#define __uasminitdata __cpuinitdata
 #define UASM_EXPORT_SYMBOL(sym)
 #endif
 
@@ -54,43 +50,36 @@
 #endif
 
 #define Ip_u1u2u3(op)							\
-void __uasminit								\
-ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
+void ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u2u1u3(op)							\
-void __uasminit								\
-ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
+void ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u3u1u2(op)							\
-void __uasminit								\
-ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
+void ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u1u2s3(op)							\
-void __uasminit								\
-ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, signed int c)
+void ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, signed int c)
 
 #define Ip_u2s3u1(op)							\
-void __uasminit								\
-ISAOPC(op)(u32 **buf, unsigned int a, signed int b, unsigned int c)
+void ISAOPC(op)(u32 **buf, unsigned int a, signed int b, unsigned int c)
 
 #define Ip_u2u1s3(op)							\
-void __uasminit								\
-ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, signed int c)
+void ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, signed int c)
 
 #define Ip_u2u1msbu3(op)						\
-void __uasminit								\
-ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c,	\
+void ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c, \
 	   unsigned int d)
 
 #define Ip_u1u2(op)							\
-void __uasminit ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b)
+void ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b)
 
 #define Ip_u1s2(op)							\
-void __uasminit ISAOPC(op)(u32 **buf, unsigned int a, signed int b)
+void ISAOPC(op)(u32 **buf, unsigned int a, signed int b)
 
-#define Ip_u1(op) void __uasminit ISAOPC(op)(u32 **buf, unsigned int a)
+#define Ip_u1(op) void ISAOPC(op)(u32 **buf, unsigned int a)
 
-#define Ip_0(op) void __uasminit ISAOPC(op)(u32 **buf)
+#define Ip_0(op) void ISAOPC(op)(u32 **buf)
 
 Ip_u2u1s3(_addiu);
 Ip_u3u1u2(_addu);
@@ -163,7 +152,7 @@ struct uasm_label {
 	int lab;
 };
 
-void __uasminit ISAFUNC(uasm_build_label)(struct uasm_label **lab, u32 *addr,
+void ISAFUNC(uasm_build_label)(struct uasm_label **lab, u32 *addr,
 			int lid);
 #ifdef CONFIG_64BIT
 int ISAFUNC(uasm_in_compat_space_p)(long addr);
@@ -174,7 +163,7 @@ void ISAFUNC(UASM_i_LA_mostly)(u32 **buf, unsigned int rs, long addr);
 void ISAFUNC(UASM_i_LA)(u32 **buf, unsigned int rs, long addr);
 
 #define UASM_L_LA(lb)							\
-static inline void __uasminit ISAFUNC(uasm_l##lb)(struct uasm_label **lab, u32 *addr) \
+static inline void ISAFUNC(uasm_l##lb)(struct uasm_label **lab, u32 *addr) \
 {									\
 	ISAFUNC(uasm_build_label)(lab, addr, label##lb);		\
 }

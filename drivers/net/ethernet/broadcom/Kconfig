@@ -131,6 +131,7 @@ config BNX2X_SRIOV
 config BGMAC
 	tristate "BCMA bus GBit core support"
 	depends on BCMA_HOST_SOC && HAS_DMA
+	select PHYLIB
 	---help---
 	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BCMA bus.
 	  They can be found on BCM47xx SoCs and provide gigabit ethernet.

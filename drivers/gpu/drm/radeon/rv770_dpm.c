@@ -2099,12 +2099,14 @@ void rv770_dpm_setup_asic(struct radeon_device *rdev)
 
 	rv770_enable_acpi_pm(rdev);
 
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L0s)
-		rv770_enable_l0s(rdev);
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L1)
-		rv770_enable_l1(rdev);
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1)
-		rv770_enable_pll_sleep_in_l1(rdev);
+	if (radeon_aspm != 0) {
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L0s)
+			rv770_enable_l0s(rdev);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L1)
+			rv770_enable_l1(rdev);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1)
+			rv770_enable_pll_sleep_in_l1(rdev);
+	}
 }
 
 void rv770_dpm_display_configuration_changed(struct radeon_device *rdev)

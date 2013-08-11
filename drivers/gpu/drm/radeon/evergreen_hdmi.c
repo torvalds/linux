@@ -177,6 +177,9 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	uint32_t offset;
 	ssize_t err;
 
+	if (!dig || !dig->afmt)
+		return;
+
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (!dig->afmt->enabled)
 		return;
@@ -279,6 +282,9 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+	if (!dig || !dig->afmt)
+		return;
 
 	/* Silent, r600_hdmi_enable will raise WARN for us */
 	if (enable && dig->afmt->enabled)
