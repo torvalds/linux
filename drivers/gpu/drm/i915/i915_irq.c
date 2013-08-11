@@ -2449,7 +2449,6 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 	u16 iir, new_iir;
 	u32 pipe_stats[2];
 	unsigned long irqflags;
-	int irq_received;
 	int pipe;
 	u16 flip_mask =
 		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
@@ -2483,7 +2482,6 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 					DRM_DEBUG_DRIVER("pipe %c underrun\n",
 							 pipe_name(pipe));
 				I915_WRITE(reg, pipe_stats[pipe]);
-				irq_received = 1;
 			}
 		}
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
