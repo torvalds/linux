@@ -1067,11 +1067,16 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range,
 			matrixresult.x30 = 0;
 			matrixresult.x31 = 0;
 			matrixresult.x32 = 0;
-			matrixresult.x33 = 0x400;
+			matrixresult.x33 = 0xe8;
 		}
 
 		/* OUTPUT RANGE MODIFY */
 		ptmatrix = &matrixresult;
+
+		matrixconv.x30 = 0x0000;
+		matrixconv.x31 = 0x0000;
+		matrixconv.x32 = 0x0000;
+		matrixconv.x33 = 0x0000;
 
 		if (out_color_range == DISP_COLOR_RANGE_16_255) {
 			matrixconv.x00 = 0x03c4;
@@ -1086,10 +1091,6 @@ __s32 DE_BE_Set_Enhance_ex(__u8 sel, __csc_t out_csc, __u32 out_color_range,
 			matrixconv.x21 = 0x0000;
 			matrixconv.x22 = 0x03c4;
 			matrixconv.x23 = 0x0100;
-			matrixconv.x30 = 0x0000;
-			matrixconv.x31 = 0x0000;
-			matrixconv.x32 = 0x0000;
-			matrixconv.x33 = 0x0100;
 		} else if (out_color_range == DISP_COLOR_RANGE_16_235) {
 			matrixconv.x00 = 0x0370;
 			matrixconv.x01 = 0x0000;
