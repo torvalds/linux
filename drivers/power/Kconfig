@@ -204,6 +204,16 @@ config BATTERY_MAX17042
 	  with MAX17042. This driver also supports max17047/50 chips which are
 	  improved version of max17042.
 
+config BATTERY_ANDROID
+	tristate "Battery driver for Android"
+	help
+	  Say Y to enable generic support for battery charging according
+	  to common Android policies.
+	  This driver adds periodic battery level and health monitoring,
+	  kernel log reporting and other debugging features, common board
+	  battery file glue logic for battery/case temperature sensors,
+	  etc.
+
 config BATTERY_Z2
 	tristate "Z2 battery driver"
 	depends on I2C && MACH_ZIPIT2
