@@ -449,8 +449,7 @@ static int rs_collect_tx_data(struct iwl_scale_tbl_info *tbl,
  */
 /* FIXME:RS:remove this function and put the flags statically in the table */
 static u32 rate_n_flags_from_tbl(struct iwl_mvm *mvm,
-				 struct iwl_scale_tbl_info *tbl,
-				 int index, u8 use_green)
+				 struct iwl_scale_tbl_info *tbl, int index)
 {
 	u32 rate_n_flags = 0;
 
@@ -498,14 +497,6 @@ static u32 rate_n_flags_from_tbl(struct iwl_mvm *mvm,
 	if (tbl->is_SGI)
 		rate_n_flags |= RATE_MCS_SGI_MSK;
 
-	/* TODO: remove GF completely ? */
-	if (use_green) {
-		rate_n_flags |= RATE_HT_MCS_GF_MSK;
-		if (is_ht_siso(tbl->lq_type) && tbl->is_SGI) {
-			rate_n_flags &= ~RATE_MCS_SGI_MSK;
-			IWL_ERR(mvm, "GF was set with SGI:SISO\n");
-		}
-	}
 	return rate_n_flags;
 }
 
@@ -618,22 +609,6 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 }
 
 /**
- * Green-field mode is valid if the station supports it and
- * there are no non-GF stations present in the BSS.
- */
-static bool rs_use_green(struct ieee80211_sta *sta)
-{
-	/*
-	 * There's a bug somewhere in this code that causes the
-	 * scaling to get stuck because GF+SGI can't be combined
-	 * in SISO rates. Until we find that bug, disable GF, it
-	 * has only limited benefit and we still interoperate with
-	 * GF APs since we can always receive GF transmissions.
-	 */
-	return false;
-}
-
-/**
  * rs_get_supported_rates - get the available rates
  *
  * if management frame or broadcast frame only return
@@ -719,7 +694,6 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 	u16 rate_mask;
 	u16 high_low;
 	u8 switch_to_legacy = 0;
-	u8 is_green = lq_sta->is_green;
 	struct iwl_mvm *mvm = lq_sta->drv;
 
 	/* check if we need to switch from HT to legacy rates.
@@ -768,7 +742,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 		low = scale_index;
 
 out:
-	return rate_n_flags_from_tbl(lq_sta->drv, tbl, low, is_green);
+	return rate_n_flags_from_tbl(lq_sta->drv, tbl, low);
 }
 
 /*
@@ -1246,7 +1220,6 @@ static int rs_switch_to_mimo2(struct iwl_mvm *mvm,
 {
 	u16 rate_mask;
 	s32 rate;
-	s8 is_green = lq_sta->is_green;
 
 	if (!sta->ht_cap.ht_supported)
 		return -1;
@@ -1277,10 +1250,10 @@ static int rs_switch_to_mimo2(struct iwl_mvm *mvm,
 			       rate, rate_mask);
 		return -1;
 	}
-	tbl->current_rate = rate_n_flags_from_tbl(mvm, tbl, rate, is_green);
+	tbl->current_rate = rate_n_flags_from_tbl(mvm, tbl, rate);
 
-	IWL_DEBUG_RATE(mvm, "LQ: Switch to new mcs %X index is green %X\n",
-		       tbl->current_rate, is_green);
+	IWL_DEBUG_RATE(mvm, "LQ: Switch to new mcs %X index\n",
+		       tbl->current_rate);
 	return 0;
 }
 
@@ -1293,7 +1266,6 @@ static int rs_switch_to_siso(struct iwl_mvm *mvm,
 			     struct iwl_scale_tbl_info *tbl, int index)
 {
 	u16 rate_mask;
-	u8 is_green = lq_sta->is_green;
 	s32 rate;
 
 	if (!sta->ht_cap.ht_supported)
@@ -1306,9 +1278,6 @@ static int rs_switch_to_siso(struct iwl_mvm *mvm,
 	tbl->max_search = IWL_MAX_SEARCH;
 	rate_mask = lq_sta->active_siso_rate;
 
-	if (is_green)
-		tbl->is_SGI = 0; /*11n spec: no SGI in SISO+Greenfield*/
-
 	rs_set_bw_from_sta(tbl, sta);
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rate = rs_get_best_rate(mvm, lq_sta, tbl, rate_mask, index);
@@ -1320,9 +1289,9 @@ static int rs_switch_to_siso(struct iwl_mvm *mvm,
 			       rate, rate_mask);
 		return -1;
 	}
-	tbl->current_rate = rate_n_flags_from_tbl(mvm, tbl, rate, is_green);
-	IWL_DEBUG_RATE(mvm, "LQ: Switch to new mcs %X index is green %X\n",
-		       tbl->current_rate, is_green);
+	tbl->current_rate = rate_n_flags_from_tbl(mvm, tbl, rate);
+	IWL_DEBUG_RATE(mvm, "LQ: Switch to new mcs %X index\n",
+		       tbl->current_rate);
 	return 0;
 }
 
@@ -1431,7 +1400,6 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 				 struct iwl_lq_sta *lq_sta,
 				 struct ieee80211_sta *sta, int index)
 {
-	u8 is_green = lq_sta->is_green;
 	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
@@ -1513,13 +1481,6 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 			IWL_DEBUG_RATE(mvm, "LQ: SISO toggle SGI/NGI\n");
 
 			memcpy(search_tbl, tbl, sz);
-			if (is_green) {
-				if (!tbl->is_SGI)
-					break;
-				else
-					IWL_ERR(mvm,
-						"SGI was set in GF+SISO\n");
-			}
 			search_tbl->is_SGI = !tbl->is_SGI;
 			rs_set_expected_tpt_table(lq_sta, search_tbl);
 			if (tbl->is_SGI) {
@@ -1528,8 +1489,7 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 					break;
 			}
 			search_tbl->current_rate =
-				rate_n_flags_from_tbl(mvm, search_tbl,
-						      index, is_green);
+				rate_n_flags_from_tbl(mvm, search_tbl, index);
 			update_search_tbl_counter = 1;
 			goto out;
 		default:
@@ -1559,7 +1519,6 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 				 struct iwl_lq_sta *lq_sta,
 				 struct ieee80211_sta *sta, int index)
 {
-	s8 is_green = lq_sta->is_green;
 	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
@@ -1640,8 +1599,7 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 					break;
 			}
 			search_tbl->current_rate =
-				rate_n_flags_from_tbl(mvm, search_tbl,
-						      index, is_green);
+				rate_n_flags_from_tbl(mvm, search_tbl, index);
 			update_search_tbl_counter = 1;
 			goto out;
 		default:
@@ -1752,12 +1710,12 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 static void rs_update_rate_tbl(struct iwl_mvm *mvm,
 			       struct iwl_lq_sta *lq_sta,
 			       struct iwl_scale_tbl_info *tbl,
-			       int index, u8 is_green)
+			       int index)
 {
 	u32 rate;
 
 	/* Update uCode's rate table. */
-	rate = rate_n_flags_from_tbl(mvm, tbl, index, is_green);
+	rate = rate_n_flags_from_tbl(mvm, tbl, index);
 	rs_fill_link_cmd(mvm, lq_sta, rate);
 	iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq, CMD_ASYNC, false);
 }
@@ -1802,7 +1760,6 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	u8 update_lq = 0;
 	struct iwl_scale_tbl_info *tbl, *tbl1;
 	u16 rate_scale_index_msk = 0;
-	u8 is_green = 0;
 	u8 active_tbl = 0;
 	u8 done_search = 0;
 	u16 high_low;
@@ -1844,11 +1801,6 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 		active_tbl = 1 - lq_sta->active_tbl;
 
 	tbl = &(lq_sta->lq_info[active_tbl]);
-	if (is_legacy(tbl->lq_type))
-		lq_sta->is_green = 0;
-	else
-		lq_sta->is_green = rs_use_green(sta);
-	is_green = lq_sta->is_green;
 
 	/* current tx rate */
 	index = lq_sta->last_txrate_idx;
@@ -1887,7 +1839,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 			/* get "active" rate info */
 			index = iwl_hwrate_to_plcp_idx(tbl->current_rate);
-			rs_update_rate_tbl(mvm, lq_sta, tbl, index, is_green);
+			rs_update_rate_tbl(mvm, lq_sta, tbl, index);
 		}
 		return;
 	}
@@ -2122,7 +2074,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq)
-		rs_update_rate_tbl(mvm, lq_sta, tbl, index, is_green);
+		rs_update_rate_tbl(mvm, lq_sta, tbl, index);
 
 	rs_stay_in_table(lq_sta, false);
 
@@ -2203,7 +2155,7 @@ lq_update:
 	}
 
 out:
-	tbl->current_rate = rate_n_flags_from_tbl(mvm, tbl, index, is_green);
+	tbl->current_rate = rate_n_flags_from_tbl(mvm, tbl, index);
 	lq_sta->last_txrate_idx = index;
 }
 
@@ -2230,7 +2182,6 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	int rate_idx;
 	int i;
 	u32 rate;
-	u8 use_green = rs_use_green(sta);
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
 
@@ -2262,7 +2213,7 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	if (!rs_is_valid_ant(valid_tx_ant, tbl->ant_type))
 		rs_toggle_antenna(valid_tx_ant, &rate, tbl);
 
-	rate = rate_n_flags_from_tbl(mvm, tbl, rate_idx, use_green);
+	rate = rate_n_flags_from_tbl(mvm, tbl, rate_idx);
 	tbl->current_rate = rate;
 	rs_set_expected_tpt_table(lq_sta, tbl);
 	rs_fill_link_cmd(NULL, lq_sta, rate);
@@ -2379,7 +2330,6 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
-	lq_sta->is_green = rs_use_green(sta);
 	lq_sta->band = sband->band;
 	/*
 	 * active legacy rates as per supported rates bitmap
@@ -2706,10 +2656,9 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 				   (is_ht20(tbl)) ? "20MHz" :
 				   (is_ht40(tbl)) ? "40MHz" :
 				   (is_ht80(tbl)) ? "80Mhz" : "BAD BW");
-		   desc += sprintf(buff+desc, " %s %s %s\n",
+		   desc += sprintf(buff+desc, " %s %s\n",
 				   (tbl->is_SGI) ? "SGI" : "",
-		   (lq_sta->is_green) ? "GF enabled" : "",
-		   (lq_sta->is_agg) ? "AGG on" : "");
+				   (lq_sta->is_agg) ? "AGG on" : "");
 	}
 	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);
@@ -2777,7 +2726,7 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 	for (i = 0; i < LQ_SIZE; i++) {
 		tbl = &(lq_sta->lq_info[i]);
 		desc += sprintf(buff+desc,
-				"%s type=%d SGI=%d BW=%s DUP=0 GF=%d\n"
+				"%s type=%d SGI=%d BW=%s DUP=0\n"
 				"rate=0x%X\n",
 				lq_sta->active_tbl == i ? "*" : "x",
 				tbl->lq_type,
@@ -2785,7 +2734,6 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 				is_ht20(tbl) ? "20Mhz" :
 				is_ht40(tbl) ? "40Mhz" :
 				is_ht80(tbl) ? "80Mhz" : "ERR",
-				lq_sta->is_green,
 				tbl->current_rate);
 		for (j = 0; j < IWL_RATE_COUNT; j++) {
 			desc += sprintf(buff+desc,

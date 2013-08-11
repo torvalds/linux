@@ -300,7 +300,6 @@ struct iwl_lq_sta {
 	u64 flush_timer;	/* time staying in mode before new search */
 
 	u8 action_counter;	/* # mode-switch actions tried */
-	u8 is_green;
 	bool is_vht;
 	enum ieee80211_band band;
 
