@@ -68,6 +68,7 @@
 /*
  * These serve as indexes into
  * struct iwl_rate_info fw_rate_idx_to_plcp[IWL_RATE_COUNT];
+ * TODO: avoid overlap between legacy and HT rates
  */
 enum {
 	IWL_RATE_1M_INDEX = 0,
@@ -121,6 +122,7 @@ enum {
 	IWL_RATE_2M_PLCP  = 20,
 	IWL_RATE_5M_PLCP  = 55,
 	IWL_RATE_11M_PLCP = 110,
+	IWL_RATE_INVM_PLCP = -1,
 };
 
 /*
@@ -177,6 +179,8 @@ enum {
  * which is the duplicate 20 MHz MCS (bit 5 set, all others zero.)
  */
 #define RATE_HT_MCS_RATE_CODE_MSK	0x7
+#define RATE_HT_MCS_NSS_POS             3
+#define RATE_HT_MCS_NSS_MSK             (3 << RATE_HT_MCS_NSS_POS)
 
 /* Bit 10: (1) Use Green Field preamble */
 #define RATE_HT_MCS_GF_POS		10
