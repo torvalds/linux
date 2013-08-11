@@ -50,6 +50,8 @@
 #define PIC_MMC_IRQ			29
 #define PIC_I2C_0_IRQ			30
 #define PIC_I2C_1_IRQ			31
+#define PIC_I2C_2_IRQ			32
+#define PIC_I2C_3_IRQ			33
 
 #ifndef __ASSEMBLY__
 

@@ -93,11 +93,14 @@ int nlm_irq_to_irt(int irq)
 	case PIC_MMC_IRQ:
 		devoff = XLP_IO_SD_OFFSET(0);
 		break;
-	case PIC_I2C_0_IRQ:
-		devoff = XLP_IO_I2C0_OFFSET(0);
-		break;
+	case PIC_I2C_0_IRQ:	/* I2C will be fixed up */
 	case PIC_I2C_1_IRQ:
-		devoff = XLP_IO_I2C1_OFFSET(0);
+	case PIC_I2C_2_IRQ:
+	case PIC_I2C_3_IRQ:
+		if (cpu_is_xlpii())
+			devoff = XLP2XX_IO_I2C_OFFSET(0);
+		else
+			devoff = XLP_IO_I2C0_OFFSET(0);
 		break;
 	default:
 		devoff = 0;
@@ -107,9 +110,15 @@ int nlm_irq_to_irt(int irq)
 	if (devoff != 0) {
 		pcibase = nlm_pcicfg_base(devoff);
 		irt = nlm_read_reg(pcibase, XLP_PCI_IRTINFO_REG) & 0xffff;
-		/* HW bug, I2C 1 irt entry is off by one */
-		if (irq == PIC_I2C_1_IRQ)
-			irt = irt + 1;
+		/* HW weirdness, I2C IRT entry has to be fixed up */
+		switch (irq) {
+		case PIC_I2C_1_IRQ:
+			irt = irt + 1; break;
+		case PIC_I2C_2_IRQ:
+			irt = irt + 2; break;
+		case PIC_I2C_3_IRQ:
+			irt = irt + 3; break;
+		}
 	} else if (irq >= PIC_PCIE_LINK_0_IRQ && irq <= PIC_PCIE_LINK_3_IRQ) {
 		/* HW bug, PCI IRT entries are bad on early silicon, fix */
 		irt = PIC_IRT_PCIE_LINK_INDEX(irq - PIC_PCIE_LINK_0_IRQ);

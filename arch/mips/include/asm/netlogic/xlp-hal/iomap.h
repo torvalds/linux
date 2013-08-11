@@ -88,6 +88,9 @@
 #define XLP_IO_I2C0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 2)
 #define XLP_IO_I2C1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 3)
 #define XLP_IO_GPIO_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 4)
+/* on 2XX, all I2C busses are on the same block */
+#define XLP2XX_IO_I2C_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 7)
+
 /* system management */
 #define XLP_IO_SYS_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 6, 5)
 #define XLP_IO_JTAG_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 6)
