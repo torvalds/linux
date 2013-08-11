@@ -161,19 +161,6 @@ static int octeon_spi_do_transfer(struct octeon_spi *p,
 	return xfer->len;
 }
 
-static int octeon_spi_validate_bpw(struct spi_device *spi, u32 speed)
-{
-	switch (speed) {
-	case 8:
-		break;
-	default:
-		dev_err(&spi->dev, "Error: %d bits per word not supported\n",
-			speed);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int octeon_spi_transfer_one_message(struct spi_master *master,
 					   struct spi_message *msg)
 {
@@ -189,15 +176,6 @@ static int octeon_spi_transfer_one_message(struct spi_master *master,
 	if (spi_get_ctldata(msg->spi) == NULL) {
 		status = -EINVAL;
 		goto err;
-	}
-
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		if (xfer->bits_per_word) {
-			status = octeon_spi_validate_bpw(msg->spi,
-							 xfer->bits_per_word);
-			if (status)
-				goto err;
-		}
 	}
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
@@ -231,13 +209,8 @@ static struct octeon_spi_setup *octeon_spi_new_setup(struct spi_device *spi)
 
 static int octeon_spi_setup(struct spi_device *spi)
 {
-	int r;
 	struct octeon_spi_setup *new_setup;
 	struct octeon_spi_setup *old_setup = spi_get_ctldata(spi);
-
-	r = octeon_spi_validate_bpw(spi, spi->bits_per_word);
-	if (r)
-		return r;
 
 	new_setup = octeon_spi_new_setup(spi);
 	if (!new_setup)
@@ -296,6 +269,7 @@ static int octeon_spi_probe(struct platform_device *pdev)
 	master->setup = octeon_spi_setup;
 	master->cleanup = octeon_spi_cleanup;
 	master->transfer_one_message = octeon_spi_transfer_one_message;
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 
 	master->dev.of_node = pdev->dev.of_node;
 	err = spi_register_master(master);
