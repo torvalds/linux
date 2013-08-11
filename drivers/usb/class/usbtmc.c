@@ -1119,11 +1119,11 @@ static int usbtmc_probe(struct usb_interface *intf,
 	/* Determine if it is a Rigol or not */
 	data->rigol_quirk = 0;
 	dev_dbg(&intf->dev, "Trying to find if device Vendor 0x%04X Product 0x%04X has the RIGOL quirk\n",
-		data->usb_dev->descriptor.idVendor,
-		data->usb_dev->descriptor.idProduct);
+		le16_to_cpu(data->usb_dev->descriptor.idVendor),
+		le16_to_cpu(data->usb_dev->descriptor.idProduct));
 	for(n = 0; usbtmc_id_quirk[n].idVendor > 0; n++) {
-		if ((usbtmc_id_quirk[n].idVendor == data->usb_dev->descriptor.idVendor) &&
-		    (usbtmc_id_quirk[n].idProduct == data->usb_dev->descriptor.idProduct)) {
+		if ((usbtmc_id_quirk[n].idVendor == le16_to_cpu(data->usb_dev->descriptor.idVendor)) &&
+		    (usbtmc_id_quirk[n].idProduct == le16_to_cpu(data->usb_dev->descriptor.idProduct))) {
 			dev_dbg(&intf->dev, "Setting this device as having the RIGOL quirk\n");
 			data->rigol_quirk = 1;
 			break;
