@@ -153,28 +153,37 @@ static __u32 USBC_Phy_Write(__u32 usbc_no, __u32 addr, __u32 data, __u32 len)
 {
 	__u32 temp = 0, dtmp = 0;
 	__u32 j = 0;
+	__u32 usbc_bit = 0;
+	__u32 dest = USBC_Phy_GetCsr(usbc_no);
 
 	dtmp = data;
+	usbc_bit = BIT(usbc_no * 2);
 	for (j = 0; j < len; j++) {
-		/* set  the bit address to be write */
-		temp = USBC_Readl(USBC_Phy_GetCsr(usbc_no));
+		/* set the bit address to be written */
+		temp = USBC_Readl(dest);
 		temp &= ~(0xff << 8);
 		temp |= ((addr + j) << 8);
-		USBC_Writel(temp, USBC_Phy_GetCsr(usbc_no));
+		USBC_Writel(temp, dest);
 
-		temp = USBC_Readb(USBC_Phy_GetCsr(usbc_no));
-		temp &= ~(0x1 << 7);
-		temp |= (dtmp & 0x1) << 7;
-		temp &= ~(0x1 << (usbc_no << 1));
-		USBC_Writeb(temp, USBC_Phy_GetCsr(usbc_no));
+		/* clear usbc bit and set data bit */
+		temp = USBC_Readb(dest);
+		temp &= ~usbc_bit;
+		if (dtmp & 0x1)
+			temp |= BIT(7);
+		else
+			temp &= ~BIT(7);
+		USBC_Writeb(temp, dest);
 
-		temp = USBC_Readb(USBC_Phy_GetCsr(usbc_no));
-		temp |= (0x1 << (usbc_no << 1));
-		USBC_Writeb(temp, USBC_Phy_GetCsr(usbc_no));
+		/* set usbc bit */
+		temp = USBC_Readb(dest);
+		temp |= usbc_bit;
+		USBC_Writeb(temp, dest);
 
-		temp = USBC_Readb(USBC_Phy_GetCsr(usbc_no));
-		temp &= ~(0x1 << (usbc_no << 1));
-		USBC_Writeb(temp, USBC_Phy_GetCsr(usbc_no));
+		/* clear usbc bit */
+		temp = USBC_Readb(dest);
+		temp &= ~usbc_bit;
+		USBC_Writeb(temp, dest);
+
 		dtmp >>= 1;
 	}
 
