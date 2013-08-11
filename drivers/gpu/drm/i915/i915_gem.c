@@ -2201,7 +2201,7 @@ static void i915_set_reset_status(struct intel_ring_buffer *ring,
 		offset = i915_gem_obj_offset(request->batch_obj,
 					     request_to_vm(request));
 
-	if (ring->hangcheck.action != wait &&
+	if (ring->hangcheck.action != HANGCHECK_WAIT &&
 	    i915_request_guilty(request, acthd, &inside)) {
 		DRM_ERROR("%s hung %s bo (0x%lx ctx %d) at 0x%x\n",
 			  ring->name,

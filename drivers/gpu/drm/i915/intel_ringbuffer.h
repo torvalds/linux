@@ -37,7 +37,12 @@ struct  intel_hw_status_page {
 #define I915_READ_SYNC_0(ring) I915_READ(RING_SYNC_0((ring)->mmio_base))
 #define I915_READ_SYNC_1(ring) I915_READ(RING_SYNC_1((ring)->mmio_base))
 
-enum intel_ring_hangcheck_action { wait, active, kick, hung };
+enum intel_ring_hangcheck_action {
+	HANGCHECK_WAIT,
+	HANGCHECK_ACTIVE,
+	HANGCHECK_KICK,
+	HANGCHECK_HUNG,
+};
 
 struct intel_ring_hangcheck {
 	bool deadlock;
