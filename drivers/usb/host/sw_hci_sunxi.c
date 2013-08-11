@@ -807,6 +807,7 @@ static int init_sw_hci(struct sw_hci_hcd *sw_hci, u32 usbc_no, u32 ohci,
 		       const char *hci_name)
 {
 	s32 ret = 0;
+	u32 drv_vbus_Handle = 0;
 
 	memset(sw_hci, 0, sizeof(struct sw_hci_hcd));
 
@@ -817,6 +818,14 @@ static int init_sw_hci(struct sw_hci_hcd *sw_hci, u32 usbc_no, u32 ohci,
 	sw_hci->usb_vbase = (void __iomem *)usbc_base[sw_hci->usbc_no];
 
 	get_usb_cfg(sw_hci);
+
+	drv_vbus_Handle = alloc_pin(&sw_hci->drv_vbus_gpio_set);
+	if (drv_vbus_Handle == 0) {
+		DMSG_PANIC("ERR: alloc_pin failed\n");
+		goto failed1;
+	}
+	sw_hci->drv_vbus_Handle = drv_vbus_Handle;
+
 	sw_hci->open_clock = open_clock;
 	sw_hci->close_clock = close_clock;
 	sw_hci->set_power = sw_set_vbus;
@@ -842,9 +851,6 @@ static int __init sw_hci_sunxi_init(void)
 /* XXX Should be rewtitten with checks if CONFIG_USB_EHCI_HCD or CONFIG_USB_OHCI_HCD
        are actually defined. Original code assumes that EHCI is always on.
 */
-	u32 usb1_drv_vbus_Handle = 0;
-	u32 usb2_drv_vbus_Handle = 0;
-
 	if (sunxi_is_sun5i()) {
 		/*
 		 * The sun5i has only one usb controller and thus uses
@@ -857,28 +863,10 @@ static int __init sw_hci_sunxi_init(void)
 	init_sw_hci(&sw_ehci1, 1, 0, ehci_name);
 	init_sw_hci(&sw_ohci1, 1, 1, ohci_name);
 
-	usb1_drv_vbus_Handle = alloc_pin(&sw_ehci1.drv_vbus_gpio_set);
-	if (usb1_drv_vbus_Handle == 0) {
-		DMSG_PANIC("ERR: usb1 alloc_pin failed\n");
-		goto failed0;
-	}
-
-	sw_ehci1.drv_vbus_Handle = usb1_drv_vbus_Handle;
-	sw_ohci1.drv_vbus_Handle = usb1_drv_vbus_Handle;
-
 	if (sunxi_is_sun4i() || sunxi_is_sun7i()) {
 		/* A13 has only one *HCI USB controller */
 		init_sw_hci(&sw_ehci2, 2, 0, ehci_name);
 		init_sw_hci(&sw_ohci2, 2, 1, ohci_name);
-
-		usb2_drv_vbus_Handle = alloc_pin(&sw_ehci2.drv_vbus_gpio_set);
-		if (usb2_drv_vbus_Handle == 0) {
-			DMSG_PANIC("ERR: usb2 alloc_pin failed\n");
-			goto failed0;
-		}
-
-		sw_ehci2.drv_vbus_Handle = usb2_drv_vbus_Handle;
-		sw_ohci2.drv_vbus_Handle = usb2_drv_vbus_Handle;
 	} else {
 		sw_ehci2.used = 0;
 	}
@@ -899,9 +887,6 @@ static int __init sw_hci_sunxi_init(void)
 	}
 
 	return 0;
-
-failed0:
-	return -1;
 }
 
 static void __exit sw_hci_sunxi_exit(void)
