@@ -133,8 +133,6 @@ static const char * const sunxi_board_dt_compat[] = {
 	"allwinner,sun4i-a10",
 	"allwinner,sun5i-a10s",
 	"allwinner,sun5i-a13",
-	"allwinner,sun6i-a31",
-	"allwinner,sun7i-a20",
 	NULL,
 };
 
@@ -142,4 +140,26 @@ DT_MACHINE_START(SUNXI_DT, "Allwinner A1X (Device Tree)")
 	.init_machine	= sunxi_dt_init,
 	.init_time	= sunxi_timer_init,
 	.dt_compat	= sunxi_board_dt_compat,
+MACHINE_END
+
+static const char * const sun6i_board_dt_compat[] = {
+	"allwinner,sun6i-a31",
+	NULL,
+};
+
+DT_MACHINE_START(SUN6I_DT, "Allwinner sun6i (A31) Family")
+	.init_machine	= sunxi_dt_init,
+	.init_time	= sunxi_timer_init,
+	.dt_compat	= sun6i_board_dt_compat,
+MACHINE_END
+
+static const char * const sun7i_board_dt_compat[] = {
+	"allwinner,sun7i-a20",
+	NULL,
+};
+
+DT_MACHINE_START(SUN7I_DT, "Allwinner sun7i (A20) Family")
+	.init_machine	= sunxi_dt_init,
+	.init_time	= sunxi_timer_init,
+	.dt_compat	= sun7i_board_dt_compat,
 MACHINE_END
