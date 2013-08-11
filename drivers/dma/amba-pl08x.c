@@ -102,6 +102,7 @@ struct pl08x_driver_data;
  *	missing
  */
 struct vendor_data {
+	u8 config_offset;
 	u8 channels;
 	bool dualmaster;
 	bool nomadik;
@@ -145,6 +146,7 @@ struct pl08x_bus_data {
 struct pl08x_phy_chan {
 	unsigned int id;
 	void __iomem *base;
+	void __iomem *reg_config;
 	spinlock_t lock;
 	struct pl08x_dma_chan *serving;
 	bool locked;
@@ -334,7 +336,7 @@ static int pl08x_phy_channel_busy(struct pl08x_phy_chan *ch)
 {
 	unsigned int val;
 
-	val = readl(ch->base + PL080_CH_CONFIG);
+	val = readl(ch->reg_config);
 	return val & PL080_CONFIG_ACTIVE;
 }
 
@@ -373,7 +375,7 @@ static void pl08x_start_next_txd(struct pl08x_dma_chan *plchan)
 	writel(lli->dst, phychan->base + PL080_CH_DST_ADDR);
 	writel(lli->lli, phychan->base + PL080_CH_LLI);
 	writel(lli->cctl, phychan->base + PL080_CH_CONTROL);
-	writel(txd->ccfg, phychan->base + PL080_CH_CONFIG);
+	writel(txd->ccfg, phychan->reg_config);
 
 	/* Enable the DMA channel */
 	/* Do not access config register until channel shows as disabled */
@@ -381,11 +383,11 @@ static void pl08x_start_next_txd(struct pl08x_dma_chan *plchan)
 		cpu_relax();
 
 	/* Do not access config register until channel shows as inactive */
-	val = readl(phychan->base + PL080_CH_CONFIG);
+	val = readl(phychan->reg_config);
 	while ((val & PL080_CONFIG_ACTIVE) || (val & PL080_CONFIG_ENABLE))
-		val = readl(phychan->base + PL080_CH_CONFIG);
+		val = readl(phychan->reg_config);
 
-	writel(val | PL080_CONFIG_ENABLE, phychan->base + PL080_CH_CONFIG);
+	writel(val | PL080_CONFIG_ENABLE, phychan->reg_config);
 }
 
 /*
@@ -404,9 +406,9 @@ static void pl08x_pause_phy_chan(struct pl08x_phy_chan *ch)
 	int timeout;
 
 	/* Set the HALT bit and wait for the FIFO to drain */
-	val = readl(ch->base + PL080_CH_CONFIG);
+	val = readl(ch->reg_config);
 	val |= PL080_CONFIG_HALT;
-	writel(val, ch->base + PL080_CH_CONFIG);
+	writel(val, ch->reg_config);
 
 	/* Wait for channel inactive */
 	for (timeout = 1000; timeout; timeout--) {
@@ -423,9 +425,9 @@ static void pl08x_resume_phy_chan(struct pl08x_phy_chan *ch)
 	u32 val;
 
 	/* Clear the HALT bit */
-	val = readl(ch->base + PL080_CH_CONFIG);
+	val = readl(ch->reg_config);
 	val &= ~PL080_CONFIG_HALT;
-	writel(val, ch->base + PL080_CH_CONFIG);
+	writel(val, ch->reg_config);
 }
 
 /*
@@ -437,12 +439,12 @@ static void pl08x_resume_phy_chan(struct pl08x_phy_chan *ch)
 static void pl08x_terminate_phy_chan(struct pl08x_driver_data *pl08x,
 	struct pl08x_phy_chan *ch)
 {
-	u32 val = readl(ch->base + PL080_CH_CONFIG);
+	u32 val = readl(ch->reg_config);
 
 	val &= ~(PL080_CONFIG_ENABLE | PL080_CONFIG_ERR_IRQ_MASK |
 	         PL080_CONFIG_TC_IRQ_MASK);
 
-	writel(val, ch->base + PL080_CH_CONFIG);
+	writel(val, ch->reg_config);
 
 	writel(1 << ch->id, pl08x->base + PL080_ERR_CLEAR);
 	writel(1 << ch->id, pl08x->base + PL080_TC_CLEAR);
@@ -1952,6 +1954,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 
 		ch->id = i;
 		ch->base = pl08x->base + PL080_Cx_BASE(i);
+		ch->reg_config = ch->base + vd->config_offset;
 		spin_lock_init(&ch->lock);
 
 		/*
@@ -1962,7 +1965,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		if (vd->nomadik) {
 			u32 val;
 
-			val = readl(ch->base + PL080_CH_CONFIG);
+			val = readl(ch->reg_config);
 			if (val & (PL080N_CONFIG_ITPROT | PL080N_CONFIG_SECPROT)) {
 				dev_info(&adev->dev, "physical channel %d reserved for secure access only\n", i);
 				ch->locked = true;
@@ -2043,17 +2046,20 @@ out_no_pl08x:
 
 /* PL080 has 8 channels and the PL080 have just 2 */
 static struct vendor_data vendor_pl080 = {
+	.config_offset = PL080_CH_CONFIG,
 	.channels = 8,
 	.dualmaster = true,
 };
 
 static struct vendor_data vendor_nomadik = {
+	.config_offset = PL080_CH_CONFIG,
 	.channels = 8,
 	.dualmaster = true,
 	.nomadik = true,
 };
 
 static struct vendor_data vendor_pl081 = {
+	.config_offset = PL080_CH_CONFIG,
 	.channels = 2,
 	.dualmaster = false,
 };
