@@ -11,31 +11,8 @@ Required properties:
 - nvidia,audio-routing : A list of the connections between audio components.
   Each entry is a pair of strings, the first being the connection's sink,
   the second being the connection's source. Valid names for sources and
-  sinks are the WM8753's pins, and the jacks on the board:
-
-  WM8753 pins:
-
-  * LOUT1
-  * LOUT2
-  * ROUT1
-  * ROUT2
-  * MONO1
-  * MONO2
-  * OUT3
-  * OUT4
-  * LINE1
-  * LINE2
-  * RXP
-  * RXN
-  * ACIN
-  * ACOP
-  * MIC1N
-  * MIC1
-  * MIC2N
-  * MIC2
-  * Mic Bias
-
-  Board connectors:
+  sinks are the WM8753's pins as documented in the binding for the WM8753,
+  and the jacks on the board:
 
   * Headphone Jack
   * Mic Jack
