@@ -166,7 +166,10 @@ static void tve_enable(struct imx_tve *tve)
 		regmap_write(tve->regmap, TVE_INT_CONT_REG, 0);
 	else
 		regmap_write(tve->regmap, TVE_INT_CONT_REG,
-			     TVE_CD_SM_IEN | TVE_CD_LM_IEN | TVE_CD_MON_END_IEN);
+			     TVE_CD_SM_IEN |
+			     TVE_CD_LM_IEN |
+			     TVE_CD_MON_END_IEN);
+
 	spin_unlock_irqrestore(&tve->enable_lock, flags);
 }
 
@@ -467,7 +470,9 @@ static int clk_tve_di_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		val = TVE_DAC_FULL_RATE;
 
-	ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_DAC_SAMP_RATE_MASK, val);
+	ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
+				 TVE_DAC_SAMP_RATE_MASK, val);
+
 	if (ret < 0) {
 		dev_err(tve->dev, "failed to set divider: %d\n", ret);
 		return ret;
@@ -611,13 +616,17 @@ static int imx_tve_probe(struct platform_device *pdev)
 	}
 
 	if (tve->mode == TVE_MODE_VGA) {
-		ret = of_property_read_u32(np, "fsl,hsync-pin", &tve->hsync_pin);
+		ret = of_property_read_u32(np, "fsl,hsync-pin",
+					   &tve->hsync_pin);
+
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get vsync pin\n");
 			return ret;
 		}
 
-		ret |= of_property_read_u32(np, "fsl,vsync-pin", &tve->vsync_pin);
+		ret |= of_property_read_u32(np, "fsl,vsync-pin",
+					    &tve->vsync_pin);
+
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get vsync pin\n");
 			return ret;
