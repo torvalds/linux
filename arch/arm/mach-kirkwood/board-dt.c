@@ -106,9 +106,6 @@ static void __init kirkwood_dt_init(void)
 	kexec_reinit = kirkwood_enable_pcie;
 #endif
 
-	if (of_machine_is_compatible("dlink,dns-kirkwood"))
-		dnskw_init();
-
 	if (of_machine_is_compatible("marvell,mv88f6281gtw-ge"))
 		mv88f6281gtw_ge_init();
 
