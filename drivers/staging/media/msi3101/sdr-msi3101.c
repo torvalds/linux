@@ -589,7 +589,7 @@ static int msi3101_convert_stream_504(struct msi3101_state *s, u32 *dst,
 }
 
 /*
- * Converts signed ~10+3-bit integer into 32-bit IEEE floating point
+ * Converts signed ~10+2-bit integer into 32-bit IEEE floating point
  * representation.
  */
 static u32 msi3101_convert_sample_384(struct msi3101_state *s, u16 x, int shift)
@@ -601,12 +601,15 @@ static u32 msi3101_convert_sample_384(struct msi3101_state *s, u16 x, int shift)
 	if (!x)
 		return 0;
 
-	/* Convert 10-bit two's complement to 13-bit */
+	if (shift == 3)
+		shift =	2;
+
+	/* Convert 10-bit two's complement to 12-bit */
 	if (x & (1 << 9)) {
 		x |= ~0U << 10; /* set all the rest bits to one */
 		x <<= shift;
 		x = -x;
-		x &= 0xfff; /* result is 12 bit ... + sign */
+		x &= 0x7ff; /* result is 11 bit ... + sign */
 		sign = 1 << 31;
 	} else {
 		x <<= shift;
