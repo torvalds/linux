@@ -52,17 +52,6 @@
 #define DMSG_PANIC(...)
 #endif
 
-#define  USBC_Readb(reg)	(*(volatile unsigned char *) (reg))
-#define  USBC_Readw(reg)	(*(volatile unsigned short *) (reg))
-#define  USBC_Readl(reg)	(*(volatile unsigned long *) (reg))
-
-#define  USBC_Writeb(value, reg) \
-	(*(volatile unsigned char *) (reg) = (value))
-#define  USBC_Writew(value, reg) \
-	(*(volatile unsigned short *) (reg) = (value))
-#define  USBC_Writel(value, reg) \
-	(*(volatile unsigned long *) (reg) = (value))
-
 #define SW_VA_CCM_USBCLK_OFFSET			0xcc
 #define SW_VA_CCM_AHBMOD_OFFSET			0x60
 

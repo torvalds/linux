@@ -266,11 +266,11 @@ static int sw_ohci_hcd_probe(struct platform_device *pdev)
 
 	pr_debug("[%s]: probe, clock: SW_VA_CCM_AHBMOD_OFFSET(0x%x), SW_VA_CCM_USBCLK_OFFSET(0x%x);"
 	     " usb: 0x800(0x%x), dram:(0x%x, 0x%x)\n",
-	     sw_ohci->hci_name, (u32) USBC_Readl(SW_VA_CCM_IO_BASE + SW_VA_CCM_AHBMOD_OFFSET),
-	     (u32) USBC_Readl(SW_VA_CCM_IO_BASE + SW_VA_CCM_USBCLK_OFFSET),
-	     (u32) USBC_Readl(sw_ohci->usb_vbase + 0x800),
-	     (u32) USBC_Readl(SW_VA_DRAM_IO_BASE + SW_SDRAM_REG_HPCR_USB1),
-	     (u32) USBC_Readl(SW_VA_DRAM_IO_BASE + SW_SDRAM_REG_HPCR_USB2));
+	     sw_ohci->hci_name, (u32) readl(SW_VA_CCM_IO_BASE + SW_VA_CCM_AHBMOD_OFFSET),
+	     (u32) readl(SW_VA_CCM_IO_BASE + SW_VA_CCM_USBCLK_OFFSET),
+	     (u32) readl(sw_ohci->usb_vbase + 0x800),
+	     (u32) readl(SW_VA_DRAM_IO_BASE + SW_SDRAM_REG_HPCR_USB1),
+	     (u32) readl(SW_VA_DRAM_IO_BASE + SW_SDRAM_REG_HPCR_USB2));
 
 	sw_ohci->probe = 1;
 
