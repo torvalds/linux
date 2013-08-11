@@ -34,7 +34,7 @@ Pins on the device (for linking into audio routes):
 
 Example:
 
-codec: wm8737@1a {
+codec: wm8753@1a {
 	compatible = "wlf,wm8753";
 	reg = <0x1a>;
 };
