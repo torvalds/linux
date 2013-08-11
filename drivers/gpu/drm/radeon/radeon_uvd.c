@@ -356,6 +356,14 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		return -EINVAL;
 	}
 
+	if (bo->tbo.sync_obj) {
+		r = radeon_fence_wait(bo->tbo.sync_obj, false);
+		if (r) {
+			DRM_ERROR("Failed waiting for UVD message (%d)!\n", r);
+			return r;
+		}
+	}
+
 	r = radeon_bo_kmap(bo, &ptr);
 	if (r) {
 		DRM_ERROR("Failed mapping the UVD message (%d)!\n", r);
