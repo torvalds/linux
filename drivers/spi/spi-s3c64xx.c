@@ -389,7 +389,6 @@ static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 {
 	struct s3c64xx_spi_driver_data *sdd;
 	struct dma_slave_config config;
-	struct scatterlist sg;
 	struct dma_async_tx_descriptor *desc;
 
 	memset(&config, 0, sizeof(config));
@@ -412,14 +411,8 @@ static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 		dmaengine_slave_config(dma->ch, &config);
 	}
 
-	sg_init_table(&sg, 1);
-	sg_dma_len(&sg) = len;
-	sg_set_page(&sg, pfn_to_page(PFN_DOWN(buf)),
-		    len, offset_in_page(buf));
-	sg_dma_address(&sg) = buf;
-
-	desc = dmaengine_prep_slave_sg(dma->ch,
-		&sg, 1, dma->direction, DMA_PREP_INTERRUPT);
+	desc = dmaengine_prep_slave_single(dma->ch, buf, len,
+					dma->direction, DMA_PREP_INTERRUPT);
 
 	desc->callback = s3c64xx_spi_dmacb;
 	desc->callback_param = dma;
