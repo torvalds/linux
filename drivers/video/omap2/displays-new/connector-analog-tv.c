@@ -28,6 +28,20 @@ struct panel_drv_data {
 	bool invert_polarity;
 };
 
+static const struct omap_video_timings tvc_pal_timings = {
+	.x_res		= 720,
+	.y_res		= 574,
+	.pixel_clock	= 13500,
+	.hsw		= 64,
+	.hfp		= 12,
+	.hbp		= 68,
+	.vsw		= 5,
+	.vfp		= 5,
+	.vbp		= 41,
+
+	.interlace	= true,
+};
+
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
 
 static int tvc_connect(struct omap_dss_device *dssdev)
@@ -212,14 +226,14 @@ static int tvc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ddata->timings = omap_dss_pal_timings;
+	ddata->timings = tvc_pal_timings;
 
 	dssdev = &ddata->dssdev;
 	dssdev->driver = &tvc_driver;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_VENC;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = omap_dss_pal_timings;
+	dssdev->panel.timings = tvc_pal_timings;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {
