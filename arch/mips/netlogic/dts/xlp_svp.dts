@@ -9,13 +9,6 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	memory {
-		device_type = "memory";
-		reg =  <0 0x00100000 0 0x0FF00000	// 255M at 1M
-			0 0x20000000 0 0xa0000000	// 2560M at 512M
-			0 0xe0000000 0 0x40000000>;
-	};
-
 	soc {
 		#address-cells = <2>;
 		#size-cells = <1>;
