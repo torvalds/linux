@@ -260,11 +260,6 @@ static void octeon_spi_cleanup(struct spi_device *spi)
 	kfree(old_setup);
 }
 
-static int octeon_spi_nop_transfer_hardware(struct spi_master *master)
-{
-	return 0;
-}
-
 static int octeon_spi_probe(struct platform_device *pdev)
 {
 	struct resource *res_mem;
@@ -304,9 +299,7 @@ static int octeon_spi_probe(struct platform_device *pdev)
 
 	master->setup = octeon_spi_setup;
 	master->cleanup = octeon_spi_cleanup;
-	master->prepare_transfer_hardware = octeon_spi_nop_transfer_hardware;
 	master->transfer_one_message = octeon_spi_transfer_one_message;
-	master->unprepare_transfer_hardware = octeon_spi_nop_transfer_hardware;
 
 	master->dev.of_node = pdev->dev.of_node;
 	err = spi_register_master(master);
