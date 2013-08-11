@@ -392,6 +392,8 @@ static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 	struct scatterlist sg;
 	struct dma_async_tx_descriptor *desc;
 
+	memset(&config, 0, sizeof(config));
+
 	if (dma->direction == DMA_DEV_TO_MEM) {
 		sdd = container_of((void *)dma,
 			struct s3c64xx_spi_driver_data, rx_dma);
