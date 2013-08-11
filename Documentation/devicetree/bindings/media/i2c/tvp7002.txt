@@ -1,0 +1,53 @@
+* Texas Instruments TV7002 video decoder
+
+The TVP7002 device supports digitizing of video and graphics signal in RGB and
+YPbPr color space.
+
+Required Properties :
+- compatible : Must be "ti,tvp7002"
+
+Optional Properties:
+- hsync-active: HSYNC Polarity configuration for the bus. Default value when
+  this property is not specified is <0>.
+
+- vsync-active: VSYNC Polarity configuration for the bus. Default value when
+  this property is not specified is <0>.
+
+- pclk-sample: Clock polarity of the bus. Default value when this property is
+  not specified is <0>.
+
+- sync-on-green-active: Active state of Sync-on-green signal property of the
+  endpoint.
+  0 = Normal Operation (Active Low, Default)
+  1 = Inverted operation
+
+- field-even-active: Active-high Field ID output polarity control of the bus.
+  Under normal operation, the field ID output is set to logic 1 for an odd field
+  (field 1) and set to logic 0 for an even field (field 0).
+  0 = Normal Operation (Active Low, Default)
+  1 = FID output polarity inverted
+
+For further reading of port node refer Documentation/devicetree/bindings/media/
+video-interfaces.txt.
+
+Example:
+
+	i2c0@1c22000 {
+		...
+		...
+		tvp7002@5c {
+			compatible = "ti,tvp7002";
+			reg = <0x5c>;
+
+			port {
+				tvp7002_1: endpoint {
+					hsync-active = <1>;
+					vsync-active = <1>;
+					pclk-sample = <0>;
+					sync-on-green-active = <1>;
+					field-even-active = <0>;
+				};
+			};
+		};
+		...
+	};
