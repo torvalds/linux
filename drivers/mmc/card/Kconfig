@@ -18,6 +18,7 @@ config MMC_BLOCK_MINORS
 	int "Number of minors per block device"
 	depends on MMC_BLOCK
 	range 4 256
+	default 32 if EMMC_RK
 	default 8
 	help
 	  Number of minors per block device. One is needed for every
