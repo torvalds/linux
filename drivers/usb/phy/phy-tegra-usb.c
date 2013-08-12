@@ -99,11 +99,15 @@
 #define   UTMIP_FORCE_PD2_POWERDOWN		(1 << 16)
 #define   UTMIP_FORCE_PDZI_POWERDOWN		(1 << 18)
 #define   UTMIP_XCVR_LSBIAS_SEL			(1 << 21)
-#define   UTMIP_XCVR_HSSLEW_MSB(x)		(((x) & 0x7f) << 25)
+#define   UTMIP_XCVR_HSSLEW(x)			(((x) & 0x3) << 4)
+#define   UTMIP_XCVR_HSSLEW_MSB(x)		((((x) & 0x1fc) >> 2) << 25)
 
 #define UTMIP_BIAS_CFG0		0x80c
 #define   UTMIP_OTGPD			(1 << 11)
 #define   UTMIP_BIASPD			(1 << 10)
+#define   UTMIP_HSSQUELCH_LEVEL(x)	(((x) & 0x3) << 0)
+#define   UTMIP_HSDISCON_LEVEL(x)	(((x) & 0x3) << 2)
+#define   UTMIP_HSDISCON_LEVEL_MSB(x)	((((x) & 0x4) >> 2) << 24)
 
 #define UTMIP_HSRX_CFG0		0x810
 #define   UTMIP_ELASTIC_LIMIT(x)	(((x) & 0x1f) << 10)
@@ -255,6 +259,7 @@ static void utmip_pad_power_on(struct tegra_usb_phy *phy)
 {
 	unsigned long val, flags;
 	void __iomem *base = phy->pad_regs;
+	struct tegra_utmip_config *config = phy->config;
 
 	clk_prepare_enable(phy->pad_clk);
 
@@ -263,6 +268,16 @@ static void utmip_pad_power_on(struct tegra_usb_phy *phy)
 	if (utmip_pad_count++ == 0) {
 		val = readl(base + UTMIP_BIAS_CFG0);
 		val &= ~(UTMIP_OTGPD | UTMIP_BIASPD);
+
+		if (phy->soc_config->requires_extra_tuning_parameters) {
+			val &= ~(UTMIP_HSSQUELCH_LEVEL(~0) |
+				UTMIP_HSDISCON_LEVEL(~0) |
+				UTMIP_HSDISCON_LEVEL_MSB(~0));
+
+			val |= UTMIP_HSSQUELCH_LEVEL(config->hssquelch_level);
+			val |= UTMIP_HSDISCON_LEVEL(config->hsdiscon_level);
+			val |= UTMIP_HSDISCON_LEVEL_MSB(config->hsdiscon_level);
+		}
 		writel(val, base + UTMIP_BIAS_CFG0);
 	}
 
@@ -431,12 +446,20 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 	val &= ~(UTMIP_FORCE_PD_POWERDOWN | UTMIP_FORCE_PD2_POWERDOWN |
 		 UTMIP_FORCE_PDZI_POWERDOWN | UTMIP_XCVR_LSBIAS_SEL |
 		 UTMIP_XCVR_SETUP(~0) | UTMIP_XCVR_SETUP_MSB(~0) |
-		 UTMIP_XCVR_LSFSLEW(~0) | UTMIP_XCVR_LSRSLEW(~0) |
-		 UTMIP_XCVR_HSSLEW_MSB(~0));
-	val |= UTMIP_XCVR_SETUP(config->xcvr_setup);
-	val |= UTMIP_XCVR_SETUP_MSB(config->xcvr_setup);
+		 UTMIP_XCVR_LSFSLEW(~0) | UTMIP_XCVR_LSRSLEW(~0));
+
+	if (!config->xcvr_setup_use_fuses) {
+		val |= UTMIP_XCVR_SETUP(config->xcvr_setup);
+		val |= UTMIP_XCVR_SETUP_MSB(config->xcvr_setup);
+	}
 	val |= UTMIP_XCVR_LSFSLEW(config->xcvr_lsfslew);
 	val |= UTMIP_XCVR_LSRSLEW(config->xcvr_lsrslew);
+
+	if (phy->soc_config->requires_extra_tuning_parameters) {
+		val &= ~(UTMIP_XCVR_HSSLEW(~0) | UTMIP_XCVR_HSSLEW_MSB(~0));
+		val |= UTMIP_XCVR_HSSLEW(config->xcvr_hsslew);
+		val |= UTMIP_XCVR_HSSLEW_MSB(config->xcvr_hsslew);
+	}
 	writel(val, base + UTMIP_XCVR_CFG0);
 
 	val = readl(base + UTMIP_XCVR_CFG1);
@@ -450,14 +473,14 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 	val |= UTMIP_BIAS_PDTRK_COUNT(0x5);
 	writel(val, base + UTMIP_BIAS_CFG1);
 
-	if (phy->is_legacy_phy) {
-		val = readl(base + UTMIP_SPARE_CFG0);
-		if (phy->mode == USB_DR_MODE_PERIPHERAL)
-			val &= ~FUSE_SETUP_SEL;
-		else
-			val |= FUSE_SETUP_SEL;
-		writel(val, base + UTMIP_SPARE_CFG0);
-	} else {
+	val = readl(base + UTMIP_SPARE_CFG0);
+	if (config->xcvr_setup_use_fuses)
+		val |= FUSE_SETUP_SEL;
+	else
+		val &= ~FUSE_SETUP_SEL;
+	writel(val, base + UTMIP_SPARE_CFG0);
+
+	if (!phy->is_legacy_phy) {
 		val = readl(base + USB_SUSP_CTRL);
 		val |= UTMIP_PHY_ENABLE;
 		writel(val, base + USB_SUSP_CTRL);
@@ -888,11 +911,6 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 	if (err < 0)
 		return err;
 
-	err = read_utmi_param(pdev, "nvidia,xcvr-setup",
-		&config->xcvr_setup);
-	if (err < 0)
-		return err;
-
 	err = read_utmi_param(pdev, "nvidia,xcvr-lsfslew",
 		&config->xcvr_lsfslew);
 	if (err < 0)
@@ -902,6 +920,33 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 		&config->xcvr_lsrslew);
 	if (err < 0)
 		return err;
+
+	if (tegra_phy->soc_config->requires_extra_tuning_parameters) {
+		err = read_utmi_param(pdev, "nvidia,xcvr-hsslew",
+			&config->xcvr_hsslew);
+		if (err < 0)
+			return err;
+
+		err = read_utmi_param(pdev, "nvidia,hssquelch-level",
+			&config->hssquelch_level);
+		if (err < 0)
+			return err;
+
+		err = read_utmi_param(pdev, "nvidia,hsdiscon-level",
+			&config->hsdiscon_level);
+		if (err < 0)
+			return err;
+	}
+
+	config->xcvr_setup_use_fuses = of_property_read_bool(
+		pdev->dev.of_node, "nvidia,xcvr-setup-use-fuses");
+
+	if (!config->xcvr_setup_use_fuses) {
+		err = read_utmi_param(pdev, "nvidia,xcvr-setup",
+			&config->xcvr_setup);
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }

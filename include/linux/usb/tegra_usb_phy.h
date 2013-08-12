@@ -41,9 +41,13 @@ struct tegra_utmip_config {
 	u8 elastic_limit;
 	u8 idle_wait_delay;
 	u8 term_range_adj;
+	bool xcvr_setup_use_fuses;
 	u8 xcvr_setup;
 	u8 xcvr_lsfslew;
 	u8 xcvr_lsrslew;
+	u8 xcvr_hsslew;
+	u8 hssquelch_level;
+	u8 hsdiscon_level;
 };
 
 enum tegra_usb_phy_port_speed {
