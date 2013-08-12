@@ -38,6 +38,9 @@ struct perf_sample_id {
 	struct hlist_node 	node;
 	u64		 	id;
 	struct perf_evsel	*evsel;
+
+	/* Holds total ID period value for PERF_SAMPLE_READ processing. */
+	u64			period;
 };
 
 /** struct perf_evsel - event selector
@@ -76,6 +79,7 @@ struct perf_evsel {
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
+	int			sample_read;
 	struct perf_evsel	*leader;
 	char			*group_name;
 };
@@ -142,6 +146,7 @@ void perf_evsel__set_sample_id(struct perf_evsel *evsel);
 
 int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			   const char *filter);
+int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads);
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
 			     struct cpu_map *cpus);

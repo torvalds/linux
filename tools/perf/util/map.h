@@ -112,6 +112,8 @@ size_t __map_groups__fprintf_maps(struct map_groups *mg,
 void maps__insert(struct rb_root *maps, struct map *map);
 void maps__remove(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 addr);
+struct map *maps__first(struct rb_root *maps);
+struct map *maps__next(struct map *map);
 void map_groups__init(struct map_groups *mg);
 void map_groups__exit(struct map_groups *mg);
 int map_groups__clone(struct map_groups *mg,
@@ -137,6 +139,17 @@ static inline struct map *map_groups__find(struct map_groups *mg,
 					   enum map_type type, u64 addr)
 {
 	return maps__find(&mg->maps[type], addr);
+}
+
+static inline struct map *map_groups__first(struct map_groups *mg,
+					    enum map_type type)
+{
+	return maps__first(&mg->maps[type]);
+}
+
+static inline struct map *map_groups__next(struct map *map)
+{
+	return maps__next(map);
 }
 
 struct symbol *map_groups__find_symbol(struct map_groups *mg,

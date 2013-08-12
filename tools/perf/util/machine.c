@@ -628,10 +628,8 @@ int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 	struct map *map = machine->vmlinux_maps[type];
 	int ret = dso__load_vmlinux_path(map->dso, map, filter);
 
-	if (ret > 0) {
+	if (ret > 0)
 		dso__set_loaded(map->dso, type);
-		map__reloc_vmlinux(map);
-	}
 
 	return ret;
 }
@@ -808,7 +806,10 @@ static int machine__create_modules(struct machine *machine)
 	free(line);
 	fclose(file);
 
-	return machine__set_modules_path(machine);
+	if (machine__set_modules_path(machine) < 0) {
+		pr_debug("Problems setting modules path maps, continuing anyway...\n");
+	}
+	return 0;
 
 out_delete_line:
 	free(line);
@@ -858,6 +859,18 @@ static void machine__set_kernel_mmap_len(struct machine *machine,
 	}
 }
 
+static bool machine__uses_kcore(struct machine *machine)
+{
+	struct dso *dso;
+
+	list_for_each_entry(dso, &machine->kernel_dsos, node) {
+		if (dso__is_kcore(dso))
+			return true;
+	}
+
+	return false;
+}
+
 static int machine__process_kernel_mmap_event(struct machine *machine,
 					      union perf_event *event)
 {
@@ -865,6 +878,10 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 	char kmmap_prefix[PATH_MAX];
 	enum dso_kernel_type kernel_type;
 	bool is_kernel_mmap;
+
+	/* If we have maps from kcore then we do not need or want any others */
+	if (machine__uses_kcore(machine))
+		return 0;
 
 	machine__mmap_name(machine, kmmap_prefix, sizeof(kmmap_prefix));
 	if (machine__is_host(machine))

@@ -100,6 +100,10 @@ static struct test {
 	},
 #endif
 	{
+		.desc = "Test object code reading",
+		.func = test__code_reading,
+	},
+	{
 		.func = NULL,
 	},
 };

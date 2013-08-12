@@ -490,6 +490,7 @@ int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
 void perf_evsel__config(struct perf_evsel *evsel,
 			struct perf_record_opts *opts)
 {
+	struct perf_evsel *leader = evsel->leader;
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
@@ -498,6 +499,25 @@ void perf_evsel__config(struct perf_evsel *evsel,
 
 	perf_evsel__set_sample_bit(evsel, IP);
 	perf_evsel__set_sample_bit(evsel, TID);
+
+	if (evsel->sample_read) {
+		perf_evsel__set_sample_bit(evsel, READ);
+
+		/*
+		 * We need ID even in case of single event, because
+		 * PERF_SAMPLE_READ process ID specific data.
+		 */
+		perf_evsel__set_sample_id(evsel);
+
+		/*
+		 * Apply group format only if we belong to group
+		 * with more than one members.
+		 */
+		if (leader->nr_members > 1) {
+			attr->read_format |= PERF_FORMAT_GROUP;
+			attr->inherit = 0;
+		}
+	}
 
 	/*
 	 * We default some events to a 1 default interval. But keep
@@ -512,6 +532,15 @@ void perf_evsel__config(struct perf_evsel *evsel,
 		} else {
 			attr->sample_period = opts->default_interval;
 		}
+	}
+
+	/*
+	 * Disable sampling for all group members other
+	 * than leader in case leader 'leads' the sampling.
+	 */
+	if ((leader != evsel) && leader->sample_read) {
+		attr->sample_freq   = 0;
+		attr->sample_period = 0;
 	}
 
 	if (opts->no_samples)
@@ -605,15 +634,15 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 	return evsel->fd != NULL ? 0 : -ENOMEM;
 }
 
-int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
-			   const char *filter)
+static int perf_evsel__run_ioctl(struct perf_evsel *evsel, int ncpus, int nthreads,
+			  int ioc,  void *arg)
 {
 	int cpu, thread;
 
 	for (cpu = 0; cpu < ncpus; cpu++) {
 		for (thread = 0; thread < nthreads; thread++) {
 			int fd = FD(evsel, cpu, thread),
-			    err = ioctl(fd, PERF_EVENT_IOC_SET_FILTER, filter);
+			    err = ioctl(fd, ioc, arg);
 
 			if (err)
 				return err;
@@ -621,6 +650,21 @@ int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 	}
 
 	return 0;
+}
+
+int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
+			   const char *filter)
+{
+	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
+				     PERF_EVENT_IOC_SET_FILTER,
+				     (void *)filter);
+}
+
+int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
+				     PERF_EVENT_IOC_ENABLE,
+				     0);
 }
 
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -1096,8 +1140,34 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	}
 
 	if (type & PERF_SAMPLE_READ) {
-		fprintf(stderr, "PERF_SAMPLE_READ is unsupported for now\n");
-		return -1;
+		u64 read_format = evsel->attr.read_format;
+
+		if (read_format & PERF_FORMAT_GROUP)
+			data->read.group.nr = *array;
+		else
+			data->read.one.value = *array;
+
+		array++;
+
+		if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+			data->read.time_enabled = *array;
+			array++;
+		}
+
+		if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+			data->read.time_running = *array;
+			array++;
+		}
+
+		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
+		if (read_format & PERF_FORMAT_GROUP) {
+			data->read.group.values = (struct sample_read_value *) array;
+			array = (void *) array + data->read.group.nr *
+				sizeof(struct sample_read_value);
+		} else {
+			data->read.one.id = *array;
+			array++;
+		}
 	}
 
 	if (type & PERF_SAMPLE_CALLCHAIN) {

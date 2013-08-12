@@ -71,6 +71,11 @@ static int perf_session__open(struct perf_session *self, bool force)
 		goto out_close;
 	}
 
+	if (!perf_evlist__valid_read_format(self->evlist)) {
+		pr_err("non matching read_format");
+		goto out_close;
+	}
+
 	self->size = input_stat.st_size;
 	return 0;
 
@@ -245,7 +250,7 @@ static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event,
 				  struct perf_session *session);
 
-static void perf_tool__fill_defaults(struct perf_tool *tool)
+void perf_tool__fill_defaults(struct perf_tool *tool)
 {
 	if (tool->sample == NULL)
 		tool->sample = process_event_sample_stub;
@@ -490,7 +495,7 @@ static int perf_session_deliver_event(struct perf_session *session,
 				      u64 file_offset);
 
 static int flush_sample_queue(struct perf_session *s,
-			       struct perf_tool *tool)
+		       struct perf_tool *tool)
 {
 	struct ordered_samples *os = &s->ordered_samples;
 	struct list_head *head = &os->samples;
@@ -638,7 +643,7 @@ static void __queue_event(struct sample_queue *new, struct perf_session *s)
 
 #define MAX_SAMPLE_BUFFER	(64 * 1024 / sizeof(struct sample_queue))
 
-static int perf_session_queue_event(struct perf_session *s, union perf_event *event,
+int perf_session_queue_event(struct perf_session *s, union perf_event *event,
 				    struct perf_sample *sample, u64 file_offset)
 {
 	struct ordered_samples *os = &s->ordered_samples;
@@ -749,6 +754,36 @@ static void perf_session__print_tstamp(struct perf_session *session,
 		printf("%" PRIu64 " ", sample->time);
 }
 
+static void sample_read__printf(struct perf_sample *sample, u64 read_format)
+{
+	printf("... sample_read:\n");
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		printf("...... time enabled %016" PRIx64 "\n",
+		       sample->read.time_enabled);
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		printf("...... time running %016" PRIx64 "\n",
+		       sample->read.time_running);
+
+	if (read_format & PERF_FORMAT_GROUP) {
+		u64 i;
+
+		printf(".... group nr %" PRIu64 "\n", sample->read.group.nr);
+
+		for (i = 0; i < sample->read.group.nr; i++) {
+			struct sample_read_value *value;
+
+			value = &sample->read.group.values[i];
+			printf("..... id %016" PRIx64
+			       ", value %016" PRIx64 "\n",
+			       value->id, value->value);
+		}
+	} else
+		printf("..... id %016" PRIx64 ", value %016" PRIx64 "\n",
+			sample->read.one.id, sample->read.one.value);
+}
+
 static void dump_event(struct perf_session *session, union perf_event *event,
 		       u64 file_offset, struct perf_sample *sample)
 {
@@ -798,6 +833,9 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	if (sample_type & PERF_SAMPLE_DATA_SRC)
 		printf(" . data_src: 0x%"PRIx64"\n", sample->data_src);
+
+	if (sample_type & PERF_SAMPLE_READ)
+		sample_read__printf(sample, evsel->attr.read_format);
 }
 
 static struct machine *
@@ -820,6 +858,75 @@ static struct machine *
 	}
 
 	return &session->machines.host;
+}
+
+static int deliver_sample_value(struct perf_session *session,
+				struct perf_tool *tool,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct sample_read_value *v,
+				struct machine *machine)
+{
+	struct perf_sample_id *sid;
+
+	sid = perf_evlist__id2sid(session->evlist, v->id);
+	if (sid) {
+		sample->id     = v->id;
+		sample->period = v->value - sid->period;
+		sid->period    = v->value;
+	}
+
+	if (!sid || sid->evsel == NULL) {
+		++session->stats.nr_unknown_id;
+		return 0;
+	}
+
+	return tool->sample(tool, event, sample, sid->evsel, machine);
+}
+
+static int deliver_sample_group(struct perf_session *session,
+				struct perf_tool *tool,
+				union  perf_event *event,
+				struct perf_sample *sample,
+				struct machine *machine)
+{
+	int ret = -EINVAL;
+	u64 i;
+
+	for (i = 0; i < sample->read.group.nr; i++) {
+		ret = deliver_sample_value(session, tool, event, sample,
+					   &sample->read.group.values[i],
+					   machine);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int
+perf_session__deliver_sample(struct perf_session *session,
+			     struct perf_tool *tool,
+			     union  perf_event *event,
+			     struct perf_sample *sample,
+			     struct perf_evsel *evsel,
+			     struct machine *machine)
+{
+	/* We know evsel != NULL. */
+	u64 sample_type = evsel->attr.sample_type;
+	u64 read_format = evsel->attr.read_format;
+
+	/* Standard sample delievery. */
+	if (!(sample_type & PERF_SAMPLE_READ))
+		return tool->sample(tool, event, sample, evsel, machine);
+
+	/* For PERF_SAMPLE_READ we have either single or group mode. */
+	if (read_format & PERF_FORMAT_GROUP)
+		return deliver_sample_group(session, tool, event, sample,
+					    machine);
+	else
+		return deliver_sample_value(session, tool, event, sample,
+					    &sample->read.one, machine);
 }
 
 static int perf_session_deliver_event(struct perf_session *session,
@@ -864,7 +971,8 @@ static int perf_session_deliver_event(struct perf_session *session,
 			++session->stats.nr_unprocessable_samples;
 			return 0;
 		}
-		return tool->sample(tool, event, sample, evsel, machine);
+		return perf_session__deliver_sample(session, tool, event,
+						    sample, evsel, machine);
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
@@ -1411,8 +1519,13 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 			printf("\t%16" PRIx64, node->ip);
 			if (print_sym) {
 				printf(" ");
-				symbol__fprintf_symname(node->sym, stdout);
+				if (print_symoffset) {
+					al.addr = node->ip;
+					symbol__fprintf_symname_offs(node->sym, &al, stdout);
+				} else
+					symbol__fprintf_symname(node->sym, stdout);
 			}
+
 			if (print_dso) {
 				printf(" (");
 				map__fprintf_dsoname(node->map, stdout);

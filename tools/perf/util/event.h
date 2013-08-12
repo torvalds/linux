@@ -80,6 +80,23 @@ struct stack_dump {
 	char *data;
 };
 
+struct sample_read_value {
+	u64 value;
+	u64 id;
+};
+
+struct sample_read {
+	u64 time_enabled;
+	u64 time_running;
+	union {
+		struct {
+			u64 nr;
+			struct sample_read_value *values;
+		} group;
+		struct sample_read_value one;
+	};
+};
+
 struct perf_sample {
 	u64 ip;
 	u32 pid, tid;
@@ -97,6 +114,7 @@ struct perf_sample {
 	struct branch_stack *branch_stack;
 	struct regs_dump  user_regs;
 	struct stack_dump user_stack;
+	struct sample_read read;
 };
 
 #define PERF_MEM_DATA_SRC_NONE \
