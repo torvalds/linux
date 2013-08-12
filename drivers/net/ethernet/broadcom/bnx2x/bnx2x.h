@@ -1830,6 +1830,8 @@ struct bnx2x {
 
 	int fp_array_size;
 	u32 dump_preset_idx;
+	bool					stats_started;
+	struct semaphore			stats_sema;
 };
 
 /* Tx queues may be less or equal to Rx queues */
