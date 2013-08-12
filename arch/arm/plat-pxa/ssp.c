@@ -62,6 +62,30 @@ struct ssp_device *pxa_ssp_request(int port, const char *label)
 }
 EXPORT_SYMBOL(pxa_ssp_request);
 
+struct ssp_device *pxa_ssp_request_of(const struct device_node *of_node,
+				      const char *label)
+{
+	struct ssp_device *ssp = NULL;
+
+	mutex_lock(&ssp_lock);
+
+	list_for_each_entry(ssp, &ssp_list, node) {
+		if (ssp->of_node == of_node && ssp->use_count == 0) {
+			ssp->use_count++;
+			ssp->label = label;
+			break;
+		}
+	}
+
+	mutex_unlock(&ssp_lock);
+
+	if (&ssp->node == &ssp_list)
+		return NULL;
+
+	return ssp;
+}
+EXPORT_SYMBOL(pxa_ssp_request_of);
+
 void pxa_ssp_free(struct ssp_device *ssp)
 {
 	mutex_lock(&ssp_lock);
@@ -185,6 +209,7 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	}
 
 	ssp->use_count = 0;
+	ssp->of_node = dev->of_node;
 
 	mutex_lock(&ssp_lock);
 	list_add(&ssp->node, &ssp_list);
