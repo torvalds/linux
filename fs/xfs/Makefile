@@ -27,6 +27,7 @@ xfs-y				+= xfs_trace.o
 
 # highlevel code
 xfs-y				+= xfs_aops.o \
+				   xfs_attr_inactive.o \
 				   xfs_attr_list.o \
 				   xfs_bit.o \
 				   xfs_buf.o \
