@@ -36,6 +36,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <acpi/apei.h>
+#include <asm/mce.h>
 
 #include "apei-internal.h"
 
@@ -120,6 +121,40 @@ int apei_hest_parse(apei_hest_func_t func, void *data)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(apei_hest_parse);
+
+/*
+ * Check if firmware advertises firmware first mode. We need FF bit to be set
+ * along with a set of MC banks which work in FF mode.
+ */
+static int __init hest_parse_cmc(struct acpi_hest_header *hest_hdr, void *data)
+{
+	int i;
+	struct acpi_hest_ia_corrected *cmc;
+	struct acpi_hest_ia_error_bank *mc_bank;
+
+	if (hest_hdr->type != ACPI_HEST_TYPE_IA32_CORRECTED_CHECK)
+		return 0;
+
+	cmc = (struct acpi_hest_ia_corrected *)hest_hdr;
+	if (!cmc->enabled)
+		return 0;
+
+	/*
+	 * We expect HEST to provide a list of MC banks that report errors
+	 * in firmware first mode. Otherwise, return non-zero value to
+	 * indicate that we are done parsing HEST.
+	 */
+	if (!(cmc->flags & ACPI_HEST_FIRMWARE_FIRST) || !cmc->num_hardware_banks)
+		return 1;
+
+	pr_info(HEST_PFX "Enabling Firmware First mode for corrected errors.\n");
+
+	mc_bank = (struct acpi_hest_ia_error_bank *)(cmc + 1);
+	for (i = 0; i < cmc->num_hardware_banks; i++, mc_bank++)
+		mce_disable_bank(mc_bank->bank_number);
+
+	return 1;
+}
 
 struct ghes_arr {
 	struct platform_device **ghes_devs;
@@ -226,6 +261,9 @@ void __init acpi_hest_init(void)
 		rc = -EINVAL;
 		goto err;
 	}
+
+	if (!acpi_disable_cmcff)
+		apei_hest_parse(hest_parse_cmc, NULL);
 
 	if (!ghes_disable) {
 		rc = apei_hest_parse(hest_parse_ghes_count, &ghes_count);
