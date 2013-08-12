@@ -240,7 +240,9 @@ typedef struct xfs_fsop_resblks {
 
 
 /*
- * Minimum and maximum sizes need for growth checks
+ * Minimum and maximum sizes need for growth checks.
+ *
+ * Block counts are in units of filesystem blocks, not basic blocks.
  */
 #define XFS_MIN_AG_BLOCKS	64
 #define XFS_MIN_LOG_BLOCKS	512ULL
