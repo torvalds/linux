@@ -74,6 +74,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_ialloc_btree.o \
 				   xfs_icreate_item.o \
 				   xfs_inode.o \
+				   xfs_inode_fork.o \
 				   xfs_log_recover.o \
 				   xfs_mount.o \
 				   xfs_symlink.o \
