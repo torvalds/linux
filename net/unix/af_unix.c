@@ -1669,7 +1669,8 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		skb_put(skb, size - data_len);
 		skb->data_len = data_len;
 		skb->len = size;
-		err = skb_copy_datagram_from_iovec(skb, 0, msg->msg_iov, 0, size);
+		err = skb_copy_datagram_from_iovec(skb, 0, msg->msg_iov,
+						   sent, size);
 		if (err) {
 			kfree_skb(skb);
 			goto out_err;
