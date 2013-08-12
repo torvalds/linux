@@ -406,22 +406,32 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 }
 
 #if (defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RTL8723AU)) \
-	&& defined(CONFIG_ARCH_RK2928)
+	&& (defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026))
 static int usbwifi_power_status = 1;
 int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
          if (on){
+            #if defined(CONFIG_USB_WIFI_POWER_CONTROLED_BY_GPIO)
+                gpio_set_value(rk_platform_wifi_gpio.power_n.io, rk_platform_wifi_gpio.power_n.enable);
+                mdelay(100);
+            #else
                 if(usbwifi_power_status == 1) {
                     rkusb_wifi_power(0);
                     mdelay(50);
                 }
                 rkusb_wifi_power(1);
+            #endif
                 usbwifi_power_status = 1;
                  pr_info("wifi turn on power\n");  	
         }else{
+            #if defined(CONFIG_USB_WIFI_POWER_CONTROLED_BY_GPIO)
+                gpio_set_value(rk_platform_wifi_gpio.power_n.io, !(rk_platform_wifi_gpio.power_n.enable));
+                mdelay(100);
+            #else
                 rkusb_wifi_power(0);
                 usbwifi_power_status = 0;    	
+            #endif
                  pr_info("wifi shut off power\n");
         }
         return 0;
