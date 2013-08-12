@@ -215,7 +215,9 @@ static bool tegra_lp1_iram_hook(void)
 			tegra20_lp1_iram_hook();
 		break;
 	case TEGRA30:
-		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC))
+	case TEGRA114:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) ||
+		    IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC))
 			tegra30_lp1_iram_hook();
 		break;
 	default:
@@ -241,7 +243,9 @@ static bool tegra_sleep_core_init(void)
 			tegra20_sleep_core_init();
 		break;
 	case TEGRA30:
-		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC))
+	case TEGRA114:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) ||
+		    IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC))
 			tegra30_sleep_core_init();
 		break;
 	default:
