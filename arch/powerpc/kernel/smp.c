@@ -609,6 +609,33 @@ int cpu_first_thread_of_core(int core)
 }
 EXPORT_SYMBOL_GPL(cpu_first_thread_of_core);
 
+static void traverse_siblings_chip_id(int cpu, bool add, int chipid)
+{
+	const struct cpumask *mask;
+	struct device_node *np;
+	int i, plen;
+	const __be32 *prop;
+
+	mask = add ? cpu_online_mask : cpu_present_mask;
+	for_each_cpu(i, mask) {
+		np = of_get_cpu_node(i, NULL);
+		if (!np)
+			continue;
+		prop = of_get_property(np, "ibm,chip-id", &plen);
+		if (prop && plen == sizeof(int) &&
+		    of_read_number(prop, 1) == chipid) {
+			if (add) {
+				cpumask_set_cpu(cpu, cpu_core_mask(i));
+				cpumask_set_cpu(i, cpu_core_mask(cpu));
+			} else {
+				cpumask_clear_cpu(cpu, cpu_core_mask(i));
+				cpumask_clear_cpu(i, cpu_core_mask(cpu));
+			}
+		}
+		of_node_put(np);
+	}
+}
+
 /* Must be called when no change can occur to cpu_present_mask,
  * i.e. during cpu online or offline.
  */
@@ -633,14 +660,29 @@ static struct device_node *cpu_to_l2cache(int cpu)
 
 static void traverse_core_siblings(int cpu, bool add)
 {
-	struct device_node *l2_cache;
+	struct device_node *l2_cache, *np;
 	const struct cpumask *mask;
-	int i;
+	int i, chip, plen;
+	const __be32 *prop;
+
+	/* First see if we have ibm,chip-id properties in cpu nodes */
+	np = of_get_cpu_node(cpu, NULL);
+	if (np) {
+		chip = -1;
+		prop = of_get_property(np, "ibm,chip-id", &plen);
+		if (prop && plen == sizeof(int))
+			chip = of_read_number(prop, 1);
+		of_node_put(np);
+		if (chip >= 0) {
+			traverse_siblings_chip_id(cpu, add, chip);
+			return;
+		}
+	}
 
 	l2_cache = cpu_to_l2cache(cpu);
 	mask = add ? cpu_online_mask : cpu_present_mask;
 	for_each_cpu(i, mask) {
-		struct device_node *np = cpu_to_l2cache(i);
+		np = cpu_to_l2cache(i);
 		if (!np)
 			continue;
 		if (np == l2_cache) {
