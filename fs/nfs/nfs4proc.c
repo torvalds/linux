@@ -1442,6 +1442,7 @@ static int nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state 
 	int err;
 	do {
 		err = _nfs4_do_open_reclaim(ctx, state);
+		trace_nfs4_open_reclaim(ctx, 0, err);
 		if (nfs4_clear_cap_atomic_open_v1(server, err, &exception))
 			continue;
 		if (err != -NFS4ERR_DELAY)
@@ -1897,6 +1898,7 @@ static int nfs4_do_open_expired(struct nfs_open_context *ctx, struct nfs4_state 
 
 	do {
 		err = _nfs4_open_expired(ctx, state);
+		trace_nfs4_open_expired(ctx, 0, err);
 		if (nfs4_clear_cap_atomic_open_v1(server, err, &exception))
 			continue;
 		switch (err) {
@@ -2199,6 +2201,7 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 	do {
 		status = _nfs4_do_open(dir, ctx, flags, sattr, label);
 		res = ctx->state;
+		trace_nfs4_open_file(ctx, flags, status);
 		if (status == 0)
 			break;
 		/* NOTE: BAD_SEQID means the server and client disagree about the
@@ -2389,6 +2392,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	dprintk("%s: begin!\n", __func__);
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
 		return;
+	trace_nfs4_close(state, &calldata->arg, &calldata->res, task->tk_status);
         /* hmm. we are done with the inode, and in the process of freeing
 	 * the state_owner. we keep this around to process errors
 	 */

@@ -161,6 +161,19 @@
 		{ -NFS4ERR_WRONG_TYPE, "WRONG_TYPE" }, \
 		{ -NFS4ERR_XDEV, "XDEV" })
 
+#define show_open_flags(flags) \
+	__print_flags(flags, "|", \
+		{ O_CREAT, "O_CREAT" }, \
+		{ O_EXCL, "O_EXCL" }, \
+		{ O_TRUNC, "O_TRUNC" }, \
+		{ O_DIRECT, "O_DIRECT" })
+
+#define show_fmode_flags(mode) \
+	__print_flags(mode, "|", \
+		{ ((__force unsigned long)FMODE_READ), "READ" }, \
+		{ ((__force unsigned long)FMODE_WRITE), "WRITE" }, \
+		{ ((__force unsigned long)FMODE_EXEC), "EXEC" })
+
 DECLARE_EVENT_CLASS(nfs4_clientid_event,
 		TP_PROTO(
 			const struct nfs_client *clp,
@@ -210,6 +223,118 @@ DEFINE_NFS4_CLIENTID_EVENT(nfs4_bind_conn_to_session);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_sequence);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_reclaim_complete);
 #endif /* CONFIG_NFS_V4_1 */
+
+DECLARE_EVENT_CLASS(nfs4_open_event,
+		TP_PROTO(
+			const struct nfs_open_context *ctx,
+			int flags,
+			int error
+		),
+
+		TP_ARGS(ctx, flags, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(unsigned int, flags)
+			__field(unsigned int, fmode)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(u64, dir)
+			__string(name, ctx->dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			const struct nfs4_state *state = ctx->state;
+			const struct inode *inode = NULL;
+
+			__entry->error = error;
+			__entry->flags = flags;
+			__entry->fmode = (__force unsigned int)ctx->mode;
+			__entry->dev = ctx->dentry->d_sb->s_dev;
+			if (!IS_ERR(state))
+				inode = state->inode;
+			if (inode != NULL) {
+				__entry->fileid = NFS_FILEID(inode);
+				__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			} else {
+				__entry->fileid = 0;
+				__entry->fhandle = 0;
+			}
+			__entry->dir = NFS_FILEID(ctx->dentry->d_parent->d_inode);
+			__assign_str(name, ctx->dentry->d_name.name);
+		),
+
+		TP_printk(
+			"error=%d (%s) flags=%d (%s) fmode=%s "
+			"fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"name=%02x:%02x:%llu/%s",
+			 __entry->error,
+			 show_nfsv4_errors(__entry->error),
+			 __entry->flags,
+			 show_open_flags(__entry->flags),
+			 show_fmode_flags(__entry->fmode),
+			 MAJOR(__entry->dev), MINOR(__entry->dev),
+			 (unsigned long long)__entry->fileid,
+			 __entry->fhandle,
+			 MAJOR(__entry->dev), MINOR(__entry->dev),
+			 (unsigned long long)__entry->dir,
+			 __get_str(name)
+		)
+);
+
+#define DEFINE_NFS4_OPEN_EVENT(name) \
+	DEFINE_EVENT(nfs4_open_event, name, \
+			TP_PROTO( \
+				const struct nfs_open_context *ctx, \
+				int flags, \
+				int error \
+			), \
+			TP_ARGS(ctx, flags, error))
+DEFINE_NFS4_OPEN_EVENT(nfs4_open_reclaim);
+DEFINE_NFS4_OPEN_EVENT(nfs4_open_expired);
+DEFINE_NFS4_OPEN_EVENT(nfs4_open_file);
+
+TRACE_EVENT(nfs4_close,
+		TP_PROTO(
+			const struct nfs4_state *state,
+			const struct nfs_closeargs *args,
+			const struct nfs_closeres *res,
+			int error
+		),
+
+		TP_ARGS(state, args, res, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(unsigned int, fmode)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = state->inode;
+
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->fmode = (__force unsigned int)state->state;
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"error=%d (%s) fmode=%s fileid=%02x:%02x:%llu "
+			"fhandle=0x%08x",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			__entry->fmode ?  show_fmode_flags(__entry->fmode) :
+					  "closed",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle
+		)
+);
 
 #endif /* _TRACE_NFS4_H */
 
