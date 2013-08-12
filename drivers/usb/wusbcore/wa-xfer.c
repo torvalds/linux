@@ -928,7 +928,7 @@ static void wa_xfer_delayed_run(struct wa_rpipe *rpipe)
 	spin_lock_irqsave(&rpipe->seg_lock, flags);
 	while (atomic_read(&rpipe->segs_available) > 0
 	      && !list_empty(&rpipe->seg_list)) {
-		seg = list_entry(rpipe->seg_list.next, struct wa_seg,
+		seg = list_first_entry(&(rpipe->seg_list), struct wa_seg,
 				 list_node);
 		list_del(&seg->list_node);
 		xfer = seg->xfer;
@@ -1093,30 +1093,35 @@ error_xfer_submit:
  *
  * We need to be careful here, as dequeue() could be called in the
  * middle.  That's why we do the whole thing under the
- * wa->xfer_list_lock. If dequeue() jumps in, it first locks urb->lock
+ * wa->xfer_list_lock. If dequeue() jumps in, it first locks xfer->lock
  * and then checks the list -- so as we would be acquiring in inverse
- * order, we just drop the lock once we have the xfer and reacquire it
- * later.
+ * order, we move the delayed list to a separate list while locked and then
+ * submit them without the list lock held.
  */
 void wa_urb_enqueue_run(struct work_struct *ws)
 {
 	struct wahc *wa = container_of(ws, struct wahc, xfer_work);
 	struct wa_xfer *xfer, *next;
 	struct urb *urb;
+	LIST_HEAD(tmp_list);
 
+	/* Create a copy of the wa->xfer_delayed_list while holding the lock */
 	spin_lock_irq(&wa->xfer_list_lock);
-	list_for_each_entry_safe(xfer, next, &wa->xfer_delayed_list,
-				 list_node) {
+	list_cut_position(&tmp_list, &wa->xfer_delayed_list,
+			wa->xfer_delayed_list.prev);
+	spin_unlock_irq(&wa->xfer_list_lock);
+
+	/*
+	 * enqueue from temp list without list lock held since wa_urb_enqueue_b
+	 * can take xfer->lock as well as lock mutexes.
+	 */
+	list_for_each_entry_safe(xfer, next, &tmp_list, list_node) {
 		list_del_init(&xfer->list_node);
-		spin_unlock_irq(&wa->xfer_list_lock);
 
 		urb = xfer->urb;
 		wa_urb_enqueue_b(xfer);
 		usb_put_urb(urb);	/* taken when queuing */
-
-		spin_lock_irq(&wa->xfer_list_lock);
 	}
-	spin_unlock_irq(&wa->xfer_list_lock);
 }
 EXPORT_SYMBOL_GPL(wa_urb_enqueue_run);
 
