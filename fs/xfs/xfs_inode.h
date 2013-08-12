@@ -18,24 +18,15 @@
 #ifndef	__XFS_INODE_H__
 #define	__XFS_INODE_H__
 
-struct posix_acl;
-struct xfs_dinode;
-struct xfs_inode;
-
+#include "xfs_inode_buf.h"
 #include "xfs_inode_fork.h"
 
 /*
- * Inode location information.  Stored in the inode and passed to
- * xfs_imap_to_bp() to get a buffer and dinode for a given inode.
+ * Kernel only inode definitions
  */
-struct xfs_imap {
-	xfs_daddr_t	im_blkno;	/* starting BB of inode chunk */
-	ushort		im_len;		/* length in BBs of inode chunk */
-	ushort		im_boffset;	/* inode offset in block in bytes */
-};
 
-#ifdef __KERNEL__
-
+struct xfs_dinode;
+struct xfs_inode;
 struct xfs_buf;
 struct xfs_bmap_free;
 struct xfs_bmbt_irec;
@@ -347,7 +338,10 @@ int		xfs_itruncate_extents(struct xfs_trans **, struct xfs_inode *,
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
+
 void		xfs_iunpin_wait(xfs_inode_t *);
+#define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
+
 int		xfs_iflush(struct xfs_inode *, struct xfs_buf **);
 void		xfs_lock_inodes(xfs_inode_t **, int, uint);
 void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
@@ -367,27 +361,6 @@ do { \
 	iput(VFS_I(ip)); \
 } while (0)
 
-#endif /* __KERNEL__ */
-
-int		xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
-			       struct xfs_imap *, struct xfs_dinode **,
-			       struct xfs_buf **, uint, uint);
-int		xfs_iread(struct xfs_mount *, struct xfs_trans *,
-			  struct xfs_inode *, uint);
-void		xfs_dinode_calc_crc(struct xfs_mount *, struct xfs_dinode *);
-void		xfs_dinode_to_disk(struct xfs_dinode *,
-				   struct xfs_icdinode *);
-bool		xfs_can_free_eofblocks(struct xfs_inode *, bool);
-
-#define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
-
-#if defined(DEBUG)
-void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
-#else
-#define	xfs_inobp_check(mp, bp)
-#endif /* DEBUG */
-
 extern struct kmem_zone	*xfs_inode_zone;
-extern const struct xfs_buf_ops xfs_inode_buf_ops;
 
 #endif	/* __XFS_INODE_H__ */
