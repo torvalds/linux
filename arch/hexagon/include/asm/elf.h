@@ -202,7 +202,7 @@ do {					\
 #define CORE_DUMP_USE_REGSET
 
 /* Hrm is this going to cause problems for changing PAGE_SIZE?  */
-#define ELF_EXEC_PAGESIZE	4096
+#define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /*
  * This is the location that an ET_DYN program is loaded if exec'ed.  Typical
