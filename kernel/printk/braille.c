@@ -19,7 +19,8 @@ char *_braille_console_setup(char **str, char **brl_options)
 			pr_err("need port name after brl=\n");
 		else
 			*((*str)++) = 0;
-	}
+	} else
+		return NULL;
 
 	return *str;
 }

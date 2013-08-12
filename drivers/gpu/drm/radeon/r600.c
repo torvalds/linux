@@ -2299,9 +2299,13 @@ int r600_init_microcode(struct radeon_device *rdev)
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_HEMLOCK)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", smc_chip_name);
 		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
-		if (err)
-			goto out;
-		if (rdev->smc_fw->size != smc_req_size) {
+		if (err) {
+			printk(KERN_ERR
+			       "smc: error loading firmware \"%s\"\n",
+			       fw_name);
+			release_firmware(rdev->smc_fw);
+			rdev->smc_fw = NULL;
+		} else if (rdev->smc_fw->size != smc_req_size) {
 			printk(KERN_ERR
 			       "smc: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->smc_fw->size, fw_name);
@@ -2697,12 +2701,29 @@ int r600_uvd_rbc_start(struct radeon_device *rdev)
 	return 0;
 }
 
-void r600_uvd_rbc_stop(struct radeon_device *rdev)
+void r600_uvd_stop(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 
 	/* force RBC into idle state */
 	WREG32(UVD_RBC_RB_CNTL, 0x11010101);
+
+	/* Stall UMC and register bus before resetting VCPU */
+	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
+	mdelay(1);
+
+	/* put VCPU into reset */
+	WREG32(UVD_SOFT_RESET, VCPU_SOFT_RESET);
+	mdelay(5);
+
+	/* disable VCPU clock */
+	WREG32(UVD_VCPU_CNTL, 0x0);
+
+	/* Unstall UMC and register bus */
+	WREG32_P(UVD_LMI_CTRL2, 0, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 0, ~(1 << 3));
+
 	ring->ready = false;
 }
 
@@ -2721,6 +2742,11 @@ int r600_uvd_init(struct radeon_device *rdev)
 
 	/* disable interupt */
 	WREG32_P(UVD_MASTINT_EN, 0, ~(1 << 1));
+
+	/* Stall UMC and register bus before resetting VCPU */
+	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
+	mdelay(1);
 
 	/* put LMI, VCPU, RBC etc... into reset */
 	WREG32(UVD_SOFT_RESET, LMI_SOFT_RESET | VCPU_SOFT_RESET |
@@ -2750,10 +2776,6 @@ int r600_uvd_init(struct radeon_device *rdev)
 	WREG32(UVD_MPC_SET_MUXB1, 0x0);
 	WREG32(UVD_MPC_SET_ALU, 0);
 	WREG32(UVD_MPC_SET_MUX, 0x88);
-
-	/* Stall UMC */
-	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
-	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
 
 	/* take all subblocks out of reset, except VCPU */
 	WREG32(UVD_SOFT_RESET, VCPU_SOFT_RESET);
@@ -3312,6 +3334,8 @@ static int r600_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	r600_pcie_gen2_enable(rdev);
 
+	r600_mc_program(rdev);
+
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
 		r = r600_init_microcode(rdev);
 		if (r) {
@@ -3324,7 +3348,6 @@ static int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r600_mc_program(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		r600_agp_enable(rdev);
 	} else {
