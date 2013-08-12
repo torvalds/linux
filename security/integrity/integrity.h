@@ -54,6 +54,7 @@ enum evm_ima_xattr_type {
 	IMA_XATTR_DIGEST = 0x01,
 	EVM_XATTR_HMAC,
 	EVM_IMA_XATTR_DIGSIG,
+	IMA_XATTR_DIGEST_NG,
 };
 
 struct evm_ima_xattr_data {
@@ -66,7 +67,17 @@ struct evm_ima_xattr_data {
 struct ima_digest_data {
 	u8 algo;
 	u8 length;
-	u8 type;
+	union {
+		struct {
+			u8 unused;
+			u8 type;
+		} sha1;
+		struct {
+			u8 type;
+			u8 algo;
+		} ng;
+		u8 data[2];
+	} xattr;
 	u8 digest[0];
 } __packed;
 

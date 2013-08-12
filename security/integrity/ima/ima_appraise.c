@@ -15,6 +15,7 @@
 #include <linux/magic.h>
 #include <linux/ima.h>
 #include <linux/evm.h>
+#include <crypto/hash_info.h>
 
 #include "ima.h"
 
@@ -45,10 +46,22 @@ int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 static int ima_fix_xattr(struct dentry *dentry,
 			 struct integrity_iint_cache *iint)
 {
-	iint->ima_hash->type = IMA_XATTR_DIGEST;
-	return __vfs_setxattr_noperm(dentry, XATTR_NAME_IMA,
-				     &iint->ima_hash->type,
-				     1 + iint->ima_hash->length, 0);
+	int rc, offset;
+	u8 algo = iint->ima_hash->algo;
+
+	if (algo <= HASH_ALGO_SHA1) {
+		offset = 1;
+		iint->ima_hash->xattr.sha1.type = IMA_XATTR_DIGEST;
+	} else {
+		offset = 0;
+		iint->ima_hash->xattr.ng.type = IMA_XATTR_DIGEST_NG;
+		iint->ima_hash->xattr.ng.algo = algo;
+	}
+	rc = __vfs_setxattr_noperm(dentry, XATTR_NAME_IMA,
+				   &iint->ima_hash->xattr.data[offset],
+				   (sizeof(iint->ima_hash->xattr) - offset) +
+				   iint->ima_hash->length, 0);
+	return rc;
 }
 
 /* Return specific func appraised cached result */
@@ -112,15 +125,31 @@ void ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value, int xattr_len,
 {
 	struct signature_v2_hdr *sig;
 
-	if (!xattr_value || xattr_len < 0 || xattr_len <= 1 + sizeof(*sig))
+	if (!xattr_value || xattr_len < 2)
 		return;
 
-	sig = (typeof(sig)) xattr_value->digest;
-
-	if (xattr_value->type != EVM_IMA_XATTR_DIGSIG || sig->version != 2)
-		return;
-
-	hash->algo = sig->hash_algo;
+	switch (xattr_value->type) {
+	case EVM_IMA_XATTR_DIGSIG:
+		sig = (typeof(sig))xattr_value;
+		if (sig->version != 2 || xattr_len <= sizeof(*sig))
+			return;
+		hash->algo = sig->hash_algo;
+		break;
+	case IMA_XATTR_DIGEST_NG:
+		hash->algo = xattr_value->digest[0];
+		break;
+	case IMA_XATTR_DIGEST:
+		/* this is for backward compatibility */
+		if (xattr_len == 21) {
+			unsigned int zero = 0;
+			if (!memcmp(&xattr_value->digest[16], &zero, 4))
+				hash->algo = HASH_ALGO_MD5;
+			else
+				hash->algo = HASH_ALGO_SHA1;
+		} else if (xattr_len == 17)
+			hash->algo = HASH_ALGO_MD5;
+		break;
+	}
 }
 
 int ima_read_xattr(struct dentry *dentry,
@@ -153,7 +182,7 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 	enum integrity_status status = INTEGRITY_UNKNOWN;
 	const char *op = "appraise_data";
 	char *cause = "unknown";
-	int rc = xattr_len;
+	int rc = xattr_len, hash_start = 0;
 
 	if (!ima_appraise)
 		return 0;
@@ -180,17 +209,21 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 		goto out;
 	}
 	switch (xattr_value->type) {
+	case IMA_XATTR_DIGEST_NG:
+		/* first byte contains algorithm id */
+		hash_start = 1;
 	case IMA_XATTR_DIGEST:
 		if (iint->flags & IMA_DIGSIG_REQUIRED) {
 			cause = "IMA signature required";
 			status = INTEGRITY_FAIL;
 			break;
 		}
-		if (xattr_len - 1 >= iint->ima_hash->length)
+		if (xattr_len - sizeof(xattr_value->type) - hash_start >=
+				iint->ima_hash->length)
 			/* xattr length may be longer. md5 hash in previous
 			   version occupied 20 bytes in xattr, instead of 16
 			 */
-			rc = memcmp(xattr_value->digest,
+			rc = memcmp(&xattr_value->digest[hash_start],
 				    iint->ima_hash->digest,
 				    iint->ima_hash->length);
 		else
