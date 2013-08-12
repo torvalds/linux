@@ -24,6 +24,7 @@
 #define USBGRF_UOC1_CON0	(GRF_REG_BASE+0x11C)
 #define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x124)
 #define USBGRF_UOC1_CON3	(GRF_REG_BASE+0x128)
+#define USBGRF_UOC3_CON0	(GRF_REG_BASE+0x138)
 
 #define USBGRF_UOC2_CON0	(GRF_REG_BASE+0x12C)
 #if defined(CONFIG_SOC_RK3066B) || defined(CONFIG_SOC_RK3108) 
@@ -488,6 +489,7 @@ void rkehci_hw_init(void)
 	unsigned int * phy_con0 = (unsigned int*)(USBGRF_UOC2_CON0);
 	unsigned int * phy_con1 = (unsigned int*)(USBGRF_UOC1_CON0);
 	unsigned int * phy_con2 = (unsigned int*)(USBGRF_UOC0_CON0);
+	unsigned int * phy_con3 = (unsigned int*)(USBGRF_UOC3_CON0);
 	// usb phy config init
 	// hsic phy config init, set hsicphy_txsrtune
 	*phy_con0 = ((0xf<<6)<<16)|(0xf<<6);
@@ -499,6 +501,10 @@ void rkehci_hw_init(void)
 #else
 	*phy_con2 = (1<<16)|0;
 #endif
+	/* change INCR to INCR16 or INCR8(beats less than 16)
+	 * or INCR4(beats less than 8) or SINGLE(beats less than 4)
+	 */
+	*phy_con3 = 0x00ff00bc;
 }
 
 void rkehci_clock_init(void* pdata)
