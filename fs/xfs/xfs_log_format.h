@@ -19,6 +19,7 @@
 #define __XFS_LOG_FORMAT_H__
 
 struct xfs_mount;
+struct xfs_trans_res;
 
 /*
  * On-disk Log Format definitions.
@@ -50,6 +51,9 @@ typedef __uint32_t xlog_tid_t;
 #define XLOG_LSUNITTOB(log, su) ((su) * (log)->l_mp->m_sb.sb_logsunit)
 
 #define XLOG_HEADER_SIZE	512
+
+/* Minimum number of transactions that must fit in the log (defined by mkfs) */
+#define XFS_MIN_LOG_FACTOR	3
 
 #define XLOG_REC_SHIFT(log) \
 	BTOBB(1 << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
@@ -134,7 +138,6 @@ typedef struct xlog_op_header {
 	__u8	   oh_flags;	/*				:  1 b */
 	__u16	   oh_res2;	/* 32 bit align			:  2 b */
 } xlog_op_header_t;
-
 
 /* valid values for h_fmt */
 #define XLOG_FMT_UNKNOWN  0
@@ -837,5 +840,7 @@ struct xfs_icreate_log {
 };
 
 int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);
+int	xfs_log_calc_minimum_size(struct xfs_mount *);
+
 
 #endif /* __XFS_LOG_FORMAT_H__ */

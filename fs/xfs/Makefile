@@ -79,6 +79,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_inode_fork.o \
 				   xfs_inode_buf.o \
 				   xfs_log_recover.o \
+				   xfs_log_rlimit.o \
 				   xfs_sb.o \
 				   xfs_symlink_remote.o \
 				   xfs_trans_resv.o
