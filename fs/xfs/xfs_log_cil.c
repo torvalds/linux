@@ -185,6 +185,22 @@ xlog_cil_prepare_log_vecs(
 		buf_size = sizeof(struct xfs_log_vec) + nbytes +
 				niovecs * sizeof(struct xfs_log_iovec);
 
+		/* compare to existing item size */
+		if (lip->li_lv && buf_size <= lip->li_lv->lv_size) {
+			/* same or smaller, optimise common overwrite case */
+			lv = lip->li_lv;
+			lv->lv_next = NULL;
+
+			if (ordered)
+				goto insert;
+
+			/* Ensure the lv is set up according to ->iop_size */
+			lv->lv_niovecs = niovecs;
+			lv->lv_buf = (char *)lv + buf_size - nbytes;
+			lv->lv_buf_len = xlog_cil_lv_item_format(lip, lv);
+			goto insert;
+		}
+
 		/* allocate new data chunk */
 		lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
 		lv->lv_item = lip;
@@ -204,8 +220,8 @@ xlog_cil_prepare_log_vecs(
 		lv->lv_buf = (char *)lv + buf_size - nbytes;
 
 		lv->lv_buf_len = xlog_cil_lv_item_format(lip, lv);
-		ASSERT(lv->lv_buf_len <= nbytes);
 insert:
+		ASSERT(lv->lv_buf_len <= nbytes);
 		if (!ret_lv)
 			ret_lv = lv;
 		else
@@ -230,7 +246,17 @@ xfs_cil_prepare_item(
 {
 	struct xfs_log_vec	*old = lv->lv_item->li_lv;
 
-	if (old) {
+	if (!old) {
+		/* new lv, must pin the log item */
+		ASSERT(!lv->lv_item->li_lv);
+
+		if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED) {
+			*len += lv->lv_buf_len;
+			*diff_iovecs += lv->lv_niovecs;
+		}
+		lv->lv_item->li_ops->iop_pin(lv->lv_item);
+
+	} else if (old != lv) {
 		/* existing lv on log item, space used is a delta */
 		ASSERT((old->lv_buf && old->lv_buf_len && old->lv_niovecs) ||
 			old->lv_buf_len == XFS_LOG_VEC_ORDERED);
@@ -249,15 +275,8 @@ xfs_cil_prepare_item(
 		*diff_iovecs += lv->lv_niovecs - old->lv_niovecs;
 		kmem_free(old);
 	} else {
-		/* new lv, must pin the log item */
-		ASSERT(!lv->lv_item->li_lv);
-
-		if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED) {
-			*len += lv->lv_buf_len;
-			*diff_iovecs += lv->lv_niovecs;
-		}
-		IOP_PIN(lv->lv_item);
-
+		/* re-used lv */
+		/* XXX: can't account for len/diff_iovecs yet */
 	}
 
 	/* attach new log vector to log item */
@@ -733,18 +752,13 @@ xfs_log_commit_cil(
 	if (flags & XFS_TRANS_RELEASE_LOG_RES)
 		log_flags = XFS_LOG_REL_PERM_RESERV;
 
-	/*
-	 * Do all the hard work of formatting items (including memory
-	 * allocation) outside the CIL context lock. This prevents stalling CIL
-	 * pushes when we are low on memory and a transaction commit spends a
-	 * lot of time in memory reclaim.
-	 */
+	/* lock out background commit */
+	down_read(&log->l_cilp->xc_ctx_lock);
+
 	log_vector = xlog_cil_prepare_log_vecs(tp);
 	if (!log_vector)
 		return ENOMEM;
 
-	/* lock out background commit */
-	down_read(&log->l_cilp->xc_ctx_lock);
 	if (commit_lsn)
 		*commit_lsn = log->l_cilp->xc_ctx->sequence;
 
