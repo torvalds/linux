@@ -736,8 +736,8 @@ xfs_rtallocate_range(
 {
 	xfs_rtblock_t	end;		/* end of the allocated extent */
 	int		error;		/* error value */
-	xfs_rtblock_t	postblock;	/* first block allocated > end */
-	xfs_rtblock_t	preblock;	/* first block allocated < start */
+	xfs_rtblock_t	postblock = 0;	/* first block allocated > end */
+	xfs_rtblock_t	preblock = 0;	/* first block allocated < start */
 
 	end = start + len - 1;
 	/*

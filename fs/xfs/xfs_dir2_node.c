@@ -313,11 +313,13 @@ xfs_dir2_free_log_header(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*bp)
 {
+#ifdef DEBUG
 	xfs_dir2_free_t		*free;		/* freespace structure */
 
 	free = bp->b_addr;
 	ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC) ||
 	       free->hdr.magic == cpu_to_be32(XFS_DIR3_FREE_MAGIC));
+#endif
 	xfs_trans_log_buf(tp, bp, 0, xfs_dir3_free_hdr_size(tp->t_mountp) - 1);
 }
 
