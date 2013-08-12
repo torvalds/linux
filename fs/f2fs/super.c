@@ -618,7 +618,7 @@ static const struct export_operations f2fs_export_ops = {
 
 static loff_t max_file_size(unsigned bits)
 {
-	loff_t result = ADDRS_PER_INODE;
+	loff_t result = (DEF_ADDRS_PER_INODE - F2FS_INLINE_XATTR_ADDRS);
 	loff_t leaf_count = ADDRS_PER_BLOCK;
 
 	/* two direct node blocks */

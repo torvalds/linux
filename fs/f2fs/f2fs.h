@@ -301,15 +301,6 @@ struct f2fs_sm_info {
 };
 
 /*
- * For directory operation
- */
-#define	NODE_DIR1_BLOCK		(ADDRS_PER_INODE + 1)
-#define	NODE_DIR2_BLOCK		(ADDRS_PER_INODE + 2)
-#define	NODE_IND1_BLOCK		(ADDRS_PER_INODE + 3)
-#define	NODE_IND2_BLOCK		(ADDRS_PER_INODE + 4)
-#define	NODE_DIND_BLOCK		(ADDRS_PER_INODE + 5)
-
-/*
  * For superblock
  */
 /*
@@ -942,6 +933,13 @@ static inline void set_raw_inline(struct f2fs_inode_info *fi,
 		ri->i_inline |= F2FS_INLINE_XATTR;
 }
 
+static inline unsigned int addrs_per_inode(struct f2fs_inode_info *fi)
+{
+	if (is_inode_flag_set(fi, FI_INLINE_XATTR))
+		return DEF_ADDRS_PER_INODE - F2FS_INLINE_XATTR_ADDRS;
+	return DEF_ADDRS_PER_INODE;
+}
+
 static inline int f2fs_readonly(struct super_block *sb)
 {
 	return sb->s_flags & MS_RDONLY;
@@ -1108,7 +1106,7 @@ int do_write_data_page(struct page *);
  */
 int start_gc_thread(struct f2fs_sb_info *);
 void stop_gc_thread(struct f2fs_sb_info *);
-block_t start_bidx_of_node(unsigned int);
+block_t start_bidx_of_node(unsigned int, struct f2fs_inode_info *);
 int f2fs_gc(struct f2fs_sb_info *);
 void build_gc_manager(struct f2fs_sb_info *);
 int __init create_gc_caches(void);

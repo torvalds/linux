@@ -213,6 +213,7 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 	void *kaddr;
 	struct inode *inode;
 	struct page *node_page;
+	unsigned int offset;
 	block_t bidx;
 	int i;
 
@@ -257,8 +258,8 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 	node_page = get_node_page(sbi, nid);
 	if (IS_ERR(node_page))
 		return PTR_ERR(node_page);
-	bidx = start_bidx_of_node(ofs_of_node(node_page)) +
-					le16_to_cpu(sum.ofs_in_node);
+
+	offset = ofs_of_node(node_page);
 	ino = ino_of_node(node_page);
 	f2fs_put_page(node_page, 1);
 
@@ -266,6 +267,9 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 	inode = f2fs_iget(sbi->sb, ino);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
+
+	bidx = start_bidx_of_node(offset, F2FS_I(inode)) +
+					le16_to_cpu(sum.ofs_in_node);
 
 	truncate_hole(inode, bidx, bidx + 1);
 	iput(inode);
@@ -275,6 +279,7 @@ static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 					struct page *page, block_t blkaddr)
 {
+	struct f2fs_inode_info *fi = F2FS_I(inode);
 	unsigned int start, end;
 	struct dnode_of_data dn;
 	struct f2fs_summary sum;
@@ -282,9 +287,9 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	int err = 0, recovered = 0;
 	int ilock;
 
-	start = start_bidx_of_node(ofs_of_node(page));
+	start = start_bidx_of_node(ofs_of_node(page), fi);
 	if (IS_INODE(page))
-		end = start + ADDRS_PER_INODE;
+		end = start + ADDRS_PER_INODE(fi);
 	else
 		end = start + ADDRS_PER_BLOCK;
 
