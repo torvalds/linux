@@ -292,14 +292,6 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 /*
- * perag get/put wrappers for ref counting
- */
-struct xfs_perag *xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno);
-struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *mp, xfs_agnumber_t agno,
-					int tag);
-void	xfs_perag_put(struct xfs_perag *pag);
-
-/*
  * Per-cpu superblock locking functions
  */
 #ifdef HAVE_PERCPU_SB
@@ -331,6 +323,8 @@ typedef struct xfs_mod_sb {
 extern int	xfs_log_sbcount(xfs_mount_t *);
 extern __uint64_t xfs_default_resblks(xfs_mount_t *mp);
 extern int	xfs_mountfs(xfs_mount_t *mp);
+extern int	xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount,
+				     xfs_agnumber_t *maxagi);
 
 extern void	xfs_unmountfs(xfs_mount_t *);
 extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int64_t, int);
@@ -348,14 +342,5 @@ extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);
 extern void	xfs_set_low_space_thresholds(struct xfs_mount *);
 
 #endif	/* __KERNEL__ */
-
-extern void	xfs_sb_calc_crc(struct xfs_buf	*);
-extern void	xfs_mod_sb(struct xfs_trans *, __int64_t);
-extern int	xfs_initialize_perag(struct xfs_mount *, xfs_agnumber_t,
-					xfs_agnumber_t *);
-extern void	xfs_sb_from_disk(struct xfs_sb *, struct xfs_dsb *);
-extern void	xfs_sb_to_disk(struct xfs_dsb *, struct xfs_sb *, __int64_t);
-
-extern const struct xfs_buf_ops xfs_sb_buf_ops;
 
 #endif	/* __XFS_MOUNT_H__ */

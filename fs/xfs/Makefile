@@ -47,6 +47,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_iops.o \
 				   xfs_itable.o \
 				   xfs_message.o \
+				   xfs_mount.o \
 				   xfs_mru_cache.o \
 				   xfs_rename.o \
 				   xfs_super.o \
@@ -81,7 +82,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_inode_fork.o \
 				   xfs_inode_buf.o \
 				   xfs_log_recover.o \
-				   xfs_mount.o \
+				   xfs_sb.o \
 				   xfs_symlink_remote.o \
 				   xfs_trans_resv.o
 
