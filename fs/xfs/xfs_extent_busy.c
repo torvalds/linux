@@ -147,7 +147,7 @@ xfs_extent_busy_search(
  * extent.  If the overlap covers the beginning, the end, or all of the busy
  * extent, the overlapping portion can be made unbusy and used for the
  * allocation.  We can't split a busy extent because we can't modify a
- * transaction/CIL context busy list, but we can update an entries block
+ * transaction/CIL context busy list, but we can update an entry's block
  * number or length.
  *
  * Returns true if the extent can safely be reused, or false if the search
