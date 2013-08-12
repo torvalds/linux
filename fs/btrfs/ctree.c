@@ -1271,7 +1271,6 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 		BUG_ON(!eb_rewin);
 	}
 
-	extent_buffer_get(eb_rewin);
 	btrfs_tree_read_unlock(eb);
 	free_extent_buffer(eb);
 
