@@ -1308,14 +1308,13 @@ static u64 find_next_chunk(struct btrfs_fs_info *fs_info)
 	return ret;
 }
 
-static noinline int find_next_devid(struct btrfs_root *root, u64 *objectid)
+static noinline int find_next_devid(struct btrfs_fs_info *fs_info,
+				    u64 *devid_ret)
 {
 	int ret;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct btrfs_path *path;
-
-	root = root->fs_info->chunk_root;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1325,20 +1324,21 @@ static noinline int find_next_devid(struct btrfs_root *root, u64 *objectid)
 	key.type = BTRFS_DEV_ITEM_KEY;
 	key.offset = (u64)-1;
 
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	ret = btrfs_search_slot(NULL, fs_info->chunk_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto error;
 
 	BUG_ON(ret == 0); /* Corruption */
 
-	ret = btrfs_previous_item(root, path, BTRFS_DEV_ITEMS_OBJECTID,
+	ret = btrfs_previous_item(fs_info->chunk_root, path,
+				  BTRFS_DEV_ITEMS_OBJECTID,
 				  BTRFS_DEV_ITEM_KEY);
 	if (ret) {
-		*objectid = 1;
+		*devid_ret = 1;
 	} else {
 		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
 				      path->slots[0]);
-		*objectid = found_key.offset + 1;
+		*devid_ret = found_key.offset + 1;
 	}
 	ret = 0;
 error:
@@ -1974,7 +1974,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	}
 	rcu_assign_pointer(device->name, name);
 
-	ret = find_next_devid(root, &device->devid);
+	ret = find_next_devid(root->fs_info, &device->devid);
 	if (ret) {
 		rcu_string_free(device->name);
 		kfree(device);
