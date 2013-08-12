@@ -1141,30 +1141,35 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * This is a dirty hack to make this driver work from devicetree
-	 * bindings. It can be removed once we have a prober DMA controller
-	 * framework for DT.
-	 */
-	if (pdev->dev.of_node && of_machine_is_compatible("marvell,pxa3xx")) {
-		info->drcmr_dat = 97;
-		info->drcmr_cmd = 99;
-	} else {
-		r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-		if (r == NULL) {
-			dev_err(&pdev->dev, "no resource defined for data DMA\n");
-			ret = -ENXIO;
-			goto fail_disable_clk;
-		}
-		info->drcmr_dat = r->start;
+	if (use_dma) {
+		/*
+		 * This is a dirty hack to make this driver work from
+		 * devicetree bindings. It can be removed once we have
+		 * a prober DMA controller framework for DT.
+		 */
+		if (pdev->dev.of_node &&
+		    of_machine_is_compatible("marvell,pxa3xx")) {
+			info->drcmr_dat = 97;
+			info->drcmr_cmd = 99;
+		} else {
+			r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+			if (r == NULL) {
+				dev_err(&pdev->dev,
+					"no resource defined for data DMA\n");
+				ret = -ENXIO;
+				goto fail_disable_clk;
+			}
+			info->drcmr_dat = r->start;
 
-		r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-		if (r == NULL) {
-			dev_err(&pdev->dev, "no resource defined for command DMA\n");
-			ret = -ENXIO;
-			goto fail_disable_clk;
+			r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+			if (r == NULL) {
+				dev_err(&pdev->dev,
+					"no resource defined for cmd DMA\n");
+				ret = -ENXIO;
+				goto fail_disable_clk;
+			}
+			info->drcmr_cmd = r->start;
 		}
-		info->drcmr_cmd = r->start;
 	}
 
 	irq = platform_get_irq(pdev, 0);
