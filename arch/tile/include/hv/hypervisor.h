@@ -544,14 +544,24 @@ typedef enum {
   HV_CONFSTR_CPUMOD_REV      = 18,
 
   /** Human-readable CPU module description. */
-  HV_CONFSTR_CPUMOD_DESC     = 19
+  HV_CONFSTR_CPUMOD_DESC     = 19,
+
+  /** Per-tile hypervisor statistics.  When this identifier is specified,
+   *  the hv_confstr call takes two extra arguments.  The first is the
+   *  HV_XY_TO_LOTAR of the target tile's coordinates.  The second is
+   *  a flag word.  The only current flag is the lowest bit, which means
+   *  "zero out the stats instead of retrieving them"; in this case the
+   *  buffer and buffer length are ignored. */
+  HV_CONFSTR_HV_STATS        = 20
 
 } HV_ConfstrQuery;
 
 /** Query a configuration string from the hypervisor.
  *
  * @param query Identifier for the specific string to be retrieved
- *        (HV_CONFSTR_xxx).
+ *        (HV_CONFSTR_xxx).  Some strings may require or permit extra
+ *        arguments to be appended which select specific objects to be
+ *        described; see the string descriptions above.
  * @param buf Buffer in which to place the string.
  * @param len Length of the buffer.
  * @return If query is valid, then the length of the corresponding string,
@@ -559,7 +569,7 @@ typedef enum {
  *        was truncated.  If query is invalid, HV_EINVAL.  If the specified
  *        buffer is not writable by the client, HV_EFAULT.
  */
-int hv_confstr(HV_ConfstrQuery query, HV_VirtAddr buf, int len);
+int hv_confstr(HV_ConfstrQuery query, HV_VirtAddr buf, int len, ...);
 
 /** Tile coordinate */
 typedef struct
