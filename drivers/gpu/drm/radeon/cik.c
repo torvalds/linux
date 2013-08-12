@@ -3974,13 +3974,6 @@ static int cik_cp_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Reset all cp blocks */
-	WREG32(GRBM_SOFT_RESET, SOFT_RESET_CP);
-	RREG32(GRBM_SOFT_RESET);
-	mdelay(15);
-	WREG32(GRBM_SOFT_RESET, 0);
-	RREG32(GRBM_SOFT_RESET);
-
 	r = cik_cp_load_microcode(rdev);
 	if (r)
 		return r;
@@ -5060,9 +5053,9 @@ static void cik_enable_cgcg(struct radeon_device *rdev, bool enable)
 
 	orig = data = RREG32(RLC_CGCG_CGLS_CTRL);
 
-	cik_enable_gui_idle_interrupt(rdev, enable);
-
 	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGCG)) {
+		cik_enable_gui_idle_interrupt(rdev, true);
+
 		tmp = cik_halt_rlc(rdev);
 
 		cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
@@ -5075,6 +5068,8 @@ static void cik_enable_cgcg(struct radeon_device *rdev, bool enable)
 
 		data |= CGCG_EN | CGLS_EN;
 	} else {
+		cik_enable_gui_idle_interrupt(rdev, false);
+
 		RREG32(CB_CGTT_SCLK_CTRL);
 		RREG32(CB_CGTT_SCLK_CTRL);
 		RREG32(CB_CGTT_SCLK_CTRL);
@@ -5383,7 +5378,7 @@ void cik_update_cg(struct radeon_device *rdev,
 static void cik_init_cg(struct radeon_device *rdev)
 {
 
-	cik_update_cg(rdev, RADEON_CG_BLOCK_GFX, false); /* XXX true */
+	cik_update_cg(rdev, RADEON_CG_BLOCK_GFX, true);
 
 	if (rdev->has_uvd)
 		si_init_uvd_internal_cg(rdev);
