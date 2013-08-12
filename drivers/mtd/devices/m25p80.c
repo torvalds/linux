@@ -1038,10 +1038,8 @@ static int m25p_probe(struct spi_device *spi)
 	flash->mtd.writebufsize = flash->page_size;
 
 	flash->fast_read = false;
-#ifdef CONFIG_OF
 	if (np && of_property_read_bool(np, "m25p,fast-read"))
 		flash->fast_read = true;
-#endif
 
 #ifdef CONFIG_M25PXX_USE_FAST_READ
 	flash->fast_read = true;
