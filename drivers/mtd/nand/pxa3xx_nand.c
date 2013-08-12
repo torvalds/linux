@@ -144,10 +144,6 @@ struct pxa3xx_nand_host {
 	unsigned int		row_addr_cycles;
 	size_t			read_id_bytes;
 
-	/* cached register value */
-	uint32_t		reg_ndcr;
-	uint32_t		ndtr0cs0;
-	uint32_t		ndtr1cs0;
 };
 
 struct pxa3xx_nand_info {
@@ -192,6 +188,11 @@ struct pxa3xx_nand_info {
 	unsigned int		data_size;	/* data size in FIFO */
 	unsigned int		oob_size;
 	int 			retcode;
+
+	/* cached register value */
+	uint32_t		reg_ndcr;
+	uint32_t		ndtr0cs0;
+	uint32_t		ndtr1cs0;
 
 	/* generated NDCBx register values */
 	uint32_t		ndcb0;
@@ -258,8 +259,8 @@ static void pxa3xx_nand_set_timing(struct pxa3xx_nand_host *host,
 		NDTR1_tWHR(ns2cycle(t->tWHR, nand_clk)) |
 		NDTR1_tAR(ns2cycle(t->tAR, nand_clk));
 
-	host->ndtr0cs0 = ndtr0;
-	host->ndtr1cs0 = ndtr1;
+	info->ndtr0cs0 = ndtr0;
+	info->ndtr1cs0 = ndtr1;
 	nand_writel(info, NDTR0CS0, ndtr0);
 	nand_writel(info, NDTR1CS0, ndtr1);
 }
@@ -267,7 +268,7 @@ static void pxa3xx_nand_set_timing(struct pxa3xx_nand_host *host,
 static void pxa3xx_set_datasize(struct pxa3xx_nand_info *info)
 {
 	struct pxa3xx_nand_host *host = info->host[info->cs];
-	int oob_enable = host->reg_ndcr & NDCR_SPARE_EN;
+	int oob_enable = info->reg_ndcr & NDCR_SPARE_EN;
 
 	info->data_size = host->page_size;
 	if (!oob_enable) {
@@ -293,10 +294,9 @@ static void pxa3xx_set_datasize(struct pxa3xx_nand_info *info)
  */
 static void pxa3xx_nand_start(struct pxa3xx_nand_info *info)
 {
-	struct pxa3xx_nand_host *host = info->host[info->cs];
 	uint32_t ndcr;
 
-	ndcr = host->reg_ndcr;
+	ndcr = info->reg_ndcr;
 
 	if (info->use_ecc)
 		ndcr |= NDCR_ECC_EN;
@@ -683,7 +683,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	 * "byte" address into a "word" address appropriate
 	 * for indexing a word-oriented device
 	 */
-	if (host->reg_ndcr & NDCR_DWIDTH_M)
+	if (info->reg_ndcr & NDCR_DWIDTH_M)
 		column /= 2;
 
 	/*
@@ -693,8 +693,8 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	 */
 	if (info->cs != host->cs) {
 		info->cs = host->cs;
-		nand_writel(info, NDTR0CS0, host->ndtr0cs0);
-		nand_writel(info, NDTR1CS0, host->ndtr1cs0);
+		nand_writel(info, NDTR0CS0, info->ndtr0cs0);
+		nand_writel(info, NDTR1CS0, info->ndtr1cs0);
 	}
 
 	info->state = STATE_PREPARED;
@@ -870,7 +870,7 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 	ndcr |= NDCR_RD_ID_CNT(host->read_id_bytes);
 	ndcr |= NDCR_SPARE_EN; /* enable spare by default */
 
-	host->reg_ndcr = ndcr;
+	info->reg_ndcr = ndcr;
 
 	pxa3xx_nand_set_timing(host, f->timing);
 	return 0;
@@ -893,11 +893,9 @@ static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 		host->read_id_bytes = 2;
 	}
 
-	host->reg_ndcr = ndcr & ~NDCR_INT_MASK;
-
-	host->ndtr0cs0 = nand_readl(info, NDTR0CS0);
-	host->ndtr1cs0 = nand_readl(info, NDTR1CS0);
-
+	info->reg_ndcr = ndcr & ~NDCR_INT_MASK;
+	info->ndtr0cs0 = nand_readl(info, NDTR0CS0);
+	info->ndtr1cs0 = nand_readl(info, NDTR1CS0);
 	return 0;
 }
 
@@ -1044,7 +1042,7 @@ KEEP_CONFIG:
 	chip->ecc.size = host->page_size;
 	chip->ecc.strength = 1;
 
-	if (host->reg_ndcr & NDCR_DWIDTH_M)
+	if (info->reg_ndcr & NDCR_DWIDTH_M)
 		chip->options |= NAND_BUSWIDTH_16;
 
 	if (nand_scan_ident(mtd, 1, def))
