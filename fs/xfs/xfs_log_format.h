@@ -18,6 +18,8 @@
 #ifndef	__XFS_LOG_FORMAT_H__
 #define __XFS_LOG_FORMAT_H__
 
+struct xfs_mount;
+
 /*
  * On-disk Log Format definitions.
  *
@@ -833,5 +835,7 @@ struct xfs_icreate_log {
 	__be32		icl_length;	/* length of extent to initialise */
 	__be32		icl_gen;	/* inode generation number to use */
 };
+
+int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);
 
 #endif /* __XFS_LOG_FORMAT_H__ */
