@@ -461,6 +461,49 @@ DEFINE_NFS4_LOOKUP_EVENT(nfs4_remove);
 DEFINE_NFS4_LOOKUP_EVENT(nfs4_get_fs_locations);
 DEFINE_NFS4_LOOKUP_EVENT(nfs4_secinfo);
 
+TRACE_EVENT(nfs4_rename,
+		TP_PROTO(
+			const struct inode *olddir,
+			const struct qstr *oldname,
+			const struct inode *newdir,
+			const struct qstr *newname,
+			int error
+		),
+
+		TP_ARGS(olddir, oldname, newdir, newname, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(int, error)
+			__field(u64, olddir)
+			__string(oldname, oldname->name)
+			__field(u64, newdir)
+			__string(newname, newname->name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = olddir->i_sb->s_dev;
+			__entry->olddir = NFS_FILEID(olddir);
+			__entry->newdir = NFS_FILEID(newdir);
+			__entry->error = error;
+			__assign_str(oldname, oldname->name);
+			__assign_str(newname, newname->name);
+		),
+
+		TP_printk(
+			"error=%d (%s) oldname=%02x:%02x:%llu/%s "
+			"newname=%02x:%02x:%llu/%s",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->olddir,
+			__get_str(oldname),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->newdir,
+			__get_str(newname)
+		)
+);
+
 DECLARE_EVENT_CLASS(nfs4_inode_event,
 		TP_PROTO(
 			const struct inode *inode,
