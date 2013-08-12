@@ -744,7 +744,7 @@ _xfs_trans_alloc(
 	atomic_inc(&mp->m_active_trans);
 
 	tp = kmem_zone_zalloc(xfs_trans_zone, memflags);
-	tp->t_magic = XFS_TRANS_MAGIC;
+	tp->t_magic = XFS_TRANS_HEADER_MAGIC;
 	tp->t_type = type;
 	tp->t_mountp = mp;
 	INIT_LIST_HEAD(&tp->t_items);
@@ -789,7 +789,7 @@ xfs_trans_dup(
 	/*
 	 * Initialize the new transaction structure.
 	 */
-	ntp->t_magic = XFS_TRANS_MAGIC;
+	ntp->t_magic = XFS_TRANS_HEADER_MAGIC;
 	ntp->t_type = tp->t_type;
 	ntp->t_mountp = tp->t_mountp;
 	INIT_LIST_HEAD(&ntp->t_items);
