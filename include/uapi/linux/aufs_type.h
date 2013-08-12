@@ -133,7 +133,10 @@ enum {
 	AuCtl_WBR_FD,
 
 	/* busy inode */
-	AuCtl_IBUSY
+	AuCtl_IBUSY,
+
+	/* move-down */
+	AuCtl_MVDOWN
 };
 
 /* borrowed from linux/include/linux/kernel.h */
@@ -242,5 +245,7 @@ struct aufs_mvdown {
 #define AUFS_CTL_WBR_FD		_IOW(AuCtlType, AuCtl_WBR_FD, \
 				     struct aufs_wbr_fd)
 #define AUFS_CTL_IBUSY		_IOWR(AuCtlType, AuCtl_IBUSY, struct aufs_ibusy)
+#define AUFS_CTL_MVDOWN		_IOR(AuCtlType, AuCtl_MVDOWN, \
+				     struct aufs_mvdown)
 
 #endif /* __AUFS_TYPE_H__ */

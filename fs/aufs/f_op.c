@@ -701,7 +701,7 @@ const struct file_operations aufs_file_fop = {
 #endif
 	.unlocked_ioctl	= aufs_ioctl_nondir,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= aufs_ioctl_nondir, /* same */
+	.compat_ioctl	= aufs_compat_ioctl_nondir,
 #endif
 	.mmap		= aufs_mmap,
 	.open		= aufs_open_nondir,
