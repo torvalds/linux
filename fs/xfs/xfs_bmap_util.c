@@ -357,7 +357,7 @@ xfs_bmap_disk_count_leaves(
 
 /*
  * Recursively walks each level of a btree
- * to count total fsblocks is use.
+ * to count total fsblocks in use.
  */
 STATIC int                                     /* error */
 xfs_bmap_count_tree(
