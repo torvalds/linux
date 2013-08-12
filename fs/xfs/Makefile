@@ -47,6 +47,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_mru_cache.o \
 				   xfs_rename.o \
 				   xfs_super.o \
+				   xfs_trans.o \
 				   xfs_utils.o \
 				   xfs_vnodeops.o \
 				   xfs_xattr.o \
@@ -76,7 +77,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_log_recover.o \
 				   xfs_mount.o \
 				   xfs_symlink.o \
-				   xfs_trans.o
+				   xfs_trans_resv.o
 
 # low-level transaction/log code
 xfs-y				+= xfs_log.o \
