@@ -3768,7 +3768,7 @@ static bool detect_jacks(struct hda_codec *codec, int num_pins, hda_nid_t *pins)
 
 /* standard HP/line-out auto-mute helper */
 static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
-			bool mute)
+			int *paths, bool mute)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	int i;
@@ -3780,10 +3780,19 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 			break;
 
 		if (spec->auto_mute_via_amp) {
+			struct nid_path *path;
+			hda_nid_t mute_nid;
+
+			path = snd_hda_get_path_from_idx(codec, paths[i]);
+			if (!path)
+				continue;
+			mute_nid = get_amp_nid_(path->ctls[NID_PATH_MUTE_CTL]);
+			if (!mute_nid)
+				continue;
 			if (mute)
-				spec->mute_bits |= (1ULL << nid);
+				spec->mute_bits |= (1ULL << mute_nid);
 			else
-				spec->mute_bits &= ~(1ULL << nid);
+				spec->mute_bits &= ~(1ULL << mute_nid);
 			set_pin_eapd(codec, nid, !mute);
 			continue;
 		}
@@ -3814,14 +3823,19 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 void snd_hda_gen_update_outputs(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	int *paths;
 	int on;
 
 	/* Control HP pins/amps depending on master_mute state;
 	 * in general, HP pins/amps control should be enabled in all cases,
 	 * but currently set only for master_mute, just to be safe
 	 */
+	if (spec->autocfg.line_out_type == AUTO_PIN_HP_OUT)
+		paths = spec->out_paths;
+	else
+		paths = spec->hp_paths;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
-		    spec->autocfg.hp_pins, spec->master_mute);
+		    spec->autocfg.hp_pins, paths, spec->master_mute);
 
 	if (!spec->automute_speaker)
 		on = 0;
@@ -3829,8 +3843,12 @@ void snd_hda_gen_update_outputs(struct hda_codec *codec)
 		on = spec->hp_jack_present | spec->line_jack_present;
 	on |= spec->master_mute;
 	spec->speaker_muted = on;
+	if (spec->autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
+		paths = spec->out_paths;
+	else
+		paths = spec->speaker_paths;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.speaker_pins),
-		    spec->autocfg.speaker_pins, on);
+		    spec->autocfg.speaker_pins, paths, on);
 
 	/* toggle line-out mutes if needed, too */
 	/* if LO is a copy of either HP or Speaker, don't need to handle it */
@@ -3843,8 +3861,9 @@ void snd_hda_gen_update_outputs(struct hda_codec *codec)
 		on = spec->hp_jack_present;
 	on |= spec->master_mute;
 	spec->line_out_muted = on;
+	paths = spec->out_paths;
 	do_automute(codec, ARRAY_SIZE(spec->autocfg.line_out_pins),
-		    spec->autocfg.line_out_pins, on);
+		    spec->autocfg.line_out_pins, paths, on);
 }
 EXPORT_SYMBOL_HDA(snd_hda_gen_update_outputs);
 
