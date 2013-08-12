@@ -765,7 +765,7 @@ xfs_log_mount_finish(xfs_mount_t *mp)
  * Unmount record used to have a string "Unmount filesystem--" in the
  * data section where the "Un" was really a magic number (XLOG_UNMOUNT_TYPE).
  * We just write the magic number now since that particular field isn't
- * currently architecture converted and "nUmount" is a bit foo.
+ * currently architecture converted and "Unmount" is a bit foo.
  * As far as I know, there weren't any dependencies on the old behaviour.
  */
 
