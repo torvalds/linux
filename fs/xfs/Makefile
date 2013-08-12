@@ -50,7 +50,6 @@ xfs-y				+= xfs_aops.o \
 				   xfs_message.o \
 				   xfs_mount.o \
 				   xfs_mru_cache.o \
-				   xfs_rename.o \
 				   xfs_super.o \
 				   xfs_symlink.o \
 				   xfs_trans.o \
