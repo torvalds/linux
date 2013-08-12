@@ -196,6 +196,24 @@ enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
 	return pmc_pm_data.suspend_mode;
 }
 
+void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode)
+{
+	if (mode < TEGRA_SUSPEND_NONE || mode >= TEGRA_MAX_SUSPEND_MODE)
+		return;
+
+	pmc_pm_data.suspend_mode = mode;
+}
+
+void tegra_pmc_suspend(void)
+{
+	tegra_pmc_writel(virt_to_phys(tegra_resume), PMC_SCRATCH41);
+}
+
+void tegra_pmc_resume(void)
+{
+	tegra_pmc_writel(0x0, PMC_SCRATCH41);
+}
+
 void tegra_pmc_pm_set(enum tegra_suspend_mode mode)
 {
 	u32 reg, csr_reg;
@@ -219,6 +237,9 @@ void tegra_pmc_pm_set(enum tegra_suspend_mode mode)
 	}
 
 	switch (mode) {
+	case TEGRA_SUSPEND_LP1:
+		rate = 32768;
+		break;
 	case TEGRA_SUSPEND_LP2:
 		rate = clk_get_rate(tegra_pclk);
 		break;
