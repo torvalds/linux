@@ -38,7 +38,6 @@
 #include <linux/slab.h>
 #include <linux/compat.h>
 #include <linux/freezer.h>
-#include <linux/crc32.h>
 
 #include <asm/uaccess.h>
 
@@ -1190,7 +1189,7 @@ u32 _nfs_display_fhandle_hash(const struct nfs_fh *fh)
 {
 	/* wireshark uses 32-bit AUTODIN crc and does a bitwise
 	 * not on the result */
-	return ~crc32(0xFFFFFFFF, &fh->data[0], fh->size);
+	return nfs_fhandle_hash(fh);
 }
 
 /*
