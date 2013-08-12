@@ -117,6 +117,7 @@ struct nx_ctr_priv {
 };
 
 struct nx_crypto_ctx {
+	spinlock_t lock;	  /* synchronize access to the context */
 	void *kmem;		  /* unaligned, kmalloc'd buffer */
 	size_t kmem_len;	  /* length of kmem */
 	struct nx_csbcpb *csbcpb; /* aligned page given to phyp @ hcall time */

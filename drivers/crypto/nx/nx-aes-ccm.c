@@ -271,10 +271,15 @@ static int ccm_nx_decrypt(struct aead_request   *req,
 	unsigned int nbytes = req->cryptlen;
 	unsigned int authsize = crypto_aead_authsize(crypto_aead_reqtfm(req));
 	struct nx_ccm_priv *priv = &nx_ctx->priv.ccm;
+	unsigned long irq_flags;
 	int rc = -1;
 
-	if (nbytes > nx_ctx->ap->databytelen)
-		return -EINVAL;
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
+
+	if (nbytes > nx_ctx->ap->databytelen) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	nbytes -= authsize;
 
@@ -308,6 +313,7 @@ static int ccm_nx_decrypt(struct aead_request   *req,
 	rc = memcmp(csbcpb->cpb.aes_ccm.out_pat_or_mac, priv->oauth_tag,
 		    authsize) ? -EBADMSG : 0;
 out:
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 
@@ -318,10 +324,15 @@ static int ccm_nx_encrypt(struct aead_request   *req,
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	unsigned int nbytes = req->cryptlen;
 	unsigned int authsize = crypto_aead_authsize(crypto_aead_reqtfm(req));
+	unsigned long irq_flags;
 	int rc = -1;
 
-	if (nbytes > nx_ctx->ap->databytelen)
-		return -EINVAL;
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
+
+	if (nbytes > nx_ctx->ap->databytelen) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	rc = generate_pat(desc->info, req, nx_ctx, authsize, nbytes,
 			  csbcpb->cpb.aes_ccm.in_pat_or_b0);
@@ -350,6 +361,7 @@ static int ccm_nx_encrypt(struct aead_request   *req,
 				 req->dst, nbytes, authsize,
 				 SCATTERWALK_TO_SG);
 out:
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 

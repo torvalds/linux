@@ -89,7 +89,10 @@ static int nx_xcbc_update(struct shash_desc *desc,
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	struct nx_sg *in_sg;
 	u32 to_process, leftover;
+	unsigned long irq_flags;
 	int rc = 0;
+
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
 	if (NX_CPB_FDM(csbcpb) & NX_FDM_CONTINUATION) {
 		/* we've hit the nx chip previously and we're updating again,
@@ -158,6 +161,7 @@ static int nx_xcbc_update(struct shash_desc *desc,
 	/* everything after the first update is continuation */
 	NX_CPB_FDM(csbcpb) |= NX_FDM_CONTINUATION;
 out:
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 
@@ -167,7 +171,10 @@ static int nx_xcbc_final(struct shash_desc *desc, u8 *out)
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	struct nx_sg *in_sg, *out_sg;
+	unsigned long irq_flags;
 	int rc = 0;
+
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
 	if (NX_CPB_FDM(csbcpb) & NX_FDM_CONTINUATION) {
 		/* we've hit the nx chip previously, now we're finalizing,
@@ -211,6 +218,7 @@ static int nx_xcbc_final(struct shash_desc *desc, u8 *out)
 
 	memcpy(out, csbcpb->cpb.aes_xcbc.out_cv_mac, AES_BLOCK_SIZE);
 out:
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 

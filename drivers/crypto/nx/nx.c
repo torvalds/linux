@@ -61,8 +61,7 @@ int nx_hcall_sync(struct nx_crypto_ctx *nx_ctx,
 
 	do {
 		rc = vio_h_cop_sync(viodev, op);
-	} while ((rc == -EBUSY && !may_sleep && retries--) ||
-	         (rc == -EBUSY && may_sleep && cond_resched()));
+	} while (rc == -EBUSY && !may_sleep && retries--);
 
 	if (rc) {
 		dev_dbg(&viodev->dev, "vio_h_cop_sync failed: rc: %d "
@@ -251,6 +250,7 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
  */
 void nx_ctx_init(struct nx_crypto_ctx *nx_ctx, unsigned int function)
 {
+	spin_lock_init(&nx_ctx->lock);
 	memset(nx_ctx->kmem, 0, nx_ctx->kmem_len);
 	nx_ctx->csbcpb->csb.valid |= NX_CSB_VALID_BIT;
 

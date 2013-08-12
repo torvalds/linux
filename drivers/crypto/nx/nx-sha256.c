@@ -57,7 +57,10 @@ static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 	struct nx_sg *in_sg;
 	u64 to_process, leftover, total;
 	u32 max_sg_len;
+	unsigned long irq_flags;
 	int rc = 0;
+
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
 	/* 2 cases for total data len:
 	 *  1: < SHA256_BLOCK_SIZE: copy into state, return 0
@@ -136,6 +139,7 @@ static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 		memcpy(sctx->buf, data, leftover);
 	sctx->count = leftover;
 out:
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 
@@ -146,7 +150,10 @@ static int nx_sha256_final(struct shash_desc *desc, u8 *out)
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *in_sg, *out_sg;
 	u32 max_sg_len;
+	unsigned long irq_flags;
 	int rc;
+
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
 	max_sg_len = min_t(u32, nx_driver.of.max_sg_len, nx_ctx->ap->sglen);
 
@@ -186,6 +193,7 @@ static int nx_sha256_final(struct shash_desc *desc, u8 *out)
 		     &(nx_ctx->stats->sha256_bytes));
 	memcpy(out, csbcpb->cpb.sha256.message_digest, SHA256_DIGEST_SIZE);
 out:
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 
@@ -195,6 +203,9 @@ static int nx_sha256_export(struct shash_desc *desc, void *out)
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct sha256_state *octx = out;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
 	octx->count = sctx->count +
 		      (csbcpb->cpb.sha256.message_bit_length / 8);
@@ -217,6 +228,7 @@ static int nx_sha256_export(struct shash_desc *desc, void *out)
 		octx->state[7] = SHA256_H7;
 	}
 
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return 0;
 }
 
@@ -226,6 +238,9 @@ static int nx_sha256_import(struct shash_desc *desc, const void *in)
 	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	const struct sha256_state *ictx = in;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
 	memcpy(sctx->buf, ictx->buf, sizeof(ictx->buf));
 
@@ -240,6 +255,7 @@ static int nx_sha256_import(struct shash_desc *desc, const void *in)
 		NX_CPB_FDM(csbcpb) |= NX_FDM_INTERMEDIATE;
 	}
 
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return 0;
 }
 

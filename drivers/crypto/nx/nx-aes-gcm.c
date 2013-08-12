@@ -166,7 +166,10 @@ static int gcm_aes_nx_crypt(struct aead_request *req, int enc)
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	struct blkcipher_desc desc;
 	unsigned int nbytes = req->cryptlen;
+	unsigned long irq_flags;
 	int rc = -EINVAL;
+
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
 
 	if (nbytes > nx_ctx->ap->databytelen)
 		goto out;
@@ -255,6 +258,7 @@ static int gcm_aes_nx_crypt(struct aead_request *req, int enc)
 		     -EBADMSG : 0;
 	}
 out:
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 

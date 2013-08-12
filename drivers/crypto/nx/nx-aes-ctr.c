@@ -88,10 +88,15 @@ static int ctr_aes_nx_crypt(struct blkcipher_desc *desc,
 {
 	struct nx_crypto_ctx *nx_ctx = crypto_blkcipher_ctx(desc->tfm);
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
+	unsigned long irq_flags;
 	int rc;
 
-	if (nbytes > nx_ctx->ap->databytelen)
-		return -EINVAL;
+	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
+
+	if (nbytes > nx_ctx->ap->databytelen) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	rc = nx_build_sg_lists(nx_ctx, desc, dst, src, nbytes,
 			       csbcpb->cpb.aes_ctr.iv);
@@ -112,6 +117,7 @@ static int ctr_aes_nx_crypt(struct blkcipher_desc *desc,
 	atomic64_add(csbcpb->csb.processed_byte_count,
 		     &(nx_ctx->stats->aes_bytes));
 out:
+	spin_unlock_irqrestore(&nx_ctx->lock, irq_flags);
 	return rc;
 }
 
