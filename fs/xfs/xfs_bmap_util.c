@@ -764,7 +764,7 @@ xfs_getbmap(
 /*
  * dead simple method of punching delalyed allocation blocks from a range in
  * the inode. Walks a block at a time so will be slow, but is only executed in
- * rare error cases so the overhead is not critical. This will alays punch out
+ * rare error cases so the overhead is not critical. This will always punch out
  * both the start and end blocks, even if the ranges only partially overlap
  * them, so it is up to the caller to ensure that partial blocks are not
  * passed in.
