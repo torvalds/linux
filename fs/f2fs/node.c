@@ -833,29 +833,29 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	get_node_info(sbi, dn->nid, &old_ni);
+	if (!inc_valid_node_count(sbi, dn->inode, 1)) {
+		err = -ENOSPC;
+		goto fail;
+	}
 
-	SetPageUptodate(page);
-	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
+	get_node_info(sbi, dn->nid, &old_ni);
 
 	/* Reinitialize old_ni with new node page */
 	BUG_ON(old_ni.blk_addr != NULL_ADDR);
 	new_ni = old_ni;
 	new_ni.ino = dn->inode->i_ino;
-
-	if (!inc_valid_node_count(sbi, dn->inode, 1)) {
-		err = -ENOSPC;
-		goto fail;
-	}
 	set_node_addr(sbi, &new_ni, NEW_ADDR);
+
+	fill_node_footer(page, dn->nid, dn->inode->i_ino, ofs, true);
 	set_cold_node(dn->inode, page);
+	SetPageUptodate(page);
+	set_page_dirty(page);
 
 	dn->node_page = page;
 	if (ipage)
 		update_inode(dn->inode, ipage);
 	else
 		sync_inode_page(dn);
-	set_page_dirty(page);
 	if (ofs == 0)
 		inc_valid_inode_count(sbi);
 
