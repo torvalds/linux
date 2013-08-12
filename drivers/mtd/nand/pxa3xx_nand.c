@@ -80,6 +80,7 @@
 #define NDSR_RDDREQ		(0x1 << 1)
 #define NDSR_WRCMDREQ		(0x1)
 
+#define NDCB0_LEN_OVRD		(0x1 << 28)
 #define NDCB0_ST_ROW_EN         (0x1 << 26)
 #define NDCB0_AUTO_RS		(0x1 << 25)
 #define NDCB0_CSEL		(0x1 << 24)
@@ -562,6 +563,9 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 	case NAND_CMD_READOOB:
 		pxa3xx_set_datasize(info);
 		break;
+	case NAND_CMD_PARAM:
+		info->use_spare = 0;
+		break;
 	case NAND_CMD_SEQIN:
 		exec_cmd = 0;
 		break;
@@ -637,8 +641,10 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 		info->buf_count = 256;
 		info->ndcb0 |= NDCB0_CMD_TYPE(0)
 				| NDCB0_ADDR_CYC(1)
+				| NDCB0_LEN_OVRD
 				| cmd;
 		info->ndcb1 = (column & 0xFF);
+		info->ndcb3 = 256;
 		info->data_size = 256;
 		break;
 
