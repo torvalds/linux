@@ -99,6 +99,9 @@ enum iwl_ucode_tlv_flag {
 #define IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE		19
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE			253
 
+/* The default max probe length if not specified by the firmware file */
+#define IWL_DEFAULT_MAX_PROBE_LENGTH	200
+
 /**
  * enum iwl_ucode_type
  *
