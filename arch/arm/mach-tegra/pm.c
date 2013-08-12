@@ -209,6 +209,15 @@ static int tegra_sleep_core(unsigned long v2p)
  */
 static bool tegra_lp1_iram_hook(void)
 {
+	switch (tegra_chip_id) {
+	case TEGRA30:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC))
+			tegra30_lp1_iram_hook();
+		break;
+	default:
+		break;
+	}
+
 	if (!tegra_lp1_iram.start_addr || !tegra_lp1_iram.end_addr)
 		return false;
 
@@ -222,6 +231,15 @@ static bool tegra_lp1_iram_hook(void)
 
 static bool tegra_sleep_core_init(void)
 {
+	switch (tegra_chip_id) {
+	case TEGRA30:
+		if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC))
+			tegra30_sleep_core_init();
+		break;
+	default:
+		break;
+	}
+
 	if (!tegra_sleep_core_finish)
 		return false;
 
