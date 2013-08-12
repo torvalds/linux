@@ -3463,7 +3463,7 @@ int bnx2x_vf_pci_alloc(struct bnx2x *bp)
 alloc_mem_err:
 	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
 		       sizeof(struct bnx2x_vf_mbx_msg));
-	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
+	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->pf2vf_bulletin_mapping,
 		       sizeof(union pf_vf_bulletin));
 	return -ENOMEM;
 }
