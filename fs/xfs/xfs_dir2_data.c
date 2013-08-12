@@ -149,6 +149,8 @@ __xfs_dir3_data_check(
 		XFS_WANT_CORRUPTED_RETURN(
 			be16_to_cpu(*xfs_dir3_data_entry_tag_p(mp, dep)) ==
 					       (char *)dep - (char *)hdr);
+		XFS_WANT_CORRUPTED_RETURN(
+			xfs_dir3_dirent_get_ftype(mp, dep) < XFS_DIR3_FT_MAX);
 		count++;
 		lastfree = 0;
 		if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||

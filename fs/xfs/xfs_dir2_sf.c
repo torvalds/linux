@@ -333,6 +333,8 @@ xfs_dir2_block_to_sf(
 			memcpy(sfep->name, dep->name, dep->namelen);
 			xfs_dir3_sfe_put_ino(mp, sfp, sfep,
 					     be64_to_cpu(dep->inumber));
+			xfs_dir3_sfe_put_ftype(mp, sfp, sfep,
+					xfs_dir3_dirent_get_ftype(mp, dep));
 
 			sfep = xfs_dir3_sf_nextentry(mp, sfp, sfep);
 		}
@@ -496,6 +498,8 @@ xfs_dir2_sf_addname_easy(
 	xfs_dir2_sf_put_offset(sfep, offset);
 	memcpy(sfep->name, args->name, sfep->namelen);
 	xfs_dir3_sfe_put_ino(dp->i_mount, sfp, sfep, args->inumber);
+	xfs_dir3_sfe_put_ftype(dp->i_mount, sfp, sfep, args->filetype);
+
 	/*
 	 * Update the header and inode.
 	 */
@@ -589,6 +593,7 @@ xfs_dir2_sf_addname_hard(
 	xfs_dir2_sf_put_offset(sfep, offset);
 	memcpy(sfep->name, args->name, sfep->namelen);
 	xfs_dir3_sfe_put_ino(mp, sfp, sfep, args->inumber);
+	xfs_dir3_sfe_put_ftype(mp, sfp, sfep, args->filetype);
 	sfp->count++;
 #if XFS_BIG_INUMS
 	if (args->inumber > XFS_DIR2_MAX_SHORT_INUM && !objchange)
@@ -825,6 +830,7 @@ xfs_dir2_sf_lookup(
 	if (args->namelen == 1 && args->name[0] == '.') {
 		args->inumber = dp->i_ino;
 		args->cmpresult = XFS_CMP_EXACT;
+		args->filetype = XFS_DIR3_FT_DIR;
 		return XFS_ERROR(EEXIST);
 	}
 	/*
@@ -834,6 +840,7 @@ xfs_dir2_sf_lookup(
 	    args->name[0] == '.' && args->name[1] == '.') {
 		args->inumber = xfs_dir2_sf_get_parent_ino(sfp);
 		args->cmpresult = XFS_CMP_EXACT;
+		args->filetype = XFS_DIR3_FT_DIR;
 		return XFS_ERROR(EEXIST);
 	}
 	/*
@@ -853,6 +860,8 @@ xfs_dir2_sf_lookup(
 			args->cmpresult = cmp;
 			args->inumber = xfs_dir3_sfe_get_ino(dp->i_mount,
 							     sfp, sfep);
+			args->filetype = xfs_dir3_sfe_get_ftype(dp->i_mount,
+								sfp, sfep);
 			if (cmp == XFS_CMP_EXACT)
 				return XFS_ERROR(EEXIST);
 			ci_sfep = sfep;
@@ -1052,6 +1061,8 @@ xfs_dir2_sf_replace(
 #endif
 				xfs_dir3_sfe_put_ino(dp->i_mount, sfp, sfep,
 						     args->inumber);
+				xfs_dir3_sfe_put_ftype(dp->i_mount, sfp, sfep,
+						       args->filetype);
 				break;
 			}
 		}
@@ -1118,10 +1129,12 @@ xfs_dir2_sf_toino4(
 	int			oldsize;	/* old inode size */
 	xfs_dir2_sf_entry_t	*sfep;		/* new sf entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* new sf directory */
+	struct xfs_mount	*mp;
 
 	trace_xfs_dir2_sf_toino4(args);
 
 	dp = args->dp;
+	mp = dp->i_mount;
 
 	/*
 	 * Copy the old directory to the buffer.
@@ -1159,13 +1172,15 @@ xfs_dir2_sf_toino4(
 	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp),
 		    oldsfep = xfs_dir2_sf_firstentry(oldsfp);
 	     i < sfp->count;
-	     i++, sfep = xfs_dir3_sf_nextentry(dp->i_mount, sfp, sfep),
-		  oldsfep = xfs_dir3_sf_nextentry(dp->i_mount, oldsfp, oldsfep)) {
+	     i++, sfep = xfs_dir3_sf_nextentry(mp, sfp, sfep),
+		  oldsfep = xfs_dir3_sf_nextentry(mp, oldsfp, oldsfep)) {
 		sfep->namelen = oldsfep->namelen;
 		sfep->offset = oldsfep->offset;
 		memcpy(sfep->name, oldsfep->name, sfep->namelen);
-		xfs_dir3_sfe_put_ino(dp->i_mount, sfp, sfep,
-			xfs_dir3_sfe_get_ino(dp->i_mount, oldsfp, oldsfep));
+		xfs_dir3_sfe_put_ino(mp, sfp, sfep,
+			xfs_dir3_sfe_get_ino(mp, oldsfp, oldsfep));
+		xfs_dir3_sfe_put_ftype(mp, sfp, sfep,
+			xfs_dir3_sfe_get_ftype(mp, oldsfp, oldsfep));
 	}
 	/*
 	 * Clean up the inode.
@@ -1193,10 +1208,12 @@ xfs_dir2_sf_toino8(
 	int			oldsize;	/* old inode size */
 	xfs_dir2_sf_entry_t	*sfep;		/* new sf entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* new sf directory */
+	struct xfs_mount	*mp;
 
 	trace_xfs_dir2_sf_toino8(args);
 
 	dp = args->dp;
+	mp = dp->i_mount;
 
 	/*
 	 * Copy the old directory to the buffer.
@@ -1234,13 +1251,15 @@ xfs_dir2_sf_toino8(
 	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp),
 		    oldsfep = xfs_dir2_sf_firstentry(oldsfp);
 	     i < sfp->count;
-	     i++, sfep = xfs_dir3_sf_nextentry(dp->i_mount, sfp, sfep),
-		  oldsfep = xfs_dir3_sf_nextentry(dp->i_mount, oldsfp, oldsfep)) {
+	     i++, sfep = xfs_dir3_sf_nextentry(mp, sfp, sfep),
+		  oldsfep = xfs_dir3_sf_nextentry(mp, oldsfp, oldsfep)) {
 		sfep->namelen = oldsfep->namelen;
 		sfep->offset = oldsfep->offset;
 		memcpy(sfep->name, oldsfep->name, sfep->namelen);
-		xfs_dir3_sfe_put_ino(dp->i_mount, sfp, sfep,
-			xfs_dir3_sfe_get_ino(dp->i_mount, oldsfp, oldsfep));
+		xfs_dir3_sfe_put_ino(mp, sfp, sfep,
+			xfs_dir3_sfe_get_ino(mp, oldsfp, oldsfep));
+		xfs_dir3_sfe_put_ftype(mp, sfp, sfep,
+			xfs_dir3_sfe_get_ftype(mp, oldsfp, oldsfep));
 	}
 	/*
 	 * Clean up the inode.
