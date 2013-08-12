@@ -40,6 +40,7 @@ enum samsung_dai_type {
 
 struct samsung_i2s_dai_data {
 	int dai_type;
+	u32 quirks;
 };
 
 struct i2s_dai {
@@ -1032,18 +1033,18 @@ static struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 
 static const struct of_device_id exynos_i2s_match[];
 
-static inline int samsung_i2s_get_driver_data(struct platform_device *pdev)
+static inline const struct samsung_i2s_dai_data *samsung_i2s_get_driver_data(
+						struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
-	struct samsung_i2s_dai_data *data;
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(exynos_i2s_match, pdev->dev.of_node);
-		data = (struct samsung_i2s_dai_data *) match->data;
-		return data->dai_type;
+		return match->data;
 	} else
 #endif
-		return platform_get_device_id(pdev)->driver_data;
+		return (struct samsung_i2s_dai_data *)
+				platform_get_device_id(pdev)->driver_data;
 }
 
 #ifdef CONFIG_PM_RUNTIME
@@ -1074,13 +1075,13 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 	struct resource *res;
 	u32 regs_base, quirks = 0, idma_addr = 0;
 	struct device_node *np = pdev->dev.of_node;
-	enum samsung_dai_type samsung_dai_type;
+	const struct samsung_i2s_dai_data *i2s_dai_data;
 	int ret = 0;
 
 	/* Call during Seconday interface registration */
-	samsung_dai_type = samsung_i2s_get_driver_data(pdev);
+	i2s_dai_data = samsung_i2s_get_driver_data(pdev);
 
-	if (samsung_dai_type == TYPE_SEC) {
+	if (i2s_dai_data->dai_type == TYPE_SEC) {
 		sec_dai = dev_get_drvdata(&pdev->dev);
 		if (!sec_dai) {
 			dev_err(&pdev->dev, "Unable to get drvdata\n");
@@ -1129,15 +1130,7 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 			idma_addr = i2s_cfg->idma_addr;
 		}
 	} else {
-		if (of_find_property(np, "samsung,supports-6ch", NULL))
-			quirks |= QUIRK_PRI_6CHAN;
-
-		if (of_find_property(np, "samsung,supports-secdai", NULL))
-			quirks |= QUIRK_SEC_DAI;
-
-		if (of_find_property(np, "samsung,supports-rstclr", NULL))
-			quirks |= QUIRK_NEED_RSTCLR;
-
+		quirks = i2s_dai_data->quirks;
 		if (of_property_read_u32(np, "samsung,idma-addr",
 					 &idma_addr)) {
 			if (quirks & QUIRK_SEC_DAI) {
@@ -1250,27 +1243,44 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct samsung_i2s_dai_data i2sv3_dai_type = {
+	.dai_type = TYPE_PRI,
+	.quirks = QUIRK_NO_MUXPSR,
+};
+
+static const struct samsung_i2s_dai_data i2sv5_dai_type = {
+	.dai_type = TYPE_PRI,
+	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR,
+};
+
+static const struct samsung_i2s_dai_data samsung_dai_type_pri = {
+	.dai_type = TYPE_PRI,
+};
+
+static const struct samsung_i2s_dai_data samsung_dai_type_sec = {
+	.dai_type = TYPE_SEC,
+};
+
 static struct platform_device_id samsung_i2s_driver_ids[] = {
 	{
 		.name           = "samsung-i2s",
-		.driver_data	= TYPE_PRI,
+		.driver_data    = (kernel_ulong_t)&samsung_dai_type_pri,
 	}, {
 		.name           = "samsung-i2s-sec",
-		.driver_data	= TYPE_SEC,
+		.driver_data    = (kernel_ulong_t)&samsung_dai_type_sec,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(platform, samsung_i2s_driver_ids);
 
 #ifdef CONFIG_OF
-static struct samsung_i2s_dai_data samsung_i2s_dai_data_array[] = {
-	[TYPE_PRI] = { TYPE_PRI },
-	[TYPE_SEC] = { TYPE_SEC },
-};
-
 static const struct of_device_id exynos_i2s_match[] = {
-	{ .compatible = "samsung,i2s-v5",
-	  .data = &samsung_i2s_dai_data_array[TYPE_PRI],
+	{
+		.compatible = "samsung,s3c6410-i2s",
+		.data = &i2sv3_dai_type,
+	}, {
+		.compatible = "samsung,s5pv210-i2s",
+		.data = &i2sv5_dai_type,
 	},
 	{},
 };
