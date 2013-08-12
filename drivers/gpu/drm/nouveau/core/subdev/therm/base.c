@@ -268,7 +268,7 @@ _nouveau_therm_init(struct nouveau_object *object)
 		return ret;
 
 	if (priv->suspend >= 0)
-		nouveau_therm_fan_mode(therm, priv->mode);
+		nouveau_therm_fan_mode(therm, priv->suspend);
 	priv->sensor.program_alarms(therm);
 	return 0;
 }
