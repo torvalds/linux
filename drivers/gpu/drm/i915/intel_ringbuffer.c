@@ -1594,6 +1594,8 @@ void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 	if (INTEL_INFO(ring->dev)->gen >= 6) {
 		I915_WRITE(RING_SYNC_0(ring->mmio_base), 0);
 		I915_WRITE(RING_SYNC_1(ring->mmio_base), 0);
+		if (HAS_VEBOX(ring->dev))
+			I915_WRITE(RING_SYNC_2(ring->mmio_base), 0);
 	}
 
 	ring->set_seqno(ring, seqno);
