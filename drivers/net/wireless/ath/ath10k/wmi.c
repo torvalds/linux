@@ -27,6 +27,13 @@ void ath10k_wmi_flush_tx(struct ath10k *ar)
 {
 	int ret;
 
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (ar->state == ATH10K_STATE_WEDGED) {
+		ath10k_warn("wmi flush skipped - device is wedged anyway\n");
+		return;
+	}
+
 	ret = wait_event_timeout(ar->wmi.wq,
 				 atomic_read(&ar->wmi.pending_tx_count) == 0,
 				 5*HZ);
@@ -111,7 +118,7 @@ static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 
 	trace_ath10k_wmi_cmd(cmd_id, skb->data, skb->len);
 
-	status = ath10k_htc_send(ar->htc, ar->wmi.eid, skb);
+	status = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
 	if (status) {
 		dev_kfree_skb_any(skb);
 		atomic_dec(&ar->wmi.pending_tx_count);
@@ -501,8 +508,8 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	ie = (u8 *)cfg80211_find_ie(WLAN_EID_TIM, ies,
 				    (u8 *)skb_tail_pointer(bcn) - ies);
 	if (!ie) {
-		/* highly unlikely for mac80211 */
-		ath10k_warn("no tim ie found;\n");
+		if (arvif->vdev_type != WMI_VDEV_TYPE_IBSS)
+			ath10k_warn("no tim ie found;\n");
 		return;
 	}
 
@@ -1114,7 +1121,7 @@ int ath10k_wmi_connect_htc_service(struct ath10k *ar)
 	/* connect to control service */
 	conn_req.service_id = ATH10K_HTC_SVC_ID_WMI_CONTROL;
 
-	status = ath10k_htc_connect_service(ar->htc, &conn_req, &conn_resp);
+	status = ath10k_htc_connect_service(&ar->htc, &conn_req, &conn_resp);
 	if (status) {
 		ath10k_warn("failed to connect to WMI CONTROL service status: %d\n",
 			    status);
@@ -1748,6 +1755,9 @@ int ath10k_wmi_vdev_install_key(struct ath10k *ar,
 	if (arg->key_data)
 		memcpy(cmd->key_data, arg->key_data, arg->key_len);
 
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi vdev install key idx %d cipher %d len %d\n",
+		   arg->key_idx, arg->key_cipher, arg->key_len);
 	return ath10k_wmi_cmd_send(ar, skb, WMI_VDEV_INSTALL_KEY_CMDID);
 }
 
@@ -2011,6 +2021,9 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 	cmd->peer_vht_rates.tx_mcs_set =
 		__cpu_to_le32(arg->peer_vht_rates.tx_mcs_set);
 
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi peer assoc vdev %d addr %pM\n",
+		   arg->vdev_id, arg->addr);
 	return ath10k_wmi_cmd_send(ar, skb, WMI_PEER_ASSOC_CMDID);
 }
 
@@ -2078,4 +2091,23 @@ int ath10k_wmi_request_stats(struct ath10k *ar, enum wmi_stats_id stats_id)
 
 	ath10k_dbg(ATH10K_DBG_WMI, "wmi request stats %d\n", (int)stats_id);
 	return ath10k_wmi_cmd_send(ar, skb, WMI_REQUEST_STATS_CMDID);
+}
+
+int ath10k_wmi_force_fw_hang(struct ath10k *ar,
+			     enum wmi_force_fw_hang_type type, u32 delay_ms)
+{
+	struct wmi_force_fw_hang_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_force_fw_hang_cmd *)skb->data;
+	cmd->type = __cpu_to_le32(type);
+	cmd->delay_ms = __cpu_to_le32(delay_ms);
+
+	ath10k_dbg(ATH10K_DBG_WMI, "wmi force fw hang %d delay %d\n",
+		   type, delay_ms);
+	return ath10k_wmi_cmd_send(ar, skb, WMI_FORCE_FW_HANG_CMDID);
 }

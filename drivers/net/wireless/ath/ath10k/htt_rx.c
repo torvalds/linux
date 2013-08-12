@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include "core.h"
 #include "htc.h"
 #include "htt.h"
 #include "txrx.h"
@@ -1036,7 +1037,7 @@ end:
 
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
-	struct ath10k_htt *htt = ar->htt;
+	struct ath10k_htt *htt = &ar->htt;
 	struct htt_resp *resp = (struct htt_resp *)skb->data;
 
 	/* confirm alignment */

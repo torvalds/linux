@@ -153,7 +153,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_TIMING_BEACON_ONLY |
-		    IEEE80211_HW_CONNECTION_MONITOR;
+		    IEEE80211_HW_CONNECTION_MONITOR |
+		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
+		    IEEE80211_HW_SUPPORTS_STATIC_SMPS;
 
 	hw->queues = IWL_MVM_FIRST_AGG_QUEUE;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
@@ -506,7 +508,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* Allocate resources for the MAC context, and add it the the fw  */
+	/* Allocate resources for the MAC context, and add it to the fw  */
 	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
 	if (ret)
 		goto out_unlock;
@@ -552,6 +554,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 			goto out_release;
 		}
 
+		iwl_mvm_vif_dbgfs_register(mvm, vif);
 		goto out_unlock;
 	}
 
@@ -566,15 +569,16 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_power_update_mode(mvm, vif);
 
 	/* beacon filtering */
+	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+	if (ret)
+		goto out_remove_mac;
+
 	if (!mvm->bf_allowed_vif &&
-	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p){
+	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
+	    mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BF_UPDATED){
 		mvm->bf_allowed_vif = mvmvif;
 		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 	}
-
-	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
-	if (ret)
-		goto out_release;
 
 	/*
 	 * P2P_DEVICE interface does not have a channel context assigned to it,
@@ -586,7 +590,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvmvif->phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
 		if (!mvmvif->phy_ctxt) {
 			ret = -ENOSPC;
-			goto out_remove_mac;
+			goto out_free_bf;
 		}
 
 		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->phy_ctxt);
@@ -610,6 +614,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_binding_remove_vif(mvm, vif);
  out_unref_phy:
 	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
+ out_free_bf:
+	if (mvm->bf_allowed_vif == mvmvif) {
+		mvm->bf_allowed_vif = NULL;
+		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+	}
  out_remove_mac:
 	mvmvif->phy_ctxt = NULL;
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
@@ -719,6 +728,20 @@ out_release:
 	mutex_unlock(&mvm->mutex);
 }
 
+static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				s8 tx_power)
+{
+	/* FW is in charge of regulatory enforcement */
+	struct iwl_reduce_tx_power_cmd reduce_txpwr_cmd = {
+		.mac_context_id = iwl_mvm_vif_from_mac80211(vif)->id,
+		.pwr_restriction = cpu_to_le16(tx_power),
+	};
+
+	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, CMD_SYNC,
+				    sizeof(reduce_txpwr_cmd),
+				    &reduce_txpwr_cmd);
+}
+
 static int iwl_mvm_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	return 0;
@@ -766,7 +789,6 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				IWL_ERR(mvm, "failed to update quotas\n");
 				return;
 			}
-			iwl_mvm_bt_coex_vif_assoc(mvm, vif);
 			iwl_mvm_configure_mcast_filter(mvm, vif);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/* remove AP station now that the MAC is unassoc */
@@ -779,9 +801,15 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
-		ret = iwl_mvm_power_update_mode(mvm, vif);
-		if (ret)
-			IWL_ERR(mvm, "failed to update power mode\n");
+		if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD)) {
+			/* Workaround for FW bug, otherwise FW disables device
+			 * power save upon disassociation
+			 */
+			ret = iwl_mvm_power_update_mode(mvm, vif);
+			if (ret)
+				IWL_ERR(mvm, "failed to update power mode\n");
+		}
+		iwl_mvm_bt_coex_vif_assoc(mvm, vif);
 	} else if (changes & BSS_CHANGED_BEACON_INFO) {
 		/*
 		 * We received a beacon _after_ association so
@@ -793,6 +821,11 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		ret = iwl_mvm_power_update_mode(mvm, vif);
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
+	}
+	if (changes & BSS_CHANGED_TXPOWER) {
+		IWL_DEBUG_CALIB(mvm, "Changing TX Power to %d\n",
+				bss_conf->txpower);
+		iwl_mvm_set_tx_power(mvm, vif, bss_conf->txpower);
 	}
 }
 

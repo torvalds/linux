@@ -78,12 +78,15 @@ static inline void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	ath9k_hw_ops(ah)->antdiv_comb_conf_set(ah, antconf);
 }
 
-static inline void ath9k_hw_antctrl_shared_chain_lnadiv(struct ath_hw *ah,
-							bool enable)
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
+static inline void ath9k_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 {
-	if (ath9k_hw_ops(ah)->antctrl_shared_chain_lnadiv)
-		ath9k_hw_ops(ah)->antctrl_shared_chain_lnadiv(ah, enable);
+	if (ath9k_hw_ops(ah)->set_bt_ant_diversity)
+		ath9k_hw_ops(ah)->set_bt_ant_diversity(ah, enable);
 }
+
+#endif
 
 /* Private hardware call ops */
 

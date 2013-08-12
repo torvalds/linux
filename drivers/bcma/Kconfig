@@ -35,8 +35,14 @@ config BCMA_DRIVER_PCI_HOSTMODE
 	  PCI core hostmode operation (external PCI bus).
 
 config BCMA_HOST_SOC
-	bool
-	depends on BCMA_DRIVER_MIPS
+	bool "Support for BCMA in a SoC"
+	depends on BCMA
+	help
+	  Host interface for a Broadcom AIX bus directly mapped into
+	  the memory. This only works with the Broadcom SoCs from the
+	  BCM47XX line.
+
+	  If unsure, say N
 
 config BCMA_DRIVER_MIPS
 	bool "BCMA Broadcom MIPS core driver"

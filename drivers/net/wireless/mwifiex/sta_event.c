@@ -201,6 +201,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_DEAUTHENTICATED:
 		dev_dbg(adapter->dev, "event: Deauthenticated\n");
+		if (priv->wps.session_enable) {
+			dev_dbg(adapter->dev,
+				"info: receive deauth event in wps session\n");
+			break;
+		}
 		adapter->dbg.num_event_deauth++;
 		if (priv->media_connected) {
 			reason_code =
@@ -211,6 +216,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_DISASSOCIATED:
 		dev_dbg(adapter->dev, "event: Disassociated\n");
+		if (priv->wps.session_enable) {
+			dev_dbg(adapter->dev,
+				"info: receive disassoc event in wps session\n");
+			break;
+		}
 		adapter->dbg.num_event_disassoc++;
 		if (priv->media_connected) {
 			reason_code =

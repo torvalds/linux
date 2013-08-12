@@ -4164,9 +4164,7 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.stop_p2p_device = brcmf_p2p_stop_device,
 	.crit_proto_start = brcmf_cfg80211_crit_proto_start,
 	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
-#ifdef CONFIG_NL80211_TESTMODE
-	.testmode_cmd = brcmf_cfg80211_testmode
-#endif
+	CFG80211_TESTMODE_CMD(brcmf_cfg80211_testmode)
 };
 
 static s32 brcmf_nl80211_iftype_to_mode(enum nl80211_iftype type)

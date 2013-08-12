@@ -151,8 +151,8 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 	sflash->size = sflash->blocksize * sflash->numblocks;
 	sflash->present = true;
 
-	pr_info("Found %s serial flash (blocksize: 0x%X, blocks: %d)\n",
-		e->name, e->blocksize, e->numblocks);
+	pr_info("Found %s serial flash (size: %dKiB, blocksize: 0x%X, blocks: %d)\n",
+		e->name, sflash->size / 1024, e->blocksize, e->numblocks);
 
 	/* Prepare platform device, but don't register it yet. It's too early,
 	 * malloc (required by device_private_init) is not available yet. */
@@ -160,7 +160,5 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 					 sflash->size;
 	ssb_sflash_dev.dev.platform_data = sflash;
 
-	pr_err("Serial flash support is not implemented yet!\n");
-
-	return -ENOTSUPP;
+	return 0;
 }

@@ -1157,6 +1157,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	struct sk_buff *skb = NULL, *requeue_skb, *hdr_skb;
 	struct ieee80211_rx_status *rxs;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_hdr *hdr;
@@ -1328,22 +1329,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			skb = hdr_skb;
 		}
 
-
-		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) {
-
-			/*
-			 * change the default rx antenna if rx diversity
-			 * chooses the other antenna 3 times in a row.
-			 */
-			if (sc->rx.defant != rs.rs_antenna) {
-				if (++sc->rx.rxotherant >= 3)
-					ath_setdefantenna(sc, rs.rs_antenna);
-			} else {
-				sc->rx.rxotherant = 0;
-			}
-
-		}
-
 		if (rxs->flag & RX_FLAG_MMIC_STRIPPED)
 			skb_trim(skb, skb->len - 8);
 
@@ -1355,8 +1340,35 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			ath_rx_ps(sc, skb, rs.is_mybeacon);
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
-		if ((ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) && sc->ant_rx == 3)
-			ath_ant_comb_scan(sc, &rs);
+		/*
+		 * Run the LNA combining algorithm only in these cases:
+		 *
+		 * Standalone WLAN cards with both LNA/Antenna diversity
+		 * enabled in the EEPROM.
+		 *
+		 * WLAN+BT cards which are in the supported card list
+		 * in ath_pci_id_table and the user has loaded the
+		 * driver with "bt_ant_diversity" set to true.
+		 */
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) {
+			/*
+			 * Change the default rx antenna if rx diversity
+			 * chooses the other antenna 3 times in a row.
+			 */
+			if (sc->rx.defant != rs.rs_antenna) {
+				if (++sc->rx.rxotherant >= 3)
+					ath_setdefantenna(sc, rs.rs_antenna);
+			} else {
+				sc->rx.rxotherant = 0;
+			}
+
+			if (pCap->hw_caps & ATH9K_HW_CAP_BT_ANT_DIV) {
+				if (common->bt_ant_diversity)
+					ath_ant_comb_scan(sc, &rs);
+			} else {
+				ath_ant_comb_scan(sc, &rs);
+			}
+		}
 
 		ath9k_apply_ampdu_details(sc, &rs, rxs);
 

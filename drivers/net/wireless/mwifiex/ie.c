@@ -87,7 +87,7 @@ mwifiex_update_autoindex_ies(struct mwifiex_private *priv,
 	u8 *tmp;
 
 	input_len = le16_to_cpu(ie_list->len);
-	travel_len = sizeof(struct host_cmd_tlv);
+	travel_len = sizeof(struct mwifiex_ie_types_header);
 
 	ie_list->len = 0;
 

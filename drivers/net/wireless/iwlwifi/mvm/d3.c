@@ -105,7 +105,7 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
 		mvmvif->target_ipv6_addrs[idx] = ifa->addr;
 		idx++;
-		if (idx >= IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS)
+		if (idx >= IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX)
 			break;
 	}
 	read_unlock_bh(&idev->lock);
@@ -378,36 +378,68 @@ static int iwl_mvm_send_patterns(struct iwl_mvm *mvm,
 static int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif)
 {
-	struct iwl_proto_offload_cmd cmd = {};
+	union {
+		struct iwl_proto_offload_cmd_v1 v1;
+		struct iwl_proto_offload_cmd_v2 v2;
+	} cmd = {};
+	struct iwl_proto_offload_cmd_common *common;
+	u32 enabled = 0, size;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int i;
 
-	if (mvmvif->num_target_ipv6_addrs) {
-		cmd.enabled |= cpu_to_le32(IWL_D3_PROTO_OFFLOAD_NS);
-		memcpy(cmd.ndp_mac_addr, vif->addr, ETH_ALEN);
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
+		if (mvmvif->num_target_ipv6_addrs) {
+			enabled |= IWL_D3_PROTO_OFFLOAD_NS;
+			memcpy(cmd.v2.ndp_mac_addr, vif->addr, ETH_ALEN);
+		}
+
+		BUILD_BUG_ON(sizeof(cmd.v2.target_ipv6_addr[0]) !=
+			     sizeof(mvmvif->target_ipv6_addrs[0]));
+
+		for (i = 0; i < min(mvmvif->num_target_ipv6_addrs,
+				    IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2); i++)
+			memcpy(cmd.v2.target_ipv6_addr[i],
+			       &mvmvif->target_ipv6_addrs[i],
+			       sizeof(cmd.v2.target_ipv6_addr[i]));
+	} else {
+		if (mvmvif->num_target_ipv6_addrs) {
+			enabled |= IWL_D3_PROTO_OFFLOAD_NS;
+			memcpy(cmd.v1.ndp_mac_addr, vif->addr, ETH_ALEN);
+		}
+
+		BUILD_BUG_ON(sizeof(cmd.v1.target_ipv6_addr[0]) !=
+			     sizeof(mvmvif->target_ipv6_addrs[0]));
+
+		for (i = 0; i < min(mvmvif->num_target_ipv6_addrs,
+				    IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1); i++)
+			memcpy(cmd.v1.target_ipv6_addr[i],
+			       &mvmvif->target_ipv6_addrs[i],
+			       sizeof(cmd.v1.target_ipv6_addr[i]));
 	}
-
-	BUILD_BUG_ON(sizeof(cmd.target_ipv6_addr[i]) !=
-		     sizeof(mvmvif->target_ipv6_addrs[i]));
-
-	for (i = 0; i < mvmvif->num_target_ipv6_addrs; i++)
-		memcpy(cmd.target_ipv6_addr[i],
-		       &mvmvif->target_ipv6_addrs[i],
-		       sizeof(cmd.target_ipv6_addr[i]));
 #endif
 
-	if (vif->bss_conf.arp_addr_cnt) {
-		cmd.enabled |= cpu_to_le32(IWL_D3_PROTO_OFFLOAD_ARP);
-		cmd.host_ipv4_addr = vif->bss_conf.arp_addr_list[0];
-		memcpy(cmd.arp_mac_addr, vif->addr, ETH_ALEN);
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
+		common = &cmd.v2.common;
+		size = sizeof(cmd.v2);
+	} else {
+		common = &cmd.v1.common;
+		size = sizeof(cmd.v1);
 	}
 
-	if (!cmd.enabled)
+	if (vif->bss_conf.arp_addr_cnt) {
+		enabled |= IWL_D3_PROTO_OFFLOAD_ARP;
+		common->host_ipv4_addr = vif->bss_conf.arp_addr_list[0];
+		memcpy(common->arp_mac_addr, vif->addr, ETH_ALEN);
+	}
+
+	if (!enabled)
 		return 0;
 
+	common->enabled = cpu_to_le32(enabled);
+
 	return iwl_mvm_send_cmd_pdu(mvm, PROT_OFFLOAD_CONFIG_CMD, CMD_SYNC,
-				    sizeof(cmd), &cmd);
+				    size, &cmd);
 }
 
 enum iwl_mvm_tcp_packet_type {
