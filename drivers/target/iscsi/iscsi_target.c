@@ -3444,12 +3444,10 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 				bool inaddr_any = iscsit_check_inaddr_any(np);
 
 				len = sprintf(buf, "TargetAddress="
-					"%s%s%s:%hu,%hu",
-					(np->np_sockaddr.ss_family == AF_INET6) ?
-					"[" : "", (inaddr_any == false) ?
+					"%s:%hu,%hu",
+					(inaddr_any == false) ?
 						np->np_ip : conn->local_ip,
-					(np->np_sockaddr.ss_family == AF_INET6) ?
-					"]" : "", (inaddr_any == false) ?
+					(inaddr_any == false) ?
 						np->np_port : conn->local_port,
 					tpg->tpgt);
 				len += 1;
