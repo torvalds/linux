@@ -851,6 +851,9 @@ struct page *new_node_page(struct dnode_of_data *dn,
 	SetPageUptodate(page);
 	set_page_dirty(page);
 
+	if (ofs == XATTR_NODE_OFFSET)
+		F2FS_I(dn->inode)->i_xattr_nid = dn->nid;
+
 	dn->node_page = page;
 	if (ipage)
 		update_inode(dn->inode, ipage);

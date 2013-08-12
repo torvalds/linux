@@ -378,23 +378,23 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	if (!fi->i_xattr_nid) {
 		/* Allocate new attribute block */
 		struct dnode_of_data dn;
+		nid_t new_nid;
 
-		if (!alloc_nid(sbi, &fi->i_xattr_nid)) {
+		if (!alloc_nid(sbi, &new_nid)) {
 			error = -ENOSPC;
 			goto exit;
 		}
-		set_new_dnode(&dn, inode, NULL, NULL, fi->i_xattr_nid);
+		set_new_dnode(&dn, inode, NULL, NULL, new_nid);
 		mark_inode_dirty(inode);
 
 		page = new_node_page(&dn, XATTR_NODE_OFFSET, ipage);
 		if (IS_ERR(page)) {
-			alloc_nid_failed(sbi, fi->i_xattr_nid);
-			fi->i_xattr_nid = 0;
+			alloc_nid_failed(sbi, new_nid);
 			error = PTR_ERR(page);
 			goto exit;
 		}
 
-		alloc_nid_done(sbi, fi->i_xattr_nid);
+		alloc_nid_done(sbi, new_nid);
 		base_addr = page_address(page);
 		header = XATTR_HDR(base_addr);
 		header->h_magic = cpu_to_le32(F2FS_XATTR_MAGIC);
