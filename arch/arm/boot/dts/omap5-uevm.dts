@@ -334,9 +334,18 @@
 					ti,smps-range = <0x80>;
 				};
 
-				smps10_reg: smps10 {
+				smps10_out2_reg: smps10_out2 {
 					/* VBUS_5V_OTG */
-					regulator-name = "smps10";
+					regulator-name = "smps10_out2";
+					regulator-min-microvolt = <5000000>;
+					regulator-max-microvolt = <5000000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps10_out1_reg: smps10_out1 {
+					/* VBUS_5V_OTG */
+					regulator-name = "smps10_out1";
 					regulator-min-microvolt = <5000000>;
 					regulator-max-microvolt = <5000000>;
 					regulator-always-on;
