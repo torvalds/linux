@@ -122,6 +122,11 @@ static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
  * the CPA plus TILE_PCI_MEM_MAP_BASE_OFFSET. To support 32-bit
  * devices, we create a separate map region that handles the low
  * 4GB.
+ *
+ * This design lets us avoid the "PCI hole" problem where the host bridge
+ * won't pass DMA traffic with target addresses that happen to fall within the
+ * BAR space. This enables us to use all the physical memory for DMA, instead
+ * of wasting the same amount of physical memory as the BAR window size.
  */
 #define	TILE_PCI_MEM_MAP_BASE_OFFSET	(1ULL << CHIP_PA_WIDTH())
 
