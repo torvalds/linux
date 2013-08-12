@@ -411,6 +411,56 @@ DEFINE_NFS4_LOCK_EVENT(nfs4_lock_reclaim);
 DEFINE_NFS4_LOCK_EVENT(nfs4_lock_expired);
 DEFINE_NFS4_LOCK_EVENT(nfs4_unlock);
 
+DECLARE_EVENT_CLASS(nfs4_lookup_event,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct qstr *name,
+			int error
+		),
+
+		TP_ARGS(dir, name, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(int, error)
+			__field(u64, dir)
+			__string(name, name->name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->error = error;
+			__assign_str(name, name->name);
+		),
+
+		TP_printk(
+			"error=%d (%s) name=%02x:%02x:%llu/%s",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
+#define DEFINE_NFS4_LOOKUP_EVENT(name) \
+	DEFINE_EVENT(nfs4_lookup_event, name, \
+			TP_PROTO( \
+				const struct inode *dir, \
+				const struct qstr *name, \
+				int error \
+			), \
+			TP_ARGS(dir, name, error))
+
+DEFINE_NFS4_LOOKUP_EVENT(nfs4_lookup);
+DEFINE_NFS4_LOOKUP_EVENT(nfs4_symlink);
+DEFINE_NFS4_LOOKUP_EVENT(nfs4_mkdir);
+DEFINE_NFS4_LOOKUP_EVENT(nfs4_mknod);
+DEFINE_NFS4_LOOKUP_EVENT(nfs4_remove);
+DEFINE_NFS4_LOOKUP_EVENT(nfs4_get_fs_locations);
+DEFINE_NFS4_LOOKUP_EVENT(nfs4_secinfo);
+
 #endif /* _TRACE_NFS4_H */
 
 #undef TRACE_INCLUDE_PATH
