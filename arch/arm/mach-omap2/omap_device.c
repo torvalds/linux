@@ -129,6 +129,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	const char *oh_name;
 	int oh_cnt, i, ret = 0;
+	bool device_active = false;
 
 	oh_cnt = of_property_count_strings(node, "ti,hwmods");
 	if (oh_cnt <= 0) {
@@ -152,6 +153,8 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 			goto odbfd_exit1;
 		}
 		hwmods[i] = oh;
+		if (oh->flags & HWMOD_INIT_NO_IDLE)
+			device_active = true;
 	}
 
 	od = omap_device_alloc(pdev, hwmods, oh_cnt);
@@ -171,6 +174,11 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	}
 
 	pdev->dev.pm_domain = &omap_device_pm_domain;
+
+	if (device_active) {
+		omap_device_enable(pdev);
+		pm_runtime_set_active(&pdev->dev);
+	}
 
 odbfd_exit1:
 	kfree(hwmods);
@@ -842,6 +850,7 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
+	int i;
 
 	if (!od)
 		return 0;
@@ -850,6 +859,15 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 	 * If omap_device state is enabled, but has no driver bound,
 	 * idle it.
 	 */
+
+	/*
+	 * Some devices (like memory controllers) are always kept
+	 * enabled, and should not be idled even with no drivers.
+	 */
+	for (i = 0; i < od->hwmods_cnt; i++)
+		if (od->hwmods[i]->flags & HWMOD_INIT_NO_IDLE)
+			return 0;
+
 	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER) {
 		if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
 			dev_warn(dev, "%s: enabled but no driver.  Idling\n",

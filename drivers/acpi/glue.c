@@ -31,6 +31,7 @@ static LIST_HEAD(bus_type_list);
 static DECLARE_RWSEM(bus_type_sem);
 
 #define PHYSICAL_NODE_STRING "physical_node"
+#define PHYSICAL_NODE_NAME_SIZE (sizeof(PHYSICAL_NODE_STRING) + 10)
 
 int register_acpi_bus_type(struct acpi_bus_type *type)
 {
@@ -78,41 +79,108 @@ static struct acpi_bus_type *acpi_get_bus_type(struct device *dev)
 	return ret;
 }
 
-static acpi_status do_acpi_find_child(acpi_handle handle, u32 lvl_not_used,
-				      void *addr_p, void **ret_p)
+static acpi_status acpi_dev_present(acpi_handle handle, u32 lvl_not_used,
+				  void *not_used, void **ret_p)
 {
-	unsigned long long addr, sta;
-	acpi_status status;
+	struct acpi_device *adev = NULL;
 
-	status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL, &addr);
-	if (ACPI_SUCCESS(status) && addr == *((u64 *)addr_p)) {
+	acpi_bus_get_device(handle, &adev);
+	if (adev) {
 		*ret_p = handle;
-		status = acpi_bus_get_status_handle(handle, &sta);
-		if (ACPI_SUCCESS(status) && (sta & ACPI_STA_DEVICE_ENABLED))
-			return AE_CTRL_TERMINATE;
+		return AE_CTRL_TERMINATE;
 	}
 	return AE_OK;
 }
 
-acpi_handle acpi_get_child(acpi_handle parent, u64 address)
+static bool acpi_extra_checks_passed(acpi_handle handle, bool is_bridge)
 {
-	void *ret = NULL;
+	unsigned long long sta;
+	acpi_status status;
 
-	if (!parent)
-		return NULL;
+	status = acpi_bus_get_status_handle(handle, &sta);
+	if (ACPI_FAILURE(status) || !(sta & ACPI_STA_DEVICE_ENABLED))
+		return false;
 
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, parent, 1, NULL,
-			    do_acpi_find_child, &address, &ret);
-	return (acpi_handle)ret;
+	if (is_bridge) {
+		void *test = NULL;
+
+		/* Check if this object has at least one child device. */
+		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+				    acpi_dev_present, NULL, NULL, &test);
+		return !!test;
+	}
+	return true;
 }
-EXPORT_SYMBOL(acpi_get_child);
+
+struct find_child_context {
+	u64 addr;
+	bool is_bridge;
+	acpi_handle ret;
+	bool ret_checked;
+};
+
+static acpi_status do_find_child(acpi_handle handle, u32 lvl_not_used,
+				 void *data, void **not_used)
+{
+	struct find_child_context *context = data;
+	unsigned long long addr;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(handle, METHOD_NAME__ADR, NULL, &addr);
+	if (ACPI_FAILURE(status) || addr != context->addr)
+		return AE_OK;
+
+	if (!context->ret) {
+		/* This is the first matching object.  Save its handle. */
+		context->ret = handle;
+		return AE_OK;
+	}
+	/*
+	 * There is more than one matching object with the same _ADR value.
+	 * That really is unexpected, so we are kind of beyond the scope of the
+	 * spec here.  We have to choose which one to return, though.
+	 *
+	 * First, check if the previously found object is good enough and return
+	 * its handle if so.  Second, check the same for the object that we've
+	 * just found.
+	 */
+	if (!context->ret_checked) {
+		if (acpi_extra_checks_passed(context->ret, context->is_bridge))
+			return AE_CTRL_TERMINATE;
+		else
+			context->ret_checked = true;
+	}
+	if (acpi_extra_checks_passed(handle, context->is_bridge)) {
+		context->ret = handle;
+		return AE_CTRL_TERMINATE;
+	}
+	return AE_OK;
+}
+
+acpi_handle acpi_find_child(acpi_handle parent, u64 addr, bool is_bridge)
+{
+	if (parent) {
+		struct find_child_context context = {
+			.addr = addr,
+			.is_bridge = is_bridge,
+		};
+
+		acpi_walk_namespace(ACPI_TYPE_DEVICE, parent, 1, do_find_child,
+				    NULL, &context, NULL);
+		return context.ret;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(acpi_find_child);
 
 int acpi_bind_one(struct device *dev, acpi_handle handle)
 {
 	struct acpi_device *acpi_dev;
 	acpi_status status;
 	struct acpi_device_physical_node *physical_node, *pn;
-	char physical_node_name[sizeof(PHYSICAL_NODE_STRING) + 2];
+	char physical_node_name[PHYSICAL_NODE_NAME_SIZE];
+	struct list_head *physnode_list;
+	unsigned int node_id;
 	int retval = -EINVAL;
 
 	if (ACPI_HANDLE(dev)) {
@@ -139,25 +207,27 @@ int acpi_bind_one(struct device *dev, acpi_handle handle)
 
 	mutex_lock(&acpi_dev->physical_node_lock);
 
-	/* Sanity check. */
-	list_for_each_entry(pn, &acpi_dev->physical_node_list, node)
+	/*
+	 * Keep the list sorted by node_id so that the IDs of removed nodes can
+	 * be recycled easily.
+	 */
+	physnode_list = &acpi_dev->physical_node_list;
+	node_id = 0;
+	list_for_each_entry(pn, &acpi_dev->physical_node_list, node) {
+		/* Sanity check. */
 		if (pn->dev == dev) {
 			dev_warn(dev, "Already associated with ACPI node\n");
 			goto err_free;
 		}
-
-	/* allocate physical node id according to physical_node_id_bitmap */
-	physical_node->node_id =
-		find_first_zero_bit(acpi_dev->physical_node_id_bitmap,
-		ACPI_MAX_PHYSICAL_NODE);
-	if (physical_node->node_id >= ACPI_MAX_PHYSICAL_NODE) {
-		retval = -ENOSPC;
-		goto err_free;
+		if (pn->node_id == node_id) {
+			physnode_list = &pn->node;
+			node_id++;
+		}
 	}
 
-	set_bit(physical_node->node_id, acpi_dev->physical_node_id_bitmap);
+	physical_node->node_id = node_id;
 	physical_node->dev = dev;
-	list_add_tail(&physical_node->node, &acpi_dev->physical_node_list);
+	list_add(&physical_node->node, physnode_list);
 	acpi_dev->physical_node_count++;
 
 	mutex_unlock(&acpi_dev->physical_node_lock);
@@ -208,7 +278,7 @@ int acpi_unbind_one(struct device *dev)
 
 	mutex_lock(&acpi_dev->physical_node_lock);
 	list_for_each_safe(node, next, &acpi_dev->physical_node_list) {
-		char physical_node_name[sizeof(PHYSICAL_NODE_STRING) + 2];
+		char physical_node_name[PHYSICAL_NODE_NAME_SIZE];
 
 		entry = list_entry(node, struct acpi_device_physical_node,
 			node);
@@ -216,7 +286,6 @@ int acpi_unbind_one(struct device *dev)
 			continue;
 
 		list_del(node);
-		clear_bit(entry->node_id, acpi_dev->physical_node_id_bitmap);
 
 		acpi_dev->physical_node_count--;
 

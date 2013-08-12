@@ -1660,6 +1660,10 @@ call_connect(struct rpc_task *task)
 		task->tk_action = call_connect_status;
 		if (task->tk_status < 0)
 			return;
+		if (task->tk_flags & RPC_TASK_NOCONNECT) {
+			rpc_exit(task, -ENOTCONN);
+			return;
+		}
 		xprt_connect(task);
 	}
 }

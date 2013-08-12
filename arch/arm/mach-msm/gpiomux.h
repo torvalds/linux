@@ -73,16 +73,6 @@ extern struct msm_gpiomux_config msm_gpiomux_configs[GPIOMUX_NGPIOS];
 int msm_gpiomux_write(unsigned gpio,
 		      gpiomux_config_t active,
 		      gpiomux_config_t suspended);
-
-/* Architecture-internal function for use by the framework only.
- * This function can assume the following:
- * - the gpio value has passed a bounds-check
- * - the gpiomux spinlock has been obtained
- *
- * This function is not for public consumption.  External users
- * should use msm_gpiomux_write.
- */
-void __msm_gpiomux_write(unsigned gpio, gpiomux_config_t val);
 #else
 static inline int msm_gpiomux_write(unsigned gpio,
 				    gpiomux_config_t active,
