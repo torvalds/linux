@@ -84,6 +84,7 @@ config USB_MUSB_AM35X
 config USB_MUSB_DSPS
 	tristate "TI DSPS platforms"
 	select USB_MUSB_AM335X_CHILD
+	depends on OF_IRQ
 
 config USB_MUSB_BLACKFIN
 	tristate "Blackfin"
