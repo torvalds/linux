@@ -2587,9 +2587,11 @@ u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
 	if (rdev->wb.enabled) {
 		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
 	} else {
+		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
 		rptr = RREG32(CP_HQD_PQ_RPTR);
 		cik_srbm_select(rdev, 0, 0, 0, 0);
+		mutex_unlock(&rdev->srbm_mutex);
 	}
 	rptr = (rptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
 
@@ -2604,9 +2606,11 @@ u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
 	if (rdev->wb.enabled) {
 		wptr = le32_to_cpu(rdev->wb.wb[ring->wptr_offs/4]);
 	} else {
+		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
 		wptr = RREG32(CP_HQD_PQ_WPTR);
 		cik_srbm_select(rdev, 0, 0, 0, 0);
+		mutex_unlock(&rdev->srbm_mutex);
 	}
 	wptr = (wptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
 
@@ -2897,6 +2901,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 	WREG32(CP_CPF_DEBUG, tmp);
 
 	/* init the pipes */
+	mutex_lock(&rdev->srbm_mutex);
 	for (i = 0; i < (rdev->mec.num_pipe * rdev->mec.num_mec); i++) {
 		int me = (i < 4) ? 1 : 2;
 		int pipe = (i < 4) ? i : (i - 4);
@@ -2919,6 +2924,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		WREG32(CP_HPD_EOP_CONTROL, tmp);
 	}
 	cik_srbm_select(rdev, 0, 0, 0, 0);
+	mutex_unlock(&rdev->srbm_mutex);
 
 	/* init the queues.  Just two for now. */
 	for (i = 0; i < 2; i++) {
@@ -2972,6 +2978,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		mqd->static_thread_mgmt23[0] = 0xffffffff;
 		mqd->static_thread_mgmt23[1] = 0xffffffff;
 
+		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, rdev->ring[idx].me,
 				rdev->ring[idx].pipe,
 				rdev->ring[idx].queue, 0);
@@ -3099,6 +3106,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		WREG32(CP_HQD_ACTIVE, mqd->queue_state.cp_hqd_active);
 
 		cik_srbm_select(rdev, 0, 0, 0, 0);
+		mutex_unlock(&rdev->srbm_mutex);
 
 		radeon_bo_kunmap(rdev->ring[idx].mqd_obj);
 		radeon_bo_unreserve(rdev->ring[idx].mqd_obj);
@@ -4320,6 +4328,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
+	mutex_lock(&rdev->srbm_mutex);
 	for (i = 0; i < 16; i++) {
 		cik_srbm_select(rdev, 0, 0, 0, i);
 		/* CP and shaders */
@@ -4335,6 +4344,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 		/* XXX SDMA RLC - todo */
 	}
 	cik_srbm_select(rdev, 0, 0, 0, 0);
+	mutex_unlock(&rdev->srbm_mutex);
 
 	cik_pcie_gart_tlb_flush(rdev);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
@@ -5954,6 +5964,8 @@ static int cik_startup(struct radeon_device *rdev)
 	struct radeon_ring *ring;
 	int r;
 
+	cik_mc_program(rdev);
+
 	if (rdev->flags & RADEON_IS_IGP) {
 		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
 		    !rdev->mec_fw || !rdev->sdma_fw || !rdev->rlc_fw) {
@@ -5985,7 +5997,6 @@ static int cik_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	cik_mc_program(rdev);
 	r = cik_pcie_gart_enable(rdev);
 	if (r)
 		return r;
@@ -6194,7 +6205,7 @@ int cik_suspend(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	cik_cp_enable(rdev, false);
 	cik_sdma_enable(rdev, false);
-	r600_uvd_rbc_stop(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_suspend(rdev);
 	cik_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
@@ -6358,6 +6369,7 @@ void cik_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_fini(rdev);
 	cik_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
@@ -6978,7 +6990,7 @@ int cik_uvd_resume(struct radeon_device *rdev)
 
 	/* programm the VCPU memory controller bits 0-27 */
 	addr = rdev->uvd.gpu_addr >> 3;
-	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd.fw_size + 4) >> 3;
+	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 4) >> 3;
 	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
 	WREG32(UVD_VCPU_CACHE_SIZE0, size);
 

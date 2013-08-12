@@ -57,7 +57,7 @@
 #define USBTV_CHUNK_SIZE	256
 #define USBTV_CHUNK		240
 #define USBTV_CHUNKS		(USBTV_WIDTH * USBTV_HEIGHT \
-					/ 2 / USBTV_CHUNK)
+					/ 4 / USBTV_CHUNK)
 
 /* Chunk header. */
 #define USBTV_MAGIC_OK(chunk)	((be32_to_cpu(chunk[0]) & 0xff000000) \
@@ -89,6 +89,7 @@ struct usbtv {
 	/* Number of currently processed frame, useful find
 	 * out when a new one begins. */
 	u32 frame_id;
+	int chunks_done;
 
 	int iso_size;
 	unsigned int sequence;
@@ -202,6 +203,26 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 	return 0;
 }
 
+/* Copy data from chunk into a frame buffer, deinterlacing the data
+ * into every second line. Unfortunately, they don't align nicely into
+ * 720 pixel lines, as the chunk is 240 words long, which is 480 pixels.
+ * Therefore, we break down the chunk into two halves before copyting,
+ * so that we can interleave a line if needed. */
+static void usbtv_chunk_to_vbuf(u32 *frame, u32 *src, int chunk_no, int odd)
+{
+	int half;
+
+	for (half = 0; half < 2; half++) {
+		int part_no = chunk_no * 2 + half;
+		int line = part_no / 3;
+		int part_index = (line * 2 + !odd) * 3 + (part_no % 3);
+
+		u32 *dst = &frame[part_index * USBTV_CHUNK/2];
+		memcpy(dst, src, USBTV_CHUNK/2 * sizeof(*src));
+		src += USBTV_CHUNK/2;
+	}
+}
+
 /* Called for each 256-byte image chunk.
  * First word identifies the chunk, followed by 240 words of image
  * data and padding. */
@@ -218,17 +239,17 @@ static void usbtv_image_chunk(struct usbtv *usbtv, u32 *chunk)
 	frame_id = USBTV_FRAME_ID(chunk);
 	odd = USBTV_ODD(chunk);
 	chunk_no = USBTV_CHUNK_NO(chunk);
-
-	/* Deinterlace. TODO: Use interlaced frame format. */
-	chunk_no = (chunk_no - chunk_no % 3) * 2 + chunk_no % 3;
-	chunk_no += !odd * 3;
-
 	if (chunk_no >= USBTV_CHUNKS)
 		return;
 
 	/* Beginning of a frame. */
-	if (chunk_no == 0)
+	if (chunk_no == 0) {
 		usbtv->frame_id = frame_id;
+		usbtv->chunks_done = 0;
+	}
+
+	if (usbtv->frame_id != frame_id)
+		return;
 
 	spin_lock_irqsave(&usbtv->buflock, flags);
 	if (list_empty(&usbtv->bufs)) {
@@ -241,19 +262,23 @@ static void usbtv_image_chunk(struct usbtv *usbtv, u32 *chunk)
 	buf = list_first_entry(&usbtv->bufs, struct usbtv_buf, list);
 	frame = vb2_plane_vaddr(&buf->vb, 0);
 
-	/* Copy the chunk. */
-	memcpy(&frame[chunk_no * USBTV_CHUNK], &chunk[1],
-			USBTV_CHUNK * sizeof(chunk[1]));
+	/* Copy the chunk data. */
+	usbtv_chunk_to_vbuf(frame, &chunk[1], chunk_no, odd);
+	usbtv->chunks_done++;
 
 	/* Last chunk in a frame, signalling an end */
-	if (usbtv->frame_id && chunk_no == USBTV_CHUNKS-1) {
+	if (odd && chunk_no == USBTV_CHUNKS-1) {
 		int size = vb2_plane_size(&buf->vb, 0);
+		enum vb2_buffer_state state = usbtv->chunks_done ==
+						USBTV_CHUNKS ?
+						VB2_BUF_STATE_DONE :
+						VB2_BUF_STATE_ERROR;
 
 		buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 		buf->vb.v4l2_buf.sequence = usbtv->sequence++;
 		v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 		vb2_set_plane_payload(&buf->vb, 0, size);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
+		vb2_buffer_done(&buf->vb, state);
 		list_del(&buf->list);
 	}
 
@@ -518,7 +543,7 @@ static int usbtv_queue_setup(struct vb2_queue *vq,
 	if (*nbuffers < 2)
 		*nbuffers = 2;
 	*nplanes = 1;
-	sizes[0] = USBTV_CHUNK * USBTV_CHUNKS * sizeof(u32);
+	sizes[0] = USBTV_WIDTH * USBTV_HEIGHT / 2 * sizeof(u32);
 
 	return 0;
 }

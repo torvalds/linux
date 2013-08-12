@@ -38,6 +38,7 @@
 #include <asm/ptrace.h>
 #include <asm/processor.h>	/* For VMALLOC_START */
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
+#include <asm/mmu.h>
 
 /* Note on the LD/ST addr modes with addr reg wback
  *

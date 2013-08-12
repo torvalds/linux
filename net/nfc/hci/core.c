@@ -809,14 +809,14 @@ static void nfc_hci_recv_from_llc(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 
-static int hci_fw_upload(struct nfc_dev *nfc_dev, const char *firmware_name)
+static int hci_fw_download(struct nfc_dev *nfc_dev, const char *firmware_name)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	if (!hdev->ops->fw_upload)
+	if (!hdev->ops->fw_download)
 		return -ENOTSUPP;
 
-	return hdev->ops->fw_upload(hdev, firmware_name);
+	return hdev->ops->fw_download(hdev, firmware_name);
 }
 
 static struct nfc_ops hci_nfc_ops = {
@@ -831,7 +831,7 @@ static struct nfc_ops hci_nfc_ops = {
 	.im_transceive = hci_transceive,
 	.tm_send = hci_tm_send,
 	.check_presence = hci_check_presence,
-	.fw_upload = hci_fw_upload,
+	.fw_download = hci_fw_download,
 	.discover_se = hci_discover_se,
 	.enable_se = hci_enable_se,
 	.disable_se = hci_disable_se,

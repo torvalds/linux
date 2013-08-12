@@ -569,35 +569,6 @@ error:
 	return ret;
 }
 
-static int unzip_oops(char *oops_buf, char *big_buf)
-{
-	struct oops_log_info *oops_hdr = (struct oops_log_info *)oops_buf;
-	u64 timestamp = oops_hdr->timestamp;
-	char *big_oops_data = NULL;
-	char *oops_data_buf = NULL;
-	size_t big_oops_data_sz;
-	int unzipped_len;
-
-	big_oops_data = big_buf + sizeof(struct oops_log_info);
-	big_oops_data_sz = big_oops_buf_sz - sizeof(struct oops_log_info);
-	oops_data_buf = oops_buf + sizeof(struct oops_log_info);
-
-	unzipped_len = nvram_decompress(oops_data_buf, big_oops_data,
-					oops_hdr->report_length,
-					big_oops_data_sz);
-
-	if (unzipped_len < 0) {
-		pr_err("nvram: decompression failed; returned %d\n",
-								unzipped_len);
-		return -1;
-	}
-	oops_hdr = (struct oops_log_info *)big_buf;
-	oops_hdr->version = OOPS_HDR_VERSION;
-	oops_hdr->report_length = (u16) unzipped_len;
-	oops_hdr->timestamp = timestamp;
-	return 0;
-}
-
 static int nvram_pstore_open(struct pstore_info *psi)
 {
 	/* Reset the iterator to start reading partitions again */
@@ -685,10 +656,9 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 	unsigned int err_type, id_no, size = 0;
 	struct nvram_os_partition *part = NULL;
 	char *buff = NULL, *big_buff = NULL;
-	int rc, sig = 0;
+	int sig = 0;
 	loff_t p;
 
-read_partition:
 	read_type++;
 
 	switch (nvram_type_ids[read_type]) {
@@ -749,30 +719,46 @@ read_partition:
 		*id = id_no;
 
 	if (nvram_type_ids[read_type] == PSTORE_TYPE_DMESG) {
+		int length, unzipped_len;
+		size_t hdr_size;
+
 		oops_hdr = (struct oops_log_info *)buff;
-		*buf = buff + sizeof(*oops_hdr);
+		if (oops_hdr->version < OOPS_HDR_VERSION) {
+			/* Old format oops header had 2-byte record size */
+			hdr_size = sizeof(u16);
+			length = oops_hdr->version;
+			time->tv_sec = 0;
+			time->tv_nsec = 0;
+		} else {
+			hdr_size = sizeof(*oops_hdr);
+			length = oops_hdr->report_length;
+			time->tv_sec = oops_hdr->timestamp;
+			time->tv_nsec = 0;
+		}
+		*buf = kmalloc(length, GFP_KERNEL);
+		if (*buf == NULL)
+			return -ENOMEM;
+		memcpy(*buf, buff + hdr_size, length);
+		kfree(buff);
 
 		if (err_type == ERR_TYPE_KERNEL_PANIC_GZ) {
 			big_buff = kmalloc(big_oops_buf_sz, GFP_KERNEL);
 			if (!big_buff)
 				return -ENOMEM;
 
-			rc = unzip_oops(buff, big_buff);
+			unzipped_len = nvram_decompress(*buf, big_buff,
+						length, big_oops_buf_sz);
 
-			if (rc != 0) {
-				kfree(buff);
+			if (unzipped_len < 0) {
+				pr_err("nvram: decompression failed, returned "
+					"rc %d\n", unzipped_len);
 				kfree(big_buff);
-				goto read_partition;
+			} else {
+				*buf = big_buff;
+				length = unzipped_len;
 			}
-
-			oops_hdr = (struct oops_log_info *)big_buff;
-			*buf = big_buff + sizeof(*oops_hdr);
-			kfree(buff);
 		}
-
-		time->tv_sec = oops_hdr->timestamp;
-		time->tv_nsec = 0;
-		return oops_hdr->report_length;
+		return length;
 	}
 
 	*buf = buff;
@@ -816,6 +802,7 @@ static int nvram_pstore_init(void)
 static void __init nvram_init_oops_partition(int rtas_partition_exists)
 {
 	int rc;
+	size_t size;
 
 	rc = pseries_nvram_init_os_partition(&oops_log_partition);
 	if (rc != 0) {
@@ -844,8 +831,9 @@ static void __init nvram_init_oops_partition(int rtas_partition_exists)
 	big_oops_buf_sz = (oops_data_sz * 100) / 45;
 	big_oops_buf = kmalloc(big_oops_buf_sz, GFP_KERNEL);
 	if (big_oops_buf) {
-		stream.workspace = kmalloc(zlib_deflate_workspacesize(
-				WINDOW_BITS, MEM_LEVEL), GFP_KERNEL);
+		size = max(zlib_deflate_workspacesize(WINDOW_BITS, MEM_LEVEL),
+			zlib_inflate_workspacesize());
+		stream.workspace = kmalloc(size, GFP_KERNEL);
 		if (!stream.workspace) {
 			pr_err("nvram: No memory for compression workspace; "
 				"skipping compression of %s partition data\n",

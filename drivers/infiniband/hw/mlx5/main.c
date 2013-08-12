@@ -619,7 +619,8 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	resp.tot_uuars = req.total_num_uuars;
 	resp.num_ports = dev->mdev.caps.num_ports;
-	err = ib_copy_to_udata(udata, &resp, sizeof(resp));
+	err = ib_copy_to_udata(udata, &resp,
+			       sizeof(resp) - sizeof(resp.reserved));
 	if (err)
 		goto out_uars;
 
@@ -1426,7 +1427,8 @@ static int init_one(struct pci_dev *pdev,
 	if (err)
 		goto err_eqs;
 
-	if (ib_register_device(&dev->ib_dev, NULL))
+	err = ib_register_device(&dev->ib_dev, NULL);
+	if (err)
 		goto err_rsrc;
 
 	err = create_umr_res(dev);
@@ -1434,8 +1436,9 @@ static int init_one(struct pci_dev *pdev,
 		goto err_dev;
 
 	for (i = 0; i < ARRAY_SIZE(mlx5_class_attributes); i++) {
-		if (device_create_file(&dev->ib_dev.dev,
-				       mlx5_class_attributes[i]))
+		err = device_create_file(&dev->ib_dev.dev,
+					 mlx5_class_attributes[i]);
+		if (err)
 			goto err_umrc;
 	}
 
