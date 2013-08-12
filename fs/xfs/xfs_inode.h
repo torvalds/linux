@@ -315,9 +315,21 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
 	 ((pip)->i_d.di_mode & S_ISGID))
 
 
-/*
- * xfs_inode.c prototypes.
- */
+int		xfs_release(struct xfs_inode *ip);
+int		xfs_inactive(struct xfs_inode *ip);
+int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
+			   struct xfs_inode **ipp, struct xfs_name *ci_name);
+int		xfs_create(struct xfs_inode *dp, struct xfs_name *name,
+			   umode_t mode, xfs_dev_t rdev, struct xfs_inode **ipp);
+int		xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
+			   struct xfs_inode *ip);
+int		xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
+			 struct xfs_name *target_name);
+int		xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,
+			   struct xfs_inode *src_ip, struct xfs_inode *target_dp,
+			   struct xfs_name *target_name,
+			   struct xfs_inode *target_ip);
+
 void		xfs_ilock(xfs_inode_t *, uint);
 int		xfs_ilock_nowait(xfs_inode_t *, uint);
 void		xfs_iunlock(xfs_inode_t *, uint);
@@ -347,6 +359,11 @@ void		xfs_lock_inodes(xfs_inode_t **, int, uint);
 void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
 
 xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
+
+/* from xfs_file.c */
+int		xfs_zero_eof(struct xfs_inode *, xfs_off_t, xfs_fsize_t);
+int		xfs_iozero(struct xfs_inode *, loff_t, size_t);
+
 
 #define IHOLD(ip) \
 do { \

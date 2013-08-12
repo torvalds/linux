@@ -82,4 +82,10 @@ xfs_file_compat_ioctl(
 	unsigned int		cmd,
 	unsigned long		arg);
 
+extern int
+xfs_set_dmattrs(
+	struct xfs_inode	*ip,
+	u_int			evmask,
+	u_int16_t		state);
+
 #endif

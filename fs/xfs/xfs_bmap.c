@@ -48,7 +48,6 @@
 #include "xfs_trans_space.h"
 #include "xfs_buf_item.h"
 #include "xfs_filestream.h"
-#include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 #include "xfs_symlink.h"
 

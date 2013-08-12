@@ -63,12 +63,6 @@ extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
 extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
 
 /*
- * Direct call on directory open, before entering the readdir code.
- */
-extern int xfs_dir3_data_readahead(struct xfs_trans *tp, struct xfs_inode *dp,
-		xfs_dablk_t bno, xfs_daddr_t mapped_bno);
-
-/*
  * Interface routines used by userspace utilities
  */
 extern xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf_hdr *sfp);

@@ -21,6 +21,7 @@
 /* Kernel only BMAP related definitions and functions */
 
 struct xfs_bmbt_irec;
+struct xfs_bmap_free_item;
 struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
@@ -90,6 +91,16 @@ void	xfs_bmap_adjacent(struct xfs_bmalloca *ap);
 int	xfs_bmap_last_extent(struct xfs_trans *tp, struct xfs_inode *ip,
 			     int whichfork, struct xfs_bmbt_irec *rec,
 			     int *is_empty);
+
+/* preallocation and hole punch interface */
+int	xfs_change_file_space(struct xfs_inode *ip, int cmd,
+			      xfs_flock64_t *bf, xfs_off_t offset,
+			      int attr_flags);
+
+/* EOF block manipulation functions */
+bool	xfs_can_free_eofblocks(struct xfs_inode *ip, bool force);
+int	xfs_free_eofblocks(struct xfs_mount *mp, struct xfs_inode *ip,
+			   bool need_iolock);
 
 xfs_daddr_t xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb);
 

@@ -40,7 +40,6 @@ int		xfs_iread(struct xfs_mount *, struct xfs_trans *,
 void		xfs_dinode_calc_crc(struct xfs_mount *, struct xfs_dinode *);
 void		xfs_dinode_to_disk(struct xfs_dinode *,
 				   struct xfs_icdinode *);
-bool		xfs_can_free_eofblocks(struct xfs_inode *, bool);
 
 #if defined(DEBUG)
 void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);

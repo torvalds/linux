@@ -43,7 +43,6 @@
 #include "xfs_utils.h"
 #include "xfs_quota.h"
 #include "xfs_filestream.h"
-#include "xfs_vnodeops.h"
 #include "xfs_cksum.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"

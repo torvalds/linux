@@ -35,7 +35,6 @@
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_error.h"
-#include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 
 struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2};

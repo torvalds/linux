@@ -26,7 +26,6 @@
 #include "xfs_dir2_format.h"
 #include "xfs_dir2.h"
 #include "xfs_export.h"
-#include "xfs_vnodeops.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"

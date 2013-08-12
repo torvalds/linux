@@ -35,7 +35,6 @@
 #include "xfs_itable.h"
 #include "xfs_dfrag.h"
 #include "xfs_error.h"
-#include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 
 
