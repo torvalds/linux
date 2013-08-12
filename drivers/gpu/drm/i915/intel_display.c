@@ -690,7 +690,7 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 {
 	u32 p1, p2, m1, m2, vco, bestn, bestm1, bestm2, bestp1, bestp2;
 	u32 m, n, fastclk;
-	u32 updrate, minupdate, fracbits, p;
+	u32 updrate, minupdate, p;
 	unsigned long bestppm, ppm, absppm;
 	int dotclk, flag;
 
@@ -701,7 +701,6 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	fastclk = dotclk / (2*100);
 	updrate = 0;
 	minupdate = 19200;
-	fracbits = 1;
 	n = p = p1 = p2 = m = m1 = m2 = vco = bestn = 0;
 	bestm1 = bestm2 = bestp1 = bestp2 = 0;
 
@@ -4423,12 +4422,9 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	int pipe = crtc->pipe;
 	u32 dpll, mdiv;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
-	bool is_hdmi;
 	u32 coreclk, reg_val, dpll_md;
 
 	mutex_lock(&dev_priv->dpio_lock);
-
-	is_hdmi = intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI);
 
 	bestn = crtc->config.dpll.n;
 	bestm1 = crtc->config.dpll.m1;
@@ -8894,14 +8890,13 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	struct drm_crtc *new_crtc;
 	struct intel_connector *connector;
 	struct intel_encoder *encoder;
-	int count, ro;
+	int ro;
 
 	/* The upper layers ensure that we either disable a crtc or have a list
 	 * of connectors. For paranoia, double-check this. */
 	WARN_ON(!set->fb && (set->num_connectors != 0));
 	WARN_ON(set->fb && (set->num_connectors == 0));
 
-	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    base.head) {
 		/* Otherwise traverse passed in connector list and get encoders
@@ -8935,7 +8930,6 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	/* connector->new_encoder is now updated for all connectors. */
 
 	/* Update crtc of enabled connectors. */
-	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    base.head) {
 		if (!connector->new_encoder)
@@ -10295,7 +10289,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
 
 	/*
 	 * Interrupts and polling as the first thing to avoid creating havoc.
@@ -10319,7 +10312,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 		if (!crtc->fb)
 			continue;
 
-		intel_crtc = to_intel_crtc(crtc);
 		intel_increase_pllclock(crtc);
 	}
 

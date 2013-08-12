@@ -2326,7 +2326,6 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	struct drm_device *dev = encoder->dev;
 	int i;
 	uint8_t voltage;
-	bool clock_recovery = false;
 	int voltage_tries, loop_tries;
 	uint32_t DP = intel_dp->DP;
 
@@ -2344,7 +2343,6 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	voltage = 0xff;
 	voltage_tries = 0;
 	loop_tries = 0;
-	clock_recovery = false;
 	for (;;) {
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
 		uint8_t	    link_status[DP_LINK_STATUS_SIZE];
@@ -2365,7 +2363,6 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 
 		if (drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
 			DRM_DEBUG_KMS("clock recovery OK\n");
-			clock_recovery = true;
 			break;
 		}
 
