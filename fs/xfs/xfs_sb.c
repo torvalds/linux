@@ -633,7 +633,7 @@ out_error:
 /*
  * We may be probed for a filesystem match, so we may not want to emit
  * messages when the superblock buffer is not actually an XFS superblock.
- * If we find an XFS superblock, the run a normal, noisy mount because we are
+ * If we find an XFS superblock, then run a normal, noisy mount because we are
  * really going to mount it and want to know about errors.
  */
 static void
