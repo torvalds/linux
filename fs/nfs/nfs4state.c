@@ -1415,14 +1415,16 @@ restart:
 		if (status >= 0) {
 			status = nfs4_reclaim_locks(state, ops);
 			if (status >= 0) {
-				spin_lock(&state->state_lock);
-				list_for_each_entry(lock, &state->lock_states, ls_locks) {
-					if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags))
-						pr_warn_ratelimited("NFS: "
-							"%s: Lock reclaim "
-							"failed!\n", __func__);
+				if (test_bit(NFS_DELEGATED_STATE, &state->flags) != 0) {
+					spin_lock(&state->state_lock);
+					list_for_each_entry(lock, &state->lock_states, ls_locks) {
+						if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags))
+							pr_warn_ratelimited("NFS: "
+									    "%s: Lock reclaim "
+									    "failed!\n", __func__);
+					}
+					spin_unlock(&state->state_lock);
 				}
-				spin_unlock(&state->state_lock);
 				nfs4_put_open_state(state);
 				spin_lock(&sp->so_lock);
 				goto restart;
