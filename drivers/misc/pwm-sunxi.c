@@ -51,6 +51,7 @@
 #include <pwm-sunxi.h> 
 #include <linux/pwm.h> 
 #include <linux/kdev_t.h> 
+#include <plat/system.h>
 #include <plat/sys_config.h>
 /* 
  * Forward Declarations 
@@ -75,9 +76,6 @@ void fixup_duty(struct sun4i_pwm_available_channel *chan);
  
 static DEFINE_MUTEX(sysfs_lock); 
 static struct class pwm_class; 
- 
-struct kobject *pwm0_kobj; 
-struct kobject *pwm1_kobj; 
  
 void *PWM_CTRL_REG_BASE = NULL; 
  
@@ -141,45 +139,27 @@ struct device *pwm1;
  
  
 static struct sun4i_pwm_available_channel pwm_available_chan[SUN4I_MAX_HARDWARE_PWM_CHANNELS]; 
- 
+static int sunxi_pwm_class_registered = 0;
+
+static void __init sunxi_pwm_register_class(void)
+{
+	if (sunxi_pwm_class_registered)
+		return;
+
+	if (class_register(&pwm_class) != 0) {
+		pr_err("pwm-sunxi: class_register failed\n");
+		return;
+	}
+	sunxi_pwm_class_registered = 1;
+}
+
 static int __init sunxi_pwm_init(void) 
 { 
-	int return_val,init_enable,init_duty_percent;
-	int init_period; 
+	int init_enable, init_duty_percent, init_period;
 	struct sun4i_pwm_available_channel *chan;
 	int err = 0;
 
 	pwm_setup_available_channels(); 
- 
-	return_val = class_register(&pwm_class); 
-	if(return_val) { 
-		class_unregister(&pwm_class); 
-	} 
-#ifdef SUNXI_PWM_DEBUG
-	else { 
-		printk("pwm-sunxi: pwm_class.dev_kobj = %p\n",pwm_class.dev_kobj); 
-	} 
-#endif
-/* 
-	platform_device_register(&sun4i_pwm_device); 
-	platform_driver_register(&sun4i_pwm_driver); 
-*/ 
- 
-	pwm0 = device_create(&pwm_class,NULL,MKDEV(0,0),&pwm_available_chan[0],"pwm0"); 
-	pwm1 = device_create(&pwm_class,NULL,MKDEV(0,0),&pwm_available_chan[1],"pwm1"); 
- 
-	pwm0_kobj = &pwm0->kobj; 
-	pwm1_kobj = &pwm1->kobj; 
-	return_val = sysfs_create_group(pwm0_kobj,&pwm_attr_group); 
-	if(return_val) { 
-		printk("pwm-sunxi: return from sysfs_create_group(pwm0) was %d\n",return_val); 
-	} 
- 
-	return_val = sysfs_create_group(pwm1_kobj,&pwm_attr_group); 
-	if(return_val) { 
-		printk("pwm-sunxi: return from sysfs_create_group(pwm1) was %d\n",return_val); 
-	} 
-
 
 	//PWM 0
 	//printk("pwm-sunxi: configuring pwm0...\n");
@@ -189,15 +169,16 @@ static int __init sunxi_pwm_init(void)
 	init_period=0;
 	init_duty_percent=100;
 
-	
-
 	err = script_parser_fetch("pwm0_para", "pwm_used", &init_enable,sizeof(init_enable)/sizeof(int));
-	if (err) {
-		pr_err("%s script_parser_fetch '[pwm0_para]' 'pwm_used' err - disabling pwm0\n",	__func__);
-	}
+	if (err == 0 && init_enable) {
+		sunxi_pwm_register_class();
+		pwm0 = device_create(&pwm_class, NULL,
+				MKDEV(0, 0), &pwm_available_chan[0], "pwm0");
+		err = sysfs_create_group(&pwm0->kobj, &pwm_attr_group);
+		if (err)
+			pr_err("pwm-sunxi: sysfs_create_group(pwm0) err %d\n",
+			       err);
 
-	if(init_enable) {
-	
 		err = script_parser_fetch("pwm0_para", "pwm_period", &init_period,sizeof(init_period)/sizeof(int));
 		if (err) {
 			pr_err("%s script_parser_fetch '[pwm0_para]' 'pwm_period' err - using 10000\n",	__func__);
@@ -218,30 +199,31 @@ static int __init sunxi_pwm_init(void)
 		printk("pwm-sunxi: pwm0 set initial values\n");
 #endif
 		pwm_set_mode(init_enable,chan); 
+		printk("pwm-sunxi: pwm0 configured - period: %ld, duty_percent: %d, duty: %ld\n",
+			chan->period, chan->duty_percent, chan->duty);
 	}
- 
-	printk("pwm-sunxi: pwm0 configured - enable: %d, period: %ld, duty_percent: %d, duty: %ld\n",init_enable,chan->period,chan->duty_percent,chan->duty);
 
-
+	if (sunxi_is_sun5i()) /* Only 1 pwm on the A13 / A10s */
+		return 0;
 
 	//PWM 1
 	//printk("pwm-sunxi: configuring pwm1...\n");
 	chan = &pwm_available_chan[1];
-		
  	
 	init_enable=0;
 	init_period=0;
 	init_duty_percent=100;
 
-	
-
 	err = script_parser_fetch("pwm1_para", "pwm_used", &init_enable,sizeof(init_enable)/sizeof(int));
-	if (err) {
-		pr_err("%s script_parser_fetch '[pwm1_para]' 'pwm_used' err - disabling pwm1\n",	__func__);
-	}
+	if (err == 0 && init_enable) {
+		sunxi_pwm_register_class();
+		pwm1 = device_create(&pwm_class, NULL,
+				MKDEV(0, 0), &pwm_available_chan[1], "pwm1");
+		err = sysfs_create_group(&pwm1->kobj, &pwm_attr_group);
+		if (err)
+			pr_err("pwm-sunxi: sysfs_create_group(pwm1) err %d\n",
+			       err);
 
-	if(init_enable) {
-	
 		err = script_parser_fetch("pwm1_para", "pwm_period", &init_period,sizeof(init_period)/sizeof(int));
 		if (err) {
 			pr_err("%s script_parser_fetch '[pwm1_para]' 'pwm_period' err - using 10000\n",	__func__);
@@ -262,31 +244,34 @@ static int __init sunxi_pwm_init(void)
 		printk("pwm-sunxi: pwm0 set initial values\n");
 #endif
 		pwm_set_mode(init_enable,chan); 
+		printk("pwm-sunxi: pwm1 configured - period: %ld, duty_percent: %d, duty: %ld\n",
+			chan->period, chan->duty_percent, chan->duty);
 	}
- 
-	printk("pwm-sunxi: pwm1 configured - enable: %d, period: %ld, duty_percent: %d, duty: %ld\n",init_enable,chan->period,chan->duty_percent,chan->duty);
-
-
-
- 
-	printk("pwm-sunxi: Initialized\n");
-	return return_val; 
+	return 0;
 } 
- 
+
 void sunxi_pwm_exit(void) 
 { 
 	void *timer_base = ioremap(SW_PA_TIMERC_IO_BASE, 0x400); 
 	void *PWM_CTRL_REG_BASE = timer_base + 0x200; 
- 
-	device_destroy(&pwm_class,pwm0->devt); 
-	device_destroy(&pwm_class,pwm1->devt); 
-	writel(0, PWM_CTRL_REG_BASE + 0); 
-	writel(pwm_available_chan[0].pin_backup.initializer, pwm_available_chan[0].pin_addr); 
-	writel(pwm_available_chan[1].pin_backup.initializer, pwm_available_chan[1].pin_addr); 
- 
-	class_unregister(&pwm_class); 
-} 
- 
+
+	if (pwm0) {
+		device_destroy(&pwm_class, pwm0->devt);
+		writel(pwm_available_chan[0].pin_backup.initializer,
+		       pwm_available_chan[0].pin_addr);
+	}
+	if (pwm1) {
+		device_destroy(&pwm_class, pwm1->devt);
+		writel(pwm_available_chan[1].pin_backup.initializer,
+		       pwm_available_chan[1].pin_addr);
+	}
+
+	if (sunxi_pwm_class_registered) {
+		writel(0, PWM_CTRL_REG_BASE + 0); 
+		class_unregister(&pwm_class);
+	}
+}
+
 /* 
  * Functions to display the pwm variables currently set 
  */ 
