@@ -8293,6 +8293,7 @@ F:	drivers/edac/tile_edac.c
 F:	drivers/net/ethernet/tile/
 F:	drivers/rtc/rtc-tile.c
 F:	drivers/tty/hvc/hvc_tile.c
+F:	drivers/tty/serial/tilegx.c
 F:	drivers/usb/host/*-tilegx.c
 F:	include/linux/usb/tilegx.h
 
