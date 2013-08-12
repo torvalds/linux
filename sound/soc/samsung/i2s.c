@@ -199,7 +199,12 @@ static inline bool is_manager(struct i2s_dai *i2s)
 /* Read RCLK of I2S (in multiples of LRCLK) */
 static inline unsigned get_rfs(struct i2s_dai *i2s)
 {
-	u32 rfs = (readl(i2s->addr + I2SMOD) >> MOD_RCLK_SHIFT);
+	u32 rfs;
+
+	if (i2s->quirks & QUIRK_SUPPORTS_TDM)
+		rfs = readl(i2s->addr + I2SMOD) >> EXYNOS5420_MOD_RCLK_SHIFT;
+	else
+		rfs = (readl(i2s->addr + I2SMOD) >> MOD_RCLK_SHIFT);
 	rfs &= MOD_RCLK_MASK;
 
 	switch (rfs) {
@@ -214,8 +219,12 @@ static inline unsigned get_rfs(struct i2s_dai *i2s)
 static inline void set_rfs(struct i2s_dai *i2s, unsigned rfs)
 {
 	u32 mod = readl(i2s->addr + I2SMOD);
-	int rfs_shift =  MOD_RCLK_SHIFT;
+	int rfs_shift;
 
+	if (i2s->quirks & QUIRK_SUPPORTS_TDM)
+		rfs_shift = EXYNOS5420_MOD_RCLK_SHIFT;
+	else
+		rfs_shift = MOD_RCLK_SHIFT;
 	mod &= ~(MOD_RCLK_MASK << rfs_shift);
 
 	switch (rfs) {
@@ -239,10 +248,22 @@ static inline void set_rfs(struct i2s_dai *i2s, unsigned rfs)
 /* Read Bit-Clock of I2S (in multiples of LRCLK) */
 static inline unsigned get_bfs(struct i2s_dai *i2s)
 {
-	u32 bfs =  readl(i2s->addr + I2SMOD) >> MOD_BCLK_SHIFT;
-	bfs &= MOD_BCLK_MASK;
+	u32 bfs;
+
+	if (i2s->quirks & QUIRK_SUPPORTS_TDM) {
+		bfs = readl(i2s->addr + I2SMOD) >> EXYNOS5420_MOD_BCLK_SHIFT;
+		bfs &= EXYNOS5420_MOD_BCLK_MASK;
+	} else {
+		bfs =  readl(i2s->addr + I2SMOD) >> MOD_BCLK_SHIFT;
+		bfs &= MOD_BCLK_MASK;
+	}
 
 	switch (bfs) {
+	case 8: return 256;
+	case 7: return 192;
+	case 6: return 128;
+	case 5: return 96;
+	case 4: return 64;
 	case 3: return 24;
 	case 2: return 16;
 	case 1:	return 48;
@@ -254,9 +275,22 @@ static inline unsigned get_bfs(struct i2s_dai *i2s)
 static inline void set_bfs(struct i2s_dai *i2s, unsigned bfs)
 {
 	u32 mod = readl(i2s->addr + I2SMOD);
-	int bfs_shift = MOD_BCLK_SHIFT;
+	int bfs_shift;
+	int tdm = i2s->quirks & QUIRK_SUPPORTS_TDM;
 
-	mod &= ~(MOD_BCLK_MASK << bfs_shift);
+	if (i2s->quirks & QUIRK_SUPPORTS_TDM) {
+		bfs_shift = EXYNOS5420_MOD_BCLK_SHIFT;
+		mod &= ~(EXYNOS5420_MOD_BCLK_MASK << bfs_shift);
+	} else {
+		bfs_shift = MOD_BCLK_SHIFT;
+		mod &= ~(MOD_BCLK_MASK << bfs_shift);
+	}
+
+	/* Non-TDM I2S controllers do not support BCLK > 48 * FS */
+	if (!tdm && bfs > 48) {
+		dev_err(&i2s->pdev->dev, "Unsupported BCLK divider\n");
+		return;
+	}
 
 	switch (bfs) {
 	case 48:
@@ -270,6 +304,21 @@ static inline void set_bfs(struct i2s_dai *i2s, unsigned bfs)
 		break;
 	case 16:
 		mod |= (MOD_BCLK_16FS << bfs_shift);
+		break;
+	case 64:
+		mod |= (EXYNOS5420_MOD_BCLK_64FS << bfs_shift);
+		break;
+	case 96:
+		mod |= (EXYNOS5420_MOD_BCLK_96FS << bfs_shift);
+		break;
+	case 128:
+		mod |= (EXYNOS5420_MOD_BCLK_128FS << bfs_shift);
+		break;
+	case 192:
+		mod |= (EXYNOS5420_MOD_BCLK_192FS << bfs_shift);
+		break;
+	case 256:
+		mod |= (EXYNOS5420_MOD_BCLK_256FS << bfs_shift);
 		break;
 	default:
 		dev_err(&i2s->pdev->dev, "Wrong BCLK Divider!\n");
@@ -496,9 +545,16 @@ static int i2s_set_fmt(struct snd_soc_dai *dai,
 {
 	struct i2s_dai *i2s = to_info(dai);
 	u32 mod = readl(i2s->addr + I2SMOD);
-	int lrp_shift = MOD_LRP_SHIFT, sdf_shift = MOD_SDF_SHIFT;
-	int sdf_mask, lrp_rlow;
+	int lrp_shift, sdf_shift, sdf_mask, lrp_rlow;
 	u32 tmp = 0;
+
+	if (i2s->quirks & QUIRK_SUPPORTS_TDM) {
+		lrp_shift = EXYNOS5420_MOD_LRP_SHIFT;
+		sdf_shift = EXYNOS5420_MOD_SDF_SHIFT;
+	} else {
+		lrp_shift = MOD_LRP_SHIFT;
+		sdf_shift = MOD_SDF_SHIFT;
+	}
 
 	sdf_mask = MOD_SDF_MASK << sdf_shift;
 	lrp_rlow = MOD_LR_RLOW << lrp_shift;
@@ -1253,6 +1309,12 @@ static const struct samsung_i2s_dai_data i2sv5_dai_type = {
 	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR,
 };
 
+static const struct samsung_i2s_dai_data i2sv6_dai_type = {
+	.dai_type = TYPE_PRI,
+	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR |
+			QUIRK_SUPPORTS_TDM,
+};
+
 static const struct samsung_i2s_dai_data samsung_dai_type_pri = {
 	.dai_type = TYPE_PRI,
 };
@@ -1281,6 +1343,9 @@ static const struct of_device_id exynos_i2s_match[] = {
 	}, {
 		.compatible = "samsung,s5pv210-i2s",
 		.data = &i2sv5_dai_type,
+	}, {
+		.compatible = "samsung,exynos5420-i2s",
+		.data = &i2sv6_dai_type,
 	},
 	{},
 };
