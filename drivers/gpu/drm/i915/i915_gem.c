@@ -3440,7 +3440,6 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		 * Just set it to the CPU cache for now.
 		 */
 		WARN_ON(obj->base.write_domain & ~I915_GEM_DOMAIN_CPU);
-		WARN_ON(obj->base.read_domains & ~I915_GEM_DOMAIN_CPU);
 
 		old_read_domains = obj->base.read_domains;
 		old_write_domain = obj->base.write_domain;
