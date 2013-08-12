@@ -631,11 +631,36 @@ static struct device_node *cpu_to_l2cache(int cpu)
 	return cache;
 }
 
+static void traverse_core_siblings(int cpu, bool add)
+{
+	struct device_node *l2_cache;
+	const struct cpumask *mask;
+	int i;
+
+	l2_cache = cpu_to_l2cache(cpu);
+	mask = add ? cpu_online_mask : cpu_present_mask;
+	for_each_cpu(i, mask) {
+		struct device_node *np = cpu_to_l2cache(i);
+		if (!np)
+			continue;
+		if (np == l2_cache) {
+			if (add) {
+				cpumask_set_cpu(cpu, cpu_core_mask(i));
+				cpumask_set_cpu(i, cpu_core_mask(cpu));
+			} else {
+				cpumask_clear_cpu(cpu, cpu_core_mask(i));
+				cpumask_clear_cpu(i, cpu_core_mask(cpu));
+			}
+		}
+		of_node_put(np);
+	}
+	of_node_put(l2_cache);
+}
+
 /* Activate a secondary processor. */
 void start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
-	struct device_node *l2_cache;
 	int i, base;
 
 	atomic_inc(&init_mm.mm_count);
@@ -674,18 +699,7 @@ void start_secondary(void *unused)
 		cpumask_set_cpu(cpu, cpu_core_mask(base + i));
 		cpumask_set_cpu(base + i, cpu_core_mask(cpu));
 	}
-	l2_cache = cpu_to_l2cache(cpu);
-	for_each_online_cpu(i) {
-		struct device_node *np = cpu_to_l2cache(i);
-		if (!np)
-			continue;
-		if (np == l2_cache) {
-			cpumask_set_cpu(cpu, cpu_core_mask(i));
-			cpumask_set_cpu(i, cpu_core_mask(cpu));
-		}
-		of_node_put(np);
-	}
-	of_node_put(l2_cache);
+	traverse_core_siblings(cpu, true);
 
 	smp_wmb();
 	notify_cpu_starting(cpu);
@@ -741,7 +755,6 @@ int arch_sd_sibling_asym_packing(void)
 #ifdef CONFIG_HOTPLUG_CPU
 int __cpu_disable(void)
 {
-	struct device_node *l2_cache;
 	int cpu = smp_processor_id();
 	int base, i;
 	int err;
@@ -761,20 +774,7 @@ int __cpu_disable(void)
 		cpumask_clear_cpu(cpu, cpu_core_mask(base + i));
 		cpumask_clear_cpu(base + i, cpu_core_mask(cpu));
 	}
-
-	l2_cache = cpu_to_l2cache(cpu);
-	for_each_present_cpu(i) {
-		struct device_node *np = cpu_to_l2cache(i);
-		if (!np)
-			continue;
-		if (np == l2_cache) {
-			cpumask_clear_cpu(cpu, cpu_core_mask(i));
-			cpumask_clear_cpu(i, cpu_core_mask(cpu));
-		}
-		of_node_put(np);
-	}
-	of_node_put(l2_cache);
-
+	traverse_core_siblings(cpu, false);
 
 	return 0;
 }
