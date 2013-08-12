@@ -2517,8 +2517,16 @@ u32 rv770_dpm_get_mclk(struct radeon_device *rdev, bool low)
 bool rv770_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
+	u32 switch_limit = 300;
 
-	if (vblank_time < 300)
+	/* quirks */
+	/* ASUS K70AF */
+	if ((rdev->pdev->device == 0x9553) &&
+	    (rdev->pdev->subsystem_vendor == 0x1043) &&
+	    (rdev->pdev->subsystem_device == 0x1c42))
+		switch_limit = 200;
+
+	if (vblank_time < switch_limit)
 		return true;
 	else
 		return false;
