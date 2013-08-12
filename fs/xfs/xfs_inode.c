@@ -2095,7 +2095,7 @@ xfs_iunlink_remove(
 }
 
 /*
- * A big issue when freeing the inode cluster is is that we _cannot_ skip any
+ * A big issue when freeing the inode cluster is that we _cannot_ skip any
  * inodes that are in memory - they all must be marked stale and attached to
  * the cluster buffer.
  */
