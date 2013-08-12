@@ -291,7 +291,8 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 	/* First of all, check for unreliable messages in the queue,
 	   since they have priority */
 
-	if ((skb = skb_dequeue(&bcsp->unrel)) != NULL) {
+	skb = skb_dequeue(&bcsp->unrel);
+	if (skb != NULL) {
 		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
 		if (nskb) {
 			kfree_skb(skb);
@@ -308,16 +309,20 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 
 	spin_lock_irqsave_nested(&bcsp->unack.lock, flags, SINGLE_DEPTH_NESTING);
 
-	if (bcsp->unack.qlen < BCSP_TXWINSIZE && (skb = skb_dequeue(&bcsp->rel)) != NULL) {
-		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
-		if (nskb) {
-			__skb_queue_tail(&bcsp->unack, skb);
-			mod_timer(&bcsp->tbcsp, jiffies + HZ / 4);
-			spin_unlock_irqrestore(&bcsp->unack.lock, flags);
-			return nskb;
-		} else {
-			skb_queue_head(&bcsp->rel, skb);
-			BT_ERR("Could not dequeue pkt because alloc_skb failed");
+	if (bcsp->unack.qlen < BCSP_TXWINSIZE) {
+		skb = skb_dequeue(&bcsp->rel);
+		if (skb != NULL) {
+			struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len,
+								bt_cb(skb)->pkt_type);
+			if (nskb) {
+				__skb_queue_tail(&bcsp->unack, skb);
+				mod_timer(&bcsp->tbcsp, jiffies + HZ / 4);
+				spin_unlock_irqrestore(&bcsp->unack.lock, flags);
+				return nskb;
+			} else {
+				skb_queue_head(&bcsp->rel, skb);
+				BT_ERR("Could not dequeue pkt because alloc_skb failed");
+			}
 		}
 	}
 

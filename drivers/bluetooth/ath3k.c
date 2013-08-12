@@ -180,10 +180,9 @@ static int ath3k_load_firmware(struct usb_device *udev,
 	}
 
 	memcpy(send_buf, firmware->data, 20);
-	if ((err = usb_control_msg(udev, pipe,
-				USB_REQ_DFU_DNLOAD,
-				USB_TYPE_VENDOR, 0, 0,
-				send_buf, 20, USB_CTRL_SET_TIMEOUT)) < 0) {
+	err = usb_control_msg(udev, pipe, USB_REQ_DFU_DNLOAD, USB_TYPE_VENDOR,
+			      0, 0, send_buf, 20, USB_CTRL_SET_TIMEOUT);
+	if (err < 0) {
 		BT_ERR("Can't change to loading configuration err");
 		goto error;
 	}
