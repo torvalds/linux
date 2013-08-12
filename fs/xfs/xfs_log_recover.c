@@ -55,6 +55,8 @@
 #include "xfs_attr_leaf.h"
 #include "xfs_attr_remote.h"
 
+#define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
+
 STATIC int
 xlog_find_zeroed(
 	struct xlog	*,
