@@ -2354,6 +2354,7 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 	path->sink = wsink;
 	path->connected = connected;
 	INIT_LIST_HEAD(&path->list);
+	INIT_LIST_HEAD(&path->list_kcontrol);
 	INIT_LIST_HEAD(&path->list_source);
 	INIT_LIST_HEAD(&path->list_sink);
 
