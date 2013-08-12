@@ -635,7 +635,7 @@ static struct key_entry keymap_prestigio[] __initdata = {
  * a list of buttons and their key codes (reported when loading this module
  * with force=1) and the output of dmidecode to $MODULE_AUTHOR.
  */
-static const struct dmi_system_id __initconst dmi_ids[] = {
+static const struct dmi_system_id dmi_ids[] __initconst = {
 	{
 		/* Fujitsu-Siemens Amilo Pro V2000 */
 		.callback = dmi_matched,
