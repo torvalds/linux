@@ -36,6 +36,7 @@ struct nv04_timer_priv {
 	struct nouveau_timer base;
 	struct list_head alarms;
 	spinlock_t lock;
+	u64 suspend_time;
 };
 
 static u64
@@ -146,6 +147,7 @@ nv04_timer_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.base.intr = nv04_timer_intr;
 	priv->base.read = nv04_timer_read;
 	priv->base.alarm = nv04_timer_alarm;
+	priv->suspend_time = 0;
 
 	INIT_LIST_HEAD(&priv->alarms);
 	spin_lock_init(&priv->lock);
@@ -164,7 +166,7 @@ nv04_timer_init(struct nouveau_object *object)
 {
 	struct nouveau_device *device = nv_device(object);
 	struct nv04_timer_priv *priv = (void *)object;
-	u32 m = 1, f, n, d;
+	u32 m = 1, f, n, d, lo, hi;
 	int ret;
 
 	ret = nouveau_timer_init(&priv->base);
@@ -221,16 +223,25 @@ nv04_timer_init(struct nouveau_object *object)
 		d >>= 1;
 	}
 
+	/* restore the time before suspend */
+	lo = priv->suspend_time;
+	hi = (priv->suspend_time >> 32);
+
 	nv_debug(priv, "input frequency : %dHz\n", f);
 	nv_debug(priv, "input multiplier: %d\n", m);
 	nv_debug(priv, "numerator       : 0x%08x\n", n);
 	nv_debug(priv, "denominator     : 0x%08x\n", d);
 	nv_debug(priv, "timer frequency : %dHz\n", (f * m) * d / n);
+	nv_debug(priv, "time low        : 0x%08x\n", lo);
+	nv_debug(priv, "time high       : 0x%08x\n", hi);
 
 	nv_wr32(priv, NV04_PTIMER_NUMERATOR, n);
 	nv_wr32(priv, NV04_PTIMER_DENOMINATOR, d);
 	nv_wr32(priv, NV04_PTIMER_INTR_0, 0xffffffff);
 	nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
+	nv_wr32(priv, NV04_PTIMER_TIME_1, hi);
+	nv_wr32(priv, NV04_PTIMER_TIME_0, lo);
+
 	return 0;
 }
 
@@ -238,6 +249,8 @@ static int
 nv04_timer_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nv04_timer_priv *priv = (void *)object;
+	if (suspend)
+		priv->suspend_time = nv04_timer_read(&priv->base);
 	nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
 	return nouveau_timer_fini(&priv->base, suspend);
 }
