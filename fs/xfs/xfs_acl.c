@@ -22,6 +22,7 @@
 #include "xfs_attr.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
+#include "xfs_ag.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_trace.h"
