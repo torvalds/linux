@@ -976,26 +976,34 @@ static int dio200_subdev_8255_config(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int mask;
-	int ret;
+	unsigned int bits;
 
-	if (chan < 8)
-		mask = 0x0000ff;
-	else if (chan < 16)
-		mask = 0x00ff00;
-	else if (chan < 20)
-		mask = 0x0f0000;
+	mask = 1 << CR_CHAN(insn->chanspec);
+	if (mask & 0x0000ff)
+		bits = 0x0000ff;
+	else if (mask & 0x00ff00)
+		bits = 0x00ff00;
+	else if (mask & 0x0f0000)
+		bits = 0x0f0000;
 	else
-		mask = 0xf00000;
-
-	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
-	if (ret)
-		return ret;
-
+		bits = 0xf00000;
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~bits;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= bits;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+		break;
+	default:
+		return -EINVAL;
+	}
 	dio200_subdev_8255_set_dir(dev, s);
-
-	return insn->n;
+	return 1;
 }
 
 /*
