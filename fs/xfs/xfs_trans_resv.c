@@ -671,32 +671,97 @@ xfs_trans_resv_calc(
 	struct xfs_mount	*mp,
 	struct xfs_trans_resv	*resp)
 {
-	resp->tr_write = xfs_calc_write_reservation(mp);
-	resp->tr_itruncate = xfs_calc_itruncate_reservation(mp);
-	resp->tr_rename = xfs_calc_rename_reservation(mp);
-	resp->tr_link = xfs_calc_link_reservation(mp);
-	resp->tr_remove = xfs_calc_remove_reservation(mp);
-	resp->tr_symlink = xfs_calc_symlink_reservation(mp);
-	resp->tr_create = xfs_calc_create_reservation(mp);
-	resp->tr_mkdir = xfs_calc_mkdir_reservation(mp);
-	resp->tr_ifree = xfs_calc_ifree_reservation(mp);
-	resp->tr_ichange = xfs_calc_ichange_reservation(mp);
-	resp->tr_growdata = xfs_calc_growdata_reservation(mp);
-	resp->tr_swrite = xfs_calc_swrite_reservation(mp);
-	resp->tr_writeid = xfs_calc_writeid_reservation(mp);
-	resp->tr_addafork = xfs_calc_addafork_reservation(mp);
-	resp->tr_attrinval = xfs_calc_attrinval_reservation(mp);
-	resp->tr_attrsetm = xfs_calc_attrsetm_reservation(mp);
-	resp->tr_attrsetrt = xfs_calc_attrsetrt_reservation(mp);
-	resp->tr_attrrm = xfs_calc_attrrm_reservation(mp);
-	resp->tr_clearagi = xfs_calc_clear_agi_bucket_reservation(mp);
-	resp->tr_growrtalloc = xfs_calc_growrtalloc_reservation(mp);
-	resp->tr_growrtzero = xfs_calc_growrtzero_reservation(mp);
-	resp->tr_growrtfree = xfs_calc_growrtfree_reservation(mp);
-	resp->tr_qm_sbchange = xfs_calc_qm_sbchange_reservation(mp);
-	resp->tr_qm_setqlim = xfs_calc_qm_setqlim_reservation(mp);
-	resp->tr_qm_dqalloc = xfs_calc_qm_dqalloc_reservation(mp);
-	resp->tr_qm_quotaoff = xfs_calc_qm_quotaoff_reservation(mp);
-	resp->tr_qm_equotaoff = xfs_calc_qm_quotaoff_end_reservation(mp);
-	resp->tr_sb = xfs_calc_sb_reservation(mp);
+	/*
+	 * The following transactions are logged in physical format and
+	 * require a permanent reservation on space.
+	 */
+	resp->tr_write.tr_logres = xfs_calc_write_reservation(mp);
+	resp->tr_write.tr_logcount = XFS_WRITE_LOG_COUNT;
+	resp->tr_write.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_itruncate.tr_logres = xfs_calc_itruncate_reservation(mp);
+	resp->tr_itruncate.tr_logcount = XFS_ITRUNCATE_LOG_COUNT;
+	resp->tr_itruncate.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_rename.tr_logres = xfs_calc_rename_reservation(mp);
+	resp->tr_rename.tr_logcount = XFS_RENAME_LOG_COUNT;
+	resp->tr_rename.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_link.tr_logres = xfs_calc_link_reservation(mp);
+	resp->tr_link.tr_logcount = XFS_LINK_LOG_COUNT;
+	resp->tr_link.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_remove.tr_logres = xfs_calc_remove_reservation(mp);
+	resp->tr_remove.tr_logcount = XFS_REMOVE_LOG_COUNT;
+	resp->tr_remove.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_symlink.tr_logres = xfs_calc_symlink_reservation(mp);
+	resp->tr_symlink.tr_logcount = XFS_SYMLINK_LOG_COUNT;
+	resp->tr_symlink.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_create.tr_logres = xfs_calc_create_reservation(mp);
+	resp->tr_create.tr_logcount = XFS_CREATE_LOG_COUNT;
+	resp->tr_create.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_mkdir.tr_logres = xfs_calc_mkdir_reservation(mp);
+	resp->tr_mkdir.tr_logcount = XFS_MKDIR_LOG_COUNT;
+	resp->tr_mkdir.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_ifree.tr_logres = xfs_calc_ifree_reservation(mp);
+	resp->tr_ifree.tr_logcount = XFS_INACTIVE_LOG_COUNT;
+	resp->tr_ifree.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_addafork.tr_logres = xfs_calc_addafork_reservation(mp);
+	resp->tr_addafork.tr_logcount = XFS_ADDAFORK_LOG_COUNT;
+	resp->tr_addafork.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_attrinval.tr_logres = xfs_calc_attrinval_reservation(mp);
+	resp->tr_attrinval.tr_logcount = XFS_ATTRINVAL_LOG_COUNT;
+	resp->tr_attrinval.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_attrsetm.tr_logres = xfs_calc_attrsetm_reservation(mp);
+	resp->tr_attrsetm.tr_logcount = XFS_ATTRSET_LOG_COUNT;
+	resp->tr_attrsetm.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_attrrm.tr_logres = xfs_calc_attrrm_reservation(mp);
+	resp->tr_attrrm.tr_logcount = XFS_ATTRRM_LOG_COUNT;
+	resp->tr_attrrm.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_growrtalloc.tr_logres = xfs_calc_growrtalloc_reservation(mp);
+	resp->tr_growrtalloc.tr_logcount = XFS_DEFAULT_PERM_LOG_COUNT;
+	resp->tr_growrtalloc.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	resp->tr_qm_dqalloc.tr_logres = xfs_calc_qm_dqalloc_reservation(mp);
+	resp->tr_qm_dqalloc.tr_logcount = XFS_WRITE_LOG_COUNT;
+	resp->tr_qm_dqalloc.tr_logflags |= XFS_TRANS_PERM_LOG_RES;
+
+	/*
+	 * The following transactions are logged in logical format with
+	 * a default log count.
+	 */
+	resp->tr_qm_sbchange.tr_logres = xfs_calc_qm_sbchange_reservation(mp);
+	resp->tr_qm_sbchange.tr_logcount = XFS_DEFAULT_LOG_COUNT;
+
+	resp->tr_qm_setqlim.tr_logres = xfs_calc_qm_setqlim_reservation(mp);
+	resp->tr_qm_setqlim.tr_logcount = XFS_DEFAULT_LOG_COUNT;
+
+	resp->tr_qm_quotaoff.tr_logres = xfs_calc_qm_quotaoff_reservation(mp);
+	resp->tr_qm_quotaoff.tr_logcount = XFS_DEFAULT_LOG_COUNT;
+
+	resp->tr_qm_equotaoff.tr_logres =
+		xfs_calc_qm_quotaoff_end_reservation(mp);
+	resp->tr_qm_equotaoff.tr_logcount = XFS_DEFAULT_LOG_COUNT;
+
+	resp->tr_sb.tr_logres = xfs_calc_sb_reservation(mp);
+	resp->tr_sb.tr_logcount = XFS_DEFAULT_LOG_COUNT;
+
+	/* The following transaction are logged in logical format */
+	resp->tr_ichange.tr_logres = xfs_calc_ichange_reservation(mp);
+	resp->tr_growdata.tr_logres = xfs_calc_growdata_reservation(mp);
+	resp->tr_swrite.tr_logres = xfs_calc_swrite_reservation(mp);
+	resp->tr_writeid.tr_logres = xfs_calc_writeid_reservation(mp);
+	resp->tr_attrsetrt.tr_logres = xfs_calc_attrsetrt_reservation(mp);
+	resp->tr_clearagi.tr_logres = xfs_calc_clear_agi_bucket_reservation(mp);
+	resp->tr_growrtzero.tr_logres = xfs_calc_growrtzero_reservation(mp);
+	resp->tr_growrtfree.tr_logres = xfs_calc_growrtfree_reservation(mp);
 }

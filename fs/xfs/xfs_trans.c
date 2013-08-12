@@ -56,7 +56,7 @@ void
 xfs_trans_init(
 	struct xfs_mount	*mp)
 {
-	xfs_trans_resv_calc(mp, &mp->m_reservations);
+	xfs_trans_resv_calc(mp, &mp->m_resv);
 }
 
 /*
