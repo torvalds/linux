@@ -83,6 +83,7 @@ do {								\
 #define CPSW_VERSION_1		0x19010a
 #define CPSW_VERSION_2		0x19010c
 #define CPSW_VERSION_3		0x19010f
+#define CPSW_VERSION_4		0x190112
 
 #define HOST_PORT_NUM		0
 #define SLIVER_SIZE		0x40
@@ -993,6 +994,7 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		break;
 	case CPSW_VERSION_2:
 	case CPSW_VERSION_3:
+	case CPSW_VERSION_4:
 		slave_write(slave, TX_PRIORITY_MAPPING, CPSW2_TX_PRI_MAP);
 		break;
 	}
@@ -2018,6 +2020,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		break;
 	case CPSW_VERSION_2:
 	case CPSW_VERSION_3:
+	case CPSW_VERSION_4:
 		priv->host_port_regs = ss_regs + CPSW2_HOST_PORT_OFFSET;
 		priv->cpts->reg      = ss_regs + CPSW2_CPTS_OFFSET;
 		priv->hw_stats	     = ss_regs + CPSW2_HW_STATS;
