@@ -665,7 +665,7 @@ static int dapm_is_shared_kcontrol(struct snd_soc_dapm_context *dapm,
  * create it. Either way, add the widget into the control's widget list
  */
 static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
-	int kci, struct snd_soc_dapm_path *path)
+	int kci)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_card *card = dapm->card->snd_card;
@@ -766,7 +766,6 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 		return ret;
 
 	w->kcontrols[kci] = kcontrol;
-	dapm_kcontrol_add_path(kcontrol, path);
 
 	return 0;
 }
@@ -790,9 +789,11 @@ static int dapm_new_mixer(struct snd_soc_dapm_widget *w)
 				continue;
 			}
 
-			ret = dapm_create_or_share_mixmux_kcontrol(w, i, path);
+			ret = dapm_create_or_share_mixmux_kcontrol(w, i);
 			if (ret < 0)
 				return ret;
+
+			dapm_kcontrol_add_path(w->kcontrols[i], path);
 		}
 	}
 
@@ -818,10 +819,7 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 		return -EINVAL;
 	}
 
-	path = list_first_entry(&w->sources, struct snd_soc_dapm_path,
-				list_sink);
-
-	ret = dapm_create_or_share_mixmux_kcontrol(w, 0, path);
+	ret = dapm_create_or_share_mixmux_kcontrol(w, 0);
 	if (ret < 0)
 		return ret;
 
