@@ -732,7 +732,7 @@ xfs_mountfs(
 	xfs_set_inoalignment(mp);
 
 	/*
-	 * Check that the data (and log if separate) are an ok size.
+	 * Check that the data (and log if separate) is an ok size.
 	 */
 	error = xfs_check_sizes(mp);
 	if (error)
