@@ -40,6 +40,9 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
+#include "xfs_da_btree.h"
+#include "xfs_dir2_format.h"
+#include "xfs_dir2_priv.h"
 
 #include <linux/capability.h>
 #include <linux/xattr.h>
@@ -88,10 +91,12 @@ xfs_init_security(
 static void
 xfs_dentry_to_name(
 	struct xfs_name	*namep,
-	struct dentry	*dentry)
+	struct dentry	*dentry,
+	int		mode)
 {
 	namep->name = dentry->d_name.name;
 	namep->len = dentry->d_name.len;
+	namep->type = xfs_mode_to_ftype[(mode & S_IFMT) >> S_SHIFT];
 }
 
 STATIC void
@@ -107,7 +112,7 @@ xfs_cleanup_inode(
 	 * xfs_init_security we must back out.
 	 * ENOSPC can hit here, among other things.
 	 */
-	xfs_dentry_to_name(&teardown, dentry);
+	xfs_dentry_to_name(&teardown, dentry, 0);
 
 	xfs_remove(XFS_I(dir), &teardown, XFS_I(inode));
 	iput(inode);
@@ -147,7 +152,7 @@ xfs_vn_mknod(
 			mode &= ~current_umask();
 	}
 
-	xfs_dentry_to_name(&name, dentry);
+	xfs_dentry_to_name(&name, dentry, mode);
 	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
 	if (unlikely(error))
 		goto out_free_acl;
@@ -208,7 +213,7 @@ xfs_vn_lookup(
 	if (dentry->d_name.len >= MAXNAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	xfs_dentry_to_name(&name, dentry);
+	xfs_dentry_to_name(&name, dentry, 0);
 	error = xfs_lookup(XFS_I(dir), &name, &cip, NULL);
 	if (unlikely(error)) {
 		if (unlikely(error != ENOENT))
@@ -235,7 +240,7 @@ xfs_vn_ci_lookup(
 	if (dentry->d_name.len >= MAXNAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	xfs_dentry_to_name(&xname, dentry);
+	xfs_dentry_to_name(&xname, dentry, 0);
 	error = xfs_lookup(XFS_I(dir), &xname, &ip, &ci_name);
 	if (unlikely(error)) {
 		if (unlikely(error != ENOENT))
@@ -270,7 +275,7 @@ xfs_vn_link(
 	struct xfs_name	name;
 	int		error;
 
-	xfs_dentry_to_name(&name, dentry);
+	xfs_dentry_to_name(&name, dentry, inode->i_mode);
 
 	error = xfs_link(XFS_I(dir), XFS_I(inode), &name);
 	if (unlikely(error))
@@ -289,7 +294,7 @@ xfs_vn_unlink(
 	struct xfs_name	name;
 	int		error;
 
-	xfs_dentry_to_name(&name, dentry);
+	xfs_dentry_to_name(&name, dentry, 0);
 
 	error = -xfs_remove(XFS_I(dir), &name, XFS_I(dentry->d_inode));
 	if (error)
@@ -319,7 +324,7 @@ xfs_vn_symlink(
 
 	mode = S_IFLNK |
 		(irix_symlink_mode ? 0777 & ~current_umask() : S_IRWXUGO);
-	xfs_dentry_to_name(&name, dentry);
+	xfs_dentry_to_name(&name, dentry, mode);
 
 	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip);
 	if (unlikely(error))
@@ -351,12 +356,12 @@ xfs_vn_rename(
 	struct xfs_name	oname;
 	struct xfs_name	nname;
 
-	xfs_dentry_to_name(&oname, odentry);
-	xfs_dentry_to_name(&nname, ndentry);
+	xfs_dentry_to_name(&oname, odentry, 0);
+	xfs_dentry_to_name(&nname, ndentry, odentry->d_inode->i_mode);
 
 	return -xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
 			   XFS_I(ndir), &nname, new_inode ?
-			   			XFS_I(new_inode) : NULL);
+						XFS_I(new_inode) : NULL);
 }
 
 /*

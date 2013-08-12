@@ -176,6 +176,7 @@ enum xfs_dacmp {
 typedef struct xfs_da_args {
 	const __uint8_t	*name;		/* string (maybe not NULL terminated) */
 	int		namelen;	/* length of string (maybe no NULL) */
+	__uint8_t	filetype;	/* filetype of inode for directories */
 	__uint8_t	*value;		/* set of bytes (maybe contain NULLs) */
 	int		valuelen;	/* length of value */
 	int		flags;		/* argument flags (eg: ATTR_NOCREATE) */

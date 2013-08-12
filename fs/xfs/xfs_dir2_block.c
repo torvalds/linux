@@ -369,7 +369,7 @@ xfs_dir2_block_addname(
 	if (error)
 		return error;
 
-	len = xfs_dir2_data_entsize(args->namelen);
+	len = xfs_dir3_data_entsize(mp, args->namelen);
 
 	/*
 	 * Set up pointers to parts of the block.
@@ -549,7 +549,7 @@ xfs_dir2_block_addname(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, args->namelen);
-	tagp = xfs_dir2_data_entry_tag_p(dep);
+	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
 	 * Clean up the bestfree array and log the header, tail, and entry.
@@ -799,7 +799,7 @@ xfs_dir2_block_removename(
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(tp, bp,
 		(xfs_dir2_data_aoff_t)((char *)dep - (char *)hdr),
-		xfs_dir2_data_entsize(dep->namelen), &needlog, &needscan);
+		xfs_dir3_data_entsize(mp, dep->namelen), &needlog, &needscan);
 	/*
 	 * Fix up the block tail.
 	 */
@@ -1159,7 +1159,7 @@ xfs_dir2_sf_to_block(
 	dep->inumber = cpu_to_be64(dp->i_ino);
 	dep->namelen = 1;
 	dep->name[0] = '.';
-	tagp = xfs_dir2_data_entry_tag_p(dep);
+	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	xfs_dir2_data_log_entry(tp, bp, dep);
 	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
@@ -1172,7 +1172,7 @@ xfs_dir2_sf_to_block(
 	dep->inumber = cpu_to_be64(xfs_dir2_sf_get_parent_ino(sfp));
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
-	tagp = xfs_dir2_data_entry_tag_p(dep);
+	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	xfs_dir2_data_log_entry(tp, bp, dep);
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
@@ -1217,10 +1217,10 @@ xfs_dir2_sf_to_block(
 		 * Copy a real entry.
 		 */
 		dep = (xfs_dir2_data_entry_t *)((char *)hdr + newoffset);
-		dep->inumber = cpu_to_be64(xfs_dir2_sfe_get_ino(sfp, sfep));
+		dep->inumber = cpu_to_be64(xfs_dir3_sfe_get_ino(mp, sfp, sfep));
 		dep->namelen = sfep->namelen;
 		memcpy(dep->name, sfep->name, dep->namelen);
-		tagp = xfs_dir2_data_entry_tag_p(dep);
+		tagp = xfs_dir3_data_entry_tag_p(mp, dep);
 		*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 		xfs_dir2_data_log_entry(tp, bp, dep);
 		name.name = sfep->name;
@@ -1233,7 +1233,7 @@ xfs_dir2_sf_to_block(
 		if (++i == sfp->count)
 			sfep = NULL;
 		else
-			sfep = xfs_dir2_sf_nextentry(sfp, sfep);
+			sfep = xfs_dir3_sf_nextentry(mp, sfp, sfep);
 	}
 	/* Done with the temporary buffer */
 	kmem_free(sfp);

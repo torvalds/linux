@@ -36,6 +36,44 @@
 #include "xfs_trace.h"
 #include "xfs_bmap.h"
 
+/*
+ * Directory file type support functions
+ */
+static unsigned char xfs_dir3_filetype_table[] = {
+	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK,
+	DT_FIFO, DT_SOCK, DT_LNK, DT_WHT,
+};
+
+unsigned char
+xfs_dir3_get_dtype(
+	struct xfs_mount	*mp,
+	__uint8_t		filetype)
+{
+	if (!xfs_sb_version_hasftype(&mp->m_sb))
+		return DT_UNKNOWN;
+
+	if (filetype >= XFS_DIR3_FT_MAX)
+		return DT_UNKNOWN;
+
+	return xfs_dir3_filetype_table[filetype];
+}
+/*
+ * @mode, if set, indicates that the type field needs to be set up.
+ * This uses the transformation from file mode to DT_* as defined in linux/fs.h
+ * for file type specification. This will be propagated into the directory
+ * structure if appropriate for the given operation and filesystem config.
+ */
+const unsigned char xfs_mode_to_ftype[S_IFMT >> S_SHIFT] = {
+	[0]			= XFS_DIR3_FT_UNKNOWN,
+	[S_IFREG >> S_SHIFT]    = XFS_DIR3_FT_REG_FILE,
+	[S_IFDIR >> S_SHIFT]    = XFS_DIR3_FT_DIR,
+	[S_IFCHR >> S_SHIFT]    = XFS_DIR3_FT_CHRDEV,
+	[S_IFBLK >> S_SHIFT]    = XFS_DIR3_FT_BLKDEV,
+	[S_IFIFO >> S_SHIFT]    = XFS_DIR3_FT_FIFO,
+	[S_IFSOCK >> S_SHIFT]   = XFS_DIR3_FT_SOCK,
+	[S_IFLNK >> S_SHIFT]    = XFS_DIR3_FT_SYMLINK,
+};
+
 STATIC int
 xfs_dir2_sf_getdents(
 	xfs_inode_t		*dp,		/* incore directory inode */
@@ -109,20 +147,23 @@ xfs_dir2_sf_getdents(
 	 */
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	for (i = 0; i < sfp->count; i++) {
+		__uint8_t filetype;
+
 		off = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
 				xfs_dir2_sf_get_offset(sfep));
 
 		if (ctx->pos > off) {
-			sfep = xfs_dir2_sf_nextentry(sfp, sfep);
+			sfep = xfs_dir3_sf_nextentry(mp, sfp, sfep);
 			continue;
 		}
 
-		ino = xfs_dir2_sfe_get_ino(sfp, sfep);
+		ino = xfs_dir3_sfe_get_ino(mp, sfp, sfep);
+		filetype = xfs_dir3_sfe_get_ftype(mp, sfp, sfep);
 		ctx->pos = off & 0x7fffffff;
-		if (!dir_emit(ctx, (char *)sfep->name, sfep->namelen,
-			    ino, DT_UNKNOWN))
+		if (!dir_emit(ctx, (char *)sfep->name, sfep->namelen, ino,
+			    xfs_dir3_get_dtype(mp, filetype)))
 			return 0;
-		sfep = xfs_dir2_sf_nextentry(sfp, sfep);
+		sfep = xfs_dir3_sf_nextentry(mp, sfp, sfep);
 	}
 
 	ctx->pos = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
@@ -180,6 +221,8 @@ xfs_dir2_block_getdents(
 	 * Each object is a real entry (dep) or an unused one (dup).
 	 */
 	while (ptr < endptr) {
+		__uint8_t filetype;
+
 		dup = (xfs_dir2_data_unused_t *)ptr;
 		/*
 		 * Unused, skip it.
@@ -194,7 +237,7 @@ xfs_dir2_block_getdents(
 		/*
 		 * Bump pointer for the next iteration.
 		 */
-		ptr += xfs_dir2_data_entsize(dep->namelen);
+		ptr += xfs_dir3_data_entsize(mp, dep->namelen);
 		/*
 		 * The entry is before the desired starting point, skip it.
 		 */
@@ -205,11 +248,13 @@ xfs_dir2_block_getdents(
 					    (char *)dep - (char *)hdr);
 
 		ctx->pos = cook & 0x7fffffff;
+		filetype = xfs_dir3_dirent_get_ftype(mp, dep);
 		/*
 		 * If it didn't fit, set the final offset to here & return.
 		 */
 		if (!dir_emit(ctx, (char *)dep->name, dep->namelen,
-			    be64_to_cpu(dep->inumber), DT_UNKNOWN)) {
+			    be64_to_cpu(dep->inumber),
+			    xfs_dir3_get_dtype(mp, filetype))) {
 			xfs_trans_brelse(NULL, bp);
 			return 0;
 		}
@@ -500,6 +545,8 @@ xfs_dir2_leaf_getdents(
 	 * Get more blocks and readahead as necessary.
 	 */
 	while (curoff < XFS_DIR2_LEAF_OFFSET) {
+		__uint8_t filetype;
+
 		/*
 		 * If we have no buffer, or we're off the end of the
 		 * current buffer, need to get another one.
@@ -554,7 +601,7 @@ xfs_dir2_leaf_getdents(
 					}
 					dep = (xfs_dir2_data_entry_t *)ptr;
 					length =
-					   xfs_dir2_data_entsize(dep->namelen);
+					   xfs_dir3_data_entsize(mp, dep->namelen);
 					ptr += length;
 				}
 				/*
@@ -585,11 +632,13 @@ xfs_dir2_leaf_getdents(
 		}
 
 		dep = (xfs_dir2_data_entry_t *)ptr;
-		length = xfs_dir2_data_entsize(dep->namelen);
+		length = xfs_dir3_data_entsize(mp, dep->namelen);
+		filetype = xfs_dir3_dirent_get_ftype(mp, dep);
 
 		ctx->pos = xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff;
 		if (!dir_emit(ctx, (char *)dep->name, dep->namelen,
-			    be64_to_cpu(dep->inumber), DT_UNKNOWN))
+			    be64_to_cpu(dep->inumber),
+			    xfs_dir3_get_dtype(mp, filetype)))
 			break;
 
 		/*

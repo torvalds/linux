@@ -68,8 +68,8 @@ extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
 extern xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf_hdr *sfp);
 extern void xfs_dir2_sf_put_parent_ino(struct xfs_dir2_sf_hdr *sfp,
 		xfs_ino_t ino);
-extern xfs_ino_t xfs_dir2_sfe_get_ino(struct xfs_dir2_sf_hdr *sfp,
-		struct xfs_dir2_sf_entry *sfep);
+extern xfs_ino_t xfs_dir3_sfe_get_ino(struct xfs_mount *mp,
+		struct xfs_dir2_sf_hdr *sfp, struct xfs_dir2_sf_entry *sfep);
 extern void xfs_dir2_sfe_put_ino( struct xfs_dir2_sf_hdr *,
 		struct xfs_dir2_sf_entry *sfep, xfs_ino_t ino);
 

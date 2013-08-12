@@ -696,7 +696,7 @@ xfs_dir2_leaf_addname(
 	ents = xfs_dir3_leaf_ents_p(leaf);
 	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
-	length = xfs_dir2_data_entsize(args->namelen);
+	length = xfs_dir3_data_entsize(mp, args->namelen);
 
 	/*
 	 * See if there are any entries with the same hash value
@@ -897,7 +897,7 @@ xfs_dir2_leaf_addname(
 	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
-	tagp = xfs_dir2_data_entry_tag_p(dep);
+	tagp = xfs_dir3_data_entry_tag_p(mp, dep);
 	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
 	 * Need to scan fix up the bestfree table.
@@ -1427,7 +1427,7 @@ xfs_dir2_leaf_removename(
 	 */
 	xfs_dir2_data_make_free(tp, dbp,
 		(xfs_dir2_data_aoff_t)((char *)dep - (char *)hdr),
-		xfs_dir2_data_entsize(dep->namelen), &needlog, &needscan);
+		xfs_dir3_data_entsize(mp, dep->namelen), &needlog, &needscan);
 	/*
 	 * We just mark the leaf entry stale by putting a null in it.
 	 */

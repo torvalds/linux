@@ -37,7 +37,8 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 
-struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2};
+struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2, XFS_DIR3_FT_DIR };
+
 
 /*
  * ASCII case-insensitive (ie. A-Z) support for directories that was
@@ -386,6 +387,7 @@ xfs_dir_replace(
 	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
+	args.filetype = name->type;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.inumber = inum;
 	args.dp = dp;
@@ -433,6 +435,7 @@ xfs_dir_canenter(
 	memset(&args, 0, sizeof(xfs_da_args_t));
 	args.name = name->name;
 	args.namelen = name->len;
+	args.filetype = name->type;
 	args.hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args.dp = dp;
 	args.whichfork = XFS_DATA_FORK;

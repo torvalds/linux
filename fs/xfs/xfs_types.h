@@ -140,6 +140,7 @@ typedef enum {
 struct xfs_name {
 	const unsigned char	*name;
 	int			len;
+	int			type;
 };
 
 /*

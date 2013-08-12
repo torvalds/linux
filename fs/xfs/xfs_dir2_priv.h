@@ -18,12 +18,21 @@
 #ifndef __XFS_DIR2_PRIV_H__
 #define __XFS_DIR2_PRIV_H__
 
+struct dir_context;
+
 /* xfs_dir2.c */
 extern int xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
 extern int xfs_dir2_grow_inode(struct xfs_da_args *args, int space,
 				xfs_dir2_db_t *dbp);
 extern int xfs_dir_cilookup_result(struct xfs_da_args *args,
 				const unsigned char *name, int len);
+
+#define S_SHIFT 12
+extern const unsigned char xfs_mode_to_ftype[];
+
+extern unsigned char xfs_dir3_get_dtype(struct xfs_mount *mp,
+					__uint8_t filetype);
+
 
 /* xfs_dir2_block.c */
 extern int xfs_dir3_block_read(struct xfs_trans *tp, struct xfs_inode *dp,
