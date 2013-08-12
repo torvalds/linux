@@ -131,7 +131,6 @@ enum pxa3xx_nand_variant {
 
 struct pxa3xx_nand_host {
 	struct nand_chip	chip;
-	struct pxa3xx_nand_cmdset *cmdset;
 	struct mtd_info         *mtd;
 	void			*info_data;
 
@@ -204,23 +203,6 @@ struct pxa3xx_nand_info {
 static bool use_dma = 1;
 module_param(use_dma, bool, 0444);
 MODULE_PARM_DESC(use_dma, "enable DMA for data transferring to/from NAND HW");
-
-/*
- * Default NAND flash controller configuration setup by the
- * bootloader. This configuration is used only when pdata->keep_config is set
- */
-static struct pxa3xx_nand_cmdset default_cmdset = {
-	.read1		= 0x3000,
-	.read2		= 0x0050,
-	.program	= 0x1080,
-	.read_status	= 0x0070,
-	.read_id	= 0x0090,
-	.erase		= 0xD060,
-	.reset		= 0x00FF,
-	.lock		= 0x002A,
-	.unlock		= 0x2423,
-	.lock_status	= 0x007A,
-};
 
 static struct pxa3xx_nand_timing timing[] = {
 	{ 40, 80, 60, 100, 80, 100, 90000, 400, 40, },
@@ -530,7 +512,6 @@ static inline int is_buf_blank(uint8_t *buf, size_t len)
 static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 		uint16_t column, int page_addr)
 {
-	uint16_t cmd;
 	int addr_cycle, exec_cmd;
 	struct pxa3xx_nand_host *host;
 	struct mtd_info *mtd;
@@ -580,21 +561,17 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 	switch (command) {
 	case NAND_CMD_READOOB:
 	case NAND_CMD_READ0:
-		cmd = host->cmdset->read1;
-		if (command == NAND_CMD_READOOB)
-			info->buf_start = mtd->writesize + column;
-		else
-			info->buf_start = column;
+		info->buf_start = column;
+		info->ndcb0 |= NDCB0_CMD_TYPE(0)
+				| addr_cycle
+				| NAND_CMD_READ0;
 
-		if (unlikely(host->page_size < PAGE_CHUNK_SIZE))
-			info->ndcb0 |= NDCB0_CMD_TYPE(0)
-					| addr_cycle
-					| (cmd & NDCB0_CMD1_MASK);
-		else
-			info->ndcb0 |= NDCB0_CMD_TYPE(0)
-					| NDCB0_DBC
-					| addr_cycle
-					| cmd;
+		if (command == NAND_CMD_READOOB)
+			info->buf_start += mtd->writesize;
+
+		/* Second command setting for large pages */
+		if (host->page_size >= PAGE_CHUNK_SIZE)
+			info->ndcb0 |= NDCB0_DBC | (NAND_CMD_READSTART << 8);
 
 	case NAND_CMD_SEQIN:
 		/* small page addr setting */
@@ -625,62 +602,58 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 			break;
 		}
 
-		cmd = host->cmdset->program;
 		info->ndcb0 |= NDCB0_CMD_TYPE(0x1)
 				| NDCB0_AUTO_RS
 				| NDCB0_ST_ROW_EN
 				| NDCB0_DBC
-				| cmd
+				| (NAND_CMD_PAGEPROG << 8)
+				| NAND_CMD_SEQIN
 				| addr_cycle;
 		break;
 
 	case NAND_CMD_PARAM:
-		cmd = NAND_CMD_PARAM;
 		info->buf_count = 256;
 		info->ndcb0 |= NDCB0_CMD_TYPE(0)
 				| NDCB0_ADDR_CYC(1)
 				| NDCB0_LEN_OVRD
-				| cmd;
+				| command;
 		info->ndcb1 = (column & 0xFF);
 		info->ndcb3 = 256;
 		info->data_size = 256;
 		break;
 
 	case NAND_CMD_READID:
-		cmd = host->cmdset->read_id;
 		info->buf_count = host->read_id_bytes;
 		info->ndcb0 |= NDCB0_CMD_TYPE(3)
 				| NDCB0_ADDR_CYC(1)
-				| cmd;
+				| command;
 		info->ndcb1 = (column & 0xFF);
 
 		info->data_size = 8;
 		break;
 	case NAND_CMD_STATUS:
-		cmd = host->cmdset->read_status;
 		info->buf_count = 1;
 		info->ndcb0 |= NDCB0_CMD_TYPE(4)
 				| NDCB0_ADDR_CYC(1)
-				| cmd;
+				| command;
 
 		info->data_size = 8;
 		break;
 
 	case NAND_CMD_ERASE1:
-		cmd = host->cmdset->erase;
 		info->ndcb0 |= NDCB0_CMD_TYPE(2)
 				| NDCB0_AUTO_RS
 				| NDCB0_ADDR_CYC(3)
 				| NDCB0_DBC
-				| cmd;
+				| (NAND_CMD_ERASE2 << 8)
+				| NAND_CMD_ERASE1;
 		info->ndcb1 = page_addr;
 		info->ndcb2 = 0;
 
 		break;
 	case NAND_CMD_RESET:
-		cmd = host->cmdset->reset;
 		info->ndcb0 |= NDCB0_CMD_TYPE(5)
-				| cmd;
+				| command;
 
 		break;
 
@@ -876,7 +849,6 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 	}
 
 	/* calculate flash information */
-	host->cmdset = &default_cmdset;
 	host->page_size = f->page_size;
 	host->read_id_bytes = (f->page_size == 2048) ? 4 : 2;
 
@@ -922,7 +894,6 @@ static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
 	}
 
 	host->reg_ndcr = ndcr & ~NDCR_INT_MASK;
-	host->cmdset = &default_cmdset;
 
 	host->ndtr0cs0 = nand_readl(info, NDTR0CS0);
 	host->ndtr1cs0 = nand_readl(info, NDTR1CS0);
