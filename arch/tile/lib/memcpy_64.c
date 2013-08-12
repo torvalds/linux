@@ -54,7 +54,8 @@ void *memcpy(void *__restrict dstv, const void *__restrict srcv, size_t n)
  * macros to return a count of uncopied bytes due to mm fault.
  */
 #define RETVAL 0
-int USERCOPY_FUNC(void *__restrict dstv, const void *__restrict srcv, size_t n)
+int __attribute__((optimize("omit-frame-pointer")))
+USERCOPY_FUNC(void *__restrict dstv, const void *__restrict srcv, size_t n)
 #endif
 {
 	char *__restrict dst1 = (char *)dstv;

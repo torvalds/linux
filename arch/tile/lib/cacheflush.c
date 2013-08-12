@@ -36,7 +36,8 @@ static inline void force_load(char *p)
  * core (if "!hfh") or homed via hash-for-home (if "hfh"), waiting
  * until the memory controller holds the flushed values.
  */
-void finv_buffer_remote(void *buffer, size_t size, int hfh)
+void __attribute__((optimize("omit-frame-pointer")))
+finv_buffer_remote(void *buffer, size_t size, int hfh)
 {
 	char *p, *base;
 	size_t step_size, load_count;
