@@ -204,6 +204,23 @@ nouveau_therm_fan_safety_checks(struct nouveau_therm *therm)
 }
 
 int
+nouveau_therm_fan_init(struct nouveau_therm *therm)
+{
+	return 0;
+}
+
+int
+nouveau_therm_fan_fini(struct nouveau_therm *therm, bool suspend)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nouveau_timer *ptimer = nouveau_timer(therm);
+
+	if (suspend)
+		ptimer->alarm_cancel(ptimer, &priv->fan->alarm);
+	return 0;
+}
+
+int
 nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
