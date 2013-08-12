@@ -213,7 +213,7 @@ int au_cpdown_dirs(struct dentry *dentry, aufs_bindex_t bdst)
 
 /* policies for create */
 
-static int au_wbr_nonopq(struct dentry *dentry, aufs_bindex_t bindex)
+int au_wbr_nonopq(struct dentry *dentry, aufs_bindex_t bindex)
 {
 	int err, i, j, ndentry;
 	aufs_bindex_t bopq;
