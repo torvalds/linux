@@ -753,6 +753,10 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 		bnx2x_pfc_set_pfc(bp);
 
 		bnx2x_dcbx_update_ets_params(bp);
+
+		/* ets may affect cmng configuration: reinit it in hw */
+		bnx2x_set_local_cmng(bp);
+
 		bnx2x_dcbx_resume_hw_tx(bp);
 
 		return;

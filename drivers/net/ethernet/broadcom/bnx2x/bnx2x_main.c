@@ -2476,7 +2476,7 @@ static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 
 	input.port_rate = bp->link_vars.line_speed;
 
-	if (cmng_type == CMNG_FNS_MINMAX) {
+	if (cmng_type == CMNG_FNS_MINMAX && input.port_rate) {
 		int vn;
 
 		/* read mf conf from shmem */
@@ -2533,6 +2533,21 @@ static void storm_memset_cmng(struct bnx2x *bp,
 	}
 }
 
+/* init cmng mode in HW according to local configuration */
+void bnx2x_set_local_cmng(struct bnx2x *bp)
+{
+	int cmng_fns = bnx2x_get_cmng_fns_mode(bp);
+
+	if (cmng_fns != CMNG_FNS_NONE) {
+		bnx2x_cmng_fns_init(bp, false, cmng_fns);
+		storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
+	} else {
+		/* rate shaping and fairness are disabled */
+		DP(NETIF_MSG_IFUP,
+		   "single function mode without fairness\n");
+	}
+}
+
 /* This function is called upon link interrupt */
 static void bnx2x_link_attn(struct bnx2x *bp)
 {
@@ -2568,17 +2583,8 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	}
 
-	if (bp->link_vars.link_up && bp->link_vars.line_speed) {
-		int cmng_fns = bnx2x_get_cmng_fns_mode(bp);
-
-		if (cmng_fns != CMNG_FNS_NONE) {
-			bnx2x_cmng_fns_init(bp, false, cmng_fns);
-			storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
-		} else
-			/* rate shaping and fairness are disabled */
-			DP(NETIF_MSG_IFUP,
-			   "single function mode without fairness\n");
-	}
+	if (bp->link_vars.link_up && bp->link_vars.line_speed)
+		bnx2x_set_local_cmng(bp);
 
 	__bnx2x_link_report(bp);
 
