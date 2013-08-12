@@ -740,12 +740,21 @@ static void rt5025_init_capacity(struct rt5025_battery_info *bi)
 static void rt5025_smooth_soc(struct rt5025_battery_info *bi)
 {
 	if ((bi->internal_status == POWER_SUPPLY_STATUS_CHARGING) &&
-	    (bi->soc < 100)){
+	    (bi->soc < 100))
+	{
 		bi->soc++;
-	}else if ((bi->internal_status == POWER_SUPPLY_STATUS_DISCHARGING) &&
-	          (bi->soc > 0)){
+		bi->rm = bi->fcc * bi->soc * 36;
+		rt5025_convert_masec_to_permille(bi);
+	}
+	else if ((bi->internal_status == POWER_SUPPLY_STATUS_DISCHARGING) &&
+	          (bi->soc > 0))
+	{
 		bi->soc--;
-	}else{
+		bi->rm = bi->fcc * bi->soc * 36;
+		rt5025_convert_masec_to_permille(bi);
+	}
+	else
+	{
 	  bi->smooth_flag = false;
 	  bi->update_time = NORMAL_POLL;
   }
@@ -757,45 +766,48 @@ static void rt5025_soc_irreversible(struct rt5025_battery_info *bi)
 	// Prevent inverse
 	//if (!bi->init_cap){
 	if (!bi->init_once){
-		if (bi->internal_status == POWER_SUPPLY_STATUS_CHARGING){
+		if (bi->internal_status == POWER_SUPPLY_STATUS_CHARGING)
+		{
 			if (bi->soc < bi->pre_soc)
 				bi->soc = bi->pre_soc;
-		}else if (bi->internal_status == POWER_SUPPLY_STATUS_DISCHARGING){
-			if (bi->soc > bi->pre_soc)
-				bi->soc = bi->pre_soc;		
+		}
+		else if ((bi->internal_status == POWER_SUPPLY_STATUS_DISCHARGING) && 
+						(bi->tp_flag == 0))
+		{
+			if (bi->soc > bi->pre_soc) 
+				bi->soc = bi->pre_soc;
 		}
 	}
 	else
 		bi->init_once = false;
 
-	bi->pre_soc = bi->soc; 
+	bi->pre_soc = bi->soc;
+//	RTINFO("pre_soc=%d, soc=%d, internal status=%d\n", bi->pre_soc,bi->soc,bi->internal_status);
 }
 
 static void rt5025_soc_lock(struct rt5025_battery_info *bi)
 {
 	 // lock 99%
   RTINFO("internal status=%d, tp_flag=%d, soc=%d\n", bi->internal_status, bi->tp_flag, bi->soc);
-  if ((bi->soc >= 99) && (bi->internal_status == POWER_SUPPLY_STATUS_CHARGING))
+  if (bi->soc >= 99) 
   {
   	if (bi->tp_flag)
       		bi->soc = 100;
-    	else
-	{
-		if (bi->status == POWER_SUPPLY_STATUS_FULL)
-			bi->soc = 100;
-		else
-      			bi->soc = 99;
-	}
+		else if(bi->internal_status == POWER_SUPPLY_STATUS_CHARGING)
+		{
+				bi->soc = 99;
+				bi->pre_soc = 99;
+		}
   }
-  else if ((bi->soc < 99) && (bi->internal_status == POWER_SUPPLY_STATUS_CHARGING) && \
-          (bi->tp_flag))
+  else if ((bi->soc < 99) && (bi->tp_flag))
   {
-	bi->update_time = SMOOTH_POLL;
-	bi->smooth_flag = true;
-	rt5025_smooth_soc(bi);
-  }else
+		bi->update_time = SMOOTH_POLL;
+		bi->smooth_flag = true;
+		rt5025_smooth_soc(bi);
+  }
+  else
   {
-	bi->tp_flag = false;
+		bi->tp_flag = false;
   }
 
   // lock 1%   
@@ -804,7 +816,11 @@ static void rt5025_soc_lock(struct rt5025_battery_info *bi)
     if (bi->edv_flag)
       bi->soc = 0;
     else
-      bi->soc = 1;
+    {
+			bi->soc = 1;
+			bi->pre_soc = 1; 
+		}
+      
 	}else if ((bi->soc > 1) &&
             (bi->internal_status == POWER_SUPPLY_STATUS_DISCHARGING) &&
             (bi->edv_flag)){
@@ -898,6 +914,7 @@ static void rt5025_soc_relearn_check(struct rt5025_battery_info *bi)
 	else if((bi->vcell > rt5025_battery_param2[4].x + EDV_HYS) && (bi->min_volt2_alert == true))
 	{
 		bi->min_volt2_alert = false;
+		bi->edv_flag = false;
 	}
 	
 	/*// EDV relearn
@@ -937,7 +954,7 @@ static void rt5025_soc_relearn_check(struct rt5025_battery_info *bi)
   }*/
   if (bi->internal_status == POWER_SUPPLY_STATUS_CHARGING) 
 	  bi->edv_flag = false;
-  else if (bi->internal_status == POWER_SUPPLY_STATUS_DISCHARGING)
+  else if (bi->status != POWER_SUPPLY_STATUS_FULL)
     bi->tp_flag = false;
 
 #if RT5025_CSV
