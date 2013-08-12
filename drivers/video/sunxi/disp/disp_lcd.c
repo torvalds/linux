@@ -769,7 +769,6 @@ pwm_enable(__u32 channel, __bool b_en)
 
 	return 0;
 }
-EXPORT_SYMBOL(pwm_enable);
 
 #ifdef CONFIG_ARCH_SUN4I
 /*
