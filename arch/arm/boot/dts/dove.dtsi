@@ -44,6 +44,60 @@
 			  MBUS_ID(0x03, 0x01) 0 0xc8000000 0x0100000   /* CESA SRAM  1M */
 			  MBUS_ID(0x0d, 0x00) 0 0xf0000000 0x0100000>; /* PMU  SRAM  1M */
 
+		pcie: pcie-controller {
+			compatible = "marvell,dove-pcie";
+			status = "disabled";
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			msi-parent = <&intc>;
+			bus-range = <0x00 0xff>;
+
+			ranges = <0x82000000 0x0 0x40000 MBUS_ID(0xf0, 0x01) 0x40000 0 0x2000
+			          0x82000000 0x0 0x80000 MBUS_ID(0xf0, 0x01) 0x80000 0 0x2000
+				  0x82000000 0x1 0x0 MBUS_ID(0x04, 0xe8) 0 1 0   /* Port 0.0 Mem */
+				  0x81000000 0x1 0x0 MBUS_ID(0x04, 0xe0) 0 1 0   /* Port 0.0 I/O */
+				  0x82000000 0x2 0x0 MBUS_ID(0x08, 0xe8) 0 1 0   /* Port 1.0 Mem */
+				  0x81000000 0x2 0x0 MBUS_ID(0x08, 0xe0) 0 1 0>; /* Port 1.0 I/O */
+
+			pcie-port@0 {
+				device_type = "pci";
+				status = "disabled";
+				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
+				reg = <0x0800 0 0 0 0>;
+				clocks = <&gate_clk 4>;
+				marvell,pcie-port = <0>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
+				          0x81000000 0 0 0x81000000 0x1 0 1 0>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &intc 16>;
+			};
+
+			pcie-port@1 {
+				device_type = "pci";
+				status = "disabled";
+				assigned-addresses = <0x82002800 0 0x80000 0 0x2000>;
+				reg = <0x1000 0 0 0 0>;
+				clocks = <&gate_clk 5>;
+				marvell,pcie-port = <1>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
+				          0x81000000 0 0 0x81000000 0x2 0 1 0>;
+
+				#interrupt-cells = <1>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &intc 18>;
+			};
+		};
+
 		internal-regs {
 			compatible = "simple-bus";
 			#address-cells = <1>;
