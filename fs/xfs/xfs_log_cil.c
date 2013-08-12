@@ -80,6 +80,36 @@ xlog_cil_init_post_recovery(
 								log->l_curr_block);
 }
 
+STATIC int
+xlog_cil_lv_item_format(
+	struct xfs_log_item	*lip,
+	struct xfs_log_vec	*lv)
+{
+	int	index;
+	char	*ptr;
+
+	/* format new vectors into array */
+	lip->li_ops->iop_format(lip, lv->lv_iovecp);
+
+	/* copy data into existing array */
+	ptr = lv->lv_buf;
+	for (index = 0; index < lv->lv_niovecs; index++) {
+		struct xfs_log_iovec *vec = &lv->lv_iovecp[index];
+
+		memcpy(ptr, vec->i_addr, vec->i_len);
+		vec->i_addr = ptr;
+		ptr += vec->i_len;
+	}
+
+	/*
+	 * some size calculations for log vectors over-estimate, so the caller
+	 * doesn't know the amount of space actually used by the item. Return
+	 * the byte count to the caller so they can check and store it
+	 * appropriately.
+	 */
+	return ptr - lv->lv_buf;
+}
+
 /*
  * Format log item into a flat buffers
  *
@@ -111,7 +141,7 @@ xlog_cil_prepare_log_vecs(
 	struct xfs_trans	*tp)
 {
 	struct xfs_log_item_desc *lidp;
-	struct xfs_log_vec	*lv = NULL;
+	struct xfs_log_vec	*prev_lv = NULL;
 	struct xfs_log_vec	*ret_lv = NULL;
 
 
@@ -123,12 +153,10 @@ xlog_cil_prepare_log_vecs(
 
 	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		struct xfs_log_item *lip = lidp->lid_item;
-		struct xfs_log_vec *new_lv;
-		void	*ptr;
-		int	index;
-		int	len = 0;
-		uint	niovecs = 0;
-		uint	nbytes = 0;
+		struct xfs_log_vec *lv;
+		int	niovecs = 0;
+		int	nbytes = 0;
+		int	buf_size;
 		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
@@ -150,48 +178,39 @@ xlog_cil_prepare_log_vecs(
 		if (niovecs == XFS_LOG_VEC_ORDERED) {
 			ordered = true;
 			niovecs = 0;
+			nbytes = 0;
 		}
 
-		new_lv = kmem_zalloc(sizeof(*new_lv) +
-				niovecs * sizeof(struct xfs_log_iovec),
-				KM_SLEEP|KM_NOFS);
+		/* calc buffer size */
+		buf_size = sizeof(struct xfs_log_vec) + nbytes +
+				niovecs * sizeof(struct xfs_log_iovec);
 
-		new_lv->lv_item = lip;
-		new_lv->lv_niovecs = niovecs;
+		/* allocate new data chunk */
+		lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
+		lv->lv_item = lip;
+		lv->lv_size = buf_size;
+		lv->lv_niovecs = niovecs;
 		if (ordered) {
 			/* track as an ordered logvec */
-			new_lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
-			goto next;
+			ASSERT(lip->li_lv == NULL);
+			lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
+			goto insert;
 		}
 
 		/* The allocated iovec region lies beyond the log vector. */
-		new_lv->lv_iovecp = (struct xfs_log_iovec *)&new_lv[1];
+		lv->lv_iovecp = (struct xfs_log_iovec *)&lv[1];
 
-		/* build the vector array and calculate it's length */
-		IOP_FORMAT(new_lv->lv_item, new_lv->lv_iovecp);
-		for (index = 0; index < new_lv->lv_niovecs; index++)
-			len += new_lv->lv_iovecp[index].i_len;
+		/* The allocated data region lies beyond the iovec region */
+		lv->lv_buf = (char *)lv + buf_size - nbytes;
 
-		new_lv->lv_buf_len = len;
-		new_lv->lv_buf = kmem_alloc(new_lv->lv_buf_len,
-				KM_SLEEP|KM_NOFS);
-		ptr = new_lv->lv_buf;
-
-		for (index = 0; index < new_lv->lv_niovecs; index++) {
-			struct xfs_log_iovec *vec = &new_lv->lv_iovecp[index];
-
-			memcpy(ptr, vec->i_addr, vec->i_len);
-			vec->i_addr = ptr;
-			ptr += vec->i_len;
-		}
-		ASSERT(ptr == new_lv->lv_buf + new_lv->lv_buf_len);
-
-next:
+		lv->lv_buf_len = xlog_cil_lv_item_format(lip, lv);
+		ASSERT(lv->lv_buf_len <= nbytes);
+insert:
 		if (!ret_lv)
-			ret_lv = new_lv;
+			ret_lv = lv;
 		else
-			lv->lv_next = new_lv;
-		lv = new_lv;
+			prev_lv->lv_next = lv;
+		prev_lv = lv;
 	}
 
 	return ret_lv;
@@ -228,7 +247,6 @@ xfs_cil_prepare_item(
 
 		*len += lv->lv_buf_len - old->lv_buf_len;
 		*diff_iovecs += lv->lv_niovecs - old->lv_niovecs;
-		kmem_free(old->lv_buf);
 		kmem_free(old);
 	} else {
 		/* new lv, must pin the log item */
@@ -354,7 +372,6 @@ xlog_cil_free_logvec(
 
 	for (lv = log_vector; lv; ) {
 		struct xfs_log_vec *next = lv->lv_next;
-		kmem_free(lv->lv_buf);
 		kmem_free(lv);
 		lv = next;
 	}
