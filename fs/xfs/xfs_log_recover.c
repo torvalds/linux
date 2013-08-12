@@ -41,7 +41,6 @@
 #include "xfs_extfree_item.h"
 #include "xfs_trans_priv.h"
 #include "xfs_quota.h"
-#include "xfs_utils.h"
 #include "xfs_cksum.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"

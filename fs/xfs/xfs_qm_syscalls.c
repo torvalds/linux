@@ -38,7 +38,6 @@
 #include "xfs_error.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
-#include "xfs_utils.h"
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"

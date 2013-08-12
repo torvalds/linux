@@ -35,7 +35,6 @@
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
 #include "xfs_buf_item.h"
-#include "xfs_utils.h"
 #include "xfs_dfrag.h"
 #include "xfs_fsops.h"
 #include "xfs_discard.h"

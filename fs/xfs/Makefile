@@ -53,7 +53,6 @@ xfs-y				+= xfs_aops.o \
 				   xfs_super.o \
 				   xfs_symlink.o \
 				   xfs_trans.o \
-				   xfs_utils.o \
 				   xfs_xattr.o \
 				   kmem.o \
 				   uuid.o

@@ -26,7 +26,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_utils.h"
 #include "xfs_error.h"
 
 #ifdef DEBUG
