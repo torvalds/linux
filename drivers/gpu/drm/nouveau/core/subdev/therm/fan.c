@@ -234,6 +234,9 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 
 	nv_info(therm, "FAN control: %s\n", priv->fan->type);
 
+	/* read the current speed, it is useful when resuming */
+	priv->fan->percent = nouveau_therm_fan_get(therm);
+
 	/* attempt to detect a tachometer connection */
 	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &priv->fan->tach);
 	if (ret)
