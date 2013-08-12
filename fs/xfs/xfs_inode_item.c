@@ -47,32 +47,44 @@ static inline struct xfs_inode_log_item *INODE_ITEM(struct xfs_log_item *lip)
  * inode core, and possibly one for the inode data/extents/b-tree root
  * and one for the inode attribute data/extents/b-tree root.
  */
-STATIC uint
+STATIC void
 xfs_inode_item_size(
-	struct xfs_log_item	*lip)
+	struct xfs_log_item	*lip,
+	int			*nvecs,
+	int			*nbytes)
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
-	uint			nvecs = 2;
+
+	*nvecs += 2;
+	*nbytes += sizeof(struct xfs_inode_log_format) +
+		   xfs_icdinode_size(ip->i_d.di_version);
 
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		if ((iip->ili_fields & XFS_ILOG_DEXT) &&
 		    ip->i_d.di_nextents > 0 &&
-		    ip->i_df.if_bytes > 0)
-			nvecs++;
+		    ip->i_df.if_bytes > 0) {
+			/* worst case, doesn't subtract delalloc extents */
+			*nbytes += XFS_IFORK_DSIZE(ip);
+			*nvecs += 1;
+		}
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
 		if ((iip->ili_fields & XFS_ILOG_DBROOT) &&
-		    ip->i_df.if_broot_bytes > 0)
-			nvecs++;
+		    ip->i_df.if_broot_bytes > 0) {
+			*nbytes += ip->i_df.if_broot_bytes;
+			*nvecs += 1;
+		}
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
 		if ((iip->ili_fields & XFS_ILOG_DDATA) &&
-		    ip->i_df.if_bytes > 0)
-			nvecs++;
+		    ip->i_df.if_bytes > 0) {
+			*nbytes += roundup(ip->i_df.if_bytes, 4);
+			*nvecs += 1;
+		}
 		break;
 
 	case XFS_DINODE_FMT_DEV:
@@ -85,7 +97,7 @@ xfs_inode_item_size(
 	}
 
 	if (!XFS_IFORK_Q(ip))
-		return nvecs;
+		return;
 
 
 	/*
@@ -95,28 +107,33 @@ xfs_inode_item_size(
 	case XFS_DINODE_FMT_EXTENTS:
 		if ((iip->ili_fields & XFS_ILOG_AEXT) &&
 		    ip->i_d.di_anextents > 0 &&
-		    ip->i_afp->if_bytes > 0)
-			nvecs++;
+		    ip->i_afp->if_bytes > 0) {
+			/* worst case, doesn't subtract unused space */
+			*nbytes += XFS_IFORK_ASIZE(ip);
+			*nvecs += 1;
+		}
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
 		if ((iip->ili_fields & XFS_ILOG_ABROOT) &&
-		    ip->i_afp->if_broot_bytes > 0)
-			nvecs++;
+		    ip->i_afp->if_broot_bytes > 0) {
+			*nbytes += ip->i_afp->if_broot_bytes;
+			*nvecs += 1;
+		}
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
 		if ((iip->ili_fields & XFS_ILOG_ADATA) &&
-		    ip->i_afp->if_bytes > 0)
-			nvecs++;
+		    ip->i_afp->if_bytes > 0) {
+			*nbytes += roundup(ip->i_afp->if_bytes, 4);
+			*nvecs += 1;
+		}
 		break;
 
 	default:
 		ASSERT(0);
 		break;
 	}
-
-	return nvecs;
 }
 
 /*

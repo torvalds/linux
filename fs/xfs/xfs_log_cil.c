@@ -122,19 +122,23 @@ xlog_cil_prepare_log_vecs(
 	}
 
 	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
+		struct xfs_log_item *lip = lidp->lid_item;
 		struct xfs_log_vec *new_lv;
 		void	*ptr;
 		int	index;
 		int	len = 0;
-		uint	niovecs;
+		uint	niovecs = 0;
+		uint	nbytes = 0;
 		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
 		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
 
+		/* get number of vecs and size of data to be stored */
+		lip->li_ops->iop_size(lip, &niovecs, &nbytes);
+
 		/* Skip items that do not have any vectors for writing */
-		niovecs = IOP_SIZE(lidp->lid_item);
 		if (!niovecs)
 			continue;
 
@@ -152,7 +156,7 @@ xlog_cil_prepare_log_vecs(
 				niovecs * sizeof(struct xfs_log_iovec),
 				KM_SLEEP|KM_NOFS);
 
-		new_lv->lv_item = lidp->lid_item;
+		new_lv->lv_item = lip;
 		new_lv->lv_niovecs = niovecs;
 		if (ordered) {
 			/* track as an ordered logvec */

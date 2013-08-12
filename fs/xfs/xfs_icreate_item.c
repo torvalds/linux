@@ -40,11 +40,14 @@ static inline struct xfs_icreate_item *ICR_ITEM(struct xfs_log_item *lip)
  *
  * We only need one iovec for the icreate log structure.
  */
-STATIC uint
+STATIC void
 xfs_icreate_item_size(
-	struct xfs_log_item	*lip)
+	struct xfs_log_item	*lip,
+	int			*nvecs,
+	int			*nbytes)
 {
-	return 1;
+	*nvecs += 1;
+	*nbytes += sizeof(struct xfs_icreate_log);
 }
 
 /*

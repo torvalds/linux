@@ -73,11 +73,22 @@ __xfs_efi_release(
  * We only need 1 iovec for an efi item.  It just logs the efi_log_format
  * structure.
  */
-STATIC uint
-xfs_efi_item_size(
-	struct xfs_log_item	*lip)
+static inline int
+xfs_efi_item_sizeof(
+	struct xfs_efi_log_item *efip)
 {
-	return 1;
+	return sizeof(struct xfs_efi_log_format) +
+	       (efip->efi_format.efi_nextents - 1) * sizeof(xfs_extent_t);
+}
+
+STATIC void
+xfs_efi_item_size(
+	struct xfs_log_item	*lip,
+	int			*nvecs,
+	int			*nbytes)
+{
+	*nvecs += 1;
+	*nbytes += xfs_efi_item_sizeof(EFI_ITEM(lip));
 }
 
 /*
@@ -93,21 +104,17 @@ xfs_efi_item_format(
 	struct xfs_log_iovec	*log_vector)
 {
 	struct xfs_efi_log_item	*efip = EFI_ITEM(lip);
-	uint			size;
 
 	ASSERT(atomic_read(&efip->efi_next_extent) ==
 				efip->efi_format.efi_nextents);
 
 	efip->efi_format.efi_type = XFS_LI_EFI;
-
-	size = sizeof(xfs_efi_log_format_t);
-	size += (efip->efi_format.efi_nextents - 1) * sizeof(xfs_extent_t);
 	efip->efi_format.efi_size = 1;
 
 	log_vector->i_addr = &efip->efi_format;
-	log_vector->i_len = size;
+	log_vector->i_len = xfs_efi_item_sizeof(efip);
 	log_vector->i_type = XLOG_REG_TYPE_EFI_FORMAT;
-	ASSERT(size >= sizeof(xfs_efi_log_format_t));
+	ASSERT(log_vector->i_len >= sizeof(xfs_efi_log_format_t));
 }
 
 
@@ -333,11 +340,22 @@ xfs_efd_item_free(struct xfs_efd_log_item *efdp)
  * We only need 1 iovec for an efd item.  It just logs the efd_log_format
  * structure.
  */
-STATIC uint
-xfs_efd_item_size(
-	struct xfs_log_item	*lip)
+static inline int
+xfs_efd_item_sizeof(
+	struct xfs_efd_log_item *efdp)
 {
-	return 1;
+	return sizeof(xfs_efd_log_format_t) +
+	       (efdp->efd_format.efd_nextents - 1) * sizeof(xfs_extent_t);
+}
+
+STATIC void
+xfs_efd_item_size(
+	struct xfs_log_item	*lip,
+	int			*nvecs,
+	int			*nbytes)
+{
+	*nvecs += 1;
+	*nbytes += xfs_efd_item_sizeof(EFD_ITEM(lip));
 }
 
 /*
@@ -353,20 +371,16 @@ xfs_efd_item_format(
 	struct xfs_log_iovec	*log_vector)
 {
 	struct xfs_efd_log_item	*efdp = EFD_ITEM(lip);
-	uint			size;
 
 	ASSERT(efdp->efd_next_extent == efdp->efd_format.efd_nextents);
 
 	efdp->efd_format.efd_type = XFS_LI_EFD;
-
-	size = sizeof(xfs_efd_log_format_t);
-	size += (efdp->efd_format.efd_nextents - 1) * sizeof(xfs_extent_t);
 	efdp->efd_format.efd_size = 1;
 
 	log_vector->i_addr = &efdp->efd_format;
-	log_vector->i_len = size;
+	log_vector->i_len = xfs_efd_item_sizeof(efdp);
 	log_vector->i_type = XLOG_REG_TYPE_EFD_FORMAT;
-	ASSERT(size >= sizeof(xfs_efd_log_format_t));
+	ASSERT(log_vector->i_len >= sizeof(xfs_efd_log_format_t));
 }
 
 /*
