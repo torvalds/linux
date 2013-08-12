@@ -544,4 +544,62 @@ typedef struct xfs_efd_log_format_64 {
 	xfs_extent_64_t		efd_extents[1];	/* array of extents freed */
 } xfs_efd_log_format_64_t;
 
+/*
+ * Dquot Log format definitions.
+ *
+ * The first two fields must be the type and size fitting into
+ * 32 bits : log_recovery code assumes that.
+ */
+typedef struct xfs_dq_logformat {
+	__uint16_t		qlf_type;      /* dquot log item type */
+	__uint16_t		qlf_size;      /* size of this item */
+	xfs_dqid_t		qlf_id;	       /* usr/grp/proj id : 32 bits */
+	__int64_t		qlf_blkno;     /* blkno of dquot buffer */
+	__int32_t		qlf_len;       /* len of dquot buffer */
+	__uint32_t		qlf_boffset;   /* off of dquot in buffer */
+} xfs_dq_logformat_t;
+
+/*
+ * log format struct for QUOTAOFF records.
+ * The first two fields must be the type and size fitting into
+ * 32 bits : log_recovery code assumes that.
+ * We write two LI_QUOTAOFF logitems per quotaoff, the last one keeps a pointer
+ * to the first and ensures that the first logitem is taken out of the AIL
+ * only when the last one is securely committed.
+ */
+typedef struct xfs_qoff_logformat {
+	unsigned short		qf_type;	/* quotaoff log item type */
+	unsigned short		qf_size;	/* size of this item */
+	unsigned int		qf_flags;	/* USR and/or GRP */
+	char			qf_pad[12];	/* padding for future */
+} xfs_qoff_logformat_t;
+
+
+/*
+ * Disk quotas status in m_qflags, and also sb_qflags. 16 bits.
+ */
+#define XFS_UQUOTA_ACCT	0x0001  /* user quota accounting ON */
+#define XFS_UQUOTA_ENFD	0x0002  /* user quota limits enforced */
+#define XFS_UQUOTA_CHKD	0x0004  /* quotacheck run on usr quotas */
+#define XFS_PQUOTA_ACCT	0x0008  /* project quota accounting ON */
+#define XFS_OQUOTA_ENFD	0x0010  /* other (grp/prj) quota limits enforced */
+#define XFS_OQUOTA_CHKD	0x0020  /* quotacheck run on other (grp/prj) quotas */
+#define XFS_GQUOTA_ACCT	0x0040  /* group quota accounting ON */
+
+/*
+ * Conversion to and from the combined OQUOTA flag (if necessary)
+ * is done only in xfs_sb_qflags_to_disk() and xfs_sb_qflags_from_disk()
+ */
+#define XFS_GQUOTA_ENFD	0x0080  /* group quota limits enforced */
+#define XFS_GQUOTA_CHKD	0x0100  /* quotacheck run on group quotas */
+#define XFS_PQUOTA_ENFD	0x0200  /* project quota limits enforced */
+#define XFS_PQUOTA_CHKD	0x0400  /* quotacheck run on project quotas */
+
+#define XFS_ALL_QUOTA_ACCT	\
+		(XFS_UQUOTA_ACCT | XFS_GQUOTA_ACCT | XFS_PQUOTA_ACCT)
+#define XFS_ALL_QUOTA_ENFD	\
+		(XFS_UQUOTA_ENFD | XFS_GQUOTA_ENFD | XFS_PQUOTA_ENFD)
+#define XFS_ALL_QUOTA_CHKD	\
+		(XFS_UQUOTA_CHKD | XFS_GQUOTA_CHKD | XFS_PQUOTA_CHKD)
+
 #endif /* __XFS_LOG_FORMAT_H__ */

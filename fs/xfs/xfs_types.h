@@ -177,4 +177,10 @@ struct xfs_name {
 	int			len;
 };
 
+/*
+ * uid_t and gid_t are hard-coded to 32 bits in the inode.
+ * Hence, an 'id' in a dquot is 32 bits..
+ */
+typedef __uint32_t	xfs_dqid_t;
+
 #endif	/* __XFS_TYPES_H__ */
