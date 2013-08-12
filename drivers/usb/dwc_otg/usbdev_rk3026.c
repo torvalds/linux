@@ -114,7 +114,11 @@ void usb20otg_hw_init(void)
 #ifdef CONFIG_RK_CONFIG
     otg_drv_init(0);
 #else
-    iomux_set(GPIO3_C1|0x01);  
+#ifdef CONFIG_ARCH_RK3026_86V
+
+#else
+    iomux_set(OTG_DRV_VBUS);
+#endif
 #endif
 }
 void usb20otg_phy_suspend(void* pdata, int suspend)
