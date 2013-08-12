@@ -65,7 +65,7 @@ enum s3c64xx_plls {
  * List of controller registers to be saved and restored during
  * a suspend/resume cycle.
  */
-static __initdata unsigned long s3c64xx_clk_regs[] = {
+static unsigned long s3c64xx_clk_regs[] __initdata = {
 	APLL_LOCK,
 	MPLL_LOCK,
 	EPLL_LOCK,
@@ -82,7 +82,7 @@ static __initdata unsigned long s3c64xx_clk_regs[] = {
 	SCLK_GATE,
 };
 
-static __initdata unsigned long s3c6410_clk_regs[] = {
+static unsigned long s3c6410_clk_regs[] __initdata = {
 	CLK_SRC2,
 	MEM0_GATE,
 };
