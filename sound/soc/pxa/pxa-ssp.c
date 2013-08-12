@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/pxa2xx_ssp.h>
 #include <linux/of.h>
+#include <linux/dmaengine.h>
 
 #include <asm/irq.h>
 
@@ -31,9 +32,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>
+#include <sound/dmaengine_pcm.h>
 
 #include <mach/hardware.h>
-#include <mach/dma.h>
 
 #include "../../arm/pxa2xx-pcm.h"
 #include "pxa-ssp.h"
@@ -80,27 +81,14 @@ static void pxa_ssp_disable(struct ssp_device *ssp)
 	__raw_writel(sscr0, ssp->mmio_base + SSCR0);
 }
 
-struct pxa2xx_pcm_dma_data {
-	struct pxa2xx_pcm_dma_params params;
-	char name[20];
-};
-
 static void pxa_ssp_set_dma_params(struct ssp_device *ssp, int width4,
-			int out, struct pxa2xx_pcm_dma_params *dma_data)
+			int out, struct snd_dmaengine_dai_dma_data *dma)
 {
-	struct pxa2xx_pcm_dma_data *dma;
-
-	dma = container_of(dma_data, struct pxa2xx_pcm_dma_data, params);
-
-	snprintf(dma->name, 20, "SSP%d PCM %s %s", ssp->port_id,
-			width4 ? "32-bit" : "16-bit", out ? "out" : "in");
-
-	dma->params.name = dma->name;
-	dma->params.drcmr = &DRCMR(out ? ssp->drcmr_tx : ssp->drcmr_rx);
-	dma->params.dcmd = (out ? (DCMD_INCSRCADDR | DCMD_FLOWTRG) :
-				  (DCMD_INCTRGADDR | DCMD_FLOWSRC)) |
-			(width4 ? DCMD_WIDTH4 : DCMD_WIDTH2) | DCMD_BURST16;
-	dma->params.dev_addr = ssp->phys_base + SSDR;
+	dma->filter_data = out ? &ssp->drcmr_tx : &ssp->drcmr_rx;
+	dma->addr_width = width4 ? DMA_SLAVE_BUSWIDTH_4_BYTES :
+				   DMA_SLAVE_BUSWIDTH_2_BYTES;
+	dma->maxburst = 16;
+	dma->addr = ssp->phys_base + SSDR;
 }
 
 static int pxa_ssp_startup(struct snd_pcm_substream *substream,
@@ -108,7 +96,7 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 {
 	struct ssp_priv *priv = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ssp_device *ssp = priv->ssp;
-	struct pxa2xx_pcm_dma_data *dma;
+	struct snd_dmaengine_dai_dma_data *dma;
 	int ret = 0;
 
 	if (!cpu_dai->active) {
@@ -116,10 +104,10 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 		pxa_ssp_disable(ssp);
 	}
 
-	dma = kzalloc(sizeof(struct pxa2xx_pcm_dma_data), GFP_KERNEL);
+	dma = kzalloc(sizeof(struct snd_dmaengine_dai_dma_data), GFP_KERNEL);
 	if (!dma)
 		return -ENOMEM;
-	snd_soc_dai_set_dma_data(cpu_dai, substream, &dma->params);
+	snd_soc_dai_set_dma_data(cpu_dai, substream, dma);
 
 	return ret;
 }
@@ -560,7 +548,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	u32 sspsp;
 	int width = snd_pcm_format_physical_width(params_format(params));
 	int ttsa = pxa_ssp_read_reg(ssp, SSTSA) & 0xf;
-	struct pxa2xx_pcm_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	dma_data = snd_soc_dai_get_dma_data(cpu_dai, substream);
 
