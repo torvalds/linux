@@ -200,9 +200,16 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 	if (ret != 0)
 		return ret;
 
-	ret = snd_soc_dapm_new_controls(&codec->dapm, &arizona_spkr, 1);
-	if (ret != 0)
-		return ret;
+	switch (arizona->type) {
+	case WM8997:
+		break;
+	default:
+		ret = snd_soc_dapm_new_controls(&codec->dapm,
+						&arizona_spkr, 1);
+		if (ret != 0)
+			return ret;
+		break;
+	}
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_SPK_SHUTDOWN_WARN,
 				  "Thermal warning", arizona_thermal_warn,
