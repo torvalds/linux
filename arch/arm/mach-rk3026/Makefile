@@ -21,5 +21,6 @@ obj-y += board.o
 
 board-$(CONFIG_MACH_RK3026_FPGA) += board-rk3026-fpga.o
 board-$(CONFIG_MACH_RK3026_TB) += board-rk3026-tb.o
+board-$(CONFIG_MACH_RK3026_86V) += board-rk3026-86v.o
 board-$(CONFIG_MACH_RK3028A_TB) += board-rk3028a-tb.o
 board-$(CONFIG_MACH_RK3028A_86V) += board-rk3028a-86v.o

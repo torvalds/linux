@@ -8,6 +8,9 @@ config MACH_RK3026_FPGA
 config MACH_RK3026_TB
 	bool "RK3026 Top Board"
 
+config MACH_RK3026_86V
+	bool "RK3026 86V Board"
+
 config MACH_RK3028A_TB
 	bool "RK3028A Top Board"
 
