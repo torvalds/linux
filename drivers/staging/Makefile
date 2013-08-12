@@ -58,7 +58,6 @@ obj-$(CONFIG_DRM_IMX)		+= imx-drm/
 obj-$(CONFIG_DGRP)		+= dgrp/
 obj-$(CONFIG_SB105X)		+= sb105x/
 obj-$(CONFIG_FIREWIRE_SERIAL)	+= fwserial/
-obj-$(CONFIG_ZCACHE)		+= zcache/
 obj-$(CONFIG_GOLDFISH)		+= goldfish/
 obj-$(CONFIG_USB_DWC2)		+= dwc2/
 obj-$(CONFIG_LUSTRE_FS)		+= lustre/

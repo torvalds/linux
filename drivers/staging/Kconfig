@@ -130,8 +130,6 @@ source "drivers/staging/sb105x/Kconfig"
 
 source "drivers/staging/fwserial/Kconfig"
 
-source "drivers/staging/zcache/Kconfig"
-
 source "drivers/staging/goldfish/Kconfig"
 
 source "drivers/staging/netlogic/Kconfig"
