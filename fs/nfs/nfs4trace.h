@@ -336,6 +336,81 @@ TRACE_EVENT(nfs4_close,
 		)
 );
 
+#define show_lock_cmd(type) \
+	__print_symbolic((int)type, \
+		{ F_GETLK, "GETLK" }, \
+		{ F_SETLK, "SETLK" }, \
+		{ F_SETLKW, "SETLKW" })
+#define show_lock_type(type) \
+	__print_symbolic((int)type, \
+		{ F_RDLCK, "RDLCK" }, \
+		{ F_WRLCK, "WRLCK" }, \
+		{ F_UNLCK, "UNLCK" })
+
+DECLARE_EVENT_CLASS(nfs4_lock_event,
+		TP_PROTO(
+			const struct file_lock *request,
+			const struct nfs4_state *state,
+			int cmd,
+			int error
+		),
+
+		TP_ARGS(request, state, cmd, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(int, cmd)
+			__field(char, type)
+			__field(loff_t, start)
+			__field(loff_t, end)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = state->inode;
+
+			__entry->error = error;
+			__entry->cmd = cmd;
+			__entry->type = request->fl_type;
+			__entry->start = request->fl_start;
+			__entry->end = request->fl_end;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+		),
+
+		TP_printk(
+			"error=%d (%s) cmd=%s:%s range=%lld:%lld "
+			"fileid=%02x:%02x:%llu fhandle=0x%08x",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			show_lock_cmd(__entry->cmd),
+			show_lock_type(__entry->type),
+			(long long)__entry->start,
+			(long long)__entry->end,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle
+		)
+);
+
+#define DEFINE_NFS4_LOCK_EVENT(name) \
+	DEFINE_EVENT(nfs4_lock_event, name, \
+			TP_PROTO( \
+				const struct file_lock *request, \
+				const struct nfs4_state *state, \
+				int cmd, \
+				int error \
+			), \
+			TP_ARGS(request, state, cmd, error))
+DEFINE_NFS4_LOCK_EVENT(nfs4_get_lock);
+DEFINE_NFS4_LOCK_EVENT(nfs4_set_lock);
+DEFINE_NFS4_LOCK_EVENT(nfs4_lock_reclaim);
+DEFINE_NFS4_LOCK_EVENT(nfs4_lock_expired);
+DEFINE_NFS4_LOCK_EVENT(nfs4_unlock);
+
 #endif /* _TRACE_NFS4_H */
 
 #undef TRACE_INCLUDE_PATH
