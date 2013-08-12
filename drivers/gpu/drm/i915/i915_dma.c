@@ -1488,6 +1488,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	i915_dump_device_info(dev_priv);
 
+	/* Not all pre-production machines fall into this category, only the
+	 * very first ones. Almost everything should work, except for maybe
+	 * suspend/resume. And we don't implement workarounds that affect only
+	 * pre-production machines. */
+	if (IS_HSW_EARLY_SDV(dev))
+		DRM_INFO("This is an early pre-production Haswell machine. "
+			 "It may not be fully functional.\n");
+
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;
 		goto free_priv;
