@@ -1622,7 +1622,7 @@ xfs_setsize_buftarg_flags(
 /*
  *	When allocating the initial buffer target we have not yet
  *	read in the superblock, so don't know what sized sectors
- *	are being used is at this early stage.  Play safe.
+ *	are being used at this early stage.  Play safe.
  */
 STATIC int
 xfs_setsize_buftarg_early(
