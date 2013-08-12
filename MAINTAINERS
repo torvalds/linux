@@ -7660,7 +7660,9 @@ M:	Vinod Koul <vinod.koul@intel.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 S:	Supported
+F:	Documentation/sound/alsa/compress_offload.txt
 F:	include/sound/compress_driver.h
+F:	include/uapi/sound/compress_*
 F:	sound/core/compress_offload.c
 F:	sound/soc/soc-compress.c
 
