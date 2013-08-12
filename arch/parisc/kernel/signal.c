@@ -56,13 +56,6 @@
 #define A(__x)	((unsigned long)(__x))
 
 /*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-#ifdef CONFIG_64BIT
-#include "sys32.h"
-#endif
-
-/*
  * Do a signal return - restore sigcontext.
  */
 

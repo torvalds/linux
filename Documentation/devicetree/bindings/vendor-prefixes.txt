@@ -26,6 +26,7 @@ est	ESTeem Wireless Modems
 fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+hisilicon	Hisilicon Limited.
 hp	Hewlett Packard
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
@@ -43,6 +44,7 @@ nxp	NXP Semiconductors
 onnn	ON Semiconductor Corp.
 picochip	Picochip Ltd
 powervr	PowerVR (deprecated, use img)
+qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm, Inc.
 ralink	Mediatek/Ralink Technology Corp.
 ramtron	Ramtron International
