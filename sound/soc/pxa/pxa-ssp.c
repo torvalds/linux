@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/pxa2xx_ssp.h>
+#include <linux/of.h>
 
 #include <asm/irq.h>
 
@@ -719,6 +720,7 @@ static int pxa_ssp_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static int pxa_ssp_probe(struct snd_soc_dai *dai)
 {
+	struct device *dev = dai->dev;
 	struct ssp_priv *priv;
 	int ret;
 
@@ -726,10 +728,26 @@ static int pxa_ssp_probe(struct snd_soc_dai *dai)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->ssp = pxa_ssp_request(dai->id + 1, "SoC audio");
-	if (priv->ssp == NULL) {
-		ret = -ENODEV;
-		goto err_priv;
+	if (dev->of_node) {
+		struct device_node *ssp_handle;
+
+		ssp_handle = of_parse_phandle(dev->of_node, "port", 0);
+		if (!ssp_handle) {
+			dev_err(dev, "unable to get 'port' phandle\n");
+			return -ENODEV;
+		}
+
+		priv->ssp = pxa_ssp_request_of(ssp_handle, "SoC audio");
+		if (priv->ssp == NULL) {
+			ret = -ENODEV;
+			goto err_priv;
+		}
+	} else {
+		priv->ssp = pxa_ssp_request(dai->id + 1, "SoC audio");
+		if (priv->ssp == NULL) {
+			ret = -ENODEV;
+			goto err_priv;
+		}
 	}
 
 	priv->dai_fmt = (unsigned int) -1;
@@ -798,6 +816,12 @@ static const struct snd_soc_component_driver pxa_ssp_component = {
 	.name		= "pxa-ssp",
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id pxa_ssp_of_ids[] = {
+	{ .compatible = "mrvl,pxa-ssp-dai" },
+};
+#endif
+
 static int asoc_ssp_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_component(&pdev->dev, &pxa_ssp_component,
@@ -812,8 +836,9 @@ static int asoc_ssp_remove(struct platform_device *pdev)
 
 static struct platform_driver asoc_ssp_driver = {
 	.driver = {
-			.name = "pxa-ssp-dai",
-			.owner = THIS_MODULE,
+		.name = "pxa-ssp-dai",
+		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(pxa_ssp_of_ids),
 	},
 
 	.probe = asoc_ssp_probe,
