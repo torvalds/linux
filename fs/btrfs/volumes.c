@@ -674,22 +674,19 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		if (device->can_discard)
 			fs_devices->num_can_discard--;
 
-		new_device = kmalloc(sizeof(*new_device), GFP_NOFS);
-		BUG_ON(!new_device); /* -ENOMEM */
-		memcpy(new_device, device, sizeof(*new_device));
+		new_device = btrfs_alloc_device(NULL, &device->devid,
+						device->uuid);
+		BUG_ON(IS_ERR(new_device)); /* -ENOMEM */
 
 		/* Safe because we are under uuid_mutex */
 		if (device->name) {
 			name = rcu_string_strdup(device->name->str, GFP_NOFS);
-			BUG_ON(device->name && !name); /* -ENOMEM */
+			BUG_ON(!name); /* -ENOMEM */
 			rcu_assign_pointer(new_device->name, name);
 		}
-		new_device->bdev = NULL;
-		new_device->writeable = 0;
-		new_device->in_fs_metadata = 0;
-		new_device->can_discard = 0;
-		spin_lock_init(&new_device->io_lock);
+
 		list_replace_rcu(&device->dev_list, &new_device->dev_list);
+		new_device->fs_devices = device->fs_devices;
 
 		call_rcu(&device->rcu, free_device);
 	}
