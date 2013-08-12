@@ -479,12 +479,12 @@ static void __init of_nomadik_src_clk_setup(struct device_node *np)
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
 
-static const __initconst struct of_device_id nomadik_src_match[] = {
+static const struct of_device_id nomadik_src_match[] __initconst = {
 	{ .compatible = "stericsson,nomadik-src" },
 	{ /* sentinel */ }
 };
 
-static const __initconst struct of_device_id nomadik_src_clk_match[] = {
+static const struct of_device_id nomadik_src_clk_match[] __initconst = {
 	{
 		.compatible = "fixed-clock",
 		.data = of_fixed_clk_setup,
