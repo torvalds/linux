@@ -225,6 +225,17 @@ struct aufs_ibusy {
 
 /* ---------------------------------------------------------------------- */
 
+/* flags for move-down */
+#define AUFS_MVDOWN_VERBOSE	1
+/* will be added more */
+
+struct aufs_mvdown {
+	uint8_t		flags;
+	/* will be added more */
+} __aligned(8);
+
+/* ---------------------------------------------------------------------- */
+
 #define AuCtlType		'A'
 #define AUFS_CTL_RDU		_IOWR(AuCtlType, AuCtl_RDU, struct aufs_rdu)
 #define AUFS_CTL_RDU_INO	_IOWR(AuCtlType, AuCtl_RDU_INO, struct aufs_rdu)
