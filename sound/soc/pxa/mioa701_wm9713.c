@@ -56,8 +56,6 @@
 #include "pxa2xx-ac97.h"
 #include "../codecs/wm9713.h"
 
-#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
-
 #define AC97_GPIO_PULL		0x58
 
 /* Use GPIO8 for rear speaker amplifier */
