@@ -29,8 +29,8 @@
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_error.h"
-#include "xfs_dir2.h"
 #include "xfs_dir2_format.h"
+#include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_trace.h"
 
@@ -95,7 +95,7 @@ xfs_dir2_sf_get_parent_ino(
 	return xfs_dir2_sf_get_ino(hdr, &hdr->parent);
 }
 
-static void
+void
 xfs_dir2_sf_put_parent_ino(
 	struct xfs_dir2_sf_hdr	*hdr,
 	xfs_ino_t		ino)
@@ -123,7 +123,7 @@ xfs_dir2_sfe_get_ino(
 	return xfs_dir2_sf_get_ino(hdr, xfs_dir2_sfe_inop(sfep));
 }
 
-static void
+void
 xfs_dir2_sfe_put_ino(
 	struct xfs_dir2_sf_hdr	*hdr,
 	struct xfs_dir2_sf_entry *sfep,

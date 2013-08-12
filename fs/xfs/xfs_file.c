@@ -32,7 +32,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_da_btree.h"
 #include "xfs_dir2_format.h"
-#include "xfs_dir2_priv.h"
+#include "xfs_dir2.h"
 #include "xfs_ioctl.h"
 #include "xfs_trace.h"
 

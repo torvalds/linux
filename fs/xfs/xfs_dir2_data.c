@@ -29,13 +29,11 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_dir2_format.h"
+#include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_error.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
-
-STATIC xfs_dir2_data_free_t *
-xfs_dir2_data_freefind(xfs_dir2_data_hdr_t *hdr, xfs_dir2_data_unused_t *dup);
 
 /*
  * Check the consistency of the data block.
@@ -325,7 +323,7 @@ xfs_dir3_data_readahead(
  * Given a data block and an unused entry from that block,
  * return the bestfree entry if any that corresponds to it.
  */
-STATIC xfs_dir2_data_free_t *
+xfs_dir2_data_free_t *
 xfs_dir2_data_freefind(
 	xfs_dir2_data_hdr_t	*hdr,		/* data block */
 	xfs_dir2_data_unused_t	*dup)		/* data unused entry */
