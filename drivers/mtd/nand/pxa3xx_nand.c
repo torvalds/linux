@@ -25,7 +25,14 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
+#if defined(CONFIG_ARCH_PXA) || defined(CONFIG_ARCH_MMP)
+#define ARCH_HAS_DMA
+#endif
+
+#ifdef ARCH_HAS_DMA
 #include <mach/dma.h>
+#endif
+
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
 #define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
@@ -381,6 +388,7 @@ static void handle_data_pio(struct pxa3xx_nand_info *info)
 	}
 }
 
+#ifdef ARCH_HAS_DMA
 static void start_data_dma(struct pxa3xx_nand_info *info)
 {
 	struct pxa_dma_desc *desc = info->data_desc;
@@ -427,6 +435,10 @@ static void pxa3xx_nand_data_dma_irq(int channel, void *data)
 	enable_int(info, NDCR_INT_MASK);
 	nand_writel(info, NDSR, NDSR_WRDREQ | NDSR_RDDREQ);
 }
+#else
+static void start_data_dma(struct pxa3xx_nand_info *info)
+{}
+#endif
 
 static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 {
@@ -905,6 +917,7 @@ static int pxa3xx_nand_detect_config(struct pxa3xx_nand_info *info)
  */
 #define MAX_BUFF_SIZE	PAGE_SIZE
 
+#ifdef ARCH_HAS_DMA
 static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 {
 	struct platform_device *pdev = info->pdev;
@@ -950,6 +963,20 @@ static void pxa3xx_nand_free_buff(struct pxa3xx_nand_info *info)
 		kfree(info->data_buff);
 	}
 }
+#else
+static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
+{
+	info->data_buff = kmalloc(MAX_BUFF_SIZE, GFP_KERNEL);
+	if (info->data_buff == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+static void pxa3xx_nand_free_buff(struct pxa3xx_nand_info *info)
+{
+	kfree(info->data_buff);
+}
+#endif
 
 static int pxa3xx_nand_sensing(struct pxa3xx_nand_info *info)
 {
@@ -1265,6 +1292,13 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	struct pxa3xx_nand_info *info;
 	int ret, cs, probe_success;
 
+#ifndef ARCH_HAS_DMA
+	if (use_dma) {
+		use_dma = 0;
+		dev_warn(&pdev->dev,
+			 "This platform can't do DMA on this device\n");
+	}
+#endif
 	ret = pxa3xx_nand_probe_dt(pdev);
 	if (ret)
 		return ret;
