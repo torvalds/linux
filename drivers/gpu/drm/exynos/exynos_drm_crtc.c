@@ -15,6 +15,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
+#include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_plane.h"
