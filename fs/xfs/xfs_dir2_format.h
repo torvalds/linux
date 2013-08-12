@@ -519,6 +519,9 @@ struct xfs_dir3_leaf {
 
 #define XFS_DIR3_LEAF_CRC_OFF  offsetof(struct xfs_dir3_leaf_hdr, info.crc)
 
+extern void xfs_dir3_leaf_hdr_from_disk(struct xfs_dir3_icleaf_hdr *to,
+					struct xfs_dir2_leaf *from);
+
 static inline int
 xfs_dir3_leaf_hdr_size(struct xfs_dir2_leaf *lp)
 {

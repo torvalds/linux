@@ -311,6 +311,17 @@ typedef struct xfs_bstat {
 } xfs_bstat_t;
 
 /*
+ * Project quota id helpers (previously projid was 16bit only
+ * and using two 16bit values to hold new 32bit projid was choosen
+ * to retain compatibility with "old" filesystems).
+ */
+static inline __uint32_t
+bstat_get_projid(struct xfs_bstat *bs)
+{
+	return (__uint32_t)bs->bs_projid_hi << 16 | bs->bs_projid_lo;
+}
+
+/*
  * The user-level BulkStat Request interface structure.
  */
 typedef struct xfs_fsop_bulkreq {
@@ -511,8 +522,14 @@ typedef struct xfs_handle {
 #define XFS_IOC_ERROR_INJECTION	     _IOW ('X', 116, struct xfs_error_injection)
 #define XFS_IOC_ERROR_CLEARALL	     _IOW ('X', 117, struct xfs_error_injection)
 /*	XFS_IOC_ATTRCTL_BY_HANDLE -- deprecated 118	 */
+
 /*	XFS_IOC_FREEZE		  -- FIFREEZE   119	 */
 /*	XFS_IOC_THAW		  -- FITHAW     120	 */
+#ifndef FIFREEZE
+#define XFS_IOC_FREEZE		     _IOWR('X', 119, int)
+#define XFS_IOC_THAW		     _IOWR('X', 120, int)
+#endif
+
 #define XFS_IOC_FSSETDM_BY_HANDLE    _IOW ('X', 121, struct xfs_fsop_setdm_handlereq)
 #define XFS_IOC_ATTRLIST_BY_HANDLE   _IOW ('X', 122, struct xfs_fsop_attrlist_handlereq)
 #define XFS_IOC_ATTRMULTI_BY_HANDLE  _IOW ('X', 123, struct xfs_fsop_attrmulti_handlereq)
