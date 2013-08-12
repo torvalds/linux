@@ -114,6 +114,25 @@ nv04_timer_alarm(struct nouveau_timer *ptimer, u64 time,
 }
 
 static void
+nv04_timer_alarm_cancel(struct nouveau_timer *ptimer,
+			struct nouveau_alarm *alarm)
+{
+	struct nv04_timer_priv *priv = (void *)ptimer;
+	unsigned long flags;
+
+	/* avoid deleting an entry while the alarm intr is running */
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/* delete the alarm from the list */
+	list_del(&alarm->head);
+
+	/* reset the head so as list_empty returns 1 */
+	INIT_LIST_HEAD(&alarm->head);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+static void
 nv04_timer_intr(struct nouveau_subdev *subdev)
 {
 	struct nv04_timer_priv *priv = (void *)subdev;
@@ -147,6 +166,7 @@ nv04_timer_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.base.intr = nv04_timer_intr;
 	priv->base.read = nv04_timer_read;
 	priv->base.alarm = nv04_timer_alarm;
+	priv->base.alarm_cancel = nv04_timer_alarm_cancel;
 	priv->suspend_time = 0;
 
 	INIT_LIST_HEAD(&priv->alarms);
