@@ -243,6 +243,11 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 		err_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
 			   error->semaphore_mboxes[ring][1],
 			   error->semaphore_seqno[ring][1]);
+		if (HAS_VEBOX(dev)) {
+			err_printf(m, "  SYNC_2: 0x%08x [last synced 0x%08x]\n",
+				   error->semaphore_mboxes[ring][2],
+				   error->semaphore_seqno[ring][2]);
+		}
 	}
 	err_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
 	err_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));
@@ -680,6 +685,12 @@ static void i915_record_ring_state(struct drm_device *dev,
 			= I915_READ(RING_SYNC_1(ring->mmio_base));
 		error->semaphore_seqno[ring->id][0] = ring->sync_seqno[0];
 		error->semaphore_seqno[ring->id][1] = ring->sync_seqno[1];
+	}
+
+	if (HAS_VEBOX(dev)) {
+		error->semaphore_mboxes[ring->id][2] =
+			I915_READ(RING_SYNC_2(ring->mmio_base));
+		error->semaphore_seqno[ring->id][2] = ring->sync_seqno[2];
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
