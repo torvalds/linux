@@ -1550,7 +1550,7 @@ xfs_bmap_first_unused(
 }
 
 /*
- * Returns the file-relative block number of the last block + 1 before
+ * Returns the file-relative block number of the last block - 1 before
  * last_block (input value) in the file.
  * This is not based on i_size, it is based on the extent records.
  * Returns 0 for local files, as they do not have extent records.
