@@ -722,7 +722,7 @@ xfs_bmbt_key_diff(
 				      cur->bc_rec.b.br_startoff;
 }
 
-static int
+static bool
 xfs_bmbt_verify(
 	struct xfs_buf		*bp)
 {
@@ -775,7 +775,6 @@ xfs_bmbt_verify(
 		return false;
 
 	return true;
-
 }
 
 static void
@@ -789,7 +788,6 @@ xfs_bmbt_read_verify(
 				     bp->b_target->bt_mount, bp->b_addr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
-
 }
 
 static void

@@ -936,7 +936,6 @@ out:
 	return error;
 }
 
-
 /*========================================================================
  * Routines used for growing the Btree.
  *========================================================================*/
@@ -1296,7 +1295,6 @@ xfs_attr3_leaf_compact(
 	ichdr_dst->freemap[0].base = xfs_attr3_leaf_hdr_size(leaf_src);
 	ichdr_dst->freemap[0].size = ichdr_dst->firstused -
 						ichdr_dst->freemap[0].base;
-
 
 	/* write the header back to initialise the underlying buffer */
 	xfs_attr3_leaf_hdr_to_disk(leaf_dst, ichdr_dst);
