@@ -613,11 +613,9 @@ xfs_buf_item_unlock(
 			}
 		}
 	}
-	if (clean)
-		xfs_buf_item_relse(bp);
-	else if (aborted) {
+	if (clean || aborted) {
 		if (atomic_dec_and_test(&bip->bli_refcount)) {
-			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
+			ASSERT(!aborted || XFS_FORCED_SHUTDOWN(lip->li_mountp));
 			xfs_buf_item_relse(bp);
 		}
 	} else
