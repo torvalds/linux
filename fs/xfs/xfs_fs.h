@@ -461,6 +461,21 @@ typedef struct xfs_handle {
 				 + (handle).ha_fid.fid_len)
 
 /*
+ * Structure passed to XFS_IOC_SWAPEXT
+ */
+typedef struct xfs_swapext
+{
+	__int64_t	sx_version;	/* version */
+#define XFS_SX_VERSION		0
+	__int64_t	sx_fdtarget;	/* fd of target file */
+	__int64_t	sx_fdtmp;	/* fd of tmp file */
+	xfs_off_t	sx_offset;	/* offset into file */
+	xfs_off_t	sx_length;	/* leng from offset */
+	char		sx_pad[16];	/* pad space, unused */
+	xfs_bstat_t	sx_stat;	/* stat of target b4 copy */
+} xfs_swapext_t;
+
+/*
  * Flags for going down operation
  */
 #define XFS_FSOP_GOING_FLAGS_DEFAULT		0x0	/* going down */

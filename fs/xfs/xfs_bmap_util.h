@@ -102,6 +102,9 @@ bool	xfs_can_free_eofblocks(struct xfs_inode *ip, bool force);
 int	xfs_free_eofblocks(struct xfs_mount *mp, struct xfs_inode *ip,
 			   bool need_iolock);
 
+int	xfs_swap_extents(struct xfs_inode *ip, struct xfs_inode *tip,
+			 struct xfs_swapext *sx);
+
 xfs_daddr_t xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb);
 
 #endif	/* __XFS_BMAP_UTIL_H__ */

@@ -27,6 +27,10 @@ xfs_ioc_space(
 	unsigned int		cmd,
 	xfs_flock64_t		*bf);
 
+int
+xfs_ioc_swapext(
+	xfs_swapext_t	*sxp);
+
 extern int
 xfs_find_handle(
 	unsigned int		cmd,
