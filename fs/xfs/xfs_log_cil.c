@@ -402,9 +402,9 @@ xlog_cil_committed(
 	xfs_extent_busy_clear(mp, &ctx->busy_extents,
 			     (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
 
-	spin_lock(&ctx->cil->xc_cil_lock);
+	spin_lock(&ctx->cil->xc_push_lock);
 	list_del(&ctx->committing);
-	spin_unlock(&ctx->cil->xc_cil_lock);
+	spin_unlock(&ctx->cil->xc_push_lock);
 
 	xlog_cil_free_logvec(ctx->lv_chain);
 
@@ -459,7 +459,7 @@ xlog_cil_push(
 	down_write(&cil->xc_ctx_lock);
 	ctx = cil->xc_ctx;
 
-	spin_lock(&cil->xc_cil_lock);
+	spin_lock(&cil->xc_push_lock);
 	push_seq = cil->xc_push_seq;
 	ASSERT(push_seq <= ctx->sequence);
 
@@ -470,10 +470,10 @@ xlog_cil_push(
 	 */
 	if (list_empty(&cil->xc_cil)) {
 		cil->xc_push_seq = 0;
-		spin_unlock(&cil->xc_cil_lock);
+		spin_unlock(&cil->xc_push_lock);
 		goto out_skip;
 	}
-	spin_unlock(&cil->xc_cil_lock);
+	spin_unlock(&cil->xc_push_lock);
 
 
 	/* check for a previously pushed seqeunce */
@@ -541,9 +541,9 @@ xlog_cil_push(
 	 * that higher sequences will wait for us to write out a commit record
 	 * before they do.
 	 */
-	spin_lock(&cil->xc_cil_lock);
+	spin_lock(&cil->xc_push_lock);
 	list_add(&ctx->committing, &cil->xc_committing);
-	spin_unlock(&cil->xc_cil_lock);
+	spin_unlock(&cil->xc_push_lock);
 	up_write(&cil->xc_ctx_lock);
 
 	/*
@@ -578,7 +578,7 @@ xlog_cil_push(
 	 * order the commit records so replay will get them in the right order.
 	 */
 restart:
-	spin_lock(&cil->xc_cil_lock);
+	spin_lock(&cil->xc_push_lock);
 	list_for_each_entry(new_ctx, &cil->xc_committing, committing) {
 		/*
 		 * Higher sequences will wait for this one so skip them.
@@ -591,11 +591,11 @@ restart:
 			 * It is still being pushed! Wait for the push to
 			 * complete, then start again from the beginning.
 			 */
-			xlog_wait(&cil->xc_commit_wait, &cil->xc_cil_lock);
+			xlog_wait(&cil->xc_commit_wait, &cil->xc_push_lock);
 			goto restart;
 		}
 	}
-	spin_unlock(&cil->xc_cil_lock);
+	spin_unlock(&cil->xc_push_lock);
 
 	/* xfs_log_done always frees the ticket on error. */
 	commit_lsn = xfs_log_done(log->l_mp, tic, &commit_iclog, 0);
@@ -614,10 +614,10 @@ restart:
 	 * callbacks to the iclog we can assign the commit LSN to the context
 	 * and wake up anyone who is waiting for the commit to complete.
 	 */
-	spin_lock(&cil->xc_cil_lock);
+	spin_lock(&cil->xc_push_lock);
 	ctx->commit_lsn = commit_lsn;
 	wake_up_all(&cil->xc_commit_wait);
-	spin_unlock(&cil->xc_cil_lock);
+	spin_unlock(&cil->xc_push_lock);
 
 	/* release the hounds! */
 	return xfs_log_release_iclog(log->l_mp, commit_iclog);
@@ -670,12 +670,12 @@ xlog_cil_push_background(
 	if (cil->xc_ctx->space_used < XLOG_CIL_SPACE_LIMIT(log))
 		return;
 
-	spin_lock(&cil->xc_cil_lock);
+	spin_lock(&cil->xc_push_lock);
 	if (cil->xc_push_seq < cil->xc_current_sequence) {
 		cil->xc_push_seq = cil->xc_current_sequence;
 		queue_work(log->l_mp->m_cil_workqueue, &cil->xc_push_work);
 	}
-	spin_unlock(&cil->xc_cil_lock);
+	spin_unlock(&cil->xc_push_lock);
 
 }
 
@@ -698,14 +698,14 @@ xlog_cil_push_foreground(
 	 * If the CIL is empty or we've already pushed the sequence then
 	 * there's no work we need to do.
 	 */
-	spin_lock(&cil->xc_cil_lock);
+	spin_lock(&cil->xc_push_lock);
 	if (list_empty(&cil->xc_cil) || push_seq <= cil->xc_push_seq) {
-		spin_unlock(&cil->xc_cil_lock);
+		spin_unlock(&cil->xc_push_lock);
 		return;
 	}
 
 	cil->xc_push_seq = push_seq;
-	spin_unlock(&cil->xc_cil_lock);
+	spin_unlock(&cil->xc_push_lock);
 
 	/* do the push now */
 	xlog_cil_push(log);
@@ -808,7 +808,7 @@ xlog_cil_force_lsn(
 	 * on commits for those as well.
 	 */
 restart:
-	spin_lock(&cil->xc_cil_lock);
+	spin_lock(&cil->xc_push_lock);
 	list_for_each_entry(ctx, &cil->xc_committing, committing) {
 		if (ctx->sequence > sequence)
 			continue;
@@ -817,7 +817,7 @@ restart:
 			 * It is still being pushed! Wait for the push to
 			 * complete, then start again from the beginning.
 			 */
-			xlog_wait(&cil->xc_commit_wait, &cil->xc_cil_lock);
+			xlog_wait(&cil->xc_commit_wait, &cil->xc_push_lock);
 			goto restart;
 		}
 		if (ctx->sequence != sequence)
@@ -825,7 +825,7 @@ restart:
 		/* found it! */
 		commit_lsn = ctx->commit_lsn;
 	}
-	spin_unlock(&cil->xc_cil_lock);
+	spin_unlock(&cil->xc_push_lock);
 	return commit_lsn;
 }
 
@@ -883,6 +883,7 @@ xlog_cil_init(
 	INIT_LIST_HEAD(&cil->xc_cil);
 	INIT_LIST_HEAD(&cil->xc_committing);
 	spin_lock_init(&cil->xc_cil_lock);
+	spin_lock_init(&cil->xc_push_lock);
 	init_rwsem(&cil->xc_ctx_lock);
 	init_waitqueue_head(&cil->xc_commit_wait);
 
