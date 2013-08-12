@@ -363,37 +363,6 @@ xfs_dir_removename(
 }
 
 /*
- * Read a directory.
- */
-int
-xfs_readdir(
-	xfs_inode_t	*dp,
-	struct dir_context *ctx,
-	size_t		bufsize)
-{
-	int		rval;		/* return value */
-	int		v;		/* type-checking value */
-
-	trace_xfs_readdir(dp);
-
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return XFS_ERROR(EIO);
-
-	ASSERT(S_ISDIR(dp->i_d.di_mode));
-	XFS_STATS_INC(xs_dir_getdents);
-
-	if (dp->i_d.di_format == XFS_DINODE_FMT_LOCAL)
-		rval = xfs_dir2_sf_getdents(dp, ctx);
-	else if ((rval = xfs_dir2_isblock(NULL, dp, &v)))
-		;
-	else if (v)
-		rval = xfs_dir2_block_getdents(dp, ctx);
-	else
-		rval = xfs_dir2_leaf_getdents(dp, ctx, bufsize);
-	return rval;
-}
-
-/*
  * Replace the inode number of a directory entry.
  */
 int

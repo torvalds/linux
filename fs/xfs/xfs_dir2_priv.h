@@ -32,9 +32,9 @@ extern int xfs_dir_cilookup_result(struct xfs_da_args *args,
 /* xfs_dir2_block.c */
 extern const struct xfs_buf_ops xfs_dir3_block_buf_ops;
 
+extern int xfs_dir3_block_read(struct xfs_trans *tp, struct xfs_inode *dp,
+			       struct xfs_buf **bpp);
 extern int xfs_dir2_block_addname(struct xfs_da_args *args);
-extern int xfs_dir2_block_getdents(struct xfs_inode *dp,
-		struct dir_context *ctx);
 extern int xfs_dir2_block_lookup(struct xfs_da_args *args);
 extern int xfs_dir2_block_removename(struct xfs_da_args *args);
 extern int xfs_dir2_block_replace(struct xfs_da_args *args);
@@ -91,8 +91,6 @@ extern void xfs_dir3_leaf_compact(struct xfs_da_args *args,
 extern void xfs_dir3_leaf_compact_x1(struct xfs_dir3_icleaf_hdr *leafhdr,
 		struct xfs_dir2_leaf_entry *ents, int *indexp,
 		int *lowstalep, int *highstalep, int *lowlogp, int *highlogp);
-extern int xfs_dir2_leaf_getdents(struct xfs_inode *dp, struct dir_context *ctx,
-		size_t bufsize);
 extern int xfs_dir3_leaf_get_buf(struct xfs_da_args *args, xfs_dir2_db_t bno,
 		struct xfs_buf **bpp, __uint16_t magic);
 extern void xfs_dir3_leaf_log_ents(struct xfs_trans *tp, struct xfs_buf *bp,
@@ -153,7 +151,6 @@ extern int xfs_dir2_block_to_sf(struct xfs_da_args *args, struct xfs_buf *bp,
 		int size, xfs_dir2_sf_hdr_t *sfhp);
 extern int xfs_dir2_sf_addname(struct xfs_da_args *args);
 extern int xfs_dir2_sf_create(struct xfs_da_args *args, xfs_ino_t pino);
-extern int xfs_dir2_sf_getdents(struct xfs_inode *dp, struct dir_context *ctx);
 extern int xfs_dir2_sf_lookup(struct xfs_da_args *args);
 extern int xfs_dir2_sf_removename(struct xfs_da_args *args);
 extern int xfs_dir2_sf_replace(struct xfs_da_args *args);

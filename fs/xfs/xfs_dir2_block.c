@@ -126,7 +126,7 @@ const struct xfs_buf_ops xfs_dir3_block_buf_ops = {
 	.verify_write = xfs_dir3_block_write_verify,
 };
 
-static int
+int
 xfs_dir3_block_read(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
@@ -561,101 +561,6 @@ xfs_dir2_block_addname(
 	xfs_dir2_block_log_tail(tp, bp);
 	xfs_dir2_data_log_entry(tp, bp, dep);
 	xfs_dir3_data_check(dp, bp);
-	return 0;
-}
-
-/*
- * Readdir for block directories.
- */
-int						/* error */
-xfs_dir2_block_getdents(
-	xfs_inode_t		*dp,		/* incore inode */
-	struct dir_context	*ctx)
-{
-	xfs_dir2_data_hdr_t	*hdr;		/* block header */
-	struct xfs_buf		*bp;		/* buffer for block */
-	xfs_dir2_block_tail_t	*btp;		/* block tail */
-	xfs_dir2_data_entry_t	*dep;		/* block data entry */
-	xfs_dir2_data_unused_t	*dup;		/* block unused entry */
-	char			*endptr;	/* end of the data entries */
-	int			error;		/* error return value */
-	xfs_mount_t		*mp;		/* filesystem mount point */
-	char			*ptr;		/* current data entry */
-	int			wantoff;	/* starting block offset */
-	xfs_off_t		cook;
-
-	mp = dp->i_mount;
-	/*
-	 * If the block number in the offset is out of range, we're done.
-	 */
-	if (xfs_dir2_dataptr_to_db(mp, ctx->pos) > mp->m_dirdatablk)
-		return 0;
-
-	error = xfs_dir3_block_read(NULL, dp, &bp);
-	if (error)
-		return error;
-
-	/*
-	 * Extract the byte offset we start at from the seek pointer.
-	 * We'll skip entries before this.
-	 */
-	wantoff = xfs_dir2_dataptr_to_off(mp, ctx->pos);
-	hdr = bp->b_addr;
-	xfs_dir3_data_check(dp, bp);
-	/*
-	 * Set up values for the loop.
-	 */
-	btp = xfs_dir2_block_tail_p(mp, hdr);
-	ptr = (char *)xfs_dir3_data_entry_p(hdr);
-	endptr = (char *)xfs_dir2_block_leaf_p(btp);
-
-	/*
-	 * Loop over the data portion of the block.
-	 * Each object is a real entry (dep) or an unused one (dup).
-	 */
-	while (ptr < endptr) {
-		dup = (xfs_dir2_data_unused_t *)ptr;
-		/*
-		 * Unused, skip it.
-		 */
-		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
-			ptr += be16_to_cpu(dup->length);
-			continue;
-		}
-
-		dep = (xfs_dir2_data_entry_t *)ptr;
-
-		/*
-		 * Bump pointer for the next iteration.
-		 */
-		ptr += xfs_dir2_data_entsize(dep->namelen);
-		/*
-		 * The entry is before the desired starting point, skip it.
-		 */
-		if ((char *)dep - (char *)hdr < wantoff)
-			continue;
-
-		cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
-					    (char *)dep - (char *)hdr);
-
-		ctx->pos = cook & 0x7fffffff;
-		/*
-		 * If it didn't fit, set the final offset to here & return.
-		 */
-		if (!dir_emit(ctx, (char *)dep->name, dep->namelen,
-			    be64_to_cpu(dep->inumber), DT_UNKNOWN)) {
-			xfs_trans_brelse(NULL, bp);
-			return 0;
-		}
-	}
-
-	/*
-	 * Reached the end of the block.
-	 * Set the offset to a non-existent block 1 and return.
-	 */
-	ctx->pos = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
-			0x7fffffff;
-	xfs_trans_brelse(NULL, bp);
 	return 0;
 }
 

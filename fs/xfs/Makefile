@@ -30,6 +30,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_bit.o \
 				   xfs_buf.o \
 				   xfs_dfrag.o \
+				   xfs_dir2_readdir.o \
 				   xfs_discard.o \
 				   xfs_error.o \
 				   xfs_export.o \
