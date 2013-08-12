@@ -314,8 +314,17 @@ static void pxa3xx_nand_start(struct pxa3xx_nand_info *info)
 	uint32_t ndcr;
 
 	ndcr = host->reg_ndcr;
-	ndcr |= info->use_ecc ? NDCR_ECC_EN : 0;
-	ndcr |= info->use_dma ? NDCR_DMA_EN : 0;
+
+	if (info->use_ecc)
+		ndcr |= NDCR_ECC_EN;
+	else
+		ndcr &= ~NDCR_ECC_EN;
+
+	if (info->use_dma)
+		ndcr |= NDCR_DMA_EN;
+	else
+		ndcr &= ~NDCR_DMA_EN;
+
 	ndcr |= NDCR_ND_RUN;
 
 	/* clear status bits and run */
