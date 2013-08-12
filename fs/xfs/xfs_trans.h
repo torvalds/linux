@@ -34,6 +34,7 @@ struct xfs_log_iovec;
 struct xfs_log_item_desc;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_trans_res;
 struct xfs_dquot_acct;
 struct xfs_busy_extent;
 
@@ -170,7 +171,7 @@ typedef struct xfs_trans {
 xfs_trans_t	*xfs_trans_alloc(struct xfs_mount *, uint);
 xfs_trans_t	*_xfs_trans_alloc(struct xfs_mount *, uint, xfs_km_flags_t);
 xfs_trans_t	*xfs_trans_dup(xfs_trans_t *);
-int		xfs_trans_reserve(xfs_trans_t *, uint, uint, uint,
+int		xfs_trans_reserve(struct xfs_trans *, struct xfs_trans_res *,
 				  uint, uint);
 void		xfs_trans_mod_sb(xfs_trans_t *, uint, int64_t);
 

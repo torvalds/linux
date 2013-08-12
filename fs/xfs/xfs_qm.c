@@ -865,11 +865,9 @@ xfs_qm_qino_alloc(
 	}
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QINOCREATE);
-	if ((error = xfs_trans_reserve(tp,
-				      XFS_QM_QINOCREATE_SPACE_RES(mp),
-				      XFS_CREATE_LOG_RES(mp), 0,
-				      XFS_TRANS_PERM_LOG_RES,
-				      XFS_CREATE_LOG_COUNT))) {
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_create,
+				  XFS_QM_QINOCREATE_SPACE_RES(mp), 0);
+	if (error) {
 		xfs_trans_cancel(tp, 0);
 		return error;
 	}
@@ -1740,8 +1738,7 @@ xfs_qm_write_sb_changes(
 	int		error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
-	error = xfs_trans_reserve(tp, 0, XFS_QM_SBCHANGE_LOG_RES(mp),
-				  0, 0, XFS_DEFAULT_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_sbchange, 0, 0);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
 		return error;

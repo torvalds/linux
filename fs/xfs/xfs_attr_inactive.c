@@ -412,9 +412,8 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	 * the log.
 	 */
 	trans = xfs_trans_alloc(mp, XFS_TRANS_ATTRINVAL);
-	if ((error = xfs_trans_reserve(trans, 0, XFS_ATTRINVAL_LOG_RES(mp), 0,
-				      XFS_TRANS_PERM_LOG_RES,
-				      XFS_ATTRINVAL_LOG_COUNT))) {
+	error = xfs_trans_reserve(trans, &M_RES(mp)->tr_attrinval, 0, 0);
+	if (error) {
 		xfs_trans_cancel(trans, 0);
 		return(error);
 	}

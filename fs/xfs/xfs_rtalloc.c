@@ -100,10 +100,9 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Reserve space & log for one extent added to the file.
 		 */
-		if ((error = xfs_trans_reserve(tp, resblks,
-				XFS_GROWRTALLOC_LOG_RES(mp), 0,
-				XFS_TRANS_PERM_LOG_RES,
-				XFS_DEFAULT_PERM_LOG_COUNT)))
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growdata,
+					  resblks, 0);
+		if (error)
 			goto error_cancel;
 		cancelflags = XFS_TRANS_RELEASE_LOG_RES;
 		/*
@@ -146,8 +145,9 @@ xfs_growfs_rt_alloc(
 			/*
 			 * Reserve log for one block zeroing.
 			 */
-			if ((error = xfs_trans_reserve(tp, 0,
-					XFS_GROWRTZERO_LOG_RES(mp), 0, 0, 0)))
+			error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growrtzero,
+						  0, 0);
+			if (error)
 				goto error_cancel;
 			/*
 			 * Lock the bitmap inode.
@@ -1957,8 +1957,9 @@ xfs_growfs_rt(
 		 * Start a transaction, get the log reservation.
 		 */
 		tp = xfs_trans_alloc(mp, XFS_TRANS_GROWFSRT_FREE);
-		if ((error = xfs_trans_reserve(tp, 0,
-				XFS_GROWRTFREE_LOG_RES(nmp), 0, 0, 0)))
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growrtfree,
+					  0, 0);
+		if (error)
 			goto error_cancel;
 		/*
 		 * Lock out other callers by grabbing the bitmap inode lock.

@@ -892,8 +892,6 @@ xfs_dir_ialloc(
 	xfs_inode_t	*ip;
 	xfs_buf_t	*ialloc_context = NULL;
 	int		code;
-	uint		log_res;
-	uint		log_count;
 	void		*dqinfo;
 	uint		tflags;
 
@@ -939,6 +937,8 @@ xfs_dir_ialloc(
 	 * to succeed the second time.
 	 */
 	if (ialloc_context) {
+		struct xfs_trans_res tres;
+
 		/*
 		 * Normally, xfs_trans_commit releases all the locks.
 		 * We call bhold to hang on to the ialloc_context across
@@ -951,8 +951,8 @@ xfs_dir_ialloc(
 		 * Save the log reservation so we can use
 		 * them in the next transaction.
 		 */
-		log_res = xfs_trans_get_log_res(tp);
-		log_count = xfs_trans_get_log_count(tp);
+		tres.tr_logres = xfs_trans_get_log_res(tp);
+		tres.tr_logcount = xfs_trans_get_log_count(tp);
 
 		/*
 		 * We want the quota changes to be associated with the next
@@ -995,8 +995,9 @@ xfs_dir_ialloc(
 		 * reference that we gained in xfs_trans_dup()
 		 */
 		xfs_log_ticket_put(tp->t_ticket);
-		code = xfs_trans_reserve(tp, 0, log_res, 0,
-					 XFS_TRANS_PERM_LOG_RES, log_count);
+		tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
+		code = xfs_trans_reserve(tp, &tres, 0, 0);
+
 		/*
 		 * Re-attach the quota info that we detached from prev trx.
 		 */
@@ -1161,9 +1162,8 @@ xfs_create(
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
+	struct xfs_trans_res	tres;
 	uint			resblks;
-	uint			log_res;
-	uint			log_count;
 
 	trace_xfs_create(dp, name);
 
@@ -1187,13 +1187,13 @@ xfs_create(
 	if (is_dir) {
 		rdev = 0;
 		resblks = XFS_MKDIR_SPACE_RES(mp, name->len);
-		log_res = XFS_MKDIR_LOG_RES(mp);
-		log_count = XFS_MKDIR_LOG_COUNT;
+		tres.tr_logres = M_RES(mp)->tr_mkdir.tr_logres;
+		tres.tr_logcount = XFS_MKDIR_LOG_COUNT;
 		tp = xfs_trans_alloc(mp, XFS_TRANS_MKDIR);
 	} else {
 		resblks = XFS_CREATE_SPACE_RES(mp, name->len);
-		log_res = XFS_CREATE_LOG_RES(mp);
-		log_count = XFS_CREATE_LOG_COUNT;
+		tres.tr_logres = M_RES(mp)->tr_create.tr_logres;
+		tres.tr_logcount = XFS_CREATE_LOG_COUNT;
 		tp = xfs_trans_alloc(mp, XFS_TRANS_CREATE);
 	}
 
@@ -1205,19 +1205,17 @@ xfs_create(
 	 * the case we'll drop the one we have and get a more
 	 * appropriate transaction later.
 	 */
-	error = xfs_trans_reserve(tp, resblks, log_res, 0,
-			XFS_TRANS_PERM_LOG_RES, log_count);
+	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
+	error = xfs_trans_reserve(tp, &tres, resblks, 0);
 	if (error == ENOSPC) {
 		/* flush outstanding delalloc blocks and retry */
 		xfs_flush_inodes(mp);
-		error = xfs_trans_reserve(tp, resblks, log_res, 0,
-				XFS_TRANS_PERM_LOG_RES, log_count);
+		error = xfs_trans_reserve(tp, &tres, resblks, 0);
 	}
 	if (error == ENOSPC) {
 		/* No space at all so try a "no-allocation" reservation */
 		resblks = 0;
-		error = xfs_trans_reserve(tp, 0, log_res, 0,
-				XFS_TRANS_PERM_LOG_RES, log_count);
+		error = xfs_trans_reserve(tp, &tres, 0, 0);
 	}
 	if (error) {
 		cancel_flags = 0;
@@ -1371,12 +1369,10 @@ xfs_link(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_LINK);
 	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 	resblks = XFS_LINK_SPACE_RES(mp, target_name->len);
-	error = xfs_trans_reserve(tp, resblks, XFS_LINK_LOG_RES(mp), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_LINK_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_link, resblks, 0);
 	if (error == ENOSPC) {
 		resblks = 0;
-		error = xfs_trans_reserve(tp, 0, XFS_LINK_LOG_RES(mp), 0,
-				XFS_TRANS_PERM_LOG_RES, XFS_LINK_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_link, 0, 0);
 	}
 	if (error) {
 		cancel_flags = 0;
@@ -1551,10 +1547,7 @@ xfs_itruncate_extents(
 		 * reference that we gained in xfs_trans_dup()
 		 */
 		xfs_log_ticket_put(tp->t_ticket);
-		error = xfs_trans_reserve(tp, 0,
-					XFS_ITRUNCATE_LOG_RES(mp), 0,
-					XFS_TRANS_PERM_LOG_RES,
-					XFS_ITRUNCATE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
 		if (error)
 			goto out;
 	}
@@ -1680,13 +1673,14 @@ int
 xfs_inactive(
 	xfs_inode_t	*ip)
 {
-	xfs_bmap_free_t	free_list;
-	xfs_fsblock_t	first_block;
-	int		committed;
-	xfs_trans_t	*tp;
-	xfs_mount_t	*mp;
-	int		error;
-	int		truncate = 0;
+	xfs_bmap_free_t		free_list;
+	xfs_fsblock_t		first_block;
+	int			committed;
+	struct xfs_trans	*tp;
+	struct xfs_mount	*mp;
+	struct xfs_trans_res	*resp;
+	int			error;
+	int			truncate = 0;
 
 	/*
 	 * If the inode is already free, then there can be nothing
@@ -1730,13 +1724,10 @@ xfs_inactive(
 		return VN_INACTIVE_CACHE;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-	error = xfs_trans_reserve(tp, 0,
-			(truncate || S_ISLNK(ip->i_d.di_mode)) ?
-				XFS_ITRUNCATE_LOG_RES(mp) :
-				XFS_IFREE_LOG_RES(mp),
-			0,
-			XFS_TRANS_PERM_LOG_RES,
-			XFS_ITRUNCATE_LOG_COUNT);
+	resp = (truncate || S_ISLNK(ip->i_d.di_mode)) ?
+		&M_RES(mp)->tr_itruncate : &M_RES(mp)->tr_ifree;
+
+	error = xfs_trans_reserve(tp, resp, 0, 0);
 	if (error) {
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		xfs_trans_cancel(tp, 0);
@@ -1781,10 +1772,7 @@ xfs_inactive(
 			goto out;
 
 		tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
-		error = xfs_trans_reserve(tp, 0,
-					  XFS_IFREE_LOG_RES(mp),
-					  0, XFS_TRANS_PERM_LOG_RES,
-					  XFS_INACTIVE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ifree, 0, 0);
 		if (error) {
 			xfs_trans_cancel(tp, 0);
 			goto out;
@@ -2431,12 +2419,10 @@ xfs_remove(
 	 * block from the directory.
 	 */
 	resblks = XFS_REMOVE_SPACE_RES(mp);
-	error = xfs_trans_reserve(tp, resblks, XFS_REMOVE_LOG_RES(mp), 0,
-				  XFS_TRANS_PERM_LOG_RES, log_count);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_remove, resblks, 0);
 	if (error == ENOSPC) {
 		resblks = 0;
-		error = xfs_trans_reserve(tp, 0, XFS_REMOVE_LOG_RES(mp), 0,
-					  XFS_TRANS_PERM_LOG_RES, log_count);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_remove, 0, 0);
 	}
 	if (error) {
 		ASSERT(error != ENOSPC);
@@ -2631,12 +2617,10 @@ xfs_rename(
 	tp = xfs_trans_alloc(mp, XFS_TRANS_RENAME);
 	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
 	spaceres = XFS_RENAME_SPACE_RES(mp, target_name->len);
-	error = xfs_trans_reserve(tp, spaceres, XFS_RENAME_LOG_RES(mp), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_RENAME_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_rename, spaceres, 0);
 	if (error == ENOSPC) {
 		spaceres = 0;
-		error = xfs_trans_reserve(tp, 0, XFS_RENAME_LOG_RES(mp), 0,
-				XFS_TRANS_PERM_LOG_RES, XFS_RENAME_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_rename, 0, 0);
 	}
 	if (error) {
 		xfs_trans_cancel(tp, 0);

@@ -231,12 +231,10 @@ xfs_symlink(
 	else
 		fs_blocks = xfs_symlink_blocks(mp, pathlen);
 	resblks = XFS_SYMLINK_SPACE_RES(mp, link_name->len, fs_blocks);
-	error = xfs_trans_reserve(tp, resblks, XFS_SYMLINK_LOG_RES(mp), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_SYMLINK_LOG_COUNT);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_symlink, resblks, 0);
 	if (error == ENOSPC && fs_blocks == 0) {
 		resblks = 0;
-		error = xfs_trans_reserve(tp, 0, XFS_SYMLINK_LOG_RES(mp), 0,
-				XFS_TRANS_PERM_LOG_RES, XFS_SYMLINK_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_symlink, 0, 0);
 	}
 	if (error) {
 		cancel_flags = 0;
@@ -539,8 +537,8 @@ xfs_inactive_symlink_rmt(
 	 * Put an itruncate log reservation in the new transaction
 	 * for our caller.
 	 */
-	if ((error = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,
-			XFS_TRANS_PERM_LOG_RES, XFS_ITRUNCATE_LOG_COUNT))) {
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
+	if (error) {
 		ASSERT(XFS_FORCED_SHUTDOWN(mp));
 		goto error0;
 	}

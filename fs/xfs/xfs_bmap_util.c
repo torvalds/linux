@@ -78,8 +78,7 @@ xfs_bmap_finish(
 	xfs_efi_log_item_t	*efi;		/* extent free intention */
 	int			error;		/* error return value */
 	xfs_bmap_free_item_t	*free;		/* free extent item */
-	unsigned int		logres;		/* new log reservation */
-	unsigned int		logcount;	/* new log count */
+	struct xfs_trans_res	tres;		/* new log reservation */
 	xfs_mount_t		*mp;		/* filesystem mount structure */
 	xfs_bmap_free_item_t	*next;		/* next item on free list */
 	xfs_trans_t		*ntp;		/* new transaction pointer */
@@ -94,8 +93,10 @@ xfs_bmap_finish(
 	for (free = flist->xbf_first; free; free = free->xbfi_next)
 		xfs_trans_log_efi_extent(ntp, efi, free->xbfi_startblock,
 			free->xbfi_blockcount);
-	logres = ntp->t_log_res;
-	logcount = ntp->t_log_count;
+
+	tres.tr_logres = ntp->t_log_res;
+	tres.tr_logcount = ntp->t_log_count;
+	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
 	ntp = xfs_trans_dup(*tp);
 	error = xfs_trans_commit(*tp, 0);
 	*tp = ntp;
@@ -113,8 +114,8 @@ xfs_bmap_finish(
 	 */
 	xfs_log_ticket_put(ntp->t_ticket);
 
-	if ((error = xfs_trans_reserve(ntp, 0, logres, 0, XFS_TRANS_PERM_LOG_RES,
-			logcount)))
+	error = xfs_trans_reserve(ntp, &tres, 0, 0);
+	if (error)
 		return error;
 	efd = xfs_trans_get_efd(ntp, efi, flist->xbf_count);
 	for (free = flist->xbf_first; free != NULL; free = next) {
@@ -929,10 +930,7 @@ xfs_free_eofblocks(
 			}
 		}
 
-		error = xfs_trans_reserve(tp, 0,
-					  XFS_ITRUNCATE_LOG_RES(mp),
-					  0, XFS_TRANS_PERM_LOG_RES,
-					  XFS_ITRUNCATE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
 		if (error) {
 			ASSERT(XFS_FORCED_SHUTDOWN(mp));
 			xfs_trans_cancel(tp, 0);
@@ -1085,10 +1083,8 @@ xfs_alloc_file_space(
 		 * Allocate and setup the transaction.
 		 */
 		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
-		error = xfs_trans_reserve(tp, resblks,
-					  XFS_WRITE_LOG_RES(mp), resrtextents,
-					  XFS_TRANS_PERM_LOG_RES,
-					  XFS_WRITE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write,
+					  resblks, resrtextents);
 		/*
 		 * Check for running out of space
 		 */
@@ -1378,12 +1374,7 @@ xfs_free_file_space(
 		 */
 		tp = xfs_trans_alloc(mp, XFS_TRANS_DIOSTRAT);
 		tp->t_flags |= XFS_TRANS_RESERVE;
-		error = xfs_trans_reserve(tp,
-					  resblks,
-					  XFS_WRITE_LOG_RES(mp),
-					  0,
-					  XFS_TRANS_PERM_LOG_RES,
-					  XFS_WRITE_LOG_COUNT);
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_write, resblks, 0);
 
 		/*
 		 * check for running out of space
@@ -1657,10 +1648,8 @@ xfs_change_file_space(
 	 * update the inode timestamp, mode, and prealloc flag bits
 	 */
 	tp = xfs_trans_alloc(mp, XFS_TRANS_WRITEID);
-
-	if ((error = xfs_trans_reserve(tp, 0, XFS_WRITEID_LOG_RES(mp),
-				      0, 0, 0))) {
-		/* ASSERT(0); */
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_writeid, 0, 0);
+	if (error) {
 		xfs_trans_cancel(tp, 0);
 		return error;
 	}
@@ -1905,9 +1894,8 @@ xfs_swap_extents(
 	truncate_pagecache_range(VFS_I(ip), 0, -1);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SWAPEXT);
-	if ((error = xfs_trans_reserve(tp, 0,
-				     XFS_ICHANGE_LOG_RES(mp), 0,
-				     0, 0))) {
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
+	if (error) {
 		xfs_iunlock(ip,  XFS_IOLOCK_EXCL);
 		xfs_iunlock(tip, XFS_IOLOCK_EXCL);
 		xfs_trans_cancel(tp, 0);

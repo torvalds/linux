@@ -65,6 +65,9 @@ struct xfs_trans_resv {
 	struct xfs_trans_res	tr_fsyncts;	/* update timestamps on fsync */
 };
 
+/* shorthand way of accessing reservation structure */
+#define M_RES(mp)	(&(mp)->m_resv)
+
 /*
  * Per-extent log reservation for the allocation btree changes
  * involved in freeing or allocating an extent.
