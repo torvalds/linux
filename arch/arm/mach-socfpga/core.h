@@ -29,11 +29,8 @@
 #define RSTMGR_CTRL_SWWARMRSTREQ	0x2	/* Warm Reset */
 
 extern void socfpga_secondary_startup(void);
-#define SOCFPGA_SYSID_DEFAULT		0x1
+#define SOCFPGA_ID_DEFAULT		0x1
 #define SOCFPGA_REVISION_DEFAULT	0x1
-
-/* Sysid register map */
-#define SYSID_ID_REG			0x0
 
 #define SOCFPGA_RSTMGR_CTRL	0x04
 #define SOCFPGA_RSTMGR_MODPERRST	0x14
@@ -49,6 +46,11 @@ extern void socfpga_secondary_startup(void);
  #define RSTMGR_MPUMODRST_SCUPER	0x8	/*SCU and periphs reset*/
  #define RSTMGR_MPUMODRST_L2		0x10	/*L2 Cache reset*/
 
+#define SYSMGR_SILICON_ID1_OFFSET 0x0
+#define SYSMGR_SILICON_ID1_REV_SHIFT 0
+#define SYSMGR_SILICON_ID1_REV_MASK 0x0000FFFF
+#define SYSMGR_SILICON_ID1_ID_SHIFT 16
+#define SYSMGR_SILICON_ID1_ID_MASK 0xFFFF0000
 #define SYSMGR_EMACGRP_CTRL_OFFSET 0x60
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII 0x0
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII 0x1

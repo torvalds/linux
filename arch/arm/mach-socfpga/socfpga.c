@@ -91,12 +91,11 @@ static struct map_desc uart_io_desc __initdata = {
 static void __init socfpga_soc_device_init(void)
 {
 	struct device_node *root;
-	struct device_node *sysid_node;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
-	void __iomem *sysid_base;
 	const char *machine;
-	u32 id = SOCFPGA_SYSID_DEFAULT;
+	u32 id = SOCFPGA_ID_DEFAULT;
+	u32 rev = SOCFPGA_REVISION_DEFAULT;
 	int err;
 
 	root = of_find_node_by_path("/");
@@ -107,26 +106,24 @@ static void __init socfpga_soc_device_init(void)
 	if (err)
 		return;
 
+	of_node_put(root);
+
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		return;
 
-	sysid_node = of_find_compatible_node(root, NULL, "ALTR,sysid-1.0");
-	if (sysid_node) {
-		sysid_base = of_iomap(sysid_node, 0);
-		if (sysid_base) {
-			/* Use id from Sysid hardware. */
-			id = readl(sysid_base + SYSID_ID_REG);
-			iounmap(sysid_base);
-		}
-		of_node_put(sysid_node);
+	/* Read Silicon ID from System manager */
+	if (sys_manager_base_addr) {
+		id =  __raw_readl(sys_manager_base_addr +
+			SYSMGR_SILICON_ID1_OFFSET);
+		rev = (id & SYSMGR_SILICON_ID1_REV_MASK)
+				>> SYSMGR_SILICON_ID1_REV_SHIFT;
+		id = (id & SYSMGR_SILICON_ID1_ID_MASK)
+				>> SYSMGR_SILICON_ID1_ID_SHIFT;
 	}
 
-	of_node_put(root);
-
 	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "%u", id);
-	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d",
-		SOCFPGA_REVISION_DEFAULT);
+	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d", rev);
 	soc_dev_attr->machine = kasprintf(GFP_KERNEL, "%s", machine);
 	soc_dev_attr->family = "SOCFPGA";
 
