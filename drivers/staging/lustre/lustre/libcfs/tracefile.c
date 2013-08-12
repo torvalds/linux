@@ -275,11 +275,8 @@ int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
 	int			i;
 	int			remain;
 	int			mask = msgdata->msg_mask;
-	char		      *file = (char *)msgdata->msg_file;
+	const char		*file = kbasename(msgdata->msg_file);
 	cfs_debug_limit_state_t   *cdls = msgdata->msg_cdls;
-
-	if (strchr(file, '/'))
-		file = strrchr(file, '/') + 1;
 
 	tcd = cfs_trace_get_tcd();
 
