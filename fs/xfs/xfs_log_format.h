@@ -393,6 +393,14 @@ struct xfs_log_item_desc {
 #define	XFS_DQUOT_REF		1
 
 /*
+ * Flags for xfs_trans_ichgtime().
+ */
+#define	XFS_ICHGTIME_MOD	0x1	/* data fork modification timestamp */
+#define	XFS_ICHGTIME_CHG	0x2	/* inode field change timestamp */
+#define	XFS_ICHGTIME_CREATE	0x4	/* inode create timestamp */
+
+
+/*
  * Inode Log Item Format definitions.
  *
  * This is the structure used to lay out an inode log item in the

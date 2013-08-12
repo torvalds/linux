@@ -39,6 +39,7 @@
 #include "xfs_cksum.h"
 #include "xfs_buf_item.h"
 #include "xfs_icreate_item.h"
+#include "xfs_icache.h"
 
 
 /*
