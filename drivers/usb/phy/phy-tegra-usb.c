@@ -28,6 +28,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -39,10 +40,15 @@
 
 #define ULPI_VIEWPORT		0x170
 
-/* PORTSC registers */
+/* PORTSC PTS/PHCD bits, Tegra20 only */
 #define TEGRA_USB_PORTSC1				0x184
 #define TEGRA_USB_PORTSC1_PTS(x)			(((x) & 0x3) << 30)
 #define TEGRA_USB_PORTSC1_PHCD				(1 << 23)
+
+/* HOSTPC1 PTS/PHCD bits, Tegra30 and above */
+#define TEGRA_USB_HOSTPC1_DEVLC		0x1b4
+#define TEGRA_USB_HOSTPC1_DEVLC_PTS(x)	(((x) & 0x7) << 29)
+#define TEGRA_USB_HOSTPC1_DEVLC_PHCD	(1 << 22)
 
 /* Bits of PORTSC1, which will get cleared by writing 1 into them */
 #define TEGRA_PORTSC1_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_OCC)
@@ -141,6 +147,12 @@
 #define UTMIP_BIAS_CFG1		0x83c
 #define   UTMIP_BIAS_PDTRK_COUNT(x)	(((x) & 0x1f) << 3)
 
+/* For Tegra30 and above only, the address is different in Tegra20 */
+#define USB_USBMODE		0x1f8
+#define   USB_USBMODE_MASK		(3 << 0)
+#define   USB_USBMODE_HOST		(3 << 0)
+#define   USB_USBMODE_DEVICE		(2 << 0)
+
 static DEFINE_SPINLOCK(utmip_pad_lock);
 static int utmip_pad_count;
 
@@ -193,10 +205,17 @@ static void set_pts(struct tegra_usb_phy *phy, u8 pts_val)
 	void __iomem *base = phy->regs;
 	unsigned long val;
 
-	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
-	val &= ~TEGRA_USB_PORTSC1_PTS(3);
-	val |= TEGRA_USB_PORTSC1_PTS(pts_val & 3);
-	writel(val, base + TEGRA_USB_PORTSC1);
+	if (phy->soc_config->has_hostpc) {
+		val = readl(base + TEGRA_USB_HOSTPC1_DEVLC);
+		val &= ~TEGRA_USB_HOSTPC1_DEVLC_PTS(~0);
+		val |= TEGRA_USB_HOSTPC1_DEVLC_PTS(pts_val);
+		writel(val, base + TEGRA_USB_HOSTPC1_DEVLC);
+	} else {
+		val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
+		val &= ~TEGRA_USB_PORTSC1_PTS(~0);
+		val |= TEGRA_USB_PORTSC1_PTS(pts_val);
+		writel(val, base + TEGRA_USB_PORTSC1);
+	}
 }
 
 static void set_phcd(struct tegra_usb_phy *phy, bool enable)
@@ -204,12 +223,21 @@ static void set_phcd(struct tegra_usb_phy *phy, bool enable)
 	void __iomem *base = phy->regs;
 	unsigned long val;
 
-	val = readl(base + TEGRA_USB_PORTSC1) & ~TEGRA_PORTSC1_RWC_BITS;
-	if (enable)
-		val |= TEGRA_USB_PORTSC1_PHCD;
-	else
-		val &= ~TEGRA_USB_PORTSC1_PHCD;
-	writel(val, base + TEGRA_USB_PORTSC1);
+	if (phy->soc_config->has_hostpc) {
+		val = readl(base + TEGRA_USB_HOSTPC1_DEVLC);
+		if (enable)
+			val |= TEGRA_USB_HOSTPC1_DEVLC_PHCD;
+		else
+			val &= ~TEGRA_USB_HOSTPC1_DEVLC_PHCD;
+		writel(val, base + TEGRA_USB_HOSTPC1_DEVLC);
+	} else {
+		val = readl(base + TEGRA_USB_PORTSC1) & ~PORT_RWC_BITS;
+		if (enable)
+			val |= TEGRA_USB_PORTSC1_PHCD;
+		else
+			val &= ~TEGRA_USB_PORTSC1_PHCD;
+		writel(val, base + TEGRA_USB_PORTSC1);
+	}
 }
 
 static int utmip_pad_open(struct tegra_usb_phy *phy)
@@ -367,17 +395,21 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 	val &= ~UTMIP_SUSPEND_EXIT_ON_EDGE;
 	writel(val, base + UTMIP_MISC_CFG0);
 
-	val = readl(base + UTMIP_MISC_CFG1);
-	val &= ~(UTMIP_PLL_ACTIVE_DLY_COUNT(~0) | UTMIP_PLLU_STABLE_COUNT(~0));
-	val |= UTMIP_PLL_ACTIVE_DLY_COUNT(phy->freq->active_delay) |
-		UTMIP_PLLU_STABLE_COUNT(phy->freq->stable_count);
-	writel(val, base + UTMIP_MISC_CFG1);
+	if (!phy->soc_config->utmi_pll_config_in_car_module) {
+		val = readl(base + UTMIP_MISC_CFG1);
+		val &= ~(UTMIP_PLL_ACTIVE_DLY_COUNT(~0) |
+			UTMIP_PLLU_STABLE_COUNT(~0));
+		val |= UTMIP_PLL_ACTIVE_DLY_COUNT(phy->freq->active_delay) |
+			UTMIP_PLLU_STABLE_COUNT(phy->freq->stable_count);
+		writel(val, base + UTMIP_MISC_CFG1);
 
-	val = readl(base + UTMIP_PLL_CFG1);
-	val &= ~(UTMIP_XTAL_FREQ_COUNT(~0) | UTMIP_PLLU_ENABLE_DLY_COUNT(~0));
-	val |= UTMIP_XTAL_FREQ_COUNT(phy->freq->xtal_freq_count) |
-		UTMIP_PLLU_ENABLE_DLY_COUNT(phy->freq->enable_delay);
-	writel(val, base + UTMIP_PLL_CFG1);
+		val = readl(base + UTMIP_PLL_CFG1);
+		val &= ~(UTMIP_XTAL_FREQ_COUNT(~0) |
+			UTMIP_PLLU_ENABLE_DLY_COUNT(~0));
+		val |= UTMIP_XTAL_FREQ_COUNT(phy->freq->xtal_freq_count) |
+			UTMIP_PLLU_ENABLE_DLY_COUNT(phy->freq->enable_delay);
+		writel(val, base + UTMIP_PLL_CFG1);
+	}
 
 	if (phy->mode == USB_DR_MODE_PERIPHERAL) {
 		val = readl(base + USB_SUSP_CTRL);
@@ -447,6 +479,16 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy)
 	}
 
 	utmi_phy_clk_enable(phy);
+
+	if (phy->soc_config->requires_usbmode_setup) {
+		val = readl(base + USB_USBMODE);
+		val &= ~USB_USBMODE_MASK;
+		if (phy->mode == USB_DR_MODE_HOST)
+			val |= USB_USBMODE_HOST;
+		else
+			val |= USB_USBMODE_DEVICE;
+		writel(val, base + USB_USBMODE);
+	}
 
 	if (!phy->is_legacy_phy)
 		set_pts(phy, 0);
@@ -864,8 +906,30 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 	return 0;
 }
 
+static const struct tegra_phy_soc_config tegra20_soc_config = {
+	.utmi_pll_config_in_car_module = false,
+	.has_hostpc = false,
+	.requires_usbmode_setup = false,
+	.requires_extra_tuning_parameters = false,
+};
+
+static const struct tegra_phy_soc_config tegra30_soc_config = {
+	.utmi_pll_config_in_car_module = true,
+	.has_hostpc = true,
+	.requires_usbmode_setup = true,
+	.requires_extra_tuning_parameters = true,
+};
+
+static struct of_device_id tegra_usb_phy_id_table[] = {
+	{ .compatible = "nvidia,tegra30-usb-phy", .data = &tegra30_soc_config },
+	{ .compatible = "nvidia,tegra20-usb-phy", .data = &tegra20_soc_config },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tegra_usb_phy_id_table);
+
 static int tegra_usb_phy_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
 	struct resource *res;
 	struct tegra_usb_phy *tegra_phy = NULL;
 	struct device_node *np = pdev->dev.of_node;
@@ -877,6 +941,13 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to allocate memory for USB2 PHY\n");
 		return -ENOMEM;
 	}
+
+	match = of_match_device(tegra_usb_phy_id_table, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
+	}
+	tegra_phy->soc_config = match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -967,12 +1038,6 @@ static int tegra_usb_phy_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static struct of_device_id tegra_usb_phy_id_table[] = {
-	{ .compatible = "nvidia,tegra20-usb-phy", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, tegra_usb_phy_id_table);
 
 static struct platform_driver tegra_usb_phy_driver = {
 	.probe		= tegra_usb_phy_probe,
