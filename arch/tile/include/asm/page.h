@@ -328,6 +328,7 @@ static inline int pfn_valid(unsigned long pfn)
 
 struct mm_struct;
 extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
+extern pte_t *virt_to_kpte(unsigned long kaddr);
 
 #endif /* !__ASSEMBLY__ */
 

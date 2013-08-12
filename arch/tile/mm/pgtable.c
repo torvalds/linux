@@ -325,6 +325,17 @@ void ptep_set_wrprotect(struct mm_struct *mm,
 
 #endif
 
+/*
+ * Return a pointer to the PTE that corresponds to the given
+ * address in the given page table.  A NULL page table just uses
+ * the standard kernel page table; the preferred API in this case
+ * is virt_to_kpte().
+ *
+ * The returned pointer can point to a huge page in other levels
+ * of the page table than the bottom, if the huge page is present
+ * in the page table.  For bottom-level PTEs, the returned pointer
+ * can point to a PTE that is either present or not.
+ */
 pte_t *virt_to_pte(struct mm_struct* mm, unsigned long addr)
 {
 	pgd_t *pgd;
@@ -341,13 +352,20 @@ pte_t *virt_to_pte(struct mm_struct* mm, unsigned long addr)
 	if (pud_huge_page(*pud))
 		return (pte_t *)pud;
 	pmd = pmd_offset(pud, addr);
-	if (pmd_huge_page(*pmd))
-		return (pte_t *)pmd;
 	if (!pmd_present(*pmd))
 		return NULL;
+	if (pmd_huge_page(*pmd))
+		return (pte_t *)pmd;
 	return pte_offset_kernel(pmd, addr);
 }
 EXPORT_SYMBOL(virt_to_pte);
+
+pte_t *virt_to_kpte(unsigned long kaddr)
+{
+	BUG_ON(kaddr < PAGE_OFFSET);
+	return virt_to_pte(NULL, kaddr);
+}
+EXPORT_SYMBOL(virt_to_kpte);
 
 pgprot_t set_remote_cache_cpu(pgprot_t prot, int cpu)
 {

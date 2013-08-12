@@ -1600,7 +1600,7 @@ void __init setup_per_cpu_areas(void)
 
 			/* Update the vmalloc mapping and page home. */
 			unsigned long addr = (unsigned long)ptr + i;
-			pte_t *ptep = virt_to_pte(NULL, addr);
+			pte_t *ptep = virt_to_kpte(addr);
 			pte_t pte = *ptep;
 			BUG_ON(pfn != pte_pfn(pte));
 			pte = hv_pte_set_mode(pte, HV_PTE_MODE_CACHE_TILE_L3);
@@ -1609,12 +1609,12 @@ void __init setup_per_cpu_areas(void)
 
 			/* Update the lowmem mapping for consistency. */
 			lowmem_va = (unsigned long)pfn_to_kaddr(pfn);
-			ptep = virt_to_pte(NULL, lowmem_va);
+			ptep = virt_to_kpte(lowmem_va);
 			if (pte_huge(*ptep)) {
 				printk(KERN_DEBUG "early shatter of huge page"
 				       " at %#lx\n", lowmem_va);
 				shatter_pmd((pmd_t *)ptep);
-				ptep = virt_to_pte(NULL, lowmem_va);
+				ptep = virt_to_kpte(lowmem_va);
 				BUG_ON(pte_huge(*ptep));
 			}
 			BUG_ON(pfn != pte_pfn(*ptep));

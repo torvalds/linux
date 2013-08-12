@@ -951,7 +951,7 @@ static void mark_w1data_ro(void)
 	BUG_ON((addr & (PAGE_SIZE-1)) != 0);
 	for (; addr <= (unsigned long)__w1data_end - 1; addr += PAGE_SIZE) {
 		unsigned long pfn = kaddr_to_pfn((void *)addr);
-		pte_t *ptep = virt_to_pte(NULL, addr);
+		pte_t *ptep = virt_to_kpte(addr);
 		BUG_ON(pte_huge(*ptep));   /* not relevant for kdata_huge */
 		set_pte_at(&init_mm, addr, ptep, pfn_pte(pfn, PAGE_KERNEL_RO));
 	}
@@ -997,7 +997,7 @@ static void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		 */
 		int pfn = kaddr_to_pfn((void *)addr);
 		struct page *page = pfn_to_page(pfn);
-		pte_t *ptep = virt_to_pte(NULL, addr);
+		pte_t *ptep = virt_to_kpte(addr);
 		if (!initfree) {
 			/*
 			 * If debugging page accesses then do not free
