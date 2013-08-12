@@ -26,6 +26,7 @@
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "xfs_alloc.h"
 #include "xfs_utils.h"
 #include "xfs_mru_cache.h"
@@ -668,8 +669,8 @@ exit:
  */
 int
 xfs_filestream_new_ag(
-	xfs_bmalloca_t	*ap,
-	xfs_agnumber_t	*agp)
+	struct xfs_bmalloca	*ap,
+	xfs_agnumber_t		*agp)
 {
 	int		flags, err;
 	xfs_inode_t	*ip, *pip = NULL;

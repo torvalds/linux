@@ -30,6 +30,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_attr_inactive.o \
 				   xfs_attr_list.o \
 				   xfs_bit.o \
+				   xfs_bmap_util.o \
 				   xfs_buf.o \
 				   xfs_dfrag.o \
 				   xfs_dir2_readdir.o \

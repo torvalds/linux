@@ -33,6 +33,7 @@
 #include "xfs_inode_item.h"
 #include "xfs_btree.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"

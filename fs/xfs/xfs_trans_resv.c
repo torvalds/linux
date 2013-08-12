@@ -37,6 +37,7 @@
 #include "xfs_alloc.h"
 #include "xfs_extent_busy.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_util.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "xfs_trans_space.h"
