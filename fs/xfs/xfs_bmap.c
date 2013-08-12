@@ -545,8 +545,8 @@ xfs_bmap_trace_exlist(
 
 /*
  * Validate that the bmbt_irecs being returned from bmapi are valid
- * given the callers original parameters.  Specifically check the
- * ranges of the returned irecs to ensure that they only extent beyond
+ * given the caller's original parameters.  Specifically check the
+ * ranges of the returned irecs to ensure that they only extend beyond
  * the given parameters if the XFS_BMAPI_ENTIRE flag was set.
  */
 STATIC void
