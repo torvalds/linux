@@ -42,6 +42,7 @@
 static int
 smb2_crypto_shash_allocate(struct TCP_Server_Info *server)
 {
+	int rc;
 	unsigned int size;
 
 	if (server->secmech.sdeschmacsha256 != NULL)
@@ -50,7 +51,9 @@ smb2_crypto_shash_allocate(struct TCP_Server_Info *server)
 	server->secmech.hmacsha256 = crypto_alloc_shash("hmac(sha256)", 0, 0);
 	if (IS_ERR(server->secmech.hmacsha256)) {
 		cifs_dbg(VFS, "could not allocate crypto hmacsha256\n");
-		return PTR_ERR(server->secmech.hmacsha256);
+		rc = PTR_ERR(server->secmech.hmacsha256);
+		server->secmech.hmacsha256 = NULL;
+		return rc;
 	}
 
 	size = sizeof(struct shash_desc) +
@@ -87,7 +90,9 @@ smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
 		server->secmech.sdeschmacsha256 = NULL;
 		crypto_free_shash(server->secmech.hmacsha256);
 		server->secmech.hmacsha256 = NULL;
-		return PTR_ERR(server->secmech.cmacaes);
+		rc = PTR_ERR(server->secmech.cmacaes);
+		server->secmech.cmacaes = NULL;
+		return rc;
 	}
 
 	size = sizeof(struct shash_desc) +

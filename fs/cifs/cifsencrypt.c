@@ -43,17 +43,18 @@ cifs_crypto_shash_md5_allocate(struct TCP_Server_Info *server)
 	server->secmech.md5 = crypto_alloc_shash("md5", 0, 0);
 	if (IS_ERR(server->secmech.md5)) {
 		cifs_dbg(VFS, "could not allocate crypto md5\n");
-		return PTR_ERR(server->secmech.md5);
+		rc = PTR_ERR(server->secmech.md5);
+		server->secmech.md5 = NULL;
+		return rc;
 	}
 
 	size = sizeof(struct shash_desc) +
 			crypto_shash_descsize(server->secmech.md5);
 	server->secmech.sdescmd5 = kmalloc(size, GFP_KERNEL);
 	if (!server->secmech.sdescmd5) {
-		rc = -ENOMEM;
 		crypto_free_shash(server->secmech.md5);
 		server->secmech.md5 = NULL;
-		return rc;
+		return -ENOMEM;
 	}
 	server->secmech.sdescmd5->shash.tfm = server->secmech.md5;
 	server->secmech.sdescmd5->shash.flags = 0x0;
@@ -421,7 +422,7 @@ find_domain_name(struct cifs_ses *ses, const struct nls_table *nls_cp)
 		if (blobptr + attrsize > blobend)
 			break;
 		if (type == NTLMSSP_AV_NB_DOMAIN_NAME) {
-			if (!attrsize)
+			if (!attrsize || attrsize >= CIFS_MAX_DOMAINNAME_LEN)
 				break;
 			if (!ses->domainName) {
 				ses->domainName =
@@ -591,6 +592,7 @@ CalcNTLMv2_response(const struct cifs_ses *ses, char *ntlmv2_hash)
 
 static int crypto_hmacmd5_alloc(struct TCP_Server_Info *server)
 {
+	int rc;
 	unsigned int size;
 
 	/* check if already allocated */
@@ -600,7 +602,9 @@ static int crypto_hmacmd5_alloc(struct TCP_Server_Info *server)
 	server->secmech.hmacmd5 = crypto_alloc_shash("hmac(md5)", 0, 0);
 	if (IS_ERR(server->secmech.hmacmd5)) {
 		cifs_dbg(VFS, "could not allocate crypto hmacmd5\n");
-		return PTR_ERR(server->secmech.hmacmd5);
+		rc = PTR_ERR(server->secmech.hmacmd5);
+		server->secmech.hmacmd5 = NULL;
+		return rc;
 	}
 
 	size = sizeof(struct shash_desc) +
