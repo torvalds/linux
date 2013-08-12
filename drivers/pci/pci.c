@@ -3159,18 +3159,16 @@ int pci_set_dma_seg_boundary(struct pci_dev *dev, unsigned long mask)
 }
 EXPORT_SYMBOL(pci_set_dma_seg_boundary);
 
-static int pcie_flr(struct pci_dev *dev, int probe)
+/**
+ * pci_wait_for_pending_transaction - waits for pending transaction
+ * @dev: the PCI device to operate on
+ *
+ * Return 0 if transaction is pending 1 otherwise.
+ */
+int pci_wait_for_pending_transaction(struct pci_dev *dev)
 {
 	int i;
-	u32 cap;
 	u16 status;
-
-	pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &cap);
-	if (!(cap & PCI_EXP_DEVCAP_FLR))
-		return -ENOTTY;
-
-	if (probe)
-		return 0;
 
 	/* Wait for Transaction Pending bit clean */
 	for (i = 0; i < 4; i++) {
@@ -3179,13 +3177,27 @@ static int pcie_flr(struct pci_dev *dev, int probe)
 
 		pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
 		if (!(status & PCI_EXP_DEVSTA_TRPND))
-			goto clear;
+			return 1;
 	}
 
-	dev_err(&dev->dev, "transaction is not cleared; "
-			"proceeding with reset anyway\n");
+	return 0;
+}
+EXPORT_SYMBOL(pci_wait_for_pending_transaction);
 
-clear:
+static int pcie_flr(struct pci_dev *dev, int probe)
+{
+	u32 cap;
+
+	pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &cap);
+	if (!(cap & PCI_EXP_DEVCAP_FLR))
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	if (!pci_wait_for_pending_transaction(dev))
+		dev_err(&dev->dev, "transaction is not cleared; proceeding with reset anyway\n");
+
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
 
 	msleep(100);
