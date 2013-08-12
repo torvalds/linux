@@ -80,10 +80,9 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	ssp = kzalloc(sizeof(struct ssp_device), GFP_KERNEL);
-	if (ssp == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory");
+	if (ssp == NULL)
 		return -ENOMEM;
-	}
+
 	ssp->pdev = pdev;
 
 	ssp->clk = clk_get(&pdev->dev, NULL);
