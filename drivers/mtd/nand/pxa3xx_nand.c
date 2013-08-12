@@ -185,6 +185,7 @@ struct pxa3xx_nand_info {
 	int			cs;
 	int			use_ecc;	/* use HW ECC ? */
 	int			use_dma;	/* use DMA ? */
+	int			use_spare;	/* use spare ? */
 	int			is_ready;
 
 	unsigned int		page_size;	/* page size of attached chip */
@@ -324,6 +325,11 @@ static void pxa3xx_nand_start(struct pxa3xx_nand_info *info)
 		ndcr |= NDCR_DMA_EN;
 	else
 		ndcr &= ~NDCR_DMA_EN;
+
+	if (info->use_spare)
+		ndcr |= NDCR_SPARE_EN;
+	else
+		ndcr &= ~NDCR_SPARE_EN;
 
 	ndcr |= NDCR_ND_RUN;
 
@@ -526,6 +532,7 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 	info->buf_count		= 0;
 	info->oob_size		= 0;
 	info->use_ecc		= 0;
+	info->use_spare		= 1;
 	info->use_dma		= (use_dma) ? 1 : 0;
 	info->is_ready		= 0;
 	info->retcode		= ERR_NONE;
