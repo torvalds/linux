@@ -146,6 +146,12 @@ typedef __uint64_t	xfs_filblks_t;	/* number of blocks in a file */
 #define XFS_MAX_SECTORSIZE	(1 << XFS_MAX_SECTORSIZE_LOG)
 
 /*
+ * Inode fork identifiers.
+ */
+#define	XFS_DATA_FORK	0
+#define	XFS_ATTR_FORK	1
+
+/*
  * Min numbers of data/attr fork btree root pointers.
  */
 #define MINDBTPTRS	3

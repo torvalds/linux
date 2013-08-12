@@ -23,12 +23,6 @@ struct xfs_dinode;
 struct xfs_inode;
 
 /*
- * Fork identifiers.
- */
-#define	XFS_DATA_FORK	0
-#define	XFS_ATTR_FORK	1
-
-/*
  * The following xfs_ext_irec_t struct introduces a second (top) level
  * to the in-core extent allocation scheme. These structs are allocated
  * in a contiguous block, creating an indirection array where each entry
@@ -113,68 +107,6 @@ struct xfs_imap {
  * i_mnext and i_mprev fields, it is used as a marker in the inode
  * chain off the mount structure by xfs_sync calls.
  */
-
-typedef struct xfs_ictimestamp {
-	__int32_t	t_sec;		/* timestamp seconds */
-	__int32_t	t_nsec;		/* timestamp nanoseconds */
-} xfs_ictimestamp_t;
-
-/*
- * NOTE:  This structure must be kept identical to struct xfs_dinode
- * 	  in xfs_dinode.h except for the endianness annotations.
- */
-typedef struct xfs_icdinode {
-	__uint16_t	di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
-	__uint16_t	di_mode;	/* mode and type of file */
-	__int8_t	di_version;	/* inode version */
-	__int8_t	di_format;	/* format of di_c data */
-	__uint16_t	di_onlink;	/* old number of links to file */
-	__uint32_t	di_uid;		/* owner's user id */
-	__uint32_t	di_gid;		/* owner's group id */
-	__uint32_t	di_nlink;	/* number of links to file */
-	__uint16_t	di_projid_lo;	/* lower part of owner's project id */
-	__uint16_t	di_projid_hi;	/* higher part of owner's project id */
-	__uint8_t	di_pad[6];	/* unused, zeroed space */
-	__uint16_t	di_flushiter;	/* incremented on flush */
-	xfs_ictimestamp_t di_atime;	/* time last accessed */
-	xfs_ictimestamp_t di_mtime;	/* time last modified */
-	xfs_ictimestamp_t di_ctime;	/* time created/inode modified */
-	xfs_fsize_t	di_size;	/* number of bytes in file */
-	xfs_drfsbno_t	di_nblocks;	/* # of direct & btree blocks used */
-	xfs_extlen_t	di_extsize;	/* basic/minimum extent size for file */
-	xfs_extnum_t	di_nextents;	/* number of extents in data fork */
-	xfs_aextnum_t	di_anextents;	/* number of extents in attribute fork*/
-	__uint8_t	di_forkoff;	/* attr fork offs, <<3 for 64b align */
-	__int8_t	di_aformat;	/* format of attr fork's data */
-	__uint32_t	di_dmevmask;	/* DMIG event mask */
-	__uint16_t	di_dmstate;	/* DMIG state info */
-	__uint16_t	di_flags;	/* random flags, XFS_DIFLAG_... */
-	__uint32_t	di_gen;		/* generation number */
-
-	/* di_next_unlinked is the only non-core field in the old dinode */
-	xfs_agino_t	di_next_unlinked;/* agi unlinked list ptr */
-
-	/* start of the extended dinode, writable fields */
-	__uint32_t	di_crc;		/* CRC of the inode */
-	__uint64_t	di_changecount;	/* number of attribute changes */
-	xfs_lsn_t	di_lsn;		/* flush sequence */
-	__uint64_t	di_flags2;	/* more random flags */
-	__uint8_t	di_pad2[16];	/* more padding for future expansion */
-
-	/* fields only written to during inode creation */
-	xfs_ictimestamp_t di_crtime;	/* time created */
-	xfs_ino_t	di_ino;		/* inode number */
-	uuid_t		di_uuid;	/* UUID of the filesystem */
-
-	/* structure must be padded to 64 bit alignment */
-} xfs_icdinode_t;
-
-static inline uint xfs_icdinode_size(int version)
-{
-	if (version == 3)
-		return sizeof(struct xfs_icdinode);
-	return offsetof(struct xfs_icdinode, di_next_unlinked);
-}
 
 /*
  * Flags for xfs_ichgtime().
@@ -626,7 +558,6 @@ void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
 
 extern struct kmem_zone	*xfs_ifork_zone;
 extern struct kmem_zone	*xfs_inode_zone;
-extern struct kmem_zone	*xfs_ili_zone;
 extern const struct xfs_buf_ops xfs_inode_buf_ops;
 
 #endif	/* __XFS_INODE_H__ */

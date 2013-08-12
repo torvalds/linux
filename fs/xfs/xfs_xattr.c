@@ -17,6 +17,7 @@
  */
 
 #include "xfs.h"
+#include "xfs_log_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
