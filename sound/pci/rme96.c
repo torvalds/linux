@@ -198,6 +198,31 @@ MODULE_PARM_DESC(enable, "Enable RME Digi96 soundcard.");
 #define RME96_AD1852_VOL_BITS 14
 #define RME96_AD1855_VOL_BITS 10
 
+/* Defines for snd_rme96_trigger */
+#define RME96_TB_START_PLAYBACK 1
+#define RME96_TB_START_CAPTURE 2
+#define RME96_TB_STOP_PLAYBACK 4
+#define RME96_TB_STOP_CAPTURE 8
+#define RME96_TB_RESET_PLAYPOS 16
+#define RME96_TB_RESET_CAPTUREPOS 32
+#define RME96_TB_CLEAR_PLAYBACK_IRQ 64
+#define RME96_TB_CLEAR_CAPTURE_IRQ 128
+#define RME96_RESUME_PLAYBACK	(RME96_TB_START_PLAYBACK)
+#define RME96_RESUME_CAPTURE	(RME96_TB_START_CAPTURE)
+#define RME96_RESUME_BOTH	(RME96_RESUME_PLAYBACK \
+				| RME96_RESUME_CAPTURE)
+#define RME96_START_PLAYBACK	(RME96_TB_START_PLAYBACK \
+				| RME96_TB_RESET_PLAYPOS)
+#define RME96_START_CAPTURE	(RME96_TB_START_CAPTURE \
+				| RME96_TB_RESET_CAPTUREPOS)
+#define RME96_START_BOTH	(RME96_START_PLAYBACK \
+				| RME96_START_CAPTURE)
+#define RME96_STOP_PLAYBACK	(RME96_TB_STOP_PLAYBACK \
+				| RME96_TB_CLEAR_PLAYBACK_IRQ)
+#define RME96_STOP_CAPTURE	(RME96_TB_STOP_CAPTURE \
+				| RME96_TB_CLEAR_CAPTURE_IRQ)
+#define RME96_STOP_BOTH		(RME96_STOP_PLAYBACK \
+				| RME96_STOP_CAPTURE)
 
 struct rme96 {
 	spinlock_t    lock;
@@ -344,6 +369,7 @@ static struct snd_pcm_hardware snd_rme96_playback_spdif_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |
+			      SNDRV_PCM_INFO_SYNC_START |
 			      SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_PAUSE),
 	.formats =	     (SNDRV_PCM_FMTBIT_S16_LE |
@@ -373,6 +399,7 @@ static struct snd_pcm_hardware snd_rme96_capture_spdif_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |
+			      SNDRV_PCM_INFO_SYNC_START |
 			      SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_PAUSE),
 	.formats =	     (SNDRV_PCM_FMTBIT_S16_LE |
@@ -402,6 +429,7 @@ static struct snd_pcm_hardware snd_rme96_playback_adat_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |
+			      SNDRV_PCM_INFO_SYNC_START |
 			      SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_PAUSE),
 	.formats =	     (SNDRV_PCM_FMTBIT_S16_LE |
@@ -427,6 +455,7 @@ static struct snd_pcm_hardware snd_rme96_capture_adat_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |
+			      SNDRV_PCM_INFO_SYNC_START |
 			      SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_PAUSE),
 	.formats =	     (SNDRV_PCM_FMTBIT_S16_LE |
@@ -1045,54 +1074,35 @@ snd_rme96_capture_hw_params(struct snd_pcm_substream *substream,
 }
 
 static void
-snd_rme96_playback_start(struct rme96 *rme96,
-			 int from_pause)
+snd_rme96_trigger(struct rme96 *rme96,
+		  int op)
 {
-	if (!from_pause) {
+	if (op & RME96_TB_RESET_PLAYPOS)
 		writel(0, rme96->iobase + RME96_IO_RESET_PLAY_POS);
-	}
-
-	rme96->wcreg |= RME96_WCR_START;
-	writel(rme96->wcreg, rme96->iobase + RME96_IO_CONTROL_REGISTER);
-}
-
-static void
-snd_rme96_capture_start(struct rme96 *rme96,
-			int from_pause)
-{
-	if (!from_pause) {
+	if (op & RME96_TB_RESET_CAPTUREPOS)
 		writel(0, rme96->iobase + RME96_IO_RESET_REC_POS);
+	if (op & RME96_TB_CLEAR_PLAYBACK_IRQ) {
+		rme96->rcreg = readl(rme96->iobase + RME96_IO_CONTROL_REGISTER);
+		if (rme96->rcreg & RME96_RCR_IRQ)
+			writel(0, rme96->iobase + RME96_IO_CONFIRM_PLAY_IRQ);
 	}
-
-	rme96->wcreg |= RME96_WCR_START_2;
+	if (op & RME96_TB_CLEAR_CAPTURE_IRQ) {
+		rme96->rcreg = readl(rme96->iobase + RME96_IO_CONTROL_REGISTER);
+		if (rme96->rcreg & RME96_RCR_IRQ_2)
+			writel(0, rme96->iobase + RME96_IO_CONFIRM_REC_IRQ);
+	}
+	if (op & RME96_TB_START_PLAYBACK)
+		rme96->wcreg |= RME96_WCR_START;
+	if (op & RME96_TB_STOP_PLAYBACK)
+		rme96->wcreg &= ~RME96_WCR_START;
+	if (op & RME96_TB_START_CAPTURE)
+		rme96->wcreg |= RME96_WCR_START_2;
+	if (op & RME96_TB_STOP_CAPTURE)
+		rme96->wcreg &= ~RME96_WCR_START_2;
 	writel(rme96->wcreg, rme96->iobase + RME96_IO_CONTROL_REGISTER);
 }
 
-static void
-snd_rme96_playback_stop(struct rme96 *rme96)
-{
-	/*
-	 * Check if there is an unconfirmed IRQ, if so confirm it, or else
-	 * the hardware will not stop generating interrupts
-	 */
-	rme96->rcreg = readl(rme96->iobase + RME96_IO_CONTROL_REGISTER);
-	if (rme96->rcreg & RME96_RCR_IRQ) {
-		writel(0, rme96->iobase + RME96_IO_CONFIRM_PLAY_IRQ);
-	}	
-	rme96->wcreg &= ~RME96_WCR_START;
-	writel(rme96->wcreg, rme96->iobase + RME96_IO_CONTROL_REGISTER);
-}
 
-static void
-snd_rme96_capture_stop(struct rme96 *rme96)
-{
-	rme96->rcreg = readl(rme96->iobase + RME96_IO_CONTROL_REGISTER);
-	if (rme96->rcreg & RME96_RCR_IRQ_2) {
-		writel(0, rme96->iobase + RME96_IO_CONFIRM_REC_IRQ);
-	}	
-	rme96->wcreg &= ~RME96_WCR_START_2;
-	writel(rme96->wcreg, rme96->iobase + RME96_IO_CONTROL_REGISTER);
-}
 
 static irqreturn_t
 snd_rme96_interrupt(int irq,
@@ -1155,6 +1165,7 @@ snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
+	snd_pcm_set_sync(substream);
 	spin_lock_irq(&rme96->lock);	
         if (rme96->playback_substream != NULL) {
 		spin_unlock_irq(&rme96->lock);
@@ -1191,6 +1202,7 @@ snd_rme96_capture_spdif_open(struct snd_pcm_substream *substream)
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
+	snd_pcm_set_sync(substream);
 	runtime->hw = snd_rme96_capture_spdif_info;
         if (snd_rme96_getinputtype(rme96) != RME96_INPUT_ANALOG &&
             (rate = snd_rme96_capture_getrate(rme96, &isadat)) > 0)
@@ -1222,6 +1234,7 @@ snd_rme96_playback_adat_open(struct snd_pcm_substream *substream)
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;        
 	
+	snd_pcm_set_sync(substream);
 	spin_lock_irq(&rme96->lock);	
         if (rme96->playback_substream != NULL) {
 		spin_unlock_irq(&rme96->lock);
@@ -1253,6 +1266,7 @@ snd_rme96_capture_adat_open(struct snd_pcm_substream *substream)
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
+	snd_pcm_set_sync(substream);
 	runtime->hw = snd_rme96_capture_adat_info;
         if (snd_rme96_getinputtype(rme96) == RME96_INPUT_ANALOG) {
                 /* makes no sense to use analog input. Note that analog
@@ -1288,7 +1302,7 @@ snd_rme96_playback_close(struct snd_pcm_substream *substream)
 
 	spin_lock_irq(&rme96->lock);	
 	if (RME96_ISPLAYING(rme96)) {
-		snd_rme96_playback_stop(rme96);
+		snd_rme96_trigger(rme96, RME96_STOP_PLAYBACK);
 	}
 	rme96->playback_substream = NULL;
 	rme96->playback_periodsize = 0;
@@ -1309,7 +1323,7 @@ snd_rme96_capture_close(struct snd_pcm_substream *substream)
 	
 	spin_lock_irq(&rme96->lock);	
 	if (RME96_ISRECORDING(rme96)) {
-		snd_rme96_capture_stop(rme96);
+		snd_rme96_trigger(rme96, RME96_STOP_CAPTURE);
 	}
 	rme96->capture_substream = NULL;
 	rme96->capture_periodsize = 0;
@@ -1324,7 +1338,7 @@ snd_rme96_playback_prepare(struct snd_pcm_substream *substream)
 	
 	spin_lock_irq(&rme96->lock);	
 	if (RME96_ISPLAYING(rme96)) {
-		snd_rme96_playback_stop(rme96);
+		snd_rme96_trigger(rme96, RME96_STOP_PLAYBACK);
 	}
 	writel(0, rme96->iobase + RME96_IO_RESET_PLAY_POS);
 	spin_unlock_irq(&rme96->lock);
@@ -1338,7 +1352,7 @@ snd_rme96_capture_prepare(struct snd_pcm_substream *substream)
 	
 	spin_lock_irq(&rme96->lock);	
 	if (RME96_ISRECORDING(rme96)) {
-		snd_rme96_capture_stop(rme96);
+		snd_rme96_trigger(rme96, RME96_STOP_CAPTURE);
 	}
 	writel(0, rme96->iobase + RME96_IO_RESET_REC_POS);
 	spin_unlock_irq(&rme96->lock);
@@ -1350,41 +1364,53 @@ snd_rme96_playback_trigger(struct snd_pcm_substream *substream,
 			   int cmd)
 {
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
+	struct snd_pcm_substream *s;
+	bool sync;
+
+	snd_pcm_group_for_each_entry(s, substream) {
+		if (snd_pcm_substream_chip(s) == rme96)
+			snd_pcm_trigger_done(s, substream);
+	}
+
+	sync = (rme96->playback_substream && rme96->capture_substream) &&
+	       (rme96->playback_substream->group ==
+		rme96->capture_substream->group);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		if (!RME96_ISPLAYING(rme96)) {
-			if (substream != rme96->playback_substream) {
+			if (substream != rme96->playback_substream)
 				return -EBUSY;
-			}
-			snd_rme96_playback_start(rme96, 0);
+			snd_rme96_trigger(rme96, sync ? RME96_START_BOTH
+						 : RME96_START_PLAYBACK);
 		}
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (RME96_ISPLAYING(rme96)) {
-			if (substream != rme96->playback_substream) {
+			if (substream != rme96->playback_substream)
 				return -EBUSY;
-			}
-			snd_rme96_playback_stop(rme96);
+			snd_rme96_trigger(rme96, sync ? RME96_STOP_BOTH
+						 :  RME96_STOP_PLAYBACK);
 		}
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (RME96_ISPLAYING(rme96)) {
-			snd_rme96_playback_stop(rme96);
-		}
+		if (RME96_ISPLAYING(rme96))
+			snd_rme96_trigger(rme96, sync ? RME96_STOP_BOTH
+						 : RME96_STOP_PLAYBACK);
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (!RME96_ISPLAYING(rme96)) {
-			snd_rme96_playback_start(rme96, 1);
-		}
+		if (!RME96_ISPLAYING(rme96))
+			snd_rme96_trigger(rme96, sync ? RME96_RESUME_BOTH
+						 : RME96_RESUME_PLAYBACK);
 		break;
-		
+
 	default:
 		return -EINVAL;
 	}
+
 	return 0;
 }
 
@@ -1393,38 +1419,49 @@ snd_rme96_capture_trigger(struct snd_pcm_substream *substream,
 			  int cmd)
 {
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
+	struct snd_pcm_substream *s;
+	bool sync;
+
+	snd_pcm_group_for_each_entry(s, substream) {
+		if (snd_pcm_substream_chip(s) == rme96)
+			snd_pcm_trigger_done(s, substream);
+	}
+
+	sync = (rme96->playback_substream && rme96->capture_substream) &&
+	       (rme96->playback_substream->group ==
+		rme96->capture_substream->group);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		if (!RME96_ISRECORDING(rme96)) {
-			if (substream != rme96->capture_substream) {
+			if (substream != rme96->capture_substream)
 				return -EBUSY;
-			}
-			snd_rme96_capture_start(rme96, 0);
+			snd_rme96_trigger(rme96, sync ? RME96_START_BOTH
+						 : RME96_START_CAPTURE);
 		}
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (RME96_ISRECORDING(rme96)) {
-			if (substream != rme96->capture_substream) {
+			if (substream != rme96->capture_substream)
 				return -EBUSY;
-			}
-			snd_rme96_capture_stop(rme96);
+			snd_rme96_trigger(rme96, sync ? RME96_STOP_BOTH
+						 : RME96_STOP_CAPTURE);
 		}
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (RME96_ISRECORDING(rme96)) {
-			snd_rme96_capture_stop(rme96);
-		}
+		if (RME96_ISRECORDING(rme96))
+			snd_rme96_trigger(rme96, sync ? RME96_STOP_BOTH
+						 : RME96_STOP_CAPTURE);
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (!RME96_ISRECORDING(rme96)) {
-			snd_rme96_capture_start(rme96, 1);
-		}
+		if (!RME96_ISRECORDING(rme96))
+			snd_rme96_trigger(rme96, sync ? RME96_RESUME_BOTH
+						 : RME96_RESUME_CAPTURE);
 		break;
-		
+
 	default:
 		return -EINVAL;
 	}
@@ -1505,8 +1542,7 @@ snd_rme96_free(void *private_data)
 	        return;
 	}
 	if (rme96->irq >= 0) {
-		snd_rme96_playback_stop(rme96);
-		snd_rme96_capture_stop(rme96);
+		snd_rme96_trigger(rme96, RME96_STOP_BOTH);
 		rme96->areg &= ~RME96_AR_DAC_EN;
 		writel(rme96->areg, rme96->iobase + RME96_IO_ADDITIONAL_REG);
 		free_irq(rme96->irq, (void *)rme96);
@@ -1606,8 +1642,7 @@ snd_rme96_create(struct rme96 *rme96)
 	rme96->capture_periodsize = 0;
 	
 	/* make sure playback/capture is stopped, if by some reason active */
-	snd_rme96_playback_stop(rme96);
-	snd_rme96_capture_stop(rme96);
+	snd_rme96_trigger(rme96, RME96_STOP_BOTH);
 	
 	/* set default values in registers */
 	rme96->wcreg =
