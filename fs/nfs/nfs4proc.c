@@ -6143,7 +6143,9 @@ static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
 		[0] = 1 << (OP_CLOSE) |
 		      1 << (OP_LOCKU),
 		[1] = 1 << (OP_SECINFO - 32) |
-		      1 << (OP_SECINFO_NO_NAME - 32)
+		      1 << (OP_SECINFO_NO_NAME - 32) |
+		      1 << (OP_TEST_STATEID - 32) |
+		      1 << (OP_FREE_STATEID - 32)
 	}
 };
 
@@ -6214,6 +6216,12 @@ static int nfs4_sp4_select_mode(struct nfs_client *clp,
 		    test_bit(OP_SECINFO_NO_NAME, sp->allow.u.longs)) {
 			dfprintk(MOUNT, "  secinfo mode enabled\n");
 			set_bit(NFS_SP4_MACH_CRED_SECINFO, &clp->cl_sp4_flags);
+		}
+
+		if (test_bit(OP_TEST_STATEID, sp->allow.u.longs) &&
+		    test_bit(OP_FREE_STATEID, sp->allow.u.longs)) {
+			dfprintk(MOUNT, "  stateid mode enabled\n");
+			set_bit(NFS_SP4_MACH_CRED_STATEID, &clp->cl_sp4_flags);
 		}
 	}
 
@@ -7547,11 +7555,15 @@ static int _nfs41_test_stateid(struct nfs_server *server,
 		.rpc_resp = &res,
 		.rpc_cred = cred,
 	};
+	struct rpc_clnt *rpc_client = server->client;
+
+	nfs4_state_protect(server->nfs_client, NFS_SP4_MACH_CRED_STATEID,
+		&rpc_client, &msg);
 
 	dprintk("NFS call  test_stateid %p\n", stateid);
 	nfs4_init_sequence(&args.seq_args, &res.seq_res, 0);
 	nfs4_set_sequence_privileged(&args.seq_args);
-	status = nfs4_call_sync_sequence(server->client, server, &msg,
+	status = nfs4_call_sync_sequence(rpc_client, server, &msg,
 			&args.seq_args, &res.seq_res);
 	if (status != NFS_OK) {
 		dprintk("NFS reply test_stateid: failed, %d\n", status);
@@ -7642,6 +7654,9 @@ static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
 		.flags = RPC_TASK_ASYNC,
 	};
 	struct nfs_free_stateid_data *data;
+
+	nfs4_state_protect(server->nfs_client, NFS_SP4_MACH_CRED_STATEID,
+		&task_setup.rpc_client, &msg);
 
 	dprintk("NFS call  free_stateid %p\n", stateid);
 	data = kmalloc(sizeof(*data), GFP_NOFS);
