@@ -3043,12 +3043,12 @@ fsg_config_from_params(struct fsg_config *cfg,
 		lun->filename =
 			params->file_count > i && params->file[i][0]
 			? params->file[i]
-			: 0;
+			: NULL;
 	}
 
 	/* Let MSF use defaults */
-	cfg->vendor_name = 0;
-	cfg->product_name = 0;
+	cfg->vendor_name = NULL;
+	cfg->product_name = NULL;
 
 	cfg->ops = NULL;
 	cfg->private_data = NULL;

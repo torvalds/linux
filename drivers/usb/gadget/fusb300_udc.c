@@ -557,7 +557,7 @@ static void fusb300_set_cxdone(struct fusb300 *fusb300)
 }
 
 /* read data from cx fifo */
-void fusb300_rdcxf(struct fusb300 *fusb300,
+static void fusb300_rdcxf(struct fusb300 *fusb300,
 		   u8 *buffer, u32 length)
 {
 	int i = 0;

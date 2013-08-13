@@ -359,7 +359,7 @@ static int samsung_usb2phy_probe(struct platform_device *pdev)
 {
 	struct samsung_usbphy *sphy;
 	struct usb_otg *otg;
-	struct samsung_usbphy_data *pdata = pdev->dev.platform_data;
+	struct samsung_usbphy_data *pdata = dev_get_platdata(&pdev->dev);
 	const struct samsung_usbphy_drvdata *drv_data;
 	struct device *dev = &pdev->dev;
 	struct resource *phy_mem;

@@ -144,7 +144,6 @@ config USB_AT91
 config USB_LPC32XX
 	tristate "LPC32XX USB Peripheral Controller"
 	depends on ARCH_LPC32XX
-	depends on USB_PHY
 	select USB_ISP1301
 	help
 	   This option selects the USB device controller in the LPC32xx SoC.
@@ -206,7 +205,6 @@ config USB_FOTG210_UDC
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
-	depends on USB_PHY
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_H4_OTG
 	help
 	   Many Texas Instruments OMAP processors have flexible full
@@ -286,21 +284,6 @@ config USB_S3C_HSOTG
 	help
 	  The Samsung S3C64XX USB2.0 high-speed gadget controller
 	  integrated into the S3C64XX series SoC.
-
-config USB_IMX
-	tristate "Freescale i.MX1 USB Peripheral Controller"
-	depends on ARCH_MXC
-	depends on BROKEN
-	help
-	   Freescale's i.MX1 includes an integrated full speed
-	   USB 1.1 device controller.
-
-	   It has Six fixed-function endpoints, as well as endpoint
-	   zero (for control transfers).
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "imx_udc" and force all
-	   gadget drivers to also be dynamically linked.
 
 config USB_S3C2410
 	tristate "S3C2410 USB Device Controller"

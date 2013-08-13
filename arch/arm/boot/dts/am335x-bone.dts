@@ -120,6 +120,22 @@
 			status = "okay";
 		};
 
+		musb: usb@47400000 {
+			status = "okay";
+
+			control@44e10000 {
+				status = "okay";
+			};
+
+			phy@47401300 {
+				status = "okay";
+			};
+
+			usb@47401000 {
+				status = "okay";
+			};
+		};
+
 		i2c0: i2c@44e0b000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c0_pins>;

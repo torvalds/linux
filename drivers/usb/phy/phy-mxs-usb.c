@@ -41,11 +41,14 @@ struct mxs_phy {
 
 #define to_mxs_phy(p) container_of((p), struct mxs_phy, phy)
 
-static void mxs_phy_hw_init(struct mxs_phy *mxs_phy)
+static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 {
+	int ret;
 	void __iomem *base = mxs_phy->phy.io_priv;
 
-	stmp_reset_block(base + HW_USBPHY_CTRL);
+	ret = stmp_reset_block(base + HW_USBPHY_CTRL);
+	if (ret)
+		return ret;
 
 	/* Power up the PHY */
 	writel(0, base + HW_USBPHY_PWD);
@@ -54,6 +57,8 @@ static void mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 	writel(BM_USBPHY_CTRL_ENUTMILEVEL2 |
 	       BM_USBPHY_CTRL_ENUTMILEVEL3,
 	       base + HW_USBPHY_CTRL_SET);
+
+	return 0;
 }
 
 static int mxs_phy_init(struct usb_phy *phy)
@@ -61,9 +66,7 @@ static int mxs_phy_init(struct usb_phy *phy)
 	struct mxs_phy *mxs_phy = to_mxs_phy(phy);
 
 	clk_prepare_enable(mxs_phy->clk);
-	mxs_phy_hw_init(mxs_phy);
-
-	return 0;
+	return mxs_phy_hw_init(mxs_phy);
 }
 
 static void mxs_phy_shutdown(struct usb_phy *phy)

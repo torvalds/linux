@@ -63,6 +63,7 @@ static int host_start(struct ci_hdrc *ci)
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;
 	ehci->has_hostpc = ci->hw_bank.lpm;
+	ehci->has_tdi_phy_lpm = ci->hw_bank.lpm;
 
 	ret = usb_add_hcd(hcd, 0, 0);
 	if (ret)
