@@ -2072,11 +2072,7 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 	/* finish pending truncate */
 	while (ci->i_truncate_pending) {
 		spin_unlock(&ci->i_ceph_lock);
-		if (!(need & CEPH_CAP_FILE_WR))
-			mutex_lock(&inode->i_mutex);
 		__ceph_do_pending_vmtruncate(inode);
-		if (!(need & CEPH_CAP_FILE_WR))
-			mutex_unlock(&inode->i_mutex);
 		spin_lock(&ci->i_ceph_lock);
 	}
 

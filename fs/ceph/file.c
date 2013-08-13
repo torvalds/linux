@@ -773,6 +773,13 @@ retry_snap:
 			goto retry_snap;
 		}
 	} else {
+		/*
+		 * No need to acquire the i_truncate_mutex. Because
+		 * the MDS revokes Fwb caps before sending truncate
+		 * message to us. We can't get Fwb cap while there
+		 * are pending vmtruncate. So write and vmtruncate
+		 * can not run at the same time
+		 */
 		written = generic_file_buffered_write(iocb, iov, nr_segs,
 						      pos, &iocb->ki_pos,
 						      count, 0);
@@ -819,7 +826,6 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 	int ret;
 
 	mutex_lock(&inode->i_mutex);
-	__ceph_do_pending_vmtruncate(inode);
 
 	if (whence == SEEK_END || whence == SEEK_DATA || whence == SEEK_HOLE) {
 		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);

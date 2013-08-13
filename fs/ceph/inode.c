@@ -352,6 +352,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	for (i = 0; i < CEPH_FILE_MODE_NUM; i++)
 		ci->i_nr_by_mode[i] = 0;
 
+	mutex_init(&ci->i_truncate_mutex);
 	ci->i_truncate_seq = 0;
 	ci->i_truncate_size = 0;
 	ci->i_truncate_pending = 0;
@@ -463,16 +464,20 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 			dout("truncate_seq %u -> %u\n",
 			     ci->i_truncate_seq, truncate_seq);
 			ci->i_truncate_seq = truncate_seq;
+
+			/* the MDS should have revoked these caps */
+			WARN_ON_ONCE(issued & (CEPH_CAP_FILE_EXCL |
+					       CEPH_CAP_FILE_RD |
+					       CEPH_CAP_FILE_WR |
+					       CEPH_CAP_FILE_LAZYIO));
 			/*
 			 * If we hold relevant caps, or in the case where we're
 			 * not the only client referencing this file and we
 			 * don't hold those caps, then we need to check whether
 			 * the file is either opened or mmaped
 			 */
-			if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_RD|
-				       CEPH_CAP_FILE_WR|CEPH_CAP_FILE_BUFFER|
-				       CEPH_CAP_FILE_EXCL|
-				       CEPH_CAP_FILE_LAZYIO)) ||
+			if ((issued & (CEPH_CAP_FILE_CACHE|
+				       CEPH_CAP_FILE_BUFFER)) ||
 			    mapping_mapped(inode->i_mapping) ||
 			    __ceph_caps_file_wanted(ci)) {
 				ci->i_truncate_pending++;
@@ -1427,18 +1432,20 @@ static void ceph_invalidate_work(struct work_struct *work)
 	u32 orig_gen;
 	int check = 0;
 
+	mutex_lock(&ci->i_truncate_mutex);
 	spin_lock(&ci->i_ceph_lock);
 	dout("invalidate_pages %p gen %d revoking %d\n", inode,
 	     ci->i_rdcache_gen, ci->i_rdcache_revoking);
 	if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
 		/* nevermind! */
 		spin_unlock(&ci->i_ceph_lock);
+		mutex_unlock(&ci->i_truncate_mutex);
 		goto out;
 	}
 	orig_gen = ci->i_rdcache_gen;
 	spin_unlock(&ci->i_ceph_lock);
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages(inode->i_mapping, 0);
 
 	spin_lock(&ci->i_ceph_lock);
 	if (orig_gen == ci->i_rdcache_gen &&
@@ -1453,6 +1460,7 @@ static void ceph_invalidate_work(struct work_struct *work)
 		     ci->i_rdcache_revoking);
 	}
 	spin_unlock(&ci->i_ceph_lock);
+	mutex_unlock(&ci->i_truncate_mutex);
 
 	if (check)
 		ceph_check_caps(ci, 0, NULL);
@@ -1473,16 +1481,7 @@ static void ceph_vmtruncate_work(struct work_struct *work)
 	struct inode *inode = &ci->vfs_inode;
 
 	dout("vmtruncate_work %p\n", inode);
-	if (!mutex_trylock(&inode->i_mutex)) {
-		/*
-		 * the i_mutex can be hold by a writer who is waiting for
-		 * caps. wake up waiters, they will do pending vmtruncate.
-		 */
-		wake_up_all(&ci->i_cap_wq);
-		mutex_lock(&inode->i_mutex);
-	}
 	__ceph_do_pending_vmtruncate(inode);
-	mutex_unlock(&inode->i_mutex);
 	iput(inode);
 }
 
@@ -1515,11 +1514,13 @@ void __ceph_do_pending_vmtruncate(struct inode *inode)
 	u64 to;
 	int wrbuffer_refs, finish = 0;
 
+	mutex_lock(&ci->i_truncate_mutex);
 retry:
 	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_truncate_pending == 0) {
 		dout("__do_pending_vmtruncate %p none pending\n", inode);
 		spin_unlock(&ci->i_ceph_lock);
+		mutex_unlock(&ci->i_truncate_mutex);
 		return;
 	}
 
@@ -1535,6 +1536,9 @@ retry:
 					     inode->i_sb->s_maxbytes);
 		goto retry;
 	}
+
+	/* there should be no reader or writer */
+	WARN_ON_ONCE(ci->i_rd_ref || ci->i_wr_ref);
 
 	to = ci->i_truncate_size;
 	wrbuffer_refs = ci->i_wrbuffer_ref;
@@ -1552,6 +1556,8 @@ retry:
 	spin_unlock(&ci->i_ceph_lock);
 	if (!finish)
 		goto retry;
+
+	mutex_unlock(&ci->i_truncate_mutex);
 
 	if (wrbuffer_refs == 0)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
@@ -1600,8 +1606,6 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
-
-	__ceph_do_pending_vmtruncate(inode);
 
 	err = inode_change_ok(inode, attr);
 	if (err != 0)
@@ -1783,7 +1787,8 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	     ceph_cap_string(dirtied), mask);
 
 	ceph_mdsc_put_request(req);
-	__ceph_do_pending_vmtruncate(inode);
+	if (mask & CEPH_SETATTR_SIZE)
+		__ceph_do_pending_vmtruncate(inode);
 	return err;
 out:
 	spin_unlock(&ci->i_ceph_lock);
