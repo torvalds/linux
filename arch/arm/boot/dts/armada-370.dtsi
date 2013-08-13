@@ -104,6 +104,11 @@
 				interrupts = <91>;
 			};
 
+			timer@20300 {
+				compatible = "marvell,armada-370-timer";
+				clocks = <&coreclk 2>;
+			};
+
 			coreclk: mvebu-sar@18230 {
 				compatible = "marvell,armada-370-core-clock";
 				reg = <0x18230 0x08>;
