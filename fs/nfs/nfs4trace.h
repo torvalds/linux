@@ -174,6 +174,24 @@
 		{ ((__force unsigned long)FMODE_WRITE), "WRITE" }, \
 		{ ((__force unsigned long)FMODE_EXEC), "EXEC" })
 
+#define show_nfs_fattr_flags(valid) \
+	__print_flags((unsigned long)valid, "|", \
+		{ NFS_ATTR_FATTR_TYPE, "TYPE" }, \
+		{ NFS_ATTR_FATTR_MODE, "MODE" }, \
+		{ NFS_ATTR_FATTR_NLINK, "NLINK" }, \
+		{ NFS_ATTR_FATTR_OWNER, "OWNER" }, \
+		{ NFS_ATTR_FATTR_GROUP, "GROUP" }, \
+		{ NFS_ATTR_FATTR_RDEV, "RDEV" }, \
+		{ NFS_ATTR_FATTR_SIZE, "SIZE" }, \
+		{ NFS_ATTR_FATTR_FSID, "FSID" }, \
+		{ NFS_ATTR_FATTR_FILEID, "FILEID" }, \
+		{ NFS_ATTR_FATTR_ATIME, "ATIME" }, \
+		{ NFS_ATTR_FATTR_MTIME, "MTIME" }, \
+		{ NFS_ATTR_FATTR_CTIME, "CTIME" }, \
+		{ NFS_ATTR_FATTR_CHANGE, "CHANGE" }, \
+		{ NFS_ATTR_FATTR_OWNER_NAME, "OWNER_NAME" }, \
+		{ NFS_ATTR_FATTR_GROUP_NAME, "GROUP_NAME" })
+
 DECLARE_EVENT_CLASS(nfs4_clientid_event,
 		TP_PROTO(
 			const struct nfs_client *clp,
@@ -626,6 +644,57 @@ DEFINE_NFS4_INODE_EVENT(nfs4_set_security_label);
 #endif /* CONFIG_NFS_V4_SECURITY_LABEL */
 DEFINE_NFS4_INODE_EVENT(nfs4_recall_delegation);
 DEFINE_NFS4_INODE_EVENT(nfs4_delegreturn);
+
+DECLARE_EVENT_CLASS(nfs4_getattr_event,
+		TP_PROTO(
+			const struct nfs_server *server,
+			const struct nfs_fh *fhandle,
+			const struct nfs_fattr *fattr,
+			int error
+		),
+
+		TP_ARGS(server, fhandle, fattr, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(unsigned int, valid)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			__entry->dev = server->s_dev;
+			__entry->valid = fattr->valid;
+			__entry->fhandle = nfs_fhandle_hash(fhandle);
+			__entry->fileid = (fattr->valid & NFS_ATTR_FATTR_FILEID) ? fattr->fileid : 0;
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"error=%d (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"valid=%s",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			show_nfs_fattr_flags(__entry->valid)
+		)
+);
+
+#define DEFINE_NFS4_GETATTR_EVENT(name) \
+	DEFINE_EVENT(nfs4_getattr_event, name, \
+			TP_PROTO( \
+				const struct nfs_server *server, \
+				const struct nfs_fh *fhandle, \
+				const struct nfs_fattr *fattr, \
+				int error \
+			), \
+			TP_ARGS(server, fhandle, fattr, error))
+DEFINE_NFS4_GETATTR_EVENT(nfs4_getattr);
+DEFINE_NFS4_GETATTR_EVENT(nfs4_lookup_root);
+DEFINE_NFS4_GETATTR_EVENT(nfs4_fsinfo);
 
 DECLARE_EVENT_CLASS(nfs4_idmap_event,
 		TP_PROTO(

@@ -2697,6 +2697,7 @@ static int nfs4_lookup_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	int err;
 	do {
 		err = _nfs4_lookup_root(server, fhandle, info);
+		trace_nfs4_lookup_root(server, fhandle, info->fattr, err);
 		switch (err) {
 		case 0:
 		case -NFS4ERR_WRONGSEC:
@@ -2906,8 +2907,9 @@ static int nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = nfs4_handle_exception(server,
-				_nfs4_proc_getattr(server, fhandle, fattr, label),
+		err = _nfs4_proc_getattr(server, fhandle, fattr, label);
+		trace_nfs4_getattr(server, fhandle, fattr, err);
+		err = nfs4_handle_exception(server, err,
 				&exception);
 	} while (exception.retry);
 	return err;
@@ -3760,6 +3762,7 @@ static int nfs4_do_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle, str
 
 	do {
 		err = _nfs4_do_fsinfo(server, fhandle, fsinfo);
+		trace_nfs4_fsinfo(server, fhandle, fsinfo->fattr, err);
 		if (err == 0) {
 			struct nfs_client *clp = server->nfs_client;
 
