@@ -1758,7 +1758,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	ts = tty->termios;
+	ts = &tty->termios;
 
 	DPR_CLOSE(("Close called\n"));
 
