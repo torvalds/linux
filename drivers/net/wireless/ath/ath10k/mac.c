@@ -503,12 +503,9 @@ static int ath10k_monitor_start(struct ath10k *ar, int vdev_id)
 {
 	struct ieee80211_channel *channel = ar->hw->conf.chandef.chan;
 	struct wmi_vdev_start_request_arg arg = {};
-	enum nl80211_channel_type type;
 	int ret = 0;
 
 	lockdep_assert_held(&ar->conf_mutex);
-
-	type = cfg80211_get_chandef_type(&ar->hw->conf.chandef);
 
 	arg.vdev_id = vdev_id;
 	arg.channel.freq = channel->center_freq;
