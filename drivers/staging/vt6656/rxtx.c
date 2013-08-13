@@ -389,47 +389,15 @@ static u32 s_uGetDataDuration(struct vnt_private *pDevice, u8 byDurType,
 {
 	u32 uAckTime = 0;
 
-    switch (byDurType) {
-
-    case DATADUR_B:    //DATADUR_B
-            if (bNeedAck) {
-            	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopCCKBasicRate);
-                return (pDevice->uSIFS + uAckTime);
-            } else {
-                return 0;
-            }
-        break;
-
-    case DATADUR_A:    //DATADUR_A
-            if(bNeedAck){
-            	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-                return (pDevice->uSIFS + uAckTime);
-            } else {
-                return 0;
-            }
-        break;
-
-    case DATADUR_A_F0:    //DATADUR_A_F0
-            if(bNeedAck){
-            	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-                return (pDevice->uSIFS + uAckTime);
-            } else {
-                return 0;
-            }
-        break;
-
-    case DATADUR_A_F1:    //DATADUR_A_F1
-            if(bNeedAck){
-            	uAckTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType, 14, pDevice->byTopOFDMBasicRate);
-                return (pDevice->uSIFS + uAckTime);
-            } else {
-                return 0;
-            }
-        break;
-
-    default:
-        break;
-    }
+	if (bNeedAck) {
+		if (byDurType == DATADUR_B)
+			uAckTime = BBuGetFrameTime(pDevice->byPreambleType,
+				byPktType, 14, pDevice->byTopCCKBasicRate);
+		else
+			uAckTime = BBuGetFrameTime(pDevice->byPreambleType,
+				byPktType, 14, pDevice->byTopOFDMBasicRate);
+		return pDevice->uSIFS + uAckTime;
+	}
 
 	return 0;
 }
