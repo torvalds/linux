@@ -61,8 +61,10 @@
  * they do not conflict with each other.
  */
 
+#define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_HIDDEN
+
 #ifdef CONFIG_MEM_SOFT_DIRTY
-#define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 1) << _PAGE_BIT_HIDDEN)
+#define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 1) << _PAGE_BIT_SOFT_DIRTY)
 #else
 #define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 0))
 #endif
