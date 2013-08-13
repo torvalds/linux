@@ -3324,9 +3324,7 @@ int sw_usb_device_enable(void)
 
 err:
 	if(is_udc_support_dma()){
-		if(udc->sw_udc_dma.dma_hdle >= 0){
-			sw_udc_dma_remove(udc);
-		}
+		sw_udc_dma_remove(udc);
 	}
 
     sw_udc_io_exit(usbd_port_no, pdev, &g_sw_udc_io);
@@ -3362,9 +3360,7 @@ int sw_usb_device_disable(void)
 	sw_udc_set_pullup(udc, 0);
 
 	if(is_udc_support_dma()){
-		if(udc->sw_udc_dma.dma_hdle >= 0){
-			sw_udc_dma_remove(udc);
-		}
+		sw_udc_dma_remove(udc);
 	}
 
 	free_irq(udc->irq_no, udc);
@@ -3531,9 +3527,7 @@ static int sw_udc_probe_device_only(struct platform_device *pdev)
 
 err:
 	if(is_udc_support_dma()){
-		if(udc->sw_udc_dma.dma_hdle >= 0){
-			sw_udc_dma_remove(udc);
-		}
+		sw_udc_dma_remove(udc);
 	}
 
     sw_udc_io_exit(usbd_port_no, pdev, &g_sw_udc_io);
@@ -3569,9 +3563,7 @@ static int sw_udc_remove_device_only(struct platform_device *pdev)
     }
 
 	if(is_udc_support_dma()){
-		if(udc->sw_udc_dma.dma_hdle >= 0){
-			sw_udc_dma_remove(udc);
-		}
+		sw_udc_dma_remove(udc);
 	}
 
 	free_irq(udc->irq_no, udc);

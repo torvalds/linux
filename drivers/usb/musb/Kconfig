@@ -25,7 +25,7 @@ config USB_MUSB_HDRC
 	  Analog Devices parts using this IP include Blackfin BF54x,
 	  BF525 and BF527.
 
-	  Allwinner parts using this IP include SUN4I and SUN5I.
+	  Allwinner parts using this IP include SUN4I, SUN5I and SUN7I.
 
 	  If you do not know what this is, please say N.
 
@@ -65,9 +65,9 @@ config USB_MUSB_UX500
 	depends on (ARCH_U8500 && AB8500_USB)
 
 config USB_MUSB_SUNXI
-	tristate "Allwinner SUN4I/SUN5I"
+	tristate "Allwinner SUN4I/SUN5I/SUN7I"
 	select NOP_USB_XCEIV
-	depends on (ARCH_SUN4I || ARCH_SUN5I)
+	depends on (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
 
 endchoice
 

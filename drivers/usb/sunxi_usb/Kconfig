@@ -9,7 +9,7 @@
 #---------------------------------------------
 menuconfig USB_SW_SUNXI_USB
     boolean "SUNXI USB2.0 Dual Role Controller support"
-    depends on (ARCH_SUN4I || ARCH_SUN5I) && USB_MUSB_SUNXI=n
+    depends on (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I) && USB_MUSB_SUNXI=n
     help
         SUNXI USB2.0 Dual Role Controller
 

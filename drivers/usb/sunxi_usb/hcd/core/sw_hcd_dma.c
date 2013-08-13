@@ -26,6 +26,8 @@
 #include  "../include/sw_hcd_dma.h"
 #include <asm/cacheflush.h>
 
+#ifdef SW_HCD_DMA
+
 extern void sw_hcd_dma_completion(struct sw_hcd *sw_hcd, u8 epnum, u8 transmit);
 
 static void hcd_CleanFlushDCacheRegion(void *adr, __u32 bytes)
@@ -518,3 +520,18 @@ EXPORT_SYMBOL(sw_hcd_dma_remove);
 
 
 
+#else
+void sw_hcd_switch_bus_to_dma(struct sw_hcd_qh *qh, u32 is_in){}
+void sw_hcd_switch_bus_to_pio(struct sw_hcd_qh *qh, __u32 is_in){}
+
+void sw_hcd_dma_set_config(struct sw_hcd_qh *qh, __u32 buff_addr, __u32 len){}
+__u32 sw_hcd_dma_is_busy(struct sw_hcd_qh *qh){return 0;}
+
+void sw_hcd_dma_start(struct sw_hcd_qh *qh, __u32 fifo, __u32 buffer, __u32 len){}
+void sw_hcd_dma_stop(struct sw_hcd_qh *qh){}
+__u32 sw_hcd_dma_transmit_length(struct sw_hcd_qh *qh, __u32 is_in, __u32 buffer_addr){return 0;}
+
+__s32 sw_hcd_dma_probe(struct sw_hcd *sw_hcd){return 0;}
+__s32 sw_hcd_dma_remove(struct sw_hcd *sw_hcd){return 0;}
+
+#endif

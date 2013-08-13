@@ -26,8 +26,11 @@
 
 #include <linux/usb.h>
 #include <linux/usb/gadget.h>
+
+#ifdef SW_UDC_DMA
 #include <plat/dma.h>
 #include <linux/dma-mapping.h>
+#endif
 
 /*  */
 typedef struct sw_udc_ep {
@@ -111,6 +114,7 @@ static const char *ep0states[]= {
 };
 */
 
+#ifdef SW_UDC_DMA
 //---------------------------------------------------------------
 //  DMA
 //---------------------------------------------------------------
@@ -127,6 +131,7 @@ typedef struct sw_udc_dma_parg{
 	struct sw_udc_ep *ep;
 	struct sw_udc_request *req;
 }sw_udc_dma_parg_t;
+#endif
 
 
 /* i/o 信息 */
@@ -182,7 +187,9 @@ typedef struct sw_udc {
 	sw_udc_io_t					*sw_udc_io;
 	char 						driver_name[32];
 	__u32 						usbc_no;	/* 控制器端口号 	*/
+#ifdef SW_UDC_DMA
 	sw_udc_dma_t 			    sw_udc_dma;
+#endif
 
 	u32							stoped;		/* 控制器停止工作 	*/
 	u32 						irq_no;		/* USB 中断号 		*/

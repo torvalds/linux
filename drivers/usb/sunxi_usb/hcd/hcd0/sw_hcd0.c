@@ -1564,7 +1564,7 @@ static int sw_hcd_init_controller(struct device *dev, int nIrq, void __iomem *ct
     return 0;
 
 fail2:
-	if(sw_hcd->sw_hcd_dma.dma_hdle < 0){
+	if (is_hcd_support_dma(sw_hcd->usbc_no)) {
 		sw_hcd_dma_remove(sw_hcd);
 	}
 

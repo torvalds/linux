@@ -32,8 +32,10 @@
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
 
+#ifdef SW_HCD_DMA
 #include <plat/dma.h>
 #include <linux/dma-mapping.h>
+#endif
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -148,7 +150,9 @@ typedef struct sw_hcd{
 	 */
 	void (*board_set_vbus)(struct sw_hcd *, int is_on);
 
+#ifdef SW_HCD_DMA
 	sw_hcd_dma_t sw_hcd_dma;
+#endif
 
 	struct device *controller;          /*  */
 	void __iomem *ctrl_base;            /* USB 控制器基址       */

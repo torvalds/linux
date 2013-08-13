@@ -46,6 +46,7 @@
 #include <asm/system.h>
 #include <asm/unaligned.h>
 #include <mach/irqs.h>
+#include <plat/system.h>
 
 #include  "../include/sw_usb_config.h"
 #include  "usb_manager.h"

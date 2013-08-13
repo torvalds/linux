@@ -44,6 +44,8 @@
 #include  "sw_udc_board.h"
 #include  "sw_udc_dma.h"
 
+#ifdef SW_UDC_DMA
+
 static sw_udc_dma_parg_t sw_udc_dma_para;
 
 extern void sw_udc_dma_completion(struct sw_udc *dev, struct sw_udc_ep *ep, struct sw_udc_request *req);
@@ -523,5 +525,21 @@ __s32 sw_udc_dma_remove(struct sw_udc *dev)
 	return 0;
 }
 
+#else
 
+void sw_udc_switch_bus_to_ddma(struct sw_udc_ep *ep, u32 is_tx){}
+void sw_udc_switch_bus_to_pio(struct sw_udc_ep *ep, __u32 is_tx){}
 
+void sw_udc_enable_dma_channel_irq(struct sw_udc_ep *ep){}
+void sw_udc_disable_dma_channel_irq(struct sw_udc_ep *ep){}
+
+void sw_udc_dma_set_config(struct sw_udc_ep *ep, struct sw_udc_request *req, __u32 buff_addr, __u32 len){}
+void sw_udc_dma_start(struct sw_udc_ep *ep, __u32 fifo, __u32 buffer, __u32 len){}
+void sw_udc_dma_stop(struct sw_udc_ep *ep){}
+__u32 sw_udc_dma_transmit_length(struct sw_udc_ep *ep, __u32 is_in, __u32 buffer_addr){return 0;}
+__u32 sw_udc_dma_is_busy(struct sw_udc_ep *ep){return 0;}
+
+__s32 sw_udc_dma_probe(struct sw_udc *dev){return 0;}
+__s32 sw_udc_dma_remove(struct sw_udc *dev){return 0;}
+
+#endif
