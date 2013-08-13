@@ -67,7 +67,7 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
  */
 struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 {
-	struct oz_elt_info *ei = NULL;
+	struct oz_elt_info *ei;
 
 	spin_lock_bh(&buf->lock);
 	if (buf->free_elts && buf->elt_pool) {

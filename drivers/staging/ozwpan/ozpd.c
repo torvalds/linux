@@ -337,7 +337,7 @@ void oz_pd_heartbeat(struct oz_pd *pd, u16 apps)
  */
 void oz_pd_stop(struct oz_pd *pd)
 {
-	u16 stop_apps = 0;
+	u16 stop_apps;
 
 	oz_dbg(ON, "oz_pd_stop() State = 0x%x\n", pd->state);
 	oz_pd_indicate_farewells(pd);
@@ -362,7 +362,7 @@ void oz_pd_stop(struct oz_pd *pd)
 int oz_pd_sleep(struct oz_pd *pd)
 {
 	int do_stop = 0;
-	u16 stop_apps = 0;
+	u16 stop_apps;
 
 	oz_polling_lock_bh();
 	if (pd->state & (OZ_PD_S_SLEEP | OZ_PD_S_STOPPED)) {
