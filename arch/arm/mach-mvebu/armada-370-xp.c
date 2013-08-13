@@ -18,7 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
-#include <linux/time-armada-370-xp.h>
+#include <linux/clocksource.h>
 #include <linux/dma-mapping.h>
 #include <linux/mbus.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -69,7 +69,7 @@ static void __init armada_370_xp_mbus_init(void)
 static void __init armada_370_xp_timer_and_clk_init(void)
 {
 	of_clk_init(NULL);
-	armada_370_xp_timer_init();
+	clocksource_of_init();
 	coherency_init();
 	armada_370_xp_mbus_init();
 #ifdef CONFIG_CACHE_L2X0

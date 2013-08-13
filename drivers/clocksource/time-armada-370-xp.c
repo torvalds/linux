@@ -212,13 +212,11 @@ static struct local_timer_ops armada_370_xp_local_timer_ops = {
 	.stop	=  armada_370_xp_timer_stop,
 };
 
-void __init armada_370_xp_timer_init(void)
+static void __init armada_370_xp_timer_init(struct device_node *np)
 {
 	u32 clr = 0, set = 0;
-	struct device_node *np;
 	int res;
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,armada-370-xp-timer");
 	timer_base = of_iomap(np, 0);
 	WARN_ON(!timer_base);
 	local_base = of_iomap(np, 1);
@@ -290,3 +288,5 @@ void __init armada_370_xp_timer_init(void)
 #endif
 	}
 }
+CLOCKSOURCE_OF_DECLARE(armada_370_xp, "marvell,armada-370-xp-timer",
+		       armada_370_xp_timer_init);
