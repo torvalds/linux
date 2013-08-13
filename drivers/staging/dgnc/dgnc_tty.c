@@ -870,7 +870,7 @@ void dgnc_input(struct channel_t *ch)
 
 	}
 	else {
-		len = tty_buffer_request_room(tp, len);
+		len = tty_buffer_request_room(tp->port, len);
 		n = len;
 
 		/*
@@ -894,17 +894,17 @@ void dgnc_input(struct channel_t *ch)
 			if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
 				for (i = 0; i < s; i++) {
 					if (*(ch->ch_equeue + tail + i) & UART_LSR_BI)
-						tty_insert_flip_char(tp, *(ch->ch_rqueue + tail + i), TTY_BREAK);
+						tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_BREAK);
 					else if (*(ch->ch_equeue + tail + i) & UART_LSR_PE)
-						tty_insert_flip_char(tp, *(ch->ch_rqueue + tail + i), TTY_PARITY);
+						tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_PARITY);
 					else if (*(ch->ch_equeue + tail + i) & UART_LSR_FE)
-						tty_insert_flip_char(tp, *(ch->ch_rqueue + tail + i), TTY_FRAME);
+						tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_FRAME);
 					else
-						tty_insert_flip_char(tp, *(ch->ch_rqueue + tail + i), TTY_NORMAL);
+						tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_NORMAL);
 				}
 			}
 			else {
-				tty_insert_flip_string(tp, ch->ch_rqueue + tail, s);
+				tty_insert_flip_string(tp->port, ch->ch_rqueue + tail, s);
 			}
 
 			dgnc_sniff_nowait_nolock(ch, "USER READ", ch->ch_rqueue + tail, s);
@@ -921,7 +921,7 @@ void dgnc_input(struct channel_t *ch)
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 		/* Tell the tty layer its okay to "eat" the data now */
-		tty_flip_buffer_push(tp);
+		tty_flip_buffer_push(tp->port);
 	}
 
 	if (ld)
