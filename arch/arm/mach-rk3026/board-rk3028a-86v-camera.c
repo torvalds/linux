@@ -36,14 +36,14 @@ Comprehensive camera device registration:
 static struct rkcamera_platform_data new_camera[] = { 
     new_camera_device(RK29_CAM_SENSOR_GC2035,
                         back,
-                        RK30_PIN3_PB3,
+                        RK30_PIN0_PB3,
                         0,
                         0,
                         1,
                         0),
     new_camera_device(RK29_CAM_SENSOR_GC0308,
                         front,
-                        RK30_PIN3_PD7,
+                        RK30_PIN0_PB2,
                         0,
                         0,
                         1,
@@ -240,8 +240,36 @@ static void rk_cif_power(int on)
 #if CONFIG_SENSOR_POWER_IOCTL_USR
 static int sensor_power_usr_cb (struct rk29camera_gpio_res *res,int on)
 {
-	//#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
-    rk_cif_power(on);
+	    //#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
+	struct regulator *ldo_18,*ldo_28;
+	    ldo_28 = regulator_get(NULL, "ldo7");   // vcc28_cif
+	    ldo_18 = regulator_get(NULL, "ldo1");   // vcc18_cif
+	if (ldo_28 == NULL || IS_ERR(ldo_28) || ldo_18 == NULL || IS_ERR(ldo_18)){
+	    printk("get cif ldo failed!\n");
+	    return -1;
+	}
+	if(on == 0){
+	    while(regulator_is_enabled(ldo_28)>0)   
+		regulator_disable(ldo_28);
+	    regulator_put(ldo_28);
+	    while(regulator_is_enabled(ldo_18)>0)
+		regulator_disable(ldo_18);
+	    regulator_put(ldo_18);
+	    mdelay(10);
+	} else {
+	    regulator_set_voltage(ldo_28, 2800000, 2800000);
+	    regulator_enable(ldo_28);
+	    //printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_28));
+	    regulator_put(ldo_28);
+	
+	    regulator_set_voltage(ldo_18, 1800000, 1800000);
+	    //regulator_set_suspend_voltage(ldo, 1800000);
+	    regulator_enable(ldo_18);
+	    //printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_18));
+	    regulator_put(ldo_18);
+	}
+	
+	return 0;
 }
 #endif
 

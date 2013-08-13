@@ -800,11 +800,11 @@ static void rkusb_wifi_power(int on) {
 	struct regulator *ldo = NULL;
 	printk("hjc:%s[%d],on=%d\n",__func__,__LINE__,on);
 #if defined(CONFIG_MFD_TPS65910)	
-	if (pmic_is_tps65910() )
+	if (pmic_is_tps65910())
 		ldo = regulator_get(NULL, "vmmc");  //vccio_wl
 #endif
 #if defined(CONFIG_REGULATOR_ACT8931)
-	if(pmic_is_act8931() )
+	if(pmic_is_act8931())
 		ldo = regulator_get(NULL, "act_ldo4");  //vccio_wl
 #endif	
 	
@@ -1152,11 +1152,13 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 };
 
 static struct pmu_info tps65910_ldo_info[] = {
+
 	{
 		.name          = "vpll",   //vcc25
 		.min_uv          = 1000000,
 		.max_uv         = 2500000,
 	},
+
 	{
 		.name          = "vdig1",    //vcc18_cif
 		.min_uv          = 1800000,
@@ -1183,11 +1185,12 @@ static struct pmu_info tps65910_ldo_info[] = {
 		.min_uv          = 3300000,
 		.max_uv         = 3300000,
 	},
-	{
+/*	{
 		.name          = "vmmc",   //vcca30
 		.min_uv          = 3000000,
 		.max_uv         = 3000000,
 	},
+*/
 	{
 		.name          = "vdac",   //
 		.min_uv          = 1800000,
