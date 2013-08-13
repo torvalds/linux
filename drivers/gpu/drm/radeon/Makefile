@@ -82,6 +82,14 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	trinity_smc.o ni_dpm.o si_smc.o si_dpm.o kv_smc.o kv_dpm.o ci_smc.o \
 	ci_dpm.o
 
+# add UVD block
+radeon-y += \
+	radeon_uvd.o \
+	uvd_v1_0.o \
+	uvd_v2_2.o \
+	uvd_v3_1.o \
+	uvd_v4_2.o
+
 radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o
 radeon-$(CONFIG_ACPI) += radeon_acpi.o

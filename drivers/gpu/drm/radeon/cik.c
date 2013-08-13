@@ -69,7 +69,6 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
 static void cik_init_pg(struct radeon_device *rdev);
 static void cik_init_cg(struct radeon_device *rdev);
-void cik_uvd_resume(struct radeon_device *rdev);
 
 /* get temperature in millidegrees */
 int ci_get_temp(struct radeon_device *rdev)
@@ -7616,9 +7615,8 @@ static int cik_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = radeon_uvd_resume(rdev);
+	r = uvd_v4_2_resume(rdev);
 	if (!r) {
-		cik_uvd_resume(rdev);
 		r = radeon_fence_driver_start_ring(rdev,
 						   R600_RING_TYPE_UVD_INDEX);
 		if (r)
@@ -7705,7 +7703,7 @@ static int cik_startup(struct radeon_device *rdev)
 				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     RADEON_CP_PACKET2);
 		if (!r)
-			r = r600_uvd_init(rdev, true);
+			r = uvd_v1_0_init(rdev);
 		if (r)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
 	}
@@ -7770,7 +7768,7 @@ int cik_suspend(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	cik_cp_enable(rdev, false);
 	cik_sdma_enable(rdev, false);
-	r600_uvd_stop(rdev);
+	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
 	cik_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
@@ -7934,7 +7932,7 @@ void cik_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	r600_uvd_stop(rdev);
+	uvd_v1_0_fini(rdev);
 	radeon_uvd_fini(rdev);
 	cik_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
@@ -8593,37 +8591,6 @@ int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 	r = cik_set_uvd_clock(rdev, dclk, CG_DCLK_CNTL, CG_DCLK_STATUS);
 	return r;
-}
-
-void cik_uvd_resume(struct radeon_device *rdev)
-{
-	uint64_t addr;
-	uint32_t size;
-
-	/* programm the VCPU memory controller bits 0-27 */
-	addr = rdev->uvd.gpu_addr >> 3;
-	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 4) >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE0, size);
-
-	addr += size;
-	size = RADEON_UVD_STACK_SIZE >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET1, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE1, size);
-
-	addr += size;
-	size = RADEON_UVD_HEAP_SIZE >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET2, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE2, size);
-
-	/* bits 28-31 */
-	addr = (rdev->uvd.gpu_addr >> 28) & 0xF;
-	WREG32(UVD_LMI_ADDR_EXT, (addr << 12) | (addr << 0));
-
-	/* bits 32-39 */
-	addr = (rdev->uvd.gpu_addr >> 32) & 0xFF;
-	WREG32(UVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
-
 }
 
 static void cik_pcie_gen3_enable(struct radeon_device *rdev)

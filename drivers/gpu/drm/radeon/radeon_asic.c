@@ -1150,16 +1150,16 @@ static struct radeon_asic rs780_asic = {
 };
 
 static struct radeon_asic_ring rv770_uvd_ring = {
-	.ib_execute = &r600_uvd_ib_execute,
-	.emit_fence = &r600_uvd_fence_emit,
-	.emit_semaphore = &r600_uvd_semaphore_emit,
+	.ib_execute = &uvd_v1_0_ib_execute,
+	.emit_fence = &uvd_v2_2_fence_emit,
+	.emit_semaphore = &uvd_v1_0_semaphore_emit,
 	.cs_parse = &radeon_uvd_cs_parse,
-	.ring_test = &r600_uvd_ring_test,
-	.ib_test = &r600_uvd_ib_test,
+	.ring_test = &uvd_v1_0_ring_test,
+	.ib_test = &uvd_v1_0_ib_test,
 	.is_lockup = &radeon_ring_test_lockup,
-	.get_rptr = &r600_uvd_get_rptr,
-	.get_wptr = &r600_uvd_get_wptr,
-	.set_wptr = &r600_uvd_set_wptr,
+	.get_rptr = &uvd_v1_0_get_rptr,
+	.get_wptr = &uvd_v1_0_get_wptr,
+	.set_wptr = &uvd_v1_0_set_wptr,
 };
 
 static struct radeon_asic rv770_asic = {
@@ -1586,16 +1586,16 @@ static struct radeon_asic_ring cayman_dma_ring = {
 };
 
 static struct radeon_asic_ring cayman_uvd_ring = {
-	.ib_execute = &r600_uvd_ib_execute,
-	.emit_fence = &r600_uvd_fence_emit,
-	.emit_semaphore = &cayman_uvd_semaphore_emit,
+	.ib_execute = &uvd_v1_0_ib_execute,
+	.emit_fence = &uvd_v2_2_fence_emit,
+	.emit_semaphore = &uvd_v3_1_semaphore_emit,
 	.cs_parse = &radeon_uvd_cs_parse,
-	.ring_test = &r600_uvd_ring_test,
-	.ib_test = &r600_uvd_ib_test,
+	.ring_test = &uvd_v1_0_ring_test,
+	.ib_test = &uvd_v1_0_ib_test,
 	.is_lockup = &radeon_ring_test_lockup,
-	.get_rptr = &r600_uvd_get_rptr,
-	.get_wptr = &r600_uvd_get_wptr,
-	.set_wptr = &r600_uvd_set_wptr,
+	.get_rptr = &uvd_v1_0_get_rptr,
+	.get_wptr = &uvd_v1_0_get_wptr,
+	.set_wptr = &uvd_v1_0_set_wptr,
 };
 
 static struct radeon_asic cayman_asic = {

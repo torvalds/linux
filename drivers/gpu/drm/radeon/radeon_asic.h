@@ -336,7 +336,6 @@ int r600_dma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 int r600_dma_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
-int r600_uvd_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
 int r600_copy_cpdma(struct radeon_device *rdev,
 		    uint64_t src_offset, uint64_t dst_offset,
 		    unsigned num_gpu_pages, struct radeon_fence **fence);
@@ -430,24 +429,6 @@ void rs780_dpm_print_power_state(struct radeon_device *rdev,
 void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m);
 
-/* uvd */
-uint32_t r600_uvd_get_rptr(struct radeon_device *rdev,
-                           struct radeon_ring *ring);
-uint32_t r600_uvd_get_wptr(struct radeon_device *rdev,
-                           struct radeon_ring *ring);
-void r600_uvd_set_wptr(struct radeon_device *rdev,
-                       struct radeon_ring *ring);
-int r600_uvd_init(struct radeon_device *rdev, bool ring_test);
-void r600_uvd_stop(struct radeon_device *rdev);
-int r600_uvd_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
-void r600_uvd_fence_emit(struct radeon_device *rdev,
-			 struct radeon_fence *fence);
-void r600_uvd_semaphore_emit(struct radeon_device *rdev,
-			     struct radeon_ring *ring,
-			     struct radeon_semaphore *semaphore,
-			     bool emit_wait);
-void r600_uvd_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
-
 /*
  * rv770,rv730,rv710,rv740
  */
@@ -465,7 +446,6 @@ int rv770_copy_dma(struct radeon_device *rdev,
 		  unsigned num_gpu_pages,
 		   struct radeon_fence **fence);
 u32 rv770_get_xclk(struct radeon_device *rdev);
-int rv770_uvd_resume(struct radeon_device *rdev);
 int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int rv770_get_temp(struct radeon_device *rdev);
 /* rv7xx pm */
@@ -799,5 +779,40 @@ void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 int kv_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
 void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
+
+/* uvd v1.0 */
+uint32_t uvd_v1_0_get_rptr(struct radeon_device *rdev,
+                           struct radeon_ring *ring);
+uint32_t uvd_v1_0_get_wptr(struct radeon_device *rdev,
+                           struct radeon_ring *ring);
+void uvd_v1_0_set_wptr(struct radeon_device *rdev,
+                       struct radeon_ring *ring);
+
+int uvd_v1_0_init(struct radeon_device *rdev);
+void uvd_v1_0_fini(struct radeon_device *rdev);
+int uvd_v1_0_start(struct radeon_device *rdev);
+void uvd_v1_0_stop(struct radeon_device *rdev);
+
+int uvd_v1_0_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
+int uvd_v1_0_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
+void uvd_v1_0_semaphore_emit(struct radeon_device *rdev,
+			     struct radeon_ring *ring,
+			     struct radeon_semaphore *semaphore,
+			     bool emit_wait);
+void uvd_v1_0_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
+
+/* uvd v2.2 */
+int uvd_v2_2_resume(struct radeon_device *rdev);
+void uvd_v2_2_fence_emit(struct radeon_device *rdev,
+			 struct radeon_fence *fence);
+
+/* uvd v3.1 */
+void uvd_v3_1_semaphore_emit(struct radeon_device *rdev,
+			     struct radeon_ring *ring,
+			     struct radeon_semaphore *semaphore,
+			     bool emit_wait);
+
+/* uvd v4.2 */
+int uvd_v4_2_resume(struct radeon_device *rdev);
 
 #endif

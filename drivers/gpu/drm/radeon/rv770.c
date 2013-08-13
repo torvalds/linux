@@ -801,103 +801,6 @@ u32 rv770_get_xclk(struct radeon_device *rdev)
 	return reference_clock;
 }
 
-int rv770_uvd_resume(struct radeon_device *rdev)
-{
-	uint64_t addr;
-	uint32_t chip_id, size;
-	int r;
-
-	r = radeon_uvd_resume(rdev);
-	if (r)
-		return r;
-
-	/* programm the VCPU memory controller bits 0-27 */
-	addr = rdev->uvd.gpu_addr >> 3;
-	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 4) >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE0, size);
-
-	addr += size;
-	size = RADEON_UVD_STACK_SIZE >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET1, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE1, size);
-
-	addr += size;
-	size = RADEON_UVD_HEAP_SIZE >> 3;
-	WREG32(UVD_VCPU_CACHE_OFFSET2, addr);
-	WREG32(UVD_VCPU_CACHE_SIZE2, size);
-
-	/* bits 28-31 */
-	addr = (rdev->uvd.gpu_addr >> 28) & 0xF;
-	WREG32(UVD_LMI_ADDR_EXT, (addr << 12) | (addr << 0));
-
-	/* bits 32-39 */
-	addr = (rdev->uvd.gpu_addr >> 32) & 0xFF;
-	WREG32(UVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
-
-	/* tell firmware which hardware it is running on */
-	switch (rdev->family) {
-	default:
-		return -EINVAL;
-	case CHIP_RV710:
-		chip_id = 0x01000005;
-		break;
-	case CHIP_RV730:
-		chip_id = 0x01000006;
-		break;
-	case CHIP_RV740:
-		chip_id = 0x01000007;
-		break;
-	case CHIP_CYPRESS:
-	case CHIP_HEMLOCK:
-		chip_id = 0x01000008;
-		break;
-	case CHIP_JUNIPER:
-		chip_id = 0x01000009;
-		break;
-	case CHIP_REDWOOD:
-		chip_id = 0x0100000a;
-		break;
-	case CHIP_CEDAR:
-		chip_id = 0x0100000b;
-		break;
-	case CHIP_SUMO:
-	case CHIP_SUMO2:
-		chip_id = 0x0100000c;
-		break;
-	case CHIP_PALM:
-		chip_id = 0x0100000e;
-		break;
-	case CHIP_CAYMAN:
-		chip_id = 0x0100000f;
-		break;
-	case CHIP_BARTS:
-		chip_id = 0x01000010;
-		break;
-	case CHIP_TURKS:
-		chip_id = 0x01000011;
-		break;
-	case CHIP_CAICOS:
-		chip_id = 0x01000012;
-		break;
-	case CHIP_TAHITI:
-		chip_id = 0x01000014;
-		break;
-	case CHIP_VERDE:
-		chip_id = 0x01000015;
-		break;
-	case CHIP_PITCAIRN:
-		chip_id = 0x01000016;
-		break;
-	case CHIP_ARUBA:
-		chip_id = 0x01000017;
-		break;
-	}
-	WREG32(UVD_VCPU_CHIP_ID, chip_id);
-
-	return 0;
-}
-
 u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
@@ -1870,7 +1773,7 @@ static int rv770_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = rv770_uvd_resume(rdev);
+	r = uvd_v2_2_resume(rdev);
 	if (!r) {
 		r = radeon_fence_driver_start_ring(rdev,
 						   R600_RING_TYPE_UVD_INDEX);
@@ -1927,7 +1830,7 @@ static int rv770_startup(struct radeon_device *rdev)
 				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     RADEON_CP_PACKET2);
 		if (!r)
-			r = r600_uvd_init(rdev, true);
+			r = uvd_v1_0_init(rdev);
 
 		if (r)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
@@ -1977,7 +1880,7 @@ int rv770_resume(struct radeon_device *rdev)
 int rv770_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
-	r600_uvd_stop(rdev);
+	uvd_v1_0_fini(rdev);
 	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);
@@ -2092,7 +1995,7 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
-	r600_uvd_stop(rdev);
+	uvd_v1_0_fini(rdev);
 	radeon_uvd_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);

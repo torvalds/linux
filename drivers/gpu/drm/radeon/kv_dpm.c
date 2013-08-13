@@ -26,6 +26,7 @@
 #include "cikd.h"
 #include "r600_dpm.h"
 #include "kv_dpm.h"
+#include "radeon_asic.h"
 #include <linux/seq_file.h>
 
 #define KV_MAX_DEEPSLEEP_DIVIDER_ID     5
@@ -58,10 +59,6 @@ extern void cik_enter_rlc_safe_mode(struct radeon_device *rdev);
 extern void cik_exit_rlc_safe_mode(struct radeon_device *rdev);
 extern void cik_update_cg(struct radeon_device *rdev,
 			  u32 block, bool enable);
-
-extern void cik_uvd_resume(struct radeon_device *rdev);
-extern int r600_uvd_init(struct radeon_device *rdev, bool ring_test);
-extern void r600_do_uvd_stop(struct radeon_device *rdev);
 
 static const struct kv_lcac_config_values sx_local_cac_cfg_kv[] =
 {
@@ -1473,7 +1470,7 @@ void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 	pi->uvd_power_gated = gate;
 
 	if (gate) {
-		r600_do_uvd_stop(rdev);
+		uvd_v1_0_stop(rdev);
 		cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, false);
 		kv_update_uvd_dpm(rdev, gate);
 		if (pi->caps_uvd_pg)
@@ -1481,8 +1478,8 @@ void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 	} else {
 		if (pi->caps_uvd_pg)
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_UVDPowerON);
-		cik_uvd_resume(rdev);
-		r600_uvd_init(rdev, false);
+		uvd_v4_2_resume(rdev);
+		uvd_v1_0_start(rdev);
 		cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, true);
 		kv_update_uvd_dpm(rdev, gate);
 	}

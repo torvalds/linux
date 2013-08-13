@@ -6339,7 +6339,7 @@ static int si_startup(struct radeon_device *rdev)
 	}
 
 	if (rdev->has_uvd) {
-		r = rv770_uvd_resume(rdev);
+		r = uvd_v2_2_resume(rdev);
 		if (!r) {
 			r = radeon_fence_driver_start_ring(rdev,
 							   R600_RING_TYPE_UVD_INDEX);
@@ -6420,7 +6420,7 @@ static int si_startup(struct radeon_device *rdev)
 					     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 					     RADEON_CP_PACKET2);
 			if (!r)
-				r = r600_uvd_init(rdev, true);
+				r = uvd_v1_0_init(rdev);
 			if (r)
 				DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
 		}
@@ -6473,7 +6473,7 @@ int si_suspend(struct radeon_device *rdev)
 	si_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
 	if (rdev->has_uvd) {
-		r600_uvd_stop(rdev);
+		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
 	}
 	si_irq_suspend(rdev);
@@ -6616,7 +6616,7 @@ void si_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	if (rdev->has_uvd) {
-		r600_uvd_stop(rdev);
+		uvd_v1_0_fini(rdev);
 		radeon_uvd_fini(rdev);
 	}
 	si_pcie_gart_fini(rdev);
