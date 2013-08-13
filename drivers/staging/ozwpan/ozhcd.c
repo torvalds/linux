@@ -720,9 +720,9 @@ out:
  * polled. We release the reference we hold on the PD.
  * Context: softirq
  */
-void oz_hcd_pd_departed(void *hport)
+void oz_hcd_pd_departed(struct oz_port *hport)
 {
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct oz_hcd *ozhcd;
 	void *hpd;
 	struct oz_endpoint *ep = NULL;
