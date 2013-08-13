@@ -301,7 +301,7 @@ static struct attribute *snbep_uncore_cbox_formats_attr[] = {
 };
 
 static struct attribute *snbep_uncore_pcu_formats_attr[] = {
-	&format_attr_event.attr,
+	&format_attr_event_ext.attr,
 	&format_attr_occ_sel.attr,
 	&format_attr_edge.attr,
 	&format_attr_inv.attr,
