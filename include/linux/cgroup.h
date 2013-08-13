@@ -75,6 +75,9 @@ struct cgroup_subsys_state {
 	/* reference count - access via css_[try]get() and css_put() */
 	struct percpu_ref refcnt;
 
+	/* the parent css */
+	struct cgroup_subsys_state *parent;
+
 	unsigned long flags;
 	/* ID for this css, if possible */
 	struct css_id __rcu *id;
@@ -666,15 +669,7 @@ struct cgroup_subsys {
 static inline
 struct cgroup_subsys_state *css_parent(struct cgroup_subsys_state *css)
 {
-	struct cgroup *parent_cgrp = css->cgroup->parent;
-
-	if (!parent_cgrp)
-		return NULL;
-
-	if (css->ss)
-		return parent_cgrp->subsys[css->ss->subsys_id];
-	else
-		return &parent_cgrp->dummy_css;
+	return css->parent;
 }
 
 /**
