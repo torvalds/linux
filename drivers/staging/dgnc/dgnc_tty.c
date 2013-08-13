@@ -683,7 +683,6 @@ void dgnc_input(struct channel_t *ch)
 	int flip_len;
 	int len = 0;
 	int n = 0;
-	char *buf = NULL;
 	int s = 0;
 	int i = 0;
 
@@ -746,15 +745,11 @@ void dgnc_input(struct channel_t *ch)
 
 	DPR_READ(("dgnc_input start 2\n"));
 
-	/* Decide how much data we can send into the tty layer */
-	if (dgnc_rawreadok && tp->real_raw)
-		flip_len = MYFLIPLEN;
-	else
-		flip_len = TTY_FLIPBUF_SIZE;
+	flip_len = TTY_FLIPBUF_SIZE;
 
 	/* Chop down the length, if needed */
 	len = min(data_len, flip_len);
-	len = min(len, (N_TTY_BUF_SIZE - 1) - tp->read_cnt);
+	len = min(len, (N_TTY_BUF_SIZE - 1));
 
 	ld = tty_ldisc_ref(tp);
 
@@ -807,122 +802,58 @@ void dgnc_input(struct channel_t *ch)
 	 * On the other hand, if we are not raw, we need to go through
 	 * the new 2.6.16+ tty layer, which has its API more well defined.
 	 */
-	if (dgnc_rawreadok && tp->real_raw) {
+	len = tty_buffer_request_room(tp->port, len);
+	n = len;
 
-		if (ch->ch_flags & CH_FLIPBUF_IN_USE) {
-			DPR_READ(("DGNC - FLIPBUF in use. delaying input\n"));
-			DGNC_UNLOCK(ch->ch_lock, lock_flags);
-			if (ld)
-				tty_ldisc_deref(ld);
-			return;
-		}
+	/*
+	 * n now contains the most amount of data we can copy,
+	 * bounded either by how much the Linux tty layer can handle,
+	 * or the amount of data the card actually has pending...
+	 */
+	while (n) {
+		s = ((head >= tail) ? head : RQUEUESIZE) - tail;
+		s = min(s, n);
 
-		ch->ch_flags |= CH_FLIPBUF_IN_USE;
-		buf = ch->ch_bd->flipbuf;
-
-		n = len;
-
-		/*
-		 * n now contains the most amount of data we can copy,
-		 * bounded either by the flip buffer size or the amount
-		 * of data the card actually has pending...
-		 */
-		while (n) {
-			s = ((head >= tail) ? head : RQUEUESIZE) - tail;
-			s = min(s, n);
-
-			if (s <= 0)
-				break;
-
-			memcpy(buf, ch->ch_rqueue + tail, s);
-			dgnc_sniff_nowait_nolock(ch, "USER READ", ch->ch_rqueue + tail, s);
-
-			tail += s;
-			buf += s;
-
-			n -= s;
-			/* Flip queue if needed */
-			tail &= rmask;
-		}
-
-		ch->ch_r_tail = tail & rmask;
-		ch->ch_e_tail = tail & rmask;
-
-		dgnc_check_queue_flow_control(ch);
-
-		/* !!! WE *MUST* LET GO OF ALL LOCKS BEFORE CALLING RECEIVE BUF !!! */
-
-		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-
-		DPR_READ(("dgnc_input. %d real_raw len:%d calling receive_buf for buffer for board %d\n", 
-			 __LINE__, len, ch->ch_bd->boardnum));
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-		tp->ldisc->ops->receive_buf(tp, ch->ch_bd->flipbuf, NULL, len);
-#else
-		tp->ldisc.ops->receive_buf(tp, ch->ch_bd->flipbuf, NULL, len);
-#endif
-
-		/* Allow use of channel flip buffer again */
-		DGNC_LOCK(ch->ch_lock, lock_flags);
-		ch->ch_flags &= ~CH_FLIPBUF_IN_USE;
-		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-
-	}
-	else {
-		len = tty_buffer_request_room(tp->port, len);
-		n = len;
+		if (s <= 0)
+			break;
 
 		/*
-		 * n now contains the most amount of data we can copy,
-		 * bounded either by how much the Linux tty layer can handle,
-		 * or the amount of data the card actually has pending...
+		 * If conditions are such that ld needs to see all 
+		 * UART errors, we will have to walk each character
+		 * and error byte and send them to the buffer one at
+		 * a time.
 		 */
-		while (n) {
-			s = ((head >= tail) ? head : RQUEUESIZE) - tail;
-			s = min(s, n);
-
-			if (s <= 0)
-				break;
-
-			/*
-			 * If conditions are such that ld needs to see all 
-			 * UART errors, we will have to walk each character
-			 * and error byte and send them to the buffer one at
-			 * a time.
-			 */
-			if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
-				for (i = 0; i < s; i++) {
-					if (*(ch->ch_equeue + tail + i) & UART_LSR_BI)
-						tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_BREAK);
-					else if (*(ch->ch_equeue + tail + i) & UART_LSR_PE)
-						tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_PARITY);
-					else if (*(ch->ch_equeue + tail + i) & UART_LSR_FE)
-						tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_FRAME);
-					else
-						tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_NORMAL);
-				}
+		if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
+			for (i = 0; i < s; i++) {
+				if (*(ch->ch_equeue + tail + i) & UART_LSR_BI)
+					tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_BREAK);
+				else if (*(ch->ch_equeue + tail + i) & UART_LSR_PE)
+					tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_PARITY);
+				else if (*(ch->ch_equeue + tail + i) & UART_LSR_FE)
+					tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_FRAME);
+				else
+					tty_insert_flip_char(tp->port, *(ch->ch_rqueue + tail + i), TTY_NORMAL);
 			}
-			else {
-				tty_insert_flip_string(tp->port, ch->ch_rqueue + tail, s);
-			}
-
-			dgnc_sniff_nowait_nolock(ch, "USER READ", ch->ch_rqueue + tail, s);
-
-			tail += s;
-			n -= s;
-			/* Flip queue if needed */
-			tail &= rmask;
+		}
+		else {
+			tty_insert_flip_string(tp->port, ch->ch_rqueue + tail, s);
 		}
 
-		ch->ch_r_tail = tail & rmask;
-		ch->ch_e_tail = tail & rmask;
-		dgnc_check_queue_flow_control(ch);
-		DGNC_UNLOCK(ch->ch_lock, lock_flags);
+		dgnc_sniff_nowait_nolock(ch, "USER READ", ch->ch_rqueue + tail, s);
 
-		/* Tell the tty layer its okay to "eat" the data now */
-		tty_flip_buffer_push(tp->port);
+		tail += s;
+		n -= s;
+		/* Flip queue if needed */
+		tail &= rmask;
 	}
+
+	ch->ch_r_tail = tail & rmask;
+	ch->ch_e_tail = tail & rmask;
+	dgnc_check_queue_flow_control(ch);
+	DGNC_UNLOCK(ch->ch_lock, lock_flags);
+
+	/* Tell the tty layer its okay to "eat" the data now */
+	tty_flip_buffer_push(tp->port);
 
 	if (ld)
 		tty_ldisc_deref(ld);
