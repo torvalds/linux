@@ -112,7 +112,7 @@ static struct ktermios DgncDefaultTermios =
 static int dgnc_tty_open(struct tty_struct *tty, struct file *file);
 static void dgnc_tty_close(struct tty_struct *tty, struct file *file);
 static int dgnc_block_til_ready(struct tty_struct *tty, struct file *file, struct channel_t *ch);
-static int dgnc_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
+static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
 static int dgnc_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retinfo);
 static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_info);
 static int dgnc_tty_write_room(struct tty_struct* tty);
@@ -3123,7 +3123,7 @@ static void dgnc_tty_flush_buffer(struct tty_struct *tty)
  *
  * The usual assortment of ioctl's
  */
-static int dgnc_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd,
+static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		unsigned long arg)
 {
 	struct board_t *bd;
