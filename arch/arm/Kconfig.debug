@@ -777,6 +777,11 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX6SL_UART
 	default "debug/keystone.S" if DEBUG_KEYSTONE_UART0 || \
 				      DEBUG_KEYSTONE_UART1
+	default "debug/msm.S" if DEBUG_MSM_UART1 || \
+				 DEBUG_MSM_UART2 || \
+				 DEBUG_MSM_UART3 || \
+				 DEBUG_MSM8660_UART || \
+				 DEBUG_MSM8960_UART
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART || \
 				   DEBUG_MVEBU_UART_ALTERNATE
 	default "debug/mxs.S" if DEBUG_IMX23_UART || DEBUG_IMX28_UART
@@ -804,13 +809,13 @@ config DEBUG_LL_INCLUDE
 
 config DEBUG_UNCOMPRESS
 	bool
-	default y if ARCH_MULTIPLATFORM && DEBUG_LL && \
+	default y if (ARCH_MULTIPLATFORM || ARCH_MSM) && DEBUG_LL && \
 		     !DEBUG_OMAP2PLUS_UART && \
 		     !DEBUG_TEGRA_UART
 
 config UNCOMPRESS_INCLUDE
 	string
-	default "debug/uncompress.h" if ARCH_MULTIPLATFORM
+	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM
 	default "mach/uncompress.h"
 
 config EARLY_PRINTK

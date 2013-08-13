@@ -233,27 +233,14 @@ err:
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id msm_timer_match[] __initconst = {
-	{ .compatible = "qcom,kpss-timer" },
-	{ .compatible = "qcom,scss-timer" },
-	{ },
-};
-
-void __init msm_dt_timer_init(void)
+static void __init msm_dt_timer_init(struct device_node *np)
 {
-	struct device_node *np;
 	u32 freq;
 	int irq;
 	struct resource res;
 	u32 percpu_offset;
 	void __iomem *base;
 	void __iomem *cpu0_base;
-
-	np = of_find_matching_node(NULL, msm_timer_match);
-	if (!np) {
-		pr_err("Can't find msm timer DT node\n");
-		return;
-	}
 
 	base = of_iomap(np, 0);
 	if (!base) {
@@ -297,6 +284,8 @@ void __init msm_dt_timer_init(void)
 
 	msm_timer_init(freq, 32, irq, !!percpu_offset);
 }
+CLOCKSOURCE_OF_DECLARE(kpss_timer, "qcom,kpss-timer", msm_dt_timer_init);
+CLOCKSOURCE_OF_DECLARE(scss_timer, "qcom,scss-timer", msm_dt_timer_init);
 #endif
 
 static int __init msm_timer_map(phys_addr_t addr, u32 event, u32 source,

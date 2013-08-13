@@ -45,25 +45,8 @@
 #include "msm_iomap-7x00.h"
 #endif
 
-#include "msm_iomap-8x60.h"
-#include "msm_iomap-8960.h"
-
-#define MSM_DEBUG_UART_SIZE	SZ_4K
-#if defined(CONFIG_DEBUG_MSM_UART1)
-#define MSM_DEBUG_UART_BASE	0xE1000000
-#define MSM_DEBUG_UART_PHYS	MSM_UART1_PHYS
-#elif defined(CONFIG_DEBUG_MSM_UART2)
-#define MSM_DEBUG_UART_BASE	0xE1000000
-#define MSM_DEBUG_UART_PHYS	MSM_UART2_PHYS
-#elif defined(CONFIG_DEBUG_MSM_UART3)
-#define MSM_DEBUG_UART_BASE	0xE1000000
-#define MSM_DEBUG_UART_PHYS	MSM_UART3_PHYS
-#endif
-
 /* Virtual addresses shared across all MSM targets. */
 #define MSM_CSR_BASE		IOMEM(0xE0001000)
-#define MSM_TMR_BASE		IOMEM(0xF0200000)
-#define MSM_TMR0_BASE		IOMEM(0xF0201000)
 #define MSM_GPIO1_BASE		IOMEM(0xE0003000)
 #define MSM_GPIO2_BASE		IOMEM(0xE0004000)
 

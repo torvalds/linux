@@ -15,8 +15,36 @@
  *
  */
 
-#include <mach/hardware.h>
-#include <mach/msm_iomap.h>
+#if defined(CONFIG_ARCH_MSM7X00A) || defined(CONFIG_ARCH_QSD8X50)
+#define MSM_UART1_PHYS        0xA9A00000
+#define MSM_UART2_PHYS        0xA9B00000
+#define MSM_UART3_PHYS        0xA9C00000
+#elif defined(CONFIG_ARCH_MSM7X30)
+#define MSM_UART1_PHYS        0xACA00000
+#define MSM_UART2_PHYS        0xACB00000
+#define MSM_UART3_PHYS        0xACC00000
+#endif
+
+#if defined(CONFIG_DEBUG_MSM_UART1)
+#define MSM_DEBUG_UART_BASE	0xE1000000
+#define MSM_DEBUG_UART_PHYS	MSM_UART1_PHYS
+#elif defined(CONFIG_DEBUG_MSM_UART2)
+#define MSM_DEBUG_UART_BASE	0xE1000000
+#define MSM_DEBUG_UART_PHYS	MSM_UART2_PHYS
+#elif defined(CONFIG_DEBUG_MSM_UART3)
+#define MSM_DEBUG_UART_BASE	0xE1000000
+#define MSM_DEBUG_UART_PHYS	MSM_UART3_PHYS
+#endif
+
+#ifdef CONFIG_DEBUG_MSM8660_UART
+#define MSM_DEBUG_UART_BASE	0xF0040000
+#define MSM_DEBUG_UART_PHYS	0x19C40000
+#endif
+
+#ifdef CONFIG_DEBUG_MSM8960_UART
+#define MSM_DEBUG_UART_BASE	0xF0040000
+#define MSM_DEBUG_UART_PHYS	0x16440000
+#endif
 
 	.macro	addruart, rp, rv, tmp
 #ifdef MSM_DEBUG_UART_PHYS
