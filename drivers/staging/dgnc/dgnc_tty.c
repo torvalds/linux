@@ -3336,40 +3336,6 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned in
 		/* pretend we didn't recognize this IOCTL */  
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		return(-ENOIOCTLCMD);
-
-#ifdef TIOCGETP
-	case TIOCGETP:
-#endif
-	case TCGETS:
-	case TCGETA:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-		if (tty->ldisc->ops->ioctl) {
-#else
-		if (tty->ldisc.ops->ioctl) {
-#endif
-			int retval = (-ENXIO);
-
-			DGNC_UNLOCK(ch->ch_lock, lock_flags);
-
-			if (tty->termios) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-				retval = ((tty->ldisc->ops->ioctl) (tty, file, cmd, arg));
-#else
-				retval = ((tty->ldisc.ops->ioctl) (tty, file, cmd, arg));
-#endif
-			}
-
-			DPR_IOCTL(("dgnc_tty_ioctl (LINE:%d) finish on port %d - cmd %s (%x), arg %lx\n", 
-				__LINE__, ch->ch_portnum, dgnc_ioctl_name(cmd), cmd, arg));
-			return(retval);
-		}
-
-		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		DPR_IOCTL(("dgnc_tty_ioctl (LINE:%d) finish on port %d - cmd %s (%x), arg %lx\n", 
-			__LINE__, ch->ch_portnum, dgnc_ioctl_name(cmd), cmd, arg));
-
-		return(-ENOIOCTLCMD);
-
 	case TCSETSF:
 	case TCSETSW:
 		/*
