@@ -117,6 +117,7 @@ struct cfent {
 	struct list_head		node;
 	struct dentry			*dentry;
 	struct cftype			*type;
+	struct cgroup_subsys_state	*css;
 
 	/* file xattrs */
 	struct simple_xattrs		xattrs;
@@ -2301,17 +2302,6 @@ static int cgroup_sane_behavior_show(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-/* return the css for the given cgroup file */
-static struct cgroup_subsys_state *cgroup_file_css(struct cfent *cfe)
-{
-	struct cftype *cft = cfe->type;
-	struct cgroup *cgrp = __d_cgrp(cfe->dentry->d_parent);
-
-	if (cft->ss)
-		return cgroup_css(cgrp, cft->ss->subsys_id);
-	return &cgrp->dummy_css;
-}
-
 /* A buffer size big enough for numbers or short strings */
 #define CGROUP_LOCAL_BUFFER_SIZE 64
 
@@ -2388,7 +2378,7 @@ static ssize_t cgroup_file_write(struct file *file, const char __user *buf,
 {
 	struct cfent *cfe = __d_cfe(file->f_dentry);
 	struct cftype *cft = __d_cft(file->f_dentry);
-	struct cgroup_subsys_state *css = cgroup_file_css(cfe);
+	struct cgroup_subsys_state *css = cfe->css;
 
 	if (cft->write)
 		return cft->write(css, cft, file, buf, nbytes, ppos);
@@ -2430,7 +2420,7 @@ static ssize_t cgroup_file_read(struct file *file, char __user *buf,
 {
 	struct cfent *cfe = __d_cfe(file->f_dentry);
 	struct cftype *cft = __d_cft(file->f_dentry);
-	struct cgroup_subsys_state *css = cgroup_file_css(cfe);
+	struct cgroup_subsys_state *css = cfe->css;
 
 	if (cft->read)
 		return cft->read(css, cft, file, buf, nbytes, ppos);
@@ -2456,7 +2446,7 @@ static int cgroup_seqfile_show(struct seq_file *m, void *arg)
 {
 	struct cfent *cfe = m->private;
 	struct cftype *cft = cfe->type;
-	struct cgroup_subsys_state *css = cgroup_file_css(cfe);
+	struct cgroup_subsys_state *css = cfe->css;
 
 	if (cft->read_map) {
 		struct cgroup_map_cb cb = {
@@ -2479,7 +2469,8 @@ static int cgroup_file_open(struct inode *inode, struct file *file)
 {
 	struct cfent *cfe = __d_cfe(file->f_dentry);
 	struct cftype *cft = __d_cft(file->f_dentry);
-	struct cgroup_subsys_state *css = cgroup_file_css(cfe);
+	struct cgroup *cgrp = __d_cgrp(cfe->dentry->d_parent);
+	struct cgroup_subsys_state *css;
 	int err;
 
 	err = generic_file_open(inode, file);
@@ -2491,7 +2482,18 @@ static int cgroup_file_open(struct inode *inode, struct file *file)
 	 * unpinned either on open failure or release.  This ensures that
 	 * @css stays alive for all file operations.
 	 */
-	if (css->ss && !css_tryget(css))
+	rcu_read_lock();
+	if (cft->ss) {
+		css = cgroup_css(cgrp, cft->ss->subsys_id);
+		if (!css_tryget(css))
+			css = NULL;
+	} else {
+		css = &cgrp->dummy_css;
+	}
+	rcu_read_unlock();
+
+	/* css should match @cfe->css, see cgroup_add_file() for details */
+	if (!css || WARN_ON_ONCE(css != cfe->css))
 		return -ENODEV;
 
 	if (cft->read_map || cft->read_seq_string) {
@@ -2510,7 +2512,7 @@ static int cgroup_file_release(struct inode *inode, struct file *file)
 {
 	struct cfent *cfe = __d_cfe(file->f_dentry);
 	struct cftype *cft = __d_cft(file->f_dentry);
-	struct cgroup_subsys_state *css = cgroup_file_css(cfe);
+	struct cgroup_subsys_state *css = cfe->css;
 	int ret = 0;
 
 	if (cft->release)
@@ -2771,6 +2773,18 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 	cfe->dentry = dentry;
 	dentry->d_fsdata = cfe;
 	simple_xattrs_init(&cfe->xattrs);
+
+	/*
+	 * cfe->css is used by read/write/close to determine the associated
+	 * css.  file->private_data would be a better place but that's
+	 * already used by seqfile.  Note that open will use the usual
+	 * cgroup_css() and css_tryget() to acquire the css and this
+	 * caching doesn't affect css lifetime management.
+	 */
+	if (cft->ss)
+		cfe->css = cgroup_css(cgrp, cft->ss->subsys_id);
+	else
+		cfe->css = &cgrp->dummy_css;
 
 	mode = cgroup_file_mode(cft);
 	error = cgroup_create_file(dentry, mode | S_IFREG, cgrp->root->sb);
