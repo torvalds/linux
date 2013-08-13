@@ -396,7 +396,7 @@ static const char __init *mxs_get_revision(void)
 	u32 rev = mxs_get_cpu_rev();
 
 	if (rev != MXS_CHIP_REV_UNKNOWN)
-		return kasprintf(GFP_KERNEL, "TO%d.%d", (rev >> 4) & 0xf,
+		return kasprintf(GFP_KERNEL, "%d.%d", (rev >> 4) & 0xf,
 				rev & 0xf);
 	else
 		return kasprintf(GFP_KERNEL, "%s", "Unknown");
