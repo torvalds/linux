@@ -236,6 +236,8 @@ static u32 get_dp_dm_status_normal(struct usb_scan_info *info)
 	reg_val |= (1 << USBC_BP_ISCR_ID_PULLUP_EN);
 	USBC_Writel(reg_val, USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
 
+	msleep(10); /* HdG: New from sun7i code dump */
+
 	reg_val = USBC_Readl(USBC_REG_ISCR(SW_VA_USB0_IO_BASE));
 	dp = (reg_val >> USBC_BP_ISCR_EXT_DP_STATUS) & 0x01;
 	dm = (reg_val >> USBC_BP_ISCR_EXT_DM_STATUS) & 0x01;

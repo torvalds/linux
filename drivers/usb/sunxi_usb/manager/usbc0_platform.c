@@ -141,15 +141,19 @@ __s32 usbc0_platform_device_init(struct usb_port_info *port_info)
     switch(port_info->port_type){
         case USB_PORT_TYPE_DEVICE:
             platform_device_register(&sw_udc_device);
+            device_enable_async_suspend(&sw_udc_device.dev);
         break;
 
         case USB_PORT_TYPE_HOST:
             platform_device_register(&sw_hcd_device);
+            device_enable_async_suspend(&sw_hcd_device.dev);
         break;
 
         case USB_PORT_TYPE_OTG:
             platform_device_register(&sw_udc_device);
+            device_enable_async_suspend(&sw_udc_device.dev);
             platform_device_register(&sw_hcd_device);
+            device_enable_async_suspend(&sw_hcd_device.dev);
         break;
 
         default:

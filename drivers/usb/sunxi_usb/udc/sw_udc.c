@@ -1028,7 +1028,9 @@ static void sw_udc_handle_ep0_idle(struct sw_udc *dev,
 		dev->ep0state = EP0_OUT_DATA_PHASE;
     }
 
+	spin_unlock(&dev->lock);
 	ret = dev->driver->setup(&dev->gadget, crq);
+	spin_lock(&dev->lock);
 	if (ret < 0) {
 		if (dev->req_config) {
 			DMSG_PANIC("ERR: config change %02x fail %d?\n", crq->bRequest, ret);
@@ -3522,6 +3524,10 @@ static int sw_udc_probe_device_only(struct platform_device *pdev)
 		retval = -EBUSY;
 		goto err;
 	}
+
+	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
+	if (retval)
+		goto err;
 
     return 0;
 
