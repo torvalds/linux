@@ -1,5 +1,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/err.h>
 #include <linux/of.h>
 #include <linux/io.h>
 
