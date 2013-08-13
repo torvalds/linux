@@ -1060,7 +1060,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 }
 
 /* Process any "pci=" kernel boot arguments. */
-char *pcibios_setup(char *str)
+char *__init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;

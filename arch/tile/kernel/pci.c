@@ -386,7 +386,7 @@ void pcibios_set_master(struct pci_dev *dev)
 }
 
 /* Process any "pci=" kernel boot arguments. */
-char * __init pcibios_setup(char *str)
+char *__init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		pci_probe = 0;
