@@ -34,8 +34,10 @@ struct cfg80211_conn {
 		CFG80211_CONN_SCAN_AGAIN,
 		CFG80211_CONN_AUTHENTICATE_NEXT,
 		CFG80211_CONN_AUTHENTICATING,
+		CFG80211_CONN_AUTH_FAILED,
 		CFG80211_CONN_ASSOCIATE_NEXT,
 		CFG80211_CONN_ASSOCIATING,
+		CFG80211_CONN_ASSOC_FAILED,
 		CFG80211_CONN_DEAUTH,
 		CFG80211_CONN_CONNECTED,
 	} state;
@@ -164,6 +166,8 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					  NULL, 0,
 					  params->key, params->key_len,
 					  params->key_idx, NULL, 0);
+	case CFG80211_CONN_AUTH_FAILED:
+		return -ENOTCONN;
 	case CFG80211_CONN_ASSOCIATE_NEXT:
 		BUG_ON(!rdev->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
@@ -188,10 +192,17 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					     WLAN_REASON_DEAUTH_LEAVING,
 					     false);
 		return err;
+	case CFG80211_CONN_ASSOC_FAILED:
+		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
+				     NULL, 0,
+				     WLAN_REASON_DEAUTH_LEAVING, false);
+		return -ENOTCONN;
 	case CFG80211_CONN_DEAUTH:
 		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 				     NULL, 0,
 				     WLAN_REASON_DEAUTH_LEAVING, false);
+		/* free directly, disconnected event already sent */
+		cfg80211_sme_free(wdev);
 		return 0;
 	default:
 		return 0;
@@ -371,7 +382,7 @@ bool cfg80211_sme_rx_assoc_resp(struct wireless_dev *wdev, u16 status)
 		return true;
 	}
 
-	wdev->conn->state = CFG80211_CONN_DEAUTH;
+	wdev->conn->state = CFG80211_CONN_ASSOC_FAILED;
 	schedule_work(&rdev->conn_work);
 	return false;
 }
@@ -383,7 +394,13 @@ void cfg80211_sme_deauth(struct wireless_dev *wdev)
 
 void cfg80211_sme_auth_timeout(struct wireless_dev *wdev)
 {
-	cfg80211_sme_free(wdev);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+
+	if (!wdev->conn)
+		return;
+
+	wdev->conn->state = CFG80211_CONN_AUTH_FAILED;
+	schedule_work(&rdev->conn_work);
 }
 
 void cfg80211_sme_disassoc(struct wireless_dev *wdev)
@@ -399,7 +416,13 @@ void cfg80211_sme_disassoc(struct wireless_dev *wdev)
 
 void cfg80211_sme_assoc_timeout(struct wireless_dev *wdev)
 {
-	cfg80211_sme_disassoc(wdev);
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+
+	if (!wdev->conn)
+		return;
+
+	wdev->conn->state = CFG80211_CONN_ASSOC_FAILED;
+	schedule_work(&rdev->conn_work);
 }
 
 static int cfg80211_sme_connect(struct wireless_dev *wdev,

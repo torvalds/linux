@@ -2782,7 +2782,7 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 							     ATOM_PLL_CNTL_FLAG_PLL_POST_DIV_EN) ? true : false;
 				dividers->enable_dithen = (args.v3.ucCntlFlag &
 							   ATOM_PLL_CNTL_FLAG_FRACTION_DISABLE) ? false : true;
-				dividers->fb_div = le16_to_cpu(args.v3.ulFbDiv.usFbDiv);
+				dividers->whole_fb_div = le16_to_cpu(args.v3.ulFbDiv.usFbDiv);
 				dividers->frac_fb_div = le16_to_cpu(args.v3.ulFbDiv.usFbDivFrac);
 				dividers->ref_div = args.v3.ucRefDiv;
 				dividers->vco_mode = (args.v3.ucCntlFlag &

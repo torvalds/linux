@@ -421,24 +421,28 @@ config CPU_32v3
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select TLS_REG_EMUL if SMP || !MMU
+	select NEED_KUSER_HELPERS
 
 config CPU_32v4
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select TLS_REG_EMUL if SMP || !MMU
+	select NEED_KUSER_HELPERS
 
 config CPU_32v4T
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select TLS_REG_EMUL if SMP || !MMU
+	select NEED_KUSER_HELPERS
 
 config CPU_32v5
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 	select TLS_REG_EMUL if SMP || !MMU
+	select NEED_KUSER_HELPERS
 
 config CPU_32v6
 	bool
@@ -776,6 +780,7 @@ config CPU_BPREDICT_DISABLE
 
 config TLS_REG_EMUL
 	bool
+	select NEED_KUSER_HELPERS
 	help
 	  An SMP system using a pre-ARMv6 processor (there are apparently
 	  a few prototypes like that in existence) and therefore access to
@@ -783,10 +788,39 @@ config TLS_REG_EMUL
 
 config NEEDS_SYSCALL_FOR_CMPXCHG
 	bool
+	select NEED_KUSER_HELPERS
 	help
 	  SMP on a pre-ARMv6 processor?  Well OK then.
 	  Forget about fast user space cmpxchg support.
 	  It is just not possible.
+
+config NEED_KUSER_HELPERS
+	bool
+
+config KUSER_HELPERS
+	bool "Enable kuser helpers in vector page" if !NEED_KUSER_HELPERS
+	default y
+	help
+	  Warning: disabling this option may break user programs.
+
+	  Provide kuser helpers in the vector page.  The kernel provides
+	  helper code to userspace in read only form at a fixed location
+	  in the high vector page to allow userspace to be independent of
+	  the CPU type fitted to the system.  This permits binaries to be
+	  run on ARMv4 through to ARMv7 without modification.
+
+	  However, the fixed address nature of these helpers can be used
+	  by ROP (return orientated programming) authors when creating
+	  exploits.
+
+	  If all of the binaries and libraries which run on your platform
+	  are built specifically for your platform, and make no use of
+	  these helpers, then you can turn this option off.  However,
+	  when such an binary or library is run, it will receive a SIGILL
+	  signal, which will terminate the program.
+
+	  Say N here only if you are absolutely certain that you do not
+	  need these helpers; otherwise, the safe option is to say Y.
 
 config DMA_CACHE_RWFO
 	bool "Enable read/write for ownership DMA cache maintenance"

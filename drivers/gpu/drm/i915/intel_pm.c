@@ -5063,8 +5063,26 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 		}
 	} else {
 		if (enable_requested) {
+			unsigned long irqflags;
+			enum pipe p;
+
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
+			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
+
+			/*
+			 * After this, the registers on the pipes that are part
+			 * of the power well will become zero, so we have to
+			 * adjust our counters according to that.
+			 *
+			 * FIXME: Should we do this in general in
+			 * drm_vblank_post_modeset?
+			 */
+			spin_lock_irqsave(&dev->vbl_lock, irqflags);
+			for_each_pipe(p)
+				if (p != PIPE_A)
+					dev->last_vblank[p] = 0;
+			spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 		}
 	}
 }
@@ -5476,7 +5494,7 @@ static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
-void intel_gt_reset(struct drm_device *dev)
+void intel_gt_sanitize(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -5487,15 +5505,15 @@ void intel_gt_reset(struct drm_device *dev)
 		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 			__gen6_gt_force_wake_mt_reset(dev_priv);
 	}
+
+	/* BIOS often leaves RC6 enabled, but disable it for hw init */
+	if (INTEL_INFO(dev)->gen >= 6)
+		intel_disable_gt_powersave(dev);
 }
 
 void intel_gt_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	spin_lock_init(&dev_priv->gt_lock);
-
-	intel_gt_reset(dev);
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->gt.force_wake_get = vlv_force_wake_get;
@@ -5536,6 +5554,12 @@ void intel_gt_init(struct drm_device *dev)
 		dev_priv->gt.force_wake_get = __gen6_gt_force_wake_get;
 		dev_priv->gt.force_wake_put = __gen6_gt_force_wake_put;
 	}
+}
+
+void intel_pm_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 }

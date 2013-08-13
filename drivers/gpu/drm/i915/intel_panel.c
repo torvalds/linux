@@ -194,6 +194,9 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 	    adjusted_mode->vdisplay == mode->vdisplay)
 		goto out;
 
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+	pipe_config->timings_set = true;
+
 	switch (fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
 		/*
@@ -494,8 +497,11 @@ void intel_panel_set_backlight(struct drm_device *dev, u32 level, u32 max)
 		goto out;
 	}
 
-	/* scale to hardware */
-	level = level * freq / max;
+	/* scale to hardware, but be careful to not overflow */
+	if (freq < max)
+		level = level * freq / max;
+	else
+		level = freq / max * level;
 
 	dev_priv->backlight.level = level;
 	if (dev_priv->backlight.device)
@@ -511,6 +517,17 @@ void intel_panel_disable_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
+
+	/*
+	 * Do not disable backlight on the vgaswitcheroo path. When switching
+	 * away from i915, the other client may depend on i915 to handle the
+	 * backlight. This will leave the backlight on unnecessarily when
+	 * another client is not activated.
+	 */
+	if (dev->switch_power_state == DRM_SWITCH_POWER_CHANGING) {
+		DRM_DEBUG_DRIVER("Skipping backlight disable on vga switch\n");
+		return;
+	}
 
 	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
@@ -580,7 +597,8 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 		POSTING_READ(reg);
 		I915_WRITE(reg, tmp | BLM_PWM_ENABLE);
 
-		if (HAS_PCH_SPLIT(dev)) {
+		if (HAS_PCH_SPLIT(dev) &&
+		    !(dev_priv->quirks & QUIRK_NO_PCH_PWM_ENABLE)) {
 			tmp = I915_READ(BLC_PWM_PCH_CTL1);
 			tmp |= BLM_PCH_PWM_ENABLE;
 			tmp &= ~BLM_PCH_OVERRIDE_ENABLE;

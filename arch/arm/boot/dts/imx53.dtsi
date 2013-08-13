@@ -725,15 +725,15 @@
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
-							MX53_PAD_CSI0_DAT10__UART1_TXD_MUX 0x1c5
-							MX53_PAD_CSI0_DAT11__UART1_RXD_MUX 0x1c5
+							MX53_PAD_CSI0_DAT10__UART1_TXD_MUX 0x1e4
+							MX53_PAD_CSI0_DAT11__UART1_RXD_MUX 0x1e4
 						>;
 					};
 
 					pinctrl_uart1_2: uart1grp-2 {
 						fsl,pins = <
-							MX53_PAD_PATA_DIOW__UART1_TXD_MUX  0x1c5
-							MX53_PAD_PATA_DMACK__UART1_RXD_MUX 0x1c5
+							MX53_PAD_PATA_DIOW__UART1_TXD_MUX  0x1e4
+							MX53_PAD_PATA_DMACK__UART1_RXD_MUX 0x1e4
 						>;
 					};
 
@@ -748,8 +748,8 @@
 				uart2 {
 					pinctrl_uart2_1: uart2grp-1 {
 						fsl,pins = <
-							MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX 0x1c5
-							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX     0x1c5
+							MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX 0x1e4
+							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX     0x1e4
 						>;
 					};
 
@@ -766,17 +766,17 @@
 				uart3 {
 					pinctrl_uart3_1: uart3grp-1 {
 						fsl,pins = <
-							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1c5
-							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1c5
-							MX53_PAD_PATA_DA_1__UART3_CTS	  0x1c5
-							MX53_PAD_PATA_DA_2__UART3_RTS	  0x1c5
+							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1e4
+							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1e4
+							MX53_PAD_PATA_DA_1__UART3_CTS	  0x1e4
+							MX53_PAD_PATA_DA_2__UART3_RTS	  0x1e4
 						>;
 					};
 
 					pinctrl_uart3_2: uart3grp-2 {
 						fsl,pins = <
-							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1c5
-							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1c5
+							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1e4
+							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1e4
 						>;
 					};
 
@@ -785,8 +785,8 @@
 				uart4 {
 					pinctrl_uart4_1: uart4grp-1 {
 						fsl,pins = <
-							MX53_PAD_KEY_COL0__UART4_TXD_MUX 0x1c5
-							MX53_PAD_KEY_ROW0__UART4_RXD_MUX 0x1c5
+							MX53_PAD_KEY_COL0__UART4_TXD_MUX 0x1e4
+							MX53_PAD_KEY_ROW0__UART4_RXD_MUX 0x1e4
 						>;
 					};
 				};
@@ -794,8 +794,8 @@
 				uart5 {
 					pinctrl_uart5_1: uart5grp-1 {
 						fsl,pins = <
-							MX53_PAD_KEY_COL1__UART5_TXD_MUX 0x1c5
-							MX53_PAD_KEY_ROW1__UART5_RXD_MUX 0x1c5
+							MX53_PAD_KEY_COL1__UART5_TXD_MUX 0x1e4
+							MX53_PAD_KEY_ROW1__UART5_RXD_MUX 0x1e4
 						>;
 					};
 				};

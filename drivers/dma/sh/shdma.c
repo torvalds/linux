@@ -400,8 +400,8 @@ static size_t sh_dmae_get_partial(struct shdma_chan *schan,
 						    shdma_chan);
 	struct sh_dmae_desc *sh_desc = container_of(sdesc,
 					struct sh_dmae_desc, shdma_desc);
-	return (sh_desc->hw.tcr - sh_dmae_readl(sh_chan, TCR)) <<
-		sh_chan->xmit_shift;
+	return sh_desc->hw.tcr -
+		(sh_dmae_readl(sh_chan, TCR) << sh_chan->xmit_shift);
 }
 
 /* Called from error IRQ or NMI */

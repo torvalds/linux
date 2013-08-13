@@ -239,24 +239,6 @@ static const struct fb_bitfield def_rgb565[] = {
 	}
 };
 
-static const struct fb_bitfield def_rgb666[] = {
-	[RED] = {
-		.offset = 16,
-		.length = 6,
-	},
-	[GREEN] = {
-		.offset = 8,
-		.length = 6,
-	},
-	[BLUE] = {
-		.offset = 0,
-		.length = 6,
-	},
-	[TRANSP] = {	/* no support for transparency */
-		.length = 0,
-	}
-};
-
 static const struct fb_bitfield def_rgb888[] = {
 	[RED] = {
 		.offset = 16,
@@ -309,9 +291,6 @@ static int mxsfb_check_var(struct fb_var_screeninfo *var,
 			break;
 		case STMLCDIF_16BIT:
 		case STMLCDIF_18BIT:
-			/* 24 bit to 18 bit mapping */
-			rgb = def_rgb666;
-			break;
 		case STMLCDIF_24BIT:
 			/* real 24 bit */
 			rgb = def_rgb888;
@@ -453,11 +432,6 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 			return -EINVAL;
 		case STMLCDIF_16BIT:
 		case STMLCDIF_18BIT:
-			/* 24 bit to 18 bit mapping */
-			ctrl |= CTRL_DF24; /* ignore the upper 2 bits in
-					    *  each colour component
-					    */
-			break;
 		case STMLCDIF_24BIT:
 			/* real 24 bit */
 			break;
