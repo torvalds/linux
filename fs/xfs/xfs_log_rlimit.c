@@ -136,10 +136,12 @@ xfs_log_calc_minimum_size(
 	 * Also, the log size should be a multiple of the log stripe unit, round
 	 * it up to lsunit boundary if lsunit is specified.
 	 */
-	if (lsunit)
-		min_logblks = roundup(BTOBB(max_logres), lsunit) + 2 * lsunit;
-	else
+	if (lsunit) {
+		min_logblks = roundup_64(BTOBB(max_logres), lsunit) +
+			      2 * lsunit;
+	} else
 		min_logblks = BTOBB(max_logres) + 2 * BBSIZE;
 	min_logblks *= XFS_MIN_LOG_FACTOR;
+
 	return XFS_BB_TO_FSB(mp, min_logblks);
 }
