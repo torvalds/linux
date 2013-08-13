@@ -99,7 +99,6 @@ __s32 _wait_cmd_finish(void)
 	return 0;
 }
 
-#if 1
 void _dma_config_start(__u8 rw, __u32 buff_addr, __u32 len)
 {
 	struct dma_hw_conf nand_hwconf = {
@@ -123,118 +122,6 @@ void _dma_config_start(__u8 rw, __u32 buff_addr, __u32 len)
 	NAND_SettingDMA(dma_hdle, (void*)&nand_hwconf);
 	NAND_DMAEqueueBuf(dma_hdle, buff_addr, len);
 }
-
-__s32 _wait_dma_end(void)
-{
-	__s32 timeout = 0xffff;
-
-	while( (timeout--) && ( NAND_QueryDmaStat(dma_hdle)) );
-	if (timeout <= 0)
-		return -ERR_TIMEOUT;
-
-	return 0;
-}
-
-#endif
-
-#if 0
-#define NFC_DDMA_ID    1
-#define NFC_DMA_BASE    0xf1C02000
-
-#define NFC_DMA_INT_CTL	(NFC_DMA_BASE + 0x00)
-#define NFC_DMA_INT_STA	(NFC_DMA_BASE + 0x04)
-
-#define NFC_DDMA_CFG		(NFC_DMA_BASE + 0x300)
-#define NFC_DDMA_SRC    (NFC_DMA_BASE + 0x304)
-#define NFC_DDMA_DES    (NFC_DMA_BASE + 0x308)
-#define NFC_DDMA_CNT    (NFC_DMA_BASE + 0x30c)
-#define NFC_DDMA_PAR    (NFC_DMA_BASE + 0x318)
-
-#define NFC_IO_DATA			0x01c03030
-
-#define nfc_read_w(n)                   (*((volatile __u32 *)(n)))          /* word input */
-#define nfc_write_w(n,c)                (*((volatile __u32 *)(n)) = (c))    /* word output */
-
-extern void eLIBs_CleanFlushDCacheRegion(void *adr, __u32 bytes);
-
-void _dma_config_start(__u8 rw, __u32 buff_addr, __u32 len)
-{
-	__u32 reg_val;
-	__u32 dma_offset;
-	__u32 mem_adr, bcnt;
-
-	mem_adr = __pa(buff_addr);
-	bcnt = len;
-	dma_offset = NFC_DDMA_ID*0x20;
-
-	//reset DMA
-	nfc_write_w(NFC_DDMA_CFG + dma_offset, 0x0);
-	nfc_write_w(NFC_DMA_INT_STA, (0x3<<(2*NFC_DDMA_ID + 16)));
-
-	//setup DMA engine
-	if(rw)
-	{
-		reg_val = mem_adr;
-		nfc_write_w(NFC_DDMA_SRC + dma_offset, reg_val);		//DMA source address
-		reg_val = NFC_IO_DATA;
-		nfc_write_w(NFC_DDMA_DES + dma_offset, reg_val);		//DMA destinaiton address
-		reg_val = bcnt;												//DMA byte counter
-		nfc_write_w(NFC_DDMA_CNT + dma_offset, reg_val);
-
-		if(bcnt > 512)
-			bcnt = 512;
-
-		reg_val = ((bcnt>>2) -1)<<8;
-		reg_val |= (reg_val<<16);
-		reg_val |=0x70000;
-		nfc_write_w(NFC_DDMA_PAR + dma_offset, reg_val);
-
-		reg_val = 0x82a30280;
-		if(mem_adr&0x80000000)
-			reg_val |= 0x1;
-		nfc_write_w(NFC_DDMA_CFG + dma_offset, reg_val);
-	}
-	else
-	{
-		reg_val = NFC_IO_DATA;
-		nfc_write_w(NFC_DDMA_SRC + dma_offset, reg_val);		//DMA source address
-		reg_val = mem_adr;
-		nfc_write_w(NFC_DDMA_DES + dma_offset, reg_val);		//DMA destinaiton address
-		reg_val = bcnt;												//DMA byte counter
-		nfc_write_w(NFC_DDMA_CNT + dma_offset, reg_val);
-
-		if(bcnt > 512)
-			bcnt = 512;
-
-		reg_val = ((bcnt>>2) - 1)<<8;
-		reg_val |= (reg_val<<16);
-		reg_val |=0x7;
-		nfc_write_w(NFC_DDMA_PAR + dma_offset, reg_val);
-
-		reg_val = 0x828002a3;
-		if(mem_adr&0x80000000)
-			reg_val |= 0x1<<16;
-		nfc_write_w(NFC_DDMA_CFG + dma_offset, reg_val);
-	}
-}
-
-__s32 _wait_dma_end(void)
-{
-	__u32 dma_offset;
-	__s32 timeout = 0xffff;
-
-	dma_offset = (NFC_DDMA_ID)*0x20;
-	while(nfc_read_w(NFC_DDMA_CFG + dma_offset) & 0x80000000)
-	{
-		timeout--;
-		if (timeout <= 0)
-		return -ERR_TIMEOUT;
-	}
-	nfc_write_w(NFC_DMA_INT_STA, (0x3<<(2*NFC_DDMA_ID + 16)) );
-}
-
-#endif
-
 
 __s32 _reset(void)
 {
@@ -423,7 +310,7 @@ void _set_addr(__u8 *addr, __u8 cnt)
 
 __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 dma_wait_mode)
 {
-	__s32 ret,ret1;
+	__s32 ret;
 	__s32 i;
 	__u32 cfg;
 	NFC_CMD_LIST *cur_cmd,*read_addr_cmd;
@@ -514,13 +401,6 @@ __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 d
 	/*ecc check and disable ecc*/
 	ret = _check_ecc(pagesize/1024);
 	_disable_ecc();
-
-	/*if dma mode is wait*/
-	if(0 == dma_wait_mode){
-		ret1 = _wait_dma_end();
-		if (ret1)
-			return ret1;
-	}
 
 	return ret;
 }
