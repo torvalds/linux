@@ -424,6 +424,12 @@ void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 						       struct seq_file *m);
 
 /* uvd */
+uint32_t r600_uvd_get_rptr(struct radeon_device *rdev,
+                           struct radeon_ring *ring);
+uint32_t r600_uvd_get_wptr(struct radeon_device *rdev,
+                           struct radeon_ring *ring);
+void r600_uvd_set_wptr(struct radeon_device *rdev,
+                       struct radeon_ring *ring);
 int r600_uvd_init(struct radeon_device *rdev, bool ring_test);
 void r600_uvd_stop(struct radeon_device *rdev);
 int r600_uvd_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);

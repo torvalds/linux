@@ -1157,9 +1157,9 @@ static struct radeon_asic_ring rv770_uvd_ring = {
 	.ring_test = &r600_uvd_ring_test,
 	.ib_test = &r600_uvd_ib_test,
 	.is_lockup = &radeon_ring_test_lockup,
-	.get_rptr = &radeon_ring_generic_get_rptr,
-	.get_wptr = &radeon_ring_generic_get_wptr,
-	.set_wptr = &radeon_ring_generic_set_wptr,
+	.get_rptr = &r600_uvd_get_rptr,
+	.get_wptr = &r600_uvd_get_wptr,
+	.set_wptr = &r600_uvd_set_wptr,
 };
 
 static struct radeon_asic rv770_asic = {
@@ -1593,9 +1593,9 @@ static struct radeon_asic_ring cayman_uvd_ring = {
 	.ring_test = &r600_uvd_ring_test,
 	.ib_test = &r600_uvd_ib_test,
 	.is_lockup = &radeon_ring_test_lockup,
-	.get_rptr = &radeon_ring_generic_get_rptr,
-	.get_wptr = &radeon_ring_generic_get_wptr,
-	.set_wptr = &radeon_ring_generic_set_wptr,
+	.get_rptr = &r600_uvd_get_rptr,
+	.get_wptr = &r600_uvd_get_wptr,
+	.set_wptr = &r600_uvd_set_wptr,
 };
 
 static struct radeon_asic cayman_asic = {

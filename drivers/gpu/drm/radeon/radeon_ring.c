@@ -363,7 +363,7 @@ u32 radeon_ring_generic_get_rptr(struct radeon_device *rdev,
 {
 	u32 rptr;
 
-	if (rdev->wb.enabled && ring != &rdev->ring[R600_RING_TYPE_UVD_INDEX])
+	if (rdev->wb.enabled)
 		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
 	else
 		rptr = RREG32(ring->rptr_reg);

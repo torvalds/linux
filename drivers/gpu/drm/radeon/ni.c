@@ -2225,8 +2225,7 @@ static int cayman_startup(struct radeon_device *rdev)
 
 	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 	if (ring->ring_size) {
-		r = radeon_ring_init(rdev, ring, ring->ring_size,
-				     R600_WB_UVD_RPTR_OFFSET,
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
 				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
 				     0, 0xfffff, RADEON_CP_PACKET2);
 		if (!r)

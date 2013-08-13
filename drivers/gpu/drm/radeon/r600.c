@@ -2623,19 +2623,29 @@ void r600_dma_fini(struct radeon_device *rdev)
 /*
  * UVD
  */
+uint32_t r600_uvd_get_rptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring)
+{
+	return RREG32(UVD_RBC_RB_RPTR);
+}
+
+uint32_t r600_uvd_get_wptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring)
+{
+	return RREG32(UVD_RBC_RB_WPTR);
+}
+
+void r600_uvd_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring)
+{
+	WREG32(UVD_RBC_RB_WPTR, ring->wptr);
+}
+
 static int r600_uvd_rbc_start(struct radeon_device *rdev, bool ring_test)
 {
 	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
-	uint64_t rptr_addr;
 	uint32_t rb_bufsz, tmp;
 	int r;
-
-	rptr_addr = rdev->wb.gpu_addr + R600_WB_UVD_RPTR_OFFSET;
-
-	if (upper_32_bits(rptr_addr) != upper_32_bits(ring->gpu_addr)) {
-		DRM_ERROR("UVD ring and rptr not in the same 4GB segment!\n");
-		return -EINVAL;
-	}
 
 	/* force RBC into idle state */
 	WREG32(UVD_RBC_RB_CNTL, 0x11010101);
@@ -2643,11 +2653,8 @@ static int r600_uvd_rbc_start(struct radeon_device *rdev, bool ring_test)
 	/* Set the write pointer delay */
 	WREG32(UVD_RBC_RB_WPTR_CNTL, 0);
 
-	/* set the wb address */
-	WREG32(UVD_RBC_RB_RPTR_ADDR, rptr_addr >> 2);
-
 	/* programm the 4GB memory segment for rptr and ring buffer */
-	WREG32(UVD_LMI_EXT40_ADDR, upper_32_bits(rptr_addr) |
+	WREG32(UVD_LMI_EXT40_ADDR, upper_32_bits(ring->gpu_addr) |
 				   (0x7 << 16) | (0x1 << 31));
 
 	/* Initialize the ring buffer's read and write pointers */
@@ -2662,7 +2669,7 @@ static int r600_uvd_rbc_start(struct radeon_device *rdev, bool ring_test)
 	/* Set ring buffer size */
 	rb_bufsz = drm_order(ring->ring_size);
 	rb_bufsz = (0x1 << 8) | rb_bufsz;
-	WREG32(UVD_RBC_RB_CNTL, rb_bufsz);
+	WREG32_P(UVD_RBC_RB_CNTL, rb_bufsz, ~0x11f1f);
 
 	if (ring_test) {
 		ring->ready = true;
