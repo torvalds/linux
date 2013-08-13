@@ -249,4 +249,16 @@ static inline int security_filter_rule_match(u32 secid, u32 field, u32 op,
 	return -EINVAL;
 }
 #endif /* CONFIG_IMA_LSM_RULES */
+
+#ifdef CONFIG_IMA_TRUSTED_KEYRING
+static inline int ima_init_keyring(const unsigned int id)
+{
+	return integrity_init_keyring(id);
+}
+#else
+static inline int ima_init_keyring(const unsigned int id)
+{
+	return 0;
+}
+#endif /* CONFIG_IMA_TRUSTED_KEYRING */
 #endif
