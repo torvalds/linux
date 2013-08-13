@@ -152,6 +152,7 @@ static int nfs4_map_errors(int err)
 	case -NFS4ERR_RECALLCONFLICT:
 		return -EREMOTEIO;
 	case -NFS4ERR_WRONGSEC:
+	case -NFS4ERR_WRONG_CRED:
 		return -EPERM;
 	case -NFS4ERR_BADOWNER:
 	case -NFS4ERR_BADNAME:
