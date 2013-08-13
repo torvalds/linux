@@ -370,7 +370,7 @@ static int ocfs2_cow_file_pos(struct inode *inode,
 	if (!(ext_flags & OCFS2_EXT_REFCOUNTED))
 		goto out;
 
-	return ocfs2_refcount_cow(inode, NULL, fe_bh, cpos, 1, cpos+1);
+	return ocfs2_refcount_cow(inode, fe_bh, cpos, 1, cpos+1);
 
 out:
 	return status;
@@ -899,7 +899,7 @@ static int ocfs2_zero_extend_get_range(struct inode *inode,
 		zero_clusters = last_cpos - zero_cpos;
 
 	if (needs_cow) {
-		rc = ocfs2_refcount_cow(inode, NULL, di_bh, zero_cpos,
+		rc = ocfs2_refcount_cow(inode, di_bh, zero_cpos,
 					zero_clusters, UINT_MAX);
 		if (rc) {
 			mlog_errno(rc);
@@ -2078,7 +2078,7 @@ static int ocfs2_prepare_inode_for_refcount(struct inode *inode,
 
 	*meta_level = 1;
 
-	ret = ocfs2_refcount_cow(inode, file, di_bh, cpos, clusters, UINT_MAX);
+	ret = ocfs2_refcount_cow(inode, di_bh, cpos, clusters, UINT_MAX);
 	if (ret)
 		mlog_errno(ret);
 out:

@@ -69,7 +69,7 @@ static int __ocfs2_move_extent(handle_t *handle,
 	u64 ino = ocfs2_metadata_cache_owner(context->et.et_ci);
 	u64 old_blkno = ocfs2_clusters_to_blocks(inode->i_sb, p_cpos);
 
-	ret = ocfs2_duplicate_clusters_by_page(handle, context->file, cpos,
+	ret = ocfs2_duplicate_clusters_by_page(handle, inode, cpos,
 					       p_cpos, new_p_cpos, len);
 	if (ret) {
 		mlog_errno(ret);
