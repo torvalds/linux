@@ -379,8 +379,13 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 
 	if (hw->phy.multispeed_fiber) {
 		*speed |= IXGBE_LINK_SPEED_10GB_FULL |
-		          IXGBE_LINK_SPEED_1GB_FULL;
-		*autoneg = true;
+			  IXGBE_LINK_SPEED_1GB_FULL;
+
+		/* QSFP must not enable auto-negotiation */
+		if (hw->phy.media_type == ixgbe_media_type_fiber_qsfp)
+			*autoneg = false;
+		else
+			*autoneg = true;
 	}
 
 out:
@@ -700,13 +705,18 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 			goto out;
 
 		/* Set the module link speed */
-		if (hw->phy.media_type == ixgbe_media_type_fiber_fixed) {
-			ixgbe_set_fiber_fixed_speed(hw,
-					IXGBE_LINK_SPEED_10GB_FULL);
-		} else {
+		switch (hw->phy.media_type) {
+		case ixgbe_media_type_fiber:
 			esdp_reg |= (IXGBE_ESDP_SDP5_DIR | IXGBE_ESDP_SDP5);
 			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
 			IXGBE_WRITE_FLUSH(hw);
+			break;
+		case ixgbe_media_type_fiber_qsfp:
+			/* QSFP module automatically detects MAC link speed */
+			break;
+		default:
+			hw_dbg(hw, "Unexpected media type.\n");
+			break;
 		}
 
 		/* Allow module to change analog characteristics (1G->10G) */
@@ -757,14 +767,23 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 			goto out;
 
 		/* Set the module link speed */
-		if (hw->phy.media_type == ixgbe_media_type_fiber_fixed) {
+		switch (hw->phy.media_type) {
+		case ixgbe_media_type_fiber_fixed:
 			ixgbe_set_fiber_fixed_speed(hw,
 						IXGBE_LINK_SPEED_1GB_FULL);
-		} else {
+			break;
+		case ixgbe_media_type_fiber:
 			esdp_reg &= ~IXGBE_ESDP_SDP5;
 			esdp_reg |= IXGBE_ESDP_SDP5_DIR;
 			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
 			IXGBE_WRITE_FLUSH(hw);
+			break;
+		case ixgbe_media_type_fiber_qsfp:
+			/* QSFP module automatically detects MAC link speed */
+			break;
+		default:
+			hw_dbg(hw, "Unexpected media type.\n");
+			break;
 		}
 
 		/* Allow module to change analog characteristics (10G->1G) */

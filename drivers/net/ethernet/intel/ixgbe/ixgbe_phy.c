@@ -1205,6 +1205,12 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	if (status != 0)
 		goto err_read_i2c_eeprom;
 
+	status = hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_QSFP_1GBE_COMP,
+					     &comp_codes_1g);
+
+	if (status != 0)
+		goto err_read_i2c_eeprom;
+
 	if (comp_codes_10g & IXGBE_SFF_QSFP_DA_PASSIVE_CABLE) {
 		hw->phy.type = ixgbe_phy_qsfp_passive_unknown;
 		if (hw->bus.lan_id == 0)

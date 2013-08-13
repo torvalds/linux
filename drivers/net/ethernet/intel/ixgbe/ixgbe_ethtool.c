@@ -311,9 +311,6 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		 * this function does not support duplex forcing, but can
 		 * limit the advertising of the adapter to the specified speed
 		 */
-		if (ecmd->autoneg == AUTONEG_DISABLE)
-			return -EINVAL;
-
 		if (ecmd->advertising & ~ecmd->supported)
 			return -EINVAL;
 
