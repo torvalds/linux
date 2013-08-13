@@ -154,6 +154,20 @@ static const struct snd_kcontrol_new pcm1792a_controls[] = {
 			 pcm1792a_dac_tlv),
 };
 
+static const struct snd_soc_dapm_widget pcm1792a_dapm_widgets[] = {
+SND_SOC_DAPM_OUTPUT("IOUTL+"),
+SND_SOC_DAPM_OUTPUT("IOUTL-"),
+SND_SOC_DAPM_OUTPUT("IOUTR+"),
+SND_SOC_DAPM_OUTPUT("IOUTR-"),
+};
+
+static const struct snd_soc_dapm_route pcm1792a_dapm_routes[] = {
+	{ "IOUTL+", NULL, "Playback" },
+	{ "IOUTL-", NULL, "Playback" },
+	{ "IOUTR+", NULL, "Playback" },
+	{ "IOUTR-", NULL, "Playback" },
+};
+
 static struct snd_soc_dai_driver pcm1792a_dai = {
 	.name = "pcm1792a-hifi",
 	.playback = {
@@ -184,6 +198,10 @@ static const struct regmap_config pcm1792a_regmap = {
 static struct snd_soc_codec_driver soc_codec_dev_pcm1792a = {
 	.controls		= pcm1792a_controls,
 	.num_controls		= ARRAY_SIZE(pcm1792a_controls),
+	.dapm_widgets		= pcm1792a_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(pcm1792a_dapm_widgets),
+	.dapm_routes		= pcm1792a_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(pcm1792a_dapm_routes),
 };
 
 static int pcm1792a_spi_probe(struct spi_device *spi)
