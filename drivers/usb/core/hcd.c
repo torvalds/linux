@@ -466,17 +466,13 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	struct usb_ctrlrequest *cmd;
  	u16		typeReq, wValue, wIndex, wLength;
 	u8		*ubuf = urb->transfer_buffer;
-	/*
-	 * tbuf should be as big as the BOS descriptor and
-	 * the USB hub descriptor.
-	 */
-	u8		tbuf[USB_DT_BOS_SIZE + USB_DT_USB_SS_CAP_SIZE]
-		__attribute__((aligned(4)));
-	const u8	*bufp = tbuf;
 	unsigned	len = 0;
 	int		status;
 	u8		patch_wakeup = 0;
 	u8		patch_protocol = 0;
+	u16		tbuf_size;
+	u8		*tbuf = NULL;
+	const u8	*bufp;
 
 	might_sleep();
 
@@ -495,6 +491,18 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 
 	if (wLength > urb->transfer_buffer_length)
 		goto error;
+
+	/*
+	 * tbuf should be at least as big as the
+	 * USB hub descriptor.
+	 */
+	tbuf_size =  max_t(u16, sizeof(struct usb_hub_descriptor), wLength);
+	tbuf = kzalloc(tbuf_size, GFP_KERNEL);
+	if (!tbuf)
+		return -ENOMEM;
+
+	bufp = tbuf;
+
 
 	urb->actual_length = 0;
 	switch (typeReq) {
@@ -692,6 +700,8 @@ error:
 			((struct usb_device_descriptor *) ubuf)->
 				bDeviceProtocol = USB_HUB_PR_HS_SINGLE_TT;
 	}
+
+	kfree(tbuf);
 
 	/* any errors get returned through the urb completion */
 	spin_lock_irq(&hcd_root_hub_lock);
