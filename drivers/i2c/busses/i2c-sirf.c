@@ -194,6 +194,10 @@ static void i2c_sirfsoc_set_address(struct sirfsoc_i2c *siic,
 	if (msg->flags & I2C_M_RD)
 		addr |= 1;
 
+	/* Reverse direction bit */
+	if (msg->flags & I2C_M_REV_DIR_ADDR)
+		addr ^= 1;
+
 	writel(addr, siic->base + SIRFSOC_I2C_CMD(siic->cmd_ptr++));
 }
 
