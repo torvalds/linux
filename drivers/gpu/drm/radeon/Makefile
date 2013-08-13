@@ -82,6 +82,15 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	trinity_smc.o ni_dpm.o si_smc.o si_dpm.o kv_smc.o kv_dpm.o ci_smc.o \
 	ci_dpm.o
 
+# add async DMA block
+radeon-y += \
+	r600_dma.o \
+	rv770_dma.o \
+	evergreen_dma.o \
+	ni_dma.o \
+	si_dma.o \
+	cik_sdma.o \
+
 # add UVD block
 radeon-y += \
 	radeon_uvd.o \

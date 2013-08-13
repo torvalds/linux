@@ -78,6 +78,11 @@ extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_
 extern u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev);
 extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
 extern bool evergreen_is_display_hung(struct radeon_device *rdev);
+extern void si_dma_vm_set_page(struct radeon_device *rdev,
+			       struct radeon_ib *ib,
+			       uint64_t pe,
+			       uint64_t addr, unsigned count,
+			       uint32_t incr, uint32_t flags);
 
 static const u32 verde_rlc_save_restore_register_list[] =
 {
@@ -3495,7 +3500,7 @@ static int si_cp_resume(struct radeon_device *rdev)
 	return 0;
 }
 
-static u32 si_gpu_check_soft_reset(struct radeon_device *rdev)
+u32 si_gpu_check_soft_reset(struct radeon_device *rdev)
 {
 	u32 reset_mask = 0;
 	u32 tmp;
@@ -3740,34 +3745,6 @@ bool si_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 		return false;
 	}
 	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
-	return radeon_ring_test_lockup(rdev, ring);
-}
-
-/**
- * si_dma_is_lockup - Check if the DMA engine is locked up
- *
- * @rdev: radeon_device pointer
- * @ring: radeon_ring structure holding ring information
- *
- * Check if the async DMA engine is locked up.
- * Returns true if the engine appears to be locked up, false if not.
- */
-bool si_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
-{
-	u32 reset_mask = si_gpu_check_soft_reset(rdev);
-	u32 mask;
-
-	if (ring->idx == R600_RING_TYPE_DMA_INDEX)
-		mask = RADEON_RESET_DMA;
-	else
-		mask = RADEON_RESET_DMA1;
-
-	if (!(reset_mask & mask)) {
-		radeon_ring_lockup_update(ring);
-		return false;
-	}
-	/* force ring activities */
 	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
@@ -4710,58 +4687,7 @@ void si_vm_set_page(struct radeon_device *rdev,
 		}
 	} else {
 		/* DMA */
-		if (flags & RADEON_VM_PAGE_SYSTEM) {
-			while (count) {
-				ndw = count * 2;
-				if (ndw > 0xFFFFE)
-					ndw = 0xFFFFE;
-
-				/* for non-physically contiguous pages (system) */
-				ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, ndw);
-				ib->ptr[ib->length_dw++] = pe;
-				ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-				for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-					if (flags & RADEON_VM_PAGE_SYSTEM) {
-						value = radeon_vm_map_gart(rdev, addr);
-						value &= 0xFFFFFFFFFFFFF000ULL;
-					} else if (flags & RADEON_VM_PAGE_VALID) {
-						value = addr;
-					} else {
-						value = 0;
-					}
-					addr += incr;
-					value |= r600_flags;
-					ib->ptr[ib->length_dw++] = value;
-					ib->ptr[ib->length_dw++] = upper_32_bits(value);
-				}
-			}
-		} else {
-			while (count) {
-				ndw = count * 2;
-				if (ndw > 0xFFFFE)
-					ndw = 0xFFFFE;
-
-				if (flags & RADEON_VM_PAGE_VALID)
-					value = addr;
-				else
-					value = 0;
-				/* for physically contiguous pages (vram) */
-				ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
-				ib->ptr[ib->length_dw++] = pe; /* dst addr */
-				ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-				ib->ptr[ib->length_dw++] = r600_flags; /* mask */
-				ib->ptr[ib->length_dw++] = 0;
-				ib->ptr[ib->length_dw++] = value; /* value */
-				ib->ptr[ib->length_dw++] = upper_32_bits(value);
-				ib->ptr[ib->length_dw++] = incr; /* increment size */
-				ib->ptr[ib->length_dw++] = 0;
-				pe += ndw * 4;
-				addr += (ndw / 2) * incr;
-				count -= ndw / 2;
-			}
-		}
-		while (ib->length_dw & 0x7)
-			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0);
+		si_dma_vm_set_page(rdev, ib, pe, addr, count, incr, flags);
 	}
 }
 
@@ -4806,32 +4732,6 @@ void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	/* sync PFP to ME, otherwise we might get invalid PFP reads */
 	radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
 	radeon_ring_write(ring, 0x0);
-}
-
-void si_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
-{
-	struct radeon_ring *ring = &rdev->ring[ridx];
-
-	if (vm == NULL)
-		return;
-
-	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	if (vm->id < 8) {
-		radeon_ring_write(ring, (0xf << 16) | ((VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2)) >> 2));
-	} else {
-		radeon_ring_write(ring, (0xf << 16) | ((VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((vm->id - 8) << 2)) >> 2));
-	}
-	radeon_ring_write(ring, vm->pd_gpu_addr >> 12);
-
-	/* flush hdp cache */
-	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	radeon_ring_write(ring, (0xf << 16) | (HDP_MEM_COHERENCY_FLUSH_CNTL >> 2));
-	radeon_ring_write(ring, 1);
-
-	/* bits 0-7 are the VM contexts0-7 */
-	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	radeon_ring_write(ring, (0xf << 16) | (VM_INVALIDATE_REQUEST >> 2));
-	radeon_ring_write(ring, 1 << vm->id);
 }
 
 /*
@@ -6175,80 +6075,6 @@ restart_ih:
 		goto restart_ih;
 
 	return IRQ_HANDLED;
-}
-
-/**
- * si_copy_dma - copy pages using the DMA engine
- *
- * @rdev: radeon_device pointer
- * @src_offset: src GPU address
- * @dst_offset: dst GPU address
- * @num_gpu_pages: number of GPU pages to xfer
- * @fence: radeon fence object
- *
- * Copy GPU paging using the DMA engine (SI).
- * Used by the radeon ttm implementation to move pages if
- * registered as the asic copy callback.
- */
-int si_copy_dma(struct radeon_device *rdev,
-		uint64_t src_offset, uint64_t dst_offset,
-		unsigned num_gpu_pages,
-		struct radeon_fence **fence)
-{
-	struct radeon_semaphore *sem = NULL;
-	int ring_index = rdev->asic->copy.dma_ring_index;
-	struct radeon_ring *ring = &rdev->ring[ring_index];
-	u32 size_in_bytes, cur_size_in_bytes;
-	int i, num_loops;
-	int r = 0;
-
-	r = radeon_semaphore_create(rdev, &sem);
-	if (r) {
-		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		return r;
-	}
-
-	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
-	num_loops = DIV_ROUND_UP(size_in_bytes, 0xfffff);
-	r = radeon_ring_lock(rdev, ring, num_loops * 5 + 11);
-	if (r) {
-		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		radeon_semaphore_free(rdev, &sem, NULL);
-		return r;
-	}
-
-	if (radeon_fence_need_sync(*fence, ring->idx)) {
-		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
-					    ring->idx);
-		radeon_fence_note_sync(*fence, ring->idx);
-	} else {
-		radeon_semaphore_free(rdev, &sem, NULL);
-	}
-
-	for (i = 0; i < num_loops; i++) {
-		cur_size_in_bytes = size_in_bytes;
-		if (cur_size_in_bytes > 0xFFFFF)
-			cur_size_in_bytes = 0xFFFFF;
-		size_in_bytes -= cur_size_in_bytes;
-		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_COPY, 1, 0, 0, cur_size_in_bytes));
-		radeon_ring_write(ring, dst_offset & 0xffffffff);
-		radeon_ring_write(ring, src_offset & 0xffffffff);
-		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
-		radeon_ring_write(ring, upper_32_bits(src_offset) & 0xff);
-		src_offset += cur_size_in_bytes;
-		dst_offset += cur_size_in_bytes;
-	}
-
-	r = radeon_fence_emit(rdev, fence, ring->idx);
-	if (r) {
-		radeon_ring_unlock_undo(rdev, ring);
-		return r;
-	}
-
-	radeon_ring_unlock_commit(rdev, ring);
-	radeon_semaphore_free(rdev, &sem, *fence);
-
-	return r;
 }
 
 /*
