@@ -441,7 +441,6 @@ config ARCH_NETX
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
 	depends on MMU
-	select ARCH_SUPPORTS_MSI
 	select CPU_XSC3
 	select NEED_MACH_MEMORY_H
 	select NEED_RET_TO_USER
