@@ -2946,28 +2946,27 @@ static int ixgbe_get_module_eeprom(struct net_device *dev,
 	u32 status = IXGBE_ERR_PHY_ADDR_INVALID;
 	u8 databyte = 0xFF;
 	int i = 0;
-	int ret_val = 0;
 
 	if (ee->len == 0)
 		return -EINVAL;
 
-	for (i = ee->offset; i < ee->len; i++) {
+	for (i = ee->offset; i < ee->offset + ee->len; i++) {
 		/* I2C reads can take long time */
 		if (test_bit(__IXGBE_IN_SFP_INIT, &adapter->state))
 			return -EBUSY;
 
 		if (i < ETH_MODULE_SFF_8079_LEN)
-			status  = hw->phy.ops.read_i2c_eeprom(hw, i, &databyte);
+			status = hw->phy.ops.read_i2c_eeprom(hw, i, &databyte);
 		else
 			status = hw->phy.ops.read_i2c_sff8472(hw, i, &databyte);
 
 		if (status != 0)
-			ret_val = -EIO;
+			return -EIO;
 
 		data[i - ee->offset] = databyte;
 	}
 
-	return ret_val;
+	return 0;
 }
 
 static const struct ethtool_ops ixgbe_ethtool_ops = {
