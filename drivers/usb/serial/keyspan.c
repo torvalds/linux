@@ -56,17 +56,17 @@ struct keyspan_serial_private {
 	const struct keyspan_device_details	*device_details;
 
 	struct urb	*instat_urb;
-	char		instat_buf[INSTAT_BUFLEN];
+	char		*instat_buf;
 
 	/* added to support 49wg, where data from all 4 ports comes in
 	   on 1 EP and high-speed supported */
 	struct urb	*indat_urb;
-	char		indat_buf[INDAT49W_BUFLEN];
+	char		*indat_buf;
 
 	/* XXX this one probably will need a lock */
 	struct urb	*glocont_urb;
-	char		glocont_buf[GLOCONT_BUFLEN];
-	char		ctrl_buf[8];	/* for EP0 control message */
+	char		*glocont_buf;
+	char		*ctrl_buf;	/* for EP0 control message */
 };
 
 struct keyspan_port_private {
@@ -2313,6 +2313,22 @@ static int keyspan_startup(struct usb_serial *serial)
 		return -ENOMEM;
 	}
 
+	s_priv->instat_buf = kzalloc(INSTAT_BUFLEN, GFP_KERNEL);
+	if (!s_priv->instat_buf)
+		goto err_instat_buf;
+
+	s_priv->indat_buf = kzalloc(INDAT49W_BUFLEN, GFP_KERNEL);
+	if (!s_priv->indat_buf)
+		goto err_indat_buf;
+
+	s_priv->glocont_buf = kzalloc(GLOCONT_BUFLEN, GFP_KERNEL);
+	if (!s_priv->glocont_buf)
+		goto err_glocont_buf;
+
+	s_priv->ctrl_buf = kzalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
+	if (!s_priv->ctrl_buf)
+		goto err_ctrl_buf;
+
 	s_priv->device_details = d_details;
 	usb_set_serial_data(serial, s_priv);
 
@@ -2330,6 +2346,17 @@ static int keyspan_startup(struct usb_serial *serial)
 	}
 
 	return 0;
+
+err_ctrl_buf:
+	kfree(s_priv->glocont_buf);
+err_glocont_buf:
+	kfree(s_priv->indat_buf);
+err_indat_buf:
+	kfree(s_priv->instat_buf);
+err_instat_buf:
+	kfree(s_priv);
+
+	return -ENOMEM;
 }
 
 static void keyspan_disconnect(struct usb_serial *serial)
@@ -2352,6 +2379,11 @@ static void keyspan_release(struct usb_serial *serial)
 	usb_free_urb(s_priv->instat_urb);
 	usb_free_urb(s_priv->indat_urb);
 	usb_free_urb(s_priv->glocont_urb);
+
+	kfree(s_priv->ctrl_buf);
+	kfree(s_priv->glocont_buf);
+	kfree(s_priv->indat_buf);
+	kfree(s_priv->instat_buf);
 
 	kfree(s_priv);
 }
