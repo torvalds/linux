@@ -1074,7 +1074,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	u32 rxhash;
 
 	if (!(tun->flags & TUN_NO_PI)) {
-		if ((len -= sizeof(pi)) > total_len)
+		if ((len -= sizeof(pi)) < 0)
 			return -EINVAL;
 
 		if (memcpy_fromiovecend((void *)&pi, iv, 0, sizeof(pi)))
@@ -1083,7 +1083,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	if (tun->flags & TUN_VNET_HDR) {
-		if ((len -= tun->vnet_hdr_sz) > total_len)
+		if ((len -= tun->vnet_hdr_sz) < 0)
 			return -EINVAL;
 
 		if (memcpy_fromiovecend((void *)&gso, iv, offset, sizeof(gso)))
