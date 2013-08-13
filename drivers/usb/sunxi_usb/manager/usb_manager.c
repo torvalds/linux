@@ -473,11 +473,7 @@ static int __init usb_manager_init(void)
 
 	memset(&g_usb_cfg, 0, sizeof(struct usb_cfg));
 	g_usb_cfg.usb_global_enable = 1;
-#if defined(CONFIG_ARCH_SUN4I)
-    g_usb_cfg.usbc_num = 3;
-#else
-    g_usb_cfg.usbc_num = 2;
-#endif
+	g_usb_cfg.usbc_num = 1;
 
 	ret = get_usb_cfg(&g_usb_cfg);
 	if(ret != 0){
