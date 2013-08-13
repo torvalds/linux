@@ -82,7 +82,6 @@ int qxl_bo_create(struct qxl_device *qdev,
 	enum ttm_bo_type type;
 	int r;
 
-	qdev->mman.bdev.dev_mapping = qdev->ddev->anon_inode->i_mapping;
 	if (kernel)
 		type = ttm_bo_type_kernel;
 	else
