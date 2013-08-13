@@ -356,7 +356,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 
 	if (bitrate < 100000)
 		regval =
-			(2 * ctrl_speed) / (2 * bitrate * 11);
+			(2 * ctrl_speed) / (bitrate * 11);
 	else
 		regval = ctrl_speed / (bitrate * 5);
 
