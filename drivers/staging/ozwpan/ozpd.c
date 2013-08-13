@@ -157,6 +157,7 @@ void oz_pd_put(struct oz_pd *pd)
 struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 {
 	struct oz_pd *pd = kzalloc(sizeof(struct oz_pd), GFP_ATOMIC);
+
 	if (pd) {
 		int i;
 		atomic_set(&pd->ref_count, 2);
@@ -196,6 +197,7 @@ void oz_pd_destroy(struct oz_pd *pd)
 	struct oz_tx_frame *f;
 	struct oz_isoc_stream *st;
 	struct oz_farewell *fwell;
+
 	oz_pd_dbg(pd, ON, "Destroying PD\n");
 	if (hrtimer_active(&pd->timeout))
 		hrtimer_cancel(&pd->timeout);
@@ -249,6 +251,7 @@ int oz_services_start(struct oz_pd *pd, u16 apps, int resume)
 {
 	const struct oz_app_if *ai;
 	int rc = 0;
+
 	oz_pd_dbg(pd, ON, "%s: (0x%x) resume(%d)\n", __func__, apps, resume);
 	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
 		if (apps & (1<<ai->app_id)) {
@@ -274,6 +277,7 @@ int oz_services_start(struct oz_pd *pd, u16 apps, int resume)
 void oz_services_stop(struct oz_pd *pd, u16 apps, int pause)
 {
 	const struct oz_app_if *ai;
+
 	oz_pd_dbg(pd, ON, "%s: (0x%x) pause(%d)\n", __func__, apps, pause);
 	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
 		if (apps & (1<<ai->app_id)) {
@@ -296,6 +300,7 @@ void oz_pd_heartbeat(struct oz_pd *pd, u16 apps)
 {
 	const struct oz_app_if *ai;
 	int more = 0;
+
 	for (ai = g_app_if; ai < &g_app_if[OZ_APPID_MAX]; ai++) {
 		if (ai->heartbeat && (apps & (1<<ai->app_id))) {
 			if (ai->heartbeat(pd))
@@ -316,6 +321,7 @@ void oz_pd_heartbeat(struct oz_pd *pd, u16 apps)
 void oz_pd_stop(struct oz_pd *pd)
 {
 	u16 stop_apps = 0;
+
 	oz_dbg(ON, "oz_pd_stop() State = 0x%x\n", pd->state);
 	oz_pd_indicate_farewells(pd);
 	oz_polling_lock_bh();
@@ -339,6 +345,7 @@ int oz_pd_sleep(struct oz_pd *pd)
 {
 	int do_stop = 0;
 	u16 stop_apps = 0;
+
 	oz_polling_lock_bh();
 	if (pd->state & (OZ_PD_S_SLEEP | OZ_PD_S_STOPPED)) {
 		oz_polling_unlock_bh();
@@ -365,6 +372,7 @@ int oz_pd_sleep(struct oz_pd *pd)
 static struct oz_tx_frame *oz_tx_frame_alloc(struct oz_pd *pd)
 {
 	struct oz_tx_frame *f = NULL;
+
 	spin_lock_bh(&pd->tx_frame_lock);
 	if (pd->tx_pool) {
 		f = container_of(pd->tx_pool, struct oz_tx_frame, link);
@@ -419,6 +427,7 @@ static void oz_tx_frame_free(struct oz_pd *pd, struct oz_tx_frame *f)
 static void oz_set_more_bit(struct sk_buff *skb)
 {
 	struct oz_hdr *oz_hdr = (struct oz_hdr *)skb_network_header(skb);
+
 	oz_hdr->control |= OZ_F_MORE_DATA;
 }
 /*------------------------------------------------------------------------------
@@ -427,6 +436,7 @@ static void oz_set_more_bit(struct sk_buff *skb)
 static void oz_set_last_pkt_nb(struct oz_pd *pd, struct sk_buff *skb)
 {
 	struct oz_hdr *oz_hdr = (struct oz_hdr *)skb_network_header(skb);
+
 	oz_hdr->last_pkt_num = pd->trigger_pkt_num & OZ_LAST_PN_MASK;
 }
 /*------------------------------------------------------------------------------
@@ -435,6 +445,7 @@ static void oz_set_last_pkt_nb(struct oz_pd *pd, struct sk_buff *skb)
 int oz_prepare_frame(struct oz_pd *pd, int empty)
 {
 	struct oz_tx_frame *f;
+
 	if ((pd->mode & OZ_MODE_MASK) != OZ_MODE_TRIGGERED)
 		return -1;
 	if (pd->nb_queued_frames >= OZ_MAX_QUEUED_FRAMES)
@@ -469,6 +480,7 @@ static struct sk_buff *oz_build_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 	struct oz_hdr *oz_hdr;
 	struct oz_elt *elt;
 	struct list_head *e;
+
 	/* Allocate skb with enough space for the lower layers as well
 	 * as the space we need.
 	 */
@@ -510,6 +522,7 @@ static void oz_retire_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 {
 	struct list_head *e;
 	struct oz_elt_info *ei;
+
 	e = f->elt_list.next;
 	while (e != &f->elt_list) {
 		ei = container_of(e, struct oz_elt_info, link);
@@ -533,6 +546,7 @@ static int oz_send_next_queued_frame(struct oz_pd *pd, int more_data)
 	struct sk_buff *skb;
 	struct oz_tx_frame *f;
 	struct list_head *e;
+
 	spin_lock(&pd->tx_frame_lock);
 	e = pd->last_sent_frame->next;
 	if (e == &pd->tx_queue) {
@@ -628,6 +642,7 @@ static int oz_send_isoc_frame(struct oz_pd *pd)
 	struct list_head *e;
 	struct list_head list;
 	int total_size = sizeof(struct oz_hdr);
+
 	INIT_LIST_HEAD(&list);
 
 	oz_select_elts_for_tx(&pd->elt_buff, 1, &total_size,
@@ -713,6 +728,7 @@ static struct oz_isoc_stream *pd_stream_find(struct oz_pd *pd, u8 ep_num)
 {
 	struct list_head *e;
 	struct oz_isoc_stream *st;
+
 	list_for_each(e, &pd->stream_list) {
 		st = container_of(e, struct oz_isoc_stream, link);
 		if (st->ep_num == ep_num)
@@ -753,6 +769,7 @@ static void oz_isoc_stream_free(struct oz_isoc_stream *st)
 int oz_isoc_stream_delete(struct oz_pd *pd, u8 ep_num)
 {
 	struct oz_isoc_stream *st;
+
 	spin_lock_bh(&pd->stream_lock);
 	st = pd_stream_find(pd, ep_num);
 	if (st)
@@ -780,6 +797,7 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len)
 	struct sk_buff *skb = NULL;
 	struct oz_hdr *oz_hdr = NULL;
 	int size = 0;
+
 	spin_lock_bh(&pd->stream_lock);
 	st = pd_stream_find(pd, ep_num);
 	if (st) {
@@ -895,6 +913,7 @@ out:	kfree_skb(skb);
 void oz_apps_init(void)
 {
 	int i;
+
 	for (i = 0; i < OZ_APPID_MAX; i++)
 		if (g_app_if[i].init)
 			g_app_if[i].init();
@@ -905,6 +924,7 @@ void oz_apps_init(void)
 void oz_apps_term(void)
 {
 	int i;
+
 	/* Terminate all the apps. */
 	for (i = 0; i < OZ_APPID_MAX; i++)
 		if (g_app_if[i].term)
@@ -916,6 +936,7 @@ void oz_apps_term(void)
 void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt)
 {
 	const struct oz_app_if *ai;
+
 	if (app_id == 0 || app_id > OZ_APPID_MAX)
 		return;
 	ai = &g_app_if[app_id-1];
@@ -928,6 +949,7 @@ void oz_pd_indicate_farewells(struct oz_pd *pd)
 {
 	struct oz_farewell *f;
 	const struct oz_app_if *ai = &g_app_if[OZ_APPID_USB-1];
+
 	while (1) {
 		oz_polling_lock_bh();
 		if (list_empty(&pd->farewell_list)) {

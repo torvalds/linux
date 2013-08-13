@@ -33,6 +33,7 @@ static int oz_usb_submit_elt(struct oz_elt_buf *eb, struct oz_elt_info *ei,
 	int ret;
 	struct oz_elt *elt = (struct oz_elt *)ei->data;
 	struct oz_app_hdr *app_hdr = (struct oz_app_hdr *)(elt+1);
+
 	elt->type = OZ_ELT_APP_DATA;
 	ei->app_id = OZ_APPID_USB;
 	ei->length = elt->length + sizeof(struct oz_elt);
@@ -61,6 +62,7 @@ int oz_usb_get_desc_req(void *hpd, u8 req_id, u8 req_type, u8 desc_type,
 	struct oz_get_desc_req *body;
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
+
 	oz_dbg(ON, "    req_type = 0x%x\n", req_type);
 	oz_dbg(ON, "    desc_type = 0x%x\n", desc_type);
 	oz_dbg(ON, "    index = 0x%x\n", index);
@@ -95,6 +97,7 @@ static int oz_usb_set_config_req(void *hpd, u8 req_id, u8 index)
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
 	struct oz_set_config_req *body;
+
 	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
@@ -116,6 +119,7 @@ static int oz_usb_set_interface_req(void *hpd, u8 req_id, u8 index, u8 alt)
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
 	struct oz_set_interface_req *body;
+
 	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
@@ -139,6 +143,7 @@ static int oz_usb_set_clear_feature_req(void *hpd, u8 req_id, u8 type,
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
 	struct oz_feature_req *body;
+
 	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
@@ -163,6 +168,7 @@ static int oz_usb_vendor_class_req(void *hpd, u8 req_id, u8 req_type,
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
 	struct oz_vendor_class_req *body;
+
 	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
@@ -188,6 +194,7 @@ int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
 	unsigned windex = le16_to_cpu(setup->wIndex);
 	unsigned wlength = le16_to_cpu(setup->wLength);
 	int rc = 0;
+
 	if ((setup->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
 		switch (setup->bRequest) {
 		case USB_REQ_GET_DESCRIPTOR:
@@ -303,6 +310,7 @@ static void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
 	struct oz_usb_hdr *usb_hdr, int len)
 {
 	struct oz_data *data_hdr = (struct oz_data *)usb_hdr;
+
 	switch (data_hdr->format) {
 	case OZ_DATA_F_MULTIPLE_FIXED: {
 			struct oz_multiple_fixed *body =
@@ -416,6 +424,7 @@ done:
 void oz_usb_farewell(struct oz_pd *pd, u8 ep_num, u8 *data, u8 len)
 {
 	struct oz_usb_ctx *usb_ctx;
+
 	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
 	if (usb_ctx)

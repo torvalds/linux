@@ -74,6 +74,7 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 	struct oz_hdr *oz_hdr;
 	struct oz_elt *elt;
 	struct oz_elt_connect_rsp *body;
+
 	int sz = sizeof(struct oz_hdr) + sizeof(struct oz_elt) +
 			sizeof(struct oz_elt_connect_rsp);
 	skb = alloc_skb(sz + OZ_ALLOCATED_SPACE(dev), GFP_ATOMIC);
@@ -163,6 +164,7 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 	u16 new_apps = g_apps;
 	struct net_device *old_net_dev = NULL;
 	struct oz_pd *free_pd = NULL;
+
 	if (cur_pd) {
 		pd = cur_pd;
 		spin_lock_bh(&g_polling_lock);
@@ -291,6 +293,7 @@ static void oz_add_farewell(struct oz_pd *pd, u8 ep_num, u8 index,
 	struct oz_farewell *f;
 	struct oz_farewell *f2;
 	int found = 0;
+
 	f = kmalloc(sizeof(struct oz_farewell) + len, GFP_ATOMIC);
 	if (!f)
 		return;
@@ -477,6 +480,7 @@ void oz_pd_heartbeat_handler(unsigned long data)
 {
 	struct oz_pd *pd = (struct oz_pd *)data;
 	u16 apps = 0;
+
 	spin_lock_bh(&g_polling_lock);
 	if (pd->state & OZ_PD_S_CONNECTED)
 		apps = pd->total_apps;
@@ -574,6 +578,7 @@ struct oz_pd *oz_pd_find(const u8 *mac_addr)
 {
 	struct oz_pd *pd;
 	struct list_head *e;
+
 	spin_lock_bh(&g_polling_lock);
 	list_for_each(e, &g_pd_list) {
 		pd = container_of(e, struct oz_pd, link);
@@ -675,6 +680,7 @@ static void pd_stop_all_for_device(struct net_device *net_dev)
 	struct list_head h;
 	struct oz_pd *pd;
 	struct oz_pd *n;
+
 	INIT_LIST_HEAD(&h);
 	spin_lock_bh(&g_polling_lock);
 	list_for_each_entry_safe(pd, n, &g_pd_list, link) {
@@ -758,6 +764,7 @@ int oz_get_pd_list(struct oz_mac_addr *addr, int max_count)
 	struct oz_pd *pd;
 	struct list_head *e;
 	int count = 0;
+
 	spin_lock_bh(&g_polling_lock);
 	list_for_each(e, &g_pd_list) {
 		if (count >= max_count)

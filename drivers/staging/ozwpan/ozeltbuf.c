@@ -35,6 +35,7 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
 {
 	struct list_head *e;
 	int i;
+
 	/* Free any elements in the order or isoc lists. */
 	for (i = 0; i < 2; i++) {
 		struct list_head *list;
@@ -65,6 +66,7 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
 struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 {
 	struct oz_elt_info *ei = NULL;
+
 	spin_lock_bh(&buf->lock);
 	if (buf->free_elts && buf->elt_pool) {
 		ei = container_of(buf->elt_pool, struct oz_elt_info, link);
@@ -115,6 +117,7 @@ void oz_elt_info_free(struct oz_elt_buf *buf, struct oz_elt_info *ei)
 void oz_elt_info_free_chain(struct oz_elt_buf *buf, struct list_head *list)
 {
 	struct list_head *e;
+
 	e = list->next;
 	spin_lock_bh(&buf->lock);
 	while (e != list) {
@@ -151,6 +154,7 @@ int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 {
 	struct list_head *e;
 	struct oz_elt_stream *st = NULL;
+
 	oz_dbg(ON, "%s: (0x%x)\n", __func__, id);
 	spin_lock_bh(&buf->lock);
 	e = buf->stream_list.next;
@@ -208,6 +212,7 @@ int oz_queue_elt_info(struct oz_elt_buf *buf, u8 isoc, u8 id,
 {
 	struct oz_elt_stream *st = NULL;
 	struct list_head *e;
+
 	if (id) {
 		list_for_each(e, &buf->stream_list) {
 			st = container_of(e, struct oz_elt_stream, link);
@@ -269,6 +274,7 @@ int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 	struct list_head *e;
 	struct list_head *el;
 	struct oz_elt_info *ei;
+
 	spin_lock_bh(&buf->lock);
 	if (isoc)
 		el = &buf->isoc_list;
@@ -317,6 +323,7 @@ void oz_trim_elt_pool(struct oz_elt_buf *buf)
 {
 	struct list_head *free = NULL;
 	struct list_head *e;
+
 	spin_lock_bh(&buf->lock);
 	while (buf->free_elts > buf->max_free_elts) {
 		e = buf->elt_pool;

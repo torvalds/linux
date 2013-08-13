@@ -53,6 +53,7 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	int rc = 0;
 	struct oz_usb_ctx *usb_ctx;
 	struct oz_usb_ctx *old_ctx;
+
 	if (resume) {
 		oz_dbg(ON, "USB service resumed\n");
 		return 0;
@@ -114,6 +115,7 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 void oz_usb_stop(struct oz_pd *pd, int pause)
 {
 	struct oz_usb_ctx *usb_ctx;
+
 	if (pause) {
 		oz_dbg(ON, "USB service paused\n");
 		return;
@@ -154,6 +156,7 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 void oz_usb_get(void *hpd)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+
 	atomic_inc(&usb_ctx->ref_count);
 }
 /*------------------------------------------------------------------------------
@@ -164,6 +167,7 @@ void oz_usb_get(void *hpd)
 void oz_usb_put(void *hpd)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+
 	if (atomic_dec_and_test(&usb_ctx->ref_count)) {
 		oz_dbg(ON, "Dealloc USB context\n");
 		oz_pd_put(usb_ctx->pd);
@@ -177,6 +181,7 @@ int oz_usb_heartbeat(struct oz_pd *pd)
 {
 	struct oz_usb_ctx *usb_ctx;
 	int rc = 0;
+
 	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
 	if (usb_ctx)
@@ -200,6 +205,7 @@ int oz_usb_stream_create(void *hpd, u8 ep_num)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
 	struct oz_pd *pd = usb_ctx->pd;
+
 	oz_dbg(ON, "%s: (0x%x)\n", __func__, ep_num);
 	if (pd->mode & OZ_F_ISOC_NO_ELTS) {
 		oz_isoc_stream_create(pd, ep_num);
@@ -219,6 +225,7 @@ int oz_usb_stream_create(void *hpd, u8 ep_num)
 int oz_usb_stream_delete(void *hpd, u8 ep_num)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+
 	if (usb_ctx) {
 		struct oz_pd *pd = usb_ctx->pd;
 		if (pd) {
@@ -240,6 +247,7 @@ int oz_usb_stream_delete(void *hpd, u8 ep_num)
 void oz_usb_request_heartbeat(void *hpd)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
+
 	if (usb_ctx && usb_ctx->pd)
 		oz_pd_request_heartbeat(usb_ctx->pd);
 }

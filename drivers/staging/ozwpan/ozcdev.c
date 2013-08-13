@@ -49,6 +49,7 @@ static struct class *g_oz_class;
 static struct oz_serial_ctx *oz_cdev_claim_ctx(struct oz_pd *pd)
 {
 	struct oz_serial_ctx *ctx;
+
 	spin_lock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
 	ctx = (struct oz_serial_ctx *)pd->app_ctx[OZ_APPID_SERIAL-1];
 	if (ctx)
@@ -202,6 +203,7 @@ static int oz_set_active_pd(const u8 *addr)
 	int rc = 0;
 	struct oz_pd *pd;
 	struct oz_pd *old_pd;
+
 	pd = oz_pd_find(addr);
 	if (pd) {
 		spin_lock_bh(&g_cdev.lock);
@@ -234,6 +236,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 			  unsigned long arg)
 {
 	int rc = 0;
+
 	if (_IOC_TYPE(cmd) != OZ_IOCTL_MAGIC)
 		return -ENOTTY;
 	if (_IOC_NR(cmd) > OZ_IOCTL_MAX)
@@ -300,6 +303,7 @@ static unsigned int oz_cdev_poll(struct file *filp, poll_table *wait)
 {
 	unsigned int ret = 0;
 	struct oz_cdev *dev = filp->private_data;
+
 	oz_dbg(ON, "Poll called wait = %p\n", wait);
 	spin_lock_bh(&dev->lock);
 	if (dev->active_pd) {
@@ -405,6 +409,7 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 {
 	struct oz_serial_ctx *ctx;
 	struct oz_serial_ctx *old_ctx;
+
 	if (resume) {
 		oz_dbg(ON, "Serial service resumed\n");
 		return 0;
@@ -440,6 +445,7 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 void oz_cdev_stop(struct oz_pd *pd, int pause)
 {
 	struct oz_serial_ctx *ctx;
+
 	if (pause) {
 		oz_dbg(ON, "Serial service paused\n");
 		return;
