@@ -1121,6 +1121,7 @@ struct ce_state *ath10k_ce_init(struct ath10k *ar,
 {
 	struct ce_state *ce_state;
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
+	int ret;
 
 	ce_state = ath10k_ce_init_state(ar, ce_id, attr);
 	if (!ce_state) {
@@ -1129,18 +1130,20 @@ struct ce_state *ath10k_ce_init(struct ath10k *ar,
 	}
 
 	if (attr->src_nentries) {
-		if (ath10k_ce_init_src_ring(ar, ce_id, ce_state, attr)) {
-			ath10k_err("Failed to initialize CE src ring for ID: %d\n",
-				   ce_id);
+		ret = ath10k_ce_init_src_ring(ar, ce_id, ce_state, attr);
+		if (ret) {
+			ath10k_err("Failed to initialize CE src ring for ID: %d (%d)\n",
+				   ce_id, ret);
 			ath10k_ce_deinit(ce_state);
 			return NULL;
 		}
 	}
 
 	if (attr->dest_nentries) {
-		if (ath10k_ce_init_dest_ring(ar, ce_id, ce_state, attr)) {
-			ath10k_err("Failed to initialize CE dest ring for ID: %d\n",
-				   ce_id);
+		ret = ath10k_ce_init_dest_ring(ar, ce_id, ce_state, attr);
+		if (ret) {
+			ath10k_err("Failed to initialize CE dest ring for ID: %d (%d)\n",
+				   ce_id, ret);
 			ath10k_ce_deinit(ce_state);
 			return NULL;
 		}
