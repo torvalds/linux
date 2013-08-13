@@ -878,6 +878,7 @@ static const char *hwcap_str[] = {
 	"idiva",
 	"idivt",
 	"lpae",
+	"evtstrm",
 	NULL
 };
 
