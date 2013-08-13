@@ -838,8 +838,7 @@ static struct backing_dev_info cgroup_backing_dev_info = {
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
 
-static int alloc_css_id(struct cgroup_subsys *ss,
-			struct cgroup *parent, struct cgroup *child);
+static int alloc_css_id(struct cgroup_subsys_state *child_css);
 
 static struct inode *cgroup_new_inode(umode_t mode, struct super_block *sb)
 {
@@ -4308,9 +4307,8 @@ static void css_release(struct percpu_ref *ref)
 	schedule_work(&css->destroy_work);
 }
 
-static void init_cgroup_css(struct cgroup_subsys_state *css,
-			       struct cgroup_subsys *ss,
-			       struct cgroup *cgrp)
+static void init_css(struct cgroup_subsys_state *css, struct cgroup_subsys *ss,
+		     struct cgroup *cgrp)
 {
 	css->cgroup = cgrp;
 	css->ss = ss;
@@ -4327,9 +4325,9 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 }
 
 /* invoke ->css_online() on a new CSS and mark it online if successful */
-static int online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
+static int online_css(struct cgroup_subsys_state *css)
 {
-	struct cgroup_subsys_state *css = cgroup_css(cgrp, ss->subsys_id);
+	struct cgroup_subsys *ss = css->ss;
 	int ret = 0;
 
 	lockdep_assert_held(&cgroup_mutex);
@@ -4342,9 +4340,9 @@ static int online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 }
 
 /* if the CSS is online, invoke ->css_offline() on it and mark it offline */
-static void offline_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
+static void offline_css(struct cgroup_subsys_state *css)
 {
-	struct cgroup_subsys_state *css = cgroup_css(cgrp, ss->subsys_id);
+	struct cgroup_subsys *ss = css->ss;
 
 	lockdep_assert_held(&cgroup_mutex);
 
@@ -4442,10 +4440,10 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 			goto err_free_all;
 		}
 
-		init_cgroup_css(css, ss, cgrp);
+		init_css(css, ss, cgrp);
 
 		if (ss->use_id) {
-			err = alloc_css_id(ss, parent, cgrp);
+			err = alloc_css_id(css);
 			if (err)
 				goto err_free_all;
 		}
@@ -4480,7 +4478,9 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 	/* creation succeeded, notify subsystems */
 	for_each_root_subsys(root, ss) {
-		err = online_css(ss, cgrp);
+		struct cgroup_subsys_state *css = cgroup_css(cgrp, ss->subsys_id);
+
+		err = online_css(css);
 		if (err)
 			goto err_destroy;
 
@@ -4700,7 +4700,7 @@ static void cgroup_offline_fn(struct work_struct *work)
 	 * initate destruction.
 	 */
 	for_each_root_subsys(cgrp->root, ss)
-		offline_css(ss, cgrp);
+		offline_css(cgroup_css(cgrp, ss->subsys_id));
 
 	/*
 	 * Put the css refs from cgroup_destroy_locked().  Each css holds
@@ -4778,7 +4778,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	css = ss->css_alloc(cgroup_css(cgroup_dummy_top, ss->subsys_id));
 	/* We don't handle early failures gracefully */
 	BUG_ON(IS_ERR(css));
-	init_cgroup_css(css, ss, cgroup_dummy_top);
+	init_css(css, ss, cgroup_dummy_top);
 
 	/* Update the init_css_set to contain a subsys
 	 * pointer to this state - since the subsystem is
@@ -4793,7 +4793,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	 * need to invoke fork callbacks here. */
 	BUG_ON(!list_empty(&init_task.tasks));
 
-	BUG_ON(online_css(ss, cgroup_dummy_top));
+	BUG_ON(online_css(cgroup_css(cgroup_dummy_top, ss->subsys_id)));
 
 	mutex_unlock(&cgroup_mutex);
 
@@ -4866,8 +4866,8 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	ss->root = &cgroup_dummy_root;
 
 	/* our new subsystem will be attached to the dummy hierarchy. */
-	init_cgroup_css(css, ss, cgroup_dummy_top);
-	/* init_idr must be after init_cgroup_css because it sets css->id. */
+	init_css(css, ss, cgroup_dummy_top);
+	/* init_idr must be after init_css() because it sets css->id. */
 	if (ss->use_id) {
 		ret = cgroup_init_idr(ss, css);
 		if (ret)
@@ -4897,7 +4897,7 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	}
 	write_unlock(&css_set_lock);
 
-	ret = online_css(ss, cgroup_dummy_top);
+	ret = online_css(cgroup_css(cgroup_dummy_top, ss->subsys_id));
 	if (ret)
 		goto err_unload;
 
@@ -4936,7 +4936,7 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 
 	mutex_lock(&cgroup_mutex);
 
-	offline_css(ss, cgroup_dummy_top);
+	offline_css(cgroup_css(cgroup_dummy_top, ss->subsys_id));
 
 	if (ss->use_id)
 		idr_destroy(&ss->idr);
@@ -5588,20 +5588,16 @@ static int __init_or_module cgroup_init_idr(struct cgroup_subsys *ss,
 	return 0;
 }
 
-static int alloc_css_id(struct cgroup_subsys *ss, struct cgroup *parent,
-			struct cgroup *child)
+static int alloc_css_id(struct cgroup_subsys_state *child_css)
 {
-	int subsys_id, i, depth = 0;
-	struct cgroup_subsys_state *parent_css, *child_css;
+	struct cgroup_subsys_state *parent_css = css_parent(child_css);
 	struct css_id *child_id, *parent_id;
+	int i, depth;
 
-	subsys_id = ss->subsys_id;
-	parent_css = cgroup_css(parent, subsys_id);
-	child_css = cgroup_css(child, subsys_id);
 	parent_id = rcu_dereference_protected(parent_css->id, true);
 	depth = parent_id->depth + 1;
 
-	child_id = get_new_cssid(ss, depth);
+	child_id = get_new_cssid(child_css->ss, depth);
 	if (IS_ERR(child_id))
 		return PTR_ERR(child_id);
 
