@@ -122,10 +122,10 @@ int i915_enable_psr __read_mostly = 0;
 module_param_named(enable_psr, i915_enable_psr, int, 0600);
 MODULE_PARM_DESC(enable_psr, "Enable PSR (default: false)");
 
-unsigned int i915_preliminary_hw_support __read_mostly = 0;
+unsigned int i915_preliminary_hw_support __read_mostly = IS_ENABLED(CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT);
 module_param_named(preliminary_hw_support, i915_preliminary_hw_support, int, 0600);
 MODULE_PARM_DESC(preliminary_hw_support,
-		"Enable preliminary hardware support. (default: false)");
+		"Enable preliminary hardware support.");
 
 int i915_disable_power_well __read_mostly = 1;
 module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
