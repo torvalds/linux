@@ -110,6 +110,7 @@ static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 	if (atomic_add_return(1, &ar->wmi.pending_tx_count) >
 	    WMI_MAX_PENDING_TX_COUNT) {
 		/* avoid using up memory when FW hangs */
+		dev_kfree_skb(skb);
 		atomic_dec(&ar->wmi.pending_tx_count);
 		return -EBUSY;
 	}
