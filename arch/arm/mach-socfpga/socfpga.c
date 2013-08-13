@@ -48,10 +48,12 @@ static int stmmac_plat_init(struct platform_device *pdev);
 
 static struct plat_stmmacenet_data stmmacenet0_data = {
 	.init = &stmmac_plat_init,
+	.bus_id = 0,
 };
 
 static struct plat_stmmacenet_data stmmacenet1_data = {
 	.init = &stmmac_plat_init,
+	.bus_id = 1,
 };
 
 #ifdef CONFIG_HW_PERF_EVENTS
