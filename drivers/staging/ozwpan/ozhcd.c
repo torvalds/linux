@@ -660,10 +660,10 @@ static inline void oz_hcd_put(struct oz_hcd *ozhcd)
  * probably very rare indeed.
  * Context: softirq
  */
-void *oz_hcd_pd_arrived(void *hpd)
+struct oz_port *oz_hcd_pd_arrived(void *hpd)
 {
 	int i;
-	void *hport = NULL;
+	struct oz_port *hport = NULL;
 	struct oz_hcd *ozhcd = NULL;
 	struct oz_endpoint *ep;
 
