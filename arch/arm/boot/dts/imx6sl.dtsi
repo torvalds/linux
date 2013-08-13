@@ -619,7 +619,8 @@
 					 <&clks IMX6SL_CLK_SDMA>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
-				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx6sl.bin";
+				/* imx6sl reuses imx6q sdma firmware */
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx6q.bin";
 			};
 
 			pxp: pxp@020f0000 {
