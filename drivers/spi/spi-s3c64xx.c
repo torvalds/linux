@@ -429,27 +429,26 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	dma_cap_mask_t mask;
 	int ret;
 
-	if (is_polling(sdd))
-		return 0;
+	if (!is_polling(sdd)) {
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_SLAVE, mask);
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
+		/* Acquire DMA channels */
+		sdd->rx_dma.ch = dma_request_slave_channel_compat(mask, filter,
+				   (void *)sdd->rx_dma.dmach, dev, "rx");
+		if (!sdd->rx_dma.ch) {
+			dev_err(dev, "Failed to get RX DMA channel\n");
+			ret = -EBUSY;
+			goto out;
+		}
 
-	/* Acquire DMA channels */
-	sdd->rx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				(void *)sdd->rx_dma.dmach, dev, "rx");
-	if (!sdd->rx_dma.ch) {
-		dev_err(dev, "Failed to get RX DMA channel\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
-	sdd->tx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				(void *)sdd->tx_dma.dmach, dev, "tx");
-	if (!sdd->tx_dma.ch) {
-		dev_err(dev, "Failed to get TX DMA channel\n");
-		ret = -EBUSY;
-		goto out_rx;
+		sdd->tx_dma.ch = dma_request_slave_channel_compat(mask, filter,
+				   (void *)sdd->tx_dma.dmach, dev, "tx");
+		if (!sdd->tx_dma.ch) {
+			dev_err(dev, "Failed to get TX DMA channel\n");
+			ret = -EBUSY;
+			goto out_rx;
+		}
 	}
 
 	ret = pm_runtime_get_sync(&sdd->pdev->dev);
