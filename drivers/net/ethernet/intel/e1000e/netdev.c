@@ -5999,10 +5999,17 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool runtime)
 	 * correctable error when the MAC transitions from D0 to D3.  To
 	 * prevent this we need to mask off the correctable errors on the
 	 * downstream port of the pci-e switch.
+	 *
+	 * We don't have the associated upstream bridge while assigning
+	 * the PCI device into guest. For example, the KVM on power is
+	 * one of the cases.
 	 */
 	if (adapter->flags & FLAG_IS_QUAD_PORT) {
 		struct pci_dev *us_dev = pdev->bus->self;
 		u16 devctl;
+
+		if (!us_dev)
+			return 0;
 
 		pcie_capability_read_word(us_dev, PCI_EXP_DEVCTL, &devctl);
 		pcie_capability_write_word(us_dev, PCI_EXP_DEVCTL,
