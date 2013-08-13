@@ -51,7 +51,7 @@ struct f2fs_xattr_entry {
 
 #define XATTR_HDR(ptr)		((struct f2fs_xattr_header *)(ptr))
 #define XATTR_ENTRY(ptr)	((struct f2fs_xattr_entry *)(ptr))
-#define XATTR_FIRST_ENTRY(ptr)	(XATTR_ENTRY(XATTR_HDR(ptr)+1))
+#define XATTR_FIRST_ENTRY(ptr)	(XATTR_ENTRY(XATTR_HDR(ptr) + 1))
 #define XATTR_ROUND		(3)
 
 #define XATTR_ALIGN(size)	((size + XATTR_ROUND) & ~XATTR_ROUND)
@@ -68,7 +68,6 @@ struct f2fs_xattr_entry {
 		for (entry = XATTR_FIRST_ENTRY(addr);\
 				!IS_XATTR_LAST_ENTRY(entry);\
 				entry = XATTR_NEXT_ENTRY(entry))
-
 
 #define MIN_OFFSET	XATTR_ALIGN(PAGE_SIZE - \
 			sizeof(struct node_footer) - \

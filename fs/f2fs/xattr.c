@@ -246,6 +246,22 @@ static inline const struct xattr_handler *f2fs_xattr_handler(int name_index)
 	return handler;
 }
 
+static struct f2fs_xattr_entry *__find_xattr(void *base_addr, int name_index,
+					size_t name_len, const char *name)
+{
+	struct f2fs_xattr_entry *entry;
+
+	list_for_each_xattr(entry, base_addr) {
+		if (entry->e_name_index != name_index)
+			continue;
+		if (entry->e_name_len != name_len)
+			continue;
+		if (!memcmp(entry->e_name, name, name_len))
+			break;
+	}
+	return entry;
+}
+
 int f2fs_getxattr(struct inode *inode, int name_index, const char *name,
 		void *buffer, size_t buffer_size)
 {
@@ -253,8 +269,7 @@ int f2fs_getxattr(struct inode *inode, int name_index, const char *name,
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct f2fs_xattr_entry *entry;
 	struct page *page;
-	void *base_addr;
-	int error = 0, found = 0;
+	int error = 0;
 	size_t value_len, name_len;
 
 	if (name == NULL)
@@ -267,19 +282,9 @@ int f2fs_getxattr(struct inode *inode, int name_index, const char *name,
 	page = get_node_page(sbi, fi->i_xattr_nid);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
-	base_addr = page_address(page);
 
-	list_for_each_xattr(entry, base_addr) {
-		if (entry->e_name_index != name_index)
-			continue;
-		if (entry->e_name_len != name_len)
-			continue;
-		if (!memcmp(entry->e_name, name, name_len)) {
-			found = 1;
-			break;
-		}
-	}
-	if (!found) {
+	entry = __find_xattr(page_address(page), name_index, name_len, name);
+	if (IS_XATTR_LAST_ENTRY(entry)) {
 		error = -ENODATA;
 		goto cleanup;
 	}
@@ -417,18 +422,9 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	}
 
 	/* find entry with wanted name. */
-	found = 0;
-	list_for_each_xattr(here, base_addr) {
-		if (here->e_name_index != name_index)
-			continue;
-		if (here->e_name_len != name_len)
-			continue;
-		if (!memcmp(here->e_name, name, name_len)) {
-			found = 1;
-			break;
-		}
-	}
+	here = __find_xattr(base_addr, name_index, name_len, name);
 
+	found = IS_XATTR_LAST_ENTRY(here) ? 0 : 1;
 	last = here;
 
 	while (!IS_XATTR_LAST_ENTRY(last))
