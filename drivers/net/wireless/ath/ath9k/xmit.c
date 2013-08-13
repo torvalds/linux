@@ -312,12 +312,6 @@ static void ath_tx_addto_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 	}
 }
 
-/*
- * TODO: For frame(s) that are in the retry state, we will reuse the
- * sequence number(s) without setting the retry bit. The
- * alternative is to give up on these and BAR the receiver's window
- * forward.
- */
 static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 			  struct ath_atx_tid *tid)
 
@@ -341,14 +335,8 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 		}
 
 		list_add_tail(&bf->list, &bf_head);
-
-		ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
 		ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
 	}
-
-	tid->seq_next = tid->seq_start;
-	tid->baw_tail = tid->baw_head;
-	tid->bar_index = -1;
 }
 
 static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
