@@ -971,6 +971,7 @@ static const struct dmi_system_id dmi_ids[] __initconst = {
 	},
 	{ NULL, }
 };
+MODULE_DEVICE_TABLE(dmi, dmi_ids);
 
 /* Copy the good keymap, as the original ones are free'd */
 static int __init copy_keymap(void)
