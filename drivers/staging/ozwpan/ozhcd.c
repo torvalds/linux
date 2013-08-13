@@ -327,7 +327,7 @@ static void oz_empty_link_pool(void)
  * allocated it immediately follows the endpoint structure.
  * Context: softirq
  */
-static struct oz_endpoint *oz_ep_alloc(gfp_t mem_flags, int buffer_size)
+static struct oz_endpoint *oz_ep_alloc(int buffer_size, gfp_t mem_flags)
 {
 	struct oz_endpoint *ep =
 		kzalloc(sizeof(struct oz_endpoint)+buffer_size, mem_flags);
@@ -673,7 +673,7 @@ struct oz_port *oz_hcd_pd_arrived(void *hpd)
 	/* Allocate an endpoint object in advance (before holding hcd lock) to
 	 * use for out endpoint 0.
 	 */
-	ep = oz_ep_alloc(GFP_ATOMIC, 0);
+	ep = oz_ep_alloc(0, GFP_ATOMIC);
 	spin_lock_bh(&ozhcd->hcd_lock);
 	if (ozhcd->conn_port >= 0) {
 		spin_unlock_bh(&ozhcd->hcd_lock);
@@ -1268,7 +1268,7 @@ static int oz_build_endpoints_for_interface(struct usb_hcd *hcd,
 			}
 		}
 
-		ep = oz_ep_alloc(mem_flags, buffer_size);
+		ep = oz_ep_alloc(buffer_size, mem_flags);
 		if (!ep) {
 			oz_clean_endpoints_for_interface(hcd, port, if_ix);
 			return -ENOMEM;
