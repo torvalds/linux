@@ -610,8 +610,7 @@ static int ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			RX_MPDU_START_INFO0_ENCRYPT_TYPE);
 
 	/* FIXME: No idea what assumptions are safe here. Need logs */
-	if ((fmt == RX_MSDU_DECAP_RAW && skb->next) ||
-	    (fmt == RX_MSDU_DECAP_8023_SNAP_LLC)) {
+	if ((fmt == RX_MSDU_DECAP_RAW && skb->next)) {
 		ath10k_htt_rx_free_msdu_chain(skb->next);
 		skb->next = NULL;
 		return -ENOTSUPP;
@@ -658,6 +657,15 @@ static int ath10k_htt_rx_amsdu(struct ath10k_htt *htt,
 			decap_hdr += roundup(hdr_len, 4);
 			decap_hdr += roundup(crypto_len, 4);
 		}
+
+		/* When fmt == RX_MSDU_DECAP_8023_SNAP_LLC:
+		 *
+		 * SNAP 802.3 consists of:
+		 * [dst:6][src:6][len:2][dsap:1][ssap:1][ctl:1][snap:5]
+		 * [data][fcs:4].
+		 *
+		 * Since this overlaps with A-MSDU header (da, sa, len)
+		 * there's nothing extra to do. */
 
 		if (fmt == RX_MSDU_DECAP_ETHERNET2_DIX) {
 			/* Ethernet2 decap inserts ethernet header in place of
