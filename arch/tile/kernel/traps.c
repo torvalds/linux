@@ -101,13 +101,7 @@ static int retry_gpv(unsigned int gpv_reason)
 
 #endif /* CHIP_HAS_TILE_DMA() */
 
-#ifdef __tilegx__
-#define bundle_bits tilegx_bundle_bits
-#else
-#define bundle_bits tile_bundle_bits
-#endif
-
-extern bundle_bits bpt_code;
+extern tile_bundle_bits bpt_code;
 
 asm(".pushsection .rodata.bpt_code,\"a\";"
     ".align 8;"
@@ -115,7 +109,7 @@ asm(".pushsection .rodata.bpt_code,\"a\";"
     ".size bpt_code,.-bpt_code;"
     ".popsection");
 
-static int special_ill(bundle_bits bundle, int *sigp, int *codep)
+static int special_ill(tile_bundle_bits bundle, int *sigp, int *codep)
 {
 	int sig, code, maxcode;
 
@@ -263,7 +257,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	siginfo_t info = { 0 };
 	int signo, code;
 	unsigned long address = 0;
-	bundle_bits instr;
+	tile_bundle_bits instr;
 	int is_kernel = !user_mode(regs);
 
 	/* Handle breakpoints, etc. */
