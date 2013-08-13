@@ -35,13 +35,13 @@
  * Timer block registers.
  */
 #define TIMER_CTRL_OFF		0x0000
-#define  TIMER0_EN		 0x0001
-#define  TIMER0_RELOAD_EN	 0x0002
-#define  TIMER0_25MHZ            0x0800
+#define  TIMER0_EN		 BIT(0)
+#define  TIMER0_RELOAD_EN	 BIT(1)
+#define  TIMER0_25MHZ            BIT(11)
 #define  TIMER0_DIV(div)         ((div) << 19)
-#define  TIMER1_EN		 0x0004
-#define  TIMER1_RELOAD_EN	 0x0008
-#define  TIMER1_25MHZ            0x1000
+#define  TIMER1_EN		 BIT(2)
+#define  TIMER1_RELOAD_EN	 BIT(3)
+#define  TIMER1_25MHZ            BIT(12)
 #define  TIMER1_DIV(div)         ((div) << 22)
 #define TIMER_EVENTS_STATUS	0x0004
 #define  TIMER0_CLR_MASK         (~0x1)
