@@ -87,15 +87,50 @@ static const struct snd_kcontrol_new max9877_controls[] = {
 		   MAX9877_INPUT_MODE, 6, 1, 0),
 	SOC_SINGLE("MAX9877 Bypass Mode Switch",
 		   MAX9877_OUTPUT_MODE, 6, 1, 0),
-	SOC_SINGLE("MAX9877 Shutdown Mode Switch",
-		   MAX9877_OUTPUT_MODE, 7, 1, 1),
 	SOC_ENUM("MAX9877 Output Mode", max9877_enum[0]),
 	SOC_ENUM("MAX9877 Oscillator Mode", max9877_enum[1]),
+};
+
+static const struct snd_soc_dapm_widget max9877_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("INA1"),
+SND_SOC_DAPM_INPUT("INA2"),
+SND_SOC_DAPM_INPUT("INB1"),
+SND_SOC_DAPM_INPUT("INB2"),
+SND_SOC_DAPM_INPUT("RXIN+"),
+SND_SOC_DAPM_INPUT("RXIN-"),
+
+SND_SOC_DAPM_PGA("SHDN", MAX9877_OUTPUT_MODE, 7, 1, NULL, 0),
+
+SND_SOC_DAPM_OUTPUT("OUT+"),
+SND_SOC_DAPM_OUTPUT("OUT-"),
+SND_SOC_DAPM_OUTPUT("HPL"),
+SND_SOC_DAPM_OUTPUT("HPR"),
+};
+
+static const struct snd_soc_dapm_route max9877_dapm_routes[] = {
+	{ "SHDN", NULL, "INA1" },
+	{ "SHDN", NULL, "INA2" },
+	{ "SHDN", NULL, "INB1" },
+	{ "SHDN", NULL, "INB2" },
+
+	{ "OUT+", NULL, "RXIN+" },
+	{ "OUT+", NULL, "SHDN" },
+
+	{ "OUT-", NULL, "SHDN" },
+	{ "OUT-", NULL, "RXIN-" },
+
+	{ "HPL", NULL, "SHDN" },
+	{ "HPR", NULL, "SHDN" },
 };
 
 static const struct snd_soc_codec_driver max9877_codec = {
 	.controls = max9877_controls,
 	.num_controls = ARRAY_SIZE(max9877_controls),
+
+	.dapm_widgets = max9877_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(max9877_dapm_widgets),
+	.dapm_routes = max9877_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(max9877_dapm_routes),
 };
 
 static const struct regmap_config max9877_regmap = {
