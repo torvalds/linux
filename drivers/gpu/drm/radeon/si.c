@@ -5286,6 +5286,97 @@ void si_update_pg(struct radeon_device *rdev,
 	si_enable_gfx_cgpg(rdev, enable);
 }
 
+u32 si_get_csb_size(struct radeon_device *rdev)
+{
+	u32 count = 0;
+	const struct cs_section_def *sect = NULL;
+	const struct cs_extent_def *ext = NULL;
+
+	if (rdev->rlc.cs_data == NULL)
+		return 0;
+
+	/* begin clear state */
+	count += 2;
+	/* context control state */
+	count += 3;
+
+	for (sect = rdev->rlc.cs_data; sect->section != NULL; ++sect) {
+		for (ext = sect->section; ext->extent != NULL; ++ext) {
+			if (sect->id == SECT_CONTEXT)
+				count += 2 + ext->reg_count;
+			else
+				return 0;
+		}
+	}
+	/* pa_sc_raster_config */
+	count += 3;
+	/* end clear state */
+	count += 2;
+	/* clear state */
+	count += 2;
+
+	return count;
+}
+
+void si_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer)
+{
+	u32 count = 0, i;
+	const struct cs_section_def *sect = NULL;
+	const struct cs_extent_def *ext = NULL;
+
+	if (rdev->rlc.cs_data == NULL)
+		return;
+	if (buffer == NULL)
+		return;
+
+	buffer[count++] = PACKET3(PACKET3_PREAMBLE_CNTL, 0);
+	buffer[count++] = PACKET3_PREAMBLE_BEGIN_CLEAR_STATE;
+
+	buffer[count++] = PACKET3(PACKET3_CONTEXT_CONTROL, 1);
+	buffer[count++] = 0x80000000;
+	buffer[count++] = 0x80000000;
+
+	for (sect = rdev->rlc.cs_data; sect->section != NULL; ++sect) {
+		for (ext = sect->section; ext->extent != NULL; ++ext) {
+			if (sect->id == SECT_CONTEXT) {
+				buffer[count++] = PACKET3(PACKET3_SET_CONTEXT_REG, ext->reg_count);
+				buffer[count++] = ext->reg_index - 0xa000;
+				for (i = 0; i < ext->reg_count; i++)
+					buffer[count++] = ext->extent[i];
+			} else {
+				return;
+			}
+		}
+	}
+
+	buffer[count++] = PACKET3(PACKET3_SET_CONTEXT_REG, 1);
+	buffer[count++] = PA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START;
+	switch (rdev->family) {
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+		buffer[count++] = 0x2a00126a;
+		break;
+	case CHIP_VERDE:
+		buffer[count++] = 0x0000124a;
+		break;
+	case CHIP_OLAND:
+		buffer[count++] = 0x00000082;
+		break;
+	case CHIP_HAINAN:
+		buffer[count++] = 0x00000000;
+		break;
+	default:
+		buffer[count++] = 0x00000000;
+		break;
+	}
+
+	buffer[count++] = PACKET3(PACKET3_PREAMBLE_CNTL, 0);
+	buffer[count++] = PACKET3_PREAMBLE_END_CLEAR_STATE;
+
+	buffer[count++] = PACKET3(PACKET3_CLEAR_STATE, 0);
+	buffer[count++] = 0;
+}
+
 static void si_init_pg(struct radeon_device *rdev)
 {
 	if (rdev->pg_flags) {
