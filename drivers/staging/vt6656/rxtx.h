@@ -609,7 +609,7 @@ typedef struct tagSTX_BUFFER
     // Actual message
     TX_BUFFER_CONTAINER             BufferHeader;
 
-} TX_BUFFER, *PTX_BUFFER;
+} __packed TX_BUFFER, *PTX_BUFFER;
 
 //
 // Remote NDIS message format
@@ -626,7 +626,7 @@ typedef struct tagSBEACON_BUFFER
     // Actual message
     TX_BUFFER_CONTAINER             BufferHeader;
 
-} BEACON_BUFFER, *PBEACON_BUFFER;
+} __packed BEACON_BUFFER, *PBEACON_BUFFER;
 
 void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb);
 int nsDMA_tx_packet(struct vnt_private *, u32 uDMAIdx, struct sk_buff *skb);
