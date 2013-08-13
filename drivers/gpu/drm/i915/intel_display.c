@@ -8880,6 +8880,9 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 		drm_mode_debug_printmodeline(set->mode);
 		config->mode_changed = true;
 	}
+
+	DRM_DEBUG_KMS("computed changes for [CRTC:%d], mode_changed=%d, fb_changed=%d\n",
+			set->crtc->base.id, config->mode_changed, config->fb_changed);
 }
 
 static int
