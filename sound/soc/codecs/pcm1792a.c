@@ -162,10 +162,6 @@ static struct snd_soc_dai_driver pcm1792a_dai = {
 		.channels_max = 2,
 		.rates = PCM1792A_RATES,
 		.formats = PCM1792A_FORMATS, },
-	.capture = {
-		.channels_min = 0,
-		.channels_max = 0,
-	},
 	.ops = &pcm1792a_dai_ops,
 };
 
