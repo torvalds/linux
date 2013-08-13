@@ -712,6 +712,8 @@ ehci_hub_descriptor (
 }
 
 /*-------------------------------------------------------------------------*/
+#ifdef CONFIG_USB_HCD_TEST_MODE
+
 #define EHSET_TEST_SINGLE_STEP_SET_FEATURE 0x06
 
 static void usb_ehset_completion(struct urb *urb)
@@ -847,6 +849,7 @@ cleanup:
 	kfree(buf);
 	return retval;
 }
+#endif /* CONFIG_USB_HCD_TEST_MODE */
 /*-------------------------------------------------------------------------*/
 
 static int ehci_hub_control (
@@ -1222,13 +1225,16 @@ static int ehci_hub_control (
 		 * about the EHCI-specific stuff.
 		 */
 		case USB_PORT_FEAT_TEST:
+#ifdef CONFIG_USB_HCD_TEST_MODE
 			if (selector == EHSET_TEST_SINGLE_STEP_SET_FEATURE) {
 				spin_unlock_irqrestore(&ehci->lock, flags);
 				retval = ehset_single_step_set_feature(hcd,
 									wIndex);
 				spin_lock_irqsave(&ehci->lock, flags);
 				break;
-			} else if (!selector || selector > 5)
+			}
+#endif
+			if (!selector || selector > 5)
 				goto error;
 			spin_unlock_irqrestore(&ehci->lock, flags);
 			ehci_quiesce(ehci);
