@@ -38,29 +38,6 @@
 #include "cpuidle.h"
 #include "hardware.h"
 
-static void __init imx6q_init_revision(void)
-{
-	u32 rev = imx_anatop_get_digprog();
-	u32 chip_revision;
-
-	switch (rev & 0xff) {
-	case 0:
-		chip_revision = IMX_CHIP_REVISION_1_0;
-		break;
-	case 1:
-		chip_revision = IMX_CHIP_REVISION_1_1;
-		break;
-	case 2:
-		chip_revision = IMX_CHIP_REVISION_1_2;
-		break;
-	default:
-		chip_revision = IMX_CHIP_REVISION_UNKNOWN;
-	}
-
-	mxc_set_cpu_type(rev >> 16 & 0xff);
-	imx_set_soc_revision(chip_revision);
-}
-
 static void imx6q_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device_node *np;
@@ -282,7 +259,7 @@ static void __init imx6q_map_io(void)
 
 static void __init imx6q_init_irq(void)
 {
-	imx6q_init_revision();
+	imx_init_revision_from_anatop();
 	imx_init_l2cache();
 	imx_src_init();
 	imx_gpc_init();
