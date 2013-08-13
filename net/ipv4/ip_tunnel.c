@@ -350,7 +350,7 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 		struct flowi4 fl4;
 		struct rtable *rt;
 
-		rt = ip_route_output_tunnel(dev_net(dev), &fl4,
+		rt = ip_route_output_tunnel(tunnel->net, &fl4,
 					    tunnel->parms.iph.protocol,
 					    iph->daddr, iph->saddr,
 					    tunnel->parms.o_key,
@@ -365,7 +365,7 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 	}
 
 	if (!tdev && tunnel->parms.link)
-		tdev = __dev_get_by_index(dev_net(dev), tunnel->parms.link);
+		tdev = __dev_get_by_index(tunnel->net, tunnel->parms.link);
 
 	if (tdev) {
 		hlen = tdev->hard_header_len + tdev->needed_headroom;
@@ -654,7 +654,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	err = iptunnel_xmit(dev_net(dev), rt, skb,
+	err = iptunnel_xmit(tunnel->net, rt, skb,
 			    fl4.saddr, fl4.daddr, protocol,
 			    ip_tunnel_ecn_encap(tos, inner_iph, skb), ttl, df);
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
@@ -821,11 +821,10 @@ static void ip_tunnel_dev_free(struct net_device *dev)
 
 void ip_tunnel_dellink(struct net_device *dev, struct list_head *head)
 {
-	struct net *net = dev_net(dev);
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct ip_tunnel_net *itn;
 
-	itn = net_generic(net, tunnel->ip_tnl_net_id);
+	itn = net_generic(tunnel->net, tunnel->ip_tnl_net_id);
 
 	if (itn->fb_tunnel_dev != dev) {
 		ip_tunnel_del(netdev_priv(dev));
@@ -855,6 +854,10 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 
 	rtnl_lock();
 	itn->fb_tunnel_dev = __ip_tunnel_create(net, ops, &parms);
+	/* FB netdevice is special: we have one, and only one per netns.
+	 * Allowing to move it to another netns is clearly unsafe.
+	 */
+	itn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
 	rtnl_unlock();
 
 	if (IS_ERR(itn->fb_tunnel_dev))
@@ -864,9 +867,16 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_init_net);
 
-static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head)
+static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head,
+			      struct rtnl_link_ops *ops)
 {
+	struct net *net = dev_net(itn->fb_tunnel_dev);
+	struct net_device *dev, *aux;
 	int h;
+
+	for_each_netdev_safe(net, dev, aux)
+		if (dev->rtnl_link_ops == ops)
+			unregister_netdevice_queue(dev, head);
 
 	for (h = 0; h < IP_TNL_HASH_SIZE; h++) {
 		struct ip_tunnel *t;
@@ -874,18 +884,22 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head)
 		struct hlist_head *thead = &itn->tunnels[h];
 
 		hlist_for_each_entry_safe(t, n, thead, hash_node)
-			unregister_netdevice_queue(t->dev, head);
+			/* If dev is in the same netns, it has already
+			 * been added to the list by the previous loop.
+			 */
+			if (!net_eq(dev_net(t->dev), net))
+				unregister_netdevice_queue(t->dev, head);
 	}
 	if (itn->fb_tunnel_dev)
 		unregister_netdevice_queue(itn->fb_tunnel_dev, head);
 }
 
-void ip_tunnel_delete_net(struct ip_tunnel_net *itn)
+void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops)
 {
 	LIST_HEAD(list);
 
 	rtnl_lock();
-	ip_tunnel_destroy(itn, &list);
+	ip_tunnel_destroy(itn, &list, ops);
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
 }
@@ -929,15 +943,13 @@ EXPORT_SYMBOL_GPL(ip_tunnel_newlink);
 int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 			 struct ip_tunnel_parm *p)
 {
-	struct ip_tunnel *t, *nt;
-	struct net *net = dev_net(dev);
+	struct ip_tunnel *t;
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	struct net *net = tunnel->net;
 	struct ip_tunnel_net *itn = net_generic(net, tunnel->ip_tnl_net_id);
 
 	if (dev == itn->fb_tunnel_dev)
 		return -EINVAL;
-
-	nt = netdev_priv(dev);
 
 	t = ip_tunnel_find(itn, p, dev->type);
 
@@ -945,7 +957,7 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 		if (t->dev != dev)
 			return -EEXIST;
 	} else {
-		t = nt;
+		t = tunnel;
 
 		if (dev->type != ARPHRD_ETHER) {
 			unsigned int nflags = 0;
@@ -984,6 +996,7 @@ int ip_tunnel_init(struct net_device *dev)
 	}
 
 	tunnel->dev = dev;
+	tunnel->net = dev_net(dev);
 	strcpy(tunnel->parms.name, dev->name);
 	iph->version		= 4;
 	iph->ihl		= 5;
@@ -994,8 +1007,8 @@ EXPORT_SYMBOL_GPL(ip_tunnel_init);
 
 void ip_tunnel_uninit(struct net_device *dev)
 {
-	struct net *net = dev_net(dev);
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	struct net *net = tunnel->net;
 	struct ip_tunnel_net *itn;
 
 	itn = net_generic(net, tunnel->ip_tnl_net_id);

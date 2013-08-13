@@ -318,7 +318,7 @@ static int __net_init vti_init_net(struct net *net)
 static void __net_exit vti_exit_net(struct net *net)
 {
 	struct ip_tunnel_net *itn = net_generic(net, vti_net_id);
-	ip_tunnel_delete_net(itn);
+	ip_tunnel_delete_net(itn, &vti_link_ops);
 }
 
 static struct pernet_operations vti_net_ops = {
