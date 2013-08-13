@@ -1418,10 +1418,6 @@ static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	int ret;
 
-	/* TODO AP mode should be implemented */
-	if (vif->type != NL80211_IFTYPE_STATION)
-		return;
-
 	if (!ieee80211_has_protected(hdr->frame_control))
 		return;
 
