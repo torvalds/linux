@@ -882,17 +882,17 @@ static int max77xxx_read_gpios(struct max77xxx_platform_data *pdata)
 	int result = 0;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pdata->buck_gpio_dvs); i++, result <<= 1) {
+	for (i = 0; i < ARRAY_SIZE(pdata->buck_gpio_dvs); i++) {
 		int gpio = pdata->buck_gpio_dvs[i];
 
 		/* OK if some GPIOs aren't defined; we'll use default */
 		if (!gpio_is_valid(gpio)) {
-			result |= (buck_default_idx >> i) & 1;
+			result |= buck_default_idx & (1 << i);
 			continue;
 		}
 
 		if (gpio_get_value_cansleep(gpio))
-			result |= 1;
+			result |= 1 << i;
 	}
 
 	return result;
