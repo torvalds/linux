@@ -183,7 +183,7 @@ static void gx_write_byte(int reg, int value)
  * gx_detect_chipset:
  *
  **/
-static __init struct pci_dev *gx_detect_chipset(void)
+static struct pci_dev * __init gx_detect_chipset(void)
 {
 	struct pci_dev *gx_pci = NULL;
 
