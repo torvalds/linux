@@ -527,7 +527,7 @@ static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 		return 0;
 	}
 
-	if (ep && port->hpd) {
+	if (port->hpd) {
 		list_add_tail(&urbl->link, &ep->urb_list);
 		if (!in_dir && ep_addr && (ep->credit < 0)) {
 			getrawmonotonic(&ep->timestamp);
