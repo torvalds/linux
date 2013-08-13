@@ -44,7 +44,6 @@ struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
 					    unsigned int size,
 					    unsigned int *handle);
 void tegra_bo_free_object(struct drm_gem_object *gem);
-unsigned int tegra_bo_get_mmap_offset(struct tegra_bo *bo);
 int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 			 struct drm_mode_create_dumb *args);
 int tegra_bo_dumb_map_offset(struct drm_file *file, struct drm_device *drm,

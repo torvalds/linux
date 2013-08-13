@@ -356,7 +356,7 @@ static int tegra_gem_mmap(struct drm_device *drm, void *data,
 
 	bo = to_tegra_bo(gem);
 
-	args->offset = tegra_bo_get_mmap_offset(bo);
+	args->offset = drm_vma_node_offset_addr(&bo->gem.vma_node);
 
 	drm_gem_object_unreference(gem);
 
