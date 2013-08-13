@@ -103,13 +103,16 @@ static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		/* min rx data delay */
-		phy_write(phydev, 0x0b, 0x8105);
-		phy_write(phydev, 0x0c, 0x0000);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			0x8000 | MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0x0000);
 
 		/* max rx/tx clock delay, min rx/tx control delay */
-		phy_write(phydev, 0x0b, 0x8104);
-		phy_write(phydev, 0x0c, 0xf0f0);
-		phy_write(phydev, 0x0b, 0x104);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			0x8000 | MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0xf0f0);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
 	}
 
 	return 0;
