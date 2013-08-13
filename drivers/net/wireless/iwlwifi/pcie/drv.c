@@ -332,7 +332,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
 	trans_pcie->drv = iwl_drv_start(iwl_trans, cfg);
 
-	if (IS_ERR_OR_NULL(trans_pcie->drv)) {
+	if (IS_ERR(trans_pcie->drv)) {
 		ret = PTR_ERR(trans_pcie->drv);
 		goto out_free_trans;
 	}
