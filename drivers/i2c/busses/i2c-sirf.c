@@ -422,6 +422,8 @@ static int i2c_sirfsoc_resume(struct device *dev)
 
 	clk_enable(siic->clk);
 	writel(SIRFSOC_I2C_RESET, siic->base + SIRFSOC_I2C_CTRL);
+	while (readl(siic->base + SIRFSOC_I2C_CTRL) & SIRFSOC_I2C_RESET)
+		cpu_relax();
 	writel(SIRFSOC_I2C_CORE_EN | SIRFSOC_I2C_MASTER_MODE,
 		siic->base + SIRFSOC_I2C_CTRL);
 	writel(siic->clk_div, siic->base + SIRFSOC_I2C_CLK_CTRL);
