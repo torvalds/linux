@@ -197,7 +197,7 @@ static ssize_t show_cpb(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", boost_enabled);
 }
 
-static struct freq_attr cpb = __ATTR(cpb, 0644, show_cpb, store_cpb);
+cpufreq_freq_attr_rw(cpb);
 #endif
 
 static int check_est_cpu(unsigned int cpuid)
