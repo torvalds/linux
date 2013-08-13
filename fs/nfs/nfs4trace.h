@@ -411,6 +411,76 @@ DEFINE_NFS4_LOCK_EVENT(nfs4_lock_reclaim);
 DEFINE_NFS4_LOCK_EVENT(nfs4_lock_expired);
 DEFINE_NFS4_LOCK_EVENT(nfs4_unlock);
 
+DECLARE_EVENT_CLASS(nfs4_set_delegation_event,
+		TP_PROTO(
+			const struct inode *inode,
+			fmode_t fmode
+		),
+
+		TP_ARGS(inode, fmode),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(unsigned int, fmode)
+		),
+
+		TP_fast_assign(
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->fmode = (__force unsigned int)fmode;
+		),
+
+		TP_printk(
+			"fmode=%s fileid=%02x:%02x:%llu fhandle=0x%08x",
+			show_fmode_flags(__entry->fmode),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle
+		)
+);
+#define DEFINE_NFS4_SET_DELEGATION_EVENT(name) \
+	DEFINE_EVENT(nfs4_set_delegation_event, name, \
+			TP_PROTO( \
+				const struct inode *inode, \
+				fmode_t fmode \
+			), \
+			TP_ARGS(inode, fmode))
+DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_set_delegation);
+DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_reclaim_delegation);
+
+TRACE_EVENT(nfs4_delegreturn_exit,
+		TP_PROTO(
+			const struct nfs4_delegreturnargs *args,
+			const struct nfs4_delegreturnres *res,
+			int error
+		),
+
+		TP_ARGS(args, res, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			__entry->dev = res->server->s_dev;
+			__entry->fhandle = nfs_fhandle_hash(args->fhandle);
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"error=%d (%s) dev=%02x:%02x fhandle=0x%08x",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			__entry->fhandle
+		)
+);
+
 DECLARE_EVENT_CLASS(nfs4_lookup_event,
 		TP_PROTO(
 			const struct inode *dir,
@@ -554,6 +624,8 @@ DEFINE_NFS4_INODE_EVENT(nfs4_set_acl);
 DEFINE_NFS4_INODE_EVENT(nfs4_get_security_label);
 DEFINE_NFS4_INODE_EVENT(nfs4_set_security_label);
 #endif /* CONFIG_NFS_V4_SECURITY_LABEL */
+DEFINE_NFS4_INODE_EVENT(nfs4_recall_delegation);
+DEFINE_NFS4_INODE_EVENT(nfs4_delegreturn);
 
 #endif /* _TRACE_NFS4_H */
 
