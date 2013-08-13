@@ -208,15 +208,6 @@ struct __get_user __atomic_bad_address(int __user *addr)
 }
 
 
-#if CHIP_HAS_CBOX_HOME_MAP()
-static int __init noatomichash(char *str)
-{
-	pr_warning("noatomichash is deprecated.\n");
-	return 1;
-}
-__setup("noatomichash", noatomichash);
-#endif
-
 void __init __init_atomic_per_cpu(void)
 {
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
