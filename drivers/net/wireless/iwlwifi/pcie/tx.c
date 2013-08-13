@@ -451,12 +451,9 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 		return -EINVAL;
 	}
 
-	if (WARN_ON(addr & ~DMA_BIT_MASK(36)))
+	if (WARN(addr & ~IWL_TX_DMA_MASK,
+		 "Unaligned address = %llx\n", (unsigned long long)addr))
 		return -EINVAL;
-
-	if (unlikely(addr & ~IWL_TX_DMA_MASK))
-		IWL_ERR(trans, "Unaligned address = %llx\n",
-			(unsigned long long)addr);
 
 	iwl_pcie_tfd_set_tb(tfd, num_tbs, addr, len);
 
@@ -1153,10 +1150,10 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 /*
  * iwl_pcie_enqueue_hcmd - enqueue a uCode command
  * @priv: device private data point
- * @cmd: a point to the ucode command structure
+ * @cmd: a pointer to the ucode command structure
  *
- * The function returns < 0 values to indicate the operation is
- * failed. On success, it turns the index (> 0) of command in the
+ * The function returns < 0 values to indicate the operation
+ * failed. On success, it returns the index (>= 0) of command in the
  * command queue.
  */
 static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
@@ -1619,10 +1616,9 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
 
-	if (unlikely(!test_bit(txq_id, trans_pcie->queue_used))) {
-		WARN_ON_ONCE(1);
+	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->queue_used),
+		      "TX on unused queue %d\n", txq_id))
 		return -EINVAL;
-	}
 
 	spin_lock(&txq->lock);
 
@@ -1632,7 +1628,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 * Check here that the packets are in the right place on the ring.
 	 */
 	wifi_seq = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-	WARN_ONCE(trans_pcie->txq[txq_id].ampdu &&
+	WARN_ONCE(txq->ampdu &&
 		  (wifi_seq & 0xff) != q->write_ptr,
 		  "Q: %d WiFi Seq %d tfdNum %d",
 		  txq_id, wifi_seq, q->write_ptr);
@@ -1664,7 +1660,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 */
 	len = sizeof(struct iwl_tx_cmd) + sizeof(struct iwl_cmd_header) +
 	      hdr_len - IWL_HCMD_SCRATCHBUF_SIZE;
-	tb1_len = (len + 3) & ~3;
+	tb1_len = ALIGN(len, 4);
 
 	/* Tell NIC about any 2-byte padding after MAC header */
 	if (tb1_len != len)

@@ -555,6 +555,69 @@ static void ar9002_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regval);
 }
 
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
+static void ar9002_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
+{
+	struct ath_btcoex_hw *btcoex = &ah->btcoex_hw;
+	u8 antdiv_ctrl1, antdiv_ctrl2;
+	u32 regval;
+
+	if (enable) {
+		antdiv_ctrl1 = ATH_BT_COEX_ANTDIV_CONTROL1_ENABLE;
+		antdiv_ctrl2 = ATH_BT_COEX_ANTDIV_CONTROL2_ENABLE;
+
+		/*
+		 * Don't disable BT ant to allow BB to control SWCOM.
+		 */
+		btcoex->bt_coex_mode2 &= (~(AR_BT_DISABLE_BT_ANT));
+		REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex->bt_coex_mode2);
+
+		REG_WRITE(ah, AR_PHY_SWITCH_COM, ATH_BT_COEX_ANT_DIV_SWITCH_COM);
+		REG_RMW(ah, AR_PHY_SWITCH_CHAIN_0, 0, 0xf0000000);
+	} else {
+		/*
+		 * Disable antenna diversity, use LNA1 only.
+		 */
+		antdiv_ctrl1 = ATH_BT_COEX_ANTDIV_CONTROL1_FIXED_A;
+		antdiv_ctrl2 = ATH_BT_COEX_ANTDIV_CONTROL2_FIXED_A;
+
+		/*
+		 * Disable BT Ant. to allow concurrent BT and WLAN receive.
+		 */
+		btcoex->bt_coex_mode2 |= AR_BT_DISABLE_BT_ANT;
+		REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex->bt_coex_mode2);
+
+		/*
+		 * Program SWCOM table to make sure RF switch always parks
+		 * at BT side.
+		 */
+		REG_WRITE(ah, AR_PHY_SWITCH_COM, 0);
+		REG_RMW(ah, AR_PHY_SWITCH_CHAIN_0, 0, 0xf0000000);
+	}
+
+	regval = REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+	regval &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
+        /*
+	 * Clear ant_fast_div_bias [14:9] since for WB195,
+	 * the main LNA is always LNA1.
+	 */
+	regval &= (~(AR_PHY_9285_FAST_DIV_BIAS));
+	regval |= SM(antdiv_ctrl1, AR_PHY_9285_ANT_DIV_CTL);
+	regval |= SM(antdiv_ctrl2, AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+	regval |= SM((antdiv_ctrl2 >> 2), AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+	regval |= SM((antdiv_ctrl1 >> 1), AR_PHY_9285_ANT_DIV_ALT_GAINTB);
+	regval |= SM((antdiv_ctrl1 >> 2), AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
+	REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regval);
+
+	regval = REG_READ(ah, AR_PHY_CCK_DETECT);
+	regval &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+	regval |= SM((antdiv_ctrl1 >> 3), AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+	REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
+}
+
+#endif
+
 static void ar9002_hw_spectral_scan_config(struct ath_hw *ah,
 				    struct ath_spec_scan *param)
 {
@@ -633,6 +696,10 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 	ops->spectral_scan_config = ar9002_hw_spectral_scan_config;
 	ops->spectral_scan_trigger = ar9002_hw_spectral_scan_trigger;
 	ops->spectral_scan_wait = ar9002_hw_spectral_scan_wait;
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	ops->set_bt_ant_diversity = ar9002_hw_set_bt_ant_diversity;
+#endif
 
 	ar9002_hw_set_nf_limits(ah);
 }

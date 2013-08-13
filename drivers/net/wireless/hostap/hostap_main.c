@@ -667,7 +667,7 @@ static int prism2_open(struct net_device *dev)
 	if (local->no_pri) {
 		printk(KERN_DEBUG "%s: could not set interface UP - no PRI "
 		       "f/w\n", dev->name);
-		return 1;
+		return -ENODEV;
 	}
 
 	if ((local->func->card_present && !local->func->card_present(local)) ||
@@ -682,7 +682,7 @@ static int prism2_open(struct net_device *dev)
 		printk(KERN_WARNING "%s: could not enable MAC port\n",
 		       dev->name);
 		prism2_close(dev);
-		return 1;
+		return -ENODEV;
 	}
 	if (!local->dev_enabled)
 		prism2_callback(local, PRISM2_CALLBACK_ENABLE);

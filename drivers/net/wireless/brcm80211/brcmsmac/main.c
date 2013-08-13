@@ -882,8 +882,8 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	mcl = le16_to_cpu(txh->MacTxControlLow);
 
 	if (txs->phyerr)
-		brcms_err(wlc->hw->d11core, "phyerr 0x%x, rate 0x%x\n",
-			  txs->phyerr, txh->MainRates);
+		brcms_dbg_tx(wlc->hw->d11core, "phyerr 0x%x, rate 0x%x\n",
+			     txs->phyerr, txh->MainRates);
 
 	if (txs->frameid != le16_to_cpu(txh->TxFrameID)) {
 		brcms_err(wlc->hw->d11core, "frameid != txh->TxFrameID\n");

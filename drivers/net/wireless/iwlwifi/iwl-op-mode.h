@@ -93,7 +93,7 @@ struct iwl_cfg;
  *	1) The driver layer (iwl-drv.c) chooses the op_mode based on the
  *	   capabilities advertized by the fw file (in TLV format).
  *	2) The driver layer starts the op_mode (ops->start)
- *	3) The op_mode registers registers mac80211
+ *	3) The op_mode registers mac80211
  *	4) The op_mode is governed by mac80211
  *	5) The driver layer stops the op_mode
  */
@@ -112,7 +112,7 @@ struct iwl_cfg;
  * @stop: stop the op_mode. Must free all the memory allocated.
  *	May sleep
  * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
- *	HCMD the this Rx responds to.
+ *	HCMD this Rx responds to.
  *	This callback may sleep, it is called from a threaded IRQ handler.
  * @queue_full: notifies that a HW queue is full.
  *	Must be atomic and called with BH disabled.

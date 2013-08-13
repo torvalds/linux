@@ -1710,6 +1710,10 @@ enum ieee80211_eid {
 	WLAN_EID_OPMODE_NOTIF = 199,
 	WLAN_EID_WIDE_BW_CHANNEL_SWITCH = 194,
 	WLAN_EID_CHANNEL_SWITCH_WRAPPER = 196,
+	WLAN_EID_EXTENDED_BSS_LOAD = 193,
+	WLAN_EID_VHT_TX_POWER_ENVELOPE = 195,
+	WLAN_EID_AID = 197,
+	WLAN_EID_QUIET_CHANNEL = 198,
 
 	/* 802.11ad */
 	WLAN_EID_NON_TX_BSSID_CAP =  83,
@@ -1860,6 +1864,11 @@ enum ieee80211_tdls_actioncode {
 	WLAN_TDLS_PEER_TRAFFIC_RESPONSE = 9,
 	WLAN_TDLS_DISCOVERY_REQUEST = 10,
 };
+
+/* Interworking capabilities are set in 7th bit of 4th byte of the
+ * @WLAN_EID_EXT_CAPABILITY information element
+ */
+#define WLAN_EXT_CAPA4_INTERWORKING_ENABLED	BIT(7)
 
 /*
  * TDLS capabililites to be enabled in the 5th byte of the

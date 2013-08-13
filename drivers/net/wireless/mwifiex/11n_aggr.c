@@ -189,7 +189,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 		skb_src = skb_dequeue(&pra_list->skb_head);
 
-		pra_list->total_pkts_size -= skb_src->len;
+		pra_list->total_pkt_count--;
 
 		atomic_dec(&priv->wmm.tx_pkts_queued);
 
@@ -268,7 +268,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 		skb_queue_tail(&pra_list->skb_head, skb_aggr);
 
-		pra_list->total_pkts_size += skb_aggr->len;
+		pra_list->total_pkt_count++;
 
 		atomic_inc(&priv->wmm.tx_pkts_queued);
 

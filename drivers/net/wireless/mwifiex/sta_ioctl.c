@@ -797,15 +797,16 @@ static int mwifiex_set_wps_ie(struct mwifiex_private *priv,
 			       u8 *ie_data_ptr, u16 ie_len)
 {
 	if (ie_len) {
+		if (ie_len > MWIFIEX_MAX_VSIE_LEN) {
+			dev_dbg(priv->adapter->dev,
+				"info: failed to copy WPS IE, too big\n");
+			return -1;
+		}
+
 		priv->wps_ie = kzalloc(MWIFIEX_MAX_VSIE_LEN, GFP_KERNEL);
 		if (!priv->wps_ie)
 			return -ENOMEM;
-		if (ie_len > sizeof(priv->wps_ie)) {
-			dev_dbg(priv->adapter->dev,
-				"info: failed to copy WPS IE, too big\n");
-			kfree(priv->wps_ie);
-			return -1;
-		}
+
 		memcpy(priv->wps_ie, ie_data_ptr, ie_len);
 		priv->wps_ie_len = ie_len;
 		dev_dbg(priv->adapter->dev, "cmd: Set wps_ie_len=%d IE=%#x\n",

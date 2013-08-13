@@ -928,9 +928,9 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
-			brcms_err(wlc->hw->d11core,
-				  "%s: ampdu tx phy error (0x%x)\n",
-				  __func__, txs->phyerr);
+			brcms_dbg_ht(wlc->hw->d11core,
+				     "%s: ampdu tx phy error (0x%x)\n",
+				     __func__, txs->phyerr);
 		}
 	}
 

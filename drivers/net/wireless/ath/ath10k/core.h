@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 
+#include "htt.h"
 #include "htc.h"
 #include "hw.h"
 #include "targaddrs.h"
@@ -42,10 +43,6 @@
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
 
 struct ath10k;
-
-enum ath10k_bus {
-	ATH10K_BUS_PCI,
-};
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
@@ -250,6 +247,28 @@ struct ath10k_debug {
 	struct completion event_stats_compl;
 };
 
+enum ath10k_state {
+	ATH10K_STATE_OFF = 0,
+	ATH10K_STATE_ON,
+
+	/* When doing firmware recovery the device is first powered down.
+	 * mac80211 is supposed to call in to start() hook later on. It is
+	 * however possible that driver unloading and firmware crash overlap.
+	 * mac80211 can wait on conf_mutex in stop() while the device is
+	 * stopped in ath10k_core_restart() work holding conf_mutex. The state
+	 * RESTARTED means that the device is up and mac80211 has started hw
+	 * reconfiguration. Once mac80211 is done with the reconfiguration we
+	 * set the state to STATE_ON in restart_complete(). */
+	ATH10K_STATE_RESTARTING,
+	ATH10K_STATE_RESTARTED,
+
+	/* The device has crashed while restarting hw. This state is like ON
+	 * but commands are blocked in HTC and -ECOMM response is given. This
+	 * prevents completion timeouts and makes the driver more responsive to
+	 * userspace commands. This is also prevents recursive recovery. */
+	ATH10K_STATE_WEDGED,
+};
+
 struct ath10k {
 	struct ath_common ath_common;
 	struct ieee80211_hw *hw;
@@ -274,19 +293,16 @@ struct ath10k {
 
 	struct {
 		void *priv;
-		enum ath10k_bus bus;
 		const struct ath10k_hif_ops *ops;
 	} hif;
-
-	struct ath10k_wmi wmi;
 
 	wait_queue_head_t event_queue;
 	bool is_target_paused;
 
 	struct ath10k_bmi bmi;
-
-	struct ath10k_htc *htc;
-	struct ath10k_htt *htt;
+	struct ath10k_wmi wmi;
+	struct ath10k_htc htc;
+	struct ath10k_htt htt;
 
 	struct ath10k_hw_params {
 		u32 id;
@@ -300,6 +316,10 @@ struct ath10k {
 			const char *board;
 		} fw;
 	} hw_params;
+
+	const struct firmware *board_data;
+	const struct firmware *otp;
+	const struct firmware *firmware;
 
 	struct {
 		struct completion started;
@@ -350,20 +370,22 @@ struct ath10k {
 	struct completion offchan_tx_completed;
 	struct sk_buff *offchan_tx_skb;
 
+	enum ath10k_state state;
+
+	struct work_struct restart_work;
+
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
 #endif
 };
 
 struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
-				  enum ath10k_bus bus,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
 
+int ath10k_core_start(struct ath10k *ar);
+void ath10k_core_stop(struct ath10k *ar);
 int ath10k_core_register(struct ath10k *ar);
 void ath10k_core_unregister(struct ath10k *ar);
-
-int ath10k_core_target_suspend(struct ath10k *ar);
-int ath10k_core_target_resume(struct ath10k *ar);
 
 #endif /* _CORE_H_ */

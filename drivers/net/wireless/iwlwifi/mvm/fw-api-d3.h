@@ -98,33 +98,62 @@ enum iwl_proto_offloads {
 	IWL_D3_PROTO_OFFLOAD_NS = BIT(1),
 };
 
-#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS	2
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1	2
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2	6
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX	6
 
 /**
- * struct iwl_proto_offload_cmd - ARP/NS offload configuration
+ * struct iwl_proto_offload_cmd_common - ARP/NS offload common part
  * @enabled: enable flags
  * @remote_ipv4_addr: remote address to answer to (or zero if all)
  * @host_ipv4_addr: our IPv4 address to respond to queries for
  * @arp_mac_addr: our MAC address for ARP responses
+ * @reserved: unused
+ */
+struct iwl_proto_offload_cmd_common {
+	__le32 enabled;
+	__be32 remote_ipv4_addr;
+	__be32 host_ipv4_addr;
+	u8 arp_mac_addr[ETH_ALEN];
+	__le16 reserved;
+} __packed;
+
+/**
+ * struct iwl_proto_offload_cmd_v1 - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
  * @remote_ipv6_addr: remote address to answer to (or zero if all)
  * @solicited_node_ipv6_addr: broken -- solicited node address exists
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor soliciation response MAC address
  */
-struct iwl_proto_offload_cmd {
-	__le32 enabled;
-	__be32 remote_ipv4_addr;
-	__be32 host_ipv4_addr;
-	u8 arp_mac_addr[ETH_ALEN];
-	__le16 reserved1;
-
+struct iwl_proto_offload_cmd_v1 {
+	struct iwl_proto_offload_cmd_common common;
 	u8 remote_ipv6_addr[16];
 	u8 solicited_node_ipv6_addr[16];
-	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS][16];
+	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1][16];
 	u8 ndp_mac_addr[ETH_ALEN];
 	__le16 reserved2;
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_1 */
+
+/**
+ * struct iwl_proto_offload_cmd_v2 - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
+ * @remote_ipv6_addr: remote address to answer to (or zero if all)
+ * @solicited_node_ipv6_addr: broken -- solicited node address exists
+ *	for each target address
+ * @target_ipv6_addr: our target addresses
+ * @ndp_mac_addr: neighbor soliciation response MAC address
+ */
+struct iwl_proto_offload_cmd_v2 {
+	struct iwl_proto_offload_cmd_common common;
+	u8 remote_ipv6_addr[16];
+	u8 solicited_node_ipv6_addr[16];
+	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2][16];
+	u8 ndp_mac_addr[ETH_ALEN];
+	u8 numValidIPv6Addresses;
+	u8 reserved2[3];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_2 */
 
 
 /*
