@@ -204,7 +204,7 @@ struct cgroup {
 	struct cgroup_name __rcu *name;
 
 	/* Private pointers for each registered subsystem */
-	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
+	struct cgroup_subsys_state __rcu *subsys[CGROUP_SUBSYS_COUNT];
 
 	struct cgroupfs_root *root;
 

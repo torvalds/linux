@@ -229,11 +229,16 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
  * @subsys_id: the subsystem of interest
  *
  * Return @cgrp's css (cgroup_subsys_state) associated with @subsys_id.
+ * This function must be called either under cgroup_mutex or
+ * rcu_read_lock() and the caller is responsible for pinning the returned
+ * css if it wants to keep accessing it outside the said locks.  This
+ * function may return %NULL if @cgrp doesn't have @subsys_id enabled.
  */
 static struct cgroup_subsys_state *cgroup_css(struct cgroup *cgrp,
 					      int subsys_id)
 {
-	return cgrp->subsys[subsys_id];
+	return rcu_dereference_check(cgrp->subsys[subsys_id],
+				     lockdep_is_held(&cgroup_mutex));
 }
 
 /* convenient tests for these bits */
@@ -1072,8 +1077,10 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 			BUG_ON(!cgroup_css(cgroup_dummy_top, i));
 			BUG_ON(cgroup_css(cgroup_dummy_top, i)->cgroup != cgroup_dummy_top);
 
-			cgrp->subsys[i] = cgroup_dummy_top->subsys[i];
+			rcu_assign_pointer(cgrp->subsys[i],
+					   cgroup_css(cgroup_dummy_top, i));
 			cgroup_css(cgrp, i)->cgroup = cgrp;
+
 			list_move(&ss->sibling, &root->subsys_list);
 			ss->root = root;
 			if (ss->bind)
@@ -1088,8 +1095,10 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 
 			if (ss->bind)
 				ss->bind(cgroup_css(cgroup_dummy_top, i));
+
 			cgroup_css(cgroup_dummy_top, i)->cgroup = cgroup_dummy_top;
-			cgrp->subsys[i] = NULL;
+			RCU_INIT_POINTER(cgrp->subsys[i], NULL);
+
 			cgroup_subsys[i]->root = &cgroup_dummy_root;
 			list_move(&ss->sibling, &cgroup_dummy_root.subsys_list);
 
@@ -4314,7 +4323,7 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 		css->flags |= CSS_ROOT;
 
 	BUG_ON(cgroup_css(cgrp, ss->subsys_id));
-	cgrp->subsys[ss->subsys_id] = css;
+	rcu_assign_pointer(cgrp->subsys[ss->subsys_id], css);
 }
 
 /* invoke ->css_online() on a new CSS and mark it online if successful */
@@ -4962,7 +4971,7 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 	 * also takes care of freeing the css_id.
 	 */
 	ss->css_free(cgroup_css(cgroup_dummy_top, ss->subsys_id));
-	cgroup_dummy_top->subsys[ss->subsys_id] = NULL;
+	RCU_INIT_POINTER(cgroup_dummy_top->subsys[ss->subsys_id], NULL);
 
 	mutex_unlock(&cgroup_mutex);
 }
