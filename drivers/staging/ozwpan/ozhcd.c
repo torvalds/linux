@@ -1957,9 +1957,9 @@ static int oz_hcd_hub_status_data(struct usb_hcd *hcd, char *buf)
 			oz_dbg(HUB, "Port %d changed\n", i);
 			ozhcd->ports[i].flags &= ~OZ_PORT_F_CHANGED;
 			if (i < 7)
-				buf[0] |= 1 << (i+1);
+				buf[0] |= 1 << (i + 1);
 			else
-				buf[1] |= 1 << (i-7);
+				buf[1] |= 1 << (i - 7);
 		}
 	}
 	spin_unlock_bh(&ozhcd->hcd_lock);
