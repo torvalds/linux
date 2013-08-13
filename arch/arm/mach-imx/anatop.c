@@ -27,6 +27,7 @@
 #define ANADIG_USB1_CHRG_DETECT	0x1b0
 #define ANADIG_USB2_CHRG_DETECT	0x210
 #define ANADIG_DIGPROG		0x260
+#define ANADIG_DIGPROG_IMX6SL	0x280
 
 #define BM_ANADIG_REG_2P5_ENABLE_WEAK_LINREG	0x40000
 #define BM_ANADIG_REG_CORE_FET_ODRIVE		0x20000000
@@ -83,11 +84,14 @@ void __init imx_init_revision_from_anatop(void)
 	void __iomem *anatop_base;
 	unsigned int revision;
 	u32 digprog;
+	u16 offset = ANADIG_DIGPROG;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
 	anatop_base = of_iomap(np, 0);
 	WARN_ON(!anatop_base);
-	digprog = readl_relaxed(anatop_base + ANADIG_DIGPROG);
+	if (of_device_is_compatible(np, "fsl,imx6sl-anatop"))
+		offset = ANADIG_DIGPROG_IMX6SL;
+	digprog = readl_relaxed(anatop_base + offset);
 	iounmap(anatop_base);
 
 	switch (digprog & 0xff) {

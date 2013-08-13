@@ -380,7 +380,9 @@
 			};
 
 			anatop: anatop@020c8000 {
-				compatible = "fsl,imx6sl-anatop", "syscon", "simple-bus";
+				compatible = "fsl,imx6sl-anatop",
+					     "fsl,imx6q-anatop",
+					     "syscon", "simple-bus";
 				reg = <0x020c8000 0x1000>;
 				interrupts = <0 49 0x04 0 54 0x04 0 127 0x04>;
 
