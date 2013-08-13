@@ -30,6 +30,7 @@ static int pci_msi_enable = 1;
 
 /* Arch hooks */
 
+#if defined(CONFIG_GENERIC_HARDIRQS)
 int __weak arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
 	struct msi_chip *chip = dev->bus->msi;
@@ -66,6 +67,21 @@ int __weak arch_msi_check_device(struct pci_dev *dev, int nvec, int type)
 
 	return chip->check_device(chip, dev, nvec, type);
 }
+#else
+int __weak arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
+{
+	return -ENOSYS;
+}
+
+void __weak arch_teardown_msi_irq(unsigned int irq)
+{
+}
+
+int __weak arch_msi_check_device(struct pci_dev *dev, int nvec, int type)
+{
+	return 0;
+}
+#endif /* CONFIG_GENERIC_HARDIRQS */
 
 int __weak arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
