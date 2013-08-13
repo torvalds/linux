@@ -719,7 +719,7 @@ void dgnc_input(struct channel_t *ch)
          * flush input data and return immediately.
 	 */
 	if (!tp || (tp->magic != TTY_MAGIC) || !(ch->ch_tun.un_flags & UN_ISOPEN) || 
-	    !(tp->termios->c_cflag & CREAD) || (ch->ch_tun.un_flags & UN_CLOSING)) {
+	    !(tp->termios.c_cflag & CREAD) || (ch->ch_tun.un_flags & UN_CLOSING)) {
 
 		DPR_READ(("input. dropping %d bytes on port %d...\n", data_len, ch->ch_portnum));
 		DPR_READ(("input. tp: %p tp->magic: %x MAGIC:%x ch flags: %x\n",
@@ -1495,12 +1495,12 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 		ch->ch_stop_sending_break = 0;
 		ch->ch_stops_sent = 0;
 
-		ch->ch_c_cflag   = tty->termios->c_cflag;
-		ch->ch_c_iflag   = tty->termios->c_iflag;
-		ch->ch_c_oflag   = tty->termios->c_oflag;
-		ch->ch_c_lflag   = tty->termios->c_lflag;
-		ch->ch_startc = tty->termios->c_cc[VSTART];
-		ch->ch_stopc  = tty->termios->c_cc[VSTOP];
+		ch->ch_c_cflag   = tty->termios.c_cflag;
+		ch->ch_c_iflag   = tty->termios.c_iflag;
+		ch->ch_c_oflag   = tty->termios.c_oflag;
+		ch->ch_c_lflag   = tty->termios.c_lflag;
+		ch->ch_startc = tty->termios.c_cc[VSTART];
+		ch->ch_stopc  = tty->termios.c_cc[VSTOP];
 
 		/*
 		 * Bring up RTS and DTR...
@@ -2874,12 +2874,12 @@ static void dgnc_tty_set_termios(struct tty_struct *tty, struct ktermios *old_te
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
 
-	ch->ch_c_cflag   = tty->termios->c_cflag;
-	ch->ch_c_iflag   = tty->termios->c_iflag;
-	ch->ch_c_oflag   = tty->termios->c_oflag;
-	ch->ch_c_lflag   = tty->termios->c_lflag;
-	ch->ch_startc = tty->termios->c_cc[VSTART];
-	ch->ch_stopc  = tty->termios->c_cc[VSTOP];
+	ch->ch_c_cflag   = tty->termios.c_cflag;
+	ch->ch_c_iflag   = tty->termios.c_iflag;
+	ch->ch_c_oflag   = tty->termios.c_oflag;
+	ch->ch_c_lflag   = tty->termios.c_lflag;
+	ch->ch_startc = tty->termios.c_cc[VSTART];
+	ch->ch_stopc  = tty->termios.c_cc[VSTOP];
 
 	ch->ch_bd->bd_ops->param(tty);
 	dgnc_carrier(ch);
@@ -3272,7 +3272,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned in
 			return(rc);
 
 		DGNC_LOCK(ch->ch_lock, lock_flags);
-		tty->termios->c_cflag = ((tty->termios->c_cflag & ~CLOCAL) | (arg ? CLOCAL : 0));
+		tty->termios.c_cflag = ((tty->termios.c_cflag & ~CLOCAL) | (arg ? CLOCAL : 0));
 		ch->ch_bd->bd_ops->param(tty);
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
