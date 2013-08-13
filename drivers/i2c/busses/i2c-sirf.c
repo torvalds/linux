@@ -64,6 +64,8 @@
 #define SIRFSOC_I2C_START		BIT(7)
 
 #define SIRFSOC_I2C_DEFAULT_SPEED 100000
+#define SIRFSOC_I2C_ERR_NOACK      1
+#define SIRFSOC_I2C_ERR_TIMEOUT    2
 
 struct sirfsoc_i2c {
 	void __iomem *base;
@@ -142,13 +144,23 @@ static irqreturn_t i2c_sirfsoc_irq(int irq, void *dev_id)
 
 	if (i2c_stat & SIRFSOC_I2C_STAT_ERR) {
 		/* Error conditions */
-		siic->err_status = 1;
+		siic->err_status = SIRFSOC_I2C_ERR_NOACK;
 		writel(SIRFSOC_I2C_STAT_ERR, siic->base + SIRFSOC_I2C_STATUS);
 
 		if (i2c_stat & SIRFSOC_I2C_STAT_NACK)
-			dev_err(&siic->adapter.dev, "ACK not received\n");
+			dev_dbg(&siic->adapter.dev, "ACK not received\n");
 		else
 			dev_err(&siic->adapter.dev, "I2C error\n");
+
+		/*
+		 * Due to hardware ANOMALY, we need to reset I2C earlier after
+		 * we get NOACK while accessing non-existing clients, otherwise
+		 * we will get errors even we access existing clients later
+		 */
+		writel(readl(siic->base + SIRFSOC_I2C_CTRL) | SIRFSOC_I2C_RESET,
+				siic->base + SIRFSOC_I2C_CTRL);
+		while (readl(siic->base + SIRFSOC_I2C_CTRL) & SIRFSOC_I2C_RESET)
+			cpu_relax();
 
 		complete(&siic->done);
 	} else if (i2c_stat & SIRFSOC_I2C_STAT_CMD_DONE) {
@@ -190,7 +202,6 @@ static int i2c_sirfsoc_xfer_msg(struct sirfsoc_i2c *siic, struct i2c_msg *msg)
 	u32 regval = readl(siic->base + SIRFSOC_I2C_CTRL);
 	/* timeout waiting for the xfer to finish or fail */
 	int timeout = msecs_to_jiffies((msg->len + 1) * 50);
-	int ret = 0;
 
 	i2c_sirfsoc_set_address(siic, msg);
 
@@ -199,7 +210,7 @@ static int i2c_sirfsoc_xfer_msg(struct sirfsoc_i2c *siic, struct i2c_msg *msg)
 	i2c_sirfsoc_queue_cmd(siic);
 
 	if (wait_for_completion_timeout(&siic->done, timeout) == 0) {
-		siic->err_status = 1;
+		siic->err_status = SIRFSOC_I2C_ERR_TIMEOUT;
 		dev_err(&siic->adapter.dev, "Transfer timeout\n");
 	}
 
@@ -207,16 +218,14 @@ static int i2c_sirfsoc_xfer_msg(struct sirfsoc_i2c *siic, struct i2c_msg *msg)
 		siic->base + SIRFSOC_I2C_CTRL);
 	writel(0, siic->base + SIRFSOC_I2C_CMD_START);
 
-	if (siic->err_status) {
+	/* i2c control doesn't response, reset it */
+	if (siic->err_status == SIRFSOC_I2C_ERR_TIMEOUT) {
 		writel(readl(siic->base + SIRFSOC_I2C_CTRL) | SIRFSOC_I2C_RESET,
 			siic->base + SIRFSOC_I2C_CTRL);
 		while (readl(siic->base + SIRFSOC_I2C_CTRL) & SIRFSOC_I2C_RESET)
 			cpu_relax();
-
-		ret = -EIO;
 	}
-
-	return ret;
+	return siic->err_status ? -EIO : 0;
 }
 
 static u32 i2c_sirfsoc_func(struct i2c_adapter *adap)
