@@ -229,7 +229,7 @@ static int i2c_sirfsoc_xfer_msg(struct sirfsoc_i2c *siic, struct i2c_msg *msg)
 		while (readl(siic->base + SIRFSOC_I2C_CTRL) & SIRFSOC_I2C_RESET)
 			cpu_relax();
 	}
-	return siic->err_status ? -EIO : 0;
+	return siic->err_status ? -EAGAIN : 0;
 }
 
 static u32 i2c_sirfsoc_func(struct i2c_adapter *adap)
@@ -333,6 +333,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 
 	adap->algo = &i2c_sirfsoc_algo;
 	adap->algo_data = siic;
+	adap->retries = 3;
 
 	adap->dev.of_node = pdev->dev.of_node;
 	adap->dev.parent = &pdev->dev;
