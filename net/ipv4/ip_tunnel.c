@@ -454,15 +454,16 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	tstats->rx_bytes += skb->len;
 	u64_stats_update_end(&tstats->syncp);
 
-	if (tunnel->net != dev_net(tunnel->dev))
-		skb_scrub_packet(skb);
-
 	if (tunnel->dev->type == ARPHRD_ETHER) {
 		skb->protocol = eth_type_trans(skb, tunnel->dev);
 		skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 	} else {
 		skb->dev = tunnel->dev;
 	}
+
+	if (tunnel->net != dev_net(tunnel->dev))
+		skb_scrub_packet(skb);
+
 	gro_cells_receive(&tunnel->gro_cells, skb);
 	return 0;
 

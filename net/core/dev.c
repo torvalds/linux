@@ -1691,13 +1691,13 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
-	skb_scrub_packet(skb);
 	skb->protocol = eth_type_trans(skb, dev);
 
 	/* eth_type_trans() can set pkt_type.
-	 * clear pkt_type _after_ calling eth_type_trans()
+	 * call skb_scrub_packet() after it to clear pkt_type _after_ calling
+	 * eth_type_trans().
 	 */
-	skb->pkt_type = PACKET_HOST;
+	skb_scrub_packet(skb);
 
 	return netif_rx(skb);
 }
