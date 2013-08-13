@@ -730,8 +730,14 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
 	 * of how soft-dirty works.
 	 */
 	pte_t ptent = *pte;
-	ptent = pte_wrprotect(ptent);
-	ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
+
+	if (pte_present(ptent)) {
+		ptent = pte_wrprotect(ptent);
+		ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
+	} else if (is_swap_pte(ptent)) {
+		ptent = pte_swp_clear_soft_dirty(ptent);
+	}
+
 	set_pte_at(vma->vm_mm, addr, pte, ptent);
 #endif
 }
@@ -752,13 +758,14 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
 		ptent = *pte;
-		if (!pte_present(ptent))
-			continue;
 
 		if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
 			clear_soft_dirty(vma, addr, pte);
 			continue;
 		}
+
+		if (!pte_present(ptent))
+			continue;
 
 		page = vm_normal_page(vma, addr, ptent);
 		if (!page)
@@ -930,8 +937,10 @@ static void pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *pm,
 		flags = PM_PRESENT;
 		page = vm_normal_page(vma, addr, pte);
 	} else if (is_swap_pte(pte)) {
-		swp_entry_t entry = pte_to_swp_entry(pte);
-
+		swp_entry_t entry;
+		if (pte_swp_soft_dirty(pte))
+			flags2 |= __PM_SOFT_DIRTY;
+		entry = pte_to_swp_entry(pte);
 		frame = swp_type(entry) |
 			(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
 		flags = PM_SWAP;
