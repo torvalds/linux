@@ -43,9 +43,15 @@ struct bmi_xfer {
 	u32 resp_len;
 };
 
+enum ath10k_pci_compl_state {
+	ATH10K_PCI_COMPL_FREE = 0,
+	ATH10K_PCI_COMPL_SEND,
+	ATH10K_PCI_COMPL_RECV,
+};
+
 struct ath10k_pci_compl {
 	struct list_head list;
-	int send_or_recv;
+	enum ath10k_pci_compl_state state;
 	struct ce_state *ce_state;
 	struct hif_ce_pipe_info *pipe_info;
 	void *transfer_context;
@@ -53,11 +59,6 @@ struct ath10k_pci_compl {
 	unsigned int transfer_id;
 	unsigned int flags;
 };
-
-/* compl_state.send_or_recv */
-#define HIF_CE_COMPLETE_FREE 0
-#define HIF_CE_COMPLETE_SEND 1
-#define HIF_CE_COMPLETE_RECV 2
 
 /*
  * PCI-specific Target state
