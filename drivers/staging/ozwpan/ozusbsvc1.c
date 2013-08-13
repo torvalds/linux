@@ -21,9 +21,11 @@
 #include "ozusbif.h"
 #include "ozhcd.h"
 #include "ozusbsvc.h"
+
 /*------------------------------------------------------------------------------
  */
 #define MAX_ISOC_FIXED_DATA	(253-sizeof(struct oz_isoc_fixed))
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -50,6 +52,7 @@ static int oz_usb_submit_elt(struct oz_elt_buf *eb, struct oz_elt_info *ei,
 	spin_unlock_bh(&eb->lock);
 	return ret;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -86,6 +89,7 @@ int oz_usb_get_desc_req(void *hpd, u8 req_id, u8 req_type, u8 desc_type,
 	body->index = index;
 	return oz_usb_submit_elt(eb, ei, usb_ctx, 0, 0);
 }
+
 /*------------------------------------------------------------------------------
  * Context: tasklet
  */
@@ -108,6 +112,7 @@ static int oz_usb_set_config_req(void *hpd, u8 req_id, u8 index)
 	body->index = index;
 	return oz_usb_submit_elt(eb, ei, usb_ctx, 0, 0);
 }
+
 /*------------------------------------------------------------------------------
  * Context: tasklet
  */
@@ -131,6 +136,7 @@ static int oz_usb_set_interface_req(void *hpd, u8 req_id, u8 index, u8 alt)
 	body->alternative = alt;
 	return oz_usb_submit_elt(eb, ei, usb_ctx, 0, 0);
 }
+
 /*------------------------------------------------------------------------------
  * Context: tasklet
  */
@@ -156,6 +162,7 @@ static int oz_usb_set_clear_feature_req(void *hpd, u8 req_id, u8 type,
 	put_unaligned(feature, &body->feature);
 	return oz_usb_submit_elt(eb, ei, usb_ctx, 0, 0);
 }
+
 /*------------------------------------------------------------------------------
  * Context: tasklet
  */
@@ -184,6 +191,7 @@ static int oz_usb_vendor_class_req(void *hpd, u8 req_id, u8 req_type,
 		memcpy(body->data, data, data_len);
 	return oz_usb_submit_elt(eb, ei, usb_ctx, 0, 0);
 }
+
 /*------------------------------------------------------------------------------
  * Context: tasklet
  */
@@ -232,6 +240,7 @@ int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
 	}
 	return rc;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -303,6 +312,7 @@ int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 	}
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -346,6 +356,7 @@ static void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
 	}
 
 }
+
 /*------------------------------------------------------------------------------
  * This is called when the PD has received a USB element. The type of element
  * is determined and is then passed to an appropriate handler function.
@@ -418,6 +429,7 @@ void oz_usb_rx(struct oz_pd *pd, struct oz_elt *elt)
 done:
 	oz_usb_put(usb_ctx);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq, process
  */

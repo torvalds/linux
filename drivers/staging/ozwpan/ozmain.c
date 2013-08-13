@@ -25,6 +25,7 @@ unsigned int oz_dbg_mask = OZ_DEFAULT_DBG_MASK;
  * netcards. Bindings can be added later using an IOCTL.
  */
 static char *g_net_dev = "";
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -36,6 +37,7 @@ static int __init ozwpan_init(void)
 	oz_apps_init();
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -45,6 +47,7 @@ static void __exit ozwpan_exit(void)
 	oz_apps_term();
 	oz_cdev_deregister();
 }
+
 /*------------------------------------------------------------------------------
  */
 module_param(g_net_dev, charp, S_IRUGO);

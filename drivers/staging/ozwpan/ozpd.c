@@ -24,6 +24,7 @@
 /*------------------------------------------------------------------------------
  */
 #define OZ_MAX_TX_POOL_SIZE	6
+
 /*------------------------------------------------------------------------------
  */
 static struct oz_tx_frame *oz_tx_frame_alloc(struct oz_pd *pd);
@@ -40,10 +41,12 @@ static void oz_def_app_term(void);
 static int oz_def_app_start(struct oz_pd *pd, int resume);
 static void oz_def_app_stop(struct oz_pd *pd, int pause);
 static void oz_def_app_rx(struct oz_pd *pd, struct oz_elt *elt);
+
 /*------------------------------------------------------------------------------
  * Counts the uncompleted isoc frames submitted to netcard.
  */
 static atomic_t g_submitted_isoc = ATOMIC_INIT(0);
+
 /* Application handler functions.
  */
 static const struct oz_app_if g_app_if[OZ_APPID_MAX] = {
@@ -83,6 +86,7 @@ static const struct oz_app_if g_app_if[OZ_APPID_MAX] = {
 	NULL,
 	OZ_APPID_SERIAL},
 };
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -90,12 +94,14 @@ static int oz_def_app_init(void)
 {
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
 static void oz_def_app_term(void)
 {
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -103,18 +109,21 @@ static int oz_def_app_start(struct oz_pd *pd, int resume)
 {
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
 static void oz_def_app_stop(struct oz_pd *pd, int pause)
 {
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
 static void oz_def_app_rx(struct oz_pd *pd, struct oz_elt *elt)
 {
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -136,6 +145,7 @@ void oz_pd_set_state(struct oz_pd *pd, unsigned state)
 		break;
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -143,6 +153,7 @@ void oz_pd_get(struct oz_pd *pd)
 {
 	atomic_inc(&pd->ref_count);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -151,6 +162,7 @@ void oz_pd_put(struct oz_pd *pd)
 	if (atomic_dec_and_test(&pd->ref_count))
 		oz_pd_destroy(pd);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -188,6 +200,7 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 	}
 	return pd;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -244,6 +257,7 @@ void oz_pd_destroy(struct oz_pd *pd)
 		dev_put(pd->net_dev);
 	kfree(pd);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -271,6 +285,7 @@ int oz_services_start(struct oz_pd *pd, u16 apps, int resume)
 	}
 	return rc;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -293,6 +308,7 @@ void oz_services_stop(struct oz_pd *pd, u16 apps, int pause)
 		}
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -315,6 +331,7 @@ void oz_pd_heartbeat(struct oz_pd *pd, u16 apps)
 			;
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -338,6 +355,7 @@ void oz_pd_stop(struct oz_pd *pd)
 	oz_dbg(ON, "pd ref count = %d\n", atomic_read(&pd->ref_count));
 	oz_pd_put(pd);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -366,6 +384,7 @@ int oz_pd_sleep(struct oz_pd *pd)
 	}
 	return do_stop;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -389,6 +408,7 @@ static struct oz_tx_frame *oz_tx_frame_alloc(struct oz_pd *pd)
 	}
 	return f;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -406,6 +426,7 @@ static void oz_tx_isoc_free(struct oz_pd *pd, struct oz_tx_frame *f)
 	oz_dbg(TX_FRAMES, "Releasing ISOC Frame isoc_nb= %d\n",
 	       pd->nb_queued_isoc_frames);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -421,6 +442,7 @@ static void oz_tx_frame_free(struct oz_pd *pd, struct oz_tx_frame *f)
 	spin_unlock_bh(&pd->tx_frame_lock);
 	kfree(f);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -430,6 +452,7 @@ static void oz_set_more_bit(struct sk_buff *skb)
 
 	oz_hdr->control |= OZ_F_MORE_DATA;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -439,6 +462,7 @@ static void oz_set_last_pkt_nb(struct oz_pd *pd, struct sk_buff *skb)
 
 	oz_hdr->last_pkt_num = pd->trigger_pkt_num & OZ_LAST_PN_MASK;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -470,6 +494,7 @@ int oz_prepare_frame(struct oz_pd *pd, int empty)
 	spin_unlock(&pd->tx_frame_lock);
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -515,6 +540,7 @@ fail:
 	kfree_skb(skb);
 	return NULL;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -538,6 +564,7 @@ static void oz_retire_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 	if (pd->elt_buff.free_elts > pd->elt_buff.max_free_elts)
 		oz_trim_elt_pool(&pd->elt_buff);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -592,6 +619,7 @@ static int oz_send_next_queued_frame(struct oz_pd *pd, int more_data)
 	}
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -630,6 +658,7 @@ void oz_send_queued_frames(struct oz_pd *pd, int backlog)
 out:	oz_prepare_frame(pd, 1);
 	oz_send_next_queued_frame(pd, 0);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -679,6 +708,7 @@ static int oz_send_isoc_frame(struct oz_pd *pd)
 	oz_elt_info_free_chain(&pd->elt_buff, &list);
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -720,6 +750,7 @@ void oz_retire_tx_frames(struct oz_pd *pd, u8 lpn)
 		oz_retire_frame(pd, f);
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Precondition: stream_lock must be held.
  * Context: softirq
@@ -736,6 +767,7 @@ static struct oz_isoc_stream *pd_stream_find(struct oz_pd *pd, u8 ep_num)
 	}
 	return NULL;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -755,6 +787,7 @@ int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num)
 	kfree(st);
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -763,6 +796,7 @@ static void oz_isoc_stream_free(struct oz_isoc_stream *st)
 	kfree_skb(st->skb);
 	kfree(st);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -779,6 +813,7 @@ int oz_isoc_stream_delete(struct oz_pd *pd, u8 ep_num)
 		oz_isoc_stream_free(st);
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: any
  */
@@ -786,6 +821,7 @@ static void oz_isoc_destructor(struct sk_buff *skb)
 {
 	atomic_dec(&g_submitted_isoc);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -907,6 +943,7 @@ out:	kfree_skb(skb);
 	}
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -918,6 +955,7 @@ void oz_apps_init(void)
 		if (g_app_if[i].init)
 			g_app_if[i].init();
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -930,6 +968,7 @@ void oz_apps_term(void)
 		if (g_app_if[i].term)
 			g_app_if[i].term();
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -942,6 +981,7 @@ void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt)
 	ai = &g_app_if[app_id-1];
 	ai->rx(pd, elt);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */

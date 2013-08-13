@@ -22,6 +22,7 @@
 #include <asm/unaligned.h>
 #include <linux/uaccess.h>
 #include <net/psnap.h>
+
 /*------------------------------------------------------------------------------
  */
 #define OZ_CF_CONN_SUCCESS	1
@@ -51,6 +52,7 @@ static struct sk_buff_head g_rx_queue;
 static u8 g_session_id;
 static u16 g_apps = 0x1;
 static int g_processing_rx;
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -64,6 +66,7 @@ static u8 oz_get_new_session_id(u8 exclude)
 	}
 	return g_session_id;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -109,6 +112,7 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 	dev_queue_xmit(skb);
 	return;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -134,6 +138,7 @@ static void pd_set_keepalive(struct oz_pd *pd, u8 kalive)
 	}
 	oz_dbg(ON, "Keepalive = %lu mSec\n", pd->keep_alive);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -150,6 +155,7 @@ static void pd_set_presleep(struct oz_pd *pd, u8 presleep, u8 start_timer)
 	}
 	oz_dbg(ON, "Presleep time = %lu mSec\n", pd->presleep);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -284,6 +290,7 @@ done:
 		oz_pd_destroy(free_pd);
 	return pd;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -315,6 +322,7 @@ static void oz_add_farewell(struct oz_pd *pd, u8 ep_num, u8 index,
 	if (found)
 		kfree(f2);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
@@ -436,6 +444,7 @@ done:
 		oz_pd_put(pd);
 	consume_skb(skb);
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -473,6 +482,7 @@ void oz_protocol_term(void)
 	spin_unlock_bh(&g_polling_lock);
 	oz_dbg(ON, "Protocol stopped\n");
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -489,6 +499,7 @@ void oz_pd_heartbeat_handler(unsigned long data)
 		oz_pd_heartbeat(pd, apps);
 
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -509,6 +520,7 @@ void oz_pd_timeout_handler(unsigned long data)
 		break;
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: Interrupt
  */
@@ -522,6 +534,7 @@ enum hrtimer_restart oz_pd_heartbeat_event(struct hrtimer *timer)
 	tasklet_schedule(&pd->heartbeat_tasklet);
 	return HRTIMER_RESTART;
 }
+
 /*------------------------------------------------------------------------------
  * Context: Interrupt
  */
@@ -533,6 +546,7 @@ enum hrtimer_restart oz_pd_timeout_event(struct hrtimer *timer)
 	tasklet_schedule(&pd->timeout_tasklet);
 	return HRTIMER_NORESTART;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -563,6 +577,7 @@ void oz_timer_add(struct oz_pd *pd, int type, unsigned long due_time)
 	}
 	spin_unlock_bh(&g_polling_lock);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -571,6 +586,7 @@ void oz_pd_request_heartbeat(struct oz_pd *pd)
 	oz_timer_add(pd, OZ_TIMER_HEARTBEAT, pd->pulse_period > 0 ?
 					pd->pulse_period : OZ_QUANTUM);
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -591,6 +607,7 @@ struct oz_pd *oz_pd_find(const u8 *mac_addr)
 	spin_unlock_bh(&g_polling_lock);
 	return NULL;
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -605,6 +622,7 @@ void oz_app_enable(int app_id, int enable)
 		spin_unlock_bh(&g_polling_lock);
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -639,6 +657,7 @@ static int oz_pkt_recv(struct sk_buff *skb, struct net_device *dev,
 	}
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -672,6 +691,7 @@ void oz_binding_add(const char *net_dev)
 		}
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -696,6 +716,7 @@ static void pd_stop_all_for_device(struct net_device *net_dev)
 		oz_pd_put(pd);
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -724,6 +745,7 @@ void oz_binding_remove(const char *net_dev)
 		kfree(binding);
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -738,6 +760,7 @@ static char *oz_get_next_device_name(char *s, char *dname, int max_size)
 	*dname = 0;
 	return s;
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -756,6 +779,7 @@ int oz_protocol_init(char *devs)
 	}
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: process
  */
@@ -775,12 +799,14 @@ int oz_get_pd_list(struct oz_mac_addr *addr, int max_count)
 	spin_unlock_bh(&g_polling_lock);
 	return count;
 }
+
 /*------------------------------------------------------------------------------
 */
 void oz_polling_lock_bh(void)
 {
 	spin_lock_bh(&g_polling_lock);
 }
+
 /*------------------------------------------------------------------------------
 */
 void oz_polling_unlock_bh(void)

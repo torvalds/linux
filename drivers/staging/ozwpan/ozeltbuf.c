@@ -28,6 +28,7 @@ int oz_elt_buf_init(struct oz_elt_buf *buf)
 	spin_lock_init(&buf->lock);
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -60,6 +61,7 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
 	}
 	buf->free_elts = 0;
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
@@ -93,6 +95,7 @@ struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 	}
 	return ei;
 }
+
 /*------------------------------------------------------------------------------
  * Precondition: oz_elt_buf.lock must be held.
  * Context: softirq or process
@@ -111,6 +114,7 @@ void oz_elt_info_free(struct oz_elt_buf *buf, struct oz_elt_info *ei)
 		}
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Context: softirq
  */
@@ -128,6 +132,7 @@ void oz_elt_info_free_chain(struct oz_elt_buf *buf, struct list_head *list)
 	}
 	spin_unlock_bh(&buf->lock);
 }
+
 /*------------------------------------------------------------------------------
  */
 int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
@@ -148,6 +153,7 @@ int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 	spin_unlock_bh(&buf->lock);
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  */
 int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
@@ -187,12 +193,14 @@ int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 	oz_elt_stream_put(st);
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  */
 void oz_elt_stream_get(struct oz_elt_stream *st)
 {
 	atomic_inc(&st->ref_count);
 }
+
 /*------------------------------------------------------------------------------
  */
 void oz_elt_stream_put(struct oz_elt_stream *st)
@@ -202,6 +210,7 @@ void oz_elt_stream_put(struct oz_elt_stream *st)
 		kfree(st);
 	}
 }
+
 /*------------------------------------------------------------------------------
  * Precondition: Element buffer lock must be held.
  * If this function fails the caller is responsible for deallocating the elt
@@ -265,6 +274,7 @@ int oz_queue_elt_info(struct oz_elt_buf *buf, u8 isoc, u8 id,
 		&buf->isoc_list : &buf->order_list);
 	return 0;
 }
+
 /*------------------------------------------------------------------------------
  */
 int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
@@ -311,12 +321,14 @@ int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 	spin_unlock_bh(&buf->lock);
 	return count;
 }
+
 /*------------------------------------------------------------------------------
  */
 int oz_are_elts_available(struct oz_elt_buf *buf)
 {
 	return buf->order_list.next != &buf->order_list;
 }
+
 /*------------------------------------------------------------------------------
  */
 void oz_trim_elt_pool(struct oz_elt_buf *buf)
