@@ -262,10 +262,6 @@ struct ath_node {
 
 	bool sleeping;
 	bool no_ps_filter;
-
-#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
-	struct dentry *node_stat;
-#endif
 };
 
 struct ath_tx_control {

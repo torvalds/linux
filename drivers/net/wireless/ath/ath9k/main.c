@@ -2364,7 +2364,6 @@ struct ieee80211_ops ath9k_ops = {
 
 #if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
 	.sta_add_debugfs    = ath9k_sta_add_debugfs,
-	.sta_remove_debugfs = ath9k_sta_remove_debugfs,
 #endif
 	.sw_scan_start	    = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,
