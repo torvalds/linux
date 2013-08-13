@@ -2615,6 +2615,9 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	};
 	int status = -ENOMEM;
 
+	nfs4_state_protect(server->nfs_client, NFS_SP4_MACH_CRED_CLEANUP,
+		&task_setup_data.rpc_client, &msg);
+
 	calldata = kzalloc(sizeof(*calldata), gfp_mask);
 	if (calldata == NULL)
 		goto out;
@@ -5230,6 +5233,9 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 		.flags = RPC_TASK_ASYNC,
 	};
 
+	nfs4_state_protect(NFS_SERVER(lsp->ls_state->inode)->nfs_client,
+		NFS_SP4_MACH_CRED_CLEANUP, &task_setup_data.rpc_client, &msg);
+
 	/* Ensure this is an unlock - when canceling a lock, the
 	 * canceled lock is passed in, and it won't be an unlock.
 	 */
@@ -6117,7 +6123,8 @@ out:
 }
 
 /*
- * Minimum set of SP4_MACH_CRED operations from RFC 5661
+ * Minimum set of SP4_MACH_CRED operations from RFC 5661 in the enforce map
+ * and operations we'd like to see to enable certain features in the allow map
  */
 static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
 	.how = SP4_MACH_CRED,
@@ -6127,6 +6134,10 @@ static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
 		      1 << (OP_CREATE_SESSION - 32) |
 		      1 << (OP_DESTROY_SESSION - 32) |
 		      1 << (OP_DESTROY_CLIENTID - 32)
+	},
+	.allow.u.words = {
+		[0] = 1 << (OP_CLOSE) |
+		      1 << (OP_LOCKU)
 	}
 };
 
@@ -6185,6 +6196,12 @@ static int nfs4_sp4_select_mode(struct nfs_client *clp,
 		} else {
 			dfprintk(MOUNT, "sp4_mach_cred: disabled\n");
 			return -EINVAL;
+		}
+
+		if (test_bit(OP_CLOSE, sp->allow.u.longs) &&
+		    test_bit(OP_LOCKU, sp->allow.u.longs)) {
+			dfprintk(MOUNT, "  cleanup mode enabled\n");
+			set_bit(NFS_SP4_MACH_CRED_CLEANUP, &clp->cl_sp4_flags);
 		}
 	}
 
