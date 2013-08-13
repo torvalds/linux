@@ -591,6 +591,8 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 	if (!f.file)
 		return -EBADF;
 
+	rcu_read_lock();
+
 	css = cgroup_css_from_dir(f.file, perf_subsys_id);
 	if (IS_ERR(css)) {
 		ret = PTR_ERR(css);
@@ -617,6 +619,7 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 		ret = -EINVAL;
 	}
 out:
+	rcu_read_unlock();
 	fdput(f);
 	return ret;
 }

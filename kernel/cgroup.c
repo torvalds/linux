@@ -5616,14 +5616,22 @@ struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id)
 }
 EXPORT_SYMBOL_GPL(css_lookup);
 
-/*
- * get corresponding css from file open on cgroupfs directory
+/**
+ * cgroup_css_from_dir - get corresponding css from file open on cgroup dir
+ * @f: directory file of interest
+ * @id: subsystem id of interest
+ *
+ * Must be called under RCU read lock.  The caller is responsible for
+ * pinning the returned css if it needs to be accessed outside the RCU
+ * critical section.
  */
 struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
 {
 	struct cgroup *cgrp;
 	struct inode *inode;
 	struct cgroup_subsys_state *css;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	inode = file_inode(f);
 	/* check in cgroup filesystem dir */
