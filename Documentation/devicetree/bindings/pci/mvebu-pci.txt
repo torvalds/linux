@@ -76,6 +76,8 @@ and the following optional properties:
 - marvell,pcie-lane: the physical PCIe lane number, for ports having
   multiple lanes. If this property is not found, we assume that the
   value is 0.
+- reset-gpios: optional gpio to PERST#
+- reset-delay-us: delay in us to wait after reset de-assertion
 
 Example:
 
@@ -138,6 +140,10 @@ pcie-controller {
 		interrupt-map = <0 0 0 0 &mpic 58>;
 		marvell,pcie-port = <0>;
 		marvell,pcie-lane = <0>;
+		/* low-active PERST# reset on GPIO 25 */
+		reset-gpios = <&gpio0 25 1>;
+		/* wait 20ms for device settle after reset deassertion */
+		reset-delay-us = <20000>;
 		clocks = <&gateclk 5>;
 		status = "disabled";
 	};

@@ -9,14 +9,17 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/mbus.h>
 #include <linux/msi.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
-#include <linux/of_pci.h>
 #include <linux/of_irq.h>
+#include <linux/of_gpio.h>
+#include <linux/of_pci.h>
 #include <linux/of_platform.h>
 
 /*
@@ -126,6 +129,9 @@ struct mvebu_pcie_port {
 	unsigned int io_target;
 	unsigned int io_attr;
 	struct clk *clk;
+	int reset_gpio;
+	int reset_active_low;
+	char *reset_name;
 	struct mvebu_sw_pci_bridge bridge;
 	struct device_node *dn;
 	struct mvebu_pcie *pcie;
@@ -857,6 +863,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	i = 0;
 	for_each_child_of_node(pdev->dev.of_node, child) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
+		enum of_gpio_flags flags;
 
 		if (!of_device_is_available(child))
 			continue;
@@ -895,6 +902,30 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "PCIe%d.%d: cannot get tgt/attr for io window\n",
 				port->port, port->lane);
 			continue;
+		}
+
+		port->reset_gpio = of_get_named_gpio_flags(child,
+						   "reset-gpios", 0, &flags);
+		if (gpio_is_valid(port->reset_gpio)) {
+			u32 reset_udelay = 20000;
+
+			port->reset_active_low = flags & OF_GPIO_ACTIVE_LOW;
+			port->reset_name = kasprintf(GFP_KERNEL,
+				     "pcie%d.%d-reset", port->port, port->lane);
+			of_property_read_u32(child, "reset-delay-us",
+					     &reset_udelay);
+
+			ret = devm_gpio_request_one(&pdev->dev,
+			    port->reset_gpio, GPIOF_DIR_OUT, port->reset_name);
+			if (ret) {
+				if (ret == -EPROBE_DEFER)
+					return ret;
+				continue;
+			}
+
+			gpio_set_value(port->reset_gpio,
+				       (port->reset_active_low) ? 1 : 0);
+			msleep(reset_udelay/1000);
 		}
 
 		port->clk = of_clk_get_by_name(child, NULL);
