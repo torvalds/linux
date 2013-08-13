@@ -268,6 +268,35 @@ is_ds_client(struct nfs_client *clp)
 {
 	return clp->cl_exchange_flags & EXCHGID4_FLAG_USE_PNFS_DS;
 }
+
+/*
+ * Function responsible for determining if an rpc_message should use the
+ * machine cred under SP4_MACH_CRED and if so switching the credential and
+ * authflavor (using the nfs_client's rpc_clnt which will be krb5i/p).
+ * Should be called before rpc_call_sync/rpc_call_async.
+ */
+static inline void
+nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
+		   struct rpc_clnt **clntp, struct rpc_message *msg)
+{
+	struct rpc_cred *newcred = NULL;
+	rpc_authflavor_t flavor;
+
+	if (test_bit(sp4_mode, &clp->cl_sp4_flags)) {
+		spin_lock(&clp->cl_lock);
+		if (clp->cl_machine_cred != NULL)
+			newcred = get_rpccred(clp->cl_machine_cred);
+		spin_unlock(&clp->cl_lock);
+		if (msg->rpc_cred)
+			put_rpccred(msg->rpc_cred);
+		msg->rpc_cred = newcred;
+
+		flavor = clp->cl_rpcclient->cl_auth->au_flavor;
+		WARN_ON(flavor != RPC_AUTH_GSS_KRB5I &&
+			flavor != RPC_AUTH_GSS_KRB5P);
+		*clntp = clp->cl_rpcclient;
+	}
+}
 #else /* CONFIG_NFS_v4_1 */
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
 {
@@ -284,6 +313,12 @@ static inline bool
 is_ds_client(struct nfs_client *clp)
 {
 	return false;
+}
+
+static inline void
+nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_flags,
+		   struct rpc_clnt **clntp, struct rpc_message *msg)
+{
 }
 #endif /* CONFIG_NFS_V4_1 */
 
