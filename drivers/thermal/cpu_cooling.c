@@ -322,6 +322,8 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 
 	if (cpumask_test_cpu(policy->cpu, &notify_device->allowed_cpus))
 		max_freq = notify_device->cpufreq_val;
+	else
+		return 0;
 
 	/* Never exceed user_policy.max */
 	if (max_freq > policy->user_policy.max)
