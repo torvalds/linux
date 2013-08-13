@@ -8,9 +8,21 @@
 unsigned int __mxc_cpu_type;
 EXPORT_SYMBOL(__mxc_cpu_type);
 
+static unsigned int imx_soc_revision;
+
 void mxc_set_cpu_type(unsigned int type)
 {
 	__mxc_cpu_type = type;
+}
+
+void imx_set_soc_revision(unsigned int rev)
+{
+	imx_soc_revision = rev;
+}
+
+unsigned int imx_get_soc_revision(void)
+{
+	return imx_soc_revision;
 }
 
 void imx_print_silicon_rev(const char *cpu, int srev)

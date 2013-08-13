@@ -77,6 +77,8 @@ extern int imx6q_revision(void);
 extern int mx53_display_revision(void);
 extern void imx_set_aips(void __iomem *);
 extern int mxc_device_init(void);
+void imx_set_soc_revision(unsigned int rev);
+unsigned int imx_get_soc_revision(void);
 
 enum mxc_cpu_pwr_mode {
 	WAIT_CLOCKED,		/* wfi only */
