@@ -362,6 +362,9 @@ static int cppi41_is_compatible(struct dma_channel *channel, u16 maxpacket,
 		WARN_ON(1);
 		return 1;
 	}
+	if (cppi41_channel->is_tx)
+		return 1;
+	/* AM335x Advisory 1.0.13. No workaround for device RX mode */
 	return 0;
 }
 
