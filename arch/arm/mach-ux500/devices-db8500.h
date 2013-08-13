@@ -53,19 +53,6 @@ db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 #define db8500_add_i2c4(parent, pdata) \
 	dbx500_add_i2c(parent, 4, U8500_I2C4_BASE, IRQ_DB8500_I2C4, pdata)
 
-#define db8500_add_msp0_spi(parent, pdata) \
-	dbx500_add_msp_spi(parent, "msp0", U8500_MSP0_BASE, \
-			   IRQ_DB8500_MSP0, pdata)
-#define db8500_add_msp1_spi(parent, pdata) \
-	dbx500_add_msp_spi(parent, "msp1", U8500_MSP1_BASE, \
-			   IRQ_DB8500_MSP1, pdata)
-#define db8500_add_msp2_spi(parent, pdata) \
-	dbx500_add_msp_spi(parent, "msp2", U8500_MSP2_BASE, \
-			   IRQ_DB8500_MSP2, pdata)
-#define db8500_add_msp3_spi(parent, pdata) \
-	dbx500_add_msp_spi(parent, "msp3", U8500_MSP3_BASE, \
-			   IRQ_DB8500_MSP1, pdata)
-
 #define db8500_add_rtc(parent) \
 	dbx500_add_rtc(parent, U8500_RTC_BASE, IRQ_DB8500_RTC);
 

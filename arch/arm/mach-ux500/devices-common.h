@@ -18,15 +18,6 @@
 struct spi_master_cntlr;
 
 static inline struct amba_device *
-dbx500_add_msp_spi(struct device *parent, const char *name,
-		   resource_size_t base, int irq,
-		   struct spi_master_cntlr *pdata)
-{
-	return amba_ahb_device_add(parent, name, base, SZ_4K, irq, 0,
-				   pdata, 0);
-}
-
-static inline struct amba_device *
 dbx500_add_spi(struct device *parent, const char *name, resource_size_t base,
 	       int irq, struct spi_master_cntlr *pdata,
 	       u32 periphid)
