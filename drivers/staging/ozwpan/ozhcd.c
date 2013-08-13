@@ -478,7 +478,7 @@ static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 			struct urb *urb, u8 req_id)
 {
 	struct oz_urb_link *urbl;
-	struct oz_endpoint *ep;
+	struct oz_endpoint *ep = NULL;
 	int err = 0;
 
 	if (ep_addr >= OZ_NB_ENDPOINTS) {
@@ -506,11 +506,12 @@ static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 		oz_free_urb_link(urbl);
 		return 0;
 	}
-	if (in_dir && port->in_ep[ep_addr])
+
+	if (in_dir)
 		ep = port->in_ep[ep_addr];
-	else if (!in_dir && port->out_ep[ep_addr])
+	else
 		ep = port->out_ep[ep_addr];
-	else {
+	if (!ep) {
 		err = -ENOMEM;
 		goto out;
 	}
