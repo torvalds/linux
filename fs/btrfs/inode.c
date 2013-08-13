@@ -2940,8 +2940,10 @@ void btrfs_orphan_commit_root(struct btrfs_trans_handle *trans,
 	    btrfs_root_refs(&root->root_item) > 0) {
 		ret = btrfs_del_orphan_item(trans, root->fs_info->tree_root,
 					    root->root_key.objectid);
-		BUG_ON(ret);
-		root->orphan_item_inserted = 0;
+		if (ret)
+			btrfs_abort_transaction(trans, root, ret);
+		else
+			root->orphan_item_inserted = 0;
 	}
 
 	if (block_rsv) {
@@ -3010,11 +3012,18 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	/* insert an orphan item to track this unlinked/truncated file */
 	if (insert >= 1) {
 		ret = btrfs_insert_orphan_item(trans, root, btrfs_ino(inode));
-		if (ret && ret != -EEXIST) {
+		if (ret) {
 			clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
 				  &BTRFS_I(inode)->runtime_flags);
-			btrfs_abort_transaction(trans, root, ret);
-			return ret;
+			if (reserve) {
+				clear_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
+					  &BTRFS_I(inode)->runtime_flags);
+				btrfs_orphan_release_metadata(inode);
+			}
+			if (ret != -EEXIST) {
+				btrfs_abort_transaction(trans, root, ret);
+				return ret;
+			}
 		}
 		ret = 0;
 	}
@@ -3053,17 +3062,15 @@ static int btrfs_orphan_del(struct btrfs_trans_handle *trans,
 		release_rsv = 1;
 	spin_unlock(&root->orphan_lock);
 
-	if (trans && delete_item) {
+	if (trans && delete_item)
 		ret = btrfs_del_orphan_item(trans, root, btrfs_ino(inode));
-		BUG_ON(ret); /* -ENOMEM or corruption (JDM: Recheck) */
-	}
 
 	if (release_rsv) {
 		btrfs_orphan_release_metadata(inode);
 		atomic_dec(&root->orphan_inodes);
 	}
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -3193,8 +3200,9 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				found_key.objectid);
 			ret = btrfs_del_orphan_item(trans, root,
 						    found_key.objectid);
-			BUG_ON(ret); /* -ENOMEM or corruption (JDM: Recheck) */
 			btrfs_end_transaction(trans, root);
+			if (ret)
+				goto out;
 			continue;
 		}
 
@@ -4570,10 +4578,15 @@ void btrfs_evict_inode(struct inode *inode)
 
 	btrfs_free_block_rsv(root, rsv);
 
+	/*
+	 * Errors here aren't a big deal, it just means we leave orphan items
+	 * in the tree.  They will be cleaned up on the next mount.
+	 */
 	if (ret == 0) {
 		trans->block_rsv = root->orphan_block_rsv;
-		ret = btrfs_orphan_del(trans, inode);
-		BUG_ON(ret);
+		btrfs_orphan_del(trans, inode);
+	} else {
+		btrfs_orphan_del(NULL, inode);
 	}
 
 	trans->block_rsv = &root->fs_info->trans_block_rsv;
@@ -8120,10 +8133,8 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 						 new_dentry->d_name.name,
 						 new_dentry->d_name.len);
 		}
-		if (!ret && new_inode->i_nlink == 0) {
+		if (!ret && new_inode->i_nlink == 0)
 			ret = btrfs_orphan_add(trans, new_dentry->d_inode);
-			BUG_ON(ret);
-		}
 		if (ret) {
 			btrfs_abort_transaction(trans, root, ret);
 			goto out_fail;
