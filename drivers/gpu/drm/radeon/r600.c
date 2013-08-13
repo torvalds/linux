@@ -2504,6 +2504,49 @@ void r600_cp_fini(struct radeon_device *rdev)
  * solid fills, and a number of other things.  It also
  * has support for tiling/detiling of buffers.
  */
+
+/**
+ * r600_dma_get_rptr - get the current read pointer
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon ring pointer
+ *
+ * Get the current rptr from the hardware (r6xx+).
+ */
+uint32_t r600_dma_get_rptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring)
+{
+	return (radeon_ring_generic_get_rptr(rdev, ring) & 0x3fffc) >> 2;
+}
+
+/**
+ * r600_dma_get_wptr - get the current write pointer
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon ring pointer
+ *
+ * Get the current wptr from the hardware (r6xx+).
+ */
+uint32_t r600_dma_get_wptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring)
+{
+	return (RREG32(ring->wptr_reg) & 0x3fffc) >> 2;
+}
+
+/**
+ * r600_dma_set_wptr - commit the write pointer
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon ring pointer
+ *
+ * Write the wptr back to the hardware (r6xx+).
+ */
+void r600_dma_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring)
+{
+	WREG32(ring->wptr_reg, (ring->wptr << 2) & 0x3fffc);
+}
+
 /**
  * r600_dma_stop - stop the async dma engine
  *
@@ -3386,14 +3429,14 @@ static int r600_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
 			     R600_CP_RB_RPTR, R600_CP_RB_WPTR,
-			     0, 0xfffff, RADEON_CP_PACKET2);
+			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
 			     DMA_RB_RPTR, DMA_RB_WPTR,
-			     2, 0x3fffc, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
+			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0));
 	if (r)
 		return r;
 

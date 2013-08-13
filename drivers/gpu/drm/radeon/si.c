@@ -6368,21 +6368,21 @@ static int si_startup(struct radeon_device *rdev)
 	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
 			     CP_RB0_RPTR, CP_RB0_WPTR,
-			     0, 0xfffff, RADEON_CP_PACKET2);
+			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP1_RPTR_OFFSET,
 			     CP_RB1_RPTR, CP_RB1_WPTR,
-			     0, 0xfffff, RADEON_CP_PACKET2);
+			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
 	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP2_RPTR_OFFSET,
 			     CP_RB2_RPTR, CP_RB2_WPTR,
-			     0, 0xfffff, RADEON_CP_PACKET2);
+			     RADEON_CP_PACKET2);
 	if (r)
 		return r;
 
@@ -6390,7 +6390,7 @@ static int si_startup(struct radeon_device *rdev)
 	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
 			     DMA_RB_RPTR + DMA0_REGISTER_OFFSET,
 			     DMA_RB_WPTR + DMA0_REGISTER_OFFSET,
-			     2, 0x3fffc, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0));
+			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0));
 	if (r)
 		return r;
 
@@ -6398,7 +6398,7 @@ static int si_startup(struct radeon_device *rdev)
 	r = radeon_ring_init(rdev, ring, ring->ring_size, CAYMAN_WB_DMA1_RPTR_OFFSET,
 			     DMA_RB_RPTR + DMA1_REGISTER_OFFSET,
 			     DMA_RB_WPTR + DMA1_REGISTER_OFFSET,
-			     2, 0x3fffc, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0));
+			     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0));
 	if (r)
 		return r;
 
@@ -6418,7 +6418,7 @@ static int si_startup(struct radeon_device *rdev)
 		if (ring->ring_size) {
 			r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
 					     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
-					     0, 0xfffff, RADEON_CP_PACKET2);
+					     RADEON_CP_PACKET2);
 			if (!r)
 				r = r600_uvd_init(rdev, true);
 			if (r)

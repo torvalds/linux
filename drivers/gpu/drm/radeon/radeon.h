@@ -760,8 +760,6 @@ struct radeon_ring {
 	uint32_t		align_mask;
 	uint32_t		ptr_mask;
 	bool			ready;
-	u32			ptr_reg_shift;
-	u32			ptr_reg_mask;
 	u32			nop;
 	u32			idx;
 	u64			last_semaphore_signal_addr;
@@ -912,8 +910,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
 			unsigned size, uint32_t *data);
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ring_size,
-		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
-		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop);
+		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg, u32 nop);
 void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *cp);
 
 

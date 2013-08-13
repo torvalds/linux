@@ -367,7 +367,6 @@ u32 radeon_ring_generic_get_rptr(struct radeon_device *rdev,
 		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
 	else
 		rptr = RREG32(ring->rptr_reg);
-	rptr = (rptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
 
 	return rptr;
 }
@@ -378,7 +377,6 @@ u32 radeon_ring_generic_get_wptr(struct radeon_device *rdev,
 	u32 wptr;
 
 	wptr = RREG32(ring->wptr_reg);
-	wptr = (wptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
 
 	return wptr;
 }
@@ -386,7 +384,7 @@ u32 radeon_ring_generic_get_wptr(struct radeon_device *rdev,
 void radeon_ring_generic_set_wptr(struct radeon_device *rdev,
 				  struct radeon_ring *ring)
 {
-	WREG32(ring->wptr_reg, (ring->wptr << ring->ptr_reg_shift) & ring->ptr_reg_mask);
+	WREG32(ring->wptr_reg, ring->wptr);
 	(void)RREG32(ring->wptr_reg);
 }
 
@@ -719,16 +717,13 @@ int radeon_ring_restore(struct radeon_device *rdev, struct radeon_ring *ring,
  * @rptr_offs: offset of the rptr writeback location in the WB buffer
  * @rptr_reg: MMIO offset of the rptr register
  * @wptr_reg: MMIO offset of the wptr register
- * @ptr_reg_shift: bit offset of the rptr/wptr values
- * @ptr_reg_mask: bit mask of the rptr/wptr values
  * @nop: nop packet for this ring
  *
  * Initialize the driver information for the selected ring (all asics).
  * Returns 0 on success, error on failure.
  */
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
-		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
-		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop)
+		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg, u32 nop)
 {
 	int r;
 
@@ -736,8 +731,6 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	ring->rptr_offs = rptr_offs;
 	ring->rptr_reg = rptr_reg;
 	ring->wptr_reg = wptr_reg;
-	ring->ptr_reg_shift = ptr_reg_shift;
-	ring->ptr_reg_mask = ptr_reg_mask;
 	ring->nop = nop;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {

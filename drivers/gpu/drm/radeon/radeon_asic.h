@@ -392,6 +392,13 @@ uint64_t r600_get_gpu_clock_counter(struct radeon_device *rdev);
 int rv6xx_get_temp(struct radeon_device *rdev);
 int r600_dpm_pre_set_power_state(struct radeon_device *rdev);
 void r600_dpm_post_set_power_state(struct radeon_device *rdev);
+/* r600 dma */
+uint32_t r600_dma_get_rptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring);
+uint32_t r600_dma_get_wptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring);
+void r600_dma_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring);
 /* rv6xx dpm */
 int rv6xx_dpm_init(struct radeon_device *rdev);
 int rv6xx_dpm_enable(struct radeon_device *rdev);
