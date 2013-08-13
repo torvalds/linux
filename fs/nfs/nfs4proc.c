@@ -5998,6 +5998,10 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 	}
 
 	dprintk("NFS call  secinfo %s\n", name->name);
+
+	nfs4_state_protect(NFS_SERVER(dir)->nfs_client,
+		NFS_SP4_MACH_CRED_SECINFO, &clnt, &msg);
+
 	status = nfs4_call_sync(clnt, NFS_SERVER(dir), &msg, &args.seq_args,
 				&res.seq_res, 0);
 	dprintk("NFS reply  secinfo: %d\n", status);
@@ -6137,7 +6141,9 @@ static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
 	},
 	.allow.u.words = {
 		[0] = 1 << (OP_CLOSE) |
-		      1 << (OP_LOCKU)
+		      1 << (OP_LOCKU),
+		[1] = 1 << (OP_SECINFO - 32) |
+		      1 << (OP_SECINFO_NO_NAME - 32)
 	}
 };
 
@@ -6202,6 +6208,12 @@ static int nfs4_sp4_select_mode(struct nfs_client *clp,
 		    test_bit(OP_LOCKU, sp->allow.u.longs)) {
 			dfprintk(MOUNT, "  cleanup mode enabled\n");
 			set_bit(NFS_SP4_MACH_CRED_CLEANUP, &clp->cl_sp4_flags);
+		}
+
+		if (test_bit(OP_SECINFO, sp->allow.u.longs) &&
+		    test_bit(OP_SECINFO_NO_NAME, sp->allow.u.longs)) {
+			dfprintk(MOUNT, "  secinfo mode enabled\n");
+			set_bit(NFS_SP4_MACH_CRED_SECINFO, &clp->cl_sp4_flags);
 		}
 	}
 

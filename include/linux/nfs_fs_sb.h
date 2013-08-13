@@ -95,6 +95,7 @@ struct nfs_client {
 #define NFS_SP4_MACH_CRED_MINIMAL  1	/* Minimal sp4_mach_cred - state ops
 					 * must use machine cred */
 #define NFS_SP4_MACH_CRED_CLEANUP  2	/* CLOSE and LOCKU */
+#define NFS_SP4_MACH_CRED_SECINFO  3	/* SECINFO and SECINFO_NO_NAME */
 #endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_FSCACHE
