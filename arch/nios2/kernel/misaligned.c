@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include <linux/seq_file.h>
 
 #include <asm/traps.h>
 #include <asm/unaligned.h>
@@ -222,42 +223,34 @@ static const char * const usermode_action[] = {
 	"ignored",	/* 0 */
 	"warn",		/* 1 */
 	"fixup",	/* 2 */
-	"fixup+warn",	/*  3 */
+	"fixup+warn",	/* 3 */
 	"signal",	/* 4 */
-	"signal+warn",	/*  5 */
+	"signal+warn",	/* 5 */
 	"signal+fixup",
 	"signal+fixup+warn"
 };
 
-static int
-proc_misaligned_read(char *page, char **start, off_t off, int count,
-		     int *eof, void *data)
+static int misaligned_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	int len;
+	seq_printf(m, "User:\t\t%lu\n", ma_user);
+	seq_printf(m, "Kernel:\t\t%lu\n", ma_kern);
+	seq_printf(m, "Skipped:\t%lu\n", ma_skipped);
+	seq_printf(m, "Half:\t\t%lu\n", ma_half);
+	seq_printf(m, "Word:\t\t%lu\n", ma_word);
+	seq_printf(m, "User faults:\t%i (%s)\n", ma_usermode,
+			usermode_action[ma_usermode & 7]);
 
-	p += sprintf(p, "User:\t\t%lu\n", ma_user);
-	p += sprintf(p, "Kernel:\t\t%lu\n", ma_kern);
-	p += sprintf(p, "Skipped:\t%lu\n", ma_skipped);
-	p += sprintf(p, "Half:\t\t%lu\n", ma_half);
-	p += sprintf(p, "Word:\t\t%lu\n", ma_word);
-	p += sprintf(p, "User faults:\t%i (%s)\n",
-		     ma_usermode,
-		     usermode_action[ma_usermode & 7]);
-
-	len = (p - page) - off;
-	if (len < 0)
-		len = 0;
-
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-
-	return len;
+	return 0;
 }
 
-static int
-proc_misaligned_write(struct file *file, const char __user *buffer,
-		      unsigned long count, void *data)
+static int proc_misaligned_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, misaligned_proc_show, NULL);
+}
+
+static ssize_t proc_misaligned_write(struct file *file,
+			const char __user *buffer,
+			size_t count, loff_t *ppos)
 {
 	char mode;
 
@@ -270,6 +263,14 @@ proc_misaligned_write(struct file *file, const char __user *buffer,
 
 	return count;
 }
+
+static const struct file_operations misalign_fops = {
+	.open		= proc_misaligned_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= proc_misaligned_write,
+};
 #endif /* CONFIG_PROC_FS */
 
 static void __init misaligned_calc_reg_offsets(void)
@@ -299,14 +300,12 @@ static void __init misaligned_calc_reg_offsets(void)
 static int __init misaligned_init(void)
 {
 #ifdef CONFIG_PROC_FS
+
 	struct proc_dir_entry *res;
 
-	res = create_proc_entry("misalign", S_IWUSR | S_IRUGO, NULL);
+	res = proc_create("misalign", S_IWUSR | S_IRUGO, NULL, &misalign_fops);
 	if (!res)
 		return -ENOMEM;
-
-	res->read_proc = proc_misaligned_read;
-	res->write_proc = proc_misaligned_write;
 #endif
 
 	/* default mode - silent fix */

@@ -40,7 +40,7 @@ char cmd_line[COMMAND_LINE_SIZE] = { 0, };
 /*				r1  r2  r3  r4  r5  r6  r7  r8  r9 r10 r11*/
 /*				r12 r13 r14 r15 or2 ra  fp  sp  gp es  ste  ea*/
 static struct pt_regs fake_regs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, (unsigned long)cpu_idle, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0,
 					0};
 
 /* Copy a short hook instruction sequence to the exception address */

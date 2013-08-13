@@ -33,36 +33,9 @@ asmlinkage void ret_from_kernel_thread(void);
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
-void default_idle(void)
+void arch_cpu_idle(void)
 {
-	local_irq_disable();
-	if (!need_resched()) {
-		local_irq_enable();
-		__asm__("nop");
-	} else
-		local_irq_enable();
-}
-
-void (*idle)(void) = default_idle;
-
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
-{
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched())
-			idle();
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-
-		schedule_preempt_disabled();
-	}
+	local_irq_enable();
 }
 
 /*
@@ -104,6 +77,7 @@ void machine_power_off(void)
 void show_regs(struct pt_regs *regs)
 {
 	pr_notice("\n");
+	show_regs_print_info(KERN_DEFAULT);
 
 	pr_notice("r1: %08lx r2: %08lx r3: %08lx r4: %08lx\n",
 		regs->r1,  regs->r2,  regs->r3,  regs->r4);

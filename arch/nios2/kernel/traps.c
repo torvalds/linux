@@ -52,17 +52,6 @@ void _exception(int signo, struct pt_regs *regs, int code, unsigned long addr)
 }
 
 /*
- * The architecture-independent backtrace generator
- */
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_stack(current, &stack);
-}
-EXPORT_SYMBOL(dump_stack);
-
-/*
  * The show_stack is an external API which we do not use ourselves.
  */
 
