@@ -62,6 +62,7 @@
 #define  MAX_BAUD_RATE              921600
 #define  DEFAULT_BAUD_RATE          9600
 
+#define QT2_READ_BUFFER_SIZE    512  /* size of read buffer */
 #define QT2_WRITE_BUFFER_SIZE   512  /* size of write buffer */
 #define QT2_WRITE_CONTROL_SIZE  5    /* control bytes used for a write */
 
@@ -112,7 +113,7 @@ struct qt2_serial_private {
 	unsigned char current_port;  /* current port for incoming data */
 
 	struct urb	*read_urb;   /* shared among all ports */
-	char		read_buffer[512];
+	char		*read_buffer;
 };
 
 struct qt2_port_private {
@@ -142,6 +143,7 @@ static void qt2_release(struct usb_serial *serial)
 	serial_priv = usb_get_serial_data(serial);
 
 	usb_free_urb(serial_priv->read_urb);
+	kfree(serial_priv->read_buffer);
 	kfree(serial_priv);
 }
 
@@ -683,7 +685,7 @@ static int qt2_setup_urbs(struct usb_serial *serial)
 			  usb_rcvbulkpipe(serial->dev,
 					  port0->bulk_in_endpointAddress),
 			  serial_priv->read_buffer,
-			  sizeof(serial_priv->read_buffer),
+			  QT2_READ_BUFFER_SIZE,
 			  qt2_read_bulk_callback, serial);
 
 	status = usb_submit_urb(serial_priv->read_urb, GFP_KERNEL);
@@ -718,6 +720,12 @@ static int qt2_attach(struct usb_serial *serial)
 		return -ENOMEM;
 	}
 
+	serial_priv->read_buffer = kmalloc(QT2_READ_BUFFER_SIZE, GFP_KERNEL);
+	if (!serial_priv->read_buffer) {
+		status = -ENOMEM;
+		goto err_buf;
+	}
+
 	usb_set_serial_data(serial, serial_priv);
 
 	status = qt2_setup_urbs(serial);
@@ -727,6 +735,8 @@ static int qt2_attach(struct usb_serial *serial)
 	return 0;
 
 attach_failed:
+	kfree(serial_priv->read_buffer);
+err_buf:
 	kfree(serial_priv);
 	return status;
 }
