@@ -114,7 +114,7 @@ void usb20otg_hw_init(void)
 #ifdef CONFIG_RK_CONFIG
     otg_drv_init(0);
 #else
-#ifdef CONFIG_ARCH_RK3026_86V
+#ifdef CONFIG_MACH_RK3026_86V
 
 #else
     iomux_set(OTG_DRV_VBUS);
