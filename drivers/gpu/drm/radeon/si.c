@@ -5279,13 +5279,6 @@ static void si_fini_cg(struct radeon_device *rdev)
 			    RADEON_CG_BLOCK_HDP), false);
 }
 
-void si_update_pg(struct radeon_device *rdev,
-		  bool enable)
-{
-	si_enable_dma_pg(rdev, enable);
-	si_enable_gfx_cgpg(rdev, enable);
-}
-
 u32 si_get_csb_size(struct radeon_device *rdev)
 {
 	u32 count = 0;
@@ -5387,7 +5380,8 @@ static void si_init_pg(struct radeon_device *rdev)
 		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG) {
 			si_init_gfx_cgpg(rdev);
 		}
-		si_update_pg(rdev, false);
+		si_enable_dma_pg(rdev, true);
+		si_enable_gfx_cgpg(rdev, true);
 	} else {
 		WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
 		WREG32(RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
@@ -5397,10 +5391,8 @@ static void si_init_pg(struct radeon_device *rdev)
 static void si_fini_pg(struct radeon_device *rdev)
 {
 	if (rdev->pg_flags) {
-		if (rdev->pg_flags & RADEON_PG_SUPPORT_SDMA)
-			si_enable_dma_pg(rdev, false);
-		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG)
-			si_enable_gfx_cgpg(rdev, false);
+		si_enable_dma_pg(rdev, false);
+		si_enable_gfx_cgpg(rdev, false);
 	}
 }
 
