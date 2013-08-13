@@ -269,15 +269,9 @@ is_ds_client(struct nfs_client *clp)
 	return clp->cl_exchange_flags & EXCHGID4_FLAG_USE_PNFS_DS;
 }
 
-/*
- * Function responsible for determining if an rpc_message should use the
- * machine cred under SP4_MACH_CRED and if so switching the credential and
- * authflavor (using the nfs_client's rpc_clnt which will be krb5i/p).
- * Should be called before rpc_call_sync/rpc_call_async.
- */
-static inline void
-nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
-		   struct rpc_clnt **clntp, struct rpc_message *msg)
+static inline bool
+_nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
+		    struct rpc_clnt **clntp, struct rpc_message *msg)
 {
 	struct rpc_cred *newcred = NULL;
 	rpc_authflavor_t flavor;
@@ -295,7 +289,37 @@ nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
 		WARN_ON(flavor != RPC_AUTH_GSS_KRB5I &&
 			flavor != RPC_AUTH_GSS_KRB5P);
 		*clntp = clp->cl_rpcclient;
+
+		return true;
 	}
+	return false;
+}
+
+/*
+ * Function responsible for determining if an rpc_message should use the
+ * machine cred under SP4_MACH_CRED and if so switching the credential and
+ * authflavor (using the nfs_client's rpc_clnt which will be krb5i/p).
+ * Should be called before rpc_call_sync/rpc_call_async.
+ */
+static inline void
+nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
+		   struct rpc_clnt **clntp, struct rpc_message *msg)
+{
+	_nfs4_state_protect(clp, sp4_mode, clntp, msg);
+}
+
+/*
+ * Special wrapper to nfs4_state_protect for write.
+ * If WRITE can use machine cred but COMMIT cannot, make sure all writes
+ * that use machine cred use NFS_FILE_SYNC.
+ */
+static inline void
+nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
+			 struct rpc_message *msg, struct nfs_write_data *wdata)
+{
+	if (_nfs4_state_protect(clp, NFS_SP4_MACH_CRED_WRITE, clntp, msg) &&
+	    !test_bit(NFS_SP4_MACH_CRED_COMMIT, &clp->cl_sp4_flags))
+		wdata->args.stable = NFS_FILE_SYNC;
 }
 #else /* CONFIG_NFS_v4_1 */
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
@@ -318,6 +342,12 @@ is_ds_client(struct nfs_client *clp)
 static inline void
 nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_flags,
 		   struct rpc_clnt **clntp, struct rpc_message *msg)
+{
+}
+
+static inline void
+nfs4_state_protect_write(struct nfs_client *clp, struct rpc_clnt **clntp,
+			 struct rpc_message *msg, struct nfs_write_data *wdata)
 {
 }
 #endif /* CONFIG_NFS_V4_1 */
@@ -455,6 +485,8 @@ static inline bool nfs4_valid_open_stateid(const struct nfs4_state *state)
 
 #define nfs4_close_state(a, b) do { } while (0)
 #define nfs4_close_sync(a, b) do { } while (0)
+#define nfs4_state_protect(a, b, c, d) do { } while (0)
+#define nfs4_state_protect_write(a, b, c, d) do { } while (0)
 
 #endif /* CONFIG_NFS_V4 */
 #endif /* __LINUX_FS_NFS_NFS4_FS.H */

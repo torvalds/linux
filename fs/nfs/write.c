@@ -1022,6 +1022,9 @@ int nfs_initiate_write(struct rpc_clnt *clnt,
 		data->args.count,
 		(unsigned long long)data->args.offset);
 
+	nfs4_state_protect_write(NFS_SERVER(inode)->nfs_client,
+				 &task_setup_data.rpc_client, &msg, data);
+
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task)) {
 		ret = PTR_ERR(task);
@@ -1487,6 +1490,9 @@ int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
 	NFS_PROTO(data->inode)->commit_setup(data, &msg);
 
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
+
+	nfs4_state_protect(NFS_SERVER(data->inode)->nfs_client,
+		NFS_SP4_MACH_CRED_COMMIT, &task_setup_data.rpc_client, &msg);
 
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))

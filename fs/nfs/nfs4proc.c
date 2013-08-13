@@ -6223,6 +6223,16 @@ static int nfs4_sp4_select_mode(struct nfs_client *clp,
 			dfprintk(MOUNT, "  stateid mode enabled\n");
 			set_bit(NFS_SP4_MACH_CRED_STATEID, &clp->cl_sp4_flags);
 		}
+
+		if (test_bit(OP_WRITE, sp->allow.u.longs)) {
+			dfprintk(MOUNT, "  write mode enabled\n");
+			set_bit(NFS_SP4_MACH_CRED_WRITE, &clp->cl_sp4_flags);
+		}
+
+		if (test_bit(OP_COMMIT, sp->allow.u.longs)) {
+			dfprintk(MOUNT, "  commit mode enabled\n");
+			set_bit(NFS_SP4_MACH_CRED_COMMIT, &clp->cl_sp4_flags);
+		}
 	}
 
 	return 0;
