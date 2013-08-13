@@ -122,7 +122,7 @@ struct qt2_port_private {
 	spinlock_t urb_lock;
 	bool       urb_in_use;
 	struct urb *write_urb;
-	char       write_buffer[QT2_WRITE_BUFFER_SIZE];
+	char       *write_buffer;
 
 	spinlock_t  lock;
 	u8          shadowLSR;
@@ -755,21 +755,29 @@ static int qt2_port_probe(struct usb_serial_port *port)
 	spin_lock_init(&port_priv->urb_lock);
 	port_priv->port = port;
 
+	port_priv->write_buffer = kmalloc(QT2_WRITE_BUFFER_SIZE, GFP_KERNEL);
+	if (!port_priv->write_buffer)
+		goto err_buf;
+
 	port_priv->write_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!port_priv->write_urb) {
-		kfree(port_priv);
-		return -ENOMEM;
-	}
+	if (!port_priv->write_urb)
+		goto err_urb;
+
 	bEndpointAddress = serial->port[0]->bulk_out_endpointAddress;
 	usb_fill_bulk_urb(port_priv->write_urb, serial->dev,
 				usb_sndbulkpipe(serial->dev, bEndpointAddress),
 				port_priv->write_buffer,
-				sizeof(port_priv->write_buffer),
+				QT2_WRITE_BUFFER_SIZE,
 				qt2_write_bulk_callback, port);
 
 	usb_set_serial_port_data(port, port_priv);
 
 	return 0;
+err_urb:
+	kfree(port_priv->write_buffer);
+err_buf:
+	kfree(port_priv);
+	return -ENOMEM;
 }
 
 static int qt2_port_remove(struct usb_serial_port *port)
@@ -778,6 +786,7 @@ static int qt2_port_remove(struct usb_serial_port *port)
 
 	port_priv = usb_get_serial_port_data(port);
 	usb_free_urb(port_priv->write_urb);
+	kfree(port_priv->write_buffer);
 	kfree(port_priv);
 
 	return 0;
