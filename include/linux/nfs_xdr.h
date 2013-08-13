@@ -1107,6 +1107,23 @@ struct pnfs_ds_commit_info {
 	struct pnfs_commit_bucket *buckets;
 };
 
+#define NFS4_OP_MAP_NUM_LONGS \
+	DIV_ROUND_UP(LAST_NFS4_OP, 8 * sizeof(unsigned long))
+#define NFS4_OP_MAP_NUM_WORDS \
+	(NFS4_OP_MAP_NUM_LONGS * sizeof(unsigned long) / sizeof(u32))
+struct nfs4_op_map {
+	union {
+		unsigned long longs[NFS4_OP_MAP_NUM_LONGS];
+		u32 words[NFS4_OP_MAP_NUM_WORDS];
+	} u;
+};
+
+struct nfs41_state_protection {
+	u32 how;
+	struct nfs4_op_map enforce;
+	struct nfs4_op_map allow;
+};
+
 #define NFS4_EXCHANGE_ID_LEN	(48)
 struct nfs41_exchange_id_args {
 	struct nfs_client		*client;
@@ -1114,6 +1131,7 @@ struct nfs41_exchange_id_args {
 	unsigned int 			id_len;
 	char 				id[NFS4_EXCHANGE_ID_LEN];
 	u32				flags;
+	struct nfs41_state_protection	state_protect;
 };
 
 struct nfs41_server_owner {
@@ -1146,6 +1164,7 @@ struct nfs41_exchange_id_res {
 	struct nfs41_server_owner	*server_owner;
 	struct nfs41_server_scope	*server_scope;
 	struct nfs41_impl_id		*impl_id;
+	struct nfs41_state_protection	state_protect;
 };
 
 struct nfs41_create_session_args {

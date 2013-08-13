@@ -6117,16 +6117,87 @@ out:
 }
 
 /*
- * nfs4_proc_exchange_id()
- *
- * Returns zero, a negative errno, or a negative NFS4ERR status code.
- *
- * Since the clientid has expired, all compounds using sessions
- * associated with the stale clientid will be returning
- * NFS4ERR_BADSESSION in the sequence operation, and will therefore
- * be in some phase of session reset.
+ * Minimum set of SP4_MACH_CRED operations from RFC 5661
  */
-int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
+static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
+	.how = SP4_MACH_CRED,
+	.enforce.u.words = {
+		[1] = 1 << (OP_BIND_CONN_TO_SESSION - 32) |
+		      1 << (OP_EXCHANGE_ID - 32) |
+		      1 << (OP_CREATE_SESSION - 32) |
+		      1 << (OP_DESTROY_SESSION - 32) |
+		      1 << (OP_DESTROY_CLIENTID - 32)
+	}
+};
+
+/*
+ * Select the state protection mode for client `clp' given the server results
+ * from exchange_id in `sp'.
+ *
+ * Returns 0 on success, negative errno otherwise.
+ */
+static int nfs4_sp4_select_mode(struct nfs_client *clp,
+				 struct nfs41_state_protection *sp)
+{
+	static const u32 supported_enforce[NFS4_OP_MAP_NUM_WORDS] = {
+		[1] = 1 << (OP_BIND_CONN_TO_SESSION - 32) |
+		      1 << (OP_EXCHANGE_ID - 32) |
+		      1 << (OP_CREATE_SESSION - 32) |
+		      1 << (OP_DESTROY_SESSION - 32) |
+		      1 << (OP_DESTROY_CLIENTID - 32)
+	};
+	unsigned int i;
+
+	if (sp->how == SP4_MACH_CRED) {
+		/* Print state protect result */
+		dfprintk(MOUNT, "Server SP4_MACH_CRED support:\n");
+		for (i = 0; i <= LAST_NFS4_OP; i++) {
+			if (test_bit(i, sp->enforce.u.longs))
+				dfprintk(MOUNT, "  enforce op %d\n", i);
+			if (test_bit(i, sp->allow.u.longs))
+				dfprintk(MOUNT, "  allow op %d\n", i);
+		}
+
+		/* make sure nothing is on enforce list that isn't supported */
+		for (i = 0; i < NFS4_OP_MAP_NUM_WORDS; i++) {
+			if (sp->enforce.u.words[i] & ~supported_enforce[i]) {
+				dfprintk(MOUNT, "sp4_mach_cred: disabled\n");
+				return -EINVAL;
+			}
+		}
+
+		/*
+		 * Minimal mode - state operations are allowed to use machine
+		 * credential.  Note this already happens by default, so the
+		 * client doesn't have to do anything more than the negotiation.
+		 *
+		 * NOTE: we don't care if EXCHANGE_ID is in the list -
+		 *       we're already using the machine cred for exchange_id
+		 *       and will never use a different cred.
+		 */
+		if (test_bit(OP_BIND_CONN_TO_SESSION, sp->enforce.u.longs) &&
+		    test_bit(OP_CREATE_SESSION, sp->enforce.u.longs) &&
+		    test_bit(OP_DESTROY_SESSION, sp->enforce.u.longs) &&
+		    test_bit(OP_DESTROY_CLIENTID, sp->enforce.u.longs)) {
+			dfprintk(MOUNT, "sp4_mach_cred:\n");
+			dfprintk(MOUNT, "  minimal mode enabled\n");
+			set_bit(NFS_SP4_MACH_CRED_MINIMAL, &clp->cl_sp4_flags);
+		} else {
+			dfprintk(MOUNT, "sp4_mach_cred: disabled\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * _nfs4_proc_exchange_id()
+ *
+ * Wrapper for EXCHANGE_ID operation.
+ */
+static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
+	u32 sp4_how)
 {
 	nfs4_verifier verifier;
 	struct nfs41_exchange_id_args args = {
@@ -6173,10 +6244,29 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 		goto out_server_scope;
 	}
 
+	switch (sp4_how) {
+	case SP4_NONE:
+		args.state_protect.how = SP4_NONE;
+		break;
+
+	case SP4_MACH_CRED:
+		args.state_protect = nfs4_sp4_mach_cred_request;
+		break;
+
+	default:
+		/* unsupported! */
+		WARN_ON_ONCE(1);
+		status = -EINVAL;
+		goto out_server_scope;
+	}
+
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	trace_nfs4_exchange_id(clp, status);
 	if (status == 0)
 		status = nfs4_check_cl_exchange_flags(res.flags);
+
+	if (status == 0)
+		status = nfs4_sp4_select_mode(clp, &res.state_protect);
 
 	if (status == 0) {
 		clp->cl_clientid = res.clientid;
@@ -6222,6 +6312,35 @@ out:
 			clp->cl_implid->date.nseconds);
 	dprintk("NFS reply exchange_id: %d\n", status);
 	return status;
+}
+
+/*
+ * nfs4_proc_exchange_id()
+ *
+ * Returns zero, a negative errno, or a negative NFS4ERR status code.
+ *
+ * Since the clientid has expired, all compounds using sessions
+ * associated with the stale clientid will be returning
+ * NFS4ERR_BADSESSION in the sequence operation, and will therefore
+ * be in some phase of session reset.
+ *
+ * Will attempt to negotiate SP4_MACH_CRED if krb5i / krb5p auth is used.
+ */
+int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
+{
+	rpc_authflavor_t authflavor = clp->cl_rpcclient->cl_auth->au_flavor;
+	int status;
+
+	/* try SP4_MACH_CRED if krb5i/p	*/
+	if (authflavor == RPC_AUTH_GSS_KRB5I ||
+	    authflavor == RPC_AUTH_GSS_KRB5P) {
+		status = _nfs4_proc_exchange_id(clp, cred, SP4_MACH_CRED);
+		if (!status)
+			return 0;
+	}
+
+	/* try SP4_NONE */
+	return _nfs4_proc_exchange_id(clp, cred, SP4_NONE);
 }
 
 static int _nfs4_proc_destroy_clientid(struct nfs_client *clp,

@@ -90,6 +90,10 @@ struct nfs_client {
 	struct nfs41_server_owner *cl_serverowner;
 	struct nfs41_server_scope *cl_serverscope;
 	struct nfs41_impl_id	*cl_implid;
+	/* nfs 4.1+ state protection modes: */
+	unsigned long		cl_sp4_flags;
+#define NFS_SP4_MACH_CRED_MINIMAL  1	/* Minimal sp4_mach_cred - state ops
+					 * must use machine cred */
 #endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_FSCACHE

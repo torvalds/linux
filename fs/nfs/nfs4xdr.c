@@ -294,7 +294,9 @@ static int nfs4_stat_to_errno(int);
 				XDR_QUADLEN(NFS4_EXCHANGE_ID_LEN) + \
 				1 /* flags */ + \
 				1 /* spa_how */ + \
-				0 /* SP4_NONE (for now) */ + \
+				/* max is SP4_MACH_CRED (for now) */ + \
+				1 + NFS4_OP_MAP_NUM_WORDS + \
+				1 + NFS4_OP_MAP_NUM_WORDS + \
 				1 /* implementation id array of size 1 */ + \
 				1 /* nii_domain */ + \
 				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
@@ -306,7 +308,9 @@ static int nfs4_stat_to_errno(int);
 				1 /* eir_sequenceid */ + \
 				1 /* eir_flags */ + \
 				1 /* spr_how */ + \
-				0 /* SP4_NONE (for now) */ + \
+				  /* max is SP4_MACH_CRED (for now) */ + \
+				1 + NFS4_OP_MAP_NUM_WORDS + \
+				1 + NFS4_OP_MAP_NUM_WORDS + \
 				2 /* eir_server_owner.so_minor_id */ + \
 				/* eir_server_owner.so_major_id<> */ \
 				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 + \
@@ -1726,6 +1730,14 @@ static void encode_bind_conn_to_session(struct xdr_stream *xdr,
 	*p = 0;	/* use_conn_in_rdma_mode = False */
 }
 
+static void encode_op_map(struct xdr_stream *xdr, struct nfs4_op_map *op_map)
+{
+	unsigned int i;
+	encode_uint32(xdr, NFS4_OP_MAP_NUM_WORDS);
+	for (i = 0; i < NFS4_OP_MAP_NUM_WORDS; i++)
+		encode_uint32(xdr, op_map->u.words[i]);
+}
+
 static void encode_exchange_id(struct xdr_stream *xdr,
 			       struct nfs41_exchange_id_args *args,
 			       struct compound_hdr *hdr)
@@ -1739,9 +1751,20 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 
 	encode_string(xdr, args->id_len, args->id);
 
-	p = reserve_space(xdr, 12);
-	*p++ = cpu_to_be32(args->flags);
-	*p++ = cpu_to_be32(0);	/* zero length state_protect4_a */
+	encode_uint32(xdr, args->flags);
+	encode_uint32(xdr, args->state_protect.how);
+
+	switch (args->state_protect.how) {
+	case SP4_NONE:
+		break;
+	case SP4_MACH_CRED:
+		encode_op_map(xdr, &args->state_protect.enforce);
+		encode_op_map(xdr, &args->state_protect.allow);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
 
 	if (send_implementation_id &&
 	    sizeof(CONFIG_NFS_V4_1_IMPLEMENTATION_ID_DOMAIN) > 1 &&
@@ -1752,7 +1775,7 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 			       utsname()->version, utsname()->machine);
 
 	if (len > 0) {
-		*p = cpu_to_be32(1);	/* implementation id array length=1 */
+		encode_uint32(xdr, 1);	/* implementation id array length=1 */
 
 		encode_string(xdr,
 			sizeof(CONFIG_NFS_V4_1_IMPLEMENTATION_ID_DOMAIN) - 1,
@@ -1763,7 +1786,7 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 		p = xdr_encode_hyper(p, 0);
 		*p = cpu_to_be32(0);
 	} else
-		*p = cpu_to_be32(0);	/* implementation id array length=0 */
+		encode_uint32(xdr, 0);	/* implementation id array length=0 */
 }
 
 static void encode_create_session(struct xdr_stream *xdr,
@@ -5374,6 +5397,23 @@ static int decode_secinfo_no_name(struct xdr_stream *xdr, struct nfs4_secinfo_re
 	return decode_secinfo_common(xdr, res);
 }
 
+static int decode_op_map(struct xdr_stream *xdr, struct nfs4_op_map *op_map)
+{
+	__be32 *p;
+	uint32_t bitmap_words;
+	unsigned int i;
+
+	p = xdr_inline_decode(xdr, 4);
+	bitmap_words = be32_to_cpup(p++);
+	if (bitmap_words > NFS4_OP_MAP_NUM_WORDS)
+		return -EIO;
+	p = xdr_inline_decode(xdr, 4 * bitmap_words);
+	for (i = 0; i < bitmap_words; i++)
+		op_map->u.words[i] = be32_to_cpup(p++);
+
+	return 0;
+}
+
 static int decode_exchange_id(struct xdr_stream *xdr,
 			      struct nfs41_exchange_id_res *res)
 {
@@ -5397,10 +5437,22 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	res->seqid = be32_to_cpup(p++);
 	res->flags = be32_to_cpup(p++);
 
-	/* We ask for SP4_NONE */
-	dummy = be32_to_cpup(p);
-	if (dummy != SP4_NONE)
+	res->state_protect.how = be32_to_cpup(p);
+	switch (res->state_protect.how) {
+	case SP4_NONE:
+		break;
+	case SP4_MACH_CRED:
+		status = decode_op_map(xdr, &res->state_protect.enforce);
+		if (status)
+			return status;
+		status = decode_op_map(xdr, &res->state_protect.allow);
+		if (status)
+			return status;
+		break;
+	default:
+		WARN_ON_ONCE(1);
 		return -EIO;
+	}
 
 	/* server_owner4.so_minor_id */
 	p = xdr_inline_decode(xdr, 8);
