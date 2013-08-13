@@ -68,6 +68,7 @@ header-y += xt_quota.h
 header-y += xt_rateest.h
 header-y += xt_realm.h
 header-y += xt_recent.h
+header-y += xt_rpfilter.h
 header-y += xt_sctp.h
 header-y += xt_set.h
 header-y += xt_socket.h
