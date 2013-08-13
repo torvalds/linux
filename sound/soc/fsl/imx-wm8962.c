@@ -129,7 +129,7 @@ static int imx_hifi_hw_free(struct snd_pcm_substream *substream)
 		 * So we set MCLK as sysclk once, which'd remove the limitation.
 		 */
 		ret = snd_soc_dai_set_sysclk(codec_dai, WM8962_SYSCLK_MCLK,
-				data->clk_frequency, SND_SOC_CLOCK_IN);
+				0, SND_SOC_CLOCK_IN);
 		if (ret < 0) {
 			dev_err(dev, "failed to switch away from FLL: %d\n", ret);
 			return ret;
