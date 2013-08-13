@@ -888,6 +888,8 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 		bf = fi->bf;
 		if (!fi->bf)
 			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
+		else
+			bf->bf_state.stale = false;
 
 		if (!bf) {
 			__skb_unlink(skb, *q);
