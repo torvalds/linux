@@ -709,6 +709,15 @@ static int xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	WARN_ON(rc);
 	if (!rc)
 		rc =  native_cpu_up(cpu, tidle);
+
+	/*
+	 * We must initialize the slowpath CPU kicker _after_ the native
+	 * path has executed. If we initialized it before none of the
+	 * unlocker IPI kicks would reach the booting CPU as the booting
+	 * CPU had not set itself 'online' in cpu_online_mask. That mask
+	 * is checked when IPIs are sent (on HVM at least).
+	 */
+	xen_init_lock_cpu(cpu);
 	return rc;
 }
 
