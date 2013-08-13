@@ -13,6 +13,19 @@
  *
  * Timer 0 is used as free-running clocksource, while timer 1 is
  * used as clock_event_device.
+ *
+ * ---
+ * Clocksource driver for Armada 370 and Armada XP SoC.
+ * This driver implements one compatible string for each SoC, given
+ * each has its own characteristics:
+ *
+ *   * Armada 370 has no 25 MHz fixed timer.
+ *
+ *   * Armada XP cannot work properly without such 25 MHz fixed timer as
+ *     doing otherwise leads to using a clocksource whose frequency varies
+ *     when doing cpufreq frequency changes.
+ *
+ * See Documentation/devicetree/bindings/timer/marvell,armada-370-xp-timer.txt
  */
 
 #include <linux/init.h>
@@ -212,7 +225,7 @@ static struct local_timer_ops armada_370_xp_local_timer_ops = {
 	.stop	=  armada_370_xp_timer_stop,
 };
 
-static void __init armada_370_xp_timer_init(struct device_node *np)
+static void __init armada_370_xp_timer_common_init(struct device_node *np)
 {
 	u32 clr = 0, set = 0;
 	int res;
@@ -221,20 +234,10 @@ static void __init armada_370_xp_timer_init(struct device_node *np)
 	WARN_ON(!timer_base);
 	local_base = of_iomap(np, 1);
 
-	if (of_find_property(np, "marvell,timer-25Mhz", NULL)) {
-		/* The fixed 25MHz timer is available so let's use it */
+	if (timer25Mhz)
 		set = TIMER0_25MHZ;
-		timer_clk = 25000000;
-	} else {
-		unsigned long rate = 0;
-		struct clk *clk = of_clk_get(np, 0);
-		WARN_ON(IS_ERR(clk));
-		rate =  clk_get_rate(clk);
-		timer_clk = rate / TIMER_DIVIDER;
-
+	else
 		clr = TIMER0_25MHZ;
-		timer25Mhz = false;
-	}
 	timer_ctrl_clrset(clr, set);
 	local_timer_ctrl_clrset(clr, set);
 
@@ -288,5 +291,26 @@ static void __init armada_370_xp_timer_init(struct device_node *np)
 #endif
 	}
 }
-CLOCKSOURCE_OF_DECLARE(armada_370_xp, "marvell,armada-370-xp-timer",
-		       armada_370_xp_timer_init);
+
+static void __init armada_xp_timer_init(struct device_node *np)
+{
+	/* The fixed 25MHz timer is required, timer25Mhz is true by default */
+	timer_clk = 25000000;
+
+	armada_370_xp_timer_common_init(np);
+}
+CLOCKSOURCE_OF_DECLARE(armada_xp, "marvell,armada-xp-timer",
+		       armada_xp_timer_init);
+
+static void __init armada_370_timer_init(struct device_node *np)
+{
+	struct clk *clk = of_clk_get(np, 0);
+
+	WARN_ON(IS_ERR(clk));
+	timer_clk = clk_get_rate(clk) / TIMER_DIVIDER;
+	timer25Mhz = false;
+
+	armada_370_xp_timer_common_init(np);
+}
+CLOCKSOURCE_OF_DECLARE(armada_370, "marvell,armada-370-timer",
+		       armada_370_timer_init);
