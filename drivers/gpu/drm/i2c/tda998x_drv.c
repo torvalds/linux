@@ -587,8 +587,8 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 		reg_set(encoder, REG_VIP_CNTRL_3, VIP_CNTRL_3_H_TGL);
 
 	reg_write(encoder, REG_VIDFORMAT, 0x00);
-	reg_write16(encoder, REG_NPIX_MSB, mode->hdisplay - 1);
-	reg_write16(encoder, REG_NLINE_MSB, mode->vdisplay - 1);
+	reg_write16(encoder, REG_NPIX_MSB, mode->htotal);
+	reg_write16(encoder, REG_NLINE_MSB, mode->vtotal);
 	reg_write16(encoder, REG_VS_LINE_STRT_1_MSB, line_start);
 	reg_write16(encoder, REG_VS_LINE_END_1_MSB, line_end);
 	reg_write16(encoder, REG_VS_PIX_STRT_1_MSB, hs_start);
