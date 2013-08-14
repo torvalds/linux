@@ -785,10 +785,6 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	    !test_bit(rx_stats->rs_keyix, common->ccmp_keymap))
 		rx_stats->rs_status &= ~ATH9K_RXERR_KEYMISS;
 
-	/* Only use error bits from the last fragment */
-	if (rx_stats->rs_more)
-		return true;
-
 	mic_error = is_valid_tkip && !ieee80211_is_ctl(fc) &&
 		!ieee80211_has_morefrags(fc) &&
 		!(le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG) &&
@@ -959,16 +955,16 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		return -EINVAL;
 	}
 
+	/* Only use status info from the last fragment */
+	if (rx_stats->rs_more)
+		return 0;
+
 	/*
 	 * everything but the rate is checked here, the rate check is done
 	 * separately to avoid doing two lookups for a rate for each frame.
 	 */
 	if (!ath9k_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error))
 		return -EINVAL;
-
-	/* Only use status info from the last fragment */
-	if (rx_stats->rs_more)
-		return 0;
 
 	if (ath9k_process_rate(common, hw, rx_stats, rx_status))
 		return -EINVAL;
