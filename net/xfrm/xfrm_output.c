@@ -214,5 +214,18 @@ int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	return inner_mode->afinfo->extract_output(x, skb);
 }
 
+void xfrm_local_error(struct sk_buff *skb, int mtu)
+{
+	struct xfrm_state_afinfo *afinfo;
+
+	afinfo = xfrm_state_get_afinfo(skb->sk->sk_family);
+	if (!afinfo)
+		return;
+
+	afinfo->local_error(skb, mtu);
+	xfrm_state_put_afinfo(afinfo);
+}
+
 EXPORT_SYMBOL_GPL(xfrm_output);
 EXPORT_SYMBOL_GPL(xfrm_inner_extract_output);
+EXPORT_SYMBOL_GPL(xfrm_local_error);

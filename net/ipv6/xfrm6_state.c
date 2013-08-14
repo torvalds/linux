@@ -183,6 +183,7 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.extract_input		= xfrm6_extract_input,
 	.extract_output		= xfrm6_extract_output,
 	.transport_finish	= xfrm6_transport_finish,
+	.local_error		= xfrm6_local_error,
 };
 
 int __init xfrm6_state_init(void)
