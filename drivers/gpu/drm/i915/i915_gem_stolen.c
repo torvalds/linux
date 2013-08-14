@@ -409,8 +409,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		ret = drm_mm_reserve_node(&ggtt->mm, &vma->node);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			i915_gem_vma_destroy(vma);
-			goto err_out;
+			goto err_vma;
 		}
 	}
 
@@ -421,6 +420,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	return obj;
 
+err_vma:
+	i915_gem_vma_destroy(vma);
 err_out:
 	drm_mm_remove_node(stolen);
 	kfree(stolen);
