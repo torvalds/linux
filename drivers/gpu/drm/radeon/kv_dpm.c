@@ -1105,6 +1105,11 @@ int kv_dpm_enable(struct radeon_device *rdev)
 	struct kv_power_info *pi = kv_get_pi(rdev);
 	int ret;
 
+	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
+			     RADEON_CG_BLOCK_SDMA |
+			     RADEON_CG_BLOCK_BIF |
+			     RADEON_CG_BLOCK_HDP), false);
+
 	ret = kv_process_firmware_header(rdev);
 	if (ret) {
 		DRM_ERROR("kv_process_firmware_header failed\n");
@@ -1204,6 +1209,11 @@ int kv_dpm_enable(struct radeon_device *rdev)
 	kv_dpm_powergate_vce(rdev, true);
 	kv_dpm_powergate_uvd(rdev, true);
 
+	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
+			     RADEON_CG_BLOCK_SDMA |
+			     RADEON_CG_BLOCK_BIF |
+			     RADEON_CG_BLOCK_HDP), true);
+
 	kv_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
 
 	return ret;
@@ -1211,6 +1221,11 @@ int kv_dpm_enable(struct radeon_device *rdev)
 
 void kv_dpm_disable(struct radeon_device *rdev)
 {
+	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
+			     RADEON_CG_BLOCK_SDMA |
+			     RADEON_CG_BLOCK_BIF |
+			     RADEON_CG_BLOCK_HDP), false);
+
 	kv_enable_smc_cac(rdev, false);
 	kv_enable_didt(rdev, false);
 	kv_clear_vc(rdev);
@@ -1695,6 +1710,11 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 	/*struct radeon_ps *old_ps = &pi->current_rps;*/
 	int ret;
 
+	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
+			     RADEON_CG_BLOCK_SDMA |
+			     RADEON_CG_BLOCK_BIF |
+			     RADEON_CG_BLOCK_HDP), false);
+
 	if (rdev->family == CHIP_KABINI) {
 		if (pi->enable_dpm) {
 			kv_set_valid_clock_range(rdev, new_ps);
@@ -1750,6 +1770,12 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 			kv_enable_nb_dpm(rdev);
 		}
 	}
+
+	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
+			     RADEON_CG_BLOCK_SDMA |
+			     RADEON_CG_BLOCK_BIF |
+			     RADEON_CG_BLOCK_HDP), true);
+
 	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
 	return 0;
 }
