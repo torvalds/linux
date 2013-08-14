@@ -96,7 +96,6 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 				  CI_HDRC_PULLUP_ON_VBUS |
 				  CI_HDRC_DISABLE_STREAMING,
 	};
-	struct resource *res;
 	int ret;
 
 	if (of_find_property(pdev->dev.of_node, "fsl,usbmisc", NULL)
@@ -107,12 +106,6 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	if (!data) {
 		dev_err(&pdev->dev, "Failed to allocate ci_hdrc-imx data!\n");
 		return -ENOMEM;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Can't get device resources!\n");
-		return -ENOENT;
 	}
 
 	data->clk = devm_clk_get(&pdev->dev, NULL);
