@@ -519,6 +519,7 @@
 	};
 
 	fimd: fimd@14400000 {
+		status = "okay";
 		display-timings {
 			native-mode = <&timing0>;
 			timing0: timing@0 {
