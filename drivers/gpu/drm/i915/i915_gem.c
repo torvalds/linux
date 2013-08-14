@@ -3111,9 +3111,6 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
-	if (WARN_ON(!list_empty(&obj->vma_list)))
-		return -EBUSY;
-
 	fence_size = i915_gem_get_gtt_size(dev,
 					   obj->base.size,
 					   obj->tiling_mode);
@@ -3152,15 +3149,16 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	/* FIXME: For now we only ever use 1 VMA per object */
 	BUG_ON(!i915_is_ggtt(vm));
-	WARN_ON(!list_empty(&obj->vma_list));
 
-	vma = i915_gem_vma_create(obj, vm);
+	vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto err_unpin;
 	}
+
+	/* For now we only ever use 1 vma per object */
+	WARN_ON(!list_is_singular(&obj->vma_list));
 
 search_free:
 	ret = drm_mm_insert_node_in_range_generic(&vm->mm, &vma->node,
@@ -4869,4 +4867,17 @@ struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 			return vma;
 
 	return NULL;
+}
+
+struct i915_vma *
+i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
+				  struct i915_address_space *vm)
+{
+	struct i915_vma *vma;
+
+	vma = i915_gem_obj_to_vma(obj, vm);
+	if (!vma)
+		vma = i915_gem_vma_create(obj, vm);
+
+	return vma;
 }
