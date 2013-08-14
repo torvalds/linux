@@ -56,6 +56,7 @@
 #include <linux/etherdevice.h>
 #include <linux/nl80211.h>
 
+#include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 
 #include <asm/unaligned.h>
@@ -443,11 +444,27 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
  * Called with ah->lock.
  */
 int
-ath5k_chan_set(struct ath5k_hw *ah, struct ieee80211_channel *chan)
+ath5k_chan_set(struct ath5k_hw *ah, struct cfg80211_chan_def *chandef)
 {
 	ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 		  "channel set, resetting (%u -> %u MHz)\n",
-		  ah->curchan->center_freq, chan->center_freq);
+		  ah->curchan->center_freq, chandef->chan->center_freq);
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		ah->ah_bwmode = AR5K_BWMODE_DEFAULT;
+		break;
+	case NL80211_CHAN_WIDTH_5:
+		ah->ah_bwmode = AR5K_BWMODE_5MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		ah->ah_bwmode = AR5K_BWMODE_10MHZ;
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
 
 	/*
 	 * To switch channels clear any pending DMA operations;
@@ -455,7 +472,7 @@ ath5k_chan_set(struct ath5k_hw *ah, struct ieee80211_channel *chan)
 	 * hardware at the new frequency, and then re-enable
 	 * the relevant bits of the h/w.
 	 */
-	return ath5k_reset(ah, chan, true);
+	return ath5k_reset(ah, chandef->chan, true);
 }
 
 void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -2524,6 +2541,8 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 
 	/* SW support for IBSS_RSN is provided by mac80211 */
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+
+	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_5_10_MHZ;
 
 	/* both antennas can be configured as RX or TX */
 	hw->wiphy->available_antennas_tx = 0x3;
