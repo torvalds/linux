@@ -983,12 +983,12 @@ static void ad9389b_check_monitor_present_status(struct v4l2_subdev *sd)
 
 static bool edid_block_verify_crc(u8 *edid_block)
 {
-	int i;
 	u8 sum = 0;
+	int i;
 
-	for (i = 0; i < 127; i++)
-		sum += *(edid_block + i);
-	return ((255 - sum + 1) == edid_block[127]);
+	for (i = 0; i < 128; i++)
+		sum += edid_block[i];
+	return sum == 0;
 }
 
 static bool edid_segment_verify_crc(struct v4l2_subdev *sd, u32 segment)
