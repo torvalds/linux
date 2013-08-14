@@ -22,6 +22,11 @@ struct exynos_drm_dmabuf_attachment {
 	bool is_mapped;
 };
 
+static struct exynos_drm_gem_obj *dma_buf_to_obj(struct dma_buf *buf)
+{
+	return to_exynos_gem_obj(buf->priv);
+}
+
 static int exynos_gem_attach_dma_buf(struct dma_buf *dmabuf,
 					struct device *dev,
 					struct dma_buf_attachment *attach)
@@ -63,7 +68,7 @@ static struct sg_table *
 					enum dma_data_direction dir)
 {
 	struct exynos_drm_dmabuf_attachment *exynos_attach = attach->priv;
-	struct exynos_drm_gem_obj *gem_obj = attach->dmabuf->priv;
+	struct exynos_drm_gem_obj *gem_obj = dma_buf_to_obj(attach->dmabuf);
 	struct drm_device *dev = gem_obj->base.dev;
 	struct exynos_drm_gem_buf *buf;
 	struct scatterlist *rd, *wr;
@@ -180,7 +185,7 @@ struct dma_buf *exynos_dmabuf_prime_export(struct drm_device *drm_dev,
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 
-	return dma_buf_export(exynos_gem_obj, &exynos_dmabuf_ops,
+	return dma_buf_export(obj, &exynos_dmabuf_ops,
 				exynos_gem_obj->base.size, flags);
 }
 
@@ -198,8 +203,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	if (dma_buf->ops == &exynos_dmabuf_ops) {
 		struct drm_gem_object *obj;
 
-		exynos_gem_obj = dma_buf->priv;
-		obj = &exynos_gem_obj->base;
+		obj = dma_buf->priv;
 
 		/* is it from our device? */
 		if (obj->dev == drm_dev) {
