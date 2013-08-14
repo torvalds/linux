@@ -764,7 +764,6 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	bool is_mc, is_valid_tkip, strip_mic, mic_error;
 	struct ath_hw *ah = common->ah;
 	__le16 fc;
-	u8 rx_status_len = ah->caps.rx_status_len;
 
 	fc = hdr->frame_control;
 
@@ -785,21 +784,6 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	if (rx_stats->rs_keyix == ATH9K_RXKEYIX_INVALID ||
 	    !test_bit(rx_stats->rs_keyix, common->ccmp_keymap))
 		rx_stats->rs_status &= ~ATH9K_RXERR_KEYMISS;
-
-	if (!rx_stats->rs_datalen) {
-		RX_STAT_INC(rx_len_err);
-		return false;
-	}
-
-        /*
-         * rs_status follows rs_datalen so if rs_datalen is too large
-         * we can take a hint that hardware corrupted it, so ignore
-         * those frames.
-         */
-	if (rx_stats->rs_datalen > (common->rx_bufsize - rx_status_len)) {
-		RX_STAT_INC(rx_len_err);
-		return false;
-	}
 
 	/* Only use error bits from the last fragment */
 	if (rx_stats->rs_more)
@@ -949,9 +933,31 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	struct ath_common *common = ath9k_hw_common(ah);
 	bool discard_current = sc->rx.discard_next;
 
+	/*
+	 * Discard corrupt descriptors which are marked in
+	 * ath_get_next_rx_buf().
+	 */
 	sc->rx.discard_next = rx_stats->rs_more;
 	if (discard_current)
 		return -EINVAL;
+
+	/*
+	 * Discard zero-length packets.
+	 */
+	if (!rx_stats->rs_datalen) {
+		RX_STAT_INC(rx_len_err);
+		return -EINVAL;
+	}
+
+        /*
+         * rs_status follows rs_datalen so if rs_datalen is too large
+         * we can take a hint that hardware corrupted it, so ignore
+         * those frames.
+         */
+	if (rx_stats->rs_datalen > (common->rx_bufsize - ah->caps.rx_status_len)) {
+		RX_STAT_INC(rx_len_err);
+		return -EINVAL;
+	}
 
 	/*
 	 * everything but the rate is checked here, the rate check is done
