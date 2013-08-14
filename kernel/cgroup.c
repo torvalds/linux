@@ -218,7 +218,7 @@ static int need_forkexit_callback __read_mostly;
 
 static struct cftype cgroup_base_files[];
 
-static void cgroup_offline_fn(struct work_struct *work);
+static void cgroup_destroy_css_killed(struct cgroup *cgrp);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
 static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
 			      bool is_add);
@@ -4335,6 +4335,7 @@ static int online_css(struct cgroup_subsys_state *css)
 		ret = ss->css_online(css);
 	if (!ret) {
 		css->flags |= CSS_ONLINE;
+		css->cgroup->nr_css++;
 		rcu_assign_pointer(css->cgroup->subsys[ss->subsys_id], css);
 	}
 	return ret;
@@ -4545,16 +4546,6 @@ static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return cgroup_create(c_parent, dentry, mode | S_IFDIR);
 }
 
-static void cgroup_css_killed(struct cgroup *cgrp)
-{
-	if (!atomic_dec_and_test(&cgrp->css_kill_cnt))
-		return;
-
-	/* percpu ref's of all css's are killed, kick off the next step */
-	INIT_WORK(&cgrp->destroy_work, cgroup_offline_fn);
-	schedule_work(&cgrp->destroy_work);
-}
-
 /*
  * This is called when the refcnt of a css is confirmed to be killed.
  * css_tryget() is now guaranteed to fail.
@@ -4565,7 +4556,17 @@ static void css_killed_work_fn(struct work_struct *work)
 		container_of(work, struct cgroup_subsys_state, destroy_work);
 	struct cgroup *cgrp = css->cgroup;
 
-	cgroup_css_killed(cgrp);
+	mutex_lock(&cgroup_mutex);
+
+	/*
+	 * If @cgrp is marked dead, it's waiting for refs of all css's to
+	 * be disabled before proceeding to the second phase of cgroup
+	 * destruction.  If we are the last one, kick it off.
+	 */
+	if (!--cgrp->nr_css && cgroup_is_dead(cgrp))
+		cgroup_destroy_css_killed(cgrp);
+
+	mutex_unlock(&cgroup_mutex);
 }
 
 /* css kill confirmation processing requires process context, bounce */
@@ -4634,11 +4635,10 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * Use percpu_ref_kill_and_confirm() to get notifications as each
 	 * css is confirmed to be seen as killed on all CPUs.  The
 	 * notification callback keeps track of the number of css's to be
-	 * killed and schedules cgroup_offline_fn() to perform the rest of
-	 * destruction once the percpu refs of all css's are confirmed to
-	 * be killed.
+	 * killed and invokes cgroup_destroy_css_killed() to perform the
+	 * rest of destruction once the percpu refs of all css's are
+	 * confirmed to be killed.
 	 */
-	atomic_set(&cgrp->css_kill_cnt, 1);
 	for_each_root_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgroup_css(cgrp, ss->subsys_id);
 
@@ -4648,10 +4648,8 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		 */
 		percpu_ref_get(&css->refcnt);
 
-		atomic_inc(&cgrp->css_kill_cnt);
 		percpu_ref_kill_and_confirm(&css->refcnt, css_killed_ref_fn);
 	}
-	cgroup_css_killed(cgrp);
 
 	/*
 	 * Mark @cgrp dead.  This prevents further task migration and child
@@ -4667,6 +4665,15 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	if (!list_empty(&cgrp->release_list))
 		list_del_init(&cgrp->release_list);
 	raw_spin_unlock(&release_list_lock);
+
+	/*
+	 * If @cgrp has css's attached, the second stage of cgroup
+	 * destruction is kicked off from css_killed_work_fn() after the
+	 * refs of all attached css's are killed.  If @cgrp doesn't have
+	 * any css, we kick it off here.
+	 */
+	if (!cgrp->nr_css)
+		cgroup_destroy_css_killed(cgrp);
 
 	/*
 	 * Clear and remove @cgrp directory.  The removal puts the base ref
@@ -4693,7 +4700,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 };
 
 /**
- * cgroup_offline_fn - the second step of cgroup destruction
+ * cgroup_destroy_css_killed - the second step of cgroup destruction
  * @work: cgroup->destroy_free_work
  *
  * This function is invoked from a work item for a cgroup which is being
@@ -4702,14 +4709,13 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
  * is the second step of destruction described in the comment above
  * cgroup_destroy_locked().
  */
-static void cgroup_offline_fn(struct work_struct *work)
+static void cgroup_destroy_css_killed(struct cgroup *cgrp)
 {
-	struct cgroup *cgrp = container_of(work, struct cgroup, destroy_work);
 	struct cgroup *parent = cgrp->parent;
 	struct dentry *d = cgrp->dentry;
 	struct cgroup_subsys *ss;
 
-	mutex_lock(&cgroup_mutex);
+	lockdep_assert_held(&cgroup_mutex);
 
 	/*
 	 * css_tryget() is guaranteed to fail now.  Tell subsystems to
@@ -4743,8 +4749,6 @@ static void cgroup_offline_fn(struct work_struct *work)
 
 	set_bit(CGRP_RELEASABLE, &parent->flags);
 	check_for_release(parent);
-
-	mutex_unlock(&cgroup_mutex);
 }
 
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
