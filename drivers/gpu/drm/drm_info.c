@@ -219,9 +219,9 @@ int drm_gem_name_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "  name     size handles refcount\n");
 
-	spin_lock(&dev->object_name_lock);
+	mutex_lock(&dev->object_name_lock);
 	idr_for_each(&dev->object_name_idr, drm_gem_one_name_info, m);
-	spin_unlock(&dev->object_name_lock);
+	mutex_unlock(&dev->object_name_lock);
 
 	return 0;
 }

@@ -93,7 +93,7 @@ drm_gem_init(struct drm_device *dev)
 {
 	struct drm_gem_mm *mm;
 
-	spin_lock_init(&dev->object_name_lock);
+	mutex_init(&dev->object_name_lock);
 	idr_init(&dev->object_name_idr);
 
 	mm = kzalloc(sizeof(struct drm_gem_mm), GFP_KERNEL);
@@ -243,10 +243,10 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 	* checked for a name
 	*/
 
-	spin_lock(&obj->dev->object_name_lock);
+	mutex_lock(&obj->dev->object_name_lock);
 	if (--obj->handle_count == 0)
 		drm_gem_object_handle_free(obj);
-	spin_unlock(&obj->dev->object_name_lock);
+	mutex_unlock(&obj->dev->object_name_lock);
 
 	drm_gem_object_unreference_unlocked(obj);
 }
@@ -324,16 +324,16 @@ drm_gem_handle_create(struct drm_file *file_priv,
 	 * Get the user-visible handle using idr.  Preload and perform
 	 * allocation under our spinlock.
 	 */
+	mutex_lock(&dev->object_name_lock);
 	idr_preload(GFP_KERNEL);
-	spin_lock(&dev->object_name_lock);
 	spin_lock(&file_priv->table_lock);
 
 	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_NOWAIT);
 	drm_gem_object_reference(obj);
 	obj->handle_count++;
 	spin_unlock(&file_priv->table_lock);
-	spin_unlock(&dev->object_name_lock);
 	idr_preload_end();
+	mutex_unlock(&dev->object_name_lock);
 	if (ret < 0) {
 		drm_gem_object_handle_unreference_unlocked(obj);
 		return ret;
@@ -455,8 +455,8 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	if (obj == NULL)
 		return -ENOENT;
 
+	mutex_lock(&dev->object_name_lock);
 	idr_preload(GFP_KERNEL);
-	spin_lock(&dev->object_name_lock);
 	/* prevent races with concurrent gem_close. */
 	if (obj->handle_count == 0) {
 		ret = -ENOENT;
@@ -478,8 +478,8 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	ret = 0;
 
 err:
-	spin_unlock(&dev->object_name_lock);
 	idr_preload_end();
+	mutex_unlock(&dev->object_name_lock);
 	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
@@ -502,11 +502,11 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
-	spin_lock(&dev->object_name_lock);
+	mutex_lock(&dev->object_name_lock);
 	obj = idr_find(&dev->object_name_idr, (int) args->name);
 	if (obj)
 		drm_gem_object_reference(obj);
-	spin_unlock(&dev->object_name_lock);
+	mutex_unlock(&dev->object_name_lock);
 	if (!obj)
 		return -ENOENT;
 
