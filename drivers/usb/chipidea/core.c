@@ -545,7 +545,6 @@ static struct platform_driver ci_hdrc_driver = {
 module_platform_driver(ci_hdrc_driver);
 
 MODULE_ALIAS("platform:ci_hdrc");
-MODULE_ALIAS("platform:ci13xxx");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("David Lopo <dlopo@chipidea.mips.com>");
 MODULE_DESCRIPTION("ChipIdea HDRC Driver");
