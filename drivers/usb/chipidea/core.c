@@ -426,6 +426,18 @@ static inline void ci_role_destroy(struct ci_hdrc *ci)
 	ci_hdrc_host_destroy(ci);
 }
 
+static void ci_get_otg_capable(struct ci_hdrc *ci)
+{
+	if (ci->platdata->flags & CI_HDRC_DUAL_ROLE_NOT_OTG)
+		ci->is_otg = false;
+	else
+		ci->is_otg = (hw_read(ci, CAP_DCCPARAMS,
+				DCCPARAMS_DC | DCCPARAMS_HC)
+					== (DCCPARAMS_DC | DCCPARAMS_HC));
+	if (ci->is_otg)
+		dev_dbg(ci->dev, "It is OTG capable controller\n");
+}
+
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -480,6 +492,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	ci_get_otg_capable(ci);
+
 	if (!ci->platdata->phy_mode)
 		ci->platdata->phy_mode = of_usb_get_phy_mode(of_node);
 
@@ -512,10 +526,22 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET]) {
-		ci->is_otg = true;
-		/* ID pin needs 1ms debouce time, we delay 2ms for safe */
-		mdelay(2);
-		ci->role = ci_otg_role(ci);
+		if (ci->is_otg) {
+			/*
+			 * ID pin needs 1ms debouce time,
+			 * we delay 2ms for safe.
+			 */
+			mdelay(2);
+			ci->role = ci_otg_role(ci);
+			ci_hdrc_otg_init(ci);
+		} else {
+			/*
+			 * If the controller is not OTG capable, but support
+			 * role switch, the defalt role is gadget, and the
+			 * user can switch it through debugfs.
+			 */
+			ci->role = CI_ROLE_GADGET;
+		}
 	} else {
 		ci->role = ci->roles[CI_ROLE_HOST]
 			? CI_ROLE_HOST
@@ -533,9 +559,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 			  ci);
 	if (ret)
 		goto stop;
-
-	if (ci->is_otg)
-		ci_hdrc_otg_init(ci);
 
 	ret = dbg_create_files(ci);
 	if (!ret)
