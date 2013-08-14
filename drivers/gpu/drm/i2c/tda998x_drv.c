@@ -110,6 +110,7 @@ struct tda998x_priv {
 #define REG_VIP_CNTRL_5           REG(0x00, 0x25)     /* write */
 # define VIP_CNTRL_5_CKCASE       (1 << 0)
 # define VIP_CNTRL_5_SP_CNT(x)    (((x) & 3) << 1)
+#define REG_MUX_VP_VIP_OUT        REG(0x00, 0x27)     /* read/write */
 #define REG_MAT_CONTRL            REG(0x00, 0x80)     /* write */
 # define MAT_CONTRL_MAT_SC(x)     (((x) & 3) << 0)
 # define MAT_CONTRL_MAT_BP        (1 << 2)
@@ -415,6 +416,9 @@ tda998x_reset(struct drm_encoder *encoder)
 	reg_write(encoder, REG_PLL_SCGR1,    0x5b);
 	reg_write(encoder, REG_PLL_SCGR2,    0x00);
 	reg_write(encoder, REG_PLL_SCG2,     0x10);
+
+	/* Write the default value MUX register */
+	reg_write(encoder, REG_MUX_VP_VIP_OUT, 0x24);
 }
 
 /* DRM encoder functions */
