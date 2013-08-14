@@ -82,6 +82,10 @@ static int msix_disable = -1;
 module_param(msix_disable, int, 0);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
 
+static int max_msix_vectors = 8;
+module_param(max_msix_vectors, int, 0);
+MODULE_PARM_DESC(max_msix_vectors,
+	" max msix vectors - (default=8)");
 
 static int mpt3sas_fwfault_debug;
 MODULE_PARM_DESC(mpt3sas_fwfault_debug,
@@ -1720,6 +1724,16 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 
 	ioc->reply_queue_count = min_t(int, ioc->cpu_count,
 	    ioc->msix_vector_count);
+
+	printk(MPT3SAS_FMT "MSI-X vectors supported: %d, no of cores"
+	  ": %d, max_msix_vectors: %d\n", ioc->name, ioc->msix_vector_count,
+	  ioc->cpu_count, max_msix_vectors);
+
+	if (max_msix_vectors > 0) {
+		ioc->reply_queue_count = min_t(int, max_msix_vectors,
+			ioc->reply_queue_count);
+		ioc->msix_vector_count = ioc->reply_queue_count;
+	}
 
 	entries = kcalloc(ioc->reply_queue_count, sizeof(struct msix_entry),
 	    GFP_KERNEL);
