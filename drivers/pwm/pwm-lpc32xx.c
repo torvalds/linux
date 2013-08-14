@@ -124,9 +124,6 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	lpc32xx->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(lpc32xx->base))
 		return PTR_ERR(lpc32xx->base);
