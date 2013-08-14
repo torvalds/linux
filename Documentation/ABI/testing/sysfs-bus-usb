@@ -263,3 +263,41 @@ Description:
 		Supported values are 0 - 15.
 		More information on how besl values map to microseconds can be found in
 		USB 2.0 ECN Errata for Link Power Management, section 4.10)
+
+What:		/sys/bus/usb/devices/.../devnum
+KernelVersion:	since at least 2.6.18
+Description:
+		Device address on the USB bus.
+
+What:		/sys/bus/usb/devices/.../bConfigurationValue
+KernelVersion:	since at least 2.6.18
+Description:
+		bConfigurationValue of the *active* configuration for the
+		device. Writing 0 or -1 to bConfigurationValue will reset the
+		active configuration (unconfigure the device). Writing
+		another value will change the active configuration.
+
+		Note that some devices, in violation of the USB spec, have a
+		configuration with a value equal to 0. Writing 0 to
+		bConfigurationValue for these devices will install that
+		configuration, rather then unconfigure the device.
+
+		Writing -1 will always unconfigure the device.
+
+What:		/sys/bus/usb/devices/.../busnum
+KernelVersion:	2.6.22
+Description:
+		Bus-number of the USB-bus the device is connected to.
+
+What:		/sys/bus/usb/devices/.../descriptors
+KernelVersion:	2.6.26
+Description:
+		Binary file containing cached descriptors of the device. The
+		binary data consists of the device descriptor followed by the
+		descriptors for each configuration of the device.
+		Note that the wTotalLength of the config descriptors can not
+		be trusted, as the device may have a smaller config descriptor
+		than it advertises. The bLength field of each (sub) descriptor
+		can be trusted, and can be used to seek forward one (sub)
+		descriptor at a time until the next config descriptor is found.
+		All descriptors read from this file are in bus-endian format
