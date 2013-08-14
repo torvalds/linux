@@ -28,13 +28,9 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
-
-#include <plat/sys_config.h>
 #include <mach/clock.h>
-#include "../../power/axp_power/axp-gpio.h"
-#include "sunxi_musb_plat.h"
 
+#include "sunxi_musb_plat.h"
 #include "musb_core.h"
 
 #define SUNXI_MUSB_DRIVER_NAME "sunxi_musb"
@@ -45,19 +41,15 @@ struct sunxi_musb_clock {
 	struct clk	*phy0_clk;		/* PHY reset		*/
 };
 
-struct sunxi_musb_gpio {
-	unsigned int	Drv_vbus_Handle;
-	user_gpio_set_t	drv_vbus_gpio_set;
-};
-
 struct sunxi_musb_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
 	struct sunxi_musb_clock	clk;
-	struct sunxi_musb_gpio	gpio;
 
 	int vbus_on;
 	int exiting;
+
+	struct sunxi_musb_board_priv *board_priv;
 };
 
 static inline struct sunxi_musb_glue *musb_to_glue(struct musb *musb)
@@ -66,6 +58,15 @@ static inline struct sunxi_musb_glue *musb_to_glue(struct musb *musb)
 	struct sunxi_musb_glue *glue = dev_get_drvdata(sunxi_musb_dev);
 
 	return glue;
+}
+
+static inline struct sunxi_musb_board_data *musb_to_board(struct musb *musb)
+{
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct sunxi_musb_board_data *data = plat->board_data;
+
+	return data;
 }
 
 /******************************************************************************
@@ -518,123 +519,25 @@ static s32 close_usb_clock(struct sunxi_musb_glue *glue)
 	return 0;
 }
 
-static s32 pin_init(struct sunxi_musb_glue *glue)
-{
-	struct sunxi_musb_gpio *sw_hcd_io = &glue->gpio;
-	s32 ret = 0;
-
-	pr_dbg("%s():\n", __func__);
-
-	glue->vbus_on = 0;
-
-	/* request gpio */
-	ret = script_parser_fetch("usbc0", "usb_drv_vbus_gpio",
-				  (int *)&sw_hcd_io->drv_vbus_gpio_set, 64);
-	if (ret != 0)
-		dev_warn(glue->dev, "get usbc0(drv vbus) id failed\n");
-
-	if (!sw_hcd_io->drv_vbus_gpio_set.port) {
-		dev_err(glue->dev, "usbc0(drv vbus) is invalid\n");
-		sw_hcd_io->Drv_vbus_Handle = 0;
-		return 0;
-	}
-
-	if (sw_hcd_io->drv_vbus_gpio_set.port == 0xffff) { /* power */
-		if (sw_hcd_io->drv_vbus_gpio_set.mul_sel == 0 ||
-				sw_hcd_io->drv_vbus_gpio_set.mul_sel == 1) {
-			axp_gpio_set_io(sw_hcd_io->drv_vbus_gpio_set.port_num,
-					sw_hcd_io->drv_vbus_gpio_set.mul_sel);
-			axp_gpio_set_value(
-					sw_hcd_io->drv_vbus_gpio_set.port_num,
-					!sw_hcd_io->drv_vbus_gpio_set.data);
-
-			return 100 + sw_hcd_io->drv_vbus_gpio_set.port_num;
-		} else {
-			dev_err(glue->dev, "unknown gpio mul_sel(%d)\n",
-				sw_hcd_io->drv_vbus_gpio_set.mul_sel);
-			return 0;
-		}
-	} else {  /* axp */
-		sw_hcd_io->Drv_vbus_Handle = sunxi_gpio_request_array(
-				&sw_hcd_io->drv_vbus_gpio_set, 1);
-		if (sw_hcd_io->Drv_vbus_Handle == 0) {
-			dev_err(glue->dev, "gpio_request failed\n");
-			return -1;
-		}
-
-		/* set config, ouput */
-		gpio_set_one_pin_io_status(sw_hcd_io->Drv_vbus_Handle,
-					   !sw_hcd_io->drv_vbus_gpio_set.data,
-					   NULL);
-
-		/* reserved is pull down */
-		gpio_set_one_pin_pull(sw_hcd_io->Drv_vbus_Handle, 2, NULL);
-	}
-
-	return 0;
-}
-
-static s32 pin_exit(struct sunxi_musb_glue *glue)
-{
-	struct sunxi_musb_gpio *sw_hcd_io = &glue->gpio;
-
-	pr_dbg("%s():\n", __func__);
-
-	if (sw_hcd_io->Drv_vbus_Handle) {
-		if (sw_hcd_io->drv_vbus_gpio_set.port == 0xffff) { /* power */
-			axp_gpio_set_io(sw_hcd_io->drv_vbus_gpio_set.port_num,
-					sw_hcd_io->drv_vbus_gpio_set.mul_sel);
-			axp_gpio_set_value(
-					sw_hcd_io->drv_vbus_gpio_set.port_num,
-					sw_hcd_io->drv_vbus_gpio_set.data);
-		} else {
-			gpio_release(sw_hcd_io->Drv_vbus_Handle, 0);
-		}
-	}
-
-	sw_hcd_io->Drv_vbus_Handle = 0;
-	glue->vbus_on = 0;
-
-	return 0;
-}
-
 static void sw_hcd_board_set_vbus(struct musb *musb, int is_on)
 {
 	struct sunxi_musb_glue *glue = musb_to_glue(musb);
-	struct sunxi_musb_gpio *sw_hcd_io = &glue->gpio;
-	u32 on_off = 0;
+	struct sunxi_musb_board_data *board = musb_to_board(musb);
 	u32 val;
 
 	dev_info(glue->dev, "is_on = %d\n", is_on);
-
-	if (sw_hcd_io->Drv_vbus_Handle == 0) {
-		dev_info(glue->dev, "wrn: sw_hcd_io->drv_vbus_Handle is null\n");
-		return;
-	}
-
-	/* set power */
-	on_off = !!is_on;
-	if (sw_hcd_io->drv_vbus_gpio_set.data != 0)
-		on_off = !on_off; /* inverse */
 
 	if (is_on) {
 		if (glue->vbus_on)
 			return; /* already enabled */
 
+		/* set gpio data */
+		if (board->set_phy_power(glue->board_priv, 1) < 0)
+			return;
+
 		glue->vbus_on = 1;
 
 		dev_info(glue->dev, "Set USB Power On\n");
-
-		if (sw_hcd_io->drv_vbus_gpio_set.port == 0xffff)
-			axp_gpio_set_value(
-				sw_hcd_io->drv_vbus_gpio_set.port_num,
-				on_off);
-		else
-			gpio_write_one_pin_value(
-				sw_hcd_io->Drv_vbus_Handle,
-				on_off, NULL);
-
-		/* set gpio data */
 
 		/* start session */
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
@@ -648,16 +551,13 @@ static void sw_hcd_board_set_vbus(struct musb *musb, int is_on)
 		if (!glue->vbus_on)
 			return; /* already disabled */
 
+		/* set gpio data */
+		if (board->set_phy_power(glue->board_priv, 0) < 0)
+			return;
+
 		glue->vbus_on = 0;
 
 		dev_info(glue->dev, "Set USB Power Off\n");
-
-		if (sw_hcd_io->drv_vbus_gpio_set.port == 0xffff)
-			axp_gpio_set_value(
-				sw_hcd_io->drv_vbus_gpio_set.port_num, on_off);
-		else
-			gpio_write_one_pin_value(sw_hcd_io->Drv_vbus_Handle,
-					on_off, NULL);
 
 		/* end session */
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
@@ -775,6 +675,7 @@ static int sunxi_musb_init(struct musb *musb)
 {
 	unsigned long flags = 0;
 	struct sunxi_musb_glue *glue = musb_to_glue(musb);
+	struct sunxi_musb_board_data *board = musb_to_board(musb);
 	u32 reg_value = 0;
 	int ret = -ENODEV;
 
@@ -801,6 +702,8 @@ static int sunxi_musb_init(struct musb *musb)
 		goto err2;
 	}
 
+	glue->vbus_on = 0;
+
 	/* moved here from open_usb_clock */
 	UsbPhyInit(musb->mregs, 0);
 
@@ -816,10 +719,10 @@ static int sunxi_musb_init(struct musb *musb)
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	/* config drv_vbus pin */
-	ret = pin_init(glue);
-	if (ret < 0) {
-		dev_err(musb->controller, "pin_init failed\n");
-		ret = -ENOMEM;
+	glue->board_priv = board->init(glue->dev);
+	if (IS_ERR_OR_NULL(glue->board_priv)) {
+		ret = PTR_ERR(glue->board_priv);
+		glue->board_priv = NULL;
 		goto err3;
 	}
 
@@ -832,7 +735,7 @@ static int sunxi_musb_init(struct musb *musb)
 	return 0;
 
 /*err4:*/
-	pin_exit(glue);
+	board->exit(glue->board_priv);
 err3:
 	close_usb_clock(glue);
 err2:
@@ -848,6 +751,7 @@ err0:
 static int sunxi_musb_exit(struct musb *musb)
 {
 	struct sunxi_musb_glue *glue = musb_to_glue(musb);
+	struct sunxi_musb_board_data *board = musb_to_board(musb);
 	unsigned long flags;
 
 	pr_dbg("%s():\n", __func__);
@@ -861,11 +765,13 @@ static int sunxi_musb_exit(struct musb *musb)
 
 	sw_hcd_board_set_vbus(musb, 0);
 
-	pin_exit(glue);
+	board->exit(glue->board_priv);
 	close_usb_clock(glue);
 	usb_clock_exit(glue);
 	usb_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
+
+	glue->vbus_on = 0;
 
 	return 0;
 }
@@ -951,6 +857,8 @@ static int __devexit sunxi_musb_remove(struct platform_device *pdev)
 {
 	struct sunxi_musb_glue *glue = platform_get_drvdata(pdev);
 
+	pr_dbg("%s():\n", __func__);
+
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
 	kfree(glue);
@@ -975,6 +883,8 @@ static int __init sunxi_musb_drvinit(void)
 {
 	int ret;
 
+	pr_dbg("%s():\n", __func__);
+
 	ret = platform_driver_register(&sunxi_musb_driver);
 	if (ret < 0)
 		return ret;
@@ -992,6 +902,8 @@ module_init(sunxi_musb_drvinit);
 
 static void __exit sunxi_musb_drvexit(void)
 {
+	pr_dbg("%s():\n", __func__);
+
 	unregister_musb_device();
 	platform_driver_unregister(&sunxi_musb_driver);
 }
