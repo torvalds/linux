@@ -988,6 +988,7 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
 		}
 	}
 
+	spin_lock_bh(&ep->ex_lock);
 	/*
 	 * At this point, we have the exchange held.
 	 * Find or create the sequence.
@@ -1015,11 +1016,11 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
 				 * sending RSP, hence write request on other
 				 * end never finishes.
 				 */
-				spin_lock_bh(&ep->ex_lock);
 				sp->ssb_stat |= SSB_ST_RESP;
 				sp->id = fh->fh_seq_id;
-				spin_unlock_bh(&ep->ex_lock);
 			} else {
+				spin_unlock_bh(&ep->ex_lock);
+
 				/* sequence/exch should exist */
 				reject = FC_RJT_SEQ_ID;
 				goto rel;
@@ -1030,6 +1031,7 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
 
 	if (f_ctl & FC_FC_SEQ_INIT)
 		ep->esb_stat |= ESB_ST_SEQ_INIT;
+	spin_unlock_bh(&ep->ex_lock);
 
 	fr_seq(fp) = sp;
 out:
@@ -1479,8 +1481,11 @@ static void fc_exch_recv_seq_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 
 	f_ctl = ntoh24(fh->fh_f_ctl);
 	fr_seq(fp) = sp;
+
+	spin_lock_bh(&ep->ex_lock);
 	if (f_ctl & FC_FC_SEQ_INIT)
 		ep->esb_stat |= ESB_ST_SEQ_INIT;
+	spin_unlock_bh(&ep->ex_lock);
 
 	if (fc_sof_needs_ack(sof))
 		fc_seq_send_ack(sp, fp);
