@@ -2591,8 +2591,8 @@ void dwc_otg_ep0_continue_transfer(dwc_otg_core_if_t *_core_if, dwc_ep_t *_ep)
 		/* Write the DMA register */
 		if (_core_if->hwcfg2.b.architecture == DWC_INT_DMA_ARCH) 
 		{
-			dwc_write_reg32 (&(in_regs->diepdma), 
-					 (uint32_t)_ep->dma_addr);
+			dwc_write_reg32 (&(in_regs->diepdma), (uint32_t)_ep->dma_addr);
+			_ep->dma_addr += _ep->maxpacket;
 		}
 
 		/* EP enable, IN data in FIFO */
