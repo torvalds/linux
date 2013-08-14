@@ -286,7 +286,6 @@ static struct cpufreq_driver longrun_driver = {
 	.get		= longrun_get,
 	.init		= longrun_cpu_init,
 	.name		= "longrun",
-	.owner		= THIS_MODULE,
 };
 
 static const struct x86_cpu_id longrun_ids[] = {
