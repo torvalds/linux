@@ -88,13 +88,13 @@ nul_validate(struct rpc_task *task, __be32 *p)
 	flavor = ntohl(*p++);
 	if (flavor != RPC_AUTH_NULL) {
 		printk("RPC: bad verf flavor: %u\n", flavor);
-		return NULL;
+		return ERR_PTR(-EIO);
 	}
 
 	size = ntohl(*p++);
 	if (size != 0) {
 		printk("RPC: bad verf size: %u\n", size);
-		return NULL;
+		return ERR_PTR(-EIO);
 	}
 
 	return p;
