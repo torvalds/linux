@@ -511,7 +511,7 @@ static bool is_pipeb_lvds(struct drm_device *dev, struct drm_crtc *crtc)
 	return false;
 }
 
-void cdv_intel_disable_self_refresh(struct drm_device *dev)
+void cdv_disable_sr(struct drm_device *dev)
 {
 	if (REG_READ(FW_BLC_SELF) & FW_BLC_SELF_EN) {
 
@@ -534,6 +534,7 @@ void cdv_intel_disable_self_refresh(struct drm_device *dev)
 
 void cdv_update_wm(struct drm_device *dev, struct drm_crtc *crtc)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	if (cdv_intel_single_pipe_active(dev)) {
 		u32 fw;
@@ -587,8 +588,7 @@ void cdv_update_wm(struct drm_device *dev, struct drm_crtc *crtc)
 
 		gma_wait_for_vblank(dev);
 
-		cdv_intel_disable_self_refresh(dev);
-	
+		dev_priv->ops->disable_sr(dev);
 	}
 }
 
