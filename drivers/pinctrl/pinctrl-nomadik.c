@@ -1055,10 +1055,6 @@ static int nmk_gpio_probe(struct platform_device *dev)
 		pdata->num_gpio   = NMK_GPIO_PER_CHIP;
 	}
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENOENT;
-
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0)
 		return irq;
@@ -1067,6 +1063,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	if (secondary_irq >= 0 && !pdata->get_secondary_status)
 		return -EINVAL;
 
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&dev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
