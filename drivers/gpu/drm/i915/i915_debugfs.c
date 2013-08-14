@@ -195,9 +195,9 @@ static int obj_rank_by_stolen(void *priv,
 			      struct list_head *A, struct list_head *B)
 {
 	struct drm_i915_gem_object *a =
-		container_of(A, struct drm_i915_gem_object, exec_list);
+		container_of(A, struct drm_i915_gem_object, obj_exec_link);
 	struct drm_i915_gem_object *b =
-		container_of(B, struct drm_i915_gem_object, exec_list);
+		container_of(B, struct drm_i915_gem_object, obj_exec_link);
 
 	return a->stolen->start - b->stolen->start;
 }
@@ -221,7 +221,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		if (obj->stolen == NULL)
 			continue;
 
-		list_add(&obj->exec_list, &stolen);
+		list_add(&obj->obj_exec_link, &stolen);
 
 		total_obj_size += obj->base.size;
 		total_gtt_size += i915_gem_obj_ggtt_size(obj);
@@ -231,7 +231,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		if (obj->stolen == NULL)
 			continue;
 
-		list_add(&obj->exec_list, &stolen);
+		list_add(&obj->obj_exec_link, &stolen);
 
 		total_obj_size += obj->base.size;
 		count++;
@@ -239,11 +239,11 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	list_sort(NULL, &stolen, obj_rank_by_stolen);
 	seq_puts(m, "Stolen:\n");
 	while (!list_empty(&stolen)) {
-		obj = list_first_entry(&stolen, typeof(*obj), exec_list);
+		obj = list_first_entry(&stolen, typeof(*obj), obj_exec_link);
 		seq_puts(m, "   ");
 		describe_obj(m, obj);
 		seq_putc(m, '\n');
-		list_del_init(&obj->exec_list);
+		list_del_init(&obj->obj_exec_link);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
