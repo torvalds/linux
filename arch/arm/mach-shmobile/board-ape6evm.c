@@ -19,6 +19,8 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mfd/tmio.h>
@@ -36,6 +38,58 @@
 #include <mach/r8a73a4.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+/* LEDS */
+static struct gpio_led ape6evm_leds[] = {
+	{
+		.name		= "gnss-en",
+		.gpio		= 28,
+		.default_state	= LEDS_GPIO_DEFSTATE_OFF,
+	}, {
+		.name		= "nfc-nrst",
+		.gpio		= 126,
+		.default_state	= LEDS_GPIO_DEFSTATE_OFF,
+	}, {
+		.name		= "gnss-nrst",
+		.gpio		= 132,
+		.default_state	= LEDS_GPIO_DEFSTATE_OFF,
+	}, {
+		.name		= "bt-wakeup",
+		.gpio		= 232,
+		.default_state	= LEDS_GPIO_DEFSTATE_OFF,
+	}, {
+		.name		= "strobe",
+		.gpio		= 250,
+		.default_state	= LEDS_GPIO_DEFSTATE_OFF,
+	}, {
+		.name		= "bbresetout",
+		.gpio		= 288,
+		.default_state	= LEDS_GPIO_DEFSTATE_OFF,
+	},
+};
+
+static __initdata struct gpio_led_platform_data ape6evm_leds_pdata = {
+	.leds		= ape6evm_leds,
+	.num_leds	= ARRAY_SIZE(ape6evm_leds),
+};
+
+/* GPIO KEY */
+#define GPIO_KEY(c, g, d, ...) \
+	{ .code = c, .gpio = g, .desc = d, .active_low = 1 }
+
+static struct gpio_keys_button gpio_buttons[] = {
+	GPIO_KEY(KEY_0,			324,	"S16"),
+	GPIO_KEY(KEY_MENU,		325,	"S17"),
+	GPIO_KEY(KEY_HOME,		326,	"S18"),
+	GPIO_KEY(KEY_BACK,		327,	"S19"),
+	GPIO_KEY(KEY_VOLUMEUP,		328,	"S20"),
+	GPIO_KEY(KEY_VOLUMEDOWN,	329,	"S21"),
+};
+
+static struct __initdata gpio_keys_platform_data ape6evm_keys_pdata = {
+	.buttons	= gpio_buttons,
+	.nbuttons	= ARRAY_SIZE(gpio_buttons),
+};
 
 /* Dummy supplies, where voltage doesn't matter */
 static struct regulator_consumer_supply dummy_supplies[] = {
@@ -172,6 +226,12 @@ static void __init ape6evm_add_standard_devices(void)
 	platform_device_register_resndata(&platform_bus, "sh_mobile_sdhi", 1,
 					  sdhi1_resources, ARRAY_SIZE(sdhi1_resources),
 					  &sdhi1_pdata, sizeof(sdhi1_pdata));
+	platform_device_register_data(&platform_bus, "gpio-keys", -1,
+				      &ape6evm_keys_pdata,
+				      sizeof(ape6evm_keys_pdata));
+	platform_device_register_data(&platform_bus, "leds-gpio", -1,
+				      &ape6evm_leds_pdata,
+				      sizeof(ape6evm_leds_pdata));
 }
 
 static const char *ape6evm_boards_compat_dt[] __initdata = {
