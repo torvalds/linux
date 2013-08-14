@@ -30,6 +30,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of.h>
 
 #include <drm/exynos_drm.h>
 

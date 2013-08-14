@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>

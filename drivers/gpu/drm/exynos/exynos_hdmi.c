@@ -32,6 +32,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 
 #include <drm/exynos_drm.h>
