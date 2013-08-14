@@ -98,3 +98,11 @@ config CRYPTO_DEV_FSL_CAAM_RNG_API
 
 	  To compile this as a module, choose M here: the module
 	  will be called caamrng.
+
+config CRYPTO_DEV_FSL_CAAM_DEBUG
+	bool "Enable debug output in CAAM driver"
+	depends on CRYPTO_DEV_FSL_CAAM
+	default n
+	help
+	  Selecting this will enable printing of various debug
+	  information in the CAAM driver.
