@@ -404,18 +404,13 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(&pdev->dev, "Unable to get register resource\n");
-		return -ENXIO;
-	}
-
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
 		dev_err(&pdev->dev, "AC97 IRQ not provided!\n");
 		return -ENXIO;
 	}
 
+	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	s3c_ac97.regs = devm_ioremap_resource(&pdev->dev, mem_res);
 	if (IS_ERR(s3c_ac97.regs))
 		return PTR_ERR(s3c_ac97.regs);
