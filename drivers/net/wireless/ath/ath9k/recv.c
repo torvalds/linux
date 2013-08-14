@@ -885,7 +885,6 @@ static int ath9k_process_rate(struct ath_common *common,
 
 static void ath9k_process_rssi(struct ath_common *common,
 			       struct ieee80211_hw *hw,
-			       struct ieee80211_hdr *hdr,
 			       struct ath_rx_status *rx_stats)
 {
 	struct ath_softc *sc = hw->priv;
@@ -1150,7 +1149,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		goto exit;
 	}
 
-	ath9k_process_rssi(common, hw, hdr, rx_stats);
+	ath9k_process_rssi(common, hw, rx_stats);
 
 	rx_status->band = hw->conf.chandef.chan->band;
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
