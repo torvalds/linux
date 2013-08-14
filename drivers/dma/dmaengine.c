@@ -504,7 +504,7 @@ static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
 }
 
 /**
- * dma_request_channel - try to get specific channel exclusively
+ * dma_request_slave_channel - try to get specific channel exclusively
  * @chan: target channel
  */
 struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
@@ -530,7 +530,7 @@ struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
 EXPORT_SYMBOL_GPL(dma_get_slave_channel);
 
 /**
- * dma_request_channel - try to allocate an exclusive channel
+ * __dma_request_channel - try to allocate an exclusive channel
  * @mask: capabilities that the channel must satisfy
  * @fn: optional callback to disposition available channels
  * @fn_param: opaque parameter to pass to dma_filter_fn
