@@ -1758,6 +1758,9 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 		adv7604_print_timings(sd, &timings, "Detected format:", true);
 	adv7604_print_timings(sd, &state->timings, "Configured format:", true);
 
+	if (no_signal(sd))
+		return 0;
+
 	v4l2_info(sd, "-----Color space-----\n");
 	v4l2_info(sd, "RGB quantization range ctrl: %s\n",
 			rgb_quantization_range_txt[state->rgb_quantization_range]);
@@ -1767,18 +1770,41 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 			(reg_io_0x02 & 0x02) ? "RGB" : "YCbCr",
 			(reg_io_0x02 & 0x04) ? "(16-235)" : "(0-255)",
 			((reg_io_0x02 & 0x04) ^ (reg_io_0x02 & 0x01)) ?
-					"enabled" : "disabled");
+				"enabled" : "disabled");
 	v4l2_info(sd, "Color space conversion: %s\n",
 			csc_coeff_sel_rb[cp_read(sd, 0xfc) >> 4]);
 
-	/* Digital video */
-	if (DIGITAL_INPUT) {
-		v4l2_info(sd, "-----HDMI status-----\n");
-		v4l2_info(sd, "HDCP encrypted content: %s\n",
-				hdmi_read(sd, 0x05) & 0x40 ? "true" : "false");
-		if (is_hdmi(sd))
-			v4l2_info(sd, "deep color mode: %s\n",
-					deep_color_mode_txt[(hdmi_read(sd, 0x0b) >> 5) & 0x3]);
+	if (!DIGITAL_INPUT)
+		return 0;
+
+	v4l2_info(sd, "-----%s status-----\n", is_hdmi(sd) ? "HDMI" : "DVI-D");
+	v4l2_info(sd, "HDCP encrypted content: %s\n", (hdmi_read(sd, 0x05) & 0x40) ? "true" : "false");
+	v4l2_info(sd, "HDCP keys read: %s%s\n",
+			(hdmi_read(sd, 0x04) & 0x20) ? "yes" : "no",
+			(hdmi_read(sd, 0x04) & 0x10) ? "ERROR" : "");
+	if (!is_hdmi(sd)) {
+		bool audio_pll_locked = hdmi_read(sd, 0x04) & 0x01;
+		bool audio_sample_packet_detect = hdmi_read(sd, 0x18) & 0x01;
+		bool audio_mute = io_read(sd, 0x65) & 0x40;
+
+		v4l2_info(sd, "Audio: pll %s, samples %s, %s\n",
+				audio_pll_locked ? "locked" : "not locked",
+				audio_sample_packet_detect ? "detected" : "not detected",
+				audio_mute ? "muted" : "enabled");
+		if (audio_pll_locked && audio_sample_packet_detect) {
+			v4l2_info(sd, "Audio format: %s\n",
+					(hdmi_read(sd, 0x07) & 0x20) ? "multi-channel" : "stereo");
+		}
+		v4l2_info(sd, "Audio CTS: %u\n", (hdmi_read(sd, 0x5b) << 12) +
+				(hdmi_read(sd, 0x5c) << 8) +
+				(hdmi_read(sd, 0x5d) & 0xf0));
+		v4l2_info(sd, "Audio N: %u\n", ((hdmi_read(sd, 0x5d) & 0x0f) << 16) +
+				(hdmi_read(sd, 0x5e) << 8) +
+				hdmi_read(sd, 0x5f));
+		v4l2_info(sd, "AV Mute: %s\n", (hdmi_read(sd, 0x04) & 0x40) ? "on" : "off");
+
+		v4l2_info(sd, "Deep color mode: %s\n", deep_color_mode_txt[(hdmi_read(sd, 0x0b) & 0x60) >> 5]);
+
 		print_avi_infoframe(sd);
 	}
 
