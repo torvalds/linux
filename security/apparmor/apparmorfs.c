@@ -773,6 +773,7 @@ static struct aa_fs_entry aa_fs_entry_features[] = {
 	AA_FS_DIR("file",			aa_fs_entry_file),
 	AA_FS_FILE_U64("capability",		VFS_CAP_FLAGS_MASK),
 	AA_FS_DIR("rlimit",			aa_fs_entry_rlimit),
+	AA_FS_DIR("caps",			aa_fs_entry_caps),
 	{ }
 };
 

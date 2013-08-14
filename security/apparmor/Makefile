@@ -18,7 +18,11 @@ quiet_cmd_make-caps = GEN     $@
 cmd_make-caps = echo "static const char *const capability_names[] = {" > $@ ;\
 	sed $< >>$@ -r -n -e '/CAP_FS_MASK/d' \
 	-e 's/^\#define[ \t]+CAP_([A-Z0-9_]+)[ \t]+([0-9]+)/[\2] = "\L\1",/p';\
-	echo "};" >> $@
+	echo "};" >> $@ ;\
+	echo -n '\#define AA_FS_CAPS_MASK "' >> $@ ;\
+	sed $< -r -n -e '/CAP_FS_MASK/d' \
+	    -e 's/^\#define[ \t]+CAP_([A-Z0-9_]+)[ \t]+([0-9]+)/\L\1/p' | \
+	     tr '\n' ' ' | sed -e 's/ $$/"\n/' >> $@
 
 
 # Build a lower case string table of rlimit names.
