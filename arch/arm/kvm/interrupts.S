@@ -492,10 +492,10 @@ __kvm_hyp_code_end:
 	.section ".rodata"
 
 und_die_str:
-	.ascii	"unexpected undefined exception in Hyp mode at: %#08x"
+	.ascii	"unexpected undefined exception in Hyp mode at: %#08x\n"
 pabt_die_str:
-	.ascii	"unexpected prefetch abort in Hyp mode at: %#08x"
+	.ascii	"unexpected prefetch abort in Hyp mode at: %#08x\n"
 dabt_die_str:
-	.ascii	"unexpected data abort in Hyp mode at: %#08x"
+	.ascii	"unexpected data abort in Hyp mode at: %#08x\n"
 svc_die_str:
-	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x"
+	.ascii	"unexpected HVC/SVC trap in Hyp mode at: %#08x\n"
