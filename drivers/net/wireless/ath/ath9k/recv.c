@@ -1256,10 +1256,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		    unlikely(tsf_lower - rs.rs_tstamp > 0x10000000))
 			rxs->mactime += 0x100000000ULL;
 
-		if (rs.rs_phyerr == ATH9K_PHYERR_RADAR)
+		if (rs.rs_status & ATH9K_RXERR_PHY) {
 			ath9k_dfs_process_phyerr(sc, hdr, &rs, rxs->mactime);
 
-		if (rs.rs_status & ATH9K_RXERR_PHY) {
 			if (ath_process_fft(sc, hdr, &rs, rxs->mactime)) {
 				RX_STAT_INC(rx_spectral);
 				goto requeue_drop_frag;
