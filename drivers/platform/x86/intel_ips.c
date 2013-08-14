@@ -1432,6 +1432,14 @@ static const struct dmi_system_id ips_blacklist[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP ProBook"),
 		},
 	},
+	{
+		.callback = ips_blacklist_callback,
+		.ident = "G60JX",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "G60JX"),
+		},
+	},
 	{ }	/* terminating entry */
 };
 
