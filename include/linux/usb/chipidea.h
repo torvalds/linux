@@ -18,7 +18,6 @@ struct ci_hdrc_platform_data {
 	unsigned long	 flags;
 #define CI_HDRC_REGS_SHARED		BIT(0)
 #define CI_HDRC_REQUIRE_TRANSCEIVER	BIT(1)
-#define CI_HDRC_PULLUP_ON_VBUS		BIT(2)
 #define CI_HDRC_DISABLE_STREAMING	BIT(3)
 	/*
 	 * Only set it when DCCPARAMS.DC==1 and DCCPARAMS.HC==1,

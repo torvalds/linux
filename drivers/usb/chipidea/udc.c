@@ -1448,9 +1448,6 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 	unsigned long flags;
 	int gadget_ready = 0;
 
-	if (!(ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS))
-		return -EOPNOTSUPP;
-
 	spin_lock_irqsave(&ci->lock, flags);
 	ci->vbus_active = is_active;
 	if (ci->driver)
@@ -1635,13 +1632,11 @@ static int ci_udc_start(struct usb_gadget *gadget,
 
 	ci->driver = driver;
 	pm_runtime_get_sync(&ci->gadget.dev);
-	if (ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS) {
-		if (ci->vbus_active) {
-			hw_device_reset(ci, USBMODE_CM_DC);
-		} else {
-			pm_runtime_put_sync(&ci->gadget.dev);
-			goto done;
-		}
+	if (ci->vbus_active) {
+		hw_device_reset(ci, USBMODE_CM_DC);
+	} else {
+		pm_runtime_put_sync(&ci->gadget.dev);
+		goto done;
 	}
 
 	retval = hw_device_state(ci, ci->ep0out->qh.dma);
@@ -1664,8 +1659,7 @@ static int ci_udc_stop(struct usb_gadget *gadget,
 
 	spin_lock_irqsave(&ci->lock, flags);
 
-	if (!(ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS) ||
-			ci->vbus_active) {
+	if (ci->vbus_active) {
 		hw_device_state(ci, 0);
 		if (ci->platdata->notify_event)
 			ci->platdata->notify_event(ci,
@@ -1798,12 +1792,6 @@ static int udc_start(struct ci_hdrc *ci)
 			retval = -ENODEV;
 			goto destroy_eps;
 		}
-	}
-
-	if (!(ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS)) {
-		retval = hw_device_reset(ci, USBMODE_CM_DC);
-		if (retval)
-			goto put_transceiver;
 	}
 
 	if (ci->transceiver) {
