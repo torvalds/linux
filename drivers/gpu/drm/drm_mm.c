@@ -346,6 +346,9 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 	struct drm_mm *mm = node->mm;
 	struct drm_mm_node *prev_node;
 
+	if (WARN_ON(!node->allocated))
+		return;
+
 	BUG_ON(node->scanned_block || node->scanned_prev_free
 				   || node->scanned_next_free);
 
