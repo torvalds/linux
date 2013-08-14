@@ -430,11 +430,10 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 		if (pdata->pending.status && pdata->pending.attr_usage_id ==
 				report->field[i]->usage->hid) {
 			hid_dbg(hdev, "data was pending ...\n");
-			pdata->pending.raw_data = kmalloc(sz, GFP_ATOMIC);
-			if (pdata->pending.raw_data) {
-				memcpy(pdata->pending.raw_data, ptr, sz);
+			pdata->pending.raw_data = kmemdup(ptr, sz, GFP_ATOMIC);
+			if (pdata->pending.raw_data)
 				pdata->pending.raw_size = sz;
-			} else
+			else
 				pdata->pending.raw_size = 0;
 			complete(&pdata->pending.ready);
 		}
