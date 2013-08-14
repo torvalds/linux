@@ -310,7 +310,6 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	if (!obj)
 		return -ENOENT;
 
-	mutex_lock(&file_priv->prime.lock);
 	/* re-export the original imported object */
 	if (obj->import_attach) {
 		dmabuf = obj->import_attach->dmabuf;
@@ -332,6 +331,7 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	}
 	obj->export_dma_buf = dmabuf;
 
+	mutex_lock(&file_priv->prime.lock);
 	/* if we've exported this buffer the cheat and add it to the import list
 	 * so we get the correct handle back
 	 */
@@ -363,13 +363,13 @@ out_have_obj:
 fail_rm_handle:
 	drm_prime_remove_buf_handle_locked(&file_priv->prime,
 					   dmabuf);
+	mutex_unlock(&file_priv->prime.lock);
 fail_put_dmabuf:
 	/* clear NOT to be checked when releasing dma_buf */
 	obj->export_dma_buf = NULL;
 	dma_buf_put(dmabuf);
 out:
 	drm_gem_object_unreference_unlocked(obj);
-	mutex_unlock(&file_priv->prime.lock);
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
