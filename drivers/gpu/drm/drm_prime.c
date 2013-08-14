@@ -444,10 +444,8 @@ int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 
 	ret = drm_prime_lookup_buf_handle(&file_priv->prime,
 			dma_buf, handle);
-	if (!ret) {
-		ret = 0;
+	if (ret == 0)
 		goto out_put;
-	}
 
 	/* never seen this one, need to import */
 	obj = dev->driver->gem_prime_import(dev, dma_buf);
