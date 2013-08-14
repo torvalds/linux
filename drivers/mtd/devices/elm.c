@@ -368,11 +368,6 @@ static int elm_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
-		return -ENODEV;
-	}
-
 	info->elm_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(info->elm_base))
 		return PTR_ERR(info->elm_base);
