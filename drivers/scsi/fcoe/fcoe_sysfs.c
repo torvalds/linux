@@ -300,29 +300,29 @@ static ssize_t store_ctlr_mode(struct device *dev,
 
 	switch (ctlr->enabled) {
 	case FCOE_CTLR_ENABLED:
-		LIBFCOE_SYSFS_DBG(ctlr, "Cannot change mode when enabled.");
+		LIBFCOE_SYSFS_DBG(ctlr, "Cannot change mode when enabled.\n");
 		return -EBUSY;
 	case FCOE_CTLR_DISABLED:
 		if (!ctlr->f->set_fcoe_ctlr_mode) {
 			LIBFCOE_SYSFS_DBG(ctlr,
-					  "Mode change not supported by LLD.");
+					  "Mode change not supported by LLD.\n");
 			return -ENOTSUPP;
 		}
 
 		ctlr->mode = fcoe_parse_mode(mode);
 		if (ctlr->mode == FIP_CONN_TYPE_UNKNOWN) {
-			LIBFCOE_SYSFS_DBG(ctlr,
-					  "Unknown mode %s provided.", buf);
+			LIBFCOE_SYSFS_DBG(ctlr, "Unknown mode %s provided.\n",
+					  buf);
 			return -EINVAL;
 		}
 
 		ctlr->f->set_fcoe_ctlr_mode(ctlr);
-		LIBFCOE_SYSFS_DBG(ctlr, "Mode changed to %s.", buf);
+		LIBFCOE_SYSFS_DBG(ctlr, "Mode changed to %s.\n", buf);
 
 		return count;
 	case FCOE_CTLR_UNUSED:
 	default:
-		LIBFCOE_SYSFS_DBG(ctlr, "Mode change not supported.");
+		LIBFCOE_SYSFS_DBG(ctlr, "Mode change not supported.\n");
 		return -ENOTSUPP;
 	};
 }
