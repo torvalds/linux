@@ -532,7 +532,7 @@ void cdv_intel_disable_self_refresh(struct drm_device *dev)
 
 }
 
-void cdv_intel_update_watermark(struct drm_device *dev, struct drm_crtc *crtc)
+void cdv_update_wm(struct drm_device *dev, struct drm_crtc *crtc)
 {
 
 	if (cdv_intel_single_pipe_active(dev)) {

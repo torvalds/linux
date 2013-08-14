@@ -321,7 +321,7 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 
 	if (IS_CDV(dev))
-		cdv_intel_update_watermark(dev, crtc);
+		dev_priv->ops->update_wm(dev, crtc);
 
 	/* Set FIFO watermarks */
 	REG_WRITE(DSPARB, 0x3F3E);

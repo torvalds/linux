@@ -657,4 +657,5 @@ const struct psb_ops cdv_chip_ops = {
 	.restore_regs = cdv_restore_display_registers,
 	.power_down = cdv_power_down,
 	.power_up = cdv_power_up,
+	.update_wm = cdv_update_wm,
 };
