@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <linux/pinctrl/consumer.h>
 
 #include "sirfsoc_uart.h"
 
@@ -893,17 +892,10 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 	}
 	port->irq = res->start;
 
-	if (sirfport->hw_flow_ctrl) {
-		sirfport->p = pinctrl_get_select_default(&pdev->dev);
-		ret = IS_ERR(sirfport->p);
-		if (ret)
-			goto err;
-	}
-
 	sirfport->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sirfport->clk)) {
 		ret = PTR_ERR(sirfport->clk);
-		goto clk_err;
+		goto err;
 	}
 	clk_prepare_enable(sirfport->clk);
 	port->uartclk = clk_get_rate(sirfport->clk);
@@ -923,9 +915,6 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 port_err:
 	clk_disable_unprepare(sirfport->clk);
 	clk_put(sirfport->clk);
-clk_err:
-	if (sirfport->hw_flow_ctrl)
-		pinctrl_put(sirfport->p);
 err:
 	return ret;
 }
@@ -934,9 +923,6 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 {
 	struct sirfsoc_uart_port *sirfport = platform_get_drvdata(pdev);
 	struct uart_port *port = &sirfport->port;
-
-	if (sirfport->hw_flow_ctrl)
-		pinctrl_put(sirfport->p);
 	clk_disable_unprepare(sirfport->clk);
 	clk_put(sirfport->clk);
 	uart_remove_one_port(&sirfsoc_uart_drv, port);
