@@ -432,8 +432,10 @@ out:
 }
 
 /*
- * This is only called from close_ctree() or open_ctree(), both in single-
- * treaded paths. Clean up the in-memory structures. No locking needed.
+ * This is called from close_ctree() or open_ctree() or btrfs_quota_disable(),
+ * first two are in single-threaded paths.And for the third one, we have set
+ * quota_root to be null with qgroup_lock held before, so it is safe to clean
+ * up the in-memory structures without qgroup_lock held.
  */
 void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info)
 {
@@ -937,8 +939,9 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	fs_info->pending_quota_state = 0;
 	quota_root = fs_info->quota_root;
 	fs_info->quota_root = NULL;
-	btrfs_free_qgroup_config(fs_info);
 	spin_unlock(&fs_info->qgroup_lock);
+
+	btrfs_free_qgroup_config(fs_info);
 
 	if (!quota_root) {
 		ret = -EINVAL;
