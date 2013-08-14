@@ -909,6 +909,7 @@ void psched_ratecfg_precompute(struct psched_ratecfg *r,
 	memset(r, 0, sizeof(*r));
 	r->overhead = conf->overhead;
 	r->rate_bytes_ps = conf->rate;
+	r->linklayer = (conf->linklayer & TC_LINKLAYER_MASK);
 	r->mult = 1;
 	/*
 	 * The deal here is to replace a divide by a reciprocal one
