@@ -3453,8 +3453,8 @@ static void gen6_enable_rps_interrupts(struct drm_device *dev)
 	I915_WRITE(GEN6_PMIMR, I915_READ(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
 	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->irq_lock);
-	/* unmask all PM interrupts */
-	I915_WRITE(GEN6_PMINTRMSK, 0);
+	/* only unmask PM interrupts we need. Mask all others. */
+	I915_WRITE(GEN6_PMINTRMSK, ~GEN6_PM_RPS_EVENTS);
 }
 
 static void gen6_enable_rps(struct drm_device *dev)
