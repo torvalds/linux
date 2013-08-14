@@ -611,11 +611,6 @@ static void sunxi_musb_enable(struct musb *musb)
 {
 	pr_debug("%s():\n", __func__);
 
-	/* flush pending interrupts */
-	musb_writeb(musb->mregs, MUSB_INTRUSB, 0xff);
-	musb_writew(musb->mregs, MUSB_INTRTX, 0x3f);
-	musb_writew(musb->mregs, MUSB_INTRRX, 0x3f);
-
 	/* select PIO mode */
 	USBC_SelectBus(musb->mregs, USBC_IO_TYPE_PIO, 0, 0);
 
