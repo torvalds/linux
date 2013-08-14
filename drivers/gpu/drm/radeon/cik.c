@@ -6316,6 +6316,10 @@ void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer)
 		buffer[count++] = cpu_to_le32(0x00000000); /* XXX */
 		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
+	case CHIP_HAWAII:
+		buffer[count++] = 0x3a00161a;
+		buffer[count++] = 0x0000002e;
+		break;
 	default:
 		buffer[count++] = cpu_to_le32(0x00000000);
 		buffer[count++] = cpu_to_le32(0x00000000);
