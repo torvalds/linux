@@ -418,11 +418,6 @@ static int tpu_probe(struct platform_device *pdev)
 
 	/* Map memory, get clock and pin control. */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get I/O memory\n");
-		return -ENXIO;
-	}
-
 	tpu->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(tpu->base))
 		return PTR_ERR(tpu->base);
