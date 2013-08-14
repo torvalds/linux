@@ -23,6 +23,10 @@ Optional properties:
 - calxeda,tx-atten  : a u32 array that contains TX attenuation override
 			codes, one per port. The upper 3 bytes are always
 			0 and thus ignored.
+- calxeda,pre-clocks : a u32 that indicates the number of additional clock
+			cycles to transmit before sending an SGPIO pattern
+- calxeda,post-clocks: a u32 that indicates the number of additional clock
+			cycles to transmit after sending an SGPIO pattern
 
 Example:
         sata@ffe08000 {
@@ -35,4 +39,6 @@ Example:
 		calxeda,sgpio-gpio =<&gpioh 5 1 &gpioh 6 1 &gpioh 7 1>;
 		calxeda,led-order = <4 0 1 2 3>;
 		calxeda,tx-atten = <0xff 22 0xff 0xff 23>;
+		calxeda,pre-clocks = <10>;
+		calxeda,post-clocks = <0>;
         };

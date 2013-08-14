@@ -84,6 +84,9 @@ static DEFINE_SPINLOCK(sgpio_lock);
 
 struct ecx_plat_data {
 	u32		n_ports;
+	/* number of extra clocks that the SGPIO PIC controller expects */
+	u32		pre_clocks;
+	u32		post_clocks;
 	unsigned	sgpio_gpio[SGPIO_PINS];
 	u32		sgpio_pattern;
 	u32		port_to_sgpio[SGPIO_PORTS];
@@ -160,6 +163,9 @@ static ssize_t ecx_transmit_led_message(struct ata_port *ap, u32 state,
 	spin_lock_irqsave(&sgpio_lock, flags);
 	ecx_parse_sgpio(pdata, ap->port_no, state);
 	sgpio_out = pdata->sgpio_pattern;
+	for (i = 0; i < pdata->pre_clocks; i++)
+		ecx_led_cycle_clock(pdata);
+
 	gpio_set_value(pdata->sgpio_gpio[SLOAD], 1);
 	ecx_led_cycle_clock(pdata);
 	gpio_set_value(pdata->sgpio_gpio[SLOAD], 0);
@@ -172,6 +178,8 @@ static ssize_t ecx_transmit_led_message(struct ata_port *ap, u32 state,
 		sgpio_out >>= 1;
 		ecx_led_cycle_clock(pdata);
 	}
+	for (i = 0; i < pdata->post_clocks; i++)
+		ecx_led_cycle_clock(pdata);
 
 	/* save off new led state for port/slot */
 	emp->led_state = state;
@@ -206,6 +214,11 @@ static void highbank_set_em_messages(struct device *dev,
 	of_property_read_u32_array(np, "calxeda,led-order",
 						pdata->port_to_sgpio,
 						pdata->n_ports);
+	if (of_property_read_u32(np, "calxeda,pre-clocks", &pdata->pre_clocks))
+		pdata->pre_clocks = 0;
+	if (of_property_read_u32(np, "calxeda,post-clocks",
+				&pdata->post_clocks))
+		pdata->post_clocks = 0;
 
 	/* store em_loc */
 	hpriv->em_loc = 0;
