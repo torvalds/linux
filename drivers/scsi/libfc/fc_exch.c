@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/log2.h>
 
 #include <scsi/fc/fc_fc2.h>
 
@@ -2530,13 +2531,8 @@ int fc_setup_exch_mgr(void)
 	 * cpu on which exchange originated by simple bitwise
 	 * AND operation between fc_cpu_mask and exchange id.
 	 */
-	fc_cpu_mask = 1;
-	fc_cpu_order = 0;
-	while (fc_cpu_mask < nr_cpu_ids) {
-		fc_cpu_mask <<= 1;
-		fc_cpu_order++;
-	}
-	fc_cpu_mask--;
+	fc_cpu_order = ilog2(roundup_pow_of_two(nr_cpu_ids));
+	fc_cpu_mask = (1 << fc_cpu_order) - 1;
 
 	fc_exch_workqueue = create_singlethread_workqueue("fc_exch_workqueue");
 	if (!fc_exch_workqueue)
