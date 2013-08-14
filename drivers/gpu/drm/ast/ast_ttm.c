@@ -321,7 +321,6 @@ int ast_bo_create(struct drm_device *dev, int size, int align,
 		return ret;
 	}
 
-	astbo->gem.driver_private = NULL;
 	astbo->bo.bdev = &ast->ttm.bdev;
 
 	ast_ttm_placement(astbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
