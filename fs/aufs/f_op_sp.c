@@ -37,7 +37,7 @@ static struct au_sphlhead au_finfo_sp = {
 
 struct au_finfo_sp {
 	struct hlist_node	hlist;
-	struct file 		*file;
+	struct file		*file;
 	struct au_finfo		*finfo;
 };
 
