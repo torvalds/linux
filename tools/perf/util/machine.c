@@ -1031,11 +1031,27 @@ out_problem:
 	return 0;
 }
 
+static void machine__remove_thread(struct machine *machine, struct thread *th)
+{
+	machine->last_match = NULL;
+	rb_erase(&th->rb_node, &machine->threads);
+	/*
+	 * We may have references to this thread, for instance in some hist_entry
+	 * instances, so just move them to a separate list.
+	 */
+	list_add_tail(&th->node, &machine->dead_threads);
+}
+
 int machine__process_fork_event(struct machine *machine, union perf_event *event)
 {
-	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);
+	struct thread *thread = machine__find_thread(machine, event->fork.tid);
 	struct thread *parent = machine__findnew_thread(machine, event->fork.ptid);
 
+	/* if a thread currently exists for the thread id remove it */
+	if (thread != NULL)
+		machine__remove_thread(machine, thread);
+
+	thread = machine__findnew_thread(machine, event->fork.tid);
 	if (dump_trace)
 		perf_event__fprintf_task(event, stdout);
 
@@ -1048,18 +1064,8 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 	return 0;
 }
 
-static void machine__remove_thread(struct machine *machine, struct thread *th)
-{
-	machine->last_match = NULL;
-	rb_erase(&th->rb_node, &machine->threads);
-	/*
-	 * We may have references to this thread, for instance in some hist_entry
-	 * instances, so just move them to a separate list.
-	 */
-	list_add_tail(&th->node, &machine->dead_threads);
-}
-
-int machine__process_exit_event(struct machine *machine, union perf_event *event)
+int machine__process_exit_event(struct machine *machine __maybe_unused,
+				union perf_event *event)
 {
 	struct thread *thread = machine__find_thread(machine, event->fork.tid);
 
@@ -1067,7 +1073,7 @@ int machine__process_exit_event(struct machine *machine, union perf_event *event
 		perf_event__fprintf_task(event, stdout);
 
 	if (thread != NULL)
-		machine__remove_thread(machine, thread);
+		thread__exited(thread);
 
 	return 0;
 }
