@@ -131,14 +131,14 @@ static void au_show_wbr_create(struct seq_file *m, int v,
 
 	AuRwMustAnyLock(&sbinfo->si_rwsem);
 
-	seq_printf(m, ",create=");
+	seq_puts(m, ",create=");
 	pat = au_optstr_wbr_create(v);
 	switch (v) {
 	case AuWbrCreate_TDP:
 	case AuWbrCreate_RR:
 	case AuWbrCreate_MFS:
 	case AuWbrCreate_PMFS:
-		seq_printf(m, pat);
+		seq_puts(m, pat);
 		break;
 	case AuWbrCreate_MFSV:
 		seq_printf(m, /*pat*/"mfs:%lu",
