@@ -280,6 +280,9 @@ extern struct device_node *of_parse_phandle(const struct device_node *np,
 extern int of_parse_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name, int index,
 	struct of_phandle_args *out_args);
+extern int of_parse_phandle_with_fixed_args(const struct device_node *np,
+	const char *list_name, int cells_count, int index,
+	struct of_phandle_args *out_args);
 extern int of_count_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name);
 
@@ -473,6 +476,13 @@ static inline int of_parse_phandle_with_args(struct device_node *np,
 					     const char *cells_name,
 					     int index,
 					     struct of_phandle_args *out_args)
+{
+	return -ENOSYS;
+}
+
+static inline int of_parse_phandle_with_fixed_args(const struct device_node *np,
+	const char *list_name, int cells_count, int index,
+	struct of_phandle_args *out_args)
 {
 	return -ENOSYS;
 }
