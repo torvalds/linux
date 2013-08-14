@@ -1111,13 +1111,20 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 		if (phandle) {
 			/*
 			 * Find the provider node and parse the #*-cells
-			 * property to determine the argument length
+			 * property to determine the argument length.
+			 *
+			 * This is not needed if the cell count is hard-coded
+			 * (i.e. cells_name not set, but cell_count is set),
+			 * except when we're going to return the found node
+			 * below.
 			 */
-			node = of_find_node_by_phandle(phandle);
-			if (!node) {
-				pr_err("%s: could not find phandle\n",
-					 np->full_name);
-				goto err;
+			if (cells_name || cur_index == index) {
+				node = of_find_node_by_phandle(phandle);
+				if (!node) {
+					pr_err("%s: could not find phandle\n",
+						np->full_name);
+					goto err;
+				}
 			}
 
 			if (cells_name) {
@@ -1202,14 +1209,16 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 struct device_node *of_parse_phandle(const struct device_node *np,
 				     const char *phandle_name, int index)
 {
-	const __be32 *phandle;
-	int size;
+	struct of_phandle_args args;
 
-	phandle = of_get_property(np, phandle_name, &size);
-	if ((!phandle) || (size < sizeof(*phandle) * (index + 1)))
+	if (index < 0)
 		return NULL;
 
-	return of_find_node_by_phandle(be32_to_cpup(phandle + index));
+	if (__of_parse_phandle_with_args(np, phandle_name, NULL, 0,
+					 index, &args))
+		return NULL;
+
+	return args.np;
 }
 EXPORT_SYMBOL(of_parse_phandle);
 
