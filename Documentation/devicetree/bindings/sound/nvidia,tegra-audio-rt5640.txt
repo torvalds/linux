@@ -16,6 +16,7 @@ Required properties:
 
   * Headphones
   * Speakers
+  * Mic Jack
 
 - nvidia,i2s-controller : The phandle of the Tegra I2S controller that's
   connected to the CODEC.
