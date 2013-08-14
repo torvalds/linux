@@ -719,7 +719,8 @@ static int regcache_sync_block_raw(struct regmap *map, void *block,
 		}
 	}
 
-	return regcache_sync_block_raw_flush(map, &data, base, regtmp);
+	return regcache_sync_block_raw_flush(map, &data, base, regtmp +
+			map->reg_stride);
 }
 
 int regcache_sync_block(struct regmap *map, void *block,

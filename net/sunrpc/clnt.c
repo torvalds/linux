@@ -309,6 +309,7 @@ static int rpc_client_register(const struct rpc_create_args *args,
 	return 0;
 err_auth:
 	pipefs_sb = rpc_get_sb_net(net);
+	rpc_unregister_client(clnt);
 	__rpc_clnt_remove_pipedir(clnt);
 out:
 	if (pipefs_sb)
@@ -1659,6 +1660,10 @@ call_connect(struct rpc_task *task)
 		task->tk_action = call_connect_status;
 		if (task->tk_status < 0)
 			return;
+		if (task->tk_flags & RPC_TASK_NOCONNECT) {
+			rpc_exit(task, -ENOTCONN);
+			return;
+		}
 		xprt_connect(task);
 	}
 }

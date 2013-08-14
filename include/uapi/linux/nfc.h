@@ -69,8 +69,8 @@
  *	starting a poll from a device which has a secure element enabled means
  *	we want to do SE based card emulation.
  * @NFC_CMD_DISABLE_SE: Disable the physical link to a specific secure element.
- * @NFC_CMD_FW_UPLOAD: Request to Load/flash firmware, or event to inform that
- *	some firmware was loaded
+ * @NFC_CMD_FW_DOWNLOAD: Request to Load/flash firmware, or event to inform
+ *	that some firmware was loaded
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -94,7 +94,7 @@ enum nfc_commands {
 	NFC_CMD_DISABLE_SE,
 	NFC_CMD_LLC_SDREQ,
 	NFC_EVENT_LLC_SDRES,
-	NFC_CMD_FW_UPLOAD,
+	NFC_CMD_FW_DOWNLOAD,
 	NFC_EVENT_SE_ADDED,
 	NFC_EVENT_SE_REMOVED,
 /* private: internal use only */

@@ -113,14 +113,25 @@ static int omap_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_dmaengine_dai_dma_data *dma_data;
+	int ret;
 
 	snd_soc_set_runtime_hwparams(substream, &omap_pcm_hardware);
 
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
-	return snd_dmaengine_pcm_open_request_chan(substream,
-						   omap_dma_filter_fn,
-						   dma_data->filter_data);
+	/* DT boot: filter_data is the DMA name */
+	if (rtd->cpu_dai->dev->of_node) {
+		struct dma_chan *chan;
+
+		chan = dma_request_slave_channel(rtd->cpu_dai->dev,
+						 dma_data->filter_data);
+		ret = snd_dmaengine_pcm_open(substream, chan);
+	} else {
+		ret = snd_dmaengine_pcm_open_request_chan(substream,
+							  omap_dma_filter_fn,
+							  dma_data->filter_data);
+	}
+	return ret;
 }
 
 static int omap_pcm_mmap(struct snd_pcm_substream *substream,

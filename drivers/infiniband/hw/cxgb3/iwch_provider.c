@@ -226,6 +226,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 			mm->len = PAGE_ALIGN(((1UL << uresp.size_log2) + 1) *
 					     sizeof(struct t3_cqe));
 			uresp.memsize = mm->len;
+			uresp.reserved = 0;
 			resplen = sizeof uresp;
 		}
 		if (ib_copy_to_udata(udata, &uresp, resplen)) {

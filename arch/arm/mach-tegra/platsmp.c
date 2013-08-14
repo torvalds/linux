@@ -35,7 +35,7 @@
 
 static cpumask_t tegra_cpu_init_mask;
 
-static void __cpuinit tegra_secondary_init(unsigned int cpu)
+static void tegra_secondary_init(unsigned int cpu)
 {
 	cpumask_set_cpu(cpu, &tegra_cpu_init_mask);
 }
@@ -167,7 +167,7 @@ static int tegra114_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return ret;
 }
 
-static int __cpuinit tegra_boot_secondary(unsigned int cpu,
+static int tegra_boot_secondary(unsigned int cpu,
 					  struct task_struct *idle)
 {
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC) && tegra_chip_id == TEGRA20)

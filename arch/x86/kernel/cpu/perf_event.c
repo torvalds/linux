@@ -1295,7 +1295,7 @@ perf_event_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 struct event_constraint emptyconstraint;
 struct event_constraint unconstrained;
 
-static int __cpuinit
+static int
 x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;

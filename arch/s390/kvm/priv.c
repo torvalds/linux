@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/compat.h>
 #include <asm/asm-offsets.h>
+#include <asm/facility.h>
 #include <asm/current.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
@@ -532,8 +533,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	/* Only provide non-quiescing support if the host supports it */
-	if (vcpu->run->s.regs.gprs[reg1] & PFMF_NQ &&
-	    S390_lowcore.stfl_fac_list & 0x00020000)
+	if (vcpu->run->s.regs.gprs[reg1] & PFMF_NQ && !test_facility(14))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
 	/* No support for conditional-SSKE */

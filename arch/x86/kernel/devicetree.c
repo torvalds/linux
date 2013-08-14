@@ -133,7 +133,7 @@ static void x86_of_pci_irq_disable(struct pci_dev *dev)
 {
 }
 
-void __cpuinit x86_of_pci_init(void)
+void x86_of_pci_init(void)
 {
 	pcibios_enable_irq = x86_of_pci_irq_enable;
 	pcibios_disable_irq = x86_of_pci_irq_disable;

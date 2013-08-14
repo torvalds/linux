@@ -24,7 +24,7 @@ static DEFINE_SPINLOCK(boot_lock);
 
 static void __iomem *scu_base = IOMEM(VA_SCU_BASE);
 
-static void __cpuinit spear13xx_secondary_init(unsigned int cpu)
+static void spear13xx_secondary_init(unsigned int cpu)
 {
 	/*
 	 * let the primary processor know we're out of the
@@ -40,7 +40,7 @@ static void __cpuinit spear13xx_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static int __cpuinit spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 

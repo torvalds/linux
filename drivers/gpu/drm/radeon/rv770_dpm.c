@@ -2099,12 +2099,14 @@ void rv770_dpm_setup_asic(struct radeon_device *rdev)
 
 	rv770_enable_acpi_pm(rdev);
 
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L0s)
-		rv770_enable_l0s(rdev);
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L1)
-		rv770_enable_l1(rdev);
-	if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1)
-		rv770_enable_pll_sleep_in_l1(rdev);
+	if (radeon_aspm != 0) {
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L0s)
+			rv770_enable_l0s(rdev);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_ASPM_L1)
+			rv770_enable_l1(rdev);
+		if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1)
+			rv770_enable_pll_sleep_in_l1(rdev);
+	}
 }
 
 void rv770_dpm_display_configuration_changed(struct radeon_device *rdev)
@@ -2317,12 +2319,25 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 	return 0;
 }
 
+void rv770_get_engine_memory_ss(struct radeon_device *rdev)
+{
+	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
+	struct radeon_atom_ss ss;
+
+	pi->sclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
+						       ASIC_INTERNAL_ENGINE_SS, 0);
+	pi->mclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
+						       ASIC_INTERNAL_MEMORY_SS, 0);
+
+	if (pi->sclk_ss || pi->mclk_ss)
+		pi->dynamic_ss = true;
+	else
+		pi->dynamic_ss = false;
+}
+
 int rv770_dpm_init(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi;
-	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
-	uint16_t data_offset, size;
-	uint8_t frev, crev;
 	struct atom_clock_dividers dividers;
 	int ret;
 
@@ -2367,16 +2382,7 @@ int rv770_dpm_init(struct radeon_device *rdev)
 	pi->mvdd_control =
 		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_MVDDC, 0);
 
-	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
-                                   &frev, &crev, &data_offset)) {
-		pi->sclk_ss = true;
-		pi->mclk_ss = true;
-		pi->dynamic_ss = true;
-	} else {
-		pi->sclk_ss = false;
-		pi->mclk_ss = false;
-		pi->dynamic_ss = false;
-	}
+	rv770_get_engine_memory_ss(rdev);
 
 	pi->asi = RV770_ASI_DFLT;
 	pi->pasi = RV770_HASI_DFLT;
@@ -2391,8 +2397,7 @@ int rv770_dpm_init(struct radeon_device *rdev)
 
 	pi->dynamic_pcie_gen2 = true;
 
-	if (pi->gfx_clock_gating &&
-	    (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE))
+	if (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE)
 		pi->thermal_protection = true;
 	else
 		pi->thermal_protection = false;

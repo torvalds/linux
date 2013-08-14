@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <asm/memory.h>
 
-	__CPUINIT
 /*
  * Boot code for secondary CPUs.
  *

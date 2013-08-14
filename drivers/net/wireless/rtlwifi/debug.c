@@ -51,3 +51,4 @@ void rtl_dbgp_flag_init(struct ieee80211_hw *hw)
 
 	/*Init Debug flag enable condition */
 }
+EXPORT_SYMBOL_GPL(rtl_dbgp_flag_init);

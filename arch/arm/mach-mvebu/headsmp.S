@@ -21,8 +21,6 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-	__CPUINIT
-
 /*
  * Armada XP specific entry point for secondary CPUs.
  * We add the CPU to the coherency fabric and then jump to secondary

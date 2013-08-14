@@ -974,7 +974,7 @@ static int i5100_setup_debugfs(struct mem_ctl_info *mci)
 	if (!i5100_debugfs)
 		return -ENODEV;
 
-	priv->debugfs = debugfs_create_dir(mci->bus.name, i5100_debugfs);
+	priv->debugfs = debugfs_create_dir(mci->bus->name, i5100_debugfs);
 
 	if (!priv->debugfs)
 		return -ENOMEM;

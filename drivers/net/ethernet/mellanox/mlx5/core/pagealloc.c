@@ -64,7 +64,7 @@ struct mlx5_query_pages_inbox {
 
 struct mlx5_query_pages_outbox {
 	struct mlx5_outbox_hdr	hdr;
-	u8			reserved[2];
+	__be16			num_boot_pages;
 	__be16			func_id;
 	__be16			init_pages;
 	__be16			num_pages;
@@ -146,7 +146,7 @@ static struct page *remove_page(struct mlx5_core_dev *dev, u64 addr)
 }
 
 static int mlx5_cmd_query_pages(struct mlx5_core_dev *dev, u16 *func_id,
-				s16 *pages, s16 *init_pages)
+				s16 *pages, s16 *init_pages, u16 *boot_pages)
 {
 	struct mlx5_query_pages_inbox	in;
 	struct mlx5_query_pages_outbox	out;
@@ -164,8 +164,13 @@ static int mlx5_cmd_query_pages(struct mlx5_core_dev *dev, u16 *func_id,
 
 	if (pages)
 		*pages = be16_to_cpu(out.num_pages);
+
 	if (init_pages)
 		*init_pages = be16_to_cpu(out.init_pages);
+
+	if (boot_pages)
+		*boot_pages = be16_to_cpu(out.num_boot_pages);
+
 	*func_id = be16_to_cpu(out.func_id);
 
 	return err;
@@ -357,19 +362,22 @@ void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
 	queue_work(dev->priv.pg_wq, &req->work);
 }
 
-int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev)
+int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot)
 {
+	u16 uninitialized_var(boot_pages);
 	s16 uninitialized_var(init_pages);
 	u16 uninitialized_var(func_id);
 	int err;
 
-	err = mlx5_cmd_query_pages(dev, &func_id, NULL, &init_pages);
+	err = mlx5_cmd_query_pages(dev, &func_id, NULL, &init_pages,
+				   &boot_pages);
 	if (err)
 		return err;
 
-	mlx5_core_dbg(dev, "requested %d init pages for func_id 0x%x\n", init_pages, func_id);
 
-	return give_pages(dev, func_id, init_pages, 0);
+	mlx5_core_dbg(dev, "requested %d init pages and %d boot pages for func_id 0x%x\n",
+		      init_pages, boot_pages, func_id);
+	return give_pages(dev, func_id, boot ? boot_pages : init_pages, 0);
 }
 
 static int optimal_reclaimed_pages(void)

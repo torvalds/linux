@@ -340,6 +340,9 @@ int r600_uvd_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_gpu_pages, struct radeon_fence **fence);
+int r600_copy_cpdma(struct radeon_device *rdev,
+		    uint64_t src_offset, uint64_t dst_offset,
+		    unsigned num_gpu_pages, struct radeon_fence **fence);
 int r600_copy_dma(struct radeon_device *rdev,
 		  uint64_t src_offset, uint64_t dst_offset,
 		  unsigned num_gpu_pages, struct radeon_fence **fence);
@@ -418,6 +421,8 @@ void rv6xx_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
 void rv6xx_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						       struct seq_file *m);
+int rv6xx_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level);
 /* rs780 dpm */
 int rs780_dpm_init(struct radeon_device *rdev);
 int rs780_dpm_enable(struct radeon_device *rdev);
@@ -430,11 +435,13 @@ u32 rs780_dpm_get_sclk(struct radeon_device *rdev, bool low);
 u32 rs780_dpm_get_mclk(struct radeon_device *rdev, bool low);
 void rs780_dpm_print_power_state(struct radeon_device *rdev,
 				 struct radeon_ps *ps);
+void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
+						       struct seq_file *m);
 
 /* uvd */
 int r600_uvd_init(struct radeon_device *rdev);
 int r600_uvd_rbc_start(struct radeon_device *rdev);
-void r600_uvd_rbc_stop(struct radeon_device *rdev);
+void r600_uvd_stop(struct radeon_device *rdev);
 int r600_uvd_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r600_uvd_fence_emit(struct radeon_device *rdev,
 			 struct radeon_fence *fence);

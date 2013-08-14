@@ -686,7 +686,6 @@ static int device_close(struct inode *inode, struct file *file)
 	   device_remove_lockspace() */
 
 	sigprocmask(SIG_SETMASK, &tmpsig, NULL);
-	recalc_sigpending();
 
 	return 0;
 }
