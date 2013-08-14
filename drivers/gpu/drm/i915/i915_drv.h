@@ -563,6 +563,10 @@ struct i915_vma {
 	struct list_head mm_list;
 
 	struct list_head vma_link; /* Link in the object's VMA list */
+
+	/** This vma's place in the batchbuffer or on the eviction list */
+	struct list_head exec_list;
+
 };
 
 struct i915_ctx_hang_stats {
