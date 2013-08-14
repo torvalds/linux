@@ -219,6 +219,7 @@ struct aa_profile {
 	struct aa_caps caps;
 	struct aa_rlimit rlimits;
 
+	unsigned char *hash;
 	char *dirname;
 	struct dentry *dents[AAFS_PROF_SIZEOF];
 };

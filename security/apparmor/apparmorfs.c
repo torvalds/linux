@@ -26,6 +26,7 @@
 #include "include/apparmorfs.h"
 #include "include/audit.h"
 #include "include/context.h"
+#include "include/crypto.h"
 #include "include/policy.h"
 #include "include/resource.h"
 
@@ -319,6 +320,34 @@ static const struct file_operations aa_fs_profattach_fops = {
 	.release	= aa_fs_seq_profile_release,
 };
 
+static int aa_fs_seq_hash_show(struct seq_file *seq, void *v)
+{
+	struct aa_replacedby *r = seq->private;
+	struct aa_profile *profile = aa_get_profile_rcu(&r->profile);
+	unsigned int i, size = aa_hash_size();
+
+	if (profile->hash) {
+		for (i = 0; i < size; i++)
+			seq_printf(seq, "%.2x", profile->hash[i]);
+		seq_puts(seq, "\n");
+	}
+
+	return 0;
+}
+
+static int aa_fs_seq_hash_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, aa_fs_seq_hash_show, inode->i_private);
+}
+
+static const struct file_operations aa_fs_seq_hash_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_hash_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 /** fns to setup dynamic per profile/namespace files **/
 void __aa_fs_profile_rmdir(struct aa_profile *profile)
 {
@@ -419,6 +448,14 @@ int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 	if (IS_ERR(dent))
 		goto fail;
 	profile->dents[AAFS_PROF_ATTACH] = dent;
+
+	if (profile->hash) {
+		dent = create_profile_file(dir, "sha1", profile,
+					   &aa_fs_seq_hash_fops);
+		if (IS_ERR(dent))
+			goto fail;
+		profile->dents[AAFS_PROF_HASH] = dent;
+	}
 
 	list_for_each_entry(child, &profile->base.profiles, base.list) {
 		error = __aa_fs_profile_mkdir(child, prof_child_dir(profile));

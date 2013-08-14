@@ -82,6 +82,7 @@ enum aafs_prof_type {
 	AAFS_PROF_NAME,
 	AAFS_PROF_MODE,
 	AAFS_PROF_ATTACH,
+	AAFS_PROF_HASH,
 	AAFS_PROF_SIZEOF,
 };
 
