@@ -787,6 +787,10 @@ int truncate_xattr_node(struct inode *inode, struct page *page)
 		return PTR_ERR(npage);
 
 	F2FS_I(inode)->i_xattr_nid = 0;
+
+	/* need to do checkpoint during fsync */
+	F2FS_I(inode)->xattr_ver = cur_cp_version(F2FS_CKPT(sbi));
+
 	set_new_dnode(&dn, inode, page, npage, nid);
 
 	if (page)
@@ -1463,6 +1467,9 @@ void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i;
+
+	if (!nid)
+		return;
 
 	spin_lock(&nm_i->free_nid_list_lock);
 	i = __lookup_free_nid_list(nid, &nm_i->free_nid_list);

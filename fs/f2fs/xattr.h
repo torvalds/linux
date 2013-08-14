@@ -69,16 +69,16 @@ struct f2fs_xattr_entry {
 				!IS_XATTR_LAST_ENTRY(entry);\
 				entry = XATTR_NEXT_ENTRY(entry))
 
-#define MIN_OFFSET	XATTR_ALIGN(PAGE_SIZE - \
-			sizeof(struct node_footer) - \
-			sizeof(__u32))
+#define MIN_OFFSET(i)	XATTR_ALIGN(inline_xattr_size(i) + PAGE_SIZE -	\
+				sizeof(struct node_footer) - sizeof(__u32))
 
-#define MAX_VALUE_LEN	(MIN_OFFSET - sizeof(struct f2fs_xattr_header) - \
-			sizeof(struct f2fs_xattr_entry))
+#define MAX_VALUE_LEN(i)	(MIN_OFFSET(i) -			\
+				sizeof(struct f2fs_xattr_header) -	\
+				sizeof(struct f2fs_xattr_entry))
 
 /*
  * On-disk structure of f2fs_xattr
- * We use only 1 block for xattr.
+ * We use inline xattrs space + 1 block for xattr.
  *
  * +--------------------+
  * | f2fs_xattr_header  |
