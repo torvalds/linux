@@ -66,6 +66,8 @@ static void __init bmips_smp_setup(void)
 	int i, cpu = 1, boot_cpu = 0;
 
 #if defined(CONFIG_CPU_BMIPS4350) || defined(CONFIG_CPU_BMIPS4380)
+	int cpu_hw_intr;
+
 	/* arbitration priority */
 	clear_c0_brcm_cmt_ctrl(0x30);
 
@@ -80,8 +82,12 @@ static void __init bmips_smp_setup(void)
 	 * MIPS interrupt 2 (HW INT 0) is the CPU0 L1 controller output
 	 * MIPS interrupt 3 (HW INT 1) is the CPU1 L1 controller output
 	 */
-	change_c0_brcm_cmt_intr(0xf8018000,
-					(0x02 << 27) | (0x03 << 15));
+	if (boot_cpu == 0)
+		cpu_hw_intr = 0x02;
+	else
+		cpu_hw_intr = 0x1d;
+
+	change_c0_brcm_cmt_intr(0xf8018000, (cpu_hw_intr << 27) | (0x03 << 15));
 
 	/* single core, 2 threads (2 pipelines) */
 	max_cpus = 2;

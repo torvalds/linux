@@ -2478,6 +2478,10 @@ struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 	if (server->flags & NFS_MOUNT_NOAC)
 		sb_mntdata.mntflags |= MS_SYNCHRONOUS;
 
+	if (mount_info->cloned != NULL && mount_info->cloned->sb != NULL)
+		if (mount_info->cloned->sb->s_flags & MS_SYNCHRONOUS)
+			sb_mntdata.mntflags |= MS_SYNCHRONOUS;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
 	s = sget(nfs_mod->nfs_fs, compare_super, nfs_set_super, flags, &sb_mntdata);
 	if (IS_ERR(s)) {
