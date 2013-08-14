@@ -308,23 +308,26 @@ int drm_gem_dumb_destroy(struct drm_file *file,
 EXPORT_SYMBOL(drm_gem_dumb_destroy);
 
 /**
- * Create a handle for this object. This adds a handle reference
- * to the object, which includes a regular reference count. Callers
- * will likely want to dereference the object afterwards.
+ * drm_gem_handle_create_tail - internal functions to create a handle
+ * 
+ * This expects the dev->object_name_lock to be held already and will drop it
+ * before returning. Used to avoid races in establishing new handles when
+ * importing an object from either an flink name or a dma-buf.
  */
 int
-drm_gem_handle_create(struct drm_file *file_priv,
-		       struct drm_gem_object *obj,
-		       u32 *handlep)
+drm_gem_handle_create_tail(struct drm_file *file_priv,
+			   struct drm_gem_object *obj,
+			   u32 *handlep)
 {
 	struct drm_device *dev = obj->dev;
 	int ret;
+
+	WARN_ON(!mutex_is_locked(&dev->object_name_lock));
 
 	/*
 	 * Get the user-visible handle using idr.  Preload and perform
 	 * allocation under our spinlock.
 	 */
-	mutex_lock(&dev->object_name_lock);
 	idr_preload(GFP_KERNEL);
 	spin_lock(&file_priv->table_lock);
 
@@ -350,6 +353,21 @@ drm_gem_handle_create(struct drm_file *file_priv,
 	}
 
 	return 0;
+}
+
+/**
+ * Create a handle for this object. This adds a handle reference
+ * to the object, which includes a regular reference count. Callers
+ * will likely want to dereference the object afterwards.
+ */
+int
+drm_gem_handle_create(struct drm_file *file_priv,
+		       struct drm_gem_object *obj,
+		       u32 *handlep)
+{
+	mutex_lock(&obj->dev->object_name_lock);
+
+	return drm_gem_handle_create_tail(file_priv, obj, handlep);
 }
 EXPORT_SYMBOL(drm_gem_handle_create);
 
@@ -504,13 +522,15 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->object_name_lock);
 	obj = idr_find(&dev->object_name_idr, (int) args->name);
-	if (obj)
+	if (obj) {
 		drm_gem_object_reference(obj);
-	mutex_unlock(&dev->object_name_lock);
-	if (!obj)
+	} else {
+		mutex_unlock(&dev->object_name_lock);
 		return -ENOENT;
+	}
 
-	ret = drm_gem_handle_create(file_priv, obj, &handle);
+	/* drm_gem_handle_create_tail unlocks dev->object_name_lock. */
+	ret = drm_gem_handle_create_tail(file_priv, obj, &handle);
 	drm_gem_object_unreference_unlocked(obj);
 	if (ret)
 		return ret;

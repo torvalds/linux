@@ -1599,6 +1599,9 @@ drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 	}
 }
 
+int drm_gem_handle_create_tail(struct drm_file *file_priv,
+			       struct drm_gem_object *obj,
+			       u32 *handlep);
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
 			  u32 *handlep);
