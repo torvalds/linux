@@ -123,11 +123,16 @@ eb_lookup_vmas(struct eb_vmas *eb,
 	list_for_each_entry(obj, &objects, obj_exec_link) {
 		struct i915_vma *vma;
 
+		/*
+		 * NOTE: We can leak any vmas created here when something fails
+		 * later on. But that's no issue since vma_unbind can deal with
+		 * vmas which are not actually bound. And since only
+		 * lookup_or_create exists as an interface to get at the vma
+		 * from the (obj, vm) we don't run the risk of creating
+		 * duplicated vmas for the same vm.
+		 */
 		vma = i915_gem_obj_lookup_or_create_vma(obj, vm);
 		if (IS_ERR(vma)) {
-			/* XXX: We don't need an error path fro vma because if
-			 * the vma was created just for this execbuf, object
-			 * unreference should kill it off.*/
 			DRM_DEBUG("Failed to lookup VMA\n");
 			ret = PTR_ERR(vma);
 			goto out;
