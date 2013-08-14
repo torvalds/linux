@@ -21,6 +21,15 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 
+/*
+ * Please note when changing the tuning values:
+ * If (MAX_INTERESTING-1) * RESOLUTION > UINT_MAX, the result of
+ * a scaling operation multiplication may overflow on 32 bit platforms.
+ * In that case, #define RESOLUTION as ULL to get 64 bit result:
+ * #define RESOLUTION 1024ULL
+ *
+ * The default values do not overflow.
+ */
 #define BUCKETS 12
 #define INTERVALS 8
 #define RESOLUTION 1024
