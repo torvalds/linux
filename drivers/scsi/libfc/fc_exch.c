@@ -360,9 +360,10 @@ static inline void fc_exch_timer_set_locked(struct fc_exch *ep,
 
 	FC_EXCH_DBG(ep, "Exchange timer armed : %d msecs\n", timer_msec);
 
-	if (queue_delayed_work(fc_exch_workqueue, &ep->timeout_work,
-			       msecs_to_jiffies(timer_msec)))
-		fc_exch_hold(ep);		/* hold for timer */
+	fc_exch_hold(ep);		/* hold for timer */
+	if (!queue_delayed_work(fc_exch_workqueue, &ep->timeout_work,
+				msecs_to_jiffies(timer_msec)))
+		fc_exch_release(ep);
 }
 
 /**
