@@ -622,20 +622,17 @@
 		interrupts = <0 94 0>;
 	};
 
-	dp-controller {
-		compatible = "samsung,exynos5-dp";
-		reg = <0x145b0000 0x1000>;
-		interrupts = <10 3>;
-		interrupt-parent = <&combiner>;
+	dp_phy: video-phy@10040720 {
+		compatible = "samsung,exynos5250-dp-video-phy";
+		reg = <0x10040720 4>;
+		#phy-cells = <0>;
+	};
+
+	dp-controller@145B0000 {
 		clocks = <&clock 342>;
 		clock-names = "dp";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		dptx-phy {
-			reg = <0x10040720>;
-			samsung,enable-mask = <1>;
-		};
+		phys = <&dp_phy>;
+		phy-names = "dp";
 	};
 
 	fimd@14400000 {

@@ -117,4 +117,14 @@
 		interrupts = <18 4>, <18 5>, <18 6>;
 		status = "disabled";
 	};
+
+	dp-controller@145B0000 {
+		compatible = "samsung,exynos5-dp";
+		reg = <0x145B0000 0x1000>;
+		interrupts = <10 3>;
+		interrupt-parent = <&combiner>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
 };

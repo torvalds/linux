@@ -250,7 +250,7 @@
 		samsung,vbus-gpio = <&gpx2 6 0>;
 	};
 
-	dp-controller {
+	dp-controller@145B0000 {
 		samsung,color-space = <0>;
 		samsung,dynamic-range = <0>;
 		samsung,ycbcr-coeff = <0>;
@@ -260,6 +260,7 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&dp_hpd>;
+		status = "okay";
 	};
 
 	fimd@14400000 {
