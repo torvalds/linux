@@ -568,6 +568,13 @@ struct i915_vma {
 	/** This vma's place in the batchbuffer or on the eviction list */
 	struct list_head exec_list;
 
+	/**
+	 * Used for performing relocations during execbuffer insertion.
+	 */
+	struct hlist_node exec_node;
+	unsigned long exec_handle;
+	struct drm_i915_gem_exec_object2 *exec_entry;
+
 };
 
 struct i915_ctx_hang_stats {
@@ -1398,8 +1405,6 @@ struct drm_i915_gem_object {
 	struct list_head ring_list;
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
-	/** This object's place in the batchbuffer or on the eviction list */
-	struct list_head exec_list;
 
 	/**
 	 * This is set if the object is on the active lists (has pending
@@ -1484,13 +1489,6 @@ struct drm_i915_gem_object {
 	/* prime dma-buf support */
 	void *dma_buf_vmapping;
 	int vmapping_count;
-
-	/**
-	 * Used for performing relocations during execbuffer insertion.
-	 */
-	struct hlist_node exec_node;
-	unsigned long exec_handle;
-	struct drm_i915_gem_exec_object2 *exec_entry;
 
 	struct intel_ring_buffer *ring;
 
