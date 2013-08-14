@@ -855,8 +855,10 @@ static void ad9389b_edid_handler(struct work_struct *work)
 		 * (DVI connectors are particularly prone to this problem). */
 		if (state->edid.read_retries) {
 			state->edid.read_retries--;
-			/* EDID read failed, trigger a retry */
-			ad9389b_wr(sd, 0xc9, 0xf);
+			v4l2_dbg(1, debug, sd, "%s: edid read failed\n", __func__);
+			state->have_monitor = false;
+			ad9389b_s_power(sd, false);
+			ad9389b_s_power(sd, true);
 			queue_delayed_work(state->work_queue,
 					&state->edid_handler, EDID_DELAY);
 			return;
@@ -1019,7 +1021,6 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	segment = ad9389b_rd(sd, 0xc4);
 	if (segment >= EDID_MAX_SEGM) {
 		v4l2_err(sd, "edid segment number too big\n");
-		state->have_monitor = false;
 		return false;
 	}
 	v4l2_dbg(1, debug, sd, "%s: got segment %d\n", __func__, segment);
