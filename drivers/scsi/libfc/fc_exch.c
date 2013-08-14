@@ -303,10 +303,7 @@ static void fc_exch_setup_hdr(struct fc_exch *ep, struct fc_frame *fp,
 		fr_eof(fp) = FC_EOF_N;
 	}
 
-	/*
-	 * Initialize remainig fh fields
-	 * from fc_fill_fc_hdr
-	 */
+	/* Initialize remaining fh fields from fc_fill_fc_hdr */
 	fh->fh_ox_id = htons(ep->oxid);
 	fh->fh_rx_id = htons(ep->rxid);
 	fh->fh_seq_id = ep->seq.id;

@@ -516,7 +516,7 @@ static void fc_lport_recv_rnid_req(struct fc_lport *lport,
  * @lport: The local port receiving the LOGO
  * @fp:	   The LOGO request frame
  *
- * Locking Note: The lport lock is exected to be held before calling
+ * Locking Note: The lport lock is expected to be held before calling
  * this function.
  */
 static void fc_lport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
