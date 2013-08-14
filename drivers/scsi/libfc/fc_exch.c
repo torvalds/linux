@@ -1307,9 +1307,16 @@ static void fc_exch_recv_abts(struct fc_exch *ep, struct fc_frame *rx_fp)
 
 	if (!ep)
 		goto reject;
+
+	fp = fc_frame_alloc(ep->lp, sizeof(*ap));
+	if (!fp)
+		goto free;
+
 	spin_lock_bh(&ep->ex_lock);
 	if (ep->esb_stat & ESB_ST_COMPLETE) {
 		spin_unlock_bh(&ep->ex_lock);
+
+		fc_frame_free(fp);
 		goto reject;
 	}
 	if (!(ep->esb_stat & ESB_ST_REC_QUAL)) {
@@ -1317,12 +1324,6 @@ static void fc_exch_recv_abts(struct fc_exch *ep, struct fc_frame *rx_fp)
 		fc_exch_hold(ep);		/* hold for REC_QUAL */
 	}
 	fc_exch_timer_set_locked(ep, ep->r_a_tov);
-
-	fp = fc_frame_alloc(ep->lp, sizeof(*ap));
-	if (!fp) {
-		spin_unlock_bh(&ep->ex_lock);
-		goto free;
-	}
 	fh = fc_frame_header_get(fp);
 	ap = fc_frame_payload_get(fp, sizeof(*ap));
 	memset(ap, 0, sizeof(*ap));
@@ -1338,13 +1339,14 @@ static void fc_exch_recv_abts(struct fc_exch *ep, struct fc_frame *rx_fp)
 	fc_seq_send_last(sp, fp, FC_RCTL_BA_ACC, FC_TYPE_BLS);
 	ep->esb_stat |= ESB_ST_ABNORMAL;
 	spin_unlock_bh(&ep->ex_lock);
+
+free:
 	fc_frame_free(rx_fp);
 	return;
 
 reject:
 	fc_exch_send_ba_rjt(rx_fp, FC_BA_RJT_UNABLE, FC_BA_RJT_INV_XID);
-free:
-	fc_frame_free(rx_fp);
+	goto free;
 }
 
 /**
