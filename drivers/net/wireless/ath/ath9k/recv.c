@@ -803,8 +803,6 @@ static bool ath9k_rx_accept(struct ath_common *common,
 			rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
 			mic_error = false;
 		}
-		if (rx_stats->rs_status & ATH9K_RXERR_PHY)
-			return false;
 
 		if ((rx_stats->rs_status & ATH9K_RXERR_DECRYPT) ||
 		    (!is_mc && (rx_stats->rs_status & ATH9K_RXERR_KEYMISS))) {
@@ -1088,6 +1086,18 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	ath9k_process_tsf(rx_stats, rx_status, tsf);
 
 	/*
+	 * Process PHY errors and return so that the packet
+	 * can be dropped.
+	 */
+	if (rx_stats->rs_status & ATH9K_RXERR_PHY) {
+		ath9k_dfs_process_phyerr(sc, hdr, rx_stats, rx_status->mactime);
+		if (ath_process_fft(sc, hdr, rx_stats, rx_status->mactime))
+			RX_STAT_INC(rx_spectral);
+
+		return -EINVAL;
+	}
+
+	/*
 	 * everything but the rate is checked here, the rate check is done
 	 * separately to avoid doing two lookups for a rate for each frame.
 	 */
@@ -1264,15 +1274,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		rxs = IEEE80211_SKB_RXCB(hdr_skb);
 		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
-
-		if (rs.rs_status & ATH9K_RXERR_PHY) {
-			ath9k_dfs_process_phyerr(sc, hdr, &rs, rxs->mactime);
-
-			if (ath_process_fft(sc, hdr, &rs, rxs->mactime)) {
-				RX_STAT_INC(rx_spectral);
-				goto requeue_drop_frag;
-			}
-		}
 
 		retval = ath9k_rx_skb_preprocess(sc, hdr, &rs, rxs,
 						 &decrypt_error, tsf);
