@@ -339,7 +339,7 @@ static int __init usb3503_init(void)
 
 	return 0;
 }
-module_init(usb3503_init);
+late_initcall(usb3503_init);
 
 static void __exit usb3503_exit(void)
 {
