@@ -473,7 +473,9 @@
 
 		nvidia,audio-routing =
 			"Headphones", "HPOR",
-			"Headphones", "HPOL";
+			"Headphones", "HPOL",
+			"Mic Jack", "MICBIAS1",
+			"IN2P", "Mic Jack";
 
 		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,audio-codec = <&rt5640>;
