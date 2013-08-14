@@ -1791,7 +1791,7 @@ out:
  * set the private field for a given byte offset in the tree.  If there isn't
  * an extent_state there already, this does nothing.
  */
-int set_state_private(struct extent_io_tree *tree, u64 start, u64 private)
+static int set_state_private(struct extent_io_tree *tree, u64 start, u64 private)
 {
 	struct rb_node *node;
 	struct extent_state *state;

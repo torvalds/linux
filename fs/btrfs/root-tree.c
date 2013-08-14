@@ -29,8 +29,8 @@
  * generation numbers as then we know the root was once mounted with an older
  * kernel that was not aware of the root item structure change.
  */
-void btrfs_read_root_item(struct extent_buffer *eb, int slot,
-			  struct btrfs_root_item *item)
+static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
+				struct btrfs_root_item *item)
 {
 	uuid_le uuid;
 	int len;
