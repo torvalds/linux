@@ -38,21 +38,24 @@
 
 #define SUNXI_MUSB_DRIVER_NAME "sunxi_musb"
 
-struct sw_hcd_io {
+struct sunxi_musb_clock {
 	struct clk	*sie_clk;		/* SIE clock handle	*/
 	struct clk	*phy_clk;		/* PHY gate		*/
 	struct clk	*phy0_clk;		/* PHY reset		*/
+};
 
+struct sunxi_musb_gpio {
 	unsigned int	Drv_vbus_Handle;
 	user_gpio_set_t	drv_vbus_gpio_set;
-	int		vbus_on;
 };
 
 struct sunxi_musb_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
-	struct sw_hcd_io	io;
+	struct sunxi_musb_clock	clk;
+	struct sunxi_musb_gpio	gpio;
 
+	int vbus_on;
 	int exiting;
 };
 
@@ -393,7 +396,7 @@ static void UsbPhyInit(__iomem void *base, u32 usbc_no)
 static s32 usb_clock_init(struct sunxi_musb_glue *glue)
 {
 	int err = 0;
-	struct sw_hcd_io *sw_hcd_io = &glue->io;
+	struct sunxi_musb_clock *sw_hcd_io = &glue->clk;
 
 	pr_dbg("%s():\n", __func__);
 
@@ -445,7 +448,7 @@ failed:
 
 static s32 usb_clock_exit(struct sunxi_musb_glue *glue)
 {
-	struct sw_hcd_io *sw_hcd_io = &glue->io;
+	struct sunxi_musb_clock *sw_hcd_io = &glue->clk;
 
 	pr_dbg("%s():\n", __func__);
 
@@ -469,7 +472,7 @@ static s32 usb_clock_exit(struct sunxi_musb_glue *glue)
 
 static s32 open_usb_clock(struct sunxi_musb_glue *glue)
 {
-	struct sw_hcd_io *sw_hcd_io = &glue->io;
+	struct sunxi_musb_clock *sw_hcd_io = &glue->clk;
 	int ret;
 
 	pr_dbg("%s():\n", __func__);
@@ -502,7 +505,7 @@ static s32 open_usb_clock(struct sunxi_musb_glue *glue)
 
 static s32 close_usb_clock(struct sunxi_musb_glue *glue)
 {
-	struct sw_hcd_io *sw_hcd_io = &glue->io;
+	struct sunxi_musb_clock *sw_hcd_io = &glue->clk;
 
 	pr_dbg("%s():\n", __func__);
 
@@ -516,12 +519,12 @@ static s32 close_usb_clock(struct sunxi_musb_glue *glue)
 
 static s32 pin_init(struct sunxi_musb_glue *glue)
 {
-	struct sw_hcd_io *sw_hcd_io = &glue->io;
+	struct sunxi_musb_gpio *sw_hcd_io = &glue->gpio;
 	s32 ret = 0;
 
 	pr_dbg("%s():\n", __func__);
 
-	sw_hcd_io->vbus_on = 0;
+	glue->vbus_on = 0;
 
 	/* request gpio */
 	ret = script_parser_fetch("usbc0", "usb_drv_vbus_gpio",
@@ -572,7 +575,7 @@ static s32 pin_init(struct sunxi_musb_glue *glue)
 
 static s32 pin_exit(struct sunxi_musb_glue *glue)
 {
-	struct sw_hcd_io *sw_hcd_io = &glue->io;
+	struct sunxi_musb_gpio *sw_hcd_io = &glue->gpio;
 
 	pr_dbg("%s():\n", __func__);
 
@@ -589,7 +592,7 @@ static s32 pin_exit(struct sunxi_musb_glue *glue)
 	}
 
 	sw_hcd_io->Drv_vbus_Handle = 0;
-	sw_hcd_io->vbus_on = 0;
+	glue->vbus_on = 0;
 
 	return 0;
 }
@@ -597,7 +600,7 @@ static s32 pin_exit(struct sunxi_musb_glue *glue)
 static void sw_hcd_board_set_vbus(struct musb *musb, int is_on)
 {
 	struct sunxi_musb_glue *glue = musb_to_glue(musb);
-	struct sw_hcd_io *sw_hcd_io = &glue->io;
+	struct sunxi_musb_gpio *sw_hcd_io = &glue->gpio;
 	u32 on_off = 0;
 	u32 val;
 
@@ -614,10 +617,10 @@ static void sw_hcd_board_set_vbus(struct musb *musb, int is_on)
 		on_off = !on_off; /* inverse */
 
 	if (is_on) {
-		if (sw_hcd_io->vbus_on)
+		if (glue->vbus_on)
 			return; /* already enabled */
 
-		sw_hcd_io->vbus_on = 1;
+		glue->vbus_on = 1;
 
 		dev_info(glue->dev, "Set USB Power On\n");
 
@@ -641,10 +644,10 @@ static void sw_hcd_board_set_vbus(struct musb *musb, int is_on)
 
 		USBC_ForceVbusValid(musb->mregs, USBC_VBUS_TYPE_HIGH);
 	} else {
-		if (!sw_hcd_io->vbus_on)
+		if (!glue->vbus_on)
 			return; /* already disabled */
 
-		sw_hcd_io->vbus_on = 0;
+		glue->vbus_on = 0;
 
 		dev_info(glue->dev, "Set USB Power Off\n");
 
