@@ -954,6 +954,7 @@ struct ib_ucontext {
 	struct list_head	srq_list;
 	struct list_head	ah_list;
 	struct list_head	xrcd_list;
+	struct list_head	rule_list;
 	int			closing;
 };
 
